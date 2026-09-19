@@ -134,3 +134,4 @@ Es `RF-AC-013` un nivel más abajo y con la misma forma de arrastre: retirar un 
 | Versión | Fecha | Cambio | Responsable |
 |---|---|---|---|
 | 0.1.0 | 18-09-2026 | Redacción inicial. `RF-AC-013` un nivel abajo, sobre `CourseTreeRetirement`; con `courses:update`; no toca el curso. | Responsable técnico |
+| 0.2.0 | 19-09-2026 | **Construida** (`CourseModuleDeletionIT` (3), la carrera en `CourseTreeConcurrencyIT`) sobre `CourseTreeRetirement.retirarModulo`, el mismo recorrido que el retiro del curso. | Responsable técnico |

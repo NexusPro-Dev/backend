@@ -23,9 +23,9 @@ import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.request.MockHttpServletRequestBuilder;
 
 /**
- * El cambio de estado del curso (`RF-AC-012` · `T-05`): `CA-AC-065` a `CA-AC-069`. <b>`CA-AC-064`
- * —activar con un módulo activo— está bloqueado hasta `RF-AC-024`</b>: hoy ningún curso puede
- * activarse, y lo que esta suite fija es que el rechazo llega con todos los motivos juntos.
+ * El cambio de estado del curso (`RF-AC-012` · `T-05`): `CA-AC-064` a `CA-AC-069`. `CA-AC-064`
+ * —activar con un módulo activo— quedó bloqueado hasta `RF-AC-024` y se habilitó con el bloque 3
+ * (`CA-AC-109`).
  */
 @AutoConfigureMockMvc
 class CourseStatusIT extends IntegrationTestBase {
@@ -44,6 +44,30 @@ class CourseStatusIT extends IntegrationTestBase {
   @AfterEach
   void limpiar() {
     CourseTestSupport.limpiar(jdbc);
+  }
+
+  @Test
+  @DisplayName(
+      "`CA-AC-064` y `CA-AC-109` — un curso con descripciones y un módulo activo se activa y devuelve"
+          + " el detalle ACTIVO con updatedAt avanzado")
+  void activarConUnModuloActivo() throws Exception {
+    UUID listo = curso(jdbc, "Listo", instructor, 0, "PRINCIPIANTE", "C", "L", "INACTIVO");
+    UUID modulo = CourseTestSupport.modulo(jdbc, listo, "Módulo", 0, "ACTIVO");
+    CourseTestSupport.leccionActiva(jdbc, modulo, "Lección", 5);
+    String antes =
+        jdbc.queryForObject(
+            "SELECT updated_at::text FROM courses WHERE id = ?", String.class, listo);
+    mvc.perform(estado(listo, "ACTIVO"))
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$.status").value("ACTIVO"))
+        .andExpect(
+            jsonPath("$.offerableReason")
+                .value("El curso no tiene ninguna membresía que lo abra."));
+    assertThat(
+            jdbc.queryForObject(
+                "SELECT updated_at::text FROM courses WHERE id = ?", String.class, listo))
+        .isNotEqualTo(antes);
+    assertThat(auditadas(listo)).isEqualTo(1);
   }
 
   @Test

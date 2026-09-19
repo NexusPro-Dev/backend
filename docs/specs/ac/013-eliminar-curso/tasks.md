@@ -43,7 +43,7 @@
 
 | # | Bloqueo | Desde | Responsable | Estado |
 |---|---|---|---|---|
-| 1 | No hay módulos ni lecciones que arrastrar hasta `RF-AC-022` y `RF-AC-028`: `CA-AC-074` se escribe deshabilitado y el bloque 3 lo habilita sobre `CourseTreeRetirement` | 18-09-2026 | Responsable técnico | Abierto |
+| 1 | No hay módulos ni lecciones que arrastrar hasta `RF-AC-022` y `RF-AC-028`: `CA-AC-074` se escribe deshabilitado y el bloque 3 lo habilita sobre `CourseTreeRetirement` | 18-09-2026 | Responsable técnico | **Cerrado** el 19-09-2026: `CA-AC-074` habilitado (`CourseDeletionIT.arrastre`) sobre `CourseTreeRetirement` real |
 | 2 | «Deja de aparecer como recomendado en el aula» (`CA-AC-075`) exige `RF-AC-018` y `RF-AC-034` | 18-09-2026 | Responsable técnico | Abierto |
 
 ## 5. Definición de terminado

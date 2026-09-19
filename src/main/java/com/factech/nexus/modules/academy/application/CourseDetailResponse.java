@@ -123,7 +123,7 @@ public record CourseDetailResponse(
       boolean open,
       boolean deleted) {
 
-    static LessonSummary from(LessonRow fila) {
+    public static LessonSummary from(LessonRow fila) {
       return new LessonSummary(
           fila.id(),
           fila.type(),

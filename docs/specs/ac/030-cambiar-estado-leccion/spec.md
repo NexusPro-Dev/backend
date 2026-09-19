@@ -129,3 +129,4 @@ Es `RF-AC-024` en la hoja del árbol: la única condición de `RN-AC-009` para l
 |---|---|---|---|
 | 0.1.0 | 18-09-2026 | Redacción inicial. `RF-AC-024` en la hoja: activar exige contenido; desactivar la última no toca el módulo, y es el primer cambio de estado que mueve la duración. | Responsable técnico |
 | 0.2.0 | 18-09-2026 | **Enmienda de Art. I.7 (18-09-2026)**: `RN-AC-015` gana dos motivos por decisión del responsable del proyecto —«sin descripción» en el curso y «sin contenido» en la lección—. El caso límite de vaciar después de activar pasa a decir «deja de ofrecerse». | Responsable técnico |
+| 0.3.0 | 19-09-2026 | **Construida** (`LessonStatusIT` (4)). La condición la lanza `Lesson.activate` sin leer nada: dos sentencias y la relectura. | Responsable técnico |

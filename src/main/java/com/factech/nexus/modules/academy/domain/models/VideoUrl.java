@@ -35,11 +35,16 @@ public final class VideoUrl {
     if (recortado.isEmpty()) {
       return null;
     }
-    if (recortado.length() > LARGO_MAXIMO || !FORMA.matcher(recortado).matches()) {
+    if (!esValida(recortado)) {
       throw new ValidationException(
           codigo, mensaje(), List.of(new FieldError(campo, codigo, mensaje())));
     }
     return recortado;
+  }
+
+  /** La forma admitida, ya recortada: para quien tiene su propio mensaje, como la lección. */
+  public static boolean esValida(String recortado) {
+    return recortado.length() <= LARGO_MAXIMO && FORMA.matcher(recortado).matches();
   }
 
   public static String mensaje() {

@@ -26,8 +26,8 @@ import org.springframework.test.web.servlet.request.MockHttpServletRequestBuilde
 
 /**
  * El retiro del curso (`RF-AC-013` · `T-07`): `CA-AC-070` a `CA-AC-073` y la parte de `CA-AC-075`
- * que no es del aula. <b>`CA-AC-074` —el arrastre— lo construye el bloque 3</b>: hoy no hay módulos
- * ni lecciones que arrastrar, y {@code CourseTreeRetirement} no recorre nada.
+ * que no es del aula, y <b>el arrastre</b> (`CA-AC-074`, `CA-AC-083`, `CA-AC-092`) desde el bloque
+ * 3: módulos y lecciones vivos retirados con el mismo instante y una fila cada uno.
  */
 @AutoConfigureMockMvc
 class CourseDeletionIT extends IntegrationTestBase {
@@ -154,12 +154,82 @@ class CourseDeletionIT extends IntegrationTestBase {
 
   @Test
   @DisplayName(
-      "el retiro cuesta cuatro sentencias hoy: el curso bloqueado, el UPDATE, la baja y su secuencia")
+      "el retiro sin árbol cuesta hasta seis sentencias: el curso bloqueado, los módulos vivos, el"
+          + " UPDATE, la baja y su secuencia")
   void sentencias() throws Exception {
     estadisticas.clear();
     mvc.perform(retiro(curso, "{\"reason\":\"Ya no se dicta.\"}", UUID.randomUUID()))
         .andExpect(status().isNoContent());
-    assertThat(estadisticas.getPrepareStatementCount()).isLessThanOrEqualTo(4);
+    assertThat(estadisticas.getPrepareStatementCount()).isLessThanOrEqualTo(6);
+  }
+
+  @Test
+  @DisplayName(
+      "`CA-AC-074`, `CA-AC-083` y `CA-AC-092` — retirar el curso retira sus módulos y lecciones vivos"
+          + " con el mismo instante y una fila de auditoría cada uno, con el mismo motivo; los ya"
+          + " retirados no se tocan; la instantánea del curso lleva los module_ids")
+  void arrastre() throws Exception {
+    UUID vivo = CourseTestSupport.modulo(jdbc, curso, "Vivo", 0, "ACTIVO");
+    UUID leccionViva = CourseTestSupport.leccionActiva(jdbc, vivo, "Viva", 5);
+    UUID leccionYaRetirada = CourseTestSupport.leccionActiva(jdbc, vivo, "Ya retirada", 5);
+    jdbc.update(
+        "UPDATE lessons SET deleted_at = now() - interval '1 day' WHERE id = ?", leccionYaRetirada);
+    UUID moduloYaRetirado = CourseTestSupport.modulo(jdbc, curso, "Ya retirado", 1, "INACTIVO");
+    jdbc.update(
+        "UPDATE course_modules SET deleted_at = now() - interval '1 day' WHERE id = ?",
+        moduloYaRetirado);
+
+    mvc.perform(retiro(curso, "{\"reason\":\"Se cierra.\"}", UUID.randomUUID()))
+        .andExpect(status().isNoContent());
+
+    String instante =
+        jdbc.queryForObject(
+            "SELECT deleted_at::text FROM courses WHERE id = ?", String.class, curso);
+    assertThat(
+            jdbc.queryForObject(
+                "SELECT deleted_at::text FROM course_modules WHERE id = ?", String.class, vivo))
+        .isEqualTo(instante);
+    assertThat(
+            jdbc.queryForObject(
+                "SELECT deleted_at::text FROM lessons WHERE id = ?", String.class, leccionViva))
+        .isEqualTo(instante);
+    assertThat(
+            jdbc.queryForObject(
+                "SELECT deleted_at::text FROM course_modules WHERE id = ?",
+                String.class,
+                moduloYaRetirado))
+        .isNotEqualTo(instante);
+    assertThat(
+            jdbc.queryForObject(
+                "SELECT deleted_at::text FROM lessons WHERE id = ?",
+                String.class,
+                leccionYaRetirada))
+        .isNotEqualTo(instante);
+    assertThat(
+            jdbc.queryForObject(
+                "SELECT count(*) FROM audit_deletion_log WHERE reason = 'Se cierra.' AND entity_id IN (?, ?, ?)",
+                Integer.class,
+                curso,
+                vivo,
+                leccionViva))
+        .isEqualTo(3);
+    assertThat(
+            jdbc.queryForObject(
+                "SELECT count(*) FROM audit_deletion_log WHERE entity_id IN (?, ?)",
+                Integer.class,
+                moduloYaRetirado,
+                leccionYaRetirada))
+        .isZero();
+    assertThat(
+            jdbc.queryForObject(
+                "SELECT snapshot::text FROM audit_deletion_log WHERE entity = 'courses' AND entity_id = ?",
+                String.class,
+                curso))
+        .contains(vivo.toString())
+        .doesNotContain(moduloYaRetirado.toString());
+    mvc.perform(get("/api/v1/courses/" + curso).with(con("courses:read")))
+        .andExpect(jsonPath("$.modules[0].deleted").value(true))
+        .andExpect(jsonPath("$.modules[0].lessons[0].deleted").value(true));
   }
 
   @Test

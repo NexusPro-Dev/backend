@@ -122,3 +122,4 @@ Es `RF-AC-003` para lecciones: **devuelve también una retirada**, con su fecha 
 | Versión | Fecha | Cambio | Responsable |
 |---|---|---|---|
 | 0.1.0 | 18-09-2026 | Redacción inicial. Nace el mismo día por decisión del responsable del proyecto, cerrando `RF-AC-029` §14.2: `RF-AC-003` para lecciones, con `courses:read`, ruta anidada que afirma la pertenencia y la misma forma que las escrituras —`LessonResponse`, que gana `deletedAt` y `deletionReason` cuando los hay—; devuelve también la retirada y la arrastrada con su motivo. | Responsable técnico |
+| 0.2.0 | 19-09-2026 | **Construida** (`LessonDetailIT` (5)) el mismo bloque en que se redactó: `LessonDetailReader` gana la rama de la retirada y `LessonController` su primera ruta con `courses:read`. | Responsable técnico |

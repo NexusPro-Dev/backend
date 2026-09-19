@@ -141,15 +141,16 @@ class CourseDetailIT extends IntegrationTestBase {
 
   @Test
   @DisplayName(
-      "`CA-AC-054` — la lectura cuesta UNA sentencia hoy, y UNA MÁS con el motivo de retiro")
+      "`CA-AC-054` — la lectura cuesta DOS sentencias sin módulos —el curso y sus módulos—, UNA MÁS"
+          + " con módulos (las lecciones) y UNA MÁS con el motivo de retiro")
   void sentencias() throws Exception {
     estadisticas.clear();
     mvc.perform(detalle(activo)).andExpect(status().isOk());
-    assertThat(estadisticas.getPrepareStatementCount()).isEqualTo(1);
+    assertThat(estadisticas.getPrepareStatementCount()).isEqualTo(2);
 
     estadisticas.clear();
     mvc.perform(detalle(retirado)).andExpect(status().isOk());
-    assertThat(estadisticas.getPrepareStatementCount()).isEqualTo(2);
+    assertThat(estadisticas.getPrepareStatementCount()).isEqualTo(3);
   }
 
   @Test

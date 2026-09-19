@@ -19,13 +19,13 @@ import org.springframework.transaction.annotation.Transactional;
  * {@link CourseQueryRepository} sobre SQL nativo.
  *
  * <p><b>Un solo bloque de columnas</b> ({@link #COLUMNAS}) para el detalle y el listado, con el
- * instructor por {@code JOIN users} —tres columnas— y las cuatro cuentas como columnas más. <b>Las
- * cuentas son literales hasta sus requerimientos</b>: {@link #CUENTA_DE_MEMBRESIAS} la sustituye
- * `RF-AC-020` por la subconsulta sobre {@code course_memberships}; {@link #CUENTA_DE_MODULOS} y
- * {@link #CUENTA_DE_MODULOS_OFRECIBLES}, `RF-AC-022`, sobre {@code course_modules} vivos y sobre
- * los activos con al menos una lección ofrecible; {@link #CUENTA_DE_LECCIONES}, `RF-AC-028`, sobre
- * {@code lessons} vivas de módulos vivos. Lo mismo con las lecturas de relaciones y del árbol, que
- * hoy devuelven vacío sin consultar nada, cada una con la nota de qué sentencia la sustituye.
+ * instructor por {@code JOIN users} —tres columnas— y las cuatro cuentas como columnas más, cada
+ * una una subconsulta escalar: el número de sentencias no depende de cuántos cursos se lean.
+ * <b>{@link #CUENTA_DE_MEMBRESIAS} es un literal hasta `RF-AC-020`</b>, que la sustituye por la
+ * subconsulta sobre {@code course_memberships}; las de módulos y lecciones son reales desde el
+ * bloque 3, sobre los fragmentos de {@link JpaCourseModuleQueryRepository} que el aula reutiliza.
+ * Las lecturas de relaciones devuelven vacío sin consultar nada hasta el bloque 4, cada una con la
+ * nota de qué sentencia la sustituye; las del árbol son reales.
  */
 @Repository
 public class JpaCourseQueryRepository implements CourseQueryRepository {
@@ -36,25 +36,24 @@ public class JpaCourseQueryRepository implements CourseQueryRepository {
    */
   private static final String CUENTA_DE_MEMBRESIAS = "0";
 
-  /**
-   * `RF-AC-022` la sustituye por: {@code (SELECT count(*) FROM course_modules m WHERE m.course_id =
-   * c.id AND m.deleted_at IS NULL)}.
-   */
-  private static final String CUENTA_DE_MODULOS = "0";
+  /** Los módulos vivos del curso (`RF-AC-022`): un inactivo cuenta, un retirado no. */
+  private static final String CUENTA_DE_MODULOS =
+      "(SELECT count(*) FROM course_modules m WHERE m.course_id = c.id AND m.deleted_at IS NULL)";
 
   /**
-   * `RF-AC-022` la sustituye por la cuenta de módulos vivos y {@code ACTIVO} con al menos una
-   * lección ofrecible —activa, viva, con contenido (`RN-AC-015`)—, escrita sobre un fragmento
-   * {@code MODULO_OFRECIBLE} que el aula (`RF-AC-033`) reutiliza.
+   * Los módulos ofrecibles del curso (`RN-AC-015`): vivos, {@code ACTIVO} y con al menos una
+   * lección ofrecible, sobre el fragmento {@link JpaCourseModuleQueryRepository#MODULO_OFRECIBLE}
+   * que el aula reutiliza. Es la entrada de {@code CourseOfferability} y no la decisión.
    */
-  private static final String CUENTA_DE_MODULOS_OFRECIBLES = "0";
+  private static final String CUENTA_DE_MODULOS_OFRECIBLES =
+      "(SELECT count(*) FROM course_modules m WHERE m.course_id = c.id AND "
+          + JpaCourseModuleQueryRepository.MODULO_OFRECIBLE
+          + ")";
 
-  /**
-   * `RF-AC-028` la sustituye por: {@code (SELECT count(*) FROM lessons l JOIN course_modules m ON
-   * m.id = l.module_id AND m.deleted_at IS NULL WHERE m.course_id = c.id AND l.deleted_at IS
-   * NULL)}.
-   */
-  private static final String CUENTA_DE_LECCIONES = "0";
+  /** Las lecciones vivas de los módulos vivos del curso (`RF-AC-028`). */
+  private static final String CUENTA_DE_LECCIONES =
+      "(SELECT count(*) FROM lessons l JOIN course_modules m ON m.id = l.module_id"
+          + " AND m.deleted_at IS NULL WHERE m.course_id = c.id AND l.deleted_at IS NULL)";
 
   private static final String COLUMNAS =
       """
@@ -162,24 +161,48 @@ public class JpaCourseQueryRepository implements CourseQueryRepository {
   @Override
   @Transactional(readOnly = true)
   public List<ModuleRow> findModulesOf(UUID courseId) {
-    // `RF-AC-022`: course_modules del curso, vivos y retirados, ORDER BY
-    // display_order, id, con la cuenta de lecciones ofrecibles y la duración.
-    return List.of();
+    List<Tuple> filas =
+        em.createNativeQuery(
+                "SELECT "
+                    + JpaCourseModuleQueryRepository.COLUMNAS_DEL_MODULO
+                    + " FROM course_modules m WHERE m.course_id = :curso"
+                    + " ORDER BY m.display_order, m.id",
+                Tuple.class)
+            .setParameter("curso", courseId)
+            .getResultList();
+    return filas.stream().map(JpaCourseModuleQueryRepository::modulo).toList();
   }
 
   @Override
   @Transactional(readOnly = true)
   public List<LessonRow> findLessonsOfModules(List<UUID> moduleIds) {
-    // `RF-AC-028`: lessons WHERE module_id IN (:ids) ORDER BY module_id,
-    // display_order, id, con content IS NOT NULL como has_content.
-    return List.of();
+    if (moduleIds.isEmpty()) {
+      return List.of();
+    }
+    List<Tuple> filas =
+        em.createNativeQuery(
+                "SELECT "
+                    + JpaLessonQueryRepository.COLUMNAS_DEL_RESUMEN
+                    + " FROM lessons l WHERE l.module_id IN (:modulos)"
+                    + " ORDER BY l.module_id, l.display_order, l.id",
+                Tuple.class)
+            .setParameter("modulos", moduleIds)
+            .getResultList();
+    return filas.stream().map(JpaLessonQueryRepository::resumen).toList();
   }
 
   @Override
   @Transactional(readOnly = true)
   public long countActiveModulesOf(UUID courseId) {
-    // `RF-AC-022`: count(*) de course_modules vivos y ACTIVO del curso.
-    return 0;
+    // La condición de activar el curso (`RN-AC-009`): un módulo ACTIVO vivo,
+    // con o sin lección — la lección la exigió el módulo al activarse.
+    return ((Number)
+            em.createNativeQuery(
+                    "SELECT count(*) FROM course_modules m WHERE m.course_id = :curso"
+                        + " AND m.deleted_at IS NULL AND m.status = 'ACTIVO'")
+                .setParameter("curso", courseId)
+                .getSingleResult())
+        .longValue();
   }
 
   private static String predicado(ListCoursesRequest filtros) {

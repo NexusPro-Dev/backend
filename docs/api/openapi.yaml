@@ -21,6 +21,29 @@ servers:
 security:
 - bearerAuth: []
 tags:
+- name: Países
+  description: Catálogo de países. Inmutable salvo su estado.
+- name: Comisiones
+  description: "Tasas de comisión personalizadas: la excepción por persona."
+- name: Cuentas de broker
+  description: "Todas las cuentas de broker del sistema, para quien administra. Las\
+    \ del propio equipo se consultan sin permiso en GET /api/v1/users/me/team/broker-accounts."
+- name: Categorías de cursos
+  description: Los cajones del catálogo de cursos.
+- name: Usuarios
+  description: Alta y administración de las personas del sistema.
+- name: Cursos
+  description: "Lo que la membresía abre: los cursos de la academia."
+- name: Tasas de cambio
+  description: A cuánto se cambia una moneda por otra
+- name: Hotlinks
+  description: El enlace público que un vendedor reparte
+- name: Métodos de pago
+  description: "Con qué se puede pagar, y en qué países no vale cada medio."
+- name: Comisiones
+  description: Resolución de la comisión efectiva de una persona sobre un producto.
+- name: Sesión
+  description: "Inicio, renovación y cierre de sesión."
 - name: Tipos de documento
   description: "Catálogo de documentos de identidad admitidos. Solo lectura: su contenido\
     \ es la validación de mayoría de edad (RN-SP-036)."
@@ -34,44 +57,26 @@ tags:
 - name: Auditoría
   description: "Los cuatro registros de auditoría del sistema. Solo lectura, y cada\
     \ uno con su permiso."
-- name: Países
-  description: Catálogo de países. Inmutable salvo su estado.
-- name: Comisiones
-  description: "Tasas de comisión personalizadas: la excepción por persona."
-- name: Cuentas de broker
-  description: "Todas las cuentas de broker del sistema, para quien administra. Las\
-    \ del propio equipo se consultan sin permiso en GET /api/v1/users/me/team/broker-accounts."
 - name: Brokers
   description: "Catálogo de los brokers con los que opera la plataforma. Solo lectura:\
     \ se puebla por migración (RN-SP-039)."
 - name: Comisiones
   description: "Tasas de comisión por rol: qué paga cada producto."
-- name: Categorías de cursos
-  description: Los cajones del catálogo de cursos.
 - name: Membresías
   description: Cadena lineal de niveles de consumidor. Inmutable salvo el reordenamiento.
-- name: Usuarios
-  description: Alta y administración de las personas del sistema.
+- name: Módulos de curso
+  description: "Las partes de un curso: agrupan lecciones y se ordenan dentro de é\
+    l."
 - name: Permisos
   description: Catálogo de permisos del sistema. Solo lectura.
-- name: Cursos
-  description: "Lo que la membresía abre: los cursos de la academia."
-- name: Tasas de cambio
-  description: A cuánto se cambia una moneda por otra
-- name: Hotlinks
-  description: El enlace público que un vendedor reparte
-- name: Métodos de pago
-  description: "Con qué se puede pagar, y en qué países no vale cada medio."
 - name: Reseñas
   description: Lo que quien compra dice de un producto.
 - name: Paquetes
   description: "Paquetes de productos: varios productos con su descuento."
-- name: Comisiones
-  description: Resolución de la comisión efectiva de una persona sobre un producto.
+- name: Lecciones
+  description: "Lo que se estudia: un video o un texto dentro de un módulo."
 - name: Monedas
   description: Catálogo de monedas. Inmutable por API salvo su estado.
-- name: Sesión
-  description: "Inicio, renovación y cierre de sesión."
 - name: Registro por enlace
   description: Alta de un cliente desde el enlace de un vendedor. Público (RF-SP-045).
 paths:
@@ -3010,6 +3015,271 @@ paths:
         "409":
           description: El curso ya está retirado (`EX-002`)
       x-required-permission: courses:delete
+  /api/v1/courses/{courseId}/modules:
+    post:
+      tags:
+      - Módulos de curso
+      summary: Registrar un módulo en un curso
+      description: |
+        **Permiso requerido:** `courses:update`. Sin él, `403` (`AUTH-002`).
+
+        Registra una parte del curso con **título y orden**, obligatorios, y descripción
+        corta, descripción larga y video de presentación, opcionales. **Nace `INACTIVO`,
+        vacío y dentro del curso de la ruta**, del que no se mueve: enviar `courseId`,
+        `status`, `lessons` o `coverImageUrl` responde `400`.
+
+        **El título es único entre los módulos vivos del mismo curso**, sin mayúsculas
+        ni acentos; el mismo título en otro curso es legítimo, y un retirado libera el
+        suyo. El curso tiene que estar **vivo**, en cualquier estado — un curso activo
+        admite el módulo igual, que no cambia lo que el aula enseña hasta activarse.
+
+        La respuesta es **el módulo**, no el curso: `courseId`, `coverImageUrl`
+        presente y nulo, `lessons` vacío, cero minutos y `offerable: false` con
+        `offerableReason` «inactivo». Exige `courses:update`.
+      operationId: register_3
+      parameters:
+      - name: courseId
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/RegisterCourseModuleRequest"
+        required: true
+      responses:
+        "201":
+          description: "Módulo registrado, inactivo y vacío."
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/CourseModuleDetailResponse"
+        "400":
+          description: "Datos inválidos, juntos (`VAL-001` a `VAL-005`), o un campo\
+            \ no admitido (`VAL-006`)"
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/CourseModuleDetailResponse"
+        "401":
+          description: Token ausente o inválido (`AUTH-001`)
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/CourseModuleDetailResponse"
+        "403":
+          description: Autenticado sin el permiso `courses:update` (`AUTH-002`)
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/CourseModuleDetailResponse"
+        "404":
+          description: El curso no existe o está retirado (`EX-001`)
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/CourseModuleDetailResponse"
+        "409":
+          description: Título ya en uso por un módulo vivo del curso (`EX-002`)
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/CourseModuleDetailResponse"
+      x-required-permission: courses:update
+  /api/v1/courses/{courseId}/modules/{moduleId}/lessons:
+    post:
+      tags:
+      - Lecciones
+      summary: Registrar una lección en un módulo
+      description: |
+        **Permiso requerido:** `courses:update`. Sin él, `403` (`AUTH-002`).
+
+        Registra una lección con **tipo (`VIDEO` o `TEXTO`), título, duración en
+        minutos enteros y orden**, obligatorios, y descripción, contenido y `open`
+        opcionales. **El tipo manda sobre el contenido**: en un `VIDEO` es una URL
+        absoluta http o https; en un `TEXTO` es Markdown que **el backend guarda y
+        devuelve sin interpretar ni sanear** — quien lo pinta es el frontend, y tiene
+        que hacerlo con un conversor que no ejecute lo que encuentre.
+
+        **Nace `INACTIVA`**, con `open` falsa si no vino, y **el contenido es opcional al
+        registrar y obligatorio para activar**. El título es único entre las lecciones
+        vivas del mismo módulo. El módulo tiene que estar **vivo y ser del curso de la
+        ruta**; enviar `status`, `moduleId` o `courseId` es `400`. Los errores de forma
+        llegan **juntos**, incluido el del contenido de un video.
+
+        **La auditoría lleva la longitud del contenido y no el texto.** La respuesta es
+        la lección entera, contenido incluido. Exige `courses:update`.
+      operationId: register_4
+      parameters:
+      - name: courseId
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      - name: moduleId
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/RegisterLessonRequest"
+        required: true
+      responses:
+        "201":
+          description: "Lección registrada, inactiva."
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/LessonResponse"
+        "400":
+          description: "Datos inválidos, juntos (`VAL-001` a `VAL-007`), o un campo\
+            \ no admitido (`VAL-008`)"
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/LessonResponse"
+        "401":
+          description: Token ausente o inválido (`AUTH-001`)
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/LessonResponse"
+        "403":
+          description: Autenticado sin el permiso `courses:update` (`AUTH-002`)
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/LessonResponse"
+        "404":
+          description: "El módulo no existe, está retirado o no es de ese curso (`EX-001`)"
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/LessonResponse"
+        "409":
+          description: Título ya en uso por una lección viva del módulo (`EX-002`)
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/LessonResponse"
+      x-required-permission: courses:update
+  /api/v1/courses/{courseId}/modules/{moduleId}/lessons/{lessonId}/deletion:
+    post:
+      tags:
+      - Lecciones
+      summary: Retirar una lección
+      description: |
+        **Permiso requerido:** `courses:update`. Sin él, `403` (`AUTH-002`).
+
+        Baja **lógica y con motivo**: la fila se queda con `deletedAt` puesto y nada
+        más cambiado —ni el estado, ni el contenido, ni `open`—. **Es la única
+        instantánea de auditoría que lleva el contenido entero**: el registro de
+        eliminación es donde el texto queda para quien lo quiera recuperar.
+
+        **No arrastra nada** y **el módulo y el curso no cambian**: retirar la última
+        lección activa deja el módulo `ACTIVO` y no ofrecible. Su título queda libre en
+        el módulo. Retirar una ya retirada responde `409`, distinto del `404` de la
+        inexistente o de otro módulo. Exige `courses:update`.
+      operationId: retirar_4
+      parameters:
+      - name: courseId
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      - name: moduleId
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      - name: lessonId
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/DeleteLessonRequest"
+      responses:
+        "204":
+          description: Lección retirada.
+        "400":
+          description: "Identificador inválido o motivo ausente, vacío o largo (`VAL-001`\
+            \ a `VAL-003`)"
+        "401":
+          description: Token ausente o inválido (`AUTH-001`)
+        "403":
+          description: Autenticado sin el permiso `courses:update` (`AUTH-002`)
+        "404":
+          description: La lección no existe o no es de ese módulo y curso (`EX-001`)
+        "409":
+          description: La lección ya está retirada (`EX-002`)
+      x-required-permission: courses:update
+  /api/v1/courses/{courseId}/modules/{moduleId}/deletion:
+    post:
+      tags:
+      - Módulos de curso
+      summary: Retirar un módulo
+      description: |
+        **Permiso requerido:** `courses:update`. Sin él, `403` (`AUTH-002`).
+
+        Baja **lógica y con motivo**: la fila se queda con `deletedAt` puesto y nada
+        más cambiado —ni el estado—, y **arrastra sus lecciones vivas** con el mismo
+        instante, el mismo motivo y una fila de auditoría por cada una. **`POST` y no
+        `DELETE`** porque el cuerpo lleva el motivo, obligatorio.
+
+        **El curso no cambia**: retirar su último módulo activo lo deja `ACTIVO` y
+        no ofrecible. El módulo retirado y sus lecciones siguen en el detalle del curso,
+        marcados; su título queda libre en el curso. Retirar uno ya retirado responde
+        `409`, distinto del `404` del inexistente o del de otro curso. Exige
+        `courses:update` — el módulo es parte del curso, y no hace falta `courses:delete`.
+      operationId: retirar_5
+      parameters:
+      - name: courseId
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      - name: moduleId
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/DeleteCourseModuleRequest"
+      responses:
+        "204":
+          description: "Módulo retirado, con sus lecciones."
+        "400":
+          description: "Identificador inválido o motivo ausente, vacío o largo (`VAL-001`\
+            \ a `VAL-003`)"
+        "401":
+          description: Token ausente o inválido (`AUTH-001`)
+        "403":
+          description: Autenticado sin el permiso `courses:update` (`AUTH-002`)
+        "404":
+          description: El módulo no existe o no es de ese curso (`EX-001`)
+        "409":
+          description: El módulo ya está retirado (`EX-002`)
+      x-required-permission: courses:update
   /api/v1/course-categories:
     get:
       tags:
@@ -3114,7 +3384,7 @@ paths:
         La respuesta es la misma forma que el detalle: `courseCount` en cero,
         `courses` vacío y `coverImageUrl` presente y nulo. Exige
         `course-categories:create`; **los `courses:` no habilitan**.
-      operationId: register_3
+      operationId: register_5
       requestBody:
         content:
           application/json:
@@ -3178,7 +3448,7 @@ paths:
         `includeDeleted=true`, y su detalle trae el motivo. Retirar una ya retirada
         responde `409`, distinto del `404` de la inexistente: quien retira dos veces
         merece saber que la primera funcionó. Exige `course-categories:delete`.
-      operationId: retirar_4
+      operationId: retirar_6
       parameters:
       - name: id
         in: path
@@ -3423,7 +3693,7 @@ paths:
         sostenga, y esa condición queda solo para la personalizada.
 
         **No es idempotente**: retirar dos veces devuelve `409`.
-      operationId: retirar_5
+      operationId: retirar_7
       parameters:
       - name: id
         in: path
@@ -5724,6 +5994,392 @@ paths:
               schema:
                 $ref: "#/components/schemas/CourseDetailResponse"
       x-required-permission: courses:update
+  /api/v1/courses/{courseId}/modules/{moduleId}:
+    patch:
+      tags:
+      - Módulos de curso
+      summary: Editar un módulo
+      description: |
+        **Permiso requerido:** `courses:update`. Sin él, `403` (`AUTH-002`).
+
+        Corrección **parcial**: solo lo que viene cambia. Admite `title`,
+        `shortDescription`, `longDescription`, `presentationVideoUrl` y `displayOrder`,
+        y exige al menos uno. **Ausente y nulo no significan lo mismo**: solo las
+        descripciones y el video admiten `null` —también en un módulo activo, que sigue
+        activo—; el nulo en título y orden responde `400`, junto con los demás errores.
+
+        El título nuevo no puede ser el de **otro** módulo vivo del mismo curso. **El
+        módulo no cambia de curso**: `courseId` en el cuerpo es `400`, y un módulo de
+        otro curso responde `404`, como el retirado. Un cuerpo sin cambios de valor
+        responde `200` sin auditar. Exige `courses:update`.
+      operationId: corregir_4
+      parameters:
+      - name: courseId
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      - name: moduleId
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UpdateCourseModuleRequest"
+        required: true
+      responses:
+        "200":
+          description: El módulo corregido.
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/CourseModuleDetailResponse"
+        "400":
+          description: "Identificador inválido, campos que no admiten vaciarse, cuerpo\
+            \ vacío o campo no admitido (`VAL-001` a `VAL-006`)"
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/CourseModuleDetailResponse"
+        "401":
+          description: Token ausente o inválido (`AUTH-001`)
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/CourseModuleDetailResponse"
+        "403":
+          description: Autenticado sin el permiso `courses:update` (`AUTH-002`)
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/CourseModuleDetailResponse"
+        "404":
+          description: "El módulo no existe, está retirado o no es de ese curso (`EX-002`)"
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/CourseModuleDetailResponse"
+        "409":
+          description: Título ya en uso por otro módulo vivo del curso (`EX-001`)
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/CourseModuleDetailResponse"
+      x-required-permission: courses:update
+  /api/v1/courses/{courseId}/modules/{moduleId}/status:
+    patch:
+      tags:
+      - Módulos de curso
+      summary: Cambiar el estado de un módulo
+      description: |
+        **Permiso requerido:** `courses:update`. Sin él, `403` (`AUTH-002`).
+
+        `ACTIVO` publica; `INACTIVO` despublica. **Activar exige una lección activa** y
+        nada más —ni descripciones ni portada—. **Desactivar no exige nada**, y
+        desactivar el último módulo activo de un curso activo **no toca el curso**: queda
+        `ACTIVO` y deja de ofrecerse, y su detalle lo dice.
+
+        Con un módulo activo, **el curso puede activarse** (`PATCH /courses/{id}/status`).
+        Pedir el estado que ya tiene responde `200` sin escribir. Un módulo retirado, o
+        de otro curso, responde `404`. Exige `courses:update`.
+      operationId: cambiarEstado_6
+      parameters:
+      - name: courseId
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      - name: moduleId
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ChangeCourseModuleStatusRequest"
+        required: true
+      responses:
+        "200":
+          description: El módulo con su estado.
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/CourseModuleDetailResponse"
+        "400":
+          description: "Identificador inválido o estado ausente o fuera de dominio\
+            \ (`VAL-001`, `VAL-002`)"
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/CourseModuleDetailResponse"
+        "401":
+          description: Token ausente o inválido (`AUTH-001`)
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/CourseModuleDetailResponse"
+        "403":
+          description: Autenticado sin el permiso `courses:update` (`AUTH-002`)
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/CourseModuleDetailResponse"
+        "404":
+          description: "El módulo no existe, está retirado o no es de ese curso (`EX-001`)"
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/CourseModuleDetailResponse"
+        "409":
+          description: "No puede activarse: sin lección activa (`EX-002`)"
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/CourseModuleDetailResponse"
+      x-required-permission: courses:update
+  /api/v1/courses/{courseId}/modules/{moduleId}/lessons/{lessonId}:
+    get:
+      tags:
+      - Lecciones
+      summary: Consultar el detalle de una lección
+      description: |
+        **Permiso requerido:** `courses:read`. Sin él, `403` (`AUTH-002`).
+
+        La lección entera **con su contenido**, para administración: es la lectura que
+        permite ver lo que se escribió sin editarlo, porque el detalle del curso trae el
+        árbol sin el contenido a propósito. **Se devuelve también una retirada**, con
+        `deletedAt` y `deletionReason` —también la que arrastró el retiro de su módulo o
+        de su curso—: es la lectura de administración y devuelve todo, incluida una
+        lección activa a la que se le vació el contenido.
+
+        La ruta afirma la pertenencia: una lección de otro módulo, o un módulo de otro
+        curso, responde `404`. Es la misma forma que devuelven las escrituras. Exige
+        `courses:read`; `courses:learn` no habilita — el aula la lee por otra ruta.
+      operationId: detalle_5
+      parameters:
+      - name: courseId
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      - name: moduleId
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      - name: lessonId
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      responses:
+        "200":
+          description: La lección con su contenido.
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/LessonResponse"
+        "400":
+          description: Identificador inválido (`VAL-001`)
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/LessonResponse"
+        "401":
+          description: Token ausente o inválido (`AUTH-001`)
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/LessonResponse"
+        "403":
+          description: Autenticado sin el permiso `courses:read` (`AUTH-002`)
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/LessonResponse"
+        "404":
+          description: La lección no existe en esa ruta (`EX-001`)
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/LessonResponse"
+      x-required-permission: courses:read
+    patch:
+      tags:
+      - Lecciones
+      summary: Editar una lección
+      description: |
+        **Permiso requerido:** `courses:update`. Sin él, `403` (`AUTH-002`).
+
+        Corrección **parcial** sobre `type`, `title`, `description`, `content`,
+        `durationMinutes`, `displayOrder` y `open`; exige al menos uno. Solo la
+        descripción y el contenido admiten `null` —**también en una lección activa, que
+        sigue activa y deja de ofrecerse**—; el nulo en los otros cinco es `400`.
+
+        **Cambiar el tipo exige que el contenido resultante case con él**: pasar a
+        `VIDEO` con un texto guardado y sin URL en la petición responde `400` **sin
+        aplicar nada**; pasar a `TEXTO` con una URL guardada se admite. **El contenido se
+        audita como longitud y no como texto.** La lección no cambia de módulo: `moduleId`,
+        `courseId` y `status` en el cuerpo son `400`. Exige `courses:update`.
+      operationId: corregir_5
+      parameters:
+      - name: courseId
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      - name: moduleId
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      - name: lessonId
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UpdateLessonRequest"
+        required: true
+      responses:
+        "200":
+          description: "La lección corregida, con su contenido."
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/LessonResponse"
+        "400":
+          description: "Identificador inválido, campos que no admiten vaciarse, la\
+            \ pareja tipo–contenido que no casa, cuerpo vacío o campo no admitido\
+            \ (`VAL-001` a `VAL-006`)"
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/LessonResponse"
+        "401":
+          description: Token ausente o inválido (`AUTH-001`)
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/LessonResponse"
+        "403":
+          description: Autenticado sin el permiso `courses:update` (`AUTH-002`)
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/LessonResponse"
+        "404":
+          description: "La lección no existe, está retirada o no es de ese módulo\
+            \ y curso (`EX-002`)"
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/LessonResponse"
+        "409":
+          description: Título ya en uso por otra lección viva del módulo (`EX-001`)
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/LessonResponse"
+      x-required-permission: courses:update
+  /api/v1/courses/{courseId}/modules/{moduleId}/lessons/{lessonId}/status:
+    patch:
+      tags:
+      - Lecciones
+      summary: Cambiar el estado de una lección
+      description: |
+        **Permiso requerido:** `courses:update`. Sin él, `403` (`AUTH-002`).
+
+        `ACTIVO` publica; `INACTIVO` despublica. **Activar exige contenido**, de
+        cualquiera de los dos tipos, y nada más. **Desactivar no exige nada**; desactivar
+        la última activa de un módulo activo deja el módulo `ACTIVO` y no ofrecible, y la
+        duración del módulo y del curso bajan en su siguiente lectura.
+
+        Pedir el estado que ya tiene responde `200` sin escribir. Exige `courses:update`.
+      operationId: cambiarEstado_7
+      parameters:
+      - name: courseId
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      - name: moduleId
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      - name: lessonId
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ChangeLessonStatusRequest"
+        required: true
+      responses:
+        "200":
+          description: La lección con su estado.
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/LessonResponse"
+        "400":
+          description: "Identificador inválido o estado ausente o fuera de dominio\
+            \ (`VAL-001`, `VAL-002`)"
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/LessonResponse"
+        "401":
+          description: Token ausente o inválido (`AUTH-001`)
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/LessonResponse"
+        "403":
+          description: Autenticado sin el permiso `courses:update` (`AUTH-002`)
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/LessonResponse"
+        "404":
+          description: "La lección no existe, está retirada o no es de ese módulo\
+            \ y curso (`EX-001`)"
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/LessonResponse"
+        "409":
+          description: "No puede activarse: sin contenido (`EX-002`)"
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/LessonResponse"
+      x-required-permission: courses:update
   /api/v1/course-categories/{id}:
     get:
       tags:
@@ -5743,7 +6399,7 @@ paths:
         clasificados en ella aunque el aula ya no los enseñe bajo ese cajón. Es la
         lectura de administración, y quien tiene `course-categories:read` ve el
         catálogo completo.
-      operationId: detalle_5
+      operationId: detalle_6
       parameters:
       - name: id
         in: path
@@ -5810,7 +6466,7 @@ paths:
 
         Un cuerpo sin cambios de valor responde `200` sin avanzar `updatedAt` ni
         auditar. La respuesta es la forma del detalle. Exige `course-categories:update`.
-      operationId: corregir_4
+      operationId: corregir_6
       parameters:
       - name: id
         in: path
@@ -5882,7 +6538,7 @@ paths:
         propague desde ese momento, no lo repara.
 
         El cuerpo no admite ningún otro campo ni motivo alguno.
-      operationId: cambiarEstado_6
+      operationId: cambiarEstado_8
       parameters:
       - name: id
         in: path
@@ -5943,7 +6599,7 @@ paths:
         producto de precio cero se rechaza con `409` (`EX-008`). Y un importe
         fijo tiene que **caber en los decimales de la moneda del producto**
         (`VAL-013`).
-      operationId: corregir_5
+      operationId: corregir_7
       parameters:
       - name: id
         in: path
@@ -9578,6 +10234,155 @@ components:
       properties:
         reason:
           type: string
+    RegisterCourseModuleRequest:
+      type: object
+      properties:
+        title:
+          type: string
+          maxLength: 150
+          minLength: 0
+        shortDescription:
+          type: string
+          maxLength: 300
+          minLength: 0
+        longDescription:
+          type: string
+          maxLength: 10000
+          minLength: 0
+        presentationVideoUrl:
+          type: string
+          maxLength: 500
+          minLength: 0
+          pattern: ^https?://\S+$
+        displayOrder:
+          type: integer
+          format: int32
+      required:
+      - displayOrder
+      - title
+    CourseModuleDetailResponse:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        courseId:
+          type: string
+          format: uuid
+        title:
+          type: string
+        shortDescription:
+          type: string
+        longDescription:
+          type: string
+        presentationVideoUrl:
+          type: string
+        displayOrder:
+          type: integer
+          format: int32
+        status:
+          type: string
+        coverImageUrl:
+          type: string
+        durationMinutes:
+          type: integer
+          format: int64
+        lessons:
+          type: array
+          items:
+            $ref: "#/components/schemas/CourseLessonSummary"
+        offerable:
+          type: boolean
+        offerableReason:
+          type: string
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+    RegisterLessonRequest:
+      type: object
+      properties:
+        type:
+          type: string
+          enum:
+          - VIDEO
+          - TEXTO
+        title:
+          type: string
+          maxLength: 150
+          minLength: 0
+        description:
+          type: string
+          maxLength: 1000
+          minLength: 0
+        content:
+          type: string
+        durationMinutes:
+          type: integer
+          format: int32
+        displayOrder:
+          type: integer
+          format: int32
+        open:
+          type: boolean
+      required:
+      - displayOrder
+      - durationMinutes
+      - title
+      - type
+    LessonResponse:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        moduleId:
+          type: string
+          format: uuid
+        courseId:
+          type: string
+          format: uuid
+        type:
+          type: string
+        title:
+          type: string
+        description:
+          type: string
+        content:
+          type: string
+        durationMinutes:
+          type: integer
+          format: int32
+        displayOrder:
+          type: integer
+          format: int32
+        open:
+          type: boolean
+        status:
+          type: string
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+        deletedAt:
+          type: string
+          format: date-time
+        deletionReason:
+          type: string
+    DeleteLessonRequest:
+      type: object
+      properties:
+        reason:
+          type: string
+    DeleteCourseModuleRequest:
+      type: object
+      properties:
+        reason:
+          type: string
     RegisterCourseCategoryRequest:
       type: object
       properties:
@@ -10256,6 +11061,58 @@ components:
         displayOrder:
           $ref: "#/components/schemas/PatchableInteger"
     ChangeCourseStatusRequest:
+      type: object
+      properties:
+        status:
+          type: string
+          enum:
+          - ACTIVO
+          - INACTIVO
+      required:
+      - status
+    UpdateCourseModuleRequest:
+      type: object
+      properties:
+        title:
+          $ref: "#/components/schemas/PatchableString"
+        shortDescription:
+          $ref: "#/components/schemas/PatchableString"
+        longDescription:
+          $ref: "#/components/schemas/PatchableString"
+        presentationVideoUrl:
+          $ref: "#/components/schemas/PatchableString"
+        displayOrder:
+          $ref: "#/components/schemas/PatchableInteger"
+    ChangeCourseModuleStatusRequest:
+      type: object
+      properties:
+        status:
+          type: string
+          enum:
+          - ACTIVO
+          - INACTIVO
+      required:
+      - status
+    PatchableBoolean: {}
+    PatchableLessonType: {}
+    UpdateLessonRequest:
+      type: object
+      properties:
+        type:
+          $ref: "#/components/schemas/PatchableLessonType"
+        title:
+          $ref: "#/components/schemas/PatchableString"
+        description:
+          $ref: "#/components/schemas/PatchableString"
+        content:
+          $ref: "#/components/schemas/PatchableString"
+        durationMinutes:
+          $ref: "#/components/schemas/PatchableInteger"
+        displayOrder:
+          $ref: "#/components/schemas/PatchableInteger"
+        open:
+          $ref: "#/components/schemas/PatchableBoolean"
+    ChangeLessonStatusRequest:
       type: object
       properties:
         status:

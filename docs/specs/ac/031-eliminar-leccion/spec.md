@@ -123,3 +123,4 @@ Es `RF-AC-005` en la hoja del árbol: no arrastra nada, porque no hay nada debaj
 | Versión | Fecha | Cambio | Responsable |
 |---|---|---|---|
 | 0.1.0 | 18-09-2026 | Redacción inicial. `RF-AC-005` en la hoja: sin arrastre, sin tocar el módulo, y **la única instantánea de Academia con el contenido entero**. | Responsable técnico |
+| 0.2.0 | 19-09-2026 | **Construida** (`LessonDeletionIT` (3), la carrera en `CourseTreeConcurrencyIT`); la instantánea completa lleva el contenido entero y `content_length`. | Responsable técnico |

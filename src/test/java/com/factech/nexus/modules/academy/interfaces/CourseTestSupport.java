@@ -23,9 +23,15 @@ final class CourseTestSupport {
   private CourseTestSupport() {}
 
   static void limpiar(JdbcTemplate jdbc) {
+    jdbc.update("DELETE FROM lessons");
+    jdbc.update("DELETE FROM course_modules");
     jdbc.update("DELETE FROM courses");
-    jdbc.update("DELETE FROM audit_change_log WHERE module = 'AC' AND entity = 'courses'");
-    jdbc.update("DELETE FROM audit_deletion_log WHERE module = 'AC' AND entity = 'courses'");
+    jdbc.update(
+        "DELETE FROM audit_change_log WHERE module = 'AC' AND entity IN ('courses',"
+            + " 'course_modules', 'lessons')");
+    jdbc.update(
+        "DELETE FROM audit_deletion_log WHERE module = 'AC' AND entity IN ('courses',"
+            + " 'course_modules', 'lessons')");
     jdbc.update(
         "DELETE FROM user_roles WHERE user_id IN (SELECT id FROM users WHERE username LIKE 'ac-%')");
     jdbc.update(
@@ -124,6 +130,58 @@ final class CourseTestSupport {
 
   static void retirar(JdbcTemplate jdbc, UUID id) {
     jdbc.update("UPDATE courses SET deleted_at = now() WHERE id = ?", id);
+  }
+
+  /** Un módulo directo en la tabla, en el estado que se le dé. */
+  static UUID modulo(JdbcTemplate jdbc, UUID curso, String titulo, int orden, String estado) {
+    UUID id = new UuidV7Generator().next();
+    jdbc.update(
+        "INSERT INTO course_modules (id, course_id, title, display_order, status)"
+            + " VALUES (?, ?, ?, ?, ?)",
+        id,
+        curso,
+        titulo,
+        orden,
+        estado);
+    return id;
+  }
+
+  static void retirarModulo(JdbcTemplate jdbc, UUID id) {
+    jdbc.update("UPDATE course_modules SET deleted_at = now() WHERE id = ?", id);
+  }
+
+  /** Una lección directa en la tabla: tipo, contenido (nulo si no hay), duración y estado. */
+  static UUID leccion(
+      JdbcTemplate jdbc,
+      UUID modulo,
+      String titulo,
+      String tipo,
+      String contenido,
+      int minutos,
+      int orden,
+      String estado) {
+    UUID id = new UuidV7Generator().next();
+    jdbc.update(
+        "INSERT INTO lessons (id, module_id, type, title, content, duration_minutes,"
+            + " display_order, status) VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
+        id,
+        modulo,
+        tipo,
+        titulo,
+        contenido,
+        minutos,
+        orden,
+        estado);
+    return id;
+  }
+
+  /** Una lección de texto activa con contenido: la que hace ofrecible a un módulo. */
+  static UUID leccionActiva(JdbcTemplate jdbc, UUID modulo, String titulo, int minutos) {
+    return leccion(jdbc, modulo, titulo, "TEXTO", "# " + titulo, minutos, 0, "ACTIVO");
+  }
+
+  static void retirarLeccion(JdbcTemplate jdbc, UUID id) {
+    jdbc.update("UPDATE lessons SET deleted_at = now() WHERE id = ?", id);
   }
 
   static RequestPostProcessor con(String... permisos) {

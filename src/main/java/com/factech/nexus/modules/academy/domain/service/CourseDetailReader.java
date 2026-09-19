@@ -65,13 +65,7 @@ public class CourseDetailReader {
     long cuenta = 0;
     for (ModuleRow modulo : modulos) {
       List<LessonRow> suyas = lecciones.getOrDefault(modulo.id(), List.of());
-      // `RF-AC-022` estrena ModuleOfferability; hasta entonces ningún módulo
-      // existe y esta rama no se ejecuta.
-      boolean ofrecible =
-          !modulo.retirado()
-              && modulo.offerableLessonCount() > 0
-              && "ACTIVO".equals(modulo.status());
-      arbol.add(CourseDetailResponse.modulo(modulo, suyas, ofrecible));
+      arbol.add(CourseDetailResponse.modulo(modulo, suyas, modulo.ofrecibilidad().offerable()));
       if (!modulo.retirado()) {
         duracion += modulo.durationMinutes();
         cuenta += suyas.stream().filter(leccion -> !leccion.retirada()).count();

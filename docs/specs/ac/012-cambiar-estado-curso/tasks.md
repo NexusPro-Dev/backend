@@ -41,7 +41,7 @@
 
 | # | Bloqueo | Desde | Responsable | Estado |
 |---|---|---|---|---|
-| 1 | Ningún curso puede activarse hasta que existan módulos activos (`RF-AC-022`, `RF-AC-024`): `CA-AC-064` se escribe deshabilitado y ese requerimiento lo habilita | 18-09-2026 | Responsable técnico | Abierto |
+| 1 | Ningún curso puede activarse hasta que existan módulos activos (`RF-AC-022`, `RF-AC-024`): `CA-AC-064` se escribe deshabilitado y ese requerimiento lo habilita | 18-09-2026 | Responsable técnico | **Cerrado** el 19-09-2026: `CA-AC-064` habilitado con `RF-AC-024` (`CourseStatusIT.activarConUnModuloActivo`) |
 
 ## 5. Definición de terminado
 

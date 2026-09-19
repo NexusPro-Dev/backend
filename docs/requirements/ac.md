@@ -5,11 +5,11 @@
 | Módulo | `AC` — Academia |
 | Paquete | `modules/academy` |
 | Prefijos de permiso | `course-categories:`, `courses:` |
-| Versión | 0.9.0 |
+| Versión | 0.10.0 |
 | Estado | **Borrador** |
 | Responsable | Bonilla Diaz William Steven |
 | Fecha de creación | 17-09-2026 |
-| Última actualización | 18-09-2026 |
+| Última actualización | 19-09-2026 |
 
 !!! info "Qué va en este documento"
 
@@ -262,21 +262,21 @@ Las tripletas del bloque 2 y del bloque 3 dejaron escritos dos huecos de la regl
 | `RF-AC-019` | Retirar una recomendación | Cursos | Baja | `courses:update` | **Tasks en revisión** (18-09-2026) |
 | `RF-AC-020` | Dar visibilidad de un curso a una membresía | Cursos | Alta | `courses:update` | **Tasks en revisión** (18-09-2026) |
 | `RF-AC-021` | Quitar la visibilidad de un curso a una membresía | Cursos | Media | `courses:update` | **Tasks en revisión** (18-09-2026) |
-| `RF-AC-022` | Registrar módulo | Módulos | Alta | `courses:update` | **Tasks en revisión** (18-09-2026) |
-| `RF-AC-023` | Editar módulo | Módulos | Alta | `courses:update` | **Tasks en revisión** (18-09-2026) |
-| `RF-AC-024` | Cambiar el estado de un módulo | Módulos | Alta | `courses:update` | **Tasks en revisión** (18-09-2026) |
-| `RF-AC-025` | Eliminar módulo | Módulos | Media | `courses:update` | **Tasks en revisión** (18-09-2026) |
+| `RF-AC-022` | Registrar módulo | Módulos | Alta | `courses:update` | **En desarrollo** (19-09-2026) |
+| `RF-AC-023` | Editar módulo | Módulos | Alta | `courses:update` | **En desarrollo** (19-09-2026) |
+| `RF-AC-024` | Cambiar el estado de un módulo | Módulos | Alta | `courses:update` | **En desarrollo** (19-09-2026) |
+| `RF-AC-025` | Eliminar módulo | Módulos | Media | `courses:update` | **En desarrollo** (19-09-2026) |
 | `RF-AC-026` | Subir o reemplazar la portada de un módulo | Portadas | Baja | `courses:update` | **Tasks en revisión** (18-09-2026) |
 | `RF-AC-027` | Quitar la portada de un módulo | Portadas | Baja | `courses:update` | **Tasks en revisión** (18-09-2026) |
-| `RF-AC-028` | Registrar lección | Lecciones | Alta | `courses:update` | **Tasks en revisión** (18-09-2026) |
-| `RF-AC-029` | Editar lección | Lecciones | Alta | `courses:update` | **Tasks en revisión** (18-09-2026) |
-| `RF-AC-030` | Cambiar el estado de una lección | Lecciones | Alta | `courses:update` | **Tasks en revisión** (18-09-2026) |
-| `RF-AC-031` | Eliminar lección | Lecciones | Media | `courses:update` | **Tasks en revisión** (18-09-2026) |
+| `RF-AC-028` | Registrar lección | Lecciones | Alta | `courses:update` | **En desarrollo** (19-09-2026) |
+| `RF-AC-029` | Editar lección | Lecciones | Alta | `courses:update` | **En desarrollo** (19-09-2026) |
+| `RF-AC-030` | Cambiar el estado de una lección | Lecciones | Alta | `courses:update` | **En desarrollo** (19-09-2026) |
+| `RF-AC-031` | Eliminar lección | Lecciones | Media | `courses:update` | **En desarrollo** (19-09-2026) |
 | `RF-AC-032` | Obtener la imagen de una portada de academia, sin autenticación | Portadas | Alta | **Público** | **Tasks en revisión** (18-09-2026) |
 | `RF-AC-033` | Consultar el catálogo de cursos como alumno | Aula | Alta | `courses:learn` | **Tasks en revisión** (18-09-2026) |
 | `RF-AC-034` | Consultar el detalle de un curso como alumno | Aula | Alta | `courses:learn` | **Tasks en revisión** (18-09-2026) |
 | `RF-AC-035` | Consultar el contenido de una lección | Aula | Alta | `courses:learn` | **Tasks en revisión** (18-09-2026) |
-| `RF-AC-036` | Consultar el detalle de una lección | Lecciones | Media | `courses:read` | **Tasks en revisión** (18-09-2026) |
+| `RF-AC-036` | Consultar el detalle de una lección | Lecciones | Media | `courses:read` | **En desarrollo** (19-09-2026) |
 
 **Treinta y seis requerimientos** —treinta y cinco del 17-09-2026 y `RF-AC-036` del 18 (§5.2.7)—, y la cifra merece una explicación: no es que el módulo sea grande, es que **cada entidad paga el mismo precio** —alta, corrección, estado, retiro— y **cada relación cobra dos** —dar y quitar—. Es la misma forma que `PM` con el producto y el paquete, y la razón de no juntar «asociar» y «desasociar» en un solo requerimiento es la de siempre: son dos operaciones con dos reglas distintas y dos auditorías distintas.
 
@@ -619,7 +619,7 @@ Borra la fila. **Quitar la última nunca se rechaza**: el curso deja de ofrecers
 | Reglas aplicables | `RN-AC-001`, `RN-AC-002`, `RN-AC-005`, `RN-AC-008`, `RN-AC-018`, `RN-AC-019` |
 | Depende de | `RF-AC-008` |
 | Tripleta | `docs/specs/ac/022-registrar-modulo/` |
-| Estado | **Tasks en revisión** (18-09-2026) |
+| Estado | **En desarrollo** (19-09-2026) |
 
 Registra un módulo **dentro de un curso** —la ruta lo dice: `POST /courses/{courseId}/modules`— con **título y orden**, obligatorios, y descripción corta, larga y video de presentación, opcionales. Nace `INACTIVO` y sin portada. Un curso retirado no admite módulos. Crea `course_modules`.
 
@@ -634,7 +634,7 @@ Registra un módulo **dentro de un curso** —la ruta lo dice: `POST /courses/{c
 | Reglas aplicables | `RN-AC-001`, `RN-AC-002`, `RN-AC-005`, `RN-AC-018`, `RN-AC-019` |
 | Depende de | `RF-AC-022` |
 | Tripleta | `docs/specs/ac/023-editar-modulo/` |
-| Estado | **Tasks en revisión** (18-09-2026) |
+| Estado | **En desarrollo** (19-09-2026) |
 
 Parcial, sobre título, descripciones, video y orden; descripciones y video se vacían. **El curso no se corrige** (`RN-AC-019`). Un retirado no se corrige.
 
@@ -649,7 +649,7 @@ Parcial, sobre título, descripciones, video y orden; descripciones y video se v
 | Reglas aplicables | `RN-AC-008`, `RN-AC-009`, `RN-AC-015`, `RN-AC-018` |
 | Depende de | `RF-AC-022` |
 | Tripleta | `docs/specs/ac/024-cambiar-estado-modulo/` |
-| Estado | **Tasks en revisión** (18-09-2026) |
+| Estado | **En desarrollo** (19-09-2026) |
 
 Activar exige **al menos una lección `ACTIVA`** no retirada; desactivar nunca se rechaza, **aunque sea el último módulo activo de un curso activo** — el curso queda activo y no ofrecible, y `RN-AC-015` lo enseña.
 
@@ -664,7 +664,7 @@ Activar exige **al menos una lección `ACTIVA`** no retirada; desactivar nunca s
 | Reglas aplicables | `RN-AC-018` |
 | Depende de | `RF-AC-022` |
 | Tripleta | `docs/specs/ac/025-eliminar-modulo/` |
-| Estado | **Tasks en revisión** (18-09-2026) |
+| Estado | **En desarrollo** (19-09-2026) |
 
 Baja lógica con motivo, **y arrastra sus lecciones** con el mismo motivo y un registro cada una. Se hace con `courses:update` y no con `courses:delete`: retirar una parte es corregir el curso; retirar el curso es otra cosa.
 
@@ -709,7 +709,7 @@ Suelta la imagen y la borra. Nunca se rechaza.
 | Reglas aplicables | `RN-AC-001`, `RN-AC-002`, `RN-AC-005`, `RN-AC-008`, `RN-AC-014`, `RN-AC-016`, `RN-AC-017`, `RN-AC-018`, `RN-AC-019` |
 | Depende de | `RF-AC-022` |
 | Tripleta | `docs/specs/ac/028-registrar-leccion/` |
-| Estado | **Tasks en revisión** (18-09-2026) |
+| Estado | **En desarrollo** (19-09-2026) |
 
 Registra una lección **dentro de un módulo** —`POST /courses/{courseId}/modules/{moduleId}/lessons`— con **tipo, título, duración y orden**, obligatorios, y descripción, contenido y `open`, opcionales (`open` falso por omisión). El contenido, si viene, se valida contra el tipo. Nace `INACTIVA`. Un módulo retirado no admite lecciones. Crea `lessons`.
 
@@ -724,7 +724,7 @@ Registra una lección **dentro de un módulo** —`POST /courses/{courseId}/modu
 | Reglas aplicables | `RN-AC-001`, `RN-AC-002`, `RN-AC-005`, `RN-AC-014`, `RN-AC-016`, `RN-AC-017`, `RN-AC-018`, `RN-AC-019` |
 | Depende de | `RF-AC-028` |
 | Tripleta | `docs/specs/ac/029-editar-leccion/` |
-| Estado | **Tasks en revisión** (18-09-2026) |
+| Estado | **En desarrollo** (19-09-2026) |
 
 Parcial, sobre tipo, título, descripción, contenido, duración, orden y `open`. **Cambiar el tipo exige que el contenido resultante case con él** (`RN-AC-016`): pasar a `VIDEO` con un texto guardado y sin URL en la petición se rechaza sin aplicar nada. **El contenido se vacía** con nulo explícito **aunque la lección esté activa**, como la descripción del curso: `RN-AC-009` rige al activar. **El módulo no se corrige** (`RN-AC-019`).
 
@@ -739,7 +739,7 @@ Parcial, sobre tipo, título, descripción, contenido, duración, orden y `open`
 | Reglas aplicables | `RN-AC-008`, `RN-AC-009`, `RN-AC-015`, `RN-AC-018` |
 | Depende de | `RF-AC-028` |
 | Tripleta | `docs/specs/ac/030-cambiar-estado-leccion/` |
-| Estado | **Tasks en revisión** (18-09-2026) |
+| Estado | **En desarrollo** (19-09-2026) |
 
 Activar exige **contenido**; desactivar nunca se rechaza, aunque sea la última activa de su módulo.
 
@@ -754,7 +754,7 @@ Activar exige **contenido**; desactivar nunca se rechaza, aunque sea la última 
 | Reglas aplicables | `RN-AC-018` |
 | Depende de | `RF-AC-028` |
 | Tripleta | `docs/specs/ac/031-eliminar-leccion/` |
-| Estado | **Tasks en revisión** (18-09-2026) |
+| Estado | **En desarrollo** (19-09-2026) |
 
 Baja lógica con motivo y registro. No arrastra nada: no hay nada debajo.
 
@@ -829,7 +829,7 @@ Baja lógica con motivo y registro. No arrastra nada: no hay nada debajo.
 | Reglas aplicables | `RN-AC-016`, `RN-AC-018`, `RN-AC-019` |
 | Depende de | `RF-AC-028` |
 | Tripleta | `docs/specs/ac/036-consultar-detalle-leccion/` |
-| Estado | **Tasks en revisión** (18-09-2026) |
+| Estado | **En desarrollo** (19-09-2026) |
 
 `GET /api/v1/courses/{courseId}/modules/{moduleId}/lessons/{lessonId}`: la lección entera **con su contenido**, en la misma forma que devuelven sus escrituras (`RF-AC-028`), **viva o retirada** —la retirada con fecha y motivo, también la que arrastró el retiro de su módulo o de su curso—. La ruta afirma la pertenencia en los tres niveles: una lección de otro módulo, o un módulo de otro curso, es `404`. Nace el 18-09-2026 (§5.2.7) porque el detalle del curso no trae el contenido a propósito y la corrección exige un campo: administración no tenía cómo ver lo que escribió.
 
@@ -1036,3 +1036,4 @@ Clave primaria compuesta. **La clave foránea a `memberships` se declara** hacia
 | 0.7.0 | 18-09-2026 | **Las siete tripletas de Portadas quedan redactadas** (bloque 5 de §6.1) y pasan a `Tasks en revisión`. Sin cambio de reglas. **Dos precisiones**: quitar una portada responde `200` con la entidad —como `RF-PM-029`— y no `204` como decía la ficha de `RF-AC-007`; y **las seis restricciones de las tres columnas `cover_image_id`** que §8.9 declara llegan todas con la migración de `academy_images` (`RF-AC-006`), porque las columnas nacieron antes que la tabla. §5.2.3 se cumple tal como se escribió: tabla propia, detector compartido — `ImageSignature` y `CambioDePortada` pasan a `shared/images`, y `DeletionReason` se les adelantó el 17-09-2026. | Responsable del proyecto |
 | 0.8.0 | 18-09-2026 | **Las tres tripletas del Aula quedan redactadas** (`RF-AC-033` a `RF-AC-035`, bloque 6 de §6.1, el último) y pasan a `Tasks en revisión`. **Dos decisiones del responsable del proyecto, del mismo día**: **`RN-AC-015` gana dos motivos** —«sin descripción» en el curso, tercero de cinco, y «sin contenido» en la lección— para que lo que se vacía después de activarse **deje de ofrecerse** en lugar de enseñarse vacío (§5.2.7; `RN-AC-009` lo dice al lado); y **nace `RF-AC-036`**, consultar el detalle de una lección con `courses:read`, que cierra el hueco de `RF-AC-029` §14.2: **treinta y seis requerimientos**, §2, §6.1 (orden del bloque 3), §6.2 y §7 lo recogen. Las tripletas del aula fijan además que **la ofrecibilidad no se reescribe en SQL** —se lee lo vivo con las mismas cuentas y deciden los mismos objetos que administración—, que `accessible` lo decide un solo objeto, que el `404` del aula no distingue «no se ofrece» de «no existe», y que en la lección va primero si se ofrece y después si se abre. Con esto el catálogo del módulo tiene **todas sus tripletas redactadas**. | Responsable del proyecto |
 | 0.9.0 | 18-09-2026 | **Los cursos están construidos**: `RF-AC-008` a `RF-AC-013` pasan a `En desarrollo` (bloque 2 de §6.1). `V21` crea `courses` y `V22` siembra los seis `courses:` con el catálogo en **60**; **`SP` publica `PermissionHolderLookup`** (§3 y la advertencia de cabecera dejan de decir «no existe»), y `CourseOfferability` nace con los cinco motivos. **Dos criterios quedan bloqueados y declarados** hasta el bloque 3: `CA-AC-064` (activar con un módulo activo) y `CA-AC-074` (el arrastre), y las lecturas de relaciones y árbol devuelven vacío con la nota de qué las sustituye. Sin cambio de reglas. | Responsable técnico |
+| 0.10.0 | 19-09-2026 | **Los módulos y las lecciones están construidos**: `RF-AC-022` a `RF-AC-025`, `RF-AC-028` a `RF-AC-031` y `RF-AC-036` pasan a `En desarrollo` (bloque 3 de §6.1, con el `GET` de lección que nació con el 6). `V23` crea `course_modules` y `V24` `lessons`; **`RN-AC-015` queda cerrada por dentro** —`ModuleOfferability` y `LessonOfferability` cuentan lecciones activas con contenido, y `CourseOfferability` recibe módulos ofrecibles reales— y solo le falta la cuenta de membresías del bloque 4. **Se desbloquean `CA-AC-064` y `CA-AC-074`** de los cursos. Sin cambio de reglas; cuatro precisiones en las specs: el árbol se lee siempre (los retirados también se enseñan), las validaciones del alta de lección van por el caso de uso para llegar juntas, la carrera de la corrección sale con el código del alta, y el quinto motivo del curso solo se observa con una membresía delante. | Responsable técnico |

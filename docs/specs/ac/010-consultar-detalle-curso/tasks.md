@@ -42,7 +42,7 @@
 
 | # | Bloqueo | Desde | Responsable | Estado |
 |---|---|---|---|---|
-| 1 | Las cuatro listas y el árbol viajan vacíos hasta `RF-AC-016`, `RF-AC-018`, `RF-AC-020`, `RF-AC-022` y `RF-AC-028`; cada uno enmienda `T-01` y `CA-AC-054` | 18-09-2026 | Responsable técnico | Abierto — **construido así**: las lecturas devuelven vacío sin consultar, con la nota de qué sentencia las sustituye; `CA-AC-051` es parcial y `CA-AC-054` cuenta una |
+| 1 | Las cuatro listas y el árbol viajan vacíos hasta `RF-AC-016`, `RF-AC-018`, `RF-AC-020`, `RF-AC-022` y `RF-AC-028`; cada uno enmienda `T-01` y `CA-AC-054` | 18-09-2026 | Responsable técnico | Abierto — **el árbol es real desde el 19-09-2026** (`RF-AC-022`, `RF-AC-028`): módulos y lecciones se leen siempre, y `CA-AC-054` cuenta **dos** sentencias sin módulos, tres con ellos y una más con motivo; las tres listas de relaciones siguen vacías hasta el bloque 4 |
 
 ## 5. Definición de terminado
 

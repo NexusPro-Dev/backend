@@ -2,6 +2,8 @@ package com.factech.nexus.modules.academy.domain.repository;
 
 import com.factech.nexus.modules.academy.application.ListCoursesRequest;
 import com.factech.nexus.modules.academy.domain.models.CourseOfferability;
+import com.factech.nexus.modules.academy.domain.models.LessonOfferability;
+import com.factech.nexus.modules.academy.domain.models.ModuleOfferability;
 import java.time.OffsetDateTime;
 import java.util.List;
 import java.util.Map;
@@ -19,11 +21,10 @@ import java.util.UUID;
  * siempre. Al <b>escribir</b> el instructor cruza por los puertos.
  *
  * <p><b>Las cuentas viajan en la misma sentencia que la fila</b>, como subconsultas escalares, y
- * son lo que {@link CourseOfferability} necesita para decidir por fila sin otra consulta. <b>Hasta
- * sus requerimientos son literales cero</b>: la cuenta de membresías la escribe `RF-AC-020`, las de
- * módulos `RF-AC-022` y la de lecciones `RF-AC-028`; cada uno sustituye el literal y la nota que lo
- * acompaña. Lo mismo con las lecturas de relaciones y del árbol, que hoy devuelven vacío sin
- * consultar nada.
+ * son lo que {@link CourseOfferability} necesita para decidir por fila sin otra consulta. Las de
+ * módulos y lecciones son reales desde el bloque 3; <b>la de membresías es un literal cero hasta
+ * `RF-AC-020`</b>, que sustituye el literal y la nota que lo acompaña. Las lecturas de relaciones
+ * devuelven vacío sin consultar nada hasta el bloque 4; las del árbol son reales.
  */
 public interface CourseQueryRepository {
 
@@ -54,18 +55,13 @@ public interface CourseQueryRepository {
    */
   List<MembershipRef> findMembershipsOf(UUID courseId);
 
-  /** Los módulos del curso en su orden, vivos y retirados. <b>Vacío hasta `RF-AC-022`.</b> */
+  /** Los módulos del curso en su orden, vivos y retirados, con sus cuentas (`RF-AC-022`). */
   List<ModuleRow> findModulesOf(UUID courseId);
 
-  /**
-   * Las lecciones de esos módulos en su orden, en una sentencia. <b>Vacío hasta `RF-AC-028`.</b>
-   */
+  /** Las lecciones de esos módulos en su orden, en una sentencia, sin contenido (`RF-AC-028`). */
   List<LessonRow> findLessonsOfModules(List<UUID> moduleIds);
 
-  /**
-   * Cuántos módulos {@code ACTIVO} vivos tiene el curso: la condición de activar. <b>Cero hasta
-   * `RF-AC-022`.</b>
-   */
+  /** Cuántos módulos {@code ACTIVO} vivos tiene el curso: la condición de activar (`RN-AC-009`). */
   long countActiveModulesOf(UUID courseId);
 
   /**
@@ -125,9 +121,14 @@ public interface CourseQueryRepository {
       UUID coverImageId,
       boolean offerable) {}
 
-  /** Un módulo dentro del árbol del curso, con la cuenta de lecciones ofrecibles y la duración. */
+  /**
+   * Un módulo como sale de la tabla, con la cuenta de lecciones ofrecibles —activas, vivas, con
+   * contenido— y la duración —la suma de las activas vivas— ya hechas. Sirve al árbol del curso y
+   * al detalle del módulo.
+   */
   record ModuleRow(
       UUID id,
+      UUID courseId,
       String title,
       String shortDescription,
       String longDescription,
@@ -137,10 +138,17 @@ public interface CourseQueryRepository {
       UUID coverImageId,
       long offerableLessonCount,
       long durationMinutes,
+      OffsetDateTime createdAt,
+      OffsetDateTime updatedAt,
       OffsetDateTime deletedAt) {
 
     public boolean retirado() {
       return deletedAt != null;
+    }
+
+    /** `RN-AC-015` para el módulo, con la cuenta que vino con la fila. */
+    public ModuleOfferability.Resultado ofrecibilidad() {
+      return ModuleOfferability.decidir(retirado(), status, offerableLessonCount);
     }
   }
 
@@ -160,6 +168,11 @@ public interface CourseQueryRepository {
 
     public boolean retirada() {
       return deletedAt != null;
+    }
+
+    /** `RN-AC-015` para la lección: activa, viva y con contenido. */
+    public boolean ofrecida() {
+      return LessonOfferability.offered(status, retirada(), hasContent);
     }
   }
 }
