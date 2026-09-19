@@ -190,33 +190,46 @@ Cada regla declara cuándo aplica, qué debe ocurrir y su prioridad, conforme a 
 | **RN-SEG-011** | Sin autoconcesión | Al modificar roles o permisos | Un usuario no puede modificar sus propios roles, ni los permisos de los roles que tiene asignados **directamente**. No alcanza a los roles ancestros ni descendientes: `RN-SEG-010` ya impide conceder lo que no se posee, de modo que tocarlos no permite ganar nada | **Crítica** |
 | **RN-SEG-012** | Roles de sistema inmutables en su identidad y su posición | Al editar, cambiar de estado, reubicar o eliminar un rol marcado como de sistema | La operación se rechaza por la API, sin excepción. **Sus permisos sí se administran** por la vía normal (`RF-SP-005`, `RF-SP-006`), con las mismas cotas que cualquier rol —RN-SEG-003, RN-SEG-010, RN-SEG-011—: la marca protege la jerarquía que sostiene la contención, no lo que cada rol concede | Alta |
 | **RN-SEG-013** | Revalidación al reubicar | Al cambiar el rol padre de un rol | Se revalida RN-SEG-003 contra el nuevo padre; si no se cumple, la operación se rechaza | Alta |
+| **RN-SEG-014** | Un permiso, una operación | Al declarar el permiso de una operación de la API | Un permiso gobierna **exactamente una** operación —método y ruta— o ninguna; **nunca dos**. Conceder un permiso concede una sola cosa. Lo vigila `EndpointPermissionsIT` (`RF-SP-060`, 19-09-2026) | **Crítica** |
 
 **Advertencia sobre RN-SEG-009 y RN-SEG-010.** La contención opera **entre roles**, no sobre el conjunto efectivo del usuario. Dos roles individualmente acotados pueden, en unión, otorgar más de lo que cualquiera de ellos concede por separado. Por eso RN-SEG-010 existe: acota la **asignación** al privilegio efectivo de quien asigna. Sin esa regla, el modelo de contención sería evadible asignando varios roles.
 
 ### 4.4 Catálogo de permisos
 
-Un permiso se identifica con el formato `<recurso>:<acción>`, en minúsculas:
+Un permiso se identifica con el formato `<recurso>:<acción>`, en minúsculas, y **gobierna una operación o ninguna, nunca dos** (`RN-SEG-014`, desde el 19-09-2026). El catálogo, tal como queda con `V28` (`RF-SP-060`) — **ciento once**, y en **negrita** los cincuenta y uno que esa migración siembra:
 
 ```
-roles:read       roles:create       roles:update       roles:delete
-permissions:read
-memberships:read memberships:create
+roles:list       roles:read       roles:create       roles:update       roles:delete
+roles:change-status     roles:assign-parent
+roles:assign-permissions       roles:revoke-permissions
+permissions:list        permissions:read
+memberships:list memberships:read memberships:create
 countries:read   countries:create   countries:update
 currencies:read  currencies:update
 
 audit:read-changes      audit:read-deletions
 audit:read-errors       audit:read-security
 
-users:read       users:create       users:update       users:delete
-users:assign-roles      users:assign-membership      users:reset-password
-users:assign-supervisor
+users:list       users:read       users:create       users:update       users:delete
+users:change-status     users:read-team
+users:assign-roles      users:revoke-roles
+users:assign-membership users:revoke-membership
+users:assign-supervisor users:reset-password
 
-products:read    products:create    products:update    products:delete
-products:sale    products:hotlink   products:comment
+products:list    products:read    products:create    products:update    products:delete
+products:change-status  products:set-cover  products:remove-cover
+products:sale    products:hotlink
+products:comment products:read-own-comments  products:update-comment  products:delete-comment
 
-packages:read    packages:create    packages:update    packages:delete
+packages:list    packages:read    packages:create    packages:update    packages:delete
+packages:change-status  packages:set-cover  packages:remove-cover
+packages:add-product    packages:update-product   packages:remove-product
 
 commissions:read commissions:create commissions:update commissions:delete
+commissions:read-effective
+user-commission-rates:read     user-commission-rates:create
+user-commission-rates:update   user-commission-rates:delete
+product-commission-rates:read
 
 movements:read   movements:create   movements:confirm  movements:void
 
@@ -225,14 +238,31 @@ exchange-rates:update   exchange-rates:delete
 
 document-types:read
 
-brokers:read     broker-accounts:read
+brokers:read     broker-accounts:read     broker-accounts:read-indicators
 
-course-categories:read   course-categories:create
-course-categories:update course-categories:delete
-courses:read     courses:create     courses:update     courses:delete
+course-categories:list   course-categories:read
+course-categories:create course-categories:update course-categories:delete
+courses:list     courses:read     courses:create     courses:update     courses:delete
+courses:change-status
+courses:assign-category        courses:revoke-category
+courses:assign-recommendation  courses:revoke-recommendation
+courses:assign-membership      courses:revoke-membership
 courses:teach    courses:learn
+course-modules:create   course-modules:update   course-modules:change-status   course-modules:delete
+lessons:create   lessons:read   lessons:update   lessons:change-status   lessons:delete
 ```
 
+Los cincuenta y uno nuevos: `roles:list`, `roles:change-status`, `roles:assign-parent`, `roles:assign-permissions`, `roles:revoke-permissions`, `permissions:list`, `memberships:list`, `users:list`, `users:change-status`, `users:read-team`, `users:revoke-roles`, `users:revoke-membership`, `broker-accounts:read-indicators` (trece de `SP`); `products:list`, `products:change-status`, `products:set-cover`, `products:remove-cover`, `products:read-own-comments`, `products:update-comment`, `products:delete-comment`, `packages:list`, `packages:change-status`, `packages:set-cover`, `packages:remove-cover`, `packages:add-product`, `packages:update-product`, `packages:remove-product` (catorce de `PM`); `commissions:read-effective`, los cuatro `user-commission-rates:` y `product-commission-rates:read` (seis de `CM`); `course-categories:list`, `courses:list`, `courses:change-status`, las seis relaciones `courses:assign-…`/`revoke-…`, los cuatro `course-modules:` y los cinco `lessons:` (dieciocho de `AC`). **Ninguno de `MV`**: sus cuatro gobernaban una operación cada uno desde que nacieron.
+
+!!! danger "Un permiso, una operación — `RN-SEG-014`, desde el 19-09-2026"
+
+    **Hasta el 19-09-2026 veintiún códigos gobernaban más de una operación**: `roles:update` cinco —editar el nombre, y también cambiar el estado, reubicar, **asignar y revocar permisos**—, `courses:update` diez, `packages:update` siete, `products:comment` y `commissions:read` cuatro, `users:read` tres, y los `read` de ocho recursos su listado y su detalle. Eran agrupaciones razonadas —«quien puede corregir el curso tiene que poder armarlo»—, y el razonamiento respondía a qué hace junto **un administrador completo**, que ya lo tiene todo. El catálogo existe para **los roles que se crean con una parte**, y para esos un permiso que agrupa es un permiso que **no se puede conceder a medias**: dar «editar un rol» era dar «repartir permisos».
+
+    **`RF-SP-060` lo reparte**, por decisión del responsable del proyecto, y **estricto**: también listado y detalle. Cada código existente **se queda con una** de sus operaciones y estrecha su descripción; las demás reciben código nuevo. **Ningún código se renombra ni se retira.** Y **nadie pierde nada**: `V28` da cada hijo a **todo rol que porte el padre** —los dos de sistema y cualquiera creado a mano—, de modo que `RN-SEG-003` se conserva por construcción y estrechar después es trabajo de quien administre roles (`RF-SP-006`). La reserva del superadministrador (abajo) no cambia: ninguno de sus seis se divide.
+
+    **Las convenciones, para lo que se separe de aquí en adelante** (`RF-SP-060` · `spec.md` §6.3): `<recurso>:list` para la colección y `<recurso>:read` para el detalle; `<recurso>:read-<qué>` para una lectura derivada (`users:read-team`, `commissions:read-effective`); `change-status`; `set-cover`/`remove-cover`; `assign-<hijo>`/`revoke-<hijo>` para una relación sin identidad propia —el par que `users:assign-roles` fijó el 21-08-2026—; `add-`/`update-`/`remove-<hijo>` para un elemento con datos propios (`packages:add-product`, que lleva descuento); **recurso propio** para lo que tiene identidad, tabla y rutas propias (`course-modules:`, `lessons:`, `user-commission-rates:`); `<verbo>-own-<qué>` para lo propio del actor. **Un permiso puede nacer sin ruta** —`products:hotlink`, `courses:teach`— y seguir así: la regla admite cero, lo que prohíbe son dos.
+
+    **Lo vigila `EndpointPermissionsIT`** desde `RF-SP-060`: recorre cada `@PreAuthorize` y afirma que la función operación → permiso es inyectiva. Un permiso repetido falla en `mvn verify` diciendo cuál y en qué operaciones.
 **Cada módulo siembra los suyos, y `SP` sembró los primeros.** `V3__seed_permissions.sql` puebla los veinticuatro permisos, incluidos los de `users:`. Al retirarse el módulo `USR` y absorber `SP` los usuarios (`modules.md` v0.9.0), no hay otro módulo que pudiera sembrarlos: la tabla y su contenido pertenecen al mismo sitio. Esta lista se completó el 21-08-2026 al aprobar el plan de `RF-SP-010`, que hasta entonces omitía `permissions:read`, `memberships:*`, `countries:*` y `currencies:*`. El 22-08-2026 se añadió `users:assign-supervisor`, al registrarse `RF-SP-041`. **El módulo `PM` siembra los cuatro suyos en `V40__seed_products_permissions.sql`**, con su asociación a `SUPERADMIN` y `ADMIN` en la misma migración, y con eso el catálogo pasa de veinticuatro a **veintiocho**. El 02-09-2026 se añade **`products:sale`**, en `V48__seed_products_sale_permission.sql` (**veintinueve**). **`CM` hizo lo mismo en `V45__seed_commissions_permissions.sql`** y lo dejó en **treinta y tres**, y **`MV` en `V51__seed_movements_permissions.sql`**, que lo lleva a **treinta y siete** — este último **sin asociar a `ADMIN`**, por la excepción que se declara justo abajo. El 07-09-2026 se añade **`products:hotlink`**, en `V60__seed_products_hotlink_permission.sql` (**treinta y ocho**), **asociado a `SUPERADMIN` y a `ADMIN`** y sin ruta que lo exija todavía. El 07-09-2026 entran también los **cuatro `exchange-rates:`** del submódulo de tasas de cambio, en `V66__seed_exchange_rates_permissions.sql` (**cuarenta y dos**), asociados a `SUPERADMIN` y a `ADMIN`. **Es el primer recurso del catálogo con guion en el NOMBRE** —hasta hoy el guion solo aparecía en la acción, como `audit:read-changes`— y se admite porque el recurso es de dos palabras y `exchangerates` no se lee. Las pruebas que lo enumeran viven en `SP` y hubo que ampliarlas cada vez: esa fricción es deliberada — un permiso que aparezca sin que nadie actualice esa lista es un permiso que nadie revisó. El 08-09-2026 entra **`document-types:read`**, en `V72__seed_document_types_permission.sql` (**cuarenta y tres**), asociado a `SUPERADMIN` y a `ADMIN`. **Es el único recurso del catálogo con un solo permiso y sin ninguna acción de escritura**, y no por falta de tiempo: `RN-SP-036` prohíbe administrar ese catálogo por API, porque **su contenido es la validación de mayoría de edad** — solo lleva documentos de adulto, y un `document-types:create` dejaría que cualquiera con ese permiso añadiera «Tarjeta de Identidad» y desactivara la regla sin cambiar ninguna regla. Es la asimetría deliberada con `countries:` y `currencies:`, que sí tienen su acción de actualización. El 08-09-2026 entra también **`brokers:read`**, en `V75__seed_brokers_permission.sql` (**cuarenta y cuatro**), y es el **tercero** sin escritura, por el motivo de `RN-SP-039` y no por el de los tipos de documento — **este bloque lo omitía hasta el 10-09-2026**, que es exactamente la fricción que el párrafo anterior describe: un permiso que aparece sin que nadie actualice esta lista es un permiso que nadie revisó, y aquí el que no se revisó fue el propio listado. El 10-09-2026 entra **`broker-accounts:read`**, en `V81__seed_broker_accounts_permission.sql` (**cuarenta y cinco**), asociado a `SUPERADMIN` y a `ADMIN`. El 14-09-2026 entra **`products:comment`**, en `V88__seed_products_comment_permission.sql` (**cuarenta y seis**), asociado a `SUPERADMIN` y a `ADMIN` y **no a `CLIENTE`**, por lo mismo que `products:sale`. **Es el primer permiso de escritura de `PM` que no es de administración**: gobierna las tres operaciones sobre **la reseña propia** —escribirla, corregirla, retirarla— y la lectura de la propia (`RF-PM-009` a `RF-PM-011`, `RF-PM-013`). **Habilita, no autoriza**: quien lo porta escribe las suyas, y tocar una ajena responde `403` aunque lo porte un administrador (`RN-PM-027`) — es la «verificación de propiedad del dato» que §6 deja a la capa de aplicación, y la primera de `PM` que la ejerce. **Es el cuarto sin ninguna acción de escritura**, y el primero cuyo recurso **no es un catálogo**: gobierna la lectura de las cuentas de broker de cualquier persona (`RF-SP-055`). No hay `broker-accounts:create` porque **declarar una cuenta no pasa por él** —la declara su titular al registrarse por enlace, sin sesión (`RN-SP-042`)— ni `broker-accounts:update`, porque quien completa la cuenta es el webhook del broker (`RF-SP-054`) y no una persona. **Y no gobierna el listado del equipo** (`RF-SP-056`): ese lo autoriza la estructura comercial, con la excepción a D-22 que §5 acota. **El 14-09-2026 se diseñan los cuatro `packages:`** —`read`, `create`, `update`, `delete`— para los paquetes de productos (`requirements/pm.md` §5.2.10), y **los sembró `V93__seed_packages_permissions.sql` el 15-09-2026** (**cincuenta**), asociados a `SUPERADMIN` y a `ADMIN`, y no a `CLIENTE` —`V93` y no `V92`, que la tomó el alcance de los productos el mismo día—. **Es un recurso propio y no los `products:`**, por decisión del responsable del proyecto: quien administre roles tiene que poder dar el catálogo sin los paquetes, o al revés. **La oferta de paquetes no estrena permiso**: se ve con `products:sale`, porque el paquete se ve donde se ven los productos. **`packages:update` gobierna también qué productos entran en el paquete y con qué descuento** (`RF-PM-023` a `RF-PM-025`): la asociación es parte de armar el paquete, no otra cosa.
 
 
@@ -825,3 +855,4 @@ RNF-SEG-002 merece atención: es una prueba que enumera los endpoints registrado
 | 0.59.0 | 17-09-2026 | **El catálogo llega a sesenta con los diez permisos de `AC` — Academia, diseñados y sin siembra**, por decisión del responsable del proyecto ([`modules.md`](modules.md) v0.21.0 §5.5, [`requirements/ac.md`](requirements/ac.md) v0.1.0 §7). Cuatro `course-categories:` y seis `courses:`; los módulos, las lecciones y las tres relaciones del curso van bajo `courses:update`, y la diferencia con las categorías es la de `packages:` frente a la portada. **Dos son de vista y no de escritura**: `courses:learn`, que gobierna el aula, y `courses:teach`, que **no gobierna ninguna ruta** y habilita a figurar como instructor — lo comprueba `AC` al asignar contra una interfaz que `SP` publicará a petición de `RF-AC-008`, la primera que responde sobre un permiso. Los diez se asociarán a `SUPERADMIN` y a `ADMIN` sin reserva, y a `CLIENTE` no. §7 gana la **décima ruta pública**, `GET /api/v1/academy-images/{imageId}` (`RF-AC-032`, diseñada): la de `PM` sobre otra tabla, con el mismo detector movido a `shared/`, y con su cota propia por familia. **Nada más de Academia es público**: la lección «abierta a todos» es para todos los que tienen sesión. | Responsable del proyecto |
 | 0.60.0 | 17-09-2026 | **`V19` siembra los cuatro `course-categories:` y el catálogo pasa de cincuenta a cincuenta y cuatro** (`RF-AC-001`), con identificadores literales de la serie propia de `AC` (`…5e7adc000001` a `…000004`), asociados a `SUPERADMIN` (54) y a `ADMIN` (48) en la misma migración con su guarda, y a `CLIENTE` no. **Es la primera siembra de permisos posterior a la consolidación**, y lo que enseña: `V8` asoció a `ADMIN` por exclusión sobre el catálogo de aquel día, de modo que un permiso nuevo **no le llega solo** — cada siembra posterior tiene que asociarlo explícitamente, que es lo que §4.4 exigía y `V19` cumple. Las cinco rutas de `/course-categories` declaran su permiso y `EndpointPermissionsIT` las recorre. Los seis `courses:` y la ruta pública de imágenes siguen diseñados. | Responsable técnico |
 | 0.62.0 | 18-09-2026 | **`V22` siembra los seis `courses:` y el catálogo llega a sesenta** (`RF-AC-008`), con identificadores literales de la serie de `AC` (`…5e7adc000005` a `…000010`), asociados a `SUPERADMIN` (60) y a `ADMIN` (54) explícitamente —`teach` y `learn` incluidos— y a `CLIENTE` no, con la guarda que cuenta doce. Las seis rutas de `/courses` declaran su permiso y `EndpointPermissionsIT` las recorre. **Y `SP` publica la primera lectura sobre autorización**: `PermissionHolderLookup`, «¿porta este permiso?», con el predicado de `RN-SEG-010` compartido como constante con `JpaEffectivePermissions` — `courses:teach` se comprueba por ahí al asignar un instructor y no leyendo `user_roles` desde `AC`. **Se numera 0.62.0 y no 0.61.0**: ese número lo tomó `feature/vendedores-de-un-cliente`. | Responsable técnico |
+| 0.63.0 | 19-09-2026 | **Nace `RN-SEG-014`, un permiso, una operación** (`RF-SP-060`), por decisión del responsable del proyecto: un permiso gobierna una operación o ninguna, nunca dos, también listado y detalle. §4.3 gana la regla y §4.4 el catálogo completo tal como queda con `V28`: **ciento once**, cincuenta y uno nuevos —trece de `SP`, catorce de `PM`, seis de `CM`, dieciocho de `AC`, ninguno de `MV`— y las convenciones de nombre para lo que se separe en adelante. Veintiún códigos gobernaban más de una operación; cada uno **se queda con una** y estrecha su descripción, **ninguno se renombra ni se retira**, y **todo rol que porte un padre recibe sus hijos** en la misma migración, con lo que nadie pierde nada y `RN-SEG-003` se conserva por construcción. La reserva del superadministrador no cambia. **Se numera 0.63.0**: 0.61.0 es de `feature/vendedores-de-un-cliente` y 0.62.0 de `V22`. | Responsable del proyecto |

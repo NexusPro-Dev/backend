@@ -320,22 +320,22 @@ EXCLUDE USING gist (
 | ID | Requerimiento | Prioridad | Permiso | Estado |
 |---|---|---|---|---|
 | `RF-SP-001` | Registrar rol | Crítica | `roles:create` | En desarrollo |
-| `RF-SP-002` | Consultar roles | Crítica | `roles:read` | En desarrollo |
+| `RF-SP-002` | Consultar roles | Crítica | `roles:list` | En desarrollo |
 | `RF-SP-003` | Consultar detalle de un rol | Alta | `roles:read` | En desarrollo |
 | `RF-SP-004` | Editar rol | Alta | `roles:update` | En desarrollo |
-| `RF-SP-005` | Asignar permisos a un rol | Crítica | `roles:update` | En desarrollo |
-| `RF-SP-006` | Revocar permisos de un rol | Alta | `roles:update` | En desarrollo |
-| `RF-SP-007` | Cambiar el estado de un rol | Alta | `roles:update` | En desarrollo |
-| `RF-SP-008` | Cambiar el rol padre de un rol | Media | `roles:update` | En desarrollo |
+| `RF-SP-005` | Asignar permisos a un rol | Crítica | `roles:assign-permissions` | En desarrollo |
+| `RF-SP-006` | Revocar permisos de un rol | Alta | `roles:revoke-permissions` | En desarrollo |
+| `RF-SP-007` | Cambiar el estado de un rol | Alta | `roles:change-status` | En desarrollo |
+| `RF-SP-008` | Cambiar el rol padre de un rol | Media | `roles:assign-parent` | En desarrollo |
 | `RF-SP-009` | Eliminar rol | Media | `roles:delete` | En desarrollo |
-| `RF-SP-010` | Consultar catálogo de permisos | Crítica | `permissions:read` | En desarrollo |
+| `RF-SP-010` | Consultar catálogo de permisos | Crítica | `permissions:list` | En desarrollo |
 | `RF-SP-011` | Consultar auditoría de cambios | Media | `audit:read-changes` | En desarrollo |
 | `RF-SP-012` | Consultar auditoría de eliminación | Media | `audit:read-deletions` | En desarrollo |
 | `RF-SP-013` | Consultar auditoría de error | Media | `audit:read-errors` | En desarrollo |
 | `RF-SP-014` | Consultar auditoría de seguridad | Alta | `audit:read-security` | En desarrollo |
 | `RF-SP-015` | Consultar detalle de un permiso | Media | `permissions:read` | En desarrollo |
 | `RF-SP-016` | Registrar membresía | Alta | `memberships:create` | En desarrollo |
-| `RF-SP-017` | Consultar membresías | Alta | `memberships:read` | En desarrollo |
+| `RF-SP-017` | Consultar membresías | Alta | `memberships:list` | En desarrollo |
 | `RF-SP-018` | Consultar detalle de una membresía | Media | `memberships:read` | En desarrollo |
 | `RF-SP-019` | Consultar monedas | Media | `currencies:read` | En desarrollo |
 | `RF-SP-020` | Registrar país | Media | `countries:create` | En desarrollo |
@@ -343,15 +343,15 @@ EXCLUDE USING gist (
 | `RF-SP-022` | Cambiar el estado de un país | Media | `countries:update` | En desarrollo |
 | `RF-SP-023` | Cambiar el estado de una moneda | Baja | `currencies:update` | En desarrollo |
 | `RF-SP-024` | Registrar usuario | **Crítica** | `users:create` | En desarrollo |
-| `RF-SP-025` | Consultar usuarios | **Crítica** | `users:read` | En desarrollo |
+| `RF-SP-025` | Consultar usuarios | **Crítica** | `users:list` | En desarrollo |
 | `RF-SP-026` | Consultar detalle de un usuario | Alta | `users:read` | En desarrollo |
 | `RF-SP-027` | Editar usuario | Alta | `users:update` | En desarrollo |
-| `RF-SP-028` | Cambiar el estado de un usuario | Alta | `users:update` | En desarrollo |
+| `RF-SP-028` | Cambiar el estado de un usuario | Alta | `users:change-status` | En desarrollo |
 | `RF-SP-029` | Eliminar usuario | Media | `users:delete` | En desarrollo |
 | `RF-SP-030` | Asignar roles a un usuario | **Crítica** | `users:assign-roles` | En desarrollo |
-| `RF-SP-031` | Retirar roles de un usuario | Alta | `users:assign-roles` | En desarrollo |
+| `RF-SP-031` | Retirar roles de un usuario | Alta | `users:revoke-roles` | En desarrollo |
 | `RF-SP-032` | Asignar membresía a un usuario | Alta | `users:assign-membership` | En desarrollo |
-| `RF-SP-033` | Devolver la membresía de un usuario al suelo | Media | `users:assign-membership` | En desarrollo |
+| `RF-SP-033` | Devolver la membresía de un usuario al suelo | Media | `users:revoke-membership` | En desarrollo |
 | `RF-SP-034` | Iniciar sesión | **Crítica** | — (público) | En desarrollo |
 | `RF-SP-035` | Refrescar el token de acceso | **Crítica** | — (público) | En desarrollo |
 | `RF-SP-036` | Cerrar sesión | Alta | — (público) | En desarrollo |
@@ -360,7 +360,7 @@ EXCLUDE USING gist (
 | `RF-SP-039` | Consultar el propio perfil | Alta | Autenticado | En desarrollo |
 | `RF-SP-040` | Restablecer la propia contraseña olvidada | Alta | — (público) | En desarrollo |
 | `RF-SP-041` | Asignar o cambiar el superior comercial de un usuario | **Crítica** | `users:assign-supervisor` | En desarrollo |
-| `RF-SP-042` | Consultar el equipo a cargo de un usuario | Media | `users:read` | En desarrollo |
+| `RF-SP-042` | Consultar el equipo a cargo de un usuario | Media | `users:read-team` | En desarrollo |
 | `RF-SP-044` | Editar el propio perfil | Alta | Autenticado | En desarrollo |
 | `RF-SP-045` | Registro de clientes por enlace | **Crítica** | **Público** | **En desarrollo** |
 | `RF-SP-047` | Registrar una tasa de cambio | Alta | `exchange-rates:create` | En desarrollo |
@@ -374,8 +374,9 @@ EXCLUDE USING gist (
 | `RF-SP-055` | Consultar las cuentas de broker de una persona | Alta | **Superior vigente** o `broker-accounts:read` | **En desarrollo** |
 | `RF-SP-056` | Consultar las cuentas de broker del equipo | Alta | **Autenticado** (el equipo propio) | **En desarrollo** |
 | `RF-SP-057` | Consultar y filtrar todas las cuentas de broker | Alta | `broker-accounts:read` | **En desarrollo** |
-| `RF-SP-058` | Consultar los indicadores de la red comercial | **Crítica** | `broker-accounts:read` | **En desarrollo** |
-| `RF-SP-059` | Consultar los vendedores de un cliente | Media | **El propio cliente**, o `users:read` | Pendiente |
+| `RF-SP-058` | Consultar los indicadores de la red comercial | **Crítica** | `broker-accounts:read-indicators` | **En desarrollo** |
+| `RF-SP-059` | Consultar los vendedores de un cliente | Media | **El propio cliente**, o `users:read-sellers` | Pendiente |
+| `RF-SP-060` | Un permiso por operación | **Crítica** | — (es el catálogo) | Tasks en revisión |
 
 !!! info "Dónde vive el estado de un requerimiento"
 
@@ -1157,7 +1158,7 @@ Retira lógicamente una tasa **exigiendo motivo** (Art. V.13), que viaja al regi
 |---|---|
 | Objetivo | Que un cliente sepa **quiénes le venden** —su agente principal y los vendedores por cuyo hotlink compró— y que administración pueda verlo |
 | Actor | El propio cliente; Administrador |
-| Permiso requerido | **El propio cliente** (`GET /users/me/sellers`), o `users:read` (`GET /users/{id}/sellers`) |
+| Permiso requerido | **El propio cliente** (`GET /users/me/sellers`), o `users:read-sellers` (`GET /users/{id}/sellers`) — **`users:read` hasta el 19-09-2026**, cuando `RF-SP-060` decidió un permiso por operación |
 | Prioridad | Media |
 | Reglas aplicables | `RN-SP-021`, `RN-SP-028`, `RN-SP-049` |
 | Depende de | `RF-SP-045`, `RF-MV-011` |
@@ -1170,6 +1171,28 @@ Retira lógicamente una tasa **exigiendo motivo** (Art. V.13), que viaja al regi
 
 **Lo que no hace**: no permite cambiar el principal —eso es `RF-SP-041`, con `users:assign-supervisor`— ni quitar un vínculo, porque un vínculo es un hecho.
 
+#### `RF-SP-060` — Un permiso por operación
+
+| Campo | Valor |
+|---|---|
+| Objetivo | Que **cada operación de la API exija un permiso que ninguna otra exige**, de modo que conceder un permiso a un rol conceda exactamente una cosa |
+| Actor | Administrador de roles; el sistema, al migrar |
+| Permiso requerido | — Es un cambio del catálogo (`security.md` §4.4: datos, no código), aplicado por migración |
+| Prioridad | **Crítica** |
+| Reglas aplicables | `RN-SEG-003`, `RN-SEG-007`, `RN-SEG-009`, **`RN-SEG-014`** (nace con él) |
+| Depende de | El bloque 4 de `AC` (`RF-AC-016` a `RF-AC-021`) para su tramo 3 |
+| Tripleta | `docs/specs/sp/060-un-permiso-por-operacion/` |
+| Estado | **Tasks en revisión** — registrado el 19-09-2026 |
+
+**Lo pidió el responsable del proyecto el 19-09-2026**: «hay algunos permisos que se le podrán asignar a diferentes roles, pero al compartir permiso con otras rutas puede que se llegue a asignar rutas que no debería». Hoy sesenta permisos gobiernan noventa y siete operaciones, y **veintiún códigos gobiernan más de una** —`roles:update` cinco, entre ellas asignar y revocar permisos; `courses:update` diez; `packages:update` siete—. Un permiso que agrupa es un permiso que **no se puede conceder a medias**, y el catálogo existe para los roles que se crearán con una parte.
+
+**Lo que decide**: cada uno de los veintiún códigos **se queda con una operación** y estrecha su descripción; las demás reciben código nuevo. **Ningún código se renombra ni se retira.** Son cincuenta y un permisos nuevos y el catálogo pasa de sesenta a **ciento once** —trece de `SP`, catorce de `PM`, seis de `CM`, dieciocho de `AC`, ninguno de `MV`—, con el reparto completo y las convenciones de nombre en la spec (§6.2 y §6.3): `list`/`read`, `change-status`, `set-cover`/`remove-cover`, `assign-`/`revoke-`, `add-`/`update-`/`remove-` para elementos con datos propios, y recurso propio para lo que tiene identidad y rutas propias (`course-modules:`, `lessons:`, `user-commission-rates:`).
+
+**Nadie pierde nada al migrar**: la migración da cada hijo a **todo rol que porte el padre** —los dos de sistema y cualquiera creado a mano—, con lo que `RN-SEG-003` se conserva por construcción. Estrechar después es trabajo de quien administre roles (`RF-SP-006`). La reserva del superadministrador no cambia: ninguno de sus seis se divide.
+
+**Lo que impide que vuelva a pasar** es `RN-SEG-014` y la prueba que la vigila: `EndpointPermissionsIT` afirma desde entonces que ningún permiso aparece en dos operaciones.
+
+**En `SP` cambian trece operaciones**: `roles:list`, `roles:assign-permissions`, `roles:revoke-permissions`, `roles:change-status`, `roles:assign-parent`, `permissions:list`, `memberships:list`, `users:list`, `users:change-status`, `users:revoke-roles`, `users:revoke-membership`, `users:read-team` y `broker-accounts:read-indicators`; §6.1 y §9 ya los nombran. `RF-SP-059`, pendiente, nacerá con `users:read-sellers`.
 ## 7. Requerimientos no funcionales
 
 Definidos en [`security.md` §11](../security.md) y en la constitución. Los que este módulo debe satisfacer:
@@ -1199,22 +1222,22 @@ Ninguna con sistemas externos ni con otros módulos. Al absorber los usuarios, s
 | Método | Ruta | Requerimiento | Permiso |
 |---|---|---|---|
 | `POST` | `/api/v1/roles` | `RF-SP-001` | `roles:create` |
-| `GET` | `/api/v1/roles` | `RF-SP-002` | `roles:read` |
+| `GET` | `/api/v1/roles` | `RF-SP-002` | `roles:list` |
 | `GET` | `/api/v1/roles/{id}` | `RF-SP-003` | `roles:read` |
 | `PATCH` | `/api/v1/roles/{id}` | `RF-SP-004` | `roles:update` |
-| `POST` | `/api/v1/roles/{id}/permissions` | `RF-SP-005` | `roles:update` |
-| `DELETE` | `/api/v1/roles/{id}/permissions` | `RF-SP-006` | `roles:update` |
-| `PATCH` | `/api/v1/roles/{id}/status` | `RF-SP-007` | `roles:update` |
-| `PATCH` | `/api/v1/roles/{id}/parent` | `RF-SP-008` | `roles:update` |
+| `POST` | `/api/v1/roles/{id}/permissions` | `RF-SP-005` | `roles:assign-permissions` |
+| `DELETE` | `/api/v1/roles/{id}/permissions` | `RF-SP-006` | `roles:revoke-permissions` |
+| `PATCH` | `/api/v1/roles/{id}/status` | `RF-SP-007` | `roles:change-status` |
+| `PATCH` | `/api/v1/roles/{id}/parent` | `RF-SP-008` | `roles:assign-parent` |
 | `DELETE` | `/api/v1/roles/{id}` | `RF-SP-009` | `roles:delete` |
-| `GET` | `/api/v1/permissions` | `RF-SP-010` | `permissions:read` |
+| `GET` | `/api/v1/permissions` | `RF-SP-010` | `permissions:list` |
 | `GET` | `/api/v1/audit/changes` | `RF-SP-011` | `audit:read-changes` |
 | `GET` | `/api/v1/audit/deletions` | `RF-SP-012` | `audit:read-deletions` |
 | `GET` | `/api/v1/audit/errors` | `RF-SP-013` | `audit:read-errors` |
 | `GET` | `/api/v1/audit/security` | `RF-SP-014` | `audit:read-security` |
 | `GET` | `/api/v1/permissions/{id}` | `RF-SP-015` | `permissions:read` |
 | `POST` | `/api/v1/memberships` | `RF-SP-016` | `memberships:create` |
-| `GET` | `/api/v1/memberships` | `RF-SP-017` | `memberships:read` |
+| `GET` | `/api/v1/memberships` | `RF-SP-017` | `memberships:list` |
 | `GET` | `/api/v1/memberships/{id}` | `RF-SP-018` | `memberships:read` |
 | `GET` | `/api/v1/currencies` | `RF-SP-019` | `currencies:read` |
 | `POST` | `/api/v1/countries` | `RF-SP-020` | `countries:create` |
@@ -1222,15 +1245,15 @@ Ninguna con sistemas externos ni con otros módulos. Al absorber los usuarios, s
 | `PATCH` | `/api/v1/countries/{id}/status` | `RF-SP-022` | `countries:update` |
 | `PATCH` | `/api/v1/currencies/{id}/status` | `RF-SP-023` | `currencies:update` |
 | `POST` | `/api/v1/users` | `RF-SP-024` | `users:create` |
-| `GET` | `/api/v1/users` | `RF-SP-025` | `users:read` |
+| `GET` | `/api/v1/users` | `RF-SP-025` | `users:list` |
 | `GET` | `/api/v1/users/{id}` | `RF-SP-026` | `users:read` |
 | `PATCH` | `/api/v1/users/{id}` | `RF-SP-027` | `users:update` |
-| `PATCH` | `/api/v1/users/{id}/status` | `RF-SP-028` | `users:update` |
+| `PATCH` | `/api/v1/users/{id}/status` | `RF-SP-028` | `users:change-status` |
 | `POST` | `/api/v1/users/{id}/deletion` | `RF-SP-029` | `users:delete` |
 | `POST` | `/api/v1/users/{id}/roles` | `RF-SP-030` | `users:assign-roles` |
-| `POST` | `/api/v1/users/{id}/roles/revocations` | `RF-SP-031` | `users:assign-roles` |
+| `POST` | `/api/v1/users/{id}/roles/revocations` | `RF-SP-031` | `users:revoke-roles` |
 | `PUT` | `/api/v1/users/{id}/membership` | `RF-SP-032` | `users:assign-membership` |
-| `DELETE` | `/api/v1/users/{id}/membership` | `RF-SP-033` | `users:assign-membership` |
+| `DELETE` | `/api/v1/users/{id}/membership` | `RF-SP-033` | `users:revoke-membership` |
 | `POST` | `/api/v1/auth/login` | `RF-SP-034` | — |
 | `POST` | `/api/v1/auth/refresh` | `RF-SP-035` | — |
 | `POST` | `/api/v1/auth/logout` | `RF-SP-036` | — (público, autorizado por el refresh token) |
@@ -1240,7 +1263,7 @@ Ninguna con sistemas externos ni con otros módulos. Al absorber los usuarios, s
 | `POST` | `/api/v1/auth/password-recovery/confirmation` | `RF-SP-040` | — (público, autorizado por el permiso temporal) |
 | `GET` | `/api/v1/users/me` | `RF-SP-039` | Autenticado |
 | `PATCH` | `/api/v1/users/{id}/supervisor` | `RF-SP-041` | `users:assign-supervisor` |
-| `GET` | `/api/v1/users/{id}/team` | `RF-SP-042` | `users:read` |
+| `GET` | `/api/v1/users/{id}/team` | `RF-SP-042` | `users:read-team` |
 | `PATCH` | `/api/v1/users/me` | `RF-SP-044` | Autenticado |
 | `POST` | `/api/v1/auth/registration` | `RF-SP-045` | **Público** |
 | `POST` | `/api/v1/exchange-rates` | `RF-SP-047` | `exchange-rates:create` |
@@ -1252,7 +1275,7 @@ Ninguna con sistemas externos ni con otros módulos. Al absorber los usuarios, s
 | `GET` | `/api/v1/users/{id}/broker-accounts` | `RF-SP-055` | **Superior vigente** o `broker-accounts:read` |
 | `GET` | `/api/v1/users/me/team/broker-accounts` | `RF-SP-056` | Autenticado |
 | `GET` | `/api/v1/broker-accounts` | `RF-SP-057` | `broker-accounts:read` |
-| `GET` | `/api/v1/broker-accounts/indicators` | `RF-SP-058` | `broker-accounts:read` |
+| `GET` | `/api/v1/broker-accounts/indicators` | `RF-SP-058` | `broker-accounts:read-indicators` |
 
 Rutas propuestas. El contrato exacto de cada una se fija en el `plan.md` de su tripleta.
 
@@ -1920,3 +1943,4 @@ Diseñada el 16-09-2026 (`RN-SP-049`); la creará la migración de `RF-MV-011`, 
 | 1.58.0 | 17-09-2026 | **`SP` publica su primera interfaz de ESCRITURA hacia otro módulo** (§8; **D-26** cerrada por el responsable del proyecto; `architecture.md` v0.31.0 §15.2): `MembershipGrant`, «conceder el nivel comprado», que `MV` invoca al confirmar una venta (`RF-MV-003`, `RN-MV-020`). Hace lo que `RF-SP-032` hace a mano y con sus reglas —cierra la vigente, inserta la nueva (`RN-SP-014`), respeta el suelo (`RN-SP-018`), audita— y **no decide si conceder**, que es de `MV` (`RN-MV-029`). Síncrona y en la transacción del que llama. Sin requerimiento nuevo de `SP` y sin migración: la escribe `RF-MV-003`. | Responsable del proyecto |
 | 1.60.0 | 18-09-2026 | **`SP` publica `PermissionHolderLookup`** (§8; D-25; `architecture.md` v0.32.0 §15.2): «¿esta persona porta este permiso?», la primera lectura que responde sobre un permiso y no sobre un dato. La pide `AC` para `RN-AC-006` —el instructor porta `courses:teach`— y la escribe `RF-AC-008` · `T-03` en paquetes de `SP`. **Un booleano sobre un código y no la lista**, para no dar con qué reconstruir fuera la autorización; «portar» es el predicado de `RN-SEG-010`, extraído a una constante que `JpaEffectivePermissions` y el puerto nuevo comparten. Ninguna tabla ni requerimiento de `SP` cambia. **Se numera 1.60.0 y no 1.59.0**: ese número lo tomó `feature/vendedores-de-un-cliente` el mismo día (el cliente sale de `user_supervisors`), escrito en paralelo. | Responsable técnico |
 | 1.61.0 | 19-09-2026 | **El registro por enlace vende por el canal hotlink** (`RF-SP-045`; `RN-MV-007` enmendada en [`requirements/mv.md`](mv.md) v0.27.0), por decisión del responsable del proyecto. La venta que el alta anota (`RN-SP-043`) se validaba contra la oferta de la tienda y rechazaba con `EX-004` todo producto de alcance `HOTLINK`, que es lo que el enlace muestra: desde hoy se valida contra lo que el hotlink publica (`RN-PM-021`). **Y al revés**: un producto solo de tienda ya no se registra por el enlace. La tripleta de `RF-SP-045` gana `CA-SP-686` y `CA-SP-687`. Sin cambios en el formulario ni en el esquema. | Responsable del proyecto |
+| 1.62.0 | 19-09-2026 | **Nace `RF-SP-060`, un permiso por operación**, por decisión del responsable del proyecto: cada operación de la API exige un permiso que ninguna otra exige, también listado y detalle. Veintiún códigos gobernaban más de una —`roles:update` cinco, con asignar y revocar permisos dentro— y cada uno **se queda con una** y estrecha su descripción; las demás reciben código nuevo. **Ningún código se renombra ni se retira**; el catálogo pasa de sesenta a **ciento once** con `V28`, y **todo rol que porte un código dividido recibe sus hijos** —nadie pierde nada—. Nace **`RN-SEG-014`** en `security.md` v0.63.0. §6.1 y §9 nombran los trece permisos nuevos de `SP`; `RF-SP-059` pasa a `users:read-sellers`. `SP` llega a **cincuenta y ocho** requerimientos. | Responsable del proyecto |
