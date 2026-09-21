@@ -5,7 +5,7 @@
 | Módulo | `SP` — Sistema Principal |
 | Paquete | `modules/system` |
 | Prefijos de permiso | `roles:`, `permissions:`, `audit:`, `memberships:`, `currencies:`, `countries:`, `users:`, `exchange-rates:`, `document-types:`, `brokers:`, `broker-accounts:` |
-| Versión | 1.68.0 |
+| Versión | 1.69.0 |
 | Estado | **Aprobado** |
 | Responsable | Bonilla Diaz William Steven |
 | Fecha de creación | 20-08-2026 |
@@ -378,7 +378,7 @@ EXCLUDE USING gist (
 | `RF-SP-059` | Consultar los vendedores de un cliente | Media | `users:read-own-sellers` (los propios), o `users:read-sellers` | **En desarrollo** |
 | `RF-SP-060` | Un permiso por operación | **Crítica** | — (es el catálogo) | Tasks en revisión |
 | `RF-SP-061` | Consultar los clientes de un vendedor | Media | `users:read-own-clients` (la propia), o `users:read-clients` | **En desarrollo** |
-| `RF-SP-062` | Autenticarse no autoriza nada | **Crítica** | — (es el catálogo y la regla) | Tasks en revisión |
+| `RF-SP-062` | Autenticarse no autoriza nada | **Crítica** | — (es el catálogo y la regla) | **En desarrollo** |
 
 !!! info "Dónde vive el estado de un requerimiento"
 
@@ -1238,7 +1238,7 @@ Es la lectura inversa de `RF-SP-059`, y nace el día que la cartera sale de `RF-
 | Reglas aplicables | `RN-SEG-015` (nace con él), `RN-SEG-014`, `RN-SEG-003` |
 | Depende de | `RF-SP-060` |
 | Tripleta | `docs/specs/sp/062-autenticarse-no-autoriza-nada/` |
-| Estado | **Tasks en revisión** (21-09-2026) |
+| Estado | **En desarrollo** (21-09-2026) — construido el mismo día que su tripleta |
 
 **Lo pidió el responsable del proyecto el 21-09-2026, dos veces y con la razón**: «cada endpoint debe tener su propio permiso, ya que uso esto para saber qué vista o consulta mostrar en el front; hazla como regla general, es decir, no basta con solo tener el token». `RF-SP-060` había dejado un permiso por operación **entre las operaciones que tenían permiso**; once se atendían con solo el token —el propio perfil y su corrección, la propia contraseña, mis vendedores, mis clientes, las cuentas de broker de mi equipo y las de una persona a cargo, mis movimientos y su detalle, mis productos comprados, la compra propia de un paquete—, cada una con el argumento «alcance sobre uno mismo: no hay nada que autorizar más allá de estar autenticado». El argumento era correcto para la seguridad y no sirve al frontend, que con «tiene token» no puede decidir nada.
 
@@ -2009,3 +2009,4 @@ Diseñada el 16-09-2026 (`RN-SP-049`) y **creada por la migración de `RF-SP-059
 | 1.66.0 | 21-09-2026 | **`RF-SP-061` estrena tripleta y pasa a `Tasks en revisión`**, por petición del responsable del proyecto («un endpoint para consultar mis clientes o los clientes de un vendedor») y siguiendo `RN-SEG-014`: `GET /users/me/clients` (autenticado) y `GET /users/{id}/clients` con **`users:read-clients`**, permiso propio que sembrará `V30` y con el que el catálogo pasa a **ciento trece** ([`security.md`](../security.md) v0.66.0). La ficha decide lo que se publica de cada cliente —**con `id`** y con estado, al contrario que `RF-SP-059` y por la razón inversa—, el orden (los más recientes primero), el filtro `origin` y que ni la estructura de mando ni D-22 intervienen. §6.1 y §9 nombran las dos rutas. **Y se anota la renumeración de los criterios de `RF-SP-059`** (`CA-SP-700` a `713`, [`requirements.md`](../requirements.md) v0.181.0): chocaban con los de `RF-SP-045` y `RF-SP-060`. | Responsable del proyecto |
 | 1.67.0 | 21-09-2026 | **`RF-SP-061` pasa a `En desarrollo`**, construido el mismo día que su tripleta: `V30` siembra `users:read-clients` y las dos rutas de §9 están en el contrato. §6.1 y la ficha cambian de estado; ninguna regla cambia. | Responsable técnico |
 | 1.68.0 | 21-09-2026 | **Nace `RF-SP-062`, autenticarse no autoriza nada** (`RN-SEG-015`, [`security.md`](../security.md) v0.67.0), por decisión del responsable del proyecto: «cada endpoint debe tener su propio permiso, ya que uso esto para saber qué vista o consulta mostrar en el front; no basta con solo tener el token». Siete operaciones de `SP` que se atendían con solo el token reciben permiso propio, sembrado por `V31`: `users:read-own-profile` (`RF-SP-039`), `users:update-own-profile` (`044`), `users:change-own-password` (`037`), `users:read-own-sellers` (`059`), `users:read-own-clients` (`061`), `broker-accounts:read-own-team` (`056`) y `broker-accounts:read-team-member` (`055`, que abre la ruta y deja el alcance a `RN-SP-046` sin cambiarla). §6.1, §9 y las fichas nombran el código; `SP` llega a **sesenta** requerimientos registrados. | Responsable del proyecto |
+| 1.69.0 | 21-09-2026 | **`RF-SP-062` pasa a `En desarrollo`**, construido el mismo día que su tripleta: `V31` siembra los once y los once `@PreAuthorize` están en el contrato. §6.1 y la ficha cambian de estado; ninguna regla cambia. | Responsable técnico |
