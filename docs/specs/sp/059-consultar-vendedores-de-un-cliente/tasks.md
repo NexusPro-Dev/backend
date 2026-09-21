@@ -6,7 +6,7 @@
 | Especificación | [`spec.md`](spec.md) |
 | Plan | [`plan.md`](plan.md), aprobado el 18-09-2026 |
 | Estado | **Aprobadas** (21-09-2026) |
-| Issue | Pendiente de crear |
+| Issue | [#70](https://github.com/NexusPro-Dev/backend/issues/70) |
 | Rama | `feature/vendedores-de-un-cliente` |
 | Autor | Responsable técnico |
 
