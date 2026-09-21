@@ -755,7 +755,14 @@ class SelfRegistrationIT extends IntegrationTestBase {
    * `CA-SP-699`).
    */
   private static RequestPostProcessor administrador() {
-    return user(SUPERADMIN.toString()).authorities(() -> "users:read", () -> "users:update");
+    // La familia entera de users:read y users:update: desde RF-SP-060 el equipo es
+    // users:read-team y el estado users:change-status (RN-SEG-014).
+    return user(SUPERADMIN.toString())
+        .authorities(
+            () -> "users:read",
+            () -> "users:read-team",
+            () -> "users:update",
+            () -> "users:change-status");
   }
 
   private MockHttpServletRequestBuilder registro(String cuerpo) {

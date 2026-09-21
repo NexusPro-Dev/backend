@@ -448,6 +448,9 @@ class OpenApiContractIT extends IntegrationTestBase {
             jsonPath("$.paths['/api/v1/users/{id}/team'].get['" + EXTENSION + "']")
                 .value("users:read-team"))
         .andExpect(
+            jsonPath("$.paths['/api/v1/users/{id}/sellers'].get['" + EXTENSION + "']")
+                .value("users:read-sellers"))
+        .andExpect(
             jsonPath("$.paths['/api/v1/roles/{id}/permissions'].post['" + EXTENSION + "']")
                 .value("roles:assign-permissions"))
         .andExpect(

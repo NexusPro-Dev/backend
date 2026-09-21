@@ -31,10 +31,10 @@ import java.util.UUID;
  *
  * <p><b>Devuelve el vendedor PRINCIPAL del cliente, y si no lo hay, su superior comercial
  * vigente.</b> Desde el 18-09-2026 (`RN-SP-028` revertida, `RF-SP-059`) el cliente no cuelga de la
- * estructura de mando: su vendedor es la fila {@code REGISTRO} de {@code client_sellers}. La tabla de
- * mando queda para un vendedor que compra. Que ese vendedor porte un rol `VENDEDOR` lo exige
- * `RN-SP-027` <b>al registrarlo</b>, y comprobarlo otra vez al vender convertiría una estructura mal
- * formada en una venta rechazada en lugar de en una estructura que hay que arreglar. `MV` solo
+ * estructura de mando: su vendedor es la fila {@code REGISTRO} de {@code client_sellers}. La tabla
+ * de mando queda para un vendedor que compra. Que ese vendedor porte un rol `VENDEDOR` lo exige
+ * `RN-SP-027` <b>al registrarlo</b>, y comprobarlo otra vez al vender convertiría una estructura
+ * mal formada en una venta rechazada en lugar de en una estructura que hay que arreglar. `MV` solo
  * necesita saber si hay alguien a quien atribuir (`EX-003`).
  *
  * <p>Ver `architecture.md` §15.2.

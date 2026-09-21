@@ -150,7 +150,7 @@ class ClientSellersIT extends IntegrationTestBase {
 
   @Test
   @DisplayName(
-      "`CA-SP-691` — con `users:read` se ven los de cualquiera; sin él 403; inexistente 404")
+      "`CA-SP-691` — con `users:read-sellers` se ven los de cualquiera; sin él 403; inexistente 404")
   void administracionVeLosDeCualquiera() throws Exception {
     mvc.perform(get("/api/v1/users/" + cliente + "/sellers").with(lector()))
         .andExpect(status().isOk())
@@ -159,7 +159,13 @@ class ClientSellersIT extends IntegrationTestBase {
         .andExpect(jsonPath("$.content[0].principal").value(true));
 
     // El vendedor `REGISTRO` NO puede mirar por esta ruta a su propio cliente
-    // sin el permiso: la ruta por identificador es `users:read`, no estructura.
+    // sin el permiso: la ruta por identificador es `users:read-sellers`, no
+    // estructura. Y `users:read` —el detalle de la persona— tampoco la abre
+    // desde el 21-09-2026 (RN-SEG-014): un permiso, una operación.
+    mvc.perform(
+            get("/api/v1/users/" + cliente + "/sellers")
+                .with(user(SUPERADMIN.toString()).authorities(() -> "users:read")))
+        .andExpect(status().isForbidden());
     mvc.perform(get("/api/v1/users/" + cliente + "/sellers").with(comoPersona(agente)))
         .andExpect(status().isForbidden());
 
@@ -192,7 +198,7 @@ class ClientSellersIT extends IntegrationTestBase {
   }
 
   private static RequestPostProcessor lector() {
-    return user(SUPERADMIN.toString()).authorities(() -> "users:read");
+    return user(SUPERADMIN.toString()).authorities(() -> "users:read-sellers");
   }
 
   private UUID crearPersona(String username, String nombre, String apellido, String rol) {

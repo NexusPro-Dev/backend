@@ -466,21 +466,24 @@ public class UserController {
   }
 
   @GetMapping("/{id}/sellers")
-  @PreAuthorize("hasAuthority('users:read')")
+  @PreAuthorize("hasAuthority('users:read-sellers')")
   @Operation(
       summary = "Consultar los vendedores de un cliente",
       description =
           """
           La misma lista que `GET /api/v1/users/me/sellers`, sobre **cualquier
-          persona** y con **`users:read`**: los vendedores de un cliente son un
-          dato de la persona, no de otra naturaleza, y por eso no tienen permiso
-          propio como sí lo tienen las cuentas de broker.
+          persona** y con **`users:read-sellers`**, permiso propio de esta
+          operación (`RN-SEG-014`, un permiso por operación; `V29` lo siembra a
+          `SUPERADMIN` y `ADMIN`). Nació con `users:read` el 18-09-2026 —«los
+          vendedores son un dato de la persona»— y cambió al integrarse, el
+          21-09-2026, porque desde `RF-SP-060` ningún código gobierna dos
+          operaciones.
 
           **`403` sin el permiso y `404` con el permiso y una persona que no
           existe**, el modelo general de `security.md` §5. Aquí no hay actor
           autorizado por estructura al que proteger de un oráculo de
           identificadores —a diferencia de `GET /users/{id}/broker-accounts`—,
-          y quien trae `users:read` ya puede listar a todas las personas.
+          y quien porta este permiso porta normalmente `users:list`.
 
           Una persona que no es cliente devuelve `200` con la colección vacía.
           """)
@@ -499,7 +502,7 @@ public class UserController {
         content = @Content),
     @ApiResponse(
         responseCode = "403",
-        description = "Autenticado sin `users:read` (`AUTH-002`)",
+        description = "Autenticado sin `users:read-sellers` (`AUTH-002`)",
         content = @Content),
     @ApiResponse(
         responseCode = "404",
