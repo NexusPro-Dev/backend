@@ -7,6 +7,7 @@
 | Plan | [`plan.md`](plan.md) v0.3.0 |
 | `plan.md` aprobado el | 05-09-2026 |
 | Estado | **En revisión** — `T-01` a `T-12` `Hecha`; `T-13` a `T-16` `Hecha` el 16-09-2026 (§1.1); `T-17` a `T-20` (§1.2) `Hecha` el 21-09-2026 |
+| Issue | La enmienda del 21-09-2026, [#76](https://github.com/NexusPro-Dev/backend/issues/76) |
 | Rama | `feature/venta-de-productos`; la enmienda del 21-09-2026, en `feature/filtro-por-tipo-de-movimiento` |
 
 !!! info "Qué va en este documento"
