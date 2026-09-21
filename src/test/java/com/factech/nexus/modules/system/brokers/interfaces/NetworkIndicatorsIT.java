@@ -91,7 +91,7 @@ class NetworkIndicatorsIT extends IntegrationTestBase {
     // que un cliente cuelgue de un agente (`FA-004`). Y «cuelga» es, desde el
     // 18-09-2026, la fila REGISTRO de `client_sellers` (`RN-SP-048` (5)): los
     // clientes NO están en `user_supervisors`, y es lo que hace de esta suite
-    // la prueba de que los conteos leen la tabla nueva (`CA-SP-694`).
+    // la prueba de que los conteos leen la tabla nueva (`CA-SP-708`).
     UUID delManager = persona("c-manager", CLIENTE);
     registrar(delManager, manager);
     cuenta(delManager, "M-1", "REGISTER");
@@ -112,7 +112,7 @@ class NetworkIndicatorsIT extends IntegrationTestBase {
     cuenta(otroDelAgente, "A-3", "REGISTER");
 
     // Un vínculo HOTLINK sobre el cliente del manager, a nombre del agente: NO
-    // suma en el agente (`CA-SP-694`) — el indicador mide la captación, y captó
+    // suma en el agente (`CA-SP-708`) — el indicador mide la captación, y captó
     // quien registró.
     vincularPorHotlink(delManager, agente);
 

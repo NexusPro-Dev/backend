@@ -709,7 +709,7 @@ class RegisterSaleIT extends IntegrationTestBase {
    * El cliente y su vendedor PRINCIPAL: la fila {@code REGISTRO} de {@code client_sellers}
    * (`RN-SP-049`, `RF-SP-059`, 18-09-2026). Hasta esa fecha era una fila de {@code
    * user_supervisors}, y el cliente ya no tiene fila allí (`RN-SP-028` revertida): es lo que hace
-   * de `CA-MV-002` la prueba de que la venta lee la tabla nueva (`CA-SP-695`).
+   * de `CA-MV-002` la prueba de que la venta lee la tabla nueva (`CA-SP-709`).
    */
   private void colgarDe(UUID cliente, UUID vendedor) {
     jdbc.update(

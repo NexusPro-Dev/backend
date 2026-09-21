@@ -101,7 +101,7 @@ DELETE FROM user_supervisors us
 | `db/dev-seed` | `semilla-desarrollo.sql` | Los tres clientes a `client_sellers`; `DevelopmentSeedIT` lo comprueba | — |
 | `users/domain/security` | `CommercialStructure` | **Sin cambios de código**: la rama de consumidor nunca se construyó. Su Javadoc deja de anunciarla | `SP` |
 
-**Lo que NO cambia y conviene decir por qué.** `GetCommercialTeamService` y `countActiveSubordinates` (`RN-SP-022`) leen `user_supervisors` sin preguntar por el tipo de rol: después de `V20` dejan de ver clientes **sin tocar una línea**, y las pruebas que lo afirmaban se invierten (`CA-SP-696`, `CA-SP-698`, `CA-SP-699`). `AssignSupervisorService` tampoco cambia: nunca supo asignar a un cliente porque `T-02` de `RF-SP-045` no se hizo.
+**Lo que NO cambia y conviene decir por qué.** `GetCommercialTeamService` y `countActiveSubordinates` (`RN-SP-022`) leen `user_supervisors` sin preguntar por el tipo de rol: después de `V20` dejan de ver clientes **sin tocar una línea**, y las pruebas que lo afirmaban se invierten (`CA-SP-710`, `CA-SP-712`, `CA-SP-713`). `AssignSupervisorService` tampoco cambia: nunca supo asignar a un cliente porque `T-02` de `RF-SP-045` no se hizo.
 
 ## 4. Contrato de API
 
@@ -141,7 +141,7 @@ DELETE FROM user_supervisors us
 - **`/me/sellers`: sin `@PreAuthorize`**, y la ausencia es deliberada, con el motivo escrito al lado y la ruta declarada en `EndpointPermissionsIT` como autenticada sin permiso. El actor sale del token; no hay identificador que validar ni existencia que comprobar.
 - **`/{id}/sellers`: `@PreAuthorize("hasAuthority('users:read-sellers')")`** (`users:read` hasta el 21-09-2026), el modelo general. El `403` sale antes de tocar la base; el `404` solo aparece con el permiso puesto y una persona que no existe.
 
-**`RN-SP-046` cambia de tabla para un caso** y hay que decirlo entero, porque `security.md` §5 la acota como la única lectura autorizada por estructura: `GetBrokerAccountsService` pasa a preguntar **dos cosas** —«¿el actor es el superior vigente de esta persona en `user_supervisors`?» **o** «¿es su principal en `client_sellers`?»— y cualquiera de las dos autoriza. El perímetro no crece: sigue siendo un nivel, siguen siendo las cuentas de broker, y el vinculado por `HOTLINK` sigue recibiendo `404` (`CA-SP-693`).
+**`RN-SP-046` cambia de tabla para un caso** y hay que decirlo entero, porque `security.md` §5 la acota como la única lectura autorizada por estructura: `GetBrokerAccountsService` pasa a preguntar **dos cosas** —«¿el actor es el superior vigente de esta persona en `user_supervisors`?» **o** «¿es su principal en `client_sellers`?»— y cualquiera de las dos autoriza. El perímetro no crece: sigue siendo un nivel, siguen siendo las cuentas de broker, y el vinculado por `HOTLINK` sigue recibiendo `404` (`CA-SP-707`).
 
 ## 6. Auditoría
 
@@ -163,8 +163,8 @@ Las enmiendas de diseño **se aplicaron el 18-09-2026, antes que esta tripleta**
 
 | Tripleta | Enmienda |
 |---|---|
-| `RF-SP-042` | `CA-SP-625` **invertido** en `CA-SP-696`: el equipo no contiene clientes. `roles` y su filtro se conservan |
-| `RF-SP-045` | `CA-SP-513`, `CA-SP-525` y `CA-SP-526` **invertidos** en `CA-SP-697` a `CA-SP-699`; `T-02` pasa de «no hizo falta» a **«ya no existe»**; §4.1 y §5 de su spec dejan de colgar al cliente en `user_supervisors` |
+| `RF-SP-042` | `CA-SP-625` **invertido** en `CA-SP-710`: el equipo no contiene clientes. `roles` y su filtro se conservan |
+| `RF-SP-045` | `CA-SP-513`, `CA-SP-525` y `CA-SP-526` **invertidos** en `CA-SP-711` a `CA-SP-713`; `T-02` pasa de «no hizo falta» a **«ya no existe»**; §4.1 y §5 de su spec dejan de colgar al cliente en `user_supervisors` |
 | `RF-SP-057` | `CA-SP-648` **precisado**: la red en profundidad incluye a los clientes `REGISTRO` de cada nodo, y el «nieto» es uno de ellos |
 | `RF-SP-058` | `CA-SP-658` y `CA-SP-664` **precisados**: «cuelgan de» es `client_sellers`, y «no cuelgan de ningún vendedor» es no tener `REGISTRO` con un vendedor |
 | `RF-MV-001` | `CA-MV-002` **precisado**: el vendedor resuelto es el principal del cliente en `client_sellers` |
@@ -191,17 +191,17 @@ Y al terminar la construcción: `api/index.md` con las dos rutas, el contrato re
 
 | # | Riesgo | Mitigación |
 |---|---|---|
-| 1 | **Una lectura se queda leyendo `user_supervisors`** y después de `V20` devuelve de menos sin que nada falle | `CA-SP-693`, `CA-SP-694` y `CA-SP-695` prueban las tres lecturas con un cliente que **solo** existe en `client_sellers`; `DevelopmentSeedIT` comprueba que la semilla no deja clientes en `user_supervisors` |
+| 1 | **Una lectura se queda leyendo `user_supervisors`** y después de `V20` devuelve de menos sin que nada falle | `CA-SP-707`, `CA-SP-708` y `CA-SP-709` prueban las tres lecturas con un cliente que **solo** existe en `client_sellers`; `DevelopmentSeedIT` comprueba que la semilla no deja clientes en `user_supervisors` |
 | 2 | **La migración borra una fila de mando** por clasificar mal a una persona con los dos tipos de rol | El predicado exige `CONSUMIDOR` **y no** `VENDEDOR`; la prueba de esquema siembra ese caso y comprueba que su fila sigue |
-| 3 | **El vínculo se inserta después de la venta** y `sellerOf` no lo encuentra: la venta se atribuye al propio cliente (`CA-MV-017`) | El orden queda fijado en §7 y `CA-SP-697` lo prueba mirando la línea de la venta del registro |
+| 3 | **El vínculo se inserta después de la venta** y `sellerOf` no lo encuentra: la venta se atribuye al propio cliente (`CA-MV-017`) | El orden queda fijado en §7 y `CA-SP-711` lo prueba mirando la línea de la venta del registro |
 | 4 | **El frontend usaba `supervisor` de `GET /users/me` para enseñar «mi agente»** a un cliente, y deja de venir | Era una desviación de `CA-SP-441`, no un contrato. Se avisa a las sesiones de frontend con la ruta nueva antes de integrar |
 | 5 | Se numera una migración que otra rama ya tomó | `V20` reservada por mensaje a `backend-ff` y `backend-02` el 18-09-2026; `AC` sigue en `V21` |
 
 ## 11. Estrategia de prueba
 
 - **Esquema** (`ClientSellersSchemaIT`): el `CHECK` de origen, el `CHECK` de no-a-sí-mismo, el índice único parcial (**dos `REGISTRO` se rechazan; `REGISTRO` + `HOTLINK` conviven**), y la mudanza sobre datos sembrados en la prueba: cliente con vigente y cerrada, cliente ascendido a vendedor, vendedor sin cambios.
-- **Integración del endpoint** (`ClientSellersIT`): `CA-SP-686` a `CA-SP-691`, con una fila `HOTLINK` insertada a mano para probar el orden y `principal` en falso.
-- **Las lecturas que cambian de tabla**: `BrokerAccountsIT` (`CA-SP-693`, y el equipo de `RF-SP-056` con un cliente), `NetworkIndicatorsIT` (`CA-SP-694`), `RegisterSaleIT` (`CA-SP-695`), `ListBrokerAccountsIT` (`CA-SP-648` precisado).
-- **Las que se invierten**: `SelfRegistrationIT` (`CA-SP-697` a `CA-SP-699`), `CommercialTeamIT` (`CA-SP-696`).
+- **Integración del endpoint** (`ClientSellersIT`): `CA-SP-700` a `CA-SP-705`, con una fila `HOTLINK` insertada a mano para probar el orden y `principal` en falso.
+- **Las lecturas que cambian de tabla**: `BrokerAccountsIT` (`CA-SP-707`, y el equipo de `RF-SP-056` con un cliente), `NetworkIndicatorsIT` (`CA-SP-708`), `RegisterSaleIT` (`CA-SP-709`), `ListBrokerAccountsIT` (`CA-SP-648` precisado).
+- **Las que se invierten**: `SelfRegistrationIT` (`CA-SP-711` a `CA-SP-713`), `CommercialTeamIT` (`CA-SP-710`).
 - **Semilla**: `DevelopmentSeedIT` invierte «los tres clientes cuelgan en `user_supervisors`» por «los tres tienen `REGISTRO` y ninguno está en `user_supervisors`».
 - **Rutas**: `EndpointPermissionsIT` con `/me/sellers` como autenticada sin permiso y su motivo.

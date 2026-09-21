@@ -54,7 +54,7 @@ import org.springframework.transaction.annotation.Transactional;
  * cuentas (`RN-SP-046`). La pregunta pasa a tener <b>dos mitades</b> —¿es su superior en la tabla
  * de mando? ¿es su principal en la de vínculos?— y cualquiera autoriza. <b>El perímetro no
  * crece</b>: sigue siendo un nivel, siguen siendo las cuentas de broker, y un vendedor solo
- * vinculado por {@code HOTLINK} sigue recibiendo {@code 404} (`CA-SP-693`).
+ * vinculado por {@code HOTLINK} sigue recibiendo {@code 404} (`CA-SP-707`).
  */
 @Service
 public class GetBrokerAccountsService {

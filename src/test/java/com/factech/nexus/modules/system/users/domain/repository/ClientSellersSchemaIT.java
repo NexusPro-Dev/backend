@@ -68,7 +68,7 @@ class ClientSellersSchemaIT extends IntegrationTestBase {
   // ---------------------------------------------------------------------------
 
   @Test
-  @DisplayName("`CA-SP-688` — un segundo REGISTRO para el mismo cliente lo rechaza la base")
+  @DisplayName("`CA-SP-702` — un segundo REGISTRO para el mismo cliente lo rechaza la base")
   void unSoloPrincipal() {
     vincular(cliente, agente, "REGISTRO");
 
@@ -115,7 +115,7 @@ class ClientSellersSchemaIT extends IntegrationTestBase {
 
   @Test
   @DisplayName(
-      "`CA-SP-692` — la mudanza copia la vigente como REGISTRO y borra TODAS las del cliente")
+      "`CA-SP-706` — la mudanza copia la vigente como REGISTRO y borra TODAS las del cliente")
   void laMudanzaMueveYNoCopia() throws IOException {
     // Un cliente con historia: colgó de `otroAgente`, lo reasignaron a `agente`.
     colgar(cliente, otroAgente, "2026-09-02T10:00:00Z", "2026-09-10T10:00:00Z");

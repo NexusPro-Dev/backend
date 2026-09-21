@@ -8,7 +8,7 @@
 | Autor | Responsable técnico |
 | Aprobada por | Responsable del proyecto |
 | Fecha de aprobación | 18-09-2026 |
-| Enmendada | 21-09-2026 — `GET /users/{id}/sellers` exige **`users:read-sellers`** y no `users:read` (`RF-SP-060`, `RN-SEG-014`); lo siembra `V29`. `CA-SP-691` y la resolución 6 nombran el permiso nuevo |
+| Enmendada | 21-09-2026 — `GET /users/{id}/sellers` exige **`users:read-sellers`** y no `users:read` (`RF-SP-060`, `RN-SEG-014`); lo siembra `V29`. `CA-SP-705` y la resolución 6 nombran el permiso nuevo |
 
 ---
 
@@ -134,18 +134,18 @@ Que un cliente sepa **quiénes son sus vendedores** —quién lo registró, que 
 
 | ID | Criterio |
 |---|---|
-| `CA-SP-686` | Un cliente registrado por enlace obtiene por `GET /users/me/sellers`, **sin traer ningún permiso**, la lista con **quien lo registró como principal y en primer lugar** |
-| `CA-SP-687` | Cada vendedor llega con **nombre de usuario, nombre, apellido, origen, `principal` y fecha de vínculo**, y **sin** identificador, correo, estado ni roles |
-| `CA-SP-688` | Cada cliente tiene **exactamente un** `REGISTRO`: la base rechaza un segundo con el índice único parcial `uq_client_sellers_principal` |
-| `CA-SP-689` | Un cliente **sin vendedor** —dado de alta por un funcionario— obtiene `200` con la colección vacía, no `404` |
-| `CA-SP-690` | Un **vendedor** que pide `GET /users/me/sellers` obtiene `200` con la colección vacía |
-| `CA-SP-691` | Quien trae `users:read-sellers` (`users:read` hasta el 21-09-2026) obtiene los vendedores de **cualquier** cliente por `GET /users/{id}/sellers`; sin el permiso recibe `403`, y con una persona inexistente o eliminada, `404` |
-| `CA-SP-692` | **La migración mueve y no copia**: tras `V20`, cada cliente que colgaba de un vendedor tiene su fila `REGISTRO` con `first_movement_id` nulo, y `user_supervisors` **no contiene ninguna fila** —vigente ni cerrada— cuyo subordinado sea un consumidor |
-| `CA-SP-693` | El **principal** de un cliente ve sus cuentas de broker por `RF-SP-055` sin traer permiso; un vendedor con vínculo `HOTLINK` sobre el mismo cliente recibe `404` (`RN-SP-046`) |
-| `CA-SP-694` | El `own` de un agente en `RF-SP-058` cuenta las cuentas de los consumidores cuyo `REGISTRO` es él, y un vínculo `HOTLINK` **no suma** (`RN-SP-048` (5)) |
-| `CA-SP-695` | Una venta registrada por `RF-MV-001` a un cliente queda atribuida en cada línea a su vendedor **`REGISTRO`**, y `user_supervisors` no interviene (`RN-MV-003`) |
+| `CA-SP-700` | Un cliente registrado por enlace obtiene por `GET /users/me/sellers`, **sin traer ningún permiso**, la lista con **quien lo registró como principal y en primer lugar** |
+| `CA-SP-701` | Cada vendedor llega con **nombre de usuario, nombre, apellido, origen, `principal` y fecha de vínculo**, y **sin** identificador, correo, estado ni roles |
+| `CA-SP-702` | Cada cliente tiene **exactamente un** `REGISTRO`: la base rechaza un segundo con el índice único parcial `uq_client_sellers_principal` |
+| `CA-SP-703` | Un cliente **sin vendedor** —dado de alta por un funcionario— obtiene `200` con la colección vacía, no `404` |
+| `CA-SP-704` | Un **vendedor** que pide `GET /users/me/sellers` obtiene `200` con la colección vacía |
+| `CA-SP-705` | Quien trae `users:read-sellers` (`users:read` hasta el 21-09-2026) obtiene los vendedores de **cualquier** cliente por `GET /users/{id}/sellers`; sin el permiso recibe `403`, y con una persona inexistente o eliminada, `404` |
+| `CA-SP-706` | **La migración mueve y no copia**: tras `V20`, cada cliente que colgaba de un vendedor tiene su fila `REGISTRO` con `first_movement_id` nulo, y `user_supervisors` **no contiene ninguna fila** —vigente ni cerrada— cuyo subordinado sea un consumidor |
+| `CA-SP-707` | El **principal** de un cliente ve sus cuentas de broker por `RF-SP-055` sin traer permiso; un vendedor con vínculo `HOTLINK` sobre el mismo cliente recibe `404` (`RN-SP-046`) |
+| `CA-SP-708` | El `own` de un agente en `RF-SP-058` cuenta las cuentas de los consumidores cuyo `REGISTRO` es él, y un vínculo `HOTLINK` **no suma** (`RN-SP-048` (5)) |
+| `CA-SP-709` | Una venta registrada por `RF-MV-001` a un cliente queda atribuida en cada línea a su vendedor **`REGISTRO`**, y `user_supervisors` no interviene (`RN-MV-003`) |
 
-Las enmiendas de hecho a `RF-SP-042` y `RF-SP-045` se prueban en sus propias especificaciones: `CA-SP-696` —el equipo no contiene clientes— y `CA-SP-697` a `CA-SP-699` —el registro escribe `client_sellers`, un vendedor con clientes se puede retirar, y el equipo no los devuelve—.
+Las enmiendas de hecho a `RF-SP-042` y `RF-SP-045` se prueban en sus propias especificaciones: `CA-SP-710` —el equipo no contiene clientes— y `CA-SP-711` a `CA-SP-713` —el registro escribe `client_sellers`, un vendedor con clientes se puede retirar, y el equipo no los devuelve—.
 
 ## 13. Casos límite
 
@@ -174,4 +174,5 @@ Las enmiendas de hecho a `RF-SP-042` y `RF-SP-045` se prueban en sus propias esp
 | Versión | Fecha | Cambio | Responsable |
 |---|---|---|---|
 | 0.1.0 | 18-09-2026 | Redacción inicial. Nace dos días después que el requerimiento y con él rediseñado: **el cliente sale de `user_supervisors`** (`RN-SP-028` revertida) y `client_sellers` pasa a ser su única relación con los vendedores, con el principal —la fila `REGISTRO`— **inmutable**. Lo que carga la especificación no es la lectura, que es pequeña, sino **la migración `V20`** que mueve a los clientes de tabla y **las cinco lecturas construidas** que tienen que resolver al principal en el sitio nuevo. Tres decisiones del responsable del proyecto quedan escritas en §14: sale, no se cambia, se mueve. | Responsable del proyecto |
-| 0.2.0 | 21-09-2026 | **`GET /users/{id}/sellers` exige `users:read-sellers` y no `users:read`** (`RF-SP-060`, `RN-SEG-014`; Art. I.7 al integrar la rama sobre `feature/academia`, donde `RF-SP-060` nació el 19-09-2026). §3, §7, `FA-004`, `CA-SP-691` y la resolución 6 nombran el permiso nuevo; §9 conserva el argumento original como historia y explica por qué dejó de decidir. `V29` siembra el permiso. | Responsable técnico |
+| 0.2.0 | 21-09-2026 | **`GET /users/{id}/sellers` exige `users:read-sellers` y no `users:read`** (`RF-SP-060`, `RN-SEG-014`; Art. I.7 al integrar la rama sobre `feature/academia`, donde `RF-SP-060` nació el 19-09-2026). §3, §7, `FA-004`, `CA-SP-705` y la resolución 6 nombran el permiso nuevo; §9 conserva el argumento original como historia y explica por qué dejó de decidir. `V29` siembra el permiso. | Responsable técnico |
+| 0.3.0 | 21-09-2026 | **Los catorce criterios se renumeran: `CA-SP-686` a `699` pasan a `CA-SP-700` a `713`** (686→700 … 699→713, también los cuatro invertidos en `RF-SP-042` y `RF-SP-045`). Se redactaron el 18-09-2026 en la rama y el mismo día `RF-SP-045` (19-09, `CA-SP-686`/`687`) y `RF-SP-060` (19-09, `CA-SP-688` a `697`) tomaron los mismos números en `feature/academia`; al integrar, el que llega después renumera. Las pruebas y los documentos que los citan cambian con ellos. | Responsable técnico |

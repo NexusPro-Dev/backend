@@ -18,7 +18,7 @@ import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.request.RequestPostProcessor;
 
 /**
- * `RF-SP-059` — los vendedores de un cliente, por las dos rutas (`CA-SP-686` a `CA-SP-691`).
+ * `RF-SP-059` — los vendedores de un cliente, por las dos rutas (`CA-SP-700` a `CA-SP-705`).
  *
  * <p><b>La fila {@code HOTLINK} se inserta a mano</b>, y no por la API: nadie la escribe todavía
  * —`RF-MV-011` y `RF-MV-013` no existen—. Sin ella no se podría probar ni el orden ni que {@code
@@ -96,7 +96,7 @@ class ClientSellersIT extends IntegrationTestBase {
 
   @Test
   @DisplayName(
-      "`CA-SP-686`, `CA-SP-687` — el cliente ve a sus vendedores, principal primero y sin permiso")
+      "`CA-SP-700`, `CA-SP-701` — el cliente ve a sus vendedores, principal primero y sin permiso")
   void elClienteVeASusVendedores() throws Exception {
     mvc.perform(get("/api/v1/users/me/sellers").with(comoPersona(cliente)))
         .andExpect(status().isOk())
@@ -112,7 +112,7 @@ class ClientSellersIT extends IntegrationTestBase {
         .andExpect(jsonPath("$.content[1].username").value("projas"))
         .andExpect(jsonPath("$.content[1].origin").value("HOTLINK"))
         .andExpect(jsonPath("$.content[1].principal").value(false))
-        // `CA-SP-687`: lo que NO viaja. Ni identificador, ni correo, ni estado,
+        // `CA-SP-701`: lo que NO viaja. Ni identificador, ni correo, ni estado,
         // ni roles — lo mismo que publica el hotlink (`RN-PM-022`).
         .andExpect(jsonPath("$.content[0].id").doesNotExist())
         .andExpect(jsonPath("$.content[0].email").doesNotExist())
@@ -121,7 +121,7 @@ class ClientSellersIT extends IntegrationTestBase {
   }
 
   @Test
-  @DisplayName("`CA-SP-689` — un cliente sin vendedor recibe 200 con la colección vacía")
+  @DisplayName("`CA-SP-703` — un cliente sin vendedor recibe 200 con la colección vacía")
   void sinVendedorNoEsUnError() throws Exception {
     mvc.perform(get("/api/v1/users/me/sellers").with(comoPersona(clienteSinVendedor)))
         .andExpect(status().isOk())
@@ -129,7 +129,7 @@ class ClientSellersIT extends IntegrationTestBase {
   }
 
   @Test
-  @DisplayName("`CA-SP-690` — un vendedor que pregunta por los suyos recibe 200 vacío")
+  @DisplayName("`CA-SP-704` — un vendedor que pregunta por los suyos recibe 200 vacío")
   void unVendedorNoTieneVendedores() throws Exception {
     // `lgarcia` tiene superior en `user_supervisors`; eso no es «su vendedor»
     // (`FA-002`): la estructura de mando no se publica por esta vía.
@@ -150,7 +150,7 @@ class ClientSellersIT extends IntegrationTestBase {
 
   @Test
   @DisplayName(
-      "`CA-SP-691` — con `users:read-sellers` se ven los de cualquiera; sin él 403; inexistente 404")
+      "`CA-SP-705` — con `users:read-sellers` se ven los de cualquiera; sin él 403; inexistente 404")
   void administracionVeLosDeCualquiera() throws Exception {
     mvc.perform(get("/api/v1/users/" + cliente + "/sellers").with(lector()))
         .andExpect(status().isOk())
