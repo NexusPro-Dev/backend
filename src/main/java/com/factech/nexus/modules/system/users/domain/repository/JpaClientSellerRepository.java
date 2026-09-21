@@ -32,6 +32,20 @@ public class JpaClientSellerRepository implements ClientSellerRepository {
        WHERE cs.client_id = :cliente
       """;
 
+  /**
+   * La cartera: la misma tabla mirada por {@code seller_id}. `JOIN users c` con {@code deleted_at
+   * IS NULL} deja fuera al cliente eliminado (`RF-SP-061` `FA-007`); el origen entra como filtro
+   * opcional resuelto en SQL —{@code :origen IS NULL}— para que conteo y página compartan el
+   * predicado y no puedan discrepar.
+   */
+  private static final String CARTERA =
+      """
+        FROM client_sellers cs
+        JOIN users c ON c.id = cs.client_id AND c.deleted_at IS NULL
+       WHERE cs.seller_id = :vendedor
+         AND (CAST(:origen AS text) IS NULL OR cs.origin = CAST(:origen AS text))
+      """;
+
   private final EntityManager em;
 
   public JpaClientSellerRepository(EntityManager em) {
@@ -93,6 +107,50 @@ public class JpaClientSellerRepository implements ClientSellerRepository {
             .setParameter("cliente", clientId)
             .getResultList();
     return filas.stream().map(JpaClientSellerRepository::fila).toList();
+  }
+
+  @Override
+  @Transactional(readOnly = true)
+  public long countClientsOf(UUID sellerId, String origin) {
+    Object total =
+        em.createNativeQuery("SELECT count(*)" + CARTERA)
+            .setParameter("vendedor", sellerId)
+            .setParameter("origen", origin)
+            .getSingleResult();
+    return ((Number) total).longValue();
+  }
+
+  @Override
+  @Transactional(readOnly = true)
+  public List<SellerClientRow> findClientsOf(UUID sellerId, String origin, int offset, int limit) {
+    @SuppressWarnings("unchecked")
+    List<Tuple> filas =
+        em.createNativeQuery(
+                """
+                SELECT cs.client_id AS client_id, c.username AS username,
+                       c.first_name AS first_name, c.last_name AS last_name,
+                       c.status AS status, cs.origin AS origin, cs.created_at AS linked_at
+                """
+                    + CARTERA
+                    + " ORDER BY cs.created_at DESC, c.username",
+                Tuple.class)
+            .setParameter("vendedor", sellerId)
+            .setParameter("origen", origin)
+            .setFirstResult(offset)
+            .setMaxResults(limit)
+            .getResultList();
+    return filas.stream().map(JpaClientSellerRepository::cliente).toList();
+  }
+
+  private static SellerClientRow cliente(Tuple fila) {
+    return new SellerClientRow(
+        (UUID) fila.get("client_id"),
+        (String) fila.get("username"),
+        (String) fila.get("first_name"),
+        (String) fila.get("last_name"),
+        (String) fila.get("status"),
+        (String) fila.get("origin"),
+        momento(fila.get("linked_at")));
   }
 
   private static ClientSellerRow fila(Tuple fila) {

@@ -122,6 +122,12 @@ class EndpointPermissionsIT extends IntegrationTestBase {
                   + " autenticado. Los de otra persona son `GET /users/{id}/sellers`, con"
                   + " `users:read-sellers`"),
           Map.entry(
+              "GET /api/v1/users/me/clients",
+              "El actor y solo el actor (`RF-SP-061`): su cartera sale del token, sin"
+                  + " parámetro, de modo que no hay nada que autorizar más allá de estar"
+                  + " autenticado. La de otra persona es `GET /users/{id}/clients`, con"
+                  + " `users:read-clients`"),
+          Map.entry(
               "PATCH /api/v1/users/me",
               "El actor y solo el actor (`RF-SP-044`): toma la persona del token y no admite"
                   + " identificador, de modo que no hay nadie más a quien pudiera editar. Editar"
@@ -274,6 +280,7 @@ class EndpointPermissionsIT extends IntegrationTestBase {
           Map.entry("GET /api/v1/users/{id}", "users:read"),
           Map.entry("GET /api/v1/users/{id}/team", "users:read-team"),
           Map.entry("GET /api/v1/users/{id}/sellers", "users:read-sellers"),
+          Map.entry("GET /api/v1/users/{id}/clients", "users:read-clients"),
           Map.entry("PATCH /api/v1/users/{id}", "users:update"),
           Map.entry("PATCH /api/v1/users/{id}/status", "users:change-status"),
           Map.entry("POST /api/v1/users/{id}/deletion", "users:delete"),

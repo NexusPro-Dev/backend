@@ -5,7 +5,7 @@
 | Módulo | `SP` — Sistema Principal |
 | Paquete | `modules/system` |
 | Prefijos de permiso | `roles:`, `permissions:`, `audit:`, `memberships:`, `currencies:`, `countries:`, `users:`, `exchange-rates:`, `document-types:`, `brokers:`, `broker-accounts:` |
-| Versión | 1.66.0 |
+| Versión | 1.67.0 |
 | Estado | **Aprobado** |
 | Responsable | Bonilla Diaz William Steven |
 | Fecha de creación | 20-08-2026 |
@@ -377,7 +377,7 @@ EXCLUDE USING gist (
 | `RF-SP-058` | Consultar los indicadores de la red comercial | **Crítica** | `broker-accounts:read-indicators` | **En desarrollo** |
 | `RF-SP-059` | Consultar los vendedores de un cliente | Media | **El propio cliente**, o `users:read-sellers` | **En desarrollo** |
 | `RF-SP-060` | Un permiso por operación | **Crítica** | — (es el catálogo) | Tasks en revisión |
-| `RF-SP-061` | Consultar los clientes de un vendedor | Media | **El propio vendedor**, o `users:read-clients` | Tasks en revisión |
+| `RF-SP-061` | Consultar los clientes de un vendedor | Media | **El propio vendedor**, o `users:read-clients` | **En desarrollo** |
 
 !!! info "Dónde vive el estado de un requerimiento"
 
@@ -1218,7 +1218,7 @@ Retira lógicamente una tasa **exigiendo motivo** (Art. V.13), que viaja al regi
 | Reglas aplicables | `RN-SP-049`, `RN-SEG-014` |
 | Depende de | `RF-SP-059` |
 | Tripleta | `docs/specs/sp/061-consultar-clientes-de-un-vendedor/` |
-| Estado | **Tasks en revisión** (21-09-2026) — registrado el 18-09-2026 como `RF-SP-060` en `feature/vendedores-de-un-cliente`; renumerado a `061` el 21-09-2026 al integrar sobre `feature/academia`, donde `RF-SP-060` ya era «un permiso por operación»; tripleta redactada el mismo día |
+| Estado | **En desarrollo** (21-09-2026) — registrado el 18-09-2026 como `RF-SP-060` en `feature/vendedores-de-un-cliente`; renumerado a `061` el 21-09-2026 al integrar sobre `feature/academia`, donde `RF-SP-060` ya era «un permiso por operación»; tripleta redactada el mismo día |
 
 Es la lectura inversa de `RF-SP-059`, y nace el día que la cartera sale de `RF-SP-042`: hasta el 18-09-2026 «los clientes de un agente» se respondía filtrando el equipo por `CLIENTE`, y con `RN-SP-028` revertida el equipo no los contiene. Lee `client_sellers` por `seller_id` —el índice que §10.19 exige existe para esto— y distingue, por cada cliente, si es **suyo** (`REGISTRO`) o solo **vinculado** (`HOTLINK`). Paginada, como `RF-SP-042`. Es la misma pregunta que hoy contesta `RF-SP-057` para las cuentas de broker, hecha sobre las personas.
 
@@ -1987,3 +1987,4 @@ Diseñada el 16-09-2026 (`RN-SP-049`) y **creada por la migración de `RF-SP-059
 | 1.64.0 | 21-09-2026 | **`RF-SP-059` nace con `users:read-sellers`, como `RF-SP-060` había anunciado**: su rama se construyó el 18-09-2026 con `users:read` y al integrarla sobre `feature/academia` —donde `RN-SEG-014` ya rige— la operación `GET /users/{id}/sellers` recibe su permiso propio, sembrado por `V29` a `SUPERADMIN` y `ADMIN`; el catálogo pasa a **ciento doce** ([`security.md`](../security.md) v0.65.0). Enmienda de Art. I.7 sobre la tripleta de `RF-SP-059` (spec 0.2.0, plan y tasks con `T-19`); la ficha de `RF-SP-060` §9 anota que el anuncio se cumplió. | Responsable técnico |
 | 1.65.0 | 21-09-2026 | **`RF-SP-059` pasa a `En desarrollo`**: la rama que lo construyó el 18-09-2026 queda integrada sobre `feature/academia`, con `V20` (la mudanza a `client_sellers`) y `V29` (`users:read-sellers`). §6.1 y la ficha cambian de estado; ninguna regla cambia. La ficha de `RF-SP-061` pasa detrás de la de `060` y anota lo que pidió el frontend el mismo día (R-45): que la cartera traiga el `id` del cliente. | Responsable técnico |
 | 1.66.0 | 21-09-2026 | **`RF-SP-061` estrena tripleta y pasa a `Tasks en revisión`**, por petición del responsable del proyecto («un endpoint para consultar mis clientes o los clientes de un vendedor») y siguiendo `RN-SEG-014`: `GET /users/me/clients` (autenticado) y `GET /users/{id}/clients` con **`users:read-clients`**, permiso propio que sembrará `V30` y con el que el catálogo pasa a **ciento trece** ([`security.md`](../security.md) v0.66.0). La ficha decide lo que se publica de cada cliente —**con `id`** y con estado, al contrario que `RF-SP-059` y por la razón inversa—, el orden (los más recientes primero), el filtro `origin` y que ni la estructura de mando ni D-22 intervienen. §6.1 y §9 nombran las dos rutas. **Y se anota la renumeración de los criterios de `RF-SP-059`** (`CA-SP-700` a `713`, [`requirements.md`](../requirements.md) v0.181.0): chocaban con los de `RF-SP-045` y `RF-SP-060`. | Responsable del proyecto |
+| 1.67.0 | 21-09-2026 | **`RF-SP-061` pasa a `En desarrollo`**, construido el mismo día que su tripleta: `V30` siembra `users:read-clients` y las dos rutas de §9 están en el contrato. §6.1 y la ficha cambian de estado; ninguna regla cambia. | Responsable técnico |
