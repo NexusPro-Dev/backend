@@ -24,8 +24,10 @@
 -- directamente en las tablas. Para datos de prueba vale; para cualquier otra
 -- cosa, la API.
 --
--- ES REPETIBLE: si las personas ya existen, no hace nada. Eso es lo que
--- permite que corra en CADA ARRANQUE sin duplicar a nadie.
+-- ES REPETIBLE: si las personas ya existen, no las crea de nuevo. Eso es lo
+-- que permite que corra en CADA ARRANQUE sin duplicar a nadie. Lo único que
+-- sí toca de una persona que ya existe es COMPLETARLE EL DOCUMENTO si le
+-- falta (el bloque «El documento de quienes ya existían», más abajo).
 --
 -- NO LLEVA `BEGIN`/`COMMIT`: la transacción la pone quien lo ejecuta. El
 -- ejecutor lo envuelve en una, y así un fallo a mitad no deja personas sin rol
@@ -161,6 +163,58 @@ SELECT i.id, r.id, r.role_type
   FROM insertadas i
   JOIN personas p ON p.usuario = i.username
   JOIN roles r ON r.id = p.rol_id;
+
+
+
+-- -----------------------------------------------------------------------------
+-- El documento de quienes YA EXISTÍAN sin él.
+--
+-- LA SEMILLA DECLARA EL DOCUMENTO DESDE EL 10-09-2026 (`RN-SP-035`), pero el
+-- `INSERT` de arriba SALTA a quien ya existe: una base sembrada antes de esa
+-- fecha —el entorno de desarrollo compartido lo estaba— conserva a sus
+-- diecinueve personas SIN tipo ni número de documento, y ninguna migración las
+-- rellena, porque no son datos del sistema sino de prueba. Lo que se veía en
+-- dev eran cuentas de prueba sin `CC`, y la corrección de la semilla no las
+-- alcanzaba (21-09-2026, a petición del responsable del proyecto).
+--
+-- ESTE BLOQUE LAS COMPLETA CON LOS MISMOS VALORES QUE RECIBIRÍAN HOY AL NACER
+-- —`CC` y el número derivado del nombre de usuario—, de modo que una base
+-- vieja y una recién sembrada quedan IGUALES. El teléfono, la dirección y la
+-- ciudad se completan por la misma razón y solo si faltan (`COALESCE`): a
+-- quien los tenga no se le pisan.
+--
+-- SOLO A LAS PERSONAS DE ESTA SEMILLA —reconocidas por el nombre de usuario que
+-- construye la tabla `plan`: prefijo del rol y un índice— y SOLO A LAS QUE NO
+-- TIENEN DOCUMENTO. Quien se registró por la API ya lo trae, porque allí es
+-- obligatorio, y a quien un administrador se lo haya cambiado a mano no se le
+-- toca. `superadmin` NO ENTRA: nace en `V9` como fila del sistema, no es una
+-- persona de prueba y lo que le falte se decide en una migración, no aquí.
+--
+-- EL NÚMERO NO SE PISA SI YA LO TIENE OTRO: `uq_users_document` es único por
+-- pareja (tipo, número), y si alguien registró por la API el número `AGENTE1`
+-- el `UPDATE` fallaría a medias. Se comprueba antes, y esa persona se queda
+-- como estaba — es un caso que no debería darse, y si se da conviene verlo.
+--
+-- ES REPETIBLE como el resto: la segunda vez no encuentra a nadie.
+-- -----------------------------------------------------------------------------
+UPDATE users u
+   SET document_type_id = (SELECT id FROM document_types WHERE abbreviation = 'CC'),
+       document_number  = upper(regexp_replace(u.username, '[^A-Za-z0-9]', '', 'g')),
+       phone            = COALESCE(u.phone,
+                              '+57300' || lpad((abs(hashtext(u.username)) % 10000000)::text, 7, '0')),
+       address_line1    = COALESCE(u.address_line1,
+                              'Calle ' || regexp_replace(u.username, '[^0-9]', '', 'g') || ' # 10-20'),
+       city             = COALESCE(u.city, 'Bogota'),
+       updated_at       = now()
+ WHERE u.deleted_at IS NULL
+   AND u.document_type_id IS NULL
+   AND u.username ~ '^(admin|manager|director|agente|cliente)[0-9]+$'
+   AND NOT EXISTS (
+         SELECT 1
+           FROM users o
+          WHERE o.document_type_id = (SELECT id FROM document_types WHERE abbreviation = 'CC')
+            AND o.document_number  = upper(regexp_replace(u.username, '[^A-Za-z0-9]', '', 'g'))
+       );
 
 
 

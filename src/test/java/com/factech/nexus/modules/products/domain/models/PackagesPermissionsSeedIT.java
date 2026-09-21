@@ -54,7 +54,10 @@ class PackagesPermissionsSeedIT extends IntegrationTestBase {
             "packages:remove-cover",
             "packages:add-product",
             "packages:update-product",
-            "packages:remove-product");
+            "packages:remove-product",
+            // Y el de V31 (RF-SP-062, 21-09-2026): la compra propia, una operación
+            // de MV sobre este recurso, que va a todo rol por su tipo.
+            "packages:buy");
   }
 
   @Test
@@ -83,9 +86,10 @@ class PackagesPermissionsSeedIT extends IntegrationTestBase {
                  WHERE p.resource = 'packages'
                 """,
                 Integer.class))
-        // Once por dos roles: V28 dio los siete hijos a quien portaba packages:update y
-        // packages:read, que eran los dos de sistema.
-        .isEqualTo(22);
+        // Once por dos roles —V28 dio los siete hijos a quien portaba packages:update y
+        // packages:read, que eran los dos de sistema— más packages:buy en los seis
+        // roles de sistema (V31, por tipo): 22 + 6.
+        .isEqualTo(28);
   }
 
   private List<String> permisosDe(UUID rol) {

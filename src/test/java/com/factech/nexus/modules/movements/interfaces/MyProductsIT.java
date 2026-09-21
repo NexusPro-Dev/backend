@@ -21,6 +21,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.test.web.servlet.MockMvc;
+import org.springframework.test.web.servlet.request.RequestPostProcessor;
 
 /**
  * `RF-MV-014` — los productos comprados propios, con su estado.
@@ -64,11 +65,11 @@ class MyProductsIT extends IntegrationTestBase {
   void soloLoPropio() throws Exception {
     venta(comprador, vendedor, "PENDIENTE", BASE, null, "PENDIENTE", null);
     // El vendedor vendió esa línea; no la «tiene».
-    mvc.perform(get("/api/v1/movements/mine/products").with(user(vendedor.toString())))
+    mvc.perform(get("/api/v1/movements/mine/products").with(propio(vendedor)))
         .andExpect(status().isOk())
         .andExpect(jsonPath("$.totalElements").value(0));
 
-    mvc.perform(get("/api/v1/movements/mine/products").with(user(comprador.toString())))
+    mvc.perform(get("/api/v1/movements/mine/products").with(propio(comprador)))
         .andExpect(status().isOk())
         .andExpect(jsonPath("$.totalElements").value(1));
   }
@@ -77,7 +78,11 @@ class MyProductsIT extends IntegrationTestBase {
   @DisplayName("CA-MV-109 — responde a cualquier autenticado; sin autenticar, 401")
   void acceso() throws Exception {
     mvc.perform(get("/api/v1/movements/mine/products")).andExpect(status().isUnauthorized());
-    mvc.perform(get("/api/v1/movements/mine/products").with(user(persona("mp-nuevo").toString())))
+    // Y con token pero sin movements:read-own-products, 403 (RF-SP-062, CA-MV-109).
+    UUID nuevo = persona("mp-nuevo");
+    mvc.perform(get("/api/v1/movements/mine/products").with(user(nuevo.toString()).authorities()))
+        .andExpect(status().isForbidden());
+    mvc.perform(get("/api/v1/movements/mine/products").with(propio(nuevo)))
         .andExpect(status().isOk())
         .andExpect(jsonPath("$.content").isEmpty());
   }
@@ -92,7 +97,7 @@ class MyProductsIT extends IntegrationTestBase {
     venta(comprador, vendedor, "PENDIENTE", BASE, null, "PENDIENTE", null);
 
     String cuerpo =
-        mvc.perform(get("/api/v1/movements/mine/products").with(user(comprador.toString())))
+        mvc.perform(get("/api/v1/movements/mine/products").with(propio(comprador)))
             .andExpect(status().isOk())
             .andExpect(jsonPath("$.content[0].state").value("PENDIENTE_PAGO"))
             .andExpect(jsonPath("$.content[0].movementStatus").value("PENDIENTE"))
@@ -115,7 +120,7 @@ class MyProductsIT extends IntegrationTestBase {
         venta(
             comprador, vendedor, "CONFIRMADA", BASE.minusDays(1), 5, "ENTREGADA", entregadoHace10);
 
-    mvc.perform(get("/api/v1/movements/mine/products").with(user(comprador.toString())))
+    mvc.perform(get("/api/v1/movements/mine/products").with(propio(comprador)))
         .andExpect(status().isOk())
         .andExpect(jsonPath("$.totalElements").value(2))
         .andExpect(jsonPath("$.content[0].movementId").value(activa.toString()))
@@ -151,7 +156,7 @@ class MyProductsIT extends IntegrationTestBase {
     venta(comprador, vendedor, "CONFIRMADA", BASE, null, "ENTREGADA", BASE);
 
     String cuerpo =
-        mvc.perform(get("/api/v1/movements/mine/products").with(user(comprador.toString())))
+        mvc.perform(get("/api/v1/movements/mine/products").with(propio(comprador)))
             .andExpect(status().isOk())
             .andExpect(jsonPath("$.content[0].state").value("ACTIVO"))
             .andExpect(jsonPath("$.content[0].deliveredAt").isNotEmpty())
@@ -167,7 +172,7 @@ class MyProductsIT extends IntegrationTestBase {
     UUID manual = producto("MP_MANUAL", "Bot manual", "MANUAL");
     venta(comprador, vendedor, "CONFIRMADA", BASE, null, "PENDIENTE", null, manual);
 
-    mvc.perform(get("/api/v1/movements/mine/products").with(user(comprador.toString())))
+    mvc.perform(get("/api/v1/movements/mine/products").with(propio(comprador)))
         .andExpect(status().isOk())
         .andExpect(jsonPath("$.content[0].state").value("PENDIENTE_AUTORIZACION"))
         .andExpect(jsonPath("$.content[0].implementation").value("MANUAL"));
@@ -182,7 +187,7 @@ class MyProductsIT extends IntegrationTestBase {
             + " vigente (PLATINO).' WHERE movement_id = ?",
         venta);
 
-    mvc.perform(get("/api/v1/movements/mine/products").with(user(comprador.toString())))
+    mvc.perform(get("/api/v1/movements/mine/products").with(propio(comprador)))
         .andExpect(status().isOk())
         .andExpect(jsonPath("$.content[0].state").value("RETENIDO"))
         .andExpect(
@@ -196,7 +201,7 @@ class MyProductsIT extends IntegrationTestBase {
     venta(comprador, vendedor, "RECHAZADA", BASE, null, "PENDIENTE", null);
     venta(comprador, vendedor, "ANULADA", BASE.plusDays(1), null, "PENDIENTE", null);
 
-    mvc.perform(get("/api/v1/movements/mine/products").with(user(comprador.toString())))
+    mvc.perform(get("/api/v1/movements/mine/products").with(propio(comprador)))
         .andExpect(status().isOk())
         .andExpect(jsonPath("$.content[0].state").value("ANULADO"))
         .andExpect(jsonPath("$.content[1].state").value("RECHAZADO"));
@@ -212,14 +217,12 @@ class MyProductsIT extends IntegrationTestBase {
     venta(comprador, vendedor, "PENDIENTE", BASE, null, "PENDIENTE", null);
     venta(comprador, vendedor, "CONFIRMADA", BASE.plusDays(1), null, "ENTREGADA", BASE.plusDays(1));
 
-    mvc.perform(
-            get("/api/v1/movements/mine/products?state=activo").with(user(comprador.toString())))
+    mvc.perform(get("/api/v1/movements/mine/products?state=activo").with(propio(comprador)))
         .andExpect(status().isOk())
         .andExpect(jsonPath("$.totalElements").value(1))
         .andExpect(jsonPath("$.content[0].state").value("ACTIVO"));
 
-    mvc.perform(
-            get("/api/v1/movements/mine/products?state=INVENTADO").with(user(comprador.toString())))
+    mvc.perform(get("/api/v1/movements/mine/products?state=INVENTADO").with(propio(comprador)))
         .andExpect(status().isBadRequest())
         .andExpect(jsonPath("$.errors[0].code").value("VAL-002"));
   }
@@ -233,7 +236,7 @@ class MyProductsIT extends IntegrationTestBase {
     // El catálogo se renombra después: la fila sigue diciendo lo que se compró.
     jdbc.update("UPDATE products SET name = 'Otro nombre' WHERE id = ?", producto);
 
-    mvc.perform(get("/api/v1/movements/mine/products?size=1").with(user(comprador.toString())))
+    mvc.perform(get("/api/v1/movements/mine/products?size=1").with(propio(comprador)))
         .andExpect(status().isOk())
         .andExpect(jsonPath("$.totalElements").value(2))
         .andExpect(jsonPath("$.totalPages").value(2))
@@ -243,8 +246,7 @@ class MyProductsIT extends IntegrationTestBase {
         .andExpect(jsonPath("$.content[0].quantity").value(1))
         .andExpect(jsonPath("$.content[0].purchasedAt").isNotEmpty());
 
-    mvc.perform(
-            get("/api/v1/movements/mine/products?size=1&page=1").with(user(comprador.toString())))
+    mvc.perform(get("/api/v1/movements/mine/products?size=1&page=1").with(propio(comprador)))
         .andExpect(status().isOk())
         .andExpect(jsonPath("$.content[0].movementId").value(vieja.toString()));
   }
@@ -252,7 +254,7 @@ class MyProductsIT extends IntegrationTestBase {
   @Test
   @DisplayName("`products` no lo captura `/mine/{id}`")
   void productsNoEsUnIdentificador() throws Exception {
-    mvc.perform(get("/api/v1/movements/mine/products").with(user(comprador.toString())))
+    mvc.perform(get("/api/v1/movements/mine/products").with(propio(comprador)))
         .andExpect(status().isOk())
         .andExpect(jsonPath("$.content").isArray());
   }
@@ -382,5 +384,17 @@ class MyProductsIT extends IntegrationTestBase {
         entrega,
         producto);
     return id;
+  }
+
+  // Desde RF-SP-062 (21-09-2026) lo propio exige permiso —autenticarse no autoriza
+  // nada—: el actor porta la familia de alcance propio de MV, que es lo que V31 da a
+  // todo rol. Hasta entonces bastaba con `user(id)`.
+  private static RequestPostProcessor propio(UUID persona) {
+    return user(persona.toString())
+        .authorities(
+            () -> "movements:list-own",
+            () -> "movements:read-own",
+            () -> "movements:read-own-products",
+            () -> "packages:buy");
   }
 }

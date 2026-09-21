@@ -281,10 +281,17 @@ class MyMovementsIT extends IntegrationTestBase {
   // ---------------------------------------------------------------------------
 
   @Test
-  @DisplayName("CA-MV-046 — responde a cualquier autenticado, sin exigir permiso")
+  @DisplayName(
+      "CA-MV-046 — responde a quien porta movements:list-own y ningún otro permiso; sin él, 403"
+          + " (RF-SP-062)")
   void sinPermisoResponde() throws Exception {
-    mvc.perform(get("/api/v1/movements/mine").with(user(cliente.toString())))
+    mvc.perform(
+            get("/api/v1/movements/mine")
+                .with(user(cliente.toString()).authorities(() -> "movements:list-own")))
         .andExpect(status().isOk());
+    // Hasta el 21-09-2026 bastaba con estar autenticado; ya no.
+    mvc.perform(get("/api/v1/movements/mine").with(user(cliente.toString()).authorities()))
+        .andExpect(status().isForbidden());
   }
 
   @Test
@@ -309,12 +316,27 @@ class MyMovementsIT extends IntegrationTestBase {
   // Auxiliares
   // ---------------------------------------------------------------------------
 
+  // Desde RF-SP-062 (21-09-2026) lo propio exige permiso —autenticarse no autoriza
+  // nada—: el actor porta la familia de alcance propio de MV, que es lo que V31
+  // da a todo rol. Hasta entonces bastaba con `user(id)`.
   private RequestPostProcessor como(UUID persona) {
-    return user(persona.toString());
+    return user(persona.toString())
+        .authorities(
+            () -> "movements:list-own",
+            () -> "movements:read-own",
+            () -> "movements:read-own-products");
   }
 
+  // El permiso de administración ADEMÁS de los propios: lo que se afirma con él es
+  // que no amplía el alcance, y para llegar a la consulta hay que poder entrar
+  // (RF-SP-062). Solo con movements:read la ruta es 403 —OwnScopePermissionsIT—.
   private RequestPostProcessor conPermisoDeLectura(UUID persona) {
-    return user(persona.toString()).authorities(() -> "movements:read");
+    return user(persona.toString())
+        .authorities(
+            () -> "movements:read",
+            () -> "movements:list-own",
+            () -> "movements:read-own",
+            () -> "movements:read-own-products");
   }
 
   // Tambien AL TERMINAR: la ultima prueba dejaba movimientos y sus detalles apuntando

@@ -150,7 +150,7 @@ class ConfirmSaleIT extends IntegrationTestBase {
 
     // El propio comprador, sin permiso: confirmar es afirmar que el dinero ENTRÓ,
     // y eso lo sabe quien lo recibe.
-    mvc.perform(confirmar(venta).with(user(cliente.toString()))).andExpect(status().isForbidden());
+    mvc.perform(confirmar(venta).with(propio(cliente))).andExpect(status().isForbidden());
     mvc.perform(confirmar(venta)).andExpect(status().isUnauthorized());
     assertThat(estadoDe(venta)).isEqualTo("PENDIENTE");
   }
@@ -320,7 +320,7 @@ class ConfirmSaleIT extends IntegrationTestBase {
     UUID venta = venta(cliente, "PENDIENTE", bot);
     mvc.perform(confirmar(venta).with(conPermiso(cajero))).andExpect(status().isOk());
 
-    mvc.perform(get("/api/v1/movements/mine/{id}", venta).with(user(cliente.toString())))
+    mvc.perform(get("/api/v1/movements/mine/{id}", venta).with(propio(cliente)))
         .andExpect(status().isOk())
         .andExpect(jsonPath("$.status").value("CONFIRMADA"))
         .andExpect(jsonPath("$.confirmedAt").isNotEmpty())
@@ -328,7 +328,7 @@ class ConfirmSaleIT extends IntegrationTestBase {
         .andExpect(jsonPath("$.lines[0].deliveredAt").isNotEmpty());
 
     // Y el listado propio también lleva la confirmación.
-    mvc.perform(get("/api/v1/movements/mine").with(user(cliente.toString())))
+    mvc.perform(get("/api/v1/movements/mine").with(propio(cliente)))
         .andExpect(status().isOk())
         .andExpect(jsonPath("$.content[0].confirmedAt").isNotEmpty());
   }
@@ -531,5 +531,17 @@ class ConfirmSaleIT extends IntegrationTestBase {
           producto);
     }
     return id;
+  }
+
+  // Desde RF-SP-062 (21-09-2026) lo propio exige permiso —autenticarse no autoriza
+  // nada—: el actor porta la familia de alcance propio de MV, que es lo que V31 da a
+  // todo rol. Hasta entonces bastaba con `user(id)`.
+  private static RequestPostProcessor propio(UUID persona) {
+    return user(persona.toString())
+        .authorities(
+            () -> "movements:list-own",
+            () -> "movements:read-own",
+            () -> "movements:read-own-products",
+            () -> "packages:buy");
   }
 }

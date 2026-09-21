@@ -385,7 +385,9 @@ class AllBrokerAccountsIT extends IntegrationTestBase {
     String equipo =
         mvc.perform(
                 get("/api/v1/users/me/team/broker-accounts?brokerId=" + brokerB)
-                    .with(user(medio.toString())))
+                    // RF-SP-062: lo propio exige permiso.
+                    .with(
+                        user(medio.toString()).authorities(() -> "broker-accounts:read-own-team")))
             .andReturn()
             .getResponse()
             .getContentAsString();

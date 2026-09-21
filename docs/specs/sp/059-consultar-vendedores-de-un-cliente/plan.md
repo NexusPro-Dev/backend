@@ -9,8 +9,15 @@
 | Aprobado por | Responsable del proyecto |
 | Fecha de aprobación | 18-09-2026 |
 | Enmendado | 21-09-2026 — `/{id}/sellers` con **`users:read-sellers`** (`RF-SP-060`, `RN-SEG-014`); nace **`V29`**, que lo siembra. §5 y §8 quedan afectados |
+| Enmendado | 21-09-2026 — exige **`users:read-own-sellers`** (`RF-SP-062`, `RN-SEG-015`: autenticarse no autoriza nada); lo siembra `V31` (la ruta `/me`) |
 
 ---
+
+!!! note "Enmienda de Art. I.7 — 21-09-2026, `RF-SP-062`"
+
+    Esta operación exige **`users:read-own-sellers`** desde el 21-09-2026, por `RF-SP-062` —**autenticarse no autoriza nada**, `RN-SEG-015` ([`security.md` §4.3](../../../security.md#43-reglas-de-negocio))—, por decisión del responsable del proyecto: «cada endpoint debe tener su propio permiso, ya que uso esto para saber qué vista o consulta mostrar en el front; no basta con solo tener el token». Hasta entonces se atendía con solo el token, y las líneas que abajo dicen «sin permiso» o «autenticado a secas» hablan de esa decisión original y se conservan como historia: el alcance sobre uno mismo sigue siendo exactamente el mismo, lo que cambia es que ahora tiene nombre. `V31` siembra el permiso y lo da a todo rol por su tipo.
+
+
 
 !!! note "Enmienda de Art. I.7 — 21-09-2026, `RF-SP-060`"
 
@@ -138,7 +145,7 @@ DELETE FROM user_supervisors us
 
 ## 5. Autorización
 
-- **`/me/sellers`: sin `@PreAuthorize`**, y la ausencia es deliberada, con el motivo escrito al lado y la ruta declarada en `EndpointPermissionsIT` como autenticada sin permiso. El actor sale del token; no hay identificador que validar ni existencia que comprobar.
+- **`/me/sellers`: `@PreAuthorize("hasAuthority('users:read-own-sellers')")` desde el 21-09-2026** (`RF-SP-062`). Hasta entonces, sin `@PreAuthorize` y con la ausencia declarada en `EndpointPermissionsIT` como autenticada sin permiso. El actor sale del token; no hay identificador que validar ni existencia que comprobar.
 - **`/{id}/sellers`: `@PreAuthorize("hasAuthority('users:read-sellers')")`** (`users:read` hasta el 21-09-2026), el modelo general. El `403` sale antes de tocar la base; el `404` solo aparece con el permiso puesto y una persona que no existe.
 
 **`RN-SP-046` cambia de tabla para un caso** y hay que decirlo entero, porque `security.md` §5 la acota como la única lectura autorizada por estructura: `GetBrokerAccountsService` pasa a preguntar **dos cosas** —«¿el actor es el superior vigente de esta persona en `user_supervisors`?» **o** «¿es su principal en `client_sellers`?»— y cualquiera de las dos autoriza. El perímetro no crece: sigue siendo un nivel, siguen siendo las cuentas de broker, y el vinculado por `HOTLINK` sigue recibiendo `404` (`CA-SP-707`).

@@ -24,6 +24,7 @@ import io.swagger.v3.oas.annotations.security.SecurityRequirements;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import org.springframework.http.HttpStatus;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
@@ -197,8 +198,13 @@ public class AuthController {
   /**
    * <b>El único de esta sección que exige token</b>, y por eso reintroduce el esquema que la clase
    * desheredó: cambiar la propia contraseña no tiene sujeto sin alguien autenticado.
+   *
+   * <p>Y desde el 21-09-2026 exige además {@code users:change-own-password} (`RF-SP-062`,
+   * `RN-SEG-015`: autenticarse no autoriza nada). Todo rol lo recibe por `V31`; un rol creado a
+   * mano sin él deja a sus personas sin poder cambiar la contraseña obligatoria, y queda escrito.
    */
   @PostMapping("/password")
+  @PreAuthorize("hasAuthority('users:change-own-password')")
   @ResponseStatus(HttpStatus.NO_CONTENT)
   @SecurityRequirement(name = OpenApiSecurityConfig.ESQUEMA)
   @Operation(
@@ -239,6 +245,10 @@ public class AuthController {
     @ApiResponse(
         responseCode = "401",
         description = "Token ausente o inválido (`AUTH-001`)",
+        content = @Content),
+    @ApiResponse(
+        responseCode = "403",
+        description = "Autenticado sin `users:change-own-password` (`AUTH-002`)",
         content = @Content),
     @ApiResponse(
         responseCode = "422",

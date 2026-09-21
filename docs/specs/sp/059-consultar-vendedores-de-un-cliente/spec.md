@@ -9,8 +9,15 @@
 | Aprobada por | Responsable del proyecto |
 | Fecha de aprobación | 18-09-2026 |
 | Enmendada | 21-09-2026 — `GET /users/{id}/sellers` exige **`users:read-sellers`** y no `users:read` (`RF-SP-060`, `RN-SEG-014`); lo siembra `V29`. `CA-SP-705` y la resolución 6 nombran el permiso nuevo |
+| Enmendada | 21-09-2026 — exige **`users:read-own-sellers`** (`RF-SP-062`, `RN-SEG-015`: autenticarse no autoriza nada); lo siembra `V31` (la ruta `/me`) |
 
 ---
+
+!!! note "Enmienda de Art. I.7 — 21-09-2026, `RF-SP-062`"
+
+    Esta operación exige **`users:read-own-sellers`** desde el 21-09-2026, por `RF-SP-062` —**autenticarse no autoriza nada**, `RN-SEG-015` ([`security.md` §4.3](../../../security.md#43-reglas-de-negocio))—, por decisión del responsable del proyecto: «cada endpoint debe tener su propio permiso, ya que uso esto para saber qué vista o consulta mostrar en el front; no basta con solo tener el token». Hasta entonces se atendía con solo el token, y las líneas que abajo dicen «sin permiso» o «autenticado a secas» hablan de esa decisión original y se conservan como historia: el alcance sobre uno mismo sigue siendo exactamente el mismo, lo que cambia es que ahora tiene nombre. `V31` siembra el permiso y lo da a todo rol por su tipo.
+
+
 
 !!! note "Enmienda de Art. I.7 — 21-09-2026, `RF-SP-060`"
 
@@ -36,7 +43,7 @@ Que un cliente sepa **quiénes son sus vendedores** —quién lo registró, que 
 
 | Actor | Papel |
 |---|---|
-| **El propio cliente** | Consulta sus vendedores por `GET /users/me/sellers`, sin permiso |
+| **El propio cliente** con `users:read-own-sellers` | Consulta sus vendedores por `GET /users/me/sellers` — **hasta el 21-09-2026 sin permiso** (`RF-SP-062`) |
 | **Administrador** con `users:read-sellers` | Consulta los de cualquiera por `GET /users/{id}/sellers` |
 
 ## 4. Alcance
@@ -92,7 +99,7 @@ Que un cliente sepa **quiénes son sus vendedores** —quién lo registró, que 
 
 ## 7. Precondiciones y postcondiciones
 
-**Precondiciones:** actor autenticado. Para `/users/{id}/sellers`, además `users:read-sellers`.
+**Precondiciones:** actor autenticado con `users:read-own-sellers` para `/users/me/sellers` — **hasta el 21-09-2026 sin permiso** (`RF-SP-062`); para `/users/{id}/sellers`, `users:read-sellers`.
 
 **Postcondiciones:** ninguna. Es una lectura y **no audita**.
 
@@ -134,7 +141,7 @@ Que un cliente sepa **quiénes son sus vendedores** —quién lo registró, que 
 
 | ID | Criterio |
 |---|---|
-| `CA-SP-700` | Un cliente registrado por enlace obtiene por `GET /users/me/sellers`, **sin traer ningún permiso**, la lista con **quien lo registró como principal y en primer lugar** |
+| `CA-SP-700` | Un cliente registrado por enlace obtiene por `GET /users/me/sellers`, **con `users:read-own-sellers` y ningún otro permiso** (hasta el 21-09-2026, «sin traer ningún permiso»), la lista con **quien lo registró como principal y en primer lugar** |
 | `CA-SP-701` | Cada vendedor llega con **nombre de usuario, nombre, apellido, origen, `principal` y fecha de vínculo**, y **sin** identificador, correo, estado ni roles |
 | `CA-SP-702` | Cada cliente tiene **exactamente un** `REGISTRO`: la base rechaza un segundo con el índice único parcial `uq_client_sellers_principal` |
 | `CA-SP-703` | Un cliente **sin vendedor** —dado de alta por un funcionario— obtiene `200` con la colección vacía, no `404` |

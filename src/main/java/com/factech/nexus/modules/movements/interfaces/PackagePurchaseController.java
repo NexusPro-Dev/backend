@@ -11,6 +11,7 @@ import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import java.net.URI;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
@@ -29,13 +30,12 @@ import org.springframework.web.bind.annotation.RestController;
  * sabe registrarla. Que dos controladores compartan prefijo es un detalle de enrutado; que uno
  * escriba en las tablas del otro sería una frontera rota.
  *
- * <p><b>Sin {@code @PreAuthorize}, y a propósito.</b> Las demás rutas de {@code /api/v1/packages}
- * son de administración y exigen permiso; esta es una compra propia, como `RF-MV-002` y
- * `RF-PM-007`, y el alcance lo da la credencial: <b>el sujeto no viaja en la petición</b>, de modo
- * que no hay forma de comprar a nombre de otro. Compartir prefijo con rutas protegidas es
- * exactamente donde se cuela un permiso que sobra o que falta, y por eso la ausencia se declara en
- * la lista blanca de {@code EndpointPermissionsIT} y no se deja a la interpretación de quien lea
- * este archivo.
+ * <p><b>Con {@code packages:buy} desde el 21-09-2026</b> (`RF-SP-062`, `RN-SEG-015`: autenticarse
+ * no autoriza nada). Hasta entonces iba sin {@code @PreAuthorize} a propósito —una compra propia,
+ * como `RF-MV-002` y `RF-PM-007`, cuyo alcance lo da la credencial: <b>el sujeto no viaja en la
+ * petición</b>, de modo que no hay forma de comprar a nombre de otro— y la ausencia se declaraba en
+ * la lista blanca de {@code EndpointPermissionsIT}. El alcance no cambió; lo que cambió es que el
+ * frontend decide a quién le enseña la tienda por el permiso, y «tiene token» no le dice nada.
  */
 @Tag(name = "Movimientos")
 @RestController
@@ -103,6 +103,10 @@ public class PackagePurchaseController {
         description = "Token ausente o inválido (`AUTH-001`). Comprar exige sesión.",
         content = @Content),
     @ApiResponse(
+        responseCode = "403",
+        description = "Autenticado sin `packages:buy` (`AUTH-002`)",
+        content = @Content),
+    @ApiResponse(
         responseCode = "409",
         description =
             "Lo que solo se sabe después de resolver: el paquete no se ofrece hoy —inactivo,"
@@ -125,7 +129,11 @@ public class PackagePurchaseController {
         description = "Fallo no controlado (`ERR-500`)",
         content = @Content)
   })
+  // `packages:buy` desde el 21-09-2026 (`RF-SP-062`, `RN-SEG-015`). Comprar es
+  // siempre para uno mismo —la venta a otro es `movements:create`—, y el
+  // permiso existe para que el frontend sepa a quién enseñarle la tienda.
   @PostMapping("/{code}/purchases")
+  @PreAuthorize("hasAuthority('packages:buy')")
   public ResponseEntity<PurchaseResponse> comprar(
       @PathVariable String code, @Valid @RequestBody(required = false) BuyPackageRequest peticion) {
     PurchaseResponse venta = compra.buy(code, peticion);

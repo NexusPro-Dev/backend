@@ -10,6 +10,7 @@
 | Autor | Responsable técnico |
 | Aprobada por | Responsable del proyecto |
 | Fecha de aprobación | 05-09-2026 |
+| Enmendada | 21-09-2026 — exige **`movements:list-own` (el listado) y `movements:read-own` (el detalle)** (`RF-SP-062`, `RN-SEG-015`: autenticarse no autoriza nada); lo siembra `V31` |
 
 !!! info "Qué va en este documento"
 
@@ -18,6 +19,12 @@
     **Prueba de pertenencia:** si un cambio de tecnología lo invalidaría, no pertenece aquí — va a `plan.md`. No se nombran tablas, clases, endpoints ni librerías.
 
 ---
+
+!!! note "Enmienda de Art. I.7 — 21-09-2026, `RF-SP-062`"
+
+    Esta operación exige **`movements:list-own` (el listado) y `movements:read-own` (el detalle)** desde el 21-09-2026, por `RF-SP-062` —**autenticarse no autoriza nada**, `RN-SEG-015` ([`security.md` §4.3](../../../security.md#43-reglas-de-negocio))—, por decisión del responsable del proyecto: «cada endpoint debe tener su propio permiso, ya que uso esto para saber qué vista o consulta mostrar en el front; no basta con solo tener el token». Hasta entonces se atendía con solo el token, y las líneas que abajo dicen «sin permiso» o «autenticado a secas» hablan de esa decisión original y se conservan como historia: el alcance sobre uno mismo sigue siendo exactamente el mismo, lo que cambia es que ahora tiene nombre. `V31` siembra el permiso y lo da a todo rol por su tipo.
+
+
 
 ## 1. Objetivo
 
@@ -58,7 +65,7 @@ Un movimiento lleva **dos personas**: quien **recibe** lo comprado y quien lo **
 
 | Actor | Rol en esta funcionalidad |
 |---|---|
-| Cualquiera autenticado | Consulta los movimientos en los que participó, como comprador, como vendedor o como ambos. **No hace falta permiso**: es el mismo criterio de `RF-SP-039`, `RF-PM-007` y `RF-MV-009` |
+| Cualquiera autenticado con `movements:list-own` (listado) y `movements:read-own` (detalle) | Consulta los movimientos en los que participó, como comprador, como vendedor o como ambos. Hasta el 21-09-2026, **no hacía falta permiso**: «es el mismo criterio de `RF-SP-039`, `RF-PM-007` y `RF-MV-009`», y los tres cambiaron el mismo día |
 
 **No hay un segundo actor, y eso es lo que define el requerimiento.** Nadie puede pedir los movimientos de otra persona por esta vía — ni indicándolo, ni por omisión, ni teniendo permisos. Quien pregunta es siempre el actor autenticado, y la operación **no admite decir sobre quién**.
 
@@ -136,7 +143,7 @@ Cada movimiento devuelve:
 
 | Tipo | Condición |
 |---|---|
-| Precondición | El actor está autenticado |
+| Precondición | El actor está autenticado y porta `movements:list-own` o `movements:read-own`, según la ruta — **hasta el 21-09-2026 sin permiso** (`RF-SP-062`) |
 | Postcondición | **Ninguna.** No se escribe nada, no se audita nada |
 
 **No se audita, y es deliberado.** Consultar lo propio no es un acceso a datos ajenos: registrar cada vez que alguien mira su propia lista llenaría la auditoría de ruido y haría más difícil encontrar en ella lo que sí importa.
@@ -205,7 +212,7 @@ La lista de vendedores viaja **vacía y presente**. **Desde el 16-09-2026 no es 
 | `CA-MV-043` | Cada movimiento trae **el sujeto y sus vendedores sin repetir**; la lista va **vacía y presente** cuando el movimiento no tiene ninguno |
 | `CA-MV-044` | El detalle de un movimiento propio devuelve **sus líneas**, con producto, cantidad, precio y vigencia |
 | `CA-MV-045` | El detalle de un movimiento **ajeno** responde **no encontrado**, igual que uno inexistente |
-| `CA-MV-046` | Responde a **cualquier actor autenticado**, sin exigir ningún permiso |
+| `CA-MV-046` | Responde a cualquier actor autenticado que porte `movements:list-own` —o `movements:read-own` en el detalle— **y ningún otro permiso**; sin él, `403` (hasta el 21-09-2026 decía «sin exigir ningún permiso») |
 | `CA-MV-047` | **Sin autenticar responde `401`** |
 
 **`CA-MV-038` es el criterio que sostiene el requerimiento**, y por eso se ejercita **con el permiso puesto**: si algún día alguien decide que quien administra vea aquí también las ajenas, esta prueba lo delata en lugar de dejar que ocurra por omisión.

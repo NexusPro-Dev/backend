@@ -8,8 +8,15 @@
 | Autor | Responsable técnico |
 | Aprobada por | Responsable del proyecto |
 | Fecha de aprobación | 10-09-2026 |
+| Enmendada | 21-09-2026 — exige **`broker-accounts:read-team-member`** (`RF-SP-062`, `RN-SEG-015`: autenticarse no autoriza nada); lo siembra `V31`, que abre la ruta; `RN-SP-046` sigue decidiendo el alcance |
 
 ---
+
+!!! note "Enmienda de Art. I.7 — 21-09-2026, `RF-SP-062`"
+
+    Esta operación exige **`broker-accounts:read-team-member`** desde el 21-09-2026, por `RF-SP-062` —**autenticarse no autoriza nada**, `RN-SEG-015` ([`security.md` §4.3](../../../security.md#43-reglas-de-negocio))—, por decisión del responsable del proyecto: «cada endpoint debe tener su propio permiso, ya que uso esto para saber qué vista o consulta mostrar en el front; no basta con solo tener el token». Hasta entonces se atendía con solo el token, y las líneas que abajo dicen «sin permiso» o «autenticado a secas» hablan de esa decisión original y se conservan como historia: el alcance sobre uno mismo sigue siendo exactamente el mismo, lo que cambia es que ahora tiene nombre. `V31` siembra el permiso y lo da a todo rol por su tipo, a `CONSUMIDOR` no. **Abre la ruta y no decide el alcance**: `RN-SP-046` sigue diciendo quién es visible —el subordinado directo, el cliente propio, o cualquiera para quien además porte `broker-accounts:read`— y el `404` sigue saliendo del servicio.
+
+
 
 ## 1. Objetivo
 
@@ -74,7 +81,7 @@ Saber qué cuentas de broker declaró una persona, en cuál las tiene y **en qu�
 
 ## 7. Precondiciones y postcondiciones
 
-**Precondiciones:** actor autenticado. Y **una de las dos**: ser el superior comercial vigente de la persona, o traer `broker-accounts:read`.
+**Precondiciones:** actor autenticado con `broker-accounts:read-team-member` — **hasta el 21-09-2026 sin permiso** (`RF-SP-062`). Y **una de las dos**: ser el superior comercial vigente de la persona, o traer `broker-accounts:read`.
 
 **Postcondiciones:** ninguna. Es una lectura y **no audita**.
 

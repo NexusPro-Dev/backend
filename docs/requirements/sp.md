@@ -5,7 +5,7 @@
 | Módulo | `SP` — Sistema Principal |
 | Paquete | `modules/system` |
 | Prefijos de permiso | `roles:`, `permissions:`, `audit:`, `memberships:`, `currencies:`, `countries:`, `users:`, `exchange-rates:`, `document-types:`, `brokers:`, `broker-accounts:` |
-| Versión | 1.67.0 |
+| Versión | 1.69.0 |
 | Estado | **Aprobado** |
 | Responsable | Bonilla Diaz William Steven |
 | Fecha de creación | 20-08-2026 |
@@ -355,13 +355,13 @@ EXCLUDE USING gist (
 | `RF-SP-034` | Iniciar sesión | **Crítica** | — (público) | En desarrollo |
 | `RF-SP-035` | Refrescar el token de acceso | **Crítica** | — (público) | En desarrollo |
 | `RF-SP-036` | Cerrar sesión | Alta | — (público) | En desarrollo |
-| `RF-SP-037` | Cambiar la propia contraseña | Alta | Autenticado | En desarrollo |
+| `RF-SP-037` | Cambiar la propia contraseña | Alta | `users:change-own-password` | En desarrollo |
 | `RF-SP-038` | Restablecer la contraseña de un usuario | Media | `users:reset-password` | En desarrollo |
-| `RF-SP-039` | Consultar el propio perfil | Alta | Autenticado | En desarrollo |
+| `RF-SP-039` | Consultar el propio perfil | Alta | `users:read-own-profile` | En desarrollo |
 | `RF-SP-040` | Restablecer la propia contraseña olvidada | Alta | — (público) | En desarrollo |
 | `RF-SP-041` | Asignar o cambiar el superior comercial de un usuario | **Crítica** | `users:assign-supervisor` | En desarrollo |
 | `RF-SP-042` | Consultar el equipo a cargo de un usuario | Media | `users:read-team` | En desarrollo |
-| `RF-SP-044` | Editar el propio perfil | Alta | Autenticado | En desarrollo |
+| `RF-SP-044` | Editar el propio perfil | Alta | `users:update-own-profile` | En desarrollo |
 | `RF-SP-045` | Registro de clientes por enlace | **Crítica** | **Público** | **En desarrollo** |
 | `RF-SP-047` | Registrar una tasa de cambio | Alta | `exchange-rates:create` | En desarrollo |
 | `RF-SP-048` | Consultar las tasas de cambio | Alta | `exchange-rates:read` | Tasks en revisión |
@@ -371,13 +371,14 @@ EXCLUDE USING gist (
 | `RF-SP-052` | Consultar el catálogo de brokers | Alta | **Público** | **Tasks en revisión** |
 | `RF-SP-053` | Vincular una cuenta de broker a una persona | Alta | Por decidir | **Pendiente** |
 | `RF-SP-054` | Completar la cuenta de broker desde el webhook del broker | Media | **Ninguno: lo llama el broker** | **Pendiente** |
-| `RF-SP-055` | Consultar las cuentas de broker de una persona | Alta | **Superior vigente** o `broker-accounts:read` | **En desarrollo** |
-| `RF-SP-056` | Consultar las cuentas de broker del equipo | Alta | **Autenticado** (el equipo propio) | **En desarrollo** |
+| `RF-SP-055` | Consultar las cuentas de broker de una persona | Alta | `broker-accounts:read-team-member`, y **superior vigente** o `broker-accounts:read` para el alcance | **En desarrollo** |
+| `RF-SP-056` | Consultar las cuentas de broker del equipo | Alta | `broker-accounts:read-own-team` (el equipo propio) | **En desarrollo** |
 | `RF-SP-057` | Consultar y filtrar todas las cuentas de broker | Alta | `broker-accounts:read` | **En desarrollo** |
 | `RF-SP-058` | Consultar los indicadores de la red comercial | **Crítica** | `broker-accounts:read-indicators` | **En desarrollo** |
-| `RF-SP-059` | Consultar los vendedores de un cliente | Media | **El propio cliente**, o `users:read-sellers` | **En desarrollo** |
+| `RF-SP-059` | Consultar los vendedores de un cliente | Media | `users:read-own-sellers` (los propios), o `users:read-sellers` | **En desarrollo** |
 | `RF-SP-060` | Un permiso por operación | **Crítica** | — (es el catálogo) | Tasks en revisión |
-| `RF-SP-061` | Consultar los clientes de un vendedor | Media | **El propio vendedor**, o `users:read-clients` | **En desarrollo** |
+| `RF-SP-061` | Consultar los clientes de un vendedor | Media | `users:read-own-clients` (la propia), o `users:read-clients` | **En desarrollo** |
+| `RF-SP-062` | Autenticarse no autoriza nada | **Crítica** | — (es el catálogo y la regla) | **En desarrollo** |
 
 !!! info "Dónde vive el estado de un requerimiento"
 
@@ -758,7 +759,7 @@ Activa o desactiva una moneda. **La moneda por defecto no puede desactivarse**: 
 |---|---|
 | Objetivo | Permitir que cualquier persona autenticada vea sus propios datos, sus roles y sus permisos efectivos |
 | Actor | Cualquier persona autenticada |
-| Permiso requerido | — (Autenticado) |
+| Permiso requerido | `users:read-own-profile` — **hasta el 21-09-2026 «Autenticado»**, cuando `RF-SP-062` (`RN-SEG-015`) decidió que autenticarse no autoriza nada |
 | Prioridad | Alta |
 | Reglas aplicables | `RN-SEG-009`, `RN-SEG-002` |
 | Depende de | `RF-SP-024` |
@@ -863,7 +864,7 @@ La segunda es **alcance por persona**, que [`security.md` §6](../security.md) r
 |---|---|
 | Objetivo | Permitir que cualquier persona autenticada corrija sus propios datos de identificación sin depender de un administrador |
 | Actor | Cualquier persona autenticada |
-| Permiso requerido | — (Autenticado) |
+| Permiso requerido | `users:update-own-profile` — **hasta el 21-09-2026 «Autenticado»**, cuando `RF-SP-062` (`RN-SEG-015`) decidió que autenticarse no autoriza nada |
 | Prioridad | Alta |
 | Reglas aplicables | `RN-SP-016` |
 | Depende de | `RF-SP-039` |
@@ -1004,7 +1005,7 @@ Lo que sí está decidido y ya vive en el esquema: **la cuenta se declara con el
 |---|---|
 | Objetivo | Saber qué cuentas declaró una persona, en qué broker y **en qué punto está cada una** |
 | Actor | **Su superior comercial vigente**, o un administrador |
-| Permiso requerido | **Ninguno si se es el superior vigente**; `broker-accounts:read` sobre cualquiera (`RN-SP-046`) |
+| Permiso requerido | `broker-accounts:read-team-member` abre la ruta (desde el 21-09-2026, `RF-SP-062`); **quién es visible lo decide `RN-SP-046`**: el superior vigente ve a su subordinado directo o a su cliente propio, y quien además porte `broker-accounts:read` ve a cualquiera |
 | Prioridad | Alta |
 | Reglas aplicables | `RN-SP-040`, `RN-SP-045`, `RN-SP-046` |
 | Depende de | `RF-SP-041`, `RF-SP-045`, `RF-SP-052` |
@@ -1025,7 +1026,7 @@ Las cuentas de **una** persona: broker, identificador, nombre de usuario en el b
 |---|---|
 | Objetivo | Ver de una sola vez **qué gente de mi equipo ya depositó y quién sigue esperando** |
 | Actor | **El superior comercial**, sobre su propio equipo |
-| Permiso requerido | **Ninguno más que estar autenticado**: el alcance lo pone la estructura, no un permiso (`RN-SP-046`) |
+| Permiso requerido | `broker-accounts:read-own-team` — **hasta el 21-09-2026 «Autenticado»**, cuando `RF-SP-062` (`RN-SEG-015`) decidió que autenticarse no autoriza nada. El alcance —el equipo propio— sigue poniéndolo la estructura (`RN-SP-046`) |
 | Prioridad | Alta |
 | Reglas aplicables | `RN-SP-040`, `RN-SP-045`, `RN-SP-046` |
 | Depende de | `RF-SP-041`, `RF-SP-055` |
@@ -1169,7 +1170,7 @@ Retira lógicamente una tasa **exigiendo motivo** (Art. V.13), que viaja al regi
 |---|---|
 | Objetivo | Que un cliente sepa **quiénes le venden** —su agente principal y los vendedores por cuyo hotlink compró— y que administración pueda verlo |
 | Actor | El propio cliente; Administrador |
-| Permiso requerido | **El propio cliente** (`GET /users/me/sellers`), o `users:read-sellers` (`GET /users/{id}/sellers`) — **`users:read` hasta el 19-09-2026**, cuando `RF-SP-060` decidió un permiso por operación; lo siembra **`V29`** el 21-09-2026, al integrar la rama que construyó la ruta |
+| Permiso requerido | `users:read-own-sellers` (`GET /users/me/sellers`, **autenticado a secas hasta el 21-09-2026**, `RF-SP-062`), o `users:read-sellers` (`GET /users/{id}/sellers`) — **`users:read` hasta el 19-09-2026**, cuando `RF-SP-060` decidió un permiso por operación; lo siembra **`V29`** el 21-09-2026, al integrar la rama que construyó la ruta |
 | Prioridad | Media |
 | Reglas aplicables | `RN-SP-027`, `RN-SP-028`, `RN-SP-049` |
 | Depende de | `RF-SP-045` |
@@ -1213,7 +1214,7 @@ Retira lógicamente una tasa **exigiendo motivo** (Art. V.13), que viaja al regi
 |---|---|
 | Objetivo | Que un vendedor vea **su cartera** —a quiénes registró y a quiénes les vendió por hotlink— y que administración pueda verla |
 | Actor | El propio vendedor; Administrador |
-| Permiso requerido | **El propio vendedor** (`GET /users/me/clients`), o `users:read-clients` (`GET /users/{id}/clients`) — permiso propio por `RN-SEG-014` (`RF-SP-060`), sembrado por `V30` a `SUPERADMIN` y `ADMIN` |
+| Permiso requerido | `users:read-own-clients` (`GET /users/me/clients`, **autenticado a secas hasta el 21-09-2026**, `RF-SP-062`), o `users:read-clients` (`GET /users/{id}/clients`) — permiso propio por `RN-SEG-014` (`RF-SP-060`), sembrado por `V30` a `SUPERADMIN` y `ADMIN` |
 | Prioridad | Media |
 | Reglas aplicables | `RN-SP-049`, `RN-SEG-014` |
 | Depende de | `RF-SP-059` |
@@ -1225,6 +1226,25 @@ Es la lectura inversa de `RF-SP-059`, y nace el día que la cartera sale de `RF-
 **Lo que devuelve de cada cliente, decidido el 21-09-2026**: identificador, nombre de usuario, nombre y apellido, **estado**, origen del vínculo (`REGISTRO` o `HOTLINK`), si el vendedor es su **principal** y desde cuándo. **Con `id`, al contrario que `RF-SP-059`**, y por la razón inversa: desde la cartera se abre la ficha del cliente (`RF-SP-026`), y un vendedor sin identificador no tendría cómo llegar; el cliente de `RF-SP-059`, en cambio, no tiene ninguna ruta donde usar el del vendedor. **Con estado**, porque un vendedor necesita distinguir un cliente activo de uno desactivado para trabajar su cartera, y porque el vínculo es un hecho que no se oculta cuando el cliente cambia de estado (`RN-SP-049`). **Los más recientes primero**, porque la cartera crece por el final y lo nuevo es lo que se atiende; un filtro opcional `origin` separa los propios de los vinculados. **Solo `client_sellers`**: un vendedor subordinado en `user_supervisors` no es un cliente de su director, y la lista no lo incluye —el equipo es `RF-SP-042`—. Tampoco se autoriza por estructura: el director de un vendedor no ve la cartera de este por serlo (D-22 no se amplía); la ve quien porte `users:read-clients`.
 
 **Lo pidió el frontend el 21-09-2026 (R-45 de `docs/para-el-backend.md`)**: `/mis-clientes` y la pestaña «Clientes» de la ficha de un usuario leían `GET /users/{id}/team?roles=CONSUMIDOR` y se quedan sin fuente al salir la cartera del equipo, de modo que este requerimiento las desbloquea. Y una petición concreta para su tripleta: **la respuesta trae el `id` del cliente** —desde la cartera se abre su ficha, y sin `id` no hay enlace—, al contrario que `RF-SP-059`, que omite el del vendedor porque nada se abre desde ahí.
+
+#### `RF-SP-062` — Autenticarse no autoriza nada
+
+| Campo | Valor |
+|---|---|
+| Objetivo | Que **toda operación que exija token exija además un permiso**, también las que actúan sobre el propio actor, de modo que el frontend decida qué vista o consulta mostrar mirando solo los permisos |
+| Actor | Administrador de roles; el sistema, al migrar |
+| Permiso requerido | — Es un cambio del catálogo (`security.md` §4.4) y de once anotaciones, aplicado por migración |
+| Prioridad | **Crítica** |
+| Reglas aplicables | `RN-SEG-015` (nace con él), `RN-SEG-014`, `RN-SEG-003` |
+| Depende de | `RF-SP-060` |
+| Tripleta | `docs/specs/sp/062-autenticarse-no-autoriza-nada/` |
+| Estado | **En desarrollo** (21-09-2026) — construido el mismo día que su tripleta |
+
+**Lo pidió el responsable del proyecto el 21-09-2026, dos veces y con la razón**: «cada endpoint debe tener su propio permiso, ya que uso esto para saber qué vista o consulta mostrar en el front; hazla como regla general, es decir, no basta con solo tener el token». `RF-SP-060` había dejado un permiso por operación **entre las operaciones que tenían permiso**; once se atendían con solo el token —el propio perfil y su corrección, la propia contraseña, mis vendedores, mis clientes, las cuentas de broker de mi equipo y las de una persona a cargo, mis movimientos y su detalle, mis productos comprados, la compra propia de un paquete—, cada una con el argumento «alcance sobre uno mismo: no hay nada que autorizar más allá de estar autenticado». El argumento era correcto para la seguridad y no sirve al frontend, que con «tiene token» no puede decidir nada.
+
+**Lo que decide**: once permisos nuevos con `own` para el alcance sobre uno mismo (`users:read-own-profile`, `users:update-own-profile`, `users:change-own-password`, `users:read-own-sellers`, `users:read-own-clients`, `broker-accounts:read-own-team`, `broker-accounts:read-team-member`, `movements:list-own`, `movements:read-own`, `movements:read-own-products`, `packages:buy`), sembrados por `V31` y dados a **todo rol por su tipo** —los de `FUNCIONARIO` y `VENDEDOR` reciben los once; los de `CONSUMIDOR`, ocho: no los tres de vendedor— para que nadie pierda nada; el catálogo pasa a **ciento veinticuatro**. Las **catorce públicas** —las que se atienden sin token— siguen sin permiso: no es una excepción a la regla, es su límite. `EndpointPermissionsIT` deja de admitir «autenticada a propósito» y solo admite «pública».
+
+**Lo que cuesta**: un rol creado a mano nace sin permisos, y desde hoy eso significa que sus personas no pueden ni ver su perfil ni cambiar su contraseña hasta que se les concedan los de alcance propio por `RF-SP-005`. Queda escrito en `security.md` §4.4.
 
 ## 7. Requerimientos no funcionales
 
@@ -1290,18 +1310,18 @@ Ninguna con sistemas externos ni con otros módulos. Al absorber los usuarios, s
 | `POST` | `/api/v1/auth/login` | `RF-SP-034` | — |
 | `POST` | `/api/v1/auth/refresh` | `RF-SP-035` | — |
 | `POST` | `/api/v1/auth/logout` | `RF-SP-036` | — (público, autorizado por el refresh token) |
-| `POST` | `/api/v1/auth/password` | `RF-SP-037` | Autenticado |
+| `POST` | `/api/v1/auth/password` | `RF-SP-037` | `users:change-own-password` |
 | `POST` | `/api/v1/users/{id}/password-reset` | `RF-SP-038` | `users:reset-password` |
 | `POST` | `/api/v1/auth/password-recovery` | `RF-SP-040` | — (público) |
 | `POST` | `/api/v1/auth/password-recovery/confirmation` | `RF-SP-040` | — (público, autorizado por el permiso temporal) |
-| `GET` | `/api/v1/users/me` | `RF-SP-039` | Autenticado |
+| `GET` | `/api/v1/users/me` | `RF-SP-039` | `users:read-own-profile` |
 | `PATCH` | `/api/v1/users/{id}/supervisor` | `RF-SP-041` | `users:assign-supervisor` |
 | `GET` | `/api/v1/users/{id}/team` | `RF-SP-042` | `users:read-team` |
-| `GET` | `/api/v1/users/me/sellers` | `RF-SP-059` | Autenticado |
+| `GET` | `/api/v1/users/me/sellers` | `RF-SP-059` | `users:read-own-sellers` |
 | `GET` | `/api/v1/users/{id}/sellers` | `RF-SP-059` | `users:read-sellers` |
-| `GET` | `/api/v1/users/me/clients` | `RF-SP-061` | Autenticado |
+| `GET` | `/api/v1/users/me/clients` | `RF-SP-061` | `users:read-own-clients` |
 | `GET` | `/api/v1/users/{id}/clients` | `RF-SP-061` | `users:read-clients` |
-| `PATCH` | `/api/v1/users/me` | `RF-SP-044` | Autenticado |
+| `PATCH` | `/api/v1/users/me` | `RF-SP-044` | `users:update-own-profile` |
 | `POST` | `/api/v1/auth/registration` | `RF-SP-045` | **Público** |
 | `POST` | `/api/v1/exchange-rates` | `RF-SP-047` | `exchange-rates:create` |
 | `GET` | `/api/v1/exchange-rates` | `RF-SP-048` | `exchange-rates:read` |
@@ -1309,8 +1329,8 @@ Ninguna con sistemas externos ni con otros módulos. Al absorber los usuarios, s
 | `POST` | `/api/v1/exchange-rates/{id}/deletion` | `RF-SP-050` | `exchange-rates:delete` |
 | `GET` | `/api/v1/document-types` | `RF-SP-051` | **Ninguno: público** |
 | `GET` | `/api/v1/brokers` | `RF-SP-052` | **Ninguno: público** |
-| `GET` | `/api/v1/users/{id}/broker-accounts` | `RF-SP-055` | **Superior vigente** o `broker-accounts:read` |
-| `GET` | `/api/v1/users/me/team/broker-accounts` | `RF-SP-056` | Autenticado |
+| `GET` | `/api/v1/users/{id}/broker-accounts` | `RF-SP-055` | `broker-accounts:read-team-member` (alcance: superior vigente, o `broker-accounts:read`) |
+| `GET` | `/api/v1/users/me/team/broker-accounts` | `RF-SP-056` | `broker-accounts:read-own-team` |
 | `GET` | `/api/v1/broker-accounts` | `RF-SP-057` | `broker-accounts:read` |
 | `GET` | `/api/v1/broker-accounts/indicators` | `RF-SP-058` | `broker-accounts:read-indicators` |
 
@@ -1988,3 +2008,5 @@ Diseñada el 16-09-2026 (`RN-SP-049`) y **creada por la migración de `RF-SP-059
 | 1.65.0 | 21-09-2026 | **`RF-SP-059` pasa a `En desarrollo`**: la rama que lo construyó el 18-09-2026 queda integrada sobre `feature/academia`, con `V20` (la mudanza a `client_sellers`) y `V29` (`users:read-sellers`). §6.1 y la ficha cambian de estado; ninguna regla cambia. La ficha de `RF-SP-061` pasa detrás de la de `060` y anota lo que pidió el frontend el mismo día (R-45): que la cartera traiga el `id` del cliente. | Responsable técnico |
 | 1.66.0 | 21-09-2026 | **`RF-SP-061` estrena tripleta y pasa a `Tasks en revisión`**, por petición del responsable del proyecto («un endpoint para consultar mis clientes o los clientes de un vendedor») y siguiendo `RN-SEG-014`: `GET /users/me/clients` (autenticado) y `GET /users/{id}/clients` con **`users:read-clients`**, permiso propio que sembrará `V30` y con el que el catálogo pasa a **ciento trece** ([`security.md`](../security.md) v0.66.0). La ficha decide lo que se publica de cada cliente —**con `id`** y con estado, al contrario que `RF-SP-059` y por la razón inversa—, el orden (los más recientes primero), el filtro `origin` y que ni la estructura de mando ni D-22 intervienen. §6.1 y §9 nombran las dos rutas. **Y se anota la renumeración de los criterios de `RF-SP-059`** (`CA-SP-700` a `713`, [`requirements.md`](../requirements.md) v0.181.0): chocaban con los de `RF-SP-045` y `RF-SP-060`. | Responsable del proyecto |
 | 1.67.0 | 21-09-2026 | **`RF-SP-061` pasa a `En desarrollo`**, construido el mismo día que su tripleta: `V30` siembra `users:read-clients` y las dos rutas de §9 están en el contrato. §6.1 y la ficha cambian de estado; ninguna regla cambia. | Responsable técnico |
+| 1.68.0 | 21-09-2026 | **Nace `RF-SP-062`, autenticarse no autoriza nada** (`RN-SEG-015`, [`security.md`](../security.md) v0.67.0), por decisión del responsable del proyecto: «cada endpoint debe tener su propio permiso, ya que uso esto para saber qué vista o consulta mostrar en el front; no basta con solo tener el token». Siete operaciones de `SP` que se atendían con solo el token reciben permiso propio, sembrado por `V31`: `users:read-own-profile` (`RF-SP-039`), `users:update-own-profile` (`044`), `users:change-own-password` (`037`), `users:read-own-sellers` (`059`), `users:read-own-clients` (`061`), `broker-accounts:read-own-team` (`056`) y `broker-accounts:read-team-member` (`055`, que abre la ruta y deja el alcance a `RN-SP-046` sin cambiarla). §6.1, §9 y las fichas nombran el código; `SP` llega a **sesenta** requerimientos registrados. | Responsable del proyecto |
+| 1.69.0 | 21-09-2026 | **`RF-SP-062` pasa a `En desarrollo`**, construido el mismo día que su tripleta: `V31` siembra los once y los once `@PreAuthorize` están en el contrato. §6.1 y la ficha cambian de estado; ninguna regla cambia. | Responsable técnico |

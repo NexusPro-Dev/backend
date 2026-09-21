@@ -120,10 +120,17 @@ public class RequiredPermissionCustomizer implements OperationCustomizer, OpenAp
       // integra cree que necesita el token.
       operacion.setSecurity(new ArrayList<>());
     } else {
-      linea =
-          ENCABEZADO
-              + " ninguno más allá del token. El alcance lo acota el servicio —el propio actor, o"
-              + " la relación con la persona consultada— y la descripción dice cómo.";
+      // Hasta el 21-09-2026 aquí se escribía «ninguno más allá del token. El
+      // alcance lo acota el servicio». Desde RF-SP-062 (RN-SEG-015) no existe
+      // esa clase de operación: o declara permiso, o es pública. Una que llegue
+      // aquí es un olvido, y el contrato no lo describe: lo señala.
+      throw new IllegalStateException(
+          "RN-SEG-015: "
+              + metodo
+              + " "
+              + ruta
+              + " se atiende con token y no declara permiso. Declárelo con @PreAuthorize o,"
+              + " si es pública, en SecurityConfig");
     }
     String descripcion = operacion.getDescription();
     operacion.setDescription(

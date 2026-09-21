@@ -40,6 +40,14 @@ class PermissionSplitMigrationIT extends IntegrationTestBase {
   private static final String ADMIN = "01a02a33-4c00-7002-9c4f-5e7ad1000002";
   private static final UUID CON_PADRES = UUID.fromString("01a0b6f6-7400-7fff-9c4f-0000000000a1");
   private static final UUID SIN_PADRES = UUID.fromString("01a0b6f6-7400-7fff-9c4f-0000000000a2");
+  // Y dos más para V31 (RF-SP-062, CA-SP-726): un vendedor bajo AGENTE y un
+  // consumidor bajo la raíz, creados ANTES de que el alcance propio tuviera permiso.
+  private static final String AGENTE = "01a02a33-4c00-7007-9c4f-5e7ad1000005";
+  private static final String RAIZ = "01a02a33-4c00-7001-9c4f-5e7ad1000001";
+  private static final UUID VENDEDOR_A_MANO =
+      UUID.fromString("01a0c143-2c00-7fff-9c4f-0000000000b1");
+  private static final UUID CONSUMIDOR_A_MANO =
+      UUID.fromString("01a0c143-2c00-7fff-9c4f-0000000000b2");
 
   @Autowired private DataSource dataSource;
   @Autowired private JdbcTemplate jdbc;
@@ -76,6 +84,24 @@ class PermissionSplitMigrationIT extends IntegrationTestBase {
 
     // 3. V28.
     flyway("28").migrate();
+
+    // 4. Hasta V30, y dos roles más creados a mano ANTES de V31: uno de tipo
+    //    VENDEDOR bajo AGENTE y uno de tipo CONSUMIDOR bajo la raíz, sin permisos,
+    //    como los siembra V8. V31 reparte por tipo y no por código (CA-SP-726).
+    flyway("30").migrate();
+    jdbc.update(
+        """
+        INSERT INTO reparto_v28.roles (id, code, name, role_type, parent_role_id, status, is_system)
+        VALUES (?, 'AGENTE_JUNIOR', 'Agente junior', 'VENDEDOR', ?::uuid, 'ACTIVO', false),
+               (?, 'CLIENTE_VIP', 'Cliente VIP', 'CONSUMIDOR', ?::uuid, 'ACTIVO', false)
+        """,
+        VENDEDOR_A_MANO,
+        AGENTE,
+        CONSUMIDOR_A_MANO,
+        RAIZ);
+
+    // 5. V31.
+    flyway("31").migrate();
   }
 
   @AfterAll
@@ -88,7 +114,8 @@ class PermissionSplitMigrationIT extends IntegrationTestBase {
       "CA-SP-692: un rol creado antes con roles:update y users:read porta, después, los cuatro"
           + " hijos de uno y los dos del otro")
   void elRolQuePortabaLosPadresRecibeTodosSusHijos() {
-    assertThat(permisosDe(CON_PADRES))
+    // Sin los once de V31, que aquí no se miran (van en CA-SP-726).
+    assertThat(sinAlcancePropio(permisosDe(CON_PADRES)))
         .containsExactlyInAnyOrder(
             "roles:update",
             "roles:change-status",
@@ -103,7 +130,7 @@ class PermissionSplitMigrationIT extends IntegrationTestBase {
   @Test
   @DisplayName("CA-SP-693: un rol creado antes con un código que no se divide no recibe nada")
   void elRolSinPadresNoRecibeNada() {
-    assertThat(permisosDe(SIN_PADRES)).containsExactly("roles:create");
+    assertThat(sinAlcancePropio(permisosDe(SIN_PADRES))).containsExactly("roles:create");
   }
 
   @Test
@@ -117,7 +144,7 @@ class PermissionSplitMigrationIT extends IntegrationTestBase {
 
   @Test
   @DisplayName(
-      "y en ese esquema, como en el real, ADMIN queda con ciento cinco y la raíz con todos")
+      "y en ese esquema, como en el real, ADMIN queda con ciento dieciocho y la raíz con todos")
   void losDeSistemaTambien() {
     Map<String, Object> cuentas =
         jdbc.queryForMap(
@@ -129,9 +156,53 @@ class PermissionSplitMigrationIT extends IntegrationTestBase {
                      WHERE role_id = '01a02a33-4c00-7002-9c4f-5e7ad1000002') AS admin
             """);
     assertThat(cuentas)
-        .containsEntry("catalogo", 111L)
-        .containsEntry("raiz", 111L)
-        .containsEntry("admin", 105L);
+        // Tras V31 (paso 5): ciento veinticuatro, y ADMIN con ciento dieciocho.
+        .containsEntry("catalogo", 124L)
+        .containsEntry("raiz", 124L)
+        .containsEntry("admin", 118L);
+  }
+
+  @Test
+  @DisplayName(
+      "CA-SP-726: un rol creado antes de V31 recibe lo de su tipo —el vendedor los once, el"
+          + " consumidor ocho— y ninguno queda con un permiso que su padre no porte")
+  void elAlcancePropioLlegaALosRolesCreadosAntes() {
+    List<String> once =
+        List.of(
+            "users:read-own-profile",
+            "users:update-own-profile",
+            "users:change-own-password",
+            "users:read-own-sellers",
+            "users:read-own-clients",
+            "broker-accounts:read-own-team",
+            "broker-accounts:read-team-member",
+            "movements:list-own",
+            "movements:read-own",
+            "movements:read-own-products",
+            "packages:buy");
+    assertThat(permisosDe(VENDEDOR_A_MANO)).containsExactlyInAnyOrderElementsOf(once);
+    assertThat(permisosDe(CONSUMIDOR_A_MANO))
+        .hasSize(8)
+        .doesNotContain(
+            "users:read-own-clients",
+            "broker-accounts:read-own-team",
+            "broker-accounts:read-team-member");
+    // Y los de V28 no reciben más que lo suyo: eran FUNCIONARIO bajo ADMIN, así
+    // que reciben los once, y siguen sin roles:list.
+    assertThat(permisosDe(CON_PADRES)).containsAll(once).doesNotContain("roles:list");
+    // Contención: ninguna fila cuyo padre no la porte.
+    assertThat(
+            jdbc.queryForObject(
+                """
+                SELECT count(*) FROM reparto_v28.role_permissions rp
+                  JOIN reparto_v28.roles r ON r.id = rp.role_id
+                 WHERE r.parent_role_id IS NOT NULL
+                   AND NOT EXISTS (SELECT 1 FROM reparto_v28.role_permissions x
+                                    WHERE x.role_id = r.parent_role_id
+                                      AND x.permission_id = rp.permission_id)
+                """,
+                Long.class))
+        .isZero();
   }
 
   private Flyway flyway(String hasta) {
@@ -159,6 +230,17 @@ class PermissionSplitMigrationIT extends IntegrationTestBase {
           rol,
           codigo);
     }
+  }
+
+  /** Quita los once de alcance propio de V31, que reparten por tipo y no por padre. */
+  private static List<String> sinAlcancePropio(List<String> codigos) {
+    return codigos.stream()
+        .filter(
+            c ->
+                !c.contains("-own")
+                    && !c.equals("packages:buy")
+                    && !c.equals("broker-accounts:read-team-member"))
+        .toList();
   }
 
   private List<String> permisosDe(UUID rol) {

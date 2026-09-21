@@ -340,7 +340,14 @@ public class UserController {
     return listado.list(filtros);
   }
 
+  // Exige `users:read-own-profile` desde el 21-09-2026 (`RF-SP-062`, `RN-SEG-015`:
+  // autenticarse no autoriza nada). Hasta entonces iba SIN `@PreAuthorize` a
+  // propósito —«el actor sale del token y no hay nada que autorizar más allá
+  // de estar autenticado»— y el argumento sigue siendo cierto para la
+  // seguridad; lo que cambió es que el frontend decide qué vista mostrar por el
+  // permiso, y «tiene token» no le dice nada (`RF-SP-039`).
   @GetMapping("/me")
+  @PreAuthorize("hasAuthority('users:read-own-profile')")
   @Operation(
       summary = "Consultar el propio perfil",
       description =
@@ -406,6 +413,10 @@ public class UserController {
                 + " — lo que dejó de valer es la sesión, no la ruta, y por eso no es `404`",
         content = @Content),
     @ApiResponse(
+        responseCode = "403",
+        description = "Autenticado sin `users:read-own-profile` (`AUTH-002`)",
+        content = @Content),
+    @ApiResponse(
         responseCode = "500",
         description = "Fallo no controlado (`ERR-500`)",
         content = @Content)
@@ -414,10 +425,14 @@ public class UserController {
     return perfilPropio.profile();
   }
 
-  // SIN `@PreAuthorize`, y es deliberado (`RF-SP-059` · `plan.md` §5): el
-  // cliente sale del token y no hay nada que autorizar más allá de estar
-  // autenticado. La ruta consta en `EndpointPermissionsIT` con este motivo.
+  // Exige `users:read-own-sellers` desde el 21-09-2026 (`RF-SP-062`, `RN-SEG-015`:
+  // autenticarse no autoriza nada). Hasta entonces iba SIN `@PreAuthorize` a
+  // propósito —«el actor sale del token y no hay nada que autorizar más allá
+  // de estar autenticado»— y el argumento sigue siendo cierto para la
+  // seguridad; lo que cambió es que el frontend decide qué vista mostrar por el
+  // permiso, y «tiene token» no le dice nada (`RF-SP-059`).
   @GetMapping("/me/sellers")
+  @PreAuthorize("hasAuthority('users:read-own-sellers')")
   @Operation(
       summary = "Consultar mis vendedores",
       description =
@@ -460,6 +475,10 @@ public class UserController {
     @ApiResponse(
         responseCode = "401",
         description = "Token ausente o inválido (`AUTH-001`)",
+        content = @Content),
+    @ApiResponse(
+        responseCode = "403",
+        description = "Autenticado sin `users:read-own-sellers` (`AUTH-002`)",
         content = @Content),
     @ApiResponse(
         responseCode = "500",
@@ -522,10 +541,15 @@ public class UserController {
     return vendedoresDelCliente.of(id);
   }
 
-  // SIN `@PreAuthorize`, y es deliberado (`RF-SP-061` · `plan.md` §5): el
-  // vendedor sale del token y no hay nada que autorizar más allá de estar
-  // autenticado. La ruta consta en `EndpointPermissionsIT` con este motivo.
+  // Exige `users:read-own-clients` desde el 21-09-2026 (`RF-SP-062`, `RN-SEG-015`:
+  // autenticarse no autoriza nada). Hasta entonces iba SIN `@PreAuthorize` a
+  // propósito —«el actor sale del token y no hay nada que autorizar más allá
+  // de estar autenticado»— y el argumento sigue siendo cierto para la
+  // seguridad; lo que cambió es que el frontend decide qué vista mostrar por el
+  // permiso, y «tiene token» no le dice nada (`RF-SP-061`).
+  // A `CLIENTE` no se le da: un cliente recibe 403, ya no la página vacía.
   @GetMapping("/me/clients")
+  @PreAuthorize("hasAuthority('users:read-own-clients')")
   @Operation(
       summary = "Consultar mis clientes",
       description =
@@ -582,6 +606,10 @@ public class UserController {
     @ApiResponse(
         responseCode = "401",
         description = "Token ausente o inválido (`AUTH-001`)",
+        content = @Content),
+    @ApiResponse(
+        responseCode = "403",
+        description = "Autenticado sin `users:read-own-clients` (`AUTH-002`)",
         content = @Content),
     @ApiResponse(
         responseCode = "500",
@@ -667,7 +695,14 @@ public class UserController {
     return carteraDelVendedor.of(id, origin, page, size);
   }
 
+  // Exige `users:update-own-profile` desde el 21-09-2026 (`RF-SP-062`, `RN-SEG-015`:
+  // autenticarse no autoriza nada). Hasta entonces iba SIN `@PreAuthorize` a
+  // propósito —«el actor sale del token y no hay nada que autorizar más allá
+  // de estar autenticado»— y el argumento sigue siendo cierto para la
+  // seguridad; lo que cambió es que el frontend decide qué vista mostrar por el
+  // permiso, y «tiene token» no le dice nada (`RF-SP-044`).
   @PatchMapping("/me")
+  @PreAuthorize("hasAuthority('users:update-own-profile')")
   @Operation(
       summary = "Editar el propio perfil",
       description =
@@ -740,6 +775,10 @@ public class UserController {
     @ApiResponse(
         responseCode = "401",
         description = "Sin credencial válida, o la cuenta fue eliminada tras emitirse el token",
+        content = @Content),
+    @ApiResponse(
+        responseCode = "403",
+        description = "Autenticado sin `users:update-own-profile` (`AUTH-002`)",
         content = @Content),
     @ApiResponse(
         responseCode = "403",
@@ -1549,8 +1588,15 @@ public class UserController {
     return equipoACargo.team(id, roles, page, size);
   }
 
+  // Exige `broker-accounts:read-own-team` desde el 21-09-2026 (`RF-SP-062`, `RN-SEG-015`:
+  // autenticarse no autoriza nada). Hasta entonces iba SIN `@PreAuthorize` a
+  // propósito —«el actor sale del token y no hay nada que autorizar más allá
+  // de estar autenticado»— y el argumento sigue siendo cierto para la
+  // seguridad; lo que cambió es que el frontend decide qué vista mostrar por el
+  // permiso, y «tiene token» no le dice nada (`RF-SP-056`).
+  // El alcance —el equipo propio— lo sigue poniendo la estructura (`RN-SP-046`).
   @GetMapping("/me/team/broker-accounts")
-  @PreAuthorize("isAuthenticated()")
+  @PreAuthorize("hasAuthority('broker-accounts:read-own-team')")
   @Operation(
       summary = "Consultar las cuentas de broker de mi equipo",
       description =
@@ -1618,6 +1664,10 @@ public class UserController {
         description = "Token ausente o inválido (`AUTH-001`)",
         content = @Content),
     @ApiResponse(
+        responseCode = "403",
+        description = "Autenticado sin `broker-accounts:read-own-team` (`AUTH-002`)",
+        content = @Content),
+    @ApiResponse(
         responseCode = "500",
         description = "Fallo no controlado (`ERR-500`)",
         content = @Content)
@@ -1634,13 +1684,17 @@ public class UserController {
     return cuentasDelEquipo.ofMyTeam(status, brokerId, page, size);
   }
 
-  // SIN @PreAuthorize A PROPÓSITO, y no es un olvido: la autorización de esta
-  // ruta no es una función del actor sino DEL PAR (actor, persona consultada)
-  // —el permiso, o ser su superior vigente—, y expresarla en SpEL metería una
-  // consulta a la base dentro de una anotación, donde no se prueba ni se
-  // depura. Vive en `GetBrokerAccountsService`. Consta así en
+  // `broker-accounts:read-team-member` ABRE la ruta desde el 21-09-2026
+  // (`RF-SP-062`, `RN-SEG-015`) y NO decide el alcance: la autorización de
+  // esta ruta es una función DEL PAR (actor, persona consultada) —el permiso
+  // amplio, o ser su superior vigente o su principal— y expresarla en SpEL
+  // metería una consulta a la base dentro de una anotación, donde no se
+  // prueba ni se depura. Vive en `GetBrokerAccountsService`, entera, debajo
+  // de la anotación (`RN-SP-046`, `CA-SP-728`). Hasta el 21-09-2026 la ruta
+  // iba sin `@PreAuthorize` a propósito, y constaba así en
   // `EndpointPermissionsIT`.
   @GetMapping("/{id}/broker-accounts")
+  @PreAuthorize("hasAuthority('broker-accounts:read-team-member')")
   @Operation(
       summary = "Consultar las cuentas de broker de una persona",
       description =
@@ -1691,6 +1745,10 @@ public class UserController {
     @ApiResponse(
         responseCode = "401",
         description = "Token ausente o inválido (`AUTH-001`)",
+        content = @Content),
+    @ApiResponse(
+        responseCode = "403",
+        description = "Autenticado sin `broker-accounts:read-team-member` (`AUTH-002`)",
         content = @Content),
     @ApiResponse(
         responseCode = "404",

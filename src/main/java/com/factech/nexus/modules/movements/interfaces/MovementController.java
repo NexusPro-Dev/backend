@@ -356,7 +356,11 @@ public class MovementController {
    * <p><b>{@code mine} y no {@code me}</b>: `SP` usa {@code /users/me} porque el recurso <b>es</b>
    * la persona. Aquí el recurso son los movimientos, y {@code me} no es uno de ellos.
    */
+  // `movements:list-own` desde el 21-09-2026 (`RF-SP-062`, `RN-SEG-015`); el
+  // detalle es `movements:read-own`, porque RN-SEG-014 es estricto también con
+  // listado y detalle. Hasta entonces, solo el token.
   @GetMapping("/mine")
+  @PreAuthorize("hasAuthority('movements:list-own')")
   @Operation(
       summary = "Consultar los movimientos propios",
       description =
@@ -396,6 +400,10 @@ public class MovementController {
         description = "Token ausente o inválido (`AUTH-001`)",
         content = @Content),
     @ApiResponse(
+        responseCode = "403",
+        description = "Autenticado sin `movements:list-own` (`AUTH-002`)",
+        content = @Content),
+    @ApiResponse(
         responseCode = "500",
         description = "Fallo no controlado (`ERR-500`)",
         content = @Content)
@@ -413,7 +421,9 @@ public class MovementController {
    * prueba fija el orden para que el síntoma de romperlo —un {@code 400} por identificador
    * inválido— no aparezca en la ruta que se acaba de estrenar.
    */
+  // `movements:read-own-products` desde el 21-09-2026 (`RF-SP-062`).
   @GetMapping("/mine/products")
+  @PreAuthorize("hasAuthority('movements:read-own-products')")
   @Operation(
       summary = "Consultar los productos comprados propios",
       description =
@@ -447,6 +457,10 @@ public class MovementController {
         description = "Token ausente o inválido (`AUTH-001`)",
         content = @Content),
     @ApiResponse(
+        responseCode = "403",
+        description = "Autenticado sin `movements:read-own-products` (`AUTH-002`)",
+        content = @Content),
+    @ApiResponse(
         responseCode = "500",
         description = "Fallo no controlado (`ERR-500`)",
         content = @Content)
@@ -463,7 +477,10 @@ public class MovementController {
    * (`EX-002`). Un {@code 403} diría «existe pero no es tuyo», y con un identificador que alguien
    * esté probando eso ya es información.
    */
+  // `movements:read-own` desde el 21-09-2026 (`RF-SP-062`). El 404 del ajeno
+  // sigue saliendo del servicio: el permiso abre la ruta, el alcance es el mismo.
   @GetMapping("/mine/{id}")
+  @PreAuthorize("hasAuthority('movements:read-own')")
   @Operation(
       summary = "Consultar el detalle de un movimiento propio",
       description =
@@ -484,6 +501,10 @@ public class MovementController {
     @ApiResponse(
         responseCode = "401",
         description = "Token ausente o inválido (`AUTH-001`)",
+        content = @Content),
+    @ApiResponse(
+        responseCode = "403",
+        description = "Autenticado sin `movements:read-own` (`AUTH-002`)",
         content = @Content),
     @ApiResponse(
         responseCode = "404",

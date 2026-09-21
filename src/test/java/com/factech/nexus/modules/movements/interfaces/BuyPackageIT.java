@@ -33,6 +33,7 @@ import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.ResultActions;
 import org.springframework.test.web.servlet.request.MockHttpServletRequestBuilder;
+import org.springframework.test.web.servlet.request.RequestPostProcessor;
 
 /**
  * Comprar un paquete para uno mismo (`RF-MV-012` · `T-08`): los doce criterios, `CA-MV-049` a
@@ -307,7 +308,7 @@ class BuyPackageIT extends IntegrationTestBase {
         botB);
     jdbc.update("UPDATE products SET name = 'Bot A renombrado' WHERE id = ?::uuid", botA);
 
-    mvc.perform(get("/api/v1/movements/mine/" + id).with(user(comprador.toString())))
+    mvc.perform(get("/api/v1/movements/mine/" + id).with(propio(comprador)))
         .andExpect(status().isOk())
         .andExpect(jsonPath("$.packageId").value(paqBots.toString()))
         .andExpect(jsonPath("$.lines", hasSize(2)))
@@ -456,7 +457,7 @@ class BuyPackageIT extends IntegrationTestBase {
             "\"unitPrice\":0.01")) {
       mvc.perform(
               post("/api/v1/packages/PAQ_BOTS/purchases")
-                  .with(user(comprador.toString()))
+                  .with(propio(comprador))
                   .contentType(MediaType.APPLICATION_JSON)
                   .content("{\"paymentMethodId\":\"" + TARJETA + "\"," + extra + "}"))
           .andExpect(status().isBadRequest());
@@ -512,7 +513,7 @@ class BuyPackageIT extends IntegrationTestBase {
   void elPaqueteGratuito() throws Exception {
     mvc.perform(
             post("/api/v1/packages/PAQ_GRATIS/purchases")
-                .with(user(comprador.toString()))
+                .with(propio(comprador))
                 .contentType(MediaType.APPLICATION_JSON)
                 .content("{}"))
         .andExpect(status().isCreated())
@@ -524,7 +525,7 @@ class BuyPackageIT extends IntegrationTestBase {
         .andExpect(jsonPath("$.lines[1].lineAmount").value(0.00));
 
     // Y sin cuerpo siquiera: no hay nada que decir.
-    mvc.perform(post("/api/v1/packages/PAQ_GRATIS/purchases").with(user(comprador.toString())))
+    mvc.perform(post("/api/v1/packages/PAQ_GRATIS/purchases").with(propio(comprador)))
         .andExpect(status().isCreated());
 
     assertThat(rechazo(comprador, paqGratis, "RN-MV-022")).contains("gratuita");
@@ -532,7 +533,7 @@ class BuyPackageIT extends IntegrationTestBase {
     // Y al revés: con importe, el método es obligatorio.
     mvc.perform(
             post("/api/v1/packages/PAQ_BOTS/purchases")
-                .with(user(comprador.toString()))
+                .with(propio(comprador))
                 .contentType(MediaType.APPLICATION_JSON)
                 .content("{}"))
         .andExpect(status().isConflict())
@@ -561,8 +562,7 @@ class BuyPackageIT extends IntegrationTestBase {
     // Es el código y no el identificador: el uuid del paquete, que antes era la
     // ruta, hoy es un código que no existe.
     for (String codigo : List.of("NO_EXISTE", paqBots.toString())) {
-      mvc.perform(
-              post("/api/v1/packages/" + codigo + "/purchases").with(user(comprador.toString())))
+      mvc.perform(post("/api/v1/packages/" + codigo + "/purchases").with(propio(comprador)))
           .andExpect(status().isUnprocessableEntity())
           .andExpect(jsonPath("$.errors[0].code").value("EX-001"));
     }
@@ -573,7 +573,7 @@ class BuyPackageIT extends IntegrationTestBase {
         .andExpect(jsonPath("$.packageId").value(paqBots.toString()));
 
     jdbc.update("UPDATE product_packages SET deleted_at = now() WHERE id = ?::uuid", paqBots);
-    mvc.perform(post("/api/v1/packages/PAQ_BOTS/purchases").with(user(comprador.toString())))
+    mvc.perform(post("/api/v1/packages/PAQ_BOTS/purchases").with(propio(comprador)))
         .andExpect(status().isUnprocessableEntity())
         .andExpect(jsonPath("$.errors[0].code").value("EX-001"));
   }
@@ -659,7 +659,7 @@ class BuyPackageIT extends IntegrationTestBase {
   /** Sin ninguna autoridad, a propósito: es una compra propia (`CA-MV-049`). */
   private static MockHttpServletRequestBuilder peticion(UUID quien, String codigo, String metodo) {
     return post("/api/v1/packages/" + codigo + "/purchases")
-        .with(user(quien.toString()))
+        .with(propio(quien))
         .contentType(MediaType.APPLICATION_JSON)
         .content("{\"paymentMethodId\":\"" + metodo + "\"}");
   }
@@ -808,5 +808,17 @@ class BuyPackageIT extends IntegrationTestBase {
         cliente,
         vendedor,
         BASE);
+  }
+
+  // Desde RF-SP-062 (21-09-2026) lo propio exige permiso —autenticarse no autoriza
+  // nada—: el actor porta la familia de alcance propio de MV, que es lo que V31 da a
+  // todo rol. Hasta entonces bastaba con `user(id)`.
+  private static RequestPostProcessor propio(UUID persona) {
+    return user(persona.toString())
+        .authorities(
+            () -> "movements:list-own",
+            () -> "movements:read-own",
+            () -> "movements:read-own-products",
+            () -> "packages:buy");
   }
 }

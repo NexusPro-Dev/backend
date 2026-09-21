@@ -174,14 +174,21 @@ class SystemRolesSeedIT extends IntegrationTestBase {
   void rolesSinPermisos() {
     // MANAGER, DIRECTOR, AGENTE y CLIENTE. Sembrarlos a ojo produciría un
     // catálogo que nadie aprobó y que quedaría como referencia.
+    // Desde el 21-09-2026 (RF-SP-062) todo rol porta los de alcance propio que
+    // V31 reparte por tipo; lo que V8 no siembra —y nadie sembró a ojo— es todo
+    // lo demás. Se descuentan los once y la afirmación original sigue en pie.
     List<String> conPermisos =
         jdbc.queryForList(
             """
             SELECT DISTINCT r.code
-              FROM roles r JOIN role_permissions rp ON rp.role_id = r.id
+              FROM roles r
+              JOIN role_permissions rp ON rp.role_id = r.id
+              JOIN permissions p ON p.id = rp.permission_id
              WHERE r.is_system = true
+               AND p.code <> ALL (?)
             """,
-            String.class);
+            String.class,
+            (Object) ALCANCE_PROPIO.toArray(String[]::new));
 
     assertThat(conPermisos).containsExactlyInAnyOrder("SUPERADMIN", "ADMIN");
   }

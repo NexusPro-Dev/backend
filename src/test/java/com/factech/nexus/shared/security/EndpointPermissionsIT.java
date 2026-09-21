@@ -15,6 +15,7 @@ import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Qualifier;
+import org.springframework.http.HttpMethod;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.method.HandlerMethod;
 import org.springframework.web.servlet.mvc.method.RequestMappingInfo;
@@ -40,17 +41,22 @@ import org.springframework.web.servlet.mvc.method.annotation.RequestMappingHandl
 class EndpointPermissionsIT extends IntegrationTestBase {
 
   /**
-   * Endpoints deliberadamente <b>sin</b> exigencia de permiso, y el motivo de cada uno.
+   * Endpoints <b>públicos</b>: los que se atienden <b>sin token</b>, y el motivo de cada uno.
    *
-   * <p>Quien añada una entrada aquí está declarando que ese endpoint es accesible para cualquier
-   * persona autenticada —o para nadie autenticado, si además es público—, y el motivo queda escrito
-   * al lado. Es la diferencia entre una excepción y un olvido.
+   * <p>Desde el 21-09-2026 (`RF-SP-062`, `RN-SEG-015`: autenticarse no autoriza nada) esta lista
+   * solo admite públicas. Hasta entonces se llamaba {@code SIN_PERMISO_A_PROPOSITO} y admitía una
+   * segunda clase de excepción —«autenticada a propósito: el actor sale del token y no hay nada que
+   * autorizar»—, con once entradas. Las once tienen permiso propio y la clase desapareció: una
+   * operación con token sin {@code @PreAuthorize} falla aquí diciendo cuál, y la única salida es
+   * declararla pública en {@code SecurityConfig} <b>y</b> aquí, con el motivo. La segunda mitad la
+   * vigila {@link #lasPublicasSeAtiendenSinToken}: cada entrada responde sin token con algo que no
+   * es 401.
    */
   // `Map.ofEntries` Y NO `Map.of`: aquella se acaba en diez pares, y la lista
   // llegó a once el 05-09-2026 con las dos rutas de `RF-MV-008`. El límite no
   // avisa con un mensaje útil — dice que no hay método aplicable— y perder el
   // rato con eso una segunda vez no hace falta.
-  private static final Map<String, String> SIN_PERMISO_A_PROPOSITO =
+  private static final Map<String, String> PUBLICAS =
       Map.ofEntries(
           Map.entry(
               "POST /api/v1/auth/registration",
@@ -75,25 +81,6 @@ class EndpointPermissionsIT extends IntegrationTestBase {
                   + " dos catálogos. `brokers:read` nació el mismo día y quedó sin endpoint que lo"
                   + " exija, como `products:hotlink`"),
           Map.entry(
-              "GET /api/v1/users/{id}/broker-accounts",
-              "SIN @PreAuthorize A PROPÓSITO (`RF-SP-055`, 10-09-2026), y es el primero de todo el"
-                  + " sistema por este motivo: la autorización no es una función del actor sino"
-                  + " DEL PAR (actor, persona consultada) —`broker-accounts:read`, o ser su"
-                  + " SUPERIOR COMERCIAL VIGENTE (`RN-SP-046`)—, y expresarla en SpEL metería una"
-                  + " consulta a la base dentro de una anotación, donde no se prueba ni se depura."
-                  + " Vive en `GetBrokerAccountsService`. Quien no es ninguna de las dos cosas"
-                  + " recibe `404`, indistinguible del de una persona inexistente: con `403`,"
-                  + " cualquier vendedor podría recorrer identificadores y saber cuáles son"
-                  + " personas reales"),
-          Map.entry(
-              "GET /api/v1/users/me/team/broker-accounts",
-              "Solo estar autenticado (`RF-SP-056`, 10-09-2026): NO ADMITE DECIR SOBRE QUIÉN se"
-                  + " pregunta —el equipo es el del actor—, de modo que no hay alcance que"
-                  + " autorizar. `broker-accounts:read` NO la gobierna: quien lo tenga ve las"
-                  + " cuentas de cualquiera por `GET /api/v1/users/{id}/broker-accounts`, persona"
-                  + " a persona, y no el equipo ajeno de una vez. Es el mismo criterio que"
-                  + " `GET /api/v1/movements/mine`"),
-          Map.entry(
               "POST /api/v1/auth/password-recovery",
               "Público por definición (`RF-SP-040`): quien olvidó su contraseña no puede"
                   + " autenticarse para pedir recuperarla"),
@@ -112,32 +99,6 @@ class EndpointPermissionsIT extends IntegrationTestBase {
               "Público a propósito (`RF-SP-036`): exigir token vigente impediría cerrar la sesión"
                   + " justo cuando más falta hace, que es cuando se sospecha que la robaron"),
           Map.entry(
-              "GET /api/v1/users/me",
-              "El actor y solo el actor (`RF-SP-039`): no admite parámetro, de modo que no hay"
-                  + " nada que autorizar más allá de estar autenticado"),
-          Map.entry(
-              "GET /api/v1/users/me/sellers",
-              "El actor y solo el actor (`RF-SP-059`): sus vendedores salen del token, sin"
-                  + " parámetro, de modo que no hay nada que autorizar más allá de estar"
-                  + " autenticado. Los de otra persona son `GET /users/{id}/sellers`, con"
-                  + " `users:read-sellers`"),
-          Map.entry(
-              "GET /api/v1/users/me/clients",
-              "El actor y solo el actor (`RF-SP-061`): su cartera sale del token, sin"
-                  + " parámetro, de modo que no hay nada que autorizar más allá de estar"
-                  + " autenticado. La de otra persona es `GET /users/{id}/clients`, con"
-                  + " `users:read-clients`"),
-          Map.entry(
-              "PATCH /api/v1/users/me",
-              "El actor y solo el actor (`RF-SP-044`): toma la persona del token y no admite"
-                  + " identificador, de modo que no hay nadie más a quien pudiera editar. Editar"
-                  + " la ficha ajena es `RF-SP-027`, y esa sí exige `users:update`"),
-          Map.entry(
-              "POST /api/v1/auth/password",
-              "La propia contraseña (`RF-SP-037` §5): «no hay permiso asociado más allá de estar"
-                  + " autenticado. Nadie cambia la contraseña de otro por este camino». Cambiar la"
-                  + " ajena es `RF-SP-038`, y esa sí exige `users:reset-password`"),
-          Map.entry(
               "GET /api/v1/payment-methods",
               "PÚBLICO POR DECISIÓN desde el 09-09-2026 (`RF-MV-009`, `RN-MV-024`): el formulario"
                   + " de registro por enlace elige CON QUÉ SE PAGA antes de que exista la cuenta,"
@@ -148,18 +109,6 @@ class EndpointPermissionsIT extends IntegrationTestBase {
                   + " publique nada es el predicado de la consulta, que lleva los DOS EJES —activo"
                   + " y visibilidad `PUBLICO`—: el anónimo recibe exactamente lo que recibía el"
                   + " autenticado"),
-          Map.entry(
-              "GET /api/v1/movements/mine/products",
-              "Los productos que compró el actor, con su estado (`RF-MV-014`): la misma"
-                  + " decisión que `/mine`, sobre líneas en lugar de movimientos. El alcance es"
-                  + " el sujeto de la venta, y va dentro de la sentencia"),
-          Map.entry(
-              "GET /api/v1/movements/mine",
-              "Los movimientos del actor y de nadie más (`RF-MV-008`): no admite decir sobre"
-                  + " quién se pregunta, de modo que no hay alcance que autorizar. Exigir"
-                  + " `movements:read` obligaría a concederle a todo vendedor un permiso de"
-                  + " ADMINISTRACIÓN que le daría de paso las ventas de sus compañeros — y a un"
-                  + " cliente, las de todo el mundo"),
           Map.entry(
               "GET /api/v1/hotlinks/{username}/{code}",
               "PÚBLICO POR DECISIÓN y no por definición (`RF-PM-008`): un enlace se abre antes de"
@@ -194,23 +143,7 @@ class EndpointPermissionsIT extends IntegrationTestBase {
                   + " que administración subió para que se viera, sin mirar el producto. Solo el"
                   + " GET: subir y quitar la portada viven en `/products/{id}/cover` bajo"
                   + " `products:update`. Solo tres tipos —SVG fuera—, `nosniff`, y la cota de tasa"
-                  + " por la familia (`security.md` §6)"),
-          Map.entry(
-              "POST /api/v1/packages/{code}/purchases",
-              "Solo estar autenticado (`RF-MV-012`, 17-09-2026): es una COMPRA PROPIA, como"
-                  + " `RF-MV-002` y `RF-PM-007`. El sujeto no viaja en la petición —sale de la"
-                  + " credencial—, de modo que no hay forma de comprar a nombre de otro ni alcance"
-                  + " que autorizar. Cuelga de `/packages`, cuyas demás rutas son de administración"
-                  + " y exigen `packages:*`: compartir prefijo con rutas protegidas es justo donde"
-                  + " se cuela un permiso que sobra o que falta, y por eso la ausencia se declara"
-                  + " aquí y no se deja a la interpretación de quien lea el controlador. NO es"
-                  + " pública: comprar exige sesión, y va en esta lista y no en RUTAS_PUBLICAS"),
-          Map.entry(
-              "GET /api/v1/movements/mine/{id}",
-              "El detalle de lo propio (`RF-MV-008`): el alcance va dentro de la consulta y un"
-                  + " movimiento ajeno responde `404`, igual que uno inexistente. Sin esta ruta el"
-                  + " listado no llevaría a ninguna parte, porque `RF-MV-007` exige"
-                  + " `movements:read`"));
+                  + " por la familia (`security.md` §6)"));
 
   // `GET /api/v1/products/available` (`RF-PM-007`) figuraba aquí hasta el
   // 02-09-2026: exigía solo estar autenticado. Desde `products:sale`
@@ -278,6 +211,14 @@ class EndpointPermissionsIT extends IntegrationTestBase {
           Map.entry("POST /api/v1/users", "users:create"),
           Map.entry("GET /api/v1/users", "users:list"),
           Map.entry("GET /api/v1/users/{id}", "users:read"),
+          // ---- SP · alcance propio (RF-SP-062, desde el 21-09-2026) ----
+          Map.entry("GET /api/v1/users/me", "users:read-own-profile"),
+          Map.entry("PATCH /api/v1/users/me", "users:update-own-profile"),
+          Map.entry("POST /api/v1/auth/password", "users:change-own-password"),
+          Map.entry("GET /api/v1/users/me/sellers", "users:read-own-sellers"),
+          Map.entry("GET /api/v1/users/me/clients", "users:read-own-clients"),
+          Map.entry("GET /api/v1/users/me/team/broker-accounts", "broker-accounts:read-own-team"),
+          Map.entry("GET /api/v1/users/{id}/broker-accounts", "broker-accounts:read-team-member"),
           Map.entry("GET /api/v1/users/{id}/team", "users:read-team"),
           Map.entry("GET /api/v1/users/{id}/sellers", "users:read-sellers"),
           Map.entry("GET /api/v1/users/{id}/clients", "users:read-clients"),
@@ -337,6 +278,11 @@ class EndpointPermissionsIT extends IntegrationTestBase {
           Map.entry("GET /api/v1/movements", "movements:read"),
           Map.entry("POST /api/v1/movements/{id}/confirmation", "movements:confirm"),
           Map.entry("POST /api/v1/movements/{id}/voiding", "movements:void"),
+          // ---- MV · alcance propio (RF-SP-062, desde el 21-09-2026) ----
+          Map.entry("GET /api/v1/movements/mine", "movements:list-own"),
+          Map.entry("GET /api/v1/movements/mine/{id}", "movements:read-own"),
+          Map.entry("GET /api/v1/movements/mine/products", "movements:read-own-products"),
+          Map.entry("POST /api/v1/packages/{code}/purchases", "packages:buy"),
           // ---- AC · con los PADRES hasta el tramo 3 de RF-SP-060 ----
           Map.entry("POST /api/v1/course-categories", "course-categories:create"),
           Map.entry("GET /api/v1/course-categories", "course-categories:read"),
@@ -396,7 +342,7 @@ class EndpointPermissionsIT extends IntegrationTestBase {
           // negocio, y las rutas de springdoc las gobierna `EXPOSE_API_DOCS`.
           continue;
         }
-        if (declaraPermiso(entrada.getValue()) || SIN_PERMISO_A_PROPOSITO.containsKey(firma)) {
+        if (declaraPermiso(entrada.getValue()) || PUBLICAS.containsKey(firma)) {
           continue;
         }
         sinDeclarar.add(firma);
@@ -405,9 +351,39 @@ class EndpointPermissionsIT extends IntegrationTestBase {
 
     assertThat(sinDeclarar)
         .as(
-            "estos endpoints no exigen permiso: cualquier persona autenticada puede ejecutarlos."
-                + " Si es deliberado, decláralo en SIN_PERMISO_A_PROPOSITO con su motivo")
+            "estos endpoints se atienden con token y no exigen permiso (RN-SEG-015). Desde el"
+                + " 21-09-2026 no hay «autenticada a propósito»: o declara su permiso, o es pública"
+                + " —en SecurityConfig y en PUBLICAS, con el motivo—")
         .isEmpty();
+  }
+
+  @Test
+  @DisplayName(
+      "RN-SEG-015: cada pública se atiende SIN token —nunca 401— y una operación con permiso sin"
+          + " token es 401 (CA-SP-723)")
+  void lasPublicasSeAtiendenSinToken() {
+    // Las dos mitades de la regla, contra la misma función que usa el filtro:
+    // cada entrada de PUBLICAS es lo que SecurityConfig sirve con permitAll, y
+    // ninguna operación anotada lo es. Sin esto, una ruta podría estar en la
+    // lista y seguir exigiendo token —o al revés— sin que nadie lo notara.
+    for (String firma : PUBLICAS.keySet()) {
+      String[] partes = firma.split(" ", 2);
+      assertThat(SecurityConfig.esPublica(HttpMethod.valueOf(partes[0]), partes[1]))
+          .as("%s está en PUBLICAS pero SecurityConfig la exige autenticada", firma)
+          .isTrue();
+    }
+    for (String firma : PERMISO_DE_CADA_OPERACION.keySet()) {
+      String[] partes = firma.split(" ", 2);
+      assertThat(SecurityConfig.esPublica(HttpMethod.valueOf(partes[0]), partes[1]))
+          .as("%s declara permiso y SecurityConfig la sirve sin token", firma)
+          .isFalse();
+    }
+
+    // Y las once que hasta el 21-09-2026 iban sin permiso, con el suyo (CA-SP-724
+    // lo afirma una a una en OwnScopePermissionsIT; aquí basta con que conste).
+    assertThat(PERMISO_DE_CADA_OPERACION)
+        .containsEntry("GET /api/v1/users/me", "users:read-own-profile")
+        .containsEntry("POST /api/v1/packages/{code}/purchases", "packages:buy");
   }
 
   @Test
@@ -421,7 +397,7 @@ class EndpointPermissionsIT extends IntegrationTestBase {
     // justificación escrita para otra cosa.
     assertThat(existentes)
         .as("la lista blanca cita endpoints que ya no existen")
-        .containsAll(SIN_PERMISO_A_PROPOSITO.keySet());
+        .containsAll(PUBLICAS.keySet());
   }
 
   @Test

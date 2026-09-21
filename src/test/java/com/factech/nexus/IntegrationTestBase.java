@@ -192,6 +192,46 @@ public abstract class IntegrationTestBase {
    * del endpoint de creación se confundiera con el caso bajo prueba. Quien lo llame es responsable
    * de borrarlo en su limpieza, como con cualquier rol que la prueba cree.
    */
+  /**
+   * Vuelve a dar a los roles de sistema lo que `V31` reparte por tipo (`RF-SP-062`): los once de
+   * alcance propio a `FUNCIONARIO` y `VENDEDOR`, ocho a `CONSUMIDOR`. Para las suites que vacían
+   * `MANAGER`, `DIRECTOR`, `AGENTE` y `CLIENTE` —que hasta el 21-09-2026 nacían vacíos— y tienen
+   * que dejarlos como los deja la migración, no como los dejaba `V8`.
+   */
+  protected static void reponerAlcancePropio(org.springframework.jdbc.core.JdbcTemplate jdbc) {
+    jdbc.update(
+        """
+        INSERT INTO role_permissions (role_id, permission_id)
+        SELECT r.id, p.id
+          FROM roles r
+          CROSS JOIN permissions p
+         WHERE r.is_system = true
+           AND (p.code IN ('users:read-own-profile', 'users:update-own-profile',
+                           'users:change-own-password', 'users:read-own-sellers',
+                           'movements:list-own', 'movements:read-own',
+                           'movements:read-own-products', 'packages:buy')
+                OR (r.role_type IN ('FUNCIONARIO', 'VENDEDOR')
+                    AND p.code IN ('users:read-own-clients', 'broker-accounts:read-own-team',
+                                   'broker-accounts:read-team-member')))
+        ON CONFLICT ON CONSTRAINT pk_role_permissions DO NOTHING
+        """);
+  }
+
+  /** Los once códigos de alcance propio de `V31`, para descontarlos donde se cuente «lo demás». */
+  protected static final java.util.List<String> ALCANCE_PROPIO =
+      java.util.List.of(
+          "users:read-own-profile",
+          "users:update-own-profile",
+          "users:change-own-password",
+          "users:read-own-sellers",
+          "users:read-own-clients",
+          "broker-accounts:read-own-team",
+          "broker-accounts:read-team-member",
+          "movements:list-own",
+          "movements:read-own",
+          "movements:read-own-products",
+          "packages:buy");
+
   protected static java.util.UUID crearRolAcotado(
       org.springframework.jdbc.core.JdbcTemplate jdbc, String codigo, String nombre) {
     java.util.UUID id = java.util.UUID.randomUUID();
@@ -209,6 +249,22 @@ public abstract class IntegrationTestBase {
         """
         INSERT INTO role_permissions (role_id, permission_id)
         SELECT ?, id FROM permissions WHERE code IN ('audit:read-changes', 'audit:read-deletions')
+        """,
+        id);
+    // Y los once de alcance propio que V31 da a todo rol de tipo FUNCIONARIO
+    // (RF-SP-062, RN-SEG-015): sin ellos, una persona con este rol no vería su
+    // perfil ni podría cambiar la contraseña obligatoria. Es lo que un rol creado
+    // a mano recibe por RF-SP-005 el día que nace, y lo que `MustChangePasswordIT`
+    // necesita para que la cuenta marcada tenga salida.
+    jdbc.update(
+        """
+        INSERT INTO role_permissions (role_id, permission_id)
+        SELECT ?, id FROM permissions
+         WHERE code IN ('users:read-own-profile', 'users:update-own-profile',
+                        'users:change-own-password', 'users:read-own-sellers',
+                        'users:read-own-clients', 'broker-accounts:read-own-team',
+                        'broker-accounts:read-team-member', 'movements:list-own',
+                        'movements:read-own', 'movements:read-own-products', 'packages:buy')
         """,
         id);
     return id;

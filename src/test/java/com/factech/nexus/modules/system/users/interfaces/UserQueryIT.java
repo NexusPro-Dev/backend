@@ -414,7 +414,9 @@ class UserQueryIT extends IntegrationTestBase {
         // Diría a cualquiera con permiso de lectura cuántos intentos le quedan a
         // una cuenta antes de bloquearse.
         .doesNotContain("failedAttempts")
-        .doesNotContain("password")
+        // `"password` con la comilla: el campo, no la palabra — desde RF-SP-062 el
+        // detalle lista `users:change-own-password` entre los permisos efectivos.
+        .doesNotContain("\"password")
         .doesNotContain("mustChangePassword")
         .doesNotContain("argon2")
         // Ni el superior comercial: eso tiene su propio endpoint.

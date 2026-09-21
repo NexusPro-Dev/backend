@@ -8,8 +8,15 @@
 | Autor | Responsable técnico |
 | Aprobado por | Responsable del proyecto |
 | Fecha de aprobación | 21-09-2026 |
+| Enmendado | 21-09-2026 — exige **`users:read-own-clients`** (`RF-SP-062`, `RN-SEG-015`: autenticarse no autoriza nada); lo siembra `V31` (la ruta `/me`); a `CONSUMIDOR` no |
 
 ---
+
+!!! note "Enmienda de Art. I.7 — 21-09-2026, `RF-SP-062`"
+
+    Esta operación exige **`users:read-own-clients`** desde el 21-09-2026, por `RF-SP-062` —**autenticarse no autoriza nada**, `RN-SEG-015` ([`security.md` §4.3](../../../security.md#43-reglas-de-negocio))—, por decisión del responsable del proyecto: «cada endpoint debe tener su propio permiso, ya que uso esto para saber qué vista o consulta mostrar en el front; no basta con solo tener el token». Hasta entonces se atendía con solo el token, y las líneas que abajo dicen «sin permiso» o «autenticado a secas» hablan de esa decisión original y se conservan como historia: el alcance sobre uno mismo sigue siendo exactamente el mismo, lo que cambia es que ahora tiene nombre. `V31` siembra el permiso y lo da a todo rol por su tipo, a `CONSUMIDOR` no.
+
+
 
 ## 1. Enfoque
 
@@ -88,7 +95,7 @@
 
 ## 5. Autorización
 
-- **`/me/clients`: sin `@PreAuthorize`**, con el motivo al lado y declarada en `EndpointPermissionsIT`. El actor sale del token; no hay identificador que validar.
+- **`/me/clients`: `@PreAuthorize("hasAuthority('users:read-own-clients')")` desde el 21-09-2026** (`RF-SP-062`); hasta entonces sin `@PreAuthorize`, con el motivo al lado y declarada en `EndpointPermissionsIT`. El actor sale del token; no hay identificador que validar.
 - **`/{id}/clients`: `@PreAuthorize("hasAuthority('users:read-clients')")`**. El `403` sale antes de tocar la base; el `404` solo con el permiso puesto y una persona inexistente o eliminada. Ni `users:read`, ni `users:read-team`, ni `users:read-sellers` lo abren, y la prueba lo afirma con los tres (`CA-SP-718`), porque un `hasAnyAuthority` puesto por comodidad sería exactamente lo que `RN-SEG-014` prohíbe.
 - **Nada por estructura.** `GetSellerClientsService` no pregunta por `user_supervisors` ni por `RN-SP-046`; `CA-SP-720` lo afirma con un director sobre su agente.
 

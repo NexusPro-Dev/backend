@@ -9,6 +9,7 @@
 | Autor | Responsable técnico |
 | Aprobada por | Responsable del proyecto |
 | Fecha de aprobación | 16-09-2026 |
+| Enmendada | 21-09-2026 — exige **`packages:buy`** (`RF-SP-062`, `RN-SEG-015`: autenticarse no autoriza nada); lo siembra `V31`; `CA-MV-049` deja de decir «sin ningún permiso» |
 
 !!! info "Qué va en este documento"
 
@@ -25,6 +26,12 @@
     Este documento recoge **lo que el paquete añade**, que es una sola idea con cuatro caras: **el paquete se compra entero, uno, solo y tal como está hoy** (`RN-MV-028`).
 
 ---
+
+!!! note "Enmienda de Art. I.7 — 21-09-2026, `RF-SP-062`"
+
+    Esta operación exige **`packages:buy`** desde el 21-09-2026, por `RF-SP-062` —**autenticarse no autoriza nada**, `RN-SEG-015` ([`security.md` §4.3](../../../security.md#43-reglas-de-negocio))—, por decisión del responsable del proyecto: «cada endpoint debe tener su propio permiso, ya que uso esto para saber qué vista o consulta mostrar en el front; no basta con solo tener el token». Hasta entonces se atendía con solo el token, y las líneas que abajo dicen «sin permiso» o «autenticado a secas» hablan de esa decisión original y se conservan como historia: el alcance sobre uno mismo sigue siendo exactamente el mismo, lo que cambia es que ahora tiene nombre. `V31` siembra el permiso y lo da a todo rol por su tipo.
+
+
 
 ## 1. Objetivo
 
@@ -133,7 +140,7 @@ La de `RF-MV-002` —la venta sin el vendedor—, **con dos añadidos**:
 
 **Precondiciones**
 
-- El actor está autenticado, **no está en `FTD_PENDIENTE`** y puede comprar.
+- El actor está autenticado con `packages:buy` — **hasta el 21-09-2026 sin permiso** (`RF-SP-062`), **no está en `FTD_PENDIENTE`** y puede comprar.
 - El paquete existe, está activo, dentro de su vigencia, y **se le ofrece a ese actor**.
 - Todos sus productos están activos y en la oferta que le corresponde.
 
@@ -245,7 +252,7 @@ La de `RF-MV-002` —la venta sin el vendedor—, **con dos añadidos**:
 
 | ID | Criterio |
 |---|---|
-| `CA-MV-049` | Un cliente autenticado **sin ningún permiso** compra un paquete de su oferta y la venta nace **pendiente**, con **una línea por producto** |
+| `CA-MV-049` | Un cliente autenticado con `packages:buy` —**y ningún otro permiso**; hasta el 21-09-2026, «sin ningún permiso»— compra un paquete de su oferta y la venta nace **pendiente**, con **una línea por producto** |
 | `CA-MV-050` | El importe a pagar es **la suma de las líneas rebajadas**, y coincide con el `price` que el catálogo publica para ese paquete |
 | `CA-MV-051` | El total es lo que valdrían **sin rebaja** y el descuento es la diferencia: las tres cifras cuadran |
 | `CA-MV-052` | Cada línea trae **su rebaja explicada** —tipo, valor pactado y valor en dinero— y el nombre y la descripción **copiados** |

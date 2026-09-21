@@ -8,8 +8,15 @@
 | Autor | Responsable técnico |
 | Aprobada por | Responsable del proyecto |
 | Fecha de aprobación | 10-09-2026 |
+| Enmendada | 21-09-2026 — exige **`broker-accounts:read-own-team`** (`RF-SP-062`, `RN-SEG-015`: autenticarse no autoriza nada); lo siembra `V31` |
 
 ---
+
+!!! note "Enmienda de Art. I.7 — 21-09-2026, `RF-SP-062`"
+
+    Esta operación exige **`broker-accounts:read-own-team`** desde el 21-09-2026, por `RF-SP-062` —**autenticarse no autoriza nada**, `RN-SEG-015` ([`security.md` §4.3](../../../security.md#43-reglas-de-negocio))—, por decisión del responsable del proyecto: «cada endpoint debe tener su propio permiso, ya que uso esto para saber qué vista o consulta mostrar en el front; no basta con solo tener el token». Hasta entonces se atendía con solo el token, y las líneas que abajo dicen «sin permiso» o «autenticado a secas» hablan de esa decisión original y se conservan como historia: el alcance sobre uno mismo sigue siendo exactamente el mismo, lo que cambia es que ahora tiene nombre. `V31` siembra el permiso y lo da a todo rol por su tipo, a `CONSUMIDOR` no.
+
+
 
 ## 1. Objetivo
 
@@ -27,7 +34,7 @@ Ver de una sola vez **quiénes de mi equipo ya depositaron y quiénes siguen esp
 
 | Actor | Papel |
 |---|---|
-| **Cualquier persona autenticada** | Consulta las cuentas de su **propio** equipo directo |
+| **Cualquier persona autenticada** con `broker-accounts:read-own-team` | Consulta las cuentas de su **propio** equipo directo |
 
 ## 4. Alcance
 
@@ -78,7 +85,7 @@ Ver de una sola vez **quiénes de mi equipo ya depositaron y quiénes siguen esp
 
 ## 7. Precondiciones y postcondiciones
 
-**Precondiciones:** actor autenticado. **Ningún permiso**: el alcance lo pone la estructura.
+**Precondiciones:** actor autenticado con `broker-accounts:read-own-team` — **hasta el 21-09-2026 sin permiso** (`RF-SP-062`). El alcance lo sigue poniendo la estructura.
 
 **Postcondiciones:** ninguna. Es una lectura y **no audita**.
 

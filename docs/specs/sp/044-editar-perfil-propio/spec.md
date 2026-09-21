@@ -11,7 +11,14 @@
 | Enmendada | 08-09-2026 — `RN-SP-037`: el titular pasa a corregir sus **datos de contacto**, y **no** su documento; `CA-SP-598` y `CA-SP-599` (Art. I.7) |
 
 | Enmendada | 10-09-2026 — el titular corrige también su **teléfono de la empresa**, y este **sí se puede vaciar**: `RN-SP-037` lo deja opcional. Nace `CA-SP-680` (Art. I.7) |
+| Enmendada | 21-09-2026 — exige **`users:update-own-profile`** (`RF-SP-062`, `RN-SEG-015`: autenticarse no autoriza nada); lo siembra `V31`; `CA-SP-494` deja de decir «sin ningún permiso» |
 ---
+
+!!! note "Enmienda de Art. I.7 — 21-09-2026, `RF-SP-062`"
+
+    Esta operación exige **`users:update-own-profile`** desde el 21-09-2026, por `RF-SP-062` —**autenticarse no autoriza nada**, `RN-SEG-015` ([`security.md` §4.3](../../../security.md#43-reglas-de-negocio))—, por decisión del responsable del proyecto: «cada endpoint debe tener su propio permiso, ya que uso esto para saber qué vista o consulta mostrar en el front; no basta con solo tener el token». Hasta entonces se atendía con solo el token, y las líneas que abajo dicen «sin permiso» o «autenticado a secas» hablan de esa decisión original y se conservan como historia: el alcance sobre uno mismo sigue siendo exactamente el mismo, lo que cambia es que ahora tiene nombre. `V31` siembra el permiso y lo da a todo rol por su tipo.
+
+
 
 ## 1. Objetivo
 
@@ -33,7 +40,7 @@ Por eso el cambio de correo **exige la contraseña actual en la misma petición*
 
 | Actor | Rol en esta funcionalidad |
 |---|---|
-| Cualquier persona autenticada | Edita sus propios datos, y solo los suyos |
+| Cualquier persona autenticada con `users:update-own-profile` | Edita sus propios datos, y solo los suyos |
 
 ## 4. Alcance
 
@@ -84,7 +91,7 @@ No hay identificador de entrada: el usuario a editar es **el que porta el token*
 
 **Precondiciones**
 
-- El actor está autenticado. No se exige ningún permiso.
+- El actor está autenticado y porta `users:update-own-profile` — **hasta el 21-09-2026 sin permiso** (`RF-SP-062`).
 - El actor no tiene pendiente un cambio obligatorio de contraseña (§13, `CL-003`).
 
 **Postcondiciones**
@@ -147,7 +154,7 @@ No hay identificador de entrada: el usuario a editar es **el que porta el token*
 
 | ID | Criterio |
 |---|---|
-| `CA-SP-494` | Una persona autenticada **sin ningún permiso** modifica su nombre y sus apellidos |
+| `CA-SP-494` | Una persona autenticada con `users:update-own-profile` —**y ningún otro permiso**— modifica su nombre y sus apellidos (hasta el 21-09-2026 decía «sin ningún permiso») |
 | `CA-SP-495` | La operación afecta **solo** al actor: el cuerpo no admite identificador y ningún otro usuario cambia |
 | `CA-SP-496` | Con correo y contraseña actual correcta, el correo queda cambiado |
 | `CA-SP-497` | Con correo y **sin** contraseña actual, se rechaza con `VAL-006` y nada cambia |

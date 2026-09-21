@@ -336,6 +336,84 @@ class DevelopmentSeedIT extends IntegrationTestBase {
   }
 
   @Test
+  @DisplayName("las diecinueve nacen con documento CC, y a quien ya existía sin él se lo completa")
+  void documento() {
+    borrarLasDiecinueve(jdbc);
+    semilla.run(null);
+
+    assertThat(sinDocumento()).isZero();
+
+    // Una base sembrada ANTES de que la semilla declarara el documento tiene a
+    // las diecinueve sin él, y el INSERT las salta porque ya existen: es lo que
+    // el entorno de desarrollo compartido mostraba el 21-09-2026. Se reproduce
+    // sobre dos y se vuelve a arrancar.
+    jdbc.update(
+        """
+        UPDATE users
+           SET document_type_id = NULL, document_number = NULL, phone = NULL
+         WHERE username IN ('agente1', 'cliente3')
+        """);
+    assertThat(sinDocumento()).isEqualTo(2);
+
+    semilla.run(null);
+
+    assertThat(sinDocumento()).isZero();
+    // Con LOS MISMOS valores que recibe quien nace hoy: `CC`, el número derivado
+    // del nombre de usuario y el teléfono con la forma que admite el CHECK.
+    assertThat(
+            jdbc.queryForList(
+                """
+                SELECT dt.abbreviation || '|' || u.document_number || '|' || u.phone AS fila
+                  FROM users u
+                  JOIN document_types dt ON dt.id = u.document_type_id
+                 WHERE u.username IN ('agente1', 'cliente3')
+                 ORDER BY u.username
+                """,
+                String.class))
+        .satisfiesExactly(
+            fila -> assertThat(fila).startsWith("CC|AGENTE1|+57300"),
+            fila -> assertThat(fila).startsWith("CC|CLIENTE3|+57300"));
+    // Y cada una con el suyo: `uq_users_document` no admite dos iguales.
+    assertThat(
+            jdbc.queryForObject(
+                "SELECT count(DISTINCT document_number) FROM users WHERE username = ANY (?)",
+                Integer.class,
+                (Object) USUARIOS.toArray(String[]::new)))
+        .isEqualTo(19);
+    // El superadministrador NO es persona de prueba y la semilla no lo toca:
+    // nace en V9 sin documento y así sigue.
+    assertThat(
+            jdbc.queryForObject(
+                "SELECT document_type_id IS NULL FROM users WHERE username = 'superadmin'",
+                Boolean.class))
+        .isTrue();
+  }
+
+  @Test
+  @DisplayName(
+      "CA-SP-730 — las veinte personas ven su perfil: cada una porta users:read-own-profile por su"
+          + " rol (RF-SP-062, RN-SEG-015)")
+  void todasVenSuPerfil() {
+    // Desde el 21-09-2026 GET /users/me exige permiso. V31 lo da a todo rol por su
+    // tipo, y la semilla asigna un rol a cada persona: si alguna quedara sin el
+    // permiso, entraría a un panel vacío sin poder saber por qué.
+    Integer sinPerfil =
+        jdbc.queryForObject(
+            """
+            SELECT count(*) FROM users u
+             WHERE u.username = ANY (?)
+               AND NOT EXISTS (
+                 SELECT 1 FROM user_roles ur
+                   JOIN role_permissions rp ON rp.role_id = ur.role_id
+                   JOIN permissions p ON p.id = rp.permission_id
+                  WHERE ur.user_id = u.id AND p.code = 'users:read-own-profile')
+            """,
+            Integer.class,
+            (Object) USUARIOS.toArray(String[]::new));
+    assertThat(sinPerfil).isZero();
+  }
+
+  @Test
   @DisplayName("cada director tiene TRES a cargo, y el árbol llega hasta el superadministrador")
   void estructuraComercial() {
     borrarLasDiecinueve(jdbc);
@@ -473,6 +551,16 @@ class DevelopmentSeedIT extends IntegrationTestBase {
             Integer.class);
 
     assertThat(superadminConSuperior).isZero();
+  }
+
+  /** Cuántas de las diecinueve existen sin tipo de documento. */
+  private int sinDocumento() {
+    Integer total =
+        jdbc.queryForObject(
+            "SELECT count(*) FROM users WHERE username = ANY (?) AND document_type_id IS NULL",
+            Integer.class,
+            (Object) USUARIOS.toArray(String[]::new));
+    return total == null ? 0 : total;
   }
 
   private static int cuantasDeLasDiecinueve(JdbcTemplate jdbc) {

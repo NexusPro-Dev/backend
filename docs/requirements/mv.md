@@ -5,7 +5,7 @@
 | Módulo | `MV` — Movimientos |
 | Paquete | `modules/movements` |
 | Prefijos de permiso | `movements:` |
-| Versión | 0.29.0 |
+| Versión | 0.30.0 |
 | Estado | **Borrador** |
 | Responsable | Bonilla Diaz William Steven |
 | Fecha de creación | 02-09-2026 |
@@ -141,19 +141,19 @@ La dependencia es **acíclica**: `MV` → `PM` → `SP`, y `MV` → `SP`.
 | ID | Nombre | Submódulo | Permiso |
 |---|---|---|---|
 | `RF-MV-001` | Registrar una venta | Ventas | `movements:create` |
-| `RF-MV-002` | Comprar un producto para uno mismo | Ventas | Autenticado |
+| `RF-MV-002` | Comprar un producto para uno mismo | Ventas | `products:buy` (nacerá con él; `RN-SEG-015`) |
 | `RF-MV-003` | Confirmar una venta pendiente | Ventas | `movements:confirm` |
 | `RF-MV-004` | Rechazar una venta pendiente | Ventas | `movements:confirm` |
 | `RF-MV-005` | Anular una venta pendiente | Ventas | `movements:void` |
 | `RF-MV-006` | Consultar los movimientos | Ventas | `movements:read` |
 | `RF-MV-007` | Consultar el detalle de una venta, con su comprobante | Ventas | `movements:read` |
-| `RF-MV-008` | Consultar los movimientos propios | Ventas | Autenticado |
+| `RF-MV-008` | Consultar los movimientos propios | Ventas | `movements:list-own` (listado) y `movements:read-own` (detalle) |
 | `RF-MV-009` | Consultar los métodos de pago | Medios de pago | **Ninguno: es público** |
 | `RF-MV-010` | Autorizar la entrega de lo comprado con implementación manual | Ventas | `movements:implement` |
-| `RF-MV-011` | Comprar un producto por el hotlink de un vendedor | Ventas | Autenticado |
-| `RF-MV-012` | Comprar un paquete para uno mismo | Ventas | Autenticado |
-| `RF-MV-013` | Comprar un paquete por el hotlink de un vendedor | Ventas | Autenticado |
-| `RF-MV-014` | Consultar los productos comprados propios | Ventas | Autenticado |
+| `RF-MV-011` | Comprar un producto por el hotlink de un vendedor | Ventas | `products:buy-by-hotlink` (nacerá con él; `RN-SEG-015`) |
+| `RF-MV-012` | Comprar un paquete para uno mismo | Ventas | `packages:buy` |
+| `RF-MV-013` | Comprar un paquete por el hotlink de un vendedor | Ventas | `packages:buy-by-hotlink` (nacerá con él; `RN-SEG-015`) |
+| `RF-MV-014` | Consultar los productos comprados propios | Ventas | `movements:read-own-products` |
 
 **Registrar y comprar son dos requerimientos y no uno**, y eso **se aparta del precedente** que `PM` y `CM` fijaron —«el alta es una, no dos»—. La razón por la que aquí no aplica no es el contenido de la venta sino **quién la pide y por dónde entra**: una la origina un funcionario sobre la cuenta de otro y exige `movements:create`; la otra la origina el interesado sobre la suya y no exige permiso ninguno, como `RF-SP-039` y `RF-PM-007`. Fundirlas daría un endpoint con **dos modelos de seguridad**, que es donde se cuela el que sobra.
 
@@ -238,7 +238,7 @@ La dependencia es **acíclica**: `MV` → `PM` → `SP`, y `MV` → `SP`.
 |---|---|
 | Objetivo | Que un cliente compre **el paquete entero** que su oferta le muestra, con el descuento que cada producto lleva dentro de él |
 | Actor | Cualquier persona autenticada que pueda comprar (las mismas condiciones que `RF-MV-002`) |
-| Permiso requerido | **Autenticado**, sin permiso: es una compra propia |
+| Permiso requerido | `packages:buy` — **hasta el 21-09-2026 «Autenticado»**, cuando `RF-SP-062` (`RN-SEG-015`) decidió que autenticarse no autoriza nada; una compra propia sigue siendo propia, pero el frontend necesita saber a quién enseñarle la tienda |
 | Prioridad | Alta |
 | Reglas aplicables | `RN-MV-001` a `RN-MV-009`, `RN-MV-012` a `RN-MV-014`, `RN-MV-016`, `RN-MV-018`, `RN-MV-022`, `RN-MV-026`, `RN-MV-027`, `RN-MV-028`; `RN-PM-036`, `RN-PM-037`, `RN-PM-039`, `RN-PM-044`, `RN-PM-047` |
 | Depende de | `RF-MV-002`, `RF-PM-017` a `RF-PM-025`, `RF-SP-045` |
@@ -276,7 +276,7 @@ La dependencia es **acíclica**: `MV` → `PM` → `SP`, y `MV` → `SP`.
 |---|---|
 | Objetivo | Que una persona vea **qué compró, en qué estado está cada cosa y hasta cuándo la tiene**, sin abrir venta por venta |
 | Actor | Cualquier persona autenticada |
-| Permiso requerido | **Autenticado**, sin permiso: es una consulta sobre uno mismo, como `RF-MV-008` |
+| Permiso requerido | `movements:read-own-products` — **hasta el 21-09-2026 «Autenticado»**, cuando `RF-SP-062` (`RN-SEG-015`) decidió que autenticarse no autoriza nada |
 | Prioridad | Media |
 | Reglas aplicables | `RN-MV-001`, `RN-MV-004`, `RN-MV-021`, `RN-MV-029`, `RN-MV-030`; `RN-PM-015` |
 | Depende de | `RF-MV-003`, `RF-MV-008` |
@@ -459,11 +459,15 @@ Hasta hoy esta regla no distinguía: **toda** venta confirmada con un upgrade co
 | `movements:create` | `movements` | `create` | Registrar una venta a nombre de otra persona |
 | `movements:confirm` | `movements` | `confirm` | Dar por pagada, o por no pagada, una venta pendiente |
 | `movements:void` | `movements` | `void` | Anular una venta que no debía existir |
+| `movements:list-own` | `movements` | `list-own` | Consultar los propios movimientos (`RF-MV-008`, listado). **Desde el 21-09-2026** (`RN-SEG-015`) |
+| `movements:read-own` | `movements` | `read-own` | El detalle de un movimiento propio (`RF-MV-008`). **Desde el 21-09-2026** |
+| `movements:read-own-products` | `movements` | `read-own-products` | Los productos comprados propios y su estado (`RF-MV-014`). **Desde el 21-09-2026** |
+| `packages:buy` | `packages` | `buy` | Comprar un paquete para uno mismo (`RF-MV-012`). Es de recurso `packages` y se documenta aquí porque la operación es de este módulo. **Desde el 21-09-2026** |
 | `movements:implement` | `movements` | `implement` | Autorizar la entrega de lo comprado cuando el producto es de implementación manual (`RF-MV-010`). **Declarado y SIN SEMBRAR** |
 
 **`confirm` y `void` no reutilizan `update`**, y esa es la única decisión de esta sección. Una venta **no se actualiza nunca** (`RN-MV-001`), de modo que un permiso llamado `movements:update` prometería algo que no existe. Y son dos permisos y no uno porque confirmar es operación de caja diaria mientras que anular **borra del embudo** una venta que alguien registró: quien concilia pagos no tiene por qué poder hacer desaparecer ventas ajenas.
 
-**Comprar y consultar lo propio no llevan permiso**, por lo mismo que `RF-SP-039`: exigirlo obligaría a concedérselo a todos los clientes, que es la forma de que un permiso deje de significar nada. `RF-PM-007` seguía el mismo criterio hasta el 02-09-2026, cuando pasó a exigir `products:sale` — un permiso propio de esa vista y no de administración, que se concede por rol como cualquier otro y no cambia el argumento de esta sección.
+**Comprar y consultar lo propio SÍ llevan permiso desde el 21-09-2026** (`RN-SEG-015`, `RF-SP-062`), y el párrafo que sigue es historia: hasta ese día decía que «exigirlo obligaría a concedérselo a todos los clientes, que es la forma de que un permiso deje de significar nada», y el responsable del proyecto lo rebatió con el uso que le da: el frontend decide qué vista o consulta mostrar por los permisos del actor, y un permiso que todos los clientes portan sigue significando «a este se le enseña la tienda». `V31` los da a todo rol por su tipo, de modo que nadie pierde nada. **Comprar y consultar lo propio no llevaban permiso**, por lo mismo que `RF-SP-039`: exigirlo obligaría a concedérselo a todos los clientes, que es la forma de que un permiso deje de significar nada. `RF-PM-007` seguía el mismo criterio hasta el 02-09-2026, cuando pasó a exigir `products:sale` — un permiso propio de esa vista y no de administración, que se concede por rol como cualquier otro y no cambia el argumento de esta sección.
 
 **Y desde el 09-09-2026 `RF-MV-009` no lleva ni permiso ni sesión** (`RN-MV-024`): su `GET` es público. **No sobra ningún permiso por ello**, y esa es la diferencia con los tres catálogos que `SP` abrió el día antes —`countries:read`, `document-types:read` y `brokers:read` quedaron sembrados sin endpoint que los exija ([`security.md` §6](../security.md))—. Aquí no ocurre porque el catálogo de métodos de pago **nunca exigió uno**: los cuatro `movements:` gobiernan ventas, y ninguno gobernaba esta lectura.
 
@@ -736,3 +740,4 @@ Se siembra por migración y **no se administra por API todavía** (§5.3). Lo m�
 | 0.27.0 | 19-09-2026 | **`RN-MV-007` se enmienda: la oferta es la del canal por el que se compra**, por decisión del responsable del proyecto —«que se pueda comprar por solo hotlink también»—, tras un `EX-004` en el registro por enlace con `RENOVAR_BECA` de alcance `HOTLINK`. La venta del enlace (`RF-SP-045`) se validaba contra la oferta de la **tienda** (`TIENDA`/`AMBOS`) mientras el enlace publica `HOTLINK`/`AMBOS` (`RN-PM-021`): **un producto solo de hotlink se podía ver por el enlace y nunca comprar por él**, que es justo lo que ese canal existe para vender. Desde hoy `RegisterSaleService` sabe por qué canal entra cada venta (`SaleChannel`: la tienda para el funcionario y la compra propia, el hotlink para el enlace) y valida contra la publicación de ese canal; `PM` publica una lectura nueva, **«¿cuáles de estos productos publica el hotlink?»** (`ProductCatalog.publishedByHotlink`, el mismo predicado de `RF-PM-008` y `RF-PM-027`). **La otra mitad de la misma regla**: un producto **solo de tienda ya no se vende por el enlace** —el hotlink no lo publica, así que tampoco lo vende, y un enlace armado a mano no puede colar lo que el canal no muestra—. `RN-MV-006` no cambia: ninguna venta baja de nivel por ningún canal. Sin migración. `RF-MV-011` y `RF-MV-013` heredan el canal hotlink cuando se construyan. | Responsable del proyecto |
 | 0.28.0 | 21-09-2026 | **`RN-MV-003` toma el principal del cliente de `client_sellers`, no de `user_supervisors`** ([`requirements/sp.md`](sp.md) v1.63.0: `RN-SP-028` revertida y `RN-SP-049` enmendada por el responsable del proyecto — el cliente sale de la estructura comercial y su principal es quien lo registró, para siempre). **La atribución no cambia de resultado**: la compra en tienda sigue siendo del principal y la de hotlink del dueño del enlace (`RN-MV-025`); cambia **de dónde se lee** el principal, y por tanto la implementación de `ClientCatalog` que `RF-MV-001` y `RF-MV-002` consumen. `RF-MV-011` y `RF-MV-013` **dejan de traer la migración** de `client_sellers`: la crea `RF-SP-059`, y ellos solo insertan sus filas `HOTLINK`. Sin cambio de contrato en ningún endpoint de `MV`. — redactada el 18-09-2026 en `feature/vendedores-de-un-cliente` e integrada sobre `feature/academia` el 21-09-2026 con el número renumerado; `RF-SP-060` de aquella rama pasa a `RF-SP-061` porque `RF-SP-060` nació en `feature/academia` el 19-09-2026 | Responsable del proyecto |
 | 0.29.0 | 21-09-2026 | **Cinco enlaces de §9 apuntaban a `../../specs/mv/…` y no a `../specs/mv/…`** (las fichas de `RF-MV-012` y `013` desde v0.20.0; las de `RF-MV-003`, `005` y `014` desde v0.24.0): el sitio de documentación se construye en modo estricto y abortaba con ellos, de modo que el flujo `Documentación` llevaba en rojo desde el 17-09-2026. Solo enlaces. | Responsable técnico |
+| 0.30.0 | 21-09-2026 | **Comprar y consultar lo propio llevan permiso** (`RF-SP-062`, `RN-SEG-015`, [`security.md`](../security.md) v0.67.0), por decisión del responsable del proyecto: «no basta con solo tener el token». `RF-MV-008` pasa a `movements:list-own` y `movements:read-own` (listado y detalle, `RN-SEG-014`), `RF-MV-014` a `movements:read-own-products` y `RF-MV-012` a `packages:buy`, sembrados por `V31` a todo rol por su tipo; §4.1 y §6 los nombran, y §6 conserva como historia el argumento que decía lo contrario. Los pendientes `RF-MV-002`, `011` y `013` nacerán con `products:buy`, `products:buy-by-hotlink` y `packages:buy-by-hotlink`. | Responsable del proyecto |
