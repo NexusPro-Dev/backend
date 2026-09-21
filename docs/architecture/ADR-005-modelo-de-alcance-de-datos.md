@@ -2,7 +2,7 @@
 
 | Campo | Valor |
 |---|---|
-| Estado | **Propuesta — pendiente de decisión** |
+| Estado | **Propuesta — decidida en lo de negocio el 21-09-2026 (ver la actualización al final); pendiente la comprobación de arquitectura** |
 | Fecha | 27-08-2026 |
 | Decide | Responsable del proyecto |
 | Redacta | Bonilla Diaz William Steven |
@@ -78,3 +78,9 @@ Un puerto que, dado el actor y un **tipo de alcance declarado**, devuelve el con
 2. Decidir si un actor **se ve a sí mismo** dentro de su alcance. Parece obvio y no lo es: cambia todos los predicados.
 3. Decidir qué pasa con quien **no tiene superior ni subordinados**: ¿alcance vacío o alcance de sí mismo?
 4. Aceptar o rechazar el orden de la recomendación, en particular que la comprobación de arquitectura vaya **antes** que el resolvedor.
+
+## Actualización del 21-09-2026 — las tres preguntas de negocio, respondidas por `RF-MV-015`
+
+El responsable del proyecto decidió el alcance de **las ventas** (`RN-MV-031`, [`requirements/mv.md`](../requirements/mv.md) v0.32.0), y con ello responde las tres primeras preguntas de arriba **para ese caso**: **(1)** el alcance se determina por **`user_supervisors`** —la relación vigente, en toda la profundidad— y no por membresía; **(2)** el actor **se ve a sí mismo**; **(3)** quien no tiene superior ni subordinados alcanza **a sí mismo**, no al vacío. Y añade una cuarta que este ADR no formulaba: **el tipo de rol manda antes que la estructura** — `FUNCIONARIO` lo ve todo, `VENDEDOR` su red, `CONSUMIDOR` lo suyo.
+
+**Lo que se construye es la opción B con un solo tipo de alcance**: `SP` publica `CommercialReach` ([`architecture.md` §15.2](../architecture.md)), que devuelve hasta dónde llega una persona, y `MV` lo aplica. **La pregunta (4) se responde al revés de la recomendación**: el resolvedor va **antes** que la comprobación de arquitectura, porque el requerimiento llegó primero. La comprobación —que todo listado declare su alcance, incluido `GLOBAL`— **sigue pendiente**, y mientras no exista este ADR no se cierra: hay un alcance definido y aplicado, y no hay todavía forma de verificar por ausencia que el siguiente listado lo declare.
