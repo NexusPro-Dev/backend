@@ -77,7 +77,7 @@ class DevelopmentSeedIT extends IntegrationTestBase {
           "UPGRADE_VIP_PLATINO",
           "UPGRADE_VIP_ORO",
           "UPGRADE_PLATINO_ORO",
-          "RENOVAR_BECA",
+          "MEMBRESIA_BECA",
           "RENOVAR_VIP",
           "RENOVAR_PLATINO",
           "RENOVAR_ORO",
@@ -257,12 +257,14 @@ class DevelopmentSeedIT extends IntegrationTestBase {
     assertThat(upgrades.stream().map(u -> u.get("origen")).distinct())
         .containsExactlyInAnyOrder("BECA", "VIP", "PLATINO", "ORO");
 
-    // Las cuatro renovaciones, y la de BECA es el producto GRATUITO.
+    // Las cuatro renovaciones, y la de BECA es el producto GRATUITO (desde el
+    // 18-09-2026 se llama MEMBRESIA_BECA; si el guion cambia un código y esta
+    // lista no, el producto sobrevive al DELETE y bloquea el de memberships).
     assertThat(upgrades.stream().filter(u -> u.get("origen").equals(u.get("destino"))).count())
         .isEqualTo(4);
     assertThat(
             jdbc.queryForObject(
-                "SELECT price FROM products WHERE code = 'RENOVAR_BECA'",
+                "SELECT price FROM products WHERE code = 'MEMBRESIA_BECA'",
                 java.math.BigDecimal.class))
         .isEqualByComparingTo("0");
 

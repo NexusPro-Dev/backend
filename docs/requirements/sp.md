@@ -5,7 +5,7 @@
 | Módulo | `SP` — Sistema Principal |
 | Paquete | `modules/system` |
 | Prefijos de permiso | `roles:`, `permissions:`, `audit:`, `memberships:`, `currencies:`, `countries:`, `users:`, `exchange-rates:`, `document-types:`, `brokers:`, `broker-accounts:` |
-| Versión | 1.64.0 |
+| Versión | 1.65.0 |
 | Estado | **Aprobado** |
 | Responsable | Bonilla Diaz William Steven |
 | Fecha de creación | 20-08-2026 |
@@ -375,7 +375,7 @@ EXCLUDE USING gist (
 | `RF-SP-056` | Consultar las cuentas de broker del equipo | Alta | **Autenticado** (el equipo propio) | **En desarrollo** |
 | `RF-SP-057` | Consultar y filtrar todas las cuentas de broker | Alta | `broker-accounts:read` | **En desarrollo** |
 | `RF-SP-058` | Consultar los indicadores de la red comercial | **Crítica** | `broker-accounts:read-indicators` | **En desarrollo** |
-| `RF-SP-059` | Consultar los vendedores de un cliente | Media | **El propio cliente**, o `users:read-sellers` | **Tasks en revisión** |
+| `RF-SP-059` | Consultar los vendedores de un cliente | Media | **El propio cliente**, o `users:read-sellers` | **En desarrollo** |
 | `RF-SP-060` | Un permiso por operación | **Crítica** | — (es el catálogo) | Tasks en revisión |
 | `RF-SP-061` | Consultar los clientes de un vendedor | Media | **El propio vendedor**, o `users:read-clients` (`RN-SEG-014`: nacerá con permiso propio) | Pendiente |
 
@@ -1174,7 +1174,7 @@ Retira lógicamente una tasa **exigiendo motivo** (Art. V.13), que viaja al regi
 | Reglas aplicables | `RN-SP-027`, `RN-SP-028`, `RN-SP-049` |
 | Depende de | `RF-SP-045` |
 | Tripleta | `docs/specs/sp/059-consultar-vendedores-de-un-cliente/` |
-| Estado | **Tasks en revisión** (18-09-2026) — registrado el 16-09-2026 y **rediseñado el 18-09-2026**: trae la migración |
+| Estado | **En desarrollo** (21-09-2026) — registrado el 16-09-2026, **rediseñado el 18-09-2026** (trae la migración) y construido ese día en su rama; integrado el 21-09-2026 con `users:read-sellers` y `V29` |
 
 **Trae la migración que crea `client_sellers` y saca a los clientes de `user_supervisors`** (`RN-SP-028` revertida el 18-09-2026). Copia cada fila vigente cuyo subordinado porte un rol `CONSUMIDOR` como `REGISTRO` con `first_movement_id` nulo —el dato existía antes que la tabla, y la venta de registro no se puede reconstruir con certeza— y **borra** de `user_supervisors` todas las filas de clientes, vigentes y cerradas: no se cierran, porque no eran mando y una fila cerrada seguiría diciendo que lo fueron. Ya no depende de `RF-MV-011`: hasta que la compra por hotlink exista la lista tiene un solo elemento —el principal— y **el contrato ya es el definitivo**.
 
@@ -1183,21 +1183,6 @@ Retira lógicamente una tasa **exigiendo motivo** (Art. V.13), que viaja al regi
 **No publica nada que el cliente no sepa ya**: cada vendedor de la lista es alguien a quien le compró o quien lo registró. Y no publica más que nombre y apellido, como el hotlink (`RN-PM-022`).
 
 **Lo que no hace**: no permite cambiar el principal —porque no se cambia (`RN-SP-049`); hasta el 18-09-2026 esa vía era `RF-SP-041`, y ya no alcanza a clientes— ni quitar un vínculo, porque un vínculo es un hecho.
-
-#### `RF-SP-061` — Consultar los clientes de un vendedor
-
-| Campo | Valor |
-|---|---|
-| Objetivo | Que un vendedor vea **su cartera** —a quiénes registró y a quiénes les vendió por hotlink— y que administración pueda verla |
-| Actor | El propio vendedor; Administrador |
-| Permiso requerido | **El propio vendedor** (`GET /users/me/clients`), o `users:read-clients` (`GET /users/{id}/clients`) — permiso propio por `RN-SEG-014` (`RF-SP-060`) |
-| Prioridad | Media |
-| Reglas aplicables | `RN-SP-049` |
-| Depende de | `RF-SP-059` |
-| Tripleta | `docs/specs/sp/061-consultar-clientes-de-un-vendedor/` |
-| Estado | **Pendiente** — registrado el 18-09-2026 como `RF-SP-060` en `feature/vendedores-de-un-cliente`; renumerado a `061` el 21-09-2026 al integrar sobre `feature/academia`, donde `RF-SP-060` ya era «un permiso por operación» |
-
-Es la lectura inversa de `RF-SP-059`, y nace el día que la cartera sale de `RF-SP-042`: hasta el 18-09-2026 «los clientes de un agente» se respondía filtrando el equipo por `CLIENTE`, y con `RN-SP-028` revertida el equipo no los contiene. Lee `client_sellers` por `seller_id` —el índice que §10.19 exige existe para esto— y distingue, por cada cliente, si es **suyo** (`REGISTRO`) o solo **vinculado** (`HOTLINK`). Paginada, como `RF-SP-042`. Es la misma pregunta que hoy contesta `RF-SP-057` para las cuentas de broker, hecha sobre las personas.
 
 #### `RF-SP-060` — Un permiso por operación
 
@@ -1221,6 +1206,24 @@ Es la lectura inversa de `RF-SP-059`, y nace el día que la cartera sale de `RF-
 **Lo que impide que vuelva a pasar** es `RN-SEG-014` y la prueba que la vigila: `EndpointPermissionsIT` afirma desde entonces que ningún permiso aparece en dos operaciones.
 
 **En `SP` cambian trece operaciones**: `roles:list`, `roles:assign-permissions`, `roles:revoke-permissions`, `roles:change-status`, `roles:assign-parent`, `permissions:list`, `memberships:list`, `users:list`, `users:change-status`, `users:revoke-roles`, `users:revoke-membership`, `users:read-team` y `broker-accounts:read-indicators`; §6.1 y §9 ya los nombran. `RF-SP-059`, pendiente, nacerá con `users:read-sellers` — **y nació con él el 21-09-2026**: su rama se redactó con `users:read` el día antes de este requerimiento, y al integrarla `V29` siembra `users:read-sellers` (serie de `SP`, `…000025`) a `SUPERADMIN` y `ADMIN`; el catálogo pasa a **ciento doce**.
+
+#### `RF-SP-061` — Consultar los clientes de un vendedor
+
+| Campo | Valor |
+|---|---|
+| Objetivo | Que un vendedor vea **su cartera** —a quiénes registró y a quiénes les vendió por hotlink— y que administración pueda verla |
+| Actor | El propio vendedor; Administrador |
+| Permiso requerido | **El propio vendedor** (`GET /users/me/clients`), o `users:read-clients` (`GET /users/{id}/clients`) — permiso propio por `RN-SEG-014` (`RF-SP-060`) |
+| Prioridad | Media |
+| Reglas aplicables | `RN-SP-049` |
+| Depende de | `RF-SP-059` |
+| Tripleta | `docs/specs/sp/061-consultar-clientes-de-un-vendedor/` |
+| Estado | **Pendiente** — registrado el 18-09-2026 como `RF-SP-060` en `feature/vendedores-de-un-cliente`; renumerado a `061` el 21-09-2026 al integrar sobre `feature/academia`, donde `RF-SP-060` ya era «un permiso por operación» |
+
+Es la lectura inversa de `RF-SP-059`, y nace el día que la cartera sale de `RF-SP-042`: hasta el 18-09-2026 «los clientes de un agente» se respondía filtrando el equipo por `CLIENTE`, y con `RN-SP-028` revertida el equipo no los contiene. Lee `client_sellers` por `seller_id` —el índice que §10.19 exige existe para esto— y distingue, por cada cliente, si es **suyo** (`REGISTRO`) o solo **vinculado** (`HOTLINK`). Paginada, como `RF-SP-042`. Es la misma pregunta que hoy contesta `RF-SP-057` para las cuentas de broker, hecha sobre las personas.
+
+**Lo pidió el frontend el 21-09-2026 (R-45 de `docs/para-el-backend.md`)**: `/mis-clientes` y la pestaña «Clientes» de la ficha de un usuario leían `GET /users/{id}/team?roles=CONSUMIDOR` y se quedan sin fuente al salir la cartera del equipo, de modo que este requerimiento las desbloquea. Y una petición concreta para su tripleta: **la respuesta trae el `id` del cliente** —desde la cartera se abre su ficha, y sin `id` no hay enlace—, al contrario que `RF-SP-059`, que omite el del vendedor porque nada se abre desde ahí.
+
 ## 7. Requerimientos no funcionales
 
 Definidos en [`security.md` §11](../security.md) y en la constitución. Los que este módulo debe satisfacer:
@@ -1978,3 +1981,4 @@ Diseñada el 16-09-2026 (`RN-SP-049`) y **creada por la migración de `RF-SP-059
 | 1.62.0 | 19-09-2026 | **Nace `RF-SP-060`, un permiso por operación**, por decisión del responsable del proyecto: cada operación de la API exige un permiso que ninguna otra exige, también listado y detalle. Veintiún códigos gobernaban más de una —`roles:update` cinco, con asignar y revocar permisos dentro— y cada uno **se queda con una** y estrecha su descripción; las demás reciben código nuevo. **Ningún código se renombra ni se retira**; el catálogo pasa de sesenta a **ciento once** con `V28`, y **todo rol que porte un código dividido recibe sus hijos** —nadie pierde nada—. Nace **`RN-SEG-014`** en `security.md` v0.63.0. §6.1 y §9 nombran los trece permisos nuevos de `SP`; `RF-SP-059` pasa a `users:read-sellers`. `SP` llega a **cincuenta y ocho** requerimientos. | Responsable del proyecto |
 | 1.63.0 | 21-09-2026 | **El cliente sale de `user_supervisors`: su relación con los vendedores vive entera en `client_sellers`, y el principal es quien lo registró, para siempre**, por decisión del responsable del proyecto al pedir `RF-SP-059` —«quiero saber a qué agentes estoy asignado»—. **Se revierte `RN-SP-028`** (01-09-2026): `user_supervisors` vuelve a significar solo mando dentro de la fuerza comercial, y la atribución del cliente tiene tabla propia. Cinco reglas se acotan sin cambiar de fondo: `RN-SP-020` pierde la rama de consumidor (nunca construida), `RN-SP-021` habla solo de vendedores, **`RN-SP-022` deja de exigir reasignar la cartera al retirar a un vendedor** —el vínculo es un hecho que no se reasigna, y exigirlo haría irretirable a cualquiera que haya registrado a alguien—, `RN-SP-046` y `RN-SP-048` toman el principal del cliente de `client_sellers`. **`RN-SP-049` se enmienda**: el principal es la fila `REGISTRO` y **no se cambia** —no hay operación que lo reasigne ni historial que cerrar—; `client_sellers` gana un índice único parcial que lo garantiza. Enmiendas de hecho (Art. I.7) a cuatro requerimientos construidos: `RF-SP-041` no asigna vendedor a clientes, `RF-SP-042` deja de devolver la cartera (conserva `roles` y su filtro), `RF-SP-045` escribe `client_sellers` en vez de `user_supervisors`, y `RF-SP-055`/`RF-SP-058` resuelven al principal por la tabla nueva. **`RF-SP-059` trae la migración** —crea la tabla, copia las filas vigentes de clientes como `REGISTRO` sin venta y borra las de clientes de `user_supervisors`— y deja de depender de `RF-MV-011`. **Nace `RF-SP-061`** —consultar los clientes de un vendedor— como pendiente: es lo que `RF-SP-042` filtrado por `CLIENTE` respondía hasta hoy. Lo que se paga queda escrito en `RN-SP-028`: subir de un cliente a su manager es un salto de tabla y luego el recorrido, no un solo recorrido. `requirements/mv.md` v0.28.0 (`RN-MV-003`), `modelo-datos.md` v0.64.0. **El mismo día se redacta la tripleta de `RF-SP-059`** —diez criterios, dieciocho tareas, `V20` con la mudanza dentro— y pasa a `Tasks en revisión`; se enmiendan las tripletas de `RF-SP-042` (`CA-SP-625` → `CA-SP-696`), `RF-SP-045` (`CA-SP-513`, `CA-SP-525`, `CA-SP-526` → `CA-SP-697` a `CA-SP-699`; `T-02` deja de existir), `RF-SP-057` y `RF-SP-058` (criterios precisados), `RF-MV-001` y `RF-MV-013`. — redactada el 18-09-2026 en `feature/vendedores-de-un-cliente` e integrada sobre `feature/academia` el 21-09-2026 con el número renumerado; `RF-SP-060` de aquella rama pasa a `RF-SP-061` porque `RF-SP-060` nació en `feature/academia` el 19-09-2026 | Responsable del proyecto |
 | 1.64.0 | 21-09-2026 | **`RF-SP-059` nace con `users:read-sellers`, como `RF-SP-060` había anunciado**: su rama se construyó el 18-09-2026 con `users:read` y al integrarla sobre `feature/academia` —donde `RN-SEG-014` ya rige— la operación `GET /users/{id}/sellers` recibe su permiso propio, sembrado por `V29` a `SUPERADMIN` y `ADMIN`; el catálogo pasa a **ciento doce** ([`security.md`](../security.md) v0.65.0). Enmienda de Art. I.7 sobre la tripleta de `RF-SP-059` (spec 0.2.0, plan y tasks con `T-19`); la ficha de `RF-SP-060` §9 anota que el anuncio se cumplió. | Responsable técnico |
+| 1.65.0 | 21-09-2026 | **`RF-SP-059` pasa a `En desarrollo`**: la rama que lo construyó el 18-09-2026 queda integrada sobre `feature/academia`, con `V20` (la mudanza a `client_sellers`) y `V29` (`users:read-sellers`). §6.1 y la ficha cambian de estado; ninguna regla cambia. La ficha de `RF-SP-061` pasa detrás de la de `060` y anota lo que pidió el frontend el mismo día (R-45): que la cartera traiga el `id` del cliente. | Responsable técnico |
