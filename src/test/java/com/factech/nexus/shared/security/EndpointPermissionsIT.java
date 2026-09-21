@@ -116,6 +116,12 @@ class EndpointPermissionsIT extends IntegrationTestBase {
               "El actor y solo el actor (`RF-SP-039`): no admite parámetro, de modo que no hay"
                   + " nada que autorizar más allá de estar autenticado"),
           Map.entry(
+              "GET /api/v1/users/me/sellers",
+              "El actor y solo el actor (`RF-SP-059`): sus vendedores salen del token, sin"
+                  + " parámetro, de modo que no hay nada que autorizar más allá de estar"
+                  + " autenticado. Los de otra persona son `GET /users/{id}/sellers`, con"
+                  + " `users:read-sellers`"),
+          Map.entry(
               "PATCH /api/v1/users/me",
               "El actor y solo el actor (`RF-SP-044`): toma la persona del token y no admite"
                   + " identificador, de modo que no hay nadie más a quien pudiera editar. Editar"
@@ -267,6 +273,7 @@ class EndpointPermissionsIT extends IntegrationTestBase {
           Map.entry("GET /api/v1/users", "users:list"),
           Map.entry("GET /api/v1/users/{id}", "users:read"),
           Map.entry("GET /api/v1/users/{id}/team", "users:read-team"),
+          Map.entry("GET /api/v1/users/{id}/sellers", "users:read-sellers"),
           Map.entry("PATCH /api/v1/users/{id}", "users:update"),
           Map.entry("PATCH /api/v1/users/{id}/status", "users:change-status"),
           Map.entry("POST /api/v1/users/{id}/deletion", "users:delete"),

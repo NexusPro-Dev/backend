@@ -337,6 +337,7 @@ class UpdateOwnProfileIT extends IntegrationTestBase {
   private void limpiar() {
     jdbc.update("DELETE FROM audit_security_log WHERE target_user_id IS NOT NULL");
     jdbc.update("DELETE FROM refresh_tokens");
+    jdbc.update("DELETE FROM client_sellers");
     jdbc.update("DELETE FROM user_supervisors");
     jdbc.update("DELETE FROM user_memberships");
     jdbc.update("DELETE FROM memberships WHERE code = 'PRUEBA044'");

@@ -6742,6 +6742,56 @@ paths:
         "500":
           description: Fallo no controlado (`ERR-500`)
       x-required-permission: users:read-team
+  /api/v1/users/{id}/sellers:
+    get:
+      tags:
+      - Usuarios
+      summary: Consultar los vendedores de un cliente
+      description: |
+        **Permiso requerido:** `users:read-sellers`. Sin él, `403` (`AUTH-002`).
+
+        La misma lista que `GET /api/v1/users/me/sellers`, sobre **cualquier
+        persona** y con **`users:read-sellers`**, permiso propio de esta
+        operación (`RN-SEG-014`, un permiso por operación; `V29` lo siembra a
+        `SUPERADMIN` y `ADMIN`). Nació con `users:read` el 18-09-2026 —«los
+        vendedores son un dato de la persona»— y cambió al integrarse, el
+        21-09-2026, porque desde `RF-SP-060` ningún código gobierna dos
+        operaciones.
+
+        **`403` sin el permiso y `404` con el permiso y una persona que no
+        existe**, el modelo general de `security.md` §5. Aquí no hay actor
+        autorizado por estructura al que proteger de un oráculo de
+        identificadores —a diferencia de `GET /users/{id}/broker-accounts`—,
+        y quien porta este permiso porta normalmente `users:list`.
+
+        Una persona que no es cliente devuelve `200` con la colección vacía.
+      operationId: vendedoresDe
+      parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      responses:
+        "200":
+          description: "Los vendedores de la persona, principal primero; vacío si\
+            \ no tiene"
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/ClientSellersResponse"
+        "400":
+          description: Identificador malformado (`VAL-001`)
+        "401":
+          description: Token ausente o inválido (`AUTH-001`)
+        "403":
+          description: Autenticado sin `users:read-sellers` (`AUTH-002`)
+        "404":
+          description: La persona no existe o está eliminada (`VAL-002`)
+        "500":
+          description: Fallo no controlado (`ERR-500`)
+      x-required-permission: users:read-sellers
   /api/v1/users/{id}/broker-accounts:
     get:
       tags:
@@ -6895,6 +6945,55 @@ paths:
         "400":
           description: "`status` fuera de `REGISTER`/`FIRST_DEPOSIT` (`VAL-001`),\
             \ `brokerId` malformado o paginación fuera de límites (`VAL-003`)"
+        "401":
+          description: Token ausente o inválido (`AUTH-001`)
+        "500":
+          description: Fallo no controlado (`ERR-500`)
+  /api/v1/users/me/sellers:
+    get:
+      tags:
+      - Usuarios
+      summary: Consultar mis vendedores
+      description: |
+        **Permiso requerido:** ninguno más allá del token. El alcance lo acota el servicio —el propio actor, o la relación con la persona consultada— y la descripción dice cómo.
+
+        Devuelve **los vendedores del actor**: quien lo registró —su **principal**,
+        origen `REGISTRO`— y los vendedores por cuyo enlace compró —origen
+        `HOTLINK`—. **El principal va primero**, después por fecha de vínculo.
+
+        Es la respuesta a «¿a qué agente estoy asignado?» (`RF-SP-059`,
+        `RN-SP-049`). **El principal es quien lo registró y no se cambia**:
+        no hay operación que lo reasigne ni historial que cerrar. Un vínculo
+        es un hecho, y por eso tampoco se quita: un vendedor desactivado o
+        eliminado **sigue saliendo**.
+
+        **Hoy la lista tiene un solo elemento**, y no es un defecto: las filas
+        `HOTLINK` las escribirá la compra por hotlink (`RF-MV-011`,
+        `RF-MV-013`), que no está construida. El contrato ya es el definitivo.
+
+        De cada vendedor se publica lo mismo que su hotlink (`RN-PM-022`):
+        **nombre y apellido**, más el nombre de usuario, que el cliente ya
+        conoce. **Ni identificador, ni correo, ni estado, ni roles.**
+
+        `linkedAt` es desde cuándo es su vendedor; en los vínculos anteriores al
+        18-09-2026 —traídos por `V20` desde `user_supervisors`— es desde cuándo
+        colgaba de él allí.
+
+        Quien no es cliente —un vendedor, un funcionario— recibe `200` con la
+        colección vacía: nadie lo registró por enlace. Un cliente dado de alta
+        por un funcionario, también.
+
+        **Desde el 18-09-2026 el cliente no cuelga de `user_supervisors`**, de
+        modo que `GET /api/v1/users/me` **no devuelve `supervisor`** a un
+        cliente: su vía es esta.
+      operationId: misVendedores
+      responses:
+        "200":
+          description: "Los vendedores del actor, principal primero; vacío si no tiene"
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/ClientSellersResponse"
         "401":
           description: Token ausente o inválido (`AUTH-001`)
         "500":
@@ -11217,6 +11316,39 @@ components:
         updatedAt:
           type: string
           format: date-time
+    ClientSellersResponse:
+      type: object
+      properties:
+        content:
+          type: array
+          items:
+            $ref: "#/components/schemas/SellerItem"
+    SellerItem:
+      type: object
+      properties:
+        username:
+          type: string
+          description: "Nombre de usuario del vendedor, el mismo de su hotlink."
+        firstName:
+          type: string
+        lastName:
+          type: string
+        origin:
+          type: string
+          description: "`REGISTRO` si lo registró —su principal—, `HOTLINK` si le\
+            \ vendió por su enlace."
+          enum:
+          - REGISTRO
+          - HOTLINK
+        principal:
+          type: boolean
+          description: '`true` solo en la fila `REGISTRO`. Hay exactamente una por
+            cliente.'
+        linkedAt:
+          type: string
+          format: date-time
+          description: "Desde cuándo es su vendedor. En las filas que `V20` trajo\
+            \ desde `user_supervisors`, desde cuándo colgaba de él allí."
     BrokerAccountItem:
       type: object
       properties:

@@ -51,7 +51,7 @@ public class PublishedRegistrationSaleRegistrar implements RegistrationSaleRegis
 
   @Override
   @Transactional
-  public String registerSale(
+  public RegisteredSale registerSale(
       UUID userId,
       UUID productId,
       UUID paymentMethodId,
@@ -71,7 +71,7 @@ public class PublishedRegistrationSaleRegistrar implements RegistrationSaleRegis
                 null));
 
     verificarVendedor(respuesta, sellerUsername);
-    return respuesta.code();
+    return new RegisteredSale(respuesta.id(), respuesta.code());
   }
 
   /**
@@ -93,7 +93,7 @@ public class PublishedRegistrationSaleRegistrar implements RegistrationSaleRegis
 
   /**
    * El vendedor de la venta —el de su única línea, desde el 16-09-2026— es el que el registro acaba
-   * de asignar como superior.
+   * de vincular como principal.
    *
    * <p><b>Desde el 09-09-2026 esta rama NO ES ALCANZABLE desde la petición</b>, y se conserva a
    * propósito. Hasta ese día el cuerpo llevaba <b>dos vendedores</b> —{@code referrer} en el primer
@@ -104,11 +104,12 @@ public class PublishedRegistrationSaleRegistrar implements RegistrationSaleRegis
    *
    * <p><b>Se conserva porque esto es un límite entre módulos</b>, y `MV` no da por buena la palabra
    * de quien lo llama: lo que aquí se comprueba ya no es un cuerpo manipulado sino que la
-   * atribución <b>surtió efecto</b> —que `assignSupervisor` escribió y que la estructura comercial
-   * resuelve a la misma persona—. El día que una de las dos cosas deje de ser cierta, esto falla en
-   * lugar de comisionarle a quien no vendió. Es la misma decisión que `RegisterSaleService` toma
-   * con `RN-MV-008`: la regla no se sostiene en que el camino sea inalcanzable, sino en que el caso
-   * de uso la compruebe.
+   * atribución <b>surtió efecto</b> —que `registerPrincipal` escribió la fila `REGISTRO` de
+   * `client_sellers` (desde el 18-09-2026; antes, `assignSupervisor` en `user_supervisors`) y que
+   * `ClientCatalog.sellerOf` resuelve a la misma persona—. El día que una de las dos cosas deje de
+   * ser cierta, esto falla en lugar de comisionarle a quien no vendió. Es la misma decisión que
+   * `RegisterSaleService` toma con `RN-MV-008`: la regla no se sostiene en que el camino sea
+   * inalcanzable, sino en que el caso de uso la compruebe.
    */
   private void verificarVendedor(
       com.factech.nexus.modules.movements.application.SaleResponse venta, String esperado) {

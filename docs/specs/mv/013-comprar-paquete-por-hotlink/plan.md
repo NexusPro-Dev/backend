@@ -31,7 +31,7 @@
 
 ## 2. Cambios de esquema
 
-**Ninguno.** `client_sellers` la crea `RF-MV-011` con su migración; las columnas de la venta las dejó `V14`.
+**Ninguno.** `client_sellers` la crea `RF-SP-059` con `V20` (18-09-2026; hasta entonces iba a crearla `RF-MV-011`); las columnas de la venta las dejó `V14`. Este requerimiento solo **inserta** su fila `HOTLINK`.
 
 **Si este requerimiento se construyera antes que `RF-MV-011`**, la tabla vendría con él: es el único caso en que este plan tocaría el esquema, y lo haría con la forma que `requirements/sp.md` §10 ya declara. **No se planifica ese orden**: `RF-MV-011` está registrado antes y es el más simple de los dos.
 
@@ -103,7 +103,7 @@ La de `RF-MV-012` —la venta con su paquete y sus líneas—, **y la del víncu
 | Módulo | Qué se le pide | Qué NO cambia |
 |---|---|---|
 | `PM` | Que `PackageCatalog` resuelva **también por usuario y código** | Las reglas del hotlink son las de `RF-PM-026`, sin tocar |
-| `SP` | **Escribir el vínculo**, por la interfaz que `RF-MV-011` publica | `RN-SP-021` intacta: el agente **principal** no se toca |
+| `SP` | **Escribir el vínculo**, por la interfaz que `RF-MV-011` publica | `RN-SP-049` intacta: el principal —la fila `REGISTRO` de `client_sellers`— no se toca |
 | `CM` | Nada | — |
 
 ---
@@ -127,7 +127,7 @@ La de `RF-MV-012` —la venta con su paquete y sus líneas—, **y la del víncu
 | **Que la venta se atribuya al agente en lugar de al dueño del enlace** — el fallo grave | `CA-MV-061`: se compra por el enlace de un tercero **teniendo agente**, y se comprueba la atribución en las líneas y en la base |
 | Que el `404` uniforme se rompa y filtre el catálogo ajeno | `CA-MV-064`: los tres casos responden lo mismo, comprobado en la misma prueba |
 | Que el vínculo se duplique | La clave primaria, y `CA-MV-063` comprando **dos veces** |
-| Que la compra mueva el agente principal | `CA-MV-062`, que mira `user_supervisors` después de comprar |
+| Que la compra mueva el agente principal | `CA-MV-062`, que mira la fila `REGISTRO` de `client_sellers` después de comprar (desde el 18-09-2026; hasta entonces, `user_supervisors`) |
 | Que este requerimiento se construya antes que `RF-MV-011` y se quede sin tabla | §2 lo declara: entonces la trae este, con la forma de `requirements/sp.md` §10 |
 
 ---
@@ -137,7 +137,7 @@ La de `RF-MV-012` —la venta con su paquete y sus líneas—, **y la del víncu
 | Qué | Nivel | Por qué ahí |
 |---|---|---|
 | La atribución al dueño del enlace, **con el comprador teniendo otro agente** | Integración | Es el criterio que sostiene el requerimiento |
-| Que el principal no cambia | Integración | Se ve mirando `user_supervisors`, no la respuesta |
+| Que el principal no cambia | Integración | Se ve mirando la fila `REGISTRO` de `client_sellers`, no la respuesta |
 | El vínculo: nace una vez, con su venta y su origen | Integración | `CA-MV-063`, comprando dos veces |
 | Los tres casos del `404` uniforme | Integración | Solo es observable por HTTP |
 | La autocompra rechazada | Integración | `CA-MV-065` |

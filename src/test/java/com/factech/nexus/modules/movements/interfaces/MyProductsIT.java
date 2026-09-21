@@ -13,6 +13,7 @@ import java.time.OffsetDateTime;
 import java.time.ZoneOffset;
 import java.util.List;
 import java.util.UUID;
+import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -259,6 +260,15 @@ class MyProductsIT extends IntegrationTestBase {
   // ---------------------------------------------------------------------------
   // Auxiliares
   // ---------------------------------------------------------------------------
+
+  // Tambien AL TERMINAR: la ultima prueba dejaba movimientos y sus detalles apuntando
+  // a los productos de esta clase, y cualquier suite posterior que empiece con
+  // "DELETE FROM products" a secas —treinta y siete lo hacen— caia por la clave
+  // foranea de movement_details. Con el orden local no se veia; en CI si (21-09-2026).
+  @AfterEach
+  void devolverLaBaseASuSitio() {
+    limpiar();
+  }
 
   private void limpiar() {
     jdbc.update("DELETE FROM movement_details");

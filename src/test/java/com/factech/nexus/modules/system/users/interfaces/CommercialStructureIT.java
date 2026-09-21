@@ -56,6 +56,7 @@ class CommercialStructureIT extends IntegrationTestBase {
   @BeforeEach
   void preparar() {
     jdbc.update("DELETE FROM refresh_tokens");
+    jdbc.update("DELETE FROM client_sellers");
     jdbc.update("DELETE FROM user_supervisors");
     jdbc.update("DELETE FROM user_memberships");
     jdbc.update("DELETE FROM user_roles");
@@ -442,14 +443,14 @@ class CommercialStructureIT extends IntegrationTestBase {
   }
 
   @Test
-  @DisplayName("CA-SP-624 y CA-SP-625 — cada persona lleva TODOS sus roles, y el cliente ya no")
+  @DisplayName(
+      "CA-SP-624 y CA-SP-696 — cada persona lleva TODOS sus roles, y la cartera NO es equipo")
   void cadaPersonaLlevaSusRoles() throws Exception {
-    // `CA-SP-625` es la que habría fallado antes del 10-09-2026: el rol salía de
-    // una subconsulta limitada a la clasificación VENDEDOR, de modo que un
-    // cliente de la cartera llegaba con el rol EN NULO — indistinguible de un
-    // vendedor sin rol.
+    // `CA-SP-696` (18-09-2026) invierte a `CA-SP-625`: el cliente ya no cuelga de
+    // `user_supervisors` (`RN-SP-028` revertida) sino de `client_sellers`, y por
+    // eso NO aparece en el equipo de su vendedor — ni filtrando por CLIENTE.
     UUID cliente = crearPersona("cperez", CLIENTE);
-    reportar(cliente, medio);
+    registrar(cliente, medio);
 
     mvc.perform(equipo(medio))
         .andExpect(status().isOk())
@@ -457,25 +458,36 @@ class CommercialStructureIT extends IntegrationTestBase {
         .andExpect(jsonPath("$.user.roles[0].id").isNotEmpty())
         .andExpect(jsonPath("$.user.roles[0].name").isNotEmpty())
         .andExpect(jsonPath("$.supervisor.roles[0].code").value("MANAGER"))
-        .andExpect(jsonPath("$.team.content[0].username").value("cperez"))
-        .andExpect(jsonPath("$.team.content[0].roles[0].code").value("CLIENTE"))
-        .andExpect(jsonPath("$.team.content[1].roles[0].code").value("AGENTE"))
+        .andExpect(jsonPath("$.team.totalElements").value(1))
+        .andExpect(jsonPath("$.team.content[0].username").value("lgarcia"))
+        .andExpect(jsonPath("$.team.content[0].roles[0].code").value("AGENTE"))
+        .andExpect(
+            jsonPath("$.team.content[?(@.username == 'cperez')]")
+                .value(org.hamcrest.Matchers.empty()))
         // El campo viejo no sobrevive en ninguna de las tres posiciones.
         .andExpect(jsonPath("$.user.roleCode").doesNotExist())
         .andExpect(jsonPath("$.supervisor.roleCode").doesNotExist())
         .andExpect(jsonPath("$.team.content[0].roleCode").doesNotExist());
+
+    mvc.perform(equipo(medio).param("roles", "CLIENTE"))
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$.team.totalElements").value(0));
   }
 
   @Test
   @DisplayName("CA-SP-626 — un código: solo quienes lo portan, y el total cuenta lo filtrado")
   void filtroPorUnRol() throws Exception {
-    UUID cliente = crearPersona("cperez", CLIENTE);
-    reportar(cliente, medio);
+    // Desde el 18-09-2026 la cartera no está en el equipo, de modo que el filtro
+    // se prueba con lo que sí lo está: dos agentes bajo `medio`, uno de los
+    // cuales porta además CLIENTE (un vendedor que también compra).
+    UUID otro = crearPersona("otro.agente", AGENTE);
+    reportar(otro, medio);
+    conceder(base, CLIENTE);
 
     mvc.perform(equipo(medio).param("roles", "CLIENTE"))
         .andExpect(status().isOk())
         .andExpect(jsonPath("$.team.totalElements").value(1))
-        .andExpect(jsonPath("$.team.content[0].username").value("cperez"));
+        .andExpect(jsonPath("$.team.content[0].username").value("lgarcia"));
 
     // En minúsculas significa lo mismo: los códigos se persisten en mayúsculas,
     // y un vacío se leería como «no hay clientes» en lugar de como un error.
@@ -490,8 +502,8 @@ class CommercialStructureIT extends IntegrationTestBase {
   @Test
   @DisplayName("CA-SP-627 — dos códigos son O, y quien porta los dos NO aparece dos veces")
   void filtroPorVariosRoles() throws Exception {
-    UUID cliente = crearPersona("cperez", CLIENTE);
-    reportar(cliente, medio);
+    UUID otro = crearPersona("otro.agente", AGENTE);
+    reportar(otro, medio);
     // `base` porta AGENTE y además CLIENTE: es el caso que distingue EXISTS de
     // un JOIN. Con JOIN saldría dos veces y el total contaría asignaciones.
     conceder(base, CLIENTE);
@@ -592,6 +604,17 @@ class CommercialStructureIT extends IntegrationTestBase {
         "INSERT INTO user_roles (user_id, role_id, role_type) SELECT ?, r.id, r.role_type FROM roles r WHERE r.id = ?::uuid",
         persona,
         rol);
+  }
+
+  /** El cliente y su principal: la fila REGISTRO de `client_sellers` (`RN-SP-049`, 18-09-2026). */
+  private void registrar(UUID cliente, UUID vendedor) {
+    jdbc.update(
+        """
+        INSERT INTO client_sellers (client_id, seller_id, origin, first_movement_id, created_at)
+        VALUES (?, ?, 'REGISTRO', NULL, now())
+        """,
+        cliente,
+        vendedor);
   }
 
   private void reportar(UUID subordinado, UUID superior) {

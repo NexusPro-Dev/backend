@@ -110,55 +110,55 @@ SELECT pg_temp.uuid_v7(),
       ('UPGRADE_BECA_VIP', 'UPGRADE_MEMBRESIA', 'Ascenso a VIP',
        'Pasa de Beca a VIP durante treinta días: señales diarias y acceso al canal VIP.',
        'arrow-up-circle', 'BECA', 'VIP',
-       49.00, NULL, 30, 'ACTIVO', 'AMBOS', 'AUTOMATICA', NULL, false),
+       49.00, NULL, 30, 'ACTIVO', 'AMBOS', 'AUTOMATICA', 'https://www.youtube.com/watch?v=n-dc74-SopA', false),
 
       ('UPGRADE_BECA_PLATINO', 'UPGRADE_MEMBRESIA', 'Ascenso a Platino',
        'Salta de Beca a Platino durante treinta días, sin pasar por VIP.',
        'trending-up', 'BECA', 'PLATINO',
-       129.00, NULL, 30, 'ACTIVO', 'AMBOS', 'AUTOMATICA', NULL, false),
+       129.00, NULL, 30, 'ACTIVO', 'AMBOS', 'AUTOMATICA', 'https://www.youtube.com/watch?v=n-dc74-SopA', false),
 
       ('UPGRADE_BECA_ORO', 'UPGRADE_MEMBRESIA', 'Ascenso a Oro',
        'El salto completo: de Beca a Oro durante treinta días, con mentoría incluida.',
        'crown', 'BECA', 'ORO',
        299.00, NULL, 30, 'ACTIVO', 'AMBOS', 'AUTOMATICA',
-       'https://videos.factech.co/productos/ascenso-a-oro.mp4', false),
+       'https://www.youtube.com/watch?v=n-dc74-SopA', false),
 
       -- ---- Desde VIP y desde PLATINO ----------------------------------------
       ('UPGRADE_VIP_PLATINO', 'UPGRADE_MEMBRESIA', 'De VIP a Platino',
        'Sube un peldaño: de VIP a Platino durante treinta días.',
        'arrow-up-circle', 'VIP', 'PLATINO',
-       89.00, NULL, 30, 'ACTIVO', 'AMBOS', 'AUTOMATICA', NULL, false),
+       89.00, NULL, 30, 'ACTIVO', 'AMBOS', 'AUTOMATICA', 'https://www.youtube.com/watch?v=n-dc74-SopA', false),
 
       ('UPGRADE_VIP_ORO', 'UPGRADE_MEMBRESIA', 'De VIP a Oro',
        'Dos peldaños de golpe: de VIP a Oro durante treinta días.',
        'crown', 'VIP', 'ORO',
-       259.00, NULL, 30, 'ACTIVO', 'TIENDA', 'AUTOMATICA', NULL, false),
+       259.00, NULL, 30, 'ACTIVO', 'TIENDA', 'AUTOMATICA', 'https://www.youtube.com/watch?v=n-dc74-SopA', false),
 
       ('UPGRADE_PLATINO_ORO', 'UPGRADE_MEMBRESIA', 'De Platino a Oro',
        'El último peldaño: de Platino a Oro durante treinta días.',
        'crown', 'PLATINO', 'ORO',
-       179.00, NULL, 30, 'ACTIVO', 'AMBOS', 'MANUAL', NULL, false),
+       179.00, NULL, 30, 'ACTIVO', 'AMBOS', 'MANUAL', 'https://www.youtube.com/watch?v=n-dc74-SopA', false),
 
       -- ---- Las cuatro renovaciones: se vende TIEMPO, no nivel ---------------
-      ('RENOVAR_BECA', 'UPGRADE_MEMBRESIA', 'Renovar Beca',
-       'Renueva la Beca treinta días más. No cuesta nada: es el producto gratuito del catálogo.',
+      ('MEMBRESIA_BECA', 'UPGRADE_MEMBRESIA', 'Membresia Beca',
+       'Es el producto gratuito del catálogo.',
        'refresh-cw', 'BECA', 'BECA',
-       0.00, NULL, 30, 'ACTIVO', 'TIENDA', 'AUTOMATICA', NULL, false),
+       0.00, NULL, NULL, 'ACTIVO', 'TIENDA', 'AUTOMATICA', 'https://www.youtube.com/watch?v=n-dc74-SopA', false),
 
       ('RENOVAR_VIP', 'UPGRADE_MEMBRESIA', 'Renovar VIP',
        'Treinta días más de VIP.',
        'refresh-cw', 'VIP', 'VIP',
-       49.00, NULL, 30, 'ACTIVO', 'TIENDA', 'AUTOMATICA', NULL, false),
+       49.00, NULL, 30, 'ACTIVO', 'TIENDA', 'AUTOMATICA', 'https://www.youtube.com/watch?v=n-dc74-SopA', false),
 
       ('RENOVAR_PLATINO', 'UPGRADE_MEMBRESIA', 'Renovar Platino',
        'Treinta días más de Platino.',
        'refresh-cw', 'PLATINO', 'PLATINO',
-       99.00, NULL, 30, 'ACTIVO', 'TIENDA', 'AUTOMATICA', NULL, false),
+       99.00, NULL, 30, 'ACTIVO', 'TIENDA', 'AUTOMATICA', 'https://www.youtube.com/watch?v=n-dc74-SopA', false),
 
       ('RENOVAR_ORO', 'UPGRADE_MEMBRESIA', 'Renovar Oro',
        'Treinta días más de Oro.',
        'refresh-cw', 'ORO', 'ORO',
-       199.00, NULL, 30, 'ACTIVO', 'TIENDA', 'AUTOMATICA', NULL, false),
+       199.00, NULL, 30, 'ACTIVO', 'TIENDA', 'AUTOMATICA', 'https://www.youtube.com/watch?v=n-dc74-SopA', false),
 
       -- ---- Uno INACTIVO sobre un par que ya tiene activo: el índice único es
       --      parcial y lo admite. Es lo que el catálogo administrativo lista y
@@ -166,35 +166,35 @@ SELECT pg_temp.uuid_v7(),
       ('UPGRADE_BECA_VIP_ANUAL', 'UPGRADE_MEMBRESIA', 'Ascenso a VIP anual',
        'Un año entero de VIP desde Beca. Todavía sin publicar.',
        'calendar', 'BECA', 'VIP',
-       399.00, NULL, 365, 'INACTIVO', 'TIENDA', 'AUTOMATICA', NULL, false),
+       399.00, NULL, 365, 'INACTIVO', 'TIENDA', 'AUTOMATICA', 'https://www.youtube.com/watch?v=n-dc74-SopA', false),
 
       -- ---- Los bots: una prestación del sistema, sin membresía ---------------
       ('BOT_SENALES', 'BOT', 'Bot de señales',
        'Señales automáticas en tu canal, durante treinta días.',
        NULL, NULL, NULL,
-       39.00, NULL, 30, 'ACTIVO', 'AMBOS', 'AUTOMATICA', NULL, false),
+       39.00, NULL, 30, 'ACTIVO', 'AMBOS', 'AUTOMATICA', 'https://www.youtube.com/watch?v=n-dc74-SopA', false),
 
       ('BOT_COPY_TRADING', 'BOT', 'Bot de copy trading',
        'Replica las operaciones de la mesa en tu cuenta. Un funcionario lo activa tras verificar el broker.',
        NULL, NULL, NULL,
-       79.00, NULL, 30, 'ACTIVO', 'AMBOS', 'MANUAL', NULL, false),
+       79.00, NULL, 30, 'ACTIVO', 'AMBOS', 'MANUAL', 'https://www.youtube.com/watch?v=n-dc74-SopA', false),
 
       ('BOT_ALERTAS', 'BOT', 'Bot de alertas',
        'Alertas de mercado gratuitas, sin caducidad.',
        NULL, NULL, NULL,
-       0.00, NULL, NULL, 'ACTIVO', 'TIENDA', 'AUTOMATICA', NULL, false),
+       0.00, NULL, NULL, 'ACTIVO', 'TIENDA', 'AUTOMATICA', 'https://www.youtube.com/watch?v=n-dc74-SopA', false),
 
       ('BOT_PRO_ANUAL', 'BOT', 'Bot Pro anual',
        'La licencia anual del bot profesional. NEXUS la compra a un tercero: el precio de compra es lo que pagó.',
        NULL, NULL, NULL,
        499.00, 250.00, 365, 'ACTIVO', 'TIENDA', 'MANUAL',
-       'https://videos.factech.co/productos/bot-pro.mp4', false),
+       'https://www.youtube.com/watch?v=n-dc74-SopA', false),
 
       -- ---- Uno RETIRADO, para `includeDeleted` y el `404` del hotlink -------
       ('BOT_LEGADO', 'BOT', 'Bot legado',
        'La primera versión del bot de señales. Retirado del catálogo.',
        NULL, NULL, NULL,
-       19.00, NULL, 30, 'INACTIVO', 'AMBOS', 'AUTOMATICA', NULL, true)
+       19.00, NULL, 30, 'INACTIVO', 'AMBOS', 'AUTOMATICA', 'https://www.youtube.com/watch?v=n-dc74-SopA', true)
   ) AS p(codigo, tipo, nombre, descripcion, icono, origen, destino,
          precio, costo, dias, estado, alcance, implementacion, video, retirado)
   LEFT JOIN memberships origen  ON origen.code  = p.origen

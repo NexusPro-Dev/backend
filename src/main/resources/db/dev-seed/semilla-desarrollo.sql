@@ -211,32 +211,13 @@ SELECT i.id, r.id, r.role_type
 -- porta el ROL PADRE INMEDIATO del subordinado. Quien es `AGENTE` reporta a un
 -- `DIRECTOR`, nunca a otro `AGENTE` ni directamente a un `MANAGER`.
 --
--- LOS CLIENTES TAMBIÉN CUELGAN, desde el 04-09-2026. Antes este comentario
--- decía que quedaban fuera «porque no son vendedores», y eso dejó de ser cierto
--- el 01-09-2026 con `RN-SP-028`: el cliente cuelga de su vendedor EN ESTA MISMA
--- TABLA, con el cliente en `user_id` y el vendedor en `supervisor_id`. La
--- semilla iba tres días por detrás del diseño, y mientras tanto NO HABÍA NI UNA
--- CARTERA en desarrollo — de modo que la mitad comercial de una venta no se
--- podía ver funcionando en local.
---
--- LOS TRES CUELGAN A PROFUNDIDAD DISTINTA, y esa es la decisión de este bloque:
---
---     cliente1 → agente1     el caso normal
---     cliente2 → director1   salta un escalón
---     cliente3 → manager1    salta dos
---
--- `RN-SP-020` lo permite: su RAMA DE CONSUMIDOR solo exige que el superior
--- porte ALGÚN rol `VENDEDOR`, sin parentesco que comprobar — un cliente no
--- tiene rol vendedor del que derivar un padre, y cualquiera de la fuerza
--- comercial puede traerlo. Es la diferencia con la rama comercial, donde un
--- agente sí debe colgar de un director y de nadie más.
---
--- Y NO ES UN CAPRICHO: la cadena de comisiones se recorre HACIA ARRIBA desde
--- quien tiene al cliente, de modo que su profundidad decide cuántos cobran. Con
--- los tres colgados de un agente, «el cliente de un director» sería un caso que
--- el diseño admite y que en desarrollo no existiría — y es justo el que obliga
--- a decidir a qué tarifa cobra quien está pegado al cliente cuando NO es un
--- agente.
+-- LOS CLIENTES YA NO CUELGAN AQUÍ, desde el 18-09-2026. Entre el 04-09-2026 y
+-- esa fecha esta tabla tenía también a los tres clientes (`RN-SP-028`, del
+-- 01-09-2026: «el cliente cuelga de su vendedor EN ESTA MISMA TABLA»). El
+-- responsable del proyecto lo revirtió con `RF-SP-059`: la tabla de mando
+-- mezclaba equipo y cartera en cada consulta, y `RN-SP-022` hacía irretirable a
+-- quien hubiera registrado a alguien. La cartera vive en `client_sellers` —el
+-- bloque siguiente— y `V20` movió allí lo que hubiera aquí.
 --
 -- `ADMIN` NO TIENE CARTERA, y eso no ha cambiado: entra en el árbol POR ARRIBA,
 -- como superior de los managers, y no como vendedor que trae clientes.
@@ -244,10 +225,10 @@ SELECT i.id, r.id, r.role_type
 -- TRES A CARGO POR DIRECTOR Y NO UNO, por decisión del responsable del
 -- proyecto: un equipo de uno no distingue «el equipo de alguien» de «alguien»,
 -- y `RN-SP-022` —que rechaza desactivar a quien tiene personas a cargo— se
--- cumpliría por accidente con cualquier implementación. Con los clientes
--- dentro, `director1` pasa a tener CUATRO a cargo —tres agentes y un cliente— y
--- `agente1` y `manager1` uno cada uno: es la mezcla que `RF-SP-042` tiene que
--- saber devolver distinguiendo por rol.
+-- cumpliría por accidente con cualquier implementación. Desde el 18-09-2026
+-- `director1` vuelve a tener TRES a cargo —sus agentes— y `agente1` ninguno:
+-- `RF-SP-042` devuelve solo fuerza comercial, y la cartera se pregunta por
+-- `GET /users/me/sellers` desde el lado del cliente.
 --
 -- ES REPETIBLE como el resto: si la persona ya tiene un superior VIGENTE, no se
 -- toca. Reasignar es `RF-SP-041`, no trabajo de esta semilla.
@@ -272,15 +253,6 @@ SELECT pg_temp.uuid_v7(), subordinado.id, superior.id
           FROM generate_series(1, 3) AS n
          UNION ALL
         SELECT 'admin1', 'superadmin'
-         UNION ALL
-        -- Los clientes, cada uno a una profundidad distinta. Se enumeran a mano
-        -- y no con una serie: son tres casos ELEGIDOS —normal, un salto, dos
-        -- saltos— y una formula los volveria a hacer intercambiables.
-        SELECT * FROM (VALUES
-            ('cliente1', 'agente1'),
-            ('cliente2', 'director1'),
-            ('cliente3', 'manager1')
-        ) AS cartera(de, a)
        ) AS enlace
   JOIN users subordinado ON subordinado.username = enlace.de
   JOIN users superior    ON superior.username    = enlace.a
@@ -289,6 +261,51 @@ SELECT pg_temp.uuid_v7(), subordinado.id, superior.id
            FROM user_supervisors vigente
           WHERE vigente.user_id = subordinado.id
             AND vigente.ended_at IS NULL
+       );
+
+
+-- -----------------------------------------------------------------------------
+-- La cartera: los tres clientes, cada uno con su vendedor PRINCIPAL en
+-- `client_sellers` (`RN-SP-049`, `RF-SP-059`, 18-09-2026).
+--
+-- LA FILA `REGISTRO` ES QUIEN LO REGISTRÓ, Y NO SE CAMBIA: no hay operación que
+-- la reasigne ni historial que cerrar. Por eso esta semilla NO tiene la cláusula
+-- «si ya tiene uno vigente, no se toca» del bloque anterior: tiene la de la
+-- pareja, porque la pareja es la clave y una segunda `REGISTRO` la rechazaría
+-- el índice `uq_client_sellers_principal`.
+--
+-- LOS TRES A PROFUNDIDAD DISTINTA, y esa es la decisión de este bloque:
+--
+--     cliente1 → agente1     el caso normal
+--     cliente2 → director1   salta un escalón
+--     cliente3 → manager1    salta dos
+--
+-- `RN-SP-027` solo exige que el vendedor porte ALGÚN rol `VENDEDOR`: un cliente
+-- no tiene rol vendedor del que derivar un padre, y cualquiera de la fuerza
+-- comercial puede traerlo. Y NO ES UN CAPRICHO: la cadena de comisiones se
+-- recorre HACIA ARRIBA desde quien tiene al cliente —un salto a su `REGISTRO`
+-- y desde ahí `user_supervisors`—, de modo que su profundidad decide cuántos
+-- cobran. Con los tres colgados de un agente, «el cliente de un director» sería
+-- un caso que el diseño admite y que en desarrollo no existiría.
+--
+-- SIN `first_movement_id`: estos clientes no entraron por un enlace, y una
+-- clave foránea no se rellena con conjeturas. Es el mismo nulo que `V20` deja en
+-- las filas que trajo desde `user_supervisors`.
+-- -----------------------------------------------------------------------------
+INSERT INTO client_sellers (client_id, seller_id, origin, first_movement_id)
+SELECT cliente.id, vendedor.id, 'REGISTRO', NULL
+  FROM (VALUES
+            ('cliente1', 'agente1'),
+            ('cliente2', 'director1'),
+            ('cliente3', 'manager1')
+       ) AS cartera(de, a)
+  JOIN users cliente  ON cliente.username  = cartera.de
+  JOIN users vendedor ON vendedor.username = cartera.a
+ WHERE NOT EXISTS (
+         SELECT 1
+           FROM client_sellers ya
+          WHERE ya.client_id = cliente.id
+            AND ya.seller_id = vendedor.id
        );
 
 

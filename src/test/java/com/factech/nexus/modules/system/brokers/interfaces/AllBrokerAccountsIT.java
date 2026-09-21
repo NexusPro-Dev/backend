@@ -37,6 +37,7 @@ class AllBrokerAccountsIT extends IntegrationTestBase {
   private static final String MANAGER = "01a02a33-4c00-7005-9c4f-5e7ad1000003";
   private static final String DIRECTOR = "01a02a33-4c00-7006-9c4f-5e7ad1000004";
   private static final String AGENTE = "01a02a33-4c00-7007-9c4f-5e7ad1000005";
+  private static final String CLIENTE = "01a02a33-4c00-7008-9c4f-5e7ad1000008";
 
   private static final String RUTA = "/api/v1/broker-accounts";
 
@@ -58,6 +59,7 @@ class AllBrokerAccountsIT extends IntegrationTestBase {
   void preparar() {
     jdbc.update("DELETE FROM user_brokers");
     jdbc.update("DELETE FROM refresh_tokens");
+    jdbc.update("DELETE FROM client_sellers");
     jdbc.update("DELETE FROM user_supervisors");
     jdbc.update("DELETE FROM user_memberships");
     jdbc.update("DELETE FROM user_roles");
@@ -149,6 +151,46 @@ class AllBrokerAccountsIT extends IntegrationTestBase {
         .andExpect(
             jsonPath("$.content[?(@.user.username == 'rlopez')]")
                 .value(org.hamcrest.Matchers.empty()));
+  }
+
+  @Test
+  @DisplayName(
+      "`CA-SP-648` precisado — los clientes REGISTRO de cada nodo entran en la red, en la hoja")
+  void losClientesEntranEnLaHoja() throws Exception {
+    // Desde el 18-09-2026 el cliente no está en `user_supervisors` (`RN-SP-028`
+    // revertida): la recursiva recorre solo fuerza comercial y los clientes se
+    // unen después, desde `client_sellers`. Dos clientes: uno del bisnieto —el
+    // fondo de la rama— y otro de la propia raíz, que también es su red aunque
+    // sus cuentas propias no lo sean (`CA-SP-649`).
+    UUID delBisnieto = crearPersona("c-bisnieto", "Carla", CLIENTE);
+    registrar(delBisnieto, nieto);
+    declarar(delBisnieto, brokerA, "60000001");
+    UUID delJefe = crearPersona("c-jefe", "Cora", CLIENTE);
+    registrar(delJefe, jefe);
+    declarar(delJefe, brokerB, "60000002");
+    // Y un vínculo HOTLINK del ajeno sobre el cliente de la raíz: NO lo trae a
+    // la red del ajeno, porque no es su principal.
+    jdbc.update(
+        "INSERT INTO client_sellers (client_id, seller_id, origin) VALUES (?, ?, 'HOTLINK')",
+        delJefe,
+        ajeno);
+
+    mvc.perform(get(RUTA + "?supervisorId=" + jefe).with(administrador()))
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$.totalElements").value(5))
+        .andExpect(
+            jsonPath("$.content[?(@.user.username == 'c-bisnieto')]")
+                .value(org.hamcrest.Matchers.hasSize(1)))
+        .andExpect(
+            jsonPath("$.content[?(@.user.username == 'c-jefe')]")
+                .value(org.hamcrest.Matchers.hasSize(1)))
+        .andExpect(
+            jsonPath("$.content[?(@.user.username == 'rlopez')]")
+                .value(org.hamcrest.Matchers.empty()));
+
+    mvc.perform(get(RUTA + "?supervisorId=" + ajeno).with(administrador()))
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$.totalElements").value(0));
   }
 
   @Test
@@ -555,6 +597,14 @@ class AllBrokerAccountsIT extends IntegrationTestBase {
         id,
         rol);
     return id;
+  }
+
+  /** El cliente y su principal: la fila REGISTRO de `client_sellers` (`RN-SP-049`, 18-09-2026). */
+  private void registrar(UUID cliente, UUID vendedor) {
+    jdbc.update(
+        "INSERT INTO client_sellers (client_id, seller_id, origin) VALUES (?, ?, 'REGISTRO')",
+        cliente,
+        vendedor);
   }
 
   private void reportar(UUID subordinado, UUID superior) {

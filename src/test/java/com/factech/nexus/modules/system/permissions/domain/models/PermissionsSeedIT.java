@@ -25,25 +25,26 @@ class PermissionsSeedIT extends IntegrationTestBase {
 
   @Test
   @DisplayName(
-      "el catálogo tiene exactamente CIENTO ONCE: cuarenta y cuatro de SP, veinticinco de PM,"
+      "el catálogo tiene exactamente CIENTO DOCE: cuarenta y cinco de SP, veinticinco de PM,"
           + " diez de CM, cuatro de MV y veintiocho de AC (V28: un permiso por operación,"
-          + " CA-SP-688)")
+          + " CA-SP-688; V29: users:read-sellers de RF-SP-059)")
   void catalogoCompleto() {
     assertThat(jdbc.queryForObject("SELECT count(*) FROM permissions", Integer.class))
-        .isEqualTo(111);
+        .isEqualTo(112);
   }
 
   @Test
   @DisplayName(
-      "trece de los permisos son de recurso users: los ocho de V8 y los cinco que V28 separa")
-  void trecePermisosDeUsuarios() {
+      "catorce de los permisos son de recurso users: los ocho de V8, los cinco que V28 separa"
+          + " y users:read-sellers de V29")
+  void catorcePermisosDeUsuarios() {
     List<String> acciones =
         jdbc.queryForList(
             "SELECT action FROM permissions WHERE resource = 'users' ORDER BY action",
             String.class);
 
     assertThat(acciones)
-        .hasSize(13)
+        .hasSize(14)
         .containsExactly(
             "assign-membership",
             "assign-roles",
@@ -53,6 +54,7 @@ class PermissionsSeedIT extends IntegrationTestBase {
             "delete",
             "list",
             "read",
+            "read-sellers",
             "read-team",
             "reset-password",
             "revoke-membership",
@@ -201,6 +203,7 @@ class PermissionsSeedIT extends IntegrationTestBase {
             "users:update",
             "users:list",
             "users:change-status",
+            "users:read-sellers",
             "users:read-team",
             "users:revoke-roles",
             "users:revoke-membership");
@@ -211,7 +214,7 @@ class PermissionsSeedIT extends IntegrationTestBase {
   void identificadoresUuidV7() {
     List<UUID> ids = jdbc.queryForList("SELECT id FROM permissions", UUID.class);
 
-    assertThat(ids).hasSize(111).doesNotHaveDuplicates();
+    assertThat(ids).hasSize(112).doesNotHaveDuplicates();
     assertThat(ids).allSatisfy(id -> assertThat(id.version()).isEqualTo(7));
     // variant() == 2 es la variante RFC 9562 (bits 10xx).
     assertThat(ids).allSatisfy(id -> assertThat(id.variant()).isEqualTo(2));
@@ -243,25 +246,31 @@ class PermissionsSeedIT extends IntegrationTestBase {
             jdbc.queryForObject(
                 "SELECT id::text FROM permissions WHERE code = 'lessons:delete'", String.class))
         .isEqualTo("01a0b6f6-7400-7033-9c4f-5e7adc000028");
+
+    // V29 sigue la serie de SP donde V28 la dejó (users:read-team fue …000024).
+    assertThat(
+            jdbc.queryForObject(
+                "SELECT id::text FROM permissions WHERE code = 'users:read-sellers'", String.class))
+        .isEqualTo("01a0c143-2c00-7001-9c4f-5e7ad0000025");
   }
 
   @Test
   @DisplayName(
-      "V28 reparte: SUPERADMIN porta los ciento once y ADMIN ciento cinco, y los seis que le"
-          + " faltan son la reserva (CA-SP-691)")
+      "V28 y V29 reparten: SUPERADMIN porta los ciento doce y ADMIN ciento seis, y los seis"
+          + " que le faltan son la reserva (CA-SP-691)")
   void elRepartoLlegaALosRolesDeSistema() {
     assertThat(
             jdbc.queryForObject(
                 "SELECT count(*) FROM role_permissions WHERE role_id ="
                     + " '01a02a33-4c00-7001-9c4f-5e7ad1000001'",
                 Integer.class))
-        .isEqualTo(111);
+        .isEqualTo(112);
     assertThat(
             jdbc.queryForObject(
                 "SELECT count(*) FROM role_permissions WHERE role_id ="
                     + " '01a02a33-4c00-7002-9c4f-5e7ad1000002'",
                 Integer.class))
-        .isEqualTo(105);
+        .isEqualTo(106);
     assertThat(
             jdbc.queryForList(
                 """

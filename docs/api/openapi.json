@@ -442,6 +442,17 @@
         },
         "type" : "object"
       },
+      "ClientSellersResponse" : {
+        "properties" : {
+          "content" : {
+            "items" : {
+              "$ref" : "#/components/schemas/SellerItem"
+            },
+            "type" : "array"
+          }
+        },
+        "type" : "object"
+      },
       "CommercialStructureResponse" : {
         "properties" : {
           "previousSupervisor" : {
@@ -4828,6 +4839,35 @@
             "type" : "string"
           },
           "username" : {
+            "type" : "string"
+          }
+        },
+        "type" : "object"
+      },
+      "SellerItem" : {
+        "properties" : {
+          "firstName" : {
+            "type" : "string"
+          },
+          "lastName" : {
+            "type" : "string"
+          },
+          "linkedAt" : {
+            "description" : "Desde cuándo es su vendedor. En las filas que `V20` trajo desde `user_supervisors`, desde cuándo colgaba de él allí.",
+            "format" : "date-time",
+            "type" : "string"
+          },
+          "origin" : {
+            "description" : "`REGISTRO` si lo registró —su principal—, `HOTLINK` si le vendió por su enlace.",
+            "enum" : [ "REGISTRO", "HOTLINK" ],
+            "type" : "string"
+          },
+          "principal" : {
+            "description" : "`true` solo en la fila `REGISTRO`. Hay exactamente una por cliente.",
+            "type" : "boolean"
+          },
+          "username" : {
+            "description" : "Nombre de usuario del vendedor, el mismo de su hotlink.",
             "type" : "string"
           }
         },
@@ -12775,6 +12815,32 @@
         "tags" : [ "Usuarios" ]
       }
     },
+    "/api/v1/users/me/sellers" : {
+      "get" : {
+        "description" : "**Permiso requerido:** ninguno más allá del token. El alcance lo acota el servicio —el propio actor, o la relación con la persona consultada— y la descripción dice cómo.\n\nDevuelve **los vendedores del actor**: quien lo registró —su **principal**,\norigen `REGISTRO`— y los vendedores por cuyo enlace compró —origen\n`HOTLINK`—. **El principal va primero**, después por fecha de vínculo.\n\nEs la respuesta a «¿a qué agente estoy asignado?» (`RF-SP-059`,\n`RN-SP-049`). **El principal es quien lo registró y no se cambia**:\nno hay operación que lo reasigne ni historial que cerrar. Un vínculo\nes un hecho, y por eso tampoco se quita: un vendedor desactivado o\neliminado **sigue saliendo**.\n\n**Hoy la lista tiene un solo elemento**, y no es un defecto: las filas\n`HOTLINK` las escribirá la compra por hotlink (`RF-MV-011`,\n`RF-MV-013`), que no está construida. El contrato ya es el definitivo.\n\nDe cada vendedor se publica lo mismo que su hotlink (`RN-PM-022`):\n**nombre y apellido**, más el nombre de usuario, que el cliente ya\nconoce. **Ni identificador, ni correo, ni estado, ni roles.**\n\n`linkedAt` es desde cuándo es su vendedor; en los vínculos anteriores al\n18-09-2026 —traídos por `V20` desde `user_supervisors`— es desde cuándo\ncolgaba de él allí.\n\nQuien no es cliente —un vendedor, un funcionario— recibe `200` con la\ncolección vacía: nadie lo registró por enlace. Un cliente dado de alta\npor un funcionario, también.\n\n**Desde el 18-09-2026 el cliente no cuelga de `user_supervisors`**, de\nmodo que `GET /api/v1/users/me` **no devuelve `supervisor`** a un\ncliente: su vía es esta.\n",
+        "operationId" : "misVendedores",
+        "responses" : {
+          "200" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ClientSellersResponse"
+                }
+              }
+            },
+            "description" : "Los vendedores del actor, principal primero; vacío si no tiene"
+          },
+          "401" : {
+            "description" : "Token ausente o inválido (`AUTH-001`)"
+          },
+          "500" : {
+            "description" : "Fallo no controlado (`ERR-500`)"
+          }
+        },
+        "summary" : "Consultar mis vendedores",
+        "tags" : [ "Usuarios" ]
+      }
+    },
     "/api/v1/users/me/team/broker-accounts" : {
       "get" : {
         "description" : "**Permiso requerido:** ninguno más allá del token. El alcance lo acota el servicio —el propio actor, o la relación con la persona consultada— y la descripción dice cómo.\n\nDevuelve, **paginadas**, las cuentas de broker de todas las personas\nque dependen **directamente** del actor, **cada fila con su titular**.\n\n**No hay identificador en la ruta y no lo habrá**: el conjunto de datos\nlo determina el sistema a partir de quién pregunta. Quien deba ver las\ncuentas de otra persona usa `GET /api/v1/users/{id}/broker-accounts`\ncon `broker-accounts:read`.\n\n**No exige ningún permiso**, solo estar autenticado: el alcance lo pone\nla estructura comercial (`RN-SP-046`). Quien **no tiene equipo** recibe\n`200` con la página vacía, no `404` ni `403`.\n\n**Un solo nivel**, el equipo directo. Las cuentas de quien depende de\nun subordinado del actor **no aparecen**: devolver la rama completa\npublicaría de una vez la estructura de la empresa.\n\n**Es un listado de CUENTAS y no de personas.** Quien está en el equipo\ny no declaró ninguna cuenta **no aparece**, y quien declaró dos aparece\n**dos veces**. Quién hay en el equipo lo responde\n`GET /api/v1/users/{id}/team`.\n\n**Filtros, ambos opcionales y combinables con Y:**\n\n- `status` — `REGISTER` o `FIRST_DEPOSIT`. **Cualquier otro valor es\n  `400`**, no una página vacía: una página vacía sería indistinguible\n  de «nadie está en ese estado».\n- `brokerId` — un broker del catálogo. **Un identificador inexistente\n  devuelve la página vacía sin error**, al revés que `status`: es una\n  pregunta legítima con respuesta vacía.\n\n`totalElements` **cuenta lo filtrado**.\n\n**Hoy todas las cuentas están en `REGISTER`**, y no es un fallo de esta\nconsulta: quien mueve una cuenta a `FIRST_DEPOSIT` es el webhook del\nbroker, que todavía no existe. Mientras no exista, ninguna cuenta tiene\ndepósito confirmado.\n\n**`brokerUsername` llega en nulo** mientras el broker no lo haya\nconfirmado, y el campo **está presente**: su nulo significa «aún no\nconfirmado», no «sin nombre».\n",
@@ -13300,6 +13366,51 @@
         "summary" : "Retirar roles de una persona",
         "tags" : [ "Usuarios" ],
         "x-required-permission" : "users:revoke-roles"
+      }
+    },
+    "/api/v1/users/{id}/sellers" : {
+      "get" : {
+        "description" : "**Permiso requerido:** `users:read-sellers`. Sin él, `403` (`AUTH-002`).\n\nLa misma lista que `GET /api/v1/users/me/sellers`, sobre **cualquier\npersona** y con **`users:read-sellers`**, permiso propio de esta\noperación (`RN-SEG-014`, un permiso por operación; `V29` lo siembra a\n`SUPERADMIN` y `ADMIN`). Nació con `users:read` el 18-09-2026 —«los\nvendedores son un dato de la persona»— y cambió al integrarse, el\n21-09-2026, porque desde `RF-SP-060` ningún código gobierna dos\noperaciones.\n\n**`403` sin el permiso y `404` con el permiso y una persona que no\nexiste**, el modelo general de `security.md` §5. Aquí no hay actor\nautorizado por estructura al que proteger de un oráculo de\nidentificadores —a diferencia de `GET /users/{id}/broker-accounts`—,\ny quien porta este permiso porta normalmente `users:list`.\n\nUna persona que no es cliente devuelve `200` con la colección vacía.\n",
+        "operationId" : "vendedoresDe",
+        "parameters" : [ {
+          "in" : "path",
+          "name" : "id",
+          "required" : true,
+          "schema" : {
+            "format" : "uuid",
+            "type" : "string"
+          }
+        } ],
+        "responses" : {
+          "200" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ClientSellersResponse"
+                }
+              }
+            },
+            "description" : "Los vendedores de la persona, principal primero; vacío si no tiene"
+          },
+          "400" : {
+            "description" : "Identificador malformado (`VAL-001`)"
+          },
+          "401" : {
+            "description" : "Token ausente o inválido (`AUTH-001`)"
+          },
+          "403" : {
+            "description" : "Autenticado sin `users:read-sellers` (`AUTH-002`)"
+          },
+          "404" : {
+            "description" : "La persona no existe o está eliminada (`VAL-002`)"
+          },
+          "500" : {
+            "description" : "Fallo no controlado (`ERR-500`)"
+          }
+        },
+        "summary" : "Consultar los vendedores de un cliente",
+        "tags" : [ "Usuarios" ],
+        "x-required-permission" : "users:read-sellers"
       }
     },
     "/api/v1/users/{id}/status" : {

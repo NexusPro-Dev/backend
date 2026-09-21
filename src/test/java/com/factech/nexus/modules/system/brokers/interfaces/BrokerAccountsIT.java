@@ -42,6 +42,7 @@ class BrokerAccountsIT extends IntegrationTestBase {
   private static final String MANAGER = "01a02a33-4c00-7005-9c4f-5e7ad1000003";
   private static final String DIRECTOR = "01a02a33-4c00-7006-9c4f-5e7ad1000004";
   private static final String AGENTE = "01a02a33-4c00-7007-9c4f-5e7ad1000005";
+  private static final String CLIENTE = "01a02a33-4c00-7008-9c4f-5e7ad1000008";
 
   @Autowired private MockMvc mvc;
   @Autowired private JdbcTemplate jdbc;
@@ -50,6 +51,7 @@ class BrokerAccountsIT extends IntegrationTestBase {
   private UUID medio;
   private UUID base;
   private UUID ajeno;
+  private UUID cliente;
 
   private UUID brokerA;
   private UUID brokerB;
@@ -58,6 +60,7 @@ class BrokerAccountsIT extends IntegrationTestBase {
   void preparar() {
     jdbc.update("DELETE FROM user_brokers");
     jdbc.update("DELETE FROM refresh_tokens");
+    jdbc.update("DELETE FROM client_sellers");
     jdbc.update("DELETE FROM user_supervisors");
     jdbc.update("DELETE FROM user_memberships");
     jdbc.update("DELETE FROM user_roles");
@@ -76,6 +79,14 @@ class BrokerAccountsIT extends IntegrationTestBase {
     reportar(medio, jefe);
     reportar(base, medio);
 
+    // Un CLIENTE, y no está en `user_supervisors` (`RN-SP-028` revertida,
+    // 18-09-2026): su principal es la fila REGISTRO de `client_sellers`, y es
+    // `ajeno` —a propósito, para que `base` siga sin equipo (`CA-SP-644`)—.
+    // `base` le vendió por hotlink: un vínculo que NO le abre nada (`CA-SP-693`).
+    cliente = crearPersona("cperez", CLIENTE);
+    registrar(cliente, ajeno);
+    vincularPorHotlink(cliente, base);
+
     // Los dos brokers de la siembra de `V76`, REPUESTOS SI NO ESTÁN.
     //
     // No basta con leerlos: `UserBrokerAccountSchemaIT` vacía `brokers` en su
@@ -89,6 +100,7 @@ class BrokerAccountsIT extends IntegrationTestBase {
     declarar(medio, brokerB, "70000002");
     declarar(base, brokerA, "70000003");
     declarar(ajeno, brokerA, "70000004");
+    declarar(cliente, brokerA, "70000005");
   }
 
   /**
@@ -196,6 +208,36 @@ class BrokerAccountsIT extends IntegrationTestBase {
 
     mvc.perform(get("/api/v1/users/" + medio + "/broker-accounts").with(comoPersona(jefe)))
         .andExpect(status().isNotFound());
+  }
+
+  @Test
+  @DisplayName(
+      "`CA-SP-693` — el PRINCIPAL ve las cuentas de su cliente; el vinculado por hotlink, 404")
+  void elPrincipalVeLasDeSuCliente() throws Exception {
+    // `ajeno` no es superior de nadie en `user_supervisors`: lo único que le
+    // abre esta lectura es la fila REGISTRO de `client_sellers`. Es la prueba
+    // de que la autorización cambió de tabla (`RN-SP-046`, 18-09-2026).
+    mvc.perform(get("/api/v1/users/" + cliente + "/broker-accounts").with(comoPersona(ajeno)))
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$.content.length()").value(1))
+        .andExpect(jsonPath("$.content[0].accountId").value("70000005"));
+
+    // `base` le vendió por hotlink y NO es su principal: el mismo 404 que un
+    // extraño. El perímetro de `RN-SP-046` no crece con el vínculo.
+    mvc.perform(get("/api/v1/users/" + cliente + "/broker-accounts").with(comoPersona(base)))
+        .andExpect(status().isNotFound());
+  }
+
+  @Test
+  @DisplayName("el equipo de `RF-SP-056` incluye a la CARTERA del principal, y no al vinculado")
+  void elEquipoIncluyeLaCartera() throws Exception {
+    // `ajeno` no tiene subordinados y sí un cliente: su «equipo» para las
+    // cuentas de broker es la unión de las dos fuentes (`RN-SP-046`).
+    mvc.perform(get("/api/v1/users/me/team/broker-accounts").with(comoPersona(ajeno)))
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$.totalElements").value(1))
+        .andExpect(jsonPath("$.content[0].user.username").value("cperez"))
+        .andExpect(jsonPath("$.content[0].accountId").value("70000005"));
   }
 
   @Test
@@ -362,6 +404,8 @@ class BrokerAccountsIT extends IntegrationTestBase {
   @Test
   @DisplayName("`CA-SP-644` — quien no tiene equipo recibe 200 con la página vacía")
   void sinEquipoNoEsUnError() throws Exception {
+    // `base` tiene un vínculo HOTLINK con `cperez` y ningún subordinado ni
+    // cliente REGISTRO: el vínculo de venta NO es equipo (`RN-SP-049`).
     mvc.perform(get("/api/v1/users/me/team/broker-accounts").with(comoPersona(base)))
         .andExpect(status().isOk())
         .andExpect(jsonPath("$.totalElements").value(0))
@@ -416,7 +460,9 @@ class BrokerAccountsIT extends IntegrationTestBase {
     assertThat(
             jdbc.queryForObject(
                 "SELECT count(*) FROM user_brokers WHERE status = 'REGISTER'", Integer.class))
-        .isEqualTo(4);
+        // Cinco desde el 18-09-2026: las cuatro de la fuerza comercial y la de la
+        // cliente registrada por `ajeno` (`CA-SP-693`).
+        .isEqualTo(5);
   }
 
   @Test
@@ -473,6 +519,27 @@ class BrokerAccountsIT extends IntegrationTestBase {
         """,
         subordinado,
         superior);
+  }
+
+  /** El cliente y su principal: la fila REGISTRO de `client_sellers` (`RN-SP-049`). */
+  private void registrar(UUID cliente, UUID vendedor) {
+    jdbc.update(
+        """
+        INSERT INTO client_sellers (client_id, seller_id, origin, first_movement_id, created_at)
+        VALUES (?, ?, 'REGISTRO', NULL, now())
+        """,
+        cliente,
+        vendedor);
+  }
+
+  private void vincularPorHotlink(UUID cliente, UUID vendedor) {
+    jdbc.update(
+        """
+        INSERT INTO client_sellers (client_id, seller_id, origin, first_movement_id, created_at)
+        VALUES (?, ?, 'HOTLINK', NULL, now())
+        """,
+        cliente,
+        vendedor);
   }
 
   /** Declara una cuenta <b>sin tocar {@code status}</b>: lo pone el `DEFAULT` de `V80`. */

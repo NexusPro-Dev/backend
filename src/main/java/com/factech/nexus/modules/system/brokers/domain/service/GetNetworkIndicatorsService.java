@@ -44,10 +44,11 @@ import org.springframework.transaction.annotation.Transactional;
  *
  * <h2>2. {@code own} se LEE, nunca se deriva</h2>
  *
- * <p>Un consumidor cuelga de <b>un solo</b> superior ({@code uq_user_supervisors_vigente}), de modo
- * que cada cuenta entra en <b>un único</b> {@code own} — y de ahí que la suma de todos los {@code
- * own} sea el total, sin duplicados. Derivar {@code own} recorriendo el árbol reintroduciría el
- * doble conteo que esa unicidad ya evita.
+ * <p>Un consumidor tiene <b>un solo</b> principal —la fila {@code REGISTRO} de {@code
+ * client_sellers}, {@code uq_client_sellers_principal}; hasta el 18-09-2026, su fila vigente de
+ * {@code user_supervisors}—, de modo que cada cuenta entra en <b>un único</b> {@code own} — y de
+ * ahí que la suma de todos los {@code own} sea el total, sin duplicados. Derivar {@code own}
+ * recorriendo el árbol reintroduciría el doble conteo que esa unicidad ya evita.
  *
  * <h2>3. Cada nodo se acumula UNA vez</h2>
  *

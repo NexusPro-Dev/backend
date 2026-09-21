@@ -77,7 +77,7 @@ class DevelopmentSeedIT extends IntegrationTestBase {
           "UPGRADE_VIP_PLATINO",
           "UPGRADE_VIP_ORO",
           "UPGRADE_PLATINO_ORO",
-          "RENOVAR_BECA",
+          "MEMBRESIA_BECA",
           "RENOVAR_VIP",
           "RENOVAR_PLATINO",
           "RENOVAR_ORO",
@@ -257,12 +257,14 @@ class DevelopmentSeedIT extends IntegrationTestBase {
     assertThat(upgrades.stream().map(u -> u.get("origen")).distinct())
         .containsExactlyInAnyOrder("BECA", "VIP", "PLATINO", "ORO");
 
-    // Las cuatro renovaciones, y la de BECA es el producto GRATUITO.
+    // Las cuatro renovaciones, y la de BECA es el producto GRATUITO (desde el
+    // 18-09-2026 se llama MEMBRESIA_BECA; si el guion cambia un código y esta
+    // lista no, el producto sobrevive al DELETE y bloquea el de memberships).
     assertThat(upgrades.stream().filter(u -> u.get("origen").equals(u.get("destino"))).count())
         .isEqualTo(4);
     assertThat(
             jdbc.queryForObject(
-                "SELECT price FROM products WHERE code = 'RENOVAR_BECA'",
+                "SELECT price FROM products WHERE code = 'MEMBRESIA_BECA'",
                 java.math.BigDecimal.class))
         .isEqualByComparingTo("0");
 
@@ -356,19 +358,17 @@ class DevelopmentSeedIT extends IntegrationTestBase {
             """,
             Integer.class, (Object) usuarios);
 
-    // Tres directores. `director1` tiene CUATRO a cargo desde el 04-09-2026
-    // —sus tres agentes más `cliente2`— y los otros dos siguen con tres. Un
-    // equipo de uno no distingue «el equipo de alguien» de «alguien», y un
-    // equipo de un solo tipo no distingue «el equipo» de «la cartera».
-    assertThat(aCargoPorDirector).containsExactlyInAnyOrder(4, 3, 3);
+    // Tres directores con TRES a cargo cada uno: sus agentes. Entre el
+    // 04-09-2026 y el 18-09-2026 `director1` tenía cuatro —`cliente2` colgaba
+    // de él en esta tabla—; desde `RN-SP-028` revertida la cartera vive en
+    // `client_sellers` y el equipo vuelve a ser solo fuerza comercial. Un
+    // equipo de uno no distingue «el equipo de alguien» de «alguien».
+    assertThat(aCargoPorDirector).containsExactlyInAnyOrder(3, 3, 3);
 
-    // `RN-SP-020` TIENE DOS RAMAS, y esta comprobación las separa. Entre
-    // vendedores el superior porta el rol PADRE INMEDIATO —un agente colgado de
-    // un manager pasaría el recuento de arriba y sería igualmente inválido—;
-    // con un CONSUMIDOR basta que el superior porte ALGÚN rol `VENDEDOR`, sin
-    // parentesco, porque un cliente no tiene rol vendedor del que derivar un
-    // padre. Por eso las tres parejas de cliente son válidas y las de agente no
-    // lo serían.
+    // `RN-SP-020` TIENE UNA SOLA RAMA desde el 18-09-2026: entre vendedores el
+    // superior porta el rol PADRE INMEDIATO —un agente colgado de un manager
+    // pasaría el recuento de arriba y sería igualmente inválido—. Ningún
+    // CONSUMIDOR aparece como subordinado: el cliente no cuelga de esta tabla.
     List<String> parejas =
         jdbc.queryForList(
             """
@@ -392,14 +392,39 @@ class DevelopmentSeedIT extends IntegrationTestBase {
             "ADMIN -> SUPERADMIN",
             // La estructura entre vendedores, que sigue siendo estricta.
             "AGENTE -> DIRECTOR",
-            // Y la cartera, a TRES PROFUNDIDADES distintas: es lo que hace
-            // observable en desarrollo el caso que obliga a decidir a qué
-            // tarifa cobra quien tiene al cliente cuando no es un agente.
-            "CLIENTE -> AGENTE",
-            "CLIENTE -> DIRECTOR",
-            "CLIENTE -> MANAGER",
             "DIRECTOR -> MANAGER",
             "MANAGER -> ADMIN");
+
+    // Y LA CARTERA, en `client_sellers` y a TRES PROFUNDIDADES distintas: es lo
+    // que hace observable en desarrollo el caso que obliga a decidir a qué
+    // tarifa cobra quien tiene al cliente cuando no es un agente. Cada cliente
+    // con UNA fila REGISTRO —su principal— y ninguna en `user_supervisors`.
+    List<String> cartera =
+        jdbc.queryForList(
+            """
+            SELECT c.username || ' -> ' || v.username || ' (' || cs.origin || ')'
+              FROM client_sellers cs
+              JOIN users c ON c.id = cs.client_id
+              JOIN users v ON v.id = cs.seller_id
+             WHERE c.username = ANY (?)
+             ORDER BY 1
+            """,
+            String.class,
+            (Object) usuarios);
+    assertThat(cartera)
+        .containsExactly(
+            "cliente1 -> agente1 (REGISTRO)",
+            "cliente2 -> director1 (REGISTRO)",
+            "cliente3 -> manager1 (REGISTRO)");
+    assertThat(
+            jdbc.queryForObject(
+                """
+                SELECT count(*) FROM user_supervisors us
+                  JOIN users c ON c.id = us.user_id
+                 WHERE c.username LIKE 'cliente%'
+                """,
+                Integer.class))
+        .isZero();
 
     // LOS MANAGER YA NO SON LA CÚSPIDE de los datos de prueba, y hasta el
     // 10-09-2026 esta prueba exigía justamente lo contrario: cero managers con
@@ -479,6 +504,11 @@ class DevelopmentSeedIT extends IntegrationTestBase {
         "DELETE FROM user_memberships WHERE user_id IN (SELECT id FROM users WHERE username = ANY"
             + " (?))",
         (Object) usuarios);
+    jdbc.update(
+        "DELETE FROM client_sellers WHERE client_id IN (SELECT id FROM users WHERE username ="
+            + " ANY (?)) OR seller_id IN (SELECT id FROM users WHERE username = ANY (?))",
+        usuarios,
+        usuarios);
     jdbc.update(
         "DELETE FROM user_supervisors WHERE user_id IN (SELECT id FROM users WHERE username ="
             + " ANY (?)) OR supervisor_id IN (SELECT id FROM users WHERE username = ANY (?))",

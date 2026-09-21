@@ -2,6 +2,8 @@ package com.factech.nexus.modules.system.brokers.domain.service;
 
 import com.factech.nexus.modules.system.brokers.application.BrokerAccountsResponse;
 import com.factech.nexus.modules.system.brokers.domain.repository.BrokerAccountQueryRepository;
+import com.factech.nexus.modules.system.users.domain.repository.ClientSellerRepository;
+import com.factech.nexus.modules.system.users.domain.repository.ClientSellerRepository.ClientSellerRow;
 import com.factech.nexus.modules.system.users.domain.repository.UserRepository;
 import com.factech.nexus.modules.system.users.domain.repository.UserSupervisor;
 import com.factech.nexus.shared.error.ResourceNotFoundException;
@@ -44,6 +46,15 @@ import org.springframework.transaction.annotation.Transactional;
  * <p>Se lee {@code findActiveSupervisor}, que ya excluye las filas cerradas. Quien <b>fue</b>
  * superior y ya no lo es recibe {@code 404} el mismo día: el historial de {@code user_supervisors}
  * dice a quién se atribuía cada resultado, no quién puede mirar hoy.
+ *
+ * <h2>Y «superior vigente» de un CLIENTE se resuelve en otra tabla desde el 18-09-2026</h2>
+ *
+ * <p>El cliente salió de {@code user_supervisors} (`RN-SP-028` revertida, `RF-SP-059`): su vendedor
+ * <b>principal</b> es la fila {@code REGISTRO} de {@code client_sellers}, y es él quien ve sus
+ * cuentas (`RN-SP-046`). La pregunta pasa a tener <b>dos mitades</b> —¿es su superior en la tabla
+ * de mando? ¿es su principal en la de vínculos?— y cualquiera autoriza. <b>El perímetro no
+ * crece</b>: sigue siendo un nivel, siguen siendo las cuentas de broker, y un vendedor solo
+ * vinculado por {@code HOTLINK} sigue recibiendo {@code 404} (`CA-SP-693`).
  */
 @Service
 public class GetBrokerAccountsService {
@@ -58,12 +69,17 @@ public class GetBrokerAccountsService {
 
   private final BrokerAccountQueryRepository cuentas;
   private final UserRepository usuarios;
+  private final ClientSellerRepository vinculos;
   private final CurrentActor actor;
 
   public GetBrokerAccountsService(
-      BrokerAccountQueryRepository cuentas, UserRepository usuarios, CurrentActor actor) {
+      BrokerAccountQueryRepository cuentas,
+      UserRepository usuarios,
+      ClientSellerRepository vinculos,
+      CurrentActor actor) {
     this.cuentas = cuentas;
     this.usuarios = usuarios;
+    this.vinculos = vinculos;
     this.actor = actor;
   }
 
@@ -95,18 +111,24 @@ public class GetBrokerAccountsService {
   }
 
   /**
-   * Permiso, o superior vigente. En ese orden.
+   * Permiso, o superior vigente, o principal. En ese orden.
    *
    * <p>El permiso primero porque se resuelve sin tocar la base — {@code CurrentActor} ya trae los
    * permisos efectivos—, y quien lo tiene no necesita que se le busque una estructura que
-   * probablemente no tenga.
+   * probablemente no tenga. Después la tabla de mando —un vendedor consultado por su superior— y
+   * después la de vínculos —un cliente consultado por quien lo registró—. Las dos consultas son por
+   * clave y ninguna persona tiene, en la práctica, filas en ambas.
    */
   private boolean puedeVer(UUID quien, UUID userId) {
     if (actor.currentPermissions().contains(PERMISO)) {
       return true;
     }
     Optional<UserSupervisor> superior = usuarios.findActiveSupervisor(userId);
-    return superior.map(UserSupervisor::supervisorId).filter(quien::equals).isPresent();
+    if (superior.map(UserSupervisor::supervisorId).filter(quien::equals).isPresent()) {
+      return true;
+    }
+    Optional<ClientSellerRow> principal = vinculos.findPrincipalOf(userId);
+    return principal.map(ClientSellerRow::sellerId).filter(quien::equals).isPresent();
   }
 
   /**

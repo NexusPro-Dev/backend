@@ -65,6 +65,7 @@ class NetworkIndicatorsIT extends IntegrationTestBase {
   void preparar() {
     jdbc.update("DELETE FROM user_brokers");
     jdbc.update("DELETE FROM refresh_tokens");
+    jdbc.update("DELETE FROM client_sellers");
     jdbc.update("DELETE FROM user_supervisors");
     jdbc.update("DELETE FROM user_memberships");
     jdbc.update("DELETE FROM user_roles");
@@ -87,25 +88,33 @@ class NetworkIndicatorsIT extends IntegrationTestBase {
     reportar(agenteVacio, manager);
 
     // Del manager cuelga un cliente directo: la regla es ESTRUCTURAL y no exige
-    // que un cliente cuelgue de un agente (`FA-004`).
+    // que un cliente cuelgue de un agente (`FA-004`). Y «cuelga» es, desde el
+    // 18-09-2026, la fila REGISTRO de `client_sellers` (`RN-SP-048` (5)): los
+    // clientes NO están en `user_supervisors`, y es lo que hace de esta suite
+    // la prueba de que los conteos leen la tabla nueva (`CA-SP-694`).
     UUID delManager = persona("c-manager", CLIENTE);
-    reportar(delManager, manager);
+    registrar(delManager, manager);
     cuenta(delManager, "M-1", "REGISTER");
 
     UUID delDirector = persona("c-director", CLIENTE);
-    reportar(delDirector, director);
+    registrar(delDirector, director);
     cuenta(delDirector, "D-1", "FIRST_DEPOSIT");
     cuenta(delDirector, "D-2", "REGISTER");
 
     // UN cliente con DOS cuentas depositadas: 2 en `ftd` y 1 en `consumers`.
     UUID delAgente = persona("c-agente", CLIENTE);
-    reportar(delAgente, agente);
+    registrar(delAgente, agente);
     cuenta(delAgente, "A-1", "FIRST_DEPOSIT");
     cuenta(delAgente, "A-2", "FIRST_DEPOSIT");
 
     UUID otroDelAgente = persona("c-agente-2", CLIENTE);
-    reportar(otroDelAgente, agente);
+    registrar(otroDelAgente, agente);
     cuenta(otroDelAgente, "A-3", "REGISTER");
+
+    // Un vínculo HOTLINK sobre el cliente del manager, a nombre del agente: NO
+    // suma en el agente (`CA-SP-694`) — el indicador mide la captación, y captó
+    // quien registró.
+    vincularPorHotlink(delManager, agente);
 
     // La cuenta PROPIA del director: no es una captación y no cuenta en ningún
     // indicador (`RN-SP-048`).
@@ -415,6 +424,27 @@ class NetworkIndicatorsIT extends IntegrationTestBase {
         """,
         subordinado,
         superior);
+  }
+
+  /** El cliente y su principal: la fila REGISTRO de `client_sellers` (`RN-SP-049`). */
+  private void registrar(UUID cliente, UUID vendedor) {
+    jdbc.update(
+        """
+        INSERT INTO client_sellers (client_id, seller_id, origin, first_movement_id, created_at)
+        VALUES (?, ?, 'REGISTRO', NULL, now())
+        """,
+        cliente,
+        vendedor);
+  }
+
+  private void vincularPorHotlink(UUID cliente, UUID vendedor) {
+    jdbc.update(
+        """
+        INSERT INTO client_sellers (client_id, seller_id, origin, first_movement_id, created_at)
+        VALUES (?, ?, 'HOTLINK', NULL, now())
+        """,
+        cliente,
+        vendedor);
   }
 
   private void cuenta(UUID persona, String numero, String estado) {

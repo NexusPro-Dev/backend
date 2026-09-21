@@ -38,16 +38,20 @@ public class PublishedUserCatalog
 
   private final EntityManager em;
   private final UserRepository usuarios;
+  private final ClientSellerRepository vinculos;
   private final Clock reloj;
 
   @Autowired
-  public PublishedUserCatalog(EntityManager em, UserRepository usuarios) {
-    this(em, usuarios, Clock.systemUTC());
+  public PublishedUserCatalog(
+      EntityManager em, UserRepository usuarios, ClientSellerRepository vinculos) {
+    this(em, usuarios, vinculos, Clock.systemUTC());
   }
 
-  PublishedUserCatalog(EntityManager em, UserRepository usuarios, Clock reloj) {
+  PublishedUserCatalog(
+      EntityManager em, UserRepository usuarios, ClientSellerRepository vinculos, Clock reloj) {
     this.em = em;
     this.usuarios = usuarios;
+    this.vinculos = vinculos;
     this.reloj = reloj;
   }
 
@@ -272,7 +276,17 @@ public class PublishedUserCatalog
   }
 
   /**
-   * El vendedor del que cuelga el cliente.
+   * El vendedor de quien compra (`RN-MV-003`).
+   *
+   * <p><b>Primero {@code client_sellers}, después {@code user_supervisors}</b>, y el orden es la
+   * regla. Desde el 18-09-2026 (`RN-SP-028` revertida, `RF-SP-059`) el cliente <b>no cuelga</b> de
+   * la estructura de mando: su vendedor es su <b>principal</b>, la fila {@code REGISTRO} de {@code
+   * client_sellers}. La tabla de mando sigue valiendo para <b>un vendedor que compra</b>, cuyo
+   * vendedor es su superior vigente. Y quien no tiene ni lo uno ni lo otro se vende a sí mismo
+   * (`CA-MV-017`), que se decide en `MV` y no aquí.
+   *
+   * <p>Si una persona tuviera las dos —un cliente ascendido a agente— <b>manda el {@code
+   * REGISTRO}</b>: le vendieron antes de que vendiera (`RF-SP-059` spec §13).
    *
    * <p><b>Se descarta {@code roleCode} y {@code since} al proyectar</b>, y no por omisión: el
    * primero solo dice si el superior porta un rol `VENDEDOR` —lo comprueba `RN-SP-020` al colgarlo,
@@ -285,6 +299,16 @@ public class PublishedUserCatalog
   public Optional<SellerView> sellerOf(UUID id) {
     if (id == null) {
       return Optional.empty();
+    }
+    Optional<SellerView> principal =
+        vinculos
+            .findPrincipalOf(id)
+            .map(
+                fila ->
+                    new SellerView(
+                        fila.sellerId(), fila.username(), fila.firstName(), fila.lastName()));
+    if (principal.isPresent()) {
+      return principal;
     }
     return usuarios
         .findActiveSupervisor(id)

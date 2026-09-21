@@ -37,6 +37,10 @@ De ahí salen las tres decisiones del plan: **una sola transacción**, **límite
 
 **Y la atribución no trae ninguna**, que es lo que cambia respecto a la primera versión de este plan. El cliente cuelga de su vendedor en **`user_supervisors`**, y esa tabla ya tiene exactamente la forma que hace falta: `user_id`, `supervisor_id`, `started_at`, `ended_at` y su unicidad parcial del vigente. **No hay columna nueva, no hay índice nuevo y no hay `V50`.**
 
+!!! warning "Revertido el 18-09-2026: el cliente sale de `user_supervisors` y la atribución sí tiene tabla"
+
+    Por decisión del responsable del proyecto (`RN-SP-028` revertida, `RF-SP-059`). Lo que este plan celebró como «lo que no hay que escribir» **se escribió diecisiete días después**, y con motivo: la tabla de mando mezclaba equipo y cartera en cada consulta, `RN-SP-022` hacía irretirable a quien hubiera registrado a alguien, y la rama de consumidor de `RN-SP-020` nunca llegó a construirse. La relación vive en **`client_sellers`** (`requirements/sp.md` §10.19), la crea `V20` de `RF-SP-059`, y este caso de uso escribe allí su fila `REGISTRO` **antes** de la venta y la completa con el identificador de esa venta después (`RF-SP-059` plan §7). Los tres párrafos que siguen se conservan como historia de por qué se hizo al revés.
+
 !!! success "Lo mejor de la decisión del responsable es lo que NO hay que escribir"
 
     Se había propuesto `client_referrals`, con siete columnas, cuatro restricciones y un índice — y con una copia del razonamiento de `RN-SP-021` sobre por qué la unicidad es parcial. Reutilizar `user_supervisors` **borra esa migración entera** y hereda lo ya resuelto: un superior vigente, el historial y la protección de `RN-SP-022`.
@@ -56,7 +60,7 @@ De ahí salen las tres decisiones del plan: **una sola transacción**, **límite
 | `modules/system/users/application` | `SelfRegistrationRequest` | Los datos de la persona, sus cuentas de broker y el **bloque `movement`**, que desde el 09-09-2026 es también **de donde sale el enlace** — producto y vendedor |
 | `modules/system/users/domain/service` | `RegisterClientByLinkService` | El caso de uso, en una transacción |
 | `modules/system/users/domain/repository` | `UserRepository` | **Se reutiliza**: `assignSupervisor` ya existe para `RF-SP-041`, y colgar un cliente es la misma escritura |
-| `modules/system/users/domain/security` | `CommercialStructure` | **Gana la rama de consumidor** de `RN-SP-020`: hoy solo sabe resolver el rol vendedor de mayor rango, y un cliente no tiene ninguno |
+| `modules/system/users/domain/security` | `CommercialStructure` | ~~Gana la rama de consumidor de `RN-SP-020`~~ — **nunca la ganó, y desde el 18-09-2026 no la necesita**: el cliente no cuelga de `user_supervisors` |
 | `modules/system/users/interfaces` | `RegistrationController` | `POST /api/v1/auth/registration`, público |
 | `modules/system/users/domain/models` | `UserStatus` | `PENDIENTE` → `FTD_PENDIENTE` |
 | `modules/system/auth/domain/repository` | `AuthUser` | `puedeEntrar()` admite el estado nuevo |

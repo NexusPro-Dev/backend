@@ -44,6 +44,7 @@ class UserLifecycleIT extends IntegrationTestBase {
   @BeforeEach
   void preparar() {
     jdbc.update("DELETE FROM refresh_tokens");
+    jdbc.update("DELETE FROM client_sellers");
     jdbc.update("DELETE FROM user_supervisors");
     jdbc.update("DELETE FROM user_memberships");
     jdbc.update("DELETE FROM user_roles");
@@ -81,6 +82,7 @@ class UserLifecycleIT extends IntegrationTestBase {
   @org.junit.jupiter.api.AfterEach
   void devolverElEstadoCompartidoASuSitio() {
     jdbc.update("DELETE FROM refresh_tokens");
+    jdbc.update("DELETE FROM client_sellers");
     jdbc.update("DELETE FROM user_supervisors");
     jdbc.update("DELETE FROM user_memberships");
     jdbc.update("DELETE FROM user_roles");

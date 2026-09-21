@@ -131,13 +131,13 @@ Saber **cuánto FTD lleva cada vendedor** —lo suyo y lo de toda su red—, con
 
 | ID | Criterio |
 |---|---|
-| `CA-SP-658` | El `own` de una persona cuenta **solo** las cuentas de los consumidores que cuelgan **directamente** de ella |
+| `CA-SP-658` | El `own` de una persona cuenta **solo** las cuentas de los consumidores que cuelgan **directamente** de ella — **precisado el 18-09-2026**: los consumidores cuyo `REGISTRO` en `client_sellers` es ella (`RN-SP-048` (5)); un vínculo `HOTLINK` **no suma** |
 | `CA-SP-659` | El `network` de una persona es **su `own` más la suma de las `network` de sus hijos**, a cualquier profundidad |
 | `CA-SP-660` | **La unidad es la cuenta**: un consumidor con **dos** cuentas en `FIRST_DEPOSIT` suma **2** en `ftd` y **1** en `consumers` |
 | `CA-SP-661` | La cuenta de broker de un **vendedor** no cuenta en ningún indicador (`RN-SP-048`) |
 | `CA-SP-662` | Los **consumidores no aparecen como nodos** del árbol |
 | `CA-SP-663` | `conversion` es **nula** cuando `accounts` es cero, y no `0` |
-| `CA-SP-664` | `unassigned` recoge las cuentas de consumidores que **no cuelgan de ningún vendedor**, y `totals` + `unassigned` **cuadra con el total de `RF-SP-057`** |
+| `CA-SP-664` | `unassigned` recoge las cuentas de consumidores que **no cuelgan de ningún vendedor** —**precisado el 18-09-2026**: sin `REGISTRO` en `client_sellers`, o con uno cuyo vendedor no porta rol `VENDEDOR`—, y `totals` + `unassigned` **cuadra con el total de `RF-SP-057`** |
 | `CA-SP-665` | `rootId` devuelve **esa rama con la persona como raíz**, y sus números son los mismos que tenía dentro del árbol completo |
 | `CA-SP-666` | Una persona **eliminada** no aporta números **y su rama no se corta** |
 | `CA-SP-667` | Quien **dejó** la estructura no aparece en el árbol ni aporta a nadie |
@@ -170,3 +170,4 @@ Saber **cuánto FTD lleva cada vendedor** —lo suyo y lo de toda su red—, con
 |---|---|---|---|
 | 0.1.0 | 10-09-2026 | Redacción inicial, a partir de la regla que dio el responsable del proyecto y de su advertencia —«ponle cuidado como suma la cosa»—. **Las tres frases que describió son una sola operación en tres niveles**; lo que la especificación añade son las cuatro cosas que esas frases no dicen y sin las cuales el número no significa nada: **qué es uno** —la cuenta, no la persona—, **de quién es** —solo de consumidores, por `role_type`—, **quién puede sumarlo dos veces** —de ahí `own` y `network` por separado— y **qué pasa con lo que no cuelga de nadie** —de ahí `unassigned`, y de ahí `CA-SP-664`, que es el único criterio que afirma que los números cuadran—. | Responsable del proyecto |
 | 0.2.0 | 19-09-2026 | **Cambia el permiso: `broker-accounts:read-indicators` y no `broker-accounts:read`** (`RF-SP-060`, `RN-SEG-014`, un permiso por operación; [`security.md`](../../../security.md) v0.63.0). Enmienda de Art. I.7 sin cambio de comportamiento: la misma operación, el mismo actor, un código propio sembrado por `V28` y dado a todo rol que portara `broker-accounts:read`. | Responsable del proyecto |
+| 0.3.0 | 21-09-2026 | **`CA-SP-658` y `CA-SP-664` precisados**: el cliente sale de `user_supervisors` (`RN-SP-028` revertida por el responsable del proyecto; `RF-SP-059`), y «cuelga de» pasa a ser la fila `REGISTRO` de `client_sellers` (`RN-SP-048` (5)). La suma no cambia de forma —tres consultas planas y el post-orden— ni de resultado sobre los mismos datos; cambia la tabla de la que salen los dos conteos directos y «lo no atribuido». Sin cambio de contrato; el código lo cambia `RF-SP-059 · T-13`. — redactada el 18-09-2026 en `feature/vendedores-de-un-cliente` e integrada sobre `feature/academia` el 21-09-2026 con el número renumerado; `RF-SP-060` de aquella rama pasa a `RF-SP-061` porque `RF-SP-060` nació en `feature/academia` el 19-09-2026 | Responsable del proyecto |
