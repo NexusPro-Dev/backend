@@ -7,6 +7,7 @@ import java.time.OffsetDateTime;
 import java.util.Collection;
 import java.util.List;
 import java.util.Optional;
+import java.util.Set;
 import java.util.UUID;
 import java.util.function.Supplier;
 
@@ -388,6 +389,55 @@ public interface MovementRepository {
    * <b>El predicado es el mismo que el de {@link #findAll}</b>, escrito una vez.
    */
   BoundedCount countAll(MovementFilter filter, int techo);
+
+  // ---------------------------------------------------------------------------
+  // `RF-MV-015` — las ventas de mi alcance
+  // ---------------------------------------------------------------------------
+
+  /**
+   * La página de <b>ventas</b> del alcance dado, del más reciente al más antiguo.
+   *
+   * <p><b>El alcance va dentro de la sentencia</b>, como en {@link #findMine}, y a diferencia de
+   * allí no es «el actor» sino lo que `SP` resolvió de él (`RN-MV-031`, {@code CommercialReach}):
+   * todo, el conjunto de vendedores de su red, o solo él como sujeto. Quién entra en el conjunto no
+   * lo decide este repositorio; lo aplica.
+   *
+   * <p>El tipo va fijo a {@code VENTA}: es la consulta de las ventas, y los otros tipos tendrán la
+   * suya. El vendedor —el del alcance y el del filtro— entra por el mismo {@code EXISTS} sobre las
+   * líneas, una fila por venta.
+   */
+  List<MovementRow> findSales(SalesFilter filter, int offset, int limit);
+
+  /** Cuántas ventas del alcance cumplen el filtro, <b>acotado</b>, sobre el mismo predicado. */
+  BoundedCount countSales(SalesFilter filter, int techo);
+
+  /**
+   * El alcance ya resuelto por `SP` y los filtros de `RF-MV-015`, para escribir el predicado una
+   * vez.
+   *
+   * <p><b>Lo que NO tiene es el caso «fuera del alcance»</b>: si {@code sellerId} no está en la red
+   * —o no es el actor cuando el alcance es propio— el caso de uso <b>no llama</b> a este
+   * repositorio y responde vacío por definición (`plan.md` §4.4). Aquí llega solo lo que sí puede
+   * verse.
+   *
+   * @param everything todo el libro de ventas (un rol de tipo {@code FUNCIONARIO})
+   * @param network los vendedores de mi red, conmigo dentro; vacío cuando no aplica
+   * @param ownerId el sujeto, cuando el alcance es «solo yo»; nulo cuando no aplica
+   * @param sellerId el vendedor por el que se acota, ya comprobado dentro del alcance; nulo si no
+   *     se acota
+   */
+  record SalesFilter(
+      boolean everything,
+      Set<UUID> network,
+      UUID ownerId,
+      UUID sellerId,
+      String status,
+      OffsetDateTime from,
+      OffsetDateTime to) {
+    public SalesFilter {
+      network = network == null ? Set.of() : Set.copyOf(network);
+    }
+  }
 
   /**
    * Lo que acota el listado global. Todo opcional; nulo significa «sin acotar por esto».

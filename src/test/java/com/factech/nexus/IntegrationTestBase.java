@@ -194,9 +194,10 @@ public abstract class IntegrationTestBase {
    */
   /**
    * Vuelve a dar a los roles de sistema lo que `V31` reparte por tipo (`RF-SP-062`): los once de
-   * alcance propio a `FUNCIONARIO` y `VENDEDOR`, ocho a `CONSUMIDOR`. Para las suites que vacían
-   * `MANAGER`, `DIRECTOR`, `AGENTE` y `CLIENTE` —que hasta el 21-09-2026 nacían vacíos— y tienen
-   * que dejarlos como los deja la migración, no como los dejaba `V8`.
+   * alcance propio a `FUNCIONARIO` y `VENDEDOR`, ocho a `CONSUMIDOR`; y lo que `V32` da a los tres
+   * tipos (`movements:list-sales`, `RF-MV-015`). Para las suites que vacían `MANAGER`, `DIRECTOR`,
+   * `AGENTE` y `CLIENTE` —que hasta el 21-09-2026 nacían vacíos— y tienen que dejarlos como los
+   * deja la migración, no como los dejaba `V8`.
    */
   protected static void reponerAlcancePropio(org.springframework.jdbc.core.JdbcTemplate jdbc) {
     jdbc.update(
@@ -209,7 +210,8 @@ public abstract class IntegrationTestBase {
            AND (p.code IN ('users:read-own-profile', 'users:update-own-profile',
                            'users:change-own-password', 'users:read-own-sellers',
                            'movements:list-own', 'movements:read-own',
-                           'movements:read-own-products', 'packages:buy')
+                           'movements:read-own-products', 'packages:buy',
+                           'movements:list-sales')
                 OR (r.role_type IN ('FUNCIONARIO', 'VENDEDOR')
                     AND p.code IN ('users:read-own-clients', 'broker-accounts:read-own-team',
                                    'broker-accounts:read-team-member')))
@@ -217,7 +219,10 @@ public abstract class IntegrationTestBase {
         """);
   }
 
-  /** Los once códigos de alcance propio de `V31`, para descontarlos donde se cuente «lo demás». */
+  /**
+   * Los códigos que todo rol recibe por su tipo —los once de alcance propio de `V31` y {@code
+   * movements:list-sales} de `V32`—, para descontarlos donde se cuente «lo demás».
+   */
   protected static final java.util.List<String> ALCANCE_PROPIO =
       java.util.List.of(
           "users:read-own-profile",
@@ -230,7 +235,8 @@ public abstract class IntegrationTestBase {
           "movements:list-own",
           "movements:read-own",
           "movements:read-own-products",
-          "packages:buy");
+          "packages:buy",
+          "movements:list-sales");
 
   protected static java.util.UUID crearRolAcotado(
       org.springframework.jdbc.core.JdbcTemplate jdbc, String codigo, String nombre) {
@@ -252,9 +258,10 @@ public abstract class IntegrationTestBase {
         """,
         id);
     // Y los once de alcance propio que V31 da a todo rol de tipo FUNCIONARIO
-    // (RF-SP-062, RN-SEG-015): sin ellos, una persona con este rol no vería su
-    // perfil ni podría cambiar la contraseña obligatoria. Es lo que un rol creado
-    // a mano recibe por RF-SP-005 el día que nace, y lo que `MustChangePasswordIT`
+    // (RF-SP-062, RN-SEG-015) más el de las ventas de mi alcance de V32
+    // (RF-MV-015): sin ellos, una persona con este rol no vería su perfil ni
+    // podría cambiar la contraseña obligatoria. Es lo que un rol creado a mano
+    // recibe por RF-SP-005 el día que nace, y lo que `MustChangePasswordIT`
     // necesita para que la cuenta marcada tenga salida.
     jdbc.update(
         """
@@ -264,7 +271,8 @@ public abstract class IntegrationTestBase {
                         'users:change-own-password', 'users:read-own-sellers',
                         'users:read-own-clients', 'broker-accounts:read-own-team',
                         'broker-accounts:read-team-member', 'movements:list-own',
-                        'movements:read-own', 'movements:read-own-products', 'packages:buy')
+                        'movements:read-own', 'movements:read-own-products', 'packages:buy',
+                        'movements:list-sales')
         """,
         id);
     return id;

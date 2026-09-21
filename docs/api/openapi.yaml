@@ -7666,6 +7666,90 @@ paths:
           description: Se superó la cota de peticiones por origen (120 por minuto).
             La cabecera `Retry-After` dice cuánto esperar.
       security: []
+  /api/v1/movements/sales:
+    get:
+      tags:
+      - Movimientos
+      summary: Consultar las ventas de mi alcance
+      description: |
+        **Permiso requerido:** `movements:list-sales`. Sin él, `403` (`AUTH-002`).
+
+        Devuelve **las ventas que le tocan a quien pregunta según quién es**, paginadas y del
+        más reciente al más antiguo. Es la consulta de las **ventas**; los otros tipos de
+        movimiento tendrán la suya.
+
+        **Lo que se ve lo decide el tipo de rol de quien pregunta**, y no un parámetro:
+        quien porta un rol de tipo **funcionario** ve todas las ventas; quien porta uno de
+        tipo **vendedor** ve las que vendió **él o alguien de su red** —quienes cuelgan de él
+        en la estructura comercial vigente, **en toda la profundidad**: el director lo de sus
+        agentes, el manager lo de sus directores y por ellos lo de los agentes—; quien porta
+        uno de tipo **consumidor** ve solo las ventas **a su nombre**. Un vendedor sin nadie a
+        cargo ve lo que vendió él. Un vendedor **no ve aquí lo que compró**: eso es `/mine`.
+
+        **`userId` es una persona de mi red como vendedora** —«las ventas de mi agente tal»—
+        y acota **dentro** del alcance: una persona fuera de mi red, o inexistente, da una
+        **página vacía** y no un error, para que el filtro no sirva para descubrir quién
+        cuelga de quién. `status` y `from`/`to` son los de `GET /movements` y se combinan.
+
+        **Cada fila es la misma de `GET /movements`** (`type` siempre `VENTA`, `user`,
+        `sellers`, importes, `confirmedAt` nulo y presente), sin `role`. **El total puede no
+        ser exacto** por encima del techo de conteo. Ni `movements:read` ni
+        `movements:list-own` abren esta consulta.
+      operationId: misVentas
+      parameters:
+      - name: page
+        in: query
+        required: false
+        schema:
+          type: integer
+          format: int32
+      - name: size
+        in: query
+        required: false
+        schema:
+          type: integer
+          format: int32
+      - name: userId
+        in: query
+        required: false
+        schema:
+          type: string
+          format: uuid
+      - name: status
+        in: query
+        required: false
+        schema:
+          type: string
+      - name: from
+        in: query
+        required: false
+        schema:
+          type: string
+          format: date-time
+      - name: to
+        in: query
+        required: false
+        schema:
+          type: string
+          format: date-time
+      responses:
+        "200":
+          description: "La página de ventas, aunque esté vacía."
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/PageResponseMovementSummary"
+        "400":
+          description: "Paginación inválida, estado no admitido (`VAL-002`), identificador\
+            \ malformado (`VAL-001`) o `from` posterior a `to` (`VAL-004`). Los problemas\
+            \ se devuelven juntos."
+        "401":
+          description: Token ausente o inválido (`AUTH-001`)
+        "403":
+          description: Sin el permiso `movements:list-sales` (`AUTH-002`).
+        "500":
+          description: Fallo no controlado (`ERR-500`)
+      x-required-permission: movements:list-sales
   /api/v1/movements/mine:
     get:
       tags:

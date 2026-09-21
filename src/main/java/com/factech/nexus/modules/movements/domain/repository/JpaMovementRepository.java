@@ -864,26 +864,124 @@ public class JpaMovementRepository implements MovementRepository {
     return filtro;
   }
 
+  /** Las columnas de la fila del libro, compartidas por `findAll` y `findSales`. */
+  private static final String COLUMNAS_GLOBALES =
+      """
+      SELECT m.id AS id, m.code AS code, mt.code AS tipo, m.status AS status,
+             suj.id AS suj_id, suj.username AS suj_username,
+             suj.first_name AS suj_first, suj.last_name AS suj_last,
+             cur.id AS cur_id, cur.code AS cur_code, pm.name AS pm_name,
+             m.total_amount AS total, m.discount_amount AS descuento,
+             m.payable_amount AS pagar,
+             m.occurred_at AS occurred_at, m.confirmed_at AS confirmed_at
+      """;
+
   @Override
   @Transactional(readOnly = true)
   public List<MovementRow> findAll(MovementFilter filtro, int offset, int limit) {
-    Filtro donde = filtroGlobal(filtro);
+    // El mismo desempate que el listado propio, y el que lleva
+    // `ix_movements_occurred_at` (`V15`): el motor lee el índice en orden y
+    // para en el LIMIT.
+    return paginaGlobal(filtroGlobal(filtro), offset, limit);
+  }
+
+  private static MovementRow filaGlobal(Tuple fila) {
+    return new MovementRow(
+        (UUID) fila.get("id"),
+        (String) fila.get("code"),
+        (String) fila.get("tipo"),
+        (String) fila.get("status"),
+        (UUID) fila.get("suj_id"),
+        (String) fila.get("suj_username"),
+        (String) fila.get("suj_first"),
+        (String) fila.get("suj_last"),
+        (UUID) fila.get("cur_id"),
+        (String) fila.get("cur_code"),
+        (String) fila.get("pm_name"),
+        (BigDecimal) fila.get("total"),
+        (BigDecimal) fila.get("descuento"),
+        (BigDecimal) fila.get("pagar"),
+        instante(fila.get("occurred_at")),
+        instante(fila.get("confirmed_at")));
+  }
+
+  /**
+   * El conteo, acotado por construcción: la subconsulta lleva {@code LIMIT techo + 1}, de modo que
+   * nunca examina más de esas filas, tenga la tabla mil o cien millones. Es la misma forma de
+   * {@code JpaAuditQueryRepository}.
+   */
+  @Override
+  @Transactional(readOnly = true)
+  public BoundedCount countAll(MovementFilter filtro, int techo) {
+    return contarAcotado(filtroGlobal(filtro), techo);
+  }
+
+  // ---------------------------------------------------------------------------
+  // `RF-MV-015` — las ventas de mi alcance
+  // ---------------------------------------------------------------------------
+
+  /**
+   * El predicado de las ventas de mi alcance, <b>escrito una vez</b> para la página y el conteo,
+   * sobre las mismas tablas y la misma {@link Filtro} del listado global.
+   *
+   * <p>Tres partes, en este orden: el tipo, fijo a {@code VENTA}; <b>el alcance</b> tal como `SP`
+   * lo resolvió (`plan.md` §4.4) —nada si es todo; un {@code EXISTS} sobre las líneas con el
+   * conjunto de vendedores de la red; o {@code m.user_id = :actor} si es solo él—; y los filtros.
+   * El vendedor del filtro va en <b>otro</b> {@code EXISTS}, y con el conjunto de la red se
+   * superponen sin estorbarse: el caso de uso ya comprobó que está dentro.
+   */
+  private static Filtro filtroDeVentas(SalesFilter f) {
+    Filtro filtro = new Filtro();
+    filtro.condicion("mt.code = :tipoVenta", "tipoVenta", "VENTA");
+    if (!f.everything()) {
+      if (f.ownerId() != null) {
+        filtro.igual("m.user_id", "propietario", f.ownerId());
+      } else {
+        filtro.condicion(
+            "EXISTS (SELECT 1 FROM movement_details d"
+                + " WHERE d.movement_id = m.id AND d.seller_id IN (:red))",
+            "red",
+            f.network());
+      }
+    }
+    if (f.sellerId() != null) {
+      filtro.condicion(
+          "EXISTS (SELECT 1 FROM movement_details d"
+              + " WHERE d.movement_id = m.id AND d.seller_id = :vendedor)",
+          "vendedor",
+          f.sellerId());
+    }
+    filtro.igual("m.status", "estado", f.status());
+    if (f.from() != null) {
+      filtro.condicion("m.occurred_at >= :desde", "desde", f.from());
+    }
+    if (f.to() != null) {
+      filtro.condicion("m.occurred_at < :hasta", "hasta", f.to());
+    }
+    return filtro;
+  }
+
+  @Override
+  @Transactional(readOnly = true)
+  public List<MovementRow> findSales(SalesFilter filtro, int offset, int limit) {
+    return paginaGlobal(filtroDeVentas(filtro), offset, limit);
+  }
+
+  @Override
+  @Transactional(readOnly = true)
+  public BoundedCount countSales(SalesFilter filtro, int techo) {
+    return contarAcotado(filtroDeVentas(filtro), techo);
+  }
+
+  /**
+   * La página del libro con el predicado dado: la misma proyección y el mismo orden de `findAll`.
+   */
+  private List<MovementRow> paginaGlobal(Filtro donde, int offset, int limit) {
     Query consulta =
         em.createNativeQuery(
-            """
-            SELECT m.id AS id, m.code AS code, mt.code AS tipo, m.status AS status,
-                   suj.id AS suj_id, suj.username AS suj_username,
-                   suj.first_name AS suj_first, suj.last_name AS suj_last,
-                   cur.id AS cur_id, cur.code AS cur_code, pm.name AS pm_name,
-                   m.total_amount AS total, m.discount_amount AS descuento,
-                   m.payable_amount AS pagar,
-                   m.occurred_at AS occurred_at, m.confirmed_at AS confirmed_at
-            """
+            COLUMNAS_GLOBALES
                 + TABLAS_GLOBALES
                 + donde.sql()
-                // El mismo desempate que el listado propio, y el que lleva
-                // `ix_movements_occurred_at` (`V15`): el motor lee el índice en
-                // orden y para en el LIMIT.
                 + " ORDER BY m.occurred_at DESC, m.id DESC LIMIT :limite OFFSET :desplazamiento",
             Tuple.class);
     donde.enlazar(consulta);
@@ -896,37 +994,12 @@ public class JpaMovementRepository implements MovementRepository {
 
     List<MovementRow> resultado = new ArrayList<>(filas.size());
     for (Tuple fila : filas) {
-      resultado.add(
-          new MovementRow(
-              (UUID) fila.get("id"),
-              (String) fila.get("code"),
-              (String) fila.get("tipo"),
-              (String) fila.get("status"),
-              (UUID) fila.get("suj_id"),
-              (String) fila.get("suj_username"),
-              (String) fila.get("suj_first"),
-              (String) fila.get("suj_last"),
-              (UUID) fila.get("cur_id"),
-              (String) fila.get("cur_code"),
-              (String) fila.get("pm_name"),
-              (BigDecimal) fila.get("total"),
-              (BigDecimal) fila.get("descuento"),
-              (BigDecimal) fila.get("pagar"),
-              instante(fila.get("occurred_at")),
-              instante(fila.get("confirmed_at"))));
+      resultado.add(filaGlobal(fila));
     }
     return resultado;
   }
 
-  /**
-   * El conteo, acotado por construcción: la subconsulta lleva {@code LIMIT techo + 1}, de modo que
-   * nunca examina más de esas filas, tenga la tabla mil o cien millones. Es la misma forma de
-   * {@code JpaAuditQueryRepository}.
-   */
-  @Override
-  @Transactional(readOnly = true)
-  public BoundedCount countAll(MovementFilter filtro, int techo) {
-    Filtro donde = filtroGlobal(filtro);
+  private BoundedCount contarAcotado(Filtro donde, int techo) {
     Query consulta =
         em.createNativeQuery(
             "SELECT count(*) FROM (SELECT 1 " + TABLAS_GLOBALES + donde.sql() + " LIMIT :techo) t");
