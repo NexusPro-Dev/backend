@@ -262,14 +262,16 @@ class RolePermissionsIT extends IntegrationTestBase {
     // Hasta el 16-09-2026 esta misma petición era 409 por RN-SEG-012, y ningún
     // vendedor ni ningún cliente podía tener nunca un permiso. La prueba se
     // invierte en lugar de borrarse: si alguien vuelve a cerrar la puerta,
-    // falla aquí.
+    // falla aquí. Desde el 21-09-2026 parte con los once de alcance propio que
+    // V31 da a todo rol (RF-SP-062), y se cuenta a partir de ellos.
     UUID manager = UUID.fromString(MANAGER);
-    assertThat(permisosDe(manager)).isZero();
+    int base = ALCANCE_PROPIO.size();
+    assertThat(permisosDe(manager)).isEqualTo(base);
 
     mvc.perform(agregar(manager, heredables))
         .andExpect(status().isOk())
-        .andExpect(jsonPath("$.permissions.length()").value(heredables.size()));
-    assertThat(permisosDe(manager)).isEqualTo(heredables.size());
+        .andExpect(jsonPath("$.permissions.length()").value(base + heredables.size()));
+    assertThat(permisosDe(manager)).isEqualTo(base + heredables.size());
 
     // Fuera de ADMIN sigue siendo 409: la marca de sistema no relaja la contención.
     mvc.perform(agregar(manager, List.of(ajeno)))
@@ -277,7 +279,7 @@ class RolePermissionsIT extends IntegrationTestBase {
         .andExpect(jsonPath("$.errors[0].code").value("RN-SEG-003"));
 
     mvc.perform(retirar(manager, heredables)).andExpect(status().isOk());
-    assertThat(permisosDe(manager)).isZero();
+    assertThat(permisosDe(manager)).isEqualTo(base);
   }
 
   @Test
@@ -377,13 +379,15 @@ class RolePermissionsIT extends IntegrationTestBase {
             + " (SELECT id FROM roles WHERE is_system = false)");
     jdbc.update("DELETE FROM roles WHERE is_system = false");
     jdbc.update("UPDATE roles SET status = 'ACTIVO', deleted_at = NULL WHERE is_system = true");
-    // Los cuatro roles de sistema que V8 siembra SIN permisos vuelven a estar
-    // vacíos: desde el 16-09-2026 se les puede conceder, y lo que una prueba
-    // les deje lo ve la siguiente.
+    // Los cuatro roles de sistema que V8 siembra SIN permisos vuelven a su
+    // estado de siembra: desde el 16-09-2026 se les puede conceder, y lo que una
+    // prueba les deje lo ve la siguiente. Y desde el 21-09-2026 ese estado no es
+    // «vacío» sino el reparto de V31 (RF-SP-062): los de alcance propio.
     jdbc.update(
         "DELETE FROM role_permissions WHERE role_id IN"
             + " (SELECT id FROM roles WHERE is_system = true"
             + "   AND code IN ('MANAGER', 'DIRECTOR', 'AGENTE', 'CLIENTE'))");
+    reponerAlcancePropio(jdbc);
     jdbc.update(
         "INSERT INTO user_roles (user_id, role_id, role_type) SELECT ?, r.id, r.role_type FROM roles r WHERE r.id = ?::uuid ON CONFLICT DO NOTHING",
         SUPERADMIN,

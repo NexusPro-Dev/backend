@@ -106,10 +106,13 @@ class RoleDetailIT extends IntegrationTestBase {
         .andExpect(jsonPath("$.permissions").isEmpty())
         .andExpect(jsonPath("$.parentRole.code").value("ADMIN"));
 
-    // Y el sembrado sin permisos sigue igual.
+    // Y el sembrado «sin permisos» porta exactamente los once de alcance propio
+    // que V31 da a todo rol de vendedor (RF-SP-062, 21-09-2026) — y ninguno de
+    // los de ADMIN, que sería la herencia que RN-SEG-004 prohíbe.
     mvc.perform(detalle(AGENTE))
         .andExpect(status().isOk())
-        .andExpect(jsonPath("$.permissions").isEmpty());
+        .andExpect(jsonPath("$.permissions.length()").value(ALCANCE_PROPIO.size()))
+        .andExpect(jsonPath("$.permissions[?(@.code == 'roles:read')]").doesNotExist());
   }
 
   @Test
