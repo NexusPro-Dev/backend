@@ -7,7 +7,7 @@
 | Plan | [`plan.md`](plan.md) v0.1.0 |
 | `plan.md` aprobado el | 21-09-2026 |
 | Estado | **En revisión** — `T-01` a `T-11` `Hecha` el 21-09-2026 |
-| Issue | Pendiente de crear |
+| Issue | [#78](https://github.com/NexusPro-Dev/backend/issues/78); la enmienda de §1.1, [#79](https://github.com/NexusPro-Dev/backend/issues/79) |
 | Rama | `feature/ventas-de-mi-alcance` |
 
 !!! info "Qué va en este documento"
