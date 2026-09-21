@@ -16,6 +16,7 @@ import com.factech.nexus.modules.system.users.application.OwnProfileResponse;
 import com.factech.nexus.modules.system.users.application.RegisterUserRequest;
 import com.factech.nexus.modules.system.users.application.ResetPasswordRequest;
 import com.factech.nexus.modules.system.users.application.RevokeRolesRequest;
+import com.factech.nexus.modules.system.users.application.SellerClientItem;
 import com.factech.nexus.modules.system.users.application.UpdateOwnProfileRequest;
 import com.factech.nexus.modules.system.users.application.UpdateUserRequest;
 import com.factech.nexus.modules.system.users.application.UserDetailResponse;
@@ -31,6 +32,7 @@ import com.factech.nexus.modules.system.users.domain.service.DeleteUserService;
 import com.factech.nexus.modules.system.users.domain.service.GetClientSellersService;
 import com.factech.nexus.modules.system.users.domain.service.GetCommercialTeamService;
 import com.factech.nexus.modules.system.users.domain.service.GetOwnProfileService;
+import com.factech.nexus.modules.system.users.domain.service.GetSellerClientsService;
 import com.factech.nexus.modules.system.users.domain.service.GetUserService;
 import com.factech.nexus.modules.system.users.domain.service.ListUsersService;
 import com.factech.nexus.modules.system.users.domain.service.RegisterUserService;
@@ -103,6 +105,7 @@ public class UserController {
   private final GetBrokerAccountsService cuentasDeBroker;
   private final GetTeamBrokerAccountsService cuentasDelEquipo;
   private final GetClientSellersService vendedoresDelCliente;
+  private final GetSellerClientsService carteraDelVendedor;
 
   public UserController(
       RegisterUserService alta,
@@ -122,10 +125,12 @@ public class UserController {
       ResetUserPasswordService restablecimiento,
       GetBrokerAccountsService cuentasDeBroker,
       GetTeamBrokerAccountsService cuentasDelEquipo,
-      GetClientSellersService vendedoresDelCliente) {
+      GetClientSellersService vendedoresDelCliente,
+      GetSellerClientsService carteraDelVendedor) {
     this.cuentasDeBroker = cuentasDeBroker;
     this.cuentasDelEquipo = cuentasDelEquipo;
     this.vendedoresDelCliente = vendedoresDelCliente;
+    this.carteraDelVendedor = carteraDelVendedor;
     this.alta = alta;
     this.asignacion = asignacion;
     this.retiro = retiro;
@@ -515,6 +520,151 @@ public class UserController {
   })
   public ClientSellersResponse vendedoresDe(@PathVariable UUID id) {
     return vendedoresDelCliente.of(id);
+  }
+
+  // SIN `@PreAuthorize`, y es deliberado (`RF-SP-061` · `plan.md` §5): el
+  // vendedor sale del token y no hay nada que autorizar más allá de estar
+  // autenticado. La ruta consta en `EndpointPermissionsIT` con este motivo.
+  @GetMapping("/me/clients")
+  @Operation(
+      summary = "Consultar mis clientes",
+      description =
+          """
+          Devuelve **la cartera del actor**, paginada: los clientes que
+          registró —origen `REGISTRO`, de los que es el **principal**— y los
+          que le compraron por su enlace —origen `HOTLINK`—. **Los vínculos más
+          recientes primero**, después por nombre de usuario.
+
+          Es la lectura inversa de `GET /api/v1/users/me/sellers` (`RF-SP-061`,
+          `RN-SP-049`): la misma tabla mirada desde el vendedor. Y es la que
+          sustituye a `GET /users/{id}/team?roles=CLIENTE`, que desde el
+          18-09-2026 devuelve vacío porque **el equipo es solo fuerza
+          comercial** y la cartera no cuelga de él.
+
+          **Cada fila lleva `id` y `status`**, al contrario que los vendedores
+          de un cliente y por la razón inversa: desde la cartera se abre la ficha
+          del cliente (`GET /api/v1/users/{id}`), y una cartera se trabaja —quien
+          se registró y **todavía no depositó** está en `FTD_PENDIENTE`—. Lo que
+          se publica es lo que el vendedor ya ve de esa persona en su detalle:
+          ni correo, ni roles, ni membresía.
+
+          **Un cliente desactivado o bloqueado sigue saliendo**, con su estado:
+          el vínculo es un hecho. **Uno eliminado no**: para el sistema no existe
+          y su `id` no abriría nada.
+
+          **Hoy toda la cartera es `REGISTRO`**, y no es un defecto: las filas
+          `HOTLINK` las escribirá la compra por hotlink (`RF-MV-011`,
+          `RF-MV-013`), que no está construida. El contrato y el filtro
+          `origin` ya las contemplan.
+
+          `linkedAt` es desde cuándo es su cliente; en los vínculos anteriores al
+          18-09-2026 —traídos por `V20` desde `user_supervisors`— es desde cuándo
+          colgaba de él allí.
+
+          Quien no es vendedor —un cliente, un funcionario— recibe `200` con la
+          página vacía: nadie se registró con su enlace.
+          """)
+  @ApiResponses({
+    // SIN `@Schema(implementation = PageResponse.class)`, por lo que
+    // `GET /users/me/team/broker-accounts` dejó escrito: el anotado publica la
+    // envoltura cruda y springdoc, dejado solo, emite `PageResponseSellerClientItem`.
+    @ApiResponse(
+        responseCode = "200",
+        description =
+            "Página con los clientes del actor, los vínculos más recientes primero; vacía si no"
+                + " tiene cartera."),
+    @ApiResponse(
+        responseCode = "400",
+        description =
+            "`origin` fuera de `REGISTRO`/`HOTLINK` (`VAL-001`) o paginación fuera de"
+                + " límites (`VAL-003`)",
+        content = @Content),
+    @ApiResponse(
+        responseCode = "401",
+        description = "Token ausente o inválido (`AUTH-001`)",
+        content = @Content),
+    @ApiResponse(
+        responseCode = "500",
+        description = "Fallo no controlado (`ERR-500`)",
+        content = @Content)
+  })
+  public PageResponse<SellerClientItem> misClientes(
+      @Parameter(
+              description =
+                  "Acota a los propios (`REGISTRO`) o a los vinculados (`HOTLINK`). Ausente,"
+                      + " todos.")
+          @RequestParam(required = false)
+          String origin,
+      @RequestParam(required = false) Integer page,
+      @RequestParam(required = false) Integer size) {
+    return carteraDelVendedor.mine(origin, page, size);
+  }
+
+  @GetMapping("/{id}/clients")
+  @PreAuthorize("hasAuthority('users:read-clients')")
+  @Operation(
+      summary = "Consultar los clientes de un vendedor",
+      description =
+          """
+          La misma página que `GET /api/v1/users/me/clients`, sobre **cualquier
+          persona** y con **`users:read-clients`**, permiso propio de esta
+          operación (`RN-SEG-014`, un permiso por operación; `V30` lo siembra a
+          `SUPERADMIN` y `ADMIN`). Ni `users:read`, ni `users:read-team`, ni
+          `users:read-sellers` la abren: el frontend decide qué vista mostrar por
+          un solo código, y «los vendedores de un cliente» y «los clientes de un
+          vendedor» son dos vistas.
+
+          **No se autoriza por estructura.** El director de un agente no ve la
+          cartera del agente por ser su director (D-22 sigue con su única
+          excepción, las cuentas de broker de `RN-SP-046`); quien deba ver
+          carteras ajenas porta el permiso, y ese día las ve todas.
+
+          **`403` sin el permiso y `404` con el permiso y una persona que no
+          existe**, el modelo general de `security.md` §5: el `403` sale antes
+          de tocar la base y no revela si el identificador existe.
+
+          Una persona que no es vendedor devuelve `200` con la página vacía.
+          """)
+  @ApiResponses({
+    @ApiResponse(
+        responseCode = "200",
+        description =
+            "Página con los clientes de la persona, los vínculos más recientes primero; vacía si"
+                + " no tiene cartera."),
+    @ApiResponse(
+        responseCode = "400",
+        description =
+            "Identificador malformado o `origin` fuera de `REGISTRO`/`HOTLINK` (`VAL-001`),"
+                + " o paginación fuera de límites (`VAL-003`)",
+        content = @Content),
+    @ApiResponse(
+        responseCode = "401",
+        description = "Token ausente o inválido (`AUTH-001`)",
+        content = @Content),
+    @ApiResponse(
+        responseCode = "403",
+        description = "Autenticado sin `users:read-clients` (`AUTH-002`)",
+        content = @Content),
+    @ApiResponse(
+        responseCode = "404",
+        description = "La persona no existe o está eliminada (`VAL-002`)",
+        content = @Content),
+    @ApiResponse(
+        responseCode = "500",
+        description = "Fallo no controlado (`ERR-500`)",
+        content = @Content)
+  })
+  public PageResponse<SellerClientItem> clientesDe(
+      @PathVariable UUID id,
+      @Parameter(
+              description =
+                  "Acota a los propios (`REGISTRO`) o a los vinculados (`HOTLINK`). Ausente,"
+                      + " todos.")
+          @RequestParam(required = false)
+          String origin,
+      @RequestParam(required = false) Integer page,
+      @RequestParam(required = false) Integer size) {
+    return carteraDelVendedor.of(id, origin, page, size);
   }
 
   @PatchMapping("/me")

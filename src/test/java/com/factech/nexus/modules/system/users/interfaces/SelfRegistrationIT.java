@@ -159,7 +159,7 @@ class SelfRegistrationIT extends IntegrationTestBase {
   }
 
   @Test
-  @DisplayName("`CA-SP-509`, `CA-SP-510` y `CA-SP-697` — rol, membresía con vigencia y atribución")
+  @DisplayName("`CA-SP-509`, `CA-SP-510` y `CA-SP-711` — rol, membresía con vigencia y atribución")
   void losCuatroHechos() throws Exception {
     mvc.perform(registro(cuerpo("ana.ruiz", "ana@ejemplo.com", "12345678")))
         .andExpect(status().isCreated());
@@ -182,7 +182,7 @@ class SelfRegistrationIT extends IntegrationTestBase {
                 free.toString()))
         .isOne();
 
-    // `CA-SP-697` (18-09-2026, invierte `CA-SP-513`): la atribución es la fila
+    // `CA-SP-711` (18-09-2026, invierte `CA-SP-513`): la atribución es la fila
     // REGISTRO de `client_sellers`, cita la venta del enlace, y `user_supervisors`
     // NO recibe nada — el cliente no cuelga de la estructura de mando.
     assertThat(
@@ -202,7 +202,7 @@ class SelfRegistrationIT extends IntegrationTestBase {
         .isZero();
 
     // Y la línea de esa venta lleva al mismo vendedor: la venta leyó el vínculo
-    // que el registro acababa de escribir (`RN-MV-003`, `CA-SP-695`).
+    // que el registro acababa de escribir (`RN-MV-003`, `CA-SP-709`).
     assertThat(
             jdbc.queryForObject(
                 "SELECT count(*) FROM movement_details md JOIN movements m ON m.id = md.movement_id"
@@ -214,7 +214,7 @@ class SelfRegistrationIT extends IntegrationTestBase {
 
   @Test
   @DisplayName(
-      "`CA-SP-698` y `CA-SP-699` — el vendedor con clientes se puede desactivar, y su equipo no los lista")
+      "`CA-SP-712` y `CA-SP-713` — el vendedor con clientes se puede desactivar, y su equipo no los lista")
   void laCarteraNoEsEquipo() throws Exception {
     mvc.perform(registro(cuerpo("ana.ruiz", "ana@ejemplo.com", "12345678")))
         .andExpect(status().isCreated());
@@ -223,7 +223,7 @@ class SelfRegistrationIT extends IntegrationTestBase {
         jdbc.queryForObject(
             "SELECT id::text FROM users WHERE username = 'reg-agente'", String.class);
 
-    // `CA-SP-699` (invierte `CA-SP-526`): el equipo de `RF-SP-042` es solo fuerza
+    // `CA-SP-713` (invierte `CA-SP-526`): el equipo de `RF-SP-042` es solo fuerza
     // comercial; la cliente no aparece, ni pidiendo el rol CLIENTE.
     mvc.perform(get("/api/v1/users/" + agente + "/team").with(administrador()))
         .andExpect(status().isOk())
@@ -232,7 +232,7 @@ class SelfRegistrationIT extends IntegrationTestBase {
         .andExpect(status().isOk())
         .andExpect(jsonPath("$.team.totalElements").value(0));
 
-    // `CA-SP-698` (invierte `CA-SP-525`): retirar al agente no exige reasignar
+    // `CA-SP-712` (invierte `CA-SP-525`): retirar al agente no exige reasignar
     // a nadie — la cartera no cuenta para `RN-SP-022`— y el vínculo queda.
     mvc.perform(
             patch("/api/v1/users/" + agente + "/status")
@@ -751,8 +751,8 @@ class SelfRegistrationIT extends IntegrationTestBase {
   // ---------------------------------------------------------------------------
 
   /**
-   * Un administrador con lo justo para mirar el equipo y cambiar un estado (`CA-SP-698`,
-   * `CA-SP-699`).
+   * Un administrador con lo justo para mirar el equipo y cambiar un estado (`CA-SP-712`,
+   * `CA-SP-713`).
    */
   private static RequestPostProcessor administrador() {
     // La familia entera de users:read y users:update: desde RF-SP-060 el equipo es

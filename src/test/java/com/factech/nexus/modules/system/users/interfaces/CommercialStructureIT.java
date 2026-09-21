@@ -444,9 +444,9 @@ class CommercialStructureIT extends IntegrationTestBase {
 
   @Test
   @DisplayName(
-      "CA-SP-624 y CA-SP-696 — cada persona lleva TODOS sus roles, y la cartera NO es equipo")
+      "CA-SP-624 y CA-SP-710 — cada persona lleva TODOS sus roles, y la cartera NO es equipo")
   void cadaPersonaLlevaSusRoles() throws Exception {
-    // `CA-SP-696` (18-09-2026) invierte a `CA-SP-625`: el cliente ya no cuelga de
+    // `CA-SP-710` (18-09-2026) invierte a `CA-SP-625`: el cliente ya no cuelga de
     // `user_supervisors` (`RN-SP-028` revertida) sino de `client_sellers`, y por
     // eso NO aparece en el equipo de su vendedor — ni filtrando por CLIENTE.
     UUID cliente = crearPersona("cperez", CLIENTE);

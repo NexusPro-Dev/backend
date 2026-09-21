@@ -82,7 +82,7 @@ class BrokerAccountsIT extends IntegrationTestBase {
     // Un CLIENTE, y no está en `user_supervisors` (`RN-SP-028` revertida,
     // 18-09-2026): su principal es la fila REGISTRO de `client_sellers`, y es
     // `ajeno` —a propósito, para que `base` siga sin equipo (`CA-SP-644`)—.
-    // `base` le vendió por hotlink: un vínculo que NO le abre nada (`CA-SP-693`).
+    // `base` le vendió por hotlink: un vínculo que NO le abre nada (`CA-SP-707`).
     cliente = crearPersona("cperez", CLIENTE);
     registrar(cliente, ajeno);
     vincularPorHotlink(cliente, base);
@@ -212,7 +212,7 @@ class BrokerAccountsIT extends IntegrationTestBase {
 
   @Test
   @DisplayName(
-      "`CA-SP-693` — el PRINCIPAL ve las cuentas de su cliente; el vinculado por hotlink, 404")
+      "`CA-SP-707` — el PRINCIPAL ve las cuentas de su cliente; el vinculado por hotlink, 404")
   void elPrincipalVeLasDeSuCliente() throws Exception {
     // `ajeno` no es superior de nadie en `user_supervisors`: lo único que le
     // abre esta lectura es la fila REGISTRO de `client_sellers`. Es la prueba
@@ -461,7 +461,7 @@ class BrokerAccountsIT extends IntegrationTestBase {
             jdbc.queryForObject(
                 "SELECT count(*) FROM user_brokers WHERE status = 'REGISTER'", Integer.class))
         // Cinco desde el 18-09-2026: las cuatro de la fuerza comercial y la de la
-        // cliente registrada por `ajeno` (`CA-SP-693`).
+        // cliente registrada por `ajeno` (`CA-SP-707`).
         .isEqualTo(5);
   }
 

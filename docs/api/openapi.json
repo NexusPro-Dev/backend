@@ -3091,6 +3091,36 @@
         },
         "type" : "object"
       },
+      "PageResponseSellerClientItem" : {
+        "properties" : {
+          "content" : {
+            "items" : {
+              "$ref" : "#/components/schemas/SellerClientItem"
+            },
+            "type" : "array"
+          },
+          "page" : {
+            "format" : "int32",
+            "type" : "integer"
+          },
+          "size" : {
+            "format" : "int32",
+            "type" : "integer"
+          },
+          "totalElements" : {
+            "format" : "int64",
+            "type" : "integer"
+          },
+          "totalIsExact" : {
+            "type" : "boolean"
+          },
+          "totalPages" : {
+            "format" : "int32",
+            "type" : "integer"
+          }
+        },
+        "type" : "object"
+      },
       "PageResponseTeamBrokerAccountItem" : {
         "properties" : {
           "content" : {
@@ -4836,6 +4866,44 @@
             "type" : "string"
           },
           "status" : {
+            "type" : "string"
+          },
+          "username" : {
+            "type" : "string"
+          }
+        },
+        "type" : "object"
+      },
+      "SellerClientItem" : {
+        "properties" : {
+          "firstName" : {
+            "type" : "string"
+          },
+          "id" : {
+            "description" : "Identificador del cliente, con el que se abre su ficha (`RF-SP-026`).",
+            "format" : "uuid",
+            "type" : "string"
+          },
+          "lastName" : {
+            "type" : "string"
+          },
+          "linkedAt" : {
+            "description" : "Desde cuándo es su cliente. En las filas que `V20` trajo desde `user_supervisors`, desde cuándo colgaba de él allí.",
+            "format" : "date-time",
+            "type" : "string"
+          },
+          "origin" : {
+            "description" : "`REGISTRO` si el vendedor lo registró —es su principal—, `HOTLINK` si le vendió por su enlace.",
+            "enum" : [ "REGISTRO", "HOTLINK" ],
+            "type" : "string"
+          },
+          "principal" : {
+            "description" : "`true` solo en la fila `REGISTRO`: el vendedor es el principal de este cliente.",
+            "type" : "boolean"
+          },
+          "status" : {
+            "description" : "Estado del cliente, el mismo que publica `GET /api/v1/users`. `FTD_PENDIENTE` es quien se registró por el enlace y aún no depositó.",
+            "enum" : [ "ACTIVO", "FTD_PENDIENTE", "INACTIVO", "BLOQUEADO" ],
             "type" : "string"
           },
           "username" : {
@@ -12815,6 +12883,60 @@
         "tags" : [ "Usuarios" ]
       }
     },
+    "/api/v1/users/me/clients" : {
+      "get" : {
+        "description" : "**Permiso requerido:** ninguno más allá del token. El alcance lo acota el servicio —el propio actor, o la relación con la persona consultada— y la descripción dice cómo.\n\nDevuelve **la cartera del actor**, paginada: los clientes que\nregistró —origen `REGISTRO`, de los que es el **principal**— y los\nque le compraron por su enlace —origen `HOTLINK`—. **Los vínculos más\nrecientes primero**, después por nombre de usuario.\n\nEs la lectura inversa de `GET /api/v1/users/me/sellers` (`RF-SP-061`,\n`RN-SP-049`): la misma tabla mirada desde el vendedor. Y es la que\nsustituye a `GET /users/{id}/team?roles=CLIENTE`, que desde el\n18-09-2026 devuelve vacío porque **el equipo es solo fuerza\ncomercial** y la cartera no cuelga de él.\n\n**Cada fila lleva `id` y `status`**, al contrario que los vendedores\nde un cliente y por la razón inversa: desde la cartera se abre la ficha\ndel cliente (`GET /api/v1/users/{id}`), y una cartera se trabaja —quien\nse registró y **todavía no depositó** está en `FTD_PENDIENTE`—. Lo que\nse publica es lo que el vendedor ya ve de esa persona en su detalle:\nni correo, ni roles, ni membresía.\n\n**Un cliente desactivado o bloqueado sigue saliendo**, con su estado:\nel vínculo es un hecho. **Uno eliminado no**: para el sistema no existe\ny su `id` no abriría nada.\n\n**Hoy toda la cartera es `REGISTRO`**, y no es un defecto: las filas\n`HOTLINK` las escribirá la compra por hotlink (`RF-MV-011`,\n`RF-MV-013`), que no está construida. El contrato y el filtro\n`origin` ya las contemplan.\n\n`linkedAt` es desde cuándo es su cliente; en los vínculos anteriores al\n18-09-2026 —traídos por `V20` desde `user_supervisors`— es desde cuándo\ncolgaba de él allí.\n\nQuien no es vendedor —un cliente, un funcionario— recibe `200` con la\npágina vacía: nadie se registró con su enlace.\n",
+        "operationId" : "misClientes",
+        "parameters" : [ {
+          "description" : "Acota a los propios (`REGISTRO`) o a los vinculados (`HOTLINK`). Ausente, todos.",
+          "in" : "query",
+          "name" : "origin",
+          "required" : false,
+          "schema" : {
+            "type" : "string"
+          }
+        }, {
+          "in" : "query",
+          "name" : "page",
+          "required" : false,
+          "schema" : {
+            "format" : "int32",
+            "type" : "integer"
+          }
+        }, {
+          "in" : "query",
+          "name" : "size",
+          "required" : false,
+          "schema" : {
+            "format" : "int32",
+            "type" : "integer"
+          }
+        } ],
+        "responses" : {
+          "200" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/PageResponseSellerClientItem"
+                }
+              }
+            },
+            "description" : "Página con los clientes del actor, los vínculos más recientes primero; vacía si no tiene cartera."
+          },
+          "400" : {
+            "description" : "`origin` fuera de `REGISTRO`/`HOTLINK` (`VAL-001`) o paginación fuera de límites (`VAL-003`)"
+          },
+          "401" : {
+            "description" : "Token ausente o inválido (`AUTH-001`)"
+          },
+          "500" : {
+            "description" : "Fallo no controlado (`ERR-500`)"
+          }
+        },
+        "summary" : "Consultar mis clientes",
+        "tags" : [ "Usuarios" ]
+      }
+    },
     "/api/v1/users/me/sellers" : {
       "get" : {
         "description" : "**Permiso requerido:** ninguno más allá del token. El alcance lo acota el servicio —el propio actor, o la relación con la persona consultada— y la descripción dice cómo.\n\nDevuelve **los vendedores del actor**: quien lo registró —su **principal**,\norigen `REGISTRO`— y los vendedores por cuyo enlace compró —origen\n`HOTLINK`—. **El principal va primero**, después por fecha de vínculo.\n\nEs la respuesta a «¿a qué agente estoy asignado?» (`RF-SP-059`,\n`RN-SP-049`). **El principal es quien lo registró y no se cambia**:\nno hay operación que lo reasigne ni historial que cerrar. Un vínculo\nes un hecho, y por eso tampoco se quita: un vendedor desactivado o\neliminado **sigue saliendo**.\n\n**Hoy la lista tiene un solo elemento**, y no es un defecto: las filas\n`HOTLINK` las escribirá la compra por hotlink (`RF-MV-011`,\n`RF-MV-013`), que no está construida. El contrato ya es el definitivo.\n\nDe cada vendedor se publica lo mismo que su hotlink (`RN-PM-022`):\n**nombre y apellido**, más el nombre de usuario, que el cliente ya\nconoce. **Ni identificador, ni correo, ni estado, ni roles.**\n\n`linkedAt` es desde cuándo es su vendedor; en los vínculos anteriores al\n18-09-2026 —traídos por `V20` desde `user_supervisors`— es desde cuándo\ncolgaba de él allí.\n\nQuien no es cliente —un vendedor, un funcionario— recibe `200` con la\ncolección vacía: nadie lo registró por enlace. Un cliente dado de alta\npor un funcionario, también.\n\n**Desde el 18-09-2026 el cliente no cuelga de `user_supervisors`**, de\nmodo que `GET /api/v1/users/me` **no devuelve `supervisor`** a un\ncliente: su vía es esta.\n",
@@ -13044,6 +13166,75 @@
         },
         "summary" : "Consultar las cuentas de broker de una persona",
         "tags" : [ "Usuarios" ]
+      }
+    },
+    "/api/v1/users/{id}/clients" : {
+      "get" : {
+        "description" : "**Permiso requerido:** `users:read-clients`. Sin él, `403` (`AUTH-002`).\n\nLa misma página que `GET /api/v1/users/me/clients`, sobre **cualquier\npersona** y con **`users:read-clients`**, permiso propio de esta\noperación (`RN-SEG-014`, un permiso por operación; `V30` lo siembra a\n`SUPERADMIN` y `ADMIN`). Ni `users:read`, ni `users:read-team`, ni\n`users:read-sellers` la abren: el frontend decide qué vista mostrar por\nun solo código, y «los vendedores de un cliente» y «los clientes de un\nvendedor» son dos vistas.\n\n**No se autoriza por estructura.** El director de un agente no ve la\ncartera del agente por ser su director (D-22 sigue con su única\nexcepción, las cuentas de broker de `RN-SP-046`); quien deba ver\ncarteras ajenas porta el permiso, y ese día las ve todas.\n\n**`403` sin el permiso y `404` con el permiso y una persona que no\nexiste**, el modelo general de `security.md` §5: el `403` sale antes\nde tocar la base y no revela si el identificador existe.\n\nUna persona que no es vendedor devuelve `200` con la página vacía.\n",
+        "operationId" : "clientesDe",
+        "parameters" : [ {
+          "in" : "path",
+          "name" : "id",
+          "required" : true,
+          "schema" : {
+            "format" : "uuid",
+            "type" : "string"
+          }
+        }, {
+          "description" : "Acota a los propios (`REGISTRO`) o a los vinculados (`HOTLINK`). Ausente, todos.",
+          "in" : "query",
+          "name" : "origin",
+          "required" : false,
+          "schema" : {
+            "type" : "string"
+          }
+        }, {
+          "in" : "query",
+          "name" : "page",
+          "required" : false,
+          "schema" : {
+            "format" : "int32",
+            "type" : "integer"
+          }
+        }, {
+          "in" : "query",
+          "name" : "size",
+          "required" : false,
+          "schema" : {
+            "format" : "int32",
+            "type" : "integer"
+          }
+        } ],
+        "responses" : {
+          "200" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/PageResponseSellerClientItem"
+                }
+              }
+            },
+            "description" : "Página con los clientes de la persona, los vínculos más recientes primero; vacía si no tiene cartera."
+          },
+          "400" : {
+            "description" : "Identificador malformado o `origin` fuera de `REGISTRO`/`HOTLINK` (`VAL-001`), o paginación fuera de límites (`VAL-003`)"
+          },
+          "401" : {
+            "description" : "Token ausente o inválido (`AUTH-001`)"
+          },
+          "403" : {
+            "description" : "Autenticado sin `users:read-clients` (`AUTH-002`)"
+          },
+          "404" : {
+            "description" : "La persona no existe o está eliminada (`VAL-002`)"
+          },
+          "500" : {
+            "description" : "Fallo no controlado (`ERR-500`)"
+          }
+        },
+        "summary" : "Consultar los clientes de un vendedor",
+        "tags" : [ "Usuarios" ],
+        "x-required-permission" : "users:read-clients"
       }
     },
     "/api/v1/users/{id}/deletion" : {

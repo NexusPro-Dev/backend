@@ -48,6 +48,23 @@ public interface ClientSellerRepository {
   List<ClientSellerRow> findSellersOf(UUID clientId);
 
   /**
+   * Cuántos clientes <b>no eliminados</b> tiene un vendedor en su cartera, acotados por origen si
+   * se pide (`RF-SP-061`). Es la otra columna de la misma tabla: {@link #findSellersOf} mira por
+   * {@code client_id}; esto, por {@code seller_id}, con el índice que `RF-SP-059` dejó para ello.
+   */
+  long countClientsOf(UUID sellerId, String origin);
+
+  /**
+   * La cartera de un vendedor, paginada, <b>los vínculos más recientes primero</b> y después por
+   * nombre de usuario. El orden lo fija la consulta: la cartera crece por el final y lo nuevo es lo
+   * que se atiende (`RF-SP-061` spec §6.2). Los clientes eliminados <b>no salen</b>: para el
+   * sistema no existen y su identificador no abriría nada (`FA-007`).
+   *
+   * @param origin {@code REGISTRO}, {@code HOTLINK} o {@code null} para todos
+   */
+  List<SellerClientRow> findClientsOf(UUID sellerId, String origin, int offset, int limit);
+
+  /**
    * Un vendedor de un cliente, tal como lo publica `RF-SP-059` §6.2: nombre de usuario, nombre y
    * apellido, origen y desde cuándo. <b>Sin correo, estado ni roles.</b> El identificador viaja
    * aquí porque las autorizaciones lo comparan (`RN-SP-046`), pero la respuesta no lo publica.
@@ -64,6 +81,25 @@ public interface ClientSellerRepository {
 
     public boolean esPrincipal() {
       return REGISTRO.equals(origin);
+    }
+  }
+
+  /**
+   * Un cliente de la cartera de un vendedor, tal como lo publica `RF-SP-061` §6.2: <b>con
+   * identificador</b> —desde la cartera se abre su ficha— y <b>con estado</b> —una cartera se
+   * trabaja—, al contrario que {@link ClientSellerRow} y por la razón inversa.
+   */
+  record SellerClientRow(
+      UUID clientId,
+      String username,
+      String firstName,
+      String lastName,
+      String status,
+      String origin,
+      OffsetDateTime linkedAt) {
+
+    public boolean esPrincipal() {
+      return ClientSellerRow.REGISTRO.equals(origin);
     }
   }
 }
