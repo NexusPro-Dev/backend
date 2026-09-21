@@ -10,6 +10,7 @@ import com.factech.nexus.IntegrationTestBase;
 import java.time.OffsetDateTime;
 import java.time.ZoneOffset;
 import java.util.UUID;
+import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -314,6 +315,15 @@ class MyMovementsIT extends IntegrationTestBase {
 
   private RequestPostProcessor conPermisoDeLectura(UUID persona) {
     return user(persona.toString()).authorities(() -> "movements:read");
+  }
+
+  // Tambien AL TERMINAR: la ultima prueba dejaba movimientos y sus detalles apuntando
+  // a los productos de esta clase, y cualquier suite posterior que empiece con
+  // "DELETE FROM products" a secas —treinta y siete lo hacen— caia por la clave
+  // foranea de movement_details. Con el orden local no se veia; en CI si (21-09-2026).
+  @AfterEach
+  void devolverLaBaseASuSitio() {
+    limpiar();
   }
 
   private void limpiar() {

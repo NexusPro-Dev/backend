@@ -5,7 +5,7 @@
 | Módulo | `MV` — Movimientos |
 | Paquete | `modules/movements` |
 | Prefijos de permiso | `movements:` |
-| Versión | 0.28.0 |
+| Versión | 0.29.0 |
 | Estado | **Borrador** |
 | Responsable | Bonilla Diaz William Steven |
 | Fecha de creación | 02-09-2026 |
@@ -191,7 +191,7 @@ La dependencia es **acíclica**: `MV` → `PM` → `SP`, y `MV` → `SP`.
 | Prioridad | Alta |
 | Reglas aplicables | `RN-MV-001`, `RN-MV-004`, `RN-MV-005`, `RN-MV-020`, `RN-MV-021`, `RN-MV-029`, `RN-MV-030`; `RN-SP-014`, `RN-SP-018` |
 | Depende de | `RF-MV-001`; `SP` publica `MembershipGrant` (**D-26**) |
-| Tripleta | [`docs/specs/mv/003-confirmar-venta/`](../../specs/mv/003-confirmar-venta/spec.md) |
+| Tripleta | [`docs/specs/mv/003-confirmar-venta/`](../specs/mv/003-confirmar-venta/spec.md) |
 | Estado | **En desarrollo** — especificado y **construido el 17-09-2026** |
 
 **Entra por `POST /api/v1/movements/{id}/confirmation`**, sin cuerpo: confirmar es un hecho y no un formulario. La transición es **atómica y condicionada al estado anterior** —una sola escritura que solo acierta si la venta seguía `PENDIENTE`—, y eso es lo que hace que dos confirmaciones del mismo pago concedan **una vez**: la segunda encuentra la venta ya confirmada y responde que no está pendiente. En la misma transacción se recorren las líneas: la de un upgrade **automático** concede la membresía destino por `MembershipGrant` **salvo que baje de nivel** (`RN-MV-029`), las demás automáticas quedan **entregadas** en ese instante, y las **manuales** quedan **pendientes de autorización** para `RF-MV-010`. **La vigencia se cuenta desde la entrega**, no desde la venta (§5.4).
@@ -208,7 +208,7 @@ La dependencia es **acíclica**: `MV` → `PM` → `SP`, y `MV` → `SP`.
 | Prioridad | Alta |
 | Reglas aplicables | `RN-MV-001`, `RN-MV-004`, `RN-MV-005` |
 | Depende de | `RF-MV-001` |
-| Tripleta | [`docs/specs/mv/005-anular-venta/`](../../specs/mv/005-anular-venta/spec.md) |
+| Tripleta | [`docs/specs/mv/005-anular-venta/`](../specs/mv/005-anular-venta/spec.md) |
 | Estado | **En desarrollo** — especificado y **construido el 17-09-2026** |
 
 **Entra por `POST /api/v1/movements/{id}/voiding`** con el motivo en el cuerpo, **obligatorio** y verificado antes de tocar la venta. Es `RF-MV-003` sin la entrega: la misma transición atómica condicionada a `PENDIENTE`, y ningún recorrido de líneas, porque una pendiente no concedió nada (`RN-MV-004`). **Anular no es borrar**: la fila se queda con su código, sus líneas y sus importes, y desde `V17` con `voided_at` y `void_reason`, que es lo que separa «anulada» de «desaparecida» y lo que el detalle y `RF-MV-014` muestran. **Y anular no es rechazar** (§4.1): `RF-MV-004` sigue pendiente, con su significado y su permiso. Que el comprador retire su propia compra pendiente **no es este requerimiento**.
@@ -242,7 +242,7 @@ La dependencia es **acíclica**: `MV` → `PM` → `SP`, y `MV` → `SP`.
 | Prioridad | Alta |
 | Reglas aplicables | `RN-MV-001` a `RN-MV-009`, `RN-MV-012` a `RN-MV-014`, `RN-MV-016`, `RN-MV-018`, `RN-MV-022`, `RN-MV-026`, `RN-MV-027`, `RN-MV-028`; `RN-PM-036`, `RN-PM-037`, `RN-PM-039`, `RN-PM-044`, `RN-PM-047` |
 | Depende de | `RF-MV-002`, `RF-PM-017` a `RF-PM-025`, `RF-SP-045` |
-| Tripleta | [`docs/specs/mv/012-comprar-paquete/`](../../specs/mv/012-comprar-paquete/spec.md) |
+| Tripleta | [`docs/specs/mv/012-comprar-paquete/`](../specs/mv/012-comprar-paquete/spec.md) |
 | Estado | **En desarrollo** — registrado y especificado el 16-09-2026, **construido el 17-09-2026** |
 
 **Entra por `POST /api/v1/packages/{code}/purchases`** —el paquete por su código, que es lo que la oferta publica—, con el método de pago en el cuerpo y **nada más**: ni productos, ni cantidades, ni precios. Produce **una venta como cualquier otra** —tipo `VENTA`, estado `PENDIENTE`, su código, su vendedor congelado en cada línea— con **una línea por producto del paquete**, todas con el mismo `package_id` y cada una con el descuento que el paquete le declara, congelado en dinero (`RN-MV-027`). Lo que se cobra es **la suma de las líneas rebajadas**, que es exactamente lo que `RN-PM-036` publica como `price` del paquete.
@@ -263,7 +263,7 @@ La dependencia es **acíclica**: `MV` → `PM` → `SP`, y `MV` → `SP`.
 | Prioridad | Alta |
 | Reglas aplicables | Las de `RF-MV-012`, más `RN-MV-025`; `RN-PM-021`, `RN-PM-022`, `RN-PM-043`; `RN-SP-049` |
 | Depende de | `RF-MV-012`, `RF-MV-011`, `RF-PM-026` |
-| Tripleta | [`docs/specs/mv/013-comprar-paquete-por-hotlink/`](../../specs/mv/013-comprar-paquete-por-hotlink/spec.md) |
+| Tripleta | [`docs/specs/mv/013-comprar-paquete-por-hotlink/`](../specs/mv/013-comprar-paquete-por-hotlink/spec.md) |
 | Estado | **Tasks en revisión** — registrado y especificado el 16-09-2026 |
 
 **Entra por `POST /api/v1/hotlinks/{username}/packages/{code}/purchases`** y es a `RF-MV-012` **lo que `RF-MV-011` es a `RF-MV-002`**, con las mismas dos diferencias y ninguna más: el paquete llega **por el código del hotlink** —nombre de usuario del vendedor y código del paquete, resueltos con las reglas de `RF-PM-026`— y **el vendedor de cada línea es el dueño del enlace** (`RN-MV-025`). Deja la misma huella: el **vínculo** cliente-vendedor si no existía (`RN-SP-049`), con esta venta como `first_movement_id`.
@@ -280,7 +280,7 @@ La dependencia es **acíclica**: `MV` → `PM` → `SP`, y `MV` → `SP`.
 | Prioridad | Media |
 | Reglas aplicables | `RN-MV-001`, `RN-MV-004`, `RN-MV-021`, `RN-MV-029`, `RN-MV-030`; `RN-PM-015` |
 | Depende de | `RF-MV-003`, `RF-MV-008` |
-| Tripleta | [`docs/specs/mv/014-productos-comprados-propios/`](../../specs/mv/014-productos-comprados-propios/spec.md) |
+| Tripleta | [`docs/specs/mv/014-productos-comprados-propios/`](../specs/mv/014-productos-comprados-propios/spec.md) |
 | Estado | **En desarrollo** — registrado, especificado y **construido el 17-09-2026** |
 
 **Nace el 17-09-2026 a petición del responsable del proyecto** —«quiero tener un registro de yo como usuario los productos que he comprado»— y **no es `RF-MV-008` con otra forma**: aquel responde por **movimientos** y este por **productos**, que es la pregunta que una persona se hace cuando quiere saber si el bot que pagó ya lo tiene. **Se deriva del libro y no se guarda**: una línea de venta ya dice qué se compró, cuándo, por cuántos días y —desde `RN-MV-030`— si se entregó; una tabla aparte de «productos de la persona» sería la copia que se desincroniza. Entra por `GET /api/v1/movements/mine/products` y cada fila trae **un estado** calculado de lo que la venta y la línea ya dicen: `PENDIENTE_PAGO`, `PENDIENTE_AUTORIZACION`, `ACTIVO` con su «vigente hasta», `VENCIDO`, `RETENIDO`, `RECHAZADO` o `ANULADO`. **Lista todo lo comprado, diga lo que diga la venta** (decisión del responsable, 17-09-2026): una sola lista responde «qué tengo y qué me falta».
@@ -735,3 +735,4 @@ Se siembra por migración y **no se administra por API todavía** (§5.3). Lo m�
 | 0.26.0 | 17-09-2026 | **`RF-MV-005` se especifica y se construye**, a petición del responsable del proyecto —«¿y para anular un movimiento?»—. Estaba declarado desde el 02-09-2026. Es `RF-MV-003` sin la entrega: la misma transición atómica, sin líneas que recorrer porque una pendiente no concedió nada. Lo que fija: **anular no es borrar** —`V17` añade `voided_at` y `void_reason` a `movements`, atados por `ck_movements_voided`, porque el motivo es lo que separa «anulada» de «desaparecida» y quien mire la venta dentro de un año lo lee ahí y no en la auditoría—; **el motivo es obligatorio** y se verifica antes de tocar nada, con el mismo tope que el de una eliminación; y **son dos permisos**: `CA-MV-115` prueba que `movements:confirm` no anula. `POST /api/v1/movements/{id}/voiding`; `SaleResponse` gana `voidedAt` y `voidReason`. 9 pruebas en `VoidSaleIT`. Queda fuera, declarado: rechazar (`RF-MV-004`) y que el comprador retire lo suyo. | Responsable del proyecto |
 | 0.27.0 | 19-09-2026 | **`RN-MV-007` se enmienda: la oferta es la del canal por el que se compra**, por decisión del responsable del proyecto —«que se pueda comprar por solo hotlink también»—, tras un `EX-004` en el registro por enlace con `RENOVAR_BECA` de alcance `HOTLINK`. La venta del enlace (`RF-SP-045`) se validaba contra la oferta de la **tienda** (`TIENDA`/`AMBOS`) mientras el enlace publica `HOTLINK`/`AMBOS` (`RN-PM-021`): **un producto solo de hotlink se podía ver por el enlace y nunca comprar por él**, que es justo lo que ese canal existe para vender. Desde hoy `RegisterSaleService` sabe por qué canal entra cada venta (`SaleChannel`: la tienda para el funcionario y la compra propia, el hotlink para el enlace) y valida contra la publicación de ese canal; `PM` publica una lectura nueva, **«¿cuáles de estos productos publica el hotlink?»** (`ProductCatalog.publishedByHotlink`, el mismo predicado de `RF-PM-008` y `RF-PM-027`). **La otra mitad de la misma regla**: un producto **solo de tienda ya no se vende por el enlace** —el hotlink no lo publica, así que tampoco lo vende, y un enlace armado a mano no puede colar lo que el canal no muestra—. `RN-MV-006` no cambia: ninguna venta baja de nivel por ningún canal. Sin migración. `RF-MV-011` y `RF-MV-013` heredan el canal hotlink cuando se construyan. | Responsable del proyecto |
 | 0.28.0 | 21-09-2026 | **`RN-MV-003` toma el principal del cliente de `client_sellers`, no de `user_supervisors`** ([`requirements/sp.md`](sp.md) v1.63.0: `RN-SP-028` revertida y `RN-SP-049` enmendada por el responsable del proyecto — el cliente sale de la estructura comercial y su principal es quien lo registró, para siempre). **La atribución no cambia de resultado**: la compra en tienda sigue siendo del principal y la de hotlink del dueño del enlace (`RN-MV-025`); cambia **de dónde se lee** el principal, y por tanto la implementación de `ClientCatalog` que `RF-MV-001` y `RF-MV-002` consumen. `RF-MV-011` y `RF-MV-013` **dejan de traer la migración** de `client_sellers`: la crea `RF-SP-059`, y ellos solo insertan sus filas `HOTLINK`. Sin cambio de contrato en ningún endpoint de `MV`. — redactada el 18-09-2026 en `feature/vendedores-de-un-cliente` e integrada sobre `feature/academia` el 21-09-2026 con el número renumerado; `RF-SP-060` de aquella rama pasa a `RF-SP-061` porque `RF-SP-060` nació en `feature/academia` el 19-09-2026 | Responsable del proyecto |
+| 0.29.0 | 21-09-2026 | **Cinco enlaces de §9 apuntaban a `../../specs/mv/…` y no a `../specs/mv/…`** (las fichas de `RF-MV-012` y `013` desde v0.20.0; las de `RF-MV-003`, `005` y `014` desde v0.24.0): el sitio de documentación se construye en modo estricto y abortaba con ellos, de modo que el flujo `Documentación` llevaba en rojo desde el 17-09-2026. Solo enlaces. | Responsable técnico |
