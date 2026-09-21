@@ -9,6 +9,7 @@
 | Autor | Responsable técnico |
 | Aprobada por | Responsable del proyecto |
 | Fecha de aprobación | 17-09-2026 |
+| Enmendada | 21-09-2026 — exige **`movements:read-own-products`** (`RF-SP-062`, `RN-SEG-015`: autenticarse no autoriza nada); lo siembra `V31`; `CA-MV-109` deja de decir «sin permiso» |
 
 !!! info "Qué va en este documento"
 
@@ -17,6 +18,12 @@
     **Prueba de pertenencia:** si un cambio de tecnología lo invalidaría, no pertenece aquí — va a `plan.md`. No se nombran tablas, clases, endpoints ni librerías.
 
 ---
+
+!!! note "Enmienda de Art. I.7 — 21-09-2026, `RF-SP-062`"
+
+    Esta operación exige **`movements:read-own-products`** desde el 21-09-2026, por `RF-SP-062` —**autenticarse no autoriza nada**, `RN-SEG-015` ([`security.md` §4.3](../../../security.md#43-reglas-de-negocio))—, por decisión del responsable del proyecto: «cada endpoint debe tener su propio permiso, ya que uso esto para saber qué vista o consulta mostrar en el front; no basta con solo tener el token». Hasta entonces se atendía con solo el token, y las líneas que abajo dicen «sin permiso» o «autenticado a secas» hablan de esa decisión original y se conservan como historia: el alcance sobre uno mismo sigue siendo exactamente el mismo, lo que cambia es que ahora tiene nombre. `V31` siembra el permiso y lo da a todo rol por su tipo.
+
+
 
 ## 1. Objetivo
 
@@ -53,7 +60,7 @@ Que cualquier persona autenticada vea **los productos que compró**, uno por uno
 
 | Actor | Rol en esta funcionalidad |
 |---|---|
-| Cualquiera autenticado | Ve los productos de las ventas **a su nombre**. Sin permiso, como `RF-MV-008` y por lo mismo |
+| Cualquiera autenticado con `movements:read-own-products` | Ve los productos de las ventas **a su nombre**. Hasta el 21-09-2026 sin permiso, «como `RF-MV-008` y por lo mismo», y los dos cambiaron el mismo día |
 
 **«Propio» aquí es un solo papel: el sujeto.** Al revés que `RF-MV-008`, no se incluye lo que la persona **vendió**: un vendedor no «tiene» los bots que colocó. Lo que vendió se sigue viendo allí, con papel `SELLER`.
 
@@ -122,7 +129,7 @@ Que cualquier persona autenticada vea **los productos que compró**, uno por uno
 
 | Tipo | Condición |
 |---|---|
-| Precondición | El actor está autenticado |
+| Precondición | El actor está autenticado y porta `movements:read-own-products` — **hasta el 21-09-2026 sin permiso** (`RF-SP-062`) |
 | Postcondición | Ninguna. No se escribe ni se audita |
 
 ---
@@ -181,7 +188,7 @@ Ninguna propia.
 | `CA-MV-106` | El filtro por estado devuelve **solo** ese estado; uno inexistente es `400` |
 | `CA-MV-107` | Va **paginado**, del más reciente al más antiguo, y **una fila por línea** aunque el producto se repita |
 | `CA-MV-108` | Cada fila trae el nombre **copiado en la línea**, no el del catálogo |
-| `CA-MV-109` | Responde a cualquier autenticado sin permiso; sin autenticar, `401` |
+| `CA-MV-109` | Responde a cualquier autenticado con `movements:read-own-products` y sin él `403` (hasta el 21-09-2026, «sin permiso»); sin autenticar, `401` |
 
 ---
 

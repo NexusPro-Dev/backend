@@ -8,8 +8,15 @@
 | Autor | Responsable técnico |
 | Aprobada por | Responsable del proyecto |
 | Fecha de aprobación | 21-09-2026 |
+| Enmendada | 21-09-2026 — exige **`users:read-own-clients`** (`RF-SP-062`, `RN-SEG-015`: autenticarse no autoriza nada); lo siembra `V31` (la ruta `/me`); a `CONSUMIDOR` no |
 
 ---
+
+!!! note "Enmienda de Art. I.7 — 21-09-2026, `RF-SP-062`"
+
+    Esta operación exige **`users:read-own-clients`** desde el 21-09-2026, por `RF-SP-062` —**autenticarse no autoriza nada**, `RN-SEG-015` ([`security.md` §4.3](../../../security.md#43-reglas-de-negocio))—, por decisión del responsable del proyecto: «cada endpoint debe tener su propio permiso, ya que uso esto para saber qué vista o consulta mostrar en el front; no basta con solo tener el token». Hasta entonces se atendía con solo el token, y las líneas que abajo dicen «sin permiso» o «autenticado a secas» hablan de esa decisión original y se conservan como historia: el alcance sobre uno mismo sigue siendo exactamente el mismo, lo que cambia es que ahora tiene nombre. `V31` siembra el permiso y lo da a todo rol por su tipo, a `CONSUMIDOR` no: un cliente deja de recibir la página vacía y recibe `403`.
+
+
 
 ## 1. Objetivo
 
@@ -29,7 +36,7 @@ Que un vendedor vea **su cartera** —a quiénes registró, que son suyos, y a q
 
 | Actor | Papel |
 |---|---|
-| **El propio vendedor** | Consulta su cartera por `GET /users/me/clients`, sin permiso |
+| **El propio vendedor** con `users:read-own-clients` | Consulta su cartera por `GET /users/me/clients` — **hasta el 21-09-2026 sin permiso** (`RF-SP-062`) |
 | **Administrador** con `users:read-clients` | Consulta la de cualquier vendedor por `GET /users/{id}/clients` |
 
 ## 4. Alcance
@@ -91,7 +98,7 @@ Una **página** —`content`, `totalElements`, `totalPages`, `page`, `size`, `to
 
 ## 7. Precondiciones y postcondiciones
 
-**Precondiciones:** actor autenticado. Para `/users/{id}/clients`, además `users:read-clients`.
+**Precondiciones:** actor autenticado con `users:read-own-clients` para `/users/me/clients` — **hasta el 21-09-2026 sin permiso** (`RF-SP-062`); para `/users/{id}/clients`, `users:read-clients`.
 
 **Postcondiciones:** ninguna. Es una lectura y **no audita**.
 
@@ -108,7 +115,7 @@ Una **página** —`content`, `totalElements`, `totalPages`, `page`, `size`, `to
 | ID | Caso | Comportamiento |
 |---|---|---|
 | `FA-001` | El vendedor **no tiene clientes** | `200` con la página vacía y `totalElements` en cero |
-| `FA-002` | El actor de `/me/clients` **no es vendedor** —es cliente o funcionario— | `200` con la página vacía. Nadie se registró con su enlace ni le compró por él; no es un error, es una cartera sin filas |
+| `FA-002` | El actor de `/me/clients` **no es vendedor** —es funcionario, o un vendedor sin registros— | `200` con la página vacía. Nadie se registró con su enlace ni le compró por él; no es un error, es una cartera sin filas. **Un cliente recibe `403`** desde el 21-09-2026: `CLIENTE` no porta `users:read-own-clients` y el frontend no le ofrece la vista |
 | `FA-003` | `/users/{id}/clients` con una persona **inexistente o eliminada** | `404` |
 | `FA-004` | `/users/{id}/clients` **sin `users:read-clients`** | `403`, aunque el actor porte `users:read`, `users:read-team` o `users:read-sellers`: ninguno de esos gobierna esta operación (`RN-SEG-014`) |
 | `FA-005` | `origin` con un valor distinto de `REGISTRO` y `HOTLINK` | `400` (`VAL-001`) |
@@ -141,10 +148,10 @@ Una **página** —`content`, `totalElements`, `totalPages`, `page`, `size`, `to
 
 | ID | Criterio |
 |---|---|
-| `CA-SP-714` | Un vendedor obtiene por `GET /users/me/clients`, **sin traer ningún permiso**, la página con los clientes que registró y los que le compraron por hotlink, **los más recientes primero**, y cada fila trae `id`, `username`, `firstName`, `lastName`, `status`, `origin`, `principal` y `linkedAt` |
+| `CA-SP-714` | Un vendedor obtiene por `GET /users/me/clients`, **con `users:read-own-clients` y ningún otro permiso** (hasta el 21-09-2026, «sin traer ningún permiso»), la página con los clientes que registró y los que le compraron por hotlink, **los más recientes primero**, y cada fila trae `id`, `username`, `firstName`, `lastName`, `status`, `origin`, `principal` y `linkedAt` |
 | `CA-SP-715` | `origin=REGISTRO` devuelve solo los propios y `origin=HOTLINK` solo los vinculados, con `totalElements` acorde; otro valor es `400` (`VAL-001`) |
 | `CA-SP-716` | La cartera se pagina como todo listado: `page` y `size` fuera de límites son `400` (`VAL-003`), y `totalElements` cuenta la cartera entera aunque la página traiga menos |
-| `CA-SP-717` | Un actor **sin cartera** —un cliente, un funcionario, un vendedor sin registros— obtiene `200` con la página vacía, no `404` |
+| `CA-SP-717` | Un actor **sin cartera** —un funcionario, un vendedor sin registros— obtiene `200` con la página vacía, no `404`; un **cliente** recibe `403` porque su rol no porta el permiso (hasta el 21-09-2026, `200` vacío) |
 | `CA-SP-718` | Quien trae `users:read-clients` obtiene la cartera de **cualquier** vendedor por `GET /users/{id}/clients`; sin él recibe `403` **aunque porte `users:read`, `users:read-team` o `users:read-sellers`**; con una persona inexistente o eliminada, `404` |
 | `CA-SP-719` | Un cliente **desactivado o bloqueado** sigue en la cartera de quien lo registró, con su estado; uno **eliminado** no sale ni se cuenta |
 | `CA-SP-720` | El **superior comercial** de un vendedor recibe `403` en `GET /users/{id}/clients` de su subordinado si no porta el permiso: la estructura no autoriza |

@@ -12,8 +12,15 @@
 | Enmendada | 08-09-2026 — `RN-SP-035` y `RN-SP-037`: el perfil publica el documento y el contacto; `CA-SP-597` (Art. I.7) |
 | Enmendada | 10-09-2026 — el contacto publica **dos teléfonos**: el personal y el de la empresa. Es lo que permite precargar el formulario de `RF-SP-044` con los dos (Art. I.7) |
 | Enmendada | 14-09-2026 — la membresía publica **su nombre y su color** (`RN-SP-024`), además del código y el nivel; `CA-SP-682` (Art. I.7). Ver §15 |
+| Enmendada | 21-09-2026 — exige **`users:read-own-profile`** (`RF-SP-062`, `RN-SEG-015`: autenticarse no autoriza nada); lo siembra `V31` |
 
 ---
+
+!!! note "Enmienda de Art. I.7 — 21-09-2026, `RF-SP-062`"
+
+    Esta operación exige **`users:read-own-profile`** desde el 21-09-2026, por `RF-SP-062` —**autenticarse no autoriza nada**, `RN-SEG-015` ([`security.md` §4.3](../../../security.md#43-reglas-de-negocio))—, por decisión del responsable del proyecto: «cada endpoint debe tener su propio permiso, ya que uso esto para saber qué vista o consulta mostrar en el front; no basta con solo tener el token». Hasta entonces se atendía con solo el token, y las líneas que abajo dicen «sin permiso» o «autenticado a secas» hablan de esa decisión original y se conservan como historia: el alcance sobre uno mismo sigue siendo exactamente el mismo, lo que cambia es que ahora tiene nombre. `V31` siembra el permiso y lo da a todo rol por su tipo.
+
+
 
 ## 1. Objetivo
 
@@ -35,7 +42,7 @@ Nace de la aprobación de `RF-SP-026` el 21-08-2026.
 
 | Actor | Rol en esta funcionalidad |
 |---|---|
-| Cualquier persona autenticada | Consulta su propio perfil. No existe forma de consultar el de otro |
+| Cualquier persona autenticada con `users:read-own-profile` | Consulta su propio perfil. No existe forma de consultar el de otro |
 
 ## 4. Alcance
 
@@ -101,7 +108,7 @@ Ninguna. La identidad del actor se resuelve a partir de su autenticación, y **n
 
 **Precondiciones**
 
-- El actor está autenticado. No se exige ningún permiso.
+- El actor está autenticado y porta `users:read-own-profile` — **hasta el 21-09-2026 sin permiso** (`RF-SP-062`).
 
 **Postcondiciones**
 
