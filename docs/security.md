@@ -5,7 +5,7 @@
 | Proyecto | NEXUS — Renovación de plataforma |
 | Empresa | FACTECH GROUP SAS |
 | Documento | `security.md` |
-| Versión | 0.67.0 |
+| Versión | 0.69.0 |
 | Estado | Borrador |
 | Responsable técnico | Bonilla Diaz William Steven |
 | Fecha de creación | 19-08-2026 |
@@ -197,7 +197,7 @@ Cada regla declara cuándo aplica, qué debe ocurrir y su prioridad, conforme a 
 
 ### 4.4 Catálogo de permisos
 
-Un permiso se identifica con el formato `<recurso>:<acción>`, en minúsculas, y **gobierna una operación o ninguna, nunca dos** (`RN-SEG-014`, desde el 19-09-2026). El catálogo, tal como queda con `V28` (`RF-SP-060`), `V29` (`users:read-sellers`, `RF-SP-059`), `V30` (`users:read-clients`, `RF-SP-061`) y `V31` (los once de alcance propio de `RF-SP-062`, 21-09-2026) — **ciento veinticuatro**; los cincuenta y uno que `V28` siembra se listan debajo, y los once de `V31` en la nota de `RN-SEG-015`:
+Un permiso se identifica con el formato `<recurso>:<acción>`, en minúsculas, y **gobierna una operación o ninguna, nunca dos** (`RN-SEG-014`, desde el 19-09-2026). El catálogo, tal como queda con `V28` (`RF-SP-060`), `V29` (`users:read-sellers`, `RF-SP-059`), `V30` (`users:read-clients`, `RF-SP-061`), `V31` (los once de alcance propio de `RF-SP-062`, 21-09-2026), `V32` (`movements:list-sales`, `RF-MV-015`) y `V34` (los ocho `teams:` de `RF-SP-063` a `RF-SP-070`, diseñados el 21-09-2026 y pendientes de sembrar) — **ciento treinta y tres**; los cincuenta y uno que `V28` siembra se listan debajo, y los once de `V31` en la nota de `RN-SEG-015`:
 
 ```
 roles:list       roles:read       roles:create       roles:update       roles:delete
@@ -245,6 +245,9 @@ document-types:read
 
 brokers:read     broker-accounts:read     broker-accounts:read-indicators
 broker-accounts:read-own-team   broker-accounts:read-team-member
+
+teams:list       teams:read       teams:create       teams:update       teams:delete
+teams:change-status     teams:assign-managers     teams:remove-managers
 
 course-categories:list   course-categories:read
 course-categories:create course-categories:update course-categories:delete
@@ -570,6 +573,8 @@ Implantada el 25-08-2026 (issue #25). Hasta entonces la última regla de §5.5 e
 
     El riesgo se desplaza, no desaparece: existiendo la tabla, es fácil que un requerimiento futuro resuelva su alcance consultándola por su cuenta. Eso dejaría el modelo de alcance repartido en lugar de definido, que es justo lo que D-22 debe evitar. La misma advertencia está anotada en `requirements/sp.md` §10.7.
 
+    **Actualización del 21-09-2026.** Nacen los **equipos** (`RF-SP-063` a `RF-SP-070`, `requirements/sp.md` §10.20 y §10.21): agrupan a los managers, la cúspide de la estructura. **Tampoco conceden alcance**: `teams:*` son ocho permisos de administración, sembrados a `SUPERADMIN` y `ADMIN`, y pertenecer a un equipo no abre ningún dato a nadie. Si algún día «mi equipo» tiene que significar algo para la autorización, se decide en D-22 y no en `team_managers` — la advertencia de §10.21 de aquel documento es la misma que esta.
+
     **Actualización del 10-09-2026 — el caso previsto acaba de ocurrir, y ocurre por decisión.** `RF-SP-055` y `RF-SP-056` (`RN-SP-046`) **resuelven su alcance consultando `user_supervisors`**: quien es el superior comercial vigente de una persona ve sus cuentas de broker sin traer ningún permiso. Es exactamente el movimiento que el párrafo anterior señalaba como riesgo, de modo que no se disfraza de otra cosa — **D-22 sigue abierta y esto no la resuelve**. Lo que se hace es **acotarlo por escrito para que siga siendo una excepción localizable** y no el principio de un modelo repartido:
 
     - **Es la única lectura del sistema autorizada por estructura.** Ninguna otra puede añadirse citando esta: quien lo necesite reabre D-22.
@@ -878,3 +883,4 @@ RNF-SEG-002 merece atención: es una prueba que enumera los endpoints registrado
 | 0.65.0 | 21-09-2026 | **`users:read-sellers` entra en el catálogo de §4.4 y este pasa a ciento doce** (`RF-SP-059`, construido en `feature/vendedores-de-un-cliente` con `users:read` el 18-09-2026 e integrado el 21-09-2026 sobre `feature/academia`, donde `RF-SP-060` ya exige un permiso por operación, `RN-SEG-014`). `RF-SP-060` lo había anunciado en su spec §6.2 sin sembrarlo, porque la ruta no existía en su rama; lo siembra `V29`, a `SUPERADMIN` y `ADMIN` explícitamente y a `CLIENTE` no, con la guarda de `V22`. Ninguna otra regla cambia. | Responsable técnico |
 | 0.66.0 | 21-09-2026 | **`users:read-clients` entra en el catálogo de §4.4 y este pasa a ciento trece** (`RF-SP-061`, los clientes de un vendedor; `RN-SEG-014`): gobierna `GET /users/{id}/clients` y nada más; la cartera propia, `GET /users/me/clients`, es alcance sobre uno mismo y no exige permiso. Lo siembra `V30`, a `SUPERADMIN` y `ADMIN` explícitamente y a `CLIENTE` no. La lectura **no** se autoriza por estructura: el superior de un vendedor no ve su cartera por serlo (D-22 sigue con su única excepción, `RN-SP-046`). | Responsable técnico |
 | 0.67.0 | 21-09-2026 | **Nace `RN-SEG-015`, autenticarse no autoriza nada** (`RF-SP-062`), por decisión del responsable del proyecto: «cada endpoint debe tener su propio permiso, ya que uso esto para saber qué vista o consulta mostrar en el front; no basta con solo tener el token». Toda operación con token exige permiso, también las once de alcance propio que hasta hoy se atendían con solo autenticarse; §4.4 gana los once códigos de `V31` —con `own` para el alcance sobre uno mismo— y pasa a **ciento veinticuatro**; la nota explica el reparto por tipo de rol (nadie pierde nada; los de vendedor no van a `CONSUMIDOR`), la lista cerrada de las catorce públicas y el precio para los roles creados a mano. | Responsable del proyecto |
+| 0.69.0 | 21-09-2026 | **Los ocho `teams:` entran en el catálogo de §4.4 y este pasa a ciento treinta y tres** (`RF-SP-063` a `RF-SP-070`, el submódulo Equipos de [`requirements/sp.md`](requirements/sp.md) v1.71.0; `RN-SEG-014`, uno por operación: `list`, `read`, `create`, `update`, `change-status`, `delete`, `assign-managers`, `remove-managers`). Los sembrará `V34`, a `SUPERADMIN` y `ADMIN` explícitamente y a nadie más: administrar cómo se organiza la cúspide es tarea de administración, y ningún manager organiza su propio equipo. §6 anota, en la nota de D-22, que **pertenecer a un equipo no concede alcance**. La 0.68.0 es de `RF-MV-015` (`V32`, `movements:list-sales`; §4.4 a ciento veinticinco), redactada el mismo día en otra rama, y este recuento la incluye. | Responsable del proyecto |
