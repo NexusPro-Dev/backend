@@ -390,6 +390,30 @@ class DevelopmentSeedIT extends IntegrationTestBase {
   }
 
   @Test
+  @DisplayName(
+      "CA-SP-730 — las veinte personas ven su perfil: cada una porta users:read-own-profile por su"
+          + " rol (RF-SP-062, RN-SEG-015)")
+  void todasVenSuPerfil() {
+    // Desde el 21-09-2026 GET /users/me exige permiso. V31 lo da a todo rol por su
+    // tipo, y la semilla asigna un rol a cada persona: si alguna quedara sin el
+    // permiso, entraría a un panel vacío sin poder saber por qué.
+    Integer sinPerfil =
+        jdbc.queryForObject(
+            """
+            SELECT count(*) FROM users u
+             WHERE u.username = ANY (?)
+               AND NOT EXISTS (
+                 SELECT 1 FROM user_roles ur
+                   JOIN role_permissions rp ON rp.role_id = ur.role_id
+                   JOIN permissions p ON p.id = rp.permission_id
+                  WHERE ur.user_id = u.id AND p.code = 'users:read-own-profile')
+            """,
+            Integer.class,
+            (Object) USUARIOS.toArray(String[]::new));
+    assertThat(sinPerfil).isZero();
+  }
+
+  @Test
   @DisplayName("cada director tiene TRES a cargo, y el árbol llega hasta el superadministrador")
   void estructuraComercial() {
     borrarLasDiecinueve(jdbc);
