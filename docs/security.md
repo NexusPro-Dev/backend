@@ -5,7 +5,7 @@
 | Proyecto | NEXUS — Renovación de plataforma |
 | Empresa | FACTECH GROUP SAS |
 | Documento | `security.md` |
-| Versión | 0.64.0 |
+| Versión | 0.65.0 |
 | Estado | Borrador |
 | Responsable técnico | Bonilla Diaz William Steven |
 | Fecha de creación | 19-08-2026 |
@@ -196,7 +196,7 @@ Cada regla declara cuándo aplica, qué debe ocurrir y su prioridad, conforme a 
 
 ### 4.4 Catálogo de permisos
 
-Un permiso se identifica con el formato `<recurso>:<acción>`, en minúsculas, y **gobierna una operación o ninguna, nunca dos** (`RN-SEG-014`, desde el 19-09-2026). El catálogo, tal como queda con `V28` (`RF-SP-060`) — **ciento once**, y en **negrita** los cincuenta y uno que esa migración siembra:
+Un permiso se identifica con el formato `<recurso>:<acción>`, en minúsculas, y **gobierna una operación o ninguna, nunca dos** (`RN-SEG-014`, desde el 19-09-2026). El catálogo, tal como queda con `V28` (`RF-SP-060`) y `V29` (`users:read-sellers`, `RF-SP-059`, 21-09-2026) — **ciento doce**; los cincuenta y uno que `V28` siembra se listan debajo:
 
 ```
 roles:list       roles:read       roles:create       roles:update       roles:delete
@@ -211,7 +211,7 @@ audit:read-changes      audit:read-deletions
 audit:read-errors       audit:read-security
 
 users:list       users:read       users:create       users:update       users:delete
-users:change-status     users:read-team
+users:change-status     users:read-team     users:read-sellers
 users:assign-roles      users:revoke-roles
 users:assign-membership users:revoke-membership
 users:assign-supervisor users:reset-password
@@ -859,3 +859,4 @@ RNF-SEG-002 merece atención: es una prueba que enumera los endpoints registrado
 | 0.62.0 | 18-09-2026 | **`V22` siembra los seis `courses:` y el catálogo llega a sesenta** (`RF-AC-008`), con identificadores literales de la serie de `AC` (`…5e7adc000005` a `…000010`), asociados a `SUPERADMIN` (60) y a `ADMIN` (54) explícitamente —`teach` y `learn` incluidos— y a `CLIENTE` no, con la guarda que cuenta doce. Las seis rutas de `/courses` declaran su permiso y `EndpointPermissionsIT` las recorre. **Y `SP` publica la primera lectura sobre autorización**: `PermissionHolderLookup`, «¿porta este permiso?», con el predicado de `RN-SEG-010` compartido como constante con `JpaEffectivePermissions` — `courses:teach` se comprueba por ahí al asignar un instructor y no leyendo `user_roles` desde `AC`. **Se numera 0.62.0 y no 0.61.0**: ese número lo tomó `feature/vendedores-de-un-cliente`. | Responsable técnico |
 | 0.63.0 | 19-09-2026 | **Nace `RN-SEG-014`, un permiso, una operación** (`RF-SP-060`), por decisión del responsable del proyecto: un permiso gobierna una operación o ninguna, nunca dos, también listado y detalle. §4.3 gana la regla y §4.4 el catálogo completo tal como queda con `V28`: **ciento once**, cincuenta y uno nuevos —trece de `SP`, catorce de `PM`, seis de `CM`, dieciocho de `AC`, ninguno de `MV`— y las convenciones de nombre para lo que se separe en adelante. Veintiún códigos gobernaban más de una operación; cada uno **se queda con una** y estrecha su descripción, **ninguno se renombra ni se retira**, y **todo rol que porte un padre recibe sus hijos** en la misma migración, con lo que nadie pierde nada y `RN-SEG-003` se conserva por construcción. La reserva del superadministrador no cambia. **Se numera 0.63.0**: 0.61.0 es de `feature/vendedores-de-un-cliente` y 0.62.0 de `V22`. | Responsable del proyecto |
 | 0.64.0 | 21-09-2026 | **El cliente sale de `user_supervisors` y la lectura autorizada por estructura resuelve su principal en `client_sellers`** ([`requirements/sp.md`](requirements/sp.md) v1.63.0, `RN-SP-028` revertida y `RN-SP-049` enmendada por el responsable del proyecto). `RN-SP-046` no cambia de texto ni de perímetro —sigue siendo la única excepción a D-22, de un nivel y sobre las cuentas de broker—; cambia la tabla en la que se resuelve «superior vigente» cuando la persona consultada es un cliente. Se deja escrito que `RF-SP-059` —`GET /users/me/sellers`, autenticado, y `GET /users/{id}/sellers`, `users:read`— **no se apoya en la estructura** y no amplía la excepción. Sin permisos nuevos: el catálogo sigue en cincuenta y cuatro. — redactada el 18-09-2026 en `feature/vendedores-de-un-cliente` e integrada sobre `feature/academia` el 21-09-2026 con el número renumerado; `RF-SP-060` de aquella rama pasa a `RF-SP-061` porque `RF-SP-060` nació en `feature/academia` el 19-09-2026 | Responsable del proyecto |
+| 0.65.0 | 21-09-2026 | **`users:read-sellers` entra en el catálogo de §4.4 y este pasa a ciento doce** (`RF-SP-059`, construido en `feature/vendedores-de-un-cliente` con `users:read` el 18-09-2026 e integrado el 21-09-2026 sobre `feature/academia`, donde `RF-SP-060` ya exige un permiso por operación, `RN-SEG-014`). `RF-SP-060` lo había anunciado en su spec §6.2 sin sembrarlo, porque la ruta no existía en su rama; lo siembra `V29`, a `SUPERADMIN` y `ADMIN` explícitamente y a `CLIENTE` no, con la guarda de `V22`. Ninguna otra regla cambia. | Responsable técnico |

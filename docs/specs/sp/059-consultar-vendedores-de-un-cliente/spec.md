@@ -8,8 +8,13 @@
 | Autor | Responsable técnico |
 | Aprobada por | Responsable del proyecto |
 | Fecha de aprobación | 18-09-2026 |
+| Enmendada | 21-09-2026 — `GET /users/{id}/sellers` exige **`users:read-sellers`** y no `users:read` (`RF-SP-060`, `RN-SEG-014`); lo siembra `V29`. `CA-SP-691` y la resolución 6 nombran el permiso nuevo |
 
 ---
+
+!!! note "Enmienda de Art. I.7 — 21-09-2026, `RF-SP-060`"
+
+    `GET /users/{id}/sellers` exige **`users:read-sellers`** y no `users:read` desde el 21-09-2026, por `RF-SP-060` —**un permiso por operación**, `RN-SEG-014` ([`security.md` §4.4](../../../security.md#44-catalogo-de-permisos))—. Esta tripleta se redactó el 18-09-2026 en `feature/vendedores-de-un-cliente` con `users:read`, el día antes de que `RF-SP-060` naciera en `feature/academia`; al integrarla, `users:read` ya gobierna solo el detalle de una persona y esta operación recibe código propio. `RF-SP-060` lo dejó dicho en su spec §6.2 («`RF-SP-059`, pendiente, nacerá con `users:read-sellers`») pero no lo sembró en `V28`, porque la ruta no existía en su rama: lo siembra **`V29`**, con el mismo criterio —a `SUPERADMIN` y a `ADMIN` explícitamente, a `CLIENTE` no— y el catálogo pasa a **ciento doce**. El argumento original de §9 —«los vendedores son un dato de la persona y por eso no tienen permiso propio»— es exactamente el que `RN-SEG-014` deja de aceptar, y se conserva abajo como historia.
 
 ## 1. Objetivo
 
@@ -32,7 +37,7 @@ Que un cliente sepa **quiénes son sus vendedores** —quién lo registró, que 
 | Actor | Papel |
 |---|---|
 | **El propio cliente** | Consulta sus vendedores por `GET /users/me/sellers`, sin permiso |
-| **Administrador** con `users:read` | Consulta los de cualquiera por `GET /users/{id}/sellers` |
+| **Administrador** con `users:read-sellers` | Consulta los de cualquiera por `GET /users/{id}/sellers` |
 
 ## 4. Alcance
 
@@ -87,7 +92,7 @@ Que un cliente sepa **quiénes son sus vendedores** —quién lo registró, que 
 
 ## 7. Precondiciones y postcondiciones
 
-**Precondiciones:** actor autenticado. Para `/users/{id}/sellers`, además `users:read`.
+**Precondiciones:** actor autenticado. Para `/users/{id}/sellers`, además `users:read-sellers`.
 
 **Postcondiciones:** ninguna. Es una lectura y **no audita**.
 
@@ -105,16 +110,16 @@ Que un cliente sepa **quiénes son sus vendedores** —quién lo registró, que 
 | `FA-001` | El cliente **no tiene ningún vendedor** | `200` con la colección vacía. Ocurre: un cliente dado de alta por un funcionario (`RF-SP-024`) no pasa por un enlace y `RN-SP-027` no lo alcanza |
 | `FA-002` | El actor de `/me/sellers` **no es un cliente** —es vendedor o funcionario— | `200` con la colección vacía. Nadie lo registró por enlace y nadie le vendió por hotlink; no es un error, es una lista sin filas |
 | `FA-003` | `/users/{id}/sellers` con una persona **inexistente o eliminada** | `404` |
-| `FA-004` | `/users/{id}/sellers` **sin `users:read`** | `403`. Es el modelo general de `security.md` §5: aquí no hay oráculo que proteger, porque quien no trae el permiso no llega a la consulta |
+| `FA-004` | `/users/{id}/sellers` **sin `users:read-sellers`** | `403`. Es el modelo general de `security.md` §5: aquí no hay oráculo que proteger, porque quien no trae el permiso no llega a la consulta |
 | `FA-005` | El vendedor de un vínculo está **desactivado, bloqueado o eliminado** | **Sale igual**, con sus datos. El vínculo es un hecho y no depende del estado de nadie; ocultarlo dejaría al cliente sin saber quién lo trajo |
 
 ## 10. Seguridad
 
-**Dos rutas y dos modelos, y ninguno es la estructura comercial.** `/users/me/sellers` es alcance sobre uno mismo, como `GET /users/me`: no hay nada que autorizar más allá de estar autenticado, y por eso entra en `EndpointPermissionsIT` como autenticada sin permiso, con el motivo escrito. `/users/{id}/sellers` es `users:read`, el mismo permiso que gobierna leer personas: los vendedores de un cliente son un dato de la persona, no de otra naturaleza — a diferencia de las cuentas de broker, que tienen permiso propio (`RF-SP-055` §14).
+**Dos rutas y dos modelos, y ninguno es la estructura comercial.** `/users/me/sellers` es alcance sobre uno mismo, como `GET /users/me`: no hay nada que autorizar más allá de estar autenticado, y por eso entra en `EndpointPermissionsIT` como autenticada sin permiso, con el motivo escrito. `/users/{id}/sellers` es `users:read-sellers` desde el 21-09-2026 (`RN-SEG-014`: un permiso, una operación). Hasta entonces esta spec decía `users:read`, «el mismo permiso que gobierna leer personas: los vendedores de un cliente son un dato de la persona, no de otra naturaleza — a diferencia de las cuentas de broker, que tienen permiso propio (`RF-SP-055` §14)»; el argumento describe bien qué es el dato y ya no decide qué permiso lo gobierna, porque `RF-SP-060` resolvió que ningún código gobierne dos operaciones, tampoco cuando el dato sea de la misma naturaleza.
 
 **`403` y no `404` para quien no trae el permiso.** `RF-SP-055` usó `404` porque su actor era un vendedor cualquiera autorizado por estructura, y un `403` le habría servido de oráculo de identificadores. Aquí el actor sin permiso **no llega a mirar la base**: el `403` sale de la anotación antes de consultar nada, y no revela si el identificador existe.
 
-**El `404` del identificador inexistente sí distingue**, y no es una fuga: quien trae `users:read` puede listar a todas las personas por `RF-SP-025`.
+**El `404` del identificador inexistente sí distingue**, y no es una fuga: quien trae `users:read-sellers` porta normalmente `users:list` —`V29` lo da a los mismos roles que ya lo tenían— y puede listar a todas las personas por `RF-SP-025`.
 
 **Lo que se publica de cada vendedor está acotado a propósito** (§6.2). El identificador no viaja: un cliente no tiene ninguna ruta donde usarlo, y un administrador que lo necesite tiene el nombre de usuario y `RF-SP-025`.
 
@@ -134,7 +139,7 @@ Que un cliente sepa **quiénes son sus vendedores** —quién lo registró, que 
 | `CA-SP-688` | Cada cliente tiene **exactamente un** `REGISTRO`: la base rechaza un segundo con el índice único parcial `uq_client_sellers_principal` |
 | `CA-SP-689` | Un cliente **sin vendedor** —dado de alta por un funcionario— obtiene `200` con la colección vacía, no `404` |
 | `CA-SP-690` | Un **vendedor** que pide `GET /users/me/sellers` obtiene `200` con la colección vacía |
-| `CA-SP-691` | Quien trae `users:read` obtiene los vendedores de **cualquier** cliente por `GET /users/{id}/sellers`; sin el permiso recibe `403`, y con una persona inexistente o eliminada, `404` |
+| `CA-SP-691` | Quien trae `users:read-sellers` (`users:read` hasta el 21-09-2026) obtiene los vendedores de **cualquier** cliente por `GET /users/{id}/sellers`; sin el permiso recibe `403`, y con una persona inexistente o eliminada, `404` |
 | `CA-SP-692` | **La migración mueve y no copia**: tras `V20`, cada cliente que colgaba de un vendedor tiene su fila `REGISTRO` con `first_movement_id` nulo, y `user_supervisors` **no contiene ninguna fila** —vigente ni cerrada— cuyo subordinado sea un consumidor |
 | `CA-SP-693` | El **principal** de un cliente ve sus cuentas de broker por `RF-SP-055` sin traer permiso; un vendedor con vínculo `HOTLINK` sobre el mismo cliente recibe `404` (`RN-SP-046`) |
 | `CA-SP-694` | El `own` de un agente en `RF-SP-058` cuenta las cuentas de los consumidores cuyo `REGISTRO` es él, y un vínculo `HOTLINK` **no suma** (`RN-SP-048` (5)) |
@@ -161,7 +166,7 @@ Las enmiendas de hecho a `RF-SP-042` y `RF-SP-045` se prueban en sus propias esp
 | 3 | ¿Qué se hace con las filas de clientes que ya están en `user_supervisors`? | **Moverlas** (18-09-2026): copiar la vigente como `REGISTRO` y **borrar** todas, vigentes y cerradas. Cerrarlas conservaría filas de clientes en una tabla que ya no los admite, y `RF-SP-042` y las bajas tendrían que seguir filtrándolas |
 | 4 | ¿Quién crea la tabla: `RF-MV-011` o este? | **Este.** Es el primero que la lee, `RF-MV-011` no tiene tripleta, y la migración además mueve datos que este requerimiento necesita movidos |
 | 5 | ¿Se publica el identificador del vendedor? | **No.** El cliente no tiene ruta donde usarlo y el hotlink tampoco lo da (`RN-PM-022`). El nombre de usuario sí, porque forma parte del enlace que el cliente ya usó |
-| 6 | ¿`403` o `404` para quien no trae `users:read`? | **`403`**, el modelo general. El `404` de `RF-SP-055` se justificó por un actor autorizado por estructura, que aquí no existe |
+| 6 | ¿`403` o `404` para quien no trae `users:read-sellers` (`users:read` hasta el 21-09-2026)? | **`403`**, el modelo general. El `404` de `RF-SP-055` se justificó por un actor autorizado por estructura, que aquí no existe |
 | 7 | ¿`GET /users/me` sigue devolviendo `supervisor` a un cliente? | **No, y no es una enmienda**: `CA-SP-441` decía desde el principio «nada cuando no pertenece a la fuerza comercial». Que lo devolviera fue consecuencia de tener al cliente en `user_supervisors`; la vía del cliente es esta |
 
 ## 15. Control de cambios
@@ -169,3 +174,4 @@ Las enmiendas de hecho a `RF-SP-042` y `RF-SP-045` se prueban en sus propias esp
 | Versión | Fecha | Cambio | Responsable |
 |---|---|---|---|
 | 0.1.0 | 18-09-2026 | Redacción inicial. Nace dos días después que el requerimiento y con él rediseñado: **el cliente sale de `user_supervisors`** (`RN-SP-028` revertida) y `client_sellers` pasa a ser su única relación con los vendedores, con el principal —la fila `REGISTRO`— **inmutable**. Lo que carga la especificación no es la lectura, que es pequeña, sino **la migración `V20`** que mueve a los clientes de tabla y **las cinco lecturas construidas** que tienen que resolver al principal en el sitio nuevo. Tres decisiones del responsable del proyecto quedan escritas en §14: sale, no se cambia, se mueve. | Responsable del proyecto |
+| 0.2.0 | 21-09-2026 | **`GET /users/{id}/sellers` exige `users:read-sellers` y no `users:read`** (`RF-SP-060`, `RN-SEG-014`; Art. I.7 al integrar la rama sobre `feature/academia`, donde `RF-SP-060` nació el 19-09-2026). §3, §7, `FA-004`, `CA-SP-691` y la resolución 6 nombran el permiso nuevo; §9 conserva el argumento original como historia y explica por qué dejó de decidir. `V29` siembra el permiso. | Responsable técnico |

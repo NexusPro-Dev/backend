@@ -8,8 +8,13 @@
 | Autor | Responsable técnico |
 | Aprobado por | Responsable del proyecto |
 | Fecha de aprobación | 18-09-2026 |
+| Enmendado | 21-09-2026 — `/{id}/sellers` con **`users:read-sellers`** (`RF-SP-060`, `RN-SEG-014`); nace **`V29`**, que lo siembra. §5 y §8 quedan afectados |
 
 ---
+
+!!! note "Enmienda de Art. I.7 — 21-09-2026, `RF-SP-060`"
+
+    `GET /users/{id}/sellers` exige **`users:read-sellers`** y no `users:read` desde el 21-09-2026, por `RF-SP-060` —**un permiso por operación**, `RN-SEG-014` ([`security.md` §4.4](../../../security.md#44-catalogo-de-permisos))—. Esta tripleta se redactó el 18-09-2026 en `feature/vendedores-de-un-cliente` con `users:read`, el día antes de que `RF-SP-060` naciera en `feature/academia`; al integrarla, `users:read` ya gobierna solo el detalle de una persona y esta operación recibe código propio. `RF-SP-060` lo dejó dicho en su spec §6.2 («`RF-SP-059`, pendiente, nacerá con `users:read-sellers`») pero no lo sembró en `V28`, porque la ruta no existía en su rama: lo siembra **`V29`**, con el mismo criterio —a `SUPERADMIN` y a `ADMIN` explícitamente, a `CLIENTE` no— y el catálogo pasa a **ciento doce**. El argumento original de §9 —«los vendedores son un dato de la persona y por eso no tienen permiso propio»— es exactamente el que `RN-SEG-014` deja de aceptar, y se conserva abajo como historia.
 
 ## 1. Enfoque
 
@@ -134,7 +139,7 @@ DELETE FROM user_supervisors us
 ## 5. Autorización
 
 - **`/me/sellers`: sin `@PreAuthorize`**, y la ausencia es deliberada, con el motivo escrito al lado y la ruta declarada en `EndpointPermissionsIT` como autenticada sin permiso. El actor sale del token; no hay identificador que validar ni existencia que comprobar.
-- **`/{id}/sellers`: `@PreAuthorize("hasAuthority('users:read')")`**, el modelo general. El `403` sale antes de tocar la base; el `404` solo aparece con el permiso puesto y una persona que no existe.
+- **`/{id}/sellers`: `@PreAuthorize("hasAuthority('users:read-sellers')")`** (`users:read` hasta el 21-09-2026), el modelo general. El `403` sale antes de tocar la base; el `404` solo aparece con el permiso puesto y una persona que no existe.
 
 **`RN-SP-046` cambia de tabla para un caso** y hay que decirlo entero, porque `security.md` §5 la acota como la única lectura autorizada por estructura: `GetBrokerAccountsService` pasa a preguntar **dos cosas** —«¿el actor es el superior vigente de esta persona en `user_supervisors`?» **o** «¿es su principal en `client_sellers`?»— y cualquiera de las dos autoriza. El perímetro no crece: sigue siendo un nivel, siguen siendo las cuentas de broker, y el vinculado por `HOTLINK` sigue recibiendo `404` (`CA-SP-693`).
 
@@ -166,6 +171,8 @@ Las enmiendas de diseño **se aplicaron el 18-09-2026, antes que esta tripleta**
 | `RF-MV-013` | Su plan deja de decir que `client_sellers` la crea `RF-MV-011`, y que el principal se comprueba en `user_supervisors` |
 
 Y al terminar la construcción: `api/index.md` con las dos rutas, el contrato regenerado y la matriz.
+
+**Añadido el 21-09-2026, al integrar sobre `feature/academia`** (`RF-SP-060` ya construido): `security.md` §4.4 gana `users:read-sellers` y el catálogo pasa a **ciento doce**; `requirements/sp.md` §6.1, §9 y la ficha de `RF-SP-059` lo nombran; **`V29__sp_semilla_permiso_users_read_sellers.sql`** lo siembra con identificador literal de la serie de `SP` (`…5e7ad0000025`, la siguiente a `users:read-team` de `V28`), asociado a `SUPERADMIN` y `ADMIN` explícitamente, con la guarda de `V22`; `EndpointPermissionsIT` lo recibe en `PERMISO_DE_CADA_OPERACION`, y las cuatro suites que cuentan el catálogo (`PermissionsSeedIT`, `PermissionIT`, `JpaPermissionQueryRepositoryIT`, `ListPermissionsServiceIT`) pasan a ciento doce.
 
 ## 9. Alternativas consideradas
 

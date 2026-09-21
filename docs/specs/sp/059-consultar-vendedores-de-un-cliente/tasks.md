@@ -21,7 +21,7 @@
 | `T-03` | `ClientSellerRepository` (puerto) y `JpaClientSellerRepository` nativo en `users/domain/repository`: `registerPrincipal`, `attachFirstMovement`, `principalOf`, `findSellersOf` ordenado principal primero y después por `created_at` | `T-01` | El orden de `spec.md` §6.2 sale de la consulta, no de Java | Pendiente |
 | `T-04` | `ClientSellersResponse` y `SellerItem` en `users/application`: `username`, `firstName`, `lastName`, `origin`, `principal`, `linkedAt` — **sin `id`** | `T-03` | `CA-SP-687` | Pendiente |
 | `T-05` | `GetClientSellersService`: la variante por actor y la variante por identificador con su `404` | `T-04` | `CA-SP-689`, `CA-SP-690`, `CA-SP-691` | Pendiente |
-| `T-06` | `UserController`: `GET /api/v1/users/me/sellers` **sin `@PreAuthorize`** y con el motivo escrito; `GET /api/v1/users/{id}/sellers` con `users:read` | `T-05` | `CA-SP-686`, `CA-SP-691` | Pendiente |
+| `T-06` | `UserController`: `GET /api/v1/users/me/sellers` **sin `@PreAuthorize`** y con el motivo escrito; `GET /api/v1/users/{id}/sellers` con `users:read-sellers` (`users:read` hasta el 21-09-2026, `RF-SP-060`) | `T-05` | `CA-SP-686`, `CA-SP-691` | Pendiente |
 | `T-07` | Declarar `/me/sellers` en `EndpointPermissionsIT` como autenticada sin permiso, **con su motivo** | `T-06` | La lista cerrada sigue siendo exhaustiva | Pendiente |
 | `T-08` | `RegisterClientByLinkService`: `registerPrincipal` **antes** de la venta y `attachFirstMovement` después; `RegistrationSaleRegistrar.registerSale` devuelve `RegisteredSale(id, code)` y `PublishedRegistrationSaleRegistrar` lo adapta. **Deja de llamar a `assignSupervisor`** | `T-03` | `CA-SP-697`: la fila `REGISTRO` lleva la venta del enlace y `user_supervisors` no recibe nada | Pendiente |
 | `T-09` | `PublishedUserCatalog.sellerOf`: primero el `REGISTRO` de `client_sellers`, después el superior vigente. Javadoc de `ClientCatalog` y de `RN-MV-003` al día | `T-03` | `CA-SP-695` | Pendiente |
@@ -33,7 +33,8 @@
 | `T-15` | Invertir las pruebas de las enmiendas: `SelfRegistrationIT` (`CA-SP-513`, `CA-SP-525`, `CA-SP-526` → `CA-SP-697` a `CA-SP-699`) y `CommercialTeamIT` (`CA-SP-625` → `CA-SP-696`) | `T-08`, `T-14` | Las cuatro nuevas en verde; las cuatro viejas ya no existen | Pendiente |
 | `T-16` | `ClientSellersIT`: `CA-SP-686` a `CA-SP-691`, con una fila `HOTLINK` insertada a mano para el orden y `principal = false` | `T-07` | Los seis criterios | Pendiente |
 | `T-17` | Documentación OpenAPI de las dos rutas: **prosa**, no solo esquema — que hoy la lista tiene un elemento y **por qué**, que el principal no se cambia, y qué significa `linkedAt` en una fila migrada. `api/index.md` con las dos rutas y el contrato regenerado | `T-16` | El diff de `openapi.json` solo añade | Pendiente |
-| `T-18` | Actualizar la matriz de `docs/requirements.md` y los estados de esta tripleta | `T-17` | La fila de `RF-SP-059` refleja el estado; las de `RF-SP-042`, `045`, `055` a `058` y `RF-MV-001` citan sus criterios nuevos | Pendiente |
+| `T-18` | Actualizar la matriz de `docs/requirements.md` y los estados de esta tripleta | `T-17`, `T-19` | La fila de `RF-SP-059` refleja el estado; las de `RF-SP-042`, `045`, `055` a `058` y `RF-MV-001` citan sus criterios nuevos | Pendiente |
+| `T-19` | **Añadida el 21-09-2026** (Art. I.7, `RF-SP-060`): `V29__sp_semilla_permiso_users_read_sellers.sql` siembra `users:read-sellers` (`…5e7ad0000025`) a `SUPERADMIN` y `ADMIN`; `UserController` lo exige en `/{id}/sellers` con su prosa de `403`; `ClientSellersIT` lo concede; `EndpointPermissionsIT` lo recibe en `PERMISO_DE_CADA_OPERACION` y el motivo de `/me/sellers` lo nombra; `PermissionsSeedIT`, `PermissionIT`, `JpaPermissionQueryRepositoryIT` y `ListPermissionsServiceIT` cuentan ciento doce; `security.md` §4.4 y `requirements/sp.md` al día | `T-06` | `CA-SP-691` con el permiso nuevo; `EndpointPermissionsIT` sin excepciones nuevas | Pendiente |
 
 ## 2. Orden de ejecución
 
@@ -49,7 +50,7 @@
 |---|---|
 | `CA-SP-686`, `CA-SP-687` | `T-03`, `T-04`, `T-06`, `T-16` |
 | `CA-SP-688` | `T-01`, `T-02` |
-| `CA-SP-689`, `CA-SP-690`, `CA-SP-691` | `T-05`, `T-06`, `T-16` |
+| `CA-SP-689`, `CA-SP-690`, `CA-SP-691` | `T-05`, `T-06`, `T-16`, `T-19` |
 | `CA-SP-692` | `T-01`, `T-02`, `T-14` |
 | `CA-SP-693` | `T-10` |
 | `CA-SP-694` | `T-13` |
