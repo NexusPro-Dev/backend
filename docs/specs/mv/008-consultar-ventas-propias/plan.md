@@ -5,9 +5,10 @@
 | Requerimiento | `RF-MV-008` |
 | Especificación | [`spec.md`](spec.md) v0.1.0 |
 | `spec.md` aprobada el | 05-09-2026 |
-| Versión | 0.2.0 |
+| Versión | 0.3.0 |
 | Estado | **Aprobado** |
 | Enmendado el | 16-09-2026 — la mitad «lo que vendí» se resuelve por `movement_details.seller_id` (§2.1, §4.1) |
+| Enmendado el | 21-09-2026 — el filtro `type` y el campo `type` en la fila (§3, §4.1, §4.3, §11) |
 | Autor | Responsable técnico |
 | Aprobado por | Responsable del proyecto |
 | Fecha de aprobación | 05-09-2026 |
@@ -68,7 +69,7 @@ La migración es `V58__index_movements_por_participante.sql`.
 
 | Capa | Componente | Cambio | Nota |
 |---|---|---|---|
-| `application` | `MyMovementsRequest` | Nuevo | Página, tamaño y estado. **No lleva identificador de persona**, y esa ausencia es el contrato |
+| `application` | `MyMovementsRequest` | Nuevo | Página, tamaño y estado. **No lleva identificador de persona**, y esa ausencia es el contrato. Desde el 21-09-2026, también `type`, normalizado como el estado |
 | `application` | `MyMovementResponse` | Nuevo | La fila del listado, con el papel, **el sujeto y sus vendedores** (desde el 16-09-2026; antes, las dos partes) |
 | `application` | `MovementRole` | Nuevo | `BUYER`, `SELLER`, `BOTH` |
 | `domain/repository` | `MovementRepository` | Modificado | Gana `findMine`, `countMine` y `findMineById` |
@@ -104,6 +105,7 @@ Devuelve un `PageResponse` con las filas. Cada una:
 | `role` | `BUYER` \| `SELLER` \| `BOTH` | El papel de quien pregunta |
 | `user` | objeto | Identificador, nombre de usuario y nombre del **sujeto**. Hasta el 16-09-2026 se llamó `client` |
 | `sellers` | lista de objetos, **nunca nula** | Los vendedores de sus líneas, **sin repetir**. Vacía cuando el tipo de movimiento no vende nada. Hasta el 16-09-2026 fue `seller`, un objeto o nulo |
+| `type` | texto | El código del tipo de movimiento. Hoy, `VENTA`. **Desde el 21-09-2026**: es el mismo campo de `MovementResponse`, y entra en la fila propia el día que se puede filtrar por él |
 | `currency`, `paymentMethod` | | |
 | `totalAmount`, `discountAmount`, `payableAmount` | | |
 | `occurredAt` | | |
@@ -122,6 +124,7 @@ Devuelve un `SaleResponse`, idéntico al de `RF-MV-001`.
 |---|---|
 | `page`, `size` | Los resuelve `Pagination`, como todo listado del sistema |
 | `status` | Opcional. Un valor no admitido es `400` `VAL-003` |
+| `type` (21-09-2026) | Opcional; código del catálogo, sin distinguir mayúsculas. Uno que no exista es `400` `VAL-004`. **Se valida contra `movement_types` con `findTypeByCode`** y no contra una constante, por lo que `RF-MV-006` `plan.md` §3 y §9 dicen; entra en `SELECCION_PROPIA` con la misma forma que el estado —`CAST(:tipo AS varchar) IS NULL OR mt.code = …`— y `movement_types` se une a la sentencia, que hasta hoy no la necesitaba porque la fila no decía su tipo |
 
 **No hay parámetro de ordenamiento**, y es una decisión: el orden es fijo, del más reciente al más antiguo. Ofrecer ordenar por importe o por estado invitaría a construir informes sobre un endpoint que existe para que alguien mire lo suyo.
 
@@ -193,6 +196,7 @@ Devuelve un `SaleResponse`, idéntico al de `RF-MV-001`.
 | El detalle ajeno responde `404` y no `403` | Integración | La distinción es observable solo por HTTP |
 | Paginación, orden y estabilidad entre páginas | Integración | |
 | Filtro por estado, y estado no admitido → `400` | Integración | |
+| Filtro por tipo: **discrimina** con un segundo tipo sembrado solo en la prueba, combinado con el estado; tipo inexistente `400`; y `type` en cada fila (21-09-2026) | Integración | Con un solo tipo en el catálogo, filtrar por `VENTA` no probaría nada. La prueba deja el catálogo como lo encontró |
 | Página vacía para quien no participó | Integración | |
 | `401` sin autenticar | Integración | |
 | `/mine` no lo captura una variable de ruta | Integración | La declara `MovementRoutingIT` o la propia clase |

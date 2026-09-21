@@ -3,11 +3,11 @@
 | Campo | Valor |
 |---|---|
 | Requerimiento | `RF-MV-008` |
-| Especificación | [`spec.md`](spec.md) v0.1.0 |
-| Plan | [`plan.md`](plan.md) v0.1.0 |
+| Especificación | [`spec.md`](spec.md) v0.3.0 |
+| Plan | [`plan.md`](plan.md) v0.3.0 |
 | `plan.md` aprobado el | 05-09-2026 |
-| Estado | **En revisión** — `T-01` a `T-12` `Hecha`; `T-13` a `T-16` `Hecha` el 16-09-2026 (§1.1) |
-| Rama | `feature/venta-de-productos` |
+| Estado | **En revisión** — `T-01` a `T-12` `Hecha`; `T-13` a `T-16` `Hecha` el 16-09-2026 (§1.1); `T-17` a `T-20` (§1.2) `Pendiente` |
+| Rama | `feature/venta-de-productos`; la enmienda del 21-09-2026, en `feature/filtro-por-tipo-de-movimiento` |
 
 !!! info "Qué va en este documento"
 
@@ -47,6 +47,17 @@ Enmienda del Art. I.7 sobre este requerimiento ya construido, por decisión del 
 | `T-15` | `MyMovementsIT`: rehacer los criterios que miraban `client` y `seller`, y añadir la venta de quien no cuelga de nadie con papel `BOTH` | `T-14` | `CA-MV-035` a `CA-MV-037` y `CA-MV-043` en verde con la forma nueva; `sellers` vacía **y presente** comprobada sobre el JSON en crudo | **Hecha** — 16-09-2026 |
 | `T-16` | Contrato OpenAPI: esquema regenerado y **prosa reescrita** — `user` es el sujeto, `sellers` son los de sus líneas | `T-14` | Las `@Operation` de los dos `GET` no nombran `client` ni un `seller` de cabecera | **Hecha** — 16-09-2026 |
 
+### 1.2 El filtro por tipo, y el tipo en la fila — 21-09-2026
+
+Enmienda de hecho (Art. I.7), `spec.md` 0.3.0 y `plan.md` 0.3.0 **antes** del código, el mismo día que `RF-MV-006` · §1.1. Sin migración.
+
+| ID | Tarea | Depende de | Verificación | Estado |
+|---|---|---|---|---|
+| `T-17` | `MyMovementsRequest` gana `type`, normalizado a mayúsculas; `findMine` y `countMine` lo reciben y `SELECCION_PROPIA` une `movement_types` y lo compara con `mt.code` con la misma forma que el estado | — | Con `type` puesto, el total cuenta lo que la página devuelve | `Pendiente` |
+| `T-18` | `MyMovementRow` y `MyMovementResponse` ganan `type`; `ListMyMovementsService` valida `type` contra el catálogo con `findTypeByCode` (`VAL-004`) | `T-17` | El campo sale en el JSON de cada fila | `Pendiente` |
+| `T-19` | `MovementController`: el parámetro documentado en la `@Operation` de `GET /mine`; `MyMovementsIT`: `CA-MV-120` con un **segundo tipo sembrado en la prueba** y combinado con el estado, el inexistente, y `CA-MV-121` | `T-18` | La prueba deja `movement_types` como lo encontró | `Pendiente` |
+| `T-20` | Contrato OpenAPI regenerado y prosa releída; `docs/api/index.md`; matriz de `requirements.md` | `T-19` | `openapi.json` declara `type` en el parámetro y en `MyMovementResponse` | `Pendiente` |
+
 ---
 
 ## 2. Cobertura de los criterios de aceptación
@@ -60,6 +71,7 @@ Enmienda del Art. I.7 sobre este requerimiento ya construido, por decisión del 
 | `CA-MV-043` | `T-04`, `T-10`, `T-14`, `T-15` — rehecho el 16-09-2026: `user` y `sellers`, con la lista vacía comprobada sobre el JSON en crudo |
 | `CA-MV-044`, `CA-MV-045` | `T-07`, `T-10` |
 | `CA-MV-046`, `CA-MV-047` | `T-09`, `T-10` |
+| `CA-MV-120`, `CA-MV-121` | `T-17`, `T-18`, `T-19` — 21-09-2026 |
 
 ---
 

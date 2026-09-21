@@ -4,8 +4,9 @@
 |---|---|
 | Requerimiento | `RF-MV-006` |
 | Módulo | `MV` — Movimientos |
-| Versión | 0.1.0 |
+| Versión | 0.2.0 |
 | Estado | **Aprobada** |
+| Enmendada el | 21-09-2026 — los movimientos se filtran también **por tipo** (§2.2, §6.1, §11, §12, §13). Ver §15 |
 | Autor | Responsable técnico |
 | Aprobada por | Responsable del proyecto |
 | Fecha de aprobación | 17-09-2026 |
@@ -48,6 +49,7 @@ Un listado de administración **sin filtros es un listado que nadie puede usar**
 | Método de pago | «¿Qué entró por transferencia?» — la pregunta de quien concilia contra un extracto |
 | Código | «¿Dónde está este comprobante?» — el que la persona cita cuando llama |
 | Periodo | «¿Qué ocurrió entre estas dos fechas?» — sobre **cuándo ocurrió** el hecho, no cuándo se escribió |
+| **Tipo** (21-09-2026) | «¿Qué depósitos hubo?» — la pregunta que el segundo tipo de movimiento traerá antes que ninguna, y que el libro puede responder desde hoy porque cada fila **dice su tipo** (§2.1). Es la otra mitad de esa promesa: un libro que dice de qué tipo es cada hecho tiene que poder preguntarse por uno solo |
 
 **Se combinan**: el estado pendiente **de** un vendedor **en** septiembre es una sola pregunta.
 
@@ -70,7 +72,7 @@ Un listado de administración **sin filtros es un listado que nadie puede usar**
 ### 4.1 Incluye
 
 - El **listado paginado** de todos los movimientos del sistema, del más reciente al más antiguo.
-- Los **seis filtros** de §2.2, combinables.
+- Los **siete filtros** de §2.2, combinables — seis desde el 17-09-2026 y el tipo desde el 21-09-2026.
 - En cada fila: **el tipo** de movimiento, su estado, **el sujeto y los vendedores de sus líneas** —las mismas dos partes que `RF-MV-008`—, el medio de pago, la moneda, los importes, **cuándo ocurrió y cuándo se confirmó**.
 
 ### 4.2 No incluye
@@ -109,6 +111,9 @@ Un listado de administración **sin filtros es un listado que nadie puede usar**
 | Método de pago | No | Solo los pagados con ese método. Mismo trato |
 | Código | No | El comprobante **exacto**, sin distinguir mayúsculas. Como mucho devuelve uno |
 | Desde, hasta | No | Instantes con zona horaria sobre **cuándo ocurrió** el movimiento. El rango es **semiabierto** —incluye «desde», excluye «hasta»—, para que dos periodos consecutivos no devuelvan dos veces el de la medianoche. «Desde» posterior a «hasta» es un **error** |
+| Tipo (21-09-2026) | No | Solo los movimientos de ese tipo, por su **código** en el catálogo, sin distinguir mayúsculas. Uno que no exista es un **error**, no una página vacía — el mismo trato que el estado, y por el mismo motivo (abajo) |
+
+**El tipo va con el estado y no con las personas.** El catálogo de tipos **no se edita por API y no se borra** (`RN-MV-017`): lo siembra el sistema, y el caso de uso decide según él. Es un conjunto **cerrado que el sistema declara**, aunque viva en una tabla, y pedir un tipo que no existe es la misma pregunta mal escrita que pedir un estado inventado. **Hoy el catálogo tiene un solo código**, y el filtro se define igual: lo que se promete es que discrimina el día que haya dos, no que hoy separe algo.
 
 **Por qué el estado que no existe es un error y la persona que no existe no lo es.** Los estados son un conjunto **cerrado que el sistema declara**: pedir uno inventado es una pregunta mal escrita, y una página vacía sería una respuesta falsa a ella — «no hay ninguno así». Las personas y los métodos son **datos**: preguntar por uno que no está devuelve lo que hay, que es nada, y es el mismo trato que `RF-SP-025` da a un rol o un país inexistentes.
 
@@ -188,6 +193,7 @@ La página se devuelve igual; el total **es el techo** y la respuesta declara qu
 | `VAL-002` | El estado indicado, si viene, es uno de los que existen |
 | `VAL-003` | Los identificadores de sujeto, vendedor y método, si vienen, están bien formados |
 | `VAL-004` | «Desde» y «hasta», si vienen, son instantes bien formados, y «desde» no es posterior a «hasta» |
+| `VAL-005` | El tipo indicado, si viene, es uno del catálogo de tipos de movimiento (21-09-2026) |
 
 **Los problemas de validación se devuelven juntos**, como en los listados de `SP`: quien escribió mal tres parámetros no tiene que corregir la petición tres veces.
 
@@ -212,6 +218,7 @@ La página se devuelve igual; el total **es el techo** y la respuesta declara qu
 | `CA-MV-080` | **Cuándo se confirmó** viaja en las confirmadas y va **nulo y presente** en las demás |
 | `CA-MV-081` | La fila **no lleva el papel** de quien pregunta ni las líneas |
 | `CA-MV-082` | Por encima del techo del conteo, el total **es el techo** y la respuesta lo declara **inexacto**; por debajo, es el real y exacto |
+| `CA-MV-119` | El filtro por **tipo** devuelve solo los movimientos de ese tipo, escrito en mayúsculas o en minúsculas, y **se combina** con los demás; un tipo que no existe es un **error** y no una página vacía, devuelto **junto** con los demás problemas de la petición (21-09-2026) |
 
 **`CA-MV-068` y `CA-MV-069` son los dos criterios que sostienen el requerimiento**, y son el espejo de `CA-MV-038`: aquel prueba que el permiso **no amplía** lo propio; estos prueban que el permiso **es lo único** que abre lo ajeno.
 
@@ -228,6 +235,7 @@ La página se devuelve igual; el total **es el techo** y la respuesta declara qu
 | Un **periodo** sin «hasta», o sin «desde» | Abierto por ese lado: «desde el 1 de septiembre» son todos los posteriores |
 | Dos movimientos **en el mismo instante** | El orden entre ellos es estable, y no depende de la página que se pida |
 | El **libro vacío** | Página vacía y total cero, exacto |
+| El catálogo con **un solo tipo** (21-09-2026) | Filtrar por `VENTA` devuelve lo mismo que no filtrar. No es un defecto: el filtro existe para el día del segundo tipo, y lo que se comprueba es que **discrimina** — con un segundo tipo que solo existe en la prueba |
 
 ---
 
@@ -244,3 +252,4 @@ La página se devuelve igual; el total **es el techo** y la respuesta declara qu
 | Versión | Fecha | Cambio | Autor |
 |---|---|---|---|
 | 0.1.0 | 17-09-2026 | Primera versión. **El requerimiento estaba declarado desde el 02-09-2026** en `requirements/mv.md` §4.1 como «Consultar ventas», sin especificar, y lo pide el responsable del proyecto —«un endpoint para consultar todos los movimientos registrados»—. **Se renombra a «Consultar los movimientos»** (§2.1), por lo mismo que `RF-MV-008`: el libro es de todos los hechos económicos y cada fila dice su tipo. Se escribe **por diferencias sobre `RF-MV-008`** y las diferencias son tres: el permiso `movements:read` es lo único que lo abre, el alcance es **global y explícito** —lo que §5.3 de `requirements/mv.md` había decidido para no depender de D-22—, y se acota con **seis filtros** que responden una pregunta de operación cada uno (§2.2). La fila gana **el tipo** y **cuándo se confirmó**, y pierde el papel. **El total es acotado**, como en la auditoría, porque el libro crece sin límite. Lo que se deja fuera se deja a propósito: buscar por texto, ordenar a elección, sumar, y el detalle — que es `RF-MV-007` y es lo primero que va a faltar (§14). | Responsable del proyecto |
+| 0.2.0 | 21-09-2026 | **Los movimientos se filtran también por tipo** (`requirements/mv.md` v0.31.0; Art. I.7 sobre un requerimiento construido), a petición del responsable del proyecto —«que los movimientos se puedan filtrar por tipos de movimiento»—. §2.2 gana la séptima pregunta —«¿qué depósitos hubo?»—, §4.1 pasa de seis filtros a siete, §6.1 gana la entrada y el párrafo que la pone **del lado del estado y no de las personas**: el catálogo es cerrado por `RN-MV-017`, y un tipo inexistente es un **error**. `VAL-005`, `CA-MV-119` y el caso límite del catálogo con un solo tipo. **Nada más cambia**: ni el permiso, ni el alcance, ni la fila, ni el conteo. `RF-MV-008` se enmienda el mismo día con el mismo filtro. | Responsable del proyecto |
