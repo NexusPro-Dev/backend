@@ -4,8 +4,9 @@
 |---|---|
 | Requerimiento | `RF-MV-015` |
 | Módulo | `MV` — Movimientos |
-| Versión | 0.1.0 |
+| Versión | 0.2.0 |
 | Estado | **Aprobada** |
+| Enmendada el | 21-09-2026 — gana el **método de pago** y el **comprobante** como filtros, por decisión del responsable (§2.2, §6.1, §12). Ver §15 |
 | Autor | Responsable técnico |
 | Aprobada por | Responsable del proyecto |
 | Fecha de aprobación | 21-09-2026 |
@@ -43,8 +44,12 @@ El libro es de todos los hechos económicos y hoy solo hay ventas. La decisión 
 | Persona | «¿Qué vendió **este** de los míos?» — una persona de mi red **como vendedora** de alguna línea. Para el cliente no aplica: solo hay uno posible, él |
 | Estado | «¿Qué está pendiente de cobrar entre lo que vendió mi gente?» |
 | Periodo | «¿Qué vendió mi red en septiembre?» — sobre **cuándo ocurrió** el hecho |
+| Método de pago (21-09-2026) | «¿Qué cobró mi gente por transferencia?» |
+| Código (21-09-2026) | «¿Dónde está este comprobante, si es de mi red?» |
 
-**Se combinan.** Lo que no se ofrece es lo mismo que `RF-MV-006` §2.2 deja fuera, y por lo mismo: texto libre, otro orden que el cronológico, y sumas — un total de lo vendido por la red es un **informe**, con sus reglas sobre qué cuenta, y este listado no las decide. Tampoco el método de pago ni el comprobante: son preguntas de quien concilia, y quien concilia tiene `RF-MV-006`.
+**Se combinan.** Lo que no se ofrece es lo mismo que `RF-MV-006` §2.2 deja fuera, y por lo mismo: texto libre, otro orden que el cronológico, y sumas — un total de lo vendido por la red es un **informe**, con sus reglas sobre qué cuenta, y este listado no las decide.
+
+**El método de pago y el comprobante entraron el mismo día, y en la primera versión se habían dejado fuera** con el argumento de que eran preguntas de quien concilia. El responsable del proyecto decidió lo contrario —los tres filtros de `RF-MV-006` **en todos los listados**— y el argumento cede: un director también concilia lo que cobró su gente, y buscar un comprobante que le citan por teléfono es lo primero que va a hacer. Se conservan **dentro del alcance**: un comprobante que no es de mi red no aparece, igual que una persona que no lo es.
 
 ---
 
@@ -104,6 +109,8 @@ El libro es de todos los hechos económicos y hoy solo hay ventas. La decisión 
 | Persona | No | Solo las ventas en las que esa persona es vendedora de alguna línea, **si está en mi alcance**. Fuera de él —o inexistente— da una **página vacía**, no un error: el filtro no confirma quién cuelga de quién. Para el consumidor, cualquier persona que no sea él da vacío |
 | Estado | No | Solo las ventas en ese estado. Uno que no exista es un **error** (`RF-MV-006` §6.1) |
 | Desde, hasta | No | Como en `RF-MV-006`: instantes sobre **cuándo ocurrió**, rango **semiabierto**, «desde» posterior a «hasta» es un error |
+| Método de pago (21-09-2026) | No | Solo las ventas pagadas con ese método. Uno que no exista da una **página vacía**, como en `RF-MV-006` |
+| Código (21-09-2026) | No | El comprobante **exacto**, sin distinguir mayúsculas, **si está en mi alcance**; si no, página vacía — el alcance va antes que el filtro |
 
 **Sobre quién se pregunta NO se indica, y esa es la mitad del requerimiento**: el alcance sale de **quién es** quien pregunta —su tipo de rol y su lugar en la estructura—, y no hay forma de pedir el alcance de otra persona. El filtro por persona **acota dentro** del alcance; no lo cambia.
 
@@ -206,6 +213,7 @@ Como `RF-MV-006` · `FA-003`: la página se devuelve, el total es el techo y la 
 | `CA-MV-130` | Quien **no** tiene `movements:list-sales` recibe **prohibido**; **sin autenticar**, `401`; y **ni `movements:read` ni `movements:list-own` abren esta consulta** |
 | `CA-MV-131` | La fila es **la de `RF-MV-006`** —tipo, sujeto, vendedores sin repetir, importes, confirmación nula y presente— y **sin papel**; una venta con varias líneas del mismo vendedor aparece **una vez** |
 | `CA-MV-132` | El listado va **paginado y envuelto**, del más reciente al más antiguo, estable entre páginas, y **el total es el techo** por encima del techo del conteo |
+| `CA-MV-136` | Los filtros por **método de pago** y por **código** acotan **dentro del alcance** y se combinan con los demás: el comprobante de una venta que no es de mi red da una página vacía, escrito como sea (21-09-2026) |
 
 **`CA-MV-123` a `CA-MV-125` son los que sostienen el requerimiento**, y **`CA-MV-127` es el que lo protege**: los primeros prueban que la red se recorre entera y que no se cruza a la rama de al lado; el último, que el filtro por persona no se convierte en la forma de descubrir la estructura.
 
@@ -238,3 +246,4 @@ Como `RF-MV-006` · `FA-003`: la página se devuelve, el total es el techo y la 
 | Versión | Fecha | Cambio | Autor |
 |---|---|---|---|
 | 0.1.0 | 21-09-2026 | Primera versión, a petición del responsable del proyecto —«un endpoint por tipo de movimiento y con un filtro por `user_id`; consumidor solo lo suyo; vendedor desde el rango más bajo y subiendo por la jerarquía según el `seller_id` de la línea»— y con cuatro decisiones suyas del mismo día: **una ruta por tipo** y no una con el tipo dentro (§2.1); **la persona del filtro es un vendedor de mi red** (§2.2); **el vendedor ve también lo suyo** (`FA-002`); **quien administra lo ve todo** por la misma consulta (§3). Nace `RN-MV-031`, que **decide para las ventas lo que D-22 aplazaba**: la segunda lectura del sistema autorizada por estructura y la primera en profundidad (`security.md` v0.68.0). Fuera del alcance se responde **vacío** y no un error, para que el filtro no sea un oráculo de la estructura (`EX`, `CA-MV-127`). La fila es la de `RF-MV-006`, a propósito. Once criterios, `CA-MV-122` a `CA-MV-132`. | Responsable del proyecto |
+| 0.2.0 | 21-09-2026 | **Gana el método de pago y el comprobante como filtros** (`requirements/mv.md` v0.33.0), por decisión del responsable del proyecto del mismo día —los tres filtros de `RF-MV-006` en todos los listados—, que revierte lo que §2.2 había dejado fuera con el argumento de «quien concilia tiene `RF-MV-006`»: un director también concilia lo de su gente. Los dos acotan **dentro del alcance** (`CA-MV-136`). Doce criterios. | Responsable del proyecto |

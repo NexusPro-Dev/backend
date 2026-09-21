@@ -6,7 +6,7 @@
 | Especificación | [`spec.md`](spec.md) v0.1.0 |
 | Plan | [`plan.md`](plan.md) v0.1.0 |
 | `plan.md` aprobado el | 21-09-2026 |
-| Estado | **En revisión** — `T-01` a `T-09` `Hecha` el 21-09-2026 |
+| Estado | **En revisión** — `T-01` a `T-09` `Hecha` el 21-09-2026; `T-10` y `T-11` (§1.1) `Pendiente` |
 | Issue | Pendiente de crear |
 | Rama | `feature/ventas-de-mi-alcance` |
 
@@ -32,6 +32,15 @@
 | `T-08` | `SalesBoundedCountIT`: `CA-MV-132` con `nexus.pagination.count-limit=3` | `T-06` | Total 3 e inexacto por encima; exacto por debajo | **Hecha** — 21-09-2026 (`SalesBoundedCountIT`, 2) |
 | `T-09` | Contrato OpenAPI regenerado y prosa releída; `docs/api/index.md`; matriz e indicadores de `requirements.md`; ficha de `RF-MV-015` en `mv.md` a `En desarrollo`; issue | `T-07` | `openapi.json` declara la ruta con `x-required-permission: movements:list-sales` y **ninguna forma nueva** | **Hecha** — 21-09-2026 |
 
+### 1.1 Método de pago y comprobante — 21-09-2026
+
+Enmienda de hecho (Art. I.7), `spec.md` 0.2.0 y `plan.md` 0.2.0 **antes** del código, el mismo día que la segunda enmienda de `RF-MV-008` · §1.3.
+
+| ID | Tarea | Depende de | Verificación | Estado |
+|---|---|---|---|---|
+| `T-10` | `ListSalesRequest` y `SalesFilter` ganan `paymentMethodId` y `code` (a mayúsculas); `filtroDeVentas` los aplica después del alcance; `ListSalesService` los pasa | — | Un comprobante fuera del alcance no devuelve nada | `Pendiente` |
+| `T-11` | `MovementController`: los dos parámetros documentados; `SalesIT`: `CA-MV-136`; contrato regenerado; `docs/api/index.md` y matriz | `T-10` | `openapi.json` declara los dos en `GET /api/v1/movements/sales` | `Pendiente` |
+
 ---
 
 ## 2. Cobertura de los criterios de aceptación
@@ -44,6 +53,7 @@
 | `CA-MV-130` | `T-01`, `T-06`, `T-07` |
 | `CA-MV-131` | `T-04`, `T-07` |
 | `CA-MV-132` | `T-04`, `T-08` |
+| `CA-MV-136` | `T-10`, `T-11` — 21-09-2026 |
 
 ---
 

@@ -5,10 +5,11 @@
 | Requerimiento | `RF-MV-008` |
 | Especificación | [`spec.md`](spec.md) v0.1.0 |
 | `spec.md` aprobada el | 05-09-2026 |
-| Versión | 0.3.0 |
+| Versión | 0.4.0 |
 | Estado | **Aprobado** |
 | Enmendado el | 16-09-2026 — la mitad «lo que vendí» se resuelve por `movement_details.seller_id` (§2.1, §4.1) |
 | Enmendado el | 21-09-2026 — el filtro `type` y el campo `type` en la fila (§3, §4.1, §4.3, §11) |
+| Enmendado el | 21-09-2026 (segunda del día) — `paymentMethodId`, `code`, `from` y `to`, con la forma de `RF-MV-006` (§4.3, §11) |
 | Autor | Responsable técnico |
 | Aprobado por | Responsable del proyecto |
 | Fecha de aprobación | 05-09-2026 |
@@ -125,6 +126,11 @@ Devuelve un `SaleResponse`, idéntico al de `RF-MV-001`.
 | `page`, `size` | Los resuelve `Pagination`, como todo listado del sistema |
 | `status` | Opcional. Un valor no admitido es `400` `VAL-003` |
 | `type` (21-09-2026) | Opcional; código del catálogo, sin distinguir mayúsculas. Uno que no exista es `400` `VAL-004`. **Se valida contra `movement_types` con `findTypeByCode`** y no contra una constante, por lo que `RF-MV-006` `plan.md` §3 y §9 dicen; entra en `SELECCION_PROPIA` con la misma forma que el estado —`CAST(:tipo AS varchar) IS NULL OR mt.code = …`— y `movement_types` se une a la sentencia, que hasta hoy no la necesitaba porque la fila no decía su tipo |
+| `paymentMethodId` (21-09-2026) | Opcional, UUID. Igualdad sobre `m.payment_method_id`; uno inexistente da página vacía. Malformado, `400` `VAL-006` por el conversor global |
+| `code` (21-09-2026) | Opcional; en mayúsculas para que la igualdad la responda `uq_movements_code`, como en `RF-MV-006`. El alcance del actor va en el mismo `WHERE`: un código ajeno no devuelve nada |
+| `from`, `to` (21-09-2026) | Opcionales, instantes ISO-8601 con zona, sobre `occurred_at`, semiabierto. `from` posterior a `to` es `400` `VAL-005` |
+
+**Los cuatro entran en `SELECCION_PROPIA` con la misma forma que el estado y el tipo** —`CAST(:x AS …) IS NULL OR …`—, porque esa sentencia se escribe una vez para la página y el conteo y ya usa esa forma; no se cambia a la clase `Filtro` del listado global para no reescribir una consulta que funciona. `MyMovementsRequest` normaliza el código a mayúsculas y `ListMyMovementsService` valida el rango como valida el estado y el tipo: uno a uno, que es la forma de este caso de uso.
 
 **No hay parámetro de ordenamiento**, y es una decisión: el orden es fijo, del más reciente al más antiguo. Ofrecer ordenar por importe o por estado invitaría a construir informes sobre un endpoint que existe para que alguien mire lo suyo.
 
@@ -197,6 +203,7 @@ Devuelve un `SaleResponse`, idéntico al de `RF-MV-001`.
 | Paginación, orden y estabilidad entre páginas | Integración | |
 | Filtro por estado, y estado no admitido → `400` | Integración | |
 | Filtro por tipo: **discrimina** con un segundo tipo sembrado solo en la prueba, combinado con el estado; tipo inexistente `400`; y `type` en cada fila (21-09-2026) | Integración | Con un solo tipo en el catálogo, filtrar por `VENTA` no probaría nada. La prueba deja el catálogo como lo encontró |
+| Método de pago, código en minúsculas y ajeno, periodo semiabierto combinado con el estado, y rango invertido `400` (21-09-2026) | Integración | `CA-MV-133` a `CA-MV-135`; el código ajeno es el que protege el alcance |
 | Página vacía para quien no participó | Integración | |
 | `401` sin autenticar | Integración | |
 | `/mine` no lo captura una variable de ruta | Integración | La declara `MovementRoutingIT` o la propia clase |

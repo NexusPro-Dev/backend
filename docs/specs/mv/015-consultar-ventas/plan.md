@@ -5,8 +5,9 @@
 | Requerimiento | `RF-MV-015` |
 | Especificación | [`spec.md`](spec.md) v0.1.0 |
 | `spec.md` aprobada el | 21-09-2026 |
-| Versión | 0.1.0 |
+| Versión | 0.2.0 |
 | Estado | **Aprobado** |
+| Enmendado el | 21-09-2026 — `paymentMethodId` y `code` (§4.1, §11) |
 | Autor | Responsable técnico |
 | Aprobado por | Responsable del proyecto |
 | Fecha de aprobación | 21-09-2026 |
@@ -83,6 +84,8 @@
 | `userId` | UUID | Vendedor de **alguna línea**, **dentro del alcance**. Fuera de él, o inexistente: página vacía, **sin consultar** |
 | `status` | `PENDIENTE` \| `CONFIRMADA` \| `RECHAZADA` \| `ANULADA` | Uno no admitido es `400` `VAL-002`, contra `MovementStatus` |
 | `from`, `to` | instante ISO-8601 con zona | Semiabierto sobre `occurred_at`; `from` posterior a `to` es `400` `VAL-004` |
+| `paymentMethodId` (21-09-2026) | UUID | Igualdad; uno inexistente da página vacía. Entra en `filtroDeVentas` con `Filtro.igual`, como en `filtroGlobal` |
+| `code` (21-09-2026) | texto | En mayúsculas, igualdad sobre `uq_movements_code`. **Después** del alcance en el mismo predicado: un comprobante ajeno no devuelve nada |
 
 **No hay `type`**: el tipo es el de la ruta. **No hay `sellerId` ni `userId` con dos sentidos**: `userId` es el nombre que el responsable usó y significa **la persona de mi red como vendedora**; el sujeto no se filtra aquí (`spec.md` §2.2).
 
@@ -184,6 +187,7 @@ Ninguna (`spec.md` §7).
 | `userId` dentro y fuera del alcance, inexistente, y para el consumidor | Integración | `CA-MV-127`: vacío, no error, y el corte sin consultar |
 | Quien dejó la red (`ended_at` puesto) desaparece | Integración | `CA-MV-128` |
 | Estado y periodo combinados con `userId`; errores juntos | Integración | `CA-MV-129` |
+| Método de pago y código dentro del alcance; el comprobante ajeno vacío (21-09-2026) | Integración | `CA-MV-136` |
 | `403` sin el permiso, con `movements:read` y con `movements:list-own`; `401` | Integración | `CA-MV-130`; y la ruta en `PERMISO_DE_CADA_OPERACION` |
 | La fila es la de `RF-MV-006`, sin `role`; varias líneas del mismo vendedor cuentan una vez | Integración, sobre el JSON en crudo | `CA-MV-131` |
 | Paginación, orden, y total acotado con el techo bajado | Integración | `CA-MV-132`, como `MovementsBoundedCountIT` |
