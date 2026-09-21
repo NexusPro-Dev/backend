@@ -6,7 +6,7 @@
 | Especificación | [`spec.md`](spec.md) v0.1.0 |
 | Plan | [`plan.md`](plan.md) v0.1.0 |
 | `plan.md` aprobado el | 21-09-2026 |
-| Estado | **En revisión** — `T-01` a `T-09` `Hecha` el 21-09-2026; `T-10` y `T-11` (§1.1) `Pendiente` |
+| Estado | **En revisión** — `T-01` a `T-11` `Hecha` el 21-09-2026 |
 | Issue | Pendiente de crear |
 | Rama | `feature/ventas-de-mi-alcance` |
 
@@ -38,8 +38,8 @@ Enmienda de hecho (Art. I.7), `spec.md` 0.2.0 y `plan.md` 0.2.0 **antes** del c�
 
 | ID | Tarea | Depende de | Verificación | Estado |
 |---|---|---|---|---|
-| `T-10` | `ListSalesRequest` y `SalesFilter` ganan `paymentMethodId` y `code` (a mayúsculas); `filtroDeVentas` los aplica después del alcance; `ListSalesService` los pasa | — | Un comprobante fuera del alcance no devuelve nada | `Pendiente` |
-| `T-11` | `MovementController`: los dos parámetros documentados; `SalesIT`: `CA-MV-136`; contrato regenerado; `docs/api/index.md` y matriz | `T-10` | `openapi.json` declara los dos en `GET /api/v1/movements/sales` | `Pendiente` |
+| `T-10` | `ListSalesRequest` y `SalesFilter` ganan `paymentMethodId` y `code` (a mayúsculas); `filtroDeVentas` los aplica después del alcance; `ListSalesService` los pasa | — | Un comprobante fuera del alcance no devuelve nada | **Hecha** — 21-09-2026 |
+| `T-11` | `MovementController`: los dos parámetros documentados; `SalesIT`: `CA-MV-136`; contrato regenerado; `docs/api/index.md` y matriz | `T-10` | `openapi.json` declara los dos en `GET /api/v1/movements/sales` | **Hecha** — 21-09-2026 (`SalesIT`, 12) |
 
 ---
 
@@ -74,8 +74,8 @@ Enmienda de hecho (Art. I.7), `spec.md` 0.2.0 y `plan.md` 0.2.0 **antes** del c�
 
 ## 5. Definición de terminado
 
-- [x] `./mvnw clean verify` en verde — 435 unitarias y 1759 de integración, 0 fallos.
-- [x] Los once criterios de aceptación con prueba.
+- [x] `./mvnw clean verify` en verde — 435 unitarias y 1759 de integración, 0 fallos; con la enmienda de §1.1, 435 unitarias y 1763 de integración, 0 fallos.
+- [x] Los doce criterios de aceptación con prueba.
 - [x] Contrato OpenAPI regenerado, **con la prosa releída**.
 - [x] `requirements/mv.md`, `requirements.md` y `api/index.md` actualizados.
 - [ ] **`tasks.md` aprobadas por el responsable del proyecto.**

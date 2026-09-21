@@ -142,10 +142,27 @@ public interface MovementRepository {
    * <p>No hay sobrecarga que acepte otra persona: consultar las de un tercero es `RF-MV-006`, con
    * su permiso.
    */
-  List<MyMovementRow> findMine(UUID actorId, String status, String type, int offset, int limit);
+  List<MyMovementRow> findMine(UUID actorId, MyMovementsFilter filter, int offset, int limit);
 
   /** Cuántos hay en total. Exacto: es el conjunto de una persona, no una tabla sin límite. */
-  long countMine(UUID actorId, String status, String type);
+  long countMine(UUID actorId, MyMovementsFilter filter);
+
+  /**
+   * Los filtros del listado propio (`RF-MV-008`), ya normalizados y validados: el estado y el tipo
+   * desde el 21-09-2026 por la mañana, y el método de pago, el comprobante y el periodo desde esa
+   * tarde. <b>No lleva al actor</b>: el actor no es un filtro, es el alcance.
+   *
+   * @param code ya en mayúsculas
+   * @param from inclusive, sobre {@code occurred_at}
+   * @param to exclusive, sobre {@code occurred_at}
+   */
+  record MyMovementsFilter(
+      String status,
+      String type,
+      UUID paymentMethodId,
+      String code,
+      OffsetDateTime from,
+      OffsetDateTime to) {}
 
   /**
    * Los vendedores de las líneas de esos movimientos, <b>sin repetir</b> por movimiento.
@@ -432,6 +449,8 @@ public interface MovementRepository {
       UUID ownerId,
       UUID sellerId,
       String status,
+      UUID paymentMethodId,
+      String code,
       OffsetDateTime from,
       OffsetDateTime to) {
     public SalesFilter {

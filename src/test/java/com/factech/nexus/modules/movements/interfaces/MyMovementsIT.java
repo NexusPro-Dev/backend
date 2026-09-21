@@ -40,6 +40,7 @@ class MyMovementsIT extends IntegrationTestBase {
   private static final String TIPO_DE_PRUEBA = "01a061ba-3400-7001-9c4f-5e7ad70000f2";
 
   private static final String TARJETA = "01a061ba-3400-7002-9c4f-5e7ad7000021";
+  private static final String PSE = "01a061ba-3400-7003-9c4f-5e7ad7000022";
   private static final String USD = "01a03336-6d00-7001-9c4f-5e7ad3000001";
 
   private static final OffsetDateTime BASE =
@@ -278,6 +279,78 @@ class MyMovementsIT extends IntegrationTestBase {
         .andExpect(status().isBadRequest())
         .andExpect(jsonPath("$.errors[0].field").value("type"))
         .andExpect(jsonPath("$.errors[0].code").value("VAL-004"));
+  }
+
+  @Test
+  @DisplayName("CA-MV-133 — el filtro por método de pago; uno que no existe da página vacía")
+  void filtroPorMetodoDePago() throws Exception {
+    // La propia pasa a PSE; las demás siguen con tarjeta.
+    jdbc.update(
+        "UPDATE movements SET payment_method_id = CAST(? AS uuid) WHERE id = ?", PSE, propia);
+
+    mvc.perform(get("/api/v1/movements/mine").param("paymentMethodId", PSE).with(como(vendedor)))
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$.totalElements").value(1))
+        .andExpect(jsonPath("$.content[0].id").value(propia.toString()));
+    mvc.perform(
+            get("/api/v1/movements/mine")
+                .param("paymentMethodId", UUID.randomUUID().toString())
+                .with(como(vendedor)))
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$.totalElements").value(0));
+  }
+
+  @Test
+  @DisplayName(
+      "CA-MV-134 — el filtro por código encuentra el comprobante escrito como sea, y NADA si es ajeno")
+  void filtroPorCodigo() throws Exception {
+    String codigo =
+        jdbc.queryForObject("SELECT code FROM movements WHERE id = ?", String.class, vendida);
+    String ajeno =
+        jdbc.queryForObject("SELECT code FROM movements WHERE id = ?", String.class, deOtros);
+
+    mvc.perform(
+            get("/api/v1/movements/mine").param("code", codigo.toLowerCase()).with(como(vendedor)))
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$.totalElements").value(1))
+        .andExpect(jsonPath("$.content[0].id").value(vendida.toString()));
+    // El alcance va antes que el filtro: conocer un código no abre lo que no es propio.
+    mvc.perform(get("/api/v1/movements/mine").param("code", ajeno).with(como(vendedor)))
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$.totalElements").value(0));
+  }
+
+  @Test
+  @DisplayName(
+      "CA-MV-135 — el periodo incluye `from`, excluye `to`, se combina, y el invertido es 400 VAL-005")
+  void filtroPorPeriodo() throws Exception {
+    // vendida el 1 de agosto, propia el 2: [1, 2) es solo la primera.
+    mvc.perform(
+            get("/api/v1/movements/mine")
+                .param("from", BASE.toString())
+                .param("to", BASE.plusDays(1).toString())
+                .with(como(vendedor)))
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$.totalElements").value(1))
+        .andExpect(jsonPath("$.content[0].id").value(vendida.toString()));
+    // Combinado con el estado: [1, 3) son las dos, y confirmada solo la propia.
+    mvc.perform(
+            get("/api/v1/movements/mine")
+                .param("from", BASE.toString())
+                .param("to", BASE.plusDays(2).toString())
+                .param("status", "CONFIRMADA")
+                .with(como(vendedor)))
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$.totalElements").value(1))
+        .andExpect(jsonPath("$.content[0].id").value(propia.toString()));
+    mvc.perform(
+            get("/api/v1/movements/mine")
+                .param("from", BASE.plusDays(2).toString())
+                .param("to", BASE.toString())
+                .with(como(vendedor)))
+        .andExpect(status().isBadRequest())
+        .andExpect(jsonPath("$.errors[0].field").value("from"))
+        .andExpect(jsonPath("$.errors[0].code").value("VAL-005"));
   }
 
   @Test

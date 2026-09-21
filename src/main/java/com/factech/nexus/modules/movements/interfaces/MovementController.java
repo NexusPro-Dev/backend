@@ -315,7 +315,9 @@ public class MovementController {
           **`userId` es una persona de mi red como vendedora** —«las ventas de mi agente tal»—
           y acota **dentro** del alcance: una persona fuera de mi red, o inexistente, da una
           **página vacía** y no un error, para que el filtro no sirva para descubrir quién
-          cuelga de quién. `status` y `from`/`to` son los de `GET /movements` y se combinan.
+          cuelga de quién. `status`, `paymentMethodId`, `code` y `from`/`to` son los de
+          `GET /movements` y se combinan; **el comprobante de una venta que no es de mi
+          alcance tampoco aparece**, escrito como sea.
 
           **Cada fila es la misma de `GET /movements`** (`type` siempre `VENTA`, `user`,
           `sellers`, importes, `confirmedAt` nulo y presente), sin `role`. **El total puede no
@@ -349,9 +351,12 @@ public class MovementController {
       @RequestParam(required = false) Integer size,
       @RequestParam(required = false) UUID userId,
       @RequestParam(required = false) String status,
+      @RequestParam(required = false) UUID paymentMethodId,
+      @RequestParam(required = false) String code,
       @RequestParam(required = false) OffsetDateTime from,
       @RequestParam(required = false) OffsetDateTime to) {
-    return ventas.list(new ListSalesRequest(page, size, userId, status, from, to));
+    return ventas.list(
+        new ListSalesRequest(page, size, userId, status, paymentMethodId, code, from, to));
   }
 
   @Operation(
@@ -470,6 +475,12 @@ public class MovementController {
           exista en el catálogo es `400`, como el estado: el catálogo es cerrado y no se
           publica por ninguna ruta.
 
+          **Y desde ese mismo día, los tres filtros de `GET /movements`**: `paymentMethodId`
+          (uno que no exista da página vacía), `code` (el comprobante exacto, sin distinguir
+          mayúsculas; **uno ajeno no devuelve nada**: el alcance va antes que el filtro) y
+          `from`/`to` sobre **cuándo ocurrió**, instantes con zona horaria, rango semiabierto
+          —incluye `from`, excluye `to`—; `from` posterior a `to` es `400`. Todos se combinan.
+
           El orden es fijo y no se puede cambiar. `status` filtra por estado.
           """)
   @ApiResponses({
@@ -477,8 +488,10 @@ public class MovementController {
     @ApiResponse(
         responseCode = "400",
         description =
-            "Paginación inválida (`VAL-002`), estado no admitido (`VAL-003`) o tipo de"
-                + " movimiento inexistente (`VAL-004`)",
+            "Paginación inválida (`VAL-002`), estado no admitido (`VAL-003`), tipo de"
+                + " movimiento inexistente (`VAL-004`), `from` posterior a `to` (`VAL-005`) o"
+                + " identificador malformado (`VAL-006`, que el conversor global emite como"
+                + " `VAL-001`)",
         content = @Content),
     @ApiResponse(
         responseCode = "401",
@@ -497,8 +510,13 @@ public class MovementController {
       @RequestParam(required = false) Integer page,
       @RequestParam(required = false) Integer size,
       @RequestParam(required = false) String status,
-      @RequestParam(required = false) String type) {
-    return listado.list(new MyMovementsRequest(page, size, status, type));
+      @RequestParam(required = false) String type,
+      @RequestParam(required = false) UUID paymentMethodId,
+      @RequestParam(required = false) String code,
+      @RequestParam(required = false) OffsetDateTime from,
+      @RequestParam(required = false) OffsetDateTime to) {
+    return listado.list(
+        new MyMovementsRequest(page, size, status, type, paymentMethodId, code, from, to));
   }
 
   /**

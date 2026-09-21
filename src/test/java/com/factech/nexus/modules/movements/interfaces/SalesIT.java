@@ -46,6 +46,7 @@ import org.springframework.test.web.servlet.request.RequestPostProcessor;
 class SalesIT extends IntegrationTestBase {
   private static final String VENTA = "01a061ba-3400-7001-9c4f-5e7ad7000011";
   private static final String TARJETA = "01a061ba-3400-7002-9c4f-5e7ad7000021";
+  private static final String PSE = "01a061ba-3400-7003-9c4f-5e7ad7000022";
   private static final String USD = "01a03336-6d00-7001-9c4f-5e7ad3000001";
 
   private static final String ADMIN = "01a02a33-4c00-7002-9c4f-5e7ad1000002";
@@ -248,6 +249,37 @@ class SalesIT extends IntegrationTestBase {
         .andExpect(jsonPath("$.errors.length()").value(2))
         .andExpect(jsonPath("$.errors[?(@.field == 'status')].code").value("VAL-002"))
         .andExpect(jsonPath("$.errors[?(@.field == 'from')].code").value("VAL-004"));
+  }
+
+  @Test
+  @DisplayName(
+      "CA-MV-136 — método de pago y código acotan DENTRO del alcance; el comprobante ajeno da vacío")
+  void metodoYCodigoDentroDelAlcance() throws Exception {
+    jdbc.update(
+        "UPDATE movements SET payment_method_id = CAST(? AS uuid) WHERE id = ?", PSE, vAgente3);
+    assertThat(ids(mvc.perform(ventas(manager).param("paymentMethodId", PSE))))
+        .containsExactly(vAgente3);
+    // Para director1, agente3 no es de su red: el método no le enseña nada.
+    mvc.perform(ventas(director1).param("paymentMethodId", PSE))
+        .andExpect(jsonPath("$.totalElements").value(0));
+
+    String deLosMios =
+        jdbc.queryForObject("SELECT code FROM movements WHERE id = ?", String.class, vAgente1);
+    String ajeno =
+        jdbc.queryForObject("SELECT code FROM movements WHERE id = ?", String.class, vSuelto);
+    assertThat(ids(mvc.perform(ventas(director1).param("code", deLosMios.toLowerCase()))))
+        .containsExactly(vAgente1);
+    mvc.perform(ventas(director1).param("code", ajeno))
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$.totalElements").value(0));
+    assertThat(ids(mvc.perform(ventas(funcionario).param("code", ajeno)))).containsExactly(vSuelto);
+    // Y combinados con el estado y la persona.
+    mvc.perform(
+            ventas(manager)
+                .param("code", deLosMios)
+                .param("status", "PENDIENTE")
+                .param("userId", agente1.toString()))
+        .andExpect(jsonPath("$.totalElements").value(1));
   }
 
   // ---------------------------------------------------------------------------

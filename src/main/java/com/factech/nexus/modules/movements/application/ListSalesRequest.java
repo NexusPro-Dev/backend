@@ -17,6 +17,9 @@ import java.util.UUID;
  * @param userId opcional; una persona <b>de mi alcance</b> como vendedora de alguna línea. Fuera de
  *     él, o inexistente, página vacía y no un error
  * @param status opcional; uno que no exista es un error
+ * @param paymentMethodId opcional (21-09-2026); uno inexistente da página vacía
+ * @param code opcional (21-09-2026); el comprobante exacto, sin distinguir mayúsculas, <b>si está
+ *     en mi alcance</b>; si no, página vacía
  * @param from desde cuándo ocurrió, inclusive
  * @param to hasta cuándo ocurrió, exclusive
  */
@@ -25,10 +28,13 @@ public record ListSalesRequest(
     Integer size,
     UUID userId,
     String status,
+    UUID paymentMethodId,
+    String code,
     OffsetDateTime from,
     OffsetDateTime to) {
 
   public ListSalesRequest {
     status = status == null || status.isBlank() ? null : status.trim().toUpperCase();
+    code = code == null || code.isBlank() ? null : code.trim().toUpperCase();
   }
 }

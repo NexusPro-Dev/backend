@@ -383,22 +383,50 @@ public class JpaMovementRepository implements MovementRepository {
              m.created_at AS created_at
       """;
 
+  /**
+   * Los tres filtros del 21-09-2026 por la tarde —método de pago, comprobante y periodo— entran
+   * como la clase {@link Filtro} del listado global y <b>no</b> con la forma {@code CAST(:x) IS
+   * NULL OR …} del estado y el tipo, que es lo que `RF-MV-008` · `plan.md` §4.3 había escrito: un
+   * identificador o un instante nulos enlazados sin tipo son exactamente lo que PostgreSQL no sabe
+   * convertir, y es el motivo por el que `filtroGlobal` se hizo así. Desviación declarada en
+   * `tasks.md` §3. El estado y el tipo se quedan como estaban: funcionan y son cadenas.
+   */
+  private static Filtro filtroPropio(MyMovementsFilter f) {
+    Filtro filtro = new Filtro();
+    filtro.igual("m.payment_method_id", "metodo", f.paymentMethodId());
+    filtro.igual("m.code", "codigo", f.code());
+    if (f.from() != null) {
+      filtro.condicion("m.occurred_at >= :desdeCuando", "desdeCuando", f.from());
+    }
+    if (f.to() != null) {
+      filtro.condicion("m.occurred_at < :hastaCuando", "hastaCuando", f.to());
+    }
+    return filtro;
+  }
+
   @Override
   @Transactional(readOnly = true)
   public List<MyMovementRow> findMine(
-      UUID actorId, String status, String type, int offset, int limit) {
-    List<Tuple> filas =
+      UUID actorId, MyMovementsFilter filtro, int offset, int limit) {
+    Filtro mas = filtroPropio(filtro);
+    Query consulta =
         em.createNativeQuery(
-                CABECERA_PROPIA
-                    + SELECCION_PROPIA
-                    // EL DESEMPATE POR `id` NO ES COSMÉTICO: sin él, dos
-                    // movimientos del mismo instante pueden repetirse en una
-                    // página y faltar en la siguiente sin que nada falle.
-                    + " ORDER BY m.occurred_at DESC, m.id DESC LIMIT :limite OFFSET :desde",
-                Tuple.class)
+            CABECERA_PROPIA
+                + SELECCION_PROPIA
+                + " AND "
+                + mas.sql()
+                // EL DESEMPATE POR `id` NO ES COSMÉTICO: sin él, dos
+                // movimientos del mismo instante pueden repetirse en una
+                // página y faltar en la siguiente sin que nada falle.
+                + " ORDER BY m.occurred_at DESC, m.id DESC LIMIT :limite OFFSET :desde",
+            Tuple.class);
+    mas.enlazar(consulta);
+    @SuppressWarnings("unchecked")
+    List<Tuple> filas =
+        consulta
             .setParameter("actor", actorId)
-            .setParameter("estado", status)
-            .setParameter("tipo", type)
+            .setParameter("estado", filtro.status())
+            .setParameter("tipo", filtro.type())
             .setParameter("limite", limit)
             .setParameter("desde", offset)
             .getResultList();
@@ -412,12 +440,16 @@ public class JpaMovementRepository implements MovementRepository {
 
   @Override
   @Transactional(readOnly = true)
-  public long countMine(UUID actorId, String status, String type) {
+  public long countMine(UUID actorId, MyMovementsFilter filtro) {
+    Filtro mas = filtroPropio(filtro);
+    Query consulta =
+        em.createNativeQuery("SELECT count(*) " + SELECCION_PROPIA + " AND " + mas.sql());
+    mas.enlazar(consulta);
     Object total =
-        em.createNativeQuery("SELECT count(*) " + SELECCION_PROPIA)
+        consulta
             .setParameter("actor", actorId)
-            .setParameter("estado", status)
-            .setParameter("tipo", type)
+            .setParameter("estado", filtro.status())
+            .setParameter("tipo", filtro.type())
             .getSingleResult();
     return ((Number) total).longValue();
   }
@@ -933,6 +965,10 @@ public class JpaMovementRepository implements MovementRepository {
   private static Filtro filtroDeVentas(SalesFilter f) {
     Filtro filtro = new Filtro();
     filtro.condicion("mt.code = :tipoVenta", "tipoVenta", "VENTA");
+    // El método y el comprobante (21-09-2026) van DESPUÉS del alcance en el
+    // mismo predicado: un comprobante ajeno no devuelve nada.
+    filtro.igual("m.payment_method_id", "metodo", f.paymentMethodId());
+    filtro.igual("m.code", "codigo", f.code());
     if (!f.everything()) {
       if (f.ownerId() != null) {
         filtro.igual("m.user_id", "propietario", f.ownerId());
