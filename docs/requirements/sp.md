@@ -393,8 +393,8 @@ EXCLUDE USING gist (
 | `RF-SP-066` | Editar equipo | Media | `teams:update` | Pendiente |
 | `RF-SP-067` | Cambiar el estado de un equipo | Media | `teams:change-status` | Pendiente |
 | `RF-SP-068` | Eliminar equipo | Baja | `teams:delete` | Pendiente |
-| `RF-SP-069` | Asignar managers a un equipo | Alta | `teams:assign-managers` | Pendiente |
-| `RF-SP-070` | Retirar managers de un equipo | Media | `teams:remove-managers` | Pendiente |
+| `RF-SP-069` | Asignar miembros a un equipo | Alta | `teams:assign-members` | Pendiente |
+| `RF-SP-070` | Retirar miembros de un equipo | Media | `teams:remove-members` | Pendiente |
 
 !!! info "Dónde vive el estado de un requerimiento"
 
@@ -1292,7 +1292,7 @@ Registra un equipo con **nombre**, **descripción** opcional y estado inicial `A
 | Tripleta | `docs/specs/sp/064-consultar-equipos/` |
 | Estado | Pendiente |
 
-Listado paginado de equipos no eliminados, con filtro por estado y búsqueda por nombre insensible a mayúsculas y acentos, como `RF-SP-002`. Cada fila lleva, además de la ficha, **cuántos managers vigentes** tiene: es lo que distingue de un vistazo un equipo en uso de uno vacío, y contarlos cuesta un índice parcial (`ix_team_managers_team_vigente`) que `RF-SP-065` y `RN-SP-054` necesitan igual. **No devuelve a los managers**: eso es el detalle. Listado y detalle son dos permisos (`RN-SEG-014`).
+Listado paginado de equipos no eliminados, con filtro por estado y búsqueda por nombre insensible a mayúsculas y acentos, como `RF-SP-002`. Cada fila lleva, además de la ficha, **cuántos managers vigentes** tiene: es lo que distingue de un vistazo un equipo en uso de uno vacío, y contarlos cuesta un índice parcial (`ix_team_members_team_vigente`) que `RF-SP-065` y `RN-SP-054` necesitan igual. **No devuelve a los managers**: eso es el detalle. Listado y detalle son dos permisos (`RN-SEG-014`).
 
 #### `RF-SP-065` — Consultar detalle de un equipo
 
@@ -1354,34 +1354,34 @@ Activa o desactiva un equipo. Un equipo `INACTIVO` deja de admitir managers nuev
 
 Elimina lógicamente un equipo **sin managers vigentes** (`RN-SP-054`), con motivo declarado (Art. V.13) y por la misma ruta que `RF-SP-029` y `RF-SP-050`: `POST …/deletion` con el motivo en el cuerpo. El nombre queda libre (`RN-SP-050`); las pertenencias cerradas sobreviven.
 
-#### `RF-SP-069` — Asignar managers a un equipo
+#### `RF-SP-069` — Asignar miembros a un equipo
 
 | Campo | Valor |
 |---|---|
 | Objetivo | Decir a qué equipo pertenece cada manager desde hoy |
 | Actor | Administrador |
-| Permiso requerido | `teams:assign-managers` |
+| Permiso requerido | `teams:assign-members` |
 | Prioridad | Alta |
 | Reglas aplicables | `RN-SP-051`, `RN-SP-052`, `RN-SP-053`, `RN-SP-003`, `RN-SP-011` |
 | Depende de | `RF-SP-063`, `RF-SP-030` |
-| Tripleta | `docs/specs/sp/069-asignar-managers-a-equipo/` |
+| Tripleta | `docs/specs/sp/069-asignar-miembros-a-equipo/` |
 | Estado | Pendiente |
 
 Asigna **uno o varios** managers a un equipo `ACTIVO`, en una sola operación y una sola transacción, como `RF-SP-030` asigna roles. Cada persona debe portar el rol vendedor de mayor rango (`RN-SP-051`); si ya pertenece a otro equipo, la pertenencia anterior **se cierra** y se abre la nueva (`RN-SP-052`); si ya pertenece a **este**, la operación **no hace nada con ella y no falla** —volver a decir lo que ya es cierto no es un error, mismo criterio que `RF-SP-030` con un rol que ya se porta—. **Toda la lista o nada**: una persona que no cumple hace fallar la operación entera, porque a medias dejaría al administrador sin saber cuáles entraron.
 
-Exige **motivo declarado**, por la misma razón que `RF-SP-041`: el historial sustentará el reparto de comisiones, y un cambio de equipo sin explicación es un agujero cuando alguien discuta una liquidación. La asignación rige **desde el momento de ejecutarse**; no admite fecha declarada. Se opera **desde el equipo** (`POST /teams/{id}/managers`) y no desde la persona, porque la pregunta que el administrador se hace es «a quién pongo en este equipo», y porque así el permiso vive con el recurso que cambia.
+Exige **motivo declarado**, por la misma razón que `RF-SP-041`: el historial sustentará el reparto de comisiones, y un cambio de equipo sin explicación es un agujero cuando alguien discuta una liquidación. La asignación rige **desde el momento de ejecutarse**; no admite fecha declarada. Se opera **desde el equipo** (`POST /teams/{id}/members`) y no desde la persona, porque la pregunta que el administrador se hace es «a quién pongo en este equipo», y porque así el permiso vive con el recurso que cambia.
 
-#### `RF-SP-070` — Retirar managers de un equipo
+#### `RF-SP-070` — Retirar miembros de un equipo
 
 | Campo | Valor |
 |---|---|
 | Objetivo | Sacar a un manager de su equipo sin ponerlo en otro |
 | Actor | Administrador |
-| Permiso requerido | `teams:remove-managers` |
+| Permiso requerido | `teams:remove-members` |
 | Prioridad | Media |
 | Reglas aplicables | `RN-SP-052`, `RN-SP-055` |
 | Depende de | `RF-SP-069` |
-| Tripleta | `docs/specs/sp/070-retirar-managers-de-equipo/` |
+| Tripleta | `docs/specs/sp/070-retirar-miembros-de-equipo/` |
 | Estado | Pendiente |
 
 Cierra la pertenencia vigente de uno o varios managers **de este equipo**, con motivo, en una sola transacción. Una persona que no pertenece hoy a este equipo hace fallar la operación: al contrario que en la asignación, aquí decir lo que no es cierto sí es un error, porque el administrador cree estar retirando a alguien de un sitio donde no está. El equipo puede estar `INACTIVO`: retirar es la única forma de vaciar un equipo suspendido (`RN-SP-053`) y la que `RN-SP-054` exige antes de eliminarlo.
@@ -1481,8 +1481,8 @@ Ninguna con sistemas externos ni con otros módulos. Al absorber los usuarios, s
 | `PATCH` | `/api/v1/teams/{id}` | `RF-SP-066` | `teams:update` |
 | `PATCH` | `/api/v1/teams/{id}/status` | `RF-SP-067` | `teams:change-status` |
 | `POST` | `/api/v1/teams/{id}/deletion` | `RF-SP-068` | `teams:delete` |
-| `POST` | `/api/v1/teams/{id}/managers` | `RF-SP-069` | `teams:assign-managers` |
-| `POST` | `/api/v1/teams/{id}/managers/removals` | `RF-SP-070` | `teams:remove-managers` |
+| `POST` | `/api/v1/teams/{id}/members` | `RF-SP-069` | `teams:assign-members` |
+| `POST` | `/api/v1/teams/{id}/members/removals` | `RF-SP-070` | `teams:remove-members` |
 
 Rutas propuestas. El contrato exacto de cada una se fija en el `plan.md` de su tripleta.
 
@@ -1785,11 +1785,11 @@ Declaradas en la base de datos, no solo en Java (Art. V.6):
 | `ck_teams_description_length` | `teams(description IS NULL OR length(description) <= 500)` — mismo límite y mismo motivo que `ck_roles_description_length` |
 | `ck_teams_status` | `teams(status)` en (`ACTIVO`, `INACTIVO`) — `RN-SP-053` |
 | `ix_teams_busqueda` | `teams` **gin de trigramas** sobre `f_unaccent(lower(name))` — búsqueda de `RF-SP-064`, con **la expresión del predicado** y no otra (la lección de `ix_users_busqueda`) |
-| `fk_team_managers_team` | `team_managers(team_id)` → `teams(id)`, sin `ON DELETE`: la eliminación del equipo es lógica y `RN-SP-054` exige que no queden vigentes |
-| `fk_team_managers_user` | `team_managers(user_id)` → `users(id)`, `ON DELETE RESTRICT` |
-| `uq_team_managers_vigente` | **Índice único parcial**: `team_managers(user_id) WHERE ended_at IS NULL` — `RN-SP-052`. Un solo equipo vigente por manager; el historial cerrado no compite. Misma construcción que `uq_user_supervisors_vigente` |
-| `ck_team_managers_periodo` | `team_managers(ended_at IS NULL OR ended_at > started_at)` |
-| `ix_team_managers_team_vigente` | **Índice parcial**: `team_managers(team_id) WHERE ended_at IS NULL` — «¿quiénes forman este equipo **hoy**?», que es lo que preguntan `RF-SP-064` (el recuento), `RF-SP-065` y `RN-SP-054`. Parcial por el mismo motivo que `ix_user_supervisors_supervisor_vigente` |
+| `fk_team_members_team` | `team_members(team_id)` → `teams(id)`, sin `ON DELETE`: la eliminación del equipo es lógica y `RN-SP-054` exige que no queden vigentes |
+| `fk_team_members_user` | `team_members(user_id)` → `users(id)`, `ON DELETE RESTRICT` |
+| `uq_team_members_vigente` | **Índice único parcial**: `team_members(user_id) WHERE ended_at IS NULL` — `RN-SP-052`. Un solo equipo vigente por manager; el historial cerrado no compite. Misma construcción que `uq_user_supervisors_vigente` |
+| `ck_team_members_periodo` | `team_members(ended_at IS NULL OR ended_at > started_at)` |
+| `ix_team_members_team_vigente` | **Índice parcial**: `team_members(team_id) WHERE ended_at IS NULL` — «¿quiénes forman este equipo **hoy**?», que es lo que preguntan `RF-SP-064` (el recuento), `RF-SP-065` y `RN-SP-054`. Parcial por el mismo motivo que `ix_user_supervisors_supervisor_vigente` |
 
 !!! important "La unicidad de rol es parcial, no total"
 
@@ -2102,9 +2102,9 @@ Diseñada el 16-09-2026 (`RN-SP-049`) y **creada por la migración de `RF-SP-059
 
 Diseñada el 21-09-2026 (`RF-SP-063` a `RF-SP-068`) y **la creará `V33`**, la migración de `RF-SP-063`. Tiene la forma de `roles` sin `code`, `role_type`, `parent_role_id` ni `is_system`: un equipo no tiene código porque nada lo referencia por nombre estable (ficha de `RF-SP-063`), no tiene padre porque **los equipos no se anidan** —la jerarquía debajo de cada manager ya la dice `user_supervisors`, y encima de los equipos no hay nada que decir—, y no hay equipos de sistema porque ninguno nace con la plataforma: la semilla de desarrollo creará algunos para poder verlos, y eso no es lo mismo que una fila que el código necesite.
 
-La baja es **lógica** (`deleted_at`), como la de `roles` y al contrario que la de los catálogos con `is_active`: un equipo tiene historial colgando (`team_managers`) y borrar la fila lo dejaría apuntando a nada. Y tiene además **estado** (`RN-SP-053`), porque «no recibe a nadie más» y «no existe» son dos cosas distintas que el administrador quiere poder decir por separado —la misma pareja que `roles` tiene con `status` y `deleted_at`.
+La baja es **lógica** (`deleted_at`), como la de `roles` y al contrario que la de los catálogos con `is_active`: un equipo tiene historial colgando (`team_members`) y borrar la fila lo dejaría apuntando a nada. Y tiene además **estado** (`RN-SP-053`), porque «no recibe a nadie más» y «no existe» son dos cosas distintas que el administrador quiere poder decir por separado —la misma pareja que `roles` tiene con `status` y `deleted_at`.
 
-### 10.21 Campos principales — `team_managers`
+### 10.21 Campos principales — `team_members`
 
 | Campo | Tipo | PK | FK | Nullable | Default | Entidad relacional |
 |---|---|---|---|---|---|---|
@@ -2118,7 +2118,7 @@ La baja es **lógica** (`deleted_at`), como la de `roles` y al contrario que la 
 
 La fila se lee «`user_id` pertenece al equipo `team_id` desde `started_at`». Una fila con `ended_at` nulo es la pertenencia **vigente**; las demás son historial cerrado y no se borran (`RN-SP-052`). La creará `V33` junto con `teams`.
 
-**Tiene la forma exacta de `user_supervisors`** (§10.7), y por los mismos motivos: clave sustituta porque el mismo par puede repetirse en el tiempo —un manager vuelve a un equipo en el que ya estuvo— y lo que distingue una fila de otra es el periodo; unicidad **parcial** sobre `user_id` `WHERE ended_at IS NULL`, porque una restricción única corriente haría imposible el historial. Lo que cambia es **qué hay al otro lado**: allí una persona, aquí un equipo. Se llama `team_managers` y no `team_members` porque sus filas son managers y solo managers (`RN-SP-051`); «manager» aquí significa **quien porta el rol vendedor de mayor rango**, que hoy es `MANAGER` y la regla no ata al código.
+**Tiene la forma exacta de `user_supervisors`** (§10.7), y por los mismos motivos: clave sustituta porque el mismo par puede repetirse en el tiempo —un manager vuelve a un equipo en el que ya estuvo— y lo que distingue una fila de otra es el periodo; unicidad **parcial** sobre `user_id` `WHERE ended_at IS NULL`, porque una restricción única corriente haría imposible el historial. Lo que cambia es **qué hay al otro lado**: allí una persona, aquí un equipo. **Se llama `team_members` y no `team_members`**, por decisión del responsable del proyecto (21-09-2026): sus filas son hoy managers y solo managers (`RN-SP-051`), pero «manager» es el **nombre actual** del rango más alto, y el rango más alto puede cambiar —crearse uno por encima, renombrarse—; la regla ya no ata al código (habla de «quien porta el rol vendedor de mayor rango») y el nombre de la tabla, de los permisos y de las rutas tampoco debe hacerlo. «Miembro» significa aquí **quien tiene fila**, que es exactamente la cúspide, y en la prosa de este documento se sigue diciendo «manager» porque hoy lo son.
 
 **Solo la cúspide tiene fila.** Un director o un agente **pertenece** al equipo de su manager, pero no tiene fila aquí: su pertenencia se deriva subiendo por `user_supervisors` hasta quien no tiene superior y mirando la fila vigente de esa persona. Es un recorrido, no un dato, y se decidió así (21-09-2026) para que no pueda contradecirse: si el director tuviera fila propia, alguien podría ponerlo en un equipo distinto del de quien lo manda, y no habría regla que lo impidiera sin volver a recorrer la cadena. Lo que se paga es que «el equipo de este agente» cueste el recorrido —la misma recursiva de `RN-SP-047`, hacia arriba y acotada por `RN-SP-020` a tres niveles hoy—, y es un precio que se paga solo cuando alguien lo pregunte.
 
@@ -2208,4 +2208,4 @@ La fila se lee «`user_id` pertenece al equipo `team_id` desde `started_at`». U
 | 1.67.0 | 21-09-2026 | **`RF-SP-061` pasa a `En desarrollo`**, construido el mismo día que su tripleta: `V30` siembra `users:read-clients` y las dos rutas de §9 están en el contrato. §6.1 y la ficha cambian de estado; ninguna regla cambia. | Responsable técnico |
 | 1.68.0 | 21-09-2026 | **Nace `RF-SP-062`, autenticarse no autoriza nada** (`RN-SEG-015`, [`security.md`](../security.md) v0.67.0), por decisión del responsable del proyecto: «cada endpoint debe tener su propio permiso, ya que uso esto para saber qué vista o consulta mostrar en el front; no basta con solo tener el token». Siete operaciones de `SP` que se atendían con solo el token reciben permiso propio, sembrado por `V31`: `users:read-own-profile` (`RF-SP-039`), `users:update-own-profile` (`044`), `users:change-own-password` (`037`), `users:read-own-sellers` (`059`), `users:read-own-clients` (`061`), `broker-accounts:read-own-team` (`056`) y `broker-accounts:read-team-member` (`055`, que abre la ruta y deja el alcance a `RN-SP-046` sin cambiarla). §6.1, §9 y las fichas nombran el código; `SP` llega a **sesenta** requerimientos registrados. | Responsable del proyecto |
 | 1.69.0 | 21-09-2026 | **`RF-SP-062` pasa a `En desarrollo`**, construido el mismo día que su tripleta: `V31` siembra los once y los once `@PreAuthorize` están en el contrato. §6.1 y la ficha cambian de estado; ninguna regla cambia. | Responsable técnico |
-| 1.71.0 | 21-09-2026 | **Nace el submódulo Equipos: `RF-SP-063` a `RF-SP-070`**, por decisión del responsable del proyecto («un CRUD de equipos, sirve para organizar el máximo rango de vendedores»). Un equipo reúne **managers** —la cúspide que `RN-SP-019` exime de superior— y con ellos, por `user_supervisors`, toda su red; **no manda, agrupa**, y no concede alcance (D-22). Ficha sin código ni país: nombre único funcional y parcial, descripción, estado. **Uno vigente por manager, con historial** (la forma de `user_supervisors`). Seis reglas nuevas, `RN-SP-050` a `RN-SP-055`: nombre único, solo managers, uno vigente con historial, el equipo `INACTIVO` no recibe y conserva, no se elimina con vigentes, y **la pertenencia sigue al rol** —enmienda de Art. I.7 a `RF-SP-029` y `RF-SP-031`, declarada para aplicarse en la tripleta de `RF-SP-070`—. Ocho permisos `teams:*` (`RN-SEG-014`; [`security.md`](../security.md) v0.69.0, catálogo a **ciento treinta y tres** con `V34`), ocho rutas en §9 bajo `/api/v1/teams`, dos tablas en §10.20 y §10.21 (`teams`, `team_managers`, las creará `V33`) y diez restricciones en §10.8. §1.3 y §2 registran el submódulo; `SP` llega a **sesenta y ocho** requerimientos. Sin tripletas todavía: son el paso siguiente, por bloques. La versión 1.70.0 es de `RF-MV-015` (`CommercialReach`, §8), redactada el mismo día en otra rama. | Responsable del proyecto |
+| 1.71.0 | 21-09-2026 | **Nace el submódulo Equipos: `RF-SP-063` a `RF-SP-070`**, por decisión del responsable del proyecto («un CRUD de equipos, sirve para organizar el máximo rango de vendedores»). Un equipo reúne **managers** —la cúspide que `RN-SP-019` exime de superior— y con ellos, por `user_supervisors`, toda su red; **no manda, agrupa**, y no concede alcance (D-22). Ficha sin código ni país: nombre único funcional y parcial, descripción, estado. **Uno vigente por manager, con historial** (la forma de `user_supervisors`). Seis reglas nuevas, `RN-SP-050` a `RN-SP-055`: nombre único, solo managers, uno vigente con historial, el equipo `INACTIVO` no recibe y conserva, no se elimina con vigentes, y **la pertenencia sigue al rol** —enmienda de Art. I.7 a `RF-SP-029` y `RF-SP-031`, declarada para aplicarse en la tripleta de `RF-SP-070`—. Ocho permisos `teams:*` (`RN-SEG-014`; [`security.md`](../security.md) v0.69.0, catálogo a **ciento treinta y tres** con `V34`), ocho rutas en §9 bajo `/api/v1/teams`, dos tablas en §10.20 y §10.21 (`teams`, `team_members`, las creará `V33`) y diez restricciones en §10.8. §1.3 y §2 registran el submódulo; `SP` llega a **sesenta y ocho** requerimientos. Sin tripletas todavía: son el paso siguiente, por bloques. La versión 1.70.0 es de `RF-MV-015` (`CommercialReach`, §8), redactada el mismo día en otra rama. | Responsable del proyecto |
