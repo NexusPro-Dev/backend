@@ -20,6 +20,9 @@ final class CourseTestSupport {
 
   static final UUID ADMIN_SEMBRADO = UUID.fromString("01a02a33-4c00-7002-9c4f-5e7ad1000002");
 
+  /** Un generador para toda la clase: ver `CourseCategoryTestSupport.IDS`. */
+  static final UuidV7Generator IDS = new UuidV7Generator();
+
   private CourseTestSupport() {}
 
   static void limpiar(JdbcTemplate jdbc) {
@@ -113,7 +116,7 @@ final class CourseTestSupport {
       String corta,
       String larga,
       String estado) {
-    UUID id = new UuidV7Generator().next();
+    UUID id = IDS.next();
     jdbc.update(
         "INSERT INTO courses (id, title, instructor_id, difficulty, short_description,"
             + " long_description, display_order, status) VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
@@ -134,7 +137,7 @@ final class CourseTestSupport {
 
   /** Un módulo directo en la tabla, en el estado que se le dé. */
   static UUID modulo(JdbcTemplate jdbc, UUID curso, String titulo, int orden, String estado) {
-    UUID id = new UuidV7Generator().next();
+    UUID id = IDS.next();
     jdbc.update(
         "INSERT INTO course_modules (id, course_id, title, display_order, status)"
             + " VALUES (?, ?, ?, ?, ?)",
@@ -160,7 +163,7 @@ final class CourseTestSupport {
       int minutos,
       int orden,
       String estado) {
-    UUID id = new UuidV7Generator().next();
+    UUID id = IDS.next();
     jdbc.update(
         "INSERT INTO lessons (id, module_id, type, title, content, duration_minutes,"
             + " display_order, status) VALUES (?, ?, ?, ?, ?, ?, ?, ?)",

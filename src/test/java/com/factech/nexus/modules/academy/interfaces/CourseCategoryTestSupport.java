@@ -2,6 +2,7 @@ package com.factech.nexus.modules.academy.interfaces;
 
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.user;
 
+import com.factech.nexus.shared.persistence.UuidV7Generator;
 import java.util.UUID;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.test.web.servlet.request.RequestPostProcessor;
@@ -14,6 +15,15 @@ import org.springframework.test.web.servlet.request.RequestPostProcessor;
  * choca por nombre con la que otra clase siembra— sin que el fallo diga de dónde vino.
  */
 final class CourseCategoryTestSupport {
+
+  /**
+   * UN generador para toda la clase, no uno por fila: el v7 solo es monótono dentro del mismo
+   * milisegundo si el contador vive en la misma instancia. Con uno nuevo por llamada, dos
+   * categorías creadas en el mismo milisegundo salían en orden aleatorio y el desempate por
+   * identificador (`CourseCategorySortField.POR_OMISION`) fallaba en CI, donde la máquina es más
+   * rápida que la de desarrollo (21-09-2026).
+   */
+  static final UuidV7Generator IDS = new UuidV7Generator();
 
   private CourseCategoryTestSupport() {}
 
@@ -30,7 +40,7 @@ final class CourseCategoryTestSupport {
 
   static UUID categoria(
       JdbcTemplate jdbc, String nombre, int orden, String color, String icono, String descripcion) {
-    UUID id = new com.factech.nexus.shared.persistence.UuidV7Generator().next();
+    UUID id = IDS.next();
     jdbc.update(
         "INSERT INTO course_categories (id, name, description, color, icon, display_order)"
             + " VALUES (?, ?, ?, ?, ?, ?)",
