@@ -141,10 +141,10 @@ public interface MovementRepository {
    * <p>No hay sobrecarga que acepte otra persona: consultar las de un tercero es `RF-MV-006`, con
    * su permiso.
    */
-  List<MyMovementRow> findMine(UUID actorId, String status, int offset, int limit);
+  List<MyMovementRow> findMine(UUID actorId, String status, String type, int offset, int limit);
 
   /** Cuántos hay en total. Exacto: es el conjunto de una persona, no una tabla sin límite. */
-  long countMine(UUID actorId, String status);
+  long countMine(UUID actorId, String status, String type);
 
   /**
    * Los vendedores de las líneas de esos movimientos, <b>sin repetir</b> por movimiento.
@@ -177,6 +177,7 @@ public interface MovementRepository {
   record MyMovementRow(
       UUID id,
       String code,
+      String type,
       String status,
       String role,
       UUID userId,
@@ -399,9 +400,12 @@ public interface MovementRepository {
    *     uq_movements_code}
    * @param from inclusive, sobre {@code occurred_at}
    * @param to exclusive, sobre {@code occurred_at}
+   * @param type el código del tipo de movimiento, ya en mayúsculas y ya validado contra el catálogo
+   *     (21-09-2026)
    */
   record MovementFilter(
       String status,
+      String type,
       UUID userId,
       UUID sellerId,
       UUID paymentMethodId,

@@ -49,14 +49,15 @@ public class ListMyMovementsService {
   @Transactional(readOnly = true)
   public PageResponse<MyMovementResponse> list(MyMovementsRequest peticion) {
     String estado = validarEstado(peticion.status());
+    String tipo = validarTipo(peticion.type());
     Pagination.Slice pagina = paginacion.resolver(peticion.page(), peticion.size());
 
     List<MyMovementRow> filas =
-        movimientos.findMine(actor.id(), estado, pagina.offset(), pagina.size());
+        movimientos.findMine(actor.id(), estado, tipo, pagina.offset(), pagina.size());
 
     // EL TOTAL ES EXACTO, y no el conteo acotado de los listados de auditoría:
     // esto es el conjunto de UNA persona, no una tabla que crezca sin límite.
-    long total = movimientos.countMine(actor.id(), estado);
+    long total = movimientos.countMine(actor.id(), estado, tipo);
 
     Map<UUID, List<MyMovementResponse.Party>> vendedores = vendedoresDe(filas);
     List<MyMovementResponse> contenido = new ArrayList<>(filas.size());
@@ -85,6 +86,21 @@ public class ListMyMovementsService {
   }
 
   /**
+   * `VAL-004` (21-09-2026). Contra el catálogo y no contra una constante, por lo que `RF-MV-006`
+   * decide en su `plan.md` §3: {@code movement_types} lo siembra el sistema (`RN-MV-017`), de modo
+   * que un tipo inexistente es un error como el estado, y el segundo tipo entrará por migración sin
+   * que nadie tenga que tocar una lista en Java.
+   */
+  private String validarTipo(String tipo) {
+    if (tipo == null || movimientos.findTypeByCode(tipo).isPresent()) {
+      return tipo;
+    }
+    String mensaje = "El tipo de movimiento indicado no existe.";
+    throw new ValidationException(
+        "VAL-004", mensaje, List.of(new FieldError("type", "VAL-004", mensaje)));
+  }
+
+  /**
    * Los vendedores de la página, por movimiento y sin repetir: una segunda consulta y no un
    * agregado en la paginada, para que esta siga devolviendo una fila por movimiento.
    */
@@ -110,6 +126,7 @@ public class ListMyMovementsService {
     return new MyMovementResponse(
         fila.id(),
         fila.code(),
+        fila.type(),
         fila.status(),
         MovementRole.valueOf(fila.role()),
         new MyMovementResponse.Party(

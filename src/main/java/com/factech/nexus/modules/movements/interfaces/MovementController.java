@@ -228,7 +228,12 @@ public class MovementController {
           sin distinguir mayúsculas) y `from`/`to` sobre **cuándo ocurrió**. `from` y `to` son
           instantes con zona horaria y el rango es **semiabierto** —incluye `from`, excluye
           `to`—. Un `userId`, `sellerId` o `paymentMethodId` que no exista da una página vacía;
-          un `status` que no exista es `400`.
+          un `status` que no exista es `400`. Desde el 21-09-2026, `type` (qué depósitos hubo,
+          el día que los haya): **el código del tipo de movimiento**, sin distinguir
+          mayúsculas — hoy el único es `VENTA`, y filtrar por él devuelve lo mismo que no
+          filtrar. Un `type` que no exista en el catálogo es `400`, como el estado y al revés
+          que las personas: el catálogo es cerrado. El catálogo no se publica por ninguna
+          ruta; los códigos vigentes son los que este párrafo nombra.
 
           **Cada fila lleva el tipo de movimiento** (`type`, hoy siempre `VENTA`), el sujeto
           (`user`), los vendedores de sus líneas sin repetir (`sellers`, lista nunca nula y
@@ -246,8 +251,8 @@ public class MovementController {
         responseCode = "400",
         description =
             "Paginación inválida, estado no admitido (`VAL-002`), identificador malformado"
-                + " (`VAL-001`) o `from` posterior a `to` (`VAL-004`). Los problemas se"
-                + " devuelven juntos.",
+                + " (`VAL-001`), `from` posterior a `to` (`VAL-004`) o tipo de movimiento"
+                + " inexistente (`VAL-005`). Los problemas se devuelven juntos.",
         content = @Content),
     @ApiResponse(
         responseCode = "401",
@@ -266,6 +271,7 @@ public class MovementController {
       @RequestParam(required = false) Integer page,
       @RequestParam(required = false) Integer size,
       @RequestParam(required = false) String status,
+      @RequestParam(required = false) String type,
       @RequestParam(required = false) UUID userId,
       @RequestParam(required = false) UUID sellerId,
       @RequestParam(required = false) UUID paymentMethodId,
@@ -274,7 +280,7 @@ public class MovementController {
       @RequestParam(required = false) OffsetDateTime to) {
     return libro.list(
         new ListMovementsRequest(
-            page, size, status, userId, sellerId, paymentMethodId, code, from, to));
+            page, size, status, type, userId, sellerId, paymentMethodId, code, from, to));
   }
 
   @Operation(
@@ -387,13 +393,21 @@ public class MovementController {
           una venta podría llevar varios. Hoy lleva uno. Va **vacía** en los movimientos que
           no tienen vendedor, que no es el caso de ninguna venta.
 
+          **Cada fila dice su tipo** (`type`, hoy siempre `VENTA`) desde el 21-09-2026, el
+          mismo día que se puede filtrar por él: `type` admite **el código del tipo de
+          movimiento**, sin distinguir mayúsculas, y se combina con `status`. Un `type` que no
+          exista en el catálogo es `400`, como el estado: el catálogo es cerrado y no se
+          publica por ninguna ruta.
+
           El orden es fijo y no se puede cambiar. `status` filtra por estado.
           """)
   @ApiResponses({
     @ApiResponse(responseCode = "200", description = "La página de movimientos propios."),
     @ApiResponse(
         responseCode = "400",
-        description = "Paginación inválida (`VAL-002`) o estado no admitido (`VAL-003`)",
+        description =
+            "Paginación inválida (`VAL-002`), estado no admitido (`VAL-003`) o tipo de"
+                + " movimiento inexistente (`VAL-004`)",
         content = @Content),
     @ApiResponse(
         responseCode = "401",
@@ -411,8 +425,9 @@ public class MovementController {
   public PageResponse<MyMovementResponse> mios(
       @RequestParam(required = false) Integer page,
       @RequestParam(required = false) Integer size,
-      @RequestParam(required = false) String status) {
-    return listado.list(new MyMovementsRequest(page, size, status));
+      @RequestParam(required = false) String status,
+      @RequestParam(required = false) String type) {
+    return listado.list(new MyMovementsRequest(page, size, status, type));
   }
 
   /**

@@ -2108,6 +2108,10 @@
           "totalAmount" : {
             "type" : "number"
           },
+          "type" : {
+            "description" : "El código del tipo de movimiento. Hoy, siempre `VENTA`.",
+            "type" : "string"
+          },
           "user" : {
             "$ref" : "#/components/schemas/MyMovementParty",
             "description" : "El SUJETO del movimiento: a nombre de quién es. En una venta, quien compra."
@@ -9296,7 +9300,7 @@
     },
     "/api/v1/movements" : {
       "get" : {
-        "description" : "**Permiso requerido:** `movements:read`. Sin él, `403` (`AUTH-002`).\n\nDevuelve **todos los movimientos del libro**, de quien sean, paginados y del más\nreciente al más antiguo. Es la lectura de administración: exige `movements:read`,\ny con él se ve todo — quien no lo tiene recibe `403` aunque tenga movimientos\npropios, que se consultan por `/mine`.\n\n**Los filtros se combinan** y responden una pregunta de operación cada uno:\n`status` (qué está pendiente de confirmar), `userId` (qué compró esta persona —el\nSUJETO, a nombre de quién es—), `sellerId` (qué vendió esta persona, como vendedora\nde **alguna de sus líneas**; una venta con varias líneas suyas aparece **una vez**),\n`paymentMethodId` (qué entró por un medio de pago), `code` (un comprobante exacto,\nsin distinguir mayúsculas) y `from`/`to` sobre **cuándo ocurrió**. `from` y `to` son\ninstantes con zona horaria y el rango es **semiabierto** —incluye `from`, excluye\n`to`—. Un `userId`, `sellerId` o `paymentMethodId` que no exista da una página vacía;\nun `status` que no exista es `400`.\n\n**Cada fila lleva el tipo de movimiento** (`type`, hoy siempre `VENTA`), el sujeto\n(`user`), los vendedores de sus líneas sin repetir (`sellers`, lista nunca nula y\nvacía cuando no hay ninguno), y **cuándo se confirmó** (`confirmedAt`): presente en\nlas confirmadas y **nulo** en las demás. No lleva `role` —quien administra no\nparticipa en lo que mira— ni las líneas, que son del detalle.\n\n**El total puede no ser exacto.** El libro crece sin límite, y por encima del techo\nde conteo `totalElements` vale el techo y `totalIsExact` es `false`: hay «más de N»\ny conviene acotar. El orden es fijo y no se puede cambiar.\n",
+        "description" : "**Permiso requerido:** `movements:read`. Sin él, `403` (`AUTH-002`).\n\nDevuelve **todos los movimientos del libro**, de quien sean, paginados y del más\nreciente al más antiguo. Es la lectura de administración: exige `movements:read`,\ny con él se ve todo — quien no lo tiene recibe `403` aunque tenga movimientos\npropios, que se consultan por `/mine`.\n\n**Los filtros se combinan** y responden una pregunta de operación cada uno:\n`status` (qué está pendiente de confirmar), `userId` (qué compró esta persona —el\nSUJETO, a nombre de quién es—), `sellerId` (qué vendió esta persona, como vendedora\nde **alguna de sus líneas**; una venta con varias líneas suyas aparece **una vez**),\n`paymentMethodId` (qué entró por un medio de pago), `code` (un comprobante exacto,\nsin distinguir mayúsculas) y `from`/`to` sobre **cuándo ocurrió**. `from` y `to` son\ninstantes con zona horaria y el rango es **semiabierto** —incluye `from`, excluye\n`to`—. Un `userId`, `sellerId` o `paymentMethodId` que no exista da una página vacía;\nun `status` que no exista es `400`. Desde el 21-09-2026, `type` (qué depósitos hubo,\nel día que los haya): **el código del tipo de movimiento**, sin distinguir\nmayúsculas — hoy el único es `VENTA`, y filtrar por él devuelve lo mismo que no\nfiltrar. Un `type` que no exista en el catálogo es `400`, como el estado y al revés\nque las personas: el catálogo es cerrado. El catálogo no se publica por ninguna\nruta; los códigos vigentes son los que este párrafo nombra.\n\n**Cada fila lleva el tipo de movimiento** (`type`, hoy siempre `VENTA`), el sujeto\n(`user`), los vendedores de sus líneas sin repetir (`sellers`, lista nunca nula y\nvacía cuando no hay ninguno), y **cuándo se confirmó** (`confirmedAt`): presente en\nlas confirmadas y **nulo** en las demás. No lleva `role` —quien administra no\nparticipa en lo que mira— ni las líneas, que son del detalle.\n\n**El total puede no ser exacto.** El libro crece sin límite, y por encima del techo\nde conteo `totalElements` vale el techo y `totalIsExact` es `false`: hay «más de N»\ny conviene acotar. El orden es fijo y no se puede cambiar.\n",
         "operationId" : "todos",
         "parameters" : [ {
           "in" : "query",
@@ -9317,6 +9321,13 @@
         }, {
           "in" : "query",
           "name" : "status",
+          "required" : false,
+          "schema" : {
+            "type" : "string"
+          }
+        }, {
+          "in" : "query",
+          "name" : "type",
           "required" : false,
           "schema" : {
             "type" : "string"
@@ -9381,7 +9392,7 @@
             "description" : "La página de movimientos."
           },
           "400" : {
-            "description" : "Paginación inválida, estado no admitido (`VAL-002`), identificador malformado (`VAL-001`) o `from` posterior a `to` (`VAL-004`). Los problemas se devuelven juntos."
+            "description" : "Paginación inválida, estado no admitido (`VAL-002`), identificador malformado (`VAL-001`), `from` posterior a `to` (`VAL-004`) o tipo de movimiento inexistente (`VAL-005`). Los problemas se devuelven juntos."
           },
           "401" : {
             "description" : "Token ausente o inválido (`AUTH-001`)"
@@ -9441,7 +9452,7 @@
     },
     "/api/v1/movements/mine" : {
       "get" : {
-        "description" : "**Permiso requerido:** `movements:list-own`. Sin él, `403` (`AUTH-002`).\n\nDevuelve **los movimientos en los que usted participó**, paginados y del más\nreciente al más antiguo.\n\n**«Propio» son DOS papeles.** Un movimiento lleva a su sujeto —`user`, a nombre de\nquién es— y a los vendedores de sus líneas —`sellers`—, y usted puede ser cualquiera\nde los dos — o **los dos a la vez**, si compró algo que se le atribuye, que es lo\nque ocurre siempre que compra quien no cuelga de nadie. Cada movimiento dice en qué\npapel aparece usted con `role`: `BUYER`, `SELLER` o `BOTH`. El que es las dos\ncosas **aparece una sola vez**.\n\n**No hay forma de preguntar por otra persona**, ni indicándola ni teniendo\npermisos: quien pregunta sale de la credencial. Consultar las ventas de terceros es\notra operación, con su permiso.\n\n**Las líneas no viajan aquí.** Una venta puede llevar varias, y meterlas\nmultiplicaría la respuesta por un dato que solo se mira al abrir uno: están en el\ndetalle.\n\n**`sellers` es una lista, sin repetir y nunca nula**: el vendedor es de cada línea y\nuna venta podría llevar varios. Hoy lleva uno. Va **vacía** en los movimientos que\nno tienen vendedor, que no es el caso de ninguna venta.\n\nEl orden es fijo y no se puede cambiar. `status` filtra por estado.\n",
+        "description" : "**Permiso requerido:** `movements:list-own`. Sin él, `403` (`AUTH-002`).\n\nDevuelve **los movimientos en los que usted participó**, paginados y del más\nreciente al más antiguo.\n\n**«Propio» son DOS papeles.** Un movimiento lleva a su sujeto —`user`, a nombre de\nquién es— y a los vendedores de sus líneas —`sellers`—, y usted puede ser cualquiera\nde los dos — o **los dos a la vez**, si compró algo que se le atribuye, que es lo\nque ocurre siempre que compra quien no cuelga de nadie. Cada movimiento dice en qué\npapel aparece usted con `role`: `BUYER`, `SELLER` o `BOTH`. El que es las dos\ncosas **aparece una sola vez**.\n\n**No hay forma de preguntar por otra persona**, ni indicándola ni teniendo\npermisos: quien pregunta sale de la credencial. Consultar las ventas de terceros es\notra operación, con su permiso.\n\n**Las líneas no viajan aquí.** Una venta puede llevar varias, y meterlas\nmultiplicaría la respuesta por un dato que solo se mira al abrir uno: están en el\ndetalle.\n\n**`sellers` es una lista, sin repetir y nunca nula**: el vendedor es de cada línea y\nuna venta podría llevar varios. Hoy lleva uno. Va **vacía** en los movimientos que\nno tienen vendedor, que no es el caso de ninguna venta.\n\n**Cada fila dice su tipo** (`type`, hoy siempre `VENTA`) desde el 21-09-2026, el\nmismo día que se puede filtrar por él: `type` admite **el código del tipo de\nmovimiento**, sin distinguir mayúsculas, y se combina con `status`. Un `type` que no\nexista en el catálogo es `400`, como el estado: el catálogo es cerrado y no se\npublica por ninguna ruta.\n\nEl orden es fijo y no se puede cambiar. `status` filtra por estado.\n",
         "operationId" : "mios",
         "parameters" : [ {
           "in" : "query",
@@ -9466,6 +9477,13 @@
           "schema" : {
             "type" : "string"
           }
+        }, {
+          "in" : "query",
+          "name" : "type",
+          "required" : false,
+          "schema" : {
+            "type" : "string"
+          }
         } ],
         "responses" : {
           "200" : {
@@ -9479,7 +9497,7 @@
             "description" : "La página de movimientos propios."
           },
           "400" : {
-            "description" : "Paginación inválida (`VAL-002`) o estado no admitido (`VAL-003`)"
+            "description" : "Paginación inválida (`VAL-002`), estado no admitido (`VAL-003`) o tipo de movimiento inexistente (`VAL-004`)"
           },
           "401" : {
             "description" : "Token ausente o inválido (`AUTH-001`)"

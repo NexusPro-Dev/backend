@@ -6,7 +6,7 @@
 | Especificación | [`spec.md`](spec.md) v0.2.0 |
 | Plan | [`plan.md`](plan.md) v0.2.0 |
 | `plan.md` aprobado el | 17-09-2026 |
-| Estado | **En revisión** — `T-01` a `T-11` `Hecha` el 17-09-2026; `T-12` a `T-15` (§1.1) `Pendiente` |
+| Estado | **En revisión** — `T-01` a `T-11` `Hecha` el 17-09-2026; `T-12` a `T-15` (§1.1) `Hecha` el 21-09-2026 |
 | Issue | [#66](https://github.com/NexusPro-Dev/backend/issues/66) |
 | Rama | `feature/venta-de-productos`; la enmienda del 21-09-2026, en `feature/filtro-por-tipo-de-movimiento` |
 
@@ -40,10 +40,10 @@ Enmienda de hecho (Art. I.7) sobre un requerimiento construido: `spec.md` 0.2.0 
 
 | ID | Tarea | Depende de | Verificación | Estado |
 |---|---|---|---|---|
-| `T-12` | `ListMovementsRequest` gana `type`, normalizado a mayúsculas como el estado; `MovementFilter` lo lleva; `filtroGlobal` lo compara con `mt.code` **en el mismo predicado** de la página y el conteo | — | Con `type` puesto, el total cuenta lo que la página devuelve | `Pendiente` |
-| `T-13` | `ListMovementsService` valida `type` contra el catálogo con `findTypeByCode` —`VAL-005`— **junto** con el estado y el rango | `T-12` | Tres parámetros mal escritos, tres errores en una respuesta | `Pendiente` |
-| `T-14` | `MovementController`: el parámetro documentado en la `@Operation` —códigos vigentes, `400` si no existe—; `MovementsIT`: `CA-MV-119` con un **segundo tipo sembrado en la prueba**, en minúsculas, combinado con el estado, y el inexistente junto con el estado | `T-13` | La prueba deja `movement_types` como lo encontró | `Pendiente` |
-| `T-15` | Contrato OpenAPI regenerado y prosa releída; `docs/api/index.md`; matriz de `requirements.md` | `T-14` | `openapi.json` declara `type` en `GET /api/v1/movements` | `Pendiente` |
+| `T-12` | `ListMovementsRequest` gana `type`, normalizado a mayúsculas como el estado; `MovementFilter` lo lleva; `filtroGlobal` lo compara con `mt.code` **en el mismo predicado** de la página y el conteo | — | Con `type` puesto, el total cuenta lo que la página devuelve | **Hecha** — 21-09-2026 |
+| `T-13` | `ListMovementsService` valida `type` contra el catálogo con `findTypeByCode` —`VAL-005`— **junto** con el estado y el rango | `T-12` | Tres parámetros mal escritos, tres errores en una respuesta | **Hecha** — 21-09-2026 |
+| `T-14` | `MovementController`: el parámetro documentado en la `@Operation` —códigos vigentes, `400` si no existe—; `MovementsIT`: `CA-MV-119` con un **segundo tipo sembrado en la prueba**, en minúsculas, combinado con el estado, y el inexistente junto con el estado | `T-13` | La prueba deja `movement_types` como lo encontró | **Hecha** — 21-09-2026 |
+| `T-15` | Contrato OpenAPI regenerado y prosa releída; `docs/api/index.md`; matriz de `requirements.md` | `T-14` | `openapi.json` declara `type` en `GET /api/v1/movements` | **Hecha** — 21-09-2026 |
 
 ---
 
@@ -72,7 +72,7 @@ Enmienda de hecho (Art. I.7) sobre un requerimiento construido: `spec.md` 0.2.0 
 
 ## 4. Definición de terminado
 
-- [x] `./mvnw clean verify` en verde — 1845 de integración, 0 fallos (con `DevelopmentSeedIT` excluida, ver §3).
+- [x] `./mvnw clean verify` en verde — 1845 de integración, 0 fallos (con `DevelopmentSeedIT` excluida, ver §3). La enmienda del 21-09-2026: 435 unitarias y 1722 de integración, 0 fallos, sin exclusiones.
 - [x] Los quince criterios de aceptación con prueba.
 - [x] Contrato OpenAPI regenerado, **con la prosa releída**.
 - [x] `requirements/mv.md`, `requirements.md` y `modelo-datos.md` actualizados.
