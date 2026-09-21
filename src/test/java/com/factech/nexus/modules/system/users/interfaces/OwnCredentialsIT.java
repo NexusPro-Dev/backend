@@ -431,7 +431,9 @@ class OwnCredentialsIT extends IntegrationTestBase {
 
     // A quién reporta uno es un dato del actor; quiénes dependen de uno es un
     // conjunto de terceros — la distinción que sostiene la reserva de D-22.
-    assertThat(cuerpo).contains("elmanager").doesNotContain("elagente").doesNotContain("team");
+    // `"team"` con comillas: el campo, no la palabra — desde RF-SP-062 el perfil lista
+    // `broker-accounts:read-own-team` entre los permisos efectivos.
+    assertThat(cuerpo).contains("elmanager").doesNotContain("elagente").doesNotContain("\"team\"");
   }
 
   @Test
@@ -572,7 +574,16 @@ class OwnCredentialsIT extends IntegrationTestBase {
    * Un actor con permisos no distinguiría eso de tenerlos.
    */
   private RequestPostProcessor comoActor(UUID quien) {
-    return user(quien.toString()).authorities();
+    // Desde RF-SP-062 (21-09-2026) lo propio exige permiso —autenticarse no
+    // autoriza nada—: el actor porta los de alcance propio de SP y NINGÚN otro,
+    // que es lo que las pruebas de «sin permiso» querían decir. Hasta entonces,
+    // `.authorities()` vacío.
+    return user(quien.toString())
+        .authorities(
+            () -> "users:read-own-profile",
+            () -> "users:update-own-profile",
+            () -> "users:change-own-password",
+            () -> "users:read-own-sellers");
   }
 
   private void abrirSesion(UUID quien) {

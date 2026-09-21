@@ -25,43 +25,49 @@ class PermissionsSeedIT extends IntegrationTestBase {
 
   @Test
   @DisplayName(
-      "el catálogo tiene exactamente CIENTO TRECE: cuarenta y seis de SP, veinticinco de PM,"
-          + " diez de CM, cuatro de MV y veintiocho de AC (V28: un permiso por operación,"
-          + " CA-SP-688; V29: users:read-sellers de RF-SP-059; V30: users:read-clients de"
-          + " RF-SP-061)")
+      "el catálogo tiene exactamente CIENTO VEINTICUATRO: cincuenta y tres de SP, veintiséis de"
+          + " PM, diez de CM, siete de MV y veintiocho de AC (V28: un permiso por operación,"
+          + " CA-SP-688; V29 y V30: los de RF-SP-059 y 061; V31: los once de alcance propio de"
+          + " RF-SP-062, CA-SP-725)")
   void catalogoCompleto() {
     assertThat(jdbc.queryForObject("SELECT count(*) FROM permissions", Integer.class))
-        .isEqualTo(113);
+        .isEqualTo(124);
   }
 
   @Test
   @DisplayName(
-      "quince de los permisos son de recurso users: los ocho de V8, los cinco que V28 separa,"
-          + " users:read-sellers de V29 y users:read-clients de V30")
-  void quincePermisosDeUsuarios() {
+      "veinte de los permisos son de recurso users: los ocho de V8, los cinco que V28 separa,"
+          + " users:read-sellers de V29, users:read-clients de V30 y los cinco de alcance propio"
+          + " de V31")
+  void veintePermisosDeUsuarios() {
     List<String> acciones =
         jdbc.queryForList(
             "SELECT action FROM permissions WHERE resource = 'users' ORDER BY action",
             String.class);
 
     assertThat(acciones)
-        .hasSize(15)
+        .hasSize(20)
         .containsExactly(
             "assign-membership",
             "assign-roles",
             "assign-supervisor",
+            "change-own-password",
             "change-status",
             "create",
             "delete",
             "list",
             "read",
             "read-clients",
+            "read-own-clients",
+            "read-own-profile",
+            "read-own-sellers",
             "read-sellers",
             "read-team",
             "reset-password",
             "revoke-membership",
             "revoke-roles",
-            "update");
+            "update",
+            "update-own-profile");
   }
 
   @Test
@@ -130,6 +136,8 @@ class PermissionsSeedIT extends IntegrationTestBase {
             // quien la completa es el webhook del broker, que no porta roles.
             "broker-accounts:read",
             "broker-accounts:read-indicators",
+            "broker-accounts:read-own-team",
+            "broker-accounts:read-team-member",
             "countries:create",
             "countries:read",
             "countries:update",
@@ -149,7 +157,10 @@ class PermissionsSeedIT extends IntegrationTestBase {
             "memberships:list",
             "movements:confirm",
             "movements:create",
+            "movements:list-own",
             "movements:read",
+            "movements:read-own",
+            "movements:read-own-products",
             "movements:void",
             // El SEGUNDO recurso de `PM` (`V93`, 15-09-2026), por decisión del
             // responsable del proyecto: armar paquetes y tocar el catálogo son
@@ -166,6 +177,7 @@ class PermissionsSeedIT extends IntegrationTestBase {
             "packages:remove-cover",
             "packages:add-product",
             "packages:update-product",
+            "packages:buy",
             "packages:remove-product",
             "permissions:read",
             "permissions:list",
@@ -205,9 +217,14 @@ class PermissionsSeedIT extends IntegrationTestBase {
             "users:update",
             "users:list",
             "users:change-status",
+            "users:change-own-password",
             "users:read-clients",
+            "users:read-own-clients",
+            "users:read-own-profile",
+            "users:read-own-sellers",
             "users:read-sellers",
             "users:read-team",
+            "users:update-own-profile",
             "users:revoke-roles",
             "users:revoke-membership");
   }
@@ -217,7 +234,7 @@ class PermissionsSeedIT extends IntegrationTestBase {
   void identificadoresUuidV7() {
     List<UUID> ids = jdbc.queryForList("SELECT id FROM permissions", UUID.class);
 
-    assertThat(ids).hasSize(113).doesNotHaveDuplicates();
+    assertThat(ids).hasSize(124).doesNotHaveDuplicates();
     assertThat(ids).allSatisfy(id -> assertThat(id.version()).isEqualTo(7));
     // variant() == 2 es la variante RFC 9562 (bits 10xx).
     assertThat(ids).allSatisfy(id -> assertThat(id.variant()).isEqualTo(2));
@@ -260,25 +277,36 @@ class PermissionsSeedIT extends IntegrationTestBase {
             jdbc.queryForObject(
                 "SELECT id::text FROM permissions WHERE code = 'users:read-clients'", String.class))
         .isEqualTo("01a0c143-2c00-7002-9c4f-5e7ad0000026");
+    // V31, serie propia 7001..700b de la misma marca; cada módulo sigue donde
+    // quedó: users …000027, broker-accounts …000004, movements …000005, PM …000026.
+    assertThat(
+            jdbc.queryForObject(
+                "SELECT id::text FROM permissions WHERE code = 'users:read-own-profile'",
+                String.class))
+        .isEqualTo("01a0c143-2c00-7001-9c4f-5e7ad0000027");
+    assertThat(
+            jdbc.queryForObject(
+                "SELECT id::text FROM permissions WHERE code = 'packages:buy'", String.class))
+        .isEqualTo("01a0c143-2c00-700b-9c4f-5e7ad5000026");
   }
 
   @Test
   @DisplayName(
-      "V28, V29 y V30 reparten: SUPERADMIN porta los ciento trece y ADMIN ciento siete, y los"
-          + " seis que le faltan son la reserva (CA-SP-691)")
+      "V28 a V31 reparten: SUPERADMIN porta los ciento veinticuatro y ADMIN ciento dieciocho,"
+          + " y los seis que le faltan son la reserva (CA-SP-691, CA-SP-725)")
   void elRepartoLlegaALosRolesDeSistema() {
     assertThat(
             jdbc.queryForObject(
                 "SELECT count(*) FROM role_permissions WHERE role_id ="
                     + " '01a02a33-4c00-7001-9c4f-5e7ad1000001'",
                 Integer.class))
-        .isEqualTo(113);
+        .isEqualTo(124);
     assertThat(
             jdbc.queryForObject(
                 "SELECT count(*) FROM role_permissions WHERE role_id ="
                     + " '01a02a33-4c00-7002-9c4f-5e7ad1000002'",
                 Integer.class))
-        .isEqualTo(107);
+        .isEqualTo(118);
     assertThat(
             jdbc.queryForList(
                 """
@@ -296,6 +324,58 @@ class PermissionsSeedIT extends IntegrationTestBase {
             "movements:create",
             "movements:read",
             "movements:void");
+  }
+
+  @Test
+  @DisplayName(
+      "V31 reparte por TIPO de rol: la fuerza comercial porta los once de alcance propio y"
+          + " CLIENTE ocho —no los tres de vendedor— (CA-SP-725)")
+  void elAlcancePropioLlegaPorTipoDeRol() {
+    String[] once = {
+      "users:read-own-profile",
+      "users:update-own-profile",
+      "users:change-own-password",
+      "users:read-own-sellers",
+      "users:read-own-clients",
+      "broker-accounts:read-own-team",
+      "broker-accounts:read-team-member",
+      "movements:list-own",
+      "movements:read-own",
+      "movements:read-own-products",
+      "packages:buy"
+    };
+    for (String rol : new String[] {"MANAGER", "DIRECTOR", "AGENTE"}) {
+      assertThat(codigosDe(rol)).as("%s porta los once de alcance propio", rol).contains(once);
+    }
+    List<String> cliente = codigosDe("CLIENTE");
+    assertThat(cliente)
+        .contains(
+            "users:read-own-profile",
+            "users:update-own-profile",
+            "users:change-own-password",
+            "users:read-own-sellers",
+            "movements:list-own",
+            "movements:read-own",
+            "movements:read-own-products",
+            "packages:buy")
+        .doesNotContain(
+            "users:read-own-clients",
+            "broker-accounts:read-own-team",
+            "broker-accounts:read-team-member");
+    // Y solo eso: CLIENTE sigue sin ningún otro permiso (V8).
+    assertThat(cliente).hasSize(8);
+  }
+
+  private List<String> codigosDe(String rol) {
+    return jdbc.queryForList(
+        """
+        SELECT p.code FROM role_permissions rp
+          JOIN roles r ON r.id = rp.role_id
+          JOIN permissions p ON p.id = rp.permission_id
+         WHERE r.code = ? ORDER BY p.code
+        """,
+        String.class,
+        rol);
   }
 
   @Test

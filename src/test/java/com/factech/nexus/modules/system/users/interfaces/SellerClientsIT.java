@@ -173,10 +173,15 @@ class SellerClientsIT extends IntegrationTestBase {
   }
 
   @Test
-  @DisplayName("`CA-SP-717` — quien no tiene cartera recibe 200 y la página vacía, no 404")
+  @DisplayName(
+      "`CA-SP-717` — quien no tiene cartera recibe 200 y la página vacía, no 404; un cliente, 403")
   void sinCarteraEsVacio() throws Exception {
-    // Un cliente: nadie se registró con su enlace.
-    mvc.perform(get("/api/v1/users/me/clients").with(comoPersona(clienteAntiguo)))
+    // Un cliente: desde RF-SP-062 (21-09-2026) su rol no porta users:read-own-clients
+    // y recibe 403 —el frontend no le ofrece la vista—; hasta entonces, 200 vacío.
+    mvc.perform(get("/api/v1/users/me/clients").with(comoCliente(clienteAntiguo)))
+        .andExpect(status().isForbidden());
+    // Un funcionario sin cartera: 200 con la página vacía.
+    mvc.perform(get("/api/v1/users/me/clients").with(comoPersona(SUPERADMIN)))
         .andExpect(status().isOk())
         .andExpect(jsonPath("$.totalElements").value(0))
         .andExpect(jsonPath("$.content", hasSize(0)));
@@ -271,8 +276,16 @@ class SellerClientsIT extends IntegrationTestBase {
   // Utilidades
   // ---------------------------------------------------------------------------
 
+  // Desde RF-SP-062 (21-09-2026) `/me/clients` exige `users:read-own-clients`
+  // —autenticarse no autoriza nada—, que V31 da a todo rol de vendedor y de
+  // funcionario, y a CLIENTE no. Hasta entonces bastaba con `user(id)`.
   private static RequestPostProcessor comoPersona(UUID persona) {
-    return user(persona.toString());
+    return user(persona.toString()).authorities(() -> "users:read-own-clients");
+  }
+
+  /** Un cliente: porta lo suyo (`users:read-own-sellers`) y no lo de vendedor. */
+  private static RequestPostProcessor comoCliente(UUID persona) {
+    return user(persona.toString()).authorities(() -> "users:read-own-sellers");
   }
 
   private static RequestPostProcessor lector() {

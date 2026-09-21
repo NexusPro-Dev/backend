@@ -269,7 +269,16 @@ class UpdateOwnProfileIT extends IntegrationTestBase {
 
   /** Sin autoridades: es lo que hace verificable `CA-SP-494`. */
   private RequestPostProcessor comoActor(UUID quien) {
-    return user(quien.toString()).authorities();
+    // Desde RF-SP-062 (21-09-2026) lo propio exige permiso —autenticarse no
+    // autoriza nada—: el actor porta los de alcance propio de SP y NINGÚN otro,
+    // que es lo que las pruebas de «sin permiso» querían decir. Hasta entonces,
+    // `.authorities()` vacío.
+    return user(quien.toString())
+        .authorities(
+            () -> "users:read-own-profile",
+            () -> "users:update-own-profile",
+            () -> "users:change-own-password",
+            () -> "users:read-own-sellers");
   }
 
   private static String cuerpoConCorreo(String correo, String clave) {

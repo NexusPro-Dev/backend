@@ -358,8 +358,9 @@ class OpenApiContractIT extends IntegrationTestBase {
         .andExpect(status().isOk())
         .andExpect(jsonPath("$.paths['/api/v1/users/me'].get.parameters").doesNotExist())
         .andExpect(jsonPath("$.paths['/api/v1/users/me'].get.requestBody").doesNotExist())
-        // Y ninguno de los tres estados que no le corresponden.
-        .andExpect(jsonPath("$.paths['/api/v1/users/me'].get.responses.403").doesNotExist())
+        // Y ninguno de los dos estados que no le corresponden. El 403 sí, desde
+        // el 21-09-2026: exige users:read-own-profile (RF-SP-062).
+        .andExpect(jsonPath("$.paths['/api/v1/users/me'].get.responses.403").exists())
         .andExpect(jsonPath("$.paths['/api/v1/users/me'].get.responses.404").doesNotExist())
         .andExpect(jsonPath("$.paths['/api/v1/users/me'].get.responses.400").doesNotExist());
   }
@@ -453,6 +454,17 @@ class OpenApiContractIT extends IntegrationTestBase {
         .andExpect(
             jsonPath("$.paths['/api/v1/users/{id}/clients'].get['" + EXTENSION + "']")
                 .value("users:read-clients"))
+        // RF-SP-062 (21-09-2026): las de alcance propio también la llevan; hasta
+        // entonces iban sin extensión porque iban sin permiso.
+        .andExpect(
+            jsonPath("$.paths['/api/v1/users/me'].get['" + EXTENSION + "']")
+                .value("users:read-own-profile"))
+        .andExpect(
+            jsonPath("$.paths['/api/v1/movements/mine'].get['" + EXTENSION + "']")
+                .value("movements:list-own"))
+        .andExpect(
+            jsonPath("$.paths['/api/v1/packages/{code}/purchases'].post['" + EXTENSION + "']")
+                .value("packages:buy"))
         .andExpect(
             jsonPath("$.paths['/api/v1/roles/{id}/permissions'].post['" + EXTENSION + "']")
                 .value("roles:assign-permissions"))
@@ -475,16 +487,20 @@ class OpenApiContractIT extends IntegrationTestBase {
                 .value("countries:create"))
         .andExpect(jsonPath("$.paths['/api/v1/countries'].post.security").doesNotExist())
         .andExpect(jsonPath("$.paths['/api/v1/hotlinks/{username}/{code}'].get.security").isEmpty())
-        // Solo token: el alcance lo decide el servicio, y el contrato remite a
-        // la descripción en vez de inventar un permiso que no existe.
-        .andExpect(jsonPath("$.paths['/api/v1/users/me'].get['" + EXTENSION + "']").doesNotExist())
+        // Hasta el 21-09-2026 aquí se afirmaba que /users/me iba «solo con token»
+        // y sin extensión. Desde RF-SP-062 (RN-SEG-015) no existe esa clase de
+        // operación: la propia ficha y las cuentas de una persona a cargo llevan
+        // su permiso como cualquier otra, y la línea de prosa lo dice.
         .andExpect(jsonPath("$.paths['/api/v1/users/me'].get.security").doesNotExist())
         .andExpect(
             jsonPath("$.paths['/api/v1/users/me'].get.description")
-                .value(startsWith(ENCABEZADO + " ninguno más allá del token")))
+                .value(startsWith(ENCABEZADO + " `users:read-own-profile`")))
+        .andExpect(
+            jsonPath("$.paths['/api/v1/users/{id}/broker-accounts'].get['" + EXTENSION + "']")
+                .value("broker-accounts:read-team-member"))
         .andExpect(
             jsonPath("$.paths['/api/v1/users/{id}/broker-accounts'].get.description")
-                .value(startsWith(ENCABEZADO + " ninguno más allá del token")));
+                .value(startsWith(ENCABEZADO + " `broker-accounts:read-team-member`")));
   }
 
   @Test

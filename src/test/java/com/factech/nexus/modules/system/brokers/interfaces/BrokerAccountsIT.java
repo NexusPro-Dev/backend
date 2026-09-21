@@ -487,8 +487,14 @@ class BrokerAccountsIT extends IntegrationTestBase {
    * registrada, de modo que pasarlas aquí no cambiaría nada y daría la falsa impresión de que la
    * prueba concede algo. Lo que abre la puerta es la estructura comercial, o el rol de la persona.
    */
+  // Desde RF-SP-062 (21-09-2026) las dos rutas exigen permiso —autenticarse no
+  // autoriza nada—: el actor porta los dos de alcance propio de las cuentas, que
+  // es lo que V31 da a todo rol de vendedor y de funcionario. El ALCANCE no
+  // cambia: sigue decidiéndolo la estructura (RN-SP-046, CA-SP-728).
   private static RequestPostProcessor comoPersona(UUID persona) {
-    return user(persona.toString());
+    return user(persona.toString())
+        .authorities(
+            () -> "broker-accounts:read-own-team", () -> "broker-accounts:read-team-member");
   }
 
   private UUID crearPersona(String username, String rol) {

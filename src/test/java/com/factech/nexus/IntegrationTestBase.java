@@ -211,6 +211,22 @@ public abstract class IntegrationTestBase {
         SELECT ?, id FROM permissions WHERE code IN ('audit:read-changes', 'audit:read-deletions')
         """,
         id);
+    // Y los once de alcance propio que V31 da a todo rol de tipo FUNCIONARIO
+    // (RF-SP-062, RN-SEG-015): sin ellos, una persona con este rol no vería su
+    // perfil ni podría cambiar la contraseña obligatoria. Es lo que un rol creado
+    // a mano recibe por RF-SP-005 el día que nace, y lo que `MustChangePasswordIT`
+    // necesita para que la cuenta marcada tenga salida.
+    jdbc.update(
+        """
+        INSERT INTO role_permissions (role_id, permission_id)
+        SELECT ?, id FROM permissions
+         WHERE code IN ('users:read-own-profile', 'users:update-own-profile',
+                        'users:change-own-password', 'users:read-own-sellers',
+                        'users:read-own-clients', 'broker-accounts:read-own-team',
+                        'broker-accounts:read-team-member', 'movements:list-own',
+                        'movements:read-own', 'movements:read-own-products', 'packages:buy')
+        """,
+        id);
     return id;
   }
 

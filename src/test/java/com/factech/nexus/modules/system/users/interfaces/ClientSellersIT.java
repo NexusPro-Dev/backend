@@ -193,8 +193,11 @@ class ClientSellersIT extends IntegrationTestBase {
   // Utilidades
   // ---------------------------------------------------------------------------
 
+  // Desde RF-SP-062 (21-09-2026) `/me/sellers` exige `users:read-own-sellers`
+  // —autenticarse no autoriza nada—, que V31 da a todo rol. Hasta entonces
+  // bastaba con `user(id)`.
   private static RequestPostProcessor comoPersona(UUID persona) {
-    return user(persona.toString());
+    return user(persona.toString()).authorities(() -> "users:read-own-sellers");
   }
 
   private static RequestPostProcessor lector() {

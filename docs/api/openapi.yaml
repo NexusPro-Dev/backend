@@ -2261,7 +2261,7 @@ paths:
       - Movimientos
       summary: Comprar un paquete para uno mismo
       description: |
-        **Permiso requerido:** ninguno más allá del token. El alcance lo acota el servicio —el propio actor, o la relación con la persona consultada— y la descripción dice cómo.
+        **Permiso requerido:** `packages:buy`. Sin él, `403` (`AUTH-002`).
 
         **Usted se compra el paquete entero** que su oferta le muestra, pagando **lo que ese
         paquete vale** —la suma de sus productos rebajados, el mismo `price` que publica la
@@ -2326,6 +2326,8 @@ paths:
             \ o descuento."
         "401":
           description: Token ausente o inválido (`AUTH-001`). Comprar exige sesión.
+        "403":
+          description: Autenticado sin `packages:buy` (`AUTH-002`)
         "409":
           description: "Lo que solo se sabe después de resolver: el paquete no se\
             \ ofrece hoy —inactivo, vencido, sin descripción, con menos de dos productos,\
@@ -2340,6 +2342,7 @@ paths:
             digo, o está retirado (`EX-001`); o el método de pago no existe (`EX-010`)."
         "500":
           description: Fallo no controlado (`ERR-500`)
+      x-required-permission: packages:buy
   /api/v1/movements:
     get:
       tags:
@@ -3881,7 +3884,7 @@ paths:
       - Sesión
       summary: Cambiar la propia contraseña
       description: |
-        **Permiso requerido:** ninguno más allá del token. El alcance lo acota el servicio —el propio actor, o la relación con la persona consultada— y la descripción dice cómo.
+        **Permiso requerido:** `users:change-own-password`. Sin él, `403` (`AUTH-002`).
 
         Sustituye la contraseña de **quien porta el token**.
 
@@ -3920,6 +3923,8 @@ paths:
             \ cumple la política (`VAL-004`) o es igual a la actual (`VAL-005`)"
         "401":
           description: Token ausente o inválido (`AUTH-001`)
+        "403":
+          description: Autenticado sin `users:change-own-password` (`AUTH-002`)
         "422":
           description: La contraseña actual no es correcta (`VAL-003`). Consume un
             intento
@@ -3929,6 +3934,7 @@ paths:
           description: Fallo no controlado (`ERR-500`)
       security:
       - bearerAuth: []
+      x-required-permission: users:change-own-password
   /api/v1/auth/password-recovery:
     post:
       tags:
@@ -4435,7 +4441,7 @@ paths:
       - Usuarios
       summary: Consultar el propio perfil
       description: |
-        **Permiso requerido:** ninguno más allá del token. El alcance lo acota el servicio —el propio actor, o la relación con la persona consultada— y la descripción dice cómo.
+        **Permiso requerido:** `users:read-own-profile`. Sin él, `403` (`AUTH-002`).
 
         Devuelve el perfil de **quien porta el token**, con sus **permisos
         efectivos**.
@@ -4497,14 +4503,17 @@ paths:
           description: "Sin credencial válida, o la cuenta fue eliminada tras emitirse\
             \ el token (`AUTH-001`) — lo que dejó de valer es la sesión, no la ruta,\
             \ y por eso no es `404`"
+        "403":
+          description: Autenticado sin `users:read-own-profile` (`AUTH-002`)
         "500":
           description: Fallo no controlado (`ERR-500`)
+      x-required-permission: users:read-own-profile
     patch:
       tags:
       - Usuarios
       summary: Editar el propio perfil
       description: |
-        **Permiso requerido:** ninguno más allá del token. El alcance lo acota el servicio —el propio actor, o la relación con la persona consultada— y la descripción dice cómo.
+        **Permiso requerido:** `users:update-own-profile`. Sin él, `403` (`AUTH-002`).
 
         Corrige el **propio** nombre, apellidos, correo y **datos de contacto**
         —los **dos teléfonos**, dirección, complemento y ciudad—. Autenticado y **sin
@@ -4588,6 +4597,7 @@ paths:
           description: La contraseña actual no es correcta (`VAL-007`)
         "500":
           description: Fallo no controlado (`ERR-500`)
+      x-required-permission: users:update-own-profile
   /api/v1/user-commission-rates/{id}:
     patch:
       tags:
@@ -6871,7 +6881,7 @@ paths:
       - Usuarios
       summary: Consultar las cuentas de broker de una persona
       description: |
-        **Permiso requerido:** ninguno más allá del token. El alcance lo acota el servicio —el propio actor, o la relación con la persona consultada— y la descripción dice cómo.
+        **Permiso requerido:** `broker-accounts:read-team-member`. Sin él, `403` (`AUTH-002`).
 
         Devuelve las cuentas de broker de esa persona: **broker, identificador
         de cuenta, nombre de usuario en el broker y estado**, ordenadas por
@@ -6926,19 +6936,22 @@ paths:
           description: Identificador malformado (`VAL-001`)
         "401":
           description: Token ausente o inválido (`AUTH-001`)
+        "403":
+          description: Autenticado sin `broker-accounts:read-team-member` (`AUTH-002`)
         "404":
           description: "La persona no existe, está eliminada, **o el actor no es su\
             \ superior vigente ni posee `broker-accounts:read`** (`VAL-002`). Los\
             \ tres casos responden lo mismo, a propósito."
         "500":
           description: Fallo no controlado (`ERR-500`)
+      x-required-permission: broker-accounts:read-team-member
   /api/v1/users/me/team/broker-accounts:
     get:
       tags:
       - Usuarios
       summary: Consultar las cuentas de broker de mi equipo
       description: |
-        **Permiso requerido:** ninguno más allá del token. El alcance lo acota el servicio —el propio actor, o la relación con la persona consultada— y la descripción dice cómo.
+        **Permiso requerido:** `broker-accounts:read-own-team`. Sin él, `403` (`AUTH-002`).
 
         Devuelve, **paginadas**, las cuentas de broker de todas las personas
         que dependen **directamente** del actor, **cada fila con su titular**.
@@ -7020,15 +7033,18 @@ paths:
             \ `brokerId` malformado o paginación fuera de límites (`VAL-003`)"
         "401":
           description: Token ausente o inválido (`AUTH-001`)
+        "403":
+          description: Autenticado sin `broker-accounts:read-own-team` (`AUTH-002`)
         "500":
           description: Fallo no controlado (`ERR-500`)
+      x-required-permission: broker-accounts:read-own-team
   /api/v1/users/me/sellers:
     get:
       tags:
       - Usuarios
       summary: Consultar mis vendedores
       description: |
-        **Permiso requerido:** ninguno más allá del token. El alcance lo acota el servicio —el propio actor, o la relación con la persona consultada— y la descripción dice cómo.
+        **Permiso requerido:** `users:read-own-sellers`. Sin él, `403` (`AUTH-002`).
 
         Devuelve **los vendedores del actor**: quien lo registró —su **principal**,
         origen `REGISTRO`— y los vendedores por cuyo enlace compró —origen
@@ -7069,15 +7085,18 @@ paths:
                 $ref: "#/components/schemas/ClientSellersResponse"
         "401":
           description: Token ausente o inválido (`AUTH-001`)
+        "403":
+          description: Autenticado sin `users:read-own-sellers` (`AUTH-002`)
         "500":
           description: Fallo no controlado (`ERR-500`)
+      x-required-permission: users:read-own-sellers
   /api/v1/users/me/clients:
     get:
       tags:
       - Usuarios
       summary: Consultar mis clientes
       description: |
-        **Permiso requerido:** ninguno más allá del token. El alcance lo acota el servicio —el propio actor, o la relación con la persona consultada— y la descripción dice cómo.
+        **Permiso requerido:** `users:read-own-clients`. Sin él, `403` (`AUTH-002`).
 
         Devuelve **la cartera del actor**, paginada: los clientes que
         registró —origen `REGISTRO`, de los que es el **principal**— y los
@@ -7146,8 +7165,11 @@ paths:
             fuera de límites (`VAL-003`)'
         "401":
           description: Token ausente o inválido (`AUTH-001`)
+        "403":
+          description: Autenticado sin `users:read-own-clients` (`AUTH-002`)
         "500":
           description: Fallo no controlado (`ERR-500`)
+      x-required-permission: users:read-own-clients
   /api/v1/products/{id}/comments/mine:
     get:
       tags:
@@ -7640,7 +7662,7 @@ paths:
       - Movimientos
       summary: Consultar los movimientos propios
       description: |
-        **Permiso requerido:** ninguno más allá del token. El alcance lo acota el servicio —el propio actor, o la relación con la persona consultada— y la descripción dice cómo.
+        **Permiso requerido:** `movements:list-own`. Sin él, `403` (`AUTH-002`).
 
         Devuelve **los movimientos en los que usted participó**, paginados y del más
         reciente al más antiguo.
@@ -7695,15 +7717,18 @@ paths:
           description: Paginación inválida (`VAL-002`) o estado no admitido (`VAL-003`)
         "401":
           description: Token ausente o inválido (`AUTH-001`)
+        "403":
+          description: Autenticado sin `movements:list-own` (`AUTH-002`)
         "500":
           description: Fallo no controlado (`ERR-500`)
+      x-required-permission: movements:list-own
   /api/v1/movements/mine/{id}:
     get:
       tags:
       - Movimientos
       summary: Consultar el detalle de un movimiento propio
       description: |
-        **Permiso requerido:** ninguno más allá del token. El alcance lo acota el servicio —el propio actor, o la relación con la persona consultada— y la descripción dice cómo.
+        **Permiso requerido:** `movements:read-own`. Sin él, `403` (`AUTH-002`).
 
         Devuelve **lo mismo que devuelve registrar una venta**, con sus líneas: qué
         productos, cuántos, a qué precio y con qué vigencia. Quien registró una venta y
@@ -7730,18 +7755,21 @@ paths:
           description: Identificador malformado (`VAL-001`)
         "401":
           description: Token ausente o inválido (`AUTH-001`)
+        "403":
+          description: Autenticado sin `movements:read-own` (`AUTH-002`)
         "404":
           description: No existe **o no es suyo** (`VAL-002`). Las dos son la misma
             respuesta
         "500":
           description: Fallo no controlado (`ERR-500`)
+      x-required-permission: movements:read-own
   /api/v1/movements/mine/products:
     get:
       tags:
       - Movimientos
       summary: Consultar los productos comprados propios
       description: |
-        **Permiso requerido:** ninguno más allá del token. El alcance lo acota el servicio —el propio actor, o la relación con la persona consultada— y la descripción dice cómo.
+        **Permiso requerido:** `movements:read-own-products`. Sin él, `403` (`AUTH-002`).
 
         Devuelve **los productos de las ventas a su nombre**, uno por línea de venta, del más
         reciente al más antiguo, y **en qué estado está cada uno**:
@@ -7790,8 +7818,11 @@ paths:
           description: Paginación inválida o estado no admitido (`VAL-002`)
         "401":
           description: Token ausente o inválido (`AUTH-001`)
+        "403":
+          description: Autenticado sin `movements:read-own-products` (`AUTH-002`)
         "500":
           description: Fallo no controlado (`ERR-500`)
+      x-required-permission: movements:read-own-products
   /api/v1/memberships/{id}:
     get:
       tags:

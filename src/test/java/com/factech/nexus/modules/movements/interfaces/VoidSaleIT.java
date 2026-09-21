@@ -162,8 +162,7 @@ class VoidSaleIT extends IntegrationTestBase {
     // QUIEN CONCILIA NO PUEDE HACER DESAPARECER VENTAS DEL EMBUDO: son dos permisos.
     mvc.perform(anular(venta, MOTIVO).with(conPermiso(administrador, "movements:confirm")))
         .andExpect(status().isForbidden());
-    mvc.perform(anular(venta, MOTIVO).with(user(cliente.toString())))
-        .andExpect(status().isForbidden());
+    mvc.perform(anular(venta, MOTIVO).with(propio(cliente))).andExpect(status().isForbidden());
     mvc.perform(anular(venta, MOTIVO)).andExpect(status().isUnauthorized());
     assertThat(estadoDe(venta)).isEqualTo("PENDIENTE");
   }
@@ -176,7 +175,7 @@ class VoidSaleIT extends IntegrationTestBase {
         .andExpect(status().isOk())
         .andExpect(jsonPath("$.lines[0].deliveryStatus").value("PENDIENTE"));
 
-    mvc.perform(get("/api/v1/movements/mine/products").with(user(cliente.toString())))
+    mvc.perform(get("/api/v1/movements/mine/products").with(propio(cliente)))
         .andExpect(status().isOk())
         .andExpect(jsonPath("$.content[0].state").value("ANULADO"));
   }
@@ -208,7 +207,7 @@ class VoidSaleIT extends IntegrationTestBase {
     mvc.perform(anular(venta, MOTIVO).with(conPermiso(administrador, "movements:void")))
         .andExpect(status().isOk());
 
-    mvc.perform(get("/api/v1/movements/mine/{id}", venta).with(user(cliente.toString())))
+    mvc.perform(get("/api/v1/movements/mine/{id}", venta).with(propio(cliente)))
         .andExpect(status().isOk())
         .andExpect(jsonPath("$.status").value("ANULADA"))
         .andExpect(jsonPath("$.voidedAt").isNotEmpty())
@@ -306,5 +305,17 @@ class VoidSaleIT extends IntegrationTestBase {
         cliente,
         producto);
     return id;
+  }
+
+  // Desde RF-SP-062 (21-09-2026) lo propio exige permiso —autenticarse no autoriza
+  // nada—: el actor porta la familia de alcance propio de MV, que es lo que V31 da a
+  // todo rol. Hasta entonces bastaba con `user(id)`.
+  private static RequestPostProcessor propio(UUID persona) {
+    return user(persona.toString())
+        .authorities(
+            () -> "movements:list-own",
+            () -> "movements:read-own",
+            () -> "movements:read-own-products",
+            () -> "packages:buy");
   }
 }
