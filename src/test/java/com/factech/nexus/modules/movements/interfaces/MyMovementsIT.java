@@ -31,7 +31,16 @@ import org.springframework.test.web.servlet.request.RequestPostProcessor;
 @AutoConfigureMockMvc
 class MyMovementsIT extends IntegrationTestBase {
   private static final String VENTA = "01a061ba-3400-7001-9c4f-5e7ad7000011";
+
+  /**
+   * Un SEGUNDO tipo que solo existe en esta prueba (`CA-MV-120`), como en `MovementsIT`: con uno
+   * solo en el catálogo, filtrar por `VENTA` devolvería todo y no probaría que el filtro
+   * discrimina. Se siembra al usarlo y se retira en `limpiar`.
+   */
+  private static final String TIPO_DE_PRUEBA = "01a061ba-3400-7001-9c4f-5e7ad70000f2";
+
   private static final String TARJETA = "01a061ba-3400-7002-9c4f-5e7ad7000021";
+  private static final String PSE = "01a061ba-3400-7003-9c4f-5e7ad7000022";
   private static final String USD = "01a03336-6d00-7001-9c4f-5e7ad3000001";
 
   private static final OffsetDateTime BASE =
@@ -152,6 +161,9 @@ class MyMovementsIT extends IntegrationTestBase {
         .andExpect(jsonPath("$.size").isNumber())
         .andExpect(jsonPath("$.totalPages").value(1))
         .andExpect(jsonPath("$.content[0].user.username").value("mine-cliente"))
+        // Desde el 21-09-2026 la fila dice su tipo (`CA-MV-121`): es lo que
+        // hace comprobable el filtro por tipo.
+        .andExpect(jsonPath("$.content[0].type").value("VENTA"))
         // Los vendedores son de las líneas y van SIN REPETIR: una lista, porque
         // una venta podría llevar varios. Hoy lleva uno.
         .andExpect(jsonPath("$.content[0].sellers.length()").value(1))
@@ -219,6 +231,126 @@ class MyMovementsIT extends IntegrationTestBase {
         .andExpect(status().isOk())
         .andExpect(jsonPath("$.totalElements").value(1))
         .andExpect(jsonPath("$.content[0].id").value(vendida.toString()));
+  }
+
+  @Test
+  @DisplayName(
+      "CA-MV-120 — el filtro por tipo discrimina lo propio, escrito como sea, y se combina")
+  void filtroPorTipo() throws Exception {
+    // Un movimiento del segundo tipo a nombre del vendedor, pendiente: lo único
+    // que un filtro por ese tipo debe devolverle, y lo que `status=PENDIENTE`
+    // solo no distingue de la venta pendiente que hizo.
+    UUID deposito = movimiento(vendedor, null, "PENDIENTE", BASE.plusDays(5), TIPO_DE_PRUEBA);
+
+    mvc.perform(get("/api/v1/movements/mine?type=prueba_deposito").with(como(vendedor)))
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$.totalElements").value(1))
+        .andExpect(jsonPath("$.content[0].id").value(deposito.toString()))
+        .andExpect(jsonPath("$.content[0].type").value("PRUEBA_DEPOSITO"))
+        .andExpect(jsonPath("$.content[0].role").value("BUYER"));
+
+    // Por `VENTA`, las dos de siempre y no la tercera.
+    mvc.perform(get("/api/v1/movements/mine?type=VENTA").with(como(vendedor)))
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$.totalElements").value(2));
+
+    // Combinado con el estado.
+    mvc.perform(
+            get("/api/v1/movements/mine")
+                .param("type", "VENTA")
+                .param("status", "PENDIENTE")
+                .with(como(vendedor)))
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$.totalElements").value(1))
+        .andExpect(jsonPath("$.content[0].id").value(vendida.toString()));
+
+    // Y el alcance no se mueve: el cliente no ve el depósito del vendedor.
+    mvc.perform(get("/api/v1/movements/mine?type=PRUEBA_DEPOSITO").with(como(cliente)))
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$.totalElements").value(0));
+  }
+
+  @Test
+  @DisplayName("CA-MV-120 y VAL-004 — un tipo que no existe es 400 y no una página vacía")
+  void tipoInexistente() throws Exception {
+    // Como el estado y al revés que las personas: el catálogo es cerrado
+    // (`RN-MV-017`), y una página vacía diría «no tienes ninguno así».
+    mvc.perform(get("/api/v1/movements/mine?type=INVENTADO").with(como(vendedor)))
+        .andExpect(status().isBadRequest())
+        .andExpect(jsonPath("$.errors[0].field").value("type"))
+        .andExpect(jsonPath("$.errors[0].code").value("VAL-004"));
+  }
+
+  @Test
+  @DisplayName("CA-MV-133 — el filtro por método de pago; uno que no existe da página vacía")
+  void filtroPorMetodoDePago() throws Exception {
+    // La propia pasa a PSE; las demás siguen con tarjeta.
+    jdbc.update(
+        "UPDATE movements SET payment_method_id = CAST(? AS uuid) WHERE id = ?", PSE, propia);
+
+    mvc.perform(get("/api/v1/movements/mine").param("paymentMethodId", PSE).with(como(vendedor)))
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$.totalElements").value(1))
+        .andExpect(jsonPath("$.content[0].id").value(propia.toString()));
+    mvc.perform(
+            get("/api/v1/movements/mine")
+                .param("paymentMethodId", UUID.randomUUID().toString())
+                .with(como(vendedor)))
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$.totalElements").value(0));
+  }
+
+  @Test
+  @DisplayName(
+      "CA-MV-134 — el filtro por código encuentra el comprobante escrito como sea, y NADA si es ajeno")
+  void filtroPorCodigo() throws Exception {
+    String codigo =
+        jdbc.queryForObject("SELECT code FROM movements WHERE id = ?", String.class, vendida);
+    String ajeno =
+        jdbc.queryForObject("SELECT code FROM movements WHERE id = ?", String.class, deOtros);
+
+    mvc.perform(
+            get("/api/v1/movements/mine").param("code", codigo.toLowerCase()).with(como(vendedor)))
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$.totalElements").value(1))
+        .andExpect(jsonPath("$.content[0].id").value(vendida.toString()));
+    // El alcance va antes que el filtro: conocer un código no abre lo que no es propio.
+    mvc.perform(get("/api/v1/movements/mine").param("code", ajeno).with(como(vendedor)))
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$.totalElements").value(0));
+  }
+
+  @Test
+  @DisplayName(
+      "CA-MV-135 — el periodo incluye `from`, excluye `to`, se combina, y el invertido es 400 VAL-005")
+  void filtroPorPeriodo() throws Exception {
+    // vendida el 1 de agosto, propia el 2: [1, 2) es solo la primera.
+    mvc.perform(
+            get("/api/v1/movements/mine")
+                .param("from", BASE.toString())
+                .param("to", BASE.plusDays(1).toString())
+                .with(como(vendedor)))
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$.totalElements").value(1))
+        .andExpect(jsonPath("$.content[0].id").value(vendida.toString()));
+    // Combinado con el estado: [1, 3) son las dos, y confirmada solo la propia.
+    mvc.perform(
+            get("/api/v1/movements/mine")
+                .param("from", BASE.toString())
+                .param("to", BASE.plusDays(2).toString())
+                .param("status", "CONFIRMADA")
+                .with(como(vendedor)))
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$.totalElements").value(1))
+        .andExpect(jsonPath("$.content[0].id").value(propia.toString()));
+    mvc.perform(
+            get("/api/v1/movements/mine")
+                .param("from", BASE.plusDays(2).toString())
+                .param("to", BASE.toString())
+                .with(como(vendedor)))
+        .andExpect(status().isBadRequest())
+        .andExpect(jsonPath("$.errors[0].field").value("from"))
+        .andExpect(jsonPath("$.errors[0].code").value("VAL-005"));
   }
 
   @Test
@@ -351,6 +483,9 @@ class MyMovementsIT extends IntegrationTestBase {
   private void limpiar() {
     jdbc.update("DELETE FROM movement_details");
     jdbc.update("DELETE FROM movements");
+    // DESPUÉS de los movimientos, que lo referencian; y siempre, para que el
+    // catálogo quede con su única fila.
+    jdbc.update("DELETE FROM movement_types WHERE code = 'PRUEBA_DEPOSITO'");
     jdbc.update("DELETE FROM products WHERE code LIKE 'MINE_%'");
     jdbc.update(
         "DELETE FROM user_memberships WHERE user_id IN"
@@ -387,6 +522,24 @@ class MyMovementsIT extends IntegrationTestBase {
   }
 
   private UUID movimiento(UUID cliente, UUID vendedor, String estado, OffsetDateTime cuando) {
+    return movimiento(cliente, vendedor, estado, cuando, VENTA);
+  }
+
+  /**
+   * Con el tipo elegido. Si es {@link #TIPO_DE_PRUEBA}, lo siembra antes: el catálogo no se toca
+   * por API (`RN-MV-017`) y ninguna migración lo trae.
+   */
+  private UUID movimiento(
+      UUID cliente, UUID vendedor, String estado, OffsetDateTime cuando, String tipo) {
+    if (TIPO_DE_PRUEBA.equals(tipo)) {
+      jdbc.update(
+          """
+          INSERT INTO movement_types (id, code, name, prefix)
+          VALUES (CAST(? AS uuid), 'PRUEBA_DEPOSITO', 'Deposito de prueba', 'DEP')
+          ON CONFLICT (id) DO NOTHING
+          """,
+          tipo);
+    }
     UUID id = UUID.randomUUID();
     jdbc.update(
         """
@@ -398,7 +551,7 @@ class MyMovementsIT extends IntegrationTestBase {
                 CASE WHEN ? = 'CONFIRMADA' THEN CAST(? AS timestamptz) ELSE NULL END)
         """,
         id,
-        VENTA,
+        tipo,
         cliente,
         TARJETA,
         USD,

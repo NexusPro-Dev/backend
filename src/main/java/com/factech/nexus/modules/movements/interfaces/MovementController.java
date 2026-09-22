@@ -1,6 +1,7 @@
 package com.factech.nexus.modules.movements.interfaces;
 
 import com.factech.nexus.modules.movements.application.ListMovementsRequest;
+import com.factech.nexus.modules.movements.application.ListSalesRequest;
 import com.factech.nexus.modules.movements.application.MovementResponse;
 import com.factech.nexus.modules.movements.application.MyMovementResponse;
 import com.factech.nexus.modules.movements.application.MyMovementsRequest;
@@ -14,6 +15,7 @@ import com.factech.nexus.modules.movements.domain.service.GetMyMovementService;
 import com.factech.nexus.modules.movements.domain.service.ListMovementsService;
 import com.factech.nexus.modules.movements.domain.service.ListMyMovementsService;
 import com.factech.nexus.modules.movements.domain.service.ListMyProductsService;
+import com.factech.nexus.modules.movements.domain.service.ListSalesService;
 import com.factech.nexus.modules.movements.domain.service.RegisterSaleService;
 import com.factech.nexus.modules.movements.domain.service.VoidSaleService;
 import com.factech.nexus.shared.pagination.PageResponse;
@@ -57,6 +59,7 @@ public class MovementController {
   private final ListMyMovementsService listado;
   private final ListMyProductsService comprado;
   private final GetMyMovementService detalle;
+  private final ListSalesService ventas;
 
   public MovementController(
       RegisterSaleService alta,
@@ -65,7 +68,8 @@ public class MovementController {
       ListMovementsService libro,
       ListMyMovementsService listado,
       ListMyProductsService comprado,
-      GetMyMovementService detalle) {
+      GetMyMovementService detalle,
+      ListSalesService ventas) {
     this.alta = alta;
     this.confirmacion = confirmacion;
     this.anulacion = anulacion;
@@ -73,6 +77,7 @@ public class MovementController {
     this.listado = listado;
     this.comprado = comprado;
     this.detalle = detalle;
+    this.ventas = ventas;
   }
 
   /**
@@ -228,7 +233,12 @@ public class MovementController {
           sin distinguir mayúsculas) y `from`/`to` sobre **cuándo ocurrió**. `from` y `to` son
           instantes con zona horaria y el rango es **semiabierto** —incluye `from`, excluye
           `to`—. Un `userId`, `sellerId` o `paymentMethodId` que no exista da una página vacía;
-          un `status` que no exista es `400`.
+          un `status` que no exista es `400`. Desde el 21-09-2026, `type` (qué depósitos hubo,
+          el día que los haya): **el código del tipo de movimiento**, sin distinguir
+          mayúsculas — hoy el único es `VENTA`, y filtrar por él devuelve lo mismo que no
+          filtrar. Un `type` que no exista en el catálogo es `400`, como el estado y al revés
+          que las personas: el catálogo es cerrado. El catálogo no se publica por ninguna
+          ruta; los códigos vigentes son los que este párrafo nombra.
 
           **Cada fila lleva el tipo de movimiento** (`type`, hoy siempre `VENTA`), el sujeto
           (`user`), los vendedores de sus líneas sin repetir (`sellers`, lista nunca nula y
@@ -246,8 +256,8 @@ public class MovementController {
         responseCode = "400",
         description =
             "Paginación inválida, estado no admitido (`VAL-002`), identificador malformado"
-                + " (`VAL-001`) o `from` posterior a `to` (`VAL-004`). Los problemas se"
-                + " devuelven juntos.",
+                + " (`VAL-001`), `from` posterior a `to` (`VAL-004`) o tipo de movimiento"
+                + " inexistente (`VAL-005`). Los problemas se devuelven juntos.",
         content = @Content),
     @ApiResponse(
         responseCode = "401",
@@ -266,6 +276,7 @@ public class MovementController {
       @RequestParam(required = false) Integer page,
       @RequestParam(required = false) Integer size,
       @RequestParam(required = false) String status,
+      @RequestParam(required = false) String type,
       @RequestParam(required = false) UUID userId,
       @RequestParam(required = false) UUID sellerId,
       @RequestParam(required = false) UUID paymentMethodId,
@@ -274,7 +285,78 @@ public class MovementController {
       @RequestParam(required = false) OffsetDateTime to) {
     return libro.list(
         new ListMovementsRequest(
-            page, size, status, userId, sellerId, paymentMethodId, code, from, to));
+            page, size, status, type, userId, sellerId, paymentMethodId, code, from, to));
+  }
+
+  /**
+   * <b>El permiso abre; el alcance decide qué se ve</b> (`RF-MV-015` · `plan.md` §5). La anotación
+   * es la puerta (`RN-SEG-015`) y {@code CommercialReach} es lo que hace que un director y un
+   * manager, con el mismo permiso, vean conjuntos distintos (`RN-MV-031`). No se admite {@code
+   * movements:read} como alternativa: rompería `RN-SEG-014` en silencio (`CA-MV-130`).
+   */
+  @GetMapping("/sales")
+  @PreAuthorize("hasAuthority('movements:list-sales')")
+  @Operation(
+      summary = "Consultar las ventas de mi alcance",
+      description =
+          """
+          Devuelve **las ventas que le tocan a quien pregunta según quién es**, paginadas y del
+          más reciente al más antiguo. Es la consulta de las **ventas**; los otros tipos de
+          movimiento tendrán la suya.
+
+          **Lo que se ve lo decide el tipo de rol de quien pregunta**, y no un parámetro:
+          quien porta un rol de tipo **funcionario** ve todas las ventas; quien porta uno de
+          tipo **vendedor** ve las que vendió **él o alguien de su red** —quienes cuelgan de él
+          en la estructura comercial vigente, **en toda la profundidad**: el director lo de sus
+          agentes, el manager lo de sus directores y por ellos lo de los agentes—; quien porta
+          uno de tipo **consumidor** ve solo las ventas **a su nombre**. Un vendedor sin nadie a
+          cargo ve lo que vendió él. Un vendedor **no ve aquí lo que compró**: eso es `/mine`.
+
+          **`userId` es una persona de mi red como vendedora** —«las ventas de mi agente tal»—
+          y acota **dentro** del alcance: una persona fuera de mi red, o inexistente, da una
+          **página vacía** y no un error, para que el filtro no sirva para descubrir quién
+          cuelga de quién. `status`, `paymentMethodId`, `code` y `from`/`to` son los de
+          `GET /movements` y se combinan; **el comprobante de una venta que no es de mi
+          alcance tampoco aparece**, escrito como sea.
+
+          **Cada fila es la misma de `GET /movements`** (`type` siempre `VENTA`, `user`,
+          `sellers`, importes, `confirmedAt` nulo y presente), sin `role`. **El total puede no
+          ser exacto** por encima del techo de conteo. Ni `movements:read` ni
+          `movements:list-own` abren esta consulta.
+          """)
+  @ApiResponses({
+    @ApiResponse(responseCode = "200", description = "La página de ventas, aunque esté vacía."),
+    @ApiResponse(
+        responseCode = "400",
+        description =
+            "Paginación inválida, estado no admitido (`VAL-002`), identificador malformado"
+                + " (`VAL-001`) o `from` posterior a `to` (`VAL-004`). Los problemas se"
+                + " devuelven juntos.",
+        content = @Content),
+    @ApiResponse(
+        responseCode = "401",
+        description = "Token ausente o inválido (`AUTH-001`)",
+        content = @Content),
+    @ApiResponse(
+        responseCode = "403",
+        description = "Sin el permiso `movements:list-sales` (`AUTH-002`).",
+        content = @Content),
+    @ApiResponse(
+        responseCode = "500",
+        description = "Fallo no controlado (`ERR-500`)",
+        content = @Content)
+  })
+  public PageResponse<MovementResponse> misVentas(
+      @RequestParam(required = false) Integer page,
+      @RequestParam(required = false) Integer size,
+      @RequestParam(required = false) UUID userId,
+      @RequestParam(required = false) String status,
+      @RequestParam(required = false) UUID paymentMethodId,
+      @RequestParam(required = false) String code,
+      @RequestParam(required = false) OffsetDateTime from,
+      @RequestParam(required = false) OffsetDateTime to) {
+    return ventas.list(
+        new ListSalesRequest(page, size, userId, status, paymentMethodId, code, from, to));
   }
 
   @Operation(
@@ -387,13 +469,29 @@ public class MovementController {
           una venta podría llevar varios. Hoy lleva uno. Va **vacía** en los movimientos que
           no tienen vendedor, que no es el caso de ninguna venta.
 
+          **Cada fila dice su tipo** (`type`, hoy siempre `VENTA`) desde el 21-09-2026, el
+          mismo día que se puede filtrar por él: `type` admite **el código del tipo de
+          movimiento**, sin distinguir mayúsculas, y se combina con `status`. Un `type` que no
+          exista en el catálogo es `400`, como el estado: el catálogo es cerrado y no se
+          publica por ninguna ruta.
+
+          **Y desde ese mismo día, los tres filtros de `GET /movements`**: `paymentMethodId`
+          (uno que no exista da página vacía), `code` (el comprobante exacto, sin distinguir
+          mayúsculas; **uno ajeno no devuelve nada**: el alcance va antes que el filtro) y
+          `from`/`to` sobre **cuándo ocurrió**, instantes con zona horaria, rango semiabierto
+          —incluye `from`, excluye `to`—; `from` posterior a `to` es `400`. Todos se combinan.
+
           El orden es fijo y no se puede cambiar. `status` filtra por estado.
           """)
   @ApiResponses({
     @ApiResponse(responseCode = "200", description = "La página de movimientos propios."),
     @ApiResponse(
         responseCode = "400",
-        description = "Paginación inválida (`VAL-002`) o estado no admitido (`VAL-003`)",
+        description =
+            "Paginación inválida (`VAL-002`), estado no admitido (`VAL-003`), tipo de"
+                + " movimiento inexistente (`VAL-004`), `from` posterior a `to` (`VAL-005`) o"
+                + " identificador malformado (`VAL-006`, que el conversor global emite como"
+                + " `VAL-001`)",
         content = @Content),
     @ApiResponse(
         responseCode = "401",
@@ -411,8 +509,14 @@ public class MovementController {
   public PageResponse<MyMovementResponse> mios(
       @RequestParam(required = false) Integer page,
       @RequestParam(required = false) Integer size,
-      @RequestParam(required = false) String status) {
-    return listado.list(new MyMovementsRequest(page, size, status));
+      @RequestParam(required = false) String status,
+      @RequestParam(required = false) String type,
+      @RequestParam(required = false) UUID paymentMethodId,
+      @RequestParam(required = false) String code,
+      @RequestParam(required = false) OffsetDateTime from,
+      @RequestParam(required = false) OffsetDateTime to) {
+    return listado.list(
+        new MyMovementsRequest(page, size, status, type, paymentMethodId, code, from, to));
   }
 
   /**

@@ -51,6 +51,7 @@ public class ListMovementsService {
     MovementFilter filtro =
         new MovementFilter(
             peticion.status(),
+            peticion.type(),
             peticion.userId(),
             peticion.sellerId(),
             peticion.paymentMethodId(),
@@ -61,7 +62,7 @@ public class ListMovementsService {
     List<MovementRow> filas = movimientos.findAll(filtro, pagina.offset(), pagina.size());
     BoundedCount total = movimientos.countAll(filtro, paginacion.techoDelConteo());
 
-    Map<UUID, List<MovementResponse.Party>> vendedores = vendedoresDe(filas);
+    Map<UUID, List<MovementResponse.Party>> vendedores = vendedoresDe(movimientos, filas);
     List<MovementResponse> contenido = new ArrayList<>(filas.size());
     for (MovementRow fila : filas) {
       contenido.add(de(fila, vendedores.getOrDefault(fila.id(), List.of())));
@@ -77,6 +78,12 @@ public class ListMovementsService {
    * estado nuevo queda admitido sin que nadie tenga que acordarse. Y es un <b>error</b> y no una
    * página vacía, al revés que un sujeto o un método inexistentes: los estados son un dominio
    * cerrado que el sistema declara, y pedir uno inventado es una pregunta mal escrita.
+   *
+   * <p><b>El tipo va con el estado y no con las personas</b> (21-09-2026, `spec.md` §6.1): el
+   * catálogo no se edita por API (`RN-MV-017`), de modo que es un conjunto cerrado aunque viva en
+   * una tabla. Y se valida <b>contra la tabla</b>, con el mismo {@code findTypeByCode} que resuelve
+   * {@code VENTA} al registrar, y no contra una constante: el día que una migración siembre el
+   * segundo tipo, el filtro lo admite sin que nadie toque una lista en Java.
    */
   private Pagination.Slice verificar(ListMovementsRequest peticion) {
     List<FieldError> problemas = new ArrayList<>();
@@ -100,6 +107,11 @@ public class ListMovementsService {
       problemas.add(new FieldError("status", "VAL-002", mensaje));
     }
 
+    if (peticion.type() != null && movimientos.findTypeByCode(peticion.type()).isEmpty()) {
+      String mensaje = "El tipo de movimiento '" + peticion.type() + "' no existe.";
+      problemas.add(new FieldError("type", "VAL-005", mensaje));
+    }
+
     if (peticion.from() != null
         && peticion.to() != null
         && peticion.from().isAfter(peticion.to())) {
@@ -114,8 +126,13 @@ public class ListMovementsService {
     return pagina;
   }
 
-  /** Los vendedores de la página, por movimiento y sin repetir: la misma segunda consulta. */
-  private Map<UUID, List<MovementResponse.Party>> vendedoresDe(List<MovementRow> filas) {
+  /**
+   * Los vendedores de la página, por movimiento y sin repetir: la misma segunda consulta.
+   * Compartido con {@link ListSalesService}, que devuelve la misma fila (`RF-MV-015` · `spec.md`
+   * §6.2).
+   */
+  static Map<UUID, List<MovementResponse.Party>> vendedoresDe(
+      MovementRepository movimientos, List<MovementRow> filas) {
     List<UUID> ids = new ArrayList<>(filas.size());
     for (MovementRow fila : filas) {
       ids.add(fila.id());
@@ -134,7 +151,7 @@ public class ListMovementsService {
     return porMovimiento;
   }
 
-  private static MovementResponse de(MovementRow fila, List<MovementResponse.Party> vendedores) {
+  static MovementResponse de(MovementRow fila, List<MovementResponse.Party> vendedores) {
     return new MovementResponse(
         fila.id(),
         fila.code(),

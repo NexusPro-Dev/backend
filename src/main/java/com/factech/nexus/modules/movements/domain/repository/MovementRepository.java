@@ -7,6 +7,7 @@ import java.time.OffsetDateTime;
 import java.util.Collection;
 import java.util.List;
 import java.util.Optional;
+import java.util.Set;
 import java.util.UUID;
 import java.util.function.Supplier;
 
@@ -141,10 +142,27 @@ public interface MovementRepository {
    * <p>No hay sobrecarga que acepte otra persona: consultar las de un tercero es `RF-MV-006`, con
    * su permiso.
    */
-  List<MyMovementRow> findMine(UUID actorId, String status, int offset, int limit);
+  List<MyMovementRow> findMine(UUID actorId, MyMovementsFilter filter, int offset, int limit);
 
   /** Cuántos hay en total. Exacto: es el conjunto de una persona, no una tabla sin límite. */
-  long countMine(UUID actorId, String status);
+  long countMine(UUID actorId, MyMovementsFilter filter);
+
+  /**
+   * Los filtros del listado propio (`RF-MV-008`), ya normalizados y validados: el estado y el tipo
+   * desde el 21-09-2026 por la mañana, y el método de pago, el comprobante y el periodo desde esa
+   * tarde. <b>No lleva al actor</b>: el actor no es un filtro, es el alcance.
+   *
+   * @param code ya en mayúsculas
+   * @param from inclusive, sobre {@code occurred_at}
+   * @param to exclusive, sobre {@code occurred_at}
+   */
+  record MyMovementsFilter(
+      String status,
+      String type,
+      UUID paymentMethodId,
+      String code,
+      OffsetDateTime from,
+      OffsetDateTime to) {}
 
   /**
    * Los vendedores de las líneas de esos movimientos, <b>sin repetir</b> por movimiento.
@@ -177,6 +195,7 @@ public interface MovementRepository {
   record MyMovementRow(
       UUID id,
       String code,
+      String type,
       String status,
       String role,
       UUID userId,
@@ -388,6 +407,57 @@ public interface MovementRepository {
    */
   BoundedCount countAll(MovementFilter filter, int techo);
 
+  // ---------------------------------------------------------------------------
+  // `RF-MV-015` — las ventas de mi alcance
+  // ---------------------------------------------------------------------------
+
+  /**
+   * La página de <b>ventas</b> del alcance dado, del más reciente al más antiguo.
+   *
+   * <p><b>El alcance va dentro de la sentencia</b>, como en {@link #findMine}, y a diferencia de
+   * allí no es «el actor» sino lo que `SP` resolvió de él (`RN-MV-031`, {@code CommercialReach}):
+   * todo, el conjunto de vendedores de su red, o solo él como sujeto. Quién entra en el conjunto no
+   * lo decide este repositorio; lo aplica.
+   *
+   * <p>El tipo va fijo a {@code VENTA}: es la consulta de las ventas, y los otros tipos tendrán la
+   * suya. El vendedor —el del alcance y el del filtro— entra por el mismo {@code EXISTS} sobre las
+   * líneas, una fila por venta.
+   */
+  List<MovementRow> findSales(SalesFilter filter, int offset, int limit);
+
+  /** Cuántas ventas del alcance cumplen el filtro, <b>acotado</b>, sobre el mismo predicado. */
+  BoundedCount countSales(SalesFilter filter, int techo);
+
+  /**
+   * El alcance ya resuelto por `SP` y los filtros de `RF-MV-015`, para escribir el predicado una
+   * vez.
+   *
+   * <p><b>Lo que NO tiene es el caso «fuera del alcance»</b>: si {@code sellerId} no está en la red
+   * —o no es el actor cuando el alcance es propio— el caso de uso <b>no llama</b> a este
+   * repositorio y responde vacío por definición (`plan.md` §4.4). Aquí llega solo lo que sí puede
+   * verse.
+   *
+   * @param everything todo el libro de ventas (un rol de tipo {@code FUNCIONARIO})
+   * @param network los vendedores de mi red, conmigo dentro; vacío cuando no aplica
+   * @param ownerId el sujeto, cuando el alcance es «solo yo»; nulo cuando no aplica
+   * @param sellerId el vendedor por el que se acota, ya comprobado dentro del alcance; nulo si no
+   *     se acota
+   */
+  record SalesFilter(
+      boolean everything,
+      Set<UUID> network,
+      UUID ownerId,
+      UUID sellerId,
+      String status,
+      UUID paymentMethodId,
+      String code,
+      OffsetDateTime from,
+      OffsetDateTime to) {
+    public SalesFilter {
+      network = network == null ? Set.of() : Set.copyOf(network);
+    }
+  }
+
   /**
    * Lo que acota el listado global. Todo opcional; nulo significa «sin acotar por esto».
    *
@@ -399,9 +469,12 @@ public interface MovementRepository {
    *     uq_movements_code}
    * @param from inclusive, sobre {@code occurred_at}
    * @param to exclusive, sobre {@code occurred_at}
+   * @param type el código del tipo de movimiento, ya en mayúsculas y ya validado contra el catálogo
+   *     (21-09-2026)
    */
   record MovementFilter(
       String status,
+      String type,
       UUID userId,
       UUID sellerId,
       UUID paymentMethodId,

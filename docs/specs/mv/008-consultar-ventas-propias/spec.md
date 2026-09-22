@@ -4,9 +4,11 @@
 |---|---|
 | Requerimiento | `RF-MV-008` |
 | Módulo | `MV` — Movimientos |
-| Versión | 0.2.0 |
+| Versión | 0.4.0 |
 | Estado | **Aprobada** |
 | Enmendada el | 16-09-2026 — el vendedor es de cada línea (`RN-MV-003`) y la cabecera lleva un sujeto (`RN-MV-026`): «lo que vendí» se responde por las líneas. Ver §15 |
+| Enmendada el | 21-09-2026 — el listado se filtra también **por tipo** y cada fila **dice su tipo** (§6.1, §6.2, §11, §12). Ver §15 |
+| Enmendada el | 21-09-2026 (segunda del día) — el listado se filtra también por **método de pago**, **comprobante** y **periodo**, los mismos tres de `RF-MV-006` (§6.1, §11, §12). Ver §15 |
 | Autor | Responsable técnico |
 | Aprobada por | Responsable del proyecto |
 | Fecha de aprobación | 05-09-2026 |
@@ -111,6 +113,12 @@ Un movimiento lleva **dos personas**: quien **recibe** lo comprado y quien lo **
 | Página | No | Cuál de las páginas se pide. Por omisión, la primera |
 | Tamaño | No | Cuántos movimientos por página, dentro del límite del sistema |
 | Estado | No | Devuelve solo los movimientos en ese estado. Ausente, todos |
+| Tipo (21-09-2026) | No | Devuelve solo los movimientos de ese tipo, por su **código** en el catálogo, sin distinguir mayúsculas. Ausente, todos. Uno que no exista es un **error**, no una página vacía: el catálogo no se edita por API (`RN-MV-017`) y es un conjunto cerrado que el sistema declara, como los estados. El argumento entero está en `RF-MV-006` §6.1 y vale aquí sin cambiar una palabra |
+| Método de pago (21-09-2026) | No | Solo los movimientos pagados con ese método. Uno que no exista da una **página vacía**, no un error: es un dato, como en `RF-MV-006` §6.1 |
+| Código (21-09-2026) | No | El comprobante **exacto**, sin distinguir mayúsculas. Como mucho devuelve uno — y solo si es propio |
+| Desde, hasta (21-09-2026) | No | Instantes con zona horaria sobre **cuándo ocurrió** el movimiento, rango **semiabierto** —incluye «desde», excluye «hasta»—. «Desde» posterior a «hasta» es un **error**. Es la misma fecha que `RF-MV-006` acota y la que la fila publica: la de registro, salvo cuando quien registró la indicó hacia atrás |
+
+**Los tres filtros del 21-09-2026 son los de `RF-MV-006`, con el mismo significado y el mismo trato**, por decisión del responsable del proyecto: «que los movimientos se puedan filtrar por fecha, método de pago y código», **en todos los listados**. Que el listado propio los gane no cambia su alcance —siguen siendo solo los movimientos en los que participa quien pregunta— y responde preguntas que una persona se hace sobre lo suyo: «¿qué pagué con tarjeta?», «¿dónde está este comprobante?», «¿qué compré en septiembre?».
 
 **Sobre quién se pregunta NO es un dato de entrada**, y esa ausencia es el requerimiento: quien pregunta sale de la credencial, y no hay forma de indicar a nadie más.
 
@@ -122,6 +130,7 @@ Cada movimiento devuelve:
 |---|---|
 | Identificador y código | El código es el que la persona ve y cita |
 | Estado | Pendiente, confirmada, rechazada o anulada |
+| **Tipo** (21-09-2026) | Qué clase de hecho es. Hoy, siempre una venta. Hasta hoy no viajaba, y desde que se puede filtrar por él **tiene que viajar**: filtrar por lo que la fila no dice sería una respuesta que quien la lee no puede comprobar. Es el mismo dato que `RF-MV-006` publica desde el 17-09-2026 |
 | **Papel** | Si quien pregunta es el **comprador**, el **vendedor**, o **ambos** |
 | Sujeto | A nombre de quién es el movimiento: en una venta, quien compra (`RN-MV-026`) |
 | Vendedores | A quién se atribuye **cada línea**, sin repetir (`RN-MV-003`). Hoy es uno; la lista va **vacía y presente** en los tipos de movimiento que no venden nada |
@@ -194,6 +203,9 @@ La lista de vendedores viaja **vacía y presente**. **Desde el 16-09-2026 no es 
 | `VAL-001` | El identificador del detalle es un identificador válido |
 | `VAL-002` | La página no es negativa y el tamaño está dentro del límite del sistema |
 | `VAL-003` | El estado indicado, si viene, es uno de los que existen |
+| `VAL-004` | El tipo indicado, si viene, es uno del catálogo de tipos de movimiento (21-09-2026) |
+| `VAL-005` | «Desde» y «hasta», si vienen, son instantes bien formados, y «desde» no es posterior a «hasta» (21-09-2026) |
+| `VAL-006` | El identificador del método de pago, si viene, está bien formado (21-09-2026) |
 
 ---
 
@@ -214,6 +226,11 @@ La lista de vendedores viaja **vacía y presente**. **Desde el 16-09-2026 no es 
 | `CA-MV-045` | El detalle de un movimiento **ajeno** responde **no encontrado**, igual que uno inexistente |
 | `CA-MV-046` | Responde a cualquier actor autenticado que porte `movements:list-own` —o `movements:read-own` en el detalle— **y ningún otro permiso**; sin él, `403` (hasta el 21-09-2026 decía «sin exigir ningún permiso») |
 | `CA-MV-047` | **Sin autenticar responde `401`** |
+| `CA-MV-120` | El filtro por **tipo** devuelve solo los movimientos propios de ese tipo, escrito en mayúsculas o en minúsculas, y se combina con el estado; un tipo que no existe es un **error** y no una página vacía (21-09-2026) |
+| `CA-MV-121` | Cada movimiento del listado trae **el tipo** (21-09-2026) |
+| `CA-MV-133` | El filtro por **método de pago** devuelve solo los movimientos propios pagados con él; uno que no existe da una página vacía (21-09-2026) |
+| `CA-MV-134` | El filtro por **código** devuelve ese comprobante escrito en mayúsculas o en minúsculas, y **nada** si el comprobante es ajeno (21-09-2026) |
+| `CA-MV-135` | El **periodo** incluye «desde», excluye «hasta», se **combina** con los demás filtros, y «desde» posterior a «hasta» es un error (21-09-2026) |
 
 **`CA-MV-038` es el criterio que sostiene el requerimiento**, y por eso se ejercita **con el permiso puesto**: si algún día alguien decide que quien administra vea aquí también las ajenas, esta prueba lo delata en lugar de dejar que ocurra por omisión.
 
@@ -228,6 +245,8 @@ La lista de vendedores viaja **vacía y presente**. **Desde el 16-09-2026 no es 
 | Una venta con **líneas de vendedores distintos** | Aparece **una vez** para cada uno de ellos, con papel vendedor, y su lista de vendedores los trae a todos. Hoy ninguna entrada la produce (`RN-MV-003`); el modelo la admite y esta consulta no tiene que cambiar el día que exista |
 | **Muchos movimientos** de una sola persona | Se pagina. El total es **exacto**: es el conjunto de una persona y no una tabla que crezca sin límite, de modo que no hace falta el conteo acotado de los listados de auditoría |
 | Dos movimientos **en el mismo instante** | El orden entre ellos es estable, y no depende de la página que se pida |
+| El catálogo con **un solo tipo** (21-09-2026) | Filtrar por `VENTA` devuelve lo mismo que no filtrar. El filtro existe para el día del segundo tipo, y lo que se comprueba es que **discrimina**, con un segundo tipo que solo existe en la prueba (`RF-MV-006` §13) |
+| El código de un comprobante **ajeno** (21-09-2026) | Página vacía, la misma que si no existiera: el alcance va antes que el filtro, y conocer un código no abre lo que no es propio (`EX-002`) |
 
 ---
 
@@ -245,3 +264,5 @@ La lista de vendedores viaja **vacía y presente**. **Desde el 16-09-2026 no es 
 |---|---|---|---|
 | 0.1.0 | 05-09-2026 | Primera versión. **El requerimiento estaba declarado desde el 02-09-2026** en `requirements/mv.md` §4.1 y sin especificar; lo pide el responsable del proyecto. La decisión que carga la spec es que **«propio» son DOS papeles y no uno** (§2.1): comprador y vendedor van en el mismo listado y cada movimiento dice en cuál aparece quien pregunta, porque una misma persona puede estar en los dos —incluso en el mismo movimiento— desde que comprar dejó de ser cosa solo de los clientes. El alcance incluye el **detalle** además del listado: sin él, quien ve que compró algo no podría abrirlo, porque `RF-MV-007` exige `movements:read`. Y `EX-002` fija que un movimiento ajeno responde **lo mismo que uno inexistente**, para no confirmar la existencia de un identificador ajeno. | Responsable del proyecto |
 | 0.2.0 | 16-09-2026 | **«Lo que vendí» pasa a responderse por las líneas** (`requirements/mv.md` v0.16.0: `RN-MV-003` enmendada, `RN-MV-026` nueva; Art. I.7 sobre un requerimiento construido), por decisión del responsable del proyecto. La cabecera de un movimiento lleva **un sujeto** y el vendedor **vive en cada línea**, de modo que ser vendedor de un movimiento es serlo **de alguna de sus líneas**. §6.2 cambia «comprador» por «sujeto» y «vendedor» por **«vendedores, sin repetir»**; `FA-003` deja de describir una venta —ya no existe la venta sin vendedor— y pasa a describir los tipos de movimiento que no venden nada; `CA-MV-043` lo sigue. `FA-002` gana el caso que desde hoy lo produce siempre: quien no cuelga de nadie compra y **es su propio vendedor**. §13 gana la venta con líneas de vendedores distintos, que hoy nadie produce y el modelo admite. **Los tres papeles no cambian**, ni el alcance, ni la paginación. | Responsable del proyecto |
+| 0.3.0 | 21-09-2026 | **El listado se filtra también por tipo, y cada fila dice su tipo** (`requirements/mv.md` v0.31.0; Art. I.7 sobre un requerimiento construido), a petición del responsable del proyecto —«que los movimientos se puedan filtrar por tipos de movimiento»—, el mismo día y con el mismo filtro que `RF-MV-006`. §6.1 gana la entrada, con el argumento de aquel —el catálogo es cerrado por `RN-MV-017`, y un tipo inexistente es un **error**—; §6.2 gana **el tipo en la fila**, que hasta hoy no viajaba y que desde que se puede filtrar por él tiene que viajar; `VAL-004`, `CA-MV-120`, `CA-MV-121` y el caso límite del catálogo con un solo tipo. **Ni el alcance, ni los papeles, ni el detalle cambian.** La enmienda de `RF-SP-062` del mismo día —los permisos `movements:list-own` y `movements:read-own`— vive como nota tras la cabecera, sin versión propia. | Responsable del proyecto |
+| 0.4.0 | 21-09-2026 | **El listado se filtra también por método de pago, comprobante y periodo** (Art. I.7; `requirements/mv.md` v0.33.0), por decisión del responsable del proyecto del mismo día —«que los movimientos se puedan filtrar por fecha de creación (rango), método de pago y código de movimiento», en todos los listados; la fecha es **cuándo ocurrió**, la misma de `RF-MV-006` y de la fila—. §6.1 gana las tres entradas con el trato de aquel: el método inexistente es página vacía, el código es exacto sin distinguir mayúsculas, el rango es semiabierto y el invertido un error. `VAL-005`, `VAL-006`, `CA-MV-133` a `CA-MV-135`, y el caso límite del comprobante ajeno: el alcance va antes que el filtro. **Ni el alcance, ni los papeles, ni el detalle cambian.** | Responsable del proyecto |
