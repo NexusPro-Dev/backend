@@ -9,10 +9,13 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import com.factech.nexus.IntegrationTestBase;
 import com.factech.nexus.modules.movements.domain.repository.MovementRepository;
 import com.factech.nexus.modules.movements.domain.repository.MovementRepository.MyProductRow;
+import com.factech.nexus.modules.products.interfaces.ProductLinkTestSupport;
+import jakarta.persistence.EntityManagerFactory;
 import java.time.OffsetDateTime;
 import java.time.ZoneOffset;
 import java.util.List;
 import java.util.UUID;
+import org.hibernate.stat.Statistics;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
@@ -41,6 +44,7 @@ class MyProductsIT extends IntegrationTestBase {
       OffsetDateTime.of(2026, 8, 1, 12, 0, 0, 0, ZoneOffset.UTC);
 
   @Autowired private MockMvc mvc;
+  @Autowired private EntityManagerFactory emf;
   @Autowired private JdbcTemplate jdbc;
   @Autowired private MovementRepository movimientos;
 
@@ -260,6 +264,110 @@ class MyProductsIT extends IntegrationTestBase {
   }
 
   // ---------------------------------------------------------------------------
+  // El cupón del bot (`RN-MV-032`) — 22-09-2026
+  // ---------------------------------------------------------------------------
+
+  @Test
+  @DisplayName("CA-MV-140 — la línea ENTREGADA trae `couponUrl` resuelto, en ACTIVO y en VENCIDO")
+  void elCuponDeLaLineaEntregada() throws Exception {
+    ProductLinkTestSupport.enlace(jdbc, producto, "CUPON_BOT", "https://t.me/nexusbot", "cupon-15");
+    OffsetDateTime entregadoHace10 = OffsetDateTime.now(ZoneOffset.UTC).minusDays(10);
+    // Una vigente y una vencida: las dos están entregadas, y lo entregado no
+    // se desentrega al vencer (`RN-MV-032`).
+    venta(comprador, vendedor, "CONFIRMADA", BASE, 30, "ENTREGADA", entregadoHace10);
+    venta(comprador, vendedor, "CONFIRMADA", BASE.minusDays(1), 5, "ENTREGADA", entregadoHace10);
+
+    mvc.perform(get("/api/v1/movements/mine/products").with(propio(comprador)))
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$.content[0].state").value("ACTIVO"))
+        // RESUELTO: el identificador pegado como último segmento de ruta. La
+        // composición la hace `PM`, que es de quien es la regla.
+        .andExpect(jsonPath("$.content[0].couponUrl").value("https://t.me/nexusbot/cupon-15"))
+        .andExpect(jsonPath("$.content[1].state").value("VENCIDO"))
+        .andExpect(jsonPath("$.content[1].couponUrl").value("https://t.me/nexusbot/cupon-15"));
+  }
+
+  @Test
+  @DisplayName("CA-MV-141 — sin entregar NO hay cupón, aunque el producto lo declare")
+  void sinEntregarNoHayCupon() throws Exception {
+    ProductLinkTestSupport.enlace(jdbc, producto, "CUPON_BOT", "https://t.me/nexusbot", "cupon-15");
+
+    // Los tres estados anteriores a la entrega, con el MISMO producto: es el
+    // criterio que impide entregar POR UNA CONSULTA lo que `RN-MV-021` no ha
+    // autorizado todavía — un defecto que no falla, regala.
+    venta(comprador, vendedor, "PENDIENTE", BASE, null, "PENDIENTE", null);
+    venta(comprador, vendedor, "CONFIRMADA", BASE.minusDays(1), null, "PENDIENTE", null);
+    venta(comprador, vendedor, "CONFIRMADA", BASE.minusDays(2), null, "RETENIDA", null);
+
+    String cuerpo =
+        mvc.perform(get("/api/v1/movements/mine/products").with(propio(comprador)))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.totalElements").value(3))
+            .andReturn()
+            .getResponse()
+            .getContentAsString();
+
+    // Sobre el cuerpo ENTERO y no campo a campo: basta con que el enlace salga
+    // una vez en cualquier rincón para haber entregado lo que se compró.
+    assertThat(cuerpo).doesNotContain("t.me/nexusbot").doesNotContain("cupon-15");
+  }
+
+  @Test
+  @DisplayName("CA-MV-142 — sin cupón el campo no viaja, y veinte líneas cuestan UNA llamada")
+  void sinCuponYSinConsultaPorLinea() throws Exception {
+    // El producto de la siembra no declara cupón: el campo no aparece.
+    venta(
+        comprador,
+        vendedor,
+        "CONFIRMADA",
+        BASE,
+        null,
+        "ENTREGADA",
+        OffsetDateTime.now(ZoneOffset.UTC).minusDays(1));
+
+    String sinCupon =
+        mvc.perform(get("/api/v1/movements/mine/products").with(propio(comprador)))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.content[0].couponUrl").doesNotExist())
+            .andReturn()
+            .getResponse()
+            .getContentAsString();
+    assertThat(sinCupon).doesNotContain("t.me");
+
+    // Y ahora veinte líneas entregadas, cada una de un producto distinto y con
+    // su cupón: si se preguntara por línea, el recuento de sentencias crecería
+    // con la página. Se comparan dos tamaños, no una cifra absoluta.
+    for (int i = 0; i < 20; i++) {
+      UUID otro = producto("MP_BOT_%02d".formatted(i), "Bot " + i);
+      ProductLinkTestSupport.enlace(jdbc, otro, "CUPON_BOT", "https://t.me/bot" + i, "c" + i);
+      venta(
+          comprador,
+          vendedor,
+          "CONFIRMADA",
+          BASE.plusMinutes(i),
+          null,
+          "ENTREGADA",
+          OffsetDateTime.now(ZoneOffset.UTC).minusDays(1),
+          otro);
+    }
+
+    long conDos = sentenciasDe(2);
+    long conVeinte = sentenciasDe(20);
+    assertThat(conVeinte)
+        .as("la página de veinte no puede costar más sentencias que la de dos")
+        .isEqualTo(conDos);
+  }
+
+  /** Las sentencias preparadas que cuesta una página de ese tamaño. */
+  private long sentenciasDe(int size) throws Exception {
+    Statistics estadisticas = emf.unwrap(org.hibernate.SessionFactory.class).getStatistics();
+    estadisticas.clear();
+    mvc.perform(get("/api/v1/movements/mine/products?size=" + size).with(propio(comprador)))
+        .andExpect(status().isOk());
+    return estadisticas.getPrepareStatementCount();
+  }
+
+  // ---------------------------------------------------------------------------
   // Auxiliares
   // ---------------------------------------------------------------------------
 
@@ -275,6 +383,7 @@ class MyProductsIT extends IntegrationTestBase {
   private void limpiar() {
     jdbc.update("DELETE FROM movement_details");
     jdbc.update("DELETE FROM movements");
+    ProductLinkTestSupport.limpiar(jdbc);
     jdbc.update("DELETE FROM products WHERE code LIKE 'MP\\_%'");
     jdbc.update(
         "DELETE FROM user_memberships WHERE user_id IN"

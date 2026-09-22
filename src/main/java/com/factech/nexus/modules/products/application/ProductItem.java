@@ -10,6 +10,7 @@ import com.fasterxml.jackson.annotation.JsonInclude;
 import java.math.BigDecimal;
 import java.time.OffsetDateTime;
 import java.time.ZoneOffset;
+import java.util.List;
 import java.util.UUID;
 
 /**
@@ -40,7 +41,14 @@ public record ProductItem(
     String name,
     String description,
     String icon,
-    String videoUrl,
+    /**
+     * Los enlaces del producto, <b>crudos y con todos los tipos</b> (`RN-PM-048` a `RN-PM-050`).
+     *
+     * <p>Sustituye a {@code videoUrl} el 22-09-2026. Presente y <b>vacía</b> cuando el producto no
+     * declara ninguno. Esta es, con el detalle, una de las <b>dos únicas lecturas donde se ve el
+     * {@code CUPON_BOT}</b>: no filtra por tipo, porque es donde se administra.
+     */
+    List<ProductLinkResponse> links,
     /**
      * La dirección de la portada (`RN-PM-033`): la ruta pública de `RF-PM-016`, construida sobre
      * `cover_image_id` sin tocar `product_images`. Presente y nula cuando no hay.
@@ -67,7 +75,8 @@ public record ProductItem(
    * puerto de `SP` es el problema de las {@code N+1} consultas con otro nombre —cien productos,
    * cien llamadas—, y por eso viaja en el {@code LEFT JOIN}.
    */
-  public static ProductItem from(ProductRow fila, ExchangeRef conversion) {
+  public static ProductItem from(
+      ProductRow fila, List<ProductLinkResponse> enlaces, ExchangeRef conversion) {
     return new ProductItem(
         fila.id(),
         fila.code(),
@@ -75,8 +84,8 @@ public record ProductItem(
         fila.name(),
         fila.description(),
         fila.icon(),
-        // El enlace del video, tal cual y nulo presente cuando no hay (`CA-PM-223`).
-        fila.videoUrl(),
+        // Los enlaces, crudos y vacía cuando no hay (`CA-PM-223`, `CA-PM-385`).
+        enlaces,
         ProductImageUrls.de(fila.coverImageId()),
         fila.sourceMembershipId() == null
             ? null

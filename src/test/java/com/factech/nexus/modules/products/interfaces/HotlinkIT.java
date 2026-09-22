@@ -238,34 +238,84 @@ class HotlinkIT extends IntegrationTestBase {
   }
 
   @Test
-  @DisplayName("`CA-PM-229` — el hotlink publica `videoUrl` sin token, tal cual, y sin el costo")
-  void elVideoViajaSinToken() throws Exception {
-    // Sin video: presente y nulo, también sin token.
-    String sinVideo =
-        mvc.perform(get("/api/v1/hotlinks/{u}/{c}", "hl-vendedora", "HL_BOT"))
-            .andExpect(status().isOk())
-            .andExpect(jsonPath("$.product.videoUrl").doesNotExist())
-            .andReturn()
-            .getResponse()
-            .getContentAsString();
-    assertThat(sinVideo).contains("\"videoUrl\":null");
+  @DisplayName("`CA-PM-229` — el hotlink publica `links` sin token, resueltos, y sin el costo")
+  void losEnlacesViajanSinToken() throws Exception {
+    // Sin ninguno: la clave existe y la lista va vacía, también sin token.
+    mvc.perform(get("/api/v1/hotlinks/{u}/{c}", "hl-vendedora", "HL_BOT"))
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$.product.links").isArray())
+        .andExpect(jsonPath("$.product.links.length()").value(0))
+        .andExpect(jsonPath("$.product.videoUrl").doesNotExist());
 
-    // Con video y con costo declarado: viaja el primero TAL CUAL —la dirección
-    // que administración escribió, sin seguirla— y el segundo no. Es la única
-    // pareja de columnas opcionales que esta lectura separa (`pm.md` §5.2.8).
-    jdbc.update(
-        "UPDATE products SET purchase_price = 30.00,"
-            + " video_url = 'https://Vimeo.com/123456/' WHERE code = 'HL_BOT'");
+    // Con enlace y con costo declarado: viaja el primero —la dirección que
+    // administración escribió, sin seguirla— y el segundo no. Es la única
+    // pareja de campos opcionales que esta lectura separa (`pm.md` §5.2.8).
+    jdbc.update("UPDATE products SET purchase_price = 30.00 WHERE code = 'HL_BOT'");
+    ProductLinkTestSupport.enlace(
+        jdbc, "HL_BOT", "VIDEO_PRESENTACION", "https://Vimeo.com/123456/", null);
 
     String cuerpo =
         mvc.perform(get("/api/v1/hotlinks/{u}/{c}", "hl-vendedora", "HL_BOT"))
             .andExpect(status().isOk())
-            .andExpect(jsonPath("$.product.videoUrl").value("https://Vimeo.com/123456/"))
+            .andExpect(jsonPath("$.product.links.length()").value(1))
+            .andExpect(jsonPath("$.product.links[0].url").value("https://Vimeo.com/123456/"))
             .andExpect(jsonPath("$.product.purchasePrice").doesNotExist())
             .andReturn()
             .getResponse()
             .getContentAsString();
     assertThat(cuerpo).doesNotContain("purchasePrice").doesNotContain("30.00");
+  }
+
+  @Test
+  @DisplayName("`CA-PM-396` — el hotlink publica el video y NO el cupón, en ningún rincón del JSON")
+  void elHotlinkNoPublicaElCupon() throws Exception {
+    ProductLinkTestSupport.enlace(
+        jdbc, "HL_BOT", "VIDEO_PRESENTACION", "https://vimeo.com/123456", null);
+    ProductLinkTestSupport.enlace(jdbc, "HL_BOT", "CUPON_BOT", "https://t.me/nexusbot", "cupon-15");
+
+    String cuerpo =
+        mvc.perform(get("/api/v1/hotlinks/{u}/{c}", "hl-vendedora", "HL_BOT"))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.product.links.length()").value(1))
+            .andExpect(jsonPath("$.product.links[0].type").value("VIDEO_PRESENTACION"))
+            .andReturn()
+            .getResponse()
+            .getContentAsString();
+
+    // Sobre el cuerpo entero: esta ruta no pide token, y basta con que el
+    // cupón salga una vez para haber regalado la prestación que se compra —a
+    // cualquiera que tenga el enlace.
+    assertThat(cuerpo)
+        .doesNotContain("CUPON_BOT")
+        .doesNotContain("t.me/nexusbot")
+        .doesNotContain("cupon-15");
+  }
+
+  @Test
+  @DisplayName("`CA-PM-397` — el enlace del hotlink llega RESUELTO, y la barra no se duplica")
+  void elHotlinkResuelveElEnlace() throws Exception {
+    ProductLinkTestSupport.enlace(
+        jdbc, "HL_BOT", "VIDEO_PRESENTACION", "https://vimeo.com/canal", "123456");
+    mvc.perform(get("/api/v1/hotlinks/{u}/{c}", "hl-vendedora", "HL_BOT"))
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$.product.links[0].url").value("https://vimeo.com/canal/123456"))
+        .andExpect(jsonPath("$.product.links[0].externalId").doesNotExist());
+
+    // Con barra final, la barra no se duplica.
+    jdbc.update("DELETE FROM product_links");
+    ProductLinkTestSupport.enlace(
+        jdbc, "HL_BOT", "VIDEO_PRESENTACION", "https://vimeo.com/canal/", "789");
+    mvc.perform(get("/api/v1/hotlinks/{u}/{c}", "hl-vendedora", "HL_BOT"))
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$.product.links[0].url").value("https://vimeo.com/canal/789"));
+
+    // Y sin identificador, la dirección tal cual.
+    jdbc.update("DELETE FROM product_links");
+    ProductLinkTestSupport.enlace(
+        jdbc, "HL_BOT", "VIDEO_PRESENTACION", "https://vimeo.com/123456/", null);
+    mvc.perform(get("/api/v1/hotlinks/{u}/{c}", "hl-vendedora", "HL_BOT"))
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$.product.links[0].url").value("https://vimeo.com/123456/"));
   }
 
   @Test
@@ -447,7 +497,7 @@ class HotlinkIT extends IntegrationTestBase {
   }
 
   @Test
-  @DisplayName("`T-13` — TRES consultas, CUATRO si hay conversión, UNA si el vendedor no procede")
+  @DisplayName("`T-13` — CUATRO consultas, CINCO si hay conversión, UNA si el vendedor no procede")
   void elCosteDeLaLectura() {
 
     var estadisticas = sessionFactory.getStatistics();
@@ -456,25 +506,31 @@ class HotlinkIT extends IntegrationTestBase {
 
     servicio.hotlink("hl-vendedora", "HL_UPGRADE");
 
-    // TRES con un producto en la moneda de casa: el vendedor, el producto y la
-    // moneda por omisión. La consulta de tasas NO se paga, porque la única
-    // moneda de la respuesta es la de destino y no hay nada que convertir.
+    // CUATRO con un producto en la moneda de casa: el vendedor, el producto,
+    // sus ENLACES y la moneda por omisión. La consulta de tasas NO se paga,
+    // porque la única moneda de la respuesta es la de destino y no hay nada
+    // que convertir.
+    //
+    // La de los enlaces entró el 22-09-2026 con `product_links` y es UNA,
+    // con el tipo en el predicado: el cupón no sale de la base en esta ruta
+    // (`RN-PM-050`). Que sea una y no una por enlace es lo que esta prueba
+    // vigila — el producto del hotlink es uno, pero sus enlaces son varios.
     //
     // Se cuenta aquí y no sobre la respuesta HTTP porque el JSON sería idéntico
     // con seis: un `N+1` en la única ruta pública del sistema no se ve mirando
     // el cuerpo.
-    assertThat(estadisticas.getPrepareStatementCount()).isEqualTo(3);
+    assertThat(estadisticas.getPrepareStatementCount()).isEqualTo(4);
 
     estadisticas.clear();
 
-    // CUATRO cuando sí hay algo que convertir: entra la consulta de tasas.
+    // CINCO cuando sí hay algo que convertir: entra la consulta de tasas.
     productoEnMoneda("HL_COSTE", "En pesos", cop, "1000.00");
     tasa(cop, USD, "0.00024096", LocalDate.now().minusDays(1), null);
     estadisticas.clear();
 
     servicio.hotlink("hl-vendedora", "HL_COSTE");
 
-    assertThat(estadisticas.getPrepareStatementCount()).isEqualTo(4);
+    assertThat(estadisticas.getPrepareStatementCount()).isEqualTo(5);
 
     estadisticas.clear();
 
@@ -492,6 +548,7 @@ class HotlinkIT extends IntegrationTestBase {
 
   private void limpiar() {
     jdbc.update("DELETE FROM exchange_rates");
+    ProductLinkTestSupport.limpiar(jdbc);
     jdbc.update("DELETE FROM products");
     jdbc.update(
         "DELETE FROM user_roles WHERE user_id IN"

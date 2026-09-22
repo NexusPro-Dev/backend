@@ -74,6 +74,14 @@ public abstract class IntegrationTestBase {
     // que es donde tiene sentido — y limpia detrás.
     registry.add("DEV_SEED_ENABLED", () -> "false");
 
+    // Las ESTADÍSTICAS de Hibernate quedan ENCENDIDAS para la suite. Son lo
+    // único que permite afirmar que una lectura de página cuesta UNA sentencia
+    // más y no una por fila (`CA-PM-386`): sin ellas, una consulta por producto
+    // pasaría en verde —devuelve lo mismo— y solo se notaría en producción, con
+    // una página de veinte. Su coste es un contador por sentencia, y la suite
+    // no lo nota.
+    registry.add("spring.jpa.properties.hibernate.generate_statistics", () -> "true");
+
     // El límite de tasa queda APAGADO para la suite general, y es deliberado:
     // varias clases provocan ráfagas contra el inicio de sesión a propósito
     // —`RF-SP-034` comprueba el bloqueo a los cinco intentos—, y con el límite

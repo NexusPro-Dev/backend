@@ -5,7 +5,7 @@
 | Requerimiento | `RF-PM-027` |
 | Especificación | [`spec.md`](spec.md) |
 | Plan | [`plan.md`](plan.md), aprobado el 15-09-2026 |
-| Estado | **Hecha** — todas las tareas `Hecha` el 15-09-2026; queda el Pull Request |
+| Estado | **Hecha** — todas las tareas `Hecha` el 15-09-2026; **reabierta el 22-09-2026** por los enlaces del producto (`T-08`, `Hecha` ese mismo día); queda el Pull Request |
 | Issue | Pendiente de crear |
 | Rama | `feature/venta-de-productos` |
 | Autor | Responsable técnico |
@@ -24,7 +24,7 @@
 | `T-05` | **LA PRUEBA DEL CONJUNTO** (`HotlinkCatalogIT`): `TIENDA` y `HOTLINKS`, activo e inactivo, un retirado — solo los activos de `HOTLINKS`, en las dos listas y en el orden de la oferta | `T-04` | `CA-PM-340`, `CA-PM-343` | **Hecha el 15-09-2026** |
 | `T-06` | Prueba de «sin membresía»: un actor en `ORO` ve el `BECA → ORO`; la respuesta no trae `currentMembership` | `T-04` | `CA-PM-341` | **Hecha el 15-09-2026** |
 | `T-07` | Prueba de la forma: con un costo declarado, el cuerpo no trae `purchasePrice` ni el importe; sí `price`, `exchange`, `links`, `coverImageUrl` y `rating`. **Reescrita el 22-09-2026**: hasta ese día comprobaba `videoUrl` | `T-04` | `CA-PM-342` | **Hecha el 15-09-2026**; **actualizada por `T-08`** |
-| `T-08` | **Los enlaces llegan con `OfferItem`** (`RF-PM-007` `T-32` decide la forma): esta lectura **no cambia una línea de su consulta** —comparte la proyección—, y lo único que se escribe es la prueba de que **el cupón no aparece** y el video sí, resuelto — issue [#84](https://github.com/NexusPro-Dev/backend/issues/84) | `RF-PM-007` `T-32` | `CA-PM-399` en `HotlinkCatalogIT`. **El contrato regenerado no declara ningún `videoUrl`** | **Pendiente** |
+| `T-08` | **Los enlaces llegan con `OfferItem`** (`RF-PM-007` `T-32` decide la forma): esta lectura **no cambia una línea de su consulta** —comparte la proyección—, y lo único que se escribe es la prueba de que **el cupón no aparece** y el video sí, resuelto — issue [#84](https://github.com/NexusPro-Dev/backend/issues/84) | `RF-PM-007` `T-32` | `CA-PM-399` en `HotlinkCatalogIT`. **El contrato regenerado no declara ningún `videoUrl`** | **Hecha el 22-09-2026** |
 | `T-08` | Pruebas de permiso y ruta: vacío → `200` con listas vacías; sin permiso, con `products:sale` y con `products:read` → `403`; sin token → `401`; `/hotlinks` no cae en `/{id}` | `T-04` | `CA-PM-344`, `CA-PM-345`, `CA-PM-346` | **Hecha el 15-09-2026** |
 | `T-09` | Prueba de sentencias: con tres y con ocho productos, el mismo número | `T-04` | `CA-PM-347` | **Hecha el 15-09-2026** |
 | `T-10` | Actualizar `requirements/pm.md` (§4, §6.1, ficha, §9), la matriz de `docs/requirements.md`, `security.md` y `docs/api/index.md` | `T-08` | Las filas reflejan el estado | **Hecha el 15-09-2026** |

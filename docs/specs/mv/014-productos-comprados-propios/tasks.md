@@ -6,7 +6,7 @@
 | Especificación | [`spec.md`](spec.md) v0.1.0 |
 | Plan | [`plan.md`](plan.md) v0.1.0 |
 | `plan.md` aprobado el | 17-09-2026 |
-| Estado | **En revisión** — `T-01` a `T-06` `Hecha` el 17-09-2026; `T-07` **pendiente** (22-09-2026) |
+| Estado | **En revisión** — `T-01` a `T-06` `Hecha` el 17-09-2026; `T-07` `Hecha` el 22-09-2026 |
 | Enmendadas | 22-09-2026 — `T-07` por **el cupón del bot en la línea entregada** (`RN-MV-032`) — issue [#84](https://github.com/NexusPro-Dev/backend/issues/84) |
 | Issue | [#68](https://github.com/NexusPro-Dev/backend/issues/68) |
 | Rama | `feature/venta-de-productos` |
@@ -29,7 +29,7 @@
 | `T-04` | `MovementController`: `GET /mine/products` **antes** de `/mine/{id}`, documentado; lista blanca de `EndpointPermissionsIT` | `T-03` | `products` no cae en `{id}` | **Hecha** — 17-09-2026 |
 | `T-05` | `MyProductsIT`: `CA-MV-099` a `CA-MV-109` | `T-04` | Los dos lados del vencimiento con el reloj fijado | **Hecha** — 17-09-2026 |
 | `T-06` | Contrato OpenAPI regenerado y prosa releída; `requirements.md` | `T-05` | | **Hecha** — 17-09-2026 |
-| `T-07` | **El cupón del bot en la línea entregada** (`plan.md` §8): `ProductCatalog` gana la lectura **en lote** de los cupones **ya resueltos** —la escribe `PM`, que es donde vive la composición (`RF-PM-001` `T-43`)—; `MyProduct` gana `couponUrl`; `ListMyProductsService` pide los cupones de la página **en una sola llamada** y los pone **solo en las líneas con `delivery_status = ENTREGADA`** —`ACTIVO` y `VENCIDO`—, con el estado **en el predicado de la consulta y no en un `if` posterior**; y la prosa de la `@Operation` dice que el cupón aparece **cuando la entrega está hecha**, y que se lee del catálogo vigente y no de la venta | `T-06`, `RF-PM-001` `T-43` | `CA-MV-140` a `CA-MV-142` en `MyProductsIT`; el recuento de llamadas **no crece** con la página. **El contrato regenerado declara `couponUrl` en `MyProduct`** | **Pendiente** |
+| `T-07` | **El cupón del bot en la línea entregada** (`plan.md` §8): `ProductCatalog` gana la lectura **en lote** de los cupones **ya resueltos** —la escribe `PM`, que es donde vive la composición (`RF-PM-001` `T-43`)—; `MyProduct` gana `couponUrl`; `ListMyProductsService` pide los cupones de la página **en una sola llamada** y los pone **solo en las líneas con `delivery_status = ENTREGADA`** —`ACTIVO` y `VENCIDO`—, con el estado **en el predicado de la consulta y no en un `if` posterior**; y la prosa de la `@Operation` dice que el cupón aparece **cuando la entrega está hecha**, y que se lee del catálogo vigente y no de la venta | `T-06`, `RF-PM-001` `T-43` | `CA-MV-140` a `CA-MV-142` en `MyProductsIT`; el recuento de llamadas **no crece** con la página. **El contrato regenerado declara `couponUrl` en `MyProduct`** | **Hecha el 22-09-2026** |
 
 ---
 
@@ -52,9 +52,9 @@
 ## 4. Definición de terminado
 
 - [x] `./mvnw clean verify` en verde.
-- [x] Los once criterios de aceptación con prueba.
+- [x] Los catorce criterios de aceptación con prueba.
 - [x] Contrato OpenAPI regenerado, **con la prosa releída**.
 - [x] `requirements/mv.md` y `requirements.md` actualizados.
 - [ ] **`tasks.md` aprobadas por el responsable del proyecto.**
 
-**Reabierta el 22-09-2026 por `T-07`** (`RN-MV-032`): las cuatro casillas marcadas lo estaban para `T-01` a `T-06`, y vuelven a estarlo cuando la suite, el contrato y los documentos incluyan el cupón. Los criterios pasan de once a **catorce**.
+**Reabierta el 22-09-2026 por `T-07`** (`RN-MV-032`): las cuatro casillas marcadas lo estaban para `T-01` a `T-06`, y vuelven a estarlo el 22-09-2026, con el cupón en la suite, en el contrato y en los documentos. Los criterios pasan de once a **catorce**.

@@ -7,10 +7,12 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 import com.factech.nexus.IntegrationTestBase;
+import jakarta.persistence.EntityManagerFactory;
 import java.time.OffsetDateTime;
 import java.time.ZoneOffset;
 import java.util.UUID;
 import org.hamcrest.Matchers;
+import org.hibernate.stat.Statistics;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
@@ -43,6 +45,7 @@ class ProductListIT extends IntegrationTestBase {
 
   @Autowired private MockMvc mvc;
   @Autowired private JdbcTemplate jdbc;
+  @Autowired private EntityManagerFactory emf;
 
   private UUID oro;
   private UUID plata;
@@ -50,6 +53,7 @@ class ProductListIT extends IntegrationTestBase {
 
   @BeforeEach
   void sembrarCatalogo() {
+    ProductLinkTestSupport.limpiar(jdbc);
     jdbc.update("DELETE FROM products");
     jdbc.update("DELETE FROM memberships");
     // La cadena va encadenada de verdad: `uq_memberships_parent` es UNIQUE
@@ -499,23 +503,84 @@ class ProductListIT extends IntegrationTestBase {
   }
 
   @Test
-  @DisplayName("`CA-PM-223` — cada fila trae `videoUrl` tal cual, y nulo y presente en los que no")
-  void cadaFilaTraeElVideo() throws Exception {
-    jdbc.update(
-        "UPDATE products SET video_url = 'https://vimeo.com/123456' WHERE code = 'UPGRADE_ORO'");
+  @DisplayName("`CA-PM-223` — cada fila trae sus `links` tal cual, y vacíos en los que no tienen")
+  void cadaFilaTraeSusEnlaces() throws Exception {
+    ProductLinkTestSupport.enlace(
+        jdbc, "UPGRADE_ORO", "VIDEO_PRESENTACION", "https://vimeo.com/123456", null);
 
     mvc.perform(listado().param("targetMembershipId", oro.toString()))
         .andExpect(status().isOk())
         .andExpect(jsonPath("$.content[0].code").value("UPGRADE_ORO"))
-        .andExpect(jsonPath("$.content[0].videoUrl").value("https://vimeo.com/123456"));
+        .andExpect(jsonPath("$.content[0].links.length()").value(1))
+        .andExpect(jsonPath("$.content[0].links[0].type").value("VIDEO_PRESENTACION"))
+        .andExpect(jsonPath("$.content[0].links[0].url").value("https://vimeo.com/123456"));
 
-    // Sin video, el campo va PRESENTE con nulo: «no tiene video» es un estado,
-    // y un campo que falta no puede decirlo.
+    // Sin enlaces, `links` va PRESENTE y VACÍA: «no tiene ninguno» es un
+    // estado, y un campo que falta no puede decirlo. Hasta el 22-09-2026 esto
+    // se comprobaba sobre `videoUrl` nulo.
     mvc.perform(listado().param("targetMembershipId", plata.toString()))
         .andExpect(status().isOk())
         .andExpect(jsonPath("$.content[0].code").value("UPGRADE_PLATA"))
-        .andExpect(jsonPath("$.content[0].videoUrl").doesNotExist())
-        .andExpect(jsonPath("$.content[0]").value(Matchers.hasKey("videoUrl")));
+        .andExpect(jsonPath("$.content[0]").value(Matchers.hasKey("links")))
+        .andExpect(jsonPath("$.content[0].links.length()").value(0))
+        .andExpect(jsonPath("$.content[0].videoUrl").doesNotExist());
+  }
+
+  @Test
+  @DisplayName("`CA-PM-385` — la fila enseña los DOS enlaces, cupón incluido, y sin componer")
+  void laFilaEnsenaLosDosEnlaces() throws Exception {
+    // Es la lectura de ADMINISTRACIÓN: aquí no se filtra por tipo, porque este
+    // es el sitio donde los enlaces se administran. El cupón se esconde en las
+    // lecturas de venta (`RF-PM-007`, `RF-PM-008`), no en esta.
+    ProductLinkTestSupport.enlace(
+        jdbc, "UPGRADE_ORO", "VIDEO_PRESENTACION", "https://vimeo.com/123456", null);
+    ProductLinkTestSupport.enlace(
+        jdbc, "UPGRADE_ORO", "CUPON_BOT", "https://t.me/nexusbot", "cupon-15");
+
+    mvc.perform(listado().param("targetMembershipId", oro.toString()))
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$.content[0].links.length()").value(2))
+        .andExpect(
+            jsonPath("$.content[0].links[*].type")
+                .value(Matchers.containsInAnyOrder("VIDEO_PRESENTACION", "CUPON_BOT")))
+        // Crudo: la dirección tal cual y el identificador en SU campo, no
+        // pegado. Es lo que `RF-PM-004` espera recibir de vuelta.
+        .andExpect(
+            jsonPath("$.content[0].links[?(@.type == 'CUPON_BOT')].url")
+                .value(Matchers.contains("https://t.me/nexusbot")))
+        .andExpect(
+            jsonPath("$.content[0].links[?(@.type == 'CUPON_BOT')].externalId")
+                .value(Matchers.contains("cupon-15")));
+  }
+
+  @Test
+  @DisplayName("`CA-PM-386` — los enlaces de la página se leen en UNA sentencia, no una por fila")
+  void losEnlacesNoDisparanUnaConsultaPorFila() throws Exception {
+    // Veinte productos, todos con enlace: si la lectura preguntara por fila, el
+    // recuento de sentencias crecería con el tamaño de la página. Se compara
+    // una página de dos con una de veinte, y NO la cifra absoluta: lo que se
+    // afirma es que no depende del número de filas.
+    for (int i = 0; i < 20; i++) {
+      String codigo = "LNK_%02d".formatted(i);
+      bot(codigo, "Con enlace " + i, "10.00", null, "ACTIVO", BASE.plusMinutes(i));
+      ProductLinkTestSupport.enlace(
+          jdbc, codigo, "VIDEO_PRESENTACION", "https://vimeo.com/" + i, null);
+    }
+
+    long conDos = sentenciasDe(listado().param("type", "BOT").param("size", "2"));
+    long conVeinte = sentenciasDe(listado().param("type", "BOT").param("size", "20"));
+
+    assertThat(conVeinte)
+        .as("la página de veinte no puede costar más sentencias que la de dos")
+        .isEqualTo(conDos);
+  }
+
+  /** Las sentencias preparadas que cuesta una petición, medidas por Hibernate. */
+  private long sentenciasDe(MockHttpServletRequestBuilder peticion) throws Exception {
+    Statistics estadisticas = emf.unwrap(org.hibernate.SessionFactory.class).getStatistics();
+    estadisticas.clear();
+    mvc.perform(peticion).andExpect(status().isOk());
+    return estadisticas.getPrepareStatementCount();
   }
 
   @Test
@@ -676,6 +741,7 @@ class ProductListIT extends IntegrationTestBase {
    */
   @AfterEach
   void vaciarCatalogo() {
+    ProductLinkTestSupport.limpiar(jdbc);
     jdbc.update("DELETE FROM products");
     // La conversión trajo dos tablas más a esta clase (08-09-2026). Se limpian
     // aquí y en este orden: las tasas apuntan a las monedas.

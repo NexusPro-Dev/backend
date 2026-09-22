@@ -71,13 +71,13 @@ public class HotlinkController {
           `publicPrice`, cuando ese importe era lo que se anunciaba; ese campo
           **ya no existe**. **La conversión se calcula sobre `price`.**
 
-          **Viene `videoUrl`, y sin token** (`RN-PM-032`): la dirección del video
-          que presenta el producto, **tal cual la escribió administración** y
-          **presente y nula** cuando no tiene. El sistema no la sigue ni la
-          valida más allá de su forma: un enlace roto se publica igual. Es la
-          única columna opcional del producto que este endpoint trae y el
-          precio de compra no — el costo enseñaría el margen; el video existe
-          para que lo vean.
+          **Vienen los `links` del producto, y sin token** (`RN-PM-048`): aquí
+          viaja **solo el video** y **resuelto** —con el identificador externo ya
+          pegado al final (`RN-PM-049`)—, porque es material de venta y existe
+          para que lo vea quien va a comprar. El `CUPON_BOT` **no sale**: es la
+          prestación que se compra, y esta ruta la puede abrir cualquiera
+          (`RN-PM-050`). La lista va **presente y vacía** cuando el producto no
+          declara ninguno.
 
           **La conversión es INFORMATIVA**: lo que se cobra no es ese número. Una
           venta va en una sola moneda y congela su importe al registrarse; esta

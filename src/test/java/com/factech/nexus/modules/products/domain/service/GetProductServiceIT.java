@@ -71,7 +71,7 @@ class GetProductServiceIT extends IntegrationTestBase {
   }
 
   @Test
-  @DisplayName("`T-05` — un producto VIVO cuesta DOS: no se consulta el registro de retiro")
+  @DisplayName("`T-05` — un producto VIVO cuesta TRES: no se consulta el registro de retiro")
   void elProductoVivoCuestaDos() {
     var detalle = service.detail(vivo);
 
@@ -81,18 +81,23 @@ class GetProductServiceIT extends IntegrationTestBase {
     // no se paga porque el producto está en esa misma moneda. El criterio de
     // esta prueba NO cambia —un producto vivo no paga la consulta del motivo—,
     // y se sigue viendo en la diferencia con la prueba siguiente.
-    assertThat(estadisticas.getPrepareStatementCount()).isEqualTo(2);
+    //
+    // Desde el 22-09-2026 son TRES: entra la de los ENLACES, que es una sola
+    // para todos los del producto (`RN-PM-048`). El criterio sigue intacto: lo
+    // que esta pareja de pruebas afirma es la DIFERENCIA entre el vivo y el
+    // retirado, no la cifra.
+    assertThat(estadisticas.getPrepareStatementCount()).isEqualTo(3);
   }
 
   @Test
-  @DisplayName("`T-05` — uno RETIRADO cuesta dos: la segunda trae el motivo")
+  @DisplayName("`T-05` — uno RETIRADO cuesta una más: esa trae el motivo")
   void elRetiradoCuestaDos() {
     var detalle = service.detail(retirado);
 
     assertThat(detalle.deletionReason()).isEqualTo("Se descontinuó.");
     assertThat(detalle.deletedAt()).isNotNull();
     // Una más que el vivo, que es lo único que esta pareja de pruebas afirma.
-    assertThat(estadisticas.getPrepareStatementCount()).isEqualTo(3);
+    assertThat(estadisticas.getPrepareStatementCount()).isEqualTo(4);
   }
 
   @Test
@@ -102,8 +107,8 @@ class GetProductServiceIT extends IntegrationTestBase {
     // sentencia más y la respuesta sería exactamente la misma.
     service.detail(vivo);
 
-    // Dos: el detalle con sus tres `JOIN` y la moneda de casa.
-    assertThat(estadisticas.getPrepareStatementCount()).isEqualTo(2);
+    // Tres: el detalle con sus tres `JOIN`, la moneda de casa y los enlaces.
+    assertThat(estadisticas.getPrepareStatementCount()).isEqualTo(3);
   }
 
   @Test

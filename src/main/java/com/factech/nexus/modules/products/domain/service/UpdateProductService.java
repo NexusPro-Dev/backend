@@ -4,6 +4,8 @@ import com.factech.nexus.modules.products.application.ProductDetailResponse;
 import com.factech.nexus.modules.products.application.ProductPrice;
 import com.factech.nexus.modules.products.application.UpdateProductRequest;
 import com.factech.nexus.modules.products.domain.models.Product;
+import com.factech.nexus.modules.products.domain.models.ProductLink;
+import com.factech.nexus.modules.products.domain.repository.ProductLinkRepository;
 import com.factech.nexus.modules.products.domain.repository.ProductQueryRepository;
 import com.factech.nexus.modules.products.domain.repository.ProductRepository;
 import com.factech.nexus.modules.system.currencies.application.CurrencyCatalog;
@@ -71,6 +73,8 @@ public class UpdateProductService {
   private final AuditWriter auditoria;
   private final Clock reloj;
   private final ProductExchangeResolver conversiones;
+  private final ProductLinkReader enlaces;
+  private final ProductLinkRepository enlacesEscritura;
 
   @Autowired
   public UpdateProductService(
@@ -78,8 +82,18 @@ public class UpdateProductService {
       ProductQueryRepository consultas,
       CurrencyCatalog monedas,
       AuditWriter auditoria,
-      ProductExchangeResolver conversiones) {
-    this(productos, consultas, monedas, auditoria, conversiones, Clock.systemUTC());
+      ProductExchangeResolver conversiones,
+      ProductLinkReader enlaces,
+      ProductLinkRepository enlacesEscritura) {
+    this(
+        productos,
+        consultas,
+        monedas,
+        auditoria,
+        conversiones,
+        enlaces,
+        enlacesEscritura,
+        Clock.systemUTC());
   }
 
   UpdateProductService(
@@ -88,12 +102,16 @@ public class UpdateProductService {
       CurrencyCatalog monedas,
       AuditWriter auditoria,
       ProductExchangeResolver conversiones,
+      ProductLinkReader enlaces,
+      ProductLinkRepository enlacesEscritura,
       Clock reloj) {
     this.productos = productos;
     this.consultas = consultas;
     this.monedas = monedas;
     this.auditoria = auditoria;
     this.conversiones = conversiones;
+    this.enlaces = enlaces;
+    this.enlacesEscritura = enlacesEscritura;
     this.reloj = reloj;
   }
 
@@ -114,19 +132,22 @@ public class UpdateProductService {
     verificarNombreLibre(peticion, producto);
     verificarPrecioYMoneda(peticion, producto);
 
+    OffsetDateTime ahora = OffsetDateTime.now(reloj);
+
     Map<String, Object> cambios =
         producto.update(
             peticion.name(),
             peticion.description(),
             peticion.icon(),
-            peticion.videoUrl(),
             peticion.price(),
             peticion.purchasePrice(),
             peticion.currencyId(),
             peticion.validityDays(),
             peticion.scope(),
             peticion.implementation(),
-            OffsetDateTime.now(reloj));
+            ahora);
+
+    corregirEnlaces(peticion, producto.getId(), ahora, cambios);
 
     if (cambios.containsKey("name")) {
       volcarElCambioDeNombre();
@@ -146,6 +167,7 @@ public class UpdateProductService {
             fila ->
                 ProductDetailResponse.from(
                     fila,
+                    enlaces.crudosDe(fila.id()),
                     null,
                     conversiones
                         .para(java.util.List.of(fila.currencyId()))
@@ -154,6 +176,69 @@ public class UpdateProductService {
             () ->
                 new ResourceNotFoundException(
                     "EX-001", "No existe un producto con ese identificador."));
+  }
+
+  /**
+   * Los enlaces, <b>en bloque</b> (`RN-PM-048`).
+   *
+   * <p>Es el único campo de esta operación que no se corrige uno a uno, y conserva los tres estados
+   * de {@code Patchable} con el significado aplicado <b>al conjunto</b>: <b>ausente</b> no toca
+   * nada; <b>nula o vacía</b> los quita todos; y <b>con entradas</b>, la colección que llega es la
+   * que queda.
+   *
+   * <p><b>Vive aquí y no en el agregado</b> porque los enlaces son filas de otra tabla: compararlos
+   * con lo guardado exige el repositorio, y {@code Product} no lo tiene ni debe tenerlo.
+   *
+   * <p><b>Y el diff los trata como un valor</b>, con el conjunto entero en {@code before} y en
+   * {@code after}, no como tres campos sueltos. Enviar el mismo conjunto que ya estaba <b>no
+   * registra evento</b> (`CA-PM-226`): una corrección que no cambia nada no es una corrección, que
+   * es lo que el resto de esta operación ya hacía campo a campo.
+   */
+  private void corregirEnlaces(
+      UpdateProductRequest peticion,
+      java.util.UUID productoId,
+      OffsetDateTime ahora,
+      Map<String, Object> cambios) {
+
+    if (!peticion.links().presente()) {
+      return;
+    }
+
+    List<ProductLink> actuales = enlacesEscritura.findByProduct(productoId);
+    // Un nulo explícito y una lista vacía significan lo mismo: quitarlos todos.
+    List<ProductLink> nuevos =
+        ProductLinkBuilder.construir(
+            productoId, peticion.links().valor(), ahora, ProductLinkBuilder.CORRECCION);
+
+    if (mismoConjunto(actuales, nuevos)) {
+      return;
+    }
+
+    cambios.put(
+        "links",
+        Map.of(
+            "before", actuales.stream().map(ProductLink::instantanea).toList(),
+            "after", nuevos.stream().map(ProductLink::instantanea).toList()));
+    enlacesEscritura.replace(productoId, nuevos);
+  }
+
+  /**
+   * Si los dos conjuntos valen lo mismo, <b>sin mirar el orden</b>.
+   *
+   * <p>El orden en que viajan los enlaces en la petición no significa nada —la clave es el tipo—,
+   * de modo que reordenarlos no es una corrección y no debe registrar evento.
+   */
+  private static boolean mismoConjunto(List<ProductLink> actuales, List<ProductLink> nuevos) {
+    if (actuales.size() != nuevos.size()) {
+      return false;
+    }
+    return nuevos.stream()
+        .allMatch(
+            nuevo ->
+                actuales.stream()
+                    .anyMatch(
+                        actual ->
+                            actual.getType() == nuevo.getType() && actual.mismoValorQue(nuevo)));
   }
 
   /**
