@@ -1833,10 +1833,14 @@
       "LoginRequest" : {
         "properties" : {
           "identifier" : {
+            "description" : "Nombre de usuario o correo, indistintamente. La cuenta inicial de todo despliegue es `superadmin`; en local, con la semilla activada, también valen `admin1`, `manager1`, `director1`, `agente1` o `cliente1`.",
+            "example" : "superadmin",
             "minLength" : 1,
             "type" : "string"
           },
           "password" : {
+            "description" : "La que declaró el despliegue en `SUPERADMIN_PASSWORD_HASH`. **No hay valor por defecto**: `V9` se niega a arrancar sin esa variable en vez de sembrar una credencial conocida (Art. IX.5).",
+            "format" : "password",
             "minLength" : 1,
             "type" : "string"
           }
@@ -2144,10 +2148,6 @@
       "MyProduct" : {
         "description" : "Un producto de una compra propia, con su estado.",
         "properties" : {
-          "couponUrl" : {
-            "description" : "El cupón del bot, ya resuelto. Solo si la línea está entregada (ACTIVO o VENCIDO) y el producto lo declara; NULO en cualquier otro caso.",
-            "type" : [ "string", "null" ]
-          },
           "deliveredAt" : {
             "description" : "Desde cuándo se tiene. NULO si no se ha entregado.",
             "format" : "date-time",
@@ -2344,12 +2344,6 @@
             "enum" : [ "AUTOMATICA", "MANUAL" ],
             "type" : "string"
           },
-          "links" : {
-            "items" : {
-              "$ref" : "#/components/schemas/ProductLinkResponse"
-            },
-            "type" : "array"
-          },
           "name" : {
             "type" : "string"
           },
@@ -2373,6 +2367,9 @@
           "validityDays" : {
             "format" : "int32",
             "type" : "integer"
+          },
+          "videoUrl" : {
+            "type" : "string"
           }
         },
         "type" : "object"
@@ -3157,6 +3154,36 @@
         },
         "type" : "object"
       },
+      "PageResponseTeamItem" : {
+        "properties" : {
+          "content" : {
+            "items" : {
+              "$ref" : "#/components/schemas/TeamItem"
+            },
+            "type" : "array"
+          },
+          "page" : {
+            "format" : "int32",
+            "type" : "integer"
+          },
+          "size" : {
+            "format" : "int32",
+            "type" : "integer"
+          },
+          "totalElements" : {
+            "format" : "int64",
+            "type" : "integer"
+          },
+          "totalIsExact" : {
+            "type" : "boolean"
+          },
+          "totalPages" : {
+            "format" : "int32",
+            "type" : "integer"
+          }
+        },
+        "type" : "object"
+      },
       "PasswordRecoveryConfirmation" : {
         "properties" : {
           "newPassword" : {
@@ -3190,7 +3217,6 @@
       "PatchableCourseDifficulty" : { },
       "PatchableInteger" : { },
       "PatchableLessonType" : { },
-      "PatchableListProductLinkRequest" : { },
       "PatchableLocalDate" : { },
       "PatchableObject" : { },
       "PatchableProductImplementation" : { },
@@ -3429,12 +3455,6 @@
             "enum" : [ "AUTOMATICA", "MANUAL" ],
             "type" : "string"
           },
-          "links" : {
-            "items" : {
-              "$ref" : "#/components/schemas/ProductLinkResponse"
-            },
-            "type" : "array"
-          },
           "name" : {
             "type" : "string"
           },
@@ -3472,6 +3492,9 @@
           "validityDays" : {
             "format" : "int32",
             "type" : "integer"
+          },
+          "videoUrl" : {
+            "type" : "string"
           }
         },
         "type" : "object"
@@ -3512,12 +3535,6 @@
             "enum" : [ "AUTOMATICA", "MANUAL" ],
             "type" : "string"
           },
-          "links" : {
-            "items" : {
-              "$ref" : "#/components/schemas/ProductLinkResponse"
-            },
-            "type" : "array"
-          },
           "name" : {
             "type" : "string"
           },
@@ -3551,36 +3568,8 @@
           "validityDays" : {
             "format" : "int32",
             "type" : "integer"
-          }
-        },
-        "type" : "object"
-      },
-      "ProductLinkRequest" : {
-        "properties" : {
-          "externalId" : {
-            "type" : "string"
           },
-          "type" : {
-            "description" : "Qué es el enlace: VIDEO_PRESENTACION, el video que presenta el producto, o CUPON_BOT, donde registra su cuenta quien ya lo compró. Obligatorio, y uno solo por tipo.",
-            "enum" : [ "VIDEO_PRESENTACION", "CUPON_BOT" ],
-            "type" : "string"
-          },
-          "url" : {
-            "type" : "string"
-          }
-        },
-        "type" : "object"
-      },
-      "ProductLinkResponse" : {
-        "properties" : {
-          "externalId" : {
-            "type" : "string"
-          },
-          "type" : {
-            "enum" : [ "VIDEO_PRESENTACION", "CUPON_BOT" ],
-            "type" : "string"
-          },
-          "url" : {
+          "videoUrl" : {
             "type" : "string"
           }
         },
@@ -3643,12 +3632,6 @@
             "format" : "uuid",
             "type" : "string"
           },
-          "links" : {
-            "items" : {
-              "$ref" : "#/components/schemas/ProductLinkResponse"
-            },
-            "type" : "array"
-          },
           "membership" : {
             "$ref" : "#/components/schemas/MembershipBadge"
           },
@@ -3668,6 +3651,9 @@
           "validityDays" : {
             "format" : "int32",
             "type" : "integer"
+          },
+          "videoUrl" : {
+            "type" : "string"
           }
         },
         "type" : "object"
@@ -3703,12 +3689,6 @@
           "implementation" : {
             "enum" : [ "AUTOMATICA", "MANUAL" ],
             "type" : "string"
-          },
-          "links" : {
-            "items" : {
-              "$ref" : "#/components/schemas/ProductLinkResponse"
-            },
-            "type" : "array"
           },
           "name" : {
             "type" : "string"
@@ -3747,6 +3727,9 @@
           "validityDays" : {
             "format" : "int32",
             "type" : "integer"
+          },
+          "videoUrl" : {
+            "type" : "string"
           }
         },
         "type" : "object"
@@ -4219,12 +4202,6 @@
             "enum" : [ "AUTOMATICA", "MANUAL" ],
             "type" : "string"
           },
-          "links" : {
-            "items" : {
-              "$ref" : "#/components/schemas/ProductLinkRequest"
-            },
-            "type" : "array"
-          },
           "name" : {
             "maxLength" : 150,
             "minLength" : 0,
@@ -4258,6 +4235,9 @@
             "format" : "int32",
             "minimum" : 1,
             "type" : "integer"
+          },
+          "videoUrl" : {
+            "type" : "string"
           }
         },
         "required" : [ "code", "currencyId", "implementation", "name", "price", "scope", "type" ],
@@ -4286,6 +4266,22 @@
           }
         },
         "required" : [ "lines", "userId" ],
+        "type" : "object"
+      },
+      "RegisterTeamRequest" : {
+        "properties" : {
+          "description" : {
+            "maxLength" : 500,
+            "minLength" : 0,
+            "type" : "string"
+          },
+          "name" : {
+            "maxLength" : 100,
+            "minLength" : 0,
+            "type" : "string"
+          }
+        },
+        "required" : [ "name" ],
         "type" : "object"
       },
       "RegisterUserCommissionRateRequest" : {
@@ -5084,6 +5080,101 @@
         },
         "type" : "object"
       },
+      "TeamDetailResponse" : {
+        "properties" : {
+          "createdAt" : {
+            "format" : "date-time",
+            "type" : "string"
+          },
+          "deletedAt" : {
+            "format" : "date-time",
+            "type" : "string"
+          },
+          "deletionReason" : {
+            "type" : "string"
+          },
+          "description" : {
+            "type" : "string"
+          },
+          "id" : {
+            "format" : "uuid",
+            "type" : "string"
+          },
+          "memberCount" : {
+            "format" : "int64",
+            "type" : "integer"
+          },
+          "members" : {
+            "items" : {
+              "$ref" : "#/components/schemas/TeamMemberItem"
+            },
+            "type" : "array"
+          },
+          "name" : {
+            "type" : "string"
+          },
+          "status" : {
+            "type" : "string"
+          },
+          "updatedAt" : {
+            "format" : "date-time",
+            "type" : "string"
+          }
+        },
+        "type" : "object"
+      },
+      "TeamItem" : {
+        "properties" : {
+          "createdAt" : {
+            "format" : "date-time",
+            "type" : "string"
+          },
+          "deletedAt" : {
+            "format" : "date-time",
+            "type" : "string"
+          },
+          "id" : {
+            "format" : "uuid",
+            "type" : "string"
+          },
+          "memberCount" : {
+            "format" : "int64",
+            "type" : "integer"
+          },
+          "name" : {
+            "type" : "string"
+          },
+          "status" : {
+            "type" : "string"
+          }
+        },
+        "type" : "object"
+      },
+      "TeamMemberItem" : {
+        "properties" : {
+          "firstName" : {
+            "type" : "string"
+          },
+          "id" : {
+            "format" : "uuid",
+            "type" : "string"
+          },
+          "joinedAt" : {
+            "format" : "date-time",
+            "type" : "string"
+          },
+          "lastName" : {
+            "type" : "string"
+          },
+          "status" : {
+            "type" : "string"
+          },
+          "username" : {
+            "type" : "string"
+          }
+        },
+        "type" : "object"
+      },
       "UpdateCommissionRateRequest" : {
         "properties" : {
           "fixedAmount" : {
@@ -5281,9 +5372,6 @@
           "implementation" : {
             "$ref" : "#/components/schemas/PatchableProductImplementation"
           },
-          "links" : {
-            "$ref" : "#/components/schemas/PatchableListProductLinkRequest"
-          },
           "name" : {
             "$ref" : "#/components/schemas/PatchableString"
           },
@@ -5307,6 +5395,9 @@
           },
           "validityDays" : {
             "$ref" : "#/components/schemas/PatchableInteger"
+          },
+          "videoUrl" : {
+            "$ref" : "#/components/schemas/PatchableString"
           }
         },
         "type" : "object"
@@ -6229,7 +6320,7 @@
     },
     "/api/v1/auth/login" : {
       "post" : {
-        "description" : "**Permiso requerido:** ninguno. Ruta pública: responde sin token.\n\nAutentica con **nombre de usuario o correo** —el mismo campo para los\ndos— y entrega las credenciales de sesión.\n\nEl rechazo por credenciales lleva `remainingAttempts`: **cuántos\nintentos quedan** antes del bloqueo. El identificador que no\ncorresponde a ninguna cuenta los gasta igual, de modo que el número no\npermite averiguar qué cuentas existen.\n\nLa cuenta bloqueada recibe `423` y un mensaje que la identifica como\ntal: es una excepción consciente al mensaje genérico, porque quien\nprovocó el bloqueo ya sabe que la cuenta existe. Si el bloqueo es\n**automático**, la respuesta añade `unlockAt` —el instante en que se\nlevanta— y `retryAfterSeconds` —lo que falta—. El bloqueo **manual**\nno los lleva: esa cuenta no se desbloquea sola.\n\n**La espera no va escrita en el mensaje, y es deliberado.** Un texto\ncon «vuelva en dos minutos» es cierto al serializarse y deja de serlo\nenseguida. Con `retryAfterSeconds` el cliente **descuenta** —una\ncuenta regresiva no envejece— sin depender de que su reloj coincida\ncon el del servidor, que es lo que sí ocurriría calculándola a partir\nde `unlockAt`.\n\nSi la contraseña la fijó otra persona, la respuesta autentica **y\nadvierte** con `mustChangePassword`: hace falta una sesión para poder\ncambiarla.\n",
+        "description" : "**Permiso requerido:** ninguno. Ruta pública: responde sin token.\n\nAutentica con **nombre de usuario o correo** —el mismo campo para los\ndos— y entrega las credenciales de sesión.\n\nEl rechazo por credenciales lleva `remainingAttempts`: **cuántos\nintentos quedan** antes del bloqueo. El identificador que no\ncorresponde a ninguna cuenta los gasta igual, de modo que el número no\npermite averiguar qué cuentas existen.\n\nLa cuenta bloqueada recibe `423` y un mensaje que la identifica como\ntal: es una excepción consciente al mensaje genérico, porque quien\nprovocó el bloqueo ya sabe que la cuenta existe. Si el bloqueo es\n**automático**, la respuesta añade `unlockAt` —el instante en que se\nlevanta— y `retryAfterSeconds` —lo que falta—. El bloqueo **manual**\nno los lleva: esa cuenta no se desbloquea sola.\n\n**La espera no va escrita en el mensaje, y es deliberado.** Un texto\ncon «vuelva en dos minutos» es cierto al serializarse y deja de serlo\nenseguida. Con `retryAfterSeconds` el cliente **descuenta** —una\ncuenta regresiva no envejece— sin depender de que su reloj coincida\ncon el del servidor, que es lo que sí ocurriría calculándola a partir\nde `unlockAt`.\n\nSi la contraseña la fijó otra persona, la respuesta autentica **y\nadvierte** con `mustChangePassword`: hace falta una sesión para poder\ncambiarla.\n\n### Con qué cuenta se entra\n\n**El nombre de usuario y el correo valen los dos**, en este mismo\ncampo. La cuenta inicial de cualquier despliegue es **`superadmin`**,\ny su correo es el que ese despliegue declaró en `SUPERADMIN_EMAIL`.\n\n**Su contraseña no está escrita en ninguna parte, y eso es la regla y\nno un olvido**: la fija cada despliegue en `SUPERADMIN_PASSWORD_HASH`,\ny la migración `V9` **se niega a arrancar** si no viene declarada, en\nlugar de caer en una conocida (Art. IX.5). **No hay una credencial por\ndefecto que probar aquí**: la sabe quien desplegó, y en `.env.example`\nesa variable viaja **vacía** a propósito.\n\n**En local, con `DEV_SEED_ENABLED`**, la semilla añade diecinueve\npersonas de prueba —`admin1`, `manager1`, `director1`, `agente1`,\n`cliente1`…— que **comparten la contraseña del superadministrador**:\nno se inventa una nueva, de modo que quien conoce esa una entra con\ntodas. Esa semilla **no se activa en ningún entorno desplegado**.\n\n**Y la primera sesión casi no abre nada, que es lo que más despista.**\nLa cuenta inicial nace marcada para cambio obligatorio, así que con el\ntoken que se recibe aquí solo se llega a `POST /api/v1/auth/password`\n—quien limpia la marca— y a `GET /api/v1/users/me` —para poder saber\npor qué—, más las propias rutas de sesión. **Todo lo demás responde\n`403`** con el tipo `cambio-de-contrasena-requerido`. No está rota:\nestá esperando exactamente eso.\n",
         "operationId" : "login",
         "requestBody" : {
           "content" : {
@@ -6535,7 +6626,7 @@
     "/api/v1/broker-accounts" : {
       "get" : {
         "description" : "**Permiso requerido:** `broker-accounts:read`. Sin él, `403` (`AUTH-002`).\n\nDevuelve **todas** las cuentas de broker del sistema, paginadas y con\nsu titular en cada fila. **Sin ningún filtro devuelve el sistema\nentero**: es lo que `broker-accounts:read` significa.\n\n**`supervisorId` devuelve LA RED ENTERA de esa persona, en\nprofundidad** (`RN-SP-047`): sus subordinados, los subordinados de\nestos, y así hasta abajo. **No es un solo nivel**, al revés que\n`GET /api/v1/users/{id}/team` y que\n`GET /api/v1/users/me/team/broker-accounts` — aquellos se autorizan\npor la estructura y por eso se acotan; este se autoriza por permiso,\nque ya alcanza a todos, de modo que la profundidad **ahorra recorrer\nel árbol y no concede nada**.\n\n**La raíz NO se incluye en su red.** Preguntar por la red de alguien\ndevuelve la de los suyos; sus propias cuentas se piden con `userId`, y\n**los dos filtros se combinan** — juntos responden «de la red de este\nvendedor, las cuentas de esta persona».\n\n**Solo la estructura vigente.** Quien dejó la red ayer no aparece, ni\nlos que colgaban de él por esa vía. Y una persona **eliminada** no\naparece **sin que su rama se corte**: quienes dependían de ella siguen\nsaliendo.\n\n**Filtros, todos opcionales y combinables con Y:**\n\n- `supervisorId` — la red, en profundidad.\n- `userId` — una persona concreta.\n- `status` — `REGISTER` o `FIRST_DEPOSIT`. **Cualquier otro valor es\n  `400`**, no una página vacía.\n- `brokerId` — un broker del catálogo.\n- `search` — fragmento de **número de cuenta**, nombre de usuario,\n  correo o nombre completo. Sin acentos y sin distinguir mayúsculas.\n- `from` / `to` — **cuándo se declaró la cuenta**. Son **instantes con\n  zona**, no fechas sueltas, y el rango es **semiabierto**: incluye\n  `from`, excluye `to`. `from` posterior a `to` es `400`.\n\n**Un identificador inexistente devuelve la página vacía sin error** —\n`supervisorId`, `userId` y `brokerId` no se validan contra su tabla—,\nal revés que `status` y que el rango: aquellos son preguntas legítimas\ncon respuesta vacía y estos son preguntas mal escritas.\n\n`totalElements` **cuenta lo filtrado**.\n\n**La respuesta lleva además un `summary` con TRES totales y sus\ndesgloses por broker**, los tres con la misma forma —un `total` y un\n`byBroker`—:\n\n- `summary.accounts` — cuántos registros cumplen el filtro. Su\n  `total` es **el mismo número que `totalElements`**, y sale de la\n  misma consulta: no pueden discrepar.\n- `summary.register` — cuántos de esos están en `REGISTER`.\n- `summary.firstDeposit` — cuántos de esos están en `FIRST_DEPOSIT`.\n\n**`accounts` es siempre `register` + `firstDeposit`**, total a total y\nbroker a broker. La redundancia es deliberada: van los dos estados\npara no obligar a restar, y va el total porque es la pregunta que más\nse hace.\n\n**El resumen respeta TODOS los filtros, incluido `status`**, y de ahí\nsale lo único que hay que saber antes de pintarlo: **con\n`?status=REGISTER`, `summary.firstDeposit.total` vale SIEMPRE cero**,\ny con `?status=FIRST_DEPOSIT` vale siempre el total. **Ese cero no\nsignifica «nadie ha depositado»: significa «no pediste ninguno».** Un\ntablero que lo enseñe sin decirlo miente; para ver el embudo completo,\nconsulte **sin** el filtro `status`.\n\n**`byBroker` trae TODOS los brokers del catálogo**, ordenado por\nnombre y **con cero donde el filtro no deja ninguna**: su longitud\n**no cambia** al filtrar, de modo que las columnas de una tabla se\narman una vez y no bailan. Un broker **desactivado sigue apareciendo**\n— apagarlo no borra lo que ya se declaró en él. Los tres desgloses\n**suman exactamente** su `total`.\n\n**Con la página vacía el resumen va en ceros**, no ausente: el\n`byBroker` sigue trayendo el catálogo entero, todo a cero.\n\n**La fila es idéntica campo por campo a la de\n`GET /api/v1/users/me/team/broker-accounts`**, a propósito: las dos\npantallas se pintan con el mismo componente. **Lo que aquella no\nlleva es el `summary`**: el resumen se pidió para el listado de\nadministración.\n\n**Hoy todas las cuentas están en `REGISTER`**: quien mueve una a\n`FIRST_DEPOSIT` es el webhook del broker, que todavía no existe.\n\n**Esta ruta no sustituye a `GET /api/v1/users/{id}/broker-accounts`**,\nque existe para **el superior comercial sin permiso**.\n",
-        "operationId" : "listar_10",
+        "operationId" : "listar_11",
         "parameters" : [ {
           "in" : "query",
           "name" : "page",
@@ -6748,7 +6839,7 @@
     "/api/v1/brokers" : {
       "get" : {
         "description" : "**Permiso requerido:** ninguno. Ruta pública: responde sin token.\n\nDevuelve los brokers con los que opera la plataforma, **ordenados por\nnombre**.\n\n**Un broker guarda de momento solo su nombre**, y eso tiene una\nconsecuencia que conviene conocer antes de integrarse: **el nombre es la\nclave de negocio**, no un texto descriptivo. No hay un `code` estable\nfrente a un cambio de nombre comercial — quien necesite referenciar un\nbroker debe hacerlo por su **identificador**.\n\n**No se administra por API** (`RN-SP-039`): no hay alta, ni edición, ni\neliminación, ni cambio de estado. Se puebla por migración, igual que los\ncatálogos de monedas y de tipos de documento, y cada alta queda en el\nhistorial del repositorio en lugar de en una fila que alguien insertó.\n\n**Puede responder la colección vacía**, y eso no es un fallo: es el\nestado de un catálogo que todavía no se ha sembrado.\n\n**No se pagina**: son unos pocos elementos y partirlos obligaría a dos\nllamadas para pintar un desplegable.\n",
-        "operationId" : "listar_9",
+        "operationId" : "listar_10",
         "parameters" : [ {
           "in" : "query",
           "name" : "includeInactive",
@@ -6780,7 +6871,7 @@
     "/api/v1/commission-rates" : {
       "get" : {
         "description" : "**Permiso requerido:** `commissions:read`. Sin él, `403` (`AUTH-002`).\n\nDevuelve **todas las tasas de rol que se han configurado**, cada una\n**con su producto** (`id`, `code`, `name`, su **`price`** y su\n**`currency`**: `id`, `code`, `decimalPlaces`) y su rol, paginadas. Es\nlo que el responsable del proyecto pidió leer: qué paga cada producto,\nen una sola lista —y sobre qué precio y en qué moneda, porque un\nporcentaje es una parte del precio y un importe fijo es dinero en la\nmoneda del producto—.\nSe filtra por `productId`, `roleId` y `rateType`, y con\n`includeDeleted` entran las retiradas.\n\n**Toda tasa viva rige** sobre su producto (`RN-CM-021`): ya no hay un\ncontador de asociaciones que mirar.\n\nLas tasas **personalizadas** no salen en este listado: están en\n`GET /api/v1/user-commission-rates`. **No hay filtro por fecha**, porque\nlas tasas de rol no tienen vigencia.\n",
-        "operationId" : "listar_7",
+        "operationId" : "listar_8",
         "parameters" : [ {
           "in" : "query",
           "name" : "filtros",
@@ -7232,7 +7323,7 @@
     "/api/v1/course-categories" : {
       "get" : {
         "description" : "**Permiso requerido:** `course-categories:read`. Sin él, `403` (`AUTH-002`).\n\nLa lista de administración de las categorías, paginada, **en el orden en que\nse enseñan**: por `displayOrder` ascendente, con la más antigua primero\nentre dos que compartan número. Cada fila trae `coverImageUrl` —presente y\nnulo si no hay— y **`courseCount`, cuántos cursos vivos tiene**: vivos y no\nofrecidos; un curso inactivo cuenta, uno retirado no. Sin descripción ni\ncursos: para eso está el detalle.\n\nBusca por `q` —nombre, sin distinguir mayúsculas ni acentos—. **Excluye las\nretiradas** salvo `includeDeleted=true`, y entonces las trae con `deletedAt`.\n«Vacía» no es filtro: se publica por fila.\n\nOrden: `displayOrder` (omisión, ascendente), `name` y `createdAt`\n(descendente por omisión), con `,asc`/`,desc`. Los parámetros inválidos se\ndevuelven **juntos** con `400`. Exige `course-categories:read`;\n`courses:read` no habilita.\n",
-        "operationId" : "listar_6",
+        "operationId" : "listar_7",
         "parameters" : [ {
           "in" : "query",
           "name" : "page",
@@ -7319,7 +7410,7 @@
       },
       "post" : {
         "description" : "**Permiso requerido:** `course-categories:create`. Sin él, `403` (`AUTH-002`).\n\nRegistra un cajón del catálogo de cursos con **nombre, color, icono y orden**,\nobligatorios, y descripción opcional. **Nace viva, sin portada y sin cursos**:\nla categoría no tiene estado —está o está retirada—, la imagen se sube después\ncon su propia petición, y los cursos se clasifican desde el curso.\n\n**El color va sin `#` y sale en mayúsculas**: seis dígitos hexadecimales, que\nse admiten en minúsculas y se normalizan. **No es único**: dos categorías\npueden compartir color. **El icono es un nombre**, no una imagen; el backend\nlo guarda y no sabe pintarlo. **El orden es una posición**: entero mayor o\nigual que cero, no único, y dos con el mismo número se desempatan por\nantigüedad.\n\nEl nombre es único entre las categorías **vivas**, sin distinguir mayúsculas\nni acentos; una retirada libera el suyo. Enviar `status`, `courses` o\n`coverImageUrl` responde `400`.\n\nLa respuesta es la misma forma que el detalle: `courseCount` en cero,\n`courses` vacío y `coverImageUrl` presente y nulo. Exige\n`course-categories:create`; **los `courses:` no habilitan**.\n",
-        "operationId" : "register_5",
+        "operationId" : "register_6",
         "requestBody" : {
           "content" : {
             "application/json" : {
@@ -7595,7 +7686,7 @@
     "/api/v1/courses" : {
       "get" : {
         "description" : "**Permiso requerido:** `courses:read`. Sin él, `403` (`AUTH-002`).\n\nLa lista de administración de los cursos, paginada, **en el orden en que se\nenseñan**: por `displayOrder` ascendente, con el más antiguo primero entre\ndos que compartan número. Cada fila trae el instructor resuelto —con su\nnombre **actual**—, `coverImageUrl`, sus categorías vivas, **`offerable`** y\ncuántos módulos y lecciones **vivos** tiene — vivos y no ofrecidos—. Sin\ndescripción larga, video ni árbol: para eso está el detalle.\n\nFiltra por `q` —título, sin distinguir mayúsculas ni acentos—, `categoryId`,\n`instructorId`, `difficulty` y `status`, combinables. **Excluye los\nretirados** salvo `includeDeleted=true`, y entonces los trae con `deletedAt`\ny `offerable: false`. «Ofrecible» no es filtro: se publica por fila.\n\nOrden: `displayOrder` (omisión, ascendente), `title` y `createdAt`\n(descendente por omisión), con `,asc`/`,desc`. Los parámetros inválidos se\ndevuelven **juntos** con `400`. Exige `courses:read`;\n`course-categories:read` no habilita.\n",
-        "operationId" : "listar_5",
+        "operationId" : "listar_6",
         "parameters" : [ {
           "in" : "query",
           "name" : "page",
@@ -7712,7 +7803,7 @@
       },
       "post" : {
         "description" : "**Permiso requerido:** `courses:create`. Sin él, `403` (`AUTH-002`).\n\nRegistra un curso con **título, instructor, dificultad y orden**, obligatorios,\ny descripción corta, descripción larga y video de introducción, opcionales.\n**Nace `INACTIVO` y vacío**: sin categorías, sin recomendaciones, sin\nmembresías, sin módulos y sin portada — cada cosa entra por su operación—, y\n**sin código**: un curso no se teclea en ninguna venta.\n\n**El instructor es una persona del sistema que existe, no está retirada y\nporta `courses:teach`**, comprobado **al asignar y solo al asignar**: que lo\npierda después no toca el curso. Un instructor inexistente o retirado y uno\nsin el permiso son dos `422` distintos, porque se arreglan en sitios\ndistintos. **`instructor.fullName` es el nombre actual** de la persona, no\nuna copia.\n\nEl título es único entre los cursos **vivos**, sin distinguir mayúsculas ni\nacentos; un retirado libera el suyo. Las descripciones de solo espacios se\nguardan nulas; el video se comprueba en su forma y **no se sigue**. Enviar\n`status`, `categories`, `memberships`, `modules`, `coverImageUrl` o `code`\nresponde `400`.\n\nLa respuesta es la forma del detalle: listas vacías, `coverImageUrl`\npresente y nulo, cero minutos y cero lecciones, y `offerable: false` con\n`offerableReason` «inactivo». Exige `courses:create`; **los\n`course-categories:` no habilitan**.\n",
-        "operationId" : "register_2",
+        "operationId" : "register_3",
         "requestBody" : {
           "content" : {
             "application/json" : {
@@ -7793,7 +7884,7 @@
     "/api/v1/courses/{courseId}/modules" : {
       "post" : {
         "description" : "**Permiso requerido:** `courses:update`. Sin él, `403` (`AUTH-002`).\n\nRegistra una parte del curso con **título y orden**, obligatorios, y descripción\ncorta, descripción larga y video de presentación, opcionales. **Nace `INACTIVO`,\nvacío y dentro del curso de la ruta**, del que no se mueve: enviar `courseId`,\n`status`, `lessons` o `coverImageUrl` responde `400`.\n\n**El título es único entre los módulos vivos del mismo curso**, sin mayúsculas\nni acentos; el mismo título en otro curso es legítimo, y un retirado libera el\nsuyo. El curso tiene que estar **vivo**, en cualquier estado — un curso activo\nadmite el módulo igual, que no cambia lo que el aula enseña hasta activarse.\n\nLa respuesta es **el módulo**, no el curso: `courseId`, `coverImageUrl`\npresente y nulo, `lessons` vacío, cero minutos y `offerable: false` con\n`offerableReason` «inactivo». Exige `courses:update`.\n",
-        "operationId" : "register_3",
+        "operationId" : "register_4",
         "parameters" : [ {
           "in" : "path",
           "name" : "courseId",
@@ -8036,7 +8127,7 @@
     "/api/v1/courses/{courseId}/modules/{moduleId}/lessons" : {
       "post" : {
         "description" : "**Permiso requerido:** `courses:update`. Sin él, `403` (`AUTH-002`).\n\nRegistra una lección con **tipo (`VIDEO` o `TEXTO`), título, duración en\nminutos enteros y orden**, obligatorios, y descripción, contenido y `open`\nopcionales. **El tipo manda sobre el contenido**: en un `VIDEO` es una URL\nabsoluta http o https; en un `TEXTO` es Markdown que **el backend guarda y\ndevuelve sin interpretar ni sanear** — quien lo pinta es el frontend, y tiene\nque hacerlo con un conversor que no ejecute lo que encuentre.\n\n**Nace `INACTIVA`**, con `open` falsa si no vino, y **el contenido es opcional al\nregistrar y obligatorio para activar**. El título es único entre las lecciones\nvivas del mismo módulo. El módulo tiene que estar **vivo y ser del curso de la\nruta**; enviar `status`, `moduleId` o `courseId` es `400`. Los errores de forma\nllegan **juntos**, incluido el del contenido de un video.\n\n**La auditoría lleva la longitud del contenido y no el texto.** La respuesta es\nla lección entera, contenido incluido. Exige `courses:update`.\n",
-        "operationId" : "register_4",
+        "operationId" : "register_5",
         "parameters" : [ {
           "in" : "path",
           "name" : "courseId",
@@ -8995,7 +9086,7 @@
     "/api/v1/document-types" : {
       "get" : {
         "description" : "**Permiso requerido:** ninguno. Ruta pública: responde sin token.\n\nDevuelve los documentos de identidad con los que una persona puede\nregistrarse, con su **nombre** y su **abreviación**.\n\n**El catálogo contiene solo documentos de persona mayor de edad**, y esa\nes la validación entera: no hay ninguna marca que distinga cuáles sí y\ncuáles no, porque los que no están **no están**. Registrar a un menor no\nse rechaza — no se puede expresar.\n\n**No se administra por API** (`RN-SP-036`): no hay alta, ni edición, ni\neliminación, ni cambio de estado. Se puebla por migración, y lo que deja\nde admitirse se retira también por migración. Es la asimetría deliberada\ncon los catálogos de países y monedas, que sí tienen operación para\ncambiar su estado.\n\n**No se pagina**: son unos pocos elementos, y partirlos obligaría a dos\nllamadas para pintar un desplegable.\n",
-        "operationId" : "listar_8",
+        "operationId" : "listar_9",
         "parameters" : [ {
           "in" : "query",
           "name" : "includeInactive",
@@ -9163,7 +9254,7 @@
     },
     "/api/v1/hotlinks/{username}/{code}" : {
       "get" : {
-        "description" : "**Permiso requerido:** ninguno. Ruta pública: responde sin token.\n\nDevuelve, **sin token**, el producto que el enlace señala y el **nombre\ny apellido** de quien lo reparte.\n\n**Es público por decisión, no por definición.** Las otras cinco rutas\npúblicas del sistema lo son porque quien las llama no puede portar\ntodavía un token; esta lo es porque un enlace se abre antes de\nregistrarse.\n\n**Solo publica productos activos y de alcance `HOTLINK` o `AMBOS`**\n(`HOTLINKS` hasta el 15-09-2026), y solo el\nnombre de quien porta un rol de tipo `VENDEDOR`. Ni correo, ni\nidentificador, ni estado, ni roles.\n\n**De la membresía se publican tres campos** —código, nombre y color—,\ny no los cinco que devuelven los otros endpoints: el identificador no\nsirve a quien no puede llamar a nada más, y el nivel publicaría la\nforma de la cadena comercial sin token.\n\n**El precio llega en la moneda del producto y, si hay tasa vigente,\nconvertido a la moneda por omisión.** `rate` viaja como **cadena**\nporque tiene ocho decimales y un número JSON pasa por coma flotante en\ncualquier cliente JavaScript.\n\n**Viene UN importe** (`RN-PM-024`, reescrita el 12-09-2026): `price`,\nel que se cobra. **El precio de compra no viaja por aquí ni se\nconsulta**: es lo que NEXUS paga por el producto, y este endpoint es\npúblico. Entre el 08-09-2026 y el 12-09-2026 viajó también\n`publicPrice`, cuando ese importe era lo que se anunciaba; ese campo\n**ya no existe**. **La conversión se calcula sobre `price`.**\n\n**Vienen los `links` del producto, y sin token** (`RN-PM-048`): aquí\nviaja **solo el video** y **resuelto** —con el identificador externo ya\npegado al final (`RN-PM-049`)—, porque es material de venta y existe\npara que lo vea quien va a comprar. El `CUPON_BOT` **no sale**: es la\nprestación que se compra, y esta ruta la puede abrir cualquiera\n(`RN-PM-050`). La lista va **presente y vacía** cuando el producto no\ndeclara ninguno.\n\n**La conversión es INFORMATIVA**: lo que se cobra no es ese número. Una\nventa va en una sola moneda y congela su importe al registrarse; esta\nconversión se calcula al vuelo, cambia el día que cambie la tasa y **no\nreserva nada**. Cuando no hay tasa vigente —o el producto ya está en la\nmoneda de casa— `exchange` llega **presente y nulo**, y el producto se\ndevuelve igual.\n\n**Todo lo que no procede responde el MISMO `404`**: usuario\ninexistente, persona que no es vendedora, código inexistente, producto\ninactivo, retirado o de alcance `TIENDA` o `NINGUNO`. **No dice cuál falló**, y esa\nuniformidad es deliberada — distinguirlos convertiría el enlace en un\noráculo que dice quién existe.\n",
+        "description" : "**Permiso requerido:** ninguno. Ruta pública: responde sin token.\n\nDevuelve, **sin token**, el producto que el enlace señala y el **nombre\ny apellido** de quien lo reparte.\n\n**Es público por decisión, no por definición.** Las otras cinco rutas\npúblicas del sistema lo son porque quien las llama no puede portar\ntodavía un token; esta lo es porque un enlace se abre antes de\nregistrarse.\n\n**Solo publica productos activos y de alcance `HOTLINK` o `AMBOS`**\n(`HOTLINKS` hasta el 15-09-2026), y solo el\nnombre de quien porta un rol de tipo `VENDEDOR`. Ni correo, ni\nidentificador, ni estado, ni roles.\n\n**De la membresía se publican tres campos** —código, nombre y color—,\ny no los cinco que devuelven los otros endpoints: el identificador no\nsirve a quien no puede llamar a nada más, y el nivel publicaría la\nforma de la cadena comercial sin token.\n\n**El precio llega en la moneda del producto y, si hay tasa vigente,\nconvertido a la moneda por omisión.** `rate` viaja como **cadena**\nporque tiene ocho decimales y un número JSON pasa por coma flotante en\ncualquier cliente JavaScript.\n\n**Viene UN importe** (`RN-PM-024`, reescrita el 12-09-2026): `price`,\nel que se cobra. **El precio de compra no viaja por aquí ni se\nconsulta**: es lo que NEXUS paga por el producto, y este endpoint es\npúblico. Entre el 08-09-2026 y el 12-09-2026 viajó también\n`publicPrice`, cuando ese importe era lo que se anunciaba; ese campo\n**ya no existe**. **La conversión se calcula sobre `price`.**\n\n**Viene `videoUrl`, y sin token** (`RN-PM-032`): la dirección del video\nque presenta el producto, **tal cual la escribió administración** y\n**presente y nula** cuando no tiene. El sistema no la sigue ni la\nvalida más allá de su forma: un enlace roto se publica igual. Es la\núnica columna opcional del producto que este endpoint trae y el\nprecio de compra no — el costo enseñaría el margen; el video existe\npara que lo vean.\n\n**La conversión es INFORMATIVA**: lo que se cobra no es ese número. Una\nventa va en una sola moneda y congela su importe al registrarse; esta\nconversión se calcula al vuelo, cambia el día que cambie la tasa y **no\nreserva nada**. Cuando no hay tasa vigente —o el producto ya está en la\nmoneda de casa— `exchange` llega **presente y nulo**, y el producto se\ndevuelve igual.\n\n**Todo lo que no procede responde el MISMO `404`**: usuario\ninexistente, persona que no es vendedora, código inexistente, producto\ninactivo, retirado o de alcance `TIENDA` o `NINGUNO`. **No dice cuál falló**, y esa\nuniformidad es deliberada — distinguirlos convertiría el enlace en un\noráculo que dice quién existe.\n",
         "operationId" : "hotlink",
         "parameters" : [ {
           "in" : "path",
@@ -9900,7 +9991,7 @@
     "/api/v1/packages" : {
       "get" : {
         "description" : "**Permiso requerido:** `packages:list`. Sin él, `403` (`AUTH-002`).\n\nLa lista de administración de los paquetes, paginada, **con la cuenta hecha\npor fila**: cada paquete con `itemCount`, `listPrice`, `price`, `savings`,\n`exchange` y `offerable`, y sin sus líneas — para eso está el detalle. Los\nimportes salen de la misma cuenta que el detalle y cuadran con él.\n\nFiltra por `status`, `scope`, `currencyId` y `q` —búsqueda por nombre, sin\ndistinguir mayúsculas ni acentos—, y se combinan. **Excluye los retirados**\nsalvo `includeDeleted=true`, y entonces los trae con `deletedAt`.\n**`offerable` no es filtro**: quien administra quiere ver precisamente los\nque no se ofrecen; se queda como columna, y el motivo lo da el detalle.\n**Tampoco lo es la vigencia**: cada fila trae `validFrom` y `validTo`\n(`RN-PM-047`), y un paquete que empieza mañana o terminó ayer sale con\n`offerable: false` y **sigue listado con su estado**, como uno con un\nproducto inactivo — no hay proceso que lo desactive al vencer.\n\nOrden: `createdAt` (omisión, descendente), `name` y `price`, con\n`,asc`/`,desc`. **El orden por `price` ordena por el precio calculado**: el\nprecio no está en ninguna columna, de modo que un paquete cuyo producto\ncambió de precio cambia de posición en la siguiente lectura. Se ordena con\nla suma sin redondear; la diferencia con el importe que viaja cabe en un\ncéntimo por producto y puede alterar el orden entre paquetes casi iguales.\n\nLos filtros inválidos se devuelven **juntos** con `400`. Exige\n`packages:list`; `products:read` no habilita.\n",
-        "operationId" : "listar_4",
+        "operationId" : "listar_5",
         "parameters" : [ {
           "in" : "query",
           "name" : "page",
@@ -10009,7 +10100,7 @@
       },
       "post" : {
         "description" : "**Permiso requerido:** `packages:create`. Sin él, `403` (`AUTH-002`).\n\nRegistra un paquete de productos, **vacío e inactivo**: los productos entran\nuno a uno después (`POST /packages/{id}/products`) y publicarlo es otra\noperación (`PATCH /packages/{id}/status`), que exige descripción y al menos\ndos productos.\n\n**El paquete no declara precio: se calcula.** Su `price` es la suma de sus\nproductos con su descuento, `listPrice` la suma sin descuentos y `savings` la\ndiferencia, todo con el precio de catálogo **de hoy** y redondeado por\nproducto a los decimales de la moneda. No se guarda en ninguna columna: si un\nproducto cambia de precio, el paquete cambia solo. Enviar `price` —o `products`,\no `status`— responde `400`.\n\n**La moneda es obligatoria e inmutable**, y solo se le asocian productos en\nesa moneda: un paquete recién creado no tiene productos y aun así sabe en qué\nse expresa. `scope` dice en qué vistas se publica —`TIENDA`, `HOTLINK`, `AMBOS`\no `NINGUNO`, que existe y se activa pero no se ofrece en ninguna— y es del\npaquete: el alcance de sus productos no filtra dentro de él.\n\n**Y declara su vigencia** (`RN-PM-047`, desde el 16-09-2026): `validFrom`,\n**obligatorio**, es el primer día en que se ofrece, y `validTo`, opcional, el\n**último** —nulo es indefinidamente; un fin anterior al inicio responde\n`400`—. **No hay regla contra el pasado**: un inicio futuro programa el\npaquete y un fin de ayer lo deja cerrado, que es raro pero no es un error.\nFuera de esas fechas el paquete **se oculta** de la oferta y del hotlink\ny **no cambia de estado**; el detalle lo dice en `offerableReason`.\n\nLa respuesta es la misma forma que el detalle: `items` vacío, los tres\nimportes en cero, `exchange` nulo, `validFrom` y `validTo` tal como se\ndeclararon, y `offerable: false` con su motivo — «menos de dos productos».\n`offerable` y `offerableReason` viajan **siempre**.\n\nExige `packages:create`. **Los `products:` no habilitan**: un actor con los\ncuatro permisos del catálogo y ninguno de paquetes recibe `403`.\n",
-        "operationId" : "register_1",
+        "operationId" : "register_2",
         "requestBody" : {
           "content" : {
             "application/json" : {
@@ -11098,8 +11189,8 @@
     },
     "/api/v1/products" : {
       "get" : {
-        "description" : "**Permiso requerido:** `products:list`. Sin él, `403` (`AUTH-002`).\n\nDevuelve el catálogo **paginado**, con el destino de cada upgrade y la\nmoneda de cada precio ya resueltos: no hace falta una segunda consulta.\n\n**Los retirados quedan fuera salvo que se pidan** con `includeDeleted`.\nAl pedirlos se indica **desde cuándo** lo están; el **motivo** no viaja\nen el listado —uno a uno lo devuelve el detalle (`RF-PM-003`), en\nbloque sería una exportación de decisiones comerciales—. Verlos **no\nexige un permiso propio**: basta `products:list`.\n\nCada fila trae **los dos precios**: `price` —el que se cobra— y\n`purchasePrice` —el **precio de compra**, lo que NEXUS paga por el\nproducto—, este **presente y nulo** en los productos cuyo costo no se\nconoce. Este listado y el detalle son **los dos únicos sitios** donde\nse ven juntos: la oferta y el hotlink no devuelven el de compra\n(`RN-PM-024`, 12-09-2026).\n\nY trae **`exchange`**, la conversión a la moneda por omisión con la\ntasa vigente hoy, calculada **sobre `price`** —el de compra nunca se\nconvierte—. Llega **presente y nula** cuando el producto ya está en\nesa moneda o cuando nadie declaró una tasa: eso **no es un error** y\nel producto se devuelve igual.\n\nCada fila trae también **`links`**, los enlaces del producto **tal cual\nse guardaron** y **presente y vacía** cuando no tiene ninguno\n(`RN-PM-048`). **Esta lectura los enseña TODOS**, `CUPON_BOT` incluido,\nporque es donde se administran; las lecturas de venta —la oferta y el\nhotlink— publican solo el video. **No es un filtro.**\n\nSolo se puede ordenar por la lista blanca —`name`, `price`,\n`createdAt`—, con `,asc` o `,desc`. **`purchasePrice` no está en\nella**: ordenar por una columna que admite nulos obligaría a decidir\ndónde van los productos sin costo conocido, y nadie lo ha decidido.\n**Un campo fuera de la lista se rechaza y no se ignora**:\nignorarlo devolvería un orden distinto del pedido sin decirlo. Por omisión se ordena por **fecha de alta\ndescendente**, y el orden aplicado viaja en la respuesta.\n\n**`targetMembershipId` no se valida contra el catálogo de membresías.**\nFiltrar por un destino inexistente devuelve la colección vacía y no es\nun error; combinarlo con `type=BOT` también, porque ningún\nbot tiene destino.\n\nLa búsqueda va sobre el nombre, **sin distinguir acentos ni\nmayúsculas** y por fragmento. En blanco equivale a no filtrar.\n\n**`scope` e `implementation` filtran como `type` y `status`**: se\nadmiten en cualquier caja y un valor fuera de dominio se rechaza junto\nal resto de parámetros inválidos, no en una vuelta aparte. El de\nalcance admite los cuatro valores —`TIENDA`, `HOTLINK`, `AMBOS`,\n`NINGUNO`— y **es la única lectura donde se ve un producto\n`NINGUNO`**, porque ninguna vista de venta lo ofrece.\n\nUn filtro sin coincidencias devuelve `200` con la colección vacía, y\nuna página más allá de la última hace lo mismo **con el total real**.\nNo hay `404` ni `422`.\n",
-        "operationId" : "listar_3",
+        "description" : "**Permiso requerido:** `products:list`. Sin él, `403` (`AUTH-002`).\n\nDevuelve el catálogo **paginado**, con el destino de cada upgrade y la\nmoneda de cada precio ya resueltos: no hace falta una segunda consulta.\n\n**Los retirados quedan fuera salvo que se pidan** con `includeDeleted`.\nAl pedirlos se indica **desde cuándo** lo están; el **motivo** no viaja\nen el listado —uno a uno lo devuelve el detalle (`RF-PM-003`), en\nbloque sería una exportación de decisiones comerciales—. Verlos **no\nexige un permiso propio**: basta `products:list`.\n\nCada fila trae **los dos precios**: `price` —el que se cobra— y\n`purchasePrice` —el **precio de compra**, lo que NEXUS paga por el\nproducto—, este **presente y nulo** en los productos cuyo costo no se\nconoce. Este listado y el detalle son **los dos únicos sitios** donde\nse ven juntos: la oferta y el hotlink no devuelven el de compra\n(`RN-PM-024`, 12-09-2026).\n\nY trae **`exchange`**, la conversión a la moneda por omisión con la\ntasa vigente hoy, calculada **sobre `price`** —el de compra nunca se\nconvierte—. Llega **presente y nula** cuando el producto ya está en\nesa moneda o cuando nadie declaró una tasa: eso **no es un error** y\nel producto se devuelve igual.\n\nCada fila trae también **`videoUrl`**, la dirección del video que\npresenta el producto, **tal cual se guardó** y **presente y nula**\ncuando no tiene (`RN-PM-032`). **No es un filtro.**\n\nSolo se puede ordenar por la lista blanca —`name`, `price`,\n`createdAt`—, con `,asc` o `,desc`. **`purchasePrice` no está en\nella**: ordenar por una columna que admite nulos obligaría a decidir\ndónde van los productos sin costo conocido, y nadie lo ha decidido.\n**Un campo fuera de la lista se rechaza y no se ignora**:\nignorarlo devolvería un orden distinto del pedido sin decirlo. Por omisión se ordena por **fecha de alta\ndescendente**, y el orden aplicado viaja en la respuesta.\n\n**`targetMembershipId` no se valida contra el catálogo de membresías.**\nFiltrar por un destino inexistente devuelve la colección vacía y no es\nun error; combinarlo con `type=BOT` también, porque ningún\nbot tiene destino.\n\nLa búsqueda va sobre el nombre, **sin distinguir acentos ni\nmayúsculas** y por fragmento. En blanco equivale a no filtrar.\n\n**`scope` e `implementation` filtran como `type` y `status`**: se\nadmiten en cualquier caja y un valor fuera de dominio se rechaza junto\nal resto de parámetros inválidos, no en una vuelta aparte. El de\nalcance admite los cuatro valores —`TIENDA`, `HOTLINK`, `AMBOS`,\n`NINGUNO`— y **es la única lectura donde se ve un producto\n`NINGUNO`**, porque ninguna vista de venta lo ofrece.\n\nUn filtro sin coincidencias devuelve `200` con la colección vacía, y\nuna página más allá de la última hace lo mismo **con el total real**.\nNo hay `404` ni `422`.\n",
+        "operationId" : "listar_4",
         "parameters" : [ {
           "in" : "query",
           "name" : "page",
@@ -11211,8 +11302,8 @@
         "x-required-permission" : "products:list"
       },
       "post" : {
-        "description" : "**Permiso requerido:** `products:create`. Sin él, `403` (`AUTH-002`).\n\nRegistra un producto del catálogo, **siempre inactivo**: publicarlo es otra\noperación (`RF-PM-005`).\n\nEl tipo decide qué campos son obligatorios: un `UPGRADE_MEMBRESIA` debe\ndeclarar **las dos** membresías —de qué nivel sale y a cuál lleva— y un\n`BOT` no puede declarar ninguna.\n\n**El origen no puede estar por encima del destino**: eso sería vender un\ndescenso llamándolo upgrade, y se rechaza con `422` (`EX-006`). **Sí\npuede ser el MISMO**, y entonces el producto es una **renovación**: lo\nque vende es tiempo —su `validityDays`— y no un cambio de nivel.\n\n**Y no tiene por qué ser el inmediatamente inferior**: saltar niveles es\nlegítimo, y es la razón de que el origen se declare en lugar de\ndeducirse de la cadena.\n\n`icon` es el **nombre** del icono con el que el frontend pinta el producto\n—no una imagen—, en minúsculas y guion medio. Es **opcional**, y solo un\n`UPGRADE_MEMBRESIA` puede llevarlo: en un `BOT` se rechaza (`RN-PM-016`).\n\n`links` son **los enlaces del producto**, uno por tipo y ninguno\nobligatorio (`RN-PM-048`). Hay dos: **`VIDEO_PRESENTACION`**, el video\nque presenta el producto —material de venta, que sale en las lecturas\npúblicas—, y **`CUPON_BOT`**, dónde registra su cuenta quien ya lo\ncompró, que **solo** se enseña en `GET /api/v1/movements/mine/products`\ny **solo** cuando la línea está entregada (`RN-PM-050`). Declarar dos\ndel mismo tipo se rechaza con `VAL-020`, y un tipo que no existe con\n`VAL-019`.\n\nDe cada enlace, `url` es **la dirección** —obligatoria, `VAL-021` si\nfalta— y se comprueba **solo su forma**: absoluta `http` o `https`, sin\nespacios y de hasta 500 caracteres; lo demás se rechaza con `VAL-017`.\n**El sistema no sigue el enlace** —no comprueba que exista ni lo\ndescarga—, y lo guarda **tal cual se escribió**, recortado y sin\nnormalizar nada más.\n\n`externalId` es **opcional** y es un identificador de un sistema ajeno\n—quien aloja el bot o el video—: NEXUS lo guarda **sin interpretarlo** y\nlo **pega como último segmento de ruta** al publicar el enlace\n(`RN-PM-049`). Por eso, **si viene informado, la dirección no admite `?`\nni `#`** (`VAL-023`): pegarlo detrás de una cadena de consulta daría un\nenlace roto **que responde `200`**. La misma dirección **sin**\nidentificador sí se admite. Su forma se comprueba con `VAL-022`: sin\nespacios y hasta 100 caracteres.\n\nLa respuesta devuelve los enlaces **crudos**: la dirección tal cual y el\nidentificador en su campo, **no pegados** — es lo que `PATCH` espera\nrecibir de vuelta. Ausente y vacía significan lo mismo: sin enlaces.\n\nLa vigencia es opcional en los dos tipos: sin ella, lo adquirido no caduca.\n\n`scope` e `implementation` son **obligatorios y en los dos tipos**, y\n**no tienen valor por omisión**: `scope` dice **en qué vistas de venta**\nse ofrece el producto —`TIENDA` (solo la oferta), `HOTLINK` (solo el\ncanal de hotlinks), `AMBOS`, o `NINGUNO` (en ninguna: solo lo ve\nadministración, aunque esté activo)— e `implementation` dice si lo\ncomprado se aplica solo (`AUTOMATICA`) o espera a que un funcionario\nlo autorice (`MANUAL`). **`HOTLINKS` dejó de existir el 15-09-2026**\n—lo que significaba se llama `AMBOS`— y se rechaza con `400` como\ncualquier valor fuera del dominio.\n\n**Un producto lleva DOS precios y solo uno se cobra.** `price` es el\ndel sistema —el que copia la venta y sobre el que se comisiona— y\n`purchasePrice` es el **precio de compra**: lo que NEXUS paga por el\nproducto cuando tiene que comprarlo, y donde se guarda lo que costó.\nEs **opcional**, no interviene en ningún cálculo, se expresa en la\n**misma moneda** y **no sale de administración**: la oferta y el\nhotlink no lo devuelven. Ausente o nulo significan lo mismo —no se\nconoce todavía—, y **eso no es «costó cero»** (`RN-PM-023`). Se llamó\n`publicPrice` hasta el 12-09-2026; ese nombre es hoy una propiedad\ndesconocida y devuelve `400`.\n\nLos dos importes se validan igual: **no negativos** —el **cero se\nadmite** desde que existe la renovación de una membresía gratuita— y\ncon los decimales que declare su moneda. El rechazo **nombra el\ncampo** que incumple.\n\n**Los dos solo se ven desde administración** (`RN-PM-024`): la oferta\nde un cliente y el hotlink público devuelven **uno**.\n",
-        "operationId" : "register",
+        "description" : "**Permiso requerido:** `products:create`. Sin él, `403` (`AUTH-002`).\n\nRegistra un producto del catálogo, **siempre inactivo**: publicarlo es otra\noperación (`RF-PM-005`).\n\nEl tipo decide qué campos son obligatorios: un `UPGRADE_MEMBRESIA` debe\ndeclarar **las dos** membresías —de qué nivel sale y a cuál lleva— y un\n`BOT` no puede declarar ninguna.\n\n**El origen no puede estar por encima del destino**: eso sería vender un\ndescenso llamándolo upgrade, y se rechaza con `422` (`EX-006`). **Sí\npuede ser el MISMO**, y entonces el producto es una **renovación**: lo\nque vende es tiempo —su `validityDays`— y no un cambio de nivel.\n\n**Y no tiene por qué ser el inmediatamente inferior**: saltar niveles es\nlegítimo, y es la razón de que el origen se declare en lugar de\ndeducirse de la cadena.\n\n`icon` es el **nombre** del icono con el que el frontend pinta el producto\n—no una imagen—, en minúsculas y guion medio. Es **opcional**, y solo un\n`UPGRADE_MEMBRESIA` puede llevarlo: en un `BOT` se rechaza (`RN-PM-016`).\n\n`videoUrl` es **la dirección de un video** que presenta el producto —no\nel video—. Es **opcional y vale en los dos tipos**, sin la condición\ndel icono. Se comprueba **solo la forma**: una URL absoluta `http` o\n`https`, sin espacios y de hasta 500 caracteres; lo demás se rechaza\ncon `VAL-017`. **El sistema no sigue el enlace** —no comprueba que el\nvideo exista ni lo descarga—, y lo guarda **tal cual se escribió**,\nrecortado y sin normalizar nada más. Ausente o nulo significan lo\nmismo: no tiene video. **Al revés que el precio de compra, sale en las\ncuatro lecturas**, el hotlink sin token incluido (`RN-PM-032`).\n\nLa vigencia es opcional en los dos tipos: sin ella, lo adquirido no caduca.\n\n`scope` e `implementation` son **obligatorios y en los dos tipos**, y\n**no tienen valor por omisión**: `scope` dice **en qué vistas de venta**\nse ofrece el producto —`TIENDA` (solo la oferta), `HOTLINK` (solo el\ncanal de hotlinks), `AMBOS`, o `NINGUNO` (en ninguna: solo lo ve\nadministración, aunque esté activo)— e `implementation` dice si lo\ncomprado se aplica solo (`AUTOMATICA`) o espera a que un funcionario\nlo autorice (`MANUAL`). **`HOTLINKS` dejó de existir el 15-09-2026**\n—lo que significaba se llama `AMBOS`— y se rechaza con `400` como\ncualquier valor fuera del dominio.\n\n**Un producto lleva DOS precios y solo uno se cobra.** `price` es el\ndel sistema —el que copia la venta y sobre el que se comisiona— y\n`purchasePrice` es el **precio de compra**: lo que NEXUS paga por el\nproducto cuando tiene que comprarlo, y donde se guarda lo que costó.\nEs **opcional**, no interviene en ningún cálculo, se expresa en la\n**misma moneda** y **no sale de administración**: la oferta y el\nhotlink no lo devuelven. Ausente o nulo significan lo mismo —no se\nconoce todavía—, y **eso no es «costó cero»** (`RN-PM-023`). Se llamó\n`publicPrice` hasta el 12-09-2026; ese nombre es hoy una propiedad\ndesconocida y devuelve `400`.\n\nLos dos importes se validan igual: **no negativos** —el **cero se\nadmite** desde que existe la renovación de una membresía gratuita— y\ncon los decimales que declare su moneda. El rechazo **nombra el\ncampo** que incumple.\n\n**Los dos solo se ven desde administración** (`RN-PM-024`): la oferta\nde un cliente y el hotlink público devuelven **uno**.\n",
+        "operationId" : "register_1",
         "requestBody" : {
           "content" : {
             "application/json" : {
@@ -11292,7 +11383,7 @@
     },
     "/api/v1/products/available" : {
       "get" : {
-        "description" : "**Permiso requerido:** `products:sale`. Sin él, `403` (`AUTH-002`).\n\nDevuelve lo que **quien llama** puede comprar hoy, y no el catálogo.\n\n**No admite ningún parámetro**: ni de persona, ni de filtro, ni de\npaginación. El actor sale del token, de modo que no hay forma de\npreguntar qué puede comprar otra persona.\n\n**Exige `products:sale`**, un permiso propio de esta vista y no\n`products:read` — ese abre el catálogo administrativo entero, lo\ninactivo, lo retirado y el motivo del retiro, para que alguien pudiera\nver tres líneas.\n\n**Solo lo activo.** Ni lo inactivo ni lo retirado aparecen aquí,\naunque el catálogo de `RF-PM-002` sí los muestre a quien administra.\n\n**Upgrades: los declarados DESDE la membresía vigente de quien mira**,\ny ninguno más. La coincidencia es exacta: no se comparan niveles ni se\nrecorre la cadena. Quien registró el producto ya decidió a quién va\ndirigido.\n\nEso incluye **todos** los declarados desde ahí y no solo el inmediato\n—quien está en el peldaño más bajo elige cuánto saltar, y el precio de\ncada uno ya expresa el salto—, y llegan ordenados **del salto más\ncorto al más largo**.\n\n**La RENOVACIÓN entra aquí**, y va primera: un producto `X → X`\ndeclarado desde su propia membresía es el salto de longitud cero. Lo\nque vende es **tiempo** —su `validityDays`— y no un cambio de nivel.\n\n**Un upgrade hacia el nivel que ya se tiene NO se ofrece cuando su\norigen no es el suyo**: sería el salto de otra persona que acaba donde\nquien mira ya está. Y **ninguna bajada** llega hasta aquí, aunque este\nfiltro ya no la mire: lo impide `RN-PM-017` **al registrar**, porque un\nproducto declarado desde mi membresía no puede apuntar por debajo.\n\n**Bots: todos los activos, para cualquiera.** No dependen del nivel de\nquien mira ni de que tenga uno.\n\n**Cada producto trae `links`**, y aquí viaja **solo el video** y\n**resuelto**: la dirección con el identificador externo ya pegado al\nfinal (`RN-PM-049`). El `CUPON_BOT` **no sale**, ni siquiera vacío: es\nla prestación que se compra, y quien reparte enlaces no la ha comprado\n(`RN-PM-050`). El video sí es lo contrario del precio de compra:\nmaterial de venta, que existe para que lo vea quien compra, y por eso\n**sí** viaja por aquí.\n\n**Publica `scope` e `implementation` de cada producto, y filtra por el\nprimero**: solo `TIENDA` y `AMBOS` (`RN-PM-019`, desde el 15-09-2026).\nUn producto `HOTLINK` o `NINGUNO` no es de la tienda y no aparece\naquí aunque esté activo y sea de la membresía de quien llama. La\nimplementación viaja para que quien compra sepa **antes de pagar** si\nlo que se lleva se le entrega en el acto.\n\n**Quien no tiene membresía vigente —incluida la vencida— no ve ningún\nupgrade**, y sí todos los bots. No hay nivel desde el que subir, y\nofrecerle el primero sería venderle una membresía, que no es lo que un\nupgrade hace.\n\n**Quien está en la cima recibe la lista de upgrades vacía.** No es un\nerror ni un mensaje especial: es una lista vacía.\n\n**El precio es igual para todos**: un importe distinto según quién\nmira sería un descuento, y los descuentos son promociones, que están\nfuera de alcance.\n\n**Viene UN importe** (`RN-PM-024`, reescrita el 12-09-2026): `price`,\nel que la venta cobra. **El precio de compra no viaja por aquí**: es\nlo que NEXUS paga por el producto, y quien compra no tiene por qué\nconocer el margen. Entre el 08-09-2026 y el 12-09-2026 esta respuesta\ntraía también `publicPrice`, cuando ese importe era lo que se\nanunciaba; ese campo **ya no existe**.\n\nY viene **`exchange`**, la conversión de `price` a la moneda por\nomisión con la tasa vigente hoy. **Presente y nula** cuando no hay\nnada que convertir.\n\n**Quien construya la pantalla de compra tiene que saberlo**: el\nimporte que confirma la venta es `price`, el mismo que se enseña.\n\n**Y `packages`**: los paquetes que hoy se pueden ofrecer a quien mira,\ncon su cuenta hecha y cada producto en la forma de esta misma oferta.\nUn paquete aparece si está activo, vivo, con descripción y dos productos\nal menos, todos activos y vivos, **dentro de su vigencia** —`validFrom` y\n`validTo` viajan, el fin nulo cuando es indefinido; uno que empieza mañana\no terminó ayer **no aparece**, y nada lo dice (`RN-PM-047`)— y si su\nupgrade, cuando lo tiene, sale de la membresía de quien mira.\n\nLas colecciones viajan **envueltas en un objeto** y no como\narreglos en la raíz: hoy la oferta no se pagina, y así el día que\nhaya que paginarla no romperá a ningún cliente.\n",
+        "description" : "**Permiso requerido:** `products:sale`. Sin él, `403` (`AUTH-002`).\n\nDevuelve lo que **quien llama** puede comprar hoy, y no el catálogo.\n\n**No admite ningún parámetro**: ni de persona, ni de filtro, ni de\npaginación. El actor sale del token, de modo que no hay forma de\npreguntar qué puede comprar otra persona.\n\n**Exige `products:sale`**, un permiso propio de esta vista y no\n`products:read` — ese abre el catálogo administrativo entero, lo\ninactivo, lo retirado y el motivo del retiro, para que alguien pudiera\nver tres líneas.\n\n**Solo lo activo.** Ni lo inactivo ni lo retirado aparecen aquí,\naunque el catálogo de `RF-PM-002` sí los muestre a quien administra.\n\n**Upgrades: los declarados DESDE la membresía vigente de quien mira**,\ny ninguno más. La coincidencia es exacta: no se comparan niveles ni se\nrecorre la cadena. Quien registró el producto ya decidió a quién va\ndirigido.\n\nEso incluye **todos** los declarados desde ahí y no solo el inmediato\n—quien está en el peldaño más bajo elige cuánto saltar, y el precio de\ncada uno ya expresa el salto—, y llegan ordenados **del salto más\ncorto al más largo**.\n\n**La RENOVACIÓN entra aquí**, y va primera: un producto `X → X`\ndeclarado desde su propia membresía es el salto de longitud cero. Lo\nque vende es **tiempo** —su `validityDays`— y no un cambio de nivel.\n\n**Un upgrade hacia el nivel que ya se tiene NO se ofrece cuando su\norigen no es el suyo**: sería el salto de otra persona que acaba donde\nquien mira ya está. Y **ninguna bajada** llega hasta aquí, aunque este\nfiltro ya no la mire: lo impide `RN-PM-017` **al registrar**, porque un\nproducto declarado desde mi membresía no puede apuntar por debajo.\n\n**Bots: todos los activos, para cualquiera.** No dependen del nivel de\nquien mira ni de que tenga uno.\n\n**Cada producto trae `videoUrl`**, la dirección del video que lo\npresenta, tal cual se guardó y **presente y nula** cuando no tiene\n(`RN-PM-032`). Es lo contrario del precio de compra: material de\nventa, que existe para que lo vea quien compra, y por eso **sí** viaja\npor aquí.\n\n**Publica `scope` e `implementation` de cada producto, y filtra por el\nprimero**: solo `TIENDA` y `AMBOS` (`RN-PM-019`, desde el 15-09-2026).\nUn producto `HOTLINK` o `NINGUNO` no es de la tienda y no aparece\naquí aunque esté activo y sea de la membresía de quien llama. La\nimplementación viaja para que quien compra sepa **antes de pagar** si\nlo que se lleva se le entrega en el acto.\n\n**Quien no tiene membresía vigente —incluida la vencida— no ve ningún\nupgrade**, y sí todos los bots. No hay nivel desde el que subir, y\nofrecerle el primero sería venderle una membresía, que no es lo que un\nupgrade hace.\n\n**Quien está en la cima recibe la lista de upgrades vacía.** No es un\nerror ni un mensaje especial: es una lista vacía.\n\n**El precio es igual para todos**: un importe distinto según quién\nmira sería un descuento, y los descuentos son promociones, que están\nfuera de alcance.\n\n**Viene UN importe** (`RN-PM-024`, reescrita el 12-09-2026): `price`,\nel que la venta cobra. **El precio de compra no viaja por aquí**: es\nlo que NEXUS paga por el producto, y quien compra no tiene por qué\nconocer el margen. Entre el 08-09-2026 y el 12-09-2026 esta respuesta\ntraía también `publicPrice`, cuando ese importe era lo que se\nanunciaba; ese campo **ya no existe**.\n\nY viene **`exchange`**, la conversión de `price` a la moneda por\nomisión con la tasa vigente hoy. **Presente y nula** cuando no hay\nnada que convertir.\n\n**Quien construya la pantalla de compra tiene que saberlo**: el\nimporte que confirma la venta es `price`, el mismo que se enseña.\n\n**Y `packages`**: los paquetes que hoy se pueden ofrecer a quien mira,\ncon su cuenta hecha y cada producto en la forma de esta misma oferta.\nUn paquete aparece si está activo, vivo, con descripción y dos productos\nal menos, todos activos y vivos, **dentro de su vigencia** —`validFrom` y\n`validTo` viajan, el fin nulo cuando es indefinido; uno que empieza mañana\no terminó ayer **no aparece**, y nada lo dice (`RN-PM-047`)— y si su\nupgrade, cuando lo tiene, sale de la membresía de quien mira.\n\nLas colecciones viajan **envueltas en un objeto** y no como\narreglos en la raíz: hoy la oferta no se pagina, y así el día que\nhaya que paginarla no romperá a ningún cliente.\n",
         "operationId" : "oferta",
         "responses" : {
           "200" : {
@@ -11322,7 +11413,7 @@
     },
     "/api/v1/products/hotlinks" : {
       "get" : {
-        "description" : "**Permiso requerido:** `products:hotlink`. Sin él, `403` (`AUTH-002`).\n\n**Lo que un vendedor puede repartir**: los productos **activos y de\nalcance `HOTLINK` o `AMBOS`**, de los dos tipos, en `upgrades` y `services`\n— exactamente el conjunto que `GET /api/v1/hotlinks/{username}/{code}`\nresuelve enlace a enlace (`RN-PM-021`), visto entero y con token.\n\n**No mira la membresía de quien llama**, y ahí se aparta de la oferta\n(`GET /api/v1/products/available`): el vendedor no compra lo que\nreparte, de modo que un `BECA → ORO` le interesa aunque él esté en\n`ORO`. Por eso la respuesta no trae `currentMembership`. Cada producto\nva en la forma de venta —`price`, `exchange`, `links`,\n`coverImageUrl`, `rating`— y **sin `purchasePrice`** (`RN-PM-024`).\n\n**No trae el enlace armado.** El cliente lo compone con el `username`\nde `GET /api/v1/users/me` y el `code` de cada producto:\n`/api/v1/hotlinks/{username}/{code}`. Que ese enlace resuelva exige\nademás que quien lo reparte sea fuerza comercial (`RN-PM-022`); esta\nlista dice qué se publica, no quién puede publicarlo. **Sin\nparámetros y sin paginar**: es el catálogo publicable, entero. Los\npaquetes llegarán a esta misma respuesta con `RF-PM-026`.\n",
+        "description" : "**Permiso requerido:** `products:hotlink`. Sin él, `403` (`AUTH-002`).\n\n**Lo que un vendedor puede repartir**: los productos **activos y de\nalcance `HOTLINK` o `AMBOS`**, de los dos tipos, en `upgrades` y `services`\n— exactamente el conjunto que `GET /api/v1/hotlinks/{username}/{code}`\nresuelve enlace a enlace (`RN-PM-021`), visto entero y con token.\n\n**No mira la membresía de quien llama**, y ahí se aparta de la oferta\n(`GET /api/v1/products/available`): el vendedor no compra lo que\nreparte, de modo que un `BECA → ORO` le interesa aunque él esté en\n`ORO`. Por eso la respuesta no trae `currentMembership`. Cada producto\nva en la forma de venta —`price`, `exchange`, `videoUrl`,\n`coverImageUrl`, `rating`— y **sin `purchasePrice`** (`RN-PM-024`).\n\n**No trae el enlace armado.** El cliente lo compone con el `username`\nde `GET /api/v1/users/me` y el `code` de cada producto:\n`/api/v1/hotlinks/{username}/{code}`. Que ese enlace resuelva exige\nademás que quien lo reparte sea fuerza comercial (`RN-PM-022`); esta\nlista dice qué se publica, no quién puede publicarlo. **Sin\nparámetros y sin paginar**: es el catálogo publicable, entero. Los\npaquetes llegarán a esta misma respuesta con `RF-PM-026`.\n",
         "operationId" : "catalogoDeHotlinks",
         "responses" : {
           "200" : {
@@ -11352,7 +11443,7 @@
     },
     "/api/v1/products/{id}" : {
       "get" : {
-        "description" : "**Permiso requerido:** `products:read`. Sin él, `403` (`AUTH-002`).\n\nDevuelve el producto con su membresía destino y su moneda **resueltas**,\nsin exigir una segunda consulta.\n\nTrae **los dos precios** —`price`, el que se cobra, y `purchasePrice`,\nel **precio de compra**: lo que NEXUS paga por el producto, que llega\n**nulo y presente** si no se conoce— y **`exchange`**, la conversión\nde `price` a la moneda por omisión con la tasa vigente hoy. La\nconversión llega **presente y nula** cuando el producto ya está en esa\nmoneda o cuando nadie declaró una tasa (`RN-PM-024`). El precio de\ncompra solo se ve aquí y en el listado: la oferta y el hotlink no lo\ndevuelven.\n\nTrae **`links`**, los enlaces del producto **tal cual se guardaron** y\n**presente y vacía** cuando no tiene ninguno (`RN-PM-048`) — también en\nun producto retirado. Como el listado, **los enseña todos**,\n`CUPON_BOT` incluido: es la lectura de administración.\n\n**Un producto retirado se devuelve marcado como tal**, no como\ninexistente: `deletedAt` dice desde cuándo y `deletionReason` **por\nqué**. Los dos campos **solo aparecen si el producto está retirado** —\nsu ausencia significa que sigue vivo—. El motivo llega con\n`products:read` y **sin exigir permiso de auditoría**; es la\ncontrapartida asumida de que el detalle lo devuelva.\n\n**No devuelve autoría en ninguna forma**: ni quién lo creó, ni quién lo\ncorrigió, ni quién lo retiró. Eso vive en la auditoría y tiene su\npropio permiso.\n\n`targetMembership` y `validityDays` viajan **presentes en nulo** cuando\nno aplican: un bot no tiene destino y un producto puede no\ncaducar, y un campo ausente es indistinguible de uno que el cliente no\nconoce.\n\nEl **nivel** del destino es el **actual**, no el que tenía cuando se\ncreó el producto: la cadena de membresías se reordena al insertar un\neslabón.\n\nUn identificador con forma laxa se rechaza como **dato inválido**\n(`400`), no como recurso no encontrado.\n",
+        "description" : "**Permiso requerido:** `products:read`. Sin él, `403` (`AUTH-002`).\n\nDevuelve el producto con su membresía destino y su moneda **resueltas**,\nsin exigir una segunda consulta.\n\nTrae **los dos precios** —`price`, el que se cobra, y `purchasePrice`,\nel **precio de compra**: lo que NEXUS paga por el producto, que llega\n**nulo y presente** si no se conoce— y **`exchange`**, la conversión\nde `price` a la moneda por omisión con la tasa vigente hoy. La\nconversión llega **presente y nula** cuando el producto ya está en esa\nmoneda o cuando nadie declaró una tasa (`RN-PM-024`). El precio de\ncompra solo se ve aquí y en el listado: la oferta y el hotlink no lo\ndevuelven.\n\nTrae **`videoUrl`**, la dirección del video que presenta el producto,\n**tal cual se guardó** y **presente y nula** cuando no tiene\n(`RN-PM-032`) — también en un producto retirado.\n\n**Un producto retirado se devuelve marcado como tal**, no como\ninexistente: `deletedAt` dice desde cuándo y `deletionReason` **por\nqué**. Los dos campos **solo aparecen si el producto está retirado** —\nsu ausencia significa que sigue vivo—. El motivo llega con\n`products:read` y **sin exigir permiso de auditoría**; es la\ncontrapartida asumida de que el detalle lo devuelva.\n\n**No devuelve autoría en ninguna forma**: ni quién lo creó, ni quién lo\ncorrigió, ni quién lo retiró. Eso vive en la auditoría y tiene su\npropio permiso.\n\n`targetMembership` y `validityDays` viajan **presentes en nulo** cuando\nno aplican: un bot no tiene destino y un producto puede no\ncaducar, y un campo ausente es indistinguible de uno que el cliente no\nconoce.\n\nEl **nivel** del destino es el **actual**, no el que tenía cuando se\ncreó el producto: la cadena de membresías se reordena al insertar un\neslabón.\n\nUn identificador con forma laxa se rechaza como **dato inválido**\n(`400`), no como recurso no encontrado.\n",
         "operationId" : "detalle_2",
         "parameters" : [ {
           "in" : "path",
@@ -11395,7 +11486,7 @@
         "x-required-permission" : "products:read"
       },
       "patch" : {
-        "description" : "**Permiso requerido:** `products:update`. Sin él, `403` (`AUTH-002`).\n\nCorrige el **nombre**, la **descripción**, el **icono**, el **enlace\ndel video**, **los dos precios**, la **moneda**, la **vigencia**, el\n**alcance** y la **implementación**. Se aplica lo que llega y se deja\nintacto lo que no.\n\n**Distingue el campo ausente del enviado vacío**, y de ahí salen dos\ncomportamientos opuestos: `description: null`, `icon: null`,\n`links: null`, `validityDays: null` y `purchasePrice: null`\n**vacían** el campo,\nmientras que `name: null` y `price: null` se **rechazan**, porque un\nproducto sin nombre o sin precio del sistema no puede existir.\n\n**`purchasePrice` es el precio de compra** —lo que NEXUS paga por el\nproducto— y esta operación es donde hoy se registra lo que costó.\n**Vaciarlo NO es ponerlo a cero**: con nulo el costo pasa a «no se\nconoce», y con cero a «no costó nada». Son dos estados distintos y\nlos dos se alcanzan desde aquí. Se llamó `publicPrice` hasta el\n12-09-2026; ese nombre es hoy una propiedad desconocida y devuelve\n`400`.\n\n**`scope: null` e `implementation: null` también se rechazan**, y ahí\nvan con el nombre y no con la descripción: son obligatorios en la\ncolumna, de modo que «bórralo» no tiene ningún estado al que llevar el\nproducto. Devuelven `400` con `VAL-007` y `VAL-008`.\n\n**El alcance y la implementación SÍ se corrigen, aunque el tipo y las\nmembresías no**: ninguna de las dos define qué derecho otorga el\nproducto —una dice en qué vistas se ofrece y la otra quién lo aplica—,\nde modo que corregirlas no reescribe lo que compró quien lo compró.\n`scope` admite `TIENDA`, `HOTLINK`, `AMBOS` y `NINGUNO`; **corregir\nun producto activo a `NINGUNO` no lo desactiva**: sigue activo y deja\nde ofrecerse. `HOTLINKS` se rechaza con `400`, como cualquier valor\nfuera del dominio.\n\n**El icono sí se corrige, aunque el tipo no**: es el aspecto del\nproducto y no lo que otorga. En un `BOT`, cualquier valor distinto de\nnulo se rechaza con `VAL-013` (`RN-PM-016`).\n\n**`links` se corrige EN BLOQUE, y la colección que llega es la que\nQUEDA** (`RN-PM-048`). No es un campo por enlace: **un tipo que no viene\nse BORRA**, uno que viene y no estaba se crea, y uno que viene con otra\ndirección se reescribe. Enviar `null` o `[]` **quita todos**; **no\nenviar el campo no toca ninguno** — esa es la distinción que decide\nentre conservar lo que hay y borrarlo, y conviene no confundirlas.\n\nLas comprobaciones son las del alta con los números de esta operación:\ntipo desconocido `VAL-014`, tipo repetido `VAL-015`, dirección que falta\n`VAL-016`, forma de la dirección `VAL-009`, forma del identificador\n`VAL-017` e identificador sobre una dirección con `?` o `#` `VAL-018`.\nCualquiera de ellas rechaza **sin aplicar ningún otro cambio** de la\nmisma petición, y el error **nombra el enlace por su índice**.\n**Enviar el mismo conjunto que ya tenía no registra evento.**\n\n**El tipo, el código y la membresía destino NO se pueden corregir**, y\nenviarlos devuelve `400` con `VAL-006`. Se rechazan y no se ignoran:\nignorarlos haría creer que el cambio se aplicó. Definen qué derecho\notorga el producto, y cambiarlos convertiría lo comprado en otra cosa.\n\n**Los DOS importes se validan contra la moneda que va a quedar**, y no\nsolo el que llega en la petición: cambiar **solo** la moneda puede\ndejar sin caber a un precio que nadie tocó, y el rechazo **nombra el\ncampo** que no cabe. Y el importe **no se convierte**: el sistema no\nhace conversión de divisa — cambiar de moneda es declarar que ese\nnúmero siempre estuvo en la otra.\n\n**Un producto retirado no se corrige**: lo que se retiró debe quedar\ncomo estaba para que lo que lo referencie siga diciendo la verdad.\n\n**No se exige motivo**, ni siquiera al cambiar el precio. Una petición\nque no cambia nada devuelve `200` y **no registra evento**.\n",
+        "description" : "**Permiso requerido:** `products:update`. Sin él, `403` (`AUTH-002`).\n\nCorrige el **nombre**, la **descripción**, el **icono**, el **enlace\ndel video**, **los dos precios**, la **moneda**, la **vigencia**, el\n**alcance** y la **implementación**. Se aplica lo que llega y se deja\nintacto lo que no.\n\n**Distingue el campo ausente del enviado vacío**, y de ahí salen dos\ncomportamientos opuestos: `description: null`, `icon: null`,\n`videoUrl: null`, `validityDays: null` y `purchasePrice: null`\n**vacían** el campo,\nmientras que `name: null` y `price: null` se **rechazan**, porque un\nproducto sin nombre o sin precio del sistema no puede existir.\n\n**`purchasePrice` es el precio de compra** —lo que NEXUS paga por el\nproducto— y esta operación es donde hoy se registra lo que costó.\n**Vaciarlo NO es ponerlo a cero**: con nulo el costo pasa a «no se\nconoce», y con cero a «no costó nada». Son dos estados distintos y\nlos dos se alcanzan desde aquí. Se llamó `publicPrice` hasta el\n12-09-2026; ese nombre es hoy una propiedad desconocida y devuelve\n`400`.\n\n**`scope: null` e `implementation: null` también se rechazan**, y ahí\nvan con el nombre y no con la descripción: son obligatorios en la\ncolumna, de modo que «bórralo» no tiene ningún estado al que llevar el\nproducto. Devuelven `400` con `VAL-007` y `VAL-008`.\n\n**El alcance y la implementación SÍ se corrigen, aunque el tipo y las\nmembresías no**: ninguna de las dos define qué derecho otorga el\nproducto —una dice en qué vistas se ofrece y la otra quién lo aplica—,\nde modo que corregirlas no reescribe lo que compró quien lo compró.\n`scope` admite `TIENDA`, `HOTLINK`, `AMBOS` y `NINGUNO`; **corregir\nun producto activo a `NINGUNO` no lo desactiva**: sigue activo y deja\nde ofrecerse. `HOTLINKS` se rechaza con `400`, como cualquier valor\nfuera del dominio.\n\n**El icono sí se corrige, aunque el tipo no**: es el aspecto del\nproducto y no lo que otorga. En un `BOT`, cualquier valor distinto de\nnulo se rechaza con `VAL-013` (`RN-PM-016`).\n\n**`videoUrl` se corrige y se vacía en los DOS tipos** —con `null` o\ncon `\"\"`, que aquí también es un vaciado— y sin la condición del\nicono (`RN-PM-032`). Se comprueba **solo la forma** —URL absoluta\n`http` o `https`, sin espacios, hasta 500 caracteres— y lo demás se\nrechaza con `VAL-009` **sin aplicar ningún otro cambio** de la misma\npetición. Se guarda tal cual, recortado, y el sistema no lo sigue.\n\n**El tipo, el código y la membresía destino NO se pueden corregir**, y\nenviarlos devuelve `400` con `VAL-006`. Se rechazan y no se ignoran:\nignorarlos haría creer que el cambio se aplicó. Definen qué derecho\notorga el producto, y cambiarlos convertiría lo comprado en otra cosa.\n\n**Los DOS importes se validan contra la moneda que va a quedar**, y no\nsolo el que llega en la petición: cambiar **solo** la moneda puede\ndejar sin caber a un precio que nadie tocó, y el rechazo **nombra el\ncampo** que no cabe. Y el importe **no se convierte**: el sistema no\nhace conversión de divisa — cambiar de moneda es declarar que ese\nnúmero siempre estuvo en la otra.\n\n**Un producto retirado no se corrige**: lo que se retiró debe quedar\ncomo estaba para que lo que lo referencie siga diciendo la verdad.\n\n**No se exige motivo**, ni siquiera al cambiar el precio. Una petición\nque no cambia nada devuelve `200` y **no registra evento**.\n",
         "operationId" : "corregir_1",
         "parameters" : [ {
           "in" : "path",
@@ -11918,7 +12009,7 @@
     "/api/v1/roles" : {
       "get" : {
         "description" : "**Permiso requerido:** `roles:list`. Sin él, `403` (`AUTH-002`).\n\nListado paginado con filtros, búsqueda y ordenamiento. Es la entrada\nnatural a la administración de accesos: de aquí se navega al detalle de\ncada rol.\n\n**El orden por defecto es `code,asc`**: el código es el identificador\ncon el que se habla de un rol en la documentación y en la auditoría.\nSolo se puede ordenar por la lista blanca —`code`, `name`, `roleType`,\n`status`, `createdAt`, `updatedAt`—; cualquier otro campo devuelve\n`400` y **no llega a la base de datos**.\n\n**No incluye los permisos de cada rol** ni el número de usuarios\nasignados: la primera pregunta la responde el detalle\n(`GET /api/v1/roles/{id}`) y la segunda se hace sobre un rol concreto,\nno sobre la lista.\n\n**`parentRoleId` no se valida contra el catálogo.** Filtra por el padre\n**directo** —no por el subárbol— y uno inexistente devuelve la\ncolección vacía, que no es un error.\n\nLa búsqueda va sobre código y nombre, **sin distinguir acentos ni\nmayúsculas**, y por fragmento: `ministracion` encuentra\n`ADMINISTRACION`. Un término en blanco equivale a no filtrar.\n\n**Los eliminados quedan fuera salvo que se pidan** con\n`includeDeleted=true`; cuando se piden, `deletedAt` es lo que permite\ndistinguirlos.\n",
-        "operationId" : "listar_2",
+        "operationId" : "listar_3",
         "parameters" : [ {
           "in" : "query",
           "name" : "page",
@@ -12632,6 +12723,241 @@
         "summary" : "Activar o desactivar un rol",
         "tags" : [ "Roles" ],
         "x-required-permission" : "roles:change-status"
+      }
+    },
+    "/api/v1/teams" : {
+      "get" : {
+        "description" : "**Permiso requerido:** `teams:list`. Sin él, `403` (`AUTH-002`).\n\nEl catálogo de administración de equipos, paginado y **en orden alfabético\npor nombre**, con el más antiguo primero entre dos que empaten. Se ordena\nasí, y no por fecha de alta, porque el nombre es lo único que identifica a un\nequipo y la lista es corta; `createdAt` también se admite, descendente por\nomisión.\n\nCada fila trae **`memberCount`, cuántos miembros VIGENTES tiene hoy**: las\npertenencias cerradas son historial y no cuentan, de modo que un equipo con\ndos cerradas y una abierta dice uno. **No depende del estado**: un equipo\n`INACTIVO` conserva a su gente y la sigue contando. Un equipo eliminado dice\ncero, porque no se elimina un equipo con miembros vigentes.\n\n**La fila no trae la descripción ni quiénes son los miembros**: eso es el\ndetalle (`GET /teams/{id}`). Publicar los miembros por fila haría que la\nrespuesta creciera con el producto de dos cardinalidades.\n\nBusca por `q` —nombre, **por contenido** y sin distinguir mayúsculas ni\nacentos: «norte» encuentra «Equipo Norte» y «Región NORTE»—. Filtra por\n`status` (`ACTIVO` o `INACTIVO`, en cualquier caja). **Excluye los\neliminados** salvo `includeDeleted=true`, y entonces los trae con su\n`deletedAt`; los dos filtros deciden por separado. «Vacío» no es filtro: el\nrecuento se publica por fila y la pantalla separa.\n\nLos parámetros inválidos se devuelven **juntos** con `400`. Exige\n`teams:list`; `teams:read` **no** habilita esta operación, porque listar y\nabrir son dos permisos.\n",
+        "operationId" : "listar_2",
+        "parameters" : [ {
+          "in" : "query",
+          "name" : "page",
+          "required" : false,
+          "schema" : {
+            "format" : "int32",
+            "type" : "integer"
+          }
+        }, {
+          "in" : "query",
+          "name" : "size",
+          "required" : false,
+          "schema" : {
+            "format" : "int32",
+            "type" : "integer"
+          }
+        }, {
+          "in" : "query",
+          "name" : "sort",
+          "required" : false,
+          "schema" : {
+            "type" : "string"
+          }
+        }, {
+          "in" : "query",
+          "name" : "q",
+          "required" : false,
+          "schema" : {
+            "type" : "string"
+          }
+        }, {
+          "in" : "query",
+          "name" : "status",
+          "required" : false,
+          "schema" : {
+            "type" : "string"
+          }
+        }, {
+          "in" : "query",
+          "name" : "includeDeleted",
+          "required" : false,
+          "schema" : {
+            "type" : "string"
+          }
+        } ],
+        "responses" : {
+          "200" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/PageResponseTeamItem"
+                }
+              }
+            },
+            "description" : "La página de equipos."
+          },
+          "400" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/PageResponseTeamItem"
+                }
+              }
+            },
+            "description" : "Paginación, `status`, `sort` o `includeDeleted` inválidos, juntos (`VAL-001` a `VAL-004`)"
+          },
+          "401" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/PageResponseTeamItem"
+                }
+              }
+            },
+            "description" : "Token ausente o inválido (`AUTH-001`)"
+          },
+          "403" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/PageResponseTeamItem"
+                }
+              }
+            },
+            "description" : "Autenticado sin el permiso `teams:list` (`AUTH-002`)"
+          }
+        },
+        "summary" : "Consultar los equipos",
+        "tags" : [ "Equipos" ],
+        "x-required-permission" : "teams:list"
+      },
+      "post" : {
+        "description" : "**Permiso requerido:** `teams:create`. Sin él, `403` (`AUTH-002`).\n\nRegistra un equipo con **nombre** obligatorio y descripción opcional. **Nace\nvacío y `ACTIVO`**: los miembros se asignan después, con su propia petición,\nporque asignar comprueba que cada persona sea de la cúspide y cierra su\npertenencia anterior.\n\n**No tiene código**, al contrario que un rol o una membresía: nada del\nsistema referencia a un equipo por un nombre estable, y se llega a él por su\nidentificador. Lo que identifica es el nombre, **único entre los equipos no\neliminados, sin distinguir mayúsculas ni acentos**; un equipo eliminado\nlibera el suyo, y el equipo que lo reutilice no hereda nada —ni miembros, ni\nhistorial—.\n\n**Tampoco tiene país ni responsable**: un equipo no se organiza por territorio\ny lo que hay por encima de un manager es administración, no otro manager.\nEnviar `status`, `members` o `code` responde `400`.\n\nLa respuesta es la misma forma que el detalle: `memberCount` en cero,\n`members` vacío y `description` presente y nula si no vino. **Pertenecer a un\nequipo no concede acceso a ningún dato.** Exige `teams:create`; ningún otro\n`teams:` habilita esta operación.\n",
+        "operationId" : "register",
+        "requestBody" : {
+          "content" : {
+            "application/json" : {
+              "schema" : {
+                "$ref" : "#/components/schemas/RegisterTeamRequest"
+              }
+            }
+          },
+          "required" : true
+        },
+        "responses" : {
+          "201" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/TeamDetailResponse"
+                }
+              }
+            },
+            "description" : "Equipo registrado, activo y sin miembros."
+          },
+          "400" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/TeamDetailResponse"
+                }
+              }
+            },
+            "description" : "Datos inválidos, juntos (`VAL-001`, `VAL-002`), o un cuerpo con `status`, `members` o `code` (`VAL-003`)"
+          },
+          "401" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/TeamDetailResponse"
+                }
+              }
+            },
+            "description" : "Token ausente o inválido (`AUTH-001`)"
+          },
+          "403" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/TeamDetailResponse"
+                }
+              }
+            },
+            "description" : "Autenticado sin el permiso `teams:create` (`AUTH-002`)"
+          },
+          "409" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/TeamDetailResponse"
+                }
+              }
+            },
+            "description" : "Nombre ya en uso por un equipo no eliminado (`EX-001`)"
+          }
+        },
+        "summary" : "Registrar un equipo",
+        "tags" : [ "Equipos" ],
+        "x-required-permission" : "teams:create"
+      }
+    },
+    "/api/v1/teams/{id}" : {
+      "get" : {
+        "description" : "**Permiso requerido:** `teams:read`. Sin él, `403` (`AUTH-002`).\n\nEl equipo entero: lo suyo —incluida la `description`, que el listado no\ntrae— y **sus miembros vigentes**, cada uno con `id`, `username`,\n`firstName`, `lastName`, `status` y `joinedAt`, **desde cuándo pertenece a\neste equipo**. La lista va **por antigüedad**, con el nombre de usuario de\ndesempate para que el orden sea determinista.\n\n**El `status` de cada miembro es el de la PERSONA**, no el de su pertenencia\n—una pertenencia vigente no tiene estados—, y se publica porque un manager\ndesactivado **sigue en su equipo**: cambiar el estado de una persona no la\nsaca. Quien administra necesita verlo sin abrir cada ficha. A un eliminado\nsí se le cierra la pertenencia en la misma transacción, de modo que deja de\nser vigente y no aparece.\n\n**`members` son solo los vigentes**: quien tuvo una pertenencia cerrada aquí\nno sale, y `memberCount` coincide siempre con el tamaño de la lista y con el\nnúmero que da el listado para este mismo equipo.\n\n**Un equipo eliminado NO es un `404`**: se devuelve con `deletedAt` y\n`deletionReason` —leído de la auditoría de eliminación— y con `members`\nvacío, no por ocultarlos sino porque no se elimina un equipo que tenga\nvigentes. Si el registro de auditoría no aparece, `deletionReason` sale\n**presente y nulo**: el detalle no depende de la auditoría para responder.\nUn equipo `INACTIVO` se devuelve igual, **con su gente**: desactivar no\nvacía.\n\nExige `teams:read`; `teams:list` **no** habilita esta operación, porque\nlistar y abrir son dos.\n",
+        "operationId" : "detalle_7",
+        "parameters" : [ {
+          "in" : "path",
+          "name" : "id",
+          "required" : true,
+          "schema" : {
+            "format" : "uuid",
+            "type" : "string"
+          }
+        } ],
+        "responses" : {
+          "200" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/TeamDetailResponse"
+                }
+              }
+            },
+            "description" : "El equipo con sus miembros vigentes."
+          },
+          "400" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/TeamDetailResponse"
+                }
+              }
+            },
+            "description" : "Identificador mal formado (`VAL-001`)"
+          },
+          "401" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/TeamDetailResponse"
+                }
+              }
+            },
+            "description" : "Token ausente o inválido (`AUTH-001`)"
+          },
+          "403" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/TeamDetailResponse"
+                }
+              }
+            },
+            "description" : "Autenticado sin el permiso `teams:read` (`AUTH-002`)"
+          },
+          "404" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/TeamDetailResponse"
+                }
+              }
+            },
+            "description" : "El equipo no existe (`EX-001`)"
+          }
+        },
+        "summary" : "Consultar el detalle de un equipo",
+        "tags" : [ "Equipos" ],
+        "x-required-permission" : "teams:read"
       }
     },
     "/api/v1/user-commission-rates" : {
@@ -14038,6 +14364,9 @@
   "tags" : [ {
     "description" : "Catálogo de países. Inmutable salvo su estado.",
     "name" : "Países"
+  }, {
+    "description" : "Los equipos en que se organiza la cúspide de la fuerza comercial.",
+    "name" : "Equipos"
   }, {
     "description" : "Tasas de comisión personalizadas: la excepción por persona.",
     "name" : "Comisiones"

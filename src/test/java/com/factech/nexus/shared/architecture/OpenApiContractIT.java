@@ -428,6 +428,45 @@ class OpenApiContractIT extends IntegrationTestBase {
   }
 
   @Test
+  @DisplayName(
+      "el listado de equipos se publica con su permiso propio y con la página de `TeamItem` como"
+          + " esquema con nombre")
+  void elListadoDeEquiposEstaDocumentado() throws Exception {
+    // `RF-SP-064` · `T-06`. Dos cosas que solo se ven en el contrato: que
+    // listar exige `teams:list` —y no el `teams:read` del detalle, que es la
+    // confusión que `RN-SEG-014` existe para impedir— y que la envoltura sale
+    // como `PageResponseTeamItem`, con la fila DENTRO. Anotar la respuesta con
+    // `@Schema(implementation = PageResponse.class)` publicaría la envoltura
+    // cruda, sin decir qué lleva: es lo que `RF-SP-056` dejó escrito.
+    mvc.perform(get("/v3/api-docs").with(user("doc")))
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$.paths['/api/v1/teams'].get").exists())
+        .andExpect(jsonPath("$.paths['/api/v1/teams'].get.summary").value("Consultar los equipos"))
+        .andExpect(
+            jsonPath("$.paths['/api/v1/teams'].get['x-required-permission']").value("teams:list"))
+        .andExpect(
+            jsonPath("$.paths['/api/v1/teams'].post['x-required-permission']")
+                .value("teams:create"))
+        .andExpect(jsonPath("$.paths['/api/v1/teams'].get.responses.400").exists())
+        .andExpect(jsonPath("$.paths['/api/v1/teams'].get.responses.403").exists())
+        .andExpect(jsonPath("$.components.schemas.PageResponseTeamItem").exists())
+        .andExpect(jsonPath("$.components.schemas.TeamItem.properties.memberCount").exists())
+        // La fila del listado NO lleva ni descripción ni miembros: eso es el
+        // detalle, y el contrato tiene que decirlo tan claro como el código.
+        .andExpect(jsonPath("$.components.schemas.TeamItem.properties.description").doesNotExist())
+        .andExpect(jsonPath("$.components.schemas.TeamItem.properties.members").doesNotExist())
+        // `RF-SP-065`: el detalle es OTRA operación con OTRO permiso, y su
+        // esquema sí lleva lo que la fila del listado no lleva.
+        .andExpect(
+            jsonPath("$.paths['/api/v1/teams/{id}'].get['x-required-permission']")
+                .value("teams:read"))
+        .andExpect(jsonPath("$.paths['/api/v1/teams/{id}'].get.responses.404").exists())
+        .andExpect(jsonPath("$.components.schemas.TeamDetailResponse.properties.members").exists())
+        .andExpect(
+            jsonPath("$.components.schemas.TeamDetailResponse.properties.deletionReason").exists());
+  }
+
+  @Test
   @DisplayName("cada operación dice QUÉ PERMISO exige, y lo dice desde la anotación que lo aplica")
   void cadaOperacionDeclaraSuPermiso() throws Exception {
     // Hasta el 18-09-2026 el permiso vivía en la prosa del 403, escrita a mano y

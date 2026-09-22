@@ -35,7 +35,7 @@ class JpaPermissionQueryRepositoryIT extends IntegrationTestBase {
   @Test
   @DisplayName("sin filtros devuelve el catálogo completo")
   void sinFiltrosDevuelveTodo() {
-    assertThat(repository.find(ListPermissionsQuery.all())).hasSize(125);
+    assertThat(repository.find(ListPermissionsQuery.all())).hasSize(133);
   }
 
   @Test
@@ -86,15 +86,16 @@ class JpaPermissionQueryRepositoryIT extends IntegrationTestBase {
   @Test
   @DisplayName("la búsqueda ignora acentos y mayúsculas")
   void busquedaSinAcentosNiMayusculas() {
-    // «logicamente» sin tilde debe encontrar las dos descripciones que dicen
-    // «Eliminar lógicamente…». Falla si la normalización se hace en Java en
+    // «logicamente» sin tilde debe encontrar las TRES descripciones que dicen
+    // «Eliminar lógicamente…» —roles, equipos y usuarios—. Falla si la
+    // normalización se hace en Java en
     // lugar de con f_unaccent en la base de datos.
     assertThat(codesOf(ListPermissionsQuery.of(null, null, "logicamente")))
-        .containsExactly("roles:delete", "users:delete");
+        .containsExactly("roles:delete", "teams:delete", "users:delete");
 
     // Da igual la caja del término y la de la fila, y el orden se mantiene.
     assertThat(codesOf(ListPermissionsQuery.of(null, null, "LÓGICAMENTE")))
-        .containsExactly("roles:delete", "users:delete");
+        .containsExactly("roles:delete", "teams:delete", "users:delete");
   }
 
   @Test
