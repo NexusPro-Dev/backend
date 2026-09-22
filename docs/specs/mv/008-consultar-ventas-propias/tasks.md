@@ -6,7 +6,7 @@
 | Especificación | [`spec.md`](spec.md) v0.3.0 |
 | Plan | [`plan.md`](plan.md) v0.3.0 |
 | `plan.md` aprobado el | 05-09-2026 |
-| Estado | **En revisión** — `T-01` a `T-12` `Hecha`; `T-13` a `T-16` `Hecha` el 16-09-2026 (§1.1); `T-17` a `T-20` (§1.2) `Hecha` el 21-09-2026; `T-21` a `T-23` (§1.3) `Hecha` el 21-09-2026 |
+| Estado | **En revisión** — `T-01` a `T-12` `Hecha`; `T-13` a `T-16` `Hecha` el 16-09-2026 (§1.1); `T-17` a `T-20` (§1.2) `Hecha` el 21-09-2026; `T-21` a `T-23` (§1.3) `Hecha` el 21-09-2026; `T-24` a `T-27` (§1.4) `Pendiente` |
 | Issue | Las enmiendas del 21-09-2026: [#76](https://github.com/NexusPro-Dev/backend/issues/76) (§1.2) y [#79](https://github.com/NexusPro-Dev/backend/issues/79) (§1.3) |
 | Rama | `feature/venta-de-productos`; la enmienda del 21-09-2026, en `feature/filtro-por-tipo-de-movimiento` |
 
@@ -69,6 +69,17 @@ Enmienda de hecho (Art. I.7), `spec.md` 0.4.0 y `plan.md` 0.4.0 **antes** del c�
 | `T-22` | `MovementController`: los cuatro parámetros documentados en `GET /mine`; `MyMovementsIT`: `CA-MV-133` a `CA-MV-135`, con el comprobante ajeno | `T-21` | El `400` del rango invertido y el `VAL-006` del identificador malformado | **Hecha** — 21-09-2026 (`MyMovementsIT`, 22) |
 | `T-23` | Contrato regenerado y prosa releída; `docs/api/index.md`; matriz de `requirements.md` | `T-22` | `openapi.json` declara los cuatro en `GET /api/v1/movements/mine` | **Hecha** — 21-09-2026 |
 
+### 1.4 El listado trae solo lo comprado — 22-09-2026
+
+Enmienda de hecho (Art. I.7), `spec.md` 0.5.0 y `plan.md` 0.5.0 **antes** del código, por decisión del responsable del proyecto: «que mis compras solo traiga lo del usuario en sesión». Sin migración. **Cambio rompedor del contrato**: la fila pierde `role`.
+
+| ID | Tarea | Depende de | Verificación | Estado |
+|---|---|---|---|---|
+| `T-24` | `SELECCION_PROPIA` pasa a `m.user_id = :actor`; `CABECERA_PROPIA` pierde el `CASE` del papel y `findById` deja de atar `:actor` a nulo; `MyMovementRow` pierde `role` | — | El detalle sin alcance de `RF-MV-003` sigue en verde: era el único que ataba el parámetro por el `CASE` | `Pendiente` |
+| `T-25` | `MyMovementResponse` pierde `role` y se **retira** `MovementRole`; `ListMyMovementsService` deja de mapearlo | `T-24` | Ninguna clase importa `MovementRole`; el compilador lo confirma | `Pendiente` |
+| `T-26` | `MyMovementsIT`: `CA-MV-137` a `CA-MV-139`; retirar `CA-MV-035`, `CA-MV-036` y `CA-MV-037` del listado y **reescribir** los recuentos que contaban las dos mitades (`CA-MV-038`, `CA-MV-040`); la prueba del detalle de lo vendido es la que protege la asimetría | `T-25` | `CA-MV-138` falla si alguien acota `findMineById` | `Pendiente` |
+| `T-27` | `MovementController`: la prosa de `GET /mine` dice que trae solo lo comprado y adónde va lo vendido; contrato regenerado; `docs/api/index.md` con el **cambio rompedor**; matriz de `requirements.md` | `T-26` | `openapi.json` no declara `role` en `MyMovement`, y `MovementRole` desaparece de los esquemas | `Pendiente` |
+
 ---
 
 ## 2. Cobertura de los criterios de aceptación
@@ -84,6 +95,7 @@ Enmienda de hecho (Art. I.7), `spec.md` 0.4.0 y `plan.md` 0.4.0 **antes** del c�
 | `CA-MV-046`, `CA-MV-047` | `T-09`, `T-10` |
 | `CA-MV-120`, `CA-MV-121` | `T-17`, `T-18`, `T-19` — 21-09-2026 |
 | `CA-MV-133`, `CA-MV-134`, `CA-MV-135` | `T-21`, `T-22` — 21-09-2026 |
+| `CA-MV-137`, `CA-MV-138`, `CA-MV-139` | `T-24`, `T-25`, `T-26` — 22-09-2026 |
 
 ---
 
