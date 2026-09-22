@@ -1,0 +1,162 @@
+package com.factech.nexus.modules.system.teams.domain.models;
+
+import com.factech.nexus.shared.error.FieldError;
+import com.factech.nexus.shared.error.ValidationException;
+import jakarta.persistence.Column;
+import jakarta.persistence.Entity;
+import jakarta.persistence.EnumType;
+import jakarta.persistence.Enumerated;
+import jakarta.persistence.Id;
+import jakarta.persistence.Table;
+import java.time.OffsetDateTime;
+import java.util.LinkedHashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.UUID;
+
+/**
+ * Un equipo de la fuerza comercial (`RF-SP-063`): el cajón en el que se organiza la <b>cúspide</b>.
+ *
+ * <p><b>Agrupa, no manda.</b> Quién está a cargo de quién lo dice `user_supervisors`; esto
+ * particiona las raíces de ese bosque, y por eso no tiene rol, ni jefe, ni padre: encima de la
+ * cúspide no hay nada que ordenar (`requirements/sp.md` §10.20).
+ *
+ * <p><b>Sin código</b>, al contrario que un rol o una membresía: nada del sistema referencia a un
+ * equipo por un nombre estable, y un código que nadie usa es una columna más que mantener única. Lo
+ * que identifica es el nombre, único entre los no eliminados sin distinguir mayúsculas ni acentos
+ * (`RN-SP-050`), y **por eso mismo sí se corrige** (`RF-SP-066`): si no hubiera forma de cambiarlo,
+ * una errata del alta sería permanente.
+ *
+ * <p><b>Nace vacío y `ACTIVO`.</b> Los miembros entran con `RF-SP-069`, que tiene reglas propias;
+ * mezclarlo con el alta haría que un nombre repetido y una persona que no es manager salieran por
+ * el mismo `409` sin decir cuál de las dos cosas falló.
+ */
+@Entity
+@Table(name = "teams")
+public class Team {
+
+  private static final int NOMBRE_MAXIMO = 100;
+  private static final int DESCRIPCION_MAXIMA = 500;
+
+  @Id
+  @Column(name = "id", nullable = false, updatable = false)
+  private UUID id;
+
+  @Column(name = "name", nullable = false, length = 100)
+  private String name;
+
+  @Column(name = "description")
+  private String description;
+
+  @Enumerated(EnumType.STRING)
+  @Column(name = "status", nullable = false, length = 20)
+  private TeamStatus status;
+
+  @Column(name = "created_at", nullable = false, updatable = false)
+  private OffsetDateTime createdAt;
+
+  @Column(name = "updated_at", nullable = false)
+  private OffsetDateTime updatedAt;
+
+  @Column(name = "deleted_at")
+  private OffsetDateTime deletedAt;
+
+  /** Exigido por JPA. */
+  protected Team() {}
+
+  /**
+   * Registra un equipo vacío y activo.
+   *
+   * <p>La forma de los dos campos se comprueba aquí <b>además</b> de en el DTO: el DTO devuelve los
+   * errores juntos (`CA-SP-733`), y el agregado es la red para cualquier otra vía de construcción
+   * —una semilla, una prueba, un caso de uso futuro.
+   */
+  public static Team create(UUID id, String name, String description, OffsetDateTime ahora) {
+    Team equipo = new Team();
+    equipo.id = id;
+    equipo.name = verificarNombre(name);
+    equipo.description = verificarDescripcion(description);
+    equipo.status = TeamStatus.ACTIVO;
+    equipo.createdAt = ahora;
+    equipo.updatedAt = ahora;
+    return equipo;
+  }
+
+  public boolean estaEliminado() {
+    return deletedAt != null;
+  }
+
+  public boolean estaActivo() {
+    return status == TeamStatus.ACTIVO;
+  }
+
+  /**
+   * La instantánea para la auditoría: la misma para la creación y para la baja, de modo que el
+   * registro de creación y el de eliminación describan el mismo equipo con las mismas claves. El
+   * retiro le añade a quienes pasaron por él (`RF-SP-068`).
+   */
+  public Map<String, Object> instantanea() {
+    Map<String, Object> estado = new LinkedHashMap<>();
+    estado.put("name", name);
+    estado.put("description", description);
+    estado.put("status", status.name());
+    return estado;
+  }
+
+  private static String verificarNombre(String valor) {
+    String recortado = recortar(valor);
+    if (recortado == null || recortado.length() > NOMBRE_MAXIMO) {
+      String mensaje = "El nombre es obligatorio y no puede superar los 100 caracteres.";
+      throw new ValidationException(
+          "VAL-001", mensaje, List.of(new FieldError("name", "VAL-001", mensaje)));
+    }
+    return recortado;
+  }
+
+  /** Una descripción de solo espacios se guarda <b>nula</b>: es una errata, no un valor. */
+  private static String verificarDescripcion(String valor) {
+    String recortado = recortar(valor);
+    if (recortado != null && recortado.length() > DESCRIPCION_MAXIMA) {
+      String mensaje = "La descripción no puede exceder 500 caracteres.";
+      throw new ValidationException(
+          "VAL-002", mensaje, List.of(new FieldError("description", "VAL-002", mensaje)));
+    }
+    return recortado;
+  }
+
+  private static String recortar(String valor) {
+    if (valor == null) {
+      return null;
+    }
+    String recortado = valor.trim();
+    return recortado.isEmpty() ? null : recortado;
+  }
+
+  public UUID getId() {
+    return id;
+  }
+
+  public String getName() {
+    return name;
+  }
+
+  public String getDescription() {
+    return description;
+  }
+
+  public TeamStatus getStatus() {
+    return status;
+  }
+
+  public OffsetDateTime getCreatedAt() {
+    return createdAt;
+  }
+
+  public OffsetDateTime getUpdatedAt() {
+    return updatedAt;
+  }
+
+  public OffsetDateTime getDeletedAt() {
+    return deletedAt;
+  }
+}

@@ -284,6 +284,8 @@ class EndpointPermissionsIT extends IntegrationTestBase {
           Map.entry("GET /api/v1/movements/mine/products", "movements:read-own-products"),
           Map.entry("GET /api/v1/movements/sales", "movements:list-sales"),
           Map.entry("POST /api/v1/packages/{code}/purchases", "packages:buy"),
+          // ---- SP · equipos (RF-SP-063 a RF-SP-070, V34) ----
+          Map.entry("POST /api/v1/teams", "teams:create"),
           // ---- AC · con los PADRES hasta el tramo 3 de RF-SP-060 ----
           Map.entry("POST /api/v1/course-categories", "course-categories:create"),
           Map.entry("GET /api/v1/course-categories", "course-categories:read"),
