@@ -36,6 +36,23 @@ final class TeamTestSupport {
     jdbc.update("DELETE FROM audit_deletion_log WHERE entity = 'teams'");
   }
 
+  /**
+   * Las personas que siembra una clase, borradas por su nombre de usuario.
+   *
+   * <p><b>{@link #limpiar} no las toca a propósito</b>: borrar de {@code users} a ciegas se
+   * llevaría por delante a las veinte de la semilla de desarrollo y a las que siembran otras
+   * suites. Pero quien crea personas tiene que retirarlas, o la segunda prueba de su misma clase
+   * choca contra {@code uq_users_email} —que es exactamente lo que pasó la primera vez que
+   * `RF-SP-064` corrió su fixture—. Después de {@link #limpiar}, porque {@code
+   * fk_team_members_user} es {@code ON DELETE RESTRICT} y una pertenencia viva impide borrar a su
+   * dueño.
+   */
+  static void borrarPersonas(JdbcTemplate jdbc, String... usuarios) {
+    for (String usuario : usuarios) {
+      jdbc.update("DELETE FROM users WHERE username = ?", usuario);
+    }
+  }
+
   /** Un equipo directo en la tabla, vivo y activo. */
   static UUID equipo(JdbcTemplate jdbc, String nombre) {
     return equipo(jdbc, nombre, "ACTIVO", null);
@@ -65,6 +82,25 @@ final class TeamTestSupport {
     UUID id = IDS.next();
     jdbc.update(
         "INSERT INTO team_members (id, team_id, user_id) VALUES (?, ?, ?)", id, equipo, persona);
+    return id;
+  }
+
+  /**
+   * Una pertenencia <b>cerrada</b>: historial, no equipo de hoy.
+   *
+   * <p>Es lo que distingue «cuántos hay» de «cuántos pasaron» (`RN-SP-052`), y sin ella el recuento
+   * de `RF-SP-064` sería indistinguible de un {@code count(*)} sobre la tabla. La cierra una hora
+   * después de abrirla porque {@code ck_team_members_periodo} exige que el fin sea posterior al
+   * comienzo.
+   */
+  static UUID pertenenciaCerrada(JdbcTemplate jdbc, UUID equipo, UUID persona) {
+    UUID id = IDS.next();
+    jdbc.update(
+        "INSERT INTO team_members (id, team_id, user_id, started_at, ended_at)"
+            + " VALUES (?, ?, ?, now() - interval '2 hours', now() - interval '1 hour')",
+        id,
+        equipo,
+        persona);
     return id;
   }
 

@@ -1,5 +1,6 @@
 package com.factech.nexus.modules.system.teams.domain.repository;
 
+import com.factech.nexus.modules.system.teams.application.ListTeamsRequest;
 import java.time.OffsetDateTime;
 import java.util.List;
 import java.util.Optional;
@@ -18,6 +19,21 @@ public interface TeamQueryRepository {
 
   /** La ficha con su recuento, <b>viva o eliminada</b>: el detalle devuelve las dos. */
   Optional<TeamRow> findDetail(UUID id);
+
+  /**
+   * La página del listado (`RF-SP-064`), con los filtros ya validados y el orden ya resuelto.
+   *
+   * <p>El predicado de la búsqueda usa {@code f_unaccent(lower(t.name))}, que es <b>la expresión de
+   * {@code ix_teams_busqueda}</b>: si divergieran, el índice existiría y el planificador no lo
+   * usaría nunca, y el defecto saldría como lentitud que nadie relaciona con esta consulta.
+   */
+  List<TeamRow> search(ListTeamsRequest filtros, String ordenamiento, int offset, int limit);
+
+  /**
+   * El total del mismo conjunto, exacto: los equipos de una empresa se cuentan en decenas y la
+   * tabla no crece sin cota, de modo que aquí no hace falta el techo de `RF-SP-011`.
+   */
+  long count(ListTeamsRequest filtros);
 
   /** Los miembros <b>vigentes</b>, por antigüedad y con el nombre de usuario de desempate. */
   List<TeamMemberRow> findActiveMembers(UUID teamId);
