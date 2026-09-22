@@ -23,6 +23,8 @@ security:
 tags:
 - name: Países
   description: Catálogo de países. Inmutable salvo su estado.
+- name: Equipos
+  description: Los equipos en que se organiza la cúspide de la fuerza comercial.
 - name: Comisiones
   description: "Tasas de comisión personalizadas: la excepción por persona."
 - name: Cuentas de broker
@@ -1082,6 +1084,74 @@ paths:
         "409":
           description: Ya estaba retirada
       x-required-permission: user-commission-rates:delete
+  /api/v1/teams:
+    post:
+      tags:
+      - Equipos
+      summary: Registrar un equipo
+      description: |
+        **Permiso requerido:** `teams:create`. Sin él, `403` (`AUTH-002`).
+
+        Registra un equipo con **nombre** obligatorio y descripción opcional. **Nace
+        vacío y `ACTIVO`**: los miembros se asignan después, con su propia petición,
+        porque asignar comprueba que cada persona sea de la cúspide y cierra su
+        pertenencia anterior.
+
+        **No tiene código**, al contrario que un rol o una membresía: nada del
+        sistema referencia a un equipo por un nombre estable, y se llega a él por su
+        identificador. Lo que identifica es el nombre, **único entre los equipos no
+        eliminados, sin distinguir mayúsculas ni acentos**; un equipo eliminado
+        libera el suyo, y el equipo que lo reutilice no hereda nada —ni miembros, ni
+        historial—.
+
+        **Tampoco tiene país ni responsable**: un equipo no se organiza por territorio
+        y lo que hay por encima de un manager es administración, no otro manager.
+        Enviar `status`, `members` o `code` responde `400`.
+
+        La respuesta es la misma forma que el detalle: `memberCount` en cero,
+        `members` vacío y `description` presente y nula si no vino. **Pertenecer a un
+        equipo no concede acceso a ningún dato.** Exige `teams:create`; ningún otro
+        `teams:` habilita esta operación.
+      operationId: register
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/RegisterTeamRequest"
+        required: true
+      responses:
+        "201":
+          description: "Equipo registrado, activo y sin miembros."
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/TeamDetailResponse"
+        "400":
+          description: "Datos inválidos, juntos (`VAL-001`, `VAL-002`), o un cuerpo\
+            \ con `status`, `members` o `code` (`VAL-003`)"
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/TeamDetailResponse"
+        "401":
+          description: Token ausente o inválido (`AUTH-001`)
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/TeamDetailResponse"
+        "403":
+          description: Autenticado sin el permiso `teams:create` (`AUTH-002`)
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/TeamDetailResponse"
+        "409":
+          description: Nombre ya en uso por un equipo no eliminado (`EX-001`)
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/TeamDetailResponse"
+      x-required-permission: teams:create
   /api/v1/roles:
     get:
       tags:
@@ -1667,7 +1737,7 @@ paths:
 
         **Los dos solo se ven desde administración** (`RN-PM-024`): la oferta
         de un cliente y el hotlink público devuelven **uno**.
-      operationId: register
+      operationId: register_1
       requestBody:
         content:
           application/json:
@@ -2056,7 +2126,7 @@ paths:
 
         Exige `packages:create`. **Los `products:` no habilitan**: un actor con los
         cuatro permisos del catálogo y ninguno de paquetes recibe `403`.
-      operationId: register_1
+      operationId: register_2
       requestBody:
         content:
           application/json:
@@ -2929,7 +2999,7 @@ paths:
         presente y nulo, cero minutos y cero lecciones, y `offerable: false` con
         `offerableReason` «inactivo». Exige `courses:create`; **los
         `course-categories:` no habilitan**.
-      operationId: register_2
+      operationId: register_3
       requestBody:
         content:
           application/json:
@@ -3049,7 +3119,7 @@ paths:
         La respuesta es **el módulo**, no el curso: `courseId`, `coverImageUrl`
         presente y nulo, `lessons` vacío, cero minutos y `offerable: false` con
         `offerableReason` «inactivo». Exige `courses:update`.
-      operationId: register_3
+      operationId: register_4
       parameters:
       - name: courseId
         in: path
@@ -3125,7 +3195,7 @@ paths:
 
         **La auditoría lleva la longitud del contenido y no el texto.** La respuesta es
         la lección entera, contenido incluido. Exige `courses:update`.
-      operationId: register_4
+      operationId: register_5
       parameters:
       - name: courseId
         in: path
@@ -3397,7 +3467,7 @@ paths:
         La respuesta es la misma forma que el detalle: `courseCount` en cero,
         `courses` vacío y `coverImageUrl` presente y nulo. Exige
         `course-categories:create`; **los `courses:` no habilitan**.
-      operationId: register_5
+      operationId: register_6
       requestBody:
         content:
           application/json:
@@ -9706,6 +9776,66 @@ components:
       properties:
         reason:
           type: string
+    RegisterTeamRequest:
+      type: object
+      properties:
+        name:
+          type: string
+          maxLength: 100
+          minLength: 0
+        description:
+          type: string
+          maxLength: 500
+          minLength: 0
+      required:
+      - name
+    TeamDetailResponse:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        name:
+          type: string
+        description:
+          type: string
+        status:
+          type: string
+        memberCount:
+          type: integer
+          format: int64
+        members:
+          type: array
+          items:
+            $ref: "#/components/schemas/TeamMemberItem"
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+        deletedAt:
+          type: string
+          format: date-time
+        deletionReason:
+          type: string
+    TeamMemberItem:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        username:
+          type: string
+        firstName:
+          type: string
+        lastName:
+          type: string
+        status:
+          type: string
+        joinedAt:
+          type: string
+          format: date-time
     CreateRoleRequest:
       type: object
       properties:

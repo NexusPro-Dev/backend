@@ -4234,6 +4234,22 @@
         "required" : [ "lines", "userId" ],
         "type" : "object"
       },
+      "RegisterTeamRequest" : {
+        "properties" : {
+          "description" : {
+            "maxLength" : 500,
+            "minLength" : 0,
+            "type" : "string"
+          },
+          "name" : {
+            "maxLength" : 100,
+            "minLength" : 0,
+            "type" : "string"
+          }
+        },
+        "required" : [ "name" ],
+        "type" : "object"
+      },
       "RegisterUserCommissionRateRequest" : {
         "properties" : {
           "fixedAmount" : {
@@ -5026,6 +5042,74 @@
           },
           "user" : {
             "$ref" : "#/components/schemas/BrokerAccountHolder"
+          }
+        },
+        "type" : "object"
+      },
+      "TeamDetailResponse" : {
+        "properties" : {
+          "createdAt" : {
+            "format" : "date-time",
+            "type" : "string"
+          },
+          "deletedAt" : {
+            "format" : "date-time",
+            "type" : "string"
+          },
+          "deletionReason" : {
+            "type" : "string"
+          },
+          "description" : {
+            "type" : "string"
+          },
+          "id" : {
+            "format" : "uuid",
+            "type" : "string"
+          },
+          "memberCount" : {
+            "format" : "int64",
+            "type" : "integer"
+          },
+          "members" : {
+            "items" : {
+              "$ref" : "#/components/schemas/TeamMemberItem"
+            },
+            "type" : "array"
+          },
+          "name" : {
+            "type" : "string"
+          },
+          "status" : {
+            "type" : "string"
+          },
+          "updatedAt" : {
+            "format" : "date-time",
+            "type" : "string"
+          }
+        },
+        "type" : "object"
+      },
+      "TeamMemberItem" : {
+        "properties" : {
+          "firstName" : {
+            "type" : "string"
+          },
+          "id" : {
+            "format" : "uuid",
+            "type" : "string"
+          },
+          "joinedAt" : {
+            "format" : "date-time",
+            "type" : "string"
+          },
+          "lastName" : {
+            "type" : "string"
+          },
+          "status" : {
+            "type" : "string"
+          },
+          "username" : {
+            "type" : "string"
           }
         },
         "type" : "object"
@@ -7265,7 +7349,7 @@
       },
       "post" : {
         "description" : "**Permiso requerido:** `course-categories:create`. Sin él, `403` (`AUTH-002`).\n\nRegistra un cajón del catálogo de cursos con **nombre, color, icono y orden**,\nobligatorios, y descripción opcional. **Nace viva, sin portada y sin cursos**:\nla categoría no tiene estado —está o está retirada—, la imagen se sube después\ncon su propia petición, y los cursos se clasifican desde el curso.\n\n**El color va sin `#` y sale en mayúsculas**: seis dígitos hexadecimales, que\nse admiten en minúsculas y se normalizan. **No es único**: dos categorías\npueden compartir color. **El icono es un nombre**, no una imagen; el backend\nlo guarda y no sabe pintarlo. **El orden es una posición**: entero mayor o\nigual que cero, no único, y dos con el mismo número se desempatan por\nantigüedad.\n\nEl nombre es único entre las categorías **vivas**, sin distinguir mayúsculas\nni acentos; una retirada libera el suyo. Enviar `status`, `courses` o\n`coverImageUrl` responde `400`.\n\nLa respuesta es la misma forma que el detalle: `courseCount` en cero,\n`courses` vacío y `coverImageUrl` presente y nulo. Exige\n`course-categories:create`; **los `courses:` no habilitan**.\n",
-        "operationId" : "register_5",
+        "operationId" : "register_6",
         "requestBody" : {
           "content" : {
             "application/json" : {
@@ -7658,7 +7742,7 @@
       },
       "post" : {
         "description" : "**Permiso requerido:** `courses:create`. Sin él, `403` (`AUTH-002`).\n\nRegistra un curso con **título, instructor, dificultad y orden**, obligatorios,\ny descripción corta, descripción larga y video de introducción, opcionales.\n**Nace `INACTIVO` y vacío**: sin categorías, sin recomendaciones, sin\nmembresías, sin módulos y sin portada — cada cosa entra por su operación—, y\n**sin código**: un curso no se teclea en ninguna venta.\n\n**El instructor es una persona del sistema que existe, no está retirada y\nporta `courses:teach`**, comprobado **al asignar y solo al asignar**: que lo\npierda después no toca el curso. Un instructor inexistente o retirado y uno\nsin el permiso son dos `422` distintos, porque se arreglan en sitios\ndistintos. **`instructor.fullName` es el nombre actual** de la persona, no\nuna copia.\n\nEl título es único entre los cursos **vivos**, sin distinguir mayúsculas ni\nacentos; un retirado libera el suyo. Las descripciones de solo espacios se\nguardan nulas; el video se comprueba en su forma y **no se sigue**. Enviar\n`status`, `categories`, `memberships`, `modules`, `coverImageUrl` o `code`\nresponde `400`.\n\nLa respuesta es la forma del detalle: listas vacías, `coverImageUrl`\npresente y nulo, cero minutos y cero lecciones, y `offerable: false` con\n`offerableReason` «inactivo». Exige `courses:create`; **los\n`course-categories:` no habilitan**.\n",
-        "operationId" : "register_2",
+        "operationId" : "register_3",
         "requestBody" : {
           "content" : {
             "application/json" : {
@@ -7739,7 +7823,7 @@
     "/api/v1/courses/{courseId}/modules" : {
       "post" : {
         "description" : "**Permiso requerido:** `courses:update`. Sin él, `403` (`AUTH-002`).\n\nRegistra una parte del curso con **título y orden**, obligatorios, y descripción\ncorta, descripción larga y video de presentación, opcionales. **Nace `INACTIVO`,\nvacío y dentro del curso de la ruta**, del que no se mueve: enviar `courseId`,\n`status`, `lessons` o `coverImageUrl` responde `400`.\n\n**El título es único entre los módulos vivos del mismo curso**, sin mayúsculas\nni acentos; el mismo título en otro curso es legítimo, y un retirado libera el\nsuyo. El curso tiene que estar **vivo**, en cualquier estado — un curso activo\nadmite el módulo igual, que no cambia lo que el aula enseña hasta activarse.\n\nLa respuesta es **el módulo**, no el curso: `courseId`, `coverImageUrl`\npresente y nulo, `lessons` vacío, cero minutos y `offerable: false` con\n`offerableReason` «inactivo». Exige `courses:update`.\n",
-        "operationId" : "register_3",
+        "operationId" : "register_4",
         "parameters" : [ {
           "in" : "path",
           "name" : "courseId",
@@ -7982,7 +8066,7 @@
     "/api/v1/courses/{courseId}/modules/{moduleId}/lessons" : {
       "post" : {
         "description" : "**Permiso requerido:** `courses:update`. Sin él, `403` (`AUTH-002`).\n\nRegistra una lección con **tipo (`VIDEO` o `TEXTO`), título, duración en\nminutos enteros y orden**, obligatorios, y descripción, contenido y `open`\nopcionales. **El tipo manda sobre el contenido**: en un `VIDEO` es una URL\nabsoluta http o https; en un `TEXTO` es Markdown que **el backend guarda y\ndevuelve sin interpretar ni sanear** — quien lo pinta es el frontend, y tiene\nque hacerlo con un conversor que no ejecute lo que encuentre.\n\n**Nace `INACTIVA`**, con `open` falsa si no vino, y **el contenido es opcional al\nregistrar y obligatorio para activar**. El título es único entre las lecciones\nvivas del mismo módulo. El módulo tiene que estar **vivo y ser del curso de la\nruta**; enviar `status`, `moduleId` o `courseId` es `400`. Los errores de forma\nllegan **juntos**, incluido el del contenido de un video.\n\n**La auditoría lleva la longitud del contenido y no el texto.** La respuesta es\nla lección entera, contenido incluido. Exige `courses:update`.\n",
-        "operationId" : "register_4",
+        "operationId" : "register_5",
         "parameters" : [ {
           "in" : "path",
           "name" : "courseId",
@@ -9955,7 +10039,7 @@
       },
       "post" : {
         "description" : "**Permiso requerido:** `packages:create`. Sin él, `403` (`AUTH-002`).\n\nRegistra un paquete de productos, **vacío e inactivo**: los productos entran\nuno a uno después (`POST /packages/{id}/products`) y publicarlo es otra\noperación (`PATCH /packages/{id}/status`), que exige descripción y al menos\ndos productos.\n\n**El paquete no declara precio: se calcula.** Su `price` es la suma de sus\nproductos con su descuento, `listPrice` la suma sin descuentos y `savings` la\ndiferencia, todo con el precio de catálogo **de hoy** y redondeado por\nproducto a los decimales de la moneda. No se guarda en ninguna columna: si un\nproducto cambia de precio, el paquete cambia solo. Enviar `price` —o `products`,\no `status`— responde `400`.\n\n**La moneda es obligatoria e inmutable**, y solo se le asocian productos en\nesa moneda: un paquete recién creado no tiene productos y aun así sabe en qué\nse expresa. `scope` dice en qué vistas se publica —`TIENDA`, `HOTLINK`, `AMBOS`\no `NINGUNO`, que existe y se activa pero no se ofrece en ninguna— y es del\npaquete: el alcance de sus productos no filtra dentro de él.\n\n**Y declara su vigencia** (`RN-PM-047`, desde el 16-09-2026): `validFrom`,\n**obligatorio**, es el primer día en que se ofrece, y `validTo`, opcional, el\n**último** —nulo es indefinidamente; un fin anterior al inicio responde\n`400`—. **No hay regla contra el pasado**: un inicio futuro programa el\npaquete y un fin de ayer lo deja cerrado, que es raro pero no es un error.\nFuera de esas fechas el paquete **se oculta** de la oferta y del hotlink\ny **no cambia de estado**; el detalle lo dice en `offerableReason`.\n\nLa respuesta es la misma forma que el detalle: `items` vacío, los tres\nimportes en cero, `exchange` nulo, `validFrom` y `validTo` tal como se\ndeclararon, y `offerable: false` con su motivo — «menos de dos productos».\n`offerable` y `offerableReason` viajan **siempre**.\n\nExige `packages:create`. **Los `products:` no habilitan**: un actor con los\ncuatro permisos del catálogo y ninguno de paquetes recibe `403`.\n",
-        "operationId" : "register_1",
+        "operationId" : "register_2",
         "requestBody" : {
           "content" : {
             "application/json" : {
@@ -11158,7 +11242,7 @@
       },
       "post" : {
         "description" : "**Permiso requerido:** `products:create`. Sin él, `403` (`AUTH-002`).\n\nRegistra un producto del catálogo, **siempre inactivo**: publicarlo es otra\noperación (`RF-PM-005`).\n\nEl tipo decide qué campos son obligatorios: un `UPGRADE_MEMBRESIA` debe\ndeclarar **las dos** membresías —de qué nivel sale y a cuál lleva— y un\n`BOT` no puede declarar ninguna.\n\n**El origen no puede estar por encima del destino**: eso sería vender un\ndescenso llamándolo upgrade, y se rechaza con `422` (`EX-006`). **Sí\npuede ser el MISMO**, y entonces el producto es una **renovación**: lo\nque vende es tiempo —su `validityDays`— y no un cambio de nivel.\n\n**Y no tiene por qué ser el inmediatamente inferior**: saltar niveles es\nlegítimo, y es la razón de que el origen se declare en lugar de\ndeducirse de la cadena.\n\n`icon` es el **nombre** del icono con el que el frontend pinta el producto\n—no una imagen—, en minúsculas y guion medio. Es **opcional**, y solo un\n`UPGRADE_MEMBRESIA` puede llevarlo: en un `BOT` se rechaza (`RN-PM-016`).\n\n`videoUrl` es **la dirección de un video** que presenta el producto —no\nel video—. Es **opcional y vale en los dos tipos**, sin la condición\ndel icono. Se comprueba **solo la forma**: una URL absoluta `http` o\n`https`, sin espacios y de hasta 500 caracteres; lo demás se rechaza\ncon `VAL-017`. **El sistema no sigue el enlace** —no comprueba que el\nvideo exista ni lo descarga—, y lo guarda **tal cual se escribió**,\nrecortado y sin normalizar nada más. Ausente o nulo significan lo\nmismo: no tiene video. **Al revés que el precio de compra, sale en las\ncuatro lecturas**, el hotlink sin token incluido (`RN-PM-032`).\n\nLa vigencia es opcional en los dos tipos: sin ella, lo adquirido no caduca.\n\n`scope` e `implementation` son **obligatorios y en los dos tipos**, y\n**no tienen valor por omisión**: `scope` dice **en qué vistas de venta**\nse ofrece el producto —`TIENDA` (solo la oferta), `HOTLINK` (solo el\ncanal de hotlinks), `AMBOS`, o `NINGUNO` (en ninguna: solo lo ve\nadministración, aunque esté activo)— e `implementation` dice si lo\ncomprado se aplica solo (`AUTOMATICA`) o espera a que un funcionario\nlo autorice (`MANUAL`). **`HOTLINKS` dejó de existir el 15-09-2026**\n—lo que significaba se llama `AMBOS`— y se rechaza con `400` como\ncualquier valor fuera del dominio.\n\n**Un producto lleva DOS precios y solo uno se cobra.** `price` es el\ndel sistema —el que copia la venta y sobre el que se comisiona— y\n`purchasePrice` es el **precio de compra**: lo que NEXUS paga por el\nproducto cuando tiene que comprarlo, y donde se guarda lo que costó.\nEs **opcional**, no interviene en ningún cálculo, se expresa en la\n**misma moneda** y **no sale de administración**: la oferta y el\nhotlink no lo devuelven. Ausente o nulo significan lo mismo —no se\nconoce todavía—, y **eso no es «costó cero»** (`RN-PM-023`). Se llamó\n`publicPrice` hasta el 12-09-2026; ese nombre es hoy una propiedad\ndesconocida y devuelve `400`.\n\nLos dos importes se validan igual: **no negativos** —el **cero se\nadmite** desde que existe la renovación de una membresía gratuita— y\ncon los decimales que declare su moneda. El rechazo **nombra el\ncampo** que incumple.\n\n**Los dos solo se ven desde administración** (`RN-PM-024`): la oferta\nde un cliente y el hotlink público devuelven **uno**.\n",
-        "operationId" : "register",
+        "operationId" : "register_1",
         "requestBody" : {
           "content" : {
             "application/json" : {
@@ -12580,6 +12664,77 @@
         "x-required-permission" : "roles:change-status"
       }
     },
+    "/api/v1/teams" : {
+      "post" : {
+        "description" : "**Permiso requerido:** `teams:create`. Sin él, `403` (`AUTH-002`).\n\nRegistra un equipo con **nombre** obligatorio y descripción opcional. **Nace\nvacío y `ACTIVO`**: los miembros se asignan después, con su propia petición,\nporque asignar comprueba que cada persona sea de la cúspide y cierra su\npertenencia anterior.\n\n**No tiene código**, al contrario que un rol o una membresía: nada del\nsistema referencia a un equipo por un nombre estable, y se llega a él por su\nidentificador. Lo que identifica es el nombre, **único entre los equipos no\neliminados, sin distinguir mayúsculas ni acentos**; un equipo eliminado\nlibera el suyo, y el equipo que lo reutilice no hereda nada —ni miembros, ni\nhistorial—.\n\n**Tampoco tiene país ni responsable**: un equipo no se organiza por territorio\ny lo que hay por encima de un manager es administración, no otro manager.\nEnviar `status`, `members` o `code` responde `400`.\n\nLa respuesta es la misma forma que el detalle: `memberCount` en cero,\n`members` vacío y `description` presente y nula si no vino. **Pertenecer a un\nequipo no concede acceso a ningún dato.** Exige `teams:create`; ningún otro\n`teams:` habilita esta operación.\n",
+        "operationId" : "register",
+        "requestBody" : {
+          "content" : {
+            "application/json" : {
+              "schema" : {
+                "$ref" : "#/components/schemas/RegisterTeamRequest"
+              }
+            }
+          },
+          "required" : true
+        },
+        "responses" : {
+          "201" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/TeamDetailResponse"
+                }
+              }
+            },
+            "description" : "Equipo registrado, activo y sin miembros."
+          },
+          "400" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/TeamDetailResponse"
+                }
+              }
+            },
+            "description" : "Datos inválidos, juntos (`VAL-001`, `VAL-002`), o un cuerpo con `status`, `members` o `code` (`VAL-003`)"
+          },
+          "401" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/TeamDetailResponse"
+                }
+              }
+            },
+            "description" : "Token ausente o inválido (`AUTH-001`)"
+          },
+          "403" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/TeamDetailResponse"
+                }
+              }
+            },
+            "description" : "Autenticado sin el permiso `teams:create` (`AUTH-002`)"
+          },
+          "409" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/TeamDetailResponse"
+                }
+              }
+            },
+            "description" : "Nombre ya en uso por un equipo no eliminado (`EX-001`)"
+          }
+        },
+        "summary" : "Registrar un equipo",
+        "tags" : [ "Equipos" ],
+        "x-required-permission" : "teams:create"
+      }
+    },
     "/api/v1/user-commission-rates" : {
       "get" : {
         "description" : "**Permiso requerido:** `user-commission-rates:read`. Sin él, `403` (`AUTH-002`).\n\nDevuelve las tasas **tal como se declararon**, cada una **con su\nproducto** (`id`, `code`, `name`, `price` y `currency`), y no resuelve\ncuál se aplica: para eso está `GET /api/v1/commissions/effective`.\n\n**Incluye el historial**: las vencidas viajan junto a la vigente salvo que\nse filtre por fecha con `onDate`. Y es **el único historial que le queda al\nmódulo** — las tasas de rol perdieron la vigencia.\n\n**Filtrar por persona devuelve las declaradas PARA esa persona**, no la que\nle aplica hoy sobre un producto.\n\n**Filtrar por producto (`productId`) devuelve las de ese producto**, de\ncualquier persona: es la respuesta a «quién tiene excepción aquí». Se\ncombina con los demás filtros — persona y producto juntos responden\n«¿tiene esta persona excepción en este producto?», con su historial. Un\nproducto donde nadie tiene excepción devuelve la página vacía, y **no\nsignifica que no comisione**: significa que todos cobran por su rol.\n\nHasta el 16-09-2026 cada fila traía `associatedProducts`, cuántos\nproductos hacían regir la excepción; hoy trae **cuál**, porque es uno.\n",
@@ -13984,6 +14139,9 @@
   "tags" : [ {
     "description" : "Catálogo de países. Inmutable salvo su estado.",
     "name" : "Países"
+  }, {
+    "description" : "Los equipos en que se organiza la cúspide de la fuerza comercial.",
+    "name" : "Equipos"
   }, {
     "description" : "Tasas de comisión personalizadas: la excepción por persona.",
     "name" : "Comisiones"
