@@ -9,7 +9,7 @@
 | Issue | Pendiente de crear |
 | Rama | `feature/hotlink-publico` |
 | Autor | Responsable técnico |
-| Enmendadas | 07-09-2026 — `T-05b` por el **color de la membresía**; 08-09-2026 — `T-17` y `T-18` por el **precio a mostrar** (`RN-PM-024`), y `T-13` y `plan.md` §9 por el **número real de consultas**: son cuatro y no tres, y una sola cuando el vendedor no procede; 12-09-2026 — `T-21` porque el segundo precio es el **de compra** y sale del hotlink; 14-09-2026 — `T-22` por el **enlace del video**; 14-09-2026 — `T-23` por la **dirección de la portada** (`RN-PM-033`); 15-09-2026 — `T-24` por el **alcance de cuatro valores**; 22-09-2026 — `T-25` por **los enlaces resueltos y sin el cupón, sin token** (`RN-PM-048` a `RN-PM-050`) |
+| Enmendadas | 07-09-2026 — `T-05b` por el **color de la membresía**; 08-09-2026 — `T-17` y `T-18` por el **precio a mostrar** (`RN-PM-024`), y `T-13` y `plan.md` §9 por el **número real de consultas**: son cuatro y no tres, y una sola cuando el vendedor no procede; 12-09-2026 — `T-21` porque el segundo precio es el **de compra** y sale del hotlink; 14-09-2026 — `T-22` por el **enlace del video**; 14-09-2026 — `T-23` por la **dirección de la portada** (`RN-PM-033`); 15-09-2026 — `T-24` por el **alcance de cuatro valores**; 22-09-2026 — `T-25` por **los enlaces resueltos y sin el cupón, sin token** (`RN-PM-048` a `RN-PM-050`) — issue [#84](https://github.com/NexusPro-Dev/backend/issues/84) |
 
 ---
 

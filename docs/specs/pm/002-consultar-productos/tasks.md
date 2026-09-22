@@ -3,7 +3,7 @@
 | Campo | Valor |
 |---|---|
 | Requerimiento | `RF-PM-002` |
-| Enmendadas | 12-09-2026 — `T-23` porque el segundo precio es el **de compra**; 08-09-2026 — `T-19` por los **dos precios**; 02-09-2026 — el filtro por membresía de **origen**; 07-09-2026 — `T-16` y `T-17` por los filtros de **alcance** e **implementación**; 14-09-2026 — `T-24` por el **enlace del video**; 14-09-2026 — `T-25` por la **dirección de la portada** (`RN-PM-033`); 15-09-2026 — `T-26` por el **alcance de cuatro valores**; 22-09-2026 — `T-27` por **los enlaces en cada fila** (`RN-PM-048` a `RN-PM-050`), que se llevan `videoUrl` |
+| Enmendadas | 12-09-2026 — `T-23` porque el segundo precio es el **de compra**; 08-09-2026 — `T-19` por los **dos precios**; 02-09-2026 — el filtro por membresía de **origen**; 07-09-2026 — `T-16` y `T-17` por los filtros de **alcance** e **implementación**; 14-09-2026 — `T-24` por el **enlace del video**; 14-09-2026 — `T-25` por la **dirección de la portada** (`RN-PM-033`); 15-09-2026 — `T-26` por el **alcance de cuatro valores**; 22-09-2026 — `T-27` por **los enlaces en cada fila** (`RN-PM-048` a `RN-PM-050`), que se llevan `videoUrl` — issue [#84](https://github.com/NexusPro-Dev/backend/issues/84) |
 | Plan | [`plan.md`](plan.md), aprobado el 26-08-2026 |
 | Estado | **Aprobadas** |
 | Autor | Responsable técnico |

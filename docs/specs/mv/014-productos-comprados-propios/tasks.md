@@ -7,7 +7,7 @@
 | Plan | [`plan.md`](plan.md) v0.1.0 |
 | `plan.md` aprobado el | 17-09-2026 |
 | Estado | **En revisión** — `T-01` a `T-06` `Hecha` el 17-09-2026; `T-07` **pendiente** (22-09-2026) |
-| Enmendadas | 22-09-2026 — `T-07` por **el cupón del bot en la línea entregada** (`RN-MV-032`) |
+| Enmendadas | 22-09-2026 — `T-07` por **el cupón del bot en la línea entregada** (`RN-MV-032`) — issue [#84](https://github.com/NexusPro-Dev/backend/issues/84) |
 | Issue | [#68](https://github.com/NexusPro-Dev/backend/issues/68) |
 | Rama | `feature/venta-de-productos` |
 

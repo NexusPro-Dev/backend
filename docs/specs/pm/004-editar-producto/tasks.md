@@ -9,7 +9,7 @@
 | Autor | Responsable técnico |
 | Aprobadas por | Responsable del proyecto |
 | Fecha de aprobación | 26-08-2026 |
-| Enmendadas | 28-08-2026 — `T-16` por el icono corregible; 07-09-2026 — `T-17` y `T-18` por el **alcance** y la **implementación**; 08-09-2026 — `T-19` a `T-21` por el **precio público**; 12-09-2026 — `T-22` porque el segundo precio es el **de compra**; 14-09-2026 — `T-23` por el **enlace del video**; 14-09-2026 — `T-24` por **el icono de un upgrade solo se vacía con portada** (`RN-PM-034`); 22-09-2026 — `T-25` por **los enlaces, que se corrigen en bloque** (`RN-PM-048`, `RN-PM-049`) y se llevan `videoUrl` |
+| Enmendadas | 28-08-2026 — `T-16` por el icono corregible; 07-09-2026 — `T-17` y `T-18` por el **alcance** y la **implementación**; 08-09-2026 — `T-19` a `T-21` por el **precio público**; 12-09-2026 — `T-22` porque el segundo precio es el **de compra**; 14-09-2026 — `T-23` por el **enlace del video**; 14-09-2026 — `T-24` por **el icono de un upgrade solo se vacía con portada** (`RN-PM-034`); 22-09-2026 — `T-25` por **los enlaces, que se corrigen en bloque** (`RN-PM-048`, `RN-PM-049`) y se llevan `videoUrl` — issue [#84](https://github.com/NexusPro-Dev/backend/issues/84) |
 
 ---
 

@@ -3,7 +3,7 @@
 | Campo | Valor |
 |---|---|
 | Requerimiento | `RF-PM-003` |
-| Enmendadas | 02-09-2026 — el detalle resuelve **las dos** membresías; 07-09-2026 — `T-13` por el **alcance** y la **implementación**; 08-09-2026 — `T-15` por el **precio público**; 12-09-2026 — `T-18` porque el segundo precio es el **de compra**; 14-09-2026 — `T-19` por el **enlace del video**; 14-09-2026 — `T-20` por la **dirección de la portada** (`RN-PM-033`); 22-09-2026 — `T-21` por **los enlaces en el detalle** (`RN-PM-048` a `RN-PM-050`), que se llevan `videoUrl` |
+| Enmendadas | 02-09-2026 — el detalle resuelve **las dos** membresías; 07-09-2026 — `T-13` por el **alcance** y la **implementación**; 08-09-2026 — `T-15` por el **precio público**; 12-09-2026 — `T-18` porque el segundo precio es el **de compra**; 14-09-2026 — `T-19` por el **enlace del video**; 14-09-2026 — `T-20` por la **dirección de la portada** (`RN-PM-033`); 22-09-2026 — `T-21` por **los enlaces en el detalle** (`RN-PM-048` a `RN-PM-050`), que se llevan `videoUrl` — issue [#84](https://github.com/NexusPro-Dev/backend/issues/84) |
 | Plan | [`plan.md`](plan.md), aprobado el 26-08-2026 |
 | Estado | **Aprobadas** |
 | Autor | Responsable técnico |

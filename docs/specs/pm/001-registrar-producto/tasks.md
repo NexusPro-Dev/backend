@@ -8,7 +8,7 @@
 | Autor | Responsable técnico |
 | Aprobadas por | Responsable del proyecto |
 | Fecha de aprobación | 26-08-2026 |
-| Enmendadas | 28-08-2026 — `T-19` a `T-22` por el renombrado a `BOT` y el icono del upgrade; 02-09-2026 — `T-23` a `T-26` por la membresía de **origen**; 07-09-2026 — `T-27` a `T-30` por el **alcance** y la **implementación**, y `T-31` por la **renovación**; 08-09-2026 — `T-33` a `T-37` por el **precio público** y la relajación de `RN-PM-006`; 12-09-2026 — `T-38` porque el segundo precio pasa a ser el **de compra**; 14-09-2026 — `T-39` por el **enlace del video**; 14-09-2026 — `T-40` por el **icono obligatorio en el upgrade** (`RN-PM-034`); 15-09-2026 — `T-41` por el **alcance de cuatro valores** (`RN-PM-019`); 22-09-2026 — `T-42` a `T-45` por **los enlaces del producto** (`RN-PM-048`, `RN-PM-049`), que traen `product_links` y se llevan `products.video_url` |
+| Enmendadas | 28-08-2026 — `T-19` a `T-22` por el renombrado a `BOT` y el icono del upgrade; 02-09-2026 — `T-23` a `T-26` por la membresía de **origen**; 07-09-2026 — `T-27` a `T-30` por el **alcance** y la **implementación**, y `T-31` por la **renovación**; 08-09-2026 — `T-33` a `T-37` por el **precio público** y la relajación de `RN-PM-006`; 12-09-2026 — `T-38` porque el segundo precio pasa a ser el **de compra**; 14-09-2026 — `T-39` por el **enlace del video**; 14-09-2026 — `T-40` por el **icono obligatorio en el upgrade** (`RN-PM-034`); 15-09-2026 — `T-41` por el **alcance de cuatro valores** (`RN-PM-019`); 22-09-2026 — `T-42` a `T-45` por **los enlaces del producto** (`RN-PM-048`, `RN-PM-049`), que traen `product_links` y se llevan `products.video_url` — issue [#84](https://github.com/NexusPro-Dev/backend/issues/84) |
 
 !!! info "Qué va en este documento"
 
