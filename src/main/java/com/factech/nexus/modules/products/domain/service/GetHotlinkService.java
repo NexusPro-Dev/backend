@@ -7,6 +7,7 @@ import com.factech.nexus.modules.products.application.HotlinkResponse.Membership
 import com.factech.nexus.modules.products.application.HotlinkResponse.ProductRef;
 import com.factech.nexus.modules.products.application.HotlinkResponse.SellerRef;
 import com.factech.nexus.modules.products.application.ProductImageUrls;
+import com.factech.nexus.modules.products.application.ProductLinkResponse;
 import com.factech.nexus.modules.products.application.ProductPrice;
 import com.factech.nexus.modules.products.domain.models.ProductType;
 import com.factech.nexus.modules.products.domain.repository.ProductQueryRepository;
@@ -41,15 +42,18 @@ public class GetHotlinkService {
   private final ProductQueryRepository productos;
   private final PublicSellerLookup vendedores;
   private final ProductExchangeResolver conversiones;
+  private final ProductLinkReader enlaces;
 
   @Autowired
   public GetHotlinkService(
       ProductQueryRepository productos,
       PublicSellerLookup vendedores,
-      ProductExchangeResolver conversiones) {
+      ProductExchangeResolver conversiones,
+      ProductLinkReader enlaces) {
     this.productos = productos;
     this.vendedores = vendedores;
     this.conversiones = conversiones;
+    this.enlaces = enlaces;
   }
 
   @Transactional(readOnly = true)
@@ -77,7 +81,7 @@ public class GetHotlinkService {
   }
 
   private ProductRef producto(ProductRow fila) {
-    return producto(fila, conversion(fila));
+    return producto(fila, enlaces.publicablesDe(fila.id()), conversion(fila));
   }
 
   /**
@@ -85,7 +89,8 @@ public class GetHotlinkService {
    * hotlink del paquete (`RF-PM-026`) la reutiliza tal cual para cada línea, con un solo conversor
    * para todas — están en la moneda del paquete — y sin pagar sentencias por producto.
    */
-  static ProductRef producto(ProductRow fila, ExchangeRef conversion) {
+  static ProductRef producto(
+      ProductRow fila, List<ProductLinkResponse> enlaces, ExchangeRef conversion) {
     CurrencyRef moneda = new CurrencyRef(fila.currencyCode(), fila.currencyDecimalPlaces());
     return new ProductRef(
         fila.id(),
@@ -94,8 +99,9 @@ public class GetHotlinkService {
         fila.name(),
         fila.description(),
         fila.icon(),
-        // `RN-PM-032`: se publica sin token y sin seguirlo (`CA-PM-229`).
-        fila.videoUrl(),
+        // Publicables: resueltos y sin el cupón, sin token (`CA-PM-229`,
+        // `CA-PM-396`, `CA-PM-397`).
+        enlaces,
         // `RN-PM-033`: la dirección de la portada, sin token (`CA-PM-238`).
         ProductImageUrls.de(fila.coverImageId()),
         fila.validityDays(),

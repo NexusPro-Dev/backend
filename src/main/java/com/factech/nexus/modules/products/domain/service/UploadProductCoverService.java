@@ -49,6 +49,7 @@ public class UploadProductCoverService {
   private final AuditWriter auditoria;
   private final UuidV7Generator ids;
   private final ProductExchangeResolver conversiones;
+  private final ProductLinkReader enlaces;
   private final Clock reloj;
 
   @Autowired
@@ -58,8 +59,9 @@ public class UploadProductCoverService {
       ProductQueryRepository consultas,
       AuditWriter auditoria,
       UuidV7Generator ids,
-      ProductExchangeResolver conversiones) {
-    this(productos, imagenes, consultas, auditoria, ids, conversiones, Clock.systemUTC());
+      ProductExchangeResolver conversiones,
+      ProductLinkReader enlaces) {
+    this(productos, imagenes, consultas, auditoria, ids, conversiones, enlaces, Clock.systemUTC());
   }
 
   UploadProductCoverService(
@@ -69,6 +71,7 @@ public class UploadProductCoverService {
       AuditWriter auditoria,
       UuidV7Generator ids,
       ProductExchangeResolver conversiones,
+      ProductLinkReader enlaces,
       Clock reloj) {
     this.productos = productos;
     this.imagenes = imagenes;
@@ -76,6 +79,7 @@ public class UploadProductCoverService {
     this.auditoria = auditoria;
     this.ids = ids;
     this.conversiones = conversiones;
+    this.enlaces = enlaces;
     this.reloj = reloj;
   }
 
@@ -109,6 +113,6 @@ public class UploadProductCoverService {
             ChangeAction.UPDATE,
             cambio.cambios()));
 
-    return ProductCoverSupport.detalleDe(producto.getId(), consultas, conversiones);
+    return ProductCoverSupport.detalleDe(producto.getId(), consultas, conversiones, enlaces);
   }
 }

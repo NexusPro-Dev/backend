@@ -582,6 +582,13 @@ class DevelopmentSeedIT extends IntegrationTestBase {
   }
 
   private static void borrarLosProductos(JdbcTemplate jdbc) {
+    // Los ENLACES primero: `fk_product_links_product` no lleva `ON DELETE`
+    // —el producto no se borra físicamente nunca (`RN-PM-010`)— y la semilla
+    // le pone su video a cada producto desde el 22-09-2026 (`RN-PM-048`).
+    jdbc.update(
+        "DELETE FROM product_links WHERE product_id IN"
+            + " (SELECT id FROM products WHERE code = ANY (?))",
+        (Object) PRODUCTOS.toArray(String[]::new));
     jdbc.update(
         "DELETE FROM products WHERE code = ANY (?)", (Object) PRODUCTOS.toArray(String[]::new));
   }

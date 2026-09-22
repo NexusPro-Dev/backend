@@ -4,6 +4,8 @@ import com.factech.nexus.modules.products.application.ProductPrice;
 import com.factech.nexus.modules.products.application.ProductResponse;
 import com.factech.nexus.modules.products.application.RegisterProductCommand;
 import com.factech.nexus.modules.products.domain.models.Product;
+import com.factech.nexus.modules.products.domain.models.ProductLink;
+import com.factech.nexus.modules.products.domain.repository.ProductLinkRepository;
 import com.factech.nexus.modules.products.domain.repository.ProductRepository;
 import com.factech.nexus.modules.system.currencies.application.CurrencyCatalog;
 import com.factech.nexus.modules.system.currencies.application.CurrencyCatalog.CurrencyView;
@@ -20,6 +22,7 @@ import com.factech.nexus.shared.persistence.UuidV7Generator;
 import java.time.Clock;
 import java.time.OffsetDateTime;
 import java.util.List;
+import java.util.UUID;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -52,6 +55,7 @@ public class RegisterProductService {
   private static final String ENTIDAD = "products";
 
   private final ProductRepository productos;
+  private final ProductLinkRepository enlaces;
   private final MembershipCatalog membresias;
   private final CurrencyCatalog monedas;
   private final AuditWriter auditoria;
@@ -67,16 +71,18 @@ public class RegisterProductService {
   @Autowired
   public RegisterProductService(
       ProductRepository productos,
+      ProductLinkRepository enlaces,
       MembershipCatalog membresias,
       CurrencyCatalog monedas,
       AuditWriter auditoria,
       UuidV7Generator ids,
       ProductExchangeResolver conversiones) {
-    this(productos, membresias, monedas, auditoria, ids, conversiones, Clock.systemUTC());
+    this(productos, enlaces, membresias, monedas, auditoria, ids, conversiones, Clock.systemUTC());
   }
 
   RegisterProductService(
       ProductRepository productos,
+      ProductLinkRepository enlaces,
       MembershipCatalog membresias,
       CurrencyCatalog monedas,
       AuditWriter auditoria,
@@ -84,6 +90,7 @@ public class RegisterProductService {
       ProductExchangeResolver conversiones,
       Clock reloj) {
     this.productos = productos;
+    this.enlaces = enlaces;
     this.membresias = membresias;
     this.monedas = monedas;
     this.auditoria = auditoria;
@@ -113,16 +120,26 @@ public class RegisterProductService {
     MembershipView origen = verificarOrigen(comando, destino);
     verificarUnicidad(comando);
 
+    OffsetDateTime ahora = OffsetDateTime.now(reloj);
+    UUID identificador = ids.next();
+
+    // Los enlaces se construyen —y se validan— ANTES de escribir el producto:
+    // un tipo repetido o una dirección con forma inválida deben dejar la base
+    // exactamente como estaba, sin el producto y sin el primer enlace
+    // (`CA-PM-382`, `CA-PM-383`).
+    List<ProductLink> enlacesDelProducto =
+        ProductLinkBuilder.construir(
+            identificador, comando.links(), ahora, ProductLinkBuilder.ALTA);
+
     Product nuevo =
         productos.save(
             Product.create(
-                ids.next(),
+                identificador,
                 comando.code(),
                 comando.type(),
                 comando.name(),
                 comando.description(),
                 comando.icon(),
-                comando.videoUrl(),
                 comando.sourceMembershipId(),
                 comando.targetMembershipId(),
                 comando.price(),
@@ -131,12 +148,17 @@ public class RegisterProductService {
                 comando.validityDays(),
                 comando.scope(),
                 comando.implementation(),
-                OffsetDateTime.now(reloj)));
+                ahora));
 
-    auditar(nuevo);
+    // Después del producto, porque la clave foránea lo exige, y en la MISMA
+    // transacción: o entran el producto y sus enlaces, o no entra ninguno.
+    List<ProductLink> guardados = enlaces.saveAll(enlacesDelProducto);
+
+    auditar(nuevo, guardados);
 
     return ProductResponse.from(
         nuevo,
+        guardados,
         origen,
         destino,
         moneda,
@@ -287,13 +309,18 @@ public class RegisterProductService {
    * sobre el sistema y el catálogo de `security.md` §8.1 es cerrado. Es la misma postura que
    * `RF-SP-016` tomó con las membresías. Quién puso un precio lo responde este mismo evento.
    */
-  private void auditar(Product nuevo) {
+  private void auditar(Product nuevo, List<ProductLink> enlacesGuardados) {
     // La instantánea la arma el agregado, y la misma que usa el retiro
     // (`RF-PM-006`): si cada caso de uso armara su mapa, el registro de
     // creación y el de eliminación describirían el mismo producto con claves
     // distintas, y compararlos —que es para lo que existen— dejaría de ser
     // posible.
+    // Los enlaces entran en la instantánea desde aquí y no desde el agregado,
+    // porque son filas de otra tabla y el agregado no las conoce. La clave es
+    // `links`, y NO hay entrada por el tipo que no se declaró (`CA-PM-222`).
+    java.util.Map<String, Object> estado = nuevo.instantanea();
+    estado.put("links", enlacesGuardados.stream().map(ProductLink::instantanea).toList());
     auditoria.recordChange(
-        new ChangeEvent(MODULO, ENTIDAD, nuevo.getId(), ChangeAction.CREATE, nuevo.instantanea()));
+        new ChangeEvent(MODULO, ENTIDAD, nuevo.getId(), ChangeAction.CREATE, estado));
   }
 }

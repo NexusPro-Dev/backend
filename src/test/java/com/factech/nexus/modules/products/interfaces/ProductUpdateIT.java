@@ -49,6 +49,7 @@ class ProductUpdateIT extends IntegrationTestBase {
 
   @BeforeEach
   void sembrarCatalogo() {
+    ProductLinkTestSupport.limpiar(jdbc);
     jdbc.update("DELETE FROM products");
     jdbc.update("DELETE FROM memberships");
     jdbc.update("DELETE FROM currencies WHERE is_default = false");
@@ -62,6 +63,7 @@ class ProductUpdateIT extends IntegrationTestBase {
 
   @AfterEach
   void vaciarCatalogo() {
+    ProductLinkTestSupport.limpiar(jdbc);
     jdbc.update("DELETE FROM products");
     jdbc.update("DELETE FROM product_images");
     jdbc.update("DELETE FROM audit_change_log WHERE module = 'PM'");
@@ -448,75 +450,233 @@ class ProductUpdateIT extends IntegrationTestBase {
   }
 
   // ---------------------------------------------------------------------------
-  // El enlace del video (`RN-PM-032`) — 14-09-2026
+  // Los enlaces, corregibles EN BLOQUE (`RN-PM-048`) — 22-09-2026
   // ---------------------------------------------------------------------------
 
   @Test
   @DisplayName("`CA-PM-225` — el enlace del video se corrige, también en un BOT, y se audita")
-  void corrigeElVideo() throws Exception {
+  void corrigeElEnlaceDelVideo() throws Exception {
     // En un bot a propósito: es donde el icono se rechaza (`CA-PM-100`) y el
-    // video no — no hay condición cruzada que lo acompañe.
+    // enlace no — no hay condición cruzada que lo acompañe.
     UUID asesoria = bot("ASESORIA", "Asesoría", null);
 
-    mvc.perform(corregir(asesoria, "{\"videoUrl\":\"  https://vimeo.com/123456  \"}"))
+    mvc.perform(
+            corregir(
+                asesoria,
+                "{\"links\":[{\"type\":\"VIDEO_PRESENTACION\",\"url\":\"  https://vimeo.com/123456  \"}]}"))
         .andExpect(status().isOk())
         // Recortado y NADA MÁS: ni minúsculas ni barra final.
-        .andExpect(jsonPath("$.videoUrl").value("https://vimeo.com/123456"));
+        .andExpect(jsonPath("$.links.length()").value(1))
+        .andExpect(jsonPath("$.links[0].url").value("https://vimeo.com/123456"));
 
-    mvc.perform(corregir(asesoria, "{\"videoUrl\":\"https://Vimeo.com/999/\"}"))
+    mvc.perform(
+            corregir(
+                asesoria,
+                "{\"links\":[{\"type\":\"VIDEO_PRESENTACION\",\"url\":\"https://Vimeo.com/999/\"}]}"))
         .andExpect(status().isOk())
-        .andExpect(jsonPath("$.videoUrl").value("https://Vimeo.com/999/"));
+        .andExpect(jsonPath("$.links[0].url").value("https://Vimeo.com/999/"));
 
+    // El evento lleva el conjunto ENTERO antes y después, no el campo que
+    // cambió: la unidad de corrección es la colección (`RN-PM-048`).
     assertThat(ultimoCambio())
-        .contains("video_url")
+        .contains("links")
         .contains("https://vimeo.com/123456")
         .contains("https://Vimeo.com/999/");
   }
 
   @Test
   @DisplayName(
-      "`CA-PM-226` — el nulo explícito Y la cadena vacía VACÍAN el video; el mismo enlace no es"
-          + " cambio")
-  void vaciaElVideo() throws Exception {
-    mvc.perform(corregir(producto, "{\"videoUrl\":\"https://vimeo.com/123456\"}"))
+      "`CA-PM-226` — la colección nula Y la vacía quitan todos los enlaces; el mismo conjunto no"
+          + " es cambio")
+  void quitaTodosLosEnlaces() throws Exception {
+    mvc.perform(
+            corregir(
+                producto,
+                "{\"links\":[{\"type\":\"VIDEO_PRESENTACION\",\"url\":\"https://vimeo.com/123456\"}]}"))
         .andExpect(status().isOk());
 
-    // El mismo enlace otra vez no es un cambio: `audit_change_log` no crece.
+    // El mismo conjunto otra vez no es un cambio: `audit_change_log` no crece.
+    // Se compara POR VALOR y no por identidad de fila, que es lo que evita un
+    // evento por cada guardado sin tocar nada.
     long antes = eventosDe(producto);
-    mvc.perform(corregir(producto, "{\"videoUrl\":\"https://vimeo.com/123456\"}"))
+    mvc.perform(
+            corregir(
+                producto,
+                "{\"links\":[{\"type\":\"VIDEO_PRESENTACION\",\"url\":\"https://vimeo.com/123456\"}]}"))
         .andExpect(status().isOk());
     assertThat(eventosDe(producto)).isEqualTo(antes);
 
-    mvc.perform(corregir(producto, "{\"videoUrl\":null}"))
+    mvc.perform(corregir(producto, "{\"links\":null}"))
         .andExpect(status().isOk())
-        .andExpect(jsonPath("$.videoUrl").value(Matchers.nullValue()));
-    assertThat(videoDe(producto)).isNull();
+        .andExpect(jsonPath("$.links.length()").value(0));
+    assertThat(enlacesDe(producto)).isZero();
 
-    // Y `""` es un vaciado, no un enlace con forma inválida: quien borra el
-    // contenido del campo en un formulario está vaciando.
-    mvc.perform(corregir(producto, "{\"videoUrl\":\"https://vimeo.com/123456\"}"))
+    // Y la colección VACÍA dice lo mismo que la nula: quitar los enlaces es no
+    // declarar ninguno.
+    mvc.perform(
+            corregir(
+                producto,
+                "{\"links\":[{\"type\":\"VIDEO_PRESENTACION\",\"url\":\"https://vimeo.com/123456\"}]}"))
         .andExpect(status().isOk());
-    mvc.perform(corregir(producto, "{\"videoUrl\":\"   \"}"))
+    mvc.perform(corregir(producto, "{\"links\":[]}"))
         .andExpect(status().isOk())
-        .andExpect(jsonPath("$.videoUrl").value(Matchers.nullValue()));
-    assertThat(videoDe(producto)).isNull();
+        .andExpect(jsonPath("$.links.length()").value(0));
+    assertThat(enlacesDe(producto)).isZero();
   }
 
   @Test
   @DisplayName(
-      "`CA-PM-227` — un enlace sin forma se rechaza con VAL-009, nombra `videoUrl` y NO aplica lo"
+      "`CA-PM-227` — una dirección sin forma se rechaza con VAL-009, por su índice, y NO aplica lo"
           + " demás")
-  void videoConFormaInvalidaNoAplicaNada() throws Exception {
+  void direccionSinFormaNoAplicaNada() throws Exception {
     mvc.perform(
             corregir(
-                producto, "{\"name\":\"Otro nombre\",\"videoUrl\":\"www.youtube.com/watch?v=x\"}"))
+                producto,
+                "{\"name\":\"Otro nombre\",\"links\":[{\"type\":\"VIDEO_PRESENTACION\",\"url\":\"www.youtube.com/watch?v=x\"}]}"))
         .andExpect(status().isBadRequest())
         .andExpect(jsonPath("$.errors[0].code").value("VAL-009"))
-        .andExpect(jsonPath("$.errors[0].field").value("videoUrl"));
+        .andExpect(jsonPath("$.errors[0].field").value("links[0].url"));
 
     // El nombre válido que venía en la misma petición no se aplicó.
     assertThat(nombreDe(producto)).isEqualTo("Ascenso a Oro");
-    assertThat(videoDe(producto)).isNull();
+    assertThat(enlacesDe(producto)).isZero();
+  }
+
+  @Test
+  @DisplayName("`CA-PM-389` — `links` AUSENTE no toca ningún enlace, y no registra evento de ellos")
+  void linksAusenteNoTocaNada() throws Exception {
+    ProductLinkTestSupport.enlace(
+        jdbc, producto, "VIDEO_PRESENTACION", "https://vimeo.com/123456", null);
+    ProductLinkTestSupport.enlace(jdbc, producto, "CUPON_BOT", "https://t.me/nexusbot", "cupon-15");
+
+    // Ausente NO es lo mismo que nula: la primera no habla de los enlaces, la
+    // segunda dice «ninguno». Es la distinción que `Patchable` existe para
+    // sostener, y aquí decide entre conservar dos y borrarlos.
+    mvc.perform(corregir(producto, "{\"name\":\"Otro nombre\"}")).andExpect(status().isOk());
+
+    assertThat(enlacesDe(producto)).isEqualTo(2);
+    assertThat(ultimoCambio()).contains("name").doesNotContain("links");
+  }
+
+  @Test
+  @DisplayName("`CA-PM-390` — la colección que llega es la que QUEDA: quita, añade y reescribe")
+  void laColeccionQueLlegaEsLaQueQueda() throws Exception {
+    ProductLinkTestSupport.enlace(
+        jdbc, producto, "VIDEO_PRESENTACION", "https://vimeo.com/123456", null);
+    ProductLinkTestSupport.enlace(jdbc, producto, "CUPON_BOT", "https://t.me/nexusbot", "cupon-15");
+
+    // Llega solo el cupón: el video se va, aunque nadie haya pedido quitarlo
+    // con un campo propio. Es lo que «en bloque» significa.
+    mvc.perform(
+            corregir(
+                producto,
+                "{\"links\":[{\"type\":\"CUPON_BOT\",\"url\":\"https://t.me/nexusbot\",\"externalId\":\"cupon-15\"}]}"))
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$.links.length()").value(1))
+        .andExpect(jsonPath("$.links[0].type").value("CUPON_BOT"));
+
+    // Llega un tipo que no tenía: lo gana.
+    mvc.perform(
+            corregir(
+                producto,
+                "{\"links\":[{\"type\":\"CUPON_BOT\",\"url\":\"https://t.me/nexusbot\",\"externalId\":\"cupon-15\"},"
+                    + "{\"type\":\"VIDEO_PRESENTACION\",\"url\":\"https://vimeo.com/999\"}]}"))
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$.links.length()").value(2));
+
+    // Y el mismo tipo con otra dirección: se reescribe, no se duplica — la
+    // clave es la pareja (producto, tipo).
+    mvc.perform(
+            corregir(
+                producto,
+                "{\"links\":[{\"type\":\"VIDEO_PRESENTACION\",\"url\":\"https://vimeo.com/000\"}]}"))
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$.links.length()").value(1))
+        .andExpect(jsonPath("$.links[0].url").value("https://vimeo.com/000"));
+    assertThat(enlacesDe(producto)).isEqualTo(1);
+  }
+
+  @Test
+  @DisplayName("`CA-PM-391` — dos enlaces del mismo tipo se rechazan con VAL-015, y no cambia nada")
+  void dosDelMismoTipoEnLaCorreccion() throws Exception {
+    mvc.perform(
+            corregir(
+                producto,
+                "{\"name\":\"Otro nombre\",\"links\":[{\"type\":\"VIDEO_PRESENTACION\",\"url\":\"https://vimeo.com/1\"},"
+                    + "{\"type\":\"VIDEO_PRESENTACION\",\"url\":\"https://vimeo.com/2\"}]}"))
+        .andExpect(status().isBadRequest())
+        .andExpect(jsonPath("$.errors[0].code").value("VAL-015"))
+        .andExpect(jsonPath("$.errors[0].field").value("links[1].type"));
+
+    assertThat(nombreDe(producto)).isEqualTo("Ascenso a Oro");
+    assertThat(enlacesDe(producto)).isZero();
+  }
+
+  @Test
+  @DisplayName(
+      "`CA-PM-392` — tipo desconocido con VAL-014, sin dirección con VAL-016, e"
+          + " identificador con VAL-017")
+  void losTresRechazosDeLaCorreccion() throws Exception {
+    mvc.perform(
+            corregir(
+                producto,
+                "{\"links\":[{\"type\":\"MANUAL_PDF\",\"url\":\"https://vimeo.com/1\"}]}"))
+        .andExpect(status().isBadRequest())
+        .andExpect(jsonPath("$.errors[0].code").value("VAL-014"))
+        .andExpect(jsonPath("$.errors[0].field").value("links[0].type"));
+
+    mvc.perform(corregir(producto, "{\"links\":[{\"type\":\"VIDEO_PRESENTACION\"}]}"))
+        .andExpect(status().isBadRequest())
+        .andExpect(jsonPath("$.errors[0].code").value("VAL-016"))
+        .andExpect(jsonPath("$.errors[0].field").value("links[0].url"));
+
+    for (String malo : new String[] {"cupon 15", "a".repeat(101)}) {
+      mvc.perform(
+              corregir(
+                  producto,
+                  "{\"links\":[{\"type\":\"CUPON_BOT\",\"url\":\"https://t.me/nexusbot\",\"externalId\":\"%s\"}]}"
+                      .formatted(malo)))
+          .andExpect(status().isBadRequest())
+          .andExpect(jsonPath("$.errors[0].code").value("VAL-017"))
+          .andExpect(jsonPath("$.errors[0].field").value("links[0].externalId"));
+    }
+
+    assertThat(enlacesDe(producto)).isZero();
+  }
+
+  @Test
+  @DisplayName("`CA-PM-393` — el identificador sobre una dirección con `?` se rechaza con VAL-018")
+  void elCruzadoEnLaCorreccion() throws Exception {
+    mvc.perform(
+            corregir(
+                producto,
+                "{\"links\":[{\"type\":\"VIDEO_PRESENTACION\",\"url\":\"https://www.youtube.com/watch?v=abc\",\"externalId\":\"abc\"}]}"))
+        .andExpect(status().isBadRequest())
+        .andExpect(jsonPath("$.errors[0].code").value("VAL-018"))
+        .andExpect(jsonPath("$.errors[0].field").value("links[0].url"));
+
+    // La MISMA dirección sin identificador se admite: no es una prohibición
+    // sobre la dirección.
+    mvc.perform(
+            corregir(
+                producto,
+                "{\"links\":[{\"type\":\"VIDEO_PRESENTACION\",\"url\":\"https://www.youtube.com/watch?v=abc\"}]}"))
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$.links[0].url").value("https://www.youtube.com/watch?v=abc"));
+
+    // Y quitarle el identificador a uno que ya lo tenía, sobre una dirección
+    // limpia, también: la restricción mira lo que queda, no lo que había.
+    mvc.perform(
+            corregir(
+                producto,
+                "{\"links\":[{\"type\":\"CUPON_BOT\",\"url\":\"https://t.me/nexusbot\",\"externalId\":\"cupon-15\"}]}"))
+        .andExpect(status().isOk());
+    mvc.perform(
+            corregir(
+                producto,
+                "{\"links\":[{\"type\":\"CUPON_BOT\",\"url\":\"https://t.me/nexusbot\"}]}"))
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$.links[0].externalId").doesNotExist());
   }
 
   private String iconoDe(UUID id) {
@@ -545,9 +705,14 @@ class ProductUpdateIT extends IntegrationTestBase {
     return imagen;
   }
 
-  private String videoDe(UUID id) {
-    return jdbc.queryForObject(
-        "SELECT video_url FROM products WHERE id = CAST(? AS uuid)", String.class, id.toString());
+  /** Cuántos enlaces tiene hoy ese producto. */
+  private int enlacesDe(UUID id) {
+    Integer filas =
+        jdbc.queryForObject(
+            "SELECT count(*) FROM product_links WHERE product_id = CAST(? AS uuid)",
+            Integer.class,
+            id.toString());
+    return filas == null ? 0 : filas;
   }
 
   /** El `changes` del último evento de corrección de este producto. */

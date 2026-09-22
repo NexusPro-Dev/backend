@@ -126,15 +126,34 @@ public class ProductController {
           —no una imagen—, en minúsculas y guion medio. Es **opcional**, y solo un
           `UPGRADE_MEMBRESIA` puede llevarlo: en un `BOT` se rechaza (`RN-PM-016`).
 
-          `videoUrl` es **la dirección de un video** que presenta el producto —no
-          el video—. Es **opcional y vale en los dos tipos**, sin la condición
-          del icono. Se comprueba **solo la forma**: una URL absoluta `http` o
-          `https`, sin espacios y de hasta 500 caracteres; lo demás se rechaza
-          con `VAL-017`. **El sistema no sigue el enlace** —no comprueba que el
-          video exista ni lo descarga—, y lo guarda **tal cual se escribió**,
-          recortado y sin normalizar nada más. Ausente o nulo significan lo
-          mismo: no tiene video. **Al revés que el precio de compra, sale en las
-          cuatro lecturas**, el hotlink sin token incluido (`RN-PM-032`).
+          `links` son **los enlaces del producto**, uno por tipo y ninguno
+          obligatorio (`RN-PM-048`). Hay dos: **`VIDEO_PRESENTACION`**, el video
+          que presenta el producto —material de venta, que sale en las lecturas
+          públicas—, y **`CUPON_BOT`**, dónde registra su cuenta quien ya lo
+          compró, que **solo** se enseña en `GET /api/v1/movements/mine/products`
+          y **solo** cuando la línea está entregada (`RN-PM-050`). Declarar dos
+          del mismo tipo se rechaza con `VAL-020`, y un tipo que no existe con
+          `VAL-019`.
+
+          De cada enlace, `url` es **la dirección** —obligatoria, `VAL-021` si
+          falta— y se comprueba **solo su forma**: absoluta `http` o `https`, sin
+          espacios y de hasta 500 caracteres; lo demás se rechaza con `VAL-017`.
+          **El sistema no sigue el enlace** —no comprueba que exista ni lo
+          descarga—, y lo guarda **tal cual se escribió**, recortado y sin
+          normalizar nada más.
+
+          `externalId` es **opcional** y es un identificador de un sistema ajeno
+          —quien aloja el bot o el video—: NEXUS lo guarda **sin interpretarlo** y
+          lo **pega como último segmento de ruta** al publicar el enlace
+          (`RN-PM-049`). Por eso, **si viene informado, la dirección no admite `?`
+          ni `#`** (`VAL-023`): pegarlo detrás de una cadena de consulta daría un
+          enlace roto **que responde `200`**. La misma dirección **sin**
+          identificador sí se admite. Su forma se comprueba con `VAL-022`: sin
+          espacios y hasta 100 caracteres.
+
+          La respuesta devuelve los enlaces **crudos**: la dirección tal cual y el
+          identificador en su campo, **no pegados** — es lo que `PATCH` espera
+          recibir de vuelta. Ausente y vacía significan lo mismo: sin enlaces.
 
           La vigencia es opcional en los dos tipos: sin ella, lo adquirido no caduca.
 
@@ -221,9 +240,11 @@ public class ProductController {
           esa moneda o cuando nadie declaró una tasa: eso **no es un error** y
           el producto se devuelve igual.
 
-          Cada fila trae también **`videoUrl`**, la dirección del video que
-          presenta el producto, **tal cual se guardó** y **presente y nula**
-          cuando no tiene (`RN-PM-032`). **No es un filtro.**
+          Cada fila trae también **`links`**, los enlaces del producto **tal cual
+          se guardaron** y **presente y vacía** cuando no tiene ninguno
+          (`RN-PM-048`). **Esta lectura los enseña TODOS**, `CUPON_BOT` incluido,
+          porque es donde se administran; las lecturas de venta —la oferta y el
+          hotlink— publican solo el video. **No es un filtro.**
 
           Solo se puede ordenar por la lista blanca —`name`, `price`,
           `createdAt`—, con `,asc` o `,desc`. **`purchasePrice` no está en
@@ -332,11 +353,13 @@ public class ProductController {
           **Bots: todos los activos, para cualquiera.** No dependen del nivel de
           quien mira ni de que tenga uno.
 
-          **Cada producto trae `videoUrl`**, la dirección del video que lo
-          presenta, tal cual se guardó y **presente y nula** cuando no tiene
-          (`RN-PM-032`). Es lo contrario del precio de compra: material de
-          venta, que existe para que lo vea quien compra, y por eso **sí** viaja
-          por aquí.
+          **Cada producto trae `links`**, y aquí viaja **solo el video** y
+          **resuelto**: la dirección con el identificador externo ya pegado al
+          final (`RN-PM-049`). El `CUPON_BOT` **no sale**, ni siquiera vacío: es
+          la prestación que se compra, y quien reparte enlaces no la ha comprado
+          (`RN-PM-050`). El video sí es lo contrario del precio de compra:
+          material de venta, que existe para que lo vea quien compra, y por eso
+          **sí** viaja por aquí.
 
           **Publica `scope` e `implementation` de cada producto, y filtra por el
           primero**: solo `TIENDA` y `AMBOS` (`RN-PM-019`, desde el 15-09-2026).
@@ -422,7 +445,7 @@ public class ProductController {
           (`GET /api/v1/products/available`): el vendedor no compra lo que
           reparte, de modo que un `BECA → ORO` le interesa aunque él esté en
           `ORO`. Por eso la respuesta no trae `currentMembership`. Cada producto
-          va en la forma de venta —`price`, `exchange`, `videoUrl`,
+          va en la forma de venta —`price`, `exchange`, `links`,
           `coverImageUrl`, `rating`— y **sin `purchasePrice`** (`RN-PM-024`).
 
           **No trae el enlace armado.** El cliente lo compone con el `username`
@@ -473,9 +496,10 @@ public class ProductController {
           compra solo se ve aquí y en el listado: la oferta y el hotlink no lo
           devuelven.
 
-          Trae **`videoUrl`**, la dirección del video que presenta el producto,
-          **tal cual se guardó** y **presente y nula** cuando no tiene
-          (`RN-PM-032`) — también en un producto retirado.
+          Trae **`links`**, los enlaces del producto **tal cual se guardaron** y
+          **presente y vacía** cuando no tiene ninguno (`RN-PM-048`) — también en
+          un producto retirado. Como el listado, **los enseña todos**,
+          `CUPON_BOT` incluido: es la lectura de administración.
 
           **Un producto retirado se devuelve marcado como tal**, no como
           inexistente: `deletedAt` dice desde cuándo y `deletionReason` **por
@@ -543,7 +567,7 @@ public class ProductController {
 
           **Distingue el campo ausente del enviado vacío**, y de ahí salen dos
           comportamientos opuestos: `description: null`, `icon: null`,
-          `videoUrl: null`, `validityDays: null` y `purchasePrice: null`
+          `links: null`, `validityDays: null` y `purchasePrice: null`
           **vacían** el campo,
           mientras que `name: null` y `price: null` se **rechazan**, porque un
           producto sin nombre o sin precio del sistema no puede existir.
@@ -574,12 +598,20 @@ public class ProductController {
           producto y no lo que otorga. En un `BOT`, cualquier valor distinto de
           nulo se rechaza con `VAL-013` (`RN-PM-016`).
 
-          **`videoUrl` se corrige y se vacía en los DOS tipos** —con `null` o
-          con `""`, que aquí también es un vaciado— y sin la condición del
-          icono (`RN-PM-032`). Se comprueba **solo la forma** —URL absoluta
-          `http` o `https`, sin espacios, hasta 500 caracteres— y lo demás se
-          rechaza con `VAL-009` **sin aplicar ningún otro cambio** de la misma
-          petición. Se guarda tal cual, recortado, y el sistema no lo sigue.
+          **`links` se corrige EN BLOQUE, y la colección que llega es la que
+          QUEDA** (`RN-PM-048`). No es un campo por enlace: **un tipo que no viene
+          se BORRA**, uno que viene y no estaba se crea, y uno que viene con otra
+          dirección se reescribe. Enviar `null` o `[]` **quita todos**; **no
+          enviar el campo no toca ninguno** — esa es la distinción que decide
+          entre conservar lo que hay y borrarlo, y conviene no confundirlas.
+
+          Las comprobaciones son las del alta con los números de esta operación:
+          tipo desconocido `VAL-014`, tipo repetido `VAL-015`, dirección que falta
+          `VAL-016`, forma de la dirección `VAL-009`, forma del identificador
+          `VAL-017` e identificador sobre una dirección con `?` o `#` `VAL-018`.
+          Cualquiera de ellas rechaza **sin aplicar ningún otro cambio** de la
+          misma petición, y el error **nombra el enlace por su índice**.
+          **Enviar el mismo conjunto que ya tenía no registra evento.**
 
           **El tipo, el código y la membresía destino NO se pueden corregir**, y
           enviarlos devuelve `400` con `VAL-006`. Se rechazan y no se ignoran:

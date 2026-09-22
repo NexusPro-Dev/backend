@@ -175,7 +175,7 @@ public class JpaProductPackageQueryRepository implements ProductPackageQueryRepo
              k.deleted_at AS k_deleted_at,
              i.discount_type AS discount_type, i.discount_value AS discount_value,
              p.id AS id, p.code AS code, p.type AS type, p.name AS name,
-             p.description AS description, p.icon AS icon, p.video_url AS video_url,
+             p.description AS description, p.icon AS icon,
              p.cover_image_id AS cover_image_id,
              p.target_membership_id AS m_id, m.code AS m_code, m.name AS m_name,
              m.level AS m_level, m.color AS m_color,

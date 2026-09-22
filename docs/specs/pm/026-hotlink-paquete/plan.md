@@ -17,6 +17,8 @@
 
 **Componer lo que ya existe, y no volver a decidir nada.** El vendedor sale de `PublicSellerLookup`; la conversión, de `ProductExchangeResolver`; la cuenta, de `PackagePricing`; la ofrecibilidad, de `PackageOfferability`; y cada producto, de **la misma fila** (`ProductRow`) y **la misma forma** (`HotlinkResponse.ProductRef`) que el hotlink del producto. Lo único que este requerimiento escribe de nuevo es **una sentencia** —el paquete publicado con sus productos— y **un servicio** que ordena las piezas.
 
+**Desde el 22-09-2026 eso incluye los enlaces** (`RN-PM-048` a `RN-PM-050`): `p.video_url` deja de estar en el `SELECT` —la columna ya no existe— y los enlaces de los productos del paquete se leen **en una sentencia más, con el tipo en el predicado**, exactamente como en `RF-PM-008`. **Que sean dos consultas distintas es justo el motivo de que `CA-PM-398` exista**: el filtro que impide publicar el cupón está escrito **dos veces**, una por sentencia, y una copia que se olvide no falla — publica.
+
 **La sentencia trae de cada producto lo que trae `findPublishedByCode`**: el `SELECT` de productos que ya tiene cinco copias —catálogo, detalle, oferta, hotlink, disponibles— gana una **sexta**, con un `JOIN product_package_items` y las dos columnas del descuento. Es la forma de que `ProductRef.from(ProductRow)` se reutilice sin tocarlo, y de que `rating`, video, portada y membresía viajen **sin sentencias propias**.
 
 ## 2. Cambios de esquema

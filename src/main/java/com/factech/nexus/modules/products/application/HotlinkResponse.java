@@ -4,6 +4,7 @@ import com.factech.nexus.modules.products.domain.models.ProductType;
 import com.factech.nexus.modules.products.domain.models.RatingSummary;
 import com.fasterxml.jackson.annotation.JsonInclude;
 import java.math.BigDecimal;
+import java.util.List;
 import java.util.UUID;
 
 /**
@@ -64,11 +65,17 @@ public record HotlinkResponse(SellerRef seller, ProductRef product) {
       String description,
       String icon,
       /**
-       * `RN-PM-032`, sin token: la dirección que administración escribió, TAL CUAL. Es la única
-       * columna opcional de {@code products} que esta lectura trae y {@code purchase_price} no: el
-       * costo enseñaría el margen, el video existe para que lo vean (`pm.md` §5.2.8).
+       * Los enlaces <b>publicables</b>, sin token: <b>resueltos y sin el {@code CUPON_BOT}</b>
+       * (`RN-PM-048` a `RN-PM-050`).
+       *
+       * <p>Sustituye a {@code videoUrl} el 22-09-2026. Lo que esta lectura trae y {@code
+       * purchase_price} no sigue siendo la línea de `pm.md` §5.2.8 —el costo enseñaría el margen,
+       * el video existe para que lo vean—, y <b>desde hoy esa línea pasa también por dentro de los
+       * enlaces</b>: el cupón es lo que la compra concede, y publicarlo <b>aquí</b> sería regalarlo
+       * a cualquiera que abra el enlace que un vendedor reparte a propósito. No cabe en este
+       * registro, y esa ausencia es la defensa que sobrevive a que alguien reescriba la consulta.
        */
-      String videoUrl,
+      List<ProductLinkResponse> links,
       /**
        * `RN-PM-033`, sin token: la dirección de la portada, que `RF-PM-016` sirve también sin
        * token. Señala una imagen y no un producto. Presente y nula cuando no hay.

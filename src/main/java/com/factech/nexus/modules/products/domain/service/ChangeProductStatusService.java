@@ -60,14 +60,16 @@ public class ChangeProductStatusService {
   private final AuditWriter auditoria;
   private final Clock reloj;
   private final ProductExchangeResolver conversiones;
+  private final ProductLinkReader enlaces;
 
   @Autowired
   public ChangeProductStatusService(
       ProductRepository productos,
       ProductQueryRepository consultas,
       AuditWriter auditoria,
-      ProductExchangeResolver conversiones) {
-    this(productos, consultas, auditoria, conversiones, Clock.systemUTC());
+      ProductExchangeResolver conversiones,
+      ProductLinkReader enlaces) {
+    this(productos, consultas, auditoria, conversiones, enlaces, Clock.systemUTC());
   }
 
   ChangeProductStatusService(
@@ -75,11 +77,13 @@ public class ChangeProductStatusService {
       ProductQueryRepository consultas,
       AuditWriter auditoria,
       ProductExchangeResolver conversiones,
+      ProductLinkReader enlaces,
       Clock reloj) {
     this.productos = productos;
     this.consultas = consultas;
     this.auditoria = auditoria;
     this.conversiones = conversiones;
+    this.enlaces = enlaces;
     this.reloj = reloj;
   }
 
@@ -195,6 +199,7 @@ public class ChangeProductStatusService {
             fila ->
                 ProductDetailResponse.from(
                     fila,
+                    enlaces.crudosDe(fila.id()),
                     null,
                     conversiones
                         .para(java.util.List.of(fila.currencyId()))

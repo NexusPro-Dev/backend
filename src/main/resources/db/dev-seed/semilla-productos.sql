@@ -78,31 +78,9 @@ $$ LANGUAGE sql VOLATILE;
 -- `ck_products_icon_format` admite. `retirado` marca `deleted_at`.
 -- -----------------------------------------------------------------------------
 
-INSERT INTO products (id, code, type, name, description, icon,
-                      source_membership_id, target_membership_id,
-                      price, purchase_price, currency_id, validity_days,
-                      status, scope, implementation, video_url,
-                      created_at, updated_at, deleted_at)
-SELECT pg_temp.uuid_v7(),
-       p.codigo,
-       p.tipo,
-       p.nombre,
-       p.descripcion,
-       p.icono,
-       origen.id,
-       destino.id,
-       p.precio,
-       p.costo,
-       (SELECT id FROM currencies WHERE is_default = true),
-       p.dias,
-       p.estado,
-       p.alcance,
-       p.implementacion,
-       p.video,
-       now(),
-       now(),
-       CASE WHEN p.retirado THEN now() ELSE NULL END
-  FROM (VALUES
+WITH entradas (codigo, tipo, nombre, descripcion, icono, origen, destino,
+               precio, costo, dias, estado, alcance, implementacion, video, retirado) AS (
+  VALUES
       -- codigo, tipo, nombre, descripcion, icono, origen, destino,
       -- precio, costo, dias, estado, alcance, implementacion, video, retirado
 
@@ -195,15 +173,52 @@ SELECT pg_temp.uuid_v7(),
        'La primera versión del bot de señales. Retirado del catálogo.',
        NULL, NULL, NULL,
        19.00, NULL, 30, 'INACTIVO', 'AMBOS', 'AUTOMATICA', 'https://www.youtube.com/watch?v=n-dc74-SopA', true)
-  ) AS p(codigo, tipo, nombre, descripcion, icono, origen, destino,
-         precio, costo, dias, estado, alcance, implementacion, video, retirado)
-  LEFT JOIN memberships origen  ON origen.code  = p.origen
-  LEFT JOIN memberships destino ON destino.code = p.destino
- WHERE NOT EXISTS (SELECT 1 FROM products x WHERE x.code = p.codigo)
-   -- Un upgrade cuya membresía no exista NO se siembra a medias: sin las dos
-   -- filas, `ck_products_type_target` lo rechazaría y la semilla entera
-   -- fallaría. Se deja fuera y la guarda de abajo lo dice.
-   AND (p.tipo = 'BOT' OR (origen.id IS NOT NULL AND destino.id IS NOT NULL));
+),
+nuevos AS (
+  INSERT INTO products (id, code, type, name, description, icon,
+                        source_membership_id, target_membership_id,
+                        price, purchase_price, currency_id, validity_days,
+                        status, scope, implementation,
+                        created_at, updated_at, deleted_at)
+  SELECT pg_temp.uuid_v7(),
+         p.codigo,
+         p.tipo,
+         p.nombre,
+         p.descripcion,
+         p.icono,
+         origen.id,
+         destino.id,
+         p.precio,
+         p.costo,
+         (SELECT id FROM currencies WHERE is_default = true),
+         p.dias,
+         p.estado,
+         p.alcance,
+         p.implementacion,
+         now(),
+         now(),
+         CASE WHEN p.retirado THEN now() ELSE NULL END
+    FROM entradas p
+    LEFT JOIN memberships origen  ON origen.code  = p.origen
+    LEFT JOIN memberships destino ON destino.code = p.destino
+   WHERE NOT EXISTS (SELECT 1 FROM products x WHERE x.code = p.codigo)
+     -- Un upgrade cuya membresía no exista NO se siembra a medias: sin las dos
+     -- filas, `ck_products_type_target` lo rechazaría y la semilla entera
+     -- fallaría. Se deja fuera y la guarda de abajo lo dice.
+     AND (p.tipo = 'BOT' OR (origen.id IS NOT NULL AND destino.id IS NOT NULL))
+  RETURNING id, code
+)
+-- El enlace del video de cada producto sembrado (`RN-PM-048`). Sale de la
+-- MISMA tabla de valores de arriba, no de una segunda lista de códigos: dos
+-- listas se desincronizan el día que alguien añada un producto y no el
+-- enlace. Y solo para los que este INSERT acaba de crear —`RETURNING`—, de
+-- modo que la semilla sigue siendo idempotente y no pisa un enlace que
+-- alguien haya corregido a mano en su entorno.
+INSERT INTO product_links (product_id, type, url)
+SELECT n.id, 'VIDEO_PRESENTACION', e.video
+  FROM nuevos n
+  JOIN entradas e ON e.codigo = n.code
+ WHERE e.video IS NOT NULL;
 
 
 -- -----------------------------------------------------------------------------

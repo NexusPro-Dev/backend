@@ -3,6 +3,7 @@ package com.factech.nexus.modules.products.application;
 import com.factech.nexus.modules.products.domain.models.ProductImplementation;
 import com.factech.nexus.modules.products.domain.models.ProductScope;
 import com.factech.nexus.modules.products.domain.models.ProductType;
+import jakarta.validation.Valid;
 import jakarta.validation.constraints.DecimalMin;
 import jakarta.validation.constraints.Digits;
 import jakarta.validation.constraints.Min;
@@ -11,6 +12,7 @@ import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Pattern;
 import jakarta.validation.constraints.Size;
 import java.math.BigDecimal;
+import java.util.List;
 import java.util.UUID;
 
 /**
@@ -55,12 +57,13 @@ public record RegisterProductRequest(
     @Size(max = 1000, message = "VAL-003: La descripción no puede exceder 1000 caracteres.")
         String description,
     @Size(max = 50, message = "VAL-012: El icono no puede exceder 50 caracteres.") String icon,
-    // SIN anotación de forma, y es deliberado: `@URL` admite cualquier esquema y
-    // no distingue una relativa, y `@Pattern` no puede decir «hasta 500» sin
-    // repetir el tope. La forma la comprueba el dominio, en un sitio y con un
-    // mensaje (`VAL-017`), como hace con el icono. Opcional en los DOS tipos;
-    // ausente y nulo significan lo mismo: no tiene video (`RN-PM-032`).
-    String videoUrl,
+    // Los enlaces del producto, hasta UNO POR TIPO (`RN-PM-048`). Ausente y
+    // vacía significan lo mismo: no declara ninguno. Cada entrada valida su
+    // `type` con anotación —no depende de ningún otro campo— y deja la forma de
+    // la dirección y del identificador al dominio (`VAL-017`, `VAL-021` a
+    // `VAL-023`), que es donde puede decir CUÁL de los enlaces la incumple.
+    // Fue el campo `videoUrl` hasta el 22-09-2026.
+    @Valid List<ProductLinkRequest> links,
     // NINGUNA DE LAS DOS LLEVA `@NotNull`, y es deliberado: su obligatoriedad
     // depende del TIPO (`RN-PM-002`), que Bean Validation no puede mirar sin una
     // restricción de clase. La comprueba el dominio, que es donde vive la regla
@@ -109,7 +112,9 @@ public record RegisterProductRequest(
     name = name == null ? null : name.trim();
     description = description == null ? null : description.trim();
     icon = icon == null ? null : icon.trim();
-    videoUrl = videoUrl == null ? null : videoUrl.trim();
+    // La colección nunca llega nula al caso de uso: ausente y vacía son lo mismo
+    // aquí, y así nadie tiene que preguntarse cuál de las dos recibió.
+    links = links == null ? List.of() : List.copyOf(links);
   }
 
   public RegisterProductCommand toCommand() {
@@ -119,7 +124,7 @@ public record RegisterProductRequest(
         name,
         description,
         icon,
-        videoUrl,
+        links,
         sourceMembershipId,
         targetMembershipId,
         price,

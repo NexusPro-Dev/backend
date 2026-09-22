@@ -538,36 +538,46 @@ class ProductsIT extends IntegrationTestBase {
 
   @Test
   @DisplayName(
-      "`CA-PM-219` — el alta admite el enlace de un video, también en un BOT, y lo devuelve TAL"
-          + " CUAL")
-  void conVideo() throws Exception {
+      "`CA-PM-219` — el alta admite un enlace de video, también en un BOT, y lo devuelve TAL CUAL")
+  void conEnlaceDeVideo() throws Exception {
     // En un bot, a propósito: es donde el icono NO cabe (`RN-PM-016`) y el
-    // video SÍ (`RN-PM-032`), y una prueba sobre un upgrade no distinguiría las
-    // dos reglas. Con mayúsculas en el identificador y espacios alrededor: lo
-    // que se guarda es lo recortado y NADA MÁS — un enlace «arreglado» puede
-    // dejar de resolver.
+    // enlace SÍ, y una prueba sobre un upgrade no distinguiría las dos reglas.
+    // Con mayúsculas en el identificador y espacios alrededor: lo que se guarda
+    // es lo recortado y NADA MÁS — un enlace «arreglado» puede dejar de
+    // resolver.
     mvc.perform(
             alta(
                 """
                 {"scope":"TIENDA","implementation":"AUTOMATICA","code":"ASESORIA","type":"BOT","name":"Asesoría",
                  "price":49.99,"currencyId":"%s",
-                 "videoUrl":"  https://www.youtube.com/watch?v=dQw4w9WgXcQ  "}
+                 "links":[{"type":"VIDEO_PRESENTACION","url":"  https://www.youtube.com/watch?v=dQw4w9WgXcQ  "}]}
                 """
                     .formatted(USD)))
         .andExpect(status().isCreated())
-        .andExpect(jsonPath("$.videoUrl").value("https://www.youtube.com/watch?v=dQw4w9WgXcQ"));
+        .andExpect(jsonPath("$.links.length()").value(1))
+        .andExpect(jsonPath("$.links[0].type").value("VIDEO_PRESENTACION"))
+        .andExpect(jsonPath("$.links[0].url").value("https://www.youtube.com/watch?v=dQw4w9WgXcQ"))
+        .andExpect(jsonPath("$.links[0].externalId").doesNotExist())
+        // El campo sigue PRESENTE aunque valga nulo: no declararlo y no tenerlo
+        // son lo mismo, y un campo que desaparece no lo puede decir.
+        .andExpect(jsonPath("$.links[0]").value(org.hamcrest.Matchers.hasKey("externalId")));
 
     assertThat(
             jdbc.queryForObject(
-                "SELECT video_url FROM products WHERE code = 'ASESORIA'", String.class))
+                """
+                SELECT l.url FROM product_links l
+                  JOIN products p ON p.id = l.product_id
+                 WHERE p.code = 'ASESORIA' AND l.type = 'VIDEO_PRESENTACION'
+                """,
+                String.class))
         .isEqualTo("https://www.youtube.com/watch?v=dQw4w9WgXcQ");
   }
 
   @Test
-  @DisplayName("`CA-PM-220` — sin video el campo llega PRESENTE y nulo, no ausente ni vacío")
-  void sinVideo() throws Exception {
+  @DisplayName("`CA-PM-220` — sin enlaces, `links` llega PRESENTE y VACÍA: no ausente y no nula")
+  void sinEnlaces() throws Exception {
     // Como el precio de compra: un campo que desaparece del JSON no puede decir
-    // «no tiene video». Y `""` tampoco es un estado: el esquema no lo admite.
+    // «no tiene enlaces». Y la lista vacía es un estado legítimo, no un hueco.
     mvc.perform(
             alta(
                 """
@@ -576,30 +586,34 @@ class ProductsIT extends IntegrationTestBase {
                 """
                     .formatted(USD)))
         .andExpect(status().isCreated())
-        .andExpect(jsonPath("$.videoUrl").doesNotExist())
-        .andExpect(jsonPath("$").value(org.hamcrest.Matchers.hasKey("videoUrl")));
+        .andExpect(jsonPath("$").value(org.hamcrest.Matchers.hasKey("links")))
+        .andExpect(jsonPath("$.links").isArray())
+        .andExpect(jsonPath("$.links.length()").value(0));
 
-    // Y el nulo explícito significa exactamente lo mismo que el ausente.
+    // Y la colección vacía explícita significa exactamente lo mismo que la
+    // ausente: ninguna de las dos escribe una fila.
     mvc.perform(
             alta(
                 """
                 {"scope":"TIENDA","implementation":"AUTOMATICA","code":"ASESORIA2","type":"BOT","name":"Asesoría 2",
-                 "price":49.99,"currencyId":"%s","videoUrl":null}
+                 "price":49.99,"currencyId":"%s","links":[]}
                 """
                     .formatted(USD)))
         .andExpect(status().isCreated())
-        .andExpect(jsonPath("$").value(org.hamcrest.Matchers.hasKey("videoUrl")));
+        .andExpect(jsonPath("$.links.length()").value(0));
+
+    assertThat(cuantosEnlaces()).isZero();
   }
 
   @Test
   @DisplayName(
-      "`CA-PM-221` — un enlace sin forma de URL absoluta http(s) se rechaza con VAL-017, nombrando"
-          + " `videoUrl`")
-  void videoConFormaInvalida() throws Exception {
-    // Las cinco variantes que la estrategia de prueba enumera: relativo, sin
+      "`CA-PM-221` — una dirección sin forma de URL absoluta http(s) se rechaza con VAL-017,"
+          + " nombrando el enlace por su índice")
+  void direccionConFormaInvalida() throws Exception {
+    // Las cinco variantes que la estrategia de prueba enumera: relativa, sin
     // esquema, con otro esquema, con un espacio dentro, y de 501 caracteres.
     // Se comprueba SOLO la forma: un enlace con forma y sin destino se admite
-    // (`CA-PM-219` no resuelve a nada en esta suite), y eso es la decisión de
+    // —`CA-PM-219` no resuelve a nada en esta suite—, y eso es la decisión de
     // `pm.md` §5.2.8, no un descuido.
     String[] invalidos = {
       "/videos/asesoria.mp4",
@@ -613,14 +627,28 @@ class ProductsIT extends IntegrationTestBase {
               alta(
                   """
                   {"scope":"TIENDA","implementation":"AUTOMATICA","code":"ASESORIA","type":"BOT","name":"Asesoría",
-                   "price":49.99,"currencyId":"%s","videoUrl":"%s"}
+                   "price":49.99,"currencyId":"%s","links":[{"type":"VIDEO_PRESENTACION","url":"%s"}]}
                   """
                       .formatted(USD, invalido)))
           .andExpect(status().isBadRequest())
           .andExpect(jsonPath("$.errors[0].code").value("VAL-017"))
-          .andExpect(jsonPath("$.errors[0].field").value("videoUrl"));
+          .andExpect(jsonPath("$.errors[0].field").value("links[0].url"));
     }
     assertThat(cuantosProductos()).isZero();
+
+    // El índice es el del enlace que incumple, no el primero de la colección:
+    // sin él, quien envía dos tiene que probar los dos para saber cuál falló.
+    mvc.perform(
+            alta(
+                """
+                {"scope":"TIENDA","implementation":"AUTOMATICA","code":"ASESORIA","type":"BOT","name":"Asesoría",
+                 "price":49.99,"currencyId":"%s","links":[
+                   {"type":"VIDEO_PRESENTACION","url":"https://vimeo.com/1"},
+                   {"type":"CUPON_BOT","url":"sin-esquema"}]}
+                """
+                    .formatted(USD)))
+        .andExpect(status().isBadRequest())
+        .andExpect(jsonPath("$.errors[0].field").value("links[1].url"));
 
     // El límite exacto —500— SÍ cabe: la prueba anterior no demuestra nada si
     // el tope se hubiera puesto un carácter por debajo.
@@ -628,33 +656,183 @@ class ProductsIT extends IntegrationTestBase {
             alta(
                 """
                 {"scope":"TIENDA","implementation":"AUTOMATICA","code":"ASESORIA","type":"BOT","name":"Asesoría",
-                 "price":49.99,"currencyId":"%s","videoUrl":"%s"}
+                 "price":49.99,"currencyId":"%s","links":[{"type":"VIDEO_PRESENTACION","url":"%s"}]}
                 """
                     .formatted(USD, "https://example.com/" + "a".repeat(480))))
         .andExpect(status().isCreated());
   }
 
   @Test
-  @DisplayName("`CA-PM-222` — la instantánea del evento de creación incluye `video_url`")
-  void laInstantaneaLlevaElVideo() throws Exception {
+  @DisplayName("`CA-PM-222` — la instantánea del evento de creación incluye los enlaces declarados")
+  void laInstantaneaLlevaLosEnlaces() throws Exception {
     mvc.perform(
             alta(
                 """
                 {"scope":"TIENDA","implementation":"AUTOMATICA","code":"ASESORIA","type":"BOT","name":"Asesoría",
-                 "price":49.99,"currencyId":"%s","videoUrl":"https://vimeo.com/123456"}
+                 "price":49.99,"currencyId":"%s",
+                 "links":[{"type":"VIDEO_PRESENTACION","url":"https://vimeo.com/123456"}]}
                 """
                     .formatted(USD)))
         .andExpect(status().isCreated());
 
-    String cambios =
-        jdbc.queryForObject(
-            """
-            SELECT changes::text FROM audit_change_log
-             WHERE module = 'PM' AND entity = 'products' AND action = 'CREATE'
-             ORDER BY occurred_at DESC LIMIT 1
-            """,
-            String.class);
-    assertThat(cambios).contains("video_url").contains("https://vimeo.com/123456");
+    String cambios = ultimaInstantanea();
+    assertThat(cambios).contains("links").contains("https://vimeo.com/123456");
+    // El tipo que NO se declaró no aparece con un hueco: la instantánea lleva
+    // los enlaces que hay, y «no tener» es no tener entrada — que es lo mismo
+    // que hace la tabla. Hasta el 22-09-2026 llevaba `video_url` nulo.
+    assertThat(cambios).doesNotContain("CUPON_BOT").doesNotContain("video_url");
+  }
+
+  @Test
+  @DisplayName("`CA-PM-380` — el alta admite los DOS enlaces a la vez, y los devuelve los dos")
+  void losDosEnlacesALaVez() throws Exception {
+    mvc.perform(
+            alta(
+                """
+                {"scope":"TIENDA","implementation":"AUTOMATICA","code":"ASESORIA","type":"BOT","name":"Asesoría",
+                 "price":49.99,"currencyId":"%s","links":[
+                   {"type":"VIDEO_PRESENTACION","url":"https://vimeo.com/123456"},
+                   {"type":"CUPON_BOT","url":"https://t.me/nexusbot","externalId":"cupon-15"}]}
+                """
+                    .formatted(USD)))
+        .andExpect(status().isCreated())
+        .andExpect(jsonPath("$.links.length()").value(2))
+        .andExpect(jsonPath("$.links[0].type").value("VIDEO_PRESENTACION"))
+        .andExpect(jsonPath("$.links[1].type").value("CUPON_BOT"))
+        .andExpect(jsonPath("$.links[1].externalId").value("cupon-15"));
+
+    assertThat(cuantosEnlaces()).isEqualTo(2);
+  }
+
+  @Test
+  @DisplayName("`CA-PM-381` — el enlace con identificador vuelve CRUDO, no compuesto")
+  void elIdentificadorVuelveSinPegar() throws Exception {
+    // Es lo que `RF-PM-004` espera recibir de vuelta: quien corrige envía lo
+    // que leyó, y si la lectura devolviera el enlace ya compuesto, el
+    // identificador entraría dos veces en la dirección.
+    mvc.perform(
+            alta(
+                """
+                {"scope":"TIENDA","implementation":"AUTOMATICA","code":"ASESORIA","type":"BOT","name":"Asesoría",
+                 "price":49.99,"currencyId":"%s",
+                 "links":[{"type":"CUPON_BOT","url":"https://t.me/nexusbot","externalId":"cupon-15"}]}
+                """
+                    .formatted(USD)))
+        .andExpect(status().isCreated())
+        .andExpect(jsonPath("$.links[0].url").value("https://t.me/nexusbot"))
+        .andExpect(jsonPath("$.links[0].externalId").value("cupon-15"));
+  }
+
+  @Test
+  @DisplayName(
+      "`CA-PM-382` — dos enlaces del mismo tipo se rechazan con VAL-020, y NO se registra"
+          + " nada")
+  void dosEnlacesDelMismoTipo() throws Exception {
+    mvc.perform(
+            alta(
+                """
+                {"scope":"TIENDA","implementation":"AUTOMATICA","code":"ASESORIA","type":"BOT","name":"Asesoría",
+                 "price":49.99,"currencyId":"%s","links":[
+                   {"type":"VIDEO_PRESENTACION","url":"https://vimeo.com/1"},
+                   {"type":"VIDEO_PRESENTACION","url":"https://vimeo.com/2"}]}
+                """
+                    .formatted(USD)))
+        .andExpect(status().isBadRequest())
+        .andExpect(jsonPath("$.errors[0].code").value("VAL-020"))
+        .andExpect(jsonPath("$.errors[0].field").value("links[1].type"));
+
+    // Ni el producto ni el PRIMER enlace: la comprobación va sobre el cuerpo y
+    // antes de escribir, no sobre `pk_product_links` después.
+    assertThat(cuantosProductos()).isZero();
+    assertThat(cuantosEnlaces()).isZero();
+  }
+
+  @Test
+  @DisplayName(
+      "`CA-PM-383` — un tipo desconocido se rechaza con VAL-019 y uno sin dirección con"
+          + " VAL-021")
+  void tipoDesconocidoYDireccionQueFalta() throws Exception {
+    mvc.perform(
+            alta(
+                """
+                {"scope":"TIENDA","implementation":"AUTOMATICA","code":"ASESORIA","type":"BOT","name":"Asesoría",
+                 "price":49.99,"currencyId":"%s","links":[{"type":"MANUAL_PDF","url":"https://vimeo.com/1"}]}
+                """
+                    .formatted(USD)))
+        .andExpect(status().isBadRequest())
+        .andExpect(jsonPath("$.errors[0].code").value("VAL-019"))
+        .andExpect(jsonPath("$.errors[0].field").value("links[0].type"));
+
+    // Ausente, nulo y vacío son el MISMO rechazo: quitar un enlace es no
+    // declararlo, no enviarlo sin dirección.
+    String[] sinDireccion = {
+      "{\"type\":\"VIDEO_PRESENTACION\"}",
+      "{\"type\":\"VIDEO_PRESENTACION\",\"url\":null}",
+      "{\"type\":\"VIDEO_PRESENTACION\",\"url\":\"   \"}"
+    };
+    for (String enlace : sinDireccion) {
+      mvc.perform(
+              alta(
+                  """
+                  {"scope":"TIENDA","implementation":"AUTOMATICA","code":"ASESORIA","type":"BOT","name":"Asesoría",
+                   "price":49.99,"currencyId":"%s","links":[%s]}
+                  """
+                      .formatted(USD, enlace)))
+          .andExpect(status().isBadRequest())
+          .andExpect(jsonPath("$.errors[0].code").value("VAL-021"))
+          .andExpect(jsonPath("$.errors[0].field").value("links[0].url"));
+    }
+    assertThat(cuantosProductos()).isZero();
+  }
+
+  @Test
+  @DisplayName(
+      "`CA-PM-384` — el identificador se valida con VAL-022, y sobre una dirección con `?`"
+          + " o `#` se rechaza con VAL-023")
+  void elIdentificadorYSuRestriccionCruzada() throws Exception {
+    for (String malo : new String[] {"cupon 15", "a".repeat(101)}) {
+      mvc.perform(
+              alta(
+                  """
+                  {"scope":"TIENDA","implementation":"AUTOMATICA","code":"ASESORIA","type":"BOT","name":"Asesoría",
+                   "price":49.99,"currencyId":"%s",
+                   "links":[{"type":"CUPON_BOT","url":"https://t.me/nexusbot","externalId":"%s"}]}
+                  """
+                      .formatted(USD, malo)))
+          .andExpect(status().isBadRequest())
+          .andExpect(jsonPath("$.errors[0].code").value("VAL-022"))
+          .andExpect(jsonPath("$.errors[0].field").value("links[0].externalId"));
+    }
+
+    // La restricción es CRUZADA: el identificador sobre una dirección con
+    // cadena de consulta daría un enlace roto que responde 200, y eso no se
+    // descubre probándolo.
+    mvc.perform(
+            alta(
+                """
+                {"scope":"TIENDA","implementation":"AUTOMATICA","code":"ASESORIA","type":"BOT","name":"Asesoría",
+                 "price":49.99,"currencyId":"%s",
+                 "links":[{"type":"VIDEO_PRESENTACION","url":"https://www.youtube.com/watch?v=abc","externalId":"abc"}]}
+                """
+                    .formatted(USD)))
+        .andExpect(status().isBadRequest())
+        .andExpect(jsonPath("$.errors[0].code").value("VAL-023"))
+        .andExpect(jsonPath("$.errors[0].field").value("links[0].url"));
+
+    assertThat(cuantosProductos()).isZero();
+
+    // Y la MISMA dirección sin identificador se admite: no es una prohibición
+    // sobre la dirección — un video de YouTube es exactamente eso.
+    mvc.perform(
+            alta(
+                """
+                {"scope":"TIENDA","implementation":"AUTOMATICA","code":"ASESORIA","type":"BOT","name":"Asesoría",
+                 "price":49.99,"currencyId":"%s",
+                 "links":[{"type":"VIDEO_PRESENTACION","url":"https://www.youtube.com/watch?v=abc"}]}
+                """
+                    .formatted(USD)))
+        .andExpect(status().isCreated())
+        .andExpect(jsonPath("$.links[0].url").value("https://www.youtube.com/watch?v=abc"));
   }
 
   @Test
@@ -1052,6 +1230,23 @@ class ProductsIT extends IntegrationTestBase {
     return filas == null ? 0 : filas;
   }
 
+  /** Las filas de `product_links`, para las pruebas que exigen que NO se escriba ninguna. */
+  private int cuantosEnlaces() {
+    Integer filas = jdbc.queryForObject("SELECT count(*) FROM product_links", Integer.class);
+    return filas == null ? 0 : filas;
+  }
+
+  /** La instantánea del último evento de creación de producto. */
+  private String ultimaInstantanea() {
+    return jdbc.queryForObject(
+        """
+        SELECT changes::text FROM audit_change_log
+         WHERE module = 'PM' AND entity = 'products' AND action = 'CREATE'
+         ORDER BY occurred_at DESC LIMIT 1
+        """,
+        String.class);
+  }
+
   /**
    * Deja `products` vacía al terminar CADA prueba.
    *
@@ -1063,6 +1258,11 @@ class ProductsIT extends IntegrationTestBase {
    */
   @AfterEach
   void vaciarCatalogo() {
+    // `product_links` PRIMERO: su clave foránea no lleva `ON DELETE` —el
+    // producto no se borra físicamente nunca (`RN-PM-010`)—, de modo que un
+    // enlace vivo haría fallar el borrado de abajo, y el fallo aparecería en
+    // la primera suite que vacíe el catálogo después de esta.
+    jdbc.update("DELETE FROM product_links");
     jdbc.update("DELETE FROM products");
   }
 }

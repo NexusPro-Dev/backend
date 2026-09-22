@@ -36,6 +36,7 @@ public class RemoveProductCoverService {
   private final ProductQueryRepository consultas;
   private final AuditWriter auditoria;
   private final ProductExchangeResolver conversiones;
+  private final ProductLinkReader enlaces;
   private final Clock reloj;
 
   @Autowired
@@ -44,8 +45,9 @@ public class RemoveProductCoverService {
       ProductImageRepository imagenes,
       ProductQueryRepository consultas,
       AuditWriter auditoria,
-      ProductExchangeResolver conversiones) {
-    this(productos, imagenes, consultas, auditoria, conversiones, Clock.systemUTC());
+      ProductExchangeResolver conversiones,
+      ProductLinkReader enlaces) {
+    this(productos, imagenes, consultas, auditoria, conversiones, enlaces, Clock.systemUTC());
   }
 
   RemoveProductCoverService(
@@ -54,12 +56,14 @@ public class RemoveProductCoverService {
       ProductQueryRepository consultas,
       AuditWriter auditoria,
       ProductExchangeResolver conversiones,
+      ProductLinkReader enlaces,
       Clock reloj) {
     this.productos = productos;
     this.imagenes = imagenes;
     this.consultas = consultas;
     this.auditoria = auditoria;
     this.conversiones = conversiones;
+    this.enlaces = enlaces;
     this.reloj = reloj;
   }
 
@@ -81,6 +85,6 @@ public class RemoveProductCoverService {
               cambio.cambios()));
     }
 
-    return ProductCoverSupport.detalleDe(producto.getId(), consultas, conversiones);
+    return ProductCoverSupport.detalleDe(producto.getId(), consultas, conversiones, enlaces);
   }
 }

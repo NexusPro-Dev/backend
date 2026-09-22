@@ -2,6 +2,7 @@ package com.factech.nexus.modules.products.application;
 
 import com.factech.nexus.modules.products.domain.models.Product;
 import com.factech.nexus.modules.products.domain.models.ProductImplementation;
+import com.factech.nexus.modules.products.domain.models.ProductLink;
 import com.factech.nexus.modules.products.domain.models.ProductScope;
 import com.factech.nexus.modules.products.domain.models.ProductStatus;
 import com.factech.nexus.modules.products.domain.models.ProductType;
@@ -12,6 +13,7 @@ import com.fasterxml.jackson.annotation.JsonInclude;
 import java.math.BigDecimal;
 import java.time.OffsetDateTime;
 import java.time.ZoneOffset;
+import java.util.List;
 import java.util.UUID;
 
 /**
@@ -38,10 +40,18 @@ public record ProductResponse(
     String description,
     String icon,
     /**
-     * `RN-PM-032`: la dirección del video, tal cual se guardó, y nula y presente cuando no hay. Al
-     * revés que {@code purchasePrice}, sale en las cuatro lecturas.
+     * Los enlaces del producto, <b>crudos</b> (`RN-PM-048`, `RN-PM-049`).
+     *
+     * <p>Sustituye a {@code videoUrl} el 22-09-2026. Llega <b>presente y vacía</b> cuando el
+     * producto no declara ninguno, y aquí se aparta a propósito del {@code null} presente del resto
+     * de esta respuesta: aquella forma existe porque un campo ausente no puede decir «no lo tiene»,
+     * y una colección vacía <b>sí</b> lo dice.
+     *
+     * <p><b>Crudos y sin componer</b>: esta respuesta exige {@code products:create} o {@code
+     * products:read}, y quien la recibe es quien va a mandar el {@code PATCH} de `RF-PM-004`.
+     * Devolver lo resuelto obligaría a deshacer la composición a mano.
      */
-    String videoUrl,
+    List<ProductLinkResponse> links,
     /**
      * La dirección de la portada (`RN-PM-033`): la ruta pública de `RF-PM-016`, construida sobre
      * `cover_image_id` sin tocar `product_images`. Presente y nula cuando no hay.
@@ -75,6 +85,7 @@ public record ProductResponse(
 
   public static ProductResponse from(
       Product producto,
+      List<ProductLink> enlaces,
       MembershipView origen,
       MembershipView destino,
       CurrencyView moneda,
@@ -86,7 +97,7 @@ public record ProductResponse(
         producto.getName(),
         producto.getDescription(),
         producto.getIcon(),
-        producto.getVideoUrl(),
+        ProductLinkResponse.todas(enlaces),
         ProductImageUrls.de(producto.getCoverImageId()),
         ref(origen),
         ref(destino),
