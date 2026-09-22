@@ -454,7 +454,16 @@ class OpenApiContractIT extends IntegrationTestBase {
         // La fila del listado NO lleva ni descripción ni miembros: eso es el
         // detalle, y el contrato tiene que decirlo tan claro como el código.
         .andExpect(jsonPath("$.components.schemas.TeamItem.properties.description").doesNotExist())
-        .andExpect(jsonPath("$.components.schemas.TeamItem.properties.members").doesNotExist());
+        .andExpect(jsonPath("$.components.schemas.TeamItem.properties.members").doesNotExist())
+        // `RF-SP-065`: el detalle es OTRA operación con OTRO permiso, y su
+        // esquema sí lleva lo que la fila del listado no lleva.
+        .andExpect(
+            jsonPath("$.paths['/api/v1/teams/{id}'].get['x-required-permission']")
+                .value("teams:read"))
+        .andExpect(jsonPath("$.paths['/api/v1/teams/{id}'].get.responses.404").exists())
+        .andExpect(jsonPath("$.components.schemas.TeamDetailResponse.properties.members").exists())
+        .andExpect(
+            jsonPath("$.components.schemas.TeamDetailResponse.properties.deletionReason").exists());
   }
 
   @Test

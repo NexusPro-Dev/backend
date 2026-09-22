@@ -4,6 +4,7 @@ import com.factech.nexus.modules.system.teams.application.ListTeamsRequest;
 import com.factech.nexus.modules.system.teams.application.RegisterTeamRequest;
 import com.factech.nexus.modules.system.teams.application.TeamDetailResponse;
 import com.factech.nexus.modules.system.teams.application.TeamItem;
+import com.factech.nexus.modules.system.teams.domain.service.GetTeamService;
 import com.factech.nexus.modules.system.teams.domain.service.ListTeamsService;
 import com.factech.nexus.modules.system.teams.domain.service.RegisterTeamService;
 import com.factech.nexus.shared.pagination.PageResponse;
@@ -15,11 +16,13 @@ import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import java.net.URI;
+import java.util.UUID;
 import org.springdoc.core.annotations.ParameterObject;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.ModelAttribute;
+import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
@@ -48,10 +51,12 @@ public class TeamController {
 
   private final RegisterTeamService alta;
   private final ListTeamsService listado;
+  private final GetTeamService ficha;
 
-  public TeamController(RegisterTeamService alta, ListTeamsService listado) {
+  public TeamController(RegisterTeamService alta, ListTeamsService listado, GetTeamService ficha) {
     this.alta = alta;
     this.listado = listado;
+    this.ficha = ficha;
   }
 
   @PostMapping
@@ -152,5 +157,55 @@ public class TeamController {
   })
   public PageResponse<TeamItem> listar(@ParameterObject @ModelAttribute ListTeamsRequest filtros) {
     return listado.list(filtros);
+  }
+
+  @GetMapping("/{id}")
+  @PreAuthorize("hasAuthority('teams:read')")
+  @Operation(
+      summary = "Consultar el detalle de un equipo",
+      description =
+          """
+          El equipo entero: lo suyo —incluida la `description`, que el listado no
+          trae— y **sus miembros vigentes**, cada uno con `id`, `username`,
+          `firstName`, `lastName`, `status` y `joinedAt`, **desde cuándo pertenece a
+          este equipo**. La lista va **por antigüedad**, con el nombre de usuario de
+          desempate para que el orden sea determinista.
+
+          **El `status` de cada miembro es el de la PERSONA**, no el de su pertenencia
+          —una pertenencia vigente no tiene estados—, y se publica porque un manager
+          desactivado **sigue en su equipo**: cambiar el estado de una persona no la
+          saca. Quien administra necesita verlo sin abrir cada ficha. A un eliminado
+          sí se le cierra la pertenencia en la misma transacción, de modo que deja de
+          ser vigente y no aparece.
+
+          **`members` son solo los vigentes**: quien tuvo una pertenencia cerrada aquí
+          no sale, y `memberCount` coincide siempre con el tamaño de la lista y con el
+          número que da el listado para este mismo equipo.
+
+          **Un equipo eliminado NO es un `404`**: se devuelve con `deletedAt` y
+          `deletionReason` —leído de la auditoría de eliminación— y con `members`
+          vacío, no por ocultarlos sino porque no se elimina un equipo que tenga
+          vigentes. Si el registro de auditoría no aparece, `deletionReason` sale
+          **presente y nulo**: el detalle no depende de la auditoría para responder.
+          Un equipo `INACTIVO` se devuelve igual, **con su gente**: desactivar no
+          vacía.
+
+          Exige `teams:read`; `teams:list` **no** habilita esta operación, porque
+          listar y abrir son dos.
+          """)
+  @ApiResponses({
+    @ApiResponse(
+        responseCode = "200",
+        description = "El equipo con sus miembros vigentes.",
+        content = @Content(schema = @Schema(implementation = TeamDetailResponse.class))),
+    @ApiResponse(responseCode = "400", description = "Identificador mal formado (`VAL-001`)"),
+    @ApiResponse(responseCode = "401", description = "Token ausente o inválido (`AUTH-001`)"),
+    @ApiResponse(
+        responseCode = "403",
+        description = "Autenticado sin el permiso `teams:read` (`AUTH-002`)"),
+    @ApiResponse(responseCode = "404", description = "El equipo no existe (`EX-001`)")
+  })
+  public TeamDetailResponse detalle(@PathVariable UUID id) {
+    return ficha.detail(id);
   }
 }

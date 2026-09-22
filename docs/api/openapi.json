@@ -12886,6 +12886,76 @@
         "x-required-permission" : "teams:create"
       }
     },
+    "/api/v1/teams/{id}" : {
+      "get" : {
+        "description" : "**Permiso requerido:** `teams:read`. Sin él, `403` (`AUTH-002`).\n\nEl equipo entero: lo suyo —incluida la `description`, que el listado no\ntrae— y **sus miembros vigentes**, cada uno con `id`, `username`,\n`firstName`, `lastName`, `status` y `joinedAt`, **desde cuándo pertenece a\neste equipo**. La lista va **por antigüedad**, con el nombre de usuario de\ndesempate para que el orden sea determinista.\n\n**El `status` de cada miembro es el de la PERSONA**, no el de su pertenencia\n—una pertenencia vigente no tiene estados—, y se publica porque un manager\ndesactivado **sigue en su equipo**: cambiar el estado de una persona no la\nsaca. Quien administra necesita verlo sin abrir cada ficha. A un eliminado\nsí se le cierra la pertenencia en la misma transacción, de modo que deja de\nser vigente y no aparece.\n\n**`members` son solo los vigentes**: quien tuvo una pertenencia cerrada aquí\nno sale, y `memberCount` coincide siempre con el tamaño de la lista y con el\nnúmero que da el listado para este mismo equipo.\n\n**Un equipo eliminado NO es un `404`**: se devuelve con `deletedAt` y\n`deletionReason` —leído de la auditoría de eliminación— y con `members`\nvacío, no por ocultarlos sino porque no se elimina un equipo que tenga\nvigentes. Si el registro de auditoría no aparece, `deletionReason` sale\n**presente y nulo**: el detalle no depende de la auditoría para responder.\nUn equipo `INACTIVO` se devuelve igual, **con su gente**: desactivar no\nvacía.\n\nExige `teams:read`; `teams:list` **no** habilita esta operación, porque\nlistar y abrir son dos.\n",
+        "operationId" : "detalle_7",
+        "parameters" : [ {
+          "in" : "path",
+          "name" : "id",
+          "required" : true,
+          "schema" : {
+            "format" : "uuid",
+            "type" : "string"
+          }
+        } ],
+        "responses" : {
+          "200" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/TeamDetailResponse"
+                }
+              }
+            },
+            "description" : "El equipo con sus miembros vigentes."
+          },
+          "400" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/TeamDetailResponse"
+                }
+              }
+            },
+            "description" : "Identificador mal formado (`VAL-001`)"
+          },
+          "401" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/TeamDetailResponse"
+                }
+              }
+            },
+            "description" : "Token ausente o inválido (`AUTH-001`)"
+          },
+          "403" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/TeamDetailResponse"
+                }
+              }
+            },
+            "description" : "Autenticado sin el permiso `teams:read` (`AUTH-002`)"
+          },
+          "404" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/TeamDetailResponse"
+                }
+              }
+            },
+            "description" : "El equipo no existe (`EX-001`)"
+          }
+        },
+        "summary" : "Consultar el detalle de un equipo",
+        "tags" : [ "Equipos" ],
+        "x-required-permission" : "teams:read"
+      }
+    },
     "/api/v1/user-commission-rates" : {
       "get" : {
         "description" : "**Permiso requerido:** `user-commission-rates:read`. Sin él, `403` (`AUTH-002`).\n\nDevuelve las tasas **tal como se declararon**, cada una **con su\nproducto** (`id`, `code`, `name`, `price` y `currency`), y no resuelve\ncuál se aplica: para eso está `GET /api/v1/commissions/effective`.\n\n**Incluye el historial**: las vencidas viajan junto a la vigente salvo que\nse filtre por fecha con `onDate`. Y es **el único historial que le queda al\nmódulo** — las tasas de rol perdieron la vigencia.\n\n**Filtrar por persona devuelve las declaradas PARA esa persona**, no la que\nle aplica hoy sobre un producto.\n\n**Filtrar por producto (`productId`) devuelve las de ese producto**, de\ncualquier persona: es la respuesta a «quién tiene excepción aquí». Se\ncombina con los demás filtros — persona y producto juntos responden\n«¿tiene esta persona excepción en este producto?», con su historial. Un\nproducto donde nadie tiene excepción devuelve la página vacía, y **no\nsignifica que no comisione**: significa que todos cobran por su rol.\n\nHasta el 16-09-2026 cada fila traía `associatedProducts`, cuántos\nproductos hacían regir la excepción; hoy trae **cuál**, porque es uno.\n",
