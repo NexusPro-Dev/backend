@@ -5,7 +5,7 @@
 | Módulo | `SP` — Sistema Principal |
 | Paquete | `modules/system` |
 | Prefijos de permiso | `roles:`, `permissions:`, `audit:`, `memberships:`, `currencies:`, `countries:`, `users:`, `exchange-rates:`, `document-types:`, `brokers:`, `broker-accounts:`, `teams:` |
-| Versión | 1.73.0 |
+| Versión | 1.74.0 |
 | Estado | **Aprobado** |
 | Responsable | Bonilla Diaz William Steven |
 | Fecha de creación | 20-08-2026 |
@@ -393,8 +393,8 @@ EXCLUDE USING gist (
 | `RF-SP-066` | Editar equipo | Media | `teams:update` | **Tasks en revisión** |
 | `RF-SP-067` | Cambiar el estado de un equipo | Media | `teams:change-status` | **Tasks en revisión** |
 | `RF-SP-068` | Eliminar equipo | Baja | `teams:delete` | **Tasks en revisión** |
-| `RF-SP-069` | Asignar miembros a un equipo | Alta | `teams:assign-members` | Pendiente |
-| `RF-SP-070` | Retirar miembros de un equipo | Media | `teams:remove-members` | Pendiente |
+| `RF-SP-069` | Asignar miembros a un equipo | Alta | `teams:assign-members` | **Tasks en revisión** |
+| `RF-SP-070` | Retirar miembros de un equipo | Media | `teams:remove-members` | **Tasks en revisión** |
 
 !!! info "Dónde vive el estado de un requerimiento"
 
@@ -1365,7 +1365,7 @@ Elimina lógicamente un equipo **sin managers vigentes** (`RN-SP-054`), con moti
 | Reglas aplicables | `RN-SP-051`, `RN-SP-052`, `RN-SP-053`, `RN-SP-003`, `RN-SP-011` |
 | Depende de | `RF-SP-063`, `RF-SP-030` |
 | Tripleta | `docs/specs/sp/069-asignar-miembros-a-equipo/` |
-| Estado | Pendiente |
+| Estado | **Tasks en revisión** (22-09-2026) |
 
 Asigna **uno o varios** managers a un equipo `ACTIVO`, en una sola operación y una sola transacción, como `RF-SP-030` asigna roles. Cada persona debe portar el rol vendedor de mayor rango (`RN-SP-051`); si ya pertenece a otro equipo, la pertenencia anterior **se cierra** y se abre la nueva (`RN-SP-052`); si ya pertenece a **este**, la operación **no hace nada con ella y no falla** —volver a decir lo que ya es cierto no es un error, mismo criterio que `RF-SP-030` con un rol que ya se porta—. **Toda la lista o nada**: una persona que no cumple hace fallar la operación entera, porque a medias dejaría al administrador sin saber cuáles entraron.
 
@@ -1382,7 +1382,7 @@ Exige **motivo declarado**, por la misma razón que `RF-SP-041`: el historial su
 | Reglas aplicables | `RN-SP-052`, `RN-SP-055` |
 | Depende de | `RF-SP-069` |
 | Tripleta | `docs/specs/sp/070-retirar-miembros-de-equipo/` |
-| Estado | Pendiente |
+| Estado | **Tasks en revisión** (22-09-2026) |
 
 Cierra la pertenencia vigente de uno o varios managers **de este equipo**, con motivo, en una sola transacción. Una persona que no pertenece hoy a este equipo hace fallar la operación: al contrario que en la asignación, aquí decir lo que no es cierto sí es un error, porque el administrador cree estar retirando a alguien de un sitio donde no está. El equipo puede estar `INACTIVO`: retirar es la única forma de vaciar un equipo suspendido (`RN-SP-053`) y la que `RN-SP-054` exige antes de eliminarlo.
 
@@ -2214,3 +2214,4 @@ La fila se lee «`user_id` pertenece al equipo `team_id` desde `started_at`». U
 | 1.71.0 | 21-09-2026 | **Nace el submódulo Equipos: `RF-SP-063` a `RF-SP-070`**, por decisión del responsable del proyecto («un CRUD de equipos, sirve para organizar el máximo rango de vendedores»). Un equipo reúne **managers** —la cúspide que `RN-SP-019` exime de superior— y con ellos, por `user_supervisors`, toda su red; **no manda, agrupa**, y no concede alcance (D-22). Ficha sin código ni país: nombre único funcional y parcial, descripción, estado. **Uno vigente por manager, con historial** (la forma de `user_supervisors`). Seis reglas nuevas, `RN-SP-050` a `RN-SP-055`: nombre único, solo managers, uno vigente con historial, el equipo `INACTIVO` no recibe y conserva, no se elimina con vigentes, y **la pertenencia sigue al rol** —enmienda de Art. I.7 a `RF-SP-029` y `RF-SP-031`, declarada para aplicarse en la tripleta de `RF-SP-070`—. Ocho permisos `teams:*` (`RN-SEG-014`; [`security.md`](../security.md) v0.69.0, catálogo a **ciento treinta y tres** con `V34`), ocho rutas en §9 bajo `/api/v1/teams`, dos tablas en §10.20 y §10.21 (`teams`, `team_members`, las creará `V33`) y diez restricciones en §10.8. §1.3 y §2 registran el submódulo; `SP` llega a **sesenta y ocho** requerimientos. Sin tripletas todavía: son el paso siguiente, por bloques. La versión 1.70.0 es de `RF-MV-015` (`CommercialReach`, §8), redactada el mismo día en otra rama. | Responsable del proyecto |
 | 1.72.0 | 22-09-2026 | **El bloque 1 de Equipos estrena tripleta**: `RF-SP-063` (registrar), `RF-SP-064` (listado) y `RF-SP-065` (detalle) pasan a `Tasks en revisión` con `spec.md` y `plan.md` aprobados. Las tres deciden lo que el catálogo del módulo dejaba abierto y **ninguna regla cambia**: el alta crea las dos tablas (`V33`) y siembra los ocho permisos (`V34`, catálogo a ciento treinta y tres), nace **vacío y activo** y devuelve la forma del detalle; el listado ordena **alfabéticamente** —el equipo no tiene orden propio— y publica `memberCount` de los **vigentes** en la misma sentencia; el detalle devuelve **también el eliminado**, con su motivo, porque el listado ya lo enseña con `includeDeleted`, y **no pagina** los miembros porque la cúspide son unas pocas personas. Veinticinco criterios, `CA-SP-731` a `CA-SP-755`. Queda declarada como pendiente la lectura inversa —en qué equipo está una persona—, que no se cuela como filtro del listado. | Responsable del proyecto |
 | 1.73.0 | 22-09-2026 | **El bloque 2 de Equipos estrena tripleta**: `RF-SP-066` (editar), `RF-SP-067` (estado) y `RF-SP-068` (eliminar) pasan a `Tasks en revisión`. **Ninguna regla cambia**, y las tres precisan lo que `RN-SP-050`, `RN-SP-053` y `RN-SP-054` dejaban implícito: el **nombre sí se corrige** —no hay código que lo respalde, y una errata del alta sería permanente— y renombrar revalida la unicidad; suspender es **idempotente, sin motivo y sin evento de seguridad** —un equipo no concede permisos, al contrario que un rol (`RF-SP-007`)— y **no vacía**, porque cerrar pertenencias movería la atribución de una red entera sin decisión explícita; eliminar **se rechaza con miembros vigentes**, al revés que `RF-AC-005` con una categoría, porque un filtro no sostiene nada y un equipo sostiene la pertenencia de la cúspide. El historial cerrado sobrevive a la baja y el nombre queda libre, sin que el equipo nuevo herede nada. Veintidós criterios, `CA-SP-756` a `CA-SP-777`. | Responsable del proyecto |
+| 1.74.0 | 22-09-2026 | **El bloque 3 de Equipos estrena tripleta y el submódulo queda entero en `Tasks en revisión`**: `RF-SP-069` (asignar miembros) y `RF-SP-070` (retirar). **Ninguna regla cambia.** La asignación se opera **desde el equipo**, admite hasta cien personas con un solo motivo y es **toda la lista o nada**; solo entra la cúspide (`RN-SP-051`, resuelta con `CommercialStructure.esCuspide` y no por el código `MANAGER`, para que un rango nuevo por encima no exija tocar código); asignar a otro equipo **cierra** la pertenencia anterior (`RN-SP-052`) y quien ya estaba no pierde antigüedad; el equipo `INACTIVO` responde `409` y el eliminado `404`. El retiro decide al revés en un punto —«no pertenece» **sí** es error (`422`)— y **se admite sobre un equipo `INACTIVO`**, porque `RN-SP-053` prohíbe recibir y no soltar: si también prohibiera soltar, un equipo suspendido con gente no podría vaciarse ni, por `RN-SP-054`, eliminarse. `RF-SP-070` trae además la **enmienda de Art. I.7 de `RN-SP-055`** a `RF-SP-029` y `RF-SP-031`, construidos: quien deja de ser manager o se elimina sale de su equipo **en la misma transacción y con la misma correlación**, resuelto con un puerto publicado por `teams` y no con un evento, y **cambiar el estado de una persona no la saca**. Veinte criterios, `CA-SP-778` a `CA-SP-797`. | Responsable del proyecto |
