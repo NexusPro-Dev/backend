@@ -444,22 +444,31 @@ public class MovementController {
   @GetMapping("/mine")
   @PreAuthorize("hasAuthority('movements:list-own')")
   @Operation(
-      summary = "Consultar los movimientos propios",
+      summary = "Consultar mis compras",
       description =
           """
-          Devuelve **los movimientos en los que usted participó**, paginados y del más
+          Devuelve **los movimientos a nombre de usted** —lo que compró—, paginados y del más
           reciente al más antiguo.
 
-          **«Propio» son DOS papeles.** Un movimiento lleva a su sujeto —`user`, a nombre de
-          quién es— y a los vendedores de sus líneas —`sellers`—, y usted puede ser cualquiera
-          de los dos — o **los dos a la vez**, si compró algo que se le atribuye, que es lo
-          que ocurre siempre que compra quien no cuelga de nadie. Cada movimiento dice en qué
-          papel aparece usted con `role`: `BUYER`, `SELLER` o `BOTH`. El que es las dos
-          cosas **aparece una sola vez**.
+          **Desde el 22-09-2026 este listado trae SOLO lo comprado.** Hasta esa fecha traía
+          también lo que usted hubiera **vendido**, y cada fila decía con `role` en qué papel
+          aparecía —`BUYER`, `SELLER` o `BOTH`—. **Lo que usted vendió se consulta ahora por
+          `GET /api/v1/movements/sales`**, que además le trae lo que vendió su red si usted
+          tiene gente a cargo. Con la mitad de vendedor **desaparece `role`**: aquí valdría
+          siempre `BUYER`. Es un cambio incompatible y está declarado.
+
+          **Su compra a sí mismo sigue apareciendo, una sola vez.** Quien pertenece a la
+          fuerza comercial y no cuelga de nadie es su propio vendedor, y lo que compra es una
+          compra: sale aquí, con usted como `user` y como único `sellers`.
 
           **No hay forma de preguntar por otra persona**, ni indicándola ni teniendo
           permisos: quien pregunta sale de la credencial. Consultar las ventas de terceros es
           otra operación, con su permiso.
+
+          **El detalle NO se acotó con el listado**: `GET /api/v1/movements/mine/{id}` sigue
+          abriendo un movimiento suyo **de cualquiera de las dos formas**, también una venta
+          que usted hizo y que este listado ya no le muestra. Es deliberado: sin eso, un
+          vendedor no tendría ninguna forma de ver el detalle de lo que vendió.
 
           **Las líneas no viajan aquí.** Una venta puede llevar varias, y meterlas
           multiplicaría la respuesta por un dato que solo se mira al abrir uno: están en el

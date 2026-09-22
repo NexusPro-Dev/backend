@@ -1,6 +1,5 @@
 package com.factech.nexus.modules.movements.domain.service;
 
-import com.factech.nexus.modules.movements.application.MovementRole;
 import com.factech.nexus.modules.movements.application.MyMovementResponse;
 import com.factech.nexus.modules.movements.application.MyMovementsRequest;
 import com.factech.nexus.modules.movements.domain.models.MovementStatus;
@@ -148,7 +147,6 @@ public class ListMyMovementsService {
         fila.code(),
         fila.type(),
         fila.status(),
-        MovementRole.valueOf(fila.role()),
         new MyMovementResponse.Party(
             fila.userId(),
             fila.userUsername(),

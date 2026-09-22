@@ -14,9 +14,14 @@ import java.util.UUID;
  * modo que incluirlas multiplicaría la respuesta por un dato que solo se mira al abrir uno. Van en
  * el detalle, que devuelve un {@code SaleResponse} igual al de `RF-MV-001`.
  *
- * <p><b>Trae al sujeto y a los vendedores, y no «la contraparte»</b>. Calcular quién es el otro
- * obligaría a decidir qué devolver cuando quien pregunta es {@link MovementRole#BOTH}, y esa
- * decisión no tiene respuesta buena. Con las partes y el papel, quien pinta la pantalla elige.
+ * <p><b>Desde el 22-09-2026 esta fila es SIEMPRE una compra</b> (`RF-MV-008` · `spec.md` §2), por
+ * decisión del responsable del proyecto: el listado propio trae solo lo comprado, y lo vendido se
+ * consulta por `RF-MV-015`. Con la mitad de vendedor se fue <b>el papel</b>: {@code role} — {@code
+ * BUYER}, {@code SELLER}, {@code BOTH}— valdría siempre lo mismo, y un campo constante miente por
+ * omisión (el argumento de `RF-MV-006`). Es un cambio rompedor, declarado en `api/index.md`.
+ *
+ * <p><b>Trae al sujeto y a los vendedores, y no «la contraparte»</b>. El sujeto es quien pregunta;
+ * los vendedores, quienes le vendieron cada línea.
  *
  * <p><b>{@code sellers} es una lista y no un objeto nulable, y es a propósito</b> (16-09-2026). El
  * vendedor es de cada línea (`RN-MV-003`) y las líneas de una venta pueden llevar vendedores
@@ -35,7 +40,6 @@ public record MyMovementResponse(
     // Es el mismo campo que `MovementResponse` lleva desde el 17-09-2026.
     @Schema(description = "El código del tipo de movimiento. Hoy, siempre `VENTA`.") String type,
     String status,
-    @Schema(description = "El papel de quien consulta en ESTE movimiento.") MovementRole role,
     @Schema(
             description =
                 "El SUJETO del movimiento: a nombre de quién es. En una venta, quien compra.")

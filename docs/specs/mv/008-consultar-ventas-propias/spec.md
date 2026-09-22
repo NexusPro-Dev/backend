@@ -4,11 +4,12 @@
 |---|---|
 | Requerimiento | `RF-MV-008` |
 | Módulo | `MV` — Movimientos |
-| Versión | 0.4.0 |
+| Versión | 0.5.0 |
 | Estado | **Aprobada** |
 | Enmendada el | 16-09-2026 — el vendedor es de cada línea (`RN-MV-003`) y la cabecera lleva un sujeto (`RN-MV-026`): «lo que vendí» se responde por las líneas. Ver §15 |
 | Enmendada el | 21-09-2026 — el listado se filtra también **por tipo** y cada fila **dice su tipo** (§6.1, §6.2, §11, §12). Ver §15 |
 | Enmendada el | 21-09-2026 (segunda del día) — el listado se filtra también por **método de pago**, **comprobante** y **periodo**, los mismos tres de `RF-MV-006` (§6.1, §11, §12). Ver §15 |
+| Enmendada el | 22-09-2026 — **el listado trae solo lo COMPRADO**: la mitad de vendedor se va a `RF-MV-015`, y el papel desaparece de la fila. El **detalle no se acota** (§2.1, §4, §6.2, §12). Ver §15 |
 | Autor | Responsable técnico |
 | Aprobada por | Responsable del proyecto |
 | Fecha de aprobación | 05-09-2026 |
@@ -44,6 +45,18 @@ Que **cualquier persona autenticada vea los movimientos en los que participó**,
 
 **Y no toca la decisión que sigue abierta.** «Quién ve las ventas de quién» —si un director ve las de su equipo— es alcance de datos, depende de **D-22** y `requirements/mv.md` §5.3 lo aplazó a propósito. Este requerimiento **no lo decide ni lo prejuzga**: responde solo por la persona que pregunta, que es la única respuesta que no cambia cuando D-22 se cierre.
 
+!!! danger "Desde el 22-09-2026 el listado trae SOLO lo comprado — §2.1 se revierte"
+
+    **La decisión de fondo de este requerimiento, la que §2.1 explica abajo, ya no está vigente para el listado.** Por decisión del responsable del proyecto del 22-09-2026 —«que mis compras solo traiga lo del usuario en sesión»—, `GET /movements/mine` devuelve **únicamente los movimientos a nombre de quien pregunta** (`RN-MV-026`): lo que compró. Lo que vendió se consulta por **`RF-MV-015`**, que nació el 21-09-2026 y responde «lo que vendí yo y lo que vendió mi red».
+
+    **Lo que cambió no es el criterio sino el mapa.** §2.1 eligió fundir los dos papeles porque en septiembre no existía ninguna otra vía: descartó «solo lo comprado» con el argumento de que dejaría «al vendedor sin la pregunta que más va a hacer», y descartó «dos operaciones separadas» porque habría que partir el requerimiento en dos. Hoy esa segunda operación **existe y es mejor que la mitad que se retira** —llega a toda la red, no solo a lo propio—, de modo que el argumento se queda sin sujeto: el vendedor no pierde su pregunta, la hace en otra ruta y con más alcance.
+
+    **Y con la mitad de vendedor se va el papel.** `role` —`BUYER`, `SELLER`, `BOTH`— valdría siempre `BUYER`, y un campo que siempre vale lo mismo **miente por omisión**: es el argumento con el que `RF-MV-006` §6.2 rechazó llevarlo, aplicado aquí. Se **retira del contrato** (§6.2), y es un cambio rompedor declarado.
+
+    **El detalle NO se acota, y la asimetría es deliberada** (§4.1): `GET /movements/mine/{id}` sigue abriendo un movimiento en el que el actor participa **de cualquiera de las dos formas**. Acotarlo dejaría a un vendedor sin **ninguna** vía para ver el detalle de lo que vendió —`RF-MV-007` no está escrito y `RF-MV-015` es solo listado—, es decir, cerraría una puerta sin abrir otra. El día que exista el detalle de administración habrá que volver aquí.
+
+    Lo que sigue de §2.1 **se conserva como historia**, porque explica por qué la forma actual es la que es.
+
 ### 2.1 «Propio» son DOS papeles, y esa es la decisión de fondo
 
 Un movimiento lleva **dos personas**: quien **recibe** lo comprado y quien lo **vendió**. La expresión «mis ventas» significa cosas distintas según quién la diga:
@@ -77,16 +90,18 @@ Un movimiento lleva **dos personas**: quien **recibe** lo comprado y quien lo **
 
 ### 4.1 Incluye
 
-- El **listado paginado** de los movimientos en los que el actor participó, del más reciente al más antiguo.
-- El **papel** en el que aparece en cada uno: comprador, vendedor, o los dos.
+- El **listado paginado** de los movimientos **a nombre del actor** —lo que compró—, del más reciente al más antiguo (22-09-2026; antes, aquellos en los que participaba de cualquiera de las dos formas).
 - Las **dos partes** de cada movimiento —quién compró y quién vendió—, para que la interfaz pinte la contraparte sin una segunda consulta.
+- El **detalle** de un movimiento en el que participa **de cualquiera de las dos formas**, también de lo que vendió: el listado se acota y el detalle no (22-09-2026, ver el aviso de §2).
 - Un **filtro por estado**, para responder «¿qué tengo pendiente de pago?» sin traerse todo.
 - El **detalle** de un movimiento propio, con sus líneas y sus importes.
 
 ### 4.2 No incluye
 
 - **Los movimientos de otras personas**, por ninguna vía. Para eso están `RF-MV-006` y `RF-MV-007`, con su permiso.
-- **El equipo a cargo.** Un director no ve aquí las ventas de sus agentes: eso es D-22 y sigue abierta.
+- **Lo que el actor VENDIÓ** (22-09-2026): es `RF-MV-015`, que además llega a toda su red. En el listado no aparece; en el detalle sí, por lo que dice el aviso de §2.
+- **El papel** (`role`) de quien pregunta: retirado del contrato el 22-09-2026, porque valdría siempre lo mismo.
+- **El equipo a cargo.** Un director no ve aquí las ventas de sus agentes: eso es `RF-MV-015` desde el 21-09-2026, y ya no D-22.
 - **El comprobante de pago.** Lo declara `RF-MV-007` y no existe todavía; cuando exista habrá que decidir aparte si el propio comprador puede descargarlo.
 - **Filtrar por fechas, por producto o por método de pago.** Se deja fuera: el volumen de los movimientos de una sola persona no lo exige, y añadir filtros que nadie pidió es especificar de más.
 - **Exportar.** No es una operación de este módulo.
@@ -177,7 +192,7 @@ Devuelve una página **vacía**, no un error. Es el caso de toda cuenta recién 
 
 ### FA-002 — La persona es comprador y vendedor del mismo movimiento
 
-El movimiento aparece **una sola vez**, con papel **ambos**. Ocurre cuando alguien de la fuerza comercial compra para sí mismo y la venta se le atribuye — y desde el 16-09-2026 es **el caso de toda compra de quien no cuelga de nadie**, porque esa persona es su propio vendedor (`RN-MV-003`). Duplicar la fila sería contar dos veces un solo hecho, y el total de la página dejaría de significar «cuántos movimientos tengo».
+**Desde el 22-09-2026 aparece una vez y como lo que es: una compra.** Ocurre cuando alguien de la fuerza comercial compra para sí mismo y la venta se le atribuye —desde el 16-09-2026, **toda** compra de quien no cuelga de nadie, porque esa persona es su propio vendedor (`RN-MV-003`)—. Con el listado acotado al sujeto, el caso deja de necesitar tratamiento: una sola fila, sin papel que resolver. **Hasta esa fecha aparecía «una sola vez, con papel ambos»**, y ese era el caso que un `UNION` habría duplicado; el predicado de hoy no puede duplicar nada porque mira una sola columna.
 
 ### FA-003 — Un movimiento sin vendedor
 
@@ -231,6 +246,11 @@ La lista de vendedores viaja **vacía y presente**. **Desde el 16-09-2026 no es 
 | `CA-MV-133` | El filtro por **método de pago** devuelve solo los movimientos propios pagados con él; uno que no existe da una página vacía (21-09-2026) |
 | `CA-MV-134` | El filtro por **código** devuelve ese comprobante escrito en mayúsculas o en minúsculas, y **nada** si el comprobante es ajeno (21-09-2026) |
 | `CA-MV-135` | El **periodo** incluye «desde», excluye «hasta», se **combina** con los demás filtros, y «desde» posterior a «hasta» es un error (21-09-2026) |
+| `CA-MV-137` | El listado trae **solo lo comprado**: un vendedor **no ve** en él lo que vendió a otra persona, y sí lo que compró —incluida la compra que se atribuyó a sí mismo, **una sola vez**— (22-09-2026) |
+| `CA-MV-138` | El **detalle sí abre lo vendido**: el mismo vendedor que no ve esa venta en su listado la abre por su identificador (22-09-2026) |
+| `CA-MV-139` | Ninguna fila del listado lleva **`role`** (22-09-2026) |
+
+**`CA-MV-035`, `CA-MV-036` y `CA-MV-037` quedan retirados el 22-09-2026** —los tres papeles del listado— y sus números **no se reutilizan**: describían la decisión que el aviso de §2 revierte. `CA-MV-036` sobrevive dentro de `CA-MV-137`, que es lo mismo visto desde el único papel que queda.
 
 **`CA-MV-038` es el criterio que sostiene el requerimiento**, y por eso se ejercita **con el permiso puesto**: si algún día alguien decide que quien administra vea aquí también las ajenas, esta prueba lo delata en lugar de dejar que ocurra por omisión.
 
@@ -241,8 +261,8 @@ La lista de vendedores viaja **vacía y presente**. **Desde el 16-09-2026 no es 
 | Caso | Comportamiento |
 |---|---|
 | Una venta **anulada** | Aparece, con su estado. Anular no la borra, y ocultarla haría que la persona no pudiera comprobar qué pasó con algo que sí registró |
-| Una venta cuyo **comprador fue eliminado** | Aparece para el vendedor, con los datos de la persona tal como están. `RF-SP-029` es un borrado lógico y la fila sigue ahí |
-| Una venta con **líneas de vendedores distintos** | Aparece **una vez** para cada uno de ellos, con papel vendedor, y su lista de vendedores los trae a todos. Hoy ninguna entrada la produce (`RN-MV-003`); el modelo la admite y esta consulta no tiene que cambiar el día que exista |
+| Una venta cuyo **comprador fue eliminado** | **Desde el 22-09-2026 no aparece en ningún listado propio**: el único que la vería era el vendedor, y el listado ya no trae lo vendido. Sale en `RF-MV-015` y en `RF-MV-006`, con los datos de la persona tal como están (`RF-SP-029` es un borrado lógico) |
+| Una venta con **líneas de vendedores distintos** | **Para el comprador**, una fila con la lista de vendedores completa. Hasta el 22-09-2026 aparecía además una vez para cada vendedor; eso es ahora `RF-MV-015`. Hoy ninguna entrada la produce (`RN-MV-003`) |
 | **Muchos movimientos** de una sola persona | Se pagina. El total es **exacto**: es el conjunto de una persona y no una tabla que crezca sin límite, de modo que no hace falta el conteo acotado de los listados de auditoría |
 | Dos movimientos **en el mismo instante** | El orden entre ellos es estable, y no depende de la página que se pida |
 | El catálogo con **un solo tipo** (21-09-2026) | Filtrar por `VENTA` devuelve lo mismo que no filtrar. El filtro existe para el día del segundo tipo, y lo que se comprueba es que **discrimina**, con un segundo tipo que solo existe en la prueba (`RF-MV-006` §13) |
@@ -266,3 +286,4 @@ La lista de vendedores viaja **vacía y presente**. **Desde el 16-09-2026 no es 
 | 0.2.0 | 16-09-2026 | **«Lo que vendí» pasa a responderse por las líneas** (`requirements/mv.md` v0.16.0: `RN-MV-003` enmendada, `RN-MV-026` nueva; Art. I.7 sobre un requerimiento construido), por decisión del responsable del proyecto. La cabecera de un movimiento lleva **un sujeto** y el vendedor **vive en cada línea**, de modo que ser vendedor de un movimiento es serlo **de alguna de sus líneas**. §6.2 cambia «comprador» por «sujeto» y «vendedor» por **«vendedores, sin repetir»**; `FA-003` deja de describir una venta —ya no existe la venta sin vendedor— y pasa a describir los tipos de movimiento que no venden nada; `CA-MV-043` lo sigue. `FA-002` gana el caso que desde hoy lo produce siempre: quien no cuelga de nadie compra y **es su propio vendedor**. §13 gana la venta con líneas de vendedores distintos, que hoy nadie produce y el modelo admite. **Los tres papeles no cambian**, ni el alcance, ni la paginación. | Responsable del proyecto |
 | 0.3.0 | 21-09-2026 | **El listado se filtra también por tipo, y cada fila dice su tipo** (`requirements/mv.md` v0.31.0; Art. I.7 sobre un requerimiento construido), a petición del responsable del proyecto —«que los movimientos se puedan filtrar por tipos de movimiento»—, el mismo día y con el mismo filtro que `RF-MV-006`. §6.1 gana la entrada, con el argumento de aquel —el catálogo es cerrado por `RN-MV-017`, y un tipo inexistente es un **error**—; §6.2 gana **el tipo en la fila**, que hasta hoy no viajaba y que desde que se puede filtrar por él tiene que viajar; `VAL-004`, `CA-MV-120`, `CA-MV-121` y el caso límite del catálogo con un solo tipo. **Ni el alcance, ni los papeles, ni el detalle cambian.** La enmienda de `RF-SP-062` del mismo día —los permisos `movements:list-own` y `movements:read-own`— vive como nota tras la cabecera, sin versión propia. | Responsable del proyecto |
 | 0.4.0 | 21-09-2026 | **El listado se filtra también por método de pago, comprobante y periodo** (Art. I.7; `requirements/mv.md` v0.33.0), por decisión del responsable del proyecto del mismo día —«que los movimientos se puedan filtrar por fecha de creación (rango), método de pago y código de movimiento», en todos los listados; la fecha es **cuándo ocurrió**, la misma de `RF-MV-006` y de la fila—. §6.1 gana las tres entradas con el trato de aquel: el método inexistente es página vacía, el código es exacto sin distinguir mayúsculas, el rango es semiabierto y el invertido un error. `VAL-005`, `VAL-006`, `CA-MV-133` a `CA-MV-135`, y el caso límite del comprobante ajeno: el alcance va antes que el filtro. **Ni el alcance, ni los papeles, ni el detalle cambian.** | Responsable del proyecto |
+| 0.5.0 | 22-09-2026 | **El listado trae SOLO lo comprado, y la fila pierde el papel** (Art. I.7; `requirements/mv.md` v0.34.0), por decisión del responsable del proyecto: «que mis compras solo traiga lo del usuario en sesión». **Se revierte la decisión de fondo de §2.1** —«propio son dos papeles»— y se explica por qué el argumento ya no aplica: aquella descartó «solo lo comprado» porque dejaba al vendedor sin su pregunta, y desde el 21-09-2026 esa pregunta la responde `RF-MV-015` con **más** alcance —él y toda su red—. `role` se **retira del contrato**, cambio rompedor declarado, porque valdría siempre `BUYER` (el argumento de `RF-MV-006` §6.2). **El detalle NO se acota** y la asimetría se declara: acotarlo dejaría a un vendedor sin ninguna vía para abrir lo que vendió, porque `RF-MV-007` no existe. `CA-MV-035` a `CA-MV-037` retirados sin reutilizar número; nacen `CA-MV-137` a `CA-MV-139`; `FA-002` y dos casos límite reescritos. Ni el permiso, ni los filtros, ni la paginación cambian. | Responsable del proyecto |

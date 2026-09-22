@@ -82,42 +82,44 @@ class MyMovementsIT extends IntegrationTestBase {
   }
 
   // ---------------------------------------------------------------------------
-  // Los tres papeles
+  // Solo lo comprado — lo que sostiene el requerimiento desde el 22-09-2026
   // ---------------------------------------------------------------------------
 
   @Test
-  @DisplayName("CA-MV-035 y CA-MV-037 — el vendedor ve lo que vendió y lo suyo, con su papel")
-  void losPapelesDelVendedor() throws Exception {
+  @DisplayName(
+      "CA-MV-137 — el listado trae SOLO lo comprado: el vendedor no ve lo que vendió a otro, y sí"
+          + " lo que se compró a sí mismo, una vez")
+  void soloLoComprado() throws Exception {
+    // `vendida` la compró el cliente y la vendió el vendedor; `propia` se la
+    // compró el vendedor a sí mismo (`RN-MV-003`: es su propio vendedor).
+    // Hasta el 22-09-2026 el vendedor veía las dos, con papel SELLER y BOTH.
     mvc.perform(get("/api/v1/movements/mine").with(como(vendedor)))
-        .andExpect(status().isOk())
-        .andExpect(jsonPath("$.totalElements").value(2))
-        // El orden es del más reciente al más antiguo: primero la propia.
-        .andExpect(jsonPath("$.content[0].id").value(propia.toString()))
-        .andExpect(jsonPath("$.content[0].role").value("BOTH"))
-        .andExpect(jsonPath("$.content[1].id").value(vendida.toString()))
-        .andExpect(jsonPath("$.content[1].role").value("SELLER"));
-  }
-
-  @Test
-  @DisplayName("CA-MV-036 — el comprador ve lo que compró, con papel BUYER")
-  void elPapelDelComprador() throws Exception {
-    mvc.perform(get("/api/v1/movements/mine").with(como(cliente)))
-        .andExpect(status().isOk())
-        .andExpect(jsonPath("$.totalElements").value(1))
-        .andExpect(jsonPath("$.content[0].id").value(vendida.toString()))
-        .andExpect(jsonPath("$.content[0].role").value("BUYER"));
-  }
-
-  @Test
-  @DisplayName("CA-MV-037 — quien es las dos cosas lo ve UNA sola vez")
-  void ambosNoDuplica() throws Exception {
-    // Es el caso que un `UNION` habría duplicado, y el que el `CASE` habría
-    // resuelto mal con la rama de `BOTH` escrita al final.
-    mvc.perform(get("/api/v1/movements/mine?status=CONFIRMADA").with(como(vendedor)))
         .andExpect(status().isOk())
         .andExpect(jsonPath("$.totalElements").value(1))
         .andExpect(jsonPath("$.content.length()").value(1))
-        .andExpect(jsonPath("$.content[0].role").value("BOTH"));
+        .andExpect(jsonPath("$.content[0].id").value(propia.toString()));
+
+    // Y el comprador ve la suya, que es lo único que este listado responde ya.
+    mvc.perform(get("/api/v1/movements/mine").with(como(cliente)))
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$.totalElements").value(1))
+        .andExpect(jsonPath("$.content[0].id").value(vendida.toString()));
+  }
+
+  @Test
+  @DisplayName("CA-MV-139 — ninguna fila lleva `role`: se retiró con la mitad de vendedor")
+  void laFilaNoLlevaPapel() throws Exception {
+    String cuerpo =
+        mvc.perform(get("/api/v1/movements/mine").with(como(cliente)))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.content[0].role").doesNotExist())
+            .andReturn()
+            .getResponse()
+            .getContentAsString();
+
+    // EN CRUDO: un jsonPath que pase con la clave ausente no distinguiría
+    // «retirado» de «nulo».
+    assertThat(cuerpo).doesNotContain("\"role\"");
   }
 
   // ---------------------------------------------------------------------------
@@ -132,7 +134,8 @@ class MyMovementsIT extends IntegrationTestBase {
     // por omisión — que es la única forma en que este requerimiento se rompe.
     mvc.perform(get("/api/v1/movements/mine").with(conPermisoDeLectura(vendedor)))
         .andExpect(status().isOk())
-        .andExpect(jsonPath("$.totalElements").value(2))
+        // Una desde el 22-09-2026: solo lo comprado (`CA-MV-137`).
+        .andExpect(jsonPath("$.totalElements").value(1))
         .andExpect(jsonPath("$.content[?(@.id == '" + deOtros + "')]").isEmpty());
   }
 
@@ -183,7 +186,6 @@ class MyMovementsIT extends IntegrationTestBase {
     String cuerpo =
         mvc.perform(get("/api/v1/movements/mine").with(como(ajeno)))
             .andExpect(status().isOk())
-            .andExpect(jsonPath("$.content[0].role").value("BUYER"))
             .andExpect(jsonPath("$.content[0].sellers").isArray())
             .andExpect(jsonPath("$.content[0].sellers").isEmpty())
             .andReturn()
@@ -197,40 +199,50 @@ class MyMovementsIT extends IntegrationTestBase {
   }
 
   @Test
-  @DisplayName("CA-MV-037 — la venta con dos líneas del mismo vendedor cuenta UNA vez")
+  @DisplayName("CA-MV-043 — la venta con dos líneas del mismo vendedor cuenta UNA vez")
   void variasLineasNoMultiplican() throws Exception {
-    // Es el caso que un JOIN con las líneas habría multiplicado: el EXISTS deja
-    // una fila por movimiento, y la lista de vendedores no repite.
+    // Es el caso que un JOIN con las líneas habría multiplicado, y sigue vivo
+    // aunque el listado mire una sola columna: los vendedores se leen en una
+    // segunda consulta, y esa sí podría duplicar la fila.
     segundaLinea(vendida, vendedor);
 
-    mvc.perform(get("/api/v1/movements/mine").with(como(vendedor)))
+    mvc.perform(get("/api/v1/movements/mine").with(como(cliente)))
         .andExpect(status().isOk())
-        .andExpect(jsonPath("$.totalElements").value(2))
-        .andExpect(jsonPath("$.content[1].id").value(vendida.toString()))
-        .andExpect(jsonPath("$.content[1].sellers.length()").value(1));
+        .andExpect(jsonPath("$.totalElements").value(1))
+        .andExpect(jsonPath("$.content[0].id").value(vendida.toString()))
+        .andExpect(jsonPath("$.content[0].sellers.length()").value(1));
   }
 
   @Test
   @DisplayName("CA-MV-041 — el orden es estable entre páginas")
   void ordenEstable() throws Exception {
+    // Dos compras del mismo vendedor: desde el 22-09-2026 el listado solo trae
+    // lo comprado, de modo que la segunda se siembra aquí.
+    UUID otraCompra = movimiento(vendedor, vendedor, "PENDIENTE", BASE.plusDays(3));
+
     mvc.perform(get("/api/v1/movements/mine?page=0&size=1").with(como(vendedor)))
         .andExpect(status().isOk())
         .andExpect(jsonPath("$.totalElements").value(2))
         .andExpect(jsonPath("$.totalPages").value(2))
-        .andExpect(jsonPath("$.content[0].id").value(propia.toString()));
+        .andExpect(jsonPath("$.content[0].id").value(otraCompra.toString()));
 
     mvc.perform(get("/api/v1/movements/mine?page=1&size=1").with(como(vendedor)))
         .andExpect(status().isOk())
-        .andExpect(jsonPath("$.content[0].id").value(vendida.toString()));
+        .andExpect(jsonPath("$.content[0].id").value(propia.toString()));
   }
 
   @Test
   @DisplayName("CA-MV-042 — el filtro por estado devuelve solo los de ese estado")
   void filtroPorEstado() throws Exception {
-    mvc.perform(get("/api/v1/movements/mine?status=PENDIENTE").with(como(vendedor)))
+    mvc.perform(get("/api/v1/movements/mine?status=PENDIENTE").with(como(cliente)))
         .andExpect(status().isOk())
         .andExpect(jsonPath("$.totalElements").value(1))
         .andExpect(jsonPath("$.content[0].id").value(vendida.toString()));
+
+    // Y el vendedor, que compró CONFIRMADA, no tiene ninguna pendiente propia.
+    mvc.perform(get("/api/v1/movements/mine?status=PENDIENTE").with(como(vendedor)))
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$.totalElements").value(0));
   }
 
   @Test
@@ -246,20 +258,20 @@ class MyMovementsIT extends IntegrationTestBase {
         .andExpect(status().isOk())
         .andExpect(jsonPath("$.totalElements").value(1))
         .andExpect(jsonPath("$.content[0].id").value(deposito.toString()))
-        .andExpect(jsonPath("$.content[0].type").value("PRUEBA_DEPOSITO"))
-        .andExpect(jsonPath("$.content[0].role").value("BUYER"));
+        .andExpect(jsonPath("$.content[0].type").value("PRUEBA_DEPOSITO"));
 
-    // Por `VENTA`, las dos de siempre y no la tercera.
+    // Por `VENTA`, la compra propia y no el depósito.
     mvc.perform(get("/api/v1/movements/mine?type=VENTA").with(como(vendedor)))
         .andExpect(status().isOk())
-        .andExpect(jsonPath("$.totalElements").value(2));
+        .andExpect(jsonPath("$.totalElements").value(1))
+        .andExpect(jsonPath("$.content[0].id").value(propia.toString()));
 
-    // Combinado con el estado.
+    // Combinado con el estado, sobre el comprador de la venta pendiente.
     mvc.perform(
             get("/api/v1/movements/mine")
                 .param("type", "VENTA")
                 .param("status", "PENDIENTE")
-                .with(como(vendedor)))
+                .with(como(cliente)))
         .andExpect(status().isOk())
         .andExpect(jsonPath("$.totalElements").value(1))
         .andExpect(jsonPath("$.content[0].id").value(vendida.toString()));
@@ -310,12 +322,17 @@ class MyMovementsIT extends IntegrationTestBase {
         jdbc.queryForObject("SELECT code FROM movements WHERE id = ?", String.class, deOtros);
 
     mvc.perform(
-            get("/api/v1/movements/mine").param("code", codigo.toLowerCase()).with(como(vendedor)))
+            get("/api/v1/movements/mine").param("code", codigo.toLowerCase()).with(como(cliente)))
         .andExpect(status().isOk())
         .andExpect(jsonPath("$.totalElements").value(1))
         .andExpect(jsonPath("$.content[0].id").value(vendida.toString()));
     // El alcance va antes que el filtro: conocer un código no abre lo que no es propio.
-    mvc.perform(get("/api/v1/movements/mine").param("code", ajeno).with(como(vendedor)))
+    mvc.perform(get("/api/v1/movements/mine").param("code", ajeno).with(como(cliente)))
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$.totalElements").value(0));
+    // Y desde el 22-09-2026 tampoco lo que VENDIÓ: el vendedor conoce el código
+    // de `vendida` y su listado no se lo devuelve (`CA-MV-137`).
+    mvc.perform(get("/api/v1/movements/mine").param("code", codigo).with(como(vendedor)))
         .andExpect(status().isOk())
         .andExpect(jsonPath("$.totalElements").value(0));
   }
@@ -324,12 +341,13 @@ class MyMovementsIT extends IntegrationTestBase {
   @DisplayName(
       "CA-MV-135 — el periodo incluye `from`, excluye `to`, se combina, y el invertido es 400 VAL-005")
   void filtroPorPeriodo() throws Exception {
-    // vendida el 1 de agosto, propia el 2: [1, 2) es solo la primera.
+    // vendida el 1 de agosto, propia el 2: [1, 2) es solo la primera, y quien la
+    // ve es su comprador.
     mvc.perform(
             get("/api/v1/movements/mine")
                 .param("from", BASE.toString())
                 .param("to", BASE.plusDays(1).toString())
-                .with(como(vendedor)))
+                .with(como(cliente)))
         .andExpect(status().isOk())
         .andExpect(jsonPath("$.totalElements").value(1))
         .andExpect(jsonPath("$.content[0].id").value(vendida.toString()));
@@ -386,6 +404,24 @@ class MyMovementsIT extends IntegrationTestBase {
         // El vendedor es de la línea (`RN-MV-003`), y el detalle lo trae ahí.
         .andExpect(jsonPath("$.lines[0].seller.username").value("mine-vendedor"))
         .andExpect(jsonPath("$.user.username").value("mine-cliente"));
+  }
+
+  @Test
+  @DisplayName(
+      "CA-MV-138 — el detalle SÍ abre lo vendido: la venta que el vendedor no ve en su listado la"
+          + " abre por su identificador")
+  void elDetalleAbreLoVendido() throws Exception {
+    // LA ASIMETRÍA ES DELIBERADA (`spec.md` §2): acotar también el detalle
+    // dejaría al vendedor sin ninguna vía para abrir una venta suya, porque
+    // `RF-MV-007` no existe y `RF-MV-015` es solo listado. Quien venga a
+    // «ponerlo coherente con el listado» hace fallar esta prueba.
+    mvc.perform(get("/api/v1/movements/mine").with(como(vendedor)))
+        .andExpect(jsonPath("$.content[?(@.id == '" + vendida + "')]").isEmpty());
+
+    mvc.perform(get("/api/v1/movements/mine/{id}", vendida).with(como(vendedor)))
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$.id").value(vendida.toString()))
+        .andExpect(jsonPath("$.lines[0].seller.username").value("mine-vendedor"));
   }
 
   @Test
