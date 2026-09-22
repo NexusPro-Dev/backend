@@ -3,10 +3,11 @@
 | Campo | Valor |
 |---|---|
 | Requerimiento | `RF-MV-006` |
-| Especificación | [`spec.md`](spec.md) v0.1.0 |
+| Especificación | [`spec.md`](spec.md) v0.2.0 |
 | `spec.md` aprobada el | 17-09-2026 |
-| Versión | 0.1.0 |
+| Versión | 0.2.0 |
 | Estado | **Aprobado** |
+| Enmendado el | 21-09-2026 — el séptimo filtro, `type` (§3, §4.1, §4.3, §9, §11) |
 | Autor | Responsable técnico |
 | Aprobado por | Responsable del proyecto |
 | Fecha de aprobación | 17-09-2026 |
@@ -51,7 +52,7 @@ La migración es `V15__mv_indice_movimientos_por_fecha.sql`.
 
 | Capa | Componente | Cambio | Nota |
 |---|---|---|---|
-| `application` | `ListMovementsRequest` | Nuevo | Página, tamaño y los seis filtros. Normaliza el estado y el código a mayúsculas |
+| `application` | `ListMovementsRequest` | Nuevo | Página, tamaño y los seis filtros. Normaliza el estado y el código a mayúsculas. **Desde el 21-09-2026, siete: `type`**, normalizado como el estado |
 | `application` | `MovementResponse` | Nuevo | La fila, **sin papel**: con `type`, `confirmedAt`, sujeto y vendedores |
 | `domain/repository` | `MovementRepository` | Modificado | Gana `findAll`, `countAll` y el registro `MovementFilter` con los seis filtros; reutiliza `findSellersOf` |
 | `domain/repository` | `JpaMovementRepository` | Modificado | Las dos sentencias sobre **un** predicado, y el conteo con `LIMIT techo + 1` |
@@ -60,6 +61,8 @@ La migración es `V15__mv_indice_movimientos_por_fecha.sql`.
 | `db/migration` | `V15` | Nueva | El índice de §2 |
 
 **`MovementResponse` es una fila nueva y no `MyMovementResponse` sin `role`.** Comparten sujeto, vendedores, moneda e importes, y aun así son dos contratos: aquella lleva el papel y esta lleva el tipo y la confirmación, y **cambian por motivos distintos** — el día que la fila propia gane algo que quien administra no debe ver, o al revés, no tiene que arrastrar a la otra. Lo que sí se comparte es lo que no es contrato: `findSellersOf` y el nombre completo.
+
+**El séptimo filtro, `type`, entra el 21-09-2026 por los mismos cuatro sitios y no añade ninguno.** `ListMovementsRequest` lo recibe y lo normaliza a mayúsculas; `MovementFilter` lo lleva; `filtroGlobal` lo compara con `mt.code` —`movement_types` ya estaba en el `JOIN` para pintar el tipo de cada fila, de modo que filtrar por él no cuesta una tabla más—; y `ListMovementsService` lo valida **contra el catálogo**, con el `findTypeByCode` que `RF-MV-001` ya usa para resolver `VENTA`, **junto** con el estado y el rango. **Contra el catálogo y no contra una constante**: la spec lo trata como conjunto cerrado porque el sistema lo siembra (`RN-MV-017`), pero lo siembra **en una tabla**, y el día que una migración añada `DEPOSITO` el filtro tiene que admitirlo sin que nadie se acuerde de tocar una lista en Java. Es una consulta más por petición, solo cuando el parámetro viene, sobre una tabla de una fila.
 
 **`MovementFilter` vive en el puerto y no en `application`.** Es lo que el repositorio necesita para escribir el predicado, y la petición HTTP lo produce; ponerlo en `application` obligaría al adaptador a conocer la forma de la petición, que es la dirección de dependencia que `architecture.md` no admite.
 
@@ -84,6 +87,7 @@ La migración es `V15__mv_indice_movimientos_por_fecha.sql`.
 | `paymentMethodId` | UUID | Uno inexistente da página vacía |
 | `code` | texto | Igualdad exacta sobre el valor en mayúsculas |
 | `from`, `to` | instante ISO-8601 con zona | Sobre `occurred_at`. **Semiabierto**: `from <= occurred_at < to`. `from` posterior a `to` es `400` |
+| `type` (21-09-2026) | código del catálogo: hoy, `VENTA` | Sin distinguir mayúsculas. Uno que no exista es `400` `VAL-005`, **junto** con los demás problemas. Se valida contra `movement_types`, no contra una constante |
 
 **No hay parámetro de ordenamiento**, como en `RF-MV-008` y como en los cuatro listados de auditoría: el orden cronológico es parte del significado de un libro. **El desempate es `id` descendente**, y el índice de §2 lo lleva.
 
@@ -113,7 +117,7 @@ Un `PageResponse` con `totalIsExact`, que aquí **sí puede valer falso** (`FA-0
 | Código | Cuándo |
 |---|---|
 | `200` | La página, aunque esté vacía |
-| `400` | Paginación, estado, identificador o rango inválidos |
+| `400` | Paginación, estado, tipo, identificador o rango inválidos |
 | `401` | Sin token |
 | `403` | Sin `movements:read`, tenga o no movimientos propios |
 
@@ -162,6 +166,10 @@ Un `PageResponse` con `totalIsExact`, que aquí **sí puede valer falso** (`FA-0
 | Devolver las líneas o una suma de importes | Las líneas multiplican la respuesta; la suma es un informe con reglas que este listado no decide (`spec.md` §2.2) |
 | Parámetro de ordenamiento | El orden cronológico es el significado de un libro; ordenar por importe invita a construir informes sobre un listado |
 | Índice sobre `status` desde hoy | Cardinalidad baja y sin evidencia de que haga falta. Queda como disparador de revisión (§10) |
+| Validar `type` contra una constante `VENTA` en Java (21-09-2026) | El catálogo vive en una tabla y crece por migración: una constante sería una segunda copia del catálogo que alguien tendría que recordar. `findTypeByCode` ya existe y cuesta una consulta sobre una tabla de una fila |
+| Página vacía para un tipo inexistente, como el sujeto (21-09-2026) | El tipo es un conjunto cerrado que el sistema declara (`RN-MV-017`), no un dato: es el argumento de `spec.md` §6.1 para el estado, y vale entero |
+| Publicar el catálogo de tipos para que el frontend arme el filtro (21-09-2026) | Decisión del responsable del proyecto: hoy devolvería una lista de uno. Los códigos vigentes los documenta la prosa del parámetro; el día del segundo tipo, esa lectura tendrá un motivo |
+| Índice sobre `movement_type_id` (21-09-2026) | Cardinalidad ínfima —un valor hoy, un puñado mañana— y el mismo argumento que `status`: no serviría para ordenar después |
 
 ---
 
@@ -191,3 +199,4 @@ Un `PageResponse` con `totalIsExact`, que aquí **sí puede valer falso** (`FA-0
 | Forma de la fila: `type`, `confirmedAt` nulo y presente, `sellers` vacía y presente, sin `role` ni `lines` | Integración, sobre el JSON en crudo | «Nulo» tiene que distinguirse de «ausente» |
 | Orden y estabilidad entre páginas | Integración | |
 | Total acotado: por encima del techo, `totalIsExact` falso y el total es el techo | Integración, con el techo bajado por propiedad | Es la misma forma de `AuditBoundedCountIT` |
+| Filtro por tipo: **discrimina** con un segundo tipo sembrado solo en la prueba, en mayúsculas o minúsculas y combinado con otro filtro; tipo inexistente `400` `VAL-005` **junto** con el estado (21-09-2026) | Integración | Con un solo tipo en el catálogo, filtrar por `VENTA` devuelve todo y no probaría nada. La prueba deja el catálogo como lo encontró |

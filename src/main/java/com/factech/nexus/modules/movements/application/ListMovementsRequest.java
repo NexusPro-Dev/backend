@@ -16,6 +16,8 @@ import java.util.UUID;
  * auditoría: el orden cronológico es el significado de un libro.
  *
  * @param status opcional; uno que no exista es un error, no una página vacía
+ * @param type opcional (21-09-2026); el código del tipo de movimiento. Uno que no exista en el
+ *     catálogo es un error, como el estado: `RN-MV-017` hace del catálogo un conjunto cerrado
  * @param userId el sujeto (`RN-MV-026`). Uno inexistente da página vacía
  * @param sellerId vendedor de <b>alguna</b> línea (`RN-MV-003`). Uno inexistente da página vacía
  * @param paymentMethodId uno inexistente da página vacía
@@ -27,6 +29,7 @@ public record ListMovementsRequest(
     Integer page,
     Integer size,
     String status,
+    String type,
     UUID userId,
     UUID sellerId,
     UUID paymentMethodId,
@@ -36,6 +39,7 @@ public record ListMovementsRequest(
 
   public ListMovementsRequest {
     status = status == null || status.isBlank() ? null : status.trim().toUpperCase();
+    type = type == null || type.isBlank() ? null : type.trim().toUpperCase();
     // EN MAYÚSCULAS para que la comparación sea por igualdad y la responda
     // `uq_movements_code`: los comprobantes nacen en mayúsculas (`MovementCode`),
     // y un `upper(code) = …` dejaría el índice sin usar.

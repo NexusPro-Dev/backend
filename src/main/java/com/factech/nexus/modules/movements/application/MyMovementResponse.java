@@ -30,6 +30,10 @@ import java.util.UUID;
 public record MyMovementResponse(
     UUID id,
     String code,
+    // DESDE EL 21-09-2026, y a la vez que el filtro `type`: filtrar por lo que
+    // la fila no dice sería una respuesta que quien la lee no puede comprobar.
+    // Es el mismo campo que `MovementResponse` lleva desde el 17-09-2026.
+    @Schema(description = "El código del tipo de movimiento. Hoy, siempre `VENTA`.") String type,
     String status,
     @Schema(description = "El papel de quien consulta en ESTE movimiento.") MovementRole role,
     @Schema(

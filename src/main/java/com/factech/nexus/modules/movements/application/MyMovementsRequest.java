@@ -13,10 +13,13 @@ package com.factech.nexus.modules.movements.application;
  * construir informes sobre un endpoint que existe para que alguien mire lo suyo.
  *
  * @param status opcional. Ausente, devuelve todos los estados
+ * @param type opcional (21-09-2026); el código del tipo de movimiento. Ausente, todos los tipos.
+ *     Uno que no exista en el catálogo es un error, como el estado (`RF-MV-006` §6.1)
  */
-public record MyMovementsRequest(Integer page, Integer size, String status) {
+public record MyMovementsRequest(Integer page, Integer size, String status, String type) {
 
   public MyMovementsRequest {
     status = status == null || status.isBlank() ? null : status.trim().toUpperCase();
+    type = type == null || type.isBlank() ? null : type.trim().toUpperCase();
   }
 }

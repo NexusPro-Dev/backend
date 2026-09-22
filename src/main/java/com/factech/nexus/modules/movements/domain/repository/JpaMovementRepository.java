@@ -331,11 +331,14 @@ public class JpaMovementRepository implements MovementRepository {
    * {@code ix_movement_details_seller} por su primera columna.
    *
    * <p>El {@code CAST} del estado no es adorno: sin él, PostgreSQL no sabe de qué tipo es el
-   * parámetro cuando llega nulo y rechaza la comparación.
+   * parámetro cuando llega nulo y rechaza la comparación. El tipo (21-09-2026) entra con la misma
+   * forma, y {@code movement_types} se une aquí desde ese día: hasta entonces la fila propia no
+   * decía su tipo y la sentencia no lo necesitaba.
    */
   private static final String SELECCION_PROPIA =
       """
       FROM movements m
+      JOIN movement_types mt ON mt.id = m.movement_type_id
       JOIN users suj ON suj.id = m.user_id
       JOIN currencies cur ON cur.id = m.currency_id
       JOIN payment_methods pm ON pm.id = m.payment_method_id
@@ -343,6 +346,7 @@ public class JpaMovementRepository implements MovementRepository {
                                             WHERE d.movement_id = m.id
                                               AND d.seller_id = :actor))
         AND (CAST(:estado AS varchar) IS NULL OR m.status = CAST(:estado AS varchar))
+        AND (CAST(:tipo AS varchar) IS NULL OR mt.code = CAST(:tipo AS varchar))
       """;
 
   /**
@@ -360,7 +364,7 @@ public class JpaMovementRepository implements MovementRepository {
    */
   private static final String CABECERA_PROPIA =
       """
-      SELECT m.id AS id, m.code AS code, m.status AS status,
+      SELECT m.id AS id, m.code AS code, mt.code AS tipo, m.status AS status,
              CASE
                WHEN m.user_id = :actor AND EXISTS (SELECT 1 FROM movement_details d
                                                     WHERE d.movement_id = m.id
@@ -381,7 +385,8 @@ public class JpaMovementRepository implements MovementRepository {
 
   @Override
   @Transactional(readOnly = true)
-  public List<MyMovementRow> findMine(UUID actorId, String status, int offset, int limit) {
+  public List<MyMovementRow> findMine(
+      UUID actorId, String status, String type, int offset, int limit) {
     List<Tuple> filas =
         em.createNativeQuery(
                 CABECERA_PROPIA
@@ -393,6 +398,7 @@ public class JpaMovementRepository implements MovementRepository {
                 Tuple.class)
             .setParameter("actor", actorId)
             .setParameter("estado", status)
+            .setParameter("tipo", type)
             .setParameter("limite", limit)
             .setParameter("desde", offset)
             .getResultList();
@@ -406,11 +412,12 @@ public class JpaMovementRepository implements MovementRepository {
 
   @Override
   @Transactional(readOnly = true)
-  public long countMine(UUID actorId, String status) {
+  public long countMine(UUID actorId, String status, String type) {
     Object total =
         em.createNativeQuery("SELECT count(*) " + SELECCION_PROPIA)
             .setParameter("actor", actorId)
             .setParameter("estado", status)
+            .setParameter("tipo", type)
             .getSingleResult();
     return ((Number) total).longValue();
   }
@@ -464,6 +471,7 @@ public class JpaMovementRepository implements MovementRepository {
                 CABECERA_PROPIA
                     + """
                     FROM movements m
+                    JOIN movement_types mt ON mt.id = m.movement_type_id
                     JOIN users suj ON suj.id = m.user_id
                     JOIN currencies cur ON cur.id = m.currency_id
                     JOIN payment_methods pm ON pm.id = m.payment_method_id
@@ -495,6 +503,7 @@ public class JpaMovementRepository implements MovementRepository {
                 CABECERA_PROPIA
                     + """
                     FROM movements m
+                    JOIN movement_types mt ON mt.id = m.movement_type_id
                     JOIN users suj ON suj.id = m.user_id
                     JOIN currencies cur ON cur.id = m.currency_id
                     JOIN payment_methods pm ON pm.id = m.payment_method_id
@@ -829,11 +838,13 @@ public class JpaMovementRepository implements MovementRepository {
    * <p>El vendedor entra por el mismo {@code EXISTS} del listado propio —una fila por movimiento,
    * tenga las líneas que tenga— y el código por igualdad, para que lo responda {@code
    * uq_movements_code}. El rango es <b>semiabierto</b>: dos periodos consecutivos no devuelven dos
-   * veces el movimiento de la medianoche.
+   * veces el movimiento de la medianoche. El tipo (21-09-2026) se compara con {@code mt.code}:
+   * {@code movement_types} ya estaba en {@link #TABLAS_GLOBALES} para pintar el de cada fila.
    */
   private static Filtro filtroGlobal(MovementFilter f) {
     Filtro filtro = new Filtro();
     filtro.igual("m.status", "estado", f.status());
+    filtro.igual("mt.code", "tipo", f.type());
     filtro.igual("m.user_id", "sujeto", f.userId());
     if (f.sellerId() != null) {
       filtro.condicion(
@@ -985,6 +996,7 @@ public class JpaMovementRepository implements MovementRepository {
     return new MyMovementRow(
         (UUID) fila.get("id"),
         (String) fila.get("code"),
+        (String) fila.get("tipo"),
         (String) fila.get("status"),
         (String) fila.get("role"),
         (UUID) fila.get("suj_id"),
