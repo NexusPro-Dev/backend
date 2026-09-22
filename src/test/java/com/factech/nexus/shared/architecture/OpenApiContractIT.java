@@ -461,6 +461,10 @@ class OpenApiContractIT extends IntegrationTestBase {
             jsonPath("$.paths['/api/v1/teams/{id}'].get['x-required-permission']")
                 .value("teams:read"))
         .andExpect(jsonPath("$.paths['/api/v1/teams/{id}'].get.responses.404").exists())
+        .andExpect(
+            jsonPath("$.paths['/api/v1/teams/{id}'].patch['x-required-permission']")
+                .value("teams:update"))
+        .andExpect(jsonPath("$.paths['/api/v1/teams/{id}'].patch.responses.409").exists())
         .andExpect(jsonPath("$.components.schemas.TeamDetailResponse.properties.members").exists())
         .andExpect(
             jsonPath("$.components.schemas.TeamDetailResponse.properties.deletionReason").exists());

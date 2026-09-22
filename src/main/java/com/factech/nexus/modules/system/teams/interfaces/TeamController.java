@@ -4,9 +4,11 @@ import com.factech.nexus.modules.system.teams.application.ListTeamsRequest;
 import com.factech.nexus.modules.system.teams.application.RegisterTeamRequest;
 import com.factech.nexus.modules.system.teams.application.TeamDetailResponse;
 import com.factech.nexus.modules.system.teams.application.TeamItem;
+import com.factech.nexus.modules.system.teams.application.UpdateTeamRequest;
 import com.factech.nexus.modules.system.teams.domain.service.GetTeamService;
 import com.factech.nexus.modules.system.teams.domain.service.ListTeamsService;
 import com.factech.nexus.modules.system.teams.domain.service.RegisterTeamService;
+import com.factech.nexus.modules.system.teams.domain.service.UpdateTeamService;
 import com.factech.nexus.shared.pagination.PageResponse;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.media.Content;
@@ -22,6 +24,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.ModelAttribute;
+import org.springframework.web.bind.annotation.PatchMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
@@ -52,11 +55,17 @@ public class TeamController {
   private final RegisterTeamService alta;
   private final ListTeamsService listado;
   private final GetTeamService ficha;
+  private final UpdateTeamService correccion;
 
-  public TeamController(RegisterTeamService alta, ListTeamsService listado, GetTeamService ficha) {
+  public TeamController(
+      RegisterTeamService alta,
+      ListTeamsService listado,
+      GetTeamService ficha,
+      UpdateTeamService correccion) {
     this.alta = alta;
     this.listado = listado;
     this.ficha = ficha;
+    this.correccion = correccion;
   }
 
   @PostMapping
@@ -207,5 +216,65 @@ public class TeamController {
   })
   public TeamDetailResponse detalle(@PathVariable UUID id) {
     return ficha.detail(id);
+  }
+
+  @PatchMapping("/{id}")
+  @PreAuthorize("hasAuthority('teams:update')")
+  @Operation(
+      summary = "Corregir un equipo",
+      description =
+          """
+          Corrige el **nombre**, la **descripción** o los dos. Y nada más: el estado
+          se cambia con `PATCH /teams/{id}/status` y los miembros entran y salen por
+          sus propias rutas, cada una con su permiso. **Enviar `status` o `members`
+          responde `400`** por campo desconocido.
+
+          **Omitir un campo no es borrarlo.** `description` ausente deja la que
+          había; **`description: null` la borra** y la respuesta la devuelve presente
+          y nula. El **nombre no se puede vaciar**: un equipo sin nombre no existe, de
+          modo que `name: null` es `400`, no un borrado.
+
+          **Un cuerpo sin ningún campo es `400`**: un `PATCH` vacío no es una
+          corrección, y responderle `200` haría creer que algo cambió.
+
+          El nombre sigue siendo **único entre los equipos no eliminados, sin
+          distinguir mayúsculas ni acentos**, y el choque es `409`; **renombrarse al
+          nombre que ya se tiene se admite** —no se compite contra uno mismo— y el
+          nombre de un equipo eliminado **está libre**. Dos renombrados simultáneos al
+          mismo nombre salen por el mismo `409`, nunca por un `500`.
+
+          **Un equipo eliminado responde `404`**, igual que uno inexistente: no es
+          editable en ningún caso. **Uno `INACTIVO` se edita con normalidad**, porque
+          inactivo significa que no recibe miembros, no que sea inmutable — corregir
+          una errata antes de reactivarlo es justo lo que se hace.
+
+          La respuesta es la **forma del detalle**, ya con los valores nuevos y sus
+          miembros vigentes; **el estado, la fecha de eliminación y las pertenencias no
+          se tocan**. Exige `teams:update`.
+          """)
+  @ApiResponses({
+    @ApiResponse(
+        responseCode = "200",
+        description = "Equipo corregido, en la forma del detalle.",
+        content = @Content(schema = @Schema(implementation = TeamDetailResponse.class))),
+    @ApiResponse(
+        responseCode = "400",
+        description =
+            "Nombre vacío o largo, descripción larga, cuerpo sin campos (`VAL-003`) o con campos"
+                + " no admitidos (`VAL-004`)"),
+    @ApiResponse(responseCode = "401", description = "Token ausente o inválido (`AUTH-001`)"),
+    @ApiResponse(
+        responseCode = "403",
+        description = "Autenticado sin el permiso `teams:update` (`AUTH-002`)"),
+    @ApiResponse(
+        responseCode = "404",
+        description = "El equipo no existe o está eliminado (`EX-001`)"),
+    @ApiResponse(
+        responseCode = "409",
+        description = "El nombre ya lo usa otro equipo no eliminado (`EX-002`)")
+  })
+  public TeamDetailResponse corregir(
+      @PathVariable UUID id, @RequestBody UpdateTeamRequest peticion) {
+    return correccion.update(id, peticion);
   }
 }

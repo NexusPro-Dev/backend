@@ -5,7 +5,7 @@
 | Módulo | `SP` — Sistema Principal |
 | Paquete | `modules/system` |
 | Prefijos de permiso | `roles:`, `permissions:`, `audit:`, `memberships:`, `currencies:`, `countries:`, `users:`, `exchange-rates:`, `document-types:`, `brokers:`, `broker-accounts:`, `teams:` |
-| Versión | 1.77.0 |
+| Versión | 1.78.0 |
 | Estado | **Aprobado** |
 | Responsable | Bonilla Diaz William Steven |
 | Fecha de creación | 20-08-2026 |
@@ -390,7 +390,7 @@ EXCLUDE USING gist (
 | `RF-SP-063` | Registrar equipo | Alta | `teams:create` | **En desarrollo** |
 | `RF-SP-064` | Consultar equipos | Alta | `teams:list` | **En desarrollo** |
 | `RF-SP-065` | Consultar detalle de un equipo | Media | `teams:read` | **En desarrollo** |
-| `RF-SP-066` | Editar equipo | Media | `teams:update` | **Tasks en revisión** |
+| `RF-SP-066` | Editar equipo | Media | `teams:update` | **En desarrollo** |
 | `RF-SP-067` | Cambiar el estado de un equipo | Media | `teams:change-status` | **Tasks en revisión** |
 | `RF-SP-068` | Eliminar equipo | Baja | `teams:delete` | **Tasks en revisión** |
 | `RF-SP-069` | Asignar miembros a un equipo | Alta | `teams:assign-members` | **Tasks en revisión** |
@@ -2218,3 +2218,4 @@ La fila se lee «`user_id` pertenece al equipo `team_id` desde `started_at`». U
 | 1.75.0 | 22-09-2026 | **`RF-SP-063` queda construido y el submódulo Equipos estrena esquema, catálogo y ruta**: pasa a `En desarrollo` con sus once tareas `Hecha`. **Ninguna regla cambia** —lo que cambia es que ya existen—: `V33` crea `teams` y `team_members` con las diez restricciones de §10.8, entre ellas `uq_teams_name` funcional y parcial, que es la que hace cumplir `RN-SP-050` **cuando dos altas simultáneas se cruzan** y no solo cuando la comprobación previa llega a tiempo; `V34` siembra los ocho `teams:` y los asocia a `SUPERADMIN` y `ADMIN`, con el catálogo de permisos de **ciento veinticinco a ciento treinta y tres** y `ADMIN` de ciento diecinueve a **ciento veintisiete**. `POST /api/v1/teams` es la primera ruta del submódulo, y **las otras siete siguen sin existir aunque su permiso ya esté sembrado**: el catálogo entero entra en una migración porque ningún requerimiento posterior del submódulo toca el esquema, que era la forma con la que `RF-AC-001` estrenó Academia. Quince pruebas de integración y siete unitarias. `RF-SP-064` a `RF-SP-070` siguen en `Tasks en revisión`. | Responsable técnico |
 | 1.76.0 | 22-09-2026 | **`RF-SP-064` pasa a `En desarrollo`**: el listado de equipos está construido y `GET /api/v1/teams` publicado en el contrato con **`teams:list`**. Nada de la ficha cambia —la operación, su permiso y sus reglas son los que §6.1 y §9 ya declaraban—; lo que cambia es el estado. Queda escrito lo que la construcción confirmó: `memberCount` cuenta **vigentes** (`RN-SP-052`) y no depende del estado del equipo (`RN-SP-053`), de modo que hasta que `RF-SP-069` exista todas las filas dicen cero sin que el contrato tenga que cambiar después. | Responsable técnico |
 | 1.77.0 | 22-09-2026 | **`RF-SP-065` pasa a `En desarrollo`**: el detalle del equipo está construido y `GET /api/v1/teams/{id}` publicado con **`teams:read`**. Nada de la ficha cambia. Queda escrito lo que la construcción confirmó: el `status` que viaja con cada miembro es el de la **persona** —una pertenencia vigente no tiene estados—, y por eso `RN-SP-055` es visible desde aquí sin abrir la ficha de nadie; y el equipo eliminado se devuelve con su motivo, que es lo que hace coherente enseñarlo en el listado con `includeDeleted`. | Responsable técnico |
+| 1.78.0 | 22-09-2026 | **`RF-SP-066` pasa a `En desarrollo`**: la corrección de un equipo está construida y `PATCH /api/v1/teams/{id}` publicado con **`teams:update`**. Nada de la ficha cambia. Queda escrito lo que la construcción confirmó: `RN-SP-053` se lee también en sentido contrario —un equipo `INACTIVO` **sí** se corrige, porque «no recibe miembros» no es «no se toca»—, y `RN-SP-050` se revalida en cada renombrado **excluyendo al propio equipo**, de modo que renombrarse al nombre que ya se tiene es válido y no compite contra sí mismo. | Responsable técnico |

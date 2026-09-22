@@ -47,6 +47,34 @@ public class JpaTeamRepository implements TeamRepository {
   }
 
   @Override
+  public boolean existsAliveNameForOther(String name, UUID id) {
+    // La misma expresión del índice que `existsAliveName`, con el propio equipo
+    // fuera: sin el `id <> :id`, renombrarse al nombre que ya se tiene daría un
+    // 409 contra uno mismo.
+    return !em.createNativeQuery(
+            """
+            SELECT 1 FROM teams
+             WHERE deleted_at IS NULL
+               AND id <> :id
+               AND f_unaccent(lower(name)) = f_unaccent(lower(CAST(:name AS text)))
+             LIMIT 1
+            """)
+        .setParameter("id", id)
+        .setParameter("name", name)
+        .getResultList()
+        .isEmpty();
+  }
+
+  @Override
+  public void flush() {
+    try {
+      em.flush();
+    } catch (PersistenceException fallo) {
+      throw traducir(fallo);
+    }
+  }
+
+  @Override
   public Team save(Team equipo) {
     try {
       em.persist(equipo);

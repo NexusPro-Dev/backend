@@ -2,6 +2,7 @@ package com.factech.nexus.modules.system.teams.domain.models;
 
 import com.factech.nexus.shared.error.FieldError;
 import com.factech.nexus.shared.error.ValidationException;
+import com.factech.nexus.shared.patch.Patchable;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.EnumType;
@@ -12,6 +13,7 @@ import java.time.OffsetDateTime;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.UUID;
 
 /**
@@ -80,6 +82,52 @@ public class Team {
     equipo.createdAt = ahora;
     equipo.updatedAt = ahora;
     return equipo;
+  }
+
+  /**
+   * Corrige el nombre y la descripción (`RF-SP-066`), y devuelve <b>el diff</b> de lo que de verdad
+   * cambió.
+   *
+   * <p><b>Devolver el diff y no un booleano</b> es lo que permite que la auditoría registre QUÉ
+   * cambió y no solo QUE hubo una edición: el mapa vacío significa que la petición era válida y no
+   * movió nada —renombrar al mismo nombre, por ejemplo—, y entonces no se emite fila. Es la forma
+   * que dejó escrita `RF-AC-004`.
+   *
+   * <p><b>Ausente no es nulo.</b> Un campo que no viene se queda como estaba; una descripción en
+   * nulo explícito se borra. Sin esa distinción no habría forma de vaciar un campo opcional sin
+   * inventarle un endpoint propio.
+   *
+   * <p><b>El nombre nulo NO borra</b>, al contrario que la descripción: un equipo sin nombre no
+   * existe (`RN-SP-050`), de modo que `name: null` es un dato inválido y lo rechaza el caso de uso
+   * antes de llegar aquí.
+   */
+  public Map<String, Object> update(
+      Patchable<String> nuevoNombre, Patchable<String> nuevaDescripcion, OffsetDateTime ahora) {
+    Map<String, Object> cambios = new LinkedHashMap<>();
+    if (nuevoNombre.presente() && nuevoNombre.valor() != null) {
+      String valor = verificarNombre(nuevoNombre.valor());
+      if (!Objects.equals(valor, name)) {
+        cambios.put("name", Map.of("before", texto(name), "after", texto(valor)));
+        name = valor;
+      }
+    }
+    if (nuevaDescripcion.presente()) {
+      String valor = verificarDescripcion(nuevaDescripcion.valor());
+      if (!Objects.equals(valor, description)) {
+        cambios.put("description", Map.of("before", texto(description), "after", texto(valor)));
+        description = valor;
+      }
+    }
+    // La marca de tiempo avanza AUNQUE el diff salga vacío: la petición se
+    // atendió, y `CA-SP-756` exige que `updatedAt` deje de ser igual a
+    // `createdAt`. Lo que no se emite sin cambios es la fila de auditoría.
+    updatedAt = ahora;
+    return cambios;
+  }
+
+  /** Un nulo no viaja bien dentro del diff en JSON: se escribe como ausencia legible. */
+  private static Object texto(String valor) {
+    return valor == null ? "" : valor;
   }
 
   public boolean estaEliminado() {

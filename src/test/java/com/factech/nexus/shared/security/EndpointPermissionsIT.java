@@ -288,6 +288,7 @@ class EndpointPermissionsIT extends IntegrationTestBase {
           Map.entry("POST /api/v1/teams", "teams:create"),
           Map.entry("GET /api/v1/teams", "teams:list"),
           Map.entry("GET /api/v1/teams/{id}", "teams:read"),
+          Map.entry("PATCH /api/v1/teams/{id}", "teams:update"),
           // ---- AC · con los PADRES hasta el tramo 3 de RF-SP-060 ----
           Map.entry("POST /api/v1/course-categories", "course-categories:create"),
           Map.entry("GET /api/v1/course-categories", "course-categories:read"),

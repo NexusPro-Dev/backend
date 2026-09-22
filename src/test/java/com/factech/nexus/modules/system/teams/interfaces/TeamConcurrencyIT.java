@@ -3,11 +3,13 @@ package com.factech.nexus.modules.system.teams.interfaces;
 import static com.factech.nexus.modules.system.teams.interfaces.TeamTestSupport.con;
 import static com.factech.nexus.testing.ConcurrencyHarness.runTogether;
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.patch;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 
 import com.factech.nexus.IntegrationTestBase;
 import com.factech.nexus.testing.ConcurrencyHarness.Outcome;
 import java.util.List;
+import java.util.UUID;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
@@ -52,6 +54,41 @@ class TeamConcurrencyIT extends IntegrationTestBase {
         .isEqualTo(1);
     assertThat(resultados.stream().filter(r -> r.succeeded() && r.value() == 409).count())
         .isEqualTo(1);
+  }
+
+  @Test
+  @DisplayName(
+      "`CA-SP-758` — dos renombrados simultáneos al mismo nombre: uno 200, otro 409, ningún 500")
+  void dosRenombradosAlMismoNombre() throws Exception {
+    // Dos equipos distintos que a la vez quieren llamarse igual. La comprobación
+    // previa de cada petición mira una instantánea en la que el nombre todavía
+    // está libre, de modo que las dos pasan de largo y quien decide es
+    // `uq_teams_name`. Si no estuviera traducido por nombre de restricción, el
+    // perdedor recibiría un 500 por un choque que tiene respuesta de negocio.
+    UUID primero = TeamTestSupport.equipo(jdbc, "Equipo Uno");
+    UUID segundo = TeamTestSupport.equipo(jdbc, "Equipo Dos");
+
+    List<Outcome<Integer>> resultados =
+        runTogether(
+            2, indice -> estadoDe(renombrar(indice == 0 ? primero : segundo, "Equipo Unificado")));
+
+    assertThat(resultados).noneMatch(r -> r.succeeded() && r.value() >= 500);
+    assertThat(resultados.stream().filter(r -> r.succeeded() && r.value() == 200).count())
+        .isEqualTo(1);
+    assertThat(resultados.stream().filter(r -> r.succeeded() && r.value() == 409).count())
+        .isEqualTo(1);
+    // Y queda UNO con ese nombre, no dos: la unicidad no se negoció.
+    assertThat(
+            jdbc.queryForObject(
+                "SELECT count(*) FROM teams WHERE name = 'Equipo Unificado'", Integer.class))
+        .isEqualTo(1);
+  }
+
+  private MockHttpServletRequestBuilder renombrar(UUID id, String nombre) {
+    return patch("/api/v1/teams/" + id)
+        .with(con("teams:update"))
+        .contentType(MediaType.APPLICATION_JSON)
+        .content("{\"name\":\"" + nombre + "\"}");
   }
 
   private MockHttpServletRequestBuilder alta(String nombre) {
