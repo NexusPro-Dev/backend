@@ -1,8 +1,12 @@
 package com.factech.nexus.modules.system.teams.interfaces;
 
+import com.factech.nexus.modules.system.teams.application.ListTeamsRequest;
 import com.factech.nexus.modules.system.teams.application.RegisterTeamRequest;
 import com.factech.nexus.modules.system.teams.application.TeamDetailResponse;
+import com.factech.nexus.modules.system.teams.application.TeamItem;
+import com.factech.nexus.modules.system.teams.domain.service.ListTeamsService;
 import com.factech.nexus.modules.system.teams.domain.service.RegisterTeamService;
+import com.factech.nexus.shared.pagination.PageResponse;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.media.Content;
 import io.swagger.v3.oas.annotations.media.Schema;
@@ -11,8 +15,11 @@ import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import java.net.URI;
+import org.springdoc.core.annotations.ParameterObject;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
+import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.ModelAttribute;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
@@ -40,9 +47,11 @@ import org.springframework.web.bind.annotation.RestController;
 public class TeamController {
 
   private final RegisterTeamService alta;
+  private final ListTeamsService listado;
 
-  public TeamController(RegisterTeamService alta) {
+  public TeamController(RegisterTeamService alta, ListTeamsService listado) {
     this.alta = alta;
+    this.listado = listado;
   }
 
   @PostMapping
@@ -94,5 +103,54 @@ public class TeamController {
       @Valid @RequestBody RegisterTeamRequest peticion) {
     TeamDetailResponse creado = alta.register(peticion);
     return ResponseEntity.created(URI.create("/api/v1/teams/" + creado.id())).body(creado);
+  }
+
+  @GetMapping
+  @PreAuthorize("hasAuthority('teams:list')")
+  @Operation(
+      summary = "Consultar los equipos",
+      description =
+          """
+          El catálogo de administración de equipos, paginado y **en orden alfabético
+          por nombre**, con el más antiguo primero entre dos que empaten. Se ordena
+          así, y no por fecha de alta, porque el nombre es lo único que identifica a un
+          equipo y la lista es corta; `createdAt` también se admite, descendente por
+          omisión.
+
+          Cada fila trae **`memberCount`, cuántos miembros VIGENTES tiene hoy**: las
+          pertenencias cerradas son historial y no cuentan, de modo que un equipo con
+          dos cerradas y una abierta dice uno. **No depende del estado**: un equipo
+          `INACTIVO` conserva a su gente y la sigue contando. Un equipo eliminado dice
+          cero, porque no se elimina un equipo con miembros vigentes.
+
+          **La fila no trae la descripción ni quiénes son los miembros**: eso es el
+          detalle (`GET /teams/{id}`). Publicar los miembros por fila haría que la
+          respuesta creciera con el producto de dos cardinalidades.
+
+          Busca por `q` —nombre, **por contenido** y sin distinguir mayúsculas ni
+          acentos: «norte» encuentra «Equipo Norte» y «Región NORTE»—. Filtra por
+          `status` (`ACTIVO` o `INACTIVO`, en cualquier caja). **Excluye los
+          eliminados** salvo `includeDeleted=true`, y entonces los trae con su
+          `deletedAt`; los dos filtros deciden por separado. «Vacío» no es filtro: el
+          recuento se publica por fila y la pantalla separa.
+
+          Los parámetros inválidos se devuelven **juntos** con `400`. Exige
+          `teams:list`; `teams:read` **no** habilita esta operación, porque listar y
+          abrir son dos permisos.
+          """)
+  @ApiResponses({
+    @ApiResponse(responseCode = "200", description = "La página de equipos."),
+    @ApiResponse(
+        responseCode = "400",
+        description =
+            "Paginación, `status`, `sort` o `includeDeleted` inválidos, juntos (`VAL-001` a"
+                + " `VAL-004`)"),
+    @ApiResponse(responseCode = "401", description = "Token ausente o inválido (`AUTH-001`)"),
+    @ApiResponse(
+        responseCode = "403",
+        description = "Autenticado sin el permiso `teams:list` (`AUTH-002`)")
+  })
+  public PageResponse<TeamItem> listar(@ParameterObject @ModelAttribute ListTeamsRequest filtros) {
+    return listado.list(filtros);
   }
 }

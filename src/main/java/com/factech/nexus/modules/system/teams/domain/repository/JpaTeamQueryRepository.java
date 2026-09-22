@@ -1,6 +1,8 @@
 package com.factech.nexus.modules.system.teams.domain.repository;
 
+import com.factech.nexus.modules.system.teams.application.ListTeamsRequest;
 import jakarta.persistence.EntityManager;
+import jakarta.persistence.Query;
 import jakarta.persistence.Tuple;
 import java.sql.Timestamp;
 import java.time.Instant;
@@ -15,9 +17,9 @@ import org.springframework.transaction.annotation.Transactional;
 /**
  * {@link TeamQueryRepository} sobre SQL nativo.
  *
- * <p><b>Un solo bloque de columnas</b> ({@link #COLUMNAS}) para el detalle y —cuando llegue
- * `RF-SP-064`— para el listado, con la cuenta de miembros vigentes como columna más. La cuenta es
- * una <b>subconsulta correlacionada</b> y no un {@code JOIN … GROUP BY}: aquella entra por {@code
+ * <p><b>Un solo bloque de columnas</b> ({@link #COLUMNAS}) para el detalle y para el listado, con
+ * la cuenta de miembros vigentes como columna más. La cuenta es una <b>subconsulta
+ * correlacionada</b> y no un {@code JOIN … GROUP BY}: aquella entra por {@code
  * ix_team_members_team_vigente} y cuesta lo mismo con un equipo que con veinte; el {@code GROUP BY}
  * obligaría a agrupar por todas las columnas publicadas y, con el {@code LIMIT} de la página, a
  * agrupar antes de paginar.
@@ -59,6 +61,68 @@ public class JpaTeamQueryRepository implements TeamQueryRepository {
             .setParameter("id", id)
             .getResultList();
     return filas.stream().map(JpaTeamQueryRepository::equipo).findFirst();
+  }
+
+  @Override
+  @Transactional(readOnly = true)
+  public List<TeamRow> search(
+      ListTeamsRequest filtros, String ordenamiento, int offset, int limit) {
+    Query consulta =
+        em.createNativeQuery(
+            "SELECT "
+                + COLUMNAS
+                + " FROM teams t WHERE "
+                + predicado(filtros)
+                + " ORDER BY "
+                + ordenamiento,
+            Tuple.class);
+    enlazar(consulta, filtros);
+    List<Tuple> filas = consulta.setFirstResult(offset).setMaxResults(limit).getResultList();
+    return filas.stream().map(JpaTeamQueryRepository::equipo).toList();
+  }
+
+  @Override
+  @Transactional(readOnly = true)
+  public long count(ListTeamsRequest filtros) {
+    Query consulta =
+        em.createNativeQuery("SELECT count(*) FROM teams t WHERE " + predicado(filtros));
+    enlazar(consulta, filtros);
+    return ((Number) consulta.getSingleResult()).longValue();
+  }
+
+  /**
+   * Los tres filtros del listado, combinables entre sí (`RF-SP-064` `FA-003`).
+   *
+   * <p>{@code includeDeleted} decide <b>aparte</b> del estado: pedir los inactivos no trae los
+   * eliminados, y pedir los eliminados no cambia qué estados salen.
+   */
+  private static String predicado(ListTeamsRequest filtros) {
+    StringBuilder donde = new StringBuilder();
+    donde.append(filtros.incluirEliminados() ? "1 = 1" : "t.deleted_at IS NULL");
+    if (filtros.estadoNormalizado() != null) {
+      donde.append(" AND t.status = :estado");
+    }
+    if (filtros.q() != null) {
+      // La expresión del índice, no otra: `ix_teams_busqueda` es gin de
+      // trigramas sobre f_unaccent(lower(name)) y solo sirve si el predicado
+      // dice exactamente eso (la lección de ix_users_busqueda, V33).
+      donde.append(" AND f_unaccent(lower(t.name)) LIKE f_unaccent(lower(:termino)) ESCAPE '\\'");
+    }
+    return donde.toString();
+  }
+
+  private static void enlazar(Query consulta, ListTeamsRequest filtros) {
+    if (filtros.estadoNormalizado() != null) {
+      consulta.setParameter("estado", filtros.estadoNormalizado());
+    }
+    if (filtros.q() != null) {
+      consulta.setParameter("termino", "%" + escapar(filtros.q()) + "%");
+    }
+  }
+
+  /** Los comodines del {@code LIKE} escritos por quien busca son literales, no comodines. */
+  private static String escapar(String termino) {
+    return termino.replace("\\", "\\\\").replace("%", "\\%").replace("_", "\\_");
   }
 
   @Override

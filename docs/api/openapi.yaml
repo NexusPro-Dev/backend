@@ -1085,6 +1085,100 @@ paths:
           description: Ya estaba retirada
       x-required-permission: user-commission-rates:delete
   /api/v1/teams:
+    get:
+      tags:
+      - Equipos
+      summary: Consultar los equipos
+      description: |
+        **Permiso requerido:** `teams:list`. Sin él, `403` (`AUTH-002`).
+
+        El catálogo de administración de equipos, paginado y **en orden alfabético
+        por nombre**, con el más antiguo primero entre dos que empaten. Se ordena
+        así, y no por fecha de alta, porque el nombre es lo único que identifica a un
+        equipo y la lista es corta; `createdAt` también se admite, descendente por
+        omisión.
+
+        Cada fila trae **`memberCount`, cuántos miembros VIGENTES tiene hoy**: las
+        pertenencias cerradas son historial y no cuentan, de modo que un equipo con
+        dos cerradas y una abierta dice uno. **No depende del estado**: un equipo
+        `INACTIVO` conserva a su gente y la sigue contando. Un equipo eliminado dice
+        cero, porque no se elimina un equipo con miembros vigentes.
+
+        **La fila no trae la descripción ni quiénes son los miembros**: eso es el
+        detalle (`GET /teams/{id}`). Publicar los miembros por fila haría que la
+        respuesta creciera con el producto de dos cardinalidades.
+
+        Busca por `q` —nombre, **por contenido** y sin distinguir mayúsculas ni
+        acentos: «norte» encuentra «Equipo Norte» y «Región NORTE»—. Filtra por
+        `status` (`ACTIVO` o `INACTIVO`, en cualquier caja). **Excluye los
+        eliminados** salvo `includeDeleted=true`, y entonces los trae con su
+        `deletedAt`; los dos filtros deciden por separado. «Vacío» no es filtro: el
+        recuento se publica por fila y la pantalla separa.
+
+        Los parámetros inválidos se devuelven **juntos** con `400`. Exige
+        `teams:list`; `teams:read` **no** habilita esta operación, porque listar y
+        abrir son dos permisos.
+      operationId: listar_2
+      parameters:
+      - name: page
+        in: query
+        required: false
+        schema:
+          type: integer
+          format: int32
+      - name: size
+        in: query
+        required: false
+        schema:
+          type: integer
+          format: int32
+      - name: sort
+        in: query
+        required: false
+        schema:
+          type: string
+      - name: q
+        in: query
+        required: false
+        schema:
+          type: string
+      - name: status
+        in: query
+        required: false
+        schema:
+          type: string
+      - name: includeDeleted
+        in: query
+        required: false
+        schema:
+          type: string
+      responses:
+        "200":
+          description: La página de equipos.
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/PageResponseTeamItem"
+        "400":
+          description: "Paginación, `status`, `sort` o `includeDeleted` inválidos,\
+            \ juntos (`VAL-001` a `VAL-004`)"
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/PageResponseTeamItem"
+        "401":
+          description: Token ausente o inválido (`AUTH-001`)
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/PageResponseTeamItem"
+        "403":
+          description: Autenticado sin el permiso `teams:list` (`AUTH-002`)
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/PageResponseTeamItem"
+      x-required-permission: teams:list
     post:
       tags:
       - Equipos
@@ -1186,7 +1280,7 @@ paths:
         **Los eliminados quedan fuera salvo que se pidan** con
         `includeDeleted=true`; cuando se piden, `deletedAt` es lo que permite
         distinguirlos.
-      operationId: listar_2
+      operationId: listar_3
       parameters:
       - name: page
         in: query
@@ -1590,7 +1684,7 @@ paths:
         Un filtro sin coincidencias devuelve `200` con la colección vacía, y
         una página más allá de la última hace lo mismo **con el total real**.
         No hay `404` ni `422`.
-      operationId: listar_3
+      operationId: listar_4
       parameters:
       - name: page
         in: query
@@ -2014,7 +2108,7 @@ paths:
 
         Los filtros inválidos se devuelven **juntos** con `400`. Exige
         `packages:list`; `products:read` no habilita.
-      operationId: listar_4
+      operationId: listar_5
       parameters:
       - name: page
         in: query
@@ -2891,7 +2985,7 @@ paths:
         (descendente por omisión), con `,asc`/`,desc`. Los parámetros inválidos se
         devuelven **juntos** con `400`. Exige `courses:read`;
         `course-categories:read` no habilita.
-      operationId: listar_5
+      operationId: listar_6
       parameters:
       - name: page
         in: query
@@ -3386,7 +3480,7 @@ paths:
         (descendente por omisión), con `,asc`/`,desc`. Los parámetros inválidos se
         devuelven **juntos** con `400`. Exige `course-categories:read`;
         `courses:read` no habilita.
-      operationId: listar_6
+      operationId: listar_7
       parameters:
       - name: page
         in: query
@@ -3661,7 +3755,7 @@ paths:
         Las tasas **personalizadas** no salen en este listado: están en
         `GET /api/v1/user-commission-rates`. **No hay filtro por fecha**, porque
         las tasas de rol no tienen vigencia.
-      operationId: listar_7
+      operationId: listar_8
       parameters:
       - name: filtros
         in: query
@@ -8274,7 +8368,7 @@ paths:
 
         **No se pagina**: son unos pocos elementos, y partirlos obligaría a dos
         llamadas para pintar un desplegable.
-      operationId: listar_8
+      operationId: listar_9
       parameters:
       - name: includeInactive
         in: query
@@ -8450,7 +8544,7 @@ paths:
 
         **No se pagina**: son unos pocos elementos y partirlos obligaría a dos
         llamadas para pintar un desplegable.
-      operationId: listar_9
+      operationId: listar_10
       parameters:
       - name: includeInactive
         in: query
@@ -8562,7 +8656,7 @@ paths:
 
         **Esta ruta no sustituye a `GET /api/v1/users/{id}/broker-accounts`**,
         que existe para **el superior comercial sin permiso**.
-      operationId: listar_10
+      operationId: listar_11
       parameters:
       - name: page
         in: query
@@ -12040,6 +12134,46 @@ components:
           type: boolean
         sort:
           type: string
+    PageResponseTeamItem:
+      type: object
+      properties:
+        content:
+          type: array
+          items:
+            $ref: "#/components/schemas/TeamItem"
+        totalElements:
+          type: integer
+          format: int64
+        totalPages:
+          type: integer
+          format: int32
+        page:
+          type: integer
+          format: int32
+        size:
+          type: integer
+          format: int32
+        totalIsExact:
+          type: boolean
+    TeamItem:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        name:
+          type: string
+        status:
+          type: string
+        memberCount:
+          type: integer
+          format: int64
+        createdAt:
+          type: string
+          format: date-time
+        deletedAt:
+          type: string
+          format: date-time
     RoleDetailResponse:
       type: object
       properties:
