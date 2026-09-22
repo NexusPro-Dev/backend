@@ -441,7 +441,7 @@ public class MovementController {
   // `movements:list-own` desde el 21-09-2026 (`RF-SP-062`, `RN-SEG-015`); el
   // detalle es `movements:read-own`, porque RN-SEG-014 es estricto también con
   // listado y detalle. Hasta entonces, solo el token.
-  @GetMapping("/mine")
+  @GetMapping("/mine/shopping")
   @PreAuthorize("hasAuthority('movements:list-own')")
   @Operation(
       summary = "Consultar mis compras",
@@ -449,6 +449,11 @@ public class MovementController {
           """
           Devuelve **los movimientos a nombre de usted** —lo que compró—, paginados y del más
           reciente al más antiguo.
+
+          **Esta operación se mudó aquí el 22-09-2026**, desde `GET /api/v1/movements/mine`,
+          que **ya no existe**: el listado dejó de traer lo vendido ese mismo día y el nombre
+          tenía que decirlo. No hay alias —cada operación exige un permiso que ninguna otra
+          exige—, de modo que la ruta anterior responde `404`.
 
           **Desde el 22-09-2026 este listado trae SOLO lo comprado.** Hasta esa fecha traía
           también lo que usted hubiera **vendido**, y cada fila decía con `role` en qué papel

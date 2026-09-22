@@ -328,7 +328,7 @@ class ConfirmSaleIT extends IntegrationTestBase {
         .andExpect(jsonPath("$.lines[0].deliveredAt").isNotEmpty());
 
     // Y el listado propio también lleva la confirmación.
-    mvc.perform(get("/api/v1/movements/mine").with(propio(cliente)))
+    mvc.perform(get("/api/v1/movements/mine/shopping").with(propio(cliente)))
         .andExpect(status().isOk())
         .andExpect(jsonPath("$.content[0].confirmedAt").isNotEmpty());
   }
