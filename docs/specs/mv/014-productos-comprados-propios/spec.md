@@ -10,6 +10,7 @@
 | Aprobada por | Responsable del proyecto |
 | Fecha de aprobación | 17-09-2026 |
 | Enmendada | 21-09-2026 — exige **`movements:read-own-products`** (`RF-SP-062`, `RN-SEG-015`: autenticarse no autoriza nada); lo siembra `V31`; `CA-MV-109` deja de decir «sin permiso» |
+| Enmendada | 22-09-2026 — **la línea entregada trae `couponUrl`** (`RN-MV-032`, `RN-PM-050`): el cupón del bot, resuelto, **solo si la entrega está hecha**. Es **el único sitio del sistema, fuera de administración, donde ese enlace se ve**. Ver §15 |
 
 !!! info "Qué va en este documento"
 
@@ -91,8 +92,10 @@ Que cualquier persona autenticada vea **los productos que compró**, uno por uno
 | `RN-MV-004` | Lo pendiente de pago **no se tiene**: aparece con ese estado y sin vigencia |
 | `RN-MV-021`, `RN-MV-029`, `RN-MV-030` | Son de donde salen `PENDIENTE_AUTORIZACION`, `RETENIDO` y el instante de la entrega |
 | `RN-PM-015` | Sin vigencia, **no caduca**: `ACTIVO` sin «hasta» |
+| `RN-MV-032` | **El cupón del bot viaja solo con la línea entregada** (22-09-2026). En los seis estados de §2.1 eso son **`ACTIVO` y `VENCIDO`**, los dos que se apoyan en `delivery_status = ENTREGADA`; en `PENDIENTE_PAGO`, `PENDIENTE_AUTORIZACION`, `RETENIDO`, `RECHAZADO` y `ANULADO` el campo **no viaja** |
+| `RN-PM-048`, `RN-PM-050` | De dónde sale el cupón —un enlace de tipo `CUPON_BOT` del producto— y por qué **ninguna otra lectura fuera de administración lo publica** |
 
-**Ninguna regla nueva.** Este requerimiento no decide nada: **lee lo que `RF-MV-003` y `RF-MV-010` deciden**.
+**Una regla nueva, y no la decide este requerimiento**: `RN-MV-032` nace en `requirements/mv.md` §5.1 el 22-09-2026 porque `PM` estrenó un enlace que **solo tiene sentido después de la entrega**, y la entrega es de este módulo. Lo demás sigue igual: este requerimiento **lee lo que `RF-MV-003` y `RF-MV-010` deciden**.
 
 ---
 
@@ -120,6 +123,11 @@ Que cualquier persona autenticada vea **los productos que compró**, uno por uno
 | Desde cuándo | El instante de la entrega; ausente si no se ha entregado |
 | Hasta cuándo | La entrega más la vigencia comprada; ausente si no se ha entregado **o si no caduca** |
 | Motivo | Solo en `RETENIDO` |
+| **Cupón del bot** | El enlace de tipo `CUPON_BOT` del producto, **ya resuelto** (`RN-PM-049`), y **solo si la línea está entregada** — `ACTIVO` o `VENCIDO` (`RN-MV-032`, 22-09-2026). Ausente si el producto no declara cupón, y ausente en los otros cuatro estados **aunque lo declare** |
+
+**Un `VENCIDO` conserva su cupón, y conviene decir por qué.** La vigencia que pasó es la de **lo que se compró**, no la del enlace: el bot lo aloja un tercero, y esconder la dirección no le quita a nadie el acceso que ya tiene — solo haría que el registro de lo comprado **mintiera sobre lo que se entregó**. Es la misma línea que `RETENIDO` traza por el otro lado: allí el campo no viaja porque **la entrega no ocurrió**.
+
+**Y el cupón no se copió en la línea** (`RN-MV-032`, única excepción declarada a `RN-MV-002`): se lee **del catálogo, hoy**. Si administración corrige la dirección del bot, quien compró ve **la nueva**, que es lo que necesita para que su enlace funcione — al revés que el precio y el nombre, que se congelan porque cambiarlos reescribiría lo vendido.
 
 **«Hasta cuándo» viaja calculado**, aunque la persona pudiera sumarlo: sumar días a un instante lo haría cada cliente de la API a su manera, y con distinta zona horaria.
 
@@ -178,6 +186,9 @@ Ninguna propia.
 
 | ID | Criterio |
 |---|---|
+| `CA-MV-140` | Una línea **entregada** de un producto con `CUPON_BOT` trae `couponUrl` **resuelto** —con el identificador externo pegado al final—, y la trae **igual en `ACTIVO` y en `VENCIDO`** |
+| `CA-MV-141` | La **misma** línea en `PENDIENTE_PAGO`, `PENDIENTE_AUTORIZACION` y `RETENIDO` **no trae `couponUrl`**, comprobado sobre el cuerpo entero: el producto declara el cupón y la respuesta no lo lleva. **Es el criterio que impide entregar por una consulta lo que `RN-MV-021` no ha autorizado** |
+| `CA-MV-142` | Una línea entregada de un producto **sin** `CUPON_BOT` no trae el campo; y **veinte líneas entregadas no disparan veinte consultas al catálogo**: los cupones de la página se piden **en una sola llamada en lote** |
 | `CA-MV-099` | Aparecen **solo** los productos de las ventas a nombre del actor; lo que vendió a otros **no** |
 | `CA-MV-100` | Una línea de una venta **pendiente** aparece como `PENDIENTE_PAGO`, sin «desde» ni «hasta» |
 | `CA-MV-101` | Una línea **entregada** con vigencia aparece `ACTIVO` con «hasta» = entrega + días, y pasado ese instante aparece `VENCIDO` |
@@ -199,6 +210,9 @@ Ninguna propia.
 | Vigencia que vence **exactamente** en el instante consultado | Ya está `VENCIDO`: el borde es el mismo que `SP` fija para la membresía vigente —una fecha igual al instante ya no está vigente— |
 | El producto fue **retirado del catálogo** después | Aparece igual, con el nombre copiado. `RN-PM-010` garantiza que la fila del producto sigue existiendo para el código |
 | Cantidad mayor que uno | Una fila, con su cantidad. No se multiplica |
+| El producto **se retira del catálogo** y tenía cupón | El cupón **sigue viajando** en las líneas entregadas. `RN-PM-010` garantiza que la fila del producto sobrevive, y sus enlaces con ella; retirar del catálogo es dejar de vender, no retirar lo entregado (22-09-2026) |
+| Administración **cambia la dirección del cupón** después de la compra | Quien compró ve **la nueva**, porque el cupón se lee del catálogo y no se copió en la línea (`RN-MV-032`). Es lo buscado: si el bot cambia de dirección, un enlace congelado dejaría de funcionar |
+| Administración **quita** el enlace `CUPON_BOT` del producto | El campo **desaparece** de las líneas entregadas. Es la contrapartida del caso anterior y se acepta con él: lo que se publica es el enlace vigente, y si no hay, no hay |
 
 ---
 
@@ -213,3 +227,4 @@ Ninguna propia.
 | Versión | Fecha | Cambio | Autor |
 |---|---|---|---|
 | 0.1.0 | 17-09-2026 | Primera versión, a petición del responsable del proyecto. **Responde por productos y no por movimientos**, que es lo que `RF-MV-008` no puede hacer sin estirarse; **se deriva del libro y no se guarda**, por el mismo criterio que el saldo de puntos; y **lista todo lo comprado con su estado** (decisión del responsable, sobre listar solo lo pagado), con seis estados calculados de lo que la venta, la entrega y la vigencia ya dicen. La vigencia corre desde la entrega. | Responsable del proyecto |
+| 0.4.0 | 22-09-2026 | **La línea entregada trae el cupón del bot** (`RN-MV-032`, [`requirements/mv.md`](../../../requirements/mv.md) v0.35.0; `RN-PM-048` a `RN-PM-050`, [`requirements/pm.md`](../../../requirements/pm.md) v0.43.0 §5.2.14). `PM` estrenó un enlace que **solo tiene sentido después de la entrega** —dónde registra su cuenta quien ya compró un bot— y la entrega es de este módulo, de modo que **esta lectura es el único sitio del sistema, fuera de administración, donde ese enlace se ve**. Lo que fija: **(1) solo entregada.** `couponUrl` viaja en `ACTIVO` y `VENCIDO` —los dos estados que se apoyan en `delivery_status = ENTREGADA`— y **no viaja** en `PENDIENTE_PAGO`, `PENDIENTE_AUTORIZACION`, `RETENIDO`, `RECHAZADO` ni `ANULADO`. Publicarlo en una pendiente sería **entregar por una consulta** lo que `RN-MV-021` no ha autorizado, y en una retenida, después de haber escrito que no se entregaría; por eso el estado va **en el predicado** y `CA-MV-141` comprueba **el cuerpo entero**. **Un `VENCIDO` lo conserva**: la vigencia que pasó es la de lo comprado, no la del enlace, y esconderlo no le quita el acceso a nadie — solo haría que el registro mintiera sobre lo que se entregó. **(2) Lo resuelve `PM`, en lote.** Se descartó el `JOIN` contra `product_links`, que habría costado una línea porque esta consulta ya cruza `products`: la composición del enlace (`RN-PM-049`) es una regla de `PM` y un `JOIN` obligaría a reescribirla aquí. Es la distinción de D-25 que `modelo-datos.md` declara —**las claves foráneas cruzan; los repositorios no**—, y lo que se cruza por FK es el código, un dato sin reglas. Y **en lote**, una vez por página, porque veinte líneas preguntando veinte veces son la `N+1` que no se ve (`CA-MV-142`). **(3) No se copia en la línea**, única excepción declarada a `RN-MV-002`: se lee **del catálogo, hoy**, de modo que corregir la dirección del bot **repara** el enlace de quien compró en lugar de reescribir lo vendido — y quitarlo lo hace desaparecer, que es la contrapartida y se acepta con él. **Sin migración, sin permiso y sin ruta nueva**; `GET /api/v1/movements/mine/products` sigue con `movements:read-own-products`. Nacen **`CA-MV-140`** a **`CA-MV-142`** y tres casos límite. Enmienda de Art. I.7. | Responsable del proyecto |

@@ -16,6 +16,7 @@
 | Enmendada el | 12-09-2026 — **el segundo precio es el de COMPRA** (`RN-PM-023`, `RN-PM-024`): `purchasePrice` sustituye a `publicPrice`, y la conversión se calcula siempre sobre `price`. Ver §15 |
 | Enmendada el | 14-09-2026 — **el detalle devuelve `rating` —promedio y cantidad de reseñas vivas— en la misma sentencia** (`RN-PM-031`, `RF-PM-009`). Ver §15 |
 | Enmendada el | 14-09-2026 — **el detalle devuelve `videoUrl`, el enlace del video** (`RN-PM-032`), presente y nulo cuando no hay. Ver §15 |
+| Enmendada el | 22-09-2026 — **el detalle devuelve `links`, y `videoUrl` desaparece** (`RN-PM-048` a `RN-PM-050`): los enlaces **crudos**, con su identificador, y **`CUPON_BOT` incluido** — con `RF-PM-002`, la otra lectura donde se ve. Ver §15 |
 | Enmendada el | 14-09-2026 — **el detalle devuelve `coverImageUrl`, la dirección de la portada** (`RN-PM-033`, `RF-PM-014`), presente y nula cuando no hay, también en un retirado. Ver §15 |
 
 ---
@@ -62,7 +63,10 @@ El listado de `RF-PM-002` responde «qué hay»; esta consulta responde «qué e
 | `RN-PM-023` | **El precio de compra es opcional y no se cobra** — es lo que NEXUS paga por el producto | `requirements/pm.md` §5.1 |
 | `RN-PM-024` | **El precio de compra no sale de administración; el precio y la conversión salen en toda lectura** — el detalle es una de las dos lecturas que lo devuelven | `requirements/pm.md` §5.1 |
 | `RN-PM-024` | **El precio del sistema no sale de administración** — y este detalle **es** administración | `requirements/pm.md` §5.1 |
-| `RN-PM-032` | **Un producto puede enlazar un video, y el enlace sale en toda lectura** — el detalle lo devuelve, presente y nulo cuando no hay | `requirements/pm.md` §5.1 |
+| `RN-PM-032` | **Un producto puede enlazar un video, y el enlace sale en toda lectura** — el detalle lo devuelve, **dentro de `links` desde el 22-09-2026** | `requirements/pm.md` §5.1 |
+| `RN-PM-048` | **Los enlaces viven aparte, y hay uno por tipo** — aquí, que el detalle devuelve la colección entera, **vacía** cuando el producto no declara ninguno | `requirements/pm.md` §5.1 |
+| `RN-PM-049` | **El identificador se pega al final, y administración ve el crudo** — aquí, que el detalle devuelve **la dirección tal cual y el identificador en su campo** | `requirements/pm.md` §5.1 |
+| `RN-PM-050` | **El cupón del bot es entrega, no material de venta** — aquí, **la excepción**: el detalle **sí** lo trae, con `RF-PM-002`, porque es donde se administra. **También en un producto retirado**: quien administra tiene que poder revisar lo que se entregó | `requirements/pm.md` §5.1 |
 | `RN-PM-033` | **La portada es un archivo y se publica por su identificador** — el detalle devuelve su dirección, `coverImageUrl`, presente y nula cuando no hay; los bytes los sirve `RF-PM-016` | `requirements/pm.md` §5.1 |
 
 ## 6. Datos
@@ -79,7 +83,7 @@ El listado de `RF-PM-002` responde «qué hay»; esta consulta responde «qué e
 
 | Dato | Descripción |
 |---|---|
-| Producto | Identificador, código, tipo, nombre, descripción, **icono**, **el enlace del video**, **la dirección de la portada**, **los dos precios** con su moneda, **vigencia en días** y estado |
+| Producto | Identificador, código, tipo, nombre, descripción, **icono**, **sus enlaces** —los dos tipos, crudos y con su identificador externo (22-09-2026; era «el enlace del video»)—, **la dirección de la portada**, **los dos precios** con su moneda, **vigencia en días** y estado |
 | Los dos precios | El **del sistema** —el que se cobra— y el **de compra** —lo que NEXUS paga por el producto—, este **presente y nulo** cuando no se conoce (`RN-PM-023`). Es, con el listado, **el único sitio donde se ven juntos**: la oferta y el hotlink devuelven uno solo, porque el otro es el margen (`RN-PM-024`, 12-09-2026) |
 | La conversión | La moneda por omisión, **la tasa aplicada** y el **importe convertido** de `price`. **Presente y nula** cuando no hay nada que convertir (`RN-PM-024`, 08-09-2026). El precio de compra **no se convierte** |
 | Alcance e implementación | Hasta dónde se muestra el producto y quién aplica lo que otorga. En los **dos** tipos (`RN-PM-019`, `RN-PM-020`) |
@@ -150,7 +154,9 @@ El listado de `RF-PM-002` responde «qué hay»; esta consulta responde «qué e
 | `CA-PM-143` | El sistema devuelve el **color** de las dos membresías del detalle |
 | `CA-PM-152` | El sistema devuelve **los dos precios**, cada uno con los decimales de la moneda, y el **de compra —`purchasePrice`— en nulo presente** cuando no se conoce |
 | `CA-PM-166` | El sistema devuelve la **conversión** a la moneda por omisión —moneda, tasa e importe—, calculada **sobre `price`** —el de compra nunca se convierte—, y **presente y nula** cuando el producto ya está en esa moneda o cuando no hay tasa vigente |
-| `CA-PM-224` | El sistema devuelve **`videoUrl`** tal cual se guardó, y **presente y nulo** cuando el producto no lo declara — también en un producto retirado |
+| `CA-PM-224` | El sistema devuelve **`links`** tal cual se guardó, y **presente y vacía** cuando el producto no declara ninguno — también en un producto retirado. **Reescrito el 22-09-2026**: hasta ese día comprobaba `videoUrl` presente y nulo |
+| `CA-PM-387` | El detalle de un producto con los **dos** enlaces los devuelve **los dos**, `CUPON_BOT` incluido y **crudos** —dirección sin componer, identificador en su campo—, **también si el producto está retirado**: es la lectura de administración |
+| `CA-PM-388` | Los enlaces **no cuestan una consulta por enlace**: el detalle los lee en **una sola sentencia** más, y el recuento total de sentencias es el mismo con un enlace que con dos |
 | `CA-PM-233` | El sistema devuelve **`coverImageUrl`** con la forma `/api/v1/product-images/{uuid}` cuando hay portada, **presente y nulo** cuando no — también en un producto **retirado**, cuya portada sigue existiendo y sirviéndose (`RN-PM-010`) — y sin ninguna consulta más |
 
 ## 13. Casos límite
@@ -189,3 +195,4 @@ Ninguna. Las tres se resolvieron el 26-08-2026, antes de aprobar la especificaci
 | 0.9.0 | 14-09-2026 | **Entra `rating` en la respuesta** —el promedio y la cantidad de reseñas vivas del producto— por `RN-PM-031` ([`requirements/pm.md`](../../../requirements/pm.md) v0.24.0 §5.2.7): el detalle devuelve `rating` —promedio y cantidad de reseñas vivas— en la misma sentencia. Enmienda de Art. I.7 declarada por el plan de [`RF-PM-009`](../009-resenar-producto/plan.md) §4.1 y construida por sus tareas `T-10` y `T-11`; los criterios que la prueban son `CA-PM-180` a `CA-PM-182` de aquella tripleta. **El promedio no se guarda en `products`**: se cuenta, por un `LEFT JOIN LATERAL` sobre el índice parcial de `product_comments`, para que ninguna copia pueda quedarse atrás. | Responsable del proyecto |
 | 0.10.0 | 14-09-2026 | **El detalle devuelve `videoUrl`, el enlace del video** (`RN-PM-032`, [`requirements/pm.md`](../../../requirements/pm.md) v0.27.0 §5.2.8), presente y nulo cuando no hay, y sin ninguna consulta más. Nace `CA-PM-224`. Enmienda de Art. I.7. | Responsable del proyecto |
 | 0.11.0 | 14-09-2026 | **El detalle devuelve `coverImageUrl`, la dirección de la portada** (`RN-PM-033`, [`requirements/pm.md`](../../../requirements/pm.md) v0.29.0 §5.2.9), presente y nula cuando no hay, sin consulta más y **también en un retirado**: la portada es parte de lo que el producto era, y `RF-PM-015` no la quita al retirar. `CA-PM-233`. Enmienda que construye `RF-PM-014` (Art. I.7). | Responsable del proyecto |
+| 0.11.0 | 22-09-2026 | **El detalle devuelve `links`, y `videoUrl` desaparece** (`RN-PM-048` a `RN-PM-050`, [`requirements/pm.md`](../../../requirements/pm.md) v0.43.0 §5.2.14). Hereda de `RF-PM-002` lo que aquella decidió y por los mismos motivos, sin repetirlos: los enlaces viajan **crudos** —dirección tal cual, identificador en su campo— porque esta es la vista de quien edita, y **sin filtrar por tipo**, de modo que **el `CUPON_BOT` se ve aquí y en el listado, y en ninguna otra lectura** (`RN-PM-050`). Lo propio de esta ficha es **el producto retirado**: el detalle le sigue respondiendo, y también le devuelve sus enlaces — quien administra tiene que poder revisar el cupón que alguien recibió antes de que el producto se retirara. En la consulta, el `SELECT` **pierde la columna** y entra **una sentencia más** contra `product_links`; se acota a una con `CA-PM-388`, porque una por enlace sería un `N+1` de dos filas que nadie miraría. `CA-PM-224` se **reescribe** y nacen **`CA-PM-387`** y **`CA-PM-388`**. Enmienda de Art. I.7. | Responsable del proyecto |

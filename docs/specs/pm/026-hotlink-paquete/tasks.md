@@ -29,6 +29,7 @@
 **Verificación (15-09-2026):** `PackageHotlinkIT` (8), `RateLimitIT` (2) y `EndpointPermissionsIT`, en verde; el `mvn verify` completo queda en 370 unitarias y 1422 de integración, con las únicas rojas fuera del módulo (`DevelopmentSeedIT` por una edición sin confirmar de la semilla, y una prueba de `SP` que desempata mal dos asientos con el mismo instante).
 
 **Verificación de la enmienda (16-09-2026):** `PackageHotlinkIT` (9), en verde; el cuerpo del `404` fuera de la vigencia es byte a byte el del hotlink del producto.
+| `T-10` | **Los enlaces de cada producto del paquete** (`RF-PM-008` `T-25` decide la forma): la proyección del producto dentro del paquete **pierde `videoUrl`** y gana `links`; los enlaces se leen en **una sentencia más con el tipo en el predicado**, y se publican **resueltos**; la prosa de la `@Operation` no repite el motivo, lo cita | `RF-PM-008` `T-25` | `CA-PM-332` reescrito y `CA-PM-398` en el `IT` del hotlink del paquete. **El contrato regenerado no declara ningún `videoUrl`** | **Pendiente** |
 
 ## 2. Orden de ejecución
 
