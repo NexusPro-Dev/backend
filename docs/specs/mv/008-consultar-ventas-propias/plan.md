@@ -5,11 +5,12 @@
 | Requerimiento | `RF-MV-008` |
 | Especificación | [`spec.md`](spec.md) v0.1.0 |
 | `spec.md` aprobada el | 05-09-2026 |
-| Versión | 0.4.0 |
+| Versión | 0.5.0 |
 | Estado | **Aprobado** |
 | Enmendado el | 16-09-2026 — la mitad «lo que vendí» se resuelve por `movement_details.seller_id` (§2.1, §4.1) |
 | Enmendado el | 21-09-2026 — el filtro `type` y el campo `type` en la fila (§3, §4.1, §4.3, §11) |
 | Enmendado el | 21-09-2026 (segunda del día) — `paymentMethodId`, `code`, `from` y `to`, con la forma de `RF-MV-006` (§4.3, §11) |
+| Enmendado el | 22-09-2026 — el listado se acota al sujeto y la fila pierde `role` (§2.2, §3, §4.1, §9, §11); el detalle no cambia |
 | Autor | Responsable técnico |
 | Aprobado por | Responsable del proyecto |
 | Fecha de aprobación | 05-09-2026 |
@@ -62,6 +63,16 @@ La migración es `V58__index_movements_por_participante.sql`.
 
 **El papel se calcula igual, con el `EXISTS` dentro del `CASE`**: sujeto y vendedor de alguna línea → `BOTH`; solo sujeto → `BUYER`; solo vendedor → `SELLER`. El caso que se olvida sigue siendo `BOTH`, y desde hoy lo produce **toda compra de quien no cuelga de nadie**, que se vende a sí mismo.
 
+### 2.2 Desde el 22-09-2026 el listado mira UNA columna
+
+**El predicado del listado pasa de `m.user_id = ? OR EXISTS (… d.seller_id = ?)` a `m.user_id = ?`**, por la decisión que el aviso de `spec.md` §2 recoge: el listado trae solo lo comprado. Es la simplificación más grande que ha tenido este requerimiento, y trae tres consecuencias que conviene leer juntas:
+
+- **El `CASE` del papel desaparece de la proyección**, y con él el parámetro `:actor` en las consultas que solo lo necesitaban para calcularlo — `findById`, la del detalle **sin alcance** de `RF-MV-003`, lo ataba a nulo únicamente por eso. `MyMovementRow` pierde `role` y `MovementRole` se **retira**: sin la fila que lo llevaba, es código muerto.
+- **`ix_movement_details_seller` sigue haciendo falta**, aunque este listado deje de usarlo: lo usan `RF-MV-006` y `RF-MV-015` para el mismo `EXISTS`. No se toca el esquema.
+- **El detalle conserva el `OR`**: `findMineById` mantiene `m.user_id = :actor OR EXISTS (…)`, y por eso `CABECERA_PROPIA` —que las dos comparten— deja de ser una proyección con papel para ser una proyección a secas. Lo que se acota es **una** de las dos consultas, y eso hay que verlo en el código sin tener que deducirlo: el Javadoc de cada una lo dice.
+
+**El riesgo de esta enmienda no es lo que se quita sino lo que se olvida**: si alguien acota también `findMineById` «por coherencia», un vendedor se queda sin ninguna vía para abrir lo que vendió. `CA-MV-138` existe exactamente para que eso falle.
+
 **Los vendedores del listado se leen aparte y sin repetir**: una segunda consulta por los movimientos de la página —`SELECT DISTINCT movement_id, seller_id …`— y no un agregado dentro de la primera, para que la sentencia paginada siga siendo la que era. Hoy cada venta trae uno.
 
 ---
@@ -71,8 +82,8 @@ La migración es `V58__index_movements_por_participante.sql`.
 | Capa | Componente | Cambio | Nota |
 |---|---|---|---|
 | `application` | `MyMovementsRequest` | Nuevo | Página, tamaño y estado. **No lleva identificador de persona**, y esa ausencia es el contrato. Desde el 21-09-2026, también `type`, normalizado como el estado |
-| `application` | `MyMovementResponse` | Nuevo | La fila del listado, con el papel, **el sujeto y sus vendedores** (desde el 16-09-2026; antes, las dos partes) |
-| `application` | `MovementRole` | Nuevo | `BUYER`, `SELLER`, `BOTH` |
+| `application` | `MyMovementResponse` | Nuevo | La fila del listado, con **el sujeto y sus vendedores** (desde el 16-09-2026; antes, las dos partes). **Desde el 22-09-2026 sin `role`** |
+| `application` | `MovementRole` | Nuevo; **retirado el 22-09-2026** | `BUYER`, `SELLER`, `BOTH`. Sin la fila que lo llevaba es código muerto |
 | `domain/repository` | `MovementRepository` | Modificado | Gana `findMine`, `countMine` y `findMineById` |
 | `domain/repository` | `JpaMovementRepository` | Modificado | Las tres sentencias |
 | `domain/service` | `ListMyMovementsService` | Nuevo | Resuelve el actor, pagina y mapea |
@@ -103,7 +114,7 @@ Devuelve un `PageResponse` con las filas. Cada una:
 | Campo | Tipo | Nota |
 |---|---|---|
 | `id`, `code`, `status` | | |
-| `role` | `BUYER` \| `SELLER` \| `BOTH` | El papel de quien pregunta |
+| ~~`role`~~ | | **Retirado el 22-09-2026**: el listado trae solo lo comprado, de modo que valdría siempre `BUYER` |
 | `user` | objeto | Identificador, nombre de usuario y nombre del **sujeto**. Hasta el 16-09-2026 se llamó `client` |
 | `sellers` | lista de objetos, **nunca nula** | Los vendedores de sus líneas, **sin repetir**. Vacía cuando el tipo de movimiento no vende nada. Hasta el 16-09-2026 fue `seller`, un objeto o nulo |
 | `type` | texto | El código del tipo de movimiento. Hoy, `VENTA`. **Desde el 21-09-2026**: es el mismo campo de `MovementResponse`, y entra en la fila propia el día que se puede filtrar por él |
@@ -116,6 +127,8 @@ Devuelve un `PageResponse` con las filas. Cada una:
 ### 4.2 El detalle
 
 Devuelve un `SaleResponse`, idéntico al de `RF-MV-001`.
+
+**No se acota con el listado** (22-09-2026): abre un movimiento en el que el actor participa **de cualquiera de las dos formas**, también lo que vendió. La asimetría es deliberada y su motivo está en `spec.md` §2; `CA-MV-138` la fija.
 
 **`404` para el ajeno y para el inexistente**, sin distinguirlos (`EX-002`). No es un `403`: un `403` diría que existe.
 
@@ -174,7 +187,10 @@ Devuelve un `SaleResponse`, idéntico al de `RF-MV-001`.
 |---|---|
 | Filtrar en Java lo que devuelve una consulta más amplia | El total contaría movimientos ajenos, y el día que alguien mueva el filtro no fallaría nada visible |
 | `UNION` de dos consultas en lugar de un `OR` | Duplicaría el movimiento en que alguien es las dos cosas, y `FA-002` exige que aparezca una vez. Un `UNION` sin `ALL` lo deduplicaría, a cambio de un ordenamiento completo antes de paginar |
-| Calcular el papel en el cliente de la API | `spec.md` §6.2: acabaría escrito en cada consumidor, y distinto en cada uno |
+| Calcular el papel en el cliente de la API | `spec.md` §6.2: acabaría escrito en cada consumidor, y distinto en cada uno. **Sin objeto desde el 22-09-2026**: no hay papel que calcular |
+| **Dejar `role` valiendo siempre `BUYER`** (22-09-2026) | Un campo constante en el contrato: no rompe a nadie hoy y miente mañana. Es el argumento de `RF-MV-006` §6.2 |
+| **Acotar también el detalle** (22-09-2026) | Dejaría a un vendedor sin ninguna vía para abrir lo que vendió: `RF-MV-007` no existe y `RF-MV-015` es solo listado. Cerrar una puerta sin abrir otra |
+| **Un parámetro `role` para elegir el papel** (22-09-2026) | Lo pidió el frontend (R-46) y el responsable del proyecto lo descartó: la mitad de vendedor no se filtra, se va a `RF-MV-015` |
 | Reutilizar `RF-MV-006` con un parámetro «solo lo mío» | Daría un endpoint con **dos modelos de seguridad** — el mismo argumento con el que §4.1 de `requirements/mv.md` separó registrar de comprar |
 | Devolver las líneas en el listado | Multiplica la respuesta por un dato que solo se mira al abrir uno |
 | **Un solo `seller` en la fila, el de la primera línea** (16-09-2026) | Elegiría uno cuando puede haber varios, y el consumidor no sabría que hay más. La lista sin repetir cuesta una consulta por página y no miente |
@@ -189,7 +205,9 @@ Devuelve un `SaleResponse`, idéntico al de `RF-MV-001`.
 | **Que el alcance se escape** — el defecto que importa | El filtro va en la sentencia; `CA-MV-038` lo ejercita con el permiso de administración puesto |
 | Que `/mine` sea capturado por `/{id}` cuando exista `RF-MV-007` | Prueba propia, como la de `/available` en `RF-PM-007` |
 | Recorrido secuencial de `movements` al crecer | Los dos índices de §2 — desde el 16-09-2026, `ix_movements_user` e `ix_movement_details_seller` (§2.1). El síntoma sería lentitud y no un fallo |
-| Que el papel salga mal cuando alguien es las dos cosas | `CA-MV-037` lo fija, y es el caso que se olvida al escribir el `CASE` |
+| Que el papel salga mal cuando alguien es las dos cosas | `CA-MV-037` lo fijaba, y era el caso que se olvidaba al escribir el `CASE`. **Sin objeto desde el 22-09-2026**: no hay papel |
+| **Que alguien acote también el detalle** «por coherencia» (22-09-2026) | `CA-MV-138`: el vendedor que no ve la venta en su listado la abre por su identificador |
+| **Que un consumidor siga esperando `role`** (22-09-2026) | Cambio rompedor **declarado**: `api/index.md` lo dice y se avisa al frontend, que es su único consumidor conocido |
 
 ---
 

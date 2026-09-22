@@ -2090,11 +2090,6 @@
           "paymentMethod" : {
             "type" : "string"
           },
-          "role" : {
-            "description" : "El papel de quien consulta en ESTE movimiento.",
-            "enum" : [ "BUYER", "SELLER", "BOTH" ],
-            "type" : "string"
-          },
           "sellers" : {
             "description" : "Los vendedores de sus líneas, sin repetir. Hoy una venta lleva uno; la lista va VACÍA —nunca nula— en los movimientos que no tienen vendedor.",
             "items" : {
@@ -9452,7 +9447,7 @@
     },
     "/api/v1/movements/mine" : {
       "get" : {
-        "description" : "**Permiso requerido:** `movements:list-own`. Sin él, `403` (`AUTH-002`).\n\nDevuelve **los movimientos en los que usted participó**, paginados y del más\nreciente al más antiguo.\n\n**«Propio» son DOS papeles.** Un movimiento lleva a su sujeto —`user`, a nombre de\nquién es— y a los vendedores de sus líneas —`sellers`—, y usted puede ser cualquiera\nde los dos — o **los dos a la vez**, si compró algo que se le atribuye, que es lo\nque ocurre siempre que compra quien no cuelga de nadie. Cada movimiento dice en qué\npapel aparece usted con `role`: `BUYER`, `SELLER` o `BOTH`. El que es las dos\ncosas **aparece una sola vez**.\n\n**No hay forma de preguntar por otra persona**, ni indicándola ni teniendo\npermisos: quien pregunta sale de la credencial. Consultar las ventas de terceros es\notra operación, con su permiso.\n\n**Las líneas no viajan aquí.** Una venta puede llevar varias, y meterlas\nmultiplicaría la respuesta por un dato que solo se mira al abrir uno: están en el\ndetalle.\n\n**`sellers` es una lista, sin repetir y nunca nula**: el vendedor es de cada línea y\nuna venta podría llevar varios. Hoy lleva uno. Va **vacía** en los movimientos que\nno tienen vendedor, que no es el caso de ninguna venta.\n\n**Cada fila dice su tipo** (`type`, hoy siempre `VENTA`) desde el 21-09-2026, el\nmismo día que se puede filtrar por él: `type` admite **el código del tipo de\nmovimiento**, sin distinguir mayúsculas, y se combina con `status`. Un `type` que no\nexista en el catálogo es `400`, como el estado: el catálogo es cerrado y no se\npublica por ninguna ruta.\n\n**Y desde ese mismo día, los tres filtros de `GET /movements`**: `paymentMethodId`\n(uno que no exista da página vacía), `code` (el comprobante exacto, sin distinguir\nmayúsculas; **uno ajeno no devuelve nada**: el alcance va antes que el filtro) y\n`from`/`to` sobre **cuándo ocurrió**, instantes con zona horaria, rango semiabierto\n—incluye `from`, excluye `to`—; `from` posterior a `to` es `400`. Todos se combinan.\n\nEl orden es fijo y no se puede cambiar. `status` filtra por estado.\n",
+        "description" : "**Permiso requerido:** `movements:list-own`. Sin él, `403` (`AUTH-002`).\n\nDevuelve **los movimientos a nombre de usted** —lo que compró—, paginados y del más\nreciente al más antiguo.\n\n**Desde el 22-09-2026 este listado trae SOLO lo comprado.** Hasta esa fecha traía\ntambién lo que usted hubiera **vendido**, y cada fila decía con `role` en qué papel\naparecía —`BUYER`, `SELLER` o `BOTH`—. **Lo que usted vendió se consulta ahora por\n`GET /api/v1/movements/sales`**, que además le trae lo que vendió su red si usted\ntiene gente a cargo. Con la mitad de vendedor **desaparece `role`**: aquí valdría\nsiempre `BUYER`. Es un cambio incompatible y está declarado.\n\n**Su compra a sí mismo sigue apareciendo, una sola vez.** Quien pertenece a la\nfuerza comercial y no cuelga de nadie es su propio vendedor, y lo que compra es una\ncompra: sale aquí, con usted como `user` y como único `sellers`.\n\n**No hay forma de preguntar por otra persona**, ni indicándola ni teniendo\npermisos: quien pregunta sale de la credencial. Consultar las ventas de terceros es\notra operación, con su permiso.\n\n**El detalle NO se acotó con el listado**: `GET /api/v1/movements/mine/{id}` sigue\nabriendo un movimiento suyo **de cualquiera de las dos formas**, también una venta\nque usted hizo y que este listado ya no le muestra. Es deliberado: sin eso, un\nvendedor no tendría ninguna forma de ver el detalle de lo que vendió.\n\n**Las líneas no viajan aquí.** Una venta puede llevar varias, y meterlas\nmultiplicaría la respuesta por un dato que solo se mira al abrir uno: están en el\ndetalle.\n\n**`sellers` es una lista, sin repetir y nunca nula**: el vendedor es de cada línea y\nuna venta podría llevar varios. Hoy lleva uno. Va **vacía** en los movimientos que\nno tienen vendedor, que no es el caso de ninguna venta.\n\n**Cada fila dice su tipo** (`type`, hoy siempre `VENTA`) desde el 21-09-2026, el\nmismo día que se puede filtrar por él: `type` admite **el código del tipo de\nmovimiento**, sin distinguir mayúsculas, y se combina con `status`. Un `type` que no\nexista en el catálogo es `400`, como el estado: el catálogo es cerrado y no se\npublica por ninguna ruta.\n\n**Y desde ese mismo día, los tres filtros de `GET /movements`**: `paymentMethodId`\n(uno que no exista da página vacía), `code` (el comprobante exacto, sin distinguir\nmayúsculas; **uno ajeno no devuelve nada**: el alcance va antes que el filtro) y\n`from`/`to` sobre **cuándo ocurrió**, instantes con zona horaria, rango semiabierto\n—incluye `from`, excluye `to`—; `from` posterior a `to` es `400`. Todos se combinan.\n\nEl orden es fijo y no se puede cambiar. `status` filtra por estado.\n",
         "operationId" : "mios",
         "parameters" : [ {
           "in" : "query",
@@ -9540,7 +9535,7 @@
             "description" : "Fallo no controlado (`ERR-500`)"
           }
         },
-        "summary" : "Consultar los movimientos propios",
+        "summary" : "Consultar mis compras",
         "tags" : [ "Movimientos" ],
         "x-required-permission" : "movements:list-own"
       }

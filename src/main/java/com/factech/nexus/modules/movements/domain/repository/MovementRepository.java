@@ -133,7 +133,11 @@ public interface MovementRepository {
   // ---------------------------------------------------------------------------
 
   /**
-   * La página de movimientos en los que {@code actorId} participa, del más reciente al más antiguo.
+   * La página de movimientos a nombre de {@code actorId}, del más reciente al más antiguo.
+   *
+   * <p><b>Desde el 22-09-2026 son los movimientos A NOMBRE de {@code actorId}</b> —lo que compró— y
+   * no aquellos en los que participa de cualquier forma: lo que vendió se consulta por `RF-MV-015`,
+   * que además llega a toda su red (`spec.md` §2).
    *
    * <p><b>El alcance va DENTRO de la sentencia y no se aplica después</b>, y esa es la única
    * decisión de este método. Traer de más y descartar en Java haría que el total contase
@@ -181,6 +185,12 @@ public interface MovementRepository {
    * distinguir los dos casos, porque distinguirlos confirmaría la existencia de un identificador
    * ajeno.
    */
+  /**
+   * El detalle de un movimiento del actor: lo que compró <b>y lo que vendió</b>.
+   *
+   * <p><b>No se acotó cuando el listado sí, el 22-09-2026</b> (`spec.md` §2): acotarlo dejaría a un
+   * vendedor sin ninguna vía para abrir una venta suya mientras `RF-MV-007` no exista.
+   */
   Optional<MovementDetailView> findMineById(UUID movementId, UUID actorId);
 
   /**
@@ -197,7 +207,6 @@ public interface MovementRepository {
       String code,
       String type,
       String status,
-      String role,
       UUID userId,
       String userUsername,
       String userFirstName,
