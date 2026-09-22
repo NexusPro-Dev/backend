@@ -62,7 +62,7 @@ public class ListMovementsService {
     List<MovementRow> filas = movimientos.findAll(filtro, pagina.offset(), pagina.size());
     BoundedCount total = movimientos.countAll(filtro, paginacion.techoDelConteo());
 
-    Map<UUID, List<MovementResponse.Party>> vendedores = vendedoresDe(filas);
+    Map<UUID, List<MovementResponse.Party>> vendedores = vendedoresDe(movimientos, filas);
     List<MovementResponse> contenido = new ArrayList<>(filas.size());
     for (MovementRow fila : filas) {
       contenido.add(de(fila, vendedores.getOrDefault(fila.id(), List.of())));
@@ -126,8 +126,13 @@ public class ListMovementsService {
     return pagina;
   }
 
-  /** Los vendedores de la página, por movimiento y sin repetir: la misma segunda consulta. */
-  private Map<UUID, List<MovementResponse.Party>> vendedoresDe(List<MovementRow> filas) {
+  /**
+   * Los vendedores de la página, por movimiento y sin repetir: la misma segunda consulta.
+   * Compartido con {@link ListSalesService}, que devuelve la misma fila (`RF-MV-015` · `spec.md`
+   * §6.2).
+   */
+  static Map<UUID, List<MovementResponse.Party>> vendedoresDe(
+      MovementRepository movimientos, List<MovementRow> filas) {
     List<UUID> ids = new ArrayList<>(filas.size());
     for (MovementRow fila : filas) {
       ids.add(fila.id());
@@ -146,7 +151,7 @@ public class ListMovementsService {
     return porMovimiento;
   }
 
-  private static MovementResponse de(MovementRow fila, List<MovementResponse.Party> vendedores) {
+  static MovementResponse de(MovementRow fila, List<MovementResponse.Party> vendedores) {
     return new MovementResponse(
         fila.id(),
         fila.code(),

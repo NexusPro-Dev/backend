@@ -32,25 +32,30 @@ class MovementsPermissionsSeedIT extends IntegrationTestBase {
       List.of("movements:read", "movements:create", "movements:confirm", "movements:void");
 
   /**
-   * Los tres de alcance propio que `V31` añadió al recurso el 21-09-2026 (`RF-SP-062`): no son de
-   * la reserva —van a todo rol por su tipo— y se descuentan donde esta clase habla de «los cuatro».
+   * Los tres de alcance propio que `V31` añadió al recurso el 21-09-2026 (`RF-SP-062`) y el de las
+   * ventas de mi alcance de `V32` (`RF-MV-015`): no son de la reserva —van a todo rol por su tipo—
+   * y se descuentan donde esta clase habla de «los cuatro».
    */
   private static final List<String> LOS_PROPIOS =
-      List.of("movements:list-own", "movements:read-own", "movements:read-own-products");
+      List.of(
+          "movements:list-own",
+          "movements:read-own",
+          "movements:read-own-products",
+          "movements:list-sales");
 
   @Autowired private JdbcTemplate jdbc;
 
   @Test
   @DisplayName(
       "los cuatro permisos de mv.md §6 están sembrados, y no hay un quinto de la reserva —los"
-          + " tres de alcance propio de V31 van aparte—")
+          + " tres de alcance propio de V31 y el de V32 van aparte—")
   void losCuatroSembrados() {
     List<String> codigos =
         jdbc.queryForList(
             "SELECT code FROM permissions WHERE resource = 'movements' ORDER BY code",
             String.class);
 
-    assertThat(codigos).containsAll(LOS_CUATRO).containsAll(LOS_PROPIOS).hasSize(7);
+    assertThat(codigos).containsAll(LOS_CUATRO).containsAll(LOS_PROPIOS).hasSize(8);
   }
 
   @Test
@@ -71,7 +76,7 @@ class MovementsPermissionsSeedIT extends IntegrationTestBase {
     // RN-SEG-007: la raíz de la contención está acotada por el catálogo
     // completo. Un permiso sembrado y no asociado la dejaría por detrás de sus
     // propios hijos.
-    assertThat(permisosDeMovimientosDe(SUPERADMIN)).containsAll(LOS_CUATRO).hasSize(7);
+    assertThat(permisosDeMovimientosDe(SUPERADMIN)).containsAll(LOS_CUATRO).hasSize(8);
   }
 
   @Test
@@ -106,7 +111,7 @@ class MovementsPermissionsSeedIT extends IntegrationTestBase {
     List<UUID> ids =
         jdbc.queryForList("SELECT id FROM permissions WHERE resource = 'movements'", UUID.class);
 
-    assertThat(ids).hasSize(7).doesNotHaveDuplicates();
+    assertThat(ids).hasSize(8).doesNotHaveDuplicates();
     assertThat(ids).allSatisfy(id -> assertThat(id.version()).isEqualTo(7));
     // variant() == 2 es la variante RFC 9562 (bits 10xx).
     assertThat(ids).allSatisfy(id -> assertThat(id.variant()).isEqualTo(2));

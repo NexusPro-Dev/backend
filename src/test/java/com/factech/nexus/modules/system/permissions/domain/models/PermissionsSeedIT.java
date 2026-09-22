@@ -25,13 +25,31 @@ class PermissionsSeedIT extends IntegrationTestBase {
 
   @Test
   @DisplayName(
-      "el catálogo tiene exactamente CIENTO VEINTICUATRO: cincuenta y tres de SP, veintiséis de"
-          + " PM, diez de CM, siete de MV y veintiocho de AC (V28: un permiso por operación,"
+      "el catálogo tiene exactamente CIENTO VEINTICINCO: cincuenta y tres de SP, veintiséis de"
+          + " PM, diez de CM, ocho de MV y veintiocho de AC (V28: un permiso por operación,"
           + " CA-SP-688; V29 y V30: los de RF-SP-059 y 061; V31: los once de alcance propio de"
-          + " RF-SP-062, CA-SP-725)")
+          + " RF-SP-062, CA-SP-725; V32: movements:list-sales de RF-MV-015)")
   void catalogoCompleto() {
     assertThat(jdbc.queryForObject("SELECT count(*) FROM permissions", Integer.class))
-        .isEqualTo(124);
+        .isEqualTo(125);
+  }
+
+  @Test
+  @DisplayName(
+      "V32 siembra movements:list-sales con literal de la serie de MV y lo da a TODO rol por su"
+          + " tipo, los tres tipos: el permiso abre y RN-MV-031 decide qué se ve (CA-MV-130)")
+  void lasVentasDeMiAlcanceLleganATodos() {
+    assertThat(
+            jdbc.queryForObject(
+                "SELECT id::text FROM permissions WHERE code = 'movements:list-sales'",
+                String.class))
+        .isEqualTo("01a0c143-2c00-700c-9c4f-5e7ad7000008");
+    for (String rol :
+        new String[] {"SUPERADMIN", "ADMIN", "MANAGER", "DIRECTOR", "AGENTE", "CLIENTE"}) {
+      assertThat(codigosDe(rol))
+          .as("%s porta movements:list-sales", rol)
+          .contains("movements:list-sales");
+    }
   }
 
   @Test
@@ -161,6 +179,7 @@ class PermissionsSeedIT extends IntegrationTestBase {
             "movements:read",
             "movements:read-own",
             "movements:read-own-products",
+            "movements:list-sales",
             "movements:void",
             // El SEGUNDO recurso de `PM` (`V93`, 15-09-2026), por decisión del
             // responsable del proyecto: armar paquetes y tocar el catálogo son
@@ -234,7 +253,7 @@ class PermissionsSeedIT extends IntegrationTestBase {
   void identificadoresUuidV7() {
     List<UUID> ids = jdbc.queryForList("SELECT id FROM permissions", UUID.class);
 
-    assertThat(ids).hasSize(124).doesNotHaveDuplicates();
+    assertThat(ids).hasSize(125).doesNotHaveDuplicates();
     assertThat(ids).allSatisfy(id -> assertThat(id.version()).isEqualTo(7));
     // variant() == 2 es la variante RFC 9562 (bits 10xx).
     assertThat(ids).allSatisfy(id -> assertThat(id.variant()).isEqualTo(2));
@@ -292,7 +311,7 @@ class PermissionsSeedIT extends IntegrationTestBase {
 
   @Test
   @DisplayName(
-      "V28 a V31 reparten: SUPERADMIN porta los ciento veinticuatro y ADMIN ciento dieciocho,"
+      "V28 a V32 reparten: SUPERADMIN porta los ciento veinticinco y ADMIN ciento diecinueve,"
           + " y los seis que le faltan son la reserva (CA-SP-691, CA-SP-725)")
   void elRepartoLlegaALosRolesDeSistema() {
     assertThat(
@@ -300,13 +319,13 @@ class PermissionsSeedIT extends IntegrationTestBase {
                 "SELECT count(*) FROM role_permissions WHERE role_id ="
                     + " '01a02a33-4c00-7001-9c4f-5e7ad1000001'",
                 Integer.class))
-        .isEqualTo(124);
+        .isEqualTo(125);
     assertThat(
             jdbc.queryForObject(
                 "SELECT count(*) FROM role_permissions WHERE role_id ="
                     + " '01a02a33-4c00-7002-9c4f-5e7ad1000002'",
                 Integer.class))
-        .isEqualTo(118);
+        .isEqualTo(119);
     assertThat(
             jdbc.queryForList(
                 """
@@ -362,8 +381,8 @@ class PermissionsSeedIT extends IntegrationTestBase {
             "users:read-own-clients",
             "broker-accounts:read-own-team",
             "broker-accounts:read-team-member");
-    // Y solo eso: CLIENTE sigue sin ningún otro permiso (V8).
-    assertThat(cliente).hasSize(8);
+    // Y solo eso más el de V32: CLIENTE sigue sin ningún otro permiso (V8).
+    assertThat(cliente).hasSize(9).contains("movements:list-sales");
   }
 
   private List<String> codigosDe(String rol) {
