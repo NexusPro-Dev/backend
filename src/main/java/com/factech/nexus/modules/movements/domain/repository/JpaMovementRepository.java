@@ -319,16 +319,21 @@ public class JpaMovementRepository implements MovementRepository {
   // ---------------------------------------------------------------------------
 
   /**
-   * La selección, escrita una vez: la página y el conteo tienen que filtrar igual.
+   * La selección del LISTADO propio, escrita una vez: la página y el conteo tienen que filtrar
+   * igual.
    *
-   * <p><b>{@code OR} y no {@code UNION}</b>: un {@code UNION} duplicaría el movimiento en que
-   * alguien es comprador y vendedor a la vez, y `FA-002` exige que aparezca una sola vez. Evitarlo
-   * con un {@code UNION} sin {@code ALL} costaría un ordenamiento completo antes de paginar.
+   * <p><b>Desde el 22-09-2026 mira UNA columna: {@code m.user_id}</b> (`RF-MV-008` · `plan.md`
+   * §2.2), por decisión del responsable del proyecto — «mis compras» trae solo lo comprado. Lo que
+   * el actor <b>vendió</b> se consulta por `RF-MV-015`, que además llega a toda su red. Hasta esa
+   * fecha el predicado era {@code m.user_id = :actor OR EXISTS (… d.seller_id = :actor)}, con dos
+   * decisiones que ya no hacen falta aquí y que <b>siguen vivas en {@link #filtroGlobal} y en
+   * {@link #filtroDeVentas}</b>: {@code OR} y no {@code UNION} —que habría duplicado el movimiento
+   * de quien es las dos cosas—, y {@code EXISTS} sobre las líneas y no {@code JOIN} —que habría
+   * multiplicado la venta por sus líneas—.
    *
-   * <p><b>Y {@code EXISTS} sobre las líneas, no {@code JOIN}</b>: desde el 16-09-2026 el vendedor
-   * es de la línea (`RN-MV-003`, `V12`), y un {@code JOIN} multiplicaría la venta por sus líneas —
-   * que es lo que `CA-MV-040` prohíbe. El {@code EXISTS} deja una fila por movimiento y lo responde
-   * {@code ix_movement_details_seller} por su primera columna.
+   * <p><b>El DETALLE no se acotó con el listado</b>: {@link #findMineById} conserva el {@code OR} a
+   * propósito, porque acotarlo dejaría a un vendedor sin ninguna vía para abrir lo que vendió
+   * (`CA-MV-138`).
    *
    * <p>El {@code CAST} del estado no es adorno: sin él, PostgreSQL no sabe de qué tipo es el
    * parámetro cuando llega nulo y rechaza la comparación. El tipo (21-09-2026) entra con la misma
@@ -342,36 +347,27 @@ public class JpaMovementRepository implements MovementRepository {
       JOIN users suj ON suj.id = m.user_id
       JOIN currencies cur ON cur.id = m.currency_id
       JOIN payment_methods pm ON pm.id = m.payment_method_id
-      WHERE (m.user_id = :actor OR EXISTS (SELECT 1 FROM movement_details d
-                                            WHERE d.movement_id = m.id
-                                              AND d.seller_id = :actor))
+      WHERE m.user_id = :actor
         AND (CAST(:estado AS varchar) IS NULL OR m.status = CAST(:estado AS varchar))
         AND (CAST(:tipo AS varchar) IS NULL OR mt.code = CAST(:tipo AS varchar))
       """;
 
   /**
-   * Las columnas de la cabecera, con el papel resuelto por el motor.
+   * Las columnas de la cabecera propia, compartidas por el listado y por los dos detalles.
    *
-   * <p><b>La rama de «ambos» va PRIMERO, y ahí está el defecto que se comete.</b> Escrita al final,
-   * las dos anteriores ya habrían capturado la fila y nadie lo vería hasta que alguien de la fuerza
-   * comercial se comprara algo a sí mismo — que es exactamente lo que `RF-MV-002` permite, y lo que
-   * desde el 16-09-2026 produce <b>toda</b> compra de quien no cuelga de nadie, porque esa persona
-   * es su propio vendedor (`RN-MV-003`).
+   * <p><b>Desde el 22-09-2026 no resuelve el papel</b> (`RF-MV-008` · `plan.md` §2.2): el listado
+   * trae solo lo comprado, de modo que {@code role} valdría siempre {@code BUYER} y se retiró del
+   * contrato. Con el {@code CASE} se va el único motivo por el que {@link #findById} —el detalle
+   * <b>sin alcance</b> de `RF-MV-003`— ataba {@code :actor} a nulo.
    *
-   * <p><b>Lo calcula SQL y no Java</b>: el identificador de quien pregunta ya está atado a la
-   * consulta, y resolverlo fuera obligaría a arrastrar los dos identificadores de las partes solo
-   * para compararlos y descartarlos.
+   * <p>Hasta esa fecha el papel lo calculaba el motor con un {@code CASE} de tres ramas, y la de
+   * «ambos» iba primero: escrita al final, las dos anteriores ya habrían capturado la fila y nadie
+   * lo habría visto hasta que alguien de la fuerza comercial se comprara algo a sí mismo. Queda
+   * anotado porque el día que vuelva a hacer falta un papel, ese es el orden.
    */
   private static final String CABECERA_PROPIA =
       """
       SELECT m.id AS id, m.code AS code, mt.code AS tipo, m.status AS status,
-             CASE
-               WHEN m.user_id = :actor AND EXISTS (SELECT 1 FROM movement_details d
-                                                    WHERE d.movement_id = m.id
-                                                      AND d.seller_id = :actor) THEN 'BOTH'
-               WHEN m.user_id = :actor                                          THEN 'BUYER'
-               ELSE                                                                  'SELLER'
-             END AS role,
              suj.id AS suj_id, suj.username AS suj_username,
              suj.first_name AS suj_first, suj.last_name AS suj_last,
              m.package_id AS paquete,
@@ -492,6 +488,13 @@ public class JpaMovementRepository implements MovementRepository {
     return resultado;
   }
 
+  /**
+   * <b>El detalle NO se acotó con el listado el 22-09-2026</b>, y la asimetría es deliberada
+   * (`RF-MV-008` · `spec.md` §2): aquí sigue el {@code OR} —lo comprado <b>y</b> lo vendido— porque
+   * acotarlo dejaría a un vendedor sin ninguna vía para abrir una venta suya: `RF-MV-007` no existe
+   * y `RF-MV-015` es solo listado. Quien venga a «poner esto coherente con el listado» hará fallar
+   * `CA-MV-138`, que existe para eso.
+   */
   @Override
   @Transactional(readOnly = true)
   public Optional<MovementDetailView> findMineById(UUID movementId, UUID actorId) {
@@ -520,9 +523,9 @@ public class JpaMovementRepository implements MovementRepository {
 
   /**
    * <b>Sin alcance</b>, para quien confirma (`RF-MV-003`): la misma proyección que el detalle
-   * propio sin el predicado del actor. El {@code CASE} del papel queda en la cabecera con el actor
-   * en nulo y resuelve {@code SELLER}, que aquí no significa nada y nadie lee: lo que importa es no
-   * tener dos proyecciones de la misma cabecera.
+   * propio sin el predicado del actor. Hasta el 22-09-2026 ataba {@code :actor} a nulo porque la
+   * cabecera resolvía el papel con un {@code CASE}; retirado el papel, no ata nada — lo que sigue
+   * importando es no tener dos proyecciones de la misma cabecera.
    */
   @Override
   @Transactional(readOnly = true)
@@ -542,8 +545,7 @@ public class JpaMovementRepository implements MovementRepository {
                     WHERE m.id = :movimiento
                     """,
                 Tuple.class)
-            .setParameter("movimiento", movementId)
-            .setParameter("actor", (UUID) null);
+            .setParameter("movimiento", movementId);
     return detalle(movementId, cabecera);
   }
 
@@ -1107,7 +1109,6 @@ public class JpaMovementRepository implements MovementRepository {
         (String) fila.get("code"),
         (String) fila.get("tipo"),
         (String) fila.get("status"),
-        (String) fila.get("role"),
         (UUID) fila.get("suj_id"),
         (String) fila.get("suj_username"),
         (String) fila.get("suj_first"),
