@@ -28,8 +28,14 @@ import org.springframework.test.web.servlet.request.RequestPostProcessor;
 /**
  * Criterios de aceptación del catálogo de países (`RF-SP-020`, `RF-SP-021`, `RF-SP-022`).
  *
- * <p>El catálogo se vacía antes de cada prueba: nace vacío —no hay migración de siembra— y el orden
- * de ejecución no debe decidir el resultado.
+ * <p>El catálogo se limpia antes de cada prueba, pero <b>ya no queda vacío</b>. Desde `RN-SP-034`
+ * (07-09-2026) {@code users.country_id} es {@code NOT NULL} y `V64` siembra <b>Colombia</b> para
+ * poder rellenar al superadministrador de `V22`: esa fila la referencia una persona y {@code
+ * fk_users_country} impide borrarla.
+ *
+ * <p>La consecuencia atraviesa esta clase entera y conviene leerla una vez: <b>toda aserción sobre
+ * el tamaño o el orden del catálogo cuenta con Colombia dentro</b>, y ningún caso puede usar {@code
+ * COL} como país de prueba — sería un duplicado. Donde antes se usaba, ahora va {@code URY}.
  */
 @AutoConfigureMockMvc
 class CountriesIT extends IntegrationTestBase {
@@ -40,7 +46,17 @@ class CountriesIT extends IntegrationTestBase {
 
   @BeforeEach
   void vaciarElCatalogo() {
-    jdbc.update("DELETE FROM countries");
+    // NO SE VACÍA ENTERO desde `RN-SP-034` (07-09-2026): `fk_users_country`
+    // lo impide, y hace bien — el superadministrador de `V22` vive en
+    // Colombia. Se borra lo que NINGUNA persona referencia, que es todo lo
+    // que estas pruebas crean.
+    //
+    // Y no se borra la fila de Colombia «con cuidado» ni se desasigna a nadie
+    // para poder borrarla: el catálogo ya NO nace vacío, y una prueba que lo
+    // dejara así estaría probando un estado que el sistema no puede alcanzar.
+    jdbc.update(
+        "DELETE FROM countries c WHERE NOT EXISTS"
+            + " (SELECT 1 FROM users u WHERE u.country_id = c.id)");
   }
 
   // ---------------------------------------------------------------------------
@@ -50,10 +66,10 @@ class CountriesIT extends IntegrationTestBase {
   @Test
   @DisplayName("CA-SP-134 y CA-SP-171 — registra el país y queda activo, sin recibir el estado")
   void altaValida() throws Exception {
-    mvc.perform(alta("PA", "Panamá"))
+    mvc.perform(alta("PAN", "Panamá"))
         .andExpect(status().isCreated())
         .andExpect(jsonPath("$.id").isNotEmpty())
-        .andExpect(jsonPath("$.code").value("PA"))
+        .andExpect(jsonPath("$.code").value("PAN"))
         .andExpect(jsonPath("$.name").value("Panamá"))
         .andExpect(jsonPath("$.isActive").value(true))
         // El actor no vive en la tabla de negocio (Art. V.7).
@@ -65,7 +81,7 @@ class CountriesIT extends IntegrationTestBase {
   void sinLocation() throws Exception {
     // Una cabecera que existe para llevar al cliente al recurso creado y lo
     // lleva a una URL que devuelve 404 es peor que no ponerla.
-    mvc.perform(alta("CO", "Colombia"))
+    mvc.perform(alta("URY", "Uruguay"))
         .andExpect(status().isCreated())
         .andExpect(
             org.springframework.test.web.servlet.result.MockMvcResultMatchers.header()
@@ -77,18 +93,18 @@ class CountriesIT extends IntegrationTestBase {
   void codigoNormalizado() throws Exception {
     // Diferencia deliberada con el código de un ROL, que se rechaza en
     // minúsculas: allí el actor lo inventa; aquí lo fija ISO 3166-1.
-    mvc.perform(alta("co", "Colombia"))
+    mvc.perform(alta("ury", "Uruguay"))
         .andExpect(status().isCreated())
-        .andExpect(jsonPath("$.code").value("CO"));
+        .andExpect(jsonPath("$.code").value("URY"));
 
     // Y por tanto el segundo intento es un duplicado, no un país nuevo.
-    mvc.perform(alta(" CO ", "Otra Colombia")).andExpect(status().isConflict());
+    mvc.perform(alta(" URY ", "Otro Uruguay")).andExpect(status().isConflict());
   }
 
   @Test
-  @DisplayName("CA-SP-135 — un código que no sean dos letras se rechaza con 400")
+  @DisplayName("CA-SP-135 — un código que no sean tres letras se rechaza con 400")
   void formatoDelCodigo() throws Exception {
-    for (String malo : new String[] {"C", "COL", "C1", "C-", "  "}) {
+    for (String malo : new String[] {"CO", "COLO", "C1X", "CO-", "   "}) {
       mvc.perform(alta(malo, "País " + malo)).andExpect(status().isBadRequest());
     }
   }
@@ -96,14 +112,14 @@ class CountriesIT extends IntegrationTestBase {
   @Test
   @DisplayName("CA-SP-136 — código o nombre ya presentes devuelven 409 y dicen cuál")
   void duplicado() throws Exception {
-    mvc.perform(alta("PA", "Panamá")).andExpect(status().isCreated());
+    mvc.perform(alta("PAN", "Panamá")).andExpect(status().isCreated());
 
-    mvc.perform(alta("PA", "Otro nombre"))
+    mvc.perform(alta("PAN", "Otro nombre"))
         .andExpect(status().isConflict())
         .andExpect(jsonPath("$.errors[0].code").value("EX-001"))
         .andExpect(jsonPath("$.errors[0].field").value("code"));
 
-    mvc.perform(alta("PX", "Panamá"))
+    mvc.perform(alta("PAX", "Panamá"))
         .andExpect(status().isConflict())
         .andExpect(jsonPath("$.errors[0].field").value("name"));
   }
@@ -112,24 +128,24 @@ class CountriesIT extends IntegrationTestBase {
   @DisplayName(
       "el nombre duplicado se detecta ignorando acentos y mayúsculas, y el mensaje lo dice")
   void duplicadoPorFormaNormalizada() throws Exception {
-    mvc.perform(alta("PA", "Panamá")).andExpect(status().isCreated());
+    mvc.perform(alta("PAN", "Panamá")).andExpect(status().isCreated());
 
     // `RN-SP-009` no admite edición: `Panamá` y `Panama` conviviendo serían dos
     // opciones indistinguibles en cada selector, para siempre.
-    mvc.perform(alta("PX", "Panama"))
+    mvc.perform(alta("PAX", "Panama"))
         .andExpect(status().isConflict())
         // El mensaje incluye el nombre ENVIADO, porque el rechazo se dispara
         // contra una fila cuyo nombre no es idéntico: sin esa precisión el actor
         // vería rechazado un «Panama» que no encuentra en ninguna parte.
         .andExpect(jsonPath("$.errors[0].message", org.hamcrest.Matchers.containsString("Panama")));
 
-    mvc.perform(alta("PY", "PANAMÁ")).andExpect(status().isConflict());
+    mvc.perform(alta("PRY", "PANAMÁ")).andExpect(status().isConflict());
   }
 
   @Test
   @DisplayName("el nombre se recorta por fuera pero conserva sus espacios interiores")
   void recorteDelNombre() throws Exception {
-    mvc.perform(alta("CR", "  Costa Rica  "))
+    mvc.perform(alta("CRI", "  Costa Rica  "))
         .andExpect(status().isCreated())
         .andExpect(jsonPath("$.name").value("Costa Rica"));
   }
@@ -144,7 +160,7 @@ class CountriesIT extends IntegrationTestBase {
                 .content("{\"code\":\"PA\",\"name\":\"Panamá\",\"isActive\":false}"))
         .andExpect(status().isBadRequest());
 
-    assertThat(existe("PA")).isFalse();
+    assertThat(existe("PAN")).isFalse();
   }
 
   @Test
@@ -152,7 +168,7 @@ class CountriesIT extends IntegrationTestBase {
   void auditoriaDelAlta() throws Exception {
     UUID correlacion = UUID.randomUUID();
 
-    mvc.perform(alta("PA", "Panamá").header("X-Correlation-Id", correlacion.toString()))
+    mvc.perform(alta("PAN", "Panamá").header("X-Correlation-Id", correlacion.toString()))
         .andExpect(status().isCreated());
 
     String changes =
@@ -164,7 +180,7 @@ class CountriesIT extends IntegrationTestBase {
             String.class,
             correlacion);
     assertThat(changes)
-        .contains("\"code\": \"PA\"")
+        .contains("\"code\": \"PAN\"")
         .contains("Panam")
         .contains("\"is_active\": true");
   }
@@ -179,13 +195,13 @@ class CountriesIT extends IntegrationTestBase {
                 .content("{\"code\":\"PA\",\"name\":\"Panamá\"}"))
         .andExpect(status().isForbidden());
 
-    assertThat(existe("PA")).isFalse();
+    assertThat(existe("PAN")).isFalse();
   }
 
   @Test
   @DisplayName("CA-SP-137 — sin edición ni eliminación, y cada ruta responde lo que le corresponde")
   void catalogoInmutable() throws Exception {
-    String pa = crear("PA", "Panamá");
+    String pa = crear("PAN", "Panamá");
 
     // Sobre un país concreto: 404, porque esa ruta no está mapeada para ningún
     // método — no existe endpoint de detalle de país en el módulo.
@@ -219,16 +235,20 @@ class CountriesIT extends IntegrationTestBase {
   @Test
   @DisplayName("CA-SP-140 — el catálogo va sin paginar y ordenado alfabéticamente por NOMBRE")
   void listadoOrdenado() throws Exception {
-    crear("PE", "Perú");
-    crear("PA", "Panamá");
-    crear("CO", "Colombia");
+    crear("PER", "Perú");
+    crear("PAN", "Panamá");
+    crear("URY", "Uruguay");
 
+    // CUATRO Y NO TRES: Colombia la siembra `V64` y no se puede borrar, porque
+    // el superadministrador vive en ella (`RN-SP-034`). Va la primera, que es
+    // además lo que esta prueba comprueba — el orden es por nombre.
     mvc.perform(get("/api/v1/countries").with(lector()))
         .andExpect(status().isOk())
-        .andExpect(jsonPath("$.content.length()").value(3))
+        .andExpect(jsonPath("$.content.length()").value(4))
         .andExpect(jsonPath("$.content[0].name").value("Colombia"))
         .andExpect(jsonPath("$.content[1].name").value("Panamá"))
         .andExpect(jsonPath("$.content[2].name").value("Perú"))
+        .andExpect(jsonPath("$.content[3].name").value("Uruguay"))
         .andExpect(jsonPath("$.totalElements").doesNotExist())
         .andExpect(jsonPath("$.totalPages").doesNotExist());
   }
@@ -240,37 +260,42 @@ class CountriesIT extends IntegrationTestBase {
     // intercalación `C` —orden de bytes UTF-8— «Panamá» iría DESPUÉS de «Perú»,
     // porque la `á` tiene un valor mayor que cualquier letra sin acento, y el
     // selector parecería roto.
-    crear("PE", "Perú");
-    crear("PA", "Panamá");
+    crear("PER", "Perú");
+    crear("PAN", "Panamá");
 
+    // Las posiciones son 1 y 2 y no 0 y 1: Colombia, sembrada por `V64`, ocupa
+    // la primera. Lo que esta prueba fija sigue siendo lo mismo — que «Panamá»
+    // va ANTES que «Perú».
     mvc.perform(get("/api/v1/countries").with(lector()))
-        .andExpect(jsonPath("$.content[0].name").value("Panamá"))
-        .andExpect(jsonPath("$.content[1].name").value("Perú"));
+        .andExpect(jsonPath("$.content[1].name").value("Panamá"))
+        .andExpect(jsonPath("$.content[2].name").value("Perú"));
   }
 
   @Test
   @DisplayName("CA-SP-141 — la búsqueda filtra por código y por nombre, ignorando acentos")
   void busqueda() throws Exception {
-    crear("PA", "Panamá");
-    crear("CO", "Colombia");
+    crear("PAN", "Panamá");
+    crear("URY", "Uruguay");
 
     mvc.perform(get("/api/v1/countries?search=panama").with(lector()))
         .andExpect(jsonPath("$.content.length()").value(1))
-        .andExpect(jsonPath("$.content[0].code").value("PA"));
+        .andExpect(jsonPath("$.content[0].code").value("PAN"));
 
-    mvc.perform(get("/api/v1/countries?search=co").with(lector()))
+    // `urug` y no `ur`: el fragmento corto también casaría con «Uruguay» y con
+    // cualquier país sembrado que lo contenga.
+    mvc.perform(get("/api/v1/countries?search=urug").with(lector()))
         .andExpect(jsonPath("$.content.length()").value(1))
-        .andExpect(jsonPath("$.content[0].code").value("CO"));
+        .andExpect(jsonPath("$.content[0].code").value("URY"));
 
-    // En blanco equivale a ausente.
+    // En blanco equivale a ausente. TRES: las dos de la prueba y Colombia.
     mvc.perform(get("/api/v1/countries?search=   ").with(lector()))
-        .andExpect(jsonPath("$.content.length()").value(2));
+        .andExpect(jsonPath("$.content.length()").value(3));
   }
 
   @Test
   @DisplayName("CA-SP-142 — sin coincidencias devuelve la colección vacía, no un error")
   void sinCoincidencias() throws Exception {
-    crear("PA", "Panamá");
+    crear("PAN", "Panamá");
 
     mvc.perform(get("/api/v1/countries?search=noexiste").with(lector()))
         .andExpect(status().isOk())
@@ -285,40 +310,69 @@ class CountriesIT extends IntegrationTestBase {
   @Test
   @DisplayName("CA-SP-172 — los inactivos no aparecen salvo que se pidan, y entonces se AÑADEN")
   void inactivosBajoPeticion() throws Exception {
-    crear("PA", "Panamá");
-    String co = crear("CO", "Colombia");
-    mvc.perform(cambioDeEstado(co, false)).andExpect(status().isOk());
+    crear("PAN", "Panamá");
+    String uy = crear("URY", "Uruguay");
+    mvc.perform(cambioDeEstado(uy, false)).andExpect(status().isOk());
 
+    // DOS activos —Colombia y Panamá— y el retirado fuera. Lo que la prueba fija
+    // es que el inactivo NO esté, no cuántos hay en total.
     mvc.perform(get("/api/v1/countries").with(lector()))
-        .andExpect(jsonPath("$.content.length()").value(1))
-        .andExpect(jsonPath("$.content[0].code").value("PA"));
+        .andExpect(jsonPath("$.content.length()").value(2))
+        .andExpect(jsonPath("$.content[?(@.code == 'URY')]").isEmpty());
 
+    // Y al pedirlos, se AÑADE: tres.
     mvc.perform(get("/api/v1/countries?includeInactive=true").with(lector()))
-        .andExpect(jsonPath("$.content.length()").value(2));
+        .andExpect(jsonPath("$.content.length()").value(3));
   }
 
   @Test
   @DisplayName("la búsqueda y el estado son independientes")
   void busquedaYEstadoIndependientes() throws Exception {
-    String pa = crear("PA", "Panamá");
-    crear("PY", "Paraguay");
+    String pa = crear("PAN", "Panamá");
+    crear("PRY", "Paraguay");
     mvc.perform(cambioDeEstado(pa, false)).andExpect(status().isOk());
 
     mvc.perform(get("/api/v1/countries?search=pa").with(lector()))
         .andExpect(jsonPath("$.content.length()").value(1))
-        .andExpect(jsonPath("$.content[0].code").value("PY"));
+        .andExpect(jsonPath("$.content[0].code").value("PRY"));
 
     mvc.perform(get("/api/v1/countries?search=pa&includeInactive=true").with(lector()))
         .andExpect(jsonPath("$.content.length()").value(2));
   }
 
   @Test
-  @DisplayName("CA-SP-143 — sin el permiso de lectura se responde 403")
-  void sinPermisoDeLectura() throws Exception {
+  @DisplayName("CA-SP-143 — REESCRITO: el catálogo se consulta SIN INICIAR SESIÓN")
+  void catalogoPublico() throws Exception {
+    // Decía «sin el permiso de lectura se responde 403» hasta el 08-09-2026,
+    // cuando el responsable del proyecto abrió los tres catálogos que el
+    // formulario de registro necesita antes de que exista la cuenta.
+    //
+    // La prueba NO se borra, se invierte: lo que había que comprobar era que la
+    // puerta estaba cerrada, y ahora hay que comprobar que está abierta — para
+    // que el día que alguien la cierre por descuido, falle aquí.
+    mvc.perform(get("/api/v1/countries")).andExpect(status().isOk());
+
+    // Y con un token sin `countries:read` responde lo mismo: el permiso dejó de
+    // gobernar esta lectura.
     mvc.perform(
             get("/api/v1/countries")
-                .with(user(UUID.randomUUID().toString()).authorities(() -> "roles:read")))
-        .andExpect(status().isForbidden());
+                .with(
+                    user(UUID.randomUUID().toString())
+                        .authorities(() -> "roles:read", () -> "roles:list")))
+        .andExpect(status().isOk());
+  }
+
+  @Test
+  @DisplayName("pero las ESCRITURAS de países siguen exigiendo token, y responden 401 sin él")
+  void lasEscriturasNoSeAbren() throws Exception {
+    // El `GET` se abrió por método, no por ruta: metida la ruta entera en las
+    // públicas, un anónimo recibiría `403` aquí —«existe y no puedes»— en lugar
+    // de `401` —«identifícate»—.
+    mvc.perform(
+            post("/api/v1/countries")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("{\"code\":\"PA\",\"name\":\"Panamá\"}"))
+        .andExpect(status().isUnauthorized());
   }
 
   // ---------------------------------------------------------------------------
@@ -328,17 +382,19 @@ class CountriesIT extends IntegrationTestBase {
   @Test
   @DisplayName("CA-SP-178, CA-SP-179 y CA-SP-180 — se desactiva y reactiva sin tocar la definición")
   void desactivarYReactivar() throws Exception {
-    String pa = crear("PA", "Panamá");
+    String pa = crear("PAN", "Panamá");
 
     mvc.perform(cambioDeEstado(pa, false))
         .andExpect(status().isOk())
         .andExpect(jsonPath("$.isActive").value(false))
         // El código y el nombre no cambian.
-        .andExpect(jsonPath("$.code").value("PA"))
+        .andExpect(jsonPath("$.code").value("PAN"))
         .andExpect(jsonPath("$.name").value("Panamá"));
 
+    // Desaparece del catálogo activo. Ya no se comprueba «cero»: Colombia sigue
+    // ahí y no se puede borrar (`RN-SP-034`).
     mvc.perform(get("/api/v1/countries").with(lector()))
-        .andExpect(jsonPath("$.content.length()").value(0));
+        .andExpect(jsonPath("$.content[?(@.code == 'PAN')]").isEmpty());
 
     mvc.perform(cambioDeEstado(pa, true))
         .andExpect(status().isOk())
@@ -348,11 +404,13 @@ class CountriesIT extends IntegrationTestBase {
   @Test
   @DisplayName("CA-SP-181 — desactivar no borra: la fila sigue resolviendo su definición")
   void desactivarNoEsCorregir() throws Exception {
-    String pa = crear("PA", "Panamá");
+    String pa = crear("PAN", "Panamá");
     mvc.perform(cambioDeEstado(pa, false)).andExpect(status().isOk());
 
     // Quien ya referenciaba el país por su identificador lo sigue resolviendo.
-    mvc.perform(get("/api/v1/countries?includeInactive=true").with(lector()))
+    // Se acota con la búsqueda para aislar la fila: sin ella, la primera
+    // posición la ocupa Colombia, que `V64` siembra y nadie puede borrar.
+    mvc.perform(get("/api/v1/countries?search=PAN&includeInactive=true").with(lector()))
         .andExpect(jsonPath("$.content[0].id").value(pa))
         .andExpect(jsonPath("$.content[0].name").value("Panamá"));
   }
@@ -360,7 +418,7 @@ class CountriesIT extends IntegrationTestBase {
   @Test
   @DisplayName("CA-SP-182 — pedir el estado que ya tiene no registra evento")
   void sinCambioSinEvento() throws Exception {
-    String pa = crear("PA", "Panamá");
+    String pa = crear("PAN", "Panamá");
     UUID correlacion = UUID.randomUUID();
 
     mvc.perform(cambioDeEstado(pa, true).header("X-Correlation-Id", correlacion.toString()))
@@ -378,7 +436,7 @@ class CountriesIT extends IntegrationTestBase {
   @Test
   @DisplayName("CA-SP-183 — el cambio va a la auditoría de cambios y NO a la de seguridad")
   void auditoriaDelCambio() throws Exception {
-    String pa = crear("PA", "Panamá");
+    String pa = crear("PAN", "Panamá");
     UUID correlacion = UUID.randomUUID();
 
     mvc.perform(cambioDeEstado(pa, false).header("X-Correlation-Id", correlacion.toString()))
@@ -410,7 +468,7 @@ class CountriesIT extends IntegrationTestBase {
   @Test
   @DisplayName("CA-SP-338 — la operación no admite motivo ni ningún otro campo")
   void sinMotivo() throws Exception {
-    String pa = crear("PA", "Panamá");
+    String pa = crear("PAN", "Panamá");
 
     for (String cuerpo :
         new String[] {
@@ -430,7 +488,7 @@ class CountriesIT extends IntegrationTestBase {
   @Test
   @DisplayName("el estado destino es obligatorio")
   void estadoObligatorio() throws Exception {
-    String pa = crear("PA", "Panamá");
+    String pa = crear("PAN", "Panamá");
 
     mvc.perform(
             patch("/api/v1/countries/" + pa + "/status")
@@ -452,7 +510,7 @@ class CountriesIT extends IntegrationTestBase {
   @Test
   @DisplayName("CA-SP-184 — sin el permiso de modificación se responde 403")
   void sinPermisoDeModificacion() throws Exception {
-    String pa = crear("PA", "Panamá");
+    String pa = crear("PAN", "Panamá");
 
     mvc.perform(
             patch("/api/v1/countries/" + pa + "/status")
@@ -471,20 +529,20 @@ class CountriesIT extends IntegrationTestBase {
   void garantiasDelEsquema() {
     // El catálogo no se puede corregir después: sin estos CHECK, un INSERT
     // directo mete basura permanente.
-    org.assertj.core.api.Assertions.assertThatThrownBy(() -> insertarDirecto("c1", "País"))
+    org.assertj.core.api.Assertions.assertThatThrownBy(() -> insertarDirecto("c1x", "País"))
         .isInstanceOf(DataIntegrityViolationException.class);
-    org.assertj.core.api.Assertions.assertThatThrownBy(() -> insertarDirecto("XX", "   "))
+    org.assertj.core.api.Assertions.assertThatThrownBy(() -> insertarDirecto("XXX", "   "))
         .isInstanceOf(DataIntegrityViolationException.class);
   }
 
   @Test
   @DisplayName("uq_countries_name es funcional: rechaza el duplicado normalizado en base de datos")
   void unicidadNormalizadaEnElEsquema() {
-    insertarDirecto("PA", "Panamá");
+    insertarDirecto("PAN", "Panamá");
 
     // La garantía no depende de que el servicio recuerde comprobarlo, que es lo
     // que resuelve el alta concurrente sin convertirla en un 500.
-    org.assertj.core.api.Assertions.assertThatThrownBy(() -> insertarDirecto("PX", "panama"))
+    org.assertj.core.api.Assertions.assertThatThrownBy(() -> insertarDirecto("PAX", "panama"))
         .isInstanceOf(DataIntegrityViolationException.class);
   }
 

@@ -27,9 +27,9 @@ La primera tarea es la que importa. `EX-001` rechaza a quien **sí** es consumid
 | `T-04` | `DELETE` de la fila de `user_memberships`, reutilizando la operación que aporta `RF-SP-031` | `T-01` | Prueba de integración: la fila desaparece y la membresía **sigue existiendo en la cadena** | **Hecha** |
 | `T-05` | Auditoría de éxito: `audit_deletion_log` con `deletion_type = 'ASSOCIATION'`, `snapshot` de **la membresía y su vigencia**, y **sin motivo**. Ningún evento de seguridad | `T-04` | Prueba de integración: el `snapshot` conserva ambos datos; `audit_security_log` queda **vacío** tras la operación | **Hecha** |
 | `T-06` | Auditoría del rechazo: `EX-001` en `audit_error_log` con severidad Media; `EX-002` (`404`) y el `400` de formato sin auditar | `T-01` | Prueba de integración: `EX-001` deja su fila con `RN-SP-018`; los otros dos no dejan ninguna | **En curso** |
-| `T-07` | `api/UserController`: `DELETE /api/v1/users/{id}/membership` con el permiso `users:assign-membership`, respondiendo `204` **sin cuerpo** y **sin DTO de entrada** | `T-05`, `T-06` | Prueba de API: `204` sin cuerpo; el `409` cita **las dos** salidas reales —`RF-SP-032` y `RF-SP-031`—; el endpoint no declara ningún cuerpo de petición | **Hecha** |
+| `T-07` | `api/UserController`: `DELETE /api/v1/users/{id}/membership` con el permiso `users:revoke-membership`, respondiendo `204` **sin cuerpo** y **sin DTO de entrada** | `T-05`, `T-06` | Prueba de API: `204` sin cuerpo; el `409` cita **las dos** salidas reales —`RF-SP-032` y `RF-SP-031`—; el endpoint no declara ningún cuerpo de petición | **Hecha** |
 | `T-08` | Pruebas de API e integración de los criterios de aceptación de `spec.md` §12 | `T-07` | La suite cubre `CA-SP-281`, `CA-SP-282`, `CA-SP-284` a `CA-SP-288` y `CA-SP-374` | **En curso** |
-| `T-09` | Prueba concurrente del par: retiro contra asignación de un rol de consumidor, **en los dos órdenes** | `T-07` | En un orden el retiro devuelve `409`; en el otro, la asignación exige indicar membresía. **Ningún orden deja una cuenta incoherente**. Ejecutar un solo orden no prueba nada (`plan.md` §11) | **En curso** |
+| `T-09` | Prueba concurrente del par: retiro contra asignación de un rol de consumidor, **en los dos órdenes** | `T-07` | En un orden el retiro devuelve `409`; en el otro, la asignación exige indicar membresía. **Ningún orden deja una cuenta incoherente**. Ejecutar un solo orden no prueba nada (`plan.md` §11) | **Hecha** — 26-08-2026, en `UserConcurrencyIT`, con los dos órdenes |
 | `T-10` | Pruebas de los casos límite restantes de `spec.md` §13: membresía vencida, persona inactiva y membresía superior de la cadena | `T-07` | Los tres se retiran sin particularidad | **En curso** |
 | `T-11` | Documentación OpenAPI del endpoint: sin cuerpo de petición, respuesta `204` y los estados `400`, `401`, `403`, `404`, `409` y `500` | `T-08` | El contrato publicado coincide con el comportamiento real (Art. VIII.6), y **no** declara cuerpo de petición | **Hecha** |
 | `T-12` | Actualizar la matriz de trazabilidad de `docs/requirements.md` | `T-08` | La fila de `RF-SP-033` refleja el estado y enlaza esta tripleta | **Hecha** |
@@ -93,6 +93,17 @@ Lo importante de este requerimiento es una sola cosa, y está probada en las dos
 - La eliminación se registra como **asociación, sin motivo**, y el `snapshot` conserva la vigencia: sin la fecha no se podría distinguir si se retiró una membresía viva o una ya vencida.
 - Se retira la membresía **vencida** sin particularidad, y la membresía **sigue existiendo en la cadena**: se retiró la asignación, no el eslabón.
 
+
+### Defecto de concurrencia corregido el 26-08-2026
+
+**`RN-SP-018` no se sostenía bajo carrera, y ninguna de las dos operaciones fallaba.** `RF-SP-033` —retirar la membresía— y `RF-SP-030` —asignar el rol de consumidor— leían la persona **sin bloqueo**, de modo que cada una validaba contra el estado que la otra estaba a punto de cambiar: las dos concluían que podían proceder y la persona acababa **portando un rol de consumidor sin nivel**. Es una escritura sesgada de manual, y en `READ COMMITTED` nada la impide.
+
+**Lo que lo destapó fue `RF-SP-024` · `T-21`**, la prueba concurrente del par en los dos órdenes, y lo hizo de forma **intermitente**: falló en CI, pasó en la ejecución siguiente y volvió a fallar dos veces más. Esa intermitencia es la firma del defecto, no una prueba inestable.
+
+**La corrección:** las **cuatro** operaciones que cambian roles o membresía de una persona —`RF-SP-030`, `RF-SP-031`, `RF-SP-032` y `RF-SP-033`— pasan a tomar el bloqueo pesimista sobre su fila (`findNotDeletedByIdForUpdate`), que las otras cinco operaciones sobre una persona ya tomaban. Dos cosas la hacen suficiente: las cuatro bloquean **la misma fila**, de modo que se serializan sin riesgo de abrazo mortal —a diferencia del caso que `RF-SP-028` descartó, donde el bloqueo caía sobre filas de terceros—, y el bloqueo se toma **antes** de leer roles y membresía, porque en `READ COMMITTED` cada sentencia posterior toma instantánea nueva y ve lo que la otra transacción confirmó.
+
+La obligación queda escrita en el puerto, que es donde la encontrará quien añada la décima operación sobre una persona.
+
 ## 5. Definición de terminado
 
 El requerimiento no está terminado hasta cumplir **todas** las condiciones de la constitución §16:
@@ -101,7 +112,7 @@ El requerimiento no está terminado hasta cumplir **todas** las condiciones de l
 - [ ] Todos los criterios de aceptación con prueba automatizada en verde. — falta la concurrencia del par en los dos órdenes.
 - [x] `mvn verify` en verde en local. — 99 unitarias y 326 de integración, 24-08-2026.
 - [x] Toda escritura emite su evento de auditoría, en la transacción que corresponde. — eliminación de asociación sin motivo y con la vigencia; **ningún** evento de seguridad.
-- [x] Los endpoints nuevos declaran su permiso. — `users:assign-membership`, el mismo que fijarla.
+- [x] Los endpoints nuevos declaran su permiso. — `users:revoke-membership`, el mismo que fijarla.
 - [x] El contrato OpenAPI coincide con el comportamiento real. — `OpenApiContractIT` fija el `DELETE` y la **ausencia** de cuerpo de petición, que es lo que le permite seguir siendo un `DELETE`.
 - [x] Documentación afectada actualizada en el mismo Pull Request. — `requirements.md` v0.39.0.
 - [x] Matriz de trazabilidad actualizada.

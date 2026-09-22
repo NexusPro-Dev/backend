@@ -3,11 +3,13 @@ package com.factech.nexus.modules.system.users.domain.service;
 import com.factech.nexus.modules.system.roles.application.AuthenticatedActor;
 import com.factech.nexus.modules.system.users.application.AssignSupervisorRequest;
 import com.factech.nexus.modules.system.users.application.CommercialStructureResponse;
+import com.factech.nexus.modules.system.users.application.UserResponse;
 import com.factech.nexus.modules.system.users.domain.models.ChangeReason;
 import com.factech.nexus.modules.system.users.domain.models.User;
 import com.factech.nexus.modules.system.users.domain.models.UserStatus;
 import com.factech.nexus.modules.system.users.domain.repository.AssignableRole;
 import com.factech.nexus.modules.system.users.domain.repository.RoleCatalog;
+import com.factech.nexus.modules.system.users.domain.repository.UserQueryRepository;
 import com.factech.nexus.modules.system.users.domain.repository.UserRepository;
 import com.factech.nexus.modules.system.users.domain.repository.UserSupervisor;
 import com.factech.nexus.modules.system.users.domain.security.CommercialStructure;
@@ -21,10 +23,13 @@ import com.factech.nexus.shared.error.ResourceNotFoundException;
 import com.factech.nexus.shared.persistence.UuidV7Generator;
 import java.time.Clock;
 import java.time.OffsetDateTime;
+import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.Set;
 import java.util.UUID;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
@@ -65,6 +70,7 @@ public class AssignSupervisorService {
   private static final String ENTIDAD = "user_supervisors";
 
   private final UserRepository usuarios;
+  private final UserQueryRepository consultas;
   private final RoleCatalog roles;
   private final CommercialStructure estructura;
   private final AuthenticatedActor actor;
@@ -75,16 +81,18 @@ public class AssignSupervisorService {
   @Autowired
   public AssignSupervisorService(
       UserRepository usuarios,
+      UserQueryRepository consultas,
       RoleCatalog roles,
       CommercialStructure estructura,
       AuthenticatedActor actor,
       AuditWriter auditoria,
       UuidV7Generator ids) {
-    this(usuarios, roles, estructura, actor, auditoria, ids, Clock.systemUTC());
+    this(usuarios, consultas, roles, estructura, actor, auditoria, ids, Clock.systemUTC());
   }
 
   AssignSupervisorService(
       UserRepository usuarios,
+      UserQueryRepository consultas,
       RoleCatalog roles,
       CommercialStructure estructura,
       AuthenticatedActor actor,
@@ -92,6 +100,7 @@ public class AssignSupervisorService {
       UuidV7Generator ids,
       Clock reloj) {
     this.usuarios = usuarios;
+    this.consultas = consultas;
     this.roles = roles;
     this.estructura = estructura;
     this.actor = actor;
@@ -187,7 +196,7 @@ public class AssignSupervisorService {
     if (anterior
         .map(previo -> previo.supervisorId().equals(peticion.supervisorId()))
         .orElse(false)) {
-      return respuesta(subordinado, rango, anterior.orElse(null), null, null);
+      return respuesta(subordinado, anterior.orElse(null), null, null);
     }
 
     OffsetDateTime ahora = OffsetDateTime.now(reloj);
@@ -200,17 +209,24 @@ public class AssignSupervisorService {
 
     UserSupervisor vigente = usuarios.findActiveSupervisor(userId).orElseThrow();
     return respuesta(
-        subordinado, rango, vigente, anterior.orElse(null), anterior.isPresent() ? ahora : null);
+        subordinado, vigente, anterior.orElse(null), anterior.isPresent() ? ahora : null);
   }
 
   // ---------------------------------------------------------------------------
 
+  /**
+   * La estructura resultante, con los roles de las tres personas que puede llevar.
+   *
+   * <p><b>Los roles se resuelven en una sola consulta</b> —el {@code rolesOf} que `RF-SP-025` ya
+   * usa— y no uno por persona. Este caso de uso no lo necesitaba antes del 10-09-2026: publicaba un
+   * `roleCode` que ya venía en la propia proyección del superior. Entra aquí porque <b>comparte el
+   * DTO con `RF-SP-042`</b>, y sin él la reasignación devolvería personas con la lista de roles
+   * vacía, que es peor que no devolverla: significaría «no tiene ninguno».
+   */
   private CommercialStructureResponse respuesta(
-      User subordinado,
-      AssignableRole rango,
-      UserSupervisor vigente,
-      UserSupervisor anterior,
-      OffsetDateTime cerradoEn) {
+      User subordinado, UserSupervisor vigente, UserSupervisor anterior, OffsetDateTime cerradoEn) {
+
+    Map<UUID, List<UserResponse.RoleRef>> roles = rolesDe(subordinado, vigente, anterior);
 
     return new CommercialStructureResponse(
         new CommercialStructureResponse.Person(
@@ -218,23 +234,37 @@ public class AssignSupervisorService {
             subordinado.getUsername(),
             subordinado.getFirstName(),
             subordinado.getLastName(),
-            rango.code(),
+            roles.getOrDefault(subordinado.getId(), List.of()),
             subordinado.getStatus().name(),
             null),
-        vigente == null ? null : persona(vigente, vigente.since()),
-        anterior == null ? null : persona(anterior, null),
+        vigente == null ? null : persona(vigente, vigente.since(), roles),
+        anterior == null ? null : persona(anterior, null, roles),
         cerradoEn,
         null);
   }
 
+  private Map<UUID, List<UserResponse.RoleRef>> rolesDe(
+      User subordinado, UserSupervisor vigente, UserSupervisor anterior) {
+
+    Set<UUID> ids = new LinkedHashSet<>();
+    ids.add(subordinado.getId());
+    if (vigente != null) {
+      ids.add(vigente.supervisorId());
+    }
+    if (anterior != null) {
+      ids.add(anterior.supervisorId());
+    }
+    return PersonRoles.de(consultas.rolesOf(new ArrayList<>(ids)));
+  }
+
   private static CommercialStructureResponse.Person persona(
-      UserSupervisor superior, OffsetDateTime desde) {
+      UserSupervisor superior, OffsetDateTime desde, Map<UUID, List<UserResponse.RoleRef>> roles) {
     return new CommercialStructureResponse.Person(
         superior.supervisorId(),
         superior.username(),
         superior.firstName(),
         superior.lastName(),
-        superior.roleCode(),
+        roles.getOrDefault(superior.supervisorId(), List.of()),
         superior.status(),
         desde);
   }

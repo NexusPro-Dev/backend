@@ -37,10 +37,11 @@ import org.springframework.test.web.servlet.request.RequestPostProcessor;
 class CommercialStructureIT extends IntegrationTestBase {
 
   private static final String SUPERADMIN_ROL = "01a02a33-4c00-7001-9c4f-5e7ad1000001";
-  private static final String CONTABILIDAD = "01a02a33-4c00-7003-9c4f-5e7ad1000003";
-  private static final String MANAGER = "01a02a33-4c00-7005-9c4f-5e7ad1000005";
-  private static final String DIRECTOR = "01a02a33-4c00-7006-9c4f-5e7ad1000006";
-  private static final String AGENTE = "01a02a33-4c00-7007-9c4f-5e7ad1000007";
+  private static final String ADMIN_ROL = "01a02a33-4c00-7002-9c4f-5e7ad1000002";
+  private static final String MANAGER = "01a02a33-4c00-7005-9c4f-5e7ad1000003";
+  private static final String DIRECTOR = "01a02a33-4c00-7006-9c4f-5e7ad1000004";
+  private static final String AGENTE = "01a02a33-4c00-7007-9c4f-5e7ad1000005";
+  private static final String CLIENTE = "01a02a33-4c00-7008-9c4f-5e7ad1000008";
 
   @Autowired private MockMvc mvc;
   @Autowired private JdbcTemplate jdbc;
@@ -55,6 +56,7 @@ class CommercialStructureIT extends IntegrationTestBase {
   @BeforeEach
   void preparar() {
     jdbc.update("DELETE FROM refresh_tokens");
+    jdbc.update("DELETE FROM client_sellers");
     jdbc.update("DELETE FROM user_supervisors");
     jdbc.update("DELETE FROM user_memberships");
     jdbc.update("DELETE FROM user_roles");
@@ -63,7 +65,7 @@ class CommercialStructureIT extends IntegrationTestBase {
         "DELETE FROM role_permissions WHERE role_id IN (SELECT id FROM roles WHERE is_system = false)");
     jdbc.update("DELETE FROM roles WHERE is_system = false");
     jdbc.update(
-        "INSERT INTO user_roles (user_id, role_id) VALUES (?, ?::uuid)",
+        "INSERT INTO user_roles (user_id, role_id, role_type) SELECT ?, r.id, r.role_type FROM roles r WHERE r.id = ?::uuid",
         SUPERADMIN,
         SUPERADMIN_ROL);
 
@@ -216,7 +218,7 @@ class CommercialStructureIT extends IntegrationTestBase {
   @Test
   @DisplayName("EX-003 — el 409 dice QUÉ ROL debería portar el superior")
   void superiorSinElRolExigido() throws Exception {
-    UUID contable = crearPersona("contable", CONTABILIDAD);
+    UUID contable = crearPersona("contable", ADMIN_ROL);
 
     // Sin ese dato, quien recibe el error no sabe a quién buscar.
     mvc.perform(reasignar(medio, contable, "Cambio"))
@@ -228,7 +230,7 @@ class CommercialStructureIT extends IntegrationTestBase {
   @Test
   @DisplayName("EX-001 y EX-002 — sin rol comercial, y la cúspide")
   void sinRolComercialYCuspide() throws Exception {
-    UUID contable = crearPersona("contable", CONTABILIDAD);
+    UUID contable = crearPersona("contable", ADMIN_ROL);
 
     mvc.perform(reasignar(contable, jefe, "Cambio"))
         .andExpect(status().isConflict())
@@ -318,7 +320,7 @@ class CommercialStructureIT extends IntegrationTestBase {
     mvc.perform(equipo(medio))
         .andExpect(status().isOk())
         .andExpect(jsonPath("$.user.username").value("amartinez"))
-        .andExpect(jsonPath("$.user.roleCode").value("DIRECTOR"))
+        .andExpect(jsonPath("$.user.roles[0].code").value("DIRECTOR"))
         .andExpect(jsonPath("$.supervisor.username").value("rlopez"))
         .andExpect(jsonPath("$.supervisor.since").isNotEmpty())
         .andExpect(jsonPath("$.team.content[0].username").value("lgarcia"))
@@ -350,11 +352,13 @@ class CommercialStructureIT extends IntegrationTestBase {
   @Test
   @DisplayName("FA-001 — quien no pertenece a la fuerza comercial recibe 200, no 404 ni 409")
   void sinEstructuraComercial() throws Exception {
-    UUID contable = crearPersona("contable", CONTABILIDAD);
+    UUID contable = crearPersona("contable", ADMIN_ROL);
 
     mvc.perform(equipo(contable))
         .andExpect(status().isOk())
-        .andExpect(jsonPath("$.user.roleCode").doesNotExist())
+        // Tiene rol, y NO comercial: por eso no hay estructura. Sus roles salen
+        // igual — no tener estructura comercial no es no tener roles.
+        .andExpect(jsonPath("$.user.roles[0].code").value("ADMIN"))
         .andExpect(jsonPath("$.supervisor").doesNotExist())
         .andExpect(jsonPath("$.team.totalElements").value(0));
   }
@@ -378,7 +382,9 @@ class CommercialStructureIT extends IntegrationTestBase {
     // Retirarle el rol comercial debe rechazarse citando ese mismo número.
     mvc.perform(
             post("/api/v1/users/{id}/roles/revocations", medio)
-                .with(user(SUPERADMIN.toString()).authorities(() -> "users:assign-roles"))
+                .with(
+                    user(SUPERADMIN.toString())
+                        .authorities(() -> "users:assign-roles", () -> "users:revoke-roles"))
                 .contentType(MediaType.APPLICATION_JSON)
                 .content("{\"roleIds\":[\"" + DIRECTOR + "\"]}"))
         .andExpect(status().isConflict())
@@ -417,8 +423,12 @@ class CommercialStructureIT extends IntegrationTestBase {
   }
 
   @Test
-  @DisplayName("CA-SP-455 — no admite filtros: un parámetro de filtro no cambia el resultado")
-  void sinFiltros() throws Exception {
+  @DisplayName("CA-SP-455 — SOLO filtra por rol: search y status siguen sin cambiar el resultado")
+  void soloFiltraPorRol() throws Exception {
+    // Invertido el 10-09-2026. La prueba NO se borra: lo que antes afirmaba
+    // —«ningún filtro se aplica»— sigue siendo cierto para todos menos uno, y
+    // es justo lo que hay que seguir defendiendo para que el filtrado del
+    // listado general no se cuele aquí a trozos.
     mvc.perform(
             get("/api/v1/users/{id}/team", medio)
                 .with(lector())
@@ -426,6 +436,104 @@ class CommercialStructureIT extends IntegrationTestBase {
                 .param("status", "INACTIVO"))
         .andExpect(status().isOk())
         .andExpect(jsonPath("$.team.totalElements").value(1));
+
+    mvc.perform(get("/api/v1/users/{id}/team", medio).with(lector()).param("roles", "MANAGER"))
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$.team.totalElements").value(0));
+  }
+
+  @Test
+  @DisplayName(
+      "CA-SP-624 y CA-SP-710 — cada persona lleva TODOS sus roles, y la cartera NO es equipo")
+  void cadaPersonaLlevaSusRoles() throws Exception {
+    // `CA-SP-710` (18-09-2026) invierte a `CA-SP-625`: el cliente ya no cuelga de
+    // `user_supervisors` (`RN-SP-028` revertida) sino de `client_sellers`, y por
+    // eso NO aparece en el equipo de su vendedor — ni filtrando por CLIENTE.
+    UUID cliente = crearPersona("cperez", CLIENTE);
+    registrar(cliente, medio);
+
+    mvc.perform(equipo(medio))
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$.user.roles[0].code").value("DIRECTOR"))
+        .andExpect(jsonPath("$.user.roles[0].id").isNotEmpty())
+        .andExpect(jsonPath("$.user.roles[0].name").isNotEmpty())
+        .andExpect(jsonPath("$.supervisor.roles[0].code").value("MANAGER"))
+        .andExpect(jsonPath("$.team.totalElements").value(1))
+        .andExpect(jsonPath("$.team.content[0].username").value("lgarcia"))
+        .andExpect(jsonPath("$.team.content[0].roles[0].code").value("AGENTE"))
+        .andExpect(
+            jsonPath("$.team.content[?(@.username == 'cperez')]")
+                .value(org.hamcrest.Matchers.empty()))
+        // El campo viejo no sobrevive en ninguna de las tres posiciones.
+        .andExpect(jsonPath("$.user.roleCode").doesNotExist())
+        .andExpect(jsonPath("$.supervisor.roleCode").doesNotExist())
+        .andExpect(jsonPath("$.team.content[0].roleCode").doesNotExist());
+
+    mvc.perform(equipo(medio).param("roles", "CLIENTE"))
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$.team.totalElements").value(0));
+  }
+
+  @Test
+  @DisplayName("CA-SP-626 — un código: solo quienes lo portan, y el total cuenta lo filtrado")
+  void filtroPorUnRol() throws Exception {
+    // Desde el 18-09-2026 la cartera no está en el equipo, de modo que el filtro
+    // se prueba con lo que sí lo está: dos agentes bajo `medio`, uno de los
+    // cuales porta además CLIENTE (un vendedor que también compra).
+    UUID otro = crearPersona("otro.agente", AGENTE);
+    reportar(otro, medio);
+    conceder(base, CLIENTE);
+
+    mvc.perform(equipo(medio).param("roles", "CLIENTE"))
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$.team.totalElements").value(1))
+        .andExpect(jsonPath("$.team.content[0].username").value("lgarcia"));
+
+    // En minúsculas significa lo mismo: los códigos se persisten en mayúsculas,
+    // y un vacío se leería como «no hay clientes» en lugar de como un error.
+    mvc.perform(equipo(medio).param("roles", "cliente"))
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$.team.totalElements").value(1));
+
+    // Sin el parámetro, el equipo entero.
+    mvc.perform(equipo(medio)).andExpect(jsonPath("$.team.totalElements").value(2));
+  }
+
+  @Test
+  @DisplayName("CA-SP-627 — dos códigos son O, y quien porta los dos NO aparece dos veces")
+  void filtroPorVariosRoles() throws Exception {
+    UUID otro = crearPersona("otro.agente", AGENTE);
+    reportar(otro, medio);
+    // `base` porta AGENTE y además CLIENTE: es el caso que distingue EXISTS de
+    // un JOIN. Con JOIN saldría dos veces y el total contaría asignaciones.
+    conceder(base, CLIENTE);
+
+    mvc.perform(equipo(medio).param("roles", "AGENTE,CLIENTE"))
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$.team.totalElements").value(2))
+        .andExpect(jsonPath("$.team.content.length()").value(2));
+
+    // Repetir el parámetro significa lo mismo que separarlo por comas.
+    mvc.perform(equipo(medio).param("roles", "AGENTE").param("roles", "CLIENTE"))
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$.team.totalElements").value(2));
+  }
+
+  @Test
+  @DisplayName("CA-SP-628 — un rol inexistente da equipo vacío y 200; el superior sale igual")
+  void filtroPorUnRolQueNoExiste() throws Exception {
+    // Validarlo contra el catálogo añadiría una consulta por petición para
+    // producir un fallo que la especificación no quiere. `RF-SP-025` ya decidió
+    // lo mismo para su filtro por rol.
+    mvc.perform(equipo(medio).param("roles", "NO_EXISTE"))
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$.team.totalElements").value(0))
+        .andExpect(jsonPath("$.team.content.length()").value(0))
+        // Ni el superior ni la persona consultada se ven afectados por el
+        // filtro: `supervisor` sigue estando, y su ausencia sigue significando
+        // «es la cúspide» y nada más (`CA-SP-445`).
+        .andExpect(jsonPath("$.supervisor.username").value("rlopez"))
+        .andExpect(jsonPath("$.user.roles[0].code").value("DIRECTOR"));
   }
 
   @Test
@@ -468,7 +576,8 @@ class CommercialStructureIT extends IntegrationTestBase {
   }
 
   private RequestPostProcessor lector() {
-    return user(SUPERADMIN.toString()).authorities(() -> "users:read");
+    return user(SUPERADMIN.toString())
+        .authorities(() -> "users:read", () -> "users:list", () -> "users:read-team");
   }
 
   private UUID crearPersona(String username, String rol) {
@@ -476,14 +585,36 @@ class CommercialStructureIT extends IntegrationTestBase {
     jdbc.update(
         """
         INSERT INTO users (id, username, email, first_name, last_name, password_hash,
-                           must_change_password, status)
-        VALUES (?, ?, ?, 'Nombre', 'Apellido', 'x', false, 'ACTIVO')
+                           must_change_password, status, country_id)
+        VALUES (?, ?, ?, 'Nombre', 'Apellido', 'x', false, 'ACTIVO', (SELECT id FROM countries WHERE code = 'COL'))
         """,
         id,
         username,
         username + "@factech.co");
-    jdbc.update("INSERT INTO user_roles (user_id, role_id) VALUES (?, ?::uuid)", id, rol);
+    jdbc.update(
+        "INSERT INTO user_roles (user_id, role_id, role_type) SELECT ?, r.id, r.role_type FROM roles r WHERE r.id = ?::uuid",
+        id,
+        rol);
     return id;
+  }
+
+  /** Un rol MÁS a quien ya tiene otro: es lo que hace observable la semántica O. */
+  private void conceder(UUID persona, String rol) {
+    jdbc.update(
+        "INSERT INTO user_roles (user_id, role_id, role_type) SELECT ?, r.id, r.role_type FROM roles r WHERE r.id = ?::uuid",
+        persona,
+        rol);
+  }
+
+  /** El cliente y su principal: la fila REGISTRO de `client_sellers` (`RN-SP-049`, 18-09-2026). */
+  private void registrar(UUID cliente, UUID vendedor) {
+    jdbc.update(
+        """
+        INSERT INTO client_sellers (client_id, seller_id, origin, first_movement_id, created_at)
+        VALUES (?, ?, 'REGISTRO', NULL, now())
+        """,
+        cliente,
+        vendedor);
   }
 
   private void reportar(UUID subordinado, UUID superior) {

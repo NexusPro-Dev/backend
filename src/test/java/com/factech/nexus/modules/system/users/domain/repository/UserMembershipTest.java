@@ -48,7 +48,8 @@ class UserMembershipTest {
     // Tratarlo como un cambio dejaría una fila de auditoría que no describe
     // ningún cambio, cada vez que un cliente enviara la fecha en su hora local.
     UUID id = UUID.randomUUID();
-    UserMembership vigente = new UserMembership(id, "ORO", "Oro", (short) 1, AHORA.plusDays(1));
+    UserMembership vigente =
+        new UserMembership(id, "ORO", "Oro", (short) 1, "D4AF37", AHORA.plusDays(1));
 
     assertThat(
             vigente.coincideCon(
@@ -78,6 +79,6 @@ class UserMembershipTest {
   }
 
   private static UserMembership membresia(OffsetDateTime hasta, UUID id) {
-    return new UserMembership(id, "ORO", "Oro", (short) 1, hasta);
+    return new UserMembership(id, "ORO", "Oro", (short) 1, "D4AF37", hasta);
   }
 }

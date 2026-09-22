@@ -77,6 +77,13 @@ public class GetOwnProfileService {
     Set<String> efectivos = permisos.forUser(quien).orElseGet(Set::of);
 
     return new OwnProfileResponse(
+        // Sale de LA FILA y no de `quien`, aunque sean el mismo valor: es el
+        // identificador con el que `RF-SP-026` consulta a esta persona, que es
+        // lo que `CA-SP-473` exige. Tomarlo del token daría hoy lo mismo y
+        // dejaría de darlo el día que la identidad del token y la de la ficha
+        // pudieran diferir — y ese día nadie se enteraría, porque un `uuid`
+        // plausible y equivocado deja comprar a nombre de otro sin fallar.
+        fila.id(),
         fila.username(),
         fila.email(),
         fila.firstName(),
@@ -86,10 +93,35 @@ public class GetOwnProfileService {
             .map(rol -> new OwnProfileResponse.RoleRef(rol.code(), rol.name(), rol.status()))
             .toList(),
         efectivos.stream().sorted().toList(),
+        // Sin condicional, y aquí importa más que en los otros dos: este registro
+        // usa inclusión NON_NULL, de modo que un país nulo DESAPARECERÍA del
+        // JSON en silencio en lugar de fallar.
+        new OwnProfileResponse.CountryRef(fila.countryId(), fila.countryCode(), fila.countryName()),
+        // Puede llegar nulo, al contrario que el país: con inclusión NON_NULL
+        // desaparecerá del JSON, y aquí eso es correcto — «no lo declaro» y «no
+        // lo tengo» son lo mismo para quien mira su propio perfil.
+        fila.tieneDocumento()
+            ? new OwnProfileResponse.DocumentRef(
+                new OwnProfileResponse.DocumentTypeRef(
+                    fila.documentTypeId(),
+                    fila.documentTypeAbbreviation(),
+                    fila.documentTypeName()),
+                fila.documentNumber())
+            : null,
+        // El contacto SIEMPRE presente: es lo que `RF-SP-044` deja corregir, y
+        // sin publicarlo el formulario de edición no podría precargarse.
+        new OwnProfileResponse.ContactRef(
+            fila.phone(),
+            fila.companyPhone(),
+            fila.addressLine1(),
+            fila.addressLine2(),
+            fila.city()),
         fila.tieneMembresia()
             ? new OwnProfileResponse.MembershipRef(
                 fila.membershipCode(),
+                fila.membershipName(),
                 fila.membershipLevel() == null ? 0 : fila.membershipLevel(),
+                fila.membershipColor(),
                 fila.membershipEndsAt())
             : null,
         fila.lastLoginAt(),
@@ -108,11 +140,17 @@ public class GetOwnProfileService {
    *
    * <p>La diferencia es a quién le sirve: al titular le dice que tiene que actuar; a un tercero con
    * permiso de lectura solo le diría que esa cuenta arrastra una contraseña que otra persona fijó.
+   *
+   * <p><b>Se lee de la caducidad y no de {@code must_change_password}</b>, por la decisión del
+   * 25-08-2026. Leer de la columna dejaría al perfil diciendo una cosa y al token otra sobre la
+   * misma persona — y es el perfil el que la interfaz usa para explicárselo, de modo que la
+   * contradicción la vería ella: retenida en la pantalla de cambiar la contraseña por el token,
+   * leyendo en su perfil que no le toca.
    */
   private boolean mustChangePassword(UUID quien) {
     return usuarios
         .findNotDeletedById(quien)
-        .map(usuario -> usuario.isMustChangePassword())
+        .map(usuario -> usuario.getProvisionalPasswordExpiresAt() != null)
         .orElse(false);
   }
 }

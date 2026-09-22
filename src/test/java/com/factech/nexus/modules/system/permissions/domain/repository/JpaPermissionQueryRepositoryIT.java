@@ -35,7 +35,7 @@ class JpaPermissionQueryRepositoryIT extends IntegrationTestBase {
   @Test
   @DisplayName("sin filtros devuelve el catálogo completo")
   void sinFiltrosDevuelveTodo() {
-    assertThat(repository.find(ListPermissionsQuery.all())).hasSize(24);
+    assertThat(repository.find(ListPermissionsQuery.all())).hasSize(133);
   }
 
   @Test
@@ -54,7 +54,16 @@ class JpaPermissionQueryRepositoryIT extends IntegrationTestBase {
   @DisplayName("el filtro por recurso es de igualdad, no de contención")
   void filtroPorRecursoEsIgualdad() {
     assertThat(codesOf(ListPermissionsQuery.of("roles", null, null)))
-        .containsExactly("roles:create", "roles:delete", "roles:read", "roles:update");
+        .containsExactly(
+            "roles:assign-parent",
+            "roles:assign-permissions",
+            "roles:change-status",
+            "roles:create",
+            "roles:delete",
+            "roles:list",
+            "roles:read",
+            "roles:revoke-permissions",
+            "roles:update");
 
     // Si el filtro fuera por contención, «role» arrastraría los de «roles» y
     // el cliente no tendría forma de pedir solo uno de los dos.
@@ -77,15 +86,16 @@ class JpaPermissionQueryRepositoryIT extends IntegrationTestBase {
   @Test
   @DisplayName("la búsqueda ignora acentos y mayúsculas")
   void busquedaSinAcentosNiMayusculas() {
-    // «logicamente» sin tilde debe encontrar las dos descripciones que dicen
-    // «Eliminar lógicamente…». Falla si la normalización se hace en Java en
+    // «logicamente» sin tilde debe encontrar las TRES descripciones que dicen
+    // «Eliminar lógicamente…» —roles, equipos y usuarios—. Falla si la
+    // normalización se hace en Java en
     // lugar de con f_unaccent en la base de datos.
     assertThat(codesOf(ListPermissionsQuery.of(null, null, "logicamente")))
-        .containsExactly("roles:delete", "users:delete");
+        .containsExactly("roles:delete", "teams:delete", "users:delete");
 
     // Da igual la caja del término y la de la fila, y el orden se mantiene.
     assertThat(codesOf(ListPermissionsQuery.of(null, null, "LÓGICAMENTE")))
-        .containsExactly("roles:delete", "users:delete");
+        .containsExactly("roles:delete", "teams:delete", "users:delete");
   }
 
   @Test
@@ -145,7 +155,7 @@ class JpaPermissionQueryRepositoryIT extends IntegrationTestBase {
     assertThat(item.code()).isEqualTo("permissions:read");
     assertThat(item.resource()).isEqualTo("permissions");
     assertThat(item.action()).isEqualTo("read");
-    assertThat(item.name()).isEqualTo("Consultar permisos");
+    assertThat(item.name()).isEqualTo("Consultar el detalle de un permiso");
     assertThat(item.description()).isNotBlank();
   }
 }

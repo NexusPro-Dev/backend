@@ -35,6 +35,15 @@ public interface MembershipRepository {
   boolean existsName(String name);
 
   /**
+   * ¿Hay ya una membresía con ese color? (`VAL-009`)
+   *
+   * <p>Recibe el color <b>ya normalizado</b> a mayúsculas: la unicidad se declara sobre el valor
+   * almacenado, y compararlo en crudo dejaría pasar la misma diferencia de caja que {@code
+   * uq_memberships_color} sí rechaza.
+   */
+  boolean existsColor(String color);
+
+  /**
    * Baja un nivel a todas las membresías que estén en {@code nivel} o por debajo.
    *
    * <p>Una sola sentencia y no una entidad por fila: el dominio ya decidió qué nivel corresponde a

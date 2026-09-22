@@ -23,12 +23,12 @@ Sin migración: `refresh_tokens` y sus cuatro columnas críticas las crea `V27` 
 | `T-02` | `domain/RefreshToken.rotate(...)`: revoca el presentado con motivo `ROTACION`, emite el sucesor y deja el vínculo | — | Prueba unitaria sin Spring: el presentado queda revocado con su motivo y `replaced_by_id` apunta al nuevo | **Hecha** |
 | `T-03` | **Clasificación del motivo de revocación**: `ROTACION` → reutilización; cualquier otro → rechazo simple | — | Pruebas unitarias sobre **los seis** literales del dominio cerrado de `V27`. Un motivo nuevo sin clasificar debe hacer fallar la prueba, no caer en un `else` | **En curso** |
 | `T-04` | `domain/RefreshTokenRepository`: búsqueda por hash **con bloqueo de fila** y revocación de familia en un solo `UPDATE` | — | Prueba de integración: la revocación de familia afecta a todas las filas de ese `family_id` y a ninguna de otro | **Hecha** |
-| `T-05` | `JpaRefreshTokenRepository`: `SELECT … FOR UPDATE` sobre la fila localizada por su hash | `T-04` | **Prueba de integración concurrente**: dos refrescos simultáneos con el mismo token dejan **una** cadena viva; uno gana y el otro cae en reutilización. Sin `FOR UPDATE` la prueba falla con dos cadenas y ningún error | **En curso** |
+| `T-05` | `JpaRefreshTokenRepository`: `SELECT … FOR UPDATE` sobre la fila localizada por su hash | `T-04` | **Prueba de integración concurrente**: dos refrescos simultáneos con el mismo token dejan **una** cadena viva; uno gana y el otro cae en reutilización. Sin `FOR UPDATE` la prueba falla con dos cadenas y ningún error | **Hecha el 27-08-2026** — `SessionConcurrencyIT`, seis rondas |
 | `T-06` | `application/RefreshTokenService` con el orden de verificación de `plan.md` §4, **clasificando por motivo antes de mirar la vigencia de la familia y el estado de la persona** | `T-01`, `T-02`, `T-03`, `T-05` | Pruebas con dobles: un robo sobre una sesión caducada y sobre una cuenta desactivada siguen produciendo reutilización; el orden no se puede invertir sin romperlas | **Hecha** |
 | `T-07` | Revalidación de la persona (`EX-003`): inactiva, bloqueada o eliminada rechazan y revocan el token presentado | `T-06` | Prueba de integración: el token queda revocado y no se emite ninguno nuevo | **Hecha** |
 | `T-08` | Revocación de familia **dentro** de la transacción que la detecta, tanto en `EX-001` como en `EX-005` | `T-06` | Prueba de integración: dos peticiones simultáneas con el token robado no dejan la familia sin revocar | **Hecha** |
 | `T-09` | Auditoría: `REFRESH_TOKEN_REUSE` con severidad alta en `EX-001` y `LOGOUT` informativa en `EX-005`, ambas en transacción independiente y sin esperar al commit. **Ningún evento** en el resto de salidas | `T-08` | Prueba de integración: el refresco exitoso, `EX-002`, `EX-003` y `EX-004` no dejan **ninguna** fila; el `detail` de la reutilización lleva identificadores y **nunca** el valor del token | **Hecha** |
-| `T-10` | Límite de tasa **por origen** y no por credencial, con cota propia más holgada que la del inicio de sesión | — | Prueba de API: superar el límite devuelve `429`; la cota es distinta de la de `RF-SP-034` | Pendiente |
+| `T-10` | Límite de tasa **por origen** y no por credencial, con cota propia más holgada que la del inicio de sesión | — | Prueba de API: superar el límite devuelve `429`; la cota es distinta de la de `RF-SP-034` | Hecha |
 | `T-11` | `api/RefreshRequest` y `AuthController`: `POST /api/v1/auth/refresh`, y **añadir la ruta a `RUTAS_PUBLICAS`** de `SecurityConfig` | `T-09`, `T-10` | Prueba de API: la ruta responde sin token de acceso; las **cinco** condiciones de `401` devuelven cuerpo idéntico byte a byte | **Hecha** |
 | `T-12` | Pruebas de API e integración de los criterios de aceptación de `spec.md` §12 | `T-11` | La suite cubre `CA-SP-301` a `CA-SP-310` y `CA-SP-381` a `CA-SP-385` | **En curso** |
 | `T-13` | Pruebas de los casos límite de `spec.md` §13, con la de **persona desactivada mientras refresca** como la más cuidadosa: debe verificar la **ausencia** de `REFRESH_TOKEN_REUSE` | `T-11` | Los seis casos en verde; ninguno produce un evento de severidad alta que no corresponda | **En curso** |
@@ -36,6 +36,14 @@ Sin migración: `refresh_tokens` y sus cuatro columnas críticas las crea `V27` 
 | `T-15` | Actualizar la matriz de trazabilidad de `docs/requirements.md` | `T-12` | La fila de `RF-SP-035` refleja el estado y enlaza esta tripleta | **Hecha** |
 
 **Estados:** `Pendiente` · `En curso` · `Hecha` · `Bloqueada`.
+
+!!! note "Qué afirma la prueba concurrente del refresco — 27-08-2026"
+
+    No cuál de los dos refrescos gana: eso depende de la temporización y fijarlo la volvería intermitente. Afirma lo que debe ser cierto en **todos** los desenlaces: exactamente uno obtiene `200`, el otro `401`, y **no queda más de una cadena viva** de esa familia.
+
+    La segunda prueba lleva el invariante a su forma dura: tras la carrera la familia entera está cerrada y hay evento de `REFRESH_TOKEN_REUSE`, porque el que pierde se lee como una reutilización — que es lo que hace útil a la rotación y lo que se perdería en silencio sin `FOR UPDATE`.
+
+    Se repite en **seis rondas**: la ventana entre leer la fila y revocarla es estrecha, y una sola ronda podría no acertarla y pasar en verde con la garantía rota.
 
 ## 2. Orden de ejecución
 

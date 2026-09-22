@@ -29,6 +29,7 @@ public record MembershipChainResponse(List<Item> content) {
       String code,
       String name,
       String description,
+      String color,
       int level,
       UUID parentMembershipId,
       UUID childMembershipId) {
@@ -39,6 +40,7 @@ public record MembershipChainResponse(List<Item> content) {
           item.code(),
           item.name(),
           item.description(),
+          item.color(),
           item.level(),
           item.parentMembershipId(),
           item.childMembershipId());

@@ -45,7 +45,7 @@ Sin migración. La forma la hereda de `RF-SP-004` —`PATCH` parcial, `Patchable
 | `T-08` | `JpaUserRepository` traduce la violación de `uq_users_email` **por nombre de restricción**, nunca por el texto del mensaje del driver, a `409` con `RN-SP-016` y un mensaje que **no nombra** a nadie | `T-03` | Prueba de integración forzando el camino que salta la verificación previa: la violación produce `409`, **nunca `500`** | **Hecha** |
 | `T-09` | Prueba de que el silencio del `409` es completo: el correo de una persona **eliminada** produce el mismo cuerpo que el de una vigente | `T-08` | `RN-SP-016` reserva el correo de los eliminados para siempre; la respuesta no puede delatar que esa cuenta existió | **En curso** |
 | `T-10` | Pruebas de los criterios de aceptación de `spec.md` §12 | `T-07`, `T-08` | La suite cubre `CA-SP-221` a `CA-SP-229`, `CA-SP-355` y `CA-SP-356`. `CA-SP-227` y `CA-SP-357` quedan **parciales** hasta `RF-SP-034` | **En curso** |
-| `T-11` | Pruebas **concurrentes** con transacciones reales: dos ediciones de la misma persona, y dos ediciones distintas hacia **el mismo correo** | `T-07`, `T-08` | En la primera, dos eventos cuyos diffs encadenan; en la segunda, una `200` y una `409`, **nunca `500`** | **Pendiente** |
+| `T-11` | Pruebas **concurrentes** con transacciones reales: dos ediciones de la misma persona, y dos ediciones distintas hacia **el mismo correo** | `T-07`, `T-08` | En la primera, dos eventos cuyos diffs encadenan; en la segunda, una `200` y una `409`, **nunca `500`** | **Hecha** — 26-08-2026, en `UserConcurrencyIT`. **Destapó un `500`**: ver §4.bis |
 | `T-12` | Pruebas del resto de casos límite de `spec.md` §13 y de `plan.md` §11: correo igual con otra caja, `INSERT` directo sin normalizar, el actor editándose a sí mismo, persona inactiva, límites de longitud e identificador no canónico | `T-07` | El actor se edita a sí mismo y recibe `200`: no hay regla equivalente a `RN-SEG-011` para las personas | **En curso** |
 | `T-13` | Prueba de **número de sentencias**: bloqueo, unicidad **solo si el correo cambió**, `UPDATE` y evento; **ninguna escritura** en `FA-001` | `T-07` | Es lo que hace verificable que el orden de `plan.md` §4 se respeta | **Pendiente** |
 | `T-14` | Completar `CA-SP-357` y `CA-SP-227` de extremo a extremo | `RF-SP-034` | Tras cambiar el correo, la persona autentica con el nuevo y **no** con el anterior; su nombre de usuario funciona en ambos momentos; y sus sesiones **siguen abiertas**. En el mismo Pull Request en que `RF-SP-034` se integre | **En curso** |
@@ -116,6 +116,16 @@ graph LR
 | 3 | `T-11` y `T-13` quedan **Pendientes** | La primera exige dos transacciones reales simultáneas sobre la misma persona; la segunda, un contador de sentencias que la suite no tiene montado | Que el bloqueo de fila serialice dos ediciones simultáneas está **construido y no verificado**. Es el hueco de esta tripleta |
 | 4 | `T-09`, `T-10`, `T-12` y `T-14` quedan **En curso** | El silencio del `409` se comprueba contra una persona vigente, no contra una **eliminada** —que es el caso que más importa, porque `RN-SP-016` reserva su correo para siempre— y faltan casos límite menores | El `409` no revela de quién es el correo, pero que tampoco lo revele cuando el titular ya no existe no está fijado por prueba |
 
+### `T-11` destapó un `500` — 26-08-2026
+
+Dos ediciones simultáneas hacia **el mismo correo** devolvían una `200` y un **`500`**, donde la tarea exige una `200` y una `409`.
+
+**Por qué.** `JpaUserRepository` traduce la violación de `uq_users_email` al `409` de `RN-SP-016` **por nombre de restricción**, y lo hace dentro de `save(...)`. Pero la edición **no llama a `save`**: el agregado está gestionado y el `UPDATE` sale solo, **en el commit** — es decir, fuera de cualquier `try` del adaptador. La violación escapaba sin traducir.
+
+**El comentario de `verificarCorreoLibre` ya decía lo correcto** —«la garantía la da `uq_users_email` … y el adaptador traduce esa violación al mismo `409`»— y describía algo que solo era cierto en el alta. Es la clase de comentario que envejece sin que nadie lo note, porque describe una intención que en su día se cumplía.
+
+**Cómo se corrigió.** `UserRepository` gana `flushChanges()`, que vuelca dentro del mismo `try` que traduce, y `UpdateUserService` lo llama **en cuanto cambia el correo** en lugar de dejarlo al commit. La comprobación previa se conserva: existe para el mensaje, y entre leerla y escribir hay una ventana que dos ediciones simultáneas atraviesan las dos.
+
 ### Lo que sí quedó verificado
 
 - **Los tres estados de un campo `PATCH`**, que es lo que define este requerimiento: ausente no se toca, nulo explícito y blanco se **rechazan** con `VAL-002`, valor cambia. El nulo no puede ser una orden porque las columnas son `NOT NULL`, y aceptarlo produciría un `500` donde corresponde un `400`.
@@ -123,6 +133,30 @@ graph LR
 - **El correo se normaliza antes de comparar**: reenviar el propio en otra caja es un cambio sin efecto, no un conflicto consigo mismo, y no deja evento.
 - **Solo el correo deja evento de seguridad.** Es la identidad con la que se entra y la llave de la recuperación; corregir un apellido no lo es.
 - **El actor sí puede editarse a sí mismo**, al revés que en el cambio de estado y la eliminación: corregir el propio apellido no concede ningún privilegio.
+
+## 4.ter El país pasa a corregirse desde aquí — enmienda del 07-09-2026
+
+`RN-SP-034` obliga a que toda persona declare un país (`requirements/sp.md` v1.38.0), y **esta es la única operación que lo cambia**: el alta lo fija, `RF-SP-044` no lo admite y ningún otro requerimiento lo toca.
+
+**La tarea no se duplica aquí.** Es `T-50` de [`../024-registrar-usuario/tasks.md`](../024-registrar-usuario/tasks.md) §4.quinquies, donde vive la enmienda entera.
+
+**Tres decisiones que sí son de este requerimiento**, razonadas en `plan.md` §4 y §6:
+
+- **`countryId` es `Patchable<UUID>` y el nulo explícito se rechaza** con `400`, igual que los otros tres campos y por el mismo motivo: la columna es `NOT NULL`, de modo que aceptarlo en silencio daría un `500` sobre una violación de integridad en lugar del `400` que corresponde.
+- **Se comprueba el país de destino, nunca el actual.** Es lo que hace utilizable la operación: esta es la herramienta con la que se saca a alguien de un país recién desactivado, y exigir que el vigente estuviera activo la volvería inútil justo cuando hace falta.
+- **El cambio de país no emite evento de seguridad**, aunque sea el campo que más se le parece al correo. El correo lo emite porque es una **vía de acceso**; el país no lo es. Queda en `audit_change_log` con su antes y su después, que es donde se responde quién lo cambió.
+
+## 4.quater El documento y el contacto pasan a corregirse desde aquí — enmienda del 08-09-2026
+
+Esta es la **única** operación que cambia el documento, y una de las dos que cambian el contacto —la otra es `RF-SP-044`, para el propio titular—.
+
+**La tarea no se duplica aquí.** Es `T-58` de [`../024-registrar-usuario/tasks.md`](../024-registrar-usuario/tasks.md) §4.sexies.
+
+**Tres decisiones que sí son de este requerimiento**, razonadas en `plan.md` §4 y §6:
+
+- **El nulo explícito deja de significar lo mismo en todo el cuerpo.** Hasta hoy siempre se rechazaba, porque todas las columnas eran `NOT NULL`. Con el contacto entran tres nulables donde el nulo **sí es una orden**: «ya no vive ahí» es un hecho que hay que poder registrar. La línea que separa las dos familias es la de lo obligatorio y lo opcional, no la de los tipos.
+- **El tipo y el número se validan como una unidad.** Enviar uno solo es `400` y no un cambio a medias; dejarlo llegar al motor daría un `500` sobre `ck_users_document_pair`.
+- **Corregir el documento no libera el anterior.** Es la asimetría deliberada con el correo, que sí se libera: un documento identifica a una persona en el mundo real, y liberarlo dejaría que otra ficha lo tomara.
 
 ## 5. Definición de terminado
 

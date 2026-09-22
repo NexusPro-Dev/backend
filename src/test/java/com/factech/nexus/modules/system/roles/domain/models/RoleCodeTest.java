@@ -13,7 +13,7 @@ import org.junit.jupiter.params.provider.ValueSource;
 class RoleCodeTest {
 
   @ParameterizedTest
-  @ValueSource(strings = {"ADMIN", "CONTABILIDAD", "LIDER_ACADEMICO", "A", "A1", "ROL_2026"})
+  @ValueSource(strings = {"ADMIN", "ADMIN", "AGENTE", "A", "A1", "ROL_2026"})
   @DisplayName("acepta mayúsculas, dígitos y guion bajo empezando por letra")
   void formatosValidos(String valor) {
     assertThat(new RoleCode(valor).value()).isEqualTo(valor);
@@ -43,7 +43,7 @@ class RoleCodeTest {
   @DisplayName("NO normaliza: un código en minúsculas se rechaza, no se convierte")
   void noNormaliza() {
     // `spec.md` §13: el actor debe ver exactamente qué código quedó
-    // registrado. Si esta prueba empezara a pasar devolviendo "CONTABILIDAD",
+    // registrado. Si esta prueba empezara a pasar devolviendo "ADMIN",
     // alguien habría añadido un toUpperCase() y el criterio se habría perdido.
     assertThatThrownBy(() -> new RoleCode("contabilidad")).isInstanceOf(ValidationException.class);
   }

@@ -1,0 +1,127 @@
+package com.factech.nexus.modules.products.application;
+
+import com.factech.nexus.modules.products.domain.models.ProductImplementation;
+import com.factech.nexus.modules.products.domain.models.ProductScope;
+import com.factech.nexus.modules.products.domain.models.ProductStatus;
+import com.factech.nexus.modules.products.domain.models.ProductType;
+import com.factech.nexus.modules.products.domain.models.RatingSummary;
+import com.factech.nexus.modules.products.domain.repository.ProductQueryRepository.ProductRow;
+import com.fasterxml.jackson.annotation.JsonInclude;
+import java.math.BigDecimal;
+import java.time.OffsetDateTime;
+import java.time.ZoneOffset;
+import java.util.List;
+import java.util.UUID;
+
+/**
+ * Una fila del listado del catálogo (`RF-PM-002`).
+ *
+ * <p><b>Reutiliza las referencias de {@link ProductResponse}</b> —destino y moneda— y no declara
+ * unas propias: dos formas del mismo dato obligarían a la interfaz a escribir dos lectores, y el
+ * segundo acabaría asumiendo lo que el primero hacía.
+ *
+ * <p>Lo que <b>no</b> lleva es tan deliberado como lo que lleva:
+ *
+ * <ul>
+ *   <li><b>El motivo del retiro</b> (`CA-PM-077`). El listado dice <b>que</b> un producto está
+ *       retirado y <b>desde cuándo</b>, no <b>por qué</b>. Uno a uno el motivo es una consulta y lo
+ *       devuelve `RF-PM-003`; en bloque sería una exportación de decisiones comerciales.
+ *   <li><b>{@code updatedAt}</b> — no responde ninguna pregunta que se le haga a una lista.
+ * </ul>
+ *
+ * <p>{@code JsonInclude.ALWAYS} no es decorativo: sin él, el destino de un bot y la vigencia de un
+ * producto que no caduca llegarían <b>ausentes</b> en lugar de {@code null}, y un campo que falta
+ * es indistinguible de uno que el cliente no conoce.
+ */
+@JsonInclude(JsonInclude.Include.ALWAYS)
+public record ProductItem(
+    UUID id,
+    String code,
+    ProductType type,
+    String name,
+    String description,
+    String icon,
+    /**
+     * Los enlaces del producto, <b>crudos y con todos los tipos</b> (`RN-PM-048` a `RN-PM-050`).
+     *
+     * <p>Sustituye a {@code videoUrl} el 22-09-2026. Presente y <b>vacía</b> cuando el producto no
+     * declara ninguno. Esta es, con el detalle, una de las <b>dos únicas lecturas donde se ve el
+     * {@code CUPON_BOT}</b>: no filtra por tipo, porque es donde se administra.
+     */
+    List<ProductLinkResponse> links,
+    /**
+     * La dirección de la portada (`RN-PM-033`): la ruta pública de `RF-PM-016`, construida sobre
+     * `cover_image_id` sin tocar `product_images`. Presente y nula cuando no hay.
+     */
+    String coverImageUrl,
+    ProductResponse.MembershipRef sourceMembership,
+    ProductResponse.MembershipRef targetMembership,
+    BigDecimal price,
+    BigDecimal purchasePrice,
+    ProductResponse.CurrencyRef currency,
+    ExchangeRef exchange,
+    Integer validityDays,
+    ProductScope scope,
+    ProductImplementation implementation,
+    ProductStatus status,
+    RatingSummary rating,
+    OffsetDateTime createdAt,
+    OffsetDateTime deletedAt) {
+
+  /**
+   * Proyecta la fila leída, con el destino y la moneda que trajo la <b>misma</b> sentencia.
+   *
+   * <p><b>Aquí no se consulta nada</b> (`CA-PM-019`): resolver el destino fila a fila contra el
+   * puerto de `SP` es el problema de las {@code N+1} consultas con otro nombre —cien productos,
+   * cien llamadas—, y por eso viaja en el {@code LEFT JOIN}.
+   */
+  public static ProductItem from(
+      ProductRow fila, List<ProductLinkResponse> enlaces, ExchangeRef conversion) {
+    return new ProductItem(
+        fila.id(),
+        fila.code(),
+        ProductType.valueOf(fila.type()),
+        fila.name(),
+        fila.description(),
+        fila.icon(),
+        // Los enlaces, crudos y vacía cuando no hay (`CA-PM-223`, `CA-PM-385`).
+        enlaces,
+        ProductImageUrls.de(fila.coverImageId()),
+        fila.sourceMembershipId() == null
+            ? null
+            : new ProductResponse.MembershipRef(
+                fila.sourceMembershipId(),
+                fila.sourceMembershipCode(),
+                fila.sourceMembershipName(),
+                fila.sourceMembershipLevel(),
+                fila.sourceMembershipColor()),
+        fila.targetMembershipId() == null
+            ? null
+            : new ProductResponse.MembershipRef(
+                fila.targetMembershipId(),
+                fila.targetMembershipCode(),
+                fila.targetMembershipName(),
+                fila.targetMembershipLevel(),
+                fila.targetMembershipColor()),
+        ProductPrice.enLaEscalaDe(fila.price(), fila.currencyDecimalPlaces()),
+        // El precio de compra, nulo y presente donde no se conoce (`CA-PM-151`).
+        // Viaja porque este listado exige `products:read` (`RN-PM-024`).
+        fila.purchasePrice() == null
+            ? null
+            : ProductPrice.enLaEscalaDe(fila.purchasePrice(), fila.currencyDecimalPlaces()),
+        new ProductResponse.CurrencyRef(
+            fila.currencyId(), fila.currencyCode(), fila.currencyDecimalPlaces()),
+        conversion,
+        fila.validityDays(),
+        ProductScope.valueOf(fila.scope()),
+        ProductImplementation.valueOf(fila.implementation()),
+        ProductStatus.valueOf(fila.status()),
+        fila.rating(),
+        enUtc(fila.createdAt()),
+        enUtc(fila.deletedAt()));
+  }
+
+  private static OffsetDateTime enUtc(OffsetDateTime instante) {
+    return instante == null ? null : instante.withOffsetSameInstant(ZoneOffset.UTC);
+  }
+}

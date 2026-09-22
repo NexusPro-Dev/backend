@@ -21,6 +21,7 @@ import com.factech.nexus.shared.error.FieldError;
 import com.factech.nexus.shared.error.ForbiddenException;
 import com.factech.nexus.shared.error.ResourceNotFoundException;
 import com.factech.nexus.shared.error.ValidationException;
+import com.factech.nexus.shared.security.AccessRevocationPublisher;
 import com.factech.nexus.shared.security.SessionRevoker;
 import java.time.Clock;
 import java.time.OffsetDateTime;
@@ -72,6 +73,7 @@ public class ChangeUserStatusService {
   private final UserRepository usuarios;
   private final RootAdministratorPresence raiz;
   private final SessionRevoker sesiones;
+  private final AccessRevocationPublisher cortes;
   private final AuthenticatedActor actor;
   private final AuditWriter auditoria;
   private final Clock reloj;
@@ -81,21 +83,24 @@ public class ChangeUserStatusService {
       UserRepository usuarios,
       RootAdministratorPresence raiz,
       SessionRevoker sesiones,
+      AccessRevocationPublisher cortes,
       AuthenticatedActor actor,
       AuditWriter auditoria) {
-    this(usuarios, raiz, sesiones, actor, auditoria, Clock.systemUTC());
+    this(usuarios, raiz, sesiones, cortes, actor, auditoria, Clock.systemUTC());
   }
 
   ChangeUserStatusService(
       UserRepository usuarios,
       RootAdministratorPresence raiz,
       SessionRevoker sesiones,
+      AccessRevocationPublisher cortes,
       AuthenticatedActor actor,
       AuditWriter auditoria,
       Clock reloj) {
     this.usuarios = usuarios;
     this.raiz = raiz;
     this.sesiones = sesiones;
+    this.cortes = cortes;
     this.actor = actor;
     this.auditoria = auditoria;
     this.reloj = reloj;
@@ -159,6 +164,14 @@ public class ChangeUserStatusService {
       // Dentro de la transacción: si falla, el cambio se revierte entero antes
       // que dejar vivo el acceso que se acaba de retirar.
       sesiones.revokeAllForAccessChange(userId);
+
+      // Y el corte del token de acceso, que va por fuera y DESPUÉS del commit
+      // (`plan.md` §7). Los dos hacen falta y ninguno cubre al otro: revocar
+      // los refresh tokens impide PROLONGAR la sesión, pero el token de acceso
+      // que la persona ya tiene en la mano sigue abriendo puertas hasta quince
+      // minutos. Quien garantiza el «después del commit» es el registro, no
+      // esta línea.
+      cortes.publicarCorte(userId);
     }
 
     auditar(usuario, actual, destino, bloqueadoHasta, motivo);
@@ -172,22 +185,32 @@ public class ChangeUserStatusService {
   // ---------------------------------------------------------------------------
 
   /**
-   * `PENDIENTE` se rechaza aunque el esquema lo admita.
+   * `FTD_PENDIENTE` se rechaza como DESTINO, y sí se admite como origen.
    *
-   * <p>Ningún requerimiento lo produce, y admitirlo aquí abriría <b>el único camino</b> hacia un
-   * estado del que nadie sabe salir.
+   * <p>La distinción es la enmienda que `RF-SP-045` trae a este requerimiento (09-09-2026), y hay
+   * que leerla en los dos sentidos:
+   *
+   * <ul>
+   *   <li><b>Como destino se rechaza</b>, igual que se rechazaba `PENDIENTE`: ese estado lo produce
+   *       el <b>registro por enlace</b> y nadie más. Admitirlo aquí dejaría a un administrador
+   *       metiendo a cualquiera en una espera que solo un depósito puede terminar.
+   *   <li><b>Como ORIGEN se admite, y es lo que hace falta</b>: llevar una cuenta de {@code
+   *       FTD_PENDIENTE} a {@code ACTIVO} por esta vía es hoy <b>la única forma de sacar a alguien
+   *       de ahí</b>, mientras el webhook del bróker no exista (`RF-SP-054`). Sale gratis: este
+   *       método solo mira el destino.
+   * </ul>
    */
   private static UserStatus estadoDestino(String valor) {
     Optional<UserStatus> resuelto =
         java.util.Arrays.stream(UserStatus.values())
             .filter(estado -> estado.name().equalsIgnoreCase(valor == null ? "" : valor.trim()))
-            .filter(estado -> estado != UserStatus.PENDIENTE)
+            .filter(estado -> estado != UserStatus.FTD_PENDIENTE)
             .findFirst();
 
     return resuelto.orElseThrow(
         () -> {
           String mensaje =
-              "El estado debe ser ACTIVO, INACTIVO o BLOQUEADO. PENDIENTE no se admite.";
+              "El estado debe ser ACTIVO, INACTIVO o BLOQUEADO. FTD_PENDIENTE no se admite.";
           return new ValidationException(
               "VAL-001", mensaje, List.of(new FieldError("status", "VAL-001", mensaje)));
         });

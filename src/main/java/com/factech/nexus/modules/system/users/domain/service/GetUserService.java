@@ -75,6 +75,26 @@ public class GetUserService {
                     new UserDetailResponse.RoleRef(rol.id(), rol.code(), rol.name(), rol.status()))
             .toList(),
         efectivos.stream().sorted().toList(),
+        // Sin condicional: el país está siempre, y se devuelve aunque esté
+        // inactivo — esta es la pantalla desde la que se decide moverla.
+        new UserDetailResponse.CountryRef(fila.countryId(), fila.countryCode(), fila.countryName()),
+        // NULO cuando la persona no tiene documento: es el estado legítimo de
+        // quien se registró antes de `V71`, y esta pantalla es donde esa
+        // ausencia se ve.
+        fila.tieneDocumento()
+            ? new com.factech.nexus.modules.system.users.application.UserResponse.DocumentRef(
+                new com.factech.nexus.modules.system.users.application.UserResponse.DocumentTypeRef(
+                    fila.documentTypeId(),
+                    fila.documentTypeAbbreviation(),
+                    fila.documentTypeName()),
+                fila.documentNumber())
+            : null,
+        new com.factech.nexus.modules.system.users.application.UserResponse.ContactRef(
+            fila.phone(),
+            fila.companyPhone(),
+            fila.addressLine1(),
+            fila.addressLine2(),
+            fila.city()),
         fila.tieneMembresia()
             ? new UserDetailResponse.MembershipRef(
                 fila.membershipId(),

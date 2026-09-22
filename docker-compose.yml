@@ -65,8 +65,30 @@ services:
       # `docker compose ps` fallaban sin que nada estuviera mal.
       #
       # El hash lleva los `$` DUPLICADOS en el `.env`. Ver `.env.example`.
-      SUPERADMIN_EMAIL: "superadmin@factech.co"
+      #
+      # El correo sale del `.env` como todo lo demas. Tenerlo fijo aqui hacia
+      # que `SUPERADMIN_EMAIL` estuviera declarada en el `.env` y NO SE USARA:
+      # se ponia un correo y la base sembraba otro, sin que nada avisara.
+      #
+      # OJO: `V22` ya corrio en las bases existentes y Flyway no repite las
+      # migraciones aplicadas, de modo que cambiar esto NO actualiza el correo
+      # de un superadministrador ya sembrado. Para eso hay que recrear el
+      # volumen de la base o cambiarlo por la API.
+      SUPERADMIN_EMAIL: "${SUPERADMIN_EMAIL}"
       SUPERADMIN_PASSWORD_HASH: ${SUPERADMIN_PASSWORD_HASH}
+
+      # Canal de envio saliente (RF-SP-040, D-23). Los valores viven en `.env`,
+      # que NO se versiona: aqui solo se interpolan. Sin ellos el adaptador
+      # queda APAGADO y lo avisa al arrancar, en lugar de fallar la primera vez
+      # que alguien olvide su contrasena.
+      #
+      # SIN `:?`, por lo mismo que el hash de arriba: Compose interpola el
+      # archivo ENTERO antes de elegir servicio, y un `:?` aqui tumbaria hasta
+      # `docker compose ps`. El fallo rapido ya lo da la aplicacion.
+      NOTIFICATION_ENABLED: ${NOTIFICATION_ENABLED}
+      RESEND_API_KEY: ${RESEND_API_KEY}
+      NOTIFICATION_FROM: ${NOTIFICATION_FROM}
+      NOTIFICATION_TEMPLATE_PASSWORD_RECOVERY: ${NOTIFICATION_TEMPLATE_PASSWORD_RECOVERY}
     ports:
       - "8080:8080"
     healthcheck:

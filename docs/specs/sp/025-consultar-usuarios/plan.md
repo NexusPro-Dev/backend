@@ -9,6 +9,7 @@
 | Autor | Responsable técnico |
 | Aprobado por | Responsable del proyecto |
 | Fecha de aprobación | 22-08-2026 |
+| Reabierto el | 07-09-2026 — `RN-SP-034`: el país entra en la fila y nace su filtro, ver §2.bis y §4 (Art. I.7) |
 
 !!! info "Qué va en este documento"
 
@@ -19,6 +20,10 @@
 El comportamiento —flujos, excepciones, validaciones y criterios de aceptación— es el de [`spec.md`](spec.md) y no se repite aquí. Este documento decide cuatro cosas: **cuántas sentencias cuesta una página con roles**, **qué índice sostiene una búsqueda sobre cuatro columnas**, **cómo se filtra por rol y por membresía sin multiplicar filas**, y **qué significa exactamente «membresía vigente» en una consulta**.
 
 ---
+
+!!! note "Enmienda de Art. I.7 — 19-09-2026, `RF-SP-060`"
+
+    Esta operación exige **`users:list`** y no `users:read` desde el 19-09-2026, por `RF-SP-060` —**un permiso por operación**, `RN-SEG-014` ([`security.md` §4.4](../../../security.md#44-catalogo-de-permisos))—: `users:read` gobernaba varias operaciones y se queda con una; esta recibe código propio, sembrado por `V28` y dado a todo rol que portara `users:read`. Las menciones de `users:read` que siguen abajo hablan de su siembra original y se conservan como historia.
 
 ## 1. Enfoque
 
@@ -62,7 +67,7 @@ Cuatro decisiones sostienen esas líneas.
 
 **Por qué no se indexa `last_name` por separado además.** Los trigramas de `Pérez` están contenidos en los de `Juan Pérez`: la expresión concatenada ya sirve la búsqueda por apellido suelto. Un cuarto elemento en el índice lo haría más grande sin responder ninguna consulta nueva.
 
-**`ix_user_memberships_membership_id` es de este requerimiento y no de `RF-SP-024`.** Aquella migración creó la tabla con `user_id` como clave primaria, que es lo que `RN-SP-014` exige, y **no** un índice sobre la otra columna: el alta escribe una fila por usuario y nunca consulta por membresía. Este requerimiento es el primero que pregunta «quiénes tienen esta membresía», y es quien declara el acceso, con el mismo criterio que `RF-SP-030` aplica a `ix_user_roles_role_id`.
+**`ix_user_memberships_membership_id` es de este requerimiento y no de `RF-SP-024`.** **Y desde el 05-09-2026 es PARCIAL** —`WHERE closed_at IS NULL`—, porque esta consulta pregunta quiénes tienen **hoy** esa membresía y el historial cerrado nunca forma parte de la respuesta; lo declara `V56` (`RF-SP-024` §2.3.bis). Aquella migración creó la tabla con `user_id` como clave primaria, que es lo que `RN-SP-014` exige, y **no** un índice sobre la otra columna: el alta escribe una fila por usuario y nunca consulta por membresía. Este requerimiento es el primero que pregunta «quiénes tienen esta membresía», y es quien declara el acceso, con el mismo criterio que `RF-SP-030` aplica a `ix_user_roles_role_id`.
 
 **El índice de búsqueda no es parcial.** No lleva `WHERE deleted_at IS NULL`, por el mismo motivo que `ix_roles_busqueda` (`RF-SP-002` §2): dejaría sin cobertura la consulta que sí incluye los eliminados (`CA-SP-204`). La distinción se deja al predicado.
 
@@ -76,10 +81,20 @@ Cuatro decisiones sostienen esas líneas.
 |---|---|---|
 | `users.deleted_at` | `V18__create_users.sql` (`RF-SP-024`) | Excluir los eliminados por defecto e incluirlos bajo petición (`CA-SP-204`) |
 | `ix_user_roles_role_id` | `RF-SP-030` | Filtro por rol asignado. Sin él, cada consulta filtrada recorre la tabla de asignaciones entera |
-| `pk_user_memberships` | `V20__create_user_memberships.sql` (`RF-SP-024`) | Resolver la membresía de cada fila por su clave primaria |
+| `uq_user_memberships_abierta` | `V56__user_memberships_historial.sql` (`RF-SP-024` §2.3.bis) | Resolver la membresía **abierta** de cada fila. **Sustituye a `pk_user_memberships`**, que servía a este acceso mientras la clave iba sobre `user_id` |
 | `f_unaccent`, `pg_trgm` | `V1__create_shared_functions.sql` (`RF-SP-010`) | Búsqueda insensible a mayúsculas y acentos |
 
 **`deleted_at` existe desde la creación de `users`**, y conviene decir de dónde viene esa certeza: el `plan.md` de `RF-SP-024` la dejaba a `RF-SP-029`, y sus `tasks.md` la corrigieron (Art. I.7) porque `architecture.md` §6.4 la declara columna obligatoria de toda tabla de negocio y porque `RF-SP-003` §2 ya la daba por existente. **Sin esa corrección, este requerimiento no sería implementable**: `CA-SP-204` es la mitad de su contrato.
+
+### 2.bis El filtro por país — enmienda del 07-09-2026
+
+`RN-SP-034` añade `users.country_id` y con ella un filtro más. **Este requerimiento no declara ninguna migración nueva**: la columna, su clave foránea y `ix_users_country_id` los crea `V64`, en el plan de `RF-SP-024` §2.6, porque la columna es de aquella tabla y el índice hace además de respaldo de la clave foránea.
+
+Es el reparto **contrario** al de `ix_user_memberships_membership_id`, y la diferencia se puede nombrar: aquel índice **solo** sirve a esta consulta —el alta escribe una fila por usuario y nunca pregunta por membresía—, de modo que declararlo aquí era declararlo donde se usa. `ix_users_country_id` tiene un segundo consumidor que no es esta consulta: sin él, el `NO ACTION` de `fk_users_country` recorre `users` entera en cada intento de borrar un país. Un índice con dos razones de existir se declara con la primera.
+
+**El país entra en la fila sin una consulta más y sin multiplicar filas.** Es un `JOIN` corriente hacia `countries` por una columna obligatoria: uno a uno, sin `LEFT`, sin agrupación y sin el riesgo que sí tienen los dos `LEFT JOIN` de roles y membresía. Es la unión más barata de esta consulta, y la única que no necesita justificarse contra la multiplicación de filas.
+
+**El filtro admite países inactivos** (`spec.md` §6.1). No lleva `AND c.is_active` en ningún sitio, y no es un olvido: la condición de país activo es del **momento de asignarlo** (`RN-SP-034`), y un listado que no encontrara a quien está en un país retirado dejaría invisible justo a la gente a la que hay que ir a mover con `RF-SP-027`.
 
 ## 3. Componentes afectados
 
@@ -125,6 +140,7 @@ GET /api/v1/users?page=0&size=20&sort=lastName,asc
                  &status=ACTIVO
                  &roleId=018f3a2b-7c41-7000-9a3d-1f2e5b8c9d01
                  &membershipId=018f3a2b-7c41-7000-9a3d-1f2e5b8c9d05
+                 &countryId=01a03336-6d00-7002-9c4f-5e7ad3000001
                  &search=perez
                  &includeDeleted=false
 ```
@@ -137,12 +153,14 @@ GET /api/v1/users?page=0&size=20&sort=lastName,asc
 | `status` | enum | — | `ACTIVO`, `INACTIVO`, `BLOQUEADO` o `PENDIENTE`. Otro → `VAL-004` |
 | `roleId` | UUID | — | Rol asignado. **No se valida que exista** |
 | `membershipId` | UUID | — | Membresía **vigente**. No se valida que exista |
+| `countryId` | UUID | — | País de la persona. **No se valida que exista, ni que esté activo** (07-09-2026) |
 | `search` | texto | — | Sobre nombre de usuario, correo y nombre completo. Recortado; en blanco equivale a ausente |
 | `includeDeleted` | booleano | `false` | `true` incorpora los usuarios con `deleted_at` no nulo |
 
 - **El orden por defecto es `lastName,asc` y no `username`.** Es la lista desde la que se administra el acceso de personas, y quien la mira busca a alguien por su apellido. Es la única diferencia deliberada con `RF-SP-002`, cuyo defecto es `code,asc`.
 - **`PENDIENTE` se admite en el filtro aunque hoy ninguna fila lo tenga.** El estado está declarado en `ck_users_status` y sin usar (`RF-SP-024`, resolución 1); excluirlo del dominio del filtro obligaría a ampliarlo el día que exista el flujo de activación, y devolver colección vacía es la respuesta correcta mientras tanto.
 - **Ni `roleId` ni `membershipId` se validan contra su catálogo.** `spec.md` §13 lo exige para el rol —«filtro por rol inexistente: devuelve colección vacía; no es un error»— y se aplica igual a la membresía, por el mismo argumento de `RF-SP-002` §4: validarlo añadiría una consulta por petición para producir un fallo que la especificación no quiere.
+- **`countryId` tampoco se valida, y además NO se acota a países activos.** Lo primero es el mismo criterio de los otros dos filtros. Lo segundo es una decisión aparte y va contra la intuición, de modo que conviene dejarla escrita: sería fácil escribir `JOIN countries c ON … AND c.is_active`, y **eso convertiría desactivar un país en una forma de esconder a su gente**. La condición de país activo es del momento de asignarlo (`RN-SP-034`), no de leerlo, y este listado es precisamente la herramienta con la que se va a buscar a quien quedó en un país retirado para moverlo con `RF-SP-027`.
 
 **Respuesta `200`**
 
@@ -159,6 +177,7 @@ GET /api/v1/users?page=0&size=20&sort=lastName,asc
       "roles": [
         { "id": "018f3a2b-7c41-7000-9a3d-1f2e5b8c9d01", "code": "ASESOR", "name": "Asesor comercial" }
       ],
+      "country": { "id": "01a03336-6d00-7002-9c4f-5e7ad3000001", "code": "COL", "name": "Colombia" },
       "membership": {
         "id": "018f3a2b-7c41-7000-9a3d-1f2e5b8c9d05",
         "code": "ORO",
@@ -180,6 +199,7 @@ GET /api/v1/users?page=0&size=20&sort=lastName,asc
 Decisiones del contrato:
 
 - **`roles` va completa por fila, y vacía cuando la persona no tiene ninguno** (`CA-SP-343`). Nunca `null` ni campo ausente: una persona sin roles es un estado válido tras `RF-SP-024`, y distinguirlo con la ausencia del campo obligaría al cliente a tratar dos formas.
+- **`country` nunca es nulo, y es el único objeto anidado de esta fila del que se puede decir eso** (07-09-2026). `roles` puede venir vacío, `membership` puede venir nulo, `deletedAt` puede venir nulo; el país **está siempre**, porque la columna es `NOT NULL`. La consecuencia para quien consuma este listado es que **no tiene que escribir la rama del país ausente**, y por eso el `JOIN` es interno y no `LEFT`: un `LEFT JOIN` aquí sugeriría que la ausencia es posible y taparía con un nulo lo que en realidad sería una violación de integridad.
 - **`membership` es nula cuando la persona no tiene ninguna**, y **no es nula cuando la tiene vencida**. Es la distinción que `CA-SP-366` de `RF-SP-032` exige y que este endpoint es el primero en publicar: vencer no es lo mismo que no tener. El campo `current` dice cuál de los dos casos es, y `endsAt` dice hasta cuándo fue.
 - **`current` se calcula, no se almacena.** Vale `true` cuando `ends_at` es nulo o posterior al momento de la consulta. Ese momento es **el de la transacción de la base de datos**, no el del reloj de la aplicación (§7).
 - **`deletedAt` está siempre presente y vale `null` en los usuarios vigentes.** `spec.md` §6.2 lo declara «presente solo cuando se piden los eliminados»; se interpreta como que es entonces cuando **informa**, no como que el campo aparece y desaparece. Es el mismo criterio de `RF-SP-002` §4, y evita que el cliente tenga que tratar dos formas del mismo recurso según qué parámetro envió. `CA-SP-204` se satisface igual.
@@ -198,7 +218,7 @@ Decisiones del contrato:
 | `400` | `status` fuera de su dominio | `VAL-004` | `status` |
 | `400` | `roleId` o `membershipId` no son UUID canónicos | `VAL-004` | El parámetro |
 | `401` | Token ausente o inválido | `AUTH-001` | — |
-| `403` | Autenticado sin `users:read` | `AUTH-002` | — |
+| `403` | Autenticado sin `users:list` | `AUTH-002` | — |
 | `500` | Fallo no controlado | `ERR-500` | — |
 
 - **No hay `404` ni `422`.** Un filtro sin coincidencias devuelve `200` con la colección vacía (`FA-001`, `CA-SP-207`), y una página más allá de la última hace lo mismo.
@@ -229,12 +249,13 @@ EXISTS (SELECT 1 FROM user_roles ur
 -- filtro por membresía vigente
 EXISTS (SELECT 1 FROM user_memberships um
          WHERE um.user_id = u.id AND um.membership_id = :membresia
+           AND um.closed_at IS NULL
            AND (um.ends_at IS NULL OR um.ends_at > now()))
 ```
 
-**Por qué `EXISTS` y no `JOIN`.** Un `JOIN` a `user_roles` multiplica la fila del usuario por cada asignación que cumpla el predicado. Con un solo `roleId` el predicado deja una sola fila y el resultado parece correcto, pero `totalElements` se calcula sobre la misma sentencia y **contaría asignaciones en lugar de personas** en cuanto alguien añadiera un segundo valor al filtro. `EXISTS` corta en la primera coincidencia y no puede duplicar. La membresía tiene clave primaria `user_id` y no podría multiplicar, pero se escribe igual por simetría y para que el predicado de vigencia quede en un solo sitio.
+**Por qué `EXISTS` y no `JOIN`.** Un `JOIN` a `user_roles` multiplica la fila del usuario por cada asignación que cumpla el predicado. Con un solo `roleId` el predicado deja una sola fila y el resultado parece correcto, pero `totalElements` se calcula sobre la misma sentencia y **contaría asignaciones en lugar de personas** en cuanto alguien añadiera un segundo valor al filtro. `EXISTS` corta en la primera coincidencia y no puede duplicar. La membresía no podría multiplicar —el filtro cae sobre la fila abierta, que es única—, pero se escribe igual por simetría y para que el predicado de vigencia quede en un solo sitio.
 
-**La membresía devuelta, en cambio, sí va por `LEFT JOIN`** en la sentencia principal: es a lo sumo una fila por usuario —lo garantiza `pk_user_memberships`— y traerla aparte costaría una tercera sentencia para un dato que el `JOIN` resuelve gratis.
+**La membresía devuelta, en cambio, sí va por `LEFT JOIN`** en la sentencia principal: es a lo sumo una fila por usuario y traerla aparte costaría una tercera sentencia para un dato que el `JOIN` resuelve gratis. **Enmendado el 05-09-2026**: lo garantizaba `pk_user_memberships` sobre `user_id`, y desde que la tabla es un historial lo garantizan **el predicado `um.closed_at IS NULL` en el propio `JOIN`** y, debajo, `uq_user_memberships_abierta`. **Sin ese predicado esta consulta repetiría personas** en cuanto alguien tuviera una segunda membresía, y `totalElements` volvería a contar asignaciones en lugar de personas — exactamente el defecto que el párrafo anterior evita en `user_roles`.
 
 **Cómo se aplica la búsqueda.** El término se recorta; si queda vacío, no se añade predicado (`spec.md` §13). Si no, se escapan `\`, `%` y `_`, se envía **como parámetro enlazado** envuelto en comodines de contención y con `ESCAPE` explícito:
 
@@ -247,7 +268,7 @@ WHERE (f_unaccent(lower(u.username)) LIKE f_unaccent(lower(:t)) ESCAPE '\'
 
 La normalización la hace **la base de datos con la misma función que alimenta el índice**, por el motivo de `RF-SP-002` §4: normalizar en Java produce un resultado parecido y no idéntico, y cualquier divergencia se manifiesta como una persona indexada que no aparece en su propia búsqueda.
 
-**La búsqueda por fragmento de correo es deliberada** (`CA-SP-344`) y convierte el listado en una forma de comprobar si una dirección está registrada. `spec.md` §14, resolución 2, lo asume: el endpoint exige `users:read`, que es un permiso de administración, y quien lo tiene puede ver la lista entera de todos modos. La prohibición de `security.md` §5.5 alcanza a los endpoints **públicos** de autenticación, no a este.
+**La búsqueda por fragmento de correo es deliberada** (`CA-SP-344`) y convierte el listado en una forma de comprobar si una dirección está registrada. `spec.md` §14, resolución 2, lo asume: el endpoint exige `users:list`, que es un permiso de administración, y quien lo tiene puede ver la lista entera de todos modos. La prohibición de `security.md` §5.5 alcanza a los endpoints **públicos** de autenticación, no a este.
 
 **Cuántas sentencias cuesta una página.** Tres como máximo, y ninguna depende del número de filas:
 
@@ -256,7 +277,7 @@ La normalización la hace **la base de datos con la misma función que alimenta 
 SELECT u.id, u.username, u.email, u.first_name, u.last_name, u.status, u.deleted_at,
        m.id, m.code, m.name, um.ends_at
   FROM users u
-  LEFT JOIN user_memberships um ON um.user_id = u.id
+  LEFT JOIN user_memberships um ON um.user_id = u.id AND um.closed_at IS NULL
   LEFT JOIN memberships m       ON m.id = um.membership_id
  WHERE …predicado…
  ORDER BY …orden…, u.id
@@ -286,7 +307,7 @@ Cuatro puntos:
 
 | Endpoint | Permiso requerido |
 |---|---|
-| `GET /api/v1/users` | `users:read` |
+| `GET /api/v1/users` | `users:list` |
 
 - El permiso **ya existe** en el catálogo: lo siembra `V3__seed_permissions.sql` (`RF-SP-010`), y `V7__seed_system_roles.sql` lo asocia a `SUPERADMIN` y `ADMIN`.
 - Se declara sobre el método del controlador (`security.md` §6). Un endpoint sin declaración queda inaccesible, no público (Art. IV.1).
@@ -372,7 +393,7 @@ Bajo `READ COMMITTED` cada sentencia toma su propia instantánea, de modo que `t
 | El filtro por correo parcial convierte el listado en un verificador de direcciones registradas | Bajo | Consecuencia asumida en `spec.md` §14, resolución 2. Acotada por el permiso: quien puede preguntarlo puede ver la lista entera |
 | `totalElements` no corresponde exactamente a la página bajo escrituras concurrentes | Bajo | Aceptado, con el razonamiento de `RF-SP-002` §7. Más probable aquí que allí, y de síntoma benigno |
 | La búsqueda ignora los acentos pero el ordenamiento no: `Álvarez` y `Alvarez` se encuentran igual y se ordenan según la colación | Bajo | Se acepta, igual que en `RF-SP-002` §10. Aquí es **más visible**, porque el orden por defecto es por apellido y los apellidos llevan acentos. Si el negocio lo pide, es un cambio localizado en `UserSortField` |
-| Este endpoint expone en una sola respuesta el nombre, el correo y los roles de todas las personas del sistema, sin alcance por persona | Medio | Es el estado declarado por `spec.md` §5 mientras **D-22** siga abierta, no un descuido. Acotado por `users:read` y registrado en §5 y §8 como el primer endpoint a revisar |
+| Este endpoint expone en una sola respuesta el nombre, el correo y los roles de todas las personas del sistema, sin alcance por persona | Medio | Es el estado declarado por `spec.md` §5 mientras **D-22** siga abierta, no un descuido. Acotado por `users:list` y registrado en §5 y §8 como el primer endpoint a revisar |
 
 ## 11. Estrategia de prueba
 
@@ -391,7 +412,7 @@ Niveles: **Integración** (Testcontainers sobre PostgreSQL real, con `V18` a `V2
 | `CA-SP-344` | Integración + API | Buscando `perez@fac` se encuentra a `juan.perez@factech.co`. Es la prueba del fragmento de correo |
 | `CA-SP-345` | API | Ninguna fila contiene `lockedUntil`, ni siquiera nulo, sobre una persona bloqueada |
 | `CA-SP-210` | Unitaria + API | `PageRequestFactory` rechaza `size = 101`; el endpoint devuelve `400` con `VAL-002` y **no** una página de cien elementos, que es como se manifestaría el recorte silencioso |
-| `CA-SP-211` | API | Un actor autenticado sin `users:read` recibe `403`, no obtiene dato alguno y queda el evento de denegación en `audit_security_log` |
+| `CA-SP-211` | API | Un actor autenticado sin `users:list` recibe `403`, no obtiene dato alguno y queda el evento de denegación en `audit_security_log` |
 
 Casos límite de `spec.md` §13 y decisiones de este plan que exigen prueba propia (Art. VII.3):
 

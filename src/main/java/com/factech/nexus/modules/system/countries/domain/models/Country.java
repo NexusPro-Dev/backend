@@ -27,14 +27,14 @@ public class Country {
   private UUID id;
 
   /**
-   * {@code char(2)}, que en PostgreSQL es {@code bpchar}.
+   * {@code char(3)}, que en PostgreSQL es {@code bpchar}.
    *
-   * <p>La anotación de tipo JDBC no es decorativa: sin ella Hibernate espera {@code varchar(2)} y
+   * <p>La anotación de tipo JDBC no es decorativa: sin ella Hibernate espera {@code varchar(3)} y
    * {@code ddl-auto: validate} <b>impide arrancar</b>. Es la misma trampa que en el código de una
    * moneda.
    */
   @JdbcTypeCode(SqlTypes.CHAR)
-  @Column(name = "code", nullable = false, length = 2, updatable = false)
+  @Column(name = "code", nullable = false, length = 3, updatable = false)
   private String code;
 
   /**

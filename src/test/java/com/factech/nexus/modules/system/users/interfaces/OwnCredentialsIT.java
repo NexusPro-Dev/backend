@@ -34,9 +34,9 @@ import org.springframework.test.web.servlet.request.RequestPostProcessor;
 class OwnCredentialsIT extends IntegrationTestBase {
 
   private static final String SUPERADMIN_ROL = "01a02a33-4c00-7001-9c4f-5e7ad1000001";
-  private static final String CONTABILIDAD = "01a02a33-4c00-7003-9c4f-5e7ad1000003";
-  private static final String DIRECTOR = "01a02a33-4c00-7006-9c4f-5e7ad1000006";
-  private static final String MANAGER = "01a02a33-4c00-7005-9c4f-5e7ad1000005";
+  private static final String CODIGO_ACOTADO = "AUDITORIA_ACOTADA";
+  private static final String DIRECTOR = "01a02a33-4c00-7006-9c4f-5e7ad1000004";
+  private static final String MANAGER = "01a02a33-4c00-7005-9c4f-5e7ad1000003";
 
   private static final String CLAVE = "ClaveLargaYSegura2026";
   private static final String NUEVA = "OtraClaveLargaDistinta2026";
@@ -52,7 +52,9 @@ class OwnCredentialsIT extends IntegrationTestBase {
     limpiar();
     juan = crearPersona("jperez", "juan.perez@factech.co");
     jdbc.update(
-        "INSERT INTO user_roles (user_id, role_id) VALUES (?, ?::uuid)", juan, CONTABILIDAD);
+        "INSERT INTO user_roles (user_id, role_id, role_type) SELECT ?, r.id, r.role_type FROM roles r WHERE r.id = ?",
+        juan,
+        crearRolAcotado(jdbc, CODIGO_ACOTADO, "Auditoría acotada"));
   }
 
   @AfterEach
@@ -62,6 +64,7 @@ class OwnCredentialsIT extends IntegrationTestBase {
 
   private void limpiar() {
     jdbc.update("DELETE FROM refresh_tokens");
+    jdbc.update("DELETE FROM client_sellers");
     jdbc.update("DELETE FROM user_supervisors");
     jdbc.update("DELETE FROM user_memberships");
     jdbc.update("DELETE FROM user_roles");
@@ -69,7 +72,11 @@ class OwnCredentialsIT extends IntegrationTestBase {
     jdbc.update(
         "DELETE FROM role_permissions WHERE role_id IN (SELECT id FROM roles WHERE is_system = false)");
     jdbc.update("DELETE FROM roles WHERE is_system = false");
-    jdbc.update("DELETE FROM memberships WHERE level > 0");
+    // BARRIDO TOTAL Y REPOSICIÓN, en ese orden: conservar BECA haría depender esta
+    // clase del ORDEN DE EJECUCIÓN — según quién haya corrido antes, la fila queda
+    // colgando de VIP (`V47`) o suelta, y el barrido choca con `fk_memberships_parent`.
+    jdbc.update("DELETE FROM memberships");
+    reponerElSuelo(jdbc);
     jdbc.update(
         """
         UPDATE users
@@ -80,7 +87,7 @@ class OwnCredentialsIT extends IntegrationTestBase {
         """,
         SUPERADMIN);
     jdbc.update(
-        "INSERT INTO user_roles (user_id, role_id) VALUES (?, ?::uuid) ON CONFLICT DO NOTHING",
+        "INSERT INTO user_roles (user_id, role_id, role_type) SELECT ?, r.id, r.role_type FROM roles r WHERE r.id = ?::uuid ON CONFLICT DO NOTHING",
         SUPERADMIN,
         SUPERADMIN_ROL);
   }
@@ -311,23 +318,30 @@ class OwnCredentialsIT extends IntegrationTestBase {
   // ---------------------------------------------------------------------------
   // La caducidad, que es lo que ata las dos operaciones
   // ---------------------------------------------------------------------------
-
   @Test
-  @DisplayName("la credencial provisional CADUCA: pasado el plazo deja de autenticar")
-  void laCredencialProvisionalCaduca() throws Exception {
+  @DisplayName("la credencial provisional VENCIDA ya no corta el acceso: entra y le toca cambiarla")
+  void laCredencialProvisionalVencidaAutenticaYObliga() throws Exception {
     mvc.perform(restablecer(juan, NUEVA)).andExpect(status().isNoContent());
 
-    // Recién fijada, entra.
-    mvc.perform(login("jperez", NUEVA)).andExpect(status().isOk());
+    // Recién fijada, entra y le toca cambiarla.
+    mvc.perform(login("jperez", NUEVA))
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$.mustChangePassword").value(true));
 
     jdbc.update(
         "UPDATE users SET provisional_password_expires_at = now() - interval '1 hour' WHERE id = ?",
         juan);
 
-    // Sin esta comprobación, una cuenta restablecida y nunca usada conserva
-    // indefinidamente una contraseña que otra persona conoce, y nadie se entera
-    // porque no falla nada.
-    mvc.perform(login("jperez", NUEVA)).andExpect(status().isUnauthorized());
+    // Hasta el 25-08-2026 esto respondía `401`: la credencial provisional moría
+    // pasado el plazo y había que restablecerla. La decisión de ese día es que
+    // la fecha SOLO marca, de modo que vencida y por vencer valen igual.
+    //
+    // Su coste queda fijado aquí para que nadie lo descubra por sorpresa: la
+    // contraseña que fijó otra persona **ya no expira**, y sigue abriendo la
+    // puerta mientras nadie entre a cambiarla.
+    mvc.perform(login("jperez", NUEVA))
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$.mustChangePassword").value(true));
   }
 
   @Test
@@ -353,12 +367,28 @@ class OwnCredentialsIT extends IntegrationTestBase {
     mvc.perform(perfil(juan))
         .andExpect(status().isOk())
         .andExpect(jsonPath("$.username").value("jperez"))
-        .andExpect(jsonPath("$.roles[0].code").value("CONTABILIDAD"))
+        .andExpect(jsonPath("$.roles[0].code").value(CODIGO_ACOTADO))
         .andExpect(jsonPath("$.roles[0].status").value("ACTIVO"))
         // Es la razón de que este endpoint exista: sin él la interfaz tenía que
         // deducir del listado de roles qué puede hacer la persona.
         .andExpect(jsonPath("$.permissions[0]").value("audit:read-changes"))
-        .andExpect(jsonPath("$.mustChangePassword").value(true));
+        // FALSO, y esto es la regla del 25-08-2026 en su forma más visible:
+        // `juan` se creó con `must_change_password = true` y **sin caducidad**,
+        // como cualquier alta. Quien decide es la fecha, y no la hay.
+        .andExpect(jsonPath("$.mustChangePassword").value(false));
+  }
+
+  @Test
+  @DisplayName("CA-SP-473 — devuelve el identificador del actor, y es EL MISMO de su ficha")
+  void elPerfilTraeElIdentificador() throws Exception {
+    // No basta con que venga un `uuid`. Este campo existe para poner el
+    // identificador en el cuerpo de una compra (`R-28` del frontend), de modo
+    // que uno PLAUSIBLE Y EQUIVOCADO —el de la sesión, el de otra tabla—
+    // dejaría comprar a nombre de otro sin que nada fallara. Se contrasta
+    // contra el identificador real de la persona, no contra sí mismo.
+    mvc.perform(perfil(juan))
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$.id").value(juan.toString()));
   }
 
   @Test
@@ -379,8 +409,14 @@ class OwnCredentialsIT extends IntegrationTestBase {
   @DisplayName("CA-SP-449 — devuelve el superior comercial y NUNCA el equipo")
   void soloElSuperior() throws Exception {
     UUID manager = crearPersona("elmanager", "mgr@factech.co");
-    jdbc.update("INSERT INTO user_roles (user_id, role_id) VALUES (?, ?::uuid)", manager, MANAGER);
-    jdbc.update("INSERT INTO user_roles (user_id, role_id) VALUES (?, ?::uuid)", juan, DIRECTOR);
+    jdbc.update(
+        "INSERT INTO user_roles (user_id, role_id, role_type) SELECT ?, r.id, r.role_type FROM roles r WHERE r.id = ?::uuid",
+        manager,
+        MANAGER);
+    jdbc.update(
+        "INSERT INTO user_roles (user_id, role_id, role_type) SELECT ?, r.id, r.role_type FROM roles r WHERE r.id = ?::uuid",
+        juan,
+        DIRECTOR);
     jdbc.update(
         "INSERT INTO user_supervisors (id, user_id, supervisor_id, started_at) VALUES (gen_random_uuid(), ?, ?, now())",
         juan,
@@ -395,7 +431,9 @@ class OwnCredentialsIT extends IntegrationTestBase {
 
     // A quién reporta uno es un dato del actor; quiénes dependen de uno es un
     // conjunto de terceros — la distinción que sostiene la reserva de D-22.
-    assertThat(cuerpo).contains("elmanager").doesNotContain("elagente").doesNotContain("team");
+    // `"team"` con comillas: el campo, no la palabra — desde RF-SP-062 el perfil lista
+    // `broker-accounts:read-own-team` entre los permisos efectivos.
+    assertThat(cuerpo).contains("elmanager").doesNotContain("elagente").doesNotContain("\"team\"");
   }
 
   @Test
@@ -419,6 +457,54 @@ class OwnCredentialsIT extends IntegrationTestBase {
 
     // Lo que ha dejado de valer es la sesión, no la ruta.
     mvc.perform(perfil(juan)).andExpect(status().isUnauthorized());
+  }
+
+  @Test
+  @DisplayName("CA-SP-581 — el perfil publica el país del actor, y NUNCA va ausente")
+  void elPerfilLlevaElPais() throws Exception {
+    // Este registro usa inclusión NON_NULL, de modo que un país nulo
+    // DESAPARECERÍA del JSON en silencio en lugar de fallar. Que no pueda serlo
+    // —`country_id` es NOT NULL— es la única razón por la que la interfaz puede
+    // leerlo sin comprobar si existe.
+    mvc.perform(perfil(juan))
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$.country.id").value(COLOMBIA.toString()))
+        .andExpect(jsonPath("$.country.code").value("COL"))
+        .andExpect(jsonPath("$.country.name").value("Colombia"));
+  }
+
+  @Test
+  @DisplayName("CA-SP-581 — el perfil propio NO deja cambiar el país")
+  void elPerfilNoCambiaElPais() throws Exception {
+    // Ni esta consulta, que es de solo lectura, ni `RF-SP-044`: el país lo
+    // corrige un administrador por `RF-SP-027`, porque decide qué medios de pago
+    // se ofrecen y cambiárselo uno mismo sería cambiarse de mercado.
+    mvc.perform(
+            org.springframework.test.web.servlet.request.MockMvcRequestBuilders.patch(
+                    "/api/v1/users/me")
+                .with(comoActor(juan))
+                .contentType(org.springframework.http.MediaType.APPLICATION_JSON)
+                .content("{\"countryId\":\"" + COLOMBIA + "\"}"))
+        .andExpect(status().isBadRequest());
+  }
+
+  @Test
+  @DisplayName(
+      "CA-SP-682 — la membresía del perfil trae su NOMBRE y su COLOR, junto al código y el nivel")
+  void laMembresiaTraeNombreYColor() throws Exception {
+    // `reponerElSuelo` deja BECA con el color de `V46`; a Juan se le da el suelo.
+    darElSuelo(jdbc, juan);
+
+    mvc.perform(perfil(juan))
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$.membership.code").value("BECA"))
+        .andExpect(jsonPath("$.membership.name").value("Free"))
+        .andExpect(jsonPath("$.membership.level").value(1))
+        // `RN-SP-024`: seis hexadecimales sin `#`.
+        .andExpect(jsonPath("$.membership.color").value("9E9E9E"))
+        .andExpect(
+            jsonPath("$.membership.color")
+                .value(org.hamcrest.Matchers.matchesPattern("^[0-9A-F]{6}$")));
   }
 
   @Test
@@ -488,7 +574,16 @@ class OwnCredentialsIT extends IntegrationTestBase {
    * Un actor con permisos no distinguiría eso de tenerlos.
    */
   private RequestPostProcessor comoActor(UUID quien) {
-    return user(quien.toString()).authorities();
+    // Desde RF-SP-062 (21-09-2026) lo propio exige permiso —autenticarse no
+    // autoriza nada—: el actor porta los de alcance propio de SP y NINGÚN otro,
+    // que es lo que las pruebas de «sin permiso» querían decir. Hasta entonces,
+    // `.authorities()` vacío.
+    return user(quien.toString())
+        .authorities(
+            () -> "users:read-own-profile",
+            () -> "users:update-own-profile",
+            () -> "users:change-own-password",
+            () -> "users:read-own-sellers");
   }
 
   private void abrirSesion(UUID quien) {
@@ -506,8 +601,8 @@ class OwnCredentialsIT extends IntegrationTestBase {
     jdbc.update(
         """
         INSERT INTO users (id, username, email, first_name, last_name, password_hash,
-                           must_change_password, status)
-        VALUES (?, ?, ?, 'Juan', 'Pérez', ?, true, 'ACTIVO')
+                           must_change_password, status, country_id)
+        VALUES (?, ?, ?, 'Juan', 'Pérez', ?, true, 'ACTIVO', (SELECT id FROM countries WHERE code = 'COL'))
         """,
         id,
         username,

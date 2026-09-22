@@ -52,6 +52,31 @@ public enum ProblemKind {
 
   SIN_PERMISO(HttpStatus.FORBIDDEN, "sin-permiso", "No tiene permiso para ejecutar esta operación"),
 
+  /**
+   * La credencial la fijó otra persona y todavía no se ha cambiado (`RF-SP-034` · `FA-002`).
+   *
+   * <p>Lo produce {@code MustChangePasswordFilter}, dentro de la cadena de seguridad y por tanto
+   * fuera del alcance de {@link GlobalExceptionHandler}, igual que {@link #DEMASIADAS_PETICIONES}.
+   *
+   * <p><b>Comparte el {@code 403} con {@link #SIN_PERMISO} y no comparte su {@code type}</b>, que
+   * es lo que aquí importa. Los dos son denegaciones, pero lo que el cliente debe hacer con cada
+   * una es opuesto: ante «no tiene permiso» la interfaz oculta la opción, y ante esta lleva a la
+   * pantalla de cambiar la contraseña. Distinguirlas por el estado es imposible; por el {@code
+   * type}, inmediato. Un cliente que solo mirase el {@code 403} dejaría a la persona ante un menú
+   * que la rechaza entero sin decirle por qué.
+   *
+   * <p><b>Por qué {@code 403} y no {@code 428}.</b> RFC 6585 §3 define {@code 428} para
+   * <i>precondiciones de la petición</i> —el {@code If-Match} que evita la actualización perdida—,
+   * de modo que un cliente puede reintentar añadiendo una cabecera. Aquí no hay nada que añadir a
+   * la petición: lo que falta es un cambio de estado de la cuenta, hecho desde <b>otro</b>
+   * endpoint. {@code 403} dice lo que ocurre —denegado, no lo reintentes tal cual— y es lo que las
+   * bibliotecas de cliente ya tratan como terminal.
+   */
+  CAMBIO_DE_CONTRASENA_REQUERIDO(
+      HttpStatus.FORBIDDEN,
+      "cambio-de-contrasena-requerido",
+      "Debe cambiar su contraseña antes de operar"),
+
   INTERNO(HttpStatus.INTERNAL_SERVER_ERROR, "interno", "Error interno");
 
   private static final String BASE = "https://nexus.factech.co/errors/";

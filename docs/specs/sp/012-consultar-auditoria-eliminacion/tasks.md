@@ -42,6 +42,7 @@ Hereda de `RF-SP-011` el conteo acotado, el orden fijo, el rango semiabierto y e
 | `T-11` | Prueba automática de **ausencia de cascadas**: consulta sobre `pg_constraint` que falla si aparece cualquier clave foránea con `confdeltype` en `c` o `n`, en cualquier tabla | — | La prueba falla al declarar a propósito una clave foránea con `ON DELETE CASCADE`. Es lo que exige `spec.md` §14 y lo que impide que una migración futura abra un camino de borrado sin evento | Hecha |
 | `T-12` | Documentación OpenAPI del endpoint: los diez parámetros, la envoltura con `totalIsExact` y los estados `400`, `401`, `403` y `500` | `T-09` | El contrato publicado coincide con el comportamiento real (Art. VIII.6), y documenta que `reason` es nulo en las asociaciones por diseño | Hecha |
 | `T-13` | Actualizar la matriz de trazabilidad de `docs/requirements.md` | `T-09` | La fila de `RF-SP-012` refleja el estado y enlaza esta tripleta | Hecha |
+| `T-14` | El actor resuelto, con el mismo `LEFT JOIN` que `RF-SP-011` · `T-14` | — | Cubierto por la suite de auditoría | **Hecha el 28-08-2026** |
 
 **Estados:** `Pendiente` · `En curso` · `Hecha` · `Bloqueada`.
 

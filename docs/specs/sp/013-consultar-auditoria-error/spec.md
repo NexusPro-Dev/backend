@@ -8,6 +8,7 @@
 | Autor | Responsable técnico |
 | Aprobada por | Responsable técnico |
 | Fecha de aprobación | 21-08-2026 |
+| Enmendada el | 28-08-2026 — ver el control de cambios |
 
 ---
 
@@ -67,6 +68,7 @@ Ninguna. Su acceso lo controla el permiso de lectura de auditoría de error, que
 | Dato | Descripción |
 |---|---|
 | Eventos | Momento, actor, recurso, operación, código, tipo, severidad, código de estado devuelto y mensaje saneado |
+| Actor resuelto | De cada evento, el **nombre de usuario** de quien lo hizo —inmutable (`RN-SP-016`)— y su nombre completo **actual**. El identificador sigue viajando y es el dato probatorio |
 | Origen | Dirección de red y cliente, cuando el fallo vino de una petición |
 | Correlación | Identificador que enlaza con la petición y con el registro técnico |
 | Paginación | Total de elementos, total de páginas y página actual |
@@ -152,3 +154,4 @@ Ninguna. Las tres se resolvieron el 21-08-2026, antes de aprobar la especificaci
 | 1 | ¿Se agrupan los fallos repetidos? | **No: cada ocurrencia es un evento.** Agrupar convierte mil fallos en una fila con un contador y borra cuándo empezó la caída y cuándo terminó, que es lo primero que se pregunta al diagnosticarla. El volumen se acota con la retención, no falseando el registro |
 | 2 | ¿Debe consultarse el conteo por tipo y severidad? | **No aquí.** Detectar una degradación en curso es observabilidad —métricas y alertas sobre la serie temporal—, y este registro sirve para reconstruir un fallo concreto ya ocurrido. Añadirle agregados lo convertiría en un panel de métricas peor que el panel de métricas |
 | 3 | ¿Cuál es la retención de este registro? (D-10) | **No pertenece a esta especificación.** La consulta se comporta igual con noventa días de historia que con dos años: la retención es una decisión de infraestructura, y D-10 queda abierta en `architecture.md` hasta la migración de observabilidad. Lo único que la spec fija es que el rango consultable no se limita |
+| 0.3.0 | 28-08-2026 | **El actor llega resuelto**, por decisión del responsable del proyecto. Hasta hoy la respuesta traía solo `actorId`, y el motivo escrito era que un nombre es una foto del momento en que se **consulta** y no del momento en que **ocurrió** el evento. Ese argumento no se descarta, se acota: la identidad que se devuelve es el **`username`**, que es **inmutable** (`RN-SP-016`) y dice hoy lo mismo que decía entonces; el nombre completo se devuelve **declarado como actual** y por comodidad, no como evidencia. `actorId` sigue viajando y sigue siendo el dato probatorio, de modo que el cambio es **aditivo**. Se resuelve con un `LEFT JOIN` en la **misma** sentencia —una consulta por fila serían cien consultas por página— que **no filtra por `deleted_at`**: una auditoría que dejara de decir quién hizo algo porque esa persona fue dada de baja perdería su valor justo donde más se consulta. | Responsable técnico |

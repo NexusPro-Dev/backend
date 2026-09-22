@@ -33,9 +33,9 @@ import org.springframework.web.bind.annotation.RestController;
  * {@code /status}, de modo que la ruta del recurso completo no está mapeada para ningún método.
  *
  * <p><b>El permiso de modificación está reservado a `SUPERADMIN`</b>: {@code
- * V7__seed_system_roles.sql} lo excluye del catálogo que recibe `ADMIN`, junto con la lectura de la
- * auditoría de seguridad. El estado de una moneda condiciona todo cálculo financiero, y `spec.md`
- * de `RF-SP-023` declara un único actor.
+ * V8__semilla_permisos_y_roles.sql} lo excluye del catálogo que recibe `ADMIN`, junto con la
+ * lectura de la auditoría de seguridad. El estado de una moneda condiciona todo cálculo financiero,
+ * y `spec.md` de `RF-SP-023` declara un único actor.
  */
 @RestController
 @RequestMapping("/api/v1/currencies")

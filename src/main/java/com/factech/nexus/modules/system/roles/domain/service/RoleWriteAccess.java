@@ -38,6 +38,14 @@ import org.springframework.stereotype.Component;
  * operación que ese actor no puede ejecutar sobre ese recurso. La diferencia se nota en la
  * auditoría — el manejador global lo registra como denegación de autorización con severidad alta en
  * {@code audit_security_log}, y no como error de operación.
+ *
+ * <p><b>Las dos operaciones sobre permisos (`RF-SP-005`, `RF-SP-006`) cruzan solo la primera y la
+ * tercera</b>, desde el 16-09-2026 (`security.md` v0.58.0). `RN-SEG-012` protege la identidad y la
+ * posición del rol —código, tipo, padre, estado, eliminación—, que es lo que sostiene la
+ * contención; lo que cada rol concede se administra por la vía normal, y es la única vía por la que
+ * los vendedores y {@code CLIENTE} —que `V8` siembra vacíos a propósito— pueden recibir alguno. La
+ * excepción vive aquí, en {@link #cargarConPermisosModificables}, y no en un {@code if} por
+ * servicio: así la decisión está escrita una sola vez.
  */
 @Component
 public class RoleWriteAccess {
@@ -63,6 +71,17 @@ public class RoleWriteAccess {
   public Role cargarModificable(UUID roleId, String codigoInexistente) {
     Role rol = cargarVigente(roleId, codigoInexistente);
     verificarNoEsDeSistema(rol);
+    verificarNoEsDelActor(rol);
+    return rol;
+  }
+
+  /**
+   * La primera y la tercera puerta, <b>sin `RN-SEG-012`</b>: para agregar y retirar permisos
+   * (`RF-SP-005` `T-15`, `RF-SP-006` `T-15`). Un rol de sistema recibe y pierde permisos como
+   * cualquier otro, con las cotas de contención de siempre.
+   */
+  public Role cargarConPermisosModificables(UUID roleId, String codigoInexistente) {
+    Role rol = cargarVigente(roleId, codigoInexistente);
     verificarNoEsDelActor(rol);
     return rol;
   }

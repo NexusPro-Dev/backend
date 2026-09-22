@@ -9,6 +9,8 @@
 | Autor | Responsable técnico |
 | Aprobado por | Responsable del proyecto |
 | Fecha de aprobación | 22-08-2026 |
+| Reabierto el | 07-09-2026 — `RN-SP-034`: la respuesta incorpora `country`, ver §4 (Art. I.7) |
+| Reabierto el | 08-09-2026 — `RN-SP-035` y `RN-SP-037`: la respuesta incorpora `document` y `contact`, ver §4 (Art. I.7) |
 
 !!! info "Qué va en este documento"
 
@@ -18,6 +20,7 @@
 
 El comportamiento —flujos, excepciones, validaciones y criterios de aceptación— es el de [`spec.md`](spec.md) y no se repite aquí. Este documento decide una sola cosa importante, y las demás se derivan de ella: **de dónde salen los permisos efectivos**.
 
+| Reabierto el | 10-09-2026 — el contacto publica **dos teléfonos**: entra `companyPhone`, opcional y presente aunque vaya nulo (Art. I.7) |
 ---
 
 ## 1. Enfoque
@@ -43,7 +46,7 @@ Todo lo que necesita ya existe o lo crea otro requerimiento:
 |---|---|---|
 | `users` | `V18__create_users.sql` (`RF-SP-024`) | Fila de la persona, incluida `deleted_at` |
 | `user_roles` | `V19__create_user_roles.sql` (`RF-SP-024`) | Roles asignados, leídos por el prefijo `user_id` de su clave primaria |
-| `user_memberships`, `memberships` | `V20` (`RF-SP-024`) y `V13` (`RF-SP-016`) | Membresía vigente y su nivel |
+| `user_memberships`, `memberships` | `V20` (`RF-SP-024`) y `V13` (`RF-SP-016`) | Membresía **abierta** y su nivel. `V56` convierte la primera en historial, y el cruce se acota a `closed_at IS NULL` |
 | `roles`, `role_permissions`, `permissions` | `V5`, `V6` (`RF-SP-001`) y `V2` (`RF-SP-010`) | Estado de cada rol y permisos que declara |
 | `CanonicalUuidConverter` | `RF-SP-003` | Que un identificador no canónico sea `400` y no `404` |
 
@@ -122,6 +125,18 @@ Sin cuerpo y sin parámetros de consulta. No hay `?include=…`: la especificaci
     { "id": "018f3a2b-7c41-7000-9a3d-1f2e5b8c9d02", "code": "SOPORTE", "name": "Soporte", "status": "INACTIVO" }
   ],
   "effectivePermissions": ["users:read", "roles:read"],
+  "country": { "id": "01a03336-6d00-7002-9c4f-5e7ad3000001", "code": "COL", "name": "Colombia" },
+  "document": {
+    "type": { "id": "01a081a0-0000-7001-9c4f-5e7ad5000001", "abbreviation": "CC", "name": "Cédula de ciudadanía" },
+    "number": "1020304050"
+  },
+  "contact": {
+    "phone": "+573001234567",
+    "companyPhone": "+576012345678",
+    "addressLine1": "Calle 100 # 15-20",
+    "addressLine2": "Torre B, apto 502",
+    "city": "Bogotá"
+  },
   "membership": {
     "id": "018f3a2b-7c41-7000-9a3d-1f2e5b8c9d05",
     "code": "ORO",
@@ -142,6 +157,10 @@ Decisiones del contrato:
 - **`roles` lleva el estado de cada uno**, y esa es la mitad de `FA-002`: la otra mitad es que `effectivePermissions` llegue vacía. Las dos juntas son lo que explica por qué una persona con roles no puede hacer nada.
 - **`effectivePermissions` es una lista de códigos, ordenada y sin duplicados** (`CA-SP-213`). No se devuelven los identificadores de los permisos ni su descripción: la pregunta es «qué puede hacer», y `RF-SP-015` responde qué significa cada uno. El orden es alfabético por código, para que la respuesta sea estable entre llamadas y comparable entre personas.
 - **No se pagina.** `architecture.md` §7.4 exige paginar «las colecciones», y aquí se aparta de forma consciente por el mismo argumento de `RF-SP-003` §4: los permisos efectivos de una persona son decenas, no constituyen un recurso navegable y paginarlos obligaría a dos peticiones para responder la única pregunta del requerimiento.
+- **`document` SÍ puede ser nulo, y es la diferencia con `country`** (08-09-2026). Las personas registradas antes de esta enmienda no tienen documento y el esquema lo admite a propósito: inventarles uno sería escribir algo falso sobre su identidad. De modo que este detalle es el sitio donde esa ausencia **se ve**, y quien administra la usa para saber a quién hay que completar. El objeto llega en **nulo y no ausente**, para que el cliente no tenga que distinguir «no tiene» de «este endpoint no informa».
+- **`contact` está siempre presente aunque sus cuatro campos vengan nulos**, con el mismo criterio.
+- **El tipo de documento se resuelve con un `LEFT JOIN` y no con uno interno**, justamente porque puede faltar: un `JOIN` interno haría **desaparecer del detalle** a toda persona sin documento, que es el error más caro posible aquí — no falla, oculta.
+- **`country` nunca es nulo y se devuelve aunque el país esté inactivo** (`CA-SP-577`, 07-09-2026). Es un `JOIN` interno por una columna `NOT NULL`, y **no lleva `is_active` en la proyección ni condición sobre él en el predicado**: la desactivación de un país retira la opción del alta (`RF-SP-022`), no oculta dónde está quien ya lo tenía. Que el país esté inactivo es un dato que quien administra necesita ver, no ocultar — es exactamente el caso en que hay que usar `RF-SP-027` para moverlo, y esta es la pantalla desde la que se decide.
 - **`membership` lleva `level`**, que el listado no devuelve. Es el dato con el que los módulos de academia y productos deciden qué contenido ofrecer, y esta es la pantalla donde se comprueba.
 - **`membership` no es nula cuando está vencida**, con la misma semántica que `RF-SP-025` §4: `current` dice si concede nivel y `endsAt` hasta cuándo lo hizo. Vencer no es lo mismo que no tener (`RN-SP-014`).
 - **`lockedUntil` es nulo en dos casos distintos y eso es información**: la cuenta no está bloqueada, o lo está **por decisión de un actor** y por tanto sin expiración (`RF-SP-028`). El estado desambigua: `BLOQUEADO` con `lockedUntil` nulo es un bloqueo manual, que no se levanta solo. `CA-SP-217` se satisface en el otro caso.
@@ -171,7 +190,7 @@ SELECT u.id, u.username, u.email, u.first_name, u.last_name, u.status,
        u.last_login_at, u.locked_until, u.created_at, u.updated_at,
        m.id, m.code, m.name, m.level, um.ends_at
   FROM users u
-  LEFT JOIN user_memberships um ON um.user_id = u.id
+  LEFT JOIN user_memberships um ON um.user_id = u.id AND um.closed_at IS NULL
   LEFT JOIN memberships m       ON m.id = um.membership_id
  WHERE u.id = :id AND u.deleted_at IS NULL;
 
@@ -184,7 +203,7 @@ SELECT r.id, r.code, r.name, r.status
 ```
 
 - **El orden importa.** Primero la persona: si no existe o está eliminada, se devuelve `404` **sin ejecutar la segunda sentencia** y sin preguntar por permiso alguno.
-- **La membresía va por `LEFT JOIN` en la primera sentencia**, porque es a lo sumo una fila —lo garantiza `pk_user_memberships`— y traerla aparte costaría una tercera sentencia para un dato que el `JOIN` resuelve gratis. Los roles no pueden ir ahí: dos colecciones en la misma sentencia producen el producto cartesiano que `RF-SP-003` §4 describe, y aquí la segunda colección sería la de permisos.
+- **La membresía va por `LEFT JOIN` en la primera sentencia**, porque es a lo sumo una fila y traerla aparte costaría una tercera sentencia para un dato que el `JOIN` resuelve gratis. **Enmendado el 05-09-2026**: lo garantizaba `pk_user_memberships` sobre `user_id`, y desde que `user_memberships` es un historial lo garantizan **el predicado `um.closed_at IS NULL` en el propio `JOIN`** y, debajo, `uq_user_memberships_abierta` (`V56`). Sin ese predicado, el detalle de quien haya cambiado de nivel alguna vez devolvería **varias filas** — y esta sentencia da por hecho que devuelve una. Los roles no pueden ir ahí: dos colecciones en la misma sentencia producen el producto cartesiano que `RF-SP-003` §4 describe, y aquí la segunda colección sería la de permisos.
 - **No hay `N+1` posible**, por el mismo argumento de `RF-SP-002` y `RF-SP-003`: no se carga `UserEntity`, de modo que no hay asociación perezosa que un mapeador, un `toString` o la serialización puedan recorrer.
 - **La resolución de permisos no añade sentencias en el caso común**, porque la caché ya tiene la entrada de cada rol; en un fallo de caché añade las que ese componente necesite, que son suyas y no de este requerimiento.
 

@@ -18,8 +18,8 @@ class PrivilegeContainmentTest {
   void porPermisosYNoPorRol() {
     // Es la propiedad que hace correcta la regla: el actor no necesita portar el
     // rol, sino todo lo que ese rol declara. Un administrador puede conceder
-    // CONTABILIDAD sin ser contable.
-    AssignableRole contabilidad = rol("CONTABILIDAD", "audit:read-changes", "audit:read-deletions");
+    // ADMIN_ROL sin ser contable.
+    AssignableRole contabilidad = rol("ADMIN", "audit:read-changes", "audit:read-deletions");
     Set<String> delActor = Set.of("audit:read-changes", "audit:read-deletions", "users:create");
 
     assertThat(PrivilegeContainment.excesos(List.of(contabilidad), delActor)).isEmpty();

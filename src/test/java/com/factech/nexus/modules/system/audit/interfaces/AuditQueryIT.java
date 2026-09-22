@@ -36,7 +36,7 @@ import org.springframework.test.web.servlet.request.RequestPostProcessor;
 class AuditQueryIT extends IntegrationTestBase {
 
   private static final String SUPERADMIN_ROL = "01a02a33-4c00-7001-9c4f-5e7ad1000001";
-  private static final String CONTABILIDAD = "01a02a33-4c00-7003-9c4f-5e7ad1000003";
+  private static final String ADMIN = "01a02a33-4c00-7002-9c4f-5e7ad1000002";
 
   @Autowired private MockMvc mvc;
   @Autowired private JdbcTemplate jdbc;
@@ -137,7 +137,7 @@ class AuditQueryIT extends IntegrationTestBase {
   @Test
   @DisplayName("CA-SP-086 — un evento sin origen de red devuelve correlación e IP vacías A LA VEZ")
   void eventoSinOrigenDeRed() throws Exception {
-    // Lo escribe una migración: `V7__seed_system_roles.sql` siembra los roles de
+    // Lo escribe una migración: `V8__semilla_permisos_y_roles.sql` siembra los roles de
     // sistema sin petición HTTP detrás.
     mvc.perform(cambios().param("entity", "roles").param("module", "SP"))
         .andExpect(status().isOk());
@@ -222,7 +222,7 @@ class AuditQueryIT extends IntegrationTestBase {
   @DisplayName("FA-001 — la eliminación de una asociación va SIN motivo, y es correcto")
   void eliminacionDeAsociacion() throws Exception {
     UUID rol = crearRolPorApi("CON_PERMISOS", "Rol con permisos");
-    UUID permiso = permisoDeContabilidad();
+    UUID permiso = permisoDelAdministrador();
 
     mvc.perform(
             post("/api/v1/roles/{id}/permissions", rol)
@@ -463,6 +463,123 @@ class AuditQueryIT extends IntegrationTestBase {
   // Utilidades
   // ---------------------------------------------------------------------------
 
+  // ---------------------------------------------------------------------------
+  // El actor resuelto (28-08-2026)
+  // ---------------------------------------------------------------------------
+
+  @Test
+  @DisplayName("`CA-SP-471` — el actor llega resuelto, y el identificador sigue estando")
+  void elActorLlegaResuelto() throws Exception {
+    crearRolPorApi("PRIMERO", "Rol primero");
+
+    mvc.perform(cambios())
+        .andExpect(status().isOk())
+        // El identificador NO se va: la adición es aditiva y quien ya lo
+        // consumía no se entera del cambio.
+        .andExpect(jsonPath("$.content[0].actorId").value(SUPERADMIN.toString()))
+        .andExpect(jsonPath("$.content[0].actor.username").value("superadmin"))
+        .andExpect(jsonPath("$.content[0].actor.fullName").value("Super Administrador"));
+  }
+
+  @Test
+  @DisplayName("lo que hizo el SISTEMA trae actorId nulo y actor nulo, y eso lo distingue")
+  void elEventoDelSistemaNoTieneActor() throws Exception {
+    sembrarCambio(null);
+
+    mvc.perform(cambios())
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$.content[0].actorId").value(org.hamcrest.Matchers.nullValue()))
+        // Presente y nulo, no ausente: el campo se declara siempre.
+        .andExpect(jsonPath("$.content[0].actor").value(org.hamcrest.Matchers.nullValue()));
+  }
+
+  @Test
+  @DisplayName("un actor ELIMINADO sigue resolviendo: la auditoría no pierde el quién")
+  void elActorEliminadoSigueResolviendo() throws Exception {
+    UUID id = sembrarPersona("retirada", "Persona", "Retirada", true);
+    sembrarCambio(id);
+
+    mvc.perform(cambios())
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$.content[0].actor.username").value("retirada"))
+        .andExpect(jsonPath("$.content[0].actor.fullName").value("Persona Retirada"));
+  }
+
+  @Test
+  @DisplayName("un actor que ya NO está en la tabla deja el identificador y el actor nulo")
+  void elActorInexistenteDejaElIdentificador() throws Exception {
+    UUID fantasma = UUID.randomUUID();
+    sembrarCambio(fantasma);
+
+    // Las dos ausencias se distinguen sin un campo que lo diga: aquí hay
+    // identificador y no hay actor; en el evento del sistema no hay ninguno.
+    mvc.perform(cambios())
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$.content[0].actorId").value(fantasma.toString()))
+        .andExpect(jsonPath("$.content[0].actor").value(org.hamcrest.Matchers.nullValue()));
+  }
+
+  @Test
+  @DisplayName(
+      "`CA-SP-472` — en seguridad se resuelven los DOS: quién lo hizo y sobre quién recayó")
+  void seguridadResuelveActorYObjetivo() throws Exception {
+    UUID afectada = sembrarPersona("bloqueada", "Persona", "Bloqueada", false);
+    jdbc.update(
+        "INSERT INTO audit_security_log (id, occurred_at, actor_id, event_type, severity,"
+            + " outcome, target_user_id) VALUES (CAST(? AS uuid), now(), CAST(? AS uuid),"
+            + " 'ACCOUNT_LOCKED', 'ALTA', 'SUCCESS', CAST(? AS uuid))",
+        UUID.randomUUID().toString(),
+        SUPERADMIN.toString(),
+        afectada.toString());
+
+    mvc.perform(seguridad())
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$.content[0].actor.username").value("superadmin"))
+        .andExpect(jsonPath("$.content[0].targetUserId").value(afectada.toString()))
+        .andExpect(jsonPath("$.content[0].targetUser.username").value("bloqueada"))
+        .andExpect(jsonPath("$.content[0].targetUser.fullName").value("Persona Bloqueada"));
+  }
+
+  @Test
+  @DisplayName("el filtro por actor sigue funcionando con el JOIN puesto")
+  void elFiltroPorActorSobreviveAlJoin() throws Exception {
+    crearRolPorApi("PRIMERO", "Rol primero");
+    UUID otro = UUID.randomUUID();
+    sembrarCambio(otro);
+
+    mvc.perform(cambios().param("actorId", otro.toString()))
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$.content.length()").value(1))
+        .andExpect(jsonPath("$.content[0].actorId").value(otro.toString()));
+  }
+
+  /** Una fila de cambio con el actor que se le indique. {@code null} es el sistema. */
+  private void sembrarCambio(UUID actor) {
+    jdbc.update(
+        "INSERT INTO audit_change_log (id, occurred_at, actor_id, module, entity, entity_id,"
+            + " action, changes) VALUES (CAST(? AS uuid), now(), CAST(? AS uuid), 'SP', 'prueba',"
+            + " CAST(? AS uuid), 'CREATE', CAST('{}' AS jsonb))",
+        UUID.randomUUID().toString(),
+        actor == null ? null : actor.toString(),
+        UUID.randomUUID().toString());
+  }
+
+  /** Una persona sembrada a mano, opcionalmente ya retirada. */
+  private UUID sembrarPersona(String usuario, String nombre, String apellido, boolean retirada) {
+    UUID id = UUID.randomUUID();
+    jdbc.update(
+        "INSERT INTO users (id, username, email, first_name, last_name, password_hash, status,"
+            + " deleted_at, country_id) VALUES (CAST(? AS uuid), ?, ?, ?, ?, 'x', 'ACTIVO', "
+            + (retirada ? "now()" : "NULL")
+            + ", (SELECT id FROM countries WHERE code = 'COL'))",
+        id.toString(),
+        usuario,
+        usuario + "@factech.co",
+        nombre,
+        apellido);
+    return id;
+  }
+
   private MockHttpServletRequestBuilder cambios() {
     return get("/api/v1/audit/changes")
         .with(user(SUPERADMIN.toString()).authorities(() -> "audit:read-changes"));
@@ -486,7 +603,15 @@ class AuditQueryIT extends IntegrationTestBase {
   private RequestPostProcessor administrador() {
     return user(SUPERADMIN.toString())
         .authorities(
-            () -> "roles:create", () -> "roles:update", () -> "roles:delete", () -> "roles:read");
+            () -> "roles:create",
+            () -> "roles:update",
+            () -> "roles:change-status",
+            () -> "roles:assign-parent",
+            () -> "roles:assign-permissions",
+            () -> "roles:revoke-permissions",
+            () -> "roles:delete",
+            () -> "roles:read",
+            () -> "roles:list");
   }
 
   private UUID crearRolPorApi(String codigo, String nombre) throws Exception {
@@ -506,14 +631,14 @@ class AuditQueryIT extends IntegrationTestBase {
 
   private String cuerpoDeAlta(String codigo, String nombre) {
     return "{\"code\":\"%s\",\"name\":\"%s\",\"roleType\":\"FUNCIONARIO\",\"parentRoleId\":\"%s\"}"
-        .formatted(codigo, nombre, CONTABILIDAD);
+        .formatted(codigo, nombre, ADMIN);
   }
 
-  private UUID permisoDeContabilidad() {
+  private UUID permisoDelAdministrador() {
     return jdbc.queryForObject(
         "SELECT permission_id FROM role_permissions WHERE role_id = ?::uuid LIMIT 1",
         UUID.class,
-        CONTABILIDAD);
+        ADMIN);
   }
 
   /** Un evento escrito sin petición HTTP detrás, como el de una migración. */
@@ -547,6 +672,10 @@ class AuditQueryIT extends IntegrationTestBase {
    * clases es ruido para las cuentas de esta.
    */
   private void limpiar() {
+    // Las filas sembradas por las pruebas del actor: la de un evento del sistema
+    // lleva `actor_id` nulo y no la barre el DELETE de la línea siguiente.
+    jdbc.update("DELETE FROM audit_change_log WHERE entity = 'prueba'");
+    jdbc.update("DELETE FROM users WHERE username IN ('retirada', 'bloqueada')");
     jdbc.update("DELETE FROM audit_change_log WHERE actor_id IS NOT NULL OR entity = 'migracion'");
     jdbc.update("DELETE FROM audit_deletion_log WHERE actor_id IS NOT NULL");
     jdbc.update("DELETE FROM audit_error_log");
@@ -559,7 +688,7 @@ class AuditQueryIT extends IntegrationTestBase {
     jdbc.update("DELETE FROM roles WHERE is_system = false");
     jdbc.update("UPDATE roles SET status = 'ACTIVO', deleted_at = NULL WHERE is_system = true");
     jdbc.update(
-        "INSERT INTO user_roles (user_id, role_id) VALUES (?, ?::uuid) ON CONFLICT DO NOTHING",
+        "INSERT INTO user_roles (user_id, role_id, role_type) SELECT ?, r.id, r.role_type FROM roles r WHERE r.id = ?::uuid ON CONFLICT DO NOTHING",
         SUPERADMIN,
         SUPERADMIN_ROL);
   }

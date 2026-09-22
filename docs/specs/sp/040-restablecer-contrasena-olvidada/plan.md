@@ -81,6 +81,8 @@ Decisiones del esquema:
 | `application` | `PasswordHasher`, `CommonPasswordCatalog` | Sin cambios | Puertos de `RF-SP-024` |
 | `application` | `SessionRevoker`, `AccessRevocationPublisher` | Sin cambios | Puertos de `RF-SP-028` |
 | `application` | `RateLimiter` | Sin cambios | Puerto de `RF-SP-034` |
+| `shared/security/ratelimit` | `RateLimitSettings.Politica` | **Enmienda 26-08-2026** | Gana `penalizacion`: nula en las otras tres políticas, que conservan su comportamiento |
+| `shared/security/ratelimit` | `RateLimitLedger` | **Enmienda 26-08-2026** | Recuerda hasta cuándo está castigada cada llave, en un mapa propio con el mismo tope y el mismo olvido que los otros dos |
 | `shared/notification` | `NotificationSender` | **Nuevo, transversal** | Puerto de envío saliente (`architecture.md` §15.1). **No pertenece a `SP`**: lo declara la infraestructura compartida y lo consumirán academia, comisiones y `RF-SP-027` |
 | `shared/notification` | Adaptador de envío | **Bloqueado por D-23** | Proveedor, desacople, reintentos y rebotes. Es la única pieza que la decisión pendiente impide escribir |
 | `api` | `AuthController` | Modificado | Añade las dos rutas de §4 |

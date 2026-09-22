@@ -21,10 +21,10 @@ La migración es lo más pequeño del requerimiento —un índice— y **este re
 |---|---|---|---|---|
 | `T-01` | Migración `V25__create_user_roles_role_index.sql`: `ix_user_roles_role_id` sobre `user_roles (role_id)` | — | `mvn flyway:info` la lista aplicada; un `EXPLAIN` del conteo de portadores de un rol usa el índice y no recorre la tabla | **Hecha** |
 | `T-02` | Consumir `domain/security/PrivilegeContainment` de `RF-SP-024` para `RN-SEG-010`, **sin reimplantarlo** | — | Pruebas unitarias sin Spring: el rechazo es completo y enumera los infractores; la comparación es por **permisos** y no por posición en la jerarquía de roles. Una prueba de ArchUnit verifica que este módulo no declara una segunda comprobación de `RN-SEG-010` | **Hecha** |
-| `T-03` | Ampliar `domain/CommercialStructure` de `RF-SP-024` con la **comparación de rango antes y después**: ascenso, asignación lateral y cúspide | — | Pruebas unitarias sin Spring: sobre `AGENTE` + `DIRECTOR` devuelve `DIRECTOR`; añadir `AGENTE` a un `DIRECTOR` **no** cambia el rango; el rol cuyo padre no es `VENDEDOR` se declara cúspide | **Hecha** |
+| `T-03` | Ampliar `domain/CommercialStructure` de `RF-SP-024` con la **comparación de rango antes y después**: ascenso, asignación lateral y cúspide | — | Pruebas unitarias sin Spring: sobre `AGENTE` + `DIRECTOR` devuelve `DIRECTOR`; añadir `AGENTE` a un `DIRECTOR` **sí** cambia el rol vendedor desde `RN-SP-025`, porque lo sustituye; el rol cuyo padre no es `VENDEDOR` se declara cúspide | **Hecha** |
 | `T-04` | `domain/User.assignRoles(...)`: agrega los roles que faltan, devuelve **cuáles se agregaron realmente** y expone si la operación produce el primer rol `CONSUMIDOR` y si cambia el rango comercial | `T-02`, `T-03` | Pruebas unitarias: la operación es aditiva e idempotente; repetirla no agrega nada; los roles duplicados en la entrada se colapsan | **En curso** |
 | `T-05` | `domain/UserRepository`: carga del usuario con sus roles, su membresía y su superior vigente en **una sola** lectura | — | Prueba de integración: una sola consulta, verificada con el contador de sentencias | **En curso** |
-| `T-06` | `application/AssignUserRolesService` con `@Transactional` y el orden de verificación de `plan.md` §4, del usuario a `RN-SP-020` | `T-04`, `T-05` | Pruebas con dobles: cada excepción se lanza en el orden declarado; los pasos 6 a 8 nunca se evalúan antes de resolver los roles; el paso 5 va siempre antes que ellos | **En curso** |
+| `T-06` | `application/AssignUserRolesService` con `@Transactional` y el orden de verificación de `plan.md` §4, del usuario a `RN-SP-020` | `T-04`, `T-05` | Pruebas con dobles: cada excepción se lanza en el orden declarado; los pasos 6 a 8 nunca se evalúan antes de resolver los roles; el paso 5 va siempre antes que ellos | **Hecha el 27-08-2026** — `AssignUserRolesOrderTest`, cinco pruebas con dobles |
 | `T-07` | Persistencia en `user_roles` desde `JpaUserRepository` con **`INSERT … ON CONFLICT DO NOTHING`** en sentencia nativa (`plan.md` §2) | `T-06` | Prueba de integración concurrente: dos peticiones simultáneas con el mismo rol terminan ambas con `200`, dejan **una** fila y **ninguna** produce `500` | **Hecha** |
 | `T-08` | Escritura condicional de `user_memberships` y de `user_supervisors` **en la misma transacción** que los roles | `T-06`, `T-07` | Prueba de integración: si la escritura del superior falla, no queda ninguna fila en `user_roles`; el estado «vendedor sin superior» no se observa en ningún instante | **Hecha** |
 | `T-09` | Auditoría de éxito: hasta **tres** eventos en `audit_change_log` —roles, membresía, superior— bajo el **mismo** `correlation_id`, más `USER_ROLES_ASSIGNED` en `audit_security_log` con severidad Alta y `target_user_id`, tras el commit | `T-08` | Prueba de integración: la operación completa se recupera filtrando por `correlation_id`; ninguna fila cuando ningún rol era nuevo | **Hecha** |
@@ -37,6 +37,35 @@ La migración es lo más pequeño del requerimiento —un índice— y **este re
 | `T-16` | Aplicar la enmienda de `plan.md` §4 sobre `spec.md` §11 y actualizar la matriz de trazabilidad de `docs/requirements.md` | `T-13` | `spec.md` lleva su fila de enmienda con fecha; la fila de `RF-SP-030` en la matriz refleja el estado y enlaza esta tripleta | **Hecha** |
 
 **Estados:** `Pendiente` · `En curso` · `Hecha` · `Bloqueada`.
+
+!!! note "Cómo se verifica un orden — 27-08-2026"
+
+    No por el código de error, sino **por lo que no se llega a preguntar**. Cada prueba comprueba que los colaboradores de los pasos posteriores no se tocan: con un rol inexistente no se le pregunta al actor qué alcanza, y con un rol fuera de alcance no se consulta el catálogo de membresías ni la estructura comercial.
+
+    Es más fuerte que mirar el código devuelto: si mañana alguien reordena y el error acaba siendo el mismo por casualidad, la interacción sobrante lo delata igual.
+
+### 1.1 `RN-SP-025` en el motor (02-09-2026)
+
+La regla nació el 28-08-2026 pidiéndola `CM` y **durante cinco días no la sostuvo nada**. Al ir a construirla se descubrió que **contradecía el ascenso**, construido y probado desde el 24-08-2026: `spec.md` recoge el choque y su resolución.
+
+| ID | Tarea | Depende de | Verificación | Estado |
+|---|---|---|---|---|
+| `T-17` | `V52`: `role_type` en `user_roles`, **rellenado desde `roles`** | `T-01` | Toda fila existente queda con el tipo de su rol | **Hecha el 02-09-2026** |
+| `T-18` | `V52`: `uq_roles_id_role_type` y la **FK compuesta** `(role_id, role_type)` | `T-17` | La copia no puede divergir | **Hecha el 02-09-2026** |
+| `T-19` | `V52`: `uq_user_roles_vendedor`, **único parcial** | `T-18` | Si alguien porta ya dos, **la migración se detiene** — y eso es lo correcto | **Hecha el 02-09-2026** |
+| `T-20` | La entidad escribe `role_type` al insertar, tomándolo **del rol** y no de quien pide | `T-17` | Nadie puede declarar un tipo que el rol no tiene | **Hecha el 02-09-2026** |
+| `T-21` | `CommercialStructure`: comparar **el rol vendedor** antes y después, no «el de mayor rango» | — | Un descenso se detecta igual que un ascenso | **Hecha el 02-09-2026** |
+| `T-22` | `User.assignRoles(...)`: **retira el rol vendedor anterior** cuando el asignado es otro | `T-21` | Nunca quedan dos, ni ninguno, en ningún instante | **Hecha el 02-09-2026** |
+| `T-23` | `VAL-009`: **dos roles vendedores en una petición** se rechazan enteros | `T-21` | `422`, y ninguna fila escrita | **Hecha el 02-09-2026** |
+| `T-24` | La auditoría registra **el rol que sale**, no solo los que entran | `T-22` | Sin esto, el retirado desaparece sin evento | **Hecha el 02-09-2026** |
+| `T-25` | Pruebas: `CA-SP-527`, `CA-SP-528`, `CA-SP-529`, y **`CA-SP-404` reescrito** | `T-22`, `T-24` | `CA-SP-399` sigue pasando con una aserción más | **Hecha el 02-09-2026** |
+| `T-26` | Enmiendas: `sp.md`, `modelo-datos.md`, **`modules.md`** y la matriz | `T-25` | `modules.md` decía que no se podía; hay que decir que sí | **Hecha el 02-09-2026** |
+
+**`T-19` es la única tarea del proyecto cuyo fallo es un resultado aceptable.** Si al crear el índice alguien porta ya dos roles vendedores, la migración **se detiene** — y no se limpia, porque elegir cuál sobrevive es una decisión de negocio que una migración no puede tomar.
+
+**`T-21` parece un renombrado y es un cambio de regla.** «El de mayor rango» presuponía que varios convivían; con `RN-SP-025` hay a lo sumo uno, y lo que decide es **si cambia** — un descenso exige superior exactamente igual que un ascenso, porque cambia con quién debe cumplirse `RN-SP-020`. Es lo que obliga a reescribir `CA-SP-404`, que hasta hoy afirmaba lo contrario.
+
+**`T-24` es lo que impide que el retiro sea invisible.** La operación se llama «asignar» y ahora también quita; si el evento solo cita lo que entra, **el rol retirado desaparece sin que nada lo explique**.
 
 ## 2. Orden de ejecución
 
@@ -117,6 +146,17 @@ graph LR
 - El superior debe portar el **rol padre inmediato**: un ancestro se rechaza.
 - Roles, membresía y superior se escriben en **una sola transacción**: un superior inadmisible no deja ni un rol suelto.
 - Una cuenta **inactiva sí se puede administrar**: exigir `ACTIVO` la volvería inadministrable.
+
+
+### Defecto de concurrencia corregido el 26-08-2026
+
+**`RN-SP-018` no se sostenía bajo carrera, y ninguna de las dos operaciones fallaba.** `RF-SP-033` —retirar la membresía— y `RF-SP-030` —asignar el rol de consumidor— leían la persona **sin bloqueo**, de modo que cada una validaba contra el estado que la otra estaba a punto de cambiar: las dos concluían que podían proceder y la persona acababa **portando un rol de consumidor sin nivel**. Es una escritura sesgada de manual, y en `READ COMMITTED` nada la impide.
+
+**Lo que lo destapó fue `RF-SP-024` · `T-21`**, la prueba concurrente del par en los dos órdenes, y lo hizo de forma **intermitente**: falló en CI, pasó en la ejecución siguiente y volvió a fallar dos veces más. Esa intermitencia es la firma del defecto, no una prueba inestable.
+
+**La corrección:** las **cuatro** operaciones que cambian roles o membresía de una persona —`RF-SP-030`, `RF-SP-031`, `RF-SP-032` y `RF-SP-033`— pasan a tomar el bloqueo pesimista sobre su fila (`findNotDeletedByIdForUpdate`), que las otras cinco operaciones sobre una persona ya tomaban. Dos cosas la hacen suficiente: las cuatro bloquean **la misma fila**, de modo que se serializan sin riesgo de abrazo mortal —a diferencia del caso que `RF-SP-028` descartó, donde el bloqueo caía sobre filas de terceros—, y el bloqueo se toma **antes** de leer roles y membresía, porque en `READ COMMITTED` cada sentencia posterior toma instantánea nueva y ve lo que la otra transacción confirmó.
+
+La obligación queda escrita en el puerto, que es donde la encontrará quien añada la décima operación sobre una persona.
 
 ## 5. Definición de terminado
 

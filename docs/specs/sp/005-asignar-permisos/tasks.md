@@ -38,11 +38,12 @@ Sin migración: `role_permissions` la crea `V6__create_role_permissions.sql` (`R
 | `T-07` | Auditoría de los rechazos, **cada uno en el registro que le corresponde** (`plan.md` §6): `EX-001` a `EX-004` en `audit_error_log`, con severidad **Alta** para `RN-SEG-003` y `RN-SEG-010` y Media para el resto; `EX-005` —el `403` de `RN-SEG-011`— en `audit_security_log` con `event_type = 'AUTHORIZATION_DENIED'` y severidad **Alta**, en transacción independiente y sin esperar a un commit que no llega; `EX-006` (`404`) y los `400` de formato no se auditan | `T-04` | Prueba de integración: `EX-001` a `EX-004` dejan su fila en `audit_error_log` con su `error_code`; `EX-005` deja la suya en `audit_security_log` y **ninguna** en `audit_error_log`; `EX-006` y un `400` no dejan ninguna. Los **tres** intentos de escalada se encuentran filtrando por severidad Alta, dos en un registro y uno en el otro | Hecha |
 | `T-08` | Invalidación de la caché de permisos del rol **después** del commit, nunca antes | `T-05`, `T-06` | Prueba de integración: tras la operación, una resolución de permisos refleja el cambio de inmediato, y una petición concurrente no repuebla la caché con el estado antiguo | Hecha |
 | `T-09` | `api/GrantPermissionsRequest` con Bean Validation (`VAL-001`, `VAL-002`, `VAL-006`), colapso de duplicados y límite de 100 elementos | `T-04` | Prueba de API: lista vacía y lista de 101 elementos devuelven `400`; los duplicados se colapsan sin error | Hecha |
-| `T-10` | `api/RoleController`: añade `POST /api/v1/roles/{id}/permissions` con el permiso `roles:update`, devolviendo `RoleResponse`, y con los `409` de contención enumerando los permisos infractores | `T-08`, `T-09` | Prueba de API: `200` con la lista actualizada; los cuerpos de `409` citan **cuáles** permisos incumplen; los dos `403` llevan `error_code` distinto | Hecha |
+| `T-10` | `api/RoleController`: añade `POST /api/v1/roles/{id}/permissions` con el permiso `roles:assign-permissions`, devolviendo `RoleResponse`, y con los `409` de contención enumerando los permisos infractores | `T-08`, `T-09` | Prueba de API: `200` con la lista actualizada; los cuerpos de `409` citan **cuáles** permisos incumplen; los dos `403` llevan `error_code` distinto | Hecha |
 | `T-11` | Pruebas de API e integración de los criterios de aceptación de `spec.md` §12 | `T-10` | La suite cubre `CA-SP-031` a `CA-SP-040`, `CA-SP-153`, `CA-SP-154` y `CA-SP-173` | Hecha |
 | `T-12` | Pruebas de los casos límite de `spec.md` §13: rechazo parcial, duplicados, cadena profunda, actor superadministrador y reparto en varias peticiones | `T-10` | Con una cadena de tres roles, la operación consulta al padre y **no** al abuelo; partir la petición en dos produce el mismo estado final | Hecha |
 | `T-13` | Documentación OpenAPI del endpoint: cuerpo, respuesta `200` y los estados `400`, `401`, `403`, `404`, `409`, `422` y `500` | `T-11` | El contrato publicado coincide con el comportamiento real (Art. VIII.6) | Hecha |
 | `T-14` | Actualizar la matriz de trazabilidad de `docs/requirements.md` | `T-11` | La fila de `RF-SP-005` refleja el estado y enlaza esta tripleta | Hecha |
+| `T-15` | **Enmienda del 16-09-2026** (`spec.md` v0.3.0): `RoleWriteAccess.cargarConPermisosModificables(...)` —primera y tercera puerta, sin la de `RN-SEG-012`—, usado por `GrantRolePermissionsService` y por el servicio de `RF-SP-006`; el `409` de `EX-004` sale del contrato OpenAPI; `RolePermissionsIT` **invierte** la prueba de `CA-SP-036` en `CA-SP-683` y repone el rol de sistema al terminar | `T-10` | Prueba de API: conceder a `MANAGER` un permiso de `ADMIN` devuelve `200` y deja la fila; las otras cuatro escrituras de `RoleAdministrationIT` siguen devolviendo `409` sobre `ADMIN` | Hecha |
 
 **Estados:** `Pendiente` · `En curso` · `Hecha` · `Bloqueada`.
 
@@ -76,7 +77,8 @@ graph LR
 | `CA-SP-033` | `T-01`, `T-03`, `T-10`, `T-11` |
 | `CA-SP-034` | `T-01`, `T-05`, `T-11` |
 | `CA-SP-035` | `T-01`, `T-11` |
-| `CA-SP-036` | `T-04`, `T-11` |
+| ~~`CA-SP-036`~~ | ~~`T-04`, `T-11`~~ — retirado el 16-09-2026 |
+| `CA-SP-683` | `T-15` |
 | `CA-SP-037` | `T-04`, `T-11` |
 | `CA-SP-038` | `T-08`, `T-11` |
 | `CA-SP-039` | `T-06`, `T-11` |

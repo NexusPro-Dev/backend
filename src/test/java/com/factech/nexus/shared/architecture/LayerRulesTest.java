@@ -150,4 +150,89 @@ class LayerRulesTest {
         .because("la infraestructura transversal no puede depender de quien la usa")
         .check(clases);
   }
+
+  @Test
+  @DisplayName("un módulo no entra en el dominio de otro: PM no conoce el interior de SP (D-25)")
+  void unModuloNoEntraEnElDominioDeOtro() {
+    // La frontera de `modules.md` §7 la fija **el código**, y sin esta regla es
+    // una convención — y las convenciones se saltan SIN QUE NADA FALLE.
+    //
+    // Lo que `PM` puede importar de `SP` son las interfaces que este publica en
+    // su capa `application` (`MembershipCatalog`, `CurrencyCatalog`). Lo que no
+    // puede tocar es su `domain`: entidades y repositorios. Importarlos lo
+    // ataría al esquema ajeno, y un cambio allí lo rompería en silencio, sin
+    // fallar al compilar (`architecture.md` §15.2).
+    noClasses()
+        .that()
+        .resideInAPackage("com.factech.nexus.modules.products..")
+        .should()
+        .dependOnClassesThat()
+        .resideInAPackage("com.factech.nexus.modules.system..domain..")
+        .because("D-25: PM consume SP por sus interfaces publicadas, nunca por sus tablas")
+        .check(clases);
+  }
+
+  @Test
+  @DisplayName("MV consume SP y PM por sus interfaces publicadas, nunca por sus tablas (D-25)")
+  void mvNoEntraEnElDominioDeNadie() {
+    // `MV` es el módulo que MÁS cruza fronteras del sistema: lee de `SP` —el
+    // estado del cliente y de qué vendedor cuelga— y de `PM` —el precio, la
+    // moneda, la vigencia y la oferta—, y con lo que lee ESCRIBE. Es también el
+    // primero que se apoya en una decisión de otro módulo (`RF-PM-007`) en
+    // lugar de en un dato suyo.
+    //
+    // Sin esta regla, «pregunta la oferta, no la recalcules» es una frase de un
+    // documento: un `SELECT` propio sobre `products` compilaría igual, pasaría
+    // las pruebas igual, y crearía la SEGUNDA definición de lo que alguien
+    // puede comprar — la que el día que `RF-PM-007` · `T-20` cambie el criterio
+    // seguiría vendiendo por el viejo, sin fallar.
+    noClasses()
+        .that()
+        .resideInAPackage("com.factech.nexus.modules.movements..")
+        .should()
+        .dependOnClassesThat()
+        .resideInAnyPackage(
+            "com.factech.nexus.modules.system..domain..",
+            "com.factech.nexus.modules.products..domain..")
+        .because("D-25: MV consume SP y PM por sus interfaces publicadas, nunca por sus tablas")
+        .check(clases);
+  }
+
+  @Test
+  @DisplayName(
+      "AC no entra en el dominio de nadie, ni PM ni SP en el de AC (D-25, RF-AC-001 · T-03)")
+  void acNoEntraEnElDominioDeNadieNiNadieEnElSuyo() {
+    // `AC` es el módulo que MÁS se parece a `PM` en la forma —catálogo con
+    // estado, portada, video y retiro con motivo— y por eso es el que más
+    // tentación tiene de importar «porque es lo mismo»: la entidad de la
+    // imagen, el objeto de valor del motivo, el detector de firma. Lo que
+    // se comparte se promueve a `shared/` (`DeletionReason` lo hizo con
+    // `RF-AC-005`); lo que no, se escribe dos veces. Y al revés: `PM` no
+    // conoce a `AC` hasta que un curso se venda suelto, y entonces lo
+    // consumirá por la interfaz que `AC` publique, no por sus tablas.
+    noClasses()
+        .that()
+        .resideInAPackage("com.factech.nexus.modules.academy..")
+        .should()
+        .dependOnClassesThat()
+        .resideInAnyPackage(
+            "com.factech.nexus.modules.system..domain..",
+            "com.factech.nexus.modules.products..domain..",
+            "com.factech.nexus.modules.commissions..",
+            "com.factech.nexus.modules.movements..")
+        .because("D-25: AC consume SP por sus interfaces publicadas, y no consume PM, CM ni MV")
+        .check(clases);
+
+    noClasses()
+        .that()
+        .resideOutsideOfPackage("com.factech.nexus.modules.academy..")
+        .and()
+        .resideInAPackage("com.factech.nexus.modules..")
+        .should()
+        .dependOnClassesThat()
+        .resideInAPackage("com.factech.nexus.modules.academy..")
+        .because(
+            "ningún módulo consume AC todavía; el día que uno lo haga, será por su application")
+        .check(clases);
+  }
 }

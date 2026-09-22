@@ -42,12 +42,27 @@ Sin migración: la lista entera es código de consulta. Lo propio es `T-03`, que
 | `T-09` | Vigencia de la membresía con `now()` de la base de datos, y desambiguación del bloqueo: `BLOQUEADO` con `lockedUntil` nulo es manual | `T-06` | Prueba de integración: una membresía vencida llega con `current: false`; una cuenta bloqueada manualmente llega con `lockedUntil` nulo y otra automática con su momento de expiración | **Hecha** |
 | `T-10` | Pruebas de los criterios de aceptación de `spec.md` §12 | `T-06`, `T-08` | La suite cubre `CA-SP-212` a `CA-SP-220` y `CA-SP-346` | **En curso** |
 | `T-11` | Pruebas de los casos límite de `spec.md` §13 y de `plan.md` §11: permiso por dos roles, usuario eliminado, incoherencia de membresía sin rol consumidor, el actor consultándose a sí mismo con y sin permiso, e identificadores malformados | `T-06` | El actor sin `users:read` recibe `403` **también sobre su propia ficha**: ese caso es `RF-SP-039`, no este | **En curso** |
-| `T-12` | Prueba de **número de sentencias**: dos por petición con independencia del número de roles y de permisos, y una cuando la persona no existe | `T-06` | Es la única forma de que el `N+1` no vuelva en una refactorización posterior | **Pendiente** |
+| `T-12` | Prueba de **número de sentencias**: dos por petición con independencia del número de roles y de permisos, y una cuando la persona no existe | `T-06` | Es la única forma de que el `N+1` no vuelva en una refactorización posterior | **Hecha el 27-08-2026** — `UserDetailStatementCountIT`. **El número no es dos: ver la nota** |
 | `T-13` | Regla de ArchUnit: **`application` no importa el adaptador de caché de `shared/security`**, solo su puerto | `T-03` | La regla falla si alguien inyecta la caché directamente en el caso de uso, que es el atajo más corto de escribir | **Pendiente** |
 | `T-14` | Documentación OpenAPI: la respuesta completa y los estados `400`, `401`, `403`, `404` y `500` | `T-10` | El contrato publicado coincide con el comportamiento real (Art. VIII.6), y documenta que un usuario eliminado devuelve `404` indistinguible de uno inexistente | **Hecha** |
 | `T-15` | Enmendar `requirements/sp.md` §6.1 con las precedencias del bloque de usuarios y §10.10 con el reparto de las tres columnas de control de acceso; enmendar `security.md` §9 con lo mismo; actualizar la matriz de trazabilidad | `T-10` | §6.1 declara que `RF-SP-034` precede a este requerimiento; §10.10 y `security.md` §9 atribuyen `failed_attempts`, `locked_until` y `last_login_at` a `RF-SP-034` | **En curso** |
 
 **Estados:** `Pendiente` · `En curso` · `Hecha` · `Bloqueada`.
+
+!!! danger "`T-12` se hizo y desmiente a `plan.md` §166 — 27-08-2026"
+
+    El plan promete **dos** sentencias por petición. Medidas con el contador de Hibernate, son **cuatro**:
+
+    1. `findDetail` — la persona con su membresía.
+    2. `rolesOf` — sus roles, en una sola consulta.
+    3. `JpaEffectivePermissions#forUser`, comprobación de existencia — **redundante aquí**: `findDetail` ya estableció que la persona existe.
+    4. `JpaEffectivePermissions#forUser`, la unión de permisos de sus roles activos.
+
+    De donde se sigue que **§188 y §189 tampoco son exactos**: afirman que «la resolución de permisos no añade sentencias en el caso común, porque la caché ya tiene la entrada de cada rol», y ese camino **no consulta ninguna caché** — siempre lanza sus dos consultas.
+
+    **Lo que el requerimiento sí cumple, y era lo que la tarea existía para proteger, es que el coste no crece con los roles**: cuatro con un rol y cuatro con cuatro. No hay `N+1`.
+
+    La cifra se **fija** en la prueba en lugar de corregirse sobre la marcha: bajarla de cuatro a tres —quitando la comprobación de existencia redundante— es una decisión de rendimiento con su propio pase, no un arreglo que quepa en una tarea de pruebas. Lo que la constante garantiza mientras tanto es que **no suba** sin que alguien se entere.
 
 ## 2. Orden de ejecución
 
@@ -115,6 +130,22 @@ graph LR
 - **La persona eliminada devuelve el mismo `404`, byte a byte**, que una inexistente: sin ninguna pista de que existió.
 - **El identificador no canónico es `400` y no `404`**, gracias al editor transversal que este requerimiento exigía por su nombre y que cierra el hueco declarado de `RF-SP-018` · `T-08`.
 - Los permisos que devuelve son los que la autorización usará, y la prueba lo comprueba contra un actor real.
+
+## 4.ter El detalle publica el país — enmienda del 07-09-2026
+
+`RN-SP-034` obliga a que toda persona declare un país (`requirements/sp.md` v1.38.0), y este detalle lo publica resuelto (`spec.md` §6.2, `CA-SP-577`).
+
+**La tarea no se duplica aquí.** Es `T-48` de [`../024-registrar-usuario/tasks.md`](../024-registrar-usuario/tasks.md) §4.quinquies, donde vive la enmienda entera.
+
+**Lo que sí es decisión de este requerimiento** y queda en `plan.md` §4: el país se devuelve **también cuando está inactivo**. Es la pantalla desde la que se decide mover a alguien con `RF-SP-027`, y ocultarle que su país fue retirado sería ocultarle justo el motivo por el que hay que moverlo.
+
+## 4.quater El detalle publica el documento y el contacto — enmienda del 08-09-2026
+
+`RN-SP-035` y `RN-SP-037` añaden a `users` la identidad documental y los datos de contacto, y este detalle los publica (`spec.md` §6.2, `CA-SP-593`).
+
+**La tarea no se duplica aquí.** Es `T-57` de [`../024-registrar-usuario/tasks.md`](../024-registrar-usuario/tasks.md) §4.sexies.
+
+**Lo que sí es decisión de este requerimiento** y queda en `plan.md` §4: el tipo de documento se resuelve con un **`LEFT JOIN` y no con uno interno**. Puede faltar —las personas anteriores a `V71` no tienen documento—, y un `JOIN` interno **haría desaparecer del detalle** a toda persona sin él. No fallaría: ocultaría, que es el error más caro posible en la pantalla desde la que se administra.
 
 ## 5. Definición de terminado
 

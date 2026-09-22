@@ -20,10 +20,11 @@ import org.springframework.context.annotation.Configuration;
  *
  * <p>El esquema se declara <b>global</b> —{@code security} a nivel de documento— en lugar de
  * anotarlo endpoint por endpoint. Es lo correcto aquí porque la regla del sistema es que <b>todo
- * requiere token salvo tres rutas</b> ({@code SecurityConfig}): con la declaración por operación,
+ * requiere token salvo lo que {@code SecurityConfig} abre</b>: con la declaración por operación,
  * cada endpoint nuevo nacería sin ella y el hueco no rompería nada — exactamente el modo de fallo
- * que `OpenApiContractIT` existe para evitar en las rutas. Las tres excepciones se marcan en su
- * propio controlador con {@code @SecurityRequirements} vacío.
+ * que `OpenApiContractIT` existe para evitar en las rutas. Las excepciones las marca {@link
+ * RequiredPermissionCustomizer} con {@code security} vacío, leyendo la misma lista que el filtro; y
+ * el mismo componente escribe en cada operación <b>qué permiso</b> exige.
  *
  * <p>{@code bearerFormat = "JWT"} no cambia el comportamiento; es una pista para quien lee el
  * contrato, y evita que alguien intente pegar ahí una credencial de otra forma.
@@ -36,8 +37,11 @@ import org.springframework.context.annotation.Configuration;
             version = "v1",
             description =
                 """
-                API del módulo `SP`. **Toda operación exige un token de acceso**
-                salvo el inicio, la renovación y el cierre de sesión.
+                API de NEXUS. **Toda operación exige un token de acceso** salvo
+                las que declaran `security` vacío (sesión, recuperación, registro,
+                hotlinks, catálogos del registro, reseñas y portadas). **Cada
+                operación dice en su primera línea qué permiso exige**, y lo
+                repite en la extensión `x-required-permission`.
 
                 Para probar cualquier endpoint: obtenga el token con
                 `POST /api/v1/auth/login`, pulse **Authorize** y pegue el valor de

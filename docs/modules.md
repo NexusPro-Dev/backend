@@ -5,13 +5,13 @@
 | Proyecto | NEXUS — Renovación de plataforma |
 | Empresa | FACTECH GROUP SAS |
 | Documento | `modules.md` |
-| Versión | 0.10.0 |
+| Versión | 0.22.0 |
 | Estado | Borrador |
 | Responsable técnico | Bonilla Diaz William Steven |
 | Fecha de creación | 20-08-2026 |
-| Última actualización | 22-08-2026 |
-| Documento superior | `constitution.md` v0.5.0 |
-| Documentos relacionados | `architecture.md` v0.4.0, `requirements.md` v0.3.0 |
+| Última actualización | 21-09-2026 |
+| Documento superior | `constitution.md` v0.7.0 |
+| Documentos relacionados | `architecture.md` v0.17.0, `requirements.md` v0.51.0 |
 
 ---
 
@@ -73,9 +73,14 @@ La promoción es una decisión de arquitectura: se registra en `docs/architectur
 ```mermaid
 graph TD
     SP["<b>SP</b> — Sistema Principal<br/><i>roles, permisos, auditoría</i>"]
+    PM["<b>PM</b> — Productos y Mercadeo<br/><i>catálogo de venta</i>"]
+    AC["<b>AC</b> — Academia<br/><i>cursos, módulos y lecciones</i>"]
 
     C1["<b>?</b> — por inventariar"]:::pend
     C2["<b>?</b> — por inventariar"]:::pend
+
+    PM --> SP
+    AC --> SP
     C1 -.-> SP
     C2 -.-> SP
 
@@ -90,11 +95,15 @@ Las dependencias apuntan **del consumidor al proveedor** y deben ser acíclicas 
 
 !!! warning "Inventario incompleto"
 
-    Solo están registrados los dos módulos que el Documento Marco nombra de forma explícita. **El resto del alcance del producto está por inventariar** (ver §6). Este documento no puede considerarse cerrado hasta que el inventario esté completo.
+    Están registrados `SP`, que el Documento Marco nombra de forma explícita, y `PM`, incorporado el 26-08-2026 por decisión del responsable del proyecto. **El resto del alcance del producto sigue por inventariar** (ver §6). Este documento no puede considerarse cerrado hasta que el inventario esté completo.
 
 | Código | Módulo | Paquete Java | Prefijo de permisos | Depende de | Estado |
 |---|---|---|---|---|---|
-| `SP` | Sistema Principal | `modules/system` | `roles:`, `permissions:`, `audit:`, `memberships:`, `currencies:`, `countries:`, `users:` | — | En diseño |
+| `SP` | Sistema Principal | `modules/system` | `roles:`, `permissions:`, `audit:`, `memberships:`, `currencies:`, `countries:`, `users:` | — | En desarrollo |
+| `PM` | Productos y Mercadeo | `modules/products` | `products:` | `SP` | En desarrollo |
+| `CM` | Comisiones | `modules/commissions` | `commissions:` | `SP`, `PM` | En desarrollo · **rehecho y construido el 02-09-2026** |
+| `MV` | Movimientos | `modules/movements` | `movements:` | `SP`, `PM` | Propuesto · **renace el 02-09-2026, empezando por la venta** |
+| `AC` | Academia | `modules/academy` | `course-categories:`, `courses:` | `SP` | En diseño · **incorporado el 17-09-2026, empezando por el catálogo de cursos y lo que ve el alumno** |
 
 
 **Estados:** `Propuesto` · `En diseño` · `En desarrollo` · `Implementado` · `Obsoleto`.
@@ -138,6 +147,7 @@ Se resolvió el 20-08-2026, antes de redactar el primer requerimiento: el códig
 | Roles de usuario | Asignación y retiro de roles sobre una persona | `user_roles` |
 | Membresía del usuario | Nivel del consumidor, acotado por `RN-SP-013` | `user_memberships` |
 | Estructura comercial | Quién está a cargo de quién dentro de la fuerza comercial, con historial | `user_supervisors` |
+| Equipos | Cómo se organiza la cúspide de la fuerza comercial: cada equipo reúne managers, uno vigente por manager y con historial. Agrupa, no manda | `teams`, `team_members` |
 | Credenciales y acceso | Inicio y cierre de sesión, refresco con rotación, y gestión de la contraseña | `users`, `refresh_tokens` |
 | Auditoría | Consulta de los cuatro registros de auditoría, por separado o desde la vista transversal | `audit_change_log`, `audit_deletion_log`, `audit_error_log`, `audit_security_log` |
 
@@ -149,7 +159,167 @@ Se resolvió el 20-08-2026, antes de redactar el primer requerimiento: el códig
 ---
 
 
-### 5.2 Plantilla para un módulo nuevo
+### 5.2 `PM` — Productos y Mercadeo
+
+**Propósito.** Es dueño de **lo que la plataforma vende**: qué productos existen, de qué tipo son, cuánto cuestan y a quién se le ofrecen.
+
+**Alcance.** El catálogo de productos y su gobierno —alta, consulta, corrección, activación y retiro— en **dos tipos que no se mezclan**: el **upgrade de membresía**, que da derecho a pasar al nivel que declara, y el **bot del sistema**, que da derecho a una prestación. Publica además la **oferta propia**: qué puede comprar quien mira, que en los upgrades depende de su nivel actual.
+
+**No incluye.** **La compra y el cobro** —orden, estado de pago y pasarela—, que corresponden al área de Finanzas. Tampoco la **aplicación** del upgrade sobre la persona: cambiar su nivel es escribir en `user_memberships`, tabla de `SP` (`RF-SP-032`). Ni el **contenido** de lo que se vende —cursos y sesiones son de Academia; señales, de Señales—, ni la **atribución de la venta**, que es de Comisiones. Las **promociones y campañas** caben en su nombre y no se han registrado todavía.
+
+| Submódulo | Responsabilidad | Entidades principales |
+|---|---|---|
+| Productos | Alta, consulta, edición, estado y retiro del catálogo | `products` |
+| Oferta | Qué puede comprar quien mira, que no es el catálogo completo | `products`, y la membresía vigente que `SP` publique |
+| Hotlinks | El enlace público que un vendedor reparte (07-09-2026) | `products`, y el vendedor que `SP` publique |
+| Reseñas | Lo que quien compra dice del producto: una puntuación y un texto por persona, que solo su autor toca (14-09-2026) | `product_comments` |
+| Paquetes | Varios productos bajo un código, cada uno con su descuento; el paquete vale la suma de los productos rebajados, calculada siempre (14-09-2026) | `product_packages`, `product_package_items` |
+
+**Dependencias.** `SP`, y solo `SP`: valida contra sus **membresías** el destino de un upgrade, contra sus **monedas** el precio, necesita la **membresía vigente del actor** para decidir la oferta y, desde el 14-09-2026, referencia a la **persona** que escribe una reseña. La dependencia es acíclica, porque `SP` no consume a nadie. **Y no consume a `MV`**, aunque tentó: exigir haber comprado para reseñar cerraría el ciclo `MV → PM → MV`, y se descartó por eso (`requirements/pm.md` §5.2.7).
+
+!!! success "Cómo la consume — D-25, cerrada el 26-08-2026"
+
+    **El módulo dueño del dato publica interfaces de aplicación de solo lectura, y el consumidor las importa.** Es la norma para cualquier par de módulos, no solo para estos dos: la dependencia sigue apuntando del consumidor al proveedor, y `SP` no se entera de que `PM` existe. Se descartó la inversión de dependencia, que aquí haría que el módulo raíz importara una interfaz del que depende de él — el ciclo de §7 disfrazado.
+
+    Una interfaz por lectura y no una fachada, modelos de lectura y nunca entidades, la ausencia como valor vacío, y una regla de **ArchUnit** que impide importar repositorios o entidades ajenos. El desarrollo, en [`architecture.md` §15.2](architecture.md#152-como-consume-un-modulo-los-datos-de-otro-cierre-de-d-25).
+
+**Diseño detallado.** [`requirements/pm.md`](requirements/pm.md).
+
+!!! info "Por qué `PM` es un módulo y no un submódulo de `SP`"
+
+    Cumple las dos condiciones de §2.1. **Es dueño de una tabla propia**, `products`, que `SP` no necesita para autorizar ni para nada más. Y **otros módulos van a consumirlo**: Finanzas para cobrar un producto, Comisiones para saber sobre qué importe se comisiona, Academia para saber qué nivel da acceso a qué.
+
+    La dirección de la dependencia lo confirma: `PM` necesita a `SP` y `SP` no necesita a `PM`. Si fuera al revés —si `SP` tuviera que consultar el catálogo para autorizar— serían el mismo módulo o faltaría extraer un tercero.
+
+#### 5.2.1 El código `PM` y el paquete `modules/products`
+
+Mismo desajuste que §4.1 resolvió para `SP`, y por el mismo motivo: **el código nombra el área de negocio y el paquete nombra su contenido**. El área es «Productos y Mercadeo» —así la nombró el responsable del proyecto y así admite crecer hacia promociones y campañas—, mientras que lo que hoy contiene, y lo que seguirá siendo su núcleo, son productos.
+
+| Salida | A favor | En contra |
+|---|---|---|
+| `PM` → `modules/products` | El código admite el mercadeo sin reabrirse; el paquete dice qué hay dentro | Código y paquete no coinciden, y hay que saberlo |
+| `PR` → `modules/products` | Coinciden | Si el mercadeo crece, el código se queda corto **y no se puede cambiar** (§2.1) |
+| `PM` → `modules/marketing` | Coinciden | El paquete describe la parte que **todavía no existe** e ignora la que sí |
+
+**Decisión: `PM` → `modules/products`.** El código es lo irreversible y debe cubrir el área completa; el paquete es renombrable y debe describir lo que contiene.
+
+---
+
+### 5.3 `CM` — Comisiones
+
+**Propósito.** Es dueño de **cuánto se le paga a quien vende**: qué porcentaje gana cada rol de tipo vendedor por cada producto, y qué excepciones tiene una persona concreta.
+
+**Alcance.** El **catálogo de tarifas de comisión** y su gobierno: alta, consulta, corrección y retiro. Una tarifa asocia un **rol de tipo `VENDEDOR`** con un **porcentaje** y una **vigencia**, opcionalmente acotada a un **producto** y opcionalmente acotada a una **persona**. Publica además la **resolución**: dada una persona, un producto y una fecha, qué porcentaje le corresponde.
+
+**No incluye.** **El cálculo y la liquidación**, que son la otra mitad del área de §6 y **no se pueden construir todavía**: no existe ninguna tabla de ventas a la que aplicar un porcentaje. Tampoco el **pago** de lo liquidado, que es de Finanzas, ni los **FTDs**. Este módulo nace deliberadamente con la mitad configurable del área, por el mismo camino que `PM`: el catálogo existió antes que la compra.
+
+| Submódulo | Responsabilidad | Entidades principales |
+|---|---|---|
+| Tasas | El catálogo por rol y las excepciones por persona | `commission_rates`, `user_commission_rates` |
+| Asociación | Qué tasa rige sobre qué producto | `product_commission_rates` |
+| Resolución | Qué porcentaje le corresponde a una persona por un producto **en una fecha** | Las tres, y el rol vigente que `SP` publique |
+
+**Dependencias.** `SP` y `PM`, y es el **primer módulo que depende de dos**. De `SP` necesita el **rol** —para exigir que sea de tipo `VENDEDOR`— y la **persona** de una tarifa especial; de `PM`, el **producto** al que la tarifa se acota. La dependencia sigue siendo acíclica: `CM` → `PM` → `SP`, y ninguno de los dos consume a `CM`.
+
+!!! success "Cómo los consume — la norma de D-25"
+
+    Sin excepción ni caso nuevo: **cada módulo dueño del dato publica interfaces de aplicación de solo lectura, y `CM` las importa** ([`architecture.md` §15.2](architecture.md#152-como-consume-un-modulo-los-datos-de-otro-cierre-de-d-25)). `PM` tendrá que publicar la suya —hoy no la tiene, porque nadie lo consumía todavía—, y esa ampliación pertenece a los requerimientos de `CM` que la necesiten, no a un requerimiento nuevo de `PM`: es el mismo reparto que se decidió al cerrar D-25.
+
+    Las claves foráneas a `roles`, `users` y `products` **sí** se declaran, por lo mismo que `PM` las declara hacia `SP`: la frontera que §7 defiende es la del **código**, y una clave foránea es integridad declarada en el motor (Art. V.6).
+
+**Diseño detallado.** [`requirements/cm.md`](requirements/cm.md).
+
+!!! info "Por qué `CM` es un módulo y no un submódulo de `PM`"
+
+    Cumple las dos condiciones de §2.1. **Es dueño de tres tablas propias** —`commission_rates`, `user_commission_rates` y `product_commission_rates`— que `PM` no necesita para nada: el catálogo se publica igual exista o no una tasa. Y **otros van a consumirlo**: la liquidación, cuando exista, y Finanzas para pagar lo liquidado.
+
+    **Se consideró y se descartó que fuera un submódulo de `PM`**, que es como se pidió. La razón para no hacerlo es de §2.1 y no de gusto: la comisión no opera sobre `products`, opera sobre `roles` y `users`, que son de `SP`. Un submódulo de `PM` cuyas dos claves foráneas principales apuntan a `SP` no está en su módulo. Pesó además que **el identificador es irreversible** (§2.1): `RF-PM-008` se habría quedado en `PM` para siempre el día que Comisiones creciera hacia el cálculo y la liquidación, que es lo que §6 ya anticipa.
+
+!!! warning "El código se fija sabiendo lo que §6 advierte"
+
+    Esta misma sección advierte que los códigos de los módulos candidatos **no deberían fijarse hasta conocer el alcance completo** del producto. Se procede igualmente **por decisión del responsable del proyecto**, como ya se hizo con `PM` el 26-08-2026, y queda escrito que se procedió sabiéndolo. El riesgo concreto que se asume: si el área acaba llamándose de otro modo —«Ventas», «Compensación»— el código `CM` no se cambia jamás.
+
+#### 5.3.1 Lo que este módulo le impone a `SP`
+
+**Una persona no puede tener dos roles de tipo `VENDEDOR`**, por decisión del responsable del proyecto. No es una regla de `CM` aunque nazca por él: gobierna la **asignación de roles**, que es `RF-SP-030`, y por eso se registra como `RN-SP-025` en [`requirements/sp.md`](requirements/sp.md) y no aquí.
+
+Nace por una pregunta que este módulo no puede responder solo: si alguien tuviera dos roles vendedores con tarifas distintas y ninguna tarifa propia, **no habría forma no arbitraria de elegir**. Las tres salidas eran adivinar —el porcentaje mayor—, exigir tarifa propia, o impedir el caso. Se eligió impedirlo, que es la única que no deja la ambigüedad viva en el sistema.
+
+**Se declaró en el esquema el 02-09-2026, y este párrafo decía lo contrario.** Afirmaba que no se podía: que un `CHECK` no consulta otra tabla y que un índice único no puede unir `user_roles` con `roles` para mirar `role_type`, de modo que la regla tendría que vivir en el caso de uso de `RF-SP-030` con un bloqueo pesimista.
+
+Las dos primeras frases siguen siendo ciertas y **la conclusión no lo era**: el dato que falta no hay que consultarlo, hay que **copiarlo**. `user_roles` lleva su propio `role_type`, una clave foránea **compuesta** impide que la copia diverja, y un índice único **parcial** sobre `(user_id) WHERE role_type = 'VENDEDOR'` cierra la regla. Es el patrón que `V49` validó en `product_commission_rates` cuatro días después de escribirse esta frase, y funciona aquí porque **`role_type` no es editable**.
+
+Lo que decidió no fue la elegancia sino el precedente que este mismo párrafo citaba: **`RN-SP-018` no se sostuvo bajo concurrencia** y hubo que corregirla el 26-08-2026, sobre esta misma tabla. Con la regla en el motor, dos asignaciones simultáneas **no pueden colarla**. El detalle, en [`requirements/sp.md` §10.11](requirements/sp.md).
+
+### 5.4 `MV` — Movimientos
+
+**Propósito.** Es dueño de **lo que ocurrió con el dinero**. Un movimiento es un hecho económico ya sucedido, y lleva un **tipo** que permite que la venta de un upgrade, el depósito de un cliente y el pago de una comisión vivan en la misma tabla sin dejar de ser cosas distintas. No es un registro de ventas: es el **libro** del sistema. **Un movimiento no se edita y no se borra**; lo único que avanza en él es su estado.
+
+**Alcance.** Se construye **por etapas**, y hoy solo está escrita la primera: **la venta** —registrarla, por las dos entradas que tiene; confirmarla, rechazarla o anularla; consultarla, incluidas «las mías»— con su **comprobante interno** y el catálogo sembrado de **métodos de pago**. Las etapas siguientes, declaradas y sin escribir: **depósitos y FTD**, **puntos**, **pasarela y sus notificaciones**, **devengo de comisiones** y **retiros y balances**.
+
+**No incluye.** **Cobrar** —eso lo hace una pasarela, y su integración es una etapa propia—; **aplicar el efecto de lo comprado**, porque conceder un nivel es escribir en `user_memberships`, tabla de `SP`; **la factura fiscal**, que es un documento DIAN con resolución y consecutivo legal y será una entidad aparte que apunte al movimiento; **el cálculo de la tasa**, que es de `CM`; y **descuentos e impuestos**, que hoy no existen por decisión del responsable del proyecto.
+
+| Submódulo | Responsabilidad | Entidades principales |
+|---|---|---|
+| Ventas | Registrar, resolver y consultar lo vendido | `movements`, `movement_types`, `movement_details` |
+| Medios de pago | Con qué se pagó | `payment_methods` |
+
+**Dependencias.** `SP` y `PM`. De `SP` necesita los **usuarios** —que el cliente exista y en qué estado está—, la **estructura comercial** —de qué vendedor cuelga el cliente— y las **monedas**; de `PM`, el **producto** con su precio y su vigencia, para **copiarlos**, y la **oferta** que le corresponde a quien compra (`RF-PM-007`). `CM` no aparece porque la dependencia va al revés: es la liquidación la que consumirá a `MV`.
+
+**Diseño detallado.** [`requirements/mv.md`](requirements/mv.md).
+
+!!! danger "D-26 — este módulo abre la primera escritura entre módulos"
+
+    Las interfaces publicadas entre módulos son **de solo lectura**, y [`architecture.md` §15.2](architecture.md) lo declara como norma: se devuelven modelos de lectura y nunca entidades, precisamente para no dar **con qué escribir**.
+
+    `MV` no puede quedarse ahí: una venta confirmada de un upgrade **tiene que conceder el nivel**, o confirmar no significa nada. Se recomienda que `SP` **publique la operación** y que `MV` la invoque en la misma transacción, y **queda abierta**: fija cómo se escribirá entre módulos para siempre.
+
+    Es la misma decisión que se retiró el 01-09-2026 con la primera versión del módulo, y **vuelve con su número original porque es la misma pregunta**.
+
+!!! info "Por qué `MV` vuelve, y qué se hace distinto"
+
+    El módulo existió del 01-09-2026 al 01-09-2026 y **se retiró entero** por decisión del responsable del proyecto. El problema no fue el alcance sino **el orden**: aquel documento diseñó el libro completo —ventas, depósitos, puntos, comisiones, pasarela y notificaciones entrantes— **antes de que existiera una sola venta**, y con él catorce requerimientos y treinta y nueve reglas sin una línea de código debajo.
+
+    El código `MV` **se reutiliza** por decisión del responsable, y el precio queda escrito: el borrado se llevó todos sus identificadores, de modo que `RF-MV-001` existió una vez como «registrar un depósito» y hoy es «registrar una venta». Un identificador que significa dos cosas según la fecha en que se lea es exactamente lo que §2.1 quiere evitar, y aquí se acepta a conciencia porque **ningún `RF-MV-NNN` anterior sobrevive en ninguna parte**.
+
+### 5.5 `AC` — Academia
+
+**Propósito.** Es dueño de **lo que se enseña**: los cursos, cómo se organizan —en categorías, en módulos, en lecciones— y **a qué nivel de membresía se le abre cada uno**. Es el primer módulo cuyo consumidor principal no es quien administra sino **el alumno**, y por eso nace con las dos caras a la vez: el catálogo que administración construye y la vista con la que el alumno lo recorre.
+
+**Alcance.** Se construye **por etapas**, y hoy solo está escrita la primera: **el catálogo y su lectura**. Categorías con portada, color e icono; cursos con instructor, dificultad, video de introducción y portada, clasificados en categorías, con **cursos recomendados** —qué conviene ver antes— y con la **lista de membresías** que les da acceso; módulos dentro del curso y lecciones —de video o de texto— dentro del módulo, cada una con su duración y con la posibilidad de estar **abierta a todos** como demostración. Y lo que ve el alumno: el catálogo de cursos que se le ofrecen, el detalle de un curso con sus módulos y lecciones, y el contenido de una lección cuando su membresía lo permite o la lección es demostración. Las etapas siguientes, declaradas y sin escribir: **sesiones en vivo** (HU13, HU14), **progreso del alumno** —qué lección completó, qué curso terminó— y **certificados**.
+
+**No incluye.** **Vender un curso**: un curso se abre por la membresía, no por una compra; el día que un curso se venda suelto será un tipo de producto de `PM` que consuma a este módulo, y no al revés. **Conceder la membresía**, que es escribir en `user_memberships`, tabla de `SP`. **Alojar el video**: el sistema guarda **enlaces** a videos que viven en una plataforma que ya los sirve, como hace `PM` con el video del producto (`RN-PM-032`); lo único que guarda como archivo es la portada, por lo mismo que `PM` (`RN-PM-033`). **Interpretar el contenido**: el texto de una lección es Markdown que el backend guarda y devuelve sin tocar. Y **el progreso del alumno**: hoy una recomendación es una sugerencia y no un candado precisamente porque no hay con qué saber si el alumno vio lo recomendado.
+
+| Submódulo | Responsabilidad | Entidades principales |
+|---|---|---|
+| Categorías | Alta, consulta, corrección, retiro y portada | `course_categories` |
+| Cursos | Alta, consulta, corrección, estado, retiro y portada; y sus tres relaciones: **clasificación** en categorías, **recomendaciones** entre cursos y **visibilidad** por membresía | `courses`, `course_category_items`, `course_recommendations`, `course_memberships` |
+| Módulos | Las partes de un curso: alta, corrección, estado, retiro y portada | `course_modules` |
+| Lecciones | Lo que se estudia: de video o de texto, con su duración y su bandera de demostración | `lessons` |
+| Aula | Lo que el alumno ve: el catálogo que se le ofrece, el detalle de un curso y el contenido de una lección | Las anteriores, y la membresía vigente que `SP` publica |
+| Portadas | Los bytes de las portadas de categorías, cursos y módulos, y la ruta pública que los sirve | `academy_images` |
+
+**Dependencias.** `SP`, y solo `SP`. De él necesita los **usuarios** —que el instructor exista y **porte el permiso `courses:teach`**—, las **membresías** —que la que se asocia a un curso exista— y la **membresía vigente** de quien pregunta, para decidir qué se le abre (`CurrentMembershipLookup`, la misma interfaz que consume `PM`). **De `PM` no necesita nada**, y conviene dejarlo escrito: la relación entre academia y productos que §5.2 anticipó —«Academia para saber qué nivel da acceso a qué»— se resolvió en `SP`, porque el nivel es la membresía y la membresía es de `SP`.
+
+**Diseño detallado.** [`requirements/ac.md`](requirements/ac.md).
+
+!!! success "Cómo consume a `SP` — la norma de D-25, con una interfaz que `SP` todavía no publica"
+
+    Sin excepción ni caso nuevo: `SP` publica interfaces de aplicación de solo lectura y `AC` las importa ([`architecture.md` §15.2](architecture.md#152-como-consume-un-modulo-los-datos-de-otro-cierre-de-d-25)). Dos de las tres que necesita **ya existen** —`MembershipCatalog` y `CurrentMembershipLookup`— porque `PM` las pidió antes. **La tercera no**: «¿esta persona porta este permiso?», que ningún consumidor había necesitado hasta que el instructor pasó a exigir `courses:teach`. Esa ampliación pertenece al requerimiento de `AC` que la necesita —el alta del curso— y no a un requerimiento nuevo de `SP`, que es el mismo reparto que se decidió al cerrar D-25 y el que `CM` aplicó con `UserCatalog`.
+
+    Las claves foráneas a `users` y `memberships` **sí** se declaran, por lo mismo que `PM` y `CM` las declaran hacia `SP`: la frontera que §7 defiende es la del **código**, y una clave foránea es integridad declarada en el motor (Art. V.6).
+
+!!! info "Por qué `AC` es un módulo y no un submódulo de `PM` ni de `SP`"
+
+    Cumple las dos condiciones de §2.1. **Es dueño de ocho tablas propias** que ningún otro módulo necesita: `PM` publica su catálogo igual exista o no un curso, y `SP` autoriza igual. Y **otros van a consumirlo**: `PM`, el día que un curso se venda suelto; `MV`, el día que haya que registrar esa venta; y Métricas, cuando exista, para contar qué se estudia.
+
+    **No es de `PM`** aunque comparta con él la forma —catálogo con estado, portada, video y retiro con motivo—: un curso no tiene precio, no se compra y no se ofrece por origen de membresía sino por lista. **No es de `SP`** aunque la visibilidad se decida por membresía: `SP` §5.1 lo dejó escrito desde el 20-08-2026 — «la definición de qué contenidos exige cada nivel de membresía corresponde a los módulos de academia y productos».
+
+!!! warning "El código se fija sabiendo lo que §6 advierte"
+
+    §6 advierte que los códigos de los módulos candidatos **no deberían fijarse hasta conocer el alcance completo** del producto. Se procede igualmente **por decisión del responsable del proyecto**, como con `PM`, `CM` y `MV`, y queda escrito que se procedió sabiéndolo. El riesgo concreto: si el área acaba abarcando las sesiones en vivo con otro nombre —«Formación», «Escuela»— el código `AC` no se cambia jamás. Y una consecuencia que conviene ver ahora: las **sesiones en vivo** de HU13 y HU14 son del mismo candidato, de modo que cuando se escriban serán `RF-AC-NNN` y no un módulo aparte, salvo que resulten dueñas de tablas que el catálogo de cursos no necesite — y entonces se promoverán por §2.3.
+
+### 5.6 Plantilla para un módulo nuevo
 
 ```markdown
 ### `COD` — Nombre del módulo
@@ -180,10 +350,10 @@ La Épica 2 del documento de historias de usuario (HU08–HU14) define siete rol
 | Candidato | Deducido de | Alcance aparente |
 |---|---|---|
 | Red comercial | HU10, HU11, HU12 | Estructura manager → director → agente y su relación entre personas. **Su primera pieza ya está construida dentro de `SP`** — ver la nota que sigue a esta tabla |
-| Comisiones | HU08, HU10, HU12 | FTDs, cálculo y liquidación de comisiones |
-| Finanzas | HU09 | Retiros, pagos, balances y egresos |
-| Productos y servicios | HU08, HU13 | Catálogo, compras |
-| Academia | HU08, HU13, HU14 | Cursos y sesiones en vivo |
+| ~~Comisiones~~ | HU08, HU10, HU12 | **Incorporado el 28-08-2026 como `CM`** (§5.3), con las **tarifas**: qué porcentaje gana cada rol vendedor por cada producto, y las excepciones por persona. El **cálculo, la liquidación y los FTDs** siguen fuera, y no por reparto sino porque **no hay sobre qué calcular**: ninguna tabla de ventas existe todavía |
+| ~~Comisiones~~ | HU08, HU10, HU12 | **Incorporado el 28-08-2026 como `CM`** (§5.3), con las **tarifas**: qué porcentaje gana cada rol vendedor por cada producto, y las excepciones por persona. El **cálculo, la liquidación y los FTDs** siguen fuera, y no por reparto sino porque **no hay sobre qué calcular**: ninguna tabla de ventas existe todavía |
+| ~~Finanzas~~ | HU09 | **Absorbido de nuevo el 02-09-2026 por `MV`** (§5.4). El módulo declara como alcance **todo hecho económico** y no solo la venta, de modo que retiros, pagos y balances son sus **etapas posteriores** y no un módulo aparte. Fue candidato otra vez durante un día, entre que `MV` se retiró y volvió |
+| ~~Academia~~ | HU08, HU13, HU14 | **Incorporado el 17-09-2026 como `AC`** (§5.5), con el **catálogo de cursos** —categorías, cursos, módulos y lecciones— y **lo que ve el alumno**. Las **sesiones en vivo** siguen fuera, y no por reparto: son del mismo módulo y se escribirán como `RF-AC-NNN` cuando llegue su tanda |
 | Señales | HU14 | Publicación y consumo de señales |
 | Métricas | HU08 | Indicadores y reportes de la plataforma |
 
@@ -262,3 +432,15 @@ El orden importa: el módulo precede al requerimiento, el requerimiento precede 
 | 0.8.0 | 20-08-2026 | Se actualizan los prefijos de permisos de `SP` con los catálogos incorporados: membresías, monedas y países. | Responsable técnico |
 | 0.9.0 | 21-08-2026 | El módulo `USR` se retira: usuarios, roles de usuario, membresía del usuario y acceso pasan a `SP`, que queda autocontenido. | Responsable técnico |
 | 0.10.0 | 22-08-2026 | Submódulo nuevo en `SP`: «Estructura comercial», dueño de `user_supervisors`. §6 deja escrito por qué la red comercial empieza dentro de `SP` en lugar de estrenar el código `RC` —los códigos de los candidatos no pueden fijarse hasta conocer el alcance, y no se cambian jamás— y con qué dos condiciones se promueve, siendo Comisiones el consumidor que las disparará. | Responsable técnico |
+| 0.11.0 | 26-08-2026 | **`SP` pasa de `En diseño` a `En desarrollo`.** El estado llevaba sin tocarse desde el 20-08-2026, cuando el módulo era exactamente eso: un diseño. Hoy sus cuarenta y dos requerimientos tienen tripleta aprobada y endpoint funcionando, veintinueve migraciones aplicadas y una suite de 137 pruebas unitarias y 595 de integración en verde. **No pasa a `Implementado`**, y la distinción importa: ese estado exige que sus requerimientos lo estén, y ninguno lo está mientras no haya Pull Request aprobado e integrado (Art. XVI). El detalle, requerimiento a requerimiento, en [`requirements.md` §4 y §5](requirements.md#4-matriz-de-trazabilidad). | Responsable técnico |
+| 0.12.0 | 26-08-2026 | **Se incorpora el módulo `PM` — Productos y Mercadeo**, el segundo del sistema y el primero que depende de otro. Es dueño de `products` y cumple las dos condiciones de §2.1: tabla propia que `SP` no necesita, y consumidores previsibles —Finanzas para cobrar, Comisiones para saber sobre qué importe se comisiona, Academia para saber qué nivel da acceso a qué—. Trae **dos tipos de producto que no se mezclan**: el **upgrade de membresía**, que da derecho a pasar al nivel que declara, y el **servicio del sistema**. §5.2.1 fija el desajuste entre código y paquete —`PM` → `modules/products`— por el mismo criterio que §4.1 aplicó a `SP`: el código nombra el área de negocio y es irreversible, el paquete nombra su contenido y es renombrable. **Lo que el módulo NO hace queda escrito**: no cobra, no entrega y **no aplica el upgrade sobre la persona**, porque `user_memberships` es de `SP` y §7 prohíbe que otro módulo la escriba. De ahí sale **D-25**: `SP` no publica hoy ninguna interfaz de aplicación para las tres lecturas que `PM` necesita —una membresía y su nivel, una moneda y sus decimales, la membresía vigente de alguien—, de modo que la dependencia está declarada y **no es consumible todavía**. §6 marca el candidato «Productos y servicios» como incorporado en su mitad de catálogo. Se procede pese a la advertencia de esa misma sección sobre fijar códigos antes de conocer el alcance completo, por decisión del responsable del proyecto, y queda escrito que se procedió sabiéndolo. | Responsable técnico |
+| 0.13.0 | 26-08-2026 | **D-25 cerrada**, y la ficha de `PM` deja de declarar su dependencia como no consumible. La respuesta vale para cualquier par de módulos y vive en `architecture.md` §15.2: **el dueño del dato publica interfaces de aplicación de solo lectura y el consumidor las importa**, una por lectura, devolviendo modelos de lectura y nunca entidades, con la ausencia como valor vacío y una regla de ArchUnit que impide importar repositorios o entidades ajenos. Es la primera vez que §7 —«un módulo NO DEBE acceder a las tablas ni a los repositorios de otro»— dice también **por dónde sí**. | Responsable del proyecto |
+| 0.14.0 | 27-08-2026 | **`PM` pasa de `En diseño` a `En desarrollo`**: su primer requerimiento está implementado, con tabla propia, permisos sembrados y endpoint funcionando. Con él, la norma de §15.2 de `architecture.md` deja de ser papel: `SP` publica sus dos primeras interfaces hacia otro módulo y una regla de ArchUnit impide que `PM` importe nada de su dominio. | Responsable técnico |
+| 0.15.0 | 28-08-2026 | **Se incorpora el módulo `CM` — Comisiones**, el tercero del sistema y el **primero que depende de dos**: `SP` le da el rol y la persona, `PM` el producto. La dependencia sigue siendo acíclica —`CM` → `PM` → `SP`— y la norma de consumo es la de D-25 sin excepción, con una consecuencia declarada: **`PM` tendrá que publicar una interfaz de lectura de productos que hoy no tiene**, y esa ampliación pertenece a los requerimientos de `CM` que la necesiten. Nace con **las tarifas y no con el cálculo**: el cálculo y la liquidación no se aplazan por reparto sino porque **no hay sobre qué calcular** mientras no exista una tabla de ventas — el mismo camino que siguió `PM`, cuyo catálogo existió antes que la compra. **Se pidió como submódulo de `PM` y se decidió que no**, por §2.1: la comisión no opera sobre `products`, opera sobre `roles` y `users`; un submódulo de `PM` con sus dos claves foráneas principales apuntando a `SP` no está en su módulo, y el identificador es irreversible. El código se fija **sabiendo lo que §6 advierte**, igual que con `PM`. Queda además una imposición sobre `SP` que se registra allí y no aquí: **una persona no puede tener dos roles de tipo `VENDEDOR`** (`RN-SP-025`), porque con dos tarifas distintas y ninguna propia no habría forma no arbitraria de elegir. | Responsable del proyecto |
+| 0.16.0 | 01-09-2026 | **`CM` se rehace**, por decisión del responsable del proyecto, y su ficha §5.3 lo recoge: donde había **una** tabla ahora hay **tres** —el catálogo por rol, la excepción por persona y la asociación con el producto— y el módulo gana un submódulo, **Asociación**, que es lo único que pone una tasa en vigor. **El cambio invalida la implementación**: los cinco requerimientos están construidos desde el 28-08-2026 con 45 pruebas, y la forma de `commission_rates` cambia. El detalle, en [`requirements/cm.md`](requirements/cm.md) v0.4.0. | Responsable del proyecto |
+| 0.17.0 | 02-09-2026 | **`CM` pasa de rediseñado a construido**, y su ficha §5.3 lo recoge: es dueño de **tres tablas** —el catálogo por rol, la excepción por persona y la asociación con el producto— donde el 01-09-2026 tenía una diseñada y dos por escribir. Con `V49` el módulo tiene sus **ocho requerimientos con endpoint funcionando** y **75 pruebas** propias. **La frontera de D-25 se estrenó en su forma más exigente y aguantó**: `CM` es el primer módulo que depende de dos, y al rehacerlo consume `RoleCatalog`, `UserCatalog`, `SellerRoleCatalog` y `ProductCatalog` sin importar una sola entidad ajena — mientras sus consultas siguen uniendo `roles`, `users` y `products` en la misma sentencia, que es lo que impide las `N+1` y **no rompe la frontera**, porque lo que §7 defiende es la del código y no la del motor. El detalle, en [`requirements/cm.md`](requirements/cm.md) v0.5.0. | Responsable técnico |
+| 0.18.0 | 02-09-2026 | **`MV` — Movimientos vuelve al inventario**, por decisión del responsable del proyecto, un día después de haberse retirado entero. Recupera su ficha (§5.4, y la plantilla vuelve a §5.5) y su fila, y **«Finanzas» vuelve a quedar absorbido** en §6: el módulo declara como alcance **todo hecho económico** —no solo la venta—, de modo que retiros, pagos y balances son etapas suyas. Lo que cambia respecto del primer intento **no es el alcance sino el orden**: aquel escribió el libro completo antes de que existiera una sola venta, y este declara el destino y **construye por etapas, empezando por vender**. El código `MV` **se reutiliza**, y el precio queda escrito en la ficha: `RF-MV-001` existió una vez como «registrar un depósito» y hoy es «registrar una venta» — se acepta porque el borrado se llevó **todos** los identificadores anteriores y ninguno sobrevive en ninguna parte. Vuelve además **D-26 con su número original**, porque es literalmente la misma pregunta: conceder el nivel comprado obliga a **escribir en `SP`**, y todas las interfaces entre módulos son de solo lectura. | Responsable del proyecto |
+| 0.19.0 | 14-09-2026 | **`PM` gana el submódulo Reseñas** ([`requirements/pm.md`](requirements/pm.md) v0.24.0): una puntuación y un texto por persona y producto, que solo su autor corrige y retira, con la tabla `product_comments`. §5.2 registra además el submódulo Hotlinks, que faltaba desde el 07-09-2026. Queda escrito por qué `PM` **no** consume a `MV` para exigir la compra antes de la opinión: cerraría el ciclo que §7 prohíbe. | Responsable del proyecto |
+| 0.20.0 | 14-09-2026 | **`PM` gana el submódulo Paquetes** ([`requirements/pm.md`](requirements/pm.md) v0.31.0 §5.2.10): varios productos bajo un código, cada uno con su descuento —porcentaje o importe fijo—, y el paquete vale la suma de los productos rebajados, calculada en cada lectura y nunca guardada. Se administra con un recurso de permisos propio, `packages:*`, y se publica donde se publican los productos. **La venta del paquete no es de este submódulo**: es una venta multilínea, de `MV` y `CM`, y queda para otra tanda. | Responsable del proyecto |
+| 0.21.0 | 17-09-2026 | **Se incorpora el módulo `AC` — Academia**, el quinto del sistema, por decisión del responsable del proyecto. Es el candidato que §6 tenía anotado desde el 20-08-2026 (HU08, HU13, HU14) y cumple las dos condiciones de §2.1: **ocho tablas propias** que ni `SP` ni `PM` necesitan, y consumidores previsibles —`PM` y `MV` el día que un curso se venda suelto, Métricas para contar qué se estudia—. Nace con **el catálogo y su lectura**: categorías, cursos con instructor, dificultad, video y portada, clasificados en categorías, con recomendaciones entre cursos y con **una lista explícita de membresías** que les da acceso; módulos dentro del curso, lecciones —de video o de texto— dentro del módulo, con la posibilidad de estar **abiertas a todos** como demostración; y lo que ve el alumno. **Depende de `SP` y solo de `SP`**, y la relación con `PM` que §5.2 anticipó se resolvió en `SP` porque el nivel es la membresía. Tres decisiones quedan escritas en la ficha: el instructor **porta un permiso** (`courses:teach`) y no un rol, para que `SP` no sepa de academia; la portada vive en **una tabla propia** (`academy_images`) y no en la de `PM`, porque §7 prohíbe que un módulo escriba la tabla de otro; y **las sesiones en vivo son del mismo módulo** y se escribirán como `RF-AC-NNN`. Se procede pese a la advertencia de §6 sobre fijar códigos antes de conocer el alcance completo, y queda escrito que se procedió sabiéndolo. | Responsable del proyecto |
+| 0.22.0 | 21-09-2026 | **Submódulo nuevo en `SP`: «Equipos»**, dueño de `teams` y `team_members` ([`requirements/sp.md`](requirements/sp.md) v1.71.0, `RF-SP-063` a `RF-SP-070`), por decisión del responsable del proyecto: cómo se agrupan los managers —la cúspide que `RN-SP-019` exime de superior—, uno vigente por manager y con historial, en la forma de `user_supervisors`. Entra en `SP` y no en el candidato `RC` por lo mismo que la estructura comercial en la 0.10.0: es un dato de organización que las comisiones consumirán, y los códigos de módulo no se fijan antes de conocer el alcance. | Responsable del proyecto |

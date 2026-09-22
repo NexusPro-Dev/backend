@@ -1,0 +1,245 @@
+package com.factech.nexus.modules.products.domain.service;
+
+import com.factech.nexus.modules.products.application.OfferItem;
+import com.factech.nexus.modules.products.application.OfferPackageItem;
+import com.factech.nexus.modules.products.application.OfferResponse;
+import com.factech.nexus.modules.products.application.PackageDetailResponse;
+import com.factech.nexus.modules.products.application.ProductImageUrls;
+import com.factech.nexus.modules.products.application.ProductLinkResponse;
+import com.factech.nexus.modules.products.application.ProductResponse;
+import com.factech.nexus.modules.products.domain.models.PackageOfferability;
+import com.factech.nexus.modules.products.domain.models.PackagePricing;
+import com.factech.nexus.modules.products.domain.models.ProductType;
+import com.factech.nexus.modules.products.domain.repository.ProductPackageQueryRepository;
+import com.factech.nexus.modules.products.domain.repository.ProductPackageQueryRepository.PublishedPackage;
+import com.factech.nexus.modules.products.domain.repository.ProductQueryRepository;
+import com.factech.nexus.modules.products.domain.repository.ProductQueryRepository.ProductRow;
+import com.factech.nexus.modules.system.users.application.CurrentMembershipLookup;
+import com.factech.nexus.modules.system.users.application.CurrentMembershipLookup.CurrentMembershipView;
+import com.factech.nexus.shared.error.UnauthorizedException;
+import com.factech.nexus.shared.security.CurrentActor;
+import java.time.Clock;
+import java.time.LocalDate;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Map;
+import java.util.Optional;
+import java.util.UUID;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
+
+/**
+ * Lo que quien consulta puede comprar hoy (`RF-PM-007`).
+ *
+ * <h2>El actor sale del token, y no hay por dónde indicar otro</h2>
+ *
+ * <p>Este método <b>no recibe ningún parámetro</b>, y esa ausencia es la implementación de
+ * `CA-PM-066`: no existe un identificador de persona que ignorar, de modo que enviarlo por la
+ * consulta no cambia nada porque no hay nada que lo lea. Admitir uno convertiría esta lectura en
+ * «qué puede comprar fulano», que es una pregunta sobre un tercero y que hoy nadie ha decidido
+ * quién puede hacer.
+ *
+ * <p>Es el mismo criterio que `RF-SP-039` aplicó al perfil propio, y por eso tampoco exige permiso:
+ * pedir `products:read` daría a cada cliente el catálogo administrativo entero —lo inactivo, lo
+ * retirado y el motivo del retiro— para que pudiera ver tres líneas.
+ *
+ * <h2>La regla vive aquí o no vive</h2>
+ *
+ * <p>Filtrar el catálogo en el navegador sería repetir este cálculo en cada pantalla que muestre
+ * productos, y <b>la que se quedara atrás no fallaría: ofrecería de más</b>. Ofrecerle a alguien un
+ * upgrade hacia el nivel que ya tiene es cobrarle por nada, y no hay ningún sitio donde eso falle
+ * después.
+ *
+ * <h2>Y «vigente» no se calcula aquí</h2>
+ *
+ * <p>El puerto de `SP` devuelve la membresía <b>ya evaluada</b> (**D-25**): si venció, devuelve
+ * vacío. Rehacer esa comparación en `PM` es el defecto que no falla —resultados plausibles durante
+ * meses, y solo visibles en el borde—, y de que se respete depende `FA-003` entero.
+ */
+@Service
+public class GetOwnOfferService {
+
+  private final ProductQueryRepository consultas;
+  private final ProductPackageQueryRepository paquetes;
+  private final CurrentMembershipLookup membresias;
+  private final CurrentActor actor;
+
+  private final ProductExchangeResolver conversiones;
+  private final ProductLinkReader enlaces;
+  private final Clock reloj;
+
+  @Autowired
+  public GetOwnOfferService(
+      ProductQueryRepository consultas,
+      ProductPackageQueryRepository paquetes,
+      CurrentMembershipLookup membresias,
+      CurrentActor actor,
+      ProductExchangeResolver conversiones,
+      ProductLinkReader enlaces) {
+    this(consultas, paquetes, membresias, actor, conversiones, enlaces, Clock.systemUTC());
+  }
+
+  GetOwnOfferService(
+      ProductQueryRepository consultas,
+      ProductPackageQueryRepository paquetes,
+      CurrentMembershipLookup membresias,
+      CurrentActor actor,
+      ProductExchangeResolver conversiones,
+      ProductLinkReader enlaces,
+      Clock reloj) {
+    this.consultas = consultas;
+    this.paquetes = paquetes;
+    this.membresias = membresias;
+    this.actor = actor;
+    this.conversiones = conversiones;
+    this.enlaces = enlaces;
+    this.reloj = reloj;
+  }
+
+  /**
+   * Dos lecturas y ninguna escritura.
+   *
+   * <p>{@code readOnly} no es una anotación de adorno: declara ante el motor que esta transacción
+   * no escribe, y deja escrito para quien la lea que la oferta <b>no reserva nada</b>. Que un
+   * producto aparezca aquí no promete que siga disponible al comprarlo.
+   */
+  @Transactional(readOnly = true)
+  public OfferResponse offer() {
+    UUID quien =
+        actor
+            .currentActorId()
+            .orElseThrow(() -> new UnauthorizedException("AUTH-001", "Se requiere autenticación."));
+
+    Optional<CurrentMembershipView> actual = membresias.currentMembershipOf(quien);
+
+    // Nulo NO es «sin filtro»: es «ninguna coincidencia posible», y la consulta
+    // lo traduce en cero upgrades y todos los bots (`FA-001`, `FA-003`). Quien
+    // no tiene nivel no lo obtiene comprando un salto, sino recibiendo un rol de
+    // consumidor (`RN-SP-018`).
+    //
+    // ES EL IDENTIFICADOR Y NO EL NIVEL desde el 07-09-2026 (`T-20`): la oferta
+    // coincide por ORIGEN. El nivel no podía expresar la renovación —un
+    // `X → X` obliga a comparar «igual», y ahí entra el salto ajeno que acaba
+    // donde el actor ya está—.
+    UUID membresia = actual.map(CurrentMembershipView::id).orElse(null);
+
+    List<OfferItem> upgrades = new ArrayList<>();
+    List<OfferItem> bots = new ArrayList<>();
+
+    // Se separa por tipo SIN reordenar: la sentencia ya devolvió los upgrades
+    // por nivel de destino y los bots por fecha de alta (`CA-PM-078`), y volver
+    // a ordenar aquí sería una segunda copia de ese criterio.
+    List<ProductRow> filas = consultas.findOffer(membresia);
+
+    // LOS PAQUETES (`RF-PM-007` v0.13.0, `RN-PM-044`): una sentencia más, y el
+    // filtro en Java sobre lo que vino — ofrecible hoy, y con SU upgrade —uno
+    // como máximo, `RN-PM-046`— saliendo de la membresía del actor, o sin
+    // upgrade. Sin membresía solo pasan los paquetes de bots, igual que sin
+    // membresía solo se ven bots. Y DENTRO DE SU VIGENCIA (`RN-PM-047`): un
+    // paquete que empieza mañana o terminó ayer no aparece, y nada lo dice.
+    LocalDate hoy = LocalDate.now(reloj);
+    List<PublishedPackage> ofrecibles =
+        paquetes.findOfferable().stream()
+            .filter(p -> p.ofrecibilidad(hoy).offerable())
+            .filter(p -> saleDe(p, membresia))
+            .toList();
+
+    // La conversión de TODA la oferta —productos Y paquetes— en dos consultas,
+    // y no dos por fila. El cuerpo sería idéntico con cuarenta, de modo que esto
+    // solo se ve contando sentencias (`CA-PM-168`, `CA-PM-337`).
+    List<UUID> monedas = new ArrayList<>(filas.stream().map(ProductRow::currencyId).toList());
+    ofrecibles.forEach(p -> monedas.add(p.paquete().currencyId()));
+    ProductExchangeResolver.Conversor conversor = conversiones.para(monedas);
+
+    // Los enlaces de TODA la oferta —los productos sueltos Y los de dentro de
+    // los paquetes— en UNA sentencia, por lo mismo que la conversión de arriba:
+    // el cuerpo sería idéntico pidiéndolos uno a uno, y solo se ve contando
+    // sentencias. Publicables: el CUPON_BOT no sale de la base —el tipo va en el
+    // predicado— y `OfferItem` no tiene dónde ponerlo (`RN-PM-050`, `CA-PM-394`).
+    List<UUID> productosDeLaOferta = new ArrayList<>(filas.stream().map(ProductRow::id).toList());
+    ofrecibles.forEach(
+        p -> p.items().forEach(linea -> productosDeLaOferta.add(linea.producto().id())));
+    Map<UUID, List<ProductLinkResponse>> enlacesDeLaOferta =
+        enlaces.publicablesDe(productosDeLaOferta);
+
+    for (ProductRow fila : filas) {
+      OfferItem producto =
+          OfferItem.from(
+              fila,
+              enlacesDeLaOferta.getOrDefault(fila.id(), List.of()),
+              conversor.de(fila.currencyId(), fila.price()));
+      if (producto.type() == ProductType.UPGRADE_MEMBRESIA) {
+        upgrades.add(producto);
+      } else {
+        bots.add(producto);
+      }
+    }
+
+    return OfferResponse.de(
+        actual.map(GetOwnOfferService::referencia).orElse(null),
+        upgrades,
+        bots,
+        ofrecibles.stream().map(p -> paquete(p, enlacesDeLaOferta, conversor)).toList());
+  }
+
+  /**
+   * `RN-PM-044`: el paquete se ofrece a quien tiene el origen de su upgrade; sin upgrade, a todos.
+   *
+   * <p>El predicado vive en {@link PackageOfferability#correspondeA} desde el 17-09-2026, porque la
+   * venta del paquete (`RF-MV-012`) responde la misma pregunta al registrar y las dos lecturas
+   * tienen que decir lo mismo: aquí vivía, y aquí solo se llama.
+   */
+  private static boolean saleDe(PublishedPackage paquete, UUID membresia) {
+    return PackageOfferability.correspondeA(paquete.origenesDeSusUpgrades(), membresia);
+  }
+
+  private static OfferPackageItem paquete(
+      PublishedPackage publicado,
+      Map<UUID, List<ProductLinkResponse>> enlacesDeLaOferta,
+      ProductExchangeResolver.Conversor conversor) {
+    PackagePricing cuenta = publicado.precio();
+    UUID moneda = publicado.paquete().currencyId();
+    int decimales = publicado.paquete().currencyDecimalPlaces();
+    return new OfferPackageItem(
+        publicado.paquete().code(),
+        publicado.paquete().name(),
+        publicado.paquete().description(),
+        ProductImageUrls.de(publicado.paquete().coverImageId()),
+        publicado.paquete().validFrom(),
+        publicado.paquete().validTo(),
+        new ProductResponse.CurrencyRef(moneda, publicado.paquete().currencyCode(), decimales),
+        publicado.items().stream()
+            .map(
+                linea ->
+                    new OfferPackageItem.Line(
+                        // La forma de la oferta, tal cual, con la conversión del
+                        // mismo conversor: todas las líneas están en la moneda
+                        // del paquete.
+                        OfferItem.from(
+                            linea.producto(),
+                            enlacesDeLaOferta.getOrDefault(linea.producto().id(), List.of()),
+                            conversor.de(moneda, linea.producto().price())),
+                        new PackageDetailResponse.DiscountRef(
+                            linea.descuento().getType(),
+                            linea.descuento().valorEnEscala(decimales)),
+                        cuenta.precioDe(linea.producto().id())))
+            .toList(),
+        cuenta.listPrice(),
+        cuenta.price(),
+        cuenta.savings(),
+        conversor.de(moneda, cuenta.price()));
+  }
+
+  /**
+   * El nivel desde el que mira quien consulta.
+   *
+   * <p>Se proyecta a la <b>misma</b> referencia que usan el destino de un upgrade y las respuestas
+   * del catálogo: el frontend compara «desde dónde estoy» con «hacia dónde va este producto», y dos
+   * formas del mismo dato le obligarían a escribir dos lectores para compararlos.
+   */
+  private static ProductResponse.MembershipRef referencia(CurrentMembershipView membresia) {
+    return new ProductResponse.MembershipRef(
+        membresia.id(), membresia.code(), membresia.name(), membresia.level(), membresia.color());
+  }
+}

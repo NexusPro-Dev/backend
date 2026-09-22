@@ -11,8 +11,14 @@
 | Fecha de aprobación | 21-08-2026 |
 | Reabierto el | 22-08-2026 — corrección de §6, ver la nota al final de esa sección (Art. I.7) |
 | Reaprobado el | 22-08-2026 — Responsable del proyecto, verificada la corrección contra `ck_audit_error_log_status` |
+| Reabierto el | 16-09-2026 — `RN-SEG-012` deja de alcanzar a los permisos: sale el `409` de `EX-004` y la tercera puerta del orden de verificación, ver §4, §6 y §11 (Art. I.7) |
+| Reaprobado el | 16-09-2026 — Responsable del proyecto |
 
 ---
+
+!!! note "Enmienda de Art. I.7 — 19-09-2026, `RF-SP-060`"
+
+    Esta operación exige **`roles:assign-permissions`** y no `roles:update` desde el 19-09-2026, por `RF-SP-060` —**un permiso por operación**, `RN-SEG-014` ([`security.md` §4.4](../../../security.md#44-catalogo-de-permisos))—: `roles:update` gobernaba varias operaciones y se queda con una; esta recibe código propio, sembrado por `V28` y dado a todo rol que portara `roles:update`. Las menciones de `roles:update` que siguen abajo hablan de su siembra original y se conservan como historia.
 
 ## 1. Enfoque
 
@@ -93,10 +99,10 @@ Los permisos van por identificador y no por código, igual que en `RF-SP-001`, p
 |---|---|---|
 | `400` | Lista vacía, identificador malformado o más de 100 elementos | `VAL-001`, `VAL-002`, `VAL-006` |
 | `401` | Token ausente o inválido | `AUTH-001` |
-| `403` | El actor no posee `roles:update` | `AUTH-002` |
+| `403` | El actor no posee `roles:assign-permissions` | `AUTH-002` |
 | `403` | El rol está entre los del actor (`EX-005`) | `RN-SEG-011` |
 | `404` | El rol no existe o está eliminado (`EX-006`) | `EX-006` |
-| `409` | El rol es de sistema (`EX-004`) | `RN-SEG-012` |
+| ~~`409`~~ | ~~El rol es de sistema (`EX-004`)~~ — **retirado el 16-09-2026**: un rol de sistema recibe permisos como cualquier otro | ~~`RN-SEG-012`~~ |
 | `409` | Algún permiso excede al rol padre (`EX-001`) | `RN-SEG-003` |
 | `409` | Algún permiso excede al actor (`EX-002`) | `RN-SEG-010` |
 | `422` | Algún permiso no existe en el catálogo (`EX-003`) | `EX-003` |
@@ -112,7 +118,7 @@ Los cuerpos de `409` por contención **deben enumerar los permisos que incumplen
 
 1. Formato, obligatoriedad y límite de 100, todas juntas.
 2. Rol existente y vigente.
-3. Rol no de sistema.
+3. ~~Rol no de sistema.~~ **Retirado el 16-09-2026**: `RoleWriteAccess` conserva la puerta para las otras cuatro escrituras y esta operación la salta por un método propio, de modo que la decisión queda escrita en un solo sitio y no en un `if` por servicio.
 4. El actor no tiene el rol asignado.
 5. Todos los permisos existen en el catálogo.
 6. Contención en el rol padre.
@@ -124,7 +130,7 @@ Los pasos 6 y 7 no son evaluables sin haber resuelto antes el catálogo: el orde
 
 | Endpoint | Permiso requerido |
 |---|---|
-| `POST /api/v1/roles/{id}/permissions` | `roles:update` |
+| `POST /api/v1/roles/{id}/permissions` | `roles:assign-permissions` |
 
 **`RN-SEG-010` se evalúa leyendo la base de datos, no la caché de resolución.**
 
@@ -139,7 +145,7 @@ Es la misma decisión que tomó el plan de `RF-SP-001` y conviene mantenerla por
 | Permisos agregados | `audit_change_log` | `action = UPDATE` sobre la entidad `roles`, con `changes` conteniendo **solo los permisos realmente agregados** |
 | Permisos agregados | `audit_security_log` | Cambio de permisos de un rol, severidad **Alta** |
 | Ninguno agregado | — | **Ningún evento**: si todos los permisos ya estaban, nada cambió |
-| Rechazo por `EX-001` a `EX-004` (`409` y `422`) | `audit_error_log` | `resource = 'roles'`, `operation` con método y ruta, `error_code` de la tabla de §4, `error_type = 'BUSINESS_RULE'`, `http_status`, `severity` y `message` saneado. Severidad **Alta** para `RN-SEG-003` y `RN-SEG-010` —los dos son intentos de escalada de privilegios y deben poder encontrarse buscando por severidad—; **Media** para `EX-003` y `EX-004` |
+| Rechazo por `EX-001` a `EX-003` (`409` y `422`) — `EX-004` **retirada el 16-09-2026** | `audit_error_log` | `resource = 'roles'`, `operation` con método y ruta, `error_code` de la tabla de §4, `error_type = 'BUSINESS_RULE'`, `http_status`, `severity` y `message` saneado. Severidad **Alta** para `RN-SEG-003` y `RN-SEG-010` —los dos son intentos de escalada de privilegios y deben poder encontrarse buscando por severidad—; **Media** para `EX-003` y `EX-004` |
 | Rechazo `403` por `EX-005` (`RN-SEG-011`) | `audit_security_log` | `event_type = 'AUTHORIZATION_DENIED'`, `severity = 'ALTA'`, `outcome = 'FAILURE'`, `entity_id` del rol. **No** va a `audit_error_log`, y es el tercer intento de escalada: se encuentra por severidad igual que los otros dos, en el registro contiguo |
 | Rechazo `404` por `EX-006` | — | **No se audita** en la auditoría de error (`architecture.md` §6.6.4) |
 | Rechazo `400` de formato | — | **No se audita** (`architecture.md` §6.6.4) |
@@ -203,7 +209,8 @@ La caché se invalida **después** de confirmar. Invalidarla antes abriría una 
 | `CA-SP-033` | Unitaria + API | Ídem contra los permisos efectivos del actor |
 | `CA-SP-034` | Integración | Repetir la misma petición no produce error ni filas duplicadas |
 | `CA-SP-035` | Unitaria | Un rol sin padre omite `RN-SEG-003` y conserva `RN-SEG-010` |
-| `CA-SP-036` | API | Rol de sistema devuelve `409` con `RN-SEG-012` |
+| ~~`CA-SP-036`~~ | ~~API~~ | ~~Rol de sistema devuelve `409` con `RN-SEG-012`~~ — **retirado el 16-09-2026**, invertido en `CA-SP-683` |
+| `CA-SP-683` | API + Integración | Un rol de sistema sembrado vacío (`MANAGER`) recibe un permiso contenido en `ADMIN` con `200`, la fila queda en `role_permissions`, y la prueba **devuelve el rol a su estado sembrado** al terminar: es estado compartido por toda la suite |
 | `CA-SP-037` | API | Rol propio del actor devuelve `403` con `RN-SEG-011` |
 | `CA-SP-038` | Integración | Tras la operación, una resolución de permisos refleja el cambio de inmediato |
 | `CA-SP-039` | Integración | Una fila en cada registro de auditoría, con los permisos agregados en el diff |

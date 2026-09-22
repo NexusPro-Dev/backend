@@ -30,7 +30,12 @@ class UserQueryIT extends IntegrationTestBase {
 
   private static final String SUPERADMIN_ROL = "01a02a33-4c00-7001-9c4f-5e7ad1000001";
   private static final String ADMIN = "01a02a33-4c00-7002-9c4f-5e7ad1000002";
-  private static final String CONTABILIDAD = "01a02a33-4c00-7003-9c4f-5e7ad1000003";
+
+  /** Código del rol acotado que esta clase se fabrica. */
+  private static final String CODIGO_ACOTADO = "AUDITORIA_ACOTADA";
+
+  /** Rol con DOS permisos y ninguno más: es lo que hace observable `effectivePermissions`. */
+  private String rolAcotado;
 
   @Autowired private MockMvc mvc;
   @Autowired private JdbcTemplate jdbc;
@@ -43,6 +48,7 @@ class UserQueryIT extends IntegrationTestBase {
   @BeforeEach
   void preparar() {
     jdbc.update("DELETE FROM refresh_tokens");
+    jdbc.update("DELETE FROM client_sellers");
     jdbc.update("DELETE FROM user_supervisors");
     jdbc.update("DELETE FROM user_memberships");
     jdbc.update("DELETE FROM user_roles");
@@ -50,14 +56,19 @@ class UserQueryIT extends IntegrationTestBase {
     jdbc.update(
         "DELETE FROM role_permissions WHERE role_id IN (SELECT id FROM roles WHERE is_system = false)");
     jdbc.update("DELETE FROM roles WHERE is_system = false");
-    jdbc.update("DELETE FROM memberships WHERE level > 0");
+    // BARRIDO TOTAL Y REPOSICIÓN, en ese orden: conservar BECA haría depender esta
+    // clase del ORDEN DE EJECUCIÓN — según quién haya corrido antes, la fila queda
+    // colgando de VIP (`V47`) o suelta, y el barrido choca con `fk_memberships_parent`.
+    jdbc.update("DELETE FROM memberships");
+    reponerElSuelo(jdbc);
     jdbc.update(
-        "INSERT INTO user_roles (user_id, role_id) VALUES (?, ?::uuid)",
+        "INSERT INTO user_roles (user_id, role_id, role_type) SELECT ?, r.id, r.role_type FROM roles r WHERE r.id = ?::uuid",
         SUPERADMIN,
         SUPERADMIN_ROL);
 
     restaurarRolesDelSistema();
 
+    rolAcotado = crearRolAcotado(jdbc, CODIGO_ACOTADO, "Auditoría acotada").toString();
     consumidor = crearRol("ESTUDIANTE", "CONSUMIDOR");
     oro = crearMembresia();
 
@@ -65,10 +76,16 @@ class UserQueryIT extends IntegrationTestBase {
     ana = crearPersona("amartinez", "ana@factech.co", "Ana", "Martínez", "INACTIVO");
 
     jdbc.update(
-        "INSERT INTO user_roles (user_id, role_id) VALUES (?, ?::uuid)", juan, CONTABILIDAD);
-    jdbc.update("INSERT INTO user_roles (user_id, role_id) VALUES (?, ?::uuid)", juan, consumidor);
+        "INSERT INTO user_roles (user_id, role_id, role_type) SELECT ?, r.id, r.role_type FROM roles r WHERE r.id = ?::uuid",
+        juan,
+        rolAcotado);
     jdbc.update(
-        "INSERT INTO user_memberships (user_id, membership_id, started_at) VALUES (?, ?::uuid, now())",
+        "INSERT INTO user_roles (user_id, role_id, role_type) SELECT ?, r.id, r.role_type FROM roles r WHERE r.id = ?::uuid",
+        juan,
+        consumidor);
+    jdbc.update(
+        "INSERT INTO user_memberships (id, user_id, membership_id, started_at)"
+            + " VALUES (gen_random_uuid(), ?, ?::uuid, now())",
         juan,
         oro);
   }
@@ -90,6 +107,7 @@ class UserQueryIT extends IntegrationTestBase {
   @org.junit.jupiter.api.AfterEach
   void devolverElEstadoCompartidoASuSitio() {
     jdbc.update("DELETE FROM refresh_tokens");
+    jdbc.update("DELETE FROM client_sellers");
     jdbc.update("DELETE FROM user_supervisors");
     jdbc.update("DELETE FROM user_memberships");
     jdbc.update("DELETE FROM user_roles");
@@ -108,7 +126,7 @@ class UserQueryIT extends IntegrationTestBase {
         """,
         SUPERADMIN);
     jdbc.update(
-        "INSERT INTO user_roles (user_id, role_id) VALUES (?, ?::uuid) ON CONFLICT DO NOTHING",
+        "INSERT INTO user_roles (user_id, role_id, role_type) SELECT ?, r.id, r.role_type FROM roles r WHERE r.id = ?::uuid ON CONFLICT DO NOTHING",
         SUPERADMIN,
         "01a02a33-4c00-7001-9c4f-5e7ad1000001");
   }
@@ -175,7 +193,7 @@ class UserQueryIT extends IntegrationTestBase {
 
     // Está declarado en el esquema y sin usar: excluirlo del dominio obligaría a
     // ampliarlo el día que exista el flujo de activación.
-    mvc.perform(listado().param("status", "PENDIENTE"))
+    mvc.perform(listado().param("status", "FTD_PENDIENTE"))
         .andExpect(status().isOk())
         .andExpect(jsonPath("$.content").isEmpty());
 
@@ -195,7 +213,7 @@ class UserQueryIT extends IntegrationTestBase {
         .andExpect(jsonPath("$.content").isEmpty())
         .andExpect(jsonPath("$.totalElements").value(0));
 
-    mvc.perform(listado().param("roleId", CONTABILIDAD))
+    mvc.perform(listado().param("roleId", rolAcotado))
         .andExpect(status().isOk())
         .andExpect(jsonPath("$.content.length()").value(1));
   }
@@ -205,9 +223,12 @@ class UserQueryIT extends IntegrationTestBase {
   void elFiltroPorRolNoDuplica() throws Exception {
     // Con un JOIN, `totalElements` contaría asignaciones en cuanto alguien
     // añadiera un segundo valor al filtro. Con EXISTS no puede duplicar.
-    jdbc.update("INSERT INTO user_roles (user_id, role_id) VALUES (?, ?::uuid)", juan, ADMIN);
+    jdbc.update(
+        "INSERT INTO user_roles (user_id, role_id, role_type) SELECT ?, r.id, r.role_type FROM roles r WHERE r.id = ?::uuid",
+        juan,
+        ADMIN);
 
-    mvc.perform(listado().param("roleId", CONTABILIDAD))
+    mvc.perform(listado().param("roleId", rolAcotado))
         .andExpect(status().isOk())
         .andExpect(jsonPath("$.content.length()").value(1))
         .andExpect(jsonPath("$.totalElements").value(1));
@@ -355,7 +376,7 @@ class UserQueryIT extends IntegrationTestBase {
         .andExpect(jsonPath("$.effectivePermissions[0]").value("audit:read-changes"))
         .andExpect(jsonPath("$.effectivePermissions[1]").value("audit:read-deletions"))
         // El nivel, que el listado no devuelve.
-        .andExpect(jsonPath("$.membership.level").value(1));
+        .andExpect(jsonPath("$.membership.level").value(2));
   }
 
   @Test
@@ -363,12 +384,13 @@ class UserQueryIT extends IntegrationTestBase {
   void rolesInactivos() throws Exception {
     // Las dos mitades juntas son lo único que explica por qué una persona CON
     // roles no puede hacer nada.
-    jdbc.update("UPDATE roles SET status = 'INACTIVO' WHERE id = ?::uuid", CONTABILIDAD);
+    jdbc.update("UPDATE roles SET status = 'INACTIVO' WHERE id = ?::uuid", rolAcotado);
 
     mvc.perform(detalle(juan))
         .andExpect(status().isOk())
         .andExpect(jsonPath("$.roles.length()").value(2))
-        .andExpect(jsonPath("$.roles[?(@.code == 'CONTABILIDAD')].status").value("INACTIVO"))
+        .andExpect(
+            jsonPath("$.roles[?(@.code == '" + CODIGO_ACOTADO + "')].status").value("INACTIVO"))
         .andExpect(jsonPath("$.effectivePermissions").isEmpty());
   }
 
@@ -380,7 +402,7 @@ class UserQueryIT extends IntegrationTestBase {
     mvc.perform(detalle(juan))
         .andExpect(status().isOk())
         .andExpect(jsonPath("$.roles.length()").value(1))
-        .andExpect(jsonPath("$.roles[0].code").value("CONTABILIDAD"));
+        .andExpect(jsonPath("$.roles[0].code").value(CODIGO_ACOTADO));
   }
 
   @Test
@@ -392,7 +414,9 @@ class UserQueryIT extends IntegrationTestBase {
         // Diría a cualquiera con permiso de lectura cuántos intentos le quedan a
         // una cuenta antes de bloquearse.
         .doesNotContain("failedAttempts")
-        .doesNotContain("password")
+        // `"password` con la comilla: el campo, no la palabra — desde RF-SP-062 el
+        // detalle lista `users:change-own-password` entre los permisos efectivos.
+        .doesNotContain("\"password")
         .doesNotContain("mustChangePassword")
         .doesNotContain("argon2")
         // Ni el superior comercial: eso tiene su propio endpoint.
@@ -442,6 +466,101 @@ class UserQueryIT extends IntegrationTestBase {
   }
 
   // ---------------------------------------------------------------------------
+  // `RN-SP-034` — el país en la fila, en el detalle y como filtro
+  // ---------------------------------------------------------------------------
+
+  @Test
+  @DisplayName("CA-SP-575 — cada fila trae el país RESUELTO, y ninguna lo trae vacío")
+  void cadaFilaLlevaSuPais() throws Exception {
+    crearPersona("conpais1", "cp1@factech.co", "Ana", "Ruiz", "ACTIVO");
+
+    mvc.perform(listado().param("size", "100"))
+        .andExpect(status().isOk())
+        // NINGUNA fila con el país nulo. Es la aserción que importa: la columna
+        // es `NOT NULL` y la unión es interna, de modo que una fila sin país no
+        // sería «no tiene» sino una violación de integridad.
+        .andExpect(jsonPath("$.content[?(@.country == null)]").isEmpty())
+        .andExpect(jsonPath("$.content[0].country.code").value("COL"));
+  }
+
+  @Test
+  @DisplayName("CA-SP-576 — el filtro por país acota, se COMBINA con los demás y ve los inactivos")
+  void filtroPorPais() throws Exception {
+    UUID retirado = sembrarPais("XLR", "Pais Retirado Del Listado", false);
+
+    UUID enRetirado = UUID.randomUUID();
+    jdbc.update(
+        """
+        INSERT INTO users (id, username, email, first_name, last_name, password_hash,
+                           must_change_password, status, country_id)
+        VALUES (?, ?, ?, ?, ?, 'x', false, 'ACTIVO', ?)
+        """,
+        enRetirado,
+        "enperu",
+        "enperu@factech.co",
+        "Luis",
+        "Quispe",
+        retirado);
+
+    // EL PAÍS ESTÁ INACTIVO Y LA PERSONA APARECE IGUAL. Es la mitad de la
+    // decisión que este filtro toma: acotar por `is_active` convertiría
+    // desactivar un país en una forma de esconder a su gente, justo cuando este
+    // listado es la herramienta para encontrarla y moverla con `RF-SP-027`.
+    mvc.perform(listado().param("countryId", retirado.toString()))
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$.totalElements").value(1))
+        .andExpect(jsonPath("$.content[0].username").value("enperu"));
+
+    // Y se combina con los filtros que ya existían.
+    mvc.perform(listado().param("countryId", retirado.toString()).param("status", "INACTIVO"))
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$.totalElements").value(0));
+
+    // Un país inexistente devuelve colección vacía, no un error: mismo trato
+    // que el filtro por rol.
+    mvc.perform(listado().param("countryId", UUID.randomUUID().toString()))
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$.totalElements").value(0));
+  }
+
+  @Test
+  @DisplayName("CA-SP-577 — el detalle trae el país, y lo trae también si está INACTIVO")
+  void elDetalleLlevaElPais() throws Exception {
+    UUID retirado = sembrarPais("XDT", "Pais Retirado Del Detalle", false);
+
+    UUID persona = crearPersona("detpais", "detpais@factech.co", "Eva", "Mora", "ACTIVO");
+    jdbc.update("UPDATE users SET country_id = ? WHERE id = ?", retirado, persona);
+
+    mvc.perform(detalle(persona))
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$.country.code").value("XDT"))
+        .andExpect(jsonPath("$.country.name").value("Pais Retirado Del Detalle"));
+  }
+
+  // ---------------------------------------------------------------------------
+
+  /**
+   * Registra un país de prueba y devuelve su identificador.
+   *
+   * <p><b>Los códigos son del bloque de USO PRIVADO de ISO 3166-1</b> —los que empiezan por {@code
+   * X}—, que ningún país real ocupa jamás. La base de estas pruebas es compartida y los países
+   * <b>no se pueden borrar</b> (`RN-SP-009`): sembrar aquí «Panamá» chocaría con {@code
+   * uq_countries_name} en cuanto otra clase lo hubiera hecho antes, y el fallo aparecería o no
+   * según el orden de ejecución.
+   *
+   * <p>Y es <b>idempotente</b> por lo mismo: el país sobrevive a la prueba que lo creó.
+   */
+  private java.util.UUID sembrarPais(String codigo, String nombre, boolean activo) {
+    jdbc.update(
+        "INSERT INTO countries (id, code, name, is_active) VALUES (?, ?, ?, ?)"
+            + " ON CONFLICT (code) DO UPDATE SET is_active = EXCLUDED.is_active",
+        java.util.UUID.randomUUID(),
+        codigo,
+        nombre,
+        activo);
+    return jdbc.queryForObject(
+        "SELECT id FROM countries WHERE code = ?", java.util.UUID.class, codigo);
+  }
 
   private MockHttpServletRequestBuilder listado() {
     return get("/api/v1/users").with(lector());
@@ -452,7 +571,8 @@ class UserQueryIT extends IntegrationTestBase {
   }
 
   private RequestPostProcessor lector() {
-    return user(SUPERADMIN.toString()).authorities(() -> "users:read");
+    return user(SUPERADMIN.toString())
+        .authorities(() -> "users:read", () -> "users:list", () -> "users:read-team");
   }
 
   private UUID crearPersona(
@@ -461,8 +581,8 @@ class UserQueryIT extends IntegrationTestBase {
     jdbc.update(
         """
         INSERT INTO users (id, username, email, first_name, last_name, password_hash,
-                           must_change_password, status)
-        VALUES (?, ?, ?, ?, ?, 'x', false, ?)
+                           must_change_password, status, country_id)
+        VALUES (?, ?, ?, ?, ?, 'x', false, ?, (SELECT id FROM countries WHERE code = 'COL'))
         """,
         id,
         username,
@@ -488,7 +608,9 @@ class UserQueryIT extends IntegrationTestBase {
   private String crearMembresia() {
     UUID id = UUID.randomUUID();
     jdbc.update(
-        "INSERT INTO memberships (id, code, name, parent_membership_id, level) VALUES (?, 'ORO', 'Oro', NULL, 1)",
+        "INSERT INTO memberships (id, code, name, parent_membership_id, level, color)"
+            + " VALUES (?, 'ORO', 'Oro', (SELECT id FROM memberships WHERE code = 'BECA'), 2,"
+            + " 'D4AF37')",
         id);
     return id.toString();
   }

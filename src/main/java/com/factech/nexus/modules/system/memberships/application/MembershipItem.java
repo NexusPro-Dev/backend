@@ -26,6 +26,7 @@ public record MembershipItem(
     String code,
     String name,
     String description,
+    String color,
     int level,
     UUID parentMembershipId,
     UUID childMembershipId) {}

@@ -20,6 +20,10 @@ El comportamiento —flujos, excepciones, validaciones y criterios de aceptació
 
 ---
 
+!!! note "Enmienda de Art. I.7 — 19-09-2026, `RF-SP-060`"
+
+    Esta operación exige **`roles:list`** y no `roles:read` desde el 19-09-2026, por `RF-SP-060` —**un permiso por operación**, `RN-SEG-014` ([`security.md` §4.4](../../../security.md#44-catalogo-de-permisos))—: `roles:read` gobernaba varias operaciones y se queda con una; esta recibe código propio, sembrado por `V28` y dado a todo rol que portara `roles:read`. Las menciones de `roles:read` que siguen abajo hablan de su siembra original y se conservan como historia.
+
 ## 1. Enfoque
 
 La consulta se resuelve con **una sola sentencia de lectura sobre una proyección**, no cargando el agregado `Role`. La capa `infrastructure` construye la consulta con la API de criterios de JPA a partir de los filtros presentes —solo los presentes— y la materializa directamente en un registro plano de lectura, con un `LEFT JOIN` al rol padre en la misma sentencia. No hay entidades JPA en el camino de esta funcionalidad y, por tanto, no hay colección perezosa que pueda dispararse ni `role_permissions` que se lea sin que nadie lo haya pedido.
@@ -159,7 +163,7 @@ Decisiones del contrato:
 | `400` | `status` o `roleType` fuera de su dominio | `VAL-004` | `status` o `roleType` |
 | `400` | `parentRoleId` no es un UUID | `VAL-004` | `parentRoleId` |
 | `401` | Token ausente o inválido | `AUTH-001` | — |
-| `403` | Autenticado sin `roles:read` | `AUTH-002` | — |
+| `403` | Autenticado sin `roles:list` | `AUTH-002` | — |
 | `500` | Fallo no controlado | `ERR-500` | — |
 
 - **No hay `404` ni `422`.** Un filtro que no encuentra nada devuelve `200` con la colección vacía (`FA-001`, `CA-SP-013`), y una página más allá de la última hace lo mismo. Tratarlo como error obligaría al cliente a distinguir «no hay» de «falló», que son la misma respuesta útil.
@@ -195,7 +199,7 @@ Dos detalles no obvios. El primero: la normalización del término la hace **la 
 
 | Endpoint | Permiso requerido |
 |---|---|
-| `GET /api/v1/roles` | `roles:read` |
+| `GET /api/v1/roles` | `roles:list` |
 
 - El permiso **ya existe** en el catálogo: lo crea `V3__seed_permissions.sql` (`RF-SP-010`). No hace falta migración de permisos.
 - Se declara sobre el método del controlador (`security.md` §6). Un endpoint sin declaración queda inaccesible, no público (Art. IV.1).
@@ -285,7 +289,7 @@ Niveles: **Unitaria** (sin Spring ni base de datos), **Integración** (Testconta
 | `CA-SP-012` | Integración + API | Cada filtro por separado y los tres combinados devuelven solo las filas que cumplen; el filtro por rol padre devuelve los hijos directos y no los nietos |
 | `CA-SP-013` | API | Un filtro sin coincidencias devuelve `200` con `content` vacío, `totalElements` y `totalPages` en cero. Nunca `404` ni `204` |
 | `CA-SP-014` | Unitaria + API | `PageRequestFactory` rechaza `size = 101` contra el máximo configurado; el endpoint devuelve `400` con `VAL-002` y **no** una página de cien elementos, que es la forma en que el recorte silencioso se manifestaría |
-| `CA-SP-015` | API | Un actor autenticado sin `roles:read` recibe `403`, no obtiene dato alguno del catálogo y queda el evento de denegación en `audit_security_log` |
+| `CA-SP-015` | API | Un actor autenticado sin `roles:list` recibe `403`, no obtiene dato alguno del catálogo y queda el evento de denegación en `audit_security_log` |
 | `CA-SP-147` | Integración + API | Con `Administración` y `Contabilidad` en la tabla, buscar `administracion`, `ADMINISTRACION` y `contabilidad` encuentra cada uno. Exige PostgreSQL real: `unaccent` no es simulable, y una prueba con base embebida daría un falso positivo o un falso fallo |
 | `CA-SP-148` | API + Integración | El cuerpo de cada fila no contiene ningún campo con el número de usuarios, y la traza de sentencias de la petición no incluye ninguna consulta a la tabla de asignación de roles |
 

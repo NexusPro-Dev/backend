@@ -226,7 +226,7 @@ GET /api/v1/audit/security?page=0&size=20
 - **`actorId` nulo en un evento de autenticación significa que no había identidad probada todavía**, no que se perdiera el dato (`spec.md` §13). En un `LOGIN_FAILURE` es siempre nulo, y entonces la dirección de red es el único identificador disponible: es la razón del índice compuesto de §2.
 - **`targetUserId` es la columna que distingue «quién lo hizo» de «a quién se lo hicieron»** (`security.md` §8.2). Se devuelve como `null` sin omitirse cuando el evento no recae sobre nadie —la creación de un rol, por ejemplo, que lleva el rol afectado en `detail`—.
 - **`correlationId` e `ipAddress` son nulos a la vez o ninguno lo es**, por `ck_audit_security_log_origen`.
-- **No se devuelve el nombre del actor ni el del usuario afectado**, por lo dicho en `RF-SP-011` §3: el identificador es el dato probatorio y el nombre es una foto del momento de la consulta, no del evento.
+- ~~**No se devuelve el nombre del actor ni el del usuario afectado**~~ · **Revertido el 28-08-2026**: se resuelven **los dos**, cada uno con su `username` y su nombre actual. Sin el segundo, la mitad de la frase de un bloqueo seguía siendo un identificador. Por lo dicho en `RF-SP-011` §3: el identificador es el dato probatorio y el nombre es una foto del momento de la consulta, no del evento.
 - **Ninguna credencial aparece en ninguna forma** (`CA-SP-106`). No hay columna que pueda contenerla, y `detail` está sujeta al enmascaramiento de `security.md` §7.3. La garantía vive **al escribir** (Art. IV.8, `security.md` §8.3) y esta consulta no la reproduce, por el mismo argumento de `RF-SP-011` §10 y `RF-SP-013` §4: dos saneadores divergen, y el de lectura no protegería a quien consulte la base directamente.
 
 ### El evento de acceso fallido no dice si la cuenta existía
@@ -342,7 +342,7 @@ Dos matices que este requerimiento estrena y que ningún otro de los cuatro tien
 | Ofrecer filtro sobre el contenido de `detail` | Es `jsonb` sin índice y su forma varía con el tipo de evento: convertiría un contrato estable en uno que depende de qué escribió cada requerimiento |
 | Índice sobre `event_type`, `severity` u `outcome` | Dieciséis valores muy sesgados, tres y dos. Filtrar por el valor dominante no acota nada, y cada índice se paga en la transacción que emite el evento |
 | Alertar automáticamente ante severidad `ALTA` | `spec.md` §14, pregunta 1: exige decidir a quién se avisa, por qué canal y con qué umbral antes de que el ruido lo vuelva inútil. Es observabilidad con reglas propias |
-| Devolver el nombre del actor y del usuario afectado | `spec.md` §6.2 no lo pide, y el nombre es una foto del momento de la consulta, no del evento. Mismo criterio de `RF-SP-011` §3 |
+| ~~Devolver el nombre del actor y del usuario afectado~~ · **ADOPTADA el 28-08-2026** | Mismo motivo y mismo desenlace que en `RF-SP-011`. Aquí pesaba más: sin el usuario afectado, un `ACCOUNT_LOCKED` decía quién bloqueó y **no sobre quién recayó**, que es la mitad de la frase que este registro existe para conservar |
 
 ## 10. Riesgos
 

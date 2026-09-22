@@ -52,15 +52,51 @@ public interface UserQueryRepository {
       OffsetDateTime lockedUntil,
       OffsetDateTime createdAt,
       OffsetDateTime updatedAt,
+      UUID countryId,
+      String countryCode,
+      String countryName,
+      UUID documentTypeId,
+      String documentTypeAbbreviation,
+      String documentTypeName,
+      String documentNumber,
+      String phone,
+      String companyPhone,
+      String addressLine1,
+      String addressLine2,
+      String city,
       UUID membershipId,
       String membershipCode,
       String membershipName,
+      // `RN-SP-024`: seis hexadecimales sin `#`. Lo publica el perfil propio desde el
+      // 14-09-2026 (`RF-SP-039`), y viaja en la misma sentencia que el nombre.
+      String membershipColor,
       Short membershipLevel,
       OffsetDateTime membershipEndsAt,
       Boolean membershipCurrent) {
 
     public boolean tieneMembresia() {
       return membershipId != null;
+    }
+
+    /**
+     * El país <b>siempre está</b> (`RN-SP-034`), y por eso no hay un {@code tienePais()}.
+     *
+     * <p>La columna es {@code NOT NULL} y la consulta lo trae con una unión interna, de modo que un
+     * nulo aquí no sería «no tiene»: sería una violación de integridad, y el sitio para detectarla
+     * es el motor y no un predicado en Java.
+     */
+    public boolean tienePais() {
+      return countryId != null;
+    }
+
+    /**
+     * ¿Tiene documento? <b>Y aquí sí hace falta preguntarlo</b>, al contrario que con el país.
+     *
+     * <p>Las personas registradas antes de `V71` no lo tienen, y el esquema lo admite a propósito:
+     * inventarles un número sería escribir algo falso sobre su identidad (`RN-SP-035`).
+     */
+    public boolean tieneDocumento() {
+      return documentTypeId != null;
     }
   }
 

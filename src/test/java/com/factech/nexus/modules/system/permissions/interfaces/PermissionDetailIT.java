@@ -61,7 +61,9 @@ class PermissionDetailIT extends IntegrationTestBase {
 
     mvc.perform(
             get("/api/v1/permissions/{id}", id)
-                .with(user(SUPERADMIN.toString()).authorities(() -> "roles:read")))
+                .with(
+                    user(SUPERADMIN.toString())
+                        .authorities(() -> "roles:read", () -> "roles:list")))
         .andExpect(status().isForbidden());
 
     mvc.perform(get("/api/v1/permissions/{id}", id)).andExpect(status().isUnauthorized());
@@ -101,7 +103,9 @@ class PermissionDetailIT extends IntegrationTestBase {
 
   private MockHttpServletRequestBuilder detalle(String id) {
     return get("/api/v1/permissions/{id}", id)
-        .with(user(SUPERADMIN.toString()).authorities(() -> "permissions:read"));
+        .with(
+            user(SUPERADMIN.toString())
+                .authorities(() -> "permissions:read", () -> "permissions:list"));
   }
 
   private String idDe(String codigo) {

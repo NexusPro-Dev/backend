@@ -30,7 +30,7 @@ import org.springframework.test.web.servlet.request.RequestPostProcessor;
  * dejar a un hijo declarando algo que su padre ya no tiene. Esa asimetría es lo que estas pruebas
  * vigilan.
  *
- * <p>La jerarquía de la prueba es {@code CONTABILIDAD → PADRE → HIJO}. El actor es el
+ * <p>La jerarquía de la prueba es {@code ADMIN_ROL → PADRE → HIJO}. El actor es el
  * superadministrador, que posee el catálogo entero, de modo que `RN-SEG-010` no lo bloquea nunca y
  * lo que se prueba aquí es `RN-SEG-003` y `RN-SEG-005`.
  */
@@ -38,8 +38,8 @@ import org.springframework.test.web.servlet.request.RequestPostProcessor;
 class RolePermissionsIT extends IntegrationTestBase {
 
   private static final String SUPERADMIN_ROL = "01a02a33-4c00-7001-9c4f-5e7ad1000001";
-  private static final String CONTABILIDAD = "01a02a33-4c00-7003-9c4f-5e7ad1000003";
-  private static final String MANAGER = "01a02a33-4c00-7005-9c4f-5e7ad1000005";
+  private static final String ADMIN_ROL = "01a02a33-4c00-7002-9c4f-5e7ad1000002";
+  private static final String MANAGER = "01a02a33-4c00-7005-9c4f-5e7ad1000003";
 
   @Autowired private MockMvc mvc;
   @Autowired private JdbcTemplate jdbc;
@@ -47,7 +47,7 @@ class RolePermissionsIT extends IntegrationTestBase {
   private UUID padre;
   private UUID hijo;
 
-  /** Dos permisos que CONTABILIDAD declara, y uno que no. */
+  /** Dos permisos que ADMIN_ROL declara, y uno que no. */
   private List<UUID> heredables;
 
   private UUID ajeno;
@@ -61,7 +61,7 @@ class RolePermissionsIT extends IntegrationTestBase {
             "SELECT permission_id FROM role_permissions WHERE role_id = ?::uuid"
                 + " ORDER BY permission_id LIMIT 2",
             UUID.class,
-            CONTABILIDAD);
+            ADMIN_ROL);
 
     ajeno =
         jdbc.queryForObject(
@@ -69,9 +69,9 @@ class RolePermissionsIT extends IntegrationTestBase {
                 + " (SELECT permission_id FROM role_permissions WHERE role_id = ?::uuid)"
                 + " ORDER BY code LIMIT 1",
             UUID.class,
-            CONTABILIDAD);
+            ADMIN_ROL);
 
-    padre = crearRol("PADRE", "Rol padre", CONTABILIDAD);
+    padre = crearRol("PADRE", "Rol padre", ADMIN_ROL);
     hijo = crearRol("HIJO", "Rol hijo", padre.toString());
   }
 
@@ -128,7 +128,7 @@ class RolePermissionsIT extends IntegrationTestBase {
   @Test
   @DisplayName("CA-SP-040 — la contención se valida contra el padre INMEDIATO, sin recorrer arriba")
   void contencionContraElPadreInmediato() throws Exception {
-    // `ajeno` lo tiene SUPERADMIN —el abuelo del abuelo— y no CONTABILIDAD. Si
+    // `ajeno` lo tiene SUPERADMIN —el abuelo del abuelo— y no ADMIN_ROL. Si
     // la validación recorriera la cadena de ancestros, esto pasaría.
     mvc.perform(agregar(padre, List.of(ajeno)))
         .andExpect(status().isConflict())
@@ -256,17 +256,42 @@ class RolePermissionsIT extends IntegrationTestBase {
   }
 
   @Test
-  @DisplayName("las dos operaciones cruzan las mismas puertas: sistema, actor y rol inexistente")
-  void puertasComunes() throws Exception {
-    mvc.perform(agregar(UUID.fromString(CONTABILIDAD), heredables))
-        .andExpect(status().isConflict())
-        .andExpect(jsonPath("$.errors[0].code").value("RN-SEG-012"));
-    mvc.perform(retirar(UUID.fromString(MANAGER), heredables)).andExpect(status().isConflict());
+  @DisplayName("CA-SP-683 y CA-SP-685 — un rol de sistema recibe y pierde permisos como cualquiera")
+  void rolDeSistema() throws Exception {
+    // MANAGER cuelga de ADMIN y V8 lo siembra VACÍO «a la espera de RF-SP-005».
+    // Hasta el 16-09-2026 esta misma petición era 409 por RN-SEG-012, y ningún
+    // vendedor ni ningún cliente podía tener nunca un permiso. La prueba se
+    // invierte en lugar de borrarse: si alguien vuelve a cerrar la puerta,
+    // falla aquí. Desde el 21-09-2026 parte con los once de alcance propio que
+    // V31 da a todo rol (RF-SP-062), y se cuenta a partir de ellos.
+    UUID manager = UUID.fromString(MANAGER);
+    int base = ALCANCE_PROPIO.size();
+    assertThat(permisosDe(manager)).isEqualTo(base);
 
+    mvc.perform(agregar(manager, heredables))
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$.permissions.length()").value(base + heredables.size()));
+    assertThat(permisosDe(manager)).isEqualTo(base + heredables.size());
+
+    // Fuera de ADMIN sigue siendo 409: la marca de sistema no relaja la contención.
+    mvc.perform(agregar(manager, List.of(ajeno)))
+        .andExpect(status().isConflict())
+        .andExpect(jsonPath("$.errors[0].code").value("RN-SEG-003"));
+
+    mvc.perform(retirar(manager, heredables)).andExpect(status().isOk());
+    assertThat(permisosDe(manager)).isEqualTo(base);
+  }
+
+  @Test
+  @DisplayName("CA-SP-037, CA-SP-684 y CA-SP-173 — rol propio del actor y rol inexistente")
+  void puertasComunes() throws Exception {
     mvc.perform(agregar(UUID.randomUUID(), heredables)).andExpect(status().isNotFound());
     mvc.perform(retirar(UUID.randomUUID(), heredables)).andExpect(status().isNotFound());
 
-    jdbc.update("INSERT INTO user_roles (user_id, role_id) VALUES (?, ?)", SUPERADMIN, hijo);
+    jdbc.update(
+        "INSERT INTO user_roles (user_id, role_id, role_type) SELECT ?, r.id, r.role_type FROM roles r WHERE r.id = ?",
+        SUPERADMIN,
+        hijo);
     mvc.perform(agregar(hijo, heredables)).andExpect(status().isForbidden());
     mvc.perform(retirar(hijo, heredables)).andExpect(status().isForbidden());
   }
@@ -296,7 +321,15 @@ class RolePermissionsIT extends IntegrationTestBase {
   }
 
   private RequestPostProcessor administrador() {
-    return user(SUPERADMIN.toString()).authorities(() -> "roles:update", () -> "roles:read");
+    return user(SUPERADMIN.toString())
+        .authorities(
+            () -> "roles:update",
+            () -> "roles:change-status",
+            () -> "roles:assign-parent",
+            () -> "roles:assign-permissions",
+            () -> "roles:revoke-permissions",
+            () -> "roles:read",
+            () -> "roles:list");
   }
 
   private String codigoDe(UUID permissionId) {
@@ -346,8 +379,17 @@ class RolePermissionsIT extends IntegrationTestBase {
             + " (SELECT id FROM roles WHERE is_system = false)");
     jdbc.update("DELETE FROM roles WHERE is_system = false");
     jdbc.update("UPDATE roles SET status = 'ACTIVO', deleted_at = NULL WHERE is_system = true");
+    // Los cuatro roles de sistema que V8 siembra SIN permisos vuelven a su
+    // estado de siembra: desde el 16-09-2026 se les puede conceder, y lo que una
+    // prueba les deje lo ve la siguiente. Y desde el 21-09-2026 ese estado no es
+    // «vacío» sino el reparto de V31 (RF-SP-062): los de alcance propio.
     jdbc.update(
-        "INSERT INTO user_roles (user_id, role_id) VALUES (?, ?::uuid) ON CONFLICT DO NOTHING",
+        "DELETE FROM role_permissions WHERE role_id IN"
+            + " (SELECT id FROM roles WHERE is_system = true"
+            + "   AND code IN ('MANAGER', 'DIRECTOR', 'AGENTE', 'CLIENTE'))");
+    reponerAlcancePropio(jdbc);
+    jdbc.update(
+        "INSERT INTO user_roles (user_id, role_id, role_type) SELECT ?, r.id, r.role_type FROM roles r WHERE r.id = ?::uuid ON CONFLICT DO NOTHING",
         SUPERADMIN,
         SUPERADMIN_ROL);
   }

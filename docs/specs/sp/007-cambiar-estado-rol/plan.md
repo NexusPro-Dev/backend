@@ -14,6 +14,10 @@
 
 ---
 
+!!! note "Enmienda de Art. I.7 — 19-09-2026, `RF-SP-060`"
+
+    Esta operación exige **`roles:change-status`** y no `roles:update` desde el 19-09-2026, por `RF-SP-060` —**un permiso por operación**, `RN-SEG-014` ([`security.md` §4.4](../../../security.md#44-catalogo-de-permisos))—: `roles:update` gobernaba varias operaciones y se queda con una; esta recibe código propio, sembrado por `V28` y dado a todo rol que portara `roles:update`. Las menciones de `roles:update` que siguen abajo hablan de su siembra original y se conservan como historia.
+
 ## 1. Enfoque
 
 Una sola columna cambia de valor. La dificultad no está ahí, está en la palabra **inmediato** de `RN-SEG-002`: un rol inactivo deja de conceder permisos al instante, aunque siga asignado y aunque sus portadores tengan un token vigente.
@@ -72,7 +76,7 @@ Se envía el **estado destino** y no una acción (`activate` / `deactivate`) por
 | `400` | Estado ausente o fuera del dominio | `VAL-001` |
 | `400` | Cuerpo con un campo desconocido, incluido un motivo | `VAL-001` |
 | `401` | Token ausente o inválido | `AUTH-001` |
-| `403` | El actor no posee `roles:update` | `AUTH-002` |
+| `403` | El actor no posee `roles:change-status` | `AUTH-002` |
 | `403` | El rol está entre los del actor (`EX-002`) | `RN-SEG-011` |
 | `404` | El rol no existe o está eliminado (`EX-003`) | `EX-003` |
 | `409` | El rol es de sistema o es el rol raíz (`EX-001`) | `RN-SEG-012`, `RN-SEG-007` |
@@ -86,7 +90,7 @@ El rechazo de un campo desconocido es lo que hace verificable `CA-SP-159`: sin �
 
 | Endpoint | Permiso requerido |
 |---|---|
-| `PATCH /api/v1/roles/{id}/status` | `roles:update` |
+| `PATCH /api/v1/roles/{id}/status` | `roles:change-status` |
 
 `RN-SEG-011` es aquí más que una formalidad: sin ella, un administrador podría desactivar su propio rol y quedarse sin acceso en la misma petición. Se verifica igual que en el resto del módulo, contra los **roles vigentes del actor leídos de la base de datos** —no contra los códigos del token— y solo sobre los asignados directamente (`RF-SP-004` §5).
 

@@ -64,7 +64,7 @@ class RoleTest {
     Role rol =
         Role.create(
             UUID.randomUUID(),
-            new RoleCode("CONTABILIDAD"),
+            new RoleCode("ADMIN"),
             "Contabilidad",
             "Rol del área contable.",
             RoleType.FUNCIONARIO,
@@ -73,7 +73,7 @@ class RoleTest {
             Set.of("roles:read", "audit:read-changes"),
             AHORA);
 
-    assertThat(rol.getCode().value()).isEqualTo("CONTABILIDAD");
+    assertThat(rol.getCode().value()).isEqualTo("ADMIN");
     assertThat(rol.getParentRoleId()).isEqualTo(padre.getId());
     assertThat(rol.getPermissionIds()).containsExactly(LEER_AUDITORIA.id());
     assertThat(rol.getCreatedAt()).isEqualTo(AHORA);
@@ -207,7 +207,7 @@ class RoleTest {
     Role rol =
         Role.create(
             UUID.randomUUID(),
-            new RoleCode("CONTABILIDAD"),
+            new RoleCode("ADMIN"),
             "  Contabilidad  ",
             "   ",
             RoleType.FUNCIONARIO,

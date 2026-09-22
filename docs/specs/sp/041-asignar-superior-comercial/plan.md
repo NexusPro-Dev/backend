@@ -9,6 +9,7 @@
 | Autor | Responsable técnico |
 | Aprobado por | Responsable del proyecto |
 | Fecha de aprobación | 24-08-2026 |
+| Enmendado | 10-09-2026 — `CommercialStructureResponse`, que este plan creó y declaró compartido, cambia por `RF-SP-042`: `roleCode` sale y entra `roles`. §3 y §4 quedan afectados; el comportamiento de este requerimiento no |
 
 ---
 
@@ -76,6 +77,8 @@ Y una exigencia adicional al Art. V.13: **el motivo es obligatorio**, aunque est
 **No se admite retirar el superior.** No hay forma de enviar `supervisorId` en nulo: el estado «vendedor sin superior» no existe, y la única salida es dejar de portar rol comercial con `RF-SP-031`.
 
 **Respuesta `200`** — `CommercialStructureResponse` con el subordinado, el superior vigente y **el anterior con su fecha de cierre**, cuando lo hubo. Devolver el anterior no es adorno: es lo que permite a quien reorganiza confirmar de un vistazo que cerró el tramo que creía cerrar.
+
+**Cada persona de esa respuesta lleva `roles` desde el 10-09-2026**, y ya no un `roleCode` único. El cambio lo trae `RF-SP-042` —que comparte este DTO— y la razón está en su `plan.md` §8.bis: el campo viejo devolvía un solo rol y solo si era de clasificación `VENDEDOR`, de modo que un cliente de la cartera llegaba con el rol en nulo. **Aquí no cambia nada más**: el subordinado, el superior vigente y el anterior con su fecha de cierre siguen saliendo igual.
 
 **Errores**
 

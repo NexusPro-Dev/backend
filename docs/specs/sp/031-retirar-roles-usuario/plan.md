@@ -12,6 +12,20 @@
 
 ---
 
+!!! note "Enmienda de Art. I.7 — 19-09-2026, `RF-SP-060`"
+
+    Esta operación exige **`users:revoke-roles`** y no `users:assign-roles` desde el 19-09-2026, por `RF-SP-060` —**un permiso por operación**, `RN-SEG-014` ([`security.md` §4.4](../../../security.md#44-catalogo-de-permisos))—: `users:assign-roles` gobernaba varias operaciones y se queda con una; esta recibe código propio, sembrado por `V28` y dado a todo rol que portara `users:assign-roles`. Las menciones de `users:assign-roles` que siguen abajo hablan de su siembra original y se conservan como historia.
+
+!!! warning "Enmendado el 05-09-2026 — se retira la cascada de la membresía"
+
+    `RN-SP-015` queda **retirada** (`requirements/sp.md` v1.36.0). Decía que quedarse sin ningún rol `CONSUMIDOR` **retiraba la membresía en la misma transacción**, y este plan la implementaba con la escritura que compartía con `RF-SP-033`.
+
+    **Con `RN-SP-018` reescrita esa cascada no puede existir**: dejaría sin nivel a alguien que debe tener uno.
+
+    **Lo que se hace en su lugar es NO HACER NADA, y es una decisión.** Quien deja de ser consumidor **conserva la membresía que tenía**, incluida una comprada. Bajarla al suelo sería quitarle algo que pagó, y ninguna regla lo pide. `FA-003` deja de existir como caso.
+
+    **La cascada del superior comercial se queda.** `RN-SP-019` no se tocó: retirar el último rol `VENDEDOR` **sigue cerrando** el superior en la misma transacción y bajo el mismo identificador de correlación. Las dos cascadas eran simétricas y ahora solo hay una — leer este plan esperando la otra es el error que esta nota existe para evitar.
+
 ## 1. Enfoque
 
 Es la operación inversa de `RF-SP-030` y **no es su simétrica**. Conceder solo amplía, y ampliar nunca deja nada inconsistente. Retirar sí, y por eso este requerimiento tiene tres reglas que la asignación no necesita y una decisión de sesión que allí se resolvió al revés.
@@ -97,7 +111,7 @@ Merece subrayarse por qué `RN-SP-001` está partida en dos piezas y no en una: 
 |---|---|---|
 | `400` | Lista vacía, identificador malformado o más de 100 elementos | `VAL-001`, `VAL-002`, `VAL-005` |
 | `401` | Token ausente o inválido | `AUTH-001` |
-| `403` | El actor no posee `users:assign-roles` | `AUTH-002` |
+| `403` | El actor no posee `users:revoke-roles` | `AUTH-002` |
 | `404` | El usuario no existe o está eliminado (`EX-004`) | `VAL-006` |
 | `409` | El retiro dejaría al sistema sin superadministrador activo (`EX-001`) | `RN-SP-001` |
 | `409` | Algún rol declara permisos que el actor no posee (`EX-003`) | `RN-SEG-010` |
@@ -126,7 +140,7 @@ Los pasos 4 y 5 no son evaluables sin haber resuelto antes qué roles se retiran
 
 | Endpoint | Permiso requerido |
 |---|---|
-| `POST /api/v1/users/{id}/roles/revocations` | `users:assign-roles` |
+| `POST /api/v1/users/{id}/roles/revocations` | `users:revoke-roles` |
 
 Es el **mismo permiso** que la asignación, y es deliberado: `requirements/sp.md` §9 lo declara así para las dos operaciones. Separarlos sugeriría que retirar es menos delicado que conceder, y `spec.md` §14 pregunta 2 razona lo contrario — quien puede desarmar el acceso de otro tiene tanto poder como quien lo arma.
 

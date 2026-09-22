@@ -11,8 +11,14 @@
 | Fecha de aprobación | 21-08-2026 |
 | Reabierto el | 22-08-2026 — corrección de §6, ver la nota al final de esa sección (Art. I.7) |
 | Reaprobado el | 22-08-2026 — Responsable del proyecto, verificada la corrección contra `ck_audit_error_log_status` |
+| Reabierto el | 16-09-2026 — `RN-SEG-012` deja de alcanzar a los permisos: sale el `409` de `EX-002`, ver §4, §6 y §11 (Art. I.7) |
+| Reaprobado el | 16-09-2026 — Responsable del proyecto |
 
 ---
+
+!!! note "Enmienda de Art. I.7 — 19-09-2026, `RF-SP-060`"
+
+    Esta operación exige **`roles:revoke-permissions`** y no `roles:update` desde el 19-09-2026, por `RF-SP-060` —**un permiso por operación**, `RN-SEG-014` ([`security.md` §4.4](../../../security.md#44-catalogo-de-permisos))—: `roles:update` gobernaba varias operaciones y se queda con una; esta recibe código propio, sembrado por `V28` y dado a todo rol que portara `roles:update`. Las menciones de `roles:update` que siguen abajo hablan de su siembra original y se conservan como historia.
 
 ## 1. Enfoque
 
@@ -78,10 +84,10 @@ La verificación de descendencia consulta los hijos de un rol en cada revocació
 | `400` | Lista vacía o identificador malformado | `VAL-001`, `VAL-002` |
 | `400` | Más de 100 permisos en la petición | `VAL-004` |
 | `401` | Token ausente o inválido | `AUTH-001` |
-| `403` | El actor no posee `roles:update` | `AUTH-002` |
+| `403` | El actor no posee `roles:revoke-permissions` | `AUTH-002` |
 | `403` | El rol está entre los del actor (`EX-003`) | `RN-SEG-011` |
 | `404` | El rol no existe o está eliminado (`EX-004`) | `EX-004` |
-| `409` | El rol es de sistema (`EX-002`) | `RN-SEG-012` |
+| ~~`409`~~ | ~~El rol es de sistema (`EX-002`)~~ — **retirado el 16-09-2026**: a un rol de sistema se le retiran permisos como a cualquier otro | ~~`RN-SEG-012`~~ |
 | `409` | Un rol hijo declara el permiso (`EX-001`) | `RN-SEG-005` |
 | `500` | Fallo no controlado | `ERR-500` |
 
@@ -95,7 +101,7 @@ El límite de 100 es el mismo que en `RF-SP-005`: dos operaciones sobre el mismo
 
 | Endpoint | Permiso requerido |
 |---|---|
-| `POST /api/v1/roles/{id}/permissions/revocations` | `roles:update` |
+| `POST /api/v1/roles/{id}/permissions/revocations` | `roles:revoke-permissions` |
 
 Retirar permisos exige el mismo permiso que concederlos. No se define uno propio: quien puede ampliar un rol puede reducirlo, y separarlos crearía un rol capaz de conceder pero no de corregirse.
 
@@ -108,7 +114,7 @@ Retirar permisos exige el mismo permiso que concederlos. No se define uno propio
 | Permisos retirados | `audit_deletion_log` | `deletion_type = ASSOCIATION`, `reason` **vacío**, estado conservado con los identificadores **y los códigos** de rol y permiso |
 | Permisos retirados | `audit_security_log` | Cambio de permisos de un rol, severidad **Alta** |
 | Ninguno retirado | — | **Ningún evento**: si ninguno estaba asociado, nada cambió |
-| Rechazo `409` por `EX-001` y `EX-002` | `audit_error_log` | `resource = 'roles'`, `operation` con método y ruta, `error_code` de la tabla de §4, `error_type = 'BUSINESS_RULE'`, `http_status`, `severity` y `message` saneado. Severidad **Alta** para `RN-SEG-005`; **Media** para `EX-002` |
+| Rechazo `409` por `EX-001` — `EX-002` **retirada el 16-09-2026** | `audit_error_log` | `resource = 'roles'`, `operation` con método y ruta, `error_code` de la tabla de §4, `error_type = 'BUSINESS_RULE'`, `http_status`, `severity` y `message` saneado. Severidad **Alta** para `RN-SEG-005` |
 | Rechazo `403` por `EX-003` (`RN-SEG-011`) | `audit_security_log` | `event_type = 'AUTHORIZATION_DENIED'`, `severity = 'ALTA'`, `outcome = 'FAILURE'`, `entity_id` del rol. **No** va a `audit_error_log` |
 | Rechazo `404` por `EX-004` | — | **No se audita** en la auditoría de error (`architecture.md` §6.6.4) |
 | Rechazo `400` de formato | — | **No se audita** (`architecture.md` §6.6.4) |
@@ -181,7 +187,9 @@ El estado conservado lleva los códigos legibles y no solo los identificadores. 
 | `CA-SP-044` | Integración | Retirar un permiso que el rol no declaraba no produce error |
 | `CA-SP-045` | Integración | La fila de `audit_deletion_log` tiene `reason` vacío y no falla la restricción del esquema |
 | `CA-SP-046` | Integración | La fila desaparece de la tabla; no queda marcada |
-| `CA-SP-047` | API | Rol de sistema y rol propio devuelven el error correspondiente |
+| ~~`CA-SP-047`~~ | ~~API~~ | ~~Rol de sistema y rol propio devuelven el error correspondiente~~ — **retirado el 16-09-2026**, partido en `CA-SP-684` y `CA-SP-685` |
+| `CA-SP-684` | API | Rol propio del actor devuelve `403` con `RN-SEG-011` |
+| `CA-SP-685` | API + Integración | A `MANAGER`, con un permiso recién concedido por `RF-SP-005`, se le retira con `200` y la fila desaparece; la prueba **devuelve el rol a su estado sembrado** al terminar |
 | `CA-SP-048` | Integración | Una resolución de permisos posterior ya no concede el permiso retirado |
 | `CA-SP-155` | Integración | Con un rol hijo **inactivo** que declara el permiso, la revocación se rechaza |
 | `CA-SP-156` | Integración | El estado conservado contiene los códigos de rol y permiso, no solo los identificadores |

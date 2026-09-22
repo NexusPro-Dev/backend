@@ -1,5 +1,8 @@
 package com.factech.nexus.shared.architecture;
 
+import static com.factech.nexus.shared.security.RequiredPermissionCustomizer.ENCABEZADO;
+import static com.factech.nexus.shared.security.RequiredPermissionCustomizer.EXTENSION;
+import static org.hamcrest.Matchers.startsWith;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.user;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
@@ -249,20 +252,28 @@ class OpenApiContractIT extends IntegrationTestBase {
   }
 
   @Test
-  @DisplayName("la membresía de una persona se fija con PUT y se retira con DELETE")
+  @DisplayName("la membresía de una persona se fija con PUT y se devuelve al suelo con DELETE")
   void laMembresiaDeUnaPersonaEstaDocumentada() throws Exception {
     // `PUT` y no `POST` porque el cuerpo **sí** representa el estado final: la
-    // persona tiene una membresía o ninguna. Y `DELETE` se conserva porque esta
+    // persona tiene exactamente una membresía. Y `DELETE` se conserva porque esta
     // operación no lleva cuerpo, de modo que el problema que obligó a cambiarlo
     // en el retiro de roles no existe aquí.
     mvc.perform(get("/v3/api-docs").with(user("doc")))
         .andExpect(status().isOk())
         .andExpect(jsonPath("$.paths['/api/v1/users/{id}/membership'].put").exists())
-        .andExpect(jsonPath("$.paths['/api/v1/users/{id}/membership'].put.responses.409").exists())
+        // EL `409` DESAPARECIÓ DEL `PUT` el 05-09-2026, con `RN-SP-013`: asignar
+        // una membresía ya no puede chocar con ninguna regla de negocio.
+        .andExpect(
+            jsonPath("$.paths['/api/v1/users/{id}/membership'].put.responses.409").doesNotExist())
         .andExpect(jsonPath("$.paths['/api/v1/users/{id}/membership'].put.responses.422").exists())
         .andExpect(jsonPath("$.paths['/api/v1/users/{id}/membership'].delete").exists())
+        // Y EL `DELETE` PASÓ DE `204` A `200`: ya no retira, devuelve al suelo, y
+        // el cuerpo dice en qué nivel quedó la persona.
         .andExpect(
-            jsonPath("$.paths['/api/v1/users/{id}/membership'].delete.responses.204").exists());
+            jsonPath("$.paths['/api/v1/users/{id}/membership'].delete.responses.200").exists())
+        .andExpect(
+            jsonPath("$.paths['/api/v1/users/{id}/membership'].delete.responses.204")
+                .doesNotExist());
   }
 
   @Test
@@ -290,16 +301,23 @@ class OpenApiContractIT extends IntegrationTestBase {
   }
 
   @Test
-  @DisplayName("el superior NO se puede retirar ni fijar con PUT, y el equipo NO admite filtros")
+  @DisplayName("el superior NO se puede retirar ni fijar con PUT, y el equipo SOLO filtra por rol")
   void losLimitesDeLaEstructuraComercial() throws Exception {
     // `PUT` invitaría a pensar que se puede enviar el periodo, que lo fija el
     // sistema. Un `DELETE` publicaría un «vendedor sin superior» que no existe.
-    // Y un filtro sobre el equipo replicaría la semántica de `RF-SP-025` sobre un
-    // subconjunto, obligando a mantener dos filtrados sincronizados.
+    //
+    // Y el equipo publica UN filtro desde el 10-09-2026 —`roles`, por códigos—
+    // y ninguno más: replicar aquí el filtrado del listado general obligaría a
+    // mantener dos semánticas sincronizadas. Esta prueba decía justo lo
+    // contrario hasta hoy, y NO habría fallado sola: solo miraba `search` y
+    // `status`, que siguen sin estar.
     mvc.perform(get("/v3/api-docs").with(user("doc")))
         .andExpect(status().isOk())
         .andExpect(jsonPath("$.paths['/api/v1/users/{id}/supervisor'].put").doesNotExist())
         .andExpect(jsonPath("$.paths['/api/v1/users/{id}/supervisor'].delete").doesNotExist())
+        .andExpect(
+            jsonPath("$.paths['/api/v1/users/{id}/team'].get.parameters[?(@.name == 'roles')]")
+                .exists())
         .andExpect(
             jsonPath("$.paths['/api/v1/users/{id}/team'].get.parameters[?(@.name == 'search')]")
                 .doesNotExist())
@@ -340,8 +358,9 @@ class OpenApiContractIT extends IntegrationTestBase {
         .andExpect(status().isOk())
         .andExpect(jsonPath("$.paths['/api/v1/users/me'].get.parameters").doesNotExist())
         .andExpect(jsonPath("$.paths['/api/v1/users/me'].get.requestBody").doesNotExist())
-        // Y ninguno de los tres estados que no le corresponden.
-        .andExpect(jsonPath("$.paths['/api/v1/users/me'].get.responses.403").doesNotExist())
+        // Y ninguno de los dos estados que no le corresponden. El 403 sí, desde
+        // el 21-09-2026: exige users:read-own-profile (RF-SP-062).
+        .andExpect(jsonPath("$.paths['/api/v1/users/me'].get.responses.403").exists())
         .andExpect(jsonPath("$.paths['/api/v1/users/me'].get.responses.404").doesNotExist())
         .andExpect(jsonPath("$.paths['/api/v1/users/me'].get.responses.400").doesNotExist());
   }
@@ -384,6 +403,178 @@ class OpenApiContractIT extends IntegrationTestBase {
         .andExpect(jsonPath("$.paths['/api/v1/roles'].put").doesNotExist())
         .andExpect(jsonPath("$.paths['/api/v1/roles'].delete").doesNotExist())
         .andExpect(jsonPath("$.paths['/api/v1/roles'].patch").doesNotExist());
+  }
+
+  @Test
+  @DisplayName("la oferta propia se publica y NO declara parámetros de ningún tipo")
+  void laOfertaPropiaNoAdmiteParametros() throws Exception {
+    // `RF-PM-007` · `T-12`. `available` es un literal, no un identificador:
+    // admitir un parámetro convertiría esta consulta en «qué puede comprar
+    // fulano», que es una pregunta sobre un tercero que nadie ha decidido quién
+    // puede hacer. Que el contrato no liste ninguno es la forma comprobable de
+    // decirlo, y lo que impide que alguien añada uno sin pasar por la compuerta.
+    mvc.perform(get("/v3/api-docs").with(user("doc")))
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$.paths['/api/v1/products/available'].get").exists())
+        .andExpect(jsonPath("$.paths['/api/v1/products/available'].get.parameters").doesNotExist())
+        .andExpect(jsonPath("$.paths['/api/v1/products/available'].get.requestBody").doesNotExist())
+        // Desde el 02-09-2026 (`products:sale`) el `403` sí le corresponde; el
+        // `404` sigue sin tener sentido, porque no hay recurso que pueda faltar.
+        .andExpect(jsonPath("$.paths['/api/v1/products/available'].get.responses.403").exists())
+        .andExpect(
+            jsonPath("$.paths['/api/v1/products/available'].get.responses.404").doesNotExist())
+        // Y sigue siendo una ruta distinta de la del detalle, que sí exige permiso.
+        .andExpect(jsonPath("$.paths['/api/v1/products/{id}'].get").exists());
+  }
+
+  @Test
+  @DisplayName(
+      "el listado de equipos se publica con su permiso propio y con la página de `TeamItem` como"
+          + " esquema con nombre")
+  void elListadoDeEquiposEstaDocumentado() throws Exception {
+    // `RF-SP-064` · `T-06`. Dos cosas que solo se ven en el contrato: que
+    // listar exige `teams:list` —y no el `teams:read` del detalle, que es la
+    // confusión que `RN-SEG-014` existe para impedir— y que la envoltura sale
+    // como `PageResponseTeamItem`, con la fila DENTRO. Anotar la respuesta con
+    // `@Schema(implementation = PageResponse.class)` publicaría la envoltura
+    // cruda, sin decir qué lleva: es lo que `RF-SP-056` dejó escrito.
+    mvc.perform(get("/v3/api-docs").with(user("doc")))
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$.paths['/api/v1/teams'].get").exists())
+        .andExpect(jsonPath("$.paths['/api/v1/teams'].get.summary").value("Consultar los equipos"))
+        .andExpect(
+            jsonPath("$.paths['/api/v1/teams'].get['x-required-permission']").value("teams:list"))
+        .andExpect(
+            jsonPath("$.paths['/api/v1/teams'].post['x-required-permission']")
+                .value("teams:create"))
+        .andExpect(jsonPath("$.paths['/api/v1/teams'].get.responses.400").exists())
+        .andExpect(jsonPath("$.paths['/api/v1/teams'].get.responses.403").exists())
+        .andExpect(jsonPath("$.components.schemas.PageResponseTeamItem").exists())
+        .andExpect(jsonPath("$.components.schemas.TeamItem.properties.memberCount").exists())
+        // La fila del listado NO lleva ni descripción ni miembros: eso es el
+        // detalle, y el contrato tiene que decirlo tan claro como el código.
+        .andExpect(jsonPath("$.components.schemas.TeamItem.properties.description").doesNotExist())
+        .andExpect(jsonPath("$.components.schemas.TeamItem.properties.members").doesNotExist())
+        // `RF-SP-065`: el detalle es OTRA operación con OTRO permiso, y su
+        // esquema sí lleva lo que la fila del listado no lleva.
+        .andExpect(
+            jsonPath("$.paths['/api/v1/teams/{id}'].get['x-required-permission']")
+                .value("teams:read"))
+        .andExpect(jsonPath("$.paths['/api/v1/teams/{id}'].get.responses.404").exists())
+        .andExpect(jsonPath("$.components.schemas.TeamDetailResponse.properties.members").exists())
+        .andExpect(
+            jsonPath("$.components.schemas.TeamDetailResponse.properties.deletionReason").exists());
+  }
+
+  @Test
+  @DisplayName("cada operación dice QUÉ PERMISO exige, y lo dice desde la anotación que lo aplica")
+  void cadaOperacionDeclaraSuPermiso() throws Exception {
+    // Hasta el 18-09-2026 el permiso vivía en la prosa del 403, escrita a mano y
+    // de tres maneras distintas —nombrado, descrito sin nombre, o «Sin permiso»
+    // a secas—, y tres catálogos públicos seguían declarando un 403 imposible.
+    // `RequiredPermissionCustomizer` lo lee de la MISMA `@PreAuthorize` que
+    // Spring evalúa. Aquí se fijan las tres formas que puede tomar la respuesta.
+    mvc.perform(get("/v3/api-docs").with(user("doc")))
+        .andExpect(status().isOk())
+        // Con permiso: la extensión lleva el nombre exacto, y la descripción lo
+        // encabeza. Desde RF-SP-060 (19-09-2026) cada permiso gobierna UNA
+        // operación (RN-SEG-014): el listado y el equipo, que compartían
+        // users:read, llevan cada uno el suyo, y asignar permisos ya no es
+        // roles:update. El contrato lo dice en cada operación, para que el
+        // frontend derive el código de ahí y no lo escriba a mano.
+        .andExpect(
+            jsonPath("$.paths['/api/v1/users'].get['" + EXTENSION + "']").value("users:list"))
+        .andExpect(
+            jsonPath("$.paths['/api/v1/users/{id}/team'].get['" + EXTENSION + "']")
+                .value("users:read-team"))
+        .andExpect(
+            jsonPath("$.paths['/api/v1/users/{id}/sellers'].get['" + EXTENSION + "']")
+                .value("users:read-sellers"))
+        .andExpect(
+            jsonPath("$.paths['/api/v1/users/{id}/clients'].get['" + EXTENSION + "']")
+                .value("users:read-clients"))
+        // RF-SP-062 (21-09-2026): las de alcance propio también la llevan; hasta
+        // entonces iban sin extensión porque iban sin permiso.
+        .andExpect(
+            jsonPath("$.paths['/api/v1/users/me'].get['" + EXTENSION + "']")
+                .value("users:read-own-profile"))
+        .andExpect(
+            jsonPath("$.paths['/api/v1/movements/mine'].get['" + EXTENSION + "']")
+                .value("movements:list-own"))
+        .andExpect(
+            jsonPath("$.paths['/api/v1/packages/{code}/purchases'].post['" + EXTENSION + "']")
+                .value("packages:buy"))
+        .andExpect(
+            jsonPath("$.paths['/api/v1/roles/{id}/permissions'].post['" + EXTENSION + "']")
+                .value("roles:assign-permissions"))
+        .andExpect(
+            jsonPath("$.paths['/api/v1/users'].get.description")
+                .value(startsWith(ENCABEZADO + " `users:list`.")))
+        // Pública: sin extensión, `security` vacío —que es como OpenAPI dice
+        // «sin token» y lo que quita el candado en Swagger UI— y sin 401 ni
+        // 403, que no puede responder.
+        .andExpect(jsonPath("$.paths['/api/v1/countries'].get['" + EXTENSION + "']").doesNotExist())
+        .andExpect(jsonPath("$.paths['/api/v1/countries'].get.security").isEmpty())
+        .andExpect(jsonPath("$.paths['/api/v1/countries'].get.responses.401").doesNotExist())
+        .andExpect(jsonPath("$.paths['/api/v1/countries'].get.responses.403").doesNotExist())
+        .andExpect(
+            jsonPath("$.paths['/api/v1/countries'].get.description")
+                .value(startsWith(ENCABEZADO + " ninguno. Ruta pública")))
+        // …y solo el GET: el POST de países sigue exigiendo su permiso.
+        .andExpect(
+            jsonPath("$.paths['/api/v1/countries'].post['" + EXTENSION + "']")
+                .value("countries:create"))
+        .andExpect(jsonPath("$.paths['/api/v1/countries'].post.security").doesNotExist())
+        .andExpect(jsonPath("$.paths['/api/v1/hotlinks/{username}/{code}'].get.security").isEmpty())
+        // Hasta el 21-09-2026 aquí se afirmaba que /users/me iba «solo con token»
+        // y sin extensión. Desde RF-SP-062 (RN-SEG-015) no existe esa clase de
+        // operación: la propia ficha y las cuentas de una persona a cargo llevan
+        // su permiso como cualquier otra, y la línea de prosa lo dice.
+        .andExpect(jsonPath("$.paths['/api/v1/users/me'].get.security").doesNotExist())
+        .andExpect(
+            jsonPath("$.paths['/api/v1/users/me'].get.description")
+                .value(startsWith(ENCABEZADO + " `users:read-own-profile`")))
+        .andExpect(
+            jsonPath("$.paths['/api/v1/users/{id}/broker-accounts'].get['" + EXTENSION + "']")
+                .value("broker-accounts:read-team-member"))
+        .andExpect(
+            jsonPath("$.paths['/api/v1/users/{id}/broker-accounts'].get.description")
+                .value(startsWith(ENCABEZADO + " `broker-accounts:read-team-member`")));
+  }
+
+  @Test
+  @DisplayName("NINGUNA operación de /api/v1 se queda sin decir su permiso")
+  void ningunaOperacionCallaSuPermiso() throws Exception {
+    // La prueba de arriba fija la forma sobre rutas conocidas; esta recorre
+    // todas. Es la que hace que un endpoint nuevo no pueda nacer sin la línea,
+    // que es el mismo modo de fallo que esta clase existe para evitar.
+    var cuerpo =
+        mvc.perform(get("/v3/api-docs").with(user("doc")))
+            .andExpect(status().isOk())
+            .andReturn()
+            .getResponse()
+            .getContentAsString(StandardCharsets.UTF_8);
+    var rutas = json.readTree(cuerpo).get("paths");
+    var sinLinea = new java.util.ArrayList<String>();
+    int operaciones = 0;
+    for (var ruta = rutas.fields(); ruta.hasNext(); ) {
+      var entrada = ruta.next();
+      if (!entrada.getKey().startsWith("/api/v1")) {
+        continue;
+      }
+      for (var metodo = entrada.getValue().fields(); metodo.hasNext(); ) {
+        var operacion = metodo.next();
+        operaciones++;
+        var descripcion = operacion.getValue().path("description").asText("");
+        if (!descripcion.startsWith(ENCABEZADO)) {
+          sinLinea.add(operacion.getKey().toUpperCase() + " " + entrada.getKey());
+        }
+      }
+    }
+    org.assertj.core.api.Assertions.assertThat(operaciones).isGreaterThan(100);
+    org.assertj.core.api.Assertions.assertThat(sinLinea)
+        .as("operaciones cuya descripción no empieza por «%s»", ENCABEZADO)
+        .isEmpty();
   }
 
   @Test

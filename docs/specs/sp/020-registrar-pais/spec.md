@@ -8,6 +8,7 @@
 | Autor | Responsable técnico |
 | Aprobada por | Responsable técnico |
 | Fecha de aprobación | 21-08-2026 |
+| Enmendada | 28-08-2026 — el código del país pasa de dos letras a tres: ISO 3166-1 **alfa-3** (`COL`, `USA`), por decisión del responsable del proyecto. Afecta a §6.1, `EX-002`, `VAL-002` y `CA-SP-135` (Art. I.7) |
 
 ---
 
@@ -55,7 +56,7 @@ La otra defensa es el **estado**: un país registrado por error puede desactivar
 
 | Dato | Obligatorio | Descripción | Restricción de negocio |
 |---|---|---|---|
-| Código | Sí | Código internacional del país | Dos letras, único en el catálogo |
+| Código | Sí | Código internacional del país | Tres letras (ISO 3166-1 alfa-3), único en el catálogo |
 | Nombre | Sí | Nombre del país | Único en el catálogo |
 
 ### 6.2 Salida
@@ -98,7 +99,7 @@ Ninguno.
 
 ### EX-002 — Código con formato inválido
 
-**Condición:** el código no tiene el formato del estándar internacional de dos letras.
+**Condición:** el código no tiene el formato del estándar internacional de tres letras.
 **Respuesta del sistema:** rechaza el alta e informa el formato esperado.
 
 ## 11. Validaciones
@@ -106,7 +107,7 @@ Ninguno.
 | ID | Validación | Mensaje esperado |
 |---|---|---|
 | `VAL-001` | Código obligatorio | El código del país es obligatorio. |
-| `VAL-002` | Código de dos letras | El código del país debe tener dos letras. |
+| `VAL-002` | Código de tres letras | El código del país debe tener tres letras. |
 | `VAL-003` | Nombre obligatorio | El nombre del país es obligatorio. |
 | `VAL-004` | Código único | Ya existe un país con ese código. |
 | `VAL-005` | Nombre único | Ya existe un país con ese nombre. |
@@ -116,7 +117,7 @@ Ninguno.
 | ID | Criterio |
 |---|---|
 | `CA-SP-134` | El sistema registra un país con código y nombre válidos |
-| `CA-SP-135` | El sistema rechaza el alta con un código que no tenga el formato de dos letras |
+| `CA-SP-135` | El sistema rechaza el alta con un código que no tenga el formato de tres letras |
 | `CA-SP-136` | El sistema rechaza el alta con código o nombre ya presentes en el catálogo |
 | `CA-SP-137` | El sistema no expone operación de edición ni de eliminación sobre el catálogo; el único cambio admitido es el estado, por `RF-SP-022` |
 | `CA-SP-171` | El país queda activo al registrarse |

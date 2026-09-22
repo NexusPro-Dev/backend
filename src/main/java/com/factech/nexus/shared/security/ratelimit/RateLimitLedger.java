@@ -42,6 +42,16 @@ public class RateLimitLedger {
   private final Map<String, Long> avisos;
 
   /**
+   * Hasta cuándo está castigada cada llave que superó una cota con penalización.
+   *
+   * <p>Va aparte del historial porque responde otra pregunta: el historial dice <b>cuántas</b>
+   * peticiones cupieron en la ventana; esto dice que da igual, porque esta llave no puede pedir
+   * todavía. Con el mismo tope y el mismo olvido que los otros dos mapas, y por el mismo motivo: la
+   * llave la elige quien llama.
+   */
+  private final Map<String, Long> penalizados;
+
+  /**
    * Constructor de producción.
    *
    * <p>La anotación no es decorativa: Spring solo infiere el constructor cuando la clase declara
@@ -71,6 +81,23 @@ public class RateLimitLedger {
             return size() > capacidad;
           }
         };
+    this.penalizados =
+        new LinkedHashMap<>(16, 0.75f, true) {
+          @Override
+          protected boolean removeEldestEntry(Map.Entry<String, Long> mayor) {
+            return size() > capacidad;
+          }
+        };
+  }
+
+  /**
+   * Registra una petición y dice si cabe dentro de la cota, sin penalización.
+   *
+   * <p>Es el comportamiento de las políticas que no la declaran: quien topa vuelve a poder pedir en
+   * cuanto la ventana deslizante deje sitio.
+   */
+  public Veredicto registrar(String llave, int maximo, Duration ventana) {
+    return registrar(llave, maximo, ventana, null);
   }
 
   /**
@@ -80,13 +107,33 @@ public class RateLimitLedger {
    * propia ventana en cada intento y el castigo sería perpetuo: quien topa con el límite una vez no
    * podría volver nunca, aunque dejara de insistir. Lo que se cuenta es lo que se atiende.
    *
+   * <p><b>La penalización tampoco se renueva al insistir</b>, y por el mismo motivo. Se fija <b>una
+   * sola vez</b>, en la petición que cruza la cota; las que llegan durante el castigo se rechazan
+   * con lo que quede y no lo alargan. Renovarla convertiría cinco peticiones de más en un bloqueo
+   * indefinido para quien tenga un cliente que reintenta solo.
+   *
+   * <p><b>Al penalizar se olvida la ventana.</b> Cumplido el castigo, la cota vuelve entera: si el
+   * historial se conservara y la penalización fuese más corta que la ventana, la primera petición
+   * de después volvería a topar y el castigo se encadenaría sin que nadie lo hubiera pedido.
+   *
+   * @param penalizacion espera fija al superar la cota; nula, no hay castigo
    * @return el veredicto, con cuánto falta para que quepa la siguiente
    */
-  public Veredicto registrar(String llave, int maximo, Duration ventana) {
+  public Veredicto registrar(String llave, int maximo, Duration ventana, Duration penalizacion) {
     long ahora = reloj.millis();
     long desde = ahora - ventana.toMillis();
 
     synchronized (historial) {
+      // El castigo se comprueba ANTES de contar: mientras dure, cuántas
+      // peticiones cupieron en la ventana es una pregunta sin efecto.
+      Long castigadaHasta = penalizados.get(llave);
+      if (castigadaHasta != null) {
+        if (castigadaHasta > ahora) {
+          return new Veredicto(false, enSegundos(castigadaHasta - ahora));
+        }
+        penalizados.remove(llave);
+      }
+
       Deque<Long> instantes = historial.computeIfAbsent(llave, k -> new ArrayDeque<>());
 
       // Fuera lo que ya no cuenta. Es también lo que impide que una llave
@@ -96,13 +143,23 @@ public class RateLimitLedger {
       }
 
       if (instantes.size() >= maximo) {
+        if (penalizacion != null && !penalizacion.isZero() && !penalizacion.isNegative()) {
+          penalizados.put(llave, ahora + penalizacion.toMillis());
+          instantes.clear();
+          return new Veredicto(false, enSegundos(penalizacion.toMillis()));
+        }
         long esperaMs = instantes.peekFirst() + ventana.toMillis() - ahora;
-        return new Veredicto(false, Math.max(1, (long) Math.ceil(esperaMs / 1000.0)));
+        return new Veredicto(false, enSegundos(esperaMs));
       }
 
       instantes.addLast(ahora);
       return new Veredicto(true, 0);
     }
+  }
+
+  /** Nunca cero: decirle a un cliente que espere cero segundos es invitarle a reintentar ya. */
+  private static long enSegundos(long milisegundos) {
+    return Math.max(1, (long) Math.ceil(milisegundos / 1000.0));
   }
 
   /**
@@ -138,6 +195,9 @@ public class RateLimitLedger {
     }
     synchronized (avisos) {
       avisos.clear();
+    }
+    synchronized (penalizados) {
+      penalizados.clear();
     }
   }
 

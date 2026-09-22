@@ -47,7 +47,7 @@ public class PermissionController {
   }
 
   @GetMapping
-  @PreAuthorize("hasAuthority('permissions:read')")
+  @PreAuthorize("hasAuthority('permissions:list')")
   @Operation(
       summary = "Consultar el catálogo de permisos",
       description =
@@ -66,7 +66,7 @@ public class PermissionController {
     @ApiResponse(responseCode = "401", description = "Token ausente o inválido (`AUTH-001`)"),
     @ApiResponse(
         responseCode = "403",
-        description = "Autenticado sin el permiso `permissions:read` (`AUTH-002`)"),
+        description = "Autenticado sin el permiso `permissions:list` (`AUTH-002`)"),
     @ApiResponse(responseCode = "500", description = "Fallo no controlado (`ERR-500`)")
   })
   public PermissionCatalogResponse list(

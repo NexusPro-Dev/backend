@@ -11,7 +11,7 @@ import jakarta.validation.constraints.Size;
  * lo mismo que hizo el alta de rol, y es lo que deja un único camino hacia el estado inactivo.
  *
  * <p><b>El código NO se valida aquí con un patrón.</b> Lo normaliza y lo valida {@code
- * CountryCode}, porque {@code "co"} y {@code " CO"} deben acabar siendo {@code "CO"} y no ser
+ * CountryCode}, porque {@code "col"} y {@code " COL"} deben acabar siendo {@code "COL"} y no ser
  * rechazados —al revés que el código de un rol—. Poner aquí un {@code @Pattern} de mayúsculas
  * rechazaría precisamente lo que se quiere aceptar.
  *
@@ -20,7 +20,7 @@ import jakarta.validation.constraints.Size;
  */
 public record RegisterCountryRequest(
     @NotBlank(message = "VAL-001: El código del país es obligatorio.")
-        @Size(max = 10, message = "VAL-002: El código del país debe tener exactamente dos letras.")
+        @Size(max = 10, message = "VAL-002: El código del país debe tener exactamente tres letras.")
         String code,
     @NotBlank(message = "VAL-003: El nombre del país es obligatorio.")
         @Size(max = 100, message = "VAL-003: El nombre del país no puede exceder 100 caracteres.")

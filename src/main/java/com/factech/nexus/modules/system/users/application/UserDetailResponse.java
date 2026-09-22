@@ -37,6 +37,12 @@ import java.util.UUID;
  *       creado una segunda fuente del mismo dato.
  * </ul>
  *
+ * <p><b>{@code document} puede ser nulo y {@code country} no</b>, y la diferencia es información:
+ * las personas registradas antes del 08-09-2026 no tienen documento, y esta pantalla es donde esa
+ * ausencia <b>se ve</b> — quien administra la usa para saber a quién hay que completar. Por eso el
+ * tipo se resuelve con un {@code LEFT JOIN} y no con uno interno: un {@code JOIN} interno haría
+ * <b>desaparecer del detalle</b> a toda persona sin documento, y eso no falla, oculta.
+ *
  * <p><b>{@code lockedUntil} nulo significa dos cosas distintas, y eso es información:</b> la cuenta
  * no está bloqueada, o lo está <b>por decisión de un actor</b> y por tanto sin expiración. El
  * estado desambigua — {@code BLOQUEADO} con {@code lockedUntil} nulo es un bloqueo manual, que no
@@ -52,11 +58,25 @@ public record UserDetailResponse(
     String status,
     List<RoleRef> roles,
     List<String> effectivePermissions,
+    CountryRef country,
+    UserResponse.DocumentRef document,
+    UserResponse.ContactRef contact,
     MembershipRef membership,
     OffsetDateTime lastLoginAt,
     OffsetDateTime lockedUntil,
     OffsetDateTime createdAt,
     OffsetDateTime updatedAt) {
+
+  /**
+   * El país de la persona (`RN-SP-034`), y <b>se devuelve aunque esté inactivo</b>.
+   *
+   * <p>Es la pantalla desde la que se decide moverla con `RF-SP-027`, y ocultarle a quien
+   * administra que ese país fue retirado sería ocultarle justo el motivo por el que hay que
+   * moverla. Desactivar un país lo retira de los selectores del alta (`RF-SP-022`); no cambia dónde
+   * está quien ya lo tenía, ni quién puede verlo.
+   */
+  @JsonInclude(JsonInclude.Include.ALWAYS)
+  public record CountryRef(UUID id, String code, String name) {}
 
   /** Con su estado: es lo que explica que un rol asignado no conceda nada. */
   @JsonInclude(JsonInclude.Include.ALWAYS)

@@ -40,7 +40,7 @@ Una migración de dos índices y una consulta con tres sentencias. La forma la h
 | `T-07` | Vigencia de la membresía: `current` calculado con `now()` de la base de datos, tanto en el filtro como en la fila devuelta | `T-04` | Prueba de integración: una membresía vencida se devuelve con `current: false` y su `endsAt`, y **no** la trae el filtro por esa membresía. Distinguible de `membership: null` | **Hecha** |
 | `T-08` | Conteo con **la misma función de predicado** que los datos, omitido cuando la página no se llena y sin los `LEFT JOIN` de la membresía | `T-04` | Prueba de integración: el total coincide con las filas devueltas al recorrer todas las páginas, con y sin cada filtro | **Hecha** |
 | `T-09` | `application/ListUsersService` con `@Transactional(readOnly = true)`, que arma la página y agrupa los roles por persona | `T-06`, `T-07`, `T-08` | Prueba con dobles: una página sin resultados no invoca la lectura de roles | **Hecha** |
-| `T-10` | `api`: `ListUsersRequest` con Bean Validation, `UserListItemResponse`, `MembershipSummaryResponse`, y `GET /api/v1/users` en `UserController` con el permiso `users:read` | `T-09` | Prueba de API: `size = 101` devuelve `400` con `VAL-002` y **no** una página de cien | **Hecha** |
+| `T-10` | `api`: `ListUsersRequest` con Bean Validation, `UserListItemResponse`, `MembershipSummaryResponse`, y `GET /api/v1/users` en `UserController` con el permiso `users:list` | `T-09` | Prueba de API: `size = 101` devuelve `400` con `VAL-002` y **no** una página de cien | **Hecha** |
 | `T-11` | Ausencia verificable de lo que el listado **no** devuelve: credencial, permisos efectivos y `lockedUntil` | `T-10` | Prueba de API que busca **el literal del hash almacenado** en la respuesta completa, y traza de sentencias sin ninguna consulta a `role_permissions` | **Hecha** |
 | `T-12` | Pruebas de los criterios de aceptación de `spec.md` §12 | `T-10` | La suite cubre `CA-SP-203` a `CA-SP-211`, `CA-SP-343`, `CA-SP-344` y `CA-SP-345` | **En curso** |
 | `T-13` | Pruebas de los casos límite de `spec.md` §13 y de `plan.md` §11: página fuera de rango, búsqueda vacía, nombre completo, rol inexistente, membresía vencida, ordenamiento arbitrario y desempate por `id` | `T-10` | `juan perez` encuentra a `Juan Pérez` y `perez juan` no; `sort=password_hash,asc` devuelve `400` y no llega a la base de datos | **En curso** |
@@ -120,6 +120,14 @@ graph LR
 - **Ninguna fila lleva nada derivado de la credencial**, ni permisos efectivos, ni el bloqueo.
 - Un filtro sin coincidencias y una página más allá de la última devuelven `200`, no un error.
 
+## 4.ter El país entra en la fila y nace su filtro — enmienda del 07-09-2026
+
+`RN-SP-034` obliga a que toda persona declare un país (`requirements/sp.md` v1.38.0), y este listado lo publica y permite filtrar por él (`spec.md` §6.1, §6.2, `CA-SP-575` y `CA-SP-576`).
+
+**Las tareas no se duplican aquí.** Son `T-48` y `T-49` de [`../024-registrar-usuario/tasks.md`](../024-registrar-usuario/tasks.md) §4.quinquies, donde vive la enmienda entera: la columna es de `users` y el índice que sostiene el filtro lo crea `V64`, que es de aquel requerimiento. Repartir las tareas entre seis documentos las dejaría avanzando por separado sobre una sola migración.
+
+**Lo que sí es decisión de este requerimiento** y queda en `plan.md` §2.bis: el filtro **no se acota a países activos**. Escribir `AND c.is_active` convertiría desactivar un país en una forma de esconder a su gente, justo cuando este listado es la herramienta con la que se va a buscar a quien hay que mover.
+
 ## 5. Definición de terminado
 
 El requerimiento no está terminado hasta cumplir **todas** las condiciones de la constitución §16:
@@ -128,7 +136,7 @@ El requerimiento no está terminado hasta cumplir **todas** las condiciones de l
 - [ ] Todos los criterios de aceptación con prueba automatizada en verde. — falta demostrar el uso efectivo de los índices.
 - [x] `mvn verify` en verde en local. — 99 unitarias y 351 de integración, 24-08-2026.
 - [x] Toda escritura emite su evento de auditoría, en la transacción que corresponde. — no escribe: es una consulta.
-- [x] Los endpoints nuevos declaran su permiso. — `users:read`.
+- [x] Los endpoints nuevos declaran su permiso. — `users:list`.
 - [x] El contrato OpenAPI coincide con el comportamiento real. — `OpenApiContractIT` fija los parámetros publicados y la **ausencia** de los derivados de la credencial.
 - [ ] Documentación afectada actualizada en el mismo Pull Request. — falta enmendar `requirements/sp.md` §10.8 con los dos índices de `V29`.
 - [x] Matriz de trazabilidad actualizada.

@@ -10,8 +10,11 @@ import java.util.UUID;
  * endpoint se convierta en un listado de usuarios con otro nombre y otro permiso — `RF-SP-025` ya
  * existe para eso.
  *
- * <p>{@code roleCode} es el rol <b>comercial</b> de mayor rango, que es el único que explica su
- * posición en la estructura.
+ * <p><b>Ya no lleva el rol</b> (10-09-2026). Llevaba uno solo, resuelto en la propia consulta del
+ * equipo y limitado a la clasificación {@code VENDEDOR}: la cartera de clientes —que cuelga de esta
+ * misma estructura desde `RF-SP-045`— llegaba con el rol en nulo. Los roles se resuelven ahora
+ * <b>completos y por lote</b> con {@code UserQueryRepository.rolesOf}, fuera de esta proyección,
+ * que es lo que evita una consulta por fila.
  */
 public record TeamMember(
-    UUID id, String username, String firstName, String lastName, String roleCode, String status) {}
+    UUID id, String username, String firstName, String lastName, String status) {}

@@ -170,7 +170,7 @@ GET /api/v1/audit/deletions?page=0&size=20
 - **`snapshot` viaja como objeto JSON y este endpoint no lo interpreta.** Su forma la decide quien escribe el evento y varía por entidad: en un rol es el estado completo con sus permisos declarados (`RF-SP-009` §6), en una asociación son los dos extremos con sus **códigos legibles** (`RF-SP-006` §6). Devolverlo tal cual es lo que satisface `CA-SP-093`: reconstruir qué era el registro eliminado no es trabajo del lector, es una propiedad de lo que se escribió.
 - **`reason` es nulo en las asociaciones y no se omite** (`FA-001`, `CA-SP-091`). Que sea un valor legítimo y no un dato faltante lo garantiza el esquema: `ck_deletion_reason` impide que una eliminación de negocio se registre sin motivo, de modo que un nulo aquí **solo puede** venir de una asociación. No hace falta código que lo compruebe ni un campo aparte que lo declare, y es lo que hace verificable a `CA-SP-090` sin recorrer la tabla.
 - **`correlationId` e `ipAddress` son nulos a la vez o ninguno lo es**, por `ck_audit_deletion_log_origen`. Igual que en `RF-SP-011` §4.
-- **No se devuelve el nombre del actor**, por lo dicho en `RF-SP-011` §3.
+- ~~**No se devuelve el nombre del actor**~~ · **Revertido el 28-08-2026**, con el mismo criterio que `RF-SP-011`: llega resuelto y el identificador sigue mandando.
 
 **Cómo se aplica la búsqueda por motivo.** El término se recorta; si queda vacío, no se añade predicado. Si no, se escapan `\`, `%` y `_`, se envía como parámetro enlazado y se normaliza en la base de datos con la misma función que alimenta el índice:
 

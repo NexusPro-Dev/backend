@@ -88,7 +88,8 @@ public class CountryController {
           se envía y enviarlo devuelve `400`.
 
           El código se normaliza a mayúsculas y se recorta, porque lo fija
-          ISO 3166-1 y no lo inventa nadie: `co`, ` CO` y `CO` son el mismo país.
+          ISO 3166-1 alfa-3 y no lo inventa nadie: `col`, ` COL` y `COL` son el
+          mismo país. Son tres letras y no dos.
 
           El nombre admite acentos y caracteres no latinos sin transformación
           alguna, pero **no puede coincidir** con otro ya registrado ignorando
@@ -126,7 +127,10 @@ public class CountryController {
   }
 
   @GetMapping
-  @PreAuthorize("hasAuthority('countries:read')")
+  // SIN @PreAuthorize desde el 08-09-2026: el catálogo es PÚBLICO (ver
+  // `SecurityConfig.CATALOGOS_PUBLICOS`). Con la anotación puesta, un anónimo
+  // pasaría el filtro y chocaría aquí con un `403` — la ruta estaría abierta y
+  // no serviría de nada.
   @Operation(
       summary = "Consultar el catálogo de países",
       description =
@@ -148,14 +152,6 @@ public class CountryController {
     @ApiResponse(
         responseCode = "400",
         description = "El parámetro de inclusión no es booleano",
-        content = @Content),
-    @ApiResponse(
-        responseCode = "401",
-        description = "Token ausente o inválido (`AUTH-001`)",
-        content = @Content),
-    @ApiResponse(
-        responseCode = "403",
-        description = "Autenticado sin el permiso de lectura de países (`AUTH-002`)",
         content = @Content),
     @ApiResponse(
         responseCode = "500",

@@ -90,7 +90,7 @@ Dos decisiones de reparto:
 ```json
 {
   "id": "018f3a2b-7c41-7000-9a3d-1f2e5b8c9d50",
-  "code": "PA",
+  "code": "PAN",
   "name": "Panamá",
   "isActive": false
 }

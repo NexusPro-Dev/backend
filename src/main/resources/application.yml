@@ -7,6 +7,28 @@ spring:
   application:
     name: nexus-backend
 
+  lifecycle:
+    # Cuánto se espera a las peticiones en curso durante un apagado ordenado
+    # (`server.shutdown`). Treinta segundos sobran para cualquier operación de
+    # este sistema —los umbrales del Art. XV.9 son de menos de un segundo— y
+    # quedan por debajo del plazo con el que una plataforma de despliegue mata
+    # el proceso a la fuerza.
+    timeout-per-shutdown-phase: 30s
+
+  servlet:
+    multipart:
+      # La portada de un producto (`RF-PM-014`) es el único archivo que el
+      # sistema recibe. El tope de NEGOCIO son 5 MB (`RN-PM-033`,
+      # `ck_product_images_size`) y lo comprueba el dominio con su `VAL-004`;
+      # estos dos van POR ENCIMA a propósito, para que un archivo de 5,5 MB
+      # llegue al controlador y reciba ese rechazo con su cuerpo, y no un corte
+      # del contenedor sin explicación. Lo que pase de aquí lo corta Spring
+      # antes del controlador y `GlobalExceptionHandler` lo traduce al MISMO
+      # `VAL-004`: el cliente recibe siempre la misma respuesta por «demasiado
+      # grande», venga de donde venga.
+      max-file-size: 6MB
+      max-request-size: 7MB
+
   datasource:
     url: ${DATABASE_URL}
     username: ${DATABASE_USER}
@@ -31,7 +53,7 @@ spring:
     # de Flyway es un estado que debe fallar, no que deba asumirse.
     validate-on-migrate: true
 
-    # Credencial inicial del superadministrador (`V22__seed_superadmin.sql`).
+    # Credencial inicial del superadministrador (`V9__semilla_catalogos_y_superadmin.sql`).
     #
     # Entra por marcador de posición y no como literal en la migración: un hash
     # escrito en el repositorio es una credencial en el repositorio (RNF-SEG-003).
@@ -51,7 +73,26 @@ spring:
     default-property-inclusion: non_null
 
 server:
-  port: 8080
+  # EL PUERTO LO ELIGE QUIEN EJECUTA, no este archivo (Art. IX.1). La plataforma
+  # de despliegue lo anuncia en `PORT`; en local no hay quien lo anuncie y valen
+  # los 8080 de siempre, que son los que declara el `Dockerfile` y los que espera
+  # el `docker-compose.yml`.
+  #
+  # El literal que había aquí obligaba a fijar `PORT=8080` a mano en Railway para
+  # que el borde encaminara al puerto correcto, y el día que no coincidieran el
+  # síntoma sería una sonda de salud en rojo sobre un arranque IMPECABLE en los
+  # logs — es decir, el puerto es lo último que uno mira. Ver `deployment.md` §7.1.
+  port: ${PORT:8080}
+
+  # RELEVAR UNA VERSIÓN POR OTRA DEJA DOS PROCESOS VIVOS, y al viejo se le manda
+  # parar con peticiones en curso (`deployment.md` §7.3). Sin esto las corta en
+  # seco: quien estaba escribiendo recibe una conexión caída y no un error, que
+  # es indistinguible de que el sistema esté roto.
+  #
+  # Con esto deja de aceptar nuevas y termina las que tiene, hasta el plazo de
+  # `spring.lifecycle.timeout-per-shutdown-phase`.
+  shutdown: graceful
+
   error:
     # El detalle interno no sale al cliente (Art. VI.5). El formato de error
     # es RFC 9457, producido por el manejador global.
@@ -101,6 +142,28 @@ springdoc:
     path: /swagger-ui.html
 
 nexus:
+  # El entorno de esta instancia (Art. IX.4): development | testing | production.
+  #
+  # SIN VALOR POR DEFECTO, y el vacío de aquí NO es uno: `RuntimeEnvironment` lo
+  # rechaza y TUMBA EL ARRANQUE nombrando los tres admitidos. El vacío existe
+  # solo para que el mensaje de error sea el suyo y no el genérico de un
+  # marcador sin resolver.
+  #
+  # De esta variable depende que NO se siembren datos de prueba, de modo que
+  # asumir un valor sería exactamente lo que el Art. IX.5 prohíbe.
+  environment: ${ENVIRONMENT:}
+
+  # Semilla de datos de prueba (`db/dev-seed/`). NO se aplica en `production`, y
+  # eso lo decide el entorno y no este interruptor: ponerlo en `true` allí no
+  # siembra nada.
+  #
+  # Existe por lo mismo que `token-purge.enabled` y `rate-limit.enabled`: LA
+  # SUITE LO APAGA. Sus pruebas corren como `testing` y cuentan personas y
+  # roles; quince cuentas apareciendo solas harían fallar decenas de ellas por
+  # algo que no tiene que ver con lo que comprueban.
+  dev-seed:
+    enabled: ${DEV_SEED_ENABLED:true}
+
   # Uniforme para todo el sistema, no por endpoint (architecture.md §7.4).
   # Una petición que exceda el máximo se rechaza, no se recorta.
   pagination:
@@ -185,13 +248,74 @@ nexus:
         por-origen: 60
         ventana: PT1M
 
-      # La cota más estricta de las tres, y no por prudencia: es la única
-      # operación pública que provoca un ENVÍO SALIENTE. Sin ella se puede
-      # inundar de correos a una persona real y sondear identidades en masa.
-      # Declarada aunque su endpoint no exista todavía (`RF-SP-040`, D-23).
+      # Cinco por minuto, y quien los supera espera cinco minutos. Decisión del
+      # responsable del proyecto, 26-08-2026, sobre la advertencia de que es la
+      # única operación pública que provoca un ENVÍO SALIENTE: la cota pasa de
+      # tres correos POR HORA a una persona real a unos sesenta.
+      #
+      # La PENALIZACIÓN es lo que hace que el número siga sirviendo de algo. Sin
+      # ella, cinco por minuto son setenta y dos mil correos al día; con ella,
+      # superar la cota cuesta una espera fija y el ritmo sostenido baja a cinco
+      # cada cinco minutos.
       recovery:
+        por-origen: 5
+        por-identidad: 5
+        ventana: PT1M
+        penalizacion: PT5M
+
+      # La confirmación se acota SOLO POR ORIGEN, y no es un descuido: su cuerpo
+      # no lleva identidad ninguna —lleva un permiso—, de modo que no hay nada
+      # por lo que acotar por credencial. Lo que se corta aquí es probar
+      # permisos al azar, y treinta por hora deja margen a quien se equivoca al
+      # copiar el código del correo sin dejar sitio a una búsqueda.
+      recovery-confirmation:
+        por-origen: 30
+        ventana: PT1H
+
+      # La única cota que no protege un endpoint de autenticación. Lo que acota
+      # es el RECORRIDO A CIEGAS de nombres de usuario: el hotlink responde el
+      # mismo 404 a los seis casos que no proceden, de modo que barrer nombres
+      # es lo único que le queda a quien sondea, y esta cota es su única
+      # mitigación (`RF-PM-008`, `CA-PM-137`).
+      #
+      # El número es HOLGADO a propósito, y sin penalización: un hotlink se
+      # reparte por mensajería y lo abren muchas personas que pueden compartir
+      # la dirección de salida de su operador. Una cota estrecha —o una espera
+      # fija al superarla— dejaría fuera a lectores legítimos antes que a nadie
+      # más. Se cuenta por la FAMILIA de rutas y no por enlace: ver `HOTLINKS`
+      # en `RateLimitFilter`.
+      hotlink:
+        por-origen: 60
+        ventana: PT1M
+
+      # Los CUATRO catálogos que el formulario de registro lee SIN TOKEN: países,
+      # tipos de documento y brokers desde el 08-09-2026, y los MÉTODOS DE PAGO
+      # desde el 09-09-2026 (`RN-MV-024`). Se acotan por lo mismo que el refresco
+      # —son públicas y consultan la base en cada llamada— y NO por lo mismo que
+      # el hotlink: aquí no hay nada que sondear, son listas de opciones que no
+      # identifican a nadie y que responden lo mismo a todo el mundo.
+      #
+      # El número más holgado del sistema, y a propósito: UNA sola carga del
+      # formulario los pide todos, y detrás de una dirección de salida compartida
+      # eso son muchas cargas por minuto. Cada catálogo lleva su propio cubo, de
+      # modo que agotar el de países no deja sin métodos de pago al mismo
+      # formulario. El cuarto no estrenó política: solo cubo.
+      public-catalog:
+        por-origen: 120
+        ventana: PT1M
+
+      # EL REGISTRO POR ENLACE (`RF-SP-045`), y se acota por lo mismo que la
+      # recuperación y no por lo mismo que el refresco: no es que consulte la
+      # base, es que ESCRIBE. Sin cota, un origen puede crear cuentas en masa
+      # —cada una con su membresía, su atribución y su cuenta de broker— y
+      # ensuciar el árbol comercial sobre el que `CM` comisionará.
+      #
+      # Diez por hora: registrarse es algo que una persona hace UNA VEZ. El
+      # margen deja sitio a quien se equivoca y vuelve a intentarlo, y no deja
+      # sitio a una carga masiva. Detrás de una salida compartida —un locutorio,
+      # una oficina— diez familias al día siguen cabiendo.
+      registration:
         por-origen: 10
-        por-identidad: 3
         ventana: PT1H
 
     # Orígenes que el navegador puede usar para llamar a esta API, separados
@@ -227,6 +351,16 @@ nexus:
       # servicio contra su titular.
       max-delay: PT1H
 
+      # Los dos siguientes NO defienden de la fuerza bruta: existen para que el
+      # identificador SIN cuenta cuente sus fallos igual que uno real y la
+      # respuesta no delate cuáles existen (ver `FailedAttemptLedger`).
+      #
+      # La ventana se recuerda en memoria y nunca baja del techo del bloqueo.
+      # La capacidad la impone que la clave llega de fuera: un mapa sin tope
+      # crece hasta donde quiera quien ataca.
+      identifier-window: PT1H
+      identifier-capacity: 10000
+
     # Política de contraseña (security.md §3.2).
     password:
       min-length: 12
@@ -234,10 +368,43 @@ nexus:
       # una cuenta restablecida y nunca usada conserva indefinidamente una
       # contraseña que alguien más conoce, y nadie se entera porque no falla nada.
       provisional-ttl: PT48H
+      # Cuánto vive el permiso de recuperación (RF-SP-040, security.md §3.2).
+      # Treinta minutos: acota la ventana en que un correo interceptado sirve
+      # para entrar, sin caducar mientras la persona busca el mensaje en su
+      # carpeta de correo no deseado —y cada repetición es otro correo—.
+      recovery-ttl: PT30M
       argon2:
         memory-kb: 16384
         iterations: 2
         parallelism: 1
+
+  # Envío saliente (architecture.md §15.1, D-23 cerrada el 26-08-2026 con Resend).
+  #
+  # La clave llega por variable y NO tiene valor por omisión (Art. IX.1, IX.5).
+  # Sin ella el envío queda APAGADO y se avisa al arrancar, en lugar de fallar
+  # en silencio la primera vez que alguien olvide su contraseña.
+  #
+  # El remitente debe pertenecer a un dominio verificado en Resend, o el
+  # proveedor rechaza el envío con un 403 que no se descubre hasta producción.
+  notification:
+    enabled: ${NOTIFICATION_ENABLED:false}
+    api-key: ${RESEND_API_KEY:}
+    from: ${NOTIFICATION_FROM:}
+    base-url: ${RESEND_BASE_URL:https://api.resend.com}
+    timeout: PT10S
+
+    # Qué plantilla alojada en Resend le toca a cada mensaje (RF-SP-040).
+    #
+    # La clave es el código del tipo en `NotificationKind`, y el valor es el id
+    # o el alias de una plantilla PUBLICADA. Añadir una plantilla nueva es
+    # añadir una línea aquí y su variable; no se toca código.
+    #
+    # VACÍO POR OMISIÓN, y eso decide el comportamiento: sin plantilla el
+    # mensaje sale en texto plano en lugar de no salir. Un entorno al que le
+    # falte esta variable manda un correo sin estilos; uno que fallara aquí
+    # dejaría fuera a quien esperaba su código.
+    templates:
+      password-recovery: ${NOTIFICATION_TEMPLATE_PASSWORD_RECOVERY:}
 
 logging:
   level:

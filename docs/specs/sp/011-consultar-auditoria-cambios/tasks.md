@@ -42,6 +42,7 @@ Estructuralmente es `RF-SP-002` con otros filtros, pero sobre una tabla que crec
 | `T-11` | Pruebas del conteo acotado y de los casos límite de `spec.md` §13: por debajo y por encima del techo, navegación más allá de la cota, registro eliminado, empate en `occurred_at` y uso efectivo del índice | `T-09` | Con el techo en 10 y 25 eventos, la página 2 devuelve contenido real: el techo no es un muro | Hecha |
 | `T-12` | Documentación OpenAPI del endpoint: los nueve parámetros, la envoltura con `totalIsExact` y los estados `400`, `401`, `403` y `500` | `T-10` | El contrato publicado coincide con el comportamiento real (Art. VIII.6), y documenta qué significa `totalIsExact: false` | Hecha |
 | `T-13` | Actualizar la matriz de trazabilidad de `docs/requirements.md` | `T-10` | La fila de `RF-SP-011` refleja el estado y enlaza esta tripleta | Hecha |
+| `T-14` | El actor resuelto: `AuditActor` y el `LEFT JOIN` a `users` en la **misma** sentencia, sin filtrar por `deleted_at` | `T-04` | El actor llega con `username` y nombre completo; un evento del sistema trae los dos nulos; una persona retirada **sigue resolviendo**; y el filtro por actor sobrevive al `JOIN` | **Hecha el 28-08-2026** |
 
 **Estados:** `Pendiente` · `En curso` · `Hecha` · `Bloqueada`.
 

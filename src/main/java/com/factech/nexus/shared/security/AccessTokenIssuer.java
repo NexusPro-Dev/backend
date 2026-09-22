@@ -41,14 +41,17 @@ public class AccessTokenIssuer {
   public static final String CLAIM_ROLES = "roles";
 
   private final JwtEncoder encoder;
+  private final AccessRevocationRegistry cortes;
   private final String emisor;
   private final Duration vida;
 
   public AccessTokenIssuer(
       JwtEncoder encoder,
+      AccessRevocationRegistry cortes,
       @Value("${nexus.security.jwt.issuer:nexus}") String emisor,
       @Value("${nexus.security.jwt.access-token-ttl:PT15M}") Duration vida) {
     this.encoder = encoder;
+    this.cortes = cortes;
     this.emisor = emisor;
     this.vida = vida;
   }
@@ -67,7 +70,10 @@ public class AccessTokenIssuer {
             // `jti` permite referirse a un token concreto en la auditoría sin
             // guardar su valor.
             .id(UUID.randomUUID().toString())
-            .issuedAt(ahora)
+            .issuedAt(sellado(usuario, ahora))
+            // La expiración se cuenta desde AHORA y no desde el sellado: si un
+            // corte adelanta el `iat` una fracción de segundo, eso no debe
+            // regalarle vida al token.
             .expiresAt(ahora.plus(vida))
             .claim(CLAIM_ROLES, roles)
             .claim(CLAIM_CAMBIO_OBLIGATORIO, cambioObligatorio)
@@ -76,6 +82,27 @@ public class AccessTokenIssuer {
     return encoder
         .encode(JwtEncoderParameters.from(JwsHeader.with(MacAlgorithm.HS256).build(), claims))
         .getTokenValue();
+  }
+
+  /**
+   * El instante con el que se sella el token, que no siempre es el reloj.
+   *
+   * <p><b>Un token recién emitido no puede nacer cortado</b>, y sin esto puede. El {@code iat} va
+   * en segundos enteros, de modo que un token emitido en el mismo segundo en que se revocó el
+   * acceso de esa persona es indistinguible de uno emitido justo antes: {@link
+   * AccessRevocationRegistry} tendría que elegir a qué lado caen los empates, y las dos opciones
+   * son malas —cerrar mata este token legítimo, abrir deja vivo quince minutos el que debía morir—.
+   *
+   * <p>Aquí la ambigüedad no existe: si estamos emitiendo, es que la revocación ya ocurrió y esta
+   * persona acaba de probar quién es. Se sella con el corte, y la comparación del validador vuelve
+   * a ser exacta sin depender de en qué milisegundo cayó la petición.
+   *
+   * <p>El adelanto es de menos de un segundo y nadie lo valida: {@code JwtTimestampValidator}
+   * comprueba {@code exp} y {@code nbf}, y este token no declara {@code nbf}.
+   */
+  private Instant sellado(UUID usuario, Instant ahora) {
+    Instant corte = cortes.corteVigente(usuario);
+    return corte != null && corte.isAfter(ahora) ? corte : ahora;
   }
 
   /** Vida del token en segundos, que es lo que la respuesta publica como {@code expiresIn}. */

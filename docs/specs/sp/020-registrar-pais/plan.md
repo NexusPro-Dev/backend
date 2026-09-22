@@ -9,6 +9,7 @@
 | Autor | Responsable técnico |
 | Aprobado por | Responsable técnico |
 | Fecha de aprobación | 21-08-2026 |
+| Enmendado | 28-08-2026 — `code` pasa a `char(3)` y `ck_countries_code_format` a `^[A-Z]{3}$`, por el cambio a ISO 3166-1 alfa-3. La migración es `V42`, no `V16`: esa ya está aplicada (Art. I.7) |
 
 !!! info "Qué va en este documento"
 
@@ -40,7 +41,7 @@ Es la siguiente libre de la serie: `V15__seed_currencies.sql` (`RF-SP-019`) es l
 
 | Tabla | Cambio | Detalle |
 |---|---|---|
-| `countries` | Crea | `id uuid PRIMARY KEY`, `code char(2) NOT NULL`, `name varchar(100) COLLATE "es-x-icu" NOT NULL`, `is_active boolean NOT NULL DEFAULT true`, `created_at timestamptz NOT NULL DEFAULT now()`, `updated_at timestamptz NOT NULL DEFAULT now()` |
+| `countries` | Crea | `id uuid PRIMARY KEY`, `code char(3) NOT NULL`, `name varchar(100) COLLATE "es-x-icu" NOT NULL`, `is_active boolean NOT NULL DEFAULT true`, `created_at timestamptz NOT NULL DEFAULT now()`, `updated_at timestamptz NOT NULL DEFAULT now()` |
 
 **`name` declara la intercalación del español en la columna**, añadido el 21-08-2026 al aprobar `RF-SP-021`. Ese requerimiento exige que el catálogo se ordene alfabéticamente según el idioma y no por bytes —con la intercalación `C`, «Panamá» va detrás de «Perú»—, y la API de criterios con la que se construye su consulta **no puede expresar `COLLATE`**. Declararla aquí hace que un `ORDER BY name` corriente ya ordene bien, y que el orden correcto sea el comportamiento por omisión de cualquier consulta futura sobre esta tabla en lugar de algo que cada una deba recordar. Se elige ICU y no una intercalación del sistema operativo porque las de la biblioteca C dependen de qué configuraciones regionales estén instaladas en la imagen del contenedor, y `postgres:17-alpine` es una imagen mínima. No afecta a `uq_countries_name`, que va sobre una expresión con su propia intercalación, ni a la igualdad con la que se comprueba la unicidad.
 
@@ -50,7 +51,7 @@ Restricciones e índices:
 |---|---|---|
 | `uq_countries_code` | `UNIQUE (code)` | `requirements/sp.md` §10.7 y `VAL-004`. Restricción **total**, no parcial: no hay borrado lógico, de modo que no existe estado en el que un código deba poder repetirse. Es la diferencia con `uq_roles_code`, que sí es parcial porque un rol eliminado libera el suyo |
 | `uq_countries_name` | `CREATE UNIQUE INDEX uq_countries_name ON countries (f_unaccent(lower(name)))` | `VAL-005`. **No está en `requirements/sp.md` §10.7**, que solo declara la de código; se añade y ese documento se enmienda (§8). Sin ella, `EX-001` sería una verificación de aplicación que dos altas simultáneas burlan, y el duplicado resultante sería **permanente**. Se declara sobre la **forma normalizada** y no sobre `name` literal: ver abajo |
-| `ck_countries_code_format` | `CHECK (code ~ '^[A-Z]{2}$')` | `VAL-002` y `EX-002`. `char(2)` acota la longitud pero no impide `1`, `-` ni un espacio de relleno; sin el `CHECK`, un `INSERT` directo mete basura en un catálogo que después nadie puede corregir |
+| `ck_countries_code_format` | `CHECK (code ~ '^[A-Z]{3}$')` | `VAL-002` y `EX-002`. `char(3)` acota la longitud pero no impide `1`, `-` ni un espacio de relleno; sin el `CHECK`, un `INSERT` directo mete basura en un catálogo que después nadie puede corregir |
 | `ck_countries_name_not_blank` | `CHECK (length(btrim(name)) > 0)` | `VAL-003`. Un nombre de un solo espacio pasaría el `NOT NULL` y quedaría para siempre |
 
 ### Por qué la unicidad del nombre es sobre la forma normalizada
@@ -67,7 +68,7 @@ CREATE UNIQUE INDEX uq_countries_name ON countries (f_unaccent(lower(name)));
 
 `f_unaccent` existe desde `V1__create_shared_functions.sql` (`RF-SP-010`) y está declarada `IMMUTABLE` precisamente para poder indexarse. **Decidirlo ahora no cuesta nada; decidirlo después del primer país registrado obliga a migrar datos**, porque crear el índice sobre una tabla que ya contiene variantes falla.
 
-El coste asumido es que dos países cuyos nombres solo difieran en acentos o mayúsculas no podrán coexistir. En ISO 3166-1 no hay ninguno, y si apareciera, el código de dos letras los distingue.
+El coste asumido es que dos países cuyos nombres solo difieran en acentos o mayúsculas no podrán coexistir. En ISO 3166-1 no hay ninguno, y si apareciera, el código de tres letras los distingue.
 
 **Consecuencia sobre el mensaje de `EX-001`:** el `409` por nombre puede dispararse contra una fila cuyo nombre **no es idéntico** al enviado. El mensaje debe decir que ya existe un país con ese nombre e incluir el nombre registrado, o el actor verá rechazado un `"Panama"` que no encuentra en ninguna parte.
 
@@ -77,7 +78,7 @@ El coste asumido es que dos países cuyos nombres solo difieran en acentos o may
 
 **No se crea `ix_countries_busqueda`.** `requirements/sp.md` §10.7 lo declara y **pertenece a `RF-SP-021`**, que es quien introduce la búsqueda; así lo anticipa ya el plan de `RF-SP-017` §2. Aquí la tabla nace sin él y el alta no lo necesita: la unicidad la resuelven los índices únicos. Crear el índice de trigramas ahora sería mantener una estructura que ninguna consulta de este requerimiento usa.
 
-**`code` es `char(2)` y no `varchar(2)`**, como declara §10.6. Con `ck_countries_code_format` exigiendo exactamente dos mayúsculas, el relleno con espacios que caracteriza a `char` no puede llegar a producirse, de modo que la diferencia de semántica entre ambos tipos queda sin efecto observable.
+**`code` es `char(3)` y no `varchar(3)`**, como declara §10.6. Con `ck_countries_code_format` exigiendo exactamente tres mayúsculas, el relleno con espacios que caracteriza a `char` no puede llegar a producirse, de modo que la diferencia de semántica entre ambos tipos queda sin efecto observable.
 
 ## 3. Componentes afectados
 
@@ -86,7 +87,7 @@ Paquete raíz: `com.factech.nexus.modules.system`. Reglas de dependencia de `arc
 | Capa | Componente | Nuevo / Modificado | Responsabilidad |
 |---|---|---|---|
 | `domain` | `Country` | Nuevo | Agregado. Código, nombre y estado. **Nace siempre activo**: el constructor no recibe el estado (`CA-SP-171`) |
-| `domain` | `CountryCode` | Nuevo | Objeto de valor. **Normaliza a mayúsculas y valida el formato de dos letras en un solo sitio**, sin Spring ni base de datos (Art. VI.3) |
+| `domain` | `CountryCode` | Nuevo | Objeto de valor. **Normaliza a mayúsculas y valida el formato de tres letras en un solo sitio**, sin Spring ni base de datos (Art. VI.3) |
 | `domain` | `CountryRepository` | Nuevo | Puerto: `save`, `existsCode`, `existsName`. `RF-SP-021` y `RF-SP-022` le añadirán los suyos |
 | `application` | `RegisterCountryService` | Nuevo | Caso de uso. `@Transactional`, orquesta el orden de verificación de §4 y emite la auditoría |
 | `application` | `RegisterCountryCommand` | Nuevo | Entrada del caso de uso, sin tipos de HTTP |
@@ -164,7 +165,7 @@ La distinción no es una sutileza: es la diferencia entre «este recurso no admi
 | Código | Cuándo | `error_code` |
 |---|---|---|
 | `400` | Código o nombre ausentes, o nombre en blanco (`VAL-001`, `VAL-003`) | `VAL-001`, `VAL-003` |
-| `400` | El código no tiene el formato de dos letras (`VAL-002`, `EX-002`) | `VAL-002` |
+| `400` | El código no tiene el formato de tres letras (`VAL-002`, `EX-002`) | `VAL-002` |
 | `400` | Nombre por encima de 100 caracteres | `VAL-003` |
 | `400` | Cuerpo con un campo desconocido, incluido `isActive` | `VAL-001` |
 | `401` | Token ausente o inválido | `AUTH-001` |
@@ -254,7 +255,7 @@ Tres decisiones:
 | No declarar `uq_countries_name`, como se lee `requirements/sp.md` §10.7 | Dejaría `EX-001` sin respaldo en el esquema para la mitad del nombre. Y el duplicado de nombre es peor que el de código: dos filas indistinguibles en cada selector, sin forma de saber cuál usar |
 | `uq_countries_name` como `UNIQUE (name)` literal, igual que `uq_roles_name` | Es la forma correcta **allí**, donde `RF-SP-004` permite renombrar y el duplicado tiene salida. Aquí `RN-SP-009` no admite edición, de modo que `Panamá` y `Panama` conviviendo serían dos opciones indistinguibles para siempre. Resuelto el 21-08-2026 al aprobar este plan: la unicidad va sobre `f_unaccent(lower(name))` |
 | Declarar la unicidad normalizada más adelante, si el problema aparece | Crear el índice sobre una tabla que ya contiene variantes falla, y resolverlo obliga a migrar datos y a decidir cuál de las dos filas sobrevive sin poder editar ninguna. Es la decisión que hay que tomar antes del primer país registrado o no tomarla nunca |
-| No declarar `ck_countries_code_format` y confiar en `char(2)` | `char(2)` admite `1`, `-` y un espacio de relleno. Un `INSERT` directo —una migración, una corrección manual— metería basura permanente |
+| No declarar `ck_countries_code_format` y confiar en `char(3)` | `char(3)` admite `1`, `-` y un espacio de relleno. Un `INSERT` directo —una migración, una corrección manual— metería basura permanente |
 | Añadir `deleted_at` por simetría con `roles` | Crea un camino que `RN-SP-009` prohíbe y que el día que alguien use dejará huérfanos los datos que referencien al país. `RF-SP-022` es la salida prevista, y no borra |
 | No declarar `updated_at` porque `requirements/sp.md` §10.6 no lo hace | Incumple el Art. V.7 y deja `RF-SP-022` sin marca de cuándo se retiró un país. La omisión era coherente cuando se escribió, antes de que existiera el cambio de estado |
 | Sembrar el catálogo internacional completo por migración | `spec.md` §14, pregunta 2, lo resolvió: llenaría cada selector de opciones a las que no se opera. Los países se dan de alta de uno en uno |
@@ -267,7 +268,7 @@ Tres decisiones:
 | Riesgo | Impacto | Mitigación |
 |---|---|---|
 | Un nombre mal escrito queda para siempre (`RN-SP-009`) | **Alto** | Es la consecuencia asumida que `spec.md` §2 declara. Toda la defensa está en el alta: las validaciones se evalúan todas juntas, el recorte y la normalización ocurren **antes** de comprobar la unicidad, y `RF-SP-022` permite al menos retirarlo de la circulación. No lo repara |
-| Dos países cuyos nombres solo difieran en acentos o mayúsculas no podrán coexistir | Bajo | **Coste asumido** de declarar `uq_countries_name` sobre `f_unaccent(lower(name))`, resuelto el 21-08-2026. En ISO 3166-1 no hay ningún par así, y si apareciera, el código de dos letras los distingue. Se prefiere a la alternativa, que era un duplicado permanente e incorregible |
+| Dos países cuyos nombres solo difieran en acentos o mayúsculas no podrán coexistir | Bajo | **Coste asumido** de declarar `uq_countries_name` sobre `f_unaccent(lower(name))`, resuelto el 21-08-2026. En ISO 3166-1 no hay ningún par así, y si apareciera, el código de tres letras los distingue. Se prefiere a la alternativa, que era un duplicado permanente e incorregible |
 | `f_unaccent` se declara `IMMUTABLE` y la base de datos no lo verifica: redefinir el diccionario `unaccent` deja `uq_countries_name` con valores calculados con el anterior | Medio | Es el mismo riesgo que `RF-SP-010` §10 ya registró para `ix_roles_busqueda`, y la consecuencia operativa es la misma: tocar el diccionario obliga a `REINDEX` de todo lo que dependa de la función. Aquí es más grave que en un índice de búsqueda, porque el índice **garantiza una unicidad**: un `REINDEX` omitido podría dejar entrar un duplicado que después no se puede corregir |
 | Dos altas simultáneas del mismo código producen un `500` en vez de un `409` | Medio | El adaptador traduce la violación por nombre de restricción, y §11 lo prueba con dos altas concurrentes. `CA-SP-136` solo comprueba el caso secuencial |
 | El `409` no distingue si el duplicado es de código o de nombre | Medio | `EX-001` lo exige. La distinción sale del nombre de la restricción violada, no de la comprobación previa, que bajo concurrencia puede decir que ambos están libres |

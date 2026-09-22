@@ -40,6 +40,7 @@ Sin migración, sin `domain` y sin excepciones nuevas: una sentencia por clave p
 | `T-09` | Pruebas del resto de casos límite de `spec.md` §13 y de `plan.md` §11: única membresía del sistema, membresía recién insertada, coherencia con el listado de `RF-SP-017`, ausencia de marcas temporales y de conteos, y `405` en `PUT`, `PATCH` y `DELETE` | `T-05` | Tras insertar una intermedia con `RF-SP-016`, los detalles de las tres membresías implicadas son coherentes entre sí y con el listado | En curso |
 | `T-10` | Documentación OpenAPI del endpoint: respuesta `200` con los dos vecinos y los estados `400`, `401`, `403`, `404` y `500` | `T-07` | El contrato publicado coincide con el comportamiento real (Art. VIII.6), y documenta que la expansión llega a **un solo grado** | Hecha |
 | `T-11` | Actualizar la matriz de trazabilidad de `docs/requirements.md` | `T-07` | La fila de `RF-SP-018` refleja el estado y enlaza esta tripleta | Hecha |
+| `T-12` | `MembershipDetailItem` y `MembershipNeighborItem` incorporan `color`, de modo que la consultada, su superior y su hija lo traigan | `RF-SP-016 · T-21` | Prueba de integración: las tres membresías de la respuesta traen su color (`CA-SP-491`) | Hecha |
 
 **Estados:** `Pendiente` · `En curso` · `Hecha` · `Bloqueada`.
 

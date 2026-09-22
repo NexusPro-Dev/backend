@@ -21,6 +21,10 @@ El comportamiento —flujos, filtros y criterios de aceptación— es el de [`sp
 
 ---
 
+!!! note "Enmienda de Art. I.7 — 19-09-2026, `RF-SP-060`"
+
+    Esta operación exige **`permissions:list`** y no `permissions:read` desde el 19-09-2026, por `RF-SP-060` —**un permiso por operación**, `RN-SEG-014` ([`security.md` §4.4](../../../security.md#44-catalogo-de-permisos))—: `permissions:read` gobernaba varias operaciones y se queda con una; esta recibe código propio, sembrado por `V28` y dado a todo rol que portara `permissions:read`. Las menciones de `permissions:read` que siguen abajo hablan de su siembra original y se conservan como historia.
+
 ## 1. Enfoque
 
 La consulta es la más simple del módulo: una sentencia de lectura sobre una proyección, sin paginar, sin `JOIN` y sin reglas de negocio. **El peso de este requerimiento no está en el endpoint, está en las migraciones.** `RF-SP-010` es el primero del orden de implementación aprobado (`requirements/sp.md` §6.1) y crea tres cosas de las que depende todo lo demás:
@@ -192,7 +196,7 @@ GET /api/v1/permissions?resource=roles&action=read&search=auditoria
 | Código | Cuándo | `error_code` |
 |---|---|---|
 | `401` | Token ausente o inválido | `AUTH-001` |
-| `403` | Autenticado sin `permissions:read` | `AUTH-002` |
+| `403` | Autenticado sin `permissions:list` | `AUTH-002` |
 | `500` | Fallo no controlado | `ERR-500` |
 
 - **No hay `400`.** `spec.md` §11 no declara ninguna validación: los tres filtros son opcionales y cualquier valor es admisible, incluido uno que no corresponda a ningún permiso. Es la diferencia con `RF-SP-002`, donde `status` y `roleType` sí tienen dominio cerrado y un valor fuera de él es un error del cliente. Aquí `resource` y `action` son texto libre porque su dominio **es** el contenido de la tabla, y consultarlo es justamente lo que hace este endpoint.
@@ -214,7 +218,7 @@ Tres detalles heredados de `RF-SP-002` §4 y uno propio. Los heredados: la norma
 
 | Endpoint | Permiso requerido |
 |---|---|
-| `GET /api/v1/permissions` | `permissions:read` |
+| `GET /api/v1/permissions` | `permissions:list` |
 
 - El permiso **lo crea este mismo requerimiento**, en `V3__seed_permissions.sql`. Es el único caso del módulo en que el endpoint y su permiso nacen en la misma migración; en todos los demás el permiso ya existía porque `RF-SP-010` es prerrequisito.
 - Se declara sobre el método del controlador (`security.md` §6). Un endpoint sin declaración queda inaccesible, no público (Art. IV.1).
@@ -304,7 +308,7 @@ Niveles: **Integración** (Testcontainers sobre PostgreSQL real, con `V1` a `V3`
 | `CA-SP-074` | Integración + API | `resource=audit` devuelve los cuatro de auditoría y ninguno más; `action=read` devuelve los de lectura de todos los recursos; combinados, la intersección |
 | `CA-SP-075` | API | `resource=inexistente` devuelve `200` con `content` vacío. Nunca `404` ni `204` |
 | `CA-SP-076` | API | No existe manejador para `POST`, `PUT`, `PATCH` ni `DELETE` sobre `/api/v1/permissions` ni sobre `/api/v1/permissions/{id}`: las cuatro devuelven `405`. Es la única forma de verificar `RN-SP-004`, que no tiene código que la implemente |
-| `CA-SP-077` | API | Un actor autenticado sin `permissions:read` recibe `403`, no obtiene dato alguno del catálogo y queda el evento de denegación en `audit_security_log` |
+| `CA-SP-077` | API | Un actor autenticado sin `permissions:list` recibe `403`, no obtiene dato alguno del catálogo y queda el evento de denegación en `audit_security_log` |
 
 Casos límite de `spec.md` §13 y decisiones de este plan que exigen prueba propia (Art. VII.3):
 

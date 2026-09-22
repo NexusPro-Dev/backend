@@ -24,16 +24,37 @@ import org.springframework.boot.context.properties.ConfigurationProperties;
  *       margen es enorme a propósito, porque una interfaz con varias pestañas abiertas puede
  *       refrescar en ráfaga. Lo que se corta es el bucle: el endpoint es público y **consulta la
  *       base de datos en cada llamada**.
- *   <li><b>Recuperación — 3/hora por identidad y 10/hora por origen.</b> Es la cota más estricta de
- *       las tres y `security.md` §5.5 explica por qué: es la única operación pública que provoca un
- *       envío saliente, de modo que sin ella se puede inundar de correos a una persona real —lo que
- *       es acoso, y quema la reputación del dominio de envío— y sondear identidades en masa. Tres
- *       al día bastan para quien de verdad olvidó su contraseña.
+ *   <li><b>Recuperación — 5/minuto por identidad y por origen, con cinco minutos de espera al
+ *       superarla.</b> Decidido el 26-08-2026 por el responsable del proyecto, sobre la advertencia
+ *       de que es la única operación pública que provoca un envío saliente: sin cota se puede
+ *       inundar de correos a una persona real —lo que es acoso, y quema la reputación del dominio
+ *       de envío— y sondear identidades en masa. <b>La penalización es lo que sostiene el
+ *       número</b>: cinco por minuto sin ella son setenta y dos mil correos al día; con ella el
+ *       ritmo sostenido es de cinco cada cinco minutos, unos sesenta a la hora. Era de tres a la
+ *       hora.
+ *   <li><b>Hotlink — 60/min por origen, sin penalización.</b> La única cota que no protege un
+ *       endpoint de autenticación (`RF-PM-008`, 08-09-2026). Lo que acota es el <b>recorrido a
+ *       ciegas de nombres de usuario</b>: la respuesta es un {@code 404} uniforme, de modo que
+ *       barrer nombres es lo único que queda, y esta cota es su única mitigación. El número es
+ *       holgado <b>a propósito</b>: un hotlink se reparte por mensajería y lo abren muchas personas
+ *       que pueden compartir la dirección de salida de su operador, de modo que una cota estrecha
+ *       dejaría fuera a lectores legítimos antes que a nadie más. Y <b>sin penalización</b> por lo
+ *       mismo: una espera fija convertiría una ráfaga de lectores en un corte de cinco minutos para
+ *       todos los que salen por esa dirección.
+ *   <li><b>Catálogos públicos — 120/min por origen y por catálogo, sin penalización.</b> Los que se
+ *       leen sin token: países, tipos de documento y brokers desde el 08-09-2026 (`RF-SP-045`), y
+ *       <b>los métodos de pago desde el 09-09-2026</b> (`RF-MV-009`, `RN-MV-024`). <b>Se acotan por
+ *       lo mismo que el refresco</b> —son públicas y consultan la base en cada llamada—, y
+ *       <b>no</b> por lo mismo que el hotlink: aquí no hay nada que sondear. El número es el más
+ *       holgado del sistema porque <b>una sola carga del formulario los pide todos</b>, y detrás de
+ *       una salida compartida eso son muchas cargas por minuto. El cuarto no estrena política y sí
+ *       cubo: la naturaleza es idéntica, y lo que hace falta es que agotar uno no deje sin los
+ *       otros al mismo formulario.
  * </ul>
  *
- * <p><b>La cota de recuperación está declarada y todavía no se aplica</b>, porque el endpoint no
- * existe: `RF-SP-040` está bloqueado por **D-23**. La regla se registra igual para que el día que
- * exista no dependa de que alguien recuerde añadirla.
+ * <p><b>Las dos cotas de recuperación se aplican desde el 26-08-2026</b>, al existir sus endpoints:
+ * `RF-SP-040` entró ese día al cerrarse **D-23**. La confirmación se acota solo por origen, porque
+ * su cuerpo no lleva identidad ninguna: lleva un permiso.
  *
  * @param enabled permite apagarlo. Existe para las pruebas de otros requerimientos, que emiten
  *     ráfagas contra el login a propósito; en un entorno real no debería tocarse
@@ -42,15 +63,37 @@ import org.springframework.boot.context.properties.ConfigurationProperties;
  */
 @ConfigurationProperties(prefix = "nexus.security.rate-limit")
 public record RateLimitSettings(
-    boolean enabled, int capacity, Politica login, Politica refresh, Politica recovery) {
+    boolean enabled,
+    int capacity,
+    Politica login,
+    Politica refresh,
+    Politica recovery,
+    Politica recoveryConfirmation,
+    Politica hotlink,
+    Politica publicCatalog,
+    Politica registration) {
 
   /**
    * Una política: cuántas peticiones por ventana, por origen y por identidad.
    *
    * @param porOrigen máximo por dirección de red; nulo significa que este endpoint no lo acota
    * @param porIdentidad máximo por credencial o identidad declarada; nulo, ídem
+   * @param penalizacion espera fija que se impone al superar la cota; nula, no hay castigo y basta
+   *     con que la ventana deslizante deje sitio
    */
-  public record Politica(Integer porOrigen, Integer porIdentidad, Duration ventana) {
+  public record Politica(
+      Integer porOrigen, Integer porIdentidad, Duration ventana, Duration penalizacion) {
+
+    /**
+     * ¿Superar la cota cuesta una espera fija, además de la que impone la ventana?
+     *
+     * <p>Nula significa que no: se vuelve a poder pedir en cuanto la ventana deslizante deje sitio,
+     * que es el comportamiento de las otras tres políticas. Con penalización, quien topa espera lo
+     * que diga aunque deje de insistir.
+     */
+    public boolean penaliza() {
+      return penalizacion != null && !penalizacion.isZero() && !penalizacion.isNegative();
+    }
 
     public boolean acotaPorOrigen() {
       return porOrigen != null && porOrigen > 0;

@@ -114,7 +114,7 @@ public class MembershipController {
   }
 
   @GetMapping
-  @PreAuthorize("hasAuthority('memberships:read')")
+  @PreAuthorize("hasAuthority('memberships:list')")
   @Operation(
       summary = "Consultar la cadena de membresías",
       description =
@@ -138,7 +138,7 @@ public class MembershipController {
         content = @Content),
     @ApiResponse(
         responseCode = "403",
-        description = "Autenticado sin `memberships:read` (`AUTH-002`)",
+        description = "Autenticado sin `memberships:list` (`AUTH-002`)",
         content = @Content),
     @ApiResponse(
         responseCode = "500",

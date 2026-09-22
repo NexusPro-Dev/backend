@@ -1,0 +1,326 @@
+package com.factech.nexus.modules.products.domain.service;
+
+import com.factech.nexus.modules.products.application.ProductPrice;
+import com.factech.nexus.modules.products.application.ProductResponse;
+import com.factech.nexus.modules.products.application.RegisterProductCommand;
+import com.factech.nexus.modules.products.domain.models.Product;
+import com.factech.nexus.modules.products.domain.models.ProductLink;
+import com.factech.nexus.modules.products.domain.repository.ProductLinkRepository;
+import com.factech.nexus.modules.products.domain.repository.ProductRepository;
+import com.factech.nexus.modules.system.currencies.application.CurrencyCatalog;
+import com.factech.nexus.modules.system.currencies.application.CurrencyCatalog.CurrencyView;
+import com.factech.nexus.modules.system.memberships.application.MembershipCatalog;
+import com.factech.nexus.modules.system.memberships.application.MembershipCatalog.MembershipView;
+import com.factech.nexus.shared.audit.AuditEnums.ChangeAction;
+import com.factech.nexus.shared.audit.AuditEvents.ChangeEvent;
+import com.factech.nexus.shared.audit.AuditWriter;
+import com.factech.nexus.shared.error.BusinessRuleException;
+import com.factech.nexus.shared.error.FieldError;
+import com.factech.nexus.shared.error.UnprocessableEntityException;
+import com.factech.nexus.shared.error.ValidationException;
+import com.factech.nexus.shared.persistence.UuidV7Generator;
+import java.time.Clock;
+import java.time.OffsetDateTime;
+import java.util.List;
+import java.util.UUID;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
+
+/**
+ * Alta de un producto del catálogo (`RF-PM-001`).
+ *
+ * <p><b>El orden de verificación es el contrato</b> (`plan.md` §4):
+ *
+ * <ol>
+ *   <li>La moneda existe y está <b>activa</b>, y <b>los dos precios</b> caben en sus decimales.
+ *   <li>Si es un upgrade, la membresía destino existe.
+ *   <li>El código no lo ha tenido nunca otro producto; el nombre no lo tiene ningún producto vivo.
+ *   <li>Se registra <b>inactivo</b> y se emite el evento de creación.
+ * </ol>
+ *
+ * <p><b>Los dos primeros pasos leen de `SP` por las interfaces que publica</b> (**D-25**), nunca de
+ * sus tablas. Una regla de ArchUnit lo ancla: sin ella la frontera sería una convención, y las
+ * convenciones se saltan sin que nada falle.
+ *
+ * <p><b>No hay bloqueo pesimista</b>, y no es un olvido: aquí no se lee ningún agregado para
+ * modificarlo. El alta inserta, y la unicidad la resuelven las restricciones — dos altas
+ * simultáneas con el mismo código se serializan en el índice y la perdedora recibe su {@code 409}
+ * traducido.
+ */
+@Service
+public class RegisterProductService {
+
+  private static final String MODULO = "PM";
+  private static final String ENTIDAD = "products";
+
+  private final ProductRepository productos;
+  private final ProductLinkRepository enlaces;
+  private final MembershipCatalog membresias;
+  private final CurrencyCatalog monedas;
+  private final AuditWriter auditoria;
+  private final UuidV7Generator ids;
+  private final Clock reloj;
+  private final ProductExchangeResolver conversiones;
+
+  /**
+   * Constructor de producción. La anotación es obligatoria porque la clase declara dos
+   * constructores —el segundo existe para que la prueba pueda fijar el reloj— y Spring solo infiere
+   * cuando hay uno.
+   */
+  @Autowired
+  public RegisterProductService(
+      ProductRepository productos,
+      ProductLinkRepository enlaces,
+      MembershipCatalog membresias,
+      CurrencyCatalog monedas,
+      AuditWriter auditoria,
+      UuidV7Generator ids,
+      ProductExchangeResolver conversiones) {
+    this(productos, enlaces, membresias, monedas, auditoria, ids, conversiones, Clock.systemUTC());
+  }
+
+  RegisterProductService(
+      ProductRepository productos,
+      ProductLinkRepository enlaces,
+      MembershipCatalog membresias,
+      CurrencyCatalog monedas,
+      AuditWriter auditoria,
+      UuidV7Generator ids,
+      ProductExchangeResolver conversiones,
+      Clock reloj) {
+    this.productos = productos;
+    this.enlaces = enlaces;
+    this.membresias = membresias;
+    this.monedas = monedas;
+    this.auditoria = auditoria;
+    this.ids = ids;
+    this.conversiones = conversiones;
+    this.reloj = reloj;
+  }
+
+  @Transactional
+  public ProductResponse register(RegisterProductCommand comando) {
+    // PASO 2 del contrato (`plan.md` §4): los datos obligatorios de ESE tipo están
+    // y no llegan los que ese tipo prohíbe. Va ANTES de buscar el destino: si se
+    // buscara primero, un upgrade sin destino saldría como «la membresía no
+    // existe» —un 422 sobre un dato que el actor nunca envió— en vez del 400 que
+    // le corresponde. Lo destapó la prueba de la condición cruzada.
+    Product.verificarTipoYMembresias(
+        comando.type(), comando.sourceMembershipId(), comando.targetMembershipId());
+
+    // `RN-PM-016` —el icono solo en el upgrade— NO se sube aquí, al revés que
+    // `RN-PM-002`: el motivo de subir aquella es que su incumplimiento se
+    // reportaría como «la membresía no existe», y el icono no interviene en esa
+    // búsqueda. Lo comprueba `Product.create`, que es donde vive la regla.
+    CurrencyView moneda = verificarMoneda(comando);
+    MembershipView destino = verificarDestino(comando);
+    // El origen DESPUÉS del destino, porque `RN-PM-017` compara los dos: sin el
+    // destino resuelto no hay contra qué comparar.
+    MembershipView origen = verificarOrigen(comando, destino);
+    verificarUnicidad(comando);
+
+    OffsetDateTime ahora = OffsetDateTime.now(reloj);
+    UUID identificador = ids.next();
+
+    // Los enlaces se construyen —y se validan— ANTES de escribir el producto:
+    // un tipo repetido o una dirección con forma inválida deben dejar la base
+    // exactamente como estaba, sin el producto y sin el primer enlace
+    // (`CA-PM-382`, `CA-PM-383`).
+    List<ProductLink> enlacesDelProducto =
+        ProductLinkBuilder.construir(
+            identificador, comando.links(), ahora, ProductLinkBuilder.ALTA);
+
+    Product nuevo =
+        productos.save(
+            Product.create(
+                identificador,
+                comando.code(),
+                comando.type(),
+                comando.name(),
+                comando.description(),
+                comando.icon(),
+                comando.sourceMembershipId(),
+                comando.targetMembershipId(),
+                comando.price(),
+                comando.purchasePrice(),
+                comando.currencyId(),
+                comando.validityDays(),
+                comando.scope(),
+                comando.implementation(),
+                ahora));
+
+    // Después del producto, porque la clave foránea lo exige, y en la MISMA
+    // transacción: o entran el producto y sus enlaces, o no entra ninguno.
+    List<ProductLink> guardados = enlaces.saveAll(enlacesDelProducto);
+
+    auditar(nuevo, guardados);
+
+    return ProductResponse.from(
+        nuevo,
+        guardados,
+        origen,
+        destino,
+        moneda,
+        // El alta responde con la misma forma que las lecturas: quien acaba de
+        // registrar un producto ve su conversión sin tener que volver a pedirlo.
+        conversiones.para(java.util.List.of(moneda.id())).de(moneda.id(), nuevo.getPrice()));
+  }
+
+  /**
+   * `EX-003` y `RN-PM-007`.
+   *
+   * <p><b>Inexistente y desactivada se distinguen</b>: una es un dato equivocado y la otra una
+   * decisión del sistema que el actor no puede saltarse. Devolver el mismo mensaje haría que quien
+   * escribió bien el identificador buscara el error donde no está.
+   */
+  private CurrencyView verificarMoneda(RegisterProductCommand comando) {
+    CurrencyView moneda =
+        monedas
+            .find(comando.currencyId())
+            .orElseThrow(
+                () ->
+                    new UnprocessableEntityException(
+                        "EX-003",
+                        "La moneda indicada no existe.",
+                        List.of(
+                            new FieldError(
+                                "currencyId", "EX-003", "La moneda indicada no existe."))));
+
+    if (!moneda.active()) {
+      String mensaje = "La moneda indicada está desactivada y no admite productos nuevos.";
+      throw new UnprocessableEntityException(
+          "EX-003", mensaje, List.of(new FieldError("currencyId", "EX-003", mensaje)));
+    }
+
+    // `RN-PM-007`. No lo puede comprobar un CHECK: la escala admisible vive en
+    // otra tabla, y PostgreSQL no admite subconsultas en una restricción.
+    //
+    // LOS DOS IMPORTES, y cada rechazo NOMBRA SU CAMPO: con dos precios, un
+    // mensaje que no distingue obliga a probar los dos para saber cuál corregir.
+    // El de compra solo se mide si llega — nulo significa que no se conoce, y
+    // un importe que no existe no tiene decimales.
+    verificarDecimales(comando.price(), "price", moneda);
+    verificarDecimales(comando.purchasePrice(), "purchasePrice", moneda);
+    return moneda;
+  }
+
+  /** `RN-PM-007` sobre un importe, con el campo del error. Un nulo no se mide: no existe. */
+  private static void verificarDecimales(
+      java.math.BigDecimal importe, String campo, CurrencyView moneda) {
+    if (importe == null || ProductPrice.cabeEn(importe, moneda.decimalPlaces())) {
+      return;
+    }
+    String mensaje =
+        "El precio no admite más de %d decimales en %s."
+            .formatted(moneda.decimalPlaces(), moneda.code());
+    throw new ValidationException(
+        "VAL-005", mensaje, List.of(new FieldError(campo, "VAL-005", mensaje)));
+  }
+
+  /**
+   * `EX-002`. Solo aplica a los upgrades; en un servicio ni siquiera se consulta.
+   *
+   * <p><b>No es un «no encontrado»</b>: lo que no existe es un dato que el actor envió, no el
+   * recurso que estaba pidiendo. Por eso `422` y no `404`.
+   */
+  private MembershipView verificarDestino(RegisterProductCommand comando) {
+    if (comando.type() == null || !comando.type().exigeDestino()) {
+      return null;
+    }
+    return resolver(comando.targetMembershipId(), "targetMembershipId", "destino");
+  }
+
+  /**
+   * `EX-002` sobre la membresía de <b>origen</b>, y `RN-PM-017` entera.
+   *
+   * <p><b>La comparación de niveles vive aquí y no en el agregado</b>, y no por comodidad: exige el
+   * {@code level} de <b>dos filas de `memberships`</b>, que es una tabla de `SP`. El agregado no la
+   * conoce —ni debe—, y un {@code CHECK} tampoco puede consultarla. Es el mismo reparto que
+   * `RN-PM-007` hace con los decimales de la moneda.
+   *
+   * <p><b>La cadena numera desde la cima</b> (`V47`): `ORO` es 1 y `BECA` es 4, de modo que «el
+   * origen está por debajo del destino» se escribe con el {@code level} del origen <b>mayor</b>.
+   * Leerlo al revés es el error fácil de esta comprobación, y no fallaría de forma visible —
+   * aceptaría exactamente los descensos que la regla existe para rechazar.
+   */
+  private MembershipView verificarOrigen(RegisterProductCommand comando, MembershipView destino) {
+    if (comando.type() == null || !comando.type().exigeDestino()) {
+      return null;
+    }
+    MembershipView origen = resolver(comando.sourceMembershipId(), "sourceMembershipId", "origen");
+
+    // ESTRICTAMENTE MENOR, y el cambio del 07-09-2026 está en ese símbolo. Era
+    // `<=`, que rechazaba también el MISMO nivel; ahora la renovación —un
+    // `ORO → ORO`, que vende tiempo y no nivel— se admite, y lo único que se
+    // rechaza es el DESCENSO (`requirements/pm.md` §5.2.3).
+    //
+    // Y desde `V61` esta comparación es LO ÚNICO que sostiene `RN-PM-017`:
+    // `ck_products_origen_distinto` se retiró con la renovación, y la mitad que
+    // sobrevive nunca cupo en un `CHECK`. No hay red debajo.
+    if (origen.level() < destino.level()) {
+      String mensaje =
+          "Un upgrade no puede bajar de nivel: la membresía de origen no puede estar por encima"
+              + " de la de destino.";
+      throw new UnprocessableEntityException(
+          "EX-006", mensaje, List.of(new FieldError("sourceMembershipId", "VAL-014", mensaje)));
+    }
+    return origen;
+  }
+
+  private MembershipView resolver(java.util.UUID id, String campo, String cual) {
+    String mensaje = "La membresía de " + cual + " indicada no existe.";
+    return membresias
+        .find(id)
+        .orElseThrow(
+            () ->
+                new UnprocessableEntityException(
+                    "EX-002", mensaje, List.of(new FieldError(campo, "EX-002", mensaje))));
+  }
+
+  /**
+   * `EX-001` y `EX-005`. La verificación previa existe <b>para poder dar un mensaje preciso</b>
+   * —cuál de los dos campos está duplicado—; la garantía la dan los índices únicos, y su violación
+   * la traduce el adaptador. La restricción decide; esto solo redacta.
+   *
+   * <p>El código se compara <b>incluyendo los eliminados</b> y el nombre <b>solo entre los
+   * vivos</b>: esa asimetría es `RN-PM-013` y no un descuido.
+   */
+  private void verificarUnicidad(RegisterProductCommand comando) {
+    String codigo =
+        comando.code() == null ? null : comando.code().trim().toUpperCase(java.util.Locale.ROOT);
+    if (codigo != null && productos.existsCode(codigo)) {
+      String mensaje = "Ya existe un producto con ese código.";
+      throw new BusinessRuleException(
+          "EX-005", mensaje, List.of(new FieldError("code", "EX-005", mensaje)));
+    }
+    String nombre = comando.name() == null ? null : comando.name().trim();
+    if (nombre != null && productos.existsAliveName(nombre)) {
+      String mensaje = "Ya existe un producto con ese nombre.";
+      throw new BusinessRuleException(
+          "EX-001", mensaje, List.of(new FieldError("name", "EX-001", mensaje)));
+    }
+  }
+
+  /**
+   * Un evento de creación con el estado inicial completo (`CA-PM-011`).
+   *
+   * <p><b>Sin evento de seguridad</b>, y no es una omisión: un producto no concede privilegios
+   * sobre el sistema y el catálogo de `security.md` §8.1 es cerrado. Es la misma postura que
+   * `RF-SP-016` tomó con las membresías. Quién puso un precio lo responde este mismo evento.
+   */
+  private void auditar(Product nuevo, List<ProductLink> enlacesGuardados) {
+    // La instantánea la arma el agregado, y la misma que usa el retiro
+    // (`RF-PM-006`): si cada caso de uso armara su mapa, el registro de
+    // creación y el de eliminación describirían el mismo producto con claves
+    // distintas, y compararlos —que es para lo que existen— dejaría de ser
+    // posible.
+    // Los enlaces entran en la instantánea desde aquí y no desde el agregado,
+    // porque son filas de otra tabla y el agregado no las conoce. La clave es
+    // `links`, y NO hay entrada por el tipo que no se declaró (`CA-PM-222`).
+    java.util.Map<String, Object> estado = nuevo.instantanea();
+    estado.put("links", enlacesGuardados.stream().map(ProductLink::instantanea).toList());
+    auditoria.recordChange(
+        new ChangeEvent(MODULO, ENTIDAD, nuevo.getId(), ChangeAction.CREATE, estado));
+  }
+}

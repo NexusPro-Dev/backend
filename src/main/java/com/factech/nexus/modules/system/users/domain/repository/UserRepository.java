@@ -1,5 +1,6 @@
 package com.factech.nexus.modules.system.users.domain.repository;
 
+import com.factech.nexus.modules.system.users.domain.models.DocumentIdentity;
 import com.factech.nexus.modules.system.users.domain.models.Email;
 import com.factech.nexus.modules.system.users.domain.models.User;
 import com.factech.nexus.modules.system.users.domain.models.Username;
@@ -17,9 +18,44 @@ public interface UserRepository {
 
   User save(User usuario);
 
+  /**
+   * Vuelca los cambios pendientes del agregado, <b>traduciendo la violación de unicidad</b>.
+   *
+   * <p><b>Hace falta porque {@link #save} no cubre la edición.</b> Al modificar una persona ya
+   * cargada no se llama a {@code save}: el agregado está gestionado y el {@code UPDATE} sale solo,
+   * <b>en el commit</b> — es decir, fuera de cualquier {@code try} del adaptador. Una violación de
+   * {@code uq_users_email} escapaba entonces sin traducir y llegaba al cliente como {@code 500} en
+   * lugar de como el {@code 409} de `RN-SP-016`.
+   *
+   * <p>La comprobación previa de `RF-SP-027` no lo evita: <b>existe para el mensaje</b>, y entre
+   * leerla y escribir hay una ventana que dos ediciones simultáneas hacia el mismo correo
+   * atraviesan las dos. La garantía la da el índice único; esto es lo que la convierte en una
+   * respuesta que quien consume la API pueda entender.
+   *
+   * <p>Se llama de forma explícita y no se confía al commit por eso mismo: dentro del caso de uso
+   * hay quien traduzca, y después ya no.
+   */
+  void flushChanges();
+
   boolean existsUsername(Username username);
 
   boolean existsEmail(Email email);
+
+  /**
+   * ¿Hay ya alguien con ese par tipo+número de documento? (`RN-SP-035`)
+   *
+   * <p><b>Mira a TODAS las personas, incluidas las eliminadas</b>, con el mismo criterio que {@link
+   * #existsUsername} y {@link #existsEmail}: `RN-SP-035` no libera el documento al eliminar, porque
+   * reutilizarlo permitiría que la actividad de dos personas quedara bajo la misma identidad en la
+   * auditoría.
+   *
+   * <p>Existe <b>para el mensaje</b>. La garantía la da {@code uq_users_document}; esta consulta
+   * solo permite responder un {@code 409} legible en lugar de traducir una violación de índice.
+   */
+  boolean existsDocument(DocumentIdentity documento);
+
+  /** Igual que el anterior, ignorando a una persona: la que se está editando (`RF-SP-027`). */
+  boolean existsDocumentForOther(DocumentIdentity documento, UUID excepto);
 
   /**
    * La persona, si existe, no está eliminada y está <b>ACTIVA</b>.
@@ -58,16 +94,61 @@ public interface UserRepository {
   // Membresía
   // ---------------------------------------------------------------------------
 
+  /**
+   * Concede una membresía: <b>cierra la abierta e inserta una nueva</b>, en esa transacción.
+   *
+   * <p><b>Cierra siempre, aunque la anterior ya estuviera vencida.</b> No es celo: dejarla abierta
+   * produciría dos filas actuales, que es lo que {@code uq_user_memberships_abierta} rechaza — y
+   * antes de que el motor lo rechace, ya habría roto el {@code LEFT JOIN} de `RF-SP-025` y
+   * `RF-SP-026`, que devolverían a esa persona dos veces (`V56`).
+   *
+   * <p><b>Usarla cuando cambia el nivel, no cuando solo cambia la fecha.</b> Para lo segundo está
+   * {@link #updateMembershipEnd}, que no genera historial: corregir hasta cuándo vale un nivel es
+   * una corrección administrativa y no un ascenso, y anotarla como un periodo nuevo llenaría el
+   * historial de filas que no describen ningún cambio de nivel.
+   *
+   * <p><b>El empate concurrente lo absorbe {@link #findNotDeletedByIdForUpdate}</b>, no un {@code
+   * ON CONFLICT}. Hasta el 05-09-2026 esta escritura era una sola sentencia con {@code ON CONFLICT
+   * (user_id)}, que la clave primaria hacía posible; ya no lo es. Sin ese bloqueo, dos asignaciones
+   * simultáneas leerían la misma fila abierta, las dos la cerrarían y las dos insertarían.
+   */
   void assignMembership(
-      UUID userId, UUID membershipId, OffsetDateTime endsAt, OffsetDateTime ahora);
+      UUID id, UUID userId, UUID membershipId, OffsetDateTime endsAt, OffsetDateTime ahora);
 
+  /**
+   * Corrige la fecha de fin de la membresía abierta, <b>sin cerrarla ni generar historial</b>.
+   *
+   * <p>Es el camino de `RF-SP-032` cuando la membresía es la misma y solo cambia la vigencia — lo
+   * que separa `FA-002` de `FA-003`.
+   */
+  void updateMembershipEnd(UUID userId, OffsetDateTime endsAt, OffsetDateTime ahora);
+
+  /**
+   * La membresía <b>abierta</b> de la persona, si tiene alguna.
+   *
+   * <p><b>Abierta no es vigente</b>, y la consulta devuelve la primera: una membresía vencida sigue
+   * abierta, ocupa la plaza y no concede nivel, y {@code UserMembership.isCurrentAt} es quien
+   * decide lo segundo. Filtrar aquí por vigencia haría indistinguible «no tiene» de «la tiene
+   * vencida», que es justo lo que `RF-SP-026` existe para distinguir.
+   */
   Optional<UserMembership> findMembership(UUID userId);
 
   /**
-   * Retira la membresía. Es un {@code DELETE} y no un cierre por fecha: `RN-SP-015` dice que quien
-   * deja de ser consumidor <b>no tiene</b> membresía, no que tuviera una que terminó.
+   * Retira la membresía <b>cerrándola</b>, y no borrándola.
+   *
+   * <p><b>Era un {@code DELETE} hasta el 05-09-2026</b>, con este motivo escrito: `RN-SP-015` dice
+   * que quien deja de ser consumidor <b>no tiene</b> membresía, no que tuviera una que terminó. El
+   * argumento era correcto y <b>su premisa desapareció</b>: la tabla es ahora un historial, y en un
+   * historial sí existe algo que escribir — cuándo dejó de tenerla.
+   *
+   * <p><b>No toca {@code ends_at}.</b> La fila cerrada sigue diciendo hasta cuándo se había pagado,
+   * de modo que retirar el día doce una membresía pagada hasta el treinta deja constancia de las
+   * dos cosas. Machacarla haría indistinguible <b>vencer</b> de <b>que te la quiten</b>, que es la
+   * diferencia que {@code closed_at} existe para guardar.
+   *
+   * <p>Es el mismo criterio con el que {@link #endSupervisor} nunca fue un {@code DELETE}.
    */
-  void removeMembership(UUID userId);
+  void closeMembership(UUID userId, OffsetDateTime ahora);
 
   // ---------------------------------------------------------------------------
   // Superior comercial
@@ -101,12 +182,34 @@ public interface UserRepository {
   int countSupervisees(UUID supervisorId);
 
   /**
+   * El mismo conteo, acotado por <b>códigos de rol</b> (`RF-SP-042`, 10-09-2026).
+   *
+   * <p><b>Es el mismo método y no otro</b>: con la lista vacía cuenta el equipo entero, que es
+   * exactamente lo que {@link #countSupervisees(UUID)} responde. Escribir dos consultas para la
+   * misma pregunta las haría divergir, y `CA-SP-447` exige que el total del equipo y el número que
+   * informa el rechazo de `RN-SP-022` sean <b>el mismo</b>.
+   *
+   * <p>Cuenta <b>personas y no asignaciones</b>: quien porte dos de los códigos pedidos cuenta una
+   * vez. Es lo que obliga a filtrar con {@code EXISTS} y no con un {@code JOIN} a {@code
+   * user_roles} — el mismo cuidado que `RF-SP-025` documenta en su predicado.
+   */
+  int countTeam(UUID supervisorId, List<String> roleCodes);
+
+  /**
    * El equipo directo, paginado y con un orden estable.
    *
    * <p>Estable no es cosmético: sin un desempate determinista, dos páginas consecutivas pueden
    * repetir a una persona y omitir a otra sin que nada falle.
+   *
+   * <p><b>{@code roleCodes} acota por rol</b> (10-09-2026): entra quien porte <b>alguno</b> de los
+   * códigos, y una lista vacía no acota nada. Un código que no existe no es un error — devuelve la
+   * página vacía, mismo criterio que el filtro por rol de `RF-SP-025`.
+   *
+   * <p><b>No resuelve los roles de cada persona</b>, y no es un olvido: los trae por lote {@code
+   * UserQueryRepository.rolesOf}, de modo que la página entera cuesta una consulta y no una por
+   * fila.
    */
-  List<TeamMember> findTeam(UUID supervisorId, int offset, int limit);
+  List<TeamMember> findTeam(UUID supervisorId, List<String> roleCodes, int offset, int limit);
 
   /**
    * La persona, bloqueada para escritura.
@@ -114,6 +217,19 @@ public interface UserRepository {
    * <p>Es lo que serializa dos reasignaciones simultáneas del mismo subordinado. Sin él, la
    * unicidad parcial {@code uq_user_supervisors_vigente} hace fallar a la segunda con {@code 23505}
    * — un {@code 500} en lugar de una espera (`RF-SP-041` · `T-05`).
+   *
+   * <p><b>Toda operación que cambie los roles o la membresía de una persona DEBE tomarlo</b>, y no
+   * solo las que reescriben su fila. `RN-SP-018` —consumidor ⟺ membresía— es un invariante que
+   * abarca {@code user_roles} y {@code user_memberships}, y las cuatro operaciones que lo pueden
+   * romper leían sin bloqueo: en {@code READ COMMITTED} cada una validaba contra el estado que la
+   * otra estaba a punto de cambiar, las dos concluían que podían proceder, y la persona acababa
+   * <b>portando un rol de consumidor sin nivel</b>. No falla ninguna de las dos: el invariante se
+   * rompe en silencio. Corregido el 26-08-2026, tras tres apariciones intermitentes en CI.
+   *
+   * <p>Las cuatro bloquean <b>la misma fila</b> —la de la persona—, de modo que se serializan sin
+   * riesgo de abrazo mortal. Tomarlo <b>antes</b> de leer roles y membresía es la otra mitad: en
+   * {@code READ COMMITTED} cada sentencia posterior toma instantánea nueva y ve lo que la
+   * transacción anterior confirmó.
    */
   Optional<User> findNotDeletedByIdForUpdate(UUID id);
 

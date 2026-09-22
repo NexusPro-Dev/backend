@@ -16,6 +16,7 @@ import com.factech.nexus.shared.error.FieldError;
 import com.factech.nexus.shared.error.UnauthorizedException;
 import com.factech.nexus.shared.error.UnprocessableEntityException;
 import com.factech.nexus.shared.error.ValidationException;
+import com.factech.nexus.shared.security.AccessRevocationPublisher;
 import com.factech.nexus.shared.security.CurrentActor;
 import com.factech.nexus.shared.security.PasswordHasher;
 import com.factech.nexus.shared.security.PasswordPolicy;
@@ -66,6 +67,7 @@ public class ChangeOwnPasswordService {
 
   private final AuthUserRepository cuentas;
   private final RefreshTokenRepository sesiones;
+  private final AccessRevocationPublisher cortes;
   private final PasswordPolicy politica;
   private final PasswordHasher hasher;
   private final CurrentActor actor;
@@ -77,6 +79,7 @@ public class ChangeOwnPasswordService {
   public ChangeOwnPasswordService(
       AuthUserRepository cuentas,
       RefreshTokenRepository sesiones,
+      AccessRevocationPublisher cortes,
       PasswordPolicy politica,
       PasswordHasher hasher,
       CurrentActor actor,
@@ -87,6 +90,7 @@ public class ChangeOwnPasswordService {
     this(
         cuentas,
         sesiones,
+        cortes,
         politica,
         hasher,
         actor,
@@ -98,6 +102,7 @@ public class ChangeOwnPasswordService {
   ChangeOwnPasswordService(
       AuthUserRepository cuentas,
       RefreshTokenRepository sesiones,
+      AccessRevocationPublisher cortes,
       PasswordPolicy politica,
       PasswordHasher hasher,
       CurrentActor actor,
@@ -106,6 +111,7 @@ public class ChangeOwnPasswordService {
       Clock reloj) {
     this.cuentas = cuentas;
     this.sesiones = sesiones;
+    this.cortes = cortes;
     this.politica = politica;
     this.hasher = hasher;
     this.actor = actor;
@@ -183,6 +189,15 @@ public class ChangeOwnPasswordService {
     // otra no — y no hay forma de distinguirlas sin conocer el token presentado,
     // que esta operación no recibe.
     sesiones.revokeAllActive(quien, RevokedReason.CAMBIO_CONTRASENA, ahora);
+
+    // Y el corte del token de acceso, por fuera y DESPUÉS del commit
+    // (`RF-SP-028` `plan.md` §7). Es lo que cierra la ventana que `RF-SP-034`
+    // `plan.md` §5 dejaba declarada: sin él, quien acaba de cambiar la
+    // contraseña conserva un token con `mcp` en verdadero —y con todo su
+    // acceso— hasta quince minutos. Volver a autenticarse funciona igual: el
+    // corte redondea al segundo siguiente y la comparación es estricta, de modo
+    // que el token nuevo no cae del lado cortado.
+    cortes.publicarCorte(quien);
 
     auditoria.recordSecurityAfterCommit(
         new SecurityEvent(

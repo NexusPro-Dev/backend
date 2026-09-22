@@ -9,8 +9,13 @@
 | Aprobada por | Responsable técnico |
 | Fecha de aprobación | 20-08-2026 |
 | Enmendada | 21-08-2026 — `EX-006` y `CA-SP-173`, al aprobar `plan.md` (Art. I.7) |
+| Enmendada | 16-09-2026 — `RN-SEG-012` deja de alcanzar a los permisos: **la operación admite roles de sistema**. `EX-004` se retira y `CA-SP-036` se invierte en `CA-SP-683` (Art. I.7). Ver §15 |
 
 ---
+
+!!! note "Enmienda de Art. I.7 — 19-09-2026, `RF-SP-060`"
+
+    Esta operación exige **`roles:assign-permissions`** y no `roles:update` desde el 19-09-2026, por `RF-SP-060` —**un permiso por operación**, `RN-SEG-014` ([`security.md` §4.4](../../../security.md#44-catalogo-de-permisos))—: `roles:update` gobernaba varias operaciones y se queda con una; esta recibe código propio, sembrado por `V28` y dado a todo rol que portara `roles:update`. Las menciones de `roles:update` que siguen abajo hablan de su siembra original y se conservan como historia.
 
 ## 1. Objetivo
 
@@ -55,7 +60,7 @@ Sin la segunda, un administrador podría ampliar un rol que cuelga de un padre p
 | `RN-SEG-004` | La validación se hace contra el padre inmediato | `security.md` §4.3 |
 | `RN-SEG-010` | Nadie otorga permisos que no posee | `security.md` §4.3 |
 | `RN-SEG-011` | Nadie modifica un rol que tiene asignado | `security.md` §4.3 |
-| `RN-SEG-012` | Los roles de sistema no se modifican por la API | `security.md` §4.3 |
+| ~~`RN-SEG-012`~~ | ~~Los roles de sistema no se modifican por la API~~ — **retirada de esta operación el 16-09-2026**: la regla protege la identidad y la posición del rol, no lo que concede. Ver §15 | `security.md` §4.3 |
 
 ## 6. Datos
 
@@ -63,7 +68,7 @@ Sin la segunda, un administrador podría ampliar un rol que cuelga de un padre p
 
 | Dato | Obligatorio | Descripción | Restricción de negocio |
 |---|---|---|---|
-| Identificador del rol | Sí | Rol al que se agregan permisos | Debe existir y no ser de sistema |
+| Identificador del rol | Sí | Rol al que se agregan permisos | Debe existir. Puede ser de sistema (desde el 16-09-2026) |
 | Permisos | Sí | Permisos a agregar | Entre 1 y 100 por petición; cada uno debe existir en el catálogo |
 
 ### 6.2 Salida
@@ -77,7 +82,7 @@ Sin la segunda, un administrador podría ampliar un rol que cuelga de un padre p
 **Precondiciones**
 
 - El actor está autenticado y posee el permiso de modificación de roles.
-- El rol existe, no está eliminado y no es de sistema.
+- El rol existe y no está eliminado. **Puede ser de sistema**: `V8` siembra a los vendedores y a `CLIENTE` sin permisos a la espera de esta operación.
 - El actor no tiene ese rol asignado.
 - Los permisos solicitados existen en el catálogo.
 
@@ -91,7 +96,7 @@ Sin la segunda, un administrador podría ampliar un rol que cuelga de un padre p
 ## 8. Flujo principal
 
 1. El actor solicita agregar permisos a un rol.
-2. El sistema verifica que el rol exista y no sea de sistema.
+2. El sistema verifica que el rol exista.
 3. El sistema verifica que el actor no tenga ese rol asignado.
 4. El sistema verifica que todos los permisos existan en el catálogo.
 5. El sistema verifica que todos estén contenidos en los del rol padre.
@@ -134,10 +139,9 @@ Sin la segunda, un administrador podría ampliar un rol que cuelga de un padre p
 **Condición:** algún permiso no está en el catálogo.
 **Respuesta del sistema:** rechaza la operación e informa cuáles no existen.
 
-### EX-004 — Rol de sistema
+### ~~EX-004 — Rol de sistema~~
 
-**Condición:** el rol está marcado como de sistema.
-**Respuesta del sistema:** rechaza la operación y cita `RN-SEG-012`.
+**Retirada el 16-09-2026.** ~~El rol está marcado como de sistema → rechaza la operación y cita `RN-SEG-012`.~~ Un rol de sistema recibe permisos como cualquier otro, con las mismas tres cotas. El número queda consumido: `EX-005` y `EX-006` conservan el suyo.
 
 ### EX-005 — El actor tiene el rol asignado
 
@@ -169,7 +173,7 @@ Sin la segunda, un administrador podría ampliar un rol que cuelga de un padre p
 | `CA-SP-033` | El sistema rechaza la operación si un permiso excede los permisos efectivos del actor |
 | `CA-SP-034` | El sistema ignora los permisos ya asociados sin producir error ni duplicados |
 | `CA-SP-035` | El sistema no exige contención cuando el rol no tiene rol padre |
-| `CA-SP-036` | El sistema rechaza la operación sobre un rol de sistema |
+| ~~`CA-SP-036`~~ | ~~El sistema rechaza la operación sobre un rol de sistema~~ — **retirado el 16-09-2026**. Su prueba se **invierte** en `CA-SP-683` |
 | `CA-SP-037` | El sistema rechaza la operación sobre un rol que el propio actor tiene asignado |
 | `CA-SP-038` | El sistema deja sin efecto la caché de permisos del rol, de modo que el cambio aplica de inmediato |
 | `CA-SP-039` | El sistema registra el evento en la auditoría de cambios y en la de seguridad |
@@ -177,6 +181,7 @@ Sin la segunda, un administrador podría ampliar un rol que cuelga de un padre p
 | `CA-SP-153` | El sistema conserva los permisos que el rol ya declaraba: la operación nunca retira ninguno |
 | `CA-SP-154` | El sistema rechaza una petición con más de 100 permisos |
 | `CA-SP-173` | El sistema rechaza la operación sobre un rol inexistente o eliminado, sin distinguir ambos casos |
+| `CA-SP-683` | El sistema **admite** la operación sobre un rol de sistema, con las mismas verificaciones de contención que sobre cualquier otro |
 
 ## 13. Casos límite
 
@@ -187,6 +192,7 @@ Sin la segunda, un administrador podría ampliar un rol que cuelga de un padre p
 - **Cadena profunda de roles:** la validación sigue siendo de un solo nivel; la contención es transitiva.
 - **Asignación concurrente del mismo permiso:** la clave primaria compuesta debe absorber el empate sin error interno.
 - **Rol que necesita más de 100 permisos:** se resuelve en varias peticiones. Al ser la operación idempotente y aditiva, partirla no produce efectos distintos de hacerla de una vez.
+- **Rol de sistema sembrado vacío:** `AGENTE` cuelga de `DIRECTOR`, que cuelga de `MANAGER`, que cuelga de `ADMIN`. Para que un agente tenga un permiso hay que concedérselo antes a los dos rangos superiores, en ese orden: la contención se valida contra el padre inmediato (`RN-SEG-004`) y cada escalón se rechaza mientras el anterior no lo declare. `CLIENTE` cuelga de la raíz y no necesita escala.
 
 ## 14. Preguntas abiertas
 
@@ -197,3 +203,12 @@ Ninguna. Las tres se resolvieron el 20-08-2026, antes de aprobar la especificaci
 | 1 | ¿Agrega o reemplaza la lista completa? | **Agrega, sin retirar nada.** Un reemplazo haría revocaciones implícitas, y revocar tiene reglas propias: `RN-SEG-005` rechaza retirar un permiso que un rol hijo declara. Reemplazar obligaría a reimplementar esa verificación aquí, o la saltaría en silencio. El coste asumido es que una interfaz de casillas debe calcular la diferencia y hacer dos llamadas |
 | 2 | ¿Hay límite de permisos por petición? | **Sí, 100**, el mismo techo que el tamaño máximo de página, para no arrastrar dos límites distintos. Un rol que necesite más se resuelve en varias peticiones, sin riesgo por ser la operación idempotente y aditiva |
 | 3 | ¿`RN-SEG-011` alcanza a los roles ancestros del actor? | **No**, solo a los asignados directamente. `RN-SEG-010` impide conceder permisos que el actor no posee, de modo que ampliar un rol ancestro no le aporta nada que no tuviera ya |
+
+## 15. Control de cambios
+
+La primera enmienda está resumida en la cabecera; desde la segunda se registran aquí.
+
+| Versión | Fecha | Cambio | Responsable |
+|---|---|---|---|
+| 0.3.0 | 16-09-2026 | **La operación admite roles de sistema**, por decisión del responsable del proyecto (`security.md` v0.58.0, `requirements/sp.md` v1.57.0). Esta especificación y la semilla se contradecían desde el primer día: `V8` siembra a `MANAGER`, `DIRECTOR`, `AGENTE` y `CLIENTE` **sin permisos a propósito**, «a la espera de `RF-SP-005`», y `EX-004` los rechazaba con `409`. Ningún vendedor ni ningún cliente podía tener nunca un permiso, y se descubrió al intentar darle `products:sale` a `CLIENTE`. `RN-SEG-012` queda acotada a lo que de verdad protege —editar, reubicar, desactivar y eliminar— y **sale de §5**; las tres cotas que quedan son las que hacen seguro conceder: contenido en el padre (`RN-SEG-003`), poseído por quien concede (`RN-SEG-010`) y nunca sobre un rol que el actor porta (`RN-SEG-011`). **`EX-004` se retira y `CA-SP-036` se invierte en `CA-SP-683`** —afirma lo contrario— en lugar de borrarse, con el criterio de `CA-SP-675` en `RF-SP-057`: el día que alguien vuelva a cerrar la puerta, falla aquí. Se descartó sembrar los permisos por migración —cada ajuste exigiría otra, que es lo que `V8` decía no querer— y colgar roles hijos no de sistema, que `RN-SEG-003` acota a un padre vacío. §13 gana el caso de la escala: para `AGENTE` hay que pasar antes por `MANAGER` y `DIRECTOR`. | Responsable del proyecto |
+| 0.4.0 | 19-09-2026 | **Cambia el permiso: `roles:assign-permissions` y no `roles:update`** (`RF-SP-060`, `RN-SEG-014`, un permiso por operación; [`security.md`](../../../security.md) v0.63.0). Enmienda de Art. I.7 sin cambio de comportamiento: la misma operación, el mismo actor, un código propio sembrado por `V28` y dado a todo rol que portara `roles:update`. | Responsable del proyecto |

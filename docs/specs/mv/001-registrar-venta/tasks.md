@@ -1,0 +1,186 @@
+# TASKS — `RF-MV-001` Registrar una venta
+
+| Campo | Valor |
+|---|---|
+| Requerimiento | `RF-MV-001` |
+| Plan | [`plan.md`](plan.md), aprobado el 02-09-2026 |
+| Versión | 0.5.0 |
+| Estado | **En curso** — `T-01` a `T-18` `Hecha`; `CA-MV-008` queda **sin prueba** hasta `RF-SP-045`; `T-25` a `T-30` `Hecha` el 16-09-2026 (§1.3); `T-31` a `T-35` `Hecha` el 16-09-2026 (§1.4) |
+| Autor | Responsable técnico |
+| Aprobadas por | Responsable del proyecto |
+| Fecha de aprobación | 04-09-2026 |
+| Issue | Pendiente de crear |
+| Rama | `feature/venta-de-productos` |
+
+!!! info "Qué va en este documento"
+
+    **En qué pasos se construye** lo que `plan.md` decidió, con su dependencia y su verificación. Ninguna tarea se da por `Hecha` sin que su verificación pase.
+
+!!! success "Construido el 04-09-2026, y el bloqueo era MÁS PEQUEÑO de lo que este documento decía"
+
+    La versión 0.1.0 daba por bloqueadas `T-07`, `T-11` y `T-15` hasta que `RF-SP-045` existiera. Al construirlas se comprobó que **solo una cosa falta de verdad**: el estado `FTD_PENDIENTE`, que ese requerimiento estrena y que `ck_users_status` todavía no admite.
+
+    Todo lo demás **ya existía**. `user_supervisors` está desde `V21` y `UserRepository.findActiveSupervisor` desde `RF-SP-041`, de modo que `ClientCatalog` se pudo escribir entero. Lo que `RF-SP-045` traerá no es la capacidad de colgar clientes: es el camino público que los cuelga solo.
+
+    **`EX-003` se probó ese mismo día y se retiró unas horas después** (§1.1): comprar no es cosa solo de los clientes, y quien no cuelga de nadie compra igual.
+
+    **Queda exactamente un criterio sin prueba, `CA-MV-008`**, y su rama de código sí está escrita. Ver §4.
+
+---
+
+## 1. Tareas
+
+**Estados:** `Pendiente` · `En curso` · `Hecha` · `Bloqueada`.
+
+| ID | Tarea | Depende de | Verificación | Estado |
+|---|---|---|---|---|
+| `T-01` | **`V54`**: `movement_types` y `payment_methods`, **creadas y sembradas en la misma migración** — `VENTA`/`VTA`, y los tres medios de pago `CREDIT_CARD`, `PSE` y `POINTS` | — | Ninguna versión del esquema tiene la tabla de tipos vacía | **Hecha** — 04-09-2026 |
+| `T-02` | **`V54`**: `movements`, **sin `updated_at` ni `deleted_at`**, con `ck_movements_status`, `ck_movements_payable`, `ck_movements_amounts`, `ck_movements_confirmed` y `uq_movements_code` | `T-01` | Los cuatro `CHECK` declarados; `uq_movements_code` es además lo que hace posible el reintento de `T-10`, probado en `MovementCodeRetryIT` | **Hecha** — 04-09-2026 |
+| `T-03` | **`V54`**: `movement_details`, con `uq_movement_details_producto`, `ck_movement_details_quantity` y `ck_movement_details_validity` **con la rama nula delante** | `T-02` | Declaradas. La repetición la rechaza además la aplicación antes de llegar al motor (`VAL-006`), y las dos capas se prueban por separado | **Hecha** — 04-09-2026 |
+| `T-04` | `V51`: sembrar los cuatro permisos `movements:` **y asociarlos SOLO a `SUPERADMIN`** — la reserva de [`mv.md` §6.1](../../../requirements/mv.md), que se aparta de `security.md` §4.4 | — | Cubierta por `T-16`, que es una prueba y no una lectura del `SQL` | **Hecha** — 02-09-2026 |
+| `T-05` | `PM`: `ProductCatalog` gana la **vista de venta por lote** —precio, moneda, tipo, vigencia y membresía destino— sin tocar la vista existente | — | `ProductCatalog.saleViewOf`. La suite de `PM` sigue en verde **sin un solo cambio**, y `CM` no recompila: `ProductView` no se tocó | **Hecha** — 04-09-2026 |
+| `T-06` | `PM`: `ProductCatalog` gana la **consulta de oferta por lote**, que reutiliza lo que `RF-PM-007` ya resuelve | `T-05` | `ProductCatalog.offeredTo` **no escribe ningún `SELECT` propio**: llama al mismo `findOffer` de `RF-PM-007` y se queda con la intersección. Ver §2 | **Hecha** — 04-09-2026 |
+| `T-07` | `SP`: `ClientCatalog` nuevo — **estado y vendedor vigente** del cliente | — | La suite de `SP` sigue en verde sin cambios. **Publica dos lecturas y no tres**: el nivel se pide a `CurrentMembershipLookup`, que ya existe. Ver §2 | **Hecha** — 04-09-2026 |
+| `T-08` | `Movement`, `MovementLine` y `MovementStatus`, con **el total calculado por el agregado** y la instantánea de auditoría armada por él | — | `MovementTest`: no existe forma de construir una venta cuyo total no sea la suma de sus líneas, ni una sin líneas | **Hecha** — 04-09-2026 |
+| `T-09` | `MovementCode`: prefijo, día de **la fecha del hecho en `America/Bogota`** y seis caracteres del alfabeto de Crockford **sin `I`, `L`, `O` ni `U`** | — | `MovementCodeTest`: una venta de las 23:30 en Bogotá lleva **su** día y no el siguiente | **Hecha** — 04-09-2026 |
+| `T-10` | `MovementRepository` y su adaptador: cabecera y líneas en una sola transacción, con **reintento acotado** ante colisión de código | `T-02`, `T-03`, `T-09` | `MovementCodeRetryIT`: con el comprobante ya tomado reintenta una vez y entra; con el generador forzado a colisionar siempre, **el tercer intento falla** en lugar de reintentar sin fin | **Hecha** — 04-09-2026 |
+| `T-11` | `RegisterSaleService`: el orden de `spec.md` §8 — cliente, vendedor, composición, oferta, moneda, copia, totales, código | `T-05`–`T-10` | Una petición con producto repetido **no llega a consultar la oferta**: `VAL-006` se comprueba sobre la petición, antes de la primera lectura del catálogo | **Hecha** — 04-09-2026 |
+| `T-12` | DTOs de entrada y salida, con **el vendedor resuelto** y el descuento en cero | `T-11` | `CA-MV-002`: la respuesta lleva el vendedor que el actor no envió, con su nombre | **Hecha** — 04-09-2026 |
+| `T-13` | `POST /api/v1/movements`, con el reparto de códigos de `plan.md` §4 | `T-11`, `T-12` | `201` con `Location`; `400`, `403`, `409` y `422` cada uno en su caso, probados uno a uno | **Hecha** — 04-09-2026 |
+| `T-14` | Registro de auditoría de creación, **con el vendedor congelado dentro** | `T-11` | `CA-MV-018`: la instantánea contiene `seller_id`, el estado, los tres importes y las líneas con lo copiado | **Hecha** — 04-09-2026 |
+| `T-15` | Pruebas de los criterios de `spec.md` §12 | `T-13` | `CA-MV-001` a `CA-MV-018`, **salvo `CA-MV-008`**. Ver §4 | **Hecha con una ausencia declarada** — 04-09-2026 |
+| `T-16` | **Prueba de la siembra**: los cuatro permisos existen, **están asociados a `SUPERADMIN`** y **ninguno lo está a `ADMIN`** | `T-04` | Es la única tarea que delata que la asociación se cayó de `V51`, y la única que fija que la reserva sea entera y no a medias | **Hecha** — 02-09-2026 |
+| `T-17` | Documentación OpenAPI: que **el precio no se envía** y que la venta **nace pendiente y no concede nada** | `T-13` | El contrato publicado dice las dos cosas, y enumera los cuatro códigos de rechazo con el criterio que los reparte | **Hecha** — 04-09-2026 |
+| `T-18` | **Comprobar que las tres enmiendas de `plan.md` §8 siguen valiendo** tras el código, y llevar la matriz al estado final | `T-15` | Las cuatro tablas dejan de estar «diseñadas y sin escribir» en `modelo-datos.md`, y las lecturas de `architecture.md` §15.2 existen — **una menos de las tres previstas**, por la enmienda de §2 | **Hecha** — 04-09-2026 |
+
+### 1.1 El vendedor deja de ser obligatorio — 04-09-2026
+
+Enmienda del Art. I.7 sobre este requerimiento ya construido. La decidió el responsable del proyecto: **comprar no es cosa solo de los clientes**, y un agente también compra.
+
+| ID | Tarea | Depende de | Verificación | Estado |
+|---|---|---|---|---|
+| `T-21` | `V54`: `movements.seller_id` pasa a admitir **nulo**, con el motivo y su coste escritos junto a la columna | — | Una venta sin vendedor entra en la tabla | **Hecha** — 04-09-2026 |
+| `T-22` | `RegisterSaleService`: `EX-003` **se retira**, y el vendedor pasa a resolverse como opcional | `T-21` | Quien no cuelga de nadie compra, y la venta queda sin atribución | **Hecha** — 04-09-2026 |
+| `T-23` | `SaleResponse` se aparta del `non_null` global para que **el vendedor viaje en nulo y no ausente** | `T-22` | La respuesta contiene `"seller":null`, comprobado **sobre el JSON en crudo** | **Hecha** — 04-09-2026 |
+| `T-24` | `CA-MV-017` **invierte su sentido** y se añade la prueba de la auditoría con la clave en nulo | `T-22`, `T-23` | La venta se registra, `seller_id` queda nulo en la tabla y la instantánea lleva `"seller_id": null` | **Hecha** — 04-09-2026 |
+
+**`T-23` parece cosmética y no lo es.** `application.yml` fija `default-property-inclusion: non_null`, de modo que sin esa anotación el vendedor nulo **desaparecería de la respuesta** y el consumidor no podría distinguir «esta venta no tiene vendedor» de «esta respuesta no lo trae». Es la diferencia que decide si alguien va a cobrar por ella.
+
+**Y `T-24` se comprueba sobre el JSON en crudo a propósito.** `jsonPath(...).doesNotExist()` da por buenas las dos cosas —campo ausente y campo en nulo—, que es exactamente la distinción que aquí se quiere fijar: con ese matcher, la prueba habría pasado igual si la anotación de `T-23` no existiera.
+
+### 1.2 Lo que se añadió y no estaba en la tabla
+
+| ID | Tarea | Por qué |
+|---|---|---|
+| `T-19` | **Regla de ArchUnit**: `movements` no depende de `system..domain..` ni de `products..domain..` | `MV` es el módulo que más fronteras cruza, y el primero que se apoya en una **decisión** de otro (`RF-PM-007`) en lugar de en un dato suyo. Sin la regla, «pregunta la oferta, no la recalcules» es una frase de un documento: un `SELECT` propio sobre `products` compilaría igual y pasaría las pruebas igual. La regla equivalente de `PM` existe desde D-25 y solo cubría a `PM` |
+| `T-20` | **Prueba unitaria de `RN-MV-006`** con el catálogo simulado | `EX-005` **no es alcanzable por HTTP hoy**, porque la oferta ya excluye lo que no sube. Sin esta prueba, borrar la comprobación de nivel del caso de uso dejaría la suite entera en verde. Ver §3 |
+| `T-21` | **`RN-MV-006` estrecha**: la comparación pasa de `destino >= nivelActual` a `destino > nivelActual`, y la prueba unitaria del catálogo simulado gana el caso del **mismo nivel**, que ahora se admite | La renovación se registra sin `EX-005`, y el **descenso lo sigue recibiendo**. `CA-MV-011` y `CA-MV-048` | **Hecha el 07-09-2026** |
+
+### 1.3 La cabecera lleva un sujeto y el vendedor baja a la línea — 16-09-2026
+
+Enmienda del Art. I.7 sobre este requerimiento ya construido, por decisión del responsable del proyecto ([`requirements/mv.md`](../../../requirements/mv.md) v0.16.0, `plan.md` §2.4). **Deshace en parte la §1.1**: la venta sin atribución deja de existir, y `T-23` y `T-24` quedan como historia — la anotación de nulabilidad de `T-23` **se conserva** en la línea, porque el contrato es del libro y un depósito llevará el vendedor vacío.
+
+| ID | Tarea | Depende de | Verificación | Estado |
+|---|---|---|---|---|
+| `T-25` | **`V12__mv_sujeto_y_vendedor_por_linea.sql`**: `client_id` → `user_id` (FK e índice renombrados), `movement_details.seller_id` con FK e índice parcial, copia `COALESCE(seller_id, client_id)` a las líneas, `DROP` de `movements.seller_id` e `ix_movements_seller` | — | Una base con ventas anteriores conserva la atribución de todas y **ninguna línea de venta queda en nulo**. `V7` intacta | **Hecha** — 16-09-2026 |
+| `T-26` | `Movement` pierde `clientId`/`sellerId` y gana `userId`; `MovementLine` gana `sellerId` **obligatorio en `copiarDe`**; la instantánea escribe `user_id` en la cabecera y `seller_id` en cada línea | `T-25` | `MovementTest`: no existe forma de construir una línea de venta sin vendedor; la instantánea lleva la clave en cada línea | **Hecha** — 16-09-2026 |
+| `T-27` | `RegisterSaleService` y `RegisterSaleRequest`: el cuerpo pide `userId`; el vendedor se resuelve **una vez** —superior vigente, o **el propio comprador** si no lo hay— y se pone en cada línea | `T-26` | `CA-MV-002` y `CA-MV-017`: la línea de un cliente lleva a su agente; la de quien no cuelga de nadie lo lleva a él mismo. `VAL-001` dice «comprador» | **Hecha** — 16-09-2026 |
+| `T-28` | `SaleResponse`: `client` → `user`, `seller` sale de la cabecera; `SaleLineResponse` gana `seller` (`SaleParty`), con la nulabilidad declarada por `types` como estaba | `T-27` | `RegisterSaleIT` comprueba `lines[0].seller` y la ausencia de `seller` en la cabecera **sobre el JSON en crudo** | **Hecha** — 16-09-2026 |
+| `T-29` | Repositorio: `INSERT` de cabecera y líneas con las columnas nuevas; `PublishedRegistrationSaleRegistrar` y `RegistrationSaleRegistrar` (`RF-SP-045`) siguen el puerto | `T-26` | `SelfRegistrationIT` en verde: la venta del alta lleva al dueño del enlace en su línea | **Hecha** — 16-09-2026 |
+| `T-30` | Contrato OpenAPI: el esquema se regenera y **la prosa se reescribe** — `userId` es el sujeto, `seller` vive en la línea y nunca es nulo en una venta | `T-28` | `docs/api/openapi.*` salen modificados y las `@Operation` no describen `client` ni un `seller` de cabecera | **Hecha** — 16-09-2026 |
+
+**`T-27` resuelve el vendedor una sola vez y lo repite en cada línea a propósito.** `RN-MV-003` admite que las líneas difieran, y hoy ninguna entrada lo produce: la resolución es de la venta, y el modelo es de la línea. Ponerlo línea a línea desde el primer día es lo que evita que el día que un carrito mezcle enlaces haya que cambiar la forma del agregado.
+
+### 1.4 El descuento es de la línea, y la línea recuerda su paquete — 16-09-2026
+
+Enmienda del Art. I.7 sobre este requerimiento ya construido, por decisión del responsable del proyecto (`requirements/mv.md` v0.17.0, `plan.md` §2.5). **Esta operación no aplica ningún descuento**; lo que se construye es la forma para que la compra de paquetes pueda aplicarlos sin tocar el libro.
+
+| ID | Tarea | Depende de | Verificación | Estado |
+|---|---|---|---|---|
+| `T-31` | **`V14__mv_descuentos_por_linea.sql`**: `package_id` y `line_discount` en la línea con sus `CHECK`, y la tabla `movement_detail_discounts` | — | Las filas existentes siguen válidas con `line_discount = 0`; `V7` y `V12` intactas | **Hecha** — 16-09-2026 |
+| `T-32` | `MovementDiscountType` y `LineDiscount` en `MV`; `MovementLine` gana `packageId` y la lista de rebajas, y calcula `lineDiscount` y `lineAmount` desde ellas; `Movement` suma el descuento de las líneas | `T-31` | `MovementTest`: un 10 % sobre 20.00 rebaja 2.00 por unidad; un fijo de 5.00 rebaja 5.00; con cantidad dos la línea rebaja el doble; la cabecera suma; una rebaja que deja la línea en negativo se rechaza; la instantánea lleva `package_id`, `line_discount` y `discounts` | **Hecha** — 16-09-2026 |
+| `T-33` | Repositorio: `INSERT` de la línea con las dos columnas nuevas y de sus rebajas; el detalle propio (`RF-MV-008`) las lee | `T-32` | `MovementCodeRetryIT` sigue en verde; el detalle de `MyMovementsIT` devuelve `lineDiscount` y `discounts` | **Hecha** — 16-09-2026 |
+| `T-34` | `SaleLineResponse` gana `packageId` (nulable declarado con `types`), `lineDiscount` y `discounts` (lista nunca nula); `RegisterSaleService` construye cada línea sin rebajas | `T-32` | `RegisterSaleIT`: `lines[0].lineDiscount` es `0.00`, `discounts` es `[]` **presente** y `packageId` es nulo **presente**, sobre el JSON en crudo | **Hecha** — 16-09-2026 |
+| `T-35` | Contrato OpenAPI: esquema regenerado y prosa de `POST /movements` con la frase «esta entrada no aplica descuentos» | `T-34` | `docs/api/openapi.*` declaran los tres campos nuevos de la línea | **Hecha** — 16-09-2026 |
+
+## 2. Lo que se apartó del plan, y por qué
+
+**Tres apartados, los tres declarados como enmienda (Art. I.7).**
+
+### 2.1 La migración es `V54` y no `V53`
+
+Es **la tercera vez** que este número se mueve, y siempre por lo mismo: el número lo toma quien se aplica primero ([`modelo-datos.md` §1](../../../modelo-datos.md)). El 03-09-2026 se fusionó `V53__products_source_membership.sql` —el origen del upgrade, `RF-PM-001`—, de modo que el `53` dejó de estar libre antes de que estas tablas existieran. Reservar por adelantado y aplicar después es exactamente lo que Flyway no perdona.
+
+### 2.2 `ClientCatalog` publica DOS lecturas y no tres
+
+`plan.md` §3.2 le asignaba también el nivel de membresía vigente del cliente. **No lo lleva**: ese puerto ya existe desde `RF-PM-007` · `T-01` —`CurrentMembershipLookup`—, con su borde fijado por prueba y con la definición de «vigente» en un solo sitio desde el 24-08-2026.
+
+Declararlo otra vez habría creado la segunda, que es el defecto que aquel puerto existe para evitar: **no falla**, devuelve resultados plausibles durante meses y solo se separa en el borde. La consecuencia es que `architecture.md` §15.2 registra **dos** lecturas cruzadas nuevas y no tres.
+
+### 2.3 `Movement` no es una entidad JPA
+
+Es el primer agregado del sistema que no lo es —`Product`, `Role` y `Membership` sí—, y son dos motivos que se suman:
+
+1. **El reintento acotado lo exige.** Con `persist`, la violación de `uq_movements_code` marca la transacción para deshacerse y el segundo intento ya no cabe dentro de ella: «tres intentos y falla» pasaría a necesitar una transacción por intento, con la cabecera y sus líneas repartidas entre varias — lo que `plan.md` §7 prohíbe. Con `INSERT … ON CONFLICT (code) DO NOTHING` el rechazo es una cuenta de filas afectadas, y el reintento es un bucle. Es el mismo recurso, y por el mismo motivo, que `UserRepository.addRoles`.
+2. **Esta tabla no se actualiza nunca** (`RN-MV-001`), de modo que el seguimiento de cambios de JPA —que es lo que se paga por mapearla— no tiene aquí nada que seguir. Es además la única tabla del sistema sin `updated_at` ni `deleted_at`, que es lo que el riesgo 4 del plan advertía.
+
+Queda declarado lo que esto obliga: **las lecturas de `RF-MV-006` y `RF-MV-007` usarán un repositorio de consulta con registros planos**, como `ProductQueryRepository` y su `ProductRow` — que es el patrón dominante del proyecto para leer, y no una excepción que este requerimiento invente.
+
+## 3. Cobertura de los criterios de aceptación
+
+| Criterio | Tareas | Estado |
+|---|---|---|
+| `CA-MV-001` | `T-02`, `T-10`, `T-13`, `T-15` | Cubierto |
+| `CA-MV-002` | `T-07`, `T-11`, `T-12`, `T-15`, `T-27`, `T-28` | Cubierto; desde el 16-09-2026 mira `lines[0].seller` y la ausencia de `seller` en la cabecera |
+| `CA-MV-003` | `T-05`, `T-08`, `T-11`, `T-15` | Cubierto — **se prueba corrigiendo el producto DESPUÉS** |
+| `CA-MV-004` | `T-02`, `T-08`, `T-15` | Cubierto |
+| `CA-MV-005` | `T-03`, `T-11`, `T-15` | Cubierto |
+| `CA-MV-006` | `T-09`, `T-15` | Cubierto — incluido el día de la fecha del hecho en `America/Bogota` |
+| `CA-MV-007` | `T-11`, `T-15` | Cubierto |
+| **`CA-MV-008`** | `T-07`, `T-11`, `T-13`, `T-15` | **SIN PRUEBA.** La rama de código existe; el dato que la alcanza, no. Ver §4 |
+| `CA-MV-009` | `T-07`, `T-11`, `T-13`, `T-15` | Cubierto |
+| `CA-MV-010` | `T-05`, `T-06`, `T-11`, `T-15` | Cubierto — el inexistente da `422` y el fuera de la oferta, `409`, con el producto nombrado |
+| `CA-MV-011` | `T-05`, `T-06`, `T-11`, `T-15`, `T-20` | Cubierto **por dos caminos**. Ver abajo |
+| `CA-MV-012`, `CA-MV-013` | `T-03`, `T-11`, `T-15` | Cubierto |
+| `CA-MV-014` | `T-05`, `T-11`, `T-15` | Cubierto |
+| `CA-MV-015` | `T-01`, `T-11`, `T-15` | Cubierto — inexistente `422`, desactivado `409` |
+| `CA-MV-016` | `T-12`, `T-13`, `T-15` | Cubierto |
+| `CA-MV-017` | `T-07`, `T-11`, `T-15`, `T-24`, `T-27` | Cubierto; desde el 16-09-2026 afirma que la venta se registra **atribuida a quien compra**, en la respuesta y en `movement_details.seller_id` |
+| `CA-MV-018` | `T-08`, `T-14`, `T-15`, `T-26` | Cubierto; la instantánea lleva `user_id` en la cabecera y `seller_id` en cada línea, y ya no lleva `client_id` |
+
+**`CA-MV-011` necesita dos pruebas, y merece leerse dos veces.** Por HTTP, un upgrade que no sube **nunca llega** a `RN-MV-006`: la oferta de `RF-PM-007` ya lo excluyó, y el rechazo que se ve es `EX-004`. La prueba de integración lo comprueba así porque es lo que hoy ocurre de verdad, y el criterio queda satisfecho — se rechaza **al registrar**, que es lo que exige.
+
+Pero la oferta es una decisión de **`PM`** y puede ampliarse; que una venta no baje a nadie de nivel es una regla de **`MV`**. `RegisterSaleServiceTest` amplía la oferta a mano y alcanza `EX-005`, que es la única forma de que borrar esa comprobación haga fallar algo. Es exactamente el argumento del aviso de `plan.md` §3.2, y sin la segunda prueba ese aviso sería una intención.
+
+## 4. Bloqueos
+
+**`RF-SP-045` — el registro de clientes por enlace. Sin código, y bloquea MUCHO MENOS de lo que la versión 0.1.0 suponía.**
+
+| Lo que trae | ¿Bloqueaba? |
+|---|---|
+| **Clientes colgados de un vendedor** (`RN-SP-020`, rama de consumidor) | **No.** `user_supervisors` existe desde `V21` y admite cualquier subordinado. `ClientCatalog` (`T-07`) se escribió entero, `EX-003` es alcanzable y `CA-MV-017` está probado. Lo que `RF-SP-045` añade es el camino **público** que los cuelga solo |
+| **El estado `FTD_PENDIENTE`** (`RN-SP-026`) | **Sí, y es lo único.** No existe en `ck_users_status` —`RF-SP-045` lo estrena sustituyendo a `PENDIENTE`—, de modo que ninguna fila puede llevarlo y ninguna prueba lo puede sembrar |
+
+**Consecuencia exacta, y solo esa: `CA-MV-008` no tiene prueba.** La comprobación **sí está escrita** en `RegisterSaleService` y es la única rama del servicio que hoy no se alcanza. Se escribió igualmente en lugar de dejarla para después, porque la alternativa es que el día que `RF-SP-045` aterrice **se le empiece a vender a cuentas que no pueden operar** sin que nada falle — un requerimiento que se da por terminado no vuelve a revisarse buscando lo que le faltaba.
+
+**Cuando `RF-SP-045` exista, lo que hay que hacer aquí es una sola cosa**: sembrar un cliente en `FTD_PENDIENTE` en `RegisterSaleIT` y afirmar el `409` con `EX-002`. No hay código que escribir.
+
+**D-26 sigue sin bloquear este requerimiento**, y conviene repetirlo porque bloquea al siguiente: registrar una venta **solo lee** de `SP`. La escritura —conceder el nivel comprado— aparece al confirmar, y es `RF-MV-003` quien no puede terminarse hasta que esa decisión se cierre.
+
+## 5. Lo que se descubrió al construir, y no es de este requerimiento
+
+**Los importes del movimiento son `numeric(14,2)` y `currencies.decimal_places` admite de cero a cuatro.**
+
+`requirements/mv.md` §7 fija los tres importes de `movements` y los dos de `movement_details` en **dos decimales**, mientras que `V14` permite monedas de hasta cuatro y `products.price` es `numeric(14,4)` justamente por eso. Con una moneda de tres o cuatro decimales, **el libro redondearía en silencio lo que alguien pagó**.
+
+No se cambió el esquema —lo fija un documento aprobado, y la decisión es del responsable del proyecto— y **no se dejó pasar**: `RegisterSaleService` rechaza al registrar el precio que no quepa, que es el único momento en que alguien está mirando. Hoy la única moneda sembrada es `USD` con dos decimales, de modo que esa rama no se alcanza.
+
+**Lo que hay que decidir** es si los importes del libro pasan a `numeric(14,4)` —como los del catálogo— o si el sistema declara que no admitirá monedas de más de dos decimales. Mientras no se decida, el rechazo es la postura segura.
+
+## 6. Definición de terminado
+
+- [x] Las dieciocho tareas `Hecha` con su verificación pasando, y `./mvnw clean verify` en verde — **963 pruebas, 0 fallos**.
+- [x] **Las suites de `PM` y de `SP` en verde sin cambios.** Lo que se les añadió son métodos nuevos sobre interfaces existentes y una interfaz nueva; **ninguna de sus pruebas se tocó**.
+- [x] `CA-MV-007` pasando, que es la que afirma que **registrar una venta no cambia nada fuera del módulo**.
+- [ ] Todos los criterios con prueba automatizada. **`CA-MV-008` no la tiene**, y su ausencia está declarada en §4 en lugar de darse por cubierta.
+- [x] La matriz de trazabilidad y el contrato publicado al día.

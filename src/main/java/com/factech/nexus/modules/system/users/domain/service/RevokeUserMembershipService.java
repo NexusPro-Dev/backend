@@ -1,21 +1,23 @@
 package com.factech.nexus.modules.system.users.domain.service;
 
+import com.factech.nexus.modules.system.users.application.UserMembershipResponse;
 import com.factech.nexus.modules.system.users.domain.models.User;
+import com.factech.nexus.modules.system.users.domain.repository.MembershipCatalog;
 import com.factech.nexus.modules.system.users.domain.repository.RoleCatalog;
 import com.factech.nexus.modules.system.users.domain.repository.UserMembership;
 import com.factech.nexus.modules.system.users.domain.repository.UserRepository;
-import com.factech.nexus.modules.system.users.domain.security.ConsumerStatus;
 import com.factech.nexus.shared.audit.AuditEnums.DeletionType;
 import com.factech.nexus.shared.audit.AuditEvents.DeletionEvent;
 import com.factech.nexus.shared.audit.AuditWriter;
-import com.factech.nexus.shared.error.BusinessRuleException;
-import com.factech.nexus.shared.error.FieldError;
 import com.factech.nexus.shared.error.ResourceNotFoundException;
+import com.factech.nexus.shared.persistence.UuidV7Generator;
+import java.time.Clock;
+import java.time.OffsetDateTime;
 import java.util.HashMap;
-import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.UUID;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -44,42 +46,76 @@ public class RevokeUserMembershipService {
   private final UserRepository usuarios;
   private final RoleCatalog roles;
   private final AuditWriter auditoria;
+  private final MembershipCatalog membresias;
+  private final UuidV7Generator ids;
 
+  /**
+   * Desde el 05-09-2026 esta operación <b>escribe una fecha</b>, y por eso necesita reloj: retirar
+   * pasó de borrar la fila a <b>cerrarla</b> con {@code closed_at} (`V56`). Se inyecta, y no se
+   * toma de {@code OffsetDateTime.now()}, para que una prueba pueda fijar el instante del cierre.
+   */
+  private final Clock reloj;
+
+  @Autowired
   public RevokeUserMembershipService(
-      UserRepository usuarios, RoleCatalog roles, AuditWriter auditoria) {
+      UserRepository usuarios,
+      RoleCatalog roles,
+      AuditWriter auditoria,
+      MembershipCatalog membresias,
+      UuidV7Generator ids) {
+    this(usuarios, roles, auditoria, membresias, ids, Clock.systemUTC());
+  }
+
+  RevokeUserMembershipService(
+      UserRepository usuarios,
+      RoleCatalog roles,
+      AuditWriter auditoria,
+      MembershipCatalog membresias,
+      UuidV7Generator ids,
+      Clock reloj) {
     this.usuarios = usuarios;
     this.roles = roles;
     this.auditoria = auditoria;
+    this.membresias = membresias;
+    this.ids = ids;
+    this.reloj = reloj;
   }
 
   @Transactional
-  public void revoke(UUID userId) {
+  public UserMembershipResponse resetToFloor(UUID userId) {
     User usuario =
         usuarios
-            .findNotDeletedById(userId)
+            .findNotDeletedByIdForUpdate(userId)
             .orElseThrow(
                 () ->
                     new ResourceNotFoundException(
                         "VAL-002", "No existe una persona con ese identificador."));
 
-    if (ConsumerStatus.esConsumidor(roles.findAllById(roles.roleIdsOf(userId)))) {
-      String mensaje =
-          "La persona porta un rol de consumidor y todo consumidor debe tener membresía. Para"
-              + " bajarla de nivel use la operación de membresía; para que deje de ser consumidor,"
-              + " retírele el rol — el retiro arrastra la membresía por su cuenta.";
-      throw new BusinessRuleException(
-          "RN-SP-018", mensaje, List.of(new FieldError("membership", "RN-SP-018", mensaje)));
-    }
+    // `EX-001` SE RETIRÓ EL 05-09-2026, con `RN-SP-013`. Exigía que la persona
+    // NO portara ningún rol de consumidor —lo contrario de lo que sugiere el
+    // nombre del requerimiento— porque `RN-SP-018` no admitía consumidores sin
+    // nivel. Reescrita esa regla, la precondición no protege nada: devolver a
+    // alguien al suelo es válido lo porte o no.
 
+    MembershipCatalog.MembershipRef suelo = membresias.floor();
     Optional<UserMembership> actual = usuarios.findMembership(userId);
-    if (actual.isEmpty()) {
-      // `FA-001`. No se escribe y no se audita: un evento de eliminación que no
-      // eliminó nada es un dato falso en el registro.
-      return;
+
+    // `FA-001` —sin membresía previa— DEJÓ DE SER ALCANZABLE: toda persona tiene
+    // nivel. El caso se conserva escrito por lo que costó decidirlo, pero aquí
+    // no hay rama que lo trate: si no hubiera fila abierta, cerrar no afecta a
+    // ninguna y la inserción de abajo repara el invariante, que es lo correcto.
+    boolean yaEstabaEnElSuelo =
+        actual.map(previa -> previa.membershipId().equals(suelo.id())).orElse(false);
+
+    if (!yaEstabaEnElSuelo) {
+      // CIERRA E INSERTA, la misma escritura con la que `RF-SP-032` sustituye.
+      usuarios.assignMembership(ids.next(), userId, suelo.id(), null, OffsetDateTime.now(reloj));
+      actual.ifPresent(previa -> auditar(usuario, previa));
     }
 
-    usuarios.removeMembership(userId);
-    auditar(usuario, actual.get());
+    // SIEMPRE DEVUELVE EL SUELO, haya escrito o no. Quien llama necesita saber
+    // en qué quedó la persona, y repetir la operación tiene que decir lo mismo.
+    return UserMembershipResponse.de(suelo.id(), suelo.code(), suelo.name(), suelo.level(), null);
   }
 
   /**

@@ -4,12 +4,12 @@ import com.factech.nexus.modules.system.roles.application.AuthenticatedActor;
 import com.factech.nexus.modules.system.users.application.AssignRolesRequest;
 import com.factech.nexus.modules.system.users.application.UserResponse;
 import com.factech.nexus.modules.system.users.domain.models.User;
+import com.factech.nexus.modules.system.users.domain.repository.AssignableCountry;
+import com.factech.nexus.modules.system.users.domain.repository.AssignableDocumentType;
 import com.factech.nexus.modules.system.users.domain.repository.AssignableRole;
-import com.factech.nexus.modules.system.users.domain.repository.MembershipCatalog;
 import com.factech.nexus.modules.system.users.domain.repository.RoleCatalog;
 import com.factech.nexus.modules.system.users.domain.repository.UserRepository;
 import com.factech.nexus.modules.system.users.domain.security.CommercialStructure;
-import com.factech.nexus.modules.system.users.domain.security.ConsumerStatus;
 import com.factech.nexus.modules.system.users.domain.security.PrivilegeContainment;
 import com.factech.nexus.modules.system.users.domain.security.RoleAssignment;
 import com.factech.nexus.shared.audit.AuditEnums.ChangeAction;
@@ -74,7 +74,9 @@ public class AssignUserRolesService {
 
   private final UserRepository usuarios;
   private final RoleCatalog roles;
-  private final MembershipCatalog membresias;
+  private final AssignableCountry paises;
+  private final AssignableDocumentType documentos;
+
   private final CommercialStructure estructura;
   private final AuthenticatedActor actor;
   private final AuditWriter auditoria;
@@ -85,26 +87,30 @@ public class AssignUserRolesService {
   public AssignUserRolesService(
       UserRepository usuarios,
       RoleCatalog roles,
-      MembershipCatalog membresias,
       CommercialStructure estructura,
       AuthenticatedActor actor,
       AuditWriter auditoria,
-      UuidV7Generator ids) {
-    this(usuarios, roles, membresias, estructura, actor, auditoria, ids, Clock.systemUTC());
+      UuidV7Generator ids,
+      AssignableCountry paises,
+      AssignableDocumentType documentos) {
+    this(usuarios, roles, estructura, actor, auditoria, ids, paises, documentos, Clock.systemUTC());
   }
 
   AssignUserRolesService(
       UserRepository usuarios,
       RoleCatalog roles,
-      MembershipCatalog membresias,
       CommercialStructure estructura,
       AuthenticatedActor actor,
       AuditWriter auditoria,
       UuidV7Generator ids,
+      AssignableCountry paises,
+      AssignableDocumentType documentos,
       Clock reloj) {
     this.usuarios = usuarios;
     this.roles = roles;
-    this.membresias = membresias;
+    this.paises = paises;
+    this.documentos = documentos;
+
     this.estructura = estructura;
     this.actor = actor;
     this.auditoria = auditoria;
@@ -118,7 +124,7 @@ public class AssignUserRolesService {
     //    cuenta suspendida es legítimo, y exigirlo la volvería inadministrable.
     User usuario =
         usuarios
-            .findNotDeletedById(userId)
+            .findNotDeletedByIdForUpdate(userId)
             .orElseThrow(
                 () ->
                     new ResourceNotFoundException(
@@ -133,41 +139,61 @@ public class AssignUserRolesService {
     // 4. `RN-SEG-010`, antes que cualquier regla de coherencia.
     verificarAlcanceDelActor(pedidos);
 
-    Set<UUID> resultantes = RoleAssignment.resultado(actuales, nuevos);
-    List<AssignableRole> catalogoResultante = roles.findAllById(resultantes);
+    // 4.bis. `RN-SP-025` — un solo rol vendedor por persona.
+    List<AssignableRole> vendedoresPedidos =
+        pedidos.stream().filter(AssignableRole::esVendedor).toList();
+    verificarUnSoloVendedorPorPeticion(vendedoresPedidos);
+
     List<AssignableRole> catalogoPrevio = roles.findAllById(actuales);
 
-    // 5. `RN-SP-018` — consumidor ⟺ membresía, condicional en los dos sentidos.
-    boolean membresiaNueva =
-        verificarMembresia(userId, catalogoPrevio, catalogoResultante, peticion);
+    // EL ROL VENDEDOR QUE SALE. Asignar uno SUSTITUYE al que se porte: no es
+    // una decisión de esta operación sino la única forma de que la asignación
+    // pueda ocurrir con `RN-SP-025` declarada en el motor. Rechazar en su lugar
+    // obligaría a retirar antes con `RF-SP-031`, y eso deja a la persona sin rol
+    // vendedor entre las dos llamadas — o hace el ascenso imposible, porque si
+    // ese era su único rol `RN-SP-023` rechaza el retiro.
+    Set<UUID> vendedoresSalientes = vendedorSaliente(catalogoPrevio, vendedoresPedidos);
 
-    // 6 y 7. `RN-SP-019` y `RN-SP-020`.
+    Set<UUID> resultantes = RoleAssignment.resultado(actuales, nuevos);
+    resultantes.removeAll(vendedoresSalientes);
+    List<AssignableRole> catalogoResultante = roles.findAllById(resultantes);
+
+    // 5. ESTA OPERACIÓN YA NO TOCA LA MEMBRESÍA (05-09-2026). `RN-SP-018`
+    //    reescrita: cuando llega esta petición la persona YA TIENE NIVEL, desde
+    //    el alta. Los dos campos que lo permitían salieron del cuerpo, y con
+    //    ellos las comprobaciones de `RN-SP-018` y de `RN-SP-013`, retirada.
+    //
+    //    LA NUMERACIÓN DE LOS PASOS NO SE RECOLOCA: `spec.md` y `plan.md` los
+    //    citan por número, y correrlos haría mentir a dos documentos aprobados
+    //    para ganar un hueco.
+
+    // 6 y 7. `RN-SP-019` y `RN-SP-020`. ESTE PAR SÍ SIGUE EN PIE: lo que se
+    //        soltó fue la atadura entre consumidor y nivel, no la de vendedor y
+    //        superior.
     UUID superiorNuevo =
         verificarSuperior(userId, catalogoPrevio, catalogoResultante, peticion.supervisorId());
 
     OffsetDateTime ahora = OffsetDateTime.now(reloj);
 
+    // EL RETIRO VA ANTES DE LA ASIGNACIÓN, y no es indiferente: entre las dos
+    // sentencias el índice único parcial de `V52` está mirando. Al revés, la
+    // inserción del vendedor nuevo chocaría con el viejo y saldría como `500`.
+    if (!vendedoresSalientes.isEmpty()) {
+      usuarios.removeRoles(userId, vendedoresSalientes);
+    }
     if (!nuevos.isEmpty()) {
       usuarios.addRoles(userId, nuevos);
-    }
-    if (membresiaNueva) {
-      usuarios.assignMembership(
-          userId, peticion.membershipId(), peticion.membershipEndsAt(), ahora);
     }
     if (superiorNuevo != null) {
       usuarios.assignSupervisor(ids.next(), userId, superiorNuevo, ahora);
     }
 
-    if (!nuevos.isEmpty() || membresiaNueva || superiorNuevo != null) {
+    if (!nuevos.isEmpty() || superiorNuevo != null) {
       auditar(
-          usuario,
-          catalogoResultante,
-          nuevos,
-          membresiaNueva ? peticion.membershipId() : null,
-          superiorNuevo);
+          usuario, catalogoResultante, catalogoPrevio, nuevos, vendedoresSalientes, superiorNuevo);
     }
 
-    return UserResponses.de(usuario, catalogoResultante, usuarios, userId);
+    return UserResponses.de(usuario, catalogoResultante, usuarios, paises, documentos, userId);
   }
 
   // ---------------------------------------------------------------------------
@@ -236,68 +262,6 @@ public class AssignUserRolesService {
       throw new BusinessRuleException(
           "RN-SEG-010", "No puede conceder roles que exceden sus propios permisos.", detalle);
     }
-  }
-
-  /**
-   * `RN-SP-018` → {@code 422}, evaluada sobre el <b>estado resultante</b>.
-   *
-   * <p>La pregunta no es «¿se está concediendo un rol de consumidor?» sino «¿termina siendo
-   * consumidor y sin membresía?». La diferencia se ve al conceder un segundo rol de consumidor a
-   * quien ya tiene membresía: exigirla otra vez sería absurdo, e ignorarlo sin más dejaría pasar el
-   * caso en que sí falta.
-   *
-   * @return si hay que escribir la membresía indicada
-   */
-  private boolean verificarMembresia(
-      UUID userId,
-      List<AssignableRole> antes,
-      List<AssignableRole> despues,
-      AssignRolesRequest peticion) {
-
-    boolean seraConsumidor = ConsumerStatus.esConsumidor(despues);
-    boolean yaTieneMembresia = usuarios.findMembership(userId).isPresent();
-    UUID indicada = peticion.membershipId();
-
-    if (peticion.membershipEndsAt() != null && indicada == null) {
-      throw noProcesable(
-          "EX-006", "membershipEndsAt", "La vigencia solo se admite acompañando a una membresía.");
-    }
-
-    if (!seraConsumidor) {
-      if (indicada != null) {
-        throw noProcesable(
-            "EX-006",
-            "membershipId",
-            "No se puede asignar una membresía a quien no portará ningún rol de consumidor.");
-      }
-      return false;
-    }
-
-    if (yaTieneMembresia) {
-      // Ya es consumidor con membresía. Cambiarla es `RF-SP-032`, no esta
-      // operación: admitirlo aquí sería una edición encubierta y sin su permiso.
-      if (indicada != null) {
-        throw noProcesable(
-            "EX-006",
-            "membershipId",
-            "La persona ya tiene membresía. Para cambiarla use la operación de membresía.");
-      }
-      return false;
-    }
-
-    boolean eraConsumidor = ConsumerStatus.esConsumidor(antes);
-    if (indicada == null) {
-      throw noProcesable(
-          "RN-SP-018",
-          "membershipId",
-          eraConsumidor
-              ? "La persona es consumidor y no tiene membresía: indíquela en esta misma operación."
-              : "Todo consumidor debe tener membresía: indíquela en esta misma operación.");
-    }
-    if (membresias.find(indicada).isEmpty()) {
-      throw noProcesable("EX-006", "membershipId", "La membresía indicada no existe.");
-    }
-    return true;
   }
 
   /**
@@ -392,6 +356,52 @@ public class AssignUserRolesService {
     return supervisorId;
   }
 
+  /**
+   * `VAL-009`. Dos roles vendedores en la misma petición se rechazan <b>enteros</b>.
+   *
+   * <p><b>No se resuelve aplicando uno y descartando el otro</b>, aunque el resultado sería válido:
+   * no hay orden que no viole `RN-SP-025` a mitad de camino, y elegir cuál gana sería <b>decidir
+   * por quien pidió la operación</b>. Mismo criterio que el rechazo parcial de `spec.md` §13.
+   */
+  private void verificarUnSoloVendedorPorPeticion(List<AssignableRole> vendedoresPedidos) {
+    if (vendedoresPedidos.size() > 1) {
+      // `422` y no `409`, por el criterio que separa las dos series en todo el
+      // módulo: `400` es lo que se decide mirando SOLO el cuerpo, y esto no —
+      // hay que resolver cada rol contra el catálogo para saber de qué tipo es.
+      // Y no es un conflicto con el estado como `RN-SEG-010`: la petición es
+      // inaplicable por sí sola, con independencia de qué porte la persona.
+      String mensaje = "Una persona no puede portar dos roles de tipo vendedor. Indique uno solo.";
+      throw new UnprocessableEntityException(
+          "VAL-009", mensaje, List.of(new FieldError("roleIds", "VAL-009", mensaje)));
+    }
+  }
+
+  /**
+   * El rol vendedor que <b>sale</b> al asignar otro (`RN-SP-025`).
+   *
+   * <p>Devuelve vacío en los dos casos en que no hay sustitución: cuando no se asigna ningún rol
+   * vendedor, y cuando <b>el que se asigna es el que ya porta</b> — ahí la operación es idempotente
+   * y no retira nada.
+   *
+   * <p><b>Se calcula sobre el catálogo previo y no sobre la petición</b>, porque lo que sale es un
+   * rol que la persona tiene y que nadie nombró: quien asciende a alguien pide `DIRECTOR`, no pide
+   * quitar `AGENTE`. Es exactamente el retiro que `spec.md` §4.2 declara como la única excepción a
+   * que esta operación solo agregue.
+   */
+  private Set<UUID> vendedorSaliente(
+      List<AssignableRole> catalogoPrevio, List<AssignableRole> vendedoresPedidos) {
+
+    if (vendedoresPedidos.isEmpty()) {
+      return Set.of();
+    }
+    UUID entrante = vendedoresPedidos.get(0).id();
+    return catalogoPrevio.stream()
+        .filter(AssignableRole::esVendedor)
+        .map(AssignableRole::id)
+        .filter(id -> !id.equals(entrante))
+        .collect(java.util.stream.Collectors.toCollection(java.util.LinkedHashSet::new));
+  }
+
   // ---------------------------------------------------------------------------
   // Auditoría
   // ---------------------------------------------------------------------------
@@ -411,8 +421,9 @@ public class AssignUserRolesService {
   private void auditar(
       User usuario,
       List<AssignableRole> resultantes,
+      List<AssignableRole> previos,
       Set<UUID> agregados,
-      UUID membresia,
+      Set<UUID> retirados,
       UUID superior) {
 
     if (!agregados.isEmpty()) {
@@ -425,19 +436,23 @@ public class AssignUserRolesService {
 
       Map<String, Object> cambio = new HashMap<>();
       cambio.put("added_roles", codigosAgregados);
+      // EL ROL QUE SALE, Y NO SOLO LOS QUE ENTRAN. La operación se llama
+      // «asignar» y desde `RN-SP-025` también retira; si el evento citara solo
+      // lo que entra, el rol retirado desaparecería sin que nada lo explicara.
+      // Los códigos salen de `previos` porque el saliente ya no está en
+      // `resultantes` — es justo el que se quitó.
+      if (!retirados.isEmpty()) {
+        cambio.put(
+            "removed_roles",
+            previos.stream()
+                .filter(rol -> retirados.contains(rol.id()))
+                .map(AssignableRole::code)
+                .sorted()
+                .toList());
+      }
       cambio.put("roles", codigos(resultantes));
       auditoria.recordChange(
           new ChangeEvent(MODULO, "user_roles", usuario.getId(), ChangeAction.UPDATE, cambio));
-    }
-
-    if (membresia != null) {
-      auditoria.recordChange(
-          new ChangeEvent(
-              MODULO,
-              "user_memberships",
-              usuario.getId(),
-              ChangeAction.CREATE,
-              Map.of("membership_id", membresia.toString())));
     }
 
     if (superior != null) {

@@ -10,6 +10,7 @@
 | Issue | Pendiente de crear |
 | Rama | `feature/estructura-comercial` |
 | Aprobadas por | Responsable técnico, 24-08-2026 |
+| Enmendadas | 10-09-2026 — filtro por roles y lista de roles por persona. Entran `T-12` a `T-17`; `T-04` deja de exigir que **ningún** filtro se aplique |
 
 ---
 
@@ -22,7 +23,7 @@ Sin migración, sin componentes de dominio y sin puertos nuevos: los dos índice
 | `T-01` | Ampliar `SupervisedTeamCounter` de `RF-SP-028` con la **lectura paginada** del equipo, **conservando el método de conteo tal cual** | — | Prueba de integración: el total de la lectura y el del conteo salen del **mismo** método; la lectura usa `ix_user_supervisors_supervisor_vigente` y no recorre la tabla | **En curso** |
 | `T-02` | `application/GetCommercialTeamQuery`: superior vigente, equipo directo paginado y total, **todo en una transacción de solo lectura** | `T-01` | Prueba con dobles: una sola transacción; el superior y el equipo no se leen por separado | **En curso** |
 | `T-03` | Ampliar `CommercialStructureResponse` de `RF-SP-041` con el equipo y su paginación, **sin duplicar el DTO** | `T-02` | Prueba de API: la parte de estructura es idéntica a la que devuelve `RF-SP-041`; `supervisor` va **ausente**, no en nulo, en la cúspide | **Hecha** |
-| `T-04` | `api/UserController`: `GET /api/v1/users/{id}/team` con `users:read`, `page` y `size`, **y ningún filtro** | `T-03` | Prueba de API: `size` por encima del máximo devuelve `400`; cualquier parámetro de filtro es ignorado o rechazado, nunca aplicado | **Hecha** |
+| `T-04` | `api/UserController`: `GET /api/v1/users/{id}/team` con `users:read-team`, `page` y `size` | `T-03` | Prueba de API: `size` por encima del máximo devuelve `400`. **La verificación cambió el 10-09-2026**: exigía que ningún filtro se aplicara, y el filtro por rol sí se aplica desde `T-15`; los demás siguen sin aplicarse | **Hecha** |
 | `T-05` | `FA-001` y `FA-002`: sin rol comercial devuelve estructura vacía con `200`; la cúspide omite el superior | `T-04` | Prueba de API: ninguno de los dos es un error, y se distinguen entre sí y de `404` | **Hecha** |
 | `T-06` | **Prueba cruzada del total** con `RF-SP-028`, `RF-SP-029` y `RF-SP-031` | `T-04` | Crea un equipo, lee el total por esta vía, intenta retirar el rol comercial a su responsable y comprueba que el número del rechazo es **el mismo** (`plan.md` §11) | **Hecha** |
 | `T-07` | Pruebas de lo que la respuesta **no** contiene: árbol descendente, conteo indirecto, historial de superiores, filtros y variante «mi equipo» | `T-04` | `CA-SP-449`, `CA-SP-450`, `CA-SP-453`, `CA-SP-454` y `CA-SP-455` en verde. Son las cinco que impiden adelantar D-22 | **Hecha** |
@@ -30,6 +31,12 @@ Sin migración, sin componentes de dominio y sin puertos nuevos: los dos índice
 | `T-09` | Pruebas de los casos límite de `spec.md` §13, con la **consulta durante una reasignación** como concurrente | `T-04` | Ve el estado anterior o el posterior, **nunca sin superior ni con dos**; el subordinado inactivo aparece y cuenta, el eliminado no aparece | **En curso** |
 | `T-10` | Documentación OpenAPI del endpoint: parámetros, respuesta `200` y los estados `400`, `401`, `403`, `404` y `500`. **Debe decir que el alcance es global** mientras D-22 siga abierta | `T-08` | El contrato publicado coincide con el comportamiento real (Art. VIII.6) | **Hecha** |
 | `T-11` | Actualizar la matriz de trazabilidad de `docs/requirements.md` | `T-08` | La fila de `RF-SP-042` refleja el estado y enlaza esta tripleta | **Hecha** |
+| `T-12` | **`CommercialStructureResponse.Person`**: `roleCode` sale y entra `roles` —`RoleRef` con identificador, código y nombre—, **siempre presente aunque vaya vacía** | — | El contrato publicado **ya no declara `roleCode`** en esta respuesta, y `roles` aparece en las cuatro personas que el DTO puede llevar | **Pendiente** |
+| `T-13` | **`JpaUserRepository`**: el equipo y su conteo aceptan **códigos de rol**, con `EXISTS` y nunca `JOIN`; **fuera la subconsulta del rol único** que solo miraba a los `VENDEDOR` | `T-12` | `CA-SP-627`: quien porta **dos** de los códigos pedidos aparece **una vez**, y el total lo cuenta una vez. Con `JOIN` esta prueba falla, y es la única que lo detecta | **Pendiente** |
+| `T-14` | **`GetCommercialTeamService`** y **`AssignSupervisorService`** resuelven los roles **por lote**, con el `rolesOf` que `RF-SP-025` ya usa | `T-13` | Una página de veinte no dispara veinte consultas de roles. `AssignSupervisorService` entra porque **comparte el DTO**: sin él, la reasignación devolvería personas sin roles | **Pendiente** |
+| `T-15` | **`UserController`**: parámetro `roles`, opcional y múltiple | `T-14` | `?roles=AGENTE,CLIENTE` y `?roles=AGENTE&roles=CLIENTE` significan lo mismo; sin el parámetro, el equipo sale entero | **Pendiente** |
+| `T-16` | Pruebas: `CA-SP-455` **invertido** y `CA-SP-624` a `CA-SP-628`. **`OpenApiContractIT` cambia de afirmación**: deja de exigir que no haya filtros y pasa a exigir que esté `roles` y **sigan sin estar** `search` ni `status` | `T-15` | La prueba del contrato dice lo que hoy es cierto. Dejarla como estaba **no habría fallado** —solo comprobaba `search` y `status`—, y por eso hay que ir a buscarla | **Pendiente** |
+| `T-17` | Contrato: la prosa de `@Operation` y el aviso de **ruptura** en `docs/api/index.md` | `T-15` | El esquema lo regenera `OpenApiContractIT`; la prosa **no se regenera de nada** y hoy dice «el rol comercial», que ya no es lo que sale. El frontend pierde un campo: se le anuncia, no se le deja descubrir | **Pendiente** |
 
 **Estados:** `Pendiente` · `En curso` · `Hecha` · `Bloqueada`.
 
@@ -44,6 +51,9 @@ graph LR
     T04 --> T09[T-09]
     T08 --> T10[T-10]
     T08 --> T11[T-11]
+    T12[T-12] --> T13[T-13] --> T14[T-14] --> T15[T-15]
+    T15 --> T16[T-16]
+    T15 --> T17[T-17]
 ```
 
 ## 3. Cobertura de los criterios de aceptación
@@ -63,7 +73,12 @@ graph LR
 | `CA-SP-452` | `T-04`, `T-08` |
 | `CA-SP-453` | `T-07` |
 | `CA-SP-454` | `T-07` |
-| `CA-SP-455` | `T-04`, `T-07` |
+| `CA-SP-455` | `T-04`, `T-07`, **`T-15`, `T-16`** — invertido |
+| `CA-SP-624` | `T-12`, `T-14`, `T-16` |
+| ~~`CA-SP-625`~~ → `CA-SP-710` | Invertido el 18-09-2026; lo rehace `RF-SP-059 · T-15` |
+| `CA-SP-626` | `T-13`, `T-15`, `T-16` |
+| `CA-SP-627` | `T-13`, `T-16` |
+| `CA-SP-628` | `T-13`, `T-15`, `T-16` |
 
 ## 4. Bloqueos
 
@@ -108,8 +123,9 @@ El requerimiento no está terminado hasta cumplir **todas** las condiciones de l
 - [ ] Todos los criterios de aceptación con prueba automatizada en verde. — falta la consulta durante una reasignación.
 - [x] `mvn verify` en verde en local. — 99 unitarias y 326 de integración, 24-08-2026.
 - [x] Toda escritura emite su evento de auditoría, en la transacción que corresponde. — no escribe: es una consulta.
-- [x] Los endpoints nuevos declaran su permiso. — `users:read`. **El alcance es global** mientras D-22 siga abierta, y el contrato lo dice.
-- [x] El contrato OpenAPI coincide con el comportamiento real. — `OpenApiContractIT` fija el `GET` y la **ausencia** de parámetros de filtro.
+- [x] Los endpoints nuevos declaran su permiso. — `users:read-team`. **El alcance es global** mientras D-22 siga abierta, y el contrato lo dice.
+- [x] El contrato OpenAPI coincide con el comportamiento real. — `OpenApiContractIT` fija el `GET`, y desde el **10-09-2026** fija **el filtro `roles` y la ausencia de los demás**, en lugar de la ausencia de todos. **La prosa se reescribió a mano**: el esquema se regenera solo y la prosa no.
+- [x] **El cambio ROMPEDOR se anuncia.** `roleCode` desaparece del cuerpo de esta respuesta y de la de `RF-SP-041`; queda escrito en `docs/api/index.md` para que el frontend no lo descubra al regenerar su cliente.
 - [x] Documentación afectada actualizada en el mismo Pull Request. — `requirements.md` v0.39.0.
 - [x] Matriz de trazabilidad actualizada.
 - [ ] Pull Request aprobado por alguien distinto del autor e integrado.

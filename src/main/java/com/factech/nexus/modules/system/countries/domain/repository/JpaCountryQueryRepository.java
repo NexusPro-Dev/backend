@@ -21,7 +21,7 @@ import org.springframework.transaction.annotation.Transactional;
  *
  * <p><b>El orden alfabético no aparece en esta clase, y es deliberado.</b> {@code ORDER BY name} a
  * secas ordena bien porque la <b>columna</b> declara la intercalación {@code es-x-icu}
- * (`V16__create_countries.sql`). La API de criterios no puede expresar {@code COLLATE} —tampoco
+ * (`V3__sp_catalogos.sql`). La API de criterios no puede expresar {@code COLLATE} —tampoco
  * Hibernate 6—, de modo que si el orden dependiera de la sentencia habría que abandonarla por una
  * consulta nativa. Con la intercalación en la columna, el orden correcto es el comportamiento por
  * omisión.
@@ -91,7 +91,7 @@ public class JpaCountryQueryRepository implements CountryQueryRepository {
     }
 
     return consulta.getResultList().stream()
-        // `char(2)` rellena con espacios al leerse; se recorta en el único punto
+        // `char(3)` rellena con espacios al leerse; se recorta en el único punto
         // por el que el código sale hacia la API.
         .map(
             item ->

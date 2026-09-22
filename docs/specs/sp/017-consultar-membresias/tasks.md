@@ -39,6 +39,7 @@ Sin migración y sin `domain`: una sentencia sobre una proyección. La decisión
 | `T-08` | Pruebas del resto de casos límite de `spec.md` §13 y de `plan.md` §11: una sola membresía, búsqueda no contigua, búsqueda vacía, orden estable y coherencia con el detalle de `RF-SP-018` | `T-05` | Una sola membresía devuelve ambos vecinos **nulos y presentes**; una búsqueda que casa con la primera y la tercera devuelve `level` `1` y `3`, sin rellenar el hueco | En curso |
 | `T-09` | Documentación OpenAPI del endpoint: el parámetro de búsqueda, la respuesta `200` con `content` y los estados `401`, `403` y `500` | `T-07` | El contrato publicado coincide con el comportamiento real (Art. VIII.6), y documenta que la colección **no** se pagina | Hecha |
 | `T-10` | Actualizar la matriz de trazabilidad de `docs/requirements.md` | `T-07` | La fila de `RF-SP-017` refleja el estado y enlaza esta tripleta | Hecha |
+| `T-11` | `MembershipItem` y la consulta del listado incorporan `color` | `RF-SP-016 · T-21` | Prueba de integración: el listado trae el color de cada membresía, en mayúsculas (`CA-SP-490`) | Hecha |
 
 **Estados:** `Pendiente` · `En curso` · `Hecha` · `Bloqueada`.
 

@@ -14,6 +14,7 @@ import com.factech.nexus.shared.error.BusinessRuleException;
 import com.factech.nexus.shared.error.FieldError;
 import com.factech.nexus.shared.error.ResourceNotFoundException;
 import com.factech.nexus.shared.error.ValidationException;
+import com.factech.nexus.shared.security.AccessRevocationPublisher;
 import com.factech.nexus.shared.security.PasswordHasher;
 import com.factech.nexus.shared.security.PasswordPolicy;
 import com.factech.nexus.shared.security.SessionRevoker;
@@ -61,6 +62,7 @@ public class ResetUserPasswordService {
   private final PasswordPolicy politica;
   private final PasswordHasher hasher;
   private final SessionRevoker sesiones;
+  private final AccessRevocationPublisher cortes;
   private final AuthenticatedActor actor;
   private final AuditWriter auditoria;
   private final Duration vigencia;
@@ -72,10 +74,20 @@ public class ResetUserPasswordService {
       PasswordPolicy politica,
       PasswordHasher hasher,
       SessionRevoker sesiones,
+      AccessRevocationPublisher cortes,
       AuthenticatedActor actor,
       AuditWriter auditoria,
       @Value("${nexus.security.password.provisional-ttl:PT48H}") Duration vigencia) {
-    this(usuarios, politica, hasher, sesiones, actor, auditoria, vigencia, Clock.systemUTC());
+    this(
+        usuarios,
+        politica,
+        hasher,
+        sesiones,
+        cortes,
+        actor,
+        auditoria,
+        vigencia,
+        Clock.systemUTC());
   }
 
   ResetUserPasswordService(
@@ -83,6 +95,7 @@ public class ResetUserPasswordService {
       PasswordPolicy politica,
       PasswordHasher hasher,
       SessionRevoker sesiones,
+      AccessRevocationPublisher cortes,
       AuthenticatedActor actor,
       AuditWriter auditoria,
       Duration vigencia,
@@ -91,6 +104,7 @@ public class ResetUserPasswordService {
     this.politica = politica;
     this.hasher = hasher;
     this.sesiones = sesiones;
+    this.cortes = cortes;
     this.actor = actor;
     this.auditoria = auditoria;
     this.vigencia = vigencia;
@@ -136,6 +150,13 @@ public class ResetUserPasswordService {
     // revierte antes que dejar viva una sesión con la credencial que se acaba de
     // sustituir.
     sesiones.revokeAllForAccessChange(userId);
+
+    // El corte del token de acceso va por fuera y DESPUÉS del commit
+    // (`RF-SP-028` `plan.md` §7). Sin él, el token que la persona tenía abierto
+    // con la contraseña anterior sigue sirviendo hasta quince minutos, que es
+    // justo la ventana que este requerimiento existe para cerrar cuando se
+    // sospecha que la credencial está comprometida.
+    cortes.publicarCorte(userId);
 
     auditar(usuario, caduca);
   }
