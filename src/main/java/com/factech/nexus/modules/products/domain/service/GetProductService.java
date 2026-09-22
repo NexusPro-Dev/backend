@@ -32,14 +32,17 @@ public class GetProductService {
   private final DeletionReasonReader motivos;
 
   private final ProductExchangeResolver conversiones;
+  private final ProductLinkReader enlaces;
 
   public GetProductService(
       ProductQueryRepository consultas,
       DeletionReasonReader motivos,
-      ProductExchangeResolver conversiones) {
+      ProductExchangeResolver conversiones,
+      ProductLinkReader enlaces) {
     this.conversiones = conversiones;
     this.consultas = consultas;
     this.motivos = motivos;
+    this.enlaces = enlaces;
   }
 
   @Transactional(readOnly = true)
@@ -65,6 +68,9 @@ public class GetProductService {
     // en lugar de una forma aparte que pueda divergir (`CA-PM-166`).
     return ProductDetailResponse.from(
         fila,
+        // Crudos y con el CUPON_BOT dentro: es la lectura de administración, y lo
+        // sigue siendo en un producto retirado (`RN-PM-050`, `CA-PM-387`).
+        enlaces.crudosDe(fila.id()),
         motivo,
         // La conversión se calcula sobre `price`, nunca sobre el precio de
         // compra (`RN-PM-024`, 12-09-2026).

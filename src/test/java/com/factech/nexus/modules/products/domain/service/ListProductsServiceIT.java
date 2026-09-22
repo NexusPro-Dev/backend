@@ -74,7 +74,7 @@ class ListProductsServiceIT extends IntegrationTestBase {
   }
 
   @Test
-  @DisplayName("`T-05` y `CA-PM-165` — TRES sentencias sin filtros, y ninguna por fila")
+  @DisplayName("`T-05` y `CA-PM-165` — CUATRO sentencias sin filtros, y ninguna por fila")
   void tresSentenciasSinFiltros() {
     sembrar(5);
     estadisticas.clear();
@@ -82,13 +82,15 @@ class ListProductsServiceIT extends IntegrationTestBase {
     ProductPageResponse pagina = service.list(peticion(null, null, null));
 
     assertThat(pagina.content()).hasSize(5);
-    // TRES y no trece: la página, su conteo y la moneda de casa. Las tasas no
-    // se piden porque los cinco productos están en la moneda por omisión y no
-    // hay nada que convertir; con monedas distintas sería UNA más, nunca una
-    // por fila. El destino y la moneda viajan en el LEFT JOIN de la misma
-    // consulta, y resolver cualquiera de esas cosas fila a fila daría una
-    // consulta por producto con el JSON idéntico (`CA-PM-165`).
-    assertThat(estadisticas.getPrepareStatementCount()).isEqualTo(3);
+    // CUATRO y no catorce: la página, su conteo, la moneda de casa y LOS
+    // ENLACES de los cinco productos —una sola, con `IN` sobre los
+    // identificadores ya resueltos (`RN-PM-048`, desde el 22-09-2026)—. Las
+    // tasas no se piden porque los cinco productos están en la moneda por
+    // omisión y no hay nada que convertir; con monedas distintas sería UNA
+    // más, nunca una por fila. El destino y la moneda viajan en el LEFT JOIN
+    // de la misma consulta, y resolver cualquiera de esas cosas fila a fila
+    // daría una consulta por producto con el JSON idéntico (`CA-PM-165`).
+    assertThat(estadisticas.getPrepareStatementCount()).isEqualTo(4);
   }
 
   @Test
@@ -122,7 +124,7 @@ class ListProductsServiceIT extends IntegrationTestBase {
                 true));
 
     assertThat(pagina.content()).hasSize(1);
-    assertThat(estadisticas.getPrepareStatementCount()).isEqualTo(3);
+    assertThat(estadisticas.getPrepareStatementCount()).isEqualTo(4);
   }
 
   @Test

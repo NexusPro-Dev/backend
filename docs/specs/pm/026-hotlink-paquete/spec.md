@@ -9,6 +9,7 @@
 | Aprobada por | — |
 | Fecha de aprobación | — |
 | Enmendada el | 16-09-2026 — **el paquete publica `coverImageUrl`, la dirección de su portada, sin token** (`RN-PM-045`, `RF-PM-028`). Ver §15 |
+| Enmendada el | 22-09-2026 — **`links` sustituye a `videoUrl` en cada producto, resuelto y sin el `CUPON_BOT`** (`RN-PM-048` a `RN-PM-050`), **heredado de `RF-PM-008` sin decidir nada**. Ver §15 |
 | Enmendada el | 16-09-2026 — **el paquete publica `validFrom` y `validTo`, y fuera de su vigencia recibe el mismo `404`** (`RN-PM-047`). Ver §15 |
 
 ---
@@ -58,7 +59,8 @@ Es `RF-PM-008` aplicado al paquete, y **hereda sus decisiones enteras**: el `404
 | `RN-PM-039` | **El paquete no se ofrece si algo suyo dejó de poderse comprar** — aquí, **no se resuelve** | `requirements/pm.md` §5.1 |
 | `RN-PM-040` | Un paquete son al menos dos productos — el que quedó con menos después de activarse tampoco se resuelve | `requirements/pm.md` §5.1 |
 | `RN-PM-043` | **La cuenta viaja hecha y sin el costo de nadie**: `purchasePrice` no se selecciona | `requirements/pm.md` §5.1 |
-| `RN-PM-031`, `RN-PM-032`, `RN-PM-033` | De cada producto salen `rating`, `videoUrl` y `coverImageUrl`, como en el hotlink del producto | `requirements/pm.md` §5.1 |
+| `RN-PM-031`, `RN-PM-032`, `RN-PM-033` | De cada producto salen `rating`, sus **enlaces** y `coverImageUrl`, como en el hotlink del producto (22-09-2026: era `videoUrl`) | `requirements/pm.md` §5.1 |
+| `RN-PM-048` a `RN-PM-050` | **Los enlaces de cada producto, resueltos y sin el `CUPON_BOT`** — **exactamente lo que publica `RF-PM-008`**, y por sus mismos motivos: esta ficha no decide nada aquí, hereda. Sigue siendo una ruta **sin token** | `requirements/pm.md` §5.1 |
 | `RN-PM-047` | **(Desde el 16-09-2026)** Fuera de su vigencia el paquete se oculta — aquí, **no se resuelve**, con el mismo `404`; y las fechas viajan | `requirements/pm.md` §5.1 |
 | `RN-SP-032` | Dos tasas vigentes del mismo par no se solapan | `requirements/sp.md` §5.2 |
 
@@ -79,7 +81,7 @@ Es `RF-PM-008` aplicado al paquete, y **hereda sus decisiones enteras**: el `404
 |---|---|
 | Vendedor | **Nombre y apellido**, y nada más |
 | Paquete | Código, nombre, descripción, **`coverImageUrl`** (desde el 16-09-2026: la dirección de la portada del paquete, servida por `RF-PM-016` **sin token** como la del producto; **presente y nula** cuando no hay — `RN-PM-045`), **`validFrom` y `validTo`** (desde el 16-09-2026: la vigencia, el fin presente y nulo cuando es indefinido — `RN-PM-047`; quien abre el enlace ve hasta cuándo vale), moneda (`code`, `decimalPlaces`) |
-| `items` | Un elemento por producto, en el orden en que se asociaron: `product` —**exactamente lo que el hotlink del producto publica**: identificador, código, tipo, nombre, descripción, icono, `videoUrl`, `coverImageUrl`, vigencia, membresía destino recortada a código, nombre y color, `price`, moneda y `rating`—, `discount` (`type`, `value`) y **`priceInPackage`** |
+| `items` | Un elemento por producto, en el orden en que se asociaron: `product` —**exactamente lo que el hotlink del producto publica**: identificador, código, tipo, nombre, descripción, icono, `links` —resueltos y sin el `CUPON_BOT` (22-09-2026; era `videoUrl`)—, `coverImageUrl`, vigencia, membresía destino recortada a código, nombre y color, `price`, moneda y `rating`—, `discount` (`type`, `value`) y **`priceInPackage`** |
 | `listPrice` | Σ `product.price` |
 | `price` | Σ `priceInPackage` — **lo que costaría el paquete** |
 | `savings` | `listPrice − price` |
@@ -152,7 +154,8 @@ Es `RF-PM-008` aplicado al paquete, y **hereda sus decisiones enteras**: el `404
 | `CA-PM-329` | El sistema responde **el mismo `404`** cuando un producto del paquete está **inactivo** o **retirado** (`RN-PM-039`), y **vuelve a resolver** el enlace cuando ese producto se reactiva |
 | `CA-PM-330` | El sistema responde **el mismo `404`** cuando el paquete, activo, quedó con **menos de dos** productos por una desasociación posterior |
 | `CA-PM-331` | La respuesta **no lleva** `purchasePrice` en ningún nivel, ni `status` de los productos, ni correo, identificador, estado o roles del vendedor |
-| `CA-PM-332` | Cada producto del paquete lleva **lo mismo que el hotlink del producto**: `rating`, `videoUrl`, `coverImageUrl`, y en un upgrade la membresía destino con **código, nombre y color** y sin nivel |
+| `CA-PM-332` | Cada producto del paquete lleva **lo mismo que el hotlink del producto**: `rating`, `links`, `coverImageUrl`, y en un upgrade la membresía destino con **código, nombre y color** y sin nivel. **Reescrito el 22-09-2026**: hasta ese día `links` era el campo `videoUrl` |
+| `CA-PM-398` | Un paquete que contiene un producto con **los dos** enlaces lo publica **solo con el video, resuelto**: el `CUPON_BOT` **no aparece en el cuerpo entero**. Es `CA-PM-396` sobre el paquete, y se prueba aparte porque **la sentencia es otra** — la del paquete, no la del producto |
 | `CA-PM-333` | La ruta comparte la **cota por origen** del hotlink del producto: agotarla con un enlace de producto deja en `429` el enlace de un paquete desde el mismo origen, y al revés |
 | `CA-PM-334` | El sistema devuelve la **tasa aplicada** y el **importe convertido de `price`** cuando hay tasa vigente; `exchange` **vacía y presente** cuando no la hay o el paquete ya está en la moneda de casa; y **lo mismo** con un token válido que sin él |
 | `CA-PM-379` | El paquete publica **`validFrom` y `validTo`**, sin token, el fin presente y nulo; y el sistema responde **el mismo `404`** cuando la vigencia **empieza mañana** o **terminó ayer**, y **resuelve** cuando termina hoy (16-09-2026) |
@@ -186,3 +189,4 @@ Es `RF-PM-008` aplicado al paquete, y **hereda sus decisiones enteras**: el `404
 | 0.2.0 | 15-09-2026 | **Construida** (`PackageHotlinkIT`, `RateLimitIT`, `EndpointPermissionsIT`). Enmienda de Art. I.7 al construir: **el alcance publicable es `HOTLINK` o `AMBOS`** ([`requirements/pm.md`](../../../requirements/pm.md) v0.35.0 §5.2.11; `TIENDA` y `NINGUNO` responden el `404` uniforme). Lo que §14.4 anunció se confirmó al escribir la prueba sin token: **`SecurityConfig.RUTAS_PUBLICAS` gana `/api/v1/hotlinks/*/packages/*`**, al lado del patrón de dos segmentos y no en su lugar. El cuerpo del `404` se compara con el del hotlink del producto ignorando `instance` y `correlationId`, que son por petición. | Responsable técnico |
 | 0.3.0 | 16-09-2026 | **El paquete publica `coverImageUrl`, la dirección de su portada, sin token** (`RN-PM-045`, [`requirements/pm.md`](../../../requirements/pm.md) v0.37.0 §5.2.12): la sirve `RF-PM-016`, la misma ruta que la del producto, de modo que la pantalla del hotlink la pinta con un `<img>` y ninguna credencial más. Presente y nula cuando no hay. `CA-PM-369`. Enmienda que construye `RF-PM-028` (Art. I.7). | Responsable del proyecto |
 | 0.4.0 | 16-09-2026 | **El paquete publica `validFrom` y `validTo`, y fuera de su vigencia recibe el mismo `404`** (`RN-PM-047`, [`requirements/pm.md`](../../../requirements/pm.md) v0.39.0 §5.2.13): un motivo más de `RN-PM-039`, y el hotlink no distingue motivos — la uniformidad del `404` es la misma decisión de seguridad de siempre. `CA-PM-379`. | Responsable del proyecto |
+| 0.5.0 | 22-09-2026 | **`links` sustituye a `videoUrl` en cada producto del paquete, resuelto y sin el `CUPON_BOT`** (`RN-PM-048` a `RN-PM-050`, [`requirements/pm.md`](../../../requirements/pm.md) v0.43.0 §5.2.14). **Esta ficha no decide nada**: hereda de `RF-PM-008` lo que aquella decidió, como hereda el resto de lo que publica de un producto sin token. Lo único propio es **que la sentencia es otra** —la del paquete, no la del hotlink del producto—, de modo que **el filtro que impide publicar el cupón queda escrito dos veces**, una por consulta; y una copia que se olvide **no falla, publica**. Por eso nace **`CA-PM-398`** en lugar de confiar en `CA-PM-396`, y `CA-PM-332` se **reescribe**. Enmienda de Art. I.7. | Responsable del proyecto |

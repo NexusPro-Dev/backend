@@ -5,6 +5,7 @@ import com.factech.nexus.modules.movements.application.MyProductsRequest;
 import com.factech.nexus.modules.movements.application.PurchasedProductState;
 import com.factech.nexus.modules.movements.domain.repository.MovementRepository;
 import com.factech.nexus.modules.movements.domain.repository.MovementRepository.MyProductRow;
+import com.factech.nexus.modules.products.application.ProductCatalog;
 import com.factech.nexus.modules.system.roles.application.AuthenticatedActor;
 import com.factech.nexus.shared.error.FieldError;
 import com.factech.nexus.shared.error.ValidationException;
@@ -15,6 +16,8 @@ import java.time.OffsetDateTime;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
+import java.util.Map;
+import java.util.UUID;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -35,22 +38,28 @@ public class ListMyProductsService {
   private final MovementRepository movimientos;
   private final AuthenticatedActor actor;
   private final Pagination paginacion;
+  private final ProductCatalog catalogo;
   private final Clock reloj;
 
   @Autowired
   public ListMyProductsService(
-      MovementRepository movimientos, AuthenticatedActor actor, Pagination paginacion) {
-    this(movimientos, actor, paginacion, Clock.systemUTC());
+      MovementRepository movimientos,
+      AuthenticatedActor actor,
+      Pagination paginacion,
+      ProductCatalog catalogo) {
+    this(movimientos, actor, paginacion, catalogo, Clock.systemUTC());
   }
 
   ListMyProductsService(
       MovementRepository movimientos,
       AuthenticatedActor actor,
       Pagination paginacion,
+      ProductCatalog catalogo,
       Clock reloj) {
     this.movimientos = movimientos;
     this.actor = actor;
     this.paginacion = paginacion;
+    this.catalogo = catalogo;
     this.reloj = reloj;
   }
 
@@ -64,8 +73,21 @@ public class ListMyProductsService {
         movimientos.findMyProducts(actor.id(), estado, ahora, pagina.offset(), pagina.size());
     long total = movimientos.countMyProducts(actor.id(), estado, ahora);
 
+    // Los cupones de la pagina en UNA llamada a `PM`, y SOLO de los productos
+    // cuyas lineas estan entregadas: al de una linea pendiente ni siquiera se
+    // pregunta, de modo que no hay nada que filtrar despues (`RN-MV-032`,
+    // `CA-MV-141`, `CA-MV-142`).
+    Map<UUID, String> cupones =
+        catalogo.couponLinksOf(
+            filas.stream()
+                .filter(f -> PurchasedProductState.valueOf(f.state()).estaEntregado())
+                .map(MyProductRow::productId)
+                .distinct()
+                .toList());
+
     List<MyProductResponse> contenido = new ArrayList<>(filas.size());
     for (MyProductRow fila : filas) {
+      PurchasedProductState estadoLinea = PurchasedProductState.valueOf(fila.state());
       contenido.add(
           new MyProductResponse(
               fila.movementId(),
@@ -75,11 +97,15 @@ public class ListMyProductsService {
                   fila.productId(), fila.productCode(), fila.productName()),
               fila.quantity(),
               fila.implementation(),
-              PurchasedProductState.valueOf(fila.state()),
+              estadoLinea,
               fila.purchasedAt(),
               fila.deliveredAt(),
               fila.validUntil(),
-              fila.deliveryNote()));
+              fila.deliveryNote(),
+              // El mapa solo tiene a los entregados, pero la condicion se repite
+              // aqui a proposito: leerla junto al campo es lo que hace que
+              // nadie la pierda al tocar la linea de arriba.
+              estadoLinea.estaEntregado() ? cupones.get(fila.productId()) : null));
     }
     return PageResponse.de(contenido, total, pagina.page(), pagina.size());
   }

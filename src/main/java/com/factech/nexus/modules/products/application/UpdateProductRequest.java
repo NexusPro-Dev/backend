@@ -5,7 +5,9 @@ import com.factech.nexus.modules.products.domain.models.ProductScope;
 import com.factech.nexus.shared.patch.Patchable;
 import com.factech.nexus.shared.patch.PatchableDeserializer;
 import com.fasterxml.jackson.databind.annotation.JsonDeserialize;
+import jakarta.validation.Valid;
 import java.math.BigDecimal;
+import java.util.List;
 import java.util.UUID;
 
 /**
@@ -28,9 +30,11 @@ import java.util.UUID;
  * valor distinto de nulo se rechaza con `VAL-013` — `RN-PM-016` no admite excepción por venir en un
  * `PATCH`.
  *
- * <p><b>El enlace del video se corrige y SÍ admite vaciarse</b> (`RN-PM-032`, 14-09-2026), con nulo
- * explícito o con cadena vacía, como el icono — y al revés que el icono, <b>en los dos tipos</b>:
- * no hay condición cruzada que lo acompañe. La forma se comprueba en el dominio con `VAL-009`.
+ * <p><b>Los enlaces se corrigen EN BLOQUE</b> (`RN-PM-048`, 22-09-2026), y ahí se apartan de todo
+ * lo demás de este cuerpo: la colección que llega <b>es la que queda</b>, de modo que un tipo que
+ * no viene se borra. Vivieron como el campo `videoUrl` entre el 14-09-2026 y esa fecha, cuando el
+ * producto tenía UN enlace y no enlaces con tipo. La forma de cada uno se comprueba en el dominio,
+ * con los códigos de esta operación (`VAL-009` y `VAL-016` a `VAL-018`).
  *
  * <p><b>No se vuelve a intentar con {@code Optional}</b>: falló en `RF-SP-027` y falló en silencio,
  * porque Jackson entrega {@code Optional.empty()} tanto para el campo ausente como para el nulo
@@ -52,7 +56,20 @@ public record UpdateProductRequest(
     @JsonDeserialize(using = PatchableDeserializer.class) Patchable<String> name,
     @JsonDeserialize(using = PatchableDeserializer.class) Patchable<String> description,
     @JsonDeserialize(using = PatchableDeserializer.class) Patchable<String> icon,
-    @JsonDeserialize(using = PatchableDeserializer.class) Patchable<String> videoUrl,
+    /**
+     * Los enlaces del producto, <b>en bloque</b> (`RN-PM-048`).
+     *
+     * <p>Es el primer campo de este módulo que se corrige entero y no uno a uno, y conserva los
+     * tres estados de {@link Patchable} con un significado que aquí vale <b>para el conjunto</b>:
+     * <b>ausente</b> no toca ningún enlace; <b>nula o vacía</b> los quita todos —la vacía va con la
+     * nula, como {@code ""} iba con el nulo en el campo {@code videoUrl} que esto sustituye—; y
+     * <b>con entradas</b>, la colección que llega <b>es la que queda</b>.
+     *
+     * <p>El coste está escrito y aceptado: quien mande un solo enlace <b>borra el otro sin haberlo
+     * nombrado</b> (`CA-PM-390`).
+     */
+    @JsonDeserialize(using = PatchableDeserializer.class) @Valid
+        Patchable<List<ProductLinkRequest>> links,
     @JsonDeserialize(using = PatchableDeserializer.class) Patchable<BigDecimal> price,
     @JsonDeserialize(using = PatchableDeserializer.class) Patchable<BigDecimal> purchasePrice,
     @JsonDeserialize(using = PatchableDeserializer.class) Patchable<UUID> currencyId,
@@ -75,7 +92,7 @@ public record UpdateProductRequest(
     name = name == null ? Patchable.ausente() : name;
     description = description == null ? Patchable.ausente() : description;
     icon = icon == null ? Patchable.ausente() : icon;
-    videoUrl = videoUrl == null ? Patchable.ausente() : videoUrl;
+    links = links == null ? Patchable.ausente() : links;
     price = price == null ? Patchable.ausente() : price;
     purchasePrice = purchasePrice == null ? Patchable.ausente() : purchasePrice;
     currencyId = currencyId == null ? Patchable.ausente() : currencyId;
@@ -101,7 +118,7 @@ public record UpdateProductRequest(
     return name.presente()
         || description.presente()
         || icon.presente()
-        || videoUrl.presente()
+        || links.presente()
         || price.presente()
         || purchasePrice.presente()
         || currencyId.presente()

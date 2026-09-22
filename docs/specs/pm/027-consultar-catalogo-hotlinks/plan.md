@@ -36,7 +36,8 @@
 `GET /api/v1/products/hotlinks` — `products:hotlink`. Sin parámetros. `200` con `HotlinkCatalogResponse`.
 
 - **`HotlinkCatalogResponse` y no `OfferResponse`**: la oferta lleva `currentMembership` y aquí no hay ninguna; publicar la forma de la oferta con ese campo siempre nulo diría que a veces no lo es.
-- **`OfferItem` tal cual**: es la forma de venta —`price`, `exchange`, `videoUrl`, `coverImageUrl`, `rating`, sin `purchasePrice`—, y un vendedor y un comprador miran el mismo producto.
+- **`OfferItem` tal cual**: es la forma de venta —`price`, `exchange`, **`links`** (22-09-2026; era `videoUrl`), `coverImageUrl`, `rating`, sin `purchasePrice`—, y un vendedor y un comprador miran el mismo producto.
+- **Y por reutilizar `OfferItem`, los enlaces llegan ya resueltos y ya sin el cupón** (`RN-PM-048` a `RN-PM-050`): esta lectura **no vuelve a decidirlo**, y ese es justo el valor de compartir la proyección. **Tener token no la convierte en administración**: quien reparte hotlinks no administra el catálogo, de modo que ve lo que ve quien abre el enlace — `CA-PM-399` lo fija para que nadie lo «mejore» añadiendo el cupón al vendedor.
 - **La ruta es un segmento literal bajo `/products`**, como `/available`: Spring resuelve el literal antes que `/{id}`, es correcto, y por eso mismo tiene prueba (`CA-PM-346`).
 - **`security`**: el esquema global; la ruta exige token. **La prosa de la `@Operation` dice tres cosas**: que no mira la membresía de quien llama, que no trae el enlace armado y cómo se compone, y que los paquetes llegarán con `RF-PM-026`.
 

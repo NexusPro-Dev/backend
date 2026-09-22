@@ -5,6 +5,7 @@ import com.factech.nexus.modules.products.application.OfferPackageItem;
 import com.factech.nexus.modules.products.application.OfferResponse;
 import com.factech.nexus.modules.products.application.PackageDetailResponse;
 import com.factech.nexus.modules.products.application.ProductImageUrls;
+import com.factech.nexus.modules.products.application.ProductLinkResponse;
 import com.factech.nexus.modules.products.application.ProductResponse;
 import com.factech.nexus.modules.products.domain.models.PackageOfferability;
 import com.factech.nexus.modules.products.domain.models.PackagePricing;
@@ -21,6 +22,7 @@ import java.time.Clock;
 import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import java.util.UUID;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -64,6 +66,7 @@ public class GetOwnOfferService {
   private final CurrentActor actor;
 
   private final ProductExchangeResolver conversiones;
+  private final ProductLinkReader enlaces;
   private final Clock reloj;
 
   @Autowired
@@ -72,8 +75,9 @@ public class GetOwnOfferService {
       ProductPackageQueryRepository paquetes,
       CurrentMembershipLookup membresias,
       CurrentActor actor,
-      ProductExchangeResolver conversiones) {
-    this(consultas, paquetes, membresias, actor, conversiones, Clock.systemUTC());
+      ProductExchangeResolver conversiones,
+      ProductLinkReader enlaces) {
+    this(consultas, paquetes, membresias, actor, conversiones, enlaces, Clock.systemUTC());
   }
 
   GetOwnOfferService(
@@ -82,12 +86,14 @@ public class GetOwnOfferService {
       CurrentMembershipLookup membresias,
       CurrentActor actor,
       ProductExchangeResolver conversiones,
+      ProductLinkReader enlaces,
       Clock reloj) {
     this.consultas = consultas;
     this.paquetes = paquetes;
     this.membresias = membresias;
     this.actor = actor;
     this.conversiones = conversiones;
+    this.enlaces = enlaces;
     this.reloj = reloj;
   }
 
@@ -146,8 +152,23 @@ public class GetOwnOfferService {
     ofrecibles.forEach(p -> monedas.add(p.paquete().currencyId()));
     ProductExchangeResolver.Conversor conversor = conversiones.para(monedas);
 
+    // Los enlaces de TODA la oferta —los productos sueltos Y los de dentro de
+    // los paquetes— en UNA sentencia, por lo mismo que la conversión de arriba:
+    // el cuerpo sería idéntico pidiéndolos uno a uno, y solo se ve contando
+    // sentencias. Publicables: el CUPON_BOT no sale de la base —el tipo va en el
+    // predicado— y `OfferItem` no tiene dónde ponerlo (`RN-PM-050`, `CA-PM-394`).
+    List<UUID> productosDeLaOferta = new ArrayList<>(filas.stream().map(ProductRow::id).toList());
+    ofrecibles.forEach(
+        p -> p.items().forEach(linea -> productosDeLaOferta.add(linea.producto().id())));
+    Map<UUID, List<ProductLinkResponse>> enlacesDeLaOferta =
+        enlaces.publicablesDe(productosDeLaOferta);
+
     for (ProductRow fila : filas) {
-      OfferItem producto = OfferItem.from(fila, conversor.de(fila.currencyId(), fila.price()));
+      OfferItem producto =
+          OfferItem.from(
+              fila,
+              enlacesDeLaOferta.getOrDefault(fila.id(), List.of()),
+              conversor.de(fila.currencyId(), fila.price()));
       if (producto.type() == ProductType.UPGRADE_MEMBRESIA) {
         upgrades.add(producto);
       } else {
@@ -159,7 +180,7 @@ public class GetOwnOfferService {
         actual.map(GetOwnOfferService::referencia).orElse(null),
         upgrades,
         bots,
-        ofrecibles.stream().map(p -> paquete(p, conversor)).toList());
+        ofrecibles.stream().map(p -> paquete(p, enlacesDeLaOferta, conversor)).toList());
   }
 
   /**
@@ -174,7 +195,9 @@ public class GetOwnOfferService {
   }
 
   private static OfferPackageItem paquete(
-      PublishedPackage publicado, ProductExchangeResolver.Conversor conversor) {
+      PublishedPackage publicado,
+      Map<UUID, List<ProductLinkResponse>> enlacesDeLaOferta,
+      ProductExchangeResolver.Conversor conversor) {
     PackagePricing cuenta = publicado.precio();
     UUID moneda = publicado.paquete().currencyId();
     int decimales = publicado.paquete().currencyDecimalPlaces();
@@ -194,7 +217,9 @@ public class GetOwnOfferService {
                         // mismo conversor: todas las líneas están en la moneda
                         // del paquete.
                         OfferItem.from(
-                            linea.producto(), conversor.de(moneda, linea.producto().price())),
+                            linea.producto(),
+                            enlacesDeLaOferta.getOrDefault(linea.producto().id(), List.of()),
+                            conversor.de(moneda, linea.producto().price())),
                         new PackageDetailResponse.DiscountRef(
                             linea.descuento().getType(),
                             linea.descuento().valorEnEscala(decimales)),

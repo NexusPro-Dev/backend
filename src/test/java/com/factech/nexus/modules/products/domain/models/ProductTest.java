@@ -86,7 +86,6 @@ class ProductTest {
                     null,
                     null,
                     null,
-                    null,
                     DESTINO,
                     new BigDecimal("49.99"),
                     null,
@@ -116,7 +115,6 @@ class ProductTest {
             "Ascenso mensual",
             null,
             "crown",
-            null,
             ORIGEN,
             DESTINO,
             new BigDecimal("19.99"),
@@ -140,7 +138,6 @@ class ProductTest {
             ProductType.BOT,
             "  Asesoría personalizada  ",
             "   ",
-            null,
             null,
             null,
             null,
@@ -223,7 +220,6 @@ class ProductTest {
             null,
             null,
             null,
-            null,
             new BigDecimal("49.99"),
             null,
             MONEDA,
@@ -274,7 +270,6 @@ class ProductTest {
             "Ascenso a Oro",
             "Sube al nivel oro.",
             "crown",
-            null,
             ORIGEN,
             DESTINO,
             new BigDecimal("49.99"),
@@ -332,7 +327,6 @@ class ProductTest {
             Patchable.de("Asesoría"),
             Patchable.ausente(),
             Patchable.ausente(),
-            Patchable.ausente(),
             Patchable.de(new BigDecimal("49.9900")),
             Patchable.ausente(),
             Patchable.ausente(),
@@ -366,7 +360,6 @@ class ProductTest {
             Patchable.ausente(),
             Patchable.ausente(),
             Patchable.ausente(),
-            Patchable.ausente(),
             AHORA.plusDays(1));
 
     assertThat(cambios).containsOnlyKeys("name");
@@ -389,7 +382,6 @@ class ProductTest {
             null,
             null,
             null,
-            null,
             new BigDecimal("49.99"),
             null,
             MONEDA,
@@ -400,7 +392,6 @@ class ProductTest {
 
     producto.update(
         Patchable.de("Asesoría premium"),
-        Patchable.ausente(),
         Patchable.ausente(),
         Patchable.ausente(),
         Patchable.ausente(),
@@ -429,7 +420,6 @@ class ProductTest {
             null,
             null,
             null,
-            null,
             new BigDecimal("49.99"),
             null,
             MONEDA,
@@ -442,7 +432,6 @@ class ProductTest {
         producto.update(
             Patchable.ausente(),
             Patchable.de(null),
-            Patchable.ausente(),
             Patchable.ausente(),
             Patchable.ausente(),
             Patchable.ausente(),
@@ -480,7 +469,6 @@ class ProductTest {
             Patchable.ausente(),
             Patchable.ausente(),
             Patchable.ausente(),
-            Patchable.ausente(),
             AHORA.plusDays(1));
 
     // La unicidad ignora caja y acentos, pero el VALOR guardado no: `Plan Oro`
@@ -502,7 +490,6 @@ class ProductTest {
                     "Asesoría",
                     null,
                     "crown",
-                    null,
                     null,
                     null,
                     new BigDecimal("49.99"),
@@ -572,7 +559,6 @@ class ProductTest {
             Patchable.ausente(),
             Patchable.ausente(),
             Patchable.ausente(),
-            Patchable.ausente(),
             AHORA.plusDays(1));
 
     assertThat(producto.getIcon()).isEqualTo("rocket");
@@ -603,7 +589,6 @@ class ProductTest {
             Patchable.ausente(),
             Patchable.ausente(),
             Patchable.ausente(),
-            Patchable.ausente(),
             AHORA.plusDays(2));
 
     assertThat(producto.getIcon()).isNull();
@@ -622,7 +607,6 @@ class ProductTest {
                     Patchable.ausente(),
                     Patchable.ausente(),
                     Patchable.de("crown"),
-                    Patchable.ausente(),
                     Patchable.ausente(),
                     Patchable.ausente(),
                     Patchable.ausente(),
@@ -721,7 +705,6 @@ class ProductTest {
             Patchable.ausente(),
             Patchable.ausente(),
             Patchable.ausente(),
-            Patchable.ausente(),
             Patchable.de(new BigDecimal("69.99")),
             Patchable.ausente(),
             Patchable.ausente(),
@@ -744,7 +727,6 @@ class ProductTest {
 
     Map<String, Object> cambios =
         producto.update(
-            Patchable.ausente(),
             Patchable.ausente(),
             Patchable.ausente(),
             Patchable.ausente(),
@@ -775,7 +757,6 @@ class ProductTest {
         Patchable.ausente(),
         Patchable.ausente(),
         Patchable.ausente(),
-        Patchable.ausente(),
         Patchable.de(BigDecimal.ZERO),
         Patchable.ausente(),
         Patchable.ausente(),
@@ -794,7 +775,6 @@ class ProductTest {
 
     Map<String, Object> cambios =
         producto.update(
-            Patchable.ausente(),
             Patchable.ausente(),
             Patchable.ausente(),
             Patchable.ausente(),
@@ -821,7 +801,6 @@ class ProductTest {
             Patchable.ausente(),
             Patchable.ausente(),
             Patchable.ausente(),
-            Patchable.ausente(),
             Patchable.de(new BigDecimal("59.9900")),
             Patchable.ausente(),
             Patchable.ausente(),
@@ -835,133 +814,12 @@ class ProductTest {
   }
 
   // ---------------------------------------------------------------------------
-  // El enlace del video (`RN-PM-032`) — 14-09-2026
+  // El enlace del video vivió aquí entre el 14-09-2026 y el 22-09-2026. Se fue
+  // con la columna: el video es hoy un enlace CON TIPO —`VIDEO_PRESENTACION`—
+  // en `product_links`, y sus cuatro validaciones y su resolución se prueban en
+  // `ProductLinkTest` (`RF-PM-001` · `T-43`, `RN-PM-048`). Aquí no queda nada
+  // que probar: el agregado dejó de conocer los enlaces a propósito.
   // ---------------------------------------------------------------------------
-
-  @Test
-  @DisplayName("`RN-PM-032` — el video se recorta y NO se normaliza nada más; el vacío queda nulo")
-  void videoRecortadoYTalCual() {
-    // Ni minúsculas ni barra final: un identificador de video distingue
-    // mayúsculas, y un enlace «arreglado» puede dejar de resolver.
-    assertThat(botConVideo("  https://Vimeo.com/123456/  ").getVideoUrl())
-        .isEqualTo("https://Vimeo.com/123456/");
-    assertThat(botConVideo("http://example.com").getVideoUrl()).isEqualTo("http://example.com");
-    assertThat(botConVideo("   ").getVideoUrl()).isNull();
-    assertThat(botConVideo(null).getVideoUrl()).isNull();
-  }
-
-  @Test
-  @DisplayName(
-      "`VAL-017` — el video sin forma de URL absoluta http(s) se rechaza, nombrando el campo")
-  void videoConFormaInvalida() {
-    String[] malos = {
-      "/videos/asesoria.mp4",
-      "www.youtube.com/watch?v=x",
-      "ftp://videos.example.com/x.mp4",
-      "https://www.youtube.com/watch?v=dQw4 w9WgXcQ",
-      "https://",
-      "https://example.com/" + "a".repeat(481)
-    };
-    for (String malo : malos) {
-      ValidationException fallo =
-          catchThrowableOfType(() -> botConVideo(malo), ValidationException.class);
-
-      assertThat(fallo).as("debía rechazar «%s»", malo).isNotNull();
-      assertThat(fallo.errorCode()).isEqualTo("VAL-017");
-      assertThat(fallo.errors()).extracting(FieldError::field).containsExactly("videoUrl");
-    }
-    // Y quinientos exactos SÍ caben.
-    assertThatCode(() -> botConVideo("https://example.com/" + "a".repeat(480)))
-        .doesNotThrowAnyException();
-  }
-
-  @Test
-  @DisplayName(
-      "el video vale en un BOT y en un UPGRADE: no hay condición cruzada, al revés que el icono")
-  void videoEnLosDosTipos() {
-    assertThat(botConVideo("https://vimeo.com/1").getVideoUrl()).isEqualTo("https://vimeo.com/1");
-    Product upgrade = upgradeConIcono("crown");
-    upgrade.update(
-        Patchable.ausente(),
-        Patchable.ausente(),
-        Patchable.ausente(),
-        Patchable.de("https://vimeo.com/2"),
-        Patchable.ausente(),
-        Patchable.ausente(),
-        Patchable.ausente(),
-        Patchable.ausente(),
-        Patchable.ausente(),
-        Patchable.ausente(),
-        AHORA.plusDays(1));
-    assertThat(upgrade.getVideoUrl()).isEqualTo("https://vimeo.com/2");
-  }
-
-  @Test
-  @DisplayName("el video se corrige y se VACÍA con nulo o con vacío, el diff lo recoge con VAL-009")
-  void videoSeCorrigeYSeVacia() {
-    Product producto = botConVideo("https://vimeo.com/1");
-
-    Map<String, Object> cambios = corregirVideo(producto, Patchable.de("https://vimeo.com/2"));
-    assertThat(cambios).containsOnlyKeys("video_url");
-    assertThat(cambios.get("video_url"))
-        .isEqualTo(Map.of("before", "https://vimeo.com/1", "after", "https://vimeo.com/2"));
-
-    // El mismo enlace no es un cambio.
-    assertThat(corregirVideo(producto, Patchable.de("https://vimeo.com/2"))).isEmpty();
-
-    // La cadena vacía vacía, como el icono.
-    assertThat(corregirVideo(producto, Patchable.de("  "))).containsOnlyKeys("video_url");
-    assertThat(producto.getVideoUrl()).isNull();
-
-    // Y el código de la corrección es el de `RF-PM-004`, no el del alta.
-    ValidationException fallo =
-        catchThrowableOfType(
-            () -> corregirVideo(producto, Patchable.de("sin-esquema")), ValidationException.class);
-    assertThat(fallo.errorCode()).isEqualTo("VAL-009");
-  }
-
-  @Test
-  @DisplayName("la instantánea lleva `video_url`, nulo cuando no hay")
-  void laInstantaneaLlevaElVideo() {
-    assertThat(botConVideo(null).instantanea()).containsEntry("video_url", null);
-    assertThat(botConVideo("https://vimeo.com/1").instantanea())
-        .containsEntry("video_url", "https://vimeo.com/1");
-  }
-
-  private static Map<String, Object> corregirVideo(Product producto, Patchable<String> video) {
-    return producto.update(
-        Patchable.ausente(),
-        Patchable.ausente(),
-        Patchable.ausente(),
-        video,
-        Patchable.ausente(),
-        Patchable.ausente(),
-        Patchable.ausente(),
-        Patchable.ausente(),
-        Patchable.ausente(),
-        Patchable.ausente(),
-        AHORA.plusDays(1));
-  }
-
-  private static Product botConVideo(String video) {
-    return Product.create(
-        UUID.randomUUID(),
-        "ASESORIA",
-        ProductType.BOT,
-        "Asesoría",
-        null,
-        null,
-        video,
-        null,
-        null,
-        new BigDecimal("49.99"),
-        null,
-        MONEDA,
-        null,
-        ProductScope.TIENDA,
-        ProductImplementation.AUTOMATICA,
-        AHORA);
-  }
 
   // ---------------------------------------------------------------------------
   // La portada (`RN-PM-033`, `RN-PM-034`) — 14-09-2026
@@ -1052,7 +910,6 @@ class ProductTest {
         Patchable.ausente(),
         Patchable.ausente(),
         Patchable.ausente(),
-        Patchable.ausente(),
         AHORA.plusDays(1));
   }
 
@@ -1064,7 +921,6 @@ class ProductTest {
         "Ascenso a Oro",
         null,
         "crown",
-        null,
         ORIGEN,
         DESTINO,
         precio,
@@ -1084,7 +940,6 @@ class ProductTest {
         "Ascenso a Oro",
         null,
         icono,
-        null,
         ORIGEN,
         DESTINO,
         new BigDecimal("49.99"),
@@ -1108,7 +963,6 @@ class ProductTest {
         "Ascenso a Oro",
         null,
         "crown",
-        null,
         origen,
         destino,
         new BigDecimal("49.99"),
@@ -1126,7 +980,6 @@ class ProductTest {
         codigo,
         ProductType.BOT,
         "Asesoría",
-        null,
         null,
         null,
         null,

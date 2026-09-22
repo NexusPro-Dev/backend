@@ -462,30 +462,99 @@ class ProductOfferIT extends IntegrationTestBase {
 
   @Test
   @DisplayName(
-      "`CA-PM-228` — la oferta trae `videoUrl` tal cual, nulo y presente sin él, y sigue sin"
+      "`CA-PM-228` — la oferta trae `links` resueltos, vacíos sin ellos, y sigue sin"
           + " `purchasePrice`")
-  void laOfertaTraeElVideo() throws Exception {
-    // Las dos columnas opcionales juntas, a propósito: una SÍ viaja y la otra
-    // NO, y la línea entre las dos es la de `pm.md` §5.2.8 — el costo enseña el
+  void laOfertaTraeSusEnlaces() throws Exception {
+    // Las dos cosas opcionales juntas, a propósito: una SÍ viaja y la otra NO,
+    // y la línea entre las dos es la de `pm.md` §5.2.8 — el costo enseña el
     // margen; el video existe para que lo vean.
     declararPrecioDeCompra("UP_ORO", "60.00");
-    jdbc.update("UPDATE products SET video_url = 'https://vimeo.com/123456' WHERE code = 'UP_ORO'");
+    ProductLinkTestSupport.enlace(
+        jdbc, "UP_ORO", "VIDEO_PRESENTACION", "https://vimeo.com/123456", null);
 
     String cuerpo =
         mvc.perform(oferta(enFree))
             .andExpect(status().isOk())
             .andExpect(jsonPath("$.upgrades.content[3].code").value("UP_ORO"))
-            .andExpect(jsonPath("$.upgrades.content[3].videoUrl").value("https://vimeo.com/123456"))
+            .andExpect(jsonPath("$.upgrades.content[3].links.length()").value(1))
+            .andExpect(
+                jsonPath("$.upgrades.content[3].links[0].url").value("https://vimeo.com/123456"))
             .andExpect(jsonPath("$.upgrades.content[3].purchasePrice").doesNotExist())
-            // `UP_VIP` no tiene video: la clave existe y vale nulo.
+            // `UP_VIP` no declara ninguno: la clave existe y la lista va vacía.
             .andExpect(jsonPath("$.upgrades.content[1].code").value("UP_VIP"))
-            .andExpect(jsonPath("$.upgrades.content[1].videoUrl").doesNotExist())
-            .andExpect(jsonPath("$.upgrades.content[1]").value(Matchers.hasKey("videoUrl")))
+            .andExpect(jsonPath("$.upgrades.content[1]").value(Matchers.hasKey("links")))
+            .andExpect(jsonPath("$.upgrades.content[1].links.length()").value(0))
             .andReturn()
             .getResponse()
             .getContentAsString();
 
     assertThat(cuerpo).doesNotContain("purchasePrice").doesNotContain("60.00");
+    assertThat(cuerpo).doesNotContain("videoUrl");
+  }
+
+  @Test
+  @DisplayName(
+      "`CA-PM-394` — la oferta publica el video y NO el cupón, ni con la lupa en el cuerpo")
+  void laOfertaNoPublicaElCupon() throws Exception {
+    ProductLinkTestSupport.enlace(
+        jdbc, "UP_ORO", "VIDEO_PRESENTACION", "https://vimeo.com/123456", null);
+    ProductLinkTestSupport.enlace(jdbc, "UP_ORO", "CUPON_BOT", "https://t.me/nexusbot", "cupon-15");
+    // Y uno que SOLO declara cupón: su `links` va vacía, no ausente — «no
+    // tengo nada que enseñarte aquí» es un estado, y esta lectura no lo
+    // distingue de no declarar ninguno, a propósito.
+    ProductLinkTestSupport.enlace(jdbc, "UP_VIP", "CUPON_BOT", "https://t.me/otrobot", null);
+
+    String cuerpo =
+        mvc.perform(oferta(enFree))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.upgrades.content[3].code").value("UP_ORO"))
+            .andExpect(jsonPath("$.upgrades.content[3].links.length()").value(1))
+            .andExpect(jsonPath("$.upgrades.content[3].links[0].type").value("VIDEO_PRESENTACION"))
+            .andExpect(jsonPath("$.upgrades.content[1].code").value("UP_VIP"))
+            .andExpect(jsonPath("$.upgrades.content[1].links.length()").value(0))
+            .andReturn()
+            .getResponse()
+            .getContentAsString();
+
+    // Sobre el cuerpo ENTERO y no solo sobre los campos que se esperan: el
+    // cupón es la prestación que se compra, y basta con que salga una vez en
+    // cualquier rincón del JSON para haberla regalado.
+    assertThat(cuerpo)
+        .doesNotContain("CUPON_BOT")
+        .doesNotContain("t.me/nexusbot")
+        .doesNotContain("t.me/otrobot")
+        .doesNotContain("cupon-15");
+  }
+
+  @Test
+  @DisplayName("`CA-PM-395` — el enlace llega RESUELTO: pegado al final y sin duplicar la barra")
+  void laOfertaResuelveElEnlace() throws Exception {
+    // Con identificador: se pega como último segmento de ruta.
+    ProductLinkTestSupport.enlace(
+        jdbc, "UP_ORO", "VIDEO_PRESENTACION", "https://vimeo.com/canal", "123456");
+    // Con identificador y barra final: la barra NO se duplica.
+    ProductLinkTestSupport.enlace(
+        jdbc, "UP_VIP", "VIDEO_PRESENTACION", "https://vimeo.com/canal/", "789");
+
+    mvc.perform(oferta(enFree))
+        .andExpect(status().isOk())
+        .andExpect(
+            jsonPath("$.upgrades.content[3].links[0].url").value("https://vimeo.com/canal/123456"))
+        .andExpect(
+            jsonPath("$.upgrades.content[1].links[0].url").value("https://vimeo.com/canal/789"))
+        // Resuelto quiere decir que el identificador YA está dentro de la
+        // dirección: devolverlo además en su campo invitaría a pegarlo dos
+        // veces. Esta es la diferencia con la lectura de administración.
+        .andExpect(jsonPath("$.upgrades.content[3].links[0].externalId").doesNotExist());
+
+    // Y sin identificador, la dirección viaja tal cual.
+    jdbc.update("DELETE FROM product_links");
+    ProductLinkTestSupport.enlace(
+        jdbc, "UP_ORO", "VIDEO_PRESENTACION", "https://vimeo.com/123456/", null);
+    mvc.perform(oferta(enFree))
+        .andExpect(status().isOk())
+        .andExpect(
+            jsonPath("$.upgrades.content[3].links[0].url").value("https://vimeo.com/123456/"));
   }
 
   @Test
@@ -721,6 +790,7 @@ class ProductOfferIT extends IntegrationTestBase {
   private void limpiar() {
     // Antes que los productos: `product_package_items` los referencia (`V91`).
     PackageTestSupport.limpiarPaquetes(jdbc);
+    ProductLinkTestSupport.limpiar(jdbc);
     jdbc.update("DELETE FROM products");
     // Antes que las membresías: `user_memberships` las referencia.
     jdbc.update(

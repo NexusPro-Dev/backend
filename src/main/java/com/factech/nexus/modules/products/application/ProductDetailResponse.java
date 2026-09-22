@@ -10,6 +10,7 @@ import com.fasterxml.jackson.annotation.JsonInclude;
 import java.math.BigDecimal;
 import java.time.OffsetDateTime;
 import java.time.ZoneOffset;
+import java.util.List;
 import java.util.UUID;
 
 /**
@@ -48,7 +49,14 @@ public record ProductDetailResponse(
     String name,
     String description,
     String icon,
-    String videoUrl,
+    /**
+     * Los enlaces del producto, <b>crudos y con todos los tipos</b> (`RN-PM-048` a `RN-PM-050`).
+     *
+     * <p>Sustituye a {@code videoUrl} el 22-09-2026. Presente y <b>vacía</b> cuando no hay ninguno,
+     * y con el {@code CUPON_BOT} dentro <b>también en un producto retirado</b>: quien administra
+     * tiene que poder revisar el cupón que alguien recibió.
+     */
+    List<ProductLinkResponse> links,
     /**
      * La dirección de la portada (`RN-PM-033`): la ruta pública de `RF-PM-016`, construida sobre
      * `cover_image_id` sin tocar `product_images`. Presente y nula cuando no hay.
@@ -79,7 +87,8 @@ public record ProductDetailResponse(
    *
    * @param motivo el motivo del retiro, o nulo si el producto está vivo o no se registró ninguno
    */
-  public static ProductDetailResponse from(ProductRow fila, String motivo, ExchangeRef conversion) {
+  public static ProductDetailResponse from(
+      ProductRow fila, List<ProductLinkResponse> enlaces, String motivo, ExchangeRef conversion) {
     return new ProductDetailResponse(
         fila.id(),
         fila.code(),
@@ -87,8 +96,8 @@ public record ProductDetailResponse(
         fila.name(),
         fila.description(),
         fila.icon(),
-        // El enlace del video, tal cual y nulo presente cuando no hay (`CA-PM-224`).
-        fila.videoUrl(),
+        // Los enlaces, crudos y vacía cuando no hay (`CA-PM-224`, `CA-PM-387`).
+        enlaces,
         ProductImageUrls.de(fila.coverImageId()),
         fila.sourceMembershipId() == null
             ? null

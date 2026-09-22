@@ -6,6 +6,7 @@ import com.factech.nexus.modules.products.application.PackageHotlinkResponse;
 import com.factech.nexus.modules.products.application.PackageHotlinkResponse.Item;
 import com.factech.nexus.modules.products.application.PackageHotlinkResponse.PackageRef;
 import com.factech.nexus.modules.products.application.ProductImageUrls;
+import com.factech.nexus.modules.products.application.ProductLinkResponse;
 import com.factech.nexus.modules.products.domain.models.PackagePricing;
 import com.factech.nexus.modules.products.domain.repository.ProductPackageQueryRepository;
 import com.factech.nexus.modules.products.domain.repository.ProductPackageQueryRepository.PublishedPackage;
@@ -15,6 +16,7 @@ import com.factech.nexus.shared.error.ResourceNotFoundException;
 import java.time.Clock;
 import java.time.LocalDate;
 import java.util.List;
+import java.util.Map;
 import java.util.UUID;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
@@ -40,24 +42,28 @@ public class GetPackageHotlinkService {
   private final ProductPackageQueryRepository paquetes;
   private final PublicSellerLookup vendedores;
   private final ProductExchangeResolver conversiones;
+  private final ProductLinkReader enlaces;
   private final Clock reloj;
 
   @Autowired
   public GetPackageHotlinkService(
       ProductPackageQueryRepository paquetes,
       PublicSellerLookup vendedores,
-      ProductExchangeResolver conversiones) {
-    this(paquetes, vendedores, conversiones, Clock.systemUTC());
+      ProductExchangeResolver conversiones,
+      ProductLinkReader enlaces) {
+    this(paquetes, vendedores, conversiones, enlaces, Clock.systemUTC());
   }
 
   GetPackageHotlinkService(
       ProductPackageQueryRepository paquetes,
       PublicSellerLookup vendedores,
       ProductExchangeResolver conversiones,
+      ProductLinkReader enlaces,
       Clock reloj) {
     this.paquetes = paquetes;
     this.vendedores = vendedores;
     this.conversiones = conversiones;
+    this.enlaces = enlaces;
     this.reloj = reloj;
   }
 
@@ -79,13 +85,24 @@ public class GetPackageHotlinkService {
     // tasa se pide una vez (`CA-PM-334`).
     ProductExchangeResolver.Conversor conversor = conversiones.para(List.of(moneda));
 
+    // Los enlaces de TODOS los productos del paquete, en UNA sentencia: uno
+    // por línea sería un `N+1` que no se ve —el paquete tiene dos productos
+    // hoy y no hay tope— y que el cuerpo devolvería idéntico. Es la misma
+    // decisión que toma el listado (`RF-PM-002` · `T-27`), y aquí pesa más:
+    // esta ruta no pide token.
+    Map<UUID, List<ProductLinkResponse>> enlacesDelPaquete =
+        enlaces.publicablesDe(
+            publicado.items().stream().map(linea -> linea.producto().id()).toList());
+
     List<Item> items =
         publicado.items().stream()
             .map(
                 linea ->
                     new Item(
                         GetHotlinkService.producto(
-                            linea.producto(), conversor.de(moneda, linea.producto().price())),
+                            linea.producto(),
+                            enlacesDelPaquete.getOrDefault(linea.producto().id(), List.of()),
+                            conversor.de(moneda, linea.producto().price())),
                         new DiscountRef(
                             linea.descuento().getType(),
                             linea

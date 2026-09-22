@@ -8,7 +8,7 @@
 | Autor | Responsable técnico |
 | Aprobado por | Responsable del proyecto |
 | Fecha de aprobación | 07-09-2026 |
-| Enmendado el | 14-09-2026 — **`videoUrl` en el producto, sin token** (`RN-PM-032`), §4; 14-09-2026 — **`coverImageUrl` en el producto, sin token** (`RN-PM-033`), §4; 15-09-2026 — **`HOTLINK` o `AMBOS`** en el predicado (`RN-PM-021`) |
+| Enmendado el | 14-09-2026 — **`videoUrl` en el producto, sin token** (`RN-PM-032`), §4; 14-09-2026 — **`coverImageUrl` en el producto, sin token** (`RN-PM-033`), §4; 15-09-2026 — **`HOTLINK` o `AMBOS`** en el predicado (`RN-PM-021`); 22-09-2026 — **`links` resueltos y sin el `CUPON_BOT`** (`RN-PM-048` a `RN-PM-050`), §4 |
 
 ---
 
@@ -60,7 +60,9 @@ La búsqueda del producto por código **ya está cubierta** por `uq_products_cod
     "type": "UPGRADE_MEMBRESIA",
     "name": "Ascenso a Oro",
     "icon": "crown",
-    "videoUrl": "https://www.youtube.com/watch?v=dQw4w9WgXcQ",
+    "links": [
+      { "type": "VIDEO_PRESENTACION", "url": "https://www.youtube.com/watch?v=dQw4w9WgXcQ" }
+    ],
     "validityDays": 30,
     "membership": { "code": "ORO", "name": "Oro", "color": "D4AF37" },
     "price": 60.00,
@@ -80,7 +82,9 @@ La búsqueda del producto por código **ya está cubierta** por `uq_products_cod
 - **`amount` sí es número**, redondeado a los decimales de la **moneda de destino** con `ProductPrice`, que es el componente que ya hace eso para las respuestas del módulo.
 - **Ningún parámetro de consulta**, y ninguna cabecera que cambie la respuesta.
 - **`coverImageUrl` viaja, y sin token** (14-09-2026, `RN-PM-033`, enmienda de `RF-PM-014`): `findPublishedByCode` selecciona `p.cover_image_id` y `ProductRef` gana el campo convertido con `ProductImageUrls.de(...)`, **presente y nulo** cuando no hay. **La dirección señala una imagen y no un producto** —`/api/v1/product-images/{imageId}`—, de modo que una dirección de imagen no dice de qué producto es ni sirve para llamar a nada más. Y `RF-PM-016` la sirve sin token, que es lo que hace que la pantalla del hotlink pueda pintarla.
-- **`videoUrl` viaja, y sin token** (14-09-2026, `RN-PM-032`): `findPublishedByCode` selecciona `p.video_url` y `ProductRef` gana el campo, **presente y nulo** cuando no hay. Es la única columna opcional de `products` que esta consulta trae y `purchase_price` no, y la línea que las separa es la de `pm.md` §5.2.8: el costo enseñaría el margen, el video existe para que lo vean. **Se publica tal cual se escribió**, sin seguirlo ni reescribirlo.
+- **`links` viaja, y sin token** (22-09-2026, `RN-PM-048`; **era el campo `videoUrl` sobre la columna `p.video_url` hasta ese día**): `findPublishedByCode` **deja de seleccionar la columna** —ya no existe— y `ProductRef` cambia el campo por la colección, **presente y vacía** cuando no hay. La línea que separa lo que esta consulta trae de lo que no sigue siendo la de `pm.md` §5.2.8: el costo enseñaría el margen, el video existe para que lo vean.
+- **Y ahora esa línea pasa también por dentro de los enlaces** (`RN-PM-050`): de los dos tipos, aquí solo se publica `VIDEO_PRESENTACION`. **El tipo va en el predicado de la consulta**, no en un filtro en Java, y en esta ruta el motivo pesa más que en ninguna otra: **es pública**. Un cupón que saliera por aquí lo tendría cualquiera que abriese el enlace que un vendedor reparte a propósito, sin token, sin compra y sin que ninguna traza lo señalara — el `200` sería idéntico. `ProductRef` **no tiene dónde ponerlo**, que es la segunda defensa y la que sobrevive a que alguien reescriba la consulta.
+- **Se publica RESUELTO** (`RN-PM-049`) y **tal cual se escribió** por lo demás: el identificador pegado al final, y ni se sigue el enlace ni se reescribe la dirección.
 - **`price` viaja solo** (12-09-2026, `RN-PM-024` reescrita por tercera vez): es el que se cobra. **El precio de compra no viaja ni se selecciona**: `ProductRef` no tiene el campo y `findPublishedByCode` no trae la columna, de modo que `ProductRow.purchasePrice` llega nulo a propósito desde esta lectura y **no hay nada que publicar**. Entre el 08-09-2026 y el 12-09-2026 viajó también `publicPrice`, cuando ese importe era lo que se anunciaba; convertido en el costo de NEXUS, publicarlo sin token enseñaría el margen a cualquiera (`requirements/pm.md` §5.2.6).
 - **Y `amount` se calcula sobre `price`**, que es el único importe que se enseña. Desaparece «el importe que se muestra» y con él `ProductExchangeResolver.importeMostrado`.
 
