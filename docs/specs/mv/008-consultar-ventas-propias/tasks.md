@@ -6,7 +6,7 @@
 | Especificación | [`spec.md`](spec.md) v0.3.0 |
 | Plan | [`plan.md`](plan.md) v0.3.0 |
 | `plan.md` aprobado el | 05-09-2026 |
-| Estado | **En revisión** — `T-01` a `T-12` `Hecha`; `T-13` a `T-16` `Hecha` el 16-09-2026 (§1.1); `T-17` a `T-20` (§1.2) `Hecha` el 21-09-2026; `T-21` a `T-23` (§1.3) `Hecha` el 21-09-2026; `T-24` a `T-27` (§1.4) `Hecha` el 22-09-2026 |
+| Estado | **En revisión** — `T-01` a `T-12` `Hecha`; `T-13` a `T-16` `Hecha` el 16-09-2026 (§1.1); `T-17` a `T-20` (§1.2) `Hecha` el 21-09-2026; `T-21` a `T-23` (§1.3) `Hecha` el 21-09-2026; `T-24` a `T-27` (§1.4) `Hecha` el 22-09-2026; `T-28` y `T-29` (§1.5) `Pendiente` |
 | Issue | Las enmiendas del 21-09-2026: [#76](https://github.com/NexusPro-Dev/backend/issues/76) (§1.2) y [#79](https://github.com/NexusPro-Dev/backend/issues/79) (§1.3); la del 22-09-2026, [#81](https://github.com/NexusPro-Dev/backend/issues/81) (§1.4) |
 | Rama | `feature/venta-de-productos`; la enmienda del 21-09-2026, en `feature/filtro-por-tipo-de-movimiento` |
 
@@ -80,6 +80,15 @@ Enmienda de hecho (Art. I.7), `spec.md` 0.5.0 y `plan.md` 0.5.0 **antes** del c�
 | `T-26` | `MyMovementsIT`: `CA-MV-137` a `CA-MV-139`; retirar `CA-MV-035`, `CA-MV-036` y `CA-MV-037` del listado y **reescribir** los recuentos que contaban las dos mitades (`CA-MV-038`, `CA-MV-040`); la prueba del detalle de lo vendido es la que protege la asimetría | `T-25` | `CA-MV-138` falla si alguien acota `findMineById` | **Hecha** — 22-09-2026 (`MyMovementsIT`, 22) |
 | `T-27` | `MovementController`: la prosa de `GET /mine` dice que trae solo lo comprado y adónde va lo vendido; contrato regenerado; `docs/api/index.md` con el **cambio rompedor**; matriz de `requirements.md` | `T-26` | `openapi.json` no declara `role` en `MyMovement`, y `MovementRole` desaparece de los esquemas | **Hecha** — 22-09-2026 |
 
+### 1.5 «Mis compras» se muda a su ruta — 22-09-2026, segunda enmienda del día
+
+Enmienda de hecho (Art. I.7), `spec.md` 0.6.0 y `plan.md` 0.6.0 **antes** del código. Sin migración y sin permisos: solo cambia el camino.
+
+| ID | Tarea | Depende de | Verificación | Estado |
+|---|---|---|---|---|
+| `T-28` | `MovementController`: `@GetMapping("/mine")` pasa a `@GetMapping("/mine/shopping")`, con la prosa al día; `EndpointPermissionsIT` y `OwnScopePermissionsIT` cambian la ruta de su tabla | — | La inyectividad operación → permiso sigue en verde: hay **una** ruta con `movements:list-own` | `Pendiente` |
+| `T-29` | `MyMovementsIT` y `ConfirmSaleIT` llaman a la ruta nueva; nace `CA-MV-140` —la anterior responde `404`— y la prueba de enrutado se muda; contrato regenerado, `docs/api/index.md` y matriz | `T-28` | `openapi.json` declara `/movements/mine/shopping` y **no** `/movements/mine` | `Pendiente` |
+
 ---
 
 ## 2. Cobertura de los criterios de aceptación
@@ -96,6 +105,7 @@ Enmienda de hecho (Art. I.7), `spec.md` 0.5.0 y `plan.md` 0.5.0 **antes** del c�
 | `CA-MV-120`, `CA-MV-121` | `T-17`, `T-18`, `T-19` — 21-09-2026 |
 | `CA-MV-133`, `CA-MV-134`, `CA-MV-135` | `T-21`, `T-22` — 21-09-2026 |
 | `CA-MV-137`, `CA-MV-138`, `CA-MV-139` | `T-24`, `T-25`, `T-26` — 22-09-2026 |
+| `CA-MV-140` | `T-28`, `T-29` — 22-09-2026 |
 
 ---
 

@@ -5,12 +5,13 @@
 | Requerimiento | `RF-MV-008` |
 | Especificación | [`spec.md`](spec.md) v0.1.0 |
 | `spec.md` aprobada el | 05-09-2026 |
-| Versión | 0.5.0 |
+| Versión | 0.6.0 |
 | Estado | **Aprobado** |
 | Enmendado el | 16-09-2026 — la mitad «lo que vendí» se resuelve por `movement_details.seller_id` (§2.1, §4.1) |
 | Enmendado el | 21-09-2026 — el filtro `type` y el campo `type` en la fila (§3, §4.1, §4.3, §11) |
 | Enmendado el | 21-09-2026 (segunda del día) — `paymentMethodId`, `code`, `from` y `to`, con la forma de `RF-MV-006` (§4.3, §11) |
 | Enmendado el | 22-09-2026 — el listado se acota al sujeto y la fila pierde `role` (§2.2, §3, §4.1, §9, §11); el detalle no cambia |
+| Enmendado el | 22-09-2026 (segunda del día) — el listado se muda a `GET /movements/mine/shopping` (§4, §9, §10) |
 | Autor | Responsable técnico |
 | Aprobado por | Responsable del proyecto |
 | Fecha de aprobación | 05-09-2026 |
@@ -107,6 +108,18 @@ La migración es `V58__index_movements_por_participante.sql`.
 
 **`mine` y no `me`.** `SP` usa `/users/me` porque el recurso **es** la persona. Aquí el recurso son los movimientos y `me` no es uno de ellos: `mine` dice «los míos», que es lo que la ruta devuelve.
 
+### 4.0 Las rutas, desde el 22-09-2026
+
+| Verbo | Ruta | Qué devuelve | Permiso |
+|---|---|---|---|
+| `GET` | `/api/v1/movements/mine/shopping` | **Mis compras**: los movimientos a nombre del actor | `movements:list-own` |
+| `GET` | `/api/v1/movements/mine/{id}` | El detalle de un movimiento del actor, **comprado o vendido** | `movements:read-own` |
+| `GET` | `/api/v1/movements/mine/products` | Los productos comprados (`RF-MV-014`) | `movements:read-own-products` |
+
+**`GET /api/v1/movements/mine` deja de existir**, y no se deja como alias: `RN-SEG-014` exige que cada operación tenga un permiso que ninguna otra tenga, y dos rutas con `movements:list-own` hacen fallar `EndpointPermissionsIT`. Darle un permiso propio al alias sería peor — un permiso para no decidir el nombre de una ruta.
+
+**`shopping` es un literal y `{id}` una variable, y conviven porque Spring resuelve antes el literal** — es lo que `/mine/products` ya hacía desde `RF-MV-014`. La prueba que vigilaba que `mine` no lo capturase una variable de ruta se muda con la ruta.
+
 ### 4.1 El listado
 
 Devuelve un `PageResponse` con las filas. Cada una:
@@ -191,6 +204,8 @@ Devuelve un `SaleResponse`, idéntico al de `RF-MV-001`.
 | **Dejar `role` valiendo siempre `BUYER`** (22-09-2026) | Un campo constante en el contrato: no rompe a nadie hoy y miente mañana. Es el argumento de `RF-MV-006` §6.2 |
 | **Acotar también el detalle** (22-09-2026) | Dejaría a un vendedor sin ninguna vía para abrir lo que vendió: `RF-MV-007` no existe y `RF-MV-015` es solo listado. Cerrar una puerta sin abrir otra |
 | **Un parámetro `role` para elegir el papel** (22-09-2026) | Lo pidió el frontend (R-46) y el responsable del proyecto lo descartó: la mitad de vendedor no se filtra, se va a `RF-MV-015` |
+| **Dejar `GET /movements/mine` como alias de `/mine/shopping`** (22-09-2026) | Dos operaciones con el mismo permiso: rompe `RN-SEG-014` y lo delata `EndpointPermissionsIT`. Y un permiso nuevo para sostener el alias sería inventar autorización para no decidir un nombre |
+| **Mudar también el detalle a `/mine/shopping/{id}`** (22-09-2026) | Ese detalle abre lo comprado **y lo vendido** (§4.2): meterlo bajo «compras» lo nombraría mal, que es justo el defecto que esta mudanza corrige |
 | Reutilizar `RF-MV-006` con un parámetro «solo lo mío» | Daría un endpoint con **dos modelos de seguridad** — el mismo argumento con el que §4.1 de `requirements/mv.md` separó registrar de comprar |
 | Devolver las líneas en el listado | Multiplica la respuesta por un dato que solo se mira al abrir uno |
 | **Un solo `seller` en la fila, el de la primera línea** (16-09-2026) | Elegiría uno cuando puede haber varios, y el consumidor no sabría que hay más. La lista sin repetir cuesta una consulta por página y no miente |
@@ -203,7 +218,8 @@ Devuelve un `SaleResponse`, idéntico al de `RF-MV-001`.
 | Riesgo | Mitigación |
 |---|---|
 | **Que el alcance se escape** — el defecto que importa | El filtro va en la sentencia; `CA-MV-038` lo ejercita con el permiso de administración puesto |
-| Que `/mine` sea capturado por `/{id}` cuando exista `RF-MV-007` | Prueba propia, como la de `/available` en `RF-PM-007` |
+| Que `/mine/shopping` sea capturado por `/mine/{id}` | Prueba propia, la misma que vigilaba `/mine` y que se muda con la ruta (22-09-2026). Spring resuelve antes el literal, como con `/mine/products` |
+| **Que un consumidor siga llamando a `GET /movements/mine`** (22-09-2026) | Recibe `404`. Cambio incompatible declarado en `api/index.md`; se avisa al frontend, que es su único consumidor conocido |
 | Recorrido secuencial de `movements` al crecer | Los dos índices de §2 — desde el 16-09-2026, `ix_movements_user` e `ix_movement_details_seller` (§2.1). El síntoma sería lentitud y no un fallo |
 | Que el papel salga mal cuando alguien es las dos cosas | `CA-MV-037` lo fijaba, y era el caso que se olvidaba al escribir el `CASE`. **Sin objeto desde el 22-09-2026**: no hay papel |
 | **Que alguien acote también el detalle** «por coherencia» (22-09-2026) | `CA-MV-138`: el vendedor que no ve la venta en su listado la abre por su identificador |
