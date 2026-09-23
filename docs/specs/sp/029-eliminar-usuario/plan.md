@@ -66,6 +66,7 @@ Paquete raíz: `com.factech.nexus.modules.system`. Reglas de dependencia de `arc
 |---|---|---|---|
 | `domain` | `User` | **Modificado** | `delete(motivo)`: valida el motivo, marca el borrado y **devuelve el estado previo** para el registro de eliminación |
 | `domain` | `SelfOperationGuard` | Sin cambios | `RN-SP-017`, creado en `RF-SP-028` |
+| `application` | `TeamMembershipRetirement` | **Consumido — enmienda del 23-09-2026** | Puerto que publica `teams` (`RF-SP-070`): cierra la pertenencia vigente de la persona si la hay, y **no falla si no la hay**. Se invoca en la misma transacción que la baja (`RN-SP-055`), por lo mismo que la asignación de superior se cierra aquí y no en otra petición: dejar la pertenencia abierta haría que un equipo siguiera contando a alguien que ya no existe |
 | `domain` | `RootAdministratorPresence` | Sin cambios | `RN-SP-001`, creado en `RF-SP-028` |
 | `domain` | `DeletionReason` | Nuevo | Objeto de valor del motivo: recorta y exige contenido. **Distinto de `StatusChangeReason`** solo en su nombre; ver abajo |
 | `application` | `DeleteUserService` | Nuevo | Caso de uso. `@Transactional`, orquesta el orden de §4, captura el estado, destruye, revoca y audita |

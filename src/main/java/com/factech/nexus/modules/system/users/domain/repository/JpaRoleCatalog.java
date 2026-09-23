@@ -4,8 +4,10 @@ import com.factech.nexus.modules.system.roles.domain.models.RoleType;
 import jakarta.persistence.EntityManager;
 import jakarta.persistence.Tuple;
 import java.util.ArrayList;
+import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
 import java.util.UUID;
@@ -77,6 +79,32 @@ public class JpaRoleCatalog implements RoleCatalog {
     Set<UUID> roles = new LinkedHashSet<>();
     filas.forEach(fila -> roles.add((UUID) fila));
     return roles;
+  }
+
+  @Override
+  @Transactional(readOnly = true)
+  public Map<UUID, Set<UUID>> roleIdsOfAll(Set<UUID> userIds) {
+    if (userIds == null || userIds.isEmpty()) {
+      return Map.of();
+    }
+    List<Tuple> filas =
+        em.createNativeQuery(
+                """
+                SELECT ur.user_id AS persona, ur.role_id AS rol
+                  FROM user_roles ur
+                 WHERE ur.user_id IN (:personas)
+                """,
+                Tuple.class)
+            .setParameter("personas", userIds)
+            .getResultList();
+
+    Map<UUID, Set<UUID>> porPersona = new LinkedHashMap<>();
+    for (Tuple fila : filas) {
+      porPersona
+          .computeIfAbsent((UUID) fila.get("persona"), persona -> new LinkedHashSet<>())
+          .add((UUID) fila.get("rol"));
+    }
+    return porPersona;
   }
 
   /**

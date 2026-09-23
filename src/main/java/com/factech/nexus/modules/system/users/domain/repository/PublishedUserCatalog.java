@@ -11,6 +11,7 @@ import java.time.Clock;
 import java.time.OffsetDateTime;
 import java.util.List;
 import java.util.Optional;
+import java.util.Set;
 import java.util.UUID;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Repository;
@@ -82,6 +83,41 @@ public class PublishedUserCatalog
                     (String) fila.get("username"),
                     nombreCompleto((String) fila.get("nombre"), (String) fila.get("apellido")),
                     fila.get("deleted_at") != null));
+  }
+
+  /**
+   * El lote, con la misma proyección que {@link #find} y en una sola consulta (`RF-SP-069`).
+   *
+   * <p>Las que no existen <b>no salen</b>, y las eliminadas sí, con su marca: quien pregunta por un
+   * lote decide qué hacer con cada caso, y aquí se le da el dato en lugar de la decisión.
+   */
+  @Override
+  @Transactional(readOnly = true)
+  public List<UserView> findAll(Set<UUID> ids) {
+    if (ids == null || ids.isEmpty()) {
+      return List.of();
+    }
+    List<Tuple> filas =
+        em.createNativeQuery(
+                """
+                SELECT u.id AS id, u.username AS username, u.first_name AS nombre,
+                       u.last_name AS apellido, u.deleted_at AS deleted_at
+                  FROM users u
+                 WHERE u.id IN (:ids)
+                """,
+                Tuple.class)
+            .setParameter("ids", ids)
+            .getResultList();
+
+    return filas.stream()
+        .map(
+            fila ->
+                new UserView(
+                    (UUID) fila.get("id"),
+                    (String) fila.get("username"),
+                    nombreCompleto((String) fila.get("nombre"), (String) fila.get("apellido")),
+                    fila.get("deleted_at") != null))
+        .toList();
   }
 
   /**
@@ -319,6 +355,23 @@ public class PublishedUserCatalog
                     superior.username(),
                     superior.firstName(),
                     superior.lastName()));
+  }
+
+  /**
+   * Todos los vínculos del cliente, en el orden de {@link ClientSellerRepository#findSellersOf}:
+   * principal primero. `RN-MV-034` solo los cuenta, y `RN-MV-035` elige entre ellos.
+   */
+  @Override
+  @Transactional(readOnly = true)
+  public List<SellerView> sellersOf(UUID id) {
+    if (id == null) {
+      return List.of();
+    }
+    return vinculos.findSellersOf(id).stream()
+        .map(
+            fila ->
+                new SellerView(fila.sellerId(), fila.username(), fila.firstName(), fila.lastName()))
+        .toList();
   }
 
   /** Nombre y apellido, o nulo si no hay ninguno de los dos. */

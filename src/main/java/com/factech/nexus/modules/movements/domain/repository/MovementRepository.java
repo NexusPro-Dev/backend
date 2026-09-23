@@ -1,6 +1,7 @@
 package com.factech.nexus.modules.movements.domain.repository;
 
 import com.factech.nexus.modules.movements.domain.models.Movement;
+import com.factech.nexus.modules.movements.domain.models.TypeStatus;
 import com.factech.nexus.shared.pagination.BoundedCount;
 import java.math.BigDecimal;
 import java.time.OffsetDateTime;
@@ -52,6 +53,44 @@ public interface MovementRepository {
    * y el caso de uso que las registre pedirá el suyo por este mismo método.
    */
   Optional<MovementTypeView> findTypeByCode(String code);
+
+  /**
+   * Un estado del catálogo de un tipo, por su código (`RN-MV-033`). Se busca y no se constantea,
+   * por lo mismo que {@link #findTypeByCode}.
+   */
+  Optional<TypeStatus> findTypeStatus(UUID movementTypeId, String code);
+
+  /**
+   * ¿Declara algún tipo un estado con este código? Es lo que valida el filtro de los listados: un
+   * código que no existe es un error y no una página vacía (`RF-MV-016`).
+   */
+  boolean existsTypeStatusCode(String code);
+
+  // ---------------------------------------------------------------------------
+  // `RF-MV-016` — asignar los vendedores
+  // ---------------------------------------------------------------------------
+
+  /**
+   * La cabecera de la venta <b>bloqueada</b> hasta el final de la transacción ({@code SELECT … FOR
+   * UPDATE}). Serializa la asignación con confirmar —cuyo {@code UPDATE} condicionado espera a la
+   * fila— y con otra asignación. Vacío si no existe.
+   */
+  Optional<AssignmentHeader> lockForAssignment(UUID movementId);
+
+  /** Las líneas de la venta, con su producto y su vendedor actual (nulo si no lo tiene). */
+  List<AssignmentLine> findLinesForAssignment(UUID movementId);
+
+  /** Escribe el vendedor de una línea. */
+  void assignSeller(UUID lineId, UUID sellerId);
+
+  /** Cambia el estado del tipo de un movimiento. */
+  void changeTypeStatus(UUID movementId, UUID typeStatusId);
+
+  /** Lo que la asignación necesita de la cabecera: de quién es, de qué tipo y en qué estados. */
+  record AssignmentHeader(
+      UUID id, UUID userId, UUID movementTypeId, String status, String typeStatus) {}
+
+  record AssignmentLine(UUID lineId, UUID productId, UUID sellerId) {}
 
   /**
    * El método de pago, <b>exista o no esté activo</b>.
@@ -207,6 +246,7 @@ public interface MovementRepository {
       String code,
       String type,
       String status,
+      String typeStatus,
       UUID userId,
       String userUsername,
       String userFirstName,
@@ -458,6 +498,7 @@ public interface MovementRepository {
       UUID ownerId,
       UUID sellerId,
       String status,
+      String typeStatus,
       UUID paymentMethodId,
       String code,
       OffsetDateTime from,
@@ -481,9 +522,80 @@ public interface MovementRepository {
    * @param type el código del tipo de movimiento, ya en mayúsculas y ya validado contra el catálogo
    *     (21-09-2026)
    */
+
+  /**
+   * Las líneas de las ventas, paginadas (`RF-MV-017`).
+   *
+   * <p><b>Una fila por LÍNEA</b>, con lo de su venta repetido: es la pregunta «qué se ha vendido»,
+   * que ningún listado por movimiento contesta sin abrir cada venta.
+   *
+   * <p><b>Todo lo que la fila publica viaja en esta sentencia.</b> Al contrario que {@link
+   * #findAll}, aquí no hace falta una segunda consulta para el vendedor: allí una venta tiene
+   * varios y la fila es la venta; aquí la fila es la línea y tiene <b>uno</b>.
+   */
+  List<SaleLineRow> findSaleLines(SaleLinesFilter filter, int offset, int limit);
+
+  /** El total de lo mismo, <b>acotado</b>: `movement_details` es la tabla que más crece. */
+  BoundedCount countSaleLines(SaleLinesFilter filter, int techo);
+
+  /**
+   * Los ocho filtros del listado de líneas, todos opcionales y combinables.
+   *
+   * <p><b>No lleva actor ni alcance</b>, y su ausencia es la implementación: `RF-MV-017` es de
+   * administración y con el permiso se ve todo el libro. El alcance por estructura vive en {@link
+   * SalesFilter}.
+   */
+  record SaleLinesFilter(
+      UUID movementId,
+      UUID userId,
+      UUID sellerId,
+      UUID productId,
+      String status,
+      String deliveryStatus,
+      String typeStatus,
+      String code,
+      OffsetDateTime from,
+      OffsetDateTime to) {}
+
+  /**
+   * Una línea con su venta, plana como sale del motor.
+   *
+   * <p><b>El vendedor puede venir nulo entero</b> —las cuatro columnas— porque la unión es un
+   * {@code LEFT JOIN}: `movement_details.seller_id` es nulable desde `V12` y una línea sin vendedor
+   * tiene que <b>salir</b>, no desaparecer.
+   */
+  record SaleLineRow(
+      UUID lineId,
+      UUID movementId,
+      String movementCode,
+      String movementStatus,
+      OffsetDateTime occurredAt,
+      UUID clientId,
+      String clientUsername,
+      String clientFirstName,
+      String clientLastName,
+      UUID sellerId,
+      String sellerUsername,
+      String sellerFirstName,
+      String sellerLastName,
+      UUID productId,
+      String productCode,
+      String productName,
+      int quantity,
+      BigDecimal unitPrice,
+      BigDecimal lineDiscount,
+      BigDecimal lineAmount,
+      Integer validityDays,
+      String currencyCode,
+      String implementation,
+      String deliveryStatus,
+      OffsetDateTime deliveredAt,
+      String deliveryNote) {}
+
   record MovementFilter(
       String status,
       String type,
+      String typeStatus,
       UUID userId,
       UUID sellerId,
       UUID paymentMethodId,
@@ -503,6 +615,7 @@ public interface MovementRepository {
       String code,
       String type,
       String status,
+      String typeStatus,
       UUID userId,
       String userUsername,
       String userFirstName,

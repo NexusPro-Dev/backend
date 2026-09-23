@@ -87,9 +87,11 @@ public class PackagePurchaseController {
           fuera de su oferta, o un upgrade que baja de nivel— se rechaza la compra completa
           nombrando el producto, y **no se registra nada**.
 
-          **La respuesta no lleva el vendedor**: se atribuye a su superior comercial vigente
-          —o a usted mismo si no cuelga de nadie— y se congela en cada línea, pero a quien
-          compra no se le enseña. Es la misma forma que devuelve `GET /api/v1/movements/mine/{id}`
+          **La respuesta no lleva el vendedor**: si usted tiene **un** vendedor, la venta se
+          le atribuye a él y nace `typeStatus: VALIDADO`; si tiene **varios**, nace
+          `VALIDAR_COMISIONES` sin vendedor en sus líneas, y administración elige cuál
+          (`RN-MV-034`). Si no es cliente de nadie, su superior vigente o usted mismo. A quien
+          compra no se le enseña a quién. Es la misma forma que devuelve `GET /api/v1/movements/mine/{id}`
           sin `seller`.
           """)
   @ApiResponses({

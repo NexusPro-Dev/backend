@@ -102,6 +102,7 @@ public class BuyPackageService {
   private final AuditWriter auditoria;
   private final Clock reloj;
   private final SaleRules reglas;
+  private final SaleAttribution atribuciones;
 
   @Autowired
   public BuyPackageService(
@@ -140,16 +141,18 @@ public class BuyPackageService {
     this.auditoria = auditoria;
     this.reloj = reloj;
     this.reglas = new SaleRules(movimientos, membresias);
+    this.atribuciones = new SaleAttribution(clientes);
   }
 
   /**
-   * La compra propia: <b>el cliente es quien pide</b>, la fecha es ahora, y el vendedor es el de
-   * `RN-MV-003` — su superior vigente, o él mismo si no cuelga de nadie.
+   * La compra propia: <b>el cliente es quien pide</b>, la fecha es ahora, y el vendedor y el estado
+   * los decide {@link SaleAttribution} (`RN-MV-034`): con varios vendedores, la venta nace por
+   * validar y sin vendedor en sus líneas.
    *
    * <p>Lo que de verdad cambia entre las puertas —quién compra y quién vende— se resuelve <b>antes
    * de entrar</b>, y el registro recibe todo decidido (`RF-MV-013` · `plan.md` §3.1). Por eso
    * {@link #registrar} no sabe por dónde entró la petición, y la compra por hotlink podrá pasar su
-   * propio vendedor sin una bandera.
+   * propia atribución —{@link SaleAttribution#delEnlace}— sin una bandera.
    */
   @Transactional
   public PurchaseResponse buy(String codigoDelPaquete, BuyPackageRequest peticion) {
@@ -158,13 +161,18 @@ public class BuyPackageService {
             .currentActorId()
             .orElseThrow(() -> new UnauthorizedException("AUTH-001", "Se requiere autenticación."));
     ClientView cliente = verificarCliente(quien);
-    SellerView vendedor = resolverVendedor(cliente);
     return registrar(
-        cliente, vendedor, codigoDelPaquete, peticion == null ? null : peticion.paymentMethodId());
+        cliente,
+        atribuciones.deQuienCompra(cliente),
+        codigoDelPaquete,
+        peticion == null ? null : peticion.paymentMethodId());
   }
 
   PurchaseResponse registrar(
-      ClientView cliente, SellerView vendedor, String codigoDelPaquete, UUID metodoDePago) {
+      ClientView cliente,
+      SaleAttribution.Atribucion atribucion,
+      String codigoDelPaquete,
+      UUID metodoDePago) {
     OffsetDateTime ahora = OffsetDateTime.now(reloj);
 
     PackageSaleView paquete = resolverPaquete(codigoDelPaquete, cliente.id());
@@ -178,7 +186,8 @@ public class BuyPackageService {
     }
     verificarMonedaUnica(paquete, items);
 
-    List<MovementLine> lineas = copiar(paquete, items, vendedor.id());
+    SellerView vendedor = atribucion.vendedor();
+    List<MovementLine> lineas = copiar(paquete, items, vendedor == null ? null : vendedor.id());
     PaymentMethodView metodo = reglas.resolverMetodoDePago(metodoDePago, aPagar(lineas));
 
     MovementTypeView tipo = reglas.tipoDeVenta();
@@ -191,6 +200,7 @@ public class BuyPackageService {
             paquete.currencyId(),
             MovementCode.generar(tipo.prefix(), ahora),
             lineas,
+            reglas.estadoDeVenta(tipo, atribucion.estado()),
             paquete.currencyDecimalPlaces(),
             ahora,
             ahora);
@@ -223,16 +233,6 @@ public class BuyPackageService {
     // `RN-MV-008`, `EX-006`. El cliente no vino en el cuerpo: lo que falla es su estado.
     reglas.verificarQueOpera(cliente, "EX-006", "status");
     return cliente;
-  }
-
-  /** `RN-MV-003`: el superior vigente, o el propio comprador. Ver {@link RegisterSaleService}. */
-  private SellerView resolverVendedor(ClientView cliente) {
-    return clientes
-        .sellerOf(cliente.id())
-        .orElseGet(
-            () ->
-                new SellerView(
-                    cliente.id(), cliente.username(), cliente.firstName(), cliente.lastName()));
   }
 
   // ---------------------------------------------------------------------------

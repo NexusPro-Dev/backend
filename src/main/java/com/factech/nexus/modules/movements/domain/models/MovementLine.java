@@ -39,14 +39,17 @@ import java.util.UUID;
  * que identifica su asociación en {@code product_package_items} (`RN-PM-038`) — que no tiene
  * identificador propio, y cuya fila se borra al desasociar (`RN-PM-042`).
  *
- * <h2>El vendedor es de la línea, y en una venta siempre lo hay</h2>
+ * <h2>El vendedor es de la línea, y en una venta siempre lo habrá antes de comisionar</h2>
  *
  * <p>Desde el 16-09-2026 (`RN-MV-003`) {@code sellerId} vive aquí y no en la cabecera: la comisión
  * se devenga <b>por línea</b>, cada línea puede tener el suyo, y los tipos de movimiento que vienen
- * —depósito, comisión— no venden nada. La columna admite nulo <b>solo</b> por ellos: una línea de
- * venta sin vendedor no existe, y {@link #copiarDe} no ofrece la forma de construirla — quien
- * compra sin colgar de nadie <b>es su propio vendedor</b>. Es lo que el esquema no puede sostener,
- * porque «obligatorio en {@code VENTA}» exige mirar {@code movement_types}.
+ * —depósito, comisión— no venden nada.
+ *
+ * <p><b>Desde el 23-09-2026 una línea de venta puede nacer sin vendedor</b> (`RN-MV-034`): cuando
+ * quien compra tiene varios, escoger uno sería decidir en silencio a quién se le paga, y la venta
+ * nace {@link SaleTypeStatus#VALIDAR_COMISIONES} hasta que `RF-MV-016` lo asigne. <b>Quién decide
+ * si la línea lleva vendedor ya no es esta clase</b>: es {@code SaleAttribution}, y {@link
+ * Movement} comprueba que el estado del tipo cuadre con lo que las líneas dicen.
  *
  * <p>No es una entidad JPA, por el mismo motivo que {@link Movement}: ver su Javadoc.
  *
@@ -135,8 +138,8 @@ public final class MovementLine {
    * @param precio el precio del catálogo <b>ya llevado a la escala de su moneda</b>. Llega con la
    *     escala de la columna de `PM` —{@code numeric(14,4)}—, y ajustarlo es responsabilidad de
    *     quien resuelve la venta, que es quien conoce la moneda
-   * @param sellerId quien vendió <b>esta</b> línea (`RN-MV-003`), <b>obligatorio</b>: no hay línea
-   *     de venta sin vendedor, y quien no cuelga de nadie es el suyo
+   * @param sellerId quien vendió <b>esta</b> línea (`RN-MV-003`), o nulo si quien compra tiene
+   *     varios vendedores y todavía no se ha elegido (`RN-MV-034`)
    * @param productName y {@code productDescription} <b>se copian</b> (`RN-MV-002`): son lo que el
    *     catálogo decía el día de la venta, y `RF-PM-004` puede corregirlos mañana
    * @param validityDays nulo significa que lo adquirido <b>no caduca</b> (`RN-PM-015`)
@@ -180,12 +183,6 @@ public final class MovementLine {
       Integer validityDays,
       String implementation,
       List<LineDiscount> rebajas) {
-    if (sellerId == null) {
-      // No es una validación de entrada: el vendedor no viene de la petición.
-      // Protege de que un camino futuro arme una línea de venta sin atribución,
-      // que es justo el estado que la enmienda del 16-09-2026 retiró.
-      throw new IllegalArgumentException("Una línea de venta no existe sin vendedor.");
-    }
     if (productName == null || productName.isBlank()) {
       // Se copia, y una copia vacía no es una copia: sin esto, una línea podría
       // quedar sin decir qué se vendió y el nulo solo aparecería al leerla.
@@ -217,7 +214,9 @@ public final class MovementLine {
     datos.put("product_id", productId.toString());
     // La clave decide A QUIÉN SE LE PAGA por esta línea, y por eso se escribe
     // aquí y no en la cabecera desde el 16-09-2026 (`RN-MV-003`).
-    datos.put("seller_id", sellerId.toString());
+    // Nula y PRESENTE en una venta por validar (`RN-MV-034`): la clave ausente
+    // se leería como «esta versión no lo registraba».
+    datos.put("seller_id", sellerId == null ? null : sellerId.toString());
     datos.put("product_code", productCode);
     // Copias, y por eso están en la instantánea: lo que el catálogo decía ese
     // día, no lo que diga cuando alguien lea este registro (`RN-MV-002`).

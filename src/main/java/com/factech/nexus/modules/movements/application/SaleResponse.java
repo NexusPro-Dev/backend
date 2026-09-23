@@ -55,6 +55,12 @@ public record SaleResponse(
     String status,
     @Schema(
             description =
+                "El estado del TIPO de movimiento (`RN-MV-033`), aparte del pago. En una venta:"
+                    + " VALIDAR_COMISIONES —alguna línea no tiene vendedor, porque quien compra"
+                    + " tenía varios y falta elegir (`RF-MV-016`)— o VALIDADO —todas lo tienen—.")
+        String typeStatus,
+    @Schema(
+            description =
                 "El SUJETO del movimiento: a nombre de quién es. En una venta, quien compra."
                     + " Nunca quien la registró desde oficina.")
         Party user,
@@ -67,7 +73,10 @@ public record SaleResponse(
         UUID packageId,
     Money currency,
     String paymentMethod,
-    @Schema(description = "Las líneas, cada una con el vendedor al que se atribuye.")
+    @Schema(
+            description =
+                "Las líneas, cada una con el vendedor al que se atribuye, o sin él mientras la"
+                    + " venta esté VALIDAR_COMISIONES.")
         List<SaleLineResponse> lines,
     BigDecimal totalAmount,
     BigDecimal discountAmount,
@@ -111,12 +120,17 @@ public record SaleResponse(
       String metodoDePago) {
     List<SaleLineResponse> lineas = new ArrayList<>(venta.getLines().size());
     for (MovementLine linea : venta.getLines()) {
-      lineas.add(SaleLineResponse.de(linea, vendedores.get(linea.getSellerId())));
+      // Sin vendedor en una venta por validar (`RN-MV-034`): los mapas inmutables
+      // no admiten buscar la clave nula, y la línea viaja con `seller` nulo.
+      lineas.add(
+          SaleLineResponse.de(
+              linea, linea.getSellerId() == null ? null : vendedores.get(linea.getSellerId())));
     }
     return new SaleResponse(
         venta.getId(),
         venta.getCode(),
         venta.getStatus().name(),
+        venta.getTypeStatus().code(),
         sujeto,
         venta.getPackageId(),
         moneda,

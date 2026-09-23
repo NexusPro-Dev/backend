@@ -9,6 +9,7 @@ import com.factech.nexus.IntegrationTestBase;
 import com.factech.nexus.testing.ConcurrencyHarness.Outcome;
 import java.util.List;
 import java.util.UUID;
+import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -41,6 +42,26 @@ class ExchangeRateConcurrencyIT extends IntegrationTestBase {
   @Autowired private JdbcTemplate jdbc;
 
   private String cop;
+
+  /**
+   * Deja las dos tablas como las encontró, y no solo como las necesita.
+   *
+   * <p><b>Limpiar solo al empezar no basta</b>: al terminar quedan tasas y monedas que no son la de
+   * casa, y la siguiente clase que haga {@code DELETE FROM currencies WHERE is_default = false}
+   * —`CurrenciesIT`— revienta con {@code fk_exchange_rates_target} antes de ejecutar una sola
+   * prueba. El fallo sale en otra suite, con un mensaje que no menciona a esta.
+   *
+   * <p>Es la misma lección que {@code PackageTestSupport} tiene escrita para las monedas de prueba,
+   * y la que las suites de equipos siguen desde `CA-SP-683`: se limpia al empezar <b>y</b> al
+   * terminar. Lo destapó el CI de `RF-SP-070` el 23-09-2026, cuando las clases nuevas del submódulo
+   * de Equipos cambiaron el orden de ejecución en Linux.
+   */
+  @AfterEach
+  void dejarLoQueEncontro() {
+    // Las tasas primero: apuntan a las monedas que se borran a continuación.
+    jdbc.update("DELETE FROM exchange_rates");
+    jdbc.update("DELETE FROM currencies WHERE is_default = false");
+  }
 
   @BeforeEach
   void dejarElCatalogoLimpio() {

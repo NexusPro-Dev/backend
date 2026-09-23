@@ -402,6 +402,9 @@ class MovementsIT extends IntegrationTestBase {
     jdbc.update("DELETE FROM movements");
     // DESPUÉS de los movimientos, que lo referencian; y siempre, para que el
     // catálogo quede con su única fila y ninguna suite de siembra lo cuente de más.
+    jdbc.update(
+        "DELETE FROM movement_type_statuses WHERE movement_type_id IN"
+            + " (SELECT id FROM movement_types WHERE code = 'PRUEBA_DEPOSITO')");
     jdbc.update("DELETE FROM movement_types WHERE code = 'PRUEBA_DEPOSITO'");
     jdbc.update("DELETE FROM products WHERE code LIKE 'ALL_%'");
     jdbc.update(
@@ -464,15 +467,24 @@ class MovementsIT extends IntegrationTestBase {
           ON CONFLICT (id) DO NOTHING
           """,
           tipo);
+      // Todo movimiento lleva el estado de SU tipo (`RN-MV-033`, clave compuesta
+      // de `V36`): el tipo de prueba necesita el suyo.
+      jdbc.update(
+          """
+          INSERT INTO movement_type_statuses (id, movement_type_id, code, name)
+          VALUES (gen_random_uuid(), CAST(? AS uuid), 'VALIDADO', 'Validado')
+          ON CONFLICT ON CONSTRAINT uq_movement_type_statuses_code DO NOTHING
+          """,
+          tipo);
     }
     UUID id = UUID.randomUUID();
     jdbc.update(
         """
-        INSERT INTO movements (id, movement_type_id, user_id, payment_method_id,
+        INSERT INTO movements (id, movement_type_id, type_status_id, user_id, payment_method_id,
                                currency_id, code, status, total_amount, discount_amount,
                                payable_amount, occurred_at, confirmed_at,
                                voided_at, void_reason)
-        VALUES (?, CAST(? AS uuid), ?, CAST(? AS uuid), CAST(? AS uuid), ?, ?,
+        VALUES (?, CAST(? AS uuid), (SELECT s.id FROM movement_type_statuses s WHERE s.movement_type_id = CAST(? AS uuid) AND s.code = 'VALIDADO'), ?, CAST(? AS uuid), CAST(? AS uuid), ?, ?,
                 100.00, 0, 100.00, CAST(? AS timestamptz),
                 CASE WHEN ? = 'CONFIRMADA' THEN CAST(? AS timestamptz) ELSE NULL END,
                 -- `ck_movements_voided`: una anulada lleva fecha y motivo, y solo ella.
@@ -480,6 +492,7 @@ class MovementsIT extends IntegrationTestBase {
                 CASE WHEN ? = 'ANULADA' THEN 'Sembrada anulada' ELSE NULL END)
         """,
         id,
+        tipo,
         tipo,
         sujeto,
         metodo,

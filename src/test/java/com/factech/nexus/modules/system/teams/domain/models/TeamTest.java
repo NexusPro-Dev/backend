@@ -105,4 +105,72 @@ class TeamTest {
     assertThat(pertenencia.close(AHORA)).isTrue();
     assertThat(pertenencia.getEndedAt()).isAfter(pertenencia.getStartedAt());
   }
+
+  @Test
+  @DisplayName(
+      "activate y deactivate devuelven SI hubo cambio, y solo entonces avanzan updatedAt"
+          + " (`RF-SP-067` `T-01`)")
+  void elEstadoSeCambiaYSeRepite() {
+    Team equipo = Team.create(UUID.randomUUID(), "Equipo Norte", null, AHORA);
+
+    // Nace ACTIVO: pedir ACTIVO no cambia nada y no mueve la marca de tiempo,
+    // que es lo que sostiene la idempotencia de `CA-SP-765`.
+    assertThat(equipo.activate(AHORA.plusDays(1))).isFalse();
+    assertThat(equipo.getStatus()).isEqualTo(TeamStatus.ACTIVO);
+    assertThat(equipo.getUpdatedAt()).isEqualTo(AHORA);
+
+    assertThat(equipo.deactivate(AHORA.plusDays(1))).isTrue();
+    assertThat(equipo.getStatus()).isEqualTo(TeamStatus.INACTIVO);
+    assertThat(equipo.getUpdatedAt()).isEqualTo(AHORA.plusDays(1));
+
+    // Repetir la suspensión tampoco mueve la marca: el segundo reintento no es
+    // una escritura.
+    assertThat(equipo.deactivate(AHORA.plusDays(2))).isFalse();
+    assertThat(equipo.getUpdatedAt()).isEqualTo(AHORA.plusDays(1));
+
+    assertThat(equipo.activate(AHORA.plusDays(3))).isTrue();
+    assertThat(equipo.getStatus()).isEqualTo(TeamStatus.ACTIVO);
+    assertThat(equipo.getUpdatedAt()).isEqualTo(AHORA.plusDays(3));
+  }
+
+  @Test
+  @DisplayName("el estado no toca el nombre, la descripción ni la baja lógica")
+  void elEstadoNoTocaNadaMas() {
+    Team equipo = Team.create(UUID.randomUUID(), "Equipo Sur", "Managers del sur", AHORA);
+
+    equipo.deactivate(AHORA.plusHours(1));
+
+    assertThat(equipo.getName()).isEqualTo("Equipo Sur");
+    assertThat(equipo.getDescription()).isEqualTo("Managers del sur");
+    assertThat(equipo.estaEliminado()).isFalse();
+    assertThat(equipo.getDeletedAt()).isNull();
+    // La instantánea de la auditoría sí lo refleja: es el mismo mapa que leen la
+    // creación y la baja.
+    assertThat(equipo.instantanea()).containsEntry("status", "INACTIVO");
+  }
+
+  @Test
+  @DisplayName(
+      "delete marca deleted_at y NADA más: ni el estado, ni el nombre, ni updatedAt (`RF-SP-068`"
+          + " `T-01`)")
+  void laBajaSoloMarcaLaFecha() {
+    Team equipo = Team.create(UUID.randomUUID(), "Equipo Norte", "Managers del norte", AHORA);
+    equipo.deactivate(AHORA.plusHours(1));
+
+    assertThat(equipo.delete(AHORA.plusDays(1))).isTrue();
+    assertThat(equipo.estaEliminado()).isTrue();
+    assertThat(equipo.getDeletedAt()).isEqualTo(AHORA.plusDays(1));
+    // El estado se conserva: apagarlo al eliminar inventaria un hecho que nadie
+    // decidio, y haria indistinguible «se suspendio y luego se elimino» de «se
+    // elimino estando activo».
+    assertThat(equipo.getStatus()).isEqualTo(TeamStatus.INACTIVO);
+    assertThat(equipo.getName()).isEqualTo("Equipo Norte");
+    assertThat(equipo.getDescription()).isEqualTo("Managers del norte");
+    assertThat(equipo.getUpdatedAt()).isEqualTo(AHORA.plusHours(1));
+
+    // Eliminar una ya eliminada no mueve la fecha: quien decide el `409` es el
+    // caso de uso, y el agregado no miente sobre cuándo se retiró.
+    assertThat(equipo.delete(AHORA.plusDays(2))).isFalse();
+    assertThat(equipo.getDeletedAt()).isEqualTo(AHORA.plusDays(1));
+  }
 }

@@ -1,6 +1,7 @@
 package com.factech.nexus.modules.system.users.domain.repository;
 
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
 import java.util.UUID;
@@ -34,4 +35,17 @@ public interface RoleCatalog {
 
   /** Roles que porta una persona. Lo necesita `RN-SP-020` para mirar al superior. */
   Set<UUID> roleIdsOf(UUID userId);
+
+  /**
+   * Los roles de VARIAS personas, en <b>una</b> consulta (`RF-SP-069`).
+   *
+   * <p>No es azúcar sobre {@link #roleIdsOf}: quien asigna un lote de hasta cien managers a un
+   * equipo tiene que decidir sobre todos antes de escribir nada, y hacerlo persona a persona serían
+   * cien viajes a la base — el `N+1` que el plan de `RF-SP-069` declara como riesgo.
+   *
+   * <p>Una persona sin ningún rol <b>no aparece</b> en el mapa, en lugar de aparecer con un
+   * conjunto vacío: quien pregunta ya tiene la lista de a quién preguntó, y un mapa con huecos
+   * obliga a decidir qué significa el hueco en el sitio donde importa.
+   */
+  Map<UUID, Set<UUID>> roleIdsOfAll(Set<UUID> userIds);
 }
