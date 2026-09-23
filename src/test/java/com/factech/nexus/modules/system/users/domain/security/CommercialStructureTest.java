@@ -139,5 +139,12 @@ class CommercialStructureTest {
     public Set<UUID> roleIdsOf(UUID userId) {
       return Set.of();
     }
+
+    @Override
+    public Map<UUID, Set<UUID>> roleIdsOfAll(Set<UUID> userIds) {
+      // `RF-SP-069` lo añadió para resolver un lote de personas en una consulta.
+      // Este componente decide sobre roles ya resueltos y no lo usa.
+      return Map.of();
+    }
   }
 }

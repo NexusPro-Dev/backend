@@ -1,5 +1,6 @@
 package com.factech.nexus.modules.system.teams.interfaces;
 
+import com.factech.nexus.modules.system.teams.application.AssignTeamMembersRequest;
 import com.factech.nexus.modules.system.teams.application.ChangeTeamStatusRequest;
 import com.factech.nexus.modules.system.teams.application.DeleteTeamRequest;
 import com.factech.nexus.modules.system.teams.application.ListTeamsRequest;
@@ -7,6 +8,7 @@ import com.factech.nexus.modules.system.teams.application.RegisterTeamRequest;
 import com.factech.nexus.modules.system.teams.application.TeamDetailResponse;
 import com.factech.nexus.modules.system.teams.application.TeamItem;
 import com.factech.nexus.modules.system.teams.application.UpdateTeamRequest;
+import com.factech.nexus.modules.system.teams.domain.service.AssignTeamMembersService;
 import com.factech.nexus.modules.system.teams.domain.service.ChangeTeamStatusService;
 import com.factech.nexus.modules.system.teams.domain.service.DeleteTeamService;
 import com.factech.nexus.modules.system.teams.domain.service.GetTeamService;
@@ -64,6 +66,7 @@ public class TeamController {
   private final UpdateTeamService correccion;
   private final ChangeTeamStatusService estado;
   private final DeleteTeamService baja;
+  private final AssignTeamMembersService asignacion;
 
   public TeamController(
       RegisterTeamService alta,
@@ -71,13 +74,15 @@ public class TeamController {
       GetTeamService ficha,
       UpdateTeamService correccion,
       ChangeTeamStatusService estado,
-      DeleteTeamService baja) {
+      DeleteTeamService baja,
+      AssignTeamMembersService asignacion) {
     this.alta = alta;
     this.listado = listado;
     this.ficha = ficha;
     this.correccion = correccion;
     this.estado = estado;
     this.baja = baja;
+    this.asignacion = asignacion;
   }
 
   @PostMapping
@@ -415,5 +420,92 @@ public class TeamController {
   public void eliminar(
       @PathVariable UUID id, @RequestBody(required = false) DeleteTeamRequest peticion) {
     baja.delete(id, peticion);
+  }
+
+  @PostMapping("/{id}/members")
+  @PreAuthorize("hasAuthority('teams:assign-members')")
+  @Operation(
+      summary = "Asignar miembros a un equipo",
+      description =
+          """
+          Dice **a qué equipo pertenece cada manager desde hoy**, en una sola
+          operación y con motivo. Admite **de una a cien personas** por petición, y
+          los identificadores repetidos se tratan una sola vez.
+
+          **Solo entra la cúspide** (`RN-SP-051`): quien porta el rol comercial **de
+          mayor rango**. Un director o un agente **no** se asigna —pertenece al equipo
+          de su manager por la cadena de mando— y enviarlo responde `422` diciendo
+          cuáles y por qué. La regla se decide por la **forma de la jerarquía de
+          roles**, no por un código concreto: el día que nazca un rango por encima, la
+          operación lo sigue sin tocar código.
+
+          **Toda la lista o ninguna.** Si alguna persona no existe, está eliminada o no
+          es de la cúspide, **no entra nadie** y la respuesta informa de **todas** las
+          que fallan, no de la primera: a medias, quien administra no sabría quién
+          entró sin volver a consultar, y el motivo declarado valdría para un conjunto
+          distinto del que pidió.
+
+          **Mover a alguien de equipo es asignarlo al destino.** La pertenencia
+          anterior **se cierra sola** en la misma transacción, y el equipo de origen lo
+          refleja de inmediato en su recuento. **Quien ya está en este equipo no se
+          toca**: conserva su `joinedAt` original, no se audita y no es un error —
+          reabrirlo le quitaría la antigüedad que ordena la lista.
+
+          **El equipo debe estar `ACTIVO`.** Uno `INACTIVO` responde `409`: la
+          restricción es del equipo que **recibe**, de modo que sí se puede mover a
+          alguien **desde** un equipo suspendido hacia uno activo. Un equipo eliminado
+          responde `404`.
+
+          **Una persona desactivada o bloqueada entra igual**: un manager suspendido
+          sigue siendo manager, y no poder organizarlo dejaría sin forma de ordenar la
+          cúspide antes de reactivarlo. Su estado se ve en el detalle.
+
+          **El motivo es obligatorio** y no se puede declarar desde cuándo: la
+          pertenencia rige al ejecutarse. Una fecha declarada permitiría reescribir a
+          qué equipo se atribuía una venta de hace tres meses, y este historial es el
+          que leerán las comisiones.
+
+          **Esto no cambia quién manda sobre quién.** `user_supervisors` y los roles de
+          cada persona quedan exactamente igual: un equipo agrupa, no manda, y
+          pertenecer a uno **no concede acceso a ningún dato**.
+
+          La respuesta es la **forma del detalle**, ya con todos sus miembros por
+          antigüedad. Exige `teams:assign-members`; **`teams:remove-members` no
+          habilita esta operación**, porque mover gente y dejarla fuera de todo equipo
+          son dos decisiones distintas.
+          """)
+  @ApiResponses({
+    @ApiResponse(
+        responseCode = "200",
+        description = "Equipo con sus miembros, en la forma del detalle.",
+        content = @Content(schema = @Schema(implementation = TeamDetailResponse.class))),
+    @ApiResponse(
+        responseCode = "400",
+        description =
+            "Lista vacía o de más de 100 (`VAL-001`, `VAL-003`), identificador mal formado"
+                + " (`VAL-002`), motivo ausente o largo (`VAL-004`, `VAL-005`) o cuerpo con"
+                + " campos no admitidos (`VAL-006`)"),
+    @ApiResponse(responseCode = "401", description = "Token ausente o inválido (`AUTH-001`)"),
+    @ApiResponse(
+        responseCode = "403",
+        description = "Autenticado sin el permiso `teams:assign-members` (`AUTH-002`)"),
+    @ApiResponse(
+        responseCode = "404",
+        description = "El equipo no existe o está eliminado (`EX-001`)"),
+    @ApiResponse(
+        responseCode = "409",
+        description =
+            "El equipo está `INACTIVO` y no admite miembros nuevos (`RN-SP-053`), o la persona"
+                + " acaba de ser asignada a otro equipo a la vez (`RN-SP-052`)"),
+    @ApiResponse(
+        responseCode = "422",
+        description =
+            "Alguna persona no existe o está eliminada (`EX-003`), o no porta el rol comercial"
+                + " de mayor rango (`RN-SP-051`); en `errors` van todas las que causan el"
+                + " rechazo")
+  })
+  public TeamDetailResponse asignarMiembros(
+      @PathVariable UUID id, @Valid @RequestBody AssignTeamMembersRequest peticion) {
+    return asignacion.assign(id, peticion);
   }
 }

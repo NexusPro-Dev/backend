@@ -5,7 +5,7 @@
 | Módulo | `SP` — Sistema Principal |
 | Paquete | `modules/system` |
 | Prefijos de permiso | `roles:`, `permissions:`, `audit:`, `memberships:`, `currencies:`, `countries:`, `users:`, `exchange-rates:`, `document-types:`, `brokers:`, `broker-accounts:`, `teams:` |
-| Versión | 1.81.0 |
+| Versión | 1.82.0 |
 | Estado | **Aprobado** |
 | Responsable | Bonilla Diaz William Steven |
 | Fecha de creación | 20-08-2026 |
@@ -393,7 +393,7 @@ EXCLUDE USING gist (
 | `RF-SP-066` | Editar equipo | Media | `teams:update` | **En desarrollo** |
 | `RF-SP-067` | Cambiar el estado de un equipo | Media | `teams:change-status` | **En desarrollo** |
 | `RF-SP-068` | Eliminar equipo | Baja | `teams:delete` | **En desarrollo** |
-| `RF-SP-069` | Asignar miembros a un equipo | Alta | `teams:assign-members` | **Tasks en revisión** |
+| `RF-SP-069` | Asignar miembros a un equipo | Alta | `teams:assign-members` | **En desarrollo** |
 | `RF-SP-070` | Retirar miembros de un equipo | Media | `teams:remove-members` | **Tasks en revisión** |
 
 !!! info "Dónde vive el estado de un requerimiento"
@@ -2222,3 +2222,4 @@ La fila se lee «`user_id` pertenece al equipo `team_id` desde `started_at`». U
 | 1.79.0 | 22-09-2026 | **`RF-SP-059` publica el teléfono de empresa y el estado del vendedor** (Art. I.7), en las **dos** rutas. **Ninguna regla cambia** —ni `RN-SP-049`, ni el permiso, ni la ruta— y no hay migración: `company_phone` existe desde el 10-09-2026 y `status` desde el origen, de modo que las dos columnas salen del `JOIN users` que la proyección ya hacía y **el número de sentencias no se mueve**. Lo que cambia es una decisión de §6.2 de su spec: se revierte «no publica nada que el cliente no sepa ya» **en dos de los cuatro campos** que excluía; el identificador y el correo siguen fuera. `status` hace visible algo que ya ocurría y no se veía: un vendedor **eliminado** sigue saliendo, porque el vínculo sobrevive al vendedor, y hasta hoy su fila era idéntica a la de uno activo. `CA-SP-701` invertido, `CA-SP-798` nuevo. | Responsable del proyecto |
 | 1.80.0 | 23-09-2026 | **`RF-SP-067` pasa a `En desarrollo`**: suspender y reactivar un equipo está construido y `PATCH /api/v1/teams/{id}/status` publicado con **`teams:change-status`**. **Nada de la ficha cambia** y ninguna regla se toca: `RN-SP-053` ya decía que el equipo `INACTIVO` conserva a sus miembros, y la construcción lo que hace es **elegir dónde se aplica** —en la asignación (`RF-SP-069`), no en el cambio de estado—, de modo que suspender no comprueba nada y no cierra una sola pertenencia. Se deja dicho por la misma razón que se dejó dicho que hay ocho permisos `teams:` con menos rutas: quien lea la regla en §5.1 tiene que poder encontrar en qué operación se hace cumplir. | Responsable técnico |
 | 1.81.0 | 23-09-2026 | **`RF-SP-068` pasa a `En desarrollo`**: la baja de un equipo está construida y `POST /api/v1/teams/{id}/deletion` publicado con **`teams:delete`**. **Nada de la ficha cambia** y ninguna regla se toca. Queda dicho, por si alguien lee `RN-SP-054` y la cree una molestia: la baja se rechaza con miembros vigentes **y la comprobación vive dentro del bloqueo de la fila**, de modo que una asignación simultánea no puede colar a nadie en un equipo que se está eliminando. Y queda dicho también dónde vive el historial: las pertenencias cerradas **sobreviven** a la baja (`RN-SP-052`) y sus identificadores viajan en la instantánea del registro de eliminación, que es lo que permitirá a las comisiones repartir lo que produjo una red cuyo equipo ya no existe. | Responsable técnico |
+| 1.82.0 | 23-09-2026 | **`RF-SP-069` pasa a `En desarrollo`**: asignar managers a un equipo está construido y `POST /api/v1/teams/{id}/members` publicado con **`teams:assign-members`**. **Nada de la ficha cambia** y ninguna regla se toca, pero tres de ellas quedan por fin **ejercidas** y conviene decir dónde: `RN-SP-051` la aplica `TeamMembershipRules` preguntando a `CommercialStructure` —la cúspide es el vendedor cuyo rol padre ya no es vendedor, no el código `MANAGER`—; `RN-SP-052` la aplica el propio caso de uso cerrando la pertenencia anterior, con `uq_team_members_vigente` de red para las carreras; y `RN-SP-053` se hace cumplir **aquí y no en el cambio de estado** (`RF-SP-067`), porque la regla la aplica quien intenta entrar. Con esto, `team_members` deja de ser una tabla declarada y sin escritores. | Responsable técnico |

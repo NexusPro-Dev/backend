@@ -10,6 +10,7 @@ import static org.hamcrest.Matchers.hasSize;
 import static org.hamcrest.Matchers.startsWith;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.patch;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
@@ -46,7 +47,7 @@ class TeamStatusIT extends IntegrationTestBase {
   @Autowired private MockMvc mvc;
   @Autowired private JdbcTemplate jdbc;
 
-  private static final String[] GENTE = {"estadoequipo1", "estadoequipo2"};
+  private static final String[] GENTE = {"estadoequipo1", "estadoequipo2", "estadoequipo3"};
 
   private UUID poblado;
   private UUID suspendido;
@@ -254,6 +255,49 @@ class TeamStatusIT extends IntegrationTestBase {
 
     assertThat(estadoEnBase(poblado)).isEqualTo("ACTIVO");
     assertThat(filasDeAuditoria(poblado)).isZero();
+  }
+
+  @Test
+  @DisplayName(
+      "`CA-SP-766` — un equipo INACTIVO no admite miembros nuevos: la asignación responde 409"
+          + " mientras siga suspendido, y vuelve a admitirlos al reactivarlo")
+  void elSuspendidoNoRecibeMiembros() throws Exception {
+    // La deuda que `RF-SP-067` `T-07` dejó declarada: la regla que este estado
+    // significa (`RN-SP-053`) la aplica QUIEN INTENTA ENTRAR, y por eso se
+    // verifica desde la asignación y no desde el cambio de estado. Vive en esta
+    // suite, y no en la de miembros, porque lo que prueba es qué significa el
+    // estado — no cómo se asigna.
+    UUID manager = TeamTestSupport.personaConRol(jdbc, GENTE[2], "MANAGER");
+
+    mvc.perform(cambiar(poblado, "{\"status\":\"INACTIVO\"}")).andExpect(status().isOk());
+
+    mvc.perform(asignarA(poblado, manager))
+        .andExpect(status().isConflict())
+        .andExpect(
+            jsonPath("$.detail")
+                .value(
+                    "El equipo está inactivo y no admite miembros nuevos. Actívelo antes de"
+                        + " asignar."));
+    assertThat(vigentesDe(poblado)).isEqualTo(2);
+
+    // Y en cuanto vuelve a estar activo, entra.
+    mvc.perform(cambiar(poblado, "{\"status\":\"ACTIVO\"}")).andExpect(status().isOk());
+    mvc.perform(asignarA(poblado, manager)).andExpect(status().isOk());
+    assertThat(vigentesDe(poblado)).isEqualTo(3);
+  }
+
+  private MockHttpServletRequestBuilder asignarA(UUID equipo, UUID persona) {
+    return post("/api/v1/teams/" + equipo + "/members")
+        .contentType(MediaType.APPLICATION_JSON)
+        .content("{\"memberIds\":[\"" + persona + "\"],\"reason\":\"Se incorpora a la region.\"}")
+        .with(con("teams:assign-members"));
+  }
+
+  private int vigentesDe(UUID equipo) {
+    return jdbc.queryForObject(
+        "SELECT count(*) FROM team_members WHERE team_id = ? AND ended_at IS NULL",
+        Integer.class,
+        equipo);
   }
 
   private MockHttpServletRequestBuilder cambiar(UUID id, String cuerpo) {

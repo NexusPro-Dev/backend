@@ -485,6 +485,14 @@ class OpenApiContractIT extends IntegrationTestBase {
         .andExpect(jsonPath("$.paths['/api/v1/teams/{id}/deletion'].post.responses.204").exists())
         .andExpect(jsonPath("$.paths['/api/v1/teams/{id}/deletion'].post.responses.409").exists())
         .andExpect(jsonPath("$.paths['/api/v1/teams/{id}'].delete").doesNotExist())
+        // `RF-SP-069`: asignar tiene permiso propio —`teams:remove-members` no la
+        // habilita— y publica el `422` que el resto del submódulo no tiene: es la
+        // única operación cuyo cuerpo referencia a personas que pueden no resolver.
+        .andExpect(
+            jsonPath("$.paths['/api/v1/teams/{id}/members'].post['x-required-permission']")
+                .value("teams:assign-members"))
+        .andExpect(jsonPath("$.paths['/api/v1/teams/{id}/members'].post.responses.422").exists())
+        .andExpect(jsonPath("$.paths['/api/v1/teams/{id}/members'].post.responses.409").exists())
         .andExpect(jsonPath("$.components.schemas.TeamDetailResponse.properties.members").exists())
         .andExpect(
             jsonPath("$.components.schemas.TeamDetailResponse.properties.deletionReason").exists());

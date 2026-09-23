@@ -47,6 +47,26 @@
         "required" : [ "supervisorId" ],
         "type" : "object"
       },
+      "AssignTeamMembersRequest" : {
+        "properties" : {
+          "memberIds" : {
+            "items" : {
+              "format" : "uuid",
+              "type" : "string"
+            },
+            "maxItems" : 100,
+            "minItems" : 0,
+            "type" : "array"
+          },
+          "reason" : {
+            "maxLength" : 500,
+            "minLength" : 0,
+            "type" : "string"
+          }
+        },
+        "required" : [ "memberIds", "reason" ],
+        "type" : "object"
+      },
       "AssociatePackageProductRequest" : {
         "properties" : {
           "discountType" : {
@@ -13182,6 +13202,106 @@
         "summary" : "Eliminar un equipo",
         "tags" : [ "Equipos" ],
         "x-required-permission" : "teams:delete"
+      }
+    },
+    "/api/v1/teams/{id}/members" : {
+      "post" : {
+        "description" : "**Permiso requerido:** `teams:assign-members`. Sin él, `403` (`AUTH-002`).\n\nDice **a qué equipo pertenece cada manager desde hoy**, en una sola\noperación y con motivo. Admite **de una a cien personas** por petición, y\nlos identificadores repetidos se tratan una sola vez.\n\n**Solo entra la cúspide** (`RN-SP-051`): quien porta el rol comercial **de\nmayor rango**. Un director o un agente **no** se asigna —pertenece al equipo\nde su manager por la cadena de mando— y enviarlo responde `422` diciendo\ncuáles y por qué. La regla se decide por la **forma de la jerarquía de\nroles**, no por un código concreto: el día que nazca un rango por encima, la\noperación lo sigue sin tocar código.\n\n**Toda la lista o ninguna.** Si alguna persona no existe, está eliminada o no\nes de la cúspide, **no entra nadie** y la respuesta informa de **todas** las\nque fallan, no de la primera: a medias, quien administra no sabría quién\nentró sin volver a consultar, y el motivo declarado valdría para un conjunto\ndistinto del que pidió.\n\n**Mover a alguien de equipo es asignarlo al destino.** La pertenencia\nanterior **se cierra sola** en la misma transacción, y el equipo de origen lo\nrefleja de inmediato en su recuento. **Quien ya está en este equipo no se\ntoca**: conserva su `joinedAt` original, no se audita y no es un error —\nreabrirlo le quitaría la antigüedad que ordena la lista.\n\n**El equipo debe estar `ACTIVO`.** Uno `INACTIVO` responde `409`: la\nrestricción es del equipo que **recibe**, de modo que sí se puede mover a\nalguien **desde** un equipo suspendido hacia uno activo. Un equipo eliminado\nresponde `404`.\n\n**Una persona desactivada o bloqueada entra igual**: un manager suspendido\nsigue siendo manager, y no poder organizarlo dejaría sin forma de ordenar la\ncúspide antes de reactivarlo. Su estado se ve en el detalle.\n\n**El motivo es obligatorio** y no se puede declarar desde cuándo: la\npertenencia rige al ejecutarse. Una fecha declarada permitiría reescribir a\nqué equipo se atribuía una venta de hace tres meses, y este historial es el\nque leerán las comisiones.\n\n**Esto no cambia quién manda sobre quién.** `user_supervisors` y los roles de\ncada persona quedan exactamente igual: un equipo agrupa, no manda, y\npertenecer a uno **no concede acceso a ningún dato**.\n\nLa respuesta es la **forma del detalle**, ya con todos sus miembros por\nantigüedad. Exige `teams:assign-members`; **`teams:remove-members` no\nhabilita esta operación**, porque mover gente y dejarla fuera de todo equipo\nson dos decisiones distintas.\n",
+        "operationId" : "asignarMiembros",
+        "parameters" : [ {
+          "in" : "path",
+          "name" : "id",
+          "required" : true,
+          "schema" : {
+            "format" : "uuid",
+            "type" : "string"
+          }
+        } ],
+        "requestBody" : {
+          "content" : {
+            "application/json" : {
+              "schema" : {
+                "$ref" : "#/components/schemas/AssignTeamMembersRequest"
+              }
+            }
+          },
+          "required" : true
+        },
+        "responses" : {
+          "200" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/TeamDetailResponse"
+                }
+              }
+            },
+            "description" : "Equipo con sus miembros, en la forma del detalle."
+          },
+          "400" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/TeamDetailResponse"
+                }
+              }
+            },
+            "description" : "Lista vacía o de más de 100 (`VAL-001`, `VAL-003`), identificador mal formado (`VAL-002`), motivo ausente o largo (`VAL-004`, `VAL-005`) o cuerpo con campos no admitidos (`VAL-006`)"
+          },
+          "401" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/TeamDetailResponse"
+                }
+              }
+            },
+            "description" : "Token ausente o inválido (`AUTH-001`)"
+          },
+          "403" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/TeamDetailResponse"
+                }
+              }
+            },
+            "description" : "Autenticado sin el permiso `teams:assign-members` (`AUTH-002`)"
+          },
+          "404" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/TeamDetailResponse"
+                }
+              }
+            },
+            "description" : "El equipo no existe o está eliminado (`EX-001`)"
+          },
+          "409" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/TeamDetailResponse"
+                }
+              }
+            },
+            "description" : "El equipo está `INACTIVO` y no admite miembros nuevos (`RN-SP-053`), o la persona acaba de ser asignada a otro equipo a la vez (`RN-SP-052`)"
+          },
+          "422" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/TeamDetailResponse"
+                }
+              }
+            },
+            "description" : "Alguna persona no existe o está eliminada (`EX-003`), o no porta el rol comercial de mayor rango (`RN-SP-051`); en `errors` van todas las que causan el rechazo"
+          }
+        },
+        "summary" : "Asignar miembros a un equipo",
+        "tags" : [ "Equipos" ],
+        "x-required-permission" : "teams:assign-members"
       }
     },
     "/api/v1/teams/{id}/status" : {

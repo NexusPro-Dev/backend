@@ -37,10 +37,13 @@ class TeamConcurrencyIT extends IntegrationTestBase {
   @Autowired private MockMvc mvc;
   @Autowired private JdbcTemplate jdbc;
 
+  private static final String[] PERSONAS = {"carreraequipo1", "carreraequipo2"};
+
   @BeforeEach
   @AfterEach
   void limpiar() {
     TeamTestSupport.limpiar(jdbc);
+    TeamTestSupport.borrarPersonas(jdbc, PERSONAS);
   }
 
   @Test
@@ -116,6 +119,75 @@ class TeamConcurrencyIT extends IntegrationTestBase {
         .with(con("teams:delete"))
         .contentType(MediaType.APPLICATION_JSON)
         .content("{\"reason\":\"Se disuelve por reorganizacion.\"}");
+  }
+
+  @Test
+  @DisplayName(
+      "`RN-SP-052` — la misma persona asignada a dos equipos a la vez: una gana, la otra 409, y"
+          + " queda UNA sola pertenencia vigente")
+  void lamismaPersonaADosEquiposALaVez() throws Exception {
+    // Aquí el bloqueo del equipo no ordena nada —son equipos distintos— y quien
+    // decide es `uq_team_members_vigente`, que por eso se declaró parcial. Lo
+    // que se comprueba es que el perdedor recibe el `409` de negocio y no un
+    // `500` de una restricción sin traducir.
+    UUID primero = TeamTestSupport.equipo(jdbc, "Equipo Carrera Uno");
+    UUID segundo = TeamTestSupport.equipo(jdbc, "Equipo Carrera Dos");
+    UUID manager = TeamTestSupport.personaConRol(jdbc, PERSONAS[0], "MANAGER");
+
+    List<Outcome<Integer>> resultados =
+        runTogether(2, indice -> estadoDe(asignar(indice == 0 ? primero : segundo, manager)));
+
+    assertThat(resultados).noneMatch(r -> r.succeeded() && r.value() >= 500);
+    assertThat(resultados.stream().filter(r -> r.succeeded() && r.value() == 200).count())
+        .isEqualTo(1);
+    assertThat(
+            jdbc.queryForObject(
+                "SELECT count(*) FROM team_members WHERE user_id = ? AND ended_at IS NULL",
+                Integer.class,
+                manager))
+        .isEqualTo(1);
+  }
+
+  @Test
+  @DisplayName(
+      "`CA-SP-777` (la mitad cruzada) — asignar contra eliminar el mismo equipo: nunca queda un"
+          + " equipo eliminado con alguien dentro")
+  void asignarContraEliminar() throws Exception {
+    // Es la media carrera que `RF-SP-068` `T-09` dejó declarada esperando a esta
+    // operación. Las dos piden el MISMO equipo con bloqueo, de modo que el motor
+    // las ordena: si gana la baja, la asignación recibe `404`; si gana la
+    // asignación, la baja recibe su `409` por tener miembros. Lo que no puede
+    // pasar —y es lo único que se afirma— es que ocurran las dos.
+    UUID equipo = TeamTestSupport.equipo(jdbc, "Equipo Que Se Disputa");
+    UUID manager = TeamTestSupport.personaConRol(jdbc, PERSONAS[1], "MANAGER");
+
+    List<Outcome<Integer>> resultados =
+        runTogether(2, indice -> estadoDe(indice == 0 ? asignar(equipo, manager) : baja(equipo)));
+
+    assertThat(resultados).noneMatch(r -> r.succeeded() && r.value() >= 500);
+
+    boolean eliminado =
+        Boolean.TRUE.equals(
+            jdbc.queryForObject(
+                "SELECT deleted_at IS NOT NULL FROM teams WHERE id = ?", Boolean.class, equipo));
+    int vigentes =
+        jdbc.queryForObject(
+            "SELECT count(*) FROM team_members WHERE team_id = ? AND ended_at IS NULL",
+            Integer.class,
+            equipo);
+
+    // El estado prohibido es «eliminado y con gente dentro».
+    assertThat(eliminado && vigentes > 0).isFalse();
+    // Y una de las dos ocurrió de verdad: o el equipo quedó eliminado y vacío, o
+    // vivo con su miembro dentro. Ninguna se perdió en silencio.
+    assertThat(eliminado ? vigentes == 0 : vigentes == 1).isTrue();
+  }
+
+  private MockHttpServletRequestBuilder asignar(UUID equipo, UUID persona) {
+    return post("/api/v1/teams/" + equipo + "/members")
+        .with(con("teams:assign-members"))
+        .contentType(MediaType.APPLICATION_JSON)
+        .content("{\"memberIds\":[\"" + persona + "\"],\"reason\":\"Carrera de prueba.\"}");
   }
 
   private MockHttpServletRequestBuilder renombrar(UUID id, String nombre) {
