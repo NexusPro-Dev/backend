@@ -118,7 +118,7 @@ class DevelopmentSeedIT extends IntegrationTestBase {
     // referencian por clave foránea, y sin esto el DELETE de abajo fallaría.
     // Se vuelven a sembrar en la prueba que los mira, ya con la cadena entera.
     borrarLosProductos(jdbc);
-    jdbc.update("DELETE FROM user_memberships");
+    jdbc.update("DELETE FROM user_products");
     jdbc.update("DELETE FROM memberships");
     jdbc.update(
         """
@@ -200,7 +200,7 @@ class DevelopmentSeedIT extends IntegrationTestBase {
     List<String> niveles =
         jdbc.queryForList(
             """
-            SELECT m.code FROM user_memberships um
+            SELECT m.code FROM user_products um
               JOIN users u ON u.id = um.user_id
               JOIN memberships m ON m.id = um.membership_id
              WHERE u.username IN ('cliente1', 'cliente2', 'cliente3')
@@ -380,13 +380,23 @@ class DevelopmentSeedIT extends IntegrationTestBase {
                 Integer.class,
                 (Object) USUARIOS.toArray(String[]::new)))
         .isEqualTo(19);
-    // El superadministrador NO es persona de prueba y la semilla no lo toca:
-    // nace en V9 sin documento y así sigue.
+    // EL SUPERADMINISTRADOR NACE CON DOCUMENTO DESDE EL 23-09-2026, y esta
+    // afirmación está invertida a propósito: hasta ese día decía que la fila de
+    // `V9` no lo tenía, y era esa prueba —no la migración— la que ponía en rojo
+    // el `verify` entero cada vez que alguien intentaba dárselo.
+    //
+    // Lo que NO cambia, y es lo que esta comprobación sigue defendiendo: la
+    // semilla de desarrollo NO LO TOCA. El documento se lo da la migración
+    // —nace con él— y no el bloque de reparación de arriba, que solo alcanza a
+    // las diecinueve personas de prueba.
     assertThat(
-            jdbc.queryForObject(
-                "SELECT document_type_id IS NULL FROM users WHERE username = 'superadmin'",
-                Boolean.class))
-        .isTrue();
+            jdbc.queryForMap(
+                "SELECT dt.abbreviation, u.document_number, u.phone FROM users u"
+                    + " JOIN document_types dt ON dt.id = u.document_type_id"
+                    + " WHERE u.username = 'superadmin'"))
+        .containsEntry("abbreviation", "CC")
+        .containsEntry("document_number", "12345678910")
+        .containsEntry("phone", "3001234567");
   }
 
   @Test
@@ -596,7 +606,7 @@ class DevelopmentSeedIT extends IntegrationTestBase {
   private static void borrarLasDiecinueve(JdbcTemplate jdbc) {
     String[] usuarios = USUARIOS.toArray(String[]::new);
     jdbc.update(
-        "DELETE FROM user_memberships WHERE user_id IN (SELECT id FROM users WHERE username = ANY"
+        "DELETE FROM user_products WHERE user_id IN (SELECT id FROM users WHERE username = ANY"
             + " (?))",
         (Object) usuarios);
     jdbc.update(
