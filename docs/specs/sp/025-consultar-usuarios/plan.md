@@ -11,6 +11,16 @@
 | Fecha de aprobación | 22-08-2026 |
 | Reabierto el | 07-09-2026 — `RN-SP-034`: el país entra en la fila y nace su filtro, ver §2.bis y §4 (Art. I.7) |
 
+!!! warning "Enmendado el 23-09-2026 — la tabla se llama `user_products`, y el cruce gana una condición"
+
+    `user_memberships` pasa a ser **`user_products`** y guarda **todo lo que una persona tiene**, no solo su nivel (`RN-SP-056`, [`requirements/sp.md`](../../../requirements/sp.md) v1.84.0; `RF-SP-024` `plan.md` §2.3.quater). Las cuatro tablas que §1 nombra siguen siendo las mismas y esta consulta sigue leyendo lo mismo.
+
+    **Pero los dos fragmentos de SQL de §4 y §5 dejan de ser correctos tal como están escritos.** El `LEFT JOIN` de la sentencia principal y el `EXISTS` del filtro por membresía llevan `um.closed_at IS NULL`, y **eso ya no identifica una sola fila**: hay que añadirles `um.membership_id IS NOT NULL`. Sin esa condición, quien tenga un bot y una membresía a la vez —el caso corriente— **sale dos veces en el listado**, porque el cruce multiplica filas. Es justo el trabajo que §3 atribuía a `uq_user_memberships_abierta`, que ahora es **parcial** y ya no puede hacerlo sola.
+
+    **`ix_user_memberships_membership_id` pasa a llamarse `ix_user_products_membership`** y lleva la misma condición dentro, para no indexar las posesiones sin nivel — que pasan a ser la mayoría de las filas. Lo que §4 decide sobre la respuesta **no cambia**: `membership` sigue siendo nula cuando la persona no tiene ninguna y **no** nula cuando la tiene vencida.
+
+    Lo ejecuta `T-73` de `RF-SP-024`, y lo verifica `CA-SP-800`.
+
 !!! info "Qué va en este documento"
 
     **Cómo se construye.** Las decisiones técnicas que la especificación deliberadamente no toma.

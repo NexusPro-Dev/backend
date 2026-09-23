@@ -13,6 +13,7 @@
 | Reaprobado el | 22-08-2026 — Responsable del proyecto, verificado contra `architecture.md` §6.4 |
 | Reabierto el | 08-09-2026 — `RN-SP-035` y `RN-SP-037`: `users` gana la identidad documental y el contacto, ver §2.7 (Art. I.7) |
 | Reabierto el | 07-09-2026 — `RN-SP-034`: `users` gana `country_id` `NOT NULL` y el catálogo de países deja de nacer vacío, ver §2.6 (Art. I.7) |
+| Reabierto el | 23-09-2026 — `RN-SP-056`: `user_memberships` pasa a ser `user_products` y el alta escribe el suelo ahí, ver §2.3.quater (Art. I.7) |
 | Reabierto el | 10-09-2026 — `RN-SP-037` gana el **teléfono de la empresa**: `users` recibe `company_phone` en `V83`, ver §2.8 (Art. I.7) |
 
 !!! info "Qué va en este documento"
@@ -179,6 +180,33 @@ SELECT <v7 desde now()>, u.id, m.id, now(), now(), now()
 | — | Ninguna restricción nueva | **El invariante no es expresable en el esquema**, y conviene dejarlo escrito porque el Art. V.6 empuja a intentarlo: «toda fila de `users` tiene una abierta en `user_memberships`» es una comprobación **entre tablas** que ningún `CHECK` alcanza, y la clave foránea inversa no existe porque la fila de la membresía nace **después** que la persona. Lo sostienen este relleno y las tres operaciones que crean personas |
 
 **El suelo se resuelve por `code = 'BECA'` y no por la forma de la cadena.** `RN-SP-007` permite registrar una membresía **por debajo** de `BECA`, con lo que «la que no tiene padre» es un blanco móvil: registrar un nivel nuevo cambiaría en silencio con qué arranca la gente. El código no se mueve —`uq_memberships_code` lo hace único y `RN-SP-008` impide borrar la fila—, y `V46` la siembra en todos los entornos. **El precio queda escrito**: si alguien registra un nivel por debajo, el **suelo de la cadena** y el **nivel de arranque** dejan de ser el mismo.
+
+### 2.3.quater `V38__sp_lo_que_cada_persona_posee.sql` — enmienda del 23-09-2026
+
+**La tabla que §2.3 creó deja de llamarse así, y deja de guardar solo membresías.** Por decisión del responsable del proyecto (`RN-SP-056`, [`requirements/sp.md`](../../../requirements/sp.md) v1.84.0), `user_memberships` pasa a ser **`user_products`**: una fila por **cosa que alguien tiene** —un bot o una membresía—, con su periodo. La membresía deja de ser lo único poseíble y pasa a ser **el caso que concede nivel**, reconocible porque lleva `membership_id` poblado.
+
+**Lo que el alta hace no cambia ni una línea**, y por eso esta enmienda es de esquema y no de comportamiento: `RF-SP-024` sigue insertando la membresía del suelo (§2.3.ter) con `started_at` en el alta y sin fecha de fin. Lo único que cambia es el nombre de la tabla y que esa fila nace con `product_id` **nulo**, que es exactamente lo que es — un nivel concedido **sin compra**.
+
+| Tabla | Cambio | Detalle |
+|---|---|---|
+| `user_products` | Renombra | `ALTER TABLE user_memberships RENAME TO user_products`, y cada restricción e índice detrás con `RENAME CONSTRAINT` / `ALTER INDEX … RENAME TO` |
+| `user_products` | Altera | Gana `product_id uuid NULL`, `movement_detail_id uuid NULL` y `validity_days integer NULL`; `membership_id` **pasa a admitir nulo** |
+
+| Nombre | Definición | Por qué |
+|---|---|---|
+| `fk_user_products_product` | `(product_id) → products(id)` `ON DELETE RESTRICT` | Qué se tiene. **Admite nulo**: lo que no se compra no tiene producto que señalar |
+| `fk_user_products_movement_detail` | `(movement_detail_id) → movement_details(id)` `ON DELETE RESTRICT` | De qué línea salió. Es una clave foránea de `SP` que apunta a `MV`, y **no invierte la dependencia**: es el mismo caso que `client_sellers.first_movement_id`. `SP` no lee esa tabla; guarda el identificador que la orden de **D-26** le entrega |
+| `uq_user_products_linea` | `UNIQUE (movement_detail_id)` | Una línea produce **como mucho una** posesión. Es lo que hace **idempotente** la entrega: confirmar dos veces no duplica lo que alguien tiene, y no hay que comprobarlo antes de insertar — comprobarlo sería una carrera |
+| `ck_user_products_origen` | `CHECK (product_id IS NOT NULL OR membership_id IS NOT NULL)` | Una fila que no dice **qué** se tiene ni **qué nivel** concede no describe nada. Deja pasar los dos casos legítimos de `product_id` nulo —el suelo de §2.3.ter y el superadministrador de §2.5— sin abrir la puerta a la fila vacía |
+| `ck_user_products_validity_days` | `CHECK (validity_days IS NULL OR validity_days > 0)` | Nulo es «no caduca». Cero o negativo sería una vigencia que **nace vencida**, y esa columna es una **copia** de lo vendido, no un cálculo |
+| `uq_user_products_membresia_abierta` | Pasa a ser `UNIQUE (user_id) WHERE closed_at IS NULL AND membership_id IS NOT NULL` | **Sustituye** a la de §2.3.bis, y la segunda condición es la que sostiene el cambio entero: sin ella, la tabla abierta a los productos **impediría tener un bot y una membresía a la vez**, que es el caso corriente |
+| `ex_user_products_membresia_sin_solape` | El mismo `EXCLUDE` de §2.3.bis, ahora con `WHERE membership_id IS NOT NULL` | Por lo mismo: dos bots comprados el mismo mes **se solapan y eso no es un error**. El invariante nunca fue de la tabla, era del nivel |
+
+**Se RENOMBRA y no se copia, y la diferencia importa.** Un `RENAME` conserva los datos, las claves foráneas que apuntan a la tabla y los asientos de auditoría ya escritos; copiar a una tabla nueva habría obligado a **decidir qué producto inventarles** a las filas que ya existen, y no hay ninguno que sea cierto. Las filas anteriores quedan con `product_id`, `movement_detail_id` y `validity_days` nulos, que es lo que son: niveles concedidos sin compra.
+
+**Y la migración retira dos permisos, que es lo único que no es reversible por sí solo.** `users:assign-membership` y `users:revoke-membership` se borran de `permissions`, con sus filas de `role_permissions` y la implicación que `V28` sembró entre ambos: `RF-SP-032` y `RF-SP-033` quedan descartados el mismo día (`requirements.md` v0.211.0), y el catálogo baja de ciento treinta y cinco a **ciento treinta y tres**. Es la primera vez que baja.
+
+**Ninguna fila se cierra ni se rellena.** Al contrario que §2.3.ter, esta migración no inventa filas: lo que había sigue abierto y con el mismo periodo.
 
 ### 2.4 `V21__create_user_supervisors.sql`
 

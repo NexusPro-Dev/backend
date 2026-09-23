@@ -4,13 +4,22 @@
 |---|---|
 | Requerimiento | `RF-SP-032` |
 | Módulo | `SP` — Sistema Principal |
-| Estado | **Aprobada** |
+| Estado | **Descartada el 23-09-2026** — el nivel se compra (`RN-SP-056`) |
 | Autor | Responsable técnico |
 | Aprobada por | Responsable técnico |
 | Fecha de aprobación | 21-08-2026 |
 
 ---
 
+!!! danger "DESCARTADO el 23-09-2026 — el nivel se compra, no se fija"
+
+    Por decisión del responsable del proyecto (`RN-SP-056`, [`requirements/sp.md`](../../../requirements/sp.md) v1.84.0): `user_memberships` pasa a ser **`user_products`** —lo que cada persona **tiene**, y no solo qué nivel tiene—, y con la tabla abierta a los productos el nivel deja de fijarse a mano. **Se concede al comprarlo** (`RF-MV-003`, `RN-MV-020`) o al registrarse, donde nace el suelo de `RN-SP-018`.
+
+    **Lo que esta especificación describe sigue ocurriendo; lo que desaparece es la puerta.** Cerrar la membresía vigente, abrir la nueva, no dejar a nadie sin nivel y auditar el cambio son hoy el **interior** de la escritura publicada de **D-26**, que `MV` invoca al entregar una línea de upgrade. Nadie lo pide ya desde fuera: `PUT /api/v1/users/{id}/membership` y `users:assign-membership` salen del contrato, y el catálogo de permisos baja de ciento treinta y cinco a ciento treinta y tres.
+
+    **Dos cosas de este documento sobreviven y conviene saber dónde.** La definición de «vigente» —que una fecha exactamente igual al instante consultado **ya no** está vigente— sigue siendo la del sistema y vive en `UserMembership.isCurrentAt`; y `RN-SP-014`, que nació al aprobar esta spec, **no se ha movido**: sigue diciendo que hay una membresía vigente por persona y que se conservan todas las que tuvo.
+
+    **El número queda consumido y no se reutiliza** (`requirements.md` §2). El documento se conserva como historia y no se borra: está citado desde otras tripletas aprobadas, y borrarlo dejaría referencias colgando.
 ## 1. Objetivo
 
 Fijar hasta dónde alcanza un consumidor dentro de los servicios y contenidos del sistema.
