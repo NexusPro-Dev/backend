@@ -5017,6 +5017,10 @@
       },
       "SellerItem" : {
         "properties" : {
+          "companyPhone" : {
+            "description" : "Teléfono de EMPRESA del vendedor, el canal por el que la empresa quiere que se le contacte. **Presente y nulo** cuando no lo declaró: ausente y nulo significarían lo mismo y uno de los dos sobra. El teléfono personal no se publica aquí.",
+            "type" : "string"
+          },
           "firstName" : {
             "type" : "string"
           },
@@ -5036,6 +5040,10 @@
           "principal" : {
             "description" : "`true` solo en la fila `REGISTRO`. Hay exactamente una por cliente.",
             "type" : "boolean"
+          },
+          "status" : {
+            "description" : "Estado de la cuenta del vendedor. **Puede ser el de una cuenta eliminada**: el vínculo sobrevive al vendedor y esa fila ya salía, pero hasta el 22-09-2026 era indistinguible de la de un vendedor activo.",
+            "type" : "string"
           },
           "username" : {
             "description" : "Nombre de usuario del vendedor, el mismo de su hotlink.",
@@ -13542,7 +13550,7 @@
     },
     "/api/v1/users/me/sellers" : {
       "get" : {
-        "description" : "**Permiso requerido:** `users:read-own-sellers`. Sin él, `403` (`AUTH-002`).\n\nDevuelve **los vendedores del actor**: quien lo registró —su **principal**,\norigen `REGISTRO`— y los vendedores por cuyo enlace compró —origen\n`HOTLINK`—. **El principal va primero**, después por fecha de vínculo.\n\nEs la respuesta a «¿a qué agente estoy asignado?» (`RF-SP-059`,\n`RN-SP-049`). **El principal es quien lo registró y no se cambia**:\nno hay operación que lo reasigne ni historial que cerrar. Un vínculo\nes un hecho, y por eso tampoco se quita: un vendedor desactivado o\neliminado **sigue saliendo**.\n\n**Hoy la lista tiene un solo elemento**, y no es un defecto: las filas\n`HOTLINK` las escribirá la compra por hotlink (`RF-MV-011`,\n`RF-MV-013`), que no está construida. El contrato ya es el definitivo.\n\nDe cada vendedor se publica lo mismo que su hotlink (`RN-PM-022`):\n**nombre y apellido**, más el nombre de usuario, que el cliente ya\nconoce. **Ni identificador, ni correo, ni estado, ni roles.**\n\n`linkedAt` es desde cuándo es su vendedor; en los vínculos anteriores al\n18-09-2026 —traídos por `V20` desde `user_supervisors`— es desde cuándo\ncolgaba de él allí.\n\nQuien no es cliente —un vendedor, un funcionario— recibe `200` con la\ncolección vacía: nadie lo registró por enlace. Un cliente dado de alta\npor un funcionario, también.\n\n**Desde el 18-09-2026 el cliente no cuelga de `user_supervisors`**, de\nmodo que `GET /api/v1/users/me` **no devuelve `supervisor`** a un\ncliente: su vía es esta.\n",
+        "description" : "**Permiso requerido:** `users:read-own-sellers`. Sin él, `403` (`AUTH-002`).\n\nDevuelve **los vendedores del actor**: quien lo registró —su **principal**,\norigen `REGISTRO`— y los vendedores por cuyo enlace compró —origen\n`HOTLINK`—. **El principal va primero**, después por fecha de vínculo.\n\nEs la respuesta a «¿a qué agente estoy asignado?» (`RF-SP-059`,\n`RN-SP-049`). **El principal es quien lo registró y no se cambia**:\nno hay operación que lo reasigne ni historial que cerrar. Un vínculo\nes un hecho, y por eso tampoco se quita: un vendedor desactivado o\neliminado **sigue saliendo**.\n\n**Hoy la lista tiene un solo elemento**, y no es un defecto: las filas\n`HOTLINK` las escribirá la compra por hotlink (`RF-MV-011`,\n`RF-MV-013`), que no está construida. El contrato ya es el definitivo.\n\nDe cada vendedor se publican **nombre, apellido y nombre de usuario**\n—lo mismo que su hotlink, `RN-PM-022`— y, **desde el 22-09-2026**,\nsu **teléfono de empresa** y el **estado** de su cuenta. **Ni\nidentificador, ni correo, ni roles**, que siguen fuera.\n\n**`companyPhone` viaja presente y nulo** cuando el vendedor no lo\ndeclaró: es el canal que la empresa publica, no el teléfono personal,\nque no se devuelve aquí. **`status` puede ser el de una cuenta\neliminada** —el vínculo sobrevive al vendedor y esa fila ya salía—,\ny es lo que ahora la distingue de la de un vendedor activo.\n\n`linkedAt` es desde cuándo es su vendedor; en los vínculos anteriores al\n18-09-2026 —traídos por `V20` desde `user_supervisors`— es desde cuándo\ncolgaba de él allí.\n\nQuien no es cliente —un vendedor, un funcionario— recibe `200` con la\ncolección vacía: nadie lo registró por enlace. Un cliente dado de alta\npor un funcionario, también.\n\n**Desde el 18-09-2026 el cliente no cuelga de `user_supervisors`**, de\nmodo que `GET /api/v1/users/me` **no devuelve `supervisor`** a un\ncliente: su vía es esta.\n",
         "operationId" : "misVendedores",
         "responses" : {
           "200" : {
@@ -14176,7 +14184,7 @@
     },
     "/api/v1/users/{id}/sellers" : {
       "get" : {
-        "description" : "**Permiso requerido:** `users:read-sellers`. Sin él, `403` (`AUTH-002`).\n\nLa misma lista que `GET /api/v1/users/me/sellers`, sobre **cualquier\npersona** y con **`users:read-sellers`**, permiso propio de esta\noperación (`RN-SEG-014`, un permiso por operación; `V29` lo siembra a\n`SUPERADMIN` y `ADMIN`). Nació con `users:read` el 18-09-2026 —«los\nvendedores son un dato de la persona»— y cambió al integrarse, el\n21-09-2026, porque desde `RF-SP-060` ningún código gobierna dos\noperaciones.\n\n**`403` sin el permiso y `404` con el permiso y una persona que no\nexiste**, el modelo general de `security.md` §5. Aquí no hay actor\nautorizado por estructura al que proteger de un oráculo de\nidentificadores —a diferencia de `GET /users/{id}/broker-accounts`—,\ny quien porta este permiso porta normalmente `users:list`.\n\nUna persona que no es cliente devuelve `200` con la colección vacía.\n",
+        "description" : "**Permiso requerido:** `users:read-sellers`. Sin él, `403` (`AUTH-002`).\n\nLa misma lista que `GET /api/v1/users/me/sellers`, sobre **cualquier\npersona** y con **`users:read-sellers`**, permiso propio de esta\noperación (`RN-SEG-014`, un permiso por operación; `V29` lo siembra a\n`SUPERADMIN` y `ADMIN`). Nació con `users:read` el 18-09-2026 —«los\nvendedores son un dato de la persona»— y cambió al integrarse, el\n21-09-2026, porque desde `RF-SP-060` ningún código gobierna dos\noperaciones.\n\n**`403` sin el permiso y `404` con el permiso y una persona que no\nexiste**, el modelo general de `security.md` §5. Aquí no hay actor\nautorizado por estructura al que proteger de un oráculo de\nidentificadores —a diferencia de `GET /users/{id}/broker-accounts`—,\ny quien porta este permiso porta normalmente `users:list`.\n\nUna persona que no es cliente devuelve `200` con la colección vacía.\n\n**Mismo cuerpo que la ruta propia**, incluidos el **teléfono de\nempresa** y el **estado** que las dos ganaron el 22-09-2026. Aquí no\nenseñan nada nuevo: quien porta `users:read-sellers` abre la ficha\nentera de esa persona con `GET /api/v1/users/{id}`.\n",
         "operationId" : "vendedoresDe",
         "parameters" : [ {
           "in" : "path",

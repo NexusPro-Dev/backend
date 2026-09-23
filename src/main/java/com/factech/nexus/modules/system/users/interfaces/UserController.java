@@ -451,9 +451,16 @@ public class UserController {
           `HOTLINK` las escribirá la compra por hotlink (`RF-MV-011`,
           `RF-MV-013`), que no está construida. El contrato ya es el definitivo.
 
-          De cada vendedor se publica lo mismo que su hotlink (`RN-PM-022`):
-          **nombre y apellido**, más el nombre de usuario, que el cliente ya
-          conoce. **Ni identificador, ni correo, ni estado, ni roles.**
+          De cada vendedor se publican **nombre, apellido y nombre de usuario**
+          —lo mismo que su hotlink, `RN-PM-022`— y, **desde el 22-09-2026**,
+          su **teléfono de empresa** y el **estado** de su cuenta. **Ni
+          identificador, ni correo, ni roles**, que siguen fuera.
+
+          **`companyPhone` viaja presente y nulo** cuando el vendedor no lo
+          declaró: es el canal que la empresa publica, no el teléfono personal,
+          que no se devuelve aquí. **`status` puede ser el de una cuenta
+          eliminada** —el vínculo sobrevive al vendedor y esa fila ya salía—,
+          y es lo que ahora la distingue de la de un vendedor activo.
 
           `linkedAt` es desde cuándo es su vendedor; en los vínculos anteriores al
           18-09-2026 —traídos por `V20` desde `user_supervisors`— es desde cuándo
@@ -510,6 +517,11 @@ public class UserController {
           y quien porta este permiso porta normalmente `users:list`.
 
           Una persona que no es cliente devuelve `200` con la colección vacía.
+
+          **Mismo cuerpo que la ruta propia**, incluidos el **teléfono de
+          empresa** y el **estado** que las dos ganaron el 22-09-2026. Aquí no
+          enseñan nada nuevo: quien porta `users:read-sellers` abre la ficha
+          entera de esa persona con `GET /api/v1/users/{id}`.
           """)
   @ApiResponses({
     @ApiResponse(
