@@ -427,9 +427,13 @@ class SellerAssignmentIT extends IntegrationTestBase {
   void misComprasNoLoPublica() throws Exception {
     ventaPorValidar();
 
+    // `/mine/shopping` y no `/mine`: el listado se mudo al integrarse `RF-MV-008`
+    // (`api/index.md` 1.56.0, cambio incompatible), y `/mine` a secas ya no existe.
+    // Lo que esta prueba afirma no cambia por la mudanza: el listado propio no
+    // publica el estado del tipo.
     String cuerpo =
         mvc.perform(
-                get("/api/v1/movements/mine")
+                get("/api/v1/movements/mine/shopping")
                     .with(user(cliente.toString()).authorities(() -> "movements:list-own")))
             .andExpect(status().isOk())
             .andExpect(jsonPath("$.content.length()").value(1))
