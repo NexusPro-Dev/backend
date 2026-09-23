@@ -38,6 +38,27 @@ public interface TeamQueryRepository {
   /** Los miembros <b>vigentes</b>, por antigüedad y con el nombre de usuario de desempate. */
   List<TeamMemberRow> findActiveMembers(UUID teamId);
 
+  /**
+   * Cuántos miembros <b>vigentes</b> tiene el equipo (`RF-SP-068`, `RN-SP-054`).
+   *
+   * <p>Entra por {@code ix_team_members_team_vigente} y se lee <b>dentro del bloqueo</b> de la
+   * baja: una asignación simultánea entre el {@code SELECT} y el {@code UPDATE} dejaría un equipo
+   * eliminado con alguien dentro. Devuelve el número y no un booleano porque el mismo predicado
+   * sirve para contar, y el recuento no cuesta más que la existencia sobre este índice.
+   */
+  long countActiveMembers(UUID teamId);
+
+  /**
+   * Los identificadores de <b>todas</b> las personas que pasaron por el equipo, vigentes o no, para
+   * la instantánea de la baja (`CA-SP-775`).
+   *
+   * <p>No es {@link #findActiveMembers}: al eliminar, las vigentes son cero por definición
+   * (`RN-SP-054`), de modo que preguntar por ellas devolvería siempre una lista vacía y el registro
+   * de baja diría «tuve gente» sin poder decir quién. Es el mismo criterio con el que `RF-AC-005`
+   * guarda los cursos de una categoría retirada.
+   */
+  List<UUID> findAllMemberIdsEver(UUID teamId);
+
   /** Un equipo como sale de la tabla, con su cuenta de miembros vigentes ya hecha. */
   record TeamRow(
       UUID id,

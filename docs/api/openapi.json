@@ -59,6 +59,26 @@
         "required" : [ "supervisorId" ],
         "type" : "object"
       },
+      "AssignTeamMembersRequest" : {
+        "properties" : {
+          "memberIds" : {
+            "items" : {
+              "format" : "uuid",
+              "type" : "string"
+            },
+            "maxItems" : 100,
+            "minItems" : 0,
+            "type" : "array"
+          },
+          "reason" : {
+            "maxLength" : 500,
+            "minLength" : 0,
+            "type" : "string"
+          }
+        },
+        "required" : [ "memberIds", "reason" ],
+        "type" : "object"
+      },
       "AssociatePackageProductRequest" : {
         "properties" : {
           "discountType" : {
@@ -441,6 +461,14 @@
           }
         },
         "required" : [ "status" ],
+        "type" : "object"
+      },
+      "ChangeTeamStatusRequest" : {
+        "properties" : {
+          "status" : {
+            "type" : "string"
+          }
+        },
         "type" : "object"
       },
       "ChangeUserStatusRequest" : {
@@ -1354,6 +1382,14 @@
         "type" : "object"
       },
       "DeleteRoleRequest" : {
+        "properties" : {
+          "reason" : {
+            "type" : "string"
+          }
+        },
+        "type" : "object"
+      },
+      "DeleteTeamRequest" : {
         "properties" : {
           "reason" : {
             "type" : "string"
@@ -4539,6 +4575,26 @@
         "required" : [ "productId", "sellerUsername" ],
         "type" : "object"
       },
+      "RemoveTeamMembersRequest" : {
+        "properties" : {
+          "memberIds" : {
+            "items" : {
+              "format" : "uuid",
+              "type" : "string"
+            },
+            "maxItems" : 100,
+            "minItems" : 0,
+            "type" : "array"
+          },
+          "reason" : {
+            "maxLength" : 500,
+            "minLength" : 0,
+            "type" : "string"
+          }
+        },
+        "required" : [ "memberIds", "reason" ],
+        "type" : "object"
+      },
       "ResetPasswordRequest" : {
         "properties" : {
           "newPassword" : {
@@ -5645,6 +5701,17 @@
         "type" : "object"
       },
       "UpdateRoleRequest" : {
+        "properties" : {
+          "description" : {
+            "$ref" : "#/components/schemas/PatchableString"
+          },
+          "name" : {
+            "$ref" : "#/components/schemas/PatchableString"
+          }
+        },
+        "type" : "object"
+      },
+      "UpdateTeamRequest" : {
         "properties" : {
           "description" : {
             "$ref" : "#/components/schemas/PatchableString"
@@ -7231,7 +7298,7 @@
     "/api/v1/commission-rates/{id}" : {
       "patch" : {
         "description" : "**Permiso requerido:** `commissions:update`. Sin él, `403` (`AUTH-002`).\n\nCorrige el **valor** —la forma y la cifra—, que es lo único corregible.\n\n**Esta operación borra el pasado.** Las tasas de rol no tienen vigencia:\npasar un `AGENTE` de 10 a 12 **borra el 10**. No hay dos filas contando\ncada una su parte; hay una que ahora dice otra cosa.\n\nLo único que preserva lo ya pagado es que la liquidación haya copiado el\nporcentaje que aplicó — y esa liquidación **todavía no existe**.\n\n`rateType: null` se **rechaza**. **Ni el rol ni el producto se corrigen**:\nenviar `roleId` devuelve `400` con `VAL-009`, y `productId` es un campo\ndesconocido que también responde `400`. Se rechazan y no se ignoran,\nporque ignorarlos haría creer que el cambio se aplicó.\n\n**El tope se revisa contra su producto** (`RN-CM-019`): si el nuevo valor\ndejaría al producto pagando más del 100 % de sí mismo entre sus tasas de\nrol, la corrección se rechaza con `409`. **Un producto GRATUITO solo\nadmite importe fijo** (`RN-CM-020`): corregir a porcentaje una tasa de un\nproducto de precio cero se rechaza con `409` (`EX-008`). Y un importe\nfijo tiene que **caber en los decimales de la moneda del producto**\n(`VAL-013`).\n",
-        "operationId" : "corregir_7",
+        "operationId" : "corregir_8",
         "parameters" : [ {
           "in" : "path",
           "name" : "id",
@@ -7510,7 +7577,7 @@
     "/api/v1/countries/{id}/status" : {
       "patch" : {
         "description" : "**Permiso requerido:** `countries:update`. Sin él, `403` (`AUTH-002`).\n\nCambia el estado de un país. Es lo **único** que la API puede modificar\nde un país.\n\nSe envía el estado destino, no una acción: pedir dos veces lo mismo deja\nel mismo estado y **no** registra un segundo evento.\n\n**Desactivar no es corregir**: el código y el nombre permanecen, y los\ndatos que ya los referencian siguen resolviéndolos. Evita que el error se\npropague desde ese momento, no lo repara.\n\nEl cuerpo no admite ningún otro campo ni motivo alguno.\n",
-        "operationId" : "cambiarEstado_8",
+        "operationId" : "cambiarEstado_9",
         "parameters" : [ {
           "in" : "path",
           "name" : "id",
@@ -7723,7 +7790,7 @@
     "/api/v1/course-categories/{id}" : {
       "get" : {
         "description" : "**Permiso requerido:** `course-categories:read`. Sin él, `403` (`AUTH-002`).\n\nLa categoría entera: lo suyo, `coverImageUrl` —presente y nulo si no hay— y\n**sus cursos vivos en el orden en que se enseñan**, cada uno con su `status`\ny con `offerable`, que es del curso y no de la pareja. Un curso retirado que\nestuvo clasificado no aparece ni cuenta; uno inactivo aparece con su estado\ny cuenta.\n\n**Se devuelve también una retirada**, con `deletedAt` y `deletionReason`\n—leído de la auditoría de eliminación— y con sus cursos vivos igual: siguen\nclasificados en ella aunque el aula ya no los enseñe bajo ese cajón. Es la\nlectura de administración, y quien tiene `course-categories:read` ve el\ncatálogo completo.\n",
-        "operationId" : "detalle_6",
+        "operationId" : "detalle_7",
         "parameters" : [ {
           "in" : "path",
           "name" : "id",
@@ -7791,7 +7858,7 @@
       },
       "patch" : {
         "description" : "**Permiso requerido:** `course-categories:update`. Sin él, `403` (`AUTH-002`).\n\nCorrección **parcial**: solo lo que viene cambia. Admite `name`,\n`description`, `color`, `icon` y `displayOrder`, por separado o juntos, y\nexige al menos uno. **Ausente y nulo no significan lo mismo**: ausente es «no\nlo toques», nulo es «vacíalo» — y **solo la descripción admite vaciarse**; el\nnulo en los otros cuatro responde `400`, junto con los demás errores de\nforma.\n\n**Sin inmutables**: la categoría no lleva código ni moneda. **La portada no\nse corrige por aquí**: tiene sus propios endpoints, y `coverImageUrl` en el\ncuerpo responde `400` como campo no admitido. **El color se normaliza antes\nde comparar**: enviar `1e88e5` sobre `1E88E5` no es un cambio y no se audita.\n\n**Reordenar es corregir el número**: cambiar el `displayOrder` de una\ncategoría no mueve a ninguna otra; dos con el mismo número se desempatan por\nantigüedad. El nombre nuevo no puede ser el de **otra** categoría viva —el de\nuna retirada sí, y cambiar solo la caja del propio también—. Una retirada no\nse corrige (`404`).\n\nUn cuerpo sin cambios de valor responde `200` sin avanzar `updatedAt` ni\nauditar. La respuesta es la forma del detalle. Exige `course-categories:update`.\n",
-        "operationId" : "corregir_6",
+        "operationId" : "corregir_7",
         "parameters" : [ {
           "in" : "path",
           "name" : "id",
@@ -8216,7 +8283,7 @@
     "/api/v1/courses/{courseId}/modules/{moduleId}" : {
       "patch" : {
         "description" : "**Permiso requerido:** `courses:update`. Sin él, `403` (`AUTH-002`).\n\nCorrección **parcial**: solo lo que viene cambia. Admite `title`,\n`shortDescription`, `longDescription`, `presentationVideoUrl` y `displayOrder`,\ny exige al menos uno. **Ausente y nulo no significan lo mismo**: solo las\ndescripciones y el video admiten `null` —también en un módulo activo, que sigue\nactivo—; el nulo en título y orden responde `400`, junto con los demás errores.\n\nEl título nuevo no puede ser el de **otro** módulo vivo del mismo curso. **El\nmódulo no cambia de curso**: `courseId` en el cuerpo es `400`, y un módulo de\notro curso responde `404`, como el retirado. Un cuerpo sin cambios de valor\nresponde `200` sin auditar. Exige `courses:update`.\n",
-        "operationId" : "corregir_4",
+        "operationId" : "corregir_5",
         "parameters" : [ {
           "in" : "path",
           "name" : "courseId",
@@ -8467,7 +8534,7 @@
     "/api/v1/courses/{courseId}/modules/{moduleId}/lessons/{lessonId}" : {
       "get" : {
         "description" : "**Permiso requerido:** `courses:read`. Sin él, `403` (`AUTH-002`).\n\nLa lección entera **con su contenido**, para administración: es la lectura que\npermite ver lo que se escribió sin editarlo, porque el detalle del curso trae el\nárbol sin el contenido a propósito. **Se devuelve también una retirada**, con\n`deletedAt` y `deletionReason` —también la que arrastró el retiro de su módulo o\nde su curso—: es la lectura de administración y devuelve todo, incluida una\nlección activa a la que se le vació el contenido.\n\nLa ruta afirma la pertenencia: una lección de otro módulo, o un módulo de otro\ncurso, responde `404`. Es la misma forma que devuelven las escrituras. Exige\n`courses:read`; `courses:learn` no habilita — el aula la lee por otra ruta.\n",
-        "operationId" : "detalle_5",
+        "operationId" : "detalle_6",
         "parameters" : [ {
           "in" : "path",
           "name" : "courseId",
@@ -8551,7 +8618,7 @@
       },
       "patch" : {
         "description" : "**Permiso requerido:** `courses:update`. Sin él, `403` (`AUTH-002`).\n\nCorrección **parcial** sobre `type`, `title`, `description`, `content`,\n`durationMinutes`, `displayOrder` y `open`; exige al menos uno. Solo la\ndescripción y el contenido admiten `null` —**también en una lección activa, que\nsigue activa y deja de ofrecerse**—; el nulo en los otros cinco es `400`.\n\n**Cambiar el tipo exige que el contenido resultante case con él**: pasar a\n`VIDEO` con un texto guardado y sin URL en la petición responde `400` **sin\naplicar nada**; pasar a `TEXTO` con una URL guardada se admite. **El contenido se\naudita como longitud y no como texto.** La lección no cambia de módulo: `moduleId`,\n`courseId` y `status` en el cuerpo son `400`. Exige `courses:update`.\n",
-        "operationId" : "corregir_5",
+        "operationId" : "corregir_6",
         "parameters" : [ {
           "in" : "path",
           "name" : "courseId",
@@ -8720,7 +8787,7 @@
     "/api/v1/courses/{courseId}/modules/{moduleId}/lessons/{lessonId}/status" : {
       "patch" : {
         "description" : "**Permiso requerido:** `courses:update`. Sin él, `403` (`AUTH-002`).\n\n`ACTIVO` publica; `INACTIVO` despublica. **Activar exige contenido**, de\ncualquiera de los dos tipos, y nada más. **Desactivar no exige nada**; desactivar\nla última activa de un módulo activo deja el módulo `ACTIVO` y no ofrecible, y la\nduración del módulo y del curso bajan en su siguiente lectura.\n\nPedir el estado que ya tiene responde `200` sin escribir. Exige `courses:update`.\n",
-        "operationId" : "cambiarEstado_7",
+        "operationId" : "cambiarEstado_8",
         "parameters" : [ {
           "in" : "path",
           "name" : "courseId",
@@ -8826,7 +8893,7 @@
     "/api/v1/courses/{courseId}/modules/{moduleId}/status" : {
       "patch" : {
         "description" : "**Permiso requerido:** `courses:update`. Sin él, `403` (`AUTH-002`).\n\n`ACTIVO` publica; `INACTIVO` despublica. **Activar exige una lección activa** y\nnada más —ni descripciones ni portada—. **Desactivar no exige nada**, y\ndesactivar el último módulo activo de un curso activo **no toca el curso**: queda\n`ACTIVO` y deja de ofrecerse, y su detalle lo dice.\n\nCon un módulo activo, **el curso puede activarse** (`PATCH /courses/{id}/status`).\nPedir el estado que ya tiene responde `200` sin escribir. Un módulo retirado, o\nde otro curso, responde `404`. Exige `courses:update`.\n",
-        "operationId" : "cambiarEstado_6",
+        "operationId" : "cambiarEstado_7",
         "parameters" : [ {
           "in" : "path",
           "name" : "courseId",
@@ -8924,7 +8991,7 @@
     "/api/v1/courses/{id}" : {
       "get" : {
         "description" : "**Permiso requerido:** `courses:read`. Sin él, `403` (`AUTH-002`).\n\nEl curso entero: lo suyo, el instructor resuelto, `coverImageUrl`, sus\n**categorías** vivas, los **cursos que recomienda** —con su estado y si se\nofrecen—, las **membresías que lo abren**, y **sus módulos en orden con sus\nlecciones en orden**, vivos y retirados marcados, cada módulo con `offerable`\ny cada lección con tipo, duración, estado y `open` — **sin el contenido**, que\nse pide por lección. La duración total y la cuenta de lecciones se suman sobre\nlo vivo.\n\n**`offerable` y `offerableReason` viajan siempre**, con el primer motivo que\nfalla en su orden: retirado, inactivo, sin descripción, sin membresías, sin\nmódulo activo con lección activa con contenido. Es la vista con la que se\narma el curso y se ve qué le falta para publicarse.\n\n**Se devuelve también un retirado**, con `deletedAt` y `deletionReason`\n—leído de la auditoría— y su árbol marcado: es la lectura de administración\ny devuelve todo.\n",
-        "operationId" : "detalle_4",
+        "operationId" : "detalle_5",
         "parameters" : [ {
           "in" : "path",
           "name" : "id",
@@ -8992,7 +9059,7 @@
       },
       "patch" : {
         "description" : "**Permiso requerido:** `courses:update`. Sin él, `403` (`AUTH-002`).\n\nCorrección **parcial**: solo lo que viene cambia. Admite `title`,\n`instructorId`, `difficulty`, `shortDescription`, `longDescription`,\n`introVideoUrl` y `displayOrder`, por separado o juntos, y exige al menos\nuno. **Ausente y nulo no significan lo mismo**: ausente es «no lo toques»,\nnulo es «vacíalo» — y **solo las descripciones y el video admiten\nvaciarse**; el nulo en los otros cuatro responde `400`, junto con los demás\nerrores de forma.\n\n**Sin inmutables**. **Reasignar el instructor repite la comprobación del\nalta** sobre el nuevo: existe, no está retirado y porta `courses:teach`; al\nmismo no se comprueba nada y nada cambia. **Vaciar una descripción no\ndesactiva**: un curso activo sigue activo y **deja de ofrecerse** —el detalle\ndice «sin descripción»— hasta que alguien la reponga. El estado, la portada,\nlas relaciones y los módulos tienen sus propios endpoints, y en el cuerpo\nresponden `400`.\n\nEl título nuevo no puede ser el de **otro** curso vivo. Un retirado no se\ncorrige (`404`). Un cuerpo sin cambios de valor responde `200` sin avanzar\n`updatedAt` ni auditar. Exige `courses:update`.\n",
-        "operationId" : "corregir_3",
+        "operationId" : "corregir_4",
         "parameters" : [ {
           "in" : "path",
           "name" : "id",
@@ -9139,7 +9206,7 @@
     "/api/v1/courses/{id}/status" : {
       "patch" : {
         "description" : "**Permiso requerido:** `courses:update`. Sin él, `403` (`AUTH-002`).\n\n`ACTIVO` publica; `INACTIVO` despublica. **Activar exige las dos\ndescripciones y al menos un módulo activo**, comprobado **junto**: si faltan\nvarias cosas, la respuesta trae todos los motivos. **No exige una\nmembresía**: un curso activo sin lista existe y no se ofrece, y el detalle\nlo dice. **Desactivar no exige nada** y no toca módulos ni relaciones.\n\nEl estado es lo que alguien decidió: **vaciar una descripción o retirar el\núltimo módulo activo después no lo cambia** — el curso deja de ofrecerse, y\n`offerableReason` dice por qué. Pedir el estado que ya tiene responde `200`\nsin escribir ni auditar. Un retirado responde `404`. Exige `courses:update`.\n",
-        "operationId" : "cambiarEstado_5",
+        "operationId" : "cambiarEstado_6",
         "parameters" : [ {
           "in" : "path",
           "name" : "id",
@@ -9270,7 +9337,7 @@
     "/api/v1/currencies/{id}/status" : {
       "patch" : {
         "description" : "**Permiso requerido:** `currencies:update`. Sin él, `403` (`AUTH-002`).\n\nCambia el estado de una moneda del catálogo. Es lo **único** que la API\npuede modificar de una moneda.\n\nSe envía el estado destino, no una acción: pedir dos veces lo mismo deja\nel mismo estado y **no** registra un segundo evento.\n\nLa moneda por defecto **no puede desactivarse**: los importes del sistema\nquedarían sin referencia válida. Cambiar cuál es la moneda por defecto es\nuna operación de migración, no de API.\n\nEl cuerpo no admite ningún otro campo ni motivo alguno.\n",
-        "operationId" : "cambiarEstado_4",
+        "operationId" : "cambiarEstado_5",
         "parameters" : [ {
           "in" : "path",
           "name" : "id",
@@ -10679,7 +10746,7 @@
     "/api/v1/packages/{id}" : {
       "get" : {
         "description" : "**Permiso requerido:** `packages:read`. Sin él, `403` (`AUTH-002`).\n\nEl paquete con sus productos y **la cuenta hecha**: cada producto con su\ndescuento y su `priceInPackage`, y `listPrice`, `price` y `savings` que\ncuadran con las líneas. **El precio se calcula en cada lectura** con el\nprecio de catálogo **de hoy** de cada producto: corregir el precio de un\nproducto cambia el paquete sin tocarlo, y un fijo que hoy supera su precio\ncuenta **cero**, nunca negativo. `exchange` es la conversión de `price` a la\nmoneda de casa; nula si el paquete ya está en ella o no hay tasa.\n\nEs la lectura de administración: **devuelve todo**. Un producto inactivo o\nretirado dentro del paquete **se devuelve igual**, con su `status` y su\n`deleted`, y **sigue sumando** — esta es la única pantalla desde la que se\narregla. Y `purchasePrice` de cada producto viaja, presente y nulo cuando\nno se conoce; la oferta y el hotlink no lo llevan.\n\n`offerable` dice si el paquete se puede ofrecer hoy, y `offerableReason` el\n**primer** motivo que lo impide, en un orden fijo: menos de dos productos,\nsin descripción, inactivo, retirado, **fuera de su vigencia** —«todavía no\nestá vigente: empieza el …» o «la vigencia terminó el …», con la fecha—, y\nun producto inactivo o retirado —**nombrado por su código**—. Nulo cuando\nes ofrecible. `validFrom` y `validTo` viajan siempre, el fin nulo cuando es\nindefinido, y **el día de fin cuenta entero**: un paquete que termina hoy\nse ofrece hoy. «Hoy» es el día en UTC.\n\n**Un paquete retirado no es un `404`**: se devuelve con `deletedAt` y\n`deletionReason`, como el producto. Exige `packages:read`.\n",
-        "operationId" : "detalle_3",
+        "operationId" : "detalle_4",
         "parameters" : [ {
           "in" : "path",
           "name" : "id",
@@ -10747,7 +10814,7 @@
       },
       "patch" : {
         "description" : "**Permiso requerido:** `packages:update`. Sin él, `403` (`AUTH-002`).\n\nCorrige **nombre, descripción, alcance y las dos fechas de vigencia**\n(`validFrom`, `validTo`), por separado o juntos, y devuelve el detalle.\nCada campo puede venir ausente —no se toca—, con valor, o **presente y\nnulo**: el nulo vacía la descripción y el fin de vigencia —que vuelve a\nindefinido— y **se rechaza** en nombre, alcance e inicio de vigencia, que\nson obligatorios. **La pareja de fechas resultante se comprueba entera**:\ncorregir solo el inicio a una fecha posterior al fin que ya había responde\n`400`; quien quiera mover las dos las manda juntas.\n\n**El código y la moneda no se pueden modificar**, y enviarlos responde `400`\n—se rechazan, no se ignoran—. La moneda es la unidad en la que se suma el\npaquete: cambiarla dejaría los descuentos fijos expresados en otra cosa.\n\n**Vaciar la descripción de un paquete activo se permite**: no lo desactiva,\npero lo saca de la oferta hasta que vuelva a tenerla, y el detalle lo dice\nen `offerableReason`. **Cerrar la vigencia es lo mismo con otra fecha**\n(`RN-PM-047`): `validTo` en ayer —o en hoy, para que sea el último día—\nretira el paquete de la oferta y del hotlink **sin desactivarlo**, y vaciar\nel fin lo vuelve a abrir. Cambiar el alcance de `AMBOS` o `HOTLINK` a\n`TIENDA` hace que el hotlink del paquete deje de resolver; la oferta no\ncambia.\n\nUn cuerpo sin cambios de valor responde `200` sin avanzar `updatedAt` ni\nauditar. Exige `packages:update`.\n",
-        "operationId" : "corregir_2",
+        "operationId" : "corregir_3",
         "parameters" : [ {
           "in" : "path",
           "name" : "id",
@@ -11261,7 +11328,7 @@
     "/api/v1/packages/{id}/status" : {
       "patch" : {
         "description" : "**Permiso requerido:** `packages:change-status`. Sin él, `403` (`AUTH-002`).\n\nCambia el estado del paquete y devuelve el detalle.\n\n**Activar exige descripción y al menos dos productos**, y los dos motivos\nvan **juntos** en el mismo `409` cuando faltan a la vez. **No exige que los\nproductos estén activos hoy**: eso lo mira la oferta cada vez, y un paquete\nactivo con un producto inactivo dentro es un estado legítimo — el detalle lo\ndevuelve `offerable: false` nombrando el producto.\n\n**Desactivar no tiene condiciones**: el paquete sale de la oferta y del\nhotlink, y sus productos no cambian.\n\nPedir el estado que ya tiene responde `200` sin escribir ni auditar. Exige\n`packages:change-status`.\n",
-        "operationId" : "cambiarEstado_3",
+        "operationId" : "cambiarEstado_4",
         "parameters" : [ {
           "in" : "path",
           "name" : "id",
@@ -11886,7 +11953,7 @@
     "/api/v1/products/{id}" : {
       "get" : {
         "description" : "**Permiso requerido:** `products:read`. Sin él, `403` (`AUTH-002`).\n\nDevuelve el producto con su membresía destino y su moneda **resueltas**,\nsin exigir una segunda consulta.\n\nTrae **los dos precios** —`price`, el que se cobra, y `purchasePrice`,\nel **precio de compra**: lo que NEXUS paga por el producto, que llega\n**nulo y presente** si no se conoce— y **`exchange`**, la conversión\nde `price` a la moneda por omisión con la tasa vigente hoy. La\nconversión llega **presente y nula** cuando el producto ya está en esa\nmoneda o cuando nadie declaró una tasa (`RN-PM-024`). El precio de\ncompra solo se ve aquí y en el listado: la oferta y el hotlink no lo\ndevuelven.\n\nTrae **`links`**, los enlaces del producto **tal cual se guardaron** y\n**presente y vacía** cuando no tiene ninguno (`RN-PM-048`) — también en\nun producto retirado. Como el listado, **los enseña todos**,\n`CUPON_BOT` incluido: es la lectura de administración.\n\n**Un producto retirado se devuelve marcado como tal**, no como\ninexistente: `deletedAt` dice desde cuándo y `deletionReason` **por\nqué**. Los dos campos **solo aparecen si el producto está retirado** —\nsu ausencia significa que sigue vivo—. El motivo llega con\n`products:read` y **sin exigir permiso de auditoría**; es la\ncontrapartida asumida de que el detalle lo devuelva.\n\n**No devuelve autoría en ninguna forma**: ni quién lo creó, ni quién lo\ncorrigió, ni quién lo retiró. Eso vive en la auditoría y tiene su\npropio permiso.\n\n`targetMembership` y `validityDays` viajan **presentes en nulo** cuando\nno aplican: un bot no tiene destino y un producto puede no\ncaducar, y un campo ausente es indistinguible de uno que el cliente no\nconoce.\n\nEl **nivel** del destino es el **actual**, no el que tenía cuando se\ncreó el producto: la cadena de membresías se reordena al insertar un\neslabón.\n\nUn identificador con forma laxa se rechaza como **dato inválido**\n(`400`), no como recurso no encontrado.\n",
-        "operationId" : "detalle_2",
+        "operationId" : "detalle_3",
         "parameters" : [ {
           "in" : "path",
           "name" : "id",
@@ -11929,7 +11996,7 @@
       },
       "patch" : {
         "description" : "**Permiso requerido:** `products:update`. Sin él, `403` (`AUTH-002`).\n\nCorrige el **nombre**, la **descripción**, el **icono**, el **enlace\ndel video**, **los dos precios**, la **moneda**, la **vigencia**, el\n**alcance** y la **implementación**. Se aplica lo que llega y se deja\nintacto lo que no.\n\n**Distingue el campo ausente del enviado vacío**, y de ahí salen dos\ncomportamientos opuestos: `description: null`, `icon: null`,\n`links: null`, `validityDays: null` y `purchasePrice: null`\n**vacían** el campo,\nmientras que `name: null` y `price: null` se **rechazan**, porque un\nproducto sin nombre o sin precio del sistema no puede existir.\n\n**`purchasePrice` es el precio de compra** —lo que NEXUS paga por el\nproducto— y esta operación es donde hoy se registra lo que costó.\n**Vaciarlo NO es ponerlo a cero**: con nulo el costo pasa a «no se\nconoce», y con cero a «no costó nada». Son dos estados distintos y\nlos dos se alcanzan desde aquí. Se llamó `publicPrice` hasta el\n12-09-2026; ese nombre es hoy una propiedad desconocida y devuelve\n`400`.\n\n**`scope: null` e `implementation: null` también se rechazan**, y ahí\nvan con el nombre y no con la descripción: son obligatorios en la\ncolumna, de modo que «bórralo» no tiene ningún estado al que llevar el\nproducto. Devuelven `400` con `VAL-007` y `VAL-008`.\n\n**El alcance y la implementación SÍ se corrigen, aunque el tipo y las\nmembresías no**: ninguna de las dos define qué derecho otorga el\nproducto —una dice en qué vistas se ofrece y la otra quién lo aplica—,\nde modo que corregirlas no reescribe lo que compró quien lo compró.\n`scope` admite `TIENDA`, `HOTLINK`, `AMBOS` y `NINGUNO`; **corregir\nun producto activo a `NINGUNO` no lo desactiva**: sigue activo y deja\nde ofrecerse. `HOTLINKS` se rechaza con `400`, como cualquier valor\nfuera del dominio.\n\n**El icono sí se corrige, aunque el tipo no**: es el aspecto del\nproducto y no lo que otorga. En un `BOT`, cualquier valor distinto de\nnulo se rechaza con `VAL-013` (`RN-PM-016`).\n\n**`links` se corrige EN BLOQUE, y la colección que llega es la que\nQUEDA** (`RN-PM-048`). No es un campo por enlace: **un tipo que no viene\nse BORRA**, uno que viene y no estaba se crea, y uno que viene con otra\ndirección se reescribe. Enviar `null` o `[]` **quita todos**; **no\nenviar el campo no toca ninguno** — esa es la distinción que decide\nentre conservar lo que hay y borrarlo, y conviene no confundirlas.\n\nLas comprobaciones son las del alta con los números de esta operación:\ntipo desconocido `VAL-014`, tipo repetido `VAL-015`, dirección que falta\n`VAL-016`, forma de la dirección `VAL-009`, forma del identificador\n`VAL-017` e identificador sobre una dirección con `?` o `#` `VAL-018`.\nCualquiera de ellas rechaza **sin aplicar ningún otro cambio** de la\nmisma petición, y el error **nombra el enlace por su índice**.\n**Enviar el mismo conjunto que ya tenía no registra evento.**\n\n**El tipo, el código y la membresía destino NO se pueden corregir**, y\nenviarlos devuelve `400` con `VAL-006`. Se rechazan y no se ignoran:\nignorarlos haría creer que el cambio se aplicó. Definen qué derecho\notorga el producto, y cambiarlos convertiría lo comprado en otra cosa.\n\n**Los DOS importes se validan contra la moneda que va a quedar**, y no\nsolo el que llega en la petición: cambiar **solo** la moneda puede\ndejar sin caber a un precio que nadie tocó, y el rechazo **nombra el\ncampo** que no cabe. Y el importe **no se convierte**: el sistema no\nhace conversión de divisa — cambiar de moneda es declarar que ese\nnúmero siempre estuvo en la otra.\n\n**Un producto retirado no se corrige**: lo que se retiró debe quedar\ncomo estaba para que lo que lo referencie siga diciendo la verdad.\n\n**No se exige motivo**, ni siquiera al cambiar el precio. Una petición\nque no cambia nada devuelve `200` y **no registra evento**.\n",
-        "operationId" : "corregir_1",
+        "operationId" : "corregir_2",
         "parameters" : [ {
           "in" : "path",
           "name" : "id",
@@ -12393,7 +12460,7 @@
     "/api/v1/products/{id}/status" : {
       "patch" : {
         "description" : "**Permiso requerido:** `products:change-status`. Sin él, `403` (`AUTH-002`).\n\nCambia el estado del producto entre `ACTIVO` e `INACTIVO`. **Es un\nrecurso propio y no un campo de la edición**: publicar y corregir son\ndecisiones distintas, y mezclarlas haría que una corrección de texto\npudiera poner algo a la venta.\n\n**Pedir el estado que el producto ya tiene devuelve `200` sin cambiar\nnada y sin registrar evento.** No es un error: quien pulsa dos veces el\nmismo botón no ha hecho nada malo.\n\n**No se publica un producto sin descripción** (`RN-PM-014`). Sí se\npermite **desactivarlo** sin ella: la regla acota lo que se ofrece, no\nlo que se retira.\n\n**Solo puede haber un upgrade activo hacia cada membresía destino**\n(`RN-PM-004`). Al activar uno cuyo destino ya está ocupado, el rechazo\n**nombra el producto que lo ocupa**, para que se sepa cuál desactivar.\nDesactivar no comprueba nada: liberar un destino nunca produce\nconflicto.\n\n**Un producto retirado no vuelve a la venta por aquí**: responde que no\nexiste.\n\nNo se exige motivo para activar ni para desactivar.\n",
-        "operationId" : "cambiarEstado_2",
+        "operationId" : "cambiarEstado_3",
         "parameters" : [ {
           "in" : "path",
           "name" : "id",
@@ -12591,7 +12658,7 @@
     "/api/v1/roles/{id}" : {
       "get" : {
         "description" : "**Permiso requerido:** `roles:read`. Sin él, `403` (`AUTH-002`).\n\nDevuelve el alcance exacto de un rol: **la lista completa de los\npermisos que declara**, su rol padre, **cuántos** roles cuelgan de él y\n**cuántas** personas lo tienen asignado.\n\n**Los permisos son los declarados, sin recorrer la cadena de\nancestros** (`RN-SEG-004`): el modelo no usa herencia, y esa decisión\nexiste precisamente para que esta pregunta se responda leyendo una sola\nlista. Van completos y sin paginar, ordenados por código.\n\n**`childRoleCount` es un número, nunca una lista**: el listado de hijos\nse obtiene con `GET /api/v1/roles?parentRoleId={id}`, que ya está\npaginado. Así el tamaño de la respuesta no depende de cuántos hijos\ntenga el rol.\n\n**`assignedUserCount` cuenta personas distintas**, en cualquier estado\n—incluidas las inactivas y las bloqueadas— y **excluyendo las\neliminadas**: alguien bloqueado sigue portando el rol, y su existencia\nes lo que impide borrarlo. Cero es un dato, no una ausencia. **No exige\n`users:read`**: es un agregado sin identidad, y quien quiera saber\nquiénes son usa `GET /api/v1/users?roleId={id}`.\n\nUn rol **eliminado devuelve el mismo `404`** que uno inexistente, sin\nninguna pista de que existió.\n",
-        "operationId" : "detalle_1",
+        "operationId" : "detalle_2",
         "parameters" : [ {
           "in" : "path",
           "name" : "id",
@@ -12727,7 +12794,7 @@
     "/api/v1/roles/{id}/deletion" : {
       "post" : {
         "description" : "**Permiso requerido:** `roles:delete`. Sin él, `403` (`AUTH-002`).\n\nElimina lógicamente el rol. **El motivo es obligatorio** y se verifica\n**antes de ejecutar nada** (Art. V.13); no se admite un valor generado\npor el sistema.\n\n**Se rechaza si el rol tiene roles hijos vigentes** —diciendo cuáles— o\n**personas asignadas** —diciendo cuántas— (`RN-SEG-008`). En el segundo\ncaso la respuesta sugiere **desactivar** el rol, que suele ser lo que\nen realidad se quería: retirar el acceso sin perder el rol. El conteo\nincluye a las personas inactivas y bloqueadas, y excluye a las\neliminadas.\n\nTras eliminarlo, **su código y su nombre quedan libres** para un rol\nnuevo, y el rol deja de aparecer en el listado por defecto. La\nauditoría de eliminación conserva el motivo y el rol completo —con sus\npermisos por código— para poder reconstruir qué era.\n\n**`POST` sobre un subrecurso y no `DELETE`**: el motivo viaja en el\ncuerpo, y un intermediario puede descartar el cuerpo de un `DELETE`.\n",
-        "operationId" : "eliminar_1",
+        "operationId" : "eliminar_2",
         "parameters" : [ {
           "in" : "path",
           "name" : "id",
@@ -13077,7 +13144,7 @@
     "/api/v1/roles/{id}/status" : {
       "patch" : {
         "description" : "**Permiso requerido:** `roles:change-status`. Sin él, `403` (`AUTH-002`).\n\n**Desactivar no es retirar.** Las asignaciones a personas se conservan\nintactas; lo que cambia es que el rol **deja de conceder permisos de\ninmediato**, sin esperar a que ningún token expire.\n\nSe pide el **estado destino** —`ACTIVO` o `INACTIVO`— y no una acción,\nde modo que repetir la petición deja el mismo resultado y no registra\nevento.\n\n**El rol raíz no admite esta operación**, aparte de la prohibición\ngeneral sobre los roles de sistema: un rol raíz inactivo no concede\nnada, y eso dejaría al sistema sin su última vía de administración.\n\nEl cuerpo no admite motivo: el Art. V.13 lo exige solo en las\neliminaciones.\n",
-        "operationId" : "cambiarEstado_1",
+        "operationId" : "cambiarEstado_2",
         "parameters" : [ {
           "in" : "path",
           "name" : "id",
@@ -13335,7 +13402,7 @@
     "/api/v1/teams/{id}" : {
       "get" : {
         "description" : "**Permiso requerido:** `teams:read`. Sin él, `403` (`AUTH-002`).\n\nEl equipo entero: lo suyo —incluida la `description`, que el listado no\ntrae— y **sus miembros vigentes**, cada uno con `id`, `username`,\n`firstName`, `lastName`, `status` y `joinedAt`, **desde cuándo pertenece a\neste equipo**. La lista va **por antigüedad**, con el nombre de usuario de\ndesempate para que el orden sea determinista.\n\n**El `status` de cada miembro es el de la PERSONA**, no el de su pertenencia\n—una pertenencia vigente no tiene estados—, y se publica porque un manager\ndesactivado **sigue en su equipo**: cambiar el estado de una persona no la\nsaca. Quien administra necesita verlo sin abrir cada ficha. A un eliminado\nsí se le cierra la pertenencia en la misma transacción, de modo que deja de\nser vigente y no aparece.\n\n**`members` son solo los vigentes**: quien tuvo una pertenencia cerrada aquí\nno sale, y `memberCount` coincide siempre con el tamaño de la lista y con el\nnúmero que da el listado para este mismo equipo.\n\n**Un equipo eliminado NO es un `404`**: se devuelve con `deletedAt` y\n`deletionReason` —leído de la auditoría de eliminación— y con `members`\nvacío, no por ocultarlos sino porque no se elimina un equipo que tenga\nvigentes. Si el registro de auditoría no aparece, `deletionReason` sale\n**presente y nulo**: el detalle no depende de la auditoría para responder.\nUn equipo `INACTIVO` se devuelve igual, **con su gente**: desactivar no\nvacía.\n\nExige `teams:read`; `teams:list` **no** habilita esta operación, porque\nlistar y abrir son dos.\n",
-        "operationId" : "detalle_7",
+        "operationId" : "detalle_1",
         "parameters" : [ {
           "in" : "path",
           "name" : "id",
@@ -13400,6 +13467,411 @@
         "summary" : "Consultar el detalle de un equipo",
         "tags" : [ "Equipos" ],
         "x-required-permission" : "teams:read"
+      },
+      "patch" : {
+        "description" : "**Permiso requerido:** `teams:update`. Sin él, `403` (`AUTH-002`).\n\nCorrige el **nombre**, la **descripción** o los dos. Y nada más: el estado\nse cambia con `PATCH /teams/{id}/status` y los miembros entran y salen por\nsus propias rutas, cada una con su permiso. **Enviar `status` o `members`\nresponde `400`** por campo desconocido.\n\n**Omitir un campo no es borrarlo.** `description` ausente deja la que\nhabía; **`description: null` la borra** y la respuesta la devuelve presente\ny nula. El **nombre no se puede vaciar**: un equipo sin nombre no existe, de\nmodo que `name: null` es `400`, no un borrado.\n\n**Un cuerpo sin ningún campo es `400`**: un `PATCH` vacío no es una\ncorrección, y responderle `200` haría creer que algo cambió.\n\nEl nombre sigue siendo **único entre los equipos no eliminados, sin\ndistinguir mayúsculas ni acentos**, y el choque es `409`; **renombrarse al\nnombre que ya se tiene se admite** —no se compite contra uno mismo— y el\nnombre de un equipo eliminado **está libre**. Dos renombrados simultáneos al\nmismo nombre salen por el mismo `409`, nunca por un `500`.\n\n**Un equipo eliminado responde `404`**, igual que uno inexistente: no es\neditable en ningún caso. **Uno `INACTIVO` se edita con normalidad**, porque\ninactivo significa que no recibe miembros, no que sea inmutable — corregir\nuna errata antes de reactivarlo es justo lo que se hace.\n\nLa respuesta es la **forma del detalle**, ya con los valores nuevos y sus\nmiembros vigentes; **el estado, la fecha de eliminación y las pertenencias no\nse tocan**. Exige `teams:update`.\n",
+        "operationId" : "corregir_1",
+        "parameters" : [ {
+          "in" : "path",
+          "name" : "id",
+          "required" : true,
+          "schema" : {
+            "format" : "uuid",
+            "type" : "string"
+          }
+        } ],
+        "requestBody" : {
+          "content" : {
+            "application/json" : {
+              "schema" : {
+                "$ref" : "#/components/schemas/UpdateTeamRequest"
+              }
+            }
+          },
+          "required" : true
+        },
+        "responses" : {
+          "200" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/TeamDetailResponse"
+                }
+              }
+            },
+            "description" : "Equipo corregido, en la forma del detalle."
+          },
+          "400" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/TeamDetailResponse"
+                }
+              }
+            },
+            "description" : "Nombre vacío o largo, descripción larga, cuerpo sin campos (`VAL-003`) o con campos no admitidos (`VAL-004`)"
+          },
+          "401" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/TeamDetailResponse"
+                }
+              }
+            },
+            "description" : "Token ausente o inválido (`AUTH-001`)"
+          },
+          "403" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/TeamDetailResponse"
+                }
+              }
+            },
+            "description" : "Autenticado sin el permiso `teams:update` (`AUTH-002`)"
+          },
+          "404" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/TeamDetailResponse"
+                }
+              }
+            },
+            "description" : "El equipo no existe o está eliminado (`EX-001`)"
+          },
+          "409" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/TeamDetailResponse"
+                }
+              }
+            },
+            "description" : "El nombre ya lo usa otro equipo no eliminado (`EX-002`)"
+          }
+        },
+        "summary" : "Corregir un equipo",
+        "tags" : [ "Equipos" ],
+        "x-required-permission" : "teams:update"
+      }
+    },
+    "/api/v1/teams/{id}/deletion" : {
+      "post" : {
+        "description" : "**Permiso requerido:** `teams:delete`. Sin él, `403` (`AUTH-002`).\n\nBaja **lógica y con motivo**: la fila se queda con `deletedAt` puesto y\n**nada más cambiado** —`status` incluido, de modo que un equipo eliminado\nconserva el estado que tenía—, y el motivo y la instantánea van a la\nauditoría de eliminación. **`POST` y no `DELETE`** porque el cuerpo lleva el\nmotivo, que es obligatorio, y un `DELETE` con cuerpo no tiene garantías.\n\n**Solo se elimina un equipo VACÍO.** Con un miembro vigente responde `409`\n(`EX-003`), y no es una molestia: un equipo es la única forma de decir en qué\nparte de la red está un manager, y eliminarlo con gente dentro dejaría a esas\npersonas sin pertenencia sin que nadie lo hubiera decidido. **Hay dos\nsalidas y el mensaje las nombra**: retirar a cada miembro\n(`POST /teams/{id}/members/removals`) o reubicarlo en otro equipo\n(`POST /teams/{id}/members`).\n\n**No hace falta suspenderlo antes**: se elimina un equipo activo y vacío, y\nel estado y la baja son independientes.\n\n**El historial sobrevive.** Las pertenencias **cerradas** no se borran: son\nun hecho —esta persona estuvo aquí entre estas dos fechas— y las comisiones\nleerán ese historial. Por eso la instantánea de la baja lleva **los\nidentificadores de todas las personas que pasaron** por el equipo.\n\n**Y el nombre queda libre.** La unicidad no cuenta a los eliminados, de modo\nque volver a registrar «Equipo Norte» al día siguiente se admite — y el\nequipo nuevo **no hereda nada**: ni miembros, ni historial, ni identificador.\n**No hay restauración**: un equipo eliminado no se revive.\n\nSale del listado salvo `includeDeleted=true`, y su detalle lo sigue\ndevolviendo con `deletedAt` y este `deletionReason`. Eliminar uno ya\neliminado responde `409` (`EX-002`), **distinto del `404` del inexistente**:\nquien elimina dos veces merece saber que la primera funcionó. Exige\n`teams:delete`; ni `teams:update` ni `teams:change-status` habilitan esta\noperación.\n",
+        "operationId" : "eliminar_1",
+        "parameters" : [ {
+          "in" : "path",
+          "name" : "id",
+          "required" : true,
+          "schema" : {
+            "format" : "uuid",
+            "type" : "string"
+          }
+        } ],
+        "requestBody" : {
+          "content" : {
+            "application/json" : {
+              "schema" : {
+                "$ref" : "#/components/schemas/DeleteTeamRequest"
+              }
+            }
+          }
+        },
+        "responses" : {
+          "204" : {
+            "description" : "Equipo eliminado."
+          },
+          "400" : {
+            "description" : "Identificador mal formado (`VAL-001`) o motivo ausente, vacío (`VAL-002`) o de más de 500 caracteres (`VAL-003`)"
+          },
+          "401" : {
+            "description" : "Token ausente o inválido (`AUTH-001`)"
+          },
+          "403" : {
+            "description" : "Autenticado sin el permiso `teams:delete` (`AUTH-002`)"
+          },
+          "404" : {
+            "description" : "El equipo no existe (`EX-001`)"
+          },
+          "409" : {
+            "description" : "El equipo ya está eliminado (`EX-002`) o tiene miembros vigentes (`EX-003`)"
+          }
+        },
+        "summary" : "Eliminar un equipo",
+        "tags" : [ "Equipos" ],
+        "x-required-permission" : "teams:delete"
+      }
+    },
+    "/api/v1/teams/{id}/members" : {
+      "post" : {
+        "description" : "**Permiso requerido:** `teams:assign-members`. Sin él, `403` (`AUTH-002`).\n\nDice **a qué equipo pertenece cada manager desde hoy**, en una sola\noperación y con motivo. Admite **de una a cien personas** por petición, y\nlos identificadores repetidos se tratan una sola vez.\n\n**Solo entra la cúspide** (`RN-SP-051`): quien porta el rol comercial **de\nmayor rango**. Un director o un agente **no** se asigna —pertenece al equipo\nde su manager por la cadena de mando— y enviarlo responde `422` diciendo\ncuáles y por qué. La regla se decide por la **forma de la jerarquía de\nroles**, no por un código concreto: el día que nazca un rango por encima, la\noperación lo sigue sin tocar código.\n\n**Toda la lista o ninguna.** Si alguna persona no existe, está eliminada o no\nes de la cúspide, **no entra nadie** y la respuesta informa de **todas** las\nque fallan, no de la primera: a medias, quien administra no sabría quién\nentró sin volver a consultar, y el motivo declarado valdría para un conjunto\ndistinto del que pidió.\n\n**Mover a alguien de equipo es asignarlo al destino.** La pertenencia\nanterior **se cierra sola** en la misma transacción, y el equipo de origen lo\nrefleja de inmediato en su recuento. **Quien ya está en este equipo no se\ntoca**: conserva su `joinedAt` original, no se audita y no es un error —\nreabrirlo le quitaría la antigüedad que ordena la lista.\n\n**El equipo debe estar `ACTIVO`.** Uno `INACTIVO` responde `409`: la\nrestricción es del equipo que **recibe**, de modo que sí se puede mover a\nalguien **desde** un equipo suspendido hacia uno activo. Un equipo eliminado\nresponde `404`.\n\n**Una persona desactivada o bloqueada entra igual**: un manager suspendido\nsigue siendo manager, y no poder organizarlo dejaría sin forma de ordenar la\ncúspide antes de reactivarlo. Su estado se ve en el detalle.\n\n**El motivo es obligatorio** y no se puede declarar desde cuándo: la\npertenencia rige al ejecutarse. Una fecha declarada permitiría reescribir a\nqué equipo se atribuía una venta de hace tres meses, y este historial es el\nque leerán las comisiones.\n\n**Esto no cambia quién manda sobre quién.** `user_supervisors` y los roles de\ncada persona quedan exactamente igual: un equipo agrupa, no manda, y\npertenecer a uno **no concede acceso a ningún dato**.\n\nLa respuesta es la **forma del detalle**, ya con todos sus miembros por\nantigüedad. Exige `teams:assign-members`; **`teams:remove-members` no\nhabilita esta operación**, porque mover gente y dejarla fuera de todo equipo\nson dos decisiones distintas.\n",
+        "operationId" : "asignarMiembros",
+        "parameters" : [ {
+          "in" : "path",
+          "name" : "id",
+          "required" : true,
+          "schema" : {
+            "format" : "uuid",
+            "type" : "string"
+          }
+        } ],
+        "requestBody" : {
+          "content" : {
+            "application/json" : {
+              "schema" : {
+                "$ref" : "#/components/schemas/AssignTeamMembersRequest"
+              }
+            }
+          },
+          "required" : true
+        },
+        "responses" : {
+          "200" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/TeamDetailResponse"
+                }
+              }
+            },
+            "description" : "Equipo con sus miembros, en la forma del detalle."
+          },
+          "400" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/TeamDetailResponse"
+                }
+              }
+            },
+            "description" : "Lista vacía o de más de 100 (`VAL-001`, `VAL-003`), identificador mal formado (`VAL-002`), motivo ausente o largo (`VAL-004`, `VAL-005`) o cuerpo con campos no admitidos (`VAL-006`)"
+          },
+          "401" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/TeamDetailResponse"
+                }
+              }
+            },
+            "description" : "Token ausente o inválido (`AUTH-001`)"
+          },
+          "403" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/TeamDetailResponse"
+                }
+              }
+            },
+            "description" : "Autenticado sin el permiso `teams:assign-members` (`AUTH-002`)"
+          },
+          "404" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/TeamDetailResponse"
+                }
+              }
+            },
+            "description" : "El equipo no existe o está eliminado (`EX-001`)"
+          },
+          "409" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/TeamDetailResponse"
+                }
+              }
+            },
+            "description" : "El equipo está `INACTIVO` y no admite miembros nuevos (`RN-SP-053`), o la persona acaba de ser asignada a otro equipo a la vez (`RN-SP-052`)"
+          },
+          "422" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/TeamDetailResponse"
+                }
+              }
+            },
+            "description" : "Alguna persona no existe o está eliminada (`EX-003`), o no porta el rol comercial de mayor rango (`RN-SP-051`); en `errors` van todas las que causan el rechazo"
+          }
+        },
+        "summary" : "Asignar miembros a un equipo",
+        "tags" : [ "Equipos" ],
+        "x-required-permission" : "teams:assign-members"
+      }
+    },
+    "/api/v1/teams/{id}/members/removals" : {
+      "post" : {
+        "description" : "**Permiso requerido:** `teams:remove-members`. Sin él, `403` (`AUTH-002`).\n\nSaca a una o varias personas de **este** equipo **sin ponerlas en otro**, con\nmotivo. Admite de una a cien por petición.\n\n**Retirar no es mover.** Para cambiar a alguien de equipo basta asignarlo al\ndestino, que cierra la anterior sola; esta operación es para **vaciar un\nequipo** —lo que hace falta antes de eliminarlo— y para dejar a alguien **sin\nequipo**, que es un estado legítimo: un manager sin equipo no rompe nada.\n\n**Cierra, no borra.** La pertenencia se queda con su fecha de fin y sigue en\nel historial, porque decide a qué equipo se atribuía lo que esa red producía.\nEl recuento del equipo baja de inmediato.\n\n**Se puede retirar de un equipo `INACTIVO`.** La restricción de un equipo\nsuspendido es sobre **recibir**, no sobre soltar: si también impidiera\nsoltar, un equipo suspendido con gente dentro no podría vaciarse nunca y por\ntanto no podría eliminarse.\n\n**Retirar a quien no pertenece hoy a este equipo responde `422`**, y trae en\n`errors` a todas las personas que fallan. Al contrario que en la asignación\n—donde volver a asignar a quien ya está no es un error—, aquí un `200` dejaría\ncreer que se sacó a alguien de donde no estaba. **No se distingue** entre «no\ntiene equipo» y «está en otro»: para esta operación las dos significan lo\nmismo.\n\n**Toda la lista o ninguna**: si alguna persona no pertenece, no se retira a\nninguna.\n\n**Esto no toca el rol, ni la cadena de mando, ni el estado de nadie.** Quien\nsale sigue siendo manager y conserva su red; **cambiar el estado de una\npersona no la saca de su equipo**. Lo que sí la saca —en la misma\ntransacción y sin pasar por aquí— es dejar de ser manager: retirarle el rol\ncomercial de mayor rango o eliminarla.\n\nLa respuesta es la **forma del detalle**, ya sin los retirados. Exige\n`teams:remove-members`; **`teams:assign-members` no habilita esta\noperación**.\n",
+        "operationId" : "retirarMiembros",
+        "parameters" : [ {
+          "in" : "path",
+          "name" : "id",
+          "required" : true,
+          "schema" : {
+            "format" : "uuid",
+            "type" : "string"
+          }
+        } ],
+        "requestBody" : {
+          "content" : {
+            "application/json" : {
+              "schema" : {
+                "$ref" : "#/components/schemas/RemoveTeamMembersRequest"
+              }
+            }
+          },
+          "required" : true
+        },
+        "responses" : {
+          "200" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/TeamDetailResponse"
+                }
+              }
+            },
+            "description" : "Equipo sin los retirados, en la forma del detalle."
+          },
+          "400" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/TeamDetailResponse"
+                }
+              }
+            },
+            "description" : "Lista vacía o de más de 100 (`VAL-001`, `VAL-003`), identificador mal formado (`VAL-002`), motivo ausente o largo (`VAL-004`, `VAL-005`) o cuerpo con campos no admitidos (`VAL-006`)"
+          },
+          "401" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/TeamDetailResponse"
+                }
+              }
+            },
+            "description" : "Token ausente o inválido (`AUTH-001`)"
+          },
+          "403" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/TeamDetailResponse"
+                }
+              }
+            },
+            "description" : "Autenticado sin el permiso `teams:remove-members` (`AUTH-002`)"
+          },
+          "404" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/TeamDetailResponse"
+                }
+              }
+            },
+            "description" : "El equipo no existe o está eliminado (`EX-001`)"
+          },
+          "422" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/TeamDetailResponse"
+                }
+              }
+            },
+            "description" : "Alguna persona no pertenece hoy a este equipo (`EX-002`); en `errors` van todas"
+          }
+        },
+        "summary" : "Retirar miembros de un equipo",
+        "tags" : [ "Equipos" ],
+        "x-required-permission" : "teams:remove-members"
+      }
+    },
+    "/api/v1/teams/{id}/status" : {
+      "patch" : {
+        "description" : "**Permiso requerido:** `teams:change-status`. Sin él, `403` (`AUTH-002`).\n\nPasa el equipo a `INACTIVO` o lo devuelve a `ACTIVO`. Se declara **el\nestado destino** y no una acción, de modo que **repetir la petición deja\nel mismo resultado**: pedir el estado que ya se tiene responde `200` sin\nescribir nada y **sin registrar auditoría**.\n\n**`INACTIVO` significa «no recibe», no «está vacío».** El equipo\nsuspendido **conserva a todos sus miembros**: el detalle los sigue\ndevolviendo y el listado los sigue contando. Cerrar las pertenencias al\nsuspender movería la atribución de toda una red sin que nadie lo hubiera\ndecidido; para vaciarlo hay que retirar a cada miembro, con motivo.\n\n**La restricción es sobre el equipo que RECIBE.** Un equipo `INACTIVO` no\nadmite miembros nuevos, pero **sí se puede retirar** a los que tiene —es\nla única forma de vaciarlo para poder eliminarlo— y **sí se puede\nreasignar a alguien desde él hacia un equipo activo**.\n\n**Desactivar no le quita nada a nadie.** Un manager de un equipo\nsuspendido sigue activo, sigue siendo manager y sigue teniendo su red;\npertenecer a un equipo no concede acceso a ningún dato, y por eso esta\noperación **no registra ningún evento de seguridad** — al contrario que\ndesactivar un rol, que retira permisos de inmediato.\n\n**El cuerpo no admite motivo**: el motivo es la barrera de lo\nirreversible, y esto se deshace con una petición. Enviar `reason`, `name`\no `members` responde `400`.\n\nSuspender **no es eliminar**: «ya no organizo con este equipo pero quiero\nver quién estaba» es esto; `DELETE /teams/{id}` es «no debería existir», y\nexige vaciarlo antes. Un equipo eliminado responde `404`: sobre él no hay\nestado que cambiar.\n\nLa respuesta es la **forma del detalle**, con el estado nuevo y los mismos\nmiembros. Exige `teams:change-status`; **`teams:update` no habilita esta\noperación**, porque corregir el nombre de un equipo y suspenderlo son dos\ndecisiones de negocio distintas.\n",
+        "operationId" : "cambiarEstado_1",
+        "parameters" : [ {
+          "in" : "path",
+          "name" : "id",
+          "required" : true,
+          "schema" : {
+            "format" : "uuid",
+            "type" : "string"
+          }
+        } ],
+        "requestBody" : {
+          "content" : {
+            "application/json" : {
+              "schema" : {
+                "$ref" : "#/components/schemas/ChangeTeamStatusRequest"
+              }
+            }
+          },
+          "required" : true
+        },
+        "responses" : {
+          "200" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/TeamDetailResponse"
+                }
+              }
+            },
+            "description" : "Equipo con su estado nuevo, en la forma del detalle."
+          },
+          "400" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/TeamDetailResponse"
+                }
+              }
+            },
+            "description" : "Estado ausente o fuera del dominio (`VAL-001`), identificador mal formado (`VAL-002`) o cuerpo con campos no admitidos (`VAL-003`)"
+          },
+          "401" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/TeamDetailResponse"
+                }
+              }
+            },
+            "description" : "Token ausente o inválido (`AUTH-001`)"
+          },
+          "403" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/TeamDetailResponse"
+                }
+              }
+            },
+            "description" : "Autenticado sin el permiso `teams:change-status` (`AUTH-002`)"
+          },
+          "404" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/TeamDetailResponse"
+                }
+              }
+            },
+            "description" : "El equipo no existe o está eliminado (`EX-001`)"
+          }
+        },
+        "summary" : "Suspender o reactivar un equipo",
+        "tags" : [ "Equipos" ],
+        "x-required-permission" : "teams:change-status"
       }
     },
     "/api/v1/user-commission-rates" : {

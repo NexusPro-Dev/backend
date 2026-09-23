@@ -49,6 +49,11 @@ final class TeamTestSupport {
    */
   static void borrarPersonas(JdbcTemplate jdbc, String... usuarios) {
     for (String usuario : usuarios) {
+      // Los roles primero: `fk_user_roles_user` es ON DELETE RESTRICT, y una
+      // persona sembrada con rol no se puede retirar sin quitárselo antes.
+      jdbc.update(
+          "DELETE FROM user_roles WHERE user_id IN (SELECT id FROM users WHERE username = ?)",
+          usuario);
       jdbc.update("DELETE FROM users WHERE username = ?", usuario);
     }
   }
@@ -117,6 +122,34 @@ final class TeamTestSupport {
         usuario,
         usuario + "@factech.co");
     return id;
+  }
+
+  /**
+   * Una persona con un rol del catálogo sembrado, <b>por código</b> y no por identificador
+   * cableado: `MANAGER`, `DIRECTOR`, `AGENTE` o `CLIENTE`.
+   *
+   * <p>El {@code role_type} se copia de {@code roles} en la misma sentencia porque {@code
+   * fk_user_roles_role} es compuesta: la columna existe para que `RN-SP-025` viva en el motor, y
+   * escribirla a mano aquí sería inventar el dato que la clave foránea comprueba.
+   */
+  static UUID personaConRol(JdbcTemplate jdbc, String usuario, String codigoDeRol) {
+    UUID id = persona(jdbc, usuario);
+    jdbc.update(
+        "INSERT INTO user_roles (user_id, role_id, role_type)"
+            + " SELECT ?, r.id, r.role_type FROM roles r WHERE r.code = ?",
+        id,
+        codigoDeRol);
+    return id;
+  }
+
+  /** La persona deja de estar activa; sigue existiendo y sigue portando su rol. */
+  static void desactivarPersona(JdbcTemplate jdbc, UUID id) {
+    jdbc.update("UPDATE users SET status = 'INACTIVO' WHERE id = ?", id);
+  }
+
+  /** La persona se elimina lógicamente: para quien asigna, es como si no existiera. */
+  static void eliminarPersona(JdbcTemplate jdbc, UUID id) {
+    jdbc.update("UPDATE users SET deleted_at = now() WHERE id = ?", id);
   }
 
   static RequestPostProcessor con(String... permisos) {

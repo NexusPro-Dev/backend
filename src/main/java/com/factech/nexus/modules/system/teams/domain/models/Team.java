@@ -2,6 +2,7 @@ package com.factech.nexus.modules.system.teams.domain.models;
 
 import com.factech.nexus.shared.error.FieldError;
 import com.factech.nexus.shared.error.ValidationException;
+import com.factech.nexus.shared.patch.Patchable;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.EnumType;
@@ -12,6 +13,7 @@ import java.time.OffsetDateTime;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.UUID;
 
 /**
@@ -80,6 +82,115 @@ public class Team {
     equipo.createdAt = ahora;
     equipo.updatedAt = ahora;
     return equipo;
+  }
+
+  /**
+   * Corrige el nombre y la descripción (`RF-SP-066`), y devuelve <b>el diff</b> de lo que de verdad
+   * cambió.
+   *
+   * <p><b>Devolver el diff y no un booleano</b> es lo que permite que la auditoría registre QUÉ
+   * cambió y no solo QUE hubo una edición: el mapa vacío significa que la petición era válida y no
+   * movió nada —renombrar al mismo nombre, por ejemplo—, y entonces no se emite fila. Es la forma
+   * que dejó escrita `RF-AC-004`.
+   *
+   * <p><b>Ausente no es nulo.</b> Un campo que no viene se queda como estaba; una descripción en
+   * nulo explícito se borra. Sin esa distinción no habría forma de vaciar un campo opcional sin
+   * inventarle un endpoint propio.
+   *
+   * <p><b>El nombre nulo NO borra</b>, al contrario que la descripción: un equipo sin nombre no
+   * existe (`RN-SP-050`), de modo que `name: null` es un dato inválido y lo rechaza el caso de uso
+   * antes de llegar aquí.
+   */
+  public Map<String, Object> update(
+      Patchable<String> nuevoNombre, Patchable<String> nuevaDescripcion, OffsetDateTime ahora) {
+    Map<String, Object> cambios = new LinkedHashMap<>();
+    if (nuevoNombre.presente() && nuevoNombre.valor() != null) {
+      String valor = verificarNombre(nuevoNombre.valor());
+      if (!Objects.equals(valor, name)) {
+        cambios.put("name", Map.of("before", texto(name), "after", texto(valor)));
+        name = valor;
+      }
+    }
+    if (nuevaDescripcion.presente()) {
+      String valor = verificarDescripcion(nuevaDescripcion.valor());
+      if (!Objects.equals(valor, description)) {
+        cambios.put("description", Map.of("before", texto(description), "after", texto(valor)));
+        description = valor;
+      }
+    }
+    // La marca de tiempo avanza AUNQUE el diff salga vacío: la petición se
+    // atendió, y `CA-SP-756` exige que `updatedAt` deje de ser igual a
+    // `createdAt`. Lo que no se emite sin cambios es la fila de auditoría.
+    updatedAt = ahora;
+    return cambios;
+  }
+
+  /** Un nulo no viaja bien dentro del diff en JSON: se escribe como ausencia legible. */
+  private static Object texto(String valor) {
+    return valor == null ? "" : valor;
+  }
+
+  /**
+   * Reactiva el equipo (`RF-SP-067`) y devuelve <b>si hubo cambio</b>.
+   *
+   * <p><b>Devolver el booleano es lo que sostiene la idempotencia.</b> El caso de uso audita solo
+   * cuando cambió algo, y la marca de tiempo no avanza por una petición que pedía el estado que ya
+   * se tenía: sin eso, cada reintento de un cliente con mala red dejaría una fila de auditoría y
+   * movería `updatedAt`, que es cómo una auditoría deja de poder leerse.
+   *
+   * <p><b>Aquí `updatedAt` avanza solo si cambió</b>, al contrario que en {@link #update}, donde
+   * avanza aunque el diff salga vacío. No es una incoherencia: una corrección con los mismos
+   * valores es una petición que se atendió sobre los datos —`CA-SP-756` lo exige—, mientras que
+   * pedir el estado que ya se tiene no es una escritura, es un reintento.
+   */
+  public boolean activate(OffsetDateTime ahora) {
+    if (status == TeamStatus.ACTIVO) {
+      return false;
+    }
+    status = TeamStatus.ACTIVO;
+    updatedAt = ahora;
+    return true;
+  }
+
+  /**
+   * Suspende el equipo (`RF-SP-067`) y devuelve <b>si hubo cambio</b>.
+   *
+   * <p><b>No toca una sola pertenencia</b> (`RN-SP-053`): `INACTIVO` significa que el equipo no
+   * recibe a nadie más, no que se vacíe. Cerrar aquí las pertenencias movería la atribución de toda
+   * una red —cada manager arrastra a sus directores y a los agentes de estos— sin que nadie lo
+   * hubiera decidido, y las comisiones leerán ese historial para repartir. Vaciar es otra
+   * operación, miembro a miembro y con motivo (`RF-SP-070`).
+   *
+   * <p><b>Y no comprueba nada</b>: que un equipo suspendido no reciba miembros lo aplica quien
+   * intenta entrar (`RF-SP-069`). La regla vive en un solo sitio a propósito.
+   */
+  public boolean deactivate(OffsetDateTime ahora) {
+    if (status == TeamStatus.INACTIVO) {
+      return false;
+    }
+    status = TeamStatus.INACTIVO;
+    updatedAt = ahora;
+    return true;
+  }
+
+  /**
+   * Elimina el equipo (`RF-SP-068`) y devuelve <b>si hubo cambio</b>: la baja es lógica y <b>nada
+   * más de la fila cambia</b>.
+   *
+   * <p><b>`status` se conserva a propósito.</b> Un equipo eliminado guarda el estado que tenía, y
+   * el registro de baja lo cuenta: apagarlo al eliminar inventaría un hecho que nadie decidió y
+   * haría indistinguible «se suspendió y luego se eliminó» de «se eliminó estando activo».
+   *
+   * <p><b>Las pertenencias no se tocan</b> (`RN-SP-052`): las cerradas se conservan como historial
+   * y las vigentes no existen aquí, porque el caso de uso rechaza la baja si hay alguna
+   * (`RN-SP-054`).
+   */
+  public boolean delete(OffsetDateTime ahora) {
+    if (deletedAt != null) {
+      return false;
+    }
+    deletedAt = ahora;
+    return true;
   }
 
   public boolean estaEliminado() {
