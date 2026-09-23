@@ -237,6 +237,21 @@
                     <includes>
                         <include>**/*Test.java</include>
                     </includes>
+                <!--
+                    ORDEN FIJO, Y NO EL DE POR OMISION. El de surefire es
+                    `filesystem`, que NO es el mismo en Windows que en Linux: la
+                    suite corria en un orden en la maquina de desarrollo y en otro
+                    en CI, de modo que «verde en local» no decia nada sobre CI. El
+                    23-09-2026 costo cuatro corridas de CI descubrirlo, con tres
+                    conjuntos distintos de fallos sobre el MISMO codigo: suites
+                    ajenas que se pisan segun quien corra antes.
+
+                    Alfabetico no arregla que se pisen —eso se arregla limpiando
+                    donde se ensucia—, pero hace el fallo REPRODUCIBLE: quien lo vea
+                    en CI lo vera igual en su maquina. Un orden aleatorio esconde el
+                    problema hasta que otra rama lo destapa.
+                -->
+                    <runOrder>alphabetical</runOrder>
                 </configuration>
             </plugin>
 
@@ -248,6 +263,8 @@
                     <includes>
                         <include>**/*IT.java</include>
                     </includes>
+                    <!-- El mismo orden fijo que surefire, y por el mismo motivo. -->
+                    <runOrder>alphabetical</runOrder>
                 </configuration>
                 <executions>
                     <execution>
