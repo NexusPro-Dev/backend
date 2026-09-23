@@ -9,6 +9,8 @@ import com.factech.nexus.modules.movements.application.MyMovementsRequest;
 import com.factech.nexus.modules.movements.application.MyProductResponse;
 import com.factech.nexus.modules.movements.application.MyProductsRequest;
 import com.factech.nexus.modules.movements.application.RegisterSaleRequest;
+import com.factech.nexus.modules.movements.application.SaleLineItem;
+import com.factech.nexus.modules.movements.application.SaleLinesRequest;
 import com.factech.nexus.modules.movements.application.SaleResponse;
 import com.factech.nexus.modules.movements.application.VoidSaleRequest;
 import com.factech.nexus.modules.movements.domain.service.AssignSellersService;
@@ -17,6 +19,7 @@ import com.factech.nexus.modules.movements.domain.service.GetMyMovementService;
 import com.factech.nexus.modules.movements.domain.service.ListMovementsService;
 import com.factech.nexus.modules.movements.domain.service.ListMyMovementsService;
 import com.factech.nexus.modules.movements.domain.service.ListMyProductsService;
+import com.factech.nexus.modules.movements.domain.service.ListSaleLinesService;
 import com.factech.nexus.modules.movements.domain.service.ListSalesService;
 import com.factech.nexus.modules.movements.domain.service.RegisterSaleService;
 import com.factech.nexus.modules.movements.domain.service.VoidSaleService;
@@ -63,6 +66,7 @@ public class MovementController {
   private final GetMyMovementService detalle;
   private final ListSalesService ventas;
   private final AssignSellersService asignacion;
+  private final ListSaleLinesService lineas;
 
   public MovementController(
       RegisterSaleService alta,
@@ -73,7 +77,8 @@ public class MovementController {
       ListMyProductsService comprado,
       GetMyMovementService detalle,
       ListSalesService ventas,
-      AssignSellersService asignacion) {
+      AssignSellersService asignacion,
+      ListSaleLinesService lineas) {
     this.alta = alta;
     this.confirmacion = confirmacion;
     this.anulacion = anulacion;
@@ -83,6 +88,7 @@ public class MovementController {
     this.detalle = detalle;
     this.ventas = ventas;
     this.asignacion = asignacion;
+    this.lineas = lineas;
   }
 
   /**
@@ -459,6 +465,107 @@ public class MovementController {
     return ventas.list(
         new ListSalesRequest(
             page, size, userId, status, typeStatus, paymentMethodId, code, from, to));
+  }
+
+  /**
+   * <b>Bajo {@code /sales} y no {@code /lines} sueltas</b>: se acota a las ventas. El día que un
+   * depósito tenga líneas, su consulta será otra ruta y no un parámetro de esta.
+   */
+  @GetMapping("/sales/lines")
+  @PreAuthorize("hasAuthority('movements:list-sale-lines')")
+  @Operation(
+      summary = "Consultar las líneas de venta",
+      description =
+          """
+          Devuelve **una fila por LÍNEA de venta** —no por venta—, paginadas y de la más
+          reciente a la más antigua. Es la consulta que responde **qué se ha vendido**:
+          `GET /movements` y `GET /movements/sales` devuelven una fila por venta con sus
+          importes agregados, de modo que para ver los productos hay que abrir cada una.
+
+          **Una venta de tres productos aporta tres filas**, con los datos de la venta
+          repetidos en cada una. El identificador de la línea (`lineId`) no se publica en
+          ninguna otra consulta.
+
+          **Es la lectura de ADMINISTRACIÓN: con el permiso se ve todo el libro**, de quien
+          sea. **No tiene alcance por estructura** —el vendedor NO ve aquí solo su red—:
+          eso es `GET /movements/sales`, y quien quiera lo suyo tiene
+          `GET /movements/mine/products`. Quien no porta `movements:list-sale-lines` recibe
+          `403` aunque tenga compras propias; ni `movements:read` ni `movements:list-sales`
+          abren esta consulta.
+
+          **El nombre del producto es el que tenía el día de la venta**, no el del catálogo
+          de hoy: si alguien lo renombró después, aquí sigue diciendo qué se vendió. El
+          **código**, en cambio, se lee del catálogo, que es inmutable.
+
+          **`seller` puede venir presente y NULO**, y la fila **no desaparece** por eso: el
+          vendedor es de la línea y hay movimientos que no lo llevan.
+
+          **El estado de entrega va crudo** —`deliveryStatus`, `deliveredAt`,
+          `deliveryNote`, `implementation`—, y no derivado como en
+          `GET /movements/mine/products`: administración necesita saber por qué algo está
+          donde está.
+
+          **Los siete filtros se combinan** y cada uno responde una pregunta: `movementId`
+          (las líneas de una venta), `userId` (qué compró esta persona, el sujeto),
+          `sellerId` (qué vendió esta persona, **como vendedora de la línea**), `productId`
+          (qué se vendió de este producto), `status` (el estado de la VENTA),
+          `deliveryStatus` (el de la LÍNEA), `code` (un comprobante exacto, sin distinguir
+          mayúsculas) y `from`/`to` sobre **cuándo ocurrió la venta**, con el rango
+          **semiabierto** —incluye `from`, excluye `to`—. Un identificador inexistente da
+          **página vacía**; un estado que no existe es `400`, porque el catálogo es cerrado.
+          Los problemas de forma se devuelven **juntos**.
+
+          **El total puede no ser exacto**: por encima del techo de conteo vale el techo y
+          `totalIsExact` lo declara. Aquí importa más que en ningún otro listado, porque una
+          venta de cinco productos son cinco filas.
+          """)
+  @ApiResponses({
+    @ApiResponse(responseCode = "200", description = "La página de líneas, aunque esté vacía."),
+    @ApiResponse(
+        responseCode = "400",
+        description =
+            "Paginación inválida, estado o estado de entrega no admitidos (`VAL-002`,"
+                + " `VAL-003`), identificador malformado (`VAL-001`) o `from` posterior a `to`"
+                + " (`VAL-004`). Los problemas se devuelven juntos.",
+        content = @Content),
+    @ApiResponse(
+        responseCode = "401",
+        description = "Token ausente o inválido (`AUTH-001`)",
+        content = @Content),
+    @ApiResponse(
+        responseCode = "403",
+        description = "Sin el permiso `movements:list-sale-lines` (`AUTH-002`).",
+        content = @Content),
+    @ApiResponse(
+        responseCode = "500",
+        description = "Fallo no controlado (`ERR-500`)",
+        content = @Content)
+  })
+  public PageResponse<SaleLineItem> lineasDeVenta(
+      @RequestParam(required = false) Integer page,
+      @RequestParam(required = false) Integer size,
+      @RequestParam(required = false) UUID movementId,
+      @RequestParam(required = false) UUID userId,
+      @RequestParam(required = false) UUID sellerId,
+      @RequestParam(required = false) UUID productId,
+      @RequestParam(required = false) String status,
+      @RequestParam(required = false) String deliveryStatus,
+      @RequestParam(required = false) String code,
+      @RequestParam(required = false) OffsetDateTime from,
+      @RequestParam(required = false) OffsetDateTime to) {
+    return lineas.list(
+        new SaleLinesRequest(
+            page,
+            size,
+            movementId,
+            userId,
+            sellerId,
+            productId,
+            status,
+            deliveryStatus,
+            code,
+            from,
+            to));
   }
 
   @Operation(

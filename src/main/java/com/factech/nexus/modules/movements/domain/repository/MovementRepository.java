@@ -522,6 +522,75 @@ public interface MovementRepository {
    * @param type el código del tipo de movimiento, ya en mayúsculas y ya validado contra el catálogo
    *     (21-09-2026)
    */
+
+  /**
+   * Las líneas de las ventas, paginadas (`RF-MV-017`).
+   *
+   * <p><b>Una fila por LÍNEA</b>, con lo de su venta repetido: es la pregunta «qué se ha vendido»,
+   * que ningún listado por movimiento contesta sin abrir cada venta.
+   *
+   * <p><b>Todo lo que la fila publica viaja en esta sentencia.</b> Al contrario que {@link
+   * #findAll}, aquí no hace falta una segunda consulta para el vendedor: allí una venta tiene
+   * varios y la fila es la venta; aquí la fila es la línea y tiene <b>uno</b>.
+   */
+  List<SaleLineRow> findSaleLines(SaleLinesFilter filter, int offset, int limit);
+
+  /** El total de lo mismo, <b>acotado</b>: `movement_details` es la tabla que más crece. */
+  BoundedCount countSaleLines(SaleLinesFilter filter, int techo);
+
+  /**
+   * Los siete filtros del listado de líneas, todos opcionales y combinables.
+   *
+   * <p><b>No lleva actor ni alcance</b>, y su ausencia es la implementación: `RF-MV-017` es de
+   * administración y con el permiso se ve todo el libro. El alcance por estructura vive en {@link
+   * SalesFilter}.
+   */
+  record SaleLinesFilter(
+      UUID movementId,
+      UUID userId,
+      UUID sellerId,
+      UUID productId,
+      String status,
+      String deliveryStatus,
+      String code,
+      OffsetDateTime from,
+      OffsetDateTime to) {}
+
+  /**
+   * Una línea con su venta, plana como sale del motor.
+   *
+   * <p><b>El vendedor puede venir nulo entero</b> —las cuatro columnas— porque la unión es un
+   * {@code LEFT JOIN}: `movement_details.seller_id` es nulable desde `V12` y una línea sin vendedor
+   * tiene que <b>salir</b>, no desaparecer.
+   */
+  record SaleLineRow(
+      UUID lineId,
+      UUID movementId,
+      String movementCode,
+      String movementStatus,
+      OffsetDateTime occurredAt,
+      UUID clientId,
+      String clientUsername,
+      String clientFirstName,
+      String clientLastName,
+      UUID sellerId,
+      String sellerUsername,
+      String sellerFirstName,
+      String sellerLastName,
+      UUID productId,
+      String productCode,
+      String productName,
+      int quantity,
+      BigDecimal unitPrice,
+      BigDecimal lineDiscount,
+      BigDecimal lineAmount,
+      Integer validityDays,
+      String currencyCode,
+      String implementation,
+      String deliveryStatus,
+      OffsetDateTime deliveredAt,
+      String deliveryNote) {}
+
   record MovementFilter(
       String status,
       String type,
