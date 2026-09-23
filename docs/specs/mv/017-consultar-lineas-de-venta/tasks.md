@@ -71,7 +71,7 @@ graph LR
 - [x] `GET /movements/sales/lines` consta en `EndpointPermissionsIT` con `movements:list-sale-lines`.
 - [x] `V37` siembra el permiso solo para `SUPERADMIN` y `ADMIN`, y el catálogo cuenta 135.
 - [x] El filtro `typeStatus` acota y su `400` viaja con los demás, **y el campo no aparece en la fila** (0.2.0).
-- [x] `mvn verify` en verde en local (23-09-2026: 1863 de integración). **El CI del PR, pendiente.**
+- [x] `mvn verify` en verde en local (23-09-2026: 1863 de integración) **y el CI del PR #106 en verde a la primera**, sin la intermitente de #88.
 - [x] El contrato OpenAPI coincide con el comportamiento real, **prosa incluida**.
 - [x] Documentación afectada actualizada en el mismo Pull Request.
 - [x] Matriz de trazabilidad actualizada.
