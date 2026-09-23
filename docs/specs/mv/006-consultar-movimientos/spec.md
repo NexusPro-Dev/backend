@@ -4,7 +4,7 @@
 |---|---|
 | Requerimiento | `RF-MV-006` |
 | Módulo | `MV` — Movimientos |
-| Versión | 0.2.0 |
+| Versión | 0.3.0 |
 | Estado | **Aprobada** |
 | Enmendada el | 21-09-2026 — los movimientos se filtran también **por tipo** (§2.2, §6.1, §11, §12, §13). Ver §15 |
 | Autor | Responsable técnico |
@@ -194,6 +194,7 @@ La página se devuelve igual; el total **es el techo** y la respuesta declara qu
 | `VAL-003` | Los identificadores de sujeto, vendedor y método, si vienen, están bien formados |
 | `VAL-004` | «Desde» y «hasta», si vienen, son instantes bien formados, y «desde» no es posterior a «hasta» |
 | `VAL-005` | El tipo indicado, si viene, es uno del catálogo de tipos de movimiento (21-09-2026) |
+| `VAL-006` | El estado del tipo indicado, si viene, es uno del catálogo de estados por tipo (23-09-2026, `RF-MV-016`) |
 
 **Los problemas de validación se devuelven juntos**, como en los listados de `SP`: quien escribió mal tres parámetros no tiene que corregir la petición tres veces.
 
@@ -253,3 +254,4 @@ La página se devuelve igual; el total **es el techo** y la respuesta declara qu
 |---|---|---|---|
 | 0.1.0 | 17-09-2026 | Primera versión. **El requerimiento estaba declarado desde el 02-09-2026** en `requirements/mv.md` §4.1 como «Consultar ventas», sin especificar, y lo pide el responsable del proyecto —«un endpoint para consultar todos los movimientos registrados»—. **Se renombra a «Consultar los movimientos»** (§2.1), por lo mismo que `RF-MV-008`: el libro es de todos los hechos económicos y cada fila dice su tipo. Se escribe **por diferencias sobre `RF-MV-008`** y las diferencias son tres: el permiso `movements:read` es lo único que lo abre, el alcance es **global y explícito** —lo que §5.3 de `requirements/mv.md` había decidido para no depender de D-22—, y se acota con **seis filtros** que responden una pregunta de operación cada uno (§2.2). La fila gana **el tipo** y **cuándo se confirmó**, y pierde el papel. **El total es acotado**, como en la auditoría, porque el libro crece sin límite. Lo que se deja fuera se deja a propósito: buscar por texto, ordenar a elección, sumar, y el detalle — que es `RF-MV-007` y es lo primero que va a faltar (§14). | Responsable del proyecto |
 | 0.2.0 | 21-09-2026 | **Los movimientos se filtran también por tipo** (`requirements/mv.md` v0.31.0; Art. I.7 sobre un requerimiento construido), a petición del responsable del proyecto —«que los movimientos se puedan filtrar por tipos de movimiento»—. §2.2 gana la séptima pregunta —«¿qué depósitos hubo?»—, §4.1 pasa de seis filtros a siete, §6.1 gana la entrada y el párrafo que la pone **del lado del estado y no de las personas**: el catálogo es cerrado por `RN-MV-017`, y un tipo inexistente es un **error**. `VAL-005`, `CA-MV-119` y el caso límite del catálogo con un solo tipo. **Nada más cambia**: ni el permiso, ni el alcance, ni la fila, ni el conteo. `RF-MV-008` se enmienda el mismo día con el mismo filtro. | Responsable del proyecto |
+| 0.3.0 | 23-09-2026 | **Cada fila publica el estado del tipo y se filtra por él** (`requirements/mv.md` v0.36.0, `RN-MV-033`; Art. I.7 sobre un requerimiento construido), con `RF-MV-016`: la pregunta de administración de cada día es «¿qué ventas faltan por validar?». Con el trato del tipo —un código que no está en el catálogo es error, `VAL-006`—, y con los criterios en `RF-MV-016` (`CA-MV-161`). Una venta por validar lleva `sellers` **vacía**. | Responsable del proyecto |

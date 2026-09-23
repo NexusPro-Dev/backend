@@ -357,6 +357,23 @@ public class PublishedUserCatalog
                     superior.lastName()));
   }
 
+  /**
+   * Todos los vínculos del cliente, en el orden de {@link ClientSellerRepository#findSellersOf}:
+   * principal primero. `RN-MV-034` solo los cuenta, y `RN-MV-035` elige entre ellos.
+   */
+  @Override
+  @Transactional(readOnly = true)
+  public List<SellerView> sellersOf(UUID id) {
+    if (id == null) {
+      return List.of();
+    }
+    return vinculos.findSellersOf(id).stream()
+        .map(
+            fila ->
+                new SellerView(fila.sellerId(), fila.username(), fila.firstName(), fila.lastName()))
+        .toList();
+  }
+
   /** Nombre y apellido, o nulo si no hay ninguno de los dos. */
   private static String nombreCompleto(String nombre, String apellido) {
     String completo =

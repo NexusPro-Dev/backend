@@ -77,6 +77,7 @@ public class ListSalesService {
             hastaDonde.kind() == CommercialReach.Kind.OWN ? actor.id() : null,
             peticion.userId(),
             peticion.status(),
+            peticion.typeStatus(),
             peticion.paymentMethodId(),
             peticion.code(),
             peticion.from(),
@@ -130,6 +131,13 @@ public class ListSalesService {
               + Arrays.stream(MovementStatus.values()).map(Enum::name).toList()
               + ".";
       problemas.add(new FieldError("status", "VAL-002", mensaje));
+    }
+
+    // El estado del tipo (`RF-MV-016`), como el tipo: un catálogo que no se
+    // edita por API, y un código que no existe es una pregunta mal escrita.
+    if (peticion.typeStatus() != null && !movimientos.existsTypeStatusCode(peticion.typeStatus())) {
+      String mensaje = "El estado del tipo '" + peticion.typeStatus() + "' no existe.";
+      problemas.add(new FieldError("typeStatus", "VAL-005", mensaje));
     }
 
     if (peticion.from() != null

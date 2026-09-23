@@ -76,8 +76,9 @@ public record SaleLineResponse(
             types = {"object", "null"},
             description =
                 "A quién se atribuye ESTA línea, y a quién se le creará la comisión por ella."
-                    + " En una venta nunca es nulo: quien compra sin colgar de nadie es su propio"
-                    + " vendedor. NULO solo en los tipos de movimiento que no venden nada.")
+                    + " NULO en una venta VALIDAR_COMISIONES mientras nadie lo asigne —quien"
+                    + " compra tenía varios vendedores (`RN-MV-034`)— y en los tipos de movimiento"
+                    + " que no venden nada.")
         SaleResponse.Party seller,
     @Schema(
             description =

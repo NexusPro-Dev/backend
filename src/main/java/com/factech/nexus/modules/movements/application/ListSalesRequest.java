@@ -28,6 +28,7 @@ public record ListSalesRequest(
     Integer size,
     UUID userId,
     String status,
+    String typeStatus,
     UUID paymentMethodId,
     String code,
     OffsetDateTime from,
@@ -35,6 +36,8 @@ public record ListSalesRequest(
 
   public ListSalesRequest {
     status = status == null || status.isBlank() ? null : status.trim().toUpperCase();
+    typeStatus =
+        typeStatus == null || typeStatus.isBlank() ? null : typeStatus.trim().toUpperCase();
     code = code == null || code.isBlank() ? null : code.trim().toUpperCase();
   }
 }

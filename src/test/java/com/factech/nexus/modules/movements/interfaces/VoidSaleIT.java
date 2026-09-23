@@ -278,13 +278,14 @@ class VoidSaleIT extends IntegrationTestBase {
     UUID id = UUID.randomUUID();
     jdbc.update(
         """
-        INSERT INTO movements (id, movement_type_id, user_id, payment_method_id, currency_id,
+        INSERT INTO movements (id, movement_type_id, type_status_id, user_id, payment_method_id, currency_id,
                                code, status, total_amount, discount_amount, payable_amount,
                                occurred_at)
-        VALUES (?, CAST(? AS uuid), ?, CAST(? AS uuid), CAST(? AS uuid), ?, ?, 100.00, 0, 100.00,
+        VALUES (?, CAST(? AS uuid), (SELECT s.id FROM movement_type_statuses s WHERE s.movement_type_id = CAST(? AS uuid) AND s.code = 'VALIDADO'), ?, CAST(? AS uuid), CAST(? AS uuid), ?, ?, 100.00, 0, 100.00,
                 CAST(? AS timestamptz))
         """,
         id,
+        VENTA,
         VENTA,
         cliente,
         TARJETA,

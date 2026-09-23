@@ -43,8 +43,8 @@ final class SaleDetailMapper {
               linea.validityDays(),
               linea.lineDiscount(),
               rebajas,
-              // Nulo solo en los tipos de movimiento que no venden nada; en una
-              // venta la línea siempre lo trae (`RN-MV-003`).
+              // Nulo en los tipos de movimiento que no venden nada y, desde el
+              // 23-09-2026, en una venta por validar (`RN-MV-034`).
               linea.sellerId() == null
                   ? null
                   : new SaleResponse.Party(
@@ -62,6 +62,7 @@ final class SaleDetailMapper {
         cabecera.id(),
         cabecera.code(),
         cabecera.status(),
+        cabecera.typeStatus(),
         new SaleResponse.Party(
             cabecera.userId(),
             cabecera.userUsername(),

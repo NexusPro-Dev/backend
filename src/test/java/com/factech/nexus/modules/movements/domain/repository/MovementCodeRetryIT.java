@@ -6,6 +6,7 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import com.factech.nexus.IntegrationTestBase;
 import com.factech.nexus.modules.movements.domain.models.Movement;
 import com.factech.nexus.modules.movements.domain.models.MovementLine;
+import com.factech.nexus.modules.movements.domain.models.TypeStatus;
 import java.math.BigDecimal;
 import java.time.OffsetDateTime;
 import java.time.ZoneOffset;
@@ -36,6 +37,7 @@ class MovementCodeRetryIT extends IntegrationTestBase {
   private static final String USD = "01a03336-6d00-7001-9c4f-5e7ad3000001";
   private static final String TARJETA = "01a061ba-3400-7002-9c4f-5e7ad7000021";
   private static final String TIPO_VENTA = "01a061ba-3400-7001-9c4f-5e7ad7000011";
+  private static final String VALIDADO = "01a061ba-3400-7005-9c4f-5e7ad7000032";
 
   private static final OffsetDateTime AHORA =
       OffsetDateTime.of(2026, 9, 4, 12, 0, 0, 0, ZoneOffset.UTC);
@@ -133,6 +135,7 @@ class MovementCodeRetryIT extends IntegrationTestBase {
                 new BigDecimal("10.00"),
                 null,
                 "MANUAL")),
+        new TypeStatus(UUID.fromString(VALIDADO), "VALIDADO"),
         2,
         AHORA,
         AHORA);
@@ -145,13 +148,14 @@ class MovementCodeRetryIT extends IntegrationTestBase {
   private void insertarVentaCon(String codigo) {
     jdbc.update(
         """
-        INSERT INTO movements (id, movement_type_id, user_id, payment_method_id,
+        INSERT INTO movements (id, movement_type_id, type_status_id, user_id, payment_method_id,
                                currency_id, code, status, total_amount, discount_amount,
                                payable_amount, occurred_at)
-        VALUES (CAST(? AS uuid), CAST(? AS uuid), CAST(? AS uuid),
+        VALUES (CAST(? AS uuid), CAST(? AS uuid), (SELECT s.id FROM movement_type_statuses s WHERE s.movement_type_id = CAST(? AS uuid) AND s.code = 'VALIDADO'), CAST(? AS uuid),
                 CAST(? AS uuid), CAST(? AS uuid), ?, 'PENDIENTE', 10.00, 0, 10.00, ?)
         """,
         UUID.randomUUID().toString(),
+        TIPO_VENTA,
         TIPO_VENTA,
         cliente.toString(),
         TARJETA,
