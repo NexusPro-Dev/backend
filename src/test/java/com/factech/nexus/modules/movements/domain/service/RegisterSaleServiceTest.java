@@ -5,11 +5,13 @@ import static org.assertj.core.api.Assertions.assertThatCode;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyCollection;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 import com.factech.nexus.modules.movements.application.RegisterSaleRequest;
+import com.factech.nexus.modules.movements.domain.models.TypeStatus;
 import com.factech.nexus.modules.movements.domain.repository.MovementRepository;
 import com.factech.nexus.modules.movements.domain.repository.MovementRepository.MovementTypeView;
 import com.factech.nexus.modules.movements.domain.repository.MovementRepository.PaymentMethodView;
@@ -90,6 +92,9 @@ class RegisterSaleServiceTest {
                     METODO, "CREDIT_CARD", "Tarjeta de credito", true, "PUBLICO")));
     when(movimientos.findTypeByCode("VENTA"))
         .thenReturn(Optional.of(new MovementTypeView(UUID.randomUUID(), "VENTA", "VTA")));
+    // `RN-MV-033`: el estado con que nace la venta se resuelve del catálogo.
+    when(movimientos.findTypeStatus(any(), eq("VALIDADO")))
+        .thenReturn(Optional.of(new TypeStatus(UUID.randomUUID(), "VALIDADO")));
   }
 
   @Test

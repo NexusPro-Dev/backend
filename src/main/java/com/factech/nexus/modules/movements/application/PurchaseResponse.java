@@ -34,6 +34,12 @@ public record PurchaseResponse(
     String status,
     @Schema(
             description =
+                "El estado del TIPO de movimiento (`RN-MV-033`), aparte del pago. En una venta:"
+                    + " VALIDAR_COMISIONES —alguna línea no tiene vendedor, porque quien compra"
+                    + " tenía varios y falta elegir (`RF-MV-016`)— o VALIDADO —todas lo tienen—.")
+        String typeStatus,
+    @Schema(
+            description =
                 "Quien compró: el sujeto del movimiento, que aquí es también quien pidió.")
         SaleResponse.Party user,
     @Schema(
@@ -73,6 +79,7 @@ public record PurchaseResponse(
         venta.getId(),
         venta.getCode(),
         venta.getStatus().name(),
+        venta.getTypeStatus().code(),
         sujeto,
         venta.getPackageId(),
         moneda,

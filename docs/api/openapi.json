@@ -34,6 +34,18 @@
         "required" : [ "roleIds" ],
         "type" : "object"
       },
+      "AssignSellersRequest" : {
+        "properties" : {
+          "lines" : {
+            "description" : "Al menos una. Se puede asignar una parte de las líneas: la venta sigue en VALIDAR_COMISIONES mientras quede alguna sin vendedor.",
+            "items" : {
+              "$ref" : "#/components/schemas/SellerAssignment"
+            },
+            "type" : "array"
+          }
+        },
+        "type" : "object"
+      },
       "AssignSupervisorRequest" : {
         "properties" : {
           "reason" : {
@@ -2040,7 +2052,7 @@
             "type" : "string"
           },
           "sellers" : {
-            "description" : "Los vendedores de sus líneas, sin repetir. Hoy una venta lleva uno; la lista va VACÍA —nunca nula— en los movimientos que no tienen vendedor.",
+            "description" : "Los vendedores de sus líneas, sin repetir. Hoy una venta lleva uno; la lista va VACÍA —nunca nula— en los movimientos que no tienen vendedor y en una venta VALIDAR_COMISIONES a la que aún no se le ha asignado ninguno.",
             "items" : {
               "$ref" : "#/components/schemas/MovementParty"
             },
@@ -2054,6 +2066,10 @@
           },
           "type" : {
             "description" : "El código del tipo de movimiento. Hoy, siempre `VENTA`.",
+            "type" : "string"
+          },
+          "typeStatus" : {
+            "description" : "El estado del TIPO de movimiento (`RN-MV-033`), aparte del pago. En una venta: VALIDAR_COMISIONES —alguna línea no tiene vendedor, porque quien compra tenía varios y falta elegir (`RF-MV-016`)— o VALIDADO —todas lo tienen—.",
             "type" : "string"
           },
           "user" : {
@@ -3904,6 +3920,10 @@
             "description" : "Lo que valdría lo vendido sin rebaja: la suma de quantity × unitPrice.",
             "type" : "number"
           },
+          "typeStatus" : {
+            "description" : "El estado del TIPO de movimiento (`RN-MV-033`), aparte del pago. En una venta: VALIDAR_COMISIONES —alguna línea no tiene vendedor, porque quien compra tenía varios y falta elegir (`RF-MV-016`)— o VALIDADO —todas lo tienen—.",
+            "type" : "string"
+          },
           "user" : {
             "$ref" : "#/components/schemas/SaleParty",
             "description" : "Quien compró: el sujeto del movimiento, que aquí es también quien pidió."
@@ -4751,7 +4771,7 @@
           },
           "seller" : {
             "$ref" : "#/components/schemas/SaleParty",
-            "description" : "A quién se atribuye ESTA línea, y a quién se le creará la comisión por ella. En una venta nunca es nulo: quien compra sin colgar de nadie es su propio vendedor. NULO solo en los tipos de movimiento que no venden nada.",
+            "description" : "A quién se atribuye ESTA línea, y a quién se le creará la comisión por ella. NULO en una venta VALIDAR_COMISIONES mientras nadie lo asigne —quien compra tenía varios vendedores (`RN-MV-034`)— y en los tipos de movimiento que no venden nada.",
             "type" : [ "object", "null" ]
           },
           "unitPrice" : {
@@ -4804,7 +4824,7 @@
             "type" : "string"
           },
           "lines" : {
-            "description" : "Las líneas, cada una con el vendedor al que se atribuye.",
+            "description" : "Las líneas, cada una con el vendedor al que se atribuye, o sin él mientras la venta esté VALIDAR_COMISIONES.",
             "items" : {
               "$ref" : "#/components/schemas/SaleLineResponse"
             },
@@ -4830,6 +4850,10 @@
           },
           "totalAmount" : {
             "type" : "number"
+          },
+          "typeStatus" : {
+            "description" : "El estado del TIPO de movimiento (`RN-MV-033`), aparte del pago. En una venta: VALIDAR_COMISIONES —alguna línea no tiene vendedor, porque quien compra tenía varios y falta elegir (`RF-MV-016`)— o VALIDADO —todas lo tienen—.",
+            "type" : "string"
           },
           "user" : {
             "$ref" : "#/components/schemas/SaleParty",
@@ -4972,6 +4996,21 @@
             "type" : "string"
           },
           "username" : {
+            "type" : "string"
+          }
+        },
+        "type" : "object"
+      },
+      "SellerAssignment" : {
+        "properties" : {
+          "productId" : {
+            "description" : "El producto de la línea, que la identifica dentro de la venta.",
+            "format" : "uuid",
+            "type" : "string"
+          },
+          "sellerId" : {
+            "description" : "El vendedor que se le atribuye: uno de los del cliente.",
+            "format" : "uuid",
             "type" : "string"
           }
         },
@@ -9502,7 +9541,7 @@
     },
     "/api/v1/movements" : {
       "get" : {
-        "description" : "**Permiso requerido:** `movements:read`. Sin él, `403` (`AUTH-002`).\n\nDevuelve **todos los movimientos del libro**, de quien sean, paginados y del más\nreciente al más antiguo. Es la lectura de administración: exige `movements:read`,\ny con él se ve todo — quien no lo tiene recibe `403` aunque tenga movimientos\npropios, que se consultan por `/mine`.\n\n**Los filtros se combinan** y responden una pregunta de operación cada uno:\n`status` (qué está pendiente de confirmar), `userId` (qué compró esta persona —el\nSUJETO, a nombre de quién es—), `sellerId` (qué vendió esta persona, como vendedora\nde **alguna de sus líneas**; una venta con varias líneas suyas aparece **una vez**),\n`paymentMethodId` (qué entró por un medio de pago), `code` (un comprobante exacto,\nsin distinguir mayúsculas) y `from`/`to` sobre **cuándo ocurrió**. `from` y `to` son\ninstantes con zona horaria y el rango es **semiabierto** —incluye `from`, excluye\n`to`—. Un `userId`, `sellerId` o `paymentMethodId` que no exista da una página vacía;\nun `status` que no exista es `400`. Desde el 21-09-2026, `type` (qué depósitos hubo,\nel día que los haya): **el código del tipo de movimiento**, sin distinguir\nmayúsculas — hoy el único es `VENTA`, y filtrar por él devuelve lo mismo que no\nfiltrar. Un `type` que no exista en el catálogo es `400`, como el estado y al revés\nque las personas: el catálogo es cerrado. El catálogo no se publica por ninguna\nruta; los códigos vigentes son los que este párrafo nombra.\n\n**Cada fila lleva el tipo de movimiento** (`type`, hoy siempre `VENTA`), el sujeto\n(`user`), los vendedores de sus líneas sin repetir (`sellers`, lista nunca nula y\nvacía cuando no hay ninguno), y **cuándo se confirmó** (`confirmedAt`): presente en\nlas confirmadas y **nulo** en las demás. No lleva `role` —quien administra no\nparticipa en lo que mira— ni las líneas, que son del detalle.\n\n**El total puede no ser exacto.** El libro crece sin límite, y por encima del techo\nde conteo `totalElements` vale el techo y `totalIsExact` es `false`: hay «más de N»\ny conviene acotar. El orden es fijo y no se puede cambiar.\n",
+        "description" : "**Permiso requerido:** `movements:read`. Sin él, `403` (`AUTH-002`).\n\nDevuelve **todos los movimientos del libro**, de quien sean, paginados y del más\nreciente al más antiguo. Es la lectura de administración: exige `movements:read`,\ny con él se ve todo — quien no lo tiene recibe `403` aunque tenga movimientos\npropios, que se consultan por `/mine`.\n\n**Los filtros se combinan** y responden una pregunta de operación cada uno:\n`status` (qué está pendiente de confirmar), `userId` (qué compró esta persona —el\nSUJETO, a nombre de quién es—), `sellerId` (qué vendió esta persona, como vendedora\nde **alguna de sus líneas**; una venta con varias líneas suyas aparece **una vez**),\n`paymentMethodId` (qué entró por un medio de pago), `code` (un comprobante exacto,\nsin distinguir mayúsculas) y `from`/`to` sobre **cuándo ocurrió**. `from` y `to` son\ninstantes con zona horaria y el rango es **semiabierto** —incluye `from`, excluye\n`to`—. Un `userId`, `sellerId` o `paymentMethodId` que no exista da una página vacía;\nun `status` que no exista es `400`. Desde el 21-09-2026, `type` (qué depósitos hubo,\nel día que los haya): **el código del tipo de movimiento**, sin distinguir\nmayúsculas — hoy el único es `VENTA`, y filtrar por él devuelve lo mismo que no\nfiltrar. Un `type` que no exista en el catálogo es `400`, como el estado y al revés\nque las personas: el catálogo es cerrado. El catálogo no se publica por ninguna\nruta; los códigos vigentes son los que este párrafo nombra. Desde el 23-09-2026,\n`typeStatus` (qué ventas **faltan por validar**, `RF-MV-016`): el estado del tipo,\nsin distinguir mayúsculas — en una venta, `VALIDAR_COMISIONES` o `VALIDADO`. Uno que\nno exista es `400`, como el tipo.\n\n**Cada fila lleva el tipo de movimiento** (`type`, hoy siempre `VENTA`), el sujeto\n(`user`), **el estado del tipo** (`typeStatus`), los vendedores de sus líneas sin\nrepetir (`sellers`, lista nunca nula y vacía cuando no hay ninguno —también en una\nventa por validar a la que no se le ha asignado ninguno—), y **cuándo se confirmó** (`confirmedAt`): presente en\nlas confirmadas y **nulo** en las demás. No lleva `role` —quien administra no\nparticipa en lo que mira— ni las líneas, que son del detalle.\n\n**El total puede no ser exacto.** El libro crece sin límite, y por encima del techo\nde conteo `totalElements` vale el techo y `totalIsExact` es `false`: hay «más de N»\ny conviene acotar. El orden es fijo y no se puede cambiar.\n",
         "operationId" : "todos",
         "parameters" : [ {
           "in" : "query",
@@ -9530,6 +9569,13 @@
         }, {
           "in" : "query",
           "name" : "type",
+          "required" : false,
+          "schema" : {
+            "type" : "string"
+          }
+        }, {
+          "in" : "query",
+          "name" : "typeStatus",
           "required" : false,
           "schema" : {
             "type" : "string"
@@ -9594,7 +9640,7 @@
             "description" : "La página de movimientos."
           },
           "400" : {
-            "description" : "Paginación inválida, estado no admitido (`VAL-002`), identificador malformado (`VAL-001`), `from` posterior a `to` (`VAL-004`) o tipo de movimiento inexistente (`VAL-005`). Los problemas se devuelven juntos."
+            "description" : "Paginación inválida, estado no admitido (`VAL-002`), identificador malformado (`VAL-001`), `from` posterior a `to` (`VAL-004`), tipo de movimiento inexistente (`VAL-005`) o estado del tipo inexistente (`VAL-006`). Los problemas se devuelven juntos."
           },
           "401" : {
             "description" : "Token ausente o inválido (`AUTH-001`)"
@@ -9611,7 +9657,7 @@
         "x-required-permission" : "movements:read"
       },
       "post" : {
-        "description" : "**Permiso requerido:** `movements:create`. Sin él, `403` (`AUTH-002`).\n\nDeja constancia de **qué le vendió la empresa a alguien**, como un hecho que\n**todavía no está pagado**. `userId` es **a nombre de quién** es la venta —quien\ncompra—, nunca quien la registra desde oficina.\n\n**La venta nace `PENDIENTE`, y eso significa que no concede nada.** No sube de\nnivel a nadie, no habilita ninguna cuenta y no comisiona: registrar una venta\n**no cambia absolutamente nada fuera de este módulo**. Confirmarla es otra\noperación.\n\n**El precio no se envía: se toma del catálogo.** Se indica qué productos y\ncuántos, nunca cuánto cuestan — un precio que llegara en la petición sería un\ndescuento sin autorización y sin rastro. Tampoco se envían la moneda, la\nvigencia ni el vendedor: la moneda y la vigencia salen del producto, y **el\nvendedor sale de quien compra** —su superior vigente, o **él mismo** si no cuelga\nde nadie— y se congela **en cada línea** (`lines[].seller`). En una venta ninguna\nlínea viene sin vendedor.\n\n**Lo copiado queda congelado.** Corregir mañana el precio de un producto, o\nreasignar al comprador a otro agente, no cambia lo que se vendió hoy.\n\n**Esta entrada no aplica descuentos.** Cada línea trae su descuento (`lineDiscount`,\nhoy cero), las rebajas que lo explican (`discounts`, hoy vacía) y el paquete del que\nsalió (`packageId`, hoy nulo); la cabecera es la suma de las líneas en las tres\ncifras. La primera entrada que rebaje será la compra de paquetes.\n\nReglas de composición: **como mucho un upgrade** por venta y con cantidad uno,\nsin productos repetidos y todas las líneas en la misma moneda.\n",
+        "description" : "**Permiso requerido:** `movements:create`. Sin él, `403` (`AUTH-002`).\n\nDeja constancia de **qué le vendió la empresa a alguien**, como un hecho que\n**todavía no está pagado**. `userId` es **a nombre de quién** es la venta —quien\ncompra—, nunca quien la registra desde oficina.\n\n**La venta nace `PENDIENTE`, y eso significa que no concede nada.** No sube de\nnivel a nadie, no habilita ninguna cuenta y no comisiona: registrar una venta\n**no cambia absolutamente nada fuera de este módulo**. Confirmarla es otra\noperación.\n\n**El precio no se envía: se toma del catálogo.** Se indica qué productos y\ncuántos, nunca cuánto cuestan — un precio que llegara en la petición sería un\ndescuento sin autorización y sin rastro. Tampoco se envían la moneda, la\nvigencia ni el vendedor: la moneda y la vigencia salen del producto, y **el\nvendedor sale de quien compra** (`RN-MV-034`): si tiene **un** vendedor, ese va en\ncada línea (`lines[].seller`) y la venta nace `typeStatus: VALIDADO`; si tiene\n**varios**, las líneas vienen **sin vendedor** y la venta nace\n`VALIDAR_COMISIONES`, hasta que se asignen por `POST /{id}/seller-assignments`; si\nno es cliente de nadie, su superior vigente o **él mismo**, `VALIDADO`.\n\n**Lo copiado queda congelado.** Corregir mañana el precio de un producto, o\nreasignar al comprador a otro agente, no cambia lo que se vendió hoy.\n\n**Esta entrada no aplica descuentos.** Cada línea trae su descuento (`lineDiscount`,\nhoy cero), las rebajas que lo explican (`discounts`, hoy vacía) y el paquete del que\nsalió (`packageId`, hoy nulo); la cabecera es la suma de las líneas en las tres\ncifras. La primera entrada que rebaje será la compra de paquetes.\n\nReglas de composición: **como mucho un upgrade** por venta y con cantidad uno,\nsin productos repetidos y todas las líneas en la misma moneda.\n",
         "operationId" : "registrar_3",
         "requestBody" : {
           "content" : {
@@ -9654,7 +9700,7 @@
     },
     "/api/v1/movements/mine" : {
       "get" : {
-        "description" : "**Permiso requerido:** `movements:list-own`. Sin él, `403` (`AUTH-002`).\n\nDevuelve **los movimientos a nombre de usted** —lo que compró—, paginados y del más\nreciente al más antiguo.\n\n**Desde el 22-09-2026 este listado trae SOLO lo comprado.** Hasta esa fecha traía\ntambién lo que usted hubiera **vendido**, y cada fila decía con `role` en qué papel\naparecía —`BUYER`, `SELLER` o `BOTH`—. **Lo que usted vendió se consulta ahora por\n`GET /api/v1/movements/sales`**, que además le trae lo que vendió su red si usted\ntiene gente a cargo. Con la mitad de vendedor **desaparece `role`**: aquí valdría\nsiempre `BUYER`. Es un cambio incompatible y está declarado.\n\n**Su compra a sí mismo sigue apareciendo, una sola vez.** Quien pertenece a la\nfuerza comercial y no cuelga de nadie es su propio vendedor, y lo que compra es una\ncompra: sale aquí, con usted como `user` y como único `sellers`.\n\n**No hay forma de preguntar por otra persona**, ni indicándola ni teniendo\npermisos: quien pregunta sale de la credencial. Consultar las ventas de terceros es\notra operación, con su permiso.\n\n**El detalle NO se acotó con el listado**: `GET /api/v1/movements/mine/{id}` sigue\nabriendo un movimiento suyo **de cualquiera de las dos formas**, también una venta\nque usted hizo y que este listado ya no le muestra. Es deliberado: sin eso, un\nvendedor no tendría ninguna forma de ver el detalle de lo que vendió.\n\n**Las líneas no viajan aquí.** Una venta puede llevar varias, y meterlas\nmultiplicaría la respuesta por un dato que solo se mira al abrir uno: están en el\ndetalle.\n\n**`sellers` es una lista, sin repetir y nunca nula**: el vendedor es de cada línea y\nuna venta podría llevar varios. Hoy lleva uno. Va **vacía** en los movimientos que\nno tienen vendedor, que no es el caso de ninguna venta.\n\n**Cada fila dice su tipo** (`type`, hoy siempre `VENTA`) desde el 21-09-2026, el\nmismo día que se puede filtrar por él: `type` admite **el código del tipo de\nmovimiento**, sin distinguir mayúsculas, y se combina con `status`. Un `type` que no\nexista en el catálogo es `400`, como el estado: el catálogo es cerrado y no se\npublica por ninguna ruta.\n\n**Y desde ese mismo día, los tres filtros de `GET /movements`**: `paymentMethodId`\n(uno que no exista da página vacía), `code` (el comprobante exacto, sin distinguir\nmayúsculas; **uno ajeno no devuelve nada**: el alcance va antes que el filtro) y\n`from`/`to` sobre **cuándo ocurrió**, instantes con zona horaria, rango semiabierto\n—incluye `from`, excluye `to`—; `from` posterior a `to` es `400`. Todos se combinan.\n\nEl orden es fijo y no se puede cambiar. `status` filtra por estado.\n",
+        "description" : "**Permiso requerido:** `movements:list-own`. Sin él, `403` (`AUTH-002`).\n\nDevuelve **los movimientos a nombre de usted** —lo que compró—, paginados y del más\nreciente al más antiguo.\n\n**Desde el 22-09-2026 este listado trae SOLO lo comprado.** Hasta esa fecha traía\ntambién lo que usted hubiera **vendido**, y cada fila decía con `role` en qué papel\naparecía —`BUYER`, `SELLER` o `BOTH`—. **Lo que usted vendió se consulta ahora por\n`GET /api/v1/movements/sales`**, que además le trae lo que vendió su red si usted\ntiene gente a cargo. Con la mitad de vendedor **desaparece `role`**: aquí valdría\nsiempre `BUYER`. Es un cambio incompatible y está declarado.\n\n**Su compra a sí mismo sigue apareciendo, una sola vez.** Quien pertenece a la\nfuerza comercial y no cuelga de nadie es su propio vendedor, y lo que compra es una\ncompra: sale aquí, con usted como `user` y como único `sellers`.\n\n**No hay forma de preguntar por otra persona**, ni indicándola ni teniendo\npermisos: quien pregunta sale de la credencial. Consultar las ventas de terceros es\notra operación, con su permiso.\n\n**El detalle NO se acotó con el listado**: `GET /api/v1/movements/mine/{id}` sigue\nabriendo un movimiento suyo **de cualquiera de las dos formas**, también una venta\nque usted hizo y que este listado ya no le muestra. Es deliberado: sin eso, un\nvendedor no tendría ninguna forma de ver el detalle de lo que vendió.\n\n**Las líneas no viajan aquí.** Una venta puede llevar varias, y meterlas\nmultiplicaría la respuesta por un dato que solo se mira al abrir uno: están en el\ndetalle.\n\n**`sellers` es una lista, sin repetir y nunca nula**: el vendedor es de cada línea y\nuna venta podría llevar varios. Hoy lleva uno. Va **vacía** en los movimientos que\nno tienen vendedor y en una venta por validar a la que aún no se le asignó ninguno.\n\n**Cada fila dice su tipo** (`type`, hoy siempre `VENTA`) desde el 21-09-2026, el\nmismo día que se puede filtrar por él: `type` admite **el código del tipo de\nmovimiento**, sin distinguir mayúsculas, y se combina con `status`. Un `type` que no\nexista en el catálogo es `400`, como el estado: el catálogo es cerrado y no se\npublica por ninguna ruta.\n\n**Y desde ese mismo día, los tres filtros de `GET /movements`**: `paymentMethodId`\n(uno que no exista da página vacía), `code` (el comprobante exacto, sin distinguir\nmayúsculas; **uno ajeno no devuelve nada**: el alcance va antes que el filtro) y\n`from`/`to` sobre **cuándo ocurrió**, instantes con zona horaria, rango semiabierto\n—incluye `from`, excluye `to`—; `from` posterior a `to` es `400`. Todos se combinan.\n\nEl orden es fijo y no se puede cambiar. `status` filtra por estado.\n",
         "operationId" : "mios",
         "parameters" : [ {
           "in" : "query",
@@ -9851,7 +9897,7 @@
     },
     "/api/v1/movements/sales" : {
       "get" : {
-        "description" : "**Permiso requerido:** `movements:list-sales`. Sin él, `403` (`AUTH-002`).\n\nDevuelve **las ventas que le tocan a quien pregunta según quién es**, paginadas y del\nmás reciente al más antiguo. Es la consulta de las **ventas**; los otros tipos de\nmovimiento tendrán la suya.\n\n**Lo que se ve lo decide el tipo de rol de quien pregunta**, y no un parámetro:\nquien porta un rol de tipo **funcionario** ve todas las ventas; quien porta uno de\ntipo **vendedor** ve las que vendió **él o alguien de su red** —quienes cuelgan de él\nen la estructura comercial vigente, **en toda la profundidad**: el director lo de sus\nagentes, el manager lo de sus directores y por ellos lo de los agentes—; quien porta\nuno de tipo **consumidor** ve solo las ventas **a su nombre**. Un vendedor sin nadie a\ncargo ve lo que vendió él. Un vendedor **no ve aquí lo que compró**: eso es `/mine`.\n\n**`userId` es una persona de mi red como vendedora** —«las ventas de mi agente tal»—\ny acota **dentro** del alcance: una persona fuera de mi red, o inexistente, da una\n**página vacía** y no un error, para que el filtro no sirva para descubrir quién\ncuelga de quién. `status`, `paymentMethodId`, `code` y `from`/`to` son los de\n`GET /movements` y se combinan; **el comprobante de una venta que no es de mi\nalcance tampoco aparece**, escrito como sea.\n\n**Cada fila es la misma de `GET /movements`** (`type` siempre `VENTA`, `user`,\n`sellers`, importes, `confirmedAt` nulo y presente), sin `role`. **El total puede no\nser exacto** por encima del techo de conteo. Ni `movements:read` ni\n`movements:list-own` abren esta consulta.\n",
+        "description" : "**Permiso requerido:** `movements:list-sales`. Sin él, `403` (`AUTH-002`).\n\nDevuelve **las ventas que le tocan a quien pregunta según quién es**, paginadas y del\nmás reciente al más antiguo. Es la consulta de las **ventas**; los otros tipos de\nmovimiento tendrán la suya.\n\n**Lo que se ve lo decide el tipo de rol de quien pregunta**, y no un parámetro:\nquien porta un rol de tipo **funcionario** ve todas las ventas; quien porta uno de\ntipo **vendedor** ve las que vendió **él o alguien de su red** —quienes cuelgan de él\nen la estructura comercial vigente, **en toda la profundidad**: el director lo de sus\nagentes, el manager lo de sus directores y por ellos lo de los agentes—; quien porta\nuno de tipo **consumidor** ve solo las ventas **a su nombre**. Un vendedor sin nadie a\ncargo ve lo que vendió él. Un vendedor **no ve aquí lo que compró**: eso es `/mine`.\n\n**`userId` es una persona de mi red como vendedora** —«las ventas de mi agente tal»—\ny acota **dentro** del alcance: una persona fuera de mi red, o inexistente, da una\n**página vacía** y no un error, para que el filtro no sirva para descubrir quién\ncuelga de quién. `status`, `paymentMethodId`, `code` y `from`/`to` son los de\n`GET /movements` y se combinan, y también `typeStatus` (`VALIDAR_COMISIONES` o\n`VALIDADO`, desde el 23-09-2026); **el comprobante de una venta que no es de mi\nalcance tampoco aparece**, escrito como sea. **Una venta por validar no está en el\nalcance de ningún vendedor** mientras ninguna de sus líneas sea suya: aparece en\ncuanto se le asigna una (`RF-MV-016`).\n\n**Cada fila es la misma de `GET /movements`** (`type` siempre `VENTA`, `typeStatus`, `user`,\n`sellers`, importes, `confirmedAt` nulo y presente), sin `role`. **El total puede no\nser exacto** por encima del techo de conteo. Ni `movements:read` ni\n`movements:list-own` abren esta consulta.\n",
         "operationId" : "misVentas",
         "parameters" : [ {
           "in" : "query",
@@ -9880,6 +9926,13 @@
         }, {
           "in" : "query",
           "name" : "status",
+          "required" : false,
+          "schema" : {
+            "type" : "string"
+          }
+        }, {
+          "in" : "query",
+          "name" : "typeStatus",
           "required" : false,
           "schema" : {
             "type" : "string"
@@ -9928,7 +9981,7 @@
             "description" : "La página de ventas, aunque esté vacía."
           },
           "400" : {
-            "description" : "Paginación inválida, estado no admitido (`VAL-002`), identificador malformado (`VAL-001`) o `from` posterior a `to` (`VAL-004`). Los problemas se devuelven juntos."
+            "description" : "Paginación inválida, estado no admitido (`VAL-002`), identificador malformado (`VAL-001`), `from` posterior a `to` (`VAL-004`) o estado del tipo inexistente (`VAL-005`). Los problemas se devuelven juntos."
           },
           "401" : {
             "description" : "Token ausente o inválido (`AUTH-001`)"
@@ -9947,7 +10000,7 @@
     },
     "/api/v1/movements/{id}/confirmation" : {
       "post" : {
-        "description" : "**Permiso requerido:** `movements:confirm`. Sin él, `403` (`AUTH-002`).\n\nDa por **pagada** una venta pendiente y, en el mismo acto, **entrega lo que se\npueda entregar**. Sin cuerpo: confirmar es un hecho, no un formulario — el importe\nes el de la venta, la fecha es ahora y el método ya está en ella.\n\n**Lo que pasa con cada línea** (`RN-MV-030`), y se ve en la respuesta:\n- `implementation: MANUAL` → queda `PENDIENTE` de autorización (`RN-MV-021`). La\n  venta confirma igual.\n- `AUTOMATICA` y **no** es un upgrade → `ENTREGADA`, con `deliveredAt` ahora.\n- `AUTOMATICA` y es un upgrade → **se concede la membresía** destino del producto,\n  con la vigencia copiada en la línea **contada desde la confirmación** (`RN-MV-020`),\n  cerrando la que la persona tenía — también al renovar el mismo nivel—; **salvo que\n  la comprada sea inferior a la vigente en ese instante**: entonces la venta cobra\n  igual y la línea queda `RETENIDA` con `deliveryNote` (`RN-MV-029`). Nunca baja de\n  nivel a nadie.\n\n**Confirmar dos veces concede una vez.** La transición es atómica y condicionada al\nestado anterior: la segunda confirmación —o un webhook reentregado— recibe `409`\ndiciendo en qué estado está, y **no cambia nada**.\n\n**Lo que NO hace**: no saca a nadie de `FTD_PENDIENTE` (eso lo hace el primer\ndepósito), no devenga comisiones, no adjunta comprobante y no se puede deshacer\n(`RN-MV-005`).\n",
+        "description" : "**Permiso requerido:** `movements:confirm`. Sin él, `403` (`AUTH-002`).\n\nDa por **pagada** una venta pendiente y, en el mismo acto, **entrega lo que se\npueda entregar**. Sin cuerpo: confirmar es un hecho, no un formulario — el importe\nes el de la venta, la fecha es ahora y el método ya está en ella.\n\n**Lo que pasa con cada línea** (`RN-MV-030`), y se ve en la respuesta:\n- `implementation: MANUAL` → queda `PENDIENTE` de autorización (`RN-MV-021`). La\n  venta confirma igual.\n- `AUTOMATICA` y **no** es un upgrade → `ENTREGADA`, con `deliveredAt` ahora.\n- `AUTOMATICA` y es un upgrade → **se concede la membresía** destino del producto,\n  con la vigencia copiada en la línea **contada desde la confirmación** (`RN-MV-020`),\n  cerrando la que la persona tenía — también al renovar el mismo nivel—; **salvo que\n  la comprada sea inferior a la vigente en ese instante**: entonces la venta cobra\n  igual y la línea queda `RETENIDA` con `deliveryNote` (`RN-MV-029`). Nunca baja de\n  nivel a nadie.\n\n**Confirmar dos veces concede una vez.** La transición es atómica y condicionada al\nestado anterior: la segunda confirmación —o un webhook reentregado— recibe `409`\ndiciendo en qué estado está, y **no cambia nada**.\n\n**Lo que NO hace**: no saca a nadie de `FTD_PENDIENTE` (eso lo hace el primer\ndepósito), no devenga comisiones, no adjunta comprobante y no se puede deshacer\n(`RN-MV-005`). **Tampoco espera a la atribución**: una venta `VALIDAR_COMISIONES`\nse confirma y entrega igual, y sigue por validar — lo que esperará a `VALIDADO` es\nla comisión (`RN-MV-035`).\n",
         "operationId" : "confirmar",
         "parameters" : [ {
           "in" : "path",
@@ -9991,6 +10044,66 @@
         "summary" : "Confirmar el pago de una venta pendiente",
         "tags" : [ "Movimientos" ],
         "x-required-permission" : "movements:confirm"
+      }
+    },
+    "/api/v1/movements/{id}/seller-assignments" : {
+      "post" : {
+        "description" : "**Permiso requerido:** `movements:assign-sellers`. Sin él, `403` (`AUTH-002`).\n\nAtribuye cada línea de una venta a **uno de los vendedores de quien compra**. Es lo\nque saca de `VALIDAR_COMISIONES` a una venta cuyo cliente tenía **varios**\nvendedores y que por eso nació con sus líneas **sin vendedor** (`RN-MV-034`).\n\n`lines` lleva una pareja `productId` → `sellerId` por línea —el producto identifica\nla línea dentro de la venta— y **puede ser una parte**: la venta sigue en\n`VALIDAR_COMISIONES` mientras quede alguna sin vendedor, y **pasa sola a\n`VALIDADO`** en cuanto no queda ninguna.\n\n**Qué se puede tocar** (`RN-MV-035`): una línea **sin vendedor** se asigna siempre,\ntambién después de confirmar el pago; **corregir** una que ya lo tiene solo se\nadmite **mientras la venta no esté `CONFIRMADA`**. En una venta `RECHAZADA` o\n`ANULADA` no se asigna nada. El vendedor tiene que ser **uno de los del cliente**\n—de registro o de hotlink—: elegir a cualquiera sería atribuir la venta a quien se\nquisiera.\n\n**Todo o nada**: si una sola pareja no procede, no se escribe ninguna. La respuesta\nes la venta como queda, con `typeStatus` y el vendedor de cada línea.\n",
+        "operationId" : "asignarVendedores",
+        "parameters" : [ {
+          "in" : "path",
+          "name" : "id",
+          "required" : true,
+          "schema" : {
+            "format" : "uuid",
+            "type" : "string"
+          }
+        } ],
+        "requestBody" : {
+          "content" : {
+            "application/json" : {
+              "schema" : {
+                "$ref" : "#/components/schemas/AssignSellersRequest"
+              }
+            }
+          }
+        },
+        "responses" : {
+          "200" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/SaleResponse"
+                }
+              }
+            },
+            "description" : "La venta como queda: el vendedor de cada línea y `typeStatus`."
+          },
+          "400" : {
+            "description" : "Identificador malformado (`VAL-001`), sin líneas (`VAL-002`), una pareja sin producto o sin vendedor (`VAL-003`) o un producto repetido (`VAL-004`)."
+          },
+          "401" : {
+            "description" : "Token ausente o inválido (`AUTH-001`)"
+          },
+          "403" : {
+            "description" : "Sin el permiso `movements:assign-sellers` (ni `movements:confirm` ni `movements:create` bastan)."
+          },
+          "404" : {
+            "description" : "No existe (`EX-001`)"
+          },
+          "409" : {
+            "description" : "La venta está rechazada o anulada (`EX-002`), o está confirmada y se intenta corregir una línea que ya tenía vendedor (`EX-003`). Nada cambió."
+          },
+          "422" : {
+            "description" : "Un producto que no es una línea de la venta (`EX-004`) o un vendedor que no es de los del cliente (`EX-005`). Nada cambió."
+          },
+          "500" : {
+            "description" : "Fallo no controlado (`ERR-500`)"
+          }
+        },
+        "summary" : "Asignar los vendedores de una venta",
+        "tags" : [ "Movimientos" ],
+        "x-required-permission" : "movements:assign-sellers"
       }
     },
     "/api/v1/movements/{id}/voiding" : {
@@ -10242,7 +10355,7 @@
     },
     "/api/v1/packages/{code}/purchases" : {
       "post" : {
-        "description" : "**Permiso requerido:** `packages:buy`. Sin él, `403` (`AUTH-002`).\n\n**Usted se compra el paquete entero** que su oferta le muestra, pagando **lo que ese\npaquete vale** —la suma de sus productos rebajados, el mismo `price` que publica la\noferta— y recibiendo **cada producto** con el descuento que el paquete le declara,\ncongelado.\n\n**El cuerpo lleva el método de pago y nada más.** El paquete va en la ruta **por su\ncódigo** —el que publica la oferta—, sin distinguir mayúsculas. **No se\nadmiten** productos, cantidades, precios ni descuentos: el paquete se compra\n**entero** —no se elige qué llevarse—, **uno** —no hay cantidad— y **solo** —sin\nproductos sueltos ni un segundo paquete; quien quiera dos cosas hace dos compras—.\nEl descuento es el que el paquete declara, y un descuento enviado no tiene dónde\ncaer. Tampoco viajan el cliente —es usted— ni la fecha —es ahora—.\n\n**`paymentMethodId` es condicional en los dos sentidos.** Obligatorio si el paquete\ntiene importe; **prohibido** si vale cero, que se registra como gratuita: envíe `{}`.\n\n**La venta nace `PENDIENTE`, y eso significa que no concede nada.** No sube de\nnivel, no habilita nada y no comisiona hasta que se confirme el pago. Se registra\n**una línea por producto del paquete**, cantidad uno, cada una con lo copiado del\ncatálogo —nombre, descripción, precio unitario, vigencia— y **su rebaja explicada**:\n`discounts[]` dice cómo se pactó (`type`, `value`) y cuánto valió en dinero\n(`discountValue`), y `lineDiscount` es lo que se restó. `payableAmount` es la suma de\nlas líneas rebajadas; `totalAmount` lo que valdrían sin rebaja; `discountAmount` la\ndiferencia. El paquete queda anotado en `packageId`.\n\n**Lo copiado queda congelado.** Corregir después el descuento del paquete, el precio\nde un producto o quitar un producto del paquete no cambia esta venta.\n\n**Se compra tal como está hoy.** Al registrar se vuelve a comprobar todo lo que la\noferta ya miró: que el paquete esté activo, publicado en la tienda, con sus\nproductos, **dentro de su vigencia**, y que le corresponda a usted por su membresía.\n**Y se compra entero**: si un producto del paquete no procede —inactivo, retirado,\nfuera de su oferta, o un upgrade que baja de nivel— se rechaza la compra completa\nnombrando el producto, y **no se registra nada**.\n\n**La respuesta no lleva el vendedor**: se atribuye a su superior comercial vigente\n—o a usted mismo si no cuelga de nadie— y se congela en cada línea, pero a quien\ncompra no se le enseña. Es la misma forma que devuelve `GET /api/v1/movements/mine/{id}`\nsin `seller`.\n",
+        "description" : "**Permiso requerido:** `packages:buy`. Sin él, `403` (`AUTH-002`).\n\n**Usted se compra el paquete entero** que su oferta le muestra, pagando **lo que ese\npaquete vale** —la suma de sus productos rebajados, el mismo `price` que publica la\noferta— y recibiendo **cada producto** con el descuento que el paquete le declara,\ncongelado.\n\n**El cuerpo lleva el método de pago y nada más.** El paquete va en la ruta **por su\ncódigo** —el que publica la oferta—, sin distinguir mayúsculas. **No se\nadmiten** productos, cantidades, precios ni descuentos: el paquete se compra\n**entero** —no se elige qué llevarse—, **uno** —no hay cantidad— y **solo** —sin\nproductos sueltos ni un segundo paquete; quien quiera dos cosas hace dos compras—.\nEl descuento es el que el paquete declara, y un descuento enviado no tiene dónde\ncaer. Tampoco viajan el cliente —es usted— ni la fecha —es ahora—.\n\n**`paymentMethodId` es condicional en los dos sentidos.** Obligatorio si el paquete\ntiene importe; **prohibido** si vale cero, que se registra como gratuita: envíe `{}`.\n\n**La venta nace `PENDIENTE`, y eso significa que no concede nada.** No sube de\nnivel, no habilita nada y no comisiona hasta que se confirme el pago. Se registra\n**una línea por producto del paquete**, cantidad uno, cada una con lo copiado del\ncatálogo —nombre, descripción, precio unitario, vigencia— y **su rebaja explicada**:\n`discounts[]` dice cómo se pactó (`type`, `value`) y cuánto valió en dinero\n(`discountValue`), y `lineDiscount` es lo que se restó. `payableAmount` es la suma de\nlas líneas rebajadas; `totalAmount` lo que valdrían sin rebaja; `discountAmount` la\ndiferencia. El paquete queda anotado en `packageId`.\n\n**Lo copiado queda congelado.** Corregir después el descuento del paquete, el precio\nde un producto o quitar un producto del paquete no cambia esta venta.\n\n**Se compra tal como está hoy.** Al registrar se vuelve a comprobar todo lo que la\noferta ya miró: que el paquete esté activo, publicado en la tienda, con sus\nproductos, **dentro de su vigencia**, y que le corresponda a usted por su membresía.\n**Y se compra entero**: si un producto del paquete no procede —inactivo, retirado,\nfuera de su oferta, o un upgrade que baja de nivel— se rechaza la compra completa\nnombrando el producto, y **no se registra nada**.\n\n**La respuesta no lleva el vendedor**: si usted tiene **un** vendedor, la venta se\nle atribuye a él y nace `typeStatus: VALIDADO`; si tiene **varios**, nace\n`VALIDAR_COMISIONES` sin vendedor en sus líneas, y administración elige cuál\n(`RN-MV-034`). Si no es cliente de nadie, su superior vigente o usted mismo. A quien\ncompra no se le enseña a quién. Es la misma forma que devuelve `GET /api/v1/movements/mine/{id}`\nsin `seller`.\n",
         "operationId" : "comprar",
         "parameters" : [ {
           "in" : "path",

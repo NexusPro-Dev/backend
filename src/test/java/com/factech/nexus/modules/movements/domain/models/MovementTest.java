@@ -135,6 +135,7 @@ class MovementTest {
             UUID.randomUUID(),
             "VTA-20260904-K7M2QX",
             List.of(linea("BOT_A", 1, "10.00", null)),
+            VALIDADO,
             2,
             AHORA,
             AHORA);
@@ -305,29 +306,64 @@ class MovementTest {
     assertThat(venta.getTotalAmount()).isEqualByComparingTo(totalAntes);
   }
 
+  // ---------------------------------------------------------------------------
+  // `RN-MV-033` y `RN-MV-034` — el estado del tipo y la línea sin vendedor
+  // ---------------------------------------------------------------------------
+
   @Test
-  @DisplayName("No existe forma de construir una línea de venta sin vendedor")
-  void sinVendedorNoHayLinea() {
-    // `RN-MV-003`: en una venta el vendedor es obligatorio, y el esquema no
-    // puede sostenerlo porque «obligatorio en VENTA» exige mirar otra tabla.
-    assertThatThrownBy(
-            () ->
-                MovementLine.copiarDe(
-                    UUID.randomUUID(),
-                    null,
-                    "UP_VIP",
-                    "Producto",
-                    "Una descripción",
-                    1,
-                    new BigDecimal("20.00"),
-                    30,
-                    "AUTOMATICA"))
+  @DisplayName("Una venta por validar lleva sus líneas sin vendedor, y la instantánea lo dice")
+  void laVentaPorValidarNoTieneVendedor() {
+    // Desde el 23-09-2026 la línea PUEDE nacer sin vendedor: quien compra
+    // tenía varios y escoger uno sería decidir en silencio a quién se paga.
+    Movement venta =
+        registrarCon(POR_VALIDAR, lineaSinVendedor("BOT_A"), lineaSinVendedor("BOT_B"));
+
+    assertThat(venta.getTypeStatus()).isEqualTo(POR_VALIDAR);
+    assertThat(venta.instantanea()).containsEntry("type_status", "VALIDAR_COMISIONES");
+    @SuppressWarnings("unchecked")
+    List<Map<String, Object>> lineas = (List<Map<String, Object>>) venta.instantanea().get("lines");
+    // Nulo y PRESENTE: la clave ausente se leería como «no se registraba».
+    assertThat(lineas.get(0)).containsKey("seller_id");
+    assertThat(lineas.get(0).get("seller_id")).isNull();
+  }
+
+  @Test
+  @DisplayName("El estado del tipo tiene que decir lo mismo que las líneas")
+  void elEstadoCuadraConLasLineas() {
+    // Validada con una línea sin vendedor: se comisionaría sin saber a quién.
+    assertThatThrownBy(() -> registrarCon(VALIDADO, lineaSinVendedor("BOT_A")))
+        .isInstanceOf(IllegalArgumentException.class);
+    // Por validar con todas asignadas: se quedaría esperando algo que ya ocurrió.
+    assertThatThrownBy(() -> registrarCon(POR_VALIDAR, linea("BOT_A", 1, "10.00", null)))
+        .isInstanceOf(IllegalArgumentException.class);
+    // Sin estado: el esquema no tiene DEFAULT a propósito, y el agregado tampoco.
+    assertThatThrownBy(() -> registrarCon(null, linea("BOT_A", 1, "10.00", null)))
         .isInstanceOf(IllegalArgumentException.class);
   }
 
   private static final UUID VENDEDOR = UUID.randomUUID();
+  private static final TypeStatus VALIDADO = new TypeStatus(UUID.randomUUID(), "VALIDADO");
+  private static final TypeStatus POR_VALIDAR =
+      new TypeStatus(UUID.randomUUID(), "VALIDAR_COMISIONES");
+
+  private static MovementLine lineaSinVendedor(String codigo) {
+    return MovementLine.copiarDe(
+        UUID.randomUUID(),
+        null,
+        codigo,
+        "Producto " + codigo,
+        null,
+        1,
+        new BigDecimal("10.00"),
+        null,
+        "AUTOMATICA");
+  }
 
   private Movement registrar(MovementLine... lineas) {
+    return registrarCon(VALIDADO, lineas);
+  }
+
+  private Movement registrarCon(TypeStatus estado, MovementLine... lineas) {
     return Movement.registrar(
         UUID.randomUUID(),
         UUID.randomUUID(),
@@ -335,6 +371,7 @@ class MovementTest {
         UUID.randomUUID(),
         "VTA-20260904-K7M2QX",
         List.of(lineas),
+        estado,
         2,
         AHORA,
         AHORA);

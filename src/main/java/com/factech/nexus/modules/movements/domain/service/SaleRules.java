@@ -1,5 +1,7 @@
 package com.factech.nexus.modules.movements.domain.service;
 
+import com.factech.nexus.modules.movements.domain.models.SaleTypeStatus;
+import com.factech.nexus.modules.movements.domain.models.TypeStatus;
 import com.factech.nexus.modules.movements.domain.repository.MovementRepository;
 import com.factech.nexus.modules.movements.domain.repository.MovementRepository.MovementTypeView;
 import com.factech.nexus.modules.movements.domain.repository.MovementRepository.PaymentMethodView;
@@ -238,5 +240,20 @@ final class SaleRules {
             () ->
                 new IllegalStateException(
                     "El tipo de movimiento «%s» no está en el catálogo.".formatted(TIPO_VENTA)));
+  }
+
+  /**
+   * El estado de la venta en el catálogo (`RN-MV-033`), resuelto a su identificador, que es lo que
+   * se escribe.
+   */
+  TypeStatus estadoDeVenta(MovementTypeView tipo, SaleTypeStatus estado) {
+    return movimientos
+        .findTypeStatus(tipo.id(), estado.name())
+        .orElseThrow(
+            // Lo siembra `V36`: su ausencia es un catálogo roto, no un error del cliente.
+            () ->
+                new IllegalStateException(
+                    "El estado «%s» de «%s» no está en el catálogo."
+                        .formatted(estado, tipo.code())));
   }
 }

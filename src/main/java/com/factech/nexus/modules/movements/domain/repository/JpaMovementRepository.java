@@ -3,6 +3,7 @@ package com.factech.nexus.modules.movements.domain.repository;
 import com.factech.nexus.modules.movements.domain.models.LineDiscount;
 import com.factech.nexus.modules.movements.domain.models.Movement;
 import com.factech.nexus.modules.movements.domain.models.MovementLine;
+import com.factech.nexus.modules.movements.domain.models.TypeStatus;
 import com.factech.nexus.shared.pagination.BoundedCount;
 import jakarta.persistence.EntityManager;
 import jakarta.persistence.Query;
@@ -87,10 +88,10 @@ public class JpaMovementRepository implements MovementRepository {
             """
             INSERT INTO movements (id, movement_type_id, user_id, package_id,
                                    payment_method_id, currency_id, code, status,
-                                   total_amount, discount_amount, payable_amount,
-                                   occurred_at, created_at)
+                                   type_status_id, total_amount, discount_amount,
+                                   payable_amount, occurred_at, created_at)
             VALUES (:id, :tipo, :sujeto, :paquete, :metodo, :moneda, :codigo, :estado,
-                    :total, :descuento, :aPagar, :ocurrio, :creado)
+                    :estadoDelTipo, :total, :descuento, :aPagar, :ocurrio, :creado)
             ON CONFLICT (code) DO NOTHING
             """)
         .setParameter("id", venta.getId())
@@ -101,6 +102,7 @@ public class JpaMovementRepository implements MovementRepository {
         .setParameter("moneda", venta.getCurrencyId())
         .setParameter("codigo", venta.getCode())
         .setParameter("estado", venta.getStatus().name())
+        .setParameter("estadoDelTipo", venta.getTypeStatus().id())
         .setParameter("total", venta.getTotalAmount())
         .setParameter("descuento", venta.getDiscountAmount())
         .setParameter("aPagar", venta.getPayableAmount())
@@ -187,6 +189,123 @@ public class JpaMovementRepository implements MovementRepository {
             fila ->
                 new MovementTypeView(
                     (UUID) fila.get("id"), (String) fila.get("code"), (String) fila.get("prefix")));
+  }
+
+  @Override
+  @Transactional(readOnly = true)
+  public Optional<TypeStatus> findTypeStatus(UUID movementTypeId, String code) {
+    if (movementTypeId == null || code == null) {
+      return Optional.empty();
+    }
+    @SuppressWarnings("unchecked")
+    List<Tuple> filas =
+        em.createNativeQuery(
+                """
+                SELECT id, code FROM movement_type_statuses
+                 WHERE movement_type_id = :tipo AND code = :codigo
+                """,
+                Tuple.class)
+            .setParameter("tipo", movementTypeId)
+            .setParameter("codigo", code)
+            .getResultList();
+    return filas.stream()
+        .findFirst()
+        .map(fila -> new TypeStatus((UUID) fila.get("id"), (String) fila.get("code")));
+  }
+
+  @Override
+  @Transactional(readOnly = true)
+  public boolean existsTypeStatusCode(String code) {
+    if (code == null) {
+      return false;
+    }
+    Object hay =
+        em.createNativeQuery(
+                "SELECT EXISTS (SELECT 1 FROM movement_type_statuses WHERE code = :codigo)")
+            .setParameter("codigo", code)
+            .getSingleResult();
+    return Boolean.TRUE.equals(hay);
+  }
+
+  // ---------------------------------------------------------------------------
+  // `RF-MV-016` — asignar los vendedores
+  // ---------------------------------------------------------------------------
+
+  /**
+   * <b>{@code FOR UPDATE OF m}</b>, y no un {@code FOR UPDATE} a secas: la unión con el catálogo
+   * bloquearía también su fila, y dos asignaciones de ventas distintas se esperarían por un estado
+   * que ninguna de las dos cambia.
+   */
+  @Override
+  @Transactional
+  public Optional<AssignmentHeader> lockForAssignment(UUID movementId) {
+    if (movementId == null) {
+      return Optional.empty();
+    }
+    @SuppressWarnings("unchecked")
+    List<Tuple> filas =
+        em.createNativeQuery(
+                """
+                SELECT m.id AS id, m.user_id AS sujeto, m.movement_type_id AS tipo,
+                       m.status AS status, mts.code AS type_status
+                  FROM movements m
+                  JOIN movement_type_statuses mts ON mts.id = m.type_status_id
+                 WHERE m.id = :id
+                   FOR UPDATE OF m
+                """,
+                Tuple.class)
+            .setParameter("id", movementId)
+            .getResultList();
+    return filas.stream()
+        .findFirst()
+        .map(
+            fila ->
+                new AssignmentHeader(
+                    (UUID) fila.get("id"),
+                    (UUID) fila.get("sujeto"),
+                    (UUID) fila.get("tipo"),
+                    (String) fila.get("status"),
+                    (String) fila.get("type_status")));
+  }
+
+  @Override
+  @Transactional(readOnly = true)
+  public List<AssignmentLine> findLinesForAssignment(UUID movementId) {
+    @SuppressWarnings("unchecked")
+    List<Tuple> filas =
+        em.createNativeQuery(
+                """
+                SELECT id, product_id, seller_id FROM movement_details
+                 WHERE movement_id = :id
+                """,
+                Tuple.class)
+            .setParameter("id", movementId)
+            .getResultList();
+    List<AssignmentLine> resultado = new ArrayList<>(filas.size());
+    for (Tuple fila : filas) {
+      resultado.add(
+          new AssignmentLine(
+              (UUID) fila.get("id"), (UUID) fila.get("product_id"), (UUID) fila.get("seller_id")));
+    }
+    return resultado;
+  }
+
+  @Override
+  @Transactional
+  public void assignSeller(UUID lineId, UUID sellerId) {
+    em.createNativeQuery("UPDATE movement_details SET seller_id = :vendedor WHERE id = :id")
+        .setParameter("vendedor", sellerId)
+        .setParameter("id", lineId)
+        .executeUpdate();
+  }
+
+  @Override
+  @Transactional
+  public void changeTypeStatus(UUID movementId, UUID typeStatusId) {
+    em.createNativeQuery("UPDATE movements SET type_status_id = :estado WHERE id = :id")
+        .setParameter("estado", typeStatusId)
+        .setParameter("id", movementId)
+        .executeUpdate();
   }
 
   /**
@@ -344,6 +463,7 @@ public class JpaMovementRepository implements MovementRepository {
       """
       FROM movements m
       JOIN movement_types mt ON mt.id = m.movement_type_id
+      JOIN movement_type_statuses mts ON mts.id = m.type_status_id
       JOIN users suj ON suj.id = m.user_id
       JOIN currencies cur ON cur.id = m.currency_id
       JOIN payment_methods pm ON pm.id = m.payment_method_id
@@ -368,6 +488,7 @@ public class JpaMovementRepository implements MovementRepository {
   private static final String CABECERA_PROPIA =
       """
       SELECT m.id AS id, m.code AS code, mt.code AS tipo, m.status AS status,
+             mts.code AS type_status,
              suj.id AS suj_id, suj.username AS suj_username,
              suj.first_name AS suj_first, suj.last_name AS suj_last,
              m.package_id AS paquete,
@@ -507,6 +628,7 @@ public class JpaMovementRepository implements MovementRepository {
                     + """
                     FROM movements m
                     JOIN movement_types mt ON mt.id = m.movement_type_id
+                    JOIN movement_type_statuses mts ON mts.id = m.type_status_id
                     JOIN users suj ON suj.id = m.user_id
                     JOIN currencies cur ON cur.id = m.currency_id
                     JOIN payment_methods pm ON pm.id = m.payment_method_id
@@ -539,6 +661,7 @@ public class JpaMovementRepository implements MovementRepository {
                     + """
                     FROM movements m
                     JOIN movement_types mt ON mt.id = m.movement_type_id
+                    JOIN movement_type_statuses mts ON mts.id = m.type_status_id
                     JOIN users suj ON suj.id = m.user_id
                     JOIN currencies cur ON cur.id = m.currency_id
                     JOIN payment_methods pm ON pm.id = m.payment_method_id
@@ -580,7 +703,7 @@ public class JpaMovementRepository implements MovementRepository {
                   -- lee el CODIGO, que `RN-PM-013` declara inmutable.
                   JOIN products p ON p.id = d.product_id
                   -- LEFT: la columna admite nulo por los tipos de movimiento que
-                  -- no venden nada; en una venta el vendedor siempre está.
+                  -- no venden nada y, desde `V36`, en una venta por validar.
                   LEFT JOIN users v ON v.id = d.seller_id
                  WHERE d.movement_id = :movimiento
                  ORDER BY p.code ASC
@@ -854,6 +977,7 @@ public class JpaMovementRepository implements MovementRepository {
       """
       FROM movements m
       JOIN movement_types mt ON mt.id = m.movement_type_id
+      JOIN movement_type_statuses mts ON mts.id = m.type_status_id
       JOIN users suj ON suj.id = m.user_id
       JOIN currencies cur ON cur.id = m.currency_id
       JOIN payment_methods pm ON pm.id = m.payment_method_id
@@ -879,6 +1003,9 @@ public class JpaMovementRepository implements MovementRepository {
     Filtro filtro = new Filtro();
     filtro.igual("m.status", "estado", f.status());
     filtro.igual("mt.code", "tipo", f.type());
+    // El estado del tipo (`RF-MV-016`, 23-09-2026), por código: la pregunta de
+    // cada día es «¿qué falta por validar?».
+    filtro.igual("mts.code", "estadoDelTipo", f.typeStatus());
     filtro.igual("m.user_id", "sujeto", f.userId());
     if (f.sellerId() != null) {
       filtro.condicion(
@@ -902,6 +1029,7 @@ public class JpaMovementRepository implements MovementRepository {
   private static final String COLUMNAS_GLOBALES =
       """
       SELECT m.id AS id, m.code AS code, mt.code AS tipo, m.status AS status,
+             mts.code AS type_status,
              suj.id AS suj_id, suj.username AS suj_username,
              suj.first_name AS suj_first, suj.last_name AS suj_last,
              cur.id AS cur_id, cur.code AS cur_code, pm.name AS pm_name,
@@ -925,6 +1053,7 @@ public class JpaMovementRepository implements MovementRepository {
         (String) fila.get("code"),
         (String) fila.get("tipo"),
         (String) fila.get("status"),
+        (String) fila.get("type_status"),
         (UUID) fila.get("suj_id"),
         (String) fila.get("suj_username"),
         (String) fila.get("suj_first"),
@@ -990,6 +1119,7 @@ public class JpaMovementRepository implements MovementRepository {
           f.sellerId());
     }
     filtro.igual("m.status", "estado", f.status());
+    filtro.igual("mts.code", "estadoDelTipo", f.typeStatus());
     if (f.from() != null) {
       filtro.condicion("m.occurred_at >= :desde", "desde", f.from());
     }
@@ -1109,6 +1239,7 @@ public class JpaMovementRepository implements MovementRepository {
         (String) fila.get("code"),
         (String) fila.get("tipo"),
         (String) fila.get("status"),
+        (String) fila.get("type_status"),
         (UUID) fila.get("suj_id"),
         (String) fila.get("suj_username"),
         (String) fila.get("suj_first"),

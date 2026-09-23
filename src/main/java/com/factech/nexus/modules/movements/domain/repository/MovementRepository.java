@@ -1,6 +1,7 @@
 package com.factech.nexus.modules.movements.domain.repository;
 
 import com.factech.nexus.modules.movements.domain.models.Movement;
+import com.factech.nexus.modules.movements.domain.models.TypeStatus;
 import com.factech.nexus.shared.pagination.BoundedCount;
 import java.math.BigDecimal;
 import java.time.OffsetDateTime;
@@ -52,6 +53,44 @@ public interface MovementRepository {
    * y el caso de uso que las registre pedirá el suyo por este mismo método.
    */
   Optional<MovementTypeView> findTypeByCode(String code);
+
+  /**
+   * Un estado del catálogo de un tipo, por su código (`RN-MV-033`). Se busca y no se constantea,
+   * por lo mismo que {@link #findTypeByCode}.
+   */
+  Optional<TypeStatus> findTypeStatus(UUID movementTypeId, String code);
+
+  /**
+   * ¿Declara algún tipo un estado con este código? Es lo que valida el filtro de los listados: un
+   * código que no existe es un error y no una página vacía (`RF-MV-016`).
+   */
+  boolean existsTypeStatusCode(String code);
+
+  // ---------------------------------------------------------------------------
+  // `RF-MV-016` — asignar los vendedores
+  // ---------------------------------------------------------------------------
+
+  /**
+   * La cabecera de la venta <b>bloqueada</b> hasta el final de la transacción ({@code SELECT … FOR
+   * UPDATE}). Serializa la asignación con confirmar —cuyo {@code UPDATE} condicionado espera a la
+   * fila— y con otra asignación. Vacío si no existe.
+   */
+  Optional<AssignmentHeader> lockForAssignment(UUID movementId);
+
+  /** Las líneas de la venta, con su producto y su vendedor actual (nulo si no lo tiene). */
+  List<AssignmentLine> findLinesForAssignment(UUID movementId);
+
+  /** Escribe el vendedor de una línea. */
+  void assignSeller(UUID lineId, UUID sellerId);
+
+  /** Cambia el estado del tipo de un movimiento. */
+  void changeTypeStatus(UUID movementId, UUID typeStatusId);
+
+  /** Lo que la asignación necesita de la cabecera: de quién es, de qué tipo y en qué estados. */
+  record AssignmentHeader(
+      UUID id, UUID userId, UUID movementTypeId, String status, String typeStatus) {}
+
+  record AssignmentLine(UUID lineId, UUID productId, UUID sellerId) {}
 
   /**
    * El método de pago, <b>exista o no esté activo</b>.
@@ -207,6 +246,7 @@ public interface MovementRepository {
       String code,
       String type,
       String status,
+      String typeStatus,
       UUID userId,
       String userUsername,
       String userFirstName,
@@ -458,6 +498,7 @@ public interface MovementRepository {
       UUID ownerId,
       UUID sellerId,
       String status,
+      String typeStatus,
       UUID paymentMethodId,
       String code,
       OffsetDateTime from,
@@ -484,6 +525,7 @@ public interface MovementRepository {
   record MovementFilter(
       String status,
       String type,
+      String typeStatus,
       UUID userId,
       UUID sellerId,
       UUID paymentMethodId,
@@ -503,6 +545,7 @@ public interface MovementRepository {
       String code,
       String type,
       String status,
+      String typeStatus,
       UUID userId,
       String userUsername,
       String userFirstName,

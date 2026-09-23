@@ -35,12 +35,19 @@ public record MovementResponse(
     String status,
     @Schema(
             description =
+                "El estado del TIPO de movimiento (`RN-MV-033`), aparte del pago. En una venta:"
+                    + " VALIDAR_COMISIONES —alguna línea no tiene vendedor, porque quien compra"
+                    + " tenía varios y falta elegir (`RF-MV-016`)— o VALIDADO —todas lo tienen—.")
+        String typeStatus,
+    @Schema(
+            description =
                 "El SUJETO del movimiento: a nombre de quién es. En una venta, quien compra.")
         Party user,
     @Schema(
             description =
                 "Los vendedores de sus líneas, sin repetir. Hoy una venta lleva uno; la lista"
-                    + " va VACÍA —nunca nula— en los movimientos que no tienen vendedor.")
+                    + " va VACÍA —nunca nula— en los movimientos que no tienen vendedor y en una"
+                    + " venta VALIDAR_COMISIONES a la que aún no se le ha asignado ninguno.")
         List<Party> sellers,
     Money currency,
     String paymentMethod,

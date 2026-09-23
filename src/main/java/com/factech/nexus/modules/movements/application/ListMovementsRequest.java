@@ -30,6 +30,7 @@ public record ListMovementsRequest(
     Integer size,
     String status,
     String type,
+    String typeStatus,
     UUID userId,
     UUID sellerId,
     UUID paymentMethodId,
@@ -40,6 +41,8 @@ public record ListMovementsRequest(
   public ListMovementsRequest {
     status = status == null || status.isBlank() ? null : status.trim().toUpperCase();
     type = type == null || type.isBlank() ? null : type.trim().toUpperCase();
+    typeStatus =
+        typeStatus == null || typeStatus.isBlank() ? null : typeStatus.trim().toUpperCase();
     // EN MAYÚSCULAS para que la comparación sea por igualdad y la responda
     // `uq_movements_code`: los comprobantes nacen en mayúsculas (`MovementCode`),
     // y un `upper(code) = …` dejaría el índice sin usar.
