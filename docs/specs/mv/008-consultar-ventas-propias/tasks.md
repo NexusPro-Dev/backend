@@ -6,7 +6,7 @@
 | Especificación | [`spec.md`](spec.md) v0.3.0 |
 | Plan | [`plan.md`](plan.md) v0.3.0 |
 | `plan.md` aprobado el | 05-09-2026 |
-| Estado | **En revisión** — `T-01` a `T-12` `Hecha`; `T-13` a `T-16` `Hecha` el 16-09-2026 (§1.1); `T-17` a `T-20` (§1.2) `Hecha` el 21-09-2026; `T-21` a `T-23` (§1.3) `Hecha` el 21-09-2026; `T-24` a `T-27` (§1.4) `Hecha` el 22-09-2026; `T-28` y `T-29` (§1.5) `Pendiente` |
+| Estado | **En revisión** — `T-01` a `T-12` `Hecha`; `T-13` a `T-16` `Hecha` el 16-09-2026 (§1.1); `T-17` a `T-20` (§1.2) `Hecha` el 21-09-2026; `T-21` a `T-23` (§1.3) `Hecha` el 21-09-2026; `T-24` a `T-27` (§1.4) `Hecha`; `T-28` y `T-29` (§1.5) `Hecha` el 23-09-2026 el 22-09-2026; `T-28` y `T-29` (§1.5) `Pendiente` |
 | Issue | Las enmiendas del 21-09-2026: [#76](https://github.com/NexusPro-Dev/backend/issues/76) (§1.2) y [#79](https://github.com/NexusPro-Dev/backend/issues/79) (§1.3); la del 22-09-2026, [#81](https://github.com/NexusPro-Dev/backend/issues/81) (§1.4) |
 | Rama | `feature/venta-de-productos`; la enmienda del 21-09-2026, en `feature/filtro-por-tipo-de-movimiento` |
 
@@ -86,8 +86,8 @@ Enmienda de hecho (Art. I.7), `spec.md` 0.6.0 y `plan.md` 0.6.0 **antes** del c�
 
 | ID | Tarea | Depende de | Verificación | Estado |
 |---|---|---|---|---|
-| `T-28` | `MovementController`: `@GetMapping("/mine")` pasa a `@GetMapping("/mine/shopping")`, con la prosa al día; `EndpointPermissionsIT` y `OwnScopePermissionsIT` cambian la ruta de su tabla | — | La inyectividad operación → permiso sigue en verde: hay **una** ruta con `movements:list-own` | `Pendiente` |
-| `T-29` | `MyMovementsIT` y `ConfirmSaleIT` llaman a la ruta nueva; nace `CA-MV-140` —la anterior responde `404`— y la prueba de enrutado se muda; contrato regenerado, `docs/api/index.md` y matriz | `T-28` | `openapi.json` declara `/movements/mine/shopping` y **no** `/movements/mine` | `Pendiente` |
+| `T-28` | `MovementController`: `@GetMapping("/mine")` pasa a `@GetMapping("/mine/shopping")`, con la prosa al día; `EndpointPermissionsIT` y `OwnScopePermissionsIT` cambian la ruta de su tabla | — | La inyectividad operación → permiso sigue en verde: hay **una** ruta con `movements:list-own` | `Hecha` |
+| `T-29` | `MyMovementsIT` y `ConfirmSaleIT` llaman a la ruta nueva; nace `CA-MV-140` —la anterior responde `404`— y la prueba de enrutado se muda; contrato regenerado, `docs/api/index.md` y matriz | `T-28` | `openapi.json` declara `/movements/mine/shopping` y **no** `/movements/mine` | `Hecha` |
 
 ---
 
