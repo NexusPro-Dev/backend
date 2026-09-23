@@ -60,7 +60,7 @@ graph LR
 
 - [x] Todas las tareas en estado `Hecha`.
 - [x] Todos los criterios de aceptación con prueba automatizada en verde.
-- [ ] `mvn verify` en verde en local; CI en el PR.
+- [x] `mvn verify` en verde en local (447 unitarias y 1832 de integración, 0 fallos, el 23-09-2026 sobre la rama fusionada con `academia`); CI en el PR.
 - [x] La edición emite su fila `UPDATE` con el diff, en la misma transacción.
 - [x] `PATCH /teams/{id}` consta en `EndpointPermissionsIT` con `teams:update`.
 - [x] El contrato OpenAPI coincide con el comportamiento real, **prosa incluida**.
