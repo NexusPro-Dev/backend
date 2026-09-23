@@ -431,6 +431,14 @@
         "required" : [ "status" ],
         "type" : "object"
       },
+      "ChangeTeamStatusRequest" : {
+        "properties" : {
+          "status" : {
+            "type" : "string"
+          }
+        },
+        "type" : "object"
+      },
       "ChangeUserStatusRequest" : {
         "properties" : {
           "reason" : {
@@ -7341,7 +7349,7 @@
     "/api/v1/countries/{id}/status" : {
       "patch" : {
         "description" : "**Permiso requerido:** `countries:update`. Sin él, `403` (`AUTH-002`).\n\nCambia el estado de un país. Es lo **único** que la API puede modificar\nde un país.\n\nSe envía el estado destino, no una acción: pedir dos veces lo mismo deja\nel mismo estado y **no** registra un segundo evento.\n\n**Desactivar no es corregir**: el código y el nombre permanecen, y los\ndatos que ya los referencian siguen resolviéndolos. Evita que el error se\npropague desde ese momento, no lo repara.\n\nEl cuerpo no admite ningún otro campo ni motivo alguno.\n",
-        "operationId" : "cambiarEstado_8",
+        "operationId" : "cambiarEstado_9",
         "parameters" : [ {
           "in" : "path",
           "name" : "id",
@@ -8551,7 +8559,7 @@
     "/api/v1/courses/{courseId}/modules/{moduleId}/lessons/{lessonId}/status" : {
       "patch" : {
         "description" : "**Permiso requerido:** `courses:update`. Sin él, `403` (`AUTH-002`).\n\n`ACTIVO` publica; `INACTIVO` despublica. **Activar exige contenido**, de\ncualquiera de los dos tipos, y nada más. **Desactivar no exige nada**; desactivar\nla última activa de un módulo activo deja el módulo `ACTIVO` y no ofrecible, y la\nduración del módulo y del curso bajan en su siguiente lectura.\n\nPedir el estado que ya tiene responde `200` sin escribir. Exige `courses:update`.\n",
-        "operationId" : "cambiarEstado_7",
+        "operationId" : "cambiarEstado_8",
         "parameters" : [ {
           "in" : "path",
           "name" : "courseId",
@@ -8657,7 +8665,7 @@
     "/api/v1/courses/{courseId}/modules/{moduleId}/status" : {
       "patch" : {
         "description" : "**Permiso requerido:** `courses:update`. Sin él, `403` (`AUTH-002`).\n\n`ACTIVO` publica; `INACTIVO` despublica. **Activar exige una lección activa** y\nnada más —ni descripciones ni portada—. **Desactivar no exige nada**, y\ndesactivar el último módulo activo de un curso activo **no toca el curso**: queda\n`ACTIVO` y deja de ofrecerse, y su detalle lo dice.\n\nCon un módulo activo, **el curso puede activarse** (`PATCH /courses/{id}/status`).\nPedir el estado que ya tiene responde `200` sin escribir. Un módulo retirado, o\nde otro curso, responde `404`. Exige `courses:update`.\n",
-        "operationId" : "cambiarEstado_6",
+        "operationId" : "cambiarEstado_7",
         "parameters" : [ {
           "in" : "path",
           "name" : "courseId",
@@ -8970,7 +8978,7 @@
     "/api/v1/courses/{id}/status" : {
       "patch" : {
         "description" : "**Permiso requerido:** `courses:update`. Sin él, `403` (`AUTH-002`).\n\n`ACTIVO` publica; `INACTIVO` despublica. **Activar exige las dos\ndescripciones y al menos un módulo activo**, comprobado **junto**: si faltan\nvarias cosas, la respuesta trae todos los motivos. **No exige una\nmembresía**: un curso activo sin lista existe y no se ofrece, y el detalle\nlo dice. **Desactivar no exige nada** y no toca módulos ni relaciones.\n\nEl estado es lo que alguien decidió: **vaciar una descripción o retirar el\núltimo módulo activo después no lo cambia** — el curso deja de ofrecerse, y\n`offerableReason` dice por qué. Pedir el estado que ya tiene responde `200`\nsin escribir ni auditar. Un retirado responde `404`. Exige `courses:update`.\n",
-        "operationId" : "cambiarEstado_5",
+        "operationId" : "cambiarEstado_6",
         "parameters" : [ {
           "in" : "path",
           "name" : "id",
@@ -9101,7 +9109,7 @@
     "/api/v1/currencies/{id}/status" : {
       "patch" : {
         "description" : "**Permiso requerido:** `currencies:update`. Sin él, `403` (`AUTH-002`).\n\nCambia el estado de una moneda del catálogo. Es lo **único** que la API\npuede modificar de una moneda.\n\nSe envía el estado destino, no una acción: pedir dos veces lo mismo deja\nel mismo estado y **no** registra un segundo evento.\n\nLa moneda por defecto **no puede desactivarse**: los importes del sistema\nquedarían sin referencia válida. Cambiar cuál es la moneda por defecto es\nuna operación de migración, no de API.\n\nEl cuerpo no admite ningún otro campo ni motivo alguno.\n",
-        "operationId" : "cambiarEstado_4",
+        "operationId" : "cambiarEstado_5",
         "parameters" : [ {
           "in" : "path",
           "name" : "id",
@@ -10892,7 +10900,7 @@
     "/api/v1/packages/{id}/status" : {
       "patch" : {
         "description" : "**Permiso requerido:** `packages:change-status`. Sin él, `403` (`AUTH-002`).\n\nCambia el estado del paquete y devuelve el detalle.\n\n**Activar exige descripción y al menos dos productos**, y los dos motivos\nvan **juntos** en el mismo `409` cuando faltan a la vez. **No exige que los\nproductos estén activos hoy**: eso lo mira la oferta cada vez, y un paquete\nactivo con un producto inactivo dentro es un estado legítimo — el detalle lo\ndevuelve `offerable: false` nombrando el producto.\n\n**Desactivar no tiene condiciones**: el paquete sale de la oferta y del\nhotlink, y sus productos no cambian.\n\nPedir el estado que ya tiene responde `200` sin escribir ni auditar. Exige\n`packages:change-status`.\n",
-        "operationId" : "cambiarEstado_3",
+        "operationId" : "cambiarEstado_4",
         "parameters" : [ {
           "in" : "path",
           "name" : "id",
@@ -12024,7 +12032,7 @@
     "/api/v1/products/{id}/status" : {
       "patch" : {
         "description" : "**Permiso requerido:** `products:change-status`. Sin él, `403` (`AUTH-002`).\n\nCambia el estado del producto entre `ACTIVO` e `INACTIVO`. **Es un\nrecurso propio y no un campo de la edición**: publicar y corregir son\ndecisiones distintas, y mezclarlas haría que una corrección de texto\npudiera poner algo a la venta.\n\n**Pedir el estado que el producto ya tiene devuelve `200` sin cambiar\nnada y sin registrar evento.** No es un error: quien pulsa dos veces el\nmismo botón no ha hecho nada malo.\n\n**No se publica un producto sin descripción** (`RN-PM-014`). Sí se\npermite **desactivarlo** sin ella: la regla acota lo que se ofrece, no\nlo que se retira.\n\n**Solo puede haber un upgrade activo hacia cada membresía destino**\n(`RN-PM-004`). Al activar uno cuyo destino ya está ocupado, el rechazo\n**nombra el producto que lo ocupa**, para que se sepa cuál desactivar.\nDesactivar no comprueba nada: liberar un destino nunca produce\nconflicto.\n\n**Un producto retirado no vuelve a la venta por aquí**: responde que no\nexiste.\n\nNo se exige motivo para activar ni para desactivar.\n",
-        "operationId" : "cambiarEstado_2",
+        "operationId" : "cambiarEstado_3",
         "parameters" : [ {
           "in" : "path",
           "name" : "id",
@@ -12708,7 +12716,7 @@
     "/api/v1/roles/{id}/status" : {
       "patch" : {
         "description" : "**Permiso requerido:** `roles:change-status`. Sin él, `403` (`AUTH-002`).\n\n**Desactivar no es retirar.** Las asignaciones a personas se conservan\nintactas; lo que cambia es que el rol **deja de conceder permisos de\ninmediato**, sin esperar a que ningún token expire.\n\nSe pide el **estado destino** —`ACTIVO` o `INACTIVO`— y no una acción,\nde modo que repetir la petición deja el mismo resultado y no registra\nevento.\n\n**El rol raíz no admite esta operación**, aparte de la prohibición\ngeneral sobre los roles de sistema: un rol raíz inactivo no concede\nnada, y eso dejaría al sistema sin su última vía de administración.\n\nEl cuerpo no admite motivo: el Art. V.13 lo exige solo en las\neliminaciones.\n",
-        "operationId" : "cambiarEstado_1",
+        "operationId" : "cambiarEstado_2",
         "parameters" : [ {
           "in" : "path",
           "name" : "id",
@@ -13119,6 +13127,86 @@
         "summary" : "Corregir un equipo",
         "tags" : [ "Equipos" ],
         "x-required-permission" : "teams:update"
+      }
+    },
+    "/api/v1/teams/{id}/status" : {
+      "patch" : {
+        "description" : "**Permiso requerido:** `teams:change-status`. Sin él, `403` (`AUTH-002`).\n\nPasa el equipo a `INACTIVO` o lo devuelve a `ACTIVO`. Se declara **el\nestado destino** y no una acción, de modo que **repetir la petición deja\nel mismo resultado**: pedir el estado que ya se tiene responde `200` sin\nescribir nada y **sin registrar auditoría**.\n\n**`INACTIVO` significa «no recibe», no «está vacío».** El equipo\nsuspendido **conserva a todos sus miembros**: el detalle los sigue\ndevolviendo y el listado los sigue contando. Cerrar las pertenencias al\nsuspender movería la atribución de toda una red sin que nadie lo hubiera\ndecidido; para vaciarlo hay que retirar a cada miembro, con motivo.\n\n**La restricción es sobre el equipo que RECIBE.** Un equipo `INACTIVO` no\nadmite miembros nuevos, pero **sí se puede retirar** a los que tiene —es\nla única forma de vaciarlo para poder eliminarlo— y **sí se puede\nreasignar a alguien desde él hacia un equipo activo**.\n\n**Desactivar no le quita nada a nadie.** Un manager de un equipo\nsuspendido sigue activo, sigue siendo manager y sigue teniendo su red;\npertenecer a un equipo no concede acceso a ningún dato, y por eso esta\noperación **no registra ningún evento de seguridad** — al contrario que\ndesactivar un rol, que retira permisos de inmediato.\n\n**El cuerpo no admite motivo**: el motivo es la barrera de lo\nirreversible, y esto se deshace con una petición. Enviar `reason`, `name`\no `members` responde `400`.\n\nSuspender **no es eliminar**: «ya no organizo con este equipo pero quiero\nver quién estaba» es esto; `DELETE /teams/{id}` es «no debería existir», y\nexige vaciarlo antes. Un equipo eliminado responde `404`: sobre él no hay\nestado que cambiar.\n\nLa respuesta es la **forma del detalle**, con el estado nuevo y los mismos\nmiembros. Exige `teams:change-status`; **`teams:update` no habilita esta\noperación**, porque corregir el nombre de un equipo y suspenderlo son dos\ndecisiones de negocio distintas.\n",
+        "operationId" : "cambiarEstado_1",
+        "parameters" : [ {
+          "in" : "path",
+          "name" : "id",
+          "required" : true,
+          "schema" : {
+            "format" : "uuid",
+            "type" : "string"
+          }
+        } ],
+        "requestBody" : {
+          "content" : {
+            "application/json" : {
+              "schema" : {
+                "$ref" : "#/components/schemas/ChangeTeamStatusRequest"
+              }
+            }
+          },
+          "required" : true
+        },
+        "responses" : {
+          "200" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/TeamDetailResponse"
+                }
+              }
+            },
+            "description" : "Equipo con su estado nuevo, en la forma del detalle."
+          },
+          "400" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/TeamDetailResponse"
+                }
+              }
+            },
+            "description" : "Estado ausente o fuera del dominio (`VAL-001`), identificador mal formado (`VAL-002`) o cuerpo con campos no admitidos (`VAL-003`)"
+          },
+          "401" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/TeamDetailResponse"
+                }
+              }
+            },
+            "description" : "Token ausente o inválido (`AUTH-001`)"
+          },
+          "403" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/TeamDetailResponse"
+                }
+              }
+            },
+            "description" : "Autenticado sin el permiso `teams:change-status` (`AUTH-002`)"
+          },
+          "404" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/TeamDetailResponse"
+                }
+              }
+            },
+            "description" : "El equipo no existe o está eliminado (`EX-001`)"
+          }
+        },
+        "summary" : "Suspender o reactivar un equipo",
+        "tags" : [ "Equipos" ],
+        "x-required-permission" : "teams:change-status"
       }
     },
     "/api/v1/user-commission-rates" : {

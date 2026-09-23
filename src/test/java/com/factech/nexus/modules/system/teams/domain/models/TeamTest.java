@@ -105,4 +105,47 @@ class TeamTest {
     assertThat(pertenencia.close(AHORA)).isTrue();
     assertThat(pertenencia.getEndedAt()).isAfter(pertenencia.getStartedAt());
   }
+
+  @Test
+  @DisplayName(
+      "activate y deactivate devuelven SI hubo cambio, y solo entonces avanzan updatedAt"
+          + " (`RF-SP-067` `T-01`)")
+  void elEstadoSeCambiaYSeRepite() {
+    Team equipo = Team.create(UUID.randomUUID(), "Equipo Norte", null, AHORA);
+
+    // Nace ACTIVO: pedir ACTIVO no cambia nada y no mueve la marca de tiempo,
+    // que es lo que sostiene la idempotencia de `CA-SP-765`.
+    assertThat(equipo.activate(AHORA.plusDays(1))).isFalse();
+    assertThat(equipo.getStatus()).isEqualTo(TeamStatus.ACTIVO);
+    assertThat(equipo.getUpdatedAt()).isEqualTo(AHORA);
+
+    assertThat(equipo.deactivate(AHORA.plusDays(1))).isTrue();
+    assertThat(equipo.getStatus()).isEqualTo(TeamStatus.INACTIVO);
+    assertThat(equipo.getUpdatedAt()).isEqualTo(AHORA.plusDays(1));
+
+    // Repetir la suspensión tampoco mueve la marca: el segundo reintento no es
+    // una escritura.
+    assertThat(equipo.deactivate(AHORA.plusDays(2))).isFalse();
+    assertThat(equipo.getUpdatedAt()).isEqualTo(AHORA.plusDays(1));
+
+    assertThat(equipo.activate(AHORA.plusDays(3))).isTrue();
+    assertThat(equipo.getStatus()).isEqualTo(TeamStatus.ACTIVO);
+    assertThat(equipo.getUpdatedAt()).isEqualTo(AHORA.plusDays(3));
+  }
+
+  @Test
+  @DisplayName("el estado no toca el nombre, la descripción ni la baja lógica")
+  void elEstadoNoTocaNadaMas() {
+    Team equipo = Team.create(UUID.randomUUID(), "Equipo Sur", "Managers del sur", AHORA);
+
+    equipo.deactivate(AHORA.plusHours(1));
+
+    assertThat(equipo.getName()).isEqualTo("Equipo Sur");
+    assertThat(equipo.getDescription()).isEqualTo("Managers del sur");
+    assertThat(equipo.estaEliminado()).isFalse();
+    assertThat(equipo.getDeletedAt()).isNull();
+    // La instantánea de la auditoría sí lo refleja: es el mismo mapa que leen la
+    // creación y la baja.
+    assertThat(equipo.instantanea()).containsEntry("status", "INACTIVO");
+  }
 }

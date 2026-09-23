@@ -465,6 +465,16 @@ class OpenApiContractIT extends IntegrationTestBase {
             jsonPath("$.paths['/api/v1/teams/{id}'].patch['x-required-permission']")
                 .value("teams:update"))
         .andExpect(jsonPath("$.paths['/api/v1/teams/{id}'].patch.responses.409").exists())
+        // `RF-SP-067`: el estado tiene RUTA propia y PERMISO propio, y el
+        // contrato es donde se ve que `teams:update` no la habilita — la
+        // confusión que `RN-SEG-014` existe para impedir. Y no publica `409`:
+        // suspender no falla por tener miembros, al contrario que eliminar.
+        .andExpect(
+            jsonPath("$.paths['/api/v1/teams/{id}/status'].patch['x-required-permission']")
+                .value("teams:change-status"))
+        .andExpect(jsonPath("$.paths['/api/v1/teams/{id}/status'].patch.responses.404").exists())
+        .andExpect(
+            jsonPath("$.paths['/api/v1/teams/{id}/status'].patch.responses.409").doesNotExist())
         .andExpect(jsonPath("$.components.schemas.TeamDetailResponse.properties.members").exists())
         .andExpect(
             jsonPath("$.components.schemas.TeamDetailResponse.properties.deletionReason").exists());

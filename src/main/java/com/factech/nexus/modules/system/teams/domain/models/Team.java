@@ -130,6 +130,49 @@ public class Team {
     return valor == null ? "" : valor;
   }
 
+  /**
+   * Reactiva el equipo (`RF-SP-067`) y devuelve <b>si hubo cambio</b>.
+   *
+   * <p><b>Devolver el booleano es lo que sostiene la idempotencia.</b> El caso de uso audita solo
+   * cuando cambió algo, y la marca de tiempo no avanza por una petición que pedía el estado que ya
+   * se tenía: sin eso, cada reintento de un cliente con mala red dejaría una fila de auditoría y
+   * movería `updatedAt`, que es cómo una auditoría deja de poder leerse.
+   *
+   * <p><b>Aquí `updatedAt` avanza solo si cambió</b>, al contrario que en {@link #update}, donde
+   * avanza aunque el diff salga vacío. No es una incoherencia: una corrección con los mismos
+   * valores es una petición que se atendió sobre los datos —`CA-SP-756` lo exige—, mientras que
+   * pedir el estado que ya se tiene no es una escritura, es un reintento.
+   */
+  public boolean activate(OffsetDateTime ahora) {
+    if (status == TeamStatus.ACTIVO) {
+      return false;
+    }
+    status = TeamStatus.ACTIVO;
+    updatedAt = ahora;
+    return true;
+  }
+
+  /**
+   * Suspende el equipo (`RF-SP-067`) y devuelve <b>si hubo cambio</b>.
+   *
+   * <p><b>No toca una sola pertenencia</b> (`RN-SP-053`): `INACTIVO` significa que el equipo no
+   * recibe a nadie más, no que se vacíe. Cerrar aquí las pertenencias movería la atribución de toda
+   * una red —cada manager arrastra a sus directores y a los agentes de estos— sin que nadie lo
+   * hubiera decidido, y las comisiones leerán ese historial para repartir. Vaciar es otra
+   * operación, miembro a miembro y con motivo (`RF-SP-070`).
+   *
+   * <p><b>Y no comprueba nada</b>: que un equipo suspendido no reciba miembros lo aplica quien
+   * intenta entrar (`RF-SP-069`). La regla vive en un solo sitio a propósito.
+   */
+  public boolean deactivate(OffsetDateTime ahora) {
+    if (status == TeamStatus.INACTIVO) {
+      return false;
+    }
+    status = TeamStatus.INACTIVO;
+    updatedAt = ahora;
+    return true;
+  }
+
   public boolean estaEliminado() {
     return deletedAt != null;
   }

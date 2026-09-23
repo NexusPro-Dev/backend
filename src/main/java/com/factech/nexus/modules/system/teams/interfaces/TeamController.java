@@ -1,10 +1,12 @@
 package com.factech.nexus.modules.system.teams.interfaces;
 
+import com.factech.nexus.modules.system.teams.application.ChangeTeamStatusRequest;
 import com.factech.nexus.modules.system.teams.application.ListTeamsRequest;
 import com.factech.nexus.modules.system.teams.application.RegisterTeamRequest;
 import com.factech.nexus.modules.system.teams.application.TeamDetailResponse;
 import com.factech.nexus.modules.system.teams.application.TeamItem;
 import com.factech.nexus.modules.system.teams.application.UpdateTeamRequest;
+import com.factech.nexus.modules.system.teams.domain.service.ChangeTeamStatusService;
 import com.factech.nexus.modules.system.teams.domain.service.GetTeamService;
 import com.factech.nexus.modules.system.teams.domain.service.ListTeamsService;
 import com.factech.nexus.modules.system.teams.domain.service.RegisterTeamService;
@@ -56,16 +58,19 @@ public class TeamController {
   private final ListTeamsService listado;
   private final GetTeamService ficha;
   private final UpdateTeamService correccion;
+  private final ChangeTeamStatusService estado;
 
   public TeamController(
       RegisterTeamService alta,
       ListTeamsService listado,
       GetTeamService ficha,
-      UpdateTeamService correccion) {
+      UpdateTeamService correccion,
+      ChangeTeamStatusService estado) {
     this.alta = alta;
     this.listado = listado;
     this.ficha = ficha;
     this.correccion = correccion;
+    this.estado = estado;
   }
 
   @PostMapping
@@ -276,5 +281,70 @@ public class TeamController {
   public TeamDetailResponse corregir(
       @PathVariable UUID id, @RequestBody UpdateTeamRequest peticion) {
     return correccion.update(id, peticion);
+  }
+
+  @PatchMapping("/{id}/status")
+  @PreAuthorize("hasAuthority('teams:change-status')")
+  @Operation(
+      summary = "Suspender o reactivar un equipo",
+      description =
+          """
+          Pasa el equipo a `INACTIVO` o lo devuelve a `ACTIVO`. Se declara **el
+          estado destino** y no una acción, de modo que **repetir la petición deja
+          el mismo resultado**: pedir el estado que ya se tiene responde `200` sin
+          escribir nada y **sin registrar auditoría**.
+
+          **`INACTIVO` significa «no recibe», no «está vacío».** El equipo
+          suspendido **conserva a todos sus miembros**: el detalle los sigue
+          devolviendo y el listado los sigue contando. Cerrar las pertenencias al
+          suspender movería la atribución de toda una red sin que nadie lo hubiera
+          decidido; para vaciarlo hay que retirar a cada miembro, con motivo.
+
+          **La restricción es sobre el equipo que RECIBE.** Un equipo `INACTIVO` no
+          admite miembros nuevos, pero **sí se puede retirar** a los que tiene —es
+          la única forma de vaciarlo para poder eliminarlo— y **sí se puede
+          reasignar a alguien desde él hacia un equipo activo**.
+
+          **Desactivar no le quita nada a nadie.** Un manager de un equipo
+          suspendido sigue activo, sigue siendo manager y sigue teniendo su red;
+          pertenecer a un equipo no concede acceso a ningún dato, y por eso esta
+          operación **no registra ningún evento de seguridad** — al contrario que
+          desactivar un rol, que retira permisos de inmediato.
+
+          **El cuerpo no admite motivo**: el motivo es la barrera de lo
+          irreversible, y esto se deshace con una petición. Enviar `reason`, `name`
+          o `members` responde `400`.
+
+          Suspender **no es eliminar**: «ya no organizo con este equipo pero quiero
+          ver quién estaba» es esto; `DELETE /teams/{id}` es «no debería existir», y
+          exige vaciarlo antes. Un equipo eliminado responde `404`: sobre él no hay
+          estado que cambiar.
+
+          La respuesta es la **forma del detalle**, con el estado nuevo y los mismos
+          miembros. Exige `teams:change-status`; **`teams:update` no habilita esta
+          operación**, porque corregir el nombre de un equipo y suspenderlo son dos
+          decisiones de negocio distintas.
+          """)
+  @ApiResponses({
+    @ApiResponse(
+        responseCode = "200",
+        description = "Equipo con su estado nuevo, en la forma del detalle.",
+        content = @Content(schema = @Schema(implementation = TeamDetailResponse.class))),
+    @ApiResponse(
+        responseCode = "400",
+        description =
+            "Estado ausente o fuera del dominio (`VAL-001`), identificador mal formado"
+                + " (`VAL-002`) o cuerpo con campos no admitidos (`VAL-003`)"),
+    @ApiResponse(responseCode = "401", description = "Token ausente o inválido (`AUTH-001`)"),
+    @ApiResponse(
+        responseCode = "403",
+        description = "Autenticado sin el permiso `teams:change-status` (`AUTH-002`)"),
+    @ApiResponse(
+        responseCode = "404",
+        description = "El equipo no existe o está eliminado (`EX-001`)")
+  })
+  public TeamDetailResponse cambiarEstado(
+      @PathVariable UUID id, @RequestBody ChangeTeamStatusRequest peticion) {
+    return estado.change(id, peticion);
   }
 }

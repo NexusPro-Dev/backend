@@ -5060,6 +5060,96 @@ paths:
               schema:
                 $ref: "#/components/schemas/TeamDetailResponse"
       x-required-permission: teams:update
+  /api/v1/teams/{id}/status:
+    patch:
+      tags:
+      - Equipos
+      summary: Suspender o reactivar un equipo
+      description: |
+        **Permiso requerido:** `teams:change-status`. Sin él, `403` (`AUTH-002`).
+
+        Pasa el equipo a `INACTIVO` o lo devuelve a `ACTIVO`. Se declara **el
+        estado destino** y no una acción, de modo que **repetir la petición deja
+        el mismo resultado**: pedir el estado que ya se tiene responde `200` sin
+        escribir nada y **sin registrar auditoría**.
+
+        **`INACTIVO` significa «no recibe», no «está vacío».** El equipo
+        suspendido **conserva a todos sus miembros**: el detalle los sigue
+        devolviendo y el listado los sigue contando. Cerrar las pertenencias al
+        suspender movería la atribución de toda una red sin que nadie lo hubiera
+        decidido; para vaciarlo hay que retirar a cada miembro, con motivo.
+
+        **La restricción es sobre el equipo que RECIBE.** Un equipo `INACTIVO` no
+        admite miembros nuevos, pero **sí se puede retirar** a los que tiene —es
+        la única forma de vaciarlo para poder eliminarlo— y **sí se puede
+        reasignar a alguien desde él hacia un equipo activo**.
+
+        **Desactivar no le quita nada a nadie.** Un manager de un equipo
+        suspendido sigue activo, sigue siendo manager y sigue teniendo su red;
+        pertenecer a un equipo no concede acceso a ningún dato, y por eso esta
+        operación **no registra ningún evento de seguridad** — al contrario que
+        desactivar un rol, que retira permisos de inmediato.
+
+        **El cuerpo no admite motivo**: el motivo es la barrera de lo
+        irreversible, y esto se deshace con una petición. Enviar `reason`, `name`
+        o `members` responde `400`.
+
+        Suspender **no es eliminar**: «ya no organizo con este equipo pero quiero
+        ver quién estaba» es esto; `DELETE /teams/{id}` es «no debería existir», y
+        exige vaciarlo antes. Un equipo eliminado responde `404`: sobre él no hay
+        estado que cambiar.
+
+        La respuesta es la **forma del detalle**, con el estado nuevo y los mismos
+        miembros. Exige `teams:change-status`; **`teams:update` no habilita esta
+        operación**, porque corregir el nombre de un equipo y suspenderlo son dos
+        decisiones de negocio distintas.
+      operationId: cambiarEstado_1
+      parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ChangeTeamStatusRequest"
+        required: true
+      responses:
+        "200":
+          description: "Equipo con su estado nuevo, en la forma del detalle."
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/TeamDetailResponse"
+        "400":
+          description: "Estado ausente o fuera del dominio (`VAL-001`), identificador\
+            \ mal formado (`VAL-002`) o cuerpo con campos no admitidos (`VAL-003`)"
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/TeamDetailResponse"
+        "401":
+          description: Token ausente o inválido (`AUTH-001`)
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/TeamDetailResponse"
+        "403":
+          description: Autenticado sin el permiso `teams:change-status` (`AUTH-002`)
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/TeamDetailResponse"
+        "404":
+          description: El equipo no existe o está eliminado (`EX-001`)
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/TeamDetailResponse"
+      x-required-permission: teams:change-status
   /api/v1/roles/{id}:
     get:
       tags:
@@ -5220,7 +5310,7 @@ paths:
 
         El cuerpo no admite motivo: el Art. V.13 lo exige solo en las
         eliminaciones.
-      operationId: cambiarEstado_1
+      operationId: cambiarEstado_2
       parameters:
       - name: id
         in: path
@@ -5582,7 +5672,7 @@ paths:
         existe.
 
         No se exige motivo para activar ni para desactivar.
-      operationId: cambiarEstado_2
+      operationId: cambiarEstado_3
       parameters:
       - name: id
         in: path
@@ -5912,7 +6002,7 @@ paths:
 
         Pedir el estado que ya tiene responde `200` sin escribir ni auditar. Exige
         `packages:change-status`.
-      operationId: cambiarEstado_3
+      operationId: cambiarEstado_4
       parameters:
       - name: id
         in: path
@@ -6140,7 +6230,7 @@ paths:
         una operación de migración, no de API.
 
         El cuerpo no admite ningún otro campo ni motivo alguno.
-      operationId: cambiarEstado_4
+      operationId: cambiarEstado_5
       parameters:
       - name: id
         in: path
@@ -6343,7 +6433,7 @@ paths:
         último módulo activo después no lo cambia** — el curso deja de ofrecerse, y
         `offerableReason` dice por qué. Pedir el estado que ya tiene responde `200`
         sin escribir ni auditar. Un retirado responde `404`. Exige `courses:update`.
-      operationId: cambiarEstado_5
+      operationId: cambiarEstado_6
       parameters:
       - name: id
         in: path
@@ -6490,7 +6580,7 @@ paths:
         Con un módulo activo, **el curso puede activarse** (`PATCH /courses/{id}/status`).
         Pedir el estado que ya tiene responde `200` sin escribir. Un módulo retirado, o
         de otro curso, responde `404`. Exige `courses:update`.
-      operationId: cambiarEstado_6
+      operationId: cambiarEstado_7
       parameters:
       - name: courseId
         in: path
@@ -6717,7 +6807,7 @@ paths:
         duración del módulo y del curso bajan en su siguiente lectura.
 
         Pedir el estado que ya tiene responde `200` sin escribir. Exige `courses:update`.
-      operationId: cambiarEstado_7
+      operationId: cambiarEstado_8
       parameters:
       - name: courseId
         in: path
@@ -6941,7 +7031,7 @@ paths:
         propague desde ese momento, no lo repara.
 
         El cuerpo no admite ningún otro campo ni motivo alguno.
-      operationId: cambiarEstado_8
+      operationId: cambiarEstado_9
       parameters:
       - name: id
         in: path
@@ -11847,6 +11937,11 @@ components:
           $ref: "#/components/schemas/PatchableString"
         description:
           $ref: "#/components/schemas/PatchableString"
+    ChangeTeamStatusRequest:
+      type: object
+      properties:
+        status:
+          type: string
     UpdateRoleRequest:
       type: object
       properties:
