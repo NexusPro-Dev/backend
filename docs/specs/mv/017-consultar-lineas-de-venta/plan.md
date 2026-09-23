@@ -33,11 +33,11 @@
 
 | Capa | Componente | Nuevo / Modificado | Responsabilidad |
 |---|---|---|---|
-| `application` | `SaleLinesRequest` | Nuevo | Los nueve parámetros; los estados y las fechas llegan como **texto** para que su `400` viaje junto a los demás |
+| `application` | `SaleLinesRequest` | Nuevo | Los **diez** parámetros (0.2.0: `typeStatus`); los estados y las fechas llegan como **texto** para que su `400` viaje junto a los demás |
 | `application` | `SaleLineResponse` | Nuevo | La fila publicada: la línea y su venta (`spec.md` §6.2) |
 | `domain/repository` | `MovementRepository` | Modificado | `findSaleLines(filtro, offset, limit)` y `countSaleLines(filtro, techo)`, con los registros `SaleLinesFilter` y `SaleLineRow` |
-| `domain/repository` | `JpaMovementRepository` | Modificado | Las dos sentencias, con el `LEFT JOIN` del vendedor y el predicado de tipo `VENTA` |
-| `domain/service` | `ListSaleLinesService` | Nuevo | Valida los cinco `400` **juntos**, resuelve el orden y la página, y arma la respuesta. `@Transactional(readOnly = true)` |
+| `domain/repository` | `JpaMovementRepository` | Modificado | Las dos sentencias, con el `LEFT JOIN` del vendedor y el predicado de tipo `VENTA`. El `JOIN` de `movement_type_statuses` entra en 0.2.0 **solo para filtrar**: la columna no se publica, y va en el bloque de tablas compartido para que la página y el conteo no divergan |
+| `domain/service` | `ListSaleLinesService` | Nuevo | Valida los **seis** `400` **juntos**, resuelve el orden y la página, y arma la respuesta. `@Transactional(readOnly = true)` |
 | `interfaces` | `MovementController` | Modificado | `GET /api/v1/movements/sales/lines` con `movements:list-sale-lines` |
 | Pruebas | `SaleLinesIT` | Nuevo | §11 |
 | Pruebas | `EndpointPermissionsIT`, `OpenApiContractIT` | Modificado | La ruta y su extensión |
@@ -59,7 +59,7 @@
 
 | Código | Cuándo | `error_code` |
 |---|---|---|
-| `400` | Paginación, identificador, estado, estado de entrega o rango inválidos — **juntos** | `VAL-001` a `VAL-005` |
+| `400` | Paginación, identificador, estado, estado de entrega, **estado del tipo** o rango inválidos — **juntos** | `VAL-001` a `VAL-005` (el del estado del tipo viaja con `VAL-005`, como en `RF-MV-015`) |
 | `401` | Sin token | `AUTH-001` |
 | `403` | Sin `movements:list-sale-lines` | `AUTH-002` |
 
@@ -109,6 +109,8 @@ Se siembra **solo para `SUPERADMIN` y `ADMIN`**, al contrario que `movements:lis
 | **Resolver el vendedor en una segunda consulta**, como `findSellersOf` | Allí hace falta porque una venta tiene varios; aquí la fila tiene uno. Sería un `N+1` sin ganar nada |
 | **`JOIN` en lugar de `LEFT JOIN` para el vendedor** | Haría desaparecer las líneas sin vendedor en lugar de publicarlas con nulo (`CA-MV-165`) |
 | **Derivar el estado de entrega** como `RF-MV-014` | Repetiría aquí su máquina de estados, y dos copias divergen (`spec.md` §14.3) |
+| **Publicar `typeStatus` en cada fila**, como `RF-MV-006` y `RF-MV-015` | Decisión del responsable del proyecto del 23-09-2026: se **filtra** por él y no se publica (`spec.md` §14.7). El `JOIN` se paga igual cuando el filtro viene, y la fila no crece para responder una pregunta que este listado no hace |
+| **Resolver el estado del tipo con una subconsulta en el `WHERE`** en lugar del `JOIN` | Ahorraría el `JOIN` cuando el filtro no viene, y a cambio el predicado quedaría escrito distinto que en los otros dos listados. La consistencia de la casa gana: `filtro.igual("mts.code", …)` es lo que ya hacen `RF-MV-006` y `RF-MV-015` |
 | **Conteo exacto** | `movement_details` es la tabla que más crece; un `count(*)` sin techo se paga en cada página |
 | **Un índice para el filtro por producto** | El filtro menos frecuente de siete, y el índice se paga en cada venta registrada (§2). Se deja declarado por si el uso lo desmiente |
 
@@ -136,5 +138,9 @@ Se siembra **solo para `SUPERADMIN` y `ADMIN`**, al contrario que `movements:lis
 | `CA-MV-177` | Integración (`SaleLinesPermissionSeedIT`) | La siembra de `V37` y el catálogo en 135 |
 | `CA-MV-178` | Integración (`SaleLinesIT`) | Dos sentencias con una fila y dos con veinte |
 | `CA-MV-179` | Integración (`SaleLinesIT`) | Una línea de un movimiento que no es venta **no sale** — se siembra a mano, porque hoy no hay otro tipo |
+| `CA-MV-180` | API (`SaleLinesIT`) | El filtro por estado del tipo, y combinado con otro |
+| `CA-MV-181` | API (`SaleLinesIT`) | El `400` del estado del tipo desconocido, **con los demás en la misma respuesta** |
 
 **El fixture**: dos ventas confirmadas con dos y tres líneas, una anulada con una, una línea **sin vendedor**, dos vendedores distintos en la misma venta, dos productos, dos sujetos, y una línea de un movimiento de otro tipo sembrado a mano para `CA-MV-179`.
+
+**Desde 0.2.0 el fixture declara el estado del tipo de cada venta**, que `V36` hizo `NOT NULL`: se resuelve **por código** y no por identificador literal, y el movimiento de otro tipo de `CA-MV-179` necesita **el suyo**, porque la clave ajena de `movements` es compuesta —`(type_status_id, movement_type_id)`— y un estado de otro tipo no vale. Para `CA-MV-180` una de las ventas queda en `VALIDAR_COMISIONES` y la otra en `VALIDADO`.

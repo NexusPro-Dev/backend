@@ -37,7 +37,7 @@ Responder **«qué se ha vendido»**, y no «qué ventas hubo»: una fila por **
 
 - Listar **todas** las líneas de las ventas, paginadas y de la más reciente a la más antigua.
 - Publicar en cada fila **lo de la línea** y **lo de la venta que la explica**.
-- Filtrar por venta, persona, vendedor, producto, estado de la venta, estado de entrega y rango de fechas, **combinables**.
+- Filtrar por venta, persona, vendedor, producto, estado de la venta, estado de entrega, **estado del tipo** y rango de fechas, **combinables**.
 - Un total **acotado** por el techo de conteo de `RF-SP-011`.
 
 ### 4.2 No incluye
@@ -54,6 +54,7 @@ Responder **«qué se ha vendido»**, y no «qué ventas hubo»: una fila por **
 |---|---|---|
 | `RN-MV-002` | Lo vendido se **congela** en la línea: el nombre y el precio son los del día de la venta, y no se releen | `requirements/mv.md` §5.1 |
 | `RN-MV-003` | El vendedor es **de la línea**, no de la venta | `requirements/mv.md` §5.1 |
+| `RN-MV-033` | Cada tipo de movimiento declara **sus** estados, un eje aparte del pago y de la entrega (23-09-2026, `RF-MV-016`) | `requirements/mv.md` §5.1 |
 | `RN-SEG-014` | Un permiso gobierna una operación o ninguna | `security.md` §4.3 |
 | `RN-SEG-015` | Autenticarse no autoriza nada: la ruta exige permiso | `security.md` §4.3 |
 | `RF-SP-011` | El total se cuenta **hasta un techo** y se declara si es exacto | `specs/sp/011-*` |
@@ -73,6 +74,7 @@ Todo por *query string*, todo opcional, y **se combinan**:
 | `productId` | Las líneas de **un producto** del catálogo | `uuid`; inexistente → página vacía |
 | `status` | El estado de la **venta** | Del catálogo cerrado; otro valor es `400` |
 | `deliveryStatus` | El estado de **entrega de la línea** | Del catálogo cerrado; otro valor es `400` |
+| `typeStatus` | El **estado del tipo** de la venta —`VALIDAR_COMISIONES` o `VALIDADO`— (23-09-2026, `RF-MV-016`) | Del catálogo de estados por tipo; otro valor es `400`. **No se publica en la fila**: §14.7 |
 | `code` | El comprobante exacto de la venta, sin distinguir caja | — |
 | `from`, `to` | **Cuándo ocurrió la venta**; instantes con zona, rango **semiabierto** | `from` posterior a `to` es `400` |
 
@@ -140,8 +142,11 @@ Ninguna propia. Sin el permiso, `403` (`AUTH-002`); sin token, `401` (`AUTH-001`
 | `VAL-003` | `deliveryStatus` pertenece al catálogo de estados de entrega | El estado de entrega indicado no es válido. |
 | `VAL-004` | `from` no es posterior a `to` | El rango de fechas es inválido: `from` no puede ser posterior a `to`. |
 | `VAL-005` | La paginación es válida | La del sistema |
+| `VAL-006` | `typeStatus` pertenece al catálogo de estados por tipo (23-09-2026) | El estado del tipo indicado no existe. |
 
-**Los cinco se devuelven juntos**, como en `RF-MV-006` y `RF-MV-015`: quien se equivocó en dos filtros corrige una vez.
+**Los seis se devuelven juntos**, como en `RF-MV-006` y `RF-MV-015`: quien se equivocó en dos filtros corrige una vez.
+
+**El `VAL-006` viaja en el cuerpo con el código `VAL-005`**, que es el que `RF-MV-015` devuelve para este mismo error. El número de esta tabla es la etiqueta de la especificación y el del cuerpo es lo que lee el cliente: para él importa que el mismo filtro mal escrito se llame igual en los dos listados. Aquí ya ocurría con la paginación, que viaja con el `VAL-003` del sistema.
 
 ## 12. Criterios de aceptación
 
@@ -164,6 +169,8 @@ Ninguna propia. Sin el permiso, `403` (`AUTH-002`); sin token, `401` (`AUTH-001`
 | `CA-MV-177` | `V37` siembra el permiso **solo** para `SUPERADMIN` y `ADMIN`, con la contención de `RN-SEG-003`; el catálogo cuenta **ciento treinta y cinco** |
 | `CA-MV-178` | El número de sentencias **no crece** con el tamaño de la página: dos con una fila y dos con veinte |
 | `CA-MV-179` | La consulta **no devuelve** líneas de movimientos que no son ventas |
+| `CA-MV-180` | `typeStatus` acota por el estado del tipo de la venta: pidiendo `VALIDADO` no salen las líneas de una venta en `VALIDAR_COMISIONES`, y se **combina** con los demás filtros |
+| `CA-MV-181` | Un `typeStatus` desconocido responde `400` sobre el campo `typeStatus`, **junto a los demás problemas** de la misma petición |
 
 ## 13. Casos límite
 
@@ -175,6 +182,7 @@ Ninguna propia. Sin el permiso, `403` (`AUTH-002`); sin token, `401` (`AUTH-001`
 | Una línea de un producto eliminado del catálogo | Sale: el nombre está congelado en la línea (`FA-005`) |
 | `size` enorme | Lo acota la paginación del sistema, como en todo listado |
 | Filtrar por `deliveryStatus` en una venta pendiente de pago | Sale si su línea está en ese estado de entrega: son dos ejes distintos y se combinan |
+| Filtrar por un `typeStatus` que existe pero pertenece a otro tipo de movimiento | Página vacía, y no `400`: el código existe en el catálogo —de modo que la pregunta está bien escrita— pero el listado solo mira ventas |
 
 ## 14. Preguntas abiertas resueltas
 
@@ -186,9 +194,11 @@ Ninguna propia. Sin el permiso, `403` (`AUTH-002`); sin token, `401` (`AUTH-001`
 | 4 | ¿Se publica el cupón del bot? | **No** (§4.2). Es el medio de la entrega y `RF-MV-014` lo reparte a quien compró, solo si está entregado |
 | 5 | ¿Solo ventas, o cualquier movimiento? | **Solo ventas**, como `RF-MV-015`. Hoy es el único tipo que existe, de modo que la diferencia es de intención: el día que haya depósitos, sus líneas no entran aquí por descuido |
 | 6 | ¿Hace falta un tipo nuevo en el esquema? | **No.** Todo lo que la fila publica está en `movement_details` y en `movements` desde `V16`. Nace la operación, no el dato |
+| 7 | ¿Se **publica** `typeStatus` en cada fila, como en `RF-MV-006` y `RF-MV-015`? | **No** (23-09-2026, responsable del proyecto), y **sí se filtra** por él. Queda escrito porque la asimetría se lee como un olvido: acotar por el estado del tipo es la pregunta de administración —«¿qué falta por validar?»—, y traer la columna en cinco mil filas se paga para responder otra que este listado no hace. Quien necesite verlo lo tiene en `RF-MV-006` y en el detalle |
 
 ## 15. Control de cambios
 
 | Versión | Fecha | Cambio | Responsable |
 |---|---|---|---|
 | 0.1.0 | 23-09-2026 | Redacción inicial, el día que el responsable del proyecto pidió «un endpoint para traer todas las líneas de las ventas, con su propio permiso, paginado». Hereda de `RF-MV-014` la forma de la fila —una por línea, con el nombre congelado— y de `RF-MV-006` la familia de filtros, el `400` conjunto y el techo de conteo. Decide: **administración sin alcance por estructura**, una fila por línea, el estado de entrega **crudo**, sin cupón y solo ventas. Diecisiete criterios, `CA-MV-163` a `CA-MV-179`. | Responsable del proyecto |
+| 0.2.0 | 23-09-2026 | **Entra el filtro `typeStatus` y el campo NO se publica** (enmienda del Art. I.7, el día que `RF-MV-016` integró el eje de estados por tipo), por decisión del responsable del proyecto. Los filtros pasan a **ocho** y los criterios a **diecinueve**: nacen `CA-MV-180` y `CA-MV-181`, y `VAL-006` —que viaja en el cuerpo con el código `VAL-005`, el mismo que `RF-MV-015`—. Entra `RN-MV-033` en §5. La fila no cambia, de modo que **ninguna forma publicada se toca**: quien ya consumía el listado no nota la enmienda. | Responsable del proyecto |
