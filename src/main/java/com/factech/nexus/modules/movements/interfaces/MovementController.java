@@ -505,15 +505,22 @@ public class MovementController {
           `GET /movements/mine/products`: administración necesita saber por qué algo está
           donde está.
 
-          **Los siete filtros se combinan** y cada uno responde una pregunta: `movementId`
+          **Los ocho filtros se combinan** y cada uno responde una pregunta: `movementId`
           (las líneas de una venta), `userId` (qué compró esta persona, el sujeto),
           `sellerId` (qué vendió esta persona, **como vendedora de la línea**), `productId`
           (qué se vendió de este producto), `status` (el estado de la VENTA),
-          `deliveryStatus` (el de la LÍNEA), `code` (un comprobante exacto, sin distinguir
+          `deliveryStatus` (el de la LÍNEA), `typeStatus` (el estado del TIPO de la venta,
+          `VALIDAR_COMISIONES` o `VALIDADO`: la pregunta «qué falta por validar»),
+          `code` (un comprobante exacto, sin distinguir
           mayúsculas) y `from`/`to` sobre **cuándo ocurrió la venta**, con el rango
           **semiabierto** —incluye `from`, excluye `to`—. Un identificador inexistente da
           **página vacía**; un estado que no existe es `400`, porque el catálogo es cerrado.
           Los problemas de forma se devuelven **juntos**.
+
+          **`typeStatus` se puede filtrar pero NO viaja en la fila**, y conviene saberlo antes
+          de integrar: para ver el estado del tipo de una venta está
+          `GET /movements` —que lo publica— y el detalle. Aquí se puede acotar por él y la
+          fila no lo trae, por decisión del responsable del proyecto del 23-09-2026.
 
           **El total puede no ser exacto**: por encima del techo de conteo vale el techo y
           `totalIsExact` lo declara. Aquí importa más que en ningún otro listado, porque una
@@ -525,8 +532,9 @@ public class MovementController {
         responseCode = "400",
         description =
             "Paginación inválida, estado o estado de entrega no admitidos (`VAL-002`,"
-                + " `VAL-003`), identificador malformado (`VAL-001`) o `from` posterior a `to`"
-                + " (`VAL-004`). Los problemas se devuelven juntos.",
+                + " `VAL-003`), estado del tipo inexistente (`VAL-005`), identificador"
+                + " malformado (`VAL-001`) o `from` posterior a `to` (`VAL-004`). Los"
+                + " problemas se devuelven juntos.",
         content = @Content),
     @ApiResponse(
         responseCode = "401",
@@ -550,6 +558,7 @@ public class MovementController {
       @RequestParam(required = false) UUID productId,
       @RequestParam(required = false) String status,
       @RequestParam(required = false) String deliveryStatus,
+      @RequestParam(required = false) String typeStatus,
       @RequestParam(required = false) String code,
       @RequestParam(required = false) OffsetDateTime from,
       @RequestParam(required = false) OffsetDateTime to) {
@@ -563,6 +572,7 @@ public class MovementController {
             productId,
             status,
             deliveryStatus,
+            typeStatus,
             code,
             from,
             to));

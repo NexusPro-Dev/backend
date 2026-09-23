@@ -57,6 +57,7 @@ public class ListSaleLinesService {
             peticion.productId(),
             peticion.status(),
             peticion.deliveryStatus(),
+            peticion.typeStatus(),
             peticion.code(),
             peticion.from(),
             peticion.to());
@@ -72,7 +73,7 @@ public class ListSaleLinesService {
   }
 
   /**
-   * Los cinco problemas se devuelven <b>juntos</b>, como en `RF-MV-006` y `RF-MV-015`: quien
+   * Los seis problemas se devuelven <b>juntos</b>, como en `RF-MV-006` y `RF-MV-015`: quien
    * escribió mal dos filtros corrige una vez.
    *
    * <p><b>Los estados son error y las personas no</b>, y la asimetría es la que el módulo ya fijó:
@@ -120,6 +121,24 @@ public class ListSaleLinesService {
                   + "' no existe. Valores admitidos: "
                   + Arrays.stream(DeliveryStatus.values()).map(Enum::name).toList()
                   + "."));
+    }
+
+    // El estado del tipo (0.2.0), contra el catálogo que `V36` siembra y que no
+    // se edita por API. Es el único de los tres que no se valida contra un
+    // enumerado: los estados por tipo son FILAS, de modo que preguntarlo al
+    // repositorio es lo único que no envejece cuando alguien siembra otro.
+    //
+    // VIAJA CON `VAL-005`, que es el código que `RF-MV-015` devuelve para este
+    // mismo error (`spec.md` §11): al cliente le importa que el mismo filtro mal
+    // escrito se llame igual en los dos listados, y en esta especificación el
+    // `VAL-005` de la tabla ya lo tenía la paginación, que viaja con el
+    // `VAL-003` del sistema.
+    if (peticion.typeStatus() != null && !movimientos.existsTypeStatusCode(peticion.typeStatus())) {
+      problemas.add(
+          new FieldError(
+              "typeStatus",
+              "VAL-005",
+              "El estado del tipo '" + peticion.typeStatus() + "' no existe."));
     }
 
     if (peticion.from() != null

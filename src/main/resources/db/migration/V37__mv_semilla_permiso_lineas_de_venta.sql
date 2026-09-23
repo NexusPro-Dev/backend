@@ -16,13 +16,17 @@
 -- exactamente lo que la separación de RN-SEG-014 existe para impedir.
 --
 -- IDENTIFICADOR LITERAL (Art. V.11): la marca v7 del 23-09-2026 (01a0d7f13800)
--- continuando la serie de MV (5e7ad7) donde V32 la dejó: 000008 → 000009.
+-- continuando la serie de MV (5e7ad7) donde V36 la dejó: 000009 → 00000a. El
+-- 000009 lo tomó `movements:assign-sellers` (RF-MV-016) en la rama de abajo, y
+-- por eso este no lo reutiliza: el sufijo de la serie es lo que dice EN QUÉ ORDEN
+-- nacieron los permisos del recurso.
 --
 -- GUARDAS: 134 en el catálogo / SUPERADMIN 134 / ADMIN 128 / cero filas que
 -- rompan la contención de RN-SEG-003. Aborta si no cuadra.
 --
--- EL 134 ES EL QUE DEJA V36 (`movements:assign-sellers`, RF-MV-016), que va
--- delante en otra rama. Es una guarda estricta a propósito: si alguien aplica
+-- EL 134 ES EL QUE DEJA V36 (`movements:assign-sellers`, RF-MV-016), que ya va
+-- delante EN LA BASE DE ESTA RAMA —apilada sobre `feature/estados-de-comision`—.
+-- Es una guarda estricta a propósito: si alguien aplica
 -- esta migración sobre un catálogo que no es el que se diseñó, el fallo sale
 -- aquí y con su mensaje, en lugar de salir como un recuento raro en cuatro
 -- suites de permisos.
@@ -31,7 +35,7 @@
 -- =============================================================================
 
 INSERT INTO permissions (id, code, resource, action, name, description) VALUES
-('01a0d7f1-3800-700d-9c4f-5e7ad7000009', 'movements:list-sale-lines', 'movements',
+('01a0d7f1-3800-700d-9c4f-5e7ad700000a', 'movements:list-sale-lines', 'movements',
  'list-sale-lines',
  'Consultar las líneas de venta',
  'Ver todas las líneas de venta del libro, paginadas, por GET /movements/sales/lines (RF-MV-017). Es la lectura de ADMINISTRACION: con el se ve todo, de quien sea, y NO aplica RN-MV-031 —el alcance por estructura es de movements:list-sales—. Lo propio se consulta con movements:read-own-products.');
@@ -39,7 +43,7 @@ INSERT INTO permissions (id, code, resource, action, name, description) VALUES
 -- Solo SUPERADMIN y ADMIN, EXPLICITOS. Ver la cabecera: no es la vista de
 -- cualquiera. ON CONFLICT por si alguien lo concedió a mano entre dos arranques.
 INSERT INTO role_permissions (role_id, permission_id)
-SELECT r.id, '01a0d7f1-3800-700d-9c4f-5e7ad7000009'
+SELECT r.id, '01a0d7f1-3800-700d-9c4f-5e7ad700000a'
   FROM roles r
  WHERE r.id IN ('01a02a33-4c00-7001-9c4f-5e7ad1000001',
                 '01a02a33-4c00-7002-9c4f-5e7ad1000002')
@@ -69,7 +73,7 @@ BEGIN
     -- posterior podría ensancharlo sin que nada lo notara.
     SELECT count(*) INTO otros
       FROM role_permissions
-     WHERE permission_id = '01a0d7f1-3800-700d-9c4f-5e7ad7000009'
+     WHERE permission_id = '01a0d7f1-3800-700d-9c4f-5e7ad700000a'
        AND role_id NOT IN ('01a02a33-4c00-7001-9c4f-5e7ad1000001',
                            '01a02a33-4c00-7002-9c4f-5e7ad1000002');
     IF otros <> 0 THEN

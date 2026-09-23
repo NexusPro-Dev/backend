@@ -25,14 +25,14 @@ class PermissionsSeedIT extends IntegrationTestBase {
 
   @Test
   @DisplayName(
-      "el catálogo tiene exactamente CIENTO TREINTA Y CUATRO: sesenta y uno de SP, veintiséis de"
-          + " PM, diez de CM, nueve de MV y veintiocho de AC (V28: un permiso por operación,"
+      "el catálogo tiene exactamente CIENTO TREINTA Y CINCO: sesenta y uno de SP, veintiséis de"
+          + " PM, diez de CM, diez de MV y veintiocho de AC (V28: un permiso por operación,"
           + " CA-SP-688; V29 y V30: los de RF-SP-059 y 061; V31: los once de alcance propio de"
           + " RF-SP-062, CA-SP-725; V32: movements:list-sales de RF-MV-015; V34: los ocho teams: de RF-SP-063 a RF-SP-070;"
-          + " V36: movements:assign-sellers de RF-MV-016)")
+          + " V36: movements:assign-sellers de RF-MV-016; V37: movements:list-sale-lines de RF-MV-017)")
   void catalogoCompleto() {
     assertThat(jdbc.queryForObject("SELECT count(*) FROM permissions", Integer.class))
-        .isEqualTo(134);
+        .isEqualTo(135);
   }
 
   @Test
@@ -182,6 +182,7 @@ class PermissionsSeedIT extends IntegrationTestBase {
             "movements:read-own-products",
             "movements:list-sales",
             "movements:assign-sellers",
+            "movements:list-sale-lines",
             "movements:void",
             // El SEGUNDO recurso de `PM` (`V93`, 15-09-2026), por decisión del
             // responsable del proyecto: armar paquetes y tocar el catálogo son
@@ -265,7 +266,7 @@ class PermissionsSeedIT extends IntegrationTestBase {
   void identificadoresUuidV7() {
     List<UUID> ids = jdbc.queryForList("SELECT id FROM permissions", UUID.class);
 
-    assertThat(ids).hasSize(134).doesNotHaveDuplicates();
+    assertThat(ids).hasSize(135).doesNotHaveDuplicates();
     assertThat(ids).allSatisfy(id -> assertThat(id.version()).isEqualTo(7));
     // variant() == 2 es la variante RFC 9562 (bits 10xx).
     assertThat(ids).allSatisfy(id -> assertThat(id.variant()).isEqualTo(2));
@@ -331,13 +332,13 @@ class PermissionsSeedIT extends IntegrationTestBase {
                 "SELECT count(*) FROM role_permissions WHERE role_id ="
                     + " '01a02a33-4c00-7001-9c4f-5e7ad1000001'",
                 Integer.class))
-        .isEqualTo(134);
+        .isEqualTo(135);
     assertThat(
             jdbc.queryForObject(
                 "SELECT count(*) FROM role_permissions WHERE role_id ="
                     + " '01a02a33-4c00-7002-9c4f-5e7ad1000002'",
                 Integer.class))
-        .isEqualTo(128);
+        .isEqualTo(129);
     assertThat(
             jdbc.queryForList(
                 """

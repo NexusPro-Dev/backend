@@ -1200,6 +1200,7 @@ public class JpaMovementRepository implements MovementRepository {
       FROM movement_details d
       JOIN movements m ON m.id = d.movement_id
       JOIN movement_types mt ON mt.id = m.movement_type_id
+      JOIN movement_type_statuses mts ON mts.id = m.type_status_id
       JOIN users suj ON suj.id = m.user_id
       JOIN products p ON p.id = d.product_id
       JOIN currencies cur ON cur.id = m.currency_id
@@ -1242,6 +1243,10 @@ public class JpaMovementRepository implements MovementRepository {
     filtro.igual("d.product_id", "producto", f.productId());
     filtro.igual("m.status", "estado", f.status());
     filtro.igual("d.delivery_status", "entrega", f.deliveryStatus());
+    // El estado del tipo (0.2.0, `RF-MV-016`), por código y con el mismo
+    // predicado que los otros dos listados. `movement_type_statuses` está en el
+    // bloque de tablas y NO en las columnas: se filtra por él y no se publica.
+    filtro.igual("mts.code", "estadoDelTipo", f.typeStatus());
     filtro.igual("m.code", "codigo", f.code());
     if (f.from() != null) {
       filtro.condicion("m.occurred_at >= :desde", "desde", f.from());

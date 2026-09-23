@@ -77,8 +77,12 @@ class SaleLinesIT extends IntegrationTestBase {
     linea(ventaDeDos, bot, vendedorUno, 2, "120.00", "20.00", "220.00", 30, "ENTREGADA", BASE);
     linea(ventaDeDos, curso, vendedorDos, 1, "80.00", "0.00", "80.00", null, "PENDIENTE", null);
 
-    // Una línea SIN vendedor: tiene que salir con `seller` nulo.
-    ventaSinVendedor = venta(beto, "CONFIRMADA", BASE.plusHours(1), "VTA-SL-0002");
+    // Una línea SIN vendedor: tiene que salir con `seller` nulo. Y su venta queda
+    // en `VALIDAR_COMISIONES`, que no es adorno del fixture: es el estado que
+    // `RN-MV-034` le da precisamente a la venta cuyas líneas no tienen vendedor.
+    // Las otras dos quedan en `VALIDADO`, de modo que `CA-MV-180` separa una de tres.
+    ventaSinVendedor =
+        venta(beto, "CONFIRMADA", BASE.plusHours(1), "VTA-SL-0002", "VALIDAR_COMISIONES");
     linea(ventaSinVendedor, bot, null, 1, "120.00", "0.00", "120.00", 30, "RETENIDA", null);
 
     // Y una anulada, que sale igual cuando no se filtra.
@@ -344,18 +348,31 @@ class SaleLinesIT extends IntegrationTestBase {
             + " (CAST(? AS uuid), 'SL_DEPOSITO', 'Deposito de prueba', 'DEP')"
             + " ON CONFLICT DO NOTHING",
         otroTipo);
+    // Su estado, porque la FK de `movements` es compuesta con el tipo: `V36`
+    // solo siembra los de VENTA, y sin esto el movimiento no tiene estado que
+    // referenciar.
+    jdbc.update(
+        "INSERT INTO movement_type_statuses (id, movement_type_id, code, name) VALUES"
+            + " (gen_random_uuid(), CAST(? AS uuid), 'VALIDADO', 'Validado')"
+            + " ON CONFLICT DO NOTHING",
+        otroTipo);
     UUID deposito = UUID.randomUUID();
     jdbc.update(
         """
-        INSERT INTO movements (id, movement_type_id, user_id, payment_method_id, currency_id,
+        INSERT INTO movements (id, movement_type_id, type_status_id, user_id,
+                               payment_method_id, currency_id,
                                code, status, total_amount, discount_amount, payable_amount,
                                occurred_at, confirmed_at)
-        VALUES (?, CAST(? AS uuid), ?, CAST(? AS uuid), CAST(? AS uuid), 'DEP-SL-0001',
+        VALUES (?, CAST(? AS uuid),
+                (SELECT s.id FROM movement_type_statuses s
+                  WHERE s.movement_type_id = CAST(? AS uuid) AND s.code = 'VALIDADO'),
+                ?, CAST(? AS uuid), CAST(? AS uuid), 'DEP-SL-0001',
                 'CONFIRMADA', 50.00, 0, 50.00, CAST(? AS timestamptz),
                 -- `ck_movements_confirmed`: una confirmada lleva su fecha.
                 CAST(? AS timestamptz))
         """,
         deposito,
+        otroTipo,
         otroTipo,
         ana,
         TARJETA,
@@ -383,6 +400,54 @@ class SaleLinesIT extends IntegrationTestBase {
                 .value(org.hamcrest.Matchers.not(org.hamcrest.Matchers.hasItem("DEP-SL-0001"))));
   }
 
+  @Test
+  @DisplayName(
+      "`CA-MV-180` — typeStatus acota por el estado del TIPO de la venta, y se combina con los demás")
+  void filtroPorEstadoDelTipo() throws Exception {
+    // Tres líneas en ventas `VALIDADO` y una en la que está pendiente de validar.
+    mvc.perform(consulta("typeStatus", "VALIDADO"))
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$.content.length()").value(3))
+        .andExpect(
+            jsonPath("$.content[*].movementCode")
+                .value(org.hamcrest.Matchers.not(org.hamcrest.Matchers.hasItem("VTA-SL-0002"))));
+
+    mvc.perform(consulta("typeStatus", "VALIDAR_COMISIONES"))
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$.content.length()").value(1))
+        .andExpect(jsonPath("$.content[0].movementId").value(ventaSinVendedor.toString()))
+        // Y NO lo publica, que es la otra mitad de la decisión del 23-09-2026: se
+        // filtra por el estado del tipo y la fila no lo trae.
+        .andExpect(jsonPath("$.content[0].typeStatus").doesNotExist());
+
+    // Combinado: el mismo estado, pero de quien no compró esa venta.
+    mvc.perform(
+            consulta().param("typeStatus", "VALIDAR_COMISIONES").param("userId", ana.toString()))
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$.content.length()").value(0));
+  }
+
+  @Test
+  @DisplayName(
+      "`CA-MV-181` — un typeStatus que no existe es 400 sobre su campo, y viaja con los demás"
+          + " problemas de la misma petición")
+  void elEstadoDelTipoDesconocidoEsCuatrocientos() throws Exception {
+    // Solo: el catálogo de estados por tipo es cerrado —son filas que nadie edita
+    // por API—, de modo que preguntar por uno inventado es una pregunta mal escrita
+    // y no una página vacía.
+    mvc.perform(consulta("typeStatus", "NO_EXISTE"))
+        .andExpect(status().isBadRequest())
+        .andExpect(jsonPath("$.errors[*].field").value(org.hamcrest.Matchers.hasItem("typeStatus")))
+        .andExpect(jsonPath("$.errors[0].code").value("VAL-005"));
+
+    // Y acompañado: los dos estados mal escritos vuelven en la MISMA respuesta.
+    mvc.perform(consulta().param("typeStatus", "NO_EXISTE").param("status", "TAMPOCO"))
+        .andExpect(status().isBadRequest())
+        .andExpect(
+            jsonPath("$.errors[*].field")
+                .value(org.hamcrest.Matchers.hasItems("typeStatus", "status")));
+  }
+
   // ---------------------------------------------------------------- fixture
 
   private MockHttpServletRequestBuilder consulta() {
@@ -400,6 +465,10 @@ class SaleLinesIT extends IntegrationTestBase {
   private void limpiar() {
     jdbc.update("DELETE FROM movement_details");
     jdbc.update("DELETE FROM movements");
+    // Los estados antes que el tipo: su FK al tipo es RESTRICT.
+    jdbc.update(
+        "DELETE FROM movement_type_statuses WHERE movement_type_id IN"
+            + " (SELECT id FROM movement_types WHERE code = 'SL_DEPOSITO')");
     jdbc.update("DELETE FROM movement_types WHERE code = 'SL_DEPOSITO'");
     ProductLinkTestSupport.limpiar(jdbc);
     jdbc.update("DELETE FROM products WHERE code LIKE 'SL\\_%'");
@@ -439,14 +508,32 @@ class SaleLinesIT extends IntegrationTestBase {
     return id;
   }
 
+  /** En `VALIDADO`, que es como queda una venta con todos sus vendedores puestos. */
   private UUID venta(UUID sujeto, String estado, OffsetDateTime cuando, String codigo) {
+    return venta(sujeto, estado, cuando, codigo, "VALIDADO");
+  }
+
+  /**
+   * Con el estado del tipo <b>dicho</b> (`RN-MV-033`), que es lo que `CA-MV-180` necesita: el
+   * filtro no se puede probar con todas las ventas en el mismo estado.
+   */
+  private UUID venta(
+      UUID sujeto, String estado, OffsetDateTime cuando, String codigo, String estadoDelTipo) {
     UUID id = UUID.randomUUID();
     jdbc.update(
         """
-        INSERT INTO movements (id, movement_type_id, user_id, payment_method_id, currency_id,
+        INSERT INTO movements (id, movement_type_id, type_status_id, user_id,
+                               payment_method_id, currency_id,
                                code, status, total_amount, discount_amount, payable_amount,
                                occurred_at, confirmed_at, voided_at, void_reason)
-        VALUES (?, CAST(? AS uuid), ?, CAST(? AS uuid), CAST(? AS uuid), ?, ?,
+        VALUES (?, CAST(? AS uuid),
+                -- `type_status_id` es NOT NULL desde `V36` (`RF-MV-016`), y su FK es
+                -- COMPUESTA con el tipo: el estado tiene que ser DEL MISMO TIPO que el
+                -- movimiento. Por CÓDIGO y no por identificador literal, para que la
+                -- prueba no envejezca si esa siembra cambia de id.
+                (SELECT s.id FROM movement_type_statuses s
+                  WHERE s.movement_type_id = CAST(? AS uuid) AND s.code = ?),
+                ?, CAST(? AS uuid), CAST(? AS uuid), ?, ?,
                 300.00, 20.00, 280.00, CAST(? AS timestamptz),
                 CASE WHEN ? = 'CONFIRMADA' THEN CAST(? AS timestamptz) ELSE NULL END,
                 CASE WHEN ? = 'ANULADA' THEN now() ELSE NULL END,
@@ -454,6 +541,8 @@ class SaleLinesIT extends IntegrationTestBase {
         """,
         id,
         VENTA,
+        VENTA,
+        estadoDelTipo,
         sujeto,
         TARJETA,
         USD,

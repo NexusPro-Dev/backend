@@ -539,7 +539,7 @@ public interface MovementRepository {
   BoundedCount countSaleLines(SaleLinesFilter filter, int techo);
 
   /**
-   * Los siete filtros del listado de líneas, todos opcionales y combinables.
+   * Los ocho filtros del listado de líneas, todos opcionales y combinables.
    *
    * <p><b>No lleva actor ni alcance</b>, y su ausencia es la implementación: `RF-MV-017` es de
    * administración y con el permiso se ve todo el libro. El alcance por estructura vive en {@link
@@ -552,6 +552,7 @@ public interface MovementRepository {
       UUID productId,
       String status,
       String deliveryStatus,
+      String typeStatus,
       String code,
       OffsetDateTime from,
       OffsetDateTime to) {}

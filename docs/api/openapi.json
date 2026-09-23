@@ -3087,6 +3087,36 @@
         },
         "type" : "object"
       },
+      "PageResponseSaleLineItem" : {
+        "properties" : {
+          "content" : {
+            "items" : {
+              "$ref" : "#/components/schemas/SaleLineItem"
+            },
+            "type" : "array"
+          },
+          "page" : {
+            "format" : "int32",
+            "type" : "integer"
+          },
+          "size" : {
+            "format" : "int32",
+            "type" : "integer"
+          },
+          "totalElements" : {
+            "format" : "int64",
+            "type" : "integer"
+          },
+          "totalIsExact" : {
+            "type" : "boolean"
+          },
+          "totalPages" : {
+            "format" : "int32",
+            "type" : "integer"
+          }
+        },
+        "type" : "object"
+      },
       "PageResponseSecurityAuditItem" : {
         "properties" : {
           "content" : {
@@ -4698,6 +4728,117 @@
           "value" : {
             "description" : "Lo pactado: 10 si es porcentaje, 5.00 si es fijo.",
             "type" : "number"
+          }
+        },
+        "type" : "object"
+      },
+      "SaleLineItem" : {
+        "properties" : {
+          "client" : {
+            "$ref" : "#/components/schemas/SaleLineParty",
+            "description" : "El SUJETO de la venta: a nombre de quién es."
+          },
+          "currency" : {
+            "description" : "El código de la moneda de la venta: el importe sin ella no dice nada.",
+            "type" : "string"
+          },
+          "deliveredAt" : {
+            "description" : "Cuándo se entregó. NULO si no se ha entregado.",
+            "format" : "date-time",
+            "type" : [ "string", "null" ]
+          },
+          "deliveryNote" : {
+            "description" : "Por qué no se entregará. Solo en RETENIDA (`RN-MV-029`).",
+            "type" : [ "string", "null" ]
+          },
+          "deliveryStatus" : {
+            "description" : "El estado de entrega DE LA LÍNEA: PENDIENTE, ENTREGADA o RETENIDA.",
+            "type" : "string"
+          },
+          "implementation" : {
+            "description" : "COPIA de cómo se entrega: AUTOMATICA o MANUAL.",
+            "type" : "string"
+          },
+          "lineAmount" : {
+            "type" : "number"
+          },
+          "lineDiscount" : {
+            "description" : "El descuento de la línea; sin él los importes no cuadran.",
+            "type" : "number"
+          },
+          "lineId" : {
+            "description" : "La línea. No se publica en ninguna otra consulta.",
+            "format" : "uuid",
+            "type" : "string"
+          },
+          "movementCode" : {
+            "type" : "string"
+          },
+          "movementId" : {
+            "description" : "De qué venta viene; se abre con `GET /movements/{id}`.",
+            "format" : "uuid",
+            "type" : "string"
+          },
+          "movementStatus" : {
+            "description" : "El estado de la VENTA, no el de la entrega.",
+            "type" : "string"
+          },
+          "occurredAt" : {
+            "description" : "Cuándo ocurrió la venta. Es el orden del listado.",
+            "format" : "date-time",
+            "type" : "string"
+          },
+          "product" : {
+            "$ref" : "#/components/schemas/SaleLineProductRef",
+            "description" : "El producto, con el nombre CONGELADO del día de la venta."
+          },
+          "quantity" : {
+            "format" : "int32",
+            "type" : "integer"
+          },
+          "seller" : {
+            "$ref" : "#/components/schemas/SaleLineParty",
+            "description" : "Quien vendió ESTA línea (`RN-MV-003`). Presente y NULO cuando la línea no lo tiene; la fila no desaparece por eso.",
+            "type" : [ "object", "null" ]
+          },
+          "unitPrice" : {
+            "description" : "COPIA del precio del catálogo el día de la venta. No se relee.",
+            "type" : "number"
+          },
+          "validityDays" : {
+            "description" : "COPIA de la vigencia en días. NULO si lo comprado no caduca.",
+            "format" : "int32",
+            "type" : [ "integer", "null" ]
+          }
+        },
+        "type" : "object"
+      },
+      "SaleLineParty" : {
+        "properties" : {
+          "id" : {
+            "format" : "uuid",
+            "type" : "string"
+          },
+          "name" : {
+            "type" : "string"
+          },
+          "username" : {
+            "type" : "string"
+          }
+        },
+        "type" : "object"
+      },
+      "SaleLineProductRef" : {
+        "properties" : {
+          "code" : {
+            "type" : "string"
+          },
+          "id" : {
+            "format" : "uuid",
+            "type" : "string"
+          },
+          "name" : {
+            "type" : "string"
           }
         },
         "type" : "object"
@@ -9996,6 +10137,132 @@
         "summary" : "Consultar las ventas de mi alcance",
         "tags" : [ "Movimientos" ],
         "x-required-permission" : "movements:list-sales"
+      }
+    },
+    "/api/v1/movements/sales/lines" : {
+      "get" : {
+        "description" : "**Permiso requerido:** `movements:list-sale-lines`. Sin él, `403` (`AUTH-002`).\n\nDevuelve **una fila por LÍNEA de venta** —no por venta—, paginadas y de la más\nreciente a la más antigua. Es la consulta que responde **qué se ha vendido**:\n`GET /movements` y `GET /movements/sales` devuelven una fila por venta con sus\nimportes agregados, de modo que para ver los productos hay que abrir cada una.\n\n**Una venta de tres productos aporta tres filas**, con los datos de la venta\nrepetidos en cada una. El identificador de la línea (`lineId`) no se publica en\nninguna otra consulta.\n\n**Es la lectura de ADMINISTRACIÓN: con el permiso se ve todo el libro**, de quien\nsea. **No tiene alcance por estructura** —el vendedor NO ve aquí solo su red—:\neso es `GET /movements/sales`, y quien quiera lo suyo tiene\n`GET /movements/mine/products`. Quien no porta `movements:list-sale-lines` recibe\n`403` aunque tenga compras propias; ni `movements:read` ni `movements:list-sales`\nabren esta consulta.\n\n**El nombre del producto es el que tenía el día de la venta**, no el del catálogo\nde hoy: si alguien lo renombró después, aquí sigue diciendo qué se vendió. El\n**código**, en cambio, se lee del catálogo, que es inmutable.\n\n**`seller` puede venir presente y NULO**, y la fila **no desaparece** por eso: el\nvendedor es de la línea y hay movimientos que no lo llevan.\n\n**El estado de entrega va crudo** —`deliveryStatus`, `deliveredAt`,\n`deliveryNote`, `implementation`—, y no derivado como en\n`GET /movements/mine/products`: administración necesita saber por qué algo está\ndonde está.\n\n**Los ocho filtros se combinan** y cada uno responde una pregunta: `movementId`\n(las líneas de una venta), `userId` (qué compró esta persona, el sujeto),\n`sellerId` (qué vendió esta persona, **como vendedora de la línea**), `productId`\n(qué se vendió de este producto), `status` (el estado de la VENTA),\n`deliveryStatus` (el de la LÍNEA), `typeStatus` (el estado del TIPO de la venta,\n`VALIDAR_COMISIONES` o `VALIDADO`: la pregunta «qué falta por validar»),\n`code` (un comprobante exacto, sin distinguir\nmayúsculas) y `from`/`to` sobre **cuándo ocurrió la venta**, con el rango\n**semiabierto** —incluye `from`, excluye `to`—. Un identificador inexistente da\n**página vacía**; un estado que no existe es `400`, porque el catálogo es cerrado.\nLos problemas de forma se devuelven **juntos**.\n\n**`typeStatus` se puede filtrar pero NO viaja en la fila**, y conviene saberlo antes\nde integrar: para ver el estado del tipo de una venta está\n`GET /movements` —que lo publica— y el detalle. Aquí se puede acotar por él y la\nfila no lo trae, por decisión del responsable del proyecto del 23-09-2026.\n\n**El total puede no ser exacto**: por encima del techo de conteo vale el techo y\n`totalIsExact` lo declara. Aquí importa más que en ningún otro listado, porque una\nventa de cinco productos son cinco filas.\n",
+        "operationId" : "lineasDeVenta",
+        "parameters" : [ {
+          "in" : "query",
+          "name" : "page",
+          "required" : false,
+          "schema" : {
+            "format" : "int32",
+            "type" : "integer"
+          }
+        }, {
+          "in" : "query",
+          "name" : "size",
+          "required" : false,
+          "schema" : {
+            "format" : "int32",
+            "type" : "integer"
+          }
+        }, {
+          "in" : "query",
+          "name" : "movementId",
+          "required" : false,
+          "schema" : {
+            "format" : "uuid",
+            "type" : "string"
+          }
+        }, {
+          "in" : "query",
+          "name" : "userId",
+          "required" : false,
+          "schema" : {
+            "format" : "uuid",
+            "type" : "string"
+          }
+        }, {
+          "in" : "query",
+          "name" : "sellerId",
+          "required" : false,
+          "schema" : {
+            "format" : "uuid",
+            "type" : "string"
+          }
+        }, {
+          "in" : "query",
+          "name" : "productId",
+          "required" : false,
+          "schema" : {
+            "format" : "uuid",
+            "type" : "string"
+          }
+        }, {
+          "in" : "query",
+          "name" : "status",
+          "required" : false,
+          "schema" : {
+            "type" : "string"
+          }
+        }, {
+          "in" : "query",
+          "name" : "deliveryStatus",
+          "required" : false,
+          "schema" : {
+            "type" : "string"
+          }
+        }, {
+          "in" : "query",
+          "name" : "typeStatus",
+          "required" : false,
+          "schema" : {
+            "type" : "string"
+          }
+        }, {
+          "in" : "query",
+          "name" : "code",
+          "required" : false,
+          "schema" : {
+            "type" : "string"
+          }
+        }, {
+          "in" : "query",
+          "name" : "from",
+          "required" : false,
+          "schema" : {
+            "format" : "date-time",
+            "type" : "string"
+          }
+        }, {
+          "in" : "query",
+          "name" : "to",
+          "required" : false,
+          "schema" : {
+            "format" : "date-time",
+            "type" : "string"
+          }
+        } ],
+        "responses" : {
+          "200" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/PageResponseSaleLineItem"
+                }
+              }
+            },
+            "description" : "La página de líneas, aunque esté vacía."
+          },
+          "400" : {
+            "description" : "Paginación inválida, estado o estado de entrega no admitidos (`VAL-002`, `VAL-003`), estado del tipo inexistente (`VAL-005`), identificador malformado (`VAL-001`) o `from` posterior a `to` (`VAL-004`). Los problemas se devuelven juntos."
+          },
+          "401" : {
+            "description" : "Token ausente o inválido (`AUTH-001`)"
+          },
+          "403" : {
+            "description" : "Sin el permiso `movements:list-sale-lines` (`AUTH-002`)."
+          },
+          "500" : {
+            "description" : "Fallo no controlado (`ERR-500`)"
+          }
+        },
+        "summary" : "Consultar las líneas de venta",
+        "tags" : [ "Movimientos" ],
+        "x-required-permission" : "movements:list-sale-lines"
       }
     },
     "/api/v1/movements/{id}/confirmation" : {

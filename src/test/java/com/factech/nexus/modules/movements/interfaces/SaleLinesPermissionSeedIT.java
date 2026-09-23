@@ -12,10 +12,10 @@ import org.springframework.jdbc.core.JdbcTemplate;
  * `CA-MV-177` — la siembra de `V37`: `movements:list-sale-lines`.
  *
  * <p><b>Lo que se comprueba no es que el permiso exista, sino QUIÉN lo porta.</b> El reparto
- * estrecho —solo `SUPERADMIN` y `ADMIN`— es la mitad de la decisión de `RF-MV-017`: con este permiso
- * se ve <b>todo</b> el libro sin que ninguna regla lo acote, de modo que dárselo a un rol comercial
- * le enseñaría las líneas de la empresa entera. La otra mitad, que `RN-MV-031` no se aplica aquí,
- * vive en {@code SaleLinesIT}.
+ * estrecho —solo `SUPERADMIN` y `ADMIN`— es la mitad de la decisión de `RF-MV-017`: con este
+ * permiso se ve <b>todo</b> el libro sin que ninguna regla lo acote, de modo que dárselo a un rol
+ * comercial le enseñaría las líneas de la empresa entera. La otra mitad, que `RN-MV-031` no se
+ * aplica aquí, vive en {@code SaleLinesIT}.
  *
  * <p><b>Es la diferencia con `V32`</b>, que dio {@code movements:list-sales} a todo rol por su tipo
  * porque aquella sí era la vista de ventas de cualquiera. Si alguien ensanchara este reparto, esta
@@ -24,7 +24,7 @@ import org.springframework.jdbc.core.JdbcTemplate;
 class SaleLinesPermissionSeedIT extends IntegrationTestBase {
 
   private static final String CODIGO = "movements:list-sale-lines";
-  private static final String ID = "01a0d7f1-3800-700d-9c4f-5e7ad7000009";
+  private static final String ID = "01a0d7f1-3800-700d-9c4f-5e7ad700000a";
   private static final String SUPERADMIN = "01a02a33-4c00-7001-9c4f-5e7ad1000001";
   private static final String ADMIN = "01a02a33-4c00-7002-9c4f-5e7ad1000002";
 
