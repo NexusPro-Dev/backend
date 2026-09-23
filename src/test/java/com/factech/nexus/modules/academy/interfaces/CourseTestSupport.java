@@ -38,7 +38,7 @@ final class CourseTestSupport {
     jdbc.update(
         "DELETE FROM user_roles WHERE user_id IN (SELECT id FROM users WHERE username LIKE 'ac-%')");
     jdbc.update(
-        "DELETE FROM user_memberships WHERE user_id IN (SELECT id FROM users WHERE username LIKE"
+        "DELETE FROM user_products WHERE user_id IN (SELECT id FROM users WHERE username LIKE"
             + " 'ac-%')");
     jdbc.update("DELETE FROM users WHERE username LIKE 'ac-%'");
     jdbc.update(
@@ -84,7 +84,7 @@ final class CourseTestSupport {
         nombre,
         apellido);
     jdbc.update(
-        "INSERT INTO user_memberships (id, user_id, membership_id)"
+        "INSERT INTO user_products (id, user_id, membership_id)"
             + " SELECT gen_random_uuid(), ?, id FROM memberships WHERE code = 'BECA'",
         id);
     if (rol != null) {

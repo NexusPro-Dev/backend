@@ -375,6 +375,7 @@ public interface MovementRepository {
    */
   record DeliveryLineRow(
       UUID lineId,
+      UUID productId,
       String productCode,
       String implementation,
       boolean upgrade,

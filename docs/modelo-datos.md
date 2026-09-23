@@ -162,7 +162,7 @@ erDiagram
         uuid user_id FK "uq_user_products_membresia_abierta · WHERE closed_at IS NULL AND membership_id IS NOT NULL"
         uuid product_id FK "NULL solo en lo que no se compra: el suelo de RN-SP-018 y la semilla"
         uuid membership_id FK "NULL si lo poseido no concede nivel · un bot"
-        uuid movement_detail_id FK "la linea que lo entrego · UNICA · MV · entrega idempotente"
+        uuid movement_detail_id FK "la linea que lo entrego · UNICA · MV · ON DELETE CASCADE · entrega idempotente"
         integer validity_days "NULL = no caduca · COPIA de lo vendido"
         timestamptz started_at "now · desde cuando se tiene"
         timestamptz ends_at "NULL · indefinida · hasta cuando se pago"

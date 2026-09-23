@@ -69,7 +69,7 @@ class UserRolesIT extends IntegrationTestBase {
     jdbc.update("DELETE FROM refresh_tokens");
     jdbc.update("DELETE FROM client_sellers");
     jdbc.update("DELETE FROM user_supervisors");
-    jdbc.update("DELETE FROM user_memberships");
+    jdbc.update("DELETE FROM user_products");
     jdbc.update("DELETE FROM user_roles");
     jdbc.update("DELETE FROM users WHERE id <> ?", SUPERADMIN);
     // Los permisos del rol van antes que el rol: otra prueba de la suite deja
@@ -556,7 +556,7 @@ class UserRolesIT extends IntegrationTestBase {
     // operación podía escribirla y el fallo tenía que revertirla.
     String nivel =
         jdbc.queryForObject(
-            "SELECT m.code FROM user_memberships um JOIN memberships m ON m.id = um.membership_id"
+            "SELECT m.code FROM user_products um JOIN memberships m ON m.id = um.membership_id"
                 + " WHERE um.user_id = ? AND um.closed_at IS NULL",
             String.class,
             persona);
@@ -765,7 +765,7 @@ class UserRolesIT extends IntegrationTestBase {
     // `users:assign-membership`, y lo que la prueba mide es el retiro de roles.
     String membresia = crearMembresia();
     jdbc.update(
-        "UPDATE user_memberships SET membership_id = ?::uuid"
+        "UPDATE user_products SET membership_id = ?::uuid"
             + " WHERE user_id = ? AND closed_at IS NULL",
         membresia,
         persona);
@@ -781,7 +781,7 @@ class UserRolesIT extends IntegrationTestBase {
 
     Integer abiertas =
         jdbc.queryForObject(
-            "SELECT count(*) FROM user_memberships WHERE user_id = ? AND closed_at IS NULL",
+            "SELECT count(*) FROM user_products WHERE user_id = ? AND closed_at IS NULL",
             Integer.class,
             persona);
     assertThat(abiertas).isEqualTo(1);

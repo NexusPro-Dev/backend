@@ -157,12 +157,30 @@ public class ConfirmSaleService {
         asiento.put("delivery_note", motivo.get());
         return asiento;
       }
-      // `RN-MV-020`: la vigencia copiada en la línea, contada DESDE LA
-      // CONFIRMACIÓN — quien pagó treinta días recibe treinta días de uso.
-      concesion.grant(
-          new GrantOrder(sujeto, linea.targetMembershipId(), linea.validityDays(), ahora));
       asiento.put("membership_code", linea.targetMembershipCode());
     }
+
+    // TODA LÍNEA QUE SE ENTREGA DEJA ESCRITO LO QUE LA PERSONA PASA A TENER
+    // (`RN-MV-036`), y no solo las de upgrade: hasta el 23-09-2026 un bot
+    // entregado no dejaba constancia de posesión en ninguna parte, de modo que el
+    // sistema sabía qué se le había vendido a alguien y no qué tenía.
+    //
+    // La membresía va SOLO si el producto la concede; con ella nula, la escritura
+    // publicada anota la posesión y no toca el nivel de nadie. Y la vigencia es la
+    // copiada en la línea, contada DESDE LA CONFIRMACIÓN (`RN-MV-020`): quien pagó
+    // treinta días recibe treinta días de uso.
+    //
+    // La línea viaja dentro de la orden y va ÚNICA en el esquema: es lo que hace
+    // idempotente la entrega, sin que este servicio tenga que comprobar antes si
+    // ya la entregó — comprobarlo sería una carrera.
+    concesion.grant(
+        new GrantOrder(
+            sujeto,
+            linea.productId(),
+            linea.upgrade() ? linea.targetMembershipId() : null,
+            linea.lineId(),
+            linea.validityDays(),
+            ahora));
 
     movimientos.markDelivered(linea.lineId(), ahora);
     asiento.put("delivery_status", DeliveryStatus.ENTREGADA.name());

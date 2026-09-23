@@ -46,9 +46,9 @@ class ProductsIT extends IntegrationTestBase {
   void prepararCatalogo() {
     jdbc.update("DELETE FROM currencies WHERE is_default = false");
     jdbc.update("DELETE FROM products");
-    // Antes que las membresías: `user_memberships` las referencia (`V57`), y
+    // Antes que las membresías: `user_products` las referencia (`V57`), y
     // sin esto la suite solo pasaba cuando otra las había vaciado antes.
-    jdbc.update("DELETE FROM user_memberships");
+    jdbc.update("DELETE FROM user_products");
     jdbc.update("DELETE FROM memberships");
     // LA CADENA ENTERA, y no solo la cima: `RN-PM-018` dice que un upgrade
     // puede saltar niveles, y eso no se puede probar sin niveles que saltar.

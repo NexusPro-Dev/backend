@@ -461,7 +461,7 @@ class MembershipsIT extends IntegrationTestBase {
   }
 
   @Test
-  @DisplayName("ni el listado ni el detalle cruzan con user_memberships")
+  @DisplayName("ni el listado ni el detalle cruzan con user_products")
   void sinConteoDePersonas() throws Exception {
     String sola = crear("UNICA", "Única", null);
 

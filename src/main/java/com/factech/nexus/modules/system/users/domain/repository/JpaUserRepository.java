@@ -181,41 +181,35 @@ public class JpaUserRepository implements UserRepository {
   // ---------------------------------------------------------------------------
 
   @Override
-  public void assignMembership(
-      UUID id, UUID userId, UUID membershipId, OffsetDateTime endsAt, OffsetDateTime ahora) {
-    // 1. CIERRA LA ABIERTA, SIN CONDICIÓN DE VIGENCIA. Cierra también la vencida:
-    //    dejarla abierta produciría dos filas actuales, que `uq_user_memberships_abierta`
+  public void grantProduct(ProductGrant concesion) {
+    // 1. CIERRA LA MEMBRESÍA ABIERTA, PERO SOLO SI ESTA CONCEDE NIVEL. Un bot no
+    //    desplaza a nadie: lo que no puede haber dos veces es el nivel, no la fila.
+    //    Cuando sí lo concede, cierra también la vencida — dejarla abierta
+    //    produciría dos filas con nivel, que `uq_user_products_membresia_abierta`
     //    rechaza y que antes de eso ya habría hecho que el listado de usuarios
     //    devolviera a esa persona dos veces.
-    cerrarMembresiaAbierta(userId, ahora);
+    if (concesion.concedeNivel()) {
+      cerrarMembresiaAbierta(concesion.userId(), concesion.startedAt());
+    }
 
-    // 2. ABRE LA NUEVA. `started_at` y el cierre de arriba comparten instante, y por
-    //    eso `ck_user_memberships_cierre` admite la igualdad.
+    // 2. ABRE LA POSESIÓN. `started_at` y el cierre de arriba comparten instante, y
+    //    por eso `ck_user_products_cierre` admite la igualdad.
     em.createNativeQuery(
             """
-            INSERT INTO user_memberships
-                   (id, user_id, membership_id, started_at, ends_at, created_at, updated_at)
-            VALUES (:id, :usuario, :membresia, :ahora, :fin, :ahora, :ahora)
+            INSERT INTO user_products
+                   (id, user_id, product_id, membership_id, movement_detail_id,
+                    validity_days, started_at, ends_at, created_at, updated_at)
+            VALUES (:id, :usuario, :producto, :membresia, :linea,
+                    :dias, :ahora, :fin, :ahora, :ahora)
             """)
-        .setParameter("id", id)
-        .setParameter("usuario", userId)
-        .setParameter("membresia", membershipId)
-        .setParameter("fin", endsAt)
-        .setParameter("ahora", ahora)
-        .executeUpdate();
-  }
-
-  @Override
-  public void updateMembershipEnd(UUID userId, OffsetDateTime endsAt, OffsetDateTime ahora) {
-    em.createNativeQuery(
-            """
-            UPDATE user_memberships
-               SET ends_at = :fin, updated_at = :ahora
-             WHERE user_id = :usuario AND closed_at IS NULL
-            """)
-        .setParameter("fin", endsAt)
-        .setParameter("ahora", ahora)
-        .setParameter("usuario", userId)
+        .setParameter("id", concesion.id())
+        .setParameter("usuario", concesion.userId())
+        .setParameter("producto", concesion.productId())
+        .setParameter("membresia", concesion.membershipId())
+        .setParameter("linea", concesion.movementDetailId())
+        .setParameter("dias", concesion.validityDays())
+        .setParameter("fin", concesion.endsAt())
+        .setParameter("ahora", concesion.startedAt())
         .executeUpdate();
   }
 
@@ -227,9 +221,11 @@ public class JpaUserRepository implements UserRepository {
                 SELECT m.id AS id, m.code AS code, m.name AS name, m.level AS level,
                        m.color AS color,
                        um.ends_at AS ends_at
-                  FROM user_memberships um
+                  FROM user_products um
                   JOIN memberships m ON m.id = um.membership_id
-                 WHERE um.user_id = :usuario AND um.closed_at IS NULL
+                 WHERE um.user_id = :usuario
+                   AND um.closed_at IS NULL
+                   AND um.membership_id IS NOT NULL
                 """,
                 Tuple.class)
             .setParameter("usuario", userId)
@@ -262,7 +258,24 @@ public class JpaUserRepository implements UserRepository {
   private void cerrarMembresiaAbierta(UUID userId, OffsetDateTime ahora) {
     em.createNativeQuery(
             """
-            UPDATE user_memberships
+            UPDATE user_products
+               SET closed_at = :ahora, updated_at = :ahora
+             WHERE user_id = :usuario
+               AND closed_at IS NULL
+               AND membership_id IS NOT NULL
+            """)
+        .setParameter("ahora", ahora)
+        .setParameter("usuario", userId)
+        .executeUpdate();
+  }
+
+  @Override
+  public int closeAllProducts(UUID userId, OffsetDateTime ahora) {
+    // SIN la condición de `membership_id`, y es lo único que la separa del cierre de
+    // arriba: quien deja de existir deja de tener TODO lo que tenía.
+    return em.createNativeQuery(
+            """
+            UPDATE user_products
                SET closed_at = :ahora, updated_at = :ahora
              WHERE user_id = :usuario AND closed_at IS NULL
             """)

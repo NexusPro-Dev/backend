@@ -156,7 +156,7 @@ class UpdateOwnProfileIT extends IntegrationTestBase {
         """,
         UUID.randomUUID());
     jdbc.update(
-        "INSERT INTO user_memberships (id, user_id, membership_id)"
+        "INSERT INTO user_products (id, user_id, membership_id)"
             + " SELECT gen_random_uuid(), ?, id FROM memberships ORDER BY level LIMIT 1",
         juan);
     jdbc.update(
@@ -169,8 +169,7 @@ class UpdateOwnProfileIT extends IntegrationTestBase {
         .andExpect(status().isOk());
 
     assertThat(cuenta("SELECT count(*) FROM user_roles WHERE user_id = ?", juan)).isEqualTo(1);
-    assertThat(cuenta("SELECT count(*) FROM user_memberships WHERE user_id = ?", juan))
-        .isEqualTo(1);
+    assertThat(cuenta("SELECT count(*) FROM user_products WHERE user_id = ?", juan)).isEqualTo(1);
     assertThat(
             cuenta(
                 "SELECT count(*) FROM user_supervisors WHERE user_id = ? AND ended_at IS NULL",
@@ -348,7 +347,7 @@ class UpdateOwnProfileIT extends IntegrationTestBase {
     jdbc.update("DELETE FROM refresh_tokens");
     jdbc.update("DELETE FROM client_sellers");
     jdbc.update("DELETE FROM user_supervisors");
-    jdbc.update("DELETE FROM user_memberships");
+    jdbc.update("DELETE FROM user_products");
     jdbc.update("DELETE FROM memberships WHERE code = 'PRUEBA044'");
     jdbc.update("DELETE FROM user_roles WHERE user_id <> ?", SUPERADMIN);
     jdbc.update("DELETE FROM users WHERE id <> ?", SUPERADMIN);

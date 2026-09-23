@@ -299,7 +299,7 @@ class PackageOfferIT extends IntegrationTestBase {
     if (membresia != null) {
       jdbc.update(
           """
-          INSERT INTO user_memberships (id, user_id, membership_id, started_at, ends_at,
+          INSERT INTO user_products (id, user_id, membership_id, started_at, ends_at,
                                         created_at, updated_at)
           VALUES (gen_random_uuid(), CAST(? AS uuid), CAST(? AS uuid), now() - interval '30 days',
                   NULL, now(), now())
@@ -312,7 +312,7 @@ class PackageOfferIT extends IntegrationTestBase {
 
   private void limpiarPersonas() {
     jdbc.update(
-        "DELETE FROM user_memberships WHERE user_id IN (SELECT id FROM users WHERE username LIKE 'oferta-pk-%')");
+        "DELETE FROM user_products WHERE user_id IN (SELECT id FROM users WHERE username LIKE 'oferta-pk-%')");
     jdbc.update("DELETE FROM users WHERE username LIKE 'oferta-pk-%'");
   }
 }

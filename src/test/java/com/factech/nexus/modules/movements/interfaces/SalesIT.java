@@ -380,7 +380,7 @@ class SalesIT extends IntegrationTestBase {
         "DELETE FROM user_roles WHERE user_id IN (SELECT id FROM users WHERE username LIKE"
             + " 'sales-%')");
     jdbc.update(
-        "DELETE FROM user_memberships WHERE user_id IN (SELECT id FROM users WHERE username LIKE"
+        "DELETE FROM user_products WHERE user_id IN (SELECT id FROM users WHERE username LIKE"
             + " 'sales-%')");
     jdbc.update("DELETE FROM users WHERE username LIKE 'sales-%'");
   }
