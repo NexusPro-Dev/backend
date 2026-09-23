@@ -16,18 +16,18 @@
 
 | ID | Tarea | Depende de | Verificación | Estado |
 |---|---|---|---|---|
-| `T-01` | Migración `V37__mv_semilla_permiso_lineas_de_venta.sql`: `movements:list-sale-lines` con identificador literal, asociado **solo** a `SUPERADMIN` y `ADMIN`, con las guardas de 135 / 135 / 129 y la de contención de `RN-SEG-003` | `RF-MV-016` `V36` | `CA-MV-177`; la migración falla con mensaje propio si el catálogo no está en 134 | Pendiente |
-| `T-02` | `SaleLinesRequest` en `application`: los diez parámetros, con los estados y las fechas **como texto** para que su `400` viaje junto a los demás | — | `CA-MV-174` | Pendiente |
-| `T-03` | `MovementRepository`: `findSaleLines` y `countSaleLines`, con los registros `SaleLinesFilter` y `SaleLineRow` | `T-02` | Firma usada por `T-05` | Pendiente |
-| `T-04` | `JpaMovementRepository`: las dos sentencias. Una sola para la página —con el **`LEFT JOIN`** del vendedor, el predicado `mt.code = 'VENTA'` y el orden con desempate determinista— y el conteo con `BoundedCount` | `T-03` | `CA-MV-163`, `CA-MV-165`, `CA-MV-175`, `CA-MV-178`, `CA-MV-179` | Pendiente |
-| `T-05` | `SaleLineResponse` y `ListSaleLinesService`: los seis `400` **juntos**, la página y el total acotado. `@Transactional(readOnly = true)` | `T-04` | `CA-MV-164`, `CA-MV-166` a `CA-MV-174` | Pendiente |
-| `T-06` | `MovementController`: `GET /api/v1/movements/sales/lines` con `movements:list-sale-lines`, y la **prosa OpenAPI** —que es de administración y **no** tiene alcance, que la fila es la línea y no la venta, que el nombre del producto es el congelado, que el vendedor puede venir nulo y que el total puede no ser exacto | `T-05` | `CA-MV-176` | Pendiente |
-| `T-07` | `EndpointPermissionsIT` con la ruta en `PERMISO_DE_CADA_OPERACION`; `OpenApiContractIT` con su `x-required-permission`; las **cuatro** suites del catálogo a **135** | `T-01`, `T-06` | `CA-MV-176`, `CA-MV-177` | Pendiente |
-| `T-08` | `SaleLinesIT` con el fixture del plan §11: `CA-MV-163` a `CA-MV-176`, `CA-MV-178` y `CA-MV-179` | `T-07` | Dieciséis de los diecisiete criterios | Pendiente |
-| `T-09` | `SaleLinesPermissionSeedIT`: la siembra de `V37`, los recuentos y que **ningún otro rol** lo porta | `T-01` | `CA-MV-177` | Pendiente |
-| `T-10` | Contrato regenerado y comparado —solo altas— y `api/index.md` con su fila | `T-08`, `T-09` | El diff del contrato no toca ninguna forma existente | Pendiente |
-| `T-11` | Matriz de `docs/requirements.md`, la ficha de `requirements/mv.md` §4.1 y los estados de esta tripleta | `T-10` | La fila de `RF-MV-017` refleja el estado | Pendiente |
-| `T-12` | **La enmienda 0.2.0**: el filtro `typeStatus` de punta a punta —`SaleLinesRequest`, `SaleLinesFilter`, el `JOIN` de `movement_type_statuses` en las dos sentencias, la validación contra `existsTypeStatusCode` y el parámetro documentado en el controlador—, **sin publicar el campo** | `T-08` | `CA-MV-180`, `CA-MV-181` | Pendiente |
+| `T-01` | Migración `V37__mv_semilla_permiso_lineas_de_venta.sql`: `movements:list-sale-lines` con identificador literal, asociado **solo** a `SUPERADMIN` y `ADMIN`, con las guardas de 135 / 135 / 129 y la de contención de `RN-SEG-003` | `RF-MV-016` `V36` | `CA-MV-177`; la migración falla con mensaje propio si el catálogo no está en 134 | Hecha |
+| `T-02` | `SaleLinesRequest` en `application`: los diez parámetros, con los estados y las fechas **como texto** para que su `400` viaje junto a los demás | — | `CA-MV-174` | Hecha |
+| `T-03` | `MovementRepository`: `findSaleLines` y `countSaleLines`, con los registros `SaleLinesFilter` y `SaleLineRow` | `T-02` | Firma usada por `T-05` | Hecha |
+| `T-04` | `JpaMovementRepository`: las dos sentencias. Una sola para la página —con el **`LEFT JOIN`** del vendedor, el predicado `mt.code = 'VENTA'` y el orden con desempate determinista— y el conteo con `BoundedCount` | `T-03` | `CA-MV-163`, `CA-MV-165`, `CA-MV-175`, `CA-MV-178`, `CA-MV-179` | Hecha |
+| `T-05` | `SaleLineResponse` y `ListSaleLinesService`: los seis `400` **juntos**, la página y el total acotado. `@Transactional(readOnly = true)` | `T-04` | `CA-MV-164`, `CA-MV-166` a `CA-MV-174` | Hecha |
+| `T-06` | `MovementController`: `GET /api/v1/movements/sales/lines` con `movements:list-sale-lines`, y la **prosa OpenAPI** —que es de administración y **no** tiene alcance, que la fila es la línea y no la venta, que el nombre del producto es el congelado, que el vendedor puede venir nulo y que el total puede no ser exacto | `T-05` | `CA-MV-176` | Hecha |
+| `T-07` | `EndpointPermissionsIT` con la ruta en `PERMISO_DE_CADA_OPERACION`; `OpenApiContractIT` con su `x-required-permission`; las **cuatro** suites del catálogo a **135** | `T-01`, `T-06` | `CA-MV-176`, `CA-MV-177` | Hecha |
+| `T-08` | `SaleLinesIT` con el fixture del plan §11: `CA-MV-163` a `CA-MV-176`, `CA-MV-178` y `CA-MV-179` | `T-07` | Dieciséis de los diecisiete criterios | Hecha |
+| `T-09` | `SaleLinesPermissionSeedIT`: la siembra de `V37`, los recuentos y que **ningún otro rol** lo porta | `T-01` | `CA-MV-177` | Hecha |
+| `T-10` | Contrato regenerado y comparado —solo altas— y `api/index.md` con su fila | `T-08`, `T-09` | El diff del contrato no toca ninguna forma existente | Hecha |
+| `T-11` | Matriz de `docs/requirements.md`, la ficha de `requirements/mv.md` §4.1 y los estados de esta tripleta | `T-10` | La fila de `RF-MV-017` refleja el estado | Hecha |
+| `T-12` | **La enmienda 0.2.0**: el filtro `typeStatus` de punta a punta —`SaleLinesRequest`, `SaleLinesFilter`, el `JOIN` de `movement_type_statuses` en las dos sentencias, la validación contra `existsTypeStatusCode` y el parámetro documentado en el controlador—, **sin publicar el campo** | `T-08` | `CA-MV-180`, `CA-MV-181` | Hecha |
 
 ## 2. Orden de ejecución
 
@@ -64,15 +64,15 @@ graph LR
 
 ## 5. Definición de terminado
 
-- [ ] Todas las tareas en estado `Hecha`.
-- [ ] Todos los criterios de aceptación con prueba automatizada en verde.
-- [ ] La consulta cuesta **dos sentencias**, con una fila y con veinte.
-- [ ] Una línea sin vendedor **sale**, con `seller` presente y nulo.
-- [ ] `GET /movements/sales/lines` consta en `EndpointPermissionsIT` con `movements:list-sale-lines`.
-- [ ] `V37` siembra el permiso solo para `SUPERADMIN` y `ADMIN`, y el catálogo cuenta 135.
-- [ ] El filtro `typeStatus` acota y su `400` viaja con los demás, **y el campo no aparece en la fila** (0.2.0).
-- [ ] `mvn verify` en verde en local; CI en el PR.
-- [ ] El contrato OpenAPI coincide con el comportamiento real, **prosa incluida**.
-- [ ] Documentación afectada actualizada en el mismo Pull Request.
-- [ ] Matriz de trazabilidad actualizada.
+- [x] Todas las tareas en estado `Hecha`.
+- [x] Todos los criterios de aceptación con prueba automatizada en verde.
+- [x] La consulta cuesta **dos sentencias**, con una fila y con veinte.
+- [x] Una línea sin vendedor **sale**, con `seller` presente y nulo.
+- [x] `GET /movements/sales/lines` consta en `EndpointPermissionsIT` con `movements:list-sale-lines`.
+- [x] `V37` siembra el permiso solo para `SUPERADMIN` y `ADMIN`, y el catálogo cuenta 135.
+- [x] El filtro `typeStatus` acota y su `400` viaja con los demás, **y el campo no aparece en la fila** (0.2.0).
+- [x] `mvn verify` en verde en local (23-09-2026: 1863 de integración). **El CI del PR, pendiente.**
+- [x] El contrato OpenAPI coincide con el comportamiento real, **prosa incluida**.
+- [x] Documentación afectada actualizada en el mismo Pull Request.
+- [x] Matriz de trazabilidad actualizada.
 - [ ] Pull Request aprobado por alguien distinto del autor e integrado.
