@@ -56,9 +56,30 @@ class UserBrokerAccountSchemaIT extends IntegrationTestBase {
     beto = persona("ub-beto");
   }
 
+  /**
+   * Vacía lo suyo <b>y repone la semilla de `V9`</b>, que es la línea que importa.
+   *
+   * <p>Vaciar {@code brokers} sin reponerla deja el catálogo lleno o vacío <b>según el orden en que
+   * JUnit ejecute las clases</b>, y cualquier prueba posterior que declare una cuenta de broker —el
+   * registro por enlace, entre otras— falla con un {@code 422} que no dice nada del orden ni de
+   * esta clase. Le costó una corrida entera a `RF-SP-070` el 23-09-2026, cuando las clases nuevas
+   * del submódulo de Equipos cambiaron el orden en CI y lo destaparon.
+   *
+   * <p>Con identificadores <b>literales</b>, que es la forma que {@code BrokersIT} ya usa:
+   * reponerla con otros dejaría dos catálogos distintos según qué clase corriera antes, que es la
+   * misma dependencia del orden que la reposición existe para quitar.
+   */
   @AfterEach
   void vaciar() {
     limpiar();
+    jdbc.update(
+        """
+        INSERT INTO brokers (id, name) VALUES
+        ('01a081f0-6000-7101-9c4f-5e7adb000001', 'IQOPTION'),
+        ('01a081f0-6000-7102-9c4f-5e7adb000002', 'EXNOVA'),
+        ('01a081f0-6000-7103-9c4f-5e7adb000003', 'EXOPTION')
+        ON CONFLICT DO NOTHING
+        """);
   }
 
   @Test
