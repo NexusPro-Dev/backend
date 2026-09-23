@@ -1179,6 +1179,158 @@ public class JpaMovementRepository implements MovementRepository {
   /**
    * Un predicado que crece solo con lo que viene, y sus parámetros. Misma forma que en auditoría.
    */
+
+  /**
+   * Las tablas de la línea, <b>compartidas por la página y el conteo</b>.
+   *
+   * <p><b>El vendedor entra con {@code LEFT JOIN} y es la línea que más importa de esta
+   * consulta</b>: {@code movement_details.seller_id} es nulable desde `V12` —los tipos de
+   * movimiento que no venden no lo llevan— y un {@code JOIN} corriente haría <b>desaparecer</b>
+   * esas líneas en lugar de publicarlas con el vendedor nulo. Desaparecer sin error es el peor modo
+   * de fallar que tiene un listado, y `CA-MV-165` existe para impedirlo.
+   *
+   * <p>Los demás son {@code JOIN} porque sus claves foráneas son {@code NOT NULL} y {@code
+   * RESTRICT}: el producto, el sujeto, la moneda y el tipo existen siempre.
+   *
+   * <p><b>El tipo se acota aquí y no en el filtro</b> (`spec.md` §4.2): esta consulta es de las
+   * VENTAS. El día que un depósito tenga líneas, no entran por descuido.
+   */
+  private static final String TABLAS_LINEAS =
+      """
+      FROM movement_details d
+      JOIN movements m ON m.id = d.movement_id
+      JOIN movement_types mt ON mt.id = m.movement_type_id
+      JOIN movement_type_statuses mts ON mts.id = m.type_status_id
+      JOIN users suj ON suj.id = m.user_id
+      JOIN products p ON p.id = d.product_id
+      JOIN currencies cur ON cur.id = m.currency_id
+      LEFT JOIN users ven ON ven.id = d.seller_id
+      WHERE mt.code = 'VENTA' AND
+      """;
+
+  /**
+   * Las columnas de la fila de línea.
+   *
+   * <p><b>{@code d.product_name} y no {@code p.name}</b>: el nombre es el que se copió el día de la
+   * venta (`RN-MV-002`), y leerlo del catálogo haría que esta consulta cambiara de respuesta cuando
+   * alguien renombra un producto. El <b>código</b> sí sale de {@code products}, que `RN-PM-013`
+   * declara inmutable — se copia lo que puede cambiar, y nada más.
+   */
+  private static final String COLUMNAS_LINEAS =
+      """
+      SELECT d.id AS linea, m.id AS mov_id, m.code AS mov_code, m.status AS mov_status,
+             m.occurred_at AS occurred_at,
+             suj.id AS suj_id, suj.username AS suj_username,
+             suj.first_name AS suj_first, suj.last_name AS suj_last,
+             ven.id AS ven_id, ven.username AS ven_username,
+             ven.first_name AS ven_first, ven.last_name AS ven_last,
+             p.id AS pro_id, p.code AS pro_code, d.product_name AS pro_name,
+             d.quantity AS cantidad, d.unit_price AS precio,
+             d.line_discount AS rebaja, d.line_amount AS importe,
+             d.validity_days AS vigencia, cur.code AS moneda,
+             d.implementation AS implementacion, d.delivery_status AS entrega,
+             d.delivered_at AS entregada_en, d.delivery_note AS nota
+      """;
+
+  /** El predicado del listado de líneas, <b>escrito una vez</b> para la página y el conteo. */
+  private static Filtro filtroLineas(SaleLinesFilter f) {
+    Filtro filtro = new Filtro();
+    filtro.igual("d.movement_id", "movimiento", f.movementId());
+    filtro.igual("m.user_id", "sujeto", f.userId());
+    // Por la línea y no por el movimiento: `RN-MV-003` dice que el vendedor es
+    // de la línea, y una venta con dos vendedores aparece una vez por cada uno.
+    filtro.igual("d.seller_id", "vendedor", f.sellerId());
+    filtro.igual("d.product_id", "producto", f.productId());
+    filtro.igual("m.status", "estado", f.status());
+    filtro.igual("d.delivery_status", "entrega", f.deliveryStatus());
+    // El estado del tipo (0.2.0, `RF-MV-016`), por código y con el mismo
+    // predicado que los otros dos listados. `movement_type_statuses` está en el
+    // bloque de tablas y NO en las columnas: se filtra por él y no se publica.
+    filtro.igual("mts.code", "estadoDelTipo", f.typeStatus());
+    filtro.igual("m.code", "codigo", f.code());
+    if (f.from() != null) {
+      filtro.condicion("m.occurred_at >= :desde", "desde", f.from());
+    }
+    // Semiabierto: dos periodos consecutivos no devuelven dos veces la línea de
+    // la medianoche.
+    if (f.to() != null) {
+      filtro.condicion("m.occurred_at < :hasta", "hasta", f.to());
+    }
+    return filtro;
+  }
+
+  @Override
+  @Transactional(readOnly = true)
+  public List<SaleLineRow> findSaleLines(SaleLinesFilter filtro, int offset, int limit) {
+    Filtro donde = filtroLineas(filtro);
+    Query consulta =
+        em.createNativeQuery(
+            COLUMNAS_LINEAS
+                + TABLAS_LINEAS
+                + donde.sql()
+                // EL DESEMPATE NO ES ADORNO: dos líneas de la misma venta
+                // comparten `occurred_at` al microsegundo, y sin un orden total
+                // la paginación repetiría o se saltaría filas entre páginas.
+                + " ORDER BY m.occurred_at DESC, m.id DESC, d.id DESC"
+                + " LIMIT :limite OFFSET :desplazamiento",
+            Tuple.class);
+    donde.enlazar(consulta);
+    @SuppressWarnings("unchecked")
+    List<Tuple> filas =
+        consulta
+            .setParameter("limite", limit)
+            .setParameter("desplazamiento", offset)
+            .getResultList();
+
+    List<SaleLineRow> resultado = new ArrayList<>(filas.size());
+    for (Tuple fila : filas) {
+      resultado.add(filaDeLinea(fila));
+    }
+    return resultado;
+  }
+
+  @Override
+  @Transactional(readOnly = true)
+  public BoundedCount countSaleLines(SaleLinesFilter filtro, int techo) {
+    Filtro donde = filtroLineas(filtro);
+    Query consulta =
+        em.createNativeQuery(
+            "SELECT count(*) FROM (SELECT 1 " + TABLAS_LINEAS + donde.sql() + " LIMIT :techo) t");
+    donde.enlazar(consulta);
+    Number contado = (Number) consulta.setParameter("techo", techo + 1L).getSingleResult();
+    return BoundedCount.de(contado.longValue(), techo);
+  }
+
+  private static SaleLineRow filaDeLinea(Tuple fila) {
+    return new SaleLineRow(
+        (UUID) fila.get("linea"),
+        (UUID) fila.get("mov_id"),
+        (String) fila.get("mov_code"),
+        (String) fila.get("mov_status"),
+        instante(fila.get("occurred_at")),
+        (UUID) fila.get("suj_id"),
+        (String) fila.get("suj_username"),
+        (String) fila.get("suj_first"),
+        (String) fila.get("suj_last"),
+        (UUID) fila.get("ven_id"),
+        (String) fila.get("ven_username"),
+        (String) fila.get("ven_first"),
+        (String) fila.get("ven_last"),
+        (UUID) fila.get("pro_id"),
+        (String) fila.get("pro_code"),
+        (String) fila.get("pro_name"),
+        ((Number) fila.get("cantidad")).intValue(),
+        (BigDecimal) fila.get("precio"),
+        (BigDecimal) fila.get("rebaja"),
+        (BigDecimal) fila.get("importe"),
+        fila.get("vigencia") == null ? null : ((Number) fila.get("vigencia")).intValue(),
+        (String) fila.get("moneda"),
+        (String) fila.get("implementacion"),
+        (String) fila.get("entrega"),
+        instante(fila.get("entregada_en")),
+        (String) fila.get("nota"));
+  }
+
   private static final class Filtro {
 
     private final StringBuilder donde = new StringBuilder("1 = 1");

@@ -8164,6 +8164,151 @@ paths:
         "500":
           description: Fallo no controlado (`ERR-500`)
       x-required-permission: movements:list-sales
+  /api/v1/movements/sales/lines:
+    get:
+      tags:
+      - Movimientos
+      summary: Consultar las líneas de venta
+      description: |
+        **Permiso requerido:** `movements:list-sale-lines`. Sin él, `403` (`AUTH-002`).
+
+        Devuelve **una fila por LÍNEA de venta** —no por venta—, paginadas y de la más
+        reciente a la más antigua. Es la consulta que responde **qué se ha vendido**:
+        `GET /movements` y `GET /movements/sales` devuelven una fila por venta con sus
+        importes agregados, de modo que para ver los productos hay que abrir cada una.
+
+        **Una venta de tres productos aporta tres filas**, con los datos de la venta
+        repetidos en cada una. El identificador de la línea (`lineId`) no se publica en
+        ninguna otra consulta.
+
+        **Es la lectura de ADMINISTRACIÓN: con el permiso se ve todo el libro**, de quien
+        sea. **No tiene alcance por estructura** —el vendedor NO ve aquí solo su red—:
+        eso es `GET /movements/sales`, y quien quiera lo suyo tiene
+        `GET /movements/mine/products`. Quien no porta `movements:list-sale-lines` recibe
+        `403` aunque tenga compras propias; ni `movements:read` ni `movements:list-sales`
+        abren esta consulta.
+
+        **El nombre del producto es el que tenía el día de la venta**, no el del catálogo
+        de hoy: si alguien lo renombró después, aquí sigue diciendo qué se vendió. El
+        **código**, en cambio, se lee del catálogo, que es inmutable.
+
+        **`seller` puede venir presente y NULO**, y la fila **no desaparece** por eso: el
+        vendedor es de la línea y hay movimientos que no lo llevan.
+
+        **El estado de entrega va crudo** —`deliveryStatus`, `deliveredAt`,
+        `deliveryNote`, `implementation`—, y no derivado como en
+        `GET /movements/mine/products`: administración necesita saber por qué algo está
+        donde está.
+
+        **Los ocho filtros se combinan** y cada uno responde una pregunta: `movementId`
+        (las líneas de una venta), `userId` (qué compró esta persona, el sujeto),
+        `sellerId` (qué vendió esta persona, **como vendedora de la línea**), `productId`
+        (qué se vendió de este producto), `status` (el estado de la VENTA),
+        `deliveryStatus` (el de la LÍNEA), `typeStatus` (el estado del TIPO de la venta,
+        `VALIDAR_COMISIONES` o `VALIDADO`: la pregunta «qué falta por validar»),
+        `code` (un comprobante exacto, sin distinguir
+        mayúsculas) y `from`/`to` sobre **cuándo ocurrió la venta**, con el rango
+        **semiabierto** —incluye `from`, excluye `to`—. Un identificador inexistente da
+        **página vacía**; un estado que no existe es `400`, porque el catálogo es cerrado.
+        Los problemas de forma se devuelven **juntos**.
+
+        **`typeStatus` se puede filtrar pero NO viaja en la fila**, y conviene saberlo antes
+        de integrar: para ver el estado del tipo de una venta está
+        `GET /movements` —que lo publica— y el detalle. Aquí se puede acotar por él y la
+        fila no lo trae, por decisión del responsable del proyecto del 23-09-2026.
+
+        **El total puede no ser exacto**: por encima del techo de conteo vale el techo y
+        `totalIsExact` lo declara. Aquí importa más que en ningún otro listado, porque una
+        venta de cinco productos son cinco filas.
+      operationId: lineasDeVenta
+      parameters:
+      - name: page
+        in: query
+        required: false
+        schema:
+          type: integer
+          format: int32
+      - name: size
+        in: query
+        required: false
+        schema:
+          type: integer
+          format: int32
+      - name: movementId
+        in: query
+        required: false
+        schema:
+          type: string
+          format: uuid
+      - name: userId
+        in: query
+        required: false
+        schema:
+          type: string
+          format: uuid
+      - name: sellerId
+        in: query
+        required: false
+        schema:
+          type: string
+          format: uuid
+      - name: productId
+        in: query
+        required: false
+        schema:
+          type: string
+          format: uuid
+      - name: status
+        in: query
+        required: false
+        schema:
+          type: string
+      - name: deliveryStatus
+        in: query
+        required: false
+        schema:
+          type: string
+      - name: typeStatus
+        in: query
+        required: false
+        schema:
+          type: string
+      - name: code
+        in: query
+        required: false
+        schema:
+          type: string
+      - name: from
+        in: query
+        required: false
+        schema:
+          type: string
+          format: date-time
+      - name: to
+        in: query
+        required: false
+        schema:
+          type: string
+          format: date-time
+      responses:
+        "200":
+          description: "La página de líneas, aunque esté vacía."
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/PageResponseSaleLineItem"
+        "400":
+          description: "Paginación inválida, estado o estado de entrega no admitidos\
+            \ (`VAL-002`, `VAL-003`), estado del tipo inexistente (`VAL-005`), identificador\
+            \ malformado (`VAL-001`) o `from` posterior a `to` (`VAL-004`). Los problemas\
+            \ se devuelven juntos."
+        "401":
+          description: Token ausente o inválido (`AUTH-001`)
+        "403":
+          description: Sin el permiso `movements:list-sale-lines` (`AUTH-002`).
+        "500":
+          description: Fallo no controlado (`ERR-500`)
+      x-required-permission: movements:list-sale-lines
   /api/v1/movements/mine:
     get:
       tags:
@@ -13068,6 +13213,118 @@ components:
           format: int32
         totalIsExact:
           type: boolean
+    PageResponseSaleLineItem:
+      type: object
+      properties:
+        content:
+          type: array
+          items:
+            $ref: "#/components/schemas/SaleLineItem"
+        totalElements:
+          type: integer
+          format: int64
+        totalPages:
+          type: integer
+          format: int32
+        page:
+          type: integer
+          format: int32
+        size:
+          type: integer
+          format: int32
+        totalIsExact:
+          type: boolean
+    SaleLineItem:
+      type: object
+      properties:
+        lineId:
+          type: string
+          format: uuid
+          description: La línea. No se publica en ninguna otra consulta.
+        movementId:
+          type: string
+          format: uuid
+          description: "De qué venta viene; se abre con `GET /movements/{id}`."
+        movementCode:
+          type: string
+        movementStatus:
+          type: string
+          description: "El estado de la VENTA, no el de la entrega."
+        occurredAt:
+          type: string
+          format: date-time
+          description: Cuándo ocurrió la venta. Es el orden del listado.
+        client:
+          $ref: "#/components/schemas/SaleLineParty"
+          description: "El SUJETO de la venta: a nombre de quién es."
+        seller:
+          type:
+          - object
+          - "null"
+          $ref: "#/components/schemas/SaleLineParty"
+          description: Quien vendió ESTA línea (`RN-MV-003`). Presente y NULO cuando
+            la línea no lo tiene; la fila no desaparece por eso.
+        product:
+          $ref: "#/components/schemas/SaleLineProductRef"
+          description: "El producto, con el nombre CONGELADO del día de la venta."
+        quantity:
+          type: integer
+          format: int32
+        unitPrice:
+          type: number
+          description: COPIA del precio del catálogo el día de la venta. No se relee.
+        lineDiscount:
+          type: number
+          description: El descuento de la línea; sin él los importes no cuadran.
+        lineAmount:
+          type: number
+        validityDays:
+          type:
+          - integer
+          - "null"
+          format: int32
+          description: COPIA de la vigencia en días. NULO si lo comprado no caduca.
+        currency:
+          type: string
+          description: "El código de la moneda de la venta: el importe sin ella no\
+            \ dice nada."
+        implementation:
+          type: string
+          description: "COPIA de cómo se entrega: AUTOMATICA o MANUAL."
+        deliveryStatus:
+          type: string
+          description: "El estado de entrega DE LA LÍNEA: PENDIENTE, ENTREGADA o RETENIDA."
+        deliveredAt:
+          type:
+          - string
+          - "null"
+          format: date-time
+          description: Cuándo se entregó. NULO si no se ha entregado.
+        deliveryNote:
+          type:
+          - string
+          - "null"
+          description: Por qué no se entregará. Solo en RETENIDA (`RN-MV-029`).
+    SaleLineParty:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        username:
+          type: string
+        name:
+          type: string
+    SaleLineProductRef:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        code:
+          type: string
+        name:
+          type: string
     MyMovement:
       type: object
       description: Un movimiento en el que participa quien consulta.

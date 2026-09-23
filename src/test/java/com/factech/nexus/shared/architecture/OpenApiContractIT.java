@@ -501,6 +501,15 @@ class OpenApiContractIT extends IntegrationTestBase {
         .andExpect(
             jsonPath("$.paths['/api/v1/movements/mine'].get['" + EXTENSION + "']")
                 .value("movements:list-own"))
+        // `RF-MV-017`: las líneas de venta llevan permiso PROPIO, y el contrato es
+        // donde se ve que no es el del listado de ventas ni el de administración del
+        // libro — los dos que un integrador confundiría con este.
+        .andExpect(
+            jsonPath("$.paths['/api/v1/movements/sales/lines'].get['" + EXTENSION + "']")
+                .value("movements:list-sale-lines"))
+        .andExpect(jsonPath("$.paths['/api/v1/movements/sales/lines'].get.responses.403").exists())
+        .andExpect(
+            jsonPath("$.paths['/api/v1/movements/sales/lines'].get.responses.404").doesNotExist())
         .andExpect(
             jsonPath("$.paths['/api/v1/packages/{code}/purchases'].post['" + EXTENSION + "']")
                 .value("packages:buy"))

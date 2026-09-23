@@ -49,6 +49,14 @@ class MovementsPermissionsSeedIT extends IntegrationTestBase {
    */
   private static final String ASIGNAR = "movements:assign-sellers";
 
+  /**
+   * El de `V37` (`RF-MV-017`): las líneas de venta para administración. Como el de asignar, va a
+   * SUPERADMIN y ADMIN explícito y a nadie más, y tampoco es de la reserva. Y a diferencia de
+   * `movements:list-sales`, NO lleva alcance por estructura: `RN-MV-031` gobierna aquel y solo
+   * aquel, de modo que este no va a todo rol por su tipo.
+   */
+  private static final String LINEAS = "movements:list-sale-lines";
+
   @Autowired private JdbcTemplate jdbc;
 
   @Test
@@ -64,8 +72,8 @@ class MovementsPermissionsSeedIT extends IntegrationTestBase {
     assertThat(codigos)
         .containsAll(LOS_CUATRO)
         .containsAll(LOS_PROPIOS)
-        .contains(ASIGNAR)
-        .hasSize(9);
+        .contains(ASIGNAR, LINEAS)
+        .hasSize(10);
   }
 
   @Test
@@ -86,7 +94,7 @@ class MovementsPermissionsSeedIT extends IntegrationTestBase {
     // RN-SEG-007: la raíz de la contención está acotada por el catálogo
     // completo. Un permiso sembrado y no asociado la dejaría por detrás de sus
     // propios hijos.
-    assertThat(permisosDeMovimientosDe(SUPERADMIN)).containsAll(LOS_CUATRO).hasSize(9);
+    assertThat(permisosDeMovimientosDe(SUPERADMIN)).containsAll(LOS_CUATRO).hasSize(10);
   }
 
   @Test
@@ -105,10 +113,11 @@ class MovementsPermissionsSeedIT extends IntegrationTestBase {
     assertThat(permisosDeMovimientosDe(ADMIN))
         .doesNotContainAnyElementsOf(LOS_CUATRO)
         // Los propios sí, como todo rol (RF-SP-062): la reserva es de los cuatro.
-        // Y el de asignar vendedores (V36), que se le da explícito.
+        // Y los dos de administración que se le dan explícitos: asignar vendedores
+        // (V36) y las líneas de venta (V37).
         .containsExactlyInAnyOrderElementsOf(
             java.util.stream.Stream.concat(
-                    LOS_PROPIOS.stream(), java.util.stream.Stream.of(ASIGNAR))
+                    LOS_PROPIOS.stream(), java.util.stream.Stream.of(ASIGNAR, LINEAS))
                 .toList());
   }
 
@@ -125,7 +134,7 @@ class MovementsPermissionsSeedIT extends IntegrationTestBase {
     List<UUID> ids =
         jdbc.queryForList("SELECT id FROM permissions WHERE resource = 'movements'", UUID.class);
 
-    assertThat(ids).hasSize(9).doesNotHaveDuplicates();
+    assertThat(ids).hasSize(10).doesNotHaveDuplicates();
     assertThat(ids).allSatisfy(id -> assertThat(id.version()).isEqualTo(7));
     // variant() == 2 es la variante RFC 9562 (bits 10xx).
     assertThat(ids).allSatisfy(id -> assertThat(id.variant()).isEqualTo(2));
