@@ -72,7 +72,9 @@ class OwnScopePermissionsIT extends IntegrationTestBase {
               "broker-accounts:read-team-member",
               () -> get("/api/v1/users/{id}/broker-accounts", ID)),
           new Caso(
-              "GET /movements/mine", "movements:list-own", () -> get("/api/v1/movements/mine")),
+              "GET /movements/mine/shopping",
+              "movements:list-own",
+              () -> get("/api/v1/movements/mine/shopping")),
           new Caso(
               "GET /movements/mine/{id}",
               "movements:read-own",

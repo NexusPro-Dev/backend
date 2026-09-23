@@ -280,7 +280,7 @@ class EndpointPermissionsIT extends IntegrationTestBase {
           Map.entry("POST /api/v1/movements/{id}/voiding", "movements:void"),
           Map.entry("POST /api/v1/movements/{id}/seller-assignments", "movements:assign-sellers"),
           // ---- MV · alcance propio (RF-SP-062, desde el 21-09-2026) ----
-          Map.entry("GET /api/v1/movements/mine", "movements:list-own"),
+          Map.entry("GET /api/v1/movements/mine/shopping", "movements:list-own"),
           Map.entry("GET /api/v1/movements/mine/{id}", "movements:read-own"),
           Map.entry("GET /api/v1/movements/mine/products", "movements:read-own-products"),
           Map.entry("GET /api/v1/movements/sales", "movements:list-sales"),

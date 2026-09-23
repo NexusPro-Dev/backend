@@ -93,14 +93,14 @@ class MyMovementsIT extends IntegrationTestBase {
     // `vendida` la compró el cliente y la vendió el vendedor; `propia` se la
     // compró el vendedor a sí mismo (`RN-MV-003`: es su propio vendedor).
     // Hasta el 22-09-2026 el vendedor veía las dos, con papel SELLER y BOTH.
-    mvc.perform(get("/api/v1/movements/mine").with(como(vendedor)))
+    mvc.perform(get("/api/v1/movements/mine/shopping").with(como(vendedor)))
         .andExpect(status().isOk())
         .andExpect(jsonPath("$.totalElements").value(1))
         .andExpect(jsonPath("$.content.length()").value(1))
         .andExpect(jsonPath("$.content[0].id").value(propia.toString()));
 
     // Y el comprador ve la suya, que es lo único que este listado responde ya.
-    mvc.perform(get("/api/v1/movements/mine").with(como(cliente)))
+    mvc.perform(get("/api/v1/movements/mine/shopping").with(como(cliente)))
         .andExpect(status().isOk())
         .andExpect(jsonPath("$.totalElements").value(1))
         .andExpect(jsonPath("$.content[0].id").value(vendida.toString()));
@@ -110,7 +110,7 @@ class MyMovementsIT extends IntegrationTestBase {
   @DisplayName("CA-MV-139 — ninguna fila lleva `role`: se retiró con la mitad de vendedor")
   void laFilaNoLlevaPapel() throws Exception {
     String cuerpo =
-        mvc.perform(get("/api/v1/movements/mine").with(como(cliente)))
+        mvc.perform(get("/api/v1/movements/mine/shopping").with(como(cliente)))
             .andExpect(status().isOk())
             .andExpect(jsonPath("$.content[0].role").doesNotExist())
             .andReturn()
@@ -132,7 +132,7 @@ class MyMovementsIT extends IntegrationTestBase {
     // CON EL PERMISO PUESTO, a propósito. Si algún día alguien conecta
     // `movements:read` a esta ruta, esto lo delata en lugar de dejar que ocurra
     // por omisión — que es la única forma en que este requerimiento se rompe.
-    mvc.perform(get("/api/v1/movements/mine").with(conPermisoDeLectura(vendedor)))
+    mvc.perform(get("/api/v1/movements/mine/shopping").with(conPermisoDeLectura(vendedor)))
         .andExpect(status().isOk())
         // Una desde el 22-09-2026: solo lo comprado (`CA-MV-137`).
         .andExpect(jsonPath("$.totalElements").value(1))
@@ -144,7 +144,7 @@ class MyMovementsIT extends IntegrationTestBase {
   void sinMovimientos() throws Exception {
     UUID recienLlegado = persona("mine-nuevo");
 
-    mvc.perform(get("/api/v1/movements/mine").with(como(recienLlegado)))
+    mvc.perform(get("/api/v1/movements/mine/shopping").with(como(recienLlegado)))
         .andExpect(status().isOk())
         .andExpect(jsonPath("$.totalElements").value(0))
         .andExpect(jsonPath("$.content").isArray())
@@ -158,7 +158,7 @@ class MyMovementsIT extends IntegrationTestBase {
   @Test
   @DisplayName("CA-MV-040 y CA-MV-043 — va envuelto, y trae al sujeto y a sus vendedores")
   void formaDeLaFila() throws Exception {
-    mvc.perform(get("/api/v1/movements/mine").with(como(cliente)))
+    mvc.perform(get("/api/v1/movements/mine/shopping").with(como(cliente)))
         .andExpect(status().isOk())
         .andExpect(jsonPath("$.page").value(0))
         .andExpect(jsonPath("$.size").isNumber())
@@ -184,7 +184,7 @@ class MyMovementsIT extends IntegrationTestBase {
   @DisplayName("CA-MV-043 — la lista de vendedores viaja VACÍA Y PRESENTE cuando no hay ninguno")
   void movimientoSinVendedor() throws Exception {
     String cuerpo =
-        mvc.perform(get("/api/v1/movements/mine").with(como(ajeno)))
+        mvc.perform(get("/api/v1/movements/mine/shopping").with(como(ajeno)))
             .andExpect(status().isOk())
             .andExpect(jsonPath("$.content[0].sellers").isArray())
             .andExpect(jsonPath("$.content[0].sellers").isEmpty())
@@ -206,7 +206,7 @@ class MyMovementsIT extends IntegrationTestBase {
     // segunda consulta, y esa sí podría duplicar la fila.
     segundaLinea(vendida, vendedor);
 
-    mvc.perform(get("/api/v1/movements/mine").with(como(cliente)))
+    mvc.perform(get("/api/v1/movements/mine/shopping").with(como(cliente)))
         .andExpect(status().isOk())
         .andExpect(jsonPath("$.totalElements").value(1))
         .andExpect(jsonPath("$.content[0].id").value(vendida.toString()))
@@ -220,13 +220,13 @@ class MyMovementsIT extends IntegrationTestBase {
     // lo comprado, de modo que la segunda se siembra aquí.
     UUID otraCompra = movimiento(vendedor, vendedor, "PENDIENTE", BASE.plusDays(3));
 
-    mvc.perform(get("/api/v1/movements/mine?page=0&size=1").with(como(vendedor)))
+    mvc.perform(get("/api/v1/movements/mine/shopping?page=0&size=1").with(como(vendedor)))
         .andExpect(status().isOk())
         .andExpect(jsonPath("$.totalElements").value(2))
         .andExpect(jsonPath("$.totalPages").value(2))
         .andExpect(jsonPath("$.content[0].id").value(otraCompra.toString()));
 
-    mvc.perform(get("/api/v1/movements/mine?page=1&size=1").with(como(vendedor)))
+    mvc.perform(get("/api/v1/movements/mine/shopping?page=1&size=1").with(como(vendedor)))
         .andExpect(status().isOk())
         .andExpect(jsonPath("$.content[0].id").value(propia.toString()));
   }
@@ -234,13 +234,13 @@ class MyMovementsIT extends IntegrationTestBase {
   @Test
   @DisplayName("CA-MV-042 — el filtro por estado devuelve solo los de ese estado")
   void filtroPorEstado() throws Exception {
-    mvc.perform(get("/api/v1/movements/mine?status=PENDIENTE").with(como(cliente)))
+    mvc.perform(get("/api/v1/movements/mine/shopping?status=PENDIENTE").with(como(cliente)))
         .andExpect(status().isOk())
         .andExpect(jsonPath("$.totalElements").value(1))
         .andExpect(jsonPath("$.content[0].id").value(vendida.toString()));
 
     // Y el vendedor, que compró CONFIRMADA, no tiene ninguna pendiente propia.
-    mvc.perform(get("/api/v1/movements/mine?status=PENDIENTE").with(como(vendedor)))
+    mvc.perform(get("/api/v1/movements/mine/shopping?status=PENDIENTE").with(como(vendedor)))
         .andExpect(status().isOk())
         .andExpect(jsonPath("$.totalElements").value(0));
   }
@@ -254,21 +254,21 @@ class MyMovementsIT extends IntegrationTestBase {
     // solo no distingue de la venta pendiente que hizo.
     UUID deposito = movimiento(vendedor, null, "PENDIENTE", BASE.plusDays(5), TIPO_DE_PRUEBA);
 
-    mvc.perform(get("/api/v1/movements/mine?type=prueba_deposito").with(como(vendedor)))
+    mvc.perform(get("/api/v1/movements/mine/shopping?type=prueba_deposito").with(como(vendedor)))
         .andExpect(status().isOk())
         .andExpect(jsonPath("$.totalElements").value(1))
         .andExpect(jsonPath("$.content[0].id").value(deposito.toString()))
         .andExpect(jsonPath("$.content[0].type").value("PRUEBA_DEPOSITO"));
 
     // Por `VENTA`, la compra propia y no el depósito.
-    mvc.perform(get("/api/v1/movements/mine?type=VENTA").with(como(vendedor)))
+    mvc.perform(get("/api/v1/movements/mine/shopping?type=VENTA").with(como(vendedor)))
         .andExpect(status().isOk())
         .andExpect(jsonPath("$.totalElements").value(1))
         .andExpect(jsonPath("$.content[0].id").value(propia.toString()));
 
     // Combinado con el estado, sobre el comprador de la venta pendiente.
     mvc.perform(
-            get("/api/v1/movements/mine")
+            get("/api/v1/movements/mine/shopping")
                 .param("type", "VENTA")
                 .param("status", "PENDIENTE")
                 .with(como(cliente)))
@@ -277,7 +277,7 @@ class MyMovementsIT extends IntegrationTestBase {
         .andExpect(jsonPath("$.content[0].id").value(vendida.toString()));
 
     // Y el alcance no se mueve: el cliente no ve el depósito del vendedor.
-    mvc.perform(get("/api/v1/movements/mine?type=PRUEBA_DEPOSITO").with(como(cliente)))
+    mvc.perform(get("/api/v1/movements/mine/shopping?type=PRUEBA_DEPOSITO").with(como(cliente)))
         .andExpect(status().isOk())
         .andExpect(jsonPath("$.totalElements").value(0));
   }
@@ -287,7 +287,7 @@ class MyMovementsIT extends IntegrationTestBase {
   void tipoInexistente() throws Exception {
     // Como el estado y al revés que las personas: el catálogo es cerrado
     // (`RN-MV-017`), y una página vacía diría «no tienes ninguno así».
-    mvc.perform(get("/api/v1/movements/mine?type=INVENTADO").with(como(vendedor)))
+    mvc.perform(get("/api/v1/movements/mine/shopping?type=INVENTADO").with(como(vendedor)))
         .andExpect(status().isBadRequest())
         .andExpect(jsonPath("$.errors[0].field").value("type"))
         .andExpect(jsonPath("$.errors[0].code").value("VAL-004"));
@@ -300,12 +300,15 @@ class MyMovementsIT extends IntegrationTestBase {
     jdbc.update(
         "UPDATE movements SET payment_method_id = CAST(? AS uuid) WHERE id = ?", PSE, propia);
 
-    mvc.perform(get("/api/v1/movements/mine").param("paymentMethodId", PSE).with(como(vendedor)))
+    mvc.perform(
+            get("/api/v1/movements/mine/shopping")
+                .param("paymentMethodId", PSE)
+                .with(como(vendedor)))
         .andExpect(status().isOk())
         .andExpect(jsonPath("$.totalElements").value(1))
         .andExpect(jsonPath("$.content[0].id").value(propia.toString()));
     mvc.perform(
-            get("/api/v1/movements/mine")
+            get("/api/v1/movements/mine/shopping")
                 .param("paymentMethodId", UUID.randomUUID().toString())
                 .with(como(vendedor)))
         .andExpect(status().isOk())
@@ -322,17 +325,19 @@ class MyMovementsIT extends IntegrationTestBase {
         jdbc.queryForObject("SELECT code FROM movements WHERE id = ?", String.class, deOtros);
 
     mvc.perform(
-            get("/api/v1/movements/mine").param("code", codigo.toLowerCase()).with(como(cliente)))
+            get("/api/v1/movements/mine/shopping")
+                .param("code", codigo.toLowerCase())
+                .with(como(cliente)))
         .andExpect(status().isOk())
         .andExpect(jsonPath("$.totalElements").value(1))
         .andExpect(jsonPath("$.content[0].id").value(vendida.toString()));
     // El alcance va antes que el filtro: conocer un código no abre lo que no es propio.
-    mvc.perform(get("/api/v1/movements/mine").param("code", ajeno).with(como(cliente)))
+    mvc.perform(get("/api/v1/movements/mine/shopping").param("code", ajeno).with(como(cliente)))
         .andExpect(status().isOk())
         .andExpect(jsonPath("$.totalElements").value(0));
     // Y desde el 22-09-2026 tampoco lo que VENDIÓ: el vendedor conoce el código
     // de `vendida` y su listado no se lo devuelve (`CA-MV-137`).
-    mvc.perform(get("/api/v1/movements/mine").param("code", codigo).with(como(vendedor)))
+    mvc.perform(get("/api/v1/movements/mine/shopping").param("code", codigo).with(como(vendedor)))
         .andExpect(status().isOk())
         .andExpect(jsonPath("$.totalElements").value(0));
   }
@@ -344,7 +349,7 @@ class MyMovementsIT extends IntegrationTestBase {
     // vendida el 1 de agosto, propia el 2: [1, 2) es solo la primera, y quien la
     // ve es su comprador.
     mvc.perform(
-            get("/api/v1/movements/mine")
+            get("/api/v1/movements/mine/shopping")
                 .param("from", BASE.toString())
                 .param("to", BASE.plusDays(1).toString())
                 .with(como(cliente)))
@@ -353,7 +358,7 @@ class MyMovementsIT extends IntegrationTestBase {
         .andExpect(jsonPath("$.content[0].id").value(vendida.toString()));
     // Combinado con el estado: [1, 3) son las dos, y confirmada solo la propia.
     mvc.perform(
-            get("/api/v1/movements/mine")
+            get("/api/v1/movements/mine/shopping")
                 .param("from", BASE.toString())
                 .param("to", BASE.plusDays(2).toString())
                 .param("status", "CONFIRMADA")
@@ -362,7 +367,7 @@ class MyMovementsIT extends IntegrationTestBase {
         .andExpect(jsonPath("$.totalElements").value(1))
         .andExpect(jsonPath("$.content[0].id").value(propia.toString()));
     mvc.perform(
-            get("/api/v1/movements/mine")
+            get("/api/v1/movements/mine/shopping")
                 .param("from", BASE.plusDays(2).toString())
                 .param("to", BASE.toString())
                 .with(como(vendedor)))
@@ -376,7 +381,7 @@ class MyMovementsIT extends IntegrationTestBase {
   void estadoInexistente() throws Exception {
     // La diferencia importa: una página vacía diría «no tienes ninguno así», que
     // es una respuesta falsa a una pregunta mal escrita.
-    mvc.perform(get("/api/v1/movements/mine?status=INVENTADO").with(como(vendedor)))
+    mvc.perform(get("/api/v1/movements/mine/shopping?status=INVENTADO").with(como(vendedor)))
         .andExpect(status().isBadRequest())
         .andExpect(jsonPath("$.errors[0].code").value("VAL-003"));
   }
@@ -415,7 +420,7 @@ class MyMovementsIT extends IntegrationTestBase {
     // dejaría al vendedor sin ninguna vía para abrir una venta suya, porque
     // `RF-MV-007` no existe y `RF-MV-015` es solo listado. Quien venga a
     // «ponerlo coherente con el listado» hace fallar esta prueba.
-    mvc.perform(get("/api/v1/movements/mine").with(como(vendedor)))
+    mvc.perform(get("/api/v1/movements/mine/shopping").with(como(vendedor)))
         .andExpect(jsonPath("$.content[?(@.id == '" + vendida + "')]").isEmpty());
 
     mvc.perform(get("/api/v1/movements/mine/{id}", vendida).with(como(vendedor)))
@@ -454,30 +459,48 @@ class MyMovementsIT extends IntegrationTestBase {
           + " (RF-SP-062)")
   void sinPermisoResponde() throws Exception {
     mvc.perform(
-            get("/api/v1/movements/mine")
+            get("/api/v1/movements/mine/shopping")
                 .with(user(cliente.toString()).authorities(() -> "movements:list-own")))
         .andExpect(status().isOk());
     // Hasta el 21-09-2026 bastaba con estar autenticado; ya no.
-    mvc.perform(get("/api/v1/movements/mine").with(user(cliente.toString()).authorities()))
+    mvc.perform(get("/api/v1/movements/mine/shopping").with(user(cliente.toString()).authorities()))
         .andExpect(status().isForbidden());
   }
 
   @Test
   @DisplayName("CA-MV-047 — sin autenticar responde 401")
   void sinAutenticar() throws Exception {
-    mvc.perform(get("/api/v1/movements/mine")).andExpect(status().isUnauthorized());
+    mvc.perform(get("/api/v1/movements/mine/shopping")).andExpect(status().isUnauthorized());
     mvc.perform(get("/api/v1/movements/mine/{id}", vendida)).andExpect(status().isUnauthorized());
   }
 
   @Test
-  @DisplayName("`mine` no lo captura una variable de ruta")
-  void mineNoEsUnIdentificador() throws Exception {
-    // Hoy este controlador no tiene `/{id}`, pero `RF-MV-007` lo traerá. El
-    // síntoma de romperlo sería un `400` por identificador inválido en la ruta
-    // que más se usa, y esta prueba lo convierte en un fallo con nombre.
-    mvc.perform(get("/api/v1/movements/mine").with(como(cliente)))
+  @DisplayName("`shopping` no lo captura la variable de ruta del detalle")
+  void shoppingNoEsUnIdentificador() throws Exception {
+    // `/mine/shopping` es un literal y `/mine/{id}` una variable: Spring
+    // resuelve antes el literal, como con `/mine/products`. El síntoma de
+    // romperlo sería un `400` por identificador inválido en la ruta que más se
+    // usa, y esta prueba lo convierte en un fallo con nombre.
+    mvc.perform(get("/api/v1/movements/mine/shopping").with(como(cliente)))
         .andExpect(status().isOk())
         .andExpect(jsonPath("$.content").isArray());
+  }
+
+  @Test
+  @DisplayName(
+      "CA-MV-140 — el listado vive en `/mine/shopping`; `/mine` a secas ya no existe, y el detalle"
+          + " y los productos no se movieron")
+  void laRutaAnteriorYaNoExiste() throws Exception {
+    // SIN ALIAS, y es la decisión: dos rutas con `movements:list-own` romperían
+    // la inyectividad operación → permiso (`RN-SEG-014`), que
+    // `EndpointPermissionsIT` comprueba.
+    mvc.perform(get("/api/v1/movements/mine").with(como(cliente))).andExpect(status().isNotFound());
+
+    // Y lo que no se mudó sigue respondiendo donde estaba.
+    mvc.perform(get("/api/v1/movements/mine/{id}", vendida).with(como(cliente)))
+        .andExpect(status().isOk());
+    mvc.perform(get("/api/v1/movements/mine/products").with(como(cliente)))
+        .andExpect(status().isOk());
   }
 
   // ---------------------------------------------------------------------------

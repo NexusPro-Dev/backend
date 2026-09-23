@@ -8771,7 +8771,48 @@ paths:
         "500":
           description: Fallo no controlado (`ERR-500`)
       x-required-permission: movements:list-sale-lines
-  /api/v1/movements/mine:
+  /api/v1/movements/mine/{id}:
+    get:
+      tags:
+      - Movimientos
+      summary: Consultar el detalle de un movimiento propio
+      description: |
+        **Permiso requerido:** `movements:read-own`. Sin él, `403` (`AUTH-002`).
+
+        Devuelve **lo mismo que devuelve registrar una venta**, con sus líneas: qué
+        productos, cuántos, a qué precio y con qué vigencia. Quien registró una venta y
+        quien la consulta después ven la misma forma.
+
+        **Un movimiento que no es suyo responde `404`**, exactamente igual que uno que no
+        existe. No es un descuido: un `403` confirmaría que el identificador existe.
+      operationId: mio
+      parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      responses:
+        "200":
+          description: "El movimiento, con sus líneas."
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/SaleResponse"
+        "400":
+          description: Identificador malformado (`VAL-001`)
+        "401":
+          description: Token ausente o inválido (`AUTH-001`)
+        "403":
+          description: Autenticado sin `movements:read-own` (`AUTH-002`)
+        "404":
+          description: No existe **o no es suyo** (`VAL-002`). Las dos son la misma
+            respuesta
+        "500":
+          description: Fallo no controlado (`ERR-500`)
+      x-required-permission: movements:read-own
+  /api/v1/movements/mine/shopping:
     get:
       tags:
       - Movimientos
@@ -8781,6 +8822,11 @@ paths:
 
         Devuelve **los movimientos a nombre de usted** —lo que compró—, paginados y del más
         reciente al más antiguo.
+
+        **Esta operación se mudó aquí el 22-09-2026**, desde `GET /api/v1/movements/mine`,
+        que **ya no existe**: el listado dejó de traer lo vendido ese mismo día y el nombre
+        tenía que decirlo. No hay alias —cada operación exige un permiso que ninguna otra
+        exige—, de modo que la ruta anterior responde `404`.
 
         **Desde el 22-09-2026 este listado trae SOLO lo comprado.** Hasta esa fecha traía
         también lo que usted hubiera **vendido**, y cada fila decía con `role` en qué papel
@@ -8889,47 +8935,6 @@ paths:
         "500":
           description: Fallo no controlado (`ERR-500`)
       x-required-permission: movements:list-own
-  /api/v1/movements/mine/{id}:
-    get:
-      tags:
-      - Movimientos
-      summary: Consultar el detalle de un movimiento propio
-      description: |
-        **Permiso requerido:** `movements:read-own`. Sin él, `403` (`AUTH-002`).
-
-        Devuelve **lo mismo que devuelve registrar una venta**, con sus líneas: qué
-        productos, cuántos, a qué precio y con qué vigencia. Quien registró una venta y
-        quien la consulta después ven la misma forma.
-
-        **Un movimiento que no es suyo responde `404`**, exactamente igual que uno que no
-        existe. No es un descuido: un `403` confirmaría que el identificador existe.
-      operationId: mio
-      parameters:
-      - name: id
-        in: path
-        required: true
-        schema:
-          type: string
-          format: uuid
-      responses:
-        "200":
-          description: "El movimiento, con sus líneas."
-          content:
-            '*/*':
-              schema:
-                $ref: "#/components/schemas/SaleResponse"
-        "400":
-          description: Identificador malformado (`VAL-001`)
-        "401":
-          description: Token ausente o inválido (`AUTH-001`)
-        "403":
-          description: Autenticado sin `movements:read-own` (`AUTH-002`)
-        "404":
-          description: No existe **o no es suyo** (`VAL-002`). Las dos son la misma
-            respuesta
-        "500":
-          description: Fallo no controlado (`ERR-500`)
-      x-required-permission: movements:read-own
   /api/v1/movements/mine/products:
     get:
       tags:

@@ -541,7 +541,7 @@ class OpenApiContractIT extends IntegrationTestBase {
             jsonPath("$.paths['/api/v1/users/me'].get['" + EXTENSION + "']")
                 .value("users:read-own-profile"))
         .andExpect(
-            jsonPath("$.paths['/api/v1/movements/mine'].get['" + EXTENSION + "']")
+            jsonPath("$.paths['/api/v1/movements/mine/shopping'].get['" + EXTENSION + "']")
                 .value("movements:list-own"))
         // `RF-MV-017`: las líneas de venta llevan permiso PROPIO, y el contrato es
         // donde se ve que no es el del listado de ventas ni el de administración del
