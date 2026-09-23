@@ -26,6 +26,7 @@ public class JpaClientSellerRepository implements ClientSellerRepository {
       """
       SELECT cs.seller_id AS seller_id, s.username AS username,
              s.first_name AS first_name, s.last_name AS last_name,
+             s.company_phone AS company_phone, s.status AS status,
              cs.origin AS origin, cs.created_at AS linked_at
         FROM client_sellers cs
         JOIN users s ON s.id = cs.seller_id
@@ -159,6 +160,8 @@ public class JpaClientSellerRepository implements ClientSellerRepository {
         (String) fila.get("username"),
         (String) fila.get("first_name"),
         (String) fila.get("last_name"),
+        (String) fila.get("company_phone"),
+        (String) fila.get("status"),
         (String) fila.get("origin"),
         momento(fila.get("linked_at")));
   }
