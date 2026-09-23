@@ -3,6 +3,7 @@ package com.factech.nexus.modules.products.application;
 import java.math.BigDecimal;
 import java.util.Collection;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
 import java.util.UUID;
@@ -105,6 +106,31 @@ public interface ProductCatalog {
    * @return el subconjunto de {@code ids} que el hotlink publica hoy
    */
   Set<UUID> publishedByHotlink(Collection<UUID> ids);
+
+  /**
+   * El <b>cupón del bot</b> de cada producto, <b>ya resuelto</b> (`RN-MV-032`, `RN-PM-049`).
+   *
+   * <p><b>Es un método más y no un campo más en {@link SaleView}</b>, que es la norma de esta
+   * interfaz desde {@link #findPrice}: quien necesita un dato pide su propia lectura, sin que los
+   * dobles de prueba de los demás cambien. Y aquí el motivo pesa el doble, porque quien lo pide no
+   * es quien registra una venta sino quien la consulta después.
+   *
+   * <p><b>Llega RESUELTO, y esa es la razón de que exista</b>: la composición del enlace —la
+   * dirección sin su barra final, más `/`, más el identificador externo— es una regla de `PM`, y un
+   * `JOIN` contra {@code product_links} desde el otro módulo obligaría a reescribirla allí. Es la
+   * distinción de D-25 que `modelo-datos.md` declara: <b>las claves foráneas cruzan; los
+   * repositorios no</b>.
+   *
+   * <p><b>Recibe un lote</b>, como {@link #saleViewOf}: una página de veinte líneas que preguntara
+   * veinte veces cruzaría la frontera veinte veces para lo mismo — la {@code N+1} que no se ve,
+   * porque cada llamada es un método Java (`CA-MV-142`).
+   *
+   * <p><b>Quién puede verlo no lo decide esta interfaz</b>: el filtro por estado de la entrega es
+   * de `MV` (`RN-MV-032`). Cada módulo pone lo que sabe.
+   *
+   * @return un mapa por producto; los que no declaran cupón <b>no aparecen</b>
+   */
+  Map<UUID, String> couponLinksOf(Collection<UUID> ids);
 
   /** Lo que cruza la frontera: datos planos, sin comportamiento y sin entidad. */
   record ProductView(UUID id, String code, String name, boolean retired) {}

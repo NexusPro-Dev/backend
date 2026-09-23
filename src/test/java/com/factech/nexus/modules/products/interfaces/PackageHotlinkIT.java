@@ -79,6 +79,7 @@ class PackageHotlinkIT extends IntegrationTestBase {
   @AfterEach
   void vaciar() {
     PackageTestSupport.limpiarPaquetes(jdbc);
+    ProductLinkTestSupport.limpiar(jdbc);
     jdbc.update("DELETE FROM products");
     PackageTestSupport.limpiarMonedasDePrueba(jdbc);
     limpiarPersonas();
@@ -109,9 +110,10 @@ class PackageHotlinkIT extends IntegrationTestBase {
         .andExpect(jsonPath("$.package.price").value(530.00))
         .andExpect(jsonPath("$.package.savings").value(70.00))
         .andExpect(jsonPath("$.package.exchange").value(nullValue()));
-    // Tres: vendedor, paquete con productos, moneda de casa — sin tasa, porque
-    // el paquete ya está en ella.
-    assertThat(estadisticas.getPrepareStatementCount()).isEqualTo(3);
+    // Cuatro: vendedor, paquete con productos, ENLACES de todos sus productos
+    // —una sola sentencia para los dos, no una por linea— y moneda de casa;
+    // sin tasa, porque el paquete ya esta en ella.
+    assertThat(estadisticas.getPrepareStatementCount()).isEqualTo(4);
   }
 
   @Test
@@ -198,6 +200,34 @@ class PackageHotlinkIT extends IntegrationTestBase {
   }
 
   @Test
+  @DisplayName("`CA-PM-398` — el paquete publica el video RESUELTO de cada producto y NO su cupón")
+  void elPaqueteNoPublicaElCupon() throws Exception {
+    // Es `CA-PM-396` sobre el paquete, y se prueba aparte porque LA SENTENCIA
+    // ES OTRA: la del paquete, no la del producto. Compartir la decisión no
+    // es compartir el código, y la que no se prueba es la que un día se
+    // escribe sin el tipo en el predicado.
+    ProductLinkTestSupport.enlace(jdbc, oro, "VIDEO_PRESENTACION", "https://vimeo.com/canal", "7");
+    ProductLinkTestSupport.enlace(jdbc, oro, "CUPON_BOT", "https://t.me/nexusbot", "cupon-15");
+
+    String cuerpo =
+        enlace("hl-vendedora", "PACK_ORO_BOTS")
+            .andExpect(status().isOk())
+            .andReturn()
+            .getResponse()
+            .getContentAsString();
+
+    // El video, resuelto: el identificador pegado como último segmento.
+    assertThat(cuerpo).contains("https://vimeo.com/canal/7");
+    // Y el cupón, en ningún rincón del cuerpo entero: esta ruta tampoco pide
+    // token.
+    assertThat(cuerpo)
+        .doesNotContain("CUPON_BOT")
+        .doesNotContain("t.me/nexusbot")
+        .doesNotContain("cupon-15")
+        .doesNotContain("videoUrl");
+  }
+
+  @Test
   @DisplayName(
       "`CA-PM-334` y `FA-001` — en otra moneda, exchange sobre price y una sola tasa; sin tasa, exchange vacía y presente")
   void conversion() throws Exception {
@@ -237,8 +267,9 @@ class PackageHotlinkIT extends IntegrationTestBase {
         .andExpect(jsonPath("$.package.exchange.currency.code").value("USD"))
         .andExpect(jsonPath("$.package.exchange.amount").value(550.00))
         .andExpect(jsonPath("$.package.items[0].product.exchange.currency.code").value("USD"));
-    // Cuatro: vendedor, paquete, moneda de casa y UNA tasa para las líneas y el total.
-    assertThat(estadisticas.getPrepareStatementCount()).isEqualTo(4);
+    // Cinco: vendedor, paquete, ENLACES de sus productos, moneda de casa y UNA
+    // tasa para las lineas y el total.
+    assertThat(estadisticas.getPrepareStatementCount()).isEqualTo(5);
   }
 
   @Test

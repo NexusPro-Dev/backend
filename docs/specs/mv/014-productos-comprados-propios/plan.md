@@ -11,6 +11,7 @@
 | Aprobado por | Responsable del proyecto |
 | Fecha de aprobación | 17-09-2026 |
 | Enmendado | 21-09-2026 — exige **`movements:read-own-products`** (`RF-SP-062`, `RN-SEG-015`: autenticarse no autoriza nada); lo siembra `V31` |
+| Enmendado | 22-09-2026 — **`couponUrl` en la línea entregada** (`RN-MV-032`), pedido a `PM` **en lote** por su interfaz publicada; §3, §4 y §8 |
 
 !!! info "Qué va en este documento"
 
@@ -38,7 +39,7 @@
 
 ## 2. Cambios de esquema
 
-**Ninguno.** Todo sale de `movements`, `movement_details` (con las columnas de `V16`, `RF-MV-003` · `T-01`) y `products` para el código. `ix_movements_user` (`V12`) responde al alcance; las líneas se cruzan por `idx_movement_details_movement` (`V7`).
+**Ninguno, y el 22-09-2026 sigue siendo ninguno** aunque la respuesta gane `couponUrl` (`RN-MV-032`): el cupón **no se copia en la línea** —única excepción declarada a `RN-MV-002`, porque es el medio de la entrega y no un término de la venta— y **no se lee de `product_links`** desde aquí. Todo sale de `movements`, `movement_details` (con las columnas de `V16`, `RF-MV-003` · `T-01`) y `products` para el código. `ix_movements_user` (`V12`) responde al alcance; las líneas se cruzan por `idx_movement_details_movement` (`V7`).
 
 ---
 
@@ -112,7 +113,15 @@ Ninguna (`spec.md` §7).
 
 ## 8. Impacto sobre otros módulos
 
-Ninguno. Se cruza `products` solo por el código, que es inmutable (`RN-PM-013`).
+Ninguno hasta el 22-09-2026. Se cruza `products` solo por el código, que es inmutable (`RN-PM-013`).
+
+**Desde el 22-09-2026, `PM` publica una lectura más y este módulo la consume** (`RN-MV-032`): los cupones de un **lote** de productos, **ya resueltos**, en `ProductCatalog`. Tres cosas la justifican, y conviene que estén escritas porque la alternativa era más corta.
+
+**Por qué no un `JOIN` contra `product_links`.** La consulta de este requerimiento ya cruza `products`, de modo que añadir la tabla habría costado una línea. Se descarta porque **la composición del enlace (`RN-PM-049`) es una regla de `PM`**, y un `JOIN` obligaría a reescribirla aquí —concatenar la barra, no duplicarla, respetar el identificador nulo— en un segundo sitio. Es la distinción de D-25 que `modelo-datos.md` ya declara: **las claves foráneas cruzan; los repositorios no**. Lo que se cruza por FK es el código del producto, un dato sin reglas; el enlace las tiene.
+
+**Por qué en lote y no por línea.** Una página de veinte líneas que preguntara veinte veces cruzaría la frontera veinte veces para lo mismo — la `N+1` que no se ve, porque cada llamada es un método Java (`ProductCatalog`, Javadoc de `findForSale`). Se piden **una vez por página**, con los identificadores ya resueltos, y `CA-MV-142` lo fija.
+
+**Por qué la resuelve `PM` y no este módulo.** Porque **también decide quién puede verlo** no es cosa de `PM`: el filtro por estado de entrega es de aquí (`RN-MV-032`), y la composición es de allí (`RN-PM-049`). Cada módulo pone lo que sabe, y ninguno de los dos tiene que conocer la mitad del otro.
 
 ---
 
@@ -149,3 +158,6 @@ Ninguno. Se cruza `products` solo por el código, que es inmutable (`RN-PM-013`)
 | Orden, paginación, una fila por línea | Integración | |
 | `/mine/products` no es un `{id}` | Integración | |
 | `401` sin token; `200` sin permiso | Integración | |
+| El cupón en la línea entregada | API | `ACTIVO` y `VENCIDO` lo traen **resuelto**; `PENDIENTE_PAGO`, `PENDIENTE_AUTORIZACION` y `RETENIDO` **no lo traen**, comprobando el cuerpo entero (`CA-MV-140`, `CA-MV-141`) |
+| El cupón no es un `N+1` | Integración | Veinte líneas entregadas: **una sola llamada** a `ProductCatalog`, y el recuento **no crece** con la página (`CA-MV-142`) |
+| El cupón se lee de hoy, no de la venta | API | Se corrige la dirección en el catálogo y la misma línea entregada devuelve **la nueva**; se quita el enlace y **el campo desaparece** |

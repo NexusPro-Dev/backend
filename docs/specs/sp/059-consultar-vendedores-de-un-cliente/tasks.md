@@ -5,7 +5,7 @@
 | Requerimiento | `RF-SP-059` |
 | Especificación | [`spec.md`](spec.md) |
 | Plan | [`plan.md`](plan.md), aprobado el 18-09-2026 |
-| Estado | **Aprobadas** (21-09-2026) |
+| Estado | **Aprobadas** (21-09-2026; enmendadas el 22-09-2026 con `T-20` a `T-22`) |
 | Issue | [#70](https://github.com/NexusPro-Dev/backend/issues/70) |
 | Rama | `feature/vendedores-de-un-cliente` |
 | Autor | Responsable técnico |
@@ -35,6 +35,9 @@
 | `T-17` | Documentación OpenAPI de las dos rutas: **prosa**, no solo esquema — que hoy la lista tiene un elemento y **por qué**, que el principal no se cambia, y qué significa `linkedAt` en una fila migrada. `api/index.md` con las dos rutas y el contrato regenerado | `T-16` | El diff de `openapi.json` solo añade | **Hecha el 18-09-2026** (`6f6542a` en la rama; `e4594d5` tras el rebase) |
 | `T-18` | Actualizar la matriz de `docs/requirements.md` y los estados de esta tripleta | `T-17`, `T-19` | La fila de `RF-SP-059` refleja el estado; las de `RF-SP-042`, `045`, `055` a `058` y `RF-MV-001` citan sus criterios nuevos | **Hecha el 21-09-2026** |
 | `T-19` | **Añadida el 21-09-2026** (Art. I.7, `RF-SP-060`): `V29__sp_semilla_permiso_users_read_sellers.sql` siembra `users:read-sellers` (`…5e7ad0000025`) a `SUPERADMIN` y `ADMIN`; `UserController` lo exige en `/{id}/sellers` con su prosa de `403`; `ClientSellersIT` lo concede; `EndpointPermissionsIT` lo recibe en `PERMISO_DE_CADA_OPERACION` y el motivo de `/me/sellers` lo nombra; `PermissionsSeedIT`, `PermissionIT`, `JpaPermissionQueryRepositoryIT` y `ListPermissionsServiceIT` cuentan ciento doce; `security.md` §4.4 y `requirements/sp.md` al día | `T-06` | `CA-SP-705` con el permiso nuevo; `EndpointPermissionsIT` sin excepciones nuevas | **Hecha el 21-09-2026** |
+| `T-20` | **Añadida el 22-09-2026** (Art. I.7): `JpaClientSellerRepository.PROYECCION` suma `s.company_phone` y `s.status`, y `ClientSellerRow` sus dos campos. **Sin sentencia nueva**: las dos columnas salen del `JOIN users s` que ya se hacía | `T-03` | `CA-SP-798`; el recuento de sentencias no cambia | Pendiente |
+| `T-21` | `ClientSellersResponse.SellerItem` gana `companyPhone` —presente y nula— y `status`, con su `@Schema`, y la **prosa OpenAPI de las dos rutas** dice que los dos campos viajan en ambas, que el nulo del teléfono es «no lo declaró» y que un vendedor eliminado sigue saliendo y ahora se distingue por su estado | `T-20` | `CA-SP-798`; contrato regenerado | Pendiente |
+| `T-22` | `SellerClientsIT`/`ClientSellersIT`: `CA-SP-701` **invertido** —el estado ya no está ausente— y `CA-SP-798` nuevo, con un vendedor sin teléfono (nulo presente, comprobado sobre el JSON en crudo) y uno **eliminado** que sigue saliendo con su estado | `T-21` | `CA-SP-701`, `CA-SP-798` | Pendiente |
 
 ## 2. Orden de ejecución
 
@@ -56,6 +59,7 @@
 | `CA-SP-708` | `T-13` |
 | `CA-SP-709` | `T-09` |
 | `CA-SP-710` a `CA-SP-713` (en `RF-SP-042` y `RF-SP-045`) | `T-08`, `T-15` |
+| `CA-SP-798` | `T-20`, `T-21`, `T-22` |
 
 ## 4. Bloqueos
 

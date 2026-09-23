@@ -72,9 +72,11 @@ class HotlinkCatalogIT extends IntegrationTestBase {
             + " 'image/png', decode('89504E470D0A1A0A00', 'hex'))",
         imagen.toString());
     jdbc.update(
-        "UPDATE products SET cover_image_id = CAST(? AS uuid), video_url = 'https://vimeo.com/1',"
+        "UPDATE products SET cover_image_id = CAST(? AS uuid),"
             + " purchase_price = 60.00 WHERE code = 'HL_ORO'",
         imagen.toString());
+    ProductLinkTestSupport.enlace(
+        jdbc, "HL_ORO", "VIDEO_PRESENTACION", "https://vimeo.com/1", null);
   }
 
   @AfterEach
@@ -129,7 +131,8 @@ class HotlinkCatalogIT extends IntegrationTestBase {
             .andExpect(jsonPath("$.upgrades.content[1].price").value(100.00))
             .andExpect(jsonPath("$.upgrades.content[1].currency.code").value("USD"))
             .andExpect(jsonPath("$.upgrades.content[1]").value(Matchers.hasKey("exchange")))
-            .andExpect(jsonPath("$.upgrades.content[1].videoUrl").value("https://vimeo.com/1"))
+            .andExpect(jsonPath("$.upgrades.content[1].links.length()").value(1))
+            .andExpect(jsonPath("$.upgrades.content[1].links[0].url").value("https://vimeo.com/1"))
             .andExpect(
                 jsonPath("$.upgrades.content[1].coverImageUrl")
                     .value("/api/v1/product-images/" + imagen))
@@ -138,6 +141,35 @@ class HotlinkCatalogIT extends IntegrationTestBase {
             .getResponse()
             .getContentAsString();
     assertThat(cuerpo).doesNotContain("purchasePrice").doesNotContain("60.00");
+  }
+
+  @Test
+  @DisplayName("`CA-PM-399` — el catálogo no trae el cupón, y sí el video RESUELTO")
+  void elCatalogoNoTraeElCupon() throws Exception {
+    // Quien reparte hotlinks tiene token, pero NO es administración: se le
+    // enseña lo mismo que a quien abre el enlace y nada más. Comparte la
+    // proyección con la oferta (`RF-PM-007`), de modo que esta prueba no
+    // vigila una consulta propia sino que la compartida siga siendo la buena.
+    ProductLinkTestSupport.enlace(jdbc, "HL_ORO", "CUPON_BOT", "https://t.me/nexusbot", "cupon-15");
+    jdbc.update("DELETE FROM product_links WHERE type = 'VIDEO_PRESENTACION'");
+    ProductLinkTestSupport.enlace(
+        jdbc, "HL_ORO", "VIDEO_PRESENTACION", "https://vimeo.com/canal", "1");
+
+    String cuerpo =
+        mvc.perform(catalogo())
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.upgrades.content[1].code").value("HL_ORO"))
+            .andExpect(jsonPath("$.upgrades.content[1].links.length()").value(1))
+            .andExpect(
+                jsonPath("$.upgrades.content[1].links[0].url").value("https://vimeo.com/canal/1"))
+            .andReturn()
+            .getResponse()
+            .getContentAsString();
+
+    assertThat(cuerpo)
+        .doesNotContain("CUPON_BOT")
+        .doesNotContain("t.me/nexusbot")
+        .doesNotContain("cupon-15");
   }
 
   @Test
@@ -157,6 +189,7 @@ class HotlinkCatalogIT extends IntegrationTestBase {
   @DisplayName("`CA-PM-344` — sin nada publicable, 200 con las dos listas vacías")
   void vacio() throws Exception {
     jdbc.update("UPDATE products SET cover_image_id = NULL");
+    ProductLinkTestSupport.limpiar(jdbc);
     jdbc.update("DELETE FROM products");
     mvc.perform(catalogo())
         .andExpect(status().isOk())
@@ -222,6 +255,7 @@ class HotlinkCatalogIT extends IntegrationTestBase {
 
   private void limpiar() {
     jdbc.update("UPDATE products SET cover_image_id = NULL");
+    ProductLinkTestSupport.limpiar(jdbc);
     jdbc.update("DELETE FROM products");
     jdbc.update("DELETE FROM product_images");
     jdbc.update(

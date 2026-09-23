@@ -7,6 +7,7 @@ import com.factech.nexus.modules.products.domain.models.RatingSummary;
 import com.factech.nexus.modules.products.domain.repository.ProductQueryRepository.ProductRow;
 import com.fasterxml.jackson.annotation.JsonInclude;
 import java.math.BigDecimal;
+import java.util.List;
 import java.util.UUID;
 
 /**
@@ -47,7 +48,16 @@ public record OfferItem(
      * `RN-PM-032`: el enlace del video SÍ viaja por aquí, al revés que el precio de compra. Es
      * material de venta —existe para que lo vea quien compra— y no un costo.
      */
-    String videoUrl,
+    /**
+     * Los enlaces <b>publicables</b> del producto: <b>resueltos y sin el {@code CUPON_BOT}</b>
+     * (`RN-PM-049`, `RN-PM-050`).
+     *
+     * <p>Sustituye a {@code videoUrl} el 22-09-2026. El cupón no cabe aquí, y esa ausencia es la
+     * segunda defensa de `RN-PM-050` —la primera es el filtro por tipo en el predicado de la
+     * consulta—: <b>no tener dónde ponerlo</b> sobrevive a que alguien reescriba la sentencia. Es
+     * el mismo mecanismo con el que este registro deja fuera {@code purchasePrice}.
+     */
+    List<ProductLinkResponse> links,
     /**
      * La dirección de la portada (`RN-PM-033`): la ruta pública de `RF-PM-016`, construida sobre
      * `cover_image_id` sin tocar `product_images`. Presente y nula cuando no hay.
@@ -89,7 +99,8 @@ public record OfferItem(
    * <p><b>La conversión se calcula sobre {@code price}</b>, y por eso llega ya resuelta desde el
    * servicio.
    */
-  public static OfferItem from(ProductRow fila, ExchangeRef conversion) {
+  public static OfferItem from(
+      ProductRow fila, List<ProductLinkResponse> enlaces, ExchangeRef conversion) {
     return new OfferItem(
         fila.id(),
         fila.code(),
@@ -97,7 +108,8 @@ public record OfferItem(
         fila.name(),
         fila.description(),
         fila.icon(),
-        fila.videoUrl(),
+        // Resueltos y sin el cupón (`CA-PM-394`, `CA-PM-395`).
+        enlaces,
         ProductImageUrls.de(fila.coverImageId()),
         fila.targetMembershipId() == null
             ? null

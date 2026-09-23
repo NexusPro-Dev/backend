@@ -21,13 +21,17 @@ final class ProductCoverSupport {
   private ProductCoverSupport() {}
 
   static ProductDetailResponse detalleDe(
-      UUID id, ProductQueryRepository consultas, ProductExchangeResolver conversiones) {
+      UUID id,
+      ProductQueryRepository consultas,
+      ProductExchangeResolver conversiones,
+      ProductLinkReader enlaces) {
     return consultas
         .findDetail(id)
         .map(
             fila ->
                 ProductDetailResponse.from(
                     fila,
+                    enlaces.crudosDe(fila.id()),
                     null,
                     conversiones
                         .para(List.of(fila.currencyId()))

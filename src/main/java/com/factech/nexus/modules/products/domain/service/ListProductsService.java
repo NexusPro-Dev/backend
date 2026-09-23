@@ -2,6 +2,7 @@ package com.factech.nexus.modules.products.domain.service;
 
 import com.factech.nexus.modules.products.application.ListProductsRequest;
 import com.factech.nexus.modules.products.application.ProductItem;
+import com.factech.nexus.modules.products.application.ProductLinkResponse;
 import com.factech.nexus.modules.products.application.ProductPageResponse;
 import com.factech.nexus.modules.products.application.ProductSortField;
 import com.factech.nexus.modules.products.domain.models.ProductImplementation;
@@ -16,6 +17,8 @@ import com.factech.nexus.shared.pagination.Pagination;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
+import java.util.Map;
+import java.util.UUID;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -41,14 +44,17 @@ public class ListProductsService {
   private final Pagination paginacion;
 
   private final ProductExchangeResolver conversiones;
+  private final ProductLinkReader enlaces;
 
   public ListProductsService(
       ProductQueryRepository consultas,
       Pagination paginacion,
-      ProductExchangeResolver conversiones) {
+      ProductExchangeResolver conversiones,
+      ProductLinkReader enlaces) {
     this.consultas = consultas;
     this.paginacion = paginacion;
     this.conversiones = conversiones;
+    this.enlaces = enlaces;
   }
 
   @Transactional(readOnly = true)
@@ -111,10 +117,21 @@ public class ListProductsService {
         conversiones.para(
             filas.stream().map(ProductQueryRepository.ProductRow::currencyId).toList());
 
+    // Los enlaces de la página, en UNA sentencia y con los identificadores ya
+    // resueltos. Nunca uno por fila: el coste no puede depender del tamaño de la
+    // página (`CA-PM-386`). Es la misma forma que la conversión de arriba.
+    Map<UUID, List<ProductLinkResponse>> enlacesDeLaPagina =
+        enlaces.crudosDe(filas.stream().map(ProductQueryRepository.ProductRow::id).toList());
+
     return ProductPageResponse.de(
         PageResponse.de(
             filas.stream()
-                .map(fila -> ProductItem.from(fila, conversor.de(fila.currencyId(), fila.price())))
+                .map(
+                    fila ->
+                        ProductItem.from(
+                            fila,
+                            enlacesDeLaPagina.getOrDefault(fila.id(), List.of()),
+                            conversor.de(fila.currencyId(), fila.price())))
                 .toList(),
             consultas.count(canonicos),
             trozo.page(),

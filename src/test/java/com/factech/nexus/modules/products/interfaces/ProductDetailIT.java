@@ -1,5 +1,6 @@
 package com.factech.nexus.modules.products.interfaces;
 
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.user;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.content;
@@ -7,10 +8,12 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 import com.factech.nexus.IntegrationTestBase;
+import jakarta.persistence.EntityManagerFactory;
 import java.time.OffsetDateTime;
 import java.time.ZoneOffset;
 import java.util.UUID;
 import org.hamcrest.Matchers;
+import org.hibernate.stat.Statistics;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
@@ -47,6 +50,8 @@ class ProductDetailIT extends IntegrationTestBase {
   @Autowired private MockMvc mvc;
   @Autowired private JdbcTemplate jdbc;
 
+  @Autowired private EntityManagerFactory emf;
+
   private UUID oro;
   private UUID free;
   private UUID upgrade;
@@ -54,6 +59,7 @@ class ProductDetailIT extends IntegrationTestBase {
 
   @BeforeEach
   void sembrarCatalogo() {
+    ProductLinkTestSupport.limpiar(jdbc);
     jdbc.update("DELETE FROM products");
     jdbc.update("DELETE FROM memberships");
     jdbc.update("DELETE FROM currencies WHERE is_default = false");
@@ -72,6 +78,7 @@ class ProductDetailIT extends IntegrationTestBase {
     // Un producto que sobreviva mantiene una clave foránea sobre `memberships`,
     // y varias pruebas de `SP` empiezan borrando membresías: el fallo saldría
     // en ellas y solo con cierto orden de ejecución.
+    ProductLinkTestSupport.limpiar(jdbc);
     jdbc.update("DELETE FROM products");
     jdbc.update("DELETE FROM audit_deletion_log WHERE module = 'PM'");
     // La conversión trajo `exchange_rates` a esta clase (08-09-2026), y va
@@ -224,27 +231,79 @@ class ProductDetailIT extends IntegrationTestBase {
   }
 
   @Test
-  @DisplayName("`CA-PM-224` — el detalle devuelve `videoUrl`, nulo y presente sin él, y retirado")
-  void elDetalleTraeElVideo() throws Exception {
+  @DisplayName("`CA-PM-224` — el detalle devuelve `links` tal cual, vacía sin ellos, y retirado")
+  void elDetalleTraeSusEnlaces() throws Exception {
     mvc.perform(detalle(bot))
         .andExpect(status().isOk())
-        .andExpect(jsonPath("$.videoUrl").doesNotExist())
-        .andExpect(content().string(Matchers.containsString("\"videoUrl\":null")));
+        .andExpect(jsonPath("$.links").isArray())
+        .andExpect(jsonPath("$.links.length()").value(0))
+        .andExpect(jsonPath("$.videoUrl").doesNotExist());
 
     // Tal cual se guardó: ni minúsculas ni barra final.
-    jdbc.update(
-        "UPDATE products SET video_url = 'https://Vimeo.com/123456/' WHERE id = CAST(? AS uuid)",
-        bot.toString());
+    ProductLinkTestSupport.enlace(
+        jdbc, bot, "VIDEO_PRESENTACION", "https://Vimeo.com/123456/", null);
     mvc.perform(detalle(bot))
         .andExpect(status().isOk())
-        .andExpect(jsonPath("$.videoUrl").value("https://Vimeo.com/123456/"));
+        .andExpect(jsonPath("$.links.length()").value(1))
+        .andExpect(jsonPath("$.links[0].url").value("https://Vimeo.com/123456/"));
 
     // Y en uno retirado sigue legible, como el resto de su configuración.
     retirar(bot, "Se descontinúa el servicio.");
     mvc.perform(detalle(bot))
         .andExpect(status().isOk())
         .andExpect(jsonPath("$.deletedAt").exists())
-        .andExpect(jsonPath("$.videoUrl").value("https://Vimeo.com/123456/"));
+        .andExpect(jsonPath("$.links[0].url").value("https://Vimeo.com/123456/"));
+  }
+
+  @Test
+  @DisplayName("`CA-PM-387` — el detalle enseña los DOS enlaces, crudos, también si está retirado")
+  void elDetalleEnsenaLosDosEnlaces() throws Exception {
+    ProductLinkTestSupport.enlace(
+        jdbc, bot, "VIDEO_PRESENTACION", "https://vimeo.com/123456", null);
+    ProductLinkTestSupport.enlace(jdbc, bot, "CUPON_BOT", "https://t.me/nexusbot", "cupon-15");
+
+    // Sin filtrar por tipo: es la lectura de administración, y es donde los
+    // enlaces se administran. El cupón se esconde en las lecturas de venta.
+    mvc.perform(detalle(bot))
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$.links.length()").value(2))
+        .andExpect(
+            jsonPath("$.links[?(@.type == 'CUPON_BOT')].url")
+                .value(Matchers.contains("https://t.me/nexusbot")))
+        // Crudo, no compuesto: el identificador viaja en SU campo, que es lo
+        // que `RF-PM-004` espera recibir de vuelta.
+        .andExpect(
+            jsonPath("$.links[?(@.type == 'CUPON_BOT')].externalId")
+                .value(Matchers.contains("cupon-15")));
+
+    retirar(bot, "Se descontinúa el servicio.");
+    mvc.perform(detalle(bot))
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$.links.length()").value(2));
+  }
+
+  @Test
+  @DisplayName("`CA-PM-388` — los enlaces cuestan UNA sentencia más, la misma con uno que con dos")
+  void losEnlacesCuestanUnaSentencia() throws Exception {
+    ProductLinkTestSupport.enlace(
+        jdbc, bot, "VIDEO_PRESENTACION", "https://vimeo.com/123456", null);
+    long conUno = sentenciasDe(detalle(bot));
+
+    ProductLinkTestSupport.enlace(jdbc, bot, "CUPON_BOT", "https://t.me/nexusbot", "cupon-15");
+    long conDos = sentenciasDe(detalle(bot));
+
+    // Si la lectura preguntara por enlace, el segundo costaría una sentencia
+    // más y este recuento crecería. Se compara, no se fija una cifra: lo que
+    // se afirma es que no depende de cuántos enlaces haya.
+    assertThat(conDos).isEqualTo(conUno);
+  }
+
+  /** Las sentencias preparadas que cuesta una petición, medidas por Hibernate. */
+  private long sentenciasDe(MockHttpServletRequestBuilder peticion) throws Exception {
+    Statistics estadisticas = emf.unwrap(org.hibernate.SessionFactory.class).getStatistics();
+    estadisticas.clear();
+    mvc.perform(peticion).andExpect(status().isOk());
+    return estadisticas.getPrepareStatementCount();
   }
 
   @Test

@@ -143,10 +143,10 @@ public interface ProductQueryRepository {
       String name,
       String description,
       String icon,
-      // `RN-PM-032`: SE SELECCIONA EN LAS CUATRO lecturas, la oferta y el
-      // hotlink incluidos — al revés que `purchasePrice`, que las dos públicas
-      // dejan nulo a propósito. Nulo cuando el producto no tiene video.
-      String videoUrl,
+      // `video_url` estuvo aquí entre el 14-09-2026 y el 22-09-2026. Los
+      // enlaces son filas de `product_links` y NO salen de estas sentencias:
+      // los lee `ProductLinkRepository` en UNA sentencia por página, y el caso
+      // de uso los junta con la fila (`RN-PM-048`).
       // `RN-PM-033`: el IDENTIFICADOR de la portada y nada más — ninguna de las
       // cuatro sentencias toca `product_images`. La dirección la construye la
       // respuesta. Nulo cuando el producto no tiene portada.

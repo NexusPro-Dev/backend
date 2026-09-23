@@ -99,6 +99,33 @@ public class AuthController {
           Si la contraseña la fijó otra persona, la respuesta autentica **y
           advierte** con `mustChangePassword`: hace falta una sesión para poder
           cambiarla.
+
+          ### Con qué cuenta se entra
+
+          **El nombre de usuario y el correo valen los dos**, en este mismo
+          campo. La cuenta inicial de cualquier despliegue es **`superadmin`**,
+          y su correo es el que ese despliegue declaró en `SUPERADMIN_EMAIL`.
+
+          **Su contraseña no está escrita en ninguna parte, y eso es la regla y
+          no un olvido**: la fija cada despliegue en `SUPERADMIN_PASSWORD_HASH`,
+          y la migración `V9` **se niega a arrancar** si no viene declarada, en
+          lugar de caer en una conocida (Art. IX.5). **No hay una credencial por
+          defecto que probar aquí**: la sabe quien desplegó, y en `.env.example`
+          esa variable viaja **vacía** a propósito.
+
+          **En local, con `DEV_SEED_ENABLED`**, la semilla añade diecinueve
+          personas de prueba —`admin1`, `manager1`, `director1`, `agente1`,
+          `cliente1`…— que **comparten la contraseña del superadministrador**:
+          no se inventa una nueva, de modo que quien conoce esa una entra con
+          todas. Esa semilla **no se activa en ningún entorno desplegado**.
+
+          **Y la primera sesión casi no abre nada, que es lo que más despista.**
+          La cuenta inicial nace marcada para cambio obligatorio, así que con el
+          token que se recibe aquí solo se llega a `POST /api/v1/auth/password`
+          —quien limpia la marca— y a `GET /api/v1/users/me` —para poder saber
+          por qué—, más las propias rutas de sesión. **Todo lo demás responde
+          `403`** con el tipo `cambio-de-contrasena-requerido`. No está rota:
+          está esperando exactamente eso.
           """)
   @ApiResponses({
     @ApiResponse(

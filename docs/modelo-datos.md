@@ -2,11 +2,11 @@
 
 | Campo | Valor |
 |---|---|
-| Versión | 0.64.0 |
+| Versión | 0.66.0 |
 | Estado | **Borrador** |
 | Responsable | Bonilla Diaz William Steven |
 | Fecha de creación | 21-08-2026 |
-| Última actualización | 17-09-2026 |
+| Última actualización | 22-09-2026 |
 
 !!! info "Qué va en este documento"
 
@@ -66,6 +66,8 @@ erDiagram
     users ||--o{ user_supervisors : "tiene gente a cargo"
     users ||--o{ client_sellers : "lo registró o le vendió · cliente · RN-SP-049"
     users ||--o{ client_sellers : "registró o vendió · vendedor · el REGISTRO es el principal"
+    teams ||--o{ team_members : "reúne · RN-SP-052 · diseñada 21-09-2026"
+    users ||--o{ team_members : "pertenece, si es manager · RN-SP-051 · uno vigente"
     countries ||--o{ users : "está en · RN-SP-034 · exactamente uno, obligatorio"
     document_types ||--o{ users : "se identifica con · RN-SP-035 · columnas en §2"
     brokers        ||--o{ user_brokers : "tiene cuentas en · RN-SP-038"
@@ -198,14 +200,35 @@ erDiagram
         timestamptz created_at "now"
         timestamptz updated_at "now"
     }
+
+    teams {
+        uuid id PK "diseñada · la creará V33"
+        varchar name "único funcional y parcial · RN-SP-050 · sin código"
+        text description "NULL · máx. 500"
+        varchar status "ACTIVO | INACTIVO · RN-SP-053"
+        timestamptz created_at "now"
+        timestamptz updated_at "now"
+        timestamptz deleted_at "NULL · baja lógica · RN-SP-054"
+    }
+
+    team_members {
+        uuid id PK "la forma de user_supervisors"
+        uuid team_id FK "el equipo"
+        uuid user_id FK "SOLO la cúspide · RN-SP-051 · uno vigente por persona"
+        timestamptz started_at "now"
+        timestamptz ended_at "NULL mientras esté vigente · RN-SP-052"
+        timestamptz created_at "now"
+        timestamptz updated_at "now"
+    }
 ```
 
 **`countries` aparece aquí dibujada sin sus columnas a propósito**: es un catálogo, vive en §2 y repetir sus campos en dos diagramas es la forma más barata de que diverjan. Lo que hace en este es sostener la única arista nueva del 07-09-2026.
 
-Nueve decisiones que el dibujo no explica solo:
+Diez decisiones que el dibujo no explica solo:
 
 - **`parent_role_id` hace dos trabajos**: acota los privilegios del hijo y expresa el orden de mando comercial (`RN-SP-011`). La consecuencia es permanente: un rol `VENDEDOR` nunca podrá tener un permiso que su superior no tenga, porque `RN-SEG-003` lo rechazaría.
 - **`user_supervisors` y `client_sellers` son las dos tablas que relacionan dos usuarios entre sí**, y responden a preguntas distintas. La primera, a una que `parent_role_id` no puede responder: no *qué rol manda sobre qué rol*, sino **qué persona está a cargo de qué persona** — y solo dentro de la fuerza comercial. Lleva clave sustituta —al contrario que `user_roles`— porque el mismo par puede repetirse en el tiempo y lo que distingue una fila de otra es el periodo. Su unicidad es parcial, `WHERE ended_at IS NULL`: un solo superior vigente, historial ilimitado. La segunda responde **qué vendedor registró o le vendió a qué cliente** (`RN-SP-049`): no es mando, no se cierra, y por eso **desde el 18-09-2026 el cliente no tiene fila en la primera** (`RN-SP-028` revertida) — entre el 01-09-2026 y esa fecha la tuvo, y cada consulta del árbol cargaba con distinguirla. Ninguna de las dos **concede acceso a ningún dato**; el modelo de alcance sigue pendiente como D-22.
+- **`teams` y `team_members` organizan LA CÚSPIDE, y solo la cúspide** (21-09-2026, [`requirements/sp.md`](requirements/sp.md) §10.20 y §10.21, `RN-SP-050` a `RN-SP-055`). Un equipo reúne a quienes portan el rol vendedor de mayor rango —los que `RN-SP-019` exime de superior—, y **nadie más tiene fila**: un director o un agente pertenece al equipo de su manager **por recorrido** de `user_supervisors` hacia arriba, no por dato, para que no pueda figurar en un equipo distinto del de quien lo manda. Es una **partición** de las raíces del bosque comercial, no una tercera jerarquía: los equipos no se anidan y encima de ellos no hay nada. `team_members` copia la forma de `user_supervisors` —clave sustituta, unicidad parcial `WHERE ended_at IS NULL`, historial que no se borra— porque responde a la misma pregunta con otro objeto al otro lado: no «quién mandaba sobre esta persona entonces» sino «en qué equipo estaba entonces», que es lo que las comisiones preguntarán. `teams` tiene baja lógica **y** estado, como `roles`, porque «ya no recibe a nadie» y «ya no existe» son dos cosas que el administrador dice por separado. Y tampoco concede acceso a nada: D-22 sigue donde estaba.
 - **La unicidad de `roles` es parcial**, no total: `WHERE deleted_at IS NULL`. Una restricción única corriente bloquearía para siempre el nombre de un rol borrado.
 - **La de `users` es justo la contraria: total.** `username` y `email` son únicos entre **todos** los usuarios, incluidos los eliminados (`RN-SP-016`). Reutilizarlos permitiría que la actividad de dos personas distintas quedara bajo la misma etiqueta en la auditoría. La asimetría con `roles` es deliberada: un rol es una etiqueta, un usuario es una persona.
 - **`username` y `email` sirven ambos para iniciar sesión**, y lo que impide que se confundan es que `username` no admite el carácter `@` (`RF-SP-024`). Sin esa restricción, las dos columnas necesitarían compartir un espacio de unicidad común.
@@ -448,6 +471,7 @@ erDiagram
     products ||--o{ commission_rates : "paga esa tasa · V94: la tasa de rol NACE con su producto"
     users    ||--o{ user_commission_rates : "excepción de"
     products ||--o{ user_commission_rates : "paga esa excepción · V10: la personalizada NACE con su producto"
+    products ||--o{ product_links : "enlaza · V35 · UNO POR TIPO: la pareja es la clave"
     products ||--o{ product_comments : "se reseña"
     users    ||--o{ product_comments : "escribe UNA por producto"
     product_images |o--o| products : "es la PORTADA de · V90"
@@ -464,7 +488,6 @@ erDiagram
         uuid source_membership_id FK "obligatorio en upgrade, PROHIBIDO en bot · DE DONDE sale"
         numeric price "14,4 · EL QUE SE COBRA · la escala la decide la MONEDA"
         numeric purchase_price "14,4 · LO QUE PAGA NEXUS · NULL = no se conoce · solo administracion"
-        varchar video_url "500 · la DIRECCION de un video, no el video · NULL = no tiene · en las CUATRO lecturas"
         uuid cover_image_id FK "V90 · la portada · NULL = no tiene · UNICO: una imagen es portada de UN producto"
         integer validity_days "NULL = no caduca"
         timestamptz deleted_at "lógico · RN-PM-010"
@@ -492,6 +515,15 @@ erDiagram
         date valid_from "la ÚNICA tabla con vigencia"
         date valid_to "NULL = indefinidamente"
         timestamptz deleted_at "lógico"
+    }
+
+    product_links {
+        uuid product_id PK, FK "V35 · la PAREJA con type es la clave: UN enlace por tipo"
+        varchar type PK "30 · VIDEO_PRESENTACION o CUPON_BOT · CHECK, no catalogo: cada uno trae consigo donde se publica"
+        varchar url "500 · NOT NULL: no hay enlace sin enlace · quitar uno es BORRAR la fila"
+        varchar external_id "100 · id de un sistema AJENO · NULL = no lleva · se PEGA al final de la url al publicarla"
+        timestamptz created_at "SIN deleted_at: se borra fisicamente, como product_package_items"
+        timestamptz updated_at "cuando se corrigio"
     }
 
     product_comments {
@@ -594,9 +626,15 @@ erDiagram
 
     **Y aparece la tercera columna de esta tabla cuya regla el esquema no puede sostener**, junto a `RN-PM-007` y `RN-PM-017`: que un importe **no se cobre** no es expresable en ninguna restricción. Lo único que lo sostiene es **dónde no aparece** — `movement_details` copia `price`, y el puerto que `PM` publica para vender (`ProductCatalog.saleViewOf`) no lleva el otro. Añadirlo ahí bastaría para que empezara a cobrarse sin que nada fallara.
 
-!!! info "`video_url` es una dirección, no un archivo, y va a las CUATRO lecturas (14-09-2026)"
+!!! info "`product_links` recoge lo que era `video_url`, y le añade un tipo (22-09-2026, `V35`)"
 
-    `products.video_url` —`varchar(500)`, nulo cuando no hay— guarda **la dirección de un video que presenta el producto**, no el video (`RN-PM-032`, `requirements/pm.md` §5.2.8). Es `icon` otra vez: el sistema no almacena binarios, y con el video **tampoco los consulta** — `ck_products_video_url_format` comprueba que empiece por `http://` o `https://` y no lleve espacios, y nada comprueba que el enlace resuelva a algo. **Al revés que `purchase_price`, sale de administración**: lo devuelven las cuatro lecturas, el hotlink sin token incluido, porque es material de venta y no un costo. Es el único par de columnas opcionales de esta tabla que se separan exactamente en eso: una se esconde porque enseñaría el margen, la otra se publica porque existe para que la vean.
+    **`products.video_url` existió entre el 14-09-2026 y el 22-09-2026**: `varchar(500)`, nula cuando no había, con `ck_products_video_url_format`. Guardaba **la dirección de un video que presenta el producto**, no el video (`RN-PM-032`, `requirements/pm.md` §5.2.8) — `icon` otra vez: el sistema no almacena binarios y con el video **tampoco los consulta**. **`V35` la migra fila a fila a `product_links` y la borra** con su restricción, porque el producto necesitó **un segundo enlace** y la segunda cosa de la misma forma es la que enseña que la forma era una tabla (`requirements/pm.md` §5.2.14, §10.7).
+
+    **La pareja `(product_id, type)` es la clave primaria**, como en `product_package_items` y por lo mismo: la fila **no es una entidad**, es el valor de un hueco del producto, de modo que no tiene `id` propio, **no tiene `deleted_at`** —quitar un enlace lo borra— y la unicidad «uno por tipo» **es** la clave y no un índice aparte. Los dos tipos van en un `CHECK` y no en un catálogo administrable: cada uno trae consigo **dónde se publica**, y eso es código.
+
+    **`url` es `NOT NULL` y ahí está la diferencia con la columna que reemplaza.** No hay «enlace sin enlace»: donde el nulo de `video_url` significaba «no tiene video», ahora la ausencia de la fila lo significa, y quitar el video es **borrarla**. `external_id` sí admite nulo —un identificador de un sistema ajeno que NEXUS guarda y devuelve **sin interpretar**— y **se pega como último segmento de la url** al publicarla (`RN-PM-049`), de donde sale la única restricción cruzada de la tabla: **con identificador, la url no puede llevar `?` ni `#`** (`ck_product_links_id_sin_consulta`), porque pegar un segmento detrás de una cadena de consulta da un enlace roto **que responde `200`**.
+
+    **Y el tipo decide quién lo ve**, que es lo que esta tabla añade sobre la columna: `VIDEO_PRESENTACION` sale en las cuatro lecturas del producto, hotlink sin token incluido, porque es material de venta y no un costo —al revés que `purchase_price`—; **`CUPON_BOT` no sale de ninguna**, y se publica **solo** en `RF-MV-014` y **solo en la línea `ENTREGADA`** (`RN-PM-050`, `RN-MV-032`), porque es **lo que se compró** y enseñarlo antes es regalarlo.
 
 !!! info "`product_images` es la primera tabla del sistema que guarda un archivo, y NO es una entidad (14-09-2026, `V90`)"
 
@@ -770,6 +808,8 @@ flowchart TB
             C6["user_memberships"]
             C4["user_supervisors<br/>solo fuerza comercial"]
             C7["client_sellers<br/>cliente → sus vendedores"]
+            C8["teams<br/>diseñada · V33"]
+            C9["team_members<br/>solo la cúspide"]
             C3["refresh_tokens"]
             C5["password_reset_permits"]
         end
@@ -813,6 +853,7 @@ flowchart TB
     classDef escrita fill:#e7eef0,stroke:#2d5a6b,color:#151b1e
     classDef disenada fill:#f6e6e2,stroke:#a33b2a,stroke-dasharray:3 3,color:#a33b2a
     class A1,A2,A3,A4,A5,A6,B1,B2,B3,B4,C1,C2,C3,C4,C5,C6,OBS,P1,M1 escrita
+    class C8,C9 disenada
     class M2,M3 disenada
     class V1,V2,V3,V4,V5,V6 disenada
 ```
@@ -821,9 +862,9 @@ flowchart TB
 
 | Módulo | Tablas | Estado |
 |---|---|---|
-| `SP` | `permissions`, `roles`, `role_permissions`, `users`, `user_roles`, `memberships`, `user_memberships`, `currencies`, `countries`, `document_types`, `user_supervisors`, `refresh_tokens`, `password_reset_permits`, `exchange_rates`, `brokers`, `user_brokers` | **16, escritas** |
+| `SP` | `permissions`, `roles`, `role_permissions`, `users`, `user_roles`, `memberships`, `user_memberships`, `currencies`, `countries`, `document_types`, `user_supervisors`, `client_sellers`, `refresh_tokens`, `password_reset_permits`, `exchange_rates`, `brokers`, `user_brokers`, `teams`, `team_members` | **17 escritas** (`client_sellers` desde `V20`, 21-09-2026) **y dos diseñadas**: `teams` y `team_members`, que creará `V33` con `RF-SP-063` (21-09-2026) |
 | `SP` · auditoría | `audit_change_log`, `audit_deletion_log`, `audit_error_log`, `audit_security_log`, `request_log` | **5, escritas** |
-| `PM` | `products`, `product_comments`, `product_images`, `product_packages`, `product_package_items` | **3 escritas** (`V39`, `V87`, `V90`) **y dos diseñadas**: las de los paquetes, que creará la migración de `RF-PM-017` (14-09-2026) |
+| `PM` | `products`, `product_comments`, `product_images`, `product_packages`, `product_package_items`, `product_links` | **3 escritas** (`V39`, `V87`, `V90`) **y dos diseñadas**: las de los paquetes, que creará la migración de `RF-PM-017` (14-09-2026). **`product_links` la crea `V35`** (22-09-2026), y con ella `products` **pierde** `video_url` |
 | `CM` | `commission_rates`, `user_commission_rates` | **2, escritas** (`V6` del esquema consolidado). `product_commission_rates` existió de `V49` a `V94` (15-09-2026) y `user_commission_rate_products` de `V85` a `V10` (16-09-2026) |
 | `MV` | `movements`, `movement_types`, `movement_details`, `movement_detail_discounts`, `payment_methods`, `payment_method_exclusions` | **6, escritas** (`V7` del esquema consolidado, y `V14` para las rebajas) |
 | `AC` | `course_categories`, `courses`, `course_category_items`, `course_recommendations`, `course_memberships`, `course_modules`, `lessons`, `academy_images` | **1 escrita** (`course_categories`, `V18`, 17-09-2026) **y siete diseñadas** (§4.2): las crearán los requerimientos que las estrenan, en el orden de [`requirements/ac.md`](requirements/ac.md) §6.1 |
@@ -859,6 +900,7 @@ Son las que siguen —**y desde el 14-09-2026 una de `PM` apunta a `users`**—,
 | `commission_rates.product_id` | `products` | `CM` → `PM` — **desde `V94`** (15-09-2026); sustituye a `product_commission_rates.product_id`, que existió de `V49` a `V94` |
 | `user_commission_rates.product_id` | `products` | `CM` → `PM` — **desde `V10`** (16-09-2026); sustituye a `user_commission_rate_products.product_id`, que existió de `V85` a `V10` |
 | `product_comments.user_id` | `users` | `PM` → `SP` — **la primera de `PM` hacia una persona** (14-09-2026) |
+| `product_links.product_id` | `products` | `PM` → `PM` (`V35`, 22-09-2026) — **no cruza módulo**, y se anota aquí por lo mismo que la portada del paquete: **sin `ON DELETE`**, porque el producto no se borra físicamente nunca (`RN-PM-010`) |
 | `product_packages.currency_id` | `currencies` | `PM` → `SP` — la moneda del paquete entero (14-09-2026, diseñada) |
 | `courses.instructor_id` | `users` | `AC` → `SP` — quién enseña (17-09-2026, diseñada). **Que porte `courses:teach` no cabe en la clave**: lo comprueba el dominio contra la interfaz de `SP` |
 | `course_memberships.membership_id` | `memberships` | `AC` → `SP` — qué nivel abre el curso (17-09-2026, diseñada). La **primera clave foránea hacia `memberships` que no es de `PM`** |
@@ -883,7 +925,7 @@ Son las que siguen —**y desde el 14-09-2026 una de `PM` apunta a `users`**—,
 | `V2__auditoria` | los cuatro registros, `v_audit_timeline`, `request_log` | `V4`, `V33`, `V34`, `V35`, `V36` |
 | `V3__sp_catalogos` | `memberships`, `currencies`, `exchange_rates`, `countries`, `document_types`, `brokers` | `V13`, `V14`, `V16`, `V17`, `V38`, `V42`, `V47`, `V65`, `V70`, `V73`, `V79` |
 | `V4__sp_seguridad` | `permissions`, `roles`, `role_permissions`, `users`, `user_roles`, `user_memberships`, `user_supervisors`, `user_brokers`, `refresh_tokens`, `password_reset_permits` | `V2`, `V5`, `V6`, `V18` a `V21`, `V26` a `V29`, `V31`, `V32`, `V37`, `V52`, `V56`, `V64`, `V71`, `V74`, `V77`, `V80`, `V82`, `V83` |
-| `V5__pm_productos` | `product_images`, `products`, `product_comments`, `product_packages`, `product_package_items` | `V39`, `V41`, `V43`, `V53`, `V59`, `V61`, `V67`, `V86`, `V87`, `V89`, `V90`, `V91`, `V92` |
+| `V5__pm_productos` | `product_images`, `products`, `product_comments`, `product_packages`, `product_package_items` | `V39`, `V41`, `V43`, `V53`, `V59`, `V61`, `V67`, `V86`, `V87`, `V89`, `V90`, `V91`, `V92`; **`V35`** (22-09-2026), que crea `product_links` y **quita** `products.video_url` |
 | `V6__cm_comisiones` | `commission_rates`, `user_commission_rates`, `user_commission_rate_products` | `V44`, `V49`, `V50`, `V84`, `V85`, `V94` |
 | `V7__mv_movimientos` | `movement_types`, `payment_methods`, `payment_method_exclusions`, `movements`, `movement_details` | `V54`, `V55`, `V58`, `V78` |
 | `V8__semilla_permisos_y_roles` | los cincuenta permisos por módulo, los seis roles de sistema y sus asociaciones | `V3`, `V7`, `V30`, `V40`, `V45`, `V48`, `V51`, `V60`, `V66`, `V72`, `V75`, `V81`, `V88`, `V93` |
@@ -978,3 +1020,5 @@ Los documentos que citan una migración vieja por su número —specs, controles
 | 0.62.0 | 17-09-2026 | **Nace `AC` — Academia, con ocho tablas diseñadas** ([`modules.md`](modules.md) v0.21.0 §5.5, [`requirements/ac.md`](requirements/ac.md) v0.1.0 §8), por decisión del responsable del proyecto. §4.2 las dibuja: cuatro entidades con historia —`course_categories`, `courses`, `course_modules`, `lessons`, todas con `deleted_at` y retiro con motivo, **y el retiro arrastra hacia abajo** con un registro por fila—, tres relaciones sin identidad —`course_category_items`, `course_recommendations`, `course_memberships`, con clave compuesta y sin `deleted_at` porque dar y quitar **borra la fila**— y `academy_images`, que es `product_images` columna a columna **en el módulo que la escribe**, porque §7 de `modules.md` prohíbe que `AC` inserte en la tabla de `PM`. **La visibilidad es una tabla y no un nivel mínimo** (`course_memberships`): un curso de un nivel no tiene por qué abrirse a los de arriba, y **sin filas el curso no se ofrece**. **La demostración es una columna de la lección** (`lessons.open`) y no un curso aparte. **`lessons.content` es una sola columna para `VIDEO` y `TEXTO`**, con el tipo diciendo cómo leerla — lo contrario de las dos columnas de `CM`, que declaran dos formas y necesitaron un `CHECK` de exclusión. §5.1 gana la fila de `AC` y §5.3 dos claves foráneas hacia `SP` —el instructor y la membresía—, ninguna hacia `PM`. **Nada se escribe hoy**: cada tabla nace con el requerimiento que la estrena, y las migraciones tomarán el número que esté libre ese día. | Responsable del proyecto |
 | 0.63.0 | 17-09-2026 | **`course_categories` es la primera tabla escrita de `AC`** (`V18`, `RF-AC-001`), tal como §4.2 la dibuja, con una decisión de orden que conviene ver aquí: **`cover_image_id` nace ya en la tabla, nulable y sin clave foránea**, porque `academy_images` la crea `RF-AC-006` y su migración añadirá `fk_course_categories_cover_image` y `uq_course_categories_cover_image`. Mientras no exista la tabla nadie escribe la columna, y la forma de la respuesta es la definitiva desde el primer día — es el orden inverso al de `products`, donde la columna llegó con la portada, y se ahorra un `ALTER`. Tres `CHECK` —color en mayúsculas, icono, orden ≥ 0— y el índice parcial `uq_course_categories_name` sobre `f_unaccent(lower(name))`. `V19` siembra permisos y no toca el esquema. | Responsable técnico |
 | 0.64.0 | 18-09-2026 | **El cliente sale de `user_supervisors`: `client_sellers` pasa a ser la única relación cliente-vendedor, y el principal es la fila `REGISTRO`, inmutable** ([`requirements/sp.md`](requirements/sp.md) v1.59.0 —`RN-SP-028` revertida, `RN-SP-049` enmendada—, [`requirements/mv.md`](requirements/mv.md) v0.27.0), por decisión del responsable del proyecto. `user_supervisors` vuelve a lo que fue hasta el 01-09-2026: **solo fuerza comercial**, mando con historial; y deja de ser «la única tabla que relaciona dos usuarios», porque `client_sellers` es la otra. La tabla diseñada el 16-09-2026 **no cambia de columnas**: gana un **índice único parcial** sobre `client_id` con `origin = 'REGISTRO'` —un principal por cliente, garantizado por la base— y su `first_movement_id` pasa a ser nulo en un caso concreto: las filas que la migración trae desde `user_supervisors`. **La creará `V20`, de `RF-SP-059`** —y no la de `RF-MV-011`—, porque además de crearla tiene que mover datos: copiar las filas vigentes de clientes como `REGISTRO` y borrar las de clientes de `user_supervisors`, vigentes y cerradas. La recursiva de `RN-SP-047` gana su tercera consecuencia: recorre solo fuerza comercial y el cliente se cuelga en la hoja. El modelo sigue con las mismas tablas escritas y una diseñada hasta que `V20` exista. | Responsable del proyecto |
+| 0.65.0 | 21-09-2026 | **Nacen diseñadas `teams` y `team_members`: cómo se organiza la cúspide de la fuerza comercial** ([`requirements/sp.md`](requirements/sp.md) v1.71.0, `RF-SP-063` a `RF-SP-070`, `RN-SP-050` a `RN-SP-055`), por decisión del responsable del proyecto («un CRUD de equipos, sirve para organizar el máximo rango de vendedores»). Un equipo reúne managers y **solo** managers —directores y agentes pertenecen por recorrido de `user_supervisors`, no por fila—, uno vigente por manager con historial: `team_members` es la forma de `user_supervisors` con un equipo al otro lado. `teams` es `roles` sin código, sin padre y sin filas de sistema, con baja lógica y estado. §1 gana las dos entidades y la décima decisión; §5 las dibuja como diseñadas y §5.1 las cuenta (y recoge `client_sellers`, escrita por `V20`, que el inventario no había anotado). Las creará `V33`; los ocho permisos `teams:*`, `V34`. Ninguna concede acceso: D-22 sigue abierta. | Responsable del proyecto |
+| 0.66.0 | 22-09-2026 | **Nace `product_links`, la sexta tabla de `PM`, y `products` pierde `video_url`** (`V35`, [`requirements/pm.md`](requirements/pm.md) v0.43.0 §5.2.14 y §10.7). Un producto deja de tener **un** enlace en una columna y pasa a tener **enlaces con tipo** en una tabla anexa: `VIDEO_PRESENTACION` —lo que la v0.43.0 de este documento había puesto en `products`— y **`CUPON_BOT`**, la dirección donde quien ya compró un bot registra la cuenta que ese bot le da. La migración **copia fila a fila** cada `video_url` no nula antes de borrar la columna y `ck_products_video_url_format`, de modo que ningún producto pierde su video. **La pareja `(product_id, type)` es la clave primaria**, como en `product_package_items`: la fila no es una entidad sino el valor de un hueco del producto, no tiene `id` propio, **no tiene `deleted_at`** —quitar un enlace lo borra— y la unicidad «uno por tipo» **es** la clave. `url` es `NOT NULL`, al revés que la columna que reemplaza: no hay enlace sin enlace, y lo que antes decía el nulo lo dice ahora **la ausencia de la fila**. `external_id` es opcional, guarda un identificador **de un sistema ajeno sin interpretarlo** y **se pega como último segmento de la url** al publicarla, de donde sale la única restricción cruzada de la tabla —`ck_product_links_id_sin_consulta`: con identificador, la url no puede llevar `?` ni `#`, porque un segmento detrás de una cadena de consulta da un enlace roto **que responde `200`**—. Los dos tipos van en un `CHECK` y no en un catálogo administrable, porque cada uno trae consigo **dónde se publica** y eso es código: el video sale en las cuatro lecturas del producto, hotlink sin token incluido; **el cupón no sale de ninguna** y se publica solo en `RF-MV-014`, y solo en la línea `ENTREGADA` (`RN-PM-050`, `RN-MV-032`, [`requirements/mv.md`](requirements/mv.md) v0.35.0). Ninguna tabla de `MV` cambia: el cupón **no se copia en la línea**, que es la única excepción declarada a `RN-MV-002` —no es un término de la venta sino el medio de la entrega, de modo que lo que se publica es el vigente—. | Responsable del proyecto |

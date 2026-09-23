@@ -8,7 +8,7 @@
 | Estado | **Aprobado** |
 | Autor | Responsable técnico |
 | Aprobado por | Responsable del proyecto |
-| Enmendado el | 27-08-2026 — `RN-PM-015`; 02-09-2026 — la membresía de **origen** (`RN-PM-017`, `RN-PM-018`); 07-09-2026 — **el alcance y la implementación** (`RN-PM-019`, `RN-PM-020`), §2.4, y **la renovación** —el origen puede ser el destino (`RN-PM-017`)—, §2.5; 08-09-2026 — **el segundo precio, el público** (`RN-PM-023`) y **`RN-PM-006` relajada**, §2.6; 12-09-2026 — **el segundo precio pasa a ser el de COMPRA** (`RN-PM-023`, `RN-PM-024`), §2.7; 14-09-2026 — **el enlace de un video** (`RN-PM-032`), §2.8 y §4; 14-09-2026 — **el icono obligatorio en el upgrade** (`RN-PM-034`), §2.9; 15-09-2026 — **el alcance pasa a cuatro valores** (`RN-PM-019`), `V92` |
+| Enmendado el | 27-08-2026 — `RN-PM-015`; 02-09-2026 — la membresía de **origen** (`RN-PM-017`, `RN-PM-018`); 07-09-2026 — **el alcance y la implementación** (`RN-PM-019`, `RN-PM-020`), §2.4, y **la renovación** —el origen puede ser el destino (`RN-PM-017`)—, §2.5; 08-09-2026 — **el segundo precio, el público** (`RN-PM-023`) y **`RN-PM-006` relajada**, §2.6; 12-09-2026 — **el segundo precio pasa a ser el de COMPRA** (`RN-PM-023`, `RN-PM-024`), §2.7; 14-09-2026 — **el enlace de un video** (`RN-PM-032`), §2.8 y §4; 14-09-2026 — **el icono obligatorio en el upgrade** (`RN-PM-034`), §2.9; 15-09-2026 — **el alcance pasa a cuatro valores** (`RN-PM-019`), `V92`; 22-09-2026 — **los ENLACES del producto**, `links` en lugar de `videoUrl` (`RN-PM-048`, `RN-PM-049`), §2.10, §3.1 y §4 |
 | Fecha de aprobación | 26-08-2026 |
 
 !!! info "Qué va en este documento"
@@ -226,6 +226,37 @@ Esta migración **no emite auditoría**, igual que `V3`: un permiso no tiene lí
 
 **`ProductResponse` gana `coverImageUrl`**, construido con `ProductImageUrls.de(cover_image_id)` y **siempre nulo en el alta**: no hay forma de que un producto nazca con portada. El campo va para que el alta y el detalle tengan la misma forma. La instantánea del evento de creación gana `cover_image_id`.
 
+### 2.10 `V35__pm_enlaces_de_producto.sql` — enmienda del 22-09-2026
+
+**Una tabla nueva, una migración de datos y una columna que se va. En ese orden, y el orden es la migración.**
+
+| Cambio | Definición | Por qué |
+|---|---|---|
+| `product_links` | `product_id uuid NOT NULL`, `type varchar(30) NOT NULL`, `url varchar(500) NOT NULL`, `external_id varchar(100) NULL`, `created_at`/`updated_at timestamptz NOT NULL DEFAULT now()` | Los enlaces del producto, **uno por tipo** (`RN-PM-048`). `url` es **obligatoria** al revés que la columna que reemplaza: no hay enlace sin enlace, y «no tener» pasa a ser **no tener fila** |
+| `pk_product_links` | `PRIMARY KEY (product_id, type)` | **La unicidad es la clave**, como en `product_package_items`: la fila no es una entidad sino el valor de un hueco del producto, y por eso **no lleva `id` propio ni `deleted_at`** — quitar un enlace lo borra. **Sin `DEFERRABLE`**: la colisión debe morder en el `INSERT` para que el repositorio la traduzca por nombre de restricción |
+| `ck_product_links_type` | `CHECK (type IN ('VIDEO_PRESENTACION','CUPON_BOT'))` | Los tipos son **código y no catálogo** (`pm.md` §5.2.14): cada uno trae consigo dónde se publica |
+| `ck_product_links_url_format` | `CHECK (url ~ '^https?://[^[:space:]]+$')` | Es `ck_products_video_url_format` mudada, **sin la rama `IS NULL`**: aquí la columna es obligatoria y el `CHECK` no puede evaluar a `NULL` |
+| `ck_product_links_external_id_format` | `CHECK (external_id IS NULL OR external_id ~ '^[^[:space:]]{1,100}$')` | La rama `IS NULL` **delante y explícita**, como siempre en este esquema. Prohíbe la cadena vacía y los espacios —un espacio partiría el enlace al pegarlo— y nada más |
+| `ck_product_links_id_sin_consulta` | `CHECK (external_id IS NULL OR url !~ '[?#]')` | **Cruzada**, como `ck_products_type_target`. Sin identificador la dirección admite `?` y `#`; con identificador no, porque el segmento iría detrás de la cadena de consulta (`RN-PM-049`, `VAL-023`) |
+| `fk_product_links_product` | `FOREIGN KEY (product_id) REFERENCES products (id)` | **Sin `ON DELETE`**: el producto no se borra físicamente nunca (`RN-PM-010`) |
+| `ix_product_links_product` | — | **No hace falta**: la clave primaria ya empieza por `product_id`, de modo que su índice sirve para leer los enlaces de un producto y para leer los de una página entera con `IN` |
+
+**Y aquí sí hay relleno, al revés que en `V89`.** La migración **copia cada `video_url` no nula** a una fila de tipo `VIDEO_PRESENTACION` **antes** de borrar la columna:
+
+```sql
+INSERT INTO product_links (product_id, type, url)
+SELECT id, 'VIDEO_PRESENTACION', video_url FROM products WHERE video_url IS NOT NULL;
+
+ALTER TABLE products DROP CONSTRAINT ck_products_video_url_format;
+ALTER TABLE products DROP COLUMN video_url;
+```
+
+**`created_at` se queda en su `DEFAULT now()` y no se copia del producto.** La fila nace cuando la migración corre, y ponerle la fecha del producto sería inventar una antigüedad para algo que no existía; el rastro de cuándo se declaró el video está donde estaba, en la auditoría del alta o de la corrección que lo escribió.
+
+**El `DROP COLUMN` va detrás del `INSERT` en la misma migración y no en una posterior.** Separarlas dejaría una ventana —de un despliegue o de un mes— en la que el mismo enlace vive en dos sitios, y en esa ventana **la pregunta «cuál manda» no tiene respuesta escrita**: cualquiera de las dos puede corregirse sin la otra. Flyway aplica el archivo entero en una transacción, de modo que o están los dos cambios o no está ninguno.
+
+**Ninguna fila se pierde y ninguna se inventa.** Un producto sin video no obtiene fila, que es exactamente lo que su nulo decía. Y **no hay `CUPON_BOT` que rellenar**: nadie lo ha declarado nunca, y el tipo nace vacío.
+
 ## 3. Componentes afectados
 
 ### 3.1 En `PM` — `modules/products`
@@ -234,6 +265,10 @@ Esta migración **no emite auditoría**, igual que `V3`: un permiso no tiene lí
 |---|---|---|
 | `domain/models` | `Product` | Agregado y modelo persistente. Normaliza el código y el nombre, y valida su formato |
 | `domain/models` | `ProductType`, `ProductStatus` | Dominios cerrados |
+| `domain/models` | `ProductLink` | **Nuevo, 22-09-2026.** El enlace: tipo, dirección e identificador externo. Normaliza —recorta— y valida su forma (`VAL-017`, `VAL-021` a `VAL-023`), y sabe **resolverse** (`RN-PM-049`). Es un modelo persistente con clave compuesta, no una entidad con identidad propia |
+| `domain/models` | `ProductLinkType` | **Nuevo.** Dominio cerrado: `VIDEO_PRESENTACION` y `CUPON_BOT`. Un valor fuera lo rechaza Jackson con `400` (`VAL-019`) |
+| `domain/repository` | `ProductLinkRepository` | **Nuevo.** Puerto: los enlaces de un producto y los de un **lote** de productos, y el reemplazo del conjunto (`RF-PM-004`) |
+| `application` | `ProductLinkRequest`, `ProductLinkResponse` | **Nuevos.** La entrada y la salida de un enlace. La salida sirve **crudo** en administración y **resuelto** en las lecturas de venta: el que compone es el servicio, no el DTO |
 | `domain/repository` | `ProductRepository` | Puerto: existencia de código y de nombre, y persistencia |
 | `domain/repository` | `JpaProductRepository` | Adaptador. **Traduce las violaciones por nombre de restricción**, nunca por el texto del driver |
 | `domain/service` | `RegisterProductService` | Caso de uso, con el orden de verificación de §4 |
@@ -273,7 +308,10 @@ Se añade a `LayerRulesTest`: **ninguna clase de `..modules.products..` depende 
   "targetMembershipId": "018f3a2b-7c41-7000-9a3d-1f2e5b8c9d20",
   "price": 49.99,
   "purchasePrice": 30.00,
-  "videoUrl": "https://www.youtube.com/watch?v=dQw4w9WgXcQ",
+  "links": [
+    { "type": "VIDEO_PRESENTACION", "url": "https://www.youtube.com/watch?v=dQw4w9WgXcQ" },
+    { "type": "CUPON_BOT", "url": "https://t.me/MiBot", "externalId": "CUPON_ORO_2026" }
+  ],
   "validityDays": 30,
   "currencyId": "01a03336-6d00-7001-9c4f-5e7ad3000001"
 }
@@ -284,7 +322,9 @@ Se añade a `LayerRulesTest`: **ninguna clase de `..modules.products..` depende 
 - `price` llega como **número**. La escala admisible **no la fija el DTO**, la fija la moneda (`RN-PM-007`), y por eso se valida en el caso de uso y no con una anotación.
 - **`purchasePrice` es opcional, y ausente y nulo significan lo mismo**: no se conoce el costo todavía (`RN-PM-023`). Aquí **sí** se aparta de `scope` e `implementation` —que son obligatorias y donde ausente y nulo significan «falta»—, y el motivo es que **su omisión no deja ninguna decisión sin tomar**: un producto se registra antes de comprarse, y el costo se declara cuando se conoce (`RF-PM-004`). **Se llamó `publicPrice` hasta el 12-09-2026** y significaba otra cosa; el nombre viejo es una propiedad desconocida y devuelve `400`.
 - **El DTO acota de los dos importes lo que es cierto para cualquier moneda** —no negativo y hasta cuatro decimales, que es lo que la columna admite— y **nada más**. Los decimales de verdad los decide el caso de uso contra `currencies.decimal_places`, para los **dos**.
-- **`videoUrl` es opcional en los dos tipos**, y ausente y nulo significan lo mismo: no tiene video (`RN-PM-032`). Se **recorta** antes de validar —`" "` es un enlace ausente, no uno inválido— y **no se normaliza nada más**: ni mayúsculas, ni barra final, ni parámetros; lo que se guarda es lo que se escribió, porque un enlace que el sistema «arregla» puede dejar de resolver. **La forma se comprueba en el dominio con `VAL-017`** —URL absoluta `http` o `https`, sin espacios, hasta 500 caracteres— y no con una anotación: `@URL` de Hibernate Validator admite cualquier esquema y no distingue una relativa, y `@Pattern` no puede decir «hasta 500» sin repetir el tope; el dominio lo comprueba en un sitio y con un mensaje, como hace con el icono. **Y nada sigue el enlace**: comprobar que resuelve obligaría a salir a Internet en cada alta (`pm.md` §5.2.8).
+- **`links` es opcional, y ausente y vacía significan lo mismo: no declara ninguno** (`RN-PM-048`, 22-09-2026; **era `videoUrl`, un campo suelto, hasta ese día**). Cada entrada lleva `type`, `url` y `externalId`. La `url` se **recorta** antes de validar —`" "` es una dirección ausente y da `VAL-021`, no una inválida— y **no se normaliza nada más**: ni mayúsculas, ni barra final, ni parámetros; lo que se guarda es lo que se escribió, porque un enlace que el sistema «arregla» puede dejar de resolver. **La forma se comprueba en el dominio con `VAL-017`** —URL absoluta `http` o `https`, sin espacios, hasta 500 caracteres— y no con una anotación, por lo de siempre: `@URL` de Hibernate Validator admite cualquier esquema y no distingue una relativa, y `@Pattern` no puede decir «hasta 500» sin repetir el tope. **Y nada sigue el enlace**: comprobar que resuelve obligaría a salir a Internet en cada alta (`pm.md` §5.2.8).
+- **El tipo repetido se comprueba en el caso de uso, antes de escribir** (`VAL-020`). Podría dejarse a `pk_product_links`, y no se deja: el choque saldría como violación de clave y habría que traducirlo por nombre de restricción para no devolver un `500`, cuando aquí la petición **ya enseña las dos entradas** y compararlas es recorrer una lista de dos. Es la diferencia con la unicidad del nombre, donde el conflicto es con **otra fila que no se ve** y la carrera solo la puede resolver la base.
+- **`externalId` es opcional, y su relación con `url` es cruzada** (`VAL-023`): con identificador, la dirección **no admite `?` ni `#`**, porque el identificador se pega **como último segmento de ruta** (`RN-PM-049`) y detrás de una cadena de consulta daría un enlace roto **que responde `200`**. Se comprueba en el dominio, con el mismo argumento que `RN-PM-002`: una anotación no puede decir «prohibido si otro campo está informado» sin un validador de clase, y el mensaje que produciría no diría cuál de los dos campos sobra. **El ejemplo de arriba lo enseña a propósito**: el video de YouTube lleva `?v=` y se admite **porque no lleva identificador**; el cupón lleva identificador y su dirección está limpia.
 - **`validityDays` es opcional en los dos tipos.** Ausente o `null` significa lo mismo: el producto no caduca. Se valida en el DTO —entero mayor que cero— porque su regla no depende de ningún otro campo, al revés que el precio.
 - `sourceMembershipId` y `targetMembershipId` son **obligatorios los dos o prohibidos los dos** según `type`, y **la condición se comprueba en el caso de uso y no con validación declarativa**: una anotación de Bean Validation no puede expresar «obligatorio si otro campo vale X» sin un validador de clase, y el mensaje que produce no distingue cuál de las cuatro mitades se incumplió. Con dos campos el mensaje **dice cuál**: `VAL-007` y `VAL-008` viajan con el `field` que falta o que sobra, porque uno que no distinga obliga a probar los dos.
 - **El orden de las comprobaciones importa y está fijado**: moneda → destino → **origen** → unicidad. Que el origen no exista (`EX-002`) y que el origen no esté por debajo del destino (`EX-006`, con `VAL-014`) son dos respuestas distintas, y la segunda no se puede dar sin haber resuelto la primera.
@@ -304,7 +344,10 @@ Se añade a `LayerRulesTest`: **ninguna clase de `..modules.products..` depende 
   "targetMembership": { "id": "018f3a2b-…", "code": "ORO", "name": "Oro", "level": 1 },
   "price": 49.99,
   "purchasePrice": 30.00,
-  "videoUrl": "https://www.youtube.com/watch?v=dQw4w9WgXcQ",
+  "links": [
+    { "type": "VIDEO_PRESENTACION", "url": "https://www.youtube.com/watch?v=dQw4w9WgXcQ", "externalId": null },
+    { "type": "CUPON_BOT", "url": "https://t.me/MiBot", "externalId": "CUPON_ORO_2026" }
+  ],
   "validityDays": 30,
   "currency": { "id": "01a03336-…", "code": "USD", "decimalPlaces": 2 },
   "status": "INACTIVO",
@@ -316,7 +359,8 @@ Se añade a `LayerRulesTest`: **ninguna clase de `..modules.products..` depende 
 - **Las dos membresías llegan resueltas** y no como identificadores sueltos, con los datos que el puerto ya devolvió: resolverlas cuesta cero consultas extra porque la validación ya las trajo. En el ejemplo, `level` 4 → 1 es un **salto de tres escalones**, y es legítimo (`RN-PM-018`).
 - **`sourceMembership` y `targetMembership` viajan como `null` presentes** en los bots, no ausentes: un campo que falta es indistinguible de uno que el cliente no conoce.
 - **El precio se serializa con los decimales de su moneda** y no con la escala de la columna (`CA-PM-082`): `49.99`, no `49.9900`. **Vale para los dos importes, con la misma función y en el mismo sitio** (`ProductPrice`): escrita dos veces, el mismo producto acabaría enseñando sus dos precios con escalas distintas.
-- **`videoUrl` viaja como `null` presente** cuando el producto no lo declara (`CA-PM-220`), por lo mismo. Y al revés que el precio de compra, **esta no es una respuesta de administración por llevarlo**: el enlace sale en las cuatro lecturas (`RN-PM-032`).
+- **`links` viaja presente y vacía** cuando el producto no declara ninguno (`CA-PM-220`, 22-09-2026), y aquí **se aparta a propósito del `null` presente** del resto de esta respuesta: aquella forma existe porque un campo ausente no puede decir «no lo tiene», y una colección vacía **sí** lo dice. Dentro de cada entrada, `externalId` sí viaja como `null` presente, por el motivo de siempre.
+- **Los enlaces se devuelven CRUDOS, sin componer** (`RN-PM-049`, `CA-PM-381`): la dirección tal cual y el identificador en su campo. Quien registra es quien va a corregir, y tiene que recibir del alta **lo que luego mandará en el `PATCH`** — devolver lo resuelto obligaría a deshacer la composición a mano. Es la misma razón por la que esta respuesta lleva el precio de compra: **exige `products:create`**, y lo que sirve es la vista de quien administra. Las lecturas de venta (`RF-PM-007`, `RF-PM-008`) devuelven **el resuelto y sin el `CUPON_BOT`** (`RN-PM-050`).
 - **`purchasePrice` viaja como `null` presente** cuando el producto no lo declara, no ausente (`CA-PM-146`). Su nulo **significa** «no se conoce el costo», y un campo que desaparece no puede decir eso.
 - **Esta respuesta lleva los DOS precios porque exige `products:create`**, que solo tiene quien administra el catálogo. `RN-PM-024` acota el precio de compra a administración: `RF-PM-007` y `RF-PM-008`, que no piden ningún permiso de administración, **no lo devuelven** (12-09-2026).
 
@@ -349,6 +393,10 @@ Una sola transacción para el `INSERT` y su evento de auditoría. Las lecturas c
 **`MV` no cambia.** Sigue copiando `price` en `movement_details.unit_price`, y el precio de compra **no entra en el puerto de venta**: `ProductCatalog.saleViewOf` no lo lleva, y eso es lo único que impide que empiece a cobrarse.
 
 **El contrato OpenAPI crece** con el endpoint y sus esquemas, y `OpenApiContractIT` lo regenera en `docs/api/`.
+
+**Y el 22-09-2026 el contrato además ROMPE, en seis lecturas** (`RN-PM-048`): `videoUrl` desaparece de `ProductResponse`, `ProductDetailResponse`, `ProductItem`, `OfferItem`, `HotlinkResponse` y `HotlinkCatalogResponse`, y en su lugar entra `links`. Se acepta a sabiendas —conservar los dos habría dejado la misma dirección publicada en dos sitios (`pm.md` §5.2.14)—, y lo que obliga es a avisar al frontend: **un campo que desaparece no falla en el navegador, se pinta vacío**. `ProductLinkResponse` nace con nombre propio y `@Schema(name = ...)` explícito, porque un registro llamado igual en otro módulo saldría fundido en un solo esquema.
+
+**`MV` gana una lectura publicada y ninguna tabla** (22-09-2026): `ProductCatalog` crece con los cupones de un **lote** de productos, ya resueltos, para `RF-MV-014` (`RN-MV-032`). Es **un método más y no un campo más en una vista existente**, que es la norma de esta interfaz desde `findPrice`: quien necesita un dato pide su propia lectura, sin que los dobles de prueba de los demás cambien.
 
 ## 9. Alternativas consideradas
 
@@ -385,7 +433,7 @@ Una sola transacción para el `INSERT` y su evento de auditoría. Las lecturas c
 | Decimales del precio según la moneda | Unitaria | Dos monedas: una de dos decimales y otra de **cero**. **Contra los dos importes**, y con el caso que solo aparece con dos: el del sistema cabe y el público no |
 | El precio de compra, en sus cuatro estados | API | Informado, **ausente**, **nulo explícito** y negativo. Los dos primeros terminan en la misma fila; el tercero tiene que llegar **presente y nulo** en la respuesta, y el cuarto nombrar `purchasePrice` |
 | El precio **cero** | API | Se admite en los dos importes (`CA-PM-149`). Es la renovación de una membresía gratuita, y hasta hoy era un `400` |
-| El enlace del video, en sus cuatro estados | API | Informado en un **bot** —que es donde el icono no cabe y el video sí—, **ausente**, **nulo explícito** y **con forma inválida** en sus cinco variantes: relativo, sin esquema, `ftp://`, con espacio, y de 501 caracteres. El rechazo nombra `videoUrl` (`CA-PM-219` a `CA-PM-221`) |
+| El enlace del video, en sus cuatro estados. **Desde el 22-09-2026 se prueba dentro de `links`**, con el tipo `VIDEO_PRESENTACION`, y el estado «nulo explícito» pasa a ser **no declarar ese tipo** | API | Informado en un **bot** —que es donde el icono no cabe y el video sí—, **ausente**, **no declarado** y **con forma inválida** en sus cinco variantes: relativo, sin esquema, `ftp://`, con espacio, y de 501 caracteres. El rechazo nombra `videoUrl` (`CA-PM-219` a `CA-PM-221`) |
 | Los once criterios de `spec.md` §12 | API | `MockMvc` con permiso concedido |
 | La condición cruzada de `RN-PM-002` | API | **En los cuatro sentidos**: upgrade sin origen, upgrade sin destino, bot con destino y bot con origen — y el `field` de cada rechazo, porque un mensaje que no distinga obliga a probar los dos |
 | `RN-PM-017` — el origen por debajo del destino | API | Origen **igual** al destino (`400`, lo ve el agregado) y origen **por encima** (`422`, hace falta el `level` de las dos filas). Un descenso vendido como upgrade |
@@ -395,4 +443,7 @@ Una sola transacción para el `INSERT` y su evento de auditoría. Las lecturas c
 | Traducción por nombre de restricción | Integración | El duplicado produce `409` con el campo correcto, distinguiendo código de nombre |
 | Dos altas simultáneas con el mismo código | Concurrencia | Una queda, la otra recibe `409`. **No basta la verificación previa** |
 | La frontera entre módulos | ArchUnit | `..modules.products..` no depende de `..modules.system..domain..` |
+| Los enlaces, en sus estados | API | `links` ausente, **vacía**, con uno, con los dos, y con **el mismo tipo dos veces** (`VAL-020`). También en un **bot**, que admite los dos como admitía el video |
+| El identificador externo y su condición cruzada | API | Con identificador y sin él; con espacios y de 101 caracteres (`VAL-022`); y **con identificador sobre una dirección que lleva `?`** (`VAL-023`), comprobando que **la misma dirección sin identificador se admite** |
+| La migración no pierde ni inventa enlaces | Integración | Sobre un esquema con productos **con y sin** `video_url`: tras `V35`, tantas filas `VIDEO_PRESENTACION` como direcciones había, **ninguna** para los que no tenían, y `products.video_url` **ya no existe** |
 | El contrato publicado coincide | Integración | `OpenApiContractIT` |
