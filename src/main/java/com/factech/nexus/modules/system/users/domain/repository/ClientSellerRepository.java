@@ -74,6 +74,8 @@ public interface ClientSellerRepository {
       String username,
       String firstName,
       String lastName,
+      String companyPhone,
+      String status,
       String origin,
       OffsetDateTime linkedAt) {
 

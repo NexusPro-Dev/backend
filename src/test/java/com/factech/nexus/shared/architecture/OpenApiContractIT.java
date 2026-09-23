@@ -461,6 +461,48 @@ class OpenApiContractIT extends IntegrationTestBase {
             jsonPath("$.paths['/api/v1/teams/{id}'].get['x-required-permission']")
                 .value("teams:read"))
         .andExpect(jsonPath("$.paths['/api/v1/teams/{id}'].get.responses.404").exists())
+        .andExpect(
+            jsonPath("$.paths['/api/v1/teams/{id}'].patch['x-required-permission']")
+                .value("teams:update"))
+        .andExpect(jsonPath("$.paths['/api/v1/teams/{id}'].patch.responses.409").exists())
+        // `RF-SP-067`: el estado tiene RUTA propia y PERMISO propio, y el
+        // contrato es donde se ve que `teams:update` no la habilita — la
+        // confusión que `RN-SEG-014` existe para impedir. Y no publica `409`:
+        // suspender no falla por tener miembros, al contrario que eliminar.
+        .andExpect(
+            jsonPath("$.paths['/api/v1/teams/{id}/status'].patch['x-required-permission']")
+                .value("teams:change-status"))
+        .andExpect(jsonPath("$.paths['/api/v1/teams/{id}/status'].patch.responses.404").exists())
+        .andExpect(
+            jsonPath("$.paths['/api/v1/teams/{id}/status'].patch.responses.409").doesNotExist())
+        // `RF-SP-068`: la baja es `POST …/deletion` y no `DELETE`, porque el
+        // motivo viaja en el cuerpo; publica DOS `409` —ya eliminado y con
+        // miembros— y su permiso propio, que ni `teams:update` ni
+        // `teams:change-status` sustituyen.
+        .andExpect(
+            jsonPath("$.paths['/api/v1/teams/{id}/deletion'].post['x-required-permission']")
+                .value("teams:delete"))
+        .andExpect(jsonPath("$.paths['/api/v1/teams/{id}/deletion'].post.responses.204").exists())
+        .andExpect(jsonPath("$.paths['/api/v1/teams/{id}/deletion'].post.responses.409").exists())
+        .andExpect(jsonPath("$.paths['/api/v1/teams/{id}'].delete").doesNotExist())
+        // `RF-SP-069`: asignar tiene permiso propio —`teams:remove-members` no la
+        // habilita— y publica el `422` que el resto del submódulo no tiene: es la
+        // única operación cuyo cuerpo referencia a personas que pueden no resolver.
+        .andExpect(
+            jsonPath("$.paths['/api/v1/teams/{id}/members'].post['x-required-permission']")
+                .value("teams:assign-members"))
+        .andExpect(jsonPath("$.paths['/api/v1/teams/{id}/members'].post.responses.422").exists())
+        .andExpect(jsonPath("$.paths['/api/v1/teams/{id}/members'].post.responses.409").exists())
+        // `RF-SP-070`: retirar es OTRA operación con OTRO permiso, y publica `422`
+        // pero no `409` — de un equipo suspendido sí se puede sacar gente.
+        .andExpect(
+            jsonPath("$.paths['/api/v1/teams/{id}/members/removals'].post['x-required-permission']")
+                .value("teams:remove-members"))
+        .andExpect(
+            jsonPath("$.paths['/api/v1/teams/{id}/members/removals'].post.responses.422").exists())
+        .andExpect(
+            jsonPath("$.paths['/api/v1/teams/{id}/members/removals'].post.responses.409")
+                .doesNotExist())
         .andExpect(jsonPath("$.components.schemas.TeamDetailResponse.properties.members").exists())
         .andExpect(
             jsonPath("$.components.schemas.TeamDetailResponse.properties.deletionReason").exists());
@@ -499,8 +541,17 @@ class OpenApiContractIT extends IntegrationTestBase {
             jsonPath("$.paths['/api/v1/users/me'].get['" + EXTENSION + "']")
                 .value("users:read-own-profile"))
         .andExpect(
-            jsonPath("$.paths['/api/v1/movements/mine'].get['" + EXTENSION + "']")
+            jsonPath("$.paths['/api/v1/movements/mine/shopping'].get['" + EXTENSION + "']")
                 .value("movements:list-own"))
+        // `RF-MV-017`: las líneas de venta llevan permiso PROPIO, y el contrato es
+        // donde se ve que no es el del listado de ventas ni el de administración del
+        // libro — los dos que un integrador confundiría con este.
+        .andExpect(
+            jsonPath("$.paths['/api/v1/movements/sales/lines'].get['" + EXTENSION + "']")
+                .value("movements:list-sale-lines"))
+        .andExpect(jsonPath("$.paths['/api/v1/movements/sales/lines'].get.responses.403").exists())
+        .andExpect(
+            jsonPath("$.paths['/api/v1/movements/sales/lines'].get.responses.404").doesNotExist())
         .andExpect(
             jsonPath("$.paths['/api/v1/packages/{code}/purchases'].post['" + EXTENSION + "']")
                 .value("packages:buy"))

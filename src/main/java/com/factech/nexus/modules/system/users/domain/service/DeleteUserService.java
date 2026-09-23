@@ -1,6 +1,7 @@
 package com.factech.nexus.modules.system.users.domain.service;
 
 import com.factech.nexus.modules.system.roles.application.AuthenticatedActor;
+import com.factech.nexus.modules.system.teams.application.TeamMembershipRetirement;
 import com.factech.nexus.modules.system.users.application.DeleteUserRequest;
 import com.factech.nexus.modules.system.users.domain.models.ChangeReason;
 import com.factech.nexus.modules.system.users.domain.models.User;
@@ -73,6 +74,7 @@ public class DeleteUserService {
   private final AccessRevocationPublisher cortes;
   private final AuthenticatedActor actor;
   private final AuditWriter auditoria;
+  private final TeamMembershipRetirement equipos;
   private final Clock reloj;
 
   @Autowired
@@ -83,8 +85,9 @@ public class DeleteUserService {
       SessionRevoker sesiones,
       AccessRevocationPublisher cortes,
       AuthenticatedActor actor,
-      AuditWriter auditoria) {
-    this(usuarios, roles, raiz, sesiones, cortes, actor, auditoria, Clock.systemUTC());
+      AuditWriter auditoria,
+      TeamMembershipRetirement equipos) {
+    this(usuarios, roles, raiz, sesiones, cortes, actor, auditoria, equipos, Clock.systemUTC());
   }
 
   DeleteUserService(
@@ -95,6 +98,7 @@ public class DeleteUserService {
       AccessRevocationPublisher cortes,
       AuthenticatedActor actor,
       AuditWriter auditoria,
+      TeamMembershipRetirement equipos,
       Clock reloj) {
     this.usuarios = usuarios;
     this.roles = roles;
@@ -103,6 +107,7 @@ public class DeleteUserService {
     this.cortes = cortes;
     this.actor = actor;
     this.auditoria = auditoria;
+    this.equipos = equipos;
     this.reloj = reloj;
   }
 
@@ -162,6 +167,13 @@ public class DeleteUserService {
     // difirieran, el historial diría que la persona estuvo a cargo de alguien
     // durante unos milisegundos después de haber dejado de existir.
     superior.ifPresent(sinUsar -> usuarios.endSupervisor(userId, ahora));
+
+    // `RN-SP-055` (enmienda del 23-09-2026, `RF-SP-070`): quien ya no existe no
+    // puede seguir contando en un equipo. La pertenencia se CIERRA —no se borra— en
+    // esta misma transacción y con el motivo de la baja, por lo mismo que la
+    // asignación de superior se cierra aquí: el historial dice a qué equipo se
+    // atribuía lo que su red producía mientras estuvo.
+    equipos.retire(userId, motivo.value());
 
     sesiones.revokeAllForAccessChange(userId);
 

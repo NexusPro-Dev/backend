@@ -210,6 +210,16 @@ class SelfRegistrationIT extends IntegrationTestBase {
                     + " WHERE u.username = 'ana.ruiz' AND v.username = 'reg-agente'",
                 Integer.class))
         .isOne();
+
+    // `CA-MV-147` (RF-MV-016, 23-09-2026): el cliente nace con UN vendedor —quien lo
+    // registró—, de modo que la venta de su alta nace VALIDADO (`RN-MV-034`).
+    assertThat(
+            jdbc.queryForObject(
+                "SELECT s.code FROM movements m JOIN users u ON u.id = m.user_id"
+                    + " JOIN movement_type_statuses s ON s.id = m.type_status_id"
+                    + " WHERE u.username = 'ana.ruiz'",
+                String.class))
+        .isEqualTo("VALIDADO");
   }
 
   @Test

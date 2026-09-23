@@ -18,6 +18,18 @@ public interface TeamRepository {
 
   Team save(Team equipo);
 
+  /**
+   * ¿Hay OTRO equipo no eliminado con ese nombre? La corrección necesita excluirse a sí misma:
+   * renombrar al nombre que ya se tiene es válido y no viola nada (`RF-SP-066` `FA-001`).
+   */
+  boolean existsAliveNameForOther(String name, UUID id);
+
+  /**
+   * Vuelca lo pendiente para que una carrera sobre `uq_teams_name` salga traducida al `409` de este
+   * caso de uso y no como un fallo al confirmar, fuera de él.
+   */
+  void flush();
+
   /** El equipo no eliminado, bloqueado: lo que piden la corrección y el cambio de estado. */
   Optional<Team> findAliveByIdForUpdate(UUID id);
 

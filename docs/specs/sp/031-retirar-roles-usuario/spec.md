@@ -11,6 +11,7 @@
 | Enmendada | 21-08-2026 — `RN-SP-015` pasa de rechazar a **retirar la membresía en cascada**, al aprobar `RF-SP-033` (Art. I.7) |
 | Enmendada | 22-08-2026 — `RN-SP-019` cierra el superior comercial al retirar el último rol `VENDEDOR`, y `RN-SP-022` rechaza el retiro de quien tiene equipo a cargo, al registrarse `RF-SP-041` (Art. I.7) |
 | Enmendada | 24-08-2026 — `RN-SP-023` impide dejar a la persona sin ningún rol: `FA-002` se retira, nace `EX-006` y `CA-SP-269` se invierte (Art. I.7) |
+| Enmendada | 23-09-2026 — `RN-SP-055`: si el retiro deja a la persona sin el rol comercial de mayor rango, **su pertenencia al equipo se cierra en la misma transacción y con la misma correlación**, al construirse `RF-SP-070` (Art. I.7). Lo verifica `CA-SP-795` de aquella tripleta; el código lo toca su `T-10` |
 
 ---
 
@@ -74,6 +75,7 @@ Esa es la asimetría deliberada con `RF-SP-030`, que **no** las revoca. Conceder
 | `RN-SP-005` | La eliminación de una asociación se audita sin motivo declarado | `requirements/sp.md` §5.1 |
 | `RN-SP-019` | Todo vendedor tiene superior: retirar el último rol `VENDEDOR` cierra su asignación | `requirements/sp.md` §5.1 |
 | `RN-SP-022` | Ningún equipo se queda sin superior: no se retira el rol comercial a quien tiene gente a cargo | `requirements/sp.md` §5.1 |
+| `RN-SP-055` | La pertenencia a un equipo **sigue al rol**: quien deja de ser manager sale de su equipo en la misma transacción | `requirements/sp.md` §5.1 |
 
 ## 6. Datos
 
@@ -108,6 +110,7 @@ No se declara motivo: es la eliminación de una asociación (Art. V.13).
 - Los roles quedan desasociados del usuario, y los que no se pidieron se conservan.
 - Si la persona queda sin ningún rol `CONSUMIDOR`, **su membresía queda retirada con ellos**, en la misma transacción y bajo el mismo identificador de correlación (`RN-SP-015`).
 - Si la persona queda sin ningún rol `VENDEDOR`, **su asignación de superior queda cerrada** con la fecha de fin de esta operación, en la misma transacción y con la misma correlación (`RN-SP-019`). La fila **no se borra**: quién estuvo a cargo de quién, y hasta cuándo, es historial de negocio (`RN-SP-021`).
+- Si la persona queda sin el rol comercial **de mayor rango**, **su pertenencia al equipo queda cerrada** con la fecha de fin de esta operación, en la misma transacción y con la misma correlación (`RN-SP-055`, enmienda del 23-09-2026). La fila **no se borra**: sigue en el historial, igual que la del superior comercial. Sin esto, un equipo podría contener a quien ya no es manager, y `RN-SP-051` se cumpliría al asignar y dejaría de cumplirse después sin que nadie lo notara.
 - Sus permisos efectivos dejan de incluir los de esos roles, **salvo los que otro de sus roles siga concediendo**.
 - **Todos sus refresh tokens quedan revocados y sus tokens de acceso vigentes dejan de admitirse**, de modo que el retiro tiene efecto de inmediato y no en quince minutos. La persona debe autenticarse de nuevo.
 - Queda constancia en la auditoría de eliminación, sin motivo declarado, y en la de seguridad con severidad alta y el usuario afectado como objeto del evento.

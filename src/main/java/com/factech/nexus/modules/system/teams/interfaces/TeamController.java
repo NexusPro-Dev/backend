@@ -1,12 +1,22 @@
 package com.factech.nexus.modules.system.teams.interfaces;
 
+import com.factech.nexus.modules.system.teams.application.AssignTeamMembersRequest;
+import com.factech.nexus.modules.system.teams.application.ChangeTeamStatusRequest;
+import com.factech.nexus.modules.system.teams.application.DeleteTeamRequest;
 import com.factech.nexus.modules.system.teams.application.ListTeamsRequest;
 import com.factech.nexus.modules.system.teams.application.RegisterTeamRequest;
+import com.factech.nexus.modules.system.teams.application.RemoveTeamMembersRequest;
 import com.factech.nexus.modules.system.teams.application.TeamDetailResponse;
 import com.factech.nexus.modules.system.teams.application.TeamItem;
+import com.factech.nexus.modules.system.teams.application.UpdateTeamRequest;
+import com.factech.nexus.modules.system.teams.domain.service.AssignTeamMembersService;
+import com.factech.nexus.modules.system.teams.domain.service.ChangeTeamStatusService;
+import com.factech.nexus.modules.system.teams.domain.service.DeleteTeamService;
 import com.factech.nexus.modules.system.teams.domain.service.GetTeamService;
 import com.factech.nexus.modules.system.teams.domain.service.ListTeamsService;
 import com.factech.nexus.modules.system.teams.domain.service.RegisterTeamService;
+import com.factech.nexus.modules.system.teams.domain.service.RemoveTeamMembersService;
+import com.factech.nexus.modules.system.teams.domain.service.UpdateTeamService;
 import com.factech.nexus.shared.pagination.PageResponse;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.media.Content;
@@ -18,14 +28,17 @@ import jakarta.validation.Valid;
 import java.net.URI;
 import java.util.UUID;
 import org.springdoc.core.annotations.ParameterObject;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.ModelAttribute;
+import org.springframework.web.bind.annotation.PatchMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestController;
 
 /**
@@ -52,11 +65,29 @@ public class TeamController {
   private final RegisterTeamService alta;
   private final ListTeamsService listado;
   private final GetTeamService ficha;
+  private final UpdateTeamService correccion;
+  private final ChangeTeamStatusService estado;
+  private final DeleteTeamService baja;
+  private final AssignTeamMembersService asignacion;
+  private final RemoveTeamMembersService retiro;
 
-  public TeamController(RegisterTeamService alta, ListTeamsService listado, GetTeamService ficha) {
+  public TeamController(
+      RegisterTeamService alta,
+      ListTeamsService listado,
+      GetTeamService ficha,
+      UpdateTeamService correccion,
+      ChangeTeamStatusService estado,
+      DeleteTeamService baja,
+      AssignTeamMembersService asignacion,
+      RemoveTeamMembersService retiro) {
     this.alta = alta;
     this.listado = listado;
     this.ficha = ficha;
+    this.correccion = correccion;
+    this.estado = estado;
+    this.baja = baja;
+    this.asignacion = asignacion;
+    this.retiro = retiro;
   }
 
   @PostMapping
@@ -207,5 +238,350 @@ public class TeamController {
   })
   public TeamDetailResponse detalle(@PathVariable UUID id) {
     return ficha.detail(id);
+  }
+
+  @PatchMapping("/{id}")
+  @PreAuthorize("hasAuthority('teams:update')")
+  @Operation(
+      summary = "Corregir un equipo",
+      description =
+          """
+          Corrige el **nombre**, la **descripción** o los dos. Y nada más: el estado
+          se cambia con `PATCH /teams/{id}/status` y los miembros entran y salen por
+          sus propias rutas, cada una con su permiso. **Enviar `status` o `members`
+          responde `400`** por campo desconocido.
+
+          **Omitir un campo no es borrarlo.** `description` ausente deja la que
+          había; **`description: null` la borra** y la respuesta la devuelve presente
+          y nula. El **nombre no se puede vaciar**: un equipo sin nombre no existe, de
+          modo que `name: null` es `400`, no un borrado.
+
+          **Un cuerpo sin ningún campo es `400`**: un `PATCH` vacío no es una
+          corrección, y responderle `200` haría creer que algo cambió.
+
+          El nombre sigue siendo **único entre los equipos no eliminados, sin
+          distinguir mayúsculas ni acentos**, y el choque es `409`; **renombrarse al
+          nombre que ya se tiene se admite** —no se compite contra uno mismo— y el
+          nombre de un equipo eliminado **está libre**. Dos renombrados simultáneos al
+          mismo nombre salen por el mismo `409`, nunca por un `500`.
+
+          **Un equipo eliminado responde `404`**, igual que uno inexistente: no es
+          editable en ningún caso. **Uno `INACTIVO` se edita con normalidad**, porque
+          inactivo significa que no recibe miembros, no que sea inmutable — corregir
+          una errata antes de reactivarlo es justo lo que se hace.
+
+          La respuesta es la **forma del detalle**, ya con los valores nuevos y sus
+          miembros vigentes; **el estado, la fecha de eliminación y las pertenencias no
+          se tocan**. Exige `teams:update`.
+          """)
+  @ApiResponses({
+    @ApiResponse(
+        responseCode = "200",
+        description = "Equipo corregido, en la forma del detalle.",
+        content = @Content(schema = @Schema(implementation = TeamDetailResponse.class))),
+    @ApiResponse(
+        responseCode = "400",
+        description =
+            "Nombre vacío o largo, descripción larga, cuerpo sin campos (`VAL-003`) o con campos"
+                + " no admitidos (`VAL-004`)"),
+    @ApiResponse(responseCode = "401", description = "Token ausente o inválido (`AUTH-001`)"),
+    @ApiResponse(
+        responseCode = "403",
+        description = "Autenticado sin el permiso `teams:update` (`AUTH-002`)"),
+    @ApiResponse(
+        responseCode = "404",
+        description = "El equipo no existe o está eliminado (`EX-001`)"),
+    @ApiResponse(
+        responseCode = "409",
+        description = "El nombre ya lo usa otro equipo no eliminado (`EX-002`)")
+  })
+  public TeamDetailResponse corregir(
+      @PathVariable UUID id, @RequestBody UpdateTeamRequest peticion) {
+    return correccion.update(id, peticion);
+  }
+
+  @PatchMapping("/{id}/status")
+  @PreAuthorize("hasAuthority('teams:change-status')")
+  @Operation(
+      summary = "Suspender o reactivar un equipo",
+      description =
+          """
+          Pasa el equipo a `INACTIVO` o lo devuelve a `ACTIVO`. Se declara **el
+          estado destino** y no una acción, de modo que **repetir la petición deja
+          el mismo resultado**: pedir el estado que ya se tiene responde `200` sin
+          escribir nada y **sin registrar auditoría**.
+
+          **`INACTIVO` significa «no recibe», no «está vacío».** El equipo
+          suspendido **conserva a todos sus miembros**: el detalle los sigue
+          devolviendo y el listado los sigue contando. Cerrar las pertenencias al
+          suspender movería la atribución de toda una red sin que nadie lo hubiera
+          decidido; para vaciarlo hay que retirar a cada miembro, con motivo.
+
+          **La restricción es sobre el equipo que RECIBE.** Un equipo `INACTIVO` no
+          admite miembros nuevos, pero **sí se puede retirar** a los que tiene —es
+          la única forma de vaciarlo para poder eliminarlo— y **sí se puede
+          reasignar a alguien desde él hacia un equipo activo**.
+
+          **Desactivar no le quita nada a nadie.** Un manager de un equipo
+          suspendido sigue activo, sigue siendo manager y sigue teniendo su red;
+          pertenecer a un equipo no concede acceso a ningún dato, y por eso esta
+          operación **no registra ningún evento de seguridad** — al contrario que
+          desactivar un rol, que retira permisos de inmediato.
+
+          **El cuerpo no admite motivo**: el motivo es la barrera de lo
+          irreversible, y esto se deshace con una petición. Enviar `reason`, `name`
+          o `members` responde `400`.
+
+          Suspender **no es eliminar**: «ya no organizo con este equipo pero quiero
+          ver quién estaba» es esto; `DELETE /teams/{id}` es «no debería existir», y
+          exige vaciarlo antes. Un equipo eliminado responde `404`: sobre él no hay
+          estado que cambiar.
+
+          La respuesta es la **forma del detalle**, con el estado nuevo y los mismos
+          miembros. Exige `teams:change-status`; **`teams:update` no habilita esta
+          operación**, porque corregir el nombre de un equipo y suspenderlo son dos
+          decisiones de negocio distintas.
+          """)
+  @ApiResponses({
+    @ApiResponse(
+        responseCode = "200",
+        description = "Equipo con su estado nuevo, en la forma del detalle.",
+        content = @Content(schema = @Schema(implementation = TeamDetailResponse.class))),
+    @ApiResponse(
+        responseCode = "400",
+        description =
+            "Estado ausente o fuera del dominio (`VAL-001`), identificador mal formado"
+                + " (`VAL-002`) o cuerpo con campos no admitidos (`VAL-003`)"),
+    @ApiResponse(responseCode = "401", description = "Token ausente o inválido (`AUTH-001`)"),
+    @ApiResponse(
+        responseCode = "403",
+        description = "Autenticado sin el permiso `teams:change-status` (`AUTH-002`)"),
+    @ApiResponse(
+        responseCode = "404",
+        description = "El equipo no existe o está eliminado (`EX-001`)")
+  })
+  public TeamDetailResponse cambiarEstado(
+      @PathVariable UUID id, @RequestBody ChangeTeamStatusRequest peticion) {
+    return estado.change(id, peticion);
+  }
+
+  @PostMapping("/{id}/deletion")
+  @PreAuthorize("hasAuthority('teams:delete')")
+  @ResponseStatus(HttpStatus.NO_CONTENT)
+  @Operation(
+      summary = "Eliminar un equipo",
+      description =
+          """
+          Baja **lógica y con motivo**: la fila se queda con `deletedAt` puesto y
+          **nada más cambiado** —`status` incluido, de modo que un equipo eliminado
+          conserva el estado que tenía—, y el motivo y la instantánea van a la
+          auditoría de eliminación. **`POST` y no `DELETE`** porque el cuerpo lleva el
+          motivo, que es obligatorio, y un `DELETE` con cuerpo no tiene garantías.
+
+          **Solo se elimina un equipo VACÍO.** Con un miembro vigente responde `409`
+          (`EX-003`), y no es una molestia: un equipo es la única forma de decir en qué
+          parte de la red está un manager, y eliminarlo con gente dentro dejaría a esas
+          personas sin pertenencia sin que nadie lo hubiera decidido. **Hay dos
+          salidas y el mensaje las nombra**: retirar a cada miembro
+          (`POST /teams/{id}/members/removals`) o reubicarlo en otro equipo
+          (`POST /teams/{id}/members`).
+
+          **No hace falta suspenderlo antes**: se elimina un equipo activo y vacío, y
+          el estado y la baja son independientes.
+
+          **El historial sobrevive.** Las pertenencias **cerradas** no se borran: son
+          un hecho —esta persona estuvo aquí entre estas dos fechas— y las comisiones
+          leerán ese historial. Por eso la instantánea de la baja lleva **los
+          identificadores de todas las personas que pasaron** por el equipo.
+
+          **Y el nombre queda libre.** La unicidad no cuenta a los eliminados, de modo
+          que volver a registrar «Equipo Norte» al día siguiente se admite — y el
+          equipo nuevo **no hereda nada**: ni miembros, ni historial, ni identificador.
+          **No hay restauración**: un equipo eliminado no se revive.
+
+          Sale del listado salvo `includeDeleted=true`, y su detalle lo sigue
+          devolviendo con `deletedAt` y este `deletionReason`. Eliminar uno ya
+          eliminado responde `409` (`EX-002`), **distinto del `404` del inexistente**:
+          quien elimina dos veces merece saber que la primera funcionó. Exige
+          `teams:delete`; ni `teams:update` ni `teams:change-status` habilitan esta
+          operación.
+          """)
+  @ApiResponses({
+    @ApiResponse(responseCode = "204", description = "Equipo eliminado."),
+    @ApiResponse(
+        responseCode = "400",
+        description =
+            "Identificador mal formado (`VAL-001`) o motivo ausente, vacío (`VAL-002`) o de más"
+                + " de 500 caracteres (`VAL-003`)"),
+    @ApiResponse(responseCode = "401", description = "Token ausente o inválido (`AUTH-001`)"),
+    @ApiResponse(
+        responseCode = "403",
+        description = "Autenticado sin el permiso `teams:delete` (`AUTH-002`)"),
+    @ApiResponse(responseCode = "404", description = "El equipo no existe (`EX-001`)"),
+    @ApiResponse(
+        responseCode = "409",
+        description = "El equipo ya está eliminado (`EX-002`) o tiene miembros vigentes (`EX-003`)")
+  })
+  public void eliminar(
+      @PathVariable UUID id, @RequestBody(required = false) DeleteTeamRequest peticion) {
+    baja.delete(id, peticion);
+  }
+
+  @PostMapping("/{id}/members")
+  @PreAuthorize("hasAuthority('teams:assign-members')")
+  @Operation(
+      summary = "Asignar miembros a un equipo",
+      description =
+          """
+          Dice **a qué equipo pertenece cada manager desde hoy**, en una sola
+          operación y con motivo. Admite **de una a cien personas** por petición, y
+          los identificadores repetidos se tratan una sola vez.
+
+          **Solo entra la cúspide** (`RN-SP-051`): quien porta el rol comercial **de
+          mayor rango**. Un director o un agente **no** se asigna —pertenece al equipo
+          de su manager por la cadena de mando— y enviarlo responde `422` diciendo
+          cuáles y por qué. La regla se decide por la **forma de la jerarquía de
+          roles**, no por un código concreto: el día que nazca un rango por encima, la
+          operación lo sigue sin tocar código.
+
+          **Toda la lista o ninguna.** Si alguna persona no existe, está eliminada o no
+          es de la cúspide, **no entra nadie** y la respuesta informa de **todas** las
+          que fallan, no de la primera: a medias, quien administra no sabría quién
+          entró sin volver a consultar, y el motivo declarado valdría para un conjunto
+          distinto del que pidió.
+
+          **Mover a alguien de equipo es asignarlo al destino.** La pertenencia
+          anterior **se cierra sola** en la misma transacción, y el equipo de origen lo
+          refleja de inmediato en su recuento. **Quien ya está en este equipo no se
+          toca**: conserva su `joinedAt` original, no se audita y no es un error —
+          reabrirlo le quitaría la antigüedad que ordena la lista.
+
+          **El equipo debe estar `ACTIVO`.** Uno `INACTIVO` responde `409`: la
+          restricción es del equipo que **recibe**, de modo que sí se puede mover a
+          alguien **desde** un equipo suspendido hacia uno activo. Un equipo eliminado
+          responde `404`.
+
+          **Una persona desactivada o bloqueada entra igual**: un manager suspendido
+          sigue siendo manager, y no poder organizarlo dejaría sin forma de ordenar la
+          cúspide antes de reactivarlo. Su estado se ve en el detalle.
+
+          **El motivo es obligatorio** y no se puede declarar desde cuándo: la
+          pertenencia rige al ejecutarse. Una fecha declarada permitiría reescribir a
+          qué equipo se atribuía una venta de hace tres meses, y este historial es el
+          que leerán las comisiones.
+
+          **Esto no cambia quién manda sobre quién.** `user_supervisors` y los roles de
+          cada persona quedan exactamente igual: un equipo agrupa, no manda, y
+          pertenecer a uno **no concede acceso a ningún dato**.
+
+          La respuesta es la **forma del detalle**, ya con todos sus miembros por
+          antigüedad. Exige `teams:assign-members`; **`teams:remove-members` no
+          habilita esta operación**, porque mover gente y dejarla fuera de todo equipo
+          son dos decisiones distintas.
+          """)
+  @ApiResponses({
+    @ApiResponse(
+        responseCode = "200",
+        description = "Equipo con sus miembros, en la forma del detalle.",
+        content = @Content(schema = @Schema(implementation = TeamDetailResponse.class))),
+    @ApiResponse(
+        responseCode = "400",
+        description =
+            "Lista vacía o de más de 100 (`VAL-001`, `VAL-003`), identificador mal formado"
+                + " (`VAL-002`), motivo ausente o largo (`VAL-004`, `VAL-005`) o cuerpo con"
+                + " campos no admitidos (`VAL-006`)"),
+    @ApiResponse(responseCode = "401", description = "Token ausente o inválido (`AUTH-001`)"),
+    @ApiResponse(
+        responseCode = "403",
+        description = "Autenticado sin el permiso `teams:assign-members` (`AUTH-002`)"),
+    @ApiResponse(
+        responseCode = "404",
+        description = "El equipo no existe o está eliminado (`EX-001`)"),
+    @ApiResponse(
+        responseCode = "409",
+        description =
+            "El equipo está `INACTIVO` y no admite miembros nuevos (`RN-SP-053`), o la persona"
+                + " acaba de ser asignada a otro equipo a la vez (`RN-SP-052`)"),
+    @ApiResponse(
+        responseCode = "422",
+        description =
+            "Alguna persona no existe o está eliminada (`EX-003`), o no porta el rol comercial"
+                + " de mayor rango (`RN-SP-051`); en `errors` van todas las que causan el"
+                + " rechazo")
+  })
+  public TeamDetailResponse asignarMiembros(
+      @PathVariable UUID id, @Valid @RequestBody AssignTeamMembersRequest peticion) {
+    return asignacion.assign(id, peticion);
+  }
+
+  @PostMapping("/{id}/members/removals")
+  @PreAuthorize("hasAuthority('teams:remove-members')")
+  @Operation(
+      summary = "Retirar miembros de un equipo",
+      description =
+          """
+          Saca a una o varias personas de **este** equipo **sin ponerlas en otro**, con
+          motivo. Admite de una a cien por petición.
+
+          **Retirar no es mover.** Para cambiar a alguien de equipo basta asignarlo al
+          destino, que cierra la anterior sola; esta operación es para **vaciar un
+          equipo** —lo que hace falta antes de eliminarlo— y para dejar a alguien **sin
+          equipo**, que es un estado legítimo: un manager sin equipo no rompe nada.
+
+          **Cierra, no borra.** La pertenencia se queda con su fecha de fin y sigue en
+          el historial, porque decide a qué equipo se atribuía lo que esa red producía.
+          El recuento del equipo baja de inmediato.
+
+          **Se puede retirar de un equipo `INACTIVO`.** La restricción de un equipo
+          suspendido es sobre **recibir**, no sobre soltar: si también impidiera
+          soltar, un equipo suspendido con gente dentro no podría vaciarse nunca y por
+          tanto no podría eliminarse.
+
+          **Retirar a quien no pertenece hoy a este equipo responde `422`**, y trae en
+          `errors` a todas las personas que fallan. Al contrario que en la asignación
+          —donde volver a asignar a quien ya está no es un error—, aquí un `200` dejaría
+          creer que se sacó a alguien de donde no estaba. **No se distingue** entre «no
+          tiene equipo» y «está en otro»: para esta operación las dos significan lo
+          mismo.
+
+          **Toda la lista o ninguna**: si alguna persona no pertenece, no se retira a
+          ninguna.
+
+          **Esto no toca el rol, ni la cadena de mando, ni el estado de nadie.** Quien
+          sale sigue siendo manager y conserva su red; **cambiar el estado de una
+          persona no la saca de su equipo**. Lo que sí la saca —en la misma
+          transacción y sin pasar por aquí— es dejar de ser manager: retirarle el rol
+          comercial de mayor rango o eliminarla.
+
+          La respuesta es la **forma del detalle**, ya sin los retirados. Exige
+          `teams:remove-members`; **`teams:assign-members` no habilita esta
+          operación**.
+          """)
+  @ApiResponses({
+    @ApiResponse(
+        responseCode = "200",
+        description = "Equipo sin los retirados, en la forma del detalle.",
+        content = @Content(schema = @Schema(implementation = TeamDetailResponse.class))),
+    @ApiResponse(
+        responseCode = "400",
+        description =
+            "Lista vacía o de más de 100 (`VAL-001`, `VAL-003`), identificador mal formado"
+                + " (`VAL-002`), motivo ausente o largo (`VAL-004`, `VAL-005`) o cuerpo con"
+                + " campos no admitidos (`VAL-006`)"),
+    @ApiResponse(responseCode = "401", description = "Token ausente o inválido (`AUTH-001`)"),
+    @ApiResponse(
+        responseCode = "403",
+        description = "Autenticado sin el permiso `teams:remove-members` (`AUTH-002`)"),
+    @ApiResponse(
+        responseCode = "404",
+        description = "El equipo no existe o está eliminado (`EX-001`)"),
+    @ApiResponse(
+        responseCode = "422",
+        description =
+            "Alguna persona no pertenece hoy a este equipo (`EX-002`); en `errors` van todas")
+  })
+  public TeamDetailResponse retirarMiembros(
+      @PathVariable UUID id, @Valid @RequestBody RemoveTeamMembersRequest peticion) {
+    return retiro.remove(id, peticion);
   }
 }

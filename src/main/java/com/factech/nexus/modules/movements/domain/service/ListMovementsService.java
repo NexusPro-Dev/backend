@@ -52,6 +52,7 @@ public class ListMovementsService {
         new MovementFilter(
             peticion.status(),
             peticion.type(),
+            peticion.typeStatus(),
             peticion.userId(),
             peticion.sellerId(),
             peticion.paymentMethodId(),
@@ -112,6 +113,13 @@ public class ListMovementsService {
       problemas.add(new FieldError("type", "VAL-005", mensaje));
     }
 
+    // El estado del tipo (`RF-MV-016`), como el tipo: un catálogo que no se
+    // edita por API, y un código que no existe es una pregunta mal escrita.
+    if (peticion.typeStatus() != null && !movimientos.existsTypeStatusCode(peticion.typeStatus())) {
+      String mensaje = "El estado del tipo '" + peticion.typeStatus() + "' no existe.";
+      problemas.add(new FieldError("typeStatus", "VAL-006", mensaje));
+    }
+
     if (peticion.from() != null
         && peticion.to() != null
         && peticion.from().isAfter(peticion.to())) {
@@ -157,6 +165,7 @@ public class ListMovementsService {
         fila.code(),
         fila.type(),
         fila.status(),
+        fila.typeStatus(),
         new MovementResponse.Party(
             fila.userId(),
             fila.userUsername(),

@@ -1,6 +1,7 @@
 package com.factech.nexus.modules.system.users.domain.service;
 
 import com.factech.nexus.modules.system.roles.application.AuthenticatedActor;
+import com.factech.nexus.modules.system.teams.application.TeamMembershipRetirement;
 import com.factech.nexus.modules.system.users.application.RevokeRolesRequest;
 import com.factech.nexus.modules.system.users.application.UserResponse;
 import com.factech.nexus.modules.system.users.domain.models.User;
@@ -83,6 +84,10 @@ public class RevokeUserRolesService {
   private final SessionRevoker sesiones;
   private final AuthenticatedActor actor;
   private final AuditWriter auditoria;
+  private static final String MOTIVO_RN_SP_055 =
+      "Deja de portar el rol comercial de mayor rango (RN-SP-055).";
+
+  private final TeamMembershipRetirement equipos;
   private final Clock reloj;
 
   @Autowired
@@ -95,7 +100,8 @@ public class RevokeUserRolesService {
       AuthenticatedActor actor,
       AuditWriter auditoria,
       AssignableCountry paises,
-      AssignableDocumentType documentos) {
+      AssignableDocumentType documentos,
+      TeamMembershipRetirement equipos) {
     this(
         usuarios,
         roles,
@@ -106,6 +112,7 @@ public class RevokeUserRolesService {
         auditoria,
         paises,
         documentos,
+        equipos,
         Clock.systemUTC());
   }
 
@@ -119,6 +126,7 @@ public class RevokeUserRolesService {
       AuditWriter auditoria,
       AssignableCountry paises,
       AssignableDocumentType documentos,
+      TeamMembershipRetirement equipos,
       Clock reloj) {
     this.usuarios = usuarios;
     this.roles = roles;
@@ -129,6 +137,7 @@ public class RevokeUserRolesService {
     this.sesiones = sesiones;
     this.actor = actor;
     this.auditoria = auditoria;
+    this.equipos = equipos;
     this.reloj = reloj;
   }
 
@@ -196,6 +205,18 @@ public class RevokeUserRolesService {
         pierdeLaCondicionDeVendedor && usuarios.findActiveSupervisor(userId).isPresent();
     if (cierraSuperior) {
       usuarios.endSupervisor(userId, ahora);
+    }
+
+    // `RN-SP-055` (enmienda del 23-09-2026, `RF-SP-070`): LA PERTENENCIA SIGUE AL
+    // ROL. Quien ya no porta el rol comercial de mayor rango no puede seguir en un
+    // equipo —`RN-SP-051` dejaría de cumplirse sin que nadie lo notara— y sale en
+    // ESTA transacción: si el retiro se revierte, la pertenencia sigue abierta.
+    //
+    // Se pregunta por el ESTADO RESULTANTE y no por el cambio, y el puerto no falla
+    // si no hay nada que cerrar: así la condición se lee como la invariante que es
+    // —«quien no es cúspide no está en un equipo»— en lugar de como una cascada.
+    if (estructura.rolDeMayorRango(catalogoResultante).filter(estructura::esCuspide).isEmpty()) {
+      equipos.retire(userId, MOTIVO_RN_SP_055);
     }
 
     // Dentro de la transacción, antes del commit: si esto falla, el retiro se

@@ -10,6 +10,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import com.factech.nexus.IntegrationTestBase;
 import java.util.List;
 import java.util.UUID;
+import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -43,6 +44,35 @@ class CreateRoleIT extends IntegrationTestBase {
   // ---------------------------------------------------------------------------
   // Camino feliz
   // ---------------------------------------------------------------------------
+
+  /**
+   * Retira los roles que esta clase crea, <b>y no solo los que inserta por SQL</b>: la mayoría los
+   * crea el propio endpoint bajo prueba, que es de lo que va este requerimiento.
+   *
+   * <p><b>Sin esto la clase deja el catálogo crecido para siempre</b>, y lo que falla es otra
+   * suite: `ListRolesServiceIT` afirma que una página que no se llena cuesta UNA sentencia, y con
+   * veinticinco roles en la tabla la página se llena, el conteo se ejecuta y la prueba se cae con
+   * un mensaje que no menciona a esta clase. Lo destapó el CI de `RF-SP-070` el 23-09-2026: solo
+   * muerde en el orden de ejecución de Linux, que no es el de Windows.
+   *
+   * <p><b>Por prefijo y no con un barrido de todo lo que no es de sistema</b>: un {@code DELETE
+   * FROM roles WHERE is_system = false} se llevaría por delante lo que otra clase hubiera dejado, y
+   * taparía su fuga en lugar de dejarla visible. Todo código que se invente aquí tiene que empezar
+   * por uno de estos prefijos.
+   */
+  @AfterEach
+  void retirarLosRolesDeLaPrueba() {
+    String prefijos =
+        "(code LIKE 'CA_%' OR code LIKE 'EX_%' OR code LIKE 'TRIM_%'"
+            + " OR code LIKE 'DUP_%' OR code = 'NO_AUTH')";
+    // Los permisos concedidos primero: `role_permissions` referencia al rol.
+    jdbc.update(
+        "DELETE FROM role_permissions WHERE role_id IN"
+            + " (SELECT id FROM roles WHERE is_system = false AND "
+            + prefijos
+            + ")");
+    jdbc.update("DELETE FROM roles WHERE is_system = false AND " + prefijos);
+  }
 
   @Test
   @DisplayName("CA-SP-001 — registra el rol y devuelve 201, Location, padre y permisos")

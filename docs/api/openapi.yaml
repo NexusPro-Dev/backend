@@ -1246,6 +1246,291 @@ paths:
               schema:
                 $ref: "#/components/schemas/TeamDetailResponse"
       x-required-permission: teams:create
+  /api/v1/teams/{id}/members:
+    post:
+      tags:
+      - Equipos
+      summary: Asignar miembros a un equipo
+      description: |
+        **Permiso requerido:** `teams:assign-members`. Sin él, `403` (`AUTH-002`).
+
+        Dice **a qué equipo pertenece cada manager desde hoy**, en una sola
+        operación y con motivo. Admite **de una a cien personas** por petición, y
+        los identificadores repetidos se tratan una sola vez.
+
+        **Solo entra la cúspide** (`RN-SP-051`): quien porta el rol comercial **de
+        mayor rango**. Un director o un agente **no** se asigna —pertenece al equipo
+        de su manager por la cadena de mando— y enviarlo responde `422` diciendo
+        cuáles y por qué. La regla se decide por la **forma de la jerarquía de
+        roles**, no por un código concreto: el día que nazca un rango por encima, la
+        operación lo sigue sin tocar código.
+
+        **Toda la lista o ninguna.** Si alguna persona no existe, está eliminada o no
+        es de la cúspide, **no entra nadie** y la respuesta informa de **todas** las
+        que fallan, no de la primera: a medias, quien administra no sabría quién
+        entró sin volver a consultar, y el motivo declarado valdría para un conjunto
+        distinto del que pidió.
+
+        **Mover a alguien de equipo es asignarlo al destino.** La pertenencia
+        anterior **se cierra sola** en la misma transacción, y el equipo de origen lo
+        refleja de inmediato en su recuento. **Quien ya está en este equipo no se
+        toca**: conserva su `joinedAt` original, no se audita y no es un error —
+        reabrirlo le quitaría la antigüedad que ordena la lista.
+
+        **El equipo debe estar `ACTIVO`.** Uno `INACTIVO` responde `409`: la
+        restricción es del equipo que **recibe**, de modo que sí se puede mover a
+        alguien **desde** un equipo suspendido hacia uno activo. Un equipo eliminado
+        responde `404`.
+
+        **Una persona desactivada o bloqueada entra igual**: un manager suspendido
+        sigue siendo manager, y no poder organizarlo dejaría sin forma de ordenar la
+        cúspide antes de reactivarlo. Su estado se ve en el detalle.
+
+        **El motivo es obligatorio** y no se puede declarar desde cuándo: la
+        pertenencia rige al ejecutarse. Una fecha declarada permitiría reescribir a
+        qué equipo se atribuía una venta de hace tres meses, y este historial es el
+        que leerán las comisiones.
+
+        **Esto no cambia quién manda sobre quién.** `user_supervisors` y los roles de
+        cada persona quedan exactamente igual: un equipo agrupa, no manda, y
+        pertenecer a uno **no concede acceso a ningún dato**.
+
+        La respuesta es la **forma del detalle**, ya con todos sus miembros por
+        antigüedad. Exige `teams:assign-members`; **`teams:remove-members` no
+        habilita esta operación**, porque mover gente y dejarla fuera de todo equipo
+        son dos decisiones distintas.
+      operationId: asignarMiembros
+      parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/AssignTeamMembersRequest"
+        required: true
+      responses:
+        "200":
+          description: "Equipo con sus miembros, en la forma del detalle."
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/TeamDetailResponse"
+        "400":
+          description: "Lista vacía o de más de 100 (`VAL-001`, `VAL-003`), identificador\
+            \ mal formado (`VAL-002`), motivo ausente o largo (`VAL-004`, `VAL-005`)\
+            \ o cuerpo con campos no admitidos (`VAL-006`)"
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/TeamDetailResponse"
+        "401":
+          description: Token ausente o inválido (`AUTH-001`)
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/TeamDetailResponse"
+        "403":
+          description: Autenticado sin el permiso `teams:assign-members` (`AUTH-002`)
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/TeamDetailResponse"
+        "404":
+          description: El equipo no existe o está eliminado (`EX-001`)
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/TeamDetailResponse"
+        "409":
+          description: "El equipo está `INACTIVO` y no admite miembros nuevos (`RN-SP-053`),\
+            \ o la persona acaba de ser asignada a otro equipo a la vez (`RN-SP-052`)"
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/TeamDetailResponse"
+        "422":
+          description: "Alguna persona no existe o está eliminada (`EX-003`), o no\
+            \ porta el rol comercial de mayor rango (`RN-SP-051`); en `errors` van\
+            \ todas las que causan el rechazo"
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/TeamDetailResponse"
+      x-required-permission: teams:assign-members
+  /api/v1/teams/{id}/members/removals:
+    post:
+      tags:
+      - Equipos
+      summary: Retirar miembros de un equipo
+      description: |
+        **Permiso requerido:** `teams:remove-members`. Sin él, `403` (`AUTH-002`).
+
+        Saca a una o varias personas de **este** equipo **sin ponerlas en otro**, con
+        motivo. Admite de una a cien por petición.
+
+        **Retirar no es mover.** Para cambiar a alguien de equipo basta asignarlo al
+        destino, que cierra la anterior sola; esta operación es para **vaciar un
+        equipo** —lo que hace falta antes de eliminarlo— y para dejar a alguien **sin
+        equipo**, que es un estado legítimo: un manager sin equipo no rompe nada.
+
+        **Cierra, no borra.** La pertenencia se queda con su fecha de fin y sigue en
+        el historial, porque decide a qué equipo se atribuía lo que esa red producía.
+        El recuento del equipo baja de inmediato.
+
+        **Se puede retirar de un equipo `INACTIVO`.** La restricción de un equipo
+        suspendido es sobre **recibir**, no sobre soltar: si también impidiera
+        soltar, un equipo suspendido con gente dentro no podría vaciarse nunca y por
+        tanto no podría eliminarse.
+
+        **Retirar a quien no pertenece hoy a este equipo responde `422`**, y trae en
+        `errors` a todas las personas que fallan. Al contrario que en la asignación
+        —donde volver a asignar a quien ya está no es un error—, aquí un `200` dejaría
+        creer que se sacó a alguien de donde no estaba. **No se distingue** entre «no
+        tiene equipo» y «está en otro»: para esta operación las dos significan lo
+        mismo.
+
+        **Toda la lista o ninguna**: si alguna persona no pertenece, no se retira a
+        ninguna.
+
+        **Esto no toca el rol, ni la cadena de mando, ni el estado de nadie.** Quien
+        sale sigue siendo manager y conserva su red; **cambiar el estado de una
+        persona no la saca de su equipo**. Lo que sí la saca —en la misma
+        transacción y sin pasar por aquí— es dejar de ser manager: retirarle el rol
+        comercial de mayor rango o eliminarla.
+
+        La respuesta es la **forma del detalle**, ya sin los retirados. Exige
+        `teams:remove-members`; **`teams:assign-members` no habilita esta
+        operación**.
+      operationId: retirarMiembros
+      parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/RemoveTeamMembersRequest"
+        required: true
+      responses:
+        "200":
+          description: "Equipo sin los retirados, en la forma del detalle."
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/TeamDetailResponse"
+        "400":
+          description: "Lista vacía o de más de 100 (`VAL-001`, `VAL-003`), identificador\
+            \ mal formado (`VAL-002`), motivo ausente o largo (`VAL-004`, `VAL-005`)\
+            \ o cuerpo con campos no admitidos (`VAL-006`)"
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/TeamDetailResponse"
+        "401":
+          description: Token ausente o inválido (`AUTH-001`)
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/TeamDetailResponse"
+        "403":
+          description: Autenticado sin el permiso `teams:remove-members` (`AUTH-002`)
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/TeamDetailResponse"
+        "404":
+          description: El equipo no existe o está eliminado (`EX-001`)
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/TeamDetailResponse"
+        "422":
+          description: Alguna persona no pertenece hoy a este equipo (`EX-002`); en
+            `errors` van todas
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/TeamDetailResponse"
+      x-required-permission: teams:remove-members
+  /api/v1/teams/{id}/deletion:
+    post:
+      tags:
+      - Equipos
+      summary: Eliminar un equipo
+      description: |
+        **Permiso requerido:** `teams:delete`. Sin él, `403` (`AUTH-002`).
+
+        Baja **lógica y con motivo**: la fila se queda con `deletedAt` puesto y
+        **nada más cambiado** —`status` incluido, de modo que un equipo eliminado
+        conserva el estado que tenía—, y el motivo y la instantánea van a la
+        auditoría de eliminación. **`POST` y no `DELETE`** porque el cuerpo lleva el
+        motivo, que es obligatorio, y un `DELETE` con cuerpo no tiene garantías.
+
+        **Solo se elimina un equipo VACÍO.** Con un miembro vigente responde `409`
+        (`EX-003`), y no es una molestia: un equipo es la única forma de decir en qué
+        parte de la red está un manager, y eliminarlo con gente dentro dejaría a esas
+        personas sin pertenencia sin que nadie lo hubiera decidido. **Hay dos
+        salidas y el mensaje las nombra**: retirar a cada miembro
+        (`POST /teams/{id}/members/removals`) o reubicarlo en otro equipo
+        (`POST /teams/{id}/members`).
+
+        **No hace falta suspenderlo antes**: se elimina un equipo activo y vacío, y
+        el estado y la baja son independientes.
+
+        **El historial sobrevive.** Las pertenencias **cerradas** no se borran: son
+        un hecho —esta persona estuvo aquí entre estas dos fechas— y las comisiones
+        leerán ese historial. Por eso la instantánea de la baja lleva **los
+        identificadores de todas las personas que pasaron** por el equipo.
+
+        **Y el nombre queda libre.** La unicidad no cuenta a los eliminados, de modo
+        que volver a registrar «Equipo Norte» al día siguiente se admite — y el
+        equipo nuevo **no hereda nada**: ni miembros, ni historial, ni identificador.
+        **No hay restauración**: un equipo eliminado no se revive.
+
+        Sale del listado salvo `includeDeleted=true`, y su detalle lo sigue
+        devolviendo con `deletedAt` y este `deletionReason`. Eliminar uno ya
+        eliminado responde `409` (`EX-002`), **distinto del `404` del inexistente**:
+        quien elimina dos veces merece saber que la primera funcionó. Exige
+        `teams:delete`; ni `teams:update` ni `teams:change-status` habilitan esta
+        operación.
+      operationId: eliminar_1
+      parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/DeleteTeamRequest"
+      responses:
+        "204":
+          description: Equipo eliminado.
+        "400":
+          description: "Identificador mal formado (`VAL-001`) o motivo ausente, vací\
+            o (`VAL-002`) o de más de 500 caracteres (`VAL-003`)"
+        "401":
+          description: Token ausente o inválido (`AUTH-001`)
+        "403":
+          description: Autenticado sin el permiso `teams:delete` (`AUTH-002`)
+        "404":
+          description: El equipo no existe (`EX-001`)
+        "409":
+          description: El equipo ya está eliminado (`EX-002`) o tiene miembros vigentes
+            (`EX-003`)
+      x-required-permission: teams:delete
   /api/v1/roles:
     get:
       tags:
@@ -1592,7 +1877,7 @@ paths:
 
         **`POST` sobre un subrecurso y no `DELETE`**: el motivo viaja en el
         cuerpo, y un intermediario puede descartar el cuerpo de un `DELETE`.
-      operationId: eliminar_1
+      operationId: eliminar_2
       parameters:
       - name: id
         in: path
@@ -2483,9 +2768,11 @@ paths:
         fuera de su oferta, o un upgrade que baja de nivel— se rechaza la compra completa
         nombrando el producto, y **no se registra nada**.
 
-        **La respuesta no lleva el vendedor**: se atribuye a su superior comercial vigente
-        —o a usted mismo si no cuelga de nadie— y se congela en cada línea, pero a quien
-        compra no se le enseña. Es la misma forma que devuelve `GET /api/v1/movements/mine/{id}`
+        **La respuesta no lleva el vendedor**: si usted tiene **un** vendedor, la venta se
+        le atribuye a él y nace `typeStatus: VALIDADO`; si tiene **varios**, nace
+        `VALIDAR_COMISIONES` sin vendedor en sus líneas, y administración elige cuál
+        (`RN-MV-034`). Si no es cliente de nadie, su superior vigente o usted mismo. A quien
+        compra no se le enseña a quién. Es la misma forma que devuelve `GET /api/v1/movements/mine/{id}`
         sin `seller`.
       operationId: comprar
       parameters:
@@ -2554,11 +2841,15 @@ paths:
         mayúsculas — hoy el único es `VENTA`, y filtrar por él devuelve lo mismo que no
         filtrar. Un `type` que no exista en el catálogo es `400`, como el estado y al revés
         que las personas: el catálogo es cerrado. El catálogo no se publica por ninguna
-        ruta; los códigos vigentes son los que este párrafo nombra.
+        ruta; los códigos vigentes son los que este párrafo nombra. Desde el 23-09-2026,
+        `typeStatus` (qué ventas **faltan por validar**, `RF-MV-016`): el estado del tipo,
+        sin distinguir mayúsculas — en una venta, `VALIDAR_COMISIONES` o `VALIDADO`. Uno que
+        no exista es `400`, como el tipo.
 
         **Cada fila lleva el tipo de movimiento** (`type`, hoy siempre `VENTA`), el sujeto
-        (`user`), los vendedores de sus líneas sin repetir (`sellers`, lista nunca nula y
-        vacía cuando no hay ninguno), y **cuándo se confirmó** (`confirmedAt`): presente en
+        (`user`), **el estado del tipo** (`typeStatus`), los vendedores de sus líneas sin
+        repetir (`sellers`, lista nunca nula y vacía cuando no hay ninguno —también en una
+        venta por validar a la que no se le ha asignado ninguno—), y **cuándo se confirmó** (`confirmedAt`): presente en
         las confirmadas y **nulo** en las demás. No lleva `role` —quien administra no
         participa en lo que mira— ni las líneas, que son del detalle.
 
@@ -2585,6 +2876,11 @@ paths:
         schema:
           type: string
       - name: type
+        in: query
+        required: false
+        schema:
+          type: string
+      - name: typeStatus
         in: query
         required: false
         schema:
@@ -2633,8 +2929,9 @@ paths:
                 $ref: "#/components/schemas/PageResponseMovementSummary"
         "400":
           description: "Paginación inválida, estado no admitido (`VAL-002`), identificador\
-            \ malformado (`VAL-001`), `from` posterior a `to` (`VAL-004`) o tipo de\
-            \ movimiento inexistente (`VAL-005`). Los problemas se devuelven juntos."
+            \ malformado (`VAL-001`), `from` posterior a `to` (`VAL-004`), tipo de\
+            \ movimiento inexistente (`VAL-005`) o estado del tipo inexistente (`VAL-006`).\
+            \ Los problemas se devuelven juntos."
         "401":
           description: Token ausente o inválido (`AUTH-001`)
         "403":
@@ -2662,9 +2959,11 @@ paths:
         cuántos, nunca cuánto cuestan — un precio que llegara en la petición sería un
         descuento sin autorización y sin rastro. Tampoco se envían la moneda, la
         vigencia ni el vendedor: la moneda y la vigencia salen del producto, y **el
-        vendedor sale de quien compra** —su superior vigente, o **él mismo** si no cuelga
-        de nadie— y se congela **en cada línea** (`lines[].seller`). En una venta ninguna
-        línea viene sin vendedor.
+        vendedor sale de quien compra** (`RN-MV-034`): si tiene **un** vendedor, ese va en
+        cada línea (`lines[].seller`) y la venta nace `typeStatus: VALIDADO`; si tiene
+        **varios**, las líneas vienen **sin vendedor** y la venta nace
+        `VALIDAR_COMISIONES`, hasta que se asignen por `POST /{id}/seller-assignments`; si
+        no es cliente de nadie, su superior vigente o **él mismo**, `VALIDADO`.
 
         **Lo copiado queda congelado.** Corregir mañana el precio de un producto, o
         reasignar al comprador a otro agente, no cambia lo que se vendió hoy.
@@ -2763,6 +3062,73 @@ paths:
         "500":
           description: Fallo no controlado (`ERR-500`)
       x-required-permission: movements:void
+  /api/v1/movements/{id}/seller-assignments:
+    post:
+      tags:
+      - Movimientos
+      summary: Asignar los vendedores de una venta
+      description: |
+        **Permiso requerido:** `movements:assign-sellers`. Sin él, `403` (`AUTH-002`).
+
+        Atribuye cada línea de una venta a **uno de los vendedores de quien compra**. Es lo
+        que saca de `VALIDAR_COMISIONES` a una venta cuyo cliente tenía **varios**
+        vendedores y que por eso nació con sus líneas **sin vendedor** (`RN-MV-034`).
+
+        `lines` lleva una pareja `productId` → `sellerId` por línea —el producto identifica
+        la línea dentro de la venta— y **puede ser una parte**: la venta sigue en
+        `VALIDAR_COMISIONES` mientras quede alguna sin vendedor, y **pasa sola a
+        `VALIDADO`** en cuanto no queda ninguna.
+
+        **Qué se puede tocar** (`RN-MV-035`): una línea **sin vendedor** se asigna siempre,
+        también después de confirmar el pago; **corregir** una que ya lo tiene solo se
+        admite **mientras la venta no esté `CONFIRMADA`**. En una venta `RECHAZADA` o
+        `ANULADA` no se asigna nada. El vendedor tiene que ser **uno de los del cliente**
+        —de registro o de hotlink—: elegir a cualquiera sería atribuir la venta a quien se
+        quisiera.
+
+        **Todo o nada**: si una sola pareja no procede, no se escribe ninguna. La respuesta
+        es la venta como queda, con `typeStatus` y el vendedor de cada línea.
+      operationId: asignarVendedores
+      parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/AssignSellersRequest"
+      responses:
+        "200":
+          description: "La venta como queda: el vendedor de cada línea y `typeStatus`."
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/SaleResponse"
+        "400":
+          description: "Identificador malformado (`VAL-001`), sin líneas (`VAL-002`),\
+            \ una pareja sin producto o sin vendedor (`VAL-003`) o un producto repetido\
+            \ (`VAL-004`)."
+        "401":
+          description: Token ausente o inválido (`AUTH-001`)
+        "403":
+          description: Sin el permiso `movements:assign-sellers` (ni `movements:confirm`
+            ni `movements:create` bastan).
+        "404":
+          description: No existe (`EX-001`)
+        "409":
+          description: "La venta está rechazada o anulada (`EX-002`), o está confirmada\
+            \ y se intenta corregir una línea que ya tenía vendedor (`EX-003`). Nada\
+            \ cambió."
+        "422":
+          description: Un producto que no es una línea de la venta (`EX-004`) o un
+            vendedor que no es de los del cliente (`EX-005`). Nada cambió.
+        "500":
+          description: Fallo no controlado (`ERR-500`)
+      x-required-permission: movements:assign-sellers
   /api/v1/movements/{id}/confirmation:
     post:
       tags:
@@ -2792,7 +3158,9 @@ paths:
 
         **Lo que NO hace**: no saca a nadie de `FTD_PENDIENTE` (eso lo hace el primer
         depósito), no devenga comisiones, no adjunta comprobante y no se puede deshacer
-        (`RN-MV-005`).
+        (`RN-MV-005`). **Tampoco espera a la atribución**: una venta `VALIDAR_COMISIONES`
+        se confirma y entrega igual, y sigue por validar — lo que esperará a `VALIDADO` es
+        la comisión (`RN-MV-035`).
       operationId: confirmar
       parameters:
       - name: id
@@ -4898,6 +5266,258 @@ paths:
               schema:
                 $ref: "#/components/schemas/UserCommissionRateResponse"
       x-required-permission: user-commission-rates:update
+  /api/v1/teams/{id}:
+    get:
+      tags:
+      - Equipos
+      summary: Consultar el detalle de un equipo
+      description: |
+        **Permiso requerido:** `teams:read`. Sin él, `403` (`AUTH-002`).
+
+        El equipo entero: lo suyo —incluida la `description`, que el listado no
+        trae— y **sus miembros vigentes**, cada uno con `id`, `username`,
+        `firstName`, `lastName`, `status` y `joinedAt`, **desde cuándo pertenece a
+        este equipo**. La lista va **por antigüedad**, con el nombre de usuario de
+        desempate para que el orden sea determinista.
+
+        **El `status` de cada miembro es el de la PERSONA**, no el de su pertenencia
+        —una pertenencia vigente no tiene estados—, y se publica porque un manager
+        desactivado **sigue en su equipo**: cambiar el estado de una persona no la
+        saca. Quien administra necesita verlo sin abrir cada ficha. A un eliminado
+        sí se le cierra la pertenencia en la misma transacción, de modo que deja de
+        ser vigente y no aparece.
+
+        **`members` son solo los vigentes**: quien tuvo una pertenencia cerrada aquí
+        no sale, y `memberCount` coincide siempre con el tamaño de la lista y con el
+        número que da el listado para este mismo equipo.
+
+        **Un equipo eliminado NO es un `404`**: se devuelve con `deletedAt` y
+        `deletionReason` —leído de la auditoría de eliminación— y con `members`
+        vacío, no por ocultarlos sino porque no se elimina un equipo que tenga
+        vigentes. Si el registro de auditoría no aparece, `deletionReason` sale
+        **presente y nulo**: el detalle no depende de la auditoría para responder.
+        Un equipo `INACTIVO` se devuelve igual, **con su gente**: desactivar no
+        vacía.
+
+        Exige `teams:read`; `teams:list` **no** habilita esta operación, porque
+        listar y abrir son dos.
+      operationId: detalle_1
+      parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      responses:
+        "200":
+          description: El equipo con sus miembros vigentes.
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/TeamDetailResponse"
+        "400":
+          description: Identificador mal formado (`VAL-001`)
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/TeamDetailResponse"
+        "401":
+          description: Token ausente o inválido (`AUTH-001`)
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/TeamDetailResponse"
+        "403":
+          description: Autenticado sin el permiso `teams:read` (`AUTH-002`)
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/TeamDetailResponse"
+        "404":
+          description: El equipo no existe (`EX-001`)
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/TeamDetailResponse"
+      x-required-permission: teams:read
+    patch:
+      tags:
+      - Equipos
+      summary: Corregir un equipo
+      description: |
+        **Permiso requerido:** `teams:update`. Sin él, `403` (`AUTH-002`).
+
+        Corrige el **nombre**, la **descripción** o los dos. Y nada más: el estado
+        se cambia con `PATCH /teams/{id}/status` y los miembros entran y salen por
+        sus propias rutas, cada una con su permiso. **Enviar `status` o `members`
+        responde `400`** por campo desconocido.
+
+        **Omitir un campo no es borrarlo.** `description` ausente deja la que
+        había; **`description: null` la borra** y la respuesta la devuelve presente
+        y nula. El **nombre no se puede vaciar**: un equipo sin nombre no existe, de
+        modo que `name: null` es `400`, no un borrado.
+
+        **Un cuerpo sin ningún campo es `400`**: un `PATCH` vacío no es una
+        corrección, y responderle `200` haría creer que algo cambió.
+
+        El nombre sigue siendo **único entre los equipos no eliminados, sin
+        distinguir mayúsculas ni acentos**, y el choque es `409`; **renombrarse al
+        nombre que ya se tiene se admite** —no se compite contra uno mismo— y el
+        nombre de un equipo eliminado **está libre**. Dos renombrados simultáneos al
+        mismo nombre salen por el mismo `409`, nunca por un `500`.
+
+        **Un equipo eliminado responde `404`**, igual que uno inexistente: no es
+        editable en ningún caso. **Uno `INACTIVO` se edita con normalidad**, porque
+        inactivo significa que no recibe miembros, no que sea inmutable — corregir
+        una errata antes de reactivarlo es justo lo que se hace.
+
+        La respuesta es la **forma del detalle**, ya con los valores nuevos y sus
+        miembros vigentes; **el estado, la fecha de eliminación y las pertenencias no
+        se tocan**. Exige `teams:update`.
+      operationId: corregir_1
+      parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UpdateTeamRequest"
+        required: true
+      responses:
+        "200":
+          description: "Equipo corregido, en la forma del detalle."
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/TeamDetailResponse"
+        "400":
+          description: "Nombre vacío o largo, descripción larga, cuerpo sin campos\
+            \ (`VAL-003`) o con campos no admitidos (`VAL-004`)"
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/TeamDetailResponse"
+        "401":
+          description: Token ausente o inválido (`AUTH-001`)
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/TeamDetailResponse"
+        "403":
+          description: Autenticado sin el permiso `teams:update` (`AUTH-002`)
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/TeamDetailResponse"
+        "404":
+          description: El equipo no existe o está eliminado (`EX-001`)
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/TeamDetailResponse"
+        "409":
+          description: El nombre ya lo usa otro equipo no eliminado (`EX-002`)
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/TeamDetailResponse"
+      x-required-permission: teams:update
+  /api/v1/teams/{id}/status:
+    patch:
+      tags:
+      - Equipos
+      summary: Suspender o reactivar un equipo
+      description: |
+        **Permiso requerido:** `teams:change-status`. Sin él, `403` (`AUTH-002`).
+
+        Pasa el equipo a `INACTIVO` o lo devuelve a `ACTIVO`. Se declara **el
+        estado destino** y no una acción, de modo que **repetir la petición deja
+        el mismo resultado**: pedir el estado que ya se tiene responde `200` sin
+        escribir nada y **sin registrar auditoría**.
+
+        **`INACTIVO` significa «no recibe», no «está vacío».** El equipo
+        suspendido **conserva a todos sus miembros**: el detalle los sigue
+        devolviendo y el listado los sigue contando. Cerrar las pertenencias al
+        suspender movería la atribución de toda una red sin que nadie lo hubiera
+        decidido; para vaciarlo hay que retirar a cada miembro, con motivo.
+
+        **La restricción es sobre el equipo que RECIBE.** Un equipo `INACTIVO` no
+        admite miembros nuevos, pero **sí se puede retirar** a los que tiene —es
+        la única forma de vaciarlo para poder eliminarlo— y **sí se puede
+        reasignar a alguien desde él hacia un equipo activo**.
+
+        **Desactivar no le quita nada a nadie.** Un manager de un equipo
+        suspendido sigue activo, sigue siendo manager y sigue teniendo su red;
+        pertenecer a un equipo no concede acceso a ningún dato, y por eso esta
+        operación **no registra ningún evento de seguridad** — al contrario que
+        desactivar un rol, que retira permisos de inmediato.
+
+        **El cuerpo no admite motivo**: el motivo es la barrera de lo
+        irreversible, y esto se deshace con una petición. Enviar `reason`, `name`
+        o `members` responde `400`.
+
+        Suspender **no es eliminar**: «ya no organizo con este equipo pero quiero
+        ver quién estaba» es esto; `DELETE /teams/{id}` es «no debería existir», y
+        exige vaciarlo antes. Un equipo eliminado responde `404`: sobre él no hay
+        estado que cambiar.
+
+        La respuesta es la **forma del detalle**, con el estado nuevo y los mismos
+        miembros. Exige `teams:change-status`; **`teams:update` no habilita esta
+        operación**, porque corregir el nombre de un equipo y suspenderlo son dos
+        decisiones de negocio distintas.
+      operationId: cambiarEstado_1
+      parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ChangeTeamStatusRequest"
+        required: true
+      responses:
+        "200":
+          description: "Equipo con su estado nuevo, en la forma del detalle."
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/TeamDetailResponse"
+        "400":
+          description: "Estado ausente o fuera del dominio (`VAL-001`), identificador\
+            \ mal formado (`VAL-002`) o cuerpo con campos no admitidos (`VAL-003`)"
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/TeamDetailResponse"
+        "401":
+          description: Token ausente o inválido (`AUTH-001`)
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/TeamDetailResponse"
+        "403":
+          description: Autenticado sin el permiso `teams:change-status` (`AUTH-002`)
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/TeamDetailResponse"
+        "404":
+          description: El equipo no existe o está eliminado (`EX-001`)
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/TeamDetailResponse"
+      x-required-permission: teams:change-status
   /api/v1/roles/{id}:
     get:
       tags:
@@ -4929,7 +5549,7 @@ paths:
 
         Un rol **eliminado devuelve el mismo `404`** que uno inexistente, sin
         ninguna pista de que existió.
-      operationId: detalle_1
+      operationId: detalle_2
       parameters:
       - name: id
         in: path
@@ -5058,7 +5678,7 @@ paths:
 
         El cuerpo no admite motivo: el Art. V.13 lo exige solo en las
         eliminaciones.
-      operationId: cambiarEstado_1
+      operationId: cambiarEstado_2
       parameters:
       - name: id
         in: path
@@ -5246,7 +5866,7 @@ paths:
 
         Un identificador con forma laxa se rechaza como **dato inválido**
         (`400`), no como recurso no encontrado.
-      operationId: detalle_2
+      operationId: detalle_3
       parameters:
       - name: id
         in: path
@@ -5349,7 +5969,7 @@ paths:
 
         **No se exige motivo**, ni siquiera al cambiar el precio. Una petición
         que no cambia nada devuelve `200` y **no registra evento**.
-      operationId: corregir_1
+      operationId: corregir_2
       parameters:
       - name: id
         in: path
@@ -5420,7 +6040,7 @@ paths:
         existe.
 
         No se exige motivo para activar ni para desactivar.
-      operationId: cambiarEstado_2
+      operationId: cambiarEstado_3
       parameters:
       - name: id
         in: path
@@ -5604,7 +6224,7 @@ paths:
 
         **Un paquete retirado no es un `404`**: se devuelve con `deletedAt` y
         `deletionReason`, como el producto. Exige `packages:read`.
-      operationId: detalle_3
+      operationId: detalle_4
       parameters:
       - name: id
         in: path
@@ -5675,7 +6295,7 @@ paths:
 
         Un cuerpo sin cambios de valor responde `200` sin avanzar `updatedAt` ni
         auditar. Exige `packages:update`.
-      operationId: corregir_2
+      operationId: corregir_3
       parameters:
       - name: id
         in: path
@@ -5750,7 +6370,7 @@ paths:
 
         Pedir el estado que ya tiene responde `200` sin escribir ni auditar. Exige
         `packages:change-status`.
-      operationId: cambiarEstado_3
+      operationId: cambiarEstado_4
       parameters:
       - name: id
         in: path
@@ -5978,7 +6598,7 @@ paths:
         una operación de migración, no de API.
 
         El cuerpo no admite ningún otro campo ni motivo alguno.
-      operationId: cambiarEstado_4
+      operationId: cambiarEstado_5
       parameters:
       - name: id
         in: path
@@ -6037,7 +6657,7 @@ paths:
         **Se devuelve también un retirado**, con `deletedAt` y `deletionReason`
         —leído de la auditoría— y su árbol marcado: es la lectura de administración
         y devuelve todo.
-      operationId: detalle_4
+      operationId: detalle_5
       parameters:
       - name: id
         in: path
@@ -6103,7 +6723,7 @@ paths:
         El título nuevo no puede ser el de **otro** curso vivo. Un retirado no se
         corrige (`404`). Un cuerpo sin cambios de valor responde `200` sin avanzar
         `updatedAt` ni auditar. Exige `courses:update`.
-      operationId: corregir_3
+      operationId: corregir_4
       parameters:
       - name: id
         in: path
@@ -6181,7 +6801,7 @@ paths:
         último módulo activo después no lo cambia** — el curso deja de ofrecerse, y
         `offerableReason` dice por qué. Pedir el estado que ya tiene responde `200`
         sin escribir ni auditar. Un retirado responde `404`. Exige `courses:update`.
-      operationId: cambiarEstado_5
+      operationId: cambiarEstado_6
       parameters:
       - name: id
         in: path
@@ -6253,7 +6873,7 @@ paths:
         módulo no cambia de curso**: `courseId` en el cuerpo es `400`, y un módulo de
         otro curso responde `404`, como el retirado. Un cuerpo sin cambios de valor
         responde `200` sin auditar. Exige `courses:update`.
-      operationId: corregir_4
+      operationId: corregir_5
       parameters:
       - name: courseId
         in: path
@@ -6328,7 +6948,7 @@ paths:
         Con un módulo activo, **el curso puede activarse** (`PATCH /courses/{id}/status`).
         Pedir el estado que ya tiene responde `200` sin escribir. Un módulo retirado, o
         de otro curso, responde `404`. Exige `courses:update`.
-      operationId: cambiarEstado_6
+      operationId: cambiarEstado_7
       parameters:
       - name: courseId
         in: path
@@ -6405,7 +7025,7 @@ paths:
         La ruta afirma la pertenencia: una lección de otro módulo, o un módulo de otro
         curso, responde `404`. Es la misma forma que devuelven las escrituras. Exige
         `courses:read`; `courses:learn` no habilita — el aula la lee por otra ruta.
-      operationId: detalle_5
+      operationId: detalle_6
       parameters:
       - name: courseId
         in: path
@@ -6474,7 +7094,7 @@ paths:
         aplicar nada**; pasar a `TEXTO` con una URL guardada se admite. **El contenido se
         audita como longitud y no como texto.** La lección no cambia de módulo: `moduleId`,
         `courseId` y `status` en el cuerpo son `400`. Exige `courses:update`.
-      operationId: corregir_5
+      operationId: corregir_6
       parameters:
       - name: courseId
         in: path
@@ -6555,7 +7175,7 @@ paths:
         duración del módulo y del curso bajan en su siguiente lectura.
 
         Pedir el estado que ya tiene responde `200` sin escribir. Exige `courses:update`.
-      operationId: cambiarEstado_7
+      operationId: cambiarEstado_8
       parameters:
       - name: courseId
         in: path
@@ -6640,7 +7260,7 @@ paths:
         clasificados en ella aunque el aula ya no los enseñe bajo ese cajón. Es la
         lectura de administración, y quien tiene `course-categories:read` ve el
         catálogo completo.
-      operationId: detalle_6
+      operationId: detalle_7
       parameters:
       - name: id
         in: path
@@ -6707,7 +7327,7 @@ paths:
 
         Un cuerpo sin cambios de valor responde `200` sin avanzar `updatedAt` ni
         auditar. La respuesta es la forma del detalle. Exige `course-categories:update`.
-      operationId: corregir_6
+      operationId: corregir_7
       parameters:
       - name: id
         in: path
@@ -6779,7 +7399,7 @@ paths:
         propague desde ese momento, no lo repara.
 
         El cuerpo no admite ningún otro campo ni motivo alguno.
-      operationId: cambiarEstado_8
+      operationId: cambiarEstado_9
       parameters:
       - name: id
         in: path
@@ -6840,7 +7460,7 @@ paths:
         producto de precio cero se rechaza con `409` (`EX-008`). Y un importe
         fijo tiene que **caber en los decimales de la moneda del producto**
         (`VAL-013`).
-      operationId: corregir_7
+      operationId: corregir_8
       parameters:
       - name: id
         in: path
@@ -7006,6 +7626,11 @@ paths:
         y quien porta este permiso porta normalmente `users:list`.
 
         Una persona que no es cliente devuelve `200` con la colección vacía.
+
+        **Mismo cuerpo que la ruta propia**, incluidos el **teléfono de
+        empresa** y el **estado** que las dos ganaron el 22-09-2026. Aquí no
+        enseñan nada nuevo: quien porta `users:read-sellers` abre la ficha
+        entera de esa persona con `GET /api/v1/users/{id}`.
       operationId: vendedoresDe
       parameters:
       - name: id
@@ -7291,9 +7916,16 @@ paths:
         `HOTLINK` las escribirá la compra por hotlink (`RF-MV-011`,
         `RF-MV-013`), que no está construida. El contrato ya es el definitivo.
 
-        De cada vendedor se publica lo mismo que su hotlink (`RN-PM-022`):
-        **nombre y apellido**, más el nombre de usuario, que el cliente ya
-        conoce. **Ni identificador, ni correo, ni estado, ni roles.**
+        De cada vendedor se publican **nombre, apellido y nombre de usuario**
+        —lo mismo que su hotlink, `RN-PM-022`— y, **desde el 22-09-2026**,
+        su **teléfono de empresa** y el **estado** de su cuenta. **Ni
+        identificador, ni correo, ni roles**, que siguen fuera.
+
+        **`companyPhone` viaja presente y nulo** cuando el vendedor no lo
+        declaró: es el canal que la empresa publica, no el teléfono personal,
+        que no se devuelve aquí. **`status` puede ser el de una cuenta
+        eliminada** —el vínculo sobrevive al vendedor y esa fila ya salía—,
+        y es lo que ahora la distingue de la de un vendedor activo.
 
         `linkedAt` es desde cuándo es su vendedor; en los vínculos anteriores al
         18-09-2026 —traídos por `V20` desde `user_supervisors`— es desde cuándo
@@ -7401,81 +8033,6 @@ paths:
         "500":
           description: Fallo no controlado (`ERR-500`)
       x-required-permission: users:read-own-clients
-  /api/v1/teams/{id}:
-    get:
-      tags:
-      - Equipos
-      summary: Consultar el detalle de un equipo
-      description: |
-        **Permiso requerido:** `teams:read`. Sin él, `403` (`AUTH-002`).
-
-        El equipo entero: lo suyo —incluida la `description`, que el listado no
-        trae— y **sus miembros vigentes**, cada uno con `id`, `username`,
-        `firstName`, `lastName`, `status` y `joinedAt`, **desde cuándo pertenece a
-        este equipo**. La lista va **por antigüedad**, con el nombre de usuario de
-        desempate para que el orden sea determinista.
-
-        **El `status` de cada miembro es el de la PERSONA**, no el de su pertenencia
-        —una pertenencia vigente no tiene estados—, y se publica porque un manager
-        desactivado **sigue en su equipo**: cambiar el estado de una persona no la
-        saca. Quien administra necesita verlo sin abrir cada ficha. A un eliminado
-        sí se le cierra la pertenencia en la misma transacción, de modo que deja de
-        ser vigente y no aparece.
-
-        **`members` son solo los vigentes**: quien tuvo una pertenencia cerrada aquí
-        no sale, y `memberCount` coincide siempre con el tamaño de la lista y con el
-        número que da el listado para este mismo equipo.
-
-        **Un equipo eliminado NO es un `404`**: se devuelve con `deletedAt` y
-        `deletionReason` —leído de la auditoría de eliminación— y con `members`
-        vacío, no por ocultarlos sino porque no se elimina un equipo que tenga
-        vigentes. Si el registro de auditoría no aparece, `deletionReason` sale
-        **presente y nulo**: el detalle no depende de la auditoría para responder.
-        Un equipo `INACTIVO` se devuelve igual, **con su gente**: desactivar no
-        vacía.
-
-        Exige `teams:read`; `teams:list` **no** habilita esta operación, porque
-        listar y abrir son dos.
-      operationId: detalle_7
-      parameters:
-      - name: id
-        in: path
-        required: true
-        schema:
-          type: string
-          format: uuid
-      responses:
-        "200":
-          description: El equipo con sus miembros vigentes.
-          content:
-            '*/*':
-              schema:
-                $ref: "#/components/schemas/TeamDetailResponse"
-        "400":
-          description: Identificador mal formado (`VAL-001`)
-          content:
-            '*/*':
-              schema:
-                $ref: "#/components/schemas/TeamDetailResponse"
-        "401":
-          description: Token ausente o inválido (`AUTH-001`)
-          content:
-            '*/*':
-              schema:
-                $ref: "#/components/schemas/TeamDetailResponse"
-        "403":
-          description: Autenticado sin el permiso `teams:read` (`AUTH-002`)
-          content:
-            '*/*':
-              schema:
-                $ref: "#/components/schemas/TeamDetailResponse"
-        "404":
-          description: El equipo no existe (`EX-001`)
-          content:
-            '*/*':
-              schema:
-                $ref: "#/components/schemas/TeamDetailResponse"
-      x-required-permission: teams:read
   /api/v1/products/{id}/comments/mine:
     get:
       tags:
@@ -7988,10 +8545,13 @@ paths:
         y acota **dentro** del alcance: una persona fuera de mi red, o inexistente, da una
         **página vacía** y no un error, para que el filtro no sirva para descubrir quién
         cuelga de quién. `status`, `paymentMethodId`, `code` y `from`/`to` son los de
-        `GET /movements` y se combinan; **el comprobante de una venta que no es de mi
-        alcance tampoco aparece**, escrito como sea.
+        `GET /movements` y se combinan, y también `typeStatus` (`VALIDAR_COMISIONES` o
+        `VALIDADO`, desde el 23-09-2026); **el comprobante de una venta que no es de mi
+        alcance tampoco aparece**, escrito como sea. **Una venta por validar no está en el
+        alcance de ningún vendedor** mientras ninguna de sus líneas sea suya: aparece en
+        cuanto se le asigna una (`RF-MV-016`).
 
-        **Cada fila es la misma de `GET /movements`** (`type` siempre `VENTA`, `user`,
+        **Cada fila es la misma de `GET /movements`** (`type` siempre `VENTA`, `typeStatus`, `user`,
         `sellers`, importes, `confirmedAt` nulo y presente), sin `role`. **El total puede no
         ser exacto** por encima del techo de conteo. Ni `movements:read` ni
         `movements:list-own` abren esta consulta.
@@ -8016,6 +8576,11 @@ paths:
           type: string
           format: uuid
       - name: status
+        in: query
+        required: false
+        schema:
+          type: string
+      - name: typeStatus
         in: query
         required: false
         schema:
@@ -8052,8 +8617,8 @@ paths:
                 $ref: "#/components/schemas/PageResponseMovementSummary"
         "400":
           description: "Paginación inválida, estado no admitido (`VAL-002`), identificador\
-            \ malformado (`VAL-001`) o `from` posterior a `to` (`VAL-004`). Los problemas\
-            \ se devuelven juntos."
+            \ malformado (`VAL-001`), `from` posterior a `to` (`VAL-004`) o estado\
+            \ del tipo inexistente (`VAL-005`). Los problemas se devuelven juntos."
         "401":
           description: Token ausente o inválido (`AUTH-001`)
         "403":
@@ -8061,7 +8626,193 @@ paths:
         "500":
           description: Fallo no controlado (`ERR-500`)
       x-required-permission: movements:list-sales
-  /api/v1/movements/mine:
+  /api/v1/movements/sales/lines:
+    get:
+      tags:
+      - Movimientos
+      summary: Consultar las líneas de venta
+      description: |
+        **Permiso requerido:** `movements:list-sale-lines`. Sin él, `403` (`AUTH-002`).
+
+        Devuelve **una fila por LÍNEA de venta** —no por venta—, paginadas y de la más
+        reciente a la más antigua. Es la consulta que responde **qué se ha vendido**:
+        `GET /movements` y `GET /movements/sales` devuelven una fila por venta con sus
+        importes agregados, de modo que para ver los productos hay que abrir cada una.
+
+        **Una venta de tres productos aporta tres filas**, con los datos de la venta
+        repetidos en cada una. El identificador de la línea (`lineId`) no se publica en
+        ninguna otra consulta.
+
+        **Es la lectura de ADMINISTRACIÓN: con el permiso se ve todo el libro**, de quien
+        sea. **No tiene alcance por estructura** —el vendedor NO ve aquí solo su red—:
+        eso es `GET /movements/sales`, y quien quiera lo suyo tiene
+        `GET /movements/mine/products`. Quien no porta `movements:list-sale-lines` recibe
+        `403` aunque tenga compras propias; ni `movements:read` ni `movements:list-sales`
+        abren esta consulta.
+
+        **El nombre del producto es el que tenía el día de la venta**, no el del catálogo
+        de hoy: si alguien lo renombró después, aquí sigue diciendo qué se vendió. El
+        **código**, en cambio, se lee del catálogo, que es inmutable.
+
+        **`seller` puede venir presente y NULO**, y la fila **no desaparece** por eso: el
+        vendedor es de la línea y hay movimientos que no lo llevan.
+
+        **El estado de entrega va crudo** —`deliveryStatus`, `deliveredAt`,
+        `deliveryNote`, `implementation`—, y no derivado como en
+        `GET /movements/mine/products`: administración necesita saber por qué algo está
+        donde está.
+
+        **Los ocho filtros se combinan** y cada uno responde una pregunta: `movementId`
+        (las líneas de una venta), `userId` (qué compró esta persona, el sujeto),
+        `sellerId` (qué vendió esta persona, **como vendedora de la línea**), `productId`
+        (qué se vendió de este producto), `status` (el estado de la VENTA),
+        `deliveryStatus` (el de la LÍNEA), `typeStatus` (el estado del TIPO de la venta,
+        `VALIDAR_COMISIONES` o `VALIDADO`: la pregunta «qué falta por validar»),
+        `code` (un comprobante exacto, sin distinguir
+        mayúsculas) y `from`/`to` sobre **cuándo ocurrió la venta**, con el rango
+        **semiabierto** —incluye `from`, excluye `to`—. Un identificador inexistente da
+        **página vacía**; un estado que no existe es `400`, porque el catálogo es cerrado.
+        Los problemas de forma se devuelven **juntos**.
+
+        **`typeStatus` se puede filtrar pero NO viaja en la fila**, y conviene saberlo antes
+        de integrar: para ver el estado del tipo de una venta está
+        `GET /movements` —que lo publica— y el detalle. Aquí se puede acotar por él y la
+        fila no lo trae, por decisión del responsable del proyecto del 23-09-2026.
+
+        **El total puede no ser exacto**: por encima del techo de conteo vale el techo y
+        `totalIsExact` lo declara. Aquí importa más que en ningún otro listado, porque una
+        venta de cinco productos son cinco filas.
+      operationId: lineasDeVenta
+      parameters:
+      - name: page
+        in: query
+        required: false
+        schema:
+          type: integer
+          format: int32
+      - name: size
+        in: query
+        required: false
+        schema:
+          type: integer
+          format: int32
+      - name: movementId
+        in: query
+        required: false
+        schema:
+          type: string
+          format: uuid
+      - name: userId
+        in: query
+        required: false
+        schema:
+          type: string
+          format: uuid
+      - name: sellerId
+        in: query
+        required: false
+        schema:
+          type: string
+          format: uuid
+      - name: productId
+        in: query
+        required: false
+        schema:
+          type: string
+          format: uuid
+      - name: status
+        in: query
+        required: false
+        schema:
+          type: string
+      - name: deliveryStatus
+        in: query
+        required: false
+        schema:
+          type: string
+      - name: typeStatus
+        in: query
+        required: false
+        schema:
+          type: string
+      - name: code
+        in: query
+        required: false
+        schema:
+          type: string
+      - name: from
+        in: query
+        required: false
+        schema:
+          type: string
+          format: date-time
+      - name: to
+        in: query
+        required: false
+        schema:
+          type: string
+          format: date-time
+      responses:
+        "200":
+          description: "La página de líneas, aunque esté vacía."
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/PageResponseSaleLineItem"
+        "400":
+          description: "Paginación inválida, estado o estado de entrega no admitidos\
+            \ (`VAL-002`, `VAL-003`), estado del tipo inexistente (`VAL-005`), identificador\
+            \ malformado (`VAL-001`) o `from` posterior a `to` (`VAL-004`). Los problemas\
+            \ se devuelven juntos."
+        "401":
+          description: Token ausente o inválido (`AUTH-001`)
+        "403":
+          description: Sin el permiso `movements:list-sale-lines` (`AUTH-002`).
+        "500":
+          description: Fallo no controlado (`ERR-500`)
+      x-required-permission: movements:list-sale-lines
+  /api/v1/movements/mine/{id}:
+    get:
+      tags:
+      - Movimientos
+      summary: Consultar el detalle de un movimiento propio
+      description: |
+        **Permiso requerido:** `movements:read-own`. Sin él, `403` (`AUTH-002`).
+
+        Devuelve **lo mismo que devuelve registrar una venta**, con sus líneas: qué
+        productos, cuántos, a qué precio y con qué vigencia. Quien registró una venta y
+        quien la consulta después ven la misma forma.
+
+        **Un movimiento que no es suyo responde `404`**, exactamente igual que uno que no
+        existe. No es un descuido: un `403` confirmaría que el identificador existe.
+      operationId: mio
+      parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      responses:
+        "200":
+          description: "El movimiento, con sus líneas."
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/SaleResponse"
+        "400":
+          description: Identificador malformado (`VAL-001`)
+        "401":
+          description: Token ausente o inválido (`AUTH-001`)
+        "403":
+          description: Autenticado sin `movements:read-own` (`AUTH-002`)
+        "404":
+          description: No existe **o no es suyo** (`VAL-002`). Las dos son la misma
+            respuesta
+        "500":
+          description: Fallo no controlado (`ERR-500`)
+      x-required-permission: movements:read-own
+  /api/v1/movements/mine/shopping:
     get:
       tags:
       - Movimientos
@@ -8071,6 +8822,11 @@ paths:
 
         Devuelve **los movimientos a nombre de usted** —lo que compró—, paginados y del más
         reciente al más antiguo.
+
+        **Esta operación se mudó aquí el 22-09-2026**, desde `GET /api/v1/movements/mine`,
+        que **ya no existe**: el listado dejó de traer lo vendido ese mismo día y el nombre
+        tenía que decirlo. No hay alias —cada operación exige un permiso que ninguna otra
+        exige—, de modo que la ruta anterior responde `404`.
 
         **Desde el 22-09-2026 este listado trae SOLO lo comprado.** Hasta esa fecha traía
         también lo que usted hubiera **vendido**, y cada fila decía con `role` en qué papel
@@ -8098,7 +8854,7 @@ paths:
 
         **`sellers` es una lista, sin repetir y nunca nula**: el vendedor es de cada línea y
         una venta podría llevar varios. Hoy lleva uno. Va **vacía** en los movimientos que
-        no tienen vendedor, que no es el caso de ninguna venta.
+        no tienen vendedor y en una venta por validar a la que aún no se le asignó ninguno.
 
         **Cada fila dice su tipo** (`type`, hoy siempre `VENTA`) desde el 21-09-2026, el
         mismo día que se puede filtrar por él: `type` admite **el código del tipo de
@@ -8179,47 +8935,6 @@ paths:
         "500":
           description: Fallo no controlado (`ERR-500`)
       x-required-permission: movements:list-own
-  /api/v1/movements/mine/{id}:
-    get:
-      tags:
-      - Movimientos
-      summary: Consultar el detalle de un movimiento propio
-      description: |
-        **Permiso requerido:** `movements:read-own`. Sin él, `403` (`AUTH-002`).
-
-        Devuelve **lo mismo que devuelve registrar una venta**, con sus líneas: qué
-        productos, cuántos, a qué precio y con qué vigencia. Quien registró una venta y
-        quien la consulta después ven la misma forma.
-
-        **Un movimiento que no es suyo responde `404`**, exactamente igual que uno que no
-        existe. No es un descuido: un `403` confirmaría que el identificador existe.
-      operationId: mio
-      parameters:
-      - name: id
-        in: path
-        required: true
-        schema:
-          type: string
-          format: uuid
-      responses:
-        "200":
-          description: "El movimiento, con sus líneas."
-          content:
-            '*/*':
-              schema:
-                $ref: "#/components/schemas/SaleResponse"
-        "400":
-          description: Identificador malformado (`VAL-001`)
-        "401":
-          description: Token ausente o inválido (`AUTH-001`)
-        "403":
-          description: Autenticado sin `movements:read-own` (`AUTH-002`)
-        "404":
-          description: No existe **o no es suyo** (`VAL-002`). Las dos son la misma
-            respuesta
-        "500":
-          description: Fallo no controlado (`ERR-500`)
-      x-required-permission: movements:read-own
   /api/v1/movements/mine/products:
     get:
       tags:
@@ -10078,6 +10793,45 @@ components:
         joinedAt:
           type: string
           format: date-time
+    AssignTeamMembersRequest:
+      type: object
+      properties:
+        memberIds:
+          type: array
+          items:
+            type: string
+            format: uuid
+          maxItems: 100
+          minItems: 0
+        reason:
+          type: string
+          maxLength: 500
+          minLength: 0
+      required:
+      - memberIds
+      - reason
+    RemoveTeamMembersRequest:
+      type: object
+      properties:
+        memberIds:
+          type: array
+          items:
+            type: string
+            format: uuid
+          maxItems: 100
+          minItems: 0
+        reason:
+          type: string
+          maxLength: 500
+          minLength: 0
+      required:
+      - memberIds
+      - reason
+    DeleteTeamRequest:
+      type: object
+      properties:
+        reason:
+          type: string
     CreateRoleRequest:
       type: object
       properties:
@@ -10519,6 +11273,12 @@ components:
           type: string
         status:
           type: string
+        typeStatus:
+          type: string
+          description: "El estado del TIPO de movimiento (`RN-MV-033`), aparte del\
+            \ pago. En una venta: VALIDAR_COMISIONES —alguna línea no tiene vendedor,\
+            \ porque quien compra tenía varios y falta elegir (`RF-MV-016`)— o VALIDADO\
+            \ —todas lo tienen—."
         user:
           $ref: "#/components/schemas/SaleParty"
           description: "Quien compró: el sujeto del movimiento, que aquí es tambié\
@@ -10670,9 +11430,9 @@ components:
           - "null"
           $ref: "#/components/schemas/SaleParty"
           description: "A quién se atribuye ESTA línea, y a quién se le creará la\
-            \ comisión por ella. En una venta nunca es nulo: quien compra sin colgar\
-            \ de nadie es su propio vendedor. NULO solo en los tipos de movimiento\
-            \ que no venden nada."
+            \ comisión por ella. NULO en una venta VALIDAR_COMISIONES mientras nadie\
+            \ lo asigne —quien compra tenía varios vendedores (`RN-MV-034`)— y en\
+            \ los tipos de movimiento que no venden nada."
         implementation:
           type: string
           description: "COPIA de cómo se entrega lo vendido (`RN-MV-030`): AUTOMATICA\
@@ -10704,6 +11464,12 @@ components:
           type: string
         status:
           type: string
+        typeStatus:
+          type: string
+          description: "El estado del TIPO de movimiento (`RN-MV-033`), aparte del\
+            \ pago. En una venta: VALIDAR_COMISIONES —alguna línea no tiene vendedor,\
+            \ porque quien compra tenía varios y falta elegir (`RF-MV-016`)— o VALIDADO\
+            \ —todas lo tienen—."
         user:
           $ref: "#/components/schemas/SaleParty"
           description: "El SUJETO del movimiento: a nombre de quién es. En una venta,\
@@ -10722,7 +11488,8 @@ components:
           type: string
         lines:
           type: array
-          description: "Las líneas, cada una con el vendedor al que se atribuye."
+          description: "Las líneas, cada una con el vendedor al que se atribuye, o\
+            \ sin él mientras la venta esté VALIDAR_COMISIONES."
           items:
             $ref: "#/components/schemas/SaleLineResponse"
         totalAmount:
@@ -10763,6 +11530,26 @@ components:
           type: string
           description: "Por qué la venta no debía existir. Obligatorio, hasta 500\
             \ caracteres."
+    AssignSellersRequest:
+      type: object
+      properties:
+        lines:
+          type: array
+          description: "Al menos una. Se puede asignar una parte de las líneas: la\
+            \ venta sigue en VALIDAR_COMISIONES mientras quede alguna sin vendedor."
+          items:
+            $ref: "#/components/schemas/SellerAssignment"
+    SellerAssignment:
+      type: object
+      properties:
+        productId:
+          type: string
+          format: uuid
+          description: "El producto de la línea, que la identifica dentro de la venta."
+        sellerId:
+          type: string
+          format: uuid
+          description: "El vendedor que se le atribuye: uno de los del cliente."
     RegisterMembershipRequest:
       type: object
       properties:
@@ -11741,6 +12528,18 @@ components:
           $ref: "#/components/schemas/PatchableObject"
         validFrom:
           $ref: "#/components/schemas/PatchableObject"
+    UpdateTeamRequest:
+      type: object
+      properties:
+        name:
+          $ref: "#/components/schemas/PatchableString"
+        description:
+          $ref: "#/components/schemas/PatchableString"
+    ChangeTeamStatusRequest:
+      type: object
+      properties:
+        status:
+          type: string
     UpdateRoleRequest:
       type: object
       properties:
@@ -12073,6 +12872,17 @@ components:
           type: string
         lastName:
           type: string
+        companyPhone:
+          type: string
+          description: "Teléfono de EMPRESA del vendedor, el canal por el que la empresa\
+            \ quiere que se le contacte. **Presente y nulo** cuando no lo declaró\
+            : ausente y nulo significarían lo mismo y uno de los dos sobra. El telé\
+            fono personal no se publica aquí."
+        status:
+          type: string
+          description: "Estado de la cuenta del vendedor. **Puede ser el de una cuenta\
+            \ eliminada**: el vínculo sobrevive al vendedor y esa fila ya salía, pero\
+            \ hasta el 22-09-2026 era indistinguible de la de un vendedor activo."
         origin:
           type: string
           description: "`REGISTRO` si lo registró —su principal—, `HOTLINK` si le\
@@ -12861,6 +13671,12 @@ components:
           description: "El código del tipo de movimiento. Hoy, siempre `VENTA`."
         status:
           type: string
+        typeStatus:
+          type: string
+          description: "El estado del TIPO de movimiento (`RN-MV-033`), aparte del\
+            \ pago. En una venta: VALIDAR_COMISIONES —alguna línea no tiene vendedor,\
+            \ porque quien compra tenía varios y falta elegir (`RF-MV-016`)— o VALIDADO\
+            \ —todas lo tienen—."
         user:
           $ref: "#/components/schemas/MovementParty"
           description: "El SUJETO del movimiento: a nombre de quién es. En una venta,\
@@ -12869,7 +13685,8 @@ components:
           type: array
           description: "Los vendedores de sus líneas, sin repetir. Hoy una venta lleva\
             \ uno; la lista va VACÍA —nunca nula— en los movimientos que no tienen\
-            \ vendedor."
+            \ vendedor y en una venta VALIDAR_COMISIONES a la que aún no se le ha\
+            \ asignado ninguno."
           items:
             $ref: "#/components/schemas/MovementParty"
         currency:
@@ -12914,6 +13731,118 @@ components:
           format: int32
         totalIsExact:
           type: boolean
+    PageResponseSaleLineItem:
+      type: object
+      properties:
+        content:
+          type: array
+          items:
+            $ref: "#/components/schemas/SaleLineItem"
+        totalElements:
+          type: integer
+          format: int64
+        totalPages:
+          type: integer
+          format: int32
+        page:
+          type: integer
+          format: int32
+        size:
+          type: integer
+          format: int32
+        totalIsExact:
+          type: boolean
+    SaleLineItem:
+      type: object
+      properties:
+        lineId:
+          type: string
+          format: uuid
+          description: La línea. No se publica en ninguna otra consulta.
+        movementId:
+          type: string
+          format: uuid
+          description: "De qué venta viene; se abre con `GET /movements/{id}`."
+        movementCode:
+          type: string
+        movementStatus:
+          type: string
+          description: "El estado de la VENTA, no el de la entrega."
+        occurredAt:
+          type: string
+          format: date-time
+          description: Cuándo ocurrió la venta. Es el orden del listado.
+        client:
+          $ref: "#/components/schemas/SaleLineParty"
+          description: "El SUJETO de la venta: a nombre de quién es."
+        seller:
+          type:
+          - object
+          - "null"
+          $ref: "#/components/schemas/SaleLineParty"
+          description: Quien vendió ESTA línea (`RN-MV-003`). Presente y NULO cuando
+            la línea no lo tiene; la fila no desaparece por eso.
+        product:
+          $ref: "#/components/schemas/SaleLineProductRef"
+          description: "El producto, con el nombre CONGELADO del día de la venta."
+        quantity:
+          type: integer
+          format: int32
+        unitPrice:
+          type: number
+          description: COPIA del precio del catálogo el día de la venta. No se relee.
+        lineDiscount:
+          type: number
+          description: El descuento de la línea; sin él los importes no cuadran.
+        lineAmount:
+          type: number
+        validityDays:
+          type:
+          - integer
+          - "null"
+          format: int32
+          description: COPIA de la vigencia en días. NULO si lo comprado no caduca.
+        currency:
+          type: string
+          description: "El código de la moneda de la venta: el importe sin ella no\
+            \ dice nada."
+        implementation:
+          type: string
+          description: "COPIA de cómo se entrega: AUTOMATICA o MANUAL."
+        deliveryStatus:
+          type: string
+          description: "El estado de entrega DE LA LÍNEA: PENDIENTE, ENTREGADA o RETENIDA."
+        deliveredAt:
+          type:
+          - string
+          - "null"
+          format: date-time
+          description: Cuándo se entregó. NULO si no se ha entregado.
+        deliveryNote:
+          type:
+          - string
+          - "null"
+          description: Por qué no se entregará. Solo en RETENIDA (`RN-MV-029`).
+    SaleLineParty:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        username:
+          type: string
+        name:
+          type: string
+    SaleLineProductRef:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        code:
+          type: string
+        name:
+          type: string
     MyMovement:
       type: object
       description: Un movimiento en el que participa quien consulta.

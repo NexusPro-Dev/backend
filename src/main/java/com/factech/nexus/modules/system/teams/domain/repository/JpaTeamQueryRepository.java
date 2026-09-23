@@ -152,6 +152,51 @@ public class JpaTeamQueryRepository implements TeamQueryRepository {
     return filas.stream().map(JpaTeamQueryRepository::miembro).toList();
   }
 
+  @Override
+  @Transactional(readOnly = true)
+  public long countActiveMembers(UUID teamId) {
+    if (teamId == null) {
+      return 0L;
+    }
+    // El mismo predicado que `ix_team_members_team_vigente` declara, para que el
+    // planificador lo use: equipo y `ended_at IS NULL`.
+    Number total =
+        (Number)
+            em.createNativeQuery(
+                    """
+                    SELECT count(*) FROM team_members
+                     WHERE team_id = :equipo
+                       AND ended_at IS NULL
+                    """)
+                .setParameter("equipo", teamId)
+                .getSingleResult();
+    return total.longValue();
+  }
+
+  @Override
+  @Transactional(readOnly = true)
+  public List<UUID> findAllMemberIdsEver(UUID teamId) {
+    if (teamId == null) {
+      return List.of();
+    }
+    // TODAS, vigentes y cerradas, y DISTINCT porque una misma persona pudo entrar
+    // y salir del mismo equipo más de una vez: la instantánea quiere saber quién
+    // pasó, no cuántas veces. Por el momento en que entró la primera vez, para
+    // que el registro de baja sea estable entre dos lecturas.
+    @SuppressWarnings("unchecked")
+    List<UUID> ids =
+        em.createNativeQuery(
+                """
+                SELECT user_id FROM team_members
+                 WHERE team_id = :equipo
+                 GROUP BY user_id
+                 ORDER BY min(started_at), user_id
+                """)
+            .setParameter("equipo", teamId)
+            .getResultList();
+    return List.copyOf(ids);
+  }
+
   private static TeamRow equipo(Tuple fila) {
     return new TeamRow(
         (UUID) fila.get("id"),

@@ -1,6 +1,8 @@
 package com.factech.nexus.modules.system.users.application;
 
+import java.util.List;
 import java.util.Optional;
+import java.util.Set;
 import java.util.UUID;
 
 /**
@@ -26,6 +28,18 @@ public interface UserCatalog {
    * @param id identificador de la persona; un valor nulo devuelve vacío en lugar de fallar
    */
   Optional<UserView> find(UUID id);
+
+  /**
+   * Varias personas, en <b>una</b> consulta (`RF-SP-069`).
+   *
+   * <p>Devuelve <b>las que existen</b>, sin fallar por las que no y sin filtrar las eliminadas —la
+   * marca viaja en {@link UserView}, como en {@link #find}—: quien pregunta por un lote necesita
+   * saber cuáles faltan para poder informarlas todas de una vez, en lugar de rechazar por la
+   * primera.
+   *
+   * @param ids identificadores; un conjunto nulo o vacío devuelve la lista vacía en lugar de fallar
+   */
+  List<UserView> findAll(Set<UUID> ids);
 
   /** Lo que cruza la frontera: datos planos, sin comportamiento y sin entidad. */
   record UserView(UUID id, String username, String fullName, boolean deleted) {}
