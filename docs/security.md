@@ -5,11 +5,11 @@
 | Proyecto | NEXUS — Renovación de plataforma |
 | Empresa | FACTECH GROUP SAS |
 | Documento | `security.md` |
-| Versión | 0.69.0 |
+| Versión | 0.70.0 |
 | Estado | Borrador |
 | Responsable técnico | Bonilla Diaz William Steven |
 | Fecha de creación | 19-08-2026 |
-| Última actualización | 21-09-2026 |
+| Última actualización | 23-09-2026 |
 | Documento superior | `constitution.md` v0.5.0 |
 | Documento relacionado | `architecture.md` v0.4.0 |
 
@@ -197,7 +197,7 @@ Cada regla declara cuándo aplica, qué debe ocurrir y su prioridad, conforme a 
 
 ### 4.4 Catálogo de permisos
 
-Un permiso se identifica con el formato `<recurso>:<acción>`, en minúsculas, y **gobierna una operación o ninguna, nunca dos** (`RN-SEG-014`, desde el 19-09-2026). El catálogo, tal como queda con `V28` (`RF-SP-060`), `V29` (`users:read-sellers`, `RF-SP-059`), `V30` (`users:read-clients`, `RF-SP-061`), `V31` (los once de alcance propio de `RF-SP-062`, 21-09-2026), `V32` (`movements:list-sales`, `RF-MV-015`) y `V34` (los ocho `teams:` de `RF-SP-063` a `RF-SP-070`, diseñados el 21-09-2026 y pendientes de sembrar) — **ciento treinta y tres**; los cincuenta y uno que `V28` siembra se listan debajo, y los once de `V31` en la nota de `RN-SEG-015`:
+Un permiso se identifica con el formato `<recurso>:<acción>`, en minúsculas, y **gobierna una operación o ninguna, nunca dos** (`RN-SEG-014`, desde el 19-09-2026). El catálogo, tal como queda con `V28` (`RF-SP-060`), `V29` (`users:read-sellers`, `RF-SP-059`), `V30` (`users:read-clients`, `RF-SP-061`), `V31` (los once de alcance propio de `RF-SP-062`, 21-09-2026), `V32` (`movements:list-sales`, `RF-MV-015`) `V34` (los ocho `teams:` de `RF-SP-063` a `RF-SP-070`) y `V36` (`movements:assign-sellers`, `RF-MV-016`, 23-09-2026) — **ciento treinta y cuatro**; los cincuenta y uno que `V28` siembra se listan debajo, y los once de `V31` en la nota de `RN-SEG-015`:
 
 ```
 roles:list       roles:read       roles:create       roles:update       roles:delete
@@ -237,7 +237,7 @@ product-commission-rates:read
 
 movements:read   movements:create   movements:confirm  movements:void
 movements:list-own      movements:read-own      movements:read-own-products
-movements:list-sales
+movements:list-sales    movements:assign-sellers
 
 exchange-rates:read     exchange-rates:create
 exchange-rates:update   exchange-rates:delete
@@ -889,3 +889,4 @@ RNF-SEG-002 merece atención: es una prueba que enumera los endpoints registrado
 | 0.67.0 | 21-09-2026 | **Nace `RN-SEG-015`, autenticarse no autoriza nada** (`RF-SP-062`), por decisión del responsable del proyecto: «cada endpoint debe tener su propio permiso, ya que uso esto para saber qué vista o consulta mostrar en el front; no basta con solo tener el token». Toda operación con token exige permiso, también las once de alcance propio que hasta hoy se atendían con solo autenticarse; §4.4 gana los once códigos de `V31` —con `own` para el alcance sobre uno mismo— y pasa a **ciento veinticuatro**; la nota explica el reparto por tipo de rol (nadie pierde nada; los de vendedor no van a `CONSUMIDOR`), la lista cerrada de las catorce públicas y el precio para los roles creados a mano. | Responsable del proyecto |
 | 0.68.0 | 21-09-2026 | **La segunda lectura autorizada por estructura, y la primera en profundidad** (`RF-MV-015`, `RN-MV-031`; [`requirements/mv.md`](requirements/mv.md) v0.32.0), por decisión del responsable del proyecto: el vendedor ve las ventas de toda su red hacia abajo. La nota de D-22 en §6 gana la actualización que dice qué cotas se rompen —«la única» y «un solo nivel»— y qué se conserva para que siga siendo localizable: el permiso abre y la estructura decide qué se ve; el alcance lo resuelve `SP` (`CommercialReach`) y `MV` lo aplica; fuera del alcance, vacío; cerrado sobre las ventas. Responde las tres preguntas de negocio de `ADR-005`; la comprobación de arquitectura sigue pendiente. §4.4 gana `movements:list-sales` (`V32`) y pasa a **ciento veinticinco**. | Responsable del proyecto |
 | 0.69.0 | 21-09-2026 | **Los ocho `teams:` entran en el catálogo de §4.4 y este pasa a ciento treinta y tres** (`RF-SP-063` a `RF-SP-070`, el submódulo Equipos de [`requirements/sp.md`](requirements/sp.md) v1.71.0; `RN-SEG-014`, uno por operación: `list`, `read`, `create`, `update`, `change-status`, `delete`, `assign-members`, `remove-members`). Los sembrará `V34`, a `SUPERADMIN` y `ADMIN` explícitamente y a nadie más: administrar cómo se organiza la cúspide es tarea de administración, y ningún manager organiza su propio equipo. §6 anota, en la nota de D-22, que **pertenecer a un equipo no concede alcance**. La 0.68.0 es de `RF-MV-015` (`V32`, `movements:list-sales`; §4.4 a ciento veinticinco), redactada el mismo día en otra rama, y este recuento la incluye. | Responsable del proyecto |
+| 0.70.0 | 23-09-2026 | **`movements:assign-sellers` entra en el catálogo de §4.4 y este pasa a ciento treinta y cuatro** (`RF-MV-016`, `RN-MV-035`; [`requirements/mv.md`](requirements/mv.md) v0.36.0), por decisión del responsable del proyecto: asignar o corregir el vendedor de las líneas de una venta cuyo cliente tiene varios vendedores. **Uno por operación** (`RN-SEG-014`): no reutiliza `movements:confirm` —confirmar responde «¿entró el dinero?», y esto responde «¿a quién se le paga?»— ni `movements:create`. `V36` lo siembra **explícito** a `SUPERADMIN` y `ADMIN` y a nadie más; las guardas quedan en 134 / 134 / 128. **No es una lectura por estructura** y no toca D-22: quien lo porta asigna en cualquier venta, y el alcance lo acota **la regla** —solo entre los vendedores del cliente— y no quien mira | Responsable técnico |

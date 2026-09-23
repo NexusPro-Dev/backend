@@ -4,7 +4,7 @@
 |---|---|
 | Requerimiento | `RF-MV-015` |
 | Módulo | `MV` — Movimientos |
-| Versión | 0.2.0 |
+| Versión | 0.3.0 |
 | Estado | **Aprobada** |
 | Enmendada el | 21-09-2026 — gana el **método de pago** y el **comprobante** como filtros, por decisión del responsable (§2.2, §6.1, §12). Ver §15 |
 | Autor | Responsable técnico |
@@ -193,6 +193,7 @@ Como `RF-MV-006` · `FA-003`: la página se devuelve, el total es el techo y la 
 | `VAL-002` | El estado indicado, si viene, es uno de los que existen |
 | `VAL-003` | El identificador de persona, si viene, está bien formado |
 | `VAL-004` | «Desde» y «hasta», si vienen, son instantes bien formados, y «desde» no es posterior a «hasta» |
+| `VAL-005` | El estado del tipo indicado, si viene, es uno del catálogo de estados por tipo (23-09-2026, `RF-MV-016`) |
 
 **Los problemas de validación se devuelven juntos**, como en `RF-MV-006`.
 
@@ -247,3 +248,4 @@ Como `RF-MV-006` · `FA-003`: la página se devuelve, el total es el techo y la 
 |---|---|---|---|
 | 0.1.0 | 21-09-2026 | Primera versión, a petición del responsable del proyecto —«un endpoint por tipo de movimiento y con un filtro por `user_id`; consumidor solo lo suyo; vendedor desde el rango más bajo y subiendo por la jerarquía según el `seller_id` de la línea»— y con cuatro decisiones suyas del mismo día: **una ruta por tipo** y no una con el tipo dentro (§2.1); **la persona del filtro es un vendedor de mi red** (§2.2); **el vendedor ve también lo suyo** (`FA-002`); **quien administra lo ve todo** por la misma consulta (§3). Nace `RN-MV-031`, que **decide para las ventas lo que D-22 aplazaba**: la segunda lectura del sistema autorizada por estructura y la primera en profundidad (`security.md` v0.68.0). Fuera del alcance se responde **vacío** y no un error, para que el filtro no sea un oráculo de la estructura (`EX`, `CA-MV-127`). La fila es la de `RF-MV-006`, a propósito. Once criterios, `CA-MV-122` a `CA-MV-132`. | Responsable del proyecto |
 | 0.2.0 | 21-09-2026 | **Gana el método de pago y el comprobante como filtros** (`requirements/mv.md` v0.33.0), por decisión del responsable del proyecto del mismo día —los tres filtros de `RF-MV-006` en todos los listados—, que revierte lo que §2.2 había dejado fuera con el argumento de «quien concilia tiene `RF-MV-006`»: un director también concilia lo de su gente. Los dos acotan **dentro del alcance** (`CA-MV-136`). Doce criterios. | Responsable del proyecto |
+| 0.3.0 | 23-09-2026 | **Cada fila publica el estado del tipo y se filtra por él** (`requirements/mv.md` v0.36.0, `RN-MV-033`; Art. I.7), con `RF-MV-016`: `VAL-005` para un código que no existe, criterios en `CA-MV-161`. **Una venta por validar no está en el alcance de ningún vendedor** mientras ninguna de sus líneas sea suya —`RN-MV-031` mira el `seller_id` de las líneas, y no hay ninguno—; entra en cuanto se le asigna una. No cambia la regla: es lo que la regla dice de una línea sin vendedor. | Responsable del proyecto |

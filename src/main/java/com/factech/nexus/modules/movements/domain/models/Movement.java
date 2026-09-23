@@ -56,6 +56,7 @@ public final class Movement {
   private final UUID paymentMethodId;
   private final UUID currencyId;
   private final MovementStatus status;
+  private final TypeStatus typeStatus;
   private final BigDecimal totalAmount;
   private final BigDecimal discountAmount;
   private final BigDecimal payableAmount;
@@ -82,6 +83,7 @@ public final class Movement {
       UUID currencyId,
       String code,
       List<MovementLine> lines,
+      TypeStatus typeStatus,
       int decimales,
       OffsetDateTime occurredAt,
       OffsetDateTime createdAt) {
@@ -94,6 +96,7 @@ public final class Movement {
     this.code = code;
     this.lines = List.copyOf(lines);
     this.status = MovementStatus.PENDIENTE;
+    this.typeStatus = typeStatus;
     this.occurredAt = occurredAt;
     this.createdAt = createdAt;
 
@@ -143,6 +146,7 @@ public final class Movement {
       UUID currencyId,
       String code,
       List<MovementLine> lines,
+      TypeStatus typeStatus,
       int decimales,
       OffsetDateTime occurredAt,
       OffsetDateTime ahora) {
@@ -154,6 +158,7 @@ public final class Movement {
         currencyId,
         code,
         lines,
+        typeStatus,
         decimales,
         occurredAt,
         ahora);
@@ -169,6 +174,10 @@ public final class Movement {
    * product_package_items} (`RN-PM-038`), que no tiene identificador propio.
    *
    * @param packageId el paquete comprado, o nulo si la venta no es de un paquete
+   * @param typeStatus el estado del tipo (`RN-MV-033`), que decide {@code SaleAttribution}. Se
+   *     comprueba contra las líneas: {@code VALIDADO} exige vendedor en todas, y {@code
+   *     VALIDAR_COMISIONES} que falte en alguna — un estado que no dice lo que las líneas dicen es
+   *     una venta que se comisionaría, o se quedaría esperando, por error
    */
   public static Movement registrar(
       UUID movementTypeId,
@@ -178,6 +187,7 @@ public final class Movement {
       UUID currencyId,
       String code,
       List<MovementLine> lines,
+      TypeStatus typeStatus,
       int decimales,
       OffsetDateTime occurredAt,
       OffsetDateTime ahora) {
@@ -188,6 +198,18 @@ public final class Movement {
       // produzca una cabecera con total cero y nada que la explique.
       throw new IllegalArgumentException("Una venta no existe sin al menos una línea.");
     }
+    if (typeStatus == null) {
+      // Sin DEFAULT en el esquema a propósito (`V36`): una escritura que olvida
+      // el estado no puede producir una venta validada.
+      throw new IllegalArgumentException("Un movimiento lleva el estado de su tipo.");
+    }
+    boolean faltaAlguno = lines.stream().anyMatch(linea -> linea.getSellerId() == null);
+    if (SaleTypeStatus.VALIDADO.name().equals(typeStatus.code()) && faltaAlguno) {
+      throw new IllegalArgumentException("Una venta validada tiene vendedor en todas sus líneas.");
+    }
+    if (SaleTypeStatus.VALIDAR_COMISIONES.name().equals(typeStatus.code()) && !faltaAlguno) {
+      throw new IllegalArgumentException("Una venta por validar tiene alguna línea sin vendedor.");
+    }
     return new Movement(
         UUID.randomUUID(),
         movementTypeId,
@@ -197,6 +219,7 @@ public final class Movement {
         currencyId,
         code,
         lines,
+        typeStatus,
         decimales,
         occurredAt,
         ahora);
@@ -229,6 +252,7 @@ public final class Movement {
     Map<String, Object> datos = new LinkedHashMap<>();
     datos.put("code", code);
     datos.put("status", status.name());
+    datos.put("type_status", typeStatus.code());
     datos.put("user_id", userId.toString());
     // Nulo y presente: la clave ausente se leería como «esta versión no lo
     // registraba», y aquí el nulo dice «esta venta no es de un paquete».
@@ -278,6 +302,10 @@ public final class Movement {
 
   public MovementStatus getStatus() {
     return status;
+  }
+
+  public TypeStatus getTypeStatus() {
+    return typeStatus;
   }
 
   public BigDecimal getTotalAmount() {

@@ -1,5 +1,6 @@
 package com.factech.nexus.modules.movements.interfaces;
 
+import com.factech.nexus.modules.movements.application.AssignSellersRequest;
 import com.factech.nexus.modules.movements.application.ListMovementsRequest;
 import com.factech.nexus.modules.movements.application.ListSalesRequest;
 import com.factech.nexus.modules.movements.application.MovementResponse;
@@ -10,6 +11,7 @@ import com.factech.nexus.modules.movements.application.MyProductsRequest;
 import com.factech.nexus.modules.movements.application.RegisterSaleRequest;
 import com.factech.nexus.modules.movements.application.SaleResponse;
 import com.factech.nexus.modules.movements.application.VoidSaleRequest;
+import com.factech.nexus.modules.movements.domain.service.AssignSellersService;
 import com.factech.nexus.modules.movements.domain.service.ConfirmSaleService;
 import com.factech.nexus.modules.movements.domain.service.GetMyMovementService;
 import com.factech.nexus.modules.movements.domain.service.ListMovementsService;
@@ -60,6 +62,7 @@ public class MovementController {
   private final ListMyProductsService comprado;
   private final GetMyMovementService detalle;
   private final ListSalesService ventas;
+  private final AssignSellersService asignacion;
 
   public MovementController(
       RegisterSaleService alta,
@@ -69,7 +72,8 @@ public class MovementController {
       ListMyMovementsService listado,
       ListMyProductsService comprado,
       GetMyMovementService detalle,
-      ListSalesService ventas) {
+      ListSalesService ventas,
+      AssignSellersService asignacion) {
     this.alta = alta;
     this.confirmacion = confirmacion;
     this.anulacion = anulacion;
@@ -78,6 +82,7 @@ public class MovementController {
     this.comprado = comprado;
     this.detalle = detalle;
     this.ventas = ventas;
+    this.asignacion = asignacion;
   }
 
   /**
@@ -114,7 +119,9 @@ public class MovementController {
 
           **Lo que NO hace**: no saca a nadie de `FTD_PENDIENTE` (eso lo hace el primer
           depósito), no devenga comisiones, no adjunta comprobante y no se puede deshacer
-          (`RN-MV-005`).
+          (`RN-MV-005`). **Tampoco espera a la atribución**: una venta `VALIDAR_COMISIONES`
+          se confirma y entrega igual, y sigue por validar — lo que esperará a `VALIDADO` es
+          la comisión (`RN-MV-035`).
           """)
   @ApiResponses({
     @ApiResponse(
@@ -208,6 +215,80 @@ public class MovementController {
   }
 
   /**
+   * La misma forma que {@code …/confirmation} y {@code …/voiding}: una acción con nombre y con
+   * <b>su</b> permiso (`RN-SEG-014`). `movements:assign-sellers` y no `movements:confirm`:
+   * confirmar responde «¿entró el dinero?» y esto «¿a quién se le paga?» (`RF-MV-016` · `plan.md`
+   * §5).
+   */
+  @PostMapping("/{id}/seller-assignments")
+  @PreAuthorize("hasAuthority('movements:assign-sellers')")
+  @Operation(
+      summary = "Asignar los vendedores de una venta",
+      description =
+          """
+          Atribuye cada línea de una venta a **uno de los vendedores de quien compra**. Es lo
+          que saca de `VALIDAR_COMISIONES` a una venta cuyo cliente tenía **varios**
+          vendedores y que por eso nació con sus líneas **sin vendedor** (`RN-MV-034`).
+
+          `lines` lleva una pareja `productId` → `sellerId` por línea —el producto identifica
+          la línea dentro de la venta— y **puede ser una parte**: la venta sigue en
+          `VALIDAR_COMISIONES` mientras quede alguna sin vendedor, y **pasa sola a
+          `VALIDADO`** en cuanto no queda ninguna.
+
+          **Qué se puede tocar** (`RN-MV-035`): una línea **sin vendedor** se asigna siempre,
+          también después de confirmar el pago; **corregir** una que ya lo tiene solo se
+          admite **mientras la venta no esté `CONFIRMADA`**. En una venta `RECHAZADA` o
+          `ANULADA` no se asigna nada. El vendedor tiene que ser **uno de los del cliente**
+          —de registro o de hotlink—: elegir a cualquiera sería atribuir la venta a quien se
+          quisiera.
+
+          **Todo o nada**: si una sola pareja no procede, no se escribe ninguna. La respuesta
+          es la venta como queda, con `typeStatus` y el vendedor de cada línea.
+          """)
+  @ApiResponses({
+    @ApiResponse(
+        responseCode = "200",
+        description = "La venta como queda: el vendedor de cada línea y `typeStatus`."),
+    @ApiResponse(
+        responseCode = "400",
+        description =
+            "Identificador malformado (`VAL-001`), sin líneas (`VAL-002`), una pareja sin"
+                + " producto o sin vendedor (`VAL-003`) o un producto repetido (`VAL-004`).",
+        content = @Content),
+    @ApiResponse(
+        responseCode = "401",
+        description = "Token ausente o inválido (`AUTH-001`)",
+        content = @Content),
+    @ApiResponse(
+        responseCode = "403",
+        description =
+            "Sin el permiso `movements:assign-sellers` (ni `movements:confirm` ni"
+                + " `movements:create` bastan).",
+        content = @Content),
+    @ApiResponse(responseCode = "404", description = "No existe (`EX-001`)", content = @Content),
+    @ApiResponse(
+        responseCode = "409",
+        description =
+            "La venta está rechazada o anulada (`EX-002`), o está confirmada y se intenta"
+                + " corregir una línea que ya tenía vendedor (`EX-003`). Nada cambió.",
+        content = @Content),
+    @ApiResponse(
+        responseCode = "422",
+        description =
+            "Un producto que no es una línea de la venta (`EX-004`) o un vendedor que no es de"
+                + " los del cliente (`EX-005`). Nada cambió.",
+        content = @Content),
+    @ApiResponse(
+        responseCode = "500",
+        description = "Fallo no controlado (`ERR-500`)",
+        content = @Content)
+  })
+  public SaleResponse asignarVendedores(
+      @PathVariable UUID id, @RequestBody(required = false) AssignSellersRequest peticion) {
+    return asignacion.assign(id, peticion);
+  }
+
+  /**
    * <b>La anotación de permiso es la única línea que separa esta operación de publicar el libro
    * entero a cualquier autenticado</b> (`RF-MV-006` · `plan.md` §5). No hay alcance en la
    * sentencia: aquí el sujeto y el vendedor son filtros, y lo que cierra la puerta es esto.
@@ -238,11 +319,15 @@ public class MovementController {
           mayúsculas — hoy el único es `VENTA`, y filtrar por él devuelve lo mismo que no
           filtrar. Un `type` que no exista en el catálogo es `400`, como el estado y al revés
           que las personas: el catálogo es cerrado. El catálogo no se publica por ninguna
-          ruta; los códigos vigentes son los que este párrafo nombra.
+          ruta; los códigos vigentes son los que este párrafo nombra. Desde el 23-09-2026,
+          `typeStatus` (qué ventas **faltan por validar**, `RF-MV-016`): el estado del tipo,
+          sin distinguir mayúsculas — en una venta, `VALIDAR_COMISIONES` o `VALIDADO`. Uno que
+          no exista es `400`, como el tipo.
 
           **Cada fila lleva el tipo de movimiento** (`type`, hoy siempre `VENTA`), el sujeto
-          (`user`), los vendedores de sus líneas sin repetir (`sellers`, lista nunca nula y
-          vacía cuando no hay ninguno), y **cuándo se confirmó** (`confirmedAt`): presente en
+          (`user`), **el estado del tipo** (`typeStatus`), los vendedores de sus líneas sin
+          repetir (`sellers`, lista nunca nula y vacía cuando no hay ninguno —también en una
+          venta por validar a la que no se le ha asignado ninguno—), y **cuándo se confirmó** (`confirmedAt`): presente en
           las confirmadas y **nulo** en las demás. No lleva `role` —quien administra no
           participa en lo que mira— ni las líneas, que son del detalle.
 
@@ -256,8 +341,9 @@ public class MovementController {
         responseCode = "400",
         description =
             "Paginación inválida, estado no admitido (`VAL-002`), identificador malformado"
-                + " (`VAL-001`), `from` posterior a `to` (`VAL-004`) o tipo de movimiento"
-                + " inexistente (`VAL-005`). Los problemas se devuelven juntos.",
+                + " (`VAL-001`), `from` posterior a `to` (`VAL-004`), tipo de movimiento"
+                + " inexistente (`VAL-005`) o estado del tipo inexistente (`VAL-006`). Los"
+                + " problemas se devuelven juntos.",
         content = @Content),
     @ApiResponse(
         responseCode = "401",
@@ -277,6 +363,7 @@ public class MovementController {
       @RequestParam(required = false) Integer size,
       @RequestParam(required = false) String status,
       @RequestParam(required = false) String type,
+      @RequestParam(required = false) String typeStatus,
       @RequestParam(required = false) UUID userId,
       @RequestParam(required = false) UUID sellerId,
       @RequestParam(required = false) UUID paymentMethodId,
@@ -285,7 +372,17 @@ public class MovementController {
       @RequestParam(required = false) OffsetDateTime to) {
     return libro.list(
         new ListMovementsRequest(
-            page, size, status, type, userId, sellerId, paymentMethodId, code, from, to));
+            page,
+            size,
+            status,
+            type,
+            typeStatus,
+            userId,
+            sellerId,
+            paymentMethodId,
+            code,
+            from,
+            to));
   }
 
   /**
@@ -316,10 +413,13 @@ public class MovementController {
           y acota **dentro** del alcance: una persona fuera de mi red, o inexistente, da una
           **página vacía** y no un error, para que el filtro no sirva para descubrir quién
           cuelga de quién. `status`, `paymentMethodId`, `code` y `from`/`to` son los de
-          `GET /movements` y se combinan; **el comprobante de una venta que no es de mi
-          alcance tampoco aparece**, escrito como sea.
+          `GET /movements` y se combinan, y también `typeStatus` (`VALIDAR_COMISIONES` o
+          `VALIDADO`, desde el 23-09-2026); **el comprobante de una venta que no es de mi
+          alcance tampoco aparece**, escrito como sea. **Una venta por validar no está en el
+          alcance de ningún vendedor** mientras ninguna de sus líneas sea suya: aparece en
+          cuanto se le asigna una (`RF-MV-016`).
 
-          **Cada fila es la misma de `GET /movements`** (`type` siempre `VENTA`, `user`,
+          **Cada fila es la misma de `GET /movements`** (`type` siempre `VENTA`, `typeStatus`, `user`,
           `sellers`, importes, `confirmedAt` nulo y presente), sin `role`. **El total puede no
           ser exacto** por encima del techo de conteo. Ni `movements:read` ni
           `movements:list-own` abren esta consulta.
@@ -330,8 +430,8 @@ public class MovementController {
         responseCode = "400",
         description =
             "Paginación inválida, estado no admitido (`VAL-002`), identificador malformado"
-                + " (`VAL-001`) o `from` posterior a `to` (`VAL-004`). Los problemas se"
-                + " devuelven juntos.",
+                + " (`VAL-001`), `from` posterior a `to` (`VAL-004`) o estado del tipo"
+                + " inexistente (`VAL-005`). Los problemas se devuelven juntos.",
         content = @Content),
     @ApiResponse(
         responseCode = "401",
@@ -351,12 +451,14 @@ public class MovementController {
       @RequestParam(required = false) Integer size,
       @RequestParam(required = false) UUID userId,
       @RequestParam(required = false) String status,
+      @RequestParam(required = false) String typeStatus,
       @RequestParam(required = false) UUID paymentMethodId,
       @RequestParam(required = false) String code,
       @RequestParam(required = false) OffsetDateTime from,
       @RequestParam(required = false) OffsetDateTime to) {
     return ventas.list(
-        new ListSalesRequest(page, size, userId, status, paymentMethodId, code, from, to));
+        new ListSalesRequest(
+            page, size, userId, status, typeStatus, paymentMethodId, code, from, to));
   }
 
   @Operation(
@@ -376,9 +478,11 @@ public class MovementController {
           cuántos, nunca cuánto cuestan — un precio que llegara en la petición sería un
           descuento sin autorización y sin rastro. Tampoco se envían la moneda, la
           vigencia ni el vendedor: la moneda y la vigencia salen del producto, y **el
-          vendedor sale de quien compra** —su superior vigente, o **él mismo** si no cuelga
-          de nadie— y se congela **en cada línea** (`lines[].seller`). En una venta ninguna
-          línea viene sin vendedor.
+          vendedor sale de quien compra** (`RN-MV-034`): si tiene **un** vendedor, ese va en
+          cada línea (`lines[].seller`) y la venta nace `typeStatus: VALIDADO`; si tiene
+          **varios**, las líneas vienen **sin vendedor** y la venta nace
+          `VALIDAR_COMISIONES`, hasta que se asignen por `POST /{id}/seller-assignments`; si
+          no es cliente de nadie, su superior vigente o **él mismo**, `VALIDADO`.
 
           **Lo copiado queda congelado.** Corregir mañana el precio de un producto, o
           reasignar al comprador a otro agente, no cambia lo que se vendió hoy.
@@ -476,7 +580,7 @@ public class MovementController {
 
           **`sellers` es una lista, sin repetir y nunca nula**: el vendedor es de cada línea y
           una venta podría llevar varios. Hoy lleva uno. Va **vacía** en los movimientos que
-          no tienen vendedor, que no es el caso de ninguna venta.
+          no tienen vendedor y en una venta por validar a la que aún no se le asignó ninguno.
 
           **Cada fila dice su tipo** (`type`, hoy siempre `VENTA`) desde el 21-09-2026, el
           mismo día que se puede filtrar por él: `type` admite **el código del tipo de

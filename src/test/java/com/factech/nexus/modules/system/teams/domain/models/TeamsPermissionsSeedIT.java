@@ -88,21 +88,23 @@ class TeamsPermissionsSeedIT extends IntegrationTestBase {
   }
 
   @Test
-  @DisplayName("`CA-SP-738` — el catálogo queda en 133, SUPERADMIN en 133 y ADMIN en 127")
+  @DisplayName(
+      "`CA-SP-738` — el catálogo queda en 133, SUPERADMIN en 133 y ADMIN en 127 tras V34; V36"
+          + " (RF-MV-016) suma uno a los tres")
   void elCatalogoQuedaEnCientoTreintaYTres() {
     assertThat(jdbc.queryForObject("SELECT count(*) FROM permissions", Integer.class))
-        .isEqualTo(133);
+        .isEqualTo(134);
     assertThat(
             jdbc.queryForObject(
                 "SELECT count(*) FROM role_permissions WHERE role_id = CAST(? AS uuid)",
                 Integer.class,
                 SUPERADMIN))
-        .isEqualTo(133);
+        .isEqualTo(134);
     assertThat(
             jdbc.queryForObject(
                 "SELECT count(*) FROM role_permissions WHERE role_id = CAST(? AS uuid)",
                 Integer.class,
                 ADMIN))
-        .isEqualTo(127);
+        .isEqualTo(128);
   }
 }

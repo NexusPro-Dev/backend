@@ -159,6 +159,8 @@ class BuyPackageIT extends IntegrationTestBase {
             .andExpect(status().isCreated())
             .andExpect(header().string("Location", matchesPattern("/api/v1/movements/mine/.+")))
             .andExpect(jsonPath("$.status").value("PENDIENTE"))
+            // Un solo vendedor: nace validada (`RN-MV-034`, `CA-MV-143`).
+            .andExpect(jsonPath("$.typeStatus").value("VALIDADO"))
             .andExpect(jsonPath("$.code").value(matchesPattern(CODIGO)))
             .andExpect(jsonPath("$.user.id").value(comprador.toString()))
             .andExpect(jsonPath("$.packageId").value(paqBots.toString()))
@@ -213,6 +215,35 @@ class BuyPackageIT extends IntegrationTestBase {
         .isEqualTo(2);
     assertThat(jdbc.queryForObject("SELECT count(*) FROM movement_detail_discounts", Integer.class))
         .isEqualTo(2);
+  }
+
+  @Test
+  @DisplayName(
+      "CA-MV-145: con dos vendedores, la compra del paquete nace VALIDAR_COMISIONES y ninguna línea lleva vendedor")
+  void conDosVendedoresNaceSinVendedor() throws Exception {
+    // Un segundo vínculo, de hotlink: el cliente ya tiene dos vendedores.
+    UUID otro = persona("paq-otro-vendedor", null);
+    jdbc.update(
+        "INSERT INTO client_sellers (client_id, seller_id, origin, first_movement_id, created_at)"
+            + " VALUES (?::uuid, ?::uuid, 'HOTLINK', NULL, ?)",
+        comprador,
+        otro,
+        BASE);
+
+    comprar(comprador, paqBots, TARJETA)
+        .andExpect(status().isCreated())
+        .andExpect(jsonPath("$.typeStatus").value("VALIDAR_COMISIONES"));
+
+    assertThat(
+            jdbc.queryForObject(
+                "SELECT count(*) FROM movement_details WHERE seller_id IS NULL", Integer.class))
+        .isEqualTo(2);
+    assertThat(
+            jdbc.queryForObject(
+                "SELECT s.code FROM movements m"
+                    + " JOIN movement_type_statuses s ON s.id = m.type_status_id",
+                String.class))
+        .isEqualTo("VALIDAR_COMISIONES");
   }
 
   @Test

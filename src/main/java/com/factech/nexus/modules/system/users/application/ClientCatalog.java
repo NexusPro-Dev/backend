@@ -1,5 +1,6 @@
 package com.factech.nexus.modules.system.users.application;
 
+import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 
@@ -66,6 +67,19 @@ public interface ClientCatalog {
    * @param id identificador del cliente; un valor nulo devuelve vacío en lugar de fallar
    */
   Optional<SellerView> sellerOf(UUID id);
+
+  /**
+   * <b>Todos</b> los vendedores de esa persona en {@code client_sellers}, de registro y de hotlink,
+   * principal primero (`RN-SP-049`).
+   *
+   * <p>Es lo que `RN-MV-034` cuenta para decidir el estado inicial de una venta —uno, varios o
+   * ninguno— y lo que `RN-MV-035` usa para decidir entre quiénes se puede elegir al asignar. <b>No
+   * mira {@code user_supervisors}</b>: quien no tiene filas aquí no es cliente de nadie, y para él
+   * sigue valiendo {@link #sellerOf}.
+   *
+   * @param id identificador del cliente; un valor nulo devuelve la lista vacía en lugar de fallar
+   */
+  List<SellerView> sellersOf(UUID id);
 
   /**
    * Lo que cruza la frontera: datos planos, sin comportamiento y sin entidad.
