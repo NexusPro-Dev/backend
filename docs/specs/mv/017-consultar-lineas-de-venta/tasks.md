@@ -6,7 +6,7 @@
 | Especificación | [`spec.md`](spec.md) |
 | Plan | [`plan.md`](plan.md), aprobado el 23-09-2026 |
 | Estado | **En revisión** |
-| Issue | Pendiente de crear |
+| Issue | [#105](https://github.com/NexusPro-Dev/backend/issues/105), PR [#106](https://github.com/NexusPro-Dev/backend/pull/106) |
 | Rama | `feature/lineas-de-venta` |
 | Autor | Responsable técnico |
 
