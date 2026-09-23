@@ -123,13 +123,9 @@ class TeamConcurrencyIT extends IntegrationTestBase {
 
   @Test
   @DisplayName(
-      "`RN-SP-052` — la misma persona asignada a dos equipos a la vez: una gana, la otra 409, y"
-          + " queda UNA sola pertenencia vigente")
+      "`RN-SP-052` — la misma persona asignada a dos equipos a la vez: UNA sola pertenencia"
+          + " vigente al final, ningún 500, y ninguna de las dos peticiones se pierde")
   void lamismaPersonaADosEquiposALaVez() throws Exception {
-    // Aquí el bloqueo del equipo no ordena nada —son equipos distintos— y quien
-    // decide es `uq_team_members_vigente`, que por eso se declaró parcial. Lo
-    // que se comprueba es que el perdedor recibe el `409` de negocio y no un
-    // `500` de una restricción sin traducir.
     UUID primero = TeamTestSupport.equipo(jdbc, "Equipo Carrera Uno");
     UUID segundo = TeamTestSupport.equipo(jdbc, "Equipo Carrera Dos");
     UUID manager = TeamTestSupport.personaConRol(jdbc, PERSONAS[0], "MANAGER");
@@ -137,9 +133,31 @@ class TeamConcurrencyIT extends IntegrationTestBase {
     List<Outcome<Integer>> resultados =
         runTogether(2, indice -> estadoDe(asignar(indice == 0 ? primero : segundo, manager)));
 
+    // LO QUE SE AFIRMA ES LA INVARIANTE, y no cuál de los dos desenlaces
+    // ocurrió, porque LOS DOS SON CORRECTOS y cuál toca depende de si las
+    // peticiones llegan a solaparse:
+    //
+    //   · Si se solapan, el bloqueo del equipo no ordena nada —son equipos
+    //     distintos— y decide `uq_team_members_vigente`: una entra con `200` y la
+    //     otra recibe el `409` traducido, nunca un `500`.
+    //   · Si NO se solapan —y en CI es lo normal, porque va más rápido que una
+    //     máquina de desarrollo—, la segunda VE la pertenencia que dejó la
+    //     primera y MUEVE a la persona: dos `200` y la anterior cerrada, que es
+    //     literalmente lo que `RN-SP-052` manda hacer al asignar a otro equipo.
+    //
+    // Exigir «exactamente un 200» afirmaba el primer desenlace y convertía el
+    // segundo —correcto— en un fallo. Costó una corrida de CI el 23-09-2026.
     assertThat(resultados).noneMatch(r -> r.succeeded() && r.value() >= 500);
-    assertThat(resultados.stream().filter(r -> r.succeeded() && r.value() == 200).count())
-        .isEqualTo(1);
+    assertThat(resultados).allMatch(Outcome::succeeded);
+    assertThat(resultados.stream().filter(r -> r.value() == 200 || r.value() == 409).count())
+        .as("toda peticion acaba en 200 o en 409: %s", resultados)
+        .isEqualTo(2);
+    assertThat(resultados.stream().filter(r -> r.value() == 200).count())
+        .as("al menos una entra: %s", resultados)
+        .isGreaterThanOrEqualTo(1);
+
+    // La invariante de `RN-SP-052`, que es lo único que no puede fallar nunca:
+    // UNA pertenencia vigente, pase lo que pase.
     assertThat(
             jdbc.queryForObject(
                 "SELECT count(*) FROM team_members WHERE user_id = ? AND ended_at IS NULL",
