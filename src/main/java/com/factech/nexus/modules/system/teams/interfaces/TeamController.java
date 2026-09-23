@@ -1,12 +1,14 @@
 package com.factech.nexus.modules.system.teams.interfaces;
 
 import com.factech.nexus.modules.system.teams.application.ChangeTeamStatusRequest;
+import com.factech.nexus.modules.system.teams.application.DeleteTeamRequest;
 import com.factech.nexus.modules.system.teams.application.ListTeamsRequest;
 import com.factech.nexus.modules.system.teams.application.RegisterTeamRequest;
 import com.factech.nexus.modules.system.teams.application.TeamDetailResponse;
 import com.factech.nexus.modules.system.teams.application.TeamItem;
 import com.factech.nexus.modules.system.teams.application.UpdateTeamRequest;
 import com.factech.nexus.modules.system.teams.domain.service.ChangeTeamStatusService;
+import com.factech.nexus.modules.system.teams.domain.service.DeleteTeamService;
 import com.factech.nexus.modules.system.teams.domain.service.GetTeamService;
 import com.factech.nexus.modules.system.teams.domain.service.ListTeamsService;
 import com.factech.nexus.modules.system.teams.domain.service.RegisterTeamService;
@@ -22,6 +24,7 @@ import jakarta.validation.Valid;
 import java.net.URI;
 import java.util.UUID;
 import org.springdoc.core.annotations.ParameterObject;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -31,6 +34,7 @@ import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestController;
 
 /**
@@ -59,18 +63,21 @@ public class TeamController {
   private final GetTeamService ficha;
   private final UpdateTeamService correccion;
   private final ChangeTeamStatusService estado;
+  private final DeleteTeamService baja;
 
   public TeamController(
       RegisterTeamService alta,
       ListTeamsService listado,
       GetTeamService ficha,
       UpdateTeamService correccion,
-      ChangeTeamStatusService estado) {
+      ChangeTeamStatusService estado,
+      DeleteTeamService baja) {
     this.alta = alta;
     this.listado = listado;
     this.ficha = ficha;
     this.correccion = correccion;
     this.estado = estado;
+    this.baja = baja;
   }
 
   @PostMapping
@@ -346,5 +353,67 @@ public class TeamController {
   public TeamDetailResponse cambiarEstado(
       @PathVariable UUID id, @RequestBody ChangeTeamStatusRequest peticion) {
     return estado.change(id, peticion);
+  }
+
+  @PostMapping("/{id}/deletion")
+  @PreAuthorize("hasAuthority('teams:delete')")
+  @ResponseStatus(HttpStatus.NO_CONTENT)
+  @Operation(
+      summary = "Eliminar un equipo",
+      description =
+          """
+          Baja **lógica y con motivo**: la fila se queda con `deletedAt` puesto y
+          **nada más cambiado** —`status` incluido, de modo que un equipo eliminado
+          conserva el estado que tenía—, y el motivo y la instantánea van a la
+          auditoría de eliminación. **`POST` y no `DELETE`** porque el cuerpo lleva el
+          motivo, que es obligatorio, y un `DELETE` con cuerpo no tiene garantías.
+
+          **Solo se elimina un equipo VACÍO.** Con un miembro vigente responde `409`
+          (`EX-003`), y no es una molestia: un equipo es la única forma de decir en qué
+          parte de la red está un manager, y eliminarlo con gente dentro dejaría a esas
+          personas sin pertenencia sin que nadie lo hubiera decidido. **Hay dos
+          salidas y el mensaje las nombra**: retirar a cada miembro
+          (`POST /teams/{id}/members/removals`) o reubicarlo en otro equipo
+          (`POST /teams/{id}/members`).
+
+          **No hace falta suspenderlo antes**: se elimina un equipo activo y vacío, y
+          el estado y la baja son independientes.
+
+          **El historial sobrevive.** Las pertenencias **cerradas** no se borran: son
+          un hecho —esta persona estuvo aquí entre estas dos fechas— y las comisiones
+          leerán ese historial. Por eso la instantánea de la baja lleva **los
+          identificadores de todas las personas que pasaron** por el equipo.
+
+          **Y el nombre queda libre.** La unicidad no cuenta a los eliminados, de modo
+          que volver a registrar «Equipo Norte» al día siguiente se admite — y el
+          equipo nuevo **no hereda nada**: ni miembros, ni historial, ni identificador.
+          **No hay restauración**: un equipo eliminado no se revive.
+
+          Sale del listado salvo `includeDeleted=true`, y su detalle lo sigue
+          devolviendo con `deletedAt` y este `deletionReason`. Eliminar uno ya
+          eliminado responde `409` (`EX-002`), **distinto del `404` del inexistente**:
+          quien elimina dos veces merece saber que la primera funcionó. Exige
+          `teams:delete`; ni `teams:update` ni `teams:change-status` habilitan esta
+          operación.
+          """)
+  @ApiResponses({
+    @ApiResponse(responseCode = "204", description = "Equipo eliminado."),
+    @ApiResponse(
+        responseCode = "400",
+        description =
+            "Identificador mal formado (`VAL-001`) o motivo ausente, vacío (`VAL-002`) o de más"
+                + " de 500 caracteres (`VAL-003`)"),
+    @ApiResponse(responseCode = "401", description = "Token ausente o inválido (`AUTH-001`)"),
+    @ApiResponse(
+        responseCode = "403",
+        description = "Autenticado sin el permiso `teams:delete` (`AUTH-002`)"),
+    @ApiResponse(responseCode = "404", description = "El equipo no existe (`EX-001`)"),
+    @ApiResponse(
+        responseCode = "409",
+        description = "El equipo ya está eliminado (`EX-002`) o tiene miembros vigentes (`EX-003`)")
+  })
+  public void eliminar(
+      @PathVariable UUID id, @RequestBody(required = false) DeleteTeamRequest peticion) {
+    baja.delete(id, peticion);
   }
 }

@@ -173,6 +173,26 @@ public class Team {
     return true;
   }
 
+  /**
+   * Elimina el equipo (`RF-SP-068`) y devuelve <b>si hubo cambio</b>: la baja es lógica y <b>nada
+   * más de la fila cambia</b>.
+   *
+   * <p><b>`status` se conserva a propósito.</b> Un equipo eliminado guarda el estado que tenía, y
+   * el registro de baja lo cuenta: apagarlo al eliminar inventaría un hecho que nadie decidió y
+   * haría indistinguible «se suspendió y luego se eliminó» de «se eliminó estando activo».
+   *
+   * <p><b>Las pertenencias no se tocan</b> (`RN-SP-052`): las cerradas se conservan como historial
+   * y las vigentes no existen aquí, porque el caso de uso rechaza la baja si hay alguna
+   * (`RN-SP-054`).
+   */
+  public boolean delete(OffsetDateTime ahora) {
+    if (deletedAt != null) {
+      return false;
+    }
+    deletedAt = ahora;
+    return true;
+  }
+
   public boolean estaEliminado() {
     return deletedAt != null;
   }

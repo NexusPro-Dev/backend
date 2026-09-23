@@ -84,6 +84,40 @@ class TeamConcurrencyIT extends IntegrationTestBase {
         .isEqualTo(1);
   }
 
+  @Test
+  @DisplayName(
+      "`CA-SP-777` — dos eliminaciones simultáneas del mismo equipo: un 204, un 409 y UNA sola fila"
+          + " de auditoría")
+  void dosEliminacionesDelMismoEquipo() throws Exception {
+    // Las dos peticiones leen el equipo vivo antes de que ninguna lo marque. Lo
+    // que las ordena es el bloqueo de `findByIdForUpdate`: la segunda espera, ve
+    // el `deleted_at` que dejó la primera y sale por `EX-002` en lugar de
+    // escribir una segunda baja sobre la misma fila — que dejaría dos registros
+    // de eliminación del mismo equipo con dos motivos distintos.
+    UUID equipo = TeamTestSupport.equipo(jdbc, "Equipo Que Se Disuelve");
+
+    List<Outcome<Integer>> resultados = runTogether(2, indice -> estadoDe(baja(equipo)));
+
+    assertThat(resultados).noneMatch(r -> r.succeeded() && r.value() >= 500);
+    assertThat(resultados.stream().filter(r -> r.succeeded() && r.value() == 204).count())
+        .isEqualTo(1);
+    assertThat(resultados.stream().filter(r -> r.succeeded() && r.value() == 409).count())
+        .isEqualTo(1);
+    assertThat(
+            jdbc.queryForObject(
+                "SELECT count(*) FROM audit_deletion_log WHERE entity = 'teams' AND entity_id = ?",
+                Integer.class,
+                equipo))
+        .isEqualTo(1);
+  }
+
+  private MockHttpServletRequestBuilder baja(UUID id) {
+    return post("/api/v1/teams/" + id + "/deletion")
+        .with(con("teams:delete"))
+        .contentType(MediaType.APPLICATION_JSON)
+        .content("{\"reason\":\"Se disuelve por reorganizacion.\"}");
+  }
+
   private MockHttpServletRequestBuilder renombrar(UUID id, String nombre) {
     return patch("/api/v1/teams/" + id)
         .with(con("teams:update"))

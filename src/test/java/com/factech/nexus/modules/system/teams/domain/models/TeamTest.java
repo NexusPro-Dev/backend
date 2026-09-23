@@ -148,4 +148,29 @@ class TeamTest {
     // creación y la baja.
     assertThat(equipo.instantanea()).containsEntry("status", "INACTIVO");
   }
+
+  @Test
+  @DisplayName(
+      "delete marca deleted_at y NADA más: ni el estado, ni el nombre, ni updatedAt (`RF-SP-068`"
+          + " `T-01`)")
+  void laBajaSoloMarcaLaFecha() {
+    Team equipo = Team.create(UUID.randomUUID(), "Equipo Norte", "Managers del norte", AHORA);
+    equipo.deactivate(AHORA.plusHours(1));
+
+    assertThat(equipo.delete(AHORA.plusDays(1))).isTrue();
+    assertThat(equipo.estaEliminado()).isTrue();
+    assertThat(equipo.getDeletedAt()).isEqualTo(AHORA.plusDays(1));
+    // El estado se conserva: apagarlo al eliminar inventaria un hecho que nadie
+    // decidio, y haria indistinguible «se suspendio y luego se elimino» de «se
+    // elimino estando activo».
+    assertThat(equipo.getStatus()).isEqualTo(TeamStatus.INACTIVO);
+    assertThat(equipo.getName()).isEqualTo("Equipo Norte");
+    assertThat(equipo.getDescription()).isEqualTo("Managers del norte");
+    assertThat(equipo.getUpdatedAt()).isEqualTo(AHORA.plusHours(1));
+
+    // Eliminar una ya eliminada no mueve la fecha: quien decide el `409` es el
+    // caso de uso, y el agregado no miente sobre cuándo se retiró.
+    assertThat(equipo.delete(AHORA.plusDays(2))).isFalse();
+    assertThat(equipo.getDeletedAt()).isEqualTo(AHORA.plusDays(1));
+  }
 }

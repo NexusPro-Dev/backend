@@ -475,6 +475,16 @@ class OpenApiContractIT extends IntegrationTestBase {
         .andExpect(jsonPath("$.paths['/api/v1/teams/{id}/status'].patch.responses.404").exists())
         .andExpect(
             jsonPath("$.paths['/api/v1/teams/{id}/status'].patch.responses.409").doesNotExist())
+        // `RF-SP-068`: la baja es `POST …/deletion` y no `DELETE`, porque el
+        // motivo viaja en el cuerpo; publica DOS `409` —ya eliminado y con
+        // miembros— y su permiso propio, que ni `teams:update` ni
+        // `teams:change-status` sustituyen.
+        .andExpect(
+            jsonPath("$.paths['/api/v1/teams/{id}/deletion'].post['x-required-permission']")
+                .value("teams:delete"))
+        .andExpect(jsonPath("$.paths['/api/v1/teams/{id}/deletion'].post.responses.204").exists())
+        .andExpect(jsonPath("$.paths['/api/v1/teams/{id}/deletion'].post.responses.409").exists())
+        .andExpect(jsonPath("$.paths['/api/v1/teams/{id}'].delete").doesNotExist())
         .andExpect(jsonPath("$.components.schemas.TeamDetailResponse.properties.members").exists())
         .andExpect(
             jsonPath("$.components.schemas.TeamDetailResponse.properties.deletionReason").exists());
