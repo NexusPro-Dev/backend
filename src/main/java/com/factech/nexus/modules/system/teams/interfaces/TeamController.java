@@ -5,6 +5,7 @@ import com.factech.nexus.modules.system.teams.application.ChangeTeamStatusReques
 import com.factech.nexus.modules.system.teams.application.DeleteTeamRequest;
 import com.factech.nexus.modules.system.teams.application.ListTeamsRequest;
 import com.factech.nexus.modules.system.teams.application.RegisterTeamRequest;
+import com.factech.nexus.modules.system.teams.application.RemoveTeamMembersRequest;
 import com.factech.nexus.modules.system.teams.application.TeamDetailResponse;
 import com.factech.nexus.modules.system.teams.application.TeamItem;
 import com.factech.nexus.modules.system.teams.application.UpdateTeamRequest;
@@ -14,6 +15,7 @@ import com.factech.nexus.modules.system.teams.domain.service.DeleteTeamService;
 import com.factech.nexus.modules.system.teams.domain.service.GetTeamService;
 import com.factech.nexus.modules.system.teams.domain.service.ListTeamsService;
 import com.factech.nexus.modules.system.teams.domain.service.RegisterTeamService;
+import com.factech.nexus.modules.system.teams.domain.service.RemoveTeamMembersService;
 import com.factech.nexus.modules.system.teams.domain.service.UpdateTeamService;
 import com.factech.nexus.shared.pagination.PageResponse;
 import io.swagger.v3.oas.annotations.Operation;
@@ -67,6 +69,7 @@ public class TeamController {
   private final ChangeTeamStatusService estado;
   private final DeleteTeamService baja;
   private final AssignTeamMembersService asignacion;
+  private final RemoveTeamMembersService retiro;
 
   public TeamController(
       RegisterTeamService alta,
@@ -75,7 +78,8 @@ public class TeamController {
       UpdateTeamService correccion,
       ChangeTeamStatusService estado,
       DeleteTeamService baja,
-      AssignTeamMembersService asignacion) {
+      AssignTeamMembersService asignacion,
+      RemoveTeamMembersService retiro) {
     this.alta = alta;
     this.listado = listado;
     this.ficha = ficha;
@@ -83,6 +87,7 @@ public class TeamController {
     this.estado = estado;
     this.baja = baja;
     this.asignacion = asignacion;
+    this.retiro = retiro;
   }
 
   @PostMapping
@@ -507,5 +512,76 @@ public class TeamController {
   public TeamDetailResponse asignarMiembros(
       @PathVariable UUID id, @Valid @RequestBody AssignTeamMembersRequest peticion) {
     return asignacion.assign(id, peticion);
+  }
+
+  @PostMapping("/{id}/members/removals")
+  @PreAuthorize("hasAuthority('teams:remove-members')")
+  @Operation(
+      summary = "Retirar miembros de un equipo",
+      description =
+          """
+          Saca a una o varias personas de **este** equipo **sin ponerlas en otro**, con
+          motivo. Admite de una a cien por petición.
+
+          **Retirar no es mover.** Para cambiar a alguien de equipo basta asignarlo al
+          destino, que cierra la anterior sola; esta operación es para **vaciar un
+          equipo** —lo que hace falta antes de eliminarlo— y para dejar a alguien **sin
+          equipo**, que es un estado legítimo: un manager sin equipo no rompe nada.
+
+          **Cierra, no borra.** La pertenencia se queda con su fecha de fin y sigue en
+          el historial, porque decide a qué equipo se atribuía lo que esa red producía.
+          El recuento del equipo baja de inmediato.
+
+          **Se puede retirar de un equipo `INACTIVO`.** La restricción de un equipo
+          suspendido es sobre **recibir**, no sobre soltar: si también impidiera
+          soltar, un equipo suspendido con gente dentro no podría vaciarse nunca y por
+          tanto no podría eliminarse.
+
+          **Retirar a quien no pertenece hoy a este equipo responde `422`**, y trae en
+          `errors` a todas las personas que fallan. Al contrario que en la asignación
+          —donde volver a asignar a quien ya está no es un error—, aquí un `200` dejaría
+          creer que se sacó a alguien de donde no estaba. **No se distingue** entre «no
+          tiene equipo» y «está en otro»: para esta operación las dos significan lo
+          mismo.
+
+          **Toda la lista o ninguna**: si alguna persona no pertenece, no se retira a
+          ninguna.
+
+          **Esto no toca el rol, ni la cadena de mando, ni el estado de nadie.** Quien
+          sale sigue siendo manager y conserva su red; **cambiar el estado de una
+          persona no la saca de su equipo**. Lo que sí la saca —en la misma
+          transacción y sin pasar por aquí— es dejar de ser manager: retirarle el rol
+          comercial de mayor rango o eliminarla.
+
+          La respuesta es la **forma del detalle**, ya sin los retirados. Exige
+          `teams:remove-members`; **`teams:assign-members` no habilita esta
+          operación**.
+          """)
+  @ApiResponses({
+    @ApiResponse(
+        responseCode = "200",
+        description = "Equipo sin los retirados, en la forma del detalle.",
+        content = @Content(schema = @Schema(implementation = TeamDetailResponse.class))),
+    @ApiResponse(
+        responseCode = "400",
+        description =
+            "Lista vacía o de más de 100 (`VAL-001`, `VAL-003`), identificador mal formado"
+                + " (`VAL-002`), motivo ausente o largo (`VAL-004`, `VAL-005`) o cuerpo con"
+                + " campos no admitidos (`VAL-006`)"),
+    @ApiResponse(responseCode = "401", description = "Token ausente o inválido (`AUTH-001`)"),
+    @ApiResponse(
+        responseCode = "403",
+        description = "Autenticado sin el permiso `teams:remove-members` (`AUTH-002`)"),
+    @ApiResponse(
+        responseCode = "404",
+        description = "El equipo no existe o está eliminado (`EX-001`)"),
+    @ApiResponse(
+        responseCode = "422",
+        description =
+            "Alguna persona no pertenece hoy a este equipo (`EX-002`); en `errors` van todas")
+  })
+  public TeamDetailResponse retirarMiembros(
+      @PathVariable UUID id, @Valid @RequestBody RemoveTeamMembersRequest peticion) {
+    return retiro.remove(id, peticion);
   }
 }

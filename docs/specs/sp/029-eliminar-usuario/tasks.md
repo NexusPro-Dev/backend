@@ -6,6 +6,7 @@
 | Especificación | [`spec.md`](spec.md) |
 | Plan | [`plan.md`](plan.md) |
 | `plan.md` aprobado el | 22-08-2026 |
+| Enmendada | 23-09-2026 — `RN-SP-055` (Art. I.7): la pertenencia al equipo se cierra con el rol o con la baja. **El código lo toca `RF-SP-070` `T-11`**, no esta tripleta |
 | Estado | **Aprobadas** — 24-08-2026 |
 | Issue | Pendiente de crear |
 | Rama | `feature/ciclo-de-vida-de-usuario` |

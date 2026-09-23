@@ -48,6 +48,20 @@ public class JpaTeamMemberRepository implements TeamMemberRepository {
   }
 
   @Override
+  public List<TeamMember> findActiveIn(UUID teamId, Collection<UUID> userIds) {
+    if (teamId == null || userIds == null || userIds.isEmpty()) {
+      return List.of();
+    }
+    return em.createQuery(
+            "SELECT m FROM TeamMember m WHERE m.teamId = :equipo AND m.userId IN :personas"
+                + " AND m.endedAt IS NULL",
+            TeamMember.class)
+        .setParameter("equipo", teamId)
+        .setParameter("personas", userIds)
+        .getResultList();
+  }
+
+  @Override
   public List<TeamMember> saveAll(Collection<TeamMember> pertenencias) {
     List<TeamMember> guardadas = new ArrayList<>();
     try {

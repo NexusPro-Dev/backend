@@ -5,7 +5,7 @@
 | Módulo | `SP` — Sistema Principal |
 | Paquete | `modules/system` |
 | Prefijos de permiso | `roles:`, `permissions:`, `audit:`, `memberships:`, `currencies:`, `countries:`, `users:`, `exchange-rates:`, `document-types:`, `brokers:`, `broker-accounts:`, `teams:` |
-| Versión | 1.82.0 |
+| Versión | 1.83.0 |
 | Estado | **Aprobado** |
 | Responsable | Bonilla Diaz William Steven |
 | Fecha de creación | 20-08-2026 |
@@ -394,7 +394,7 @@ EXCLUDE USING gist (
 | `RF-SP-067` | Cambiar el estado de un equipo | Media | `teams:change-status` | **En desarrollo** |
 | `RF-SP-068` | Eliminar equipo | Baja | `teams:delete` | **En desarrollo** |
 | `RF-SP-069` | Asignar miembros a un equipo | Alta | `teams:assign-members` | **En desarrollo** |
-| `RF-SP-070` | Retirar miembros de un equipo | Media | `teams:remove-members` | **Tasks en revisión** |
+| `RF-SP-070` | Retirar miembros de un equipo | Media | `teams:remove-members` | **En desarrollo** |
 
 !!! info "Dónde vive el estado de un requerimiento"
 
@@ -2223,3 +2223,4 @@ La fila se lee «`user_id` pertenece al equipo `team_id` desde `started_at`». U
 | 1.80.0 | 23-09-2026 | **`RF-SP-067` pasa a `En desarrollo`**: suspender y reactivar un equipo está construido y `PATCH /api/v1/teams/{id}/status` publicado con **`teams:change-status`**. **Nada de la ficha cambia** y ninguna regla se toca: `RN-SP-053` ya decía que el equipo `INACTIVO` conserva a sus miembros, y la construcción lo que hace es **elegir dónde se aplica** —en la asignación (`RF-SP-069`), no en el cambio de estado—, de modo que suspender no comprueba nada y no cierra una sola pertenencia. Se deja dicho por la misma razón que se dejó dicho que hay ocho permisos `teams:` con menos rutas: quien lea la regla en §5.1 tiene que poder encontrar en qué operación se hace cumplir. | Responsable técnico |
 | 1.81.0 | 23-09-2026 | **`RF-SP-068` pasa a `En desarrollo`**: la baja de un equipo está construida y `POST /api/v1/teams/{id}/deletion` publicado con **`teams:delete`**. **Nada de la ficha cambia** y ninguna regla se toca. Queda dicho, por si alguien lee `RN-SP-054` y la cree una molestia: la baja se rechaza con miembros vigentes **y la comprobación vive dentro del bloqueo de la fila**, de modo que una asignación simultánea no puede colar a nadie en un equipo que se está eliminando. Y queda dicho también dónde vive el historial: las pertenencias cerradas **sobreviven** a la baja (`RN-SP-052`) y sus identificadores viajan en la instantánea del registro de eliminación, que es lo que permitirá a las comisiones repartir lo que produjo una red cuyo equipo ya no existe. | Responsable técnico |
 | 1.82.0 | 23-09-2026 | **`RF-SP-069` pasa a `En desarrollo`**: asignar managers a un equipo está construido y `POST /api/v1/teams/{id}/members` publicado con **`teams:assign-members`**. **Nada de la ficha cambia** y ninguna regla se toca, pero tres de ellas quedan por fin **ejercidas** y conviene decir dónde: `RN-SP-051` la aplica `TeamMembershipRules` preguntando a `CommercialStructure` —la cúspide es el vendedor cuyo rol padre ya no es vendedor, no el código `MANAGER`—; `RN-SP-052` la aplica el propio caso de uso cerrando la pertenencia anterior, con `uq_team_members_vigente` de red para las carreras; y `RN-SP-053` se hace cumplir **aquí y no en el cambio de estado** (`RF-SP-067`), porque la regla la aplica quien intenta entrar. Con esto, `team_members` deja de ser una tabla declarada y sin escritores. | Responsable técnico |
+| 1.83.0 | 23-09-2026 | **`RF-SP-070` pasa a `En desarrollo` y con él los ocho de Equipos están construidos**: `POST /api/v1/teams/{id}/members/removals` publicado con **`teams:remove-members`**. **Ninguna regla cambia de enunciado**, y dos quedan por fin ejercidas donde se dijo: `RN-SP-053` —el suspendido **no recibe pero sí suelta**, que es lo que permite vaciarlo para poder eliminarlo— y **`RN-SP-055`, que estrena código**: la pertenencia sigue al rol, de modo que retirar el rol comercial de mayor rango (`RF-SP-031`) o eliminar a la persona (`RF-SP-029`) cierra su pertenencia **en la misma transacción**, mientras que cambiar su estado (`RF-SP-028`) no la toca. Las tripletas de esos dos requerimientos, que estaban construidos, se enmendaron **antes** de tocar su código (Art. I.7). | Responsable técnico |

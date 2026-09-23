@@ -4525,6 +4525,26 @@
         "required" : [ "productId", "sellerUsername" ],
         "type" : "object"
       },
+      "RemoveTeamMembersRequest" : {
+        "properties" : {
+          "memberIds" : {
+            "items" : {
+              "format" : "uuid",
+              "type" : "string"
+            },
+            "maxItems" : 100,
+            "minItems" : 0,
+            "type" : "array"
+          },
+          "reason" : {
+            "maxLength" : 500,
+            "minLength" : 0,
+            "type" : "string"
+          }
+        },
+        "required" : [ "memberIds", "reason" ],
+        "type" : "object"
+      },
       "ResetPasswordRequest" : {
         "properties" : {
           "newPassword" : {
@@ -13302,6 +13322,96 @@
         "summary" : "Asignar miembros a un equipo",
         "tags" : [ "Equipos" ],
         "x-required-permission" : "teams:assign-members"
+      }
+    },
+    "/api/v1/teams/{id}/members/removals" : {
+      "post" : {
+        "description" : "**Permiso requerido:** `teams:remove-members`. Sin él, `403` (`AUTH-002`).\n\nSaca a una o varias personas de **este** equipo **sin ponerlas en otro**, con\nmotivo. Admite de una a cien por petición.\n\n**Retirar no es mover.** Para cambiar a alguien de equipo basta asignarlo al\ndestino, que cierra la anterior sola; esta operación es para **vaciar un\nequipo** —lo que hace falta antes de eliminarlo— y para dejar a alguien **sin\nequipo**, que es un estado legítimo: un manager sin equipo no rompe nada.\n\n**Cierra, no borra.** La pertenencia se queda con su fecha de fin y sigue en\nel historial, porque decide a qué equipo se atribuía lo que esa red producía.\nEl recuento del equipo baja de inmediato.\n\n**Se puede retirar de un equipo `INACTIVO`.** La restricción de un equipo\nsuspendido es sobre **recibir**, no sobre soltar: si también impidiera\nsoltar, un equipo suspendido con gente dentro no podría vaciarse nunca y por\ntanto no podría eliminarse.\n\n**Retirar a quien no pertenece hoy a este equipo responde `422`**, y trae en\n`errors` a todas las personas que fallan. Al contrario que en la asignación\n—donde volver a asignar a quien ya está no es un error—, aquí un `200` dejaría\ncreer que se sacó a alguien de donde no estaba. **No se distingue** entre «no\ntiene equipo» y «está en otro»: para esta operación las dos significan lo\nmismo.\n\n**Toda la lista o ninguna**: si alguna persona no pertenece, no se retira a\nninguna.\n\n**Esto no toca el rol, ni la cadena de mando, ni el estado de nadie.** Quien\nsale sigue siendo manager y conserva su red; **cambiar el estado de una\npersona no la saca de su equipo**. Lo que sí la saca —en la misma\ntransacción y sin pasar por aquí— es dejar de ser manager: retirarle el rol\ncomercial de mayor rango o eliminarla.\n\nLa respuesta es la **forma del detalle**, ya sin los retirados. Exige\n`teams:remove-members`; **`teams:assign-members` no habilita esta\noperación**.\n",
+        "operationId" : "retirarMiembros",
+        "parameters" : [ {
+          "in" : "path",
+          "name" : "id",
+          "required" : true,
+          "schema" : {
+            "format" : "uuid",
+            "type" : "string"
+          }
+        } ],
+        "requestBody" : {
+          "content" : {
+            "application/json" : {
+              "schema" : {
+                "$ref" : "#/components/schemas/RemoveTeamMembersRequest"
+              }
+            }
+          },
+          "required" : true
+        },
+        "responses" : {
+          "200" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/TeamDetailResponse"
+                }
+              }
+            },
+            "description" : "Equipo sin los retirados, en la forma del detalle."
+          },
+          "400" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/TeamDetailResponse"
+                }
+              }
+            },
+            "description" : "Lista vacía o de más de 100 (`VAL-001`, `VAL-003`), identificador mal formado (`VAL-002`), motivo ausente o largo (`VAL-004`, `VAL-005`) o cuerpo con campos no admitidos (`VAL-006`)"
+          },
+          "401" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/TeamDetailResponse"
+                }
+              }
+            },
+            "description" : "Token ausente o inválido (`AUTH-001`)"
+          },
+          "403" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/TeamDetailResponse"
+                }
+              }
+            },
+            "description" : "Autenticado sin el permiso `teams:remove-members` (`AUTH-002`)"
+          },
+          "404" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/TeamDetailResponse"
+                }
+              }
+            },
+            "description" : "El equipo no existe o está eliminado (`EX-001`)"
+          },
+          "422" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/TeamDetailResponse"
+                }
+              }
+            },
+            "description" : "Alguna persona no pertenece hoy a este equipo (`EX-002`); en `errors` van todas"
+          }
+        },
+        "summary" : "Retirar miembros de un equipo",
+        "tags" : [ "Equipos" ],
+        "x-required-permission" : "teams:remove-members"
       }
     },
     "/api/v1/teams/{id}/status" : {

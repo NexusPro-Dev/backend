@@ -28,6 +28,17 @@ public interface TeamMemberRepository {
    */
   List<TeamMember> findActiveOf(Collection<UUID> userIds);
 
+  /**
+   * Las pertenencias vigentes <b>de ESTE equipo</b> para un conjunto de personas, en una consulta
+   * (`RF-SP-070`).
+   *
+   * <p>No es {@link #findActiveOf} con un filtro encima: la diferencia es la que hace que quien
+   * pertenece a OTRO equipo salga como «aquí no está», que es exactamente lo que el retiro necesita
+   * responder. Preguntar primero por todas y filtrar después dejaría la decisión repetida en cada
+   * llamador.
+   */
+  List<TeamMember> findActiveIn(UUID teamId, Collection<UUID> userIds);
+
   List<TeamMember> saveAll(Collection<TeamMember> pertenencias);
 
   /**

@@ -493,6 +493,16 @@ class OpenApiContractIT extends IntegrationTestBase {
                 .value("teams:assign-members"))
         .andExpect(jsonPath("$.paths['/api/v1/teams/{id}/members'].post.responses.422").exists())
         .andExpect(jsonPath("$.paths['/api/v1/teams/{id}/members'].post.responses.409").exists())
+        // `RF-SP-070`: retirar es OTRA operación con OTRO permiso, y publica `422`
+        // pero no `409` — de un equipo suspendido sí se puede sacar gente.
+        .andExpect(
+            jsonPath("$.paths['/api/v1/teams/{id}/members/removals'].post['x-required-permission']")
+                .value("teams:remove-members"))
+        .andExpect(
+            jsonPath("$.paths['/api/v1/teams/{id}/members/removals'].post.responses.422").exists())
+        .andExpect(
+            jsonPath("$.paths['/api/v1/teams/{id}/members/removals'].post.responses.409")
+                .doesNotExist())
         .andExpect(jsonPath("$.components.schemas.TeamDetailResponse.properties.members").exists())
         .andExpect(
             jsonPath("$.components.schemas.TeamDetailResponse.properties.deletionReason").exists());
