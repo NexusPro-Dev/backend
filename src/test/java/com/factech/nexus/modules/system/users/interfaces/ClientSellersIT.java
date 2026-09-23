@@ -1,5 +1,6 @@
 package com.factech.nexus.modules.system.users.interfaces;
 
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.user;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
@@ -112,12 +113,44 @@ class ClientSellersIT extends IntegrationTestBase {
         .andExpect(jsonPath("$.content[1].username").value("projas"))
         .andExpect(jsonPath("$.content[1].origin").value("HOTLINK"))
         .andExpect(jsonPath("$.content[1].principal").value(false))
-        // `CA-SP-701`: lo que NO viaja. Ni identificador, ni correo, ni estado,
-        // ni roles — lo mismo que publica el hotlink (`RN-PM-022`).
+        // `CA-SP-701`, INVERTIDO el 22-09-2026: el estado SI viaja, y con el el
+        // telefono de empresa. Lo que sigue fuera es el identificador, el correo
+        // y los roles.
+        .andExpect(jsonPath("$.content[0].status").value("ACTIVO"))
         .andExpect(jsonPath("$.content[0].id").doesNotExist())
         .andExpect(jsonPath("$.content[0].email").doesNotExist())
-        .andExpect(jsonPath("$.content[0].status").doesNotExist())
         .andExpect(jsonPath("$.content[0].roles").doesNotExist());
+  }
+
+  @Test
+  @DisplayName(
+      "`CA-SP-798` — el teléfono de empresa y el estado viajan: el nulo va PRESENTE y el"
+          + " vendedor eliminado sigue saliendo, ahora distinguible")
+  void telefonoDeEmpresaYEstado() throws Exception {
+    // `lgarcia` declara teléfono de empresa; `projas` no, y además se elimina.
+    // Un vínculo es un hecho y no se retira con el vendedor (`RN-SP-049`), de modo
+    // que la fila de `projas` seguía saliendo ya; lo que se comprueba aquí es que
+    // AHORA se distingue de la de un vendedor vivo.
+    jdbc.update("UPDATE users SET company_phone = ? WHERE id = ?", "+5716000123", agente);
+    jdbc.update(
+        "UPDATE users SET status = 'INACTIVO', deleted_at = now() WHERE id = ?", otroAgente);
+
+    String cuerpo =
+        mvc.perform(get("/api/v1/users/me/sellers").with(comoPersona(cliente)))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.content.length()").value(2))
+            .andExpect(jsonPath("$.content[0].companyPhone").value("+5716000123"))
+            .andExpect(jsonPath("$.content[0].status").value("ACTIVO"))
+            // El eliminado sigue en la lista Y dice que no está activo.
+            .andExpect(jsonPath("$.content[1].username").value("projas"))
+            .andExpect(jsonPath("$.content[1].status").value("INACTIVO"))
+            .andReturn()
+            .getResponse()
+            .getContentAsString();
+
+    // PRESENTE y nulo, no ausente: `jsonPath(...).doesNotExist()` daría por buenas
+    // las dos cosas, y la diferencia es justo lo que este criterio fija.
+    assertThat(cuerpo).contains("\"companyPhone\":null");
   }
 
   @Test

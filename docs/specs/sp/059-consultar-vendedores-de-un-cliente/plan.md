@@ -9,6 +9,7 @@
 | Aprobado por | Responsable del proyecto |
 | Fecha de aprobación | 18-09-2026 |
 | Enmendado | 21-09-2026 — `/{id}/sellers` con **`users:read-sellers`** (`RF-SP-060`, `RN-SEG-014`); nace **`V29`**, que lo siembra. §5 y §8 quedan afectados |
+| Enmendado | 22-09-2026 — la fila gana **`companyPhone`** y **`status`** (`CA-SP-798`; `CA-SP-701` invertido). Sin migración: las dos columnas ya existen en `users` |
 | Enmendado | 21-09-2026 — exige **`users:read-own-sellers`** (`RF-SP-062`, `RN-SEG-015`: autenticarse no autoriza nada); lo siembra `V31` (la ruta `/me`) |
 
 ---
@@ -36,6 +37,12 @@
 ## 2. Cambios de esquema
 
 Una migración: `V20__sp_vendedores_del_cliente.sql`. **Se numeró comprobando el máximo aplicado**: `V19` es de `feature/academia`, sobre la que esta rama nace, y `backend-ff` reservó `V21` en adelante para `AC`.
+
+### 2.0 Lo que esta enmienda NO necesita (22-09-2026)
+
+**Ninguna migración.** `users.company_phone` existe desde el 10-09-2026 y `users.status` desde el origen: la enmienda es **dos columnas más en la proyección** de `JpaClientSellerRepository.PROYECCION`, dos campos en `ClientSellerRow` y dos en `SellerItem`. Ni permiso nuevo, ni ruta nueva, ni regla nueva.
+
+**Y ninguna consulta más**: las dos columnas salen del `JOIN users s` que la proyección ya hace para el nombre y el apellido, de modo que el número de sentencias no cambia.
 
 ### 2.1 La tabla, tal como §10.19 la exige
 
@@ -121,6 +128,8 @@ DELETE FROM user_supervisors us
       "username": "agente1",
       "firstName": "Ana",
       "lastName": "Martínez",
+      "companyPhone": "+5716000123",
+      "status": "ACTIVO",
       "origin": "REGISTRO",
       "principal": true,
       "linkedAt": "2026-09-04T10:12:03Z"
@@ -129,6 +138,8 @@ DELETE FROM user_supervisors us
       "username": "agente7",
       "firstName": "Luis",
       "lastName": "Rojas",
+      "companyPhone": null,
+      "status": "INACTIVO",
       "origin": "HOTLINK",
       "principal": false,
       "linkedAt": "2026-09-17T18:40:55Z"
@@ -138,7 +149,9 @@ DELETE FROM user_supervisors us
 ```
 
 - **Envuelto en `content`**, como `RF-SP-055`: deja sitio a paginar sin romper a nadie.
-- **Mismo cuerpo en las dos rutas.** Un administrador no necesita más que un cliente: si quiere ir al vendedor, tiene el nombre de usuario y `RF-SP-025`.
+- **Mismo cuerpo en las dos rutas**, y desde el 22-09-2026 ese cuerpo lleva **`companyPhone` y `status`**. En `/users/{id}/sellers` no enseñan nada nuevo —quien porta `users:read-sellers` abre la ficha entera con `RF-SP-025`—; en `/users/me/sellers` sí, y se publican igualmente por decisión del responsable: quien quiere hablar con su agente necesita su teléfono. **Se descartó separar las formas** para no duplicar esquema y servicio por esconder un teléfono corporativo.
+- **`companyPhone` viaja presente y nulo** cuando el vendedor no lo declaró, como en el resto del sistema: ausente y nulo significarían lo mismo y uno de los dos sobra.
+- **`status` puede ser el de una cuenta eliminada.** El `JOIN users s` **no filtra `deleted_at`** —decisión del 18-09-2026: el vínculo sobrevive al vendedor—, de modo que esa fila ya salía; lo que cambia es que **ahora se distingue** de la de un vendedor activo.
 - **`principal` viaja aunque se derive de `origin`** (spec §6.2). Es la pregunta que motivó el requerimiento.
 - **`linkedAt` es `created_at`** y se publica con ese nombre porque lo que significa es desde cuándo ese vendedor es suyo; para las filas migradas es la fecha en que colgó de él en `user_supervisors`.
 - **Sin `id` del vendedor**, por decisión escrita en la spec §14.5.
