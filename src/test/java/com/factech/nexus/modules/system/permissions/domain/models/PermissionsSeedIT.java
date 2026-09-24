@@ -216,6 +216,7 @@ class PermissionsSeedIT extends IntegrationTestBase {
             // Los siete de V28: products:update se queda con la edición y
             // products:comment con escribir la reseña.
             "products:list",
+            "products:buy-by-hotlink",
             "products:change-status",
             "products:set-cover",
             "products:remove-cover",
@@ -416,7 +417,7 @@ class PermissionsSeedIT extends IntegrationTestBase {
         .doesNotContain("users:read-own-sellers");
     // Y LO QUE `V40` LE DA: comprar, reseñar lo comprado y ver la oferta.
     assertThat(cliente)
-        .hasSize(12)
+        .hasSize(13)
         .contains(
             "movements:create",
             "products:sale",

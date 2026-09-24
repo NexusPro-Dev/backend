@@ -35,7 +35,7 @@
 INSERT INTO permissions (id, code, resource, action, name, description) VALUES
 ('01a0d0b6-4000-7001-9c4f-5e7ad5000027', 'products:buy-by-hotlink', 'products', 'buy-by-hotlink',
  'Comprar un producto por el hotlink de un vendedor',
- 'Comprar para uno mismo el producto que llego por el enlace de un vendedor (RF-MV-011). La venta se le acredita a quien reparte el enlace, aunque quien compra tenga otro agente principal (RN-MV-025), y nace el vinculo HOTLINK en client_sellers. Separado de products:buy porque la atribucion es distinta (RN-SEG-014).');
+ 'Comprar para uno mismo el producto que llego por el enlace de un vendedor (RF-MV-011). La venta se le acredita a quien reparte el enlace, aunque quien compra tenga otro agente principal (RN-MV-025), y nace el vinculo HOTLINK con ese vendedor. Separado de products:buy porque la atribucion es distinta (RN-SEG-014).');
 
 -- ---------------------------------------------------------------------------
 -- El reparto: a todo rol, por su tipo. `ON CONFLICT` por si alguien lo concedió

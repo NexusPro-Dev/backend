@@ -249,10 +249,16 @@ class BuyByHotlinkIT extends IntegrationTestBase {
 
   // ---------------------------------------------------------------- siembra
 
+  /**
+   * CON PADRE, y no es opcional: `uq_roles_single_root` admite UN SOLO rol sin padre —la raiz— y un
+   * rol de prueba suelto choca con el superadministrador. Cuelga de `MANAGER`, que es de su mismo
+   * tipo y es donde colgaria de verdad.
+   */
   private UUID rol(String codigo, String tipo) {
     UUID id = UUID.randomUUID();
     jdbc.update(
-        "INSERT INTO roles (id, code, name, role_type) VALUES (?::uuid, ?, ?, ?)",
+        "INSERT INTO roles (id, code, name, role_type, parent_role_id)"
+            + " VALUES (?::uuid, ?, ?, ?, (SELECT r.id FROM roles r WHERE r.code = 'MANAGER'))",
         id,
         codigo,
         codigo,

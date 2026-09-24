@@ -3157,6 +3157,82 @@ paths:
         "500":
           description: Fallo no controlado (`ERR-500`)
       x-required-permission: memberships:create
+  /api/v1/hotlinks/{username}/{code}/purchases:
+    post:
+      tags:
+      - Movimientos
+      summary: Comprar un producto por el hotlink de un vendedor
+      description: |
+        **Permiso requerido:** `products:buy-by-hotlink`. Sin él, `403` (`AUTH-002`).
+
+        Registra la compra del producto que llegó por el enlace de un vendedor, y
+        **se la acredita a ese vendedor** (`RN-MV-025`) — también cuando quien
+        compra tiene otro agente principal.
+
+        **Produce la misma venta que una compra ordinaria**: tipo `VENTA`, estado
+        `PENDIENTE`, una línea con el precio y la vigencia **congelados**. Nada se
+        entrega ni se cobra aquí; eso es `RF-MV-003`.
+
+        **Y crea el vínculo**: si quien compra no era todavía cliente de ese
+        vendedor, pasa a serlo con origen `HOTLINK` y esta venta como la primera
+        (`RN-SP-049`). Si ya lo era, no se crea nada y la venta se atribuye igual.
+
+        **Lo que NO hace, y conviene leerlo:** no cambia el agente **principal**.
+        Esa es la persona que registró al cliente, es inmutable, y comprar por el
+        enlace de otro **suma** un vendedor sin sustituir a ninguno.
+
+        **La venta nace `VALIDADO`** aunque el cliente quede con varios vendedores.
+        Es la excepción a `RN-MV-034` —que deja por validar las ventas de quien
+        tiene más de uno— y la razón es que aquí **no hay nada que elegir**: el
+        enlace ya dice quién trajo la venta.
+
+        **El vendedor no viaja en el cuerpo.** Sale de la ruta, que es la prueba
+        de qué enlace se usó. En el cuerpo, cualquiera podría acreditarle una
+        venta a cualquiera.
+
+        **El `404` es uno solo y no dice qué falló**: que el vendedor no exista,
+        que no sea vendedor, que esté inactivo o que el producto no se ofrezca por
+        enlace responden lo mismo. Es la decisión de seguridad de `RF-PM-008`, y
+        esta ruta la hereda porque el enlace es público y los nombres de usuario
+        se pueden probar.
+      operationId: comprar_1
+      parameters:
+      - name: username
+        in: path
+        required: true
+        schema:
+          type: string
+      - name: code
+        in: path
+        required: true
+        schema:
+          type: string
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/HotlinkPurchaseRequest"
+      responses:
+        "201":
+          description: "La venta registrada, **sin el vendedor**: a quien compra no\
+            \ se le enseña a quién se le acreditó (`RF-MV-002` §3.2)"
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/PurchaseResponse"
+        "401":
+          description: Sin autenticar (`AUTH-001`)
+        "403":
+          description: Autenticado sin `products:buy-by-hotlink` (`AUTH-002`)
+        "404":
+          description: "El enlace no resuelve (`EX-001`), sin distinguir cuál de los\
+            \ casos"
+        "422":
+          description: "Comprar por el **propio** enlace (`EX-003`), o cualquiera\
+            \ de los rechazos de negocio de una venta: nivel, moneda o método de pago"
+        "500":
+          description: Fallo no controlado (`ERR-500`)
+      x-required-permission: products:buy-by-hotlink
   /api/v1/exchange-rates:
     post:
       tags:
@@ -11468,6 +11544,15 @@ components:
         updatedAt:
           type: string
           format: date-time
+    HotlinkPurchaseRequest:
+      type: object
+      properties:
+        paymentMethodId:
+          type: string
+          format: uuid
+          description: "Método de pago. **Opcional**: sin él, la venta nace con el\
+            \ que el sistema resuelva por el país de quien compra (`RN-MV-019`), igual\
+            \ que en la compra de un paquete."
     RegisterExchangeRateRequest:
       type: object
       properties:
