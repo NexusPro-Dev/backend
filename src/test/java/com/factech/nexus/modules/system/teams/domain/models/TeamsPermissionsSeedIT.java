@@ -105,6 +105,6 @@ class TeamsPermissionsSeedIT extends IntegrationTestBase {
                 "SELECT count(*) FROM role_permissions WHERE role_id = CAST(? AS uuid)",
                 Integer.class,
                 ADMIN))
-        .isEqualTo(127);
+        .isEqualTo(131);
   }
 }

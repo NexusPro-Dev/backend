@@ -304,7 +304,7 @@ public abstract class IntegrationTestBase {
         """
         INSERT INTO memberships (id, code, name, description, parent_membership_id, level, color)
         VALUES ('01a04ad0-e800-7001-9c4f-5e7ad7000001', 'BECA', 'Free', 'Nivel de entrada.',
-                NULL, 1, '9E9E9E')
+                NULL, 1, '3DFFD5')
         ON CONFLICT (id) DO NOTHING
         """);
   }

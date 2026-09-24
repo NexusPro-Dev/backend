@@ -131,7 +131,7 @@ class DevelopmentSeedIT extends IntegrationTestBase {
           ('01a04ad0-e800-7002-9c4f-5e7ad7000002', 'VIP', 'VIP', 'Primer nivel de pago.',
            '01a04ad0-e800-7003-9c4f-5e7ad7000003', 3, '7E57C2'),
           ('01a04ad0-e800-7001-9c4f-5e7ad7000001', 'BECA', 'Free', 'Nivel de entrada.',
-           '01a04ad0-e800-7002-9c4f-5e7ad7000002', 4, '9E9E9E')
+           '01a04ad0-e800-7002-9c4f-5e7ad7000002', 4, '3DFFD5')
         ON CONFLICT (id) DO NOTHING
         """);
   }

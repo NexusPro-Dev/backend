@@ -501,7 +501,7 @@ class OwnCredentialsIT extends IntegrationTestBase {
         .andExpect(jsonPath("$.membership.name").value("Free"))
         .andExpect(jsonPath("$.membership.level").value(1))
         // `RN-SP-024`: seis hexadecimales sin `#`.
-        .andExpect(jsonPath("$.membership.color").value("9E9E9E"))
+        .andExpect(jsonPath("$.membership.color").value("3DFFD5"))
         .andExpect(
             jsonPath("$.membership.color")
                 .value(org.hamcrest.Matchers.matchesPattern("^[0-9A-F]{6}$")));
