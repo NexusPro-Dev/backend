@@ -5243,7 +5243,16 @@
             "description" : "Teléfono de EMPRESA del vendedor, el canal por el que la empresa quiere que se le contacte. **Presente y nulo** cuando no lo declaró: ausente y nulo significarían lo mismo y uno de los dos sobra. El teléfono personal no se publica aquí.",
             "type" : "string"
           },
+          "email" : {
+            "description" : "Correo del vendedor. **Desde el 24-09-2026**, y se publica también en `/users/me/sellers`: para quien compra es un canal de contacto comercial más, como el teléfono de empresa.",
+            "type" : "string"
+          },
           "firstName" : {
+            "type" : "string"
+          },
+          "id" : {
+            "description" : "Identificador del vendedor. **Desde el 24-09-2026**, y es el que `POST /movements/{id}/seller-assignments` (`RF-MV-016`) recibe como `sellerId`: los vendedores de una venta se eligen entre los del cliente, y esta lista es ese conjunto.",
+            "format" : "uuid",
             "type" : "string"
           },
           "lastName" : {
