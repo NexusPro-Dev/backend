@@ -4,7 +4,6 @@ import com.factech.nexus.modules.system.brokers.application.BrokerAccountsRespon
 import com.factech.nexus.modules.system.brokers.application.TeamBrokerAccountItem;
 import com.factech.nexus.modules.system.brokers.domain.service.GetBrokerAccountsService;
 import com.factech.nexus.modules.system.brokers.domain.service.GetTeamBrokerAccountsService;
-import com.factech.nexus.modules.system.users.application.AssignMembershipRequest;
 import com.factech.nexus.modules.system.users.application.AssignRolesRequest;
 import com.factech.nexus.modules.system.users.application.AssignSupervisorRequest;
 import com.factech.nexus.modules.system.users.application.ChangeUserStatusRequest;
@@ -21,11 +20,9 @@ import com.factech.nexus.modules.system.users.application.UpdateOwnProfileReques
 import com.factech.nexus.modules.system.users.application.UpdateUserRequest;
 import com.factech.nexus.modules.system.users.application.UserDetailResponse;
 import com.factech.nexus.modules.system.users.application.UserListItem;
-import com.factech.nexus.modules.system.users.application.UserMembershipResponse;
 import com.factech.nexus.modules.system.users.application.UserResponse;
 import com.factech.nexus.modules.system.users.application.UserStatusResponse;
 import com.factech.nexus.modules.system.users.domain.service.AssignSupervisorService;
-import com.factech.nexus.modules.system.users.domain.service.AssignUserMembershipService;
 import com.factech.nexus.modules.system.users.domain.service.AssignUserRolesService;
 import com.factech.nexus.modules.system.users.domain.service.ChangeUserStatusService;
 import com.factech.nexus.modules.system.users.domain.service.DeleteUserService;
@@ -37,7 +34,6 @@ import com.factech.nexus.modules.system.users.domain.service.GetUserService;
 import com.factech.nexus.modules.system.users.domain.service.ListUsersService;
 import com.factech.nexus.modules.system.users.domain.service.RegisterUserService;
 import com.factech.nexus.modules.system.users.domain.service.ResetUserPasswordService;
-import com.factech.nexus.modules.system.users.domain.service.RevokeUserMembershipService;
 import com.factech.nexus.modules.system.users.domain.service.RevokeUserRolesService;
 import com.factech.nexus.modules.system.users.domain.service.UpdateOwnProfileService;
 import com.factech.nexus.modules.system.users.domain.service.UpdateUserService;
@@ -56,13 +52,11 @@ import java.util.UUID;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
-import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.ModelAttribute;
 import org.springframework.web.bind.annotation.PatchMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
-import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
@@ -85,8 +79,6 @@ public class UserController {
   private final RegisterUserService alta;
   private final AssignUserRolesService asignacion;
   private final RevokeUserRolesService retiro;
-  private final AssignUserMembershipService membresia;
-  private final RevokeUserMembershipService retiroDeMembresia;
   private final AssignSupervisorService superior;
   private final GetCommercialTeamService equipoACargo;
   private final ListUsersService listado;
@@ -111,8 +103,6 @@ public class UserController {
       RegisterUserService alta,
       AssignUserRolesService asignacion,
       RevokeUserRolesService retiro,
-      AssignUserMembershipService membresia,
-      RevokeUserMembershipService retiroDeMembresia,
       AssignSupervisorService superior,
       GetCommercialTeamService equipoACargo,
       ListUsersService listado,
@@ -134,8 +124,6 @@ public class UserController {
     this.alta = alta;
     this.asignacion = asignacion;
     this.retiro = retiro;
-    this.membresia = membresia;
-    this.retiroDeMembresia = retiroDeMembresia;
     this.superior = superior;
     this.equipoACargo = equipoACargo;
     this.listado = listado;
@@ -1321,125 +1309,6 @@ public class UserController {
   public UserResponse retirarRoles(
       @PathVariable UUID id, @Valid @RequestBody RevokeRolesRequest peticion) {
     return retiro.revoke(id, peticion);
-  }
-
-  @PutMapping("/{id}/membership")
-  @PreAuthorize("hasAuthority('users:assign-membership')")
-  @Operation(
-      summary = "Fijar la membresía de una persona",
-      description =
-          """
-          **`PUT` y no `POST`**, al revés que la asignación de roles, y la
-          diferencia no es de gusto: aquí el cuerpo **sí** representa el estado
-          final. La persona tiene siempre exactamente una, de modo que enviar una
-          la deja como la única — y de ahí sale gratis la idempotencia.
-
-          `endsAt` es opcional. **Ausente significa indefinida**: enviarlo ausente
-          sobre una membresía que tenía fecha la convierte en indefinida, y es un
-          caso normal, no un olvido que haya que interpretar. Presente, la
-          membresía deja de estar vigente **al llegar** ese instante, no después.
-
-          Repetir la petición idéntica no escribe ni deja auditoría. Cambiar solo
-          la fecha sí es un cambio y sí se registra.
-
-          Devuelve `200` incluso la primera vez: `PUT` sobre una ruta fija no crea
-          un recurso direccionable nuevo.
-          """)
-  @ApiResponses({
-    @ApiResponse(
-        responseCode = "200",
-        description = "La membresía, con su nivel y su vigencia.",
-        content = @Content(schema = @Schema(implementation = UserMembershipResponse.class))),
-    @ApiResponse(
-        responseCode = "400",
-        description =
-            "Membresía ausente o malformada (`VAL-001`), o fecha de fin igual o anterior al momento"
-                + " de la asignación (`VAL-005`)",
-        content = @Content),
-    @ApiResponse(
-        responseCode = "401",
-        description = "Token ausente o inválido (`AUTH-001`)",
-        content = @Content),
-    @ApiResponse(
-        responseCode = "403",
-        description = "Autenticado sin `users:assign-membership` (`AUTH-002`)",
-        content = @Content),
-    @ApiResponse(
-        responseCode = "404",
-        description = "La persona no existe o está eliminada (`VAL-004`)",
-        content = @Content),
-    @ApiResponse(
-        responseCode = "422",
-        description = "La membresía indicada no existe en la cadena (`VAL-002`)",
-        content = @Content),
-    @ApiResponse(
-        responseCode = "500",
-        description = "Fallo no controlado (`ERR-500`)",
-        content = @Content)
-  })
-  public UserMembershipResponse fijarMembresia(
-      @PathVariable UUID id, @Valid @RequestBody AssignMembershipRequest peticion) {
-    return membresia.assign(id, peticion);
-  }
-
-  @DeleteMapping("/{id}/membership")
-  @PreAuthorize("hasAuthority('users:revoke-membership')")
-  @Operation(
-      summary = "Devolver la membresía de una persona al suelo",
-      description =
-          """
-          **Devuelve al nivel de arranque, y no deja a nadie sin nivel.** Desde el
-          05-09-2026 `RN-SP-018` exige que **toda** persona tenga membresía, de
-          modo que esta operación cierra la que tenga y le abre una `BECA`.
-
-          Existe para **corregir un nivel concedido por error**. Bajar a alguien a
-          un nivel intermedio es la operación de membresía, que admite indicar
-          cuál.
-
-          **Responde `200` con la membresía resultante**, no `204`: devolver un
-          cuerpo vacío diría que no queda nada, y queda el nivel de arranque —
-          quien llama necesita saber en qué quedó la persona sin volver a
-          preguntar.
-
-          **Es idempotente.** Aplicada sobre quien ya está en el suelo no escribe
-          ni audita, y devuelve lo mismo.
-
-          **Ya no rechaza a los consumidores.** Hasta el 05-09-2026 exigía que la
-          persona **no** portara ningún rol de consumidor, porque la regla de
-          entonces no admitía consumidores sin nivel; retirada `RN-SP-013`, esa
-          precondición no protege nada.
-
-          **Conserva el `DELETE`** y no le alcanza la enmienda del retiro de
-          roles: esta operación no lleva cuerpo, de modo que el problema que
-          aquella evitaba no existe aquí.
-          """)
-  @ApiResponses({
-    @ApiResponse(
-        responseCode = "200",
-        description = "La persona queda en el nivel de arranque, que se devuelve."),
-    @ApiResponse(
-        responseCode = "400",
-        description = "Identificador malformado (`VAL-001`)",
-        content = @Content),
-    @ApiResponse(
-        responseCode = "401",
-        description = "Token ausente o inválido (`AUTH-001`)",
-        content = @Content),
-    @ApiResponse(
-        responseCode = "403",
-        description = "Autenticado sin `users:revoke-membership` (`AUTH-002`)",
-        content = @Content),
-    @ApiResponse(
-        responseCode = "404",
-        description = "La persona no existe o está eliminada (`VAL-002`)",
-        content = @Content),
-    @ApiResponse(
-        responseCode = "500",
-        description = "Fallo no controlado (`ERR-500`)",
-        content = @Content)
-  })
-  public UserMembershipResponse devolverMembresiaAlSuelo(@PathVariable UUID id) {
-    return retiroDeMembresia.resetToFloor(id);
   }
 
   @PatchMapping("/{id}/supervisor")

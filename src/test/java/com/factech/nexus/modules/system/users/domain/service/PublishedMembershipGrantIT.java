@@ -27,7 +27,13 @@ class PublishedMembershipGrantIT extends IntegrationTestBase {
     assertThatThrownBy(
             () ->
                 concesion.grant(
-                    new GrantOrder(UUID.randomUUID(), UUID.randomUUID(), 30, OffsetDateTime.now())))
+                    new GrantOrder(
+                        UUID.randomUUID(),
+                        UUID.randomUUID(),
+                        UUID.randomUUID(),
+                        UUID.randomUUID(),
+                        30,
+                        OffsetDateTime.now())))
         .isInstanceOf(IllegalTransactionStateException.class);
   }
 }

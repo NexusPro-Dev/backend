@@ -507,7 +507,7 @@ class SaleLinesIT extends IntegrationTestBase {
     ProductLinkTestSupport.limpiar(jdbc);
     jdbc.update("DELETE FROM products WHERE code LIKE 'SL\\_%'");
     jdbc.update(
-        "DELETE FROM user_memberships WHERE user_id IN"
+        "DELETE FROM user_products WHERE user_id IN"
             + " (SELECT id FROM users WHERE username LIKE 'sl-%')");
     jdbc.update("DELETE FROM users WHERE username LIKE 'sl-%'");
   }

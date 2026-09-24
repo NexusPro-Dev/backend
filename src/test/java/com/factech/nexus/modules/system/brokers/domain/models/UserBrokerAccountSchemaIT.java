@@ -189,7 +189,7 @@ class UserBrokerAccountSchemaIT extends IntegrationTestBase {
     jdbc.update("DELETE FROM user_brokers");
     jdbc.update("DELETE FROM brokers");
     jdbc.update(
-        "DELETE FROM user_memberships WHERE user_id IN"
+        "DELETE FROM user_products WHERE user_id IN"
             + " (SELECT id FROM users WHERE username LIKE 'ub-%')");
     jdbc.update("DELETE FROM users WHERE username LIKE 'ub-%'");
   }

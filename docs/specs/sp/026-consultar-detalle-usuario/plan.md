@@ -12,6 +12,12 @@
 | Reabierto el | 07-09-2026 — `RN-SP-034`: la respuesta incorpora `country`, ver §4 (Art. I.7) |
 | Reabierto el | 08-09-2026 — `RN-SP-035` y `RN-SP-037`: la respuesta incorpora `document` y `contact`, ver §4 (Art. I.7) |
 
+!!! warning "Enmendado el 23-09-2026 — la tabla se llama `user_products`, y el cruce gana una condición"
+
+    Lo mismo que se enmienda en `RF-SP-025` y por lo mismo (`RN-SP-056`, [`requirements/sp.md`](../../../requirements/sp.md) v1.84.0): `user_memberships` es ahora **`user_products`** y guarda todo lo que la persona tiene. El `LEFT JOIN` de §4 necesita **`um.membership_id IS NOT NULL`** junto a `um.closed_at IS NULL`; sin esa condición el detalle de quien tiene un bot y una membresía traería dos filas donde la respuesta admite una.
+
+    **Lo que este plan decide no cambia en nada más.** La membresía sigue viniendo en la primera sentencia y no aparte, sigue siendo a lo sumo una, y el detalle **sigue sin exponer** qué productos tiene la persona: eso se pregunta en `RF-MV-014` y solo sobre uno mismo.
+
 !!! info "Qué va en este documento"
 
     **Cómo se construye.** Las decisiones técnicas que la especificación deliberadamente no toma.

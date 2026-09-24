@@ -32,7 +32,7 @@ class PermissionsSeedIT extends IntegrationTestBase {
           + " V36: movements:assign-sellers de RF-MV-016; V37: movements:list-sale-lines de RF-MV-017)")
   void catalogoCompleto() {
     assertThat(jdbc.queryForObject("SELECT count(*) FROM permissions", Integer.class))
-        .isEqualTo(135);
+        .isEqualTo(133);
   }
 
   @Test
@@ -65,9 +65,8 @@ class PermissionsSeedIT extends IntegrationTestBase {
             String.class);
 
     assertThat(acciones)
-        .hasSize(20)
+        .hasSize(18)
         .containsExactly(
-            "assign-membership",
             "assign-roles",
             "assign-supervisor",
             "change-own-password",
@@ -83,7 +82,6 @@ class PermissionsSeedIT extends IntegrationTestBase {
             "read-sellers",
             "read-team",
             "reset-password",
-            "revoke-membership",
             "revoke-roles",
             "update",
             "update-own-profile");
@@ -229,7 +227,6 @@ class PermissionsSeedIT extends IntegrationTestBase {
             "roles:assign-parent",
             "roles:assign-permissions",
             "roles:revoke-permissions",
-            "users:assign-membership",
             "users:assign-roles",
             "users:assign-supervisor",
             "users:create",
@@ -248,7 +245,6 @@ class PermissionsSeedIT extends IntegrationTestBase {
             "users:read-team",
             "users:update-own-profile",
             "users:revoke-roles",
-            "users:revoke-membership",
             // Los ocho de V34 (RF-SP-063 a RF-SP-070): el submodulo Equipos,
             // uno por operacion. A SUPERADMIN y ADMIN, y a ningun otro rol.
             "teams:list",
@@ -266,7 +262,7 @@ class PermissionsSeedIT extends IntegrationTestBase {
   void identificadoresUuidV7() {
     List<UUID> ids = jdbc.queryForList("SELECT id FROM permissions", UUID.class);
 
-    assertThat(ids).hasSize(135).doesNotHaveDuplicates();
+    assertThat(ids).hasSize(133).doesNotHaveDuplicates();
     assertThat(ids).allSatisfy(id -> assertThat(id.version()).isEqualTo(7));
     // variant() == 2 es la variante RFC 9562 (bits 10xx).
     assertThat(ids).allSatisfy(id -> assertThat(id.variant()).isEqualTo(2));
@@ -332,13 +328,13 @@ class PermissionsSeedIT extends IntegrationTestBase {
                 "SELECT count(*) FROM role_permissions WHERE role_id ="
                     + " '01a02a33-4c00-7001-9c4f-5e7ad1000001'",
                 Integer.class))
-        .isEqualTo(135);
+        .isEqualTo(133);
     assertThat(
             jdbc.queryForObject(
                 "SELECT count(*) FROM role_permissions WHERE role_id ="
                     + " '01a02a33-4c00-7002-9c4f-5e7ad1000002'",
                 Integer.class))
-        .isEqualTo(129);
+        .isEqualTo(127);
     assertThat(
             jdbc.queryForList(
                 """
@@ -438,7 +434,6 @@ class PermissionsSeedIT extends IntegrationTestBase {
             Map.entry(
                 "users:assign-roles",
                 "Asignar y retirar roles de un usuario, dentro de la cota de privilegios del propio actor."),
-            Map.entry("users:assign-membership", "Asignar y retirar la membresía de un usuario."),
             Map.entry(
                 "broker-accounts:read",
                 "Consultar las cuentas de broker de cualquier persona (RF-SP-055). Sin él, cada quien ve solo las de su equipo directo (RN-SP-046)."),

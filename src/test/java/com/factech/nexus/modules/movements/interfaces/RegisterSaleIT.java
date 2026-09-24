@@ -283,7 +283,7 @@ class RegisterSaleIT extends IntegrationTestBase {
     // falla si alguien la borra.
     UUID nivel =
         jdbc.queryForObject(
-            "SELECT membership_id FROM user_memberships WHERE user_id = CAST(? AS uuid)",
+            "SELECT membership_id FROM user_products WHERE user_id = CAST(? AS uuid)",
             UUID.class,
             cliente.toString());
 
@@ -586,7 +586,7 @@ class RegisterSaleIT extends IntegrationTestBase {
     jdbc.update(
         "DELETE FROM user_supervisors WHERE user_id IN"
             + " (SELECT id FROM users WHERE username LIKE 'venta-%')");
-    jdbc.update("DELETE FROM user_memberships");
+    jdbc.update("DELETE FROM user_products");
     jdbc.update("DELETE FROM users WHERE username LIKE 'venta-%'");
     jdbc.update("DELETE FROM memberships");
     jdbc.update("DELETE FROM payment_methods WHERE code LIKE 'VTA\\_%'");
@@ -693,12 +693,12 @@ class RegisterSaleIT extends IntegrationTestBase {
   }
 
   private void asignarMembresia(UUID persona, UUID membresia) {
-    // CON `id` DESDE `V56`: `user_memberships` es un historial y `user_id` ya no
+    // CON `id` DESDE `V56`: `user_products` es un historial y `user_id` ya no
     // es la clave primaria. El fixture abre la fila y nunca cierra ninguna, que
     // es todo lo que estas pruebas necesitan; `gen_random_uuid()` basta porque
     // aquí el identificador no ordena nada.
     jdbc.update(
-        "INSERT INTO user_memberships (id, user_id, membership_id, started_at, ends_at)"
+        "INSERT INTO user_products (id, user_id, membership_id, started_at, ends_at)"
             + " VALUES (gen_random_uuid(), CAST(? AS uuid), CAST(? AS uuid), ?, NULL)",
         persona.toString(),
         membresia.toString(),

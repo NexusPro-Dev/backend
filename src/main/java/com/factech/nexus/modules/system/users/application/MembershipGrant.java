@@ -1,6 +1,7 @@
 package com.factech.nexus.modules.system.users.application;
 
 import java.time.OffsetDateTime;
+import java.util.Optional;
 import java.util.UUID;
 
 /**
@@ -11,7 +12,13 @@ import java.util.UUID;
  * `RN-MV-020`), y hace lo que `RF-SP-032` hace a mano y con las mismas reglas: <b>cierra la
  * membresía vigente e inserta la comprada</b> (`RN-SP-014`), con la vigencia contada desde el
  * instante que la orden indica, deja el suelo intacto (`RN-SP-018`) y escribe su asiento en {@code
- * audit_change_log} como {@code user_memberships}.
+ * audit_change_log} como {@code user_products}.
+ *
+ * <p><b>Desde el 23-09-2026 la invoca CADA linea entregada y no solo las de upgrade</b>
+ * (`RN-MV-036`, `RN-SP-056`): lo que escribe es una <b>posesion</b> —que producto, de que linea,
+ * hasta cuando— y el nivel es lo que ademas hace cuando lo poseido lo concede. El nombre de la
+ * interfaz se conserva a proposito, aunque se haya quedado corto: lo pide `RF-MV-003` y esta citado
+ * en tripletas aprobadas.
  *
  * <p><b>Lo que NO hace es decidir si conceder.</b> Que el producto sea automático, que la venta se
  * haya confirmado y que el nivel no baje (`RN-MV-029`) son reglas de `MV` y se deciden <b>antes</b>
@@ -32,20 +39,36 @@ import java.util.UUID;
 public interface MembershipGrant {
 
   /**
+   * @return lo que quedó vigente, o <b>vacío cuando lo entregado no concede nivel</b> — un bot deja
+   *     su posesión escrita y no toca el nivel de nadie
    * @throws IllegalArgumentException si la persona no existe o está eliminada, o la membresía no
    *     existe. Sube como fallo del sistema y deshace la transacción del que llama
    * @throws IllegalStateException si no hay transacción activa: la operación no abre una
    */
-  GrantedMembership grant(GrantOrder order);
+  Optional<GrantedMembership> grant(GrantOrder order);
 
   /**
-   * La orden, plana: quién, qué, por cuántos días y desde cuándo.
+   * La orden, plana: quién, qué, de qué línea, por cuántos días y desde cuándo.
    *
+   * <p><b>Ampliada el 23-09-2026</b> (`RN-SP-056`, `RN-MV-036`): hasta ese día la orden solo sabía
+   * de membresías, y la línea de un bot entregado no dejaba constancia de posesión en ninguna
+   * parte. Sigue sin cruzar ninguna entidad: quién, qué, cuál y desde cuándo.
+   *
+   * @param productId el producto entregado; es lo que se posee
+   * @param membershipId el nivel que concede, o <b>nulo si no concede ninguno</b>
+   * @param movementDetailId la línea que lo entregó. Va <b>única</b> en el esquema, y es lo que
+   *     hace la entrega idempotente sin que el que llama tenga que comprobar nada
    * @param validityDays nulo significa <b>no caduca</b> (`RN-PM-015`)
    * @param at el instante desde el que corre la vigencia — el de la confirmación, no el de la venta
    *     (`requirements/mv.md` §5.4, decisión 1)
    */
-  record GrantOrder(UUID userId, UUID membershipId, Integer validityDays, OffsetDateTime at) {}
+  record GrantOrder(
+      UUID userId,
+      UUID productId,
+      UUID membershipId,
+      UUID movementDetailId,
+      Integer validityDays,
+      OffsetDateTime at) {}
 
   /** Lo que quedó vigente, plano: sin entidad y sin con qué escribir. */
   record GrantedMembership(

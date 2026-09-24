@@ -35,7 +35,7 @@ import org.springframework.transaction.annotation.Transactional;
 public class PublishedMembershipGrant implements MembershipGrant {
 
   private static final String MODULO = "SP";
-  private static final String ENTIDAD = "user_memberships";
+  private static final String ENTIDAD = "user_products";
 
   private final UserRepository usuarios;
   private final MembershipCatalog membresias;
@@ -55,7 +55,7 @@ public class PublishedMembershipGrant implements MembershipGrant {
 
   @Override
   @Transactional(propagation = Propagation.MANDATORY)
-  public GrantedMembership grant(GrantOrder orden) {
+  public Optional<GrantedMembership> grant(GrantOrder orden) {
     // LANZA, no devuelve vacío (§15.2.1, regla 3): que la persona no exista no
     // puede ocurrir desde una venta registrada, y si ocurre tiene que deshacer
     // la confirmación entera, no producir un 4xx.
@@ -67,30 +67,79 @@ public class PublishedMembershipGrant implements MembershipGrant {
                     new IllegalArgumentException(
                         "No se puede conceder una membresía a una persona que no existe: "
                             + orden.userId()));
+    // NULA CUANDO LO ENTREGADO NO CONCEDE NIVEL, y es el caso corriente desde el
+    // 23-09-2026: un bot se posee y no sube a nadie (`RN-MV-036`). Lo que no se
+    // admite es una membresía que se pide y no existe.
     MembershipCatalog.MembershipRef membresia =
-        membresias
-            .find(orden.membershipId())
-            .orElseThrow(
-                () ->
-                    new IllegalArgumentException(
-                        "No existe la membresía que se quiere conceder: " + orden.membershipId()));
+        orden.membershipId() == null
+            ? null
+            : membresias
+                .find(orden.membershipId())
+                .orElseThrow(
+                    () ->
+                        new IllegalArgumentException(
+                            "No existe la membresía que se quiere conceder: "
+                                + orden.membershipId()));
 
     OffsetDateTime desde = orden.at();
     OffsetDateTime hasta =
         orden.validityDays() == null ? null : desde.plusDays(orden.validityDays());
 
-    Optional<UserMembership> anterior = usuarios.findMembership(usuario.getId());
+    // Se lee ANTES de escribir, y solo importa si esta concesión toca el nivel:
+    // es el «antes» del asiento.
+    Optional<UserMembership> anterior =
+        membresia == null ? Optional.empty() : usuarios.findMembership(usuario.getId());
 
     // SIEMPRE cierra e inserta, también con la misma membresía: una compra es un
     // periodo nuevo pagado, y el historial tiene que decir cuántas veces se pagó.
     // Los días que quedaban del anterior no se suman ni se descuentan
     // (`requirements/mv.md` §5.4, decisión 2); `closed_at` deja constancia.
-    usuarios.assignMembership(ids.next(), usuario.getId(), membresia.id(), hasta, desde);
+    //
+    // QUIEN DECIDE SI SE CIERRA ALGO ES LA PROPIA CONCESIÓN, no este servicio:
+    // `grantProduct` cierra la membresía abierta solo si la que entra concede
+    // nivel, de modo que entregar un bot no le quita a nadie lo que tenía.
+    usuarios.grantProduct(
+        new UserRepository.ProductGrant(
+            ids.next(),
+            usuario.getId(),
+            orden.productId(),
+            membresia == null ? null : membresia.id(),
+            orden.movementDetailId(),
+            orden.validityDays(),
+            desde,
+            hasta));
+
+    if (membresia == null) {
+      auditarPosesion(usuario, orden, hasta);
+      return Optional.empty();
+    }
 
     auditar(usuario, anterior.orElse(null), membresia, hasta);
 
-    return new GrantedMembership(
-        membresia.id(), membresia.code(), membresia.name(), membresia.level(), desde, hasta);
+    return Optional.of(
+        new GrantedMembership(
+            membresia.id(), membresia.code(), membresia.name(), membresia.level(), desde, hasta));
+  }
+
+  /**
+   * El asiento de lo que se posee <b>sin conceder nivel</b>.
+   *
+   * <p>Va aparte del de abajo y no es una rama de aquel: aquel describe un <b>cambio de nivel</b> —
+   * con su antes y su después— y este describe que alguien <b>pasó a tener algo</b>, que no tiene
+   * antes. Meterlos en el mismo asiento obligaría a escribir un «before» nulo que significaría dos
+   * cosas distintas: «no tenía nivel» y «esto no es de nivel».
+   */
+  private void auditarPosesion(User usuario, GrantOrder orden, OffsetDateTime hasta) {
+    Map<String, Object> cambios = new HashMap<>();
+    cambios.put("before", null);
+    Map<String, Object> despues = new HashMap<>();
+    despues.put("product_id", String.valueOf(orden.productId()));
+    despues.put("ends_at", String.valueOf(hasta));
+    cambios.put("after", despues);
+    cambios.put("reason", "PURCHASE");
+
+    auditoria.recordChange(
+        new ChangeEvent(MODULO, ENTIDAD, usuario.getId(), ChangeAction.CREATE, cambios));
   }
 
   /** El mismo asiento que `RF-SP-032`: el nivel y la fecha, antes y después. */

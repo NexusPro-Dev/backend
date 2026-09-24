@@ -187,7 +187,7 @@ class AssignUserRolesOrderTest {
           .isInstanceOf(BusinessRuleException.class);
 
       verify(usuarios, never()).addRoles(any(), anySet());
-      verify(usuarios, never()).assignMembership(any(), any(), any(), any(), any());
+      verify(usuarios, never()).grantProduct(any());
       verify(usuarios, never()).assignSupervisor(any(), any(), any(), any());
     }
   }

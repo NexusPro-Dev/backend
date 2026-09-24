@@ -4,13 +4,22 @@
 |---|---|
 | Requerimiento | `RF-SP-033` |
 | Módulo | `SP` — Sistema Principal |
-| Estado | **Aprobada** |
+| Estado | **Descartada el 23-09-2026** — nadie retira el nivel a mano (`RN-SP-056`) |
 | Autor | Responsable técnico |
 | Aprobada por | Responsable técnico |
 | Fecha de aprobación | 21-08-2026 |
 
 ---
 
+!!! danger "DESCARTADO el 23-09-2026 — si nadie fija el nivel a mano, nadie lo retira a mano"
+
+    Por decisión del responsable del proyecto (`RN-SP-056`, [`requirements/sp.md`](../../../requirements/sp.md) v1.84.0): `user_memberships` pasa a ser **`user_products`** —lo que cada persona **tiene**, y no solo qué nivel tiene—, y con la tabla abierta a los productos el nivel deja de fijarse a mano. **Se concede al comprarlo** (`RF-MV-003`, `RN-MV-020`) o al registrarse, donde nace el suelo de `RN-SP-018`.
+
+    **Se descarta con `RF-SP-032` y por lo mismo.** Esta operación era la mitad correctiva de aquella: existía para deshacer una asignación manual, y sin asignación manual no hay nada que deshacer. `DELETE /api/v1/users/{id}/membership` y `users:revoke-membership` salen del contrato.
+
+    **Y con ella se va la única vuelta al suelo, que es la consecuencia que hay que leer entera.** Lo que este documento decidió —cerrar la vigente y abrir una `BECA`, para no dejar a nadie sin nivel (`RN-SP-018`)— **ya no lo hace nadie**. El suelo se concede una sola vez, al registrarse; a partir de ahí, la membresía que vence **sigue abierta y deja de conceder** hasta que se compre otra, que es lo que `RN-SP-014` ya decía y ahora es el único final posible. Bajar de nivel a alguien deja de ser algo que el sistema sepa hacer, y es deliberado.
+
+    **El número queda consumido y no se reutiliza** (`requirements.md` §2). El documento se conserva como historia y no se borra: está citado desde otras tripletas aprobadas, y borrarlo dejaría referencias colgando.
 !!! note "Enmienda de Art. I.7 — 19-09-2026, `RF-SP-060`"
 
     Esta operación exige **`users:revoke-membership`** y no `users:assign-membership` desde el 19-09-2026, por `RF-SP-060` —**un permiso por operación**, `RN-SEG-014` ([`security.md` §4.4](../../../security.md#44-catalogo-de-permisos))—: `users:assign-membership` gobernaba varias operaciones y se queda con una; esta recibe código propio, sembrado por `V28` y dado a todo rol que portara `users:assign-membership`. Las menciones de `users:assign-membership` que siguen abajo hablan de su siembra original y se conservan como historia.
