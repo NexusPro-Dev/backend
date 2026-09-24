@@ -7,6 +7,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 import com.factech.nexus.IntegrationTestBase;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import java.time.OffsetDateTime;
 import java.time.ZoneOffset;
 import java.util.Map;
@@ -169,7 +170,7 @@ class BuyByHotlinkIT extends IntegrationTestBase {
 
     // IDENTICOS SALVO LA MARCA DE TIEMPO: distinguirlos convertiria la ruta en un
     // oraculo para averiguar quien trabaja aqui y con que nombre de usuario.
-    assertThat(sinInstante(porElVendedor)).isEqualTo(sinInstante(porElProducto));
+    assertThat(loQueDiscrimina(porElVendedor)).isEqualTo(loQueDiscrimina(porElProducto));
   }
 
   @Test
@@ -201,13 +202,35 @@ class BuyByHotlinkIT extends IntegrationTestBase {
 
   // ---------------------------------------------------------------- lecturas
 
-  private static UUID idDe(String cuerpo) {
-    return UUID.fromString(cuerpo.replaceAll(".*\"id\"\\s*:\\s*\"([0-9a-f-]{36})\".*", "$1"));
+  /**
+   * El identificador de la venta, leído del JSON y no con una expresión regular.
+   *
+   * <p>La que había aquí empezaba con {@code .*} <b>codicioso</b>, de modo que se quedaba con el
+   * ÚLTIMO {@code "id"} del cuerpo —el de una línea, o el de la moneda— en lugar del de la venta.
+   * No fallaba al compilar ni se veía al leerla: fallaba al consultar, con un «cero filas» que
+   * parecía un problema del código de producción.
+   */
+  private static UUID idDe(String cuerpo) throws Exception {
+    return UUID.fromString(new ObjectMapper().readTree(cuerpo).get("id").asText());
   }
 
-  /** El cuerpo del error sin su marca de tiempo, que es lo único que puede diferir. */
-  private static String sinInstante(String cuerpo) {
-    return cuerpo.replaceAll("\"timestamp\"\\s*:\\s*\"[^\"]*\"", "\"timestamp\":\"\"");
+  /**
+   * El cuerpo del error sin los tres campos que pueden diferir <b>sin decir nada</b>.
+   *
+   * <p>{@code timestamp} y {@code correlationId} son distintos en cada petición por definición, y
+   * {@code instance} es la ruta que se llamó — quien llama ya la conoce. Ninguno de los tres revela
+   * si falló el vendedor o el producto.
+   *
+   * <p>Lo que <b>no</b> puede diferir es el resto —{@code type}, {@code title}, {@code status} y
+   * {@code detail}—, que es donde se vería cuál de los casos ocurrió. Comparar el cuerpo entero
+   * habría sido más estricto y <b>no más seguro</b>: solo habría hecho fallar la prueba por tres
+   * campos que el diseño ya sabe que cambian.
+   */
+  private static String loQueDiscrimina(String cuerpo) {
+    return cuerpo
+        .replaceAll("\"timestamp\"\\s*:\\s*\"[^\"]*\"", "")
+        .replaceAll("\"instance\"\\s*:\\s*\"[^\"]*\"", "")
+        .replaceAll("\"correlationId\"\\s*:\\s*\"[^\"]*\"", "");
   }
 
   private UUID vendedorDeLaLinea(UUID venta) {
@@ -318,13 +341,21 @@ class BuyByHotlinkIT extends IntegrationTestBase {
   }
 
   private void limpiar() {
-    // EL ORDEN IMPORTA: los detalles apuntan a productos y a personas.
-    jdbc.update("DELETE FROM movement_details");
-    jdbc.update("DELETE FROM movements");
+    // LOS VINCULOS VAN PRIMERO, y es justo lo que este requerimiento crea:
+    // `client_sellers.first_movement_id` apunta a `movements`, de modo que borrar
+    // los movimientos antes falla — y el fallo no se queda aqui. Los movimientos
+    // sobreviven, y TODA suite posterior que borre usuarios revienta contra
+    // `fk_movements_user`, con un error que no nombra a esta clase. Costo 420
+    // errores en la primera corrida verde de RF-MV-011.
+    //
+    // Es la misma leccion que `product_links` y `user_products` ya dejaron
+    // escritas, y el mismo orden: lo que apunta, antes que lo apuntado.
     jdbc.update(
         "DELETE FROM client_sellers WHERE client_id IN"
             + " (SELECT id FROM users WHERE username LIKE 'bh-%')"
             + " OR seller_id IN (SELECT id FROM users WHERE username LIKE 'bh-%')");
+    jdbc.update("DELETE FROM movement_details");
+    jdbc.update("DELETE FROM movements");
     jdbc.update("DELETE FROM products WHERE code LIKE 'BH\\_%'");
     jdbc.update(
         "DELETE FROM user_roles WHERE user_id IN (SELECT id FROM users WHERE username LIKE 'bh-%')");
