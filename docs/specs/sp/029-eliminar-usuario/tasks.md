@@ -12,6 +12,14 @@
 | Rama | `feature/ciclo-de-vida-de-usuario` |
 | Aprobadas por | Responsable técnico, 24-08-2026 |
 
+!!! warning "Enmendado el 23-09-2026 — el cierre alcanza a todo lo que la persona tiene"
+
+    `plan.md`, enmienda del 23-09-2026. Una tarea nueva:
+
+    | ID | Tarea | Depende de | Verificación | Estado |
+    |---|---|---|---|---|
+    | `T-17` | `DeleteUserService` cierra **todas** las filas abiertas de `user_products` y no solo la del nivel, con la misma marca de tiempo que la eliminación | `T-69` de `RF-SP-024` | `CA-SP-801`: eliminar a quien tiene un bot y una membresía deja **las dos** filas cerradas, con `closed_at` **igual** a `deleted_at`, y **ninguna** borrada | **Pendiente** |
+
 !!! info "Qué va en este documento"
 
     **En qué pasos, en qué orden y cómo se verifica cada uno.**

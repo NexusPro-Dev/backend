@@ -105,7 +105,7 @@ Sin cuerpo y sin parámetros de consulta. No hay `?include=…` ni forma de pedi
 - **`parentMembership` es `null` en la superior de la cadena y `childMembership` es `null` en la inferior** (`FA-001`, `FA-002`, `CA-SP-126`, `CA-SP-127`). Se devuelven como `null` sin omitirse: un campo ausente es indistinguible de uno que el cliente no conoce. En la única membresía del sistema ambos son nulos a la vez, y es válido (`spec.md` §13).
 - **`level` está en la membresía y en cada vecino**, y es lo que permite leer la posición sin comparar identificadores. Significa distancia hasta la cima: `1` es la superior (`RF-SP-016` §2). En una cadena bien formada, `parentMembership.level` es siempre `level - 1` y `childMembership.level` siempre `level + 1`; devolverlos igualmente es lo que hace la incoherencia visible en lugar de invisible.
 - **No se devuelven `createdAt` ni `updatedAt`.** `spec.md` §6.2 no los pide, y `updatedAt` diría algo confuso: cambia cuando **otra** membresía se insertó por encima, no cuando esta cambió. Es la misma decisión que en `RF-SP-015` §4 y `RF-SP-017` §4, y por un motivo emparentado: en una entidad inmutable, las marcas temporales cuentan efectos secundarios, no acciones.
-- **No se devuelven las personas que tienen la membresía** (`spec.md` §4.2). No hay `JOIN` a `user_memberships` ni subconsulta correlacionada en la sentencia, que es lo único que lo hace verificable (§11). Se responde con `RF-SP-025`, filtrando por membresía.
+- **No se devuelven las personas que tienen la membresía** (`spec.md` §4.2). No hay `JOIN` a `user_products` (`user_memberships` hasta el 23-09-2026) ni subconsulta correlacionada en la sentencia, que es lo único que lo hace verificable (§11). Se responde con `RF-SP-025`, filtrando por membresía.
 - **`description` puede venir vacía** y se devuelve como `null`, nunca omitida.
 
 **Errores**
@@ -234,7 +234,7 @@ Casos límite de `spec.md` §13 y decisiones de este plan que exigen prueba prop
 | Dependencia de la restricción | Integración | Una consulta sobre `pg_constraint` comprueba que `uq_memberships_parent` **existe y conserva `NULLS NOT DISTINCT`**, y falla si desaparece o se relaja. Es lo que sostiene que el contrato prometa un objeto y no una lista, y se verifica como guarda permanente —igual que la ausencia de cascadas de `RF-SP-012` §11— y no deshabilitando la restricción para observar el sistema roto |
 | Coherencia con el listado | Integración | Los vecinos que expande este detalle coinciden con los identificadores que `RF-SP-017` devuelve para esa misma membresía |
 | Ausencia de marcas temporales y de conteos | API | El cuerpo no contiene `createdAt`, `updatedAt` ni ningún conteo de personas |
-| Número de sentencias por petición | Integración | **Una**, y **ninguna sobre `user_memberships`**. Es lo que hace verificable que el detalle no cuenta personas |
+| Número de sentencias por petición | Integración | **Una**, y **ninguna sobre `user_products`** —`user_memberships` hasta el 23-09-2026—. Es lo que hace verificable que el detalle no cuenta personas |
 | Ausencia de edición y eliminación | API | `PUT`, `PATCH` y `DELETE` sobre `/api/v1/memberships/{id}` devuelven `405`. Junto con la prueba equivalente de `RF-SP-016`, es la única forma de verificar `RN-SP-008` |
 
 Las reglas de ArchUnit introducidas en `RF-SP-001` y `RF-SP-003` cubren también este requerimiento. No se añade ninguna nueva: no toca `domain` y no introduce dependencias entre módulos.

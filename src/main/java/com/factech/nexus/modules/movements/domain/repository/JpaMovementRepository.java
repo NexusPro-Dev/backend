@@ -784,7 +784,7 @@ public class JpaMovementRepository implements MovementRepository {
     List<Tuple> filas =
         em.createNativeQuery(
                 """
-                SELECT d.id AS linea_id, p.code AS p_code, d.implementation AS impl,
+                SELECT d.id AS linea_id, d.product_id AS p_id, p.code AS p_code, d.implementation AS impl,
                        p.type AS p_type, p.target_membership_id AS m_id,
                        m.code AS m_code, m.level AS m_level,
                        d.validity_days AS vigencia
@@ -804,6 +804,7 @@ public class JpaMovementRepository implements MovementRepository {
       resultado.add(
           new DeliveryLineRow(
               (UUID) fila.get("linea_id"),
+              (UUID) fila.get("p_id"),
               (String) fila.get("p_code"),
               (String) fila.get("impl"),
               "UPGRADE_MEMBRESIA".equals(fila.get("p_type")),
@@ -885,9 +886,16 @@ public class JpaMovementRepository implements MovementRepository {
       FROM movement_details d
       JOIN movements m ON m.id = d.movement_id
       JOIN products p ON p.id = d.product_id
+      -- La POSESION, si la linea llego a producirla (RN-MV-036). LEFT y no JOIN
+      -- por dos motivos: lo que no se entrego no tiene fila —y sigue teniendo
+      -- estado, el suyo, que sale de la linea—, y una linea entregada ANTES de
+      -- V38 tampoco la tiene, y se resuelve como ACTIVO sin vencimiento.
+      LEFT JOIN user_products up ON up.movement_detail_id = d.id
       CROSS JOIN LATERAL (
-        SELECT CASE WHEN d.delivered_at IS NULL OR d.validity_days IS NULL THEN NULL
-                    ELSE d.delivered_at + make_interval(days => d.validity_days) END AS hasta
+        -- YA NO SE CALCULA, SE LEE. Hasta el 23-09-2026 esto era
+        -- delivered_at + validity_days, y editar el catalogo despues le movia
+        -- el vencimiento a quien ya lo tenia.
+        SELECT up.ends_at AS hasta
       ) v
       CROSS JOIN LATERAL (
         SELECT CASE
@@ -896,6 +904,9 @@ public class JpaMovementRepository implements MovementRepository {
                  WHEN m.status = 'ANULADA'            THEN 'ANULADO'
                  WHEN d.delivery_status = 'RETENIDA'  THEN 'RETENIDO'
                  WHEN d.delivery_status = 'PENDIENTE' THEN 'PENDIENTE_AUTORIZACION'
+                 -- ANTES que el vencimiento, y el orden es la decision: quien dejo
+                 -- de tenerlo el dia doce no «vencio» el treinta.
+                 WHEN up.closed_at IS NOT NULL        THEN 'CANCELADO'
                  WHEN v.hasta IS NOT NULL AND v.hasta <= CAST(:ahora AS timestamptz)
                                                       THEN 'VENCIDO'
                  ELSE                                      'ACTIVO'

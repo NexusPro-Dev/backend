@@ -553,13 +553,13 @@ class HotlinkIT extends IntegrationTestBase {
     jdbc.update(
         "DELETE FROM user_roles WHERE user_id IN"
             + " (SELECT id FROM users WHERE username LIKE 'hl-%')");
-    // Antes que las membresías: `user_memberships` las referencia, y `V57` da
+    // Antes que las membresías: `user_products` las referencia, y `V57` da
     // una a toda persona.
     jdbc.update(
-        "DELETE FROM user_memberships WHERE user_id IN"
+        "DELETE FROM user_products WHERE user_id IN"
             + " (SELECT id FROM users WHERE username LIKE 'hl-%')");
     jdbc.update("DELETE FROM users WHERE username LIKE 'hl-%'");
-    jdbc.update("DELETE FROM user_memberships");
+    jdbc.update("DELETE FROM user_products");
     jdbc.update("DELETE FROM memberships");
     jdbc.update("DELETE FROM currencies WHERE is_default = false");
   }

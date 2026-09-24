@@ -115,9 +115,28 @@ BEGIN
 END
 $guarda$;
 
+-- IDENTIDAD DOCUMENTAL Y CONTACTO, desde el 23-09-2026 y por decisión del
+-- responsable del proyecto. Hasta entonces el superadministrador nacía sin
+-- documento y sin teléfono: las columnas admiten nulo (`V4`), de modo que la
+-- fila era válida, y `DevelopmentSeedIT.documento` afirmaba justamente eso.
+--
+-- `ck_users_document_pair` exige LAS DOS o NINGUNA, y por eso el tipo y el
+-- número entran juntos. El número va en mayúsculas y sin espacios porque
+-- `ck_users_document_number_normalized` compara contra `upper(btrim(...))`, y el
+-- teléfono sin prefijo internacional porque `ck_users_phone_format` lo admite
+-- opcional —de siete a quince dígitos—.
+--
+-- SE EDITA `V9` EN EL SITIO Y NO SE AÑADE UNA MIGRACIÓN DE DATOS, por decisión
+-- del responsable del proyecto el 23-09-2026: la alternativa deja el dato
+-- dividido en dos sitios para siempre —quién nace y quién se corrige— cuando lo
+-- que se quiere es que el superadministrador NAZCA así. El coste está a la
+-- vista y es real: **toda base ya migrada falla la validación de suma de
+-- comprobación de Flyway** hasta que se recree. Se aceptó porque la base se
+-- reinicia, y CI levanta una nueva en cada corrida.
 INSERT INTO users (
     id, username, email, first_name, last_name,
-    password_hash, must_change_password, status, country_id
+    password_hash, must_change_password, status, country_id,
+    document_type_id, document_number, phone
 ) VALUES (
     '01a033a4-4a00-7001-9c4f-5e7ad4000001',
     'superadmin',
@@ -127,7 +146,11 @@ INSERT INTO users (
     '${superadmin_password_hash}',
     true,
     'ACTIVO',
-    '01a07bbd-5200-7001-9c4f-5e7ad3000101'
+    '01a07bbd-5200-7001-9c4f-5e7ad3000101',
+    -- `CC`, sembrada unas líneas más arriba en este mismo archivo.
+    '01a080e3-ae00-7001-9c4f-5e7ad6000001',
+    '12345678910',
+    '3001234567'
 );
 
 INSERT INTO user_roles (user_id, role_id, role_type)

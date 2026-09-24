@@ -102,7 +102,7 @@
 
 | # | Bloqueo | Desde | Responsable | Estado |
 |---|---|---|---|---|
-| 1 | `T-01` escribe en paquetes de `SP`, sobre `user_memberships`. Una regresión ahí alcanza a `RF-SP-032` y `RF-SP-033` | 26-08-2026 | Responsable técnico | **Cerrado el 01-09-2026.** El adaptador NO consulta `user_memberships`: reutiliza `UserRepository.findMembership` y decide con `UserMembership.isCurrentAt`, de modo que no hay una segunda lectura que pueda divergir. La suite de `SP` sigue en verde sin un solo cambio |
+| 1 | `T-01` escribe en paquetes de `SP`, sobre `user_products` (`user_memberships` hasta el 23-09-2026). Una regresión ahí alcanzaba a `RF-SP-032` y `RF-SP-033`, **descartados ese día**; hoy alcanza a la escritura publicada de **D-26** | 26-08-2026 | Responsable técnico | **Cerrado el 01-09-2026.** El adaptador NO consulta `user_memberships`: reutiliza `UserRepository.findMembership` y decide con `UserMembership.isCurrentAt`, de modo que no hay una segunda lectura que pueda divergir. La suite de `SP` sigue en verde sin un solo cambio |
 | 2 | `T-06` y `T-10` necesitan una cadena de al menos **cuatro** niveles y personas en varios de ellos: la preparación de datos es la mitad del trabajo de estas pruebas | 26-08-2026 | Responsable técnico | **Cerrado el 01-09-2026.** `ProductOfferIT` siembra `ORO(1) > PLATINO(2) > VIP(3) > BECA(4)` y cinco personas: una por peldaño, una sin membresía y una con la suya vencida |
 | 3 | `T-20` necesita upgrades declarados desde **varios orígenes** hacia el mismo destino, que `ProductOfferIT` no siembra todavía | 03-09-2026 | Responsable técnico | Abierto |
 

@@ -60,7 +60,11 @@ public class JpaUserQueryRepository implements UserQueryRepository {
                (um.user_id IS NOT NULL AND (um.ends_at IS NULL OR um.ends_at > now())) AS m_current
           FROM users u
           JOIN countries c              ON c.id = u.country_id
-          LEFT JOIN user_memberships um ON um.user_id = u.id AND um.closed_at IS NULL
+          -- `membership_id IS NOT NULL` no es un adorno: desde `V38` la tabla
+          -- guarda TODO lo que la persona tiene, y sin esa condicion el cruce
+          -- devolveria DOS VECES a quien tenga un bot y una membresia.
+          LEFT JOIN user_products um    ON um.user_id = u.id AND um.closed_at IS NULL
+                                      AND um.membership_id IS NOT NULL
           LEFT JOIN memberships m       ON m.id = um.membership_id
          WHERE """
             // El espacio va aquí y no al final del bloque de texto: Java recorta
@@ -196,7 +200,8 @@ public class JpaUserQueryRepository implements UserQueryRepository {
                   -- detalle. No fallaría: ocultaría, que es el error más caro
                   -- posible en la pantalla desde la que se administra.
                   LEFT JOIN document_types dt   ON dt.id = u.document_type_id
-                  LEFT JOIN user_memberships um ON um.user_id = u.id AND um.closed_at IS NULL
+                  LEFT JOIN user_products um    ON um.user_id = u.id AND um.closed_at IS NULL
+                                              AND um.membership_id IS NOT NULL
                   LEFT JOIN memberships m       ON m.id = um.membership_id
                  WHERE u.id = :id AND u.deleted_at IS NULL
                 """,
@@ -281,9 +286,10 @@ public class JpaUserQueryRepository implements UserQueryRepository {
     }
     if (filtros.membershipId() != null) {
       donde.append(
-          " AND EXISTS (SELECT 1 FROM user_memberships umf"
+          " AND EXISTS (SELECT 1 FROM user_products umf"
               + " WHERE umf.user_id = u.id AND umf.membership_id = :membresia"
               + " AND umf.closed_at IS NULL"
+              + " AND umf.membership_id IS NOT NULL"
               + " AND (umf.ends_at IS NULL OR umf.ends_at > now()))");
     }
     if (filtros.search() != null) {

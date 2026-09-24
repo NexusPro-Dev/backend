@@ -161,7 +161,11 @@ public class DeleteUserService {
 
     usuarios.markDeleted(userId, ahora);
     usuarios.removeAllRoles(userId);
-    membresia.ifPresent(sinUsar -> usuarios.closeMembership(userId, ahora));
+    // TODO lo que tenía, y no solo su nivel (`RF-SP-029` · `T-17`, `RN-SP-056`):
+    // quien deja de existir deja de tener sus bots igual que deja de tener su
+    // membresía. Sin condición y sin leer antes — cerrar cero filas no es un
+    // error, y la lectura de arriba sigue haciendo falta solo para el asiento.
+    usuarios.closeAllProducts(userId, ahora);
 
     // La MISMA marca de tiempo que la eliminación, no una posterior: si
     // difirieran, el historial diría que la persona estuvo a cargo de alguien

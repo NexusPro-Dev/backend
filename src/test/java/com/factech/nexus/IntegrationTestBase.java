@@ -321,7 +321,7 @@ public abstract class IntegrationTestBase {
       org.springframework.jdbc.core.JdbcTemplate jdbc, java.util.UUID userId) {
     jdbc.update(
         """
-        INSERT INTO user_memberships (id, user_id, membership_id)
+        INSERT INTO user_products (id, user_id, membership_id)
         SELECT gen_random_uuid(), ?, id FROM memberships WHERE code = 'BECA'
         """,
         userId);

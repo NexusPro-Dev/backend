@@ -792,11 +792,11 @@ class ProductOfferIT extends IntegrationTestBase {
     PackageTestSupport.limpiarPaquetes(jdbc);
     ProductLinkTestSupport.limpiar(jdbc);
     jdbc.update("DELETE FROM products");
-    // Antes que las membresías: `user_memberships` las referencia.
+    // Antes que las membresías: `user_products` las referencia.
     jdbc.update(
-        "DELETE FROM user_memberships WHERE user_id IN (SELECT id FROM users WHERE username LIKE 'oferta-%')");
+        "DELETE FROM user_products WHERE user_id IN (SELECT id FROM users WHERE username LIKE 'oferta-%')");
     jdbc.update("DELETE FROM users WHERE username LIKE 'oferta-%'");
-    jdbc.update("DELETE FROM user_memberships");
+    jdbc.update("DELETE FROM user_products");
     jdbc.update("DELETE FROM memberships");
   }
 
@@ -832,16 +832,15 @@ class ProductOfferIT extends IntegrationTestBase {
   /**
    * {@code fin} nulo significa indefinida; con fecha pasada, vencida.
    *
-   * <p><b>La asignación empieza treinta días atrás</b> y no ahora: {@code
-   * ck_user_memberships_periodo} exige que el fin sea posterior al inicio, de modo que una
-   * membresía que nace hoy no puede haber vencido ayer. Es la restricción diciendo lo obvio —nadie
-   * termina antes de empezar—, y sembrar el inicio en el pasado es lo que permite que el caso de
-   * `FA-003` exista siquiera.
+   * <p><b>La asignación empieza treinta días atrás</b> y no ahora: {@code ck_user_products_periodo}
+   * exige que el fin sea posterior al inicio, de modo que una membresía que nace hoy no puede haber
+   * vencido ayer. Es la restricción diciendo lo obvio —nadie termina antes de empezar—, y sembrar
+   * el inicio en el pasado es lo que permite que el caso de `FA-003` exista siquiera.
    */
   private void asignar(UUID quien, UUID membresia, OffsetDateTime fin) {
     jdbc.update(
         """
-        INSERT INTO user_memberships (id, user_id, membership_id, started_at, ends_at,
+        INSERT INTO user_products (id, user_id, membership_id, started_at, ends_at,
                                       created_at, updated_at)
         VALUES (gen_random_uuid(), CAST(? AS uuid), CAST(? AS uuid), now() - interval '30 days',
                 CAST(? AS timestamptz), now(), now())
