@@ -113,12 +113,16 @@ class ClientSellersIT extends IntegrationTestBase {
         .andExpect(jsonPath("$.content[1].username").value("projas"))
         .andExpect(jsonPath("$.content[1].origin").value("HOTLINK"))
         .andExpect(jsonPath("$.content[1].principal").value(false))
-        // `CA-SP-701`, INVERTIDO el 22-09-2026: el estado SI viaja, y con el el
-        // telefono de empresa. Lo que sigue fuera es el identificador, el correo
-        // y los roles.
+        // `CA-SP-701`, INVERTIDO DOS VECES. El 22-09-2026 entro el estado, y con el
+        // el telefono de empresa. El 24-09-2026 entran el IDENTIFICADOR y el CORREO:
+        // la premisa de dejarlos fuera —«el cliente no tiene ninguna ruta donde usar
+        // un identificador ajeno»— se rompio cuando RF-MV-016 estreno
+        // POST /movements/{id}/seller-assignments, que recibe sellerId eligiendo
+        // entre los vendedores del cliente, que es JUSTO esta lista.
         .andExpect(jsonPath("$.content[0].status").value("ACTIVO"))
-        .andExpect(jsonPath("$.content[0].id").doesNotExist())
-        .andExpect(jsonPath("$.content[0].email").doesNotExist())
+        .andExpect(jsonPath("$.content[0].id").value(agente.toString()))
+        .andExpect(jsonPath("$.content[0].email").value("lgarcia@factech.co"))
+        // Y LOS ROLES SIGUEN FUERA, que es lo unico que queda de aquella acotacion.
         .andExpect(jsonPath("$.content[0].roles").doesNotExist());
   }
 

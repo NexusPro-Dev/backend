@@ -24,7 +24,7 @@ public class JpaClientSellerRepository implements ClientSellerRepository {
 
   private static final String PROYECCION =
       """
-      SELECT cs.seller_id AS seller_id, s.username AS username,
+      SELECT cs.seller_id AS seller_id, s.username AS username, s.email AS email,
              s.first_name AS first_name, s.last_name AS last_name,
              s.company_phone AS company_phone, s.status AS status,
              cs.origin AS origin, cs.created_at AS linked_at
@@ -158,6 +158,7 @@ public class JpaClientSellerRepository implements ClientSellerRepository {
     return new ClientSellerRow(
         (UUID) fila.get("seller_id"),
         (String) fila.get("username"),
+        (String) fila.get("email"),
         (String) fila.get("first_name"),
         (String) fila.get("last_name"),
         (String) fila.get("company_phone"),

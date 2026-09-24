@@ -8,6 +8,7 @@
 | Autor | Responsable técnico |
 | Aprobada por | Responsable del proyecto |
 | Fecha de aprobación | 18-09-2026 |
+| Enmendada | 24-09-2026 — cada vendedor llega con **identificador y correo** (§10). La premisa de la decisión contraria se rompió: `RF-MV-016` estrenó una ruta que consume `sellerId` |
 | Enmendada | 21-09-2026 — `GET /users/{id}/sellers` exige **`users:read-sellers`** y no `users:read` (`RF-SP-060`, `RN-SEG-014`); lo siembra `V29`. `CA-SP-705` y la resolución 6 nombran el permiso nuevo |
 | Enmendada | 21-09-2026 — exige **`users:read-own-sellers`** (`RF-SP-062`, `RN-SEG-015`: autenticarse no autoriza nada); lo siembra `V31` (la ruta `/me`) |
 
@@ -138,7 +139,15 @@ Esto **revierte en parte la decisión con la que este requerimiento nació el 18
 
 **El `404` del identificador inexistente sí distingue**, y no es una fuga: quien trae `users:read-sellers` porta normalmente `users:list` —`V29` lo da a los mismos roles que ya lo tenían— y puede listar a todas las personas por `RF-SP-025`.
 
-**Lo que se publica de cada vendedor está acotado a propósito** (§6.2). El identificador no viaja: un cliente no tiene ninguna ruta donde usarlo, y un administrador que lo necesite tiene el nombre de usuario y `RF-SP-025`.
+**Lo que se publica de cada vendedor está acotado a propósito** (§6.2). ~~El identificador no viaja: un cliente no tiene ninguna ruta donde usarlo, y un administrador que lo necesite tiene el nombre de usuario y `RF-SP-025`.~~
+
+**Enmendado el 24-09-2026: el identificador y el correo SÍ viajan**, a petición del responsable del proyecto.
+
+**La decisión anterior no era un capricho y no se cae por gusto: se le rompió la premisa.** Decía que «un cliente no tiene ninguna ruta donde usar un identificador ajeno», y eso dejó de ser cierto el 23-09-2026, cuando `RF-MV-016` publicó `POST /movements/{id}/seller-assignments`, que **asigna los vendedores de una venta eligiéndolos entre los del cliente** y los recibe por `sellerId`. Sin el identificador aquí, quien asigna tiene que traducir un nombre de usuario a un identificador en otra consulta — y esta lista es justamente el conjunto entre el que se elige.
+
+**El correo entra por decisión expresa**, preguntada y confirmada el 24-09-2026: se publica en las **dos** rutas, también en `/users/me/sellers`, de modo que el cliente ve el correo de sus vendedores igual que ya ve su teléfono de empresa. Es un canal de contacto comercial más.
+
+**Lo que sigue fuera son los roles**, y es lo único que queda de aquella acotación: qué papeles porta alguien es de administración de accesos y no tiene nada que ver con «quién me vende».
 
 ## 11. Validaciones
 
@@ -152,7 +161,7 @@ Esto **revierte en parte la decisión con la que este requerimiento nació el 18
 | ID | Criterio |
 |---|---|
 | `CA-SP-700` | Un cliente registrado por enlace obtiene por `GET /users/me/sellers`, **con `users:read-own-sellers` y ningún otro permiso** (hasta el 21-09-2026, «sin traer ningún permiso»), la lista con **quien lo registró como principal y en primer lugar** |
-| `CA-SP-701` | Cada vendedor llega con **nombre de usuario, nombre, apellido, teléfono de empresa, estado, origen, `principal` y fecha de vínculo**, y **sin** identificador, correo ni roles. **Invertido el 22-09-2026**: hasta esa fecha afirmaba que el estado **no** viajaba |
+| `CA-SP-701` | Cada vendedor llega con **identificador, nombre de usuario, correo, nombre, apellido, teléfono de empresa, estado, origen, `principal` y fecha de vínculo**, y **sin roles**. **Invertido dos veces**: el 22-09-2026 el estado pasó a viajar, y el 24-09-2026 el identificador y el correo — este último porque `RF-MV-016` estrenó una ruta que consume `sellerId` y esta lista es el conjunto entre el que se elige |
 | `CA-SP-798` | **El teléfono de empresa y el estado viajan en las DOS rutas** y son los de la cuenta del vendedor: un vendedor sin teléfono declarado llega con `companyPhone` **presente y nulo** —no ausente—, y un vendedor **eliminado** sigue saliendo y publica su estado, que es lo que lo distingue de uno activo |
 | `CA-SP-702` | Cada cliente tiene **exactamente un** `REGISTRO`: la base rechaza un segundo con el índice único parcial `uq_client_sellers_principal` |
 | `CA-SP-703` | Un cliente **sin vendedor** —dado de alta por un funcionario— obtiene `200` con la colección vacía, no `404` |
