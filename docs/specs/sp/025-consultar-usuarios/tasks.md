@@ -11,6 +11,10 @@
 | Rama | `feature/consultas-de-usuario` |
 | Aprobadas por | Responsable técnico, 24-08-2026 |
 
+!!! warning "Enmendado el 23-09-2026 — `user_products`"
+
+    Las tareas de esta lista que tocan `user_memberships` apuntan ahora a **`user_products`**, y las dos lecturas de nivel ganan `membership_id IS NOT NULL` (`plan.md`, enmienda del 23-09-2026). **No se abren tareas aquí**: el cambio es una sola edición de `JpaUserQueryRepository` y viaja en `T-73` de `RF-SP-024`, con `CA-SP-800` como verificación — quien tiene un bot y una membresía sale **una sola vez**.
+
 !!! info "Qué va en este documento"
 
     **En qué pasos, en qué orden y cómo se verifica cada uno.**

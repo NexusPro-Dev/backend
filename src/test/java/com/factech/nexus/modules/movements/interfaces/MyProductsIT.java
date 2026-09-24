@@ -381,13 +381,20 @@ class MyProductsIT extends IntegrationTestBase {
   }
 
   private void limpiar() {
+    // LAS POSESIONES VAN PRIMERO, y desde `V38` importa por el PRODUCTO y no por
+    // la linea: aquella se lleva su posesion por `ON DELETE CASCADE`, pero
+    // `fk_user_products_product` es RESTRICT y el `DELETE FROM products` de abajo
+    // falla con un mensaje de clave foranea que no nombra a esta clase. Es la
+    // misma leccion que `product_links` dejo escrita arriba, y el mismo orden: lo
+    // que apunta, antes que lo apuntado.
+    jdbc.update("DELETE FROM user_products WHERE movement_detail_id IS NOT NULL");
+    jdbc.update(
+        "DELETE FROM user_products WHERE user_id IN"
+            + " (SELECT id FROM users WHERE username LIKE 'mp-%')");
     jdbc.update("DELETE FROM movement_details");
     jdbc.update("DELETE FROM movements");
     ProductLinkTestSupport.limpiar(jdbc);
     jdbc.update("DELETE FROM products WHERE code LIKE 'MP\\_%'");
-    jdbc.update(
-        "DELETE FROM user_memberships WHERE user_id IN"
-            + " (SELECT id FROM users WHERE username LIKE 'mp-%')");
     jdbc.update("DELETE FROM users WHERE username LIKE 'mp-%'");
   }
 
@@ -475,6 +482,7 @@ class MyProductsIT extends IntegrationTestBase {
         estado);
     // `ck_movement_details_delivery`: ENTREGADA exige fecha y RETENIDA exige
     // motivo; el motivo lo pone la prueba que lo mira.
+    UUID linea = UUID.randomUUID();
     jdbc.update(
         """
         INSERT INTO movement_details (id, movement_id, product_id, seller_id, product_name,
@@ -485,7 +493,7 @@ class MyProductsIT extends IntegrationTestBase {
                CAST(? AS timestamptz), CASE WHEN ? = 'RETENIDA' THEN 'Retenida' ELSE NULL END
           FROM products p WHERE p.id = ?
         """,
-        UUID.randomUUID(),
+        linea,
         id,
         vendedor,
         vigencia,
@@ -493,6 +501,33 @@ class MyProductsIT extends IntegrationTestBase {
         entregadoEn == null ? null : entregadoEn.toString(),
         entrega,
         producto);
+
+    // LA LÍNEA ENTREGADA DEJA SU POSESIÓN, igual que la deja `ConfirmSaleService`
+    // desde el 23-09-2026 (`RN-MV-036`). Sin esta mitad, la siembra describiría un
+    // estado que el sistema ya no puede producir —una entrega sin nada poseído— y
+    // la consulta devolvería `ACTIVO` sin vencimiento para todo, que es justo el
+    // borde que `plan.md` dejó declarado para lo anterior a `V38`.
+    if ("ENTREGADA".equals(entrega)) {
+      // El «hasta» se calcula AQUÍ y no en la sentencia, igual que lo calcula la
+      // escritura publicada: `make_interval(days => ?)` no admite un parámetro
+      // JDBC en notación con nombre, y una fecha inventada en SQL sería además
+      // una segunda definición de lo que `PublishedMembershipGrant` ya decide.
+      OffsetDateTime hasta =
+          entregadoEn == null || vigencia == null ? null : entregadoEn.plusDays(vigencia);
+      jdbc.update(
+          """
+          INSERT INTO user_products (id, user_id, product_id, movement_detail_id,
+                                     validity_days, started_at, ends_at)
+          VALUES (?, ?, CAST(? AS uuid), ?, ?, CAST(? AS timestamptz), CAST(? AS timestamptz))
+          """,
+          UUID.randomUUID(),
+          sujeto,
+          producto,
+          linea,
+          vigencia,
+          entregadoEn == null ? null : entregadoEn.toString(),
+          hasta == null ? null : hasta.toString());
+    }
     return id;
   }
 

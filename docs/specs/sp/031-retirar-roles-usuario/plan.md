@@ -50,7 +50,7 @@ La forma sigue siendo **sustractiva e idempotente**: retira los roles que estaba
 
 Tres consecuencias del esquema existente que este plan da por sentadas y que conviene tener a la vista:
 
-- **El retiro de la membresía es un `DELETE` de la fila**, no un `UPDATE`. La clave primaria de `user_memberships` es `user_id` (`requirements/sp.md` §10.12): no hay estado «sin membresía» que escribir, hay ausencia de fila.
+- ~~**El retiro de la membresía es un `DELETE` de la fila**, no un `UPDATE`. La clave primaria de `user_memberships` es `user_id` (`requirements/sp.md` §10.12): no hay estado «sin membresía» que escribir, hay ausencia de fila.~~ **Dejó de ser cierto dos veces.** El 05-09-2026, cuando la tabla pasó a ser un **historial** y el retiro pasó a **cerrar** la fila —la clave primaria es `id` y `user_id` se repite—; y el 23-09-2026, cuando `RN-SP-015` quedó retirada y esta operación dejó de tocar la membresía **en absoluto**: quien deja de ser consumidor **conserva el nivel que tenía**.
 - **El cierre del superior es un `UPDATE` de `ended_at`**, nunca un `DELETE`. `RN-SP-021` obliga a conservar quién estuvo a cargo de quién y hasta cuándo, y la unicidad parcial `uq_user_supervisors_vigente` —sobre `user_id WHERE ended_at IS NULL`— deja de aplicar en cuanto la fila se cierra, que es lo que permite que la persona vuelva a tener superior después.
 - **El retiro en `user_roles` es un `DELETE` de filas**, y no necesita `ON CONFLICT`: borrar lo que no está no es un conflicto, son cero filas afectadas. La idempotencia sale gratis, al contrario que en `RF-SP-030`.
 
@@ -68,7 +68,7 @@ Tres consecuencias del esquema existente que este plan da por sentadas y que con
 | `domain` | `UserRepository` | Modificado | Añade el cierre de la asignación de superior. **El conteo de subordinados no se añade aquí**: lo aporta `SupervisedTeamCounter` |
 | `application` | `RevokeUserRolesService` | Nuevo | Caso de uso. `@Transactional`, aplica el orden de `plan.md` §4, escribe la cascada y emite la auditoría |
 | `application` | `SessionRevoker` | Sin cambios | Puerto de `RF-SP-028` hacia `shared/security`. Lo **implementa** `RF-SP-034`, que es quien crea `refresh_tokens` |
-| `infrastructure` | `JpaUserRepository` | Modificado | `DELETE` sobre `user_roles` y `user_memberships`, `UPDATE` de `ended_at` sobre `user_supervisors` |
+| `infrastructure` | `JpaUserRepository` | Modificado | `DELETE` sobre `user_roles` y **cierre** sobre `user_products` (**Enmendado el 23-09-2026** (`RN-SP-056`)), `UPDATE` de `ended_at` sobre `user_supervisors` |
 | `api` | `UserController` | Modificado | Añade `POST /api/v1/users/{id}/roles/revocations` |
 | `api` | `RevokeRolesRequest` | Nuevo | DTO de entrada con Bean Validation (`VAL-001`, `VAL-002`, `VAL-005`) |
 
@@ -172,7 +172,7 @@ La urgencia queda cubierta por otra vía y conviene que esté escrita: **`RF-SP-
 
 | Elemento | Transacción |
 |---|---|
-| `DELETE` de `user_roles` y de `user_memberships`, `UPDATE` de `user_supervisors`, y sus eventos de `audit_deletion_log` y `audit_change_log` | **La misma** (Art. V.14) |
+| `DELETE` de `user_roles`, **cierre** de `user_products` y `UPDATE` de `user_supervisors`, y sus eventos de `audit_deletion_log` y `audit_change_log` | **La misma** (Art. V.14) |
 | Comprobación de `RN-SP-001` | Dentro de la misma, **bajo bloqueo** sobre el conjunto de portadores activos del rol raíz |
 | Revocación de los refresh tokens | Dentro de la misma transacción, **antes** del commit |
 | Evento `USER_ROLES_REVOKED` en `audit_security_log` | **Independiente**, `REQUIRES_NEW`, enganchada al commit |

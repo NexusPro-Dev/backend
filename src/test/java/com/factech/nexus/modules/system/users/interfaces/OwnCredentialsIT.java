@@ -66,7 +66,7 @@ class OwnCredentialsIT extends IntegrationTestBase {
     jdbc.update("DELETE FROM refresh_tokens");
     jdbc.update("DELETE FROM client_sellers");
     jdbc.update("DELETE FROM user_supervisors");
-    jdbc.update("DELETE FROM user_memberships");
+    jdbc.update("DELETE FROM user_products");
     jdbc.update("DELETE FROM user_roles");
     jdbc.update("DELETE FROM users WHERE id <> ?", SUPERADMIN);
     jdbc.update(
@@ -501,7 +501,7 @@ class OwnCredentialsIT extends IntegrationTestBase {
         .andExpect(jsonPath("$.membership.name").value("Free"))
         .andExpect(jsonPath("$.membership.level").value(1))
         // `RN-SP-024`: seis hexadecimales sin `#`.
-        .andExpect(jsonPath("$.membership.color").value("9E9E9E"))
+        .andExpect(jsonPath("$.membership.color").value("3DFFD5"))
         .andExpect(
             jsonPath("$.membership.color")
                 .value(org.hamcrest.Matchers.matchesPattern("^[0-9A-F]{6}$")));

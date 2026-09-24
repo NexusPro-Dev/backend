@@ -106,8 +106,8 @@ No hay entrada: es un cambio del catálogo que se aplica por migración (`securi
 | `PATCH /users/{id}/status` | `RF-SP-028` | `users:update` | `users:change-status` **nuevo** |
 | `POST /users/{id}/roles` | `RF-SP-030` | `users:assign-roles` | `users:assign-roles` se conserva |
 | `POST /users/{id}/roles/revocations` | `RF-SP-031` | `users:assign-roles` | `users:revoke-roles` **nuevo** |
-| `PUT /users/{id}/membership` | `RF-SP-032` | `users:assign-membership` | `users:assign-membership` se conserva |
-| `DELETE /users/{id}/membership` | `RF-SP-033` | `users:assign-membership` | `users:revoke-membership` **nuevo** |
+| ~~`PUT /users/{id}/membership`~~ | ~~`RF-SP-032`~~ | ~~`users:assign-membership`~~ | ~~se conserva~~ — **la operación se retira el 23-09-2026** con su requerimiento (`RN-SP-056`): el permiso sale del catálogo |
+| ~~`DELETE /users/{id}/membership`~~ | ~~`RF-SP-033`~~ | ~~`users:assign-membership`~~ | ~~`users:revoke-membership` **nuevo**~~ — **retirado el 23-09-2026**, cuatro días después de nacer, con la operación que lo motivó |
 | `GET /users/{id}/team` | `RF-SP-042` | `users:read` | `users:read-team` **nuevo** |
 | `GET /broker-accounts` | `RF-SP-057` | `broker-accounts:read` | `broker-accounts:read` se conserva |
 | `GET /broker-accounts/indicators` | `RF-SP-058` | `broker-accounts:read` | `broker-accounts:read-indicators` **nuevo** |

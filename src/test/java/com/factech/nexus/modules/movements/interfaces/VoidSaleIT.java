@@ -45,7 +45,7 @@ class VoidSaleIT extends IntegrationTestBase {
   @BeforeEach
   void sembrar() {
     limpiar();
-    jdbc.update("DELETE FROM user_memberships");
+    jdbc.update("DELETE FROM user_products");
     jdbc.update("DELETE FROM memberships");
     jdbc.update(
         """
@@ -120,7 +120,7 @@ class VoidSaleIT extends IntegrationTestBase {
     assertThat(estadoDe(venta)).isEqualTo("CONFIRMADA");
     assertThat(
             jdbc.queryForObject(
-                "SELECT m.code FROM user_memberships um JOIN memberships m ON m.id = um.membership_id"
+                "SELECT m.code FROM user_products um JOIN memberships m ON m.id = um.membership_id"
                     + " WHERE um.user_id = ? AND um.closed_at IS NULL",
                 String.class,
                 cliente))
@@ -237,7 +237,7 @@ class VoidSaleIT extends IntegrationTestBase {
     jdbc.update("DELETE FROM movements");
     jdbc.update("DELETE FROM products WHERE code LIKE 'VS\\_%'");
     jdbc.update(
-        "DELETE FROM user_memberships WHERE user_id IN"
+        "DELETE FROM user_products WHERE user_id IN"
             + " (SELECT id FROM users WHERE username LIKE 'vs-%')");
     jdbc.update("DELETE FROM users WHERE username LIKE 'vs-%'");
   }

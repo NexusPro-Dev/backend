@@ -13,6 +13,16 @@
 | Enmendado | 21-09-2026 — exige **`movements:read-own-products`** (`RF-SP-062`, `RN-SEG-015`: autenticarse no autoriza nada); lo siembra `V31` |
 | Enmendado | 22-09-2026 — **`couponUrl` en la línea entregada** (`RN-MV-032`), pedido a `PM` **en lote** por su interfaz publicada; §3, §4 y §8 |
 
+!!! warning "Enmendado el 23-09-2026 — el «hasta» se lee, no se calcula"
+
+    `spec.md`, enmienda del 23-09-2026. **La sentencia de §4 sigue partiendo de `movement_details`** —el alcance, la paginación y los cinco estados anteriores a la entrega no cambian— y **le une la posesión** con un `LEFT JOIN` sobre `user_products` por `movement_detail_id`, que es único.
+
+    **Lo que se cae es la primera `CROSS JOIN LATERAL`**, la que calculaba `hasta` como `delivered_at + make_interval(days => validity_days)`. Ese valor pasa a ser `up.ends_at`. La decisión de §4 —**el estado y el «hasta» en la misma expresión, para que no puedan discrepar**— se conserva tal cual, y es lo que hace que el cambio sea una sustitución y no una reescritura: el `CASE` gana dos ramas y sigue siendo uno solo.
+
+    **Las dos ramas nuevas, en este orden**: `CANCELADO` cuando `up.closed_at` no es nulo —se comprueba **antes** que el vencimiento, porque quien dejó de tenerlo el día doce no «venció» el treinta—, y el `VENCIDO`/`ACTIVO` de siempre, ahora contra `up.ends_at`.
+
+    **Y queda un borde declarado**: una línea entregada **sin** fila en `user_products` solo puede ser anterior a `V38`. Se resuelve como `ACTIVO` sin vencimiento, que es lo que el `LEFT JOIN` produce por sí solo, y no se inventa una fila para ella.
+
 !!! info "Qué va en este documento"
 
     **Cómo se construye.** Esquema, componentes, contrato, autorización y pruebas.

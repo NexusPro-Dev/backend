@@ -3,7 +3,6 @@ package com.factech.nexus.modules.movements.domain.service;
 import com.factech.nexus.modules.movements.application.SaleLineItem;
 import com.factech.nexus.modules.movements.application.SaleLinesRequest;
 import com.factech.nexus.modules.movements.domain.models.DeliveryStatus;
-import com.factech.nexus.modules.movements.domain.models.MovementStatus;
 import com.factech.nexus.modules.movements.domain.repository.MovementRepository;
 import com.factech.nexus.modules.movements.domain.repository.MovementRepository.SaleLineRow;
 import com.factech.nexus.modules.movements.domain.repository.MovementRepository.SaleLinesFilter;
@@ -55,7 +54,6 @@ public class ListSaleLinesService {
             peticion.userId(),
             peticion.sellerId(),
             peticion.productId(),
-            peticion.status(),
             peticion.deliveryStatus(),
             peticion.typeStatus(),
             peticion.code(),
@@ -95,19 +93,9 @@ public class ListSaleLinesService {
       problemas.addAll(paginacionInvalida.errors());
     }
 
-    if (peticion.status() != null
-        && Arrays.stream(MovementStatus.values())
-            .noneMatch(valor -> valor.name().equals(peticion.status()))) {
-      problemas.add(
-          new FieldError(
-              "status",
-              "VAL-002",
-              "El estado '"
-                  + peticion.status()
-                  + "' no existe. Valores admitidos: "
-                  + Arrays.stream(MovementStatus.values()).map(Enum::name).toList()
-                  + "."));
-    }
+    // LA VALIDACION DEL ESTADO DE LA VENTA SE FUE CON SU FILTRO (`RN-MV-038`,
+    // 24-09-2026): este listado solo trae las CONFIRMADAS y el parametro ya no
+    // existe. La del estado de la ENTREGA se queda, que es otra cosa.
 
     if (peticion.deliveryStatus() != null
         && Arrays.stream(DeliveryStatus.values())

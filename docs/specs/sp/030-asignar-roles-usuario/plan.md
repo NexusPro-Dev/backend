@@ -86,7 +86,7 @@ ON CONFLICT (user_id, role_id) DO NOTHING
 
 Es la misma solución, por la misma razón y con la misma consecuencia: esa escritura baja a sentencia nativa, porque el `persist` de JPA no sabe expresar `ON CONFLICT`.
 
-**`user_memberships` y `user_supervisors` no se alteran.** Las crean `V20` y `V21` (`RF-SP-024`) con todo lo que esta operación necesita: la clave primaria de `user_memberships` es `user_id`, que es como `RN-SP-014` está declarada en el esquema, y `uq_user_supervisors_vigente` —parcial sobre `user_id WHERE ended_at IS NULL`— es la que impide dos superiores vigentes. Esta operación escribe en ambas, pero no cambia su forma.
+**`user_products` —`user_memberships` hasta el 23-09-2026 (`RN-SP-056`)— y `user_supervisors` no se alteran.** Las crean `V20` y `V21` (`RF-SP-024`) con todo lo que esta operación necesita: la clave primaria de `user_memberships` es `user_id`, que es como `RN-SP-014` está declarada en el esquema, y `uq_user_supervisors_vigente` —parcial sobre `user_id WHERE ended_at IS NULL`— es la que impide dos superiores vigentes. Esta operación escribe en ambas, pero no cambia su forma.
 
 ## 3. Componentes afectados
 
@@ -212,7 +212,7 @@ Los pasos 6 a 8 **no son evaluables** sin haber resuelto antes los roles: hasta 
 
 | Elemento | Transacción |
 |---|---|
-| Inserción en `user_roles`, escritura de `user_memberships` y de `user_supervisors`, y sus tres eventos de `audit_change_log` | **La misma** (Art. V.14) |
+| Inserción en `user_roles`, escritura de `user_products` y de `user_supervisors`, y sus tres eventos de `audit_change_log` | **La misma** (Art. V.14) |
 | Evento `USER_ROLES_ASSIGNED` en `audit_security_log` | **Independiente**, `REQUIRES_NEW`, enganchada al commit |
 | Auditoría de los rechazos | **Independiente**, `REQUIRES_NEW`, sin esperar a un commit que no llega |
 | Revocación de sesiones | **No aplica**: esta operación no revoca ninguna (§9) |
@@ -226,7 +226,7 @@ El evento de seguridad espera al commit por el motivo de `RF-SP-001` §7: emitid
 - **`RF-SP-003` y `RF-SP-009`** dependen de `ix_user_roles_role_id` (§2) para contar cuántas personas portan un rol sin recorrer la tabla. Sus planes ya lo dan por existente; esta migración es quien lo crea.
 - **`RF-SP-024`** es quien **crea** `PrivilegeContainment` y `CommercialStructure`, extraídos al aprobarse su plan el 22-08-2026. El alta de usuario resuelve el mismo problema —primer rol de consumidor, primer rol de vendedor— sobre una persona que aún no existe. Este requerimiento los **consume**, y lo único que aporta es el caso del ascenso.
 - **`RF-SP-031`** es la operación inversa y **no** es su simétrica. Comparte `CommercialStructure` para decidir si el retiro deja a la persona sin rol vendedor.
-- **`RF-SP-032`** no cambia. Esta operación establece la membresía **solo** en el caso del primer rol `CONSUMIDOR`; cualquier otro cambio de nivel es suyo, y `EX-006` existe para que esta vía no se convierta en una segunda puerta con reglas distintas.
+- **`RF-SP-032`** no cambia. Esta operación establece la membresía **solo** en el caso del primer rol `CONSUMIDOR`; cualquier otro cambio de nivel es suyo, y `EX-006` existe para que esta vía no se convierta en una segunda puerta con reglas distintas. **Enmendado el 23-09-2026** (`RN-SP-056`): `RF-SP-032` queda **descartado**, y el «cualquier otro cambio de nivel» pasa a ser **comprarlo** (`RF-MV-003`). Lo que esta operación hace no se mueve, y `EX-006` vigila ahora la única otra puerta que queda.
 - **`RF-SP-041`** ídem con el superior comercial.
 - **`security.md` §8.1** ya enumera `USER_ROLES_ASSIGNED` y `ck_audit_security_log_event_type` ya lo admite (`V4__create_audit_logs.sql`). No hay enmienda que tramitar.
 - **`spec.md` §11** se enmienda por §4: los cuatro casos condicionales pasan de `400` a `422`.

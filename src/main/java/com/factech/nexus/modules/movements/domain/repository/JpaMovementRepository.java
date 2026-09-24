@@ -17,6 +17,7 @@ import java.util.ArrayList;
 import java.util.Collection;
 import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 import java.util.Optional;
 import java.util.UUID;
@@ -511,7 +512,7 @@ public class JpaMovementRepository implements MovementRepository {
   private static Filtro filtroPropio(MyMovementsFilter f) {
     Filtro filtro = new Filtro();
     filtro.igual("m.payment_method_id", "metodo", f.paymentMethodId());
-    filtro.igual("m.code", "codigo", f.code());
+    filtro.contiene("m.code", "codigo", f.code());
     if (f.from() != null) {
       filtro.condicion("m.occurred_at >= :desdeCuando", "desdeCuando", f.from());
     }
@@ -784,7 +785,7 @@ public class JpaMovementRepository implements MovementRepository {
     List<Tuple> filas =
         em.createNativeQuery(
                 """
-                SELECT d.id AS linea_id, p.code AS p_code, d.implementation AS impl,
+                SELECT d.id AS linea_id, d.product_id AS p_id, p.code AS p_code, d.implementation AS impl,
                        p.type AS p_type, p.target_membership_id AS m_id,
                        m.code AS m_code, m.level AS m_level,
                        d.validity_days AS vigencia
@@ -804,6 +805,7 @@ public class JpaMovementRepository implements MovementRepository {
       resultado.add(
           new DeliveryLineRow(
               (UUID) fila.get("linea_id"),
+              (UUID) fila.get("p_id"),
               (String) fila.get("p_code"),
               (String) fila.get("impl"),
               "UPGRADE_MEMBRESIA".equals(fila.get("p_type")),
@@ -885,9 +887,16 @@ public class JpaMovementRepository implements MovementRepository {
       FROM movement_details d
       JOIN movements m ON m.id = d.movement_id
       JOIN products p ON p.id = d.product_id
+      -- La POSESION, si la linea llego a producirla (RN-MV-036). LEFT y no JOIN
+      -- por dos motivos: lo que no se entrego no tiene fila —y sigue teniendo
+      -- estado, el suyo, que sale de la linea—, y una linea entregada ANTES de
+      -- V38 tampoco la tiene, y se resuelve como ACTIVO sin vencimiento.
+      LEFT JOIN user_products up ON up.movement_detail_id = d.id
       CROSS JOIN LATERAL (
-        SELECT CASE WHEN d.delivered_at IS NULL OR d.validity_days IS NULL THEN NULL
-                    ELSE d.delivered_at + make_interval(days => d.validity_days) END AS hasta
+        -- YA NO SE CALCULA, SE LEE. Hasta el 23-09-2026 esto era
+        -- delivered_at + validity_days, y editar el catalogo despues le movia
+        -- el vencimiento a quien ya lo tenia.
+        SELECT up.ends_at AS hasta
       ) v
       CROSS JOIN LATERAL (
         SELECT CASE
@@ -896,6 +905,9 @@ public class JpaMovementRepository implements MovementRepository {
                  WHEN m.status = 'ANULADA'            THEN 'ANULADO'
                  WHEN d.delivery_status = 'RETENIDA'  THEN 'RETENIDO'
                  WHEN d.delivery_status = 'PENDIENTE' THEN 'PENDIENTE_AUTORIZACION'
+                 -- ANTES que el vencimiento, y el orden es la decision: quien dejo
+                 -- de tenerlo el dia doce no «vencio» el treinta.
+                 WHEN up.closed_at IS NOT NULL        THEN 'CANCELADO'
                  WHEN v.hasta IS NOT NULL AND v.hasta <= CAST(:ahora AS timestamptz)
                                                       THEN 'VENCIDO'
                  ELSE                                      'ACTIVO'
@@ -1015,7 +1027,7 @@ public class JpaMovementRepository implements MovementRepository {
           f.sellerId());
     }
     filtro.igual("m.payment_method_id", "metodo", f.paymentMethodId());
-    filtro.igual("m.code", "codigo", f.code());
+    filtro.contiene("m.code", "codigo", f.code());
     if (f.from() != null) {
       filtro.condicion("m.occurred_at >= :desde", "desde", f.from());
     }
@@ -1099,7 +1111,7 @@ public class JpaMovementRepository implements MovementRepository {
     // El método y el comprobante (21-09-2026) van DESPUÉS del alcance en el
     // mismo predicado: un comprobante ajeno no devuelve nada.
     filtro.igual("m.payment_method_id", "metodo", f.paymentMethodId());
-    filtro.igual("m.code", "codigo", f.code());
+    filtro.contiene("m.code", "codigo", f.code());
     if (!f.everything()) {
       if (f.ownerId() != null) {
         filtro.igual("m.user_id", "propietario", f.ownerId());
@@ -1205,7 +1217,13 @@ public class JpaMovementRepository implements MovementRepository {
       JOIN products p ON p.id = d.product_id
       JOIN currencies cur ON cur.id = m.currency_id
       LEFT JOIN users ven ON ven.id = d.seller_id
-      WHERE mt.code = 'VENTA' AND
+      -- `RN-MV-038`: SOLO LAS CONFIRMADAS, y va aquí y no en un filtro. Lo que
+      -- este listado responde es «qué se vendió de verdad», de modo que las
+      -- líneas de una venta pendiente, anulada o rechazada no forman parte de la
+      -- respuesta — ni siquiera cuando alguien las pida. En el predicado fijo
+      -- ningún parámetro puede ensancharlo; como filtro con valor por omisión
+      -- quedaría a merced de quien llama, que es la diferencia entera.
+      WHERE mt.code = 'VENTA' AND m.status = 'CONFIRMADA' AND
       """;
 
   /**
@@ -1241,13 +1259,15 @@ public class JpaMovementRepository implements MovementRepository {
     // de la línea, y una venta con dos vendedores aparece una vez por cada uno.
     filtro.igual("d.seller_id", "vendedor", f.sellerId());
     filtro.igual("d.product_id", "producto", f.productId());
-    filtro.igual("m.status", "estado", f.status());
+    // El estado de la VENTA ya no es un filtro: va fijo en `TABLAS_LINEAS`
+    // (`RN-MV-038`). El de la ENTREGA si lo es, y son cosas distintas — una venta
+    // confirmada tiene lineas ENTREGADA, PENDIENTE y RETENIDA.
     filtro.igual("d.delivery_status", "entrega", f.deliveryStatus());
     // El estado del tipo (0.2.0, `RF-MV-016`), por código y con el mismo
     // predicado que los otros dos listados. `movement_type_statuses` está en el
     // bloque de tablas y NO en las columnas: se filtra por él y no se publica.
     filtro.igual("mts.code", "estadoDelTipo", f.typeStatus());
-    filtro.igual("m.code", "codigo", f.code());
+    filtro.contiene("m.code", "codigo", f.code());
     if (f.from() != null) {
       filtro.condicion("m.occurred_at >= :desde", "desde", f.from());
     }
@@ -1346,6 +1366,35 @@ public class JpaMovementRepository implements MovementRepository {
       if (valor != null) {
         condicion(columna + " = :" + nombre, nombre, valor);
       }
+    }
+
+    /**
+     * Contiene, sin distinguir mayúsculas (`RN-MV-037`).
+     *
+     * <p><b>La expresión es la del índice</b> (`ix_movements_codigo_busqueda`, `V39`): {@code
+     * lower(columna)} contra un término ya en minúsculas. Quitar el {@code lower} de cualquiera de
+     * los dos lados <b>no rompe ninguna prueba</b> —la respuesta sigue siendo correcta— y deja de
+     * usar el índice, que es la regresión que no se ve hasta que el libro crece.
+     *
+     * <p><b>Lo que el usuario escribe se escapa</b>: sin ello, buscar {@code %} devuelve el libro
+     * entero y buscar {@code _} devuelve todo lo que tenga un carácter en esa posición. Es la misma
+     * defensa que `RF-SP-025` ya tenía escrita, y por eso el {@code ESCAPE} viaja en el SQL.
+     *
+     * <p><b>Un término vacío no filtra</b>, igual que uno nulo: {@code %%} devolvería todo, de modo
+     * que el predicado no aportaría nada y solo costaría.
+     */
+    void contiene(String columna, String nombre, String valor) {
+      if (valor != null && !valor.isBlank()) {
+        condicion(
+            "lower(" + columna + ") LIKE :" + nombre + " ESCAPE '\\'",
+            nombre,
+            "%" + escaparComodines(valor.toLowerCase(Locale.ROOT)) + "%");
+      }
+    }
+
+    /** Escapa lo que {@code LIKE} interpreta, en el mismo orden que `RF-SP-025`. */
+    private static String escaparComodines(String termino) {
+      return termino.replace("\\", "\\\\").replace("%", "\\%").replace("_", "\\_");
     }
 
     String sql() {

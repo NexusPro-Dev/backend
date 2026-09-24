@@ -10,6 +10,16 @@
 | Aprobado por | Responsable del proyecto |
 | Fecha de aprobación | 22-08-2026 |
 
+!!! warning "Enmendado el 23-09-2026 — eliminar CIERRA lo que la persona tiene, y son dos correcciones en una"
+
+    **La primera corrige algo que dejó de ser cierto el 05-09-2026 y que este documento no recogió.** §1.2, §2 y §6 dicen que las filas de `user_memberships` **se borran**. Desde que la tabla es un historial (`RN-SP-014`, [`requirements/sp.md`](../../../requirements/sp.md) v1.35.0) eliminar **cierra** la fila en lugar de suprimirla: borrarla destruiría el historial de alguien cuya fila en `users` **sobrevive** al borrado lógico, y dejaría la auditoría apuntando a algo que ya no está. El código lo hace así desde entonces (`DeleteUserService`, `closeMembership`); el plan se queda corregido aquí.
+
+    **La segunda es la de hoy**: `user_memberships` pasa a ser **`user_products`** y guarda **todo lo que la persona tiene** (`RN-SP-056`, [`requirements/sp.md`](../../../requirements/sp.md) v1.84.0). El cierre pasa a alcanzar a **todas** sus filas abiertas y no solo a la del nivel — quien deja de existir deja de tener sus bots igual que deja de tener su membresía—, con **la misma marca de tiempo** que la eliminación, por lo mismo que ya se exige para el superior: si difirieran, el historial diría que alguien tuvo algo durante unos milisegundos después de haber dejado de existir.
+
+    **`user_roles` sigue borrándose**, y la asimetría es deliberada y ya estaba: un rol retirado no tiene periodo que contar, y `RN-SEG-002` impide que un eliminado autorice nada.
+
+    **`CA-SP-358` deja de ser cierto tal como está escrito** —decía que tras eliminar no queda ninguna fila en `user_memberships`— y lo sustituye `CA-SP-801`: tras eliminar **sí quedan** sus filas, todas **cerradas** y con la marca de la baja.
+
 !!! info "Qué va en este documento"
 
     **Cómo se construye.** Las decisiones técnicas que la especificación deliberadamente no toma.

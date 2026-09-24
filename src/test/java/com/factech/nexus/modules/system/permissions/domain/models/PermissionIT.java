@@ -50,14 +50,16 @@ class PermissionIT extends IntegrationTestBase {
   }
 
   @Test
-  @DisplayName("el mapeo alcanza los ciento treinta y cinco permisos del catálogo")
+  @DisplayName("el mapeo alcanza los ciento treinta y tres permisos del catálogo")
   void alcanzaElCatalogoCompleto() {
     Long total =
         entityManager
             .createQuery("SELECT count(p) FROM Permission p", Long.class)
             .getSingleResult();
 
-    assertThat(total).isEqualTo(135L);
+    // BAJA por primera vez el 23-09-2026: V38 retira users:assign-membership y
+    // users:revoke-membership con RF-SP-032 y RF-SP-033, descartados (RN-SP-056).
+    assertThat(total).isEqualTo(133L);
   }
 
   @Test

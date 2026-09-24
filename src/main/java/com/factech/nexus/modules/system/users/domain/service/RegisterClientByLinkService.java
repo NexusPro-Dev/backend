@@ -348,11 +348,25 @@ public class RegisterClientByLinkService {
       OffsetDateTime fin =
           producto.validityDays() == null ? null : ahora.plusDays(producto.validityDays());
 
-      usuarios.assignMembership(
-          ids.next(), usuario.getId(), producto.targetMembershipId(), fin, ahora);
+      // CON producto: esto sí es lo que el enlace entrega, aunque no se cobre.
+      // La línea no existe —el registro no pasa por una confirmación— y por eso
+      // `movement_detail_id` va nulo.
+      usuarios.grantProduct(
+          new UserRepository.ProductGrant(
+              ids.next(),
+              usuario.getId(),
+              producto.id(),
+              producto.targetMembershipId(),
+              null,
+              producto.validityDays(),
+              ahora,
+              fin));
       return;
     }
-    usuarios.assignMembership(ids.next(), usuario.getId(), membresias.floor().id(), null, ahora);
+    // El suelo, sin producto: aquí no se entregó nada (`RN-SP-056`).
+    usuarios.grantProduct(
+        new UserRepository.ProductGrant(
+            ids.next(), usuario.getId(), null, membresias.floor().id(), null, null, ahora, null));
   }
 
   private static boolean esRenovacionGratuita(RegistrableProductView producto) {

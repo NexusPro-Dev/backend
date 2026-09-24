@@ -98,26 +98,27 @@ class MovementsPermissionsSeedIT extends IntegrationTestBase {
   }
 
   @Test
-  @DisplayName("NINGUNO está asociado a ADMIN: es la reserva decidida el 02-09-2026")
-  void ningunoAsociadoAAdmin() {
-    // Se aparta de la obligación de security.md §4.4 —sembrar y asociar a los
-    // dos roles— por decisión del responsable del proyecto, y §4.4 recoge la
-    // excepción. Lo que esta prueba fija es que la reserva sea deliberada y
-    // completa: media reserva —dos permisos concedidos y dos no— sería el
-    // estado que nadie decidió.
+  @DisplayName("LOS CUATRO están asociados a ADMIN: la reserva se levantó el 24-09-2026")
+  void losCuatroAsociadosAAdmin() {
+    // INVERTIDA EL 24-09-2026 POR `V40`, y esta prueba pedía ser la primera en
+    // cambiar: su versión anterior exigía que ADMIN no portara NINGUNO, y dejó
+    // escrito lo que costaba —«mientras esto siga en verde, RN-SEG-003 impide
+    // que MANAGER, DIRECTOR o AGENTE declaren movements:create»—. Ese era el
+    // motivo del cambio: no había a quién delegar la fuerza comercial.
     //
-    // Y deja escrito lo que cuesta: la fuerza comercial cuelga de ADMIN, de
-    // modo que mientras esto siga en verde, RN-SEG-003 impide que MANAGER,
-    // DIRECTOR o AGENTE declaren `movements:create`. El día que se revierta,
-    // esta prueba es la que hay que cambiar primero.
+    // LO QUE LA PRUEBA SIGUE VIGILANDO ES LO MISMO: que la decisión sea
+    // COMPLETA. Media reserva —dos concedidos y dos no— seguiría siendo el
+    // estado que nadie decidió, y por eso se afirma el conjunto entero y no
+    // que «tenga alguno».
     assertThat(permisosDeMovimientosDe(ADMIN))
-        .doesNotContainAnyElementsOf(LOS_CUATRO)
-        // Los propios sí, como todo rol (RF-SP-062): la reserva es de los cuatro.
-        // Y los dos de administración que se le dan explícitos: asignar vendedores
-        // (V36) y las líneas de venta (V37).
+        .containsAll(LOS_CUATRO)
+        // Y nada más que eso: los cuatro, los propios de todo rol (`RF-SP-062`)
+        // y los dos de administración explícitos —asignar vendedores (`V36`) y
+        // las líneas de venta (`V37`)—.
         .containsExactlyInAnyOrderElementsOf(
             java.util.stream.Stream.concat(
-                    LOS_PROPIOS.stream(), java.util.stream.Stream.of(ASIGNAR, LINEAS))
+                    java.util.stream.Stream.concat(LOS_CUATRO.stream(), LOS_PROPIOS.stream()),
+                    java.util.stream.Stream.of(ASIGNAR, LINEAS))
                 .toList());
   }
 

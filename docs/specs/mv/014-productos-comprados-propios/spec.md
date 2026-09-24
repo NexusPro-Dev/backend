@@ -12,6 +12,14 @@
 | Enmendada | 21-09-2026 — exige **`movements:read-own-products`** (`RF-SP-062`, `RN-SEG-015`: autenticarse no autoriza nada); lo siembra `V31`; `CA-MV-109` deja de decir «sin permiso» |
 | Enmendada | 22-09-2026 — **la línea entregada trae `couponUrl`** (`RN-MV-032`, `RN-PM-050`): el cupón del bot, resuelto, **solo si la entrega está hecha**. Es **el único sitio del sistema, fuera de administración, donde ese enlace se ve**. Ver §15 |
 
+!!! warning "Enmendado el 23-09-2026 — responde por lo que se TIENE, y nace `CANCELADO`"
+
+    `RN-MV-036` y `RN-SP-056` ([`requirements/mv.md`](../../../requirements/mv.md) v0.40.0). Hasta hoy esta consulta **reconstruía** la lista recorriendo las líneas de venta y **recalculaba** el «hasta cuándo» en cada petición; desde que la entrega escribe la posesión, esa fecha **está escrita** y es la que se escribió al entregar — editar el catálogo después ya no le mueve el vencimiento a nadie.
+
+    **Los estados anteriores a la entrega no se mueven**, y conviene no leer esto como un cambio de fuente: `PENDIENTE_PAGO`, `RECHAZADO`, `ANULADO`, `RETENIDO` y `PENDIENTE_AUTORIZACION` siguen siendo de la **línea**, porque lo que aún no se entregó no se tiene y no tiene fila que consultar.
+
+    **Nace un octavo estado, `CANCELADO`**: lo que se tuvo y se dejó de tener **antes** de su fecha. Hoy lo produce un solo caso —una membresía **sustituida** por otra que se compró encima, cuya fila se cierra el día de la compra nueva—, y hasta ahora esa línea aparecía como `ACTIVO` hasta que pasara una fecha que ya no significaba nada. **Cancelar algo entregado sigue sin ser una operación del sistema**: `RF-MV-008` solo anula ventas `PENDIENTE`, que no entregaron nada. El estado queda definido para cuando esa operación exista; no se inventa aquí.
+
 !!! info "Qué va en este documento"
 
     **Qué debe pasar, y por qué.** Nada más.

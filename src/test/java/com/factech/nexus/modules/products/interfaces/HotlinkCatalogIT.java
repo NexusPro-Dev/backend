@@ -259,10 +259,10 @@ class HotlinkCatalogIT extends IntegrationTestBase {
     jdbc.update("DELETE FROM products");
     jdbc.update("DELETE FROM product_images");
     jdbc.update(
-        "DELETE FROM user_memberships WHERE user_id IN"
+        "DELETE FROM user_products WHERE user_id IN"
             + " (SELECT id FROM users WHERE username LIKE 'hlcat-%')");
     jdbc.update("DELETE FROM users WHERE username LIKE 'hlcat-%'");
-    jdbc.update("DELETE FROM user_memberships");
+    jdbc.update("DELETE FROM user_products");
     jdbc.update("DELETE FROM memberships");
   }
 
@@ -299,7 +299,7 @@ class HotlinkCatalogIT extends IntegrationTestBase {
   private void asignar(UUID quien, UUID membresia) {
     jdbc.update(
         """
-        INSERT INTO user_memberships (id, user_id, membership_id, started_at, ends_at,
+        INSERT INTO user_products (id, user_id, membership_id, started_at, ends_at,
                                       created_at, updated_at)
         VALUES (gen_random_uuid(), CAST(? AS uuid), CAST(? AS uuid), now() - interval '30 days',
                 NULL, now(), now())

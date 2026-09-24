@@ -57,7 +57,7 @@ class SellerAssignmentIT extends IntegrationTestBase {
   @BeforeEach
   void sembrar() {
     limpiar();
-    jdbc.update("DELETE FROM user_memberships");
+    jdbc.update("DELETE FROM user_products");
     jdbc.update("DELETE FROM memberships");
     jdbc.update(
         """
@@ -552,7 +552,7 @@ class SellerAssignmentIT extends IntegrationTestBase {
         "DELETE FROM user_roles WHERE user_id IN (SELECT id FROM users WHERE username LIKE ?)",
         "sa-%");
     jdbc.update(
-        "DELETE FROM user_memberships WHERE user_id IN"
+        "DELETE FROM user_products WHERE user_id IN"
             + " (SELECT id FROM users WHERE username LIKE ?)",
         "sa-%");
     jdbc.update("DELETE FROM users WHERE username LIKE ?", "sa-%");

@@ -277,6 +277,52 @@ class MovementsIT extends IntegrationTestBase {
   }
 
   @Test
+  @DisplayName(
+      "CA-MV-186 — el filtro por código encuentra por una PARTE, y el código entero sigue valiendo")
+  void filtroPorParteDelCodigo() throws Exception {
+    String codigo =
+        jdbc.queryForObject("SELECT code FROM movements WHERE id = ?", String.class, pendiente);
+    // Los cuatro últimos caracteres, que es lo que alguien copia de un pantallazo
+    // o recuerda de haberlo dictado por teléfono (`RN-MV-037`).
+    String trozo = codigo.substring(codigo.length() - 4);
+
+    mvc.perform(
+            get("/api/v1/movements")
+                .param("code", trozo.toLowerCase())
+                .with(conPermiso(administrador)))
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$.totalElements").value(1))
+        .andExpect(jsonPath("$.content[0].id").value(pendiente.toString()));
+
+    // Y LA OTRA MITAD, que es lo que hace de esto una ampliación y no un cambio:
+    // el comprobante entero sigue encontrando lo que encontraba, porque un
+    // código se contiene a sí mismo. Sin esta comprobación, alguien podría
+    // cambiar el predicado a «empieza por» y la prueba de arriba seguiría verde.
+    mvc.perform(get("/api/v1/movements").param("code", codigo).with(conPermiso(administrador)))
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$.totalElements").value(1))
+        .andExpect(jsonPath("$.content[0].code").value(codigo));
+  }
+
+  @Test
+  @DisplayName(
+      "CA-MV-187 — `%` y `_` son texto y no comodines: buscarlos no devuelve el libro entero")
+  void losComodinesSeEscapan() throws Exception {
+    // ES LA PRUEBA QUE MÁS DEFIENDE DE LAS TRES, y la que no falla sola: sin el
+    // escapado, `%` devuelve TODO —la respuesta parece correcta, solo que de más—
+    // y nadie lo nota hasta que alguien lo teclea por accidente en un buscador.
+    mvc.perform(get("/api/v1/movements").param("code", "%").with(conPermiso(administrador)))
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$.totalElements").value(0));
+
+    // `_` casa con UN carácter cualquiera: sin escapar, encontraría todo código
+    // de un carácter o más según dónde se ponga.
+    mvc.perform(get("/api/v1/movements").param("code", "_").with(conPermiso(administrador)))
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$.totalElements").value(0));
+  }
+
+  @Test
   @DisplayName("CA-MV-077 — el periodo incluye `from` y excluye `to`")
   void periodoSemiabierto() throws Exception {
     // Agosto entero: el de la medianoche del 1 de septiembre NO cae aquí...
@@ -408,7 +454,7 @@ class MovementsIT extends IntegrationTestBase {
     jdbc.update("DELETE FROM movement_types WHERE code = 'PRUEBA_DEPOSITO'");
     jdbc.update("DELETE FROM products WHERE code LIKE 'ALL_%'");
     jdbc.update(
-        "DELETE FROM user_memberships WHERE user_id IN"
+        "DELETE FROM user_products WHERE user_id IN"
             + " (SELECT id FROM users WHERE username LIKE 'all-%')");
     jdbc.update("DELETE FROM users WHERE username LIKE 'all-%'");
   }
