@@ -16,6 +16,16 @@
 | Fecha de aprobación | 05-09-2026 |
 | Enmendada | 21-09-2026 — exige **`movements:list-own` (el listado) y `movements:read-own` (el detalle)** (`RF-SP-062`, `RN-SEG-015`: autenticarse no autoriza nada); lo siembra `V31` |
 
+!!! warning "Enmendado el 24-09-2026 — el filtro `code` busca por FRAGMENTO"
+
+    `RN-MV-037` ([`requirements/mv.md`](../../../requirements/mv.md) v0.41.0), a petición del responsable del proyecto: «por si solo me sé una parte». El filtro `code` de lo comprado propio **deja de exigir el comprobante entero** y pasa a devolver todo el que lo **contenga**, sin distinguir mayúsculas.
+
+    **Es una ampliación y no un cambio de contrato**: el código completo sigue encontrando lo que encontraba, porque un comprobante se contiene a sí mismo. Lo que cambia para quien lo pinta es que la respuesta puede traer **más de una fila** donde antes traía como mucho una.
+
+    **Tres cosas que NO cambian, y conviene que no se den por hechas.** `type` y `typeStatus` **siguen siendo exactos**: se eligen de un conjunto cerrado, no se teclean, y un `LIKE` ahí haría que pedir `VENTA` arrastrara cualquier tipo que la contenga. Los comodines `%` y `_` que escriba el usuario se **escapan** —son texto y no patrón—, que es la misma defensa que `RF-SP-025` ya tenía escrita. Y **el alcance no se ensancha**: va en la misma sentencia y **antes** que este predicado, de modo que quien solo ve lo suyo sigue viendo lo suyo.
+
+    **Se indexa con trigramas** (`ix_movements_codigo_busqueda`, `V39`), como `ix_users_busqueda`: `uq_movements_code` no puede responder por un fragmento del medio —un B-tree solo responde por el principio— y sin el índice nuevo la consulta recorrería la tabla entera.
+
 !!! info "Qué va en este documento"
 
     **Qué debe pasar, y por qué.** Nada más.
