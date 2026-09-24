@@ -110,13 +110,13 @@ class RoleDetailIT extends IntegrationTestBase {
     // el ajuste de V40 (24-09-2026) —y ninguno de los de ADMIN, que sería la
     // herencia que RN-SEG-004 prohíbe, que es lo que esta prueba defiende—.
     //
-    // EL AJUSTE ES DE UNO, y va expresado y no escrito como número suelto: V40 le
+    // EL AJUSTE ES DE DOS, y va expresado y no escrito como número suelto: V40 le
     // da `products:sale` y `products:hotlink` —vender y repartir enlaces— y le
     // retira `users:read-own-sellers`, porque un vendedor no tiene vendedores por
     // encima que consultar. Dos menos uno.
     mvc.perform(detalle(AGENTE))
         .andExpect(status().isOk())
-        .andExpect(jsonPath("$.permissions.length()").value(ALCANCE_PROPIO.size() + 1))
+        .andExpect(jsonPath("$.permissions.length()").value(ALCANCE_PROPIO.size() + 2))
         .andExpect(jsonPath("$.permissions[?(@.code == 'roles:read')]").doesNotExist());
   }
 

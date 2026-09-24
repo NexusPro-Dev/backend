@@ -32,7 +32,7 @@ class PermissionsSeedIT extends IntegrationTestBase {
           + " V36: movements:assign-sellers de RF-MV-016; V37: movements:list-sale-lines de RF-MV-017)")
   void catalogoCompleto() {
     assertThat(jdbc.queryForObject("SELECT count(*) FROM permissions", Integer.class))
-        .isEqualTo(133);
+        .isEqualTo(134);
   }
 
   @Test
@@ -216,6 +216,7 @@ class PermissionsSeedIT extends IntegrationTestBase {
             // Los siete de V28: products:update se queda con la edición y
             // products:comment con escribir la reseña.
             "products:list",
+            "products:buy-by-hotlink",
             "products:change-status",
             "products:set-cover",
             "products:remove-cover",
@@ -267,7 +268,7 @@ class PermissionsSeedIT extends IntegrationTestBase {
   void identificadoresUuidV7() {
     List<UUID> ids = jdbc.queryForList("SELECT id FROM permissions", UUID.class);
 
-    assertThat(ids).hasSize(133).doesNotHaveDuplicates();
+    assertThat(ids).hasSize(134).doesNotHaveDuplicates();
     assertThat(ids).allSatisfy(id -> assertThat(id.version()).isEqualTo(7));
     // variant() == 2 es la variante RFC 9562 (bits 10xx).
     assertThat(ids).allSatisfy(id -> assertThat(id.variant()).isEqualTo(2));
@@ -333,13 +334,13 @@ class PermissionsSeedIT extends IntegrationTestBase {
                 "SELECT count(*) FROM role_permissions WHERE role_id ="
                     + " '01a02a33-4c00-7001-9c4f-5e7ad1000001'",
                 Integer.class))
-        .isEqualTo(133);
+        .isEqualTo(134);
     assertThat(
             jdbc.queryForObject(
                 "SELECT count(*) FROM role_permissions WHERE role_id ="
                     + " '01a02a33-4c00-7002-9c4f-5e7ad1000002'",
                 Integer.class))
-        .isEqualTo(131);
+        .isEqualTo(132);
     assertThat(
             jdbc.queryForList(
                 """
@@ -416,7 +417,7 @@ class PermissionsSeedIT extends IntegrationTestBase {
         .doesNotContain("users:read-own-sellers");
     // Y LO QUE `V40` LE DA: comprar, reseñar lo comprado y ver la oferta.
     assertThat(cliente)
-        .hasSize(12)
+        .hasSize(13)
         .contains(
             "movements:create",
             "products:sale",

@@ -69,6 +69,34 @@ public class JpaClientSellerRepository implements ClientSellerRepository {
 
   @Override
   @Transactional
+  public boolean attachByHotlink(
+      UUID clientId, UUID sellerId, UUID movementId, OffsetDateTime ahora) {
+    // `ON CONFLICT DO NOTHING` Y NO UNA LECTURA PREVIA. La pareja es la clave
+    // primaria, de modo que el segundo intento no crea nada y el motor lo
+    // absorbe. Comprobar antes de insertar es una carrera: dos compras
+    // simultáneas por el mismo enlace leerían las dos una tabla sin la fila.
+    //
+    // Y por eso el valor de retorno es «cuántas filas» y no un booleano
+    // calculado aparte: cero significa que el vínculo YA ESTABA, que es
+    // exactamente lo que el que llama necesita saber para no auditar un hecho
+    // que no ocurrió.
+    int filas =
+        em.createNativeQuery(
+                """
+                INSERT INTO client_sellers (client_id, seller_id, origin, first_movement_id, created_at)
+                VALUES (:cliente, :vendedor, 'HOTLINK', :venta, :ahora)
+                ON CONFLICT ON CONSTRAINT pk_client_sellers DO NOTHING
+                """)
+            .setParameter("cliente", clientId)
+            .setParameter("vendedor", sellerId)
+            .setParameter("venta", movementId)
+            .setParameter("ahora", ahora)
+            .executeUpdate();
+    return filas == 1;
+  }
+
+  @Override
+  @Transactional
   public void attachFirstMovement(UUID clientId, UUID sellerId, UUID movementId) {
     em.createNativeQuery(
             """

@@ -1669,6 +1669,16 @@
         },
         "type" : "object"
       },
+      "HotlinkPurchaseRequest" : {
+        "properties" : {
+          "paymentMethodId" : {
+            "description" : "Método de pago. **Opcional**: sin él, la venta nace con el que el sistema resuelva por el país de quien compra (`RN-MV-019`), igual que en la compra de un paquete.",
+            "format" : "uuid",
+            "type" : "string"
+          }
+        },
+        "type" : "object"
+      },
       "HotlinkResponse" : {
         "properties" : {
           "product" : {
@@ -9587,6 +9597,66 @@
         "security" : [ ],
         "summary" : "Consultar un hotlink",
         "tags" : [ "Hotlinks" ]
+      }
+    },
+    "/api/v1/hotlinks/{username}/{code}/purchases" : {
+      "post" : {
+        "description" : "**Permiso requerido:** `products:buy-by-hotlink`. Sin él, `403` (`AUTH-002`).\n\nRegistra la compra del producto que llegó por el enlace de un vendedor, y\n**se la acredita a ese vendedor** (`RN-MV-025`) — también cuando quien\ncompra tiene otro agente principal.\n\n**Produce la misma venta que una compra ordinaria**: tipo `VENTA`, estado\n`PENDIENTE`, una línea con el precio y la vigencia **congelados**. Nada se\nentrega ni se cobra aquí; eso es `RF-MV-003`.\n\n**Y crea el vínculo**: si quien compra no era todavía cliente de ese\nvendedor, pasa a serlo con origen `HOTLINK` y esta venta como la primera\n(`RN-SP-049`). Si ya lo era, no se crea nada y la venta se atribuye igual.\n\n**Lo que NO hace, y conviene leerlo:** no cambia el agente **principal**.\nEsa es la persona que registró al cliente, es inmutable, y comprar por el\nenlace de otro **suma** un vendedor sin sustituir a ninguno.\n\n**La venta nace `VALIDADO`** aunque el cliente quede con varios vendedores.\nEs la excepción a `RN-MV-034` —que deja por validar las ventas de quien\ntiene más de uno— y la razón es que aquí **no hay nada que elegir**: el\nenlace ya dice quién trajo la venta.\n\n**El vendedor no viaja en el cuerpo.** Sale de la ruta, que es la prueba\nde qué enlace se usó. En el cuerpo, cualquiera podría acreditarle una\nventa a cualquiera.\n\n**El `404` es uno solo y no dice qué falló**: que el vendedor no exista,\nque no sea vendedor, que esté inactivo o que el producto no se ofrezca por\nenlace responden lo mismo. Es la decisión de seguridad de `RF-PM-008`, y\nesta ruta la hereda porque el enlace es público y los nombres de usuario\nse pueden probar.\n",
+        "operationId" : "comprar_1",
+        "parameters" : [ {
+          "in" : "path",
+          "name" : "username",
+          "required" : true,
+          "schema" : {
+            "type" : "string"
+          }
+        }, {
+          "in" : "path",
+          "name" : "code",
+          "required" : true,
+          "schema" : {
+            "type" : "string"
+          }
+        } ],
+        "requestBody" : {
+          "content" : {
+            "application/json" : {
+              "schema" : {
+                "$ref" : "#/components/schemas/HotlinkPurchaseRequest"
+              }
+            }
+          }
+        },
+        "responses" : {
+          "201" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/PurchaseResponse"
+                }
+              }
+            },
+            "description" : "La venta registrada, **sin el vendedor**: a quien compra no se le enseña a quién se le acreditó (`RF-MV-002` §3.2)"
+          },
+          "401" : {
+            "description" : "Sin autenticar (`AUTH-001`)"
+          },
+          "403" : {
+            "description" : "Autenticado sin `products:buy-by-hotlink` (`AUTH-002`)"
+          },
+          "404" : {
+            "description" : "El enlace no resuelve (`EX-001`), sin distinguir cuál de los casos"
+          },
+          "422" : {
+            "description" : "Comprar por el **propio** enlace (`EX-003`), o cualquiera de los rechazos de negocio de una venta: nivel, moneda o método de pago"
+          },
+          "500" : {
+            "description" : "Fallo no controlado (`ERR-500`)"
+          }
+        },
+        "summary" : "Comprar un producto por el hotlink de un vendedor",
+        "tags" : [ "Movimientos" ],
+        "x-required-permission" : "products:buy-by-hotlink"
       }
     },
     "/api/v1/memberships" : {

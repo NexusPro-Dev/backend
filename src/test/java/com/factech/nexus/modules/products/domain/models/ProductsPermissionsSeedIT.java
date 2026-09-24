@@ -52,7 +52,7 @@ class ProductsPermissionsSeedIT extends IntegrationTestBase {
 
     assertThat(codigos)
         .containsAll(LOS_SIETE)
-        .hasSize(14)
+        .hasSize(15)
         // Los siete de V28 (RF-SP-060): products:update se queda con la edición y
         // products:comment con escribir la reseña.
         .contains(

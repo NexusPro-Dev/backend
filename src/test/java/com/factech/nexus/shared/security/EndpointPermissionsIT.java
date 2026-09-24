@@ -237,6 +237,7 @@ class EndpointPermissionsIT extends IntegrationTestBase {
           Map.entry("GET /api/v1/products", "products:list"),
           Map.entry("GET /api/v1/products/{id}", "products:read"),
           Map.entry("GET /api/v1/products/available", "products:sale"),
+          Map.entry("POST /api/v1/hotlinks/{username}/{code}/purchases", "products:buy-by-hotlink"),
           Map.entry("GET /api/v1/products/hotlinks", "products:hotlink"),
           Map.entry("PATCH /api/v1/products/{id}", "products:update"),
           Map.entry("PATCH /api/v1/products/{id}/status", "products:change-status"),

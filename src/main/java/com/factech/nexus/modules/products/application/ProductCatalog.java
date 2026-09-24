@@ -71,6 +71,20 @@ public interface ProductCatalog {
   List<SaleView> saleViewOf(Collection<UUID> ids);
 
   /**
+   * El producto que un ENLACE puede vender, por su codigo (`RF-MV-011`, `RN-PM-021`).
+   *
+   * <p><b>Por codigo y no por identificador</b>: es lo que el enlace lleva escrito, y lo que quien
+   * compra tiene en la mano. El identificador es un dato de administracion — el mismo criterio con
+   * el que {@code PackageCatalog.storeSaleViewOf} resuelve el paquete.
+   *
+   * <p><b>Vacio si el producto no se ofrece por enlace</b>, con el MISMO predicado que `RF-PM-008`
+   * usa para publicarlo —activo, no retirado, alcance {@code HOTLINK} o {@code AMBOS}—. No es una
+   * segunda definicion: si aquel dejara de publicarlo, este dejaria de venderlo, y al reves. Quien
+   * llama convierte el vacio en el 404 unico del enlace.
+   */
+  Optional<SaleView> hotlinkSaleViewOf(String code);
+
+  /**
    * De esos productos, <b>cuáles puede comprar esa persona</b> (`RF-MV-001` · `T-06`).
    *
    * <p><b>Recibe la persona y no su nivel</b>, y es lo que hace que esta interfaz siga valiendo el
