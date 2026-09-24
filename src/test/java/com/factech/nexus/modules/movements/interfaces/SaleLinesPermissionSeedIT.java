@@ -58,7 +58,7 @@ class SaleLinesPermissionSeedIT extends IntegrationTestBase {
   }
 
   @Test
-  @DisplayName("el catálogo queda en 135, SUPERADMIN en 135 y ADMIN en 129")
+  @DisplayName("el catálogo queda en 135, SUPERADMIN en 135 y ADMIN en 133")
   void losRecuentosDelCatalogo() {
     assertThat(jdbc.queryForObject("SELECT count(*) FROM permissions", Integer.class))
         .as("el catálogo entero")
@@ -75,7 +75,7 @@ class SaleLinesPermissionSeedIT extends IntegrationTestBase {
                 "SELECT count(*) FROM role_permissions WHERE role_id = ?",
                 Integer.class,
                 java.util.UUID.fromString(ADMIN)))
-        .as("ADMIN, con la reserva de seis")
-        .isEqualTo(129);
+        .as("ADMIN, con la reserva de DOS desde V40")
+        .isEqualTo(133);
   }
 }
