@@ -102,19 +102,23 @@ class SaleLinesIT extends IntegrationTestBase {
   void unaFilaPorLinea() throws Exception {
     mvc.perform(consulta())
         .andExpect(status().isOk())
-        // Cuatro líneas de tres ventas: la de dos líneas aporta DOS filas.
-        .andExpect(jsonPath("$.content.length()").value(4))
-        .andExpect(jsonPath("$.totalElements").value(4))
-        // La anulada es la más reciente del fixture.
-        .andExpect(jsonPath("$.content[0].movementCode").value("VTA-SL-0003"))
-        .andExpect(jsonPath("$.content[3].movementCode").value("VTA-SL-0001"))
-        // Y la fila lleva lo suyo y lo de su venta.
-        .andExpect(jsonPath("$.content[3].lineId").exists())
-        .andExpect(jsonPath("$.content[3].movementId").value(ventaDeDos.toString()))
-        .andExpect(jsonPath("$.content[3].movementStatus").value("CONFIRMADA"))
-        .andExpect(jsonPath("$.content[3].occurredAt").exists())
-        .andExpect(jsonPath("$.content[3].client.username").value("sl-ana"))
-        .andExpect(jsonPath("$.content[3].currency").value("USD"));
+        // TRES líneas de DOS ventas: la de dos líneas aporta DOS filas, y la
+        // anulada —`VTA-SL-0003`, que era la más reciente— ya no aporta ninguna
+        // desde `RN-MV-038`.
+        .andExpect(jsonPath("$.content.length()").value(3))
+        .andExpect(jsonPath("$.totalElements").value(3))
+        // Y por eso la primera pasa a ser la siguiente en el tiempo: el orden no
+        // cambió, cambió quién está en la lista.
+        .andExpect(jsonPath("$.content[0].movementCode").value("VTA-SL-0002"))
+        .andExpect(jsonPath("$.content[2].movementCode").value("VTA-SL-0001"))
+        // Y la fila lleva lo suyo y lo de su venta. La ULTIMA de la lista, que
+        // con la anulada fuera pasa a ser la tercera y no la cuarta.
+        .andExpect(jsonPath("$.content[2].lineId").exists())
+        .andExpect(jsonPath("$.content[2].movementId").value(ventaDeDos.toString()))
+        .andExpect(jsonPath("$.content[2].movementStatus").value("CONFIRMADA"))
+        .andExpect(jsonPath("$.content[2].occurredAt").exists())
+        .andExpect(jsonPath("$.content[2].client.username").value("sl-ana"))
+        .andExpect(jsonPath("$.content[2].currency").value("USD"));
   }
 
   @Test
@@ -172,10 +176,11 @@ class SaleLinesIT extends IntegrationTestBase {
         .andExpect(jsonPath("$.content[0].product.code").value("SL_CURSO"))
         .andExpect(jsonPath("$.content[0].movementId").value(ventaDeDos.toString()));
 
-    // Y el otro, las dos líneas suyas de dos ventas distintas.
+    // Y el otro, su línea de la única venta confirmada en la que vendió: la otra
+    // estaba en la anulada, que desde `RN-MV-038` no aparece.
     mvc.perform(consulta("sellerId", vendedorUno.toString()))
         .andExpect(status().isOk())
-        .andExpect(jsonPath("$.content.length()").value(2));
+        .andExpect(jsonPath("$.content.length()").value(1));
 
     mvc.perform(consulta("userId", UUID.randomUUID().toString()))
         .andExpect(status().isOk())
@@ -185,9 +190,10 @@ class SaleLinesIT extends IntegrationTestBase {
   @Test
   @DisplayName("`CA-MV-168` — productId acota a las líneas de un producto")
   void filtroPorProducto() throws Exception {
+    // Una y no dos: la otra línea de este producto estaba en la venta anulada.
     mvc.perform(consulta("productId", curso.toString()))
         .andExpect(status().isOk())
-        .andExpect(jsonPath("$.content.length()").value(2))
+        .andExpect(jsonPath("$.content.length()").value(1))
         .andExpect(
             jsonPath("$.content[*].product.code")
                 .value(org.hamcrest.Matchers.everyItem(org.hamcrest.Matchers.is("SL_CURSO"))));
@@ -195,14 +201,34 @@ class SaleLinesIT extends IntegrationTestBase {
 
   @Test
   @DisplayName(
-      "`CA-MV-169` — status acota por el estado de la VENTA, y la anulada sale cuando no se filtra")
-  void filtroPorEstadoDeLaVenta() throws Exception {
-    mvc.perform(consulta("status", "ANULADA"))
+      "`CA-MV-188` — solo las CONFIRMADAS: la anulada no sale NI SIN FILTRAR, y el filtro status ya no existe")
+  void soloLasVentasConfirmadas() throws Exception {
+    // INVIERTE a `CA-MV-169`, que probaba lo contrario: hasta el 24-09-2026 la
+    // anulada salía cuando no se filtraba, y `status` la traía a propósito.
+    // Ahora lo decide la consulta y no hay forma de pedirla (`RN-MV-038`).
+    mvc.perform(consulta())
         .andExpect(status().isOk())
-        .andExpect(jsonPath("$.content.length()").value(1))
-        .andExpect(jsonPath("$.content[0].movementId").value(ventaAnulada.toString()));
+        .andExpect(jsonPath("$.content.length()").value(3))
+        .andExpect(
+            jsonPath("$.content[*].movementId")
+                .value(
+                    org.hamcrest.Matchers.not(
+                        org.hamcrest.Matchers.hasItem(ventaAnulada.toString()))));
 
-    mvc.perform(consulta("status", "CONFIRMADA"))
+    // Y CADA LÍNEA LO DICE: `movementStatus` se conserva y vale siempre
+    // `CONFIRMADA`. Es la mitad que hace verificable que el predicado fijo está
+    // puesto, y no solo que la anulada falte por otro motivo.
+    mvc.perform(consulta())
+        .andExpect(status().isOk())
+        .andExpect(
+            jsonPath("$.content[*].movementStatus")
+                .value(org.hamcrest.Matchers.everyItem(org.hamcrest.Matchers.is("CONFIRMADA"))));
+
+    // EL PARÁMETRO RETIRADO NO FILTRA Y TAMPOCO ROMPE: Spring ignora lo que no
+    // declara, de modo que pedir `status=ANULADA` devuelve lo mismo que no
+    // pedirlo. Que no sea un `400` es deliberado — un cliente que todavía lo
+    // mande sigue recibiendo su respuesta.
+    mvc.perform(consulta("status", "ANULADA"))
         .andExpect(status().isOk())
         .andExpect(jsonPath("$.content.length()").value(3));
   }
@@ -219,9 +245,11 @@ class SaleLinesIT extends IntegrationTestBase {
         .andExpect(jsonPath("$.content[0].product.code").value("SL_BOT"))
         .andExpect(jsonPath("$.content[0].deliveredAt").exists());
 
+    // Una y no dos, y conviene leer por qué: el filtro por entrega no cambió —la
+    // otra `PENDIENTE` vivía en la venta anulada, que ya no se lista—.
     mvc.perform(consulta("deliveryStatus", "PENDIENTE"))
         .andExpect(status().isOk())
-        .andExpect(jsonPath("$.content.length()").value(2));
+        .andExpect(jsonPath("$.content.length()").value(1));
   }
 
   @Test
@@ -235,10 +263,11 @@ class SaleLinesIT extends IntegrationTestBase {
   @Test
   @DisplayName("`CA-MV-172` — from/to acotan por cuándo ocurrió la venta, con el rango semiabierto")
   void filtroPorFechas() throws Exception {
-    // `from` inclusive: la venta del instante exacto entra.
+    // `from` inclusive: la venta del instante exacto entra. Tres y no cuatro,
+    // porque la anulada quedó fuera del listado y no del rango.
     mvc.perform(consulta("from", BASE.toString()))
         .andExpect(status().isOk())
-        .andExpect(jsonPath("$.content.length()").value(4));
+        .andExpect(jsonPath("$.content.length()").value(3));
 
     // `to` exclusivo: la de `BASE.plusHours(2)` NO entra.
     mvc.perform(consulta("to", BASE.plusHours(2).toString()))
@@ -255,15 +284,16 @@ class SaleLinesIT extends IntegrationTestBase {
   @DisplayName("`CA-MV-173` — los filtros se combinan, y la combinación vacía responde 200")
   void losFiltrosSeCombinan() throws Exception {
     mvc.perform(
-            consulta()
-                .param("userId", ana.toString())
-                .param("sellerId", vendedorUno.toString())
-                .param("status", "CONFIRMADA"))
+            consulta().param("userId", ana.toString()).param("sellerId", vendedorUno.toString()))
         .andExpect(status().isOk())
         .andExpect(jsonPath("$.content.length()").value(1));
 
-    // El mismo vendedor, pero sobre el sujeto que no le compró: vacío, no error.
-    mvc.perform(consulta().param("userId", ana.toString()).param("status", "ANULADA"))
+    // El mismo sujeto, pero con un vendedor que no le vendió: vacío, no error.
+    // Antes esta mitad se hacía con `status=ANULADA`, que ya no es un filtro.
+    mvc.perform(
+            consulta()
+                .param("userId", ana.toString())
+                .param("sellerId", java.util.UUID.randomUUID().toString()))
         .andExpect(status().isOk())
         .andExpect(jsonPath("$.content.length()").value(0));
   }
@@ -275,17 +305,16 @@ class SaleLinesIT extends IntegrationTestBase {
   void losCuatroCuatrocientosViajanJuntos() throws Exception {
     mvc.perform(
             consulta()
-                .param("status", "INVENTADO")
                 .param("deliveryStatus", "TAMPOCO")
                 .param("from", BASE.plusDays(1).toString())
                 .param("to", BASE.toString())
                 .param("size", "-3"))
         .andExpect(status().isBadRequest())
         .andExpect(
-            jsonPath("$.errors.length()").value(org.hamcrest.Matchers.greaterThanOrEqualTo(4)))
+            jsonPath("$.errors.length()").value(org.hamcrest.Matchers.greaterThanOrEqualTo(3)))
         .andExpect(
             jsonPath("$.errors[*].field")
-                .value(org.hamcrest.Matchers.hasItems("status", "deliveryStatus", "from")));
+                .value(org.hamcrest.Matchers.hasItems("deliveryStatus", "from")));
 
     // Y el identificador ilegible es `400` por sí solo.
     mvc.perform(consulta("productId", "no-es-uuid")).andExpect(status().isBadRequest());
@@ -296,7 +325,7 @@ class SaleLinesIT extends IntegrationTestBase {
   void elTotalEsAcotado() throws Exception {
     mvc.perform(consulta())
         .andExpect(status().isOk())
-        .andExpect(jsonPath("$.totalElements").value(4))
+        .andExpect(jsonPath("$.totalElements").value(3))
         .andExpect(jsonPath("$.totalIsExact").value(true));
   }
 
@@ -393,8 +422,10 @@ class SaleLinesIT extends IntegrationTestBase {
 
     mvc.perform(consulta())
         .andExpect(status().isOk())
-        // Las cuatro de siempre: la del depósito no entra.
-        .andExpect(jsonPath("$.content.length()").value(4))
+        // Las TRES de siempre: ni la del depósito —no es una venta— ni la de la
+        // anulada —no está confirmada—. Dos exclusiones distintas y las dos fijas
+        // en la consulta.
+        .andExpect(jsonPath("$.content.length()").value(3))
         .andExpect(
             jsonPath("$.content[*].movementCode")
                 .value(org.hamcrest.Matchers.not(org.hamcrest.Matchers.hasItem("DEP-SL-0001"))));
@@ -404,10 +435,11 @@ class SaleLinesIT extends IntegrationTestBase {
   @DisplayName(
       "`CA-MV-180` — typeStatus acota por el estado del TIPO de la venta, y se combina con los demás")
   void filtroPorEstadoDelTipo() throws Exception {
-    // Tres líneas en ventas `VALIDADO` y una en la que está pendiente de validar.
+    // Dos líneas en ventas `VALIDADO` confirmadas y una en la que está pendiente
+    // de validar; la tercera `VALIDADO` era de la anulada.
     mvc.perform(consulta("typeStatus", "VALIDADO"))
         .andExpect(status().isOk())
-        .andExpect(jsonPath("$.content.length()").value(3))
+        .andExpect(jsonPath("$.content.length()").value(2))
         .andExpect(
             jsonPath("$.content[*].movementCode")
                 .value(org.hamcrest.Matchers.not(org.hamcrest.Matchers.hasItem("VTA-SL-0002"))));
@@ -441,11 +473,13 @@ class SaleLinesIT extends IntegrationTestBase {
         .andExpect(jsonPath("$.errors[0].code").value("VAL-005"));
 
     // Y acompañado: los dos estados mal escritos vuelven en la MISMA respuesta.
-    mvc.perform(consulta().param("typeStatus", "NO_EXISTE").param("status", "TAMPOCO"))
+    // El de la VENTA ya no es uno de ellos —su filtro se retiró el 24-09-2026—,
+    // de modo que el acompañante es el de la ENTREGA.
+    mvc.perform(consulta().param("typeStatus", "NO_EXISTE").param("deliveryStatus", "TAMPOCO"))
         .andExpect(status().isBadRequest())
         .andExpect(
             jsonPath("$.errors[*].field")
-                .value(org.hamcrest.Matchers.hasItems("typeStatus", "status")));
+                .value(org.hamcrest.Matchers.hasItems("typeStatus", "deliveryStatus")));
   }
 
   // ---------------------------------------------------------------- fixture

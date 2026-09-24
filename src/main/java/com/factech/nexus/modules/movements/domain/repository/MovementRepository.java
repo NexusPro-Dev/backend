@@ -550,7 +550,6 @@ public interface MovementRepository {
       UUID userId,
       UUID sellerId,
       UUID productId,
-      String status,
       String deliveryStatus,
       String typeStatus,
       String code,

@@ -316,8 +316,9 @@ public class MovementController {
           `status` (qué está pendiente de confirmar), `userId` (qué compró esta persona —el
           SUJETO, a nombre de quién es—), `sellerId` (qué vendió esta persona, como vendedora
           de **alguna de sus líneas**; una venta con varias líneas suyas aparece **una vez**),
-          `paymentMethodId` (qué entró por un medio de pago), `code` (un comprobante exacto,
-          sin distinguir mayúsculas) y `from`/`to` sobre **cuándo ocurrió**. `from` y `to` son
+          `paymentMethodId` (qué entró por un medio de pago), `code` (**una PARTE del
+          comprobante**, sin distinguir mayúsculas: `a1b2` encuentra `VTA-A1B2C3D4`, y
+          `%` y `_` son texto y no comodines, `RN-MV-037`) y `from`/`to` sobre **cuándo ocurrió**. `from` y `to` son
           instantes con zona horaria y el rango es **semiabierto** —incluye `from`, excluye
           `to`—. Un `userId`, `sellerId` o `paymentMethodId` que no exista da una página vacía;
           un `status` que no exista es `400`. Desde el 21-09-2026, `type` (qué depósitos hubo,
@@ -505,14 +506,20 @@ public class MovementController {
           `GET /movements/mine/products`: administración necesita saber por qué algo está
           donde está.
 
-          **Los ocho filtros se combinan** y cada uno responde una pregunta: `movementId`
+          **Solo trae las líneas de ventas CONFIRMADAS** (`RN-MV-038`, 24-09-2026). Las de
+          una venta `PENDIENTE`, `ANULADA` o `RECHAZADA` **no aparecen**, y no hay forma de
+          pedirlas: lo decide la consulta y no un filtro. `movementStatus` viaja en cada
+          línea y dirá siempre `CONFIRMADA`.
+
+          **Los siete filtros se combinan** y cada uno responde una pregunta: `movementId`
           (las líneas de una venta), `userId` (qué compró esta persona, el sujeto),
           `sellerId` (qué vendió esta persona, **como vendedora de la línea**), `productId`
-          (qué se vendió de este producto), `status` (el estado de la VENTA),
-          `deliveryStatus` (el de la LÍNEA), `typeStatus` (el estado del TIPO de la venta,
+          (qué se vendió de este producto),
+          `deliveryStatus` (el de la LÍNEA, que **no** es el de la venta: una confirmada
+          tiene líneas `ENTREGADA`, `PENDIENTE` de autorización y `RETENIDA`), `typeStatus` (el estado del TIPO de la venta,
           `VALIDAR_COMISIONES` o `VALIDADO`: la pregunta «qué falta por validar»),
-          `code` (un comprobante exacto, sin distinguir
-          mayúsculas) y `from`/`to` sobre **cuándo ocurrió la venta**, con el rango
+          `code` (**una PARTE del comprobante**, sin
+          distinguir mayúsculas, `RN-MV-037`) y `from`/`to` sobre **cuándo ocurrió la venta**, con el rango
           **semiabierto** —incluye `from`, excluye `to`—. Un identificador inexistente da
           **página vacía**; un estado que no existe es `400`, porque el catálogo es cerrado.
           Los problemas de forma se devuelven **juntos**.
@@ -556,7 +563,6 @@ public class MovementController {
       @RequestParam(required = false) UUID userId,
       @RequestParam(required = false) UUID sellerId,
       @RequestParam(required = false) UUID productId,
-      @RequestParam(required = false) String status,
       @RequestParam(required = false) String deliveryStatus,
       @RequestParam(required = false) String typeStatus,
       @RequestParam(required = false) String code,
@@ -570,7 +576,6 @@ public class MovementController {
             userId,
             sellerId,
             productId,
-            status,
             deliveryStatus,
             typeStatus,
             code,
@@ -711,8 +716,9 @@ public class MovementController {
           publica por ninguna ruta.
 
           **Y desde ese mismo día, los tres filtros de `GET /movements`**: `paymentMethodId`
-          (uno que no exista da página vacía), `code` (el comprobante exacto, sin distinguir
-          mayúsculas; **uno ajeno no devuelve nada**: el alcance va antes que el filtro) y
+          (uno que no exista da página vacía), `code` (**una PARTE del comprobante**, sin distinguir
+          mayúsculas, `RN-MV-037`; **uno ajeno sigue sin devolver nada**: el alcance va
+          antes que el filtro, y buscar por fragmento no lo ensancha) y
           `from`/`to` sobre **cuándo ocurrió**, instantes con zona horaria, rango semiabierto
           —incluye `from`, excluye `to`—; `from` posterior a `to` es `400`. Todos se combinan.
 

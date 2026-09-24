@@ -32,7 +32,6 @@ public record SaleLinesRequest(
     UUID userId,
     UUID sellerId,
     UUID productId,
-    String status,
     String deliveryStatus,
     String typeStatus,
     String code,
@@ -40,7 +39,6 @@ public record SaleLinesRequest(
     OffsetDateTime to) {
 
   public SaleLinesRequest {
-    status = enBlancoEsAusente(status);
     deliveryStatus = enBlancoEsAusente(deliveryStatus);
     typeStatus = enBlancoEsAusente(typeStatus);
     code = enBlancoEsAusente(code);
