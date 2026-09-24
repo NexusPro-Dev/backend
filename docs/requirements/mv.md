@@ -5,11 +5,11 @@
 | Módulo | `MV` — Movimientos |
 | Paquete | `modules/movements` |
 | Prefijos de permiso | `movements:` |
-| Versión | 0.39.0 |
+| Versión | 0.43.0 |
 | Estado | **Borrador** |
 | Responsable | Bonilla Diaz William Steven |
 | Fecha de creación | 02-09-2026 |
-| Última actualización | 23-09-2026 |
+| Última actualización | 24-09-2026 |
 
 !!! info "Qué va en este documento"
 
@@ -231,12 +231,12 @@ La dependencia es **acíclica**: `MV` → `PM` → `SP`, y `MV` → `SP`.
 |---|---|
 | Objetivo | Que un cliente **con cuenta** compre el producto que le llegó por el enlace de un vendedor, y que **ese** vendedor cobre la venta aunque no sea su agente |
 | Actor | Cualquier persona autenticada que pueda comprar (las mismas condiciones que `RF-MV-002`) |
-| Permiso requerido | **Autenticado**, sin permiso: es una compra propia |
+| Permiso requerido | **`products:buy-by-hotlink`** (nace con él). Hasta el 24-09-2026 esta ficha decía «Autenticado, sin permiso»: es anterior a `RN-SEG-015` (21-09-2026), que no admite que el token autorice por sí solo. **Propio y no `products:buy`**: son dos puertas con atribuciones distintas, y con un solo permiso no se puede abrir una sin la otra |
 | Prioridad | Alta |
 | Reglas aplicables | `RN-MV-001` a `RN-MV-016`, `RN-MV-022`, `RN-MV-025`, `RN-MV-026`; `RN-PM-021`, `RN-PM-022`; `RN-SP-049` |
 | Depende de | `RF-MV-002`, `RF-PM-008`, `RF-SP-045` |
-| Tripleta | `docs/specs/mv/011-comprar-por-hotlink/` |
-| Estado | **Pendiente** — registrado el 16-09-2026 |
+| Tripleta | [`docs/specs/mv/011-comprar-por-hotlink/`](../specs/mv/011-comprar-por-hotlink/spec.md) |
+| Estado | **Tasks en revisión** — registrado el 16-09-2026, con tripleta el 24-09-2026 |
 
 **Entra por `POST /api/v1/hotlinks/{username}/{code}/purchases`**, con el método de pago en el cuerpo, y produce **la misma venta** que `RF-MV-002`: tipo `VENTA`, estado `PENDIENTE`, una línea con el precio y la vigencia copiados, y las mismas validaciones sobre el producto y sobre quien compra. Lo que resuelve antes es **el enlace**: el vendedor por `PublicSellerLookup` y el producto por su código, **publicado por hotlink** (`RN-PM-021`), y todo lo que no procede responde el mismo `404` del hotlink. Y lo que hace después, en la misma transacción: **el vínculo** cliente-vendedor si no existía (`RN-SP-049`), con `first_movement_id` apuntando a esta venta.
 
@@ -825,3 +825,4 @@ Se siembra por migración y **no se administra por API todavía** (§5.3). Lo m�
 | 0.37.0 | 23-09-2026 | **Nace `RF-MV-017`, las líneas de venta para administración**, a petición del responsable del proyecto («un endpoint para traer todas las líneas de las ventas, con su propio permiso, paginado»). **Ninguna regla nueva y ningún cambio de esquema**: las líneas están en `movement_details` desde `V7`, con el vendedor por línea de `V12`, el nombre congelado y el descuento de `V14` y la entrega de `V16`. Lo único que nace es la **operación** y su permiso, `movements:list-sale-lines` (`V37`, catálogo 135), sembrado solo para `SUPERADMIN` y `ADMIN`. **Es la contraparte de administración de `RF-MV-014`**, que publica lo mismo acotado a lo propio, y la hermana de `RF-MV-006` —que lista movimientos— una fila por LÍNEA en lugar de una por venta: la pregunta que responde es «qué se ha vendido», que ningún listado por movimiento contesta sin que el frontend abra cada venta. **`RN-MV-031` NO se aplica aquí a propósito**, y queda escrito por si alguien lo lee como una incoherencia: el alcance por estructura vive en `movements:list-sales`, y darle alcance a este permiso haría que un vendedor con él viera las líneas de toda la empresa. Diecisiete criterios, `CA-MV-163` a `CA-MV-179`. La versión 0.36.0 es de `RF-MV-016` (estados de comisión), del mismo día: esta rama va **apilada** sobre la suya, de modo que su `V36` entra por debajo de esta `V37` y el catálogo llega a 135 contando las dos. | Responsable del proyecto |
 | 0.38.0 | 23-09-2026 | **`RF-MV-017` filtra por `typeStatus` y no lo publica** (enmienda del Art. I.7, [`specs/mv/017-consultar-lineas-de-venta/spec.md`](../specs/mv/017-consultar-lineas-de-venta/spec.md) v0.2.0), por decisión del responsable del proyecto. Ninguna regla nueva y ningún cambio de esquema: el eje lo trajo `RN-MV-033` con `RF-MV-016`, y aquí solo entra como **filtro**. La fila publicada no cambia, de modo que el contrato solo gana un parámetro. | Responsable del proyecto |
 | 0.39.0 | 22-09-2026 | **«Mis compras» se muda a `GET /movements/mine/shopping`** (`RF-MV-008` enmendado por Art. I.7; §4.1), por decisión del responsable del proyecto, que enunció las tres consultas con su nombre y su alcance: mis compras, lo que vendió mi equipo de mi rango hacia abajo, y el libro entero. **Sin alias en `/movements/mine`** (`RN-SEG-014`): segundo cambio incompatible del día. El detalle y los productos comprados no se mueven. Los filtros que pidió —fechas de la venta, método de pago, estado, y persona en ventas— **ya estaban construidos** desde el 21-09-2026 y no cambian. `CA-MV-140`. Sin regla nueva, sin migración y sin permiso nuevo. **0.35.0 es de los enlaces de producto de `PM`**, en otra rama. | Responsable del proyecto |
+| 0.43.0 | 24-09-2026 | **`RF-MV-011` estrena tripleta —comprar un producto por el hotlink de un vendedor—**, a petición del responsable del proyecto, que llegó por el camino corto: copió el enlace de otro agente, compró, y **la venta se guardó con su agente principal**. No era un fallo del código: el enlace es solo un escaparate (`RF-PM-008` publica un `GET` que no crea nada), la compra sale por la vía ordinaria —que no lleva rastro del enlace ni tiene dónde ponerlo— y la atribución cae en `client_sellers`. El sistema hacía lo único que sabía hacer. **`RN-MV-025` ya decidía lo contrario desde el 16-09-2026** y no se toca: el `seller_id` de cada línea es quien reparte el enlace, y el vínculo `HOTLINK` nace con esa venta. Lo que faltaba era quién lo ejecuta. **Dos cosas quedan fijadas aquí y las dos las citaba ya `RF-MV-013`**: la ruta `POST /api/v1/hotlinks/{username}/{code}/purchases`, y que **`MV` no escribe `client_sellers`** — se lo pide a `SP` por una interfaz publicada, que es la **segunda** escritura entre módulos después de `MembershipGrant` (**D-26**). **La ficha se enmienda en dos puntos**: el permiso pasa a `products:buy-by-hotlink` —su línea «Autenticado, sin permiso» es anterior a `RN-SEG-015`— y el estado a `Tasks en revisión`. Con él se desbloquea `RF-MV-013`, que reutiliza el puerto sin escribir otro. | Responsable del proyecto |

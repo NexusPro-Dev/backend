@@ -5,11 +5,11 @@
 | Proyecto | NEXUS — Renovación de plataforma |
 | Empresa | FACTECH GROUP SAS |
 | Documento | `architecture.md` |
-| Versión | 0.34.0 |
+| Versión | 0.36.0 |
 | Estado | Borrador |
 | Responsable técnico | Bonilla Diaz William Steven |
 | Fecha de creación | 19-08-2026 |
-| Última actualización | 21-09-2026 |
+| Última actualización | 24-09-2026 |
 | Documento superior | `constitution.md` v0.5.0 |
 | Documento relacionado | `security.md` v0.3.0 |
 
@@ -838,6 +838,7 @@ El código vive en paquetes de `SP`, y las tareas que lo escriben pertenecen a *
 | Operación | Hace | La declara | La invoca |
 |---|---|---|---|
 | **Conceder el nivel comprado** (`MembershipGrant`) | Cierra la membresía vigente e inserta la comprada, con vigencia desde el instante indicado; audita en `SP` | `SP`, en su capa `application` | `RF-MV-003` |
+| **Vincular al cliente con el vendedor del enlace** (`ClientSellerBond`) | Crea la fila `HOTLINK` de `client_sellers` si no existía, con esa venta como primera; **no toca el principal** (`RN-SP-049`) y audita en `SP`. **Desde el 24-09-2026** (`RF-MV-011`) | `SP`, en su capa `application` | `RF-MV-011`, `RF-MV-013` |
 
 **Lo que cambia respecto de las lecturas, y lo que no.** Las cuatro reglas de §15.2 siguen valiendo, y dos de ellas se leen distinto cuando lo que cruza es una escritura:
 
@@ -935,3 +936,4 @@ D-08 quedó cerrada en `security.md` §12, junto con las decisiones D-12 a D-15 
 | 0.32.0 | 18-09-2026 | **§15.2 gana la primera lectura que responde sobre autorización**: `PermissionHolderLookup`, «¿esta persona porta este permiso?», publicada por `SP` a petición de `RF-AC-008` (`requirements/sp.md` v1.60.0 §8, `requirements/ac.md` §3). Un booleano sobre un código y **no la lista** de permisos, por la regla 2 de la sección —la regla se queda con su dueño—: con la lista, cada consumidor acabaría con su propio «¿qué puede hacer?» divergiendo de `RN-SEG-010` sin que nada fallara. El predicado de «portar» es una sola constante compartida con quien resuelve los permisos efectivos. La tabla de interfaces pasa a ocho filas. | Responsable técnico |
 | 0.33.0 | 19-09-2026 | **§15.2 gana una lectura cruzada de `PM` hacia `MV`: si un producto lo publica el hotlink** (`ProductCatalog.publishedByHotlink`), por decisión del responsable del proyecto. La trae `RN-MV-007` enmendada ([`requirements/mv.md`](requirements/mv.md) v0.27.0): la oferta contra la que se valida una venta es **la del canal por el que se compra**, y la venta del enlace de registro se validaba contra la tienda. Sigue la norma —el dueño del dato publica, el consumidor importa, **la regla se queda con su dueño**: el predicado de «publicado por hotlink» es el mismo de `RF-PM-008` y `RF-PM-027`, y `MV` lo pregunta en lugar de recalcularlo— y la lección del 04-09-2026: se miró primero si `PM` ya lo publicaba, y no: las dos lecturas de hotlink existentes son por código y con proyección, y esta es por lote y sin ella. | Responsable del proyecto |
 | 0.34.0 | 21-09-2026 | **`SP` publica el alcance comercial** (`CommercialReach`, §15.2), por `RF-MV-015` y `RN-MV-031` ([`requirements/mv.md`](requirements/mv.md) v0.32.0): hasta dónde llega una persona —todo, su red en profundidad, o ella misma— resuelto por `SP` de su tipo de rol y de `user_supervisors`, y aplicado por `MV` como predicado. Es el resolvedor que `ADR-005` recomienda (opción B) con un solo tipo de alcance, y se hace **antes** que la comprobación de arquitectura que aquel ponía primero: el responsable del proyecto decidió el alcance de las ventas y la regla de ArchUnit queda pendiente, anotado en `security.md` v0.68.0. | Responsable del proyecto |
+| 0.36.0 | 24-09-2026 | **§15.2.1 gana la SEGUNDA escritura publicada, y con ella deja de ser un caso único**: `ClientSellerBond` —vincular al cliente con el vendedor de cuyo enlace compró— (`RF-MV-011`; [`requirements/mv.md`](requirements/mv.md) v0.43.0). **Lo que esto confirma es la norma, no la excepción**: las cuatro reglas de §15.2 se aplicaron a un caso nuevo **sin retocar ninguna**. Cruza una orden plana —cliente, vendedor, venta—, devuelve lo que quedó, corre en la transacción de quien llama con `MANDATORY`, y el reparto de responsabilidad es el mismo: *qué significa vincular* —quién es el principal, que no se toca— es de `SP`; *si se vincula* lo decide `MV` al registrar la compra. **`SP` no gana ningún requerimiento por publicarla**, como en D-26: ningún actor pide «publicar una interfaz». | Responsable del proyecto |

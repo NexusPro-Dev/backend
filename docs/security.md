@@ -5,11 +5,11 @@
 | Proyecto | NEXUS — Renovación de plataforma |
 | Empresa | FACTECH GROUP SAS |
 | Documento | `security.md` |
-| Versión | 0.71.0 |
+| Versión | 0.73.0 |
 | Estado | Borrador |
 | Responsable técnico | Bonilla Diaz William Steven |
 | Fecha de creación | 19-08-2026 |
-| Última actualización | 23-09-2026 |
+| Última actualización | 24-09-2026 |
 | Documento superior | `constitution.md` v0.5.0 |
 | Documento relacionado | `architecture.md` v0.4.0 |
 
@@ -228,6 +228,7 @@ packages:list    packages:read    packages:create    packages:update    packages
 packages:change-status  packages:set-cover  packages:remove-cover
 packages:add-product    packages:update-product   packages:remove-product
 packages:buy
+products:buy-by-hotlink
 
 commissions:read commissions:create commissions:update commissions:delete
 commissions:read-effective
@@ -892,3 +893,4 @@ RNF-SEG-002 merece atención: es una prueba que enumera los endpoints registrado
 | 0.69.0 | 21-09-2026 | **Los ocho `teams:` entran en el catálogo de §4.4 y este pasa a ciento treinta y tres** (`RF-SP-063` a `RF-SP-070`, el submódulo Equipos de [`requirements/sp.md`](requirements/sp.md) v1.71.0; `RN-SEG-014`, uno por operación: `list`, `read`, `create`, `update`, `change-status`, `delete`, `assign-members`, `remove-members`). Los sembrará `V34`, a `SUPERADMIN` y `ADMIN` explícitamente y a nadie más: administrar cómo se organiza la cúspide es tarea de administración, y ningún manager organiza su propio equipo. §6 anota, en la nota de D-22, que **pertenecer a un equipo no concede alcance**. La 0.68.0 es de `RF-MV-015` (`V32`, `movements:list-sales`; §4.4 a ciento veinticinco), redactada el mismo día en otra rama, y este recuento la incluye. | Responsable del proyecto |
 | 0.70.0 | 23-09-2026 | **`movements:assign-sellers` entra en el catálogo de §4.4 y este pasa a ciento treinta y cuatro** (`RF-MV-016`, `RN-MV-035`; [`requirements/mv.md`](requirements/mv.md) v0.36.0), por decisión del responsable del proyecto: asignar o corregir el vendedor de las líneas de una venta cuyo cliente tiene varios vendedores. **Uno por operación** (`RN-SEG-014`): no reutiliza `movements:confirm` —confirmar responde «¿entró el dinero?», y esto responde «¿a quién se le paga?»— ni `movements:create`. `V36` lo siembra **explícito** a `SUPERADMIN` y `ADMIN` y a nadie más; las guardas quedan en 134 / 134 / 128. **No es una lectura por estructura** y no toca D-22: quien lo porta asigna en cualquier venta, y el alcance lo acota **la regla** —solo entre los vendedores del cliente— y no quien mira | Responsable técnico |
 | 0.71.0 | 23-09-2026 | **`movements:list-sale-lines` entra en el catálogo de §4.4 y este pasa a ciento treinta y cinco** (`RF-MV-017`, `V37`; [`requirements/mv.md`](requirements/mv.md) v0.37.0). Es un permiso **de administración**: lo siembra `V37` solo para `SUPERADMIN` y `ADMIN`, y con él se ven **todas** las líneas de venta del libro. **Lo que conviene tener escrito es lo que NO hace**: no aplica `RN-MV-031`. El alcance por estructura —el vendedor ve su red— vive en `movements:list-sales` y solo ahí; darle alcance a este permiso lo convertiría en dos cosas a la vez y un vendedor con él vería la empresa entera, que es exactamente lo que la separación de `RN-SEG-014` existe para impedir. El 134 es `movements:assign-sellers` (`RF-MV-016`), que entra **por debajo** con su `V36`: esta rama va apilada sobre la suya, de modo que aquí el catálogo se cuenta con las dos migraciones. | Responsable del proyecto |
+| 0.73.0 | 24-09-2026 | **Nace `products:buy-by-hotlink`** (`RF-MV-011`, `V41`; [`requirements/mv.md`](requirements/mv.md) v0.43.0): comprar un producto **por el enlace de un vendedor**, que es la compra en la que la venta se le acredita a quien repartió el enlace y no a quien ya le vendía. **Propio y no `products:buy`, y la distinción es el motivo de que exista**: son dos puertas sobre el mismo producto con **atribuciones distintas**, y quien administra roles tiene que poder abrir una sin abrir la otra — con un solo permiso esa decisión no se puede expresar. Es el criterio de `RN-SEG-014`, el mismo que separó `users:revoke-membership` de `users:assign-membership`. **Se reparte por TIPO de rol** y no por lista, como `V31` con la familia de alcance propio: un rol de consumidor nuevo tiene que poder comprar sin que nadie toque una migración. | Responsable del proyecto |
