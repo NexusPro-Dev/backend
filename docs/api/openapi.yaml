@@ -8545,7 +8545,8 @@ paths:
         **`userId` es una persona de mi red como vendedora** —«las ventas de mi agente tal»—
         y acota **dentro** del alcance: una persona fuera de mi red, o inexistente, da una
         **página vacía** y no un error, para que el filtro no sirva para descubrir quién
-        cuelga de quién. `status`, `paymentMethodId`, `code` y `from`/`to` son los de
+        cuelga de quién. `code` acepta **una PARTE del comprobante**, sin distinguir
+        mayúsculas (`RN-MV-037`). `status`, `paymentMethodId`, `code` y `from`/`to` son los de
         `GET /movements` y se combinan, y también `typeStatus` (`VALIDAR_COMISIONES` o
         `VALIDADO`, desde el 23-09-2026); **el comprobante de una venta que no es de mi
         alcance tampoco aparece**, escrito como sea. **Una venta por validar no está en el
