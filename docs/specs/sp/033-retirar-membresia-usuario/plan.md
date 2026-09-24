@@ -5,13 +5,22 @@
 | Requerimiento | `RF-SP-033` |
 | Especificación | [`spec.md`](spec.md) |
 | `spec.md` aprobada el | 21-08-2026 |
-| Estado | **Aprobado** |
+| Estado | **Descartado el 23-09-2026** — nadie retira el nivel a mano (`RN-SP-056`) |
 | Autor | Responsable técnico |
 | Aprobado por | Responsable del proyecto |
 | Fecha de aprobación | 22-08-2026 |
 
 ---
 
+!!! danger "DESCARTADO el 23-09-2026 — si nadie fija el nivel a mano, nadie lo retira a mano"
+
+    Por decisión del responsable del proyecto (`RN-SP-056`, [`requirements/sp.md`](../../../requirements/sp.md) v1.84.0): `user_memberships` pasa a ser **`user_products`** —lo que cada persona **tiene**, y no solo qué nivel tiene—, y con la tabla abierta a los productos el nivel deja de fijarse a mano. **Se concede al comprarlo** (`RF-MV-003`, `RN-MV-020`) o al registrarse, donde nace el suelo de `RN-SP-018`.
+
+    **Se retiran `RevokeUserMembershipService` y el endpoint `DELETE /api/v1/users/{id}/membership`.** Sobrevive `UserRepository.closeMembership`, que este plan escribió: lo usa `RF-SP-029` al eliminar a una persona, y lo usará la escritura publicada de **D-26** para cerrar la vigente antes de abrir la comprada. El cierre sigue **sin tocar `ends_at`**, que fue la decisión de este plan y sigue siendo la del sistema.
+
+    **Lo que sí muere con el requerimiento es la apertura de la `BECA` de reemplazo.** No hay vuelta al suelo: la vencida ocupa su plaza sin conceder nada hasta que se compre otra.
+
+    **El número queda consumido y no se reutiliza** (`requirements.md` §2). El documento se conserva como historia y no se borra: está citado desde otras tripletas aprobadas, y borrarlo dejaría referencias colgando.
 !!! note "Enmienda de Art. I.7 — 19-09-2026, `RF-SP-060`"
 
     Esta operación exige **`users:revoke-membership`** y no `users:assign-membership` desde el 19-09-2026, por `RF-SP-060` —**un permiso por operación**, `RN-SEG-014` ([`security.md` §4.4](../../../security.md#44-catalogo-de-permisos))—: `users:assign-membership` gobernaba varias operaciones y se queda con una; esta recibe código propio, sembrado por `V28` y dado a todo rol que portara `users:assign-membership`. Las menciones de `users:assign-membership` que siguen abajo hablan de su siembra original y se conservan como historia.

@@ -93,7 +93,7 @@ class MovementsBoundedCountIT extends IntegrationTestBase {
     jdbc.update("DELETE FROM movement_details");
     jdbc.update("DELETE FROM movements");
     jdbc.update(
-        "DELETE FROM user_memberships WHERE user_id IN"
+        "DELETE FROM user_products WHERE user_id IN"
             + " (SELECT id FROM users WHERE username = 'techo-sujeto')");
     jdbc.update("DELETE FROM users WHERE username = 'techo-sujeto'");
   }

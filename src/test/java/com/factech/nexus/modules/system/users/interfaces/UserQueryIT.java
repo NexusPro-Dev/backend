@@ -50,7 +50,7 @@ class UserQueryIT extends IntegrationTestBase {
     jdbc.update("DELETE FROM refresh_tokens");
     jdbc.update("DELETE FROM client_sellers");
     jdbc.update("DELETE FROM user_supervisors");
-    jdbc.update("DELETE FROM user_memberships");
+    jdbc.update("DELETE FROM user_products");
     jdbc.update("DELETE FROM user_roles");
     jdbc.update("DELETE FROM users WHERE id <> ?", SUPERADMIN);
     jdbc.update(
@@ -84,7 +84,7 @@ class UserQueryIT extends IntegrationTestBase {
         juan,
         consumidor);
     jdbc.update(
-        "INSERT INTO user_memberships (id, user_id, membership_id, started_at)"
+        "INSERT INTO user_products (id, user_id, membership_id, started_at)"
             + " VALUES (gen_random_uuid(), ?, ?::uuid, now())",
         juan,
         oro);
@@ -109,7 +109,7 @@ class UserQueryIT extends IntegrationTestBase {
     jdbc.update("DELETE FROM refresh_tokens");
     jdbc.update("DELETE FROM client_sellers");
     jdbc.update("DELETE FROM user_supervisors");
-    jdbc.update("DELETE FROM user_memberships");
+    jdbc.update("DELETE FROM user_products");
     jdbc.update("DELETE FROM user_roles");
     jdbc.update("DELETE FROM users WHERE id <> ?", SUPERADMIN);
     jdbc.update(
@@ -296,7 +296,7 @@ class UserQueryIT extends IntegrationTestBase {
 
     jdbc.update(
         """
-        UPDATE user_memberships
+        UPDATE user_products
            SET started_at = now() - interval '3 days', ends_at = now() - interval '1 day'
          WHERE user_id = ?
         """,

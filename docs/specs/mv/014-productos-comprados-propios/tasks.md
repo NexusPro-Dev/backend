@@ -11,6 +11,15 @@
 | Issue | [#68](https://github.com/NexusPro-Dev/backend/issues/68) |
 | Rama | `feature/venta-de-productos` |
 
+!!! warning "Enmendado el 23-09-2026 — el «hasta» se lee de `user_products`"
+
+    `plan.md`, enmienda del 23-09-2026. Dos tareas nuevas:
+
+    | ID | Tarea | Depende de | Verificación | Estado |
+    |---|---|---|---|---|
+    | `T-44` | `PRODUCTOS_PROPIOS` une `user_products` por `movement_detail_id`; el «hasta» pasa a ser `up.ends_at` y se retira la `LATERAL` que lo calculaba | `T-13` de `RF-MV-003` | `CA-MV-184`: cambiar los `validity_days` del **producto** después de entregarlo **no mueve** la fecha que devuelve la consulta. Antes la movía | **Pendiente** |
+    | `T-45` | `PurchasedProductState` gana `CANCELADO`, y el `CASE` lo decide **antes** que el vencimiento | `T-44` | `CA-MV-185`: comprar una membresía, comprar otra encima, y la primera aparece `CANCELADO` —no `ACTIVO`— con su `closed_at`. Y el filtro por `CANCELADO` devuelve esa y solo esa | **Pendiente** |
+
 !!! info "Qué va en este documento"
 
     **Qué hay que hacer, en qué orden y cómo se comprueba.** Nada de por qué — eso está en `spec.md` y `plan.md`.

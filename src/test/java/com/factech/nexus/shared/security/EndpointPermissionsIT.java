@@ -227,8 +227,6 @@ class EndpointPermissionsIT extends IntegrationTestBase {
           Map.entry("POST /api/v1/users/{id}/deletion", "users:delete"),
           Map.entry("POST /api/v1/users/{id}/roles", "users:assign-roles"),
           Map.entry("POST /api/v1/users/{id}/roles/revocations", "users:revoke-roles"),
-          Map.entry("PUT /api/v1/users/{id}/membership", "users:assign-membership"),
-          Map.entry("DELETE /api/v1/users/{id}/membership", "users:revoke-membership"),
           Map.entry("PATCH /api/v1/users/{id}/supervisor", "users:assign-supervisor"),
           Map.entry("POST /api/v1/users/{id}/password-reset", "users:reset-password"),
           // ---- SP · cuentas de broker ----

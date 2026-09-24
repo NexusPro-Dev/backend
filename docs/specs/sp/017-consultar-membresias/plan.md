@@ -119,7 +119,7 @@ GET /api/v1/memberships?search=plata
 - **Se devuelven los dos vecinos, no solo la superior.** `childMembershipId` es redundante con la cadena —se deduce mirando quién apunta a quién— pero el cliente no debería tener que reconstruirlo: viene gratis, se resuelve con la misma sentencia (abajo) y evita que cada consumidor implemente ese cruce a su manera. `RF-SP-018` devuelve lo mismo expandido.
 - **`level` se devuelve tal como está almacenado** y significa distancia hasta la cima: `1` es la superior (`RF-SP-016` §2). `CA-SP-121` lo exige, y el orden de la colección lo refleja.
 - **`description` puede venir vacía** y se devuelve como `null`, nunca omitida.
-- **No se devuelve cuántas personas tienen cada membresía** (`spec.md` §14, pregunta 2). No hay `JOIN` a `user_memberships` ni subconsulta correlacionada en la sentencia, que es lo único que lo hace verificable (§11). Es la asimetría deliberada con `RF-SP-003`, donde el conteo de usuarios **sí** se aceptó porque decidía si el rol podía eliminarse; una membresía ni se elimina ni se desactiva (`RN-SP-008`), de modo que el número no condiciona ninguna decisión tomable desde aquí.
+- **No se devuelve cuántas personas tienen cada membresía** (`spec.md` §14, pregunta 2). No hay `JOIN` a `user_products` (`user_memberships` hasta el 23-09-2026) ni subconsulta correlacionada en la sentencia, que es lo único que lo hace verificable (§11). Es la asimetría deliberada con `RF-SP-003`, donde el conteo de usuarios **sí** se aceptó porque decidía si el rol podía eliminarse; una membresía ni se elimina ni se desactiva (`RN-SP-008`), de modo que el número no condiciona ninguna decisión tomable desde aquí.
 - **No se devuelven `createdAt` ni `updatedAt`.** `spec.md` §6.2 no los pide y son ruido en un listado cuyo eje es la posición. `updatedAt` diría además algo confuso: cambia cuando **otra** membresía se insertó por encima, no cuando esta cambió.
 
 **Errores**
@@ -258,7 +258,7 @@ Casos límite de `spec.md` §13 y decisiones de este plan que exigen prueba prop
 | Búsqueda vacía o solo de espacios | API | Equivale a no filtrar: mismo resultado que la consulta sin el parámetro |
 | Parámetros de paginación ignorados | API | `?page=2&size=1` devuelve la cadena completa, no un elemento ni un error |
 | Orden estable | Integración | Dos llamadas consecutivas devuelven los mismos elementos en el mismo orden |
-| Número de sentencias por petición | Integración | **Una**, con y sin búsqueda, y **ninguna sobre `user_memberships`**. Es lo que hace verificable que el listado no cuenta personas |
+| Número de sentencias por petición | Integración | **Una**, con y sin búsqueda, y **ninguna sobre `user_products`** —`user_memberships` hasta el 23-09-2026—. Es lo que hace verificable que el listado no cuenta personas |
 | Coherencia con el detalle | Integración | Los vecinos que devuelve cada elemento coinciden con los que `RF-SP-018` expande para esa misma membresía |
 | Ausencia de escritura | API | `POST` sobre `/api/v1/memberships` es el alta de `RF-SP-016` y exige otro permiso; `PUT`, `PATCH` y `DELETE` sobre la colección devuelven `405` |
 

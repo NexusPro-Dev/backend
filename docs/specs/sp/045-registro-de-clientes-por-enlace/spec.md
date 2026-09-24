@@ -175,7 +175,7 @@ Lo que sí se consigue forjando es **atribuirse a un vendedor cualquiera**, y es
 
 **Cuándo ocurre:** `validity_days` es nulo (`RN-PM-015`).
 
-1. La membresía se asigna **sin fecha de fin**, que es lo que `user_memberships` entiende por indefinida.
+1. La membresía se asigna **sin fecha de fin**, que es lo que `user_products` —`user_memberships` hasta el 23-09-2026— entiende por indefinida.
 2. No es un error ni un valor de relleno: es el caso normal de lo que no caduca.
 
 ## 10. Excepciones

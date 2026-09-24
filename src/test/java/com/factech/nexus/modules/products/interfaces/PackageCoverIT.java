@@ -499,7 +499,7 @@ class PackageCoverIT extends IntegrationTestBase {
     jdbc.update(
         "DELETE FROM user_roles WHERE user_id IN (SELECT id FROM users WHERE username LIKE 'pk-%')");
     jdbc.update(
-        "DELETE FROM user_memberships WHERE user_id IN (SELECT id FROM users WHERE username LIKE 'pk-%')");
+        "DELETE FROM user_products WHERE user_id IN (SELECT id FROM users WHERE username LIKE 'pk-%')");
     jdbc.update("DELETE FROM users WHERE username LIKE 'pk-%'");
   }
 }

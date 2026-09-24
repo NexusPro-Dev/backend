@@ -101,10 +101,6 @@ class PermissionSplitIT extends IntegrationTestBase {
                       .contentType(JSON)
                       .content("{\"roleIds\":[\"" + ID + "\"]}")),
           new Caso(
-              "DELETE /users/{id}/membership",
-              "users:assign-membership",
-              () -> delete("/api/v1/users/{id}/membership", ID)),
-          new Caso(
               "GET /broker-accounts/indicators",
               "broker-accounts:read",
               () -> get("/api/v1/broker-accounts/indicators")),
