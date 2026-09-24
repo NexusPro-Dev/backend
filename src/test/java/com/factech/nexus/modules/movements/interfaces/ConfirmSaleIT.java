@@ -28,8 +28,8 @@ import org.springframework.test.web.servlet.request.RequestPostProcessor;
  *
  * <p><b>Las ventas se siembran por SQL</b>, como en {@code MyMovementsIT}: lo que se prueba es la
  * transición y la entrega, no el registro. <b>La membresía se comprueba en {@code
- * user_memberships}</b>, que es donde `SP` la escribe: es el efecto del requerimiento, y una
- * respuesta HTTP que dijera «entregada» sin esa fila sería la avería que nadie reporta.
+ * user_products}</b>, que es donde `SP` la escribe: es el efecto del requerimiento, y una respuesta
+ * HTTP que dijera «entregada» sin esa fila sería la avería que nadie reporta.
  */
 @AutoConfigureMockMvc
 class ConfirmSaleIT extends IntegrationTestBase {
@@ -263,6 +263,12 @@ class ConfirmSaleIT extends IntegrationTestBase {
 
     assertThat(vigenteDe(cliente)).isEqualTo("BECA");
     assertThat(periodosDe(cliente)).isEqualTo(1);
+
+    // `CA-MV-182` — Y AUN ASI DEJA CONSTANCIA DE LO QUE AHORA TIENE
+    // (`RN-MV-036`, 23-09-2026). Las dos mitades importan y por eso van
+    // juntas: hasta ese dia un bot entregado no dejaba fila en ninguna parte,
+    // y la correccion no puede haber tocado el nivel de nadie.
+    assertThat(posesionesCompradasDe(cliente)).isEqualTo(1);
   }
 
   @Test
@@ -283,6 +289,10 @@ class ConfirmSaleIT extends IntegrationTestBase {
 
     assertThat(vigenteDe(cliente)).isEqualTo("VIP");
     assertThat(periodosDe(cliente)).isEqualTo(2);
+
+    // Dos entregadas, dos posesiones —el bot y el upgrade—; la MANUAL no deja
+    // ninguna, porque lo que no se entrego no se tiene.
+    assertThat(posesionesCompradasDe(cliente)).isEqualTo(2);
   }
 
   // ---------------------------------------------------------------------------
@@ -292,7 +302,7 @@ class ConfirmSaleIT extends IntegrationTestBase {
   @Test
   @DisplayName("CA-MV-096 — el cambio queda auditado en MV con las líneas, y la membresía en SP")
   void auditoria() throws Exception {
-    jdbc.update("DELETE FROM audit_change_log WHERE entity IN ('movements', 'user_memberships')");
+    jdbc.update("DELETE FROM audit_change_log WHERE entity IN ('movements', 'user_products')");
     UUID venta = venta(cliente, "PENDIENTE", upgradeVip);
 
     mvc.perform(confirmar(venta).with(conPermiso(cajero))).andExpect(status().isOk());
@@ -307,7 +317,7 @@ class ConfirmSaleIT extends IntegrationTestBase {
 
     String asientoSp =
         jdbc.queryForObject(
-            "SELECT changes::text FROM audit_change_log WHERE entity = 'user_memberships'"
+            "SELECT changes::text FROM audit_change_log WHERE entity = 'user_products'"
                 + " AND entity_id = ? ORDER BY occurred_at DESC LIMIT 1",
             String.class,
             cliente);
@@ -353,7 +363,7 @@ class ConfirmSaleIT extends IntegrationTestBase {
   /** El código de la membresía abierta (sin cerrar). */
   private String vigenteDe(UUID persona) {
     return jdbc.queryForObject(
-        "SELECT m.code FROM user_memberships um JOIN memberships m ON m.id = um.membership_id"
+        "SELECT m.code FROM user_products um JOIN memberships m ON m.id = um.membership_id"
             + " WHERE um.user_id = ? AND um.closed_at IS NULL",
         String.class,
         persona);
@@ -361,13 +371,13 @@ class ConfirmSaleIT extends IntegrationTestBase {
 
   private Map<String, Object> abiertaDe(UUID persona) {
     return jdbc.queryForMap(
-        "SELECT started_at, ends_at FROM user_memberships WHERE user_id = ? AND closed_at IS NULL",
+        "SELECT started_at, ends_at FROM user_products WHERE user_id = ? AND closed_at IS NULL",
         persona);
   }
 
   private List<Map<String, Object>> cerradasDe(UUID persona) {
     return jdbc.queryForList(
-        "SELECT m.code AS code, um.closed_at FROM user_memberships um"
+        "SELECT m.code AS code, um.closed_at FROM user_products um"
             + " JOIN memberships m ON m.id = um.membership_id"
             + " WHERE um.user_id = ? AND um.closed_at IS NOT NULL",
         persona);
@@ -376,7 +386,21 @@ class ConfirmSaleIT extends IntegrationTestBase {
   private int periodosDe(UUID persona) {
     Integer total =
         jdbc.queryForObject(
-            "SELECT count(*) FROM user_memberships WHERE user_id = ?", Integer.class, persona);
+            "SELECT count(*) FROM user_products WHERE user_id = ?"
+                + " AND membership_id IS NOT NULL",
+            Integer.class,
+            persona);
+    return total == null ? 0 : total;
+  }
+
+  /** Lo que la persona TIENE por una compra: con linea, que es lo que la entrega escribe. */
+  private int posesionesCompradasDe(UUID persona) {
+    Integer total =
+        jdbc.queryForObject(
+            "SELECT count(*) FROM user_products WHERE user_id = ?"
+                + " AND movement_detail_id IS NOT NULL",
+            Integer.class,
+            persona);
     return total == null ? 0 : total;
   }
 
@@ -399,14 +423,14 @@ class ConfirmSaleIT extends IntegrationTestBase {
     jdbc.update("DELETE FROM movements");
     jdbc.update("DELETE FROM products WHERE code LIKE 'CF\\_%'");
     jdbc.update(
-        "DELETE FROM user_memberships WHERE user_id IN"
+        "DELETE FROM user_products WHERE user_id IN"
             + " (SELECT id FROM users WHERE username LIKE 'cf-%')");
     jdbc.update("DELETE FROM users WHERE username LIKE 'cf-%'");
   }
 
   /** La cadena entera de `V9`, porque las pruebas de `SP` la dejan como quieren. */
   private void reponerLaCadena() {
-    jdbc.update("DELETE FROM user_memberships");
+    jdbc.update("DELETE FROM user_products");
     jdbc.update("DELETE FROM memberships");
     jdbc.update(
         """
@@ -444,10 +468,10 @@ class ConfirmSaleIT extends IntegrationTestBase {
   /** Cierra lo abierto y abre la membresía dada, como si otra vía la hubiera concedido. */
   private void darMembresia(UUID persona, String membresia, OffsetDateTime hasta) {
     jdbc.update(
-        "UPDATE user_memberships SET closed_at = now() WHERE user_id = ? AND closed_at IS NULL",
+        "UPDATE user_products SET closed_at = now() WHERE user_id = ? AND closed_at IS NULL",
         persona);
     jdbc.update(
-        "INSERT INTO user_memberships (id, user_id, membership_id, started_at, ends_at)"
+        "INSERT INTO user_products (id, user_id, membership_id, started_at, ends_at)"
             + " VALUES (gen_random_uuid(), ?, CAST(? AS uuid), now(), CAST(? AS timestamptz))",
         persona,
         membresia,

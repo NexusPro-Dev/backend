@@ -95,33 +95,51 @@ public interface UserRepository {
   // ---------------------------------------------------------------------------
 
   /**
-   * Concede una membresía: <b>cierra la abierta e inserta una nueva</b>, en esa transacción.
+   * Escribe una posesión en {@code user_products}: <b>lo que la persona pasa a tener</b>
+   * (`RN-SP-056`, `V38`).
    *
-   * <p><b>Cierra siempre, aunque la anterior ya estuviera vencida.</b> No es celo: dejarla abierta
-   * produciría dos filas actuales, que es lo que {@code uq_user_memberships_abierta} rechaza — y
-   * antes de que el motor lo rechace, ya habría roto el {@code LEFT JOIN} de `RF-SP-025` y
-   * `RF-SP-026`, que devolverían a esa persona dos veces (`V56`).
+   * <p><b>Cierra la membresía abierta SOLO cuando la posesión concede nivel.</b> Ahí está la mitad
+   * del cambio del 23-09-2026: cerrar siempre —como hacía {@code assignMembership}— dejaría a
+   * alguien sin su bot en cuanto comprase una membresía. Lo que no puede haber dos veces es el
+   * nivel, no la fila.
    *
-   * <p><b>Usarla cuando cambia el nivel, no cuando solo cambia la fecha.</b> Para lo segundo está
-   * {@link #updateMembershipEnd}, que no genera historial: corregir hasta cuándo vale un nivel es
-   * una corrección administrativa y no un ascenso, y anotarla como un periodo nuevo llenaría el
-   * historial de filas que no describen ningún cambio de nivel.
+   * <p><b>Y cuando lo concede, cierra aunque la anterior ya estuviera vencida.</b> No es celo:
+   * dejarla abierta produciría dos filas con nivel, que es lo que {@code
+   * uq_user_products_membresia_abierta} rechaza — y antes de que el motor lo rechace, ya habría
+   * roto el {@code LEFT JOIN} de `RF-SP-025` y `RF-SP-026`, que devolverían a esa persona dos
+   * veces.
    *
    * <p><b>El empate concurrente lo absorbe {@link #findNotDeletedByIdForUpdate}</b>, no un {@code
-   * ON CONFLICT}. Hasta el 05-09-2026 esta escritura era una sola sentencia con {@code ON CONFLICT
-   * (user_id)}, que la clave primaria hacía posible; ya no lo es. Sin ese bloqueo, dos asignaciones
-   * simultáneas leerían la misma fila abierta, las dos la cerrarían y las dos insertarían.
+   * ON CONFLICT}: sin ese bloqueo, dos concesiones simultáneas leerían la misma fila abierta, las
+   * dos la cerrarían y las dos insertarían. Lo que el bloqueo NO cubre es la repetición de una
+   * misma línea de venta, y eso lo cierra {@code uq_user_products_linea} en el motor.
    */
-  void assignMembership(
-      UUID id, UUID userId, UUID membershipId, OffsetDateTime endsAt, OffsetDateTime ahora);
+  void grantProduct(ProductGrant concesion);
 
   /**
-   * Corrige la fecha de fin de la membresía abierta, <b>sin cerrarla ni generar historial</b>.
+   * Una posesión, plana, tal como se escribe.
    *
-   * <p>Es el camino de `RF-SP-032` cuando la membresía es la misma y solo cambia la vigencia — lo
-   * que separa `FA-002` de `FA-003`.
+   * @param productId nulo <b>solo en lo que no se compra</b>: el suelo de `RN-SP-018` y la semilla
+   * @param membershipId nulo cuando lo poseído <b>no concede nivel</b> — un bot
+   * @param movementDetailId la línea que lo entregó; nulo en lo que no viene de una venta
+   * @param validityDays copia de lo vendido; nulo significa <b>no caduca</b> (`RN-PM-015`)
+   * @param endsAt hasta cuándo se pagó; nulo es indefinida
    */
-  void updateMembershipEnd(UUID userId, OffsetDateTime endsAt, OffsetDateTime ahora);
+  record ProductGrant(
+      UUID id,
+      UUID userId,
+      UUID productId,
+      UUID membershipId,
+      UUID movementDetailId,
+      Integer validityDays,
+      OffsetDateTime startedAt,
+      OffsetDateTime endsAt) {
+
+    /** ¿Entra esta fila en el invariante de `RN-SP-014`? Es la única pregunta que decide todo. */
+    public boolean concedeNivel() {
+      return membershipId != null;
+    }
+  }
 
   /**
    * La membresía <b>abierta</b> de la persona, si tiene alguna.
@@ -149,6 +167,18 @@ public interface UserRepository {
    * <p>Es el mismo criterio con el que {@link #endSupervisor} nunca fue un {@code DELETE}.
    */
   void closeMembership(UUID userId, OffsetDateTime ahora);
+
+  /**
+   * Cierra <b>todo</b> lo que la persona tiene abierto, y no solo su nivel (`RF-SP-029` · `T-17`).
+   *
+   * <p>Quien deja de existir deja de tener sus bots igual que deja de tener su membresía. Va con
+   * <b>la misma marca de tiempo</b> que la eliminación, por lo mismo que ya se exige para el
+   * superior: si difirieran, el historial diría que alguien tuvo algo durante unos milisegundos
+   * después de haber dejado de existir.
+   *
+   * @return cuántas filas se cerraron
+   */
+  int closeAllProducts(UUID userId, OffsetDateTime ahora);
 
   // ---------------------------------------------------------------------------
   // Superior comercial

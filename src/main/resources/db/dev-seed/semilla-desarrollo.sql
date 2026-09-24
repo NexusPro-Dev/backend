@@ -379,7 +379,10 @@ SELECT cliente.id, vendedor.id, 'REGISTRO', NULL
 -- filas, `V57` se las pondria igual — pero la semilla dejaria de describir el
 -- estado que produce y habria que ir a leer la migracion para saberlo.
 --
--- `user_memberships` ES UN HISTORIAL desde `V56`: `id` propio, y `closed_at`
+-- `user_products` —`user_memberships` hasta `V38`— ES UN HISTORIAL de LO QUE
+-- CADA PERSONA TIENE (`RN-SP-056`). La semilla escribe solo membresias, con
+-- `product_id` nulo: en desarrollo nadie ha comprado nada todavia, y el suelo no
+-- se compra. Desde `V56`: `id` propio, y `closed_at`
 -- nulo marca la fila ABIERTA, que es la actual. Conceder otra membresia cierra
 -- la que hubiera e inserta una nueva. La semilla escribe solo la abierta: en
 -- desarrollo nadie ha subido de nivel todavia, y fabricar un historial falso
@@ -388,7 +391,7 @@ SELECT cliente.id, vendedor.id, 'REGISTRO', NULL
 -- EL `id` SE CONSTRUYE, NO SE GENERA AL AZAR (Art. V.11, y `V3`): un v7 cuyo
 -- prefijo temporal sale de `now()`, igual que hace `V56` con `started_at`.
 -- -----------------------------------------------------------------------------
-INSERT INTO user_memberships (id, user_id, membership_id)
+INSERT INTO user_products (id, user_id, membership_id)
 SELECT (
            lpad(to_hex((extract(epoch FROM now()) * 1000)::bigint), 12, '0')
         || '7' || substr(md5(random()::text || u.id::text), 1, 3)
@@ -403,5 +406,6 @@ SELECT (
        AS asignacion(usuario, membresia)
   JOIN users u ON u.username = asignacion.usuario
   JOIN memberships m ON m.code = asignacion.membresia
- WHERE NOT EXISTS (SELECT 1 FROM user_memberships um
-                    WHERE um.user_id = u.id AND um.closed_at IS NULL);
+ WHERE NOT EXISTS (SELECT 1 FROM user_products um
+                    WHERE um.user_id = u.id AND um.closed_at IS NULL
+                      AND um.membership_id IS NOT NULL);

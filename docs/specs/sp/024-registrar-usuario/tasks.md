@@ -312,6 +312,27 @@ Decisión del responsable del proyecto: **toda persona puede declarar dos teléf
 - **No lo añade al listado de `RF-SP-025`** ni como columna ni como criterio de búsqueda, por lo mismo que el personal.
 - **No toca la semilla de desarrollo.** Las diecinueve personas de prueba nacen sin él, que es exactamente el caso que hay que poder ver: el campo en nulo.
 
+## 4.octies `user_memberships` pasa a ser `user_products` — enmienda del 23-09-2026
+
+Decisión del responsable del proyecto: la tabla deja de guardar **niveles** y pasa a guardar **lo que cada persona tiene** (`RN-SP-056`, [`requirements/sp.md`](../../../requirements/sp.md) v1.84.0, `plan.md` §2.3.quater). El alta no cambia de comportamiento: sigue concediendo el suelo, ahora con `product_id` nulo.
+
+**Estados:** `Pendiente` · `En curso` · `Hecha` · `Bloqueada`.
+
+| ID | Tarea | Depende de | Verificación | Estado |
+|---|---|---|---|---|
+| `T-69` | **`V38`**: renombra `user_memberships` a `user_products` —con sus restricciones e índices detrás—, añade `product_id`, `movement_detail_id` y `validity_days`, y `membership_id` pasa a admitir nulo | — | El esquema queda con los nombres nuevos y **ninguna fila se pierde**: el conteo antes y después coincide, y la del superadministrador sigue ahí | **Pendiente** |
+| `T-70` | `V38` declara `ck_user_products_origen`, `ck_user_products_validity_days` y `uq_user_products_linea`, y convierte en **parciales** `uq_user_products_membresia_abierta` y `ex_user_products_membresia_sin_solape` | `T-69` | **La prueba que importa es la que antes no podía pasar**: dos posesiones abiertas **sin nivel** de la misma persona se admiten, y dos **con nivel** se siguen rechazando. Y una fila sin producto y sin membresía se rechaza | **Pendiente** |
+| `T-71` | `V38` borra `users:assign-membership` y `users:revoke-membership` de `permissions`, sus filas de `role_permissions` y la implicación que `V28` sembró entre ambos | `T-69` | `PermissionIT` cuenta **133**, y **ningún rol queda sin permisos**: `SystemRolesSeedIT` sigue en verde | **Pendiente** |
+| `T-72` | El alta inserta la fila del suelo en `user_products` con `product_id` nulo | `T-70` | `CA-SP-799`: registrar deja **una** fila con el `membership_id` de `BECA`, `product_id` nulo y `closed_at` nulo | **Pendiente** |
+| `T-73` | `JpaUserRepository` y `JpaUserQueryRepository` apuntan a `user_products`, y **toda** lectura de nivel gana `membership_id IS NOT NULL` | `T-70` | `CA-SP-800`: quien tiene un bot **y** una membresía sale **una sola vez** en el listado y con su nivel correcto. Sin esa condición el `LEFT JOIN` la duplica, que es el defecto que `uq_user_memberships_abierta` evitaba antes por sí solo | **Pendiente** |
+| `T-74` | La semilla de desarrollo escribe sobre `user_products` | `T-69` | `DevelopmentSeedIT` en verde, incluida la prueba del documento del superadministrador | **Pendiente** |
+
+**Lo que esta enmienda NO hace, y conviene que no se dé por hecho:**
+
+- **No cambia lo que el alta concede.** Sigue siendo el suelo de `RN-SP-018`, indefinido y sin producto. Que la tabla sepa guardar productos no significa que registrarse entregue ninguno.
+- **No expone la posesión por la API de usuarios.** `RF-SP-026` sigue devolviendo la membresía abierta y nada más; qué productos tiene alguien se pregunta en `RF-MV-014` y solo sobre uno mismo.
+- **No borra el código de `RF-SP-032` y `RF-SP-033`.** Esa retirada viaja en el mismo bloque de construcción, pero pertenece a las tripletas descartadas y no a esta.
+
 ## 5. Definición de terminado
 
 El requerimiento no está terminado hasta cumplir **todas** las condiciones de la constitución §16:

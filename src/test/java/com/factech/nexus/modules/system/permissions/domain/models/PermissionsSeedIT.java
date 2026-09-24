@@ -32,7 +32,7 @@ class PermissionsSeedIT extends IntegrationTestBase {
           + " V36: movements:assign-sellers de RF-MV-016; V37: movements:list-sale-lines de RF-MV-017)")
   void catalogoCompleto() {
     assertThat(jdbc.queryForObject("SELECT count(*) FROM permissions", Integer.class))
-        .isEqualTo(135);
+        .isEqualTo(134);
   }
 
   @Test
@@ -45,12 +45,17 @@ class PermissionsSeedIT extends IntegrationTestBase {
                 "SELECT id::text FROM permissions WHERE code = 'movements:list-sales'",
                 String.class))
         .isEqualTo("01a0c143-2c00-700c-9c4f-5e7ad7000008");
-    for (String rol :
-        new String[] {"SUPERADMIN", "ADMIN", "MANAGER", "DIRECTOR", "AGENTE", "CLIENTE"}) {
+    // CLIENTE SALE DE LA LISTA el 24-09-2026 (`V40`): no vende, de modo que el
+    // listado de ventas del alcance no le responde nada. Los cinco que quedan
+    // son los que sí tienen algo que ver ahí.
+    for (String rol : new String[] {"SUPERADMIN", "ADMIN", "MANAGER", "DIRECTOR", "AGENTE"}) {
       assertThat(codigosDe(rol))
           .as("%s porta movements:list-sales", rol)
           .contains("movements:list-sales");
     }
+    assertThat(codigosDe("CLIENTE"))
+        .as("CLIENTE NO lo porta desde V40: no vende")
+        .doesNotContain("movements:list-sales");
   }
 
   @Test
@@ -65,9 +70,8 @@ class PermissionsSeedIT extends IntegrationTestBase {
             String.class);
 
     assertThat(acciones)
-        .hasSize(20)
+        .hasSize(18)
         .containsExactly(
-            "assign-membership",
             "assign-roles",
             "assign-supervisor",
             "change-own-password",
@@ -83,7 +87,6 @@ class PermissionsSeedIT extends IntegrationTestBase {
             "read-sellers",
             "read-team",
             "reset-password",
-            "revoke-membership",
             "revoke-roles",
             "update",
             "update-own-profile");
@@ -229,7 +232,6 @@ class PermissionsSeedIT extends IntegrationTestBase {
             "roles:assign-parent",
             "roles:assign-permissions",
             "roles:revoke-permissions",
-            "users:assign-membership",
             "users:assign-roles",
             "users:assign-supervisor",
             "users:create",
@@ -248,7 +250,6 @@ class PermissionsSeedIT extends IntegrationTestBase {
             "users:read-team",
             "users:update-own-profile",
             "users:revoke-roles",
-            "users:revoke-membership",
             // Los ocho de V34 (RF-SP-063 a RF-SP-070): el submodulo Equipos,
             // uno por operacion. A SUPERADMIN y ADMIN, y a ningun otro rol.
             "teams:list",
@@ -266,7 +267,7 @@ class PermissionsSeedIT extends IntegrationTestBase {
   void identificadoresUuidV7() {
     List<UUID> ids = jdbc.queryForList("SELECT id FROM permissions", UUID.class);
 
-    assertThat(ids).hasSize(135).doesNotHaveDuplicates();
+    assertThat(ids).hasSize(134).doesNotHaveDuplicates();
     assertThat(ids).allSatisfy(id -> assertThat(id.version()).isEqualTo(7));
     // variant() == 2 es la variante RFC 9562 (bits 10xx).
     assertThat(ids).allSatisfy(id -> assertThat(id.variant()).isEqualTo(2));
@@ -332,13 +333,13 @@ class PermissionsSeedIT extends IntegrationTestBase {
                 "SELECT count(*) FROM role_permissions WHERE role_id ="
                     + " '01a02a33-4c00-7001-9c4f-5e7ad1000001'",
                 Integer.class))
-        .isEqualTo(135);
+        .isEqualTo(134);
     assertThat(
             jdbc.queryForObject(
                 "SELECT count(*) FROM role_permissions WHERE role_id ="
                     + " '01a02a33-4c00-7002-9c4f-5e7ad1000002'",
                 Integer.class))
-        .isEqualTo(129);
+        .isEqualTo(132);
     assertThat(
             jdbc.queryForList(
                 """
@@ -349,13 +350,12 @@ class PermissionsSeedIT extends IntegrationTestBase {
                  ORDER BY p.code
                 """,
                 String.class))
-        .containsExactly(
-            "audit:read-security",
-            "currencies:update",
-            "movements:confirm",
-            "movements:create",
-            "movements:read",
-            "movements:void");
+        // LOS CUATRO `movements:` SALEN DE ESTA LISTA el 24-09-2026 (`V40`): la
+        // reserva de la raíz baja a dos, y son estos dos los que de verdad solo
+        // hace el superadministrador. `containsExactly` y no `contains`, que es lo
+        // que hace útil esta prueba: si alguien reservara un tercero sin decirlo,
+        // aquí se ve.
+        .containsExactly("audit:read-security", "currencies:update");
   }
 
   @Test
@@ -376,16 +376,32 @@ class PermissionsSeedIT extends IntegrationTestBase {
       "movements:read-own-products",
       "packages:buy"
     };
-    for (String rol : new String[] {"MANAGER", "DIRECTOR", "AGENTE"}) {
+    // AGENTE SALE DE ESTE BUCLE el 24-09-2026 (`V40`): pierde
+    // `users:read-own-sellers` —un vendedor no tiene vendedores por encima que
+    // consultar—, de modo que porta diez de los once y no los once.
+    for (String rol : new String[] {"MANAGER", "DIRECTOR"}) {
       assertThat(codigosDe(rol)).as("%s porta los once de alcance propio", rol).contains(once);
     }
+    assertThat(codigosDe("AGENTE"))
+        .as("AGENTE porta los de alcance propio MENOS el de sus vendedores")
+        .contains(
+            "users:read-own-profile",
+            "users:update-own-profile",
+            "users:change-own-password",
+            "users:read-own-clients",
+            "broker-accounts:read-own-team",
+            "broker-accounts:read-team-member",
+            "movements:list-own",
+            "movements:read-own",
+            "movements:read-own-products",
+            "packages:buy")
+        .doesNotContain("users:read-own-sellers");
     List<String> cliente = codigosDe("CLIENTE");
     assertThat(cliente)
         .contains(
             "users:read-own-profile",
             "users:update-own-profile",
             "users:change-own-password",
-            "users:read-own-sellers",
             "movements:list-own",
             "movements:read-own",
             "movements:read-own-products",
@@ -393,9 +409,20 @@ class PermissionsSeedIT extends IntegrationTestBase {
         .doesNotContain(
             "users:read-own-clients",
             "broker-accounts:read-own-team",
-            "broker-accounts:read-team-member");
-    // Y solo eso más el de V32: CLIENTE sigue sin ningún otro permiso (V8).
-    assertThat(cliente).hasSize(9).contains("movements:list-sales");
+            "broker-accounts:read-team-member")
+        // RETIRADO el 24-09-2026 (`V40`): el cliente consulta sus vendedores por
+        // IDENTIFICADOR con `users:read-sellers`, no por `/me`. Se preguntó y se
+        // confirmó que no es un cruce de nombres.
+        .doesNotContain("users:read-own-sellers");
+    // Y LO QUE `V40` LE DA: comprar, reseñar lo comprado y ver la oferta.
+    assertThat(cliente)
+        .hasSize(12)
+        .contains(
+            "movements:create",
+            "products:sale",
+            "products:comment",
+            "products:update-comment",
+            "users:read-sellers");
   }
 
   private List<String> codigosDe(String rol) {
@@ -438,7 +465,6 @@ class PermissionsSeedIT extends IntegrationTestBase {
             Map.entry(
                 "users:assign-roles",
                 "Asignar y retirar roles de un usuario, dentro de la cota de privilegios del propio actor."),
-            Map.entry("users:assign-membership", "Asignar y retirar la membresía de un usuario."),
             Map.entry(
                 "broker-accounts:read",
                 "Consultar las cuentas de broker de cualquier persona (RF-SP-055). Sin él, cada quien ve solo las de su equipo directo (RN-SP-046)."),

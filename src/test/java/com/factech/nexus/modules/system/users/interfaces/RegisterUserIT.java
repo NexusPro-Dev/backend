@@ -66,7 +66,7 @@ class RegisterUserIT extends IntegrationTestBase {
     jdbc.update("DELETE FROM refresh_tokens");
     jdbc.update("DELETE FROM client_sellers");
     jdbc.update("DELETE FROM user_supervisors");
-    jdbc.update("DELETE FROM user_memberships");
+    jdbc.update("DELETE FROM user_products");
     jdbc.update("DELETE FROM user_roles WHERE user_id <> ?", SUPERADMIN);
     jdbc.update("DELETE FROM users WHERE id <> ?", SUPERADMIN);
     // BECA SOBREVIVE AL BARRIDO desde el 05-09-2026: `RN-SP-018` da nivel a toda
@@ -321,7 +321,7 @@ class RegisterUserIT extends IntegrationTestBase {
     // persona mide otra cosa.
     Integer filas =
         jdbc.queryForObject(
-            "SELECT count(*) FROM user_memberships um JOIN users u ON u.id = um.user_id"
+            "SELECT count(*) FROM user_products um JOIN users u ON u.id = um.user_id"
                 + " WHERE u.username = 'cliente' AND um.closed_at IS NULL",
             Integer.class);
     assertThat(filas).isEqualTo(1);

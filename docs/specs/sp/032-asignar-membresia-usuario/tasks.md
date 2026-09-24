@@ -6,13 +6,20 @@
 | Especificación | [`spec.md`](spec.md) |
 | Plan | [`plan.md`](plan.md) |
 | `plan.md` aprobado el | 22-08-2026 |
-| Estado | **Aprobadas** — 24-08-2026 |
+| Estado | **Descartadas el 23-09-2026** — quedan como historia |
 | Issue | Pendiente de crear |
 | Rama | `feature/membresia-de-usuario` |
 | Aprobadas por | Responsable técnico, 24-08-2026 |
 
 ---
 
+!!! danger "DESCARTADO el 23-09-2026 — las tareas quedan como historia"
+
+    Por decisión del responsable del proyecto (`RN-SP-056`, [`requirements/sp.md`](../../../requirements/sp.md) v1.84.0): `user_memberships` pasa a ser **`user_products`** —lo que cada persona **tiene**, y no solo qué nivel tiene—, y con la tabla abierta a los productos el nivel deja de fijarse a mano. **Se concede al comprarlo** (`RF-MV-003`, `RN-MV-020`) o al registrarse, donde nace el suelo de `RN-SP-018`.
+
+    **Ninguna tarea de esta lista se ejecuta ya**, y las que estaban Hechas no se deshacen una por una: la retirada del servicio, del cuerpo de petición y del endpoint va en el bloque que construye `V38`, junto con el borrado de los dos permisos en la migración. Lo que se conserva del trabajo hecho aquí son las pruebas de `UserMembership.isCurrentAt`, que verifican una regla viva (`RN-SP-014`) y no una operación retirada.
+
+    **El número queda consumido y no se reutiliza** (`requirements.md` §2). El documento se conserva como historia y no se borra: está citado desde otras tripletas aprobadas, y borrarlo dejaría referencias colgando.
 ## 1. Tareas
 
 Sin migración: `user_memberships` la crea `V20__create_user_memberships.sql` (`RF-SP-024`) con todo lo que hace falta (`plan.md` §2). El requerimiento es corto y casi todo él es orquestación, salvo una pieza que no lo es y que otros dos requerimientos van a reutilizar: **la definición de «vigente»**. Se escribe primero y se prueba sola.

@@ -6,13 +6,20 @@
 | Especificación | [`spec.md`](spec.md) |
 | Plan | [`plan.md`](plan.md) |
 | `plan.md` aprobado el | 22-08-2026 |
-| Estado | **Aprobadas** — 24-08-2026 |
+| Estado | **Descartadas el 23-09-2026** — quedan como historia |
 | Issue | Pendiente de crear |
 | Rama | `feature/membresia-de-usuario` |
 | Aprobadas por | Responsable técnico, 24-08-2026 |
 
 ---
 
+!!! danger "DESCARTADO el 23-09-2026 — las tareas quedan como historia"
+
+    Por decisión del responsable del proyecto (`RN-SP-056`, [`requirements/sp.md`](../../../requirements/sp.md) v1.84.0): `user_memberships` pasa a ser **`user_products`** —lo que cada persona **tiene**, y no solo qué nivel tiene—, y con la tabla abierta a los productos el nivel deja de fijarse a mano. **Se concede al comprarlo** (`RF-MV-003`, `RN-MV-020`) o al registrarse, donde nace el suelo de `RN-SP-018`.
+
+    **Ninguna tarea de esta lista se ejecuta ya.** La retirada del servicio y del endpoint va en el bloque que construye `V38`, junto con el borrado de `users:revoke-membership` en la migración. La prueba concurrente que esta lista declaraba como la de más valor —retirar y asignar a la vez sobre la misma persona— **desaparece con las dos operaciones**, y lo que queda vigilando esa carrera es la de `RF-MV-003`, que toma el mismo bloqueo sobre la misma fila.
+
+    **El número queda consumido y no se reutiliza** (`requirements.md` §2). El documento se conserva como historia y no se borra: está citado desde otras tripletas aprobadas, y borrarlo dejaría referencias colgando.
 ## 1. Tareas
 
 Sin migración y **sin ningún componente de dominio propio**: todo lo que este requerimiento necesita lo aportan `RF-SP-031` y `RF-SP-032` (`plan.md` §3). Es la lista de tareas más corta del módulo, y eso es correcto — si creciera, sería que la operación está haciendo algo más que corregir un estado.

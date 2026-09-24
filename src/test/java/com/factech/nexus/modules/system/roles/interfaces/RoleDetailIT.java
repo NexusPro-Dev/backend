@@ -106,12 +106,17 @@ class RoleDetailIT extends IntegrationTestBase {
         .andExpect(jsonPath("$.permissions").isEmpty())
         .andExpect(jsonPath("$.parentRole.code").value("ADMIN"));
 
-    // Y el sembrado «sin permisos» porta exactamente los once de alcance propio
-    // que V31 da a todo rol de vendedor (RF-SP-062, 21-09-2026) — y ninguno de
-    // los de ADMIN, que sería la herencia que RN-SEG-004 prohíbe.
+    // Y el sembrado «sin permisos» porta el alcance propio de V31 (RF-SP-062) con
+    // el ajuste de V40 (24-09-2026) —y ninguno de los de ADMIN, que sería la
+    // herencia que RN-SEG-004 prohíbe, que es lo que esta prueba defiende—.
+    //
+    // EL AJUSTE ES DE UNO, y va expresado y no escrito como número suelto: V40 le
+    // da `products:sale` y `products:hotlink` —vender y repartir enlaces— y le
+    // retira `users:read-own-sellers`, porque un vendedor no tiene vendedores por
+    // encima que consultar. Dos menos uno.
     mvc.perform(detalle(AGENTE))
         .andExpect(status().isOk())
-        .andExpect(jsonPath("$.permissions.length()").value(ALCANCE_PROPIO.size()))
+        .andExpect(jsonPath("$.permissions.length()").value(ALCANCE_PROPIO.size() + 1))
         .andExpect(jsonPath("$.permissions[?(@.code == 'roles:read')]").doesNotExist());
   }
 
@@ -298,7 +303,7 @@ class RoleDetailIT extends IntegrationTestBase {
     jdbc.update("DELETE FROM refresh_tokens");
     jdbc.update("DELETE FROM client_sellers");
     jdbc.update("DELETE FROM user_supervisors");
-    jdbc.update("DELETE FROM user_memberships");
+    jdbc.update("DELETE FROM user_products");
     jdbc.update("DELETE FROM user_roles WHERE user_id <> ?", SUPERADMIN);
     jdbc.update("DELETE FROM users WHERE id <> ?", SUPERADMIN);
     jdbc.update(

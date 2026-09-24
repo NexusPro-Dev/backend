@@ -710,7 +710,7 @@ class BuyPackageIT extends IntegrationTestBase {
     jdbc.update(
         "DELETE FROM user_supervisors WHERE user_id IN"
             + " (SELECT id FROM users WHERE username LIKE 'paq-%')");
-    jdbc.update("DELETE FROM user_memberships");
+    jdbc.update("DELETE FROM user_products");
     jdbc.update("DELETE FROM users WHERE username LIKE 'paq-%'");
     jdbc.update("DELETE FROM memberships");
     jdbc.update("DELETE FROM payment_methods WHERE code LIKE 'PAQ\\_%'");
@@ -818,7 +818,7 @@ class BuyPackageIT extends IntegrationTestBase {
         username + "@nexus.test");
     if (membresia != null) {
       jdbc.update(
-          "INSERT INTO user_memberships (id, user_id, membership_id, started_at, ends_at)"
+          "INSERT INTO user_products (id, user_id, membership_id, started_at, ends_at)"
               + " VALUES (gen_random_uuid(), ?::uuid, ?::uuid, ?, NULL)",
           id,
           membresia,

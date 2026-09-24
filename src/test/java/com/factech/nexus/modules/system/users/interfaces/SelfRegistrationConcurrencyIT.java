@@ -191,7 +191,7 @@ class SelfRegistrationConcurrencyIT extends IntegrationTestBase {
     jdbc.update("DELETE FROM user_brokers");
     jdbc.update("DELETE FROM refresh_tokens");
     jdbc.update("DELETE FROM user_supervisors");
-    jdbc.update("DELETE FROM user_memberships");
+    jdbc.update("DELETE FROM user_products");
     jdbc.update(
         "DELETE FROM user_roles WHERE user_id IN (SELECT id FROM users WHERE username LIKE 'reg-%'"
             + " OR username LIKE 'ana%')");
