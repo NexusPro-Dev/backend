@@ -80,13 +80,19 @@ public interface ClientSellerRepository {
   List<SellerClientRow> findClientsOf(UUID sellerId, String origin, int offset, int limit);
 
   /**
-   * Un vendedor de un cliente, tal como lo publica `RF-SP-059` §6.2: nombre de usuario, nombre y
-   * apellido, origen y desde cuándo. <b>Sin correo, estado ni roles.</b> El identificador viaja
-   * aquí porque las autorizaciones lo comparan (`RN-SP-046`), pero la respuesta no lo publica.
+   * Un vendedor de un cliente, tal como lo publica `RF-SP-059` §6.2: identificador, nombre de
+   * usuario, correo, nombre y apellido, teléfono de empresa, estado, origen y desde cuándo. <b>Sin
+   * roles</b>, que es lo único que queda de la acotación original.
+   *
+   * <p><b>El identificador ya viajaba aquí</b> —las autorizaciones lo comparan (`RN-SP-046`)— y
+   * hasta el 24-09-2026 la respuesta no lo publicaba. Lo publica desde que `RF-MV-016` estrenó una
+   * ruta que consume `sellerId` eligiendo entre los vendedores del cliente, que es exactamente esta
+   * lista.
    */
   record ClientSellerRow(
       UUID sellerId,
       String username,
+      String email,
       String firstName,
       String lastName,
       String companyPhone,

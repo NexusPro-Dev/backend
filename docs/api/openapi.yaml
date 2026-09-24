@@ -12812,9 +12812,21 @@ components:
     SellerItem:
       type: object
       properties:
+        id:
+          type: string
+          format: uuid
+          description: "Identificador del vendedor. **Desde el 24-09-2026**, y es\
+            \ el que `POST /movements/{id}/seller-assignments` (`RF-MV-016`) recibe\
+            \ como `sellerId`: los vendedores de una venta se eligen entre los del\
+            \ cliente, y esta lista es ese conjunto."
         username:
           type: string
           description: "Nombre de usuario del vendedor, el mismo de su hotlink."
+        email:
+          type: string
+          description: "Correo del vendedor. **Desde el 24-09-2026**, y se publica\
+            \ también en `/users/me/sellers`: para quien compra es un canal de contacto\
+            \ comercial más, como el teléfono de empresa."
         firstName:
           type: string
         lastName:
