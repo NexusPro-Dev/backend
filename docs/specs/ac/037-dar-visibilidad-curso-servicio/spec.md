@@ -4,10 +4,10 @@
 |---|---|
 | Requerimiento | `RF-AC-037` |
 | Módulo | `AC` — Academia |
-| Estado | **En revisión** |
+| Estado | **Aprobada** |
 | Autor | Responsable técnico |
-| Aprobada por | — |
-| Fecha de aprobación | — |
+| Aprobada por | Responsable del proyecto |
+| Fecha de aprobación | 25-09-2026 |
 
 ---
 
@@ -159,3 +159,4 @@ El paso 5 tiene su red en la clave primaria compuesta, como `RF-AC-016`.
 | Versión | Fecha | Cambio | Responsable |
 |---|---|---|---|
 | 0.1.0 | 25-09-2026 | Redacción inicial, por decisión del responsable del proyecto del mismo día (`ac.md` §5.2.8): el curso declara **qué servicios lo abren**, además de qué membresías. Solo `BOT`; existente y no retirado al añadir; `422` distinto para el upgrade; `409` que nombra el servicio. **Amplía `ProductCatalog`** y crea `course_products`; enmienda la ofrecibilidad, el listado, el detalle y el retiro del curso. | Responsable técnico |
+| 0.2.0 | 25-09-2026 | **Aprobada** por el responsable del proyecto, sin cambios, el mismo día de su redacción. | Responsable técnico |

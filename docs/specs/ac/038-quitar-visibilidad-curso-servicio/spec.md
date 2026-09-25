@@ -4,10 +4,10 @@
 |---|---|
 | Requerimiento | `RF-AC-038` |
 | Módulo | `AC` — Academia |
-| Estado | **En revisión** |
+| Estado | **Aprobada** |
 | Autor | Responsable técnico |
-| Aprobada por | — |
-| Fecha de aprobación | — |
+| Aprobada por | Responsable del proyecto |
+| Fecha de aprobación | 25-09-2026 |
 
 ---
 
@@ -124,3 +124,4 @@ La mitad inversa de `RF-AC-037`, con la forma de `RF-AC-017`: **borra la fila** 
 | Versión | Fecha | Cambio | Responsable |
 |---|---|---|---|
 | 0.1.0 | 25-09-2026 | Redacción inicial. Borrado físico de la fila con `ASSOCIATION` sin motivo, como `RF-AC-017`; un servicio retirado se quita igual, y quitar el último nunca se rechaza. | Responsable técnico |
+| 0.2.0 | 25-09-2026 | **Aprobada** por el responsable del proyecto, sin cambios, el mismo día de su redacción. | Responsable técnico |

@@ -249,6 +249,17 @@ Por decisión del responsable del proyecto —«que sea el curso el que se asign
 
 **Lo que no cambia**: un curso **no se vende**; se vende el servicio, en `PM`, con su moneda, su precio y su vigencia, y el curso es parte de lo que da. **Y lo que cuesta**: `AC` pasa a depender de `PM` (§1.4, §3) y `SP` tiene que publicar una interfaz más.
 
+#### 5.2.9 El curso nace en sus categorías, y la portada va aparte — 25-09-2026
+
+Por decisión del responsable del proyecto: **el alta del curso admite la lista de sus categorías** (`categoryIds`), para asociarlas de una vez, y **la portada se sube por su propia operación** justo después (`RF-AC-014`), con el archivo.
+
+| Pregunta | Decisión | Descartado |
+|---|---|---|
+| **¿Qué relaciones admite el alta?** | **Solo las categorías**, todo o nada: una que no sirve rechaza el alta entera (`RF-AC-008` `EX-004`) | *Todas* —membresías, servicios, recomendaciones—: cada una tiene reglas de otro sitio, y un `422` de cinco orígenes no lo entiende nadie. *Crear con las que sirvan* — el rollback parcial que la spec temía el 18-09-2026 |
+| **¿Y la portada en la misma alta?** | **No: `PUT /api/v1/courses/{id}/cover`** con el archivo, después | *El alta en `multipart`* — una llamada menos, a cambio de que el alta del curso sea la única del sistema que no es JSON; producto y paquete ya separan las dos cosas |
+
+Con esto, **el bloque 5 adelanta tres requerimientos** —`RF-AC-006`, `RF-AC-032` y `RF-AC-014`— porque la portada del curso los necesita: la tabla `academy_images` y el detector compartido nacen con la de la categoría, y sin la ruta pública `coverImageUrl` señalaría a nada.
+
 ### 5.3 Reglas de otros documentos que este módulo aplica
 
 | Regla | Dónde vive | Cómo la aplica este módulo |
@@ -441,7 +452,7 @@ Suelta la imagen y la borra. **Nunca se rechaza**: la categoría siempre tiene c
 | Tripleta | `docs/specs/ac/008-registrar-curso/` |
 | Estado | **En desarrollo** (18-09-2026) |
 
-Registra un curso con **título, instructor, dificultad y orden**, obligatorios, y descripción corta, descripción larga y video de introducción, opcionales. **Nace `INACTIVO`, sin categorías, sin membresías, sin módulos y sin portada.** El instructor se comprueba contra `SP` —existe, no retirado, porta `courses:teach`— y **es el requerimiento que pide a `SP` la interfaz del permiso** (§3). Crea `courses` y siembra los seis `courses:`, asociados a `SUPERADMIN` y a `ADMIN`. La respuesta trae el instructor resuelto —identificador, nombre de usuario y nombre completo—, `coverImageUrl` nulo y `offerable: false` con su motivo.
+Registra un curso con **título, instructor, dificultad y orden**, obligatorios, y descripción corta, descripción larga, video de introducción y **categorías** (`categoryIds`, desde el 25-09-2026, §5.2.9), opcionales. **Nace `INACTIVO`, en las categorías pedidas y en ninguna otra, sin membresías, sin módulos y sin portada.** El instructor se comprueba contra `SP` —existe, no retirado, porta `courses:teach`— y **es el requerimiento que pide a `SP` la interfaz del permiso** (§3). Crea `courses` y siembra los seis `courses:`, asociados a `SUPERADMIN` y a `ADMIN`. La respuesta trae el instructor resuelto —identificador, nombre de usuario y nombre completo—, `coverImageUrl` nulo y `offerable: false` con su motivo.
 
 #### `RF-AC-009` — Consultar cursos
 
