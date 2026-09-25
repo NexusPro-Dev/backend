@@ -20,7 +20,6 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
-import java.util.regex.Pattern;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -39,8 +38,6 @@ import org.springframework.transaction.annotation.Transactional;
  */
 @Service
 public class UpdateCourseService {
-
-  private static final Pattern VIDEO = Pattern.compile("^https?://\\S+$");
 
   private final CourseRepository cursos;
   private final InstructorVerifier instructor;
@@ -184,7 +181,7 @@ public class UpdateCourseService {
     Patchable<String> video = peticion.introVideoUrl();
     if (video.presente() && video.valor() != null && !video.valor().isBlank()) {
       String enlace = video.valor().trim();
-      if (enlace.length() > 500 || !VIDEO.matcher(enlace).matches()) {
+      if (!VideoUrl.esValida(enlace)) {
         problemas.add(new FieldError("introVideoUrl", "VAL-006", VideoUrl.mensaje()));
       }
     }

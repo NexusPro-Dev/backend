@@ -60,9 +60,8 @@ class CourseStatusIT extends IntegrationTestBase {
     mvc.perform(estado(listo, "ACTIVO"))
         .andExpect(status().isOk())
         .andExpect(jsonPath("$.status").value("ACTIVO"))
-        .andExpect(
-            jsonPath("$.offerableReason")
-                .value("El curso no tiene ninguna membresía ni ningún servicio que lo abra."));
+        .andExpect(jsonPath("$.offerable").value(true))
+        .andExpect(jsonPath("$.offerableReason").doesNotExist());
     assertThat(
             jdbc.queryForObject(
                 "SELECT updated_at::text FROM courses WHERE id = ?", String.class, listo))
@@ -95,7 +94,7 @@ class CourseStatusIT extends IntegrationTestBase {
 
   @Test
   @DisplayName(
-      "`CA-AC-066` y `CA-AC-067` — un curso ACTIVO sin membresías se devuelve «sin membresías»;"
+      "`CA-AC-066` y `CA-AC-067` — un curso ACTIVO sin módulo se devuelve «sin módulo», no «sin membresías»;"
           + " desactivar no exige nada, y vaciar una descripción después no cambia el estado")
   void activoSinMembresiasYDesactivar() throws Exception {
     // Activo por siembra: activarlo por la API exige un módulo, bloqueado hasta RF-AC-024.
@@ -106,7 +105,8 @@ class CourseStatusIT extends IntegrationTestBase {
         .andExpect(jsonPath("$.offerable").value(false))
         .andExpect(
             jsonPath("$.offerableReason")
-                .value("El curso no tiene ninguna membresía ni ningún servicio que lo abra."));
+                .value(
+                    "El curso no tiene ningún módulo activo con al menos una lección activa con contenido."));
 
     jdbc.update("UPDATE courses SET short_description = NULL WHERE id = ?", activo);
     assertThat(jdbc.queryForObject("SELECT status FROM courses WHERE id = ?", String.class, activo))

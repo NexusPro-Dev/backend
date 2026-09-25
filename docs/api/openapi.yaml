@@ -3603,7 +3603,8 @@ paths:
 
         El título es único entre los cursos **vivos**, sin distinguir mayúsculas ni
         acentos; un retirado libera el suyo. Las descripciones de solo espacios se
-        guardan nulas; el video se comprueba en su forma y **no se sigue**. Enviar
+        guardan nulas; el video **solo puede ser de YouTube o de Vimeo**, se comprueba
+        en su forma y **no se consulta**. Enviar
         `status`, `categories`, `memberships`, `modules`, `coverImageUrl` o `code`
         responde `400`.
 
@@ -3734,9 +3735,9 @@ paths:
         servicio por su código**. El curso tiene que estar vivo, en cualquier estado.
 
         **Retirar después el servicio en productos no lo quita de aquí**: quien lo
-        compró lo tiene hasta que venza. Con su primer servicio, un curso activo, con
-        descripciones y un módulo ofrecible **se ofrece aunque no tenga membresías**.
-        Que un alumno lo estudie por su servicio lo decide el aula.
+        compró lo tiene hasta que venza. **Con su primer servicio, un curso que era de
+        todos pasa a abrirse solo a quien tenga una de sus llaves**; `offerable` no
+        cambia. Que un alumno lo estudie por su servicio lo decide el aula.
 
         La respuesta es el curso en la forma del detalle, con el servicio en
         `products` —identificador, código, nombre—. Exige `courses:update`; **los
@@ -3810,7 +3811,7 @@ paths:
         **Permiso requerido:** `courses:update`. Sin él, `403` (`AUTH-002`).
 
         Registra una parte del curso con **título y orden**, obligatorios, y descripción
-        corta, descripción larga y video de presentación, opcionales. **Nace `INACTIVO`,
+        corta, descripción larga y video de presentación —**de YouTube o de Vimeo**—, opcionales. **Nace `INACTIVO`,
         vacío y dentro del curso de la ruta**, del que no se mueve: enviar `courseId`,
         `status`, `lessons` o `coverImageUrl` responde `400`.
 
@@ -3883,15 +3884,30 @@ paths:
       description: |
         **Permiso requerido:** `courses:update`. Sin él, `403` (`AUTH-002`).
 
-        Registra una lección con **tipo (`VIDEO` o `TEXTO`), título, duración en
-        segundos enteros y orden**, obligatorios, y descripción, contenido y `open`
-        opcionales. **`durationSeconds` es en segundos** desde el 25-09-2026 —un video
-        de 12 min 34 s es `754`—, y las sumas del módulo (`durationSeconds`) y del
-        curso (`totalDurationSeconds`) también; el formato «1 h 05 min» es del
-        frontend. **El tipo manda sobre el contenido**: en un `VIDEO` es una URL
-        absoluta http o https; en un `TEXTO` es Markdown que **el backend guarda y
-        devuelve sin interpretar ni sanear** — quien lo pinta es el frontend, y tiene
-        que hacerlo con un conversor que no ejecute lo que encuentre.
+        Registra una lección con **tipo (`VIDEO` o `TEXTO`), título y orden**,
+        obligatorios, y descripción, contenido, `open` y duración según el tipo.
+        **El tipo manda sobre el contenido**: en un `VIDEO` es **un video de YouTube o
+        de Vimeo** —`youtube.com/watch?v=`, `youtu.be/`, `youtube.com/embed/`,
+        `youtube.com/shorts/`, `vimeo.com/{id}`, `vimeo.com/{id}/{hash}`,
+        `player.vimeo.com/video/{id}`—, y cualquier otro dominio es `400`; en un
+        `TEXTO` es Markdown que **el backend guarda y devuelve sin interpretar ni
+        sanear** — quien lo pinta es el frontend, y tiene que hacerlo con un conversor
+        que no ejecute lo que encuentre.
+
+        **`durationSeconds`, en segundos** —un video de 12 min 34 s es `754`—:
+
+        - En **`TEXTO`**, obligatoria: el tiempo estimado de lectura.
+        - En **`VIDEO` con enlace y sin `durationSeconds`**, **la lee el sistema del
+          proveedor** (YouTube por su API de datos, Vimeo por su oEmbed). Si el
+          proveedor no la da —video privado o borrado, sin respuesta a tiempo, sin
+          clave de YouTube configurada— responde **`422` `EX-003`** diciendo por qué, y
+          no se guarda nada: se reenvía con `durationSeconds` a mano.
+        - En **`VIDEO` con `durationSeconds`**, **manda la enviada** y no se pregunta
+          a nadie: es como se corrige a mano o se guarda un video privado.
+        - En **`VIDEO` sin enlace**, obligatoria: no hay de dónde leerla.
+
+        Las sumas del módulo (`durationSeconds`) y del curso (`totalDurationSeconds`)
+        también van en segundos; el formato «1 h 05 min» es del frontend.
 
         **Nace `INACTIVA`**, con `open` falsa si no vino, y **el contenido es opcional al
         registrar y obligatorio para activar**. El título es único entre las lecciones
@@ -3955,6 +3971,13 @@ paths:
                 $ref: "#/components/schemas/LessonResponse"
         "409":
           description: Título ya en uso por una lección viva del módulo (`EX-002`)
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/LessonResponse"
+        "422":
+          description: Un `VIDEO` sin `durationSeconds` cuyo proveedor no dio la duración
+            (`EX-003`); el mensaje nombra el proveedor y el motivo
           content:
             '*/*':
               schema:
@@ -4085,9 +4108,9 @@ paths:
 
         La membresía tiene que existir (`422` `EX-002` si no); la pareja repetida
         responde `409` **nombrando la membresía por su código**. El curso tiene que
-        estar vivo, en cualquier estado: la lista se arma antes de publicar. Con su
-        primera llave, un curso activo, con descripciones y un módulo ofrecible **se
-        ofrece**. Que un alumno lo estudie lo decide el aula.
+        estar vivo, en cualquier estado: la lista se arma antes de publicar. **Con su
+        primera llave, un curso que era de todos pasa a abrirse solo a quien la tenga**;
+        `offerable` no cambia. Que un alumno lo estudie lo decide el aula.
 
         La respuesta es el curso en la forma del detalle, con la membresía en
         `memberships` —identificador, código, nombre, color—, en el orden de la cadena.
@@ -7040,9 +7063,10 @@ paths:
         lo vivo.
 
         **`offerable` y `offerableReason` viajan siempre**, con el primer motivo que
-        falla en su orden: retirado, inactivo, sin descripción, **sin membresías ni
-        servicios** —basta uno de los dos—, sin módulo activo con lección activa con
-        contenido. Es la vista con la que se
+        falla en su orden: retirado, inactivo, sin descripción, sin módulo activo con
+        lección activa con contenido. **Las membresías y los servicios no son motivo**
+        (desde el 25-09-2026): deciden a quién se abre; **sin ninguno, el curso es de
+        todos** los alumnos con sesión, y `memberships` y `products` vacíos lo dicen. Es la vista con la que se
         arma el curso y se ve qué le falta para publicarse.
 
         **Se devuelve también un retirado**, con `deletedAt` y `deletionReason`
@@ -7098,7 +7122,7 @@ paths:
         Corrección **parcial**: solo lo que viene cambia. Admite `title`,
         `instructorId`, `difficulty`, `shortDescription`, `longDescription`,
         `introVideoUrl` y `displayOrder`, por separado o juntos, y exige al menos
-        uno. **Ausente y nulo no significan lo mismo**: ausente es «no lo toques»,
+        uno; el video, **solo de YouTube o de Vimeo**. **Ausente y nulo no significan lo mismo**: ausente es «no lo toques»,
         nulo es «vacíalo» — y **solo las descripciones y el video admiten
         vaciarse**; el nulo en los otros cuatro responde `400`, junto con los demás
         errores de forma.
@@ -7185,8 +7209,8 @@ paths:
         `ACTIVO` publica; `INACTIVO` despublica. **Activar exige las dos
         descripciones y al menos un módulo activo**, comprobado **junto**: si faltan
         varias cosas, la respuesta trae todos los motivos. **No exige una
-        membresía ni un servicio**: un curso activo sin ninguno existe y no se
-        ofrece, y el detalle lo dice. **Desactivar no exige nada** y no toca módulos ni relaciones.
+        membresía ni un servicio**: **activar un curso armado sin ninguno lo abre a
+        todos** los alumnos con sesión (desde el 25-09-2026). **Desactivar no exige nada** y no toca módulos ni relaciones.
 
         El estado es lo que alguien decidió: **vaciar una descripción o retirar el
         último módulo activo después no lo cambia** — el curso deja de ofrecerse, y
@@ -7482,7 +7506,12 @@ paths:
 
         **Cambiar el tipo exige que el contenido resultante case con él**: pasar a
         `VIDEO` con un texto guardado y sin URL en la petición responde `400` **sin
-        aplicar nada**; pasar a `TEXTO` con una URL guardada se admite. **El contenido se
+        aplicar nada**; pasar a `TEXTO` con una URL guardada se admite. **Corregir el
+        enlace de un `VIDEO`, o pasar a `VIDEO` con enlace, sin `durationSeconds` relee
+        la duración del proveedor**; con `durationSeconds` manda la enviada; corregir
+        cualquier otro campo no pregunta a nadie. Si la relectura falla responde `422`
+        `EX-003` **sin aplicar nada**. El enlace solo puede ser de YouTube o de Vimeo.
+        **El contenido se
         audita como longitud y no como texto.** La lección no cambia de módulo: `moduleId`,
         `courseId` y `status` en el cuerpo son `400`. Exige `courses:update`.
       operationId: corregir_6
@@ -7541,6 +7570,13 @@ paths:
         "404":
           description: "La lección no existe, está retirada o no es de ese módulo\
             \ y curso (`EX-002`)"
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/LessonResponse"
+        "422":
+          description: "Se corrigió el enlace o se pasó a `VIDEO` sin `durationSeconds`,\
+            \ y el proveedor no dio la duración (`EX-003`); no se aplica nada"
           content:
             '*/*':
               schema:
@@ -10630,7 +10666,7 @@ paths:
         registra como eliminación de una asociación. Sin cuerpo.
 
         **Quitar el último nunca se rechaza**: si el curso tampoco tiene membresías,
-        deja de ofrecerse y el detalle lo dice. **Un servicio retirado en productos
+        **queda abierto a todos** los alumnos con sesión. **Un servicio retirado en productos
         se quita igual.** Los dos `404` se distinguen por el mensaje: el curso no
         existe o está retirado, o ese servicio no abre el curso. La respuesta es el
         curso en la forma del detalle. Exige `courses:update`.
@@ -10693,8 +10729,7 @@ paths:
         registra como eliminación de una asociación. Sin cuerpo.
 
         **Quitar la última nunca se rechaza**: si el curso tampoco tiene servicios,
-        deja de ofrecerse y el detalle lo dice —es la forma de retirar un curso de la
-        vista de todos sin desactivarlo—. Los dos `404` se distinguen por el mensaje:
+        **queda abierto a todos** los alumnos con sesión. Los dos `404` se distinguen por el mensaje:
         el curso no existe o está retirado, o esa membresía no lo abre. La respuesta
         es el curso en la forma del detalle. Exige `courses:update`.
       operationId: quitarMembresia
@@ -12538,7 +12573,10 @@ components:
           type: string
           maxLength: 500
           minLength: 0
-          pattern: ^https?://\S+$
+          pattern: "^(?:https?://(?:www\\.|m\\.)?youtube\\.com/(?:watch\\?(?:\\S*&)?v=|embed/|shorts/|live/)[A-Za-z0-9_-]{11}(?:[?&#/]\\\
+            S*)?|https?://youtu\\.be/[A-Za-z0-9_-]{11}(?:[?&#/]\\S*)?|https?://(?:www\\\
+            .)?vimeo\\.com/\\d+(?:/[0-9a-f]+)?(?:[?#]\\S*)?|https?://player\\.vimeo\\\
+            .com/video/\\d+(?:[?&#/]\\S*)?)$"
         displayOrder:
           type: integer
           format: int32
@@ -12594,7 +12632,10 @@ components:
           type: string
           maxLength: 500
           minLength: 0
-          pattern: ^https?://\S+$
+          pattern: "^(?:https?://(?:www\\.|m\\.)?youtube\\.com/(?:watch\\?(?:\\S*&)?v=|embed/|shorts/|live/)[A-Za-z0-9_-]{11}(?:[?&#/]\\\
+            S*)?|https?://youtu\\.be/[A-Za-z0-9_-]{11}(?:[?&#/]\\S*)?|https?://(?:www\\\
+            .)?vimeo\\.com/\\d+(?:/[0-9a-f]+)?(?:[?#]\\S*)?|https?://player\\.vimeo\\\
+            .com/video/\\d+(?:[?&#/]\\S*)?)$"
         displayOrder:
           type: integer
           format: int32
@@ -12670,7 +12711,6 @@ components:
           type: boolean
       required:
       - displayOrder
-      - durationSeconds
       - title
       - type
     LessonResponse:

@@ -52,7 +52,8 @@ class LessonStatusIT extends IntegrationTestBase {
       "`CA-AC-110` — activa una lección con contenido de los dos tipos; sin contenido, 409")
   void activar() throws Exception {
     UUID texto = leccion(jdbc, modulo, "Texto", "TEXTO", "# x", 5, 0, "INACTIVO");
-    UUID video = leccion(jdbc, modulo, "Video", "VIDEO", "https://v.io/1", 5, 1, "INACTIVO");
+    UUID video =
+        leccion(jdbc, modulo, "Video", "VIDEO", "https://vimeo.com/100000001", 5, 1, "INACTIVO");
     UUID vacia = leccion(jdbc, modulo, "Vacía", "TEXTO", null, 5, 2, "INACTIVO");
     mvc.perform(estado(texto, "ACTIVO"))
         .andExpect(status().isOk())

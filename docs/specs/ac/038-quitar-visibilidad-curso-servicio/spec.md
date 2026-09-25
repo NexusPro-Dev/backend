@@ -43,7 +43,7 @@ La mitad inversa de `RF-AC-037`, con la forma de `RF-AC-017`: **borra la fila** 
 | ID | Regla | Origen |
 |---|---|---|
 | `RN-AC-020` | Quitar un servicio borra la fila | `requirements/ac.md` §5.1 |
-| `RN-AC-015` | Sin membresías ni servicios, el curso deja de ofrecerse | `requirements/ac.md` §5.1 |
+| `RN-AC-015` | Las llaves no son motivo de la ofrecibilidad: sin ninguna, el curso es de todos (desde el 25-09-2026) | `requirements/ac.md` §5.1 |
 | Art. V.13 | La eliminación de una asociación se registra como `ASSOCIATION`, sin motivo | `constitution.md` |
 
 ## 6. Datos
@@ -104,7 +104,7 @@ La mitad inversa de `RF-AC-037`, con la forma de `RF-AC-017`: **borra la fila** 
 |---|---|
 | `CA-AC-223` | El sistema quita la visibilidad con `200` y devuelve el detalle sin el servicio; la fila no existe; el curso no cambia de estado |
 | `CA-AC-224` | `audit_deletion_log` tiene la fila `ASSOCIATION` **sin motivo**, con el curso como entidad, el actor y la pareja con el código del producto en la instantánea |
-| `CA-AC-225` | El sistema responde `404` al curso retirado o inexistente y `404` a la pareja inexistente, con mensajes distintos; un servicio **retirado en `PM`** se quita igual; **quitar el último de un curso sin membresías** lo deja con `offerable: false` y el cuarto motivo |
+| `CA-AC-225` | El sistema responde `404` al curso retirado o inexistente y `404` a la pareja inexistente, con mensajes distintos; un servicio **retirado en `PM`** se quita igual; **quitar el último de un curso sin membresías lo deja abierto a todos** y `offerable` no cambia (desde el 25-09-2026) |
 | `CA-AC-226` | Dos retiros simultáneos de la misma pareja dejan un `200` y un `404`, y **una** fila de auditoría |
 
 ## 13. Casos límite
@@ -126,3 +126,4 @@ La mitad inversa de `RF-AC-037`, con la forma de `RF-AC-017`: **borra la fila** 
 | 0.1.0 | 25-09-2026 | Redacción inicial. Borrado físico de la fila con `ASSOCIATION` sin motivo, como `RF-AC-017`; un servicio retirado se quita igual, y quitar el último nunca se rechaza. | Responsable técnico |
 | 0.2.0 | 25-09-2026 | **Aprobada** por el responsable del proyecto, sin cambios, el mismo día de su redacción. | Responsable técnico |
 | 0.3.0 | 25-09-2026 | **Construida** (`CourseProductVisibilityIT`, junto con `RF-AC-037`). Sin enmiendas. | Responsable técnico |
+| 0.4.0 | 25-09-2026 | **Enmienda por decisión del responsable del proyecto** (`ac.md` §5.2.12, `RN-AC-015` reescrita): **un curso sin membresías ni servicios es de todos** y las llaves dejan de ser motivo de la ofrecibilidad, que queda en **cuatro** —retirado, inactivo, sin descripción, sin módulo ofrecible—. `CA-AC-225` y la regla aplicable se reescriben. | Responsable técnico |

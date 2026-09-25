@@ -101,7 +101,7 @@ class CourseDetailIT extends IntegrationTestBase {
   @Test
   @DisplayName(
       "`CA-AC-052` — offerable y offerableReason viajan siempre: un INACTIVO dice «inactivo» y un"
-          + " ACTIVO con descripciones y sin membresías dice «sin membresías»")
+          + " ACTIVO con descripciones y sin módulo dice «sin módulo»: las llaves no son motivo")
   void elOrdenDeLosMotivos() throws Exception {
     mvc.perform(detalle(inactivo))
         .andExpect(jsonPath("$.offerable").value(false))
@@ -110,7 +110,8 @@ class CourseDetailIT extends IntegrationTestBase {
         .andExpect(jsonPath("$.offerable").value(false))
         .andExpect(
             jsonPath("$.offerableReason")
-                .value("El curso no tiene ninguna membresía ni ningún servicio que lo abra."));
+                .value(
+                    "El curso no tiene ningún módulo activo con al menos una lección activa con contenido."));
 
     // Y un ACTIVO al que se le vació una descripción dice «sin descripción» (18-09-2026).
     jdbc.update("UPDATE courses SET long_description = NULL WHERE id = ?", activo);

@@ -24,11 +24,10 @@ public record RegisterLessonRequest(
     @Size(max = 1000, message = "VAL-007: La descripción no puede exceder 1000 caracteres.")
         String description,
     String content,
-    @NotNull(
-            message =
-                "VAL-004: La duración es obligatoria y debe ser un entero de segundos mayor que"
-                    + " cero.")
-        @Positive(
+    // Opcional desde el 25-09-2026 (`RN-AC-017`): en un VIDEO con enlace la lee
+    // el sistema del proveedor. Cuándo es obligatoria lo decide el caso de uso,
+    // que conoce el tipo; aquí solo se exige que, si viene, sea positiva.
+    @Positive(
             message =
                 "VAL-004: La duración es obligatoria y debe ser un entero de segundos mayor que"
                     + " cero.")

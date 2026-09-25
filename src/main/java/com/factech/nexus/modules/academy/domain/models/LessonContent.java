@@ -42,6 +42,6 @@ public final class LessonContent {
   }
 
   public static final String MENSAJE_VIDEO =
-      "El contenido de una lección de video debe ser una URL absoluta http o https, sin espacios y"
-          + " de hasta 500 caracteres.";
+      "El contenido de una lección de video debe ser un video de YouTube o de Vimeo —youtube.com,"
+          + " youtu.be, vimeo.com o player.vimeo.com—, sin espacios y de hasta 500 caracteres.";
 }

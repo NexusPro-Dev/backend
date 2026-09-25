@@ -5,11 +5,11 @@
 | Proyecto | NEXUS — Renovación de plataforma |
 | Empresa | FACTECH GROUP SAS |
 | Documento | `architecture.md` |
-| Versión | 0.36.0 |
+| Versión | 0.38.0 |
 | Estado | Borrador |
 | Responsable técnico | Bonilla Diaz William Steven |
 | Fecha de creación | 19-08-2026 |
-| Última actualización | 24-09-2026 |
+| Última actualización | 25-09-2026 |
 | Documento superior | `constitution.md` v0.5.0 |
 | Documento relacionado | `security.md` v0.3.0 |
 
@@ -662,6 +662,7 @@ Toda configuración dependiente del entorno se inyecta por variable de entorno (
 | `REQUEST_LOG_RETENTION_DAYS` | No | Retención del `request_log`. **Hoy no la lee nadie**: la purga sigue pendiente de D-10 |
 | `NOTIFICATION_ENABLED` · `RESEND_API_KEY` · `NOTIFICATION_FROM` | No | Envío saliente (§15.1). Sin clave queda apagado y se avisa al arrancar |
 | `NOTIFICATION_TEMPLATE_PASSWORD_RECOVERY` | No | Plantilla alojada en Resend del correo de `RF-SP-040`, por id o alias. Vacía manda el mensaje **en texto plano** |
+| `YOUTUBE_API_KEY` · `VIMEO_ACCESS_TOKEN` | No | Credenciales con las que Academia lee la duración de una lección de video (`RN-AC-017`, 25-09-2026): la clave de la YouTube Data API v3 y el token de acceso personal de Vimeo, con alcance de lectura. **Sin la de un proveedor, sus lecciones exigen la duración a mano** —Vimeo intenta antes su oEmbed, que no es fiable— |
 
 **`ENVIRONMENT` dejó de ser decorativa el 31-08-2026**, y con ella queda una sola obligatoria sin lector: `API_URL`. Esta se declara porque el Art. IX.4 la exige como parte del contrato de configuración y porque el día que algo la lea no debe descubrirse que faltaba en producción.
 
@@ -938,3 +939,5 @@ D-08 quedó cerrada en `security.md` §12, junto con las decisiones D-12 a D-15 
 | 0.34.0 | 21-09-2026 | **`SP` publica el alcance comercial** (`CommercialReach`, §15.2), por `RF-MV-015` y `RN-MV-031` ([`requirements/mv.md`](requirements/mv.md) v0.32.0): hasta dónde llega una persona —todo, su red en profundidad, o ella misma— resuelto por `SP` de su tipo de rol y de `user_supervisors`, y aplicado por `MV` como predicado. Es el resolvedor que `ADR-005` recomienda (opción B) con un solo tipo de alcance, y se hace **antes** que la comprobación de arquitectura que aquel ponía primero: el responsable del proyecto decidió el alcance de las ventas y la regla de ArchUnit queda pendiente, anotado en `security.md` v0.68.0. | Responsable del proyecto |
 | 0.35.0 | 23-09-2026 | **§15.2.1 — la escritura publicada de D-26 pasa de conceder NIVELES a escribir POSESIONES**, por decisión del responsable del proyecto, y en contrapartida de que `user_memberships` pase a ser `user_products` (`RN-SP-056`, [`requirements/sp.md`](requirements/sp.md) v1.84.0; `RN-MV-036`, [`requirements/mv.md`](requirements/mv.md) v0.40.0). La orden gana dos datos —**qué producto** y **qué línea**— y toda línea entregada la invoca, también la de un bot, que antes no producía escritura alguna. **Las cuatro reglas de §15.2 siguen valiendo sin retocarse, y conviene ver por qué**: lo que cruza sigue siendo una orden plana y una respuesta plana —`SP` sigue sin saber qué es una venta, y ahora guarda el identificador de una línea que no lee—, y el reparto de responsabilidad no se mueve: *cómo* se escribe la posesión es de `SP`, *si* se escribe lo decide `MV` al entregar. **Lo que sí se anota es que el nombre del puerto se quedó corto**: `MembershipGrant` ya no describe todo lo que hace, y se conserva porque renombrarlo tocaría tripletas aprobadas a cambio de nada funcional. | Responsable del proyecto |
 | 0.36.0 | 24-09-2026 | **§15.2.1 gana la SEGUNDA escritura publicada, y con ella deja de ser un caso único**: `ClientSellerBond` —vincular al cliente con el vendedor de cuyo enlace compró— (`RF-MV-011`; [`requirements/mv.md`](requirements/mv.md) v0.43.0). **Lo que esto confirma es la norma, no la excepción**: las cuatro reglas de §15.2 se aplicaron a un caso nuevo **sin retocar ninguna**. Cruza una orden plana —cliente, vendedor, venta—, devuelve lo que quedó, corre en la transacción de quien llama con `MANDATORY`, y el reparto de responsabilidad es el mismo: *qué significa vincular* —quién es el principal, que no se toca— es de `SP`; *si se vincula* lo decide `MV` al registrar la compra. **`SP` no gana ningún requerimiento por publicarla**, como en D-26: ningún actor pide «publicar una interfaz». | Responsable del proyecto |
+| 0.37.0 | 25-09-2026 | **Academia llama a dos servicios externos** para leer la duración de un video (`requirements/ac.md` v0.16.0 §5.2.11): YouTube Data API v3, con **`YOUTUBE_API_KEY`** nueva en §11, y el oEmbed público de Vimeo, sin credencial. Con plazo corto y siempre a la dirección fija del proveedor. | Responsable técnico |
+| 0.38.0 | 25-09-2026 | **`VIMEO_ACCESS_TOKEN`** en §11: Academia lee la duración de Vimeo por su API con token, porque el oEmbed sin credencial no es fiable (`requirements/ac.md` v0.18.0 §5.2.11). | Responsable técnico |

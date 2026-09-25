@@ -1,6 +1,7 @@
 package com.factech.nexus.modules.academy.application;
 
 import com.factech.nexus.modules.academy.domain.models.CourseDifficulty;
+import com.factech.nexus.shared.video.VideoLink;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Pattern;
@@ -44,13 +45,13 @@ public record RegisterCourseRequest(
     @Size(
             max = 500,
             message =
-                "VAL-006: El enlace del video debe ser una URL absoluta http o https, sin espacios y"
-                    + " de hasta 500 caracteres.")
+                "VAL-006: El enlace del video debe ser un video de YouTube o de Vimeo, sin espacios y de"
+                    + " hasta 500 caracteres.")
         @Pattern(
-            regexp = "^https?://\\S+$",
+            regexp = VideoLink.PATRON,
             message =
-                "VAL-006: El enlace del video debe ser una URL absoluta http o https, sin espacios y"
-                    + " de hasta 500 caracteres.")
+                "VAL-006: El enlace del video debe ser un video de YouTube o de Vimeo, sin espacios y de"
+                    + " hasta 500 caracteres.")
         String introVideoUrl,
     @NotNull(
             message =

@@ -45,10 +45,10 @@ class LessonTest {
     assertThatThrownBy(() -> crear(LessonType.VIDEO, "no es url", null))
         .isInstanceOf(ValidationException.class)
         .hasMessageContaining("lección de video");
-    assertThat(crear(LessonType.VIDEO, " https://v.io/1 ", null).getContent())
-        .isEqualTo("https://v.io/1");
-    assertThat(crear(LessonType.TEXTO, "https://v.io/1", null).getContent())
-        .isEqualTo("https://v.io/1");
+    assertThat(crear(LessonType.VIDEO, " https://vimeo.com/100000001 ", null).getContent())
+        .isEqualTo("https://vimeo.com/100000001");
+    assertThat(crear(LessonType.TEXTO, "https://vimeo.com/100000001", null).getContent())
+        .isEqualTo("https://vimeo.com/100000001");
     assertThat(LessonContent.de(LessonType.TEXTO, null, "VAL-006")).isNull();
   }
 
@@ -134,15 +134,15 @@ class LessonTest {
             Patchable.de(LessonType.VIDEO),
             Patchable.ausente(),
             Patchable.ausente(),
-            Patchable.de("https://v.io/1"),
+            Patchable.de("https://vimeo.com/100000001"),
             Patchable.ausente(),
             Patchable.ausente(),
             Patchable.ausente(),
             DESPUES);
     assertThat(cambios).containsKeys("type", "content_length");
     assertThat(cambios.get("content_length"))
-        .isEqualTo(Map.of("before", MARKDOWN.strip().length(), "after", 14));
-    assertThat(l.getContent()).isEqualTo("https://v.io/1");
+        .isEqualTo(Map.of("before", MARKDOWN.strip().length(), "after", 27));
+    assertThat(l.getContent()).isEqualTo("https://vimeo.com/100000001");
 
     // Pasar a TEXTO con una URL guardada se admite: una URL es un texto.
     assertThat(

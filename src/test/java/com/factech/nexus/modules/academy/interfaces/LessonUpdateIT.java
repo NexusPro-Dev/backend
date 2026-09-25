@@ -64,14 +64,14 @@ class LessonUpdateIT extends IntegrationTestBase {
             corregir(
                 leccion,
                 """
-                {"type":"VIDEO","title":"Vela","description":"Desc","content":"https://v.io/1",
+                {"type":"VIDEO","title":"Vela","description":"Desc","content":"https://vimeo.com/100000001",
                  "durationSeconds":7,"displayOrder":3,"open":true}
                 """))
         .andExpect(status().isOk())
         .andExpect(jsonPath("$.type").value("VIDEO"))
         .andExpect(jsonPath("$.title").value("Vela"))
         .andExpect(jsonPath("$.description").value("Desc"))
-        .andExpect(jsonPath("$.content").value("https://v.io/1"))
+        .andExpect(jsonPath("$.content").value("https://vimeo.com/100000001"))
         .andExpect(jsonPath("$.durationSeconds").value(7))
         .andExpect(jsonPath("$.displayOrder").value(3))
         .andExpect(jsonPath("$.open").value(true));
@@ -94,13 +94,16 @@ class LessonUpdateIT extends IntegrationTestBase {
         .containsEntry("type", "TEXTO")
         .containsEntry("title", "Intro");
 
-    mvc.perform(corregir(leccion, "{\"type\":\"VIDEO\",\"content\":\"https://v.io/1\"}"))
+    mvc.perform(
+            corregir(
+                leccion,
+                "{\"type\":\"VIDEO\",\"content\":\"https://vimeo.com/100000001\",\"durationSeconds\":60}"))
         .andExpect(status().isOk())
         .andExpect(jsonPath("$.type").value("VIDEO"));
     mvc.perform(corregir(leccion, "{\"type\":\"TEXTO\"}"))
         .andExpect(status().isOk())
         .andExpect(jsonPath("$.type").value("TEXTO"))
-        .andExpect(jsonPath("$.content").value("https://v.io/1"));
+        .andExpect(jsonPath("$.content").value("https://vimeo.com/100000001"));
   }
 
   @Test
@@ -210,27 +213,25 @@ class LessonUpdateIT extends IntegrationTestBase {
     jdbc.update("UPDATE lessons SET status = 'ACTIVO' WHERE id = ?", leccion);
     mvc.perform(get("/api/v1/courses/" + curso).with(con("courses:read")))
         .andExpect(jsonPath("$.modules[0].offerable").value(true))
-        .andExpect(
-            jsonPath("$.offerableReason")
-                .value("El curso no tiene ninguna membresía ni ningún servicio que lo abra."));
+        .andExpect(jsonPath("$.offerable").value(true))
+        .andExpect(jsonPath("$.offerableReason").doesNotExist());
 
     mvc.perform(corregir(leccion, "{\"content\":null}"))
         .andExpect(jsonPath("$.status").value("ACTIVO"));
     mvc.perform(get("/api/v1/courses/" + curso).with(con("courses:read")))
         .andExpect(jsonPath("$.modules[0].status").value("ACTIVO"))
         .andExpect(jsonPath("$.modules[0].offerable").value(false))
-        // El quinto motivo solo se ve con una membresía delante (RF-AC-020): hasta
-        // entonces el curso dice el cuarto, y el módulo es el que enseña el hueco.
+        // Desde el 25-09-2026 las llaves no son motivo: el curso dice el del módulo.
         .andExpect(
             jsonPath("$.offerableReason")
-                .value("El curso no tiene ninguna membresía ni ningún servicio que lo abra."));
+                .value(
+                    "El curso no tiene ningún módulo activo con al menos una lección activa con contenido."));
 
     mvc.perform(corregir(leccion, "{\"content\":\"# De vuelta\"}")).andExpect(status().isOk());
     mvc.perform(get("/api/v1/courses/" + curso).with(con("courses:read")))
         .andExpect(jsonPath("$.modules[0].offerable").value(true))
-        .andExpect(
-            jsonPath("$.offerableReason")
-                .value("El curso no tiene ninguna membresía ni ningún servicio que lo abra."));
+        .andExpect(jsonPath("$.offerable").value(true))
+        .andExpect(jsonPath("$.offerableReason").doesNotExist());
   }
 
   private MockHttpServletRequestBuilder corregir(UUID leccion, String cuerpo) {

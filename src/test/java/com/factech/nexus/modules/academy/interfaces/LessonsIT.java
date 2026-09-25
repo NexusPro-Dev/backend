@@ -102,10 +102,10 @@ class LessonsIT extends IntegrationTestBase {
 
     mvc.perform(
             alta(
-                "{\"type\":\"VIDEO\",\"title\":\"Video\",\"content\":\"https://v.io/1\",\"durationSeconds\":3,\"displayOrder\":1,\"open\":true}"))
+                "{\"type\":\"VIDEO\",\"title\":\"Video\",\"content\":\"https://vimeo.com/100000001\",\"durationSeconds\":3,\"displayOrder\":1,\"open\":true}"))
         .andExpect(status().isCreated())
         .andExpect(jsonPath("$.open").value(true))
-        .andExpect(jsonPath("$.content").value("https://v.io/1"));
+        .andExpect(jsonPath("$.content").value("https://vimeo.com/100000001"));
   }
 
   @Test
@@ -226,7 +226,15 @@ class LessonsIT extends IntegrationTestBase {
           + " contenido en una sentencia más")
   void cuentasYArbol() throws Exception {
     leccion(jdbc, modulo, "Segunda", "TEXTO", "# b", 20, 1, "ACTIVO");
-    leccion(jdbc, modulo, "Primera", "VIDEO", "https://v.io/a", 10, 0, "INACTIVO");
+    leccion(
+        jdbc,
+        modulo,
+        "Primera",
+        "VIDEO",
+        "https://www.youtube.com/watch?v=aaaaaaaaaaa",
+        10,
+        0,
+        "INACTIVO");
     CourseTestSupport.retirarLeccion(
         jdbc, leccion(jdbc, modulo, "Retirada", "TEXTO", "# r", 99, 2, "ACTIVO"));
 

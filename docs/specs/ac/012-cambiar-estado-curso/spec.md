@@ -85,7 +85,7 @@ Es `RF-PM-021` para cursos, y hereda su forma: `ACTIVO` ↔ `INACTIVO`, activar 
 
 ### FA-001 — Activar sin membresías
 
-**Comportamiento:** **se activa.** El detalle devuelve `offerable: false` diciendo «sin membresías», y el aula no lo enseña hasta que `RF-AC-020` le dé una.
+**Comportamiento:** **se activa**, y desde el 25-09-2026 **se ofrece a todos** si tiene descripciones y un módulo ofrecible: **activar un curso sin llaves lo regala** (`ac.md` §5.2.12).
 
 ### FA-002 — Activar con un módulo activo cuyas lecciones están todas inactivas
 
@@ -128,7 +128,7 @@ Los tres van **juntos** en la misma respuesta cuando ocurren a la vez.
 |---|---|
 | `CA-AC-064` | El sistema activa un curso con las dos descripciones y un módulo activo, y devuelve el detalle `ACTIVO` con `updatedAt` avanzado — **bloqueado hasta `RF-AC-024`** |
 | `CA-AC-065` | El sistema rechaza con `409` activar sin descripción corta, sin descripción larga y sin módulo activo, y cuando faltan **varias** la respuesta trae **todos** los motivos |
-| `CA-AC-066` | El sistema **activa** un curso sin membresías, y el detalle lo devuelve `offerable: false` diciendo «sin membresías» |
+| `CA-AC-066` | El sistema **activa** un curso sin membresías ni servicios, y, si está armado, el detalle lo devuelve `offerable: true`: es de todos (desde el 25-09-2026) |
 | `CA-AC-067` | Desactivar no exige nada y no toca módulos ni relaciones; y **vaciar una descripción o retirar el último módulo activo** después **no** cambia el estado |
 | `CA-AC-068` | Pedir el estado que ya tiene responde `200` sin avanzar `updatedAt` ni auditar; un cambio real deja la fila `UPDATE` con antes y después |
 | `CA-AC-069` | Un curso retirado responde `404`; un `status` fuera de dominio o ausente, `400` |
@@ -154,3 +154,4 @@ Los tres van **juntos** en la misma respuesta cuando ocurren a la vez.
 | 0.1.0 | 18-09-2026 | Redacción inicial. Hereda `RF-PM-021` —condiciones juntas al activar, nada al desactivar, mismo estado sin escribir— con las tres condiciones de `RN-AC-009`. **No exige membresías** y **no desactiva por hechos**. Declara que `CA-AC-064` queda bloqueado hasta `RF-AC-024`. | Responsable técnico |
 | 0.2.0 | 18-09-2026 | **Enmienda de Art. I.7 (18-09-2026)**: `RN-AC-015` gana dos motivos por decisión del responsable del proyecto —«sin descripción» en el curso y «sin contenido» en la lección—. Activar no cambia —`RN-AC-009` ya exigía las dos descripciones—; `FA-002` pasa a decir «el último motivo», que ahora es el quinto. | Responsable técnico |
 | 0.3.0 | 18-09-2026 | **Construida** (`CourseStatusIT` (5)) **con `CA-AC-064` bloqueado**: hoy ningún curso se activa por la API porque `countActiveModulesOf` devuelve cero hasta `RF-AC-022`; los tres `409` llegan juntos como `errors[]` bajo el código del primero, y `CA-AC-066`/`067` se prueban sobre un curso activo por siembra. | Responsable técnico |
+| 0.4.0 | 25-09-2026 | **Enmienda por decisión del responsable del proyecto** (`ac.md` §5.2.12, `RN-AC-015` reescrita): **un curso sin membresías ni servicios es de todos** y las llaves dejan de ser motivo de la ofrecibilidad, que queda en **cuatro** —retirado, inactivo, sin descripción, sin módulo ofrecible—. `FA-001` y `CA-AC-066` se reescriben: activar sin llaves ya no deja el curso sin ofrecer. | Responsable técnico |

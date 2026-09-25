@@ -47,6 +47,7 @@ public class RegisterLessonService {
   private final AuditWriter auditoria;
   private final UuidV7Generator ids;
   private final LessonDetailReader detalle;
+  private final LessonDurationReader duraciones;
   private final Clock reloj;
 
   @Autowired
@@ -55,8 +56,9 @@ public class RegisterLessonService {
       LessonRepository lecciones,
       AuditWriter auditoria,
       UuidV7Generator ids,
-      LessonDetailReader detalle) {
-    this(modulos, lecciones, auditoria, ids, detalle, Clock.systemUTC());
+      LessonDetailReader detalle,
+      LessonDurationReader duraciones) {
+    this(modulos, lecciones, auditoria, ids, detalle, duraciones, Clock.systemUTC());
   }
 
   RegisterLessonService(
@@ -65,12 +67,14 @@ public class RegisterLessonService {
       AuditWriter auditoria,
       UuidV7Generator ids,
       LessonDetailReader detalle,
+      LessonDurationReader duraciones,
       Clock reloj) {
     this.modulos = modulos;
     this.lecciones = lecciones;
     this.auditoria = auditoria;
     this.ids = ids;
     this.detalle = detalle;
+    this.duraciones = duraciones;
     this.reloj = reloj;
   }
 
@@ -90,6 +94,13 @@ public class RegisterLessonService {
           List.of(new FieldError("title", "EX-002", JpaLessonRepository.MENSAJE_TITULO)));
     }
 
+    // La duración del video, del proveedor, cuando no vino (`EX-003`). Después de
+    // las comprobaciones que no cuestan red, y antes de escribir nada.
+    Integer duracion =
+        peticion.durationSeconds() != null
+            ? peticion.durationSeconds()
+            : duraciones.leer(peticion.content());
+
     Lesson nueva =
         lecciones.save(
             Lesson.create(
@@ -99,7 +110,7 @@ public class RegisterLessonService {
                 peticion.title(),
                 peticion.description(),
                 peticion.content(),
-                peticion.durationSeconds(),
+                duracion,
                 peticion.displayOrder(),
                 peticion.open(),
                 OffsetDateTime.now(reloj)));
@@ -131,7 +142,13 @@ public class RegisterLessonService {
               "VAL-003",
               "El título es obligatorio y no puede superar los 150 caracteres."));
     }
-    if (peticion.durationSeconds() == null || peticion.durationSeconds() <= 0) {
+    // `RN-AC-017` desde el 25-09-2026: si viene, positiva; si no viene, solo se
+    // admite en un VIDEO con enlace, que es de donde se lee.
+    boolean seLeeDelVideo =
+        peticion.type() == LessonType.VIDEO
+            && peticion.content() != null
+            && !peticion.content().isBlank();
+    if (peticion.durationSeconds() == null ? !seLeeDelVideo : peticion.durationSeconds() <= 0) {
       problemas.add(
           new FieldError(
               "durationSeconds",

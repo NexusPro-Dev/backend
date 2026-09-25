@@ -66,7 +66,7 @@ public class CourseModuleController {
       description =
           """
           Registra una parte del curso con **título y orden**, obligatorios, y descripción
-          corta, descripción larga y video de presentación, opcionales. **Nace `INACTIVO`,
+          corta, descripción larga y video de presentación —**de YouTube o de Vimeo**—, opcionales. **Nace `INACTIVO`,
           vacío y dentro del curso de la ruta**, del que no se mueve: enviar `courseId`,
           `status`, `lessons` o `coverImageUrl` responde `400`.
 

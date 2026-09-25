@@ -27,11 +27,18 @@ class CourseModuleTest {
   void nace() {
     CourseModule m =
         CourseModule.create(
-            UUID.randomUUID(), CURSO, " Fundamentos ", "  ", null, " https://v.io/m ", 0, AHORA);
+            UUID.randomUUID(),
+            CURSO,
+            " Fundamentos ",
+            "  ",
+            null,
+            " https://vimeo.com/100000003 ",
+            0,
+            AHORA);
     assertThat(m.getCourseId()).isEqualTo(CURSO);
     assertThat(m.getTitle()).isEqualTo("Fundamentos");
     assertThat(m.getShortDescription()).isNull();
-    assertThat(m.getPresentationVideoUrl()).isEqualTo("https://v.io/m");
+    assertThat(m.getPresentationVideoUrl()).isEqualTo("https://vimeo.com/100000003");
     assertThat(m.getStatus()).isEqualTo(CourseStatus.INACTIVO);
     assertThat(m.estaRetirado()).isFalse();
   }
@@ -57,7 +64,14 @@ class CourseModuleTest {
   void corrigeYCambiaDeEstado() {
     CourseModule m =
         CourseModule.create(
-            UUID.randomUUID(), CURSO, "Fundamentos", "Corta", "Larga", "https://v.io/m", 0, AHORA);
+            UUID.randomUUID(),
+            CURSO,
+            "Fundamentos",
+            "Corta",
+            "Larga",
+            "https://vimeo.com/100000003",
+            0,
+            AHORA);
     Map<String, Object> cambios =
         m.update(
             Patchable.de(" Fundamentos "),

@@ -46,7 +46,7 @@ class CourseModuleUpdateIT extends IntegrationTestBase {
     modulo = modulo(jdbc, curso, "Fundamentos", 0, "INACTIVO");
     jdbc.update(
         "UPDATE course_modules SET short_description = 'Corta', long_description = 'Larga',"
-            + " presentation_video_url = 'https://v.io/m' WHERE id = ?",
+            + " presentation_video_url = 'https://vimeo.com/100000003' WHERE id = ?",
         modulo);
   }
 
@@ -68,12 +68,12 @@ class CourseModuleUpdateIT extends IntegrationTestBase {
                 modulo,
                 """
                 {"title":"Bases","shortDescription":"Otra","longDescription":"Otra larga",
-                 "presentationVideoUrl":"https://v.io/2","displayOrder":7}
+                 "presentationVideoUrl":"https://vimeo.com/100000002","displayOrder":7}
                 """))
         .andExpect(status().isOk())
         .andExpect(jsonPath("$.title").value("Bases"))
         .andExpect(jsonPath("$.shortDescription").value("Otra"))
-        .andExpect(jsonPath("$.presentationVideoUrl").value("https://v.io/2"))
+        .andExpect(jsonPath("$.presentationVideoUrl").value("https://vimeo.com/100000002"))
         .andExpect(jsonPath("$.displayOrder").value(7))
         .andExpect(jsonPath("$.courseId").value(curso.toString()));
     assertThat(

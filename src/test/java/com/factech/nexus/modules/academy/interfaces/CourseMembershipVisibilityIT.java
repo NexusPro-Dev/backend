@@ -156,8 +156,8 @@ class CourseMembershipVisibilityIT extends IntegrationTestBase {
 
   @Test
   @DisplayName(
-      "`CA-AC-138` — un curso activo y armado SIN servicios pasa de «sin membresías ni servicios» a"
-          + " ofrecible con su primera membresía, en el detalle, el listado y su categoría")
+      "`CA-AC-138` — un curso activo y armado SIN llaves ya se ofrece —es de todos— y sigue a"
+          + " ofreciéndose con su primera membresía, en el detalle, el listado y su categoría")
   void seOfrecePorSuMembresia() throws Exception {
     UUID armado = curso(jdbc, "Armado", instructor, 2, "PRINCIPIANTE", "C", "L", "ACTIVO");
     UUID modulo = CourseTestSupport.modulo(jdbc, armado, "Uno", 0, "ACTIVO");
@@ -167,10 +167,8 @@ class CourseMembershipVisibilityIT extends IntegrationTestBase {
         "INSERT INTO course_category_items (course_id, category_id) VALUES (?, ?)", armado, cajon);
 
     mvc.perform(get("/api/v1/courses/" + armado).with(con("courses:read")))
-        .andExpect(jsonPath("$.offerable").value(false))
-        .andExpect(
-            jsonPath("$.offerableReason")
-                .value("El curso no tiene ninguna membresía ni ningún servicio que lo abra."));
+        .andExpect(jsonPath("$.offerable").value(true))
+        .andExpect(jsonPath("$.offerableReason").doesNotExist());
     mvc.perform(dar(armado, alta))
         .andExpect(status().isCreated())
         .andExpect(jsonPath("$.offerable").value(true));
@@ -252,7 +250,7 @@ class CourseMembershipVisibilityIT extends IntegrationTestBase {
 
   @Test
   @DisplayName(
-      "`CA-AC-143` y `CA-AC-144` — quitar la última de un curso sin servicios lo deja sin ofrecer y"
+      "`CA-AC-143` y `CA-AC-144` — quitar la última de un curso sin servicios lo deja abierto a todos y"
           + " ACTIVO; 404 al curso y a la pareja con mensajes distintos; dos retiros: 200, 404 y UNA"
           + " fila")
   void laUltimaYLosRechazos() throws Exception {
@@ -263,7 +261,8 @@ class CourseMembershipVisibilityIT extends IntegrationTestBase {
     mvc.perform(quitar(armado, alta))
         .andExpect(status().isOk())
         .andExpect(jsonPath("$.status").value("ACTIVO"))
-        .andExpect(jsonPath("$.offerable").value(false));
+        // Desde el 25-09-2026 (`ac.md` §5.2.12): sin llaves queda abierto a todos.
+        .andExpect(jsonPath("$.offerable").value(true));
 
     mvc.perform(quitar(UUID.randomUUID(), alta))
         .andExpect(status().isNotFound())
