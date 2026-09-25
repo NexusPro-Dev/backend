@@ -24,6 +24,12 @@ public interface CourseCategoryRepository {
 
   Optional<CourseCategory> findAliveByIdForUpdate(UUID id);
 
+  /**
+   * La viva, <b>sin bloquear</b>: la clasificación de un curso (`RF-AC-016`) solo necesita saber
+   * que existe y cómo se llama, y no escribe nada en ella (`spec.md` §14.1).
+   */
+  Optional<CourseCategory> findAliveById(UUID id);
+
   Optional<CourseCategory> findByIdForUpdate(UUID id);
 
   /** Vacía los cambios pendientes traduciendo la unicidad, para quien escribe sin {@link #save}. */

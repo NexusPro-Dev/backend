@@ -306,6 +306,8 @@ class EndpointPermissionsIT extends IntegrationTestBase {
           Map.entry("PATCH /api/v1/courses/{id}", "courses:update"),
           Map.entry("PATCH /api/v1/courses/{id}/status", "courses:update"),
           Map.entry("POST /api/v1/courses/{id}/deletion", "courses:delete"),
+          Map.entry("POST /api/v1/courses/{courseId}/categories", "courses:update"),
+          Map.entry("DELETE /api/v1/courses/{courseId}/categories/{categoryId}", "courses:update"),
           Map.entry("POST /api/v1/courses/{courseId}/modules", "courses:update"),
           Map.entry("PATCH /api/v1/courses/{courseId}/modules/{moduleId}", "courses:update"),
           Map.entry("PATCH /api/v1/courses/{courseId}/modules/{moduleId}/status", "courses:update"),

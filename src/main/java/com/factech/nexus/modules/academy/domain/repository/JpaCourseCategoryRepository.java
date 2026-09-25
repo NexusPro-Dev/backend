@@ -92,6 +92,22 @@ public class JpaCourseCategoryRepository implements CourseCategoryRepository {
   }
 
   @Override
+  public Optional<CourseCategory> findAliveById(UUID id) {
+    if (id == null) {
+      return Optional.empty();
+    }
+    return em
+        .createQuery(
+            "SELECT c FROM CourseCategory c WHERE c.id = :id AND c.deletedAt IS NULL",
+            CourseCategory.class)
+        .setParameter("id", id)
+        .setMaxResults(1)
+        .getResultList()
+        .stream()
+        .findFirst();
+  }
+
+  @Override
   public Optional<CourseCategory> findByIdForUpdate(UUID id) {
     if (id == null) {
       return Optional.empty();

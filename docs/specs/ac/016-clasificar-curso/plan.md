@@ -17,9 +17,9 @@
 
 ## 2. Cambios de esquema
 
-**Una migración.** `V25` salvo que otra tanda se adelante (tras `V23`/`V24` del bloque 3).
+**Una migración, `V42`.** El plan la numeró `V25` el 18-09-2026 «salvo que otra tanda se adelante», y se adelantaron diecisiete: el número se asigna al construir (`tasks.md` §4, bloqueo 1). `V42` estaba reservada en `cm.md` v0.17.0 para la liquidación, que no tiene código todavía y pasa a la siguiente libre.
 
-### `V25__ac_clasificacion.sql`
+### `V42__ac_clasificacion.sql`
 
 ```sql
 CREATE TABLE course_category_items (

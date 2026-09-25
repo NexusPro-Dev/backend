@@ -26,14 +26,17 @@ final class CourseTestSupport {
   private CourseTestSupport() {}
 
   static void limpiar(JdbcTemplate jdbc) {
+    jdbc.update("DELETE FROM course_category_items");
     jdbc.update("DELETE FROM lessons");
     jdbc.update("DELETE FROM course_modules");
     jdbc.update("DELETE FROM courses");
     jdbc.update(
         "DELETE FROM audit_change_log WHERE module = 'AC' AND entity IN ('courses',"
+            + " 'course_category_items',"
             + " 'course_modules', 'lessons')");
     jdbc.update(
         "DELETE FROM audit_deletion_log WHERE module = 'AC' AND entity IN ('courses',"
+            + " 'course_category_items',"
             + " 'course_modules', 'lessons')");
     jdbc.update(
         "DELETE FROM user_roles WHERE user_id IN (SELECT id FROM users WHERE username LIKE 'ac-%')");

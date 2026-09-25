@@ -3328,7 +3328,9 @@ paths:
         descripción larga, video ni árbol: para eso está el detalle.
 
         Filtra por `q` —título, sin distinguir mayúsculas ni acentos—, `categoryId`,
-        `instructorId`, `difficulty` y `status`, combinables. **Excluye los
+        `instructorId`, `difficulty` y `status`, combinables. `categoryId` deja los
+        clasificados en esa categoría **si está viva**: filtrar por una retirada
+        devuelve vacío, porque ninguna fila la enseña en `categories`. **Excluye los
         retirados** salvo `includeDeleted=true`, y entonces los trae con `deletedAt`
         y `offerable: false`. «Ofrecible» no es filtro: se publica por fila.
 
@@ -3807,6 +3809,89 @@ paths:
           description: El módulo no existe o no es de ese curso (`EX-001`)
         "409":
           description: El módulo ya está retirado (`EX-002`)
+      x-required-permission: courses:update
+  /api/v1/courses/{courseId}/categories:
+    post:
+      tags:
+      - Cursos
+      summary: Clasificar un curso en una categoría
+      description: |
+        **Permiso requerido:** `courses:update`. Sin él, `403` (`AUTH-002`).
+
+        Pone el curso en una categoría. **La clasificación es libre y no se repite**:
+        un curso está en cuantas categorías haga falta —**una por petición**; para
+        ponerlo en tres, tres peticiones— y la misma pareja no entra dos veces.
+
+        **No toca el estado ni la ofrecibilidad**: un curso `INACTIVO` se clasifica
+        igual, y un curso sin categoría se ofrece igual — la categoría es un filtro
+        del catálogo, no una condición.
+
+        El curso tiene que estar **vivo** (`404` si no existe o está retirado, porque
+        va en la ruta) y la categoría también (`422` si no existe o está retirada,
+        porque va en el cuerpo). La pareja repetida responde `409` **nombrando la
+        categoría**. Enviar un campo distinto de `categoryId` responde `400`.
+
+        La respuesta es el curso en la forma del detalle, con la nueva en
+        `categories`. Exige `courses:update`; **los `course-categories:` no
+        habilitan**.
+      operationId: clasificar
+      parameters:
+      - name: courseId
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ClassifyCourseRequest"
+        required: true
+      responses:
+        "201":
+          description: "Curso clasificado, en la forma del detalle."
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/CourseDetailResponse"
+        "400":
+          description: "Identificador inválido (`VAL-001`), `categoryId` ausente o\
+            \ mal formado (`VAL-002`), o un campo no admitido (`VAL-003`)"
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/CourseDetailResponse"
+        "401":
+          description: Token ausente o inválido (`AUTH-001`)
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/CourseDetailResponse"
+        "403":
+          description: Autenticado sin el permiso `courses:update` (`AUTH-002`)
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/CourseDetailResponse"
+        "404":
+          description: El curso no existe o está retirado (`EX-001`)
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/CourseDetailResponse"
+        "409":
+          description: El curso ya está en esa categoría; el mensaje la nombra (`EX-003`)
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/CourseDetailResponse"
+        "422":
+          description: La categoría no existe o está retirada (`EX-002`)
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/CourseDetailResponse"
       x-required-permission: courses:update
   /api/v1/course-categories:
     get:
@@ -10124,6 +10209,73 @@ paths:
               schema:
                 $ref: "#/components/schemas/PageResponseChangeAuditItem"
       x-required-permission: audit:read-changes
+  /api/v1/courses/{courseId}/categories/{categoryId}:
+    delete:
+      tags:
+      - Cursos
+      summary: Desclasificar un curso de una categoría
+      description: |
+        **Permiso requerido:** `courses:update`. Sin él, `403` (`AUTH-002`).
+
+        Saca el curso de la categoría: **borra la pareja, sin motivo**, y lo registra
+        como eliminación de una asociación. Sin cuerpo.
+
+        **No toca el estado ni la ofrecibilidad**: el curso que se ofrecía se sigue
+        ofreciendo aunque se quede sin categoría. **Una categoría retirada se
+        desclasifica igual**: la pareja existe, y así se limpia lo que el retiro
+        dejó.
+
+        El curso tiene que estar **vivo**. Los dos `404` se distinguen por el
+        mensaje: el curso no existe o está retirado, o el curso no está en esa
+        categoría. La respuesta es el curso en la forma del detalle, sin la
+        categoría. Exige `courses:update`.
+      operationId: desclasificar
+      parameters:
+      - name: courseId
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      - name: categoryId
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      responses:
+        "200":
+          description: "Curso desclasificado, en la forma del detalle."
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/CourseDetailResponse"
+        "400":
+          description: Identificador inválido (`VAL-001`)
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/CourseDetailResponse"
+        "401":
+          description: Token ausente o inválido (`AUTH-001`)
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/CourseDetailResponse"
+        "403":
+          description: Autenticado sin el permiso `courses:update` (`AUTH-002`)
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/CourseDetailResponse"
+        "404":
+          description: "El curso no existe o está retirado (`EX-001`), o no está en\
+            \ esa categoría (`EX-002`)"
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/CourseDetailResponse"
+      x-required-permission: courses:update
 components:
   schemas:
     CurrencyRef:
@@ -11947,6 +12099,14 @@ components:
       properties:
         reason:
           type: string
+    ClassifyCourseRequest:
+      type: object
+      properties:
+        categoryId:
+          type: string
+          format: uuid
+      required:
+      - categoryId
     RegisterCourseCategoryRequest:
       type: object
       properties:

@@ -5,11 +5,11 @@
 | Módulo | `AC` — Academia |
 | Paquete | `modules/academy` |
 | Prefijos de permiso | `course-categories:`, `courses:` |
-| Versión | 0.10.0 |
+| Versión | 0.11.0 |
 | Estado | **Borrador** |
 | Responsable | Bonilla Diaz William Steven |
 | Fecha de creación | 17-09-2026 |
-| Última actualización | 19-09-2026 |
+| Última actualización | 25-09-2026 |
 
 !!! info "Qué va en este documento"
 
@@ -256,8 +256,8 @@ Las tripletas del bloque 2 y del bloque 3 dejaron escritos dos huecos de la regl
 | `RF-AC-013` | Eliminar curso | Cursos | Media | `courses:delete` | **En desarrollo** (18-09-2026) |
 | `RF-AC-014` | Subir o reemplazar la portada de un curso | Portadas | Media | `courses:update` | **Tasks en revisión** (18-09-2026) |
 | `RF-AC-015` | Quitar la portada de un curso | Portadas | Baja | `courses:update` | **Tasks en revisión** (18-09-2026) |
-| `RF-AC-016` | Clasificar un curso en una categoría | Cursos | Alta | `courses:update` | **Tasks en revisión** (18-09-2026) |
-| `RF-AC-017` | Desclasificar un curso de una categoría | Cursos | Media | `courses:update` | **Tasks en revisión** (18-09-2026) |
+| `RF-AC-016` | Clasificar un curso en una categoría | Cursos | Alta | `courses:update` | **En desarrollo** (25-09-2026) |
+| `RF-AC-017` | Desclasificar un curso de una categoría | Cursos | Media | `courses:update` | **En desarrollo** (25-09-2026) |
 | `RF-AC-018` | Recomendar un curso previo | Cursos | Media | `courses:update` | **Tasks en revisión** (18-09-2026) |
 | `RF-AC-019` | Retirar una recomendación | Cursos | Baja | `courses:update` | **Tasks en revisión** (18-09-2026) |
 | `RF-AC-020` | Dar visibilidad de un curso a una membresía | Cursos | Alta | `courses:update` | **Tasks en revisión** (18-09-2026) |
@@ -529,7 +529,7 @@ Suelta la imagen y la borra. **Nunca se rechaza**: el curso se pinta con el icon
 | Reglas aplicables | `RN-AC-010`, `RN-AC-018` |
 | Depende de | `RF-AC-001`, `RF-AC-008` |
 | Tripleta | `docs/specs/ac/016-clasificar-curso/` |
-| Estado | **Tasks en revisión** (18-09-2026) |
+| Estado | **En desarrollo** (25-09-2026) |
 
 Añade la pareja curso–categoría. Rechaza la repetida (`409`, nombrando la categoría), la categoría retirada y el curso retirado. Responde con el curso, como toda escritura sobre él.
 
@@ -544,7 +544,7 @@ Añade la pareja curso–categoría. Rechaza la repetida (`409`, nombrando la ca
 | Reglas aplicables | `RN-AC-010`, `RN-AC-018` |
 | Depende de | `RF-AC-016` |
 | Tripleta | `docs/specs/ac/017-desclasificar-curso/` |
-| Estado | **Tasks en revisión** (18-09-2026) |
+| Estado | **En desarrollo** (25-09-2026) |
 
 Borra la fila. La auditoría de cambios del curso conserva antes y después. Una pareja que no existe devuelve `404`.
 
@@ -1037,3 +1037,4 @@ Clave primaria compuesta. **La clave foránea a `memberships` se declara** hacia
 | 0.8.0 | 18-09-2026 | **Las tres tripletas del Aula quedan redactadas** (`RF-AC-033` a `RF-AC-035`, bloque 6 de §6.1, el último) y pasan a `Tasks en revisión`. **Dos decisiones del responsable del proyecto, del mismo día**: **`RN-AC-015` gana dos motivos** —«sin descripción» en el curso, tercero de cinco, y «sin contenido» en la lección— para que lo que se vacía después de activarse **deje de ofrecerse** en lugar de enseñarse vacío (§5.2.7; `RN-AC-009` lo dice al lado); y **nace `RF-AC-036`**, consultar el detalle de una lección con `courses:read`, que cierra el hueco de `RF-AC-029` §14.2: **treinta y seis requerimientos**, §2, §6.1 (orden del bloque 3), §6.2 y §7 lo recogen. Las tripletas del aula fijan además que **la ofrecibilidad no se reescribe en SQL** —se lee lo vivo con las mismas cuentas y deciden los mismos objetos que administración—, que `accessible` lo decide un solo objeto, que el `404` del aula no distingue «no se ofrece» de «no existe», y que en la lección va primero si se ofrece y después si se abre. Con esto el catálogo del módulo tiene **todas sus tripletas redactadas**. | Responsable del proyecto |
 | 0.9.0 | 18-09-2026 | **Los cursos están construidos**: `RF-AC-008` a `RF-AC-013` pasan a `En desarrollo` (bloque 2 de §6.1). `V21` crea `courses` y `V22` siembra los seis `courses:` con el catálogo en **60**; **`SP` publica `PermissionHolderLookup`** (§3 y la advertencia de cabecera dejan de decir «no existe»), y `CourseOfferability` nace con los cinco motivos. **Dos criterios quedan bloqueados y declarados** hasta el bloque 3: `CA-AC-064` (activar con un módulo activo) y `CA-AC-074` (el arrastre), y las lecturas de relaciones y árbol devuelven vacío con la nota de qué las sustituye. Sin cambio de reglas. | Responsable técnico |
 | 0.10.0 | 19-09-2026 | **Los módulos y las lecciones están construidos**: `RF-AC-022` a `RF-AC-025`, `RF-AC-028` a `RF-AC-031` y `RF-AC-036` pasan a `En desarrollo` (bloque 3 de §6.1, con el `GET` de lección que nació con el 6). `V23` crea `course_modules` y `V24` `lessons`; **`RN-AC-015` queda cerrada por dentro** —`ModuleOfferability` y `LessonOfferability` cuentan lecciones activas con contenido, y `CourseOfferability` recibe módulos ofrecibles reales— y solo le falta la cuenta de membresías del bloque 4. **Se desbloquean `CA-AC-064` y `CA-AC-074`** de los cursos. Sin cambio de reglas; cuatro precisiones en las specs: el árbol se lee siempre (los retirados también se enseñan), las validaciones del alta de lección van por el caso de uso para llegar juntas, la carrera de la corrección sale con el código del alta, y el quinto motivo del curso solo se observa con una membresía delante. | Responsable técnico |
+| 0.11.0 | 25-09-2026 | **La clasificación está construida**: `RF-AC-016` y `RF-AC-017` pasan a `En desarrollo` (primeros dos del bloque 4 de §6.1). `V42` crea `course_category_items` tal como §8.3 la declara —clave compuesta, sin `id` ni `deleted_at`, sin `ON DELETE`—; el plan la numeraba `V25` y el número se asignó al construir. **Las seis enmiendas declaradas por los bloques 1 y 2 quedan cerradas** —`courseCount`, los cursos del detalle de la categoría con su `offerable`, los `course_ids` de su retiro, `categories` y el filtro del listado de cursos, `categories` del detalle, y los `category_ids` del retiro del curso—. Sin cambio de reglas; una precisión a `RF-AC-009`: **`categoryId` solo acota por una categoría viva**, porque la retirada no sale en `categories` de ninguna fila. Los permisos siguen siendo `courses:update`, como las tripletas dicen: `courses:assign-category` y `courses:revoke-category` ya están sembrados por `V28` y los reparte el tramo 3 de `RF-SP-060` con todo `AC`. | Responsable técnico |

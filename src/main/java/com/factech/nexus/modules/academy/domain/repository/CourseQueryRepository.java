@@ -24,7 +24,8 @@ import java.util.UUID;
  * son lo que {@link CourseOfferability} necesita para decidir por fila sin otra consulta. Las de
  * módulos y lecciones son reales desde el bloque 3; <b>la de membresías es un literal cero hasta
  * `RF-AC-020`</b>, que sustituye el literal y la nota que lo acompaña. Las lecturas de relaciones
- * devuelven vacío sin consultar nada hasta el bloque 4; las del árbol son reales.
+ * devuelven vacío sin consultar nada hasta su requerimiento, salvo las categorías, reales desde
+ * `RF-AC-016`; las del árbol son reales.
  */
 public interface CourseQueryRepository {
 
@@ -34,12 +35,12 @@ public interface CourseQueryRepository {
 
   long count(ListCoursesRequest filtros);
 
-  /** Las categorías vivas de un curso, en su orden. <b>Vacío hasta `RF-AC-016`.</b> */
+  /** Las categorías vivas de un curso, en su orden (`RF-AC-016`). */
   List<CategoryRef> findCategoriesOf(UUID courseId);
 
   /**
    * Las categorías vivas de varios cursos en una sentencia, agrupadas por curso — la segunda
-   * sentencia fija de una página. <b>Vacío hasta `RF-AC-016`.</b>
+   * sentencia fija de una página (`RF-AC-016`, `CA-AC-128`).
    */
   Map<UUID, List<CategoryRef>> findCategoriesOfCourses(List<UUID> courseIds);
 

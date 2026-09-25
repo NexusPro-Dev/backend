@@ -1,6 +1,7 @@
 package com.factech.nexus.modules.academy.interfaces;
 
 import com.factech.nexus.modules.academy.application.ChangeCourseStatusRequest;
+import com.factech.nexus.modules.academy.application.ClassifyCourseRequest;
 import com.factech.nexus.modules.academy.application.CourseDetailResponse;
 import com.factech.nexus.modules.academy.application.CoursePageResponse;
 import com.factech.nexus.modules.academy.application.DeleteCourseRequest;
@@ -8,6 +9,8 @@ import com.factech.nexus.modules.academy.application.ListCoursesRequest;
 import com.factech.nexus.modules.academy.application.RegisterCourseRequest;
 import com.factech.nexus.modules.academy.application.UpdateCourseRequest;
 import com.factech.nexus.modules.academy.domain.service.ChangeCourseStatusService;
+import com.factech.nexus.modules.academy.domain.service.ClassifyCourseService;
+import com.factech.nexus.modules.academy.domain.service.DeclassifyCourseService;
 import com.factech.nexus.modules.academy.domain.service.DeleteCourseService;
 import com.factech.nexus.modules.academy.domain.service.GetCourseService;
 import com.factech.nexus.modules.academy.domain.service.ListCoursesService;
@@ -25,6 +28,7 @@ import java.util.UUID;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
+import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.ModelAttribute;
 import org.springframework.web.bind.annotation.PatchMapping;
@@ -37,8 +41,9 @@ import org.springframework.web.bind.annotation.RestController;
 
 /**
  * Los cursos (`AC`, `RF-AC-008` a `RF-AC-013`): las seis operaciones de administración del curso en
- * sí. Sus relaciones, sus módulos y lecciones y su portada llegan con los bloques 3 a 5 de `ac.md`
- * §6.1, y el aula con el 6, bajo {@code /courses/available}.
+ * sí, y su clasificación en categorías (`RF-AC-016`, `RF-AC-017`). Las otras dos relaciones y la
+ * portada llegan con los bloques 4 y 5 de `ac.md` §6.1, y el aula con el 6, bajo {@code
+ * /courses/available}; los módulos y lecciones tienen su controlador.
  *
  * <p><b>El alta, el detalle y las escrituras devuelven la misma forma</b> —el curso con sus
  * relaciones, su árbol y por qué no se ofrece— para que el frontend tenga una sola pantalla de
@@ -55,6 +60,8 @@ public class CourseController {
   private final UpdateCourseService correccion;
   private final ChangeCourseStatusService estado;
   private final DeleteCourseService retiro;
+  private final ClassifyCourseService clasificacion;
+  private final DeclassifyCourseService desclasificacion;
 
   public CourseController(
       RegisterCourseService alta,
@@ -62,13 +69,17 @@ public class CourseController {
       GetCourseService detalle,
       UpdateCourseService correccion,
       ChangeCourseStatusService estado,
-      DeleteCourseService retiro) {
+      DeleteCourseService retiro,
+      ClassifyCourseService clasificacion,
+      DeclassifyCourseService desclasificacion) {
     this.alta = alta;
     this.listado = listado;
     this.detalle = detalle;
     this.correccion = correccion;
     this.estado = estado;
     this.retiro = retiro;
+    this.clasificacion = clasificacion;
+    this.desclasificacion = desclasificacion;
   }
 
   @PostMapping
@@ -143,7 +154,9 @@ public class CourseController {
           descripción larga, video ni árbol: para eso está el detalle.
 
           Filtra por `q` —título, sin distinguir mayúsculas ni acentos—, `categoryId`,
-          `instructorId`, `difficulty` y `status`, combinables. **Excluye los
+          `instructorId`, `difficulty` y `status`, combinables. `categoryId` deja los
+          clasificados en esa categoría **si está viva**: filtrar por una retirada
+          devuelve vacío, porque ninguna fila la enseña en `categories`. **Excluye los
           retirados** salvo `includeDeleted=true`, y entonces los trae con `deletedAt`
           y `offerable: false`. «Ofrecible» no es filtro: se publica por fila.
 
@@ -350,5 +363,98 @@ public class CourseController {
   public void retirar(
       @PathVariable UUID id, @RequestBody(required = false) DeleteCourseRequest peticion) {
     retiro.delete(id, peticion);
+  }
+
+  @PostMapping("/{courseId}/categories")
+  @PreAuthorize("hasAuthority('courses:update')")
+  @Operation(
+      summary = "Clasificar un curso en una categoría",
+      description =
+          """
+          Pone el curso en una categoría. **La clasificación es libre y no se repite**:
+          un curso está en cuantas categorías haga falta —**una por petición**; para
+          ponerlo en tres, tres peticiones— y la misma pareja no entra dos veces.
+
+          **No toca el estado ni la ofrecibilidad**: un curso `INACTIVO` se clasifica
+          igual, y un curso sin categoría se ofrece igual — la categoría es un filtro
+          del catálogo, no una condición.
+
+          El curso tiene que estar **vivo** (`404` si no existe o está retirado, porque
+          va en la ruta) y la categoría también (`422` si no existe o está retirada,
+          porque va en el cuerpo). La pareja repetida responde `409` **nombrando la
+          categoría**. Enviar un campo distinto de `categoryId` responde `400`.
+
+          La respuesta es el curso en la forma del detalle, con la nueva en
+          `categories`. Exige `courses:update`; **los `course-categories:` no
+          habilitan**.
+          """)
+  @ApiResponses({
+    @ApiResponse(
+        responseCode = "201",
+        description = "Curso clasificado, en la forma del detalle.",
+        content = @Content(schema = @Schema(implementation = CourseDetailResponse.class))),
+    @ApiResponse(
+        responseCode = "400",
+        description =
+            "Identificador inválido (`VAL-001`), `categoryId` ausente o mal formado (`VAL-002`),"
+                + " o un campo no admitido (`VAL-003`)"),
+    @ApiResponse(responseCode = "401", description = "Token ausente o inválido (`AUTH-001`)"),
+    @ApiResponse(
+        responseCode = "403",
+        description = "Autenticado sin el permiso `courses:update` (`AUTH-002`)"),
+    @ApiResponse(
+        responseCode = "404",
+        description = "El curso no existe o está retirado (`EX-001`)"),
+    @ApiResponse(
+        responseCode = "409",
+        description = "El curso ya está en esa categoría; el mensaje la nombra (`EX-003`)"),
+    @ApiResponse(
+        responseCode = "422",
+        description = "La categoría no existe o está retirada (`EX-002`)")
+  })
+  public ResponseEntity<CourseDetailResponse> clasificar(
+      @PathVariable UUID courseId, @Valid @RequestBody ClassifyCourseRequest peticion) {
+    CourseDetailResponse curso = clasificacion.classify(courseId, peticion);
+    return ResponseEntity.created(URI.create("/api/v1/courses/" + curso.id())).body(curso);
+  }
+
+  @DeleteMapping("/{courseId}/categories/{categoryId}")
+  @PreAuthorize("hasAuthority('courses:update')")
+  @Operation(
+      summary = "Desclasificar un curso de una categoría",
+      description =
+          """
+          Saca el curso de la categoría: **borra la pareja, sin motivo**, y lo registra
+          como eliminación de una asociación. Sin cuerpo.
+
+          **No toca el estado ni la ofrecibilidad**: el curso que se ofrecía se sigue
+          ofreciendo aunque se quede sin categoría. **Una categoría retirada se
+          desclasifica igual**: la pareja existe, y así se limpia lo que el retiro
+          dejó.
+
+          El curso tiene que estar **vivo**. Los dos `404` se distinguen por el
+          mensaje: el curso no existe o está retirado, o el curso no está en esa
+          categoría. La respuesta es el curso en la forma del detalle, sin la
+          categoría. Exige `courses:update`.
+          """)
+  @ApiResponses({
+    @ApiResponse(
+        responseCode = "200",
+        description = "Curso desclasificado, en la forma del detalle.",
+        content = @Content(schema = @Schema(implementation = CourseDetailResponse.class))),
+    @ApiResponse(responseCode = "400", description = "Identificador inválido (`VAL-001`)"),
+    @ApiResponse(responseCode = "401", description = "Token ausente o inválido (`AUTH-001`)"),
+    @ApiResponse(
+        responseCode = "403",
+        description = "Autenticado sin el permiso `courses:update` (`AUTH-002`)"),
+    @ApiResponse(
+        responseCode = "404",
+        description =
+            "El curso no existe o está retirado (`EX-001`), o no está en esa categoría"
+                + " (`EX-002`)")
+  })
+  public CourseDetailResponse desclasificar(
+      @PathVariable UUID courseId, @PathVariable UUID categoryId) {
+    return desclasificacion.declassify(courseId, categoryId);
   }
 }

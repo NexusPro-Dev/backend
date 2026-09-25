@@ -28,6 +28,9 @@ final class CourseCategoryTestSupport {
   private CourseCategoryTestSupport() {}
 
   static void limpiar(JdbcTemplate jdbc) {
+    // Antes que las categorías: las filas de clasificación las referencian sin
+    // ON DELETE, y la suite de cursos puede haber dejado alguna.
+    jdbc.update("DELETE FROM course_category_items");
     jdbc.update("DELETE FROM course_categories");
     jdbc.update("DELETE FROM audit_change_log WHERE module = 'AC'");
     jdbc.update("DELETE FROM audit_deletion_log WHERE module = 'AC'");
