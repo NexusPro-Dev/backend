@@ -406,6 +406,19 @@ nexus:
     templates:
       password-recovery: ${NOTIFICATION_TEMPLATE_PASSWORD_RECOVERY:}
 
+  # La duración de un video de academia, preguntada a su proveedor
+  # (RN-AC-017, ac.md §5.2.11, 25-09-2026).
+  #
+  # YouTube exige clave aun para un video público; SIN ELLA no se le llama y
+  # toda lección de YouTube exige la duración a mano. Vimeo responde por su
+  # oEmbed sin credencial. El plazo es corto a propósito: la consulta ocurre
+  # mientras administración espera la respuesta de su formulario.
+  video:
+    youtube-api-key: ${YOUTUBE_API_KEY:}
+    youtube-base-url: ${YOUTUBE_BASE_URL:https://www.googleapis.com/youtube/v3}
+    vimeo-base-url: ${VIMEO_BASE_URL:https://vimeo.com}
+    timeout: PT5S
+
 logging:
   level:
     root: ${LOG_LEVEL:INFO}

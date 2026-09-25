@@ -145,7 +145,8 @@ public class CourseController {
 
           El título es único entre los cursos **vivos**, sin distinguir mayúsculas ni
           acentos; un retirado libera el suyo. Las descripciones de solo espacios se
-          guardan nulas; el video se comprueba en su forma y **no se sigue**. Enviar
+          guardan nulas; el video **solo puede ser de YouTube o de Vimeo**, se comprueba
+          en su forma y **no se consulta**. Enviar
           `status`, `categories`, `memberships`, `modules`, `coverImageUrl` o `code`
           responde `400`.
 
@@ -280,7 +281,7 @@ public class CourseController {
           Corrección **parcial**: solo lo que viene cambia. Admite `title`,
           `instructorId`, `difficulty`, `shortDescription`, `longDescription`,
           `introVideoUrl` y `displayOrder`, por separado o juntos, y exige al menos
-          uno. **Ausente y nulo no significan lo mismo**: ausente es «no lo toques»,
+          uno; el video, **solo de YouTube o de Vimeo**. **Ausente y nulo no significan lo mismo**: ausente es «no lo toques»,
           nulo es «vacíalo» — y **solo las descripciones y el video admiten
           vaciarse**; el nulo en los otros cuatro responde `400`, junto con los demás
           errores de forma.

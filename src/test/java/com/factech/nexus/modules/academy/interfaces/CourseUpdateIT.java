@@ -67,7 +67,7 @@ class CourseUpdateIT extends IntegrationTestBase {
                 """
                 {"title":"Velas japonesas","instructorId":"%s","difficulty":"AVANZADO",
                  "shortDescription":"Otra corta","longDescription":"Otra larga",
-                 "introVideoUrl":"https://v.io/2","displayOrder":7}
+                 "introVideoUrl":"https://vimeo.com/100000002","displayOrder":7}
                 """
                     .formatted(otra)))
         .andExpect(status().isOk())
@@ -76,7 +76,7 @@ class CourseUpdateIT extends IntegrationTestBase {
         .andExpect(jsonPath("$.instructor.fullName").value("Ana Gómez"))
         .andExpect(jsonPath("$.difficulty").value("AVANZADO"))
         .andExpect(jsonPath("$.shortDescription").value("Otra corta"))
-        .andExpect(jsonPath("$.introVideoUrl").value("https://v.io/2"))
+        .andExpect(jsonPath("$.introVideoUrl").value("https://vimeo.com/100000002"))
         .andExpect(jsonPath("$.displayOrder").value(7))
         .andExpect(jsonPath("$.status").value("INACTIVO"));
     assertThat(
@@ -229,9 +229,9 @@ class CourseUpdateIT extends IntegrationTestBase {
     mvc.perform(corregir(curso, "{\"introVideoUrl\":\"ftp://x\",\"displayOrder\":-1}"))
         .andExpect(status().isBadRequest())
         .andExpect(jsonPath("$.errors[*].field").value(hasItems("introVideoUrl", "displayOrder")));
-    mvc.perform(corregir(curso, "{\"introVideoUrl\":\"https://no-existe.invalid/v\"}"))
+    mvc.perform(corregir(curso, "{\"introVideoUrl\":\"https://vimeo.com/999999999\"}"))
         .andExpect(status().isOk())
-        .andExpect(jsonPath("$.introVideoUrl").value("https://no-existe.invalid/v"));
+        .andExpect(jsonPath("$.introVideoUrl").value("https://vimeo.com/999999999"));
   }
 
   @Test

@@ -64,14 +64,14 @@ class LessonUpdateIT extends IntegrationTestBase {
             corregir(
                 leccion,
                 """
-                {"type":"VIDEO","title":"Vela","description":"Desc","content":"https://v.io/1",
+                {"type":"VIDEO","title":"Vela","description":"Desc","content":"https://vimeo.com/100000001",
                  "durationSeconds":7,"displayOrder":3,"open":true}
                 """))
         .andExpect(status().isOk())
         .andExpect(jsonPath("$.type").value("VIDEO"))
         .andExpect(jsonPath("$.title").value("Vela"))
         .andExpect(jsonPath("$.description").value("Desc"))
-        .andExpect(jsonPath("$.content").value("https://v.io/1"))
+        .andExpect(jsonPath("$.content").value("https://vimeo.com/100000001"))
         .andExpect(jsonPath("$.durationSeconds").value(7))
         .andExpect(jsonPath("$.displayOrder").value(3))
         .andExpect(jsonPath("$.open").value(true));
@@ -94,13 +94,16 @@ class LessonUpdateIT extends IntegrationTestBase {
         .containsEntry("type", "TEXTO")
         .containsEntry("title", "Intro");
 
-    mvc.perform(corregir(leccion, "{\"type\":\"VIDEO\",\"content\":\"https://v.io/1\"}"))
+    mvc.perform(
+            corregir(
+                leccion,
+                "{\"type\":\"VIDEO\",\"content\":\"https://vimeo.com/100000001\",\"durationSeconds\":60}"))
         .andExpect(status().isOk())
         .andExpect(jsonPath("$.type").value("VIDEO"));
     mvc.perform(corregir(leccion, "{\"type\":\"TEXTO\"}"))
         .andExpect(status().isOk())
         .andExpect(jsonPath("$.type").value("TEXTO"))
-        .andExpect(jsonPath("$.content").value("https://v.io/1"));
+        .andExpect(jsonPath("$.content").value("https://vimeo.com/100000001"));
   }
 
   @Test

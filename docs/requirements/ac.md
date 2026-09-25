@@ -5,7 +5,7 @@
 | Módulo | `AC` — Academia |
 | Paquete | `modules/academy` |
 | Prefijos de permiso | `course-categories:`, `courses:` |
-| Versión | 0.16.0 |
+| Versión | 0.17.0 |
 | Estado | **Borrador** |
 | Responsable | Bonilla Diaz William Steven |
 | Fecha de creación | 17-09-2026 |
@@ -1144,3 +1144,4 @@ Clave primaria compuesta. **La clave foránea a `memberships` se declara** hacia
 | 0.14.0 | 25-09-2026 | **Las membresías abren cursos**: `RF-AC-020` y `RF-AC-021` pasan a `En desarrollo` (`V45`, `course_memberships`), y **el alta del curso admite `productIds` y `membershipIds`** además de `categoryIds`, por una segunda decisión del responsable del proyecto del mismo día (§5.2.9). Con esto **`RN-AC-015` queda entera por dentro**: `CourseOfferability` recibe cuentas reales de las dos llaves, y un curso activo y armado se ofrece por una membresía, por un servicio o por los dos. Del bloque 4 quedan las recomendaciones (`RF-AC-018`, `RF-AC-019`). | Responsable técnico |
 | 0.15.0 | 25-09-2026 | **La duración de la lección pasa a segundos**, y las sumas del módulo y del curso con ella, por decisión del responsable del proyecto (§5.2.10). `RN-AC-017` se reescribe; `lessons.duration_minutes` pasa a `duration_seconds` (§8.7, §8.9) y las filas existentes se multiplican por sesenta. Las specs que nombraban `durationMinutes` o `totalDurationMinutes` —registro, edición y detalle de la lección, módulo, detalle del curso y el aula— llevan su fila. **Rompe el contrato** de las lecturas y escrituras de lecciones, módulos y cursos. | Responsable del proyecto |
 | 0.16.0 | 25-09-2026 | **Los videos solo pueden ser de YouTube o de Vimeo, y la duración de una lección `VIDEO` se lee del proveedor**, por decisión del responsable del proyecto (§5.2.11). **Se reescriben `RN-AC-005`** —se rechaza cualquier otro dominio en los tres campos de video, y el sistema ya no se limita a «no seguir» el enlace: de la lección pregunta la duración— **y `RN-AC-017`** —en `VIDEO` la duración es opcional si hay enlace, manda la enviada, y sin ella el fallo del proveedor es `422`—. §3 gana a los dos proveedores como dependencia externa. Se enmiendan `RF-AC-008`, `RF-AC-011`, `RF-AC-022`, `RF-AC-023`, `RF-AC-028` y `RF-AC-029`. | Responsable del proyecto |
+| 0.17.0 | 25-09-2026 | **§5.2.11 está construida**: `RN-AC-005` y `RN-AC-017` en el código, con el reconocimiento y la consulta en `shared/video`. `YOUTUBE_API_KEY` en `application.yml`, `docker-compose.yml` y `.env.example`. Sin migración: los enlaces ya guardados no se tocan. | Responsable técnico |

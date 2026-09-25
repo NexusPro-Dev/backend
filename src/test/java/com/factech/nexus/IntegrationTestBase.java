@@ -100,6 +100,16 @@ public abstract class IntegrationTestBase {
     // directamente, que es como se prueba lo que hace y no cuándo lo hace.
     registry.add("TOKEN_PURGE_ENABLED", () -> "false");
 
+    // Los proveedores de video (`RN-AC-017`) apuntan a un puerto local que
+    // RECHAZA la conexión: ninguna prueba sale a internet. Una prueba que
+    // carga un video sin duración recibe así el mismo `422` que con el
+    // proveedor caído, en el acto y sin depender de la red de quien la corra.
+    // Quien prueba la consulta sustituye el proveedor (`LessonVideoDurationIT`)
+    // o simula su servidor (`ProviderVideoDurationLookupTest`).
+    registry.add("YOUTUBE_API_KEY", () -> "clave-de-la-suite");
+    registry.add("YOUTUBE_BASE_URL", () -> "http://127.0.0.1:9");
+    registry.add("VIMEO_BASE_URL", () -> "http://127.0.0.1:9");
+
     // Credencial inicial del superadministrador, que `V9__semilla_catalogos_y_superadmin.sql`
     // exige como marcador de posición. Se declara aquí y no en un archivo de
     // propiedades de prueba por lo mismo que las anteriores: lo que se prueba es

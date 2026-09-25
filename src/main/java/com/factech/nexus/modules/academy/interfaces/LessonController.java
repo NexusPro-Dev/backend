@@ -70,15 +70,30 @@ public class LessonController {
       summary = "Registrar una lección en un módulo",
       description =
           """
-          Registra una lección con **tipo (`VIDEO` o `TEXTO`), título, duración en
-          segundos enteros y orden**, obligatorios, y descripción, contenido y `open`
-          opcionales. **`durationSeconds` es en segundos** desde el 25-09-2026 —un video
-          de 12 min 34 s es `754`—, y las sumas del módulo (`durationSeconds`) y del
-          curso (`totalDurationSeconds`) también; el formato «1 h 05 min» es del
-          frontend. **El tipo manda sobre el contenido**: en un `VIDEO` es una URL
-          absoluta http o https; en un `TEXTO` es Markdown que **el backend guarda y
-          devuelve sin interpretar ni sanear** — quien lo pinta es el frontend, y tiene
-          que hacerlo con un conversor que no ejecute lo que encuentre.
+          Registra una lección con **tipo (`VIDEO` o `TEXTO`), título y orden**,
+          obligatorios, y descripción, contenido, `open` y duración según el tipo.
+          **El tipo manda sobre el contenido**: en un `VIDEO` es **un video de YouTube o
+          de Vimeo** —`youtube.com/watch?v=`, `youtu.be/`, `youtube.com/embed/`,
+          `youtube.com/shorts/`, `vimeo.com/{id}`, `vimeo.com/{id}/{hash}`,
+          `player.vimeo.com/video/{id}`—, y cualquier otro dominio es `400`; en un
+          `TEXTO` es Markdown que **el backend guarda y devuelve sin interpretar ni
+          sanear** — quien lo pinta es el frontend, y tiene que hacerlo con un conversor
+          que no ejecute lo que encuentre.
+
+          **`durationSeconds`, en segundos** —un video de 12 min 34 s es `754`—:
+
+          - En **`TEXTO`**, obligatoria: el tiempo estimado de lectura.
+          - En **`VIDEO` con enlace y sin `durationSeconds`**, **la lee el sistema del
+            proveedor** (YouTube por su API de datos, Vimeo por su oEmbed). Si el
+            proveedor no la da —video privado o borrado, sin respuesta a tiempo, sin
+            clave de YouTube configurada— responde **`422` `EX-003`** diciendo por qué, y
+            no se guarda nada: se reenvía con `durationSeconds` a mano.
+          - En **`VIDEO` con `durationSeconds`**, **manda la enviada** y no se pregunta
+            a nadie: es como se corrige a mano o se guarda un video privado.
+          - En **`VIDEO` sin enlace**, obligatoria: no hay de dónde leerla.
+
+          Las sumas del módulo (`durationSeconds`) y del curso (`totalDurationSeconds`)
+          también van en segundos; el formato «1 h 05 min» es del frontend.
 
           **Nace `INACTIVA`**, con `open` falsa si no vino, y **el contenido es opcional al
           registrar y obligatorio para activar**. El título es único entre las lecciones
@@ -107,7 +122,12 @@ public class LessonController {
         description = "El módulo no existe, está retirado o no es de ese curso (`EX-001`)"),
     @ApiResponse(
         responseCode = "409",
-        description = "Título ya en uso por una lección viva del módulo (`EX-002`)")
+        description = "Título ya en uso por una lección viva del módulo (`EX-002`)"),
+    @ApiResponse(
+        responseCode = "422",
+        description =
+            "Un `VIDEO` sin `durationSeconds` cuyo proveedor no dio la duración (`EX-003`);"
+                + " el mensaje nombra el proveedor y el motivo")
   })
   public ResponseEntity<LessonResponse> register(
       @PathVariable UUID courseId,
@@ -167,7 +187,12 @@ public class LessonController {
 
           **Cambiar el tipo exige que el contenido resultante case con él**: pasar a
           `VIDEO` con un texto guardado y sin URL en la petición responde `400` **sin
-          aplicar nada**; pasar a `TEXTO` con una URL guardada se admite. **El contenido se
+          aplicar nada**; pasar a `TEXTO` con una URL guardada se admite. **Corregir el
+          enlace de un `VIDEO`, o pasar a `VIDEO` con enlace, sin `durationSeconds` relee
+          la duración del proveedor**; con `durationSeconds` manda la enviada; corregir
+          cualquier otro campo no pregunta a nadie. Si la relectura falla responde `422`
+          `EX-003` **sin aplicar nada**. El enlace solo puede ser de YouTube o de Vimeo.
+          **El contenido se
           audita como longitud y no como texto.** La lección no cambia de módulo: `moduleId`,
           `courseId` y `status` en el cuerpo son `400`. Exige `courses:update`.
           """)
@@ -188,6 +213,11 @@ public class LessonController {
         responseCode = "404",
         description =
             "La lección no existe, está retirada o no es de ese módulo y curso (`EX-002`)"),
+    @ApiResponse(
+        responseCode = "422",
+        description =
+            "Se corrigió el enlace o se pasó a `VIDEO` sin `durationSeconds`, y el proveedor no"
+                + " dio la duración (`EX-003`); no se aplica nada"),
     @ApiResponse(
         responseCode = "409",
         description = "Título ya en uso por otra lección viva del módulo (`EX-001`)")

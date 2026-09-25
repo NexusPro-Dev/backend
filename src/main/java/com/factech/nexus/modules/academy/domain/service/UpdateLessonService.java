@@ -3,6 +3,8 @@ package com.factech.nexus.modules.academy.domain.service;
 import com.factech.nexus.modules.academy.application.LessonResponse;
 import com.factech.nexus.modules.academy.application.UpdateLessonRequest;
 import com.factech.nexus.modules.academy.domain.models.Lesson;
+import com.factech.nexus.modules.academy.domain.models.LessonType;
+import com.factech.nexus.modules.academy.domain.models.VideoUrl;
 import com.factech.nexus.modules.academy.domain.repository.JpaLessonRepository;
 import com.factech.nexus.modules.academy.domain.repository.LessonRepository;
 import com.factech.nexus.shared.audit.AuditEnums.ChangeAction;
@@ -40,19 +42,28 @@ public class UpdateLessonService {
   private final LessonRepository lecciones;
   private final AuditWriter auditoria;
   private final LessonDetailReader detalle;
+  private final LessonDurationReader duraciones;
   private final Clock reloj;
 
   @Autowired
   public UpdateLessonService(
-      LessonRepository lecciones, AuditWriter auditoria, LessonDetailReader detalle) {
-    this(lecciones, auditoria, detalle, Clock.systemUTC());
+      LessonRepository lecciones,
+      AuditWriter auditoria,
+      LessonDetailReader detalle,
+      LessonDurationReader duraciones) {
+    this(lecciones, auditoria, detalle, duraciones, Clock.systemUTC());
   }
 
   UpdateLessonService(
-      LessonRepository lecciones, AuditWriter auditoria, LessonDetailReader detalle, Clock reloj) {
+      LessonRepository lecciones,
+      AuditWriter auditoria,
+      LessonDetailReader detalle,
+      LessonDurationReader duraciones,
+      Clock reloj) {
     this.lecciones = lecciones;
     this.auditoria = auditoria;
     this.detalle = detalle;
+    this.duraciones = duraciones;
     this.reloj = reloj;
   }
 
@@ -76,13 +87,24 @@ public class UpdateLessonService {
       }
     }
 
+    // `RN-AC-017` desde el 25-09-2026: corregir el enlace de un VIDEO, o pasar a
+    // VIDEO con enlace, relee la duración si no vino (`EX-003` si el proveedor no
+    // la da, sin aplicar nada: todavía no se ha tocado la lección).
+    Patchable<Integer> duracion = peticion.durationSeconds();
+    if (!duracion.presente()) {
+      String enlace = enlaceQueReleer(leccion, peticion);
+      if (enlace != null) {
+        duracion = Patchable.de(duraciones.leer(enlace));
+      }
+    }
+
     Map<String, Object> cambios =
         leccion.update(
             peticion.type(),
             peticion.title(),
             peticion.description(),
             peticion.content(),
-            peticion.durationSeconds(),
+            duracion,
             peticion.displayOrder(),
             peticion.open(),
             OffsetDateTime.now(reloj));
@@ -166,5 +188,27 @@ public class UpdateLessonService {
               : "La petición trae " + problemas.size() + " campos inválidos.",
           problemas);
     }
+  }
+
+  /**
+   * El enlace del que hay que releer la duración, o nulo si no hay que releer: solo cuando el tipo
+   * resultante es {@code VIDEO}, hay un enlace resultante válido, y la corrección <b>lo cambia</b>
+   * o <b>pasa a {@code VIDEO}</b>. Un enlace inválido no se relee: lo rechaza la corrección con su
+   * `VAL`, sin llamar a nadie.
+   */
+  private static String enlaceQueReleer(Lesson leccion, UpdateLessonRequest peticion) {
+    LessonType tipo = peticion.type().presente() ? peticion.type().valor() : leccion.getType();
+    if (tipo != LessonType.VIDEO) {
+      return null;
+    }
+    String enlace =
+        peticion.content().presente() ? peticion.content().valor() : leccion.getContent();
+    if (enlace == null || enlace.isBlank() || !VideoUrl.esValida(enlace.strip())) {
+      return null;
+    }
+    boolean cambiaElEnlace =
+        peticion.content().presente() && !enlace.strip().equals(leccion.getContent());
+    boolean pasaAVideo = peticion.type().presente() && leccion.getType() != LessonType.VIDEO;
+    return cambiaElEnlace || pasaAVideo ? enlace.strip() : null;
   }
 }

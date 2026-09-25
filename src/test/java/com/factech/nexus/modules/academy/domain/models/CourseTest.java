@@ -92,20 +92,21 @@ class CourseTest {
   }
 
   @ParameterizedTest
-  @ValueSource(strings = {"ftp://x", "www.x.com", "https://x y", "http://"})
-  @DisplayName("un video mal formado se rechaza con VAL-006, y uno bien formado se guarda tal cual")
+  @ValueSource(strings = {"ftp://x", "www.x.com", "https://x y", "http://", "https://otro.com/v"})
+  @DisplayName(
+      "un video mal formado o de otro dominio se rechaza con VAL-006, y uno de YouTube o Vimeo se guarda tal cual")
   void video(String enlace) {
     assertThatThrownBy(() -> crear("T", null, null, enlace, 0))
         .isInstanceOf(ValidationException.class)
-        .hasMessageContaining("http");
-    assertThat(crear("T", null, null, " https://v.io/1 ", 0).getIntroVideoUrl())
-        .isEqualTo("https://v.io/1");
+        .hasMessageContaining("YouTube o de Vimeo");
+    assertThat(crear("T", null, null, " https://vimeo.com/100000001 ", 0).getIntroVideoUrl())
+        .isEqualTo("https://vimeo.com/100000001");
   }
 
   @Test
   @DisplayName("la corrección devuelve solo lo que cambió, con antes y después, y avanza updatedAt")
   void corrige() {
-    Course c = crear("Velas", "Corta", "Larga", "https://v.io/1", 0);
+    Course c = crear("Velas", "Corta", "Larga", "https://vimeo.com/100000001", 0);
     UUID otro = UUID.randomUUID();
 
     Map<String, Object> cambios =
@@ -127,7 +128,7 @@ class CourseTest {
     assertThat(cambios.get("long_description")).isEqualTo(Map.of("before", "Larga", "after", ""));
     assertThat(c.getLongDescription()).isNull();
     assertThat(c.getShortDescription()).isEqualTo("Corta");
-    assertThat(c.getIntroVideoUrl()).isEqualTo("https://v.io/1");
+    assertThat(c.getIntroVideoUrl()).isEqualTo("https://vimeo.com/100000001");
     assertThat(c.getUpdatedAt()).isEqualTo(DESPUES);
   }
 

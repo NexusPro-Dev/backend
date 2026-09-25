@@ -72,7 +72,7 @@ class CourseModulesIT extends IntegrationTestBase {
                 curso,
                 """
                 {"title":"  Fundamentos  ","shortDescription":"Lo básico.","longDescription":"   ",
-                 "presentationVideoUrl":"https://v.io/m","displayOrder":1}
+                 "presentationVideoUrl":"https://vimeo.com/100000003","displayOrder":1}
                 """))
         .andExpect(status().isCreated())
         .andExpect(
@@ -81,7 +81,7 @@ class CourseModulesIT extends IntegrationTestBase {
         .andExpect(jsonPath("$.title").value("Fundamentos"))
         .andExpect(jsonPath("$.shortDescription").value("Lo básico."))
         .andExpect(jsonPath("$.longDescription").value(nullValue()))
-        .andExpect(jsonPath("$.presentationVideoUrl").value("https://v.io/m"))
+        .andExpect(jsonPath("$.presentationVideoUrl").value("https://vimeo.com/100000003"))
         .andExpect(jsonPath("$.displayOrder").value(1))
         .andExpect(jsonPath("$.status").value("INACTIVO"))
         .andExpect(jsonPath("$.coverImageUrl").value(nullValue()))
