@@ -71,8 +71,11 @@ public class LessonController {
       description =
           """
           Registra una lección con **tipo (`VIDEO` o `TEXTO`), título, duración en
-          minutos enteros y orden**, obligatorios, y descripción, contenido y `open`
-          opcionales. **El tipo manda sobre el contenido**: en un `VIDEO` es una URL
+          segundos enteros y orden**, obligatorios, y descripción, contenido y `open`
+          opcionales. **`durationSeconds` es en segundos** desde el 25-09-2026 —un video
+          de 12 min 34 s es `754`—, y las sumas del módulo (`durationSeconds`) y del
+          curso (`totalDurationSeconds`) también; el formato «1 h 05 min» es del
+          frontend. **El tipo manda sobre el contenido**: en un `VIDEO` es una URL
           absoluta http o https; en un `TEXTO` es Markdown que **el backend guarda y
           devuelve sin interpretar ni sanear** — quien lo pinta es el frontend, y tiene
           que hacerlo con un conversor que no ejecute lo que encuentre.
@@ -158,7 +161,7 @@ public class LessonController {
       description =
           """
           Corrección **parcial** sobre `type`, `title`, `description`, `content`,
-          `durationMinutes`, `displayOrder` y `open`; exige al menos uno. Solo la
+          `durationSeconds`, `displayOrder` y `open`; exige al menos uno. Solo la
           descripción y el contenido admiten `null` —**también en una lección activa, que
           sigue activa y deja de ofrecerse**—; el nulo en los otros cinco es `400`.
 

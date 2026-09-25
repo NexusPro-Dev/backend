@@ -49,8 +49,8 @@ public class JpaCourseModuleQueryRepository implements CourseModuleQueryReposito
           + LECCION_OFRECIBLE
           + """
           ) AS offerable_lesson_count,
-          COALESCE((SELECT sum(l.duration_minutes) FROM lessons l WHERE l.module_id = m.id
-                       AND l.deleted_at IS NULL AND l.status = 'ACTIVO'), 0) AS duration_minutes,
+          COALESCE((SELECT sum(l.duration_seconds) FROM lessons l WHERE l.module_id = m.id
+                       AND l.deleted_at IS NULL AND l.status = 'ACTIVO'), 0) AS duration_seconds,
           m.created_at AS created_at, m.updated_at AS updated_at, m.deleted_at AS deleted_at
           """;
 
@@ -105,7 +105,7 @@ public class JpaCourseModuleQueryRepository implements CourseModuleQueryReposito
         (String) fila.get("status"),
         (UUID) fila.get("cover_image_id"),
         ((Number) fila.get("offerable_lesson_count")).longValue(),
-        ((Number) fila.get("duration_minutes")).longValue(),
+        ((Number) fila.get("duration_seconds")).longValue(),
         JpaCourseQueryRepository.momento(fila.get("created_at")),
         JpaCourseQueryRepository.momento(fila.get("updated_at")),
         JpaCourseQueryRepository.momento(fila.get("deleted_at")));

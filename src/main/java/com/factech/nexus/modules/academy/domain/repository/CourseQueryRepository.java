@@ -148,7 +148,7 @@ public interface CourseQueryRepository {
       String status,
       UUID coverImageId,
       long offerableLessonCount,
-      long durationMinutes,
+      long durationSeconds,
       OffsetDateTime createdAt,
       OffsetDateTime updatedAt,
       OffsetDateTime deletedAt) {
@@ -170,7 +170,7 @@ public interface CourseQueryRepository {
       String type,
       String title,
       String description,
-      int durationMinutes,
+      int durationSeconds,
       int displayOrder,
       String status,
       boolean open,

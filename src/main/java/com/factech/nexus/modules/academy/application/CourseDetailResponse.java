@@ -45,7 +45,7 @@ public record CourseDetailResponse(
     List<CourseMembershipRef> memberships,
     List<CourseProductRef> products,
     List<ModuleDetail> modules,
-    long totalDurationMinutes,
+    long totalDurationSeconds,
     long lessonCount,
     boolean offerable,
     String offerableReason,
@@ -122,7 +122,7 @@ public record CourseDetailResponse(
       boolean deleted,
       String coverImageUrl,
       boolean offerable,
-      long durationMinutes,
+      long durationSeconds,
       List<LessonSummary> lessons) {}
 
   /** Una lección dentro del árbol, sin su contenido. */
@@ -132,7 +132,7 @@ public record CourseDetailResponse(
       UUID id,
       String type,
       String title,
-      int durationMinutes,
+      int durationSeconds,
       int displayOrder,
       String status,
       boolean open,
@@ -143,7 +143,7 @@ public record CourseDetailResponse(
           fila.id(),
           fila.type(),
           fila.title(),
-          fila.durationMinutes(),
+          fila.durationSeconds(),
           fila.displayOrder(),
           fila.status(),
           fila.open(),
@@ -199,7 +199,7 @@ public record CourseDetailResponse(
         fila.retirado(),
         AcademyImageUrls.de(fila.coverImageId()),
         ofrecible,
-        fila.durationMinutes(),
+        fila.durationSeconds(),
         lecciones.stream().map(LessonSummary::from).toList());
   }
 }

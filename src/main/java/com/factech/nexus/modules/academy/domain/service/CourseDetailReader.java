@@ -70,7 +70,7 @@ public class CourseDetailReader {
       List<LessonRow> suyas = lecciones.getOrDefault(modulo.id(), List.of());
       arbol.add(CourseDetailResponse.modulo(modulo, suyas, modulo.ofrecibilidad().offerable()));
       if (!modulo.retirado()) {
-        duracion += modulo.durationMinutes();
+        duracion += modulo.durationSeconds();
         cuenta += suyas.stream().filter(leccion -> !leccion.retirada()).count();
       }
     }

@@ -65,14 +65,14 @@ class LessonUpdateIT extends IntegrationTestBase {
                 leccion,
                 """
                 {"type":"VIDEO","title":"Vela","description":"Desc","content":"https://v.io/1",
-                 "durationMinutes":7,"displayOrder":3,"open":true}
+                 "durationSeconds":7,"displayOrder":3,"open":true}
                 """))
         .andExpect(status().isOk())
         .andExpect(jsonPath("$.type").value("VIDEO"))
         .andExpect(jsonPath("$.title").value("Vela"))
         .andExpect(jsonPath("$.description").value("Desc"))
         .andExpect(jsonPath("$.content").value("https://v.io/1"))
-        .andExpect(jsonPath("$.durationMinutes").value(7))
+        .andExpect(jsonPath("$.durationSeconds").value(7))
         .andExpect(jsonPath("$.displayOrder").value(3))
         .andExpect(jsonPath("$.open").value(true));
     assertThat(
@@ -116,11 +116,11 @@ class LessonUpdateIT extends IntegrationTestBase {
     mvc.perform(
             corregir(
                 leccion,
-                "{\"type\":null,\"title\":null,\"durationMinutes\":null,\"displayOrder\":null,\"open\":null}"))
+                "{\"type\":null,\"title\":null,\"durationSeconds\":null,\"displayOrder\":null,\"open\":null}"))
         .andExpect(status().isBadRequest())
         .andExpect(
             jsonPath("$.errors[*].field")
-                .value(hasItems("type", "title", "durationMinutes", "displayOrder", "open")));
+                .value(hasItems("type", "title", "durationSeconds", "displayOrder", "open")));
   }
 
   @Test
@@ -196,10 +196,10 @@ class LessonUpdateIT extends IntegrationTestBase {
     mvc.perform(corregir(leccion, "{\"open\":true}")).andExpect(jsonPath("$.open").value(true));
     mvc.perform(corregir(leccion, "{\"open\":false}")).andExpect(jsonPath("$.open").value(false));
     assertThat(auditadas()).isEqualTo(2);
-    mvc.perform(corregir(leccion, "{\"durationMinutes\":45}")).andExpect(status().isOk());
+    mvc.perform(corregir(leccion, "{\"durationSeconds\":45}")).andExpect(status().isOk());
     mvc.perform(get("/api/v1/courses/" + curso).with(con("courses:read")))
-        .andExpect(jsonPath("$.modules[0].durationMinutes").value(45))
-        .andExpect(jsonPath("$.totalDurationMinutes").value(45));
+        .andExpect(jsonPath("$.modules[0].durationSeconds").value(45))
+        .andExpect(jsonPath("$.totalDurationSeconds").value(45));
   }
 
   @Test

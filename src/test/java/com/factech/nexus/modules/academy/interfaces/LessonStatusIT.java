@@ -73,13 +73,13 @@ class LessonStatusIT extends IntegrationTestBase {
     UUID unica = leccion(jdbc, modulo, "Única", "TEXTO", "# x", 30, 0, "ACTIVO");
     mvc.perform(get("/api/v1/courses/" + curso).with(con("courses:read")))
         .andExpect(jsonPath("$.modules[0].offerable").value(true))
-        .andExpect(jsonPath("$.totalDurationMinutes").value(30));
+        .andExpect(jsonPath("$.totalDurationSeconds").value(30));
     mvc.perform(estado(unica, "INACTIVO")).andExpect(status().isOk());
     mvc.perform(get("/api/v1/courses/" + curso).with(con("courses:read")))
         .andExpect(jsonPath("$.modules[0].status").value("ACTIVO"))
         .andExpect(jsonPath("$.modules[0].offerable").value(false))
-        .andExpect(jsonPath("$.modules[0].durationMinutes").value(0))
-        .andExpect(jsonPath("$.totalDurationMinutes").value(0));
+        .andExpect(jsonPath("$.modules[0].durationSeconds").value(0))
+        .andExpect(jsonPath("$.totalDurationSeconds").value(0));
   }
 
   @Test

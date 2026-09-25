@@ -3608,7 +3608,7 @@ paths:
         responde `400`.
 
         La respuesta es la forma del detalle: `categories` con las pedidas en su
-        orden, las demás listas vacías, `coverImageUrl` presente y nulo, cero minutos y cero lecciones, y `offerable: false` con
+        orden, las demás listas vacías, `coverImageUrl` presente y nulo, cero segundos y cero lecciones, y `offerable: false` con
         `offerableReason` «inactivo». Exige `courses:create`; **los
         `course-categories:` no habilitan**.
       operationId: register_3
@@ -3820,7 +3820,7 @@ paths:
         admite el módulo igual, que no cambia lo que el aula enseña hasta activarse.
 
         La respuesta es **el módulo**, no el curso: `courseId`, `coverImageUrl`
-        presente y nulo, `lessons` vacío, cero minutos y `offerable: false` con
+        presente y nulo, `lessons` vacío, cero segundos y `offerable: false` con
         `offerableReason` «inactivo». Exige `courses:update`.
       operationId: register_4
       parameters:
@@ -3884,8 +3884,11 @@ paths:
         **Permiso requerido:** `courses:update`. Sin él, `403` (`AUTH-002`).
 
         Registra una lección con **tipo (`VIDEO` o `TEXTO`), título, duración en
-        minutos enteros y orden**, obligatorios, y descripción, contenido y `open`
-        opcionales. **El tipo manda sobre el contenido**: en un `VIDEO` es una URL
+        segundos enteros y orden**, obligatorios, y descripción, contenido y `open`
+        opcionales. **`durationSeconds` es en segundos** desde el 25-09-2026 —un video
+        de 12 min 34 s es `754`—, y las sumas del módulo (`durationSeconds`) y del
+        curso (`totalDurationSeconds`) también; el formato «1 h 05 min» es del
+        frontend. **El tipo manda sobre el contenido**: en un `VIDEO` es una URL
         absoluta http o https; en un `TEXTO` es Markdown que **el backend guarda y
         devuelve sin interpretar ni sanear** — quien lo pinta es el frontend, y tiene
         que hacerlo con un conversor que no ejecute lo que encuentre.
@@ -7473,7 +7476,7 @@ paths:
         **Permiso requerido:** `courses:update`. Sin él, `403` (`AUTH-002`).
 
         Corrección **parcial** sobre `type`, `title`, `description`, `content`,
-        `durationMinutes`, `displayOrder` y `open`; exige al menos uno. Solo la
+        `durationSeconds`, `displayOrder` y `open`; exige al menos uno. Solo la
         descripción y el contenido admiten `null` —**también en una lección activa, que
         sigue activa y deja de ofrecerse**—; el nulo en los otros cinco es `400`.
 
@@ -11107,7 +11110,7 @@ components:
           type: array
           items:
             $ref: "#/components/schemas/CourseModuleDetail"
-        totalDurationMinutes:
+        totalDurationSeconds:
           type: integer
           format: int64
         lessonCount:
@@ -11148,7 +11151,7 @@ components:
           type: string
         title:
           type: string
-        durationMinutes:
+        durationSeconds:
           type: integer
           format: int32
         displayOrder:
@@ -11193,7 +11196,7 @@ components:
           type: string
         offerable:
           type: boolean
-        durationMinutes:
+        durationSeconds:
           type: integer
           format: int64
         lessons:
@@ -12622,7 +12625,7 @@ components:
           type: string
         coverImageUrl:
           type: string
-        durationMinutes:
+        durationSeconds:
           type: integer
           format: int64
         lessons:
@@ -12657,7 +12660,7 @@ components:
           minLength: 0
         content:
           type: string
-        durationMinutes:
+        durationSeconds:
           type: integer
           format: int32
         displayOrder:
@@ -12667,7 +12670,7 @@ components:
           type: boolean
       required:
       - displayOrder
-      - durationMinutes
+      - durationSeconds
       - title
       - type
     LessonResponse:
@@ -12690,7 +12693,7 @@ components:
           type: string
         content:
           type: string
-        durationMinutes:
+        durationSeconds:
           type: integer
           format: int32
         displayOrder:
@@ -13429,7 +13432,7 @@ components:
           $ref: "#/components/schemas/PatchableString"
         content:
           $ref: "#/components/schemas/PatchableString"
-        durationMinutes:
+        durationSeconds:
           $ref: "#/components/schemas/PatchableInteger"
         displayOrder:
           $ref: "#/components/schemas/PatchableInteger"

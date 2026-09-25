@@ -151,7 +151,7 @@ class CourseModuleDeletionIT extends IntegrationTestBase {
         .andExpect(jsonPath("$.offerable").value(false))
         .andExpect(jsonPath("$.modules[0].deleted").value(true))
         .andExpect(jsonPath("$.modules[0].lessons[0].deleted").value(true))
-        .andExpect(jsonPath("$.totalDurationMinutes").value(0));
+        .andExpect(jsonPath("$.totalDurationSeconds").value(0));
     mvc.perform(
             post("/api/v1/courses/" + curso + "/modules")
                 .with(con("courses:update"))

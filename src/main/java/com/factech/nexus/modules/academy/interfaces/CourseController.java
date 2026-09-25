@@ -150,7 +150,7 @@ public class CourseController {
           responde `400`.
 
           La respuesta es la forma del detalle: `categories` con las pedidas en su
-          orden, las demás listas vacías, `coverImageUrl` presente y nulo, cero minutos y cero lecciones, y `offerable: false` con
+          orden, las demás listas vacías, `coverImageUrl` presente y nulo, cero segundos y cero lecciones, y `offerable: false` con
           `offerableReason` «inactivo». Exige `courses:create`; **los
           `course-categories:` no habilitan**.
           """)

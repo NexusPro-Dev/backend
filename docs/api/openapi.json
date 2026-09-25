@@ -952,7 +952,7 @@
           "title" : {
             "type" : "string"
           },
-          "totalDurationMinutes" : {
+          "totalDurationSeconds" : {
             "format" : "int64",
             "type" : "integer"
           },
@@ -1043,7 +1043,7 @@
             "format" : "int32",
             "type" : "integer"
           },
-          "durationMinutes" : {
+          "durationSeconds" : {
             "format" : "int32",
             "type" : "integer"
           },
@@ -1096,7 +1096,7 @@
             "format" : "int32",
             "type" : "integer"
           },
-          "durationMinutes" : {
+          "durationSeconds" : {
             "format" : "int64",
             "type" : "integer"
           },
@@ -1142,7 +1142,7 @@
             "format" : "int32",
             "type" : "integer"
           },
-          "durationMinutes" : {
+          "durationSeconds" : {
             "format" : "int64",
             "type" : "integer"
           },
@@ -1783,7 +1783,7 @@
             "format" : "int32",
             "type" : "integer"
           },
-          "durationMinutes" : {
+          "durationSeconds" : {
             "format" : "int32",
             "type" : "integer"
           },
@@ -4292,7 +4292,7 @@
             "format" : "int32",
             "type" : "integer"
           },
-          "durationMinutes" : {
+          "durationSeconds" : {
             "format" : "int32",
             "type" : "integer"
           },
@@ -4309,7 +4309,7 @@
             "type" : "string"
           }
         },
-        "required" : [ "displayOrder", "durationMinutes", "title", "type" ],
+        "required" : [ "displayOrder", "durationSeconds", "title", "type" ],
         "type" : "object"
       },
       "RegisterMembershipRequest" : {
@@ -5644,7 +5644,7 @@
           "displayOrder" : {
             "$ref" : "#/components/schemas/PatchableInteger"
           },
-          "durationMinutes" : {
+          "durationSeconds" : {
             "$ref" : "#/components/schemas/PatchableInteger"
           },
           "open" : {
@@ -8317,7 +8317,7 @@
         "x-required-permission" : "courses:read"
       },
       "post" : {
-        "description" : "**Permiso requerido:** `courses:create`. Sin él, `403` (`AUTH-002`).\n\nRegistra un curso con **título, instructor, dificultad y orden**, obligatorios,\ny descripción corta, descripción larga y video de introducción, opcionales. Y\n**quién lo puede ver y dónde se encuentra**, también opcionales:\n\n- **`categoryIds`** — las categorías en que nace, cada una **viva**.\n- **`productIds`** — los **servicios** que lo abren: productos de tipo\n  **`BOT`**, no retirados (un servicio inactivo se admite).\n- **`membershipIds`** — las **membresías** que lo abren. Es una lista, no un\n  nivel mínimo: dar `ORO` no lo abre a `PLATINO`.\n\n**Cada lista es todo o nada**: si algo no sirve responde `422` —`EX-004`\ncategorías, `EX-005` servicios (inexistente, retirado o que no es `BOT`),\n`EX-006` membresías— **nombrando todo lo que falla**, y **no se crea nada**.\nRepetidos o nulos en cualquiera, `400` (`VAL-008`). Ausente o vacía es\n«ninguno». Cada fila deja su auditoría, como darla después con su operación.\n\n**Nace `INACTIVO`**, sin recomendaciones, módulos ni portada —**la portada,\npor `PUT /api/v1/courses/{id}/cover` justo después**—, y **sin código**: un\ncurso no se teclea en ninguna venta.\n\n**El instructor es una persona del sistema que existe, no está retirada y\nporta `courses:teach`**, comprobado **al asignar y solo al asignar**: que lo\npierda después no toca el curso. Un instructor inexistente o retirado y uno\nsin el permiso son dos `422` distintos, porque se arreglan en sitios\ndistintos. **`instructor.fullName` es el nombre actual** de la persona, no\nuna copia.\n\nEl título es único entre los cursos **vivos**, sin distinguir mayúsculas ni\nacentos; un retirado libera el suyo. Las descripciones de solo espacios se\nguardan nulas; el video se comprueba en su forma y **no se sigue**. Enviar\n`status`, `categories`, `memberships`, `modules`, `coverImageUrl` o `code`\nresponde `400`.\n\nLa respuesta es la forma del detalle: `categories` con las pedidas en su\norden, las demás listas vacías, `coverImageUrl` presente y nulo, cero minutos y cero lecciones, y `offerable: false` con\n`offerableReason` «inactivo». Exige `courses:create`; **los\n`course-categories:` no habilitan**.\n",
+        "description" : "**Permiso requerido:** `courses:create`. Sin él, `403` (`AUTH-002`).\n\nRegistra un curso con **título, instructor, dificultad y orden**, obligatorios,\ny descripción corta, descripción larga y video de introducción, opcionales. Y\n**quién lo puede ver y dónde se encuentra**, también opcionales:\n\n- **`categoryIds`** — las categorías en que nace, cada una **viva**.\n- **`productIds`** — los **servicios** que lo abren: productos de tipo\n  **`BOT`**, no retirados (un servicio inactivo se admite).\n- **`membershipIds`** — las **membresías** que lo abren. Es una lista, no un\n  nivel mínimo: dar `ORO` no lo abre a `PLATINO`.\n\n**Cada lista es todo o nada**: si algo no sirve responde `422` —`EX-004`\ncategorías, `EX-005` servicios (inexistente, retirado o que no es `BOT`),\n`EX-006` membresías— **nombrando todo lo que falla**, y **no se crea nada**.\nRepetidos o nulos en cualquiera, `400` (`VAL-008`). Ausente o vacía es\n«ninguno». Cada fila deja su auditoría, como darla después con su operación.\n\n**Nace `INACTIVO`**, sin recomendaciones, módulos ni portada —**la portada,\npor `PUT /api/v1/courses/{id}/cover` justo después**—, y **sin código**: un\ncurso no se teclea en ninguna venta.\n\n**El instructor es una persona del sistema que existe, no está retirada y\nporta `courses:teach`**, comprobado **al asignar y solo al asignar**: que lo\npierda después no toca el curso. Un instructor inexistente o retirado y uno\nsin el permiso son dos `422` distintos, porque se arreglan en sitios\ndistintos. **`instructor.fullName` es el nombre actual** de la persona, no\nuna copia.\n\nEl título es único entre los cursos **vivos**, sin distinguir mayúsculas ni\nacentos; un retirado libera el suyo. Las descripciones de solo espacios se\nguardan nulas; el video se comprueba en su forma y **no se sigue**. Enviar\n`status`, `categories`, `memberships`, `modules`, `coverImageUrl` o `code`\nresponde `400`.\n\nLa respuesta es la forma del detalle: `categories` con las pedidas en su\norden, las demás listas vacías, `coverImageUrl` presente y nulo, cero segundos y cero lecciones, y `offerable: false` con\n`offerableReason` «inactivo». Exige `courses:create`; **los\n`course-categories:` no habilitan**.\n",
         "operationId" : "register_3",
         "requestBody" : {
           "content" : {
@@ -8754,7 +8754,7 @@
     },
     "/api/v1/courses/{courseId}/modules" : {
       "post" : {
-        "description" : "**Permiso requerido:** `courses:update`. Sin él, `403` (`AUTH-002`).\n\nRegistra una parte del curso con **título y orden**, obligatorios, y descripción\ncorta, descripción larga y video de presentación, opcionales. **Nace `INACTIVO`,\nvacío y dentro del curso de la ruta**, del que no se mueve: enviar `courseId`,\n`status`, `lessons` o `coverImageUrl` responde `400`.\n\n**El título es único entre los módulos vivos del mismo curso**, sin mayúsculas\nni acentos; el mismo título en otro curso es legítimo, y un retirado libera el\nsuyo. El curso tiene que estar **vivo**, en cualquier estado — un curso activo\nadmite el módulo igual, que no cambia lo que el aula enseña hasta activarse.\n\nLa respuesta es **el módulo**, no el curso: `courseId`, `coverImageUrl`\npresente y nulo, `lessons` vacío, cero minutos y `offerable: false` con\n`offerableReason` «inactivo». Exige `courses:update`.\n",
+        "description" : "**Permiso requerido:** `courses:update`. Sin él, `403` (`AUTH-002`).\n\nRegistra una parte del curso con **título y orden**, obligatorios, y descripción\ncorta, descripción larga y video de presentación, opcionales. **Nace `INACTIVO`,\nvacío y dentro del curso de la ruta**, del que no se mueve: enviar `courseId`,\n`status`, `lessons` o `coverImageUrl` responde `400`.\n\n**El título es único entre los módulos vivos del mismo curso**, sin mayúsculas\nni acentos; el mismo título en otro curso es legítimo, y un retirado libera el\nsuyo. El curso tiene que estar **vivo**, en cualquier estado — un curso activo\nadmite el módulo igual, que no cambia lo que el aula enseña hasta activarse.\n\nLa respuesta es **el módulo**, no el curso: `courseId`, `coverImageUrl`\npresente y nulo, `lessons` vacío, cero segundos y `offerable: false` con\n`offerableReason` «inactivo». Exige `courses:update`.\n",
         "operationId" : "register_4",
         "parameters" : [ {
           "in" : "path",
@@ -8997,7 +8997,7 @@
     },
     "/api/v1/courses/{courseId}/modules/{moduleId}/lessons" : {
       "post" : {
-        "description" : "**Permiso requerido:** `courses:update`. Sin él, `403` (`AUTH-002`).\n\nRegistra una lección con **tipo (`VIDEO` o `TEXTO`), título, duración en\nminutos enteros y orden**, obligatorios, y descripción, contenido y `open`\nopcionales. **El tipo manda sobre el contenido**: en un `VIDEO` es una URL\nabsoluta http o https; en un `TEXTO` es Markdown que **el backend guarda y\ndevuelve sin interpretar ni sanear** — quien lo pinta es el frontend, y tiene\nque hacerlo con un conversor que no ejecute lo que encuentre.\n\n**Nace `INACTIVA`**, con `open` falsa si no vino, y **el contenido es opcional al\nregistrar y obligatorio para activar**. El título es único entre las lecciones\nvivas del mismo módulo. El módulo tiene que estar **vivo y ser del curso de la\nruta**; enviar `status`, `moduleId` o `courseId` es `400`. Los errores de forma\nllegan **juntos**, incluido el del contenido de un video.\n\n**La auditoría lleva la longitud del contenido y no el texto.** La respuesta es\nla lección entera, contenido incluido. Exige `courses:update`.\n",
+        "description" : "**Permiso requerido:** `courses:update`. Sin él, `403` (`AUTH-002`).\n\nRegistra una lección con **tipo (`VIDEO` o `TEXTO`), título, duración en\nsegundos enteros y orden**, obligatorios, y descripción, contenido y `open`\nopcionales. **`durationSeconds` es en segundos** desde el 25-09-2026 —un video\nde 12 min 34 s es `754`—, y las sumas del módulo (`durationSeconds`) y del\ncurso (`totalDurationSeconds`) también; el formato «1 h 05 min» es del\nfrontend. **El tipo manda sobre el contenido**: en un `VIDEO` es una URL\nabsoluta http o https; en un `TEXTO` es Markdown que **el backend guarda y\ndevuelve sin interpretar ni sanear** — quien lo pinta es el frontend, y tiene\nque hacerlo con un conversor que no ejecute lo que encuentre.\n\n**Nace `INACTIVA`**, con `open` falsa si no vino, y **el contenido es opcional al\nregistrar y obligatorio para activar**. El título es único entre las lecciones\nvivas del mismo módulo. El módulo tiene que estar **vivo y ser del curso de la\nruta**; enviar `status`, `moduleId` o `courseId` es `400`. Los errores de forma\nllegan **juntos**, incluido el del contenido de un video.\n\n**La auditoría lleva la longitud del contenido y no el texto.** La respuesta es\nla lección entera, contenido incluido. Exige `courses:update`.\n",
         "operationId" : "register_5",
         "parameters" : [ {
           "in" : "path",
@@ -9179,7 +9179,7 @@
         "x-required-permission" : "courses:read"
       },
       "patch" : {
-        "description" : "**Permiso requerido:** `courses:update`. Sin él, `403` (`AUTH-002`).\n\nCorrección **parcial** sobre `type`, `title`, `description`, `content`,\n`durationMinutes`, `displayOrder` y `open`; exige al menos uno. Solo la\ndescripción y el contenido admiten `null` —**también en una lección activa, que\nsigue activa y deja de ofrecerse**—; el nulo en los otros cinco es `400`.\n\n**Cambiar el tipo exige que el contenido resultante case con él**: pasar a\n`VIDEO` con un texto guardado y sin URL en la petición responde `400` **sin\naplicar nada**; pasar a `TEXTO` con una URL guardada se admite. **El contenido se\naudita como longitud y no como texto.** La lección no cambia de módulo: `moduleId`,\n`courseId` y `status` en el cuerpo son `400`. Exige `courses:update`.\n",
+        "description" : "**Permiso requerido:** `courses:update`. Sin él, `403` (`AUTH-002`).\n\nCorrección **parcial** sobre `type`, `title`, `description`, `content`,\n`durationSeconds`, `displayOrder` y `open`; exige al menos uno. Solo la\ndescripción y el contenido admiten `null` —**también en una lección activa, que\nsigue activa y deja de ofrecerse**—; el nulo en los otros cinco es `400`.\n\n**Cambiar el tipo exige que el contenido resultante case con él**: pasar a\n`VIDEO` con un texto guardado y sin URL en la petición responde `400` **sin\naplicar nada**; pasar a `TEXTO` con una URL guardada se admite. **El contenido se\naudita como longitud y no como texto.** La lección no cambia de módulo: `moduleId`,\n`courseId` y `status` en el cuerpo son `400`. Exige `courses:update`.\n",
         "operationId" : "corregir_6",
         "parameters" : [ {
           "in" : "path",

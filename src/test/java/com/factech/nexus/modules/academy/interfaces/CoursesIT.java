@@ -58,7 +58,7 @@ class CoursesIT extends IntegrationTestBase {
   @Test
   @DisplayName(
       "`CA-AC-034` — registra el curso en la forma del detalle: INACTIVO, instructor resuelto, listas"
-          + " vacías, portada nula, cero minutos y offerable false «inactivo»")
+          + " vacías, portada nula, cero segundos y offerable false «inactivo»")
   void altaEnLaFormaDelDetalle() throws Exception {
     mvc.perform(
             alta(
@@ -84,7 +84,7 @@ class CoursesIT extends IntegrationTestBase {
         .andExpect(jsonPath("$.recommendedCourses", hasSize(0)))
         .andExpect(jsonPath("$.memberships", hasSize(0)))
         .andExpect(jsonPath("$.modules", hasSize(0)))
-        .andExpect(jsonPath("$.totalDurationMinutes").value(0))
+        .andExpect(jsonPath("$.totalDurationSeconds").value(0))
         .andExpect(jsonPath("$.lessonCount").value(0))
         .andExpect(jsonPath("$.offerable").value(false))
         .andExpect(jsonPath("$.offerableReason").value("El curso está inactivo."))

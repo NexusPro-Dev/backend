@@ -172,27 +172,27 @@ final class CourseTestSupport {
       String titulo,
       String tipo,
       String contenido,
-      int minutos,
+      int segundos,
       int orden,
       String estado) {
     UUID id = IDS.next();
     jdbc.update(
-        "INSERT INTO lessons (id, module_id, type, title, content, duration_minutes,"
+        "INSERT INTO lessons (id, module_id, type, title, content, duration_seconds,"
             + " display_order, status) VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
         id,
         modulo,
         tipo,
         titulo,
         contenido,
-        minutos,
+        segundos,
         orden,
         estado);
     return id;
   }
 
   /** Una lección de texto activa con contenido: la que hace ofrecible a un módulo. */
-  static UUID leccionActiva(JdbcTemplate jdbc, UUID modulo, String titulo, int minutos) {
-    return leccion(jdbc, modulo, titulo, "TEXTO", "# " + titulo, minutos, 0, "ACTIVO");
+  static UUID leccionActiva(JdbcTemplate jdbc, UUID modulo, String titulo, int segundos) {
+    return leccion(jdbc, modulo, titulo, "TEXTO", "# " + titulo, segundos, 0, "ACTIVO");
   }
 
   static void retirarLeccion(JdbcTemplate jdbc, UUID id) {

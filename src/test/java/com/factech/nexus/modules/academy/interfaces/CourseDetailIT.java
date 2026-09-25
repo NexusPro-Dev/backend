@@ -76,7 +76,7 @@ class CourseDetailIT extends IntegrationTestBase {
   @Test
   @DisplayName(
       "`CA-AC-051` — el curso con sus campos, el instructor resuelto, coverImageUrl nula, las cuatro"
-          + " listas y el árbol vacíos, y cero minutos y lecciones")
+          + " listas y el árbol vacíos, y cero segundos y lecciones")
   void laForma() throws Exception {
     mvc.perform(detalle(inactivo))
         .andExpect(status().isOk())
@@ -92,7 +92,7 @@ class CourseDetailIT extends IntegrationTestBase {
         .andExpect(jsonPath("$.recommendedCourses", hasSize(0)))
         .andExpect(jsonPath("$.memberships", hasSize(0)))
         .andExpect(jsonPath("$.modules", hasSize(0)))
-        .andExpect(jsonPath("$.totalDurationMinutes").value(0))
+        .andExpect(jsonPath("$.totalDurationSeconds").value(0))
         .andExpect(jsonPath("$.lessonCount").value(0))
         .andExpect(jsonPath("$.deletedAt").doesNotExist())
         .andExpect(jsonPath("$.deletionReason").doesNotExist());
