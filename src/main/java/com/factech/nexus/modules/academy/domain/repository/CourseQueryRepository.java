@@ -22,9 +22,10 @@ import java.util.UUID;
  *
  * <p><b>Las cuentas viajan en la misma sentencia que la fila</b>, como subconsultas escalares, y
  * son lo que {@link CourseOfferability} necesita para decidir por fila sin otra consulta. Las de
- * módulos y lecciones son reales desde el bloque 3; <b>la de membresías es un literal cero hasta
- * `RF-AC-020`</b>, que sustituye el literal y la nota que lo acompaña. Las lecturas de relaciones
- * devuelven vacío sin consultar nada hasta el bloque 4; las del árbol son reales.
+ * módulos y lecciones son reales desde el bloque 3, y las de membresías y servicios desde
+ * `RF-AC-020` y `RF-AC-037`. Las lecturas de relaciones son reales —categorías, membresías y
+ * servicios— salvo las recomendaciones, vacías sin consultar nada hasta `RF-AC-018`; las del árbol
+ * son reales.
  */
 public interface CourseQueryRepository {
 
@@ -34,12 +35,12 @@ public interface CourseQueryRepository {
 
   long count(ListCoursesRequest filtros);
 
-  /** Las categorías vivas de un curso, en su orden. <b>Vacío hasta `RF-AC-016`.</b> */
+  /** Las categorías vivas de un curso, en su orden (`RF-AC-016`). */
   List<CategoryRef> findCategoriesOf(UUID courseId);
 
   /**
    * Las categorías vivas de varios cursos en una sentencia, agrupadas por curso — la segunda
-   * sentencia fija de una página. <b>Vacío hasta `RF-AC-016`.</b>
+   * sentencia fija de una página (`RF-AC-016`, `CA-AC-128`).
    */
   Map<UUID, List<CategoryRef>> findCategoriesOfCourses(List<UUID> courseIds);
 
@@ -50,10 +51,16 @@ public interface CourseQueryRepository {
   List<RecommendedCourseRow> findRecommendedOf(UUID courseId);
 
   /**
-   * Las membresías que abren el curso, resueltas por {@code JOIN memberships}. <b>Vacío hasta
-   * `RF-AC-020`.</b>
+   * Las membresías que abren el curso, resueltas por {@code JOIN memberships} —identificador,
+   * código, nombre y color— en el orden de la cadena (`RF-AC-020`).
    */
   List<MembershipRef> findMembershipsOf(UUID courseId);
+
+  /**
+   * Los servicios que abren el curso, resueltos por {@code JOIN products} —identificador, código y
+   * nombre—, <b>retirados en `PM` incluidos</b>: la lista dice qué abre el curso (`RN-AC-020`).
+   */
+  List<ProductRef> findProductsOf(UUID courseId);
 
   /** Los módulos del curso en su orden, vivos y retirados, con sus cuentas (`RF-AC-022`). */
   List<ModuleRow> findModulesOf(UUID courseId);
@@ -83,6 +90,7 @@ public interface CourseQueryRepository {
       String status,
       UUID coverImageId,
       long membershipCount,
+      long productCount,
       long moduleCount,
       long offerableModuleCount,
       long lessonCount,
@@ -101,13 +109,16 @@ public interface CourseQueryRepository {
           status,
           shortDescription != null,
           longDescription != null,
-          membershipCount,
+          membershipCount + productCount,
           offerableModuleCount);
     }
   }
 
   /** Una categoría dentro de un curso: lo justo para pintarla. */
   record CategoryRef(UUID id, String name, String color, String icon) {}
+
+  /** Un servicio que abre el curso: lo justo para nombrarlo (`RN-AC-020`). */
+  record ProductRef(UUID id, String code, String name) {}
 
   /** Una membresía que abre el curso, con lo que `SP` publica de ella por su puerto. */
   record MembershipRef(UUID id, String code, String name, String color) {}
@@ -137,7 +148,7 @@ public interface CourseQueryRepository {
       String status,
       UUID coverImageId,
       long offerableLessonCount,
-      long durationMinutes,
+      long durationSeconds,
       OffsetDateTime createdAt,
       OffsetDateTime updatedAt,
       OffsetDateTime deletedAt) {
@@ -159,7 +170,7 @@ public interface CourseQueryRepository {
       String type,
       String title,
       String description,
-      int durationMinutes,
+      int durationSeconds,
       int displayOrder,
       String status,
       boolean open,

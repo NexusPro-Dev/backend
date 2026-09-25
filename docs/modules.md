@@ -5,11 +5,11 @@
 | Proyecto | NEXUS — Renovación de plataforma |
 | Empresa | FACTECH GROUP SAS |
 | Documento | `modules.md` |
-| Versión | 0.22.0 |
+| Versión | 0.23.0 |
 | Estado | Borrador |
 | Responsable técnico | Bonilla Diaz William Steven |
 | Fecha de creación | 20-08-2026 |
-| Última actualización | 21-09-2026 |
+| Última actualización | 25-09-2026 |
 | Documento superior | `constitution.md` v0.7.0 |
 | Documentos relacionados | `architecture.md` v0.17.0, `requirements.md` v0.51.0 |
 
@@ -81,6 +81,7 @@ graph TD
 
     PM --> SP
     AC --> SP
+    AC --> PM
     C1 -.-> SP
     C2 -.-> SP
 
@@ -103,7 +104,7 @@ Las dependencias apuntan **del consumidor al proveedor** y deben ser acíclicas 
 | `PM` | Productos y Mercadeo | `modules/products` | `products:` | `SP` | En desarrollo |
 | `CM` | Comisiones | `modules/commissions` | `commissions:` | `SP`, `PM` | En desarrollo · **rehecho y construido el 02-09-2026** |
 | `MV` | Movimientos | `modules/movements` | `movements:` | `SP`, `PM` | Propuesto · **renace el 02-09-2026, empezando por la venta** |
-| `AC` | Academia | `modules/academy` | `course-categories:`, `courses:` | `SP` | En diseño · **incorporado el 17-09-2026, empezando por el catálogo de cursos y lo que ve el alumno** |
+| `AC` | Academia | `modules/academy` | `course-categories:`, `courses:` | `SP`, `PM` | En diseño · **incorporado el 17-09-2026, empezando por el catálogo de cursos y lo que ve el alumno** |
 
 
 **Estados:** `Propuesto` · `En diseño` · `En desarrollo` · `Implementado` · `Obsoleto`.
@@ -299,7 +300,7 @@ Lo que decidió no fue la elegancia sino el precedente que este mismo párrafo c
 | Aula | Lo que el alumno ve: el catálogo que se le ofrece, el detalle de un curso y el contenido de una lección | Las anteriores, y la membresía vigente que `SP` publica |
 | Portadas | Los bytes de las portadas de categorías, cursos y módulos, y la ruta pública que los sirve | `academy_images` |
 
-**Dependencias.** `SP`, y solo `SP`. De él necesita los **usuarios** —que el instructor exista y **porte el permiso `courses:teach`**—, las **membresías** —que la que se asocia a un curso exista— y la **membresía vigente** de quien pregunta, para decidir qué se le abre (`CurrentMembershipLookup`, la misma interfaz que consume `PM`). **De `PM` no necesita nada**, y conviene dejarlo escrito: la relación entre academia y productos que §5.2 anticipó —«Academia para saber qué nivel da acceso a qué»— se resolvió en `SP`, porque el nivel es la membresía y la membresía es de `SP`.
+**Dependencias.** `SP` y, **desde el 25-09-2026, `PM`** —qué productos `BOT` abren un curso (`requirements/ac.md` §5.2.8)—, sin ciclo: `PM` no consume a `AC`. **Lo que sigue es la redacción del 17-09-2026, cuando solo era `SP`**. De `SP` necesita los **usuarios** —que el instructor exista y **porte el permiso `courses:teach`**—, las **membresías** —que la que se asocia a un curso exista— y la **membresía vigente** de quien pregunta, para decidir qué se le abre (`CurrentMembershipLookup`, la misma interfaz que consume `PM`). **De `PM` no necesita nada**, y conviene dejarlo escrito: la relación entre academia y productos que §5.2 anticipó —«Academia para saber qué nivel da acceso a qué»— se resolvió en `SP`, porque el nivel es la membresía y la membresía es de `SP`.
 
 **Diseño detallado.** [`requirements/ac.md`](requirements/ac.md).
 
@@ -444,3 +445,4 @@ El orden importa: el módulo precede al requerimiento, el requerimiento precede 
 | 0.20.0 | 14-09-2026 | **`PM` gana el submódulo Paquetes** ([`requirements/pm.md`](requirements/pm.md) v0.31.0 §5.2.10): varios productos bajo un código, cada uno con su descuento —porcentaje o importe fijo—, y el paquete vale la suma de los productos rebajados, calculada en cada lectura y nunca guardada. Se administra con un recurso de permisos propio, `packages:*`, y se publica donde se publican los productos. **La venta del paquete no es de este submódulo**: es una venta multilínea, de `MV` y `CM`, y queda para otra tanda. | Responsable del proyecto |
 | 0.21.0 | 17-09-2026 | **Se incorpora el módulo `AC` — Academia**, el quinto del sistema, por decisión del responsable del proyecto. Es el candidato que §6 tenía anotado desde el 20-08-2026 (HU08, HU13, HU14) y cumple las dos condiciones de §2.1: **ocho tablas propias** que ni `SP` ni `PM` necesitan, y consumidores previsibles —`PM` y `MV` el día que un curso se venda suelto, Métricas para contar qué se estudia—. Nace con **el catálogo y su lectura**: categorías, cursos con instructor, dificultad, video y portada, clasificados en categorías, con recomendaciones entre cursos y con **una lista explícita de membresías** que les da acceso; módulos dentro del curso, lecciones —de video o de texto— dentro del módulo, con la posibilidad de estar **abiertas a todos** como demostración; y lo que ve el alumno. **Depende de `SP` y solo de `SP`**, y la relación con `PM` que §5.2 anticipó se resolvió en `SP` porque el nivel es la membresía. Tres decisiones quedan escritas en la ficha: el instructor **porta un permiso** (`courses:teach`) y no un rol, para que `SP` no sepa de academia; la portada vive en **una tabla propia** (`academy_images`) y no en la de `PM`, porque §7 prohíbe que un módulo escriba la tabla de otro; y **las sesiones en vivo son del mismo módulo** y se escribirán como `RF-AC-NNN`. Se procede pese a la advertencia de §6 sobre fijar códigos antes de conocer el alcance completo, y queda escrito que se procedió sabiéndolo. | Responsable del proyecto |
 | 0.22.0 | 21-09-2026 | **Submódulo nuevo en `SP`: «Equipos»**, dueño de `teams` y `team_members` ([`requirements/sp.md`](requirements/sp.md) v1.71.0, `RF-SP-063` a `RF-SP-070`), por decisión del responsable del proyecto: cómo se agrupan los managers —la cúspide que `RN-SP-019` exime de superior—, uno vigente por manager y con historial, en la forma de `user_supervisors`. Entra en `SP` y no en el candidato `RC` por lo mismo que la estructura comercial en la 0.10.0: es un dato de organización que las comisiones consumirán, y los códigos de módulo no se fijan antes de conocer el alcance. | Responsable del proyecto |
+| 0.23.0 | 25-09-2026 | **`AC` pasa a depender de `PM`**, por decisión del responsable del proyecto: un curso se abre también por un **servicio** —un producto `BOT`— y es el curso quien lo declara ([`requirements/ac.md`](requirements/ac.md) v0.12.0, §5.2.8). La arista es `AC` → `PM` y no al revés, que es lo que §5.5 anticipaba el 17-09-2026 para «el día que un curso se venda»; `PM` no sabe nada de cursos, y el grafo sigue acíclico. | Responsable del proyecto |

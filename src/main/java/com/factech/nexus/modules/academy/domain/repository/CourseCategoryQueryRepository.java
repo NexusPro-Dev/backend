@@ -12,17 +12,16 @@ import java.util.UUID;
  *
  * <p><b>{@code courseCount} viaja en la misma sentencia que la fila</b>, como subconsulta escalar
  * sobre {@code course_category_items} unida a {@code courses} por {@code deleted_at IS NULL}. Ni la
- * cuenta ni la portada cuestan una consulta por fila. <b>Hasta `RF-AC-016` la subconsulta no
- * existe</b> —no hay tabla que consultar— y la cuenta es un literal cero; ese requerimiento la
- * sustituye y la prueba `CA-AC-010` deja de ser trivial.
+ * cuenta ni la portada cuestan una consulta por fila. Real desde `RF-AC-016`, que creó la tabla;
+ * hasta entonces era un literal cero.
  */
 public interface CourseCategoryQueryRepository {
 
   Optional<CourseCategoryRow> findDetail(UUID id);
 
   /**
-   * Los cursos vivos clasificados en la categoría, en su orden global (`RN-AC-002`). <b>Vacío hasta
-   * `RF-AC-016`</b>, que crea la tabla de clasificación.
+   * Los cursos vivos clasificados en la categoría, en su orden global (`RN-AC-002`), en una
+   * sentencia (`RF-AC-016`, `CA-AC-127`).
    */
   List<CategoryCourseRow> findAliveCoursesOf(UUID categoryId);
 
@@ -51,8 +50,8 @@ public interface CourseCategoryQueryRepository {
   }
 
   /**
-   * Un curso dentro del detalle de su categoría. {@code offerable} es literal falso hasta que el
-   * bloque 3 de `ac.md` §6.1 construya la ofrecibilidad (`RN-AC-015`).
+   * Un curso dentro del detalle de su categoría, con {@code offerable} decidido por {@code
+   * CourseOfferability} sobre las mismas cuentas que el listado de cursos (`RN-AC-015`).
    */
   record CategoryCourseRow(
       UUID id, String title, String status, int displayOrder, boolean offerable) {}

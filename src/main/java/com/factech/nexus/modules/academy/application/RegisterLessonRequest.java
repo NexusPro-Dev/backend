@@ -26,13 +26,13 @@ public record RegisterLessonRequest(
     String content,
     @NotNull(
             message =
-                "VAL-004: La duración es obligatoria y debe ser un entero de minutos mayor que"
+                "VAL-004: La duración es obligatoria y debe ser un entero de segundos mayor que"
                     + " cero.")
         @Positive(
             message =
-                "VAL-004: La duración es obligatoria y debe ser un entero de minutos mayor que"
+                "VAL-004: La duración es obligatoria y debe ser un entero de segundos mayor que"
                     + " cero.")
-        Integer durationMinutes,
+        Integer durationSeconds,
     @NotNull(
             message =
                 "VAL-005: El orden es obligatorio y debe ser un entero mayor o igual que cero.")

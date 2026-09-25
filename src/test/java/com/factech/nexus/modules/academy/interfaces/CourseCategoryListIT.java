@@ -28,8 +28,8 @@ import org.springframework.test.web.servlet.request.MockHttpServletRequestBuilde
  * El listado de categorías (`RF-AC-002` · `T-05`): `CA-AC-010` a `CA-AC-015`.
  *
  * <p>La que define el requerimiento es <b>`CA-AC-011`</b>: el orden por omisión es el declarado y
- * no la fecha de alta, con la más antigua primero entre dos que compartan número. `CA-AC-010` es
- * trivial hasta `RF-AC-016` —{@code courseCount} es cero en todas— y ese requerimiento la enmienda.
+ * no la fecha de alta, con la más antigua primero entre dos que compartan número. `CA-AC-010` con
+ * cursos vive desde `RF-AC-016` en `CourseClassificationIT` (`CA-AC-127`).
  */
 @AutoConfigureMockMvc
 class CourseCategoryListIT extends IntegrationTestBase {

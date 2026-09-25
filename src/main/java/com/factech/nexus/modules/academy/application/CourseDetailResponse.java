@@ -6,6 +6,7 @@ import com.factech.nexus.modules.academy.domain.repository.CourseQueryRepository
 import com.factech.nexus.modules.academy.domain.repository.CourseQueryRepository.LessonRow;
 import com.factech.nexus.modules.academy.domain.repository.CourseQueryRepository.MembershipRef;
 import com.factech.nexus.modules.academy.domain.repository.CourseQueryRepository.ModuleRow;
+import com.factech.nexus.modules.academy.domain.repository.CourseQueryRepository.ProductRef;
 import com.factech.nexus.modules.academy.domain.repository.CourseQueryRepository.RecommendedCourseRow;
 import com.fasterxml.jackson.annotation.JsonInclude;
 import io.swagger.v3.oas.annotations.media.Schema;
@@ -42,8 +43,9 @@ public record CourseDetailResponse(
     List<CourseCategoryRef> categories,
     List<RecommendedCourseRef> recommendedCourses,
     List<CourseMembershipRef> memberships,
+    List<CourseProductRef> products,
     List<ModuleDetail> modules,
-    long totalDurationMinutes,
+    long totalDurationSeconds,
     long lessonCount,
     boolean offerable,
     String offerableReason,
@@ -87,6 +89,19 @@ public record CourseDetailResponse(
     }
   }
 
+  /**
+   * Un servicio que abre el curso (`RN-AC-020`): identificador, código y nombre. <b>Nombre de
+   * esquema propio</b>: springdoc funde los registros con el mismo nombre simple, y `ProductRef` ya
+   * existe en otro módulo.
+   */
+  @Schema(name = "CourseProductRef")
+  public record CourseProductRef(UUID id, String code, String name) {
+
+    static CourseProductRef from(ProductRef fila) {
+      return new CourseProductRef(fila.id(), fila.code(), fila.name());
+    }
+  }
+
   @Schema(name = "CourseMembershipRef")
   public record CourseMembershipRef(UUID id, String code, String name, String color) {
 
@@ -107,7 +122,7 @@ public record CourseDetailResponse(
       boolean deleted,
       String coverImageUrl,
       boolean offerable,
-      long durationMinutes,
+      long durationSeconds,
       List<LessonSummary> lessons) {}
 
   /** Una lección dentro del árbol, sin su contenido. */
@@ -117,7 +132,7 @@ public record CourseDetailResponse(
       UUID id,
       String type,
       String title,
-      int durationMinutes,
+      int durationSeconds,
       int displayOrder,
       String status,
       boolean open,
@@ -128,7 +143,7 @@ public record CourseDetailResponse(
           fila.id(),
           fila.type(),
           fila.title(),
-          fila.durationMinutes(),
+          fila.durationSeconds(),
           fila.displayOrder(),
           fila.status(),
           fila.open(),
@@ -141,6 +156,7 @@ public record CourseDetailResponse(
       List<CategoryRef> categorias,
       List<RecommendedCourseRow> recomendados,
       List<MembershipRef> membresias,
+      List<ProductRef> servicios,
       List<ModuleDetail> modulos,
       long duracionTotal,
       long lecciones,
@@ -160,6 +176,7 @@ public record CourseDetailResponse(
         categorias.stream().map(CourseCategoryRef::from).toList(),
         recomendados.stream().map(RecommendedCourseRef::from).toList(),
         membresias.stream().map(CourseMembershipRef::from).toList(),
+        servicios.stream().map(CourseProductRef::from).toList(),
         modulos,
         duracionTotal,
         lecciones,
@@ -182,7 +199,7 @@ public record CourseDetailResponse(
         fila.retirado(),
         AcademyImageUrls.de(fila.coverImageId()),
         ofrecible,
-        fila.durationMinutes(),
+        fila.durationSeconds(),
         lecciones.stream().map(LessonSummary::from).toList());
   }
 }

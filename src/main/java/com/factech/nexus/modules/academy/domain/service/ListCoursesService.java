@@ -24,10 +24,10 @@ import org.springframework.transaction.annotation.Transactional;
 /**
  * Caso de uso `RF-AC-009`: el listado de cursos, en el orden en que se enseñan.
  *
- * <p><b>Dos sentencias fijas hoy</b> —la página con el instructor y las cuentas como columnas, y el
- * total— y <b>tres desde `RF-AC-016`</b>, con las categorías de toda la página en una: el número no
- * crece con el tamaño de la página (`CA-AC-048`). Los `400` de paginación, orden, dificultad y
- * estado se devuelven <b>juntos</b> (`CA-AC-049`).
+ * <p><b>Tres sentencias fijas</b> —la página con el instructor y las cuentas como columnas, el
+ * total y, desde `RF-AC-016`, las categorías de toda la página en una—: el número no crece con el
+ * tamaño de la página (`CA-AC-048`). Los `400` de paginación, orden, dificultad y estado se
+ * devuelven <b>juntos</b> (`CA-AC-049`).
  */
 @Service
 public class ListCoursesService {

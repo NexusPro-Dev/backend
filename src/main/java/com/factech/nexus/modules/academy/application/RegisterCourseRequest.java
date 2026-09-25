@@ -6,14 +6,18 @@ import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Pattern;
 import jakarta.validation.constraints.PositiveOrZero;
 import jakarta.validation.constraints.Size;
+import java.util.List;
 import java.util.UUID;
 
 /**
  * Cuerpo del alta de un curso (`RF-AC-008` §11).
  *
- * <p><b>Sin {@code status}, sin relaciones, sin módulos, sin portada y sin código</b>, y con {@code
- * FAIL_ON_UNKNOWN_PROPERTIES} activo: cualquiera de ellos devuelve {@code 400} (`VAL-007`,
- * `CA-AC-038`). El curso nace inactivo y vacío, y cada cosa entra por su operación.
+ * <p><b>Sin {@code status}, sin recomendaciones, sin módulos, sin portada y sin código</b>, y con
+ * {@code FAIL_ON_UNKNOWN_PROPERTIES} activo: cualquiera de ellos devuelve {@code 400} (`VAL-007`,
+ * `CA-AC-038`). <b>Categorías, servicios y membresías sí, desde el 25-09-2026</b>, como {@code
+ * categoryIds}, {@code productIds} y {@code membershipIds} (`ac.md` §5.2.9): el curso nace
+ * inactivo, en sus cajones y con quién lo puede ver. La portada va por {@code PUT
+ * /courses/{id}/cover}.
  *
  * <p>Las seis validaciones de forma se devuelven <b>juntas</b> (`CA-AC-037`). La dificultad es un
  * enumerado: un valor fuera del dominio lo rechaza el editor canónico de {@code shared/error} antes
@@ -54,9 +58,38 @@ public record RegisterCourseRequest(
         @PositiveOrZero(
             message =
                 "VAL-004: El orden es obligatorio y debe ser un entero mayor o igual que cero.")
-        Integer displayOrder) {
+        Integer displayOrder,
+    // Desde el 25-09-2026 (`RF-AC-008` 0.4.0, `ac.md` §5.2.9): las categorías en
+    // que el curso nace. Los nulos se rechazan aquí, junto con los demás; las
+    // repetidas, en el caso de uso, como `RF-MV-001` con las líneas.
+    List<
+            @NotNull(
+                message =
+                    "VAL-008: La lista de categorías no puede traer identificadores repetidos ni"
+                        + " vacíos.")
+            UUID>
+        categoryIds,
+    // Desde la segunda decisión del mismo día (`RF-AC-008` 0.6.0): quién lo puede
+    // ver, por servicio (`RN-AC-020`) y por membresía (`RN-AC-012`).
+    List<
+            @NotNull(
+                message =
+                    "VAL-008: La lista de servicios no puede traer identificadores repetidos ni"
+                        + " vacíos.")
+            UUID>
+        productIds,
+    List<
+            @NotNull(
+                message =
+                    "VAL-008: La lista de membresías no puede traer identificadores repetidos ni"
+                        + " vacíos.")
+            UUID>
+        membershipIds) {
 
   public RegisterCourseRequest {
+    categoryIds = categoryIds == null ? List.of() : categoryIds;
+    productIds = productIds == null ? List.of() : productIds;
+    membershipIds = membershipIds == null ? List.of() : membershipIds;
     title = title == null ? null : title.trim();
     shortDescription = recortar(shortDescription);
     longDescription = recortar(longDescription);

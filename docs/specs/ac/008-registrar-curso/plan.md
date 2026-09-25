@@ -68,7 +68,7 @@ Seis filas con identificador literal —la serie de `AC` continúa: `…000005` 
 | `domain/repository` | `CourseRepository` + `JpaCourseRepository`: `save` con traducción de `uq_courses_title`, `existsAliveTitle`, `existsAliveTitleForOther`, `findAliveByIdForUpdate`, `findByIdForUpdate`, `flush` | `AC` |
 | `domain/repository` | `CourseQueryRepository` + `Jpa…`: `findDetail(id)` — el curso **con su instructor resuelto por `JOIN users`** (`username`, `first_name`, `last_name`; nada más), en una sentencia; y las lecturas de relaciones y módulos, que hoy devuelven vacío y las estrenan sus requerimientos | `AC` |
 | `domain/service` | `RegisterCourseService`; **`CourseDetailReader`** (`MODULO = "AC"`, `ENTIDAD = "courses"`): detalle → relaciones → módulos → ofrecibilidad → motivo de retiro, para las nueve operaciones que devuelven el curso | `AC` |
-| `application` | `RegisterCourseRequest`, `CourseDetailResponse` (con `InstructorRef`, las cuatro listas, `totalDurationMinutes`, `lessonCount`, `offerable`, `offerableReason`, `coverImageUrl`) | `AC` |
+| `application` | `RegisterCourseRequest`, `CourseDetailResponse` (con `InstructorRef`, las cuatro listas, `totalDurationSeconds`, `lessonCount`, `offerable`, `offerableReason`, `coverImageUrl`) | `AC` |
 | `interfaces` | `CourseController` — `POST /api/v1/courses` | `AC` |
 | **`SP` · `users/application`** | **`PermissionHolderLookup`** — `boolean holds(UUID userId, String permissionCode)`; e implementación `JpaPermissionHolderLookup` en `users/domain/repository`: un `EXISTS` con **el mismo predicado** que `JpaEffectivePermissions` —roles vivos y `ACTIVO`, persona no retirada— acotado al código | `SP` |
 | `shared/security` | La ruta en `EndpointPermissionsIT`; `CoursesPermissionsSeedIT` nuevo; el recuento de las cuatro suites del catálogo | `shared` |
@@ -94,7 +94,7 @@ Seis filas con identificador literal —la serie de `AC` continúa: `…000005` 
   "shortDescription": "…", "longDescription": "…", "introVideoUrl": "https://…",
   "displayOrder": 0, "status": "INACTIVO", "coverImageUrl": null,
   "categories": [], "recommendedCourses": [], "memberships": [], "modules": [],
-  "totalDurationMinutes": 0, "lessonCount": 0,
+  "totalDurationSeconds": 0, "lessonCount": 0,
   "offerable": false, "offerableReason": "El curso está inactivo.",
   "createdAt": "…", "updatedAt": "…"
 }
@@ -156,3 +156,17 @@ Seis filas con identificador literal —la serie de `AC` continúa: `…000005` 
 - **Del puerto** (`PermissionHolderLookupIT`, en `SP`): porta por un rol activo → verdadero; por un rol inactivo o retirado → falso; persona retirada → falso; persona inexistente → falso; permiso inexistente → falso.
 - **Siembra** (`CoursesPermissionsSeedIT`): seis permisos, identificadores estables, doce asociaciones, ninguna a `CLIENTE`.
 - **Contrato**: el esquema declara `CourseDetailResponse` con las cuatro listas y `offerable`; la prosa dice que nace inactivo y vacío, qué exige el instructor y que el nombre es el actual.
+
+## 12. Enmienda del 25-09-2026 — categorías en el alta
+
+Por decisión del responsable del proyecto (`spec.md` 0.4.0, `ac.md` §5.2.9).
+
+| Capa | Cambio |
+|---|---|
+| `application` | `RegisterCourseRequest` gana `List<UUID> categoryIds`, opcional; `VAL-008` se comprueba en el caso de uso, **junto** con `VAL-001` a `VAL-006` |
+| `domain/repository` | `CourseCategoryRepository.findAliveByIds(Collection<UUID>)`: **una** lectura para toda la lista, sin bloquear —el mismo trato que `RF-AC-016` §14.1 da a la categoría— |
+| `domain/service` | `RegisterCourseService`: tras el instructor, resuelve las categorías y rechaza con `EX-004` las que falten; tras insertar el curso, **reutiliza la escritura de `RF-AC-016`** —fila y `ChangeEvent` `CREATE` de `course_category_items` por cada una—, extraída a un colaborador para que las dos puertas no puedan divergir en cómo se clasifica |
+
+**Sin migración.** **La transacción es la del alta**: un fallo en cualquier categoría revierte el curso, y por eso las categorías se resuelven **antes** de insertar nada —el `422` no debe costar un `INSERT` revertido—. **Sin bloquear el curso**: acaba de nacer y nadie más lo ve. El orden de `categories` en la respuesta es el de la categoría (`RN-AC-002`), no el de la lista enviada.
+
+**Descartado**: *ignorar las repetidas en silencio* —la lista es de lo que el cliente quiere, y dos veces la misma es un error suyo que conviene decirle—, y *crear el curso con las categorías que sirvan* —el rollback parcial que §14.3 temía—.

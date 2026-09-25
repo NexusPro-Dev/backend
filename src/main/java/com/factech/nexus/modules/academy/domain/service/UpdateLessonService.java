@@ -82,7 +82,7 @@ public class UpdateLessonService {
             peticion.title(),
             peticion.description(),
             peticion.content(),
-            peticion.durationMinutes(),
+            peticion.durationSeconds(),
             peticion.displayOrder(),
             peticion.open(),
             OffsetDateTime.now(reloj));
@@ -124,14 +124,14 @@ public class UpdateLessonService {
                 "El título de la lección no puede quedar vacío ni superar los 150 caracteres."));
       }
     }
-    if (peticion.durationMinutes().presente()) {
-      Integer duracion = peticion.durationMinutes().valor();
+    if (peticion.durationSeconds().presente()) {
+      Integer duracion = peticion.durationSeconds().valor();
       if (duracion == null || duracion <= 0) {
         problemas.add(
             new FieldError(
-                "durationMinutes",
+                "durationSeconds",
                 "VAL-002",
-                "La duración de la lección no puede quedar vacía y debe ser un entero de minutos"
+                "La duración de la lección no puede quedar vacía y debe ser un entero de segundos"
                     + " mayor que cero."));
       }
     }

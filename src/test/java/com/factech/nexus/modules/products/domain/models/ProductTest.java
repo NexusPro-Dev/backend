@@ -6,6 +6,7 @@ import static org.assertj.core.api.Assertions.catchThrowableOfType;
 
 import com.factech.nexus.shared.error.FieldError;
 import com.factech.nexus.shared.error.ValidationException;
+import com.factech.nexus.shared.images.CambioDePortada;
 import com.factech.nexus.shared.patch.Patchable;
 import java.math.BigDecimal;
 import java.time.OffsetDateTime;

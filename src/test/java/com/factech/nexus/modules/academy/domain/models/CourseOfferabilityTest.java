@@ -32,14 +32,14 @@ class CourseOfferabilityTest {
     assertThat(CourseOfferability.decidir(false, CourseStatus.ACTIVO, true, false, 1, 1).reason())
         .isEqualTo(CourseOfferability.SIN_DESCRIPCION);
     assertThat(CourseOfferability.decidir(false, CourseStatus.ACTIVO, true, true, 0, 1).reason())
-        .isEqualTo(CourseOfferability.SIN_MEMBRESIAS);
+        .isEqualTo(CourseOfferability.SIN_LLAVES);
     assertThat(CourseOfferability.decidir(false, CourseStatus.ACTIVO, true, true, 1, 0).reason())
         .isEqualTo(CourseOfferability.SIN_MODULO);
   }
 
   @Test
   @DisplayName(
-      "cuando fallan varios gana el primero del orden: retirado, inactivo, descripción, membresías, módulo")
+      "cuando fallan varios gana el primero del orden: retirado, inactivo, descripción, llaves, módulo")
   void elOrden() {
     assertThat(CourseOfferability.decidir(true, CourseStatus.INACTIVO, false, false, 0, 0).reason())
         .isEqualTo(CourseOfferability.RETIRADO);
@@ -49,7 +49,14 @@ class CourseOfferabilityTest {
     assertThat(CourseOfferability.decidir(false, CourseStatus.ACTIVO, false, false, 0, 0).reason())
         .isEqualTo(CourseOfferability.SIN_DESCRIPCION);
     assertThat(CourseOfferability.decidir(false, CourseStatus.ACTIVO, true, true, 0, 0).reason())
-        .isEqualTo(CourseOfferability.SIN_MEMBRESIAS);
+        .isEqualTo(CourseOfferability.SIN_LLAVES);
+  }
+
+  @Test
+  @DisplayName("`CA-AC-219` — el cuarto motivo nombra las dos llaves: membresías y servicios")
+  void cuartoMotivo() {
+    assertThat(CourseOfferability.SIN_LLAVES)
+        .isEqualTo("El curso no tiene ninguna membresía ni ningún servicio que lo abra.");
   }
 
   @Test

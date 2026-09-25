@@ -17,7 +17,7 @@
 
 ## 2. Cambios de esquema
 
-**Ninguno.** `fk_courses_cover_image` y `uq_courses_cover_image` llegaron con `V28`.
+**Ninguno.** `fk_courses_cover_image` y `uq_courses_cover_image` llegaron con `V44` (`RF-AC-006`, que el plan numeraba `V28`).
 
 ## 3. Componentes afectados
 

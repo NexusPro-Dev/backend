@@ -4,10 +4,10 @@
 |---|---|
 | Requerimiento | `RF-AC-021` |
 | Módulo | `AC` — Academia |
-| Estado | **En revisión** |
+| Estado | **Aprobada** |
 | Autor | Responsable técnico |
-| Aprobada por | — |
-| Fecha de aprobación | — |
+| Aprobada por | Responsable del proyecto |
+| Fecha de aprobación | 25-09-2026 |
 
 ---
 
@@ -120,3 +120,5 @@ La mitad inversa de `RF-AC-020`, con la forma de `RF-AC-017`: borra la fila, `AS
 | Versión | Fecha | Cambio | Responsable |
 |---|---|---|---|
 | 0.1.0 | 18-09-2026 | Redacción inicial. `RF-AC-017` sobre la visibilidad; quitar la última nunca se rechaza y es la forma de esconder un curso sin desactivarlo. | Responsable técnico |
+| 0.2.0 | 25-09-2026 | **Aprobada** por el responsable del proyecto al pedir su construcción. **Enmienda de `RF-AC-037`** (Art. I.7): quitar la última membresía deja el curso sin ofrecer **solo si tampoco tiene servicios**, y el motivo es *«El curso no tiene ninguna membresía ni ningún servicio que lo abra.»*; `CA-AC-143` se lee así. **Lo que dice del aula** se comprobará cuando el aula exista (`RF-AC-033`). | Responsable técnico |
+| 0.3.0 | 25-09-2026 | **Construida** (`CourseMembershipVisibilityIT`, junto con `RF-AC-020`). | Responsable técnico |

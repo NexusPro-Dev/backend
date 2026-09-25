@@ -118,3 +118,4 @@ La mitad inversa de `RF-AC-016`: **borra la fila** (`RN-AC-010`), sin motivo, po
 | Versión | Fecha | Cambio | Responsable |
 |---|---|---|---|
 | 0.1.0 | 18-09-2026 | Redacción inicial. Borrado físico de la fila con `ASSOCIATION` sin motivo, como `RF-PM-025`; una categoría retirada se desclasifica igual. | Responsable técnico |
+| 0.2.0 | 25-09-2026 | **Construida** (`CourseClassificationIT`, junto con `RF-AC-016`). Sin enmiendas de comportamiento: la instantánea lleva el nombre que la categoría tiene al desclasificar, viva o retirada. | Responsable técnico |

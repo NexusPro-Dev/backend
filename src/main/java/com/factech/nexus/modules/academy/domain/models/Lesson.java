@@ -60,8 +60,8 @@ public class Lesson {
   @Column(name = "content")
   private String content;
 
-  @Column(name = "duration_minutes", nullable = false)
-  private int durationMinutes;
+  @Column(name = "duration_seconds", nullable = false)
+  private int durationSeconds;
 
   @Column(name = "display_order", nullable = false)
   private int displayOrder;
@@ -92,7 +92,7 @@ public class Lesson {
       String title,
       String description,
       String content,
-      Integer durationMinutes,
+      Integer durationSeconds,
       Integer displayOrder,
       Boolean open,
       OffsetDateTime ahora) {
@@ -103,7 +103,7 @@ public class Lesson {
     leccion.title = verificarTitulo(title, "VAL-003");
     leccion.description = verificarDescripcion(description, "VAL-007");
     leccion.content = LessonContent.de(leccion.type, content, "VAL-006");
-    leccion.durationMinutes = verificarDuracion(durationMinutes, "VAL-004");
+    leccion.durationSeconds = verificarDuracion(durationSeconds, "VAL-004");
     leccion.displayOrder = verificarOrden(displayOrder, "VAL-005");
     leccion.open = Boolean.TRUE.equals(open);
     leccion.status = CourseStatus.INACTIVO;
@@ -160,9 +160,9 @@ public class Lesson {
     }
     if (nuevaDuracion.presente() && nuevaDuracion.valor() != null) {
       int valor = verificarDuracion(nuevaDuracion.valor(), "VAL-002");
-      if (valor != durationMinutes) {
-        cambios.put("duration_minutes", Map.of("before", durationMinutes, "after", valor));
-        durationMinutes = valor;
+      if (valor != durationSeconds) {
+        cambios.put("duration_seconds", Map.of("before", durationSeconds, "after", valor));
+        durationSeconds = valor;
       }
     }
     if (nuevoOrden.presente() && nuevoOrden.valor() != null) {
@@ -233,7 +233,7 @@ public class Lesson {
     estado.put("title", title);
     estado.put("description", description);
     estado.put("content_length", longitud(content));
-    estado.put("duration_minutes", durationMinutes);
+    estado.put("duration_seconds", durationSeconds);
     estado.put("display_order", displayOrder);
     estado.put("open", open);
     estado.put("status", status.name());
@@ -274,9 +274,9 @@ public class Lesson {
   private static int verificarDuracion(Integer valor, String codigo) {
     if (valor == null || valor <= 0) {
       throw rechazo(
-          "durationMinutes",
+          "durationSeconds",
           codigo,
-          "La duración es obligatoria y debe ser un entero de minutos mayor que cero.");
+          "La duración es obligatoria y debe ser un entero de segundos mayor que cero.");
     }
     return valor;
   }
@@ -336,8 +336,8 @@ public class Lesson {
     return content;
   }
 
-  public int getDurationMinutes() {
-    return durationMinutes;
+  public int getDurationSeconds() {
+    return durationSeconds;
   }
 
   public int getDisplayOrder() {

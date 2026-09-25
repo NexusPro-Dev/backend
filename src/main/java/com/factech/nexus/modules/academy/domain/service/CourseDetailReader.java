@@ -20,6 +20,9 @@ import org.springframework.stereotype.Component;
  * Arma la respuesta de administración del curso (`RF-AC-010` §8): detalle con instructor →
  * categorías → recomendados → membresías → módulos → lecciones → ofrecibilidad → motivo de retiro.
  *
+ * <p><b>Los servicios</b> (`RF-AC-037`) son una sentencia más, siempre: no hay cuenta en la fila
+ * que permita saltarla, y la lectura es de un curso.
+ *
  * <p><b>Un solo sitio</b> para las nueve operaciones que devuelven el curso, y <b>la escalera ya
  * está en su orden definitivo</b>: cada peldaño es una lectura del repositorio que hoy devuelve
  * vacío sin consultar y que su requerimiento llena sin cambiar esta forma. <b>Una sentencia</b> hoy
@@ -67,7 +70,7 @@ public class CourseDetailReader {
       List<LessonRow> suyas = lecciones.getOrDefault(modulo.id(), List.of());
       arbol.add(CourseDetailResponse.modulo(modulo, suyas, modulo.ofrecibilidad().offerable()));
       if (!modulo.retirado()) {
-        duracion += modulo.durationMinutes();
+        duracion += modulo.durationSeconds();
         cuenta += suyas.stream().filter(leccion -> !leccion.retirada()).count();
       }
     }
@@ -82,6 +85,7 @@ public class CourseDetailReader {
         consultas.findCategoriesOf(fila.id()),
         consultas.findRecommendedOf(fila.id()),
         consultas.findMembershipsOf(fila.id()),
+        consultas.findProductsOf(fila.id()),
         arbol,
         duracion,
         cuenta,

@@ -2,6 +2,7 @@ package com.factech.nexus.modules.products.domain.models;
 
 import com.factech.nexus.shared.error.FieldError;
 import com.factech.nexus.shared.error.ValidationException;
+import com.factech.nexus.shared.images.CambioDePortada;
 import com.factech.nexus.shared.patch.Patchable;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;

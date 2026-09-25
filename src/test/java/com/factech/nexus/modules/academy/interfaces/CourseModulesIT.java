@@ -65,7 +65,7 @@ class CourseModulesIT extends IntegrationTestBase {
   @Test
   @DisplayName(
       "`CA-AC-076` — registra el módulo en la forma de su detalle: INACTIVO, courseId de la ruta,"
-          + " portada nula, lessons vacío, cero minutos y offerable false «inactivo»")
+          + " portada nula, lessons vacío, cero segundos y offerable false «inactivo»")
   void altaEnLaFormaDelModulo() throws Exception {
     mvc.perform(
             alta(
@@ -85,7 +85,7 @@ class CourseModulesIT extends IntegrationTestBase {
         .andExpect(jsonPath("$.displayOrder").value(1))
         .andExpect(jsonPath("$.status").value("INACTIVO"))
         .andExpect(jsonPath("$.coverImageUrl").value(nullValue()))
-        .andExpect(jsonPath("$.durationMinutes").value(0))
+        .andExpect(jsonPath("$.durationSeconds").value(0))
         .andExpect(jsonPath("$.lessons", hasSize(0)))
         .andExpect(jsonPath("$.offerable").value(false))
         .andExpect(jsonPath("$.offerableReason").value("El módulo está inactivo."))
@@ -204,13 +204,14 @@ class CourseModulesIT extends IntegrationTestBase {
         .andExpect(jsonPath("$.modules[*].title").value(contains("Primero", "Segundo", "Retirado")))
         .andExpect(jsonPath("$.modules[0].offerable").value(false))
         .andExpect(jsonPath("$.modules[1].offerable").value(true))
-        .andExpect(jsonPath("$.modules[1].durationMinutes").value(10))
+        .andExpect(jsonPath("$.modules[1].durationSeconds").value(10))
         .andExpect(jsonPath("$.modules[2].deleted").value(true))
         .andExpect(jsonPath("$.modules[2].offerable").value(false))
-        .andExpect(jsonPath("$.totalDurationMinutes").value(10))
+        .andExpect(jsonPath("$.totalDurationSeconds").value(10))
         .andExpect(jsonPath("$.lessonCount").value(1));
-    // Curso, módulos y lecciones: tres sentencias.
-    assertThat(estadisticas.getPrepareStatementCount()).isEqualTo(3);
+    // Curso, categorías (`RF-AC-016`), membresías (`RF-AC-020`), servicios (`RF-AC-037`), módulos y
+    // lecciones.
+    assertThat(estadisticas.getPrepareStatementCount()).isEqualTo(6);
   }
 
   private MockHttpServletRequestBuilder alta(UUID curso, String cuerpo) {

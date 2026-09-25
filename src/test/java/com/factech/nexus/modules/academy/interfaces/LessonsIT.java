@@ -81,7 +81,7 @@ class LessonsIT extends IntegrationTestBase {
                 "  Qué es una vela ",
                 "content",
                 MARKDOWN,
-                "durationMinutes",
+                "durationSeconds",
                 12,
                 "displayOrder",
                 0));
@@ -93,7 +93,7 @@ class LessonsIT extends IntegrationTestBase {
         .andExpect(jsonPath("$.type").value("TEXTO"))
         .andExpect(jsonPath("$.title").value("Qué es una vela"))
         .andExpect(jsonPath("$.content").value(MARKDOWN))
-        .andExpect(jsonPath("$.durationMinutes").value(12))
+        .andExpect(jsonPath("$.durationSeconds").value(12))
         .andExpect(jsonPath("$.open").value(false))
         .andExpect(jsonPath("$.status").value("INACTIVO"))
         .andExpect(jsonPath("$.deletedAt").doesNotExist());
@@ -102,7 +102,7 @@ class LessonsIT extends IntegrationTestBase {
 
     mvc.perform(
             alta(
-                "{\"type\":\"VIDEO\",\"title\":\"Video\",\"content\":\"https://v.io/1\",\"durationMinutes\":3,\"displayOrder\":1,\"open\":true}"))
+                "{\"type\":\"VIDEO\",\"title\":\"Video\",\"content\":\"https://v.io/1\",\"durationSeconds\":3,\"displayOrder\":1,\"open\":true}"))
         .andExpect(status().isCreated())
         .andExpect(jsonPath("$.open").value(true))
         .andExpect(jsonPath("$.content").value("https://v.io/1"));
@@ -148,23 +148,23 @@ class LessonsIT extends IntegrationTestBase {
   void validacionesJuntas() throws Exception {
     mvc.perform(
             alta(
-                "{\"type\":\"VIDEO\",\"title\":\" \",\"content\":\"no es url\",\"durationMinutes\":0,\"displayOrder\":-1}"))
+                "{\"type\":\"VIDEO\",\"title\":\" \",\"content\":\"no es url\",\"durationSeconds\":0,\"displayOrder\":-1}"))
         .andExpect(status().isBadRequest())
         .andExpect(
             jsonPath("$.errors[*].field")
-                .value(hasItems("title", "content", "durationMinutes", "displayOrder")))
+                .value(hasItems("title", "content", "durationSeconds", "displayOrder")))
         .andExpect(
             jsonPath("$.errors[*].code")
                 .value(hasItems("VAL-003", "VAL-004", "VAL-005", "VAL-006")));
-    mvc.perform(alta("{\"title\":\"Sin tipo\",\"durationMinutes\":1,\"displayOrder\":0}"))
+    mvc.perform(alta("{\"title\":\"Sin tipo\",\"durationSeconds\":1,\"displayOrder\":0}"))
         .andExpect(status().isBadRequest())
         .andExpect(jsonPath("$.errors[*].code").value(hasItems("VAL-002")));
     mvc.perform(
-            alta("{\"type\":\"AUDIO\",\"title\":\"X\",\"durationMinutes\":1,\"displayOrder\":0}"))
+            alta("{\"type\":\"AUDIO\",\"title\":\"X\",\"durationSeconds\":1,\"displayOrder\":0}"))
         .andExpect(status().isBadRequest());
     mvc.perform(
             alta(
-                "{\"type\":\"TEXTO\",\"title\":\"Texto\",\"content\":\"no es url y no importa\",\"durationMinutes\":1,\"displayOrder\":0}"))
+                "{\"type\":\"TEXTO\",\"title\":\"Texto\",\"content\":\"no es url y no importa\",\"durationSeconds\":1,\"displayOrder\":0}"))
         .andExpect(status().isCreated());
     for (String extra :
         List.of(
@@ -173,7 +173,7 @@ class LessonsIT extends IntegrationTestBase {
             "\"courseId\":\"" + curso + "\"")) {
       mvc.perform(
               alta(
-                  "{\"type\":\"TEXTO\",\"title\":\"Y\",\"durationMinutes\":1,\"displayOrder\":0,"
+                  "{\"type\":\"TEXTO\",\"title\":\"Y\",\"durationSeconds\":1,\"displayOrder\":0,"
                       + extra
                       + "}"))
           .andExpect(status().isBadRequest())
@@ -195,7 +195,7 @@ class LessonsIT extends IntegrationTestBase {
                 "Auditada",
                 "content",
                 MARKDOWN,
-                "durationMinutes",
+                "durationSeconds",
                 12,
                 "displayOrder",
                 0));
@@ -243,10 +243,12 @@ class LessonsIT extends IntegrationTestBase {
         .andExpect(jsonPath("$.modules[0].lessons[0].type").value("VIDEO"))
         .andExpect(jsonPath("$.modules[0].lessons[0].content").doesNotExist())
         .andExpect(jsonPath("$.modules[0].lessons[2].deleted").value(true))
-        .andExpect(jsonPath("$.modules[0].durationMinutes").value(20))
+        .andExpect(jsonPath("$.modules[0].durationSeconds").value(20))
         .andExpect(jsonPath("$.lessonCount").value(2))
-        .andExpect(jsonPath("$.totalDurationMinutes").value(20));
-    assertThat(estadisticas.getPrepareStatementCount()).isEqualTo(3);
+        .andExpect(jsonPath("$.totalDurationSeconds").value(20));
+    // Curso, categorías (`RF-AC-016`), membresías (`RF-AC-020`), servicios (`RF-AC-037`), módulos y
+    // lecciones.
+    assertThat(estadisticas.getPrepareStatementCount()).isEqualTo(6);
   }
 
   @Test
@@ -279,7 +281,7 @@ class LessonsIT extends IntegrationTestBase {
   private static String cuerpo(String titulo, int orden) {
     return "{\"type\":\"TEXTO\",\"title\":\""
         + titulo
-        + "\",\"durationMinutes\":5,\"displayOrder\":"
+        + "\",\"durationSeconds\":5,\"displayOrder\":"
         + orden
         + "}";
   }

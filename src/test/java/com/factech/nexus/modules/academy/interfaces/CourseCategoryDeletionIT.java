@@ -29,8 +29,9 @@ import org.springframework.test.web.servlet.request.MockHttpServletRequestBuilde
  * que vive en {@link CourseCategoryConcurrencyIT}.
  *
  * <p>La que define el requerimiento es <b>`CA-AC-032`</b>, la del curso que se sigue ofreciendo, y
- * es trivial hasta `RF-AC-016` y `RF-AC-033`: hoy fija que el listado excluye la retirada y que el
- * detalle trae el motivo.
+ * es trivial hasta `RF-AC-033`: hoy fija que el listado excluye la retirada y que el detalle trae
+ * el motivo. Los `course_ids` de la instantánea se prueban en `CourseClassificationIT`
+ * (`CA-AC-127`).
  */
 @AutoConfigureMockMvc
 class CourseCategoryDeletionIT extends IntegrationTestBase {

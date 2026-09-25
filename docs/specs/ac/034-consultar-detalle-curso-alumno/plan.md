@@ -53,16 +53,16 @@
   "modules": [
     {
       "id": "…", "title": "Lo básico", "shortDescription": "…", "longDescription": null,
-      "presentationVideoUrl": null, "displayOrder": 0, "coverImageUrl": null, "durationMinutes": 30,
+      "presentationVideoUrl": null, "displayOrder": 0, "coverImageUrl": null, "durationSeconds": 30,
       "lessons": [
         { "id": "…", "type": "VIDEO", "title": "Qué es una vela", "description": "…",
-          "durationMinutes": 12, "displayOrder": 0, "open": true, "accessible": true },
+          "durationSeconds": 12, "displayOrder": 0, "open": true, "accessible": true },
         { "id": "…", "type": "TEXTO", "title": "Los cuerpos", "description": null,
-          "durationMinutes": 18, "displayOrder": 1, "open": false, "accessible": false }
+          "durationSeconds": 18, "displayOrder": 1, "open": false, "accessible": false }
       ]
     }
   ],
-  "totalDurationMinutes": 30, "lessonCount": 2
+  "totalDurationSeconds": 30, "lessonCount": 2
 }
 ```
 

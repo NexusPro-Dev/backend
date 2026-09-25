@@ -27,8 +27,8 @@ import org.springframework.test.web.servlet.request.MockHttpServletRequestBuilde
 
 /**
  * El listado de cursos (`RF-AC-009` · `T-05`): `CA-AC-044` a `CA-AC-050`. El filtro por categoría
- * (`CA-AC-047`) devuelve vacío hasta `RF-AC-016`, y la cuenta de sentencias (`CA-AC-048`) es de dos
- * hasta entonces.
+ * (`CA-AC-047`) acota de verdad desde `RF-AC-016`, cuyos casos viven en `CourseClassificationIT`, y
+ * la cuenta de sentencias (`CA-AC-048`) es de tres desde entonces.
  */
 @AutoConfigureMockMvc
 class CourseListIT extends IntegrationTestBase {
@@ -115,7 +115,7 @@ class CourseListIT extends IntegrationTestBase {
   @Test
   @DisplayName(
       "`CA-AC-047` — los filtros por título, instructor, dificultad y estado acotan y se combinan;"
-          + " categoryId devuelve vacío hasta RF-AC-016")
+          + " categoryId de una categoría sin cursos devuelve vacío")
   void filtros() throws Exception {
     mvc.perform(listar("?q=ALF")).andExpect(jsonPath("$.content[*].title").value(contains("Alfa")));
     mvc.perform(listar("?instructorId=" + ana))
@@ -132,15 +132,16 @@ class CourseListIT extends IntegrationTestBase {
   }
 
   @Test
-  @DisplayName("`CA-AC-048` — dos sentencias fijas —página y total— con una y con tres filas")
+  @DisplayName(
+      "`CA-AC-048` — tres sentencias fijas —página, categorías y total— con una y con tres filas")
   void sentencias() throws Exception {
     estadisticas.clear();
     mvc.perform(listar("?size=1")).andExpect(status().isOk());
-    assertThat(estadisticas.getPrepareStatementCount()).isEqualTo(2);
+    assertThat(estadisticas.getPrepareStatementCount()).isEqualTo(3);
 
     estadisticas.clear();
     mvc.perform(listar("")).andExpect(status().isOk());
-    assertThat(estadisticas.getPrepareStatementCount()).isEqualTo(2);
+    assertThat(estadisticas.getPrepareStatementCount()).isEqualTo(3);
   }
 
   @Test

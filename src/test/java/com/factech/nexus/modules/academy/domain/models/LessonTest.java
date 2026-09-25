@@ -174,7 +174,7 @@ class LessonTest {
             Patchable.de(true),
             DESPUES);
     assertThat(cambios.keySet())
-        .containsExactly("content_length", "duration_minutes", "display_order", "open");
+        .containsExactly("content_length", "duration_seconds", "display_order", "open");
     assertThat(l.getContent()).isNull();
     assertThat(l.isOpen()).isTrue();
     assertThat(

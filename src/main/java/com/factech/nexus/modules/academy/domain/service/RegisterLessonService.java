@@ -99,7 +99,7 @@ public class RegisterLessonService {
                 peticion.title(),
                 peticion.description(),
                 peticion.content(),
-                peticion.durationMinutes(),
+                peticion.durationSeconds(),
                 peticion.displayOrder(),
                 peticion.open(),
                 OffsetDateTime.now(reloj)));
@@ -131,12 +131,12 @@ public class RegisterLessonService {
               "VAL-003",
               "El título es obligatorio y no puede superar los 150 caracteres."));
     }
-    if (peticion.durationMinutes() == null || peticion.durationMinutes() <= 0) {
+    if (peticion.durationSeconds() == null || peticion.durationSeconds() <= 0) {
       problemas.add(
           new FieldError(
-              "durationMinutes",
+              "durationSeconds",
               "VAL-004",
-              "La duración es obligatoria y debe ser un entero de minutos mayor que cero."));
+              "La duración es obligatoria y debe ser un entero de segundos mayor que cero."));
     }
     if (peticion.displayOrder() == null || peticion.displayOrder() < 0) {
       problemas.add(

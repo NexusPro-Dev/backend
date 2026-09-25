@@ -27,8 +27,8 @@ import org.springframework.test.web.servlet.request.MockHttpServletRequestBuilde
  * El detalle de una categoría (`RF-AC-003` · `T-05`): `CA-AC-016` a `CA-AC-020`.
  *
  * <p>La que define el requerimiento es <b>`CA-AC-017`</b> —el retirado no aparece, el inactivo sí—
- * y es trivial hasta `RF-AC-016`: hoy no hay cursos que clasificar, {@code courses} es vacío y la
- * prueba fija la forma. Ese requerimiento la enmienda con los tres casos.
+ * y sus tres casos —vivo, inactivo, retirado— viven desde `RF-AC-016` en `CourseClassificationIT`
+ * (`CA-AC-127`); aquí la categoría no tiene cursos y la prueba fija la forma.
  */
 @AutoConfigureMockMvc
 class CourseCategoryDetailIT extends IntegrationTestBase {
@@ -68,7 +68,7 @@ class CourseCategoryDetailIT extends IntegrationTestBase {
   @Test
   @DisplayName(
       "`CA-AC-016` y `CA-AC-017` — la categoría con sus campos, coverImageUrl presente y nula, y"
-          + " sus cursos vivos en orden (vacíos hasta RF-AC-016)")
+          + " sin cursos, courses vacío")
   void detalleCompleto() throws Exception {
     mvc.perform(detalle(viva))
         .andExpect(status().isOk())

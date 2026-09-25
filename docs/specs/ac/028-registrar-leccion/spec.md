@@ -21,7 +21,7 @@ La lección es la hoja del árbol (`ac.md` §5.2.1): nace dentro de un módulo y
 
 **La duración es obligatoria en los dos tipos** (`RN-AC-017`): en video es lo que dura; en texto, el tiempo estimado de lectura que administración declara. **Y la bandera `open`** es la demostración (`RN-AC-014`): falsa por omisión, se abre a cualquier alumno con sesión aunque su membresía no abra el curso. Aquí solo se declara; lo que hace lo decide el aula.
 
-Es el requerimiento que **crea `lessons`** y **cierra `RN-AC-015`**: con lecciones, un módulo puede ser ofrecible y, con él, un curso. Construye las enmiendas que quedaban del bloque 2 —`lessonCount` de `RF-AC-009`, las lecciones en el árbol de `RF-AC-010`, el arrastre de lecciones de `RF-AC-013`— y las de `RF-AC-022` (`lessons` y `durationMinutes` del módulo).
+Es el requerimiento que **crea `lessons`** y **cierra `RN-AC-015`**: con lecciones, un módulo puede ser ofrecible y, con él, un curso. Construye las enmiendas que quedaban del bloque 2 —`lessonCount` de `RF-AC-009`, las lecciones en el árbol de `RF-AC-010`, el arrastre de lecciones de `RF-AC-013`— y las de `RF-AC-022` (`lessons` y `durationSeconds` del módulo).
 
 ## 3. Actores
 
@@ -56,7 +56,7 @@ Es el requerimiento que **crea `lessons`** y **cierra `RN-AC-015`**: con leccion
 | `RN-AC-008` | La lección nace `INACTIVA` | `requirements/ac.md` §5.1 |
 | `RN-AC-014` | `open` es la demostración; falsa por omisión; no exime de nada más | `requirements/ac.md` §5.1 |
 | `RN-AC-016` | El tipo manda sobre el contenido; opcional al registrar | `requirements/ac.md` §5.1 |
-| `RN-AC-017` | Duración en minutos enteros, mayor que cero, en los dos tipos | `requirements/ac.md` §5.1 |
+| `RN-AC-017` | Duración en segundos enteros, mayor que cero, en los dos tipos | `requirements/ac.md` §5.1 |
 | `RN-AC-018` | Un módulo retirado no admite lecciones | `requirements/ac.md` §5.1 |
 | `RN-AC-019` | La lección no cambia de módulo | `requirements/ac.md` §5.1 |
 
@@ -71,7 +71,7 @@ Es el requerimiento que **crea `lessons`** y **cierra `RN-AC-015`**: con leccion
 | Título (`title`) | Sí | Cómo se llama | Hasta 150; **único entre las lecciones vivas del módulo** |
 | Descripción (`description`) | No | De qué va | Hasta 1000; de solo espacios queda nula |
 | Contenido (`content`) | No | Lo que se estudia | Si `VIDEO`: URL con la forma de `RN-AC-005`. Si `TEXTO`: texto, **sin tope corto** —hasta el tamaño máximo de una petición— y sin interpretar. De solo espacios queda nulo |
-| Duración (`durationMinutes`) | Sí | Cuánto dura, o cuánto se tarda en leer | Entero **mayor que cero** |
+| Duración (`durationSeconds`) | Sí | Cuánto dura, o cuánto se tarda en leer | Entero **mayor que cero** |
 | Orden (`displayOrder`) | Sí | En qué lugar del módulo | Entero ≥ 0; no único |
 | Abierta (`open`) | No | ¿Demostración? | Booleano; **falsa por omisión** |
 
@@ -129,7 +129,7 @@ Es el requerimiento que **crea `lessons`** y **cierra `RN-AC-015`**: con leccion
 | `VAL-001` | Identificadores con formato válido | El identificador indicado no tiene un formato válido. |
 | `VAL-002` | Tipo presente y en el dominio | El tipo es obligatorio y debe ser VIDEO o TEXTO. |
 | `VAL-003` | Título presente y de hasta 150 | El título es obligatorio y no puede superar los 150 caracteres. |
-| `VAL-004` | Duración presente y mayor que cero | La duración es obligatoria y debe ser un entero de minutos mayor que cero. |
+| `VAL-004` | Duración presente y mayor que cero | La duración es obligatoria y debe ser un entero de segundos mayor que cero. |
 | `VAL-005` | Orden presente y ≥ 0 | El orden es obligatorio y debe ser un entero mayor o igual que cero. |
 | `VAL-006` | Contenido de un `VIDEO`, si viene, con la forma de `RN-AC-005` | El contenido de una lección de video debe ser una URL absoluta http o https, sin espacios y de hasta 500 caracteres. |
 | `VAL-007` | Descripción de hasta 1000 | La descripción no puede exceder 1000 caracteres. |
@@ -146,7 +146,7 @@ Todas **juntas**; `VAL-006` depende de `VAL-002` y solo se evalúa si el tipo es
 | `CA-AC-087` | El sistema responde `404` a un módulo inexistente, a uno retirado y a uno **de otro curso** |
 | `CA-AC-088` | El sistema rechaza con `400`, **juntos**, el tipo ausente o fuera de dominio, el título ausente, la duración ausente, cero o negativa, el orden negativo y —si el tipo es `VIDEO`— un contenido que no es una URL; un `TEXTO` con cualquier texto se admite |
 | `CA-AC-089` | El sistema registra una fila `CREATE` en `audit_change_log` de `lessons` con el actor, **sin el contenido en la instantánea** cuando es `TEXTO` —solo su longitud— |
-| `CA-AC-090` | **Enmienda de `RF-AC-009` y `RF-AC-022`**: `lessonCount` del listado y `lessons` y `durationMinutes` del módulo cuentan las lecciones **vivas**, y la duración suma solo las **activas** |
+| `CA-AC-090` | **Enmienda de `RF-AC-009` y `RF-AC-022`**: `lessonCount` del listado y `lessons` y `durationSeconds` del módulo cuentan las lecciones **vivas**, y la duración suma solo las **activas** |
 | `CA-AC-091` | **Enmienda de `RF-AC-010`**: el detalle del curso trae las lecciones de cada módulo en orden, con tipo, duración, estado, `open` y marca, **sin contenido**, y cuesta **una sentencia más** cuando hay lecciones |
 | `CA-AC-092` | **Enmienda de `RF-AC-013`**: retirar el curso retira las lecciones vivas de sus módulos vivos, con una fila de auditoría cada una |
 | `CA-AC-093` | Dos altas simultáneas con el mismo título en el mismo módulo dejan **una** fila y un `409` |
@@ -174,3 +174,4 @@ Todas **juntas**; `VAL-006` depende de `VAL-002` y solo se evalúa si el tipo es
 | 0.1.0 | 18-09-2026 | Redacción inicial. La lección nace dentro del módulo —bloqueando el módulo, no el curso—, inactiva y con contenido opcional que se valida **contra el tipo**; `open` falsa por omisión. **La auditoría de cambios no lleva el Markdown, sino su longitud** (§14.1). Crea `lessons`, **cierra `RN-AC-015`** y construye las enmiendas que quedaban del bloque 2 y de `RF-AC-022`. | Responsable técnico |
 | 0.2.0 | 18-09-2026 | **Enmienda de Art. I.7 (18-09-2026)**: `RN-AC-015` gana dos motivos por decisión del responsable del proyecto —«sin descripción» en el curso y «sin contenido» en la lección—. `ModuleOfferability` cuenta **lecciones ofrecibles** —activas, vivas y con contenido— y no lecciones activas (`plan.md` §1 y §3, `tasks.md` `T-02`). Y `LessonResponse` es también la respuesta de **`RF-AC-036`**, nacido el mismo día, que le añade los dos campos del retiro con `NON_NULL`. | Responsable técnico |
 | 0.3.0 | 19-09-2026 | **Construida** (`V24`, `LessonsIT` (7), la carrera en `CourseTreeConcurrencyIT`, `LessonTest`). **Una precisión**: las validaciones del alta **no van por Bean Validation** sino por el caso de uso, porque `VAL-006` depende del tipo y `CA-AC-088` las exige juntas; el DTO conserva sus anotaciones para el contrato. `LessonResponse` nace con `deletedAt` y `deletionReason` `NON_NULL` para `RF-AC-036`. | Responsable técnico |
+| 0.4.0 | 25-09-2026 | **Enmienda por decisión del responsable del proyecto** (`ac.md` §5.2.10, `RN-AC-017`): **la duración de la lección se guarda en segundos**, y las sumas del módulo y del curso también: `durationSeconds` y `totalDurationSeconds` sustituyen a `durationMinutes` y `totalDurationMinutes` en el cuerpo de esta spec. Las filas anteriores de esta tabla conservan el nombre que tenía el campo en su fecha. | Responsable técnico |

@@ -1,6 +1,7 @@
 package com.factech.nexus.modules.academy.domain.repository;
 
 import com.factech.nexus.modules.academy.application.ListCourseCategoriesRequest;
+import com.factech.nexus.modules.academy.domain.models.CourseOfferability;
 import jakarta.persistence.EntityManager;
 import jakarta.persistence.Query;
 import jakarta.persistence.Tuple;
@@ -18,20 +19,21 @@ import org.springframework.transaction.annotation.Transactional;
  * {@link CourseCategoryQueryRepository} sobre SQL nativo.
  *
  * <p><b>Un solo bloque de columnas</b> ({@link #COLUMNAS}) para el detalle y el listado, con la
- * cuenta de cursos como columna más. La cuenta es hoy un literal: {@code course_category_items} no
- * existe hasta `RF-AC-016`, y ese requerimiento reemplaza {@link #CUENTA_DE_CURSOS} por la
- * subconsulta escalar sobre esa tabla unida a {@code courses} con {@code deleted_at IS NULL} —los
- * vivos, no los ofrecidos (`RF-AC-002` §14.2)—. Lo mismo con {@link #findAliveCoursesOf}, que hoy
- * devuelve vacío sin consultar nada.
+ * cuenta de cursos como columna más: la subconsulta escalar {@link #CUENTA_DE_CURSOS} sobre {@code
+ * course_category_items} unida a {@code courses} con {@code deleted_at IS NULL} —los vivos, no los
+ * ofrecidos (`RF-AC-002` §14.2)—, real desde `RF-AC-016`, que también llenó {@link
+ * #findAliveCoursesOf}.
  */
 @Repository
 public class JpaCourseCategoryQueryRepository implements CourseCategoryQueryRepository {
 
   /**
-   * `RF-AC-016` la sustituye por: {@code (SELECT count(*) FROM course_category_items i JOIN courses
-   * c ON c.id = i.course_id AND c.deleted_at IS NULL WHERE i.category_id = k.id)}.
+   * Los cursos vivos clasificados en la categoría (`RF-AC-016`, `CA-AC-127`): un inactivo cuenta,
+   * un retirado no. Los vivos y no los ofrecidos (`RF-AC-002` §14.2).
    */
-  private static final String CUENTA_DE_CURSOS = "0";
+  private static final String CUENTA_DE_CURSOS =
+      "(SELECT count(*) FROM course_category_items i JOIN courses c ON c.id = i.course_id"
+          + " AND c.deleted_at IS NULL WHERE i.category_id = k.id)";
 
   private static final String COLUMNAS =
       """
@@ -68,11 +70,46 @@ public class JpaCourseCategoryQueryRepository implements CourseCategoryQueryRepo
   @Override
   @Transactional(readOnly = true)
   public List<CategoryCourseRow> findAliveCoursesOf(UUID categoryId) {
-    // Hasta `RF-AC-016` no hay tabla de clasificación que consultar: ni una
-    // sentencia. Ese requerimiento escribe aquí el SELECT sobre
-    // course_category_items JOIN courses (deleted_at IS NULL) ORDER BY
-    // c.display_order, c.id, y el bloque 3 le añade la ofrecibilidad.
-    return List.of();
+    // UNA sentencia, con las cuentas que `CourseOfferability` necesita como
+    // columnas —las mismas subconsultas que el listado de cursos, sobre el
+    // mismo alias `c`—, para decidir `offerable` por fila en Java.
+    List<Tuple> filas =
+        em.createNativeQuery(
+                "SELECT c.id AS id, c.title AS title, c.status AS status,"
+                    + " c.display_order AS display_order,"
+                    + " c.short_description IS NOT NULL AS tiene_corta,"
+                    + " c.long_description IS NOT NULL AS tiene_larga, "
+                    + JpaCourseQueryRepository.CUENTA_DE_MEMBRESIAS
+                    + " AS membership_count, "
+                    + JpaCourseQueryRepository.CUENTA_DE_SERVICIOS
+                    + " AS product_count, "
+                    + JpaCourseQueryRepository.CUENTA_DE_MODULOS_OFRECIBLES
+                    + " AS offerable_module_count"
+                    + " FROM course_category_items i"
+                    + " JOIN courses c ON c.id = i.course_id AND c.deleted_at IS NULL"
+                    + " WHERE i.category_id = :categoria"
+                    + " ORDER BY c.display_order, c.id",
+                Tuple.class)
+            .setParameter("categoria", categoryId)
+            .getResultList();
+    return filas.stream()
+        .map(
+            fila ->
+                new CategoryCourseRow(
+                    (UUID) fila.get("id"),
+                    (String) fila.get("title"),
+                    (String) fila.get("status"),
+                    ((Number) fila.get("display_order")).intValue(),
+                    CourseOfferability.decidir(
+                            false,
+                            (String) fila.get("status"),
+                            (Boolean) fila.get("tiene_corta"),
+                            (Boolean) fila.get("tiene_larga"),
+                            ((Number) fila.get("membership_count")).longValue()
+                                + ((Number) fila.get("product_count")).longValue(),
+                            ((Number) fila.get("offerable_module_count")).longValue())
+                        .offerable()))
+        .toList();
   }
 
   @Override

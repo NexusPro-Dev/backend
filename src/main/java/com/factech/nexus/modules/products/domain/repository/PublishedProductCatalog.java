@@ -75,6 +75,29 @@ public class PublishedProductCatalog implements ProductCatalog, RegistrableProdu
 
   @Override
   @Transactional(readOnly = true)
+  public Optional<KindView> findKind(UUID id) {
+    if (id == null) {
+      return Optional.empty();
+    }
+    return em
+        .createQuery("SELECT p FROM Product p WHERE p.id = :id", Product.class)
+        .setParameter("id", id)
+        .setMaxResults(1)
+        .getResultList()
+        .stream()
+        .findFirst()
+        .map(
+            producto ->
+                new KindView(
+                    producto.getId(),
+                    producto.getCode(),
+                    producto.getName(),
+                    producto.getType() == ProductType.BOT,
+                    producto.estaRetirado()));
+  }
+
+  @Override
+  @Transactional(readOnly = true)
   public Optional<BigDecimal> findPrice(UUID id) {
     if (id == null) {
       return Optional.empty();

@@ -188,6 +188,14 @@ public class SecurityConfig {
   private static final String PORTADAS_PUBLICAS = "/api/v1/product-images/*";
 
   /**
+   * Las portadas de academia (`RF-AC-032`, 25-09-2026): {@link #PORTADAS_PUBLICAS} sobre {@code
+   * academy_images}. Pública por lo mismo —las lecturas de academia publican su dirección y un
+   * {@code <img>} no lleva token— y con las mismas cautelas: <b>solo en {@code GET}</b> y en la
+   * lista por método, un segmento y no {@code /**}. Subir vive bajo cada entidad, con su permiso.
+   */
+  private static final String PORTADAS_ACADEMIA = "/api/v1/academy-images/*";
+
+  /**
    * Documentación de la API: pública solo donde se habilite de forma explícita.
    *
    * <p><b>{@code /v3/api-docs.yaml} se declara aparte y no sobra.</b> No casa con el literal exacto
@@ -224,7 +232,8 @@ public class SecurityConfig {
       return false;
     }
     return Stream.concat(
-            Arrays.stream(CATALOGOS_PUBLICOS), Stream.of(RESENAS_PUBLICAS, PORTADAS_PUBLICAS))
+            Arrays.stream(CATALOGOS_PUBLICOS),
+            Stream.of(RESENAS_PUBLICAS, PORTADAS_PUBLICAS, PORTADAS_ACADEMIA))
         .anyMatch(patron -> ant.match(patron, ruta));
   }
 
@@ -282,6 +291,8 @@ public class SecurityConfig {
               auth.requestMatchers(HttpMethod.GET, RESENAS_PUBLICAS).permitAll();
               // Solo el GET: ver `PORTADAS_PUBLICAS`. Sirve bytes, no JSON.
               auth.requestMatchers(HttpMethod.GET, PORTADAS_PUBLICAS).permitAll();
+              // Lo mismo para academia: ver `PORTADAS_ACADEMIA`.
+              auth.requestMatchers(HttpMethod.GET, PORTADAS_ACADEMIA).permitAll();
               if (documentacionPublica) {
                 auth.requestMatchers(RUTAS_DOCUMENTACION).permitAll();
               }

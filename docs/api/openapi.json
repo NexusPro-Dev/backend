@@ -468,6 +468,16 @@
         },
         "type" : "object"
       },
+      "ClassifyCourseRequest" : {
+        "properties" : {
+          "categoryId" : {
+            "format" : "uuid",
+            "type" : "string"
+          }
+        },
+        "required" : [ "categoryId" ],
+        "type" : "object"
+      },
       "ClientSellersResponse" : {
         "properties" : {
           "content" : {
@@ -921,6 +931,12 @@
           "offerableReason" : {
             "type" : "string"
           },
+          "products" : {
+            "items" : {
+              "$ref" : "#/components/schemas/CourseProductRef"
+            },
+            "type" : "array"
+          },
           "recommendedCourses" : {
             "items" : {
               "$ref" : "#/components/schemas/RecommendedCourseRef"
@@ -936,7 +952,7 @@
           "title" : {
             "type" : "string"
           },
-          "totalDurationMinutes" : {
+          "totalDurationSeconds" : {
             "format" : "int64",
             "type" : "integer"
           },
@@ -1027,7 +1043,7 @@
             "format" : "int32",
             "type" : "integer"
           },
-          "durationMinutes" : {
+          "durationSeconds" : {
             "format" : "int32",
             "type" : "integer"
           },
@@ -1080,7 +1096,7 @@
             "format" : "int32",
             "type" : "integer"
           },
-          "durationMinutes" : {
+          "durationSeconds" : {
             "format" : "int64",
             "type" : "integer"
           },
@@ -1126,7 +1142,7 @@
             "format" : "int32",
             "type" : "integer"
           },
-          "durationMinutes" : {
+          "durationSeconds" : {
             "format" : "int64",
             "type" : "integer"
           },
@@ -1197,6 +1213,21 @@
           "totalPages" : {
             "format" : "int32",
             "type" : "integer"
+          }
+        },
+        "type" : "object"
+      },
+      "CourseProductRef" : {
+        "properties" : {
+          "code" : {
+            "type" : "string"
+          },
+          "id" : {
+            "format" : "uuid",
+            "type" : "string"
+          },
+          "name" : {
+            "type" : "string"
           }
         },
         "type" : "object"
@@ -1658,6 +1689,26 @@
         },
         "type" : "object"
       },
+      "GrantCourseMembershipRequest" : {
+        "properties" : {
+          "membershipId" : {
+            "format" : "uuid",
+            "type" : "string"
+          }
+        },
+        "required" : [ "membershipId" ],
+        "type" : "object"
+      },
+      "GrantCourseProductRequest" : {
+        "properties" : {
+          "productId" : {
+            "format" : "uuid",
+            "type" : "string"
+          }
+        },
+        "required" : [ "productId" ],
+        "type" : "object"
+      },
       "HotlinkCatalogResponse" : {
         "properties" : {
           "services" : {
@@ -1732,7 +1783,7 @@
             "format" : "int32",
             "type" : "integer"
           },
-          "durationMinutes" : {
+          "durationSeconds" : {
             "format" : "int32",
             "type" : "integer"
           },
@@ -4140,6 +4191,13 @@
       },
       "RegisterCourseRequest" : {
         "properties" : {
+          "categoryIds" : {
+            "items" : {
+              "format" : "uuid",
+              "type" : "string"
+            },
+            "type" : "array"
+          },
           "difficulty" : {
             "enum" : [ "PRINCIPIANTE", "INTERMEDIO", "AVANZADO" ],
             "type" : "string"
@@ -4162,6 +4220,20 @@
             "maxLength" : 10000,
             "minLength" : 0,
             "type" : "string"
+          },
+          "membershipIds" : {
+            "items" : {
+              "format" : "uuid",
+              "type" : "string"
+            },
+            "type" : "array"
+          },
+          "productIds" : {
+            "items" : {
+              "format" : "uuid",
+              "type" : "string"
+            },
+            "type" : "array"
           },
           "shortDescription" : {
             "maxLength" : 300,
@@ -4220,7 +4292,7 @@
             "format" : "int32",
             "type" : "integer"
           },
-          "durationMinutes" : {
+          "durationSeconds" : {
             "format" : "int32",
             "type" : "integer"
           },
@@ -4237,7 +4309,7 @@
             "type" : "string"
           }
         },
-        "required" : [ "displayOrder", "durationMinutes", "title", "type" ],
+        "required" : [ "displayOrder", "durationSeconds", "title", "type" ],
         "type" : "object"
       },
       "RegisterMembershipRequest" : {
@@ -5572,7 +5644,7 @@
           "displayOrder" : {
             "$ref" : "#/components/schemas/PatchableInteger"
           },
-          "durationMinutes" : {
+          "durationSeconds" : {
             "$ref" : "#/components/schemas/PatchableInteger"
           },
           "open" : {
@@ -6076,6 +6148,73 @@
   },
   "openapi" : "3.1.0",
   "paths" : {
+    "/api/v1/academy-images/{imageId}" : {
+      "get" : {
+        "description" : "**Permiso requerido:** ninguno. Ruta pública: responde sin token.\n\nDevuelve **los bytes** de la portada de una categoría, un curso o un\nmódulo, con el `Content-Type` real —el detectado al subirla— y **sin\ntoken**: las lecturas de academia la publican en `coverImageUrl`, y un\n`<img>` no lleva credencial. Con token responde lo mismo.\n\n**La dirección señala una imagen concreta**: cada subida estrena\nidentificador y la reemplazada se borra, de modo que una dirección nunca\ncambia de contenido. Se sirve con `Cache-Control: public,\nmax-age=31536000, immutable`.\n\n**No mira a quién pertenece**: sirve la portada de una categoría retirada\no de un curso inactivo igual. `404` con el mismo cuerpo para un\nidentificador inexistente, reemplazado o quitado. Solo `JPEG`, `PNG` y\n`WebP`, con `X-Content-Type-Options: nosniff`.\n",
+        "operationId" : "imagen_1",
+        "parameters" : [ {
+          "in" : "path",
+          "name" : "imageId",
+          "required" : true,
+          "schema" : {
+            "format" : "uuid",
+            "type" : "string"
+          }
+        } ],
+        "responses" : {
+          "200" : {
+            "content" : {
+              "image/jpeg" : {
+                "schema" : {
+                  "format" : "binary",
+                  "type" : "string"
+                }
+              },
+              "image/png" : {
+                "schema" : {
+                  "format" : "binary",
+                  "type" : "string"
+                }
+              },
+              "image/webp" : {
+                "schema" : {
+                  "format" : "binary",
+                  "type" : "string"
+                }
+              }
+            },
+            "description" : "Los bytes de la imagen, con su tipo real y caché inmutable de un año."
+          },
+          "400" : {
+            "content" : {
+              "application/problem+json" : { }
+            },
+            "description" : "Identificador sin forma canónica (`VAL-001`)"
+          },
+          "404" : {
+            "content" : {
+              "application/problem+json" : { }
+            },
+            "description" : "La imagen no existe — nunca existió, se reemplazó o se quitó (`EX-001`)"
+          },
+          "429" : {
+            "content" : {
+              "application/problem+json" : { }
+            },
+            "description" : "Demasiadas peticiones desde ese origen"
+          },
+          "500" : {
+            "content" : {
+              "application/problem+json" : { }
+            },
+            "description" : "Fallo no controlado (`ERR-500`)"
+          }
+        },
+        "security" : [ ],
+        "summary" : "Obtener la imagen de una portada de academia, sin autenticación",
+        "tags" : [ "Cursos" ]
+      }
+    },
     "/api/v1/audit/changes" : {
       "get" : {
         "description" : "**Permiso requerido:** `audit:read-changes`. Sin él, `403` (`AUTH-002`).\n\nAltas y ediciones de todo el sistema, **del más reciente al más\nantiguo**. El orden no se puede cambiar: es parte del significado de un\nregistro cronológico.\n\n**`changes` se devuelve tal como se escribió**, sin interpretar: en un\n`CREATE` es el estado inicial del registro y en un `UPDATE` solo los\ncampos que cambiaron, cada uno con su `before` y su `after`.\n\n**`correlationId` enlaza con la petición** que produjo el evento, y con\nlo que esa misma petición dejó en los otros tres registros. Cuando son\nnulos, `correlationId` e `ipAddress` lo son **a la vez**: significa que\nel cambio no vino de la red —una migración, una tarea programada—, y\nnunca que se olvidara registrarlo. `actorId` nulo se lee igual: lo hizo\nel sistema.\n\n**Ningún filtro es obligatorio**, ni siquiera el rango de fechas: la\nconsulta que más valor tiene es la línea de tiempo completa de un\nregistro. `from` y `to` son **instantes** con zona horaria, no fechas\nsueltas, y el rango es **semiabierto** —incluye `from`, excluye `to`—\npara que dos rangos consecutivos no devuelvan dos veces el evento de la\nfrontera.\n\n**`entityId` y `actorId` no se validan contra nada**: la auditoría\nconserva eventos de registros que ya no existen, que es su razón de ser.\n",
@@ -7927,6 +8066,91 @@
         "x-required-permission" : "course-categories:update"
       }
     },
+    "/api/v1/course-categories/{id}/cover" : {
+      "put" : {
+        "description" : "**Permiso requerido:** `course-categories:update`. Sin él, `403` (`AUTH-002`).\n\nRecibe **un archivo** —`multipart/form-data`, una sola parte llamada\n`file`— y lo convierte en la portada de la categoría, **tal cual**: ni\nrecorte, ni redimensión, ni conversión.\n\n**El tipo lo deciden los bytes, no la cabecera**: `JPEG`, `PNG` o `WebP`,\nreconocidos por su firma; el `Content-Type` de la parte y el nombre del\narchivo se ignoran. Un `GIF`, un `SVG` o un texto se rechazan con\n`VAL-003`. **Hasta 5 MB** (`VAL-004`); sin archivo o vacío, `VAL-002`. Los\ntres nombran `file`, y son **los mismos de la portada de un producto**.\n\n**Si ya tenía portada, la reemplaza**: la nueva estrena identificador, **la\nanterior se borra** y `coverImageUrl` cambia de dirección —\n`/api/v1/academy-images/{imageId}`, pública y con caché inmutable—. **Sin\ncondición**: la categoría se pinta con su color y su icono cuando no tiene\nportada, y subirla nunca la deja peor. Una categoría retirada responde\n`404`. Exige `course-categories:update`.\n",
+        "operationId" : "subirPortada_3",
+        "parameters" : [ {
+          "in" : "path",
+          "name" : "id",
+          "required" : true,
+          "schema" : {
+            "format" : "uuid",
+            "type" : "string"
+          }
+        } ],
+        "requestBody" : {
+          "content" : {
+            "multipart/form-data" : {
+              "schema" : {
+                "properties" : {
+                  "file" : {
+                    "format" : "binary",
+                    "type" : "string"
+                  }
+                },
+                "type" : "object"
+              }
+            }
+          }
+        },
+        "responses" : {
+          "200" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/CourseCategoryDetailResponse"
+                }
+              }
+            },
+            "description" : "La categoría, con `coverImageUrl` señalando la imagen nueva."
+          },
+          "400" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/CourseCategoryDetailResponse"
+                }
+              }
+            },
+            "description" : "Identificador inválido (`VAL-001`), sin archivo o vacío (`VAL-002`), ni JPEG ni PNG ni WebP por sus bytes (`VAL-003`), más de 5 MB (`VAL-004`) o petición que no es `multipart/form-data` (`EX-002`)"
+          },
+          "401" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/CourseCategoryDetailResponse"
+                }
+              }
+            },
+            "description" : "Token ausente o inválido (`AUTH-001`)"
+          },
+          "403" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/CourseCategoryDetailResponse"
+                }
+              }
+            },
+            "description" : "Autenticado sin el permiso `course-categories:update` (`AUTH-002`)"
+          },
+          "404" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/CourseCategoryDetailResponse"
+                }
+              }
+            },
+            "description" : "La categoría no existe o está retirada (`EX-001`)"
+          }
+        },
+        "summary" : "Subir o reemplazar la portada de una categoría",
+        "tags" : [ "Categorías de cursos" ],
+        "x-required-permission" : "course-categories:update"
+      }
+    },
     "/api/v1/course-categories/{id}/deletion" : {
       "post" : {
         "description" : "**Permiso requerido:** `course-categories:delete`. Sin él, `403` (`AUTH-002`).\n\nBaja **lógica y con motivo**: la fila se queda, con `deletedAt` puesto y nada\nmás cambiado, y el motivo y la instantánea —con los identificadores de los\ncursos que tenía— van a la auditoría de eliminación. **`POST` y no `DELETE`**\nporque el cuerpo lleva el motivo, que es obligatorio, y un `DELETE` con\ncuerpo no tiene garantías.\n\n**No arrastra nada y nunca se rechaza por tener cursos**: la categoría es un\nfiltro del catálogo. Sus cursos siguen vivos y se siguen ofreciendo —un curso\nsin categoría se ofrece igual—, y sus clasificaciones se conservan y dejan de\nenseñarse. La portada se queda: el detalle de una retirada la sigue\ndevolviendo.\n\nEl nombre de la retirada **queda libre** para un alta. Sale del listado salvo\n`includeDeleted=true`, y su detalle trae el motivo. Retirar una ya retirada\nresponde `409`, distinto del `404` de la inexistente: quien retira dos veces\nmerece saber que la primera funcionó. Exige `course-categories:delete`.\n",
@@ -7976,7 +8200,7 @@
     },
     "/api/v1/courses" : {
       "get" : {
-        "description" : "**Permiso requerido:** `courses:read`. Sin él, `403` (`AUTH-002`).\n\nLa lista de administración de los cursos, paginada, **en el orden en que se\nenseñan**: por `displayOrder` ascendente, con el más antiguo primero entre\ndos que compartan número. Cada fila trae el instructor resuelto —con su\nnombre **actual**—, `coverImageUrl`, sus categorías vivas, **`offerable`** y\ncuántos módulos y lecciones **vivos** tiene — vivos y no ofrecidos—. Sin\ndescripción larga, video ni árbol: para eso está el detalle.\n\nFiltra por `q` —título, sin distinguir mayúsculas ni acentos—, `categoryId`,\n`instructorId`, `difficulty` y `status`, combinables. **Excluye los\nretirados** salvo `includeDeleted=true`, y entonces los trae con `deletedAt`\ny `offerable: false`. «Ofrecible» no es filtro: se publica por fila.\n\nOrden: `displayOrder` (omisión, ascendente), `title` y `createdAt`\n(descendente por omisión), con `,asc`/`,desc`. Los parámetros inválidos se\ndevuelven **juntos** con `400`. Exige `courses:read`;\n`course-categories:read` no habilita.\n",
+        "description" : "**Permiso requerido:** `courses:read`. Sin él, `403` (`AUTH-002`).\n\nLa lista de administración de los cursos, paginada, **en el orden en que se\nenseñan**: por `displayOrder` ascendente, con el más antiguo primero entre\ndos que compartan número. Cada fila trae el instructor resuelto —con su\nnombre **actual**—, `coverImageUrl`, sus categorías vivas, **`offerable`** y\ncuántos módulos y lecciones **vivos** tiene — vivos y no ofrecidos—. Sin\ndescripción larga, video ni árbol: para eso está el detalle.\n\nFiltra por `q` —título, sin distinguir mayúsculas ni acentos—, `categoryId`,\n`instructorId`, `difficulty` y `status`, combinables. `categoryId` deja los\nclasificados en esa categoría **si está viva**: filtrar por una retirada\ndevuelve vacío, porque ninguna fila la enseña en `categories`. **Excluye los\nretirados** salvo `includeDeleted=true`, y entonces los trae con `deletedAt`\ny `offerable: false`. «Ofrecible» no es filtro: se publica por fila.\n\nOrden: `displayOrder` (omisión, ascendente), `title` y `createdAt`\n(descendente por omisión), con `,asc`/`,desc`. Los parámetros inválidos se\ndevuelven **juntos** con `400`. Exige `courses:read`;\n`course-categories:read` no habilita.\n",
         "operationId" : "listar_6",
         "parameters" : [ {
           "in" : "query",
@@ -8093,7 +8317,7 @@
         "x-required-permission" : "courses:read"
       },
       "post" : {
-        "description" : "**Permiso requerido:** `courses:create`. Sin él, `403` (`AUTH-002`).\n\nRegistra un curso con **título, instructor, dificultad y orden**, obligatorios,\ny descripción corta, descripción larga y video de introducción, opcionales.\n**Nace `INACTIVO` y vacío**: sin categorías, sin recomendaciones, sin\nmembresías, sin módulos y sin portada — cada cosa entra por su operación—, y\n**sin código**: un curso no se teclea en ninguna venta.\n\n**El instructor es una persona del sistema que existe, no está retirada y\nporta `courses:teach`**, comprobado **al asignar y solo al asignar**: que lo\npierda después no toca el curso. Un instructor inexistente o retirado y uno\nsin el permiso son dos `422` distintos, porque se arreglan en sitios\ndistintos. **`instructor.fullName` es el nombre actual** de la persona, no\nuna copia.\n\nEl título es único entre los cursos **vivos**, sin distinguir mayúsculas ni\nacentos; un retirado libera el suyo. Las descripciones de solo espacios se\nguardan nulas; el video se comprueba en su forma y **no se sigue**. Enviar\n`status`, `categories`, `memberships`, `modules`, `coverImageUrl` o `code`\nresponde `400`.\n\nLa respuesta es la forma del detalle: listas vacías, `coverImageUrl`\npresente y nulo, cero minutos y cero lecciones, y `offerable: false` con\n`offerableReason` «inactivo». Exige `courses:create`; **los\n`course-categories:` no habilitan**.\n",
+        "description" : "**Permiso requerido:** `courses:create`. Sin él, `403` (`AUTH-002`).\n\nRegistra un curso con **título, instructor, dificultad y orden**, obligatorios,\ny descripción corta, descripción larga y video de introducción, opcionales. Y\n**quién lo puede ver y dónde se encuentra**, también opcionales:\n\n- **`categoryIds`** — las categorías en que nace, cada una **viva**.\n- **`productIds`** — los **servicios** que lo abren: productos de tipo\n  **`BOT`**, no retirados (un servicio inactivo se admite).\n- **`membershipIds`** — las **membresías** que lo abren. Es una lista, no un\n  nivel mínimo: dar `ORO` no lo abre a `PLATINO`.\n\n**Cada lista es todo o nada**: si algo no sirve responde `422` —`EX-004`\ncategorías, `EX-005` servicios (inexistente, retirado o que no es `BOT`),\n`EX-006` membresías— **nombrando todo lo que falla**, y **no se crea nada**.\nRepetidos o nulos en cualquiera, `400` (`VAL-008`). Ausente o vacía es\n«ninguno». Cada fila deja su auditoría, como darla después con su operación.\n\n**Nace `INACTIVO`**, sin recomendaciones, módulos ni portada —**la portada,\npor `PUT /api/v1/courses/{id}/cover` justo después**—, y **sin código**: un\ncurso no se teclea en ninguna venta.\n\n**El instructor es una persona del sistema que existe, no está retirada y\nporta `courses:teach`**, comprobado **al asignar y solo al asignar**: que lo\npierda después no toca el curso. Un instructor inexistente o retirado y uno\nsin el permiso son dos `422` distintos, porque se arreglan en sitios\ndistintos. **`instructor.fullName` es el nombre actual** de la persona, no\nuna copia.\n\nEl título es único entre los cursos **vivos**, sin distinguir mayúsculas ni\nacentos; un retirado libera el suyo. Las descripciones de solo espacios se\nguardan nulas; el video se comprueba en su forma y **no se sigue**. Enviar\n`status`, `categories`, `memberships`, `modules`, `coverImageUrl` o `code`\nresponde `400`.\n\nLa respuesta es la forma del detalle: `categories` con las pedidas en su\norden, las demás listas vacías, `coverImageUrl` presente y nulo, cero segundos y cero lecciones, y `offerable: false` con\n`offerableReason` «inactivo». Exige `courses:create`; **los\n`course-categories:` no habilitan**.\n",
         "operationId" : "register_3",
         "requestBody" : {
           "content" : {
@@ -8124,7 +8348,7 @@
                 }
               }
             },
-            "description" : "Datos inválidos, juntos (`VAL-001` a `VAL-006`), o un campo no admitido (`VAL-007`)"
+            "description" : "Datos inválidos, juntos (`VAL-001` a `VAL-006`, y un identificador nulo en cualquiera de las tres listas en `VAL-008`); un campo no admitido (`VAL-007`); o identificadores repetidos en una lista (`VAL-008`)"
           },
           "401" : {
             "content" : {
@@ -8164,7 +8388,7 @@
                 }
               }
             },
-            "description" : "El instructor no existe o está retirado (`EX-002`), o no porta `courses:teach` (`EX-003`)"
+            "description" : "El instructor no existe o está retirado (`EX-002`), no porta `courses:teach` (`EX-003`); o, nombrando todo lo que falla, categorías que no existen o están retiradas (`EX-004`), productos que no son servicios vivos (`EX-005`) o membresías que no existen (`EX-006`)"
           }
         },
         "summary" : "Registrar un curso",
@@ -8172,9 +8396,365 @@
         "x-required-permission" : "courses:create"
       }
     },
+    "/api/v1/courses/{courseId}/categories" : {
+      "post" : {
+        "description" : "**Permiso requerido:** `courses:update`. Sin él, `403` (`AUTH-002`).\n\nPone el curso en una categoría. **La clasificación es libre y no se repite**:\nun curso está en cuantas categorías haga falta —**una por petición**; para\nponerlo en tres, tres peticiones— y la misma pareja no entra dos veces.\n\n**No toca el estado ni la ofrecibilidad**: un curso `INACTIVO` se clasifica\nigual, y un curso sin categoría se ofrece igual — la categoría es un filtro\ndel catálogo, no una condición.\n\nEl curso tiene que estar **vivo** (`404` si no existe o está retirado, porque\nva en la ruta) y la categoría también (`422` si no existe o está retirada,\nporque va en el cuerpo). La pareja repetida responde `409` **nombrando la\ncategoría**. Enviar un campo distinto de `categoryId` responde `400`.\n\nLa respuesta es el curso en la forma del detalle, con la nueva en\n`categories`. Exige `courses:update`; **los `course-categories:` no\nhabilitan**.\n",
+        "operationId" : "clasificar",
+        "parameters" : [ {
+          "in" : "path",
+          "name" : "courseId",
+          "required" : true,
+          "schema" : {
+            "format" : "uuid",
+            "type" : "string"
+          }
+        } ],
+        "requestBody" : {
+          "content" : {
+            "application/json" : {
+              "schema" : {
+                "$ref" : "#/components/schemas/ClassifyCourseRequest"
+              }
+            }
+          },
+          "required" : true
+        },
+        "responses" : {
+          "201" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/CourseDetailResponse"
+                }
+              }
+            },
+            "description" : "Curso clasificado, en la forma del detalle."
+          },
+          "400" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/CourseDetailResponse"
+                }
+              }
+            },
+            "description" : "Identificador inválido (`VAL-001`), `categoryId` ausente o mal formado (`VAL-002`), o un campo no admitido (`VAL-003`)"
+          },
+          "401" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/CourseDetailResponse"
+                }
+              }
+            },
+            "description" : "Token ausente o inválido (`AUTH-001`)"
+          },
+          "403" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/CourseDetailResponse"
+                }
+              }
+            },
+            "description" : "Autenticado sin el permiso `courses:update` (`AUTH-002`)"
+          },
+          "404" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/CourseDetailResponse"
+                }
+              }
+            },
+            "description" : "El curso no existe o está retirado (`EX-001`)"
+          },
+          "409" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/CourseDetailResponse"
+                }
+              }
+            },
+            "description" : "El curso ya está en esa categoría; el mensaje la nombra (`EX-003`)"
+          },
+          "422" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/CourseDetailResponse"
+                }
+              }
+            },
+            "description" : "La categoría no existe o está retirada (`EX-002`)"
+          }
+        },
+        "summary" : "Clasificar un curso en una categoría",
+        "tags" : [ "Cursos" ],
+        "x-required-permission" : "courses:update"
+      }
+    },
+    "/api/v1/courses/{courseId}/categories/{categoryId}" : {
+      "delete" : {
+        "description" : "**Permiso requerido:** `courses:update`. Sin él, `403` (`AUTH-002`).\n\nSaca el curso de la categoría: **borra la pareja, sin motivo**, y lo registra\ncomo eliminación de una asociación. Sin cuerpo.\n\n**No toca el estado ni la ofrecibilidad**: el curso que se ofrecía se sigue\nofreciendo aunque se quede sin categoría. **Una categoría retirada se\ndesclasifica igual**: la pareja existe, y así se limpia lo que el retiro\ndejó.\n\nEl curso tiene que estar **vivo**. Los dos `404` se distinguen por el\nmensaje: el curso no existe o está retirado, o el curso no está en esa\ncategoría. La respuesta es el curso en la forma del detalle, sin la\ncategoría. Exige `courses:update`.\n",
+        "operationId" : "desclasificar",
+        "parameters" : [ {
+          "in" : "path",
+          "name" : "courseId",
+          "required" : true,
+          "schema" : {
+            "format" : "uuid",
+            "type" : "string"
+          }
+        }, {
+          "in" : "path",
+          "name" : "categoryId",
+          "required" : true,
+          "schema" : {
+            "format" : "uuid",
+            "type" : "string"
+          }
+        } ],
+        "responses" : {
+          "200" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/CourseDetailResponse"
+                }
+              }
+            },
+            "description" : "Curso desclasificado, en la forma del detalle."
+          },
+          "400" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/CourseDetailResponse"
+                }
+              }
+            },
+            "description" : "Identificador inválido (`VAL-001`)"
+          },
+          "401" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/CourseDetailResponse"
+                }
+              }
+            },
+            "description" : "Token ausente o inválido (`AUTH-001`)"
+          },
+          "403" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/CourseDetailResponse"
+                }
+              }
+            },
+            "description" : "Autenticado sin el permiso `courses:update` (`AUTH-002`)"
+          },
+          "404" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/CourseDetailResponse"
+                }
+              }
+            },
+            "description" : "El curso no existe o está retirado (`EX-001`), o no está en esa categoría (`EX-002`)"
+          }
+        },
+        "summary" : "Desclasificar un curso de una categoría",
+        "tags" : [ "Cursos" ],
+        "x-required-permission" : "courses:update"
+      }
+    },
+    "/api/v1/courses/{courseId}/memberships" : {
+      "post" : {
+        "description" : "**Permiso requerido:** `courses:update`. Sin él, `403` (`AUTH-002`).\n\nDeclara que **una membresía abre el curso**: quien la tenga **vigente** podrá\nestudiarlo. **Es una lista, no un nivel mínimo**: dar `ORO` no lo abre a\n`PLATINO`; «este nivel y los de arriba» se añaden uno a uno. **Se suma a los\nservicios**: el curso se abre con una de sus membresías **o** uno de sus\nservicios. Una pareja por petición.\n\nLa membresía tiene que existir (`422` `EX-002` si no); la pareja repetida\nresponde `409` **nombrando la membresía por su código**. El curso tiene que\nestar vivo, en cualquier estado: la lista se arma antes de publicar. Con su\nprimera llave, un curso activo, con descripciones y un módulo ofrecible **se\nofrece**. Que un alumno lo estudie lo decide el aula.\n\nLa respuesta es el curso en la forma del detalle, con la membresía en\n`memberships` —identificador, código, nombre, color—, en el orden de la cadena.\nExige `courses:update`.\n",
+        "operationId" : "darMembresia",
+        "parameters" : [ {
+          "in" : "path",
+          "name" : "courseId",
+          "required" : true,
+          "schema" : {
+            "format" : "uuid",
+            "type" : "string"
+          }
+        } ],
+        "requestBody" : {
+          "content" : {
+            "application/json" : {
+              "schema" : {
+                "$ref" : "#/components/schemas/GrantCourseMembershipRequest"
+              }
+            }
+          },
+          "required" : true
+        },
+        "responses" : {
+          "201" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/CourseDetailResponse"
+                }
+              }
+            },
+            "description" : "La membresía abre el curso; el curso en la forma del detalle."
+          },
+          "400" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/CourseDetailResponse"
+                }
+              }
+            },
+            "description" : "Identificador inválido (`VAL-001`), `membershipId` ausente o mal formado (`VAL-002`), o un campo no admitido (`VAL-003`)"
+          },
+          "401" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/CourseDetailResponse"
+                }
+              }
+            },
+            "description" : "Token ausente o inválido (`AUTH-001`)"
+          },
+          "403" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/CourseDetailResponse"
+                }
+              }
+            },
+            "description" : "Autenticado sin el permiso `courses:update` (`AUTH-002`)"
+          },
+          "404" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/CourseDetailResponse"
+                }
+              }
+            },
+            "description" : "El curso no existe o está retirado (`EX-001`)"
+          },
+          "409" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/CourseDetailResponse"
+                }
+              }
+            },
+            "description" : "Esa membresía ya abre el curso; el mensaje la nombra (`EX-003`)"
+          },
+          "422" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/CourseDetailResponse"
+                }
+              }
+            },
+            "description" : "La membresía no existe (`EX-002`)"
+          }
+        },
+        "summary" : "Dar visibilidad de un curso a una membresía",
+        "tags" : [ "Cursos" ],
+        "x-required-permission" : "courses:update"
+      }
+    },
+    "/api/v1/courses/{courseId}/memberships/{membershipId}" : {
+      "delete" : {
+        "description" : "**Permiso requerido:** `courses:update`. Sin él, `403` (`AUTH-002`).\n\nDeja de abrir el curso con esa membresía: **borra la pareja, sin motivo**, y lo\nregistra como eliminación de una asociación. Sin cuerpo.\n\n**Quitar la última nunca se rechaza**: si el curso tampoco tiene servicios,\ndeja de ofrecerse y el detalle lo dice —es la forma de retirar un curso de la\nvista de todos sin desactivarlo—. Los dos `404` se distinguen por el mensaje:\nel curso no existe o está retirado, o esa membresía no lo abre. La respuesta\nes el curso en la forma del detalle. Exige `courses:update`.\n",
+        "operationId" : "quitarMembresia",
+        "parameters" : [ {
+          "in" : "path",
+          "name" : "courseId",
+          "required" : true,
+          "schema" : {
+            "format" : "uuid",
+            "type" : "string"
+          }
+        }, {
+          "in" : "path",
+          "name" : "membershipId",
+          "required" : true,
+          "schema" : {
+            "format" : "uuid",
+            "type" : "string"
+          }
+        } ],
+        "responses" : {
+          "200" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/CourseDetailResponse"
+                }
+              }
+            },
+            "description" : "La membresía ya no abre el curso; el curso en la forma del detalle."
+          },
+          "400" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/CourseDetailResponse"
+                }
+              }
+            },
+            "description" : "Identificador inválido (`VAL-001`)"
+          },
+          "401" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/CourseDetailResponse"
+                }
+              }
+            },
+            "description" : "Token ausente o inválido (`AUTH-001`)"
+          },
+          "403" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/CourseDetailResponse"
+                }
+              }
+            },
+            "description" : "Autenticado sin el permiso `courses:update` (`AUTH-002`)"
+          },
+          "404" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/CourseDetailResponse"
+                }
+              }
+            },
+            "description" : "El curso no existe o está retirado (`EX-001`), o esa membresía no lo abre (`EX-002`)"
+          }
+        },
+        "summary" : "Quitar la visibilidad de un curso a una membresía",
+        "tags" : [ "Cursos" ],
+        "x-required-permission" : "courses:update"
+      }
+    },
     "/api/v1/courses/{courseId}/modules" : {
       "post" : {
-        "description" : "**Permiso requerido:** `courses:update`. Sin él, `403` (`AUTH-002`).\n\nRegistra una parte del curso con **título y orden**, obligatorios, y descripción\ncorta, descripción larga y video de presentación, opcionales. **Nace `INACTIVO`,\nvacío y dentro del curso de la ruta**, del que no se mueve: enviar `courseId`,\n`status`, `lessons` o `coverImageUrl` responde `400`.\n\n**El título es único entre los módulos vivos del mismo curso**, sin mayúsculas\nni acentos; el mismo título en otro curso es legítimo, y un retirado libera el\nsuyo. El curso tiene que estar **vivo**, en cualquier estado — un curso activo\nadmite el módulo igual, que no cambia lo que el aula enseña hasta activarse.\n\nLa respuesta es **el módulo**, no el curso: `courseId`, `coverImageUrl`\npresente y nulo, `lessons` vacío, cero minutos y `offerable: false` con\n`offerableReason` «inactivo». Exige `courses:update`.\n",
+        "description" : "**Permiso requerido:** `courses:update`. Sin él, `403` (`AUTH-002`).\n\nRegistra una parte del curso con **título y orden**, obligatorios, y descripción\ncorta, descripción larga y video de presentación, opcionales. **Nace `INACTIVO`,\nvacío y dentro del curso de la ruta**, del que no se mueve: enviar `courseId`,\n`status`, `lessons` o `coverImageUrl` responde `400`.\n\n**El título es único entre los módulos vivos del mismo curso**, sin mayúsculas\nni acentos; el mismo título en otro curso es legítimo, y un retirado libera el\nsuyo. El curso tiene que estar **vivo**, en cualquier estado — un curso activo\nadmite el módulo igual, que no cambia lo que el aula enseña hasta activarse.\n\nLa respuesta es **el módulo**, no el curso: `courseId`, `coverImageUrl`\npresente y nulo, `lessons` vacío, cero segundos y `offerable: false` con\n`offerableReason` «inactivo». Exige `courses:update`.\n",
         "operationId" : "register_4",
         "parameters" : [ {
           "in" : "path",
@@ -8417,7 +8997,7 @@
     },
     "/api/v1/courses/{courseId}/modules/{moduleId}/lessons" : {
       "post" : {
-        "description" : "**Permiso requerido:** `courses:update`. Sin él, `403` (`AUTH-002`).\n\nRegistra una lección con **tipo (`VIDEO` o `TEXTO`), título, duración en\nminutos enteros y orden**, obligatorios, y descripción, contenido y `open`\nopcionales. **El tipo manda sobre el contenido**: en un `VIDEO` es una URL\nabsoluta http o https; en un `TEXTO` es Markdown que **el backend guarda y\ndevuelve sin interpretar ni sanear** — quien lo pinta es el frontend, y tiene\nque hacerlo con un conversor que no ejecute lo que encuentre.\n\n**Nace `INACTIVA`**, con `open` falsa si no vino, y **el contenido es opcional al\nregistrar y obligatorio para activar**. El título es único entre las lecciones\nvivas del mismo módulo. El módulo tiene que estar **vivo y ser del curso de la\nruta**; enviar `status`, `moduleId` o `courseId` es `400`. Los errores de forma\nllegan **juntos**, incluido el del contenido de un video.\n\n**La auditoría lleva la longitud del contenido y no el texto.** La respuesta es\nla lección entera, contenido incluido. Exige `courses:update`.\n",
+        "description" : "**Permiso requerido:** `courses:update`. Sin él, `403` (`AUTH-002`).\n\nRegistra una lección con **tipo (`VIDEO` o `TEXTO`), título, duración en\nsegundos enteros y orden**, obligatorios, y descripción, contenido y `open`\nopcionales. **`durationSeconds` es en segundos** desde el 25-09-2026 —un video\nde 12 min 34 s es `754`—, y las sumas del módulo (`durationSeconds`) y del\ncurso (`totalDurationSeconds`) también; el formato «1 h 05 min» es del\nfrontend. **El tipo manda sobre el contenido**: en un `VIDEO` es una URL\nabsoluta http o https; en un `TEXTO` es Markdown que **el backend guarda y\ndevuelve sin interpretar ni sanear** — quien lo pinta es el frontend, y tiene\nque hacerlo con un conversor que no ejecute lo que encuentre.\n\n**Nace `INACTIVA`**, con `open` falsa si no vino, y **el contenido es opcional al\nregistrar y obligatorio para activar**. El título es único entre las lecciones\nvivas del mismo módulo. El módulo tiene que estar **vivo y ser del curso de la\nruta**; enviar `status`, `moduleId` o `courseId` es `400`. Los errores de forma\nllegan **juntos**, incluido el del contenido de un video.\n\n**La auditoría lleva la longitud del contenido y no el texto.** La respuesta es\nla lección entera, contenido incluido. Exige `courses:update`.\n",
         "operationId" : "register_5",
         "parameters" : [ {
           "in" : "path",
@@ -8599,7 +9179,7 @@
         "x-required-permission" : "courses:read"
       },
       "patch" : {
-        "description" : "**Permiso requerido:** `courses:update`. Sin él, `403` (`AUTH-002`).\n\nCorrección **parcial** sobre `type`, `title`, `description`, `content`,\n`durationMinutes`, `displayOrder` y `open`; exige al menos uno. Solo la\ndescripción y el contenido admiten `null` —**también en una lección activa, que\nsigue activa y deja de ofrecerse**—; el nulo en los otros cinco es `400`.\n\n**Cambiar el tipo exige que el contenido resultante case con él**: pasar a\n`VIDEO` con un texto guardado y sin URL en la petición responde `400` **sin\naplicar nada**; pasar a `TEXTO` con una URL guardada se admite. **El contenido se\naudita como longitud y no como texto.** La lección no cambia de módulo: `moduleId`,\n`courseId` y `status` en el cuerpo son `400`. Exige `courses:update`.\n",
+        "description" : "**Permiso requerido:** `courses:update`. Sin él, `403` (`AUTH-002`).\n\nCorrección **parcial** sobre `type`, `title`, `description`, `content`,\n`durationSeconds`, `displayOrder` y `open`; exige al menos uno. Solo la\ndescripción y el contenido admiten `null` —**también en una lección activa, que\nsigue activa y deja de ofrecerse**—; el nulo en los otros cinco es `400`.\n\n**Cambiar el tipo exige que el contenido resultante case con él**: pasar a\n`VIDEO` con un texto guardado y sin URL en la petición responde `400` **sin\naplicar nada**; pasar a `TEXTO` con una URL guardada se admite. **El contenido se\naudita como longitud y no como texto.** La lección no cambia de módulo: `moduleId`,\n`courseId` y `status` en el cuerpo son `400`. Exige `courses:update`.\n",
         "operationId" : "corregir_6",
         "parameters" : [ {
           "in" : "path",
@@ -8970,9 +9550,187 @@
         "x-required-permission" : "courses:update"
       }
     },
+    "/api/v1/courses/{courseId}/products" : {
+      "post" : {
+        "description" : "**Permiso requerido:** `courses:update`. Sin él, `403` (`AUTH-002`).\n\nDeclara que **un servicio abre el curso**: quien tenga **vigente** ese\nproducto podrá estudiarlo. **Se suma a las membresías**: el curso se abre con\nuna de sus membresías **o** uno de sus servicios. Una pareja por petición.\n\n**Solo abre un curso un producto de tipo `BOT`** —el servicio—. El producto\ntiene que existir y **no estar retirado**; **un servicio `INACTIVO` se añade\nigual**, para armar el curso antes de ponerlo a la venta. Un producto\ninexistente o retirado (`EX-002`) y un upgrade de membresía (`EX-003`) son\ndos `422` distintos. La pareja repetida responde `409` **nombrando el\nservicio por su código**. El curso tiene que estar vivo, en cualquier estado.\n\n**Retirar después el servicio en productos no lo quita de aquí**: quien lo\ncompró lo tiene hasta que venza. Con su primer servicio, un curso activo, con\ndescripciones y un módulo ofrecible **se ofrece aunque no tenga membresías**.\nQue un alumno lo estudie por su servicio lo decide el aula.\n\nLa respuesta es el curso en la forma del detalle, con el servicio en\n`products` —identificador, código, nombre—. Exige `courses:update`; **los\npermisos de productos no habilitan**.\n",
+        "operationId" : "darServicio",
+        "parameters" : [ {
+          "in" : "path",
+          "name" : "courseId",
+          "required" : true,
+          "schema" : {
+            "format" : "uuid",
+            "type" : "string"
+          }
+        } ],
+        "requestBody" : {
+          "content" : {
+            "application/json" : {
+              "schema" : {
+                "$ref" : "#/components/schemas/GrantCourseProductRequest"
+              }
+            }
+          },
+          "required" : true
+        },
+        "responses" : {
+          "201" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/CourseDetailResponse"
+                }
+              }
+            },
+            "description" : "El servicio abre el curso; el curso en la forma del detalle."
+          },
+          "400" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/CourseDetailResponse"
+                }
+              }
+            },
+            "description" : "Identificador inválido (`VAL-001`), `productId` ausente o mal formado (`VAL-002`), o un campo no admitido (`VAL-003`)"
+          },
+          "401" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/CourseDetailResponse"
+                }
+              }
+            },
+            "description" : "Token ausente o inválido (`AUTH-001`)"
+          },
+          "403" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/CourseDetailResponse"
+                }
+              }
+            },
+            "description" : "Autenticado sin el permiso `courses:update` (`AUTH-002`)"
+          },
+          "404" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/CourseDetailResponse"
+                }
+              }
+            },
+            "description" : "El curso no existe o está retirado (`EX-001`)"
+          },
+          "409" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/CourseDetailResponse"
+                }
+              }
+            },
+            "description" : "Ese servicio ya abre el curso; el mensaje lo nombra (`EX-004`)"
+          },
+          "422" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/CourseDetailResponse"
+                }
+              }
+            },
+            "description" : "El producto no existe o está retirado (`EX-002`), o no es un servicio (`EX-003`)"
+          }
+        },
+        "summary" : "Dar visibilidad de un curso a un servicio",
+        "tags" : [ "Cursos" ],
+        "x-required-permission" : "courses:update"
+      }
+    },
+    "/api/v1/courses/{courseId}/products/{productId}" : {
+      "delete" : {
+        "description" : "**Permiso requerido:** `courses:update`. Sin él, `403` (`AUTH-002`).\n\nDeja de abrir el curso con ese servicio: **borra la pareja, sin motivo**, y lo\nregistra como eliminación de una asociación. Sin cuerpo.\n\n**Quitar el último nunca se rechaza**: si el curso tampoco tiene membresías,\ndeja de ofrecerse y el detalle lo dice. **Un servicio retirado en productos\nse quita igual.** Los dos `404` se distinguen por el mensaje: el curso no\nexiste o está retirado, o ese servicio no abre el curso. La respuesta es el\ncurso en la forma del detalle. Exige `courses:update`.\n",
+        "operationId" : "quitarServicio",
+        "parameters" : [ {
+          "in" : "path",
+          "name" : "courseId",
+          "required" : true,
+          "schema" : {
+            "format" : "uuid",
+            "type" : "string"
+          }
+        }, {
+          "in" : "path",
+          "name" : "productId",
+          "required" : true,
+          "schema" : {
+            "format" : "uuid",
+            "type" : "string"
+          }
+        } ],
+        "responses" : {
+          "200" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/CourseDetailResponse"
+                }
+              }
+            },
+            "description" : "El servicio ya no abre el curso; el curso en la forma del detalle."
+          },
+          "400" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/CourseDetailResponse"
+                }
+              }
+            },
+            "description" : "Identificador inválido (`VAL-001`)"
+          },
+          "401" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/CourseDetailResponse"
+                }
+              }
+            },
+            "description" : "Token ausente o inválido (`AUTH-001`)"
+          },
+          "403" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/CourseDetailResponse"
+                }
+              }
+            },
+            "description" : "Autenticado sin el permiso `courses:update` (`AUTH-002`)"
+          },
+          "404" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/CourseDetailResponse"
+                }
+              }
+            },
+            "description" : "El curso no existe o está retirado (`EX-001`), o ese servicio no lo abre (`EX-002`)"
+          }
+        },
+        "summary" : "Quitar la visibilidad de un curso a un servicio",
+        "tags" : [ "Cursos" ],
+        "x-required-permission" : "courses:update"
+      }
+    },
     "/api/v1/courses/{id}" : {
       "get" : {
-        "description" : "**Permiso requerido:** `courses:read`. Sin él, `403` (`AUTH-002`).\n\nEl curso entero: lo suyo, el instructor resuelto, `coverImageUrl`, sus\n**categorías** vivas, los **cursos que recomienda** —con su estado y si se\nofrecen—, las **membresías que lo abren**, y **sus módulos en orden con sus\nlecciones en orden**, vivos y retirados marcados, cada módulo con `offerable`\ny cada lección con tipo, duración, estado y `open` — **sin el contenido**, que\nse pide por lección. La duración total y la cuenta de lecciones se suman sobre\nlo vivo.\n\n**`offerable` y `offerableReason` viajan siempre**, con el primer motivo que\nfalla en su orden: retirado, inactivo, sin descripción, sin membresías, sin\nmódulo activo con lección activa con contenido. Es la vista con la que se\narma el curso y se ve qué le falta para publicarse.\n\n**Se devuelve también un retirado**, con `deletedAt` y `deletionReason`\n—leído de la auditoría— y su árbol marcado: es la lectura de administración\ny devuelve todo.\n",
+        "description" : "**Permiso requerido:** `courses:read`. Sin él, `403` (`AUTH-002`).\n\nEl curso entero: lo suyo, el instructor resuelto, `coverImageUrl`, sus\n**categorías** vivas, los **cursos que recomienda** —con su estado y si se\nofrecen—, las **membresías** y los **servicios** que lo abren —estos en\n`products`, con código y nombre, también el que productos retiró después—, y\n**sus módulos en orden con sus\nlecciones en orden**, vivos y retirados marcados, cada módulo con `offerable`\ny cada lección con tipo, duración, estado y `open` — **sin el contenido**, que\nse pide por lección. La duración total y la cuenta de lecciones se suman sobre\nlo vivo.\n\n**`offerable` y `offerableReason` viajan siempre**, con el primer motivo que\nfalla en su orden: retirado, inactivo, sin descripción, **sin membresías ni\nservicios** —basta uno de los dos—, sin módulo activo con lección activa con\ncontenido. Es la vista con la que se\narma el curso y se ve qué le falta para publicarse.\n\n**Se devuelve también un retirado**, con `deletedAt` y `deletionReason`\n—leído de la auditoría— y su árbol marcado: es la lectura de administración\ny devuelve todo.\n",
         "operationId" : "detalle_5",
         "parameters" : [ {
           "in" : "path",
@@ -9138,9 +9896,94 @@
         "x-required-permission" : "courses:update"
       }
     },
+    "/api/v1/courses/{id}/cover" : {
+      "put" : {
+        "description" : "**Permiso requerido:** `courses:update`. Sin él, `403` (`AUTH-002`).\n\nRecibe **un archivo** —`multipart/form-data`, una sola parte llamada\n`file`— y lo convierte en la portada del curso, **tal cual**. **El alta\ndel curso es JSON y no admite la imagen**: se crea el curso y se sube su\nportada con esta operación justo después.\n\n**El tipo lo deciden los bytes, no la cabecera**: `JPEG`, `PNG` o `WebP`,\nreconocidos por su firma. **Hasta 5 MB** (`VAL-004`); sin archivo o vacío,\n`VAL-002`; otro formato, `VAL-003`. Los tres nombran `file`, y son **los\nmismos de la portada de un producto**.\n\n**Si ya tenía portada, la reemplaza**: la nueva estrena identificador, **la\nanterior se borra** y `coverImageUrl` cambia de dirección —\n`/api/v1/academy-images/{imageId}`, pública y con caché inmutable—, en el\ndetalle y en el listado. **En cualquier estado**: un curso `INACTIVO`, sin\nmódulos y sin membresías recibe su portada igual. Un curso retirado\nresponde `404`. Exige `courses:update`; **`course-categories:update` no\nhabilita**.\n",
+        "operationId" : "subirPortada_2",
+        "parameters" : [ {
+          "in" : "path",
+          "name" : "id",
+          "required" : true,
+          "schema" : {
+            "format" : "uuid",
+            "type" : "string"
+          }
+        } ],
+        "requestBody" : {
+          "content" : {
+            "multipart/form-data" : {
+              "schema" : {
+                "properties" : {
+                  "file" : {
+                    "format" : "binary",
+                    "type" : "string"
+                  }
+                },
+                "type" : "object"
+              }
+            }
+          }
+        },
+        "responses" : {
+          "200" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/CourseDetailResponse"
+                }
+              }
+            },
+            "description" : "El curso, con `coverImageUrl` señalando la imagen nueva."
+          },
+          "400" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/CourseDetailResponse"
+                }
+              }
+            },
+            "description" : "Identificador inválido (`VAL-001`), sin archivo o vacío (`VAL-002`), ni JPEG ni PNG ni WebP por sus bytes (`VAL-003`), más de 5 MB (`VAL-004`) o petición que no es `multipart/form-data` (`EX-002`)"
+          },
+          "401" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/CourseDetailResponse"
+                }
+              }
+            },
+            "description" : "Token ausente o inválido (`AUTH-001`)"
+          },
+          "403" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/CourseDetailResponse"
+                }
+              }
+            },
+            "description" : "Autenticado sin el permiso `courses:update` (`AUTH-002`)"
+          },
+          "404" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/CourseDetailResponse"
+                }
+              }
+            },
+            "description" : "El curso no existe o está retirado (`EX-001`)"
+          }
+        },
+        "summary" : "Subir o reemplazar la portada de un curso",
+        "tags" : [ "Cursos" ],
+        "x-required-permission" : "courses:update"
+      }
+    },
     "/api/v1/courses/{id}/deletion" : {
       "post" : {
-        "description" : "**Permiso requerido:** `courses:delete`. Sin él, `403` (`AUTH-002`).\n\nBaja **lógica y con motivo**: la fila se queda con `deletedAt` puesto y nada\nmás cambiado —ni el estado—, y el motivo y la instantánea —con los\nidentificadores de sus categorías, membresías, recomendados y módulos— van a\nla auditoría de eliminación. **`POST` y no `DELETE`** porque el cuerpo lleva\nel motivo, que es obligatorio.\n\n**Retirar un curso arrastra sus módulos y lecciones vivos**, con el mismo\ninstante y el mismo motivo, y **una fila de auditoría por cada uno**. Sus\nclasificaciones, recomendaciones y visibilidades **se conservan** y dejan de\nverse; **deja de aparecer como recomendado** en el aula. Un curso que se\nofrece se retira igual y sale del aula en el acto.\n\nEl título del retirado **queda libre**. Sale del listado salvo\n`includeDeleted=true`, y su detalle trae el motivo y el árbol marcado.\nRetirar uno ya retirado responde `409`, distinto del `404` del inexistente.\nExige `courses:delete`.\n",
+        "description" : "**Permiso requerido:** `courses:delete`. Sin él, `403` (`AUTH-002`).\n\nBaja **lógica y con motivo**: la fila se queda con `deletedAt` puesto y nada\nmás cambiado —ni el estado—, y el motivo y la instantánea —con los\nidentificadores de sus categorías, membresías, servicios, recomendados y\nmódulos— van a\nla auditoría de eliminación. **`POST` y no `DELETE`** porque el cuerpo lleva\nel motivo, que es obligatorio.\n\n**Retirar un curso arrastra sus módulos y lecciones vivos**, con el mismo\ninstante y el mismo motivo, y **una fila de auditoría por cada uno**. Sus\nclasificaciones, recomendaciones y visibilidades **se conservan** y dejan de\nverse; **deja de aparecer como recomendado** en el aula. Un curso que se\nofrece se retira igual y sale del aula en el acto.\n\nEl título del retirado **queda libre**. Sale del listado salvo\n`includeDeleted=true`, y su detalle trae el motivo y el árbol marcado.\nRetirar uno ya retirado responde `409`, distinto del `404` del inexistente.\nExige `courses:delete`.\n",
         "operationId" : "retirar_3",
         "parameters" : [ {
           "in" : "path",
@@ -9187,7 +10030,7 @@
     },
     "/api/v1/courses/{id}/status" : {
       "patch" : {
-        "description" : "**Permiso requerido:** `courses:update`. Sin él, `403` (`AUTH-002`).\n\n`ACTIVO` publica; `INACTIVO` despublica. **Activar exige las dos\ndescripciones y al menos un módulo activo**, comprobado **junto**: si faltan\nvarias cosas, la respuesta trae todos los motivos. **No exige una\nmembresía**: un curso activo sin lista existe y no se ofrece, y el detalle\nlo dice. **Desactivar no exige nada** y no toca módulos ni relaciones.\n\nEl estado es lo que alguien decidió: **vaciar una descripción o retirar el\núltimo módulo activo después no lo cambia** — el curso deja de ofrecerse, y\n`offerableReason` dice por qué. Pedir el estado que ya tiene responde `200`\nsin escribir ni auditar. Un retirado responde `404`. Exige `courses:update`.\n",
+        "description" : "**Permiso requerido:** `courses:update`. Sin él, `403` (`AUTH-002`).\n\n`ACTIVO` publica; `INACTIVO` despublica. **Activar exige las dos\ndescripciones y al menos un módulo activo**, comprobado **junto**: si faltan\nvarias cosas, la respuesta trae todos los motivos. **No exige una\nmembresía ni un servicio**: un curso activo sin ninguno existe y no se\nofrece, y el detalle lo dice. **Desactivar no exige nada** y no toca módulos ni relaciones.\n\nEl estado es lo que alguien decidió: **vaciar una descripción o retirar el\núltimo módulo activo después no lo cambia** — el curso deja de ofrecerse, y\n`offerableReason` dice por qué. Pedir el estado que ya tiene responde `200`\nsin escribir ni auditar. Un retirado responde `404`. Exige `courses:update`.\n",
         "operationId" : "cambiarEstado_6",
         "parameters" : [ {
           "in" : "path",
@@ -15228,7 +16071,7 @@
     "description" : "Alta y administración de las personas del sistema.",
     "name" : "Usuarios"
   }, {
-    "description" : "Lo que la membresía abre: los cursos de la academia.",
+    "description" : "Lo que la membresía o el servicio abren: los cursos de la academia.",
     "name" : "Cursos"
   }, {
     "description" : "A cuánto se cambia una moneda por otra",

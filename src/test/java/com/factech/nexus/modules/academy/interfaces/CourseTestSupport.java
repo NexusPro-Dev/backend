@@ -26,14 +26,26 @@ final class CourseTestSupport {
   private CourseTestSupport() {}
 
   static void limpiar(JdbcTemplate jdbc) {
+    jdbc.update("DELETE FROM course_memberships");
+    jdbc.update("DELETE FROM course_products");
+    jdbc.update("DELETE FROM course_category_items");
     jdbc.update("DELETE FROM lessons");
     jdbc.update("DELETE FROM course_modules");
     jdbc.update("DELETE FROM courses");
+    // Las portadas que ya no señala nadie: sin `ON DELETE`, se borran DESPUÉS
+    // de la fila que las señalaba (`V44`).
+    jdbc.update(
+        "DELETE FROM academy_images i WHERE NOT EXISTS (SELECT 1 FROM course_categories k"
+            + " WHERE k.cover_image_id = i.id) AND NOT EXISTS (SELECT 1 FROM courses c"
+            + " WHERE c.cover_image_id = i.id) AND NOT EXISTS (SELECT 1 FROM course_modules m"
+            + " WHERE m.cover_image_id = i.id)");
     jdbc.update(
         "DELETE FROM audit_change_log WHERE module = 'AC' AND entity IN ('courses',"
+            + " 'course_category_items', 'course_products', 'course_memberships',"
             + " 'course_modules', 'lessons')");
     jdbc.update(
         "DELETE FROM audit_deletion_log WHERE module = 'AC' AND entity IN ('courses',"
+            + " 'course_category_items', 'course_products', 'course_memberships',"
             + " 'course_modules', 'lessons')");
     jdbc.update(
         "DELETE FROM user_roles WHERE user_id IN (SELECT id FROM users WHERE username LIKE 'ac-%')");
@@ -160,27 +172,27 @@ final class CourseTestSupport {
       String titulo,
       String tipo,
       String contenido,
-      int minutos,
+      int segundos,
       int orden,
       String estado) {
     UUID id = IDS.next();
     jdbc.update(
-        "INSERT INTO lessons (id, module_id, type, title, content, duration_minutes,"
+        "INSERT INTO lessons (id, module_id, type, title, content, duration_seconds,"
             + " display_order, status) VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
         id,
         modulo,
         tipo,
         titulo,
         contenido,
-        minutos,
+        segundos,
         orden,
         estado);
     return id;
   }
 
   /** Una lección de texto activa con contenido: la que hace ofrecible a un módulo. */
-  static UUID leccionActiva(JdbcTemplate jdbc, UUID modulo, String titulo, int minutos) {
-    return leccion(jdbc, modulo, titulo, "TEXTO", "# " + titulo, minutos, 0, "ACTIVO");
+  static UUID leccionActiva(JdbcTemplate jdbc, UUID modulo, String titulo, int segundos) {
+    return leccion(jdbc, modulo, titulo, "TEXTO", "# " + titulo, segundos, 0, "ACTIVO");
   }
 
   static void retirarLeccion(JdbcTemplate jdbc, UUID id) {

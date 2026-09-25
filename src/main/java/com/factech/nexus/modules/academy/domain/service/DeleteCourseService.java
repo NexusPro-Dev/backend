@@ -6,6 +6,7 @@ import com.factech.nexus.modules.academy.domain.repository.CourseQueryRepository
 import com.factech.nexus.modules.academy.domain.repository.CourseQueryRepository.CategoryRef;
 import com.factech.nexus.modules.academy.domain.repository.CourseQueryRepository.MembershipRef;
 import com.factech.nexus.modules.academy.domain.repository.CourseQueryRepository.ModuleRow;
+import com.factech.nexus.modules.academy.domain.repository.CourseQueryRepository.ProductRef;
 import com.factech.nexus.modules.academy.domain.repository.CourseQueryRepository.RecommendedCourseRow;
 import com.factech.nexus.modules.academy.domain.repository.CourseRepository;
 import com.factech.nexus.shared.audit.AuditEnums.DeletionType;
@@ -31,9 +32,10 @@ import org.springframework.transaction.annotation.Transactional;
  * <p>El retiro de la categoría con un sexto paso: motivo <b>antes de cualquier consulta</b>, el
  * curso <b>en cualquier estado</b> y bloqueado para distinguir «no existe» de «ya está retirado»,
  * la instantánea antes de marcar —<b>con los identificadores de sus categorías, membresías,
- * recomendados y módulos</b>—, la marca sin tocar nada más —ni el estado—, y <b>el arrastre</b> por
- * {@link CourseTreeRetirement}: sus módulos y lecciones vivos, con el mismo instante y el mismo
- * motivo, una fila de auditoría cada uno (`RN-AC-018`). Las relaciones <b>permanecen</b>.
+ * servicios, recomendados y módulos</b>—, la marca sin tocar nada más —ni el estado—, y <b>el
+ * arrastre</b> por {@link CourseTreeRetirement}: sus módulos y lecciones vivos, con el mismo
+ * instante y el mismo motivo, una fila de auditoría cada uno (`RN-AC-018`). Las relaciones
+ * <b>permanecen</b>.
  */
 @Service
 public class DeleteCourseService {
@@ -94,6 +96,12 @@ public class DeleteCourseService {
         "membership_ids",
         consultas.findMembershipsOf(curso.getId()).stream()
             .map(MembershipRef::id)
+            .map(UUID::toString)
+            .toList());
+    instantanea.put(
+        "product_ids",
+        consultas.findProductsOf(curso.getId()).stream()
+            .map(ProductRef::id)
             .map(UUID::toString)
             .toList());
     instantanea.put(

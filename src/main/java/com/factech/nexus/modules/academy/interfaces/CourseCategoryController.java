@@ -11,6 +11,7 @@ import com.factech.nexus.modules.academy.domain.service.GetCourseCategoryService
 import com.factech.nexus.modules.academy.domain.service.ListCourseCategoriesService;
 import com.factech.nexus.modules.academy.domain.service.RegisterCourseCategoryService;
 import com.factech.nexus.modules.academy.domain.service.UpdateCourseCategoryService;
+import com.factech.nexus.modules.academy.domain.service.UploadCourseCategoryCoverService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.media.Content;
 import io.swagger.v3.oas.annotations.media.Schema;
@@ -21,6 +22,7 @@ import jakarta.validation.Valid;
 import java.net.URI;
 import java.util.UUID;
 import org.springframework.http.HttpStatus;
+import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -28,10 +30,13 @@ import org.springframework.web.bind.annotation.ModelAttribute;
 import org.springframework.web.bind.annotation.PatchMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestPart;
 import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.multipart.MultipartFile;
 
 /**
  * Las categorías del catálogo de cursos (`AC`, `RF-AC-001` a `RF-AC-005`): las cinco operaciones de
@@ -55,13 +60,16 @@ public class CourseCategoryController {
   private final GetCourseCategoryService detalle;
   private final UpdateCourseCategoryService correccion;
   private final DeleteCourseCategoryService retiro;
+  private final UploadCourseCategoryCoverService portada;
 
   public CourseCategoryController(
       RegisterCourseCategoryService alta,
       ListCourseCategoriesService listado,
       GetCourseCategoryService detalle,
       UpdateCourseCategoryService correccion,
-      DeleteCourseCategoryService retiro) {
+      DeleteCourseCategoryService retiro,
+      UploadCourseCategoryCoverService portada) {
+    this.portada = portada;
     this.alta = alta;
     this.listado = listado;
     this.detalle = detalle;
@@ -288,5 +296,52 @@ public class CourseCategoryController {
   public void retirar(
       @PathVariable UUID id, @RequestBody(required = false) DeleteCourseCategoryRequest peticion) {
     retiro.delete(id, peticion);
+  }
+
+  @PutMapping(value = "/{id}/cover", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
+  @PreAuthorize("hasAuthority('course-categories:update')")
+  @Operation(
+      summary = "Subir o reemplazar la portada de una categoría",
+      description =
+          """
+          Recibe **un archivo** —`multipart/form-data`, una sola parte llamada
+          `file`— y lo convierte en la portada de la categoría, **tal cual**: ni
+          recorte, ni redimensión, ni conversión.
+
+          **El tipo lo deciden los bytes, no la cabecera**: `JPEG`, `PNG` o `WebP`,
+          reconocidos por su firma; el `Content-Type` de la parte y el nombre del
+          archivo se ignoran. Un `GIF`, un `SVG` o un texto se rechazan con
+          `VAL-003`. **Hasta 5 MB** (`VAL-004`); sin archivo o vacío, `VAL-002`. Los
+          tres nombran `file`, y son **los mismos de la portada de un producto**.
+
+          **Si ya tenía portada, la reemplaza**: la nueva estrena identificador, **la
+          anterior se borra** y `coverImageUrl` cambia de dirección —
+          `/api/v1/academy-images/{imageId}`, pública y con caché inmutable—. **Sin
+          condición**: la categoría se pinta con su color y su icono cuando no tiene
+          portada, y subirla nunca la deja peor. Una categoría retirada responde
+          `404`. Exige `course-categories:update`.
+          """)
+  @ApiResponses({
+    @ApiResponse(
+        responseCode = "200",
+        description = "La categoría, con `coverImageUrl` señalando la imagen nueva.",
+        content = @Content(schema = @Schema(implementation = CourseCategoryDetailResponse.class))),
+    @ApiResponse(
+        responseCode = "400",
+        description =
+            "Identificador inválido (`VAL-001`), sin archivo o vacío (`VAL-002`), ni JPEG ni PNG"
+                + " ni WebP por sus bytes (`VAL-003`), más de 5 MB (`VAL-004`) o petición que no"
+                + " es `multipart/form-data` (`EX-002`)"),
+    @ApiResponse(responseCode = "401", description = "Token ausente o inválido (`AUTH-001`)"),
+    @ApiResponse(
+        responseCode = "403",
+        description = "Autenticado sin el permiso `course-categories:update` (`AUTH-002`)"),
+    @ApiResponse(
+        responseCode = "404",
+        description = "La categoría no existe o está retirada (`EX-001`)")
+  })
+  public CourseCategoryDetailResponse subirPortada(
+      @PathVariable UUID id, @RequestPart(value = "file", required = false) MultipartFile file) {
+    return portada.upload(id, CoverPart.bytesDe(file));
   }
 }

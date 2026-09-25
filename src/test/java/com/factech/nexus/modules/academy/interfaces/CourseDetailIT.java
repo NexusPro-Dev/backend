@@ -76,7 +76,7 @@ class CourseDetailIT extends IntegrationTestBase {
   @Test
   @DisplayName(
       "`CA-AC-051` — el curso con sus campos, el instructor resuelto, coverImageUrl nula, las cuatro"
-          + " listas y el árbol vacíos, y cero minutos y lecciones")
+          + " listas y el árbol vacíos, y cero segundos y lecciones")
   void laForma() throws Exception {
     mvc.perform(detalle(inactivo))
         .andExpect(status().isOk())
@@ -92,7 +92,7 @@ class CourseDetailIT extends IntegrationTestBase {
         .andExpect(jsonPath("$.recommendedCourses", hasSize(0)))
         .andExpect(jsonPath("$.memberships", hasSize(0)))
         .andExpect(jsonPath("$.modules", hasSize(0)))
-        .andExpect(jsonPath("$.totalDurationMinutes").value(0))
+        .andExpect(jsonPath("$.totalDurationSeconds").value(0))
         .andExpect(jsonPath("$.lessonCount").value(0))
         .andExpect(jsonPath("$.deletedAt").doesNotExist())
         .andExpect(jsonPath("$.deletionReason").doesNotExist());
@@ -110,7 +110,7 @@ class CourseDetailIT extends IntegrationTestBase {
         .andExpect(jsonPath("$.offerable").value(false))
         .andExpect(
             jsonPath("$.offerableReason")
-                .value("El curso no tiene ninguna membresía que lo abra."));
+                .value("El curso no tiene ninguna membresía ni ningún servicio que lo abra."));
 
     // Y un ACTIVO al que se le vació una descripción dice «sin descripción» (18-09-2026).
     jdbc.update("UPDATE courses SET long_description = NULL WHERE id = ?", activo);
@@ -141,16 +141,16 @@ class CourseDetailIT extends IntegrationTestBase {
 
   @Test
   @DisplayName(
-      "`CA-AC-054` — la lectura cuesta DOS sentencias sin módulos —el curso y sus módulos—, UNA MÁS"
+      "`CA-AC-054` — la lectura cuesta CINCO sentencias sin módulos —el curso, sus categorías, sus membresías, sus servicios y sus módulos—, UNA MÁS"
           + " con módulos (las lecciones) y UNA MÁS con el motivo de retiro")
   void sentencias() throws Exception {
     estadisticas.clear();
     mvc.perform(detalle(activo)).andExpect(status().isOk());
-    assertThat(estadisticas.getPrepareStatementCount()).isEqualTo(2);
+    assertThat(estadisticas.getPrepareStatementCount()).isEqualTo(5);
 
     estadisticas.clear();
     mvc.perform(detalle(retirado)).andExpect(status().isOk());
-    assertThat(estadisticas.getPrepareStatementCount()).isEqualTo(3);
+    assertThat(estadisticas.getPrepareStatementCount()).isEqualTo(6);
   }
 
   @Test

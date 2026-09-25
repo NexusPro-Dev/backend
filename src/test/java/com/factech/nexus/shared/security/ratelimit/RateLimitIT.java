@@ -349,6 +349,35 @@ class RateLimitIT extends IntegrationTestBase {
     assertThat(detalles).noneMatch(detalle -> detalle.contains(tercera.toString()));
   }
 
+  @Test
+  @DisplayName(
+      "`CA-AC-167` — las portadas de academia se acotan por su familia, con contador PROPIO:"
+          + " agotar la de productos no las alcanza")
+  void lasPortadasDeAcademiaTienenSuPropiaCota() throws Exception {
+    atendida(portada(java.util.UUID.randomUUID()));
+    atendida(portada(java.util.UUID.randomUUID()));
+    portada(java.util.UUID.randomUUID()).andExpect(status().isTooManyRequests());
+
+    // La familia de productos está agotada; la de academia, intacta.
+    atendida(portadaDeAcademia(java.util.UUID.randomUUID()));
+    atendida(portadaDeAcademia(java.util.UUID.randomUUID()));
+    java.util.UUID tercera = java.util.UUID.randomUUID();
+    portadaDeAcademia(tercera)
+        .andExpect(status().isTooManyRequests())
+        .andExpect(jsonPath("$.instance").value("/api/v1/academy-images/" + tercera));
+    assertThat(
+            jdbc.queryForList(
+                "SELECT detail::text FROM audit_security_log"
+                    + " WHERE event_type = 'RATE_LIMIT_EXCEEDED'",
+                String.class))
+        .anyMatch(detalle -> detalle.contains("GET /api/v1/academy-images/"));
+  }
+
+  private org.springframework.test.web.servlet.ResultActions portadaDeAcademia(
+      java.util.UUID imagen) throws Exception {
+    return mvc.perform(get("/api/v1/academy-images/{id}", imagen));
+  }
+
   private org.springframework.test.web.servlet.ResultActions portada(java.util.UUID imagen)
       throws Exception {
     // La imagen no existe, y da igual: lo atendido responde 404 y lo cortado 429.

@@ -21,7 +21,7 @@ public class JpaLessonQueryRepository implements LessonQueryRepository {
   static final String COLUMNAS_DEL_RESUMEN =
       """
       l.id AS id, l.module_id AS module_id, l.type AS type, l.title AS title,
-      l.description AS description, l.duration_minutes AS duration_minutes,
+      l.description AS description, l.duration_seconds AS duration_seconds,
       l.display_order AS display_order, l.status AS status, l.open AS open,
       (l.content IS NOT NULL) AS has_content, l.deleted_at AS deleted_at
       """;
@@ -30,7 +30,7 @@ public class JpaLessonQueryRepository implements LessonQueryRepository {
       """
       l.id AS id, l.module_id AS module_id, m.course_id AS course_id, l.type AS type,
       l.title AS title, l.description AS description, l.content AS content,
-      l.duration_minutes AS duration_minutes, l.display_order AS display_order,
+      l.duration_seconds AS duration_seconds, l.display_order AS display_order,
       l.open AS open, l.status AS status,
       l.created_at AS created_at, l.updated_at AS updated_at, l.deleted_at AS deleted_at
       """;
@@ -70,7 +70,7 @@ public class JpaLessonQueryRepository implements LessonQueryRepository {
                     (String) fila.get("title"),
                     (String) fila.get("description"),
                     (String) fila.get("content"),
-                    ((Number) fila.get("duration_minutes")).intValue(),
+                    ((Number) fila.get("duration_seconds")).intValue(),
                     ((Number) fila.get("display_order")).intValue(),
                     (Boolean) fila.get("open"),
                     (String) fila.get("status"),
@@ -86,7 +86,7 @@ public class JpaLessonQueryRepository implements LessonQueryRepository {
         (String) fila.get("type"),
         (String) fila.get("title"),
         (String) fila.get("description"),
-        ((Number) fila.get("duration_minutes")).intValue(),
+        ((Number) fila.get("duration_seconds")).intValue(),
         ((Number) fila.get("display_order")).intValue(),
         (String) fila.get("status"),
         (Boolean) fila.get("open"),

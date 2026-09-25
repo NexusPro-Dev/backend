@@ -4,10 +4,10 @@
 |---|---|
 | Requerimiento | `RF-AC-020` |
 | Módulo | `AC` — Academia |
-| Estado | **En revisión** |
+| Estado | **Aprobada** |
 | Autor | Responsable técnico |
-| Aprobada por | — |
-| Fecha de aprobación | — |
+| Aprobada por | Responsable del proyecto |
+| Fecha de aprobación | 25-09-2026 |
 
 ---
 
@@ -143,3 +143,6 @@ La membresía es de `SP`, y se comprueba por la interfaz que `SP` publica desde 
 |---|---|---|---|
 | 0.1.0 | 18-09-2026 | Redacción inicial. La lista explícita de `ac.md` §5.2.2: membresía por `MembershipCatalog`, `422` si no existe, `409` que la nombra. **Cierra `RN-AC-015`** —con una membresía, un curso armado se ofrece por primera vez— y construye las enmiendas de `RF-AC-008`, `RF-AC-010` y `RF-AC-013`. | Responsable técnico |
 | 0.2.0 | 18-09-2026 | **Enmienda de Art. I.7 (18-09-2026)**: `RN-AC-015` gana dos motivos por decisión del responsable del proyecto —«sin descripción» en el curso y «sin contenido» en la lección—. «Sin membresías» pasa de tercer a **cuarto** motivo; nada más cambia. | Responsable técnico |
+| 0.3.0 | 25-09-2026 | **Enmienda declarada por `RF-AC-037`** (Art. I.7), sin cambio de comportamiento propio: las membresías **ya no son la única llave** —un servicio `BOT` también abre el curso (`RN-AC-020`)—, y el cuarto motivo de la ofrecibilidad pasa a decir *«El curso no tiene ninguna membresía ni ningún servicio que lo abra.»*. `CA-AC-138` se lee con ese texto y con un curso **sin servicios**. Si `RF-AC-037` se construye antes, la cuenta de membresías llega a un `CourseOfferability` que ya suma las dos. | Responsable técnico |
+| 0.4.0 | 25-09-2026 | **Aprobada** por el responsable del proyecto al pedir su construcción, con dos enmiendas del mismo día: la de `RF-AC-037` (0.3.0) y **la de `RF-AC-008`** —el alta admite `membershipIds` y deja las filas con esta misma escritura—. `CA-AC-138` se prueba con un curso **sin servicios**. | Responsable técnico |
+| 0.5.0 | 25-09-2026 | **Construida** (`V45`, `CourseMembershipVisibilityIT`). `CUENTA_DE_MEMBRESIAS` deja de ser un literal —el último cero de `CourseOfferability`— y `findMembershipsOf` lee `memberships` por `JOIN` en el orden de la cadena. La escritura vive en `CourseAccessWriter`, que comparte con el alta (`RF-AC-008` 0.6.0) y con `RF-AC-037`. `CA-AC-138` prueba que la lista es exactamente la dada; que `ORO` no abra a `PLATINO` en el aula se prueba con el aula. | Responsable técnico |

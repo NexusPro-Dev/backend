@@ -67,7 +67,7 @@ Es **el único sitio donde el contenido de una lección sale hacia un alumno**, 
 
 ### 6.2 Salida
 
-`200` con: `id`, `courseId`, `moduleId`, `type`, `title`, `description` (presente y nula), **`content`**, `durationMinutes`, `displayOrder`, `open`.
+`200` con: `id`, `courseId`, `moduleId`, `type`, `title`, `description` (presente y nula), **`content`**, `durationSeconds`, `displayOrder`, `open`.
 
 **Sin estado, sin `accessible`**: si se devolvió, se ofrece y se abre.
 
@@ -151,3 +151,5 @@ Es **el único sitio donde el contenido de una lección sale hacia un alumno**, 
 | Versión | Fecha | Cambio | Responsable |
 |---|---|---|---|
 | 0.1.0 | 18-09-2026 | Redacción inicial. El único sitio donde el contenido sale hacia un alumno: **primero si se ofrece, después si se abre** (`404` antes que `403`); la abierta a cualquiera con sesión y sin eximir de ofrecerse; el `403` **con las membresías que abren el curso como miembro de extensión** (§14.1); el contenido tal cual se guardó. Sin módulo en la ruta (§14.2) y el puerto solo para la cerrada (§14.3). | Responsable técnico |
+| 0.2.0 | 25-09-2026 | **Enmienda declarada por `RF-AC-037`** (Art. I.7, `RN-AC-013` y `RN-AC-020`; `ac.md` v0.12.0 §5.2.8): el contenido se abre también a quien **tiene vigente uno de los servicios del curso**, y el `403` lleva **las membresías y los servicios** que lo abren. **El cuerpo de esta spec se reescribe al construirla**; hasta entonces, donde dice «membresía» como llave se lee «membresía o servicio». | Responsable técnico |
+| 0.3.0 | 25-09-2026 | **Enmienda por decisión del responsable del proyecto** (`ac.md` §5.2.10, `RN-AC-017`): **la duración de la lección se guarda en segundos**, y las sumas del módulo y del curso también: `durationSeconds` y `totalDurationSeconds` sustituyen a `durationMinutes` y `totalDurationMinutes` en el cuerpo de esta spec. Las filas anteriores de esta tabla conservan el nombre que tenía el campo en su fecha. | Responsable técnico |

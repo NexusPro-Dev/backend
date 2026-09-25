@@ -76,7 +76,7 @@ public class CourseModuleController {
           admite el módulo igual, que no cambia lo que el aula enseña hasta activarse.
 
           La respuesta es **el módulo**, no el curso: `courseId`, `coverImageUrl`
-          presente y nulo, `lessons` vacío, cero minutos y `offerable: false` con
+          presente y nulo, `lessons` vacío, cero segundos y `offerable: false` con
           `offerableReason` «inactivo». Exige `courses:update`.
           """)
   @ApiResponses({

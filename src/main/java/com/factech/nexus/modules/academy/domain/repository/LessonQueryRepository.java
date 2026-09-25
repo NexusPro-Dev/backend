@@ -22,7 +22,7 @@ public interface LessonQueryRepository {
       String title,
       String description,
       String content,
-      int durationMinutes,
+      int durationSeconds,
       int displayOrder,
       boolean open,
       String status,

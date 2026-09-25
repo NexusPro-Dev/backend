@@ -107,3 +107,4 @@ Los de `RF-AC-006` §13.
 | Versión | Fecha | Cambio | Responsable |
 |---|---|---|---|
 | 0.1.0 | 18-09-2026 | Redacción inicial. `RF-AC-006` sobre el curso, sin condición de estado ni contenido. | Responsable técnico |
+| 0.2.0 | 25-09-2026 | **Construida** (`AcademyCoverIT`) sobre `CoverUploader` y `HasCover`, que `CourseCategory` y `Course` implementan; el módulo lo hará con `RF-AC-026`. Es la portada que el responsable del proyecto pidió para el alta, y va por esta operación y no dentro del alta (`ac.md` §5.2.9). | Responsable técnico |

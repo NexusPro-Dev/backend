@@ -69,7 +69,7 @@ class LessonDetailIT extends IntegrationTestBase {
                         .with(con("courses:update"))
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(
-                            "{\"type\":\"VIDEO\",\"title\":\"Nueva\",\"content\":\"https://v.io/n\",\"durationMinutes\":4,\"displayOrder\":1}"))
+                            "{\"type\":\"VIDEO\",\"title\":\"Nueva\",\"content\":\"https://v.io/n\",\"durationSeconds\":4,\"displayOrder\":1}"))
                 .andExpect(status().isCreated())
                 .andReturn()
                 .getResponse()

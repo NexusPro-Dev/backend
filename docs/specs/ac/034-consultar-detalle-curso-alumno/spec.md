@@ -38,7 +38,7 @@ Es el requerimiento que **hace real `CA-AC-075`** de `RF-AC-013` —un curso ret
 - Devolver un curso **ofrecido** por identificador, con todos sus campos públicos, el instructor resuelto y `coverImageUrl`.
 - Sus **categorías** vivas; los **cursos que recomienda y que se ofrecen** —identificador, título, dificultad, portada—; **las membresías que lo abren** —identificador, código, nombre, color—.
 - **El árbol ofrecido**: módulos ofrecibles en su orden, con portada, descripciones, video de presentación y duración; sus lecciones ofrecibles en su orden, con tipo, título, descripción, duración, `open` y **`accessible`**, **sin el contenido**.
-- `accessible` del curso, `currentMembership`, `totalDurationMinutes` y `lessonCount` sobre lo ofrecido.
+- `accessible` del curso, `currentMembership`, `totalDurationSeconds` y `lessonCount` sobre lo ofrecido.
 
 ### 4.2 No incluye
 
@@ -69,7 +69,7 @@ Es el requerimiento que **hace real `CA-AC-075`** de `RF-AC-013` —un curso ret
 
 ### 6.2 Salida
 
-`200` con: `id`, `title`, `instructor { id, username, fullName }`, `difficulty`, `shortDescription`, `longDescription`, `introVideoUrl` (presente y nulo), `displayOrder`, `coverImageUrl` (presente y nula), `categories [{ id, name, color, icon }]`, `recommendedCourses [{ id, title, difficulty, coverImageUrl }]`, `memberships [{ id, code, name, color }]`, `currentMembership` (presente y nula), `accessible`, `modules [{ id, title, shortDescription, longDescription, presentationVideoUrl, displayOrder, coverImageUrl, durationMinutes, lessons [{ id, type, title, description, durationMinutes, displayOrder, open, accessible }] }]`, `totalDurationMinutes`, `lessonCount`.
+`200` con: `id`, `title`, `instructor { id, username, fullName }`, `difficulty`, `shortDescription`, `longDescription`, `introVideoUrl` (presente y nulo), `displayOrder`, `coverImageUrl` (presente y nula), `categories [{ id, name, color, icon }]`, `recommendedCourses [{ id, title, difficulty, coverImageUrl }]`, `memberships [{ id, code, name, color }]`, `currentMembership` (presente y nula), `accessible`, `modules [{ id, title, shortDescription, longDescription, presentationVideoUrl, displayOrder, coverImageUrl, durationSeconds, lessons [{ id, type, title, description, durationSeconds, displayOrder, open, accessible }] }]`, `totalDurationSeconds`, `lessonCount`.
 
 **`accessible` de la lección es «el curso es accesible o la lección está abierta»** (`StudentAccess`, `RF-AC-033`). **Sin estados ni `offerable`**: todo lo que viaja se ofrece.
 
@@ -118,7 +118,7 @@ Es el requerimiento que **hace real `CA-AC-075`** de `RF-AC-013` —un curso ret
 |---|---|
 | `CA-AC-195` | El sistema devuelve el curso ofrecido con sus campos, el instructor resuelto, `coverImageUrl` y los videos presentes y nulos, las categorías vivas, las membresías con código, nombre y color, el árbol ofrecido en orden y las sumas, **sin estados, sin `offerable` y sin contenido de lecciones** |
 | `CA-AC-196` | Un curso **inexistente, retirado, inactivo o activo al que le falta algo** responde `404` **con el mismo mensaje**; un identificador mal formado, `400` |
-| `CA-AC-197` | **El árbol es solo lo ofrecido**: un módulo inactivo, retirado o sin lección ofrecible **no aparece**; una lección inactiva, vacía o retirada **no aparece**; `durationMinutes` del módulo y `totalDurationMinutes` y `lessonCount` del curso cuentan solo lo que aparece |
+| `CA-AC-197` | **El árbol es solo lo ofrecido**: un módulo inactivo, retirado o sin lección ofrecible **no aparece**; una lección inactiva, vacía o retirada **no aparece**; `durationSeconds` del módulo y `totalDurationSeconds` y `lessonCount` del curso cuentan solo lo que aparece |
 | `CA-AC-198` | `accessible` del curso es verdadero si la vigente está en su lista y falso si no; el de cada lección es **el del curso o `open`**; sin vigente, solo las abiertas son accesibles y `currentMembership` es nula |
 | `CA-AC-199` | `recommendedCourses` trae **solo los que se ofrecen**: uno retirado, inactivo o sin membresías **no aparece** aunque la fila exista (**hace real `CA-AC-075`**) |
 | `CA-AC-200` | La lectura cuesta **seis sentencias fijas** —curso con instructor, categorías, recomendados, membresías, módulos, lecciones— **más las del puerto**; sin módulos, la de lecciones no se ejecuta |
@@ -145,3 +145,5 @@ Es el requerimiento que **hace real `CA-AC-075`** de `RF-AC-013` —un curso ret
 | Versión | Fecha | Cambio | Responsable |
 |---|---|---|---|
 | 0.1.0 | 18-09-2026 | Redacción inicial. `RF-AC-010` desde el aula: solo lo ofrecido, sin estados, sin contenido; el curso que la membresía no abre se enseña entero con `accessible: false` y `memberships` como invitación (§1.4); `404` con el mismo mensaje que inexistente (§14.1); recomendaciones solo si se ofrecen, **haciendo real `CA-AC-075`**. Reutiliza las lecturas y los objetos de `RF-AC-010` sin reutilizar su lector (§14.2). | Responsable técnico |
+| 0.2.0 | 25-09-2026 | **Enmienda declarada por `RF-AC-037`** (Art. I.7, `RN-AC-013` y `RN-AC-020`; `ac.md` v0.12.0 §5.2.8): el detalle trae **`products`** —los servicios que abren el curso, con código y nombre— junto a `memberships`, y `accessible` cuenta también el servicio vigente. **El cuerpo de esta spec se reescribe al construirla**; hasta entonces, donde dice «membresía» como llave se lee «membresía o servicio». | Responsable técnico |
+| 0.3.0 | 25-09-2026 | **Enmienda por decisión del responsable del proyecto** (`ac.md` §5.2.10, `RN-AC-017`): **la duración de la lección se guarda en segundos**, y las sumas del módulo y del curso también: `durationSeconds` y `totalDurationSeconds` sustituyen a `durationMinutes` y `totalDurationMinutes` en el cuerpo de esta spec. Las filas anteriores de esta tabla conservan el nombre que tenía el campo en su fecha. | Responsable técnico |
