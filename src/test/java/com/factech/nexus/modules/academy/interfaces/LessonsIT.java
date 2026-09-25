@@ -246,8 +246,9 @@ class LessonsIT extends IntegrationTestBase {
         .andExpect(jsonPath("$.modules[0].durationMinutes").value(20))
         .andExpect(jsonPath("$.lessonCount").value(2))
         .andExpect(jsonPath("$.totalDurationMinutes").value(20));
-    // Curso, categorías (`RF-AC-016`), servicios (`RF-AC-037`), módulos y lecciones.
-    assertThat(estadisticas.getPrepareStatementCount()).isEqualTo(5);
+    // Curso, categorías (`RF-AC-016`), membresías (`RF-AC-020`), servicios (`RF-AC-037`), módulos y
+    // lecciones.
+    assertThat(estadisticas.getPrepareStatementCount()).isEqualTo(6);
   }
 
   @Test

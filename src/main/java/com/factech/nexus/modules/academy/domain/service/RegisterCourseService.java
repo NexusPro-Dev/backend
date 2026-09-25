@@ -7,6 +7,10 @@ import com.factech.nexus.modules.academy.domain.models.CourseCategory;
 import com.factech.nexus.modules.academy.domain.repository.CourseCategoryRepository;
 import com.factech.nexus.modules.academy.domain.repository.CourseRepository;
 import com.factech.nexus.modules.academy.domain.repository.JpaCourseRepository;
+import com.factech.nexus.modules.products.application.ProductCatalog;
+import com.factech.nexus.modules.products.application.ProductCatalog.KindView;
+import com.factech.nexus.modules.system.memberships.application.MembershipCatalog;
+import com.factech.nexus.modules.system.memberships.application.MembershipCatalog.MembershipView;
 import com.factech.nexus.shared.audit.AuditEnums.ChangeAction;
 import com.factech.nexus.shared.audit.AuditEvents.ChangeEvent;
 import com.factech.nexus.shared.audit.AuditWriter;
@@ -17,6 +21,7 @@ import com.factech.nexus.shared.error.ValidationException;
 import com.factech.nexus.shared.persistence.UuidV7Generator;
 import java.time.Clock;
 import java.time.OffsetDateTime;
+import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
@@ -41,6 +46,9 @@ public class RegisterCourseService {
   private final CourseRepository cursos;
   private final CourseCategoryRepository categorias;
   private final CourseClassifier clasificador;
+  private final ProductCatalog productos;
+  private final MembershipCatalog membresias;
+  private final CourseAccessWriter llaves;
   private final InstructorVerifier instructor;
   private final AuditWriter auditoria;
   private final UuidV7Generator ids;
@@ -52,17 +60,34 @@ public class RegisterCourseService {
       CourseRepository cursos,
       CourseCategoryRepository categorias,
       CourseClassifier clasificador,
+      ProductCatalog productos,
+      MembershipCatalog membresias,
+      CourseAccessWriter llaves,
       InstructorVerifier instructor,
       AuditWriter auditoria,
       UuidV7Generator ids,
       CourseDetailReader detalle) {
-    this(cursos, categorias, clasificador, instructor, auditoria, ids, detalle, Clock.systemUTC());
+    this(
+        cursos,
+        categorias,
+        clasificador,
+        productos,
+        membresias,
+        llaves,
+        instructor,
+        auditoria,
+        ids,
+        detalle,
+        Clock.systemUTC());
   }
 
   RegisterCourseService(
       CourseRepository cursos,
       CourseCategoryRepository categorias,
       CourseClassifier clasificador,
+      ProductCatalog productos,
+      MembershipCatalog membresias,
+      CourseAccessWriter llaves,
       InstructorVerifier instructor,
       AuditWriter auditoria,
       UuidV7Generator ids,
@@ -71,6 +96,9 @@ public class RegisterCourseService {
     this.cursos = cursos;
     this.categorias = categorias;
     this.clasificador = clasificador;
+    this.productos = productos;
+    this.membresias = membresias;
+    this.llaves = llaves;
     this.instructor = instructor;
     this.auditoria = auditoria;
     this.ids = ids;
@@ -82,11 +110,9 @@ public class RegisterCourseService {
   public CourseDetailResponse register(RegisterCourseRequest peticion) {
     // `VAL-008`, antes de consultar nada: una lista con repetidas es un error de
     // forma del cliente, y se le dice sin gastar una sentencia.
-    if (new HashSet<>(peticion.categoryIds()).size() != peticion.categoryIds().size()) {
-      String mensaje = "La lista de categorías no puede traer identificadores repetidos ni vacíos.";
-      throw new ValidationException(
-          "VAL-008", mensaje, List.of(new FieldError("categoryIds", "VAL-008", mensaje)));
-    }
+    sinRepetidas(peticion.categoryIds(), "categoryIds", "categorías");
+    sinRepetidas(peticion.productIds(), "productIds", "servicios");
+    sinRepetidas(peticion.membershipIds(), "membershipIds", "membresías");
 
     // Solo contra los VIVOS (`EX-001`): un retirado libera el título. La red
     // es el índice parcial, que muerde en el INSERT y sale con el mismo código.
@@ -102,6 +128,8 @@ public class RegisterCourseService {
     // Las categorías ANTES de insertar nada (`EX-004`): el `422` no debe costar
     // un INSERT revertido, y se nombran TODAS las que fallan, no la primera.
     List<CourseCategory> cajones = categoriasVivas(peticion.categoryIds());
+    List<KindView> servicios = serviciosVivos(peticion.productIds());
+    List<MembershipView> niveles = membresiasExistentes(peticion.membershipIds());
 
     Course nuevo =
         cursos.save(
@@ -129,8 +157,63 @@ public class RegisterCourseService {
     for (CourseCategory cajon : cajones) {
       clasificador.clasificar(nuevo.getId(), cajon);
     }
+    // Y las dos llaves, con las escrituras de `RF-AC-037` y `RF-AC-020`.
+    for (KindView servicio : servicios) {
+      llaves.darServicio(nuevo.getId(), servicio);
+    }
+    for (MembershipView nivel : niveles) {
+      llaves.darMembresia(nuevo.getId(), nivel);
+    }
 
     return detalle.leer(nuevo.getId());
+  }
+
+  private static void sinRepetidas(List<UUID> ids, String campo, String nombre) {
+    if (new HashSet<>(ids).size() != ids.size()) {
+      String mensaje =
+          "La lista de %s no puede traer identificadores repetidos ni vacíos.".formatted(nombre);
+      throw new ValidationException(
+          "VAL-008", mensaje, List.of(new FieldError(campo, "VAL-008", mensaje)));
+    }
+  }
+
+  /**
+   * `EX-005`: cada uno un `BOT` no retirado, por el puerto de `PM`. Una llamada por servicio: son
+   * pocos —los que abren un curso— y el puerto no tiene lectura por lote del tipo.
+   */
+  private List<KindView> serviciosVivos(List<UUID> ids) {
+    List<KindView> vivos = new ArrayList<>();
+    List<String> fallan = new ArrayList<>();
+    for (UUID id : ids) {
+      KindView producto = productos.findKind(id).orElse(null);
+      if (producto == null || producto.retired() || !producto.bot()) {
+        fallan.add(producto == null ? id.toString() : producto.code());
+      } else {
+        vivos.add(producto);
+      }
+    }
+    if (!fallan.isEmpty()) {
+      String mensaje =
+          "Estos productos no son servicios vivos: %s.".formatted(String.join(", ", fallan));
+      throw new UnprocessableEntityException(
+          "EX-005", mensaje, List.of(new FieldError("productIds", "EX-005", mensaje)));
+    }
+    return vivos;
+  }
+
+  /** `EX-006`: cada una existente en `SP`. La membresía no se retira (`RN-SP-008`). */
+  private List<MembershipView> membresiasExistentes(List<UUID> ids) {
+    List<MembershipView> existentes = new ArrayList<>();
+    List<String> faltan = new ArrayList<>();
+    for (UUID id : ids) {
+      membresias.find(id).ifPresentOrElse(existentes::add, () -> faltan.add(id.toString()));
+    }
+    if (!faltan.isEmpty()) {
+      String mensaje = "Estas membresías no existen: %s.".formatted(String.join(", ", faltan));
+      throw new UnprocessableEntityException(
+          "EX-006", mensaje, List.of(new FieldError("membershipIds", "EX-006", mensaje)));
+    }
+    return existentes;
   }
 
   private List<CourseCategory> categoriasVivas(List<UUID> ids) {

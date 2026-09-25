@@ -22,13 +22,11 @@ import org.springframework.transaction.annotation.Transactional;
  *
  * <p><b>Un solo bloque de columnas</b> ({@link #COLUMNAS}) para el detalle y el listado, con el
  * instructor por {@code JOIN users} —tres columnas— y las cuatro cuentas como columnas más, cada
- * una una subconsulta escalar: el número de sentencias no depende de cuántos cursos se lean.
- * <b>{@link #CUENTA_DE_MEMBRESIAS} es un literal hasta `RF-AC-020`</b>, que la sustituye por la
- * subconsulta sobre {@code course_memberships}; las de módulos y lecciones son reales desde el
- * bloque 3, sobre los fragmentos de {@link JpaCourseModuleQueryRepository} que el aula reutiliza.
- * Las categorías son reales desde `RF-AC-016`; las otras dos relaciones devuelven vacío sin
- * consultar nada hasta su requerimiento, cada una con la nota de qué sentencia la sustituye; las
- * del árbol son reales.
+ * una una subconsulta escalar: el número de sentencias no depende de cuántos cursos se lean. Las de
+ * membresías y servicios son reales desde `RF-AC-020` y `RF-AC-037`; las de módulos y lecciones
+ * desde el bloque 3, sobre los fragmentos de {@link JpaCourseModuleQueryRepository} que el aula
+ * reutiliza. De las relaciones, solo las recomendaciones devuelven vacío sin consultar nada, hasta
+ * `RF-AC-018`; las del árbol son reales.
  *
  * <p>{@link #CUENTA_DE_MEMBRESIAS} y {@link #CUENTA_DE_MODULOS_OFRECIBLES} son de paquete porque
  * los cursos del detalle de la categoría (`RF-AC-003`) deciden su ofrecibilidad con las mismas
@@ -37,11 +35,9 @@ import org.springframework.transaction.annotation.Transactional;
 @Repository
 public class JpaCourseQueryRepository implements CourseQueryRepository {
 
-  /**
-   * `RF-AC-020` la sustituye por: {@code (SELECT count(*) FROM course_memberships m WHERE
-   * m.course_id = c.id)}.
-   */
-  static final String CUENTA_DE_MEMBRESIAS = "0";
+  /** Las membresías que abren el curso (`RF-AC-020`). Alias {@code cm}: {@code m} es del módulo. */
+  static final String CUENTA_DE_MEMBRESIAS =
+      "(SELECT count(*) FROM course_memberships cm WHERE cm.course_id = c.id)";
 
   /**
    * Los servicios que abren el curso (`RF-AC-037`): todas sus filas, también las de un producto que
@@ -194,9 +190,29 @@ public class JpaCourseQueryRepository implements CourseQueryRepository {
   @Override
   @Transactional(readOnly = true)
   public List<MembershipRef> findMembershipsOf(UUID courseId) {
-    // `RF-AC-020`: course_memberships JOIN memberships (id, code, name, color)
-    // ORDER BY m.level — cuatro columnas de lectura, como RF-PM-002.
-    return List.of();
+    // Cuatro columnas de `memberships` por lectura, como RF-PM-002: la regla
+    // —que exista— cruzó por el puerto al escribir. En el orden de la cadena.
+    List<Tuple> filas =
+        em.createNativeQuery(
+                """
+                SELECT ms.id AS id, ms.code AS code, ms.name AS name, ms.color AS color
+                  FROM course_memberships cm
+                  JOIN memberships ms ON ms.id = cm.membership_id
+                 WHERE cm.course_id = :curso
+                 ORDER BY ms.level, ms.id
+                """,
+                Tuple.class)
+            .setParameter("curso", courseId)
+            .getResultList();
+    return filas.stream()
+        .map(
+            fila ->
+                new MembershipRef(
+                    (UUID) fila.get("id"),
+                    (String) fila.get("code"),
+                    (String) fila.get("name"),
+                    (String) fila.get("color")))
+        .toList();
   }
 
   @Override

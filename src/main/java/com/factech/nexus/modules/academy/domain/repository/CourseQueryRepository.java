@@ -22,10 +22,10 @@ import java.util.UUID;
  *
  * <p><b>Las cuentas viajan en la misma sentencia que la fila</b>, como subconsultas escalares, y
  * son lo que {@link CourseOfferability} necesita para decidir por fila sin otra consulta. Las de
- * módulos y lecciones son reales desde el bloque 3; <b>la de membresías es un literal cero hasta
- * `RF-AC-020`</b>, que sustituye el literal y la nota que lo acompaña. Las lecturas de relaciones
- * devuelven vacío sin consultar nada hasta su requerimiento, salvo las categorías, reales desde
- * `RF-AC-016`; las del árbol son reales.
+ * módulos y lecciones son reales desde el bloque 3, y las de membresías y servicios desde
+ * `RF-AC-020` y `RF-AC-037`. Las lecturas de relaciones son reales —categorías, membresías y
+ * servicios— salvo las recomendaciones, vacías sin consultar nada hasta `RF-AC-018`; las del árbol
+ * son reales.
  */
 public interface CourseQueryRepository {
 
@@ -51,8 +51,8 @@ public interface CourseQueryRepository {
   List<RecommendedCourseRow> findRecommendedOf(UUID courseId);
 
   /**
-   * Las membresías que abren el curso, resueltas por {@code JOIN memberships}. <b>Vacío hasta
-   * `RF-AC-020`.</b>
+   * Las membresías que abren el curso, resueltas por {@code JOIN memberships} —identificador,
+   * código, nombre y color— en el orden de la cadena (`RF-AC-020`).
    */
   List<MembershipRef> findMembershipsOf(UUID courseId);
 

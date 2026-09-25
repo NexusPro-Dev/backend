@@ -3,22 +3,15 @@ package com.factech.nexus.modules.academy.domain.service;
 import com.factech.nexus.modules.academy.application.CourseDetailResponse;
 import com.factech.nexus.modules.academy.application.GrantCourseProductRequest;
 import com.factech.nexus.modules.academy.domain.models.Course;
-import com.factech.nexus.modules.academy.domain.models.CourseProduct;
 import com.factech.nexus.modules.academy.domain.repository.CourseProductRepository;
 import com.factech.nexus.modules.academy.domain.repository.CourseRepository;
 import com.factech.nexus.modules.academy.domain.repository.JpaCourseProductRepository;
 import com.factech.nexus.modules.products.application.ProductCatalog;
 import com.factech.nexus.modules.products.application.ProductCatalog.KindView;
-import com.factech.nexus.shared.audit.AuditEnums.ChangeAction;
-import com.factech.nexus.shared.audit.AuditEvents.ChangeEvent;
-import com.factech.nexus.shared.audit.AuditWriter;
 import com.factech.nexus.shared.error.FieldError;
 import com.factech.nexus.shared.error.UnprocessableEntityException;
-import java.time.Clock;
-import java.time.OffsetDateTime;
 import java.util.List;
 import java.util.UUID;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -27,7 +20,8 @@ import org.springframework.transaction.annotation.Transactional;
  *
  * <p>La clasificación (`RF-AC-016`) con el producto en lugar de la categoría y <b>el puerto de `PM`
  * en lugar del repositorio propio</b>: el curso se bloquea y el producto no —nada de él cambia—, la
- * pareja se comprueba bajo el bloqueo y la clave primaria es la red de la carrera.
+ * pareja se comprueba bajo el bloqueo y la clave primaria es la red de la carrera. La escritura es
+ * de {@link CourseAccessWriter}, que comparte con el alta del curso.
  *
  * <p><b>Dos `422` distintos</b>: el producto que no existe o está retirado (`EX-002`) y el que
  * existe pero no es un servicio (`EX-003`). Quien eligió un upgrade no se equivocó de identificador
@@ -37,38 +31,25 @@ import org.springframework.transaction.annotation.Transactional;
 @Service
 public class GrantCourseProductService {
 
-  static final String ENTIDAD_FILA = "course_products";
+  static final String ENTIDAD_FILA = CourseAccessWriter.ENTIDAD_SERVICIOS;
 
   private final CourseRepository cursos;
   private final ProductCatalog productos;
   private final CourseProductRepository filas;
-  private final AuditWriter auditoria;
+  private final CourseAccessWriter llaves;
   private final CourseDetailReader detalle;
-  private final Clock reloj;
 
-  @Autowired
   public GrantCourseProductService(
       CourseRepository cursos,
       ProductCatalog productos,
       CourseProductRepository filas,
-      AuditWriter auditoria,
+      CourseAccessWriter llaves,
       CourseDetailReader detalle) {
-    this(cursos, productos, filas, auditoria, detalle, Clock.systemUTC());
-  }
-
-  GrantCourseProductService(
-      CourseRepository cursos,
-      ProductCatalog productos,
-      CourseProductRepository filas,
-      AuditWriter auditoria,
-      CourseDetailReader detalle,
-      Clock reloj) {
     this.cursos = cursos;
     this.productos = productos;
     this.filas = filas;
-    this.auditoria = auditoria;
+    this.llaves = llaves;
     this.detalle = detalle;
-    this.reloj = reloj;
   }
 
   @Transactional
@@ -97,19 +78,7 @@ public class GrantCourseProductService {
       throw JpaCourseProductRepository.yaAbre(producto.code());
     }
 
-    CourseProduct fila =
-        filas.save(
-            CourseProduct.create(curso.getId(), producto.id(), OffsetDateTime.now(reloj)),
-            producto.code());
-
-    auditoria.recordChange(
-        new ChangeEvent(
-            CourseDetailReader.MODULO,
-            ENTIDAD_FILA,
-            curso.getId(),
-            ChangeAction.CREATE,
-            fila.instantanea(producto.code())));
-
+    llaves.darServicio(curso.getId(), producto);
     return detalle.leer(curso.getId());
   }
 }

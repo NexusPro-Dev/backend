@@ -5,7 +5,7 @@
 | Módulo | `AC` — Academia |
 | Paquete | `modules/academy` |
 | Prefijos de permiso | `course-categories:`, `courses:` |
-| Versión | 0.13.0 |
+| Versión | 0.14.0 |
 | Estado | **Borrador** |
 | Responsable | Bonilla Diaz William Steven |
 | Fecha de creación | 17-09-2026 |
@@ -299,8 +299,8 @@ Con esto, **el bloque 5 adelanta tres requerimientos** —`RF-AC-006`, `RF-AC-03
 | `RF-AC-017` | Desclasificar un curso de una categoría | Cursos | Media | `courses:update` | **En desarrollo** (25-09-2026) |
 | `RF-AC-018` | Recomendar un curso previo | Cursos | Media | `courses:update` | **Tasks en revisión** (18-09-2026) |
 | `RF-AC-019` | Retirar una recomendación | Cursos | Baja | `courses:update` | **Tasks en revisión** (18-09-2026) |
-| `RF-AC-020` | Dar visibilidad de un curso a una membresía | Cursos | Alta | `courses:update` | **Tasks en revisión** (18-09-2026) |
-| `RF-AC-021` | Quitar la visibilidad de un curso a una membresía | Cursos | Media | `courses:update` | **Tasks en revisión** (18-09-2026) |
+| `RF-AC-020` | Dar visibilidad de un curso a una membresía | Cursos | Alta | `courses:update` | **En desarrollo** (25-09-2026) |
+| `RF-AC-021` | Quitar la visibilidad de un curso a una membresía | Cursos | Media | `courses:update` | **En desarrollo** (25-09-2026) |
 | `RF-AC-022` | Registrar módulo | Módulos | Alta | `courses:update` | **En desarrollo** (19-09-2026) |
 | `RF-AC-023` | Editar módulo | Módulos | Alta | `courses:update` | **En desarrollo** (19-09-2026) |
 | `RF-AC-024` | Cambiar el estado de un módulo | Módulos | Alta | `courses:update` | **En desarrollo** (19-09-2026) |
@@ -630,7 +630,7 @@ Borra la fila. Una pareja que no existe devuelve `404`.
 | Reglas aplicables | `RN-AC-012`, `RN-AC-015`, `RN-AC-018` |
 | Depende de | `RF-AC-008` |
 | Tripleta | `docs/specs/ac/020-dar-visibilidad-curso/` |
-| Estado | **Tasks en revisión** (18-09-2026) |
+| Estado | **En desarrollo** (25-09-2026) |
 
 Añade la pareja curso–membresía. La membresía se resuelve contra `MembershipCatalog` (`404` si no existe); la repetida, `409`. **No exige que el curso esté activo**: la lista se arma antes de publicar. Responde con el curso y su lista resuelta —código, nombre, color—.
 
@@ -645,7 +645,7 @@ Añade la pareja curso–membresía. La membresía se resuelve contra `Membershi
 | Reglas aplicables | `RN-AC-012`, `RN-AC-015` |
 | Depende de | `RF-AC-020` |
 | Tripleta | `docs/specs/ac/021-quitar-visibilidad-curso/` |
-| Estado | **Tasks en revisión** (18-09-2026) |
+| Estado | **En desarrollo** (25-09-2026) |
 
 Borra la fila. **Quitar la última nunca se rechaza**: el curso deja de ofrecerse y el detalle lo dice (`RN-AC-015`). Es la forma de retirar un curso de la vista de todos sin desactivarlo.
 
@@ -1124,3 +1124,4 @@ Clave primaria compuesta. **La clave foránea a `memberships` se declara** hacia
 | 0.11.0 | 25-09-2026 | **La clasificación está construida**: `RF-AC-016` y `RF-AC-017` pasan a `En desarrollo` (primeros dos del bloque 4 de §6.1). `V42` crea `course_category_items` tal como §8.3 la declara —clave compuesta, sin `id` ni `deleted_at`, sin `ON DELETE`—; el plan la numeraba `V25` y el número se asignó al construir. **Las seis enmiendas declaradas por los bloques 1 y 2 quedan cerradas** —`courseCount`, los cursos del detalle de la categoría con su `offerable`, los `course_ids` de su retiro, `categories` y el filtro del listado de cursos, `categories` del detalle, y los `category_ids` del retiro del curso—. Sin cambio de reglas; una precisión a `RF-AC-009`: **`categoryId` solo acota por una categoría viva**, porque la retirada no sale en `categories` de ninguna fila. Los permisos siguen siendo `courses:update`, como las tripletas dicen: `courses:assign-category` y `courses:revoke-category` ya están sembrados por `V28` y los reparte el tramo 3 de `RF-SP-060` con todo `AC`. | Responsable técnico |
 | 0.12.0 | 25-09-2026 | **Un curso se abre también por un servicio**, por decisión del responsable del proyecto (§5.2.8): **es el curso quien declara qué productos `BOT` lo abren**, además de qué membresías, y las dos listas **se suman**. Nace **`RN-AC-020`** —solo `BOT`; existente y no retirado al añadir; un servicio inactivo se añade; lo tiene quien lo tiene **vigente** en `user_products`; retirarlo en `PM` no toca la lista—, y **`RF-AC-037`** y **`RF-AC-038`**, con tripleta, en `Tasks en revisión`. **Se enmiendan tres reglas**: `RN-AC-012` y `RN-AC-015` —un curso sin membresías **y sin servicios** no se ofrece— y `RN-AC-013` —el contenido lo abre la membresía **o el servicio** vigente—. **La frontera de §1.4 se mueve, y no como ella misma anticipaba**: aquella versión preveía un tipo de producto nuevo que declarara el curso, con `PM` consumiendo a `AC`; lo decidido es lo contrario, y **`AC` pasa a depender de `PM`** (§3), sin ciclo. Nace **`course_products`** (§8.5.1) —la cuarta relación, nueve tablas— y **dos interfaces que no existen**: la lectura del tipo en `ProductCatalog`, que amplía `RF-AC-037`, y «los productos vigentes de una persona» en `SP`, que pedirá el aula. **Cuatro preguntas hechas antes de escribir**, con sus descartes en §5.2.8. El bloque 4 de §6.1 pasa a ocho requerimientos, con el servicio antes que la membresía. | Responsable del proyecto |
 | 0.13.0 | 25-09-2026 | **Construidos cinco requerimientos y una enmienda**, en `feature/ajustes-academia`: **`RF-AC-037` y `RF-AC-038`** (`V43`, `course_products`) —el curso se abre también por un servicio—; **`RF-AC-006`, `RF-AC-032` y `RF-AC-014`** (`V44`, `academy_images`), adelantados del bloque 5 porque la portada del curso los necesita (§5.2.9); y **la enmienda de `RF-AC-008`** —el alta admite `categoryIds`, todo o nada—. `ImageSignature` y `CambioDePortada` pasan a `shared/images` (§5.2.3 lo anticipaba). **Las demás portadas siguen en `Tasks en revisión`**: quitar (`RF-AC-007`, `RF-AC-015`) y las del módulo (`RF-AC-026`, `RF-AC-027`). `CourseOfferability` suma las dos llaves; la de membresías sigue siendo cero hasta `RF-AC-020`. | Responsable técnico |
+| 0.14.0 | 25-09-2026 | **Las membresías abren cursos**: `RF-AC-020` y `RF-AC-021` pasan a `En desarrollo` (`V45`, `course_memberships`), y **el alta del curso admite `productIds` y `membershipIds`** además de `categoryIds`, por una segunda decisión del responsable del proyecto del mismo día (§5.2.9). Con esto **`RN-AC-015` queda entera por dentro**: `CourseOfferability` recibe cuentas reales de las dos llaves, y un curso activo y armado se ofrece por una membresía, por un servicio o por los dos. Del bloque 4 quedan las recomendaciones (`RF-AC-018`, `RF-AC-019`). | Responsable técnico |

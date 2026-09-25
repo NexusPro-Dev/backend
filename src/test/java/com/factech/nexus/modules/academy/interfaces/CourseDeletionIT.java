@@ -155,13 +155,13 @@ class CourseDeletionIT extends IntegrationTestBase {
 
   @Test
   @DisplayName(
-      "el retiro sin árbol cuesta hasta siete sentencias: el curso bloqueado, sus categorías, sus"
-          + " servicios, los módulos vivos, el UPDATE, la baja y su secuencia")
+      "el retiro sin árbol cuesta hasta ocho sentencias: el curso bloqueado, sus categorías, sus"
+          + " membresías, sus servicios, los módulos vivos, el UPDATE, la baja y su secuencia")
   void sentencias() throws Exception {
     estadisticas.clear();
     mvc.perform(retiro(curso, "{\"reason\":\"Ya no se dicta.\"}", UUID.randomUUID()))
         .andExpect(status().isNoContent());
-    assertThat(estadisticas.getPrepareStatementCount()).isLessThanOrEqualTo(7);
+    assertThat(estadisticas.getPrepareStatementCount()).isLessThanOrEqualTo(8);
   }
 
   @Test

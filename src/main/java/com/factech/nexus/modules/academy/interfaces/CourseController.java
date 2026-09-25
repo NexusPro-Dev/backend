@@ -5,6 +5,7 @@ import com.factech.nexus.modules.academy.application.ClassifyCourseRequest;
 import com.factech.nexus.modules.academy.application.CourseDetailResponse;
 import com.factech.nexus.modules.academy.application.CoursePageResponse;
 import com.factech.nexus.modules.academy.application.DeleteCourseRequest;
+import com.factech.nexus.modules.academy.application.GrantCourseMembershipRequest;
 import com.factech.nexus.modules.academy.application.GrantCourseProductRequest;
 import com.factech.nexus.modules.academy.application.ListCoursesRequest;
 import com.factech.nexus.modules.academy.application.RegisterCourseRequest;
@@ -14,9 +15,11 @@ import com.factech.nexus.modules.academy.domain.service.ClassifyCourseService;
 import com.factech.nexus.modules.academy.domain.service.DeclassifyCourseService;
 import com.factech.nexus.modules.academy.domain.service.DeleteCourseService;
 import com.factech.nexus.modules.academy.domain.service.GetCourseService;
+import com.factech.nexus.modules.academy.domain.service.GrantCourseMembershipService;
 import com.factech.nexus.modules.academy.domain.service.GrantCourseProductService;
 import com.factech.nexus.modules.academy.domain.service.ListCoursesService;
 import com.factech.nexus.modules.academy.domain.service.RegisterCourseService;
+import com.factech.nexus.modules.academy.domain.service.RevokeCourseMembershipService;
 import com.factech.nexus.modules.academy.domain.service.RevokeCourseProductService;
 import com.factech.nexus.modules.academy.domain.service.UpdateCourseService;
 import com.factech.nexus.modules.academy.domain.service.UploadCourseCoverService;
@@ -75,6 +78,8 @@ public class CourseController {
   private final GrantCourseProductService servicio;
   private final RevokeCourseProductService quitaServicio;
   private final UploadCourseCoverService portada;
+  private final GrantCourseMembershipService membresia;
+  private final RevokeCourseMembershipService quitaMembresia;
 
   public CourseController(
       RegisterCourseService alta,
@@ -87,7 +92,11 @@ public class CourseController {
       DeclassifyCourseService desclasificacion,
       GrantCourseProductService servicio,
       RevokeCourseProductService quitaServicio,
-      UploadCourseCoverService portada) {
+      UploadCourseCoverService portada,
+      GrantCourseMembershipService membresia,
+      RevokeCourseMembershipService quitaMembresia) {
+    this.membresia = membresia;
+    this.quitaMembresia = quitaMembresia;
     this.portada = portada;
     this.servicio = servicio;
     this.quitaServicio = quitaServicio;
@@ -108,18 +117,24 @@ public class CourseController {
       description =
           """
           Registra un curso con **título, instructor, dificultad y orden**, obligatorios,
-          y descripción corta, descripción larga, video de introducción y
-          **`categoryIds`** —las categorías en que nace—, opcionales. **Nace
-          `INACTIVO`**, en las categorías pedidas y sin recomendaciones, membresías,
-          servicios, módulos ni portada —cada cosa entra por su operación; **la portada,
+          y descripción corta, descripción larga y video de introducción, opcionales. Y
+          **quién lo puede ver y dónde se encuentra**, también opcionales:
+
+          - **`categoryIds`** — las categorías en que nace, cada una **viva**.
+          - **`productIds`** — los **servicios** que lo abren: productos de tipo
+            **`BOT`**, no retirados (un servicio inactivo se admite).
+          - **`membershipIds`** — las **membresías** que lo abren. Es una lista, no un
+            nivel mínimo: dar `ORO` no lo abre a `PLATINO`.
+
+          **Cada lista es todo o nada**: si algo no sirve responde `422` —`EX-004`
+          categorías, `EX-005` servicios (inexistente, retirado o que no es `BOT`),
+          `EX-006` membresías— **nombrando todo lo que falla**, y **no se crea nada**.
+          Repetidos o nulos en cualquiera, `400` (`VAL-008`). Ausente o vacía es
+          «ninguno». Cada fila deja su auditoría, como darla después con su operación.
+
+          **Nace `INACTIVO`**, sin recomendaciones, módulos ni portada —**la portada,
           por `PUT /api/v1/courses/{id}/cover` justo después**—, y **sin código**: un
           curso no se teclea en ninguna venta.
-
-          **`categoryIds` es todo o nada**: cada una tiene que ser una categoría
-          **viva**; si alguna no existe o está retirada responde `422` (`EX-004`)
-          **nombrándolas todas**, y no se crea nada. Repetidas o nulas, `400`
-          (`VAL-008`). Ausente o vacía, el curso nace sin categorías. Cada una deja su
-          fila de auditoría, como clasificarlo después.
 
           **El instructor es una persona del sistema que existe, no está retirada y
           porta `courses:teach`**, comprobado **al asignar y solo al asignar**: que lo
@@ -147,9 +162,9 @@ public class CourseController {
     @ApiResponse(
         responseCode = "400",
         description =
-            "Datos inválidos, juntos (`VAL-001` a `VAL-006`, y una categoría nula en"
-                + " `VAL-008`); un campo no admitido (`VAL-007`); o categorías repetidas"
-                + " (`VAL-008`)"),
+            "Datos inválidos, juntos (`VAL-001` a `VAL-006`, y un identificador nulo en"
+                + " cualquiera de las tres listas en `VAL-008`); un campo no admitido"
+                + " (`VAL-007`); o identificadores repetidos en una lista (`VAL-008`)"),
     @ApiResponse(responseCode = "401", description = "Token ausente o inválido (`AUTH-001`)"),
     @ApiResponse(
         responseCode = "403",
@@ -161,8 +176,9 @@ public class CourseController {
         responseCode = "422",
         description =
             "El instructor no existe o está retirado (`EX-002`), no porta `courses:teach`"
-                + " (`EX-003`), o alguna categoría no existe o está retirada (`EX-004`, las"
-                + " nombra todas)")
+                + " (`EX-003`); o, nombrando todo lo que falla, categorías que no existen o"
+                + " están retiradas (`EX-004`), productos que no son servicios vivos (`EX-005`)"
+                + " o membresías que no existen (`EX-006`)")
   })
   public ResponseEntity<CourseDetailResponse> register(
       @Valid @RequestBody RegisterCourseRequest peticion) {
@@ -582,6 +598,92 @@ public class CourseController {
   public CourseDetailResponse quitarServicio(
       @PathVariable UUID courseId, @PathVariable UUID productId) {
     return quitaServicio.revoke(courseId, productId);
+  }
+
+  @PostMapping("/{courseId}/memberships")
+  @PreAuthorize("hasAuthority('courses:update')")
+  @Operation(
+      summary = "Dar visibilidad de un curso a una membresía",
+      description =
+          """
+          Declara que **una membresía abre el curso**: quien la tenga **vigente** podrá
+          estudiarlo. **Es una lista, no un nivel mínimo**: dar `ORO` no lo abre a
+          `PLATINO`; «este nivel y los de arriba» se añaden uno a uno. **Se suma a los
+          servicios**: el curso se abre con una de sus membresías **o** uno de sus
+          servicios. Una pareja por petición.
+
+          La membresía tiene que existir (`422` `EX-002` si no); la pareja repetida
+          responde `409` **nombrando la membresía por su código**. El curso tiene que
+          estar vivo, en cualquier estado: la lista se arma antes de publicar. Con su
+          primera llave, un curso activo, con descripciones y un módulo ofrecible **se
+          ofrece**. Que un alumno lo estudie lo decide el aula.
+
+          La respuesta es el curso en la forma del detalle, con la membresía en
+          `memberships` —identificador, código, nombre, color—, en el orden de la cadena.
+          Exige `courses:update`.
+          """)
+  @ApiResponses({
+    @ApiResponse(
+        responseCode = "201",
+        description = "La membresía abre el curso; el curso en la forma del detalle.",
+        content = @Content(schema = @Schema(implementation = CourseDetailResponse.class))),
+    @ApiResponse(
+        responseCode = "400",
+        description =
+            "Identificador inválido (`VAL-001`), `membershipId` ausente o mal formado"
+                + " (`VAL-002`), o un campo no admitido (`VAL-003`)"),
+    @ApiResponse(responseCode = "401", description = "Token ausente o inválido (`AUTH-001`)"),
+    @ApiResponse(
+        responseCode = "403",
+        description = "Autenticado sin el permiso `courses:update` (`AUTH-002`)"),
+    @ApiResponse(
+        responseCode = "404",
+        description = "El curso no existe o está retirado (`EX-001`)"),
+    @ApiResponse(
+        responseCode = "409",
+        description = "Esa membresía ya abre el curso; el mensaje la nombra (`EX-003`)"),
+    @ApiResponse(responseCode = "422", description = "La membresía no existe (`EX-002`)")
+  })
+  public ResponseEntity<CourseDetailResponse> darMembresia(
+      @PathVariable UUID courseId, @Valid @RequestBody GrantCourseMembershipRequest peticion) {
+    CourseDetailResponse curso = membresia.grant(courseId, peticion);
+    return ResponseEntity.created(URI.create("/api/v1/courses/" + curso.id())).body(curso);
+  }
+
+  @DeleteMapping("/{courseId}/memberships/{membershipId}")
+  @PreAuthorize("hasAuthority('courses:update')")
+  @Operation(
+      summary = "Quitar la visibilidad de un curso a una membresía",
+      description =
+          """
+          Deja de abrir el curso con esa membresía: **borra la pareja, sin motivo**, y lo
+          registra como eliminación de una asociación. Sin cuerpo.
+
+          **Quitar la última nunca se rechaza**: si el curso tampoco tiene servicios,
+          deja de ofrecerse y el detalle lo dice —es la forma de retirar un curso de la
+          vista de todos sin desactivarlo—. Los dos `404` se distinguen por el mensaje:
+          el curso no existe o está retirado, o esa membresía no lo abre. La respuesta
+          es el curso en la forma del detalle. Exige `courses:update`.
+          """)
+  @ApiResponses({
+    @ApiResponse(
+        responseCode = "200",
+        description = "La membresía ya no abre el curso; el curso en la forma del detalle.",
+        content = @Content(schema = @Schema(implementation = CourseDetailResponse.class))),
+    @ApiResponse(responseCode = "400", description = "Identificador inválido (`VAL-001`)"),
+    @ApiResponse(responseCode = "401", description = "Token ausente o inválido (`AUTH-001`)"),
+    @ApiResponse(
+        responseCode = "403",
+        description = "Autenticado sin el permiso `courses:update` (`AUTH-002`)"),
+    @ApiResponse(
+        responseCode = "404",
+        description =
+            "El curso no existe o está retirado (`EX-001`), o esa membresía no lo abre"
+                + " (`EX-002`)")
+  })
+  public CourseDetailResponse quitarMembresia(
+      @PathVariable UUID courseId, @PathVariable UUID membershipId) {
+    return quitaMembresia.revoke(courseId, membershipId);
   }
 
   @PutMapping(value = "/{id}/cover", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)

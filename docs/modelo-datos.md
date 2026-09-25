@@ -2,7 +2,7 @@
 
 | Campo | Valor |
 |---|---|
-| Versión | 0.71.0 |
+| Versión | 0.72.0 |
 | Estado | **Borrador** |
 | Responsable | Bonilla Diaz William Steven |
 | Fecha de creación | 21-08-2026 |
@@ -876,7 +876,7 @@ flowchart TB
 | `PM` | `products`, `product_comments`, `product_images`, `product_packages`, `product_package_items`, `product_links` | **3 escritas** (`V39`, `V87`, `V90`) **y dos diseñadas**: las de los paquetes, que creará la migración de `RF-PM-017` (14-09-2026). **`product_links` la crea `V35`** (22-09-2026), y con ella `products` **pierde** `video_url` |
 | `CM` | `commission_rates`, `user_commission_rates` | **2, escritas** (`V6` del esquema consolidado). `product_commission_rates` existió de `V49` a `V94` (15-09-2026) y `user_commission_rate_products` de `V85` a `V10` (16-09-2026) |
 | `MV` | `movements`, `movement_types`, `movement_type_statuses`, `movement_details`, `movement_detail_discounts`, `payment_methods`, `payment_method_exclusions` | **7, escritas** (`V7` del esquema consolidado, `V14` para las rebajas y `V36` para los estados por tipo) |
-| `AC` | `course_categories`, `courses`, `course_category_items`, `course_recommendations`, `course_memberships`, `course_products`, `course_modules`, `lessons`, `academy_images` | **7 escritas** —`course_categories` (`V18`), `courses` (`V21`), `course_modules` (`V23`), `lessons` (`V24`), `course_category_items` (`V42`), `course_products` (`V43`) y `academy_images` (`V44`), las tres últimas el 25-09-2026— **y dos diseñadas** (§4.2): las crearán los requerimientos que las estrenan, en el orden de [`requirements/ac.md`](requirements/ac.md) §6.1 |
+| `AC` | `course_categories`, `courses`, `course_category_items`, `course_recommendations`, `course_memberships`, `course_products`, `course_modules`, `lessons`, `academy_images` | **8 escritas** —`course_categories` (`V18`), `courses` (`V21`), `course_modules` (`V23`), `lessons` (`V24`), `course_category_items` (`V42`), `course_products` (`V43`), `academy_images` (`V44`) y `course_memberships` (`V45`), las cuatro últimas el 25-09-2026— **y una diseñada**, `course_recommendations` (§4.2): las crearán los requerimientos que las estrenan, en el orden de [`requirements/ac.md`](requirements/ac.md) §6.1 |
 
 **Un módulo, una a ocho tablas.** `SP` tiene veintiuna y los otros cuatro juntos tienen veintiuna —ocho de ellas, las de `AC`, todavía en papel—, y eso no es desequilibrio: `SP` es dueño del acceso, de los catálogos transversales y de la auditoría entera, que es infraestructura que todos usan y nadie duplica.
 
@@ -912,7 +912,7 @@ Son las que siguen —**y desde el 14-09-2026 una de `PM` apunta a `users`**—,
 | `product_links.product_id` | `products` | `PM` → `PM` (`V35`, 22-09-2026) — **no cruza módulo**, y se anota aquí por lo mismo que la portada del paquete: **sin `ON DELETE`**, porque el producto no se borra físicamente nunca (`RN-PM-010`) |
 | `product_packages.currency_id` | `currencies` | `PM` → `SP` — la moneda del paquete entero (14-09-2026, diseñada) |
 | `courses.instructor_id` | `users` | `AC` → `SP` — quién enseña (17-09-2026, diseñada). **Que porte `courses:teach` no cabe en la clave**: lo comprueba el dominio contra la interfaz de `SP` |
-| `course_memberships.membership_id` | `memberships` | `AC` → `SP` — qué nivel abre el curso (17-09-2026, diseñada). La **primera clave foránea hacia `memberships` que no es de `PM`** |
+| `course_memberships.membership_id` | `memberships` | `AC` → `SP` — qué nivel abre el curso (17-09-2026; escrita en `V45`, 25-09-2026). La **primera clave foránea hacia `memberships` que no es de `PM`** |
 | `course_products.product_id` | `products` | `AC` → `PM` — qué servicio abre el curso (`V43`, 25-09-2026). **La primera de `AC` hacia `PM`**; que sea `BOT` no cabe en la clave y lo comprueba el dominio contra `ProductCatalog`. **Sin `ON DELETE`**: toda suite que borre `products` borra antes estas filas |
 
 **Y una que no cruza ningún módulo pero conviene ver aquí**: `product_packages.cover_image_id` → `product_images` (`PM` → `PM`, `V11`, 16-09-2026), la segunda columna que señala esa tabla. Junto con `products.cover_image_id`, hace de `product_images` **el valor de dos columnas de dos tablas**, sin que la tabla sepa de cuál viene cada fila.
@@ -1037,3 +1037,4 @@ Los documentos que citan una migración vieja por su número —specs, controles
 | 0.69.0 | 25-09-2026 | **`course_category_items` está escrita** (`V42`, `RF-AC-016`), tal como §4.2 la diseñó. La fila de `AC` en la tabla de módulos **venía desfasada desde el 19-09-2026** —decía una escrita cuando ya eran cuatro: `courses`, `course_modules` y `lessons` se crearon en `V21`, `V23` y `V24`— y se corrige aquí: cinco escritas y tres diseñadas. | Responsable técnico |
 | 0.70.0 | 25-09-2026 | **`course_products` diseñada** ([`requirements/ac.md`](requirements/ac.md) v0.12.0 §8.5.1): la cuarta relación de `AC`, **qué productos `BOT` abren un curso**, sumada a sus membresías, por decisión del responsable del proyecto. **La primera clave foránea de `AC` hacia `PM`** (§5.3). | Responsable técnico |
 | 0.71.0 | 25-09-2026 | **`course_products` (`V43`) y `academy_images` (`V44`) están escritas**, y con `V44` llegan las seis restricciones de las tres columnas `cover_image_id` de `AC`. `AC` pasa a siete tablas escritas y dos diseñadas —`course_recommendations` y `course_memberships`—. | Responsable técnico |
+| 0.72.0 | 25-09-2026 | **`course_memberships` está escrita** (`V45`, `RF-AC-020`), tal como §4.2 la diseñó. `AC` pasa a ocho tablas escritas y una diseñada. | Responsable técnico |

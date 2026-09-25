@@ -1689,6 +1689,16 @@
         },
         "type" : "object"
       },
+      "GrantCourseMembershipRequest" : {
+        "properties" : {
+          "membershipId" : {
+            "format" : "uuid",
+            "type" : "string"
+          }
+        },
+        "required" : [ "membershipId" ],
+        "type" : "object"
+      },
       "GrantCourseProductRequest" : {
         "properties" : {
           "productId" : {
@@ -4210,6 +4220,20 @@
             "maxLength" : 10000,
             "minLength" : 0,
             "type" : "string"
+          },
+          "membershipIds" : {
+            "items" : {
+              "format" : "uuid",
+              "type" : "string"
+            },
+            "type" : "array"
+          },
+          "productIds" : {
+            "items" : {
+              "format" : "uuid",
+              "type" : "string"
+            },
+            "type" : "array"
           },
           "shortDescription" : {
             "maxLength" : 300,
@@ -8293,7 +8317,7 @@
         "x-required-permission" : "courses:read"
       },
       "post" : {
-        "description" : "**Permiso requerido:** `courses:create`. Sin él, `403` (`AUTH-002`).\n\nRegistra un curso con **título, instructor, dificultad y orden**, obligatorios,\ny descripción corta, descripción larga, video de introducción y\n**`categoryIds`** —las categorías en que nace—, opcionales. **Nace\n`INACTIVO`**, en las categorías pedidas y sin recomendaciones, membresías,\nservicios, módulos ni portada —cada cosa entra por su operación; **la portada,\npor `PUT /api/v1/courses/{id}/cover` justo después**—, y **sin código**: un\ncurso no se teclea en ninguna venta.\n\n**`categoryIds` es todo o nada**: cada una tiene que ser una categoría\n**viva**; si alguna no existe o está retirada responde `422` (`EX-004`)\n**nombrándolas todas**, y no se crea nada. Repetidas o nulas, `400`\n(`VAL-008`). Ausente o vacía, el curso nace sin categorías. Cada una deja su\nfila de auditoría, como clasificarlo después.\n\n**El instructor es una persona del sistema que existe, no está retirada y\nporta `courses:teach`**, comprobado **al asignar y solo al asignar**: que lo\npierda después no toca el curso. Un instructor inexistente o retirado y uno\nsin el permiso son dos `422` distintos, porque se arreglan en sitios\ndistintos. **`instructor.fullName` es el nombre actual** de la persona, no\nuna copia.\n\nEl título es único entre los cursos **vivos**, sin distinguir mayúsculas ni\nacentos; un retirado libera el suyo. Las descripciones de solo espacios se\nguardan nulas; el video se comprueba en su forma y **no se sigue**. Enviar\n`status`, `categories`, `memberships`, `modules`, `coverImageUrl` o `code`\nresponde `400`.\n\nLa respuesta es la forma del detalle: `categories` con las pedidas en su\norden, las demás listas vacías, `coverImageUrl` presente y nulo, cero minutos y cero lecciones, y `offerable: false` con\n`offerableReason` «inactivo». Exige `courses:create`; **los\n`course-categories:` no habilitan**.\n",
+        "description" : "**Permiso requerido:** `courses:create`. Sin él, `403` (`AUTH-002`).\n\nRegistra un curso con **título, instructor, dificultad y orden**, obligatorios,\ny descripción corta, descripción larga y video de introducción, opcionales. Y\n**quién lo puede ver y dónde se encuentra**, también opcionales:\n\n- **`categoryIds`** — las categorías en que nace, cada una **viva**.\n- **`productIds`** — los **servicios** que lo abren: productos de tipo\n  **`BOT`**, no retirados (un servicio inactivo se admite).\n- **`membershipIds`** — las **membresías** que lo abren. Es una lista, no un\n  nivel mínimo: dar `ORO` no lo abre a `PLATINO`.\n\n**Cada lista es todo o nada**: si algo no sirve responde `422` —`EX-004`\ncategorías, `EX-005` servicios (inexistente, retirado o que no es `BOT`),\n`EX-006` membresías— **nombrando todo lo que falla**, y **no se crea nada**.\nRepetidos o nulos en cualquiera, `400` (`VAL-008`). Ausente o vacía es\n«ninguno». Cada fila deja su auditoría, como darla después con su operación.\n\n**Nace `INACTIVO`**, sin recomendaciones, módulos ni portada —**la portada,\npor `PUT /api/v1/courses/{id}/cover` justo después**—, y **sin código**: un\ncurso no se teclea en ninguna venta.\n\n**El instructor es una persona del sistema que existe, no está retirada y\nporta `courses:teach`**, comprobado **al asignar y solo al asignar**: que lo\npierda después no toca el curso. Un instructor inexistente o retirado y uno\nsin el permiso son dos `422` distintos, porque se arreglan en sitios\ndistintos. **`instructor.fullName` es el nombre actual** de la persona, no\nuna copia.\n\nEl título es único entre los cursos **vivos**, sin distinguir mayúsculas ni\nacentos; un retirado libera el suyo. Las descripciones de solo espacios se\nguardan nulas; el video se comprueba en su forma y **no se sigue**. Enviar\n`status`, `categories`, `memberships`, `modules`, `coverImageUrl` o `code`\nresponde `400`.\n\nLa respuesta es la forma del detalle: `categories` con las pedidas en su\norden, las demás listas vacías, `coverImageUrl` presente y nulo, cero minutos y cero lecciones, y `offerable: false` con\n`offerableReason` «inactivo». Exige `courses:create`; **los\n`course-categories:` no habilitan**.\n",
         "operationId" : "register_3",
         "requestBody" : {
           "content" : {
@@ -8324,7 +8348,7 @@
                 }
               }
             },
-            "description" : "Datos inválidos, juntos (`VAL-001` a `VAL-006`, y una categoría nula en `VAL-008`); un campo no admitido (`VAL-007`); o categorías repetidas (`VAL-008`)"
+            "description" : "Datos inválidos, juntos (`VAL-001` a `VAL-006`, y un identificador nulo en cualquiera de las tres listas en `VAL-008`); un campo no admitido (`VAL-007`); o identificadores repetidos en una lista (`VAL-008`)"
           },
           "401" : {
             "content" : {
@@ -8364,7 +8388,7 @@
                 }
               }
             },
-            "description" : "El instructor no existe o está retirado (`EX-002`), no porta `courses:teach` (`EX-003`), o alguna categoría no existe o está retirada (`EX-004`, las nombra todas)"
+            "description" : "El instructor no existe o está retirado (`EX-002`), no porta `courses:teach` (`EX-003`); o, nombrando todo lo que falla, categorías que no existen o están retiradas (`EX-004`), productos que no son servicios vivos (`EX-005`) o membresías que no existen (`EX-006`)"
           }
         },
         "summary" : "Registrar un curso",
@@ -8546,6 +8570,184 @@
           }
         },
         "summary" : "Desclasificar un curso de una categoría",
+        "tags" : [ "Cursos" ],
+        "x-required-permission" : "courses:update"
+      }
+    },
+    "/api/v1/courses/{courseId}/memberships" : {
+      "post" : {
+        "description" : "**Permiso requerido:** `courses:update`. Sin él, `403` (`AUTH-002`).\n\nDeclara que **una membresía abre el curso**: quien la tenga **vigente** podrá\nestudiarlo. **Es una lista, no un nivel mínimo**: dar `ORO` no lo abre a\n`PLATINO`; «este nivel y los de arriba» se añaden uno a uno. **Se suma a los\nservicios**: el curso se abre con una de sus membresías **o** uno de sus\nservicios. Una pareja por petición.\n\nLa membresía tiene que existir (`422` `EX-002` si no); la pareja repetida\nresponde `409` **nombrando la membresía por su código**. El curso tiene que\nestar vivo, en cualquier estado: la lista se arma antes de publicar. Con su\nprimera llave, un curso activo, con descripciones y un módulo ofrecible **se\nofrece**. Que un alumno lo estudie lo decide el aula.\n\nLa respuesta es el curso en la forma del detalle, con la membresía en\n`memberships` —identificador, código, nombre, color—, en el orden de la cadena.\nExige `courses:update`.\n",
+        "operationId" : "darMembresia",
+        "parameters" : [ {
+          "in" : "path",
+          "name" : "courseId",
+          "required" : true,
+          "schema" : {
+            "format" : "uuid",
+            "type" : "string"
+          }
+        } ],
+        "requestBody" : {
+          "content" : {
+            "application/json" : {
+              "schema" : {
+                "$ref" : "#/components/schemas/GrantCourseMembershipRequest"
+              }
+            }
+          },
+          "required" : true
+        },
+        "responses" : {
+          "201" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/CourseDetailResponse"
+                }
+              }
+            },
+            "description" : "La membresía abre el curso; el curso en la forma del detalle."
+          },
+          "400" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/CourseDetailResponse"
+                }
+              }
+            },
+            "description" : "Identificador inválido (`VAL-001`), `membershipId` ausente o mal formado (`VAL-002`), o un campo no admitido (`VAL-003`)"
+          },
+          "401" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/CourseDetailResponse"
+                }
+              }
+            },
+            "description" : "Token ausente o inválido (`AUTH-001`)"
+          },
+          "403" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/CourseDetailResponse"
+                }
+              }
+            },
+            "description" : "Autenticado sin el permiso `courses:update` (`AUTH-002`)"
+          },
+          "404" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/CourseDetailResponse"
+                }
+              }
+            },
+            "description" : "El curso no existe o está retirado (`EX-001`)"
+          },
+          "409" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/CourseDetailResponse"
+                }
+              }
+            },
+            "description" : "Esa membresía ya abre el curso; el mensaje la nombra (`EX-003`)"
+          },
+          "422" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/CourseDetailResponse"
+                }
+              }
+            },
+            "description" : "La membresía no existe (`EX-002`)"
+          }
+        },
+        "summary" : "Dar visibilidad de un curso a una membresía",
+        "tags" : [ "Cursos" ],
+        "x-required-permission" : "courses:update"
+      }
+    },
+    "/api/v1/courses/{courseId}/memberships/{membershipId}" : {
+      "delete" : {
+        "description" : "**Permiso requerido:** `courses:update`. Sin él, `403` (`AUTH-002`).\n\nDeja de abrir el curso con esa membresía: **borra la pareja, sin motivo**, y lo\nregistra como eliminación de una asociación. Sin cuerpo.\n\n**Quitar la última nunca se rechaza**: si el curso tampoco tiene servicios,\ndeja de ofrecerse y el detalle lo dice —es la forma de retirar un curso de la\nvista de todos sin desactivarlo—. Los dos `404` se distinguen por el mensaje:\nel curso no existe o está retirado, o esa membresía no lo abre. La respuesta\nes el curso en la forma del detalle. Exige `courses:update`.\n",
+        "operationId" : "quitarMembresia",
+        "parameters" : [ {
+          "in" : "path",
+          "name" : "courseId",
+          "required" : true,
+          "schema" : {
+            "format" : "uuid",
+            "type" : "string"
+          }
+        }, {
+          "in" : "path",
+          "name" : "membershipId",
+          "required" : true,
+          "schema" : {
+            "format" : "uuid",
+            "type" : "string"
+          }
+        } ],
+        "responses" : {
+          "200" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/CourseDetailResponse"
+                }
+              }
+            },
+            "description" : "La membresía ya no abre el curso; el curso en la forma del detalle."
+          },
+          "400" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/CourseDetailResponse"
+                }
+              }
+            },
+            "description" : "Identificador inválido (`VAL-001`)"
+          },
+          "401" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/CourseDetailResponse"
+                }
+              }
+            },
+            "description" : "Token ausente o inválido (`AUTH-001`)"
+          },
+          "403" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/CourseDetailResponse"
+                }
+              }
+            },
+            "description" : "Autenticado sin el permiso `courses:update` (`AUTH-002`)"
+          },
+          "404" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/CourseDetailResponse"
+                }
+              }
+            },
+            "description" : "El curso no existe o está retirado (`EX-001`), o esa membresía no lo abre (`EX-002`)"
+          }
+        },
+        "summary" : "Quitar la visibilidad de un curso a una membresía",
         "tags" : [ "Cursos" ],
         "x-required-permission" : "courses:update"
       }
