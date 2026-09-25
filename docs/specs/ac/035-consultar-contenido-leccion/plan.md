@@ -44,7 +44,7 @@
   "id": "…", "courseId": "…", "moduleId": "…",
   "type": "TEXTO", "title": "Los cuerpos", "description": null,
   "content": "# Los cuerpos\n\nUna vela tiene…",
-  "durationMinutes": 18, "displayOrder": 1, "open": false
+  "durationSeconds": 18, "displayOrder": 1, "open": false
 }
 ```
 

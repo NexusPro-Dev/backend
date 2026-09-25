@@ -62,7 +62,7 @@ Es `RF-AC-023` con lo que la lección tiene y el módulo no: **el tipo, el conte
 | `title` | No | Título nuevo | Hasta 150; único en el módulo; **no admite nulo** |
 | `description` | No | Descripción nueva | Hasta 1000; **nulo explícito la vacía** |
 | `content` | No | Contenido nuevo | Contra el tipo resultante; **nulo explícito lo vacía** |
-| `durationMinutes` | No | Duración nueva | Entero > 0; **no admite nulo** |
+| `durationSeconds` | No | Duración nueva | Entero > 0; **no admite nulo** |
 | `displayOrder` | No | Orden nuevo | Entero ≥ 0; **no admite nulo** |
 | `open` | No | Demostración | Booleano; **no admite nulo** |
 
@@ -158,3 +158,4 @@ Es `RF-AC-023` con lo que la lección tiene y el módulo no: **el tipo, el conte
 | 0.1.0 | 18-09-2026 | Redacción inicial. Hereda `RF-AC-023` y añade **la pareja `(tipo, contenido)` resultante**, validada antes de aplicar nada, y el vaciado del contenido en cualquier estado. Deja escritos dos huecos para el responsable del proyecto (§14): la lección activa y vacía se enseña vacía, y administración no tiene cómo leer el contenido sin editar. | Responsable técnico |
 | 0.2.0 | 18-09-2026 | **Enmienda de Art. I.7 (18-09-2026)**: `RN-AC-015` gana dos motivos por decisión del responsable del proyecto —«sin descripción» en el curso y «sin contenido» en la lección—, y **nace `RF-AC-036`**. Los dos huecos de §14 se cierran: la lección activa y vacía **deja de ofrecerse** (`FA-001` reescrito, **`CA-AC-215`** añadido) y administración lee el contenido por el `GET` nuevo. | Responsable técnico |
 | 0.3.0 | 19-09-2026 | **Construida** (`LessonUpdateIT` (7), incluido `CA-AC-215`). **Una precisión a `CA-AC-215`**: el quinto motivo del curso **solo se observa con una membresía delante** (`RF-AC-020`); hasta entonces el curso dice el cuarto y es el módulo quien enseña el hueco con `offerable: false`. La carrera sobre el título sale con el código del alta, como en el módulo. | Responsable técnico |
+| 0.4.0 | 25-09-2026 | **Enmienda por decisión del responsable del proyecto** (`ac.md` §5.2.10, `RN-AC-017`): **la duración de la lección se guarda en segundos**, y las sumas del módulo y del curso también: `durationSeconds` y `totalDurationSeconds` sustituyen a `durationMinutes` y `totalDurationMinutes` en el cuerpo de esta spec. Las filas anteriores de esta tabla conservan el nombre que tenía el campo en su fecha. | Responsable técnico |

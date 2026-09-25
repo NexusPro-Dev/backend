@@ -55,7 +55,7 @@
       "difficulty": "PRINCIPIANTE", "shortDescription": "…", "displayOrder": 0,
       "coverImageUrl": "/api/v1/academy-images/…",
       "categories": [{ "id": "…", "name": "Trading", "color": "1E88E5", "icon": "chart" }],
-      "totalDurationMinutes": 84, "lessonCount": 7, "accessible": true
+      "totalDurationSeconds": 84, "lessonCount": 7, "accessible": true
     }
   ]
 }

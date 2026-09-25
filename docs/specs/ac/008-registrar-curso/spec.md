@@ -84,7 +84,7 @@ Es el alta del paquete (`RF-PM-017`) con otra entidad: crea la tabla `courses`, 
 
 ### 6.2 Salida
 
-`201` con el curso en la **misma forma del detalle** (`RF-AC-010`): identificador, título, **instructor resuelto** —identificador, nombre de usuario y nombre completo—, dificultad, descripciones y video presentes y nulos si no vinieron, orden, estado `INACTIVO`, `coverImageUrl` **presente y nula**, `categories` **con las pedidas en su orden** —vacía si no se pidió ninguna—, `recommendedCourses`, `memberships`, `products` y `modules` **vacíos**, `totalDurationMinutes` y `lessonCount` en **cero**, `offerable: false` con `offerableReason` diciendo que está inactivo, y las dos fechas de auditoría iguales.
+`201` con el curso en la **misma forma del detalle** (`RF-AC-010`): identificador, título, **instructor resuelto** —identificador, nombre de usuario y nombre completo—, dificultad, descripciones y video presentes y nulos si no vinieron, orden, estado `INACTIVO`, `coverImageUrl` **presente y nula**, `categories` **con las pedidas en su orden** —vacía si no se pidió ninguna—, `recommendedCourses`, `memberships`, `products` y `modules` **vacíos**, `totalDurationSeconds` y `lessonCount` en **cero**, `offerable: false` con `offerableReason` diciendo que está inactivo, y las dos fechas de auditoría iguales.
 
 ## 7. Precondiciones y postcondiciones
 
@@ -163,7 +163,7 @@ El paso 3 tiene su red en el esquema —`uq_courses_title`, parcial—: la carre
 
 | ID | Criterio |
 |---|---|
-| `CA-AC-034` | El sistema registra el curso con `201` en la forma del detalle: `INACTIVO`, instructor resuelto con nombre de usuario y nombre completo, las cuatro listas vacías, `coverImageUrl` presente y nula, cero minutos y cero lecciones, y `offerable: false` con motivo «inactivo» |
+| `CA-AC-034` | El sistema registra el curso con `201` en la forma del detalle: `INACTIVO`, instructor resuelto con nombre de usuario y nombre completo, las cuatro listas vacías, `coverImageUrl` presente y nula, cero segundos y cero lecciones, y `offerable: false` con motivo «inactivo» |
 | `CA-AC-035` | El sistema rechaza con `409` un título que ya usa un curso vivo, sin distinguir mayúsculas ni acentos, y **admite** el de uno retirado |
 | `CA-AC-036` | El sistema rechaza con `422` `EX-002` un instructor inexistente y uno retirado, y con `422` `EX-003` una persona viva **sin `courses:teach`** — también una que lo tenga por un rol **inactivo** |
 | `CA-AC-037` | El sistema rechaza con `400` el título ausente o largo, el instructor ausente, la dificultad ausente o fuera de dominio, el orden ausente o negativo, las descripciones largas y el video mal formado, **juntos** |
@@ -209,3 +209,4 @@ El paso 3 tiene su red en el esquema —`uq_courses_title`, parcial—: la carre
 | 0.5.0 | 25-09-2026 | **La enmienda de la 0.4.0 está construida** (`CourseRegistrationCategoriesIT`, `CourseClassifier`). **Una precisión a `CA-AC-229`**: las **nulas** salen con los demás errores de forma —es una restricción del elemento de la lista— y las **repetidas**, en el caso de uso antes de cualquier consulta, como `RF-MV-001` con sus líneas; no pueden salir juntas sin un validador propio que el proyecto no tiene. La escritura de cada clasificación es la de `RF-AC-016`, extraída a `CourseClassifier`. | Responsable técnico |
 | 0.6.0 | 25-09-2026 | **Segunda enmienda del día, por decisión del responsable del proyecto** (`ac.md` §5.2.9): **el alta admite también `productIds` y `membershipIds`**, todo o nada, con las mismas escrituras que `RF-AC-037` y `RF-AC-020`. Nacen `EX-005` y `EX-006` —cada uno nombra todos los que fallan— y `CA-AC-230` a `CA-AC-232`; `VAL-008` vale para las tres listas. **La portada sigue fuera**: va por `RF-AC-014`. | Responsable técnico |
 | 0.7.0 | 25-09-2026 | **La segunda enmienda está construida** (`CourseRegistrationCategoriesIT`, `CourseAccessWriter`). Los servicios se resuelven uno a uno por `ProductCatalog.findKind` y las membresías por `MembershipCatalog.find`: son pocos por curso y ninguno de los dos puertos tiene lectura por lote. | Responsable técnico |
+| 0.8.0 | 25-09-2026 | **Enmienda por decisión del responsable del proyecto** (`ac.md` §5.2.10, `RN-AC-017`): **la duración de la lección se guarda en segundos**, y las sumas del módulo y del curso también: `durationSeconds` y `totalDurationSeconds` sustituyen a `durationMinutes` y `totalDurationMinutes` en el cuerpo de esta spec. Las filas anteriores de esta tabla conservan el nombre que tenía el campo en su fecha. | Responsable técnico |

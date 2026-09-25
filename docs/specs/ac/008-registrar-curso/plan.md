@@ -68,7 +68,7 @@ Seis filas con identificador literal —la serie de `AC` continúa: `…000005` 
 | `domain/repository` | `CourseRepository` + `JpaCourseRepository`: `save` con traducción de `uq_courses_title`, `existsAliveTitle`, `existsAliveTitleForOther`, `findAliveByIdForUpdate`, `findByIdForUpdate`, `flush` | `AC` |
 | `domain/repository` | `CourseQueryRepository` + `Jpa…`: `findDetail(id)` — el curso **con su instructor resuelto por `JOIN users`** (`username`, `first_name`, `last_name`; nada más), en una sentencia; y las lecturas de relaciones y módulos, que hoy devuelven vacío y las estrenan sus requerimientos | `AC` |
 | `domain/service` | `RegisterCourseService`; **`CourseDetailReader`** (`MODULO = "AC"`, `ENTIDAD = "courses"`): detalle → relaciones → módulos → ofrecibilidad → motivo de retiro, para las nueve operaciones que devuelven el curso | `AC` |
-| `application` | `RegisterCourseRequest`, `CourseDetailResponse` (con `InstructorRef`, las cuatro listas, `totalDurationMinutes`, `lessonCount`, `offerable`, `offerableReason`, `coverImageUrl`) | `AC` |
+| `application` | `RegisterCourseRequest`, `CourseDetailResponse` (con `InstructorRef`, las cuatro listas, `totalDurationSeconds`, `lessonCount`, `offerable`, `offerableReason`, `coverImageUrl`) | `AC` |
 | `interfaces` | `CourseController` — `POST /api/v1/courses` | `AC` |
 | **`SP` · `users/application`** | **`PermissionHolderLookup`** — `boolean holds(UUID userId, String permissionCode)`; e implementación `JpaPermissionHolderLookup` en `users/domain/repository`: un `EXISTS` con **el mismo predicado** que `JpaEffectivePermissions` —roles vivos y `ACTIVO`, persona no retirada— acotado al código | `SP` |
 | `shared/security` | La ruta en `EndpointPermissionsIT`; `CoursesPermissionsSeedIT` nuevo; el recuento de las cuatro suites del catálogo | `shared` |
@@ -94,7 +94,7 @@ Seis filas con identificador literal —la serie de `AC` continúa: `…000005` 
   "shortDescription": "…", "longDescription": "…", "introVideoUrl": "https://…",
   "displayOrder": 0, "status": "INACTIVO", "coverImageUrl": null,
   "categories": [], "recommendedCourses": [], "memberships": [], "modules": [],
-  "totalDurationMinutes": 0, "lessonCount": 0,
+  "totalDurationSeconds": 0, "lessonCount": 0,
   "offerable": false, "offerableReason": "El curso está inactivo.",
   "createdAt": "…", "updatedAt": "…"
 }

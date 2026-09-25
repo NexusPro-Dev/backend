@@ -2,7 +2,7 @@
 
 | Campo | Valor |
 |---|---|
-| Versión | 0.72.0 |
+| Versión | 0.73.0 |
 | Estado | **Borrador** |
 | Responsable | Bonilla Diaz William Steven |
 | Fecha de creación | 21-08-2026 |
@@ -749,7 +749,7 @@ erDiagram
         varchar type "VIDEO o TEXTO · el tipo dice como leer content"
         varchar title "150 · unico DENTRO del modulo"
         text content "URL si VIDEO, Markdown si TEXTO · el backend NO lo mira · NULL hasta que se prepare · exigido para ACTIVAR"
-        integer duration_minutes "mayor que cero · en los DOS tipos"
+        integer duration_seconds "mayor que cero · en los DOS tipos"
         integer display_order "dentro del modulo"
         boolean open "false por omision · la DEMO: se abre a cualquier alumno con sesion"
         varchar status "nace INACTIVO"
@@ -1038,3 +1038,4 @@ Los documentos que citan una migración vieja por su número —specs, controles
 | 0.70.0 | 25-09-2026 | **`course_products` diseñada** ([`requirements/ac.md`](requirements/ac.md) v0.12.0 §8.5.1): la cuarta relación de `AC`, **qué productos `BOT` abren un curso**, sumada a sus membresías, por decisión del responsable del proyecto. **La primera clave foránea de `AC` hacia `PM`** (§5.3). | Responsable técnico |
 | 0.71.0 | 25-09-2026 | **`course_products` (`V43`) y `academy_images` (`V44`) están escritas**, y con `V44` llegan las seis restricciones de las tres columnas `cover_image_id` de `AC`. `AC` pasa a siete tablas escritas y dos diseñadas —`course_recommendations` y `course_memberships`—. | Responsable técnico |
 | 0.72.0 | 25-09-2026 | **`course_memberships` está escrita** (`V45`, `RF-AC-020`), tal como §4.2 la diseñó. `AC` pasa a ocho tablas escritas y una diseñada. | Responsable técnico |
+| 0.73.0 | 25-09-2026 | **`lessons.duration_minutes` pasa a `duration_seconds`** (`V46`, `RN-AC-017` reescrita): las filas existentes se multiplican por sesenta. | Responsable técnico |

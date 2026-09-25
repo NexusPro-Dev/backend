@@ -73,7 +73,7 @@ Es el requerimiento que **crea `course_modules`** y el primero del bloque 3, que
 
 ### 6.2 Salida
 
-`201` con el módulo en la **forma de su detalle**, que es la misma que el detalle del curso enseña por módulo, más sus dos descripciones y su video: identificador, `courseId`, título, descripciones y video presentes y nulos, orden, estado `INACTIVO`, `coverImageUrl` presente y nula, `durationMinutes` en cero, `lessons` vacío, `offerable: false` con `offerableReason` diciendo que está inactivo, y las dos fechas.
+`201` con el módulo en la **forma de su detalle**, que es la misma que el detalle del curso enseña por módulo, más sus dos descripciones y su video: identificador, `courseId`, título, descripciones y video presentes y nulos, orden, estado `INACTIVO`, `coverImageUrl` presente y nula, `durationSeconds` en cero, `lessons` vacío, `offerable: false` con `offerableReason` diciendo que está inactivo, y las dos fechas.
 
 **Las escrituras sobre un módulo devuelven el módulo, no el curso entero.** Es la decisión de §14.1: el curso entero con su árbol es lo que el frontend ya tiene abierto, y lo que cambia al registrar un módulo es una fila de ese árbol.
 
@@ -129,7 +129,7 @@ Es el requerimiento que **crea `course_modules`** y el primero del bloque 3, que
 
 | ID | Criterio |
 |---|---|
-| `CA-AC-076` | El sistema registra el módulo con `201` en la forma de su detalle: `INACTIVO`, `courseId` el de la ruta, `coverImageUrl` presente y nula, `lessons` vacío, cero minutos y `offerable: false` «inactivo» |
+| `CA-AC-076` | El sistema registra el módulo con `201` en la forma de su detalle: `INACTIVO`, `courseId` el de la ruta, `coverImageUrl` presente y nula, `lessons` vacío, cero segundos y `offerable: false` «inactivo» |
 | `CA-AC-077` | El sistema rechaza con `409` un título que ya usa un módulo vivo **del mismo curso**, sin mayúsculas ni acentos, y **admite** el de un retirado y el mismo título **en otro curso** |
 | `CA-AC-078` | El sistema responde `404` a un curso inexistente y a uno **retirado**; un curso `ACTIVO` admite el módulo igual |
 | `CA-AC-079` | El sistema rechaza con `400` el título ausente o largo, el orden ausente o negativo, las descripciones largas y el video mal formado, **juntos**; y con `400` un cuerpo con `status`, `lessons`, `coverImageUrl` o `courseId` |
@@ -160,3 +160,4 @@ Es el requerimiento que **crea `course_modules`** y el primero del bloque 3, que
 |---|---|---|---|
 | 0.1.0 | 18-09-2026 | Redacción inicial. El módulo nace dentro del curso —ruta anidada, curso bloqueado— e **inactivo y vacío**; título único dentro del curso; **las escrituras devuelven el módulo y no el curso** (§14.1). Crea `course_modules` y **construye cuatro enmiendas declaradas** por el bloque 2: `moduleCount`, el árbol del detalle, la cuenta de activar y el arrastre. | Responsable técnico |
 | 0.2.0 | 19-09-2026 | **Construida** (`V23`, `CourseModulesIT` (7), la carrera en `CourseTreeConcurrencyIT`, `CourseModuleTest`). **Una precisión a `CA-AC-082`**: los módulos se leen **siempre** —el detalle enseña también los retirados, y `module_count` solo cuenta vivos, de modo que no hay con qué cortocircuitar—; `CA-AC-054` de `RF-AC-010` pasa a contar dos sentencias sin módulos y tres con ellos. `ModuleOfferability` nace contando lecciones ofrecibles, por la enmienda del 18-09-2026. | Responsable técnico |
+| 0.3.0 | 25-09-2026 | **Enmienda por decisión del responsable del proyecto** (`ac.md` §5.2.10, `RN-AC-017`): **la duración de la lección se guarda en segundos**, y las sumas del módulo y del curso también: `durationSeconds` y `totalDurationSeconds` sustituyen a `durationMinutes` y `totalDurationMinutes` en el cuerpo de esta spec. Las filas anteriores de esta tabla conservan el nombre que tenía el campo en su fecha. | Responsable técnico |
