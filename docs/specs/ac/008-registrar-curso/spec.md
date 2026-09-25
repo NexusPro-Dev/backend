@@ -77,8 +77,10 @@ Es el alta del paquete (`RF-PM-017`) con otra entidad: crea la tabla `courses`, 
 | Video de introducción (`introVideoUrl`) | No | La dirección de un video que presenta el curso | URL absoluta `http` o `https`, sin espacios, hasta 500 (`RN-AC-005`); nulo es «no tiene» |
 | Orden (`displayOrder`) | Sí | En qué lugar se enseña | Entero ≥ 0, global, no único |
 | Categorías (`categoryIds`) | No | En qué cajones nace | Lista de identificadores, **sin repetir y sin nulos**, cada uno de una categoría **viva**; ausente o vacía es «sin categorías». Desde el 25-09-2026 |
+| Servicios (`productIds`) | No | Qué servicios lo abren (`RN-AC-020`) | Lista **sin repetir y sin nulos**, cada uno un producto **`BOT` no retirado**; ausente o vacía es «ninguno». Desde el 25-09-2026 |
+| Membresías (`membershipIds`) | No | Qué niveles lo abren (`RN-AC-012`) | Lista **sin repetir y sin nulos**, cada una una membresía **existente**; ausente o vacía es «ninguna». Desde el 25-09-2026 |
 
-**Ni estado, ni membresías, ni módulos, ni portada.** Cualquiera de ellos en el cuerpo es un campo desconocido y se rechaza como tal; **`categories`** —el nombre de la lista en la respuesta— también: se envía `categoryIds`.
+**Ni estado, ni módulos, ni recomendaciones, ni portada.** Cualquiera de ellos en el cuerpo es un campo desconocido y se rechaza como tal; **`categories`, `products` y `memberships`** —los nombres de las listas en la respuesta— también: se envían `categoryIds`, `productIds` y `membershipIds`.
 
 ### 6.2 Salida
 
@@ -96,9 +98,9 @@ Es el alta del paquete (`RF-PM-017`) con otra entidad: crea la tabla `courses`, 
 2. El sistema valida la forma de los siete, **juntos** (§11).
 3. El sistema comprueba que el **título** no lo usa otro curso vivo (`EX-001`).
 4. El sistema comprueba el **instructor** por las interfaces que `SP` publica: que existe y no está retirado (`EX-002`), y que porta `courses:teach` (`EX-003`).
-5. El sistema resuelve **todas** las categorías de `categoryIds`, vivas, en una lectura (`EX-004`).
-6. El sistema inserta el curso en `INACTIVO`, lo clasifica en cada categoría y registra cada creación en la auditoría, en la misma transacción.
-7. Devuelve `201` con el curso y sus categorías.
+5. El sistema resuelve **todas** las categorías de `categoryIds`, vivas, en una lectura (`EX-004`); **todos** los servicios de `productIds` por la interfaz de `PM` (`EX-005`); y **todas** las membresías de `membershipIds` por la de `SP` (`EX-006`).
+6. El sistema inserta el curso en `INACTIVO`, lo clasifica, le da sus servicios y sus membresías, y registra cada fila en la auditoría, en la misma transacción.
+7. Devuelve `201` con el curso y sus tres listas.
 
 El paso 3 tiene su red en el esquema —`uq_courses_title`, parcial—: la carrera entre dos altas la muerde el índice y el repositorio la traduce al mismo `409`.
 
@@ -134,6 +136,14 @@ El paso 3 tiene su red en el esquema —`uq_courses_title`, parcial—: la carre
 
 **Respuesta del sistema:** `422` — *«Estas categorías no existen o están retiradas: {identificadores}.»* **Nombra todas las que fallan**, no la primera, y **no se crea nada**: ni el curso ni ninguna clasificación. Desde el 25-09-2026.
 
+### EX-005 — Algún servicio no existe, está retirado o no es un `BOT`
+
+**Respuesta del sistema:** `422` — *«Estos productos no son servicios vivos: {códigos o identificadores}.»* Nombra todos; un upgrade se nombra por su código. **No se crea nada.**
+
+### EX-006 — Alguna membresía no existe
+
+**Respuesta del sistema:** `422` — *«Estas membresías no existen: {identificadores}.»* Nombra todas. **No se crea nada.**
+
 ## 11. Validaciones
 
 | ID | Validación | Mensaje esperado |
@@ -145,7 +155,7 @@ El paso 3 tiene su red en el esquema —`uq_courses_title`, parcial—: la carre
 | `VAL-005` | Descripción corta de hasta 300 y larga de hasta 10 000 | La descripción corta no puede exceder 300 caracteres. · La descripción larga no puede exceder 10 000 caracteres. |
 | `VAL-006` | Video, si viene, con la forma de `RN-AC-005` | El enlace del video debe ser una URL absoluta http o https, sin espacios y de hasta 500 caracteres. |
 | `VAL-007` | Ningún campo desconocido — `status`, `categories`, `memberships`, `modules`, `coverImageUrl`, `code` | El cuerpo de la petición contiene campos no admitidos. |
-| `VAL-008` | `categoryIds`, si viene, sin identificadores repetidos ni nulos | La lista de categorías no puede traer identificadores repetidos ni vacíos. |
+| `VAL-008` | `categoryIds`, `productIds` y `membershipIds`, si vienen, sin identificadores repetidos ni nulos | La lista de categorías no puede traer identificadores repetidos ni vacíos. (y el mismo mensaje con «servicios» y «membresías») |
 
 `VAL-001` a `VAL-006` y `VAL-008` se devuelven **juntas**.
 
@@ -165,6 +175,9 @@ El paso 3 tiene su red en el esquema —`uq_courses_title`, parcial—: la carre
 | `CA-AC-043` | Revocar después el rol que daba `courses:teach` al instructor **no cambia el curso**: el detalle lo sigue nombrando |
 | `CA-AC-227` | **Desde el 25-09-2026**: el alta con `categoryIds` responde `201` con esas categorías en `categories`, en su orden, y deja una fila en `course_category_items` y una `CREATE` de esa tabla por cada una; sin `categoryIds`, o con la lista vacía, el curso nace sin categorías |
 | `CA-AC-228` | El alta con una categoría inexistente o retirada responde `422` `EX-004` **nombrando todas las que fallan**, y **no deja nada**: ni el curso, ni clasificaciones, ni auditoría |
+| `CA-AC-230` | **Desde el 25-09-2026, con `productIds` y `membershipIds`**: el alta deja al curso con esos servicios en `products` y esas membresías en `memberships`, con una fila y un `CREATE` por cada uno, como `RF-AC-037` y `RF-AC-020` |
+| `CA-AC-231` | Un servicio inexistente, retirado o upgrade responde `422` `EX-005` y una membresía inexistente `422` `EX-006`, **nombrando todos los que fallan**, y **no queda nada** |
+| `CA-AC-232` | Un curso `ACTIVO` no se crea —nace `INACTIVO`—, de modo que el alta con llaves **no lo ofrece**: el detalle dice «inactivo» |
 | `CA-AC-229` | El alta con `categoryIds` repetidos o con un nulo responde `400` `VAL-008`, **junto** con los demás errores de forma |
 
 ## 13. Casos límite
@@ -183,7 +196,7 @@ El paso 3 tiene su red en el esquema —`uq_courses_title`, parcial—: la carre
 |---|---|---|
 | 1 | ¿Cómo sabe `AC` si la persona porta el permiso sin leer `user_roles`? | **`SP` publica una interfaz de lectura más**: «¿esta persona porta este permiso?», un booleano sobre un código. **No devuelve la lista** de permisos, para no dar con qué reconstruir fuera de `SP` la autorización que es suya. La ampliación pertenece a este requerimiento (`ac.md` §3, D-25), como `UserCatalog` perteneció a `RF-CM-001` |
 | 2 | ¿Se comprueba también que la persona esté `ACTIVO`? | **No.** `RN-AC-006` dice existe, no retirada y con permiso. El estado de `SP` gobierna el acceso de esa persona, no si puede figurar como instructor |
-| 3 | ¿El alta admite categorías y membresías dentro? | **Las categorías sí, desde el 25-09-2026**, por decisión del responsable del proyecto (`ac.md` §5.2.9): es la relación de una sola regla —viva y sin repetir—, y **todo o nada** evita el rollback parcial que esta respuesta temía. **Las membresías, los servicios y las recomendaciones, no**, por lo que decía la resolución original: cada una tiene reglas propias —en `SP`, en `PM`, contra sí mismo— y un `422` de cinco orígenes no lo entiende nadie |
+| 3 | ¿El alta admite categorías y membresías dentro? | **Las categorías, los servicios y las membresías, sí, desde el 25-09-2026** —las dos últimas por una segunda decisión del mismo día (`ac.md` §5.2.9)—; **las recomendaciones, no**. Lo que sigue es la resolución de la primera decisión: **las categorías sí**, por decisión del responsable del proyecto (`ac.md` §5.2.9): es la relación de una sola regla —viva y sin repetir—, y **todo o nada** evita el rollback parcial que esta respuesta temía. **Las membresías, los servicios y las recomendaciones, no**, por lo que decía la resolución original: cada una tiene reglas propias —en `SP`, en `PM`, contra sí mismo— y un `422` de cinco orígenes no lo entiende nadie |
 
 ## 15. Control de cambios
 
@@ -194,3 +207,4 @@ El paso 3 tiene su red en el esquema —`uq_courses_title`, parcial—: la carre
 | 0.3.0 | 18-09-2026 | **Construida** (`V21`, `V22`, `CoursesIT` (9), `CourseConcurrencyIT`, `CoursesPermissionsSeedIT`, `PermissionHolderLookupIT` en `SP`, `CourseTest`, `CourseOfferabilityTest`). Sin enmiendas al construir: la spec se cumplió tal como se escribió, con los cinco motivos de la 0.2.0. El puerto de `SP` y sus dos enmiendas documentales fueron en commit propio (`b15853a`). | Responsable técnico |
 | 0.4.0 | 25-09-2026 | **Enmienda por decisión del responsable del proyecto** (`ac.md` §5.2.9): **el alta admite `categoryIds`** y el curso nace clasificado en ellas, todo o nada. Nacen `EX-004` —`422` que nombra todas las categorías que fallan— y `VAL-008` —repetidas o nulas—, y `CA-AC-227` a `CA-AC-229`. §14.3 cambia de respuesta para las categorías y la conserva para las demás relaciones. `categories` sigue siendo un campo no admitido en la entrada: la lista se envía como `categoryIds`. | Responsable técnico |
 | 0.5.0 | 25-09-2026 | **La enmienda de la 0.4.0 está construida** (`CourseRegistrationCategoriesIT`, `CourseClassifier`). **Una precisión a `CA-AC-229`**: las **nulas** salen con los demás errores de forma —es una restricción del elemento de la lista— y las **repetidas**, en el caso de uso antes de cualquier consulta, como `RF-MV-001` con sus líneas; no pueden salir juntas sin un validador propio que el proyecto no tiene. La escritura de cada clasificación es la de `RF-AC-016`, extraída a `CourseClassifier`. | Responsable técnico |
+| 0.6.0 | 25-09-2026 | **Segunda enmienda del día, por decisión del responsable del proyecto** (`ac.md` §5.2.9): **el alta admite también `productIds` y `membershipIds`**, todo o nada, con las mismas escrituras que `RF-AC-037` y `RF-AC-020`. Nacen `EX-005` y `EX-006` —cada uno nombra todos los que fallan— y `CA-AC-230` a `CA-AC-232`; `VAL-008` vale para las tres listas. **La portada sigue fuera**: va por `RF-AC-014`. | Responsable técnico |

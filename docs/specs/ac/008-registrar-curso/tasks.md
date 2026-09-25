@@ -5,7 +5,7 @@
 | Requerimiento | `RF-AC-008` |
 | Especificación | [`spec.md`](spec.md) |
 | Plan | [`plan.md`](plan.md), aprobado el 18-09-2026 |
-| Estado | **Hecha** — las catorce originales el 18-09-2026 y la enmienda (`T-15` a `T-18`) el 25-09-2026; queda el Pull Request |
+| Estado | **En revisión** — la segunda enmienda del 25-09-2026 (`T-19`) está pendiente |
 | Issue | Pendiente de crear |
 | Rama | `feature/academia`; la enmienda, `feature/ajustes-academia` |
 | Autor | Responsable técnico |
@@ -34,6 +34,7 @@
 | `T-16` | `CourseCategoryRepository.findAliveByIds`, y la escritura de `RF-AC-016` extraída a un colaborador que usan el alta y la clasificación | `RF-AC-016` | La suite de `RF-AC-016` sigue en verde | Hecha |
 | `T-17` | `RegisterCourseService`: categorías resueltas antes de insertar (`EX-004`, todas las que fallan), clasificación y auditoría tras insertar | `T-15`, `T-16` | `CA-AC-227`, `CA-AC-228` | Hecha |
 | `T-18` | Pruebas en `CoursesIT`, la prosa de la `@Operation` del alta —ya no dice «sin categorías»—, y `docs/api/index.md` | `T-17` | `CA-AC-227` a `CA-AC-229`; el contrato declara `categoryIds` | Hecha |
+| `T-19` | **Segunda enmienda del 25-09-2026**: `productIds` y `membershipIds` en `RegisterCourseRequest`, `VAL-008` para las tres listas; servicios por `ProductCatalog.findKind` (`EX-005`) y membresías por `MembershipCatalog.find` (`EX-006`) antes de insertar; las escrituras de `RF-AC-037` y `RF-AC-020` extraídas a un colaborador | `RF-AC-020`, `RF-AC-037` | `CA-AC-230` a `CA-AC-232` | Pendiente |
 
 ## 2. Orden de ejecución
 

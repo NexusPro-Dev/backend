@@ -7,7 +7,7 @@
 | Plan | [`plan.md`](plan.md), aprobado el 18-09-2026 |
 | Estado | **En revisión** |
 | Issue | Pendiente de crear |
-| Rama | `feature/academia` |
+| Rama | `feature/ajustes-academia` |
 | Autor | Responsable técnico |
 
 ---

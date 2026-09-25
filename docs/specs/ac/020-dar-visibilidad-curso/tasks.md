@@ -7,7 +7,7 @@
 | Plan | [`plan.md`](plan.md), aprobado el 18-09-2026 |
 | Estado | **En revisión** |
 | Issue | Pendiente de crear |
-| Rama | `feature/academia` |
+| Rama | `feature/ajustes-academia` |
 | Autor | Responsable técnico |
 
 ---
@@ -16,7 +16,7 @@
 
 | ID | Tarea | Depende de | Verificación | Estado |
 |---|---|---|---|---|
-| `T-01` | Migración **`V26__ac_visibilidad.sql`**: `course_memberships` con clave compuesta, la clave foránea hacia `memberships`, e `ix_course_memberships_membership` | `RF-AC-008` · `T-01` | Integración: aplica; la pareja repetida y una membresía inexistente se rechazan | Pendiente |
+| `T-01` | Migración **`V45__ac_visibilidad.sql`**: `course_memberships` con clave compuesta, la clave foránea hacia `memberships`, e `ix_course_memberships_membership` | `RF-AC-008` · `T-01` | Integración: aplica; la pareja repetida y una membresía inexistente se rechazan | Pendiente |
 | `T-02` | `domain/models/CourseMembership` y su clave; `CourseMembershipRepository` + `Jpa…` con traducción de la clave primaria | `T-01` | Integración: el `INSERT` duplicado llega como `BusinessRuleException` | Pendiente |
 | `T-03` | **Enmienda de `CourseQueryRepository`**: `findMembershipsOf` con `JOIN memberships`, `countMembershipsOf`, `findMembershipIdsOf`, y la subconsulta de membresías en las sentencias de listado y de cursos de la categoría | `T-01` | Integración: cuatro columnas por membresía; la cuenta por fila | Pendiente |
 | `T-04` | `application/GrantCourseVisibilityRequest`; `domain/service/GrantCourseVisibilityService` con `MembershipCatalog` | `T-02` | `CA-AC-135`, `CA-AC-136`, `CA-AC-137` | Pendiente |
