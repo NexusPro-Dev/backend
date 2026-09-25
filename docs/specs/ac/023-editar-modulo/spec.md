@@ -143,3 +143,4 @@ Todas **juntas**, antes de cualquier consulta.
 |---|---|---|---|
 | 0.1.0 | 18-09-2026 | Redacción inicial. Hereda `RF-AC-011` sin instructor ni dificultad; el curso no se corrige y la unicidad es dentro del curso. | Responsable técnico |
 | 0.2.0 | 19-09-2026 | **Construida** (`CourseModuleUpdateIT` (5)). **Una precisión**: la carrera sobre el título la traduce `JpaCourseModuleRepository` con el código del alta (`EX-002`), como la categoría; la comprobación previa responde `EX-001`. Un repositorio no sabe desde qué operación lo llaman. | Responsable técnico |
+| 0.3.0 | 25-09-2026 | **Enmienda por decisión del responsable del proyecto** (`ac.md` §5.2.11, `RN-AC-005` reescrita): `VAL-004` rechaza un video de presentación que no sea de YouTube o de Vimeo. Los ya guardados de otros dominios se conservan hasta que alguien los corrija. | Responsable técnico |

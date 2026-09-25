@@ -107,6 +107,10 @@ Es `RF-AC-023` con lo que la lección tiene y el módulo no: **el tipo, el conte
 
 **Respuesta del sistema:** `409` — *«Ya existe una lección con ese título en este módulo.»*
 
+### EX-003 — No se pudo leer la duración del video
+
+**Respuesta del sistema:** `422` — el de `RF-AC-028` `EX-003`. Solo cuando la corrección **cambia el enlace** de un `VIDEO` o **pasa a `VIDEO`** con enlace, y **no** trae `durationSeconds`. **No se aplica nada.** Desde el 25-09-2026.
+
 ### EX-002 — La lección no existe, está retirada o no es de ese módulo y curso
 
 **Respuesta del sistema:** `404` — *«No existe una lección viva con ese identificador en este módulo.»*
@@ -118,7 +122,7 @@ Es `RF-AC-023` con lo que la lección tiene y el módulo no: **el tipo, el conte
 | `VAL-001` | Identificadores con formato válido | El identificador indicado no tiene un formato válido. |
 | `VAL-002` | Tipo, título, duración, orden y `open` no admiten vaciarse, y cada uno con su forma | Los de `RF-AC-028`, con «no puede quedar vacío» |
 | `VAL-003` | Descripción de hasta 1000 | La descripción no puede exceder 1000 caracteres. |
-| `VAL-004` | **La pareja resultante**: si el tipo resultante es `VIDEO` y hay contenido resultante, es una URL | El contenido de una lección de video debe ser una URL absoluta http o https, sin espacios y de hasta 500 caracteres. |
+| `VAL-004` | **La pareja resultante**: si el tipo resultante es `VIDEO` y hay contenido resultante, es un video de YouTube o de Vimeo en una forma reconocida | El de `RF-AC-028` `VAL-006` |
 | `VAL-005` | Al menos un campo corregible | Debe informar al menos uno de los campos corregibles. |
 | `VAL-006` | Ningún campo desconocido — `moduleId`, `courseId`, `status` | El cuerpo de la petición contiene campos no admitidos. |
 
@@ -134,6 +138,7 @@ Es `RF-AC-023` con lo que la lección tiene y el módulo no: **el tipo, el conte
 | `CA-AC-102` | El sistema rechaza con `400` un cuerpo vacío y uno con `moduleId`, `courseId` o `status`; con `409` un título de **otra** viva del módulo; con `404` una lección retirada, inexistente o **de otro módulo o curso** |
 | `CA-AC-103` | Un cuerpo sin cambios responde `200` sin auditar; uno con cambios deja la fila `UPDATE` con solo lo que cambió, y **el contenido se audita como longitud y no como texto** |
 | `CA-AC-104` | Cambiar `open` en los dos sentidos se aplica y se audita; **cambiar la duración cambia la del módulo y la del curso** en su siguiente lectura si la lección está activa |
+| `CA-AC-236` | **Desde el 25-09-2026**: corregir el enlace de un `VIDEO`, o pasar a `VIDEO` con enlace, **sin** `durationSeconds` relee la duración del proveedor; **con** `durationSeconds`, manda la enviada; corregir cualquier otro campo **no consulta** al proveedor; y si la relectura falla responde `422` `EX-003` **sin aplicar nada** |
 | `CA-AC-215` | **Enmienda del 18-09-2026**: vaciar el contenido de la única lección activa de un módulo ofrecido deja la lección `ACTIVA`, el módulo `ACTIVO` con `offerable: false` «sin lección activa con contenido» y el curso `offerable: false` por su último motivo; reponerlo devuelve los dos a `offerable: true`; el aula lo comprueba desde `RF-AC-034` |
 
 ## 13. Casos límite
@@ -159,3 +164,4 @@ Es `RF-AC-023` con lo que la lección tiene y el módulo no: **el tipo, el conte
 | 0.2.0 | 18-09-2026 | **Enmienda de Art. I.7 (18-09-2026)**: `RN-AC-015` gana dos motivos por decisión del responsable del proyecto —«sin descripción» en el curso y «sin contenido» en la lección—, y **nace `RF-AC-036`**. Los dos huecos de §14 se cierran: la lección activa y vacía **deja de ofrecerse** (`FA-001` reescrito, **`CA-AC-215`** añadido) y administración lee el contenido por el `GET` nuevo. | Responsable técnico |
 | 0.3.0 | 19-09-2026 | **Construida** (`LessonUpdateIT` (7), incluido `CA-AC-215`). **Una precisión a `CA-AC-215`**: el quinto motivo del curso **solo se observa con una membresía delante** (`RF-AC-020`); hasta entonces el curso dice el cuarto y es el módulo quien enseña el hueco con `offerable: false`. La carrera sobre el título sale con el código del alta, como en el módulo. | Responsable técnico |
 | 0.4.0 | 25-09-2026 | **Enmienda por decisión del responsable del proyecto** (`ac.md` §5.2.10, `RN-AC-017`): **la duración de la lección se guarda en segundos**, y las sumas del módulo y del curso también: `durationSeconds` y `totalDurationSeconds` sustituyen a `durationMinutes` y `totalDurationMinutes` en el cuerpo de esta spec. Las filas anteriores de esta tabla conservan el nombre que tenía el campo en su fecha. | Responsable técnico |
+| 0.5.0 | 25-09-2026 | **Enmienda por decisión del responsable del proyecto** (`ac.md` §5.2.11, `RN-AC-005` reescrita): **corregir el enlace de un `VIDEO`, o pasar a `VIDEO`, relee la duración del proveedor** si no viene `durationSeconds`; si viene, manda la enviada. `VAL-004` solo admite YouTube y Vimeo; nace **`EX-003`** y `CA-AC-236`. | Responsable técnico |

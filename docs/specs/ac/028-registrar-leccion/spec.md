@@ -118,6 +118,10 @@ Es el requerimiento que **crea `lessons`** y **cierra `RN-AC-015`**: con leccion
 
 **Respuesta del sistema:** `404` — *«No existe un módulo vivo con ese identificador en este curso.»* Un módulo de **otro** curso responde lo mismo: la ruta afirma la pertenencia, y negarla es un `404` y no un `409`.
 
+### EX-003 — No se pudo leer la duración del video
+
+**Respuesta del sistema:** `422` — *«No se pudo obtener la duración del video de {YouTube|Vimeo}: {motivo}. Envíe durationSeconds.»* Solo cuando la lección es `VIDEO`, trae enlace y **no** trae duración: el video es privado o no existe, el proveedor no respondió a tiempo, o no hay clave de YouTube configurada. **No se guarda nada.** Desde el 25-09-2026 (`ac.md` §5.2.11).
+
 ### EX-002 — El título ya lo usa una lección viva del módulo
 
 **Respuesta del sistema:** `409` — *«Ya existe una lección con ese título en este módulo.»*
@@ -129,9 +133,9 @@ Es el requerimiento que **crea `lessons`** y **cierra `RN-AC-015`**: con leccion
 | `VAL-001` | Identificadores con formato válido | El identificador indicado no tiene un formato válido. |
 | `VAL-002` | Tipo presente y en el dominio | El tipo es obligatorio y debe ser VIDEO o TEXTO. |
 | `VAL-003` | Título presente y de hasta 150 | El título es obligatorio y no puede superar los 150 caracteres. |
-| `VAL-004` | Duración presente y mayor que cero | La duración es obligatoria y debe ser un entero de segundos mayor que cero. |
+| `VAL-004` | Duración, si viene, mayor que cero; **obligatoria en `TEXTO` y en un `VIDEO` sin contenido** | La duración es obligatoria y debe ser un entero de segundos mayor que cero. |
 | `VAL-005` | Orden presente y ≥ 0 | El orden es obligatorio y debe ser un entero mayor o igual que cero. |
-| `VAL-006` | Contenido de un `VIDEO`, si viene, con la forma de `RN-AC-005` | El contenido de una lección de video debe ser una URL absoluta http o https, sin espacios y de hasta 500 caracteres. |
+| `VAL-006` | Contenido de un `VIDEO`, si viene, de YouTube o de Vimeo en una forma reconocida (`RN-AC-005`) | El contenido de una lección de video debe ser un video de YouTube o de Vimeo —youtube.com, youtu.be, vimeo.com o player.vimeo.com—, sin espacios y de hasta 500 caracteres. |
 | `VAL-007` | Descripción de hasta 1000 | La descripción no puede exceder 1000 caracteres. |
 | `VAL-008` | Ningún campo desconocido — `status`, `moduleId`, `courseId` | El cuerpo de la petición contiene campos no admitidos. |
 
@@ -149,6 +153,9 @@ Todas **juntas**; `VAL-006` depende de `VAL-002` y solo se evalúa si el tipo es
 | `CA-AC-090` | **Enmienda de `RF-AC-009` y `RF-AC-022`**: `lessonCount` del listado y `lessons` y `durationSeconds` del módulo cuentan las lecciones **vivas**, y la duración suma solo las **activas** |
 | `CA-AC-091` | **Enmienda de `RF-AC-010`**: el detalle del curso trae las lecciones de cada módulo en orden, con tipo, duración, estado, `open` y marca, **sin contenido**, y cuesta **una sentencia más** cuando hay lecciones |
 | `CA-AC-092` | **Enmienda de `RF-AC-013`**: retirar el curso retira las lecciones vivas de sus módulos vivos, con una fila de auditoría cada una |
+| `CA-AC-233` | **Desde el 25-09-2026**: el contenido de una lección `VIDEO` —y el video del curso y del módulo, en sus specs— se admite en las siete formas reconocidas de YouTube y de Vimeo, y **cualquier otro dominio** responde `400` con su `VAL` y el mensaje nuevo |
+| `CA-AC-234` | Una lección `VIDEO` con enlace y **sin** `durationSeconds` se registra con la duración que da el proveedor —YouTube por su API de datos, Vimeo por su oEmbed—; **con** `durationSeconds`, se registra con la enviada y **no se consulta** al proveedor |
+| `CA-AC-235` | Si el proveedor no da la duración —no existe, es privado, no responde a tiempo, o falta la clave de YouTube— y no se envió, responde `422` `EX-003` nombrando el proveedor y **no deja nada**; un `VIDEO` **sin** enlace y sin duración, y un `TEXTO` sin duración, responden `400` `VAL-004` |
 | `CA-AC-093` | Dos altas simultáneas con el mismo título en el mismo módulo dejan **una** fila y un `409` |
 
 ## 13. Casos límite
@@ -175,3 +182,4 @@ Todas **juntas**; `VAL-006` depende de `VAL-002` y solo se evalúa si el tipo es
 | 0.2.0 | 18-09-2026 | **Enmienda de Art. I.7 (18-09-2026)**: `RN-AC-015` gana dos motivos por decisión del responsable del proyecto —«sin descripción» en el curso y «sin contenido» en la lección—. `ModuleOfferability` cuenta **lecciones ofrecibles** —activas, vivas y con contenido— y no lecciones activas (`plan.md` §1 y §3, `tasks.md` `T-02`). Y `LessonResponse` es también la respuesta de **`RF-AC-036`**, nacido el mismo día, que le añade los dos campos del retiro con `NON_NULL`. | Responsable técnico |
 | 0.3.0 | 19-09-2026 | **Construida** (`V24`, `LessonsIT` (7), la carrera en `CourseTreeConcurrencyIT`, `LessonTest`). **Una precisión**: las validaciones del alta **no van por Bean Validation** sino por el caso de uso, porque `VAL-006` depende del tipo y `CA-AC-088` las exige juntas; el DTO conserva sus anotaciones para el contrato. `LessonResponse` nace con `deletedAt` y `deletionReason` `NON_NULL` para `RF-AC-036`. | Responsable técnico |
 | 0.4.0 | 25-09-2026 | **Enmienda por decisión del responsable del proyecto** (`ac.md` §5.2.10, `RN-AC-017`): **la duración de la lección se guarda en segundos**, y las sumas del módulo y del curso también: `durationSeconds` y `totalDurationSeconds` sustituyen a `durationMinutes` y `totalDurationMinutes` en el cuerpo de esta spec. Las filas anteriores de esta tabla conservan el nombre que tenía el campo en su fecha. | Responsable técnico |
+| 0.5.0 | 25-09-2026 | **Enmienda por decisión del responsable del proyecto** (`ac.md` §5.2.11, `RN-AC-005` reescrita): **en una lección `VIDEO` la duración se lee del proveedor** cuando hay enlace y no viene `durationSeconds`; si viene, manda la enviada. `VAL-004` deja de exigirla en ese caso; `VAL-006` solo admite YouTube y Vimeo; nace **`EX-003`** —`422` si el proveedor no la da—, y `CA-AC-233` a `CA-AC-235`. | Responsable técnico |
