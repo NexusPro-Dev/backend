@@ -5,9 +5,11 @@ package com.factech.nexus.modules.academy.domain.models;
  * falla, en un orden fijo que es el orden en que hay que arreglarlo.
  *
  * <p>Los cinco motivos, desde el 18-09-2026 (`requirements/ac.md` §5.2.7): retirado → inactivo →
- * sin descripción → sin membresías → sin módulo activo con lección activa con contenido. <b>Se
- * calcula en cada lectura y nunca se guarda</b>: administración lo ve como {@code offerable} con
- * {@code offerableReason}, como el paquete de `PM`; el aula solo enseña lo ofrecido.
+ * sin descripción → sin llaves → sin módulo activo con lección activa con contenido. <b>Las llaves
+ * son las membresías y, desde el 25-09-2026, los servicios</b> (`RN-AC-020`): quien llama pasa la
+ * suma, porque a la ofrecibilidad le basta saber que hay con qué abrir el curso. <b>Se calcula en
+ * cada lectura y nunca se guarda</b>: administración lo ve como {@code offerable} con {@code
+ * offerableReason}, como el paquete de `PM`; el aula solo enseña lo ofrecido.
  *
  * <p><b>Recibe entradas planas y no la entidad</b>, a propósito: las cuentas de membresías y de
  * módulos ofrecibles vienen de una sentencia —el detalle, el listado, los cursos de una categoría,
@@ -20,7 +22,8 @@ public final class CourseOfferability {
   public static final String RETIRADO = "El curso está retirado.";
   public static final String INACTIVO = "El curso está inactivo.";
   public static final String SIN_DESCRIPCION = "El curso no tiene descripción corta o larga.";
-  public static final String SIN_MEMBRESIAS = "El curso no tiene ninguna membresía que lo abra.";
+  public static final String SIN_LLAVES =
+      "El curso no tiene ninguna membresía ni ningún servicio que lo abra.";
   public static final String SIN_MODULO =
       "El curso no tiene ningún módulo activo con al menos una lección activa con contenido.";
 
@@ -34,7 +37,7 @@ public final class CourseOfferability {
       CourseStatus estado,
       boolean tieneDescripcionCorta,
       boolean tieneDescripcionLarga,
-      long membresias,
+      long llaves,
       long modulosOfrecibles) {
     if (retirado) {
       return new Resultado(false, RETIRADO);
@@ -45,8 +48,8 @@ public final class CourseOfferability {
     if (!tieneDescripcionCorta || !tieneDescripcionLarga) {
       return new Resultado(false, SIN_DESCRIPCION);
     }
-    if (membresias <= 0) {
-      return new Resultado(false, SIN_MEMBRESIAS);
+    if (llaves <= 0) {
+      return new Resultado(false, SIN_LLAVES);
     }
     if (modulosOfrecibles <= 0) {
       return new Resultado(false, SIN_MODULO);
@@ -60,14 +63,14 @@ public final class CourseOfferability {
       String estado,
       boolean tieneDescripcionCorta,
       boolean tieneDescripcionLarga,
-      long membresias,
+      long llaves,
       long modulosOfrecibles) {
     return decidir(
         retirado,
         CourseStatus.valueOf(estado),
         tieneDescripcionCorta,
         tieneDescripcionLarga,
-        membresias,
+        llaves,
         modulosOfrecibles);
   }
 }

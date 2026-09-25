@@ -212,7 +212,7 @@ class LessonUpdateIT extends IntegrationTestBase {
         .andExpect(jsonPath("$.modules[0].offerable").value(true))
         .andExpect(
             jsonPath("$.offerableReason")
-                .value("El curso no tiene ninguna membresía que lo abra."));
+                .value("El curso no tiene ninguna membresía ni ningún servicio que lo abra."));
 
     mvc.perform(corregir(leccion, "{\"content\":null}"))
         .andExpect(jsonPath("$.status").value("ACTIVO"));
@@ -223,14 +223,14 @@ class LessonUpdateIT extends IntegrationTestBase {
         // entonces el curso dice el cuarto, y el módulo es el que enseña el hueco.
         .andExpect(
             jsonPath("$.offerableReason")
-                .value("El curso no tiene ninguna membresía que lo abra."));
+                .value("El curso no tiene ninguna membresía ni ningún servicio que lo abra."));
 
     mvc.perform(corregir(leccion, "{\"content\":\"# De vuelta\"}")).andExpect(status().isOk());
     mvc.perform(get("/api/v1/courses/" + curso).with(con("courses:read")))
         .andExpect(jsonPath("$.modules[0].offerable").value(true))
         .andExpect(
             jsonPath("$.offerableReason")
-                .value("El curso no tiene ninguna membresía que lo abra."));
+                .value("El curso no tiene ninguna membresía ni ningún servicio que lo abra."));
   }
 
   private MockHttpServletRequestBuilder corregir(UUID leccion, String cuerpo) {

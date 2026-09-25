@@ -2,6 +2,7 @@ package com.factech.nexus.modules.academy.domain.models;
 
 import com.factech.nexus.shared.error.FieldError;
 import com.factech.nexus.shared.error.ValidationException;
+import com.factech.nexus.shared.images.CambioDePortada;
 import com.factech.nexus.shared.patch.Patchable;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
@@ -32,7 +33,7 @@ import java.util.UUID;
  */
 @Entity
 @Table(name = "courses")
-public class Course {
+public class Course implements HasCover {
 
   private static final int TITULO_MAXIMO = 150;
   private static final int CORTA_MAXIMA = 300;
@@ -221,6 +222,19 @@ public class Course {
     deletedAt = ahora;
     updatedAt = ahora;
     return true;
+  }
+
+  /**
+   * Pone la portada (`RN-AC-004`) y devuelve cuál había, para que se borre después de volcar, y el
+   * diff. Siempre cambia: cada subida estrena identificador. Mueve {@code updatedAt}, como el
+   * paquete de `PM`.
+   */
+  @Override
+  public CambioDePortada asignarPortada(UUID nueva, OffsetDateTime ahora) {
+    UUID anterior = coverImageId;
+    coverImageId = nueva;
+    updatedAt = ahora;
+    return CambioDePortada.de(anterior, nueva);
   }
 
   public boolean estaRetirado() {

@@ -207,9 +207,11 @@ class LayerRulesTest {
     // tentación tiene de importar «porque es lo mismo»: la entidad de la
     // imagen, el objeto de valor del motivo, el detector de firma. Lo que
     // se comparte se promueve a `shared/` (`DeletionReason` lo hizo con
-    // `RF-AC-005`); lo que no, se escribe dos veces. Y al revés: `PM` no
-    // conoce a `AC` hasta que un curso se venda suelto, y entonces lo
-    // consumirá por la interfaz que `AC` publique, no por sus tablas.
+    // `RF-AC-005`); lo que no, se escribe dos veces. Desde `RF-AC-037` AC
+    // lee productos —qué servicio abre un curso—, y lo hace por
+    // `ProductCatalog`, que vive en `application` y esta regla deja pasar.
+    // Y al revés: `PM` no conoce a `AC`; es el curso quien declara el
+    // servicio, no el servicio el curso (`ac.md` §1.4).
     noClasses()
         .that()
         .resideInAPackage("com.factech.nexus.modules.academy..")
@@ -220,7 +222,8 @@ class LayerRulesTest {
             "com.factech.nexus.modules.products..domain..",
             "com.factech.nexus.modules.commissions..",
             "com.factech.nexus.modules.movements..")
-        .because("D-25: AC consume SP por sus interfaces publicadas, y no consume PM, CM ni MV")
+        .because(
+            "D-25: AC consume SP y PM por sus interfaces publicadas; nunca sus dominios, ni CM ni MV")
         .check(clases);
 
     noClasses()

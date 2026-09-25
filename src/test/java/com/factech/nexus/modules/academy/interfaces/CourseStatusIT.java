@@ -62,7 +62,7 @@ class CourseStatusIT extends IntegrationTestBase {
         .andExpect(jsonPath("$.status").value("ACTIVO"))
         .andExpect(
             jsonPath("$.offerableReason")
-                .value("El curso no tiene ninguna membresía que lo abra."));
+                .value("El curso no tiene ninguna membresía ni ningún servicio que lo abra."));
     assertThat(
             jdbc.queryForObject(
                 "SELECT updated_at::text FROM courses WHERE id = ?", String.class, listo))
@@ -106,7 +106,7 @@ class CourseStatusIT extends IntegrationTestBase {
         .andExpect(jsonPath("$.offerable").value(false))
         .andExpect(
             jsonPath("$.offerableReason")
-                .value("El curso no tiene ninguna membresía que lo abra."));
+                .value("El curso no tiene ninguna membresía ni ningún servicio que lo abra."));
 
     jdbc.update("UPDATE courses SET short_description = NULL WHERE id = ?", activo);
     assertThat(jdbc.queryForObject("SELECT status FROM courses WHERE id = ?", String.class, activo))

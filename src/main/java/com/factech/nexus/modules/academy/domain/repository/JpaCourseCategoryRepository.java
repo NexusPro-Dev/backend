@@ -6,6 +6,7 @@ import com.factech.nexus.shared.error.FieldError;
 import jakarta.persistence.EntityManager;
 import jakarta.persistence.LockModeType;
 import jakarta.persistence.PersistenceException;
+import java.util.Collection;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
@@ -105,6 +106,18 @@ public class JpaCourseCategoryRepository implements CourseCategoryRepository {
         .getResultList()
         .stream()
         .findFirst();
+  }
+
+  @Override
+  public List<CourseCategory> findAliveByIds(Collection<UUID> ids) {
+    if (ids == null || ids.isEmpty()) {
+      return List.of();
+    }
+    return em.createQuery(
+            "SELECT c FROM CourseCategory c WHERE c.id IN :ids AND c.deletedAt IS NULL",
+            CourseCategory.class)
+        .setParameter("ids", ids)
+        .getResultList();
   }
 
   @Override

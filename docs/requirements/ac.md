@@ -5,7 +5,7 @@
 | Módulo | `AC` — Academia |
 | Paquete | `modules/academy` |
 | Prefijos de permiso | `course-categories:`, `courses:` |
-| Versión | 0.12.0 |
+| Versión | 0.13.0 |
 | Estado | **Borrador** |
 | Responsable | Bonilla Diaz William Steven |
 | Fecha de creación | 17-09-2026 |
@@ -285,7 +285,7 @@ Con esto, **el bloque 5 adelanta tres requerimientos** —`RF-AC-006`, `RF-AC-03
 | `RF-AC-003` | Consultar el detalle de una categoría | Categorías | Media | `course-categories:read` | **En desarrollo** (17-09-2026) |
 | `RF-AC-004` | Editar categoría | Categorías | Alta | `course-categories:update` | **En desarrollo** (17-09-2026) |
 | `RF-AC-005` | Eliminar categoría | Categorías | Media | `course-categories:delete` | **En desarrollo** (17-09-2026) |
-| `RF-AC-006` | Subir o reemplazar la portada de una categoría | Portadas | Media | `course-categories:update` | **Tasks en revisión** (18-09-2026) |
+| `RF-AC-006` | Subir o reemplazar la portada de una categoría | Portadas | Media | `course-categories:update` | **En desarrollo** (25-09-2026) |
 | `RF-AC-007` | Quitar la portada de una categoría | Portadas | Baja | `course-categories:update` | **Tasks en revisión** (18-09-2026) |
 | `RF-AC-008` | Registrar curso | Cursos | Alta | `courses:create` | **En desarrollo** (18-09-2026) |
 | `RF-AC-009` | Consultar cursos | Cursos | Alta | `courses:read` | **En desarrollo** (18-09-2026) |
@@ -293,7 +293,7 @@ Con esto, **el bloque 5 adelanta tres requerimientos** —`RF-AC-006`, `RF-AC-03
 | `RF-AC-011` | Editar curso | Cursos | Alta | `courses:update` | **En desarrollo** (18-09-2026) |
 | `RF-AC-012` | Cambiar el estado de un curso | Cursos | Alta | `courses:update` | **En desarrollo** (18-09-2026) |
 | `RF-AC-013` | Eliminar curso | Cursos | Media | `courses:delete` | **En desarrollo** (18-09-2026) |
-| `RF-AC-014` | Subir o reemplazar la portada de un curso | Portadas | Media | `courses:update` | **Tasks en revisión** (18-09-2026) |
+| `RF-AC-014` | Subir o reemplazar la portada de un curso | Portadas | Media | `courses:update` | **En desarrollo** (25-09-2026) |
 | `RF-AC-015` | Quitar la portada de un curso | Portadas | Baja | `courses:update` | **Tasks en revisión** (18-09-2026) |
 | `RF-AC-016` | Clasificar un curso en una categoría | Cursos | Alta | `courses:update` | **En desarrollo** (25-09-2026) |
 | `RF-AC-017` | Desclasificar un curso de una categoría | Cursos | Media | `courses:update` | **En desarrollo** (25-09-2026) |
@@ -311,13 +311,13 @@ Con esto, **el bloque 5 adelanta tres requerimientos** —`RF-AC-006`, `RF-AC-03
 | `RF-AC-029` | Editar lección | Lecciones | Alta | `courses:update` | **En desarrollo** (19-09-2026) |
 | `RF-AC-030` | Cambiar el estado de una lección | Lecciones | Alta | `courses:update` | **En desarrollo** (19-09-2026) |
 | `RF-AC-031` | Eliminar lección | Lecciones | Media | `courses:update` | **En desarrollo** (19-09-2026) |
-| `RF-AC-032` | Obtener la imagen de una portada de academia, sin autenticación | Portadas | Alta | **Público** | **Tasks en revisión** (18-09-2026) |
+| `RF-AC-032` | Obtener la imagen de una portada de academia, sin autenticación | Portadas | Alta | **Público** | **En desarrollo** (25-09-2026) |
 | `RF-AC-033` | Consultar el catálogo de cursos como alumno | Aula | Alta | `courses:learn` | **Tasks en revisión** (18-09-2026) |
 | `RF-AC-034` | Consultar el detalle de un curso como alumno | Aula | Alta | `courses:learn` | **Tasks en revisión** (18-09-2026) |
 | `RF-AC-035` | Consultar el contenido de una lección | Aula | Alta | `courses:learn` | **Tasks en revisión** (18-09-2026) |
 | `RF-AC-036` | Consultar el detalle de una lección | Lecciones | Media | `courses:read` | **En desarrollo** (19-09-2026) |
-| `RF-AC-037` | Dar visibilidad de un curso a un servicio | Cursos | Alta | `courses:update` | **Tasks en revisión** (25-09-2026) |
-| `RF-AC-038` | Quitar la visibilidad de un curso a un servicio | Cursos | Media | `courses:update` | **Tasks en revisión** (25-09-2026) |
+| `RF-AC-037` | Dar visibilidad de un curso a un servicio | Cursos | Alta | `courses:update` | **En desarrollo** (25-09-2026) |
+| `RF-AC-038` | Quitar la visibilidad de un curso a un servicio | Cursos | Media | `courses:update` | **En desarrollo** (25-09-2026) |
 
 **Treinta y ocho requerimientos** —treinta y cinco del 17-09-2026, `RF-AC-036` del 18 (§5.2.7) y `RF-AC-037` y `RF-AC-038` del 25 (§5.2.8)—, y la cifra merece una explicación: no es que el módulo sea grande, es que **cada entidad paga el mismo precio** —alta, corrección, estado, retiro— y **cada relación cobra dos** —dar y quitar—. Es la misma forma que `PM` con el producto y el paquete, y la razón de no juntar «asociar» y «desasociar» en un solo requerimiento es la de siempre: son dos operaciones con dos reglas distintas y dos auditorías distintas.
 
@@ -420,7 +420,7 @@ Baja lógica **con motivo** y registro de eliminación (Art. V.13). **No arrastr
 | Reglas aplicables | `RN-AC-004` |
 | Depende de | `RF-AC-001` |
 | Tripleta | `docs/specs/ac/006-subir-portada-categoria/` |
-| Estado | **Tasks en revisión** (18-09-2026) |
+| Estado | **En desarrollo** (25-09-2026) |
 
 `RF-PM-014` aplicado a la categoría: un archivo `multipart/form-data`, comprobado por sus primeros bytes y su tamaño, guardado tal cual; si ya había portada, la nueva estrena identificador y la vieja se borra en la misma transacción. **Es el requerimiento que crea `academy_images`** y **el que mueve el detector de firma de `PM` a `shared/`** (§5.2.3), con la suite de `PM` en verde como condición.
 
@@ -540,7 +540,7 @@ Baja lógica con motivo, **y arrastra**: todos sus módulos y lecciones vivos se
 | Reglas aplicables | `RN-AC-004` |
 | Depende de | `RF-AC-008`, `RF-AC-006` |
 | Tripleta | `docs/specs/ac/014-subir-portada-curso/` |
-| Estado | **Tasks en revisión** (18-09-2026) |
+| Estado | **En desarrollo** (25-09-2026) |
 
 `RF-AC-006` aplicado al curso, sobre la misma tabla y el mismo detector. Sin condición, en cualquier estado.
 
@@ -810,7 +810,7 @@ Baja lógica con motivo y registro. No arrastra nada: no hay nada debajo.
 | Reglas aplicables | `RN-AC-004` |
 | Depende de | `RF-AC-006` |
 | Tripleta | `docs/specs/ac/032-imagen-de-portada-academia-publica/` |
-| Estado | **Tasks en revisión** (18-09-2026) |
+| Estado | **En desarrollo** (25-09-2026) |
 
 `RF-PM-016` sobre `academy_images`: `GET /api/v1/academy-images/{id}`, los bytes con su `Content-Type` real, **caché inmutable** de un año —la dirección no cambia nunca porque cada subida estrena identificador—, `404` si no existe, y la misma cota de tasa y la misma entrada en la lista pública de `SecurityConfig` que su hermana de `PM`. **No dice de qué entidad es la portada**, y no hace falta.
 
@@ -885,7 +885,7 @@ Baja lógica con motivo y registro. No arrastra nada: no hay nada debajo.
 | Reglas aplicables | `RN-AC-015`, `RN-AC-018`, `RN-AC-020` |
 | Depende de | `RF-AC-008` |
 | Tripleta | `docs/specs/ac/037-dar-visibilidad-curso-servicio/` |
-| Estado | **Tasks en revisión** (25-09-2026) |
+| Estado | **En desarrollo** (25-09-2026) |
 
 `POST /api/v1/courses/{courseId}/products` con `{ "productId" }`: añade la pareja curso–producto. El producto se resuelve contra `ProductCatalog`: inexistente o retirado, `422`; que no sea `BOT`, `422` distinto; la pareja repetida, `409` **nombrando el producto**. **No exige que el curso esté activo ni que el servicio esté a la venta.** Responde `201` con el curso y su lista resuelta —código y nombre—. Crea `course_products` (§8.5.1) y enmienda la ofrecibilidad, el detalle y el retiro del curso.
 
@@ -900,7 +900,7 @@ Baja lógica con motivo y registro. No arrastra nada: no hay nada debajo.
 | Reglas aplicables | `RN-AC-015`, `RN-AC-020` |
 | Depende de | `RF-AC-037` |
 | Tripleta | `docs/specs/ac/038-quitar-visibilidad-curso-servicio/` |
-| Estado | **Tasks en revisión** (25-09-2026) |
+| Estado | **En desarrollo** (25-09-2026) |
 
 `DELETE /api/v1/courses/{courseId}/products/{productId}`: borra la fila, sin motivo, como `ASSOCIATION`. **Quitar el último servicio nunca se rechaza**: si tampoco hay membresías, el curso deja de ofrecerse y el detalle lo dice. Un servicio retirado se quita igual.
 
@@ -1123,3 +1123,4 @@ Clave primaria compuesta. **La clave foránea a `memberships` se declara** hacia
 | 0.10.0 | 19-09-2026 | **Los módulos y las lecciones están construidos**: `RF-AC-022` a `RF-AC-025`, `RF-AC-028` a `RF-AC-031` y `RF-AC-036` pasan a `En desarrollo` (bloque 3 de §6.1, con el `GET` de lección que nació con el 6). `V23` crea `course_modules` y `V24` `lessons`; **`RN-AC-015` queda cerrada por dentro** —`ModuleOfferability` y `LessonOfferability` cuentan lecciones activas con contenido, y `CourseOfferability` recibe módulos ofrecibles reales— y solo le falta la cuenta de membresías del bloque 4. **Se desbloquean `CA-AC-064` y `CA-AC-074`** de los cursos. Sin cambio de reglas; cuatro precisiones en las specs: el árbol se lee siempre (los retirados también se enseñan), las validaciones del alta de lección van por el caso de uso para llegar juntas, la carrera de la corrección sale con el código del alta, y el quinto motivo del curso solo se observa con una membresía delante. | Responsable técnico |
 | 0.11.0 | 25-09-2026 | **La clasificación está construida**: `RF-AC-016` y `RF-AC-017` pasan a `En desarrollo` (primeros dos del bloque 4 de §6.1). `V42` crea `course_category_items` tal como §8.3 la declara —clave compuesta, sin `id` ni `deleted_at`, sin `ON DELETE`—; el plan la numeraba `V25` y el número se asignó al construir. **Las seis enmiendas declaradas por los bloques 1 y 2 quedan cerradas** —`courseCount`, los cursos del detalle de la categoría con su `offerable`, los `course_ids` de su retiro, `categories` y el filtro del listado de cursos, `categories` del detalle, y los `category_ids` del retiro del curso—. Sin cambio de reglas; una precisión a `RF-AC-009`: **`categoryId` solo acota por una categoría viva**, porque la retirada no sale en `categories` de ninguna fila. Los permisos siguen siendo `courses:update`, como las tripletas dicen: `courses:assign-category` y `courses:revoke-category` ya están sembrados por `V28` y los reparte el tramo 3 de `RF-SP-060` con todo `AC`. | Responsable técnico |
 | 0.12.0 | 25-09-2026 | **Un curso se abre también por un servicio**, por decisión del responsable del proyecto (§5.2.8): **es el curso quien declara qué productos `BOT` lo abren**, además de qué membresías, y las dos listas **se suman**. Nace **`RN-AC-020`** —solo `BOT`; existente y no retirado al añadir; un servicio inactivo se añade; lo tiene quien lo tiene **vigente** en `user_products`; retirarlo en `PM` no toca la lista—, y **`RF-AC-037`** y **`RF-AC-038`**, con tripleta, en `Tasks en revisión`. **Se enmiendan tres reglas**: `RN-AC-012` y `RN-AC-015` —un curso sin membresías **y sin servicios** no se ofrece— y `RN-AC-013` —el contenido lo abre la membresía **o el servicio** vigente—. **La frontera de §1.4 se mueve, y no como ella misma anticipaba**: aquella versión preveía un tipo de producto nuevo que declarara el curso, con `PM` consumiendo a `AC`; lo decidido es lo contrario, y **`AC` pasa a depender de `PM`** (§3), sin ciclo. Nace **`course_products`** (§8.5.1) —la cuarta relación, nueve tablas— y **dos interfaces que no existen**: la lectura del tipo en `ProductCatalog`, que amplía `RF-AC-037`, y «los productos vigentes de una persona» en `SP`, que pedirá el aula. **Cuatro preguntas hechas antes de escribir**, con sus descartes en §5.2.8. El bloque 4 de §6.1 pasa a ocho requerimientos, con el servicio antes que la membresía. | Responsable del proyecto |
+| 0.13.0 | 25-09-2026 | **Construidos cinco requerimientos y una enmienda**, en `feature/ajustes-academia`: **`RF-AC-037` y `RF-AC-038`** (`V43`, `course_products`) —el curso se abre también por un servicio—; **`RF-AC-006`, `RF-AC-032` y `RF-AC-014`** (`V44`, `academy_images`), adelantados del bloque 5 porque la portada del curso los necesita (§5.2.9); y **la enmienda de `RF-AC-008`** —el alta admite `categoryIds`, todo o nada—. `ImageSignature` y `CambioDePortada` pasan a `shared/images` (§5.2.3 lo anticipaba). **Las demás portadas siguen en `Tasks en revisión`**: quitar (`RF-AC-007`, `RF-AC-015`) y las del módulo (`RF-AC-026`, `RF-AC-027`). `CourseOfferability` suma las dos llaves; la de membresías sigue siendo cero hasta `RF-AC-020`. | Responsable técnico |

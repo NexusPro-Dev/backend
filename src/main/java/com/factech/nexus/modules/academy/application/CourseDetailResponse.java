@@ -6,6 +6,7 @@ import com.factech.nexus.modules.academy.domain.repository.CourseQueryRepository
 import com.factech.nexus.modules.academy.domain.repository.CourseQueryRepository.LessonRow;
 import com.factech.nexus.modules.academy.domain.repository.CourseQueryRepository.MembershipRef;
 import com.factech.nexus.modules.academy.domain.repository.CourseQueryRepository.ModuleRow;
+import com.factech.nexus.modules.academy.domain.repository.CourseQueryRepository.ProductRef;
 import com.factech.nexus.modules.academy.domain.repository.CourseQueryRepository.RecommendedCourseRow;
 import com.fasterxml.jackson.annotation.JsonInclude;
 import io.swagger.v3.oas.annotations.media.Schema;
@@ -42,6 +43,7 @@ public record CourseDetailResponse(
     List<CourseCategoryRef> categories,
     List<RecommendedCourseRef> recommendedCourses,
     List<CourseMembershipRef> memberships,
+    List<CourseProductRef> products,
     List<ModuleDetail> modules,
     long totalDurationMinutes,
     long lessonCount,
@@ -84,6 +86,19 @@ public record CourseDetailResponse(
 
     static RecommendedCourseRef from(RecommendedCourseRow fila) {
       return new RecommendedCourseRef(fila.id(), fila.title(), fila.status(), fila.offerable());
+    }
+  }
+
+  /**
+   * Un servicio que abre el curso (`RN-AC-020`): identificador, código y nombre. <b>Nombre de
+   * esquema propio</b>: springdoc funde los registros con el mismo nombre simple, y `ProductRef` ya
+   * existe en otro módulo.
+   */
+  @Schema(name = "CourseProductRef")
+  public record CourseProductRef(UUID id, String code, String name) {
+
+    static CourseProductRef from(ProductRef fila) {
+      return new CourseProductRef(fila.id(), fila.code(), fila.name());
     }
   }
 
@@ -141,6 +156,7 @@ public record CourseDetailResponse(
       List<CategoryRef> categorias,
       List<RecommendedCourseRow> recomendados,
       List<MembershipRef> membresias,
+      List<ProductRef> servicios,
       List<ModuleDetail> modulos,
       long duracionTotal,
       long lecciones,
@@ -160,6 +176,7 @@ public record CourseDetailResponse(
         categorias.stream().map(CourseCategoryRef::from).toList(),
         recomendados.stream().map(RecommendedCourseRef::from).toList(),
         membresias.stream().map(CourseMembershipRef::from).toList(),
+        servicios.stream().map(CourseProductRef::from).toList(),
         modulos,
         duracionTotal,
         lecciones,

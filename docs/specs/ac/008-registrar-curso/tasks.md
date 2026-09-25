@@ -5,7 +5,7 @@
 | Requerimiento | `RF-AC-008` |
 | Especificación | [`spec.md`](spec.md) |
 | Plan | [`plan.md`](plan.md), aprobado el 18-09-2026 |
-| Estado | **En revisión** — la enmienda del 25-09-2026 (`T-15` a `T-18`) está pendiente; las catorce originales, `Hecha` el 18-09-2026 |
+| Estado | **Hecha** — las catorce originales el 18-09-2026 y la enmienda (`T-15` a `T-18`) el 25-09-2026; queda el Pull Request |
 | Issue | Pendiente de crear |
 | Rama | `feature/academia`; la enmienda, `feature/ajustes-academia` |
 | Autor | Responsable técnico |
@@ -30,10 +30,10 @@
 | `T-12` | Pruebas de API (`CoursesIT`) de los diez criterios y la carrera en `CourseConcurrencyIT`; `CourseTestSupport` con la siembra de un instructor con `courses:teach` por un rol de prueba | `T-11` | `CA-AC-034` a `CA-AC-043` | **Hecha el 18-09-2026** |
 | `T-13` | Documentación OpenAPI. **La prosa dice** que nace inactivo y vacío, qué exige el instructor y que se comprueba solo al asignar, que el nombre del instructor es el actual, y que los `course-categories:` no habilitan | `T-11` | El contrato declara `201`, `400`, `401`, `403`, `409`, `422` | **Hecha el 18-09-2026** |
 | `T-14` | Actualizar la matriz de `docs/requirements.md`, `docs/api/index.md` y `docs/security.md` (los seis sembrados) | `T-12` | La fila de `RF-AC-008` refleja el estado; `security.md` deja de decir que los `courses:` están sin siembra | **Hecha el 18-09-2026** |
-| `T-15` | **Enmienda del 25-09-2026**: `RegisterCourseRequest.categoryIds` y `VAL-008`, junto con los demás errores de forma | — | `CA-AC-229` | Pendiente |
-| `T-16` | `CourseCategoryRepository.findAliveByIds`, y la escritura de `RF-AC-016` extraída a un colaborador que usan el alta y la clasificación | `RF-AC-016` | La suite de `RF-AC-016` sigue en verde | Pendiente |
-| `T-17` | `RegisterCourseService`: categorías resueltas antes de insertar (`EX-004`, todas las que fallan), clasificación y auditoría tras insertar | `T-15`, `T-16` | `CA-AC-227`, `CA-AC-228` | Pendiente |
-| `T-18` | Pruebas en `CoursesIT`, la prosa de la `@Operation` del alta —ya no dice «sin categorías»—, y `docs/api/index.md` | `T-17` | `CA-AC-227` a `CA-AC-229`; el contrato declara `categoryIds` | Pendiente |
+| `T-15` | **Enmienda del 25-09-2026**: `RegisterCourseRequest.categoryIds` y `VAL-008`, junto con los demás errores de forma | — | `CA-AC-229` | Hecha |
+| `T-16` | `CourseCategoryRepository.findAliveByIds`, y la escritura de `RF-AC-016` extraída a un colaborador que usan el alta y la clasificación | `RF-AC-016` | La suite de `RF-AC-016` sigue en verde | Hecha |
+| `T-17` | `RegisterCourseService`: categorías resueltas antes de insertar (`EX-004`, todas las que fallan), clasificación y auditoría tras insertar | `T-15`, `T-16` | `CA-AC-227`, `CA-AC-228` | Hecha |
+| `T-18` | Pruebas en `CoursesIT`, la prosa de la `@Operation` del alta —ya no dice «sin categorías»—, y `docs/api/index.md` | `T-17` | `CA-AC-227` a `CA-AC-229`; el contrato declara `categoryIds` | Hecha |
 
 ## 2. Orden de ejecución
 

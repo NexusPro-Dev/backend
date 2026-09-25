@@ -85,6 +85,7 @@ class CourseDeletionIT extends IntegrationTestBase {
         .contains("\"title\": \"Velas\"")
         .contains("\"category_ids\": []")
         .contains("\"membership_ids\": []")
+        .contains("\"product_ids\": []")
         .contains("\"recommended_course_ids\": []")
         .contains("\"module_ids\": []")
         .doesNotContain("deleted_at");
@@ -154,13 +155,13 @@ class CourseDeletionIT extends IntegrationTestBase {
 
   @Test
   @DisplayName(
-      "el retiro sin árbol cuesta hasta seis sentencias: el curso bloqueado, los módulos vivos, el"
-          + " UPDATE, la baja y su secuencia")
+      "el retiro sin árbol cuesta hasta siete sentencias: el curso bloqueado, sus categorías, sus"
+          + " servicios, los módulos vivos, el UPDATE, la baja y su secuencia")
   void sentencias() throws Exception {
     estadisticas.clear();
     mvc.perform(retiro(curso, "{\"reason\":\"Ya no se dicta.\"}", UUID.randomUUID()))
         .andExpect(status().isNoContent());
-    assertThat(estadisticas.getPrepareStatementCount()).isLessThanOrEqualTo(6);
+    assertThat(estadisticas.getPrepareStatementCount()).isLessThanOrEqualTo(7);
   }
 
   @Test

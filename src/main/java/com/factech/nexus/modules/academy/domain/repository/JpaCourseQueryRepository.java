@@ -43,6 +43,13 @@ public class JpaCourseQueryRepository implements CourseQueryRepository {
    */
   static final String CUENTA_DE_MEMBRESIAS = "0";
 
+  /**
+   * Los servicios que abren el curso (`RF-AC-037`): todas sus filas, también las de un producto que
+   * `PM` retiró después — quien lo compró lo tiene hasta que venza (`RN-AC-020`).
+   */
+  static final String CUENTA_DE_SERVICIOS =
+      "(SELECT count(*) FROM course_products s WHERE s.course_id = c.id)";
+
   /** Los módulos vivos del curso (`RF-AC-022`): un inactivo cuenta, un retirado no. */
   private static final String CUENTA_DE_MODULOS =
       "(SELECT count(*) FROM course_modules m WHERE m.course_id = c.id AND m.deleted_at IS NULL)";
@@ -73,6 +80,8 @@ public class JpaCourseQueryRepository implements CourseQueryRepository {
       """
           + CUENTA_DE_MEMBRESIAS
           + " AS membership_count, "
+          + CUENTA_DE_SERVICIOS
+          + " AS product_count, "
           + CUENTA_DE_MODULOS
           + " AS module_count, "
           + CUENTA_DE_MODULOS_OFRECIBLES
@@ -192,6 +201,31 @@ public class JpaCourseQueryRepository implements CourseQueryRepository {
 
   @Override
   @Transactional(readOnly = true)
+  public List<ProductRef> findProductsOf(UUID courseId) {
+    // Tres columnas de `products` por lectura, como las de `memberships`
+    // (`RF-AC-037` §14.2): la regla cruzó por el puerto al escribir.
+    List<Tuple> filas =
+        em.createNativeQuery(
+                """
+                SELECT p.id AS id, p.code AS code, p.name AS name
+                  FROM course_products s
+                  JOIN products p ON p.id = s.product_id
+                 WHERE s.course_id = :curso
+                 ORDER BY p.code, p.id
+                """,
+                Tuple.class)
+            .setParameter("curso", courseId)
+            .getResultList();
+    return filas.stream()
+        .map(
+            fila ->
+                new ProductRef(
+                    (UUID) fila.get("id"), (String) fila.get("code"), (String) fila.get("name")))
+        .toList();
+  }
+
+  @Override
+  @Transactional(readOnly = true)
   public List<ModuleRow> findModulesOf(UUID courseId) {
     List<Tuple> filas =
         em.createNativeQuery(
@@ -302,6 +336,7 @@ public class JpaCourseQueryRepository implements CourseQueryRepository {
         (String) fila.get("status"),
         (UUID) fila.get("cover_image_id"),
         ((Number) fila.get("membership_count")).longValue(),
+        ((Number) fila.get("product_count")).longValue(),
         ((Number) fila.get("module_count")).longValue(),
         ((Number) fila.get("offerable_module_count")).longValue(),
         ((Number) fila.get("lesson_count")).longValue(),

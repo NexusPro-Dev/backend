@@ -56,6 +56,12 @@ public interface CourseQueryRepository {
    */
   List<MembershipRef> findMembershipsOf(UUID courseId);
 
+  /**
+   * Los servicios que abren el curso, resueltos por {@code JOIN products} —identificador, código y
+   * nombre—, <b>retirados en `PM` incluidos</b>: la lista dice qué abre el curso (`RN-AC-020`).
+   */
+  List<ProductRef> findProductsOf(UUID courseId);
+
   /** Los módulos del curso en su orden, vivos y retirados, con sus cuentas (`RF-AC-022`). */
   List<ModuleRow> findModulesOf(UUID courseId);
 
@@ -84,6 +90,7 @@ public interface CourseQueryRepository {
       String status,
       UUID coverImageId,
       long membershipCount,
+      long productCount,
       long moduleCount,
       long offerableModuleCount,
       long lessonCount,
@@ -102,13 +109,16 @@ public interface CourseQueryRepository {
           status,
           shortDescription != null,
           longDescription != null,
-          membershipCount,
+          membershipCount + productCount,
           offerableModuleCount);
     }
   }
 
   /** Una categoría dentro de un curso: lo justo para pintarla. */
   record CategoryRef(UUID id, String name, String color, String icon) {}
+
+  /** Un servicio que abre el curso: lo justo para nombrarlo (`RN-AC-020`). */
+  record ProductRef(UUID id, String code, String name) {}
 
   /** Una membresía que abre el curso, con lo que `SP` publica de ella por su puerto. */
   record MembershipRef(UUID id, String code, String name, String color) {}

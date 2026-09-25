@@ -81,6 +81,8 @@ public class JpaCourseCategoryQueryRepository implements CourseCategoryQueryRepo
                     + " c.long_description IS NOT NULL AS tiene_larga, "
                     + JpaCourseQueryRepository.CUENTA_DE_MEMBRESIAS
                     + " AS membership_count, "
+                    + JpaCourseQueryRepository.CUENTA_DE_SERVICIOS
+                    + " AS product_count, "
                     + JpaCourseQueryRepository.CUENTA_DE_MODULOS_OFRECIBLES
                     + " AS offerable_module_count"
                     + " FROM course_category_items i"
@@ -103,7 +105,8 @@ public class JpaCourseCategoryQueryRepository implements CourseCategoryQueryRepo
                             (String) fila.get("status"),
                             (Boolean) fila.get("tiene_corta"),
                             (Boolean) fila.get("tiene_larga"),
-                            ((Number) fila.get("membership_count")).longValue(),
+                            ((Number) fila.get("membership_count")).longValue()
+                                + ((Number) fila.get("product_count")).longValue(),
                             ((Number) fila.get("offerable_module_count")).longValue())
                         .offerable()))
         .toList();

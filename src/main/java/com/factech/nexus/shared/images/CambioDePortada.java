@@ -1,4 +1,4 @@
-package com.factech.nexus.modules.products.domain.models;
+package com.factech.nexus.shared.images;
 
 import java.util.LinkedHashMap;
 import java.util.Map;

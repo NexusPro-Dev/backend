@@ -110,7 +110,7 @@ class CourseDetailIT extends IntegrationTestBase {
         .andExpect(jsonPath("$.offerable").value(false))
         .andExpect(
             jsonPath("$.offerableReason")
-                .value("El curso no tiene ninguna membresía que lo abra."));
+                .value("El curso no tiene ninguna membresía ni ningún servicio que lo abra."));
 
     // Y un ACTIVO al que se le vació una descripción dice «sin descripción» (18-09-2026).
     jdbc.update("UPDATE courses SET long_description = NULL WHERE id = ?", activo);
@@ -141,16 +141,16 @@ class CourseDetailIT extends IntegrationTestBase {
 
   @Test
   @DisplayName(
-      "`CA-AC-054` — la lectura cuesta TRES sentencias sin módulos —el curso, sus categorías y sus módulos—, UNA MÁS"
+      "`CA-AC-054` — la lectura cuesta CUATRO sentencias sin módulos —el curso, sus categorías, sus servicios y sus módulos—, UNA MÁS"
           + " con módulos (las lecciones) y UNA MÁS con el motivo de retiro")
   void sentencias() throws Exception {
     estadisticas.clear();
     mvc.perform(detalle(activo)).andExpect(status().isOk());
-    assertThat(estadisticas.getPrepareStatementCount()).isEqualTo(3);
+    assertThat(estadisticas.getPrepareStatementCount()).isEqualTo(4);
 
     estadisticas.clear();
     mvc.perform(detalle(retirado)).andExpect(status().isOk());
-    assertThat(estadisticas.getPrepareStatementCount()).isEqualTo(4);
+    assertThat(estadisticas.getPrepareStatementCount()).isEqualTo(5);
   }
 
   @Test

@@ -143,7 +143,15 @@ class EndpointPermissionsIT extends IntegrationTestBase {
                   + " que administración subió para que se viera, sin mirar el producto. Solo el"
                   + " GET: subir y quitar la portada viven en `/products/{id}/cover` bajo"
                   + " `products:update`. Solo tres tipos —SVG fuera—, `nosniff`, y la cota de tasa"
-                  + " por la familia (`security.md` §6)"));
+                  + " por la familia (`security.md` §6)"),
+          Map.entry(
+              "GET /api/v1/academy-images/{imageId}",
+              "PÚBLICO POR DECISIÓN (`RF-AC-032`, 25-09-2026): la ruta de las portadas de PM sobre"
+                  + " `academy_images`, por lo mismo —las lecturas de academia publican la"
+                  + " dirección en `coverImageUrl` y un `<img>` no lleva token— y con las mismas"
+                  + " cautelas: solo el GET, solo tres tipos, `nosniff`, y una familia de cota"
+                  + " PROPIA para no compartir contador con `/product-images/`. Subir vive en"
+                  + " `/course-categories/{id}/cover` y `/courses/{id}/cover`, con su permiso"));
 
   // `GET /api/v1/products/available` (`RF-PM-007`) figuraba aquí hasta el
   // 02-09-2026: exigía solo estar autenticado. Desde `products:sale`
@@ -169,6 +177,11 @@ class EndpointPermissionsIT extends IntegrationTestBase {
           Map.entry(
               "courses:read",
               "Lo mismo: el listado es courses:list y la lección lessons:read desde V28"),
+          Map.entry(
+              "course-categories:update",
+              "Desde RF-AC-006 (25-09-2026) gobierna la corrección y la portada, como decía su"
+                  + " tripleta. V28 no sembró un código de portada para AC: el tramo 3 de RF-SP-060"
+                  + " crea course-categories:set-cover y courses:set-cover, como products:set-cover"),
           Map.entry(
               "course-categories:read",
               "Lo mismo: el listado es course-categories:list desde V28"));
@@ -300,6 +313,8 @@ class EndpointPermissionsIT extends IntegrationTestBase {
           Map.entry("GET /api/v1/course-categories/{id}", "course-categories:read"),
           Map.entry("PATCH /api/v1/course-categories/{id}", "course-categories:update"),
           Map.entry("POST /api/v1/course-categories/{id}/deletion", "course-categories:delete"),
+          Map.entry("PUT /api/v1/course-categories/{id}/cover", "course-categories:update"),
+          Map.entry("PUT /api/v1/courses/{id}/cover", "courses:update"),
           Map.entry("POST /api/v1/courses", "courses:create"),
           Map.entry("GET /api/v1/courses", "courses:read"),
           Map.entry("GET /api/v1/courses/{id}", "courses:read"),
@@ -308,6 +323,8 @@ class EndpointPermissionsIT extends IntegrationTestBase {
           Map.entry("POST /api/v1/courses/{id}/deletion", "courses:delete"),
           Map.entry("POST /api/v1/courses/{courseId}/categories", "courses:update"),
           Map.entry("DELETE /api/v1/courses/{courseId}/categories/{categoryId}", "courses:update"),
+          Map.entry("POST /api/v1/courses/{courseId}/products", "courses:update"),
+          Map.entry("DELETE /api/v1/courses/{courseId}/products/{productId}", "courses:update"),
           Map.entry("POST /api/v1/courses/{courseId}/modules", "courses:update"),
           Map.entry("PATCH /api/v1/courses/{courseId}/modules/{moduleId}", "courses:update"),
           Map.entry("PATCH /api/v1/courses/{courseId}/modules/{moduleId}/status", "courses:update"),

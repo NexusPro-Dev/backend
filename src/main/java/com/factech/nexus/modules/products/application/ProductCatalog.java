@@ -146,8 +146,27 @@ public interface ProductCatalog {
    */
   Map<UUID, String> couponLinksOf(Collection<UUID> ids);
 
+  /**
+   * El producto con <b>lo que es</b>: si es un {@code BOT}, además de si está retirado
+   * (`RF-AC-037`, `RN-AC-020`).
+   *
+   * <p><b>Una lectura propia y no un campo más en {@link ProductView}</b>, por la norma de esta
+   * interfaz desde {@link #findPrice}: `CM` consume aquella vista y no necesita el tipo. La pide
+   * `AC`, que solo deja abrir un curso a un servicio, y el tipo viaja como <b>booleano</b> —como
+   * {@code upgrade} en {@link SaleView}— para no atar a nadie al enumerado de `PM`.
+   *
+   * <p><b>No filtra nada</b>, como {@link #find}: el retirado y el que no es servicio se distinguen
+   * del inexistente, porque son rechazos distintos.
+   *
+   * @param id identificador del producto; un valor nulo devuelve vacío en lugar de fallar
+   */
+  Optional<KindView> findKind(UUID id);
+
   /** Lo que cruza la frontera: datos planos, sin comportamiento y sin entidad. */
   record ProductView(UUID id, String code, String name, boolean retired) {}
+
+  /** El producto con su tipo reducido a lo que se pregunta: ¿es un servicio? */
+  record KindView(UUID id, String code, String name, boolean bot, boolean retired) {}
 
   /**
    * La vista de venta: lo que se <b>copia</b> y lo que se <b>comprueba</b>.

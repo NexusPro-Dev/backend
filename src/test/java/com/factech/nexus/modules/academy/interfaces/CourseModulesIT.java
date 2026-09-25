@@ -209,8 +209,8 @@ class CourseModulesIT extends IntegrationTestBase {
         .andExpect(jsonPath("$.modules[2].offerable").value(false))
         .andExpect(jsonPath("$.totalDurationMinutes").value(10))
         .andExpect(jsonPath("$.lessonCount").value(1));
-    // Curso, categorías (`RF-AC-016`), módulos y lecciones: cuatro sentencias.
-    assertThat(estadisticas.getPrepareStatementCount()).isEqualTo(4);
+    // Curso, categorías (`RF-AC-016`), servicios (`RF-AC-037`), módulos y lecciones.
+    assertThat(estadisticas.getPrepareStatementCount()).isEqualTo(5);
   }
 
   private MockHttpServletRequestBuilder alta(UUID curso, String cuerpo) {

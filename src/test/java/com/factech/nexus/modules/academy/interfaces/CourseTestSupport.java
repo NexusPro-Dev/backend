@@ -26,17 +26,25 @@ final class CourseTestSupport {
   private CourseTestSupport() {}
 
   static void limpiar(JdbcTemplate jdbc) {
+    jdbc.update("DELETE FROM course_products");
     jdbc.update("DELETE FROM course_category_items");
     jdbc.update("DELETE FROM lessons");
     jdbc.update("DELETE FROM course_modules");
     jdbc.update("DELETE FROM courses");
+    // Las portadas que ya no señala nadie: sin `ON DELETE`, se borran DESPUÉS
+    // de la fila que las señalaba (`V44`).
+    jdbc.update(
+        "DELETE FROM academy_images i WHERE NOT EXISTS (SELECT 1 FROM course_categories k"
+            + " WHERE k.cover_image_id = i.id) AND NOT EXISTS (SELECT 1 FROM courses c"
+            + " WHERE c.cover_image_id = i.id) AND NOT EXISTS (SELECT 1 FROM course_modules m"
+            + " WHERE m.cover_image_id = i.id)");
     jdbc.update(
         "DELETE FROM audit_change_log WHERE module = 'AC' AND entity IN ('courses',"
-            + " 'course_category_items',"
+            + " 'course_category_items', 'course_products',"
             + " 'course_modules', 'lessons')");
     jdbc.update(
         "DELETE FROM audit_deletion_log WHERE module = 'AC' AND entity IN ('courses',"
-            + " 'course_category_items',"
+            + " 'course_category_items', 'course_products',"
             + " 'course_modules', 'lessons')");
     jdbc.update(
         "DELETE FROM user_roles WHERE user_id IN (SELECT id FROM users WHERE username LIKE 'ac-%')");
