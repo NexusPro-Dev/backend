@@ -89,9 +89,10 @@ services:
       RESEND_API_KEY: ${RESEND_API_KEY}
       NOTIFICATION_FROM: ${NOTIFICATION_FROM}
       NOTIFICATION_TEMPLATE_PASSWORD_RECOVERY: ${NOTIFICATION_TEMPLATE_PASSWORD_RECOVERY}
-      # Duración de los videos de YouTube en academia (RN-AC-017). Opcional:
-      # sin ella, toda lección de YouTube exige la duración a mano.
+      # Duración de los videos de academia (RN-AC-017). Opcionales: sin la de
+      # un proveedor, sus lecciones exigen la duración a mano.
       YOUTUBE_API_KEY: ${YOUTUBE_API_KEY:-}
+      VIMEO_ACCESS_TOKEN: ${VIMEO_ACCESS_TOKEN:-}
     ports:
       - "8080:8080"
     healthcheck:

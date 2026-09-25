@@ -251,7 +251,8 @@ class CourseUpdateIT extends IntegrationTestBase {
         .andExpect(jsonPath("$.status").value("ACTIVO"))
         .andExpect(
             jsonPath("$.offerableReason")
-                .value("El curso no tiene ninguna membresía ni ningún servicio que lo abra."));
+                .value(
+                    "El curso no tiene ningún módulo activo con al menos una lección activa con contenido."));
   }
 
   private MockHttpServletRequestBuilder corregir(UUID id, String cuerpo) {

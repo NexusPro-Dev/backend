@@ -5,7 +5,7 @@
 | Módulo | `AC` — Academia |
 | Paquete | `modules/academy` |
 | Prefijos de permiso | `course-categories:`, `courses:` |
-| Versión | 0.18.0 |
+| Versión | 0.19.0 |
 | Estado | **Borrador** |
 | Responsable | Bonilla Diaz William Steven |
 | Fecha de creación | 17-09-2026 |
@@ -1152,3 +1152,4 @@ Clave primaria compuesta. **La clave foránea a `memberships` se declara** hacia
 | 0.16.0 | 25-09-2026 | **Los videos solo pueden ser de YouTube o de Vimeo, y la duración de una lección `VIDEO` se lee del proveedor**, por decisión del responsable del proyecto (§5.2.11). **Se reescriben `RN-AC-005`** —se rechaza cualquier otro dominio en los tres campos de video, y el sistema ya no se limita a «no seguir» el enlace: de la lección pregunta la duración— **y `RN-AC-017`** —en `VIDEO` la duración es opcional si hay enlace, manda la enviada, y sin ella el fallo del proveedor es `422`—. §3 gana a los dos proveedores como dependencia externa. Se enmiendan `RF-AC-008`, `RF-AC-011`, `RF-AC-022`, `RF-AC-023`, `RF-AC-028` y `RF-AC-029`. | Responsable del proyecto |
 | 0.17.0 | 25-09-2026 | **§5.2.11 está construida**: `RN-AC-005` y `RN-AC-017` en el código, con el reconocimiento y la consulta en `shared/video`. `YOUTUBE_API_KEY` en `application.yml`, `docker-compose.yml` y `.env.example`. Sin migración: los enlaces ya guardados no se tocan. | Responsable técnico |
 | 0.18.0 | 25-09-2026 | **Un curso sin membresías ni servicios es de todos**, por decisión del responsable del proyecto (§5.2.12): se abre a todo alumno con sesión. **Se reescriben `RN-AC-012`, `RN-AC-013` y `RN-AC-015`** —las llaves dejan de ser un motivo de la ofrecibilidad, que queda en cuatro— y se precisa `RN-AC-020`; **§5.2.2 queda reabierta** y §5.2.12 escribe el riesgo al revés: activar un curso sin llaves lo regala. **Y Vimeo pasa a leerse con token** (`VIMEO_ACCESS_TOKEN`, §5.2.11): el oEmbed sin credencial respondió `404` a un video público. | Responsable del proyecto |
+| 0.19.0 | 25-09-2026 | **§5.2.12 y el token de Vimeo están construidos**: `CourseOfferability` pierde el motivo de las llaves —cuatro motivos—, y las cuentas de membresías y servicios siguen en la fila del curso para que el aula sepa cuándo es de todos; `ProviderVideoDurationLookup` lee Vimeo por `api.vimeo.com` con token y cae al oEmbed sin él. Las pruebas que esperaban «sin membresías ni servicios» esperan ahora el motivo del módulo o `offerable: true`. | Responsable técnico |

@@ -109,6 +109,8 @@ public abstract class IntegrationTestBase {
     registry.add("YOUTUBE_API_KEY", () -> "clave-de-la-suite");
     registry.add("YOUTUBE_BASE_URL", () -> "http://127.0.0.1:9");
     registry.add("VIMEO_BASE_URL", () -> "http://127.0.0.1:9");
+    registry.add("VIMEO_ACCESS_TOKEN", () -> "token-de-la-suite");
+    registry.add("VIMEO_API_BASE_URL", () -> "http://127.0.0.1:9");
 
     // Credencial inicial del superadministrador, que `V9__semilla_catalogos_y_superadmin.sql`
     // exige como marcador de posición. Se declara aquí y no en un archivo de

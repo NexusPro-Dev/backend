@@ -409,13 +409,16 @@ nexus:
   # La duración de un video de academia, preguntada a su proveedor
   # (RN-AC-017, ac.md §5.2.11, 25-09-2026).
   #
-  # YouTube exige clave aun para un video público; SIN ELLA no se le llama y
-  # toda lección de YouTube exige la duración a mano. Vimeo responde por su
-  # oEmbed sin credencial. El plazo es corto a propósito: la consulta ocurre
-  # mientras administración espera la respuesta de su formulario.
+  # YouTube exige clave aun para un video público; Vimeo se lee por su API con
+  # el token de la cuenta (también sus videos privados) y, sin token, por su
+  # oEmbed, que no es fiable. SIN LA CREDENCIAL de un proveedor, sus lecciones
+  # exigen la duración a mano. El plazo es corto a propósito: la consulta
+  # ocurre mientras administración espera la respuesta de su formulario.
   video:
     youtube-api-key: ${YOUTUBE_API_KEY:}
     youtube-base-url: ${YOUTUBE_BASE_URL:https://www.googleapis.com/youtube/v3}
+    vimeo-access-token: ${VIMEO_ACCESS_TOKEN:}
+    vimeo-api-base-url: ${VIMEO_API_BASE_URL:https://api.vimeo.com}
     vimeo-base-url: ${VIMEO_BASE_URL:https://vimeo.com}
     timeout: PT5S
 

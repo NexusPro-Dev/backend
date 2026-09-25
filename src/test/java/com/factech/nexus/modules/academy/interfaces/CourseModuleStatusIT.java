@@ -92,7 +92,8 @@ class CourseModuleStatusIT extends IntegrationTestBase {
         .andExpect(jsonPath("$.offerable").value(false))
         .andExpect(
             jsonPath("$.offerableReason")
-                .value("El curso no tiene ninguna membresía ni ningún servicio que lo abra."));
+                .value(
+                    "El curso no tiene ningún módulo activo con al menos una lección activa con contenido."));
   }
 
   @Test

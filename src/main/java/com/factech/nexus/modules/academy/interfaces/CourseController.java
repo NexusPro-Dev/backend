@@ -247,9 +247,10 @@ public class CourseController {
           lo vivo.
 
           **`offerable` y `offerableReason` viajan siempre**, con el primer motivo que
-          falla en su orden: retirado, inactivo, sin descripción, **sin membresías ni
-          servicios** —basta uno de los dos—, sin módulo activo con lección activa con
-          contenido. Es la vista con la que se
+          falla en su orden: retirado, inactivo, sin descripción, sin módulo activo con
+          lección activa con contenido. **Las membresías y los servicios no son motivo**
+          (desde el 25-09-2026): deciden a quién se abre; **sin ninguno, el curso es de
+          todos** los alumnos con sesión, y `memberships` y `products` vacíos lo dicen. Es la vista con la que se
           arma el curso y se ve qué le falta para publicarse.
 
           **Se devuelve también un retirado**, con `deletedAt` y `deletionReason`
@@ -338,8 +339,8 @@ public class CourseController {
           `ACTIVO` publica; `INACTIVO` despublica. **Activar exige las dos
           descripciones y al menos un módulo activo**, comprobado **junto**: si faltan
           varias cosas, la respuesta trae todos los motivos. **No exige una
-          membresía ni un servicio**: un curso activo sin ninguno existe y no se
-          ofrece, y el detalle lo dice. **Desactivar no exige nada** y no toca módulos ni relaciones.
+          membresía ni un servicio**: **activar un curso armado sin ninguno lo abre a
+          todos** los alumnos con sesión (desde el 25-09-2026). **Desactivar no exige nada** y no toca módulos ni relaciones.
 
           El estado es lo que alguien decidió: **vaciar una descripción o retirar el
           último módulo activo después no lo cambia** — el curso deja de ofrecerse, y
@@ -527,9 +528,9 @@ public class CourseController {
           servicio por su código**. El curso tiene que estar vivo, en cualquier estado.
 
           **Retirar después el servicio en productos no lo quita de aquí**: quien lo
-          compró lo tiene hasta que venza. Con su primer servicio, un curso activo, con
-          descripciones y un módulo ofrecible **se ofrece aunque no tenga membresías**.
-          Que un alumno lo estudie por su servicio lo decide el aula.
+          compró lo tiene hasta que venza. **Con su primer servicio, un curso que era de
+          todos pasa a abrirse solo a quien tenga una de sus llaves**; `offerable` no
+          cambia. Que un alumno lo estudie por su servicio lo decide el aula.
 
           La respuesta es el curso en la forma del detalle, con el servicio en
           `products` —identificador, código, nombre—. Exige `courses:update`; **los
@@ -576,7 +577,7 @@ public class CourseController {
           registra como eliminación de una asociación. Sin cuerpo.
 
           **Quitar el último nunca se rechaza**: si el curso tampoco tiene membresías,
-          deja de ofrecerse y el detalle lo dice. **Un servicio retirado en productos
+          **queda abierto a todos** los alumnos con sesión. **Un servicio retirado en productos
           se quita igual.** Los dos `404` se distinguen por el mensaje: el curso no
           existe o está retirado, o ese servicio no abre el curso. La respuesta es el
           curso en la forma del detalle. Exige `courses:update`.
@@ -615,9 +616,9 @@ public class CourseController {
 
           La membresía tiene que existir (`422` `EX-002` si no); la pareja repetida
           responde `409` **nombrando la membresía por su código**. El curso tiene que
-          estar vivo, en cualquier estado: la lista se arma antes de publicar. Con su
-          primera llave, un curso activo, con descripciones y un módulo ofrecible **se
-          ofrece**. Que un alumno lo estudie lo decide el aula.
+          estar vivo, en cualquier estado: la lista se arma antes de publicar. **Con su
+          primera llave, un curso que era de todos pasa a abrirse solo a quien la tenga**;
+          `offerable` no cambia. Que un alumno lo estudie lo decide el aula.
 
           La respuesta es el curso en la forma del detalle, con la membresía en
           `memberships` —identificador, código, nombre, color—, en el orden de la cadena.
@@ -661,8 +662,7 @@ public class CourseController {
           registra como eliminación de una asociación. Sin cuerpo.
 
           **Quitar la última nunca se rechaza**: si el curso tampoco tiene servicios,
-          deja de ofrecerse y el detalle lo dice —es la forma de retirar un curso de la
-          vista de todos sin desactivarlo—. Los dos `404` se distinguen por el mensaje:
+          **queda abierto a todos** los alumnos con sesión. Los dos `404` se distinguen por el mensaje:
           el curso no existe o está retirado, o esa membresía no lo abre. La respuesta
           es el curso en la forma del detalle. Exige `courses:update`.
           """)

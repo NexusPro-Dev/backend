@@ -171,8 +171,8 @@ class CourseProductVisibilityIT extends IntegrationTestBase {
 
   @Test
   @DisplayName(
-      "`CA-AC-219` — un curso activo y armado SIN membresías pasa de «sin membresías ni servicios» a"
-          + " ofrecible al recibir su primer servicio, en el detalle, el listado y su categoría")
+      "`CA-AC-219` — un curso activo y armado SIN llaves ya se ofrece —es de todos— y sigue"
+          + " ofreciéndose al recibir su primer servicio, en el detalle, el listado y su categoría")
   void seOfrecePorSuServicio() throws Exception {
     UUID armado = curso(jdbc, "Armado", instructor, 2, "PRINCIPIANTE", "C", "L", "ACTIVO");
     UUID modulo = CourseTestSupport.modulo(jdbc, armado, "Uno", 0, "ACTIVO");
@@ -182,10 +182,8 @@ class CourseProductVisibilityIT extends IntegrationTestBase {
         "INSERT INTO course_category_items (course_id, category_id) VALUES (?, ?)", armado, cajon);
 
     mvc.perform(get("/api/v1/courses/" + armado).with(con("courses:read")))
-        .andExpect(jsonPath("$.offerable").value(false))
-        .andExpect(
-            jsonPath("$.offerableReason")
-                .value("El curso no tiene ninguna membresía ni ningún servicio que lo abra."));
+        .andExpect(jsonPath("$.offerable").value(true))
+        .andExpect(jsonPath("$.offerableReason").doesNotExist());
 
     mvc.perform(dar(armado, bot))
         .andExpect(status().isCreated())
@@ -295,7 +293,7 @@ class CourseProductVisibilityIT extends IntegrationTestBase {
   @Test
   @DisplayName(
       "`CA-AC-225` — 404 al curso y a la pareja con mensajes distintos; un servicio retirado se"
-          + " quita igual; quitar el último de un curso sin membresías lo deja sin ofrecer")
+          + " quita igual; quitar el último de un curso sin membresías lo deja abierto a todos")
   void quitarRechazosYUltimo() throws Exception {
     mvc.perform(quitar(UUID.randomUUID(), bot))
         .andExpect(status().isNotFound())
@@ -312,10 +310,8 @@ class CourseProductVisibilityIT extends IntegrationTestBase {
     mvc.perform(quitar(armado, bot))
         .andExpect(status().isOk())
         .andExpect(jsonPath("$.products", hasSize(0)))
-        .andExpect(jsonPath("$.offerable").value(false))
-        .andExpect(
-            jsonPath("$.offerableReason")
-                .value("El curso no tiene ninguna membresía ni ningún servicio que lo abra."));
+        .andExpect(jsonPath("$.offerable").value(true))
+        .andExpect(jsonPath("$.offerableReason").doesNotExist());
   }
 
   @Test

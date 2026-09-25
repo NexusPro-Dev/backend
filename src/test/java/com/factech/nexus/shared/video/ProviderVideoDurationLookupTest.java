@@ -82,7 +82,28 @@ class ProviderVideoDurationLookupTest {
   }
 
   @Test
-  @DisplayName("Vimeo: pide el oEmbed público, sin credencial, y lee duration")
+  @DisplayName(
+      "Vimeo con token: pide la API con el token y el no listado como id:hash, y lee duration")
+  void vimeoConToken() {
+    RestClient.Builder constructor = RestClient.builder();
+    MockRestServiceServer proveedor = MockRestServiceServer.bindTo(constructor).build();
+    proveedor
+        .expect(requestTo("https://api.vimeo.com/videos/76979871:ab12cd34ef?fields=duration"))
+        .andExpect(method(HttpMethod.GET))
+        .andExpect(
+            org.springframework.test.web.client.match.MockRestRequestMatchers.header(
+                "Authorization", "bearer token-de-prueba"))
+        .andRespond(withSuccess("{\"duration\":62}", MediaType.APPLICATION_JSON));
+
+    assertThat(
+            consulta(null, "token-de-prueba", constructor)
+                .segundosDe(new VideoLink(VideoProvider.VIMEO, "76979871", "ab12cd34ef")))
+        .isEqualTo(62);
+    proveedor.verify();
+  }
+
+  @Test
+  @DisplayName("Vimeo sin token: pide el oEmbed público, sin credencial, y lee duration")
   void vimeo() {
     RestClient.Builder constructor = RestClient.builder();
     MockRestServiceServer proveedor = MockRestServiceServer.bindTo(constructor).build();
@@ -125,7 +146,13 @@ class ProviderVideoDurationLookupTest {
   }
 
   private static VideoDurationLookup consulta(String clave, RestClient.Builder constructor) {
-    VideoSettings ajustes = new VideoSettings(clave, null, null, Duration.ofSeconds(1));
+    return consulta(clave, null, constructor);
+  }
+
+  private static VideoDurationLookup consulta(
+      String clave, String tokenDeVimeo, RestClient.Builder constructor) {
+    VideoSettings ajustes =
+        new VideoSettings(clave, null, tokenDeVimeo, null, null, Duration.ofSeconds(1));
     return new ProviderVideoDurationLookup(ajustes, constructor.build());
   }
 }

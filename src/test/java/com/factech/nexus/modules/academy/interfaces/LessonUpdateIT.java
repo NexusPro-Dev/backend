@@ -213,27 +213,25 @@ class LessonUpdateIT extends IntegrationTestBase {
     jdbc.update("UPDATE lessons SET status = 'ACTIVO' WHERE id = ?", leccion);
     mvc.perform(get("/api/v1/courses/" + curso).with(con("courses:read")))
         .andExpect(jsonPath("$.modules[0].offerable").value(true))
-        .andExpect(
-            jsonPath("$.offerableReason")
-                .value("El curso no tiene ninguna membresía ni ningún servicio que lo abra."));
+        .andExpect(jsonPath("$.offerable").value(true))
+        .andExpect(jsonPath("$.offerableReason").doesNotExist());
 
     mvc.perform(corregir(leccion, "{\"content\":null}"))
         .andExpect(jsonPath("$.status").value("ACTIVO"));
     mvc.perform(get("/api/v1/courses/" + curso).with(con("courses:read")))
         .andExpect(jsonPath("$.modules[0].status").value("ACTIVO"))
         .andExpect(jsonPath("$.modules[0].offerable").value(false))
-        // El quinto motivo solo se ve con una membresía delante (RF-AC-020): hasta
-        // entonces el curso dice el cuarto, y el módulo es el que enseña el hueco.
+        // Desde el 25-09-2026 las llaves no son motivo: el curso dice el del módulo.
         .andExpect(
             jsonPath("$.offerableReason")
-                .value("El curso no tiene ninguna membresía ni ningún servicio que lo abra."));
+                .value(
+                    "El curso no tiene ningún módulo activo con al menos una lección activa con contenido."));
 
     mvc.perform(corregir(leccion, "{\"content\":\"# De vuelta\"}")).andExpect(status().isOk());
     mvc.perform(get("/api/v1/courses/" + curso).with(con("courses:read")))
         .andExpect(jsonPath("$.modules[0].offerable").value(true))
-        .andExpect(
-            jsonPath("$.offerableReason")
-                .value("El curso no tiene ninguna membresía ni ningún servicio que lo abra."));
+        .andExpect(jsonPath("$.offerable").value(true))
+        .andExpect(jsonPath("$.offerableReason").doesNotExist());
   }
 
   private MockHttpServletRequestBuilder corregir(UUID leccion, String cuerpo) {

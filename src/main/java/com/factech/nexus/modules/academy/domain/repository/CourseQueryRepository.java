@@ -109,7 +109,6 @@ public interface CourseQueryRepository {
           status,
           shortDescription != null,
           longDescription != null,
-          membershipCount + productCount,
           offerableModuleCount);
     }
   }
