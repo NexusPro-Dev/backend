@@ -5,11 +5,11 @@
 | Módulo | `CM` — Comisiones |
 | Paquete | `modules/commissions` |
 | Prefijos de permiso | `commissions:` |
-| Versión | 0.15.0 |
+| Versión | 0.17.0 |
 | Estado | **Borrador** |
 | Responsable | Bonilla Diaz William Steven |
 | Fecha de creación | 28-08-2026 |
-| Última actualización | 14-09-2026 |
+| Última actualización | 24-09-2026 |
 
 !!! info "Qué va en este documento"
 
@@ -20,7 +20,7 @@
 !!! warning "Documento en Borrador: dos decisiones lo condicionan"
 
     1. **El código `CM`.** Un código, en cuanto aparece en un identificador, no se cambia jamás ([`modules.md` §2.1](../modules.md#21-regla-de-decision)). En cuanto exista `RF-CM-001`, estas dos letras quedan fijadas para siempre, y `modules.md` §6 advierte que los códigos de los módulos candidatos no deberían fijarse hasta conocer el alcance completo del producto. Se procede por decisión del responsable del proyecto, como ya se hizo con `PM`.
-    2. **La frontera del alcance** (§1.3): este módulo **declara cuánto se paga**; no calcula, no liquida y no paga. El motivo, en §1.4.
+    2. **La frontera del alcance** (§1.3): hasta el 24-09-2026 este módulo **declaraba cuánto se paga** y no calculaba, no liquidaba y no pagaba. **Desde v0.17.0 liquida**: la razón que sostenía esa frontera —que no existía ninguna tabla de ventas— caducó cuando `MV` construyó la venta. Lo que sigue fuera es **pagar**, que es de Finanzas. El motivo, en §1.4.
 
 ---
 
@@ -76,29 +76,44 @@ Hoy el sistema sabe **qué se vende** (`PM`) y **quién vende** —los roles de 
 - Registrar la **tasa personalizada** de una persona **sobre un producto**, con su vigencia, **también en cualquiera de las dos formas**. Desde el 16-09-2026 **nace con su producto** y no hay paso de asociación.
 - Consultar unas y otras: **el listado de todas las tasas de rol** y **el de todas las personalizadas**, cada una con su producto y filtrables por él; y los roles que cobran por un producto. «Quién tiene excepción en este producto» se responde **filtrando las personalizadas por producto**.
 - **Resolver la comisión efectiva**: dada una persona, un producto y una **fecha**, **qué le corresponde** —un porcentaje o un importe— y **por qué tasa**.
+- **Liquidar**: tomar las líneas de venta de un periodo, resolver la tasa de **cada persona de la cadena comercial** sobre cada una, calcular lo devengado y **congelarlo** en un lote por persona y moneda (24-09-2026, §5.6). Es lo que `RN-CM-008` llevaba exigiendo desde el 01-09-2026 sin que existiera nadie que lo hiciera.
+- **Consultar los lotes** y el detalle de uno, línea a línea y nivel a nivel; **marcar un lote como pagado**; y **dejar que cada vendedor consulte los suyos**.
 
 **No incluye**
 
-- **El cálculo y la liquidación de comisiones.** No se aplaza por reparto: **no hay sobre qué calcular**, porque ninguna tabla de ventas existe. Ver §1.4.
-- **El pago de lo liquidado.** Retiros, balances y egresos son del área de **Finanzas**.
-- **Los FTDs.** Pertenecen al área y dependen de la venta, que no existe.
-- **Quién puede ver las comisiones de quién.** Es alcance de datos y depende de **D-22**, abierta. Ver §5.3.
+- **Revertir o recalcular un lote.** Lo liquidado no se vuelve a tocar (`RN-CM-029`): un lote no se corrige, no se recalcula y no se deshace. Arreglar lo que se liquidó mal es una operación que **no existe todavía**, y se declara aquí para que su ausencia no se confunda con un olvido.
+- **Comisionar lo que no es una venta.** Solo devengan las líneas de movimientos de tipo `VENTA` (`RN-CM-022`); ningún otro tipo paga a nadie.
+- **El pago de lo liquidado.** El lote llega hasta `PAGADO`, que es **la constancia de que se pagó** y no el pago: no mueve dinero, no toca ninguna cuenta y no genera ningún egreso (`RN-CM-030`). Retiros, balances y egresos son del área de **Finanzas**.
+- **Los FTDs.** Pertenecen al área de Finanzas. **El motivo que este documento les daba caducó el 24-09-2026** —decían depender de la venta, que ya existe (§1.4)—, y se corrige aquí: lo que siguen sin tener es quién los declare, y no es este módulo.
+- **Quién puede ver las comisiones de quién.** Sigue siendo alcance de datos y sigue dependiendo de **D-22**, abierta. Lo que `RF-CM-012` resuelve es **el único caso que no la necesita** —cada quien ve los suyos, filtrando por su propio identificador y sin recorrer ninguna estructura—; ver las de la red exige D-22 y no entra. Ver §5.3.
 - **La atribución de la venta.** A qué vendedor se le apunta una venta concreta es una decisión de la venta, no de la tarifa.
 
-### 1.4 La frontera, y por qué está donde está
+### 1.4 La frontera, y por qué se movió el 24-09-2026
 
-**Una tasa no calcula nada.** Declara un porcentaje; quien lo aplica es la liquidación, que no existe todavía. La tentación es cerrar el círculo aquí mismo —tasa, cálculo y liquidación en un solo módulo— y hay dos razones para no hacerlo:
+**Hasta hoy este módulo no calculaba nada.** Declaraba un porcentaje y dejaba que lo aplicara una liquidación que no existía, por dos razones escritas el 28-08-2026:
 
-1. **No hay tabla de ventas.** Un cálculo de comisión necesita un importe vendido, una fecha y un vendedor atribuido. Ninguna de las tres cosas existe en el sistema. Escribir hoy el cálculo produciría código que no se puede probar contra nada real.
+1. **No había tabla de ventas.** Un cálculo de comisión necesita un importe vendido, una fecha y un vendedor atribuido, y ninguna de las tres cosas existía en el sistema.
 2. **Liquidar sin cobrar es pagar sobre una venta que no ocurrió.** Es el mismo argumento que `PM` §1.4 usa para no registrar la compra antes del cobro.
 
-!!! danger "Y desde el 01-09-2026 este módulo depende de esa liquidación para algo más grave"
+**La primera caducó; la segunda no.** `MV` construyó la venta —`movements` y `movement_details`, `V7`— y el 11-09-2026 movió el vendedor **a la línea** (`V12`), con el motivo escrito en la propia migración: «*el vendedor se va a `movement_details.seller_id` porque la comisión se…*». Desde entonces el importe, la fecha y el vendedor atribuido existen los tres, en la fila que hace falta. **La razón 1 ya no es cierta, de modo que la frontera se mueve.**
 
-    Las tasas de rol **no tienen vigencia**: son un catálogo de lo que se paga **hoy**. Cambiar un porcentaje de 10 a 12 **no deja rastro del 10** — no hay dos filas contando su parte de la historia, hay una que ahora dice otra cosa.
+**La razón 2 sigue en pie, y es la que decide CUÁNDO se devenga**: no al registrar la venta, sino cuando el dinero entró (`CONFIRMADA`) **y** ya se sabe a quién se atribuye cada línea (`VALIDADO`, `RN-MV-033`). `MV` lo dejó escrito por adelantado —«*la comisión no se devengará sobre una venta que no esté `VALIDADO`*», `RN-MV-035`—, y este módulo lo cumple en `RN-CM-022`. **La condición no se negoció aquí: se recoge.**
 
-    De modo que **`RN-CM-008` deja de ser una condición prudente y pasa a ser la única defensa del pasado**: si la liquidación no copia el porcentaje que aplicó, cambiar una tasa **reescribe lo que ya se pagó y no queda forma de saberlo**.
+**Lo que se mueve y lo que no.** Entran **calcular y liquidar**; sigue fuera **pagar**. El lote llega a `PAGADO` y ahí se detiene: esa marca es la constancia de que Finanzas pagó, no el pago.
 
-    Se acepta a conciencia (§8, v0.4.0). Y mientras esa liquidación no exista, **cambiar una tasa borra el pasado sin dejar rastro**, porque no hay nada que lo haya copiado.
+!!! success "La deuda de `RN-CM-008` queda saldada, veintitrés días después"
+
+    Desde el 01-09-2026 este documento decía que **cambiar un porcentaje borraba el pasado sin dejar rastro**, porque las tasas de rol no tienen vigencia y no existía nadie que copiara lo que aplicó.
+
+    **`commissions` es ese alguien.** Cada fila copia la forma, el valor, la base y la moneda (`RN-CM-008`, `RN-CM-017`), y guarda además **de qué tasa exacta salió**. A partir de aquí, corregir una tasa cambia lo que se pagará mañana y **no toca nada de lo ya liquidado**.
+
+    Lo que **no** repara es el pasado anterior a la primera liquidación: las tasas corregidas entre el 01-09-2026 y hoy reescribieron lo que rigieron, y no hay nada que lo haya copiado. Esa parte **se perdió**, y queda dicho aquí en lugar de darse por resuelta.
+
+!!! danger "Y aparece una frontera nueva, la del lote"
+
+    Un lote liquidado **no se recalcula** (`RN-CM-029`). Si una tasa estaba mal puesta, el lote pagó lo que decía la tasa mal puesta, y la única salida sería otro lote — que **no existe**, porque revertir no entra en el alcance (§1.3).
+
+    Se acepta a conciencia, y es la contrapartida exacta de lo que se gana: **lo mismo** que impide que corregir una tasa reescriba el pasado impide arreglar desde aquí un lote mal calculado.
 
 ---
 
@@ -109,8 +124,11 @@ Hoy el sistema sabe **qué se vende** (`PM`) y **quién vende** —los roles de 
 | Tasas | Las tasas de rol de cada producto y las excepciones por persona sobre cada producto | `commission_rates`, `user_commission_rates` |
 | ~~Asociación~~ | ~~Qué tasa rige sobre qué producto~~ **Retirado el 16-09-2026**: ninguna tasa se asocia; las dos nacen con su producto (`RN-CM-021`) | ~~`product_commission_rates`~~ (`V94`), ~~`user_commission_rate_products`~~ (`V10`) |
 | Resolución | Qué le corresponde a una persona por un producto **en una fecha** | Las dos |
+| Liquidación | Convertir las líneas de venta de un periodo en lo que se le debe a cada persona de la cadena, y llevar ese lote hasta `PAGADO` | `commission_batches`, `commissions` |
 
 **Por qué la asociación dejó de ser un submódulo.** Nació el 02-09-2026 porque una tasa de rol **regía sobre varios productos**, y el 11-09-2026 se extendió a la personalizada «con el mismo mecanismo». El 15-09-2026 la tasa de rol pasó a **ser de un producto** (`RN-CM-021`) y «un producto tiene una tasa por cada rol de la cadena» se declaró en la propia tabla; la personalizada conservó su asociación un día más, porque una excepción de una persona sí abarcaba varios productos. El 16-09-2026 el responsable del proyecto decidió que **también fuera una por persona y producto** (§5.5), y lo que aquel argumento temía —corregir un porcentaje en cincuenta filas y que una se quedara atrás— es lo que se acepta en las dos clases: **cada producto se configura por su cuenta**, y una tasa que quiera repetirse en cincuenta productos son cincuenta tasas.
+
+**Por qué Liquidación es un submódulo y no un módulo aparte.** Todo lo que necesita —la precedencia, las dos clases de tasa, la forma de un valor— es de `CM`, y sacarlo fuera obligaría a publicar la resolución como interfaz de módulo para **un solo consumidor**. Lo que sí queda fuera es el **pago**, que es de Finanzas y no tiene nada que ver con una tasa (§1.4).
 
 ---
 
@@ -121,8 +139,10 @@ Hoy el sistema sabe **qué se vende** (`PM`) y **quién vende** —los roles de 
 | `SP` | Consume | **Roles** (`RN-CM-001`): validar que el rol existe y que es de tipo `VENDEDOR` |
 | `SP` | Consume | **Usuarios**: validar que la persona de una tasa personalizada existe, y conocer su rol vendedor al resolver |
 | `PM` | Consume | **Productos** (`RN-CM-002`): validar que el producto de una tasa —de rol o personalizada— existe y no está retirado; su **precio** (`RN-CM-019`), para convertir un valor fijo a su porcentaje equivalente al comprobar el tope; y su **moneda** (`RN-CM-017`), para acotar los decimales de un importe fijo |
+| `MV` | Consume | **Las líneas de venta** (`RN-CM-022`): qué se vendió, cuánto, a qué precio unitario, en qué moneda, a quién se atribuye y cuándo — `movements` y `movement_details`. Es la dependencia que este módulo esperaba desde el 28-08-2026 |
+| `SP` | Consume | **La cadena de mando a una fecha** (`RN-CM-025`): quién era el superior de quién **el día de la venta**, en toda la profundidad. `user_supervisors` lleva historial (`started_at` / `ended_at`), y `SP` deberá publicarlo como interfaz — igual que publicó `CommercialReach` para `RF-MV-015`, y **en la dirección contraria**: aquella responde «mi red», esta «mis superiores» |
 
-La dependencia es **acíclica**: `CM` → `PM` → `SP`. Es el **primer módulo del sistema que depende de dos**, y los consume por las interfaces que cada uno publica (**D-25**).
+La dependencia sigue siendo **acíclica**: `CM` → `MV` → `PM` → `SP`, y `CM` → `PM` → `SP`. **`MV` no consume `CM`**, y hubo que comprobarlo: bloquear la anulación de una venta ya liquidada habría obligado a que `MV` preguntara aquí, **cerrando el ciclo**. No hace falta — `RN-MV-005` no deja salir de `CONFIRMADA`, de modo que una venta liquidada no se puede anular sin que este módulo intervenga (`RN-CM-029`). Los consume por las interfaces que cada uno publica (**D-25**).
 
 ---
 
@@ -138,6 +158,10 @@ La dependencia es **acíclica**: `CM` → `PM` → `SP`. Es el **primer módulo 
 | `RF-CM-006` | Registrar la tasa personalizada de una persona **sobre un producto** | Tasas | `user-commission-rates:create` — y sus otras tres operaciones `user-commission-rates:read`, `update` y `delete` |
 | ~~`RF-CM-007`~~ | ~~Asociar una tasa de rol a un producto~~ **Descartado el 15-09-2026** (`RN-CM-021`): la tasa de rol nace con su producto. El número queda consumido | — | — |
 | ~~`RF-CM-008`~~ | ~~Retirar la asociación de una tasa con un producto~~ **Descartado el 15-09-2026** (`RN-CM-021`): sin asociación de rol no hay nada que desasociar; el producto deja de pagar a un rol retirando la tasa (`RF-CM-004`). El número queda consumido | — | — |
+| `RF-CM-009` | **Liquidar las comisiones de un periodo** | Liquidación | `commission-batches:settle` |
+| `RF-CM-010` | Consultar los lotes de comisión, y el detalle de uno | Liquidación | `commission-batches:read` (listado) y `commission-batches:read-detail` (detalle) |
+| `RF-CM-011` | Marcar un lote como pagado | Liquidación | `commission-batches:pay` |
+| `RF-CM-012` | Consultar mis comisiones | Liquidación | `commission-batches:list-own` (listado) y `commission-batches:read-own` (detalle) |
 
 !!! info "Seis vivos y dos descartados desde el 15-09-2026"
 
@@ -157,6 +181,16 @@ La dependencia es **acíclica**: `CM` → `PM` → `SP`. Es el **primer módulo 
 
 **La asociación tuvo sus operaciones propias** —`RF-CM-007` y `RF-CM-008` para la de rol, y dentro de `RF-CM-006` para la personalizada— mientras era lo único que ponía una tasa en vigor. Desde el 16-09-2026 no queda ninguna: registrar es poner en vigor, y retirar (`RF-CM-004`) es la única forma de dejar de pagar.
 
+!!! info "Cuatro nuevos el 24-09-2026, y con ellos el módulo pasa a liquidar"
+
+    `RF-CM-009` a `RF-CM-012` mueven la frontera de §1.3: el módulo deja de solo **declarar** cuánto se paga y pasa a **calcular lo que se debe y congelarlo**.
+
+    **Los ocho anteriores no cambian.** Ninguna tasa gana ni pierde un campo, y `RF-CM-005` resuelve exactamente lo mismo que ya resolvía: la liquidación lo llama **una vez por línea y por persona**, que es para lo que se escribió (`RN-CM-011`, v0.3.0). Es la segunda vez que esa pieza resulta ser la correcta sin tocarla.
+
+    **`RF-CM-009` es el único que escribe, y escribe mucho**: un lote por persona y moneda, y dentro una fila por **cada nivel de la cadena de cada línea**. Los otros tres leen, salvo el paso a `PAGADO`.
+
+    **Son cuatro requerimientos y seis permisos**, y no contradice `RN-SEG-014`: la regla cuenta **operaciones**, no requerimientos (§6). Listar y ver el detalle son dos, y «los míos» son otras dos.
+
 ---
 
 ## 5. Reglas de negocio
@@ -171,20 +205,29 @@ La dependencia es **acíclica**: `CM` → `PM` → `SP`. Es el **primer módulo 
 | `RN-CM-005` | La tasa no desaparece | Al retirar | La eliminación es **lógica y con motivo** (Art. V.13). La fila permanece para que una liquidación pasada siga resolviendo con qué porcentaje se pagó | Crítica |
 | `RN-CM-006` | Una sola tasa personalizada vigente por persona **y producto** | Al registrar una personalizada y al corregir su vigencia | **Ningún día puede estar cubierto por dos tasas personalizadas vivas de la misma persona sobre el mismo producto.** Sí pueden existir varias consecutivas —son el historial— y varias simultáneas **sobre productos distintos**. **Desde el 16-09-2026 VUELVE AL MOTOR**: con la persona, el producto y la vigencia en la misma fila (`RN-CM-021`), se declara como `EXCLUDE` sobre `(user_id, product_id, daterange)` entre las vivas, y el caso de uso la comprueba antes solo para dar el mensaje. Del 11-09-2026 al 16-09-2026 vivió en el caso de uso con un bloqueo consultivo por persona, porque la asociación la hacía cruzar dos tablas; hoy es otra vez la garantía que no depende de que nadie se acuerde de comprobarla | **Crítica** |
 | `RN-CM-007` | El porcentaje va de cero a cien | Al registrar y al corregir **una tasa de porcentaje** | Se admite el **cero**, que significa «esto no comisiona» y **no es lo mismo que no tener tasa**: es la forma de asociar un producto a un rol declarando que no paga nada. **No dice nada del valor fijo**, que no está acotado por arriba | Alta |
-| `RN-CM-008` | **La liquidación conserva el porcentaje, y es la única defensa del pasado** | Siempre | Las tasas de rol **no tienen vigencia**: corregir un porcentaje **reescribe lo que rigió siempre**. De modo que quien liquide **debe copiar el porcentaje que aplicó**, o cambiar una tasa reescribirá lo ya pagado sin dejar rastro. Es obligación de la liquidación futura, no de estas tablas (§1.4) | **Crítica** |
+| `RN-CM-008` | **La liquidación conserva lo que aplicó — y desde el 24-09-2026 lo hace de verdad** | Al liquidar | Las tasas de rol **no tienen vigencia**: corregir un porcentaje **reescribe lo que rigió siempre**. De modo que quien liquide **debe copiar lo que aplicó**, o cambiar una tasa reescribirá lo ya pagado sin dejar rastro. **Desde v0.17.0 ese alguien existe y está en este módulo**: cada fila de `commissions` copia la **forma**, el **valor**, la **base** y la **moneda**, y además **de qué tasa exacta salió** (`rate_id`, `source`). Dejó de ser una condición declarada hacia fuera (§1.4) y pasó a ser una obligación de `RF-CM-009`, con prueba que la vigila. **Lo que no repara es el pasado anterior al primer lote**: lo corregido entre el 01-09-2026 y el 24-09-2026 se perdió y no hay dónde buscarlo | **Crítica** |
 | `RN-CM-009` | Toda tasa personalizada declara desde cuándo rige | Al registrar una personalizada | El inicio de vigencia es **obligatorio**; el fin es opcional y su ausencia significa **indefinidamente**. Un fin anterior al inicio se rechaza. **Las de rol no llevan fechas** | Alta |
 | `RN-CM-010` | No se configura lo que ya no se vende | Al registrar cualquier tasa | No se admite una tasa sobre un producto **retirado**: sería configurar algo que nadie puede vender. Lo que ya existía **permanece**, por `RN-CM-005`. Alcanza a la personalizada desde el 11-09-2026, y desde el 16-09-2026 se comprueba **al registrarla** | Media |
-| `RN-CM-011` | Una venta comisiona a **toda la cadena** | Al liquidar | **Override**: cada persona de la cadena comercial gana **su propio porcentaje sobre el mismo importe**. La tasa se resuelve **una vez por nivel** con `RF-CM-005`. **El tope de la suma de la cadena sigue sin dueño**: depende de tantas filas como niveles tenga la cadena, y este módulo, al liquidar, solo ve una a la vez. `RN-CM-019` cierra desde el 03-09-2026 el sub-caso resoluble **antes** de liquidar: cuando la cadena se resuelve entera por tasas de rol asociadas al mismo producto, ese producto ya no puede haberse configurado por encima de cien. **El 11-09-2026 el hueco se encogió pero NO se cerró**: la personalizada ya se ata a un producto y por tanto ya tiene tope individual, de modo que ninguna fila de la cadena puede pasarse por su cuenta — pero **la suma sigue sin comprobarse**, porque saber cuánto paga la cadena exige saber **quiénes la componen**, y eso no se sabe al configurar. `60 + 30 + 20` sigue pagando el 110 % aunque ninguno de los tres se pase por separado | **Crítica** |
+| `RN-CM-011` | Una venta comisiona a **toda la cadena** | Al liquidar | **Override**: cada persona de la cadena comercial gana **su propio porcentaje sobre el mismo importe**. La tasa se resuelve **una vez por nivel** con `RF-CM-005`. **Desde el 24-09-2026 la regla se aplica de verdad** (`RN-CM-025`): `RF-CM-009` sube por `user_supervisors` **a la fecha de la venta** y emite una fila por nivel. **Y el tope de la suma, que quedó sin dueño el 01-09-2026, lo tiene**: es `RN-CM-026`, y hace exactamente lo que esta regla exigía desde entonces —**rechazar y no recortar**—, línea a línea y sin frenar el resto del lote. Se puede porque **al liquidar se sabe quiénes componen la cadena**, que es lo que no se sabe al configurar. `RN-CM-019` sigue cerrando aparte el sub-caso visible **antes** de liquidar | **Crítica** |
 | `RN-CM-012` | **No hay tarifa por omisión: sin tasa sobre el producto no se paga nada** | Siempre | **Reescrita por segunda vez el 16-09-2026.** Nació diciendo que ninguna tasa regía hasta asociarse; hoy ninguna se asocia (`RN-CM-021`) y lo que queda de ella es lo que siempre quiso decir: **una persona cobra por un producto solo si existe una tasa —suya o de su rol— sobre ese producto**. La ausencia significa «no se paga», nunca «se paga lo de todos». Lo que la regla costaba —una tasa creada y no asociada parecía configurada y no pagaba— **ya no puede ocurrir en ninguna de las dos clases** | **Crítica** |
 | `RN-CM-013` | Un solo porcentaje por rol y producto | Al registrar una tasa de rol | Dos tasas del mismo rol sobre el mismo producto harían **indeterminada** la resolución, y la elección quedaría a criterio del plan de ejecución. Se declara en el esquema: **desde el 15-09-2026 en la propia `commission_rates`**, como índice único parcial sobre `(product_id, role_id)` entre las vivas; hasta entonces era la clave primaria de la asociación | **Crítica** |
 | ~~`RN-CM-014`~~ | ~~Solo la personalizada se asocia a productos~~ | — | **Retirada el 16-09-2026.** Nació diciendo que solo las de rol se asociaban; el 11-09-2026, que las dos; el 15-09-2026, que solo la personalizada. Hoy **ninguna se asocia**: las dos nacen con su producto (`RN-CM-021`), y la tabla `user_commission_rate_products` se retira en `V10`. El número queda consumido | — |
 | ~~`RN-CM-015`~~ | ~~Una tasa asociada no se retira~~ | — | **Retirada el 16-09-2026.** Existía porque la asociación **sobrevivía** al retiro de su tasa y el producto dejaba de pagar en silencio. Sin asociación no hay nada que sobreviva: retirar una tasa —de rol o personalizada— es exactamente la forma de que deje de aplicarse, a la vista, con motivo e instantánea (`RN-CM-005`). Salió de la de rol el 15-09-2026 y de la personalizada el 16-09-2026. El número queda consumido | — |
 | `RN-CM-016` | **Una tasa declara una forma y solo una** | Al registrar y al corregir | O porcentaje o valor fijo, **nunca las dos ni ninguna**. No se suman. Se declara **en el esquema**: el tipo manda y el campo de la otra forma va vacío | **Crítica** |
-| `RN-CM-017` | El valor fijo **no lleva moneda: es la de su producto** | Al registrar, al corregir y al liquidar | Toma la del **producto de la tasa**. La tasa no la declara porque no hace falta: desde que toda tasa nace con su producto (`RN-CM-021`) tiene **una sola moneda**, y el importe fijo **se valida contra sus decimales** al registrar y al corregir, igual que `RN-PM-007` valida un precio. Hasta el 15-09-2026 (rol) y el 16-09-2026 (personalizada) la misma fila podía pagar importes distintos en productos de monedas distintas; eso ya no puede pasar (§1.1.1) | Alta |
+| `RN-CM-017` | El valor fijo **no lleva moneda: es la de su producto** | Al registrar, al corregir y al liquidar | Toma la del **producto de la tasa**. La tasa no la declara porque no hace falta: desde que toda tasa nace con su producto (`RN-CM-021`) tiene **una sola moneda**, y el importe fijo **se valida contra sus decimales** al registrar y al corregir, igual que `RN-PM-007` valida un precio. **Y al liquidar se COPIA** (24-09-2026): `commission_batches.currency_id` es **el primer sitio del sistema donde el importe de una comisión existe con su moneda**, porque la tasa nunca la tuvo y el producto puede retirarse después. De ahí `RN-CM-028`: **un lote es de una sola moneda**, y quien venda en dos tendrá dos lotes — un total que las sumara no significaría nada. Hasta el 15-09-2026 (rol) y el 16-09-2026 (personalizada) la misma fila podía pagar importes distintos en productos de monedas distintas; eso ya no puede pasar (§1.1.1) | Alta |
 | ~~`RN-CM-018`~~ | ~~El valor fijo no está acotado por arriba mientras la tasa no conoce ningún precio~~ | — | **Retirada el 16-09-2026.** Decía que el importe, por su cuenta, no tenía un número que lo acotara —cien lo tiene el porcentaje— y que una tasa que no conocía el precio de nada quedaba sin tope. Hoy **ninguna tasa desconoce el precio de nada**: las dos nacen con su producto, y `RN-CM-019` y `RN-CM-020` las acotan al registrarlas. Lo que sigue siendo cierto —que el cuerpo de la petición no acota el importe por sí mismo— queda dicho en `RN-CM-019`. El número queda consumido | — |
 | `RN-CM-019` | **Un producto no puede configurarse para pagar más del 100 % de sí mismo** | Al registrar o corregir cualquier tasa | La suma de lo que un producto paga a **todas** sus tasas de rol vivas —cada porcentaje tal cual, cada valor fijo convertido a `fixed_amount ÷ precio × 100`, contra el precio de **ese** producto— no puede superar cien. Se comprueba **al registrar** la tasa de rol (contando la nueva) y **al corregirla** (contra su único producto). **La tasa personalizada tiene su propio tope**, y es **individual y no una suma**: ninguna puede pagar más del 100 % del precio de su producto, y desde el 16-09-2026 se comprueba **al registrarla** y al corregirla. **No entra en la suma de las de rol**, y es deliberado: las personalizadas de personas distintas sobre el mismo producto son **alternativas entre sí**, no cosas que se paguen a la vez, y sumarlas rechazaría configuraciones legítimas. El tope se calcula contra el precio **de hoy**: si el producto cambia de precio después (`RF-PM-004`), nadie vuelve a comprobarlo. **Con precio CERO no aplica** (14-09-2026): un producto gratuito no tiene «cien por ciento» del que pasarse, y qué puede pagar lo dice `RN-CM-020`. **Entre el 08-09-2026 y el 14-09-2026 decía lo contrario** —que cualquier fijo mayor que cero sobre precio cero era «más del 100 %» y se rechazaba—, y se invirtió por decisión del responsable del proyecto (§5.2) | **Crítica** |
 | `RN-CM-020` | **Un producto gratuito comisiona solo por importe fijo** | Al registrar o corregir cualquier tasa | Sobre un producto de **precio cero** (`RN-PM-006`) se admite **cualquier** tasa de **valor fijo**, **sin tope** —no hay cien por ciento de cero—, y **se rechaza toda tasa de porcentaje**: un porcentaje de nada es nada, y registrarlo configura algo que no paga. Se comprueba **al registrar** (`RF-CM-001` desde el 15-09-2026, `RF-CM-006` desde el 16-09-2026) y **al corregir** (`RF-CM-003`): corregir hacia porcentaje una tasa de un producto gratuito se rechaza entera, como el tope. **Se evalúa contra el precio de hoy y nadie vuelve a mirarlo** (§5.2): un porcentaje sobre un producto que después baja a cero **pasa a pagar cero**, y un fijo sobre un gratuito que después sube de precio **no se vuelve a acotar**. Es el mismo hueco temporal que `RN-CM-019` acepta, y se acepta por lo mismo | Alta |
 | `RN-CM-021` | **Toda tasa nace con su producto, y no lo cambia** | Al registrar y en toda corrección de cualquier tasa | **Nace el 15-09-2026** para la de rol y **se extiende a la personalizada el 16-09-2026**, las dos veces por decisión del responsable del proyecto. Toda tasa declara **un producto**, obligatorio, y rige **solo sobre él** desde el alta. El producto **no se corrige**: cambiar de producto es retirar la tasa y registrar otra, porque lo que se pagó por el primero tiene que seguir resolviendo la misma fila. **Una tasa que se quiera repetir en varios productos son varias tasas** — es el precio de que cada producto se configure por su cuenta (§5.4, §5.5). La personalizada además tiene vigencia, y por eso su unicidad es «una **vigente** por persona y producto» (`RN-CM-006`) y no «una viva» | **Crítica** |
+| `RN-CM-022` | **Solo devenga la línea de una venta cobrada Y atribuida** | Al liquidar | Una línea entra en un lote si y solo si: su movimiento es de tipo **`VENTA`**; su `status` es **`CONFIRMADA`** —el dinero entró, §1.4 razón 2—; su estado de tipo es **`VALIDADO`** —ya se sabe a quién se atribuye cada línea (`RN-MV-033`, `RN-MV-035`)—; **tiene `seller_id`**; y **no se liquidó antes** (`RN-CM-027`). Las cinco van en el **predicado fijo** de la consulta y **ninguna es un filtro**, por el mismo motivo por el que `RN-MV-038` retiró `status` del contrato: un parámetro que solo admite un valor útil invita a construir sobre él una condición que nunca se cumple. **Una venta `CONFIRMADA` que siga en `VALIDAR_COMISIONES` no devenga, y no es un error**: espera, y entra en el lote del periodo en que se valide | **Crítica** |
+| `RN-CM-023` | **La base es el BRUTO de la línea, y el importe fijo paga POR UNIDAD** | Al liquidar | Decisión del responsable del proyecto, 24-09-2026. La base es **`unit_price × quantity`** —el precio copiado del catálogo por `RN-MV-002`—, de modo que **el descuento de la línea no reduce la comisión**: lo absorbe la empresa. Un porcentaje paga `base × percentage ÷ 100`; un importe fijo paga **`fixed_amount × quantity`**, porque el fijo es «lo que pago por cada cosa vendida» y es la lectura coherente con que `RN-CM-019` lo acote contra el precio **unitario** del producto. **`line_discount` y `line_amount` NO se copian**: no intervienen en la cuenta, y copiarlos sugeriría que sí | **Crítica** |
+| `RN-CM-024` | **La tasa se resuelve con la fecha de LA VENTA, nunca con la del lote** | Al liquidar | La personalizada es la única tasa con vigencia (`RN-CM-009`), de modo que **la fecha decide quién gana**. Liquidar el día 30 preguntando por «hoy» haría ganar a una personalizada que entró en vigor el día 10 **también en las ventas del día 3**: se pagaría una tasa que no regía cuando se vendió. `RF-CM-009` llama a `RF-CM-005` **una vez por línea y por persona**, con la fecha de esa venta, y la guarda en `commissions.resolved_on` para que después se pueda auditar **por qué** ganó la que ganó | **Crítica** |
+| `RN-CM-025` | **La cadena se reconstruye a la fecha de la venta, y cada nivel resuelve la suya** | Al liquidar | Decisión del responsable del proyecto, 24-09-2026. Se parte del `seller_id` de la línea y se sube por `user_supervisors` **vigente ese día** —la tabla lleva historial y su comentario ya decía «*la fila cerrada se conserva: dice a quién se atribuía cada resultado*»—, en toda la profundidad. **Cada nivel resuelve su propia tasa con su propio rol** (`RF-CM-005`) y cobra sobre **la misma base** (`RN-CM-011`). **Quien no tenga tasa sobre ese producto no cobra y NO interrumpe la cadena** (`RN-CM-012`): se sigue subiendo. La estructura **no se recorre hacia abajo**: `CommercialReach` responde «mi red», que es la pregunta contraria, y esta la deberá publicar `SP` (§3) | **Crítica** |
+| `RN-CM-026` | **Si la cadena de una línea pasa del 100 %, esa línea no se liquida — y el lote sigue** | Al liquidar | Decisión del responsable del proyecto, 24-09-2026, y **es el dueño que `RN-CM-011` reclamaba desde el 01-09-2026**. Sumadas las comisiones de todos los niveles de una línea, si el total supera **el importe de esa línea** (`unit_price × quantity`), **ninguno de los niveles cobra por ella**: se **rechaza y no se recorta**, porque recortar decidiría en silencio a quién se le quita. **No se rechaza el lote entero**: la línea queda fuera, el resto se liquida y la respuesta de `RF-CM-009` devuelve **las líneas rechazadas con su motivo** — una tasa mal puesta en un producto no puede frenar el pago de todos. Se comprueba **por línea y sobre lo ya calculado**, que es justo lo que `RN-CM-019` no puede hacer al configurar | **Crítica** |
+| `RN-CM-027` | **Una línea se liquida una sola vez POR PERSONA** | Al liquidar | Se declara en el esquema: `uq_commissions_detail_user` sobre `(movement_detail_id, user_id)`. **No sobre `movement_detail_id` a secas**, porque la cadena emite varias filas por línea, una por nivel. Y **no por lote**, porque lo que no puede repetirse no es «dos veces en el mismo lote» sino **dos veces en la historia**: es la restricción que impide que relanzar una liquidación pague dos veces lo mismo, y es lo único que hay entre un `POST` repetido y una comisión duplicada | **Crítica** |
+| `RN-CM-028` | **Un lote es de una persona, un periodo y una moneda** | Al liquidar | Las tres cosas, y la moneda es la que no se ve venir: `RN-CM-017` la fija por producto, de modo que quien venda en dos monedas devenga en dos y un `total_amount` que las sumara **no significaría nada**. Quien venda en dos monedas en el mismo periodo tiene **dos lotes**. **Los periodos de una misma persona y moneda no se solapan**, y se declara en el esquema con un `EXCLUDE` sobre `(user_id, currency_id, daterange)`: una violación de exclusión **no trae nombre de restricción** y se traduce por estado SQL —`23P01`, y `40P01` cuando dos liquidaciones simultáneas se esperan—, igual que `RN-CM-006` | Alta |
+| `RN-CM-029` | **Lo liquidado no se recalcula, no se revierte y no se borra** | Siempre | Un lote y sus comisiones son **hechos consumados**, no configuración: **no llevan `deleted_at`** ni retiro lógico, y ninguna operación los recalcula. Es la contrapartida exacta de `RN-CM-008` — lo mismo que impide que corregir una tasa reescriba el pasado impide arreglar desde aquí un lote mal calculado (§1.4). **Y una venta ya liquidada no se puede anular, cosa que este módulo NO tiene que comprobar**: `RN-MV-005` no deja salir de `CONFIRMADA` y solo se liquida lo confirmado (`RN-CM-022`). La garantía es de `MV`, y se registra aquí para que nadie la implemente por segunda vez — hacerlo obligaría a `MV` a consultar a `CM` y **cerraría el ciclo** de §3 | **Crítica** |
+| `RN-CM-030` | **Pagar un lote es marcarlo, y de `PAGADO` no se sale** | Al marcar como pagado | Los estados son **dos y la transición una**: `PENDIENTE` → `PAGADO`, sin vuelta, como `RN-MV-005` con `CONFIRMADA`. La marca es **la constancia de que Finanzas pagó**, no el pago: no mueve dinero y no genera ningún egreso (§1.3). `paid_at` y el estado **se atan en el esquema** —`ck_commission_batches_pagado`—, por el mismo motivo que `ck_movements_voided`: un lote `PAGADO` sin fecha de pago es un estado que el código puede escribir y el negocio no admite | Alta |
 
 ### 5.2 Por qué las críticas son críticas
 
@@ -197,6 +240,18 @@ La dependencia es **acíclica**: `CM` → `PM` → `SP`. Es el **primer módulo 
 **`RN-CM-012` — no hay tarifa por omisión.** El cambio de significado respecto al modelo del 28-08-2026 es total y hay que leerlo dos veces: **la ausencia de tasa sobre un producto significa «no se paga», nunca «se paga lo de todos»**. Del 01-09-2026 al 16-09-2026 costaba además que una tasa creada y no asociada pareciera configurada y no pagara nada; con las dos clases naciendo con su producto ese silencio ya no existe, y lo que queda de la regla es la frase de arriba.
 
 **`RN-CM-013` — un porcentaje por rol y producto.** Sin ella, asociar dos veces el mismo rol al mismo producto produce dos respuestas válidas y **la base elige**. Se declara en el esquema y no en el caso de uso.
+
+**`RN-CM-022` — cobrado Y atribuido, las dos cosas.** Es fácil quedarse en «confirmada» y liquidar de más: una venta `CONFIRMADA` en `VALIDAR_COMISIONES` **ya cobró y ya entregó**, y aun así **no se sabe a quién se le atribuye la línea** (`RN-MV-034`). Liquidarla obligaría a inventar un vendedor o a dejar la fila sin dueño, que son las dos cosas que `RF-MV-016` existe para evitar.
+
+**`RN-CM-024` — la fecha es la de la venta.** Es el error más silencioso del módulo: liquidar con la fecha de hoy **funciona**, devuelve números plausibles y paga mal **solo** cuando una personalizada entró en vigor a mitad del periodo. No falla nada, no hay excepción, y la diferencia solo se ve comparando contra lo que regía aquel día. Por eso `resolved_on` se guarda: es la única forma de auditar después con qué fecha se preguntó.
+
+**`RN-CM-025` — la cadena de entonces, no la de ahora.** `user_supervisors` lleva historial desde `V4` y su comentario decía para qué servía antes de que nadie lo usara. Si la cadena se reconstruyera con la estructura de hoy, **ascender a alguien reescribiría a quién se le debió** una venta de hace tres meses: el mismo defecto que `RN-CM-008` combate en las tasas, entrando por la otra puerta.
+
+**`RN-CM-026` — el tope, por fin con dueño.** Del 01-09-2026 al 24-09-2026 esta fue la deuda mayor del módulo: `60 + 30 + 20` pagaba el 110 % y **nada lo impedía**, porque acotar la suma exige saber quiénes componen la cadena y eso no se sabe al configurar. **Al liquidar sí se sabe, y es el único momento en que se sabe.** Se rechaza la línea y no el lote porque lo contrario convierte un error de configuración de **un** producto en un bloqueo de la nómina **entera**.
+
+**`RN-CM-027` — la que impide pagar dos veces.** Va sobre `(movement_detail_id, user_id)` y no sobre la línea sola, y esa pareja es exactamente la diferencia entre soportar la cadena y no soportarla. Es una restricción de esquema porque una comprobación en el caso de uso es una carrera: dos liquidaciones simultáneas del mismo periodo leerían las dos «no está liquidada».
+
+**`RN-CM-029` — lo que se gana y lo que cuesta.** Congelar es lo que protege el pasado **y** lo que impide arreglarlo. Las dos caras son la misma decisión, y la segunda queda declarada en §1.3 como alcance que no entra, **no como un hueco**.
 
 **`RN-CM-019` — el único tope que la aplicación calcula en lugar de heredar.** Es distinto de las demás reglas críticas del módulo porque exige una cuenta, no solo una comparación: sumar todas las hermanas de un producto y, para las que son valor fijo, convertirlas primero contra un precio que viene de otro módulo. Sin ella, asociar o corregir una tasa de rol podía dejar un producto pagando más de lo que cobra, y nadie lo veía hasta que existiera una liquidación que ya no existe. Con ella, ese caso concreto —el que no necesita ninguna tabla de ventas para detectarse— se cierra hoy; el caso general de la cadena, que sí necesita ver todas las filas de todos los niveles a la vez, sigue esperando esa liquidación (`RN-CM-011`).
 
@@ -282,9 +337,51 @@ Con el valor fijo el agujero **cambió de tamaño y de forma** al volver en v0.7
 
     Como en la de rol (§5.4): no hay paso de asociación ni borrador. Una personalizada registrada con `validFrom` de hoy o anterior **paga desde ya** sobre su producto; con `validFrom` futuro, desde ese día. Lo que hay es el retiro, con motivo e instantánea, o cerrar la vigencia corrigiendo `validTo`.
 
+### 5.6 El módulo pasa a liquidar — 24-09-2026
+
+**La decisión.** El responsable del proyecto pide **guardar el valor de las comisiones que se crean para los productos, priorizando las personalizadas**. Es `RF-CM-005` dejando de ser una **pregunta** y pasando a ser una **respuesta firmada**: hoy se consulta qué le tocaría a alguien y se tira; desde v0.17.0 se calcula qué le **tocó** y se congela.
+
+**Y la priorización no se vuelve a decidir.** `RN-CM-004` ya vive en una sola sentencia —dos ramas unidas por `UNION ALL` y una columna `prioridad` en el `ORDER BY`—, y la liquidación **la consume, no la reimplementa**. Reescribir la precedencia aquí sería el defecto que devuelve resultados plausibles durante meses, esta vez con dinero encima.
+
+**Qué hace que ahora se pueda y antes no.** Las dos razones de §1.4 no envejecieron igual: la venta existe desde `V7`, el vendedor está **en la línea** desde `V12` —con la comisión citada como motivo en la propia migración— y `RN-MV-035` dejó escrito cuándo se devenga **antes de que existiera quien devengara**. Este requerimiento no inventa su frontera: la recoge.
+
+#### Lo que se congela, y por qué no basta con el número
+
+| Se copia | De dónde sale | Qué se pierde si no se copia |
+|---|---|---|
+| `source` y `rate_id` | `RF-CM-005` | De qué tasa **exacta** salió. Sin `rate_id`, `source` dice de qué **clase** era pero no **cuál**, y una tasa corregida después deja de poder explicarse |
+| `rate_type`, `percentage`, `fixed_amount` | La tasa que ganó | `RN-CM-008` entera. Es lo que impide que corregir un 10 % reescriba lo cobrado |
+| `unit_price`, `quantity` | `movement_details` | La base. Ya eran copia del catálogo (`RN-MV-002`), y copiarlas otra vez las **desacopla de la línea** |
+| `currency_id` | El producto de la venta | La moneda, que **ninguna tabla de `CM` tiene** (`RN-CM-017`) |
+| `resolved_on` | La fecha de la venta | Con qué fecha se preguntó, que es lo que decide si ganó la personalizada (`RN-CM-024`) |
+| `commission_amount` | El cálculo | Nada: es deducible. Se guarda igual, porque un total que se recalcula en cada lectura acaba discrepando del que se pagó |
+
+**No se copian `line_discount` ni `line_amount`**, y es una decisión y no un descuido: `RN-CM-023` comisiona sobre el bruto, de modo que no intervienen en ninguna cuenta. Copiarlos sugeriría que sí.
+
+#### Tres preguntas respondidas antes de escribir
+
+**¿Sobre el bruto o sobre el neto?** Sobre el **bruto**. El descuento es una decisión comercial de quien vende, y descontarlo de la comisión haría que el vendedor **pagara parte del descuento que concedió** para cerrar la venta. Se acepta el coste, que es real: una venta con el 20 % de descuento paga la misma comisión que una sin él.
+
+**¿El importe fijo, por unidad o por línea?** **Por unidad**. Es la lectura que escala igual que el porcentaje, y la única coherente con `RN-CM-019`, que convierte el fijo a porcentaje **contra el precio unitario**. Por línea, vender una unidad o cincuenta pagaría lo mismo y el tope dejaría de significar lo que dice.
+
+**¿La cadena entera o solo quien vendió?** **La cadena entera**, que es lo que `RN-CM-011` declara desde el 01-09-2026 y **nunca se había aplicado**. Se descartó empezar por el vendedor solo y ampliar después: el esquema no sería el mismo —`RN-CM-027` va sobre `(línea, persona)` y no sobre la línea—, de modo que «ampliar después» significaría **migrar comisiones ya pagadas**.
+
+#### Lo que se descartó, y por qué
+
+**Recalcular en cada consulta en lugar de guardar.** Es lo que hace `RF-CM-005` hoy, y es correcto para una pregunta y ruinoso para un pago: la respuesta cambiaría cada vez que alguien corrige una tasa, y lo que se cobró dejaría de poder consultarse. Es exactamente lo que `RN-CM-008` prohíbe.
+
+**Un lote por venta en lugar de por persona y periodo.** Un lote por venta no es un lote: es la comisión. Lo que se paga es «lo de septiembre», no «lo de la venta 4172», y agrupar al leer obligaría a sumar en cada consulta importes que además pueden ser de **monedas distintas**.
+
+**Bloquear la anulación de una venta liquidada.** Se estudió y **no hace falta**: `RN-MV-005` no deja salir de `CONFIRMADA`, y solo se liquida lo confirmado. Además habría costado caro — `MV` tendría que preguntar a `CM` antes de anular, **cerrando el ciclo** de §3. Queda en `RN-CM-029` como garantía ajena que no se reimplementa.
+
+**Revertir un lote con comisiones en negativo.** Es la salida correcta el día que exista algo que revertir, y hoy no lo hay: sin anulación posible de una venta confirmada, un contraasiento **no tiene causa**. Se deja declarado en §1.3 para que su ausencia sea una decisión y no un hueco.
+
+**Generar el lote de una sola persona.** Se descartó por decisión del responsable del proyecto: `RF-CM-009` recibe **un periodo** y genera los lotes de **todos** los vendedores con líneas devengables en él. Es «correr la nómina» y no «pagarle a Juan», y por eso su respuesta no es un objeto sino un resumen — cuántos lotes, cuántas comisiones y **qué líneas se rechazaron** (`RN-CM-026`).
+
+---
 ## 6. Permisos
 
-**Diez desde el 19-09-2026, uno por operación** (`RF-SP-060`, `RN-SEG-014`; [`security.md` §4.4](../security.md#44-catalogo-de-permisos)). Hasta entonces eran cuatro y cada uno gobernaba dos o más rutas: `commissions:read` **cuatro** —las tasas de rol, las personalizadas, la vista por producto y la resolución—.
+**Dieciséis desde el 24-09-2026, uno por operación** (`RF-SP-060`, `RN-SEG-014`; [`security.md` §4.4](../security.md#44-catalogo-de-permisos)). Fueron **cuatro** hasta el 19-09-2026, cada uno gobernando dos o más rutas —`commissions:read` **cuatro**: las tasas de rol, las personalizadas, la vista por producto y la resolución—; **diez** desde entonces; y **seis más** el 24-09-2026 con la liquidación.
 
 | Código | Operación | Para qué |
 |---|---|---|
@@ -298,8 +395,20 @@ Con el valor fijo el agujero **cambió de tamaño y de forma** al volver en v0.7
 | `user-commission-rates:update` **nuevo** | `PATCH /user-commission-rates/{id}` | Corregir el valor o la vigencia de una personalizada |
 | `user-commission-rates:delete` **nuevo** | `POST /user-commission-rates/{id}/deletion` | Retirar una personalizada |
 | `product-commission-rates:read` **nuevo** | `GET /product-commission-rates` | Qué comisiona un producto, y a qué rol: la vista por producto de las tasas de rol |
+| `commission-batches:settle` **nuevo** | `POST /commission-batches` | **Liquidar** las comisiones de un periodo: crear los lotes (`RF-CM-009`) |
+| `commission-batches:read` **nuevo** | `GET /commission-batches` | Consultar los lotes de comisión |
+| `commission-batches:read-detail` **nuevo** | `GET /commission-batches/{id}` | Consultar un lote con sus comisiones, línea a línea y nivel a nivel |
+| `commission-batches:pay` **nuevo** | `POST /commission-batches/{id}/payment` | Marcar un lote como pagado (`RF-CM-011`) |
+| `commission-batches:list-own` **nuevo** | `GET /commission-batches/mine` | Consultar **mis** lotes de comisión |
+| `commission-batches:read-own` **nuevo** | `GET /commission-batches/mine/{id}` | Consultar **uno de los míos**, con su detalle |
 
 **`commissions:` se queda con las tasas de rol**, que son el recurso principal del módulo, y las personalizadas ganan recurso propio porque tienen identidad y tabla propias (`user_commission_rates`, §7.2). **Cuatro operaciones bajo `RF-CM-006` no contradicen la regla**: la regla cuenta operaciones, no requerimientos.
+
+**`commission-batches:` es un recurso propio y no una operación más de `commissions:`**, por lo mismo que las personalizadas ganaron el suyo: tiene identidad, tabla y ciclo de vida propios.
+
+**`settle` y `pay` no reutilizan `create` ni `update`.** Un lote **no se actualiza nunca** (`RN-CM-029`), de modo que un permiso llamado `commission-batches:update` prometería algo que no existe — es el mismo argumento con el que `MV` justificó `confirm` y `void`. Y son **dos permisos y no uno** por el mismo criterio: **calcular la nómina y declararla pagada son dos actos distintos**, y quien liquida no tiene por qué poder dar por pagado lo que nadie pagó.
+
+**Los propios van aparte.** `list-own` y `read-own` no son `read` filtrado: son la única forma de que un vendedor vea lo suyo **sin ver lo ajeno** mientras **D-22** siga abierta (§1.3).
 
 **Asociar reutilizaba `commissions:update` y no estrenó permiso propio** mientras existió (02-09-2026 a 16-09-2026), con el argumento de que «registrar es poner en vigor» (`RN-CM-021`) y `commissions:create` cambiaba lo que se paga tanto como `commissions:update`. **Ese argumento es el que `RF-SP-060` deja de aceptar**: que dos operaciones pesen lo mismo no es motivo para que un rol no pueda recibir una sin la otra. Aquí no cambia nada por ello —cada `commissions:` ya gobernaba una sola operación de las tasas de rol— y queda escrito para que no se repita.
 
@@ -392,8 +501,28 @@ Un importe fijo de comisión **es dinero en la misma moneda que el producto** (`
 | `fk_user_commission_rates_product` | `product_id` → `products(id)`, **sin `ON DELETE`** | `RN-CM-002` (16-09-2026). El producto no se borra físicamente nunca (`RN-PM-010`) |
 | ~~`pk_product_commission_rates`~~, ~~`fk_product_commission_rates_product`~~, ~~`fk_product_commission_rates_rate`~~ | ~~La asociación de la tasa de rol~~ | **Retiradas con la tabla en `V94`** (15-09-2026). `RN-CM-013` pasa a `uq_commission_rates_product_role` |
 | ~~`pk_user_commission_rate_products`~~, ~~`fk_user_commission_rate_products_rate`~~, ~~`fk_user_commission_rate_products_product`~~ | ~~La asociación de la personalizada~~ | **Retiradas con la tabla en `V10`** (16-09-2026). `RN-CM-006` vuelve a `uq_user_commission_rates_vigente` |
+| `uq_commission_batches_code` | `code` único | `RF-CM-009`. La forma de `MovementCode`, sin el nombre de usuario (§7.5) |
+| `ck_commission_batches_status` | `status IN ('PENDIENTE', 'PAGADO')` | `RN-CM-030`. El dominio, no la transición: `PENDIENTE` → `PAGADO` vive en el caso de uso |
+| `ck_commission_batches_rango` | `date_end >= date_init` | `RN-CM-028` |
+| `ck_commission_batches_pagado` | `paid_at IS NOT NULL` **si y solo si** `status = 'PAGADO'` | `RN-CM-030`. Calca `ck_movements_voided`: un lote pagado sin fecha de pago es un estado que el código puede escribir y el negocio no admite |
+| `ck_commission_batches_total` | `total_amount >= 0` | §7.5 |
+| `ex_commission_batches_solape` | `EXCLUDE USING gist` sobre `user_id`, `currency_id` y `daterange(date_init, date_end, '[]')` | `RN-CM-028`. `btree_gist` ya está declarada desde `V1`. Como en `RN-CM-006`, la violación **no trae nombre** y se traduce por estado SQL: `23P01` y `40P01` |
+| `fk_commission_batches_user` | `user_id` → `users(id)` | §7.5 |
+| `fk_commission_batches_currency` | `currency_id` → `currencies(id)` | `RN-CM-017` |
+| `uq_commissions_detail_user` | Único sobre `(movement_detail_id, user_id)` | `RN-CM-027`. **La pareja y no la línea sola**, porque la cadena emite una fila por nivel; y **global y no por lote**, porque lo que no puede repetirse es «dos veces en la historia» |
+| `ck_commissions_source` | `source IN ('PERSONALIZADA', 'ROL')` | `RN-CM-004`. Los mismos dos valores del enum `RateSource`, sin traducir a un tercer vocabulario |
+| `ck_commissions_type`, `ck_commissions_forma` | `rate_type` y **exactamente uno** de `percentage` y `fixed_amount`, el que corresponda | `RN-CM-016`, repetida a propósito: la fila ya no depende de la tasa (§7.6) |
+| `ck_commissions_percentage`, `ck_commissions_fixed` | Los mismos rangos que en las tasas | `RN-CM-007` |
+| `ck_commissions_quantity` | `quantity > 0` | Calca `ck_movement_details_quantity` |
+| `ck_commissions_amount` | `commission_amount >= 0 AND unit_price >= 0` | `RN-CM-023` |
+| `ck_commissions_chain_level` | `chain_level >= 0` | `RN-CM-025` |
+| `fk_commissions_batch` | `batch_id` → `commission_batches(id)`, **`ON DELETE CASCADE`** | §7.6. El detalle no sobrevive a su cabecera |
+| `fk_commissions_detail` | `movement_detail_id` → `movement_details(id)`, **`RESTRICT`** | `RN-CM-029`. No se borra una venta liquidada — con el coste que §7.6 declara |
+| `fk_commissions_user` | `user_id` → `users(id)` | `RN-CM-025` |
 
 **Lo que NO se puede declarar en el esquema, y por eso vive en el dominio:** que el rol sea de tipo `VENDEDOR` (`RN-CM-001`), que el producto no esté retirado (`RN-CM-010`), la precedencia de `RN-CM-004`, la suma del `RN-CM-019` y la forma admitida sobre un producto gratuito (`RN-CM-020`, que necesita el precio de `products`). Un `CHECK` no consulta otra tabla, y menos aún **suma** las filas que encuentra en ella — `RN-CM-019` además lee el precio de `PM`, que ninguna restricción de este esquema puede alcanzar.
+
+**Y lo que la liquidación tampoco puede declarar en el esquema** (24-09-2026): que la venta esté `CONFIRMADA` y `VALIDADO` (`RN-CM-022`, que mira `movements` desde `commissions`), la reconstrucción de la cadena (`RN-CM-025`), el tope de la cadena (`RN-CM-026`, que **suma filas hermanas** igual que `RN-CM-019`) y la transición a `PAGADO` (`RN-CM-030`). Todas viven en el dominio, y por el mismo motivo de siempre: un `CHECK` evalúa **una fila sola**.
 
 !!! success "El no solapamiento vuelve a caber en una sola tabla — por segunda vez"
 
@@ -401,6 +530,59 @@ Un importe fijo de comisión **es dinero en la misma moneda que el producto** (`
 
     Para las de rol el problema desaparece por otro lado — sin fechas no hay solapamiento temporal, y el solapamiento de alcance lo cierra un **índice único parcial** sobre `(producto, rol)`.
 
+### 7.5 `commission_batches` — el lote de una persona, un periodo y una moneda
+
+| Columna | Tipo | Nula | Referencia |
+|---|---|---|---|
+| `id` | `uuid` | No | — |
+| `code` | `varchar(40)` | No | `LOT-<AAAAMMDD>-<seis aleatorios>`, único |
+| `user_id` | `uuid` | No | `users` — a quién se le debe |
+| `currency_id` | `uuid` | No | `currencies` (`RN-CM-017`, `RN-CM-028`) |
+| `date_init` | `date` | No | Inicio del periodo, inclusive |
+| `date_end` | `date` | No | Fin del periodo, inclusive |
+| `status` | `varchar(20)` | No | `PENDIENTE` \| `PAGADO` (`RN-CM-030`) |
+| `total_amount` | `numeric(14,4)` | No | La suma de sus comisiones, en su moneda |
+| `paid_at` | `timestamptz` | **Sí** | Presente **si y solo si** `status = 'PAGADO'` |
+| `created_at` | `timestamptz` | No | — |
+| `updated_at` | `timestamptz` | No | — |
+
+**Sin `deleted_at`, y es deliberado** (`RN-CM-029`). Las tasas lo tienen porque son configuración y se retiran; un lote es un **hecho consumado**. Un libro con borrado lógico deja de ser un libro, que es el mismo criterio con el que `MV` dejó caer `updated_at` y `deleted_at` de `movements`.
+
+**`currency_id` es la columna que no se ve venir.** La tasa fija no declara moneda (`RN-CM-017`) y el importe la necesita, de modo que **aquí nace**. Y al estar en la cabecera obliga a lo correcto: quien venda en dos monedas en el mismo periodo tiene **dos lotes**, porque un `total_amount` que sumara pesos con dólares no significaría nada.
+
+**`code` sigue la forma de `MovementCode`** —prefijo, día y seis caracteres aleatorios— y **no incluye el nombre de usuario**, aunque el diseño original lo proponía: un `username` se puede cambiar, y el código de un lote pagado quedaría diciendo un nombre que ya no es el de nadie. Quién es el titular lo dice `user_id`, que no cambia.
+
+**`total_amount` se guarda aunque sea deducible.** Es la misma decisión que `movements.total_amount`: un total que se recalcula en cada lectura acaba discrepando del que se pagó el día que alguien cambie la consulta.
+
+### 7.6 `commissions` — una fila por línea de venta y por nivel de la cadena
+
+| Columna | Tipo | Nula | Referencia |
+|---|---|---|---|
+| `id` | `uuid` | No | — |
+| `batch_id` | `uuid` | No | `commission_batches`, `ON DELETE CASCADE` |
+| `movement_detail_id` | `uuid` | No | `movement_details` — la línea que se vendió |
+| `user_id` | `uuid` | No | `users` — **quién cobra este nivel** (`RN-CM-025`) |
+| `chain_level` | `smallint` | No | `0` quien vendió, `1` su superior, y así hacia arriba |
+| `source` | `varchar(20)` | No | `PERSONALIZADA` \| `ROL` — **cuál de las dos ganó** (`RN-CM-004`) |
+| `rate_id` | `uuid` | No | La tasa exacta. **Sin clave foránea**: apunta a una de dos tablas |
+| `resolved_on` | `date` | No | La fecha con la que se resolvió: la de la venta (`RN-CM-024`) |
+| `rate_type` | `varchar(20)` | No | `PORCENTAJE` \| `FIJO`, copiado |
+| `percentage` | `numeric(5,2)` | **Sí** | Presente solo si `rate_type = 'PORCENTAJE'` |
+| `fixed_amount` | `numeric(14,4)` | **Sí** | Presente solo si `rate_type = 'FIJO'` |
+| `unit_price` | `numeric(14,2)` | No | Copia de `movement_details.unit_price` |
+| `quantity` | `integer` | No | Copia de `movement_details.quantity` |
+| `commission_amount` | `numeric(14,4)` | No | Lo devengado por este nivel en esta línea |
+| `created_at` | `timestamptz` | No | — |
+
+**`user_id` y `chain_level` son lo que convierte esta tabla en el override de `RN-CM-011`.** Sin ellos habría una comisión por línea y la cadena no cabría; con ellos, una línea produce tantas filas como niveles tenga la cadena **el día de la venta**.
+
+**`ck_commissions_forma` repite la restricción de `V6` a propósito.** No es duplicación por pereza: esta fila **ya no depende** de la tasa original, de modo que necesita su propia garantía. El día que la tasa se corrija o se retire, esta fila sigue sabiendo que un `PORCENTAJE` lleva `percentage` y nada más.
+
+**`rate_id` va sin clave foránea, y es el punto feo del esquema.** Apunta a `commission_rates` o a `user_commission_rates` según `source`, y **ninguna clave foránea apunta a dos tablas**. Las alternativas se pesaron: dos columnas anulables con un `CHECK` de «exactamente una» daría integridad real a cambio de ensanchar la tabla y obligar a un `COALESCE` en cada lectura; prescindir de `rate_id` perdería la trazabilidad a la fila exacta, que es lo que `RN-CM-008` pide de verdad. **Se elige la columna suelta**, con el precedente del módulo: `CommissionRate.productId` también es identificador y no asociación (**D-25**). Queda declarado como deuda, no como acierto.
+
+**`fk_commissions_detail` es `RESTRICT` y eso tiene consecuencias lejos.** No se borra una línea de venta ya liquidada — es dinero. Pero `movement_details` cuelga de `movements` con `ON DELETE CASCADE`, de modo que **cualquier suite que limpie con `DELETE FROM movements` fallará en cuanto exista una comisión**, y fallará en otra suite, según el orden alfabético de ejecución. Las suites de `MV` tendrán que limpiar `commissions` antes; se prefiere eso a que un borrado de pruebas pueda llevarse por delante una comisión pagada.
+
+**`commission_amount` se declara `numeric(14,4)` y no `(14,2)`**, aunque el dinero de `MV` use dos decimales. Es la forma de `fixed_amount` y de `products.price`, y la razón es la misma: **la escala real la decide la moneda** (`currencies.decimal_places`, de 0 a 4). Con dos decimales, una comisión en una moneda de cuatro se redondearía **al calcularla**, que es donde un redondeo se convierte en dinero. El redondeo a los decimales de la moneda ocurre **al pagar**, fuera de este módulo.
 ---
 ## 8. Control de cambios
 
@@ -423,3 +605,4 @@ Un importe fijo de comisión **es dinero en la misma moneda que el producto** (`
 | 0.14.1 | 15-09-2026 | **El producto de cada tasa de rol se lee con su precio y su moneda** (`RF-CM-002` v1.3.0), a petición del responsable del proyecto: quien mira «qué paga cada producto» necesita saber sobre qué precio y en qué moneda, porque un porcentaje es una parte del precio y un importe fijo es dinero en la moneda del producto. Sin cambio de reglas ni de esquema. | Responsable del proyecto |
 | 0.15.0 | 16-09-2026 | **La personalizada también nace con su producto: `RN-CM-021` alcanza a las dos clases** (§5.5), por decisión del responsable del proyecto —«modifica también las comisiones personalizadas para que también sea una sola comisión personalizada por usuario y producto»—, con una respuesta preguntada: **la vigencia se mantiene** (una vigente por persona, producto y día). `user_commission_rates` gana `product_id` obligatorio e inmutable y **`user_commission_rate_products` se retira** con las personalizadas que había (`V10` del esquema consolidado). **`RN-CM-006` vuelve al motor** como `EXCLUDE` sobre `(user_id, product_id, daterange)`; **`RN-CM-014`, `RN-CM-015` y `RN-CM-018` se retiran** —ninguna tasa se asocia, ningún retiro tiene condición, ninguna tasa desconoce un precio—; `RN-CM-002`, `RN-CM-004`, `RN-CM-010`, `RN-CM-012`, `RN-CM-017`, `RN-CM-019` y `RN-CM-020` se reescriben para las dos clases; el submódulo Asociación desaparece (§2). `RF-CM-006` pierde asociar y desasociar; `RF-CM-002` pierde «los productos de una personalizada» y gana el producto —con precio y moneda— en cada fila; `RF-CM-003` corrige contra el producto de la tasa; `RF-CM-004` retira sin condición; `RF-CM-005` resuelve por `user_commission_rates.product_id`. | Responsable del proyecto |
 | 0.16.0 | 19-09-2026 | **Un permiso por operación** (`RF-SP-060`, `RN-SEG-014`; [`security.md`](../security.md) v0.63.0), por decisión del responsable del proyecto: el módulo pasa de **cuatro permisos a diez**. `commissions:` se queda con las cuatro operaciones de las tasas de rol; nacen `commissions:read-effective` para la resolución (`RF-CM-005`), los cuatro `user-commission-rates:` para las personalizadas (`RF-CM-006`) y `product-commission-rates:read` para la vista por producto. §4 y §6 nombran cada uno; §6 anota además que el argumento de «asociar reutilizaba `commissions:update`» es exactamente el que la regla deja de aceptar. `V28` los siembra y los da a todo rol que portara el padre. Sin cambio de esquema ni de reglas. | Responsable del proyecto |
+| 0.17.0 | 24-09-2026 | **El módulo pasa a LIQUIDAR, y la frontera de §1.4 se mueve por primera vez**, por decisión del responsable del proyecto —«quiero guardar el valor de las comisiones que creamos para los productos, priorizando las personalizadas»—. De las dos razones por las que el cálculo quedó fuera el 28-08-2026, **la primera caducó**: la venta existe desde `V7` y el vendedor está **en la línea** desde `V12`, con la comisión citada como motivo en la propia migración. La segunda sigue en pie y es la que fija **cuándo** se devenga: `CONFIRMADA` **y** `VALIDADO`, que es lo que `RN-MV-035` había dejado escrito antes de que existiera quien devengara. **Cuatro requerimientos nuevos** —`RF-CM-009` a `RF-CM-012`— y **seis permisos**, con lo que el módulo pasa de diez a dieciséis; nace el submódulo **Liquidación** (§2) y `MV` entra en §3 como dependencia, **sin ciclo**. **Dos tablas** (la siguiente migración libre al construir —`V47` a 25-09-2026—: `V42` a `V46` las tomó `AC` ese día): `commission_batches` —persona, periodo y **moneda**, que es donde por fin nace la moneda de una comisión (`RN-CM-017`)— y `commissions`, **una fila por línea y por nivel de la cadena**, que copia la forma, el valor, la base, la moneda y **de qué tasa exacta salió**. **`RN-CM-008` queda saldada después de veintitrés días**, y queda dicho lo que no repara: lo corregido entre el 01-09-2026 y hoy se perdió. **Y `RN-CM-011` gana por fin su dueño**: el tope de la cadena, sin dueño desde el 01-09-2026, es `RN-CM-026`, que **rechaza la línea y no el lote** —recortar decidiría en silencio a quién se le quita, y rechazar el lote dejaría que una tasa mal puesta frenara la nómina entera—. **Nueve reglas nuevas**, `RN-CM-022` a `RN-CM-030`, y tres reescritas —`RN-CM-008`, `RN-CM-011` y `RN-CM-017`—. **Tres decisiones preguntadas antes de escribir** (§5.6): la base es el **bruto** —el descuento lo absorbe la empresa—, el importe fijo paga **por unidad**, y se liquida **la cadena entera** y no solo a quien vendió, porque «ampliar después» habría significado migrar comisiones ya pagadas. **Y una que se estudió y no hizo falta**: bloquear la anulación de una venta liquidada, que `RN-MV-005` ya impide y que habría cerrado el ciclo `MV` → `CM`. **Se impone una condición sobre `SP`**, que se registra allí: publicar la **cadena de mando a una fecha**, en la dirección contraria a `CommercialReach`. La cabecera del documento venía **desfasada en v0.15.0** desde el 16-09-2026, con v0.16.0 ya en esta tabla; se corrige aquí. | Responsable del proyecto |
