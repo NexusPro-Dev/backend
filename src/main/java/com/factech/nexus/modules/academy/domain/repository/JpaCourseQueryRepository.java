@@ -9,10 +9,13 @@ import java.time.Instant;
 import java.time.OffsetDateTime;
 import java.time.ZoneOffset;
 import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.HashSet;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.Set;
 import java.util.UUID;
 import org.springframework.stereotype.Repository;
 import org.springframework.transaction.annotation.Transactional;
@@ -285,6 +288,105 @@ public class JpaCourseQueryRepository implements CourseQueryRepository {
                 .setParameter("curso", courseId)
                 .getSingleResult())
         .longValue();
+  }
+
+  /**
+   * Las lecciones ofrecibles de los módulos ofrecibles del curso {@code c} (`RN-AC-015`): lo que el
+   * alumno verá. Sobre los dos fragmentos de {@link JpaCourseModuleQueryRepository}; el {@code l}
+   * del {@code EXISTS} de {@code MODULO_OFRECIBLE} es el suyo y no este.
+   */
+  private static final String LECCIONES_DEL_ALUMNO =
+      " FROM lessons l JOIN course_modules m ON m.id = l.module_id WHERE m.course_id = c.id AND "
+          + JpaCourseModuleQueryRepository.MODULO_OFRECIBLE
+          + " AND "
+          + JpaCourseModuleQueryRepository.LECCION_OFRECIBLE;
+
+  @Override
+  @Transactional(readOnly = true)
+  public List<ClassroomCandidate> findClassroomCandidates(UUID categoryId, String difficulty) {
+    StringBuilder donde = new StringBuilder("c.deleted_at IS NULL AND c.status = 'ACTIVO'");
+    if (difficulty != null) {
+      donde.append(" AND c.difficulty = :dificultad");
+    }
+    if (categoryId != null) {
+      // Solo la categoría VIVA acota, como en el listado de administración.
+      donde.append(
+          " AND EXISTS (SELECT 1 FROM course_category_items i JOIN course_categories k"
+              + " ON k.id = i.category_id AND k.deleted_at IS NULL"
+              + " WHERE i.course_id = c.id AND i.category_id = :categoria)");
+    }
+    Query consulta =
+        em.createNativeQuery(
+            "SELECT "
+                + COLUMNAS
+                + ", (SELECT COALESCE(sum(l.duration_seconds), 0)"
+                + LECCIONES_DEL_ALUMNO
+                + ") AS alumno_duracion, (SELECT count(*)"
+                + LECCIONES_DEL_ALUMNO
+                + ") AS alumno_lecciones, (SELECT count(*)"
+                + LECCIONES_DEL_ALUMNO
+                + " AND l.open) AS alumno_abiertas"
+                + DESDE
+                + "WHERE "
+                + donde
+                + " ORDER BY c.display_order, c.id",
+            Tuple.class);
+    if (difficulty != null) {
+      consulta.setParameter("dificultad", difficulty);
+    }
+    if (categoryId != null) {
+      consulta.setParameter("categoria", categoryId);
+    }
+    List<Tuple> filas = consulta.getResultList();
+    return filas.stream()
+        .map(
+            fila ->
+                new ClassroomCandidate(
+                    curso(fila),
+                    ((Number) fila.get("alumno_duracion")).longValue(),
+                    ((Number) fila.get("alumno_lecciones")).longValue(),
+                    ((Number) fila.get("alumno_abiertas")).longValue()))
+        .toList();
+  }
+
+  @Override
+  @Transactional(readOnly = true)
+  public Map<UUID, CourseKeys> findKeysOfCourses(List<UUID> courseIds) {
+    if (courseIds.isEmpty()) {
+      return Map.of();
+    }
+    // UNA sentencia para las dos listas (`CA-AC-192`): la columna `tipo` dice
+    // de cuál viene cada identificador.
+    List<Tuple> filas =
+        em.createNativeQuery(
+                """
+                SELECT cm.course_id AS course_id, cm.membership_id AS llave,
+                       CAST('M' AS varchar) AS tipo
+                  FROM course_memberships cm WHERE cm.course_id IN (:cursos)
+                UNION ALL
+                SELECT s.course_id, s.product_id, CAST('S' AS varchar)
+                  FROM course_products s WHERE s.course_id IN (:cursos)
+                """,
+                Tuple.class)
+            .setParameter("cursos", courseIds)
+            .getResultList();
+    Map<UUID, Set<UUID>> membresias = new HashMap<>();
+    Map<UUID, Set<UUID>> servicios = new HashMap<>();
+    for (Tuple fila : filas) {
+      Map<UUID, Set<UUID>> destino = "M".equals(fila.get("tipo")) ? membresias : servicios;
+      destino
+          .computeIfAbsent((UUID) fila.get("course_id"), curso -> new HashSet<>())
+          .add((UUID) fila.get("llave"));
+    }
+    Map<UUID, CourseKeys> porCurso = new HashMap<>();
+    for (UUID curso : courseIds) {
+      Set<UUID> suyas = membresias.getOrDefault(curso, Set.of());
+      Set<UUID> suyos = servicios.getOrDefault(curso, Set.of());
+      if (!suyas.isEmpty() || !suyos.isEmpty()) {
+        porCurso.put(curso, new CourseKeys(Set.copyOf(suyas), Set.copyOf(suyos)));
+      }
+    }
+    return porCurso;
   }
 
   private static String predicado(ListCoursesRequest filtros) {

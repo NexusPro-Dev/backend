@@ -35,7 +35,7 @@
 | `domain/repository` (`SP`) | **`JpaCurrentProductsLookup`** — una sentencia sobre `user_products` | `SP` |
 | `domain/models` | **`StudentAccess`** — `courseAccessible(membresíaVigente, productosVigentes, membresíasDelCurso, serviciosDelCurso)` y `lessonAccessible(cursoAccesible, abierta)` | `AC` |
 | `domain/repository` | `CourseQueryRepository` + `Jpa…`: **`findClassroomCandidates(categoryId, difficulty)`** —vivos y `ACTIVOS`, `COLUMNAS` y las tres cuentas del alumno— y **`findKeysOfCourses(ids)`** —membresías y servicios de varios cursos en una sentencia—; `findCategoriesOfCourses(ids)` de `RF-AC-016` | `AC` |
-| `domain/repository` | `CourseCategoryQueryRepository`: **`findAlive()`**, en orden, sin cuentas | `AC` |
+| `domain/repository` | `CourseCategoryQueryRepository`: **`findAlive()`**, en orden, con el bloque de columnas del listado | `AC` |
 | `domain/service` | **`StudentKeys`** —lo que el alumno trae: membresía vigente y productos vigentes, pedidos a los dos puertos—; **`GetClassroomCatalogService`** | `AC` |
 | `application` | `ClassroomCatalogRequest` (`categoryId`, `difficulty`, `onlyAccessible`), **`ClassroomCatalogResponse`** con `CurrentMembershipRef`, `ClassroomCategoryItem` y `ClassroomCourseItem` | `AC` |
 | `interfaces` | **`ClassroomController`** — `GET /api/v1/courses/available` | `AC` |

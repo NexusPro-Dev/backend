@@ -176,6 +176,16 @@ public class GlobalExceptionHandler {
     return detalle;
   }
 
+  /**
+   * {@code 403} de un contenido que no se le abre a quien sí tiene el permiso de la ruta
+   * (`RF-AC-035`): la misma forma que {@link #deSinPermiso}, <b>sin auditar</b> — no es una
+   * intrusión, y registrarlo llenaría la auditoría con lo que el aula invita a hacer.
+   */
+  @ExceptionHandler(NotEntitledException.class)
+  public ProblemDetail deSinDerecho(NotEntitledException fallo, HttpServletRequest peticion) {
+    return problema(ProblemKind.SIN_PERMISO, fallo, peticion);
+  }
+
   // ---------------------------------------------------------------------------
   // Excepciones del framework
   // ---------------------------------------------------------------------------

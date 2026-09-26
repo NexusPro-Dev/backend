@@ -478,6 +478,330 @@
         "required" : [ "categoryId" ],
         "type" : "object"
       },
+      "ClassroomCatalogResponse" : {
+        "properties" : {
+          "categories" : {
+            "items" : {
+              "$ref" : "#/components/schemas/ClassroomCategoryItem"
+            },
+            "type" : "array"
+          },
+          "courses" : {
+            "items" : {
+              "$ref" : "#/components/schemas/ClassroomCourseItem"
+            },
+            "type" : "array"
+          },
+          "currentMembership" : {
+            "$ref" : "#/components/schemas/ClassroomCurrentMembershipRef"
+          }
+        },
+        "type" : "object"
+      },
+      "ClassroomCategoryItem" : {
+        "properties" : {
+          "color" : {
+            "type" : "string"
+          },
+          "coverImageUrl" : {
+            "type" : "string"
+          },
+          "displayOrder" : {
+            "format" : "int32",
+            "type" : "integer"
+          },
+          "icon" : {
+            "type" : "string"
+          },
+          "id" : {
+            "format" : "uuid",
+            "type" : "string"
+          },
+          "name" : {
+            "type" : "string"
+          }
+        },
+        "type" : "object"
+      },
+      "ClassroomCourseItem" : {
+        "properties" : {
+          "accessible" : {
+            "description" : "El curso entero se abre a quien pregunta: no declara llaves, su membresía vigente está en la lista o tiene vigente uno de sus servicios.",
+            "type" : "boolean"
+          },
+          "categories" : {
+            "items" : {
+              "$ref" : "#/components/schemas/CourseCategoryRef"
+            },
+            "type" : "array"
+          },
+          "coverImageUrl" : {
+            "type" : "string"
+          },
+          "difficulty" : {
+            "type" : "string"
+          },
+          "displayOrder" : {
+            "format" : "int32",
+            "type" : "integer"
+          },
+          "id" : {
+            "format" : "uuid",
+            "type" : "string"
+          },
+          "instructor" : {
+            "$ref" : "#/components/schemas/CourseInstructorRef"
+          },
+          "lessonCount" : {
+            "format" : "int64",
+            "type" : "integer"
+          },
+          "openLessonCount" : {
+            "description" : "Lecciones abiertas (demostraciones) que el alumno verá.",
+            "format" : "int64",
+            "type" : "integer"
+          },
+          "shortDescription" : {
+            "type" : "string"
+          },
+          "title" : {
+            "type" : "string"
+          },
+          "totalDurationSeconds" : {
+            "format" : "int64",
+            "type" : "integer"
+          }
+        },
+        "type" : "object"
+      },
+      "ClassroomCourseResponse" : {
+        "properties" : {
+          "accessible" : {
+            "type" : "boolean"
+          },
+          "categories" : {
+            "items" : {
+              "$ref" : "#/components/schemas/CourseCategoryRef"
+            },
+            "type" : "array"
+          },
+          "coverImageUrl" : {
+            "type" : "string"
+          },
+          "currentMembership" : {
+            "$ref" : "#/components/schemas/ClassroomCurrentMembershipRef"
+          },
+          "difficulty" : {
+            "type" : "string"
+          },
+          "displayOrder" : {
+            "format" : "int32",
+            "type" : "integer"
+          },
+          "id" : {
+            "format" : "uuid",
+            "type" : "string"
+          },
+          "instructor" : {
+            "$ref" : "#/components/schemas/CourseInstructorRef"
+          },
+          "introVideoUrl" : {
+            "type" : "string"
+          },
+          "lessonCount" : {
+            "format" : "int64",
+            "type" : "integer"
+          },
+          "longDescription" : {
+            "type" : "string"
+          },
+          "memberships" : {
+            "items" : {
+              "$ref" : "#/components/schemas/CourseMembershipRef"
+            },
+            "type" : "array"
+          },
+          "modules" : {
+            "items" : {
+              "$ref" : "#/components/schemas/ClassroomModuleItem"
+            },
+            "type" : "array"
+          },
+          "openLessonCount" : {
+            "format" : "int64",
+            "type" : "integer"
+          },
+          "products" : {
+            "items" : {
+              "$ref" : "#/components/schemas/CourseProductRef"
+            },
+            "type" : "array"
+          },
+          "recommendedCourses" : {
+            "items" : {
+              "$ref" : "#/components/schemas/ClassroomRecommendedCourse"
+            },
+            "type" : "array"
+          },
+          "shortDescription" : {
+            "type" : "string"
+          },
+          "title" : {
+            "type" : "string"
+          },
+          "totalDurationSeconds" : {
+            "format" : "int64",
+            "type" : "integer"
+          }
+        },
+        "type" : "object"
+      },
+      "ClassroomCurrentMembershipRef" : {
+        "properties" : {
+          "code" : {
+            "type" : "string"
+          },
+          "color" : {
+            "type" : "string"
+          },
+          "id" : {
+            "format" : "uuid",
+            "type" : "string"
+          },
+          "name" : {
+            "type" : "string"
+          }
+        },
+        "type" : "object"
+      },
+      "ClassroomLessonItem" : {
+        "properties" : {
+          "accessible" : {
+            "type" : "boolean"
+          },
+          "description" : {
+            "type" : "string"
+          },
+          "displayOrder" : {
+            "format" : "int32",
+            "type" : "integer"
+          },
+          "durationSeconds" : {
+            "format" : "int32",
+            "type" : "integer"
+          },
+          "id" : {
+            "format" : "uuid",
+            "type" : "string"
+          },
+          "open" : {
+            "type" : "boolean"
+          },
+          "title" : {
+            "type" : "string"
+          },
+          "type" : {
+            "type" : "string"
+          }
+        },
+        "type" : "object"
+      },
+      "ClassroomLessonResponse" : {
+        "properties" : {
+          "content" : {
+            "type" : "string"
+          },
+          "courseId" : {
+            "format" : "uuid",
+            "type" : "string"
+          },
+          "description" : {
+            "type" : "string"
+          },
+          "displayOrder" : {
+            "format" : "int32",
+            "type" : "integer"
+          },
+          "durationSeconds" : {
+            "format" : "int32",
+            "type" : "integer"
+          },
+          "id" : {
+            "format" : "uuid",
+            "type" : "string"
+          },
+          "moduleId" : {
+            "format" : "uuid",
+            "type" : "string"
+          },
+          "open" : {
+            "type" : "boolean"
+          },
+          "title" : {
+            "type" : "string"
+          },
+          "type" : {
+            "type" : "string"
+          }
+        },
+        "type" : "object"
+      },
+      "ClassroomModuleItem" : {
+        "properties" : {
+          "coverImageUrl" : {
+            "type" : "string"
+          },
+          "displayOrder" : {
+            "format" : "int32",
+            "type" : "integer"
+          },
+          "durationSeconds" : {
+            "format" : "int64",
+            "type" : "integer"
+          },
+          "id" : {
+            "format" : "uuid",
+            "type" : "string"
+          },
+          "lessons" : {
+            "items" : {
+              "$ref" : "#/components/schemas/ClassroomLessonItem"
+            },
+            "type" : "array"
+          },
+          "longDescription" : {
+            "type" : "string"
+          },
+          "presentationVideoUrl" : {
+            "type" : "string"
+          },
+          "shortDescription" : {
+            "type" : "string"
+          },
+          "title" : {
+            "type" : "string"
+          }
+        },
+        "type" : "object"
+      },
+      "ClassroomRecommendedCourse" : {
+        "properties" : {
+          "coverImageUrl" : {
+            "type" : "string"
+          },
+          "difficulty" : {
+            "type" : "string"
+          },
+          "id" : {
+            "format" : "uuid",
+            "type" : "string"
+          },
+          "title" : {
+            "type" : "string"
+          }
+        },
+        "type" : "object"
+      },
       "ClientSellersResponse" : {
         "properties" : {
           "content" : {
@@ -8396,6 +8720,234 @@
         "x-required-permission" : "courses:create"
       }
     },
+    "/api/v1/courses/available" : {
+      "get" : {
+        "description" : "**Permiso requerido:** `courses:learn`. Sin él, `403` (`AUTH-002`).\n\n**Los cursos que se ofrecen**, en su orden (`displayOrder` y después\nidentificador), **sin paginar**, para quien pregunta —el actor sale del token—.\nUn curso se ofrece si está vivo, `ACTIVO`, con sus dos descripciones y al\nmenos un módulo activo con una lección activa con contenido; **lo demás no\naparece**.\n\n**Por omisión es la vitrina**: todo lo ofrecido, abierto o no. Cada curso\ndice **`accessible`** —se le abre entero a quien pregunta porque **no declara\nninguna membresía ni servicio** (es de todos), porque **su membresía vigente\nestá en la lista** del curso o porque **tiene vigente uno de sus servicios**;\npertenencia y no nivel: `PLATINO` no abre un curso de `ORO`— y\n**`openLessonCount`**, cuántas lecciones abiertas (demostraciones) tiene.\n**`onlyAccessible=true` deja solo los cursos que abren algo**: `accessible` o\ncon `openLessonCount` mayor que cero — «los cursos que puedo ver».\n\n`totalDurationSeconds`, `lessonCount` y `openLessonCount` cuentan **solo lo\nque el alumno verá**: las lecciones ofrecibles de los módulos ofrecibles.\n`categoryId` acota a una categoría **viva** (una retirada o inexistente da la\nlista vacía, no `404`) y `difficulty` a una dificultad. **`categories` trae\ntodas las categorías vivas** —los cajones, incluidas las vacías— **sin aplicar\nningún filtro**. `currentMembership` es la vigente de quien pregunta, **presente\ny nula** si no tiene.\n\nExige `courses:learn`; `courses:read` **no habilita** (esa es la lista de\nadministración, en `GET /courses`).\n",
+        "operationId" : "catalogo",
+        "parameters" : [ {
+          "description" : "Solo los cursos clasificados en esta categoría viva.",
+          "in" : "query",
+          "name" : "categoryId",
+          "required" : false,
+          "schema" : {
+            "description" : "Solo los cursos clasificados en esta categoría viva.",
+            "format" : "uuid",
+            "type" : "string"
+          }
+        }, {
+          "description" : "PRINCIPIANTE, INTERMEDIO o AVANZADO.",
+          "in" : "query",
+          "name" : "difficulty",
+          "required" : false,
+          "schema" : {
+            "description" : "PRINCIPIANTE, INTERMEDIO o AVANZADO.",
+            "type" : "string"
+          }
+        }, {
+          "description" : "true deja solo los cursos que abren algo a quien pregunta: el curso entero (accessible) o al menos una lección abierta (openLessonCount > 0).",
+          "in" : "query",
+          "name" : "onlyAccessible",
+          "required" : false,
+          "schema" : {
+            "description" : "true deja solo los cursos que abren algo a quien pregunta: el curso entero (accessible) o al menos una lección abierta (openLessonCount > 0).",
+            "type" : "boolean"
+          }
+        } ],
+        "responses" : {
+          "200" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ClassroomCatalogResponse"
+                }
+              }
+            },
+            "description" : "El catálogo."
+          },
+          "400" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ClassroomCatalogResponse"
+                }
+              }
+            },
+            "description" : "Identificador de categoría mal formado u `onlyAccessible` no booleano (`VAL-001`), o dificultad fuera del dominio (`VAL-002`)"
+          },
+          "401" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ClassroomCatalogResponse"
+                }
+              }
+            },
+            "description" : "Token ausente o inválido (`AUTH-001`)"
+          },
+          "403" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ClassroomCatalogResponse"
+                }
+              }
+            },
+            "description" : "Autenticado sin el permiso `courses:learn` (`AUTH-002`)"
+          }
+        },
+        "summary" : "Consultar el catálogo de cursos como alumno",
+        "tags" : [ "Aula" ],
+        "x-required-permission" : "courses:learn"
+      }
+    },
+    "/api/v1/courses/available/{courseId}/lessons/{lessonId}" : {
+      "get" : {
+        "description" : "**Permiso requerido:** `lessons:learn`. Sin él, `403` (`AUTH-002`).\n\n**La lección con su contenido** —la URL de un `VIDEO`, el Markdown de un\n`TEXTO`— **tal como se guardó**: sin convertir ni sanear; pintarlo sin ejecutar\nlo que traiga es cosa del frontend.\n\n**Primero si se ofrece, después si se abre.** La lección tiene que ser de un\nmódulo de ese curso, y los tres —curso, módulo y lección— tienen que ofrecerse;\nsi no, **`404` con el mismo mensaje**, también para una lección abierta. Sobre lo\nofrecido, se abre si **la lección está abierta**, si **el curso no declara\nllaves**, si **la membresía vigente** de quien pregunta está en su lista o si\n**tiene vigente uno de sus servicios**. Si no, **`403` con `EX-002`** en\n`errors` y dos miembros de extensión, **`memberships`** `[{id, code, name,\ncolor}]` y **`products`** `[{id, code, name}]`: lo que abre el curso. El `403`\nde permiso (`AUTH-002`) sale sin ellos y con `errors` vacío.\n\nExige `lessons:learn`. No registra nada: no hay progreso.\n",
+        "operationId" : "leccion",
+        "parameters" : [ {
+          "in" : "path",
+          "name" : "courseId",
+          "required" : true,
+          "schema" : {
+            "format" : "uuid",
+            "type" : "string"
+          }
+        }, {
+          "in" : "path",
+          "name" : "lessonId",
+          "required" : true,
+          "schema" : {
+            "format" : "uuid",
+            "type" : "string"
+          }
+        } ],
+        "responses" : {
+          "200" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ClassroomLessonResponse"
+                }
+              }
+            },
+            "description" : "La lección con su contenido."
+          },
+          "400" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ClassroomLessonResponse"
+                }
+              }
+            },
+            "description" : "Identificador inválido (`VAL-001`)"
+          },
+          "401" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ClassroomLessonResponse"
+                }
+              }
+            },
+            "description" : "Token ausente o inválido (`AUTH-001`)"
+          },
+          "403" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ClassroomLessonResponse"
+                }
+              }
+            },
+            "description" : "Sin el permiso `lessons:learn` (`AUTH-002`, sin extensiones); o ninguna llave abre el curso (`EX-002`, con `memberships` y `products`)"
+          },
+          "404" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ClassroomLessonResponse"
+                }
+              }
+            },
+            "description" : "La lección no existe en ese curso o no se ofrece (`EX-001`)"
+          }
+        },
+        "summary" : "Consultar el contenido de una lección",
+        "tags" : [ "Aula" ],
+        "x-required-permission" : "lessons:learn"
+      }
+    },
+    "/api/v1/courses/available/{id}" : {
+      "get" : {
+        "description" : "**Permiso requerido:** `courses:read-available`. Sin él, `403` (`AUTH-002`).\n\n**El curso entero antes de entrar**, si se ofrece: lo suyo, el instructor, las\ncategorías vivas, los cursos recomendados **que se ofrecen**, **las membresías\n(`memberships`) y los servicios (`products`) que lo abren** —la invitación; las\ndos vacías si el curso es de todos— y **el árbol ofrecido**: los módulos\nofrecibles en su orden y, dentro, sus lecciones ofrecibles en su orden. **Sin\nestados, sin `offerable` y sin el contenido** de las lecciones, que se pide una\na una.\n\n`accessible` del curso es el del catálogo; **el de cada lección es el del curso\no `open`**: una demostración se abre a cualquiera. `durationSeconds` del módulo\ny `totalDurationSeconds`, `lessonCount` y `openLessonCount` del curso cuentan\nsolo lo que aparece. **Un curso que no existe, está retirado, inactivo o le\nfalta algo responde `404` con el mismo mensaje**: para el alumno no existe.\n\nExige `courses:read-available`; ni `courses:read` ni `courses:learn` habilitan.\n",
+        "operationId" : "curso",
+        "parameters" : [ {
+          "in" : "path",
+          "name" : "id",
+          "required" : true,
+          "schema" : {
+            "format" : "uuid",
+            "type" : "string"
+          }
+        } ],
+        "responses" : {
+          "200" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ClassroomCourseResponse"
+                }
+              }
+            },
+            "description" : "El curso ofrecido, con su árbol ofrecido."
+          },
+          "400" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ClassroomCourseResponse"
+                }
+              }
+            },
+            "description" : "Identificador inválido (`VAL-001`)"
+          },
+          "401" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ClassroomCourseResponse"
+                }
+              }
+            },
+            "description" : "Token ausente o inválido (`AUTH-001`)"
+          },
+          "403" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ClassroomCourseResponse"
+                }
+              }
+            },
+            "description" : "Autenticado sin el permiso `courses:read-available` (`AUTH-002`)"
+          },
+          "404" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ClassroomCourseResponse"
+                }
+              }
+            },
+            "description" : "El curso no existe o no se ofrece, con el mismo mensaje (`EX-001`)"
+          }
+        },
+        "summary" : "Consultar el detalle de un curso como alumno",
+        "tags" : [ "Aula" ],
+        "x-required-permission" : "courses:read-available"
+      }
+    },
     "/api/v1/courses/{courseId}/categories" : {
       "post" : {
         "description" : "**Permiso requerido:** `courses:update`. Sin él, `403` (`AUTH-002`).\n\nPone el curso en una categoría. **La clasificación es libre y no se repite**:\nun curso está en cuantas categorías haga falta —**una por petición**; para\nponerlo en tres, tres peticiones— y la misma pareja no entra dos veces.\n\n**No toca el estado ni la ofrecibilidad**: un curso `INACTIVO` se clasifica\nigual, y un curso sin categoría se ofrece igual — la categoría es un filtro\ndel catálogo, no una condición.\n\nEl curso tiene que estar **vivo** (`404` si no existe o está retirado, porque\nva en la ruta) y la categoría también (`422` si no existe o está retirada,\nporque va en el cuerpo). La pareja repetida responde `409` **nombrando la\ncategoría**. Enviar un campo distinto de `categoryId` responde `400`.\n\nLa respuesta es el curso en la forma del detalle, con la nueva en\n`categories`. Exige `courses:update`; **los `course-categories:` no\nhabilitan**.\n",
@@ -16108,6 +16660,9 @@
   }, {
     "description" : "Inicio, renovación y cierre de sesión.",
     "name" : "Sesión"
+  }, {
+    "description" : "Lo que el alumno ve y estudia: el catálogo, el curso y el contenido.",
+    "name" : "Aula"
   }, {
     "description" : "Catálogo de documentos de identidad admitidos. Solo lectura: su contenido es la validación de mayoría de edad (RN-SP-036).",
     "name" : "Tipos de documento"

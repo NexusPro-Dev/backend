@@ -69,6 +69,20 @@ public class JpaCourseCategoryQueryRepository implements CourseCategoryQueryRepo
 
   @Override
   @Transactional(readOnly = true)
+  public List<CourseCategoryRow> findAlive() {
+    List<Tuple> filas =
+        em.createNativeQuery(
+                "SELECT "
+                    + COLUMNAS
+                    + " FROM course_categories k WHERE k.deleted_at IS NULL"
+                    + " ORDER BY k.display_order, k.id",
+                Tuple.class)
+            .getResultList();
+    return filas.stream().map(JpaCourseCategoryQueryRepository::categoria).toList();
+  }
+
+  @Override
+  @Transactional(readOnly = true)
   public List<CategoryCourseRow> findAliveCoursesOf(UUID categoryId) {
     // UNA sentencia, con las cuentas que `CourseOfferability` necesita como
     // columnas —las mismas subconsultas que el listado de cursos, sobre el

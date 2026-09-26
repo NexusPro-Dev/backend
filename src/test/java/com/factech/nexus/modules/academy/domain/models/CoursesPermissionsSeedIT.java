@@ -36,8 +36,8 @@ class CoursesPermissionsSeedIT extends IntegrationTestBase {
 
   @Test
   @DisplayName(
-      "los seis permisos `courses:` de ac.md §7 están sembrados, y V28 (RF-SP-060) añade los"
-          + " ocho del reparto de courses:read y courses:update")
+      "los seis permisos `courses:` de ac.md §7 están sembrados, V28 (RF-SP-060) añade los"
+          + " ocho del reparto de courses:read y courses:update, y V47 el detalle del alumno")
   void losSeisSembrados() {
     List<String> codigos =
         jdbc.queryForList(
@@ -47,7 +47,8 @@ class CoursesPermissionsSeedIT extends IntegrationTestBase {
     // Los controladores los declaran en el tramo 3 de ese requerimiento.
     assertThat(codigos)
         .containsAll(LOS_SEIS.keySet())
-        .hasSize(14)
+        // V47 (RF-AC-034): el detalle del alumno; lessons:learn va bajo lessons.
+        .hasSize(15)
         .contains(
             "courses:list",
             "courses:change-status",
@@ -56,7 +57,8 @@ class CoursesPermissionsSeedIT extends IntegrationTestBase {
             "courses:assign-recommendation",
             "courses:revoke-recommendation",
             "courses:assign-membership",
-            "courses:revoke-membership");
+            "courses:revoke-membership",
+            "courses:read-available");
   }
 
   @Test
@@ -86,8 +88,9 @@ class CoursesPermissionsSeedIT extends IntegrationTestBase {
                  WHERE p.resource = 'courses'
                 """,
                 Integer.class))
-        // Catorce por dos roles: V28 dio cada hijo a quien portaba el padre.
-        .isEqualTo(28);
+        // Quince por dos roles: V28 dio cada hijo a quien portaba el padre, y V47
+        // courses:read-available a quien portaba courses:learn.
+        .isEqualTo(30);
   }
 
   private List<String> permisosDe(UUID rol) {

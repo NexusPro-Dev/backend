@@ -46,6 +46,8 @@ tags:
   description: Resolución de la comisión efectiva de una persona sobre un producto.
 - name: Sesión
   description: "Inicio, renovación y cierre de sesión."
+- name: Aula
+  description: "Lo que el alumno ve y estudia: el catálogo, el curso y el contenido."
 - name: Tipos de documento
   description: "Catálogo de documentos de identidad admitidos. Solo lectura: su contenido\
     \ es la validación de mayoría de edad (RN-SP-036)."
@@ -9704,6 +9706,227 @@ paths:
         "500":
           description: Fallo no controlado (`ERR-500`)
       x-required-permission: currencies:read
+  /api/v1/courses/available:
+    get:
+      tags:
+      - Aula
+      summary: Consultar el catálogo de cursos como alumno
+      description: |
+        **Permiso requerido:** `courses:learn`. Sin él, `403` (`AUTH-002`).
+
+        **Los cursos que se ofrecen**, en su orden (`displayOrder` y después
+        identificador), **sin paginar**, para quien pregunta —el actor sale del token—.
+        Un curso se ofrece si está vivo, `ACTIVO`, con sus dos descripciones y al
+        menos un módulo activo con una lección activa con contenido; **lo demás no
+        aparece**.
+
+        **Por omisión es la vitrina**: todo lo ofrecido, abierto o no. Cada curso
+        dice **`accessible`** —se le abre entero a quien pregunta porque **no declara
+        ninguna membresía ni servicio** (es de todos), porque **su membresía vigente
+        está en la lista** del curso o porque **tiene vigente uno de sus servicios**;
+        pertenencia y no nivel: `PLATINO` no abre un curso de `ORO`— y
+        **`openLessonCount`**, cuántas lecciones abiertas (demostraciones) tiene.
+        **`onlyAccessible=true` deja solo los cursos que abren algo**: `accessible` o
+        con `openLessonCount` mayor que cero — «los cursos que puedo ver».
+
+        `totalDurationSeconds`, `lessonCount` y `openLessonCount` cuentan **solo lo
+        que el alumno verá**: las lecciones ofrecibles de los módulos ofrecibles.
+        `categoryId` acota a una categoría **viva** (una retirada o inexistente da la
+        lista vacía, no `404`) y `difficulty` a una dificultad. **`categories` trae
+        todas las categorías vivas** —los cajones, incluidas las vacías— **sin aplicar
+        ningún filtro**. `currentMembership` es la vigente de quien pregunta, **presente
+        y nula** si no tiene.
+
+        Exige `courses:learn`; `courses:read` **no habilita** (esa es la lista de
+        administración, en `GET /courses`).
+      operationId: catalogo
+      parameters:
+      - name: categoryId
+        in: query
+        description: Solo los cursos clasificados en esta categoría viva.
+        required: false
+        schema:
+          type: string
+          format: uuid
+          description: Solo los cursos clasificados en esta categoría viva.
+      - name: difficulty
+        in: query
+        description: "PRINCIPIANTE, INTERMEDIO o AVANZADO."
+        required: false
+        schema:
+          type: string
+          description: "PRINCIPIANTE, INTERMEDIO o AVANZADO."
+      - name: onlyAccessible
+        in: query
+        description: "true deja solo los cursos que abren algo a quien pregunta: el\
+          \ curso entero (accessible) o al menos una lección abierta (openLessonCount\
+          \ > 0)."
+        required: false
+        schema:
+          type: boolean
+          description: "true deja solo los cursos que abren algo a quien pregunta:\
+            \ el curso entero (accessible) o al menos una lección abierta (openLessonCount\
+            \ > 0)."
+      responses:
+        "200":
+          description: El catálogo.
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/ClassroomCatalogResponse"
+        "400":
+          description: "Identificador de categoría mal formado u `onlyAccessible`\
+            \ no booleano (`VAL-001`), o dificultad fuera del dominio (`VAL-002`)"
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/ClassroomCatalogResponse"
+        "401":
+          description: Token ausente o inválido (`AUTH-001`)
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/ClassroomCatalogResponse"
+        "403":
+          description: Autenticado sin el permiso `courses:learn` (`AUTH-002`)
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/ClassroomCatalogResponse"
+      x-required-permission: courses:learn
+  /api/v1/courses/available/{id}:
+    get:
+      tags:
+      - Aula
+      summary: Consultar el detalle de un curso como alumno
+      description: |
+        **Permiso requerido:** `courses:read-available`. Sin él, `403` (`AUTH-002`).
+
+        **El curso entero antes de entrar**, si se ofrece: lo suyo, el instructor, las
+        categorías vivas, los cursos recomendados **que se ofrecen**, **las membresías
+        (`memberships`) y los servicios (`products`) que lo abren** —la invitación; las
+        dos vacías si el curso es de todos— y **el árbol ofrecido**: los módulos
+        ofrecibles en su orden y, dentro, sus lecciones ofrecibles en su orden. **Sin
+        estados, sin `offerable` y sin el contenido** de las lecciones, que se pide una
+        a una.
+
+        `accessible` del curso es el del catálogo; **el de cada lección es el del curso
+        o `open`**: una demostración se abre a cualquiera. `durationSeconds` del módulo
+        y `totalDurationSeconds`, `lessonCount` y `openLessonCount` del curso cuentan
+        solo lo que aparece. **Un curso que no existe, está retirado, inactivo o le
+        falta algo responde `404` con el mismo mensaje**: para el alumno no existe.
+
+        Exige `courses:read-available`; ni `courses:read` ni `courses:learn` habilitan.
+      operationId: curso
+      parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      responses:
+        "200":
+          description: "El curso ofrecido, con su árbol ofrecido."
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/ClassroomCourseResponse"
+        "400":
+          description: Identificador inválido (`VAL-001`)
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/ClassroomCourseResponse"
+        "401":
+          description: Token ausente o inválido (`AUTH-001`)
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/ClassroomCourseResponse"
+        "403":
+          description: Autenticado sin el permiso `courses:read-available` (`AUTH-002`)
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/ClassroomCourseResponse"
+        "404":
+          description: "El curso no existe o no se ofrece, con el mismo mensaje (`EX-001`)"
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/ClassroomCourseResponse"
+      x-required-permission: courses:read-available
+  /api/v1/courses/available/{courseId}/lessons/{lessonId}:
+    get:
+      tags:
+      - Aula
+      summary: Consultar el contenido de una lección
+      description: |
+        **Permiso requerido:** `lessons:learn`. Sin él, `403` (`AUTH-002`).
+
+        **La lección con su contenido** —la URL de un `VIDEO`, el Markdown de un
+        `TEXTO`— **tal como se guardó**: sin convertir ni sanear; pintarlo sin ejecutar
+        lo que traiga es cosa del frontend.
+
+        **Primero si se ofrece, después si se abre.** La lección tiene que ser de un
+        módulo de ese curso, y los tres —curso, módulo y lección— tienen que ofrecerse;
+        si no, **`404` con el mismo mensaje**, también para una lección abierta. Sobre lo
+        ofrecido, se abre si **la lección está abierta**, si **el curso no declara
+        llaves**, si **la membresía vigente** de quien pregunta está en su lista o si
+        **tiene vigente uno de sus servicios**. Si no, **`403` con `EX-002`** en
+        `errors` y dos miembros de extensión, **`memberships`** `[{id, code, name,
+        color}]` y **`products`** `[{id, code, name}]`: lo que abre el curso. El `403`
+        de permiso (`AUTH-002`) sale sin ellos y con `errors` vacío.
+
+        Exige `lessons:learn`. No registra nada: no hay progreso.
+      operationId: leccion
+      parameters:
+      - name: courseId
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      - name: lessonId
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      responses:
+        "200":
+          description: La lección con su contenido.
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/ClassroomLessonResponse"
+        "400":
+          description: Identificador inválido (`VAL-001`)
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/ClassroomLessonResponse"
+        "401":
+          description: Token ausente o inválido (`AUTH-001`)
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/ClassroomLessonResponse"
+        "403":
+          description: "Sin el permiso `lessons:learn` (`AUTH-002`, sin extensiones);\
+            \ o ninguna llave abre el curso (`EX-002`, con `memberships` y `products`)"
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/ClassroomLessonResponse"
+        "404":
+          description: La lección no existe en ese curso o no se ofrece (`EX-001`)
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/ClassroomLessonResponse"
+      x-required-permission: lessons:learn
   /api/v1/commissions/effective:
     get:
       tags:
@@ -14969,6 +15192,229 @@ components:
           type: boolean
         sort:
           type: string
+    ClassroomCatalogResponse:
+      type: object
+      properties:
+        currentMembership:
+          $ref: "#/components/schemas/ClassroomCurrentMembershipRef"
+        categories:
+          type: array
+          items:
+            $ref: "#/components/schemas/ClassroomCategoryItem"
+        courses:
+          type: array
+          items:
+            $ref: "#/components/schemas/ClassroomCourseItem"
+    ClassroomCategoryItem:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        name:
+          type: string
+        color:
+          type: string
+        icon:
+          type: string
+        displayOrder:
+          type: integer
+          format: int32
+        coverImageUrl:
+          type: string
+    ClassroomCourseItem:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        title:
+          type: string
+        instructor:
+          $ref: "#/components/schemas/CourseInstructorRef"
+        difficulty:
+          type: string
+        shortDescription:
+          type: string
+        displayOrder:
+          type: integer
+          format: int32
+        coverImageUrl:
+          type: string
+        categories:
+          type: array
+          items:
+            $ref: "#/components/schemas/CourseCategoryRef"
+        totalDurationSeconds:
+          type: integer
+          format: int64
+        lessonCount:
+          type: integer
+          format: int64
+        openLessonCount:
+          type: integer
+          format: int64
+          description: Lecciones abiertas (demostraciones) que el alumno verá.
+        accessible:
+          type: boolean
+          description: "El curso entero se abre a quien pregunta: no declara llaves,\
+            \ su membresía vigente está en la lista o tiene vigente uno de sus servicios."
+    ClassroomCurrentMembershipRef:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        code:
+          type: string
+        name:
+          type: string
+        color:
+          type: string
+    ClassroomCourseResponse:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        title:
+          type: string
+        instructor:
+          $ref: "#/components/schemas/CourseInstructorRef"
+        difficulty:
+          type: string
+        shortDescription:
+          type: string
+        longDescription:
+          type: string
+        introVideoUrl:
+          type: string
+        displayOrder:
+          type: integer
+          format: int32
+        coverImageUrl:
+          type: string
+        categories:
+          type: array
+          items:
+            $ref: "#/components/schemas/CourseCategoryRef"
+        recommendedCourses:
+          type: array
+          items:
+            $ref: "#/components/schemas/ClassroomRecommendedCourse"
+        memberships:
+          type: array
+          items:
+            $ref: "#/components/schemas/CourseMembershipRef"
+        products:
+          type: array
+          items:
+            $ref: "#/components/schemas/CourseProductRef"
+        currentMembership:
+          $ref: "#/components/schemas/ClassroomCurrentMembershipRef"
+        accessible:
+          type: boolean
+        modules:
+          type: array
+          items:
+            $ref: "#/components/schemas/ClassroomModuleItem"
+        totalDurationSeconds:
+          type: integer
+          format: int64
+        lessonCount:
+          type: integer
+          format: int64
+        openLessonCount:
+          type: integer
+          format: int64
+    ClassroomLessonItem:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        type:
+          type: string
+        title:
+          type: string
+        description:
+          type: string
+        durationSeconds:
+          type: integer
+          format: int32
+        displayOrder:
+          type: integer
+          format: int32
+        open:
+          type: boolean
+        accessible:
+          type: boolean
+    ClassroomModuleItem:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        title:
+          type: string
+        shortDescription:
+          type: string
+        longDescription:
+          type: string
+        presentationVideoUrl:
+          type: string
+        displayOrder:
+          type: integer
+          format: int32
+        coverImageUrl:
+          type: string
+        durationSeconds:
+          type: integer
+          format: int64
+        lessons:
+          type: array
+          items:
+            $ref: "#/components/schemas/ClassroomLessonItem"
+    ClassroomRecommendedCourse:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        title:
+          type: string
+        difficulty:
+          type: string
+        coverImageUrl:
+          type: string
+    ClassroomLessonResponse:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        courseId:
+          type: string
+          format: uuid
+        moduleId:
+          type: string
+          format: uuid
+        type:
+          type: string
+        title:
+          type: string
+        description:
+          type: string
+        content:
+          type: string
+        durationSeconds:
+          type: integer
+          format: int32
+        displayOrder:
+          type: integer
+          format: int32
+        open:
+          type: boolean
     CourseCategoryItem:
       type: object
       properties:

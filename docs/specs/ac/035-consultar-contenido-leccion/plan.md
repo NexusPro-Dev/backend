@@ -31,7 +31,7 @@
 | `domain/service` | **`GetClassroomLessonService`**: los tres objetos, la abierta y la gratuita sin puertos, `StudentKeys` y las listas para la cerrada, `StudentAccess`, el `403` con las listas | `AC` |
 | `application` | **`ClassroomLessonResponse`** (con `content`) | `AC` |
 | `interfaces` | `ClassroomController` — `GET /api/v1/courses/available/{courseId}/lessons/{lessonId}` | `AC` |
-| `shared/error` | **`ForbiddenException`** gana `(errorCode, message, errors, extensions)` | `shared` |
+| `shared/error` | **`ForbiddenException`** gana `(errorCode, message, errors, extensions)`; **`NotEntitledException`** la extiende con el código en `errors`, y `GlobalExceptionHandler` la atiende **sin auditar** (§6) — el manejador de `ForbiddenException` escribe una denegación de severidad alta en `audit_security_log` | `shared` |
 
 ## 4. Contrato de API
 
@@ -54,7 +54,7 @@
 {
   "type": "about:blank", "title": "Forbidden", "status": 403,
   "detail": "Ni tu membresía ni tus servicios abren este curso.",
-  "errorCode": "EX-002", "errors": [],
+  "errors": [{ "field": null, "code": "EX-002", "message": "Ni tu membresía ni tus servicios abren este curso." }],
   "memberships": [{ "id": "…", "code": "ORO", "name": "Oro", "color": "D4AF37" }],
   "products": [{ "id": "…", "code": "BOT_VELAS", "name": "Bot de velas" }]
 }
@@ -81,7 +81,7 @@ No audita, **ni el acceso denegado**: es un alumno mirando lo que no tiene.
 
 ## 8. Impacto sobre otros módulos
 
-**`shared/error`**: un constructor más en `ForbiddenException`, sin cambio para quien ya la usa.
+**`shared/error`**: un constructor más en `ForbiddenException`, sin cambio para quien ya la usa, y **`NotEntitledException`** con su manejador, que no audita.
 
 ## 9. Alternativas consideradas
 

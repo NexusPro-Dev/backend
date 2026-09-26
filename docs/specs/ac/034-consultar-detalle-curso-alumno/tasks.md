@@ -16,13 +16,13 @@
 
 | ID | Tarea | Depende de | Verificación | Estado |
 |---|---|---|---|---|
-| `T-01` | `V47__ac_permisos_del_aula.sql`: `courses:read-available` y `lessons:learn`, en todo rol que porte `courses:learn`, con guarda de conteo | — | Las suites de catálogo de permisos cuentan 136 | Pendiente |
-| `T-02` | `application/ClassroomCourseResponse` con `RecommendedCourseItem`, `ClassroomModuleItem`, `ClassroomLessonItem` | — | El contrato declara la forma; sin estados ni `offerable` | Pendiente |
-| `T-03` | `GetClassroomCourseService`: `404` por `CourseOfferability`, árbol filtrado por `ModuleOfferability` y `LessonOfferability`, sumas sobre lo ofrecido, `StudentKeys`, `StudentAccess` | `RF-AC-033` · `T-02`, `T-06` | `CA-AC-195` a `CA-AC-199` | Pendiente |
-| `T-04` | `ClassroomController`: `GET /api/v1/courses/available/{id}` con `courses:read-available` | `T-03` | `CA-AC-201`; la ruta entra en `PERMISO_DE_CADA_OPERACION` | Pendiente |
-| `T-05` | Pruebas de API (`ClassroomCourseDetailIT`), con el contador de sentencias | `T-04` | `CA-AC-195` a `CA-AC-201` | Pendiente |
-| `T-06` | Documentación OpenAPI: solo lo ofrecido, sin estados ni contenido, las dos listas de llaves, `accessible` y `openLessonCount`, `404` igual para todo | `T-04` | El contrato declara `200`, `400`, `401`, `403`, `404` | Pendiente |
-| `T-07` | Matriz de `docs/requirements.md` y `docs/api/index.md` | `T-05` | La fila de `RF-AC-034` refleja el estado | Pendiente |
+| `T-01` | `V47__ac_permisos_del_aula.sql`: `courses:read-available` y `lessons:learn`, en todo rol que porte `courses:learn`, con guarda de conteo | — | Las suites de catálogo de permisos cuentan 136 | Hecha |
+| `T-02` | `application/ClassroomCourseResponse` con `RecommendedCourseItem`, `ClassroomModuleItem`, `ClassroomLessonItem` | — | El contrato declara la forma; sin estados ni `offerable` | Hecha |
+| `T-03` | `GetClassroomCourseService`: `404` por `CourseOfferability`, árbol filtrado por `ModuleOfferability` y `LessonOfferability`, sumas sobre lo ofrecido, `StudentKeys`, `StudentAccess` | `RF-AC-033` · `T-02`, `T-06` | `CA-AC-195` a `CA-AC-199` | Hecha |
+| `T-04` | `ClassroomController`: `GET /api/v1/courses/available/{id}` con `courses:read-available` | `T-03` | `CA-AC-201`; la ruta entra en `PERMISO_DE_CADA_OPERACION` | Hecha |
+| `T-05` | Pruebas de API (`ClassroomCourseDetailIT`), con el contador de sentencias | `T-04` | `CA-AC-195` a `CA-AC-201` | Hecha |
+| `T-06` | Documentación OpenAPI: solo lo ofrecido, sin estados ni contenido, las dos listas de llaves, `accessible` y `openLessonCount`, `404` igual para todo | `T-04` | El contrato declara `200`, `400`, `401`, `403`, `404` | Hecha |
+| `T-07` | Matriz de `docs/requirements.md` y `docs/api/index.md` | `T-05` | La fila de `RF-AC-034` refleja el estado | Hecha |
 
 ## 2. Orden de ejecución
 
@@ -46,10 +46,10 @@
 
 ## 5. Definición de terminado
 
-- [ ] Todas las tareas en estado `Hecha`.
-- [ ] Todos los criterios de aceptación con prueba automatizada en verde, salvo el bloqueo 1.
-- [ ] `mvn verify` en verde en local.
-- [ ] El endpoint declara su permiso.
-- [ ] El contrato OpenAPI coincide con el comportamiento real, prosa incluida.
-- [ ] Matriz de trazabilidad y `docs/api/index.md` actualizados.
+- [x] Todas las tareas en estado `Hecha`.
+- [x] Todos los criterios de aceptación con prueba automatizada en verde, salvo el bloqueo 1.
+- [x] `mvn verify` en verde en local.
+- [x] El endpoint declara su permiso.
+- [x] El contrato OpenAPI coincide con el comportamiento real, prosa incluida.
+- [x] Matriz de trazabilidad y `docs/api/index.md` actualizados.
 - [ ] Pull Request aprobado por alguien distinto del autor e integrado.

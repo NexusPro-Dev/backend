@@ -8,6 +8,7 @@ import java.time.OffsetDateTime;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.Set;
 import java.util.UUID;
 
 /**
@@ -70,6 +71,33 @@ public interface CourseQueryRepository {
 
   /** Cuántos módulos {@code ACTIVO} vivos tiene el curso: la condición de activar (`RN-AC-009`). */
   long countActiveModulesOf(UUID courseId);
+
+  /**
+   * Los candidatos del catálogo del alumno (`RF-AC-033`): vivos y {@code ACTIVOS}, con las columnas
+   * del listado —de donde {@code CourseOfferability} decide— y las tres cuentas de lo que el alumno
+   * verá, en una sentencia y en su orden (`RN-AC-002`). <b>No filtra «se ofrece»</b>: eso lo decide
+   * el objeto, no el {@code WHERE}.
+   */
+  List<ClassroomCandidate> findClassroomCandidates(UUID categoryId, String difficulty);
+
+  /**
+   * Las llaves —membresías y servicios— de varios cursos en <b>una</b> sentencia (`RF-AC-033`,
+   * `CA-AC-192`). Un curso sin ninguna no aparece en el mapa.
+   */
+  Map<UUID, CourseKeys> findKeysOfCourses(List<UUID> courseIds);
+
+  /**
+   * Un curso del catálogo del alumno: la fila del listado y, sobre las lecciones ofrecibles de los
+   * módulos ofrecibles, cuánto duran, cuántas son y cuántas están abiertas.
+   */
+  record ClassroomCandidate(
+      CourseRow course, long durationSeconds, long lessonCount, long openLessonCount) {}
+
+  /** Lo que abre un curso: identificadores de sus membresías y de sus servicios. */
+  record CourseKeys(Set<UUID> membershipIds, Set<UUID> productIds) {
+
+    public static final CourseKeys NINGUNA = new CourseKeys(Set.of(), Set.of());
+  }
 
   /**
    * Un curso como sale de la tabla, con su instructor y las cuentas que la ofrecibilidad y el
