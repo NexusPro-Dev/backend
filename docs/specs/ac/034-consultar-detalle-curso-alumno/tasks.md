@@ -4,10 +4,10 @@
 |---|---|
 | Requerimiento | `RF-AC-034` |
 | Especificación | [`spec.md`](spec.md) |
-| Plan | [`plan.md`](plan.md), aprobado el 18-09-2026 |
-| Estado | **En revisión** |
+| Plan | [`plan.md`](plan.md), aprobado el 18-09-2026 y reescrito el 26-09-2026 |
+| Estado | **En desarrollo** |
 | Issue | Pendiente de crear |
-| Rama | `feature/academia` |
+| Rama | `feature/aula-academia` |
 | Autor | Responsable técnico |
 
 ---
@@ -16,43 +16,40 @@
 
 | ID | Tarea | Depende de | Verificación | Estado |
 |---|---|---|---|---|
-| `T-01` | `domain/models/LessonOfferability`; `ModuleOfferability` pasa a contar por él — refactorización sin cambio de resultado | `RF-AC-028` · `T-02` | Unitaria: los cuatro casos; las pruebas de `ModuleOfferability` siguen en verde | Pendiente |
-| `T-02` | `CourseQueryRepository`: `findOfferedDetail(id)` con instructor y entradas de `CourseOfferability`; `findRecommendedOf` con dificultad y portada | `RF-AC-033` · `T-01` | Integración: un curso inactivo se devuelve con sus entradas y el lector lo descarta | Pendiente |
-| `T-03` | `application/ClassroomCourseResponse` con `RecommendedCourseItem`, `ClassroomModuleItem`, `ClassroomLessonItem`; `currentMembership`, `coverImageUrl` y los videos presentes y nulos | — | El contrato declara las formas anidadas sin `status` ni `offerable` | Pendiente |
-| `T-04` | `ClassroomCourseReader` y `GetClassroomCourseService`: puerto, curso o `404`, relaciones y árbol, filtro por los tres objetos, sumas, `StudentAccess` | `T-01`, `T-02`, `T-03`, `RF-AC-033` · `T-02` | `CA-AC-195` a `CA-AC-199` | Pendiente |
-| `T-05` | `ClassroomController`: `GET /api/v1/courses/available/{id}`, `@PreAuthorize("hasAuthority('courses:learn')")` | `T-04`, `RF-AC-033` · `T-06` | `CA-AC-201`; la ruta entra en `EndpointPermissionsIT` | Pendiente |
-| `T-06` | Pruebas de API (`ClassroomCourseDetailIT`) de los siete criterios, con el contador de sentencias | `T-05` | `CA-AC-195` a `CA-AC-201` | Pendiente |
-| `T-07` | **Enmendar `RF-AC-013`**: `CA-AC-075` deja de estar bloqueado; su `tasks.md` cierra el bloqueo 2 y `CourseDeletionIT` gana el caso del recomendado retirado en el aula | `T-06` | El curso retirado no aparece en `recommendedCourses` | Pendiente |
-| `T-08` | Documentación OpenAPI. **La prosa dice** que solo viaja lo ofrecido y sin estados, que el curso cerrado se enseña entero con `accessible` y `memberships` como invitación, que el `404` no distingue «no se ofrece» de «no existe», y que el contenido se pide por lección | `T-05` | El contrato declara `200`, `400`, `401`, `403`, `404` | Pendiente |
-| `T-09` | Actualizar la matriz de `docs/requirements.md` y `docs/api/index.md` | `T-06` | La fila de `RF-AC-034` refleja el estado | Pendiente |
+| `T-01` | `V47__ac_permisos_del_aula.sql`: `courses:read-available` y `lessons:learn`, en todo rol que porte `courses:learn`, con guarda de conteo | — | Las suites de catálogo de permisos cuentan 136 | Hecha |
+| `T-02` | `application/ClassroomCourseResponse` con `RecommendedCourseItem`, `ClassroomModuleItem`, `ClassroomLessonItem` | — | El contrato declara la forma; sin estados ni `offerable` | Hecha |
+| `T-03` | `GetClassroomCourseService`: `404` por `CourseOfferability`, árbol filtrado por `ModuleOfferability` y `LessonOfferability`, sumas sobre lo ofrecido, `StudentKeys`, `StudentAccess` | `RF-AC-033` · `T-02`, `T-06` | `CA-AC-195` a `CA-AC-199` | Hecha |
+| `T-04` | `ClassroomController`: `GET /api/v1/courses/available/{id}` con `courses:read-available` | `T-03` | `CA-AC-201`; la ruta entra en `PERMISO_DE_CADA_OPERACION` | Hecha |
+| `T-05` | Pruebas de API (`ClassroomCourseDetailIT`), con el contador de sentencias | `T-04` | `CA-AC-195` a `CA-AC-201` | Hecha |
+| `T-06` | Documentación OpenAPI: solo lo ofrecido, sin estados ni contenido, las dos listas de llaves, `accessible` y `openLessonCount`, `404` igual para todo | `T-04` | El contrato declara `200`, `400`, `401`, `403`, `404` | Hecha |
+| `T-07` | Matriz de `docs/requirements.md` y `docs/api/index.md` | `T-05` | La fila de `RF-AC-034` refleja el estado | Hecha |
 
 ## 2. Orden de ejecución
 
-`T-01` primero, con las unitarias de `ModuleOfferability` como red; `T-02` y `T-03` en paralelo; `T-04` las junta.
+`T-01` y `T-02` sueltas; `T-03` sobre el catálogo de `RF-AC-033`; `T-04` y `T-05` detrás.
 
 ## 3. Cobertura de los criterios de aceptación
 
 | Criterio | Tareas |
 |---|---|
-| `CA-AC-195`, `CA-AC-196` | `T-02`, `T-04`, `T-06` |
-| `CA-AC-197` | `T-01`, `T-04`, `T-06` |
-| `CA-AC-198` | `T-04`, `T-06` |
-| `CA-AC-199` | `T-02`, `T-04`, `T-06`, `T-07` |
-| `CA-AC-200` | `T-04`, `T-06` |
-| `CA-AC-201` | `T-05`, `T-06` |
+| `CA-AC-195`, `CA-AC-197`, `CA-AC-198` | `T-02`, `T-03`, `T-05` |
+| `CA-AC-196` | `T-03`, `T-05` |
+| `CA-AC-199` | `T-03` (vacía hasta `RF-AC-018`) |
+| `CA-AC-200` | `T-03`, `T-05` |
+| `CA-AC-201` | `T-01`, `T-04`, `T-05` |
 
 ## 4. Bloqueos
 
 | # | Bloqueo | Desde | Responsable | Estado |
 |---|---|---|---|---|
-| — | Ninguno | | | |
+| 1 | `CA-AC-199` solo puede probarse con recomendaciones: la relación nace en `RF-AC-018` | 26-09-2026 | `RF-AC-018` | Abierto |
 
 ## 5. Definición de terminado
 
-- [ ] Todas las tareas en estado `Hecha`.
-- [ ] Todos los criterios de aceptación con prueba automatizada en verde.
-- [ ] `mvn verify` en verde en local.
-- [ ] El endpoint declara su permiso.
-- [ ] El contrato OpenAPI coincide con el comportamiento real, prosa incluida.
-- [ ] Matriz de trazabilidad y `docs/api/index.md` actualizados.
+- [x] Todas las tareas en estado `Hecha`.
+- [x] Todos los criterios de aceptación con prueba automatizada en verde, salvo el bloqueo 1.
+- [x] `mvn verify` en verde en local.
+- [x] El endpoint declara su permiso.
+- [x] El contrato OpenAPI coincide con el comportamiento real, prosa incluida.
+- [x] Matriz de trazabilidad y `docs/api/index.md` actualizados.
 - [ ] Pull Request aprobado por alguien distinto del autor e integrado.

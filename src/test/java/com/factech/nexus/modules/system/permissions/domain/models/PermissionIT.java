@@ -59,7 +59,7 @@ class PermissionIT extends IntegrationTestBase {
 
     // BAJA por primera vez el 23-09-2026: V38 retira users:assign-membership y
     // users:revoke-membership con RF-SP-032 y RF-SP-033, descartados (RN-SP-056).
-    assertThat(total).isEqualTo(134L);
+    assertThat(total).isEqualTo(136L);
   }
 
   @Test

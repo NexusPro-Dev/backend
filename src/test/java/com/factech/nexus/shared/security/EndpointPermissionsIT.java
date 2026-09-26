@@ -318,6 +318,10 @@ class EndpointPermissionsIT extends IntegrationTestBase {
           Map.entry("POST /api/v1/courses", "courses:create"),
           Map.entry("GET /api/v1/courses", "courses:read"),
           Map.entry("GET /api/v1/courses/{id}", "courses:read"),
+          // ---- AC · aula (RF-AC-033 a 035, V47: un permiso por vista) ----
+          Map.entry("GET /api/v1/courses/available", "courses:learn"),
+          Map.entry("GET /api/v1/courses/available/{id}", "courses:read-available"),
+          Map.entry("GET /api/v1/courses/available/{courseId}/lessons/{lessonId}", "lessons:learn"),
           Map.entry("PATCH /api/v1/courses/{id}", "courses:update"),
           Map.entry("PATCH /api/v1/courses/{id}/status", "courses:update"),
           Map.entry("POST /api/v1/courses/{id}/deletion", "courses:delete"),

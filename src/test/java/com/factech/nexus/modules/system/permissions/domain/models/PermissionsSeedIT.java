@@ -29,10 +29,11 @@ class PermissionsSeedIT extends IntegrationTestBase {
           + " PM, diez de CM, diez de MV y veintiocho de AC (V28: un permiso por operación,"
           + " CA-SP-688; V29 y V30: los de RF-SP-059 y 061; V31: los once de alcance propio de"
           + " RF-SP-062, CA-SP-725; V32: movements:list-sales de RF-MV-015; V34: los ocho teams: de RF-SP-063 a RF-SP-070;"
-          + " V36: movements:assign-sellers de RF-MV-016; V37: movements:list-sale-lines de RF-MV-017)")
+          + " V36: movements:assign-sellers de RF-MV-016; V37: movements:list-sale-lines de RF-MV-017;"
+          + " V47: courses:read-available y lessons:learn del aula, RF-AC-034 y RF-AC-035)")
   void catalogoCompleto() {
     assertThat(jdbc.queryForObject("SELECT count(*) FROM permissions", Integer.class))
-        .isEqualTo(134);
+        .isEqualTo(136);
   }
 
   @Test
@@ -124,6 +125,9 @@ class PermissionsSeedIT extends IntegrationTestBase {
             "courses:create",
             "courses:delete",
             "courses:learn",
+            // V47 (RF-AC-034, RF-AC-035): el aula, un permiso por vista.
+            "courses:read-available",
+            "lessons:learn",
             "courses:read",
             "courses:teach",
             "courses:update",
@@ -268,7 +272,7 @@ class PermissionsSeedIT extends IntegrationTestBase {
   void identificadoresUuidV7() {
     List<UUID> ids = jdbc.queryForList("SELECT id FROM permissions", UUID.class);
 
-    assertThat(ids).hasSize(134).doesNotHaveDuplicates();
+    assertThat(ids).hasSize(136).doesNotHaveDuplicates();
     assertThat(ids).allSatisfy(id -> assertThat(id.version()).isEqualTo(7));
     // variant() == 2 es la variante RFC 9562 (bits 10xx).
     assertThat(ids).allSatisfy(id -> assertThat(id.variant()).isEqualTo(2));
@@ -334,13 +338,13 @@ class PermissionsSeedIT extends IntegrationTestBase {
                 "SELECT count(*) FROM role_permissions WHERE role_id ="
                     + " '01a02a33-4c00-7001-9c4f-5e7ad1000001'",
                 Integer.class))
-        .isEqualTo(134);
+        .isEqualTo(136);
     assertThat(
             jdbc.queryForObject(
                 "SELECT count(*) FROM role_permissions WHERE role_id ="
                     + " '01a02a33-4c00-7002-9c4f-5e7ad1000002'",
                 Integer.class))
-        .isEqualTo(132);
+        .isEqualTo(134);
     assertThat(
             jdbc.queryForList(
                 """

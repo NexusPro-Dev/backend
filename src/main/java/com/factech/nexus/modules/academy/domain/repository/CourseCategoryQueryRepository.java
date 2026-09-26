@@ -30,6 +30,12 @@ public interface CourseCategoryQueryRepository {
 
   long count(ListCourseCategoriesRequest filtros);
 
+  /**
+   * Todas las categorías vivas en su orden (`RN-AC-002`), sin paginar: los cajones del catálogo del
+   * alumno (`RF-AC-033`), incluidas las vacías.
+   */
+  List<CourseCategoryRow> findAlive();
+
   /** Una categoría como sale de la tabla, con su cuenta de cursos vivos ya hecha. */
   record CourseCategoryRow(
       UUID id,
