@@ -190,6 +190,7 @@ Cada línea sigue su propia regla. El paquete no cambia nada de este flujo: es u
 | `EX-003` | Dos confirmaciones **simultáneas** de la misma venta | Una acierta; la otra recibe `EX-002`. Nunca conceden las dos |
 | `EX-004` | Conceder la membresía **falla** por un error del sistema | Fallo del sistema; **la venta no queda confirmada** y ninguna línea entregada |
 | `EX-005` | Quien pregunta no tiene `movements:confirm` | Prohibido |
+| `EX-006` | La venta está pendiente **sin pago pendiente** —el último se rechazó— (26-09-2026) | Conflicto: no hay cobro que dar por entrado. Nada cambia |
 
 **`EX-002` es la que la pasarela va a producir todos los días**, y por eso responde con el estado en lugar de con un rechazo genérico: un reintento del mismo pago tiene que poder saber que ya se procesó.
 

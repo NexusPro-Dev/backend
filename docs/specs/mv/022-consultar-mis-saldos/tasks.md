@@ -6,7 +6,7 @@
 | Especificación | [`spec.md`](spec.md) v0.1.0 |
 | Plan | [`plan.md`](plan.md) v0.1.0 |
 | `plan.md` aprobado el | 26-09-2026 |
-| Estado | **En revisión** |
+| Estado | **En revisión** — todas las tareas `Hecha` el 26-09-2026 salvo la última, de documentación y contrato, en curso |
 | Issue | Pendiente de crear |
 | Rama | `feature/pagos-y-saldos` |
 
@@ -22,11 +22,11 @@
 
 | ID | Tarea | Depende de | Verificación | Estado |
 |---|---|---|---|---|
-| `T-01` | Migración: `movements:read-own-balances` y `movements:list-own-entries`, por tipo de rol | `RF-MV-019` `T-01` | El catálogo cuenta dos más | Pendiente |
-| `T-02` | `LedgerRepository.saldosDe` e `historialDe` | `RF-MV-019` `T-03` | Una sola sentencia por página | Pendiente |
-| `T-03` | `MyBalancesService`, `MyEntriesService`, `EntryResponse`, `MyEntriesRequest` | `T-02` | Los `400` salen juntos | Pendiente |
-| `T-04` | `MovementController`: `GET /mine/balances` y `GET /mine/balances/entries` | `T-03` | Documentado con los códigos de `plan.md` §4 | Pendiente |
-| `T-05` | `MyBalancesIT`: `CA-MV-251` a `CA-MV-259` | `T-04`, `RF-MV-019` `T-07`, `RF-MV-020` `T-05`, `RF-MV-021` `T-05` | Estadísticas de Hibernate | Pendiente |
+| `T-01` | Migración: `movements:read-own-balances` y `movements:list-own-entries`, por tipo de rol | `RF-MV-019` `T-01` | El catálogo cuenta dos más | **Hecha** — 26-09-2026 |
+| `T-02` | `LedgerRepository.saldosDe` e `historialDe` | `RF-MV-019` `T-03` | Una sola sentencia por página | **Hecha** — 26-09-2026 |
+| `T-03` | `MyBalancesService`, `MyEntriesService`, `EntryResponse`, `MyEntriesRequest` | `T-02` | Los `400` salen juntos | **Hecha** — 26-09-2026 |
+| `T-04` | `MovementController`: `GET /mine/balances` y `GET /mine/balances/entries` | `T-03` | Documentado con los códigos de `plan.md` §4 | **Hecha** — 26-09-2026 |
+| `T-05` | `MyBalancesIT`: `CA-MV-251` a `CA-MV-259` | `T-04`, `RF-MV-019` `T-07`, `RF-MV-020` `T-05`, `RF-MV-021` `T-05` | Estadísticas de Hibernate | **Hecha** — 26-09-2026 |
 | `T-06` | `PermissionIT`, `EndpointPermissionsIT`; contrato con la prosa releída; `requirements.md`, `security.md` | `T-05` | | Pendiente |
 
 ---
@@ -46,6 +46,10 @@
 | `CA-MV-259` | `T-04`, `T-05` |
 
 ---
+
+## 3.1 Desviaciones respecto del plan
+
+**Los dos permisos los siembra `V49`.** Un solo servicio (`BalanceService`) para las dos lecturas. La suite es `BalancesAndBonusIT`, compartida con `RF-MV-023`.
 
 ## 4. Bloqueos
 

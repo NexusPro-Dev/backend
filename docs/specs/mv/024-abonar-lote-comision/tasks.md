@@ -6,7 +6,7 @@
 | Especificación | [`spec.md`](spec.md) v0.1.0 |
 | Plan | [`plan.md`](plan.md) v0.1.0 |
 | `plan.md` aprobado el | 26-09-2026 |
-| Estado | **En revisión** |
+| Estado | **En revisión** — todas las tareas `Hecha` el 26-09-2026 salvo la última, de documentación y contrato, en curso |
 | Issue | Pendiente de crear |
 | Rama | `feature/pagos-y-saldos` |
 
@@ -22,10 +22,10 @@
 
 | ID | Tarea | Depende de | Verificación | Estado |
 |---|---|---|---|---|
-| `T-01` | `CommissionPayout`, `PayoutOrder`, `PayoutResult` en `modules/movements/application`, con su Javadoc | — | ArchUnit en verde | Pendiente |
-| `T-02` | `Movement.pagoDeComision(...)` | — | Unitarias | Pendiente |
-| `T-03` | `CommissionPayoutService`: redondeo, clave, `INSERT`, `Ledger` si no es cero, auditoría, `MANDATORY` | `T-01`, `T-02`, `RF-MV-019` `T-04`, `RF-MV-023` `T-01` | Unitarias del redondeo: `0.005` → `0.01` | Pendiente |
-| `T-04` | `CommissionPayoutIT`: `CA-MV-269` a `CA-MV-274`, y la llamada sin transacción | `T-03`, `RF-MV-022` `T-04` | `CA-MV-270` con dos hilos | Pendiente |
+| `T-01` | `CommissionPayout`, `PayoutOrder`, `PayoutResult` en `modules/movements/application`, con su Javadoc | — | ArchUnit en verde | **Hecha** — 26-09-2026 |
+| `T-02` | `Movement.pagoDeComision(...)` | — | Unitarias | **Hecha** — 26-09-2026 |
+| `T-03` | `CommissionPayoutService`: redondeo, clave, `INSERT`, `Ledger` si no es cero, auditoría, `MANDATORY` | `T-01`, `T-02`, `RF-MV-019` `T-04`, `RF-MV-023` `T-01` | Unitarias del redondeo: `0.005` → `0.01` | **Hecha** — 26-09-2026 |
+| `T-04` | `CommissionPayoutIT`: `CA-MV-269` a `CA-MV-274`, y la llamada sin transacción | `T-03`, `RF-MV-022` `T-04` | `CA-MV-270` con dos hilos | **Hecha** — 26-09-2026 |
 | `T-05` | `requirements.md`; aviso en `requirements/cm.md` de que la operación existe para `RF-CM-011` | `T-04` | | Pendiente |
 
 ---
@@ -45,6 +45,10 @@
 | `CA-MV-273`, `CA-MV-274` | `T-03`, `T-04` |
 
 ---
+
+## 3.1 Desviaciones respecto del plan
+
+**`CreditService` implementa `CommissionPayout`** (`RF-MV-023` · `tasks.md` §3.1). La suite es `CommissionPayoutIT`.
 
 ## 4. Bloqueos
 

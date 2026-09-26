@@ -5,7 +5,7 @@
 | Proyecto | NEXUS — Renovación de plataforma |
 | Empresa | FACTECH GROUP SAS |
 | Documento | `security.md` |
-| Versión | 0.79.0 |
+| Versión | 0.80.0 |
 | Estado | Borrador |
 | Responsable técnico | Bonilla Diaz William Steven |
 | Fecha de creación | 19-08-2026 |
@@ -239,6 +239,9 @@ movements:read   movements:create   movements:confirm  movements:void
 movements:list-own      movements:read-own      movements:read-own-products
 movements:list-sales    movements:assign-sellers
 movements:list-sale-lines
+movements:retry-payment  movements:reject-payment
+movements:request-withdrawal     movements:approve-withdrawal     movements:reject-withdrawal
+movements:read-own-balances      movements:list-own-entries       movements:grant-bonus
 
 exchange-rates:read     exchange-rates:create
 exchange-rates:update   exchange-rates:delete
@@ -266,7 +269,7 @@ lessons:learn
 
 Los cincuenta y uno nuevos: `roles:list`, `roles:change-status`, `roles:assign-parent`, `roles:assign-permissions`, `roles:revoke-permissions`, `permissions:list`, `memberships:list`, `users:list`, `users:change-status`, `users:read-team`, `users:revoke-roles`, `users:revoke-membership` —**retirado por `V38`** el 23-09-2026 con `RF-SP-033`—, `broker-accounts:read-indicators` (trece de `SP`); `products:list`, `products:change-status`, `products:set-cover`, `products:remove-cover`, `products:read-own-comments`, `products:update-comment`, `products:delete-comment`, `packages:list`, `packages:change-status`, `packages:set-cover`, `packages:remove-cover`, `packages:add-product`, `packages:update-product`, `packages:remove-product` (catorce de `PM`); `commissions:read-effective`, los cuatro `user-commission-rates:` y `product-commission-rates:read` (seis de `CM`); `course-categories:list`, `courses:list`, `courses:change-status`, las seis relaciones `courses:assign-…`/`revoke-…`, los cuatro `course-modules:` y los cinco `lessons:` (dieciocho de `AC`). **Ninguno de `MV`**: sus cuatro gobernaban una operación cada uno desde que nacieron.
 
-**Ocho más están declarados y SIN SEMBRAR desde el 26-09-2026**, y por eso no figuran en el bloque, que enumera lo que existe en la base: los de la etapa 6 de `MV` —pagos, saldos y retiros— ([`requirements/mv.md`](requirements/mv.md) v0.44.0 §6): `movements:reject-payment`, `movements:retry-payment`, `movements:request-withdrawal`, `movements:approve-withdrawal`, `movements:reject-withdrawal`, `movements:read-own-balances`, `movements:list-own-entries` —el octavo, del mismo día— y `movements:grant-bonus`. Cada uno entrará con la migración de su requerimiento. **Con el primero, `movements:confirm` se queda con una sola operación**: `requirements/mv.md` preveía desde el 02-09-2026 que gobernara también el rechazo (`RF-MV-004`), y `RN-SEG-014` ya no lo admite. **`RF-MV-024` —abonar un lote de comisión— no tiene permiso propio**: no tiene ruta, y lo que se autoriza es marcar el lote como pagado, con `commission-batches:pay`.
+**Ocho más, declarados el 26-09-2026 y SEMBRADOS el mismo día** por `V48` y `V49`, ya figuran en el bloque: los de la etapa 6 de `MV` —pagos, saldos y retiros— ([`requirements/mv.md`](requirements/mv.md) v0.44.0 §6): `movements:reject-payment`, `movements:retry-payment`, `movements:request-withdrawal`, `movements:approve-withdrawal`, `movements:reject-withdrawal`, `movements:read-own-balances`, `movements:list-own-entries` —el octavo, del mismo día— y `movements:grant-bonus`. Cada uno entrará con la migración de su requerimiento. **Con el primero, `movements:confirm` se queda con una sola operación**: `requirements/mv.md` preveía desde el 02-09-2026 que gobernara también el rechazo (`RF-MV-004`), y `RN-SEG-014` ya no lo admite. **`RF-MV-024` —abonar un lote de comisión— no tiene permiso propio**: no tiene ruta, y lo que se autoriza es marcar el lote como pagado, con `commission-batches:pay`.
 
 !!! danger "Un permiso, una operación — `RN-SEG-014`, desde el 19-09-2026"
 
@@ -904,3 +907,4 @@ RNF-SEG-002 merece atención: es una prueba que enumera los endpoints registrado
 | 0.77.0 | 26-09-2026 | **El catálogo sube de ciento treinta y cuatro a ciento treinta y seis** con **`courses:read-available`** —el detalle de un curso como alumno, `RF-AC-034`— y **`lessons:learn`** —el contenido de una lección como alumno, `RF-AC-035`—, sembrados por `V47` en todo rol que porte `courses:learn`, que se queda con el catálogo (`RF-AC-033`). Es `RN-SEG-014` aplicado al aula al construirla: hasta hoy `courses:learn` estaba diseñado para las tres vistas ([`requirements/ac.md`](requirements/ac.md) v0.20.0 §5.2.13). `CLIENTE` sigue sin recibirlos por siembra. Salta la `0.76.0`, tomada por la rama de pagos y saldos. | Responsable técnico |
 | 0.78.0 | 26-09-2026 | **Siete permisos de `MV` declarados y sin sembrar** (§4.4), los de la etapa 6 —pagos, saldos y retiros— ([`requirements/mv.md`](requirements/mv.md) v0.44.0). El catálogo sembrado no cambia. `RF-MV-004` deja de compartir `movements:confirm` y estrena `movements:reject-payment`, por `RN-SEG-014`. | Responsable técnico |
 | 0.79.0 | 26-09-2026 | **`movements:list-own-entries`**, el octavo permiso declarado y sin sembrar de la etapa 6 de `MV` (§4.4): el historial de los saldos propios (`RF-MV-022`, [`requirements/mv.md`](requirements/mv.md) v0.46.0). | Responsable técnico |
+| 0.80.0 | 26-09-2026 | **Los ocho permisos de la etapa 6 de `MV` están sembrados** (§4.4): `V48` —`movements:retry-payment` por tipo de rol y `movements:reject-payment` a `SUPERADMIN` y `ADMIN`— y `V49` —`request-withdrawal`, `read-own-balances` y `list-own-entries` por tipo de rol; `approve-withdrawal`, `reject-withdrawal` y `grant-bonus` a `SUPERADMIN` y `ADMIN`—. El catálogo pasa de 136 a **144**, y `ADMIN` porta 142. | Responsable técnico |
