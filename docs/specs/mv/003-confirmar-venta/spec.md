@@ -4,11 +4,17 @@
 |---|---|
 | Requerimiento | `RF-MV-003` |
 | Módulo | `MV` — Movimientos |
-| Versión | 0.1.0 |
+| Versión | 0.2.0 |
 | Estado | **Aprobada** |
 | Autor | Responsable técnico |
 | Aprobada por | Responsable del proyecto |
 | Fecha de aprobación | 17-09-2026 |
+
+!!! warning "Enmendada el 26-09-2026 — se confirma el PAGO pendiente, y la venta con él"
+
+    La etapa 6 de `MV` ([`requirements/mv.md`](../../../requirements/mv.md) v0.44.0 §4.3, `RN-MV-039`) saca el método de la venta y lo pone en **cada intento de pago**, con sus propios estados. Por decisión del responsable del proyecto, confirmar **no cambia de ruta ni de forma**, y sí de objeto: **confirma el pago pendiente de la venta y, en el mismo acto, la venta**. Todo lo demás de esta spec —la entrega, `RN-MV-029`, la atomicidad— sigue igual.
+
+    **Aparece un caso nuevo**: una venta **pendiente sin pago pendiente**, porque el último se rechazó (`RF-MV-004`) y el comprador todavía no ha vuelto a pagar (`RF-MV-018`). **No se puede confirmar**: no hay ningún cobro que dar por entrado. Responde conflicto y no cambia nada. La respuesta gana **los pagos** de la venta (`RN-MV-047`). Criterios `CA-MV-218` y `CA-MV-219`; lo construye `RF-MV-018` · `tasks.md` `T-08`.
 
 !!! info "Qué va en este documento"
 
@@ -217,6 +223,8 @@ Cada línea sigue su propia regla. El paquete no cambia nada de este flujo: es u
 | `CA-MV-096` | El cambio queda **auditado** en este módulo con el resultado de cada línea, y la membresía concedida queda auditada por `SP` |
 | `CA-MV-097` | Dos confirmaciones **simultáneas** producen **una** venta confirmada y **una** membresía concedida |
 | `CA-MV-098` | El **detalle** de la venta —propio y de administración— muestra el instante de confirmación y el estado de entrega de cada línea |
+| `CA-MV-218` | Confirmar deja **el pago pendiente confirmado**, con el mismo instante que la venta, y la respuesta trae los pagos (26-09-2026) |
+| `CA-MV-219` | Una venta pendiente **cuyo último pago se rechazó** responde conflicto —no tiene pago pendiente— y **no cambia nada** (26-09-2026) |
 
 **`CA-MV-084` y `CA-MV-097` son los que sostienen el requerimiento**: son la forma en que una pasarela que reentrega no concede dos veces.
 
@@ -249,3 +257,4 @@ Cada línea sigue su propia regla. El paquete no cambia nada de este flujo: es u
 | Versión | Fecha | Cambio | Autor |
 |---|---|---|---|
 | 0.1.0 | 17-09-2026 | Primera versión. **El requerimiento estaba declarado desde el 02-09-2026** y bloqueado por **D-26**, que el responsable del proyecto cerró este día —`SP` publica la operación de conceder, `MV` la invoca en su transacción— junto con el caso que `requirements/mv.md` §5.4 dejó abierto: **confirmar no baja de nivel a nadie** (`RN-MV-029`), la salida segura con su coste **a la vista** en lugar de en silencio. Lo que la spec carga: **confirmar es un hecho y no un formulario** (§6.1), la transición es **atómica** para que una pasarela que reentrega conceda una vez (`EX-002`, `EX-003`), la entrega es **de la línea** (`RN-MV-030`) para que una venta con productos que se entregan distinto confirme una vez, y **todo o nada** con la membresía (§7). Lo que deja fuera lo deja a propósito: `FTD`, comisiones, comprobante, autorización manual y corregir lo confirmado. | Responsable del proyecto |
+| 0.2.0 | 26-09-2026 | **Se confirma el pago pendiente, y la venta con él** (`requirements/mv.md` v0.44.0, `RN-MV-039`; Art. I.7 sobre un requerimiento construido), por decisión del responsable del proyecto. La ruta y la forma no cambian; una venta pendiente sin pago pendiente no se confirma. `CA-MV-218` y `CA-MV-219`. | Responsable del proyecto |

@@ -4,13 +4,14 @@
 |---|---|
 | Requerimiento | `RF-MV-008` |
 | Módulo | `MV` — Movimientos |
-| Versión | 0.6.0 |
+| Versión | 0.7.0 |
 | Estado | **Aprobada** |
 | Enmendada el | 16-09-2026 — el vendedor es de cada línea (`RN-MV-003`) y la cabecera lleva un sujeto (`RN-MV-026`): «lo que vendí» se responde por las líneas. Ver §15 |
 | Enmendada el | 21-09-2026 — el listado se filtra también **por tipo** y cada fila **dice su tipo** (§6.1, §6.2, §11, §12). Ver §15 |
 | Enmendada el | 21-09-2026 (segunda del día) — el listado se filtra también por **método de pago**, **comprobante** y **periodo**, los mismos tres de `RF-MV-006` (§6.1, §11, §12). Ver §15 |
 | Enmendada el | 22-09-2026 — **el listado trae solo lo COMPRADO**: la mitad de vendedor se va a `RF-MV-015`, y el papel desaparece de la fila. El **detalle no se acota** (§2.1, §4, §6.2, §12). Ver §15 |
 | Enmendada el | 22-09-2026 (segunda del día) — **el listado se llama «mis compras» y vive en su propia ruta**; el detalle y los productos comprados no se mueven (§4.1, §12). Ver §15 |
+| Enmendada el | 26-09-2026 — **«mis compras» son solo ventas**: se retira el filtro por tipo; el método es el del **último pago**, y **el detalle publica los pagos** (`RN-MV-047`; §6.1, §6.3, §12). Ver §15 |
 | Autor | Responsable técnico |
 | Aprobada por | Responsable del proyecto |
 | Fecha de aprobación | 05-09-2026 |
@@ -139,8 +140,8 @@ Un movimiento lleva **dos personas**: quien **recibe** lo comprado y quien lo **
 | Página | No | Cuál de las páginas se pide. Por omisión, la primera |
 | Tamaño | No | Cuántos movimientos por página, dentro del límite del sistema |
 | Estado | No | Devuelve solo los movimientos en ese estado. Ausente, todos |
-| Tipo (21-09-2026) | No | Devuelve solo los movimientos de ese tipo, por su **código** en el catálogo, sin distinguir mayúsculas. Ausente, todos. Uno que no exista es un **error**, no una página vacía: el catálogo no se edita por API (`RN-MV-017`) y es un conjunto cerrado que el sistema declara, como los estados. El argumento entero está en `RF-MV-006` §6.1 y vale aquí sin cambiar una palabra |
-| Método de pago (21-09-2026) | No | Solo los movimientos pagados con ese método. Uno que no exista da una **página vacía**, no un error: es un dato, como en `RF-MV-006` §6.1 |
+| Tipo (21-09-2026, **retirado**) | — | **Retirado el 26-09-2026** (`RN-MV-047`): el listado fija las ventas en la consulta, de modo que el filtro solo podía tomar un valor útil. Es el argumento de `RN-MV-038`. Un parámetro `type` que llegue **se ignora**, como cualquier parámetro desconocido |
+| Método de pago (21-09-2026) | No | Solo los movimientos pagados con ese método —**desde el 26-09-2026, el de su último pago**: el confirmado, si lo hay (`RN-MV-039`)—. Uno que no exista da una **página vacía**, no un error: es un dato, como en `RF-MV-006` §6.1 |
 | Código (21-09-2026) | No | El comprobante **exacto**, sin distinguir mayúsculas. Como mucho devuelve uno — y solo si es propio |
 | Desde, hasta (21-09-2026) | No | Instantes con zona horaria sobre **cuándo ocurrió** el movimiento, rango **semiabierto** —incluye «desde», excluye «hasta»—. «Desde» posterior a «hasta» es un **error**. Es la misma fecha que `RF-MV-006` acota y la que la fila publica: la de registro, salvo cuando quien registró la indicó hacia atrás |
 
@@ -171,6 +172,8 @@ Cada movimiento devuelve:
 ### 6.3 Salida — el detalle
 
 **Lo mismo que devuelve registrar una venta**, con sus líneas: qué productos, cuántos, a qué precio y con qué vigencia. No se inventa una forma nueva — quien registró una venta y quien la consulta después tienen que ver lo mismo.
+
+**Y desde el 26-09-2026, sus pagos** (`RN-MV-047`): cada intento de pagarla, del más antiguo al más reciente, con su método, su estado, su importe, la referencia de quien cobra si la hay, cuándo se intentó y cuándo se resolvió, y el motivo si se rechazó. **No la clave de idempotencia**, que es del cliente que la mandó.
 
 ---
 
@@ -261,6 +264,9 @@ La lista de vendedores viaja **vacía y presente**. **Desde el 16-09-2026 no es 
 | `CA-MV-138` | El **detalle sí abre lo vendido**: el mismo vendedor que no ve esa venta en su listado la abre por su identificador (22-09-2026) |
 | `CA-MV-139` | Ninguna fila del listado lleva **`role`** (22-09-2026) |
 | `CA-MV-140` | El listado responde en **su ruta propia de «mis compras»**, y **la ruta anterior ya no existe**: pedirla devuelve `404` en lugar de un listado (22-09-2026). El **detalle** y los **productos comprados** siguen respondiendo donde estaban |
+| `CA-MV-221` | El listado trae **solo ventas**: un retiro, un abono o un bono a nombre de quien pregunta **no aparece** (26-09-2026) |
+| `CA-MV-222` | El filtro por método busca **sobre el último pago**: una venta pagada al segundo intento con otro método aparece bajo el segundo (26-09-2026) |
+| `CA-MV-223` | El detalle propio trae **los pagos** de la venta, en orden, y ninguno lleva la clave de idempotencia (26-09-2026) |
 
 **`CA-MV-035`, `CA-MV-036` y `CA-MV-037` quedan retirados el 22-09-2026** —los tres papeles del listado— y sus números **no se reutilizan**: describían la decisión que el aviso de §2 revierte. `CA-MV-036` sobrevive dentro de `CA-MV-137`, que es lo mismo visto desde el único papel que queda.
 
@@ -300,3 +306,4 @@ La lista de vendedores viaja **vacía y presente**. **Desde el 16-09-2026 no es 
 | 0.4.0 | 21-09-2026 | **El listado se filtra también por método de pago, comprobante y periodo** (Art. I.7; `requirements/mv.md` v0.33.0), por decisión del responsable del proyecto del mismo día —«que los movimientos se puedan filtrar por fecha de creación (rango), método de pago y código de movimiento», en todos los listados; la fecha es **cuándo ocurrió**, la misma de `RF-MV-006` y de la fila—. §6.1 gana las tres entradas con el trato de aquel: el método inexistente es página vacía, el código es exacto sin distinguir mayúsculas, el rango es semiabierto y el invertido un error. `VAL-005`, `VAL-006`, `CA-MV-133` a `CA-MV-135`, y el caso límite del comprobante ajeno: el alcance va antes que el filtro. **Ni el alcance, ni los papeles, ni el detalle cambian.** | Responsable del proyecto |
 | 0.6.0 | 22-09-2026 | **El listado se llama «mis compras» y se muda a su propia ruta** (Art. I.7; `requirements/mv.md` v0.36.0), por decisión del responsable del proyecto: «`movements/mine/shopping` para consultar todo lo que el usuario en sesión ha comprado». Es la consecuencia de nombre de la enmienda de esta misma mañana: desde que el listado trae solo compras, seguir llamándolo «lo propio» prometía más de lo que devuelve. **No queda alias**: dos rutas con el mismo permiso romperían la inyectividad operación → permiso que `RN-SEG-014` exige y que `EndpointPermissionsIT` comprueba, de modo que la ruta anterior **deja de existir** — segundo cambio incompatible del día, declarado. **El detalle y los productos comprados no se mueven**: el primero abre también lo vendido y no es «compras»; el segundo ya tenía su ruta. `CA-MV-140`. Ni el permiso, ni los filtros, ni la fila cambian. | Responsable del proyecto |
 | 0.5.0 | 22-09-2026 | **El listado trae SOLO lo comprado, y la fila pierde el papel** (Art. I.7; `requirements/mv.md` v0.34.0), por decisión del responsable del proyecto: «que mis compras solo traiga lo del usuario en sesión». **Se revierte la decisión de fondo de §2.1** —«propio son dos papeles»— y se explica por qué el argumento ya no aplica: aquella descartó «solo lo comprado» porque dejaba al vendedor sin su pregunta, y desde el 21-09-2026 esa pregunta la responde `RF-MV-015` con **más** alcance —él y toda su red—. `role` se **retira del contrato**, cambio rompedor declarado, porque valdría siempre `BUYER` (el argumento de `RF-MV-006` §6.2). **El detalle NO se acota** y la asimetría se declara: acotarlo dejaría a un vendedor sin ninguna vía para abrir lo que vendió, porque `RF-MV-007` no existe. `CA-MV-035` a `CA-MV-037` retirados sin reutilizar número; nacen `CA-MV-137` a `CA-MV-139`; `FA-002` y dos casos límite reescritos. Ni el permiso, ni los filtros, ni la paginación cambian. | Responsable del proyecto |
+| 0.7.0 | 26-09-2026 | **«Mis compras» son solo ventas, y su detalle enseña los pagos** (`requirements/mv.md` v0.45.0, `RN-MV-047`; Art. I.7 sobre un requerimiento construido), por decisión del responsable del proyecto. **Se retira el filtro `type`** —`CA-MV-120` queda retirado y su número no se reutiliza— con el argumento de `RN-MV-038`; `CA-MV-121` sigue, porque la fila sigue diciendo su tipo. El método es el del último pago (`RN-MV-039`). `CA-MV-221` a `CA-MV-223`; lo construye `RF-MV-018` · `tasks.md` `T-06` y `T-07`. | Responsable del proyecto |

@@ -4,11 +4,17 @@
 |---|---|
 | Requerimiento | `RF-MV-005` |
 | Módulo | `MV` — Movimientos |
-| Versión | 0.1.0 |
+| Versión | 0.2.0 |
 | Estado | **Aprobada** |
 | Autor | Responsable técnico |
 | Aprobada por | Responsable del proyecto |
 | Fecha de aprobación | 17-09-2026 |
+
+!!! warning "Enmendada el 26-09-2026 — anular cierra también el pago pendiente"
+
+    La etapa 6 de `MV` ([`requirements/mv.md`](../../../requirements/mv.md) v0.44.0 §4.3, `RN-MV-039`) pone el método y el resultado del cobro en **cada intento de pago**. Anular una venta **cierra su pago pendiente como rechazado**, con el motivo de la anulación precedido de «Venta anulada:», en el mismo acto: un pago pendiente de una venta que ya no existe sería un cobro esperando a nadie. **Si la venta no tiene pago pendiente** —el último se rechazó— se anula igual. La ruta, el motivo y el permiso no cambian.
+
+    **«Anular no es rechazar» sigue siendo verdad, y ahora se ve mejor**: rechazar es del **pago** y deja la venta abierta (`RF-MV-004`); anular es de la **venta** y la cierra. Criterio `CA-MV-220`; lo construye `RF-MV-018` · `tasks.md` `T-08`.
 
 !!! info "Qué va en este documento"
 
@@ -163,6 +169,7 @@ Una gana. Si ganó anular, confirmar recibe «no está pendiente: está anulada�
 | `CA-MV-116` | Las líneas de una venta anulada siguen **pendientes de entrega**, y el registro de lo comprado las muestra `ANULADO` |
 | `CA-MV-117` | El cambio queda **auditado con el motivo** |
 | `CA-MV-118` | El detalle de la venta —propio y de administración— muestra cuándo y por qué se anuló |
+| `CA-MV-220` | Anular una venta con un pago pendiente lo deja **rechazado**, con el motivo de la anulación; sin pago pendiente, la venta se anula igual (26-09-2026) |
 
 **`CA-MV-115` con `movements:confirm` puesto es el que sostiene la separación de permisos**: quien concilia no puede hacer desaparecer ventas del embudo.
 
@@ -191,3 +198,4 @@ Una gana. Si ganó anular, confirmar recibe «no está pendiente: está anulada�
 | Versión | Fecha | Cambio | Autor |
 |---|---|---|---|
 | 0.1.0 | 17-09-2026 | Primera versión, a petición del responsable del proyecto —«¿y para anular un movimiento?»—. **Estaba declarado desde el 02-09-2026**. Lo que la spec carga: **anular no es borrar** —la fila se queda con su motivo, que es lo que separa «anulada» de «desaparecida»—, **el motivo es obligatorio** y se exige antes de tocar nada, **solo lo pendiente** porque lo confirmado ya entregó, y **la misma transición atómica** que confirmar. Lo que deja fuera: rechazar (`RF-MV-004`, otro significado y otro permiso) y que el comprador retire lo suyo. | Responsable del proyecto |
+| 0.2.0 | 26-09-2026 | **Anular cierra también el pago pendiente**, como rechazado y con el motivo de la anulación (`requirements/mv.md` v0.44.0, `RN-MV-039`; Art. I.7 sobre un requerimiento construido). La ruta, el motivo y el permiso no cambian. `CA-MV-220`. | Responsable del proyecto |
