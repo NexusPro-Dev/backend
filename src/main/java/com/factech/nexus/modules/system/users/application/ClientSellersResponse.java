@@ -5,6 +5,7 @@ import com.fasterxml.jackson.annotation.JsonInclude;
 import io.swagger.v3.oas.annotations.media.Schema;
 import java.time.OffsetDateTime;
 import java.util.List;
+import java.util.UUID;
 
 /**
  * Los vendedores de un cliente (`RF-SP-059` §6.2).
@@ -26,9 +27,14 @@ public record ClientSellersResponse(List<SellerItem> content) {
    * Lo que se publica de un vendedor, y es lo mismo que publica su hotlink (`RN-PM-022`) más el
    * nombre de usuario, que el cliente ya conoce porque forma parte del enlace que usó.
    *
-   * <p><b>Sin identificador, correo, estado ni roles</b>, y es decisión (`spec.md` §14.5): el
-   * cliente no tiene ninguna ruta donde usar un identificador ajeno, y un administrador que lo
-   * necesite tiene el nombre de usuario y `RF-SP-025`.
+   * <p><b>Sin roles</b>, y es lo único que queda de la acotación original (`spec.md` §10): qué
+   * papeles porta alguien es administración de accesos y no tiene que ver con «quién me vende».
+   *
+   * <p><b>El identificador y el correo entraron el 24-09-2026</b>, y el primero no por comodidad:
+   * la decisión que los dejaba fuera decía que «un cliente no tiene ninguna ruta donde usar un
+   * identificador ajeno», y esa premisa se rompió el 23-09-2026 — `RF-MV-016` publicó {@code POST
+   * /movements/{id}/seller-assignments}, que asigna los vendedores de una venta <b>eligiéndolos
+   * entre los del cliente</b> y los recibe por {@code sellerId}. Esta lista es ese conjunto.
    *
    * <p>{@code principal} se deriva de {@code origin} y <b>se publica igualmente</b>: es la pregunta
    * que motivó el requerimiento —«¿quién es mi agente?»— y obligar a cada consumidor del contrato a
@@ -42,8 +48,21 @@ public record ClientSellersResponse(List<SellerItem> content) {
   // vendedor nulo, y lo fija `CA-SP-798` comprobando el JSON en crudo.
   @JsonInclude(JsonInclude.Include.ALWAYS)
   public record SellerItem(
+      @Schema(
+              description =
+                  "Identificador del vendedor. **Desde el 24-09-2026**, y es el que"
+                      + " `POST /movements/{id}/seller-assignments` (`RF-MV-016`) recibe como"
+                      + " `sellerId`: los vendedores de una venta se eligen entre los del"
+                      + " cliente, y esta lista es ese conjunto.")
+          UUID id,
       @Schema(description = "Nombre de usuario del vendedor, el mismo de su hotlink.")
           String username,
+      @Schema(
+              description =
+                  "Correo del vendedor. **Desde el 24-09-2026**, y se publica también en"
+                      + " `/users/me/sellers`: para quien compra es un canal de contacto"
+                      + " comercial más, como el teléfono de empresa.")
+          String email,
       String firstName,
       String lastName,
       @Schema(
@@ -74,7 +93,9 @@ public record ClientSellersResponse(List<SellerItem> content) {
 
     static SellerItem de(ClientSellerRow fila) {
       return new SellerItem(
+          fila.sellerId(),
           fila.username(),
+          fila.email(),
           fila.firstName(),
           fila.lastName(),
           fila.companyPhone(),

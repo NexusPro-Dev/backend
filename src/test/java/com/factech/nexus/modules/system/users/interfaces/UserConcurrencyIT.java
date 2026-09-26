@@ -3,7 +3,6 @@ package com.factech.nexus.modules.system.users.interfaces;
 import static com.factech.nexus.testing.ConcurrencyHarness.runTogether;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.user;
-import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.patch;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 
@@ -27,7 +26,9 @@ import org.springframework.test.web.servlet.request.RequestPostProcessor;
 
 /**
  * Concurrencia sobre el ciclo de vida de las personas (`RF-SP-024` · `T-21`, `RF-SP-027` · `T-11`,
- * `RF-SP-028` · `T-15`, `RF-SP-029` · `T-12`, `RF-SP-033` · `T-09`).
+ * `RF-SP-028` · `T-15`, `RF-SP-029` · `T-12`). La de `RF-SP-033` · `T-09` —retirar la membresía
+ * contra asignar el rol de consumidor— se retiró el 23-09-2026 con las dos operaciones que
+ * enfrentaba (`RN-SP-056`): el nivel ya no se fija ni se retira a mano.
  *
  * <p><b>Van juntas porque son la misma clase de fallo, no por comodidad.</b> Las cinco protegen un
  * invariante que <b>ninguna petición aislada puede violar</b> —una identidad única, un
@@ -73,7 +74,7 @@ class UserConcurrencyIT extends IntegrationTestBase {
     jdbc.update("DELETE FROM refresh_tokens");
     jdbc.update("DELETE FROM client_sellers");
     jdbc.update("DELETE FROM user_supervisors");
-    jdbc.update("DELETE FROM user_memberships");
+    jdbc.update("DELETE FROM user_products");
     jdbc.update("DELETE FROM user_roles WHERE user_id <> ?", SUPERADMIN);
     jdbc.update("DELETE FROM users WHERE id <> ?", SUPERADMIN);
     // BECA SOBREVIVE AL BARRIDO desde el 05-09-2026: `RN-SP-018` da nivel a toda
@@ -362,71 +363,6 @@ class UserConcurrencyIT extends IntegrationTestBase {
   }
 
   // ---------------------------------------------------------------------------
-  // `RF-SP-033` · T-09 — el par membresía / rol de consumidor
-  // ---------------------------------------------------------------------------
-
-  @Test
-  @DisplayName("`T-09` — retirar membresía contra asignar rol de consumidor, EN LOS DOS ÓRDENES")
-  void retiroDeMembresiaContraAsignacionDeRolConsumidor() {
-    // «Ejecutar un solo orden no prueba nada» (`plan.md` §11): la ventana existe
-    // en los dos sentidos y cada uno rompe el invariante por su lado.
-    ejecutarElPar(true);
-    limpiar();
-    ejecutarElPar(false);
-  }
-
-  /**
-   * Lanza el par, con el retiro primero o la asignación primero según el argumento.
-   *
-   * <p>El invariante es el mismo en los dos casos y es `RN-SP-018`: <b>consumidor si y solo si
-   * membresía</b>. Quien acabe portando un rol de consumidor debe tener nivel de acceso, y quien no
-   * lo porte no debe conservar uno.
-   */
-  private void ejecutarElPar(boolean retiroPrimero) {
-    String membresia = crearMembresia();
-    String rolConsumidor = crearRol("ESTUDIANTE", "Estudiante", "CONSUMIDOR");
-    UUID persona = crearPersona("consumidor", ADMIN_ROL);
-    darMembresia(persona, membresia);
-
-    List<Outcome<Integer>> resultados =
-        runTogether(
-            2,
-            indice -> {
-              boolean esElRetiro = (indice == 0) == retiroPrimero;
-              return esElRetiro
-                  ? estado(retirarMembresia(persona))
-                  : estado(asignarRol(persona, rolConsumidor));
-            });
-
-    assertThat(resultados).noneMatch(r -> r.succeeded() && r.value() >= 500);
-
-    boolean esConsumidor =
-        contar(
-                """
-                SELECT count(*) FROM user_roles ur JOIN roles r ON r.id = ur.role_id
-                 WHERE ur.user_id = ? AND r.role_type = 'CONSUMIDOR'
-                """,
-                persona)
-            > 0;
-    // `closed_at IS NULL` NO ES UN DETALLE DE LA CONSULTA, ES LA MITAD DE LA
-    // AFIRMACIÓN. Desde `V56` retirar CIERRA la fila en lugar de borrarla, de
-    // modo que contarlas todas diría que esta persona «tiene membresía» para
-    // siempre y `RN-SP-018` parecería rota en cuanto alguien deja de ser
-    // consumidor. Lo que el invariante mira es la fila ABIERTA.
-    boolean tieneMembresia =
-        contar(
-                "SELECT count(*) FROM user_memberships WHERE user_id = ? AND closed_at IS NULL",
-                persona)
-            > 0;
-
-    assertThat(esConsumidor)
-        .as(
-            "`RN-SP-018` roto con el %s primero: consumidor=%s, membresía=%s",
-            retiroPrimero ? "retiro" : "alta de rol", esConsumidor, tieneMembresia)
-        .isEqualTo(tieneMembresia);
-  }
-
-  // ---------------------------------------------------------------------------
   // Peticiones
   // ---------------------------------------------------------------------------
 
@@ -490,10 +426,6 @@ class UserConcurrencyIT extends IntegrationTestBase {
         .with(actor("users:delete"))
         .contentType(MediaType.APPLICATION_JSON)
         .content("{\"reason\":\"%s\"}".formatted(motivo));
-  }
-
-  private MockHttpServletRequestBuilder retirarMembresia(UUID id) {
-    return delete("/api/v1/users/{id}/membership", id).with(actor("users:revoke-membership"));
   }
 
   private MockHttpServletRequestBuilder asignarRol(UUID id, String rol) {
@@ -594,24 +526,5 @@ class UserConcurrencyIT extends IntegrationTestBase {
         tipo,
         ADMIN);
     return id.toString();
-  }
-
-  private String crearMembresia() {
-    UUID id = UUID.randomUUID();
-    jdbc.update(
-        """
-        INSERT INTO memberships (id, code, name, level, parent_membership_id, color)
-        VALUES (?, 'BRONCE', 'Bronce', 2, (SELECT id FROM memberships WHERE code = 'BECA'), 'CD7F32')
-        """,
-        id);
-    return id.toString();
-  }
-
-  private void darMembresia(UUID persona, String membresia) {
-    jdbc.update(
-        "INSERT INTO user_memberships (id, user_id, membership_id)"
-            + " VALUES (gen_random_uuid(), ?, ?::uuid)",
-        persona,
-        membresia);
   }
 }

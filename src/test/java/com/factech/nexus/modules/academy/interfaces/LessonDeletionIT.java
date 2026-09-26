@@ -132,15 +132,15 @@ class LessonDeletionIT extends IntegrationTestBase {
     mvc.perform(get("/api/v1/courses/" + curso).with(con("courses:read")))
         .andExpect(jsonPath("$.modules[0].status").value("ACTIVO"))
         .andExpect(jsonPath("$.modules[0].offerable").value(false))
-        .andExpect(jsonPath("$.modules[0].durationMinutes").value(0))
+        .andExpect(jsonPath("$.modules[0].durationSeconds").value(0))
         .andExpect(jsonPath("$.modules[0].lessons[0].deleted").value(true))
-        .andExpect(jsonPath("$.totalDurationMinutes").value(0));
+        .andExpect(jsonPath("$.totalDurationSeconds").value(0));
     mvc.perform(
             post("/api/v1/courses/" + curso + "/modules/" + modulo + "/lessons")
                 .with(con("courses:update"))
                 .contentType(MediaType.APPLICATION_JSON)
                 .content(
-                    "{\"type\":\"TEXTO\",\"title\":\"Única\",\"durationMinutes\":1,\"displayOrder\":0}"))
+                    "{\"type\":\"TEXTO\",\"title\":\"Única\",\"durationSeconds\":1,\"displayOrder\":0}"))
         .andExpect(status().isCreated());
   }
 

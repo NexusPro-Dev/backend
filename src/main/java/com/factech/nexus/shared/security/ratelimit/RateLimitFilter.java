@@ -145,6 +145,13 @@ public class RateLimitFilter extends OncePerRequestFilter {
    */
   private static final String PORTADAS = "/api/v1/product-images/";
 
+  /**
+   * Las portadas de academia (`RF-AC-032`, 25-09-2026): {@link #PORTADAS} con otro prefijo y <b>su
+   * propio contador</b>. Compartirlo haría que un catálogo de cursos con muchas portadas agotara la
+   * cota de los productos, y al revés.
+   */
+  private static final String PORTADAS_ACADEMIA = "/api/v1/academy-images/";
+
   /** Un cuerpo de autenticación son decenas de bytes; esto es holgura, no un límite funcional. */
   private static final int TOPE_DEL_CUERPO = 8 * 1024;
 
@@ -285,6 +292,9 @@ public class RateLimitFilter extends OncePerRequestFilter {
       if (ruta.startsWith(PORTADAS)) {
         // El prefijo como llave y el número de los catálogos: ver `PORTADAS`.
         return new Regla(PORTADAS, ajustes.publicCatalog());
+      }
+      if (ruta.startsWith(PORTADAS_ACADEMIA)) {
+        return new Regla(PORTADAS_ACADEMIA, ajustes.publicCatalog());
       }
       return null;
     }

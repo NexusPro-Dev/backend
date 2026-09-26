@@ -43,5 +43,12 @@ public interface PublicSellerLookup {
   Optional<UUID> sellerIdByUsername(String username);
 
   /** Nombre y apellido. Nada más. */
-  record PublicSellerView(String firstName, String lastName) {}
+  /**
+   * @param id el identificador del vendedor. <b>No se publica por el hotlink</b> —`RF-PM-008` mapea
+   *     esta vista a un {@code SellerRef} de nombre y apellido— y existe porque `RF-MV-011`
+   *     necesita saber A QUIEN se le acredita la venta del enlace. Va aqui y no en un puerto aparte
+   *     a proposito: QUE ES UN VENDEDOR CON ENLACE —existe, lo es, esta activo— se define UNA vez,
+   *     y un segundo puerto con la misma consulta divergiria sin que nada fallara.
+   */
+  record PublicSellerView(UUID id, String firstName, String lastName) {}
 }

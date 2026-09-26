@@ -16,9 +16,9 @@ import java.util.UUID;
  * presentes</b> —nulos o vacíos cuando no hay—; {@code deletedAt} y {@code deletionReason} solo en
  * una retirada.
  *
- * <p><b>Los cursos viajan vacíos hasta `RF-AC-016`</b>, y {@code offerable} es falso hasta que el
- * bloque 3 construya la ofrecibilidad (`RN-AC-015`): las tres enmiendas están declaradas en la spec
- * de `RF-AC-003` §15.
+ * <p><b>Los cursos son los vivos clasificados en ella</b>, desde `RF-AC-016`, cada uno con {@code
+ * offerable} decidido como en el listado de cursos (`RN-AC-015`); la enmienda estaba declarada en
+ * la spec de `RF-AC-003` §15.
  */
 @JsonInclude(JsonInclude.Include.ALWAYS)
 public record CourseCategoryDetailResponse(

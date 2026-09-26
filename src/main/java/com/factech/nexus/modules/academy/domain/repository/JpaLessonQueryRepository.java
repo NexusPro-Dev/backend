@@ -21,7 +21,7 @@ public class JpaLessonQueryRepository implements LessonQueryRepository {
   static final String COLUMNAS_DEL_RESUMEN =
       """
       l.id AS id, l.module_id AS module_id, l.type AS type, l.title AS title,
-      l.description AS description, l.duration_minutes AS duration_minutes,
+      l.description AS description, l.duration_seconds AS duration_seconds,
       l.display_order AS display_order, l.status AS status, l.open AS open,
       (l.content IS NOT NULL) AS has_content, l.deleted_at AS deleted_at
       """;
@@ -30,7 +30,7 @@ public class JpaLessonQueryRepository implements LessonQueryRepository {
       """
       l.id AS id, l.module_id AS module_id, m.course_id AS course_id, l.type AS type,
       l.title AS title, l.description AS description, l.content AS content,
-      l.duration_minutes AS duration_minutes, l.display_order AS display_order,
+      l.duration_seconds AS duration_seconds, l.display_order AS display_order,
       l.open AS open, l.status AS status,
       l.created_at AS created_at, l.updated_at AS updated_at, l.deleted_at AS deleted_at
       """;
@@ -58,25 +58,75 @@ public class JpaLessonQueryRepository implements LessonQueryRepository {
             .setParameter("modulo", moduleId)
             .setParameter("curso", courseId)
             .getResultList();
+    return filas.stream().findFirst().map(JpaLessonQueryRepository::detalle);
+  }
+
+  @Override
+  @Transactional(readOnly = true)
+  public Optional<ClassroomLessonRow> findClassroomLesson(UUID courseId, UUID lessonId) {
+    if (courseId == null || lessonId == null) {
+      return Optional.empty();
+    }
+    // Las subconsultas reutilizan los alias `l` y `m` en su propio ámbito: el
+    // de dentro gana, y cuentan lo del módulo y lo del curso, no esta fila.
+    List<Tuple> filas =
+        em.createNativeQuery(
+                "SELECT "
+                    + COLUMNAS_DEL_DETALLE
+                    + ", m.status AS m_status, (m.deleted_at IS NOT NULL) AS m_retirado,"
+                    + " (SELECT count(*) FROM lessons l WHERE l.module_id = m.id AND "
+                    + JpaCourseModuleQueryRepository.LECCION_OFRECIBLE
+                    + ") AS m_ofrecibles,"
+                    + " c.status AS c_status, (c.deleted_at IS NOT NULL) AS c_retirado,"
+                    + " (c.short_description IS NOT NULL) AS c_corta,"
+                    + " (c.long_description IS NOT NULL) AS c_larga, "
+                    + JpaCourseQueryRepository.CUENTA_DE_MODULOS_OFRECIBLES
+                    + " AS c_modulos, "
+                    + JpaCourseQueryRepository.CUENTA_DE_MEMBRESIAS
+                    + " AS c_membresias, "
+                    + JpaCourseQueryRepository.CUENTA_DE_SERVICIOS
+                    + " AS c_servicios"
+                    + " FROM lessons l JOIN course_modules m ON m.id = l.module_id"
+                    + " JOIN courses c ON c.id = m.course_id AND c.id = :curso"
+                    + " WHERE l.id = :id",
+                Tuple.class)
+            .setParameter("id", lessonId)
+            .setParameter("curso", courseId)
+            .getResultList();
     return filas.stream()
         .findFirst()
         .map(
             fila ->
-                new LessonDetailRow(
-                    (UUID) fila.get("id"),
-                    (UUID) fila.get("module_id"),
-                    (UUID) fila.get("course_id"),
-                    (String) fila.get("type"),
-                    (String) fila.get("title"),
-                    (String) fila.get("description"),
-                    (String) fila.get("content"),
-                    ((Number) fila.get("duration_minutes")).intValue(),
-                    ((Number) fila.get("display_order")).intValue(),
-                    (Boolean) fila.get("open"),
-                    (String) fila.get("status"),
-                    JpaCourseQueryRepository.momento(fila.get("created_at")),
-                    JpaCourseQueryRepository.momento(fila.get("updated_at")),
-                    JpaCourseQueryRepository.momento(fila.get("deleted_at"))));
+                new ClassroomLessonRow(
+                    detalle(fila),
+                    (String) fila.get("m_status"),
+                    (Boolean) fila.get("m_retirado"),
+                    ((Number) fila.get("m_ofrecibles")).longValue(),
+                    (String) fila.get("c_status"),
+                    (Boolean) fila.get("c_retirado"),
+                    (Boolean) fila.get("c_corta"),
+                    (Boolean) fila.get("c_larga"),
+                    ((Number) fila.get("c_modulos")).longValue(),
+                    ((Number) fila.get("c_membresias")).longValue(),
+                    ((Number) fila.get("c_servicios")).longValue()));
+  }
+
+  private static LessonDetailRow detalle(Tuple fila) {
+    return new LessonDetailRow(
+        (UUID) fila.get("id"),
+        (UUID) fila.get("module_id"),
+        (UUID) fila.get("course_id"),
+        (String) fila.get("type"),
+        (String) fila.get("title"),
+        (String) fila.get("description"),
+        (String) fila.get("content"),
+        ((Number) fila.get("duration_seconds")).intValue(),
+        ((Number) fila.get("display_order")).intValue(),
+        (Boolean) fila.get("open"),
+        (String) fila.get("status"),
+        JpaCourseQueryRepository.momento(fila.get("created_at")),
+        JpaCourseQueryRepository.momento(fila.get("updated_at")),
+        JpaCourseQueryRepository.momento(fila.get("deleted_at")));
   }
 
   static LessonRow resumen(Tuple fila) {
@@ -86,7 +136,7 @@ public class JpaLessonQueryRepository implements LessonQueryRepository {
         (String) fila.get("type"),
         (String) fila.get("title"),
         (String) fila.get("description"),
-        ((Number) fila.get("duration_minutes")).intValue(),
+        ((Number) fila.get("duration_seconds")).intValue(),
         ((Number) fila.get("display_order")).intValue(),
         (String) fila.get("status"),
         (Boolean) fila.get("open"),

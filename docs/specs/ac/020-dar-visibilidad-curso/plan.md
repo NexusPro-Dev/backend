@@ -17,9 +17,9 @@
 
 ## 2. Cambios de esquema
 
-**Una migración.** `V26` salvo que otra tanda se adelante.
+**Una migración, `V45`.** El plan la numeró `V26` el 18-09-2026; el número se asignó al construir (25-09-2026).
 
-### `V26__ac_visibilidad.sql`
+### `V45__ac_visibilidad.sql`
 
 ```sql
 CREATE TABLE course_memberships (

@@ -4,10 +4,10 @@
 |---|---|
 | Requerimiento | `RF-AC-021` |
 | Módulo | `AC` — Academia |
-| Estado | **En revisión** |
+| Estado | **Aprobada** |
 | Autor | Responsable técnico |
-| Aprobada por | — |
-| Fecha de aprobación | — |
+| Aprobada por | Responsable del proyecto |
+| Fecha de aprobación | 25-09-2026 |
 
 ---
 
@@ -76,7 +76,7 @@ La mitad inversa de `RF-AC-020`, con la forma de `RF-AC-017`: borra la fila, `AS
 
 ### FA-001 — Era la última membresía de un curso ofrecido
 
-**Comportamiento:** se quita. El detalle vuelve con `offerable: false` «sin membresías»; el aula deja de enseñarlo, **incluidas sus lecciones abiertas** (`RN-AC-014`).
+**Comportamiento:** se quita. Desde el 25-09-2026, si tampoco tiene servicios, **el curso queda abierto a todos** y sigue ofreciéndose (`ac.md` §5.2.12).
 
 ## 10. Excepciones
 
@@ -100,7 +100,7 @@ La mitad inversa de `RF-AC-020`, con la forma de `RF-AC-017`: borra la fila, `AS
 |---|---|
 | `CA-AC-141` | El sistema quita la visibilidad con `200` y devuelve el detalle sin la membresía; la fila no existe |
 | `CA-AC-142` | `audit_deletion_log` tiene la fila `ASSOCIATION` sin motivo, con el curso como entidad, el actor y la pareja con el código |
-| `CA-AC-143` | **Quitar la última nunca se rechaza**: el curso sigue `ACTIVO`, el detalle vuelve `offerable: false` «sin membresías», y **el aula deja de enseñarlo** — también sus lecciones abiertas |
+| `CA-AC-143` | **Quitar la última nunca se rechaza**: el curso sigue `ACTIVO` y, **sin servicios, queda abierto a todos** —`offerable` no cambia— (desde el 25-09-2026) |
 | `CA-AC-144` | `404` al curso retirado o inexistente y `404` a la pareja inexistente, con mensajes distintos; dos retiros simultáneos dejan un `200`, un `404` y **una** fila de auditoría |
 
 ## 13. Casos límite
@@ -120,3 +120,6 @@ La mitad inversa de `RF-AC-020`, con la forma de `RF-AC-017`: borra la fila, `AS
 | Versión | Fecha | Cambio | Responsable |
 |---|---|---|---|
 | 0.1.0 | 18-09-2026 | Redacción inicial. `RF-AC-017` sobre la visibilidad; quitar la última nunca se rechaza y es la forma de esconder un curso sin desactivarlo. | Responsable técnico |
+| 0.2.0 | 25-09-2026 | **Aprobada** por el responsable del proyecto al pedir su construcción. **Enmienda de `RF-AC-037`** (Art. I.7): quitar la última membresía deja el curso sin ofrecer **solo si tampoco tiene servicios**, y el motivo es *«El curso no tiene ninguna membresía ni ningún servicio que lo abra.»*; `CA-AC-143` se lee así. **Lo que dice del aula** se comprobará cuando el aula exista (`RF-AC-033`). | Responsable técnico |
+| 0.3.0 | 25-09-2026 | **Construida** (`CourseMembershipVisibilityIT`, junto con `RF-AC-020`). | Responsable técnico |
+| 0.4.0 | 25-09-2026 | **Enmienda por decisión del responsable del proyecto** (`ac.md` §5.2.12, `RN-AC-015` reescrita): **un curso sin membresías ni servicios es de todos** y las llaves dejan de ser motivo de la ofrecibilidad, que queda en **cuatro** —retirado, inactivo, sin descripción, sin módulo ofrecible—. `FA` y `CA-AC-143` se reescriben: quitar la última llave **abre** el curso a todos. | Responsable técnico |

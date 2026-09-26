@@ -219,7 +219,7 @@ public class PublishedUserCatalog
     List<Tuple> filas =
         em.createNativeQuery(
                 """
-                SELECT u.first_name AS first_name, u.last_name AS last_name
+                SELECT u.id AS id, u.first_name AS first_name, u.last_name AS last_name
                   FROM users u
                  WHERE lower(u.username) = lower(:usuario)
                    AND u.status = 'ACTIVO'
@@ -240,7 +240,9 @@ public class PublishedUserCatalog
         .map(
             fila ->
                 new PublicSellerView(
-                    (String) fila.get("first_name"), (String) fila.get("last_name")));
+                    (UUID) fila.get("id"),
+                    (String) fila.get("first_name"),
+                    (String) fila.get("last_name")));
   }
 
   /**

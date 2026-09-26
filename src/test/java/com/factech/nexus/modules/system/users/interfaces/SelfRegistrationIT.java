@@ -175,7 +175,7 @@ class SelfRegistrationIT extends IntegrationTestBase {
     // La vigencia sale del producto: treinta días, no nula.
     assertThat(
             jdbc.queryForObject(
-                "SELECT count(*) FROM user_memberships um JOIN users u ON u.id = um.user_id"
+                "SELECT count(*) FROM user_products um JOIN users u ON u.id = um.user_id"
                     + " WHERE u.username = 'ana.ruiz' AND um.membership_id = ?::uuid"
                     + " AND um.ends_at IS NOT NULL",
                 Integer.class,
@@ -269,7 +269,7 @@ class SelfRegistrationIT extends IntegrationTestBase {
     // Nula significa que NO CADUCA, no que caduque hoy.
     assertThat(
             jdbc.queryForObject(
-                "SELECT count(*) FROM user_memberships um JOIN users u ON u.id = um.user_id"
+                "SELECT count(*) FROM user_products um JOIN users u ON u.id = um.user_id"
                     + " WHERE u.username = 'ana.ruiz' AND um.ends_at IS NULL",
                 Integer.class))
         .isOne();
@@ -598,7 +598,7 @@ class SelfRegistrationIT extends IntegrationTestBase {
     // un pago que nadie ha comprobado.
     Map<String, Object> nivel =
         jdbc.queryForMap(
-            "SELECT ms.code, um.ends_at FROM user_memberships um"
+            "SELECT ms.code, um.ends_at FROM user_products um"
                 + " JOIN memberships ms ON ms.id = um.membership_id"
                 + " JOIN users u ON u.id = um.user_id WHERE u.username = 'ana.ruiz'");
 
@@ -667,8 +667,7 @@ class SelfRegistrationIT extends IntegrationTestBase {
 
     assertThat(cuantasPersonas()).isZero();
     assertThat(jdbc.queryForObject("SELECT count(*) FROM user_brokers", Integer.class)).isZero();
-    assertThat(jdbc.queryForObject("SELECT count(*) FROM user_memberships", Integer.class))
-        .isZero();
+    assertThat(jdbc.queryForObject("SELECT count(*) FROM user_products", Integer.class)).isZero();
     assertThat(jdbc.queryForObject("SELECT count(*) FROM movements", Integer.class)).isZero();
   }
 
@@ -1097,7 +1096,7 @@ class SelfRegistrationIT extends IntegrationTestBase {
     jdbc.update("DELETE FROM user_brokers");
     jdbc.update("DELETE FROM refresh_tokens");
     jdbc.update("DELETE FROM user_supervisors");
-    jdbc.update("DELETE FROM user_memberships");
+    jdbc.update("DELETE FROM user_products");
     jdbc.update(
         "DELETE FROM user_roles WHERE user_id IN (SELECT id FROM users WHERE username LIKE"
             + " 'reg-%' OR username IN ('ana.ruiz', 'beto.paz', 'a.b', 'otra.persona'))");

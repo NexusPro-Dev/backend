@@ -86,7 +86,7 @@ CREATE INDEX ix_course_modules_course
   "id": "…", "courseId": "…", "title": "Fundamentos",
   "shortDescription": "…", "longDescription": "…", "presentationVideoUrl": "https://…",
   "displayOrder": 0, "status": "INACTIVO", "coverImageUrl": null,
-  "durationMinutes": 0, "lessons": [],
+  "durationSeconds": 0, "lessons": [],
   "offerable": false, "offerableReason": "El módulo está inactivo.",
   "createdAt": "…", "updatedAt": "…"
 }

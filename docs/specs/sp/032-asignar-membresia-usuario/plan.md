@@ -5,12 +5,22 @@
 | Requerimiento | `RF-SP-032` |
 | Especificación | [`spec.md`](spec.md) |
 | `spec.md` aprobada el | 21-08-2026 |
-| Estado | **Aprobado** |
+| Estado | **Descartado el 23-09-2026** — el nivel se compra (`RN-SP-056`) |
 | Autor | Responsable técnico |
 | Aprobado por | Responsable del proyecto |
 | Fecha de aprobación | 22-08-2026 |
 
 ---
+
+!!! danger "DESCARTADO el 23-09-2026 — el nivel se compra, no se fija"
+
+    Por decisión del responsable del proyecto (`RN-SP-056`, [`requirements/sp.md`](../../../requirements/sp.md) v1.84.0): `user_memberships` pasa a ser **`user_products`** —lo que cada persona **tiene**, y no solo qué nivel tiene—, y con la tabla abierta a los productos el nivel deja de fijarse a mano. **Se concede al comprarlo** (`RF-MV-003`, `RN-MV-020`) o al registrarse, donde nace el suelo de `RN-SP-018`.
+
+    **El código que este plan diseñó se retira, y no todo por igual.** `AssignUserMembershipService`, `AssignMembershipRequest` y el endpoint `PUT /api/v1/users/{id}/membership` desaparecen con el requerimiento. **No desaparece lo que este plan dejó como compartido**: `UserMembership` —con la definición de «vigente» probada sobre sus tres bordes—, `UserRepository.findMembership` y el bloqueo pesimista sobre la fila de la persona siguen vivos, porque los usan `RF-SP-025`, `RF-SP-026` y la escritura publicada de **D-26**.
+
+    **La lectura que este plan decidió tampoco cambia**, y es lo que hace que el descarte no arrastre a nadie: `findMembership` sigue devolviendo la fila abierta, solo que ahora la busca con `membership_id IS NOT NULL` además de `closed_at IS NULL`, porque en la misma tabla conviven cosas que no conceden nivel.
+
+    **El número queda consumido y no se reutiliza** (`requirements.md` §2). El documento se conserva como historia y no se borra: está citado desde otras tripletas aprobadas, y borrarlo dejaría referencias colgando.
 
 !!! warning "Enmendado el 05-09-2026 — `EX-001` desaparece"
 

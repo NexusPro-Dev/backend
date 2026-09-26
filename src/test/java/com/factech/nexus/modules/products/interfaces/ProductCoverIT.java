@@ -59,9 +59,9 @@ class ProductCoverIT extends IntegrationTestBase {
   void sembrarCatalogo() {
     jdbc.update("DELETE FROM products");
     jdbc.update("DELETE FROM product_images");
-    // Antes que las membresías: `user_memberships` las referencia, y `V57` da
+    // Antes que las membresías: `user_products` las referencia, y `V57` da
     // una a toda persona (como en `HotlinkIT`; sin esto la suite depende del orden).
-    jdbc.update("DELETE FROM user_memberships");
+    jdbc.update("DELETE FROM user_products");
     jdbc.update("DELETE FROM memberships");
     oro = membresia("ORO", "Oro", 1, null);
     free = membresia("BECA", "Beca", 2, oro);

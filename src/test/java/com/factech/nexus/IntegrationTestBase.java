@@ -100,6 +100,18 @@ public abstract class IntegrationTestBase {
     // directamente, que es como se prueba lo que hace y no cuándo lo hace.
     registry.add("TOKEN_PURGE_ENABLED", () -> "false");
 
+    // Los proveedores de video (`RN-AC-017`) apuntan a un puerto local que
+    // RECHAZA la conexión: ninguna prueba sale a internet. Una prueba que
+    // carga un video sin duración recibe así el mismo `422` que con el
+    // proveedor caído, en el acto y sin depender de la red de quien la corra.
+    // Quien prueba la consulta sustituye el proveedor (`LessonVideoDurationIT`)
+    // o simula su servidor (`ProviderVideoDurationLookupTest`).
+    registry.add("YOUTUBE_API_KEY", () -> "clave-de-la-suite");
+    registry.add("YOUTUBE_BASE_URL", () -> "http://127.0.0.1:9");
+    registry.add("VIMEO_BASE_URL", () -> "http://127.0.0.1:9");
+    registry.add("VIMEO_ACCESS_TOKEN", () -> "token-de-la-suite");
+    registry.add("VIMEO_API_BASE_URL", () -> "http://127.0.0.1:9");
+
     // Credencial inicial del superadministrador, que `V9__semilla_catalogos_y_superadmin.sql`
     // exige como marcador de posición. Se declara aquí y no en un archivo de
     // propiedades de prueba por lo mismo que las anteriores: lo que se prueba es
@@ -304,7 +316,7 @@ public abstract class IntegrationTestBase {
         """
         INSERT INTO memberships (id, code, name, description, parent_membership_id, level, color)
         VALUES ('01a04ad0-e800-7001-9c4f-5e7ad7000001', 'BECA', 'Free', 'Nivel de entrada.',
-                NULL, 1, '9E9E9E')
+                NULL, 1, '3DFFD5')
         ON CONFLICT (id) DO NOTHING
         """);
   }
@@ -321,7 +333,7 @@ public abstract class IntegrationTestBase {
       org.springframework.jdbc.core.JdbcTemplate jdbc, java.util.UUID userId) {
     jdbc.update(
         """
-        INSERT INTO user_memberships (id, user_id, membership_id)
+        INSERT INTO user_products (id, user_id, membership_id)
         SELECT gen_random_uuid(), ?, id FROM memberships WHERE code = 'BECA'
         """,
         userId);

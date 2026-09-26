@@ -10,6 +10,15 @@
 | Issue | [#67](https://github.com/NexusPro-Dev/backend/issues/67) |
 | Rama | `feature/venta-de-productos` |
 
+!!! warning "Enmendado el 23-09-2026 — toda línea entregada escribe su posesión"
+
+    `plan.md`, enmienda del 23-09-2026 (`RN-MV-036`, `RN-SP-056`). Dos tareas nuevas:
+
+    | ID | Tarea | Depende de | Verificación | Estado |
+    |---|---|---|---|---|
+    | `T-13` | `GrantOrder` gana `productId` y `movementDetailId`, y admite `membershipId` nulo; `ConfirmSaleService` invoca la escritura publicada para **cada** línea entregada y no solo para las de upgrade | `T-70` de `RF-SP-024` | `CA-MV-182`: confirmar una venta de **un bot** deja una fila en `user_products` con su producto, su línea, `membership_id` nulo y `ends_at` a los días de la línea desde la confirmación. Y una línea **retenida** no deja ninguna | **Pendiente** |
+    | `T-14` | La entrega es **idempotente** por esquema, no por comprobación previa | `T-13` | `CA-MV-183`: una segunda confirmación de la misma venta no duplica posesiones — `uq_user_products_linea` la rechaza, y el caso de uso no la comprueba antes | **Pendiente** |
+
 !!! info "Qué va en este documento"
 
     **Qué hay que hacer, en qué orden y cómo se comprueba.** Nada de por qué — eso está en `spec.md` y `plan.md`.
@@ -31,8 +40,8 @@
 | `T-07` | `ConfirmSaleService`: transición, bucle por líneas con `RN-MV-029` sobre `CurrentMembershipLookup`, `MembershipGrant`, auditoría con las líneas | `T-05`, `T-06` | Lee las líneas **después** de la transición | **Hecha** — 17-09-2026 |
 | `T-08` | `SaleResponse`/`SaleLineResponse`, `PurchaseResponse`/`PurchaseLineResponse` y `MyMovementResponse`: `confirmedAt` y la entrega por línea, nulables con `types` | `T-06` | El contrato declara los nulables con `types` y no con `nullable` | **Hecha** — 17-09-2026 |
 | `T-09` | `MovementController`: `POST /{id}/confirmation` con `@PreAuthorize('movements:confirm')`, documentado con los códigos de §4.2 | `T-07`, `T-08` | El `409` lleva el estado actual en el mensaje | **Hecha** — 17-09-2026 |
-| `T-10` | `ConfirmSaleIT`: `CA-MV-083` a `CA-MV-096`, `CA-MV-098` | `T-09` | La membresía se comprueba en `user_memberships`; la auditoría en `audit_change_log` | **Hecha** — 17-09-2026 |
-| `T-11` | `ConfirmSaleConcurrencyIT`: `CA-MV-097` con el arnés concurrente del proyecto | `T-09` | Una `200`, una `409`, una fila nueva en `user_memberships` | **Hecha** — 17-09-2026 |
+| `T-10` | `ConfirmSaleIT`: `CA-MV-083` a `CA-MV-096`, `CA-MV-098` | `T-09` | La membresía se comprueba en `user_products`; la auditoría en `audit_change_log` | **Hecha** — 17-09-2026 |
+| `T-11` | `ConfirmSaleConcurrencyIT`: `CA-MV-097` con el arnés concurrente del proyecto | `T-09` | Una `200`, una `409`, una fila nueva en `user_products` | **Hecha** — 17-09-2026 |
 | `T-12` | Contrato OpenAPI regenerado y prosa releída; `requirements.md` (fila, indicadores, control de cambios) | `T-10` | `openapi.json` declara `confirmedAt`, `deliveryStatus`, `deliveredAt` y `deliveryNote` | **Hecha** — 17-09-2026 |
 
 ---

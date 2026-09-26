@@ -52,7 +52,8 @@ class LessonStatusIT extends IntegrationTestBase {
       "`CA-AC-110` — activa una lección con contenido de los dos tipos; sin contenido, 409")
   void activar() throws Exception {
     UUID texto = leccion(jdbc, modulo, "Texto", "TEXTO", "# x", 5, 0, "INACTIVO");
-    UUID video = leccion(jdbc, modulo, "Video", "VIDEO", "https://v.io/1", 5, 1, "INACTIVO");
+    UUID video =
+        leccion(jdbc, modulo, "Video", "VIDEO", "https://vimeo.com/100000001", 5, 1, "INACTIVO");
     UUID vacia = leccion(jdbc, modulo, "Vacía", "TEXTO", null, 5, 2, "INACTIVO");
     mvc.perform(estado(texto, "ACTIVO"))
         .andExpect(status().isOk())
@@ -73,13 +74,13 @@ class LessonStatusIT extends IntegrationTestBase {
     UUID unica = leccion(jdbc, modulo, "Única", "TEXTO", "# x", 30, 0, "ACTIVO");
     mvc.perform(get("/api/v1/courses/" + curso).with(con("courses:read")))
         .andExpect(jsonPath("$.modules[0].offerable").value(true))
-        .andExpect(jsonPath("$.totalDurationMinutes").value(30));
+        .andExpect(jsonPath("$.totalDurationSeconds").value(30));
     mvc.perform(estado(unica, "INACTIVO")).andExpect(status().isOk());
     mvc.perform(get("/api/v1/courses/" + curso).with(con("courses:read")))
         .andExpect(jsonPath("$.modules[0].status").value("ACTIVO"))
         .andExpect(jsonPath("$.modules[0].offerable").value(false))
-        .andExpect(jsonPath("$.modules[0].durationMinutes").value(0))
-        .andExpect(jsonPath("$.totalDurationMinutes").value(0));
+        .andExpect(jsonPath("$.modules[0].durationSeconds").value(0))
+        .andExpect(jsonPath("$.totalDurationSeconds").value(0));
   }
 
   @Test

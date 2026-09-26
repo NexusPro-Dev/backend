@@ -48,7 +48,7 @@ class PermissionHolderLookupIT extends IntegrationTestBase {
     jdbc.update("DELETE FROM user_roles WHERE role_id = ?", rol);
     jdbc.update("DELETE FROM role_permissions WHERE role_id = ?", rol);
     jdbc.update("DELETE FROM roles WHERE id = ?", rol);
-    jdbc.update("DELETE FROM user_memberships WHERE user_id = ?", persona);
+    jdbc.update("DELETE FROM user_products WHERE user_id = ?", persona);
     jdbc.update("DELETE FROM users WHERE id = ?", persona);
   }
 

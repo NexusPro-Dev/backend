@@ -35,6 +35,21 @@ public interface ClientSellerRepository {
   void registerPrincipal(UUID clientId, UUID sellerId, OffsetDateTime ahora);
 
   /** Completa el vínculo con la venta que lo creó, una vez que la venta existe. */
+  /**
+   * Crea el vínculo <b>por hotlink</b> si no existía (`RN-SP-049`, `RF-MV-011`).
+   *
+   * <p><b>No toca el principal.</b> La fila {@code REGISTRO} es de quien registró al cliente y es
+   * inmutable: comprar por el enlace de otro suma un vendedor, no sustituye a nadie.
+   *
+   * <p><b>Idempotente por el esquema y no por una comprobación previa</b>: la pareja es la clave
+   * primaria, de modo que el segundo intento no crea nada. Comprobar antes de insertar sería una
+   * carrera, y es justo la que dos compras simultáneas por el mismo enlace producen.
+   *
+   * @return {@code true} si el vínculo <b>nació aquí</b>; {@code false} si ya estaba. Lo segundo no
+   *     es un error —es `FA-001`— y quien llama lo necesita para no auditar un hecho que no ocurrió
+   */
+  boolean attachByHotlink(UUID clientId, UUID sellerId, UUID movementId, OffsetDateTime ahora);
+
   void attachFirstMovement(UUID clientId, UUID sellerId, UUID movementId);
 
   /** La fila {@code REGISTRO} del cliente, si alguien lo registró. */
@@ -65,13 +80,19 @@ public interface ClientSellerRepository {
   List<SellerClientRow> findClientsOf(UUID sellerId, String origin, int offset, int limit);
 
   /**
-   * Un vendedor de un cliente, tal como lo publica `RF-SP-059` §6.2: nombre de usuario, nombre y
-   * apellido, origen y desde cuándo. <b>Sin correo, estado ni roles.</b> El identificador viaja
-   * aquí porque las autorizaciones lo comparan (`RN-SP-046`), pero la respuesta no lo publica.
+   * Un vendedor de un cliente, tal como lo publica `RF-SP-059` §6.2: identificador, nombre de
+   * usuario, correo, nombre y apellido, teléfono de empresa, estado, origen y desde cuándo. <b>Sin
+   * roles</b>, que es lo único que queda de la acotación original.
+   *
+   * <p><b>El identificador ya viajaba aquí</b> —las autorizaciones lo comparan (`RN-SP-046`)— y
+   * hasta el 24-09-2026 la respuesta no lo publicaba. Lo publica desde que `RF-MV-016` estrenó una
+   * ruta que consume `sellerId` eligiendo entre los vendedores del cliente, que es exactamente esta
+   * lista.
    */
   record ClientSellerRow(
       UUID sellerId,
       String username,
+      String email,
       String firstName,
       String lastName,
       String companyPhone,

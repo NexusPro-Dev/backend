@@ -1,20 +1,6 @@
 {
   "components" : {
     "schemas" : {
-      "AssignMembershipRequest" : {
-        "properties" : {
-          "endsAt" : {
-            "format" : "date-time",
-            "type" : "string"
-          },
-          "membershipId" : {
-            "format" : "uuid",
-            "type" : "string"
-          }
-        },
-        "required" : [ "membershipId" ],
-        "type" : "object"
-      },
       "AssignRolesRequest" : {
         "properties" : {
           "roleIds" : {
@@ -482,6 +468,340 @@
         },
         "type" : "object"
       },
+      "ClassifyCourseRequest" : {
+        "properties" : {
+          "categoryId" : {
+            "format" : "uuid",
+            "type" : "string"
+          }
+        },
+        "required" : [ "categoryId" ],
+        "type" : "object"
+      },
+      "ClassroomCatalogResponse" : {
+        "properties" : {
+          "categories" : {
+            "items" : {
+              "$ref" : "#/components/schemas/ClassroomCategoryItem"
+            },
+            "type" : "array"
+          },
+          "courses" : {
+            "items" : {
+              "$ref" : "#/components/schemas/ClassroomCourseItem"
+            },
+            "type" : "array"
+          },
+          "currentMembership" : {
+            "$ref" : "#/components/schemas/ClassroomCurrentMembershipRef"
+          }
+        },
+        "type" : "object"
+      },
+      "ClassroomCategoryItem" : {
+        "properties" : {
+          "color" : {
+            "type" : "string"
+          },
+          "coverImageUrl" : {
+            "type" : "string"
+          },
+          "displayOrder" : {
+            "format" : "int32",
+            "type" : "integer"
+          },
+          "icon" : {
+            "type" : "string"
+          },
+          "id" : {
+            "format" : "uuid",
+            "type" : "string"
+          },
+          "name" : {
+            "type" : "string"
+          }
+        },
+        "type" : "object"
+      },
+      "ClassroomCourseItem" : {
+        "properties" : {
+          "accessible" : {
+            "description" : "El curso entero se abre a quien pregunta: no declara llaves, su membresía vigente está en la lista o tiene vigente uno de sus servicios.",
+            "type" : "boolean"
+          },
+          "categories" : {
+            "items" : {
+              "$ref" : "#/components/schemas/CourseCategoryRef"
+            },
+            "type" : "array"
+          },
+          "coverImageUrl" : {
+            "type" : "string"
+          },
+          "difficulty" : {
+            "type" : "string"
+          },
+          "displayOrder" : {
+            "format" : "int32",
+            "type" : "integer"
+          },
+          "id" : {
+            "format" : "uuid",
+            "type" : "string"
+          },
+          "instructor" : {
+            "$ref" : "#/components/schemas/CourseInstructorRef"
+          },
+          "lessonCount" : {
+            "format" : "int64",
+            "type" : "integer"
+          },
+          "openLessonCount" : {
+            "description" : "Lecciones abiertas (demostraciones) que el alumno verá.",
+            "format" : "int64",
+            "type" : "integer"
+          },
+          "shortDescription" : {
+            "type" : "string"
+          },
+          "title" : {
+            "type" : "string"
+          },
+          "totalDurationSeconds" : {
+            "format" : "int64",
+            "type" : "integer"
+          }
+        },
+        "type" : "object"
+      },
+      "ClassroomCourseResponse" : {
+        "properties" : {
+          "accessible" : {
+            "type" : "boolean"
+          },
+          "categories" : {
+            "items" : {
+              "$ref" : "#/components/schemas/CourseCategoryRef"
+            },
+            "type" : "array"
+          },
+          "coverImageUrl" : {
+            "type" : "string"
+          },
+          "currentMembership" : {
+            "$ref" : "#/components/schemas/ClassroomCurrentMembershipRef"
+          },
+          "difficulty" : {
+            "type" : "string"
+          },
+          "displayOrder" : {
+            "format" : "int32",
+            "type" : "integer"
+          },
+          "id" : {
+            "format" : "uuid",
+            "type" : "string"
+          },
+          "instructor" : {
+            "$ref" : "#/components/schemas/CourseInstructorRef"
+          },
+          "introVideoUrl" : {
+            "type" : "string"
+          },
+          "lessonCount" : {
+            "format" : "int64",
+            "type" : "integer"
+          },
+          "longDescription" : {
+            "type" : "string"
+          },
+          "memberships" : {
+            "items" : {
+              "$ref" : "#/components/schemas/CourseMembershipRef"
+            },
+            "type" : "array"
+          },
+          "modules" : {
+            "items" : {
+              "$ref" : "#/components/schemas/ClassroomModuleItem"
+            },
+            "type" : "array"
+          },
+          "openLessonCount" : {
+            "format" : "int64",
+            "type" : "integer"
+          },
+          "products" : {
+            "items" : {
+              "$ref" : "#/components/schemas/CourseProductRef"
+            },
+            "type" : "array"
+          },
+          "recommendedCourses" : {
+            "items" : {
+              "$ref" : "#/components/schemas/ClassroomRecommendedCourse"
+            },
+            "type" : "array"
+          },
+          "shortDescription" : {
+            "type" : "string"
+          },
+          "title" : {
+            "type" : "string"
+          },
+          "totalDurationSeconds" : {
+            "format" : "int64",
+            "type" : "integer"
+          }
+        },
+        "type" : "object"
+      },
+      "ClassroomCurrentMembershipRef" : {
+        "properties" : {
+          "code" : {
+            "type" : "string"
+          },
+          "color" : {
+            "type" : "string"
+          },
+          "id" : {
+            "format" : "uuid",
+            "type" : "string"
+          },
+          "name" : {
+            "type" : "string"
+          }
+        },
+        "type" : "object"
+      },
+      "ClassroomLessonItem" : {
+        "properties" : {
+          "accessible" : {
+            "type" : "boolean"
+          },
+          "description" : {
+            "type" : "string"
+          },
+          "displayOrder" : {
+            "format" : "int32",
+            "type" : "integer"
+          },
+          "durationSeconds" : {
+            "format" : "int32",
+            "type" : "integer"
+          },
+          "id" : {
+            "format" : "uuid",
+            "type" : "string"
+          },
+          "open" : {
+            "type" : "boolean"
+          },
+          "title" : {
+            "type" : "string"
+          },
+          "type" : {
+            "type" : "string"
+          }
+        },
+        "type" : "object"
+      },
+      "ClassroomLessonResponse" : {
+        "properties" : {
+          "content" : {
+            "type" : "string"
+          },
+          "courseId" : {
+            "format" : "uuid",
+            "type" : "string"
+          },
+          "description" : {
+            "type" : "string"
+          },
+          "displayOrder" : {
+            "format" : "int32",
+            "type" : "integer"
+          },
+          "durationSeconds" : {
+            "format" : "int32",
+            "type" : "integer"
+          },
+          "id" : {
+            "format" : "uuid",
+            "type" : "string"
+          },
+          "moduleId" : {
+            "format" : "uuid",
+            "type" : "string"
+          },
+          "open" : {
+            "type" : "boolean"
+          },
+          "title" : {
+            "type" : "string"
+          },
+          "type" : {
+            "type" : "string"
+          }
+        },
+        "type" : "object"
+      },
+      "ClassroomModuleItem" : {
+        "properties" : {
+          "coverImageUrl" : {
+            "type" : "string"
+          },
+          "displayOrder" : {
+            "format" : "int32",
+            "type" : "integer"
+          },
+          "durationSeconds" : {
+            "format" : "int64",
+            "type" : "integer"
+          },
+          "id" : {
+            "format" : "uuid",
+            "type" : "string"
+          },
+          "lessons" : {
+            "items" : {
+              "$ref" : "#/components/schemas/ClassroomLessonItem"
+            },
+            "type" : "array"
+          },
+          "longDescription" : {
+            "type" : "string"
+          },
+          "presentationVideoUrl" : {
+            "type" : "string"
+          },
+          "shortDescription" : {
+            "type" : "string"
+          },
+          "title" : {
+            "type" : "string"
+          }
+        },
+        "type" : "object"
+      },
+      "ClassroomRecommendedCourse" : {
+        "properties" : {
+          "coverImageUrl" : {
+            "type" : "string"
+          },
+          "difficulty" : {
+            "type" : "string"
+          },
+          "id" : {
+            "format" : "uuid",
+            "type" : "string"
+          },
+          "title" : {
+            "type" : "string"
+          }
+        },
+        "type" : "object"
+      },
       "ClientSellersResponse" : {
         "properties" : {
           "content" : {
@@ -935,6 +1255,12 @@
           "offerableReason" : {
             "type" : "string"
           },
+          "products" : {
+            "items" : {
+              "$ref" : "#/components/schemas/CourseProductRef"
+            },
+            "type" : "array"
+          },
           "recommendedCourses" : {
             "items" : {
               "$ref" : "#/components/schemas/RecommendedCourseRef"
@@ -950,7 +1276,7 @@
           "title" : {
             "type" : "string"
           },
-          "totalDurationMinutes" : {
+          "totalDurationSeconds" : {
             "format" : "int64",
             "type" : "integer"
           },
@@ -1041,7 +1367,7 @@
             "format" : "int32",
             "type" : "integer"
           },
-          "durationMinutes" : {
+          "durationSeconds" : {
             "format" : "int32",
             "type" : "integer"
           },
@@ -1094,7 +1420,7 @@
             "format" : "int32",
             "type" : "integer"
           },
-          "durationMinutes" : {
+          "durationSeconds" : {
             "format" : "int64",
             "type" : "integer"
           },
@@ -1140,7 +1466,7 @@
             "format" : "int32",
             "type" : "integer"
           },
-          "durationMinutes" : {
+          "durationSeconds" : {
             "format" : "int64",
             "type" : "integer"
           },
@@ -1211,6 +1537,21 @@
           "totalPages" : {
             "format" : "int32",
             "type" : "integer"
+          }
+        },
+        "type" : "object"
+      },
+      "CourseProductRef" : {
+        "properties" : {
+          "code" : {
+            "type" : "string"
+          },
+          "id" : {
+            "format" : "uuid",
+            "type" : "string"
+          },
+          "name" : {
+            "type" : "string"
           }
         },
         "type" : "object"
@@ -1672,6 +2013,26 @@
         },
         "type" : "object"
       },
+      "GrantCourseMembershipRequest" : {
+        "properties" : {
+          "membershipId" : {
+            "format" : "uuid",
+            "type" : "string"
+          }
+        },
+        "required" : [ "membershipId" ],
+        "type" : "object"
+      },
+      "GrantCourseProductRequest" : {
+        "properties" : {
+          "productId" : {
+            "format" : "uuid",
+            "type" : "string"
+          }
+        },
+        "required" : [ "productId" ],
+        "type" : "object"
+      },
       "HotlinkCatalogResponse" : {
         "properties" : {
           "services" : {
@@ -1679,6 +2040,16 @@
           },
           "upgrades" : {
             "$ref" : "#/components/schemas/Offered"
+          }
+        },
+        "type" : "object"
+      },
+      "HotlinkPurchaseRequest" : {
+        "properties" : {
+          "paymentMethodId" : {
+            "description" : "Método de pago. **Opcional**: sin él, la venta nace con el que el sistema resuelva por el país de quien compra (`RN-MV-019`), igual que en la compra de un paquete.",
+            "format" : "uuid",
+            "type" : "string"
           }
         },
         "type" : "object"
@@ -1736,7 +2107,7 @@
             "format" : "int32",
             "type" : "integer"
           },
-          "durationMinutes" : {
+          "durationSeconds" : {
             "format" : "int32",
             "type" : "integer"
           },
@@ -2242,7 +2613,7 @@
           },
           "state" : {
             "description" : "El estado, calculado de la venta, la entrega y la vigencia.",
-            "enum" : [ "PENDIENTE_PAGO", "PENDIENTE_AUTORIZACION", "ACTIVO", "VENCIDO", "RETENIDO", "RECHAZADO", "ANULADO" ],
+            "enum" : [ "PENDIENTE_PAGO", "PENDIENTE_AUTORIZACION", "ACTIVO", "VENCIDO", "CANCELADO", "RETENIDO", "RECHAZADO", "ANULADO" ],
             "type" : "string"
           },
           "validUntil" : {
@@ -4125,7 +4496,7 @@
           "presentationVideoUrl" : {
             "maxLength" : 500,
             "minLength" : 0,
-            "pattern" : "^https?://\\S+$",
+            "pattern" : "^(?:https?://(?:www\\.|m\\.)?youtube\\.com/(?:watch\\?(?:\\S*&)?v=|embed/|shorts/|live/)[A-Za-z0-9_-]{11}(?:[?&#/]\\S*)?|https?://youtu\\.be/[A-Za-z0-9_-]{11}(?:[?&#/]\\S*)?|https?://(?:www\\.)?vimeo\\.com/\\d+(?:/[0-9a-f]+)?(?:[?#]\\S*)?|https?://player\\.vimeo\\.com/video/\\d+(?:[?&#/]\\S*)?)$",
             "type" : "string"
           },
           "shortDescription" : {
@@ -4144,6 +4515,13 @@
       },
       "RegisterCourseRequest" : {
         "properties" : {
+          "categoryIds" : {
+            "items" : {
+              "format" : "uuid",
+              "type" : "string"
+            },
+            "type" : "array"
+          },
           "difficulty" : {
             "enum" : [ "PRINCIPIANTE", "INTERMEDIO", "AVANZADO" ],
             "type" : "string"
@@ -4159,13 +4537,27 @@
           "introVideoUrl" : {
             "maxLength" : 500,
             "minLength" : 0,
-            "pattern" : "^https?://\\S+$",
+            "pattern" : "^(?:https?://(?:www\\.|m\\.)?youtube\\.com/(?:watch\\?(?:\\S*&)?v=|embed/|shorts/|live/)[A-Za-z0-9_-]{11}(?:[?&#/]\\S*)?|https?://youtu\\.be/[A-Za-z0-9_-]{11}(?:[?&#/]\\S*)?|https?://(?:www\\.)?vimeo\\.com/\\d+(?:/[0-9a-f]+)?(?:[?#]\\S*)?|https?://player\\.vimeo\\.com/video/\\d+(?:[?&#/]\\S*)?)$",
             "type" : "string"
           },
           "longDescription" : {
             "maxLength" : 10000,
             "minLength" : 0,
             "type" : "string"
+          },
+          "membershipIds" : {
+            "items" : {
+              "format" : "uuid",
+              "type" : "string"
+            },
+            "type" : "array"
+          },
+          "productIds" : {
+            "items" : {
+              "format" : "uuid",
+              "type" : "string"
+            },
+            "type" : "array"
           },
           "shortDescription" : {
             "maxLength" : 300,
@@ -4224,7 +4616,7 @@
             "format" : "int32",
             "type" : "integer"
           },
-          "durationMinutes" : {
+          "durationSeconds" : {
             "format" : "int32",
             "type" : "integer"
           },
@@ -4241,7 +4633,7 @@
             "type" : "string"
           }
         },
-        "required" : [ "displayOrder", "durationMinutes", "title", "type" ],
+        "required" : [ "displayOrder", "title", "type" ],
         "type" : "object"
       },
       "RegisterMembershipRequest" : {
@@ -5257,7 +5649,16 @@
             "description" : "Teléfono de EMPRESA del vendedor, el canal por el que la empresa quiere que se le contacte. **Presente y nulo** cuando no lo declaró: ausente y nulo significarían lo mismo y uno de los dos sobra. El teléfono personal no se publica aquí.",
             "type" : "string"
           },
+          "email" : {
+            "description" : "Correo del vendedor. **Desde el 24-09-2026**, y se publica también en `/users/me/sellers`: para quien compra es un canal de contacto comercial más, como el teléfono de empresa.",
+            "type" : "string"
+          },
           "firstName" : {
+            "type" : "string"
+          },
+          "id" : {
+            "description" : "Identificador del vendedor. **Desde el 24-09-2026**, y es el que `POST /movements/{id}/seller-assignments` (`RF-MV-016`) recibe como `sellerId`: los vendedores de una venta se eligen entre los del cliente, y esta lista es ese conjunto.",
+            "format" : "uuid",
             "type" : "string"
           },
           "lastName" : {
@@ -5567,7 +5968,7 @@
           "displayOrder" : {
             "$ref" : "#/components/schemas/PatchableInteger"
           },
-          "durationMinutes" : {
+          "durationSeconds" : {
             "$ref" : "#/components/schemas/PatchableInteger"
           },
           "open" : {
@@ -5950,29 +6351,6 @@
         },
         "type" : "object"
       },
-      "UserMembershipResponse" : {
-        "properties" : {
-          "code" : {
-            "type" : "string"
-          },
-          "endsAt" : {
-            "format" : "date-time",
-            "type" : "string"
-          },
-          "id" : {
-            "format" : "uuid",
-            "type" : "string"
-          },
-          "level" : {
-            "format" : "int32",
-            "type" : "integer"
-          },
-          "name" : {
-            "type" : "string"
-          }
-        },
-        "type" : "object"
-      },
       "UserRef" : {
         "properties" : {
           "fullName" : {
@@ -6094,6 +6472,73 @@
   },
   "openapi" : "3.1.0",
   "paths" : {
+    "/api/v1/academy-images/{imageId}" : {
+      "get" : {
+        "description" : "**Permiso requerido:** ninguno. Ruta pública: responde sin token.\n\nDevuelve **los bytes** de la portada de una categoría, un curso o un\nmódulo, con el `Content-Type` real —el detectado al subirla— y **sin\ntoken**: las lecturas de academia la publican en `coverImageUrl`, y un\n`<img>` no lleva credencial. Con token responde lo mismo.\n\n**La dirección señala una imagen concreta**: cada subida estrena\nidentificador y la reemplazada se borra, de modo que una dirección nunca\ncambia de contenido. Se sirve con `Cache-Control: public,\nmax-age=31536000, immutable`.\n\n**No mira a quién pertenece**: sirve la portada de una categoría retirada\no de un curso inactivo igual. `404` con el mismo cuerpo para un\nidentificador inexistente, reemplazado o quitado. Solo `JPEG`, `PNG` y\n`WebP`, con `X-Content-Type-Options: nosniff`.\n",
+        "operationId" : "imagen_1",
+        "parameters" : [ {
+          "in" : "path",
+          "name" : "imageId",
+          "required" : true,
+          "schema" : {
+            "format" : "uuid",
+            "type" : "string"
+          }
+        } ],
+        "responses" : {
+          "200" : {
+            "content" : {
+              "image/jpeg" : {
+                "schema" : {
+                  "format" : "binary",
+                  "type" : "string"
+                }
+              },
+              "image/png" : {
+                "schema" : {
+                  "format" : "binary",
+                  "type" : "string"
+                }
+              },
+              "image/webp" : {
+                "schema" : {
+                  "format" : "binary",
+                  "type" : "string"
+                }
+              }
+            },
+            "description" : "Los bytes de la imagen, con su tipo real y caché inmutable de un año."
+          },
+          "400" : {
+            "content" : {
+              "application/problem+json" : { }
+            },
+            "description" : "Identificador sin forma canónica (`VAL-001`)"
+          },
+          "404" : {
+            "content" : {
+              "application/problem+json" : { }
+            },
+            "description" : "La imagen no existe — nunca existió, se reemplazó o se quitó (`EX-001`)"
+          },
+          "429" : {
+            "content" : {
+              "application/problem+json" : { }
+            },
+            "description" : "Demasiadas peticiones desde ese origen"
+          },
+          "500" : {
+            "content" : {
+              "application/problem+json" : { }
+            },
+            "description" : "Fallo no controlado (`ERR-500`)"
+          }
+        },
+        "security" : [ ],
+        "summary" : "Obtener la imagen de una portada de academia, sin autenticación",
+        "tags" : [ "Cursos" ]
+      }
+    },
     "/api/v1/audit/changes" : {
       "get" : {
         "description" : "**Permiso requerido:** `audit:read-changes`. Sin él, `403` (`AUTH-002`).\n\nAltas y ediciones de todo el sistema, **del más reciente al más\nantiguo**. El orden no se puede cambiar: es parte del significado de un\nregistro cronológico.\n\n**`changes` se devuelve tal como se escribió**, sin interpretar: en un\n`CREATE` es el estado inicial del registro y en un `UPDATE` solo los\ncampos que cambiaron, cada uno con su `before` y su `after`.\n\n**`correlationId` enlaza con la petición** que produjo el evento, y con\nlo que esa misma petición dejó en los otros tres registros. Cuando son\nnulos, `correlationId` e `ipAddress` lo son **a la vez**: significa que\nel cambio no vino de la red —una migración, una tarea programada—, y\nnunca que se olvidara registrarlo. `actorId` nulo se lee igual: lo hizo\nel sistema.\n\n**Ningún filtro es obligatorio**, ni siquiera el rango de fechas: la\nconsulta que más valor tiene es la línea de tiempo completa de un\nregistro. `from` y `to` son **instantes** con zona horaria, no fechas\nsueltas, y el rango es **semiabierto** —incluye `from`, excluye `to`—\npara que dos rangos consecutivos no devuelvan dos veces el evento de la\nfrontera.\n\n**`entityId` y `actorId` no se validan contra nada**: la auditoría\nconserva eventos de registros que ya no existen, que es su razón de ser.\n",
@@ -7945,6 +8390,91 @@
         "x-required-permission" : "course-categories:update"
       }
     },
+    "/api/v1/course-categories/{id}/cover" : {
+      "put" : {
+        "description" : "**Permiso requerido:** `course-categories:update`. Sin él, `403` (`AUTH-002`).\n\nRecibe **un archivo** —`multipart/form-data`, una sola parte llamada\n`file`— y lo convierte en la portada de la categoría, **tal cual**: ni\nrecorte, ni redimensión, ni conversión.\n\n**El tipo lo deciden los bytes, no la cabecera**: `JPEG`, `PNG` o `WebP`,\nreconocidos por su firma; el `Content-Type` de la parte y el nombre del\narchivo se ignoran. Un `GIF`, un `SVG` o un texto se rechazan con\n`VAL-003`. **Hasta 5 MB** (`VAL-004`); sin archivo o vacío, `VAL-002`. Los\ntres nombran `file`, y son **los mismos de la portada de un producto**.\n\n**Si ya tenía portada, la reemplaza**: la nueva estrena identificador, **la\nanterior se borra** y `coverImageUrl` cambia de dirección —\n`/api/v1/academy-images/{imageId}`, pública y con caché inmutable—. **Sin\ncondición**: la categoría se pinta con su color y su icono cuando no tiene\nportada, y subirla nunca la deja peor. Una categoría retirada responde\n`404`. Exige `course-categories:update`.\n",
+        "operationId" : "subirPortada_3",
+        "parameters" : [ {
+          "in" : "path",
+          "name" : "id",
+          "required" : true,
+          "schema" : {
+            "format" : "uuid",
+            "type" : "string"
+          }
+        } ],
+        "requestBody" : {
+          "content" : {
+            "multipart/form-data" : {
+              "schema" : {
+                "properties" : {
+                  "file" : {
+                    "format" : "binary",
+                    "type" : "string"
+                  }
+                },
+                "type" : "object"
+              }
+            }
+          }
+        },
+        "responses" : {
+          "200" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/CourseCategoryDetailResponse"
+                }
+              }
+            },
+            "description" : "La categoría, con `coverImageUrl` señalando la imagen nueva."
+          },
+          "400" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/CourseCategoryDetailResponse"
+                }
+              }
+            },
+            "description" : "Identificador inválido (`VAL-001`), sin archivo o vacío (`VAL-002`), ni JPEG ni PNG ni WebP por sus bytes (`VAL-003`), más de 5 MB (`VAL-004`) o petición que no es `multipart/form-data` (`EX-002`)"
+          },
+          "401" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/CourseCategoryDetailResponse"
+                }
+              }
+            },
+            "description" : "Token ausente o inválido (`AUTH-001`)"
+          },
+          "403" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/CourseCategoryDetailResponse"
+                }
+              }
+            },
+            "description" : "Autenticado sin el permiso `course-categories:update` (`AUTH-002`)"
+          },
+          "404" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/CourseCategoryDetailResponse"
+                }
+              }
+            },
+            "description" : "La categoría no existe o está retirada (`EX-001`)"
+          }
+        },
+        "summary" : "Subir o reemplazar la portada de una categoría",
+        "tags" : [ "Categorías de cursos" ],
+        "x-required-permission" : "course-categories:update"
+      }
+    },
     "/api/v1/course-categories/{id}/deletion" : {
       "post" : {
         "description" : "**Permiso requerido:** `course-categories:delete`. Sin él, `403` (`AUTH-002`).\n\nBaja **lógica y con motivo**: la fila se queda, con `deletedAt` puesto y nada\nmás cambiado, y el motivo y la instantánea —con los identificadores de los\ncursos que tenía— van a la auditoría de eliminación. **`POST` y no `DELETE`**\nporque el cuerpo lleva el motivo, que es obligatorio, y un `DELETE` con\ncuerpo no tiene garantías.\n\n**No arrastra nada y nunca se rechaza por tener cursos**: la categoría es un\nfiltro del catálogo. Sus cursos siguen vivos y se siguen ofreciendo —un curso\nsin categoría se ofrece igual—, y sus clasificaciones se conservan y dejan de\nenseñarse. La portada se queda: el detalle de una retirada la sigue\ndevolviendo.\n\nEl nombre de la retirada **queda libre** para un alta. Sale del listado salvo\n`includeDeleted=true`, y su detalle trae el motivo. Retirar una ya retirada\nresponde `409`, distinto del `404` de la inexistente: quien retira dos veces\nmerece saber que la primera funcionó. Exige `course-categories:delete`.\n",
@@ -7994,7 +8524,7 @@
     },
     "/api/v1/courses" : {
       "get" : {
-        "description" : "**Permiso requerido:** `courses:read`. Sin él, `403` (`AUTH-002`).\n\nLa lista de administración de los cursos, paginada, **en el orden en que se\nenseñan**: por `displayOrder` ascendente, con el más antiguo primero entre\ndos que compartan número. Cada fila trae el instructor resuelto —con su\nnombre **actual**—, `coverImageUrl`, sus categorías vivas, **`offerable`** y\ncuántos módulos y lecciones **vivos** tiene — vivos y no ofrecidos—. Sin\ndescripción larga, video ni árbol: para eso está el detalle.\n\nFiltra por `q` —título, sin distinguir mayúsculas ni acentos—, `categoryId`,\n`instructorId`, `difficulty` y `status`, combinables. **Excluye los\nretirados** salvo `includeDeleted=true`, y entonces los trae con `deletedAt`\ny `offerable: false`. «Ofrecible» no es filtro: se publica por fila.\n\nOrden: `displayOrder` (omisión, ascendente), `title` y `createdAt`\n(descendente por omisión), con `,asc`/`,desc`. Los parámetros inválidos se\ndevuelven **juntos** con `400`. Exige `courses:read`;\n`course-categories:read` no habilita.\n",
+        "description" : "**Permiso requerido:** `courses:read`. Sin él, `403` (`AUTH-002`).\n\nLa lista de administración de los cursos, paginada, **en el orden en que se\nenseñan**: por `displayOrder` ascendente, con el más antiguo primero entre\ndos que compartan número. Cada fila trae el instructor resuelto —con su\nnombre **actual**—, `coverImageUrl`, sus categorías vivas, **`offerable`** y\ncuántos módulos y lecciones **vivos** tiene — vivos y no ofrecidos—. Sin\ndescripción larga, video ni árbol: para eso está el detalle.\n\nFiltra por `q` —título, sin distinguir mayúsculas ni acentos—, `categoryId`,\n`instructorId`, `difficulty` y `status`, combinables. `categoryId` deja los\nclasificados en esa categoría **si está viva**: filtrar por una retirada\ndevuelve vacío, porque ninguna fila la enseña en `categories`. **Excluye los\nretirados** salvo `includeDeleted=true`, y entonces los trae con `deletedAt`\ny `offerable: false`. «Ofrecible» no es filtro: se publica por fila.\n\nOrden: `displayOrder` (omisión, ascendente), `title` y `createdAt`\n(descendente por omisión), con `,asc`/`,desc`. Los parámetros inválidos se\ndevuelven **juntos** con `400`. Exige `courses:read`;\n`course-categories:read` no habilita.\n",
         "operationId" : "listar_6",
         "parameters" : [ {
           "in" : "query",
@@ -8111,7 +8641,7 @@
         "x-required-permission" : "courses:read"
       },
       "post" : {
-        "description" : "**Permiso requerido:** `courses:create`. Sin él, `403` (`AUTH-002`).\n\nRegistra un curso con **título, instructor, dificultad y orden**, obligatorios,\ny descripción corta, descripción larga y video de introducción, opcionales.\n**Nace `INACTIVO` y vacío**: sin categorías, sin recomendaciones, sin\nmembresías, sin módulos y sin portada — cada cosa entra por su operación—, y\n**sin código**: un curso no se teclea en ninguna venta.\n\n**El instructor es una persona del sistema que existe, no está retirada y\nporta `courses:teach`**, comprobado **al asignar y solo al asignar**: que lo\npierda después no toca el curso. Un instructor inexistente o retirado y uno\nsin el permiso son dos `422` distintos, porque se arreglan en sitios\ndistintos. **`instructor.fullName` es el nombre actual** de la persona, no\nuna copia.\n\nEl título es único entre los cursos **vivos**, sin distinguir mayúsculas ni\nacentos; un retirado libera el suyo. Las descripciones de solo espacios se\nguardan nulas; el video se comprueba en su forma y **no se sigue**. Enviar\n`status`, `categories`, `memberships`, `modules`, `coverImageUrl` o `code`\nresponde `400`.\n\nLa respuesta es la forma del detalle: listas vacías, `coverImageUrl`\npresente y nulo, cero minutos y cero lecciones, y `offerable: false` con\n`offerableReason` «inactivo». Exige `courses:create`; **los\n`course-categories:` no habilitan**.\n",
+        "description" : "**Permiso requerido:** `courses:create`. Sin él, `403` (`AUTH-002`).\n\nRegistra un curso con **título, instructor, dificultad y orden**, obligatorios,\ny descripción corta, descripción larga y video de introducción, opcionales. Y\n**quién lo puede ver y dónde se encuentra**, también opcionales:\n\n- **`categoryIds`** — las categorías en que nace, cada una **viva**.\n- **`productIds`** — los **servicios** que lo abren: productos de tipo\n  **`BOT`**, no retirados (un servicio inactivo se admite).\n- **`membershipIds`** — las **membresías** que lo abren. Es una lista, no un\n  nivel mínimo: dar `ORO` no lo abre a `PLATINO`.\n\n**Cada lista es todo o nada**: si algo no sirve responde `422` —`EX-004`\ncategorías, `EX-005` servicios (inexistente, retirado o que no es `BOT`),\n`EX-006` membresías— **nombrando todo lo que falla**, y **no se crea nada**.\nRepetidos o nulos en cualquiera, `400` (`VAL-008`). Ausente o vacía es\n«ninguno». Cada fila deja su auditoría, como darla después con su operación.\n\n**Nace `INACTIVO`**, sin recomendaciones, módulos ni portada —**la portada,\npor `PUT /api/v1/courses/{id}/cover` justo después**—, y **sin código**: un\ncurso no se teclea en ninguna venta.\n\n**El instructor es una persona del sistema que existe, no está retirada y\nporta `courses:teach`**, comprobado **al asignar y solo al asignar**: que lo\npierda después no toca el curso. Un instructor inexistente o retirado y uno\nsin el permiso son dos `422` distintos, porque se arreglan en sitios\ndistintos. **`instructor.fullName` es el nombre actual** de la persona, no\nuna copia.\n\nEl título es único entre los cursos **vivos**, sin distinguir mayúsculas ni\nacentos; un retirado libera el suyo. Las descripciones de solo espacios se\nguardan nulas; el video **solo puede ser de YouTube o de Vimeo**, se comprueba\nen su forma y **no se consulta**. Enviar\n`status`, `categories`, `memberships`, `modules`, `coverImageUrl` o `code`\nresponde `400`.\n\nLa respuesta es la forma del detalle: `categories` con las pedidas en su\norden, las demás listas vacías, `coverImageUrl` presente y nulo, cero segundos y cero lecciones, y `offerable: false` con\n`offerableReason` «inactivo». Exige `courses:create`; **los\n`course-categories:` no habilitan**.\n",
         "operationId" : "register_3",
         "requestBody" : {
           "content" : {
@@ -8142,7 +8672,7 @@
                 }
               }
             },
-            "description" : "Datos inválidos, juntos (`VAL-001` a `VAL-006`), o un campo no admitido (`VAL-007`)"
+            "description" : "Datos inválidos, juntos (`VAL-001` a `VAL-006`, y un identificador nulo en cualquiera de las tres listas en `VAL-008`); un campo no admitido (`VAL-007`); o identificadores repetidos en una lista (`VAL-008`)"
           },
           "401" : {
             "content" : {
@@ -8182,7 +8712,7 @@
                 }
               }
             },
-            "description" : "El instructor no existe o está retirado (`EX-002`), o no porta `courses:teach` (`EX-003`)"
+            "description" : "El instructor no existe o está retirado (`EX-002`), no porta `courses:teach` (`EX-003`); o, nombrando todo lo que falla, categorías que no existen o están retiradas (`EX-004`), productos que no son servicios vivos (`EX-005`) o membresías que no existen (`EX-006`)"
           }
         },
         "summary" : "Registrar un curso",
@@ -8190,9 +8720,593 @@
         "x-required-permission" : "courses:create"
       }
     },
+    "/api/v1/courses/available" : {
+      "get" : {
+        "description" : "**Permiso requerido:** `courses:learn`. Sin él, `403` (`AUTH-002`).\n\n**Los cursos que se ofrecen**, en su orden (`displayOrder` y después\nidentificador), **sin paginar**, para quien pregunta —el actor sale del token—.\nUn curso se ofrece si está vivo, `ACTIVO`, con sus dos descripciones y al\nmenos un módulo activo con una lección activa con contenido; **lo demás no\naparece**.\n\n**Por omisión es la vitrina**: todo lo ofrecido, abierto o no. Cada curso\ndice **`accessible`** —se le abre entero a quien pregunta porque **no declara\nninguna membresía ni servicio** (es de todos), porque **su membresía vigente\nestá en la lista** del curso o porque **tiene vigente uno de sus servicios**;\npertenencia y no nivel: `PLATINO` no abre un curso de `ORO`— y\n**`openLessonCount`**, cuántas lecciones abiertas (demostraciones) tiene.\n**`onlyAccessible=true` deja solo los cursos que abren algo**: `accessible` o\ncon `openLessonCount` mayor que cero — «los cursos que puedo ver».\n\n`totalDurationSeconds`, `lessonCount` y `openLessonCount` cuentan **solo lo\nque el alumno verá**: las lecciones ofrecibles de los módulos ofrecibles.\n`categoryId` acota a una categoría **viva** (una retirada o inexistente da la\nlista vacía, no `404`) y `difficulty` a una dificultad. **`categories` trae\ntodas las categorías vivas** —los cajones, incluidas las vacías— **sin aplicar\nningún filtro**. `currentMembership` es la vigente de quien pregunta, **presente\ny nula** si no tiene.\n\nExige `courses:learn`; `courses:read` **no habilita** (esa es la lista de\nadministración, en `GET /courses`).\n",
+        "operationId" : "catalogo",
+        "parameters" : [ {
+          "description" : "Solo los cursos clasificados en esta categoría viva.",
+          "in" : "query",
+          "name" : "categoryId",
+          "required" : false,
+          "schema" : {
+            "description" : "Solo los cursos clasificados en esta categoría viva.",
+            "format" : "uuid",
+            "type" : "string"
+          }
+        }, {
+          "description" : "PRINCIPIANTE, INTERMEDIO o AVANZADO.",
+          "in" : "query",
+          "name" : "difficulty",
+          "required" : false,
+          "schema" : {
+            "description" : "PRINCIPIANTE, INTERMEDIO o AVANZADO.",
+            "type" : "string"
+          }
+        }, {
+          "description" : "true deja solo los cursos que abren algo a quien pregunta: el curso entero (accessible) o al menos una lección abierta (openLessonCount > 0).",
+          "in" : "query",
+          "name" : "onlyAccessible",
+          "required" : false,
+          "schema" : {
+            "description" : "true deja solo los cursos que abren algo a quien pregunta: el curso entero (accessible) o al menos una lección abierta (openLessonCount > 0).",
+            "type" : "boolean"
+          }
+        } ],
+        "responses" : {
+          "200" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ClassroomCatalogResponse"
+                }
+              }
+            },
+            "description" : "El catálogo."
+          },
+          "400" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ClassroomCatalogResponse"
+                }
+              }
+            },
+            "description" : "Identificador de categoría mal formado u `onlyAccessible` no booleano (`VAL-001`), o dificultad fuera del dominio (`VAL-002`)"
+          },
+          "401" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ClassroomCatalogResponse"
+                }
+              }
+            },
+            "description" : "Token ausente o inválido (`AUTH-001`)"
+          },
+          "403" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ClassroomCatalogResponse"
+                }
+              }
+            },
+            "description" : "Autenticado sin el permiso `courses:learn` (`AUTH-002`)"
+          }
+        },
+        "summary" : "Consultar el catálogo de cursos como alumno",
+        "tags" : [ "Aula" ],
+        "x-required-permission" : "courses:learn"
+      }
+    },
+    "/api/v1/courses/available/{courseId}/lessons/{lessonId}" : {
+      "get" : {
+        "description" : "**Permiso requerido:** `lessons:learn`. Sin él, `403` (`AUTH-002`).\n\n**La lección con su contenido** —la URL de un `VIDEO`, el Markdown de un\n`TEXTO`— **tal como se guardó**: sin convertir ni sanear; pintarlo sin ejecutar\nlo que traiga es cosa del frontend.\n\n**Primero si se ofrece, después si se abre.** La lección tiene que ser de un\nmódulo de ese curso, y los tres —curso, módulo y lección— tienen que ofrecerse;\nsi no, **`404` con el mismo mensaje**, también para una lección abierta. Sobre lo\nofrecido, se abre si **la lección está abierta**, si **el curso no declara\nllaves**, si **la membresía vigente** de quien pregunta está en su lista o si\n**tiene vigente uno de sus servicios**. Si no, **`403` con `EX-002`** en\n`errors` y dos miembros de extensión, **`memberships`** `[{id, code, name,\ncolor}]` y **`products`** `[{id, code, name}]`: lo que abre el curso. El `403`\nde permiso (`AUTH-002`) sale sin ellos y con `errors` vacío.\n\nExige `lessons:learn`. No registra nada: no hay progreso.\n",
+        "operationId" : "leccion",
+        "parameters" : [ {
+          "in" : "path",
+          "name" : "courseId",
+          "required" : true,
+          "schema" : {
+            "format" : "uuid",
+            "type" : "string"
+          }
+        }, {
+          "in" : "path",
+          "name" : "lessonId",
+          "required" : true,
+          "schema" : {
+            "format" : "uuid",
+            "type" : "string"
+          }
+        } ],
+        "responses" : {
+          "200" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ClassroomLessonResponse"
+                }
+              }
+            },
+            "description" : "La lección con su contenido."
+          },
+          "400" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ClassroomLessonResponse"
+                }
+              }
+            },
+            "description" : "Identificador inválido (`VAL-001`)"
+          },
+          "401" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ClassroomLessonResponse"
+                }
+              }
+            },
+            "description" : "Token ausente o inválido (`AUTH-001`)"
+          },
+          "403" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ClassroomLessonResponse"
+                }
+              }
+            },
+            "description" : "Sin el permiso `lessons:learn` (`AUTH-002`, sin extensiones); o ninguna llave abre el curso (`EX-002`, con `memberships` y `products`)"
+          },
+          "404" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ClassroomLessonResponse"
+                }
+              }
+            },
+            "description" : "La lección no existe en ese curso o no se ofrece (`EX-001`)"
+          }
+        },
+        "summary" : "Consultar el contenido de una lección",
+        "tags" : [ "Aula" ],
+        "x-required-permission" : "lessons:learn"
+      }
+    },
+    "/api/v1/courses/available/{id}" : {
+      "get" : {
+        "description" : "**Permiso requerido:** `courses:read-available`. Sin él, `403` (`AUTH-002`).\n\n**El curso entero antes de entrar**, si se ofrece: lo suyo, el instructor, las\ncategorías vivas, los cursos recomendados **que se ofrecen**, **las membresías\n(`memberships`) y los servicios (`products`) que lo abren** —la invitación; las\ndos vacías si el curso es de todos— y **el árbol ofrecido**: los módulos\nofrecibles en su orden y, dentro, sus lecciones ofrecibles en su orden. **Sin\nestados, sin `offerable` y sin el contenido** de las lecciones, que se pide una\na una.\n\n`accessible` del curso es el del catálogo; **el de cada lección es el del curso\no `open`**: una demostración se abre a cualquiera. `durationSeconds` del módulo\ny `totalDurationSeconds`, `lessonCount` y `openLessonCount` del curso cuentan\nsolo lo que aparece. **Un curso que no existe, está retirado, inactivo o le\nfalta algo responde `404` con el mismo mensaje**: para el alumno no existe.\n\nExige `courses:read-available`; ni `courses:read` ni `courses:learn` habilitan.\n",
+        "operationId" : "curso",
+        "parameters" : [ {
+          "in" : "path",
+          "name" : "id",
+          "required" : true,
+          "schema" : {
+            "format" : "uuid",
+            "type" : "string"
+          }
+        } ],
+        "responses" : {
+          "200" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ClassroomCourseResponse"
+                }
+              }
+            },
+            "description" : "El curso ofrecido, con su árbol ofrecido."
+          },
+          "400" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ClassroomCourseResponse"
+                }
+              }
+            },
+            "description" : "Identificador inválido (`VAL-001`)"
+          },
+          "401" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ClassroomCourseResponse"
+                }
+              }
+            },
+            "description" : "Token ausente o inválido (`AUTH-001`)"
+          },
+          "403" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ClassroomCourseResponse"
+                }
+              }
+            },
+            "description" : "Autenticado sin el permiso `courses:read-available` (`AUTH-002`)"
+          },
+          "404" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ClassroomCourseResponse"
+                }
+              }
+            },
+            "description" : "El curso no existe o no se ofrece, con el mismo mensaje (`EX-001`)"
+          }
+        },
+        "summary" : "Consultar el detalle de un curso como alumno",
+        "tags" : [ "Aula" ],
+        "x-required-permission" : "courses:read-available"
+      }
+    },
+    "/api/v1/courses/{courseId}/categories" : {
+      "post" : {
+        "description" : "**Permiso requerido:** `courses:update`. Sin él, `403` (`AUTH-002`).\n\nPone el curso en una categoría. **La clasificación es libre y no se repite**:\nun curso está en cuantas categorías haga falta —**una por petición**; para\nponerlo en tres, tres peticiones— y la misma pareja no entra dos veces.\n\n**No toca el estado ni la ofrecibilidad**: un curso `INACTIVO` se clasifica\nigual, y un curso sin categoría se ofrece igual — la categoría es un filtro\ndel catálogo, no una condición.\n\nEl curso tiene que estar **vivo** (`404` si no existe o está retirado, porque\nva en la ruta) y la categoría también (`422` si no existe o está retirada,\nporque va en el cuerpo). La pareja repetida responde `409` **nombrando la\ncategoría**. Enviar un campo distinto de `categoryId` responde `400`.\n\nLa respuesta es el curso en la forma del detalle, con la nueva en\n`categories`. Exige `courses:update`; **los `course-categories:` no\nhabilitan**.\n",
+        "operationId" : "clasificar",
+        "parameters" : [ {
+          "in" : "path",
+          "name" : "courseId",
+          "required" : true,
+          "schema" : {
+            "format" : "uuid",
+            "type" : "string"
+          }
+        } ],
+        "requestBody" : {
+          "content" : {
+            "application/json" : {
+              "schema" : {
+                "$ref" : "#/components/schemas/ClassifyCourseRequest"
+              }
+            }
+          },
+          "required" : true
+        },
+        "responses" : {
+          "201" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/CourseDetailResponse"
+                }
+              }
+            },
+            "description" : "Curso clasificado, en la forma del detalle."
+          },
+          "400" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/CourseDetailResponse"
+                }
+              }
+            },
+            "description" : "Identificador inválido (`VAL-001`), `categoryId` ausente o mal formado (`VAL-002`), o un campo no admitido (`VAL-003`)"
+          },
+          "401" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/CourseDetailResponse"
+                }
+              }
+            },
+            "description" : "Token ausente o inválido (`AUTH-001`)"
+          },
+          "403" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/CourseDetailResponse"
+                }
+              }
+            },
+            "description" : "Autenticado sin el permiso `courses:update` (`AUTH-002`)"
+          },
+          "404" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/CourseDetailResponse"
+                }
+              }
+            },
+            "description" : "El curso no existe o está retirado (`EX-001`)"
+          },
+          "409" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/CourseDetailResponse"
+                }
+              }
+            },
+            "description" : "El curso ya está en esa categoría; el mensaje la nombra (`EX-003`)"
+          },
+          "422" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/CourseDetailResponse"
+                }
+              }
+            },
+            "description" : "La categoría no existe o está retirada (`EX-002`)"
+          }
+        },
+        "summary" : "Clasificar un curso en una categoría",
+        "tags" : [ "Cursos" ],
+        "x-required-permission" : "courses:update"
+      }
+    },
+    "/api/v1/courses/{courseId}/categories/{categoryId}" : {
+      "delete" : {
+        "description" : "**Permiso requerido:** `courses:update`. Sin él, `403` (`AUTH-002`).\n\nSaca el curso de la categoría: **borra la pareja, sin motivo**, y lo registra\ncomo eliminación de una asociación. Sin cuerpo.\n\n**No toca el estado ni la ofrecibilidad**: el curso que se ofrecía se sigue\nofreciendo aunque se quede sin categoría. **Una categoría retirada se\ndesclasifica igual**: la pareja existe, y así se limpia lo que el retiro\ndejó.\n\nEl curso tiene que estar **vivo**. Los dos `404` se distinguen por el\nmensaje: el curso no existe o está retirado, o el curso no está en esa\ncategoría. La respuesta es el curso en la forma del detalle, sin la\ncategoría. Exige `courses:update`.\n",
+        "operationId" : "desclasificar",
+        "parameters" : [ {
+          "in" : "path",
+          "name" : "courseId",
+          "required" : true,
+          "schema" : {
+            "format" : "uuid",
+            "type" : "string"
+          }
+        }, {
+          "in" : "path",
+          "name" : "categoryId",
+          "required" : true,
+          "schema" : {
+            "format" : "uuid",
+            "type" : "string"
+          }
+        } ],
+        "responses" : {
+          "200" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/CourseDetailResponse"
+                }
+              }
+            },
+            "description" : "Curso desclasificado, en la forma del detalle."
+          },
+          "400" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/CourseDetailResponse"
+                }
+              }
+            },
+            "description" : "Identificador inválido (`VAL-001`)"
+          },
+          "401" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/CourseDetailResponse"
+                }
+              }
+            },
+            "description" : "Token ausente o inválido (`AUTH-001`)"
+          },
+          "403" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/CourseDetailResponse"
+                }
+              }
+            },
+            "description" : "Autenticado sin el permiso `courses:update` (`AUTH-002`)"
+          },
+          "404" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/CourseDetailResponse"
+                }
+              }
+            },
+            "description" : "El curso no existe o está retirado (`EX-001`), o no está en esa categoría (`EX-002`)"
+          }
+        },
+        "summary" : "Desclasificar un curso de una categoría",
+        "tags" : [ "Cursos" ],
+        "x-required-permission" : "courses:update"
+      }
+    },
+    "/api/v1/courses/{courseId}/memberships" : {
+      "post" : {
+        "description" : "**Permiso requerido:** `courses:update`. Sin él, `403` (`AUTH-002`).\n\nDeclara que **una membresía abre el curso**: quien la tenga **vigente** podrá\nestudiarlo. **Es una lista, no un nivel mínimo**: dar `ORO` no lo abre a\n`PLATINO`; «este nivel y los de arriba» se añaden uno a uno. **Se suma a los\nservicios**: el curso se abre con una de sus membresías **o** uno de sus\nservicios. Una pareja por petición.\n\nLa membresía tiene que existir (`422` `EX-002` si no); la pareja repetida\nresponde `409` **nombrando la membresía por su código**. El curso tiene que\nestar vivo, en cualquier estado: la lista se arma antes de publicar. **Con su\nprimera llave, un curso que era de todos pasa a abrirse solo a quien la tenga**;\n`offerable` no cambia. Que un alumno lo estudie lo decide el aula.\n\nLa respuesta es el curso en la forma del detalle, con la membresía en\n`memberships` —identificador, código, nombre, color—, en el orden de la cadena.\nExige `courses:update`.\n",
+        "operationId" : "darMembresia",
+        "parameters" : [ {
+          "in" : "path",
+          "name" : "courseId",
+          "required" : true,
+          "schema" : {
+            "format" : "uuid",
+            "type" : "string"
+          }
+        } ],
+        "requestBody" : {
+          "content" : {
+            "application/json" : {
+              "schema" : {
+                "$ref" : "#/components/schemas/GrantCourseMembershipRequest"
+              }
+            }
+          },
+          "required" : true
+        },
+        "responses" : {
+          "201" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/CourseDetailResponse"
+                }
+              }
+            },
+            "description" : "La membresía abre el curso; el curso en la forma del detalle."
+          },
+          "400" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/CourseDetailResponse"
+                }
+              }
+            },
+            "description" : "Identificador inválido (`VAL-001`), `membershipId` ausente o mal formado (`VAL-002`), o un campo no admitido (`VAL-003`)"
+          },
+          "401" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/CourseDetailResponse"
+                }
+              }
+            },
+            "description" : "Token ausente o inválido (`AUTH-001`)"
+          },
+          "403" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/CourseDetailResponse"
+                }
+              }
+            },
+            "description" : "Autenticado sin el permiso `courses:update` (`AUTH-002`)"
+          },
+          "404" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/CourseDetailResponse"
+                }
+              }
+            },
+            "description" : "El curso no existe o está retirado (`EX-001`)"
+          },
+          "409" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/CourseDetailResponse"
+                }
+              }
+            },
+            "description" : "Esa membresía ya abre el curso; el mensaje la nombra (`EX-003`)"
+          },
+          "422" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/CourseDetailResponse"
+                }
+              }
+            },
+            "description" : "La membresía no existe (`EX-002`)"
+          }
+        },
+        "summary" : "Dar visibilidad de un curso a una membresía",
+        "tags" : [ "Cursos" ],
+        "x-required-permission" : "courses:update"
+      }
+    },
+    "/api/v1/courses/{courseId}/memberships/{membershipId}" : {
+      "delete" : {
+        "description" : "**Permiso requerido:** `courses:update`. Sin él, `403` (`AUTH-002`).\n\nDeja de abrir el curso con esa membresía: **borra la pareja, sin motivo**, y lo\nregistra como eliminación de una asociación. Sin cuerpo.\n\n**Quitar la última nunca se rechaza**: si el curso tampoco tiene servicios,\n**queda abierto a todos** los alumnos con sesión. Los dos `404` se distinguen por el mensaje:\nel curso no existe o está retirado, o esa membresía no lo abre. La respuesta\nes el curso en la forma del detalle. Exige `courses:update`.\n",
+        "operationId" : "quitarMembresia",
+        "parameters" : [ {
+          "in" : "path",
+          "name" : "courseId",
+          "required" : true,
+          "schema" : {
+            "format" : "uuid",
+            "type" : "string"
+          }
+        }, {
+          "in" : "path",
+          "name" : "membershipId",
+          "required" : true,
+          "schema" : {
+            "format" : "uuid",
+            "type" : "string"
+          }
+        } ],
+        "responses" : {
+          "200" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/CourseDetailResponse"
+                }
+              }
+            },
+            "description" : "La membresía ya no abre el curso; el curso en la forma del detalle."
+          },
+          "400" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/CourseDetailResponse"
+                }
+              }
+            },
+            "description" : "Identificador inválido (`VAL-001`)"
+          },
+          "401" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/CourseDetailResponse"
+                }
+              }
+            },
+            "description" : "Token ausente o inválido (`AUTH-001`)"
+          },
+          "403" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/CourseDetailResponse"
+                }
+              }
+            },
+            "description" : "Autenticado sin el permiso `courses:update` (`AUTH-002`)"
+          },
+          "404" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/CourseDetailResponse"
+                }
+              }
+            },
+            "description" : "El curso no existe o está retirado (`EX-001`), o esa membresía no lo abre (`EX-002`)"
+          }
+        },
+        "summary" : "Quitar la visibilidad de un curso a una membresía",
+        "tags" : [ "Cursos" ],
+        "x-required-permission" : "courses:update"
+      }
+    },
     "/api/v1/courses/{courseId}/modules" : {
       "post" : {
-        "description" : "**Permiso requerido:** `courses:update`. Sin él, `403` (`AUTH-002`).\n\nRegistra una parte del curso con **título y orden**, obligatorios, y descripción\ncorta, descripción larga y video de presentación, opcionales. **Nace `INACTIVO`,\nvacío y dentro del curso de la ruta**, del que no se mueve: enviar `courseId`,\n`status`, `lessons` o `coverImageUrl` responde `400`.\n\n**El título es único entre los módulos vivos del mismo curso**, sin mayúsculas\nni acentos; el mismo título en otro curso es legítimo, y un retirado libera el\nsuyo. El curso tiene que estar **vivo**, en cualquier estado — un curso activo\nadmite el módulo igual, que no cambia lo que el aula enseña hasta activarse.\n\nLa respuesta es **el módulo**, no el curso: `courseId`, `coverImageUrl`\npresente y nulo, `lessons` vacío, cero minutos y `offerable: false` con\n`offerableReason` «inactivo». Exige `courses:update`.\n",
+        "description" : "**Permiso requerido:** `courses:update`. Sin él, `403` (`AUTH-002`).\n\nRegistra una parte del curso con **título y orden**, obligatorios, y descripción\ncorta, descripción larga y video de presentación —**de YouTube o de Vimeo**—, opcionales. **Nace `INACTIVO`,\nvacío y dentro del curso de la ruta**, del que no se mueve: enviar `courseId`,\n`status`, `lessons` o `coverImageUrl` responde `400`.\n\n**El título es único entre los módulos vivos del mismo curso**, sin mayúsculas\nni acentos; el mismo título en otro curso es legítimo, y un retirado libera el\nsuyo. El curso tiene que estar **vivo**, en cualquier estado — un curso activo\nadmite el módulo igual, que no cambia lo que el aula enseña hasta activarse.\n\nLa respuesta es **el módulo**, no el curso: `courseId`, `coverImageUrl`\npresente y nulo, `lessons` vacío, cero segundos y `offerable: false` con\n`offerableReason` «inactivo». Exige `courses:update`.\n",
         "operationId" : "register_4",
         "parameters" : [ {
           "in" : "path",
@@ -8435,7 +9549,7 @@
     },
     "/api/v1/courses/{courseId}/modules/{moduleId}/lessons" : {
       "post" : {
-        "description" : "**Permiso requerido:** `courses:update`. Sin él, `403` (`AUTH-002`).\n\nRegistra una lección con **tipo (`VIDEO` o `TEXTO`), título, duración en\nminutos enteros y orden**, obligatorios, y descripción, contenido y `open`\nopcionales. **El tipo manda sobre el contenido**: en un `VIDEO` es una URL\nabsoluta http o https; en un `TEXTO` es Markdown que **el backend guarda y\ndevuelve sin interpretar ni sanear** — quien lo pinta es el frontend, y tiene\nque hacerlo con un conversor que no ejecute lo que encuentre.\n\n**Nace `INACTIVA`**, con `open` falsa si no vino, y **el contenido es opcional al\nregistrar y obligatorio para activar**. El título es único entre las lecciones\nvivas del mismo módulo. El módulo tiene que estar **vivo y ser del curso de la\nruta**; enviar `status`, `moduleId` o `courseId` es `400`. Los errores de forma\nllegan **juntos**, incluido el del contenido de un video.\n\n**La auditoría lleva la longitud del contenido y no el texto.** La respuesta es\nla lección entera, contenido incluido. Exige `courses:update`.\n",
+        "description" : "**Permiso requerido:** `courses:update`. Sin él, `403` (`AUTH-002`).\n\nRegistra una lección con **tipo (`VIDEO` o `TEXTO`), título y orden**,\nobligatorios, y descripción, contenido, `open` y duración según el tipo.\n**El tipo manda sobre el contenido**: en un `VIDEO` es **un video de YouTube o\nde Vimeo** —`youtube.com/watch?v=`, `youtu.be/`, `youtube.com/embed/`,\n`youtube.com/shorts/`, `vimeo.com/{id}`, `vimeo.com/{id}/{hash}`,\n`player.vimeo.com/video/{id}`—, y cualquier otro dominio es `400`; en un\n`TEXTO` es Markdown que **el backend guarda y devuelve sin interpretar ni\nsanear** — quien lo pinta es el frontend, y tiene que hacerlo con un conversor\nque no ejecute lo que encuentre.\n\n**`durationSeconds`, en segundos** —un video de 12 min 34 s es `754`—:\n\n- En **`TEXTO`**, obligatoria: el tiempo estimado de lectura.\n- En **`VIDEO` con enlace y sin `durationSeconds`**, **la lee el sistema del\n  proveedor** (YouTube por su API de datos, Vimeo por su oEmbed). Si el\n  proveedor no la da —video privado o borrado, sin respuesta a tiempo, sin\n  clave de YouTube configurada— responde **`422` `EX-003`** diciendo por qué, y\n  no se guarda nada: se reenvía con `durationSeconds` a mano.\n- En **`VIDEO` con `durationSeconds`**, **manda la enviada** y no se pregunta\n  a nadie: es como se corrige a mano o se guarda un video privado.\n- En **`VIDEO` sin enlace**, obligatoria: no hay de dónde leerla.\n\nLas sumas del módulo (`durationSeconds`) y del curso (`totalDurationSeconds`)\ntambién van en segundos; el formato «1 h 05 min» es del frontend.\n\n**Nace `INACTIVA`**, con `open` falsa si no vino, y **el contenido es opcional al\nregistrar y obligatorio para activar**. El título es único entre las lecciones\nvivas del mismo módulo. El módulo tiene que estar **vivo y ser del curso de la\nruta**; enviar `status`, `moduleId` o `courseId` es `400`. Los errores de forma\nllegan **juntos**, incluido el del contenido de un video.\n\n**La auditoría lleva la longitud del contenido y no el texto.** La respuesta es\nla lección entera, contenido incluido. Exige `courses:update`.\n",
         "operationId" : "register_5",
         "parameters" : [ {
           "in" : "path",
@@ -8524,6 +9638,16 @@
               }
             },
             "description" : "Título ya en uso por una lección viva del módulo (`EX-002`)"
+          },
+          "422" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/LessonResponse"
+                }
+              }
+            },
+            "description" : "Un `VIDEO` sin `durationSeconds` cuyo proveedor no dio la duración (`EX-003`); el mensaje nombra el proveedor y el motivo"
           }
         },
         "summary" : "Registrar una lección en un módulo",
@@ -8617,7 +9741,7 @@
         "x-required-permission" : "courses:read"
       },
       "patch" : {
-        "description" : "**Permiso requerido:** `courses:update`. Sin él, `403` (`AUTH-002`).\n\nCorrección **parcial** sobre `type`, `title`, `description`, `content`,\n`durationMinutes`, `displayOrder` y `open`; exige al menos uno. Solo la\ndescripción y el contenido admiten `null` —**también en una lección activa, que\nsigue activa y deja de ofrecerse**—; el nulo en los otros cinco es `400`.\n\n**Cambiar el tipo exige que el contenido resultante case con él**: pasar a\n`VIDEO` con un texto guardado y sin URL en la petición responde `400` **sin\naplicar nada**; pasar a `TEXTO` con una URL guardada se admite. **El contenido se\naudita como longitud y no como texto.** La lección no cambia de módulo: `moduleId`,\n`courseId` y `status` en el cuerpo son `400`. Exige `courses:update`.\n",
+        "description" : "**Permiso requerido:** `courses:update`. Sin él, `403` (`AUTH-002`).\n\nCorrección **parcial** sobre `type`, `title`, `description`, `content`,\n`durationSeconds`, `displayOrder` y `open`; exige al menos uno. Solo la\ndescripción y el contenido admiten `null` —**también en una lección activa, que\nsigue activa y deja de ofrecerse**—; el nulo en los otros cinco es `400`.\n\n**Cambiar el tipo exige que el contenido resultante case con él**: pasar a\n`VIDEO` con un texto guardado y sin URL en la petición responde `400` **sin\naplicar nada**; pasar a `TEXTO` con una URL guardada se admite. **Corregir el\nenlace de un `VIDEO`, o pasar a `VIDEO` con enlace, sin `durationSeconds` relee\nla duración del proveedor**; con `durationSeconds` manda la enviada; corregir\ncualquier otro campo no pregunta a nadie. Si la relectura falla responde `422`\n`EX-003` **sin aplicar nada**. El enlace solo puede ser de YouTube o de Vimeo.\n**El contenido se\naudita como longitud y no como texto.** La lección no cambia de módulo: `moduleId`,\n`courseId` y `status` en el cuerpo son `400`. Exige `courses:update`.\n",
         "operationId" : "corregir_6",
         "parameters" : [ {
           "in" : "path",
@@ -8714,6 +9838,16 @@
               }
             },
             "description" : "Título ya en uso por otra lección viva del módulo (`EX-001`)"
+          },
+          "422" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/LessonResponse"
+                }
+              }
+            },
+            "description" : "Se corrigió el enlace o se pasó a `VIDEO` sin `durationSeconds`, y el proveedor no dio la duración (`EX-003`); no se aplica nada"
           }
         },
         "summary" : "Editar una lección",
@@ -8988,9 +10122,187 @@
         "x-required-permission" : "courses:update"
       }
     },
+    "/api/v1/courses/{courseId}/products" : {
+      "post" : {
+        "description" : "**Permiso requerido:** `courses:update`. Sin él, `403` (`AUTH-002`).\n\nDeclara que **un servicio abre el curso**: quien tenga **vigente** ese\nproducto podrá estudiarlo. **Se suma a las membresías**: el curso se abre con\nuna de sus membresías **o** uno de sus servicios. Una pareja por petición.\n\n**Solo abre un curso un producto de tipo `BOT`** —el servicio—. El producto\ntiene que existir y **no estar retirado**; **un servicio `INACTIVO` se añade\nigual**, para armar el curso antes de ponerlo a la venta. Un producto\ninexistente o retirado (`EX-002`) y un upgrade de membresía (`EX-003`) son\ndos `422` distintos. La pareja repetida responde `409` **nombrando el\nservicio por su código**. El curso tiene que estar vivo, en cualquier estado.\n\n**Retirar después el servicio en productos no lo quita de aquí**: quien lo\ncompró lo tiene hasta que venza. **Con su primer servicio, un curso que era de\ntodos pasa a abrirse solo a quien tenga una de sus llaves**; `offerable` no\ncambia. Que un alumno lo estudie por su servicio lo decide el aula.\n\nLa respuesta es el curso en la forma del detalle, con el servicio en\n`products` —identificador, código, nombre—. Exige `courses:update`; **los\npermisos de productos no habilitan**.\n",
+        "operationId" : "darServicio",
+        "parameters" : [ {
+          "in" : "path",
+          "name" : "courseId",
+          "required" : true,
+          "schema" : {
+            "format" : "uuid",
+            "type" : "string"
+          }
+        } ],
+        "requestBody" : {
+          "content" : {
+            "application/json" : {
+              "schema" : {
+                "$ref" : "#/components/schemas/GrantCourseProductRequest"
+              }
+            }
+          },
+          "required" : true
+        },
+        "responses" : {
+          "201" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/CourseDetailResponse"
+                }
+              }
+            },
+            "description" : "El servicio abre el curso; el curso en la forma del detalle."
+          },
+          "400" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/CourseDetailResponse"
+                }
+              }
+            },
+            "description" : "Identificador inválido (`VAL-001`), `productId` ausente o mal formado (`VAL-002`), o un campo no admitido (`VAL-003`)"
+          },
+          "401" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/CourseDetailResponse"
+                }
+              }
+            },
+            "description" : "Token ausente o inválido (`AUTH-001`)"
+          },
+          "403" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/CourseDetailResponse"
+                }
+              }
+            },
+            "description" : "Autenticado sin el permiso `courses:update` (`AUTH-002`)"
+          },
+          "404" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/CourseDetailResponse"
+                }
+              }
+            },
+            "description" : "El curso no existe o está retirado (`EX-001`)"
+          },
+          "409" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/CourseDetailResponse"
+                }
+              }
+            },
+            "description" : "Ese servicio ya abre el curso; el mensaje lo nombra (`EX-004`)"
+          },
+          "422" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/CourseDetailResponse"
+                }
+              }
+            },
+            "description" : "El producto no existe o está retirado (`EX-002`), o no es un servicio (`EX-003`)"
+          }
+        },
+        "summary" : "Dar visibilidad de un curso a un servicio",
+        "tags" : [ "Cursos" ],
+        "x-required-permission" : "courses:update"
+      }
+    },
+    "/api/v1/courses/{courseId}/products/{productId}" : {
+      "delete" : {
+        "description" : "**Permiso requerido:** `courses:update`. Sin él, `403` (`AUTH-002`).\n\nDeja de abrir el curso con ese servicio: **borra la pareja, sin motivo**, y lo\nregistra como eliminación de una asociación. Sin cuerpo.\n\n**Quitar el último nunca se rechaza**: si el curso tampoco tiene membresías,\n**queda abierto a todos** los alumnos con sesión. **Un servicio retirado en productos\nse quita igual.** Los dos `404` se distinguen por el mensaje: el curso no\nexiste o está retirado, o ese servicio no abre el curso. La respuesta es el\ncurso en la forma del detalle. Exige `courses:update`.\n",
+        "operationId" : "quitarServicio",
+        "parameters" : [ {
+          "in" : "path",
+          "name" : "courseId",
+          "required" : true,
+          "schema" : {
+            "format" : "uuid",
+            "type" : "string"
+          }
+        }, {
+          "in" : "path",
+          "name" : "productId",
+          "required" : true,
+          "schema" : {
+            "format" : "uuid",
+            "type" : "string"
+          }
+        } ],
+        "responses" : {
+          "200" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/CourseDetailResponse"
+                }
+              }
+            },
+            "description" : "El servicio ya no abre el curso; el curso en la forma del detalle."
+          },
+          "400" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/CourseDetailResponse"
+                }
+              }
+            },
+            "description" : "Identificador inválido (`VAL-001`)"
+          },
+          "401" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/CourseDetailResponse"
+                }
+              }
+            },
+            "description" : "Token ausente o inválido (`AUTH-001`)"
+          },
+          "403" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/CourseDetailResponse"
+                }
+              }
+            },
+            "description" : "Autenticado sin el permiso `courses:update` (`AUTH-002`)"
+          },
+          "404" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/CourseDetailResponse"
+                }
+              }
+            },
+            "description" : "El curso no existe o está retirado (`EX-001`), o ese servicio no lo abre (`EX-002`)"
+          }
+        },
+        "summary" : "Quitar la visibilidad de un curso a un servicio",
+        "tags" : [ "Cursos" ],
+        "x-required-permission" : "courses:update"
+      }
+    },
     "/api/v1/courses/{id}" : {
       "get" : {
-        "description" : "**Permiso requerido:** `courses:read`. Sin él, `403` (`AUTH-002`).\n\nEl curso entero: lo suyo, el instructor resuelto, `coverImageUrl`, sus\n**categorías** vivas, los **cursos que recomienda** —con su estado y si se\nofrecen—, las **membresías que lo abren**, y **sus módulos en orden con sus\nlecciones en orden**, vivos y retirados marcados, cada módulo con `offerable`\ny cada lección con tipo, duración, estado y `open` — **sin el contenido**, que\nse pide por lección. La duración total y la cuenta de lecciones se suman sobre\nlo vivo.\n\n**`offerable` y `offerableReason` viajan siempre**, con el primer motivo que\nfalla en su orden: retirado, inactivo, sin descripción, sin membresías, sin\nmódulo activo con lección activa con contenido. Es la vista con la que se\narma el curso y se ve qué le falta para publicarse.\n\n**Se devuelve también un retirado**, con `deletedAt` y `deletionReason`\n—leído de la auditoría— y su árbol marcado: es la lectura de administración\ny devuelve todo.\n",
+        "description" : "**Permiso requerido:** `courses:read`. Sin él, `403` (`AUTH-002`).\n\nEl curso entero: lo suyo, el instructor resuelto, `coverImageUrl`, sus\n**categorías** vivas, los **cursos que recomienda** —con su estado y si se\nofrecen—, las **membresías** y los **servicios** que lo abren —estos en\n`products`, con código y nombre, también el que productos retiró después—, y\n**sus módulos en orden con sus\nlecciones en orden**, vivos y retirados marcados, cada módulo con `offerable`\ny cada lección con tipo, duración, estado y `open` — **sin el contenido**, que\nse pide por lección. La duración total y la cuenta de lecciones se suman sobre\nlo vivo.\n\n**`offerable` y `offerableReason` viajan siempre**, con el primer motivo que\nfalla en su orden: retirado, inactivo, sin descripción, sin módulo activo con\nlección activa con contenido. **Las membresías y los servicios no son motivo**\n(desde el 25-09-2026): deciden a quién se abre; **sin ninguno, el curso es de\ntodos** los alumnos con sesión, y `memberships` y `products` vacíos lo dicen. Es la vista con la que se\narma el curso y se ve qué le falta para publicarse.\n\n**Se devuelve también un retirado**, con `deletedAt` y `deletionReason`\n—leído de la auditoría— y su árbol marcado: es la lectura de administración\ny devuelve todo.\n",
         "operationId" : "detalle_5",
         "parameters" : [ {
           "in" : "path",
@@ -9058,7 +10370,7 @@
         "x-required-permission" : "courses:read"
       },
       "patch" : {
-        "description" : "**Permiso requerido:** `courses:update`. Sin él, `403` (`AUTH-002`).\n\nCorrección **parcial**: solo lo que viene cambia. Admite `title`,\n`instructorId`, `difficulty`, `shortDescription`, `longDescription`,\n`introVideoUrl` y `displayOrder`, por separado o juntos, y exige al menos\nuno. **Ausente y nulo no significan lo mismo**: ausente es «no lo toques»,\nnulo es «vacíalo» — y **solo las descripciones y el video admiten\nvaciarse**; el nulo en los otros cuatro responde `400`, junto con los demás\nerrores de forma.\n\n**Sin inmutables**. **Reasignar el instructor repite la comprobación del\nalta** sobre el nuevo: existe, no está retirado y porta `courses:teach`; al\nmismo no se comprueba nada y nada cambia. **Vaciar una descripción no\ndesactiva**: un curso activo sigue activo y **deja de ofrecerse** —el detalle\ndice «sin descripción»— hasta que alguien la reponga. El estado, la portada,\nlas relaciones y los módulos tienen sus propios endpoints, y en el cuerpo\nresponden `400`.\n\nEl título nuevo no puede ser el de **otro** curso vivo. Un retirado no se\ncorrige (`404`). Un cuerpo sin cambios de valor responde `200` sin avanzar\n`updatedAt` ni auditar. Exige `courses:update`.\n",
+        "description" : "**Permiso requerido:** `courses:update`. Sin él, `403` (`AUTH-002`).\n\nCorrección **parcial**: solo lo que viene cambia. Admite `title`,\n`instructorId`, `difficulty`, `shortDescription`, `longDescription`,\n`introVideoUrl` y `displayOrder`, por separado o juntos, y exige al menos\nuno; el video, **solo de YouTube o de Vimeo**. **Ausente y nulo no significan lo mismo**: ausente es «no lo toques»,\nnulo es «vacíalo» — y **solo las descripciones y el video admiten\nvaciarse**; el nulo en los otros cuatro responde `400`, junto con los demás\nerrores de forma.\n\n**Sin inmutables**. **Reasignar el instructor repite la comprobación del\nalta** sobre el nuevo: existe, no está retirado y porta `courses:teach`; al\nmismo no se comprueba nada y nada cambia. **Vaciar una descripción no\ndesactiva**: un curso activo sigue activo y **deja de ofrecerse** —el detalle\ndice «sin descripción»— hasta que alguien la reponga. El estado, la portada,\nlas relaciones y los módulos tienen sus propios endpoints, y en el cuerpo\nresponden `400`.\n\nEl título nuevo no puede ser el de **otro** curso vivo. Un retirado no se\ncorrige (`404`). Un cuerpo sin cambios de valor responde `200` sin avanzar\n`updatedAt` ni auditar. Exige `courses:update`.\n",
         "operationId" : "corregir_4",
         "parameters" : [ {
           "in" : "path",
@@ -9156,9 +10468,94 @@
         "x-required-permission" : "courses:update"
       }
     },
+    "/api/v1/courses/{id}/cover" : {
+      "put" : {
+        "description" : "**Permiso requerido:** `courses:update`. Sin él, `403` (`AUTH-002`).\n\nRecibe **un archivo** —`multipart/form-data`, una sola parte llamada\n`file`— y lo convierte en la portada del curso, **tal cual**. **El alta\ndel curso es JSON y no admite la imagen**: se crea el curso y se sube su\nportada con esta operación justo después.\n\n**El tipo lo deciden los bytes, no la cabecera**: `JPEG`, `PNG` o `WebP`,\nreconocidos por su firma. **Hasta 5 MB** (`VAL-004`); sin archivo o vacío,\n`VAL-002`; otro formato, `VAL-003`. Los tres nombran `file`, y son **los\nmismos de la portada de un producto**.\n\n**Si ya tenía portada, la reemplaza**: la nueva estrena identificador, **la\nanterior se borra** y `coverImageUrl` cambia de dirección —\n`/api/v1/academy-images/{imageId}`, pública y con caché inmutable—, en el\ndetalle y en el listado. **En cualquier estado**: un curso `INACTIVO`, sin\nmódulos y sin membresías recibe su portada igual. Un curso retirado\nresponde `404`. Exige `courses:update`; **`course-categories:update` no\nhabilita**.\n",
+        "operationId" : "subirPortada_2",
+        "parameters" : [ {
+          "in" : "path",
+          "name" : "id",
+          "required" : true,
+          "schema" : {
+            "format" : "uuid",
+            "type" : "string"
+          }
+        } ],
+        "requestBody" : {
+          "content" : {
+            "multipart/form-data" : {
+              "schema" : {
+                "properties" : {
+                  "file" : {
+                    "format" : "binary",
+                    "type" : "string"
+                  }
+                },
+                "type" : "object"
+              }
+            }
+          }
+        },
+        "responses" : {
+          "200" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/CourseDetailResponse"
+                }
+              }
+            },
+            "description" : "El curso, con `coverImageUrl` señalando la imagen nueva."
+          },
+          "400" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/CourseDetailResponse"
+                }
+              }
+            },
+            "description" : "Identificador inválido (`VAL-001`), sin archivo o vacío (`VAL-002`), ni JPEG ni PNG ni WebP por sus bytes (`VAL-003`), más de 5 MB (`VAL-004`) o petición que no es `multipart/form-data` (`EX-002`)"
+          },
+          "401" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/CourseDetailResponse"
+                }
+              }
+            },
+            "description" : "Token ausente o inválido (`AUTH-001`)"
+          },
+          "403" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/CourseDetailResponse"
+                }
+              }
+            },
+            "description" : "Autenticado sin el permiso `courses:update` (`AUTH-002`)"
+          },
+          "404" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/CourseDetailResponse"
+                }
+              }
+            },
+            "description" : "El curso no existe o está retirado (`EX-001`)"
+          }
+        },
+        "summary" : "Subir o reemplazar la portada de un curso",
+        "tags" : [ "Cursos" ],
+        "x-required-permission" : "courses:update"
+      }
+    },
     "/api/v1/courses/{id}/deletion" : {
       "post" : {
-        "description" : "**Permiso requerido:** `courses:delete`. Sin él, `403` (`AUTH-002`).\n\nBaja **lógica y con motivo**: la fila se queda con `deletedAt` puesto y nada\nmás cambiado —ni el estado—, y el motivo y la instantánea —con los\nidentificadores de sus categorías, membresías, recomendados y módulos— van a\nla auditoría de eliminación. **`POST` y no `DELETE`** porque el cuerpo lleva\nel motivo, que es obligatorio.\n\n**Retirar un curso arrastra sus módulos y lecciones vivos**, con el mismo\ninstante y el mismo motivo, y **una fila de auditoría por cada uno**. Sus\nclasificaciones, recomendaciones y visibilidades **se conservan** y dejan de\nverse; **deja de aparecer como recomendado** en el aula. Un curso que se\nofrece se retira igual y sale del aula en el acto.\n\nEl título del retirado **queda libre**. Sale del listado salvo\n`includeDeleted=true`, y su detalle trae el motivo y el árbol marcado.\nRetirar uno ya retirado responde `409`, distinto del `404` del inexistente.\nExige `courses:delete`.\n",
+        "description" : "**Permiso requerido:** `courses:delete`. Sin él, `403` (`AUTH-002`).\n\nBaja **lógica y con motivo**: la fila se queda con `deletedAt` puesto y nada\nmás cambiado —ni el estado—, y el motivo y la instantánea —con los\nidentificadores de sus categorías, membresías, servicios, recomendados y\nmódulos— van a\nla auditoría de eliminación. **`POST` y no `DELETE`** porque el cuerpo lleva\nel motivo, que es obligatorio.\n\n**Retirar un curso arrastra sus módulos y lecciones vivos**, con el mismo\ninstante y el mismo motivo, y **una fila de auditoría por cada uno**. Sus\nclasificaciones, recomendaciones y visibilidades **se conservan** y dejan de\nverse; **deja de aparecer como recomendado** en el aula. Un curso que se\nofrece se retira igual y sale del aula en el acto.\n\nEl título del retirado **queda libre**. Sale del listado salvo\n`includeDeleted=true`, y su detalle trae el motivo y el árbol marcado.\nRetirar uno ya retirado responde `409`, distinto del `404` del inexistente.\nExige `courses:delete`.\n",
         "operationId" : "retirar_3",
         "parameters" : [ {
           "in" : "path",
@@ -9205,7 +10602,7 @@
     },
     "/api/v1/courses/{id}/status" : {
       "patch" : {
-        "description" : "**Permiso requerido:** `courses:update`. Sin él, `403` (`AUTH-002`).\n\n`ACTIVO` publica; `INACTIVO` despublica. **Activar exige las dos\ndescripciones y al menos un módulo activo**, comprobado **junto**: si faltan\nvarias cosas, la respuesta trae todos los motivos. **No exige una\nmembresía**: un curso activo sin lista existe y no se ofrece, y el detalle\nlo dice. **Desactivar no exige nada** y no toca módulos ni relaciones.\n\nEl estado es lo que alguien decidió: **vaciar una descripción o retirar el\núltimo módulo activo después no lo cambia** — el curso deja de ofrecerse, y\n`offerableReason` dice por qué. Pedir el estado que ya tiene responde `200`\nsin escribir ni auditar. Un retirado responde `404`. Exige `courses:update`.\n",
+        "description" : "**Permiso requerido:** `courses:update`. Sin él, `403` (`AUTH-002`).\n\n`ACTIVO` publica; `INACTIVO` despublica. **Activar exige las dos\ndescripciones y al menos un módulo activo**, comprobado **junto**: si faltan\nvarias cosas, la respuesta trae todos los motivos. **No exige una\nmembresía ni un servicio**: **activar un curso armado sin ninguno lo abre a\ntodos** los alumnos con sesión (desde el 25-09-2026). **Desactivar no exige nada** y no toca módulos ni relaciones.\n\nEl estado es lo que alguien decidió: **vaciar una descripción o retirar el\núltimo módulo activo después no lo cambia** — el curso deja de ofrecerse, y\n`offerableReason` dice por qué. Pedir el estado que ya tiene responde `200`\nsin escribir ni auditar. Un retirado responde `404`. Exige `courses:update`.\n",
         "operationId" : "cambiarEstado_6",
         "parameters" : [ {
           "in" : "path",
@@ -9617,6 +11014,66 @@
         "tags" : [ "Hotlinks" ]
       }
     },
+    "/api/v1/hotlinks/{username}/{code}/purchases" : {
+      "post" : {
+        "description" : "**Permiso requerido:** `products:buy-by-hotlink`. Sin él, `403` (`AUTH-002`).\n\nRegistra la compra del producto que llegó por el enlace de un vendedor, y\n**se la acredita a ese vendedor** (`RN-MV-025`) — también cuando quien\ncompra tiene otro agente principal.\n\n**Produce la misma venta que una compra ordinaria**: tipo `VENTA`, estado\n`PENDIENTE`, una línea con el precio y la vigencia **congelados**. Nada se\nentrega ni se cobra aquí; eso es `RF-MV-003`.\n\n**Y crea el vínculo**: si quien compra no era todavía cliente de ese\nvendedor, pasa a serlo con origen `HOTLINK` y esta venta como la primera\n(`RN-SP-049`). Si ya lo era, no se crea nada y la venta se atribuye igual.\n\n**Lo que NO hace, y conviene leerlo:** no cambia el agente **principal**.\nEsa es la persona que registró al cliente, es inmutable, y comprar por el\nenlace de otro **suma** un vendedor sin sustituir a ninguno.\n\n**La venta nace `VALIDADO`** aunque el cliente quede con varios vendedores.\nEs la excepción a `RN-MV-034` —que deja por validar las ventas de quien\ntiene más de uno— y la razón es que aquí **no hay nada que elegir**: el\nenlace ya dice quién trajo la venta.\n\n**El vendedor no viaja en el cuerpo.** Sale de la ruta, que es la prueba\nde qué enlace se usó. En el cuerpo, cualquiera podría acreditarle una\nventa a cualquiera.\n\n**El `404` es uno solo y no dice qué falló**: que el vendedor no exista,\nque no sea vendedor, que esté inactivo o que el producto no se ofrezca por\nenlace responden lo mismo. Es la decisión de seguridad de `RF-PM-008`, y\nesta ruta la hereda porque el enlace es público y los nombres de usuario\nse pueden probar.\n",
+        "operationId" : "comprar_1",
+        "parameters" : [ {
+          "in" : "path",
+          "name" : "username",
+          "required" : true,
+          "schema" : {
+            "type" : "string"
+          }
+        }, {
+          "in" : "path",
+          "name" : "code",
+          "required" : true,
+          "schema" : {
+            "type" : "string"
+          }
+        } ],
+        "requestBody" : {
+          "content" : {
+            "application/json" : {
+              "schema" : {
+                "$ref" : "#/components/schemas/HotlinkPurchaseRequest"
+              }
+            }
+          }
+        },
+        "responses" : {
+          "201" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/PurchaseResponse"
+                }
+              }
+            },
+            "description" : "La venta registrada, **sin el vendedor**: a quien compra no se le enseña a quién se le acreditó (`RF-MV-002` §3.2)"
+          },
+          "401" : {
+            "description" : "Sin autenticar (`AUTH-001`)"
+          },
+          "403" : {
+            "description" : "Autenticado sin `products:buy-by-hotlink` (`AUTH-002`)"
+          },
+          "404" : {
+            "description" : "El enlace no resuelve (`EX-001`), sin distinguir cuál de los casos"
+          },
+          "422" : {
+            "description" : "Comprar por el **propio** enlace (`EX-003`), o cualquiera de los rechazos de negocio de una venta: nivel, moneda o método de pago"
+          },
+          "500" : {
+            "description" : "Fallo no controlado (`ERR-500`)"
+          }
+        },
+        "summary" : "Comprar un producto por el hotlink de un vendedor",
+        "tags" : [ "Movimientos" ],
+        "x-required-permission" : "products:buy-by-hotlink"
+      }
+    },
     "/api/v1/memberships" : {
       "get" : {
         "description" : "**Permiso requerido:** `memberships:list`. Sin él, `403` (`AUTH-002`).\n\nDevuelve la cadena completa, de la superior al extremo inferior, sin paginar.\n\n`level` es la distancia hasta la cima: `1` es la superior. El orden de la\ncolección lo refleja.\n\nNo se admite paginación ni ordenamiento: el orden **es** la información.\nLos parámetros de paginación se ignoran y devuelven la cadena entera.\n",
@@ -9749,7 +11206,7 @@
     },
     "/api/v1/movements" : {
       "get" : {
-        "description" : "**Permiso requerido:** `movements:read`. Sin él, `403` (`AUTH-002`).\n\nDevuelve **todos los movimientos del libro**, de quien sean, paginados y del más\nreciente al más antiguo. Es la lectura de administración: exige `movements:read`,\ny con él se ve todo — quien no lo tiene recibe `403` aunque tenga movimientos\npropios, que se consultan por `/mine`.\n\n**Los filtros se combinan** y responden una pregunta de operación cada uno:\n`status` (qué está pendiente de confirmar), `userId` (qué compró esta persona —el\nSUJETO, a nombre de quién es—), `sellerId` (qué vendió esta persona, como vendedora\nde **alguna de sus líneas**; una venta con varias líneas suyas aparece **una vez**),\n`paymentMethodId` (qué entró por un medio de pago), `code` (un comprobante exacto,\nsin distinguir mayúsculas) y `from`/`to` sobre **cuándo ocurrió**. `from` y `to` son\ninstantes con zona horaria y el rango es **semiabierto** —incluye `from`, excluye\n`to`—. Un `userId`, `sellerId` o `paymentMethodId` que no exista da una página vacía;\nun `status` que no exista es `400`. Desde el 21-09-2026, `type` (qué depósitos hubo,\nel día que los haya): **el código del tipo de movimiento**, sin distinguir\nmayúsculas — hoy el único es `VENTA`, y filtrar por él devuelve lo mismo que no\nfiltrar. Un `type` que no exista en el catálogo es `400`, como el estado y al revés\nque las personas: el catálogo es cerrado. El catálogo no se publica por ninguna\nruta; los códigos vigentes son los que este párrafo nombra. Desde el 23-09-2026,\n`typeStatus` (qué ventas **faltan por validar**, `RF-MV-016`): el estado del tipo,\nsin distinguir mayúsculas — en una venta, `VALIDAR_COMISIONES` o `VALIDADO`. Uno que\nno exista es `400`, como el tipo.\n\n**Cada fila lleva el tipo de movimiento** (`type`, hoy siempre `VENTA`), el sujeto\n(`user`), **el estado del tipo** (`typeStatus`), los vendedores de sus líneas sin\nrepetir (`sellers`, lista nunca nula y vacía cuando no hay ninguno —también en una\nventa por validar a la que no se le ha asignado ninguno—), y **cuándo se confirmó** (`confirmedAt`): presente en\nlas confirmadas y **nulo** en las demás. No lleva `role` —quien administra no\nparticipa en lo que mira— ni las líneas, que son del detalle.\n\n**El total puede no ser exacto.** El libro crece sin límite, y por encima del techo\nde conteo `totalElements` vale el techo y `totalIsExact` es `false`: hay «más de N»\ny conviene acotar. El orden es fijo y no se puede cambiar.\n",
+        "description" : "**Permiso requerido:** `movements:read`. Sin él, `403` (`AUTH-002`).\n\nDevuelve **todos los movimientos del libro**, de quien sean, paginados y del más\nreciente al más antiguo. Es la lectura de administración: exige `movements:read`,\ny con él se ve todo — quien no lo tiene recibe `403` aunque tenga movimientos\npropios, que se consultan por `/mine`.\n\n**Los filtros se combinan** y responden una pregunta de operación cada uno:\n`status` (qué está pendiente de confirmar), `userId` (qué compró esta persona —el\nSUJETO, a nombre de quién es—), `sellerId` (qué vendió esta persona, como vendedora\nde **alguna de sus líneas**; una venta con varias líneas suyas aparece **una vez**),\n`paymentMethodId` (qué entró por un medio de pago), `code` (**una PARTE del\ncomprobante**, sin distinguir mayúsculas: `a1b2` encuentra `VTA-A1B2C3D4`, y\n`%` y `_` son texto y no comodines, `RN-MV-037`) y `from`/`to` sobre **cuándo ocurrió**. `from` y `to` son\ninstantes con zona horaria y el rango es **semiabierto** —incluye `from`, excluye\n`to`—. Un `userId`, `sellerId` o `paymentMethodId` que no exista da una página vacía;\nun `status` que no exista es `400`. Desde el 21-09-2026, `type` (qué depósitos hubo,\nel día que los haya): **el código del tipo de movimiento**, sin distinguir\nmayúsculas — hoy el único es `VENTA`, y filtrar por él devuelve lo mismo que no\nfiltrar. Un `type` que no exista en el catálogo es `400`, como el estado y al revés\nque las personas: el catálogo es cerrado. El catálogo no se publica por ninguna\nruta; los códigos vigentes son los que este párrafo nombra. Desde el 23-09-2026,\n`typeStatus` (qué ventas **faltan por validar**, `RF-MV-016`): el estado del tipo,\nsin distinguir mayúsculas — en una venta, `VALIDAR_COMISIONES` o `VALIDADO`. Uno que\nno exista es `400`, como el tipo.\n\n**Cada fila lleva el tipo de movimiento** (`type`, hoy siempre `VENTA`), el sujeto\n(`user`), **el estado del tipo** (`typeStatus`), los vendedores de sus líneas sin\nrepetir (`sellers`, lista nunca nula y vacía cuando no hay ninguno —también en una\nventa por validar a la que no se le ha asignado ninguno—), y **cuándo se confirmó** (`confirmedAt`): presente en\nlas confirmadas y **nulo** en las demás. No lleva `role` —quien administra no\nparticipa en lo que mira— ni las líneas, que son del detalle.\n\n**El total puede no ser exacto.** El libro crece sin límite, y por encima del techo\nde conteo `totalElements` vale el techo y `totalIsExact` es `false`: hay «más de N»\ny conviene acotar. El orden es fijo y no se puede cambiar.\n",
         "operationId" : "todos",
         "parameters" : [ {
           "in" : "query",
@@ -9965,7 +11422,7 @@
     },
     "/api/v1/movements/mine/shopping" : {
       "get" : {
-        "description" : "**Permiso requerido:** `movements:list-own`. Sin él, `403` (`AUTH-002`).\n\nDevuelve **los movimientos a nombre de usted** —lo que compró—, paginados y del más\nreciente al más antiguo.\n\n**Esta operación se mudó aquí el 22-09-2026**, desde `GET /api/v1/movements/mine`,\nque **ya no existe**: el listado dejó de traer lo vendido ese mismo día y el nombre\ntenía que decirlo. No hay alias —cada operación exige un permiso que ninguna otra\nexige—, de modo que la ruta anterior responde `404`.\n\n**Desde el 22-09-2026 este listado trae SOLO lo comprado.** Hasta esa fecha traía\ntambién lo que usted hubiera **vendido**, y cada fila decía con `role` en qué papel\naparecía —`BUYER`, `SELLER` o `BOTH`—. **Lo que usted vendió se consulta ahora por\n`GET /api/v1/movements/sales`**, que además le trae lo que vendió su red si usted\ntiene gente a cargo. Con la mitad de vendedor **desaparece `role`**: aquí valdría\nsiempre `BUYER`. Es un cambio incompatible y está declarado.\n\n**Su compra a sí mismo sigue apareciendo, una sola vez.** Quien pertenece a la\nfuerza comercial y no cuelga de nadie es su propio vendedor, y lo que compra es una\ncompra: sale aquí, con usted como `user` y como único `sellers`.\n\n**No hay forma de preguntar por otra persona**, ni indicándola ni teniendo\npermisos: quien pregunta sale de la credencial. Consultar las ventas de terceros es\notra operación, con su permiso.\n\n**El detalle NO se acotó con el listado**: `GET /api/v1/movements/mine/{id}` sigue\nabriendo un movimiento suyo **de cualquiera de las dos formas**, también una venta\nque usted hizo y que este listado ya no le muestra. Es deliberado: sin eso, un\nvendedor no tendría ninguna forma de ver el detalle de lo que vendió.\n\n**Las líneas no viajan aquí.** Una venta puede llevar varias, y meterlas\nmultiplicaría la respuesta por un dato que solo se mira al abrir uno: están en el\ndetalle.\n\n**`sellers` es una lista, sin repetir y nunca nula**: el vendedor es de cada línea y\nuna venta podría llevar varios. Hoy lleva uno. Va **vacía** en los movimientos que\nno tienen vendedor y en una venta por validar a la que aún no se le asignó ninguno.\n\n**Cada fila dice su tipo** (`type`, hoy siempre `VENTA`) desde el 21-09-2026, el\nmismo día que se puede filtrar por él: `type` admite **el código del tipo de\nmovimiento**, sin distinguir mayúsculas, y se combina con `status`. Un `type` que no\nexista en el catálogo es `400`, como el estado: el catálogo es cerrado y no se\npublica por ninguna ruta.\n\n**Y desde ese mismo día, los tres filtros de `GET /movements`**: `paymentMethodId`\n(uno que no exista da página vacía), `code` (el comprobante exacto, sin distinguir\nmayúsculas; **uno ajeno no devuelve nada**: el alcance va antes que el filtro) y\n`from`/`to` sobre **cuándo ocurrió**, instantes con zona horaria, rango semiabierto\n—incluye `from`, excluye `to`—; `from` posterior a `to` es `400`. Todos se combinan.\n\nEl orden es fijo y no se puede cambiar. `status` filtra por estado.\n",
+        "description" : "**Permiso requerido:** `movements:list-own`. Sin él, `403` (`AUTH-002`).\n\nDevuelve **los movimientos a nombre de usted** —lo que compró—, paginados y del más\nreciente al más antiguo.\n\n**Esta operación se mudó aquí el 22-09-2026**, desde `GET /api/v1/movements/mine`,\nque **ya no existe**: el listado dejó de traer lo vendido ese mismo día y el nombre\ntenía que decirlo. No hay alias —cada operación exige un permiso que ninguna otra\nexige—, de modo que la ruta anterior responde `404`.\n\n**Desde el 22-09-2026 este listado trae SOLO lo comprado.** Hasta esa fecha traía\ntambién lo que usted hubiera **vendido**, y cada fila decía con `role` en qué papel\naparecía —`BUYER`, `SELLER` o `BOTH`—. **Lo que usted vendió se consulta ahora por\n`GET /api/v1/movements/sales`**, que además le trae lo que vendió su red si usted\ntiene gente a cargo. Con la mitad de vendedor **desaparece `role`**: aquí valdría\nsiempre `BUYER`. Es un cambio incompatible y está declarado.\n\n**Su compra a sí mismo sigue apareciendo, una sola vez.** Quien pertenece a la\nfuerza comercial y no cuelga de nadie es su propio vendedor, y lo que compra es una\ncompra: sale aquí, con usted como `user` y como único `sellers`.\n\n**No hay forma de preguntar por otra persona**, ni indicándola ni teniendo\npermisos: quien pregunta sale de la credencial. Consultar las ventas de terceros es\notra operación, con su permiso.\n\n**El detalle NO se acotó con el listado**: `GET /api/v1/movements/mine/{id}` sigue\nabriendo un movimiento suyo **de cualquiera de las dos formas**, también una venta\nque usted hizo y que este listado ya no le muestra. Es deliberado: sin eso, un\nvendedor no tendría ninguna forma de ver el detalle de lo que vendió.\n\n**Las líneas no viajan aquí.** Una venta puede llevar varias, y meterlas\nmultiplicaría la respuesta por un dato que solo se mira al abrir uno: están en el\ndetalle.\n\n**`sellers` es una lista, sin repetir y nunca nula**: el vendedor es de cada línea y\nuna venta podría llevar varios. Hoy lleva uno. Va **vacía** en los movimientos que\nno tienen vendedor y en una venta por validar a la que aún no se le asignó ninguno.\n\n**Cada fila dice su tipo** (`type`, hoy siempre `VENTA`) desde el 21-09-2026, el\nmismo día que se puede filtrar por él: `type` admite **el código del tipo de\nmovimiento**, sin distinguir mayúsculas, y se combina con `status`. Un `type` que no\nexista en el catálogo es `400`, como el estado: el catálogo es cerrado y no se\npublica por ninguna ruta.\n\n**Y desde ese mismo día, los tres filtros de `GET /movements`**: `paymentMethodId`\n(uno que no exista da página vacía), `code` (**una PARTE del comprobante**, sin distinguir\nmayúsculas, `RN-MV-037`; **uno ajeno sigue sin devolver nada**: el alcance va\nantes que el filtro, y buscar por fragmento no lo ensancha) y\n`from`/`to` sobre **cuándo ocurrió**, instantes con zona horaria, rango semiabierto\n—incluye `from`, excluye `to`—; `from` posterior a `to` es `400`. Todos se combinan.\n\nEl orden es fijo y no se puede cambiar. `status` filtra por estado.\n",
         "operationId" : "mios",
         "parameters" : [ {
           "in" : "query",
@@ -10105,7 +11562,7 @@
     },
     "/api/v1/movements/sales" : {
       "get" : {
-        "description" : "**Permiso requerido:** `movements:list-sales`. Sin él, `403` (`AUTH-002`).\n\nDevuelve **las ventas que le tocan a quien pregunta según quién es**, paginadas y del\nmás reciente al más antiguo. Es la consulta de las **ventas**; los otros tipos de\nmovimiento tendrán la suya.\n\n**Lo que se ve lo decide el tipo de rol de quien pregunta**, y no un parámetro:\nquien porta un rol de tipo **funcionario** ve todas las ventas; quien porta uno de\ntipo **vendedor** ve las que vendió **él o alguien de su red** —quienes cuelgan de él\nen la estructura comercial vigente, **en toda la profundidad**: el director lo de sus\nagentes, el manager lo de sus directores y por ellos lo de los agentes—; quien porta\nuno de tipo **consumidor** ve solo las ventas **a su nombre**. Un vendedor sin nadie a\ncargo ve lo que vendió él. Un vendedor **no ve aquí lo que compró**: eso es `/mine`.\n\n**`userId` es una persona de mi red como vendedora** —«las ventas de mi agente tal»—\ny acota **dentro** del alcance: una persona fuera de mi red, o inexistente, da una\n**página vacía** y no un error, para que el filtro no sirva para descubrir quién\ncuelga de quién. `status`, `paymentMethodId`, `code` y `from`/`to` son los de\n`GET /movements` y se combinan, y también `typeStatus` (`VALIDAR_COMISIONES` o\n`VALIDADO`, desde el 23-09-2026); **el comprobante de una venta que no es de mi\nalcance tampoco aparece**, escrito como sea. **Una venta por validar no está en el\nalcance de ningún vendedor** mientras ninguna de sus líneas sea suya: aparece en\ncuanto se le asigna una (`RF-MV-016`).\n\n**Cada fila es la misma de `GET /movements`** (`type` siempre `VENTA`, `typeStatus`, `user`,\n`sellers`, importes, `confirmedAt` nulo y presente), sin `role`. **El total puede no\nser exacto** por encima del techo de conteo. Ni `movements:read` ni\n`movements:list-own` abren esta consulta.\n",
+        "description" : "**Permiso requerido:** `movements:list-sales`. Sin él, `403` (`AUTH-002`).\n\nDevuelve **las ventas que le tocan a quien pregunta según quién es**, paginadas y del\nmás reciente al más antiguo. Es la consulta de las **ventas**; los otros tipos de\nmovimiento tendrán la suya.\n\n**Lo que se ve lo decide el tipo de rol de quien pregunta**, y no un parámetro:\nquien porta un rol de tipo **funcionario** ve todas las ventas; quien porta uno de\ntipo **vendedor** ve las que vendió **él o alguien de su red** —quienes cuelgan de él\nen la estructura comercial vigente, **en toda la profundidad**: el director lo de sus\nagentes, el manager lo de sus directores y por ellos lo de los agentes—; quien porta\nuno de tipo **consumidor** ve solo las ventas **a su nombre**. Un vendedor sin nadie a\ncargo ve lo que vendió él. Un vendedor **no ve aquí lo que compró**: eso es `/mine`.\n\n**`userId` es una persona de mi red como vendedora** —«las ventas de mi agente tal»—\ny acota **dentro** del alcance: una persona fuera de mi red, o inexistente, da una\n**página vacía** y no un error, para que el filtro no sirva para descubrir quién\ncuelga de quién. `code` acepta **una PARTE del comprobante**, sin distinguir\nmayúsculas (`RN-MV-037`). `status`, `paymentMethodId`, `code` y `from`/`to` son los de\n`GET /movements` y se combinan, y también `typeStatus` (`VALIDAR_COMISIONES` o\n`VALIDADO`, desde el 23-09-2026); **el comprobante de una venta que no es de mi\nalcance tampoco aparece**, escrito como sea. **Una venta por validar no está en el\nalcance de ningún vendedor** mientras ninguna de sus líneas sea suya: aparece en\ncuanto se le asigna una (`RF-MV-016`).\n\n**Cada fila es la misma de `GET /movements`** (`type` siempre `VENTA`, `typeStatus`, `user`,\n`sellers`, importes, `confirmedAt` nulo y presente), sin `role`. **El total puede no\nser exacto** por encima del techo de conteo. Ni `movements:read` ni\n`movements:list-own` abren esta consulta.\n",
         "operationId" : "misVentas",
         "parameters" : [ {
           "in" : "query",
@@ -10208,7 +11665,7 @@
     },
     "/api/v1/movements/sales/lines" : {
       "get" : {
-        "description" : "**Permiso requerido:** `movements:list-sale-lines`. Sin él, `403` (`AUTH-002`).\n\nDevuelve **una fila por LÍNEA de venta** —no por venta—, paginadas y de la más\nreciente a la más antigua. Es la consulta que responde **qué se ha vendido**:\n`GET /movements` y `GET /movements/sales` devuelven una fila por venta con sus\nimportes agregados, de modo que para ver los productos hay que abrir cada una.\n\n**Una venta de tres productos aporta tres filas**, con los datos de la venta\nrepetidos en cada una. El identificador de la línea (`lineId`) no se publica en\nninguna otra consulta.\n\n**Es la lectura de ADMINISTRACIÓN: con el permiso se ve todo el libro**, de quien\nsea. **No tiene alcance por estructura** —el vendedor NO ve aquí solo su red—:\neso es `GET /movements/sales`, y quien quiera lo suyo tiene\n`GET /movements/mine/products`. Quien no porta `movements:list-sale-lines` recibe\n`403` aunque tenga compras propias; ni `movements:read` ni `movements:list-sales`\nabren esta consulta.\n\n**El nombre del producto es el que tenía el día de la venta**, no el del catálogo\nde hoy: si alguien lo renombró después, aquí sigue diciendo qué se vendió. El\n**código**, en cambio, se lee del catálogo, que es inmutable.\n\n**`seller` puede venir presente y NULO**, y la fila **no desaparece** por eso: el\nvendedor es de la línea y hay movimientos que no lo llevan.\n\n**El estado de entrega va crudo** —`deliveryStatus`, `deliveredAt`,\n`deliveryNote`, `implementation`—, y no derivado como en\n`GET /movements/mine/products`: administración necesita saber por qué algo está\ndonde está.\n\n**Los ocho filtros se combinan** y cada uno responde una pregunta: `movementId`\n(las líneas de una venta), `userId` (qué compró esta persona, el sujeto),\n`sellerId` (qué vendió esta persona, **como vendedora de la línea**), `productId`\n(qué se vendió de este producto), `status` (el estado de la VENTA),\n`deliveryStatus` (el de la LÍNEA), `typeStatus` (el estado del TIPO de la venta,\n`VALIDAR_COMISIONES` o `VALIDADO`: la pregunta «qué falta por validar»),\n`code` (un comprobante exacto, sin distinguir\nmayúsculas) y `from`/`to` sobre **cuándo ocurrió la venta**, con el rango\n**semiabierto** —incluye `from`, excluye `to`—. Un identificador inexistente da\n**página vacía**; un estado que no existe es `400`, porque el catálogo es cerrado.\nLos problemas de forma se devuelven **juntos**.\n\n**`typeStatus` se puede filtrar pero NO viaja en la fila**, y conviene saberlo antes\nde integrar: para ver el estado del tipo de una venta está\n`GET /movements` —que lo publica— y el detalle. Aquí se puede acotar por él y la\nfila no lo trae, por decisión del responsable del proyecto del 23-09-2026.\n\n**El total puede no ser exacto**: por encima del techo de conteo vale el techo y\n`totalIsExact` lo declara. Aquí importa más que en ningún otro listado, porque una\nventa de cinco productos son cinco filas.\n",
+        "description" : "**Permiso requerido:** `movements:list-sale-lines`. Sin él, `403` (`AUTH-002`).\n\nDevuelve **una fila por LÍNEA de venta** —no por venta—, paginadas y de la más\nreciente a la más antigua. Es la consulta que responde **qué se ha vendido**:\n`GET /movements` y `GET /movements/sales` devuelven una fila por venta con sus\nimportes agregados, de modo que para ver los productos hay que abrir cada una.\n\n**Una venta de tres productos aporta tres filas**, con los datos de la venta\nrepetidos en cada una. El identificador de la línea (`lineId`) no se publica en\nninguna otra consulta.\n\n**Es la lectura de ADMINISTRACIÓN: con el permiso se ve todo el libro**, de quien\nsea. **No tiene alcance por estructura** —el vendedor NO ve aquí solo su red—:\neso es `GET /movements/sales`, y quien quiera lo suyo tiene\n`GET /movements/mine/products`. Quien no porta `movements:list-sale-lines` recibe\n`403` aunque tenga compras propias; ni `movements:read` ni `movements:list-sales`\nabren esta consulta.\n\n**El nombre del producto es el que tenía el día de la venta**, no el del catálogo\nde hoy: si alguien lo renombró después, aquí sigue diciendo qué se vendió. El\n**código**, en cambio, se lee del catálogo, que es inmutable.\n\n**`seller` puede venir presente y NULO**, y la fila **no desaparece** por eso: el\nvendedor es de la línea y hay movimientos que no lo llevan.\n\n**El estado de entrega va crudo** —`deliveryStatus`, `deliveredAt`,\n`deliveryNote`, `implementation`—, y no derivado como en\n`GET /movements/mine/products`: administración necesita saber por qué algo está\ndonde está.\n\n**Solo trae las líneas de ventas CONFIRMADAS** (`RN-MV-038`, 24-09-2026). Las de\nuna venta `PENDIENTE`, `ANULADA` o `RECHAZADA` **no aparecen**, y no hay forma de\npedirlas: lo decide la consulta y no un filtro. `movementStatus` viaja en cada\nlínea y dirá siempre `CONFIRMADA`.\n\n**Los siete filtros se combinan** y cada uno responde una pregunta: `movementId`\n(las líneas de una venta), `userId` (qué compró esta persona, el sujeto),\n`sellerId` (qué vendió esta persona, **como vendedora de la línea**), `productId`\n(qué se vendió de este producto),\n`deliveryStatus` (el de la LÍNEA, que **no** es el de la venta: una confirmada\ntiene líneas `ENTREGADA`, `PENDIENTE` de autorización y `RETENIDA`), `typeStatus` (el estado del TIPO de la venta,\n`VALIDAR_COMISIONES` o `VALIDADO`: la pregunta «qué falta por validar»),\n`code` (**una PARTE del comprobante**, sin\ndistinguir mayúsculas, `RN-MV-037`) y `from`/`to` sobre **cuándo ocurrió la venta**, con el rango\n**semiabierto** —incluye `from`, excluye `to`—. Un identificador inexistente da\n**página vacía**; un estado que no existe es `400`, porque el catálogo es cerrado.\nLos problemas de forma se devuelven **juntos**.\n\n**`typeStatus` se puede filtrar pero NO viaja en la fila**, y conviene saberlo antes\nde integrar: para ver el estado del tipo de una venta está\n`GET /movements` —que lo publica— y el detalle. Aquí se puede acotar por él y la\nfila no lo trae, por decisión del responsable del proyecto del 23-09-2026.\n\n**El total puede no ser exacto**: por encima del techo de conteo vale el techo y\n`totalIsExact` lo declara. Aquí importa más que en ningún otro listado, porque una\nventa de cinco productos son cinco filas.\n",
         "operationId" : "lineasDeVenta",
         "parameters" : [ {
           "in" : "query",
@@ -10256,13 +11713,6 @@
           "required" : false,
           "schema" : {
             "format" : "uuid",
-            "type" : "string"
-          }
-        }, {
-          "in" : "query",
-          "name" : "status",
-          "required" : false,
-          "schema" : {
             "type" : "string"
           }
         }, {
@@ -14763,107 +16213,6 @@
         "x-required-permission" : "users:delete"
       }
     },
-    "/api/v1/users/{id}/membership" : {
-      "delete" : {
-        "description" : "**Permiso requerido:** `users:revoke-membership`. Sin él, `403` (`AUTH-002`).\n\n**Devuelve al nivel de arranque, y no deja a nadie sin nivel.** Desde el\n05-09-2026 `RN-SP-018` exige que **toda** persona tenga membresía, de\nmodo que esta operación cierra la que tenga y le abre una `BECA`.\n\nExiste para **corregir un nivel concedido por error**. Bajar a alguien a\nun nivel intermedio es la operación de membresía, que admite indicar\ncuál.\n\n**Responde `200` con la membresía resultante**, no `204`: devolver un\ncuerpo vacío diría que no queda nada, y queda el nivel de arranque —\nquien llama necesita saber en qué quedó la persona sin volver a\npreguntar.\n\n**Es idempotente.** Aplicada sobre quien ya está en el suelo no escribe\nni audita, y devuelve lo mismo.\n\n**Ya no rechaza a los consumidores.** Hasta el 05-09-2026 exigía que la\npersona **no** portara ningún rol de consumidor, porque la regla de\nentonces no admitía consumidores sin nivel; retirada `RN-SP-013`, esa\nprecondición no protege nada.\n\n**Conserva el `DELETE`** y no le alcanza la enmienda del retiro de\nroles: esta operación no lleva cuerpo, de modo que el problema que\naquella evitaba no existe aquí.\n",
-        "operationId" : "devolverMembresiaAlSuelo",
-        "parameters" : [ {
-          "in" : "path",
-          "name" : "id",
-          "required" : true,
-          "schema" : {
-            "format" : "uuid",
-            "type" : "string"
-          }
-        } ],
-        "responses" : {
-          "200" : {
-            "content" : {
-              "*/*" : {
-                "schema" : {
-                  "$ref" : "#/components/schemas/UserMembershipResponse"
-                }
-              }
-            },
-            "description" : "La persona queda en el nivel de arranque, que se devuelve."
-          },
-          "400" : {
-            "description" : "Identificador malformado (`VAL-001`)"
-          },
-          "401" : {
-            "description" : "Token ausente o inválido (`AUTH-001`)"
-          },
-          "403" : {
-            "description" : "Autenticado sin `users:revoke-membership` (`AUTH-002`)"
-          },
-          "404" : {
-            "description" : "La persona no existe o está eliminada (`VAL-002`)"
-          },
-          "500" : {
-            "description" : "Fallo no controlado (`ERR-500`)"
-          }
-        },
-        "summary" : "Devolver la membresía de una persona al suelo",
-        "tags" : [ "Usuarios" ],
-        "x-required-permission" : "users:revoke-membership"
-      },
-      "put" : {
-        "description" : "**Permiso requerido:** `users:assign-membership`. Sin él, `403` (`AUTH-002`).\n\n**`PUT` y no `POST`**, al revés que la asignación de roles, y la\ndiferencia no es de gusto: aquí el cuerpo **sí** representa el estado\nfinal. La persona tiene siempre exactamente una, de modo que enviar una\nla deja como la única — y de ahí sale gratis la idempotencia.\n\n`endsAt` es opcional. **Ausente significa indefinida**: enviarlo ausente\nsobre una membresía que tenía fecha la convierte en indefinida, y es un\ncaso normal, no un olvido que haya que interpretar. Presente, la\nmembresía deja de estar vigente **al llegar** ese instante, no después.\n\nRepetir la petición idéntica no escribe ni deja auditoría. Cambiar solo\nla fecha sí es un cambio y sí se registra.\n\nDevuelve `200` incluso la primera vez: `PUT` sobre una ruta fija no crea\nun recurso direccionable nuevo.\n",
-        "operationId" : "fijarMembresia",
-        "parameters" : [ {
-          "in" : "path",
-          "name" : "id",
-          "required" : true,
-          "schema" : {
-            "format" : "uuid",
-            "type" : "string"
-          }
-        } ],
-        "requestBody" : {
-          "content" : {
-            "application/json" : {
-              "schema" : {
-                "$ref" : "#/components/schemas/AssignMembershipRequest"
-              }
-            }
-          },
-          "required" : true
-        },
-        "responses" : {
-          "200" : {
-            "content" : {
-              "*/*" : {
-                "schema" : {
-                  "$ref" : "#/components/schemas/UserMembershipResponse"
-                }
-              }
-            },
-            "description" : "La membresía, con su nivel y su vigencia."
-          },
-          "400" : {
-            "description" : "Membresía ausente o malformada (`VAL-001`), o fecha de fin igual o anterior al momento de la asignación (`VAL-005`)"
-          },
-          "401" : {
-            "description" : "Token ausente o inválido (`AUTH-001`)"
-          },
-          "403" : {
-            "description" : "Autenticado sin `users:assign-membership` (`AUTH-002`)"
-          },
-          "404" : {
-            "description" : "La persona no existe o está eliminada (`VAL-004`)"
-          },
-          "422" : {
-            "description" : "La membresía indicada no existe en la cadena (`VAL-002`)"
-          },
-          "500" : {
-            "description" : "Fallo no controlado (`ERR-500`)"
-          }
-        },
-        "summary" : "Fijar la membresía de una persona",
-        "tags" : [ "Usuarios" ],
-        "x-required-permission" : "users:assign-membership"
-      }
-    },
     "/api/v1/users/{id}/password-reset" : {
       "post" : {
         "description" : "**Permiso requerido:** `users:reset-password`. Sin él, `403` (`AUTH-002`).\n\nFija una credencial **provisional** sobre la cuenta indicada. `POST`\nsobre un subrecurso y no `PATCH` sobre el usuario: cada petición **crea**\nun restablecimiento, que es un hecho con fecha y con caducidad propia.\n\n**La credencial CADUCA.** Sin plazo, una cuenta restablecida y nunca\nusada conserva indefinidamente una contraseña que otra persona conoce, y\nnadie se entera porque no falla nada. Quien comprueba el plazo es el\ninicio de sesión.\n\nLa cuenta queda marcada para **cambio obligatorio**: la ventana en que\ndos personas conocen la misma contraseña se cierra en el primer inicio\nde sesión.\n\n**No toca el estado ni el bloqueo**: restablecer no es reactivar. Una\ncuenta desactivada sigue desactivada.\n\n**La contraseña asignada no se devuelve**: la conoce quien la escribió, y\nrepetirla la expondría a cualquier registro de la operación. Tampoco la\nfecha de caducidad — quien la necesite consulta el detalle.\n\nRevoca **todas** las sesiones de la persona.\n",
@@ -15294,7 +16643,7 @@
     "description" : "Alta y administración de las personas del sistema.",
     "name" : "Usuarios"
   }, {
-    "description" : "Lo que la membresía abre: los cursos de la academia.",
+    "description" : "Lo que la membresía o el servicio abren: los cursos de la academia.",
     "name" : "Cursos"
   }, {
     "description" : "A cuánto se cambia una moneda por otra",
@@ -15311,6 +16660,9 @@
   }, {
     "description" : "Inicio, renovación y cierre de sesión.",
     "name" : "Sesión"
+  }, {
+    "description" : "Lo que el alumno ve y estudia: el catálogo, el curso y el contenido.",
+    "name" : "Aula"
   }, {
     "description" : "Catálogo de documentos de identidad admitidos. Solo lectura: su contenido es la validación de mayoría de edad (RN-SP-036).",
     "name" : "Tipos de documento"

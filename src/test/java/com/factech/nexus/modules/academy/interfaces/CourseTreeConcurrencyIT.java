@@ -82,7 +82,7 @@ class CourseTreeConcurrencyIT extends IntegrationTestBase {
                         .with(con("courses:update"))
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(
-                            "{\"type\":\"TEXTO\",\"title\":\"Repetida\",\"durationMinutes\":1,\"displayOrder\":"
+                            "{\"type\":\"TEXTO\",\"title\":\"Repetida\",\"durationSeconds\":1,\"displayOrder\":"
                                 + i
                                 + "}")));
     comprobar(r, 201);

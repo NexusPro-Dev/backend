@@ -47,8 +47,8 @@ final class PackageTestSupport {
     jdbc.update("DELETE FROM product_comments");
     jdbc.update("DELETE FROM product_images");
     jdbc.update("DELETE FROM products");
-    // Antes que las membresías: `user_memberships` las referencia (`V57`).
-    jdbc.update("DELETE FROM user_memberships");
+    // Antes que las membresías: `user_products` las referencia (`V57`).
+    jdbc.update("DELETE FROM user_products");
     jdbc.update("DELETE FROM memberships");
     UUID oro = membresia(jdbc, "ORO", 1, null);
     UUID platino = membresia(jdbc, "PLATINO", 2, oro);

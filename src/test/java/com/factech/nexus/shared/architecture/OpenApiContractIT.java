@@ -252,41 +252,20 @@ class OpenApiContractIT extends IntegrationTestBase {
   }
 
   @Test
-  @DisplayName("la membresía de una persona se fija con PUT y se devuelve al suelo con DELETE")
-  void laMembresiaDeUnaPersonaEstaDocumentada() throws Exception {
-    // `PUT` y no `POST` porque el cuerpo **sí** representa el estado final: la
-    // persona tiene exactamente una membresía. Y `DELETE` se conserva porque esta
-    // operación no lleva cuerpo, de modo que el problema que obligó a cambiarlo
-    // en el retiro de roles no existe aquí.
+  @DisplayName("la membresía YA NO se fija por la API: las dos rutas salieron del contrato")
+  void laMembresiaYaNoSeFijaPorLaApi() throws Exception {
+    // INVERTIDA EL 23-09-2026, y era el par de pruebas que mas decia de la
+    // operacion: una comprobaba que el `PUT` estaba documentado con su `422` y
+    // sin `409`, y la otra que el `DELETE` no declaraba cuerpo —lo unico que le
+    // permitia seguir siendo un `DELETE`—. `RF-SP-032` y `RF-SP-033` quedaron
+    // descartados (`RN-SP-056`): el nivel se compra (`RF-MV-003`) o se recibe al
+    // registrarse, y la ruta entera desaparece del contrato con sus dos permisos.
+    //
+    // Se comprueba el CAMINO y no solo los verbos: dejar la ruta publicada sin
+    // operaciones seria un contrato que anuncia un recurso que no responde.
     mvc.perform(get("/v3/api-docs").with(user("doc")))
         .andExpect(status().isOk())
-        .andExpect(jsonPath("$.paths['/api/v1/users/{id}/membership'].put").exists())
-        // EL `409` DESAPARECIÓ DEL `PUT` el 05-09-2026, con `RN-SP-013`: asignar
-        // una membresía ya no puede chocar con ninguna regla de negocio.
-        .andExpect(
-            jsonPath("$.paths['/api/v1/users/{id}/membership'].put.responses.409").doesNotExist())
-        .andExpect(jsonPath("$.paths['/api/v1/users/{id}/membership'].put.responses.422").exists())
-        .andExpect(jsonPath("$.paths['/api/v1/users/{id}/membership'].delete").exists())
-        // Y EL `DELETE` PASÓ DE `204` A `200`: ya no retira, devuelve al suelo, y
-        // el cuerpo dice en qué nivel quedó la persona.
-        .andExpect(
-            jsonPath("$.paths['/api/v1/users/{id}/membership'].delete.responses.200").exists())
-        .andExpect(
-            jsonPath("$.paths['/api/v1/users/{id}/membership'].delete.responses.204")
-                .doesNotExist());
-  }
-
-  @Test
-  @DisplayName("el retiro de membresía NO declara cuerpo de petición ni POST")
-  void elRetiroDeMembresiaNoLlevaCuerpo() throws Exception {
-    // Que no lleve cuerpo es justo lo que le permite seguir siendo un `DELETE`;
-    // si algún día apareciera aquí un `requestBody`, esa justificación dejaría
-    // de valer y habría que convertirlo en un subrecurso.
-    mvc.perform(get("/v3/api-docs").with(user("doc")))
-        .andExpect(status().isOk())
-        .andExpect(
-            jsonPath("$.paths['/api/v1/users/{id}/membership'].delete.requestBody").doesNotExist())
-        .andExpect(jsonPath("$.paths['/api/v1/users/{id}/membership'].post").doesNotExist());
+        .andExpect(jsonPath("$.paths['/api/v1/users/{id}/membership']").doesNotExist());
   }
 
   @Test

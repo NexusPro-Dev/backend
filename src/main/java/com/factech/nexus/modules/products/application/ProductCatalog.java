@@ -71,6 +71,20 @@ public interface ProductCatalog {
   List<SaleView> saleViewOf(Collection<UUID> ids);
 
   /**
+   * El producto que un ENLACE puede vender, por su codigo (`RF-MV-011`, `RN-PM-021`).
+   *
+   * <p><b>Por codigo y no por identificador</b>: es lo que el enlace lleva escrito, y lo que quien
+   * compra tiene en la mano. El identificador es un dato de administracion — el mismo criterio con
+   * el que {@code PackageCatalog.storeSaleViewOf} resuelve el paquete.
+   *
+   * <p><b>Vacio si el producto no se ofrece por enlace</b>, con el MISMO predicado que `RF-PM-008`
+   * usa para publicarlo —activo, no retirado, alcance {@code HOTLINK} o {@code AMBOS}—. No es una
+   * segunda definicion: si aquel dejara de publicarlo, este dejaria de venderlo, y al reves. Quien
+   * llama convierte el vacio en el 404 unico del enlace.
+   */
+  Optional<SaleView> hotlinkSaleViewOf(String code);
+
+  /**
    * De esos productos, <b>cuáles puede comprar esa persona</b> (`RF-MV-001` · `T-06`).
    *
    * <p><b>Recibe la persona y no su nivel</b>, y es lo que hace que esta interfaz siga valiendo el
@@ -132,8 +146,27 @@ public interface ProductCatalog {
    */
   Map<UUID, String> couponLinksOf(Collection<UUID> ids);
 
+  /**
+   * El producto con <b>lo que es</b>: si es un {@code BOT}, además de si está retirado
+   * (`RF-AC-037`, `RN-AC-020`).
+   *
+   * <p><b>Una lectura propia y no un campo más en {@link ProductView}</b>, por la norma de esta
+   * interfaz desde {@link #findPrice}: `CM` consume aquella vista y no necesita el tipo. La pide
+   * `AC`, que solo deja abrir un curso a un servicio, y el tipo viaja como <b>booleano</b> —como
+   * {@code upgrade} en {@link SaleView}— para no atar a nadie al enumerado de `PM`.
+   *
+   * <p><b>No filtra nada</b>, como {@link #find}: el retirado y el que no es servicio se distinguen
+   * del inexistente, porque son rechazos distintos.
+   *
+   * @param id identificador del producto; un valor nulo devuelve vacío en lugar de fallar
+   */
+  Optional<KindView> findKind(UUID id);
+
   /** Lo que cruza la frontera: datos planos, sin comportamiento y sin entidad. */
   record ProductView(UUID id, String code, String name, boolean retired) {}
+
+  /** El producto con su tipo reducido a lo que se pregunta: ¿es un servicio? */
+  record KindView(UUID id, String code, String name, boolean bot, boolean retired) {}
 
   /**
    * La vista de venta: lo que se <b>copia</b> y lo que se <b>comprueba</b>.

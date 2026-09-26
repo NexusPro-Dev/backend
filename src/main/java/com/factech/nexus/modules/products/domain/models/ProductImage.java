@@ -1,13 +1,11 @@
 package com.factech.nexus.modules.products.domain.models;
 
-import com.factech.nexus.shared.error.FieldError;
-import com.factech.nexus.shared.error.ValidationException;
+import com.factech.nexus.shared.images.ImageSignature;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.Id;
 import jakarta.persistence.Table;
 import java.time.OffsetDateTime;
-import java.util.List;
 import java.util.UUID;
 
 /**
@@ -36,10 +34,10 @@ import java.util.UUID;
 public class ProductImage {
 
   /** Cinco megabytes exactos: el mismo número que {@code ck_product_images_size}. */
-  public static final int TAMANO_MAXIMO = 5_242_880;
+  public static final int TAMANO_MAXIMO = ImageSignature.TAMANO_MAXIMO;
 
   /** El nombre de la parte del {@code multipart}, y el campo que nombran los tres rechazos. */
-  public static final String CAMPO = "file";
+  public static final String CAMPO = ImageSignature.CAMPO;
 
   @Id private UUID id;
 
@@ -69,16 +67,9 @@ public class ProductImage {
    * @param ahora instante de la subida, inyectado para que la prueba pueda fijarlo
    */
   public static ProductImage de(UUID id, byte[] bytes, OffsetDateTime ahora) {
-    if (bytes == null || bytes.length == 0) {
-      throw rechazo("VAL-002", "La imagen de portada es obligatoria.");
-    }
-    if (bytes.length > TAMANO_MAXIMO) {
-      throw rechazo("VAL-004", "La portada no puede pesar más de 5 MB.");
-    }
-    ImageSignature firma =
-        ImageSignature.de(bytes)
-            .orElseThrow(
-                () -> rechazo("VAL-003", "La portada debe ser una imagen JPEG, PNG o WebP."));
+    // Los tres rechazos viven en `shared/` desde `RF-AC-006`: los mismos para las
+    // portadas de academia, código a código.
+    ImageSignature firma = ImageSignature.validar(bytes);
 
     ProductImage imagen = new ProductImage();
     imagen.id = id;
@@ -86,11 +77,6 @@ public class ProductImage {
     imagen.content = bytes;
     imagen.createdAt = ahora;
     return imagen;
-  }
-
-  private static ValidationException rechazo(String codigo, String mensaje) {
-    return new ValidationException(
-        codigo, mensaje, List.of(new FieldError(CAMPO, codigo, mensaje)));
   }
 
   public UUID getId() {

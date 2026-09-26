@@ -24,7 +24,7 @@ public class JpaClientSellerRepository implements ClientSellerRepository {
 
   private static final String PROYECCION =
       """
-      SELECT cs.seller_id AS seller_id, s.username AS username,
+      SELECT cs.seller_id AS seller_id, s.username AS username, s.email AS email,
              s.first_name AS first_name, s.last_name AS last_name,
              s.company_phone AS company_phone, s.status AS status,
              cs.origin AS origin, cs.created_at AS linked_at
@@ -65,6 +65,34 @@ public class JpaClientSellerRepository implements ClientSellerRepository {
         .setParameter("vendedor", sellerId)
         .setParameter("ahora", ahora)
         .executeUpdate();
+  }
+
+  @Override
+  @Transactional
+  public boolean attachByHotlink(
+      UUID clientId, UUID sellerId, UUID movementId, OffsetDateTime ahora) {
+    // `ON CONFLICT DO NOTHING` Y NO UNA LECTURA PREVIA. La pareja es la clave
+    // primaria, de modo que el segundo intento no crea nada y el motor lo
+    // absorbe. Comprobar antes de insertar es una carrera: dos compras
+    // simultáneas por el mismo enlace leerían las dos una tabla sin la fila.
+    //
+    // Y por eso el valor de retorno es «cuántas filas» y no un booleano
+    // calculado aparte: cero significa que el vínculo YA ESTABA, que es
+    // exactamente lo que el que llama necesita saber para no auditar un hecho
+    // que no ocurrió.
+    int filas =
+        em.createNativeQuery(
+                """
+                INSERT INTO client_sellers (client_id, seller_id, origin, first_movement_id, created_at)
+                VALUES (:cliente, :vendedor, 'HOTLINK', :venta, :ahora)
+                ON CONFLICT ON CONSTRAINT pk_client_sellers DO NOTHING
+                """)
+            .setParameter("cliente", clientId)
+            .setParameter("vendedor", sellerId)
+            .setParameter("venta", movementId)
+            .setParameter("ahora", ahora)
+            .executeUpdate();
+    return filas == 1;
   }
 
   @Override
@@ -158,6 +186,7 @@ public class JpaClientSellerRepository implements ClientSellerRepository {
     return new ClientSellerRow(
         (UUID) fila.get("seller_id"),
         (String) fila.get("username"),
+        (String) fila.get("email"),
         (String) fila.get("first_name"),
         (String) fila.get("last_name"),
         (String) fila.get("company_phone"),

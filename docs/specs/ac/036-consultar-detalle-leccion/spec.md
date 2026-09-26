@@ -60,7 +60,7 @@ Es `RF-AC-003` para lecciones: **devuelve también una retirada**, con su fecha 
 
 ### 6.2 Salida
 
-`200` con `LessonResponse` (`RF-AC-028` §6.2): `id`, `moduleId`, `courseId`, `type`, `title`, `description`, `content` (presentes y nulos), `durationMinutes`, `displayOrder`, `open`, `status`, `createdAt`, `updatedAt`, y **solo si está retirada** `deletedAt` y `deletionReason`.
+`200` con `LessonResponse` (`RF-AC-028` §6.2): `id`, `moduleId`, `courseId`, `type`, `title`, `description`, `content` (presentes y nulos), `durationSeconds`, `displayOrder`, `open`, `status`, `createdAt`, `updatedAt`, y **solo si está retirada** `deletedAt` y `deletionReason`.
 
 ## 7. Precondiciones y postcondiciones
 
@@ -123,3 +123,4 @@ Es `RF-AC-003` para lecciones: **devuelve también una retirada**, con su fecha 
 |---|---|---|---|
 | 0.1.0 | 18-09-2026 | Redacción inicial. Nace el mismo día por decisión del responsable del proyecto, cerrando `RF-AC-029` §14.2: `RF-AC-003` para lecciones, con `courses:read`, ruta anidada que afirma la pertenencia y la misma forma que las escrituras —`LessonResponse`, que gana `deletedAt` y `deletionReason` cuando los hay—; devuelve también la retirada y la arrastrada con su motivo. | Responsable técnico |
 | 0.2.0 | 19-09-2026 | **Construida** (`LessonDetailIT` (5)) el mismo bloque en que se redactó: `LessonDetailReader` gana la rama de la retirada y `LessonController` su primera ruta con `courses:read`. | Responsable técnico |
+| 0.3.0 | 25-09-2026 | **Enmienda por decisión del responsable del proyecto** (`ac.md` §5.2.10, `RN-AC-017`): **la duración de la lección se guarda en segundos**, y las sumas del módulo y del curso también: `durationSeconds` y `totalDurationSeconds` sustituyen a `durationMinutes` y `totalDurationMinutes` en el cuerpo de esta spec. Las filas anteriores de esta tabla conservan el nombre que tenía el campo en su fecha. | Responsable técnico |

@@ -2,14 +2,15 @@ package com.factech.nexus.modules.academy.domain.models;
 
 import com.factech.nexus.shared.error.FieldError;
 import com.factech.nexus.shared.error.ValidationException;
+import com.factech.nexus.shared.video.VideoLink;
 import java.util.List;
-import java.util.regex.Pattern;
 
 /**
- * Un video como enlace (`RN-AC-005`): URL absoluta {@code http} o {@code https}, sin espacios, de
- * hasta 500 caracteres, de cualquier dominio. <b>El sistema comprueba la forma y no lo sigue</b>:
- * no comprueba que exista, no lo descarga, no lo incrusta. Es `RN-PM-032` por extensión, con el
- * mismo patrón que {@code Product} y que {@code ck_courses_intro_video_url}.
+ * Un video como enlace (`RN-AC-005`): <b>de YouTube o de Vimeo</b>, en una de sus formas
+ * reconocidas ({@link VideoLink}), sin espacios y de hasta 500 caracteres. Hasta el 25-09-2026
+ * admitía cualquier dominio; desde entonces, por decisión del responsable del proyecto (`ac.md`
+ * §5.2.11), cualquier otro se rechaza con el código de quien llama. <b>Aquí solo se valida</b>: la
+ * duración de una lección se pregunta al proveedor en su caso de uso, no en este objeto.
  *
  * <p>Objeto de valor y no un método privado de {@code Course} porque lo llevan tres entidades: el
  * video de introducción del curso, el de presentación del módulo (`RF-AC-022`) y el contenido de
@@ -17,9 +18,6 @@ import java.util.regex.Pattern;
  * operación le da.
  */
 public final class VideoUrl {
-
-  private static final Pattern FORMA = Pattern.compile("^https?://\\S+$");
-  private static final int LARGO_MAXIMO = 500;
 
   private VideoUrl() {}
 
@@ -44,11 +42,11 @@ public final class VideoUrl {
 
   /** La forma admitida, ya recortada: para quien tiene su propio mensaje, como la lección. */
   public static boolean esValida(String recortado) {
-    return recortado.length() <= LARGO_MAXIMO && FORMA.matcher(recortado).matches();
+    return VideoLink.esValido(recortado);
   }
 
   public static String mensaje() {
-    return "El enlace del video debe ser una URL absoluta http o https, sin espacios y de hasta 500"
-        + " caracteres.";
+    return "El enlace del video debe ser un video de YouTube o de Vimeo —youtube.com, youtu.be,"
+        + " vimeo.com o player.vimeo.com—, sin espacios y de hasta 500 caracteres.";
   }
 }

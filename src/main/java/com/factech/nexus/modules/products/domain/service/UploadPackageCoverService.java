@@ -1,7 +1,6 @@
 package com.factech.nexus.modules.products.domain.service;
 
 import com.factech.nexus.modules.products.application.PackageDetailResponse;
-import com.factech.nexus.modules.products.domain.models.CambioDePortada;
 import com.factech.nexus.modules.products.domain.models.ProductImage;
 import com.factech.nexus.modules.products.domain.models.ProductPackage;
 import com.factech.nexus.modules.products.domain.repository.ProductImageRepository;
@@ -9,6 +8,7 @@ import com.factech.nexus.modules.products.domain.repository.ProductPackageReposi
 import com.factech.nexus.shared.audit.AuditEnums.ChangeAction;
 import com.factech.nexus.shared.audit.AuditEvents.ChangeEvent;
 import com.factech.nexus.shared.audit.AuditWriter;
+import com.factech.nexus.shared.images.CambioDePortada;
 import com.factech.nexus.shared.persistence.UuidV7Generator;
 import java.time.Clock;
 import java.time.OffsetDateTime;

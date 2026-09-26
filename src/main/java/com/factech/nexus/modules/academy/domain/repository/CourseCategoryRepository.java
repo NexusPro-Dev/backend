@@ -1,6 +1,8 @@
 package com.factech.nexus.modules.academy.domain.repository;
 
 import com.factech.nexus.modules.academy.domain.models.CourseCategory;
+import java.util.Collection;
+import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 
@@ -23,6 +25,19 @@ public interface CourseCategoryRepository {
   CourseCategory save(CourseCategory categoria);
 
   Optional<CourseCategory> findAliveByIdForUpdate(UUID id);
+
+  /**
+   * La viva, <b>sin bloquear</b>: la clasificación de un curso (`RF-AC-016`) solo necesita saber
+   * que existe y cómo se llama, y no escribe nada en ella (`spec.md` §14.1).
+   */
+  Optional<CourseCategory> findAliveById(UUID id);
+
+  /**
+   * Las vivas de esa lista, <b>en una sentencia</b> y sin bloquear: el alta del curso con {@code
+   * categoryIds} (`RF-AC-008` §12). Las que faltan en el resultado son las que no existen o están
+   * retiradas, y el caso de uso las nombra todas.
+   */
+  List<CourseCategory> findAliveByIds(Collection<UUID> ids);
 
   Optional<CourseCategory> findByIdForUpdate(UUID id);
 

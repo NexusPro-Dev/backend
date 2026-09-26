@@ -17,9 +17,9 @@
 
 ## 2. Cambios de esquema
 
-**Una migración.** `V28` salvo que otra tanda se adelante (tras `V25`–`V27` del bloque 4).
+**Una migración, `V44`.** El plan la numeró `V28` el 18-09-2026 «salvo que otra tanda se adelante»; el número se asignó al construir (25-09-2026).
 
-### `V28__ac_imagenes.sql`
+### `V44__ac_imagenes.sql`
 
 ```sql
 CREATE TABLE academy_images (

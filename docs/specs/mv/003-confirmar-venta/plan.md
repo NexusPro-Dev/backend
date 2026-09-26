@@ -11,6 +11,16 @@
 | Aprobado por | Responsable del proyecto |
 | Fecha de aprobación | 17-09-2026 |
 
+!!! warning "Enmendado el 23-09-2026 — confirmar escribe lo que la persona TIENE, y no solo su nivel"
+
+    `RN-MV-036` ([`requirements/mv.md`](../../../requirements/mv.md) v0.40.0) y `RN-SP-056` ([`requirements/sp.md`](../../../requirements/sp.md) v1.84.0), por decisión del responsable del proyecto. **Toda línea que pasa a `ENTREGADA` escribe ahora una posesión** en `user_products` —también la de un bot, que hasta hoy no dejaba constancia en ninguna parte—, con el producto, los `validity_days` **copiados de la línea** y la vigencia contada desde la confirmación.
+
+    **Lo que esto cambia en §3 y §6.** `PublishedMembershipGrant` deja de invocarse **solo** para las líneas de upgrade y pasa a invocarse para **cada línea entregada**; su orden gana dos datos —`productId` y `movementDetailId`— y `membershipId` **pasa a poder ser nulo**, que es el caso del bot: entonces la operación escribe la posesión y **no toca nivel alguno**. El asiento de auditoría de `SP` pasa a nombrar `user_products`.
+
+    **Lo que NO cambia, y es la mitad que importa.** `RN-MV-029` sigue decidiendo *si* se concede antes de llamar, y una línea **retenida no escribe posesión**: lo que no se entregó no se tiene. El bloqueo sobre la fila de la persona, el orden venta→persona y el `MANDATORY` de la escritura publicada siguen exactamente igual. Y `RN-MV-020` sigue diciendo lo mismo del **nivel**: de todas las posesiones que confirmar escribe, solo la del upgrade concede algo.
+
+    **La repetición deja de ser un riesgo del caso de uso y pasa a serlo del esquema**: `uq_user_products_linea` hace que una línea produzca **como mucho una** posesión, de modo que una confirmación repetida no puede duplicar lo que alguien tiene.
+
 !!! info "Qué va en este documento"
 
     **Cómo se construye.** Esquema, componentes, contrato, autorización y pruebas.

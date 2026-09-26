@@ -8,9 +8,14 @@ import java.sql.Timestamp;
 import java.time.Instant;
 import java.time.OffsetDateTime;
 import java.time.ZoneOffset;
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.HashSet;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.Set;
 import java.util.UUID;
 import org.springframework.stereotype.Repository;
 import org.springframework.transaction.annotation.Transactional;
@@ -20,21 +25,29 @@ import org.springframework.transaction.annotation.Transactional;
  *
  * <p><b>Un solo bloque de columnas</b> ({@link #COLUMNAS}) para el detalle y el listado, con el
  * instructor por {@code JOIN users} —tres columnas— y las cuatro cuentas como columnas más, cada
- * una una subconsulta escalar: el número de sentencias no depende de cuántos cursos se lean.
- * <b>{@link #CUENTA_DE_MEMBRESIAS} es un literal hasta `RF-AC-020`</b>, que la sustituye por la
- * subconsulta sobre {@code course_memberships}; las de módulos y lecciones son reales desde el
- * bloque 3, sobre los fragmentos de {@link JpaCourseModuleQueryRepository} que el aula reutiliza.
- * Las lecturas de relaciones devuelven vacío sin consultar nada hasta el bloque 4, cada una con la
- * nota de qué sentencia la sustituye; las del árbol son reales.
+ * una una subconsulta escalar: el número de sentencias no depende de cuántos cursos se lean. Las de
+ * membresías y servicios son reales desde `RF-AC-020` y `RF-AC-037`; las de módulos y lecciones
+ * desde el bloque 3, sobre los fragmentos de {@link JpaCourseModuleQueryRepository} que el aula
+ * reutiliza. De las relaciones, solo las recomendaciones devuelven vacío sin consultar nada, hasta
+ * `RF-AC-018`; las del árbol son reales.
+ *
+ * <p>{@link #CUENTA_DE_MEMBRESIAS} y {@link #CUENTA_DE_MODULOS_OFRECIBLES} son de paquete porque
+ * los cursos del detalle de la categoría (`RF-AC-003`) deciden su ofrecibilidad con las mismas
+ * cuentas, sobre el mismo alias {@code c}.
  */
 @Repository
 public class JpaCourseQueryRepository implements CourseQueryRepository {
 
+  /** Las membresías que abren el curso (`RF-AC-020`). Alias {@code cm}: {@code m} es del módulo. */
+  static final String CUENTA_DE_MEMBRESIAS =
+      "(SELECT count(*) FROM course_memberships cm WHERE cm.course_id = c.id)";
+
   /**
-   * `RF-AC-020` la sustituye por: {@code (SELECT count(*) FROM course_memberships m WHERE
-   * m.course_id = c.id)}.
+   * Los servicios que abren el curso (`RF-AC-037`): todas sus filas, también las de un producto que
+   * `PM` retiró después — quien lo compró lo tiene hasta que venza (`RN-AC-020`).
    */
-  private static final String CUENTA_DE_MEMBRESIAS = "0";
+  static final String CUENTA_DE_SERVICIOS =
+      "(SELECT count(*) FROM course_products s WHERE s.course_id = c.id)";
 
   /** Los módulos vivos del curso (`RF-AC-022`): un inactivo cuenta, un retirado no. */
   private static final String CUENTA_DE_MODULOS =
@@ -45,7 +58,7 @@ public class JpaCourseQueryRepository implements CourseQueryRepository {
    * lección ofrecible, sobre el fragmento {@link JpaCourseModuleQueryRepository#MODULO_OFRECIBLE}
    * que el aula reutiliza. Es la entrada de {@code CourseOfferability} y no la decisión.
    */
-  private static final String CUENTA_DE_MODULOS_OFRECIBLES =
+  static final String CUENTA_DE_MODULOS_OFRECIBLES =
       "(SELECT count(*) FROM course_modules m WHERE m.course_id = c.id AND "
           + JpaCourseModuleQueryRepository.MODULO_OFRECIBLE
           + ")";
@@ -66,6 +79,8 @@ public class JpaCourseQueryRepository implements CourseQueryRepository {
       """
           + CUENTA_DE_MEMBRESIAS
           + " AS membership_count, "
+          + CUENTA_DE_SERVICIOS
+          + " AS product_count, "
           + CUENTA_DE_MODULOS
           + " AS module_count, "
           + CUENTA_DE_MODULOS_OFRECIBLES
@@ -128,18 +143,43 @@ public class JpaCourseQueryRepository implements CourseQueryRepository {
   @Override
   @Transactional(readOnly = true)
   public List<CategoryRef> findCategoriesOf(UUID courseId) {
-    // Hasta `RF-AC-016` no hay tabla de clasificación: ni una sentencia. Ese
-    // requerimiento escribe aquí el SELECT sobre course_category_items JOIN
-    // course_categories (deleted_at IS NULL) ORDER BY k.display_order, k.id.
-    return List.of();
+    return findCategoriesOfCourses(List.of(courseId)).getOrDefault(courseId, List.of());
   }
 
   @Override
   @Transactional(readOnly = true)
   public Map<UUID, List<CategoryRef>> findCategoriesOfCourses(List<UUID> courseIds) {
-    // `RF-AC-016`: el mismo SELECT con WHERE i.course_id IN (:ids), agrupado
-    // por curso en Java — la segunda sentencia fija de una página.
-    return Map.of();
+    if (courseIds.isEmpty()) {
+      return Map.of();
+    }
+    // UNA sentencia para toda la página (`CA-AC-128`). La categoría retirada no
+    // vuelve: su fila de clasificación permanece (`RN-AC-010`), pero el JOIN la
+    // descarta.
+    List<Tuple> filas =
+        em.createNativeQuery(
+                """
+                SELECT i.course_id AS course_id, k.id AS id, k.name AS name,
+                       k.color AS color, k.icon AS icon
+                  FROM course_category_items i
+                  JOIN course_categories k ON k.id = i.category_id AND k.deleted_at IS NULL
+                 WHERE i.course_id IN (:cursos)
+                 ORDER BY k.display_order, k.id
+                """,
+                Tuple.class)
+            .setParameter("cursos", courseIds)
+            .getResultList();
+    Map<UUID, List<CategoryRef>> porCurso = new LinkedHashMap<>();
+    for (Tuple fila : filas) {
+      porCurso
+          .computeIfAbsent((UUID) fila.get("course_id"), curso -> new ArrayList<>())
+          .add(
+              new CategoryRef(
+                  (UUID) fila.get("id"),
+                  (String) fila.get("name"),
+                  (String) fila.get("color"),
+                  (String) fila.get("icon")));
+    }
+    return porCurso;
   }
 
   @Override
@@ -153,9 +193,54 @@ public class JpaCourseQueryRepository implements CourseQueryRepository {
   @Override
   @Transactional(readOnly = true)
   public List<MembershipRef> findMembershipsOf(UUID courseId) {
-    // `RF-AC-020`: course_memberships JOIN memberships (id, code, name, color)
-    // ORDER BY m.level — cuatro columnas de lectura, como RF-PM-002.
-    return List.of();
+    // Cuatro columnas de `memberships` por lectura, como RF-PM-002: la regla
+    // —que exista— cruzó por el puerto al escribir. En el orden de la cadena.
+    List<Tuple> filas =
+        em.createNativeQuery(
+                """
+                SELECT ms.id AS id, ms.code AS code, ms.name AS name, ms.color AS color
+                  FROM course_memberships cm
+                  JOIN memberships ms ON ms.id = cm.membership_id
+                 WHERE cm.course_id = :curso
+                 ORDER BY ms.level, ms.id
+                """,
+                Tuple.class)
+            .setParameter("curso", courseId)
+            .getResultList();
+    return filas.stream()
+        .map(
+            fila ->
+                new MembershipRef(
+                    (UUID) fila.get("id"),
+                    (String) fila.get("code"),
+                    (String) fila.get("name"),
+                    (String) fila.get("color")))
+        .toList();
+  }
+
+  @Override
+  @Transactional(readOnly = true)
+  public List<ProductRef> findProductsOf(UUID courseId) {
+    // Tres columnas de `products` por lectura, como las de `memberships`
+    // (`RF-AC-037` §14.2): la regla cruzó por el puerto al escribir.
+    List<Tuple> filas =
+        em.createNativeQuery(
+                """
+                SELECT p.id AS id, p.code AS code, p.name AS name
+                  FROM course_products s
+                  JOIN products p ON p.id = s.product_id
+                 WHERE s.course_id = :curso
+                 ORDER BY p.code, p.id
+                """,
+                Tuple.class)
+            .setParameter("curso", courseId)
+            .getResultList();
+    return filas.stream()
+        .map(
+            fila ->
+                new ProductRef(
+                    (UUID) fila.get("id"), (String) fila.get("code"), (String) fila.get("name")))
+        .toList();
   }
 
   @Override
@@ -205,6 +290,105 @@ public class JpaCourseQueryRepository implements CourseQueryRepository {
         .longValue();
   }
 
+  /**
+   * Las lecciones ofrecibles de los módulos ofrecibles del curso {@code c} (`RN-AC-015`): lo que el
+   * alumno verá. Sobre los dos fragmentos de {@link JpaCourseModuleQueryRepository}; el {@code l}
+   * del {@code EXISTS} de {@code MODULO_OFRECIBLE} es el suyo y no este.
+   */
+  private static final String LECCIONES_DEL_ALUMNO =
+      " FROM lessons l JOIN course_modules m ON m.id = l.module_id WHERE m.course_id = c.id AND "
+          + JpaCourseModuleQueryRepository.MODULO_OFRECIBLE
+          + " AND "
+          + JpaCourseModuleQueryRepository.LECCION_OFRECIBLE;
+
+  @Override
+  @Transactional(readOnly = true)
+  public List<ClassroomCandidate> findClassroomCandidates(UUID categoryId, String difficulty) {
+    StringBuilder donde = new StringBuilder("c.deleted_at IS NULL AND c.status = 'ACTIVO'");
+    if (difficulty != null) {
+      donde.append(" AND c.difficulty = :dificultad");
+    }
+    if (categoryId != null) {
+      // Solo la categoría VIVA acota, como en el listado de administración.
+      donde.append(
+          " AND EXISTS (SELECT 1 FROM course_category_items i JOIN course_categories k"
+              + " ON k.id = i.category_id AND k.deleted_at IS NULL"
+              + " WHERE i.course_id = c.id AND i.category_id = :categoria)");
+    }
+    Query consulta =
+        em.createNativeQuery(
+            "SELECT "
+                + COLUMNAS
+                + ", (SELECT COALESCE(sum(l.duration_seconds), 0)"
+                + LECCIONES_DEL_ALUMNO
+                + ") AS alumno_duracion, (SELECT count(*)"
+                + LECCIONES_DEL_ALUMNO
+                + ") AS alumno_lecciones, (SELECT count(*)"
+                + LECCIONES_DEL_ALUMNO
+                + " AND l.open) AS alumno_abiertas"
+                + DESDE
+                + "WHERE "
+                + donde
+                + " ORDER BY c.display_order, c.id",
+            Tuple.class);
+    if (difficulty != null) {
+      consulta.setParameter("dificultad", difficulty);
+    }
+    if (categoryId != null) {
+      consulta.setParameter("categoria", categoryId);
+    }
+    List<Tuple> filas = consulta.getResultList();
+    return filas.stream()
+        .map(
+            fila ->
+                new ClassroomCandidate(
+                    curso(fila),
+                    ((Number) fila.get("alumno_duracion")).longValue(),
+                    ((Number) fila.get("alumno_lecciones")).longValue(),
+                    ((Number) fila.get("alumno_abiertas")).longValue()))
+        .toList();
+  }
+
+  @Override
+  @Transactional(readOnly = true)
+  public Map<UUID, CourseKeys> findKeysOfCourses(List<UUID> courseIds) {
+    if (courseIds.isEmpty()) {
+      return Map.of();
+    }
+    // UNA sentencia para las dos listas (`CA-AC-192`): la columna `tipo` dice
+    // de cuál viene cada identificador.
+    List<Tuple> filas =
+        em.createNativeQuery(
+                """
+                SELECT cm.course_id AS course_id, cm.membership_id AS llave,
+                       CAST('M' AS varchar) AS tipo
+                  FROM course_memberships cm WHERE cm.course_id IN (:cursos)
+                UNION ALL
+                SELECT s.course_id, s.product_id, CAST('S' AS varchar)
+                  FROM course_products s WHERE s.course_id IN (:cursos)
+                """,
+                Tuple.class)
+            .setParameter("cursos", courseIds)
+            .getResultList();
+    Map<UUID, Set<UUID>> membresias = new HashMap<>();
+    Map<UUID, Set<UUID>> servicios = new HashMap<>();
+    for (Tuple fila : filas) {
+      Map<UUID, Set<UUID>> destino = "M".equals(fila.get("tipo")) ? membresias : servicios;
+      destino
+          .computeIfAbsent((UUID) fila.get("course_id"), curso -> new HashSet<>())
+          .add((UUID) fila.get("llave"));
+    }
+    Map<UUID, CourseKeys> porCurso = new HashMap<>();
+    for (UUID curso : courseIds) {
+      Set<UUID> suyas = membresias.getOrDefault(curso, Set.of());
+      Set<UUID> suyos = servicios.getOrDefault(curso, Set.of());
+      if (!suyas.isEmpty() || !suyos.isEmpty()) {
+        porCurso.put(curso, new CourseKeys(Set.copyOf(suyas), Set.copyOf(suyos)));
+      }
+    }
+    return porCurso;
+  }
+
   private static String predicado(ListCoursesRequest filtros) {
     StringBuilder donde = new StringBuilder();
     donde.append(filtros.incluirEliminados() ? "1 = 1" : "c.deleted_at IS NULL");
@@ -221,10 +405,13 @@ public class JpaCourseQueryRepository implements CourseQueryRepository {
       donde.append(" AND c.status = :estado");
     }
     if (filtros.categoryId() != null) {
-      // `RF-AC-016` lo sustituye por EXISTS sobre course_category_items; hasta
-      // entonces ningún curso está en ninguna categoría y el filtro no deja
-      // pasar nada (`RF-AC-009` §6.1).
-      donde.append(" AND 1 = 0");
+      // Solo la categoría VIVA acota: la retirada no sale en `categories` de
+      // ninguna fila, y un filtro que devolviera cursos sin ella en su lista no
+      // cuadraría con lo que la fila enseña. Filtrar por una retirada es vacío.
+      donde.append(
+          " AND EXISTS (SELECT 1 FROM course_category_items i JOIN course_categories k"
+              + " ON k.id = i.category_id AND k.deleted_at IS NULL"
+              + " WHERE i.course_id = c.id AND i.category_id = :categoria)");
     }
     return donde.toString();
   }
@@ -241,6 +428,9 @@ public class JpaCourseQueryRepository implements CourseQueryRepository {
     }
     if (filtros.status() != null) {
       consulta.setParameter("estado", filtros.status());
+    }
+    if (filtros.categoryId() != null) {
+      consulta.setParameter("categoria", filtros.categoryId());
     }
   }
 
@@ -264,6 +454,7 @@ public class JpaCourseQueryRepository implements CourseQueryRepository {
         (String) fila.get("status"),
         (UUID) fila.get("cover_image_id"),
         ((Number) fila.get("membership_count")).longValue(),
+        ((Number) fila.get("product_count")).longValue(),
         ((Number) fila.get("module_count")).longValue(),
         ((Number) fila.get("offerable_module_count")).longValue(),
         ((Number) fila.get("lesson_count")).longValue(),

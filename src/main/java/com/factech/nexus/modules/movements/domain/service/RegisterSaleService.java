@@ -1,5 +1,6 @@
 package com.factech.nexus.modules.movements.domain.service;
 
+import com.factech.nexus.modules.movements.application.PurchaseResponse;
 import com.factech.nexus.modules.movements.application.RegisterSaleRequest;
 import com.factech.nexus.modules.movements.application.SaleResponse;
 import com.factech.nexus.modules.movements.domain.models.Movement;
@@ -174,11 +175,87 @@ public class RegisterSaleService {
 
   private SaleResponse register(
       RegisterSaleRequest peticion, boolean altaDelCliente, SaleChannel canal) {
+    VentaRegistrada hecha = registrar(peticion, altaDelCliente, canal, null);
+    SellerView vendedor = hecha.vendedor();
+    return SaleResponse.de(
+        hecha.venta(),
+        new SaleResponse.Party(
+            hecha.cliente().id(), hecha.cliente().username(), nombre(hecha.cliente())),
+        // Un solo vendedor para todas las líneas, o ninguno si hay que elegirlo
+        // (`RN-MV-034`): la resolución es de la venta y el modelo es de la
+        // línea. El mapa ya tiene la forma del día que un carrito mezcle enlaces.
+        vendedor == null
+            ? Map.of()
+            : Map.of(
+                vendedor.id(),
+                new SaleResponse.Party(vendedor.id(), vendedor.username(), nombre(vendedor))),
+        new SaleResponse.Money(hecha.referencia().currencyId(), hecha.referencia().currencyCode()),
+        hecha.metodo());
+  }
+
+  /**
+   * La compra por el enlace de un vendedor (`RF-MV-011`).
+   *
+   * <p><b>Es este mismo caso de uso con la atribución puesta desde fuera</b>, que es lo único que
+   * de verdad cambia: `RN-MV-025` dice que el vendedor de la línea es quien reparte el enlace,
+   * aunque quien compra tenga otro agente. Las nueve verificaciones —oferta, nivel, moneda, método
+   * de pago, comprobante— son <b>literalmente el mismo código</b>, y por eso la venta que sale por
+   * esta puerta es indistinguible de la que sale por la otra (`RF-MV-002` · `plan.md` §3.1).
+   *
+   * <p><b>Devuelve {@link PurchaseResponse} y no {@link SaleResponse}</b>: quien compra no ve a
+   * quién se le acreditó su compra. Lo decidió `RF-MV-002` §3.2 y aquí vale igual — o más: por el
+   * enlace, el vendedor de la línea puede no ser el agente que el cliente cree tener, y enseñárselo
+   * contaría algo de la estructura comercial que no es asunto suyo.
+   *
+   * <p><b>De paquete</b>, como {@link #registrarAltaDeCliente}: solo la alcanza el caso de uso de
+   * `MV` que resuelve el enlace, y ni el controlador ni otro módulo pueden llamarla.
+   */
+  @Transactional
+  PurchaseResponse comprarPorElEnlace(RegisterSaleRequest peticion, SellerView duenoDelEnlace) {
+    VentaRegistrada hecha = registrar(peticion, false, SaleChannel.HOTLINK, duenoDelEnlace);
+    return PurchaseResponse.de(
+        hecha.venta(),
+        new SaleResponse.Party(
+            hecha.cliente().id(), hecha.cliente().username(), nombre(hecha.cliente())),
+        new SaleResponse.Money(hecha.referencia().currencyId(), hecha.referencia().currencyCode()),
+        hecha.metodo());
+  }
+
+  /**
+   * Lo que el registro deja, antes de darle forma de respuesta.
+   *
+   * <p>Existe porque las dos puertas devuelven <b>cosas distintas</b> —la de oficina enseña el
+   * vendedor y la propia no— y el registro es el mismo. Sin este corte, la única forma de
+   * compartirlo sería una bandera dentro del caso de uso, que es exactamente lo que `RF-MV-002`
+   * §3.1 descartó.
+   */
+  private record VentaRegistrada(
+      Movement venta,
+      ClientView cliente,
+      SellerView vendedor,
+      SaleView referencia,
+      String metodo) {}
+
+  /**
+   * El registro, uno solo.
+   *
+   * @param duenoDelEnlace nulo salvo en la compra por hotlink. Es lo único que las puertas no
+   *     comparten: con él, el vendedor de la línea es quien reparte el enlace (`RN-MV-025`); sin
+   *     él, se resuelve por los vendedores del cliente (`RN-MV-034`)
+   */
+  private VentaRegistrada registrar(
+      RegisterSaleRequest peticion,
+      boolean altaDelCliente,
+      SaleChannel canal,
+      SellerView duenoDelEnlace) {
     OffsetDateTime ahora = OffsetDateTime.now(reloj);
     OffsetDateTime ocurrioEn = fechaDelHecho(peticion.occurredAt(), ahora);
 
     ClientView cliente = verificarCliente(peticion.userId(), altaDelCliente);
-    SaleAttribution.Atribucion atribucion = atribuciones.deQuienCompra(cliente);
+    SaleAttribution.Atribucion atribucion =
+        duenoDelEnlace == null
+            ? atribuciones.deQuienCompra(cliente)
+            : SaleAttribution.delEnlace(duenoDelEnlace);
     SellerView vendedor = atribucion.vendedor();
     List<RegisterSaleRequest.Line> lineas = peticion.lines();
     verificarSinRepetidos(lineas);
@@ -226,19 +303,7 @@ public class RegisterSaleService {
     auditoria.recordChange(
         new ChangeEvent(MODULO, ENTIDAD, venta.getId(), ChangeAction.CREATE, venta.instantanea()));
 
-    return SaleResponse.de(
-        venta,
-        new SaleResponse.Party(cliente.id(), cliente.username(), nombre(cliente)),
-        // Un solo vendedor para todas las líneas, o ninguno si hay que elegirlo
-        // (`RN-MV-034`): la resolución es de la venta y el modelo es de la
-        // línea. El mapa ya tiene la forma del día que un carrito mezcle enlaces.
-        vendedor == null
-            ? Map.of()
-            : Map.of(
-                vendedor.id(),
-                new SaleResponse.Party(vendedor.id(), vendedor.username(), nombre(vendedor))),
-        new SaleResponse.Money(referencia.currencyId(), referencia.currencyCode()),
-        metodo.code());
+    return new VentaRegistrada(venta, cliente, vendedor, referencia, metodo.code());
   }
 
   // ---------------------------------------------------------------------------

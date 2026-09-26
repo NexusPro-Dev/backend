@@ -47,7 +47,7 @@
 | # | Bloqueo | Desde | Responsable | Estado |
 |---|---|---|---|---|
 | 1 | Los números de migración se asignan al construir: `V23` si nadie se adelanta | 18-09-2026 | Responsable técnico | **Cerrado** el 19-09-2026: fue `V23` |
-| 2 | `lessons` y `durationMinutes` del módulo son literales hasta `RF-AC-028`, y `ModuleOfferability` no puede decir «ofrecible» hasta entonces | 18-09-2026 | Responsable técnico | **Cerrado** el 19-09-2026: `V24` y `lessons` se construyeron en el mismo bloque |
+| 2 | `lessons` y `durationSeconds` del módulo son literales hasta `RF-AC-028`, y `ModuleOfferability` no puede decir «ofrecible» hasta entonces | 18-09-2026 | Responsable técnico | **Cerrado** el 19-09-2026: `V24` y `lessons` se construyeron en el mismo bloque |
 
 ## 5. Definición de terminado
 

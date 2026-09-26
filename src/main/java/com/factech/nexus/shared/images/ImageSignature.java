@@ -1,6 +1,9 @@
-package com.factech.nexus.modules.products.domain.models;
+package com.factech.nexus.shared.images;
 
+import com.factech.nexus.shared.error.FieldError;
+import com.factech.nexus.shared.error.ValidationException;
 import java.util.Arrays;
+import java.util.List;
 import java.util.Optional;
 
 /**
@@ -8,9 +11,13 @@ import java.util.Optional;
  *
  * <p><b>El tipo lo deciden los bytes, y es la decisión que más pesa de la portada.</b> La cabecera
  * {@code Content-Type} de la petición la escribe el cliente y se puede equivocar o mentir; los ocho
- * primeros bytes de un {@code PNG} no. Lo que se guarda en {@code product_images.content_type} es
- * lo que <b>esta</b> clase detectó, y es lo que `RF-PM-016` devuelve al servir la imagen — por eso
- * tiene que ser verdad.
+ * primeros bytes de un {@code PNG} no. Lo que se guarda en {@code product_images.content_type} y en
+ * {@code academy_images.content_type} es lo que <b>esta</b> clase detectó, y es lo que `RF-PM-016`
+ * y `RF-AC-032` devuelven al servir la imagen — por eso tiene que ser verdad.
+ *
+ * <p><b>Vive en {@code shared/} desde el 25-09-2026</b> (`RF-AC-006`): nació en `PM` y la
+ * necesitaron las portadas de academia. Mudarla y no copiarla es lo que garantiza que las dos
+ * tablas admitan exactamente lo mismo.
  *
  * <p><b>Es todo el conocimiento que el sistema tiene sobre imágenes, y vive aquí a propósito.</b>
  * Unos veinte bytes de firmas, y ninguna biblioteca que decodifique: no hay nada que decodificar
@@ -45,9 +52,43 @@ public enum ImageSignature {
     this.enOcho = enOcho;
   }
 
+  /**
+   * Cinco megabytes exactos: el mismo número que {@code ck_product_images_size} y {@code
+   * ck_academy_images_size}. Subir el tope es esta constante y esas dos restricciones.
+   */
+  public static final int TAMANO_MAXIMO = 5_242_880;
+
+  /** El nombre de la parte del {@code multipart}, y el campo que nombran los tres rechazos. */
+  public static final String CAMPO = "file";
+
   /** El {@code Content-Type} con el que se guarda y se sirve. */
   public String contentType() {
     return contentType;
+  }
+
+  /**
+   * La firma de un archivo que se admite como portada, o el rechazo (`RF-PM-014` §11, `RF-AC-006`
+   * §11): vacío (`VAL-002`), después tamaño (`VAL-004`), después firma (`VAL-003`).
+   *
+   * <p><b>El orden es deliberado</b>: leer la firma de un archivo de cincuenta megas para decir que
+   * no es una imagen es trabajo tirado, y el mensaje de tamaño es el más útil para quien lo envió.
+   * <b>Vive aquí desde el 25-09-2026</b> porque las portadas de `PM` y las de `AC` son la misma
+   * regla sobre dos tablas, y dos copias acabarían admitiendo cosas distintas.
+   */
+  public static ImageSignature validar(byte[] bytes) {
+    if (bytes == null || bytes.length == 0) {
+      throw rechazo("VAL-002", "La imagen de portada es obligatoria.");
+    }
+    if (bytes.length > TAMANO_MAXIMO) {
+      throw rechazo("VAL-004", "La portada no puede pesar más de 5 MB.");
+    }
+    return de(bytes)
+        .orElseThrow(() -> rechazo("VAL-003", "La portada debe ser una imagen JPEG, PNG o WebP."));
+  }
+
+  private static ValidationException rechazo(String codigo, String mensaje) {
+    return new ValidationException(
+        codigo, mensaje, List.of(new FieldError(CAMPO, codigo, mensaje)));
   }
 
   /**

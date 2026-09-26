@@ -5,11 +5,11 @@
 | Módulo | `AC` — Academia |
 | Paquete | `modules/academy` |
 | Prefijos de permiso | `course-categories:`, `courses:` |
-| Versión | 0.10.0 |
+| Versión | 0.20.0 |
 | Estado | **Borrador** |
 | Responsable | Bonilla Diaz William Steven |
 | Fecha de creación | 17-09-2026 |
-| Última actualización | 19-09-2026 |
+| Última actualización | 26-09-2026 |
 
 !!! info "Qué va en este documento"
 
@@ -22,6 +22,7 @@
     1. **El código `AC`.** Un código, en cuanto aparece en un identificador, no se cambia jamás ([`modules.md` §2.1](../modules.md#21-regla-de-decision)). Se procede por decisión del responsable del proyecto, como con `PM`, `CM` y `MV`, y [`modules.md` §5.5](../modules.md#55-ac-academia) deja escrito el riesgo que se asume.
     2. **La frontera del alcance** (§1.3): este módulo **enseña**; no vende, no concede membresías, no aloja videos y no lleva el progreso del alumno. El motivo, en §1.4.
     3. **Una interfaz que `SP` no publicaba**: «¿esta persona porta este permiso?». La exige `RN-AC-006`, la pidió `RF-AC-008` (§3) y **`SP` la publica desde el 18-09-2026** (`PermissionHolderLookup`, `sp.md` 1.60.0 §8).
+    4. **Otra que `SP` no publicaba**: «¿qué productos tiene VIGENTES esta persona?». La exige `RN-AC-020` para abrir un curso por su servicio, la pidió el aula (`RF-AC-033` a `RF-AC-035`) al construirse y **`SP` la publica desde el 26-09-2026** (`CurrentProductsLookup`, `sp.md` 1.87.0 §8).
 
 ---
 
@@ -29,7 +30,7 @@
 
 ### 1.1 Descripción
 
-`AC` es dueño de **lo que se enseña y de a quién se le abre**. Lo resuelve con cuatro entidades encajadas y tres relaciones:
+`AC` es dueño de **lo que se enseña y de a quién se le abre**. Lo resuelve con cuatro entidades encajadas y cuatro relaciones:
 
 | | Qué es | Cuelga de | Se pinta con | Estado |
 |---|---|---|---|---|
@@ -42,11 +43,14 @@
 |---|---|---|
 | **Clasificación** | En qué categorías se encuentra el curso | `N:M`, y un curso sin categoría es legítimo |
 | **Recomendación** | «Antes de este curso conviene ver aquel» | `N:M` entre cursos, **sin candado** (`RN-AC-011`) |
-| **Visibilidad** | Qué membresías abren el curso | `N:M` con `memberships` de `SP`, **lista explícita** (`RN-AC-012`) |
+| **Visibilidad por membresía** | Qué membresías abren el curso | `N:M` con `memberships` de `SP`, **lista explícita** (`RN-AC-012`) |
+| **Visibilidad por servicio** | Qué productos `BOT` de `PM` abren el curso a quien los tiene vigentes | `N:M` con `products` de `PM`, **lista explícita** (`RN-AC-020`, desde el 25-09-2026) |
+
+**Las dos visibilidades conviven y se suman**: el curso se abre a quien tiene vigente **una de sus membresías o uno de sus servicios**. Es **el curso** quien declara quién lo puede ver, en las dos listas.
 
 **Todo se ordena a mano** (`RN-AC-002`): categorías y cursos con un orden global, módulos dentro de su curso, lecciones dentro de su módulo. **Todo nace inactivo y se publica cuando tiene con qué** (`RN-AC-008`, `RN-AC-009`). **Nada desaparece** (`RN-AC-018`).
 
-**Y el alumno lo ve así**: un catálogo con **todos los cursos que se ofrecen**, con lo que su membresía le abre marcado y lo que no, y **un curso se abre entero o no se abre** — salvo las lecciones que administración marcó **abiertas a todos**, que son la demostración con la que se le invita a subir de nivel (`RN-AC-013`, `RN-AC-014`).
+**Y el alumno lo ve así**: un catálogo con **todos los cursos que se ofrecen**, con lo que su membresía o sus servicios le abren marcado y lo que no, y **un curso se abre entero o no se abre** — salvo las lecciones que administración marcó **abiertas a todos**, que son la demostración con la que se le invita a subir de nivel (`RN-AC-013`, `RN-AC-014`).
 
 ### 1.2 Objetivo
 
@@ -57,15 +61,15 @@ Hoy el sistema sabe **quién es cada persona y qué nivel tiene** (`SP`) y **qu�
 **Incluye**
 
 - Registrar y mantener las **categorías**: nombre, descripción, portada, color, icono y orden; y retirarlas con motivo.
-- Registrar y mantener los **cursos**: título, instructor, dificultad, descripción corta y larga, video de introducción, portada, orden y estado; **clasificarlos** en categorías, **recomendar** qué curso conviene ver antes, y declarar **qué membresías los abren**; y retirarlos con motivo.
+- Registrar y mantener los **cursos**: título, instructor, dificultad, descripción corta y larga, video de introducción, portada, orden y estado; **clasificarlos** en categorías, **recomendar** qué curso conviene ver antes, y declarar **qué membresías y qué servicios los abren**; y retirarlos con motivo.
 - Registrar y mantener los **módulos** de un curso —portada, título, descripciones, video de presentación, orden y estado— y las **lecciones** de un módulo —tipo, título, descripción, contenido, duración, orden, estado y bandera de demostración—; y retirarlos con motivo.
 - **Las portadas** de categorías, cursos y módulos: subirlas, reemplazarlas, quitarlas y **servirlas sin autenticación** por su identificador, con las mismas condiciones que las de `PM`.
 - **Lo que ve el alumno**: el catálogo de cursos que se ofrecen, filtrable por categoría, con lo que su membresía le abre; el detalle de un curso con sus módulos y lecciones; y el contenido de una lección, cuando le corresponde o cuando es demostración.
 
 **No incluye**
 
-- **Vender un curso.** Un curso se abre **por la membresía** y no por una compra. El día que un curso se venda suelto será un tipo de producto de `PM` que consuma a este módulo. Ver §1.4.
-- **Conceder ni comprobar la vigencia de la membresía**, que es de `SP`: este módulo pregunta cuál es la vigente (`CurrentMembershipLookup`) y no la calcula.
+- **Vender un curso.** El curso **no tiene precio**: se abre **por la membresía o por un servicio** que la persona tiene, y lo que se vende es el servicio, en `PM`. Ver §1.4.
+- **Conceder ni comprobar la vigencia de la membresía ni la de un servicio**, que son de `SP`: este módulo pregunta cuál es la membresía vigente (`CurrentMembershipLookup`) y qué productos tiene vigentes (§3), y no las calcula.
 - **Alojar el video.** Se guardan **enlaces** a una plataforma que ya lo sirve, como el video del producto (`RN-PM-032`). Lo único que se guarda como archivo es la portada (`RN-AC-004`).
 - **Interpretar el contenido.** El texto de una lección es Markdown que el backend guarda y devuelve tal cual; quien lo pinta es el frontend.
 - **El progreso del alumno** —qué lección completó, qué curso terminó— y **los certificados**. Es la etapa siguiente, y su ausencia es la razón de que la recomendación sea una sugerencia y no un candado (`RN-AC-011`).
@@ -74,15 +78,17 @@ Hoy el sistema sabe **quién es cada persona y qué nivel tiene** (`SP`) y **qu�
 
 ### 1.4 La frontera, y por qué está donde está
 
-**Un curso no tiene precio.** Lo que se paga es la membresía, y el curso es lo que la membresía abre. Poner un precio en el curso —«o lo tienes por tu nivel, o lo compras suelto»— es una decisión comercial que nadie ha tomado, y tomarla aquí obligaría a duplicar en `AC` lo que `PM` ya sabe hacer con un producto: moneda, dos precios, alcance, hotlink. El día que llegue, **es un producto de `PM` de un tipo nuevo cuyo efecto es abrir un curso**, igual que el upgrade abre un nivel — y `PM` consumirá a `AC` para saber qué curso, como consume a `SP` para saber qué nivel.
+**Un curso no tiene precio.** Lo que se paga es la membresía **o un servicio**, y el curso es lo que la una o el otro abren. Poner un precio en el curso —«o lo tienes por tu nivel, o lo compras suelto»— obligaría a duplicar en `AC` lo que `PM` ya sabe hacer con un producto: moneda, dos precios, alcance, hotlink.
 
-**Y por eso la dependencia va en un solo sentido.** `AC` → `SP`, y nada más. `PM` no aparece, y conviene dejarlo escrito porque `modules.md` §5.2 anticipó lo contrario desde el 26-08-2026 —«Academia para saber qué nivel da acceso a qué»—: aquella frase suponía que el nivel se leería del producto, y el nivel es la **membresía**, que es de `SP`. `AC` la lee de donde vive.
+**Desde el 25-09-2026 un curso se abre también por un servicio**, por decisión del responsable del proyecto (§5.2.8): el producto `BOT` de `PM` —el que «da derecho a una prestación», y que hasta el 28-08-2026 se llamó `SERVICIO`— **es la prestación**, y el curso es parte de ella. La frontera se mueve, pero **no como §1.4 anticipaba el 17-09-2026**. Aquella versión preveía un tipo de producto nuevo que **declarara el curso**, con `PM` consumiendo a `AC`; lo decidido es lo contrario: **es el curso quien declara qué servicios lo abren**, igual que declara qué membresías. `PM` no sabe nada de cursos, no nace ningún tipo de producto, y lo que se vende sigue siendo exactamente lo que se vendía.
+
+**Y por eso la dependencia sigue yendo en un solo sentido**, ahora hacia dos módulos: `AC` → `SP` y `AC` → `PM`. `PM` no consume a `AC`, y `PM` → `SP` ya existía, de modo que no se cierra ningún ciclo. `modules.md` §5.2 anticipó desde el 26-08-2026 «Academia para saber qué nivel da acceso a qué», suponiendo que el nivel se leería del producto: el nivel sigue siendo la **membresía**, que es de `SP` y se lee de donde vive. Lo que se lee de `PM` es otra cosa: **qué es un servicio** —que existe, que es `BOT`, que no está retirado—, al armar la lista. **Quién tiene un servicio no se lee de `PM`**: lo que alguien posee vive en `user_products`, que es de `SP` (`RN-SP-056`).
 
 !!! danger "El demo se decide en la lección, y eso tiene una consecuencia que hay que aceptar entera"
 
     Por decisión del responsable del proyecto, la demostración es **una bandera de la lección** —«abierta a todos»— y no un curso aparte ni un módulo aparte. Es lo que permite que un curso cerrado enseñe **su primera lección** a quien no tiene nivel para verlo, y que le interese subir.
 
-    Lo que cuesta: **el catálogo del alumno enseña todos los cursos que se ofrecen, tenga o no la membresía que los abre** (`RN-AC-013`). Si un alumno solo viera los cursos que su nivel abre, la lección abierta no serviría de nada — nadie ve la demostración de un curso que no ve. La lista de visibilidad **no esconde el curso: cierra su contenido**. Un alumno de `BRONCE` ve la portada, el título, el instructor y la lista de módulos y lecciones de un curso de `ORO`, con cada lección marcada como cerrada salvo las abiertas, y al pedir el contenido de una cerrada recibe un `403` que dice qué membresía la abre.
+    Lo que cuesta: **el catálogo del alumno enseña todos los cursos que se ofrecen, tenga o no la membresía o el servicio que los abre** (`RN-AC-013`). Si un alumno solo viera los cursos que su nivel abre, la lección abierta no serviría de nada — nadie ve la demostración de un curso que no ve. La lista de visibilidad **no esconde el curso: cierra su contenido**. Un alumno de `BRONCE` ve la portada, el título, el instructor y la lista de módulos y lecciones de un curso de `ORO`, con cada lección marcada como cerrada salvo las abiertas, y al pedir el contenido de una cerrada recibe un `403` que dice qué membresía la abre.
 
     Se acepta a conciencia. La alternativa —esconder el curso entero y publicar las lecciones abiertas en un escaparate aparte— exigía una tercera vista y dejaba la demostración sin contexto: una lección suelta sin el curso al que invita.
 
@@ -93,10 +99,10 @@ Hoy el sistema sabe **quién es cada persona y qué nivel tiene** (`SP`) y **qu�
 | Submódulo | Responsabilidad | Entidades principales |
 |---|---|---|
 | Categorías | Alta, consulta, corrección, retiro y portada | `course_categories` |
-| Cursos | Alta, consulta, corrección, estado, retiro y portada; clasificación, recomendaciones y visibilidad | `courses`, `course_category_items`, `course_recommendations`, `course_memberships` |
+| Cursos | Alta, consulta, corrección, estado, retiro y portada; clasificación, recomendaciones y las dos visibilidades | `courses`, `course_category_items`, `course_recommendations`, `course_memberships`, `course_products` |
 | Módulos | Las partes de un curso: alta, corrección, estado, retiro y portada | `course_modules` |
 | Lecciones | Lo que se estudia: alta, **lectura**, corrección, estado y retiro | `lessons` |
-| Aula | Lo que el alumno ve: catálogo, detalle de un curso y contenido de una lección | Las anteriores, y la membresía vigente que `SP` publica |
+| Aula | Lo que el alumno ve: catálogo, detalle de un curso y contenido de una lección | Las anteriores, y la membresía y los productos vigentes que `SP` publica |
 | Portadas | Los bytes de las portadas y la ruta pública que los sirve | `academy_images` |
 
 **Los módulos y las lecciones no tienen listado propio.** Se leen **dentro del curso** —el detalle de administración (`RF-AC-010`) y el del alumno (`RF-AC-034`) los traen ordenados— porque no existen fuera de él: un módulo no cambia de curso ni una lección de módulo (`RN-AC-019`), de modo que «todos los módulos» no es una pregunta que nadie haga. **La lección sí tiene detalle propio** (`RF-AC-036`, 18-09-2026), porque su contenido no viaja en ningún árbol y administración tiene que poder leerlo sin editarlo.
@@ -112,14 +118,21 @@ Hoy el sistema sabe **quién es cada persona y qué nivel tiene** (`SP`) y **qu�
 | `SP` | Consume | **Usuarios** (`RN-AC-006`): que el instructor exista, no esté retirado y **porte `courses:teach`**; y su identidad —nombre de usuario y nombre completo— para publicarla con el curso |
 | `SP` | Consume | **Membresías** (`RN-AC-012`): que la que se asocia a un curso exista; y su código, nombre y color, para publicarlos en la lista de visibilidad y en la lección cerrada |
 | `SP` | Consume | **Membresía vigente** de quien pregunta (`RN-AC-013`): para decidir qué se le abre |
+| Externo | Consume | **YouTube Data API v3** y **API de Vimeo** —oEmbed como respaldo sin token— (`RN-AC-005`, `RN-AC-017`, desde el 25-09-2026): la duración de un video al registrar o corregir una lección `VIDEO`. Con plazo corto, a su dirección fija, y las dos credenciales por variable de entorno |
+| `SP` | Consume | **Productos vigentes** de quien pregunta (`RN-AC-013`, `RN-AC-020`): para decidir qué servicios le abren un curso. `CurrentProductsLookup`, **publicada el 26-09-2026** |
+| `PM` | Consume | **Productos** (`RN-AC-020`): que el que se asocia a un curso exista, sea `BOT` y no esté retirado; y su código y nombre, para publicarlos en la lista de visibilidad y en la lección cerrada |
 
-La dependencia es **acíclica** y **de un solo módulo**: `AC` → `SP`. De `PM` no necesita nada (§1.4).
+La dependencia es **acíclica**: `AC` → `SP` y, desde el 25-09-2026, `AC` → `PM` (§1.4). `PM` no consume a `AC`.
 
 !!! danger "Lo que `SP` publica y lo que todavía no"
 
     Se consumen por las interfaces que `SP` publica (**D-25**, [`architecture.md` §15.2](../architecture.md#152-como-consume-un-modulo-los-datos-de-otro-cierre-de-d-25)). Dos ya existen porque `PM` y `CM` las pidieron antes: `MembershipCatalog.find` y `CurrentMembershipLookup.currentMembershipOf`, y **se consumen tal cual**. `UserCatalog.find` también existe y publica identidad y marca de retiro.
 
     **La tercera no existía hasta el 18-09-2026**, y hoy es `PermissionHolderLookup.holds(userId, permissionCode)`: «¿esta persona porta este permiso?». Ningún consumidor la había necesitado, porque hasta hoy ningún módulo condicionaba un dato suyo a un permiso de `SP`. La publica `SP` como una interfaz de lectura más —un método, un booleano—, y **la ampliación pertenece a `RF-AC-008`**, que es quien la necesita, y no a un requerimiento nuevo de `SP`: es el mismo reparto que se decidió al cerrar D-25 y el que `RF-CM-001` · `T-04` aplicó con `UserCatalog`. **No devuelve la lista de permisos**: responde sí o no sobre uno, para no dar con qué reconstruir fuera de `SP` la autorización que es suya.
+
+    **La cuarta existe desde el 26-09-2026** (`CurrentProductsLookup.currentProductIdsOf(userId)`): «¿qué productos tiene vigentes esta persona?», sobre `user_products`, con la misma definición de vigencia que `CurrentMembershipLookup` —empezada, sin fin pasado y sin cerrar—. **La pide el aula** (`RF-AC-033` a `RF-AC-035`) al construirse, que es quien la necesita; `RF-AC-037` y `RF-AC-038` solo arman la lista y no preguntan por nadie. Responde **un conjunto de identificadores** para una persona, de modo que decidir `accessible` en un catálogo entero sigue costando una llamada y no una por curso.
+
+    **Y de `PM` basta `ProductCatalog`** con una lectura más: la que dice **el tipo** del producto, que `ProductView` no lleva. La amplía `RF-AC-037`, que es quien la necesita, como `RF-CM-001` amplió la suya — **una interfaz por lectura**, sin tocar la vista que ya consume `CM`.
 
 ---
 
@@ -129,7 +142,7 @@ La dependencia es **acíclica** y **de un solo módulo**: `AC` → `SP`. De `PM`
 |---|---|---|
 | Administrador | Construye y gobierna el catálogo entero: categorías, cursos, módulos, lecciones, relaciones y portadas | `course-categories:*`, `courses:read`, `courses:create`, `courses:update`, `courses:delete` |
 | Instructor | **Es asignado** a un curso. Hoy no administra nada: el permiso lo habilita para figurar, no para editar | `courses:teach` |
-| Alumno | Recorre el catálogo que se le ofrece y estudia lo que su membresía le abre, más las demostraciones | `courses:learn` |
+| Alumno | Recorre el catálogo que se le ofrece y estudia lo que su membresía o sus servicios le abren, más las demostraciones | `courses:learn`, `courses:read-available`, `lessons:learn` |
 
 **El alumno no lleva `courses:read`, y es a propósito.** Ese permiso abre el catálogo completo, con lo inactivo y lo retirado dentro, y con lo que no se le abre. `RF-AC-033` responde con lo que se ofrece y marca lo suyo. Es la misma decisión que `PM` tomó con `products:sale` y `RF-SP-039` con el perfil propio: **un permiso de vista**, que se concede a los roles de tipo `CONSUMIDOR` por `RF-SP-006` y no por siembra — el rol `CLIENTE` nace sin permisos (`V30`) y este módulo no le abre una excepción.
 
@@ -149,21 +162,22 @@ La dependencia es **acíclica** y **de un solo módulo**: `AC` → `SP`. De `PM`
 | `RN-AC-002` | **El orden es una posición, no una identidad** | Al registrar, al corregir y en toda lectura | Categorías, cursos, módulos y lecciones declaran un **entero mayor o igual que cero**, obligatorio, que decide en qué lugar se enseñan: categorías y cursos con **un orden global** —el curso vale lo mismo en todas sus categorías—, módulos **dentro de su curso**, lecciones **dentro de su módulo**. **No es único**: dos con el mismo número son legítimos y se desempatan por identificador, que es cronológico. Corregirlo no reordena a los demás: quien quiera «mover al tercer puesto» corrige los números que haga falta | Media |
 | `RN-AC-003` | **La categoría declara color e icono, y el color no es único** | Al registrar y al corregir una categoría | El color tiene **la forma de `RN-SP-024`** —seis dígitos hexadecimales sin `#`, normalizados a mayúsculas— y es **obligatorio**; **no es único**, porque las categorías no son una cadena que haya que distinguir por el color y dos cajones del mismo tono no confunden a nadie. El icono es **un identificador y no una imagen** (`RN-PM-016`), obligatorio: la categoría se pinta con color e icono **siempre**, y con la portada cuando la tiene. Los dos se corrigen (`RF-AC-004`) | Media |
 | `RN-AC-004` | **La portada es un archivo, en tabla propia, y opcional sin condición** | Al subir, al quitar y siempre que se consulte una categoría, un curso o un módulo, con token o sin él | Categoría, curso y módulo pueden llevar **una** imagen de portada **con las mismas condiciones que la del producto** (`RN-PM-033`): `JPEG`, `PNG` o `WebP` de hasta 5 MB, el tipo por los bytes, sin tratar, **cada subida estrena identificador** y la reemplazada **se borra**. Los bytes viven en **`academy_images`**, tabla de este módulo, y se sirven **sin token** por **`/api/v1/academy-images/{id}`** (`RF-AC-032`). **Ninguna de las tres entidades declara qué se pinta sin portada**: el frontend pone lo suyo —la categoría tiene color e icono, el curso y el módulo el icono por omisión del sistema—, de modo que quitar la portada **nunca se rechaza** (`RN-PM-045` por extensión). Toda lectura devuelve `coverImageUrl`, **presente y nula** cuando no hay (§5.2.3) | Alta |
-| `RN-AC-005` | **Un video es un enlace, y el sistema no lo sigue** | Al registrar, al corregir y en toda lectura de curso, módulo o lección | El video de introducción del curso, el de presentación del módulo y el contenido de una lección `VIDEO` son **la dirección de un video**: URL absoluta `http` o `https`, sin espacios, de hasta 500 caracteres, de cualquier dominio (`RN-PM-032` por extensión). El sistema comprueba su forma y **no lo sigue**: no comprueba que exista, no lo descarga, no lo incrusta. En el curso y en el módulo es **opcional, se corrige y se vacía**; en la lección es su contenido y `RN-AC-016` dice cuándo hace falta | Media |
+| `RN-AC-005` | **Un video es un enlace de YouTube o de Vimeo, y de la lección se lee su duración** | Al registrar, al corregir y en toda lectura de curso, módulo o lección | El video de introducción del curso, el de presentación del módulo y el contenido de una lección `VIDEO` son **el enlace de un video de YouTube o de Vimeo**, en una de sus formas reconocidas —`youtube.com/watch?v=`, `youtu.be/`, `youtube.com/embed/`, `youtube.com/shorts/`, `vimeo.com/{id}`, `vimeo.com/{id}/{hash}` y `player.vimeo.com/video/{id}`—, `http` o `https`, sin espacios y de hasta 500 caracteres. **Cualquier otro dominio se rechaza** con el mismo `VAL` que antes rechazaba una forma inválida. El sistema **no descarga ni incrusta el video**: **de la lección `VIDEO` pregunta su duración al proveedor** (`RN-AC-017`) —a YouTube por su API de datos, con la clave del sistema; a Vimeo por su oEmbed público— y **de nada más**. Pregunta **siempre a la dirección fija del proveedor** con el identificador sacado del enlace, nunca al enlace tal cual. En el curso y en el módulo es **opcional, se corrige y se vacía**. **Reescrita el 25-09-2026** (§5.2.11): hasta entonces admitía cualquier dominio y no se seguía | Media |
 | `RN-AC-006` | **El instructor porta `courses:teach`** | Al registrar un curso y al reasignar su instructor | El instructor es **una persona de `SP`** que existe, **no está retirada** y **porta el permiso `courses:teach`** por alguno de sus roles, comprobado **al asignar** contra la interfaz que `SP` publica (§3). **Que lo pierda después no toca el curso**: se le revocó el permiso, o se retiró la persona, y el curso sigue diciendo quién lo enseñó hasta que administración lo reasigne (`RF-AC-011`). Es una comprobación de **quién puede figurar**, no de quién puede editar: el instructor hoy no edita nada (§4) | Alta |
 | `RN-AC-007` | **La dificultad es una de tres** | Al registrar y al corregir un curso | `PRINCIPIANTE`, `INTERMEDIO` o `AVANZADO`, obligatoria. No es un orden ni una cadena: no hay «superior a», y un curso no exige haber visto los de la dificultad anterior. Es una etiqueta para que el alumno elija | Baja |
 | `RN-AC-008` | **Curso, módulo y lección nacen inactivos** | Al registrar | Los tres se registran `INACTIVO` (`RN-PM-012` por extensión): existen, no se ofrecen, y se publican con su cambio de estado. Es lo que permite armar un curso entero —módulos, lecciones, portadas— antes de que ningún alumno lo vea a medias. **La categoría no tiene estado**: está viva o retirada, y una categoría sin cursos ofrecidos simplemente sale vacía | Alta |
 | `RN-AC-009` | **No se publica lo que está vacío** | Al activar | **Una lección** no se activa sin contenido (`RN-AC-016`). **Un módulo** no se activa sin **al menos una lección `ACTIVA`** no retirada. **Un curso** no se activa sin **descripción corta y larga** y sin **al menos un módulo `ACTIVO`** no retirado. Las tres son la misma regla de `RN-PM-014` —no se ofrece lo que no se explica— mirada desde tres entidades, y las tres se comprueban **al activar y solo al activar**: desactivar nunca se rechaza, y **lo que después se vacía no desactiva nada, pero deja de ofrecerse** (`RN-AC-015`, desde el 18-09-2026) —retirar la última lección activa de un módulo activo deja el módulo `ACTIVO` y **no ofrecible**, y es `RN-AC-015` quien lo enseña—. El estado es lo que alguien decidió (`requirements/pm.md` §5.2.10) | Alta |
 | `RN-AC-010` | **La clasificación es libre y no se repite** | Al clasificar y al desclasificar | Un curso pertenece a **cero o más** categorías; la pareja curso–categoría **no se repite**; no se clasifica en una categoría **retirada** ni un curso **retirado**. Desclasificar **borra la fila**: la clasificación no es una entidad sino el valor de una relación, y no cabe en el Art. V.13 como baja lógica — cabe como **`ASSOCIATION`**: dar la pareja se audita como `CREATE` de la fila y quitarla como eliminación de asociación sin motivo, con el curso como entidad, que es el precedente de `RF-PM-023` y `RF-PM-025` (precisado el 18-09-2026). **Un curso sin categoría se ofrece igual** (`RN-AC-015`): la categoría es un filtro del catálogo, no una condición | Media |
 | `RN-AC-011` | **La recomendación es una sugerencia, no un candado** | Al recomendar y en el aula | «Antes de este curso conviene ver aquel» **se enseña y no impide nada**: el alumno entra al curso con o sin haber visto el recomendado, y el sistema **no sabría** si lo vio, porque no lleva progreso (§1.3). Un curso **no se recomienda a sí mismo**; la pareja **no se repite**; no se recomienda un curso **retirado**. **No se exige que sea acíclico**: `A` recomienda `B` y `B` recomienda `A` es una sugerencia tonta, no un estado inválido, y comprobar ciclos costaría un recorrido por cada alta para prohibir algo que no rompe nada. En el aula **solo se enseñan las recomendaciones cuyo curso se ofrece** (`RN-AC-015`); las demás se conservan y no se ven. Retirar la recomendación **borra la fila**, como la clasificación | Media |
-| `RN-AC-012` | **La visibilidad es una lista explícita, y sin lista nadie abre el curso** | Al dar y quitar visibilidad, y en el aula | Un curso declara **qué membresías lo abren**: una lista de membresías de `SP`, cada una existente (`MembershipCatalog`), **sin repetir**. **Es una lista y no un nivel mínimo**, por decisión del responsable del proyecto: un curso de `ORO` **no** lo abre `PLATINO` salvo que `PLATINO` esté en su lista, y quien quiera «este nivel y todos los superiores» los añade uno a uno. **Un curso sin ninguna membresía no se ofrece** (`RN-AC-015`) — ni entero ni sus lecciones abiertas—: es un curso que existe y no se enseña, como un producto de alcance `NINGUNO`. Quitar una membresía **borra la fila** | Alta |
-| `RN-AC-013` | **El curso se ve con sesión, y se abre con membresía** | En el aula | **Todo curso que se ofrece aparece en el catálogo de todo alumno** con `courses:learn`, tenga o no una membresía que lo abra: portada, título, instructor, dificultad, descripciones, video de introducción, categorías, recomendaciones, y **la lista de módulos y lecciones** con su título, tipo y duración. **El contenido de una lección se abre a quien tiene VIGENTE una de las membresías del curso** (`CurrentMembershipLookup`) **o a cualquiera si la lección está abierta** (`RN-AC-014`); a los demás se les niega con `403` diciendo **qué membresías lo abren**, que es la invitación a subir. Cada lectura del aula marca `accessible` en el curso y en cada lección, para que el frontend pinte el candado sin volver a preguntar (§1.4) | Alta |
+| `RN-AC-012` | **La visibilidad es una lista explícita, y sin lista el curso es de todos** | Al dar y quitar visibilidad, y en el aula | Un curso declara **qué membresías lo abren**: una lista de membresías de `SP`, cada una existente (`MembershipCatalog`), **sin repetir**. **Es una lista y no un nivel mínimo**, por decisión del responsable del proyecto: un curso de `ORO` **no** lo abre `PLATINO` salvo que `PLATINO` esté en su lista, y quien quiera «este nivel y todos los superiores» los añade uno a uno. **Un curso sin ninguna membresía y sin ningún servicio es gratuito**: se abre **a todo alumno con sesión** (`RN-AC-013`) — desde el 25-09-2026 (§5.2.12); hasta entonces no se ofrecía. Quitar una membresía **borra la fila** | Alta |
+| `RN-AC-013` | **El curso se ve con sesión, y se abre con membresía o con servicio** | En el aula | **Todo curso que se ofrece aparece en el catálogo de todo alumno** con `courses:learn` —**salvo que el alumno pida `onlyAccessible`**, y entonces solo los que le abren algo: el curso entero o una lección abierta (§5.2.13, 26-09-2026)—, tenga o no una membresía o un servicio que lo abra: portada, título, instructor, dificultad, descripciones, video de introducción, categorías, recomendaciones, y **la lista de módulos y lecciones** con su título, tipo y duración. **El contenido de una lección se abre a quien tiene VIGENTE una de las membresías del curso** (`CurrentMembershipLookup`), **a quien tiene VIGENTE uno de sus servicios** (`RN-AC-020`), **a cualquiera si la lección está abierta** (`RN-AC-014`) **o a cualquiera si el curso no declara ni membresías ni servicios** —es gratuito, desde el 25-09-2026 (§5.2.12)—; a los demás se les niega con `403` diciendo **qué membresías y qué servicios lo abren**, que es la invitación. **Enmendada el 25-09-2026** (§5.2.8): hasta entonces solo abría la membresía. Cada lectura del aula marca `accessible` en el curso y en cada lección, para que el frontend pinte el candado sin volver a preguntar (§1.4) | Alta |
 | `RN-AC-014` | **La lección abierta es la demostración** | Al registrar y corregir una lección, y en el aula | Una lección declara `open`, **falso por omisión**: abierta a todos. Una lección abierta **se abre a cualquier alumno con sesión** aunque su membresía no abra el curso. **No exime de nada más**: tiene que estar `ACTIVA`, en un módulo `ACTIVO`, en un curso **que se ofrezca** (`RN-AC-015`) — la demostración de un curso que no se ofrece no se ve. Se corrige en cualquier momento, en los dos sentidos | Alta |
-| `RN-AC-015` | **La ofrecibilidad se calcula, y no se guarda** | En toda lectura de un curso, de administración o del aula | Un curso **se ofrece** cuando **todo** esto es cierto: no está retirado, está `ACTIVO`, **tiene las dos descripciones**, tiene **al menos una membresía** (`RN-AC-012`) y tiene **al menos un módulo ofrecible**. **Se calcula en cada lectura y nunca se guarda**: administración lo ve como `offerable` con `offerableReason` —el primer motivo que falla, **en ese orden de cinco**— como el paquete de `PM` (`requirements/pm.md` §5.2.10, «el paquete se ofrece entero o no se ofrece»); el aula **solo enseña lo ofrecido**. Un **módulo** se ofrece dentro de un curso ofrecido si está `ACTIVO`, no retirado y con al menos una lección ofrecible; una **lección**, si está `ACTIVA`, no retirada **y con contenido**. **Lo que no se ofrece no aparece en el aula**, ni como módulo vacío ni como lección inactiva ni como lección sin contenido. **Enmendada el 18-09-2026** (§5.2.7): hasta entonces no miraba las descripciones ni el contenido, y lo que se vaciaba después de activarse se enseñaba vacío | Alta |
+| `RN-AC-015` | **La ofrecibilidad se calcula, y no se guarda** | En toda lectura de un curso, de administración o del aula | Un curso **se ofrece** cuando **todo** esto es cierto: no está retirado, está `ACTIVO`, **tiene las dos descripciones** y tiene **al menos un módulo ofrecible**. **Las membresías y los servicios no cuentan** desde el 25-09-2026 (§5.2.12): deciden **a quién se abre**, no si se ofrece —con ellos se abre a quien los tenga; sin ellos, a todos—; hasta entonces un curso sin ninguno no se ofrecía. **Se calcula en cada lectura y nunca se guarda**: administración lo ve como `offerable` con `offerableReason` —el primer motivo que falla, **en ese orden de cuatro**— como el paquete de `PM` (`requirements/pm.md` §5.2.10, «el paquete se ofrece entero o no se ofrece»); el aula **solo enseña lo ofrecido**. Un **módulo** se ofrece dentro de un curso ofrecido si está `ACTIVO`, no retirado y con al menos una lección ofrecible; una **lección**, si está `ACTIVA`, no retirada **y con contenido**. **Lo que no se ofrece no aparece en el aula**, ni como módulo vacío ni como lección inactiva ni como lección sin contenido. **Enmendada el 18-09-2026** (§5.2.7) —descripciones y contenido— y **el 25-09-2026** (§5.2.12) —las llaves dejan de ser un motivo— | Alta |
 | `RN-AC-016` | **El tipo manda sobre el contenido** | Al registrar, al corregir y al activar una lección | Una lección es `VIDEO` o `TEXTO`, obligatorio. Su contenido es **una URL** (`RN-AC-005`) si es `VIDEO` y **un texto Markdown** si es `TEXTO`, **que el backend guarda y devuelve sin interpretar** — ni lo valida como Markdown, ni lo convierte, ni lo sanea: quien lo pinta es el frontend, y eso queda escrito en §5.2.4. **El contenido es opcional al registrar** —la lección se prepara— y **obligatorio para activar** (`RN-AC-009`). **El tipo se corrige**, y el contenido de la misma petición —o el que ya hay— se valida contra **el tipo resultante**: pasar a `VIDEO` con un texto guardado exige traer la URL en esa petición | Alta |
-| `RN-AC-017` | **La duración se mide en minutos enteros** | Al registrar y al corregir una lección | Un entero **mayor que cero**, **obligatorio en los dos tipos**: en `VIDEO` es lo que dura; en `TEXTO`, el tiempo estimado de lectura que administración declara. Sirve para que el alumno sepa cuánto le espera y para sumar la duración del módulo y del curso **en cada lectura**, sin guardarla | Media |
+| `RN-AC-017` | **La duración se mide en segundos enteros, y la del video se lee del proveedor** | Al registrar y al corregir una lección | Un entero **mayor que cero**. En `TEXTO` es **obligatorio** y lo declara administración: el tiempo estimado de lectura. En `VIDEO` **lo lee el sistema del proveedor** cuando la petición trae un enlace y no trae duración —al registrar, y al corregir el enlace o el tipo—; **si la petición trae duración, manda la enviada**, que es como se corrige a mano y como se guarda un video que el proveedor no deja leer. Si no la trae y el proveedor no la da —video privado, borrado, proveedor caído o sin respuesta a tiempo, clave sin configurar— **la petición se rechaza con `422`** y no se guarda nada: **ninguna lección queda sin duración**. Una lección `VIDEO` **sin enlace** exige la duración, porque no hay de dónde leerla. Sirve para que el alumno sepa cuánto le espera y para sumar la duración del módulo y del curso **en cada lectura**, sin guardarla — **también en segundos**, y el frontend la formatea. **En segundos desde el 25-09-2026** (§5.2.10); **leída del proveedor desde el mismo día** (§5.2.11) | Media |
 | `RN-AC-018` | **Nada desaparece, y retirar arrastra hacia abajo** | Al eliminar | Categoría, curso, módulo y lección se retiran con **baja lógica y motivo** (Art. V.13), y **una fila de auditoría de eliminación por entidad retirada**. **Retirar un curso retira sus módulos y lecciones** con el mismo motivo y en la misma transacción; **retirar un módulo retira sus lecciones**. **Retirar una categoría no arrastra nada**: sus cursos siguen vivos, y la clasificación deja de contar (`RN-AC-010`). **Lo retirado no se corrige, no cambia de estado y no se reactiva**; sus clasificaciones, recomendaciones y visibilidades **se conservan** y dejan de verse. Y **un curso retirado deja de recomendarse** donde figure (`RN-AC-011`) | Alta |
 | `RN-AC-019` | **El módulo y la lección no cambian de padre** | Al corregir | Un módulo nace en un curso y una lección en un módulo, y **ninguno se mueve**: `course_id` y `module_id` no se corrigen. Mover una lección de módulo es retirarla y registrarla en el otro, y la razón es que el orden (`RN-AC-002`), la unicidad del título (`RN-AC-001`) y la ofrecibilidad del padre (`RN-AC-015`) están definidos **dentro del padre**, y moverla los invalidaría los tres a la vez | Media |
+| `RN-AC-020` | **Un servicio también abre el curso, y es el curso quien lo declara** | Al dar y quitar la visibilidad por servicio, y en el aula | Un curso declara, **además de sus membresías** (`RN-AC-012`), **qué productos lo abren**: una lista explícita de productos de `PM` **de tipo `BOT`** —el servicio—, cada uno existente y **no retirado al añadirlo** (`ProductCatalog`), **sin repetir**. **Un upgrade no abre cursos**: su efecto es el nivel, y el nivel ya tiene su lista; un paquete tampoco, porque lo que se posee al comprarlo son sus productos, no él. **Un servicio `INACTIVO` se añade igual**: la lista se arma antes de poner el servicio a la venta, como el curso se arma antes de activarse. **Lo tiene quien lo tiene VIGENTE** en `SP` —una fila de `user_products` con ese producto, empezada, sin fin pasado y sin cerrar—; al vencer, el curso se le cierra y lo sigue viendo en el catálogo (`RN-AC-013`). **Retirar el servicio en `PM` no toca la lista**: quien lo compró lo tiene hasta que venza, y el curso le sigue abierto — la lista dice qué abre el curso, no qué se vende hoy. Las dos listas **se suman**: basta una membresía **o** un servicio; **sin ninguna de las dos, el curso es de todos** (`RN-AC-012`, §5.2.12). Quitar un servicio **borra la fila**, como la membresía | Alta |
 
 ### 5.2 Decisiones que definen el módulo — 17-09-2026
 
@@ -182,7 +196,7 @@ Todas por decisión del responsable del proyecto, el día que se incorporó el m
 |---|---|---|
 | **¿Lista explícita o nivel mínimo?** | **Lista explícita** (`RN-AC-012`) | *Un nivel mínimo en el curso, que abre ese nivel y los superiores* — era la opción que menos filas costaba y la que aprovechaba que la cadena es lineal (`RN-SP-006`); se descartó porque **hay cursos que son de un nivel y no de los de arriba**: un curso de bienvenida a `BRONCE` no tiene por qué verlo `PLATINO`, y con un mínimo no habría forma de decirlo |
 | **¿Qué ve quien no tiene una membresía del curso?** | **El curso entero menos el contenido de sus lecciones cerradas**; las abiertas, sí (`RN-AC-013`, `RN-AC-014`) | *Nada* — la demostración no serviría a quien está pensado que sirva (§1.4) |
-| **¿Y un curso sin ninguna membresía?** | **No se ofrece** (`RN-AC-015`), ni sus lecciones abiertas | *Abierto a todos con sesión* — «sin filas» sería la configuración más permisiva, y es la que se obtiene **por olvido**: un curso recién armado se publicaría a todos hasta que alguien recordara cerrarlo |
+| **¿Y un curso sin ninguna membresía?** | ~~**No se ofrece**~~ — **reabierta el 25-09-2026** (§5.2.12): sin membresías **ni servicios**, **se abre a todo alumno con sesión** | *Abierto a todos con sesión* — «sin filas» sería la configuración más permisiva, y es la que se obtiene **por olvido**: un curso recién armado se publicaría a todos hasta que alguien recordara cerrarlo |
 | **¿Quién ve una lección abierta?** | **Cualquier usuario con sesión** y `courses:learn` | *Cualquiera, sin token, como el hotlink* — el aula entera exige sesión y nada de Academia es público salvo las portadas; un escaparate sin sesión es una decisión de mercadeo que se tomará con `PM` si se toma |
 
 #### 5.2.3 La portada vive en una tabla propia
@@ -223,12 +237,72 @@ Las tripletas del bloque 2 y del bloque 3 dejaron escritos dos huecos de la regl
 
 **Y administración lee la lección sin editarla.** El segundo hueco de `RF-AC-029` §14 —el detalle del curso no trae el contenido, y la corrección exige un campo— se cierra con **`RF-AC-036`**, un `GET` de lección con `courses:read` y no con el contenido dentro del árbol: la pantalla de edición abre una lección a la vez.
 
+#### 5.2.8 El curso también se abre por un servicio — 25-09-2026
+
+Por decisión del responsable del proyecto —«que sea el curso el que se asigne quién lo puede ver, pero ya no a membresía sino al producto, referenciado como servicio que se le proporciona»—. Se preguntaron cuatro cosas antes de escribir:
+
+| Pregunta | Decisión | Descartado |
+|---|---|---|
+| **¿Qué productos abren un curso?** | **Solo los `BOT`** (`RN-AC-020`): es el tipo que «da derecho a una prestación» | *Cualquier producto* — un upgrade abre un nivel, y el nivel ya abre cursos por su lista; además, subir de `ORO` a `PLATINO` **cierra** la fila del upgrade a `ORO` y le quitaría a la persona los cursos que ese upgrade abría. *Un tipo de producto nuevo* — obligaba a tocar `PM` (tipo, reglas, venta) para algo que el `BOT` ya significa |
+| **¿Y las membresías?** | **Conviven**: el curso declara las dos listas y se abre con cualquiera | *Reemplazarlas* — el curso por nivel es la forma en que se pensó el módulo, y hay cursos que un nivel entero debe ver sin comprar nada |
+| **¿Cuándo tiene alguien el servicio?** | **Mientras esté vigente** en `user_products` | *Si lo tuvo alguna vez* — un servicio con vigencia (`RN-PM-015`) dejaría de ser una suscripción |
+| **¿Cómo se llama en la API?** | **`products`** —`POST /api/v1/courses/{courseId}/products` y `products` en el detalle— | *`services`* — «servicio» es cómo se piensa, pero el recurso es un producto del catálogo y se llama como en `PM` |
+
+**Lo que no cambia**: un curso **no se vende**; se vende el servicio, en `PM`, con su moneda, su precio y su vigencia, y el curso es parte de lo que da. **Y lo que cuesta**: `AC` pasa a depender de `PM` (§1.4, §3) y `SP` tiene que publicar una interfaz más.
+
+#### 5.2.9 El curso nace en sus categorías, y la portada va aparte — 25-09-2026
+
+Por decisión del responsable del proyecto: **el alta del curso admite la lista de sus categorías** (`categoryIds`), para asociarlas de una vez, y **la portada se sube por su propia operación** justo después (`RF-AC-014`), con el archivo.
+
+| Pregunta | Decisión | Descartado |
+|---|---|---|
+| **¿Qué relaciones admite el alta?** | **Las categorías, y desde una segunda decisión del mismo día, los servicios y las membresías**, cada lista todo o nada y con su propio `422` que nombra todo lo que falla (`RF-AC-008` `EX-004` a `EX-006`). Es lo que la pantalla de alta pide: el curso nace con quién lo puede ver | *Todas, recomendaciones incluidas* — una recomendación apunta a otro curso y tiene reglas contra sí mismo; va por su operación. *Solo las categorías* —la primera respuesta del día—: obligaba al frontend a tres llamadas más para dejar el curso listo. *Crear con las que sirvan* — el rollback parcial que la spec temía el 18-09-2026 |
+| **¿Y la portada en la misma alta?** | **No: `PUT /api/v1/courses/{id}/cover`** con el archivo, después | *El alta en `multipart`* — una llamada menos, a cambio de que el alta del curso sea la única del sistema que no es JSON; producto y paquete ya separan las dos cosas |
+
+Con esto, **el bloque 5 adelanta tres requerimientos** —`RF-AC-006`, `RF-AC-032` y `RF-AC-014`— porque la portada del curso los necesita: la tabla `academy_images` y el detector compartido nacen con la de la categoría, y sin la ruta pública `coverImageUrl` señalaría a nada.
+
+
+#### 5.2.10 La duración, en segundos — 25-09-2026
+
+Por decisión del responsable del proyecto: **la lección guarda su duración en segundos**, y **las sumas del módulo y del curso también se dan en segundos** (`durationSeconds`, `totalDurationSeconds`). Un video de 12 min 34 s dura 754, no 12 ni 13, y las sumas cuadran exactas; formatearlas —«1 h 05 min»— es del frontend. **Las lecciones que ya existían se convierten ×60** en la misma migración que renombra la columna. Se descartó *la lección en segundos y las sumas en minutos*: dos unidades en la misma respuesta, y un redondeo que haría que la suma de las lecciones no coincidiera con la del módulo. **Rompe el contrato**: los campos `*Minutes` desaparecen (`api/index.md`).
+
+#### 5.2.11 Solo YouTube y Vimeo, y la duración del video la da el proveedor — 25-09-2026
+
+Por decisión del responsable del proyecto: **los enlaces de video solo pueden ser de YouTube o de Vimeo**, y **la duración de una lección `VIDEO` se consulta al proveedor** al cargar el enlace. La mayoría de los videos son públicos.
+
+| Pregunta | Decisión | Descartado |
+|---|---|---|
+| **¿Qué campos se restringen?** | **Los tres**: el contenido de la lección `VIDEO`, el video de introducción del curso y el de presentación del módulo. La duración, **solo de la lección** | *Solo la lección* — tres campos de video con dos reglas distintas |
+| **¿Quién pone la duración de un `VIDEO`?** | **El proveedor, con corrección manual**: si la petición no trae `durationSeconds`, se consulta; si la trae, manda la enviada | *Siempre calculada* — un video privado, que el proveedor no deja leer, no se podría guardar nunca |
+| **¿Y si el proveedor no la da?** | **`422`**, sin guardar nada, con un mensaje que dice por qué y que la envíe a mano | *Guardar sin duración* — obligaba a que la duración admitiera nulo y a que las sumas lo toleraran |
+
+**Lo que cuesta**, y queda escrito: **YouTube no da la duración sin credencial**, ni siquiera de un video público. Se consulta por su API de datos (YouTube Data API v3, `videos.list` con `contentDetails`), que exige **una clave del sistema** (`YOUTUBE_API_KEY`, `architecture.md` §11) y cuenta una unidad por consulta de diez mil diarias; **sin clave, toda lección de YouTube exige la duración a mano**. **Vimeo, con el token de la cuenta** (`VIMEO_ACCESS_TOKEN`, desde el mismo día): su API (`GET /videos/{id}`) da la duración **también de los videos privados de esa cuenta**. Se probó el oEmbed público, que la documentación ofrece sin credencial, y **respondió `404` a un video público** que la API sí devolvía: sin token no es fiable, y queda solo como respaldo cuando no hay token. **Un video privado de YouTube**, o de otra cuenta de Vimeo, **no se puede leer** y se guarda con la duración enviada. **Y el sistema pasa a llamar a dos servicios externos** desde la escritura de una lección: con un plazo corto —para no dejar colgada la pantalla de administración— y **siempre a su dirección fija**, con el identificador extraído del enlace: un enlace pegado nunca se convierte en una petición a donde diga. **Los enlaces ya guardados de otros dominios no se migran**: se rechazan cuando alguien los corrige.
+
+#### 5.2.12 Un curso sin llaves es de todos — 25-09-2026
+
+Por decisión del responsable del proyecto —«al no tener servicios (bots o membresías) se muestra a todo el público»—: **un curso que no declara ninguna membresía ni ningún servicio es gratuito**, y se abre **a todo alumno con sesión** y `courses:learn`. El aula sigue exigiendo sesión: «todo el público» no es «sin token», que se preguntó y se descartó por ser un cambio de seguridad mayor (rutas públicas, cota, lista blanca). **Las llaves dejan de ser un motivo de `RN-AC-015`**: un curso se ofrece si está vivo, `ACTIVO`, con sus dos descripciones y un módulo ofrecible, y las llaves deciden **a quién** se abre.
+
+**Reabre la decisión del 17-09-2026** (§5.2.2), y conviene dejar escrito lo que aquella temía, porque sigue siendo cierto al revés: **un curso recién armado se publica a todos si nadie le pone llaves antes de activarlo**, y **quitar la última llave de un curso activo lo abre a todos** en el acto. Lo que lo contiene es que el curso nace `INACTIVO` (`RN-AC-008`) y que activarlo es una decisión: **quien activa un curso sin llaves lo está regalando**. El detalle de administración no tiene hoy un campo que lo diga; el frontend lo deduce de `memberships` y `products` vacíos.
+
+#### 5.2.13 El catálogo se acota a lo que se abre, y cada vista del aula tiene su permiso — 26-09-2026
+
+El responsable del proyecto pidió **consultar los cursos que el alumno puede ver**: los que le abre su membresía o uno de sus servicios, los que no declaran llaves, **y los que tienen al menos una lección abierta**. Se le ofrecieron tres salidas —dejar el catálogo con candados y filtrar en el frontend, esconder lo cerrado, o **las dos cosas con un filtro**— y se tomó la tercera, que no reescribe `RN-AC-013`:
+
+- **Por omisión el catálogo sigue siendo la vitrina** de §1.4: todo lo ofrecido, con candados. Es lo que invita a subir de nivel, y ninguna pantalla que ya lo lea cambia.
+- **`onlyAccessible=true` deja solo lo que tiene algo abierto para quien pregunta**: el curso entero (`accessible`) **o al menos una lección abierta ofrecible** (`RN-AC-014`). Es la pestaña «mis cursos» sin inventar una lista aparte.
+- **Cada curso del catálogo publica `openLessonCount`**: cuántas lecciones abiertas y ofrecibles tiene. `accessible` solo dice si el curso entero se abre, y sin la cuenta el frontend no podría pintar «2 lecciones gratis» ni saber por qué un curso cerrado pasó el filtro.
+
+Descartado *esconder lo cerrado siempre*: rompía §1.4 y `RN-AC-013` —el catálogo dejaría de decirle al alumno qué hay por encima— y obligaba a otra ruta para la vitrina.
+
+**Y el aula pasa a tres permisos**, uno por vista, por la regla del 19-09-2026 (`RN-SEG-014`, `RF-SP-060`): **`courses:learn`** se queda con el catálogo, **`courses:read-available`** gobierna el detalle del alumno y **`lessons:learn`** el contenido de una lección. Los siembra `V47` en **todo rol que ya porte `courses:learn`** —hoy `SUPERADMIN` y `ADMIN`—, como `V28` hizo con los hijos de cada padre, de modo que nadie pierde una vista. **A `CLIENTE` siguen sin sembrarse** (§4): quien administra roles concede los tres a los de tipo `CONSUMIDOR`.
 ### 5.3 Reglas de otros documentos que este módulo aplica
 
 | Regla | Dónde vive | Cómo la aplica este módulo |
 |---|---|---|
 | `RN-SP-006`, `RN-SP-007` | [`requirements/sp.md` §5.1](sp.md#51-reglas-propias-del-modulo) | La cadena de membresías es lineal y ordenada. `RN-AC-012` **no se apoya en ese orden** a propósito: la visibilidad es una lista, y añadir «los superiores» es decisión de quien administra |
 | `RN-SP-024` | [`requirements/sp.md` §5.1](sp.md#51-reglas-propias-del-modulo) | El formato del color de la categoría (`RN-AC-003`), sin la unicidad |
+| `RN-SP-056` | [`requirements/sp.md` §5.1](sp.md#51-reglas-propias-del-modulo) | Lo que cada persona tiene vive en `user_products`, con su periodo: es de donde sale **quién tiene un servicio vigente** (`RN-AC-020`) |
+| `RN-PM-001`, `RN-PM-015` | [`requirements/pm.md` §5.1](pm.md#51-reglas-propias-del-modulo) | El tipo del producto decide qué da, y el `BOT` es el que da una prestación: solo él abre un curso (`RN-AC-020`). Su vigencia es la de lo vendido |
 | `RN-PM-005`, `RN-PM-012`, `RN-PM-014`, `RN-PM-016`, `RN-PM-032`, `RN-PM-033`, `RN-PM-045` | [`requirements/pm.md` §5.1](pm.md#51-reglas-propias-del-modulo) | Por extensión, donde cada regla de §5.1 lo dice: nombre único entre vivos, nacer inactivo, no publicar lo vacío, icono como identificador, video como enlace, portada como archivo y portada sin condición |
 | `RN-SEG-001` a `RN-SEG-004` | [`security.md` §4](../security.md) | Toda operación exige su permiso (§7); las rutas de portada pública son las únicas sin token, como `RF-PM-016` |
 | Art. V.7, V.13 | [`constitution.md`](../constitution.md) | Auditoría de cambios en toda escritura; baja lógica con motivo y registro en toda eliminación (`RN-AC-018`), **incluidas las arrastradas** |
@@ -246,7 +320,7 @@ Las tripletas del bloque 2 y del bloque 3 dejaron escritos dos huecos de la regl
 | `RF-AC-003` | Consultar el detalle de una categoría | Categorías | Media | `course-categories:read` | **En desarrollo** (17-09-2026) |
 | `RF-AC-004` | Editar categoría | Categorías | Alta | `course-categories:update` | **En desarrollo** (17-09-2026) |
 | `RF-AC-005` | Eliminar categoría | Categorías | Media | `course-categories:delete` | **En desarrollo** (17-09-2026) |
-| `RF-AC-006` | Subir o reemplazar la portada de una categoría | Portadas | Media | `course-categories:update` | **Tasks en revisión** (18-09-2026) |
+| `RF-AC-006` | Subir o reemplazar la portada de una categoría | Portadas | Media | `course-categories:update` | **En desarrollo** (25-09-2026) |
 | `RF-AC-007` | Quitar la portada de una categoría | Portadas | Baja | `course-categories:update` | **Tasks en revisión** (18-09-2026) |
 | `RF-AC-008` | Registrar curso | Cursos | Alta | `courses:create` | **En desarrollo** (18-09-2026) |
 | `RF-AC-009` | Consultar cursos | Cursos | Alta | `courses:read` | **En desarrollo** (18-09-2026) |
@@ -254,14 +328,14 @@ Las tripletas del bloque 2 y del bloque 3 dejaron escritos dos huecos de la regl
 | `RF-AC-011` | Editar curso | Cursos | Alta | `courses:update` | **En desarrollo** (18-09-2026) |
 | `RF-AC-012` | Cambiar el estado de un curso | Cursos | Alta | `courses:update` | **En desarrollo** (18-09-2026) |
 | `RF-AC-013` | Eliminar curso | Cursos | Media | `courses:delete` | **En desarrollo** (18-09-2026) |
-| `RF-AC-014` | Subir o reemplazar la portada de un curso | Portadas | Media | `courses:update` | **Tasks en revisión** (18-09-2026) |
+| `RF-AC-014` | Subir o reemplazar la portada de un curso | Portadas | Media | `courses:update` | **En desarrollo** (25-09-2026) |
 | `RF-AC-015` | Quitar la portada de un curso | Portadas | Baja | `courses:update` | **Tasks en revisión** (18-09-2026) |
-| `RF-AC-016` | Clasificar un curso en una categoría | Cursos | Alta | `courses:update` | **Tasks en revisión** (18-09-2026) |
-| `RF-AC-017` | Desclasificar un curso de una categoría | Cursos | Media | `courses:update` | **Tasks en revisión** (18-09-2026) |
+| `RF-AC-016` | Clasificar un curso en una categoría | Cursos | Alta | `courses:update` | **En desarrollo** (25-09-2026) |
+| `RF-AC-017` | Desclasificar un curso de una categoría | Cursos | Media | `courses:update` | **En desarrollo** (25-09-2026) |
 | `RF-AC-018` | Recomendar un curso previo | Cursos | Media | `courses:update` | **Tasks en revisión** (18-09-2026) |
 | `RF-AC-019` | Retirar una recomendación | Cursos | Baja | `courses:update` | **Tasks en revisión** (18-09-2026) |
-| `RF-AC-020` | Dar visibilidad de un curso a una membresía | Cursos | Alta | `courses:update` | **Tasks en revisión** (18-09-2026) |
-| `RF-AC-021` | Quitar la visibilidad de un curso a una membresía | Cursos | Media | `courses:update` | **Tasks en revisión** (18-09-2026) |
+| `RF-AC-020` | Dar visibilidad de un curso a una membresía | Cursos | Alta | `courses:update` | **En desarrollo** (25-09-2026) |
+| `RF-AC-021` | Quitar la visibilidad de un curso a una membresía | Cursos | Media | `courses:update` | **En desarrollo** (25-09-2026) |
 | `RF-AC-022` | Registrar módulo | Módulos | Alta | `courses:update` | **En desarrollo** (19-09-2026) |
 | `RF-AC-023` | Editar módulo | Módulos | Alta | `courses:update` | **En desarrollo** (19-09-2026) |
 | `RF-AC-024` | Cambiar el estado de un módulo | Módulos | Alta | `courses:update` | **En desarrollo** (19-09-2026) |
@@ -272,22 +346,24 @@ Las tripletas del bloque 2 y del bloque 3 dejaron escritos dos huecos de la regl
 | `RF-AC-029` | Editar lección | Lecciones | Alta | `courses:update` | **En desarrollo** (19-09-2026) |
 | `RF-AC-030` | Cambiar el estado de una lección | Lecciones | Alta | `courses:update` | **En desarrollo** (19-09-2026) |
 | `RF-AC-031` | Eliminar lección | Lecciones | Media | `courses:update` | **En desarrollo** (19-09-2026) |
-| `RF-AC-032` | Obtener la imagen de una portada de academia, sin autenticación | Portadas | Alta | **Público** | **Tasks en revisión** (18-09-2026) |
-| `RF-AC-033` | Consultar el catálogo de cursos como alumno | Aula | Alta | `courses:learn` | **Tasks en revisión** (18-09-2026) |
-| `RF-AC-034` | Consultar el detalle de un curso como alumno | Aula | Alta | `courses:learn` | **Tasks en revisión** (18-09-2026) |
-| `RF-AC-035` | Consultar el contenido de una lección | Aula | Alta | `courses:learn` | **Tasks en revisión** (18-09-2026) |
+| `RF-AC-032` | Obtener la imagen de una portada de academia, sin autenticación | Portadas | Alta | **Público** | **En desarrollo** (25-09-2026) |
+| `RF-AC-033` | Consultar el catálogo de cursos como alumno | Aula | Alta | `courses:learn` | **En desarrollo** (26-09-2026) |
+| `RF-AC-034` | Consultar el detalle de un curso como alumno | Aula | Alta | `courses:read-available` | **En desarrollo** (26-09-2026) |
+| `RF-AC-035` | Consultar el contenido de una lección | Aula | Alta | `lessons:learn` | **En desarrollo** (26-09-2026) |
 | `RF-AC-036` | Consultar el detalle de una lección | Lecciones | Media | `courses:read` | **En desarrollo** (19-09-2026) |
+| `RF-AC-037` | Dar visibilidad de un curso a un servicio | Cursos | Alta | `courses:update` | **En desarrollo** (25-09-2026) |
+| `RF-AC-038` | Quitar la visibilidad de un curso a un servicio | Cursos | Media | `courses:update` | **En desarrollo** (25-09-2026) |
 
-**Treinta y seis requerimientos** —treinta y cinco del 17-09-2026 y `RF-AC-036` del 18 (§5.2.7)—, y la cifra merece una explicación: no es que el módulo sea grande, es que **cada entidad paga el mismo precio** —alta, corrección, estado, retiro— y **cada relación cobra dos** —dar y quitar—. Es la misma forma que `PM` con el producto y el paquete, y la razón de no juntar «asociar» y «desasociar» en un solo requerimiento es la de siempre: son dos operaciones con dos reglas distintas y dos auditorías distintas.
+**Treinta y ocho requerimientos** —treinta y cinco del 17-09-2026, `RF-AC-036` del 18 (§5.2.7) y `RF-AC-037` y `RF-AC-038` del 25 (§5.2.8)—, y la cifra merece una explicación: no es que el módulo sea grande, es que **cada entidad paga el mismo precio** —alta, corrección, estado, retiro— y **cada relación cobra dos** —dar y quitar—. Es la misma forma que `PM` con el producto y el paquete, y la razón de no juntar «asociar» y «desasociar» en un solo requerimiento es la de siempre: son dos operaciones con dos reglas distintas y dos auditorías distintas.
 
-**Los módulos, las lecciones y las tres relaciones se administran con `courses:update`** y no con un recurso propio (§7): son partes del curso, y quien puede corregir un curso puede armarlo.
+**Los módulos, las lecciones y las cuatro relaciones se administran con `courses:update`** y no con un recurso propio (§7): son partes del curso, y quien puede corregir un curso puede armarlo.
 
 **Orden sugerido de implementación.** Por bloques, cada uno con su tripleta revisada antes de escribir código:
 
 1. **Categorías** — `RF-AC-001` → `RF-AC-002` → `RF-AC-003` → `RF-AC-004` → `RF-AC-005`. El alta crea la tabla y siembra los cuatro `course-categories:`. Sin portada todavía.
 2. **Cursos** — `RF-AC-008` → `RF-AC-009` → `RF-AC-010` → `RF-AC-011` → `RF-AC-012` → `RF-AC-013`. El alta crea `courses`, siembra los seis `courses:` y **pide a `SP` la interfaz del permiso** (§3). El detalle nace con módulos y lecciones vacíos y con `offerable: false` siempre, hasta el bloque 3.
 3. **Módulos y lecciones** — `RF-AC-022` → `RF-AC-028` → `RF-AC-023` → `RF-AC-029` → `RF-AC-024` → `RF-AC-030` → `RF-AC-025` → `RF-AC-031` → `RF-AC-036`. Las lecciones van antes que la corrección de módulos porque activar un módulo (`RF-AC-024`) necesita una lección activa. **`RN-AC-015` se construye entero aquí**, y enmienda el detalle del bloque 2 (Art. I.7).
-4. **Relaciones** — `RF-AC-016` → `RF-AC-017` → `RF-AC-020` → `RF-AC-021` → `RF-AC-018` → `RF-AC-019`. La visibilidad va antes que las recomendaciones porque sin ella ningún curso se ofrece.
+4. **Relaciones** — `RF-AC-016` → `RF-AC-017` → `RF-AC-037` → `RF-AC-038` → `RF-AC-020` → `RF-AC-021` → `RF-AC-018` → `RF-AC-019`. Las visibilidades van antes que las recomendaciones porque sin ellas ningún curso se ofrece, y **la del servicio va primero** desde el 25-09-2026 porque es la que el responsable del proyecto pidió; cualquiera de las dos basta para que un curso se ofrezca.
 5. **Portadas** — `RF-AC-006` → `RF-AC-032` → `RF-AC-007` → `RF-AC-014` → `RF-AC-015` → `RF-AC-026` → `RF-AC-027`. La primera subida crea `academy_images` y **mueve el detector a `shared/`**; la ruta pública va segunda porque sin ella `coverImageUrl` señalaría a nada; y las demás entidades heredan.
 6. **Aula** — `RF-AC-033` → `RF-AC-034` → `RF-AC-035`. Va al final porque lee todo lo anterior, y es el bloque que **enseña el resultado**. `RF-AC-036` se redactó con este bloque y se construye con el 3, que es de donde sale su forma.
 
@@ -379,7 +455,7 @@ Baja lógica **con motivo** y registro de eliminación (Art. V.13). **No arrastr
 | Reglas aplicables | `RN-AC-004` |
 | Depende de | `RF-AC-001` |
 | Tripleta | `docs/specs/ac/006-subir-portada-categoria/` |
-| Estado | **Tasks en revisión** (18-09-2026) |
+| Estado | **En desarrollo** (25-09-2026) |
 
 `RF-PM-014` aplicado a la categoría: un archivo `multipart/form-data`, comprobado por sus primeros bytes y su tamaño, guardado tal cual; si ya había portada, la nueva estrena identificador y la vieja se borra en la misma transacción. **Es el requerimiento que crea `academy_images`** y **el que mueve el detector de firma de `PM` a `shared/`** (§5.2.3), con la suite de `PM` en verde como condición.
 
@@ -411,7 +487,7 @@ Suelta la imagen y la borra. **Nunca se rechaza**: la categoría siempre tiene c
 | Tripleta | `docs/specs/ac/008-registrar-curso/` |
 | Estado | **En desarrollo** (18-09-2026) |
 
-Registra un curso con **título, instructor, dificultad y orden**, obligatorios, y descripción corta, descripción larga y video de introducción, opcionales. **Nace `INACTIVO`, sin categorías, sin membresías, sin módulos y sin portada.** El instructor se comprueba contra `SP` —existe, no retirado, porta `courses:teach`— y **es el requerimiento que pide a `SP` la interfaz del permiso** (§3). Crea `courses` y siembra los seis `courses:`, asociados a `SUPERADMIN` y a `ADMIN`. La respuesta trae el instructor resuelto —identificador, nombre de usuario y nombre completo—, `coverImageUrl` nulo y `offerable: false` con su motivo.
+Registra un curso con **título, instructor, dificultad y orden**, obligatorios, y descripción corta, descripción larga, video de introducción y, desde el 25-09-2026 (§5.2.9), **categorías, servicios y membresías** (`categoryIds`, `productIds`, `membershipIds`), opcionales. **Nace `INACTIVO`, con las relaciones pedidas y ninguna otra, sin módulos y sin portada.** El instructor se comprueba contra `SP` —existe, no retirado, porta `courses:teach`— y **es el requerimiento que pide a `SP` la interfaz del permiso** (§3). Crea `courses` y siembra los seis `courses:`, asociados a `SUPERADMIN` y a `ADMIN`. La respuesta trae el instructor resuelto —identificador, nombre de usuario y nombre completo—, `coverImageUrl` nulo y `offerable: false` con su motivo.
 
 #### `RF-AC-009` — Consultar cursos
 
@@ -499,7 +575,7 @@ Baja lógica con motivo, **y arrastra**: todos sus módulos y lecciones vivos se
 | Reglas aplicables | `RN-AC-004` |
 | Depende de | `RF-AC-008`, `RF-AC-006` |
 | Tripleta | `docs/specs/ac/014-subir-portada-curso/` |
-| Estado | **Tasks en revisión** (18-09-2026) |
+| Estado | **En desarrollo** (25-09-2026) |
 
 `RF-AC-006` aplicado al curso, sobre la misma tabla y el mismo detector. Sin condición, en cualquier estado.
 
@@ -529,7 +605,7 @@ Suelta la imagen y la borra. **Nunca se rechaza**: el curso se pinta con el icon
 | Reglas aplicables | `RN-AC-010`, `RN-AC-018` |
 | Depende de | `RF-AC-001`, `RF-AC-008` |
 | Tripleta | `docs/specs/ac/016-clasificar-curso/` |
-| Estado | **Tasks en revisión** (18-09-2026) |
+| Estado | **En desarrollo** (25-09-2026) |
 
 Añade la pareja curso–categoría. Rechaza la repetida (`409`, nombrando la categoría), la categoría retirada y el curso retirado. Responde con el curso, como toda escritura sobre él.
 
@@ -544,7 +620,7 @@ Añade la pareja curso–categoría. Rechaza la repetida (`409`, nombrando la ca
 | Reglas aplicables | `RN-AC-010`, `RN-AC-018` |
 | Depende de | `RF-AC-016` |
 | Tripleta | `docs/specs/ac/017-desclasificar-curso/` |
-| Estado | **Tasks en revisión** (18-09-2026) |
+| Estado | **En desarrollo** (25-09-2026) |
 
 Borra la fila. La auditoría de cambios del curso conserva antes y después. Una pareja que no existe devuelve `404`.
 
@@ -589,7 +665,7 @@ Borra la fila. Una pareja que no existe devuelve `404`.
 | Reglas aplicables | `RN-AC-012`, `RN-AC-015`, `RN-AC-018` |
 | Depende de | `RF-AC-008` |
 | Tripleta | `docs/specs/ac/020-dar-visibilidad-curso/` |
-| Estado | **Tasks en revisión** (18-09-2026) |
+| Estado | **En desarrollo** (25-09-2026) |
 
 Añade la pareja curso–membresía. La membresía se resuelve contra `MembershipCatalog` (`404` si no existe); la repetida, `409`. **No exige que el curso esté activo**: la lista se arma antes de publicar. Responde con el curso y su lista resuelta —código, nombre, color—.
 
@@ -604,7 +680,7 @@ Añade la pareja curso–membresía. La membresía se resuelve contra `Membershi
 | Reglas aplicables | `RN-AC-012`, `RN-AC-015` |
 | Depende de | `RF-AC-020` |
 | Tripleta | `docs/specs/ac/021-quitar-visibilidad-curso/` |
-| Estado | **Tasks en revisión** (18-09-2026) |
+| Estado | **En desarrollo** (25-09-2026) |
 
 Borra la fila. **Quitar la última nunca se rechaza**: el curso deja de ofrecerse y el detalle lo dice (`RN-AC-015`). Es la forma de retirar un curso de la vista de todos sin desactivarlo.
 
@@ -769,7 +845,7 @@ Baja lógica con motivo y registro. No arrastra nada: no hay nada debajo.
 | Reglas aplicables | `RN-AC-004` |
 | Depende de | `RF-AC-006` |
 | Tripleta | `docs/specs/ac/032-imagen-de-portada-academia-publica/` |
-| Estado | **Tasks en revisión** (18-09-2026) |
+| Estado | **En desarrollo** (25-09-2026) |
 
 `RF-PM-016` sobre `academy_images`: `GET /api/v1/academy-images/{id}`, los bytes con su `Content-Type` real, **caché inmutable** de un año —la dirección no cambia nunca porque cada subida estrena identificador—, `404` si no existe, y la misma cota de tasa y la misma entrada en la lista pública de `SecurityConfig` que su hermana de `PM`. **No dice de qué entidad es la portada**, y no hace falta.
 
@@ -784,9 +860,9 @@ Baja lógica con motivo y registro. No arrastra nada: no hay nada debajo.
 | Reglas aplicables | `RN-AC-002`, `RN-AC-012`, `RN-AC-013`, `RN-AC-015` |
 | Depende de | `RF-AC-020`, `RF-AC-030` |
 | Tripleta | `docs/specs/ac/033-consultar-catalogo-alumno/` |
-| Estado | **Tasks en revisión** (18-09-2026) |
+| Estado | **En desarrollo** (26-09-2026) |
 
-`GET /api/v1/courses/available`: **todos los cursos que se ofrecen** (`RN-AC-015`), en su orden, filtrables por categoría y por dificultad, **sin paginar** —son decenas, como la oferta de `PM`—. Cada uno con portada, título, instructor resuelto, dificultad, descripción corta, categorías —vivas—, **duración total**, **cuántas lecciones** y **`accessible`**: si la membresía vigente de quien pregunta está en su lista. **Trae además las categorías vivas** con su color, icono, portada y orden, para que el frontend pinte los cajones sin otra petición. Quien no tiene membresía vigente ve el catálogo entero con todo cerrado — y las demostraciones abiertas.
+`GET /api/v1/courses/available`: **todos los cursos que se ofrecen** (`RN-AC-015`), en su orden, filtrables por categoría, por dificultad y —desde el 26-09-2026— **por `onlyAccessible`**, que deja solo los que abren algo a quien pregunta (§5.2.13); cada curso trae además **`openLessonCount`**. **Sin paginar** —son decenas, como la oferta de `PM`—. Cada uno con portada, título, instructor resuelto, dificultad, descripción corta, categorías —vivas—, **duración total**, **cuántas lecciones** y **`accessible`**: si la membresía vigente de quien pregunta está en su lista **o si tiene vigente uno de sus servicios** (`RN-AC-020`, enmienda del 25-09-2026 que se escribe en la tripleta al construir). **Trae además las categorías vivas** con su color, icono, portada y orden, para que el frontend pinte los cajones sin otra petición. Quien no tiene membresía vigente ve el catálogo entero con todo cerrado — y las demostraciones abiertas.
 
 #### `RF-AC-034` — Consultar el detalle de un curso como alumno
 
@@ -794,14 +870,14 @@ Baja lógica con motivo y registro. No arrastra nada: no hay nada debajo.
 |---|---|
 | Objetivo | Que el alumno vea el curso entero antes de entrar, y sepa qué le abre |
 | Actor | Alumno |
-| Permiso requerido | `courses:learn` |
+| Permiso requerido | `courses:read-available` (desde el 26-09-2026; antes `courses:learn`) |
 | Prioridad | Alta |
 | Reglas aplicables | `RN-AC-011`, `RN-AC-013`, `RN-AC-014`, `RN-AC-015` |
 | Depende de | `RF-AC-033` |
 | Tripleta | `docs/specs/ac/034-consultar-detalle-curso-alumno/` |
-| Estado | **Tasks en revisión** (18-09-2026) |
+| Estado | **En desarrollo** (26-09-2026) |
 
-`GET /api/v1/courses/available/{id}`: el curso con sus dos descripciones y su video de introducción, el instructor, las categorías, **los cursos recomendados que se ofrezcan**, **las membresías que lo abren** —código, nombre, color— y **el árbol ofrecido**: módulos `ACTIVOS` con lección activa, en su orden, con portada, descripciones, video de presentación y duración; y sus lecciones activas, en su orden, con tipo, título, descripción, duración y **`accessible`** —verdadero si el curso lo es o si la lección está abierta—, **sin el contenido**. Un curso que no se ofrece devuelve `404`: para el alumno no existe.
+`GET /api/v1/courses/available/{id}`: el curso con sus dos descripciones y su video de introducción, el instructor, las categorías, **los cursos recomendados que se ofrezcan**, **las membresías que lo abren** —código, nombre, color—, **los servicios que lo abren** —código y nombre, desde el 25-09-2026— y **el árbol ofrecido**: módulos `ACTIVOS` con lección activa, en su orden, con portada, descripciones, video de presentación y duración; y sus lecciones activas, en su orden, con tipo, título, descripción, duración y **`accessible`** —verdadero si el curso lo es o si la lección está abierta—, **sin el contenido**. Un curso que no se ofrece devuelve `404`: para el alumno no existe.
 
 #### `RF-AC-035` — Consultar el contenido de una lección
 
@@ -809,14 +885,14 @@ Baja lógica con motivo y registro. No arrastra nada: no hay nada debajo.
 |---|---|
 | Objetivo | Estudiar |
 | Actor | Alumno |
-| Permiso requerido | `courses:learn` |
+| Permiso requerido | `lessons:learn` (desde el 26-09-2026; antes `courses:learn`) |
 | Prioridad | Alta |
 | Reglas aplicables | `RN-AC-013`, `RN-AC-014`, `RN-AC-015`, `RN-AC-016` |
 | Depende de | `RF-AC-034` |
 | Tripleta | `docs/specs/ac/035-consultar-contenido-leccion/` |
-| Estado | **Tasks en revisión** (18-09-2026) |
+| Estado | **En desarrollo** (26-09-2026) |
 
-`GET /api/v1/courses/available/{courseId}/lessons/{lessonId}`: la lección con su **contenido** —la URL si es `VIDEO`, el Markdown si es `TEXTO`— y lo demás. **`404`** si el curso no se ofrece o la lección no se ofrece dentro de él; **`403`** si se ofrece y ni la membresía vigente de quien pregunta está en la lista del curso ni la lección está abierta — con **las membresías que lo abren** en el cuerpo del error, que es la invitación. Es el único sitio donde el contenido de una lección sale hacia un alumno.
+`GET /api/v1/courses/available/{courseId}/lessons/{lessonId}`: la lección con su **contenido** —la URL si es `VIDEO`, el Markdown si es `TEXTO`— y lo demás. **`404`** si el curso no se ofrece o la lección no se ofrece dentro de él; **`403`** si se ofrece y ni la membresía vigente de quien pregunta está en la lista del curso, ni tiene vigente uno de sus servicios, ni la lección está abierta — con **las membresías y los servicios que lo abren** en el cuerpo del error, que es la invitación. Es el único sitio donde el contenido de una lección sale hacia un alumno.
 
 #### `RF-AC-036` — Consultar el detalle de una lección
 
@@ -833,6 +909,36 @@ Baja lógica con motivo y registro. No arrastra nada: no hay nada debajo.
 
 `GET /api/v1/courses/{courseId}/modules/{moduleId}/lessons/{lessonId}`: la lección entera **con su contenido**, en la misma forma que devuelven sus escrituras (`RF-AC-028`), **viva o retirada** —la retirada con fecha y motivo, también la que arrastró el retiro de su módulo o de su curso—. La ruta afirma la pertenencia en los tres niveles: una lección de otro módulo, o un módulo de otro curso, es `404`. Nace el 18-09-2026 (§5.2.7) porque el detalle del curso no trae el contenido a propósito y la corrección exige un campo: administración no tenía cómo ver lo que escribió.
 
+#### `RF-AC-037` — Dar visibilidad de un curso a un servicio
+
+| Campo | Valor |
+|---|---|
+| Objetivo | Que quien tiene un servicio pueda estudiar el curso |
+| Actor | Administrador |
+| Permiso requerido | `courses:update` |
+| Prioridad | Alta |
+| Reglas aplicables | `RN-AC-015`, `RN-AC-018`, `RN-AC-020` |
+| Depende de | `RF-AC-008` |
+| Tripleta | `docs/specs/ac/037-dar-visibilidad-curso-servicio/` |
+| Estado | **En desarrollo** (25-09-2026) |
+
+`POST /api/v1/courses/{courseId}/products` con `{ "productId" }`: añade la pareja curso–producto. El producto se resuelve contra `ProductCatalog`: inexistente o retirado, `422`; que no sea `BOT`, `422` distinto; la pareja repetida, `409` **nombrando el producto**. **No exige que el curso esté activo ni que el servicio esté a la venta.** Responde `201` con el curso y su lista resuelta —código y nombre—. Crea `course_products` (§8.5.1) y enmienda la ofrecibilidad, el detalle y el retiro del curso.
+
+#### `RF-AC-038` — Quitar la visibilidad de un curso a un servicio
+
+| Campo | Valor |
+|---|---|
+| Objetivo | Que un servicio deje de abrir el curso |
+| Actor | Administrador |
+| Permiso requerido | `courses:update` |
+| Prioridad | Media |
+| Reglas aplicables | `RN-AC-015`, `RN-AC-020` |
+| Depende de | `RF-AC-037` |
+| Tripleta | `docs/specs/ac/038-quitar-visibilidad-curso-servicio/` |
+| Estado | **En desarrollo** (25-09-2026) |
+
+`DELETE /api/v1/courses/{courseId}/products/{productId}`: borra la fila, sin motivo, como `ASSOCIATION`. **Quitar el último servicio nunca se rechaza**: si tampoco hay membresías, el curso deja de ofrecerse y el detalle lo dice. Un servicio retirado se quita igual.
+
 ---
 
 ## 7. Permisos
@@ -848,7 +954,9 @@ Baja lógica con motivo y registro. No arrastra nada: no hay nada debajo.
 | `courses:update` | `courses` | `update` | Corregir un curso, cambiar su estado, su portada, **sus relaciones**, y **registrar, corregir, cambiar de estado, retirar y poner portada a sus módulos y lecciones** |
 | `courses:delete` | `courses` | `delete` | Retirar un curso, con lo que arrastra |
 | `courses:teach` | `courses` | `teach` | **Poder ser instructor** de un curso (`RN-AC-006`). No gobierna ninguna ruta hoy |
-| `courses:learn` | `courses` | `learn` | **La vista del alumno**: catálogo, detalle y contenido de lo que se ofrece |
+| `courses:learn` | `courses` | `learn` | **El catálogo del alumno** (`RF-AC-033`). Hasta el 26-09-2026 gobernaba también el detalle y el contenido |
+| `courses:read-available` | `courses` | `read-available` | **El detalle de un curso como alumno** (`RF-AC-034`), desde el 26-09-2026 (`V47`) |
+| `lessons:learn` | `lessons` | `learn` | **El contenido de una lección como alumno** (`RF-AC-035`), desde el 26-09-2026 (`V47`) |
 
 **Las categorías tienen recurso propio y los módulos y lecciones no**, y la diferencia es la de `PM` entre `packages:` y la portada. Una categoría **existe sin cursos** y la administra quien organiza el catálogo, que puede no ser quien arma un curso; un módulo y una lección **no existen sin su curso**, y quien puede corregir el curso tiene que poder armarlo, o `courses:update` no serviría para nada. Separar «corregir el curso» de «armar el curso» tendría sentido el día que alguien deba poder lo uno sin lo otro — el instructor, cuando edite—, y ese día lo que se separa es la propiedad, no el permiso.
 
@@ -858,7 +966,7 @@ Baja lógica con motivo y registro. No arrastra nada: no hay nada debajo.
 
 ## 8. Modelo de datos
 
-Ocho tablas, todas de este módulo. Tres son **entidades con historia** —categoría, curso, módulo, lección: cuatro, con `deleted_at`—, tres son **relaciones** sin identidad propia y una es **el valor de una columna** sacado a una tabla. Los tipos siguen a `products` (`requirements/pm.md` §10.1) donde el campo es el mismo.
+Nueve tablas, todas de este módulo. Cuatro son **entidades con historia** —categoría, curso, módulo, lección, con `deleted_at`—, cuatro son **relaciones** sin identidad propia —la cuarta, `course_products`, desde el 25-09-2026— y una es **el valor de una columna** sacado a una tabla. Los tipos siguen a `products` (`requirements/pm.md` §10.1) donde el campo es el mismo.
 
 ### 8.1 `course_categories`
 
@@ -927,6 +1035,16 @@ Clave primaria compuesta. **El orden de las columnas es el de la frase**: «ante
 
 Clave primaria compuesta. **La clave foránea a `memberships` se declara** hacia `SP`, como `products.target_membership_id`. La membresía es inmutable y no se retira (`RN-SP-008`), de modo que esta fila no tiene «otro lado» que pueda morir.
 
+### 8.5.1 `course_products` — 25-09-2026
+
+| Columna | Tipo | Nula | Referencia |
+|---|---|---|---|
+| `course_id` | `uuid` | No | `courses` |
+| `product_id` | `uuid` | No | `products` — `RN-AC-020`, de tipo `BOT` |
+| `created_at` | `timestamptz` | No | — |
+
+`course_memberships` con otro lado. Clave primaria compuesta, **la clave foránea a `products` se declara** hacia `PM`, como la de `user_products.product_id` y `commission_rates.product_id`. **Sin `ON DELETE`**: el producto se retira en lógico y no se borra nunca. **Que sea `BOT` no cabe en el esquema** —el tipo vive en `products` y ningún `CHECK` de esta tabla puede mirarlo—: lo comprueba el dominio al añadir, contra `ProductCatalog`, y como el tipo de un producto **no cambia nunca** (`RN-PM-001`), lo comprobado al añadir sigue siendo cierto. Un servicio retirado después **deja su fila** (`RN-AC-020`). **Se numera `§8.5.1` y no `§8.6`** para no renumerar las tablas que ya citan las tripletas.
+
 ### 8.6 `course_modules`
 
 | Columna | Tipo | Nula | Referencia |
@@ -956,7 +1074,7 @@ Clave primaria compuesta. **La clave foránea a `memberships` se declara** hacia
 | `title` | `varchar(150)` | No | — |
 | `description` | `text` | **Sí** | — |
 | `content` | `text` | **Sí** | `RN-AC-016`: URL o Markdown según `type`; nulo hasta que se prepare |
-| `duration_minutes` | `integer` | No | `RN-AC-017` |
+| `duration_seconds` | `integer` | No | `RN-AC-017` |
 | `display_order` | `integer` | No | `RN-AC-002` |
 | `open` | `boolean` | No | `RN-AC-014`, por omisión `false` |
 | `status` | `varchar(20)` | No | `ACTIVO` \| `INACTIVO` |
@@ -1002,6 +1120,9 @@ Clave primaria compuesta. **La clave foránea a `memberships` se declara** hacia
 | `fk_course_recommendations_course`, `fk_course_recommendations_recommended` | Las dos hacia `courses` | — |
 | `pk_course_memberships` | `(course_id, membership_id)` | `RN-AC-012`: la pareja no se repite |
 | `fk_course_memberships_course`, `fk_course_memberships_membership` | Hacia `courses` y `memberships`, sin `ON DELETE` | `RN-AC-012` |
+| `pk_course_products` | `(course_id, product_id)` | `RN-AC-020`: la pareja no se repite |
+| `fk_course_products_course`, `fk_course_products_product` | Hacia `courses` y `products`, sin `ON DELETE` | `RN-AC-020`. Que el producto sea `BOT` **no cabe aquí**: vive en el dominio (§8.5.1) |
+| `ix_course_products_product` | `(product_id)` | Sostiene «qué cursos abre este servicio», que es la pregunta del aula al revés: con los productos vigentes de una persona, qué cursos se le abren |
 | `uq_course_modules_title` | Índice único parcial sobre `(course_id, f_unaccent(lower(title)))`, `WHERE deleted_at IS NULL` | `RN-AC-001`: único **dentro del curso** |
 | `fk_course_modules_course` | `course_id` → `courses(id)`, sin `ON DELETE` | `RN-AC-019` |
 | `ck_course_modules_status`, `ck_course_modules_display_order`, `ck_course_modules_presentation_video_url` | Como en el curso | `RN-AC-008`, `RN-AC-002`, `RN-AC-005` |
@@ -1010,7 +1131,7 @@ Clave primaria compuesta. **La clave foránea a `memberships` se declara** hacia
 | `fk_lessons_module` | `module_id` → `course_modules(id)`, sin `ON DELETE` | `RN-AC-019` |
 | `ck_lessons_type` | `type IN ('VIDEO','TEXTO')` | `RN-AC-016` |
 | `ck_lessons_video_content` | `type <> 'VIDEO' OR content IS NULL OR content ~ '^https?://[^[:space:]]+$'` | `RN-AC-016`: cuando es video y hay contenido, es una URL. Las tres ramas son predicados que no evalúan a `NULL` |
-| `ck_lessons_duration` | `duration_minutes > 0` | `RN-AC-017` |
+| `ck_lessons_duration` | `duration_seconds > 0` | `RN-AC-017` |
 | `ck_lessons_status`, `ck_lessons_display_order` | Como en el curso | `RN-AC-008`, `RN-AC-002` |
 | `ck_academy_images_content_type`, `ck_academy_images_size` | Como `ck_product_images_*` | `RN-AC-004`: los tres tipos, y de 1 byte a 5 MB |
 | `ix_course_category_items_category` | `(category_id)` | Sostiene el filtro por categoría de `RF-AC-009` y `RF-AC-033`, y el conteo de `RF-AC-002` |
@@ -1037,3 +1158,13 @@ Clave primaria compuesta. **La clave foránea a `memberships` se declara** hacia
 | 0.8.0 | 18-09-2026 | **Las tres tripletas del Aula quedan redactadas** (`RF-AC-033` a `RF-AC-035`, bloque 6 de §6.1, el último) y pasan a `Tasks en revisión`. **Dos decisiones del responsable del proyecto, del mismo día**: **`RN-AC-015` gana dos motivos** —«sin descripción» en el curso, tercero de cinco, y «sin contenido» en la lección— para que lo que se vacía después de activarse **deje de ofrecerse** en lugar de enseñarse vacío (§5.2.7; `RN-AC-009` lo dice al lado); y **nace `RF-AC-036`**, consultar el detalle de una lección con `courses:read`, que cierra el hueco de `RF-AC-029` §14.2: **treinta y seis requerimientos**, §2, §6.1 (orden del bloque 3), §6.2 y §7 lo recogen. Las tripletas del aula fijan además que **la ofrecibilidad no se reescribe en SQL** —se lee lo vivo con las mismas cuentas y deciden los mismos objetos que administración—, que `accessible` lo decide un solo objeto, que el `404` del aula no distingue «no se ofrece» de «no existe», y que en la lección va primero si se ofrece y después si se abre. Con esto el catálogo del módulo tiene **todas sus tripletas redactadas**. | Responsable del proyecto |
 | 0.9.0 | 18-09-2026 | **Los cursos están construidos**: `RF-AC-008` a `RF-AC-013` pasan a `En desarrollo` (bloque 2 de §6.1). `V21` crea `courses` y `V22` siembra los seis `courses:` con el catálogo en **60**; **`SP` publica `PermissionHolderLookup`** (§3 y la advertencia de cabecera dejan de decir «no existe»), y `CourseOfferability` nace con los cinco motivos. **Dos criterios quedan bloqueados y declarados** hasta el bloque 3: `CA-AC-064` (activar con un módulo activo) y `CA-AC-074` (el arrastre), y las lecturas de relaciones y árbol devuelven vacío con la nota de qué las sustituye. Sin cambio de reglas. | Responsable técnico |
 | 0.10.0 | 19-09-2026 | **Los módulos y las lecciones están construidos**: `RF-AC-022` a `RF-AC-025`, `RF-AC-028` a `RF-AC-031` y `RF-AC-036` pasan a `En desarrollo` (bloque 3 de §6.1, con el `GET` de lección que nació con el 6). `V23` crea `course_modules` y `V24` `lessons`; **`RN-AC-015` queda cerrada por dentro** —`ModuleOfferability` y `LessonOfferability` cuentan lecciones activas con contenido, y `CourseOfferability` recibe módulos ofrecibles reales— y solo le falta la cuenta de membresías del bloque 4. **Se desbloquean `CA-AC-064` y `CA-AC-074`** de los cursos. Sin cambio de reglas; cuatro precisiones en las specs: el árbol se lee siempre (los retirados también se enseñan), las validaciones del alta de lección van por el caso de uso para llegar juntas, la carrera de la corrección sale con el código del alta, y el quinto motivo del curso solo se observa con una membresía delante. | Responsable técnico |
+| 0.11.0 | 25-09-2026 | **La clasificación está construida**: `RF-AC-016` y `RF-AC-017` pasan a `En desarrollo` (primeros dos del bloque 4 de §6.1). `V42` crea `course_category_items` tal como §8.3 la declara —clave compuesta, sin `id` ni `deleted_at`, sin `ON DELETE`—; el plan la numeraba `V25` y el número se asignó al construir. **Las seis enmiendas declaradas por los bloques 1 y 2 quedan cerradas** —`courseCount`, los cursos del detalle de la categoría con su `offerable`, los `course_ids` de su retiro, `categories` y el filtro del listado de cursos, `categories` del detalle, y los `category_ids` del retiro del curso—. Sin cambio de reglas; una precisión a `RF-AC-009`: **`categoryId` solo acota por una categoría viva**, porque la retirada no sale en `categories` de ninguna fila. Los permisos siguen siendo `courses:update`, como las tripletas dicen: `courses:assign-category` y `courses:revoke-category` ya están sembrados por `V28` y los reparte el tramo 3 de `RF-SP-060` con todo `AC`. | Responsable técnico |
+| 0.12.0 | 25-09-2026 | **Un curso se abre también por un servicio**, por decisión del responsable del proyecto (§5.2.8): **es el curso quien declara qué productos `BOT` lo abren**, además de qué membresías, y las dos listas **se suman**. Nace **`RN-AC-020`** —solo `BOT`; existente y no retirado al añadir; un servicio inactivo se añade; lo tiene quien lo tiene **vigente** en `user_products`; retirarlo en `PM` no toca la lista—, y **`RF-AC-037`** y **`RF-AC-038`**, con tripleta, en `Tasks en revisión`. **Se enmiendan tres reglas**: `RN-AC-012` y `RN-AC-015` —un curso sin membresías **y sin servicios** no se ofrece— y `RN-AC-013` —el contenido lo abre la membresía **o el servicio** vigente—. **La frontera de §1.4 se mueve, y no como ella misma anticipaba**: aquella versión preveía un tipo de producto nuevo que declarara el curso, con `PM` consumiendo a `AC`; lo decidido es lo contrario, y **`AC` pasa a depender de `PM`** (§3), sin ciclo. Nace **`course_products`** (§8.5.1) —la cuarta relación, nueve tablas— y **dos interfaces que no existen**: la lectura del tipo en `ProductCatalog`, que amplía `RF-AC-037`, y «los productos vigentes de una persona» en `SP`, que pedirá el aula. **Cuatro preguntas hechas antes de escribir**, con sus descartes en §5.2.8. El bloque 4 de §6.1 pasa a ocho requerimientos, con el servicio antes que la membresía. | Responsable del proyecto |
+| 0.13.0 | 25-09-2026 | **Construidos cinco requerimientos y una enmienda**, en `feature/ajustes-academia`: **`RF-AC-037` y `RF-AC-038`** (`V43`, `course_products`) —el curso se abre también por un servicio—; **`RF-AC-006`, `RF-AC-032` y `RF-AC-014`** (`V44`, `academy_images`), adelantados del bloque 5 porque la portada del curso los necesita (§5.2.9); y **la enmienda de `RF-AC-008`** —el alta admite `categoryIds`, todo o nada—. `ImageSignature` y `CambioDePortada` pasan a `shared/images` (§5.2.3 lo anticipaba). **Las demás portadas siguen en `Tasks en revisión`**: quitar (`RF-AC-007`, `RF-AC-015`) y las del módulo (`RF-AC-026`, `RF-AC-027`). `CourseOfferability` suma las dos llaves; la de membresías sigue siendo cero hasta `RF-AC-020`. | Responsable técnico |
+| 0.14.0 | 25-09-2026 | **Las membresías abren cursos**: `RF-AC-020` y `RF-AC-021` pasan a `En desarrollo` (`V45`, `course_memberships`), y **el alta del curso admite `productIds` y `membershipIds`** además de `categoryIds`, por una segunda decisión del responsable del proyecto del mismo día (§5.2.9). Con esto **`RN-AC-015` queda entera por dentro**: `CourseOfferability` recibe cuentas reales de las dos llaves, y un curso activo y armado se ofrece por una membresía, por un servicio o por los dos. Del bloque 4 quedan las recomendaciones (`RF-AC-018`, `RF-AC-019`). | Responsable técnico |
+| 0.15.0 | 25-09-2026 | **La duración de la lección pasa a segundos**, y las sumas del módulo y del curso con ella, por decisión del responsable del proyecto (§5.2.10). `RN-AC-017` se reescribe; `lessons.duration_minutes` pasa a `duration_seconds` (§8.7, §8.9) y las filas existentes se multiplican por sesenta. Las specs que nombraban `durationMinutes` o `totalDurationMinutes` —registro, edición y detalle de la lección, módulo, detalle del curso y el aula— llevan su fila. **Rompe el contrato** de las lecturas y escrituras de lecciones, módulos y cursos. | Responsable del proyecto |
+| 0.16.0 | 25-09-2026 | **Los videos solo pueden ser de YouTube o de Vimeo, y la duración de una lección `VIDEO` se lee del proveedor**, por decisión del responsable del proyecto (§5.2.11). **Se reescriben `RN-AC-005`** —se rechaza cualquier otro dominio en los tres campos de video, y el sistema ya no se limita a «no seguir» el enlace: de la lección pregunta la duración— **y `RN-AC-017`** —en `VIDEO` la duración es opcional si hay enlace, manda la enviada, y sin ella el fallo del proveedor es `422`—. §3 gana a los dos proveedores como dependencia externa. Se enmiendan `RF-AC-008`, `RF-AC-011`, `RF-AC-022`, `RF-AC-023`, `RF-AC-028` y `RF-AC-029`. | Responsable del proyecto |
+| 0.17.0 | 25-09-2026 | **§5.2.11 está construida**: `RN-AC-005` y `RN-AC-017` en el código, con el reconocimiento y la consulta en `shared/video`. `YOUTUBE_API_KEY` en `application.yml`, `docker-compose.yml` y `.env.example`. Sin migración: los enlaces ya guardados no se tocan. | Responsable técnico |
+| 0.18.0 | 25-09-2026 | **Un curso sin membresías ni servicios es de todos**, por decisión del responsable del proyecto (§5.2.12): se abre a todo alumno con sesión. **Se reescriben `RN-AC-012`, `RN-AC-013` y `RN-AC-015`** —las llaves dejan de ser un motivo de la ofrecibilidad, que queda en cuatro— y se precisa `RN-AC-020`; **§5.2.2 queda reabierta** y §5.2.12 escribe el riesgo al revés: activar un curso sin llaves lo regala. **Y Vimeo pasa a leerse con token** (`VIMEO_ACCESS_TOKEN`, §5.2.11): el oEmbed sin credencial respondió `404` a un video público. | Responsable del proyecto |
+| 0.19.0 | 25-09-2026 | **§5.2.12 y el token de Vimeo están construidos**: `CourseOfferability` pierde el motivo de las llaves —cuatro motivos—, y las cuentas de membresías y servicios siguen en la fila del curso para que el aula sepa cuándo es de todos; `ProviderVideoDurationLookup` lee Vimeo por `api.vimeo.com` con token y cae al oEmbed sin él. Las pruebas que esperaban «sin membresías ni servicios» esperan ahora el motivo del módulo o `offerable: true`. | Responsable técnico |
+| 0.20.0 | 26-09-2026 | **El aula está construida**: `RF-AC-033`, `RF-AC-034` y `RF-AC-035` pasan a `En desarrollo`. **Dos decisiones del responsable del proyecto del mismo día** (§5.2.13): el catálogo gana el filtro **`onlyAccessible`** —solo lo que abre algo a quien pregunta: el curso entero o una lección abierta— y cada curso publica **`openLessonCount`**, sin reescribir la vitrina de `RN-AC-013`, que se precisa; y **el aula pasa a tres permisos** —`courses:learn` para el catálogo, **`courses:read-available`** para el detalle y **`lessons:learn`** para el contenido—, sembrados por `V47` en todo rol que porte `courses:learn` (§4, §6.1, §7). **`SP` publica `CurrentProductsLookup`** (§3), la cuarta interfaz, y el aula la consume para decidir qué servicios abren un curso. Las tres tripletas se reescriben con las enmiendas del 25-09-2026 —servicios, llaves y segundos— y las de hoy. | Responsable del proyecto |

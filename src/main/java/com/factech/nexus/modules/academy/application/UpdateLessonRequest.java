@@ -16,7 +16,7 @@ public record UpdateLessonRequest(
     @JsonDeserialize(using = PatchableDeserializer.class) Patchable<String> title,
     @JsonDeserialize(using = PatchableDeserializer.class) Patchable<String> description,
     @JsonDeserialize(using = PatchableDeserializer.class) Patchable<String> content,
-    @JsonDeserialize(using = PatchableDeserializer.class) Patchable<Integer> durationMinutes,
+    @JsonDeserialize(using = PatchableDeserializer.class) Patchable<Integer> durationSeconds,
     @JsonDeserialize(using = PatchableDeserializer.class) Patchable<Integer> displayOrder,
     @JsonDeserialize(using = PatchableDeserializer.class) Patchable<Boolean> open) {
 
@@ -25,7 +25,7 @@ public record UpdateLessonRequest(
     title = title == null ? Patchable.ausente() : title;
     description = description == null ? Patchable.ausente() : description;
     content = content == null ? Patchable.ausente() : content;
-    durationMinutes = durationMinutes == null ? Patchable.ausente() : durationMinutes;
+    durationSeconds = durationSeconds == null ? Patchable.ausente() : durationSeconds;
     displayOrder = displayOrder == null ? Patchable.ausente() : displayOrder;
     open = open == null ? Patchable.ausente() : open;
   }
@@ -35,7 +35,7 @@ public record UpdateLessonRequest(
         || title.presente()
         || description.presente()
         || content.presente()
-        || durationMinutes.presente()
+        || durationSeconds.presente()
         || displayOrder.presente()
         || open.presente();
   }

@@ -36,7 +36,7 @@ Hereda de `RF-AC-003` que **se devuelve también un retirado**, con su motivo le
 - Devolver el curso por identificador, **vivo o retirado**, con todos sus campos, el instructor resuelto y `coverImageUrl`.
 - Sus **categorías** vivas; los **cursos que recomienda** —identificador, título, estado, `offerable`—; las **membresías que lo abren** —identificador, código, nombre, color—.
 - Sus **módulos en su orden, cada uno con sus lecciones en su orden**, vivos y retirados marcados, cada módulo con `offerable` y cada lección con tipo, duración, estado y `open`, **sin el contenido**.
-- `totalDurationMinutes` y `lessonCount`, sumados en la lectura.
+- `totalDurationSeconds` y `lessonCount`, sumados en la lectura.
 - `offerable` y `offerableReason` del curso.
 - Si está retirado: `deletedAt` y el motivo.
 
@@ -67,7 +67,7 @@ Hereda de `RF-AC-003` que **se devuelve también un retirado**, con su motivo le
 
 ### 6.2 Salida
 
-`200` con: `id`, `title`, `instructor { id, username, fullName }`, `difficulty`, `shortDescription`, `longDescription`, `introVideoUrl` (presentes y nulos), `displayOrder`, `status`, `coverImageUrl` (presente y nula), `categories [{ id, name, color, icon }]`, `recommendedCourses [{ id, title, status, offerable }]`, `memberships [{ id, code, name, color }]`, `modules [{ id, title, shortDescription, displayOrder, status, deleted, coverImageUrl, offerable, durationMinutes, lessons [{ id, type, title, durationMinutes, displayOrder, status, open, deleted }] }]`, `totalDurationMinutes`, `lessonCount`, `offerable`, `offerableReason`, `createdAt`, `updatedAt`, y **solo si está retirado** `deletedAt` y `deletionReason`.
+`200` con: `id`, `title`, `instructor { id, username, fullName }`, `difficulty`, `shortDescription`, `longDescription`, `introVideoUrl` (presentes y nulos), `displayOrder`, `status`, `coverImageUrl` (presente y nula), `categories [{ id, name, color, icon }]`, `recommendedCourses [{ id, title, status, offerable }]`, `memberships [{ id, code, name, color }]`, `modules [{ id, title, shortDescription, displayOrder, status, deleted, coverImageUrl, offerable, durationSeconds, lessons [{ id, type, title, durationSeconds, displayOrder, status, open, deleted }] }]`, `totalDurationSeconds`, `lessonCount`, `offerable`, `offerableReason`, `createdAt`, `updatedAt`, y **solo si está retirado** `deletedAt` y `deletionReason`.
 
 **`offerableReason` en su orden** (`RN-AC-015`): «El curso está retirado.» → «El curso está inactivo.» → **«El curso no tiene descripción corta o larga.»** → «El curso no tiene ninguna membresía que lo abra.» → «El curso no tiene ningún módulo activo con al menos una lección activa con contenido.» El primero que se cumple. **Hoy un curso `INACTIVO` dice lo segundo y uno `ACTIVO` lo tercero**, porque no hay membresías que darle; es la verdad, y lo seguirá siendo hasta `RF-AC-020`.
 
@@ -110,8 +110,8 @@ Hereda de `RF-AC-003` que **se devuelve también un retirado**, con su motivo le
 
 | ID | Criterio |
 |---|---|
-| `CA-AC-051` | El sistema devuelve el curso con sus campos, el instructor resuelto, `coverImageUrl` presente y nula, las cuatro listas y el árbol —**vacíos hasta sus requerimientos**—, y `totalDurationMinutes` y `lessonCount` en cero |
-| `CA-AC-052` | `offerable` y `offerableReason` viajan **siempre**, con el motivo en su orden: un `INACTIVO` dice «inactivo»; un `ACTIVO` sin membresías dice «sin membresías» |
+| `CA-AC-051` | El sistema devuelve el curso con sus campos, el instructor resuelto, `coverImageUrl` presente y nula, las cuatro listas y el árbol —**vacíos hasta sus requerimientos**—, y `totalDurationSeconds` y `lessonCount` en cero |
+| `CA-AC-052` | `offerable` y `offerableReason` viajan **siempre**, con el motivo en su orden de **cuatro** (desde el 25-09-2026): un `INACTIVO` dice «inactivo»; un `ACTIVO` sin descripción, «sin descripción»; uno sin módulo ofrecible, «sin módulo»; **las membresías y los servicios no son motivo**: un curso armado sin ninguno se ofrece, y es de todos |
 | `CA-AC-053` | El curso **retirado** se devuelve con `deletedAt`, `deletionReason` y `offerable: false` «retirado»; el **inexistente** responde `404`; un identificador mal formado, `400` |
 | `CA-AC-054` | La lectura cuesta **una** sentencia hoy —el curso con su instructor— y **una más** con motivo de retiro; cada requerimiento que llene una lista declara cuántas añade |
 | `CA-AC-055` | Sin `courses:read` responde `403` aunque el actor porte `course-categories:read` |
@@ -139,3 +139,6 @@ Hereda de `RF-AC-003` que **se devuelve también un retirado**, con su motivo le
 | 0.1.0 | 18-09-2026 | Redacción inicial. La vista con la que se arma el curso: relaciones, árbol con estados y marcas, duración sumada y **`offerableReason` en el orden fijo de `RN-AC-015`**, que nace hoy con los dos motivos que ya se pueden decidir. **Declara cinco enmiendas futuras** (Art. I.7): `RF-AC-016`, `RF-AC-018`, `RF-AC-020`, `RF-AC-022` y `RF-AC-028` llenan cada lista y declaran sus sentencias. | Responsable técnico |
 | 0.2.0 | 18-09-2026 | **Enmienda de Art. I.7 (18-09-2026)**: `RN-AC-015` gana dos motivos por decisión del responsable del proyecto —«sin descripción» en el curso y «sin contenido» en la lección—. §6.2 lista los **cinco** motivos en su orden; `CA-AC-052` no cambia —un `ACTIVO` tiene las dos descripciones al activarse— y el módulo del árbol pasa a decir «sin lección activa con contenido». | Responsable técnico |
 | 0.3.0 | 18-09-2026 | **Construida** (`CourseDetailIT` (7)). Una sentencia hoy y dos con motivo; las cinco lecturas de relaciones y árbol devuelven vacío sin consultar, cada una con la nota de qué sentencia la sustituye; `CA-AC-056` compara el JSON del alta y del detalle nodo a nodo. | Responsable técnico |
+| 0.4.0 | 25-09-2026 | **Enmienda de `RF-AC-016`, construida** (Art. I.7): `categories` es real, y la lectura cuesta **una sentencia más**: tres sin módulos, cuatro con módulos o con motivo de retiro (`CA-AC-054` en `CourseDetailIT`, y las cuentas de `CourseModulesIT` y `LessonsIT`). | Responsable técnico |
+| 0.5.0 | 25-09-2026 | **Enmienda por decisión del responsable del proyecto** (`ac.md` §5.2.10, `RN-AC-017`): **la duración de la lección se guarda en segundos**, y las sumas del módulo y del curso también: `durationSeconds` y `totalDurationSeconds` sustituyen a `durationMinutes` y `totalDurationMinutes` en el cuerpo de esta spec. Las filas anteriores de esta tabla conservan el nombre que tenía el campo en su fecha. | Responsable técnico |
+| 0.6.0 | 25-09-2026 | **Enmienda por decisión del responsable del proyecto** (`ac.md` §5.2.12, `RN-AC-015` reescrita): **un curso sin membresías ni servicios es de todos** y las llaves dejan de ser motivo de la ofrecibilidad, que queda en **cuatro** —retirado, inactivo, sin descripción, sin módulo ofrecible—. `CA-AC-052` se reescribe. | Responsable técnico |

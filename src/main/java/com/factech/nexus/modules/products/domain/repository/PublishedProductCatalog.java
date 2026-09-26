@@ -75,6 +75,29 @@ public class PublishedProductCatalog implements ProductCatalog, RegistrableProdu
 
   @Override
   @Transactional(readOnly = true)
+  public Optional<KindView> findKind(UUID id) {
+    if (id == null) {
+      return Optional.empty();
+    }
+    return em
+        .createQuery("SELECT p FROM Product p WHERE p.id = :id", Product.class)
+        .setParameter("id", id)
+        .setMaxResults(1)
+        .getResultList()
+        .stream()
+        .findFirst()
+        .map(
+            producto ->
+                new KindView(
+                    producto.getId(),
+                    producto.getCode(),
+                    producto.getName(),
+                    producto.getType() == ProductType.BOT,
+                    producto.estaRetirado()));
+  }
+
+  @Override
+  @Transactional(readOnly = true)
   public Optional<BigDecimal> findPrice(UUID id) {
     if (id == null) {
       return Optional.empty();
@@ -137,23 +160,69 @@ public class PublishedProductCatalog implements ProductCatalog, RegistrableProdu
 
     List<SaleView> resultado = new ArrayList<>(filas.size());
     for (Tuple fila : filas) {
-      resultado.add(
-          new SaleView(
-              (UUID) fila.get("id"),
-              (String) fila.get("code"),
-              (String) fila.get("name"),
-              (String) fila.get("description"),
-              "UPGRADE_MEMBRESIA".equals(fila.get("type")),
-              (BigDecimal) fila.get("price"),
-              (UUID) fila.get("c_id"),
-              (String) fila.get("c_code"),
-              ((Number) fila.get("c_decimales")).intValue(),
-              entero(fila.get("validity_days")),
-              (UUID) fila.get("m_id"),
-              entero(fila.get("m_level")),
-              (String) fila.get("implementation")));
+      resultado.add(saleView(fila));
     }
     return resultado;
+  }
+
+  /**
+   * La fila a {@link SaleView}, escrita una vez.
+   *
+   * <p>La comparten el lote de `RF-MV-001` y el producto del enlace de `RF-MV-011`: las dos
+   * lecturas seleccionan las mismas columnas, y dos mapeos separados divergirían el día que una de
+   * las dos gane un campo.
+   */
+  private static SaleView saleView(Tuple fila) {
+    return new SaleView(
+        (UUID) fila.get("id"),
+        (String) fila.get("code"),
+        (String) fila.get("name"),
+        (String) fila.get("description"),
+        "UPGRADE_MEMBRESIA".equals(fila.get("type")),
+        (BigDecimal) fila.get("price"),
+        (UUID) fila.get("c_id"),
+        (String) fila.get("c_code"),
+        ((Number) fila.get("c_decimales")).intValue(),
+        entero(fila.get("validity_days")),
+        (UUID) fila.get("m_id"),
+        entero(fila.get("m_level")),
+        (String) fila.get("implementation"));
+  }
+
+  @Override
+  @Transactional(readOnly = true)
+  public Optional<SaleView> hotlinkSaleViewOf(String code) {
+    if (code == null || code.isBlank()) {
+      return Optional.empty();
+    }
+    // EL PREDICADO ES EL DE `RF-PM-008`, copiado a proposito y no inventado:
+    // activo, no retirado y de alcance HOTLINK o AMBOS. Vender por enlace algo
+    // que el enlace no publica seria una puerta trasera al catalogo.
+    @SuppressWarnings("unchecked")
+    List<Tuple> filas =
+        em.createNativeQuery(
+                """
+                SELECT p.id AS id, p.code AS code, p.name AS name,
+                       p.description AS description, p.type AS type,
+                       p.price AS price,
+                       p.currency_id AS c_id, c.code AS c_code,
+                       c.decimal_places AS c_decimales,
+                       p.validity_days AS validity_days,
+                       p.target_membership_id AS m_id, m.level AS m_level,
+                       p.implementation AS implementation
+                  FROM products p
+                  LEFT JOIN memberships m ON m.id = p.target_membership_id
+                  LEFT JOIN currencies  c ON c.id = p.currency_id
+                 WHERE upper(p.code) = upper(:codigo)
+                   AND p.status = 'ACTIVO'
+                   AND p.deleted_at IS NULL
+                   AND p.scope IN ('HOTLINK', 'AMBOS')
+                """,
+                Tuple.class)
+            .setParameter("codigo", code)
+            .getResultList();
+
+    return filas.stream().findFirst().map(PublishedProductCatalog::saleView);
   }
 
   /**

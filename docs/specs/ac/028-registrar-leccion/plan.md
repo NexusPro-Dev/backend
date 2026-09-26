@@ -31,7 +31,7 @@ CREATE TABLE lessons (
     title            varchar(150) NOT NULL,
     description      text         NULL,
     content          text         NULL,
-    duration_minutes integer      NOT NULL,
+    duration_seconds integer      NOT NULL,
     display_order    integer      NOT NULL,
     open             boolean      NOT NULL DEFAULT false,
     status           varchar(20)  NOT NULL DEFAULT 'INACTIVO',
@@ -41,7 +41,7 @@ CREATE TABLE lessons (
     CONSTRAINT fk_lessons_module        FOREIGN KEY (module_id) REFERENCES course_modules (id),
     CONSTRAINT ck_lessons_type          CHECK (type IN ('VIDEO','TEXTO')),
     CONSTRAINT ck_lessons_video_content CHECK (type <> 'VIDEO' OR content IS NULL OR content ~ '^https?://[^[:space:]]+$'),
-    CONSTRAINT ck_lessons_duration      CHECK (duration_minutes > 0),
+    CONSTRAINT ck_lessons_duration      CHECK (duration_seconds > 0),
     CONSTRAINT ck_lessons_status        CHECK (status IN ('ACTIVO','INACTIVO')),
     CONSTRAINT ck_lessons_display_order CHECK (display_order >= 0)
 );
@@ -76,7 +76,7 @@ CREATE INDEX ix_lessons_module
 
 ```json
 { "type": "VIDEO", "title": "Qué es una vela", "description": "…",
-  "content": "https://…", "durationMinutes": 12, "displayOrder": 0, "open": true }
+  "content": "https://…", "durationSeconds": 12, "displayOrder": 0, "open": true }
 ```
 
 `201` con `LessonResponse` y cabecera `Location`:
@@ -85,7 +85,7 @@ CREATE INDEX ix_lessons_module
 {
   "id": "…", "moduleId": "…", "courseId": "…",
   "type": "VIDEO", "title": "Qué es una vela", "description": "…",
-  "content": "https://…", "durationMinutes": 12, "displayOrder": 0,
+  "content": "https://…", "durationSeconds": 12, "displayOrder": 0,
   "open": true, "status": "INACTIVO",
   "createdAt": "…", "updatedAt": "…"
 }

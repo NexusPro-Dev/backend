@@ -58,14 +58,14 @@ class CoursesIT extends IntegrationTestBase {
   @Test
   @DisplayName(
       "`CA-AC-034` — registra el curso en la forma del detalle: INACTIVO, instructor resuelto, listas"
-          + " vacías, portada nula, cero minutos y offerable false «inactivo»")
+          + " vacías, portada nula, cero segundos y offerable false «inactivo»")
   void altaEnLaFormaDelDetalle() throws Exception {
     mvc.perform(
             alta(
                 """
                 {"title":"  Velas japonesas  ","instructorId":"%s","difficulty":"PRINCIPIANTE",
                  "shortDescription":"Lo básico.","longDescription":"Todo lo básico.",
-                 "introVideoUrl":"https://v.io/intro","displayOrder":2}
+                 "introVideoUrl":"https://youtu.be/dQw4w9WgXcQ","displayOrder":2}
                 """
                     .formatted(instructor)))
         .andExpect(status().isCreated())
@@ -76,7 +76,7 @@ class CoursesIT extends IntegrationTestBase {
         .andExpect(jsonPath("$.instructor.fullName").value("Juan Pérez"))
         .andExpect(jsonPath("$.difficulty").value("PRINCIPIANTE"))
         .andExpect(jsonPath("$.shortDescription").value("Lo básico."))
-        .andExpect(jsonPath("$.introVideoUrl").value("https://v.io/intro"))
+        .andExpect(jsonPath("$.introVideoUrl").value("https://youtu.be/dQw4w9WgXcQ"))
         .andExpect(jsonPath("$.displayOrder").value(2))
         .andExpect(jsonPath("$.status").value("INACTIVO"))
         .andExpect(jsonPath("$.coverImageUrl").value(nullValue()))
@@ -84,7 +84,7 @@ class CoursesIT extends IntegrationTestBase {
         .andExpect(jsonPath("$.recommendedCourses", hasSize(0)))
         .andExpect(jsonPath("$.memberships", hasSize(0)))
         .andExpect(jsonPath("$.modules", hasSize(0)))
-        .andExpect(jsonPath("$.totalDurationMinutes").value(0))
+        .andExpect(jsonPath("$.totalDurationSeconds").value(0))
         .andExpect(jsonPath("$.lessonCount").value(0))
         .andExpect(jsonPath("$.offerable").value(false))
         .andExpect(jsonPath("$.offerableReason").value("El curso está inactivo."))
@@ -207,13 +207,13 @@ class CoursesIT extends IntegrationTestBase {
             alta(
                 """
                 {"title":"Velas","instructorId":"%s","difficulty":"PRINCIPIANTE","displayOrder":0,
-                 "shortDescription":"   ","longDescription":" ","introVideoUrl":"https://no-existe.invalid/v"}
+                 "shortDescription":"   ","longDescription":" ","introVideoUrl":"https://vimeo.com/999999999"}
                 """
                     .formatted(instructor)))
         .andExpect(status().isCreated())
         .andExpect(jsonPath("$.shortDescription").value(nullValue()))
         .andExpect(jsonPath("$.longDescription").value(nullValue()))
-        .andExpect(jsonPath("$.introVideoUrl").value("https://no-existe.invalid/v"));
+        .andExpect(jsonPath("$.introVideoUrl").value("https://vimeo.com/999999999"));
     assertThat(
             jdbc.queryForObject(
                 "SELECT short_description IS NULL AND long_description IS NULL FROM courses WHERE"

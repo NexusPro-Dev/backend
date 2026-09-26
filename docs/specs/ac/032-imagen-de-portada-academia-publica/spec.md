@@ -121,3 +121,4 @@ Es `RF-PM-016` sobre `academy_images`: la décima ruta pública del sistema y la
 | Versión | Fecha | Cambio | Responsable |
 |---|---|---|---|
 | 0.1.0 | 18-09-2026 | Redacción inicial. `RF-PM-016` sobre `academy_images`, todo heredado; la décima ruta pública y lo único público de Academia; cota propia por familia. | Responsable técnico |
+| 0.2.0 | 25-09-2026 | **Construida** (`AcademyCoverIT` y `RateLimitIT`): pública solo en `GET` en `SecurityConfig`, con su motivo en `EndpointPermissionsIT` y **su propia familia** en `RateLimitFilter`. `CA-AC-166` se comprueba con un `PUT` sin token, que responde `401`: nada bajo el prefijo es público salvo el `GET`. | Responsable técnico |

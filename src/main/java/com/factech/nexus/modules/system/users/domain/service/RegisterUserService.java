@@ -195,7 +195,14 @@ public class RegisterUserService {
 
     // SIN CONDICIÓN. No existe un instante en que la persona esté escrita y sin
     // nivel — ni entre estas dos sentencias, porque comparten transacción.
-    usuarios.assignMembership(ids.next(), usuario.getId(), membresia, null, ahora);
+    //
+    // SIN PRODUCTO, y es uno de los dos únicos casos del sistema (`RN-SP-056`):
+    // el suelo no se compra, se recibe. Inventarle un producto obligaría a tener
+    // un «producto BECA» en el catálogo, que sería comprable y habría que excluir
+    // de la oferta a mano.
+    usuarios.grantProduct(
+        new UserRepository.ProductGrant(
+            ids.next(), usuario.getId(), null, membresia, null, null, ahora, null));
 
     if (superior != null) {
       usuarios.assignSupervisor(ids.next(), usuario.getId(), superior, ahora);

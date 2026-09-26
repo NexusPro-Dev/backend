@@ -11,6 +11,26 @@
 
 ---
 
+!!! warning "Enmendado el 24-09-2026 — solo las ventas CONFIRMADAS"
+
+    `RN-MV-038` ([`requirements/mv.md`](../../../requirements/mv.md) v0.42.0), por decisión del responsable del proyecto. El listado deja de traer las líneas de **toda** venta y pasa a traer **solo las de las confirmadas**: desaparecen las de `PENDIENTE`, `ANULADA` y `RECHAZADA`.
+
+    **Lo decide la consulta y no un filtro.** El predicado va fijo, junto a `mt.code = 'VENTA'`, de modo que ningún parámetro puede ensancharlo — un filtro con valor por omisión lo dejaría a merced de quien llama.
+
+    **Y por eso el filtro `status` se retira del contrato** (`CA-MV-188`): solo podía tomar un valor útil. Un parámetro cuyo resultado está predeterminado invita a que alguien construya sobre él una condición que nunca se cumple, que es el argumento que `OfferItem` ya tenía escrito para no publicar `status` en la oferta.
+
+    **`movementStatus` se conserva en la respuesta**, por decisión expresa del responsable: dirá siempre `CONFIRMADA`, y se acepta el dato constante a cambio de no romper a quien ya lo lee.
+
+    **La entrega no se toca, y conviene no confundirlas**: `deliveryStatus` es de la **línea** y sigue teniendo sus tres valores dentro de una venta confirmada —`ENTREGADA`, `PENDIENTE` de autorización y `RETENIDA`—, de modo que su filtro sigue sirviendo para todo lo que servía.
+
+!!! warning "Enmendado el 24-09-2026 — el filtro `code` busca por FRAGMENTO"
+
+    `RN-MV-037` ([`requirements/mv.md`](../../../requirements/mv.md) v0.41.0), a petición del responsable del proyecto: «por si solo me sé una parte». El filtro `code` de las líneas de venta **deja de exigir el comprobante entero** y pasa a devolver todas las de cualquier venta que lo **contenga**, sin distinguir mayúsculas.
+
+    **Es una ampliación y no un cambio de contrato**: el código completo sigue encontrando lo que encontraba. Lo que cambia es que la respuesta puede traer líneas de **varias ventas** donde antes traía las de una.
+
+    **`type` y `typeStatus` siguen siendo exactos** —se eligen de un conjunto cerrado y no se teclean—, los comodines `%` y `_` del usuario se **escapan**, y el alcance de esta consulta no se mueve. Se indexa con trigramas (`ix_movements_codigo_busqueda`, `V39`), porque `uq_movements_code` no responde por un fragmento del medio.
+
 ## 1. Objetivo
 
 Responder **«qué se ha vendido»**, y no «qué ventas hubo»: una fila por **línea** de venta, paginada, para administración.
