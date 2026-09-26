@@ -2,6 +2,7 @@ package com.factech.nexus.modules.movements.interfaces;
 
 import com.factech.nexus.modules.movements.application.HotlinkPurchaseRequest;
 import com.factech.nexus.modules.movements.application.PurchaseResponse;
+import com.factech.nexus.modules.movements.domain.models.IdempotencyKey;
 import com.factech.nexus.modules.movements.domain.service.BuyByHotlinkService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.extensions.Extension;
@@ -16,6 +17,7 @@ import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.RequestHeader;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestController;
@@ -119,7 +121,8 @@ public class HotlinkPurchaseController {
   public PurchaseResponse comprar(
       @PathVariable String username,
       @PathVariable String code,
-      @RequestBody(required = false) HotlinkPurchaseRequest peticion) {
-    return compras.buy(username, code, peticion);
+      @RequestBody(required = false) HotlinkPurchaseRequest peticion,
+      @RequestHeader(value = IdempotencyKey.CABECERA, required = false) String clave) {
+    return compras.buy(username, code, peticion, IdempotencyKey.opcional(clave));
   }
 }

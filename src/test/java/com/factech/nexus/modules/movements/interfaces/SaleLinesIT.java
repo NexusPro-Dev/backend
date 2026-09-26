@@ -7,6 +7,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 import com.factech.nexus.IntegrationTestBase;
+import com.factech.nexus.modules.movements.PaymentFixtures;
 import com.factech.nexus.modules.products.interfaces.ProductLinkTestSupport;
 import jakarta.persistence.EntityManagerFactory;
 import java.time.OffsetDateTime;
@@ -388,14 +389,13 @@ class SaleLinesIT extends IntegrationTestBase {
     UUID deposito = UUID.randomUUID();
     jdbc.update(
         """
-        INSERT INTO movements (id, movement_type_id, type_status_id, user_id,
-                               payment_method_id, currency_id,
+        INSERT INTO movements (id, movement_type_id, type_status_id, user_id, currency_id,
                                code, status, total_amount, discount_amount, payable_amount,
                                occurred_at, confirmed_at)
         VALUES (?, CAST(? AS uuid),
                 (SELECT s.id FROM movement_type_statuses s
                   WHERE s.movement_type_id = CAST(? AS uuid) AND s.code = 'VALIDADO'),
-                ?, CAST(? AS uuid), CAST(? AS uuid), 'DEP-SL-0001',
+                ?, CAST(? AS uuid), 'DEP-SL-0001',
                 'CONFIRMADA', 50.00, 0, 50.00, CAST(? AS timestamptz),
                 -- `ck_movements_confirmed`: una confirmada lleva su fecha.
                 CAST(? AS timestamptz))
@@ -404,10 +404,10 @@ class SaleLinesIT extends IntegrationTestBase {
         otroTipo,
         otroTipo,
         ana,
-        TARJETA,
         USD,
         BASE.plusHours(3),
         BASE.plusHours(3));
+    PaymentFixtures.pagoDe(jdbc, deposito, TARJETA);
     jdbc.update(
         """
         INSERT INTO movement_details (id, movement_id, product_id, seller_id, product_name,
@@ -556,8 +556,7 @@ class SaleLinesIT extends IntegrationTestBase {
     UUID id = UUID.randomUUID();
     jdbc.update(
         """
-        INSERT INTO movements (id, movement_type_id, type_status_id, user_id,
-                               payment_method_id, currency_id,
+        INSERT INTO movements (id, movement_type_id, type_status_id, user_id, currency_id,
                                code, status, total_amount, discount_amount, payable_amount,
                                occurred_at, confirmed_at, voided_at, void_reason)
         VALUES (?, CAST(? AS uuid),
@@ -567,7 +566,7 @@ class SaleLinesIT extends IntegrationTestBase {
                 -- prueba no envejezca si esa siembra cambia de id.
                 (SELECT s.id FROM movement_type_statuses s
                   WHERE s.movement_type_id = CAST(? AS uuid) AND s.code = ?),
-                ?, CAST(? AS uuid), CAST(? AS uuid), ?, ?,
+                ?, CAST(? AS uuid), ?, ?,
                 300.00, 20.00, 280.00, CAST(? AS timestamptz),
                 CASE WHEN ? = 'CONFIRMADA' THEN CAST(? AS timestamptz) ELSE NULL END,
                 CASE WHEN ? = 'ANULADA' THEN now() ELSE NULL END,
@@ -578,7 +577,6 @@ class SaleLinesIT extends IntegrationTestBase {
         VENTA,
         estadoDelTipo,
         sujeto,
-        TARJETA,
         USD,
         codigo,
         estado,
@@ -587,6 +585,7 @@ class SaleLinesIT extends IntegrationTestBase {
         cuando,
         estado,
         estado);
+    PaymentFixtures.pagoDe(jdbc, id, TARJETA);
     return id;
   }
 

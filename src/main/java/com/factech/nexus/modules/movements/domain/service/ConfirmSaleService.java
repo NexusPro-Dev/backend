@@ -95,6 +95,15 @@ public class ConfirmSaleService {
                   () ->
                       new ResourceNotFoundException(
                           "EX-001", "No existe un movimiento con ese identificador."));
+      // `CA-MV-219` (26-09-2026): pendiente y sin pago pendiente —el último se
+      // rechazó y nadie ha vuelto a pagar—. No hay cobro que dar por entrado.
+      if ("PENDIENTE".equals(estado) && !movimientos.hasPendingPayment(movementId)) {
+        String sinPago =
+            "La venta no tiene un pago pendiente: su último pago se rechazó y hay que volver a"
+                + " pagarla.";
+        throw new BusinessRuleException(
+            "EX-006", sinPago, List.of(new FieldError("payments", "EX-006", sinPago)));
+      }
       // EL ESTADO VA EN EL MENSAJE, y es lo que una pasarela que reentrega
       // necesita: saber que ese pago ya se procesó, no solo que algo chocó.
       String mensaje = "La venta no está pendiente: está " + estado + ".";

@@ -1,5 +1,6 @@
 package com.factech.nexus.modules.movements.domain.service;
 
+import com.factech.nexus.modules.movements.domain.models.IdempotencyKey;
 import com.factech.nexus.modules.movements.domain.models.SaleTypeStatus;
 import com.factech.nexus.modules.movements.domain.models.TypeStatus;
 import com.factech.nexus.modules.movements.domain.repository.MovementRepository;
@@ -230,6 +231,20 @@ final class SaleRules {
   // ---------------------------------------------------------------------------
   // El tipo
   // ---------------------------------------------------------------------------
+
+  /**
+   * `RN-MV-040`: una clave ya usada no abre otra venta. Conflicto, y nada cambia (`RF-MV-018` ·
+   * `spec.md` §2.2).
+   */
+  void verificarClaveLibre(IdempotencyKey clave) {
+    if (movimientos.paymentKeyExists(clave.value())) {
+      String mensaje = "La clave de idempotencia ya se usó en otra petición.";
+      throw new BusinessRuleException(
+          "RN-MV-040",
+          mensaje,
+          List.of(new FieldError(IdempotencyKey.CABECERA, "RN-MV-040", mensaje)));
+    }
+  }
 
   MovementTypeView tipoDeVenta() {
     return movimientos

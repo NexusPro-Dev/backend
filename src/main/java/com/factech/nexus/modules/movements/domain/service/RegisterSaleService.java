@@ -1,11 +1,14 @@
 package com.factech.nexus.modules.movements.domain.service;
 
+import com.factech.nexus.modules.movements.application.PaymentResponse;
 import com.factech.nexus.modules.movements.application.PurchaseResponse;
 import com.factech.nexus.modules.movements.application.RegisterSaleRequest;
 import com.factech.nexus.modules.movements.application.SaleResponse;
+import com.factech.nexus.modules.movements.domain.models.IdempotencyKey;
 import com.factech.nexus.modules.movements.domain.models.Movement;
 import com.factech.nexus.modules.movements.domain.models.MovementCode;
 import com.factech.nexus.modules.movements.domain.models.MovementLine;
+import com.factech.nexus.modules.movements.domain.models.PaymentStatus;
 import com.factech.nexus.modules.movements.domain.models.SaleChannel;
 import com.factech.nexus.modules.movements.domain.repository.MovementRepository;
 import com.factech.nexus.modules.movements.domain.repository.MovementRepository.MovementTypeView;
@@ -136,7 +139,16 @@ public class RegisterSaleService {
 
   @Transactional
   public SaleResponse register(RegisterSaleRequest peticion) {
-    return register(peticion, false);
+    return register(peticion, IdempotencyKey.generada());
+  }
+
+  /**
+   * Con la clave de idempotencia que mandó el cliente, o la que puso el sistema (`RF-MV-018` ·
+   * `spec.md` §2.2). Una clave ya usada responde conflicto y no registra otra venta.
+   */
+  @Transactional
+  public SaleResponse register(RegisterSaleRequest peticion, IdempotencyKey clave) {
+    return register(peticion, false, SaleChannel.TIENDA, clave);
   }
 
   /**
@@ -166,16 +178,15 @@ public class RegisterSaleService {
    */
   @Transactional
   SaleResponse registrarAltaDeCliente(RegisterSaleRequest peticion) {
-    return register(peticion, true, SaleChannel.HOTLINK);
-  }
-
-  private SaleResponse register(RegisterSaleRequest peticion, boolean altaDelCliente) {
-    return register(peticion, altaDelCliente, SaleChannel.TIENDA);
+    return register(peticion, true, SaleChannel.HOTLINK, IdempotencyKey.generada());
   }
 
   private SaleResponse register(
-      RegisterSaleRequest peticion, boolean altaDelCliente, SaleChannel canal) {
-    VentaRegistrada hecha = registrar(peticion, altaDelCliente, canal, null);
+      RegisterSaleRequest peticion,
+      boolean altaDelCliente,
+      SaleChannel canal,
+      IdempotencyKey clave) {
+    VentaRegistrada hecha = registrar(peticion, altaDelCliente, canal, null, clave);
     SellerView vendedor = hecha.vendedor();
     return SaleResponse.de(
         hecha.venta(),
@@ -190,7 +201,23 @@ public class RegisterSaleService {
                 vendedor.id(),
                 new SaleResponse.Party(vendedor.id(), vendedor.username(), nombre(vendedor))),
         new SaleResponse.Money(hecha.referencia().currencyId(), hecha.referencia().currencyCode()),
-        hecha.metodo());
+        hecha.metodo().code(),
+        primerPago(hecha));
+  }
+
+  /** El pago con el que la venta acaba de nacer: pendiente, con su método y su importe. */
+  private static PaymentResponse primerPago(VentaRegistrada hecha) {
+    return new PaymentResponse(
+        hecha.pago(),
+        new PaymentResponse.Method(
+            hecha.metodo().id(), hecha.metodo().code(), hecha.metodo().name()),
+        PaymentStatus.PENDIENTE.name(),
+        hecha.venta().getPayableAmount(),
+        null,
+        hecha.venta().getCreatedAt(),
+        null,
+        null,
+        null);
   }
 
   /**
@@ -211,14 +238,15 @@ public class RegisterSaleService {
    * `MV` que resuelve el enlace, y ni el controlador ni otro módulo pueden llamarla.
    */
   @Transactional
-  PurchaseResponse comprarPorElEnlace(RegisterSaleRequest peticion, SellerView duenoDelEnlace) {
-    VentaRegistrada hecha = registrar(peticion, false, SaleChannel.HOTLINK, duenoDelEnlace);
+  PurchaseResponse comprarPorElEnlace(
+      RegisterSaleRequest peticion, SellerView duenoDelEnlace, IdempotencyKey clave) {
+    VentaRegistrada hecha = registrar(peticion, false, SaleChannel.HOTLINK, duenoDelEnlace, clave);
     return PurchaseResponse.de(
         hecha.venta(),
         new SaleResponse.Party(
             hecha.cliente().id(), hecha.cliente().username(), nombre(hecha.cliente())),
         new SaleResponse.Money(hecha.referencia().currencyId(), hecha.referencia().currencyCode()),
-        hecha.metodo());
+        hecha.metodo().code());
   }
 
   /**
@@ -234,7 +262,8 @@ public class RegisterSaleService {
       ClientView cliente,
       SellerView vendedor,
       SaleView referencia,
-      String metodo) {}
+      PaymentMethodView metodo,
+      UUID pago) {}
 
   /**
    * El registro, uno solo.
@@ -247,7 +276,12 @@ public class RegisterSaleService {
       RegisterSaleRequest peticion,
       boolean altaDelCliente,
       SaleChannel canal,
-      SellerView duenoDelEnlace) {
+      SellerView duenoDelEnlace,
+      IdempotencyKey clave) {
+    // LA CLAVE, PRIMERO (`RN-MV-040`): una compra repetida con la misma clave no
+    // registra otra venta. Se pregunta antes de nada; si una carrera la toma
+    // entretanto, el INSERT del pago choca y la venta entera se revierte.
+    reglas.verificarClaveLibre(clave);
     OffsetDateTime ahora = OffsetDateTime.now(reloj);
     OffsetDateTime ocurrioEn = fechaDelHecho(peticion.occurredAt(), ahora);
 
@@ -298,12 +332,13 @@ public class RegisterSaleService {
             ocurrioEn,
             ahora);
 
-    movimientos.save(venta, () -> MovementCode.generar(tipo.prefix(), ocurrioEn));
+    UUID pago =
+        movimientos.save(venta, () -> MovementCode.generar(tipo.prefix(), ocurrioEn), clave);
 
     auditoria.recordChange(
         new ChangeEvent(MODULO, ENTIDAD, venta.getId(), ChangeAction.CREATE, venta.instantanea()));
 
-    return new VentaRegistrada(venta, cliente, vendedor, referencia, metodo.code());
+    return new VentaRegistrada(venta, cliente, vendedor, referencia, metodo, pago);
   }
 
   // ---------------------------------------------------------------------------

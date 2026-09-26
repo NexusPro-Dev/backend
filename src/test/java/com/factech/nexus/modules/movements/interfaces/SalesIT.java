@@ -7,6 +7,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 import com.factech.nexus.IntegrationTestBase;
+import com.factech.nexus.modules.movements.PaymentFixtures;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import java.time.OffsetDateTime;
@@ -255,8 +256,7 @@ class SalesIT extends IntegrationTestBase {
   @DisplayName(
       "CA-MV-136 — método de pago y código acotan DENTRO del alcance; el comprobante ajeno da vacío")
   void metodoYCodigoDentroDelAlcance() throws Exception {
-    jdbc.update(
-        "UPDATE movements SET payment_method_id = CAST(? AS uuid) WHERE id = ?", PSE, vAgente3);
+    PaymentFixtures.cambiarMetodo(jdbc, vAgente3, PSE);
     assertThat(ids(mvc.perform(ventas(manager).param("paymentMethodId", PSE))))
         .containsExactly(vAgente3);
     // Para director1, agente3 no es de su red: el método no le enseña nada.
@@ -434,10 +434,10 @@ class SalesIT extends IntegrationTestBase {
     UUID id = UUID.randomUUID();
     jdbc.update(
         """
-        INSERT INTO movements (id, movement_type_id, type_status_id, user_id, payment_method_id,
+        INSERT INTO movements (id, movement_type_id, type_status_id, user_id,
                                currency_id, code, status, total_amount, discount_amount,
                                payable_amount, occurred_at, confirmed_at)
-        VALUES (?, CAST(? AS uuid), (SELECT s.id FROM movement_type_statuses s WHERE s.movement_type_id = CAST(? AS uuid) AND s.code = 'VALIDADO'), ?, CAST(? AS uuid), CAST(? AS uuid), ?, ?,
+        VALUES (?, CAST(? AS uuid), (SELECT s.id FROM movement_type_statuses s WHERE s.movement_type_id = CAST(? AS uuid) AND s.code = 'VALIDADO'), ?, CAST(? AS uuid), ?, ?,
                 100.00, 0, 100.00, CAST(? AS timestamptz),
                 CASE WHEN ? = 'CONFIRMADA' THEN CAST(? AS timestamptz) ELSE NULL END)
         """,
@@ -445,13 +445,13 @@ class SalesIT extends IntegrationTestBase {
         VENTA,
         VENTA,
         sujeto,
-        TARJETA,
         USD,
         "VTA-" + id.toString().substring(0, 8).toUpperCase(),
         estado,
         cuando.toString(),
         estado,
         cuando.toString());
+    PaymentFixtures.pagoDe(jdbc, id, TARJETA);
     linea(id, producto, vendedor);
     return id;
   }

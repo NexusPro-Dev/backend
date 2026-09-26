@@ -1,5 +1,6 @@
 package com.factech.nexus.modules.movements.domain.repository;
 
+import com.factech.nexus.modules.movements.domain.models.IdempotencyKey;
 import com.factech.nexus.modules.movements.domain.models.LineDiscount;
 import com.factech.nexus.modules.movements.domain.models.Movement;
 import com.factech.nexus.modules.movements.domain.models.MovementLine;
@@ -64,11 +65,11 @@ public class JpaMovementRepository implements MovementRepository {
   }
 
   @Override
-  public void save(Movement venta, Supplier<String> nuevoCodigo) {
+  public UUID save(Movement venta, Supplier<String> nuevoCodigo, IdempotencyKey clave) {
     for (int intento = 1; intento <= INTENTOS; intento++) {
       if (insertarCabecera(venta) == 1) {
         insertarLineas(venta);
-        return;
+        return insertarPrimerPago(venta, clave);
       }
       if (intento < INTENTOS) {
         venta.reemplazarCodigo(nuevoCodigo.get());
@@ -88,10 +89,10 @@ public class JpaMovementRepository implements MovementRepository {
     return em.createNativeQuery(
             """
             INSERT INTO movements (id, movement_type_id, user_id, package_id,
-                                   payment_method_id, currency_id, code, status,
+                                   currency_id, code, status,
                                    type_status_id, total_amount, discount_amount,
                                    payable_amount, occurred_at, created_at)
-            VALUES (:id, :tipo, :sujeto, :paquete, :metodo, :moneda, :codigo, :estado,
+            VALUES (:id, :tipo, :sujeto, :paquete, :moneda, :codigo, :estado,
                     :estadoDelTipo, :total, :descuento, :aPagar, :ocurrio, :creado)
             ON CONFLICT (code) DO NOTHING
             """)
@@ -99,7 +100,6 @@ public class JpaMovementRepository implements MovementRepository {
         .setParameter("tipo", venta.getMovementTypeId())
         .setParameter("sujeto", venta.getUserId())
         .setParameter("paquete", venta.getPackageId())
-        .setParameter("metodo", venta.getPaymentMethodId())
         .setParameter("moneda", venta.getCurrencyId())
         .setParameter("codigo", venta.getCode())
         .setParameter("estado", venta.getStatus().name())
@@ -152,6 +152,32 @@ public class JpaMovementRepository implements MovementRepository {
           .executeUpdate();
       insertarRebajas(linea);
     }
+  }
+
+  /**
+   * El pago con el que la venta nace (`RN-MV-039`, `RF-MV-018` · `plan.md` §3): {@code PENDIENTE},
+   * con el método que se indicó al comprar y el importe a pagar. Desde el 26-09-2026 el método ya
+   * no está en la cabecera.
+   *
+   * <p><b>Sin {@code ON CONFLICT}</b>: la clave se comprobó libre antes de registrar, y si una
+   * carrera la tomó entretanto el choque debe abortar la venta entera, no reintentarse.
+   */
+  private UUID insertarPrimerPago(Movement venta, IdempotencyKey clave) {
+    UUID pago = UUID.randomUUID();
+    em.createNativeQuery(
+            """
+            INSERT INTO payments (id, movement_id, payment_method_id, status, amount,
+                                  idempotency_key, occurred_at, created_at)
+            VALUES (:id, :venta, :metodo, 'PENDIENTE', :importe, :clave, :creado, :creado)
+            """)
+        .setParameter("id", pago)
+        .setParameter("venta", venta.getId())
+        .setParameter("metodo", venta.getPaymentMethodId())
+        .setParameter("importe", venta.getPayableAmount())
+        .setParameter("clave", clave.value())
+        .setParameter("creado", venta.getCreatedAt())
+        .executeUpdate();
+    return pago;
   }
 
   // Hoy ninguna entrada produce rebajas y el bucle no gira; existe para que la
@@ -467,7 +493,10 @@ public class JpaMovementRepository implements MovementRepository {
       JOIN movement_type_statuses mts ON mts.id = m.type_status_id
       JOIN users suj ON suj.id = m.user_id
       JOIN currencies cur ON cur.id = m.currency_id
-      JOIN payment_methods pm ON pm.id = m.payment_method_id
+      LEFT JOIN LATERAL (SELECT p.payment_method_id FROM payments p
+                          WHERE p.movement_id = m.id
+                          ORDER BY p.occurred_at DESC, p.id DESC LIMIT 1) up ON true
+      LEFT JOIN payment_methods pm ON pm.id = up.payment_method_id
       WHERE m.user_id = :actor
         AND (CAST(:estado AS varchar) IS NULL OR m.status = CAST(:estado AS varchar))
         AND (CAST(:tipo AS varchar) IS NULL OR mt.code = CAST(:tipo AS varchar))
@@ -511,7 +540,7 @@ public class JpaMovementRepository implements MovementRepository {
    */
   private static Filtro filtroPropio(MyMovementsFilter f) {
     Filtro filtro = new Filtro();
-    filtro.igual("m.payment_method_id", "metodo", f.paymentMethodId());
+    filtro.igual("up.payment_method_id", "metodo", f.paymentMethodId());
     filtro.contiene("m.code", "codigo", f.code());
     if (f.from() != null) {
       filtro.condicion("m.occurred_at >= :desdeCuando", "desdeCuando", f.from());
@@ -632,7 +661,10 @@ public class JpaMovementRepository implements MovementRepository {
                     JOIN movement_type_statuses mts ON mts.id = m.type_status_id
                     JOIN users suj ON suj.id = m.user_id
                     JOIN currencies cur ON cur.id = m.currency_id
-                    JOIN payment_methods pm ON pm.id = m.payment_method_id
+                    LEFT JOIN LATERAL (SELECT p.payment_method_id FROM payments p
+                          WHERE p.movement_id = m.id
+                          ORDER BY p.occurred_at DESC, p.id DESC LIMIT 1) up ON true
+      LEFT JOIN payment_methods pm ON pm.id = up.payment_method_id
                     WHERE m.id = :movimiento
                       AND (m.user_id = :actor OR EXISTS (SELECT 1 FROM movement_details d
                                                           WHERE d.movement_id = m.id
@@ -665,7 +697,10 @@ public class JpaMovementRepository implements MovementRepository {
                     JOIN movement_type_statuses mts ON mts.id = m.type_status_id
                     JOIN users suj ON suj.id = m.user_id
                     JOIN currencies cur ON cur.id = m.currency_id
-                    JOIN payment_methods pm ON pm.id = m.payment_method_id
+                    LEFT JOIN LATERAL (SELECT p.payment_method_id FROM payments p
+                          WHERE p.movement_id = m.id
+                          ORDER BY p.occurred_at DESC, p.id DESC LIMIT 1) up ON true
+      LEFT JOIN payment_methods pm ON pm.id = up.payment_method_id
                     WHERE m.id = :movimiento
                     """,
                 Tuple.class)
@@ -738,7 +773,49 @@ public class JpaMovementRepository implements MovementRepository {
               (String) linea.get("motivo")));
     }
 
-    return Optional.of(new MovementDetailView(cabecera(cabecera.get(0)), detalle));
+    return Optional.of(
+        new MovementDetailView(cabecera(cabecera.get(0)), detalle, pagosDe(movementId)));
+  }
+
+  /**
+   * Los pagos del movimiento, del más antiguo al más reciente (`RN-MV-047`). El último es el que
+   * decide el método que publican los listados.
+   */
+  private List<PaymentRow> pagosDe(UUID movementId) {
+    @SuppressWarnings("unchecked")
+    List<Tuple> filas =
+        em.createNativeQuery(
+                """
+                SELECT p.id AS id, pm.id AS pm_id, pm.code AS pm_code, pm.name AS pm_name,
+                       p.status AS status, p.amount AS importe,
+                       p.provider_reference AS referencia, p.occurred_at AS ocurrio,
+                       p.confirmed_at AS confirmado, p.rejected_at AS rechazado,
+                       p.rejection_reason AS motivo
+                  FROM payments p
+                  JOIN payment_methods pm ON pm.id = p.payment_method_id
+                 WHERE p.movement_id = :movimiento
+                 ORDER BY p.occurred_at ASC, p.id ASC
+                """,
+                Tuple.class)
+            .setParameter("movimiento", movementId)
+            .getResultList();
+    List<PaymentRow> resultado = new ArrayList<>(filas.size());
+    for (Tuple fila : filas) {
+      resultado.add(
+          new PaymentRow(
+              (UUID) fila.get("id"),
+              (UUID) fila.get("pm_id"),
+              (String) fila.get("pm_code"),
+              (String) fila.get("pm_name"),
+              (String) fila.get("status"),
+              (BigDecimal) fila.get("importe"),
+              (String) fila.get("referencia"),
+              instante(fila.get("ocurrio")),
+              instante(fila.get("confirmado")),
+              instante(fila.get("rechazado")),
+              (String) fila.get("motivo")));
+    }
+    return resultado;
   }
 
   // ---------------------------------------------------------------------------
@@ -750,10 +827,38 @@ public class JpaMovementRepository implements MovementRepository {
   public Optional<String> findStatus(UUID movementId) {
     @SuppressWarnings("unchecked")
     List<Object> filas =
-        em.createNativeQuery("SELECT status FROM movements WHERE id = :id")
+        em.createNativeQuery(
+                """
+                SELECT m.status FROM movements m
+                  JOIN movement_types mt ON mt.id = m.movement_type_id
+                 WHERE m.id = :id AND mt.code = 'VENTA'
+                """)
             .setParameter("id", movementId)
             .getResultList();
     return filas.isEmpty() ? Optional.empty() : Optional.of((String) filas.get(0));
+  }
+
+  @Override
+  @Transactional(readOnly = true)
+  public boolean paymentKeyExists(String idempotencyKey) {
+    Object hay =
+        em.createNativeQuery(
+                "SELECT EXISTS (SELECT 1 FROM payments WHERE idempotency_key = :clave)")
+            .setParameter("clave", idempotencyKey)
+            .getSingleResult();
+    return Boolean.TRUE.equals(hay);
+  }
+
+  @Override
+  @Transactional(readOnly = true)
+  public boolean hasPendingPayment(UUID movementId) {
+    Object hay =
+        em.createNativeQuery(
+                "SELECT EXISTS (SELECT 1 FROM payments WHERE movement_id = :id"
+                    + " AND status = 'PENDIENTE')")
+            .setParameter("id", movementId)
+            .getSingleResult();
+    return Boolean.TRUE.equals(hay);
   }
 
   /**
@@ -765,17 +870,44 @@ public class JpaMovementRepository implements MovementRepository {
   @Override
   @Transactional
   public boolean confirmIfPending(UUID movementId, OffsetDateTime at) {
+    // DESDE EL 26-09-2026 SE CONFIRMA EL PAGO PENDIENTE, y la venta con él
+    // (`RF-MV-003` · `spec.md` v0.2.0). La venta va PRIMERO porque es la fila que
+    // serializa: rechazar el pago (`RF-MV-004`) bloquea la misma fila antes de
+    // tocar el pago, de modo que las dos operaciones no se cruzan. Solo una
+    // VENTA: un retiro tiene su propia aprobación (`RF-MV-020`).
     int filas =
         em.createNativeQuery(
                 """
-                UPDATE movements
+                UPDATE movements m
                    SET status = 'CONFIRMADA', confirmed_at = :ahora
-                 WHERE id = :id AND status = 'PENDIENTE'
+                 WHERE m.id = :id AND m.status = 'PENDIENTE'
+                   AND m.movement_type_id = (SELECT t.id FROM movement_types t
+                                              WHERE t.code = 'VENTA')
+                   AND EXISTS (SELECT 1 FROM payments p
+                                WHERE p.movement_id = m.id AND p.status = 'PENDIENTE')
                 """)
             .setParameter("id", movementId)
             .setParameter("ahora", at)
             .executeUpdate();
-    return filas == 1;
+    if (filas != 1) {
+      return false;
+    }
+    int pagos =
+        em.createNativeQuery(
+                """
+                UPDATE payments
+                   SET status = 'CONFIRMADO', confirmed_at = :ahora
+                 WHERE movement_id = :id AND status = 'PENDIENTE'
+                """)
+            .setParameter("id", movementId)
+            .setParameter("ahora", at)
+            .executeUpdate();
+    if (pagos != 1) {
+      // La fila de la venta está bloqueada por esta transacción: nadie pudo
+      // rechazar el pago entre las dos sentencias. Si falta, algo se rompió.
+      throw new IllegalStateException("La venta " + movementId + " no tenía un pago pendiente.");
+    }
+    return true;
   }
 
   @Override
@@ -823,15 +955,33 @@ public class JpaMovementRepository implements MovementRepository {
     int filas =
         em.createNativeQuery(
                 """
-                UPDATE movements
+                UPDATE movements m
                    SET status = 'ANULADA', voided_at = :ahora, void_reason = :motivo
-                 WHERE id = :id AND status = 'PENDIENTE'
+                 WHERE m.id = :id AND m.status = 'PENDIENTE'
+                   AND m.movement_type_id = (SELECT t.id FROM movement_types t
+                                              WHERE t.code = 'VENTA')
                 """)
             .setParameter("id", movementId)
             .setParameter("ahora", at)
             .setParameter("motivo", reason)
             .executeUpdate();
-    return filas == 1;
+    if (filas != 1) {
+      return false;
+    }
+    // `RF-MV-005` · `spec.md` v0.2.0: el pago pendiente, si lo hay, se cierra
+    // como rechazado con el motivo de la anulación. Un pago pendiente de una venta
+    // que ya no existe sería un cobro esperando a nadie.
+    em.createNativeQuery(
+            """
+            UPDATE payments
+               SET status = 'RECHAZADO', rejected_at = :ahora, rejection_reason = :motivo
+             WHERE movement_id = :id AND status = 'PENDIENTE'
+            """)
+        .setParameter("id", movementId)
+        .setParameter("ahora", at)
+        .setParameter("motivo", recortar("Venta anulada: " + reason, 500))
+        .executeUpdate();
+    return true;
   }
 
   @Override
@@ -992,7 +1142,10 @@ public class JpaMovementRepository implements MovementRepository {
       JOIN movement_type_statuses mts ON mts.id = m.type_status_id
       JOIN users suj ON suj.id = m.user_id
       JOIN currencies cur ON cur.id = m.currency_id
-      JOIN payment_methods pm ON pm.id = m.payment_method_id
+      LEFT JOIN LATERAL (SELECT p.payment_method_id FROM payments p
+                          WHERE p.movement_id = m.id
+                          ORDER BY p.occurred_at DESC, p.id DESC LIMIT 1) up ON true
+      LEFT JOIN payment_methods pm ON pm.id = up.payment_method_id
       WHERE
       """;
 
@@ -1026,7 +1179,7 @@ public class JpaMovementRepository implements MovementRepository {
           "vendedor",
           f.sellerId());
     }
-    filtro.igual("m.payment_method_id", "metodo", f.paymentMethodId());
+    filtro.igual("up.payment_method_id", "metodo", f.paymentMethodId());
     filtro.contiene("m.code", "codigo", f.code());
     if (f.from() != null) {
       filtro.condicion("m.occurred_at >= :desde", "desde", f.from());
@@ -1110,7 +1263,7 @@ public class JpaMovementRepository implements MovementRepository {
     filtro.condicion("mt.code = :tipoVenta", "tipoVenta", "VENTA");
     // El método y el comprobante (21-09-2026) van DESPUÉS del alcance en el
     // mismo predicado: un comprobante ajeno no devuelve nada.
-    filtro.igual("m.payment_method_id", "metodo", f.paymentMethodId());
+    filtro.igual("up.payment_method_id", "metodo", f.paymentMethodId());
     filtro.contiene("m.code", "codigo", f.code());
     if (!f.everything()) {
       if (f.ownerId() != null) {
@@ -1477,5 +1630,10 @@ public class JpaMovementRepository implements MovementRepository {
           throw new IllegalStateException(
               "Tipo temporal inesperado en la proyección: " + valor.getClass());
     };
+  }
+
+  /** Lo que cabe en la columna: el prefijo «Venta anulada: » no puede hacer fallar la anulación. */
+  private static String recortar(String texto, int maximo) {
+    return texto.length() <= maximo ? texto : texto.substring(0, maximo);
   }
 }

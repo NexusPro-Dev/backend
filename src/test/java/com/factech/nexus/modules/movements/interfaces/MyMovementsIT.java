@@ -7,6 +7,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 import com.factech.nexus.IntegrationTestBase;
+import com.factech.nexus.modules.movements.PaymentFixtures;
 import java.time.OffsetDateTime;
 import java.time.ZoneOffset;
 import java.util.UUID;
@@ -247,58 +248,46 @@ class MyMovementsIT extends IntegrationTestBase {
 
   @Test
   @DisplayName(
-      "CA-MV-120 — el filtro por tipo discrimina lo propio, escrito como sea, y se combina")
-  void filtroPorTipo() throws Exception {
-    // Un movimiento del segundo tipo a nombre del vendedor, pendiente: lo único
-    // que un filtro por ese tipo debe devolverle, y lo que `status=PENDIENTE`
-    // solo no distingue de la venta pendiente que hizo.
-    UUID deposito = movimiento(vendedor, null, "PENDIENTE", BASE.plusDays(5), TIPO_DE_PRUEBA);
+      "CA-MV-221 — «mis compras» son solo ventas: un movimiento de otro tipo a nombre de quien"
+          + " pregunta no aparece, y `type` ya no filtra (26-09-2026)")
+  void soloVentas() throws Exception {
+    // CA-MV-120 SE RETIRÓ el 26-09-2026 (`RN-MV-047`): el filtro por tipo solo
+    // podía tomar un valor útil. Un movimiento del segundo tipo a nombre del
+    // vendedor —como lo será un retiro o un bono— ya no es una compra.
+    movimiento(vendedor, null, "PENDIENTE", BASE.plusDays(5), TIPO_DE_PRUEBA);
 
-    mvc.perform(get("/api/v1/movements/mine/shopping?type=prueba_deposito").with(como(vendedor)))
+    mvc.perform(get("/api/v1/movements/mine/shopping").with(como(vendedor)))
         .andExpect(status().isOk())
         .andExpect(jsonPath("$.totalElements").value(1))
-        .andExpect(jsonPath("$.content[0].id").value(deposito.toString()))
-        .andExpect(jsonPath("$.content[0].type").value("PRUEBA_DEPOSITO"));
+        .andExpect(jsonPath("$.content[0].id").value(propia.toString()))
+        .andExpect(jsonPath("$.content[0].type").value("VENTA"));
 
-    // Por `VENTA`, la compra propia y no el depósito.
-    mvc.perform(get("/api/v1/movements/mine/shopping?type=VENTA").with(como(vendedor)))
+    // El parámetro retirado se ignora, como cualquier parámetro desconocido:
+    // no abre el otro tipo ni responde 400.
+    mvc.perform(get("/api/v1/movements/mine/shopping?type=PRUEBA_DEPOSITO").with(como(vendedor)))
         .andExpect(status().isOk())
         .andExpect(jsonPath("$.totalElements").value(1))
         .andExpect(jsonPath("$.content[0].id").value(propia.toString()));
-
-    // Combinado con el estado, sobre el comprador de la venta pendiente.
-    mvc.perform(
-            get("/api/v1/movements/mine/shopping")
-                .param("type", "VENTA")
-                .param("status", "PENDIENTE")
-                .with(como(cliente)))
-        .andExpect(status().isOk())
-        .andExpect(jsonPath("$.totalElements").value(1))
-        .andExpect(jsonPath("$.content[0].id").value(vendida.toString()));
-
-    // Y el alcance no se mueve: el cliente no ve el depósito del vendedor.
-    mvc.perform(get("/api/v1/movements/mine/shopping?type=PRUEBA_DEPOSITO").with(como(cliente)))
-        .andExpect(status().isOk())
-        .andExpect(jsonPath("$.totalElements").value(0));
   }
 
   @Test
-  @DisplayName("CA-MV-120 y VAL-004 — un tipo que no existe es 400 y no una página vacía")
-  void tipoInexistente() throws Exception {
-    // Como el estado y al revés que las personas: el catálogo es cerrado
-    // (`RN-MV-017`), y una página vacía diría «no tienes ninguno así».
-    mvc.perform(get("/api/v1/movements/mine/shopping?type=INVENTADO").with(como(vendedor)))
-        .andExpect(status().isBadRequest())
-        .andExpect(jsonPath("$.errors[0].field").value("type"))
-        .andExpect(jsonPath("$.errors[0].code").value("VAL-004"));
+  @DisplayName(
+      "CA-MV-223 — el detalle propio trae los pagos de la venta, en orden, sin la clave"
+          + " (26-09-2026)")
+  void elDetalleTraeLosPagos() throws Exception {
+    mvc.perform(get("/api/v1/movements/mine/" + propia).with(como(vendedor)))
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$.payments.length()").value(1))
+        .andExpect(jsonPath("$.payments[0].paymentMethod.code").value("CREDIT_CARD"))
+        .andExpect(jsonPath("$.payments[0].status").exists())
+        .andExpect(jsonPath("$.payments[0].idempotencyKey").doesNotExist());
   }
 
   @Test
   @DisplayName("CA-MV-133 — el filtro por método de pago; uno que no existe da página vacía")
   void filtroPorMetodoDePago() throws Exception {
     // La propia pasa a PSE; las demás siguen con tarjeta.
-    jdbc.update(
-        "UPDATE movements SET payment_method_id = CAST(? AS uuid) WHERE id = ?", PSE, propia);
+    PaymentFixtures.cambiarMetodo(jdbc, propia, PSE);
 
     mvc.perform(
             get("/api/v1/movements/mine/shopping")
@@ -614,10 +603,10 @@ class MyMovementsIT extends IntegrationTestBase {
     UUID id = UUID.randomUUID();
     jdbc.update(
         """
-        INSERT INTO movements (id, movement_type_id, type_status_id, user_id, payment_method_id,
+        INSERT INTO movements (id, movement_type_id, type_status_id, user_id,
                                currency_id, code, status, total_amount, discount_amount,
                                payable_amount, occurred_at, confirmed_at)
-        VALUES (?, CAST(? AS uuid), (SELECT s.id FROM movement_type_statuses s WHERE s.movement_type_id = CAST(? AS uuid) AND s.code = 'VALIDADO'), ?, CAST(? AS uuid), CAST(? AS uuid), ?, ?,
+        VALUES (?, CAST(? AS uuid), (SELECT s.id FROM movement_type_statuses s WHERE s.movement_type_id = CAST(? AS uuid) AND s.code = 'VALIDADO'), ?, CAST(? AS uuid), ?, ?,
                 100.00, 0, 100.00, CAST(? AS timestamptz),
                 CASE WHEN ? = 'CONFIRMADA' THEN CAST(? AS timestamptz) ELSE NULL END)
         """,
@@ -625,15 +614,16 @@ class MyMovementsIT extends IntegrationTestBase {
         tipo,
         tipo,
         cliente,
-        TARJETA,
         USD,
         "VTA-" + id.toString().substring(0, 8).toUpperCase(),
         estado,
-        cuando.toString(),
-        // `ck_movements_confirmed` ata las dos columnas: confirmada implica fecha de
+        cuando
+            .toString(), // `ck_movements_confirmed` ata las dos columnas: confirmada implica fecha
+        // de
         // confirmacion, y al reves. Ponerla siempre —o nunca— hace fallar la mitad.
         estado,
         cuando.toString());
+    PaymentFixtures.pagoDe(jdbc, id, TARJETA);
 
     linea(id, producto, vendedor);
     return id;

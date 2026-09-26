@@ -1,5 +1,6 @@
 package com.factech.nexus.modules.movements.domain.repository;
 
+import com.factech.nexus.modules.movements.domain.models.IdempotencyKey;
 import com.factech.nexus.modules.movements.domain.models.Movement;
 import com.factech.nexus.modules.movements.domain.models.TypeStatus;
 import com.factech.nexus.shared.pagination.BoundedCount;
@@ -38,12 +39,16 @@ public interface MovementRepository {
    *
    * @param venta el agregado; su código se reemplaza si hace falta reintentar
    * @param nuevoCodigo cómo obtener otro comprobante para la misma venta
+   * @param clave la del <b>primer pago</b>, que nace con la venta (`RN-MV-039`, `RF-MV-018`): la
+   *     que mandó el cliente o la que puso el sistema. El pago nace {@code PENDIENTE}, con el
+   *     método de la venta y su importe a pagar
+   * @return el identificador de ese primer pago
    * @throws RuntimeException si los tres intentos chocan. El adaptador lanza un {@code
    *     IllegalStateException}, y quien lo consume por el proxy de {@code @Repository} lo recibe
    *     <b>traducido</b> a la jerarquía de Spring. No se traduce a un código de negocio a
    *     propósito: nada de lo que el actor envió está mal, y esto sube como fallo del sistema
    */
-  void save(Movement venta, Supplier<String> nuevoCodigo);
+  UUID save(Movement venta, Supplier<String> nuevoCodigo, IdempotencyKey clave);
 
   /**
    * El tipo de movimiento por su código.
@@ -269,7 +274,25 @@ public interface MovementRepository {
       UUID movementId, UUID sellerId, String username, String firstName, String lastName) {}
 
   /** La cabecera y sus líneas. */
-  record MovementDetailView(MyMovementRow header, List<MovementLineRow> lines) {}
+  record MovementDetailView(
+      MyMovementRow header, List<MovementLineRow> lines, List<PaymentRow> payments) {}
+
+  /**
+   * Un intento de pago del movimiento (`RN-MV-039`), para el detalle (`RN-MV-047`). <b>Sin la clave
+   * de idempotencia</b>: es del cliente que la mandó y no le dice nada a quien lee.
+   */
+  record PaymentRow(
+      UUID id,
+      UUID paymentMethodId,
+      String paymentMethodCode,
+      String paymentMethodName,
+      String status,
+      BigDecimal amount,
+      String providerReference,
+      OffsetDateTime occurredAt,
+      OffsetDateTime confirmedAt,
+      OffsetDateTime rejectedAt,
+      String rejectionReason) {}
 
   /**
    * Una línea del detalle.
@@ -324,8 +347,24 @@ public interface MovementRepository {
    */
   Optional<MovementDetailView> findById(UUID movementId);
 
-  /** El estado actual, para decir en el {@code 409} en qué estado está (`EX-002`). */
+  /**
+   * El estado actual <b>de una venta</b>, para decir en el {@code 409} en qué estado está
+   * (`EX-002`). Vacío si no existe <b>o no es una venta</b>: desde el 26-09-2026 el libro tiene
+   * retiros y bonos, y las operaciones de la venta no los alcanzan (`RF-MV-019` · `CA-MV-233`).
+   */
   Optional<String> findStatus(UUID movementId);
+
+  /**
+   * ¿Tiene la venta un pago {@code PENDIENTE}? Explica por qué no se pudo confirmar una venta que
+   * sigue pendiente: su último pago se rechazó (`RF-MV-003` · `CA-MV-219`).
+   */
+  boolean hasPendingPayment(UUID movementId);
+
+  /**
+   * ¿Hay ya un pago con esta clave? Lo pregunta una compra <b>antes</b> de registrar (`RF-MV-018` ·
+   * `spec.md` §2.2): la misma compra repetida con la misma clave no registra otra venta.
+   */
+  boolean paymentKeyExists(String idempotencyKey);
 
   /**
    * La transición, <b>condicionada al estado anterior</b>: {@code PENDIENTE} → {@code CONFIRMADA}

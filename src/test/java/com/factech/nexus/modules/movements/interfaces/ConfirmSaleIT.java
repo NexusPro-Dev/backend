@@ -8,6 +8,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 import com.factech.nexus.IntegrationTestBase;
+import com.factech.nexus.modules.movements.PaymentFixtures;
 import java.time.OffsetDateTime;
 import java.time.ZoneOffset;
 import java.util.List;
@@ -516,11 +517,11 @@ class ConfirmSaleIT extends IntegrationTestBase {
     UUID id = UUID.randomUUID();
     jdbc.update(
         """
-        INSERT INTO movements (id, movement_type_id, type_status_id, user_id, payment_method_id,
+        INSERT INTO movements (id, movement_type_id, type_status_id, user_id,
                                currency_id, code, status, total_amount, discount_amount,
                                payable_amount, occurred_at, confirmed_at,
                                voided_at, void_reason)
-        VALUES (?, CAST(? AS uuid), (SELECT s.id FROM movement_type_statuses s WHERE s.movement_type_id = CAST(? AS uuid) AND s.code = 'VALIDADO'), ?, CAST(? AS uuid), CAST(? AS uuid), ?, ?,
+        VALUES (?, CAST(? AS uuid), (SELECT s.id FROM movement_type_statuses s WHERE s.movement_type_id = CAST(? AS uuid) AND s.code = 'VALIDADO'), ?, CAST(? AS uuid), ?, ?,
                 100.00, 0, 100.00, CAST(? AS timestamptz),
                 CASE WHEN ? = 'CONFIRMADA' THEN CAST(? AS timestamptz) ELSE NULL END,
                 -- `ck_movements_voided`: una anulada lleva fecha y motivo, y solo ella.
@@ -531,7 +532,6 @@ class ConfirmSaleIT extends IntegrationTestBase {
         VENTA,
         VENTA,
         sujeto,
-        TARJETA,
         USD,
         "VTA-" + id.toString().substring(0, 8).toUpperCase(),
         estado,
@@ -540,6 +540,7 @@ class ConfirmSaleIT extends IntegrationTestBase {
         VENDIDA_EL.toString(),
         estado,
         estado);
+    PaymentFixtures.pagoDe(jdbc, id, TARJETA);
     for (UUID producto : productos) {
       jdbc.update(
           """

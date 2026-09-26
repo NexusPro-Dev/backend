@@ -41,7 +41,9 @@ class MovementsPermissionsSeedIT extends IntegrationTestBase {
           "movements:list-own",
           "movements:read-own",
           "movements:read-own-products",
-          "movements:list-sales");
+          "movements:list-sales",
+          // `V48` (`RF-MV-018`, 26-09-2026): volver a pagar lo propio, a todo rol por su tipo.
+          "movements:retry-payment");
 
   /**
    * El de `V36` (`RF-MV-016`): tampoco es de la reserva —va a SUPERADMIN y ADMIN, explícito— y
@@ -56,6 +58,12 @@ class MovementsPermissionsSeedIT extends IntegrationTestBase {
    * aquel, de modo que este no va a todo rol por su tipo.
    */
   private static final String LINEAS = "movements:list-sale-lines";
+
+  /**
+   * El de `V48` (`RF-MV-004`, 26-09-2026): rechazar el pago pendiente de una venta. A SUPERADMIN y
+   * ADMIN explícito, como confirmar: conciliar es administración.
+   */
+  private static final String RECHAZAR = "movements:reject-payment";
 
   @Autowired private JdbcTemplate jdbc;
 
@@ -72,8 +80,8 @@ class MovementsPermissionsSeedIT extends IntegrationTestBase {
     assertThat(codigos)
         .containsAll(LOS_CUATRO)
         .containsAll(LOS_PROPIOS)
-        .contains(ASIGNAR, LINEAS)
-        .hasSize(10);
+        .contains(ASIGNAR, LINEAS, RECHAZAR)
+        .hasSize(12);
   }
 
   @Test
@@ -94,7 +102,7 @@ class MovementsPermissionsSeedIT extends IntegrationTestBase {
     // RN-SEG-007: la raíz de la contención está acotada por el catálogo
     // completo. Un permiso sembrado y no asociado la dejaría por detrás de sus
     // propios hijos.
-    assertThat(permisosDeMovimientosDe(SUPERADMIN)).containsAll(LOS_CUATRO).hasSize(10);
+    assertThat(permisosDeMovimientosDe(SUPERADMIN)).containsAll(LOS_CUATRO).hasSize(12);
   }
 
   @Test
@@ -118,7 +126,7 @@ class MovementsPermissionsSeedIT extends IntegrationTestBase {
         .containsExactlyInAnyOrderElementsOf(
             java.util.stream.Stream.concat(
                     java.util.stream.Stream.concat(LOS_CUATRO.stream(), LOS_PROPIOS.stream()),
-                    java.util.stream.Stream.of(ASIGNAR, LINEAS))
+                    java.util.stream.Stream.of(ASIGNAR, LINEAS, RECHAZAR))
                 .toList());
   }
 
@@ -135,7 +143,7 @@ class MovementsPermissionsSeedIT extends IntegrationTestBase {
     List<UUID> ids =
         jdbc.queryForList("SELECT id FROM permissions WHERE resource = 'movements'", UUID.class);
 
-    assertThat(ids).hasSize(10).doesNotHaveDuplicates();
+    assertThat(ids).hasSize(12).doesNotHaveDuplicates();
     assertThat(ids).allSatisfy(id -> assertThat(id.version()).isEqualTo(7));
     // variant() == 2 es la variante RFC 9562 (bits 10xx).
     assertThat(ids).allSatisfy(id -> assertThat(id.variant()).isEqualTo(2));

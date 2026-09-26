@@ -556,7 +556,8 @@ class SelfRegistrationIT extends IntegrationTestBase {
             "SELECT m.code, m.status, pm.code AS metodo, m.total_amount,"
                 + " c.username AS cliente, v.username AS vendedor"
                 + " FROM movements m"
-                + " JOIN payment_methods pm ON pm.id = m.payment_method_id"
+                + " JOIN payments p ON p.movement_id = m.id"
+                + " JOIN payment_methods pm ON pm.id = p.payment_method_id"
                 + " JOIN users c ON c.id = m.user_id"
                 // El vendedor es de la línea (`RN-MV-003`, 16-09-2026); el alta
                 // compra UN producto, de modo que hay una y solo una.
@@ -610,7 +611,8 @@ class SelfRegistrationIT extends IntegrationTestBase {
     Map<String, Object> venta =
         jdbc.queryForMap(
             "SELECT m.status, pm.code AS metodo, m.total_amount FROM movements m"
-                + " JOIN payment_methods pm ON pm.id = m.payment_method_id"
+                + " JOIN payments p ON p.movement_id = m.id"
+                + " JOIN payment_methods pm ON pm.id = p.payment_method_id"
                 + " JOIN users c ON c.id = m.user_id WHERE c.username = 'ana.ruiz'");
 
     assertThat(venta.get("status")).isEqualTo("PENDIENTE");

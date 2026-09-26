@@ -13,6 +13,7 @@ import com.factech.nexus.modules.movements.application.SaleLineItem;
 import com.factech.nexus.modules.movements.application.SaleLinesRequest;
 import com.factech.nexus.modules.movements.application.SaleResponse;
 import com.factech.nexus.modules.movements.application.VoidSaleRequest;
+import com.factech.nexus.modules.movements.domain.models.IdempotencyKey;
 import com.factech.nexus.modules.movements.domain.service.AssignSellersService;
 import com.factech.nexus.modules.movements.domain.service.ConfirmSaleService;
 import com.factech.nexus.modules.movements.domain.service.GetMyMovementService;
@@ -39,6 +40,7 @@ import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.RequestHeader;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
@@ -649,8 +651,10 @@ public class MovementController {
   })
   @PostMapping
   @PreAuthorize("hasAuthority('movements:create')")
-  public ResponseEntity<SaleResponse> registrar(@Valid @RequestBody RegisterSaleRequest peticion) {
-    SaleResponse venta = alta.register(peticion);
+  public ResponseEntity<SaleResponse> registrar(
+      @Valid @RequestBody RegisterSaleRequest peticion,
+      @RequestHeader(value = IdempotencyKey.CABECERA, required = false) String clave) {
+    SaleResponse venta = alta.register(peticion, IdempotencyKey.opcional(clave));
     return ResponseEntity.created(URI.create("/api/v1/movements/" + venta.id())).body(venta);
   }
 
@@ -710,11 +714,11 @@ public class MovementController {
           una venta podría llevar varios. Hoy lleva uno. Va **vacía** en los movimientos que
           no tienen vendedor y en una venta por validar a la que aún no se le asignó ninguno.
 
-          **Cada fila dice su tipo** (`type`, hoy siempre `VENTA`) desde el 21-09-2026, el
-          mismo día que se puede filtrar por él: `type` admite **el código del tipo de
-          movimiento**, sin distinguir mayúsculas, y se combina con `status`. Un `type` que no
-          exista en el catálogo es `400`, como el estado: el catálogo es cerrado y no se
-          publica por ninguna ruta.
+          **Desde el 26-09-2026 son solo VENTAS** (`RN-MV-047`): los retiros, abonos y bonos
+          de la persona no son compras, y se consultan por sus saldos. **El filtro `type` se
+          retiró ese día**: solo podía tomar un valor útil. Cada fila sigue diciendo su tipo
+          (`type`, siempre `VENTA`). El método de pago de la fila, y el del filtro, son los
+          del **último pago** de la venta (`RN-MV-039`).
 
           **Y desde ese mismo día, los tres filtros de `GET /movements`**: `paymentMethodId`
           (uno que no exista da página vacía), `code` (**una PARTE del comprobante**, sin distinguir
@@ -730,8 +734,8 @@ public class MovementController {
     @ApiResponse(
         responseCode = "400",
         description =
-            "Paginación inválida (`VAL-002`), estado no admitido (`VAL-003`), tipo de"
-                + " movimiento inexistente (`VAL-004`), `from` posterior a `to` (`VAL-005`) o"
+            "Paginación inválida (`VAL-002`), estado no admitido (`VAL-003`), `from`"
+                + " posterior a `to` (`VAL-005`) o"
                 + " identificador malformado (`VAL-006`, que el conversor global emite como"
                 + " `VAL-001`)",
         content = @Content),
@@ -752,13 +756,12 @@ public class MovementController {
       @RequestParam(required = false) Integer page,
       @RequestParam(required = false) Integer size,
       @RequestParam(required = false) String status,
-      @RequestParam(required = false) String type,
       @RequestParam(required = false) UUID paymentMethodId,
       @RequestParam(required = false) String code,
       @RequestParam(required = false) OffsetDateTime from,
       @RequestParam(required = false) OffsetDateTime to) {
     return listado.list(
-        new MyMovementsRequest(page, size, status, type, paymentMethodId, code, from, to));
+        new MyMovementsRequest(page, size, status, paymentMethodId, code, from, to));
   }
 
   /**

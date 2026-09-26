@@ -100,7 +100,13 @@ public record SaleResponse(
                 "Por qué la venta no debía existir, escrito para una persona. NULO en toda venta"
                     + " no anulada.")
         String voidReason,
-    OffsetDateTime createdAt) {
+    OffsetDateTime createdAt,
+    @Schema(
+            description =
+                "Los intentos de pagarla, del más antiguo al más reciente (`RN-MV-039`,"
+                    + " `RN-MV-047`). Desde el 26-09-2026 el método es de cada pago: paymentMethod"
+                    + " es el del último.")
+        List<PaymentResponse> payments) {
 
   @Schema(name = "SaleParty")
   public record Party(UUID id, String username, String name) {}
@@ -117,7 +123,8 @@ public record SaleResponse(
       Party sujeto,
       Map<UUID, Party> vendedores,
       Money moneda,
-      String metodoDePago) {
+      String metodoDePago,
+      PaymentResponse primerPago) {
     List<SaleLineResponse> lineas = new ArrayList<>(venta.getLines().size());
     for (MovementLine linea : venta.getLines()) {
       // Sin vendedor en una venta por validar (`RN-MV-034`): los mapas inmutables
@@ -144,6 +151,7 @@ public record SaleResponse(
         null,
         null,
         null,
-        venta.getCreatedAt());
+        venta.getCreatedAt(),
+        List.of(primerPago));
   }
 }

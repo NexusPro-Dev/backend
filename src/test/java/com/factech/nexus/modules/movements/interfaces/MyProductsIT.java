@@ -7,6 +7,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 import com.factech.nexus.IntegrationTestBase;
+import com.factech.nexus.modules.movements.PaymentFixtures;
 import com.factech.nexus.modules.movements.domain.repository.MovementRepository;
 import com.factech.nexus.modules.movements.domain.repository.MovementRepository.MyProductRow;
 import com.factech.nexus.modules.products.interfaces.ProductLinkTestSupport;
@@ -456,11 +457,11 @@ class MyProductsIT extends IntegrationTestBase {
     UUID id = UUID.randomUUID();
     jdbc.update(
         """
-        INSERT INTO movements (id, movement_type_id, type_status_id, user_id, payment_method_id,
+        INSERT INTO movements (id, movement_type_id, type_status_id, user_id,
                                currency_id, code, status, total_amount, discount_amount,
                                payable_amount, occurred_at, confirmed_at,
                                voided_at, void_reason)
-        VALUES (?, CAST(? AS uuid), (SELECT s.id FROM movement_type_statuses s WHERE s.movement_type_id = CAST(? AS uuid) AND s.code = 'VALIDADO'), ?, CAST(? AS uuid), CAST(? AS uuid), ?, ?,
+        VALUES (?, CAST(? AS uuid), (SELECT s.id FROM movement_type_statuses s WHERE s.movement_type_id = CAST(? AS uuid) AND s.code = 'VALIDADO'), ?, CAST(? AS uuid), ?, ?,
                 100.00, 0, 100.00, CAST(? AS timestamptz),
                 CASE WHEN ? = 'CONFIRMADA' THEN CAST(? AS timestamptz) ELSE NULL END,
                 -- `ck_movements_voided`: una anulada lleva fecha y motivo, y solo ella.
@@ -471,7 +472,6 @@ class MyProductsIT extends IntegrationTestBase {
         VENTA,
         VENTA,
         sujeto,
-        TARJETA,
         USD,
         "VTA-" + id.toString().substring(0, 8).toUpperCase(),
         estado,
@@ -480,6 +480,7 @@ class MyProductsIT extends IntegrationTestBase {
         cuando.toString(),
         estado,
         estado);
+    PaymentFixtures.pagoDe(jdbc, id, TARJETA);
     // `ck_movement_details_delivery`: ENTREGADA exige fecha y RETENIDA exige
     // motivo; el motivo lo pone la prueba que lo mira.
     UUID linea = UUID.randomUUID();
