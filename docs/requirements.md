@@ -5,7 +5,7 @@
 | Proyecto | NEXUS — Renovación de plataforma |
 | Empresa | FACTECH GROUP SAS |
 | Documento | `requirements.md` |
-| Versión | 0.220.0 |
+| Versión | 0.221.0 |
 | Estado | Borrador |
 | Responsable técnico | Bonilla Diaz William Steven |
 | Fecha de creación | 20-08-2026 |
@@ -214,9 +214,9 @@ Implementa el Art. III.1. Se actualiza **como parte del cambio**, no después (A
 | `RF-MV-019` | Solicitar un retiro | `MV` | [`specs/mv/019-solicitar-retiro/`](specs/mv/019-solicitar-retiro/tasks.md) | Pendiente de crear | `feature/pagos-y-saldos` | — | **Tasks en revisión**. Trae los saldos al sistema: `accounts`, `movement_entries`, el disparador de cuadre y el `Ledger` que reutilizan `RF-MV-020` a `RF-MV-024`. Pedir **retiene en el acto**; sin clave de idempotencia, porque un retiro repetido retiene dos veces y no puede pagar de más. `POST /api/v1/movements/mine/withdrawals` con `movements:request-withdrawal` |
 | `RF-MV-020` | Aprobar un retiro | `MV` | [`specs/mv/020-aprobar-retiro/`](specs/mv/020-aprobar-retiro/tasks.md) | Pendiente de crear | `feature/pagos-y-saldos` | — | **Tasks en revisión**. A mano y sin pasarela: escribe el pago que lo liquida con el método `MANUAL` y la referencia opcional, y saca lo retenido hacia la cuenta de retiros de la empresa. `POST /api/v1/movements/{id}/withdrawal-approval` con `movements:approve-withdrawal` |
 | `RF-MV-021` | Negar un retiro | `MV` | [`specs/mv/021-negar-retiro/`](specs/mv/021-negar-retiro/tasks.md) | Pendiente de crear | `feature/pagos-y-saldos` | — | **Tasks en revisión**. Motivo obligatorio; devuelve lo retenido a la billetera, sin pago. `POST /api/v1/movements/{id}/withdrawal-rejection` con `movements:reject-withdrawal` |
-| `RF-MV-022` | Consultar mis saldos | `MV` | Pendiente de crear | Pendiente de crear | — | — | **Pendiente**. Nace el 26-09-2026 |
-| `RF-MV-023` | Otorgar un bono | `MV` | Pendiente de crear | Pendiente de crear | — | — | **Pendiente**. Nace el 26-09-2026 |
-| `RF-MV-024` | Abonar el pago de un lote de comisión | `MV` | Pendiente de crear | Pendiente de crear | — | — | **Pendiente**. Nace el 26-09-2026. Sin ruta: lo invoca `RF-CM-011`, y exige enmendar `RN-CM-030` |
+| `RF-MV-022` | Consultar mis saldos | `MV` | [`specs/mv/022-consultar-mis-saldos/`](specs/mv/022-consultar-mis-saldos/tasks.md) | Pendiente de crear | `feature/pagos-y-saldos` | — | **Tasks en revisión**. Dos operaciones y dos permisos: `GET /api/v1/movements/mine/balances` (`movements:read-own-balances`) y su historial asiento a asiento, `GET /api/v1/movements/mine/balances/entries` (`movements:list-own-entries`, nuevo en `requirements/mv.md` v0.46.0) |
+| `RF-MV-023` | Otorgar un bono | `MV` | [`specs/mv/023-otorgar-bono/`](specs/mv/023-otorgar-bono/tasks.md) | Pendiente de crear | `feature/pagos-y-saldos` | — | **Tasks en revisión**. Nace confirmado y sin pago, con motivo y `Idempotency-Key` obligatorios; trae `movements.idempotency_key`. `POST /api/v1/movements/bonuses` con `movements:grant-bonus` |
+| `RF-MV-024` | Abonar el pago de un lote de comisión | `MV` | [`specs/mv/024-abonar-lote-comision/`](specs/mv/024-abonar-lote-comision/tasks.md) | Pendiente de crear | `feature/pagos-y-saldos` | — | **Tasks en revisión**. Sin ruta: la interfaz publicada `CommissionPayout`, que `RF-CM-011` invocará en su transacción (`MANDATORY`). Una vez por lote, redondeado a la moneda |
 | `RF-AC-001` | Registrar categoría | `AC` | [`specs/ac/001-registrar-categoria/`](specs/ac/001-registrar-categoria/tasks.md) | Pendiente de crear | `feature/academia` | Suite completa en verde (17-09-2026, sin `DevelopmentSeedIT`, rota por una edición ajena de la semilla): 408 unitarias y 1944 de integración. `CourseCategoriesIT` (8), `CourseCategoryConcurrencyIT` (2 del alta y el retiro), `CourseCategoriesPermissionsSeedIT` (3), `CourseCategoryTest` (14) y `AcademyImageUrlsTest` (2); `LayerRulesTest` gana la regla de `academy`. **Construido**: `V18` y `V19`, el paquete `modules/academy` y las cuatro suites del catálogo de permisos en 54 | **En desarrollo** |
 | `RF-AC-002` | Consultar categorías | `AC` | [`specs/ac/002-consultar-categorias/`](specs/ac/002-consultar-categorias/tasks.md) | Pendiente de crear | `feature/academia` | Suite completa en verde (17-09-2026, sin `DevelopmentSeedIT`, rota por una edición ajena de la semilla): 408 unitarias y 1944 de integración. `CourseCategoryListIT` (6); dos sentencias por página. **Construido**; `CA-AC-010` trivial hasta `RF-AC-016` | **En desarrollo** |
 | `RF-AC-003` | Consultar el detalle de una categoría | `AC` | [`specs/ac/003-consultar-detalle-categoria/`](specs/ac/003-consultar-detalle-categoria/tasks.md) | Pendiente de crear | `feature/academia` | Suite completa en verde (17-09-2026, sin `DevelopmentSeedIT`, rota por una edición ajena de la semilla): 408 unitarias y 1944 de integración. `CourseCategoryDetailIT` (5); una sentencia sin cursos, dos con motivo. **Construido**; `courses` vacío y `offerable` falso hasta `RF-AC-008`, `RF-AC-016` y el bloque 3 | **En desarrollo** |
@@ -279,9 +279,9 @@ Un requerimiento solo pasa a `Implementado` cuando cumple **todas** las condicio
 | Indicador | Valor |
 |---|---|
 | Requerimientos registrados | 165 |
-| Requerimientos con `spec.md` redactada | 156 |
-| Requerimientos con `spec.md` aprobada | 96 |
-| Requerimientos con `plan.md` aprobado | 155 |
+| Requerimientos con `spec.md` redactada | 159 |
+| Requerimientos con `spec.md` aprobada | 99 |
+| Requerimientos con `plan.md` aprobado | 158 |
 | Requerimientos con **tripleta completa** —`tasks.md` aprobadas— | 90 |
 | Requerimientos con endpoint funcionando | 127 |
 | Requerimientos implementados | 0 |
@@ -587,3 +587,4 @@ El inventario y el estado de los módulos se consultan en [`modules.md` §4](mod
 | 0.218.0 | 26-09-2026 | **`RF-MV-020` se desbloquea**: el retiro se aprueba a mano, con el método `MANUAL`, hasta que se integren las pasarelas ([`requirements/mv.md`](requirements/mv.md) v0.45.0). Ningún indicador se mueve. | Responsable técnico |
 | 0.219.0 | 26-09-2026 | **`RF-MV-004` y `RF-MV-018` estrenan tripleta** —el pago como intento: rechazarlo y volver a pagar—, y se enmiendan las `spec.md` de `RF-MV-003` (v0.2.0), `RF-MV-005` (v0.2.0) y `RF-MV-008` (v0.7.0). `spec.md` redactadas 151 → **153**, aprobadas 91 → **93**, `plan.md` aprobados 150 → **152**; las tripletas completas no se mueven porque las dos `tasks.md` están en revisión. | Responsable técnico |
 | 0.220.0 | 26-09-2026 | **Los retiros estrenan tripleta**: `RF-MV-019` (solicitar, que trae las cuentas, los asientos y el `Ledger`), `RF-MV-020` (aprobar a mano, con el método `MANUAL`) y `RF-MV-021` (negar, que devuelve lo retenido). `spec.md` redactadas 153 → **156**, aprobadas 93 → **96**, `plan.md` aprobados 152 → **155**. | Responsable técnico |
+| 0.221.0 | 26-09-2026 | **Los saldos estrenan tripleta**: `RF-MV-022` (mis saldos y su historial), `RF-MV-023` (bono) y `RF-MV-024` (abono del lote de `CM`, sin ruta). Con ellas **los siete requerimientos de la etapa 6 de `MV` tienen tripleta**. `spec.md` redactadas 156 → **159**, aprobadas 96 → **99**, `plan.md` aprobados 155 → **158**. | Responsable técnico |
