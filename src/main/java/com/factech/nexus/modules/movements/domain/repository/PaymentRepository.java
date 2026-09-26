@@ -53,6 +53,19 @@ public interface PaymentRepository {
    */
   boolean rejectPendingOfSale(UUID movementId, OffsetDateTime at, String reason);
 
+  /**
+   * `RF-MV-020`: el pago que liquida un retiro, <b>ya confirmado</b> —quien aprueba declara que el
+   * dinero salió— con el método y la referencia de la transferencia.
+   */
+  void insertConfirmed(
+      UUID paymentId,
+      UUID movementId,
+      UUID paymentMethodId,
+      BigDecimal amount,
+      String idempotencyKey,
+      String providerReference,
+      OffsetDateTime at);
+
   record KeyedPayment(UUID paymentId, UUID movementId, UUID paymentMethodId) {}
 
   record RetryTarget(UUID movementId, String status, BigDecimal payableAmount) {}

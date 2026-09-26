@@ -45,6 +45,11 @@ class SystemRolesSeedIT extends IntegrationTestBase {
           "broker-accounts:read-team-member",
           "movements:create",
           "movements:list-own",
+          // V48 y V49 (26-09-2026, etapa 6 de MV): lo propio de pagos y saldos, por tipo de rol.
+          "movements:retry-payment",
+          "movements:request-withdrawal",
+          "movements:read-own-balances",
+          "movements:list-own-entries",
           "movements:list-sales",
           "movements:read",
           "movements:read-own",
@@ -72,6 +77,11 @@ class SystemRolesSeedIT extends IntegrationTestBase {
           "broker-accounts:read-own-team",
           "broker-accounts:read-team-member",
           "movements:list-own",
+          // V48 y V49 (26-09-2026, etapa 6 de MV): lo propio de pagos y saldos, por tipo de rol.
+          "movements:retry-payment",
+          "movements:request-withdrawal",
+          "movements:read-own-balances",
+          "movements:list-own-entries",
           "movements:list-sales",
           "movements:read-own",
           "movements:read-own-products",
@@ -93,6 +103,11 @@ class SystemRolesSeedIT extends IntegrationTestBase {
       List.of(
           "movements:create",
           "movements:list-own",
+          // V48 y V49 (26-09-2026, etapa 6 de MV): lo propio de pagos y saldos, por tipo de rol.
+          "movements:retry-payment",
+          "movements:request-withdrawal",
+          "movements:read-own-balances",
+          "movements:list-own-entries",
           "movements:read-own",
           "movements:read-own-products",
           "packages:buy",

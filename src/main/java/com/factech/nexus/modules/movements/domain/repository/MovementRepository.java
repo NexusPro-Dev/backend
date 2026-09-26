@@ -51,6 +51,44 @@ public interface MovementRepository {
   UUID save(Movement venta, Supplier<String> nuevoCodigo, IdempotencyKey clave);
 
   /**
+   * Guarda un movimiento <b>que no vende</b> (`RN-MV-046`): solo la cabecera, sin líneas y sin
+   * pago, con el mismo reintento del comprobante que {@link #save}. Escribe el estado, la
+   * confirmación, el concepto y la clave que traiga el agregado.
+   */
+  void saveWithoutLines(Movement movimiento, Supplier<String> nuevoCodigo);
+
+  /** El movimiento que ya lleva esa clave de idempotencia (`RN-MV-044`, `RN-MV-045`). */
+  Optional<UUID> findIdByIdempotencyKey(String idempotencyKey);
+
+  /**
+   * Un movimiento que no vende, de ese tipo; vacío si no existe o si es de otro tipo. Es lo que
+   * hace que las operaciones del retiro no alcancen a una venta, y al revés.
+   */
+  Optional<WithdrawalRow> findWithoutLines(UUID movementId, String typeCode);
+
+  /** `RF-MV-020`: {@code PENDIENTE} → {@code CONFIRMADA}, condicionado y solo sobre un retiro. */
+  boolean confirmWithdrawalIfPending(UUID movementId, OffsetDateTime at);
+
+  /** `RF-MV-021`: {@code PENDIENTE} → {@code RECHAZADA}, con instante y motivo. */
+  boolean rejectWithdrawalIfPending(UUID movementId, OffsetDateTime at, String reason);
+
+  /** Un movimiento que no vende, tal como lo publican sus respuestas. */
+  record WithdrawalRow(
+      UUID id,
+      String code,
+      String type,
+      UUID userId,
+      UUID currencyId,
+      String currencyCode,
+      String status,
+      BigDecimal amount,
+      String concept,
+      OffsetDateTime occurredAt,
+      OffsetDateTime confirmedAt,
+      OffsetDateTime rejectedAt,
+      String rejectionReason) {}
+
+  /**
    * El tipo de movimiento por su código.
    *
    * <p>Hoy solo existe {@code VENTA}, y se busca igualmente en lugar de constantear su

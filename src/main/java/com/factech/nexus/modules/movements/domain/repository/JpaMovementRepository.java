@@ -200,6 +200,132 @@ public class JpaMovementRepository implements MovementRepository {
   }
 
   @Override
+  public void saveWithoutLines(Movement m, Supplier<String> nuevoCodigo) {
+    for (int intento = 1; intento <= INTENTOS; intento++) {
+      int filas =
+          em.createNativeQuery(
+                  """
+                  INSERT INTO movements (id, movement_type_id, user_id, currency_id, code, status,
+                                         type_status_id, total_amount, discount_amount,
+                                         payable_amount, occurred_at, confirmed_at, concept,
+                                         idempotency_key, created_at)
+                  VALUES (:id, :tipo, :sujeto, :moneda, :codigo, :estado, :estadoDelTipo,
+                          :importe, 0, :importe, :ocurrio, :confirmado, :concepto, :clave, :creado)
+                  ON CONFLICT (code) DO NOTHING
+                  """)
+              .setParameter("id", m.getId())
+              .setParameter("tipo", m.getMovementTypeId())
+              .setParameter("sujeto", m.getUserId())
+              .setParameter("moneda", m.getCurrencyId())
+              .setParameter("codigo", m.getCode())
+              .setParameter("estado", m.getStatus().name())
+              .setParameter("estadoDelTipo", m.getTypeStatus().id())
+              .setParameter("importe", m.getPayableAmount())
+              .setParameter("ocurrio", m.getOccurredAt())
+              .setParameter("confirmado", m.getConfirmedAt())
+              .setParameter("concepto", m.getConcept())
+              .setParameter("clave", m.getIdempotencyKey())
+              .setParameter("creado", m.getCreatedAt())
+              .executeUpdate();
+      if (filas == 1) {
+        return;
+      }
+      if (intento < INTENTOS) {
+        m.reemplazarCodigo(nuevoCodigo.get());
+      }
+    }
+    throw new IllegalStateException(
+        "No se pudo emitir un comprobante único en %d intentos para el movimiento %s."
+            .formatted(INTENTOS, m.getId()));
+  }
+
+  @Override
+  @Transactional(readOnly = true)
+  public Optional<UUID> findIdByIdempotencyKey(String idempotencyKey) {
+    @SuppressWarnings("unchecked")
+    List<Object> filas =
+        em.createNativeQuery("SELECT id FROM movements WHERE idempotency_key = :clave")
+            .setParameter("clave", idempotencyKey)
+            .getResultList();
+    return filas.stream().findFirst().map(UUID.class::cast);
+  }
+
+  @Override
+  @Transactional(readOnly = true)
+  public Optional<WithdrawalRow> findWithoutLines(UUID movementId, String tipo) {
+    @SuppressWarnings("unchecked")
+    List<Tuple> filas =
+        em.createNativeQuery(
+                """
+                SELECT m.id AS id, m.code AS code, t.code AS tipo, m.user_id AS sujeto,
+                       c.id AS moneda, c.code AS codigo_moneda, m.status AS status,
+                       m.payable_amount AS importe, m.concept AS concepto,
+                       m.occurred_at AS ocurrio, m.confirmed_at AS confirmado,
+                       m.rejected_at AS rechazado, m.rejection_reason AS motivo
+                  FROM movements m
+                  JOIN movement_types t ON t.id = m.movement_type_id
+                  JOIN currencies c ON c.id = m.currency_id
+                 WHERE m.id = :id AND t.code = :tipo
+                """,
+                Tuple.class)
+            .setParameter("id", movementId)
+            .setParameter("tipo", tipo)
+            .getResultList();
+    return filas.stream()
+        .findFirst()
+        .map(
+            f ->
+                new WithdrawalRow(
+                    (UUID) f.get("id"),
+                    (String) f.get("code"),
+                    (String) f.get("tipo"),
+                    (UUID) f.get("sujeto"),
+                    (UUID) f.get("moneda"),
+                    (String) f.get("codigo_moneda"),
+                    (String) f.get("status"),
+                    (BigDecimal) f.get("importe"),
+                    (String) f.get("concepto"),
+                    instante(f.get("ocurrio")),
+                    instante(f.get("confirmado")),
+                    instante(f.get("rechazado")),
+                    (String) f.get("motivo")));
+  }
+
+  @Override
+  @Transactional
+  public boolean confirmWithdrawalIfPending(UUID movementId, OffsetDateTime at) {
+    return em.createNativeQuery(
+                """
+                UPDATE movements m SET status = 'CONFIRMADA', confirmed_at = :ahora
+                 WHERE m.id = :id AND m.status = 'PENDIENTE'
+                   AND m.movement_type_id = (SELECT t.id FROM movement_types t
+                                              WHERE t.code = 'RETIRO')
+                """)
+            .setParameter("id", movementId)
+            .setParameter("ahora", at)
+            .executeUpdate()
+        == 1;
+  }
+
+  @Override
+  @Transactional
+  public boolean rejectWithdrawalIfPending(UUID movementId, OffsetDateTime at, String reason) {
+    return em.createNativeQuery(
+                """
+                UPDATE movements m
+                   SET status = 'RECHAZADA', rejected_at = :ahora, rejection_reason = :motivo
+                 WHERE m.id = :id AND m.status = 'PENDIENTE'
+                   AND m.movement_type_id = (SELECT t.id FROM movement_types t
+                                              WHERE t.code = 'RETIRO')
+                """)
+            .setParameter("id", movementId)
+            .setParameter("ahora", at)
+            .setParameter("motivo", reason)
+            .executeUpdate()
+        == 1;
+  }
+
+  @Override
   public Optional<MovementTypeView> findTypeByCode(String code) {
     if (code == null) {
       return Optional.empty();

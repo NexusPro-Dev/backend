@@ -93,6 +93,34 @@ public class JpaPaymentRepository implements PaymentRepository {
   }
 
   @Override
+  @Transactional
+  public void insertConfirmed(
+      UUID paymentId,
+      UUID movementId,
+      UUID paymentMethodId,
+      BigDecimal amount,
+      String idempotencyKey,
+      String providerReference,
+      OffsetDateTime at) {
+    em.createNativeQuery(
+            """
+            INSERT INTO payments (id, movement_id, payment_method_id, status, amount,
+                                  idempotency_key, provider_reference, occurred_at,
+                                  confirmed_at, created_at)
+            VALUES (:id, :movimiento, :metodo, 'CONFIRMADO', :importe, :clave, :referencia,
+                    :ahora, :ahora, :ahora)
+            """)
+        .setParameter("id", paymentId)
+        .setParameter("movimiento", movementId)
+        .setParameter("metodo", paymentMethodId)
+        .setParameter("importe", amount)
+        .setParameter("clave", idempotencyKey)
+        .setParameter("referencia", providerReference)
+        .setParameter("ahora", at)
+        .executeUpdate();
+  }
+
+  @Override
   @Transactional(readOnly = true)
   public boolean hasPending(UUID movementId) {
     Object hay =

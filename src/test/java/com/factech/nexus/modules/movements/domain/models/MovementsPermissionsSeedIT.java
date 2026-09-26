@@ -43,7 +43,11 @@ class MovementsPermissionsSeedIT extends IntegrationTestBase {
           "movements:read-own-products",
           "movements:list-sales",
           // `V48` (`RF-MV-018`, 26-09-2026): volver a pagar lo propio, a todo rol por su tipo.
-          "movements:retry-payment");
+          "movements:retry-payment",
+          // `V49` (`RF-MV-019` y `RF-MV-022`): pedir un retiro y consultar los saldos propios.
+          "movements:request-withdrawal",
+          "movements:read-own-balances",
+          "movements:list-own-entries");
 
   /**
    * El de `V36` (`RF-MV-016`): tampoco es de la reserva —va a SUPERADMIN y ADMIN, explícito— y
@@ -65,6 +69,11 @@ class MovementsPermissionsSeedIT extends IntegrationTestBase {
    */
   private static final String RECHAZAR = "movements:reject-payment";
 
+  /** Los de `V49` de administración: aprobar y negar un retiro, y otorgar un bono. */
+  private static final List<String> LOS_DE_SALDOS =
+      List.of(
+          "movements:approve-withdrawal", "movements:reject-withdrawal", "movements:grant-bonus");
+
   @Autowired private JdbcTemplate jdbc;
 
   @Test
@@ -81,7 +90,8 @@ class MovementsPermissionsSeedIT extends IntegrationTestBase {
         .containsAll(LOS_CUATRO)
         .containsAll(LOS_PROPIOS)
         .contains(ASIGNAR, LINEAS, RECHAZAR)
-        .hasSize(12);
+        .containsAll(LOS_DE_SALDOS)
+        .hasSize(18);
   }
 
   @Test
@@ -102,7 +112,7 @@ class MovementsPermissionsSeedIT extends IntegrationTestBase {
     // RN-SEG-007: la raíz de la contención está acotada por el catálogo
     // completo. Un permiso sembrado y no asociado la dejaría por detrás de sus
     // propios hijos.
-    assertThat(permisosDeMovimientosDe(SUPERADMIN)).containsAll(LOS_CUATRO).hasSize(12);
+    assertThat(permisosDeMovimientosDe(SUPERADMIN)).containsAll(LOS_CUATRO).hasSize(18);
   }
 
   @Test
@@ -126,7 +136,9 @@ class MovementsPermissionsSeedIT extends IntegrationTestBase {
         .containsExactlyInAnyOrderElementsOf(
             java.util.stream.Stream.concat(
                     java.util.stream.Stream.concat(LOS_CUATRO.stream(), LOS_PROPIOS.stream()),
-                    java.util.stream.Stream.of(ASIGNAR, LINEAS, RECHAZAR))
+                    java.util.stream.Stream.concat(
+                        java.util.stream.Stream.of(ASIGNAR, LINEAS, RECHAZAR),
+                        LOS_DE_SALDOS.stream()))
                 .toList());
   }
 
@@ -143,7 +155,7 @@ class MovementsPermissionsSeedIT extends IntegrationTestBase {
     List<UUID> ids =
         jdbc.queryForList("SELECT id FROM permissions WHERE resource = 'movements'", UUID.class);
 
-    assertThat(ids).hasSize(12).doesNotHaveDuplicates();
+    assertThat(ids).hasSize(18).doesNotHaveDuplicates();
     assertThat(ids).allSatisfy(id -> assertThat(id.version()).isEqualTo(7));
     // variant() == 2 es la variante RFC 9562 (bits 10xx).
     assertThat(ids).allSatisfy(id -> assertThat(id.variant()).isEqualTo(2));

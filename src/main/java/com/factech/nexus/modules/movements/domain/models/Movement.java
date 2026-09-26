@@ -56,6 +56,9 @@ public final class Movement {
   private final UUID paymentMethodId;
   private final UUID currencyId;
   private final MovementStatus status;
+  private final OffsetDateTime confirmedAt;
+  private final String concept;
+  private final String idempotencyKey;
   private final TypeStatus typeStatus;
   private final BigDecimal totalAmount;
   private final BigDecimal discountAmount;
@@ -96,6 +99,9 @@ public final class Movement {
     this.code = code;
     this.lines = List.copyOf(lines);
     this.status = MovementStatus.PENDIENTE;
+    this.confirmedAt = null;
+    this.concept = null;
+    this.idempotencyKey = null;
     this.typeStatus = typeStatus;
     this.occurredAt = occurredAt;
     this.createdAt = createdAt;
@@ -120,6 +126,98 @@ public final class Movement {
     this.totalAmount = bruto.setScale(decimales, RoundingMode.UNNECESSARY);
     this.discountAmount = rebajado.setScale(decimales, RoundingMode.UNNECESSARY);
     this.payableAmount = this.totalAmount.subtract(this.discountAmount);
+  }
+
+  /**
+   * Un movimiento <b>que no vende</b> (`RN-MV-046`, 26-09-2026): el retiro, el pago de una comisión
+   * y el bono. Sin líneas, sin paquete y sin método de pago; el importe es el de la cabecera, con
+   * el descuento en cero.
+   */
+  private Movement(
+      UUID id,
+      UUID movementTypeId,
+      UUID userId,
+      UUID currencyId,
+      String code,
+      TypeStatus typeStatus,
+      MovementStatus status,
+      BigDecimal importe,
+      String concept,
+      String idempotencyKey,
+      OffsetDateTime ahora) {
+    this.id = id;
+    this.movementTypeId = movementTypeId;
+    this.userId = userId;
+    this.packageId = null;
+    this.paymentMethodId = null;
+    this.currencyId = currencyId;
+    this.code = code;
+    this.lines = List.of();
+    this.status = status;
+    this.confirmedAt = status == MovementStatus.CONFIRMADA ? ahora : null;
+    this.concept = concept;
+    this.idempotencyKey = idempotencyKey;
+    this.typeStatus = typeStatus;
+    this.occurredAt = ahora;
+    this.createdAt = ahora;
+    this.totalAmount = importe;
+    this.discountAmount = BigDecimal.ZERO.setScale(importe.scale());
+    this.payableAmount = importe;
+  }
+
+  /**
+   * `RF-MV-019`: el retiro nace <b>pendiente</b>; lo resuelven `RF-MV-020` y `RF-MV-021`.
+   *
+   * @param importe mayor que cero y ya en la escala de su moneda
+   */
+  public static Movement retiro(
+      UUID tipo,
+      UUID sujeto,
+      UUID moneda,
+      String code,
+      TypeStatus estado,
+      BigDecimal importe,
+      OffsetDateTime ahora) {
+    return new Movement(
+        UUID.randomUUID(),
+        tipo,
+        sujeto,
+        moneda,
+        code,
+        estado,
+        MovementStatus.PENDIENTE,
+        importe,
+        null,
+        null,
+        ahora);
+  }
+
+  /**
+   * `RF-MV-023` y `RF-MV-024`: el bono y el pago de una comisión nacen <b>confirmados</b> —no hay
+   * cobro que esperar— y con su concepto y su clave de idempotencia (`RN-MV-044`, `RN-MV-045`).
+   */
+  public static Movement abono(
+      UUID tipo,
+      UUID sujeto,
+      UUID moneda,
+      String code,
+      TypeStatus estado,
+      BigDecimal importe,
+      String concepto,
+      String clave,
+      OffsetDateTime ahora) {
+    return new Movement(
+        UUID.randomUUID(),
+        tipo,
+        sujeto,
+        moneda,
+        code,
+        estado,
+        MovementStatus.CONFIRMADA,
+        importe,
+        concepto,
+        clave,
+        ahora);
   }
 
   /**
@@ -257,7 +355,11 @@ public final class Movement {
     // Nulo y presente: la clave ausente se leería como «esta versión no lo
     // registraba», y aquí el nulo dice «esta venta no es de un paquete».
     datos.put("package_id", packageId == null ? null : packageId.toString());
-    datos.put("payment_method_id", paymentMethodId.toString());
+    // Nulo en los movimientos que no venden (`RN-MV-046`): no tienen pago con el que nacer.
+    datos.put("payment_method_id", paymentMethodId == null ? null : paymentMethodId.toString());
+    if (concept != null) {
+      datos.put("concept", concept);
+    }
     datos.put("currency_id", currencyId.toString());
     datos.put("total_amount", totalAmount.toPlainString());
     datos.put("discount_amount", discountAmount.toPlainString());
@@ -326,6 +428,18 @@ public final class Movement {
 
   public OffsetDateTime getCreatedAt() {
     return createdAt;
+  }
+
+  public OffsetDateTime getConfirmedAt() {
+    return confirmedAt;
+  }
+
+  public String getConcept() {
+    return concept;
+  }
+
+  public String getIdempotencyKey() {
+    return idempotencyKey;
   }
 
   public List<MovementLine> getLines() {
