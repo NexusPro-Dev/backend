@@ -6,7 +6,7 @@
 | Especificación | [`spec.md`](spec.md) v0.1.0 |
 | Plan | [`plan.md`](plan.md) v0.1.0 |
 | `plan.md` aprobado el | 28-09-2026 |
-| Estado | **En revisión** |
+| Estado | **En revisión** — todas las tareas `Hecha` el 28-09-2026 |
 | Issue | Pendiente de crear |
 | Rama | `feature/devengo-de-comisiones` |
 
@@ -22,13 +22,13 @@
 
 | ID | Tarea | Depende de | Verificación | Estado |
 |---|---|---|---|---|
-| `T-01` | Propiedades `nexus.commissions.closing.*` en `application.yml` y `.env.example` | — | Arranque | Pendiente |
-| `T-02` | `ClosingOrigin`; `CommissionClosingRepository` y adaptador | `RF-CM-013` `T-01` | Integración del repositorio: dos aperturas del mismo turno, una fila; el bloqueo tomado hace fallar el `try` | Pendiente |
-| `T-03` | `CloseCommissionPeriodService`: apertura, barrido, cierre, contadores, auditoría | `T-02`, `RF-CM-013` `T-10` | — | Pendiente |
-| `T-04` | `CommissionClosingJob` y `SchedulingConfig` con dos hilos | `T-01`, `T-03` | `CommissionClosingJobIT` | Pendiente |
-| `T-05` | `POST /commission-batches/closing`, `GET /commission-closings`, sus `record`s con `@Schema(name)`, y las dos rutas en `PERMISO_DE_CADA_OPERACION` | `T-03` | `EndpointPermissionsIT` en verde | Pendiente |
-| `T-06` | `CloseCommissionPeriodIT` y `ListCommissionClosingsIT`: `CA-CM-170` a `CA-CM-178` y `CA-CM-180` | `T-05` | `CA-CM-174` y `CA-CM-178` con dos hilos | Pendiente |
-| `T-07` | Contrato OpenAPI —esquema y prosa de las `@Operation`—; `requirements.md` | `T-06` | Diff del `json` sin esquemas fundidos | Pendiente |
+| `T-01` | Propiedades `nexus.commissions.closing.*` en `application.yml` y `.env.example` | — | Arranque | **Hecha** — 28-09-2026 |
+| `T-02` | `ClosingOrigin`; `CommissionClosingRepository` y adaptador | `RF-CM-013` `T-01` | Integración del repositorio: dos aperturas del mismo turno, una fila; el bloqueo tomado hace fallar el `try` | **Hecha** — 28-09-2026 |
+| `T-03` | `CloseCommissionPeriodService`: apertura, barrido, cierre, contadores, auditoría | `T-02`, `RF-CM-013` `T-10` | — | **Hecha** — 28-09-2026 |
+| `T-04` | `CommissionClosingJob` y `SchedulingConfig` con dos hilos | `T-01`, `T-03` | `CommissionClosingJobIT` | **Hecha** — 28-09-2026 |
+| `T-05` | `POST /commission-batches/closing`, `GET /commission-closings`, sus `record`s con `@Schema(name)`, y las dos rutas en `PERMISO_DE_CADA_OPERACION` | `T-03` | `EndpointPermissionsIT` en verde | **Hecha** — 28-09-2026 |
+| `T-06` | `CloseCommissionPeriodIT` y `ListCommissionClosingsIT`: `CA-CM-170` a `CA-CM-178` y `CA-CM-180` | `T-05` | `CA-CM-174` y `CA-CM-178` con dos hilos | **Hecha** — 28-09-2026 |
+| `T-07` | Contrato OpenAPI —esquema y prosa de las `@Operation`—; `requirements.md` | `T-06` | Diff del `json` sin esquemas fundidos | **Hecha** — 28-09-2026 |
 
 ---
 
@@ -48,6 +48,13 @@
 | `CA-CM-180` | `T-05`, `T-06` |
 
 ---
+
+## 3.1 Desviaciones respecto del plan
+
+- **Los dos hilos del planificador van por propiedad** (`spring.task.scheduling.pool.size: 2`) y no con un `ThreadPoolTaskScheduler` propio, como decía `plan.md` §3: declarar ese bean **apaga el `applicationTaskExecutor`** que Spring configura solo, y la recuperación de contraseña depende de él. Se probó, y el contexto no arrancaba.
+- **El cierre de los lotes es un solo `UPDATE`**, y no un `SELECT … FOR UPDATE` seguido de otro `UPDATE`: el `UPDATE` toma cada fila con el mismo bloqueo, de modo que la frontera con el devengo (`CA-CM-178`) es la misma con una sentencia menos. **Solo cierra los lotes nacidos antes del instante del cierre** (`period_start < :at`): uno que naciera en ese mismo instante tendría un periodo vacío, que `ck_commission_batches_periodo` rechaza.
+- **La siembra común vive en `SettlementFixtures`**, en el paquete de pruebas de `CM`: la usarán también `RF-CM-010` a `RF-CM-012` y `RF-CM-014`.
+- **Las respuestas de error del contrato repiten el esquema de la de éxito**, como en todos los controladores del sistema: es como springdoc las pinta sin un `@Content` explícito, y cambiarlo aquí solo lo haría distinto del resto.
 
 ## 4. Bloqueos
 

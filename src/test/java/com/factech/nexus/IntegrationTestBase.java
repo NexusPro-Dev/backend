@@ -74,6 +74,11 @@ public abstract class IntegrationTestBase {
     // que es donde tiene sentido — y limpia detrás.
     registry.add("DEV_SEED_ENABLED", () -> "false");
 
+    // El CIERRE DE COMISIONES, apagado por lo mismo: un cierre programado que
+    // saltara a mitad de la suite pasaría a PENDIENTE los lotes que una prueba
+    // acaba de abrir. Quien prueba el cierre lo invoca (`CloseCommissionPeriodIT`).
+    registry.add("COMMISSION_CLOSING_ENABLED", () -> "false");
+
     // Las ESTADÍSTICAS de Hibernate quedan ENCENDIDAS para la suite. Son lo
     // único que permite afirmar que una lectura de página cuesta UNA sentencia
     // más y no una por fila (`CA-PM-386`): sin ellas, una consulta por producto

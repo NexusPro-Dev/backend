@@ -45,6 +45,8 @@ tags:
   description: El enlace público que un vendedor reparte
 - name: Métodos de pago
   description: "Con qué se puede pagar, y en qué países no vale cada medio."
+- name: Cierres de comisiones
+  description: "Cada cierre del periodo, programado o a mano, con lo que hizo."
 - name: Comisiones
   description: Resolución de la comisión efectiva de una persona sobre un producto.
 - name: Sesión
@@ -76,6 +78,9 @@ tags:
     l."
 - name: Permisos
   description: Catálogo de permisos del sistema. Solo lectura.
+- name: Lotes de comisión
+  description: "Lo que se le debe a cada persona, por periodo y moneda: abierto mientras\
+    \ crece, pendiente tras el cierre, pagado cuando Finanzas lo abona en la billetera."
 - name: Reseñas
   description: Lo que quien compra dice de un producto.
 - name: Paquetes
@@ -5068,6 +5073,53 @@ paths:
         "409":
           description: Ya estaba retirada
       x-required-permission: commissions:delete
+  /api/v1/commission-batches/closing:
+    post:
+      tags:
+      - Lotes de comisión
+      summary: Cerrar el periodo a mano
+      description: |
+        **Permiso requerido:** `commission-batches:settle`. Sin él, `403` (`AUTH-002`).
+
+        **Hace lo mismo que el cierre programado**, y existe para relanzar el que no corrió
+        (`RF-CM-009`, `RN-CM-035`). Primero **barre**: devenga las líneas cobradas y con
+        vendedor que se quedaron sin desenlace, y reintenta las rechazadas por pasar del 100 %
+        (`RN-CM-034`). Después pasa **todos** los lotes abiertos a `PENDIENTE`, con el instante
+        del cierre como fin de periodo. Lo que devengue un segundo después abre un lote nuevo.
+
+        **Sin cuerpo.** Responde la constancia del cierre, que queda además consultable en
+        `GET /commission-closings`. **`200` y no `201`**: se ejecuta una acción, no se crea un
+        recurso que se vaya a leer por su dirección.
+
+        Si hay otro cierre en curso —el programado, u otro manual—, **`409`** y no se cierra
+        nada.
+      operationId: cerrar
+      responses:
+        "200":
+          description: "Cerrado, aunque fuesen cero lotes"
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/CommissionClosingResponse"
+        "401":
+          description: Sin token
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/CommissionClosingResponse"
+        "403":
+          description: Sin `commission-batches:settle`
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/CommissionClosingResponse"
+        "409":
+          description: Hay un cierre en curso
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/CommissionClosingResponse"
+      x-required-permission: commission-batches:settle
   /api/v1/auth/registration:
     post:
       tags:
@@ -10469,6 +10521,59 @@ paths:
               schema:
                 $ref: "#/components/schemas/EffectiveCommissionResponse"
       x-required-permission: commissions:read-effective
+  /api/v1/commission-closings:
+    get:
+      tags:
+      - Cierres de comisiones
+      summary: Consultar los cierres
+      description: |
+        **Permiso requerido:** `commission-closings:read`. Sin él, `403` (`AUTH-002`).
+
+        Los cierres del periodo, **del más reciente al más antiguo** (`RF-CM-009`,
+        `CA-CM-180`): cuándo empezó y cuándo cerró cada uno, si fue programado o a mano —y
+        quién—, cuántos lotes cerró, cuántas líneas recogió el barrido y cuántas rechazadas
+        reintentó y recuperó.
+
+        **Existe porque un proceso programado no tiene a quién contestar**: es la forma de saber
+        si el cierre de anoche corrió. **`closedAt` nulo** es un cierre en curso o uno que falló
+        a medias; sus lotes siguen abiertos. **`linesSwept` distinto de cero** quiere decir que
+        el aviso de las ventas se está perdiendo y el barrido lo está tapando.
+
+        Filtros: `origin` (`PROGRAMADO`, `MANUAL`) y `from`/`to` sobre el inicio. Los errores
+        de los filtros salen **todos juntos**.
+      operationId: listar_10
+      parameters:
+      - name: filtros
+        in: query
+        required: true
+        schema:
+          $ref: "#/components/schemas/ListCommissionClosingsRequest"
+      responses:
+        "200":
+          description: Página de cierres
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/CommissionClosingPageResponse"
+        "400":
+          description: Filtros inválidos
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/CommissionClosingPageResponse"
+        "401":
+          description: Sin token
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/CommissionClosingPageResponse"
+        "403":
+          description: Sin `commission-closings:read`
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/CommissionClosingPageResponse"
+      x-required-permission: commission-closings:read
   /api/v1/brokers:
     get:
       tags:
@@ -10496,7 +10601,7 @@ paths:
 
         **No se pagina**: son unos pocos elementos y partirlos obligaría a dos
         llamadas para pintar un desplegable.
-      operationId: listar_10
+      operationId: listar_11
       parameters:
       - name: includeInactive
         in: query
@@ -10608,7 +10713,7 @@ paths:
 
         **Esta ruta no sustituye a `GET /api/v1/users/{id}/broker-accounts`**,
         que existe para **el superior comercial sin permiso**.
-      operationId: listar_11
+      operationId: listar_12
       parameters:
       - name: page
         in: query
@@ -13826,6 +13931,38 @@ components:
           type: string
         name:
           type: string
+    CommissionClosingResponse:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        origin:
+          type: string
+        scheduledFor:
+          type: string
+          format: date-time
+        triggeredBy:
+          type: string
+          format: uuid
+        startedAt:
+          type: string
+          format: date-time
+        closedAt:
+          type: string
+          format: date-time
+        batchesClosed:
+          type: integer
+          format: int32
+        linesSwept:
+          type: integer
+          format: int32
+        linesRetried:
+          type: integer
+          format: int32
+        linesRecovered:
+          type: integer
+          format: int32
     RegistrationBrokerAccount:
       type: object
       properties:
@@ -16262,6 +16399,46 @@ components:
           type: array
           items:
             $ref: "#/components/schemas/CommissionRateItem"
+        totalElements:
+          type: integer
+          format: int64
+        totalPages:
+          type: integer
+          format: int32
+        page:
+          type: integer
+          format: int32
+        size:
+          type: integer
+          format: int32
+        totalIsExact:
+          type: boolean
+        sort:
+          type: string
+    ListCommissionClosingsRequest:
+      type: object
+      properties:
+        page:
+          type: integer
+          format: int32
+        size:
+          type: integer
+          format: int32
+        origin:
+          type: string
+        from:
+          type: string
+          format: date-time
+        to:
+          type: string
+          format: date-time
+    CommissionClosingPageResponse:
+      type: object
+      properties:
+        content:
+          type: array
+          items:
+            $ref: "#/components/schemas/CommissionClosingResponse"
         totalElements:
           type: integer
           format: int64

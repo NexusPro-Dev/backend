@@ -285,6 +285,9 @@ class EndpointPermissionsIT extends IntegrationTestBase {
           Map.entry(
               "POST /api/v1/user-commission-rates/{id}/deletion", "user-commission-rates:delete"),
           Map.entry("GET /api/v1/product-commission-rates", "product-commission-rates:read"),
+          // ---- CM · liquidación (RF-CM-009 a RF-CM-014, V51) ----
+          Map.entry("POST /api/v1/commission-batches/closing", "commission-batches:settle"),
+          Map.entry("GET /api/v1/commission-closings", "commission-closings:read"),
           // ---- MV ----
           Map.entry("POST /api/v1/movements", "movements:create"),
           Map.entry("GET /api/v1/movements", "movements:read"),
