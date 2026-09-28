@@ -30,13 +30,11 @@ public record MyProductResponse(
      * Hasta esa fecha era una referencia de tres campos con el nombre de la compra, que ahora viaja
      * en {@link #purchasedName}.
      *
-     * <p><b>Sus enlaces dependen de la línea</b> (`RN-MV-032`, 28-09-2026): en la entregada —{@code
-     * ACTIVO} o {@code VENCIDO}— son <b>todos</b> los del producto, los de entrega incluidos
-     * ({@code CUPON_BOT}, {@code DESCARGA}); en las demás, <b>los de la oferta</b>, aunque el
-     * producto declare los de entrega. Publicarlos en una {@code PENDIENTE_ACTIVACION} sería
-     * entregar lo comprado antes de que quien lo compró lo active (`RN-MV-021`, `RN-MV-048`), hecho
-     * por una consulta en lugar de por una escritura. Hasta el 28-09-2026 el cupón viajaba aparte,
-     * en {@code couponUrl}.
+     * <p><b>Sus enlaces dependen de la línea</b> (`RN-MV-032`, 28-09-2026): desde que la venta está
+     * pagada —{@link PurchasedProductState#estaPagado()}— son <b>todos</b> los del producto, los de
+     * entrega incluidos ({@code CUPON_BOT}, {@code DESCARGA}), para que el cupón sirva para
+     * activar; sin pagar, <b>los de la oferta</b>, aunque el producto declare los de entrega. Hasta
+     * el 28-09-2026 el cupón viajaba aparte, en {@code couponUrl}, y solo con la línea entregada.
      *
      * <p>Se leen <b>del catálogo de hoy</b> y no se copiaron en la línea —única excepción declarada
      * a `RN-MV-002`—: si la dirección del bot o de la descarga cambia, quien compró recibe la
@@ -45,8 +43,9 @@ public record MyProductResponse(
     @Schema(
             description =
                 "El producto como en /products/available, leído del catálogo de hoy. Sus links:"
-                    + " TODOS los del producto —CUPON_BOT y DESCARGA incluidos— si la línea está"
-                    + " entregada (ACTIVO o VENCIDO); en otro estado, los mismos que la oferta.")
+                    + " TODOS los del producto —CUPON_BOT y DESCARGA incluidos— desde que la venta"
+                    + " está pagada (PENDIENTE_ACTIVACION, ACTIVO, VENCIDO, CANCELADO, RETENIDO);"
+                    + " en PENDIENTE_PAGO, RECHAZADO y ANULADO, los mismos que la oferta.")
         OfferItem product,
     @Schema(description = "El nombre del producto el día de la compra (RN-MV-002).")
         String purchasedName,

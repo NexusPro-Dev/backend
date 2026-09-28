@@ -253,7 +253,7 @@ class ActivateMyProductIT extends IntegrationTestBase {
   }
 
   @Test
-  @DisplayName("CA-MV-282 — activada, trae el cupón del bot; antes de activarla, no")
+  @DisplayName("CA-MV-282 — trae el cupón del bot antes y después de activarla: ya está pagada")
   void elCuponLlegaConLaActivacion() throws Exception {
     ProductLinkTestSupport.enlace(jdbc, botManual, "CUPON_BOT", "https://t.me/apbot", "cupon-7");
     UUID linea = lineaDe(venta(cliente, "CONFIRMADA", botManual));
@@ -262,7 +262,11 @@ class ActivateMyProductIT extends IntegrationTestBase {
         .andExpect(status().isOk())
         .andExpect(jsonPath("$.content[0].lineId").value(linea.toString()))
         .andExpect(jsonPath("$.content[0].state").value("PENDIENTE_ACTIVACION"))
-        .andExpect(jsonPath("$.content[0].product.links").isEmpty());
+        // Desde el 28-09-2026 la frontera es el pago (`RN-MV-032`): el cupón
+        // sirve para activar, y llega antes de hacerlo.
+        .andExpect(jsonPath("$.content[0].product.links[0].type").value("CUPON_BOT"))
+        .andExpect(
+            jsonPath("$.content[0].product.links[0].url").value("https://t.me/apbot/cupon-7"));
 
     mvc.perform(activar(linea).with(propio(cliente)))
         .andExpect(status().isOk())

@@ -314,16 +314,17 @@ class MyProductsIT extends IntegrationTestBase {
   }
 
   @Test
-  @DisplayName("CA-MV-141 — sin entregar NO hay cupón, aunque el producto lo declare")
-  void sinEntregarNoHayCupon() throws Exception {
+  @DisplayName("CA-MV-141 — sin pagar NO hay cupón, aunque el producto lo declare")
+  void sinPagarNoHayCupon() throws Exception {
     ProductLinkTestSupport.enlace(jdbc, producto, "CUPON_BOT", "https://t.me/nexusbot", "cupon-15");
 
-    // Los tres estados anteriores a la entrega, con el MISMO producto: es el
-    // criterio que impide entregar POR UNA CONSULTA lo que `RN-MV-021` no ha
-    // autorizado todavía — un defecto que no falla, regala.
+    // Los tres estados de una venta sin pagar, con el MISMO producto: por el
+    // hotlink cualquiera registra una compra pendiente, y la consulta le
+    // regalaría lo que se vende — un defecto que no falla, regala. Desde el
+    // 28-09-2026 la frontera es el pago y no la entrega (`RN-MV-032`).
     venta(comprador, vendedor, "PENDIENTE", BASE, null, "PENDIENTE", null);
-    venta(comprador, vendedor, "CONFIRMADA", BASE.minusDays(1), null, "PENDIENTE", null);
-    venta(comprador, vendedor, "CONFIRMADA", BASE.minusDays(2), null, "RETENIDA", null);
+    venta(comprador, vendedor, "RECHAZADA", BASE.minusDays(1), null, "PENDIENTE", null);
+    venta(comprador, vendedor, "ANULADA", BASE.minusDays(2), null, "PENDIENTE", null);
 
     String cuerpo =
         mvc.perform(get("/api/v1/movements/mine/products").with(propio(comprador)))
@@ -390,7 +391,7 @@ class MyProductsIT extends IntegrationTestBase {
 
   @Test
   @DisplayName(
-      "CA-MV-285 — la DESCARGA solo en la línea entregada, y el mismo producto trae dos listas"
+      "CA-MV-285 — la DESCARGA solo desde que se pagó, y el mismo producto trae dos listas"
           + " según la línea")
   void laDescargaYUnaListaPorLinea() throws Exception {
     ProductLinkTestSupport.enlace(
@@ -398,8 +399,8 @@ class MyProductsIT extends IntegrationTestBase {
     ProductLinkTestSupport.enlace(jdbc, producto, "CUPON_BOT", "https://t.me/nexusbot", "cupon-15");
     ProductLinkTestSupport.enlace(
         jdbc, producto, "DESCARGA", "https://files.example.com/bot", "bot-v2.zip");
-    // El MISMO producto, entregado en la más reciente y pendiente de activar en
-    // la otra: el `OfferItem` del mapa se comparte, y la lista no.
+    // El MISMO producto, entregado en la más reciente y sin pagar en la otra:
+    // el `OfferItem` del mapa se comparte, y la lista no.
     venta(
         comprador,
         vendedor,
@@ -408,7 +409,7 @@ class MyProductsIT extends IntegrationTestBase {
         null,
         "ENTREGADA",
         OffsetDateTime.now(ZoneOffset.UTC).minusDays(1));
-    venta(comprador, vendedor, "CONFIRMADA", BASE.minusDays(1), null, "PENDIENTE", null);
+    venta(comprador, vendedor, "PENDIENTE", BASE.minusDays(1), null, "PENDIENTE", null);
 
     mvc.perform(get("/api/v1/movements/mine/products").with(propio(comprador)))
         .andExpect(status().isOk())
@@ -417,9 +418,33 @@ class MyProductsIT extends IntegrationTestBase {
         .andExpect(
             jsonPath("$.content[0].product.links[?(@.type == 'DESCARGA')].url")
                 .value(Matchers.contains("https://files.example.com/bot/bot-v2.zip")))
-        .andExpect(jsonPath("$.content[1].deliveredAt").doesNotExist())
+        .andExpect(jsonPath("$.content[1].state").value("PENDIENTE_PAGO"))
         .andExpect(jsonPath("$.content[1].product.links.length()").value(1))
         .andExpect(jsonPath("$.content[1].product.links[0].type").value("VIDEO_PRESENTACION"));
+  }
+
+  @Test
+  @DisplayName(
+      "CA-MV-286 — pagada y sin activar, o retenida, ya trae el cupón y la descarga: el cupón"
+          + " sirve para activar")
+  void pagadaSinEntregarTraeLosEnlaces() throws Exception {
+    ProductLinkTestSupport.enlace(jdbc, producto, "CUPON_BOT", "https://t.me/nexusbot", "cupon-15");
+    ProductLinkTestSupport.enlace(
+        jdbc, producto, "DESCARGA", "https://files.example.com/bot", "bot-v2.zip");
+    venta(comprador, vendedor, "CONFIRMADA", BASE, null, "PENDIENTE", null);
+    venta(comprador, vendedor, "CONFIRMADA", BASE.minusDays(1), null, "RETENIDA", null);
+
+    mvc.perform(get("/api/v1/movements/mine/products").with(propio(comprador)))
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$.content[0].state").value("PENDIENTE_ACTIVACION"))
+        .andExpect(
+            jsonPath("$.content[0].product.links[?(@.type == 'CUPON_BOT')].url")
+                .value(Matchers.contains("https://t.me/nexusbot/cupon-15")))
+        .andExpect(
+            jsonPath("$.content[0].product.links[?(@.type == 'DESCARGA')].url")
+                .value(Matchers.contains("https://files.example.com/bot/bot-v2.zip")))
+        .andExpect(jsonPath("$.content[1].state").value("RETENIDO"))
+        .andExpect(jsonPath("$.content[1].product.links.length()").value(2));
   }
 
   /** Las sentencias preparadas que cuesta una página de ese tamaño. */
