@@ -77,7 +77,7 @@ Que **quien compró un producto de implementación manual** pueda **activarlo cu
 | `RN-MV-030` | La línea pasa de pendiente a entregada, con el instante |
 | `RN-MV-036` | Entregar escribe la posesión, con la vigencia copiada en la línea contada desde la activación |
 | `RN-MV-020`, `RN-MV-029` | El upgrade concede el nivel, salvo que baje: entonces se retiene con motivo |
-| `RN-MV-032` | Entregada, la línea publica el cupón del bot si el producto lo declara |
+| `RN-MV-032` | Desde que se pagó, la línea publica los enlaces de entrega —cupón del bot y descarga— si el producto los declara; **antes de activarla ya los trae** (enmendada el 28-09-2026) |
 
 ---
 
@@ -159,7 +159,7 @@ Entre la compra y la activación la persona subió por otra vía. La línea qued
 | `CA-MV-279` | Una línea manual de una venta **pendiente de pago** o **anulada** responde conflicto, con el estado en el mensaje, y sigue pendiente |
 | `CA-MV-280` | Una línea **automática** responde conflicto: no se activa lo que se entrega solo |
 | `CA-MV-281` | Activar **por segunda vez** responde conflicto y **no escribe una segunda posesión** |
-| `CA-MV-282` | Activada, la línea de un producto que declara el **cupón del bot** lo trae resuelto; antes de activarla, no |
+| `CA-MV-282` | La línea de un producto que declara el **cupón del bot** lo trae resuelto **antes y después de activarla**: la venta está pagada, y el cupón sirve para activar (enmendado el 28-09-2026; hasta entonces, «antes de activarla, no») |
 | `CA-MV-283` | Sin `movements:activate-own-product` responde prohibido —**también con `movements:read-own-products`**—; sin autenticar, `401`; un identificador malformado, rechazo. La activación queda auditada |
 
 ---
@@ -185,3 +185,4 @@ Ninguna.
 | Versión | Fecha | Cambio | Autor |
 |---|---|---|---|
 | 0.1.0 | 28-09-2026 | Primera versión, a petición del responsable del proyecto —«creemos un endpoint para activar el producto; ojo, solo lo puede activar quien lo compró»— ([`requirements/mv.md`](../../../requirements/mv.md) v0.48.0, `RN-MV-048`). **El requerimiento deja de ser una autorización de un funcionario** y pasa a ser la activación de quien compró; **lo ajeno responde como inexistente**; **activar es entregar**, con la vigencia desde la activación. Criterios `CA-MV-275` a `CA-MV-283`. | Responsable del proyecto |
+| 0.2.0 | 28-09-2026 | **El cupón llega antes de activar** (`RN-MV-032`, [`requirements/mv.md`](../../../requirements/mv.md) v0.51.0): desde que se pagó, la línea trae todos los enlaces del producto, por decisión del responsable del proyecto. Se enmienda `CA-MV-282`. Activar sigue siendo lo que entrega y hace correr la vigencia | Responsable del proyecto |

@@ -3522,8 +3522,8 @@ paths:
         **No se deshace**: de una entrega no se sale. Activar dos veces responde `409` la
         segunda y entrega una sola vez.
 
-        Devuelve el producto como queda, con la misma forma que el listado —con los enlaces
-        de entrega en `product.links`, si el producto los declara—.
+        Devuelve el producto como queda, con la misma forma que el listado —con todos los
+        enlaces del producto en `product.links`, que ya llegaban antes de activar—.
       operationId: activarProducto
       parameters:
       - name: lineId
@@ -9885,11 +9885,13 @@ paths:
         después. **Sin precio de compra**. Hasta esa fecha `product` traía solo `id`,
         `code` y `name`: es un cambio incompatible.
 
-        **`product.links` depende de la línea** (`RN-MV-032`): si está entregada
-        —`ACTIVO` o `VENCIDO`— trae **todos** los enlaces del producto, **los de
-        entrega incluidos**: `CUPON_BOT`, dónde registra su cuenta en el bot, y
-        `DESCARGA`, dónde descarga lo que compró. En cualquier otro estado trae **los
-        mismos que la oferta**, sin los de entrega aunque el producto los declare. Se leen
+        **`product.links` depende de la línea** (`RN-MV-032`): **desde que la venta
+        está pagada** —`PENDIENTE_ACTIVACION`, `ACTIVO`, `VENCIDO`, `CANCELADO` y
+        `RETENIDO`— trae **todos** los enlaces del producto, **los de entrega
+        incluidos**: `CUPON_BOT`, dónde registra su cuenta en el bot —sirve para
+        activarlo—, y `DESCARGA`, dónde descarga lo que compró. En `PENDIENTE_PAGO`,
+        `RECHAZADO` y `ANULADO` trae **los mismos que la oferta**, sin los de entrega
+        aunque el producto los declare. Se leen
         del catálogo de hoy: si el cupón se añade o cambia después de la venta, llega el
         vigente. **`couponUrl` ya no existe** (desde el 28-09-2026): el cupón se busca en
         `product.links` por su `type`. Es un cambio incompatible.
@@ -13750,7 +13752,8 @@ components:
           $ref: "#/components/schemas/OfferItem"
           description: "El producto como en /products/available, leído del catálogo\
             \ de hoy. Sus links: TODOS los del producto —CUPON_BOT y DESCARGA incluidos—\
-            \ si la línea está entregada (ACTIVO o VENCIDO); en otro estado, los mismos\
+            \ desde que la venta está pagada (PENDIENTE_ACTIVACION, ACTIVO, VENCIDO,\
+            \ CANCELADO, RETENIDO); en PENDIENTE_PAGO, RECHAZADO y ANULADO, los mismos\
             \ que la oferta."
         purchasedName:
           type: string

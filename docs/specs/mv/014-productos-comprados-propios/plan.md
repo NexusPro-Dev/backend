@@ -13,6 +13,7 @@
 | Enmendado | 21-09-2026 — exige **`movements:read-own-products`** (`RF-SP-062`, `RN-SEG-015`: autenticarse no autoriza nada); lo siembra `V31` |
 | Enmendado | 22-09-2026 — **`couponUrl` en la línea entregada** (`RN-MV-032`), pedido a `PM` **en lote** por su interfaz publicada; §3, §4 y §8 |
 | Enmendado | 28-09-2026 — **`couponUrl` desaparece: los enlaces de entrega van dentro de `product.links`**, y nace `DESCARGA`. Ver el recuadro |
+| Enmendado | 28-09-2026 (2) — **la condición pasa de la entrega al pago**: `PurchasedProductState.estaPagado()`; el resto del diseño no cambia |
 
 !!! warning "Enmendado el 23-09-2026 — el «hasta» se lee, no se calcula"
 
@@ -35,6 +36,10 @@
     **Sigue siendo `MV` quien decide por el estado**, y `PM` quien decide por el tipo y compone: `deliveredLinksOf` no sabe de líneas y `ListMyProductsService` no sabe qué tipo es entrega. §8 se conserva como historia; su argumento —lote, composición en `PM`, filtro de estado en `MV`— vale igual para la lista.
 
     **Por qué la lista entera y no el `OfferItem` más los de entrega añadidos**: el orden. Los enlaces salen **ordenados por tipo**, como en todas las lecturas del producto, y pegar los de entrega al final los dejaría detrás del video en esta y delante en las de administración. Una sentencia con todos los tipos los deja en su sitio.
+
+!!! warning "Enmendado el 28-09-2026 (2) — la condición es el pago, no la entrega"
+
+    `spec.md` v0.7.0. **Todo el diseño del recuadro anterior se conserva** —`deliveredLinksOf`, la lista por línea, `OfferItem.conEnlaces`— y cambia **una condición**: donde decía `estaEntregado()` dice **`estaPagado()`**, un método nuevo de `PurchasedProductState` que responde por los estados de una venta `CONFIRMADA` (`PENDIENTE_ACTIVACION`, `ACTIVO`, `VENCIDO`, `CANCELADO` y `RETENIDO`). Vive en el enumerado por lo mismo que `estaEntregado()`: es una pregunta de negocio y escrita en el servicio habría una ocasión por sitio de equivocarse. **El nombre de `deliveredLinksOf` se conserva**: en `PM` significa «lo que ve quien ya compró», y el criterio de quién lo merece es de `MV`.
 
 !!! info "Qué va en este documento"
 

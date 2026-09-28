@@ -76,12 +76,12 @@ public class ListMyProductsService {
     long total = movimientos.countMyProducts(actor.id(), estado, ahora);
 
     // Los enlaces de entrega de la pagina en UNA llamada a `PM`, y SOLO de los
-    // productos cuyas lineas estan entregadas: al de una linea pendiente ni
+    // productos cuyas lineas estan pagadas: al de una linea sin pagar ni
     // siquiera se pregunta (`RN-MV-032`, `CA-MV-141`, `CA-MV-142`).
     Map<UUID, List<ProductLinkResponse>> entregados =
         catalogo.deliveredLinksOf(
             filas.stream()
-                .filter(f -> PurchasedProductState.valueOf(f.state()).estaEntregado())
+                .filter(f -> PurchasedProductState.valueOf(f.state()).estaPagado())
                 .map(MyProductRow::productId)
                 .distinct()
                 .toList());
@@ -113,7 +113,7 @@ public class ListMyProductsService {
             .findMyProduct(actor.id(), lineId, OffsetDateTime.now(reloj))
             .orElseThrow(() -> new IllegalStateException("La línea " + lineId + " desapareció."));
     Map<UUID, List<ProductLinkResponse>> entregados =
-        PurchasedProductState.valueOf(fila.state()).estaEntregado()
+        PurchasedProductState.valueOf(fila.state()).estaPagado()
             ? catalogo.deliveredLinksOf(List.of(fila.productId()))
             : Map.of();
     return aRespuesta(fila, catalogo.offerItemsOf(List.of(fila.productId())), entregados);
@@ -121,7 +121,7 @@ public class ListMyProductsService {
 
   /**
    * La fila, con <b>la lista de enlaces de su línea</b>: el mismo producto trae todos sus enlaces
-   * en una línea entregada y los de la oferta en una pendiente (`CA-MV-285`).
+   * en una línea pagada y los de la oferta en una sin pagar (`CA-MV-285`).
    */
   private static MyProductResponse aRespuesta(
       MyProductRow fila,
@@ -129,10 +129,10 @@ public class ListMyProductsService {
       Map<UUID, List<ProductLinkResponse>> entregados) {
     PurchasedProductState estadoLinea = PurchasedProductState.valueOf(fila.state());
     OfferItem producto = productos.get(fila.productId());
-    // El mapa solo tiene a los entregados, pero la condicion se repite aqui a
+    // El mapa solo tiene a los pagados, pero la condicion se repite aqui a
     // proposito: leerla junto a la lista es lo que hace que nadie la pierda al
     // tocar la consulta de arriba.
-    if (producto != null && estadoLinea.estaEntregado()) {
+    if (producto != null && estadoLinea.estaPagado()) {
       producto = producto.conEnlaces(entregados.getOrDefault(fila.productId(), List.of()));
     }
     return new MyProductResponse(
