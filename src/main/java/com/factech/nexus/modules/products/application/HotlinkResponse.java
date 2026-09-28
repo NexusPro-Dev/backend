@@ -65,8 +65,8 @@ public record HotlinkResponse(SellerRef seller, ProductRef product) {
       String description,
       String icon,
       /**
-       * Los enlaces <b>publicables</b>, sin token: <b>resueltos y sin el {@code CUPON_BOT}</b>
-       * (`RN-PM-048` a `RN-PM-050`).
+       * Los enlaces <b>publicables</b>, sin token: <b>resueltos y sin los de entrega</b> ({@code
+       * CUPON_BOT}, {@code DESCARGA}) (`RN-PM-048` a `RN-PM-050`).
        *
        * <p>Sustituye a {@code videoUrl} el 22-09-2026. Lo que esta lectura trae y {@code
        * purchase_price} no sigue siendo la línea de `pm.md` §5.2.8 —el costo enseñaría el margen,

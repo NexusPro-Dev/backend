@@ -802,12 +802,20 @@ public class MovementController {
           es fijo.
 
           **`product` viaja con la misma forma que en `GET /api/v1/products/available`**
-          (desde el 28-09-2026): tipo, descripción, icono, portada, enlaces publicables
-          resueltos, destino, `price`, moneda, `exchange`, vigencia, alcance, implementación y
+          (desde el 28-09-2026): tipo, descripción, icono, portada, enlaces resueltos,
+          destino, `price`, moneda, `exchange`, vigencia, alcance, implementación y
           valoración — **como está hoy en el catálogo**, también si el producto se retiró
-          después. **Sin precio de compra** y **sin el cupón del bot** entre sus enlaces: el
-          cupón viaja en `couponUrl`, y solo cuando la línea está entregada. Hasta esa fecha
-          `product` traía solo `id`, `code` y `name`: es un cambio incompatible.
+          después. **Sin precio de compra**. Hasta esa fecha `product` traía solo `id`,
+          `code` y `name`: es un cambio incompatible.
+
+          **`product.links` depende de la línea** (`RN-MV-032`): si está entregada
+          —`ACTIVO` o `VENCIDO`— trae **todos** los enlaces del producto, **los de
+          entrega incluidos**: `CUPON_BOT`, dónde registra su cuenta en el bot, y
+          `DESCARGA`, dónde descarga lo que compró. En cualquier otro estado trae **los
+          mismos que la oferta**, sin los de entrega aunque el producto los declare. Se leen
+          del catálogo de hoy: si el cupón se añade o cambia después de la venta, llega el
+          vigente. **`couponUrl` ya no existe** (desde el 28-09-2026): el cupón se busca en
+          `product.links` por su `type`. Es un cambio incompatible.
 
           **`purchasedName` es el nombre que tenía el producto el día de la compra**
           (`RN-MV-002`); `product.name` es el de hoy.
@@ -871,8 +879,8 @@ public class MovementController {
           **No se deshace**: de una entrega no se sale. Activar dos veces responde `409` la
           segunda y entrega una sola vez.
 
-          Devuelve el producto como queda, con la misma forma que el listado —el cupón del bot
-          incluido, si el producto lo declara—.
+          Devuelve el producto como queda, con la misma forma que el listado —con los enlaces
+          de entrega en `product.links`, si el producto los declara—.
           """)
   @ApiResponses({
     @ApiResponse(

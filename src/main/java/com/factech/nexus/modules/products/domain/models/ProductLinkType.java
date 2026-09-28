@@ -32,7 +32,16 @@ public enum ProductLinkType {
    *
    * <p>Administración sí lo ve, en `RF-PM-002` y `RF-PM-003`, porque lo administra.
    */
-  CUPON_BOT(false);
+  CUPON_BOT(false),
+
+  /**
+   * Dónde descarga quien ya compró <b>lo que compró</b> (28-09-2026, `pm.md` §5.2.15).
+   *
+   * <p><b>Es entrega, como el cupón</b> (`RN-PM-050`): lo que se descarga es lo que se vende, y
+   * enseñarlo en la oferta o en un hotlink sin token lo regalaría. Sale en `RF-MV-014` con la línea
+   * entregada, y en administración.
+   */
+  DESCARGA(false);
 
   private final boolean materialDeVenta;
 

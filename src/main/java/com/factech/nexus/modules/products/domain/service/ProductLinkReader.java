@@ -16,8 +16,10 @@ import org.springframework.stereotype.Component;
  *
  * <p><b>Existe para que la respuesta a «¿qué ve quién?» esté escrita una sola vez.</b> Son siete
  * lecturas y dos respuestas distintas —administración ve <b>los crudos y todos los tipos</b>; todo
- * lo demás ve <b>los resueltos y sin el cupón</b>—, y repartir esa decisión por siete servicios
- * sería darle a alguien siete ocasiones de equivocarse en el sentido que <b>no falla, publica</b>.
+ * lo demás ve <b>los resueltos y sin el cupón</b>—, más una tercera desde el 28-09-2026: quien ya
+ * tiene el producto entregado ve <b>los resueltos y todos los tipos</b> (`RF-MV-014`), y repartir
+ * esa decisión por siete servicios sería darle a alguien siete ocasiones de equivocarse en el
+ * sentido que <b>no falla, publica</b>.
  *
  * <p><b>Todo lo que devuelve va por lote.</b> Una página de veinte productos resuelve sus enlaces
  * en <b>una sentencia</b>; pedirlos producto a producto sería una {@code N+1} que el cuerpo de la
@@ -58,6 +60,18 @@ public class ProductLinkReader {
   public Map<UUID, List<ProductLinkResponse>> publicablesDe(Collection<UUID> productIds) {
     return convertir(
         enlaces.findPublicablesByProducts(productIds), ProductLinkResponse::todasResueltas);
+  }
+
+  /**
+   * Para <b>quien ya tiene el producto entregado</b> (`RF-MV-014`, 28-09-2026): <b>todos los tipos,
+   * resueltos</b>.
+   *
+   * <p>Es la única lectura fuera de administración que trae los enlaces de entrega —el {@code
+   * CUPON_BOT} y la {@code DESCARGA}— (`RN-PM-050`). <b>No decide quién la merece</b>: eso lo
+   * decide `MV` por el estado de la línea (`RN-MV-032`), y solo la pide para las entregadas.
+   */
+  public Map<UUID, List<ProductLinkResponse>> resueltosDe(Collection<UUID> productIds) {
+    return convertir(enlaces.findByProducts(productIds), ProductLinkResponse::todasResueltas);
   }
 
   /** Los publicables de un solo producto. Nunca nula: <b>vacía</b> cuando no hay. */

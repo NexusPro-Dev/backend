@@ -17,6 +17,7 @@ import java.time.OffsetDateTime;
 import java.time.ZoneOffset;
 import java.util.List;
 import java.util.UUID;
+import org.hamcrest.Matchers;
 import org.hibernate.stat.Statistics;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
@@ -278,9 +279,13 @@ class MyProductsIT extends IntegrationTestBase {
   // ---------------------------------------------------------------------------
 
   @Test
-  @DisplayName("CA-MV-140 — la línea ENTREGADA trae `couponUrl` resuelto, en ACTIVO y en VENCIDO")
+  @DisplayName(
+      "CA-MV-140 — la línea ENTREGADA trae el cupón resuelto entre los enlaces del producto, en"
+          + " ACTIVO y en VENCIDO")
   void elCuponDeLaLineaEntregada() throws Exception {
     ProductLinkTestSupport.enlace(jdbc, producto, "CUPON_BOT", "https://t.me/nexusbot", "cupon-15");
+    ProductLinkTestSupport.enlace(
+        jdbc, producto, "VIDEO_PRESENTACION", "https://vimeo.com/1", null);
     OffsetDateTime entregadoHace10 = OffsetDateTime.now(ZoneOffset.UTC).minusDays(10);
     // Una vigente y una vencida: las dos están entregadas, y lo entregado no
     // se desentrega al vencer (`RN-MV-032`).
@@ -292,9 +297,20 @@ class MyProductsIT extends IntegrationTestBase {
         .andExpect(jsonPath("$.content[0].state").value("ACTIVO"))
         // RESUELTO: el identificador pegado como último segmento de ruta. La
         // composición la hace `PM`, que es de quien es la regla.
-        .andExpect(jsonPath("$.content[0].couponUrl").value("https://t.me/nexusbot/cupon-15"))
+        // Desde el 28-09-2026 viaja ENTRE LOS ENLACES del producto, con su tipo y
+        // junto a los demás, y no en un campo propio de la fila.
+        .andExpect(jsonPath("$.content[0].product.links.length()").value(2))
+        .andExpect(
+            jsonPath("$.content[0].product.links[?(@.type == 'CUPON_BOT')].url")
+                .value(Matchers.contains("https://t.me/nexusbot/cupon-15")))
+        .andExpect(
+            jsonPath("$.content[0].product.links[?(@.type == 'VIDEO_PRESENTACION')].url")
+                .value(Matchers.contains("https://vimeo.com/1")))
+        .andExpect(jsonPath("$.content[0].couponUrl").doesNotExist())
         .andExpect(jsonPath("$.content[1].state").value("VENCIDO"))
-        .andExpect(jsonPath("$.content[1].couponUrl").value("https://t.me/nexusbot/cupon-15"));
+        .andExpect(
+            jsonPath("$.content[1].product.links[?(@.type == 'CUPON_BOT')].url")
+                .value(Matchers.contains("https://t.me/nexusbot/cupon-15")));
   }
 
   @Test
@@ -323,9 +339,12 @@ class MyProductsIT extends IntegrationTestBase {
   }
 
   @Test
-  @DisplayName("CA-MV-142 — sin cupón el campo no viaja, y veinte líneas cuestan UNA llamada")
+  @DisplayName(
+      "CA-MV-142 — sin enlaces de entrega trae los de la oferta, y veinte líneas cuestan UNA"
+          + " llamada")
   void sinCuponYSinConsultaPorLinea() throws Exception {
-    // El producto de la siembra no declara cupón: el campo no aparece.
+    // El producto de la siembra no declara enlaces: la lista llega vacía, como
+    // en la oferta.
     venta(
         comprador,
         vendedor,
@@ -338,6 +357,7 @@ class MyProductsIT extends IntegrationTestBase {
     String sinCupon =
         mvc.perform(get("/api/v1/movements/mine/products").with(propio(comprador)))
             .andExpect(status().isOk())
+            .andExpect(jsonPath("$.content[0].product.links").isEmpty())
             .andExpect(jsonPath("$.content[0].couponUrl").doesNotExist())
             .andReturn()
             .getResponse()
@@ -366,6 +386,40 @@ class MyProductsIT extends IntegrationTestBase {
     assertThat(conVeinte)
         .as("la página de veinte no puede costar más sentencias que la de dos")
         .isEqualTo(conDos);
+  }
+
+  @Test
+  @DisplayName(
+      "CA-MV-285 — la DESCARGA solo en la línea entregada, y el mismo producto trae dos listas"
+          + " según la línea")
+  void laDescargaYUnaListaPorLinea() throws Exception {
+    ProductLinkTestSupport.enlace(
+        jdbc, producto, "VIDEO_PRESENTACION", "https://vimeo.com/1", null);
+    ProductLinkTestSupport.enlace(jdbc, producto, "CUPON_BOT", "https://t.me/nexusbot", "cupon-15");
+    ProductLinkTestSupport.enlace(
+        jdbc, producto, "DESCARGA", "https://files.example.com/bot", "bot-v2.zip");
+    // El MISMO producto, entregado en la más reciente y pendiente de activar en
+    // la otra: el `OfferItem` del mapa se comparte, y la lista no.
+    venta(
+        comprador,
+        vendedor,
+        "CONFIRMADA",
+        BASE,
+        null,
+        "ENTREGADA",
+        OffsetDateTime.now(ZoneOffset.UTC).minusDays(1));
+    venta(comprador, vendedor, "CONFIRMADA", BASE.minusDays(1), null, "PENDIENTE", null);
+
+    mvc.perform(get("/api/v1/movements/mine/products").with(propio(comprador)))
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$.content[0].state").value("ACTIVO"))
+        .andExpect(jsonPath("$.content[0].product.links.length()").value(3))
+        .andExpect(
+            jsonPath("$.content[0].product.links[?(@.type == 'DESCARGA')].url")
+                .value(Matchers.contains("https://files.example.com/bot/bot-v2.zip")))
+        .andExpect(jsonPath("$.content[1].deliveredAt").doesNotExist())
+        .andExpect(jsonPath("$.content[1].product.links.length()").value(1))
+        .andExpect(jsonPath("$.content[1].product.links[0].type").value("VIDEO_PRESENTACION"));
   }
 
   /** Las sentencias preparadas que cuesta una página de ese tamaño. */

@@ -1990,7 +1990,7 @@ paths:
 
         Cada fila trae también **`links`**, los enlaces del producto **tal cual
         se guardaron** y **presente y vacía** cuando no tiene ninguno
-        (`RN-PM-048`). **Esta lectura los enseña TODOS**, `CUPON_BOT` incluido,
+        (`RN-PM-048`). **Esta lectura los enseña TODOS**, `CUPON_BOT` y `DESCARGA` incluidos,
         porque es donde se administran; las lecturas de venta —la oferta y el
         hotlink— publican solo el video. **No es un filtro.**
 
@@ -2128,10 +2128,11 @@ paths:
         `UPGRADE_MEMBRESIA` puede llevarlo: en un `BOT` se rechaza (`RN-PM-016`).
 
         `links` son **los enlaces del producto**, uno por tipo y ninguno
-        obligatorio (`RN-PM-048`). Hay dos: **`VIDEO_PRESENTACION`**, el video
+        obligatorio (`RN-PM-048`). Hay tres: **`VIDEO_PRESENTACION`**, el video
         que presenta el producto —material de venta, que sale en las lecturas
-        públicas—, y **`CUPON_BOT`**, dónde registra su cuenta quien ya lo
-        compró, que **solo** se enseña en `GET /api/v1/movements/mine/products`
+        públicas—; **`CUPON_BOT`**, dónde registra su cuenta quien ya lo
+        compró; y **`DESCARGA`**, dónde descarga lo que compró. Los dos últimos
+        son entrega: **solo** se enseñan en `GET /api/v1/movements/mine/products`
         y **solo** cuando la línea está entregada (`RN-PM-050`). Declarar dos
         del mismo tipo se rechaza con `VAL-020`, y un tipo que no existe con
         `VAL-019`.
@@ -3521,8 +3522,8 @@ paths:
         **No se deshace**: de una entrega no se sale. Activar dos veces responde `409` la
         segunda y entrega una sola vez.
 
-        Devuelve el producto como queda, con la misma forma que el listado —el cupón del bot
-        incluido, si el producto lo declara—.
+        Devuelve el producto como queda, con la misma forma que el listado —con los enlaces
+        de entrega en `product.links`, si el producto los declara—.
       operationId: activarProducto
       parameters:
       - name: lineId
@@ -6743,7 +6744,7 @@ paths:
         Trae **`links`**, los enlaces del producto **tal cual se guardaron** y
         **presente y vacía** cuando no tiene ninguno (`RN-PM-048`) — también en
         un producto retirado. Como el listado, **los enseña todos**,
-        `CUPON_BOT` incluido: es la lectura de administración.
+        `CUPON_BOT` y `DESCARGA` incluidos: es la lectura de administración.
 
         **Un producto retirado se devuelve marcado como tal**, no como
         inexistente: `deletedAt` dice desde cuándo y `deletionReason` **por
@@ -9079,8 +9080,8 @@ paths:
 
         **Cada producto trae `links`**, y aquí viaja **solo el video** y
         **resuelto**: la dirección con el identificador externo ya pegado al
-        final (`RN-PM-049`). El `CUPON_BOT` **no sale**, ni siquiera vacío: es
-        la prestación que se compra, y quien reparte enlaces no la ha comprado
+        final (`RN-PM-049`). El `CUPON_BOT` y la `DESCARGA` **no salen**, ni siquiera vacíos:
+        son la prestación que se compra, y quien reparte enlaces no la ha comprado
         (`RN-PM-050`). El video sí es lo contrario del precio de compra:
         material de venta, que existe para que lo vea quien compra, y por eso
         **sí** viaja por aquí.
@@ -9878,12 +9879,20 @@ paths:
         es fijo.
 
         **`product` viaja con la misma forma que en `GET /api/v1/products/available`**
-        (desde el 28-09-2026): tipo, descripción, icono, portada, enlaces publicables
-        resueltos, destino, `price`, moneda, `exchange`, vigencia, alcance, implementación y
+        (desde el 28-09-2026): tipo, descripción, icono, portada, enlaces resueltos,
+        destino, `price`, moneda, `exchange`, vigencia, alcance, implementación y
         valoración — **como está hoy en el catálogo**, también si el producto se retiró
-        después. **Sin precio de compra** y **sin el cupón del bot** entre sus enlaces: el
-        cupón viaja en `couponUrl`, y solo cuando la línea está entregada. Hasta esa fecha
-        `product` traía solo `id`, `code` y `name`: es un cambio incompatible.
+        después. **Sin precio de compra**. Hasta esa fecha `product` traía solo `id`,
+        `code` y `name`: es un cambio incompatible.
+
+        **`product.links` depende de la línea** (`RN-MV-032`): si está entregada
+        —`ACTIVO` o `VENCIDO`— trae **todos** los enlaces del producto, **los de
+        entrega incluidos**: `CUPON_BOT`, dónde registra su cuenta en el bot, y
+        `DESCARGA`, dónde descarga lo que compró. En cualquier otro estado trae **los
+        mismos que la oferta**, sin los de entrega aunque el producto los declare. Se leen
+        del catálogo de hoy: si el cupón se añade o cambia después de la venta, llega el
+        vigente. **`couponUrl` ya no existe** (desde el 28-09-2026): el cupón se busca en
+        `product.links` por su `type`. Es un cambio incompatible.
 
         **`purchasedName` es el nombre que tenía el producto el día de la compra**
         (`RN-MV-002`); `product.name` es el de hoy.
@@ -10084,7 +10093,7 @@ paths:
         **Vienen los `links` del producto, y sin token** (`RN-PM-048`): aquí
         viaja **solo el video** y **resuelto** —con el identificador externo ya
         pegado al final (`RN-PM-049`)—, porque es material de venta y existe
-        para que lo vea quien va a comprar. El `CUPON_BOT` **no sale**: es la
+        para que lo vea quien va a comprar. El `CUPON_BOT` y la `DESCARGA` **no salen**: son la
         prestación que se compra, y esta ruta la puede abrir cualquiera
         (`RN-PM-050`). La lista va **presente y vacía** cuando el producto no
         declara ninguno.
@@ -12076,6 +12085,7 @@ components:
           enum:
           - VIDEO_PRESENTACION
           - CUPON_BOT
+          - DESCARGA
         url:
           type: string
         externalId:
@@ -12946,11 +12956,13 @@ components:
         type:
           type: string
           description: "Qué es el enlace: VIDEO_PRESENTACION, el video que presenta\
-            \ el producto, o CUPON_BOT, donde registra su cuenta quien ya lo compró\
-            . Obligatorio, y uno solo por tipo."
+            \ el producto; CUPON_BOT, donde registra su cuenta quien ya lo compró\
+            ; o DESCARGA, donde descarga lo que compró. Obligatorio, y uno solo por\
+            \ tipo."
           enum:
           - VIDEO_PRESENTACION
           - CUPON_BOT
+          - DESCARGA
         url:
           type: string
         externalId:
@@ -13737,7 +13749,9 @@ components:
         product:
           $ref: "#/components/schemas/OfferItem"
           description: "El producto como en /products/available, leído del catálogo\
-            \ de hoy. Sin el cupón del bot: ese viaja en couponUrl."
+            \ de hoy. Sus links: TODOS los del producto —CUPON_BOT y DESCARGA incluidos—\
+            \ si la línea está entregada (ACTIVO o VENCIDO); en otro estado, los mismos\
+            \ que la oferta."
         purchasedName:
           type: string
           description: El nombre del producto el día de la compra (RN-MV-002).
@@ -13781,13 +13795,6 @@ components:
           - string
           - "null"
           description: Por qué no se entregará. Solo en RETENIDO.
-        couponUrl:
-          type:
-          - string
-          - "null"
-          description: "El cupón del bot, ya resuelto. Solo si la línea está entregada\
-            \ (ACTIVO o VENCIDO) y el producto lo declara; NULO en cualquier otro\
-            \ caso."
     OfferItem:
       type: object
       properties:

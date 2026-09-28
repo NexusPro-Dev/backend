@@ -6,7 +6,6 @@ import jakarta.persistence.EntityManager;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
-import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -49,18 +48,6 @@ public class JpaProductLinkRepository implements ProductLinkRepository {
             .filter(ProductLinkType::esMaterialDeVenta)
             .toList();
     return agrupar(consultar(productIds, publicables));
-  }
-
-  @Override
-  public Map<UUID, String> findResolvedByType(Collection<UUID> productIds, ProductLinkType type) {
-    if (type == null) {
-      return Map.of();
-    }
-    Map<UUID, String> resueltos = new HashMap<>();
-    for (ProductLink enlace : consultar(productIds, List.of(type))) {
-      resueltos.put(enlace.getProductId(), enlace.resolver());
-    }
-    return resueltos;
   }
 
   @Override

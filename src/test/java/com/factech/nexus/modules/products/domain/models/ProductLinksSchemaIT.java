@@ -73,6 +73,9 @@ class ProductLinksSchemaIT extends IntegrationTestBase {
     // Y el OTRO tipo sí: el único es por pareja, no por producto.
     assertThatCode(() -> enlace(producto, "CUPON_BOT", "https://t.me/bot", null))
         .doesNotThrowAnyException();
+    // `V52`: el tercer tipo entra, como el enumerado.
+    assertThatCode(() -> enlace(producto, "DESCARGA", "https://files.example.com/x", "x.zip"))
+        .doesNotThrowAnyException();
   }
 
   @Test

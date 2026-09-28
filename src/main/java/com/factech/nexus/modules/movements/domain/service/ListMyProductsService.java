@@ -7,6 +7,7 @@ import com.factech.nexus.modules.movements.domain.repository.MovementRepository;
 import com.factech.nexus.modules.movements.domain.repository.MovementRepository.MyProductRow;
 import com.factech.nexus.modules.products.application.OfferItem;
 import com.factech.nexus.modules.products.application.ProductCatalog;
+import com.factech.nexus.modules.products.application.ProductLinkResponse;
 import com.factech.nexus.modules.system.roles.application.AuthenticatedActor;
 import com.factech.nexus.shared.error.FieldError;
 import com.factech.nexus.shared.error.ValidationException;
@@ -74,12 +75,11 @@ public class ListMyProductsService {
         movimientos.findMyProducts(actor.id(), estado, ahora, pagina.offset(), pagina.size());
     long total = movimientos.countMyProducts(actor.id(), estado, ahora);
 
-    // Los cupones de la pagina en UNA llamada a `PM`, y SOLO de los productos
-    // cuyas lineas estan entregadas: al de una linea pendiente ni siquiera se
-    // pregunta, de modo que no hay nada que filtrar despues (`RN-MV-032`,
-    // `CA-MV-141`, `CA-MV-142`).
-    Map<UUID, String> cupones =
-        catalogo.couponLinksOf(
+    // Los enlaces de entrega de la pagina en UNA llamada a `PM`, y SOLO de los
+    // productos cuyas lineas estan entregadas: al de una linea pendiente ni
+    // siquiera se pregunta (`RN-MV-032`, `CA-MV-141`, `CA-MV-142`).
+    Map<UUID, List<ProductLinkResponse>> entregados =
+        catalogo.deliveredLinksOf(
             filas.stream()
                 .filter(f -> PurchasedProductState.valueOf(f.state()).estaEntregado())
                 .map(MyProductRow::productId)
@@ -93,7 +93,7 @@ public class ListMyProductsService {
 
     List<MyProductResponse> contenido = new ArrayList<>(filas.size());
     for (MyProductRow fila : filas) {
-      contenido.add(aRespuesta(fila, productos, cupones));
+      contenido.add(aRespuesta(fila, productos, entregados));
     }
     return PageResponse.de(contenido, total, pagina.page(), pagina.size());
   }
@@ -112,22 +112,35 @@ public class ListMyProductsService {
         movimientos
             .findMyProduct(actor.id(), lineId, OffsetDateTime.now(reloj))
             .orElseThrow(() -> new IllegalStateException("La línea " + lineId + " desapareció."));
-    Map<UUID, String> cupones =
+    Map<UUID, List<ProductLinkResponse>> entregados =
         PurchasedProductState.valueOf(fila.state()).estaEntregado()
-            ? catalogo.couponLinksOf(List.of(fila.productId()))
+            ? catalogo.deliveredLinksOf(List.of(fila.productId()))
             : Map.of();
-    return aRespuesta(fila, catalogo.offerItemsOf(List.of(fila.productId())), cupones);
+    return aRespuesta(fila, catalogo.offerItemsOf(List.of(fila.productId())), entregados);
   }
 
+  /**
+   * La fila, con <b>la lista de enlaces de su línea</b>: el mismo producto trae todos sus enlaces
+   * en una línea entregada y los de la oferta en una pendiente (`CA-MV-285`).
+   */
   private static MyProductResponse aRespuesta(
-      MyProductRow fila, Map<UUID, OfferItem> productos, Map<UUID, String> cupones) {
+      MyProductRow fila,
+      Map<UUID, OfferItem> productos,
+      Map<UUID, List<ProductLinkResponse>> entregados) {
     PurchasedProductState estadoLinea = PurchasedProductState.valueOf(fila.state());
+    OfferItem producto = productos.get(fila.productId());
+    // El mapa solo tiene a los entregados, pero la condicion se repite aqui a
+    // proposito: leerla junto a la lista es lo que hace que nadie la pierda al
+    // tocar la consulta de arriba.
+    if (producto != null && estadoLinea.estaEntregado()) {
+      producto = producto.conEnlaces(entregados.getOrDefault(fila.productId(), List.of()));
+    }
     return new MyProductResponse(
         fila.lineId(),
         fila.movementId(),
         fila.movementCode(),
         fila.movementStatus(),
-        productos.get(fila.productId()),
+        producto,
         fila.productName(),
         fila.quantity(),
         fila.implementation(),
@@ -135,11 +148,7 @@ public class ListMyProductsService {
         fila.purchasedAt(),
         fila.deliveredAt(),
         fila.validUntil(),
-        fila.deliveryNote(),
-        // El mapa solo tiene a los entregados, pero la condicion se repite
-        // aqui a proposito: leerla junto al campo es lo que hace que
-        // nadie la pierda al tocar la linea de arriba.
-        estadoLinea.estaEntregado() ? cupones.get(fila.productId()) : null);
+        fila.deliveryNote());
   }
 
   /** `VAL-002`, contra el enumerado y no contra una lista escrita a mano. */
