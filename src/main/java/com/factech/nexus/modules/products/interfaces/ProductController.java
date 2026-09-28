@@ -127,10 +127,11 @@ public class ProductController {
           `UPGRADE_MEMBRESIA` puede llevarlo: en un `BOT` se rechaza (`RN-PM-016`).
 
           `links` son **los enlaces del producto**, uno por tipo y ninguno
-          obligatorio (`RN-PM-048`). Hay dos: **`VIDEO_PRESENTACION`**, el video
+          obligatorio (`RN-PM-048`). Hay tres: **`VIDEO_PRESENTACION`**, el video
           que presenta el producto —material de venta, que sale en las lecturas
-          públicas—, y **`CUPON_BOT`**, dónde registra su cuenta quien ya lo
-          compró, que **solo** se enseña en `GET /api/v1/movements/mine/products`
+          públicas—; **`CUPON_BOT`**, dónde registra su cuenta quien ya lo
+          compró; y **`DESCARGA`**, dónde descarga lo que compró. Los dos últimos
+          son entrega: **solo** se enseñan en `GET /api/v1/movements/mine/products`
           y **solo** cuando la línea está entregada (`RN-PM-050`). Declarar dos
           del mismo tipo se rechaza con `VAL-020`, y un tipo que no existe con
           `VAL-019`.
@@ -242,7 +243,7 @@ public class ProductController {
 
           Cada fila trae también **`links`**, los enlaces del producto **tal cual
           se guardaron** y **presente y vacía** cuando no tiene ninguno
-          (`RN-PM-048`). **Esta lectura los enseña TODOS**, `CUPON_BOT` incluido,
+          (`RN-PM-048`). **Esta lectura los enseña TODOS**, `CUPON_BOT` y `DESCARGA` incluidos,
           porque es donde se administran; las lecturas de venta —la oferta y el
           hotlink— publican solo el video. **No es un filtro.**
 
@@ -355,8 +356,8 @@ public class ProductController {
 
           **Cada producto trae `links`**, y aquí viaja **solo el video** y
           **resuelto**: la dirección con el identificador externo ya pegado al
-          final (`RN-PM-049`). El `CUPON_BOT` **no sale**, ni siquiera vacío: es
-          la prestación que se compra, y quien reparte enlaces no la ha comprado
+          final (`RN-PM-049`). El `CUPON_BOT` y la `DESCARGA` **no salen**, ni siquiera vacíos:
+          son la prestación que se compra, y quien reparte enlaces no la ha comprado
           (`RN-PM-050`). El video sí es lo contrario del precio de compra:
           material de venta, que existe para que lo vea quien compra, y por eso
           **sí** viaja por aquí.
@@ -499,7 +500,7 @@ public class ProductController {
           Trae **`links`**, los enlaces del producto **tal cual se guardaron** y
           **presente y vacía** cuando no tiene ninguno (`RN-PM-048`) — también en
           un producto retirado. Como el listado, **los enseña todos**,
-          `CUPON_BOT` incluido: es la lectura de administración.
+          `CUPON_BOT` y `DESCARGA` incluidos: es la lectura de administración.
 
           **Un producto retirado se devuelve marcado como tal**, no como
           inexistente: `deletedAt` dice desde cuándo y `deletionReason` **por

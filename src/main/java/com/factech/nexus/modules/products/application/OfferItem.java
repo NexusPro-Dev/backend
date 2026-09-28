@@ -56,6 +56,10 @@ public record OfferItem(
      * segunda defensa de `RN-PM-050` —la primera es el filtro por tipo en el predicado de la
      * consulta—: <b>no tener dónde ponerlo</b> sobrevive a que alguien reescriba la sentencia. Es
      * el mismo mecanismo con el que este registro deja fuera {@code purchasePrice}.
+     *
+     * <p><b>Una excepción, y solo una</b> (28-09-2026): en `RF-MV-014`, la línea <b>entregada</b>
+     * lleva aquí <b>todos</b> los enlaces del producto, los de entrega incluidos ({@code
+     * CUPON_BOT}, {@code DESCARGA}), por {@link #conEnlaces} y nunca por {@link #from}.
      */
     List<ProductLinkResponse> links,
     /**
@@ -75,6 +79,33 @@ public record OfferItem(
      * llamada.
      */
     RatingSummary rating) {
+
+  /**
+   * El mismo producto con <b>otros enlaces</b>: los de quien ya lo tiene entregado (`RF-MV-014`,
+   * `RN-MV-032`).
+   *
+   * <p>Una <b>copia</b> y no una mutación: el mismo {@code OfferItem} lo comparten las líneas de
+   * una página, y la lista depende de la línea, no del producto.
+   */
+  public OfferItem conEnlaces(List<ProductLinkResponse> otros) {
+    return new OfferItem(
+        id,
+        code,
+        type,
+        name,
+        description,
+        icon,
+        otros == null ? List.of() : List.copyOf(otros),
+        coverImageUrl,
+        targetMembership,
+        price,
+        currency,
+        exchange,
+        validityDays,
+        scope,
+        implementation,
+        rating);
+  }
 
   /**
    * Proyecta la fila leída, con el destino y la moneda que trajo la <b>misma</b> sentencia.

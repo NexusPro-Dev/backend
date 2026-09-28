@@ -1,7 +1,6 @@
 package com.factech.nexus.modules.products.domain.repository;
 
 import com.factech.nexus.modules.products.domain.models.ProductLink;
-import com.factech.nexus.modules.products.domain.models.ProductLinkType;
 import java.util.Collection;
 import java.util.List;
 import java.util.Map;
@@ -42,16 +41,6 @@ public interface ProductLinkRepository {
    * (`RN-PM-050`): el filtro va <b>en el predicado de la sentencia</b>.
    */
   Map<UUID, List<ProductLink>> findPublicablesByProducts(Collection<UUID> productIds);
-
-  /**
-   * Los enlaces de un tipo concreto para varios productos, <b>resueltos</b> (`RN-PM-049`).
-   *
-   * <p>Es lo que `PM` publica hacia `MV` para el cupón de `RF-MV-014` (`RN-MV-032`): el otro módulo
-   * <b>no lee esta tabla</b> ni compone nada, porque la composición es una regla de aquí.
-   *
-   * @return un mapa por producto con el enlace ya resuelto; los que no tienen ese tipo no aparecen
-   */
-  Map<UUID, String> findResolvedByType(Collection<UUID> productIds, ProductLinkType type);
 
   /**
    * Reemplaza <b>el conjunto entero</b> de enlaces de un producto (`RF-PM-004`).

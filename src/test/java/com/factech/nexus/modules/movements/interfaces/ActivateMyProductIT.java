@@ -262,11 +262,13 @@ class ActivateMyProductIT extends IntegrationTestBase {
         .andExpect(status().isOk())
         .andExpect(jsonPath("$.content[0].lineId").value(linea.toString()))
         .andExpect(jsonPath("$.content[0].state").value("PENDIENTE_ACTIVACION"))
-        .andExpect(jsonPath("$.content[0].couponUrl").doesNotExist());
+        .andExpect(jsonPath("$.content[0].product.links").isEmpty());
 
     mvc.perform(activar(linea).with(propio(cliente)))
         .andExpect(status().isOk())
-        .andExpect(jsonPath("$.couponUrl").value("https://t.me/apbot/cupon-7"));
+        // Desde el 28-09-2026, entre los enlaces del producto y con su tipo.
+        .andExpect(jsonPath("$.product.links[0].type").value("CUPON_BOT"))
+        .andExpect(jsonPath("$.product.links[0].url").value("https://t.me/apbot/cupon-7"));
   }
 
   @Test

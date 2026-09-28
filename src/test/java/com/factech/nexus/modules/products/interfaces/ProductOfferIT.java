@@ -527,6 +527,31 @@ class ProductOfferIT extends IntegrationTestBase {
   }
 
   @Test
+  @DisplayName("`CA-PM-401` — la oferta tampoco publica la DESCARGA: es entrega, como el cupón")
+  void laOfertaNoPublicaLaDescarga() throws Exception {
+    ProductLinkTestSupport.enlace(
+        jdbc, "UP_ORO", "VIDEO_PRESENTACION", "https://vimeo.com/123456", null);
+    ProductLinkTestSupport.enlace(jdbc, "UP_ORO", "CUPON_BOT", "https://t.me/nexusbot", "cupon-15");
+    ProductLinkTestSupport.enlace(
+        jdbc, "UP_ORO", "DESCARGA", "https://files.example.com/oro", "oro.zip");
+
+    String cuerpo =
+        mvc.perform(oferta(enFree))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.upgrades.content[3].code").value("UP_ORO"))
+            .andExpect(jsonPath("$.upgrades.content[3].links.length()").value(1))
+            .andExpect(jsonPath("$.upgrades.content[3].links[0].type").value("VIDEO_PRESENTACION"))
+            .andReturn()
+            .getResponse()
+            .getContentAsString();
+
+    assertThat(cuerpo)
+        .doesNotContain("DESCARGA")
+        .doesNotContain("files.example.com")
+        .doesNotContain("CUPON_BOT");
+  }
+
+  @Test
   @DisplayName("`CA-PM-395` — el enlace llega RESUELTO: pegado al final y sin duplicar la barra")
   void laOfertaResuelveElEnlace() throws Exception {
     // Con identificador: se pega como último segmento de ruta.

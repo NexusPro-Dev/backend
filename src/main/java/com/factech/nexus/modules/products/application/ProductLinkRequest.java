@@ -34,9 +34,9 @@ public record ProductLinkRequest(
     @Schema(
             implementation = ProductLinkType.class,
             description =
-                "Qué es el enlace: VIDEO_PRESENTACION, el video que presenta el producto, o"
-                    + " CUPON_BOT, donde registra su cuenta quien ya lo compró. Obligatorio, y uno"
-                    + " solo por tipo.")
+                "Qué es el enlace: VIDEO_PRESENTACION, el video que presenta el producto;"
+                    + " CUPON_BOT, donde registra su cuenta quien ya lo compró; o DESCARGA, donde"
+                    + " descarga lo que compró. Obligatorio, y uno solo por tipo.")
         String type,
     String url,
     String externalId) {}

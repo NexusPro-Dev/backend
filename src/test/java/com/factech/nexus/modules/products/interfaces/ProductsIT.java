@@ -9,6 +9,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 
 import com.factech.nexus.IntegrationTestBase;
 import java.util.UUID;
+import org.hamcrest.Matchers;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
@@ -702,6 +703,31 @@ class ProductsIT extends IntegrationTestBase {
         .andExpect(jsonPath("$.links[1].externalId").value("cupon-15"));
 
     assertThat(cuantosEnlaces()).isEqualTo(2);
+  }
+
+  @Test
+  @DisplayName("`CA-PM-400` — el alta admite los TRES enlaces, la DESCARGA incluida")
+  void losTresEnlaces() throws Exception {
+    mvc.perform(
+            alta(
+                """
+                {"scope":"TIENDA","implementation":"AUTOMATICA","code":"ASESORIA","type":"BOT","name":"Asesoría",
+                 "price":49.99,"currencyId":"%s","links":[
+                   {"type":"VIDEO_PRESENTACION","url":"https://vimeo.com/123456"},
+                   {"type":"CUPON_BOT","url":"https://t.me/nexusbot","externalId":"cupon-15"},
+                   {"type":"DESCARGA","url":"https://files.example.com/bot","externalId":"bot-v2.zip"}]}
+                """
+                    .formatted(USD)))
+        .andExpect(status().isCreated())
+        .andExpect(jsonPath("$.links.length()").value(3))
+        .andExpect(
+            jsonPath("$.links[?(@.type == 'DESCARGA')].url")
+                .value(Matchers.contains("https://files.example.com/bot")))
+        .andExpect(
+            jsonPath("$.links[?(@.type == 'DESCARGA')].externalId")
+                .value(Matchers.contains("bot-v2.zip")));
+
+    assertThat(cuantosEnlaces()).isEqualTo(3);
   }
 
   @Test

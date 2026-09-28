@@ -122,29 +122,27 @@ public interface ProductCatalog {
   Set<UUID> publishedByHotlink(Collection<UUID> ids);
 
   /**
-   * El <b>cupón del bot</b> de cada producto, <b>ya resuelto</b> (`RN-MV-032`, `RN-PM-049`).
+   * Los enlaces de esos productos <b>tal como los ve quien ya los tiene entregados</b>: <b>todos
+   * los tipos, ya resueltos</b> (`RF-MV-014`, `RN-MV-032`, `RN-PM-049`, `RN-PM-050`).
    *
-   * <p><b>Es un método más y no un campo más en {@link SaleView}</b>, que es la norma de esta
-   * interfaz desde {@link #findPrice}: quien necesita un dato pide su propia lectura, sin que los
-   * dobles de prueba de los demás cambien. Y aquí el motivo pesa el doble, porque quien lo pide no
-   * es quien registra una venta sino quien la consulta después.
+   * <p>Sustituye el 28-09-2026 a la lectura de solo el cupón: desde entonces el cupón viaja entre
+   * los enlaces del producto, y la {@code DESCARGA} con él. <b>Es la única lectura fuera de
+   * administración que trae los enlaces de entrega</b>, y existe aparte de {@link #offerItemsOf} —y
+   * no como un parámetro suyo— para que la oferta <b>no tenga forma de pedirlos</b>.
    *
-   * <p><b>Llega RESUELTO, y esa es la razón de que exista</b>: la composición del enlace —la
-   * dirección sin su barra final, más `/`, más el identificador externo— es una regla de `PM`, y un
-   * `JOIN` contra {@code product_links} desde el otro módulo obligaría a reescribirla allí. Es la
-   * distinción de D-25 que `modelo-datos.md` declara: <b>las claves foráneas cruzan; los
-   * repositorios no</b>.
+   * <p><b>Llegan RESUELTOS</b>: la composición del enlace es una regla de `PM`, y un `JOIN` contra
+   * {@code product_links} desde otro módulo obligaría a reescribirla allí. Y <b>ordenados por
+   * tipo</b>, como en toda lectura del producto.
    *
-   * <p><b>Recibe un lote</b>, como {@link #saleViewOf}: una página de veinte líneas que preguntara
-   * veinte veces cruzaría la frontera veinte veces para lo mismo — la {@code N+1} que no se ve,
-   * porque cada llamada es un método Java (`CA-MV-142`).
+   * <p><b>Recibe un lote</b>, como {@link #saleViewOf}: una sentencia por página (`CA-MV-142`).
    *
-   * <p><b>Quién puede verlo no lo decide esta interfaz</b>: el filtro por estado de la entrega es
-   * de `MV` (`RN-MV-032`). Cada módulo pone lo que sabe.
+   * <p><b>Quién puede verlos no lo decide esta interfaz</b>: el filtro por estado de la entrega es
+   * de `MV` (`RN-MV-032`), que solo la pide para las líneas entregadas. Cada módulo pone lo que
+   * sabe.
    *
-   * @return un mapa por producto; los que no declaran cupón <b>no aparecen</b>
+   * @return un mapa por producto; los que no declaran ningún enlace <b>no aparecen</b>
    */
-  Map<UUID, String> couponLinksOf(Collection<UUID> ids);
+  Map<UUID, List<ProductLinkResponse>> deliveredLinksOf(Collection<UUID> ids);
 
   /**
    * Esos productos <b>en la forma de la oferta</b> —{@link OfferItem}, la de {@code GET
@@ -152,8 +150,8 @@ public interface ProductCatalog {
    *
    * <p><b>La misma forma y no una parecida</b>: quien pinta la tienda y quien pinta lo comprado
    * leen el producto con un solo lector. Con ella viajan sus garantías: los enlaces publicables
-   * resueltos y <b>sin el {@code CUPON_BOT}</b> (`RN-PM-050`), la conversión de {@code price} y
-   * <b>ningún precio de compra</b> (`RN-PM-024`).
+   * resueltos y <b>sin los de entrega</b> (`RN-PM-050`), la conversión de {@code price} y <b>ningún
+   * precio de compra</b> (`RN-PM-024`).
    *
    * <p><b>No filtra nada</b>, como {@link #saleViewOf}: lo retirado o inactivo también se devuelve,
    * porque lo que alguien compró no deja de ser suyo cuando el catálogo cambia.
