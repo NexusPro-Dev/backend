@@ -1,5 +1,6 @@
 package com.factech.nexus.modules.movements.domain.service;
 
+import com.factech.nexus.modules.movements.application.CommissionableLinesEvent;
 import com.factech.nexus.modules.movements.application.SaleResponse;
 import com.factech.nexus.modules.movements.domain.models.DeliveryStatus;
 import com.factech.nexus.modules.movements.domain.models.Implementation;
@@ -20,6 +21,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -39,6 +41,12 @@ import org.springframework.transaction.annotation.Transactional;
  * <p><b>Este servicio decide SI se entrega; {@link LineDelivery} decide CÓMO.</b> Que el producto
  * sea automático (`RN-MV-021`) se resuelve aquí; que no baje de nivel (`RN-MV-029`) y la escritura
  * de `SP` están en {@link LineDelivery}, que comparte con activar lo manual (`RF-MV-010`).
+ *
+ * <p><b>Y avisa de que sus líneas pueden comisionar</b> (`RN-MV-049`, 28-09-2026): publica un
+ * {@link CommissionableLinesEvent} con todas las líneas de la venta, <b>dentro</b> de la
+ * transacción, para que quien escuche después del commit solo lo reciba si la confirmación quedó
+ * escrita. Cuáles comisionan de verdad —las que tienen vendedor— lo decide quien lo recibe, al
+ * releerlas. `MV` no sabe quién escucha.
  */
 @Service
 public class ConfirmSaleService {
@@ -49,19 +57,28 @@ public class ConfirmSaleService {
   private final MovementRepository movimientos;
   private final LineDelivery entrega;
   private final AuditWriter auditoria;
+  private final ApplicationEventPublisher avisos;
   private final Clock reloj;
 
   @Autowired
   public ConfirmSaleService(
-      MovementRepository movimientos, LineDelivery entrega, AuditWriter auditoria) {
-    this(movimientos, entrega, auditoria, Clock.systemUTC());
+      MovementRepository movimientos,
+      LineDelivery entrega,
+      AuditWriter auditoria,
+      ApplicationEventPublisher avisos) {
+    this(movimientos, entrega, auditoria, avisos, Clock.systemUTC());
   }
 
   ConfirmSaleService(
-      MovementRepository movimientos, LineDelivery entrega, AuditWriter auditoria, Clock reloj) {
+      MovementRepository movimientos,
+      LineDelivery entrega,
+      AuditWriter auditoria,
+      ApplicationEventPublisher avisos,
+      Clock reloj) {
     this.movimientos = movimientos;
     this.entrega = entrega;
     this.auditoria = auditoria;
+    this.avisos = avisos;
     this.reloj = reloj;
   }
 
@@ -104,8 +121,10 @@ public class ConfirmSaleService {
     UUID sujeto = antes.header().userId();
 
     List<Map<String, Object>> resultado = new ArrayList<>();
+    List<UUID> lineas = new ArrayList<>();
     for (DeliveryLineRow linea : movimientos.findLinesForDelivery(movementId)) {
       resultado.add(entregar(linea, sujeto, ahora));
+      lineas.add(linea.lineId());
     }
 
     // 3. Auditoría: el cambio de estado y lo que se decidió de cada línea.
@@ -119,7 +138,11 @@ public class ConfirmSaleService {
     auditoria.recordChange(
         new ChangeEvent(MODULO, ENTIDAD, movementId, ChangeAction.UPDATE, cambios));
 
-    // 4. La venta como queda, con la misma forma que registrar y que el detalle.
+    // 4. El aviso para `CM` (`RN-MV-049`). Dentro de la transacción: se entrega
+    //    después del commit, o no se entrega.
+    avisos.publishEvent(new CommissionableLinesEvent(movementId, lineas));
+
+    // 5. La venta como queda, con la misma forma que registrar y que el detalle.
     return SaleDetailMapper.de(
         movimientos
             .findById(movementId)

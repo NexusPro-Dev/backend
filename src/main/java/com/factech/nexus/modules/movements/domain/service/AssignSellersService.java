@@ -1,6 +1,7 @@
 package com.factech.nexus.modules.movements.domain.service;
 
 import com.factech.nexus.modules.movements.application.AssignSellersRequest;
+import com.factech.nexus.modules.movements.application.CommissionableLinesEvent;
 import com.factech.nexus.modules.movements.application.SaleResponse;
 import com.factech.nexus.modules.movements.domain.models.MovementStatus;
 import com.factech.nexus.modules.movements.domain.models.SaleTypeStatus;
@@ -28,6 +29,7 @@ import java.util.Objects;
 import java.util.Set;
 import java.util.UUID;
 import java.util.stream.Collectors;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -48,6 +50,10 @@ import org.springframework.transaction.annotation.Transactional;
  *
  * <p><b>Nada se escribe hasta que todo se ha comprobado</b>, de modo que un rechazo no depende de
  * revertir nada: ninguna asignación de la petición llega a la base.
+ *
+ * <p><b>En una venta ya confirmada, avisa</b> (`RN-MV-049`, 28-09-2026): las líneas que acaban de
+ * recibir vendedor pueden comisionar, y se publica un {@link CommissionableLinesEvent} con ellas.
+ * En una venta pendiente no hay nada que avisar: comisionarán cuando se confirme.
  */
 @Service
 public class AssignSellersService {
@@ -58,12 +64,17 @@ public class AssignSellersService {
   private final MovementRepository movimientos;
   private final ClientCatalog clientes;
   private final AuditWriter auditoria;
+  private final ApplicationEventPublisher avisos;
 
   public AssignSellersService(
-      MovementRepository movimientos, ClientCatalog clientes, AuditWriter auditoria) {
+      MovementRepository movimientos,
+      ClientCatalog clientes,
+      AuditWriter auditoria,
+      ApplicationEventPublisher avisos) {
     this.movimientos = movimientos;
     this.clientes = clientes;
     this.auditoria = auditoria;
+    this.avisos = avisos;
   }
 
   @Transactional
@@ -101,11 +112,13 @@ public class AssignSellersService {
 
     // 5. La escritura: solo lo que cambia.
     Map<UUID, UUID> antes = new HashMap<>();
+    List<UUID> atribuidas = new ArrayList<>();
     for (AssignSellersRequest.Line pedida : pedidas) {
       AssignmentLine linea = lineas.get(pedida.productId());
       antes.put(linea.productId(), linea.sellerId());
       if (!pedida.sellerId().equals(linea.sellerId())) {
         movimientos.assignSeller(linea.lineId(), pedida.sellerId());
+        atribuidas.add(linea.lineId());
       }
     }
 
@@ -137,7 +150,13 @@ public class AssignSellersService {
             ChangeAction.UPDATE,
             cambios(pedidas, antes, estadoAntes, estadoDespues)));
 
-    // 7. La venta como queda.
+    // 7. El aviso para `CM` (`RN-MV-049`), solo si ya está confirmada: en una
+    //    pendiente, comisionarán al confirmarse.
+    if (pago == MovementStatus.CONFIRMADA && !atribuidas.isEmpty()) {
+      avisos.publishEvent(new CommissionableLinesEvent(movementId, atribuidas));
+    }
+
+    // 8. La venta como queda.
     return SaleDetailMapper.de(
         movimientos
             .findById(movementId)

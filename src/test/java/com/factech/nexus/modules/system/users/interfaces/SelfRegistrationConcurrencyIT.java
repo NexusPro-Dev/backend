@@ -5,6 +5,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 
 import com.factech.nexus.IntegrationTestBase;
+import com.factech.nexus.testing.CommissionCleanup;
 import com.factech.nexus.testing.ConcurrencyHarness.Outcome;
 import java.util.List;
 import java.util.UUID;
@@ -185,6 +186,7 @@ class SelfRegistrationConcurrencyIT extends IntegrationTestBase {
     // `client_sellers` ANTES que los movimientos: la fila REGISTRO cita la venta
     // del enlace (`first_movement_id`), y la clave foránea es RESTRICT.
     jdbc.update("DELETE FROM client_sellers");
+    CommissionCleanup.limpiar(jdbc);
     jdbc.update("DELETE FROM movement_details");
     jdbc.update("DELETE FROM movements");
     jdbc.update("DELETE FROM audit_change_log WHERE module = 'MV'");

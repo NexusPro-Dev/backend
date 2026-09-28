@@ -8,6 +8,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 
 import com.factech.nexus.IntegrationTestBase;
 import com.factech.nexus.modules.movements.PaymentFixtures;
+import com.factech.nexus.testing.CommissionCleanup;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import java.time.OffsetDateTime;
@@ -370,6 +371,7 @@ class SalesIT extends IntegrationTestBase {
   }
 
   private void limpiar() {
+    CommissionCleanup.limpiar(jdbc);
     jdbc.update("DELETE FROM movement_details");
     jdbc.update("DELETE FROM movements");
     jdbc.update("DELETE FROM products WHERE code LIKE 'SALES_BOT%'");

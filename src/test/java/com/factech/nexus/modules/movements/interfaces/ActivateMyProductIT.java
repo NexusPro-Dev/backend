@@ -10,6 +10,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import com.factech.nexus.IntegrationTestBase;
 import com.factech.nexus.modules.movements.PaymentFixtures;
 import com.factech.nexus.modules.products.interfaces.ProductLinkTestSupport;
+import com.factech.nexus.testing.CommissionCleanup;
 import java.time.Duration;
 import java.time.OffsetDateTime;
 import java.time.ZoneOffset;
@@ -372,6 +373,7 @@ class ActivateMyProductIT extends IntegrationTestBase {
     jdbc.update(
         "DELETE FROM user_products WHERE user_id IN"
             + " (SELECT id FROM users WHERE username LIKE 'ap-%')");
+    CommissionCleanup.limpiar(jdbc);
     jdbc.update("DELETE FROM movement_detail_discounts");
     jdbc.update("DELETE FROM movement_details");
     jdbc.update("DELETE FROM movements");

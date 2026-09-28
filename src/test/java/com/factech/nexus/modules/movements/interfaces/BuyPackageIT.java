@@ -14,6 +14,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 import com.factech.nexus.IntegrationTestBase;
+import com.factech.nexus.testing.CommissionCleanup;
 import com.jayway.jsonpath.JsonPath;
 import java.math.BigDecimal;
 import java.time.OffsetDateTime;
@@ -696,8 +697,10 @@ class BuyPackageIT extends IntegrationTestBase {
   }
 
   private void limpiar() {
+    CommissionCleanup.limpiar(jdbc);
     jdbc.update("DELETE FROM movement_details");
     jdbc.update("DELETE FROM payment_method_exclusions");
+    CommissionCleanup.limpiar(jdbc);
     jdbc.update("DELETE FROM movements");
     jdbc.update("DELETE FROM audit_change_log WHERE module = 'MV'");
     // Los paquetes ANTES que los productos: `product_package_items` los referencia.

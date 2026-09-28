@@ -7,6 +7,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 
 import com.factech.nexus.IntegrationTestBase;
 import com.factech.nexus.modules.movements.PaymentFixtures;
+import com.factech.nexus.testing.CommissionCleanup;
 import java.time.OffsetDateTime;
 import java.time.ZoneOffset;
 import java.util.UUID;
@@ -91,6 +92,7 @@ class MovementsBoundedCountIT extends IntegrationTestBase {
   }
 
   private void limpiar() {
+    CommissionCleanup.limpiar(jdbc);
     jdbc.update("DELETE FROM movement_details");
     jdbc.update("DELETE FROM movements");
     jdbc.update(

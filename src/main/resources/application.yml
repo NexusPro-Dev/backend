@@ -164,6 +164,13 @@ nexus:
   dev-seed:
     enabled: ${DEV_SEED_ENABLED:true}
 
+  # La zona del negocio: dónde se corta el día (architecture.md §15.1.1). No
+  # cambia cómo se guarda nada —todo instante va en timestamptz—; decide qué día
+  # fue una venta para resolver su tasa (RN-CM-024) y en qué zona corren las
+  # tareas programadas de negocio. La lee `BusinessCalendar`.
+  business:
+    zone: ${BUSINESS_ZONE:America/Bogota}
+
   # Uniforme para todo el sistema, no por endpoint (architecture.md §7.4).
   # Una petición que exceda el máximo se rechaza, no se recorta.
   pagination:

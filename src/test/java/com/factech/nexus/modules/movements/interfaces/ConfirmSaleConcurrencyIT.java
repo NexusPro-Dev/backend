@@ -7,6 +7,7 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 
 import com.factech.nexus.IntegrationTestBase;
 import com.factech.nexus.modules.movements.PaymentFixtures;
+import com.factech.nexus.testing.CommissionCleanup;
 import com.factech.nexus.testing.ConcurrencyHarness.Outcome;
 import java.time.OffsetDateTime;
 import java.time.ZoneOffset;
@@ -149,6 +150,7 @@ class ConfirmSaleConcurrencyIT extends IntegrationTestBase {
   }
 
   private void limpiar() {
+    CommissionCleanup.limpiar(jdbc);
     jdbc.update("DELETE FROM movement_details");
     jdbc.update("DELETE FROM movements");
     jdbc.update("DELETE FROM products WHERE code = 'CC_VIP'");

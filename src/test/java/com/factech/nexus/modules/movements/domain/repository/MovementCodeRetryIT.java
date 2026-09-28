@@ -9,6 +9,7 @@ import com.factech.nexus.modules.movements.domain.models.IdempotencyKey;
 import com.factech.nexus.modules.movements.domain.models.Movement;
 import com.factech.nexus.modules.movements.domain.models.MovementLine;
 import com.factech.nexus.modules.movements.domain.models.TypeStatus;
+import com.factech.nexus.testing.CommissionCleanup;
 import java.math.BigDecimal;
 import java.time.OffsetDateTime;
 import java.time.ZoneOffset;
@@ -196,6 +197,7 @@ class MovementCodeRetryIT extends IntegrationTestBase {
   }
 
   private void limpiar() {
+    CommissionCleanup.limpiar(jdbc);
     jdbc.update("DELETE FROM movement_details");
     jdbc.update("DELETE FROM movements");
     jdbc.update("DELETE FROM products WHERE code = 'RTY_BOT'");

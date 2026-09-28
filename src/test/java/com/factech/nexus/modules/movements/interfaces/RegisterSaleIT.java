@@ -7,6 +7,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 import com.factech.nexus.IntegrationTestBase;
+import com.factech.nexus.testing.CommissionCleanup;
 import java.math.BigDecimal;
 import java.time.OffsetDateTime;
 import java.time.ZoneOffset;
@@ -601,8 +602,10 @@ class RegisterSaleIT extends IntegrationTestBase {
     // cabeceras, y las cabeceras antes que los productos y las personas —sus
     // claves foráneas son RESTRICT a propósito, para que un borrado físico no
     // se lleve por delante la atribución de una venta.
+    CommissionCleanup.limpiar(jdbc);
     jdbc.update("DELETE FROM movement_details");
     jdbc.update("DELETE FROM payment_method_exclusions");
+    CommissionCleanup.limpiar(jdbc);
     jdbc.update("DELETE FROM movements");
     jdbc.update("DELETE FROM audit_change_log WHERE module = 'MV'");
     // El catálogo y la cadena se borran ENTEROS, como en `ProductOfferIT` y por

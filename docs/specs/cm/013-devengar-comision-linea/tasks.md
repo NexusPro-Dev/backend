@@ -6,7 +6,7 @@
 | Especificación | [`spec.md`](spec.md) v0.1.0 |
 | Plan | [`plan.md`](plan.md) v0.1.0 |
 | `plan.md` aprobado el | 28-09-2026 |
-| Estado | **En revisión** |
+| Estado | **En revisión** — `T-01` a `T-12` `Hecha` el 28-09-2026; `T-13` en curso |
 | Issue | Pendiente de crear |
 | Rama | `feature/devengo-de-comisiones` |
 
@@ -22,18 +22,18 @@
 
 | ID | Tarea | Depende de | Verificación | Estado |
 |---|---|---|---|---|
-| `T-01` | `V51__cm_devengo_de_comisiones.sql`: las cuatro tablas con sus restricciones, `ix_commission_batches_abierto`, y los ocho permisos con sus concesiones (`plan.md` §2) | — | `mvn clean verify` aplica la migración desde cero | Pendiente |
-| `T-02` | Los seis recuentos del catálogo, 145 → 153 —`PermissionIT` con `153L`— y la suite de siembra de `CM` con los ocho códigos y quién los recibe | `T-01` | Las seis en verde | Pendiente |
-| `T-03` | Ayudante común de limpieza de prueba que borra `commission_accruals`, `commissions`, `commission_batches` y `commission_closings` **antes** de `movements`; usarlo en las 21 suites que hacen `DELETE FROM movements` | `T-01` | `mvn clean verify` completo en verde, con el orden alfabético | Pendiente |
-| `T-04` | `BusinessCalendar` en `shared/time`, con `nexus.business.zone` | — | Unitarias con el reloj a las `01:00Z` | Pendiente |
-| `T-05` | `ResolveCommissionService`: «hoy» por `BusinessCalendar`; la operación interna que devuelve la tasa con su identidad | `T-04` | La suite de `RF-CM-005` sigue en verde; `CA-CM-159` | Pendiente |
-| `T-06` | `SupervisorChain` en `SP` y su adaptador | — | `SupervisorChainIT` | Pendiente |
-| `T-07` | `CommissionableLines` y `CommissionableLinesEvent` en `MV`; `ConfirmSaleService` y `AssignSellersService` publican | — | Las suites de `RF-MV-003` y `RF-MV-016` siguen en verde | Pendiente |
-| `T-08` | `ChainCommissionCalculator` | — | Unitarias: `CA-CM-160`, `CA-CM-161`, casos límite de `spec.md` §13 | Pendiente |
-| `T-09` | `AccrualOutcome`, `BatchStatus`; `CommissionAccrualRepository`, `CommissionBatchRepository` y adaptadores, con la secuencia del lote abierto (`plan.md` §4) | `T-01` | Integración del repositorio: dos aperturas simultáneas dejan un solo lote | Pendiente |
-| `T-10` | `CommissionAccrualService`: bloqueo, relectura, cadena, cálculo, desenlace, lote, auditoría; una transacción por línea; `retryRejected()` | `T-05` a `T-09` | — | Pendiente |
-| `T-11` | `CommissionableLinesListener` | `T-07`, `T-10` | — | Pendiente |
-| `T-12` | `CommissionAccrualIT`: `CA-CM-154` a `CA-CM-169`, por la API de `MV` | `T-03`, `T-11` | `CA-CM-164` y `CA-CM-165` con dos hilos | Pendiente |
+| `T-01` | `V51__cm_devengo_de_comisiones.sql`: las cuatro tablas con sus restricciones, `ix_commission_batches_abierto`, y los ocho permisos con sus concesiones (`plan.md` §2) | — | `mvn clean verify` aplica la migración desde cero | **Hecha** — 28-09-2026 |
+| `T-02` | Los seis recuentos del catálogo, 145 → 153 —`PermissionIT` con `153L`— y la suite de siembra de `CM` con los ocho códigos y quién los recibe | `T-01` | Las seis en verde | **Hecha** — 28-09-2026 |
+| `T-03` | Ayudante común de limpieza de prueba que borra `commission_accruals`, `commissions`, `commission_batches` y `commission_closings` **antes** de `movements`; usarlo en las 21 suites que hacen `DELETE FROM movements` | `T-01` | `mvn clean verify` completo en verde, con el orden alfabético | **Hecha** — 28-09-2026 |
+| `T-04` | `BusinessCalendar` en `shared/time`, con `nexus.business.zone` | — | Unitarias con el reloj a las `01:00Z` | **Hecha** — 28-09-2026 |
+| `T-05` | `ResolveCommissionService`: «hoy» por `BusinessCalendar`; la operación interna que devuelve la tasa con su identidad | `T-04` | La suite de `RF-CM-005` sigue en verde; `CA-CM-159` | **Hecha** — 28-09-2026 |
+| `T-06` | `SupervisorChain` en `SP` y su adaptador | — | `SupervisorChainIT` | **Hecha** — 28-09-2026 |
+| `T-07` | `CommissionableLines` y `CommissionableLinesEvent` en `MV`; `ConfirmSaleService` y `AssignSellersService` publican | — | Las suites de `RF-MV-003` y `RF-MV-016` siguen en verde | **Hecha** — 28-09-2026 |
+| `T-08` | `ChainCommissionCalculator` | — | Unitarias: `CA-CM-160`, `CA-CM-161`, casos límite de `spec.md` §13 | **Hecha** — 28-09-2026 |
+| `T-09` | `AccrualOutcome`, `BatchStatus`; `CommissionAccrualRepository`, `CommissionBatchRepository` y adaptadores, con la secuencia del lote abierto (`plan.md` §4) | `T-01` | Integración del repositorio: dos aperturas simultáneas dejan un solo lote | **Hecha** — 28-09-2026 |
+| `T-10` | `CommissionAccrualService`: bloqueo, relectura, cadena, cálculo, desenlace, lote, auditoría; una transacción por línea; `retryRejected()` | `T-05` a `T-09` | — | **Hecha** — 28-09-2026 |
+| `T-11` | `CommissionableLinesListener` | `T-07`, `T-10` | — | **Hecha** — 28-09-2026 |
+| `T-12` | `CommissionAccrualIT`: `CA-CM-154` a `CA-CM-169`, por la API de `MV` | `T-03`, `T-11` | `CA-CM-164` y `CA-CM-165` con dos hilos | **Hecha** — 28-09-2026 |
 | `T-13` | `requirements.md` —`RF-CM-013` a **En desarrollo**—; `tasks.md` de `RF-MV-003` y `RF-MV-016` con la desviación del evento | `T-12` | | Pendiente |
 
 ---
@@ -58,6 +58,15 @@
 | `CA-CM-169` | `T-07`, `T-12` |
 
 ---
+
+## 3.1 Desviaciones respecto del plan
+
+- **`lockOpenBatch` devuelve el lote y el inicio de su periodo**, y el lote nuevo empieza **como pronto en el fin del último cerrado** (`GREATEST`). Un devengo que tomó su instante justo antes de un cierre y lo esperó en el bloqueo abriría, si no, un lote que empieza **dentro** del cerrado, y `ex_commission_batches_solape` lo rechazaría tres veces seguidas. La comisión toma ese mismo instante como `accrued_at`: es cuándo entró en su lote. No estaba en `plan.md` §4.
+- **`ConfirmSaleService` publica todas las líneas de la venta**, y no solo las que tienen vendedor: cuáles comisionan lo decide `CM` al releerlas (`plan.md` §1, «se relee, no se confía en el aviso»). Así `MV` no repite el predicado de `RN-CM-022`.
+- **La auditoría usa `ChangeAction.CREATE`**, no `INSERT` como decía `plan.md` §7: es el valor que el enum del sistema tiene.
+- **`CA-CM-166` se provoca con datos y no con un doble**: una línea de cien mil millones al 10 % cuya comisión no cabe en `numeric(14,4)`. Un `@MockitoSpyBean` —lo primero que se probó— crea un contexto de Spring más, y con su pool agotó las conexiones de Postgres de la suite (`too many clients already` en `RateLimitIT`, otra suite). Tampoco sirve una persona con dos roles vendedores: `uq_user_roles_vendedor` ya lo impide en el esquema, de modo que `EX-002` de `spec.md` **no puede ocurrir** hoy; se deja escrita por si el índice se retira.
+- **Dos suites de roles cambian**, además de las seis del catálogo: `SystemRolesSeedIT` y `RoleDetailIT` afirman el conjunto **exacto** de permisos de cada rol vendedor, y ganan `commission-batches:list-own` y `read-own`.
+- **`CommissionCleanup` vive en `src/test/.../testing`**, junto a `ConcurrencyHarness`, y lo usan las 21 suites que limpian `movements`.
 
 ## 4. Bloqueos
 
