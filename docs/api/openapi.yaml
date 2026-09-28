@@ -3489,6 +3489,63 @@ paths:
         "422":
           description: La moneda no existe
       x-required-permission: movements:request-withdrawal
+  /api/v1/movements/mine/products/{lineId}/activation:
+    post:
+      tags:
+      - Movimientos
+      summary: Activar un producto comprado
+      description: |
+        **Permiso requerido:** `movements:activate-own-product`. Sin él, `403` (`AUTH-002`).
+
+        Activa **un producto que usted compró** y cuya implementación es **manual**: la línea
+        `lineId` de `GET /api/v1/movements/mine/products`, que aparece allí como
+        `PENDIENTE_ACTIVACION`. **Sin cuerpo.**
+
+        **Activar es entregar**: desde este instante usted lo tiene, y **la vigencia corre desde
+        la activación**, no desde la compra ni desde la confirmación del pago. Si el producto
+        es un **upgrade de membresía**, se le concede el nivel — **salvo que baje del que tiene
+        ahora**: entonces el producto queda `RETENIDO` con el motivo en `deliveryNote`, y su
+        nivel no cambia.
+
+        **Solo lo activa quien lo compró.** Ningún permiso abre la compra de otra persona, y
+        su línea responde `404`, **exactamente igual que una que no existe**.
+
+        **No se deshace**: de una entrega no se sale. Activar dos veces responde `409` la
+        segunda y entrega una sola vez.
+
+        Devuelve el producto como queda, con la misma forma que el listado —el cupón del bot
+        incluido, si el producto lo declara—.
+      operationId: activarProducto
+      parameters:
+      - name: lineId
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      responses:
+        "200":
+          description: Activado —o `RETENIDO` si era un upgrade que bajaría de nivel—.
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/MyProduct"
+        "400":
+          description: Identificador malformado (`VAL-001`)
+        "401":
+          description: Token ausente o inválido (`AUTH-001`)
+        "403":
+          description: Autenticado sin `movements:activate-own-product` (`AUTH-002`)
+        "404":
+          description: No existe **o no es de una compra suya** (`EX-001`). Las dos
+            son la misma respuesta
+        "409":
+          description: "La venta no está confirmada (`EX-002`), el producto no es\
+            \ de implementación manual (`EX-003`) o ya no está pendiente de activació\
+            n (`EX-004`); el mensaje dice en qué estado está"
+        "500":
+          description: Fallo no controlado (`ERR-500`)
+      x-required-permission: movements:activate-own-product
   /api/v1/movements/bonuses:
     post:
       tags:
@@ -9687,8 +9744,10 @@ paths:
         reciente al más antiguo, y **en qué estado está cada uno**:
 
         - `PENDIENTE_PAGO`: la venta no se ha confirmado; todavía no lo tiene.
-        - `PENDIENTE_AUTORIZACION`: pagado, pero el producto es de implementación manual y
-          alguien tiene que autorizar la entrega.
+        - `PENDIENTE_ACTIVACION`: pagado, pero el producto es de implementación manual y
+          **usted** tiene que activarlo —`POST /movements/mine/products/{lineId}/activation`—.
+          **Hasta el 28-09-2026 se llamaba `PENDIENTE_AUTORIZACION`**: es un cambio
+          incompatible.
         - `ACTIVO`: entregado, con `deliveredAt` y —si caduca— `validUntil`, que es la
           entrega más la vigencia comprada. La vigencia corre **desde la entrega**, no desde
           la compra.
@@ -9697,9 +9756,12 @@ paths:
         - `RECHAZADO` / `ANULADO`: la venta terminó así.
 
         **Solo lo que compró usted** —el sujeto de la venta—: lo que vendió a otros no
-        aparece aquí (está en `/movements/mine` con papel `SELLER`). Dos compras del mismo
+        aparece aquí (está en `/movements/sales`). Dos compras del mismo
         producto son dos filas, cada una con su vigencia. El nombre es **el que tenía el
         producto el día de la compra**. `state` filtra por estado; el orden es fijo.
+
+        **Cada fila trae `lineId`** (desde el 28-09-2026): la línea de venta, que es lo que se
+        activa.
       operationId: misProductos
       parameters:
       - name: page
@@ -13215,6 +13277,81 @@ components:
           $ref: "#/components/schemas/LedgerMovement"
         balances:
           $ref: "#/components/schemas/Balances"
+    MyProduct:
+      type: object
+      description: "Un producto de una compra propia, con su estado."
+      properties:
+        lineId:
+          type: string
+          format: uuid
+          description: "La línea de venta: lo que se activa en /movements/mine/products/{lineId}/activation."
+        movementId:
+          type: string
+          format: uuid
+          description: "De qué venta viene; se abre en /movements/mine/{id}."
+        movementCode:
+          type: string
+        movementStatus:
+          type: string
+        product:
+          $ref: "#/components/schemas/MyProductRef"
+        quantity:
+          type: integer
+          format: int32
+        implementation:
+          type: string
+          description: "COPIA de cómo se entrega: AUTOMATICA o MANUAL."
+        state:
+          type: string
+          description: "El estado, calculado de la venta, la entrega y la vigencia."
+          enum:
+          - PENDIENTE_PAGO
+          - PENDIENTE_ACTIVACION
+          - ACTIVO
+          - VENCIDO
+          - CANCELADO
+          - RETENIDO
+          - RECHAZADO
+          - ANULADO
+        purchasedAt:
+          type: string
+          format: date-time
+          description: "Cuándo se compró: la fecha de la venta."
+        deliveredAt:
+          type:
+          - string
+          - "null"
+          format: date-time
+          description: Desde cuándo se tiene. NULO si no se ha entregado.
+        validUntil:
+          type:
+          - string
+          - "null"
+          format: date-time
+          description: "Hasta cuándo se tiene: la entrega más la vigencia comprada.\
+            \ NULO si no se ha entregado o si no caduca."
+        deliveryNote:
+          type:
+          - string
+          - "null"
+          description: Por qué no se entregará. Solo en RETENIDO.
+        couponUrl:
+          type:
+          - string
+          - "null"
+          description: "El cupón del bot, ya resuelto. Solo si la línea está entregada\
+            \ (ACTIVO o VENCIDO) y el producto lo declara; NULO en cualquier otro\
+            \ caso."
+    MyProductRef:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        code:
+          type: string
+        name:
+          type: string
     GrantBonusRequest:
       type: object
       properties:
@@ -15462,77 +15599,6 @@ components:
           format: int32
         totalIsExact:
           type: boolean
-    MyProduct:
-      type: object
-      description: "Un producto de una compra propia, con su estado."
-      properties:
-        movementId:
-          type: string
-          format: uuid
-          description: "De qué venta viene; se abre en /movements/mine/{id}."
-        movementCode:
-          type: string
-        movementStatus:
-          type: string
-        product:
-          $ref: "#/components/schemas/MyProductRef"
-        quantity:
-          type: integer
-          format: int32
-        implementation:
-          type: string
-          description: "COPIA de cómo se entrega: AUTOMATICA o MANUAL."
-        state:
-          type: string
-          description: "El estado, calculado de la venta, la entrega y la vigencia."
-          enum:
-          - PENDIENTE_PAGO
-          - PENDIENTE_AUTORIZACION
-          - ACTIVO
-          - VENCIDO
-          - CANCELADO
-          - RETENIDO
-          - RECHAZADO
-          - ANULADO
-        purchasedAt:
-          type: string
-          format: date-time
-          description: "Cuándo se compró: la fecha de la venta."
-        deliveredAt:
-          type:
-          - string
-          - "null"
-          format: date-time
-          description: Desde cuándo se tiene. NULO si no se ha entregado.
-        validUntil:
-          type:
-          - string
-          - "null"
-          format: date-time
-          description: "Hasta cuándo se tiene: la entrega más la vigencia comprada.\
-            \ NULO si no se ha entregado o si no caduca."
-        deliveryNote:
-          type:
-          - string
-          - "null"
-          description: Por qué no se entregará. Solo en RETENIDO.
-        couponUrl:
-          type:
-          - string
-          - "null"
-          description: "El cupón del bot, ya resuelto. Solo si la línea está entregada\
-            \ (ACTIVO o VENCIDO) y el producto lo declara; NULO en cualquier otro\
-            \ caso."
-    MyProductRef:
-      type: object
-      properties:
-        id:
-          type: string
-          format: uuid
-        code:
-          type: string
-        name:
-          type: string
     PageResponseMyProduct:
       type: object
       properties:

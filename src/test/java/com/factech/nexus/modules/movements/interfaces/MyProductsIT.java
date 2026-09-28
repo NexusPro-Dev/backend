@@ -172,14 +172,14 @@ class MyProductsIT extends IntegrationTestBase {
   }
 
   @Test
-  @DisplayName("CA-MV-103 — manual confirmado y sin autorizar: PENDIENTE_AUTORIZACION")
-  void pendienteDeAutorizacion() throws Exception {
+  @DisplayName("CA-MV-103 — manual confirmado y sin activar: PENDIENTE_ACTIVACION")
+  void pendienteDeActivacion() throws Exception {
     UUID manual = producto("MP_MANUAL", "Bot manual", "MANUAL");
     venta(comprador, vendedor, "CONFIRMADA", BASE, null, "PENDIENTE", null, manual);
 
     mvc.perform(get("/api/v1/movements/mine/products").with(propio(comprador)))
         .andExpect(status().isOk())
-        .andExpect(jsonPath("$.content[0].state").value("PENDIENTE_AUTORIZACION"))
+        .andExpect(jsonPath("$.content[0].state").value("PENDIENTE_ACTIVACION"))
         .andExpect(jsonPath("$.content[0].implementation").value("MANUAL"));
   }
 

@@ -47,7 +47,9 @@ class MovementsPermissionsSeedIT extends IntegrationTestBase {
           // `V49` (`RF-MV-019` y `RF-MV-022`): pedir un retiro y consultar los saldos propios.
           "movements:request-withdrawal",
           "movements:read-own-balances",
-          "movements:list-own-entries");
+          "movements:list-own-entries",
+          // `V50` (`RF-MV-010`, 28-09-2026): activar lo comprado, por tipo de rol.
+          "movements:activate-own-product");
 
   /**
    * El de `V36` (`RF-MV-016`): tampoco es de la reserva —va a SUPERADMIN y ADMIN, explícito— y
@@ -91,7 +93,7 @@ class MovementsPermissionsSeedIT extends IntegrationTestBase {
         .containsAll(LOS_PROPIOS)
         .contains(ASIGNAR, LINEAS, RECHAZAR)
         .containsAll(LOS_DE_SALDOS)
-        .hasSize(18);
+        .hasSize(19);
   }
 
   @Test
@@ -112,7 +114,7 @@ class MovementsPermissionsSeedIT extends IntegrationTestBase {
     // RN-SEG-007: la raíz de la contención está acotada por el catálogo
     // completo. Un permiso sembrado y no asociado la dejaría por detrás de sus
     // propios hijos.
-    assertThat(permisosDeMovimientosDe(SUPERADMIN)).containsAll(LOS_CUATRO).hasSize(18);
+    assertThat(permisosDeMovimientosDe(SUPERADMIN)).containsAll(LOS_CUATRO).hasSize(19);
   }
 
   @Test
@@ -155,7 +157,7 @@ class MovementsPermissionsSeedIT extends IntegrationTestBase {
     List<UUID> ids =
         jdbc.queryForList("SELECT id FROM permissions WHERE resource = 'movements'", UUID.class);
 
-    assertThat(ids).hasSize(18).doesNotHaveDuplicates();
+    assertThat(ids).hasSize(19).doesNotHaveDuplicates();
     assertThat(ids).allSatisfy(id -> assertThat(id.version()).isEqualTo(7));
     // variant() == 2 es la variante RFC 9562 (bits 10xx).
     assertThat(ids).allSatisfy(id -> assertThat(id.variant()).isEqualTo(2));

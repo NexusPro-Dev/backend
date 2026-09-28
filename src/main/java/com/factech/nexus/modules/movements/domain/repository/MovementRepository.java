@@ -462,6 +462,28 @@ public interface MovementRepository {
       Integer validityDays) {}
 
   // ---------------------------------------------------------------------------
+  // `RF-MV-010` — activar un producto comprado de implementación manual
+  // ---------------------------------------------------------------------------
+
+  /**
+   * La línea {@code lineId} <b>si es de una venta a nombre de</b> {@code actorId}, con lo que hace
+   * falta para entregarla, y <b>bloqueada</b> hasta el final de la transacción.
+   *
+   * <p>El alcance va en la sentencia (`RN-MV-048`): la línea de otra persona no existe para quien
+   * pregunta, y vacío es la misma respuesta para las dos cosas. El bloqueo es lo que hace que dos
+   * activaciones simultáneas entreguen una vez: la segunda espera, y lee la línea ya entregada.
+   */
+  Optional<OwnLineRow> findOwnLineForActivation(UUID lineId, UUID actorId);
+
+  /**
+   * Una línea propia a punto de activarse.
+   *
+   * @param movementStatus el de la venta: solo una {@code CONFIRMADA} se activa
+   * @param deliveryStatus el de la línea: solo una {@code PENDIENTE} se activa
+   */
+  record OwnLineRow(String movementStatus, String deliveryStatus, DeliveryLineRow line) {}
+
+  // ---------------------------------------------------------------------------
   // `RF-MV-014` — los productos comprados propios
   // ---------------------------------------------------------------------------
 
@@ -484,12 +506,21 @@ public interface MovementRepository {
   long countMyProducts(UUID actorId, String state, OffsetDateTime now);
 
   /**
+   * Una sola fila del registro de lo comprado, con el mismo cálculo que {@link #findMyProducts}: la
+   * respuesta de activar (`RF-MV-010`). Vacío si la línea no es de una venta a nombre de {@code
+   * actorId}.
+   */
+  Optional<MyProductRow> findMyProduct(UUID actorId, UUID lineId, OffsetDateTime now);
+
+  /**
    * Una fila del registro de lo comprado (`RF-MV-014`).
    *
+   * @param lineId la línea: lo que `RF-MV-010` activa
    * @param state calculado por el motor de la venta, la entrega y la vigencia
    * @param validUntil {@code deliveredAt + validityDays}; nulo si no se entregó o si no caduca
    */
   record MyProductRow(
+      UUID lineId,
       UUID movementId,
       String movementCode,
       String movementStatus,

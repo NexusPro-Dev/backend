@@ -50,6 +50,8 @@ class SystemRolesSeedIT extends IntegrationTestBase {
           "movements:request-withdrawal",
           "movements:read-own-balances",
           "movements:list-own-entries",
+          // `V50` (28-09-2026): activar lo comprado (`RF-MV-010`), por tipo de rol.
+          "movements:activate-own-product",
           "movements:list-sales",
           "movements:read",
           "movements:read-own",
@@ -82,6 +84,8 @@ class SystemRolesSeedIT extends IntegrationTestBase {
           "movements:request-withdrawal",
           "movements:read-own-balances",
           "movements:list-own-entries",
+          // `V50` (28-09-2026): activar lo comprado (`RF-MV-010`), por tipo de rol.
+          "movements:activate-own-product",
           "movements:list-sales",
           "movements:read-own",
           "movements:read-own-products",
@@ -108,6 +112,8 @@ class SystemRolesSeedIT extends IntegrationTestBase {
           "movements:request-withdrawal",
           "movements:read-own-balances",
           "movements:list-own-entries",
+          // `V50` (28-09-2026): activar lo comprado (`RF-MV-010`), por tipo de rol.
+          "movements:activate-own-product",
           "movements:read-own",
           "movements:read-own-products",
           "packages:buy",

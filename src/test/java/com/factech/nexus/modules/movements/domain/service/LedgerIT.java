@@ -56,7 +56,9 @@ class LedgerIT extends IntegrationTestBase {
     UUID movimiento = jdbc.queryForObject("SELECT id FROM movements", UUID.class);
     UUID cuenta =
         jdbc.queryForObject(
-            "SELECT id FROM accounts WHERE user_id = ? AND kind = 'BILLETERA'", UUID.class, persona);
+            "SELECT id FROM accounts WHERE user_id = ? AND kind = 'BILLETERA'",
+            UUID.class,
+            persona);
 
     assertThatThrownBy(
             () ->
