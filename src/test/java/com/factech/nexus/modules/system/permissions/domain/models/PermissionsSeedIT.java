@@ -33,7 +33,7 @@ class PermissionsSeedIT extends IntegrationTestBase {
           + " V47: courses:read-available y lessons:learn del aula, RF-AC-034 y RF-AC-035)")
   void catalogoCompleto() {
     assertThat(jdbc.queryForObject("SELECT count(*) FROM permissions", Integer.class))
-        .isEqualTo(144);
+        .isEqualTo(145);
   }
 
   @Test
@@ -201,6 +201,8 @@ class PermissionsSeedIT extends IntegrationTestBase {
             "movements:read-own-balances",
             "movements:list-own-entries",
             "movements:grant-bonus",
+            // `V50` (28-09-2026): activar lo comprado (`RF-MV-010`).
+            "movements:activate-own-product",
             // El SEGUNDO recurso de `PM` (`V93`, 15-09-2026), por decisión del
             // responsable del proyecto: armar paquetes y tocar el catálogo son
             // dos capacidades, y los `products:` no habilitan ni una operación
@@ -282,7 +284,7 @@ class PermissionsSeedIT extends IntegrationTestBase {
   void identificadoresUuidV7() {
     List<UUID> ids = jdbc.queryForList("SELECT id FROM permissions", UUID.class);
 
-    assertThat(ids).hasSize(144).doesNotHaveDuplicates();
+    assertThat(ids).hasSize(145).doesNotHaveDuplicates();
     assertThat(ids).allSatisfy(id -> assertThat(id.version()).isEqualTo(7));
     // variant() == 2 es la variante RFC 9562 (bits 10xx).
     assertThat(ids).allSatisfy(id -> assertThat(id.variant()).isEqualTo(2));
@@ -348,13 +350,13 @@ class PermissionsSeedIT extends IntegrationTestBase {
                 "SELECT count(*) FROM role_permissions WHERE role_id ="
                     + " '01a02a33-4c00-7001-9c4f-5e7ad1000001'",
                 Integer.class))
-        .isEqualTo(144);
+        .isEqualTo(145);
     assertThat(
             jdbc.queryForObject(
                 "SELECT count(*) FROM role_permissions WHERE role_id ="
                     + " '01a02a33-4c00-7002-9c4f-5e7ad1000002'",
                 Integer.class))
-        .isEqualTo(142);
+        .isEqualTo(143);
     assertThat(
             jdbc.queryForList(
                 """
@@ -432,9 +434,11 @@ class PermissionsSeedIT extends IntegrationTestBase {
     // Y LO QUE `V40` LE DA: comprar, reseñar lo comprado y ver la oferta.
     assertThat(cliente)
         // Catorce desde `V48`: volver a pagar lo propio (`RF-MV-018`) va a todo rol por su tipo.
-        .hasSize(17)
+        // Y dieciocho desde `V50`: activar lo comprado (`RF-MV-010`), también por tipo.
+        .hasSize(18)
         .contains(
             "movements:retry-payment",
+            "movements:activate-own-product",
             "movements:create",
             "products:sale",
             "products:comment",

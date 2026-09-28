@@ -305,6 +305,9 @@ class EndpointPermissionsIT extends IntegrationTestBase {
           Map.entry("GET /api/v1/movements/mine/shopping", "movements:list-own"),
           Map.entry("GET /api/v1/movements/mine/{id}", "movements:read-own"),
           Map.entry("GET /api/v1/movements/mine/products", "movements:read-own-products"),
+          Map.entry(
+              "POST /api/v1/movements/mine/products/{lineId}/activation",
+              "movements:activate-own-product"),
           Map.entry("GET /api/v1/movements/sales", "movements:list-sales"),
           Map.entry("GET /api/v1/movements/sales/lines", "movements:list-sale-lines"),
           Map.entry("POST /api/v1/packages/{code}/purchases", "packages:buy"),

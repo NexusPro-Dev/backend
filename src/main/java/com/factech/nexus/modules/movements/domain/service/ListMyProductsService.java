@@ -87,27 +87,51 @@ public class ListMyProductsService {
 
     List<MyProductResponse> contenido = new ArrayList<>(filas.size());
     for (MyProductRow fila : filas) {
-      PurchasedProductState estadoLinea = PurchasedProductState.valueOf(fila.state());
-      contenido.add(
-          new MyProductResponse(
-              fila.movementId(),
-              fila.movementCode(),
-              fila.movementStatus(),
-              new MyProductResponse.ProductRef(
-                  fila.productId(), fila.productCode(), fila.productName()),
-              fila.quantity(),
-              fila.implementation(),
-              estadoLinea,
-              fila.purchasedAt(),
-              fila.deliveredAt(),
-              fila.validUntil(),
-              fila.deliveryNote(),
-              // El mapa solo tiene a los entregados, pero la condicion se repite
-              // aqui a proposito: leerla junto al campo es lo que hace que
-              // nadie la pierda al tocar la linea de arriba.
-              estadoLinea.estaEntregado() ? cupones.get(fila.productId()) : null));
+      contenido.add(aRespuesta(fila, cupones));
     }
     return PageResponse.de(contenido, total, pagina.page(), pagina.size());
+  }
+
+  /**
+   * Una línea propia, como la trae el listado: la respuesta de activarla (`RF-MV-010`).
+   *
+   * <p>Sin {@code readOnly}: corre dentro de la transacción de quien activa, y tiene que leer lo
+   * que esa transacción acaba de escribir.
+   *
+   * @throws IllegalStateException si la línea no es del actor; quien llama ya lo comprobó
+   */
+  @Transactional
+  public MyProductResponse get(UUID lineId) {
+    MyProductRow fila =
+        movimientos
+            .findMyProduct(actor.id(), lineId, OffsetDateTime.now(reloj))
+            .orElseThrow(() -> new IllegalStateException("La línea " + lineId + " desapareció."));
+    Map<UUID, String> cupones =
+        PurchasedProductState.valueOf(fila.state()).estaEntregado()
+            ? catalogo.couponLinksOf(List.of(fila.productId()))
+            : Map.of();
+    return aRespuesta(fila, cupones);
+  }
+
+  private static MyProductResponse aRespuesta(MyProductRow fila, Map<UUID, String> cupones) {
+    PurchasedProductState estadoLinea = PurchasedProductState.valueOf(fila.state());
+    return new MyProductResponse(
+        fila.lineId(),
+        fila.movementId(),
+        fila.movementCode(),
+        fila.movementStatus(),
+        new MyProductResponse.ProductRef(fila.productId(), fila.productCode(), fila.productName()),
+        fila.quantity(),
+        fila.implementation(),
+        estadoLinea,
+        fila.purchasedAt(),
+        fila.deliveredAt(),
+        fila.validUntil(),
+        fila.deliveryNote(),
+        // El mapa solo tiene a los entregados, pero la condicion se repite
+        // aqui a proposito: leerla junto al campo es lo que hace que
+        // nadie la pierda al tocar la linea de arriba.
+        estadoLinea.estaEntregado() ? cupones.get(fila.productId()) : null);
   }
 
   /** `VAL-002`, contra el enumerado y no contra una lista escrita a mano. */

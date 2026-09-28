@@ -1060,19 +1060,60 @@ public class JpaMovementRepository implements MovementRepository {
             .getResultList();
     List<DeliveryLineRow> resultado = new ArrayList<>(filas.size());
     for (Tuple fila : filas) {
-      resultado.add(
-          new DeliveryLineRow(
-              (UUID) fila.get("linea_id"),
-              (UUID) fila.get("p_id"),
-              (String) fila.get("p_code"),
-              (String) fila.get("impl"),
-              "UPGRADE_MEMBRESIA".equals(fila.get("p_type")),
-              (UUID) fila.get("m_id"),
-              (String) fila.get("m_code"),
-              fila.get("m_level") == null ? null : ((Number) fila.get("m_level")).intValue(),
-              fila.get("vigencia") == null ? null : ((Number) fila.get("vigencia")).intValue()));
+      resultado.add(lineaParaEntregar(fila));
     }
     return resultado;
+  }
+
+  /** Las columnas de {@link #findLinesForDelivery}, con sus alias; también las de activar. */
+  private static DeliveryLineRow lineaParaEntregar(Tuple fila) {
+    return new DeliveryLineRow(
+        (UUID) fila.get("linea_id"),
+        (UUID) fila.get("p_id"),
+        (String) fila.get("p_code"),
+        (String) fila.get("impl"),
+        "UPGRADE_MEMBRESIA".equals(fila.get("p_type")),
+        (UUID) fila.get("m_id"),
+        (String) fila.get("m_code"),
+        fila.get("m_level") == null ? null : ((Number) fila.get("m_level")).intValue(),
+        fila.get("vigencia") == null ? null : ((Number) fila.get("vigencia")).intValue());
+  }
+
+  @Override
+  @Transactional
+  public Optional<OwnLineRow> findOwnLineForActivation(UUID lineId, UUID actorId) {
+    @SuppressWarnings("unchecked")
+    List<Tuple> filas =
+        em.createNativeQuery(
+                """
+                SELECT d.id AS linea_id, d.product_id AS p_id, p.code AS p_code, d.implementation AS impl,
+                       p.type AS p_type, p.target_membership_id AS m_id,
+                       m.code AS m_code, m.level AS m_level,
+                       d.validity_days AS vigencia,
+                       mv.status AS mov_status, d.delivery_status AS entrega
+                  FROM movement_details d
+                  JOIN movements mv ON mv.id = d.movement_id
+                  JOIN products p ON p.id = d.product_id
+                  LEFT JOIN memberships m ON m.id = p.target_membership_id
+                 -- EL ALCANCE VA AQUI (`RN-MV-048`): la linea de otra persona no
+                 -- existe para quien pregunta, y ningun permiso lo ensancha.
+                 WHERE d.id = :linea AND mv.user_id = :actor
+                 -- Solo la linea: bloquear la venta pararia a quien confirma otra
+                 -- linea suya o consulta su detalle, y no hay nada que proteger ahi.
+                   FOR UPDATE OF d
+                """,
+                Tuple.class)
+            .setParameter("linea", lineId)
+            .setParameter("actor", actorId)
+            .getResultList();
+    return filas.stream()
+        .findFirst()
+        .map(
+            fila ->
+                new OwnLineRow(
+                    (String) fila.get("mov_status"),
+                    (String) fila.get("entrega"),
+                    lineaParaEntregar(fila)));
   }
 
   @Override
@@ -1180,7 +1221,7 @@ public class JpaMovementRepository implements MovementRepository {
                  WHEN m.status = 'RECHAZADA'          THEN 'RECHAZADO'
                  WHEN m.status = 'ANULADA'            THEN 'ANULADO'
                  WHEN d.delivery_status = 'RETENIDA'  THEN 'RETENIDO'
-                 WHEN d.delivery_status = 'PENDIENTE' THEN 'PENDIENTE_AUTORIZACION'
+                 WHEN d.delivery_status = 'PENDIENTE' THEN 'PENDIENTE_ACTIVACION'
                  -- ANTES que el vencimiento, y el orden es la decision: quien dejo
                  -- de tenerlo el dia doce no «vencio» el treinta.
                  WHEN up.closed_at IS NOT NULL        THEN 'CANCELADO'
@@ -1200,13 +1241,7 @@ public class JpaMovementRepository implements MovementRepository {
     @SuppressWarnings("unchecked")
     List<Tuple> filas =
         em.createNativeQuery(
-                """
-                SELECT m.id AS mov_id, m.code AS mov_code, m.status AS mov_status,
-                       d.product_id AS product_id, p.code AS p_code, d.product_name AS p_name,
-                       d.quantity AS cantidad, d.implementation AS impl, e.estado AS estado,
-                       m.occurred_at AS comprado_en, d.delivered_at AS entregado_en,
-                       v.hasta AS hasta, d.delivery_note AS motivo
-                """
+                COLUMNAS_PRODUCTO_PROPIO
                     + PRODUCTOS_PROPIOS
                     // De la compra más reciente a la más antigua; el desempate por
                     // venta y por código de producto es lo que lo hace estable.
@@ -1221,23 +1256,53 @@ public class JpaMovementRepository implements MovementRepository {
             .getResultList();
     List<MyProductRow> resultado = new ArrayList<>(filas.size());
     for (Tuple fila : filas) {
-      resultado.add(
-          new MyProductRow(
-              (UUID) fila.get("mov_id"),
-              (String) fila.get("mov_code"),
-              (String) fila.get("mov_status"),
-              (UUID) fila.get("product_id"),
-              (String) fila.get("p_code"),
-              (String) fila.get("p_name"),
-              ((Number) fila.get("cantidad")).intValue(),
-              (String) fila.get("impl"),
-              (String) fila.get("estado"),
-              instante(fila.get("comprado_en")),
-              instante(fila.get("entregado_en")),
-              instante(fila.get("hasta")),
-              (String) fila.get("motivo")));
+      resultado.add(productoPropio(fila));
     }
     return resultado;
+  }
+
+  @Override
+  @Transactional(readOnly = true)
+  public Optional<MyProductRow> findMyProduct(UUID actorId, UUID lineId, OffsetDateTime now) {
+    // La MISMA sentencia que el listado, acotada a una línea: el estado que
+    // devuelve activar no puede calcularse de otra forma que el que lista.
+    @SuppressWarnings("unchecked")
+    List<Tuple> filas =
+        em.createNativeQuery(
+                COLUMNAS_PRODUCTO_PROPIO + PRODUCTOS_PROPIOS + " AND d.id = :linea", Tuple.class)
+            .setParameter("actor", actorId)
+            .setParameter("estado", null)
+            .setParameter("ahora", now)
+            .setParameter("linea", lineId)
+            .getResultList();
+    return filas.stream().findFirst().map(JpaMovementRepository::productoPropio);
+  }
+
+  private static final String COLUMNAS_PRODUCTO_PROPIO =
+      """
+      SELECT d.id AS linea_id, m.id AS mov_id, m.code AS mov_code, m.status AS mov_status,
+             d.product_id AS product_id, p.code AS p_code, d.product_name AS p_name,
+             d.quantity AS cantidad, d.implementation AS impl, e.estado AS estado,
+             m.occurred_at AS comprado_en, d.delivered_at AS entregado_en,
+             v.hasta AS hasta, d.delivery_note AS motivo
+      """;
+
+  private static MyProductRow productoPropio(Tuple fila) {
+    return new MyProductRow(
+        (UUID) fila.get("linea_id"),
+        (UUID) fila.get("mov_id"),
+        (String) fila.get("mov_code"),
+        (String) fila.get("mov_status"),
+        (UUID) fila.get("product_id"),
+        (String) fila.get("p_code"),
+        (String) fila.get("p_name"),
+        ((Number) fila.get("cantidad")).intValue(),
+        (String) fila.get("impl"),
+        (String) fila.get("estado"),
+        instante(fila.get("comprado_en")),
+        instante(fila.get("entregado_en")),
+        instante(fila.get("hasta")),
+        (String) fila.get("motivo"));
   }
 
   @Override

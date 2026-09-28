@@ -2794,6 +2794,11 @@
             "description" : "COPIA de cómo se entrega: AUTOMATICA o MANUAL.",
             "type" : "string"
           },
+          "lineId" : {
+            "description" : "La línea de venta: lo que se activa en /movements/mine/products/{lineId}/activation.",
+            "format" : "uuid",
+            "type" : "string"
+          },
           "movementCode" : {
             "type" : "string"
           },
@@ -2819,7 +2824,7 @@
           },
           "state" : {
             "description" : "El estado, calculado de la venta, la entrega y la vigencia.",
-            "enum" : [ "PENDIENTE_PAGO", "PENDIENTE_AUTORIZACION", "ACTIVO", "VENCIDO", "CANCELADO", "RETENIDO", "RECHAZADO", "ANULADO" ],
+            "enum" : [ "PENDIENTE_PAGO", "PENDIENTE_ACTIVACION", "ACTIVO", "VENCIDO", "CANCELADO", "RETENIDO", "RECHAZADO", "ANULADO" ],
             "type" : "string"
           },
           "validUntil" : {
@@ -11842,7 +11847,7 @@
     },
     "/api/v1/movements/mine/products" : {
       "get" : {
-        "description" : "**Permiso requerido:** `movements:read-own-products`. Sin él, `403` (`AUTH-002`).\n\nDevuelve **los productos de las ventas a su nombre**, uno por línea de venta, del más\nreciente al más antiguo, y **en qué estado está cada uno**:\n\n- `PENDIENTE_PAGO`: la venta no se ha confirmado; todavía no lo tiene.\n- `PENDIENTE_AUTORIZACION`: pagado, pero el producto es de implementación manual y\n  alguien tiene que autorizar la entrega.\n- `ACTIVO`: entregado, con `deliveredAt` y —si caduca— `validUntil`, que es la\n  entrega más la vigencia comprada. La vigencia corre **desde la entrega**, no desde\n  la compra.\n- `VENCIDO`: entregado y con la vigencia pasada.\n- `RETENIDO`: pagado y **no se entregará** — `deliveryNote` dice por qué (`RN-MV-029`).\n- `RECHAZADO` / `ANULADO`: la venta terminó así.\n\n**Solo lo que compró usted** —el sujeto de la venta—: lo que vendió a otros no\naparece aquí (está en `/movements/mine` con papel `SELLER`). Dos compras del mismo\nproducto son dos filas, cada una con su vigencia. El nombre es **el que tenía el\nproducto el día de la compra**. `state` filtra por estado; el orden es fijo.\n",
+        "description" : "**Permiso requerido:** `movements:read-own-products`. Sin él, `403` (`AUTH-002`).\n\nDevuelve **los productos de las ventas a su nombre**, uno por línea de venta, del más\nreciente al más antiguo, y **en qué estado está cada uno**:\n\n- `PENDIENTE_PAGO`: la venta no se ha confirmado; todavía no lo tiene.\n- `PENDIENTE_ACTIVACION`: pagado, pero el producto es de implementación manual y\n  **usted** tiene que activarlo —`POST /movements/mine/products/{lineId}/activation`—.\n  **Hasta el 28-09-2026 se llamaba `PENDIENTE_AUTORIZACION`**: es un cambio\n  incompatible.\n- `ACTIVO`: entregado, con `deliveredAt` y —si caduca— `validUntil`, que es la\n  entrega más la vigencia comprada. La vigencia corre **desde la entrega**, no desde\n  la compra.\n- `VENCIDO`: entregado y con la vigencia pasada.\n- `RETENIDO`: pagado y **no se entregará** — `deliveryNote` dice por qué (`RN-MV-029`).\n- `RECHAZADO` / `ANULADO`: la venta terminó así.\n\n**Solo lo que compró usted** —el sujeto de la venta—: lo que vendió a otros no\naparece aquí (está en `/movements/sales`). Dos compras del mismo\nproducto son dos filas, cada una con su vigencia. El nombre es **el que tenía el\nproducto el día de la compra**. `state` filtra por estado; el orden es fijo.\n\n**Cada fila trae `lineId`** (desde el 28-09-2026): la línea de venta, que es lo que se\nactiva.\n",
         "operationId" : "misProductos",
         "parameters" : [ {
           "in" : "query",
@@ -11895,6 +11900,54 @@
         "summary" : "Consultar los productos comprados propios",
         "tags" : [ "Movimientos" ],
         "x-required-permission" : "movements:read-own-products"
+      }
+    },
+    "/api/v1/movements/mine/products/{lineId}/activation" : {
+      "post" : {
+        "description" : "**Permiso requerido:** `movements:activate-own-product`. Sin él, `403` (`AUTH-002`).\n\nActiva **un producto que usted compró** y cuya implementación es **manual**: la línea\n`lineId` de `GET /api/v1/movements/mine/products`, que aparece allí como\n`PENDIENTE_ACTIVACION`. **Sin cuerpo.**\n\n**Activar es entregar**: desde este instante usted lo tiene, y **la vigencia corre desde\nla activación**, no desde la compra ni desde la confirmación del pago. Si el producto\nes un **upgrade de membresía**, se le concede el nivel — **salvo que baje del que tiene\nahora**: entonces el producto queda `RETENIDO` con el motivo en `deliveryNote`, y su\nnivel no cambia.\n\n**Solo lo activa quien lo compró.** Ningún permiso abre la compra de otra persona, y\nsu línea responde `404`, **exactamente igual que una que no existe**.\n\n**No se deshace**: de una entrega no se sale. Activar dos veces responde `409` la\nsegunda y entrega una sola vez.\n\nDevuelve el producto como queda, con la misma forma que el listado —el cupón del bot\nincluido, si el producto lo declara—.\n",
+        "operationId" : "activarProducto",
+        "parameters" : [ {
+          "in" : "path",
+          "name" : "lineId",
+          "required" : true,
+          "schema" : {
+            "format" : "uuid",
+            "type" : "string"
+          }
+        } ],
+        "responses" : {
+          "200" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/MyProduct"
+                }
+              }
+            },
+            "description" : "Activado —o `RETENIDO` si era un upgrade que bajaría de nivel—."
+          },
+          "400" : {
+            "description" : "Identificador malformado (`VAL-001`)"
+          },
+          "401" : {
+            "description" : "Token ausente o inválido (`AUTH-001`)"
+          },
+          "403" : {
+            "description" : "Autenticado sin `movements:activate-own-product` (`AUTH-002`)"
+          },
+          "404" : {
+            "description" : "No existe **o no es de una compra suya** (`EX-001`). Las dos son la misma respuesta"
+          },
+          "409" : {
+            "description" : "La venta no está confirmada (`EX-002`), el producto no es de implementación manual (`EX-003`) o ya no está pendiente de activación (`EX-004`); el mensaje dice en qué estado está"
+          },
+          "500" : {
+            "description" : "Fallo no controlado (`ERR-500`)"
+          }
+        },
+        "summary" : "Activar un producto comprado",
+        "tags" : [ "Movimientos" ],
+        "x-required-permission" : "movements:activate-own-product"
       }
     },
     "/api/v1/movements/mine/shopping" : {
