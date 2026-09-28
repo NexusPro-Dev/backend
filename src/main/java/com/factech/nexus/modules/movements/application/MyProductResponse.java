@@ -1,5 +1,6 @@
 package com.factech.nexus.modules.movements.application;
 
+import com.factech.nexus.modules.products.application.OfferItem;
 import com.fasterxml.jackson.annotation.JsonInclude;
 import io.swagger.v3.oas.annotations.media.Schema;
 import java.time.OffsetDateTime;
@@ -23,7 +24,22 @@ public record MyProductResponse(
     @Schema(description = "De qué venta viene; se abre en /movements/mine/{id}.") UUID movementId,
     String movementCode,
     String movementStatus,
-    ProductRef product,
+    /**
+     * El producto <b>en la forma de la oferta</b> —la de {@code GET /products/available}— y <b>como
+     * está hoy</b> en el catálogo (28-09-2026): un solo lector para la tienda y para lo comprado.
+     * Hasta esa fecha era una referencia de tres campos con el nombre de la compra, que ahora viaja
+     * en {@link #purchasedName}.
+     *
+     * <p>Sin {@code CUPON_BOT} entre sus enlaces, como en la oferta: el cupón viaja en {@link
+     * #couponUrl} y solo cuando la línea está entregada (`RN-MV-032`).
+     */
+    @Schema(
+            description =
+                "El producto como en /products/available, leído del catálogo de hoy. Sin el"
+                    + " cupón del bot: ese viaja en couponUrl.")
+        OfferItem product,
+    @Schema(description = "El nombre del producto el día de la compra (RN-MV-002).")
+        String purchasedName,
     int quantity,
     @Schema(description = "COPIA de cómo se entrega: AUTOMATICA o MANUAL.") String implementation,
     @Schema(description = "El estado, calculado de la venta, la entrega y la vigencia.")
@@ -65,9 +81,4 @@ public record MyProductResponse(
             description =
                 "El cupón del bot, ya resuelto. Solo si la línea está entregada (ACTIVO o"
                     + " VENCIDO) y el producto lo declara; NULO en cualquier otro caso.")
-        String couponUrl) {
-
-  /** El producto, con el nombre <b>tal como se compró</b> (la copia de la línea, `RN-MV-002`). */
-  @Schema(name = "MyProductRef")
-  public record ProductRef(UUID id, String code, String name) {}
-}
+        String couponUrl) {}

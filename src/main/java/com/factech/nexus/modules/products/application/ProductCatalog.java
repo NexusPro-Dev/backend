@@ -147,6 +147,25 @@ public interface ProductCatalog {
   Map<UUID, String> couponLinksOf(Collection<UUID> ids);
 
   /**
+   * Esos productos <b>en la forma de la oferta</b> —{@link OfferItem}, la de {@code GET
+   * /products/available}—, leídos del catálogo de hoy (`RF-MV-014`, 28-09-2026).
+   *
+   * <p><b>La misma forma y no una parecida</b>: quien pinta la tienda y quien pinta lo comprado
+   * leen el producto con un solo lector. Con ella viajan sus garantías: los enlaces publicables
+   * resueltos y <b>sin el {@code CUPON_BOT}</b> (`RN-PM-050`), la conversión de {@code price} y
+   * <b>ningún precio de compra</b> (`RN-PM-024`).
+   *
+   * <p><b>No filtra nada</b>, como {@link #saleViewOf}: lo retirado o inactivo también se devuelve,
+   * porque lo que alguien compró no deja de ser suyo cuando el catálogo cambia.
+   *
+   * <p><b>Recibe un lote</b>: tres sentencias por página —productos, enlaces y tasa—, sean una fila
+   * o veinte.
+   *
+   * @return un mapa por producto; los que no existen <b>no aparecen</b>
+   */
+  Map<UUID, OfferItem> offerItemsOf(Collection<UUID> ids);
+
+  /**
    * El producto con <b>lo que es</b>: si es un {@code BOT}, además de si está retirado
    * (`RF-AC-037`, `RN-AC-020`).
    *
