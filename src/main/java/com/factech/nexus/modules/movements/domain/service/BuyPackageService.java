@@ -3,6 +3,7 @@ package com.factech.nexus.modules.movements.domain.service;
 import com.factech.nexus.modules.movements.application.BuyPackageRequest;
 import com.factech.nexus.modules.movements.application.PurchaseResponse;
 import com.factech.nexus.modules.movements.application.SaleResponse;
+import com.factech.nexus.modules.movements.domain.models.IdempotencyKey;
 import com.factech.nexus.modules.movements.domain.models.LineDiscount;
 import com.factech.nexus.modules.movements.domain.models.Movement;
 import com.factech.nexus.modules.movements.domain.models.MovementCode;
@@ -156,6 +157,14 @@ public class BuyPackageService {
    */
   @Transactional
   public PurchaseResponse buy(String codigoDelPaquete, BuyPackageRequest peticion) {
+    return buy(codigoDelPaquete, peticion, IdempotencyKey.generada());
+  }
+
+  /** Con la clave de idempotencia de la compra (`RF-MV-018` · `spec.md` §2.2). */
+  @Transactional
+  public PurchaseResponse buy(
+      String codigoDelPaquete, BuyPackageRequest peticion, IdempotencyKey clave) {
+    reglas.verificarClaveLibre(clave);
     UUID quien =
         actor
             .currentActorId()
@@ -165,14 +174,16 @@ public class BuyPackageService {
         cliente,
         atribuciones.deQuienCompra(cliente),
         codigoDelPaquete,
-        peticion == null ? null : peticion.paymentMethodId());
+        peticion == null ? null : peticion.paymentMethodId(),
+        clave);
   }
 
   PurchaseResponse registrar(
       ClientView cliente,
       SaleAttribution.Atribucion atribucion,
       String codigoDelPaquete,
-      UUID metodoDePago) {
+      UUID metodoDePago,
+      IdempotencyKey clave) {
     OffsetDateTime ahora = OffsetDateTime.now(reloj);
 
     PackageSaleView paquete = resolverPaquete(codigoDelPaquete, cliente.id());
@@ -205,7 +216,7 @@ public class BuyPackageService {
             ahora,
             ahora);
 
-    movimientos.save(venta, () -> MovementCode.generar(tipo.prefix(), ahora));
+    movimientos.save(venta, () -> MovementCode.generar(tipo.prefix(), ahora), clave);
 
     auditoria.recordChange(
         new ChangeEvent(MODULO, ENTIDAD, venta.getId(), ChangeAction.CREATE, venta.instantanea()));

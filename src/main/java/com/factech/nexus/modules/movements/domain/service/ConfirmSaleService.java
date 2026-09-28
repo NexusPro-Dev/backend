@@ -6,10 +6,6 @@ import com.factech.nexus.modules.movements.domain.models.Implementation;
 import com.factech.nexus.modules.movements.domain.repository.MovementRepository;
 import com.factech.nexus.modules.movements.domain.repository.MovementRepository.DeliveryLineRow;
 import com.factech.nexus.modules.movements.domain.repository.MovementRepository.MovementDetailView;
-import com.factech.nexus.modules.system.users.application.CurrentMembershipLookup;
-import com.factech.nexus.modules.system.users.application.CurrentMembershipLookup.CurrentMembershipView;
-import com.factech.nexus.modules.system.users.application.MembershipGrant;
-import com.factech.nexus.modules.system.users.application.MembershipGrant.GrantOrder;
 import com.factech.nexus.shared.audit.AuditEnums.ChangeAction;
 import com.factech.nexus.shared.audit.AuditEvents.ChangeEvent;
 import com.factech.nexus.shared.audit.AuditWriter;
@@ -22,7 +18,6 @@ import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.Optional;
 import java.util.UUID;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
@@ -41,10 +36,9 @@ import org.springframework.transaction.annotation.Transactional;
  * la transición delante, solo quien la ganó recorre las líneas, y la otra responde `EX-002` sin
  * haber leído nada (`RN-MV-005`).
  *
- * <p><b>Este servicio decide SI se concede; `SP` decide CÓMO.</b> Que el producto sea automático
- * (`RN-MV-021`), que sea un upgrade (`RN-MV-020`) y que no baje de nivel (`RN-MV-029`) se resuelven
- * aquí, antes de llamar a {@link MembershipGrant}; cerrar la vigente, abrir la comprada y auditar
- * lo hace `SP` con sus reglas (`architecture.md` §15.2.1).
+ * <p><b>Este servicio decide SI se entrega; {@link LineDelivery} decide CÓMO.</b> Que el producto
+ * sea automático (`RN-MV-021`) se resuelve aquí; que no baje de nivel (`RN-MV-029`) y la escritura
+ * de `SP` están en {@link LineDelivery}, que comparte con activar lo manual (`RF-MV-010`).
  */
 @Service
 public class ConfirmSaleService {
@@ -53,29 +47,20 @@ public class ConfirmSaleService {
   private static final String ENTIDAD = "movements";
 
   private final MovementRepository movimientos;
-  private final CurrentMembershipLookup membresias;
-  private final MembershipGrant concesion;
+  private final LineDelivery entrega;
   private final AuditWriter auditoria;
   private final Clock reloj;
 
   @Autowired
   public ConfirmSaleService(
-      MovementRepository movimientos,
-      CurrentMembershipLookup membresias,
-      MembershipGrant concesion,
-      AuditWriter auditoria) {
-    this(movimientos, membresias, concesion, auditoria, Clock.systemUTC());
+      MovementRepository movimientos, LineDelivery entrega, AuditWriter auditoria) {
+    this(movimientos, entrega, auditoria, Clock.systemUTC());
   }
 
   ConfirmSaleService(
-      MovementRepository movimientos,
-      CurrentMembershipLookup membresias,
-      MembershipGrant concesion,
-      AuditWriter auditoria,
-      Clock reloj) {
+      MovementRepository movimientos, LineDelivery entrega, AuditWriter auditoria, Clock reloj) {
     this.movimientos = movimientos;
-    this.membresias = membresias;
-    this.concesion = concesion;
+    this.entrega = entrega;
     this.auditoria = auditoria;
     this.reloj = reloj;
   }
@@ -95,6 +80,15 @@ public class ConfirmSaleService {
                   () ->
                       new ResourceNotFoundException(
                           "EX-001", "No existe un movimiento con ese identificador."));
+      // `CA-MV-219` (26-09-2026): pendiente y sin pago pendiente —el último se
+      // rechazó y nadie ha vuelto a pagar—. No hay cobro que dar por entrado.
+      if ("PENDIENTE".equals(estado) && !movimientos.hasPendingPayment(movementId)) {
+        String sinPago =
+            "La venta no tiene un pago pendiente: su último pago se rechazó y hay que volver a"
+                + " pagarla.";
+        throw new BusinessRuleException(
+            "EX-006", sinPago, List.of(new FieldError("payments", "EX-006", sinPago)));
+      }
       // EL ESTADO VA EN EL MENSAJE, y es lo que una pasarela que reentrega
       // necesita: saber que ese pago ya se procesó, no solo que algo chocó.
       String mensaje = "La venta no está pendiente: está " + estado + ".";
@@ -133,81 +127,20 @@ public class ConfirmSaleService {
   }
 
   /**
-   * Una línea: manual → sigue pendiente; automática sin upgrade → entregada; automática con upgrade
-   * → concede salvo que baje de nivel (`RN-MV-029`), y entonces se retiene.
+   * Una línea: manual → sigue pendiente, a la espera de quien la compró (`RF-MV-010`); automática →
+   * la entrega {@link LineDelivery}, que retiene el upgrade que bajaría de nivel.
    *
    * @return lo que se decidió, para el asiento de auditoría
    */
   private Map<String, Object> entregar(DeliveryLineRow linea, UUID sujeto, OffsetDateTime ahora) {
-    Map<String, Object> asiento = new LinkedHashMap<>();
-    asiento.put("product_code", linea.productCode());
-
     if (Implementation.MANUAL.name().equals(linea.implementation())) {
-      // `RN-MV-021`: lo manual espera a que alguien lo autorice (`RF-MV-010`).
-      // Lo que queda pendiente es la entrega, no el cobro.
+      // `RN-MV-021`: lo manual espera a que quien lo compró lo active
+      // (`RF-MV-010`, `RN-MV-048`). Lo que queda pendiente es la entrega, no el cobro.
+      Map<String, Object> asiento = new LinkedHashMap<>();
+      asiento.put("product_code", linea.productCode());
       asiento.put("delivery_status", DeliveryStatus.PENDIENTE.name());
       return asiento;
     }
-
-    if (linea.upgrade()) {
-      Optional<String> motivo = motivoParaRetener(linea, sujeto);
-      if (motivo.isPresent()) {
-        movimientos.markRetained(linea.lineId(), motivo.get());
-        asiento.put("delivery_status", DeliveryStatus.RETENIDA.name());
-        asiento.put("delivery_note", motivo.get());
-        return asiento;
-      }
-      asiento.put("membership_code", linea.targetMembershipCode());
-    }
-
-    // TODA LÍNEA QUE SE ENTREGA DEJA ESCRITO LO QUE LA PERSONA PASA A TENER
-    // (`RN-MV-036`), y no solo las de upgrade: hasta el 23-09-2026 un bot
-    // entregado no dejaba constancia de posesión en ninguna parte, de modo que el
-    // sistema sabía qué se le había vendido a alguien y no qué tenía.
-    //
-    // La membresía va SOLO si el producto la concede; con ella nula, la escritura
-    // publicada anota la posesión y no toca el nivel de nadie. Y la vigencia es la
-    // copiada en la línea, contada DESDE LA CONFIRMACIÓN (`RN-MV-020`): quien pagó
-    // treinta días recibe treinta días de uso.
-    //
-    // La línea viaja dentro de la orden y va ÚNICA en el esquema: es lo que hace
-    // idempotente la entrega, sin que este servicio tenga que comprobar antes si
-    // ya la entregó — comprobarlo sería una carrera.
-    concesion.grant(
-        new GrantOrder(
-            sujeto,
-            linea.productId(),
-            linea.upgrade() ? linea.targetMembershipId() : null,
-            linea.lineId(),
-            linea.validityDays(),
-            ahora));
-
-    movimientos.markDelivered(linea.lineId(), ahora);
-    asiento.put("delivery_status", DeliveryStatus.ENTREGADA.name());
-    return asiento;
-  }
-
-  /**
-   * `RN-MV-029`: <b>confirmar no baja de nivel a nadie</b>. Si la membresía comprada es inferior a
-   * la vigente en este instante, la línea se retiene y el motivo se escribe para una persona.
-   *
-   * <p>Renovar el <b>mismo</b> nivel concede. Sin membresía vigente —la suya venció— no hay nada
-   * por debajo de lo que bajar, y concede. La cadena crece hacia abajo: {@code 1} es la cima, de
-   * modo que <b>inferior es número mayor</b> (`requirements/sp.md` §10.4), igual que en {@code
-   * SaleRules.verificarQueSube}.
-   */
-  private Optional<String> motivoParaRetener(DeliveryLineRow linea, UUID sujeto) {
-    if (linea.targetMembershipId() == null || linea.targetMembershipLevel() == null) {
-      // Un upgrade sin destino no debería existir; si llega aquí, algo se rompió
-      // antes, y entregarlo a ciegas sería peor que retenerlo con constancia.
-      return Optional.of("El producto ya no declara la membresía que concede.");
-    }
-    Optional<CurrentMembershipView> vigente = membresias.currentMembershipOf(sujeto);
-    if (vigente.isEmpty() || linea.targetMembershipLevel() <= vigente.get().level()) {
-      return Optional.empty();
-    }
-    return Optional.of(
-        "La membresía comprada (%s) es inferior a la vigente (%s)."
-            .formatted(linea.targetMembershipCode(), vigente.get().code()));
+    return entrega.deliver(linea, sujeto, ahora);
   }
 }

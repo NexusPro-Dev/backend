@@ -15,6 +15,11 @@ import java.util.UUID;
 @JsonInclude(JsonInclude.Include.ALWAYS)
 @Schema(name = "MyProduct", description = "Un producto de una compra propia, con su estado.")
 public record MyProductResponse(
+    @Schema(
+            description =
+                "La línea de venta: lo que se activa en"
+                    + " /movements/mine/products/{lineId}/activation.")
+        UUID lineId,
     @Schema(description = "De qué venta viene; se abre en /movements/mine/{id}.") UUID movementId,
     String movementCode,
     String movementStatus,
@@ -44,9 +49,9 @@ public record MyProductResponse(
      * El <b>cupón del bot</b>: dónde registra su cuenta quien ya compró (`RN-MV-032`, `RN-PM-050`).
      *
      * <p><b>Solo si la línea está entregada</b> —{@code ACTIVO} o {@code VENCIDO}—, y nulo en los
-     * otros cinco estados <b>aunque el producto lo declare</b>: publicarlo en una {@code
-     * PENDIENTE_AUTORIZACION} sería entregar lo comprado sin la autorización que `RN-MV-021` exige,
-     * hecho por una consulta en lugar de por una escritura.
+     * otros estados <b>aunque el producto lo declare</b>: publicarlo en una {@code
+     * PENDIENTE_ACTIVACION} sería entregar lo comprado antes de que quien lo compró lo active
+     * (`RN-MV-021`, `RN-MV-048`), hecho por una consulta en lugar de por una escritura.
      *
      * <p><b>Es el único sitio del sistema, fuera de administración, donde ese enlace se ve.</b>
      *

@@ -2,6 +2,7 @@ package com.factech.nexus.modules.movements.interfaces;
 
 import com.factech.nexus.modules.movements.application.BuyPackageRequest;
 import com.factech.nexus.modules.movements.application.PurchaseResponse;
+import com.factech.nexus.modules.movements.domain.models.IdempotencyKey;
 import com.factech.nexus.modules.movements.domain.service.BuyPackageService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.media.Content;
@@ -15,6 +16,7 @@ import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.RequestHeader;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
@@ -137,8 +139,10 @@ public class PackagePurchaseController {
   @PostMapping("/{code}/purchases")
   @PreAuthorize("hasAuthority('packages:buy')")
   public ResponseEntity<PurchaseResponse> comprar(
-      @PathVariable String code, @Valid @RequestBody(required = false) BuyPackageRequest peticion) {
-    PurchaseResponse venta = compra.buy(code, peticion);
+      @PathVariable String code,
+      @Valid @RequestBody(required = false) BuyPackageRequest peticion,
+      @RequestHeader(value = IdempotencyKey.CABECERA, required = false) String clave) {
+    PurchaseResponse venta = compra.buy(code, peticion, IdempotencyKey.opcional(clave));
     return ResponseEntity.created(URI.create("/api/v1/movements/mine/" + venta.id())).body(venta);
   }
 }

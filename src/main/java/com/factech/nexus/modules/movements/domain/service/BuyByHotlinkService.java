@@ -3,6 +3,7 @@ package com.factech.nexus.modules.movements.domain.service;
 import com.factech.nexus.modules.movements.application.HotlinkPurchaseRequest;
 import com.factech.nexus.modules.movements.application.PurchaseResponse;
 import com.factech.nexus.modules.movements.application.RegisterSaleRequest;
+import com.factech.nexus.modules.movements.domain.models.IdempotencyKey;
 import com.factech.nexus.modules.products.application.ProductCatalog;
 import com.factech.nexus.modules.products.application.ProductCatalog.SaleView;
 import com.factech.nexus.modules.system.users.application.ClientCatalog.SellerView;
@@ -72,6 +73,13 @@ public class BuyByHotlinkService {
    */
   @Transactional
   public PurchaseResponse buy(String username, String codigo, HotlinkPurchaseRequest peticion) {
+    return buy(username, codigo, peticion, IdempotencyKey.generada());
+  }
+
+  /** Con la clave de idempotencia de la compra (`RF-MV-018` · `spec.md` §2.2). */
+  @Transactional
+  public PurchaseResponse buy(
+      String username, String codigo, HotlinkPurchaseRequest peticion, IdempotencyKey clave) {
     UUID quien =
         actor
             .currentActorId()
@@ -95,7 +103,8 @@ public class BuyByHotlinkService {
                 peticion == null ? null : peticion.paymentMethodId(),
                 List.of(new RegisterSaleRequest.Line(producto.id(), 1)),
                 null),
-            new SellerView(dueno.id(), null, dueno.firstName(), dueno.lastName()));
+            new SellerView(dueno.id(), null, dueno.firstName(), dueno.lastName()),
+            clave);
 
     // Y EL VÍNCULO DESPUÉS DE LA VENTA, no antes: su `first_movement_id` es esta
     // venta, de modo que antes de registrarla no hay con qué vincular.

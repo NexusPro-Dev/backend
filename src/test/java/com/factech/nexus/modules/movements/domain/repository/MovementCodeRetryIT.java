@@ -4,6 +4,8 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 import com.factech.nexus.IntegrationTestBase;
+import com.factech.nexus.modules.movements.PaymentFixtures;
+import com.factech.nexus.modules.movements.domain.models.IdempotencyKey;
 import com.factech.nexus.modules.movements.domain.models.Movement;
 import com.factech.nexus.modules.movements.domain.models.MovementLine;
 import com.factech.nexus.modules.movements.domain.models.TypeStatus;
@@ -73,7 +75,8 @@ class MovementCodeRetryIT extends IntegrationTestBase {
     Movement venta = venta(OCUPADO);
     AtomicInteger vueltas = new AtomicInteger();
 
-    repositorio.save(venta, () -> "VTA-20260904-LIBRE" + vueltas.incrementAndGet());
+    repositorio.save(
+        venta, () -> "VTA-20260904-LIBRE" + vueltas.incrementAndGet(), IdempotencyKey.generada());
 
     // Una vuelta: el primer intento chocó, el segundo entró.
     assertThat(vueltas.get()).isEqualTo(1);
@@ -99,7 +102,8 @@ class MovementCodeRetryIT extends IntegrationTestBase {
                     () -> {
                       vueltas.incrementAndGet();
                       return OCUPADO;
-                    }))
+                    },
+                    IdempotencyKey.generada()))
         // LLEGA TRADUCIDA, y no como el `IllegalStateException` que el adaptador
         // lanza: `@Repository` activa la traducción de excepciones de Spring, y
         // esta clase consume el puerto por el proxy —igual que el caso de uso—.
@@ -148,20 +152,19 @@ class MovementCodeRetryIT extends IntegrationTestBase {
   private void insertarVentaCon(String codigo) {
     jdbc.update(
         """
-        INSERT INTO movements (id, movement_type_id, type_status_id, user_id, payment_method_id,
+        INSERT INTO movements (id, movement_type_id, type_status_id, user_id,
                                currency_id, code, status, total_amount, discount_amount,
                                payable_amount, occurred_at)
-        VALUES (CAST(? AS uuid), CAST(? AS uuid), (SELECT s.id FROM movement_type_statuses s WHERE s.movement_type_id = CAST(? AS uuid) AND s.code = 'VALIDADO'), CAST(? AS uuid),
-                CAST(? AS uuid), CAST(? AS uuid), ?, 'PENDIENTE', 10.00, 0, 10.00, ?)
+        VALUES (CAST(? AS uuid), CAST(? AS uuid), (SELECT s.id FROM movement_type_statuses s WHERE s.movement_type_id = CAST(? AS uuid) AND s.code = 'VALIDADO'), CAST(? AS uuid), CAST(? AS uuid), ?, 'PENDIENTE', 10.00, 0, 10.00, ?)
         """,
         UUID.randomUUID().toString(),
         TIPO_VENTA,
         TIPO_VENTA,
         cliente.toString(),
-        TARJETA,
         USD,
         codigo,
         AHORA);
+    PaymentFixtures.pagoDe(jdbc, UUID.randomUUID().toString(), TARJETA);
   }
 
   private UUID producto() {

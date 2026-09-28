@@ -7,6 +7,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 import com.factech.nexus.IntegrationTestBase;
+import com.factech.nexus.modules.movements.PaymentFixtures;
 import com.factech.nexus.modules.movements.domain.repository.MovementRepository;
 import com.factech.nexus.modules.movements.domain.repository.MovementRepository.MyProductRow;
 import com.factech.nexus.modules.products.interfaces.ProductLinkTestSupport;
@@ -171,14 +172,14 @@ class MyProductsIT extends IntegrationTestBase {
   }
 
   @Test
-  @DisplayName("CA-MV-103 — manual confirmado y sin autorizar: PENDIENTE_AUTORIZACION")
-  void pendienteDeAutorizacion() throws Exception {
+  @DisplayName("CA-MV-103 — manual confirmado y sin activar: PENDIENTE_ACTIVACION")
+  void pendienteDeActivacion() throws Exception {
     UUID manual = producto("MP_MANUAL", "Bot manual", "MANUAL");
     venta(comprador, vendedor, "CONFIRMADA", BASE, null, "PENDIENTE", null, manual);
 
     mvc.perform(get("/api/v1/movements/mine/products").with(propio(comprador)))
         .andExpect(status().isOk())
-        .andExpect(jsonPath("$.content[0].state").value("PENDIENTE_AUTORIZACION"))
+        .andExpect(jsonPath("$.content[0].state").value("PENDIENTE_ACTIVACION"))
         .andExpect(jsonPath("$.content[0].implementation").value("MANUAL"));
   }
 
@@ -456,22 +457,25 @@ class MyProductsIT extends IntegrationTestBase {
     UUID id = UUID.randomUUID();
     jdbc.update(
         """
-        INSERT INTO movements (id, movement_type_id, type_status_id, user_id, payment_method_id,
+        INSERT INTO movements (id, movement_type_id, type_status_id, user_id,
                                currency_id, code, status, total_amount, discount_amount,
                                payable_amount, occurred_at, confirmed_at,
-                               voided_at, void_reason)
-        VALUES (?, CAST(? AS uuid), (SELECT s.id FROM movement_type_statuses s WHERE s.movement_type_id = CAST(? AS uuid) AND s.code = 'VALIDADO'), ?, CAST(? AS uuid), CAST(? AS uuid), ?, ?,
+                               voided_at, void_reason, rejected_at, rejection_reason)
+        VALUES (?, CAST(? AS uuid), (SELECT s.id FROM movement_type_statuses s WHERE s.movement_type_id = CAST(? AS uuid) AND s.code = 'VALIDADO'), ?, CAST(? AS uuid), ?, ?,
                 100.00, 0, 100.00, CAST(? AS timestamptz),
                 CASE WHEN ? = 'CONFIRMADA' THEN CAST(? AS timestamptz) ELSE NULL END,
                 -- `ck_movements_voided`: una anulada lleva fecha y motivo, y solo ella.
                 CASE WHEN ? = 'ANULADA' THEN now() ELSE NULL END,
-                CASE WHEN ? = 'ANULADA' THEN 'Sembrada anulada' ELSE NULL END)
+                CASE WHEN ? = 'ANULADA' THEN 'Sembrada anulada' ELSE NULL END,
+                -- `ck_movements_rejected` (V49): una rechazada también. Una venta ya no
+                -- se rechaza (se rechaza su pago); la prueba conserva el estado viejo.
+                CASE WHEN ? = 'RECHAZADA' THEN now() ELSE NULL END,
+                CASE WHEN ? = 'RECHAZADA' THEN 'Sembrada rechazada' ELSE NULL END)
         """,
         id,
         VENTA,
         VENTA,
         sujeto,
-        TARJETA,
         USD,
         "VTA-" + id.toString().substring(0, 8).toUpperCase(),
         estado,
@@ -479,7 +483,10 @@ class MyProductsIT extends IntegrationTestBase {
         estado,
         cuando.toString(),
         estado,
+        estado,
+        estado,
         estado);
+    PaymentFixtures.pagoDe(jdbc, id, TARJETA);
     // `ck_movement_details_delivery`: ENTREGADA exige fecha y RETENIDA exige
     // motivo; el motivo lo pone la prueba que lo mira.
     UUID linea = UUID.randomUUID();

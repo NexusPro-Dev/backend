@@ -231,7 +231,12 @@ public abstract class IntegrationTestBase {
                            'users:change-own-password', 'users:read-own-sellers',
                            'movements:list-own', 'movements:read-own',
                            'movements:read-own-products', 'packages:buy',
-                           'movements:list-sales')
+                           'movements:list-sales',
+                           -- V48 y V49 (26-09-2026): lo propio de pagos y saldos.
+                           'movements:retry-payment', 'movements:request-withdrawal',
+                           'movements:read-own-balances', 'movements:list-own-entries',
+                           -- V50 (28-09-2026): activar lo comprado, RF-MV-010.
+                           'movements:activate-own-product')
                 OR (r.role_type IN ('FUNCIONARIO', 'VENDEDOR')
                     AND p.code IN ('users:read-own-clients', 'broker-accounts:read-own-team',
                                    'broker-accounts:read-team-member')))
@@ -253,8 +258,15 @@ public abstract class IntegrationTestBase {
           "broker-accounts:read-own-team",
           "broker-accounts:read-team-member",
           "movements:list-own",
+          // V48 y V49 (26-09-2026, etapa 6 de MV): lo propio de pagos y saldos, por tipo de rol.
+          "movements:retry-payment",
+          "movements:request-withdrawal",
+          "movements:read-own-balances",
+          "movements:list-own-entries",
           "movements:read-own",
           "movements:read-own-products",
+          // V50 (28-09-2026): activar lo comprado, RF-MV-010.
+          "movements:activate-own-product",
           "packages:buy",
           "movements:list-sales");
 

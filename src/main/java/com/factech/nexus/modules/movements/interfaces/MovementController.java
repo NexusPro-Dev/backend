@@ -13,6 +13,8 @@ import com.factech.nexus.modules.movements.application.SaleLineItem;
 import com.factech.nexus.modules.movements.application.SaleLinesRequest;
 import com.factech.nexus.modules.movements.application.SaleResponse;
 import com.factech.nexus.modules.movements.application.VoidSaleRequest;
+import com.factech.nexus.modules.movements.domain.models.IdempotencyKey;
+import com.factech.nexus.modules.movements.domain.service.ActivateMyProductService;
 import com.factech.nexus.modules.movements.domain.service.AssignSellersService;
 import com.factech.nexus.modules.movements.domain.service.ConfirmSaleService;
 import com.factech.nexus.modules.movements.domain.service.GetMyMovementService;
@@ -39,6 +41,7 @@ import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.RequestHeader;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
@@ -67,6 +70,7 @@ public class MovementController {
   private final ListSalesService ventas;
   private final AssignSellersService asignacion;
   private final ListSaleLinesService lineas;
+  private final ActivateMyProductService activacion;
 
   public MovementController(
       RegisterSaleService alta,
@@ -78,7 +82,8 @@ public class MovementController {
       GetMyMovementService detalle,
       ListSalesService ventas,
       AssignSellersService asignacion,
-      ListSaleLinesService lineas) {
+      ListSaleLinesService lineas,
+      ActivateMyProductService activacion) {
     this.alta = alta;
     this.confirmacion = confirmacion;
     this.anulacion = anulacion;
@@ -89,6 +94,7 @@ public class MovementController {
     this.ventas = ventas;
     this.asignacion = asignacion;
     this.lineas = lineas;
+    this.activacion = activacion;
   }
 
   /**
@@ -649,8 +655,10 @@ public class MovementController {
   })
   @PostMapping
   @PreAuthorize("hasAuthority('movements:create')")
-  public ResponseEntity<SaleResponse> registrar(@Valid @RequestBody RegisterSaleRequest peticion) {
-    SaleResponse venta = alta.register(peticion);
+  public ResponseEntity<SaleResponse> registrar(
+      @Valid @RequestBody RegisterSaleRequest peticion,
+      @RequestHeader(value = IdempotencyKey.CABECERA, required = false) String clave) {
+    SaleResponse venta = alta.register(peticion, IdempotencyKey.opcional(clave));
     return ResponseEntity.created(URI.create("/api/v1/movements/" + venta.id())).body(venta);
   }
 
@@ -710,11 +718,11 @@ public class MovementController {
           una venta podría llevar varios. Hoy lleva uno. Va **vacía** en los movimientos que
           no tienen vendedor y en una venta por validar a la que aún no se le asignó ninguno.
 
-          **Cada fila dice su tipo** (`type`, hoy siempre `VENTA`) desde el 21-09-2026, el
-          mismo día que se puede filtrar por él: `type` admite **el código del tipo de
-          movimiento**, sin distinguir mayúsculas, y se combina con `status`. Un `type` que no
-          exista en el catálogo es `400`, como el estado: el catálogo es cerrado y no se
-          publica por ninguna ruta.
+          **Desde el 26-09-2026 son solo VENTAS** (`RN-MV-047`): los retiros, abonos y bonos
+          de la persona no son compras, y se consultan por sus saldos. **El filtro `type` se
+          retiró ese día**: solo podía tomar un valor útil. Cada fila sigue diciendo su tipo
+          (`type`, siempre `VENTA`). El método de pago de la fila, y el del filtro, son los
+          del **último pago** de la venta (`RN-MV-039`).
 
           **Y desde ese mismo día, los tres filtros de `GET /movements`**: `paymentMethodId`
           (uno que no exista da página vacía), `code` (**una PARTE del comprobante**, sin distinguir
@@ -730,8 +738,8 @@ public class MovementController {
     @ApiResponse(
         responseCode = "400",
         description =
-            "Paginación inválida (`VAL-002`), estado no admitido (`VAL-003`), tipo de"
-                + " movimiento inexistente (`VAL-004`), `from` posterior a `to` (`VAL-005`) o"
+            "Paginación inválida (`VAL-002`), estado no admitido (`VAL-003`), `from`"
+                + " posterior a `to` (`VAL-005`) o"
                 + " identificador malformado (`VAL-006`, que el conversor global emite como"
                 + " `VAL-001`)",
         content = @Content),
@@ -752,13 +760,12 @@ public class MovementController {
       @RequestParam(required = false) Integer page,
       @RequestParam(required = false) Integer size,
       @RequestParam(required = false) String status,
-      @RequestParam(required = false) String type,
       @RequestParam(required = false) UUID paymentMethodId,
       @RequestParam(required = false) String code,
       @RequestParam(required = false) OffsetDateTime from,
       @RequestParam(required = false) OffsetDateTime to) {
     return listado.list(
-        new MyMovementsRequest(page, size, status, type, paymentMethodId, code, from, to));
+        new MyMovementsRequest(page, size, status, paymentMethodId, code, from, to));
   }
 
   /**
@@ -778,8 +785,10 @@ public class MovementController {
           reciente al más antiguo, y **en qué estado está cada uno**:
 
           - `PENDIENTE_PAGO`: la venta no se ha confirmado; todavía no lo tiene.
-          - `PENDIENTE_AUTORIZACION`: pagado, pero el producto es de implementación manual y
-            alguien tiene que autorizar la entrega.
+          - `PENDIENTE_ACTIVACION`: pagado, pero el producto es de implementación manual y
+            **usted** tiene que activarlo —`POST /movements/mine/products/{lineId}/activation`—.
+            **Hasta el 28-09-2026 se llamaba `PENDIENTE_AUTORIZACION`**: es un cambio
+            incompatible.
           - `ACTIVO`: entregado, con `deliveredAt` y —si caduca— `validUntil`, que es la
             entrega más la vigencia comprada. La vigencia corre **desde la entrega**, no desde
             la compra.
@@ -788,9 +797,12 @@ public class MovementController {
           - `RECHAZADO` / `ANULADO`: la venta terminó así.
 
           **Solo lo que compró usted** —el sujeto de la venta—: lo que vendió a otros no
-          aparece aquí (está en `/movements/mine` con papel `SELLER`). Dos compras del mismo
+          aparece aquí (está en `/movements/sales`). Dos compras del mismo
           producto son dos filas, cada una con su vigencia. El nombre es **el que tenía el
           producto el día de la compra**. `state` filtra por estado; el orden es fijo.
+
+          **Cada fila trae `lineId`** (desde el 28-09-2026): la línea de venta, que es lo que se
+          activa.
           """)
   @ApiResponses({
     @ApiResponse(responseCode = "200", description = "La página de productos comprados."),
@@ -816,6 +828,76 @@ public class MovementController {
       @RequestParam(required = false) Integer size,
       @RequestParam(required = false) String state) {
     return comprado.list(new MyProductsRequest(page, size, state));
+  }
+
+  /**
+   * <b>Antes que {@code /mine/{id}}</b>, como {@code /mine/products}: Spring resolvería igual por
+   * especificidad —el segmento literal gana—, y el orden de lectura es el de las rutas.
+   *
+   * <p><b>La línea ajena responde {@code 404} y no {@code 403}</b>, como el detalle: el alcance va
+   * en la búsqueda y ningún permiso lo ensancha (`RN-MV-048`).
+   */
+  // `movements:activate-own-product` desde el 28-09-2026 (`RF-MV-010`, `V50`).
+  @PostMapping("/mine/products/{lineId}/activation")
+  @PreAuthorize("hasAuthority('movements:activate-own-product')")
+  @Operation(
+      summary = "Activar un producto comprado",
+      description =
+          """
+          Activa **un producto que usted compró** y cuya implementación es **manual**: la línea
+          `lineId` de `GET /api/v1/movements/mine/products`, que aparece allí como
+          `PENDIENTE_ACTIVACION`. **Sin cuerpo.**
+
+          **Activar es entregar**: desde este instante usted lo tiene, y **la vigencia corre desde
+          la activación**, no desde la compra ni desde la confirmación del pago. Si el producto
+          es un **upgrade de membresía**, se le concede el nivel — **salvo que baje del que tiene
+          ahora**: entonces el producto queda `RETENIDO` con el motivo en `deliveryNote`, y su
+          nivel no cambia.
+
+          **Solo lo activa quien lo compró.** Ningún permiso abre la compra de otra persona, y
+          su línea responde `404`, **exactamente igual que una que no existe**.
+
+          **No se deshace**: de una entrega no se sale. Activar dos veces responde `409` la
+          segunda y entrega una sola vez.
+
+          Devuelve el producto como queda, con la misma forma que el listado —el cupón del bot
+          incluido, si el producto lo declara—.
+          """)
+  @ApiResponses({
+    @ApiResponse(
+        responseCode = "200",
+        description = "Activado —o `RETENIDO` si era un upgrade que bajaría de nivel—."),
+    @ApiResponse(
+        responseCode = "400",
+        description = "Identificador malformado (`VAL-001`)",
+        content = @Content),
+    @ApiResponse(
+        responseCode = "401",
+        description = "Token ausente o inválido (`AUTH-001`)",
+        content = @Content),
+    @ApiResponse(
+        responseCode = "403",
+        description = "Autenticado sin `movements:activate-own-product` (`AUTH-002`)",
+        content = @Content),
+    @ApiResponse(
+        responseCode = "404",
+        description =
+            "No existe **o no es de una compra suya** (`EX-001`). Las dos son la misma respuesta",
+        content = @Content),
+    @ApiResponse(
+        responseCode = "409",
+        description =
+            "La venta no está confirmada (`EX-002`), el producto no es de implementación manual"
+                + " (`EX-003`) o ya no está pendiente de activación (`EX-004`); el mensaje dice"
+                + " en qué estado está",
+        content = @Content),
+    @ApiResponse(
+        responseCode = "500",
+        description = "Fallo no controlado (`ERR-500`)",
+        content = @Content)
+  })
+  public MyProductResponse activarProducto(@PathVariable UUID lineId) {
+    return activacion.activate(lineId);
   }
 
   /**

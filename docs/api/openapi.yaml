@@ -21,6 +21,9 @@ servers:
 security:
 - bearerAuth: []
 tags:
+- name: Saldos
+  description: "Lo que cada persona tiene en la plataforma —billetera, retenido y\
+    \ puntos—, los retiros y los bonos."
 - name: Países
   description: Catálogo de países. Inmutable salvo su estado.
 - name: Equipos
@@ -2819,6 +2822,11 @@ paths:
         required: true
         schema:
           type: string
+      - name: Idempotency-Key
+        in: header
+        required: false
+        schema:
+          type: string
       requestBody:
         content:
           application/json:
@@ -3015,6 +3023,12 @@ paths:
         Reglas de composición: **como mucho un upgrade** por venta y con cantidad uno,
         sin productos repetidos y todas las líneas en la misma moneda.
       operationId: registrar_3
+      parameters:
+      - name: Idempotency-Key
+        in: header
+        required: false
+        schema:
+          type: string
       requestBody:
         content:
           application/json:
@@ -3043,6 +3057,92 @@ paths:
           description: "Un dato bien formado que no resuelve: el comprador, un producto\
             \ o el método de pago no existen."
       x-required-permission: movements:create
+  /api/v1/movements/{id}/withdrawal-rejection:
+    post:
+      tags:
+      - Saldos
+      summary: Negar un retiro
+      description: |
+        **Permiso requerido:** `movements:reject-withdrawal`. Sin él, `403` (`AUTH-002`).
+
+        Niega un retiro pendiente **por motivos internos** (`RF-MV-021`): queda `RECHAZADA`
+        con su motivo, obligatorio, y **lo retenido vuelve a la billetera**. No se escribe
+        ningún pago.
+      operationId: negarRetiro
+      parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/WithdrawalRejectionRequest"
+      responses:
+        "200":
+          description: Negado.
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/LedgerMovement"
+        "400":
+          description: Motivo vacío o demasiado largo
+        "401":
+          description: Sin token (`AUTH-001`)
+        "403":
+          description: Sin `movements:reject-withdrawal` (`AUTH-002`)
+        "404":
+          description: "No existe, o no es un retiro"
+        "409":
+          description: "No está pendiente, con el estado"
+      x-required-permission: movements:reject-withdrawal
+  /api/v1/movements/{id}/withdrawal-approval:
+    post:
+      tags:
+      - Saldos
+      summary: Aprobar un retiro
+      description: |
+        **Permiso requerido:** `movements:approve-withdrawal`. Sin él, `403` (`AUTH-002`).
+
+        Declara que **el dinero de un retiro pendiente salió** (`RF-MV-020`). Hasta que se
+        integren las pasarelas de salida se aprueba **a mano**: el pago que lo liquida se
+        escribe con el método `MANUAL` y, si la hay, la referencia de la transferencia en
+        `providerReference`. Lo retenido sale de la cuenta de la persona; la billetera no se
+        toca. Aprobar dos veces aprueba una.
+      operationId: aprobarRetiro
+      parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/WithdrawalApprovalRequest"
+      responses:
+        "200":
+          description: "Aprobado, con su pago."
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/LedgerMovement"
+        "400":
+          description: Referencia de más de 120 caracteres
+        "401":
+          description: Sin token (`AUTH-001`)
+        "403":
+          description: Sin `movements:approve-withdrawal` (`AUTH-002`)
+        "404":
+          description: "No existe, o no es un retiro"
+        "409":
+          description: "No está pendiente, con el estado"
+      x-required-permission: movements:approve-withdrawal
   /api/v1/movements/{id}/voiding:
     post:
       tags:
@@ -3168,6 +3268,52 @@ paths:
         "500":
           description: Fallo no controlado (`ERR-500`)
       x-required-permission: movements:assign-sellers
+  /api/v1/movements/{id}/rejection:
+    post:
+      tags:
+      - Movimientos
+      summary: Rechazar el pago pendiente de una venta
+      description: |
+        **Permiso requerido:** `movements:reject-payment`. Sin él, `403` (`AUTH-002`).
+
+        Dice **«este cobro no entró»**: el pago pendiente de la venta pasa a `RECHAZADO`, con
+        el instante y el motivo, y **la venta sigue pendiente** para que el comprador pueda
+        volver a pagarla (`RF-MV-004`). `reason` es obligatorio, hasta 500 caracteres.
+
+        **Rechazar no es anular**: anular cierra la venta; rechazar cierra un intento de
+        cobrarla.
+      operationId: rechazar
+      parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/RejectPaymentRequest"
+      responses:
+        "200":
+          description: "La venta, con el pago rechazado."
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/SaleResponse"
+        "400":
+          description: Identificador malformado o motivo vacío o demasiado largo
+        "401":
+          description: Token ausente o inválido (`AUTH-001`)
+        "403":
+          description: Autenticado sin `movements:reject-payment` (`AUTH-002`)
+        "404":
+          description: "No existe, o no es una venta (`EX-001`)"
+        "409":
+          description: "No está pendiente (`EX-002`), o no tiene un pago pendiente\
+            \ (`EX-003`)"
+      x-required-permission: movements:reject-payment
   /api/v1/movements/{id}/confirmation:
     post:
       tags:
@@ -3230,6 +3376,226 @@ paths:
         "500":
           description: Conceder la membresía falló; nada quedó escrito (`ERR-500`)
       x-required-permission: movements:confirm
+  /api/v1/movements/mine/{id}/payments:
+    post:
+      tags:
+      - Movimientos
+      summary: Volver a pagar una venta propia pendiente
+      description: |
+        **Permiso requerido:** `movements:retry-payment`. Sin él, `403` (`AUTH-002`).
+
+        Abre un **nuevo intento de pago** sobre una venta propia pendiente cuyo último pago se
+        **rechazó** —la aplicación se cayó, o quien cobra lo rechazó—, con el mismo método o
+        con otro, **sin registrar otra venta** (`RF-MV-018`, `RN-MV-039`).
+
+        **La cabecera `Idempotency-Key` es obligatoria**: el cliente la genera una vez por
+        intento y la repite tal cual si tiene que reenviar. La misma petición repetida
+        —misma clave, misma venta, mismo método— responde `200` con lo que ya se creó, sin
+        abrir otro pago. La misma clave con otra petición es `409`.
+
+        Mientras la venta tenga un pago **pendiente** no admite otro (`409`): ese pago puede
+        estar entrando ahora mismo. `paymentMethodId` es obligatorio si la venta cobra algo y
+        está prohibido si su importe es cero (`RN-MV-022`). Una venta ajena responde `404`,
+        igual que una que no existe.
+      operationId: volverAPagar
+      parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      - name: Idempotency-Key
+        in: header
+        description: Una por intento; se repite tal cual al reenviar. 8 a 80 caracteres.
+        required: true
+        schema:
+          type: string
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/RetryPaymentRequest"
+      responses:
+        "201":
+          description: "Pago abierto: la venta con sus pagos."
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/SaleResponse"
+        "200":
+          description: "La misma petición repetida: la venta, sin abrir otro pago\
+            \ (`FA-001`)."
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/SaleResponse"
+        "400":
+          description: "Identificador malformado, `Idempotency-Key` ausente o malformada,\
+            \ o método presente en una venta de importe cero o ausente en una cobrada"
+        "401":
+          description: Token ausente o inválido (`AUTH-001`)
+        "403":
+          description: Autenticado sin `movements:retry-payment` (`AUTH-002`)
+        "404":
+          description: "La venta no existe, **no es suya** o no es una venta (`EX-001`)"
+        "409":
+          description: "No está pendiente (`EX-003`), tiene un pago pendiente (`EX-004`),\
+            \ el método está desactivado (`EX-010`) o la clave es de otra petició\
+            n (`EX-006`)"
+        "422":
+          description: El método de pago no existe (`EX-010`)
+      x-required-permission: movements:retry-payment
+  /api/v1/movements/mine/withdrawals:
+    post:
+      tags:
+      - Saldos
+      summary: Solicitar un retiro
+      description: |
+        **Permiso requerido:** `movements:request-withdrawal`. Sin él, `403` (`AUTH-002`).
+
+        Pide que le paguen a la persona lo que tiene en su **billetera**, en una moneda
+        (`RF-MV-019`). **El importe se aparta en el acto**: sale de la billetera y queda
+        **retenido** hasta que alguien lo apruebe o lo niegue (`RN-MV-043`), de modo que no
+        se puede gastar ni pedir dos veces. Si la billetera no alcanza, `409` y no queda
+        nada registrado.
+
+        El retiro nace `PENDIENTE`. La respuesta trae el retiro y **los tres saldos** de esa
+        moneda como quedan. Sin clave de idempotencia: un retiro repetido retiene dos veces y
+        no puede pagar de más.
+      operationId: solicitarRetiro
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/WithdrawalRequest"
+      responses:
+        "201":
+          description: "Retiro pedido, con los saldos."
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/WithdrawalResult"
+        "400":
+          description: "Moneda o importe ausentes, importe no positivo o con decimales\
+            \ de más"
+        "401":
+          description: Sin token (`AUTH-001`)
+        "403":
+          description: Sin `movements:request-withdrawal` (`AUTH-002`)
+        "409":
+          description: "La billetera no alcanza, con el disponible (`EX-003`), o la\
+            \ cuenta no opera (`EX-004`)"
+        "422":
+          description: La moneda no existe
+      x-required-permission: movements:request-withdrawal
+  /api/v1/movements/mine/products/{lineId}/activation:
+    post:
+      tags:
+      - Movimientos
+      summary: Activar un producto comprado
+      description: |
+        **Permiso requerido:** `movements:activate-own-product`. Sin él, `403` (`AUTH-002`).
+
+        Activa **un producto que usted compró** y cuya implementación es **manual**: la línea
+        `lineId` de `GET /api/v1/movements/mine/products`, que aparece allí como
+        `PENDIENTE_ACTIVACION`. **Sin cuerpo.**
+
+        **Activar es entregar**: desde este instante usted lo tiene, y **la vigencia corre desde
+        la activación**, no desde la compra ni desde la confirmación del pago. Si el producto
+        es un **upgrade de membresía**, se le concede el nivel — **salvo que baje del que tiene
+        ahora**: entonces el producto queda `RETENIDO` con el motivo en `deliveryNote`, y su
+        nivel no cambia.
+
+        **Solo lo activa quien lo compró.** Ningún permiso abre la compra de otra persona, y
+        su línea responde `404`, **exactamente igual que una que no existe**.
+
+        **No se deshace**: de una entrega no se sale. Activar dos veces responde `409` la
+        segunda y entrega una sola vez.
+
+        Devuelve el producto como queda, con la misma forma que el listado —el cupón del bot
+        incluido, si el producto lo declara—.
+      operationId: activarProducto
+      parameters:
+      - name: lineId
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      responses:
+        "200":
+          description: Activado —o `RETENIDO` si era un upgrade que bajaría de nivel—.
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/MyProduct"
+        "400":
+          description: Identificador malformado (`VAL-001`)
+        "401":
+          description: Token ausente o inválido (`AUTH-001`)
+        "403":
+          description: Autenticado sin `movements:activate-own-product` (`AUTH-002`)
+        "404":
+          description: No existe **o no es de una compra suya** (`EX-001`). Las dos
+            son la misma respuesta
+        "409":
+          description: "La venta no está confirmada (`EX-002`), el producto no es\
+            \ de implementación manual (`EX-003`) o ya no está pendiente de activació\
+            n (`EX-004`); el mensaje dice en qué estado está"
+        "500":
+          description: Fallo no controlado (`ERR-500`)
+      x-required-permission: movements:activate-own-product
+  /api/v1/movements/bonuses:
+    post:
+      tags:
+      - Saldos
+      summary: Otorgar un bono
+      description: |
+        **Permiso requerido:** `movements:grant-bonus`. Sin él, `403` (`AUTH-002`).
+
+        Abona un bono en la **billetera** de una persona, desde la cuenta de bonos de la
+        empresa (`RF-MV-023`). Nace `CONFIRMADA` y sin pago. **El motivo (`concept`) y la
+        cabecera `Idempotency-Key` son obligatorios**: sin pago detrás, la clave es la única
+        defensa contra otorgarlo dos veces. La misma petición repetida responde `200` con el
+        bono ya otorgado. Es retirable.
+      operationId: otorgarBono
+      parameters:
+      - name: Idempotency-Key
+        in: header
+        description: Una por bono.
+        required: true
+        schema:
+          type: string
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/GrantBonusRequest"
+      responses:
+        "201":
+          description: Otorgado.
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/LedgerMovement"
+        "200":
+          description: La misma petición repetida.
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/LedgerMovement"
+        "400":
+          description: "Datos ausentes o malformados, o clave ausente"
+        "401":
+          description: Sin token (`AUTH-001`)
+        "403":
+          description: Sin `movements:grant-bonus` (`AUTH-002`)
+        "409":
+          description: La clave es de otro bono (`EX-005`)
+        "422":
+          description: La persona o la moneda no existen
+      x-required-permission: movements:grant-bonus
   /api/v1/memberships:
     get:
       tags:
@@ -3358,6 +3724,11 @@ paths:
       - name: code
         in: path
         required: true
+        schema:
+          type: string
+      - name: Idempotency-Key
+        in: header
+        required: false
         schema:
           type: string
       requestBody:
@@ -9287,11 +9658,11 @@ paths:
         una venta podría llevar varios. Hoy lleva uno. Va **vacía** en los movimientos que
         no tienen vendedor y en una venta por validar a la que aún no se le asignó ninguno.
 
-        **Cada fila dice su tipo** (`type`, hoy siempre `VENTA`) desde el 21-09-2026, el
-        mismo día que se puede filtrar por él: `type` admite **el código del tipo de
-        movimiento**, sin distinguir mayúsculas, y se combina con `status`. Un `type` que no
-        exista en el catálogo es `400`, como el estado: el catálogo es cerrado y no se
-        publica por ninguna ruta.
+        **Desde el 26-09-2026 son solo VENTAS** (`RN-MV-047`): los retiros, abonos y bonos
+        de la persona no son compras, y se consultan por sus saldos. **El filtro `type` se
+        retiró ese día**: solo podía tomar un valor útil. Cada fila sigue diciendo su tipo
+        (`type`, siempre `VENTA`). El método de pago de la fila, y el del filtro, son los
+        del **último pago** de la venta (`RN-MV-039`).
 
         **Y desde ese mismo día, los tres filtros de `GET /movements`**: `paymentMethodId`
         (uno que no exista da página vacía), `code` (**una PARTE del comprobante**, sin distinguir
@@ -9316,11 +9687,6 @@ paths:
           type: integer
           format: int32
       - name: status
-        in: query
-        required: false
-        schema:
-          type: string
-      - name: type
         in: query
         required: false
         schema:
@@ -9357,9 +9723,8 @@ paths:
                 $ref: "#/components/schemas/PageResponseMyMovement"
         "400":
           description: "Paginación inválida (`VAL-002`), estado no admitido (`VAL-003`),\
-            \ tipo de movimiento inexistente (`VAL-004`), `from` posterior a `to`\
-            \ (`VAL-005`) o identificador malformado (`VAL-006`, que el conversor\
-            \ global emite como `VAL-001`)"
+            \ `from` posterior a `to` (`VAL-005`) o identificador malformado (`VAL-006`,\
+            \ que el conversor global emite como `VAL-001`)"
         "401":
           description: Token ausente o inválido (`AUTH-001`)
         "403":
@@ -9379,8 +9744,10 @@ paths:
         reciente al más antiguo, y **en qué estado está cada uno**:
 
         - `PENDIENTE_PAGO`: la venta no se ha confirmado; todavía no lo tiene.
-        - `PENDIENTE_AUTORIZACION`: pagado, pero el producto es de implementación manual y
-          alguien tiene que autorizar la entrega.
+        - `PENDIENTE_ACTIVACION`: pagado, pero el producto es de implementación manual y
+          **usted** tiene que activarlo —`POST /movements/mine/products/{lineId}/activation`—.
+          **Hasta el 28-09-2026 se llamaba `PENDIENTE_AUTORIZACION`**: es un cambio
+          incompatible.
         - `ACTIVO`: entregado, con `deliveredAt` y —si caduca— `validUntil`, que es la
           entrega más la vigencia comprada. La vigencia corre **desde la entrega**, no desde
           la compra.
@@ -9389,9 +9756,12 @@ paths:
         - `RECHAZADO` / `ANULADO`: la venta terminó así.
 
         **Solo lo que compró usted** —el sujeto de la venta—: lo que vendió a otros no
-        aparece aquí (está en `/movements/mine` con papel `SELLER`). Dos compras del mismo
+        aparece aquí (está en `/movements/sales`). Dos compras del mismo
         producto son dos filas, cada una con su vigencia. El nombre es **el que tenía el
         producto el día de la compra**. `state` filtra por estado; el orden es fijo.
+
+        **Cada fila trae `lineId`** (desde el 28-09-2026): la línea de venta, que es lo que se
+        activa.
       operationId: misProductos
       parameters:
       - name: page
@@ -9427,6 +9797,86 @@ paths:
         "500":
           description: Fallo no controlado (`ERR-500`)
       x-required-permission: movements:read-own-products
+  /api/v1/movements/mine/balances:
+    get:
+      tags:
+      - Saldos
+      summary: Consultar mis saldos
+      description: |
+        **Permiso requerido:** `movements:read-own-balances`. Sin él, `403` (`AUTH-002`).
+
+        Por cada moneda en la que la persona tenga algo: la **billetera** —lo que puede
+        retirar—, lo **retenido** en retiros sin resolver y los **puntos** (`RF-MV-022`). Una
+        persona sin cuentas recibe una lista vacía.
+      operationId: misSaldos
+      responses:
+        "200":
+          description: OK
+          content:
+            '*/*':
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Balances"
+      x-required-permission: movements:read-own-balances
+  /api/v1/movements/mine/balances/entries:
+    get:
+      tags:
+      - Saldos
+      summary: Consultar el historial de mis saldos
+      description: |
+        **Permiso requerido:** `movements:list-own-entries`. Sin él, `403` (`AUTH-002`).
+
+        Cada cambio en las cuentas propias, **asiento a asiento**, del más reciente al más
+        antiguo, con su signo —positivo entró—, el saldo que dejó, el evento y el movimiento
+        que lo produjo (`RF-MV-022`). Es donde la persona ve sus retiros, abonos y bonos.
+        Filtros: `currencyId`, `account` (`BILLETERA`, `RETENIDO`, `PUNTOS`), `from` y `to`
+        sobre cuándo se escribió, rango semiabierto.
+      operationId: miHistorial
+      parameters:
+      - name: page
+        in: query
+        required: false
+        schema:
+          type: integer
+          format: int32
+      - name: size
+        in: query
+        required: false
+        schema:
+          type: integer
+          format: int32
+      - name: currencyId
+        in: query
+        required: false
+        schema:
+          type: string
+          format: uuid
+      - name: account
+        in: query
+        required: false
+        schema:
+          type: string
+      - name: from
+        in: query
+        required: false
+        schema:
+          type: string
+          format: date-time
+      - name: to
+        in: query
+        required: false
+        schema:
+          type: string
+          format: date-time
+      responses:
+        "200":
+          description: OK
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/PageResponseEntryResponse"
+      x-required-permission: movements:list-own-entries
   /api/v1/memberships/{id}:
     get:
       tags:
@@ -12496,6 +12946,57 @@ components:
       required:
       - productId
       - quantity
+    MovementPayment:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        paymentMethod:
+          $ref: "#/components/schemas/MovementPaymentMethod"
+          description: Con qué se intentó pagar.
+        status:
+          type: string
+          description: "PENDIENTE —nadie lo ha resuelto—, CONFIRMADO —el dinero entró\
+            — o RECHAZADO. En masculino: es el estado de un pago, no de la venta."
+        amount:
+          type: number
+        providerReference:
+          type:
+          - string
+          - "null"
+          description: "La referencia de quien cobra, o de la transferencia en un\
+            \ retiro. NULA si nadie la dio."
+        occurredAt:
+          type: string
+          format: date-time
+          description: Cuándo se intentó.
+        confirmedAt:
+          type:
+          - string
+          - "null"
+          format: date-time
+        rejectedAt:
+          type:
+          - string
+          - "null"
+          format: date-time
+        rejectionReason:
+          type:
+          - string
+          - "null"
+          description: "Por qué no entró el cobro. En el pago de una venta anulada,\
+            \ el motivo de la anulación."
+    MovementPaymentMethod:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        code:
+          type: string
+        name:
+          type: string
     SaleLineResponse:
       type: object
       properties:
@@ -12631,6 +13132,76 @@ components:
         createdAt:
           type: string
           format: date-time
+        payments:
+          type: array
+          description: "Los intentos de pagarla, del más antiguo al más reciente (`RN-MV-039`,\
+            \ `RN-MV-047`). Desde el 26-09-2026 el método es de cada pago: paymentMethod\
+            \ es el del último."
+          items:
+            $ref: "#/components/schemas/MovementPayment"
+    WithdrawalRejectionRequest:
+      type: object
+      properties:
+        reason:
+          type: string
+          description: "Por qué se niega. Obligatorio, hasta 500 caracteres."
+    LedgerMovement:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        code:
+          type: string
+        type:
+          type: string
+          description: "RETIRO, BONO o PAGO_COMISION."
+        status:
+          type: string
+          description: "Un retiro: PENDIENTE, CONFIRMADA (aprobado) o RECHAZADA (negado).\
+            \ Un bono o un pago de comisión nacen CONFIRMADA."
+        amount:
+          type: number
+        currency:
+          $ref: "#/components/schemas/SaleCurrency"
+        concept:
+          type:
+          - string
+          - "null"
+          description: El motivo de un bono; el lote citado en un pago de comisión.
+        occurredAt:
+          type: string
+          format: date-time
+        confirmedAt:
+          type:
+          - string
+          - "null"
+          format: date-time
+        rejectedAt:
+          type:
+          - string
+          - "null"
+          format: date-time
+        rejectionReason:
+          type:
+          - string
+          - "null"
+          description: Por qué se negó un retiro. NULO en todo lo demás.
+        payments:
+          type: array
+          description: "El pago que lo liquida, en un retiro aprobado. Vacío en todo\
+            \ lo demás: un bono y un abono no mueven dinero por fuera."
+          items:
+            $ref: "#/components/schemas/MovementPayment"
+    WithdrawalApprovalRequest:
+      type: object
+      properties:
+        providerReference:
+          type:
+          - string
+          - "null"
+          description: "La referencia de la transferencia o del comprobante bancario,\
+            \ si la hay. Hasta 120 caracteres."
     VoidSaleRequest:
       type: object
       properties:
@@ -12658,6 +13229,145 @@ components:
           type: string
           format: uuid
           description: "El vendedor que se le atribuye: uno de los del cliente."
+    RejectPaymentRequest:
+      type: object
+      properties:
+        reason:
+          type: string
+          description: "Por qué no entró el cobro. Obligatorio, hasta 500 caracteres."
+    RetryPaymentRequest:
+      type: object
+      properties:
+        paymentMethodId:
+          type:
+          - string
+          - "null"
+          format: uuid
+          description: "Con qué se intenta pagar ahora. Obligatorio si la venta cobra\
+            \ algo; PROHIBIDO si su importe es cero, porque entonces lo pone el sistema\
+            \ (`RN-MV-022`)."
+    WithdrawalRequest:
+      type: object
+      properties:
+        currencyId:
+          type: string
+          format: uuid
+          description: De qué billetera se retira.
+        amount:
+          type: number
+          description: "Cuánto. Mayor que cero, con los decimales de la moneda."
+    Balances:
+      type: object
+      properties:
+        currency:
+          $ref: "#/components/schemas/SaleCurrency"
+        wallet:
+          type: number
+          description: "BILLETERA: lo que se puede retirar."
+        held:
+          type: number
+          description: "RETENIDO: lo pedido en retiros que nadie ha resuelto."
+        points:
+          type: number
+          description: "PUNTOS: para comprar en la tienda; no se retiran."
+    WithdrawalResult:
+      type: object
+      properties:
+        movement:
+          $ref: "#/components/schemas/LedgerMovement"
+        balances:
+          $ref: "#/components/schemas/Balances"
+    MyProduct:
+      type: object
+      description: "Un producto de una compra propia, con su estado."
+      properties:
+        lineId:
+          type: string
+          format: uuid
+          description: "La línea de venta: lo que se activa en /movements/mine/products/{lineId}/activation."
+        movementId:
+          type: string
+          format: uuid
+          description: "De qué venta viene; se abre en /movements/mine/{id}."
+        movementCode:
+          type: string
+        movementStatus:
+          type: string
+        product:
+          $ref: "#/components/schemas/MyProductRef"
+        quantity:
+          type: integer
+          format: int32
+        implementation:
+          type: string
+          description: "COPIA de cómo se entrega: AUTOMATICA o MANUAL."
+        state:
+          type: string
+          description: "El estado, calculado de la venta, la entrega y la vigencia."
+          enum:
+          - PENDIENTE_PAGO
+          - PENDIENTE_ACTIVACION
+          - ACTIVO
+          - VENCIDO
+          - CANCELADO
+          - RETENIDO
+          - RECHAZADO
+          - ANULADO
+        purchasedAt:
+          type: string
+          format: date-time
+          description: "Cuándo se compró: la fecha de la venta."
+        deliveredAt:
+          type:
+          - string
+          - "null"
+          format: date-time
+          description: Desde cuándo se tiene. NULO si no se ha entregado.
+        validUntil:
+          type:
+          - string
+          - "null"
+          format: date-time
+          description: "Hasta cuándo se tiene: la entrega más la vigencia comprada.\
+            \ NULO si no se ha entregado o si no caduca."
+        deliveryNote:
+          type:
+          - string
+          - "null"
+          description: Por qué no se entregará. Solo en RETENIDO.
+        couponUrl:
+          type:
+          - string
+          - "null"
+          description: "El cupón del bot, ya resuelto. Solo si la línea está entregada\
+            \ (ACTIVO o VENCIDO) y el producto lo declara; NULO en cualquier otro\
+            \ caso."
+    MyProductRef:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        code:
+          type: string
+        name:
+          type: string
+    GrantBonusRequest:
+      type: object
+      properties:
+        userId:
+          type: string
+          format: uuid
+          description: Quién lo recibe.
+        currencyId:
+          type: string
+          format: uuid
+        amount:
+          type: number
+          description: "Mayor que cero, con los decimales de la moneda."
+        concept:
+          type: string
+          description: "Por qué. Obligatorio, hasta 500 caracteres."
     RegisterMembershipRequest:
       type: object
       properties:
@@ -14889,77 +15599,6 @@ components:
           format: int32
         totalIsExact:
           type: boolean
-    MyProduct:
-      type: object
-      description: "Un producto de una compra propia, con su estado."
-      properties:
-        movementId:
-          type: string
-          format: uuid
-          description: "De qué venta viene; se abre en /movements/mine/{id}."
-        movementCode:
-          type: string
-        movementStatus:
-          type: string
-        product:
-          $ref: "#/components/schemas/MyProductRef"
-        quantity:
-          type: integer
-          format: int32
-        implementation:
-          type: string
-          description: "COPIA de cómo se entrega: AUTOMATICA o MANUAL."
-        state:
-          type: string
-          description: "El estado, calculado de la venta, la entrega y la vigencia."
-          enum:
-          - PENDIENTE_PAGO
-          - PENDIENTE_AUTORIZACION
-          - ACTIVO
-          - VENCIDO
-          - CANCELADO
-          - RETENIDO
-          - RECHAZADO
-          - ANULADO
-        purchasedAt:
-          type: string
-          format: date-time
-          description: "Cuándo se compró: la fecha de la venta."
-        deliveredAt:
-          type:
-          - string
-          - "null"
-          format: date-time
-          description: Desde cuándo se tiene. NULO si no se ha entregado.
-        validUntil:
-          type:
-          - string
-          - "null"
-          format: date-time
-          description: "Hasta cuándo se tiene: la entrega más la vigencia comprada.\
-            \ NULO si no se ha entregado o si no caduca."
-        deliveryNote:
-          type:
-          - string
-          - "null"
-          description: Por qué no se entregará. Solo en RETENIDO.
-        couponUrl:
-          type:
-          - string
-          - "null"
-          description: "El cupón del bot, ya resuelto. Solo si la línea está entregada\
-            \ (ACTIVO o VENCIDO) y el producto lo declara; NULO en cualquier otro\
-            \ caso."
-    MyProductRef:
-      type: object
-      properties:
-        id:
-          type: string
-          format: uuid
-        code:
-          type: string
-        name:
-          type: string
     PageResponseMyProduct:
       type: object
       properties:
@@ -14967,6 +15606,64 @@ components:
           type: array
           items:
             $ref: "#/components/schemas/MyProduct"
+        totalElements:
+          type: integer
+          format: int64
+        totalPages:
+          type: integer
+          format: int32
+        page:
+          type: integer
+          format: int32
+        size:
+          type: integer
+          format: int32
+        totalIsExact:
+          type: boolean
+    EntryResponse:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        createdAt:
+          type: string
+          format: date-time
+        account:
+          type: string
+        currency:
+          $ref: "#/components/schemas/SaleCurrency"
+        amount:
+          type: number
+        balanceAfter:
+          type: number
+        event:
+          type: string
+        movement:
+          $ref: "#/components/schemas/Movement"
+    Movement:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        code:
+          type: string
+        type:
+          type: string
+        status:
+          type: string
+        concept:
+          type: string
+        rejectionReason:
+          type: string
+    PageResponseEntryResponse:
+      type: object
+      properties:
+        content:
+          type: array
+          items:
+            $ref: "#/components/schemas/EntryResponse"
         totalElements:
           type: integer
           format: int64

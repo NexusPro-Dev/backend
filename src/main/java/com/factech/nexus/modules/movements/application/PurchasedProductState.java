@@ -13,8 +13,15 @@ package com.factech.nexus.modules.movements.application;
 public enum PurchasedProductState {
   /** La venta está pendiente: lo comprado todavía no se tiene (`RN-MV-004`). */
   PENDIENTE_PAGO,
-  /** La venta se confirmó y la línea es manual: espera a que alguien la autorice (`RN-MV-021`). */
-  PENDIENTE_AUTORIZACION,
+  /**
+   * La venta se confirmó y la línea es manual: espera a que <b>quien la compró</b> la active
+   * (`RN-MV-021`, `RN-MV-048`, `RF-MV-010`).
+   *
+   * <p>Hasta el 28-09-2026 se llamaba {@code PENDIENTE_AUTORIZACION}, cuando la entrega de lo
+   * manual la iba a autorizar un funcionario. El cambio es incompatible y está declarado en el
+   * contrato.
+   */
+  PENDIENTE_ACTIVACION,
   /** Entregada y con la vigencia por delante, o sin vigencia (`RN-PM-015`). */
   ACTIVO,
   /** Entregada y con la vigencia pasada. */
