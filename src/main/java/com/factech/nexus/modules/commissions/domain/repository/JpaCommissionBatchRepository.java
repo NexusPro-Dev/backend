@@ -104,6 +104,46 @@ public class JpaCommissionBatchRepository implements CommissionBatchRepository {
         .executeUpdate();
   }
 
+  @Override
+  public java.util.Optional<BatchToPay> lockForPayment(UUID batchId) {
+    @SuppressWarnings("unchecked")
+    List<Object[]> filas =
+        em.createNativeQuery(
+                """
+                SELECT id, code, user_id, currency_id, total_amount, status
+                  FROM commission_batches
+                 WHERE id = :id
+                   FOR UPDATE
+                """)
+            .setParameter("id", batchId)
+            .getResultList();
+    return filas.stream()
+        .findFirst()
+        .map(
+            f ->
+                new BatchToPay(
+                    (UUID) f[0],
+                    (String) f[1],
+                    (UUID) f[2],
+                    (UUID) f[3],
+                    (BigDecimal) f[4],
+                    (String) f[5]));
+  }
+
+  @Override
+  public void markPaid(UUID batchId, OffsetDateTime at, UUID movementId) {
+    em.createNativeQuery(
+            """
+            UPDATE commission_batches
+               SET status = 'PAGADO', paid_at = :at, movement_id = :movimiento, updated_at = :at
+             WHERE id = :id AND status = 'PENDIENTE'
+            """)
+        .setParameter("id", batchId)
+        .setParameter("at", at)
+        .setParameter("movimiento", movementId)
+        .executeUpdate();
+  }
+
   private static OffsetDateTime instante(Object valor) {
     if (valor instanceof OffsetDateTime odt) {
       return odt;

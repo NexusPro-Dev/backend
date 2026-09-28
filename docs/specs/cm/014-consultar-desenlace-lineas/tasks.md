@@ -6,7 +6,7 @@
 | Especificación | [`spec.md`](spec.md) v0.1.0 |
 | Plan | [`plan.md`](plan.md) v0.1.0 |
 | `plan.md` aprobado el | 28-09-2026 |
-| Estado | **En revisión** |
+| Estado | **En revisión** — tareas `Hecha` el 28-09-2026, salvo `T-02`, retirada |
 | Issue | Pendiente de crear |
 | Rama | `feature/devengo-de-comisiones` |
 
@@ -22,11 +22,11 @@
 
 | ID | Tarea | Depende de | Verificación | Estado |
 |---|---|---|---|---|
-| `T-01` | `ix_commission_accruals_outcome_updated` en `V51` | `RF-CM-013` `T-01` | Migración desde cero | Pendiente |
-| `T-02` | `CommissionableLines.detailIdsOf` en `MV` | `RF-CM-013` `T-07` | Integración de `MV` | Pendiente |
-| `T-03` | Repositorio, servicio, `record`s con `@Schema(name)` y la ruta en `PERMISO_DE_CADA_OPERACION` | `T-01`, `T-02` | `EndpointPermissionsIT` | Pendiente |
-| `T-04` | `ListCommissionAccrualsIT`: `CA-CM-203` a `CA-CM-208` | `T-03`, `RF-CM-009` `T-03` | Número de sentencias en `CA-CM-208` | Pendiente |
-| `T-05` | Contrato OpenAPI y `requirements.md` | `T-04` | | Pendiente |
+| `T-01` | `ix_commission_accruals_outcome_updated` en `V51` | `RF-CM-013` `T-01` | Migración desde cero | **Hecha** — 28-09-2026 |
+| `T-02` | ~~`CommissionableLines.detailIdsOf` en `MV`~~ | `RF-CM-013` `T-07` | — | **Retirada** — 28-09-2026, ver §3.1 |
+| `T-03` | Repositorio, servicio, `record`s con `@Schema(name)` y la ruta en `PERMISO_DE_CADA_OPERACION` | `T-01`, `T-02` | `EndpointPermissionsIT` | **Hecha** — 28-09-2026 |
+| `T-04` | `ListCommissionAccrualsIT`: `CA-CM-203` a `CA-CM-208` | `T-03`, `RF-CM-009` `T-03` | Número de sentencias en `CA-CM-208` | **Hecha** — 28-09-2026 |
+| `T-05` | Contrato OpenAPI y `requirements.md` | `T-04` | | **Hecha** — 28-09-2026 |
 
 ---
 
@@ -43,6 +43,12 @@
 | `CA-CM-203` a `CA-CM-208` | `T-03`, `T-04` |
 
 ---
+
+## 3.1 Desviaciones respecto del plan
+
+- **Los datos de otros módulos se leen con `JOIN` en la misma sentencia**, y no por las interfaces de cada módulo como decía `plan.md` §1: es el precedente de `JpaUserCommissionRateQueryRepository`, que ya une `users`, `products` y `currencies` para leer. Una sentencia por lectura, sin idas por módulo y página, y con la prueba de número de sentencias igual. Por eso `CommissionableLines` **no gana** los métodos que el plan le añadía.
+- **`ix_commission_accruals_outcome_updated` ya estaba en `V51`**.
+- **La suite se llama `CommissionAccrualsIT`**, no `ListCommissionAccrualsIT`.
 
 ## 4. Bloqueos
 

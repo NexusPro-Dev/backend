@@ -6,7 +6,7 @@
 | Especificación | [`spec.md`](spec.md) v0.1.0 |
 | Plan | [`plan.md`](plan.md) v0.1.0 |
 | `plan.md` aprobado el | 28-09-2026 |
-| Estado | **En revisión** |
+| Estado | **En revisión** — tareas `Hecha` el 28-09-2026, salvo `T-02`, retirada |
 | Issue | Pendiente de crear |
 | Rama | `feature/devengo-de-comisiones` |
 
@@ -22,12 +22,12 @@
 
 | ID | Tarea | Depende de | Verificación | Estado |
 |---|---|---|---|---|
-| `T-01` | `ix_commission_batches_periodo` en `V51` | `RF-CM-013` `T-01` | Migración desde cero | Pendiente |
-| `T-02` | `CommissionableLines.describe` en `MV` | `RF-CM-013` `T-07` | Integración de `MV` | Pendiente |
-| `T-03` | `CommissionBatchQueryRepository` y adaptador | `T-01` | — | Pendiente |
-| `T-04` | Los dos servicios, los `record`s con `@Schema(name)` y las dos rutas en `PERMISO_DE_CADA_OPERACION` | `T-02`, `T-03` | `EndpointPermissionsIT` | Pendiente |
-| `T-05` | `ListCommissionBatchesIT`, `GetCommissionBatchIT`: `CA-CM-181` a `CA-CM-188` | `T-04`, `RF-CM-009` `T-03` | Número de sentencias en `CA-CM-188` | Pendiente |
-| `T-06` | Contrato OpenAPI y `requirements.md` | `T-05` | | Pendiente |
+| `T-01` | `ix_commission_batches_periodo` en `V51` | `RF-CM-013` `T-01` | Migración desde cero | **Hecha** — 28-09-2026 |
+| `T-02` | ~~`CommissionableLines.describe` en `MV`~~ | `RF-CM-013` `T-07` | — | **Retirada** — 28-09-2026, ver §3.1 |
+| `T-03` | `CommissionBatchQueryRepository` y adaptador | `T-01` | — | **Hecha** — 28-09-2026 |
+| `T-04` | Los dos servicios, los `record`s con `@Schema(name)` y las dos rutas en `PERMISO_DE_CADA_OPERACION` | `T-02`, `T-03` | `EndpointPermissionsIT` | **Hecha** — 28-09-2026 |
+| `T-05` | `ListCommissionBatchesIT`, `GetCommissionBatchIT`: `CA-CM-181` a `CA-CM-188` | `T-04`, `RF-CM-009` `T-03` | Número de sentencias en `CA-CM-188` | **Hecha** — 28-09-2026 |
+| `T-06` | Contrato OpenAPI y `requirements.md` | `T-05` | | **Hecha** — 28-09-2026 |
 
 ---
 
@@ -45,6 +45,14 @@
 | `CA-CM-188` | `T-02`, `T-05` |
 
 ---
+
+## 3.1 Desviaciones respecto del plan
+
+- **Los datos de otros módulos se leen con `JOIN` en la misma sentencia**, y no por las interfaces de cada módulo como decía `plan.md` §1: es el precedente de `JpaUserCommissionRateQueryRepository`, que ya une `users`, `products` y `currencies` para leer. Una sentencia por lectura, sin idas por módulo y página, y con la prueba de número de sentencias igual. Por eso `CommissionableLines` **no gana** los métodos que el plan le añadía.
+- **`ix_commission_batches_periodo` ya estaba en `V51`**, sin tarea aparte.
+- **Las pruebas son una suite, `CommissionBatchesIT`**, que cubre también `RF-CM-012`, y no `ListCommissionBatchesIT` y `GetCommissionBatchIT`.
+- **Un solo servicio para `RF-CM-010` y `RF-CM-012`** (`CommissionBatchQueryService`), con la persona como parámetro.
+- **Cada lote publica `paidAmount`**, lo abonado en la billetera, leído del movimiento del abono: es lo que `RF-CM-011` devuelve, y en el listado evita ir a buscarlo.
 
 ## 4. Bloqueos
 

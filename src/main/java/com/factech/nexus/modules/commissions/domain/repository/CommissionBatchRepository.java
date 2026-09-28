@@ -23,6 +23,19 @@ public interface CommissionBatchRepository {
   /** Suma sobre la fila, no sobre lo leído: dos devengos simultáneos suman los dos. */
   void addToTotal(UUID batchId, BigDecimal amount, OffsetDateTime at);
 
+  /**
+   * El lote, <b>bloqueado</b> hasta el final de la transacción, para pagarlo (`RF-CM-011`): el
+   * segundo de dos pagos simultáneos espera aquí y encuentra {@code PAGADO}.
+   */
+  java.util.Optional<BatchToPay> lockForPayment(UUID batchId);
+
+  /** {@code PENDIENTE} → {@code PAGADO}, con la fecha y el movimiento del abono (`RN-CM-030`). */
+  void markPaid(UUID batchId, OffsetDateTime at, UUID movementId);
+
+  /** Lo que hace falta para abonar un lote. */
+  record BatchToPay(
+      UUID id, String code, UUID userId, UUID currencyId, BigDecimal totalAmount, String status) {}
+
   /** El lote abierto y el instante en que empezó su periodo. */
   record OpenBatch(UUID id, OffsetDateTime periodStart) {}
 }

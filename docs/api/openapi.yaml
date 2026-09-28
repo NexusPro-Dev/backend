@@ -39,6 +39,9 @@ tags:
   description: Alta y administración de las personas del sistema.
 - name: Cursos
   description: "Lo que la membresía o el servicio abren: los cursos de la academia."
+- name: Desenlace de las comisiones
+  description: "Qué pasó con cada línea de venta: devengó, no tenía tasa, o se rechazó\
+    \ por pasar del 100 %."
 - name: Tasas de cambio
   description: A cuánto se cambia una moneda por otra
 - name: Hotlinks
@@ -5073,6 +5076,68 @@ paths:
         "409":
           description: Ya estaba retirada
       x-required-permission: commissions:delete
+  /api/v1/commission-batches/{id}/payment:
+    post:
+      tags:
+      - Lotes de comisión
+      summary: Pagar un lote de comisión
+      description: |
+        **Permiso requerido:** `commission-batches:pay`. Sin él, `403` (`AUTH-002`).
+
+        Marca un lote `PENDIENTE` como **pagado** y, en el mismo acto, **abona su total en la
+        billetera** de su persona (`RF-CM-011`, `RN-CM-030`, `RN-MV-044`): el importe se
+        redondea a los decimales de la moneda, y el abono es un movimiento `PAGO_COMISION`
+        que queda enlazado en `movementId`. Si el abono falla, el lote no cambia.
+
+        **Solo un lote `PENDIENTE`**: uno `ABIERTO` sigue creciendo y se paga después del
+        cierre; uno `PAGADO` no se paga dos veces. Los dos responden **`409`** con el estado en
+        el mensaje. **Sin cuerpo**: se paga el total, entero.
+      operationId: pagar
+      parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      responses:
+        "200":
+          description: "Pagado, con el lote y `paidAmount`"
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/CommissionBatchDetailResponse"
+        "400":
+          description: Identificador malformado
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/CommissionBatchDetailResponse"
+        "401":
+          description: Sin token
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/CommissionBatchDetailResponse"
+        "403":
+          description: Sin `commission-batches:pay`
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/CommissionBatchDetailResponse"
+        "404":
+          description: No existe
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/CommissionBatchDetailResponse"
+        "409":
+          description: Abierto o ya pagado
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/CommissionBatchDetailResponse"
+      x-required-permission: commission-batches:pay
   /api/v1/commission-batches/closing:
     post:
       tags:
@@ -10574,6 +10639,266 @@ paths:
               schema:
                 $ref: "#/components/schemas/CommissionClosingPageResponse"
       x-required-permission: commission-closings:read
+  /api/v1/commission-batches:
+    get:
+      tags:
+      - Lotes de comisión
+      summary: Consultar los lotes de comisión
+      description: |
+        **Permiso requerido:** `commission-batches:read`. Sin él, `403` (`AUTH-002`).
+
+        Los lotes de **todas** las personas (`RF-CM-010`), del periodo más reciente al más
+        antiguo: `ABIERTO` —crece con cada venta, sin fin de periodo y con su total **al
+        día**—, `PENDIENTE` —cerrado, esperando el pago— y `PAGADO` —abonado en la billetera,
+        con `paidAmount` redondeado a la moneda—.
+
+        Filtros combinables: `status`, `userId`, `currencyId`, y `from`/`to` sobre el inicio
+        del periodo. Los errores de los filtros salen **todos juntos**.
+
+        **Alcance global**: quien porta el permiso ve todos los lotes. Ver solo los de la red
+        depende de **D-22**; los propios son `GET /commission-batches/mine`.
+      operationId: listar_11
+      parameters:
+      - name: filtros
+        in: query
+        required: true
+        schema:
+          $ref: "#/components/schemas/ListCommissionBatchesRequest"
+      responses:
+        "200":
+          description: Página de lotes
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/CommissionBatchPageResponse"
+        "400":
+          description: Filtros inválidos
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/CommissionBatchPageResponse"
+        "401":
+          description: Sin token
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/CommissionBatchPageResponse"
+        "403":
+          description: Sin `commission-batches:read`
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/CommissionBatchPageResponse"
+      x-required-permission: commission-batches:read
+  /api/v1/commission-batches/{id}:
+    get:
+      tags:
+      - Lotes de comisión
+      summary: Consultar un lote de comisión
+      description: |
+        **Permiso requerido:** `commission-batches:read-detail`. Sin él, `403` (`AUTH-002`).
+
+        Un lote con **cada comisión**, línea a línea y nivel a nivel (`RF-CM-010`): de qué
+        venta y producto sale, qué nivel de la cadena cobra —`0` quien vendió—, de qué tasa
+        exacta salió (`source`, `rateId`), la forma y el valor **copiados** al devengar, la base,
+        lo devengado, el día de la venta con que se resolvió la tasa (`resolvedOn`) y el
+        instante del devengo (`accruedAt`).
+
+        **Lo copiado, no lo de hoy** (`RN-CM-008`): corregir la tasa después no cambia lo que
+        aquí se lee.
+      operationId: detalle_8
+      parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      responses:
+        "200":
+          description: El lote con sus comisiones
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/CommissionBatchDetailResponse"
+        "400":
+          description: Identificador malformado
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/CommissionBatchDetailResponse"
+        "401":
+          description: Sin token
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/CommissionBatchDetailResponse"
+        "403":
+          description: Sin `commission-batches:read-detail`
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/CommissionBatchDetailResponse"
+        "404":
+          description: No existe
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/CommissionBatchDetailResponse"
+      x-required-permission: commission-batches:read-detail
+  /api/v1/commission-batches/mine:
+    get:
+      tags:
+      - Lotes de comisión
+      summary: Consultar mis lotes de comisión
+      description: |
+        **Permiso requerido:** `commission-batches:list-own`. Sin él, `403` (`AUTH-002`).
+
+        **Los lotes propios** (`RF-CM-012`): el abierto, que **crece con cada venta** —la
+        comisión nace en cuanto la venta se confirma con vendedor—, los pendientes de pago y
+        los pagados. Incluye lo que se cobra como superior por las ventas de la red: cada nivel
+        de la cadena está en el lote de quien cobra.
+
+        La persona la pone el token: **no hay filtro de persona**. Filtros `status`,
+        `currencyId`, `from`, `to`, con los errores todos juntos.
+      operationId: misLotes
+      parameters:
+      - name: filtros
+        in: query
+        required: true
+        schema:
+          $ref: "#/components/schemas/MyCommissionBatchesRequest"
+      responses:
+        "200":
+          description: Página de mis lotes
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/CommissionBatchPageResponse"
+        "400":
+          description: Filtros inválidos
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/CommissionBatchPageResponse"
+        "401":
+          description: Sin token
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/CommissionBatchPageResponse"
+        "403":
+          description: Sin `commission-batches:list-own`
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/CommissionBatchPageResponse"
+      x-required-permission: commission-batches:list-own
+  /api/v1/commission-batches/mine/{id}:
+    get:
+      tags:
+      - Lotes de comisión
+      summary: Consultar uno de mis lotes
+      description: |
+        **Permiso requerido:** `commission-batches:read-own`. Sin él, `403` (`AUTH-002`).
+
+        Uno de **mis** lotes, con sus comisiones, en la forma del detalle de administración
+        (`RF-CM-012`). **Un lote ajeno responde `404`**, igual que uno que no existe: no se
+        confirma que exista.
+      operationId: miLote
+      parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      responses:
+        "200":
+          description: El lote con sus comisiones
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/CommissionBatchDetailResponse"
+        "400":
+          description: Identificador malformado
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/CommissionBatchDetailResponse"
+        "401":
+          description: Sin token
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/CommissionBatchDetailResponse"
+        "403":
+          description: Sin `commission-batches:read-own`
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/CommissionBatchDetailResponse"
+        "404":
+          description: "No existe, o no es mío"
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/CommissionBatchDetailResponse"
+      x-required-permission: commission-batches:read-own
+  /api/v1/commission-accruals:
+    get:
+      tags:
+      - Desenlace de las comisiones
+      summary: Consultar el desenlace de las líneas
+      description: |
+        **Permiso requerido:** `commission-accruals:read`. Sin él, `403` (`AUTH-002`).
+
+        **Qué pasó con cada línea de venta cobrada y con vendedor** (`RF-CM-014`,
+        `RN-CM-032`), del último intento más reciente al más antiguo:
+
+        - `DEVENGADA`: la cadena cobró; sus comisiones están en los lotes.
+        - `SIN_COMISION`: nadie de la cadena tenía tasa sobre el producto. **Definitivo**: no
+          se reintenta aunque después se registre una tasa.
+        - `RECHAZADA`: la cadena pasaba del 100 % de la línea (`RN-CM-026`). `reason` dice
+          cuánto sumaba y cuánto valía la línea, para saber qué tasa corregir. **Cada cierre la
+          reintenta**, y `attempts` lo cuenta; en cuanto la tasa se corrige, devenga sola.
+
+        Una línea **sin desenlace todavía** no aparece: la recogerá el barrido del siguiente
+        cierre. Filtros `outcome`, `movementId`, `productId`, y `from`/`to` sobre el último
+        intento, con los errores todos juntos.
+      operationId: listar_12
+      parameters:
+      - name: filtros
+        in: query
+        required: true
+        schema:
+          $ref: "#/components/schemas/ListCommissionAccrualsRequest"
+      responses:
+        "200":
+          description: Página de desenlaces
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/CommissionAccrualPageResponse"
+        "400":
+          description: Filtros inválidos
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/CommissionAccrualPageResponse"
+        "401":
+          description: Sin token
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/CommissionAccrualPageResponse"
+        "403":
+          description: Sin `commission-accruals:read`
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/CommissionAccrualPageResponse"
+      x-required-permission: commission-accruals:read
   /api/v1/brokers:
     get:
       tags:
@@ -10601,7 +10926,7 @@ paths:
 
         **No se pagina**: son unos pocos elementos y partirlos obligaría a dos
         llamadas para pintar un desplegable.
-      operationId: listar_11
+      operationId: listar_13
       parameters:
       - name: includeInactive
         in: query
@@ -10713,7 +11038,7 @@ paths:
 
         **Esta ruta no sustituye a `GET /api/v1/users/{id}/broker-accounts`**,
         que existe para **el superior comercial sin permiso**.
-      operationId: listar_12
+      operationId: listar_14
       parameters:
       - name: page
         in: query
@@ -13931,6 +14256,107 @@ components:
           type: string
         name:
           type: string
+    CommissionBatchCurrency:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        code:
+          type: string
+    CommissionBatchDetailResponse:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        code:
+          type: string
+        user:
+          $ref: "#/components/schemas/CommissionBatchPerson"
+        currency:
+          $ref: "#/components/schemas/CommissionBatchCurrency"
+        periodStart:
+          type: string
+          format: date-time
+        periodEnd:
+          type: string
+          format: date-time
+        status:
+          type: string
+        totalAmount:
+          type: number
+        commissionsCount:
+          type: integer
+          format: int64
+        paidAt:
+          type: string
+          format: date-time
+        movementId:
+          type: string
+          format: uuid
+        paidAmount:
+          type: number
+        commissions:
+          type: array
+          items:
+            $ref: "#/components/schemas/CommissionLine"
+    CommissionBatchPerson:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        username:
+          type: string
+        fullName:
+          type: string
+    CommissionLine:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        movementDetailId:
+          type: string
+          format: uuid
+        movementId:
+          type: string
+          format: uuid
+        movementCode:
+          type: string
+        productId:
+          type: string
+          format: uuid
+        productName:
+          type: string
+        chainLevel:
+          type: integer
+          format: int32
+        source:
+          type: string
+        rateId:
+          type: string
+          format: uuid
+        rateType:
+          type: string
+        percentage:
+          type: number
+        fixedAmount:
+          type: number
+        unitPrice:
+          type: number
+        quantity:
+          type: integer
+          format: int32
+        commissionAmount:
+          type: number
+        resolvedOn:
+          type: string
+          format: date
+        accruedAt:
+          type: string
+          format: date-time
     CommissionClosingResponse:
       type: object
       properties:
@@ -16439,6 +16865,183 @@ components:
           type: array
           items:
             $ref: "#/components/schemas/CommissionClosingResponse"
+        totalElements:
+          type: integer
+          format: int64
+        totalPages:
+          type: integer
+          format: int32
+        page:
+          type: integer
+          format: int32
+        size:
+          type: integer
+          format: int32
+        totalIsExact:
+          type: boolean
+        sort:
+          type: string
+    ListCommissionBatchesRequest:
+      type: object
+      properties:
+        page:
+          type: integer
+          format: int32
+        size:
+          type: integer
+          format: int32
+        status:
+          type: string
+        userId:
+          type: string
+          format: uuid
+        currencyId:
+          type: string
+          format: uuid
+        from:
+          type: string
+          format: date-time
+        to:
+          type: string
+          format: date-time
+    CommissionBatchItem:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        code:
+          type: string
+        user:
+          $ref: "#/components/schemas/CommissionBatchPerson"
+        currency:
+          $ref: "#/components/schemas/CommissionBatchCurrency"
+        periodStart:
+          type: string
+          format: date-time
+        periodEnd:
+          type: string
+          format: date-time
+        status:
+          type: string
+        totalAmount:
+          type: number
+        commissionsCount:
+          type: integer
+          format: int64
+        paidAt:
+          type: string
+          format: date-time
+        movementId:
+          type: string
+          format: uuid
+        paidAmount:
+          type: number
+    CommissionBatchPageResponse:
+      type: object
+      properties:
+        content:
+          type: array
+          items:
+            $ref: "#/components/schemas/CommissionBatchItem"
+        totalElements:
+          type: integer
+          format: int64
+        totalPages:
+          type: integer
+          format: int32
+        page:
+          type: integer
+          format: int32
+        size:
+          type: integer
+          format: int32
+        totalIsExact:
+          type: boolean
+        sort:
+          type: string
+    MyCommissionBatchesRequest:
+      type: object
+      properties:
+        page:
+          type: integer
+          format: int32
+        size:
+          type: integer
+          format: int32
+        status:
+          type: string
+        currencyId:
+          type: string
+          format: uuid
+        from:
+          type: string
+          format: date-time
+        to:
+          type: string
+          format: date-time
+    ListCommissionAccrualsRequest:
+      type: object
+      properties:
+        page:
+          type: integer
+          format: int32
+        size:
+          type: integer
+          format: int32
+        outcome:
+          type: string
+        movementId:
+          type: string
+          format: uuid
+        productId:
+          type: string
+          format: uuid
+        from:
+          type: string
+          format: date-time
+        to:
+          type: string
+          format: date-time
+    CommissionAccrualItem:
+      type: object
+      properties:
+        movementDetailId:
+          type: string
+          format: uuid
+        movementId:
+          type: string
+          format: uuid
+        movementCode:
+          type: string
+        productId:
+          type: string
+          format: uuid
+        productName:
+          type: string
+        sellerId:
+          type: string
+          format: uuid
+        outcome:
+          type: string
+        reason:
+          type: string
+        attempts:
+          type: integer
+          format: int32
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+    CommissionAccrualPageResponse:
+      type: object
+      properties:
+        content:
+          type: array
+          items:
+            $ref: "#/components/schemas/CommissionAccrualItem"
         totalElements:
           type: integer
           format: int64

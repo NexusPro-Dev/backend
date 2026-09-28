@@ -6,7 +6,7 @@
 | Especificación | [`spec.md`](spec.md) v0.1.0 |
 | Plan | [`plan.md`](plan.md) v0.1.0 |
 | `plan.md` aprobado el | 28-09-2026 |
-| Estado | **En revisión** |
+| Estado | **En revisión** — todas las tareas `Hecha` el 28-09-2026 |
 | Issue | Pendiente de crear |
 | Rama | `feature/devengo-de-comisiones` |
 
@@ -22,10 +22,10 @@
 
 | ID | Tarea | Depende de | Verificación | Estado |
 |---|---|---|---|---|
-| `T-01` | La variante propia de los dos servicios de `RF-CM-010` | `RF-CM-010` `T-04` | — | Pendiente |
-| `T-02` | `GET /mine` y `GET /mine/{id}`, en `PERMISO_DE_CADA_OPERACION` | `T-01` | `EndpointPermissionsIT` | Pendiente |
-| `T-03` | `MyCommissionBatchesIT`: `CA-CM-197` a `CA-CM-202` | `T-02` | Dos vendedores en cadena | Pendiente |
-| `T-04` | Contrato OpenAPI y `requirements.md` | `T-03` | | Pendiente |
+| `T-01` | La variante propia de los dos servicios de `RF-CM-010` | `RF-CM-010` `T-04` | — | **Hecha** — 28-09-2026 |
+| `T-02` | `GET /mine` y `GET /mine/{id}`, en `PERMISO_DE_CADA_OPERACION` | `T-01` | `EndpointPermissionsIT` | **Hecha** — 28-09-2026 |
+| `T-03` | `MyCommissionBatchesIT`: `CA-CM-197` a `CA-CM-202` | `T-02` | Dos vendedores en cadena | **Hecha** — 28-09-2026 |
+| `T-04` | Contrato OpenAPI y `requirements.md` | `T-03` | | **Hecha** — 28-09-2026 |
 
 ---
 
@@ -42,6 +42,11 @@
 | `CA-CM-197` a `CA-CM-202` | `T-01`, `T-02`, `T-03` |
 
 ---
+
+## 3.1 Desviaciones respecto del plan
+
+- **La variante propia es un parámetro del servicio de `RF-CM-010`**, no un servicio aparte; `MyCommissionBatchesRequest` no declara la persona.
+- **Las pruebas viven en `CommissionBatchesIT`**, junto a las de `RF-CM-010`, y no en `MyCommissionBatchesIT`.
 
 ## 4. Bloqueos
 
