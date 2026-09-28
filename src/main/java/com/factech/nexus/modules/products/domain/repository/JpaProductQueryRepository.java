@@ -365,6 +365,51 @@ public class JpaProductQueryRepository implements ProductQueryRepository {
   }
 
   /**
+   * Lo comprado en la forma de la oferta (`RF-MV-014`): la misma proyección de venta —<b>sin
+   * `purchase_price`</b>, `RN-PM-024`— y <b>ningún predicado</b> más que el lote. Un producto
+   * retirado o inactivo sigue siendo lo que alguien compró.
+   */
+  @Override
+  @Transactional(readOnly = true)
+  public List<ProductRow> findSaleRowsByIds(Collection<UUID> ids) {
+    if (ids == null || ids.isEmpty()) {
+      return List.of();
+    }
+    List<Tuple> filas =
+        em.createNativeQuery(
+                """
+                SELECT p.id AS id, p.code AS code, p.type AS type, p.name AS name,
+                       p.description AS description, p.icon AS icon,
+                       p.cover_image_id AS cover_image_id,
+                       p.source_membership_id AS s_id, s.code AS s_code, s.name AS s_name,
+                       s.level AS s_level, s.color AS s_color,
+                       p.target_membership_id AS m_id, m.code AS m_code, m.name AS m_name,
+                       m.level AS m_level, m.color AS m_color,
+                       p.price AS price,
+                       p.currency_id AS c_id, c.code AS c_code,
+                       c.decimal_places AS c_decimales,
+                       p.validity_days AS validity_days, p.scope AS scope,
+                       p.implementation AS implementation, p.status AS status,
+                       p.created_at AS created_at,
+                       r.rating_avg AS rating_avg, r.rating_count AS rating_count
+                  FROM products p
+                  LEFT JOIN memberships s ON s.id = p.source_membership_id
+                  LEFT JOIN memberships m ON m.id = p.target_membership_id
+                  LEFT JOIN currencies  c ON c.id = p.currency_id
+                  LEFT JOIN LATERAL (
+                      SELECT avg(pc.rating) AS rating_avg, count(*) AS rating_count
+                        FROM product_comments pc
+                       WHERE pc.product_id = p.id AND pc.deleted_at IS NULL
+                  ) r ON true
+                 WHERE p.id IN (:ids)
+                """,
+                Tuple.class)
+            .setParameter("ids", ids)
+            .getResultList();
+    return filasDeVenta(filas);
+  }
+
+  /**
    * El mapeo de las dos lecturas de venta —la oferta y el catálogo de hotlinks—, que comparten
    * proyección: sin `purchase_price`, sin `updated_at` ni `deleted_at`.
    */

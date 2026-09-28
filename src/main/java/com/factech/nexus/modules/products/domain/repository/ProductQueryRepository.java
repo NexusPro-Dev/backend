@@ -3,6 +3,7 @@ package com.factech.nexus.modules.products.domain.repository;
 import com.factech.nexus.modules.products.application.ListProductsRequest;
 import java.math.BigDecimal;
 import java.time.OffsetDateTime;
+import java.util.Collection;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
@@ -79,6 +80,17 @@ public interface ProductQueryRepository {
    * que reparte.
    */
   List<ProductRow> findHotlinkCatalog();
+
+  /**
+   * Esos productos en la proyección de venta, <b>sin filtrar nada</b>: ni estado, ni retiro, ni
+   * alcance. Es la forma de la oferta para lo que <b>ya se compró</b> (`RF-MV-014`), y lo comprado
+   * sigue siendo de quien lo compró aunque el producto se haya retirado después.
+   *
+   * <p><b>Tampoco selecciona el precio de compra</b> (`RN-PM-024`), igual que {@link #findOffer}.
+   *
+   * @return los que existen, sin orden garantizado; una colección nula o vacía devuelve vacío
+   */
+  List<ProductRow> findSaleRowsByIds(Collection<UUID> ids);
 
   /**
    * El producto que un hotlink señala, por su <b>código</b> (`RF-PM-008` · `T-04`).
