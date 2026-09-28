@@ -12,6 +12,7 @@
 | Fecha de aprobación | 17-09-2026 |
 | Enmendado | 21-09-2026 — exige **`movements:read-own-products`** (`RF-SP-062`, `RN-SEG-015`: autenticarse no autoriza nada); lo siembra `V31` |
 | Enmendado | 22-09-2026 — **`couponUrl` en la línea entregada** (`RN-MV-032`), pedido a `PM` **en lote** por su interfaz publicada; §3, §4 y §8 |
+| Enmendado | 28-09-2026 — **`couponUrl` desaparece: los enlaces de entrega van dentro de `product.links`**, y nace `DESCARGA`. Ver el recuadro |
 
 !!! warning "Enmendado el 23-09-2026 — el «hasta» se lee, no se calcula"
 
@@ -22,6 +23,18 @@
     **Las dos ramas nuevas, en este orden**: `CANCELADO` cuando `up.closed_at` no es nulo —se comprueba **antes** que el vencimiento, porque quien dejó de tenerlo el día doce no «venció» el treinta—, y el `VENCIDO`/`ACTIVO` de siempre, ahora contra `up.ends_at`.
 
     **Y queda un borde declarado**: una línea entregada **sin** fila en `user_products` solo puede ser anterior a `V38`. Se resuelve como `ACTIVO` sin vencimiento, que es lo que el `LEFT JOIN` produce por sí solo, y no se inventa una fila para ella.
+
+!!! warning "Enmendado el 28-09-2026 — una lista de enlaces por línea, no por producto"
+
+    `spec.md` v0.6.0. **`product` es un `OfferItem`** (PR #128, que no enmendó este plan): `ProductCatalog.offerItemsOf` lo trae por lote, con los enlaces **publicables** (`RN-PM-050`), y el nombre de la compra viaja en `purchasedName`. Lo que cambia hoy:
+
+    **`couponUrl` desaparece y `couponLinksOf` con él.** `ProductCatalog` publica en su lugar **`deliveredLinksOf`**: los enlaces de un lote de productos, **todos los tipos y resueltos** (`RN-PM-049`), en una sentencia. Es la lectura de «lo que ve quien ya lo tiene», y existe como método aparte —y no como un parámetro de `offerItemsOf`— para que **la oferta no tenga forma de pedir los de entrega**: el filtro de la oferta sigue en el predicado.
+
+    **El servicio arma la lista por LÍNEA y no por producto.** El mismo producto puede estar en una línea entregada y en otra pendiente de la misma página, y las dos listas son distintas (`CA-MV-285`). Para la línea `ACTIVO` o `VENCIDO`, `product` es el `OfferItem` **con los enlaces de `deliveredLinksOf`** (`OfferItem.conEnlaces`, una copia: el del mapa se comparte entre líneas); para las demás, el `OfferItem` tal cual. Los de entrega se piden **solo para los productos de líneas entregadas**, como hasta hoy los cupones: al de una línea pendiente ni se pregunta.
+
+    **Sigue siendo `MV` quien decide por el estado**, y `PM` quien decide por el tipo y compone: `deliveredLinksOf` no sabe de líneas y `ListMyProductsService` no sabe qué tipo es entrega. §8 se conserva como historia; su argumento —lote, composición en `PM`, filtro de estado en `MV`— vale igual para la lista.
+
+    **Por qué la lista entera y no el `OfferItem` más los de entrega añadidos**: el orden. Los enlaces salen **ordenados por tipo**, como en todas las lecturas del producto, y pegar los de entrega al final los dejaría detrás del video en esta y delante en las de administración. Una sentencia con todos los tipos los deja en su sitio.
 
 !!! info "Qué va en este documento"
 
@@ -168,6 +181,7 @@ Ninguno hasta el 22-09-2026. Se cruza `products` solo por el código, que es inm
 | Orden, paginación, una fila por línea | Integración | |
 | `/mine/products` no es un `{id}` | Integración | |
 | `401` sin token; `200` sin permiso | Integración | |
-| El cupón en la línea entregada | API | `ACTIVO` y `VENCIDO` lo traen **resuelto**; `PENDIENTE_PAGO`, `PENDIENTE_ACTIVACION` y `RETENIDO` **no lo traen**, comprobando el cuerpo entero (`CA-MV-140`, `CA-MV-141`) |
+| El cupón en la línea entregada | API | `ACTIVO` y `VENCIDO` lo traen **resuelto** entre los enlaces de `product` (28-09-2026: antes en `couponUrl`); `PENDIENTE_PAGO`, `PENDIENTE_ACTIVACION` y `RETENIDO` **no lo traen**, comprobando el cuerpo entero (`CA-MV-140`, `CA-MV-141`) |
 | El cupón no es un `N+1` | Integración | Veinte líneas entregadas: **una sola llamada** a `ProductCatalog`, y el recuento **no crece** con la página (`CA-MV-142`) |
-| El cupón se lee de hoy, no de la venta | API | Se corrige la dirección en el catálogo y la misma línea entregada devuelve **la nueva**; se quita el enlace y **el campo desaparece** |
+| El cupón se lee de hoy, no de la venta | API | Se corrige la dirección en el catálogo y la misma línea entregada devuelve **la nueva**; se quita el enlace y **deja de estar entre los enlaces** |
+| La descarga y la lista por línea | API | `DESCARGA` solo en la línea entregada; el mismo producto entregado y pendiente en la misma página trae dos listas (`CA-MV-285`) |
