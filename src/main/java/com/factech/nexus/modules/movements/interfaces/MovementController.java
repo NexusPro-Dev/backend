@@ -798,8 +798,19 @@ public class MovementController {
 
           **Solo lo que compró usted** —el sujeto de la venta—: lo que vendió a otros no
           aparece aquí (está en `/movements/sales`). Dos compras del mismo
-          producto son dos filas, cada una con su vigencia. El nombre es **el que tenía el
-          producto el día de la compra**. `state` filtra por estado; el orden es fijo.
+          producto son dos filas, cada una con su vigencia. `state` filtra por estado; el orden
+          es fijo.
+
+          **`product` viaja con la misma forma que en `GET /api/v1/products/available`**
+          (desde el 28-09-2026): tipo, descripción, icono, portada, enlaces publicables
+          resueltos, destino, `price`, moneda, `exchange`, vigencia, alcance, implementación y
+          valoración — **como está hoy en el catálogo**, también si el producto se retiró
+          después. **Sin precio de compra** y **sin el cupón del bot** entre sus enlaces: el
+          cupón viaja en `couponUrl`, y solo cuando la línea está entregada. Hasta esa fecha
+          `product` traía solo `id`, `code` y `name`: es un cambio incompatible.
+
+          **`purchasedName` es el nombre que tenía el producto el día de la compra**
+          (`RN-MV-002`); `product.name` es el de hoy.
 
           **Cada fila trae `lineId`** (desde el 28-09-2026): la línea de venta, que es lo que se
           activa.

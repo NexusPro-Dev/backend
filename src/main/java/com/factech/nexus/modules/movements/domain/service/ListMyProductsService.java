@@ -5,6 +5,7 @@ import com.factech.nexus.modules.movements.application.MyProductsRequest;
 import com.factech.nexus.modules.movements.application.PurchasedProductState;
 import com.factech.nexus.modules.movements.domain.repository.MovementRepository;
 import com.factech.nexus.modules.movements.domain.repository.MovementRepository.MyProductRow;
+import com.factech.nexus.modules.products.application.OfferItem;
 import com.factech.nexus.modules.products.application.ProductCatalog;
 import com.factech.nexus.modules.system.roles.application.AuthenticatedActor;
 import com.factech.nexus.shared.error.FieldError;
@@ -85,9 +86,14 @@ public class ListMyProductsService {
                 .distinct()
                 .toList());
 
+    // El producto en la forma de la oferta, de toda la pagina en UNA llamada a
+    // `PM`: pedirlo fila a fila es la N+1 que no se ve.
+    Map<UUID, OfferItem> productos =
+        catalogo.offerItemsOf(filas.stream().map(MyProductRow::productId).distinct().toList());
+
     List<MyProductResponse> contenido = new ArrayList<>(filas.size());
     for (MyProductRow fila : filas) {
-      contenido.add(aRespuesta(fila, cupones));
+      contenido.add(aRespuesta(fila, productos, cupones));
     }
     return PageResponse.de(contenido, total, pagina.page(), pagina.size());
   }
@@ -110,17 +116,19 @@ public class ListMyProductsService {
         PurchasedProductState.valueOf(fila.state()).estaEntregado()
             ? catalogo.couponLinksOf(List.of(fila.productId()))
             : Map.of();
-    return aRespuesta(fila, cupones);
+    return aRespuesta(fila, catalogo.offerItemsOf(List.of(fila.productId())), cupones);
   }
 
-  private static MyProductResponse aRespuesta(MyProductRow fila, Map<UUID, String> cupones) {
+  private static MyProductResponse aRespuesta(
+      MyProductRow fila, Map<UUID, OfferItem> productos, Map<UUID, String> cupones) {
     PurchasedProductState estadoLinea = PurchasedProductState.valueOf(fila.state());
     return new MyProductResponse(
         fila.lineId(),
         fila.movementId(),
         fila.movementCode(),
         fila.movementStatus(),
-        new MyProductResponse.ProductRef(fila.productId(), fila.productCode(), fila.productName()),
+        productos.get(fila.productId()),
+        fila.productName(),
         fila.quantity(),
         fila.implementation(),
         estadoLinea,

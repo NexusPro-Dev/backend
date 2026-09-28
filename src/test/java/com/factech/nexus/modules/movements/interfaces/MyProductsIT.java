@@ -248,7 +248,15 @@ class MyProductsIT extends IntegrationTestBase {
         .andExpect(jsonPath("$.totalPages").value(2))
         .andExpect(jsonPath("$.content[0].movementId").value(nueva.toString()))
         .andExpect(jsonPath("$.content[0].product.code").value("MP_BOT"))
-        .andExpect(jsonPath("$.content[0].product.name").value("Bot del registro"))
+        // Desde el 28-09-2026 el producto viaja como en `/products/available`, leído
+        // del catálogo de hoy; el nombre de la compra queda en `purchasedName`.
+        .andExpect(jsonPath("$.content[0].product.name").value("Otro nombre"))
+        .andExpect(jsonPath("$.content[0].product.type").value("BOT"))
+        .andExpect(jsonPath("$.content[0].product.price").isNotEmpty())
+        .andExpect(jsonPath("$.content[0].product.currency.code").isNotEmpty())
+        .andExpect(jsonPath("$.content[0].product.links").isArray())
+        .andExpect(jsonPath("$.content[0].product.purchasePrice").doesNotExist())
+        .andExpect(jsonPath("$.content[0].purchasedName").value("Bot del registro"))
         .andExpect(jsonPath("$.content[0].quantity").value(1))
         .andExpect(jsonPath("$.content[0].purchasedAt").isNotEmpty());
 

@@ -3307,11 +3307,16 @@
             "type" : "string"
           },
           "product" : {
-            "$ref" : "#/components/schemas/MyProductRef"
+            "$ref" : "#/components/schemas/OfferItem",
+            "description" : "El producto como en /products/available, leído del catálogo de hoy. Sin el cupón del bot: ese viaja en couponUrl."
           },
           "purchasedAt" : {
             "description" : "Cuándo se compró: la fecha de la venta.",
             "format" : "date-time",
+            "type" : "string"
+          },
+          "purchasedName" : {
+            "description" : "El nombre del producto el día de la compra (RN-MV-002).",
             "type" : "string"
           },
           "quantity" : {
@@ -3327,21 +3332,6 @@
             "description" : "Hasta cuándo se tiene: la entrega más la vigencia comprada. NULO si no se ha entregado o si no caduca.",
             "format" : "date-time",
             "type" : [ "string", "null" ]
-          }
-        },
-        "type" : "object"
-      },
-      "MyProductRef" : {
-        "properties" : {
-          "code" : {
-            "type" : "string"
-          },
-          "id" : {
-            "format" : "uuid",
-            "type" : "string"
-          },
-          "name" : {
-            "type" : "string"
           }
         },
         "type" : "object"
@@ -12850,7 +12840,7 @@
     },
     "/api/v1/movements/mine/products" : {
       "get" : {
-        "description" : "**Permiso requerido:** `movements:read-own-products`. Sin él, `403` (`AUTH-002`).\n\nDevuelve **los productos de las ventas a su nombre**, uno por línea de venta, del más\nreciente al más antiguo, y **en qué estado está cada uno**:\n\n- `PENDIENTE_PAGO`: la venta no se ha confirmado; todavía no lo tiene.\n- `PENDIENTE_ACTIVACION`: pagado, pero el producto es de implementación manual y\n  **usted** tiene que activarlo —`POST /movements/mine/products/{lineId}/activation`—.\n  **Hasta el 28-09-2026 se llamaba `PENDIENTE_AUTORIZACION`**: es un cambio\n  incompatible.\n- `ACTIVO`: entregado, con `deliveredAt` y —si caduca— `validUntil`, que es la\n  entrega más la vigencia comprada. La vigencia corre **desde la entrega**, no desde\n  la compra.\n- `VENCIDO`: entregado y con la vigencia pasada.\n- `RETENIDO`: pagado y **no se entregará** — `deliveryNote` dice por qué (`RN-MV-029`).\n- `RECHAZADO` / `ANULADO`: la venta terminó así.\n\n**Solo lo que compró usted** —el sujeto de la venta—: lo que vendió a otros no\naparece aquí (está en `/movements/sales`). Dos compras del mismo\nproducto son dos filas, cada una con su vigencia. El nombre es **el que tenía el\nproducto el día de la compra**. `state` filtra por estado; el orden es fijo.\n\n**Cada fila trae `lineId`** (desde el 28-09-2026): la línea de venta, que es lo que se\nactiva.\n",
+        "description" : "**Permiso requerido:** `movements:read-own-products`. Sin él, `403` (`AUTH-002`).\n\nDevuelve **los productos de las ventas a su nombre**, uno por línea de venta, del más\nreciente al más antiguo, y **en qué estado está cada uno**:\n\n- `PENDIENTE_PAGO`: la venta no se ha confirmado; todavía no lo tiene.\n- `PENDIENTE_ACTIVACION`: pagado, pero el producto es de implementación manual y\n  **usted** tiene que activarlo —`POST /movements/mine/products/{lineId}/activation`—.\n  **Hasta el 28-09-2026 se llamaba `PENDIENTE_AUTORIZACION`**: es un cambio\n  incompatible.\n- `ACTIVO`: entregado, con `deliveredAt` y —si caduca— `validUntil`, que es la\n  entrega más la vigencia comprada. La vigencia corre **desde la entrega**, no desde\n  la compra.\n- `VENCIDO`: entregado y con la vigencia pasada.\n- `RETENIDO`: pagado y **no se entregará** — `deliveryNote` dice por qué (`RN-MV-029`).\n- `RECHAZADO` / `ANULADO`: la venta terminó así.\n\n**Solo lo que compró usted** —el sujeto de la venta—: lo que vendió a otros no\naparece aquí (está en `/movements/sales`). Dos compras del mismo\nproducto son dos filas, cada una con su vigencia. `state` filtra por estado; el orden\nes fijo.\n\n**`product` viaja con la misma forma que en `GET /api/v1/products/available`**\n(desde el 28-09-2026): tipo, descripción, icono, portada, enlaces publicables\nresueltos, destino, `price`, moneda, `exchange`, vigencia, alcance, implementación y\nvaloración — **como está hoy en el catálogo**, también si el producto se retiró\ndespués. **Sin precio de compra** y **sin el cupón del bot** entre sus enlaces: el\ncupón viaja en `couponUrl`, y solo cuando la línea está entregada. Hasta esa fecha\n`product` traía solo `id`, `code` y `name`: es un cambio incompatible.\n\n**`purchasedName` es el nombre que tenía el producto el día de la compra**\n(`RN-MV-002`); `product.name` es el de hoy.\n\n**Cada fila trae `lineId`** (desde el 28-09-2026): la línea de venta, que es lo que se\nactiva.\n",
         "operationId" : "misProductos",
         "parameters" : [ {
           "in" : "query",

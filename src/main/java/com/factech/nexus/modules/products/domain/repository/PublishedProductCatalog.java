@@ -1,9 +1,14 @@
 package com.factech.nexus.modules.products.domain.repository;
 
+import com.factech.nexus.modules.products.application.OfferItem;
 import com.factech.nexus.modules.products.application.ProductCatalog;
+import com.factech.nexus.modules.products.application.ProductLinkResponse;
 import com.factech.nexus.modules.products.domain.models.Product;
 import com.factech.nexus.modules.products.domain.models.ProductLinkType;
 import com.factech.nexus.modules.products.domain.models.ProductType;
+import com.factech.nexus.modules.products.domain.repository.ProductQueryRepository.ProductRow;
+import com.factech.nexus.modules.products.domain.service.ProductExchangeResolver;
+import com.factech.nexus.modules.products.domain.service.ProductLinkReader;
 import com.factech.nexus.modules.system.users.application.CurrentMembershipLookup;
 import com.factech.nexus.modules.system.users.application.RegistrableProductLookup;
 import jakarta.persistence.EntityManager;
@@ -11,6 +16,7 @@ import jakarta.persistence.Tuple;
 import java.math.BigDecimal;
 import java.util.ArrayList;
 import java.util.Collection;
+import java.util.HashMap;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
@@ -39,16 +45,22 @@ public class PublishedProductCatalog implements ProductCatalog, RegistrableProdu
   private final ProductLinkRepository enlaces;
   private final ProductQueryRepository consultas;
   private final CurrentMembershipLookup membresias;
+  private final ProductLinkReader lectorDeEnlaces;
+  private final ProductExchangeResolver conversiones;
 
   public PublishedProductCatalog(
       EntityManager em,
       ProductQueryRepository consultas,
       CurrentMembershipLookup membresias,
-      ProductLinkRepository enlaces) {
+      ProductLinkRepository enlaces,
+      ProductLinkReader lectorDeEnlaces,
+      ProductExchangeResolver conversiones) {
     this.em = em;
     this.consultas = consultas;
     this.membresias = membresias;
     this.enlaces = enlaces;
+    this.lectorDeEnlaces = lectorDeEnlaces;
+    this.conversiones = conversiones;
   }
 
   @Override
@@ -286,6 +298,34 @@ public class PublishedProductCatalog implements ProductCatalog, RegistrableProdu
     // `ProductLink.resolver()`: quien llama no sabe —ni tiene que saber— que el
     // identificador externo va pegado al final (`RN-PM-049`).
     return enlaces.findResolvedByType(new LinkedHashSet<>(ids), ProductLinkType.CUPON_BOT);
+  }
+
+  @Override
+  @Transactional(readOnly = true)
+  public Map<UUID, OfferItem> offerItemsOf(Collection<UUID> ids) {
+    if (ids == null || ids.isEmpty()) {
+      return Map.of();
+    }
+    List<ProductRow> filas = consultas.findSaleRowsByIds(new LinkedHashSet<>(ids));
+    if (filas.isEmpty()) {
+      return Map.of();
+    }
+    // El mismo armado que `GetOwnOfferService`: los enlaces publicables de todo
+    // el lote en UNA sentencia y la conversión en dos, no por fila.
+    Map<UUID, List<ProductLinkResponse>> publicables =
+        lectorDeEnlaces.publicablesDe(filas.stream().map(ProductRow::id).toList());
+    ProductExchangeResolver.Conversor conversor =
+        conversiones.para(filas.stream().map(ProductRow::currencyId).toList());
+    Map<UUID, OfferItem> resultado = new HashMap<>();
+    for (ProductRow fila : filas) {
+      resultado.put(
+          fila.id(),
+          OfferItem.from(
+              fila,
+              publicables.getOrDefault(fila.id(), List.of()),
+              conversor.de(fila.currencyId(), fila.price())));
+    }
+    return resultado;
   }
 
   /**
