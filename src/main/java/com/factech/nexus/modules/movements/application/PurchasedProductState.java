@@ -48,8 +48,9 @@ public enum PurchasedProductState {
   /**
    * Si la línea <b>está entregada</b>: {@code ACTIVO} o {@code VENCIDO} (`RN-MV-030`).
    *
-   * <p>Son los dos estados que se apoyan en {@code delivery_status = ENTREGADA}, y por eso son los
-   * dos —y solo los dos— en los que viaja el cupón del bot (`RN-MV-032`).
+   * <p>Son los estados que se apoyan en {@code delivery_status = ENTREGADA}. Hasta el 28-09-2026
+   * eran también los únicos en los que viajaban los enlaces de entrega (`RN-MV-032`); desde
+   * entonces los decide {@link #estaPagado()}.
    *
    * <p><b>Un {@code VENCIDO} cuenta como entregado</b>, y conviene no leerlo como un descuido: la
    * vigencia que pasó es la de <b>lo que se compró</b>, no la del enlace. Esconder la dirección no
@@ -67,5 +68,27 @@ public enum PurchasedProductState {
     // de tener la posesión no deshace la entrega, y esconder la dirección haría
     // que el registro de lo comprado mintiera sobre lo que se entregó.
     return this == ACTIVO || this == VENCIDO || this == CANCELADO;
+  }
+
+  /**
+   * Si la venta de la línea <b>está pagada</b>: la venta está {@code CONFIRMADA}, sea cual sea el
+   * estado de la entrega (`RN-MV-032`, 28-09-2026).
+   *
+   * <p>Es la frontera de los <b>enlaces de entrega</b> —el {@code CUPON_BOT} y la {@code
+   * DESCARGA}—: desde el pago viajan, para que el cupón sirva para activar el bot. Antes del pago
+   * no, porque por el hotlink cualquiera registra una compra que queda pendiente, y la consulta le
+   * regalaría lo que se vende.
+   *
+   * <p><b>Es una lista explícita y no «todo menos los tres de la venta»</b>: un estado que se añada
+   * mañana queda fuera hasta que alguien decida que está pagado, y el fallo de olvidarlo es no
+   * publicar, no regalar. {@code RETENIDO} está dentro por decisión expresa del responsable del
+   * proyecto: se cobró, aunque no se entregue.
+   */
+  public boolean estaPagado() {
+    return this == PENDIENTE_ACTIVACION
+        || this == ACTIVO
+        || this == VENCIDO
+        || this == CANCELADO
+        || this == RETENIDO;
   }
 }

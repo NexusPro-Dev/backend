@@ -6,9 +6,10 @@
 | Especificación | [`spec.md`](spec.md) v0.1.0 |
 | Plan | [`plan.md`](plan.md) v0.1.0 |
 | `plan.md` aprobado el | 17-09-2026 |
-| Estado | **En revisión** — `T-01` a `T-06` `Hecha` el 17-09-2026; `T-07` `Hecha` el 22-09-2026; `T-08` `Hecha` el 28-09-2026 |
+| Estado | **En revisión** — `T-01` a `T-06` `Hecha` el 17-09-2026; `T-07` `Hecha` el 22-09-2026; `T-08` `Hecha` el 28-09-2026; `T-09` `Hecha` el 28-09-2026 |
 | Enmendadas | 22-09-2026 — `T-07` por **el cupón del bot en la línea entregada** (`RN-MV-032`) — issue [#84](https://github.com/NexusPro-Dev/backend/issues/84) |
 | Enmendadas | 28-09-2026 — `T-08`: **los enlaces de entrega dentro de `product.links`** y nace `DESCARGA` — issue [#130](https://github.com/NexusPro-Dev/backend/issues/130), rama `feature/cupon-en-los-enlaces` |
+| Enmendadas | 28-09-2026 (2) — `T-09`: **los enlaces desde que se pagó** — issue [#133](https://github.com/NexusPro-Dev/backend/issues/133), rama `feature/enlaces-desde-el-pago` |
 | Issue | [#68](https://github.com/NexusPro-Dev/backend/issues/68) |
 | Rama | `feature/venta-de-productos` |
 
@@ -41,6 +42,7 @@
 | `T-06` | Contrato OpenAPI regenerado y prosa releída; `requirements.md` | `T-05` | | **Hecha** — 17-09-2026 |
 | `T-07` | **El cupón del bot en la línea entregada** (`plan.md` §8): `ProductCatalog` gana la lectura **en lote** de los cupones **ya resueltos** —la escribe `PM`, que es donde vive la composición (`RF-PM-001` `T-43`)—; `MyProduct` gana `couponUrl`; `ListMyProductsService` pide los cupones de la página **en una sola llamada** y los pone **solo en las líneas con `delivery_status = ENTREGADA`** —`ACTIVO` y `VENCIDO`—, con el estado **en el predicado de la consulta y no en un `if` posterior**; y la prosa de la `@Operation` dice que el cupón aparece **cuando la entrega está hecha**, y que se lee del catálogo vigente y no de la venta | `T-06`, `RF-PM-001` `T-43` | `CA-MV-140` a `CA-MV-142` en `MyProductsIT`; el recuento de llamadas **no crece** con la página. **El contrato regenerado declara `couponUrl` en `MyProduct`** | **Hecha el 22-09-2026** |
 | `T-08` | **Los enlaces de entrega dentro de `product.links`** (`plan.md`, enmienda del 28-09-2026): `ProductCatalog.couponLinksOf` se sustituye por `deliveredLinksOf` —todos los tipos, resueltos, por lote—; `OfferItem.conEnlaces`; `ListMyProductsService` arma la lista por línea; `MyProductResponse` pierde `couponUrl`. Depende de `RF-PM-001` · `T-46` (el tipo `DESCARGA`) | `T-07` | `CA-MV-140` a `CA-MV-142` enmendados y `CA-MV-285`; `CA-MV-282` de `RF-MV-010` lee el cupón en `product.links`. Contrato regenerado: `couponUrl` ya no está | **Hecha** — 28-09-2026 |
+| `T-09` | **Los enlaces desde que se pagó** (`plan.md`, segunda enmienda del 28-09-2026): `PurchasedProductState.estaPagado()`; `ListMyProductsService` la usa en lugar de `estaEntregado()` para pedir y poner los enlaces de entrega | `T-08` | `CA-MV-141` y `CA-MV-285` enmendados, `CA-MV-286`; `CA-MV-282` de `RF-MV-010` enmendado | **Hecha** — 28-09-2026 |
 
 ---
 
@@ -52,7 +54,8 @@
 | `CA-MV-100` a `CA-MV-105`, `CA-MV-108` | `T-02`, `T-05` |
 | `CA-MV-106`, `CA-MV-107` | `T-03`, `T-05` |
 | `CA-MV-140` a `CA-MV-142` | `T-07`, `T-08` |
-| `CA-MV-285` | `T-08` |
+| `CA-MV-285` | `T-08`, `T-09` |
+| `CA-MV-286` | `T-09` |
 
 ---
 
@@ -73,3 +76,5 @@
 **Reabierta el 22-09-2026 por `T-07`** (`RN-MV-032`): las cuatro casillas marcadas lo estaban para `T-01` a `T-06`, y vuelven a estarlo el 22-09-2026, con el cupón en la suite, en el contrato y en los documentos. Los criterios pasan de once a **catorce**.
 
 **Reabierta el 28-09-2026 por `T-08`**: el cupón se muda a `product.links` y nace `DESCARGA`. Los criterios pasan de catorce a **quince**.
+
+**Reabierta el 28-09-2026 por `T-09`**: la frontera de los enlaces de entrega pasa al pago. Los criterios pasan a **dieciséis**.
