@@ -5,7 +5,7 @@
 | Proyecto | NEXUS — Renovación de plataforma |
 | Empresa | FACTECH GROUP SAS |
 | Documento | `requirements.md` |
-| Versión | 0.231.0 |
+| Versión | 0.232.0 |
 | Estado | Borrador |
 | Responsable técnico | Bonilla Diaz William Steven |
 | Fecha de creación | 20-08-2026 |
@@ -603,3 +603,4 @@ El inventario y el estado de los módulos se consultan en [`modules.md` §4](mod
 | 0.229.0 | 28-09-2026 | **`RF-CM-013` y `RF-CM-009` construidos**: la comisión de una línea nace en el momento en que la venta está confirmada y la línea tiene vendedor (`V51`, las cuatro tablas y los ocho permisos, catálogo 153), y el cierre del periodo —programado, mensual por defecto en la zona del negocio, y a mano— pasa los lotes abiertos a `PENDIENTE` tras barrer lo que se quedó sin devengar. Endpoint funcionando 134 → 135 (`RF-CM-013` no tiene ruta). | Responsable del proyecto |
 | 0.230.0 | 28-09-2026 | **La liquidación de `CM` está construida entera**: `RF-CM-010` (los lotes, con el abierto al día), `RF-CM-011` (pagar un lote pendiente abonándolo en la billetera por `RF-MV-024`), `RF-CM-012` (mis lotes, el ajeno es no encontrado) y `RF-CM-014` (el desenlace de cada línea, con los rechazos y su motivo). Los seis de la liquidación, `RF-CM-009` a `RF-CM-014`, pasan a **En desarrollo**. Endpoint funcionando 135 → 139. | Responsable del proyecto |
 | 0.231.0 | 28-09-2026 | **`RF-MV-014` trae los enlaces del producto, y nace `DESCARGA`** (issue [#130](https://github.com/NexusPro-Dev/backend/issues/130)), por decisión del responsable del proyecto. `couponUrl` desaparece: en la línea entregada `product.links` trae **todos** los enlaces del producto, el cupón con su tipo; en las demás, los de la oferta (`RN-MV-032` sin cambio de contenido; [`requirements/mv.md`](requirements/mv.md) v0.50.0). El tercer tipo de enlace, **`DESCARGA`**, es entrega como el cupón (`RN-PM-048`, `RN-PM-050`, `V52`; [`requirements/pm.md`](requirements/pm.md) v0.45.0). Enmiendan `RF-MV-014` (`T-08`), `RF-PM-001` (`T-46`) y `RF-PM-007` | Responsable del proyecto |
+| 0.232.0 | 28-09-2026 | **`RF-MV-014`: todos los enlaces del producto desde que se pagó** (issue [#133](https://github.com/NexusPro-Dev/backend/issues/133)), por decisión del responsable del proyecto. `RN-MV-032` pasa de la entrega al pago para que el cupón sirva para activar el bot; sin pagar, los de la oferta, con el video siempre ([`requirements/mv.md`](requirements/mv.md) v0.51.0). `V53` reescribe el comentario de `product_links.type`. Enmiendan `RF-MV-014` (`T-09`, `CA-MV-286`) y `RF-MV-010` (`CA-MV-282`) | Responsable del proyecto |
