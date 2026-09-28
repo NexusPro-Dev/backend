@@ -1,0 +1,57 @@
+# TASKS — `RF-CM-012` Consultar mis comisiones
+
+| Campo | Valor |
+|---|---|
+| Requerimiento | `RF-CM-012` |
+| Especificación | [`spec.md`](spec.md) v0.1.0 |
+| Plan | [`plan.md`](plan.md) v0.1.0 |
+| `plan.md` aprobado el | 28-09-2026 |
+| Estado | **En revisión** |
+| Issue | Pendiente de crear |
+| Rama | `feature/devengo-de-comisiones` |
+
+!!! info "Qué va en este documento"
+
+    **Qué hay que hacer, en qué orden y cómo se comprueba.** Nada de por qué — eso está en `spec.md` y `plan.md`.
+
+---
+
+## 1. Tareas
+
+**Estados:** `Pendiente` · `En curso` · `Hecha` · `Bloqueada`.
+
+| ID | Tarea | Depende de | Verificación | Estado |
+|---|---|---|---|---|
+| `T-01` | La variante propia de los dos servicios de `RF-CM-010` | `RF-CM-010` `T-04` | — | Pendiente |
+| `T-02` | `GET /mine` y `GET /mine/{id}`, en `PERMISO_DE_CADA_OPERACION` | `T-01` | `EndpointPermissionsIT` | Pendiente |
+| `T-03` | `MyCommissionBatchesIT`: `CA-CM-197` a `CA-CM-202` | `T-02` | Dos vendedores en cadena | Pendiente |
+| `T-04` | Contrato OpenAPI y `requirements.md` | `T-03` | | Pendiente |
+
+---
+
+## 2. Orden de ejecución
+
+**Después de `RF-CM-010`**: `T-01` → `T-02` → `T-03` → `T-04`.
+
+---
+
+## 3. Cobertura de los criterios de aceptación
+
+| Criterio | Tarea |
+|---|---|
+| `CA-CM-197` a `CA-CM-202` | `T-01`, `T-02`, `T-03` |
+
+---
+
+## 4. Bloqueos
+
+**`RF-CM-010`**.
+
+---
+
+## 5. Definición de terminado
+
+- [ ] `./mvnw clean verify` en verde.
+- [ ] Los seis criterios de aceptación con prueba.
+- [ ] Contrato y `requirements.md` actualizados.
+- [ ] **`tasks.md` aprobadas por el responsable del proyecto.**
