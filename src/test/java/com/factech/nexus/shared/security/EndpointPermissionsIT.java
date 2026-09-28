@@ -285,16 +285,38 @@ class EndpointPermissionsIT extends IntegrationTestBase {
           Map.entry(
               "POST /api/v1/user-commission-rates/{id}/deletion", "user-commission-rates:delete"),
           Map.entry("GET /api/v1/product-commission-rates", "product-commission-rates:read"),
+          // ---- CM · liquidación (RF-CM-009 a RF-CM-014, V51) ----
+          Map.entry("POST /api/v1/commission-batches/closing", "commission-batches:settle"),
+          Map.entry("GET /api/v1/commission-closings", "commission-closings:read"),
+          Map.entry("GET /api/v1/commission-batches", "commission-batches:read"),
+          Map.entry("GET /api/v1/commission-batches/{id}", "commission-batches:read-detail"),
+          Map.entry("POST /api/v1/commission-batches/{id}/payment", "commission-batches:pay"),
+          Map.entry("GET /api/v1/commission-batches/mine", "commission-batches:list-own"),
+          Map.entry("GET /api/v1/commission-batches/mine/{id}", "commission-batches:read-own"),
+          Map.entry("GET /api/v1/commission-accruals", "commission-accruals:read"),
           // ---- MV ----
           Map.entry("POST /api/v1/movements", "movements:create"),
           Map.entry("GET /api/v1/movements", "movements:read"),
           Map.entry("POST /api/v1/movements/{id}/confirmation", "movements:confirm"),
           Map.entry("POST /api/v1/movements/{id}/voiding", "movements:void"),
+          Map.entry("POST /api/v1/movements/{id}/rejection", "movements:reject-payment"),
+          Map.entry("POST /api/v1/movements/mine/{id}/payments", "movements:retry-payment"),
+          Map.entry("POST /api/v1/movements/mine/withdrawals", "movements:request-withdrawal"),
+          Map.entry(
+              "POST /api/v1/movements/{id}/withdrawal-approval", "movements:approve-withdrawal"),
+          Map.entry(
+              "POST /api/v1/movements/{id}/withdrawal-rejection", "movements:reject-withdrawal"),
+          Map.entry("GET /api/v1/movements/mine/balances", "movements:read-own-balances"),
+          Map.entry("GET /api/v1/movements/mine/balances/entries", "movements:list-own-entries"),
+          Map.entry("POST /api/v1/movements/bonuses", "movements:grant-bonus"),
           Map.entry("POST /api/v1/movements/{id}/seller-assignments", "movements:assign-sellers"),
           // ---- MV · alcance propio (RF-SP-062, desde el 21-09-2026) ----
           Map.entry("GET /api/v1/movements/mine/shopping", "movements:list-own"),
           Map.entry("GET /api/v1/movements/mine/{id}", "movements:read-own"),
           Map.entry("GET /api/v1/movements/mine/products", "movements:read-own-products"),
+          Map.entry(
+              "POST /api/v1/movements/mine/products/{lineId}/activation",
+              "movements:activate-own-product"),
           Map.entry("GET /api/v1/movements/sales", "movements:list-sales"),
           Map.entry("GET /api/v1/movements/sales/lines", "movements:list-sale-lines"),
           Map.entry("POST /api/v1/packages/{code}/purchases", "packages:buy"),

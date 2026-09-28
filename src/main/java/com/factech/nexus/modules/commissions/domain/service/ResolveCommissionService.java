@@ -8,12 +8,11 @@ import com.factech.nexus.modules.system.users.application.SellerRoleCatalog;
 import com.factech.nexus.modules.system.users.application.UserCatalog;
 import com.factech.nexus.shared.error.FieldError;
 import com.factech.nexus.shared.error.UnprocessableEntityException;
-import java.time.Clock;
+import com.factech.nexus.shared.time.BusinessCalendar;
 import java.time.LocalDate;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -34,6 +33,10 @@ import org.springframework.transaction.annotation.Transactional;
  *
  * <p><b>El producto retirado se resuelve con normalidad</b>: preguntar qué se pagaba por algo que
  * ya no se vende es legítimo, y es la consulta que una liquidación atrasada necesita.
+ *
+ * <p><b>«Hoy» es el día del negocio</b>, en {@code America/Bogota} ({@link BusinessCalendar}), y no
+ * el de UTC: hasta el 28-09-2026 una consulta sin fecha hecha a las 20:00 en Bogotá resolvía con la
+ * tasa del día siguiente (`architecture.md` v0.39.0 §15.1.1).
  */
 @Service
 public class ResolveCommissionService {
@@ -42,33 +45,24 @@ public class ResolveCommissionService {
   private final UserCatalog usuarios;
   private final SellerRoleCatalog rolesVendedores;
   private final ProductCatalog productos;
-  private final Clock reloj;
+  private final BusinessCalendar calendario;
 
-  @Autowired
   public ResolveCommissionService(
       CommissionResolutionRepository resolucion,
       UserCatalog usuarios,
       SellerRoleCatalog rolesVendedores,
-      ProductCatalog productos) {
-    this(resolucion, usuarios, rolesVendedores, productos, Clock.systemUTC());
-  }
-
-  ResolveCommissionService(
-      CommissionResolutionRepository resolucion,
-      UserCatalog usuarios,
-      SellerRoleCatalog rolesVendedores,
       ProductCatalog productos,
-      Clock reloj) {
+      BusinessCalendar calendario) {
     this.resolucion = resolucion;
     this.usuarios = usuarios;
     this.rolesVendedores = rolesVendedores;
     this.productos = productos;
-    this.reloj = reloj;
+    this.calendario = calendario;
   }
 
   @Transactional(readOnly = true)
   public EffectiveCommissionResponse resolve(UUID userId, UUID productId, LocalDate onDate) {
-    LocalDate fecha = onDate == null ? LocalDate.now(reloj) : onDate;
+    LocalDate fecha = onDate == null ? calendario.hoy() : onDate;
 
     usuarios
         .find(userId)
@@ -110,5 +104,24 @@ public class ResolveCommissionService {
     // indistinguible lo pensado de lo olvidado, y quien consuma esto va a pagar
     // con esa cifra.
     return EffectiveCommissionResponse.sinTarifa(rol.get(), fecha);
+  }
+
+  /**
+   * La tasa que ganó para esa persona sobre ese producto en esa fecha, <b>con su identidad</b>,
+   * para el devengo (`RF-CM-013`, `RN-CM-024`). La misma sentencia de precedencia que {@link
+   * #resolve}: no hay una segunda.
+   *
+   * <p>No valida que la persona ni el producto existan —vienen de una línea de venta que existe— y
+   * deja salir el fallo visible de `RN-SP-025` si la persona porta dos roles vendedores: la línea
+   * se queda sin desenlace hasta que se corrija, que es mejor que elegir uno.
+   *
+   * <p><b>Sin {@code @Transactional} propio</b>: corre en la transacción de la línea que abre el
+   * devengo, y un {@code readOnly} unido a ella no diría nada.
+   *
+   * @return vacío si no hay tasa: quien no la tiene no cobra (`RN-CM-012`)
+   */
+  public Optional<ResolvedRate> rateFor(UUID userId, UUID productId, LocalDate fecha) {
+    Optional<UUID> rol = rolesVendedores.sellerRoleOf(userId);
+    return resolucion.resolve(rol.orElse(null), productId, userId, fecha);
   }
 }

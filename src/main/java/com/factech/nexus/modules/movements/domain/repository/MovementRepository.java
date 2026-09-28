@@ -1,5 +1,6 @@
 package com.factech.nexus.modules.movements.domain.repository;
 
+import com.factech.nexus.modules.movements.domain.models.IdempotencyKey;
 import com.factech.nexus.modules.movements.domain.models.Movement;
 import com.factech.nexus.modules.movements.domain.models.TypeStatus;
 import com.factech.nexus.shared.pagination.BoundedCount;
@@ -38,12 +39,54 @@ public interface MovementRepository {
    *
    * @param venta el agregado; su código se reemplaza si hace falta reintentar
    * @param nuevoCodigo cómo obtener otro comprobante para la misma venta
+   * @param clave la del <b>primer pago</b>, que nace con la venta (`RN-MV-039`, `RF-MV-018`): la
+   *     que mandó el cliente o la que puso el sistema. El pago nace {@code PENDIENTE}, con el
+   *     método de la venta y su importe a pagar
+   * @return el identificador de ese primer pago
    * @throws RuntimeException si los tres intentos chocan. El adaptador lanza un {@code
    *     IllegalStateException}, y quien lo consume por el proxy de {@code @Repository} lo recibe
    *     <b>traducido</b> a la jerarquía de Spring. No se traduce a un código de negocio a
    *     propósito: nada de lo que el actor envió está mal, y esto sube como fallo del sistema
    */
-  void save(Movement venta, Supplier<String> nuevoCodigo);
+  UUID save(Movement venta, Supplier<String> nuevoCodigo, IdempotencyKey clave);
+
+  /**
+   * Guarda un movimiento <b>que no vende</b> (`RN-MV-046`): solo la cabecera, sin líneas y sin
+   * pago, con el mismo reintento del comprobante que {@link #save}. Escribe el estado, la
+   * confirmación, el concepto y la clave que traiga el agregado.
+   */
+  void saveWithoutLines(Movement movimiento, Supplier<String> nuevoCodigo);
+
+  /** El movimiento que ya lleva esa clave de idempotencia (`RN-MV-044`, `RN-MV-045`). */
+  Optional<UUID> findIdByIdempotencyKey(String idempotencyKey);
+
+  /**
+   * Un movimiento que no vende, de ese tipo; vacío si no existe o si es de otro tipo. Es lo que
+   * hace que las operaciones del retiro no alcancen a una venta, y al revés.
+   */
+  Optional<WithdrawalRow> findWithoutLines(UUID movementId, String typeCode);
+
+  /** `RF-MV-020`: {@code PENDIENTE} → {@code CONFIRMADA}, condicionado y solo sobre un retiro. */
+  boolean confirmWithdrawalIfPending(UUID movementId, OffsetDateTime at);
+
+  /** `RF-MV-021`: {@code PENDIENTE} → {@code RECHAZADA}, con instante y motivo. */
+  boolean rejectWithdrawalIfPending(UUID movementId, OffsetDateTime at, String reason);
+
+  /** Un movimiento que no vende, tal como lo publican sus respuestas. */
+  record WithdrawalRow(
+      UUID id,
+      String code,
+      String type,
+      UUID userId,
+      UUID currencyId,
+      String currencyCode,
+      String status,
+      BigDecimal amount,
+      String concept,
+      OffsetDateTime occurredAt,
+      OffsetDateTime confirmedAt,
+      OffsetDateTime rejectedAt,
+      String rejectionReason) {}
 
   /**
    * El tipo de movimiento por su código.
@@ -269,7 +312,25 @@ public interface MovementRepository {
       UUID movementId, UUID sellerId, String username, String firstName, String lastName) {}
 
   /** La cabecera y sus líneas. */
-  record MovementDetailView(MyMovementRow header, List<MovementLineRow> lines) {}
+  record MovementDetailView(
+      MyMovementRow header, List<MovementLineRow> lines, List<PaymentRow> payments) {}
+
+  /**
+   * Un intento de pago del movimiento (`RN-MV-039`), para el detalle (`RN-MV-047`). <b>Sin la clave
+   * de idempotencia</b>: es del cliente que la mandó y no le dice nada a quien lee.
+   */
+  record PaymentRow(
+      UUID id,
+      UUID paymentMethodId,
+      String paymentMethodCode,
+      String paymentMethodName,
+      String status,
+      BigDecimal amount,
+      String providerReference,
+      OffsetDateTime occurredAt,
+      OffsetDateTime confirmedAt,
+      OffsetDateTime rejectedAt,
+      String rejectionReason) {}
 
   /**
    * Una línea del detalle.
@@ -324,8 +385,24 @@ public interface MovementRepository {
    */
   Optional<MovementDetailView> findById(UUID movementId);
 
-  /** El estado actual, para decir en el {@code 409} en qué estado está (`EX-002`). */
+  /**
+   * El estado actual <b>de una venta</b>, para decir en el {@code 409} en qué estado está
+   * (`EX-002`). Vacío si no existe <b>o no es una venta</b>: desde el 26-09-2026 el libro tiene
+   * retiros y bonos, y las operaciones de la venta no los alcanzan (`RF-MV-019` · `CA-MV-233`).
+   */
   Optional<String> findStatus(UUID movementId);
+
+  /**
+   * ¿Tiene la venta un pago {@code PENDIENTE}? Explica por qué no se pudo confirmar una venta que
+   * sigue pendiente: su último pago se rechazó (`RF-MV-003` · `CA-MV-219`).
+   */
+  boolean hasPendingPayment(UUID movementId);
+
+  /**
+   * ¿Hay ya un pago con esta clave? Lo pregunta una compra <b>antes</b> de registrar (`RF-MV-018` ·
+   * `spec.md` §2.2): la misma compra repetida con la misma clave no registra otra venta.
+   */
+  boolean paymentKeyExists(String idempotencyKey);
 
   /**
    * La transición, <b>condicionada al estado anterior</b>: {@code PENDIENTE} → {@code CONFIRMADA}
@@ -385,6 +462,28 @@ public interface MovementRepository {
       Integer validityDays) {}
 
   // ---------------------------------------------------------------------------
+  // `RF-MV-010` — activar un producto comprado de implementación manual
+  // ---------------------------------------------------------------------------
+
+  /**
+   * La línea {@code lineId} <b>si es de una venta a nombre de</b> {@code actorId}, con lo que hace
+   * falta para entregarla, y <b>bloqueada</b> hasta el final de la transacción.
+   *
+   * <p>El alcance va en la sentencia (`RN-MV-048`): la línea de otra persona no existe para quien
+   * pregunta, y vacío es la misma respuesta para las dos cosas. El bloqueo es lo que hace que dos
+   * activaciones simultáneas entreguen una vez: la segunda espera, y lee la línea ya entregada.
+   */
+  Optional<OwnLineRow> findOwnLineForActivation(UUID lineId, UUID actorId);
+
+  /**
+   * Una línea propia a punto de activarse.
+   *
+   * @param movementStatus el de la venta: solo una {@code CONFIRMADA} se activa
+   * @param deliveryStatus el de la línea: solo una {@code PENDIENTE} se activa
+   */
+  record OwnLineRow(String movementStatus, String deliveryStatus, DeliveryLineRow line) {}
+
+  // ---------------------------------------------------------------------------
   // `RF-MV-014` — los productos comprados propios
   // ---------------------------------------------------------------------------
 
@@ -407,12 +506,21 @@ public interface MovementRepository {
   long countMyProducts(UUID actorId, String state, OffsetDateTime now);
 
   /**
+   * Una sola fila del registro de lo comprado, con el mismo cálculo que {@link #findMyProducts}: la
+   * respuesta de activar (`RF-MV-010`). Vacío si la línea no es de una venta a nombre de {@code
+   * actorId}.
+   */
+  Optional<MyProductRow> findMyProduct(UUID actorId, UUID lineId, OffsetDateTime now);
+
+  /**
    * Una fila del registro de lo comprado (`RF-MV-014`).
    *
+   * @param lineId la línea: lo que `RF-MV-010` activa
    * @param state calculado por el motor de la venta, la entrega y la vigencia
    * @param validUntil {@code deliveredAt + validityDays}; nulo si no se entregó o si no caduca
    */
   record MyProductRow(
+      UUID lineId,
       UUID movementId,
       String movementCode,
       String movementStatus,

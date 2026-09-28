@@ -168,6 +168,6 @@ Ninguno hasta el 22-09-2026. Se cruza `products` solo por el código, que es inm
 | Orden, paginación, una fila por línea | Integración | |
 | `/mine/products` no es un `{id}` | Integración | |
 | `401` sin token; `200` sin permiso | Integración | |
-| El cupón en la línea entregada | API | `ACTIVO` y `VENCIDO` lo traen **resuelto**; `PENDIENTE_PAGO`, `PENDIENTE_AUTORIZACION` y `RETENIDO` **no lo traen**, comprobando el cuerpo entero (`CA-MV-140`, `CA-MV-141`) |
+| El cupón en la línea entregada | API | `ACTIVO` y `VENCIDO` lo traen **resuelto**; `PENDIENTE_PAGO`, `PENDIENTE_ACTIVACION` y `RETENIDO` **no lo traen**, comprobando el cuerpo entero (`CA-MV-140`, `CA-MV-141`) |
 | El cupón no es un `N+1` | Integración | Veinte líneas entregadas: **una sola llamada** a `ProductCatalog`, y el recuento **no crece** con la página (`CA-MV-142`) |
 | El cupón se lee de hoy, no de la venta | API | Se corrige la dirección en el catálogo y la misma línea entregada devuelve **la nueva**; se quita el enlace y **el campo desaparece** |

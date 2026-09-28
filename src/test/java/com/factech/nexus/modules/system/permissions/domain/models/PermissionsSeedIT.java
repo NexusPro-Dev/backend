@@ -33,7 +33,7 @@ class PermissionsSeedIT extends IntegrationTestBase {
           + " V47: courses:read-available y lessons:learn del aula, RF-AC-034 y RF-AC-035)")
   void catalogoCompleto() {
     assertThat(jdbc.queryForObject("SELECT count(*) FROM permissions", Integer.class))
-        .isEqualTo(136);
+        .isEqualTo(153);
   }
 
   @Test
@@ -117,6 +117,16 @@ class PermissionsSeedIT extends IntegrationTestBase {
             "user-commission-rates:read",
             "user-commission-rates:update",
             "product-commission-rates:read",
+            // `V51` (28-09-2026): la liquidación de `CM`, con el devengo automático (`RF-CM-009` a
+            // `RF-CM-014`).
+            "commission-batches:settle",
+            "commission-batches:read",
+            "commission-batches:read-detail",
+            "commission-batches:pay",
+            "commission-batches:list-own",
+            "commission-batches:read-own",
+            "commission-closings:read",
+            "commission-accruals:read",
             "course-categories:create",
             "course-categories:delete",
             "course-categories:read",
@@ -191,6 +201,18 @@ class PermissionsSeedIT extends IntegrationTestBase {
             "movements:assign-sellers",
             "movements:list-sale-lines",
             "movements:void",
+            // `V48` (26-09-2026): volver a pagar (`RF-MV-018`) y rechazar el pago (`RF-MV-004`).
+            "movements:retry-payment",
+            "movements:reject-payment",
+            // `V49` (26-09-2026): los retiros, los saldos y el bono.
+            "movements:request-withdrawal",
+            "movements:approve-withdrawal",
+            "movements:reject-withdrawal",
+            "movements:read-own-balances",
+            "movements:list-own-entries",
+            "movements:grant-bonus",
+            // `V50` (28-09-2026): activar lo comprado (`RF-MV-010`).
+            "movements:activate-own-product",
             // El SEGUNDO recurso de `PM` (`V93`, 15-09-2026), por decisión del
             // responsable del proyecto: armar paquetes y tocar el catálogo son
             // dos capacidades, y los `products:` no habilitan ni una operación
@@ -272,7 +294,7 @@ class PermissionsSeedIT extends IntegrationTestBase {
   void identificadoresUuidV7() {
     List<UUID> ids = jdbc.queryForList("SELECT id FROM permissions", UUID.class);
 
-    assertThat(ids).hasSize(136).doesNotHaveDuplicates();
+    assertThat(ids).hasSize(153).doesNotHaveDuplicates();
     assertThat(ids).allSatisfy(id -> assertThat(id.version()).isEqualTo(7));
     // variant() == 2 es la variante RFC 9562 (bits 10xx).
     assertThat(ids).allSatisfy(id -> assertThat(id.variant()).isEqualTo(2));
@@ -338,13 +360,13 @@ class PermissionsSeedIT extends IntegrationTestBase {
                 "SELECT count(*) FROM role_permissions WHERE role_id ="
                     + " '01a02a33-4c00-7001-9c4f-5e7ad1000001'",
                 Integer.class))
-        .isEqualTo(136);
+        .isEqualTo(153);
     assertThat(
             jdbc.queryForObject(
                 "SELECT count(*) FROM role_permissions WHERE role_id ="
                     + " '01a02a33-4c00-7002-9c4f-5e7ad1000002'",
                 Integer.class))
-        .isEqualTo(134);
+        .isEqualTo(151);
     assertThat(
             jdbc.queryForList(
                 """
@@ -421,8 +443,12 @@ class PermissionsSeedIT extends IntegrationTestBase {
         .doesNotContain("users:read-own-sellers");
     // Y LO QUE `V40` LE DA: comprar, reseñar lo comprado y ver la oferta.
     assertThat(cliente)
-        .hasSize(13)
+        // Catorce desde `V48`: volver a pagar lo propio (`RF-MV-018`) va a todo rol por su tipo.
+        // Y dieciocho desde `V50`: activar lo comprado (`RF-MV-010`), también por tipo.
+        .hasSize(18)
         .contains(
+            "movements:retry-payment",
+            "movements:activate-own-product",
             "movements:create",
             "products:sale",
             "products:comment",

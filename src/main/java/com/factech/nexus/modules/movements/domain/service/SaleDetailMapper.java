@@ -1,5 +1,6 @@
 package com.factech.nexus.modules.movements.domain.service;
 
+import com.factech.nexus.modules.movements.application.PaymentResponse;
 import com.factech.nexus.modules.movements.application.SaleDiscountResponse;
 import com.factech.nexus.modules.movements.application.SaleLineResponse;
 import com.factech.nexus.modules.movements.application.SaleResponse;
@@ -7,6 +8,7 @@ import com.factech.nexus.modules.movements.domain.repository.MovementRepository.
 import com.factech.nexus.modules.movements.domain.repository.MovementRepository.MovementDetailView;
 import com.factech.nexus.modules.movements.domain.repository.MovementRepository.MovementLineRow;
 import com.factech.nexus.modules.movements.domain.repository.MovementRepository.MyMovementRow;
+import com.factech.nexus.modules.movements.domain.repository.MovementRepository.PaymentRow;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -79,6 +81,27 @@ final class SaleDetailMapper {
         cabecera.confirmedAt(),
         cabecera.voidedAt(),
         cabecera.voidReason(),
-        cabecera.createdAt());
+        cabecera.createdAt(),
+        pagos(detalle.payments()));
+  }
+
+  /** Los pagos del detalle (`RN-MV-047`), en el orden en que se intentaron. */
+  static List<PaymentResponse> pagos(List<PaymentRow> filas) {
+    List<PaymentResponse> pagos = new ArrayList<>(filas.size());
+    for (PaymentRow p : filas) {
+      pagos.add(
+          new PaymentResponse(
+              p.id(),
+              new PaymentResponse.Method(
+                  p.paymentMethodId(), p.paymentMethodCode(), p.paymentMethodName()),
+              p.status(),
+              p.amount(),
+              p.providerReference(),
+              p.occurredAt(),
+              p.confirmedAt(),
+              p.rejectedAt(),
+              p.rejectionReason()));
+    }
+    return pagos;
   }
 }

@@ -9,6 +9,8 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 import com.factech.nexus.IntegrationTestBase;
+import com.factech.nexus.modules.movements.PaymentFixtures;
+import com.factech.nexus.testing.CommissionCleanup;
 import java.util.Arrays;
 import java.util.UUID;
 import java.util.stream.Collectors;
@@ -513,19 +515,19 @@ class SellerAssignmentIT extends IntegrationTestBase {
   private void insertarVenta(UUID estado) {
     jdbc.update(
         """
-        INSERT INTO movements (id, movement_type_id, type_status_id, user_id, payment_method_id,
+        INSERT INTO movements (id, movement_type_id, type_status_id, user_id,
                                currency_id, code, status, total_amount, discount_amount,
                                payable_amount, occurred_at)
-        VALUES (?, CAST(? AS uuid), ?, ?, CAST(? AS uuid), CAST(? AS uuid), ?, 'PENDIENTE',
+        VALUES (?, CAST(? AS uuid), ?, ?, CAST(? AS uuid), ?, 'PENDIENTE',
                 10.00, 0, 10.00, now())
         """,
         UUID.randomUUID(),
         VENTA,
         estado,
         cliente,
-        TARJETA,
         USD,
         "VTA-SA-" + UUID.randomUUID().toString().substring(0, 6).toUpperCase());
+    PaymentFixtures.pagoDe(jdbc, UUID.randomUUID(), TARJETA);
   }
 
   private void vincular(UUID quien, UUID vendedor, String origen) {
@@ -538,6 +540,7 @@ class SellerAssignmentIT extends IntegrationTestBase {
   }
 
   private void limpiar() {
+    CommissionCleanup.limpiar(jdbc);
     jdbc.update("DELETE FROM movement_details");
     jdbc.update("DELETE FROM movements");
     jdbc.update("DELETE FROM audit_change_log WHERE module = 'MV'");

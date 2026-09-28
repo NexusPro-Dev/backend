@@ -6,6 +6,8 @@ import static org.springframework.security.test.web.servlet.request.SecurityMock
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 
 import com.factech.nexus.IntegrationTestBase;
+import com.factech.nexus.modules.movements.PaymentFixtures;
+import com.factech.nexus.testing.CommissionCleanup;
 import com.factech.nexus.testing.ConcurrencyHarness.Outcome;
 import java.time.OffsetDateTime;
 import java.time.ZoneOffset;
@@ -81,20 +83,20 @@ class ConfirmSaleConcurrencyIT extends IntegrationTestBase {
     venta = UUID.randomUUID();
     jdbc.update(
         """
-        INSERT INTO movements (id, movement_type_id, type_status_id, user_id, payment_method_id, currency_id,
+        INSERT INTO movements (id, movement_type_id, type_status_id, user_id, currency_id,
                                code, status, total_amount, discount_amount, payable_amount,
                                occurred_at)
-        VALUES (?, CAST(? AS uuid), (SELECT s.id FROM movement_type_statuses s WHERE s.movement_type_id = CAST(? AS uuid) AND s.code = 'VALIDADO'), ?, CAST(? AS uuid), CAST(? AS uuid), ?, 'PENDIENTE',
+        VALUES (?, CAST(? AS uuid), (SELECT s.id FROM movement_type_statuses s WHERE s.movement_type_id = CAST(? AS uuid) AND s.code = 'VALIDADO'), ?, CAST(? AS uuid), ?, 'PENDIENTE',
                 100.00, 0, 100.00, CAST(? AS timestamptz))
         """,
         venta,
         VENTA,
         VENTA,
         cliente,
-        TARJETA,
         USD,
         "VTA-" + venta.toString().substring(0, 8).toUpperCase(),
         OffsetDateTime.of(2026, 8, 1, 12, 0, 0, 0, ZoneOffset.UTC).toString());
+    PaymentFixtures.pagoDe(jdbc, venta, TARJETA);
     jdbc.update(
         """
         INSERT INTO movement_details (id, movement_id, product_id, seller_id, product_name,
@@ -148,6 +150,7 @@ class ConfirmSaleConcurrencyIT extends IntegrationTestBase {
   }
 
   private void limpiar() {
+    CommissionCleanup.limpiar(jdbc);
     jdbc.update("DELETE FROM movement_details");
     jdbc.update("DELETE FROM movements");
     jdbc.update("DELETE FROM products WHERE code = 'CC_VIP'");

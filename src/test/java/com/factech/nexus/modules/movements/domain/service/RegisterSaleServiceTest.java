@@ -109,7 +109,7 @@ class RegisterSaleServiceTest {
     assertThatCode(() -> servicio.register(peticion(producto, 1))).doesNotThrowAnyException();
 
     // Y se registra: la mitad de la regla que se retiró no protegía a nadie.
-    verify(movimientos).save(any(), any());
+    verify(movimientos).save(any(), any(), any());
   }
 
   @Test
@@ -129,7 +129,7 @@ class RegisterSaleServiceTest {
     enNivel(3);
 
     assertThat(servicio.register(peticion(producto, 1)).status()).isEqualTo("PENDIENTE");
-    verify(movimientos).save(any(), any());
+    verify(movimientos).save(any(), any(), any());
   }
 
   @Test

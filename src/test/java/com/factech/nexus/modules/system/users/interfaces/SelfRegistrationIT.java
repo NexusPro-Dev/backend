@@ -10,6 +10,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 import com.factech.nexus.IntegrationTestBase;
+import com.factech.nexus.testing.CommissionCleanup;
 import java.util.Map;
 import java.util.UUID;
 import org.junit.jupiter.api.AfterEach;
@@ -556,7 +557,8 @@ class SelfRegistrationIT extends IntegrationTestBase {
             "SELECT m.code, m.status, pm.code AS metodo, m.total_amount,"
                 + " c.username AS cliente, v.username AS vendedor"
                 + " FROM movements m"
-                + " JOIN payment_methods pm ON pm.id = m.payment_method_id"
+                + " JOIN payments p ON p.movement_id = m.id"
+                + " JOIN payment_methods pm ON pm.id = p.payment_method_id"
                 + " JOIN users c ON c.id = m.user_id"
                 // El vendedor es de la línea (`RN-MV-003`, 16-09-2026); el alta
                 // compra UN producto, de modo que hay una y solo una.
@@ -610,7 +612,8 @@ class SelfRegistrationIT extends IntegrationTestBase {
     Map<String, Object> venta =
         jdbc.queryForMap(
             "SELECT m.status, pm.code AS metodo, m.total_amount FROM movements m"
-                + " JOIN payment_methods pm ON pm.id = m.payment_method_id"
+                + " JOIN payments p ON p.movement_id = m.id"
+                + " JOIN payment_methods pm ON pm.id = p.payment_method_id"
                 + " JOIN users c ON c.id = m.user_id WHERE c.username = 'ana.ruiz'");
 
     assertThat(venta.get("status")).isEqualTo("PENDIENTE");
@@ -1090,6 +1093,7 @@ class SelfRegistrationIT extends IntegrationTestBase {
     // `client_sellers` ANTES que los movimientos: la fila REGISTRO cita la venta
     // del enlace (`first_movement_id`), y la clave foránea es RESTRICT.
     jdbc.update("DELETE FROM client_sellers");
+    CommissionCleanup.limpiar(jdbc);
     jdbc.update("DELETE FROM movement_details");
     jdbc.update("DELETE FROM movements");
     jdbc.update("DELETE FROM audit_change_log WHERE module = 'MV'");

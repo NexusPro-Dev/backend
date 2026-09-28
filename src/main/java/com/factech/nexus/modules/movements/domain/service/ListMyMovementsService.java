@@ -50,7 +50,9 @@ public class ListMyMovementsService {
   @Transactional(readOnly = true)
   public PageResponse<MyMovementResponse> list(MyMovementsRequest peticion) {
     String estado = validarEstado(peticion.status());
-    String tipo = validarTipo(peticion.type());
+    // `RN-MV-047` (26-09-2026): «mis compras» son ventas, y el filtro por tipo
+    // se retiró — solo podía tomar un valor útil.
+    String tipo = "VENTA";
     validarRango(peticion.from(), peticion.to());
     Pagination.Slice pagina = paginacion.resolver(peticion.page(), peticion.size());
 
@@ -102,21 +104,6 @@ public class ListMyMovementsService {
       throw new ValidationException(
           "VAL-005", mensaje, List.of(new FieldError("from", "VAL-005", mensaje)));
     }
-  }
-
-  /**
-   * `VAL-004` (21-09-2026). Contra el catálogo y no contra una constante, por lo que `RF-MV-006`
-   * decide en su `plan.md` §3: {@code movement_types} lo siembra el sistema (`RN-MV-017`), de modo
-   * que un tipo inexistente es un error como el estado, y el segundo tipo entrará por migración sin
-   * que nadie tenga que tocar una lista en Java.
-   */
-  private String validarTipo(String tipo) {
-    if (tipo == null || movimientos.findTypeByCode(tipo).isPresent()) {
-      return tipo;
-    }
-    String mensaje = "El tipo de movimiento indicado no existe.";
-    throw new ValidationException(
-        "VAL-004", mensaje, List.of(new FieldError("type", "VAL-004", mensaje)));
   }
 
   /**

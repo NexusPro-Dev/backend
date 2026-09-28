@@ -7,6 +7,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 import com.factech.nexus.IntegrationTestBase;
+import com.factech.nexus.testing.CommissionCleanup;
 import java.math.BigDecimal;
 import java.time.OffsetDateTime;
 import java.time.ZoneOffset;
@@ -188,6 +189,37 @@ class RegisterSaleIT extends IntegrationTestBase {
             jdbc.queryForObject(
                 "SELECT line_discount FROM movement_details", java.math.BigDecimal.class))
         .isEqualByComparingTo("0.00");
+  }
+
+  @Test
+  @DisplayName(
+      "CA-MV-216 — la venta nace con UN pago pendiente con el método indicado; la misma clave de"
+          + " idempotencia otra vez no registra otra venta (26-09-2026)")
+  void naceConSuPrimerPago() throws Exception {
+    mvc.perform(venta(cliente, TARJETA, linea(botCopy, 1)).header("Idempotency-Key", "compra-0001"))
+        .andExpect(status().isCreated())
+        .andExpect(jsonPath("$.payments.length()").value(1))
+        .andExpect(jsonPath("$.payments[0].status").value("PENDIENTE"))
+        .andExpect(jsonPath("$.payments[0].paymentMethod.code").value("CREDIT_CARD"))
+        .andExpect(jsonPath("$.payments[0].amount").value(15.50));
+
+    // DESVIACIÓN DECLARADA (`RF-MV-018` · `tasks.md` §3): la spec pide devolver
+    // la misma venta; se responde 409 y NO se registra otra, que es lo que
+    // importa — un reintento no duplica la compra.
+    mvc.perform(venta(cliente, TARJETA, linea(botCopy, 1)).header("Idempotency-Key", "compra-0001"))
+        .andExpect(status().isConflict())
+        .andExpect(jsonPath("$.errors[0].code").value("RN-MV-040"));
+
+    assertThat(jdbc.queryForObject("SELECT count(*) FROM movements", Integer.class)).isEqualTo(1);
+    assertThat(
+            jdbc.queryForObject(
+                "SELECT count(*) FROM payments WHERE idempotency_key = 'compra-0001'",
+                Integer.class))
+        .isEqualTo(1);
+
+    // Sin clave, la pone el sistema: dos compras iguales son dos ventas.
+    mvc.perform(venta(cliente, TARJETA, linea(botCopy, 1))).andExpect(status().isCreated());
+    assertThat(jdbc.queryForObject("SELECT count(*) FROM movements", Integer.class)).isEqualTo(2);
   }
 
   @Test
@@ -570,8 +602,10 @@ class RegisterSaleIT extends IntegrationTestBase {
     // cabeceras, y las cabeceras antes que los productos y las personas —sus
     // claves foráneas son RESTRICT a propósito, para que un borrado físico no
     // se lleve por delante la atribución de una venta.
+    CommissionCleanup.limpiar(jdbc);
     jdbc.update("DELETE FROM movement_details");
     jdbc.update("DELETE FROM payment_method_exclusions");
+    CommissionCleanup.limpiar(jdbc);
     jdbc.update("DELETE FROM movements");
     jdbc.update("DELETE FROM audit_change_log WHERE module = 'MV'");
     // El catálogo y la cadena se borran ENTEROS, como en `ProductOfferIT` y por
