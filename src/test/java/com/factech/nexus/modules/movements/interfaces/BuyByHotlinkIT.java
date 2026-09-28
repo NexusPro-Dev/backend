@@ -7,6 +7,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 import com.factech.nexus.IntegrationTestBase;
+import com.factech.nexus.testing.CommissionCleanup;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import java.time.OffsetDateTime;
 import java.time.ZoneOffset;
@@ -354,6 +355,7 @@ class BuyByHotlinkIT extends IntegrationTestBase {
         "DELETE FROM client_sellers WHERE client_id IN"
             + " (SELECT id FROM users WHERE username LIKE 'bh-%')"
             + " OR seller_id IN (SELECT id FROM users WHERE username LIKE 'bh-%')");
+    CommissionCleanup.limpiar(jdbc);
     jdbc.update("DELETE FROM movement_details");
     jdbc.update("DELETE FROM movements");
     jdbc.update("DELETE FROM products WHERE code LIKE 'BH\\_%'");

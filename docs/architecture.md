@@ -5,11 +5,11 @@
 | Proyecto | NEXUS — Renovación de plataforma |
 | Empresa | FACTECH GROUP SAS |
 | Documento | `architecture.md` |
-| Versión | 0.38.0 |
+| Versión | 0.39.0 |
 | Estado | Borrador |
 | Responsable técnico | Bonilla Diaz William Steven |
 | Fecha de creación | 19-08-2026 |
-| Última actualización | 25-09-2026 |
+| Última actualización | 28-09-2026 |
 | Documento superior | `constitution.md` v0.5.0 |
 | Documento relacionado | `security.md` v0.3.0 |
 
@@ -807,6 +807,8 @@ Declararlo otra vez habría creado **la segunda definición de «vigente»**, qu
 
 **Va por configuración y no cableada**, como toda decisión de entorno de este proyecto. Y queda una consecuencia escrita: `ExpiredTokenPurgeJob` corre con `zone = "UTC"` y **no hay que cambiarlo** — purgar tokens caducados no es una decisión de negocio y le da igual dónde se corte el día. **La zona es de las operaciones que producen fechas visibles**, no de todo lo que tiene un reloj.
 
+**Desde el 28-09-2026 la zona tiene un sitio: `BusinessCalendar`**, en `shared/time`, con la propiedad `nexus.business.zone` —`America/Bogota` por defecto—. Responde **qué día es hoy** y **qué día fue un instante**, y es lo que debe usar toda lectura de negocio que convierta un instante en una fecha. Nace con el devengo de comisiones ([`requirements/cm.md`](requirements/cm.md) v0.19.0, `RF-CM-013`), que resuelve la tasa **con el día de la venta** y que es el primer proceso de negocio programado del sistema; y salda la deuda aplazada el 15-09-2026 en `ResolveCommissionService`, que tomaba «hoy» de un reloj en UTC. **`MovementCode.ZONA` y `ProductExchangeResolver` no se migran todavía**: el primero ya corta en Bogotá, y el segundo es de `SP` y se moverá cuando se toque por su cuenta. **Una tarea programada de negocio declara `zone` con la misma propiedad**, no con el literal.
+
 !!! danger "La cuarta lectura va al revés, y por eso NO sigue la norma de arriba"
 
     Las tres primeras van de `PM` a `SP`, y en ellas la norma es la que fija esta sección: **el dueño del dato publica la interfaz y el consumidor la importa**. Aquí el consumidor es **`SP`** —el registro de clientes por enlace crea una persona, y `users` es suyo— y el dueño del dato es `PM`.
@@ -941,3 +943,4 @@ D-08 quedó cerrada en `security.md` §12, junto con las decisiones D-12 a D-15 
 | 0.36.0 | 24-09-2026 | **§15.2.1 gana la SEGUNDA escritura publicada, y con ella deja de ser un caso único**: `ClientSellerBond` —vincular al cliente con el vendedor de cuyo enlace compró— (`RF-MV-011`; [`requirements/mv.md`](requirements/mv.md) v0.43.0). **Lo que esto confirma es la norma, no la excepción**: las cuatro reglas de §15.2 se aplicaron a un caso nuevo **sin retocar ninguna**. Cruza una orden plana —cliente, vendedor, venta—, devuelve lo que quedó, corre en la transacción de quien llama con `MANDATORY`, y el reparto de responsabilidad es el mismo: *qué significa vincular* —quién es el principal, que no se toca— es de `SP`; *si se vincula* lo decide `MV` al registrar la compra. **`SP` no gana ningún requerimiento por publicarla**, como en D-26: ningún actor pide «publicar una interfaz». | Responsable del proyecto |
 | 0.37.0 | 25-09-2026 | **Academia llama a dos servicios externos** para leer la duración de un video (`requirements/ac.md` v0.16.0 §5.2.11): YouTube Data API v3, con **`YOUTUBE_API_KEY`** nueva en §11, y el oEmbed público de Vimeo, sin credencial. Con plazo corto y siempre a la dirección fija del proveedor. | Responsable técnico |
 | 0.38.0 | 25-09-2026 | **`VIMEO_ACCESS_TOKEN`** en §11: Academia lee la duración de Vimeo por su API con token, porque el oEmbed sin credencial no es fiable (`requirements/ac.md` v0.18.0 §5.2.11). | Responsable técnico |
+| 0.39.0 | 28-09-2026 | **§15.1.1: la zona del negocio tiene un sitio, `BusinessCalendar`** (`shared/time`, `nexus.business.zone`), que nace con el devengo de comisiones ([`requirements/cm.md`](requirements/cm.md) v0.19.0, `RF-CM-013`) y salda el «hoy» en UTC de `ResolveCommissionService`, aplazado el 15-09-2026. Una tarea programada de negocio declara su `zone` con la misma propiedad. | Responsable del proyecto |

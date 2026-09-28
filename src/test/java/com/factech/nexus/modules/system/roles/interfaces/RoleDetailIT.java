@@ -113,10 +113,11 @@ class RoleDetailIT extends IntegrationTestBase {
     // EL AJUSTE ES DE DOS, y va expresado y no escrito como número suelto: V40 le
     // da `products:sale` y `products:hotlink` —vender y repartir enlaces— y le
     // retira `users:read-own-sellers`, porque un vendedor no tiene vendedores por
-    // encima que consultar. Dos menos uno.
+    // encima que consultar. Dos menos uno. Y DOS MÁS desde `V51` (28-09-2026): sus lotes
+    // propios de comisión, `commission-batches:list-own` y `read-own` (`RF-CM-012`).
     mvc.perform(detalle(AGENTE))
         .andExpect(status().isOk())
-        .andExpect(jsonPath("$.permissions.length()").value(ALCANCE_PROPIO.size() + 2))
+        .andExpect(jsonPath("$.permissions.length()").value(ALCANCE_PROPIO.size() + 2 + 2))
         .andExpect(jsonPath("$.permissions[?(@.code == 'roles:read')]").doesNotExist());
   }
 

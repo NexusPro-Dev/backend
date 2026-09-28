@@ -1,0 +1,148 @@
+package com.factech.nexus.modules.commissions.domain.repository;
+
+import com.factech.nexus.modules.commissions.domain.models.AccrualOutcome;
+import com.factech.nexus.modules.commissions.domain.models.CommissionRateType;
+import com.factech.nexus.shared.persistence.UuidV7Generator;
+import jakarta.persistence.EntityManager;
+import java.time.OffsetDateTime;
+import java.util.Collection;
+import java.util.HashSet;
+import java.util.List;
+import java.util.Optional;
+import java.util.Set;
+import java.util.UUID;
+import org.springframework.stereotype.Repository;
+
+/**
+ * {@link CommissionAccrualRepository} sobre SQL nativo.
+ *
+ * <p><b>Sin {@code @Transactional}</b>: cada método corre en la transacción de la línea que abre el
+ * servicio, y el bloqueo de {@link #lockLine} solo sirve si dura lo que ella.
+ */
+@Repository
+public class JpaCommissionAccrualRepository implements CommissionAccrualRepository {
+
+  /** Espacio del bloqueo consultivo del devengo, distinto del de las tasas. */
+  private static final int ESPACIO_DEVENGO = 4313;
+
+  private final EntityManager em;
+  private final UuidV7Generator ids;
+
+  public JpaCommissionAccrualRepository(EntityManager em, UuidV7Generator ids) {
+    this.em = em;
+    this.ids = ids;
+  }
+
+  @Override
+  public void lockLine(UUID detailId) {
+    em.createNativeQuery("SELECT pg_advisory_xact_lock(:ns, hashtext(CAST(:linea AS text)))")
+        .setParameter("ns", ESPACIO_DEVENGO)
+        .setParameter("linea", detailId.toString())
+        .getSingleResult();
+  }
+
+  @Override
+  public Optional<AccrualRow> find(UUID detailId) {
+    @SuppressWarnings("unchecked")
+    List<Object[]> filas =
+        em.createNativeQuery(
+                "SELECT outcome, attempts FROM commission_accruals WHERE movement_detail_id = :id")
+            .setParameter("id", detailId)
+            .getResultList();
+    return filas.stream()
+        .findFirst()
+        .map(
+            f ->
+                new AccrualRow(
+                    detailId, AccrualOutcome.valueOf((String) f[0]), ((Number) f[1]).intValue()));
+  }
+
+  @Override
+  public Set<UUID> withOutcome(Collection<UUID> detailIds) {
+    if (detailIds == null || detailIds.isEmpty()) {
+      return Set.of();
+    }
+    @SuppressWarnings("unchecked")
+    List<UUID> ids =
+        em.createNativeQuery(
+                "SELECT movement_detail_id FROM commission_accruals"
+                    + " WHERE movement_detail_id IN (:ids)")
+            .setParameter("ids", detailIds)
+            .getResultList();
+    return new HashSet<>(ids);
+  }
+
+  @Override
+  public List<UUID> rejected() {
+    @SuppressWarnings("unchecked")
+    List<UUID> ids =
+        em.createNativeQuery(
+                "SELECT movement_detail_id FROM commission_accruals WHERE outcome = 'RECHAZADA'"
+                    + " ORDER BY movement_detail_id")
+            .getResultList();
+    return ids;
+  }
+
+  @Override
+  public void insertOutcome(
+      UUID detailId, AccrualOutcome outcome, String reason, OffsetDateTime at) {
+    em.createNativeQuery(
+            """
+            INSERT INTO commission_accruals
+                (movement_detail_id, outcome, reason, attempts, created_at, updated_at)
+            VALUES (:id, :outcome, :reason, 1, :at, :at)
+            """)
+        .setParameter("id", detailId)
+        .setParameter("outcome", outcome.name())
+        .setParameter("reason", reason)
+        .setParameter("at", at)
+        .executeUpdate();
+  }
+
+  @Override
+  public void updateOutcome(
+      UUID detailId, AccrualOutcome outcome, String reason, OffsetDateTime at) {
+    em.createNativeQuery(
+            """
+            UPDATE commission_accruals
+               SET outcome = :outcome, reason = :reason, attempts = attempts + 1, updated_at = :at
+             WHERE movement_detail_id = :id
+            """)
+        .setParameter("id", detailId)
+        .setParameter("outcome", outcome.name())
+        .setParameter("reason", reason)
+        .setParameter("at", at)
+        .executeUpdate();
+  }
+
+  @Override
+  public void insertCommission(NewCommission c) {
+    boolean porcentaje = c.rateType() == CommissionRateType.PORCENTAJE;
+    em.createNativeQuery(
+            """
+            INSERT INTO commissions
+                (id, batch_id, movement_detail_id, user_id, chain_level, source, rate_id,
+                 resolved_on, rate_type, percentage, fixed_amount, unit_price, quantity,
+                 commission_amount, accrued_at, created_at)
+            VALUES (:id, :lote, :linea, :persona, :nivel, :fuente, :tasa,
+                    :fecha, :tipo, CAST(:porcentaje AS numeric), CAST(:fijo AS numeric),
+                    :precio, :cantidad, :importe, :at, :at)
+            """)
+        .setParameter("id", ids.next())
+        .setParameter("lote", c.batchId())
+        .setParameter("linea", c.detailId())
+        .setParameter("persona", c.userId())
+        .setParameter("nivel", c.chainLevel())
+        .setParameter("fuente", c.source().name())
+        .setParameter("tasa", c.rateId())
+        .setParameter("fecha", c.resolvedOn())
+        .setParameter("tipo", c.rateType().name())
+        .setParameter("porcentaje", porcentaje ? c.value() : null)
+        .setParameter("fijo", porcentaje ? null : c.value())
+        .setParameter("precio", c.unitPrice())
+        .setParameter("cantidad", c.quantity())
+        .setParameter("importe", c.amount())
+        .setParameter("at", c.accruedAt())
+        .executeUpdate();
+  }
+}

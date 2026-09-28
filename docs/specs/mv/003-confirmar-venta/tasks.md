@@ -66,6 +66,8 @@
 
 **`DevelopmentSeedIT` sigue fuera de la corrida** por el cambio ajeno y sin confirmar de `semilla-productos.sql`, declarado en `RF-MV-006` · `tasks.md` §3.
 
+- **28-09-2026 — confirmar avisa a `CM`** (`RN-MV-049`; [`specs/cm/013-devengar-comision-linea/`](../../cm/013-devengar-comision-linea/tasks.md) `T-07`). `ConfirmSaleService` publica un `CommissionableLinesEvent` con **todas** las líneas de la venta, dentro de su transacción; `CM` lo escucha después del commit y devenga las que tienen vendedor. **La respuesta no cambia** y ningún criterio de este requerimiento se mueve: el aviso no altera lo que confirmar hace ni lo que devuelve, y si devengar falla la venta sigue confirmada.
+
 ---
 
 ## 4. Definición de terminado

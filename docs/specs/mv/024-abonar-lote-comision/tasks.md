@@ -6,7 +6,7 @@
 | Especificación | [`spec.md`](spec.md) v0.1.0 |
 | Plan | [`plan.md`](plan.md) v0.1.0 |
 | `plan.md` aprobado el | 26-09-2026 |
-| Estado | **En revisión** — todas las tareas `Hecha` el 26-09-2026 salvo la última, de documentación y contrato, en curso |
+| Estado | **En revisión** — todas las tareas `Hecha`; la última el 28-09-2026, al construirse `RF-CM-011` |
 | Issue | Pendiente de crear |
 | Rama | `feature/pagos-y-saldos` |
 
@@ -26,7 +26,7 @@
 | `T-02` | `Movement.pagoDeComision(...)` | — | Unitarias | **Hecha** — 26-09-2026 |
 | `T-03` | `CommissionPayoutService`: redondeo, clave, `INSERT`, `Ledger` si no es cero, auditoría, `MANDATORY` | `T-01`, `T-02`, `RF-MV-019` `T-04`, `RF-MV-023` `T-01` | Unitarias del redondeo: `0.005` → `0.01` | **Hecha** — 26-09-2026 |
 | `T-04` | `CommissionPayoutIT`: `CA-MV-269` a `CA-MV-274`, y la llamada sin transacción | `T-03`, `RF-MV-022` `T-04` | `CA-MV-270` con dos hilos | **Hecha** — 26-09-2026 |
-| `T-05` | `requirements.md`; aviso en `requirements/cm.md` de que la operación existe para `RF-CM-011` | `T-04` | | Pendiente |
+| `T-05` | `requirements.md`; aviso en `requirements/cm.md` de que la operación existe para `RF-CM-011` | `T-04` | | **Hecha** — 28-09-2026: `RF-CM-011` la invoca (`PayCommissionBatchService`) |
 
 ---
 

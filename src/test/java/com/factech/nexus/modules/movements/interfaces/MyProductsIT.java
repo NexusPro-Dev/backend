@@ -11,6 +11,7 @@ import com.factech.nexus.modules.movements.PaymentFixtures;
 import com.factech.nexus.modules.movements.domain.repository.MovementRepository;
 import com.factech.nexus.modules.movements.domain.repository.MovementRepository.MyProductRow;
 import com.factech.nexus.modules.products.interfaces.ProductLinkTestSupport;
+import com.factech.nexus.testing.CommissionCleanup;
 import jakarta.persistence.EntityManagerFactory;
 import java.time.OffsetDateTime;
 import java.time.ZoneOffset;
@@ -392,6 +393,7 @@ class MyProductsIT extends IntegrationTestBase {
     jdbc.update(
         "DELETE FROM user_products WHERE user_id IN"
             + " (SELECT id FROM users WHERE username LIKE 'mp-%')");
+    CommissionCleanup.limpiar(jdbc);
     jdbc.update("DELETE FROM movement_details");
     jdbc.update("DELETE FROM movements");
     ProductLinkTestSupport.limpiar(jdbc);

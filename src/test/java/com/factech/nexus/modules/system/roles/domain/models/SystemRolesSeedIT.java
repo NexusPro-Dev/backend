@@ -52,6 +52,9 @@ class SystemRolesSeedIT extends IntegrationTestBase {
           "movements:list-own-entries",
           // `V50` (28-09-2026): activar lo comprado (`RF-MV-010`), por tipo de rol.
           "movements:activate-own-product",
+          // `V51` (28-09-2026): los lotes propios de comisión (`RF-CM-012`), por tipo de rol.
+          "commission-batches:list-own",
+          "commission-batches:read-own",
           "movements:list-sales",
           "movements:read",
           "movements:read-own",
@@ -86,6 +89,9 @@ class SystemRolesSeedIT extends IntegrationTestBase {
           "movements:list-own-entries",
           // `V50` (28-09-2026): activar lo comprado (`RF-MV-010`), por tipo de rol.
           "movements:activate-own-product",
+          // `V51` (28-09-2026): los lotes propios de comisión (`RF-CM-012`), por tipo de rol.
+          "commission-batches:list-own",
+          "commission-batches:read-own",
           "movements:list-sales",
           "movements:read-own",
           "movements:read-own-products",

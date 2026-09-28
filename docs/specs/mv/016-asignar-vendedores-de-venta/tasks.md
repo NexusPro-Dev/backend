@@ -63,6 +63,8 @@
 
 **`V36` va antes que la `V37` de `RF-MV-017`** (sesión backend-57): aquella espera el catálogo en 134, que es donde lo deja esta.
 
+- **28-09-2026 — asignar en una venta confirmada avisa a `CM`** (`RN-MV-049`; [`specs/cm/013-devengar-comision-linea/`](../../cm/013-devengar-comision-linea/tasks.md) `T-07`). Si la venta ya está `CONFIRMADA`, `AssignSellersService` publica un `CommissionableLinesEvent` con las líneas que **acaban de recibir** vendedor, y `CM` las devenga después del commit. En una venta pendiente no avisa: comisionarán al confirmarse. **La respuesta no cambia.**
+
 ---
 
 ## 4. Definición de terminado

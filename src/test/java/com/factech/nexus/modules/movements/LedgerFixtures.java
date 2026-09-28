@@ -2,6 +2,7 @@ package com.factech.nexus.modules.movements;
 
 import com.factech.nexus.modules.movements.application.WithdrawalRequests;
 import com.factech.nexus.modules.movements.domain.service.CreditService;
+import com.factech.nexus.testing.CommissionCleanup;
 import java.math.BigDecimal;
 import java.util.UUID;
 import org.springframework.jdbc.core.JdbcTemplate;
@@ -42,6 +43,7 @@ public final class LedgerFixtures {
 
   /** Limpia lo de la etapa 6: los movimientos arrastran pagos y asientos; luego las cuentas. */
   public static void limpiar(JdbcTemplate jdbc) {
+    CommissionCleanup.limpiar(jdbc);
     jdbc.update("DELETE FROM movement_details");
     jdbc.update("DELETE FROM movements");
     jdbc.update("DELETE FROM accounts");

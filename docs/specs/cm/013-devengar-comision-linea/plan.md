@@ -1,0 +1,149 @@
+# PLAN — `RF-CM-013` Devengar las comisiones de una línea de venta
+
+| Campo | Valor |
+|---|---|
+| Requerimiento | `RF-CM-013` |
+| Especificación | [`spec.md`](spec.md) v0.1.0 |
+| `spec.md` aprobada el | 28-09-2026 |
+| Versión | 0.1.0 |
+| Estado | **Aprobado** |
+| Autor | Responsable técnico |
+| Aprobado por | Responsable del proyecto |
+| Fecha de aprobación | 28-09-2026 |
+
+!!! info "Qué va en este documento"
+
+    **Cómo se construye.** Esquema, componentes, contrato, autorización y pruebas.
+
+    **Prueba de pertenencia:** si un cambio de negocio lo invalidaría, pertenece a `spec.md`.
+
+La mecánica común de `CM` —puertos en `domain/repository`, adaptadores JPA con SQL nativo, traducción de restricciones por nombre y de exclusiones por estado SQL— la fijó el plan de [`RF-CM-001`](../001-registrar-tasa-comision-rol/plan.md) y **se hereda sin repetirla**. La resolución de la tasa es la de [`RF-CM-005`](../005-consultar-comision-efectiva/plan.md), **consumida y no reimplementada**.
+
+---
+
+## 1. Enfoque
+
+**Un evento de Spring publicado por `MV` dentro de su transacción y escuchado por `CM` después del commit, y una transacción nueva por línea.**
+
+- **`MV` publica** con `ApplicationEventPublisher` un `CommissionableLinesEvent` —un `record` de su paquete `application`, con la venta y los identificadores de las líneas— desde los dos únicos sitios donde una línea queda comisionable: `ConfirmSaleService` y `AssignSellersService`. Publicar **dentro** de la transacción es lo que permite escuchar **después** de ella.
+- **`CM` escucha** con `@TransactionalEventListener(phase = AFTER_COMMIT)`. Si la transacción de `MV` se revierte, el evento **no se entrega** —no hay aviso de una venta que no existe—; si se confirma, se entrega en el mismo hilo, después del commit. **Es el primer evento entre módulos del sistema**, y por eso este plan fija la forma para los que vengan (§8).
+- **Una transacción por línea** (`TransactionTemplate` con `REQUIRES_NEW`), dentro de un bucle que **captura** la excepción de cada una: es lo que hace verdad `CA-CM-166` —la venta no se entera, y una línea que falla no arrastra a sus vecinas—.
+
+**Se relee, no se confía en el evento.** El evento dice **dónde mirar**; lo que se comprueba es lo que `MV` publica al releer (`spec.md` §11). Así el mismo servicio sirve al aviso, al barrido y al reintento, y un evento repetido o tardío no hace daño.
+
+**La exclusión entre dos devengos de la misma línea es un bloqueo consultivo**, `pg_advisory_xact_lock(ns, hashtext(detail_id))`, el mismo patrón que `ProductCommissionCapGuard` y `JpaUserCommissionRateRepository`. Tomado el bloqueo, se mira si la línea ya tiene desenlace: si lo tiene, se sale (`FA-001`). `pk_commission_accruals` y `uq_commissions_detail_user` quedan **detrás**, como red.
+
+---
+
+## 2. Cambios de esquema
+
+**`V51__cm_devengo_de_comisiones.sql`** —la siguiente libre a 28-09-2026— crea **las cuatro tablas de la liquidación**, como [`requirements/cm.md`](../../../requirements/cm.md) §7.5 a §7.8 las declara, con todas sus restricciones de §7.4:
+
+| Tabla | Lo que conviene mirar al escribirla |
+|---|---|
+| `commission_closings` | Va **primero**: `commission_batches.closing_id` la señala |
+| `commission_batches` | `ex_commission_batches_solape` con `tstzrange(period_start, period_end, '[)')` —el fin nulo es «sin techo»—; `ck_commission_batches_periodo`; `ck_commission_batches_pagado` con `movement_id` |
+| `commissions` | `uq_commissions_detail_user`; `fk_commissions_detail` **`RESTRICT`**; `accrued_at`; `fk_commissions_batch` `ON DELETE CASCADE` |
+| `commission_accruals` | `movement_detail_id` como clave primaria; `fk_commission_accruals_detail` **`RESTRICT`**; `ck_commission_accruals_reason` |
+
+Y un índice de apoyo: `ix_commission_batches_abierto` sobre `(user_id, currency_id) WHERE status = 'ABIERTO'`, para encontrar el lote abierto sin recorrer el historial.
+
+**Siembra los ocho permisos de la liquidación** ([`security.md`](../../../security.md) v0.81.0 §4.4), aunque solo `RF-CM-009` a `RF-CM-012` y `RF-CM-014` los usen: **las tablas y los permisos del submódulo nacen juntos**, y repartirlos entre cinco migraciones obligaría a cinco recuentos del catálogo. Serie de `CM`, **el siguiente sufijo libre tras el mayor de `V28`**. **`SUPERADMIN` y `ADMIN` reciben los ocho**, explícitos; **los roles de tipo `VENDEDOR` reciben `list-own` y `read-own`**, por tipo de rol y no por nombre. **Catálogo 145 → 153.**
+
+---
+
+## 3. Componentes afectados
+
+| Módulo | Capa | Componente | Cambio | Nota |
+|---|---|---|---|---|
+| `shared` | `time` | `BusinessCalendar` | **Nuevo** | La zona del negocio por configuración (`nexus.business.zone`, `America/Bogota` por defecto; [`architecture.md` §15.1.1](../../../architecture.md)): `ZoneId zona()`, `LocalDate hoy()`, `LocalDate diaDe(OffsetDateTime)`. **No sustituye a `MovementCode.ZONA`** en esta tripleta: moverla es un cambio de `MV` sin motivo propio |
+| `MV` | `application` | `CommissionableLinesEvent` | **Nuevo — publicado** | `record(UUID movementId, List<UUID> detailIds)` |
+| `MV` | `application` | `CommissionableLines` | **Nueva interfaz publicada** | `List<CommissionableLine> of(Collection<UUID> detailIds)` —solo las que **cumplen** `RN-CM-022` hoy, las demás se omiten— y `List<UUID> idsAfter(UUID cursor, int limit)` para el barrido, por clave y no por página. `CommissionableLine(detailId, movementId, productId, sellerId, unitPrice, quantity, currencyId, occurredAt)` |
+| `MV` | `domain/service` | `ConfirmSaleService`, `AssignSellersService` | Modificados | Publican el evento con las líneas que **quedaron** comisionables: al confirmar, las que tienen vendedor; al asignar en una venta `CONFIRMADA`, las que acaban de recibirlo |
+| `SP` | `application` | `SupervisorChain` | **Nueva interfaz publicada** | `List<UUID> chainAt(UUID sellerId, OffsetDateTime at)`: el vendedor primero y sus superiores **vigentes en ese instante** (`started_at <= at AND (ended_at IS NULL OR ended_at > at)`), por un `WITH RECURSIVE` con tope de profundidad y guarda de ciclo. **La condición que `requirements/cm.md` §3 impuso a `SP` el 24-09-2026**, en la dirección contraria a `CommercialReach` |
+| `CM` | `domain/service` | `ResolveCommissionService` | Modificado | «Hoy» deja de ser `Clock.systemUTC()` y pasa a `BusinessCalendar.hoy()`. Gana una operación interna que devuelve **la tasa resuelta con su identidad** para el devengo, sobre el mismo puerto: no hay segunda sentencia de precedencia |
+| `CM` | `domain/models` | `AccrualOutcome`, `BatchStatus` | Nuevos | Enums: `DEVENGADA`/`SIN_COMISION`/`RECHAZADA` y `ABIERTO`/`PENDIENTE`/`PAGADO` |
+| `CM` | `domain/service` | `ChainCommissionCalculator` | Nuevo | **Puro**, sin base: de la cadena y sus tasas, lo de cada nivel y el veredicto de `RN-CM-026`. Es donde viven la base bruta, el fijo por unidad y el tope |
+| `CM` | `domain/service` | `CommissionAccrualService` | Nuevo | `AccrualSummary accrue(Collection<UUID> detailIds)` y `retryRejected()`; una transacción por línea (§1) |
+| `CM` | `domain/repository` | `CommissionAccrualRepository`, `CommissionBatchRepository` y sus adaptadores | Nuevos | El bloqueo de la línea, el desenlace, las comisiones, **el lote abierto** (§4) |
+| `CM` | `interfaces` | `CommissionableLinesListener` | Nuevo | `@TransactionalEventListener(AFTER_COMMIT)` → `accrue(event.detailIds())` |
+
+---
+
+## 4. El lote abierto, y la suma que no se pierde
+
+```
+1. SELECT … FROM commission_batches
+    WHERE user_id = :u AND currency_id = :c AND status = 'ABIERTO' FOR UPDATE
+2. si no hay: INSERT … (status 'ABIERTO', period_start = :ahora) ON CONFLICT DO NOTHING
+             y se repite 1   — otro devengo lo abrió a la vez, y ex_commission_batches_solape lo impidió
+3. INSERT INTO commissions (…, batch_id, accrued_at = :ahora)
+4. UPDATE commission_batches SET total_amount = total_amount + :importe, updated_at = :ahora
+    WHERE id = :lote
+```
+
+**`ON CONFLICT DO NOTHING` sin columnas** es la única forma que Postgres admite contra una restricción de exclusión, y es exactamente la que hace falta: el que llega segundo **no inserta** y encuentra el del primero. **El `UPDATE` suma sobre la fila** (`CA-CM-165`) y el `FOR UPDATE` del paso 1 es lo que serializa con el cierre de `RF-CM-009`: el cierre toma los mismos lotes con `FOR UPDATE`, y el devengo que llegue después **ya no los encuentra abiertos** y abre uno nuevo.
+
+---
+
+## 5. Contrato de API
+
+**Ninguno.** No hay ruta. Los contratos son las tres interfaces publicadas de §3, documentadas en su Javadoc como `MembershipGrant` y `CommissionPayout`.
+
+---
+
+## 6. Autorización
+
+**Ninguna propia**: no hay operación de la API (`security.md` v0.81.0, `RN-SEG-015`). Quien confirma la venta o asigna el vendedor pasó por los permisos de `MV`.
+
+---
+
+## 7. Auditoría
+
+**Las comisiones no se auditan fila a fila**: son un hecho derivado, no una decisión de nadie, y copiarlas en `audit_change_log` duplicaría el libro. Se audita **el desenlace**: un `ChangeEvent` por línea sobre `commission_accruals` —`INSERT` o, en el reintento, `UPDATE`—, con la venta, el desenlace, el número de comisiones y el motivo si lo hay. **Un fallo inesperado** (`EX-001`) se registra con `log.error` e identificador de la línea, y no escribe nada más: la línea sin desenlace **es** la constancia.
+
+---
+
+## 8. Impacto sobre otros módulos
+
+| Módulo | Qué cambia | Enmienda que aplica este plan |
+|---|---|---|
+| `MV` | Publica `CommissionableLinesEvent` y `CommissionableLines` (`RN-MV-049`) | Ya registrada en [`requirements/mv.md`](../../../requirements/mv.md) v0.49.0. **Las tripletas de `RF-MV-003` y `RF-MV-016` no cambian de comportamiento visible**: el evento no altera su respuesta. Se anota en el `tasks.md` de cada una como desviación |
+| `SP` | Publica `SupervisorChain` | **[`requirements/sp.md`](../../../requirements/sp.md) v1.88.0** registra la condición que `CM` le impuso el 24-09-2026 y que no llegó a escribirse allí |
+| `shared` | `BusinessCalendar` | [`architecture.md`](../../../architecture.md) §15.1.1 lo nombra como **el** sitio de la zona del negocio |
+| Pruebas de `MV` | **Confirmar una venta ahora deja comisiones**, y `fk_commissions_detail` y `fk_commission_accruals_detail` son `RESTRICT`: las **21 suites** que limpian con `DELETE FROM movements` fallarán | Se limpian `commission_accruals`, `commissions` y `commission_batches` **antes**, desde un ayudante común de prueba y no copiando el `DELETE` veintiuna veces. Es el mismo accidente que `product_links` provocó el 22-09-2026 con una clave sin `ON DELETE` |
+
+**La forma de un evento entre módulos, para los que vengan:** el `record` vive en el `application` de quien publica; se publica **dentro** de su transacción; se escucha con `AFTER_COMMIT` en el `interfaces` de quien escucha; y quien escucha abre su propia transacción. **ArchUnit** ya permite que `CM` lea el `application` de `MV`; no hace falta regla nueva.
+
+---
+
+## 9. Alternativas consideradas
+
+| Alternativa | Por qué no |
+|---|---|
+| Llamar a `CM` desde `ConfirmSaleService` en la misma transacción | `MV` dependería de `CM` y un error de comisiones impediría cobrar (`requirements/cm.md` §5.7) |
+| Una bandeja de salida en `MV` | El barrido responde lo mismo con los datos que ya existen (§5.7) |
+| `@Async` en el escuchador | La respuesta de confirmar sería más rápida, a cambio de pruebas no deterministas y de un hilo más que vigilar. El cálculo es de milisegundos; si deja de serlo, es un cambio de una anotación |
+| Una transacción para todo el evento | Una línea que falla revertiría a sus vecinas (`CA-CM-166`) |
+| Unicidad del lote abierto con un índice único parcial | `ex_commission_batches_solape` ya la da, con el fin nulo como «sin techo»; un segundo índice diría lo mismo con otras palabras |
+
+---
+
+## 10. Riesgos
+
+| Riesgo | Mitigación |
+|---|---|
+| El evento se pierde si la aplicación cae entre el commit y el escuchador | El barrido del cierre (`RF-CM-009`, `RN-CM-034`); `commission_closings.lines_swept` lo delata |
+| Una prueba con `@Transactional` nunca dispara el evento —la transacción se revierte— y parece que el devengo no funciona | Las suites de este requerimiento **no** son transaccionales y limpian al terminar; se dice en su Javadoc |
+| Las 21 suites de `MV` | §8, con el ayudante común; y el orden alfabético fijo de la suite lo hace reproducible |
+| El rol de cada nivel es el de hoy | Aceptado en `spec.md` §14 |
+
+---
+
+## 11. Estrategia de prueba
+
+- **Unitarias** de `ChainCommissionCalculator`: base bruta, fijo por unidad, cero, tope, gratuito con fijo (`CA-CM-160`, `CA-CM-161`, casos límite).
+- **Unitarias** de `BusinessCalendar` con el reloj fijado a las `01:00Z` —las 20:00 del día anterior en Bogotá—.
+- **`SupervisorChainIT`** (en `SP`): cadena vigente, cadena a una fecha pasada, historial cerrado, sin superior.
+- **`CommissionAccrualIT`**: `CA-CM-154` a `CA-CM-169`, **confirmando y asignando por la API de `MV`** —no invocando el servicio—, para que el evento, el `AFTER_COMMIT` y la transacción nueva entren en la prueba. `CA-CM-164` y `CA-CM-165` con dos hilos. `CA-CM-166` con un doble que falla en la segunda línea.
+- **Los seis recuentos del catálogo** (`PermissionsSeedIT`, `JpaPermissionQueryRepositoryIT`, `ListPermissionsServiceIT`, `TeamsPermissionsSeedIT`, `PermissionIT` con `153L`, y la de `CM`): 145 → 153.
