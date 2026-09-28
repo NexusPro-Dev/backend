@@ -218,10 +218,12 @@ class ProductLinkTest {
   }
 
   @Test
-  @DisplayName("el tipo sabe si es material de venta: el video sí, el cupón no (`RN-PM-050`)")
+  @DisplayName(
+      "el tipo sabe si es material de venta: el video sí, el cupón y la descarga no (`RN-PM-050`)")
   void elTipoSabeDondeSePublica() {
     assertThat(ProductLinkType.VIDEO_PRESENTACION.esMaterialDeVenta()).isTrue();
     assertThat(ProductLinkType.CUPON_BOT.esMaterialDeVenta()).isFalse();
+    assertThat(ProductLinkType.DESCARGA.esMaterialDeVenta()).isFalse();
   }
 
   private static ProductLink enlace(String url, String externalId) {

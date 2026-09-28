@@ -4,7 +4,6 @@ import com.factech.nexus.modules.products.application.OfferItem;
 import com.factech.nexus.modules.products.application.ProductCatalog;
 import com.factech.nexus.modules.products.application.ProductLinkResponse;
 import com.factech.nexus.modules.products.domain.models.Product;
-import com.factech.nexus.modules.products.domain.models.ProductLinkType;
 import com.factech.nexus.modules.products.domain.models.ProductType;
 import com.factech.nexus.modules.products.domain.repository.ProductQueryRepository.ProductRow;
 import com.factech.nexus.modules.products.domain.service.ProductExchangeResolver;
@@ -42,7 +41,6 @@ import org.springframework.transaction.annotation.Transactional;
 public class PublishedProductCatalog implements ProductCatalog, RegistrableProductLookup {
 
   private final EntityManager em;
-  private final ProductLinkRepository enlaces;
   private final ProductQueryRepository consultas;
   private final CurrentMembershipLookup membresias;
   private final ProductLinkReader lectorDeEnlaces;
@@ -52,13 +50,11 @@ public class PublishedProductCatalog implements ProductCatalog, RegistrableProdu
       EntityManager em,
       ProductQueryRepository consultas,
       CurrentMembershipLookup membresias,
-      ProductLinkRepository enlaces,
       ProductLinkReader lectorDeEnlaces,
       ProductExchangeResolver conversiones) {
     this.em = em;
     this.consultas = consultas;
     this.membresias = membresias;
-    this.enlaces = enlaces;
     this.lectorDeEnlaces = lectorDeEnlaces;
     this.conversiones = conversiones;
   }
@@ -290,14 +286,15 @@ public class PublishedProductCatalog implements ProductCatalog, RegistrableProdu
   }
 
   @Override
-  public Map<UUID, String> couponLinksOf(Collection<UUID> ids) {
+  @Transactional(readOnly = true)
+  public Map<UUID, List<ProductLinkResponse>> deliveredLinksOf(Collection<UUID> ids) {
     if (ids == null || ids.isEmpty()) {
       return Map.of();
     }
-    // UNA sentencia para todo el lote, y el enlace ya compuesto por
-    // `ProductLink.resolver()`: quien llama no sabe —ni tiene que saber— que el
-    // identificador externo va pegado al final (`RN-PM-049`).
-    return enlaces.findResolvedByType(new LinkedHashSet<>(ids), ProductLinkType.CUPON_BOT);
+    // UNA sentencia para todo el lote, todos los tipos y cada enlace ya compuesto
+    // por `ProductLink.resolver()`: quien llama no sabe —ni tiene que saber— que
+    // el identificador externo va pegado al final (`RN-PM-049`).
+    return lectorDeEnlaces.resueltosDe(new LinkedHashSet<>(ids));
   }
 
   @Override

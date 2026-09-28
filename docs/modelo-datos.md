@@ -2,7 +2,7 @@
 
 | Campo | Valor |
 |---|---|
-| Versión | 0.76.0 |
+| Versión | 0.77.0 |
 | Estado | **Borrador** |
 | Responsable | Bonilla Diaz William Steven |
 | Fecha de creación | 21-08-2026 |
@@ -522,7 +522,7 @@ erDiagram
 
     product_links {
         uuid product_id PK, FK "V35 · la PAREJA con type es la clave: UN enlace por tipo"
-        varchar type PK "30 · VIDEO_PRESENTACION o CUPON_BOT · CHECK, no catalogo: cada uno trae consigo donde se publica"
+        varchar type PK "30 · VIDEO_PRESENTACION, CUPON_BOT o DESCARGA (V52) · CHECK, no catalogo: cada uno trae consigo donde se publica"
         varchar url "500 · NOT NULL: no hay enlace sin enlace · quitar uno es BORRAR la fila"
         varchar external_id "100 · id de un sistema AJENO · NULL = no lleva · se PEGA al final de la url al publicarla"
         timestamptz created_at "SIN deleted_at: se borra fisicamente, como product_package_items"
@@ -638,6 +638,8 @@ erDiagram
     **`url` es `NOT NULL` y ahí está la diferencia con la columna que reemplaza.** No hay «enlace sin enlace»: donde el nulo de `video_url` significaba «no tiene video», ahora la ausencia de la fila lo significa, y quitar el video es **borrarla**. `external_id` sí admite nulo —un identificador de un sistema ajeno que NEXUS guarda y devuelve **sin interpretar**— y **se pega como último segmento de la url** al publicarla (`RN-PM-049`), de donde sale la única restricción cruzada de la tabla: **con identificador, la url no puede llevar `?` ni `#`** (`ck_product_links_id_sin_consulta`), porque pegar un segmento detrás de una cadena de consulta da un enlace roto **que responde `200`**.
 
     **Y el tipo decide quién lo ve**, que es lo que esta tabla añade sobre la columna: `VIDEO_PRESENTACION` sale en las cuatro lecturas del producto, hotlink sin token incluido, porque es material de venta y no un costo —al revés que `purchase_price`—; **`CUPON_BOT` no sale de ninguna**, y se publica **solo** en `RF-MV-014` y **solo en la línea `ENTREGADA`** (`RN-PM-050`, `RN-MV-032`), porque es **lo que se compró** y enseñarlo antes es regalarlo.
+
+    **Desde el 28-09-2026 los tipos son tres** (`V52`, [`requirements/pm.md`](requirements/pm.md) v0.45.0 §5.2.15): **`DESCARGA`**, dónde descarga quien compró lo que compró. **Es entrega, como el cupón**, y sigue su regla sin tocar ninguna sentencia: las lecturas de venta piden los tipos que son material de venta y este no lo es. `V52` solo reescribe `ck_product_links_type` y el comentario de la columna; ninguna fila cambia.
 
 !!! info "`product_images` es la primera tabla del sistema que guarda un archivo, y NO es una entidad (14-09-2026, `V90`)"
 
@@ -1056,3 +1058,4 @@ Los documentos que citan una migración vieja por su número —specs, controles
 | 0.74.0 | 26-09-2026 | **`MV` diseña tres tablas más para la etapa 6** —`payments`, `accounts` y `movement_entries`— ([`requirements/mv.md`](requirements/mv.md) v0.44.0 §4.3 y §7.7 a §7.9), por decisión del responsable del proyecto: el pago como intento con estados propios, las cuentas de cada persona —`BILLETERA`, `RETENIDO` y `PUNTOS`— y de la empresa, y los asientos de doble entrada que las mueven. **`movements.payment_method_id` pasa a `payments`**, y `movements` gana `rejected_at`, `rejection_reason` y `concept`. §5.1 y §5.3 las recogen, con tres claves foráneas nuevas que cruzan módulo: dos de `MV` hacia `SP` y **una de `CM` hacia `MV`** (`commission_batches.movement_id`). Sin migración todavía. | Responsable técnico |
 | 0.75.0 | 26-09-2026 | **Las tres tablas de la etapa 6 de `MV` están escritas**: `payments` (`V48`, que traslada el método de cada venta a su pago y retira `movements.payment_method_id`) y `accounts` y `movement_entries` (`V49`, con el disparador de cuadre diferido `tg_movement_entries_cuadre`). `movements` gana `rejected_at`, `rejection_reason`, `concept` e `idempotency_key`. `MV` pasa a diez tablas escritas. | Responsable técnico |
 | 0.76.0 | 28-09-2026 | **La deuda de §4.1 con la comisión tiene dueño** ([`requirements/cm.md`](requirements/cm.md) v0.19.0, §5.7): `CM` devenga **solo y en el momento** cada línea de venta cobrada y con vendedor, y copia en `commissions` la forma, el valor, la base, la moneda y la tasa exacta que aplicó. §4.1 lo recoge con una caja nueva; la deuda que decía «sigue sin dueño» —escrita cuando la venta aún no devengaba— se conserva, porque dice lo que era cierto aquel día. **Cuatro tablas diseñadas** en el inventario de `CM` (§5.1) —`commissions` y `commission_batches` del 24-09-2026, que este documento no había recogido, y `commission_accruals` y `commission_closings` de hoy— y **seis claves foráneas** que cruzan módulo en §5.3, dos de ellas de `CM` hacia `MV` con `RESTRICT`. Sin migración: las crea la de `RF-CM-013`. | Responsable del proyecto |
+| 0.77.0 | 28-09-2026 | **`product_links` admite un tercer tipo, `DESCARGA`** (`V52`, [`requirements/pm.md`](requirements/pm.md) v0.45.0 §5.2.15), por decisión del responsable del proyecto: dónde descarga quien compró lo que compró. **Es entrega y no material de venta**, como `CUPON_BOT`. `V52` reescribe `ck_product_links_type` —el `CHECK` y el enumerado admiten lo mismo a propósito— y el comentario de `type`; ninguna tabla ni fila cambia | Responsable del proyecto |

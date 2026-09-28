@@ -74,7 +74,7 @@ public class HotlinkController {
           **Vienen los `links` del producto, y sin token** (`RN-PM-048`): aquí
           viaja **solo el video** y **resuelto** —con el identificador externo ya
           pegado al final (`RN-PM-049`)—, porque es material de venta y existe
-          para que lo vea quien va a comprar. El `CUPON_BOT` **no sale**: es la
+          para que lo vea quien va a comprar. El `CUPON_BOT` y la `DESCARGA` **no salen**: son la
           prestación que se compra, y esta ruta la puede abrir cualquiera
           (`RN-PM-050`). La lista va **presente y vacía** cuando el producto no
           declara ninguno.
