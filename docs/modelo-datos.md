@@ -2,11 +2,11 @@
 
 | Campo | Valor |
 |---|---|
-| Versión | 0.75.0 |
+| Versión | 0.76.0 |
 | Estado | **Borrador** |
 | Responsable | Bonilla Diaz William Steven |
 | Fecha de creación | 21-08-2026 |
-| Última actualización | 26-09-2026 |
+| Última actualización | 28-09-2026 |
 
 !!! info "Qué va en este documento"
 
@@ -659,6 +659,12 @@ Ninguna de las dos guarda una venta, y **las dos escribieron condiciones sobre q
 
     Lo que **sigue sin dueño** es la segunda condición: copiar lo que la comisión valía. La venta no la copia porque **no devenga comisiones todavía** —es la etapa 5 de `MV`—, de modo que la deuda que §4.1 abrió sigue abierta y ahora se sabe **dónde** se pagará.
 
+!!! success "Y desde el 28-09-2026 la segunda condición también tiene dueño, en papel"
+
+    **La paga `CM`**, que el 24-09-2026 pasó a liquidar ([`requirements/cm.md`](requirements/cm.md) v0.17.0) y el 28-09-2026 a **devengar solo** (v0.19.0, §5.7): cada línea de venta cobrada y con vendedor produce, en el momento, **una fila de `commissions` por nivel de la cadena**, que copia la forma, el valor, la base, la moneda y **de qué tasa exacta salió** — las tres filas de la tabla de abajo, cumplidas en una sola. Y `RN-CM-018` tiene heredera: el tope de la cadena lo aplica `RN-CM-026` **línea a línea**, rechazando y no recortando.
+
+    **Cuatro tablas, ninguna escrita todavía**: `commissions`, `commission_batches` —el lote de una persona, un periodo y una moneda, `ABIERTO` mientras crece—, `commission_accruals` —qué pasó con cada línea: `DEVENGADA`, `SIN_COMISION` o `RECHAZADA`— y `commission_closings` —cada cierre del periodo, programado o a mano—. Las crea la migración de `RF-CM-013`, la primera que se construya del submódulo.
+
 | Quién lo exige | Qué exige |
 |---|---|
 | `requirements/pm.md` §1.4 | Cada compra guardará **el importe que se pagó y la vigencia que compró**, en lugar de leerlos del producto |
@@ -874,7 +880,7 @@ flowchart TB
 | `SP` | `permissions`, `roles`, `role_permissions`, `users`, `user_roles`, `memberships`, `user_products`, `currencies`, `countries`, `document_types`, `user_supervisors`, `client_sellers`, `refresh_tokens`, `password_reset_permits`, `exchange_rates`, `brokers`, `user_brokers`, `teams`, `team_members` | **17 escritas** (`client_sellers` desde `V20`, 21-09-2026) **y dos diseñadas**: `teams` y `team_members`, que creará `V33` con `RF-SP-063` (21-09-2026) |
 | `SP` · auditoría | `audit_change_log`, `audit_deletion_log`, `audit_error_log`, `audit_security_log`, `request_log` | **5, escritas** |
 | `PM` | `products`, `product_comments`, `product_images`, `product_packages`, `product_package_items`, `product_links` | **3 escritas** (`V39`, `V87`, `V90`) **y dos diseñadas**: las de los paquetes, que creará la migración de `RF-PM-017` (14-09-2026). **`product_links` la crea `V35`** (22-09-2026), y con ella `products` **pierde** `video_url` |
-| `CM` | `commission_rates`, `user_commission_rates` | **2, escritas** (`V6` del esquema consolidado). `product_commission_rates` existió de `V49` a `V94` (15-09-2026) y `user_commission_rate_products` de `V85` a `V10` (16-09-2026) |
+| `CM` | `commission_rates`, `user_commission_rates`, `commissions`, `commission_batches`, `commission_accruals`, `commission_closings` | **2, escritas** (`V6` del esquema consolidado), **y cuatro diseñadas** para la liquidación: las dos primeras el 24-09-2026 y las dos últimas el 28-09-2026, con el devengo automático ([`requirements/cm.md`](requirements/cm.md) v0.19.0 §7.5 a §7.8). `product_commission_rates` existió de `V49` a `V94` (15-09-2026) y `user_commission_rate_products` de `V85` a `V10` (16-09-2026) |
 | `MV` | `movements`, `movement_types`, `movement_type_statuses`, `movement_details`, `movement_detail_discounts`, `payment_methods`, `payment_method_exclusions`, `payments`, `accounts`, `movement_entries` | **10, escritas** (`V7` del esquema consolidado, `V14` para las rebajas, `V36` para los estados por tipo, **`V48` para `payments` y `V49` para `accounts` y `movement_entries`**, 26-09-2026: la etapa 6 —pagos, saldos y retiros— de [`requirements/mv.md` §4.3](requirements/mv.md)). Su forma vive en §7.7 a §7.9 de ese documento y no se repite aquí. **`movements` perdió `payment_method_id`** (`V48`), que pasó a `payments` |
 | `AC` | `course_categories`, `courses`, `course_category_items`, `course_recommendations`, `course_memberships`, `course_products`, `course_modules`, `lessons`, `academy_images` | **8 escritas** —`course_categories` (`V18`), `courses` (`V21`), `course_modules` (`V23`), `lessons` (`V24`), `course_category_items` (`V42`), `course_products` (`V43`), `academy_images` (`V44`) y `course_memberships` (`V45`), las cuatro últimas el 25-09-2026— **y una diseñada**, `course_recommendations` (§4.2): las crearán los requerimientos que las estrenan, en el orden de [`requirements/ac.md`](requirements/ac.md) §6.1 |
 
@@ -917,6 +923,11 @@ Son las que siguen —**y desde el 14-09-2026 una de `PM` apunta a `users`**—,
 | `accounts.user_id` | `users` | `MV` → `SP` — de quién es la cuenta; **nulo en las de la empresa** (26-09-2026, `V49`) |
 | `accounts.currency_id` | `currencies` | `MV` → `SP` — la moneda de la cuenta (26-09-2026, `V49`) |
 | `commission_batches.movement_id` | `movements` | `CM` → `MV` — el movimiento `PAGO_COMISION` que abonó el lote (`RN-MV-044`, 26-09-2026, diseñada). **Va desde `CM` y no desde `movements`**: al revés haría a `MV` depender de `CM`, y `CM` ya depende de `MV` por las líneas que liquida |
+| `commissions.movement_detail_id` | `movement_details` | `CM` → `MV` — la línea que devengó (24-09-2026, diseñada). **`RESTRICT`**: una línea con comisión no se borra, y toda suite que limpie `movements` tendrá que limpiar antes `commissions` y `commission_accruals` |
+| `commission_accruals.movement_detail_id` | `movement_details` | `CM` → `MV` — el desenlace de esa línea, y su clave primaria (28-09-2026, diseñada). **`RESTRICT`**, por lo mismo |
+| `commissions.user_id`, `commission_batches.user_id` | `users` | `CM` → `SP` — quién cobra ese nivel, y de quién es el lote (24-09-2026, diseñadas) |
+| `commission_batches.currency_id` | `currencies` | `CM` → `SP` — la moneda del lote, que es donde **nace** la moneda de una comisión (`RN-CM-017`) |
+| `commission_closings.triggered_by` | `users` | `CM` → `SP` — quién lanzó un cierre a mano; nula en el programado (28-09-2026, diseñada) |
 
 **Y una que no cruza ningún módulo pero conviene ver aquí**: `product_packages.cover_image_id` → `product_images` (`PM` → `PM`, `V11`, 16-09-2026), la segunda columna que señala esa tabla. Junto con `products.cover_image_id`, hace de `product_images` **el valor de dos columnas de dos tablas**, sin que la tabla sepa de cuál viene cada fila.
 
@@ -1044,3 +1055,4 @@ Los documentos que citan una migración vieja por su número —specs, controles
 | 0.73.0 | 25-09-2026 | **`lessons.duration_minutes` pasa a `duration_seconds`** (`V46`, `RN-AC-017` reescrita): las filas existentes se multiplican por sesenta. | Responsable técnico |
 | 0.74.0 | 26-09-2026 | **`MV` diseña tres tablas más para la etapa 6** —`payments`, `accounts` y `movement_entries`— ([`requirements/mv.md`](requirements/mv.md) v0.44.0 §4.3 y §7.7 a §7.9), por decisión del responsable del proyecto: el pago como intento con estados propios, las cuentas de cada persona —`BILLETERA`, `RETENIDO` y `PUNTOS`— y de la empresa, y los asientos de doble entrada que las mueven. **`movements.payment_method_id` pasa a `payments`**, y `movements` gana `rejected_at`, `rejection_reason` y `concept`. §5.1 y §5.3 las recogen, con tres claves foráneas nuevas que cruzan módulo: dos de `MV` hacia `SP` y **una de `CM` hacia `MV`** (`commission_batches.movement_id`). Sin migración todavía. | Responsable técnico |
 | 0.75.0 | 26-09-2026 | **Las tres tablas de la etapa 6 de `MV` están escritas**: `payments` (`V48`, que traslada el método de cada venta a su pago y retira `movements.payment_method_id`) y `accounts` y `movement_entries` (`V49`, con el disparador de cuadre diferido `tg_movement_entries_cuadre`). `movements` gana `rejected_at`, `rejection_reason`, `concept` e `idempotency_key`. `MV` pasa a diez tablas escritas. | Responsable técnico |
+| 0.76.0 | 28-09-2026 | **La deuda de §4.1 con la comisión tiene dueño** ([`requirements/cm.md`](requirements/cm.md) v0.19.0, §5.7): `CM` devenga **solo y en el momento** cada línea de venta cobrada y con vendedor, y copia en `commissions` la forma, el valor, la base, la moneda y la tasa exacta que aplicó. §4.1 lo recoge con una caja nueva; la deuda que decía «sigue sin dueño» —escrita cuando la venta aún no devengaba— se conserva, porque dice lo que era cierto aquel día. **Cuatro tablas diseñadas** en el inventario de `CM` (§5.1) —`commissions` y `commission_batches` del 24-09-2026, que este documento no había recogido, y `commission_accruals` y `commission_closings` de hoy— y **seis claves foráneas** que cruzan módulo en §5.3, dos de ellas de `CM` hacia `MV` con `RESTRICT`. Sin migración: las crea la de `RF-CM-013`. | Responsable del proyecto |
