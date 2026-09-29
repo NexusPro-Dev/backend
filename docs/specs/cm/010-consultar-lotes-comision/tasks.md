@@ -83,6 +83,6 @@ Rama: `feature/comision-afftrack`.
 
 | ID | Tarea | Depende de | Verificación | Estado |
 |---|---|---|---|---|
-| `T-08` | La prosa de la `@Operation` y `CA-CM-271` | `RF-CM-013` `T-17` | `CommissionBatchesIT` | Pendiente |
+| `T-08` | La prosa de la `@Operation` y `CA-CM-271` | `RF-CM-013` `T-17` | `CommissionBatchesIT` | Hecha |
 
 Rama: `feature/comision-venta-directa`.

@@ -291,7 +291,7 @@ Hoy la plataforma no tiene **nada que vender**. La membresía de una persona sol
 | `CA-PM-402` | El sistema registra un producto **con directa de porcentaje** y la respuesta la devuelve con su tipo y su valor (29-09-2026) |
 | `CA-PM-403` | El sistema registra un producto **con directa fija** igual a su precio —el tope se admite— y otro gratuito con directa fija de cualquier importe |
 | `CA-PM-404` | El sistema **rechaza un producto que no es FTD sin directa** —ausente o nula— con `VAL-024`, y **no registra nada** |
-| `CA-PM-405` | El sistema rechaza una directa **con los dos campos o con el que no le corresponde** con `VAL-025`, y un tipo desconocido con `VAL-024` |
+| `CA-PM-405` | El sistema rechaza una directa **con los dos campos o con el que no le corresponde** con `VAL-025`; un tipo desconocido se rechaza con `400` al leer el cuerpo, como cualquier enumerado (`CA-PM-112`) |
 | `CA-PM-406` | El sistema rechaza un porcentaje **negativo o mayor que cien**, un fijo negativo y un fijo **con más decimales que la moneda** con `VAL-026` |
 | `CA-PM-407` | El sistema rechaza una directa fija **mayor que el precio**, y una de porcentaje **sobre un producto gratuito**, con `VAL-027` |
 | `CA-PM-408` | El sistema registra un **`BECA → BECA` sin directa**, que la devuelve **presente y nula**, y **rechaza uno que la declare** con `VAL-028` |

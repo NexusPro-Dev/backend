@@ -111,6 +111,6 @@ Se cierra con un **volcado explícito** justo después de aplicar el cambio de n
 
 | ID | Tarea | Depende de | Verificación | Estado |
 |---|---|---|---|---|
-| `T-44` | `directCommission` como `Patchable` y la revalidación al final del orden de verificación, con la función del alta | `RF-PM-001` `T-49` | `ProductUpdateIT`: `CA-PM-412` a `CA-PM-416` | Pendiente |
+| `T-44` | `directCommission` como `Patchable` y la revalidación al final del orden de verificación, con la función del alta | `RF-PM-001` `T-49` | `ProductUpdateIT`: `CA-PM-412` a `CA-PM-416` | Hecha |
 
 Rama: `feature/comision-venta-directa`.

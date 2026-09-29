@@ -97,8 +97,10 @@ Rama: `feature/comision-afftrack`. **Es la misma tarea que `RF-CM-020` `T-02`**,
 
 | ID | Tarea | Depende de | Verificación | Estado |
 |---|---|---|---|---|
-| `T-15` | `LastLinkRoles` en `SP` con su implementación en `PublishedUserCatalog` | — | `LastLinkRolesIT` | Pendiente |
-| `T-16` | `ProductCatalog.directCommissionOf` en `PM` | `RF-PM-001` `T-47` | Prueba del adaptador: directa de cada forma, y vacío en un FTD | Pendiente |
-| `T-17` | `RateSource.DIRECTA`, la sustitución en el nivel `0` de `CommissionAccrualService` y la prosa de la `@Operation` de `RF-CM-005` | `T-15`, `T-16` | `CommissionAccrualIT`: `CA-CM-264` a `CA-CM-270` | Pendiente |
+| `T-15` | `LastLinkRoles` en `SP` con su implementación en `PublishedUserCatalog` | — | `LastLinkRolesIT` | Hecha |
+| `T-16` | `ProductCatalog.directCommissionOf` en `PM` | `RF-PM-001` `T-47` | Prueba del adaptador: directa de cada forma, y vacío en un FTD | Hecha |
+| `T-17` | `RateSource.DIRECTA`, la sustitución en el nivel `0` de `CommissionAccrualService` y la prosa de la `@Operation` de `RF-CM-005` | `T-15`, `T-16` | `CommissionAccrualIT`: `CA-CM-264` a `CA-CM-270` | Hecha |
 
 Rama: `feature/comision-venta-directa`.
+
+**`T-16` no tiene prueba de adaptador propia**: `directCommissionOf` se ejerce en `CA-CM-264` (porcentaje) y `CA-CM-267` (fijo), y un producto sin directa —sembrado por SQL, como en el resto de la suite— deja la tasa resuelta como estaba (29-09-2026).

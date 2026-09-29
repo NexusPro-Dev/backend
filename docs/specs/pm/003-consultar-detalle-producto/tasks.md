@@ -99,6 +99,6 @@ El requerimiento no está terminado hasta cumplir **todas** las condiciones de l
 
 | ID | Tarea | Depende de | Verificación | Estado |
 |---|---|---|---|---|
-| `T-44` | Las tres columnas en la lectura del detalle | `RF-PM-001` `T-49` | `ProductDetailIT`: `CA-PM-411` | Pendiente |
+| `T-44` | Las tres columnas en la lectura del detalle | `RF-PM-001` `T-49` | `ProductDetailIT`: `CA-PM-411` | Hecha |
 
 Rama: `feature/comision-venta-directa`.

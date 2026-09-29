@@ -77,6 +77,8 @@ Rama: `feature/comision-afftrack`.
 
 | ID | Tarea | Depende de | Verificación | Estado |
 |---|---|---|---|---|
-| `T-06` | La prosa de la `@Operation` y `CA-CM-272` | `RF-CM-010` `T-08` | `MyCommissionBatchesIT` | Pendiente |
+| `T-06` | La prosa de la `@Operation` y `CA-CM-272` | `RF-CM-010` `T-08` | `MyCommissionBatchesIT` | Hecha |
 
 Rama: `feature/comision-venta-directa`.
+
+**`CA-CM-272` vive en `CommissionBatchesIT`**, junto a `CA-CM-271` y a las demás pruebas de «mis lotes»: `MyCommissionBatchesIT` no existe (29-09-2026).

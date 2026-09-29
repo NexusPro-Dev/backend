@@ -131,9 +131,18 @@ El requerimiento no está terminado hasta cumplir **todas** las condiciones de l
 
 | ID | Tarea | Depende de | Verificación | Estado |
 |---|---|---|---|---|
-| `T-47` | `V55__pm_cm_comision_directa.sql`: las tres columnas de `products` con sus dos restricciones, **porcentaje cero** a lo que no es FTD, y `ck_commissions_source` / `ck_commissions_directa` en `commissions` (`plan.md` §12.1) | — | La suite arranca sobre una base recreada; una prueba de migración: los FTD quedan nulos y el resto en cero | Pendiente |
-| `T-48` | `DirectCommission` y su prueba unitaria; el predicado de FTD extraído para que lo usen el alta y `ftdProductIds()` | `T-47` | `DirectCommissionTest` | Pendiente |
-| `T-49` | `Product.register`, `RegisterProductRequest` y `ProductResponse` con `directCommission`; la instantánea de auditoría | `T-48` | `ProductsIT`: `CA-PM-402` a `CA-PM-409` | Pendiente |
-| `T-50` | Los cuerpos de ejemplo de **toda suite que registra productos por la API** ganan la directa; el contrato y la prosa de la `@Operation` | `T-49` | Suite completa en verde; el diff del `openapi.json` | Pendiente |
+| `T-47` | `V55__pm_cm_comision_directa.sql`: las tres columnas de `products` con sus dos restricciones, **porcentaje cero** a lo que no es FTD, y `ck_commissions_source` / `ck_commissions_directa` en `commissions` (`plan.md` §12.1) | — | La suite arranca sobre una base recreada; una prueba de migración: los FTD quedan nulos y el resto en cero | Hecha |
+| `T-48` | `DirectCommission` y su prueba unitaria; el predicado de FTD extraído para que lo usen el alta y `ftdProductIds()` | `T-47` | `DirectCommissionTest` | Hecha |
+| `T-49` | `Product.register`, `RegisterProductRequest` y `ProductResponse` con `directCommission`; la instantánea de auditoría | `T-48` | `ProductsIT`: `CA-PM-402` a `CA-PM-409` | Hecha |
+| `T-50` | Los cuerpos de ejemplo de **toda suite que registra productos por la API** ganan la directa; el contrato y la prosa de la `@Operation` | `T-49` | Suite completa en verde; el diff del `openapi.json` | Hecha |
 
 Rama: `feature/comision-venta-directa`. **`V55` es también de `RF-CM-013`**: la mitad de `commissions` se escribe aquí para que la migración sea una.
+
+**Lo que la construcción cambió respecto de `plan.md` §12** (29-09-2026):
+
+| # | Qué | Por qué |
+|---|---|---|
+| 1 | **Las reglas viven en `DirectCommissionRules`, no en el constructor de `DirectCommission`** | La forma y los rangos no se pueden separar del tope, que necesita el precio y la moneda; un solo sitio con los códigos de cada operación —como `ProductLinkBuilder`— sirve al alta y a la edición. `DirectCommission` queda como valor sin reglas, y no hay `DirectCommissionTest`: la cubren `CA-PM-402` a `CA-PM-408` |
+| 2 | **`V55` pone FIJO cero, y no porcentaje cero, a los productos gratuitos** | Un porcentaje sobre precio cero es justo lo que `VAL-027` rechaza: con porcentaje cero, cualquier edición posterior de un gratuito fallaría con `VAL-021`. Lo destapó `CA-PM-149` |
+| 3 | **Un tipo fuera del dominio se rechaza al leer el cuerpo**, con `400`, y no con `VAL-024` | Es un enumerado, y Jackson lo rechaza antes del caso de uso, como `CA-PM-112`. `CA-PM-405` queda escrito así |
+| 4 | **`ProductListIT`, `ProductDetailIT` y `ProductUpdateIT` vacían `user_products` antes de `memberships`** | Pasaban solo cuando otra suite la había vaciado antes; al correrlas sueltas fallaban por la clave foránea. Es el mismo arreglo que `ProductsIT` ya tenía |

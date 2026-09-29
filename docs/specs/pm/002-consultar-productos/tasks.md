@@ -110,6 +110,8 @@ Y una tarea que creció: `T-01` acabó con **dos** pruebas de plan y no una. La 
 
 | ID | Tarea | Depende de | Verificación | Estado |
 |---|---|---|---|---|
-| `T-44` | Las tres columnas en la proyección y `directCommission` en `ProductItem`; **las lecturas públicas no la llevan** | `RF-PM-001` `T-49` | `ProductListIT`: `CA-PM-410`; una aserción en la oferta y el hotlink de que el campo no existe | Pendiente |
+| `T-44` | Las tres columnas en la proyección y `directCommission` en `ProductItem`; **las lecturas públicas no la llevan** | `RF-PM-001` `T-49` | `ProductListIT`: `CA-PM-410`; una aserción en la oferta y el hotlink de que el campo no existe | Hecha |
 
 Rama: `feature/comision-venta-directa`.
+
+**La aserción de las lecturas públicas es el contrato**: `OfferItem`, `HotlinkResponse` y `HotlinkCatalogResponse` no declaran `directCommission`, y se comprobó sobre el `openapi.json` regenerado (29-09-2026).
