@@ -359,3 +359,7 @@ CREATE INDEX ix_user_commission_rates_producto ON user_commission_rates (product
 ### 13.3 Pruebas
 
 `UserCommissionRateIT` se reescribe alrededor del alta con producto; `CommissionRateConcurrencyIT` cambia las dos asociaciones simultáneas por **dos altas simultáneas** sobre el mismo producto y periodo, y es la única prueba que verifica que la garantía vive en el motor —**se corre varias veces seguidas** antes de darla por buena, porque el interbloqueo aparece una de cada pocas—; `EffectiveCommissionIT` siembra la personalizada con su producto; `CommissionRateTest` prueba el agregado con producto.
+
+## 14. Un producto FTD no admite tasas personalizadas — enmienda del 29-09-2026
+
+Como `RF-CM-001` §12: `RegisterUserCommissionRateService` comprueba el producto contra `ProductCatalog.ftdProductIds()` después del retiro y responde `422` con `EX-009`, antes del solapamiento y del tope. **La corrección no lo comprueba**: el producto no se corrige (`RN-CM-021`) y una personalizada anterior a esta regla sobre un producto FTD no existe —ninguna se registró—. `UserCommissionRateIT` gana `CA-CM-261`.

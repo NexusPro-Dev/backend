@@ -4,12 +4,13 @@
 |---|---|
 | Requerimiento | `RF-CM-001` |
 | Módulo | `CM` — Comisiones |
-| Versión | 1.1.0 |
+| Versión | 1.2.0 |
 | Estado | **Aprobada** |
 | Autor | Responsable técnico |
 | Aprobada por | Responsable del proyecto |
 | Fecha de aprobación | 02-09-2026 |
 | Enmendada el | 15-09-2026 — **la tasa de rol nace con su producto** (`RN-CM-021`): `productId` obligatorio, `RN-CM-013`, `RN-CM-019` y `RN-CM-020` en el alta, y el importe fijo contra los decimales de la moneda del producto. Ver §15 |
+| Enmendada el | 29-09-2026 — **un producto FTD no admite tasas por venta** (`RN-CM-037`): `EX-008` y `CA-CM-260`. Ver §15 |
 
 !!! info "Qué va en este documento"
 
@@ -83,6 +84,7 @@ De ahí sale la forma de la respuesta. Una tasa que paga y una que no **serían 
 | `RN-CM-017` | El valor fijo **no lleva moneda** | `requirements/cm.md` §5.1 |
 | `RN-CM-018` | El valor fijo **no está acotado por arriba** | `requirements/cm.md` §5.1 |
 | `RN-CM-021` | **La tasa de rol nace con su producto, y no lo cambia** — y con ella `RN-CM-002`, `RN-CM-010`, `RN-CM-013`, `RN-CM-019` y `RN-CM-020` pasan a comprobarse **aquí** | `requirements/cm.md` §5.1 |
+| `RN-CM-037` | **Sobre un producto FTD no se registra ninguna tasa por venta** (29-09-2026) — sus líneas no devengan por venta (`RN-CM-022`), y lo que pagan lo deciden sus escalones afftrack | `requirements/cm.md` §5.1 |
 
 **Son seis y no más porque las demás viven donde les toca**, y conviene decirlo para que la lista corta no se lea como una relajación: el producto y su unicidad las comprueba `RF-CM-007`, y la vigencia y su no solapamiento, `RF-CM-006` — que es lo único del módulo que conserva fechas.
 
@@ -223,6 +225,11 @@ De ahí sale la forma de la respuesta. Una tasa que paga y una que no **serían 
 **Condición:** existe una tasa viva del mismo rol sobre el mismo producto (`RN-CM-013`).
 **Respuesta del sistema:** rechaza el alta con `409`. El caso de uso lo comprueba antes para dar el mensaje; **la carrera la cierra el índice único parcial** `uq_commission_rates_product_role`, y el adaptador la traduce al mismo código. Retirada la primera, el producto vuelve a admitir a ese rol.
 
+### EX-008 — El producto es un FTD (29-09-2026)
+
+**Condición:** el producto es la membresía `BECA → BECA` (`RN-CM-036`).
+**Respuesta del sistema:** rechaza el alta con `422` y el mensaje «Sobre un producto FTD no se registran tasas por venta: se paga con comisiones afftrack.». Se distingue de `EX-003` y `EX-004` por lo mismo que ellas entre sí. **Sin esta excepción la tasa se registraría y no pagaría nunca** (`RN-CM-022`), que es el silencio que `RN-CM-012` combate.
+
 **Hasta el 15-09-2026 solo había dos**, y no era que esta operación comprobara poco: producto inexistente, producto retirado, tope y duplicado eran excepciones de la asociación (`RF-CM-007`), porque el alta no tenía producto. Desde `RN-CM-021` lo tiene, y las cinco viven aquí. Lo que sigue fuera —persona sin el rol, solapamiento de vigencias— es de `RF-CM-006`.
 
 ## 11. Validaciones
@@ -264,6 +271,7 @@ De ahí sale la forma de la respuesta. Una tasa que paga y una que no **serían 
 | `CA-CM-138` | El sistema rechaza la **segunda tasa viva del mismo rol sobre el mismo producto** con `409` (`RN-CM-013`), y admite otra del mismo rol sobre **otro** producto, y otra del mismo rol y producto **cuando la primera está retirada** |
 | `CA-CM-139` | El sistema aplica **en el alta** el tope del producto (`RN-CM-019`: la suma con las tasas vivas del producto no pasa de cien) y la regla del gratuito (`RN-CM-020`: porcentaje rechazado, fijo admitido sin tope) |
 | `CA-CM-140` | El sistema rechaza un **importe fijo con más decimales** de los que admite la moneda del producto (`VAL-014`), y admite el mismo importe con los decimales correctos |
+| `CA-CM-260` | El sistema rechaza una tasa sobre un **producto FTD** con `422` (`EX-008`, `RN-CM-037`), y admite la misma tasa sobre un upgrade de otra pareja (29-09-2026) |
 
 **`CA-CM-081` cubre dos peticiones distintas en un criterio** —el valor que no corresponde a la forma, y la forma ausente— porque las dos verifican lo mismo: que **la forma y el valor se comprueban juntos** y no por separado.
 
@@ -307,3 +315,5 @@ De ahí sale la forma de la respuesta. Una tasa que paga y una que no **serían 
 | 0.3.0 | 02-09-2026 | **Entra el valor fijo** (`cm.md` v0.7.0), esta vez **antes del código**. El alta pasa de dos campos a cuatro, de los que llegan tres — la novedad no es el importe sino **la forma**, que se declara en lugar de deducirse. Entran `RN-CM-016`, `RN-CM-017` y `RN-CM-018`, que se relacionan con esta operación de tres maneras opuestas: la hace cumplir, la sufre, y **la deja pasar a sabiendas**. De ahí salen `FA-004` y `CA-CM-084`, que afirman que el sistema **no impide** registrar un importe mayor que el precio de cualquier producto. | Responsable técnico |
 | **1.0.0** | 02-09-2026 | **Consolidación: el documento deja de contarse a sí mismo y pasa a describir lo que existe.** No cambia ni una regla, ni un campo, ni un criterio de aceptación — cambia **la voz**. Se retira el aviso de cabecera que obligaba a leer la historia del documento antes que el documento, y se reescriben en presente los pasajes que explicaban el diseño **por contraste con versiones anteriores** («la v0.2.0 citaba siete reglas», «el alta anterior tenía dos campos»): quien lea esto dentro de un año no ha visto aquellas versiones, y lo que necesita saber es por qué las reglas que faltan **viven en otro requerimiento**, que es lo que §5 y §10 dicen ahora sin nombrar ninguna versión. **La deuda no se borra: se salda y queda en esta tabla.** Las tres filas anteriores conservan íntegro el registro de que `0.2.0` se escribió después del código, invirtiendo el Art. I.6, y de que `0.3.0` volvió a ponerlo del derecho. | Responsable técnico |
 | 1.1.0 | 15-09-2026 | **La tasa de rol nace con su producto** (`RN-CM-021`, [`requirements/cm.md`](../../../requirements/cm.md) v0.14.0 §5.4), por decisión del responsable del proyecto. `productId` entra **obligatorio e inmutable** en el cuerpo —la ruta no cambia—; y todo lo que hasta hoy se comprobaba al asociar se comprueba **aquí**: que el producto exista y no esté retirado, un solo rol por producto (`409`), el tope (`RN-CM-019`) y el gratuito (`RN-CM-020`). **Y el importe fijo gana los decimales de la moneda del producto** (`VAL-014`), porque por primera vez la tasa sabe en qué moneda pagará. **`CA-CM-002`, `CA-CM-003` y `CA-CM-004` quedan superados**: la tasa nace con producto, la respuesta lo lleva, y «varias del mismo rol» solo entre productos distintos. `CA-CM-136` a `CA-CM-140`. | Responsable del proyecto |
+
+| 1.2.0 | 29-09-2026 | **Un producto FTD no admite tasas por venta** (`RN-CM-037`, [`requirements/cm.md`](../../../requirements/cm.md) v0.22.0 §5.8), con la comisión afftrack: las líneas `BECA → BECA` no devengan por venta, y una tasa sobre ellas no pagaría nunca. `EX-008` y `CA-CM-260`. | Responsable del proyecto |

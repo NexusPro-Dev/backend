@@ -7,6 +7,7 @@
 | Plan | [`plan.md`](plan.md) v0.1.0 |
 | `plan.md` aprobado el | 28-09-2026 |
 | Estado | **En revisión** — `T-01` a `T-12` `Hecha` el 28-09-2026; `T-13` en curso |
+| Enmendadas | 29-09-2026 — `T-14` por **las líneas FTD fuera del devengo** (`RN-CM-022`) |
 | Issue | Pendiente de crear |
 | Rama | `feature/devengo-de-comisiones` |
 
@@ -80,3 +81,11 @@
 - [ ] Los dieciséis criterios de aceptación con prueba.
 - [ ] `requirements.md` actualizado.
 - [ ] **`tasks.md` aprobadas por el responsable del proyecto.**
+
+## 6. Las líneas FTD, fuera — enmienda del 29-09-2026
+
+| ID | Tarea | Depende de | Verificación | Estado |
+|---|---|---|---|---|
+| `T-14` | El descarte por `ftdProductIds()` en `CommissionAccrualService` y `CA-CM-253` en `CommissionAccrualIT` (`plan.md` §12) | `RF-CM-015` `T-02`, `T-04` | `CommissionAccrualIT` y `CloseCommissionPeriodIT` en verde | Pendiente |
+
+Rama: `feature/comision-afftrack`. **Es la misma tarea que `RF-CM-020` `T-02`**, vista desde aquí.

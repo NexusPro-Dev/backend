@@ -5,11 +5,12 @@
 | Requerimiento | `RF-CM-009` |
 | Especificación | [`spec.md`](spec.md) v0.1.0 |
 | `spec.md` aprobada el | 28-09-2026 |
-| Versión | 0.1.0 |
+| Versión | 0.2.0 |
 | Estado | **Aprobado** |
 | Autor | Responsable técnico |
 | Aprobado por | Responsable del proyecto |
 | Fecha de aprobación | 28-09-2026 |
+| Enmendado el | 29-09-2026 — la liquidación afftrack dentro de la transacción externa (§12) |
 
 !!! info "Qué va en este documento"
 
@@ -149,3 +150,15 @@ La externa, con el bloqueo y el cierre de los lotes; una por línea en el barrid
 - **`CloseCommissionPeriodIT`**: `CA-CM-170` a `CA-CM-178`, llamando al servicio con un turno fijo y por la API para el manual. `CA-CM-174` con **dos hilos y el mismo turno**. `CA-CM-178` con un devengo y un cierre en dos hilos, comprobando que la suma de totales cuadra con la de comisiones.
 - **`CommissionClosingJobIT`**: `CA-CM-179`, con `enabled=false` el bean no existe; con `true`, la anotación lleva la zona de la propiedad.
 - **`ListCommissionClosingsIT`**: `CA-CM-180`.
+
+## 12. La liquidación afftrack — enmienda del 29-09-2026
+
+`RN-CM-043`, construida por [`RF-CM-020`](../020-liquidar-comisiones-afftrack/plan.md) §1. **`CloseCommissionPeriodService` gana un paso en la transacción externa**, después del barrido y antes del `SELECT … FOR UPDATE` de los lotes:
+
+```
+  corte    = now()
+  afftrack AfftrackSettlementService.settle(closingId, corte)   — MISMA tx
+  cierre   ahora = max(now(), corte + 1 µs)                     — antes, now()
+```
+
+**Dos cambios de comportamiento, y los dos se dicen**: el instante del cierre deja de ser un `now()` suelto —es posterior al corte, porque un lote que la liquidación abre nace en el corte y `ck_commission_batches_periodo` exige un fin mayor que el inicio—; y **un fallo de la liquidación revierte el cierre entero**, que es `EX-002`, mientras que un fallo del barrido sigue sin pararlo. **La respuesta del cierre a mano no cambia.** `CloseCommissionPeriodIT` tiene que seguir en verde sin tocar sus criterios; los de la liquidación viven en `AfftrackSettlementIT`.

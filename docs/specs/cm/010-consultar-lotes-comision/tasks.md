@@ -7,6 +7,7 @@
 | Plan | [`plan.md`](plan.md) v0.1.0 |
 | `plan.md` aprobado el | 28-09-2026 |
 | Estado | **En revisión** — tareas `Hecha` el 28-09-2026, salvo `T-02`, retirada |
+| Enmendadas | 29-09-2026 — `T-07` por **la clase de cada comisión** (`RN-CM-044`) |
 | Issue | Pendiente de crear |
 | Rama | `feature/devengo-de-comisiones` |
 
@@ -66,3 +67,11 @@
 - [ ] Los ocho criterios de aceptación con prueba.
 - [ ] Contrato y `requirements.md` actualizados.
 - [ ] **`tasks.md` aprobadas por el responsable del proyecto.**
+
+## 6. La clase de cada comisión — enmienda del 29-09-2026
+
+| ID | Tarea | Depende de | Verificación | Estado |
+|---|---|---|---|---|
+| `T-07` | `LEFT JOIN` a la línea y a la liquidación, `commissionKind` y los campos nulables en `CommissionLineResponse`, prosa de la `@Operation`; `CA-CM-262` | `RF-CM-020` `T-07` | `CommissionBatchesIT`; el diff del `openapi.json` | Pendiente |
+
+Rama: `feature/comision-afftrack`.

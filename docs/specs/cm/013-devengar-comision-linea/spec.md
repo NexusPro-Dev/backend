@@ -4,11 +4,12 @@
 |---|---|
 | Requerimiento | `RF-CM-013` |
 | Módulo | `CM` — Comisiones |
-| Versión | 0.1.0 |
+| Versión | 0.2.0 |
 | Estado | **Aprobada** |
 | Autor | Responsable técnico |
 | Aprobada por | Responsable del proyecto |
 | Fecha de aprobación | 28-09-2026 |
+| Enmendada el | 29-09-2026 — **una línea FTD no devenga por venta**: quinta condición de `RN-CM-022`; y la comisión se escribe con su clase, `POR_VENTA` (`RN-CM-044`) |
 
 !!! info "Qué va en este documento"
 
@@ -80,7 +81,8 @@ El 24-09-2026 `CM` pasó a liquidar ([`requirements/cm.md`](../../../requirement
 
 | Regla | Cómo aplica |
 |---|---|
-| `RN-CM-022` | Solo la línea de una venta confirmada, con vendedor y sin desenlace |
+| `RN-CM-022` | Solo la línea de una venta confirmada, con vendedor y sin desenlace — **y que no sea un FTD** (29-09-2026) |
+| `RN-CM-044` | Cada comisión que escribe es de clase `POR_VENTA` (29-09-2026) |
 | `RN-CM-031` | Se dispara solo, después de la venta, y un fallo no la deshace |
 | `RN-CM-032` | Un desenlace por línea; solo el rechazo se reintenta |
 | `RN-CM-033` | El lote abierto de la persona y la moneda; el periodo lo decide el devengo |
@@ -122,7 +124,7 @@ El 24-09-2026 `CM` pasó a liquidar ([`requirements/cm.md`](../../../requirement
 ## 8. Flujo principal
 
 1. Llega el aviso de que unas líneas quedaron comisionables.
-2. Para cada línea, se relee lo que `MV` publica y se comprueba que **sigue** cumpliendo `RN-CM-022` —confirmada, con vendedor, de tipo venta— y que **no tiene desenlace**. Si no, se salta sin error (`FA-001`).
+2. Para cada línea, se relee lo que `MV` publica y se comprueba que **sigue** cumpliendo `RN-CM-022` —confirmada, con vendedor, de tipo venta **y no FTD**, 29-09-2026— y que **no tiene desenlace**. Si no, se salta sin error (`FA-001`).
 3. Se reconstruye la cadena: el vendedor y sus superiores **vigentes el día de la venta**, hasta el que no tiene superior.
 4. Para cada persona de la cadena se resuelve su tasa sobre el producto, el día de la venta. Quien no tiene, no cobra y se sigue subiendo.
 5. Se calcula lo de cada nivel: porcentaje sobre la base bruta, o importe fijo por unidad.
@@ -223,3 +225,5 @@ Uno la atiende; el otro no hace nada. **Nunca se devenga dos veces** (`RN-CM-027
 | Versión | Fecha | Cambio | Autor |
 |---|---|---|---|
 | 0.1.0 | 28-09-2026 | Primera versión, con el devengo automático ([`requirements/cm.md`](../../../requirements/cm.md) v0.19.0, §5.7). **Sin ruta ni permiso**: la disparan el aviso de `MV` y el barrido del cierre. Criterios `CA-CM-154` a `CA-CM-169`. | Responsable del proyecto |
+
+| 0.2.0 | 29-09-2026 | **Una línea FTD no devenga por venta** (`RN-CM-022` con su quinta condición, [`requirements/cm.md`](../../../requirements/cm.md) v0.22.0 §5.8): no queda con desenlace, ni `SIN_COMISION` ni ningún otro, y el barrido no la recoge; lo que paga lo decide `RF-CM-020`. Y cada comisión se escribe con su clase, `POR_VENTA` (`RN-CM-044`). **El criterio es `CA-CM-253`, de `RF-CM-020`**, que se prueba en la suite de este requerimiento. | Responsable del proyecto |

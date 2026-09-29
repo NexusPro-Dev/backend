@@ -12,6 +12,7 @@
 | Issue | Pendiente de crear |
 | Rama | `feature/flujos-de-pm-y-cm` (`T-01`–`T-21`) · `feature/comision-en-valor-fijo` (`T-22`–`T-29`) · `feature/venta-de-productos` (`T-26`–`T-37`) |
 | Enmendadas | 16-09-2026 — `T-34` a `T-37` porque **la personalizada nace con su producto** (`plan.md` §13) |
+| Enmendadas | 29-09-2026 — `T-38` porque **un producto FTD no admite tasas personalizadas** (`RN-CM-037`) |
 
 !!! info "Qué va en este documento"
 
@@ -184,3 +185,11 @@ Decisión del responsable del proyecto (`cm.md` v0.10.0): **una excepción por p
 | `T-37` | Retirar asociar, desasociar y «los productos de una personalizada» —clases, rutas y prosa—; listado con `product` y sin `associatedProducts`; resolución por `user_commission_rates.product_id`; contrato regenerado | `T-35` | `CA-CM-149`, `CA-CM-150` (`RF-CM-002`) y `CA-CM-153` (`RF-CM-005`) en `EffectiveCommissionIT`; `OpenApiContractIT` en verde sin las tres rutas | **Hecha el 16-09-2026** |
 
 **Lo que esta enmienda devuelve, y queda dicho:** los tres costes de §7 desaparecen. `RN-CM-006` **vuelve a estar garantizada por el motor**; no existe una tasa creada que no pague; y retirar vuelve a ser **una** operación.
+
+## 9. Un producto FTD no admite tasas personalizadas — enmienda del 29-09-2026
+
+| ID | Tarea | Depende de | Verificación | Estado |
+|---|---|---|---|---|
+| `T-38` | `EX-009` en `RegisterUserCommissionRateService` y `CA-CM-261` en `UserCommissionRateIT` | `RF-CM-015` `T-04` | La suite de `RF-CM-006` en verde | Pendiente |
+
+Rama: `feature/comision-afftrack`.

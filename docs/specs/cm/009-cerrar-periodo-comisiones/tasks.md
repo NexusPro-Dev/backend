@@ -7,6 +7,7 @@
 | Plan | [`plan.md`](plan.md) v0.1.0 |
 | `plan.md` aprobado el | 28-09-2026 |
 | Estado | **En revisión** — todas las tareas `Hecha` el 28-09-2026 |
+| Enmendadas | 29-09-2026 — `T-08` por **la liquidación afftrack** (`RN-CM-043`) |
 | Issue | Pendiente de crear |
 | Rama | `feature/devengo-de-comisiones` |
 
@@ -68,3 +69,11 @@
 - [ ] Los once criterios de aceptación con prueba.
 - [ ] Contrato y `requirements.md` actualizados.
 - [ ] **`tasks.md` aprobadas por el responsable del proyecto.**
+
+## 6. La liquidación afftrack — enmienda del 29-09-2026
+
+| ID | Tarea | Depende de | Verificación | Estado |
+|---|---|---|---|---|
+| `T-08` | El paso afftrack y el instante del cierre posterior al corte en `CloseCommissionPeriodService` (`plan.md` §12) | `RF-CM-020` `T-07` | `CloseCommissionPeriodIT` en verde sin cambiar sus criterios | Pendiente |
+
+Rama: `feature/comision-afftrack`. **Es la misma tarea que `RF-CM-020` `T-07`**, vista desde aquí.
