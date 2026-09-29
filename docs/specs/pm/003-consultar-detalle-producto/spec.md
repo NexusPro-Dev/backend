@@ -18,6 +18,7 @@
 | Enmendada el | 14-09-2026 — **el detalle devuelve `videoUrl`, el enlace del video** (`RN-PM-032`), presente y nulo cuando no hay. Ver §15 |
 | Enmendada el | 22-09-2026 — **el detalle devuelve `links`, y `videoUrl` desaparece** (`RN-PM-048` a `RN-PM-050`): los enlaces **crudos**, con su identificador, y **`CUPON_BOT` incluido** — con `RF-PM-002`, la otra lectura donde se ve. Ver §15 |
 | Enmendada el | 14-09-2026 — **el detalle devuelve `coverImageUrl`, la dirección de la portada** (`RN-PM-033`, `RF-PM-014`), presente y nula cuando no hay, también en un retirado. Ver §15 |
+| Enmendada el | 29-09-2026 — **el detalle devuelve la comisión por venta directa** (`RN-PM-051`), nula en un FTD. Ver §15 |
 
 ---
 
@@ -158,6 +159,7 @@ El listado de `RF-PM-002` responde «qué hay»; esta consulta responde «qué e
 | `CA-PM-387` | El detalle de un producto con los **dos** enlaces los devuelve **los dos**, `CUPON_BOT` incluido y **crudos** —dirección sin componer, identificador en su campo—, **también si el producto está retirado**: es la lectura de administración |
 | `CA-PM-388` | Los enlaces **no cuestan una consulta por enlace**: el detalle los lee en **una sola sentencia** más, y el recuento total de sentencias es el mismo con un enlace que con dos |
 | `CA-PM-233` | El sistema devuelve **`coverImageUrl`** con la forma `/api/v1/product-images/{uuid}` cuando hay portada, **presente y nulo** cuando no — también en un producto **retirado**, cuya portada sigue existiendo y sirviéndose (`RN-PM-010`) — y sin ninguna consulta más |
+| `CA-PM-411` | El detalle trae **`directCommission`** con su tipo y su valor —también en un producto retirado— y **presente y nula** en un FTD (29-09-2026) |
 
 ## 13. Casos límite
 
@@ -196,3 +198,4 @@ Ninguna. Las tres se resolvieron el 26-08-2026, antes de aprobar la especificaci
 | 0.10.0 | 14-09-2026 | **El detalle devuelve `videoUrl`, el enlace del video** (`RN-PM-032`, [`requirements/pm.md`](../../../requirements/pm.md) v0.27.0 §5.2.8), presente y nulo cuando no hay, y sin ninguna consulta más. Nace `CA-PM-224`. Enmienda de Art. I.7. | Responsable del proyecto |
 | 0.11.0 | 14-09-2026 | **El detalle devuelve `coverImageUrl`, la dirección de la portada** (`RN-PM-033`, [`requirements/pm.md`](../../../requirements/pm.md) v0.29.0 §5.2.9), presente y nula cuando no hay, sin consulta más y **también en un retirado**: la portada es parte de lo que el producto era, y `RF-PM-015` no la quita al retirar. `CA-PM-233`. Enmienda que construye `RF-PM-014` (Art. I.7). | Responsable del proyecto |
 | 0.11.0 | 22-09-2026 | **El detalle devuelve `links`, y `videoUrl` desaparece** (`RN-PM-048` a `RN-PM-050`, [`requirements/pm.md`](../../../requirements/pm.md) v0.43.0 §5.2.14). Hereda de `RF-PM-002` lo que aquella decidió y por los mismos motivos, sin repetirlos: los enlaces viajan **crudos** —dirección tal cual, identificador en su campo— porque esta es la vista de quien edita, y **sin filtrar por tipo**, de modo que **el `CUPON_BOT` se ve aquí y en el listado, y en ninguna otra lectura** (`RN-PM-050`). Lo propio de esta ficha es **el producto retirado**: el detalle le sigue respondiendo, y también le devuelve sus enlaces — quien administra tiene que poder revisar el cupón que alguien recibió antes de que el producto se retirara. En la consulta, el `SELECT` **pierde la columna** y entra **una sentencia más** contra `product_links`; se acota a una con `CA-PM-388`, porque una por enlace sería un `N+1` de dos filas que nadie miraría. `CA-PM-224` se **reescribe** y nacen **`CA-PM-387`** y **`CA-PM-388`**. Enmienda de Art. I.7. | Responsable del proyecto |
+| 0.12.0 | 29-09-2026 | **El detalle devuelve la comisión por venta directa** (`RN-PM-051`, [`requirements/pm.md`](../../../requirements/pm.md) v0.47.0 §5.2.16), con la forma de `RF-PM-001` y nula en un FTD. `CA-PM-411`. | Responsable del proyecto |

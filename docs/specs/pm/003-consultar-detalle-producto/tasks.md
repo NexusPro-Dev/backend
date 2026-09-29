@@ -3,7 +3,7 @@
 | Campo | Valor |
 |---|---|
 | Requerimiento | `RF-PM-003` |
-| Enmendadas | 02-09-2026 — el detalle resuelve **las dos** membresías; 07-09-2026 — `T-13` por el **alcance** y la **implementación**; 08-09-2026 — `T-15` por el **precio público**; 12-09-2026 — `T-18` porque el segundo precio es el **de compra**; 14-09-2026 — `T-19` por el **enlace del video**; 14-09-2026 — `T-20` por la **dirección de la portada** (`RN-PM-033`); 22-09-2026 — `T-21` por **los enlaces en el detalle** (`RN-PM-048` a `RN-PM-050`), que se llevan `videoUrl` — issue [#84](https://github.com/NexusPro-Dev/backend/issues/84) |
+| Enmendadas | 02-09-2026 — el detalle resuelve **las dos** membresías; 07-09-2026 — `T-13` por el **alcance** y la **implementación**; 08-09-2026 — `T-15` por el **precio público**; 12-09-2026 — `T-18` porque el segundo precio es el **de compra**; 14-09-2026 — `T-19` por el **enlace del video**; 14-09-2026 — `T-20` por la **dirección de la portada** (`RN-PM-033`); 22-09-2026 — `T-21` por **los enlaces en el detalle** (`RN-PM-048` a `RN-PM-050`), que se llevan `videoUrl` — issue [#84](https://github.com/NexusPro-Dev/backend/issues/84); 29-09-2026 — `T-44` por **la comisión por venta directa** |
 | Plan | [`plan.md`](plan.md), aprobado el 26-08-2026 |
 | Estado | **Aprobadas** |
 | Autor | Responsable técnico |
@@ -94,3 +94,11 @@ El requerimiento no está terminado hasta cumplir **todas** las condiciones de l
 | 3 | El puerto descarta las eliminaciones de tipo `ASSOCIATION` | El Art. V.13 no les exige motivo y el `CHECK` las deja con el motivo en nulo. Sin ese filtro, una asociación registrada **después** de la eliminación real ganaría el `ORDER BY occurred_at DESC` y la lectura devolvería vacío teniendo el motivo delante. Tiene su prueba |
 
 **Lo que queda pendiente y no se disimula**: el recorrido de extremo a extremo del motivo —retirar por el endpoint de `RF-PM-006` y verlo en el detalle— no existe todavía, porque ese requerimiento no está construido. La prueba siembra las dos mitades del retiro a mano y lo dice en su cabecera.
+
+## 7. La comisión por venta directa — enmienda del 29-09-2026
+
+| ID | Tarea | Depende de | Verificación | Estado |
+|---|---|---|---|---|
+| `T-44` | Las tres columnas en la lectura del detalle | `RF-PM-001` `T-49` | `ProductDetailIT`: `CA-PM-411` | Pendiente |
+
+Rama: `feature/comision-venta-directa`.

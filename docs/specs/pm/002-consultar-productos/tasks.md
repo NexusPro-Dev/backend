@@ -3,7 +3,7 @@
 | Campo | Valor |
 |---|---|
 | Requerimiento | `RF-PM-002` |
-| Enmendadas | 12-09-2026 — `T-23` porque el segundo precio es el **de compra**; 08-09-2026 — `T-19` por los **dos precios**; 02-09-2026 — el filtro por membresía de **origen**; 07-09-2026 — `T-16` y `T-17` por los filtros de **alcance** e **implementación**; 14-09-2026 — `T-24` por el **enlace del video**; 14-09-2026 — `T-25` por la **dirección de la portada** (`RN-PM-033`); 15-09-2026 — `T-26` por el **alcance de cuatro valores**; 22-09-2026 — `T-27` por **los enlaces en cada fila** (`RN-PM-048` a `RN-PM-050`), que se llevan `videoUrl` — issue [#84](https://github.com/NexusPro-Dev/backend/issues/84) |
+| Enmendadas | 12-09-2026 — `T-23` porque el segundo precio es el **de compra**; 08-09-2026 — `T-19` por los **dos precios**; 02-09-2026 — el filtro por membresía de **origen**; 07-09-2026 — `T-16` y `T-17` por los filtros de **alcance** e **implementación**; 14-09-2026 — `T-24` por el **enlace del video**; 14-09-2026 — `T-25` por la **dirección de la portada** (`RN-PM-033`); 15-09-2026 — `T-26` por el **alcance de cuatro valores**; 22-09-2026 — `T-27` por **los enlaces en cada fila** (`RN-PM-048` a `RN-PM-050`), que se llevan `videoUrl` — issue [#84](https://github.com/NexusPro-Dev/backend/issues/84); 29-09-2026 — `T-44` por **la comisión por venta directa** |
 | Plan | [`plan.md`](plan.md), aprobado el 26-08-2026 |
 | Estado | **Aprobadas** |
 | Autor | Responsable técnico |
@@ -105,3 +105,11 @@ Tres desvíos respecto de lo aprobado, ninguno de comportamiento. Se anotan aqu�
 | 3 | `T-12` siembra **dos mil** productos y no los doscientos que fija la tarea | **Doscientos no bastan, y se comprobó las dos veces**: con esa cifra la prueba pasa aislada y falla dentro de la suite completa, porque recorrer doscientas filas cuesta `57.00` y el planificador prefiere el recorrido secuencial — con razón. No es que el índice no sirva: a ese tamaño no hace falta, y una prueba cuyo resultado depende de qué corrió antes no comprueba nada. Con dos mil, el recorrido cuesta diez veces más y el índice gana de forma estable |
 
 Y una tarea que creció: `T-01` acabó con **dos** pruebas de plan y no una. La segunda comprueba que el orden por omisión usa `ix_products_listado`; sin ella, ese índice podría desaparecer sin que nada se pusiera rojo, y el síntoma sería lentitud en el caso más frecuente.
+
+## 7. La comisión por venta directa — enmienda del 29-09-2026
+
+| ID | Tarea | Depende de | Verificación | Estado |
+|---|---|---|---|---|
+| `T-44` | Las tres columnas en la proyección y `directCommission` en `ProductItem`; **las lecturas públicas no la llevan** | `RF-PM-001` `T-49` | `ProductListIT`: `CA-PM-410`; una aserción en la oferta y el hotlink de que el campo no existe | Pendiente |
+
+Rama: `feature/comision-venta-directa`.

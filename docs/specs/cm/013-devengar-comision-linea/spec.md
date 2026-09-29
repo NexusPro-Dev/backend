@@ -4,12 +4,13 @@
 |---|---|
 | Requerimiento | `RF-CM-013` |
 | Módulo | `CM` — Comisiones |
-| Versión | 0.2.0 |
+| Versión | 0.3.0 |
 | Estado | **Aprobada** |
 | Autor | Responsable técnico |
 | Aprobada por | Responsable del proyecto |
 | Fecha de aprobación | 28-09-2026 |
 | Enmendada el | 29-09-2026 — **una línea FTD no devenga por venta**: quinta condición de `RN-CM-022`; y la comisión se escribe con su clase, `POR_VENTA` (`RN-CM-044`) |
+| Enmendada el | 29-09-2026 — **quien no es el último eslabón cobra su venta propia con la directa del producto**, salvo que tenga personalizada vigente (`RN-CM-045`) |
 
 !!! info "Qué va en este documento"
 
@@ -83,6 +84,7 @@ El 24-09-2026 `CM` pasó a liquidar ([`requirements/cm.md`](../../../requirement
 |---|---|
 | `RN-CM-022` | Solo la línea de una venta confirmada, con vendedor y sin desenlace — **y que no sea un FTD** (29-09-2026) |
 | `RN-CM-044` | Cada comisión que escribe es de clase `POR_VENTA` (29-09-2026) |
+| `RN-CM-045` | En el nivel `0`, si quien vendió no es el último eslabón y no tiene personalizada vigente, **la directa del producto sustituye su tasa de rol** (29-09-2026) |
 | `RN-CM-031` | Se dispara solo, después de la venta, y un fallo no la deshace |
 | `RN-CM-032` | Un desenlace por línea; solo el rechazo se reintenta |
 | `RN-CM-033` | El lote abierto de la persona y la moneda; el periodo lo decide el devengo |
@@ -126,7 +128,7 @@ El 24-09-2026 `CM` pasó a liquidar ([`requirements/cm.md`](../../../requirement
 1. Llega el aviso de que unas líneas quedaron comisionables.
 2. Para cada línea, se relee lo que `MV` publica y se comprueba que **sigue** cumpliendo `RN-CM-022` —confirmada, con vendedor, de tipo venta **y no FTD**, 29-09-2026— y que **no tiene desenlace**. Si no, se salta sin error (`FA-001`).
 3. Se reconstruye la cadena: el vendedor y sus superiores **vigentes el día de la venta**, hasta el que no tiene superior.
-4. Para cada persona de la cadena se resuelve su tasa sobre el producto, el día de la venta. Quien no tiene, no cobra y se sigue subiendo.
+4. Para cada persona de la cadena se resuelve su tasa sobre el producto, el día de la venta. Quien no tiene, no cobra y se sigue subiendo. **En el nivel `0`, desde el 29-09-2026**: si quien vendió **no es el último eslabón** y lo que ganó **no es una personalizada**, cobra la **directa del producto** (`RN-CM-045`).
 5. Se calcula lo de cada nivel: porcentaje sobre la base bruta, o importe fijo por unidad.
 6. Si **nadie** tiene tasa, la línea queda **sin comisión** y termina (`FA-002`).
 7. Si la suma de la cadena **pasa del importe de la línea**, la línea queda **rechazada** con su motivo y nadie cobra (`FA-003`).
@@ -196,6 +198,13 @@ Uno la atiende; el otro no hace nada. **Nunca se devenga dos veces** (`RN-CM-027
 | `CA-CM-167` | Un **reintento** de una línea rechazada, tras corregir la tasa que sobraba, la deja **devengada** en el lote abierto de ese momento; si sigue pasándose, sigue **rechazada** con el motivo actualizado y los intentos sumados |
 | `CA-CM-168` | Una línea **sin comisión** **no se reintenta**, aunque después se registre una tasa |
 | `CA-CM-169` | Una línea de un movimiento que **no es una venta** no devenga |
+| `CA-CM-264` | Un **`DIRECTOR`** que vende, sin personalizada, cobra en el nivel `0` **la directa del producto** —`source = DIRECTA`, `rate_id` el producto, su forma y su valor copiados— y su `MANAGER` cobra **su tasa de rol** en el nivel `1` (29-09-2026) |
+| `CA-CM-265` | Un **`AGENTE`** que vende cobra **su tasa de rol**, como antes; su `DIRECTOR` y su `MANAGER`, las suyas: **nadie cobra la directa** |
+| `CA-CM-266` | Un `DIRECTOR` con **personalizada vigente** sobre el producto cobra **la personalizada**, no la directa |
+| `CA-CM-267` | Un `DIRECTOR` **sin tasa de rol** sobre el producto cobra igualmente la directa; y un **`MANAGER`** que vende la cobra y **no hay nadie por encima** |
+| `CA-CM-268` | Si la directa más las tasas de los superiores **pasan del 100 %** de la línea, la línea queda **`RECHAZADA`** y nadie cobra (`RN-CM-026`) |
+| `CA-CM-269` | Una directa **de cero** deja una comisión de importe cero y la línea **`DEVENGADA`**, como una tasa de cero |
+| `CA-CM-270` | Corregir la directa **después** de devengar **no cambia** lo devengado (`RN-CM-008`) |
 
 **`CA-CM-166` es el que sostiene la decisión de §2.1**: el cobro no depende de la configuración de comisiones.
 
@@ -227,3 +236,4 @@ Uno la atiende; el otro no hace nada. **Nunca se devenga dos veces** (`RN-CM-027
 | 0.1.0 | 28-09-2026 | Primera versión, con el devengo automático ([`requirements/cm.md`](../../../requirements/cm.md) v0.19.0, §5.7). **Sin ruta ni permiso**: la disparan el aviso de `MV` y el barrido del cierre. Criterios `CA-CM-154` a `CA-CM-169`. | Responsable del proyecto |
 
 | 0.2.0 | 29-09-2026 | **Una línea FTD no devenga por venta** (`RN-CM-022` con su quinta condición, [`requirements/cm.md`](../../../requirements/cm.md) v0.22.0 §5.8): no queda con desenlace, ni `SIN_COMISION` ni ningún otro, y el barrido no la recoge; lo que paga lo decide `RF-CM-020`. Y cada comisión se escribe con su clase, `POR_VENTA` (`RN-CM-044`). **El criterio es `CA-CM-253`, de `RF-CM-020`**, que se prueba en la suite de este requerimiento. | Responsable del proyecto |
+| 0.3.0 | 29-09-2026 | **Quien no es el último eslabón cobra su venta propia con la directa del producto** (`RN-CM-045`, [`requirements/cm.md`](../../../requirements/cm.md) v0.24.0 §5.9): en el nivel `0`, si no tiene personalizada vigente, la directa sustituye su tasa de rol; los niveles de encima no cambian. El último eslabón se lee en la jerarquía de roles. `CA-CM-264` a `CA-CM-270`. | Responsable del proyecto |

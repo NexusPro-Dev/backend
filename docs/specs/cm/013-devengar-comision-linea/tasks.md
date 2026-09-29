@@ -8,6 +8,7 @@
 | `plan.md` aprobado el | 28-09-2026 |
 | Estado | **En revisión** — `T-01` a `T-12` `Hecha` el 28-09-2026; `T-13` en curso |
 | Enmendadas | 29-09-2026 — `T-14` por **las líneas FTD fuera del devengo** (`RN-CM-022`) |
+| Enmendadas | 29-09-2026 — `T-15` a `T-17` por **la comisión por venta directa** (`RN-CM-045`) |
 | Issue | Pendiente de crear |
 | Rama | `feature/devengo-de-comisiones` |
 
@@ -91,3 +92,13 @@
 | `T-14` | El descarte por `ftdProductIds()` en `CommissionAccrualService` y `CA-CM-253` en `CommissionAccrualIT` (`plan.md` §12) | `RF-CM-015` `T-02`, `T-04` | `CommissionAccrualIT` y `CloseCommissionPeriodIT` en verde | **Hecha** — 29-09-2026 |
 
 Rama: `feature/comision-afftrack`. **Es la misma tarea que `RF-CM-020` `T-02`**, vista desde aquí.
+
+## 7. La comisión por venta directa — enmienda del 29-09-2026
+
+| ID | Tarea | Depende de | Verificación | Estado |
+|---|---|---|---|---|
+| `T-15` | `LastLinkRoles` en `SP` con su implementación en `PublishedUserCatalog` | — | `LastLinkRolesIT` | Pendiente |
+| `T-16` | `ProductCatalog.directCommissionOf` en `PM` | `RF-PM-001` `T-47` | Prueba del adaptador: directa de cada forma, y vacío en un FTD | Pendiente |
+| `T-17` | `RateSource.DIRECTA`, la sustitución en el nivel `0` de `CommissionAccrualService` y la prosa de la `@Operation` de `RF-CM-005` | `T-15`, `T-16` | `CommissionAccrualIT`: `CA-CM-264` a `CA-CM-270` | Pendiente |
+
+Rama: `feature/comision-venta-directa`.

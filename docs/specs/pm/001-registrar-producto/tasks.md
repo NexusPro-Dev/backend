@@ -8,7 +8,7 @@
 | Autor | Responsable técnico |
 | Aprobadas por | Responsable del proyecto |
 | Fecha de aprobación | 26-08-2026 |
-| Enmendadas | 28-08-2026 — `T-19` a `T-22` por el renombrado a `BOT` y el icono del upgrade; 02-09-2026 — `T-23` a `T-26` por la membresía de **origen**; 07-09-2026 — `T-27` a `T-30` por el **alcance** y la **implementación**, y `T-31` por la **renovación**; 08-09-2026 — `T-33` a `T-37` por el **precio público** y la relajación de `RN-PM-006`; 12-09-2026 — `T-38` porque el segundo precio pasa a ser el **de compra**; 14-09-2026 — `T-39` por el **enlace del video**; 14-09-2026 — `T-40` por el **icono obligatorio en el upgrade** (`RN-PM-034`); 15-09-2026 — `T-41` por el **alcance de cuatro valores** (`RN-PM-019`); 22-09-2026 — `T-42` a `T-45` por **los enlaces del producto** (`RN-PM-048`, `RN-PM-049`), que traen `product_links` y se llevan `products.video_url` — issue [#84](https://github.com/NexusPro-Dev/backend/issues/84); 28-09-2026 — `T-46` por **el tipo `DESCARGA`** (`RN-PM-048`, `RN-PM-050`) |
+| Enmendadas | 28-08-2026 — `T-19` a `T-22` por el renombrado a `BOT` y el icono del upgrade; 02-09-2026 — `T-23` a `T-26` por la membresía de **origen**; 07-09-2026 — `T-27` a `T-30` por el **alcance** y la **implementación**, y `T-31` por la **renovación**; 08-09-2026 — `T-33` a `T-37` por el **precio público** y la relajación de `RN-PM-006`; 12-09-2026 — `T-38` porque el segundo precio pasa a ser el **de compra**; 14-09-2026 — `T-39` por el **enlace del video**; 14-09-2026 — `T-40` por el **icono obligatorio en el upgrade** (`RN-PM-034`); 15-09-2026 — `T-41` por el **alcance de cuatro valores** (`RN-PM-019`); 22-09-2026 — `T-42` a `T-45` por **los enlaces del producto** (`RN-PM-048`, `RN-PM-049`), que traen `product_links` y se llevan `products.video_url` — issue [#84](https://github.com/NexusPro-Dev/backend/issues/84); 28-09-2026 — `T-46` por **el tipo `DESCARGA`** (`RN-PM-048`, `RN-PM-050`); 29-09-2026 — `T-47` a `T-50` por **la comisión por venta directa** (`RN-PM-051`) |
 
 !!! info "Qué va en este documento"
 
@@ -126,3 +126,14 @@ El requerimiento no está terminado hasta cumplir **todas** las condiciones de l
 - [ ] Documentación afectada actualizada en el mismo Pull Request.
 - [ ] Matriz de trazabilidad actualizada.
 - [ ] Pull Request aprobado por alguien distinto del autor e integrado.
+
+## 7. La comisión por venta directa — enmienda del 29-09-2026
+
+| ID | Tarea | Depende de | Verificación | Estado |
+|---|---|---|---|---|
+| `T-47` | `V55__pm_cm_comision_directa.sql`: las tres columnas de `products` con sus dos restricciones, **porcentaje cero** a lo que no es FTD, y `ck_commissions_source` / `ck_commissions_directa` en `commissions` (`plan.md` §12.1) | — | La suite arranca sobre una base recreada; una prueba de migración: los FTD quedan nulos y el resto en cero | Pendiente |
+| `T-48` | `DirectCommission` y su prueba unitaria; el predicado de FTD extraído para que lo usen el alta y `ftdProductIds()` | `T-47` | `DirectCommissionTest` | Pendiente |
+| `T-49` | `Product.register`, `RegisterProductRequest` y `ProductResponse` con `directCommission`; la instantánea de auditoría | `T-48` | `ProductsIT`: `CA-PM-402` a `CA-PM-409` | Pendiente |
+| `T-50` | Los cuerpos de ejemplo de **toda suite que registra productos por la API** ganan la directa; el contrato y la prosa de la `@Operation` | `T-49` | Suite completa en verde; el diff del `openapi.json` | Pendiente |
+
+Rama: `feature/comision-venta-directa`. **`V55` es también de `RF-CM-013`**: la mitad de `commissions` se escribe aquí para que la migración sea una.
