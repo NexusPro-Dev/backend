@@ -5,11 +5,11 @@
 | Proyecto | NEXUS — Renovación de plataforma |
 | Empresa | FACTECH GROUP SAS |
 | Documento | `security.md` |
-| Versión | 0.81.0 |
+| Versión | 0.82.0 |
 | Estado | Borrador |
 | Responsable técnico | Bonilla Diaz William Steven |
 | Fecha de creación | 19-08-2026 |
-| Última actualización | 28-09-2026 |
+| Última actualización | 29-09-2026 |
 | Documento superior | `constitution.md` v0.5.0 |
 | Documento relacionado | `architecture.md` v0.4.0 |
 
@@ -272,6 +272,8 @@ Los cincuenta y uno nuevos: `roles:list`, `roles:change-status`, `roles:assign-p
 **Ocho más, declarados el 26-09-2026 y SEMBRADOS el mismo día** por `V48` y `V49`, ya figuran en el bloque: los de la etapa 6 de `MV` —pagos, saldos y retiros— ([`requirements/mv.md`](requirements/mv.md) v0.44.0 §6): `movements:reject-payment`, `movements:retry-payment`, `movements:request-withdrawal`, `movements:approve-withdrawal`, `movements:reject-withdrawal`, `movements:read-own-balances`, `movements:list-own-entries` —el octavo, del mismo día— y `movements:grant-bonus`. Cada uno entrará con la migración de su requerimiento. **Con el primero, `movements:confirm` se queda con una sola operación**: `requirements/mv.md` preveía desde el 02-09-2026 que gobernara también el rechazo (`RF-MV-004`), y `RN-SEG-014` ya no lo admite. **`RF-MV-024` —abonar un lote de comisión— no tiene permiso propio**: no tiene ruta, y lo que se autoriza es marcar el lote como pagado, con `commission-batches:pay`.
 
 **Ocho de `CM` DECLARADOS Y SIN SEMBRAR**, y por eso **todavía no figuran en el bloque**: los de la liquidación ([`requirements/cm.md`](requirements/cm.md) §6). Seis se declararon allí el 24-09-2026 y este documento no los había recogido —`commission-batches:settle`, `commission-batches:read`, `commission-batches:read-detail`, `commission-batches:pay`, `commission-batches:list-own` y `commission-batches:read-own`— y dos nacen el 28-09-2026 con el **devengo automático** (v0.19.0, §5.7): `commission-closings:read` —los cierres del periodo— y `commission-accruals:read` —el desenlace de cada línea, con los rechazos—. **`commission-batches:settle` cambia de ruta sin cambiar de código**: ya no liquida un periodo con `POST /commission-batches`, **cierra** los lotes abiertos con `POST /commission-batches/closing`. **Devengar (`RF-CM-013`) y el cierre programado no llevan permiso**, y no contradicen `RN-SEG-015`: no son operaciones de la API —no exigen token porque no tienen ruta—; los disparan un evento de `MV` y el reloj. Entrarán con la migración de `RF-CM-013`, y con ellos el módulo `CM` pasará de diez permisos sembrados a **dieciocho**.
+
+**Nueve más de `CM` DECLARADOS Y SIN SEMBRAR, del 29-09-2026**: los de la **comisión afftrack** ([`requirements/cm.md`](requirements/cm.md) v0.22.0 §6, §5.8). Cuatro sobre los escalones de rol —`afftrack-rates:read`, `afftrack-rates:create`, `afftrack-rates:update` y `afftrack-rates:delete`—, cuatro sobre los de persona —`user-afftrack-rates:read`, `create`, `update` y `delete`— y la lectura de lo que liquida cada cierre, `afftrack-settlements:read`. **Son tres recursos nuevos y no operaciones de `commissions:`**, por `RN-SEG-014`: configurar lo que paga una venta y lo que paga un FTD son cosas que un rol puede recibir por separado. **Liquidar lo afftrack (`RF-CM-020`) no lleva permiso**, por lo mismo que devengar: corre dentro del cierre y no tiene ruta. Entrarán con la migración de `RF-CM-015`, y el módulo pasará de dieciocho a **veintisiete**.
 
 !!! danger "Un permiso, una operación — `RN-SEG-014`, desde el 19-09-2026"
 
@@ -911,3 +913,4 @@ RNF-SEG-002 merece atención: es una prueba que enumera los endpoints registrado
 | 0.79.0 | 26-09-2026 | **`movements:list-own-entries`**, el octavo permiso declarado y sin sembrar de la etapa 6 de `MV` (§4.4): el historial de los saldos propios (`RF-MV-022`, [`requirements/mv.md`](requirements/mv.md) v0.46.0). | Responsable técnico |
 | 0.80.0 | 26-09-2026 | **Los ocho permisos de la etapa 6 de `MV` están sembrados** (§4.4): `V48` —`movements:retry-payment` por tipo de rol y `movements:reject-payment` a `SUPERADMIN` y `ADMIN`— y `V49` —`request-withdrawal`, `read-own-balances` y `list-own-entries` por tipo de rol; `approve-withdrawal`, `reject-withdrawal` y `grant-bonus` a `SUPERADMIN` y `ADMIN`—. El catálogo pasa de 136 a **144**, y `ADMIN` porta 142. | Responsable técnico |
 | 0.81.0 | 28-09-2026 | **§4.4 declara los ocho permisos de la liquidación de `CM`, sin sembrar** ([`requirements/cm.md`](requirements/cm.md) v0.19.0 §6): los seis `commission-batches:` del 24-09-2026, que este documento no había recogido, y los dos que nacen con el **devengo automático** —`commission-closings:read` y `commission-accruals:read`—. `commission-batches:settle` pasa a gobernar `POST /commission-batches/closing`. Queda escrito por qué devengar y el cierre programado **no llevan permiso** sin contradecir `RN-SEG-015`: no son operaciones de la API. El bloque del catálogo no cambia hasta que la migración de `RF-CM-013` los siembre. | Responsable del proyecto |
+| 0.82.0 | 29-09-2026 | **§4.4 declara los nueve permisos de la comisión afftrack de `CM`, sin sembrar** ([`requirements/cm.md`](requirements/cm.md) v0.22.0 §6): `afftrack-rates:` ×4, `user-afftrack-rates:` ×4 y `afftrack-settlements:read`. Liquidar lo afftrack no lleva permiso: corre dentro del cierre. El bloque del catálogo no cambia hasta que la migración de `RF-CM-015` los siembre. | Responsable del proyecto |
