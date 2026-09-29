@@ -707,6 +707,20 @@ class UserCommissionRateIT extends IntegrationTestBase {
   // Utilidades
   // ---------------------------------------------------------------------------
 
+  @Test
+  @DisplayName("CA-CM-261 · una personalizada sobre un producto FTD: 422 EX-009")
+  void productoFtd() throws Exception {
+    reponerElSuelo(jdbc);
+    UUID ftd = AfftrackFixtures.productoFtd(jdbc, "FTD", false);
+    try {
+      mvc.perform(alta(fijo(vendedora, ftd, "1000", "2026-01-01")))
+          .andExpect(status().isUnprocessableEntity())
+          .andExpect(jsonPath("$.errors[0].code").value("EX-009"));
+    } finally {
+      AfftrackFixtures.limpiar(jdbc);
+    }
+  }
+
   private static String cuerpo(
       UUID persona, UUID producto, String porcentaje, String desde, String hasta) {
     StringBuilder json = new StringBuilder("{\"userId\":\"").append(persona).append("\"");

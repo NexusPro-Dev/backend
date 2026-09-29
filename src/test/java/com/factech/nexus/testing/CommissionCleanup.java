@@ -13,7 +13,9 @@ import org.springframework.jdbc.core.JdbcTemplate;
  * en lugar de copiado en cada suite.
  *
  * <p>El orden importa: los lotes señalan a su cierre y al movimiento que los abonó, y las
- * comisiones a su lote.
+ * comisiones a su lote. <b>Desde `V54`</b> (`RF-CM-015`) entra lo afftrack: {@code afftrack_ftds}
+ * es otra clave {@code RESTRICT} hacia las líneas, y una comisión afftrack señala a su liquidación,
+ * que señala a su cierre.
  */
 public final class CommissionCleanup {
 
@@ -21,7 +23,9 @@ public final class CommissionCleanup {
 
   public static void limpiar(JdbcTemplate jdbc) {
     jdbc.update("DELETE FROM commission_accruals");
+    jdbc.update("DELETE FROM afftrack_ftds");
     jdbc.update("DELETE FROM commissions");
+    jdbc.update("DELETE FROM afftrack_settlements");
     jdbc.update("DELETE FROM commission_batches");
     jdbc.update("DELETE FROM commission_closings");
   }

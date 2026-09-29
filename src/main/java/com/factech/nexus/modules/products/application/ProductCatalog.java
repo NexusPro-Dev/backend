@@ -180,6 +180,21 @@ public interface ProductCatalog {
   Optional<KindView> findKind(UUID id);
 
   /** Lo que cruza la frontera: datos planos, sin comportamiento y sin entidad. */
+  /**
+   * <b>Los productos FTD</b>: los {@code UPGRADE_MEMBRESIA} cuyo origen <b>y</b> destino son la
+   * membresía del suelo, la de código {@code BECA} (`RN-CM-036`, `requirements/cm.md` v0.22.0).
+   *
+   * <p><b>Es un conjunto y no un predicado por producto</b> porque tiene tres consumidores —el alta
+   * de escalones y de tasas (`RF-CM-015`, `RN-CM-037`), el devengo que excluye las líneas FTD
+   * (`RF-CM-013`) y el cierre que las cuenta (`RF-CM-020`)— y los dos últimos preguntan por muchas
+   * líneas a la vez. El conjunto es pequeño —hoy, un producto—, y así <b>la definición de FTD vive
+   * en una sola sentencia</b>, la de `PM`, que es quien decide la forma de un producto.
+   *
+   * <p><b>Retirados incluidos</b>: el alta los rechaza antes por retirados, y el cierre tiene que
+   * seguir contando los FTD de un producto que dejó de venderse.
+   */
+  Set<UUID> ftdProductIds();
+
   record ProductView(UUID id, String code, String name, boolean retired) {}
 
   /** El producto con su tipo reducido a lo que se pregunta: ¿es un servicio? */
