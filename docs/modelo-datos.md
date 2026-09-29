@@ -2,7 +2,7 @@
 
 | Campo | Valor |
 |---|---|
-| Versión | 0.80.0 |
+| Versión | 0.81.0 |
 | Estado | **Borrador** |
 | Responsable | Bonilla Diaz William Steven |
 | Fecha de creación | 21-08-2026 |
@@ -491,6 +491,9 @@ erDiagram
         uuid source_membership_id FK "obligatorio en upgrade, PROHIBIDO en bot · DE DONDE sale"
         numeric price "14,4 · EL QUE SE COBRA · la escala la decide la MONEDA"
         numeric purchase_price "14,4 · LO QUE PAGA NEXUS · NULL = no se conoce · solo administracion"
+        varchar direct_commission_type "PORCENTAJE o FIJO · RN-PM-051 · la venta propia de quien no es el ultimo eslabon · NULL solo en FTD"
+        numeric direct_commission_percentage "5,2 · 0 a 100 · solo si PORCENTAJE"
+        numeric direct_commission_fixed_amount "14,4 · no mas que el precio · solo si FIJO"
         uuid cover_image_id FK "V90 · la portada · NULL = no tiene · UNICO: una imagen es portada de UN producto"
         integer validity_days "NULL = no caduca"
         timestamptz deleted_at "lógico · RN-PM-010"
@@ -672,6 +675,12 @@ Ninguna de las dos guarda una venta, y **las dos escribieron condiciones sobre q
     **`V51` escribió las cuatro tablas** el 28-09-2026. Al día siguiente, por decisión del responsable del proyecto, nace la **comisión afftrack** ([`requirements/cm.md`](requirements/cm.md) v0.22.0, §5.8): se paga **por FTD reunidos en el periodo** —las líneas `BECA → BECA` activadas de una persona y de toda su red—, comparados en cada cierre con una escala de límites, y **lo que sobra pasa al cierre siguiente**. La fila que la paga vive en la misma `commissions`, que gana **`commission_kind`** —`POR_VENTA` o `POR_AFFTRACK`— y deja de exigir línea, nivel y precio unitario a la segunda clase. **La copia de lo que se aplicó se cumple igual**: la fila afftrack guarda el valor por FTD, cuántos pagó y de qué escalón exacto salió.
 
     **Cuatro tablas más, diseñadas**: `afftrack_rates` y `user_afftrack_rates` —los escalones, de rol y de persona, que calcan las dos tablas de tasas—, `afftrack_settlements` —lo que cada cierre hizo con los FTD de cada persona, **con el remanente**— y `afftrack_ftds` —qué FTD se le contaron a quién, una vez por persona—.
+
+!!! info "Y desde el 29-09-2026 el superior que vende cobra lo que dice el producto"
+
+    Por decisión del responsable del proyecto, **todo producto declara una comisión por venta directa** ([`requirements/pm.md`](requirements/pm.md) v0.47.0 §5.2.16, `RN-PM-051`): lo que cobra en su venta propia **quien no es el último eslabón** de la fuerza comercial —hoy un `DIRECTOR` o un `MANAGER`—, **en lugar de su tasa de rol**; su personalizada vigente sigue ganando ([`requirements/cm.md`](requirements/cm.md) v0.24.0 §5.9, `RN-CM-045`).
+
+    **Vive en `products` y no en `CM`**, en tres columnas con la forma de una tasa —`direct_commission_type`, `direct_commission_percentage` y `direct_commission_fixed_amount`—, porque es **obligatoria al registrar el producto** y exigirla desde `CM` obligaría a `PM` a consultarlo: el ciclo que `modules.md` §7 prohíbe. **Nulas solo en un FTD**, que no devenga por venta; lo ya registrado nace en **porcentaje cero** (`V55`). **`commissions.source` gana `DIRECTA`**, con `rate_id` apuntando al producto, y `ck_commissions_directa` la ata al nivel `0`. Como todo lo que se liquida, **la fila copia lo que aplicó**: corregir la directa no reescribe lo devengado (`RN-CM-008`).
 
 | Quién lo exige | Qué exige |
 |---|---|
@@ -1072,3 +1081,4 @@ Los documentos que citan una migración vieja por su número —specs, controles
 | 0.78.0 | 28-09-2026 | **`V53` reescribe el comentario de `product_links.type`**: los enlaces de entrega se ven en `RF-MV-014` desde que se pagó y no desde que se entregó (`RN-MV-032`, [`requirements/mv.md`](requirements/mv.md) v0.51.0). Ningún esquema cambia | Responsable del proyecto |
 | 0.79.0 | 29-09-2026 | **`CM` diseña la comisión afftrack** ([`requirements/cm.md`](requirements/cm.md) v0.22.0 §5.8, §7.9 a §7.12), por decisión del responsable del proyecto: escalones por FTD —líneas `BECA → BECA` activadas— que se liquidan en cada cierre y guardan el remanente. §4.1 lo recoge con una caja nueva. **Cuatro tablas diseñadas** en el inventario de `CM` (§5.1) —`afftrack_rates`, `user_afftrack_rates`, `afftrack_settlements` y `afftrack_ftds`— y **`commissions` cambiará**: gana `commission_kind` (`POR_VENTA` \| `POR_AFFTRACK`) y `afftrack_settlement_id`. **De paso, el inventario de `CM` se pone al día**: decía «cuatro diseñadas» de la liquidación cuando `V51` ya las había escrito el 28-09-2026. **Cuatro claves foráneas más** que cruzan módulo en §5.3, una de ellas de `CM` hacia `MV` con `RESTRICT`. Sin migración todavía. | Responsable del proyecto |
 | 0.80.0 | 29-09-2026 | **Las cuatro tablas afftrack están escritas** (`V54`): `afftrack_rates`, `user_afftrack_rates`, `afftrack_settlements` y `afftrack_ftds`, y `commissions` gana `commission_kind` —sin valor por omisión: se retira en la misma migración— y `afftrack_settlement_id`, con `movement_detail_id`, `chain_level` y `unit_price` nulables y atados a la clase por `ck_commissions_kind`. `CM` pasa a diez tablas escritas. | Responsable del proyecto |
+| 0.81.0 | 29-09-2026 | **`products` gana la comisión por venta directa** ([`requirements/pm.md`](requirements/pm.md) v0.47.0 §5.2.16, `RN-PM-051`; [`requirements/cm.md`](requirements/cm.md) v0.24.0 §5.9, `RN-CM-045`), por decisión del responsable del proyecto: lo que cobra en su venta propia quien no es el último eslabón, en lugar de su tasa de rol, con su personalizada ganando todavía. **Tres columnas diseñadas** en el diagrama de `PM` —`direct_commission_type`, `direct_commission_percentage`, `direct_commission_fixed_amount`—, obligatorias salvo en un FTD, con `ck_products_direct_commission_forma` y `ck_products_direct_commission_rangos`; **`commissions.source` gana `DIRECTA`** y nace `ck_commissions_directa`. §4.1 lo recoge con una caja. Las escribirá `V55`, que pone **porcentaje cero** a lo ya registrado que no es FTD. **Viven en `PM` y no en `CM`** para que el alta pueda exigirlas sin cerrar un ciclo | Responsable del proyecto |
