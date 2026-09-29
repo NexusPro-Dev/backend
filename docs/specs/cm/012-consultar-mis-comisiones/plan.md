@@ -5,11 +5,12 @@
 | Requerimiento | `RF-CM-012` |
 | Especificación | [`spec.md`](spec.md) v0.1.0 |
 | `spec.md` aprobada el | 28-09-2026 |
-| Versión | 0.1.0 |
+| Versión | 0.2.0 |
 | Estado | **Aprobado** |
 | Autor | Responsable técnico |
 | Aprobado por | Responsable del proyecto |
 | Fecha de aprobación | 28-09-2026 |
+| Enmendado el | 29-09-2026 — hereda la clase de cada comisión de `RF-CM-010` §12 |
 
 !!! info "Qué va en este documento"
 
@@ -96,3 +97,7 @@ Ninguno.
 ## 11. Estrategia de prueba
 
 `MyCommissionBatchesIT`: `CA-CM-197` a `CA-CM-202`, con **dos vendedores en cadena** —uno superior del otro— y ventas reales por la API de `MV`.
+
+## 12. La clase de cada comisión — enmienda del 29-09-2026
+
+**Sin trabajo propio**: las lecturas de «los míos» reutilizan la sentencia y las formas de `RF-CM-010`, que §12 de aquel plan cambia. `CommissionBatchesIT` gana `CA-CM-263`.

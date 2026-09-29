@@ -4,11 +4,12 @@
 |---|---|
 | Requerimiento | `RF-CM-012` |
 | Módulo | `CM` — Comisiones |
-| Versión | 0.1.0 |
+| Versión | 0.2.0 |
 | Estado | **Aprobada** |
 | Autor | Responsable técnico |
 | Aprobada por | Responsable del proyecto |
 | Fecha de aprobación | 28-09-2026 |
+| Enmendada el | 29-09-2026 — **las comisiones propias dicen su clase**, como en `RF-CM-010` (`RN-CM-044`) |
 
 !!! info "Qué va en este documento"
 
@@ -80,7 +81,7 @@ Como `RF-CM-010`, **sin** persona: la persona es quien pregunta.
 
 ### 6.2 Salida
 
-La de `RF-CM-010`.
+La de `RF-CM-010`, **con la clase de cada comisión desde el 29-09-2026**: el vendedor ve en sus lotes lo que cobró por venta y lo que cobró por afftrack. **No ve su remanente de FTD**: eso está en `RF-CM-021`, sin lectura propia todavía (`requirements/cm.md` §6).
 
 ---
 
@@ -131,6 +132,7 @@ Las de `RF-CM-010`, sin la persona.
 | `CA-CM-200` | El detalle de un lote propio trae sus comisiones con la misma forma que `RF-CM-010` |
 | `CA-CM-201` | Pedir el detalle de un lote **ajeno** responde **no encontrado**, igual que uno inexistente |
 | `CA-CM-202` | Sin el permiso de cada operación, se rechaza; un rol vendedor **lo porta** desde su siembra |
+| `CA-CM-263` | En sus propios lotes, un vendedor ve sus comisiones `POR_AFFTRACK` con su clase, sin venta ni nivel, y el total las incluye (29-09-2026) |
 
 ---
 
@@ -154,3 +156,5 @@ Ninguna.
 | Versión | Fecha | Cambio | Autor |
 |---|---|---|---|
 | 0.1.0 | 28-09-2026 | Primera versión ([`requirements/cm.md`](../../../requirements/cm.md) v0.20.0). Solo lo propio, con el lote abierto al día; un lote ajeno es no encontrado. Criterios `CA-CM-197` a `CA-CM-202`. | Responsable del proyecto |
+
+| 0.2.0 | 29-09-2026 | **Las comisiones propias dicen su clase** (`RN-CM-044`, [`requirements/cm.md`](../../../requirements/cm.md) v0.22.0 §5.8), heredado de `RF-CM-010`. `CA-CM-263`. | Responsable del proyecto |

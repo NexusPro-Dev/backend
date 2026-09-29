@@ -166,6 +166,9 @@ final class CommissionFixtures {
    * tablas de tasas apuntan al producto, de modo que van antes que {@code products}.
    */
   static void limpiar(JdbcTemplate jdbc, UUID superadmin) {
+    // `V54`: los escalones afftrack señalan a sus productos sin `ON DELETE`.
+    jdbc.update("DELETE FROM user_afftrack_rates");
+    jdbc.update("DELETE FROM afftrack_rates");
     jdbc.update("DELETE FROM user_commission_rates");
     jdbc.update("DELETE FROM commission_rates");
     jdbc.update("DELETE FROM products");

@@ -53,7 +53,7 @@ public interface CommissionBatchQueryRepository {
       String movementCode,
       UUID productId,
       String productName,
-      int chainLevel,
+      Integer chainLevel,
       String source,
       UUID rateId,
       String rateType,
@@ -63,5 +63,7 @@ public interface CommissionBatchQueryRepository {
       int quantity,
       BigDecimal commissionAmount,
       LocalDate resolvedOn,
-      OffsetDateTime accruedAt) {}
+      OffsetDateTime accruedAt,
+      String commissionKind,
+      UUID afftrackSettlementId) {}
 }

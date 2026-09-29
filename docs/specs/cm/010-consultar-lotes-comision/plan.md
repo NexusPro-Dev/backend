@@ -5,11 +5,12 @@
 | Requerimiento | `RF-CM-010` |
 | Especificación | [`spec.md`](spec.md) v0.1.0 |
 | `spec.md` aprobada el | 28-09-2026 |
-| Versión | 0.1.0 |
+| Versión | 0.2.0 |
 | Estado | **Aprobado** |
 | Autor | Responsable técnico |
 | Aprobado por | Responsable del proyecto |
 | Fecha de aprobación | 28-09-2026 |
+| Enmendado el | 29-09-2026 — `commissionKind` y la forma de la fila afftrack (§12) |
 
 !!! info "Qué va en este documento"
 
@@ -109,3 +110,7 @@ Ninguna: son lecturas.
 ## 11. Estrategia de prueba
 
 `ListCommissionBatchesIT` y `GetCommissionBatchIT`: `CA-CM-181` a `CA-CM-188`, con lotes producidos **devengando ventas reales** por la API de `MV` y cerrando con `RF-CM-009`, no insertando filas a mano. `CA-CM-188` cuenta sentencias con una página de varios lotes.
+
+## 12. La clase de cada comisión — enmienda del 29-09-2026
+
+`RN-CM-044`. **La sentencia del detalle pasa de unir la línea a unirla por `LEFT JOIN`**, y gana un `LEFT JOIN` a `afftrack_settlements` para el producto de las filas afftrack —`COALESCE` del producto de la línea y del de la liquidación—. `CommissionLineResponse` gana `commissionKind` y `afftrackSettlementId`; **`movementId`, `movementCode`, `detailId`, `chainLevel` y `unitPrice` pasan a nulables** en el contrato, y se dice en la prosa de la `@Operation`: es un cambio de forma que el frontend tiene que leer. `quantity`, `rateType` y `fixedAmount` significan en la fila afftrack los FTD pagados, `FIJO` y el valor por FTD. **`RF-CM-012` hereda el cambio**, porque devuelve las mismas formas. `CommissionBatchesIT` gana `CA-CM-262`.

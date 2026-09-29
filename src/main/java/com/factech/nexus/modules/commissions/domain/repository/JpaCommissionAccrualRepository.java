@@ -115,16 +115,20 @@ public class JpaCommissionAccrualRepository implements CommissionAccrualReposito
         .executeUpdate();
   }
 
+  /**
+   * Una comisión de venta: siempre {@code POR_VENTA} (`RN-CM-044`). Se declara aunque sea la única
+   * clase que este camino escribe, porque `V54` retiró el valor por omisión de la columna.
+   */
   @Override
   public void insertCommission(NewCommission c) {
     boolean porcentaje = c.rateType() == CommissionRateType.PORCENTAJE;
     em.createNativeQuery(
             """
             INSERT INTO commissions
-                (id, batch_id, movement_detail_id, user_id, chain_level, source, rate_id,
-                 resolved_on, rate_type, percentage, fixed_amount, unit_price, quantity,
+                (id, batch_id, commission_kind, movement_detail_id, user_id, chain_level, source,
+                 rate_id, resolved_on, rate_type, percentage, fixed_amount, unit_price, quantity,
                  commission_amount, accrued_at, created_at)
-            VALUES (:id, :lote, :linea, :persona, :nivel, :fuente, :tasa,
+            VALUES (:id, :lote, 'POR_VENTA', :linea, :persona, :nivel, :fuente, :tasa,
                     :fecha, :tipo, CAST(:porcentaje AS numeric), CAST(:fijo AS numeric),
                     :precio, :cantidad, :importe, :at, :at)
             """)

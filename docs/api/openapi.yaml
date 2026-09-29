@@ -90,6 +90,9 @@ tags:
   description: "Paquetes de productos: varios productos con su descuento."
 - name: Lecciones
   description: "Lo que se estudia: un video o un texto dentro de un módulo."
+- name: Comisiones afftrack
+  description: Escalones por FTD —membresía BECA → BECA activada— que se liquidan
+    en cada cierre.
 - name: Monedas
   description: Catálogo de monedas. Inmutable por API salvo su estado.
 - name: Registro por enlace
@@ -1133,6 +1136,144 @@ paths:
         "409":
           description: Ya estaba retirada
       x-required-permission: user-commission-rates:delete
+  /api/v1/user-afftrack-rates:
+    get:
+      tags:
+      - Comisiones afftrack
+      summary: Consultar las comisiones afftrack de persona
+      description: |
+        **Permiso requerido:** `user-afftrack-rates:read`. Sin él, `403` (`AUTH-002`).
+
+        Los escalones de persona, paginados por persona, producto, límite
+        ascendente y vigencia más reciente. Filtros `userId` y `productId`.
+
+        **Con `onDate`** se devuelven exactamente los escalones que el cierre de
+        ese día aplicaría: los vivos cuya vigencia cubre la fecha. Si para esa
+        persona y producto sale alguno, **esa es su escala**; si no sale ninguno,
+        cobra por la de su rol. Con `onDate`, `includeDeleted` no cuenta.
+      operationId: listar_2
+      parameters:
+      - name: filtros
+        in: query
+        required: true
+        schema:
+          $ref: "#/components/schemas/ListUserAfftrackRatesRequest"
+      responses:
+        "200":
+          description: Página de escalones
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/UserAfftrackRatePage"
+        "400":
+          description: Parámetros inválidos
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/UserAfftrackRatePage"
+        "403":
+          description: Sin `user-afftrack-rates:read`
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/UserAfftrackRatePage"
+      x-required-permission: user-afftrack-rates:read
+    post:
+      tags:
+      - Comisiones afftrack
+      summary: Registrar la comisión afftrack de una persona
+      description: |
+        **Permiso requerido:** `user-afftrack-rates:create`. Sin él, `403` (`AUTH-002`).
+
+        Registra un escalón de la escala afftrack **propia** de una persona sobre
+        un producto FTD, **desde `validFrom` y hasta `validTo`** —nulo:
+        indefinidamente—.
+
+        **La escala de la persona sustituye entera la de su rol** (`RN-CM-039`):
+        basta **un** escalón vigente el día del cierre para que cobre **solo** por
+        los suyos. Un único escalón personal de 40 la deja sin el de 60 de su
+        rol. Un escalón de valor **cero** es la forma de dejar a alguien sin
+        comisión afftrack sobre un producto.
+
+        Varios límites vigentes a la vez son la escala; **el mismo límite con un
+        día en común** responde `409`. No se exige que la persona venda.
+      operationId: registrar_2
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/RegisterUserAfftrackRateRequest"
+        required: true
+      responses:
+        "201":
+          description: Escalón registrado
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/UserAfftrackRate"
+        "400":
+          description: "Datos inválidos, o el fin anterior al inicio (`VAL-004`)"
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/UserAfftrackRate"
+        "403":
+          description: Sin `user-afftrack-rates:create`
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/UserAfftrackRate"
+        "409":
+          description: "Otro escalón vivo de esa persona, producto y límite cubre\
+            \ algún día (`EX-002`)"
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/UserAfftrackRate"
+        "422":
+          description: "La persona no existe (`EX-001`); el producto no existe, está\
+            \ retirado o no es FTD"
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/UserAfftrackRate"
+      x-required-permission: user-afftrack-rates:create
+  /api/v1/user-afftrack-rates/{id}/deletion:
+    post:
+      tags:
+      - Comisiones afftrack
+      summary: Retirar la comisión afftrack de una persona
+      description: |
+        **Permiso requerido:** `user-afftrack-rates:delete`. Sin él, `403` (`AUTH-002`).
+
+        Retira el escalón con motivo obligatorio y **libera sus días**. Si era el
+        último vigente de la persona sobre ese producto, **vuelve a aplicarse la
+        escala de su rol**. Los FTD reunidos no se pierden.
+      operationId: retirar_1
+      parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/DeleteAfftrackRateRequest"
+      responses:
+        "204":
+          description: Escalón retirado
+        "400":
+          description: "Motivo ausente, en blanco o demasiado largo"
+        "403":
+          description: Sin `user-afftrack-rates:delete`
+        "404":
+          description: No existe
+        "409":
+          description: Ya estaba retirado
+      x-required-permission: user-afftrack-rates:delete
   /api/v1/teams:
     get:
       tags:
@@ -1167,7 +1308,7 @@ paths:
         Los parámetros inválidos se devuelven **juntos** con `400`. Exige
         `teams:list`; `teams:read` **no** habilita esta operación, porque listar y
         abrir son dos permisos.
-      operationId: listar_2
+      operationId: listar_3
       parameters:
       - name: page
         in: query
@@ -1614,7 +1755,7 @@ paths:
         **Los eliminados quedan fuera salvo que se pidan** con
         `includeDeleted=true`; cuando se piden, `deletedAt` es lo que permite
         distinguirlos.
-      operationId: listar_3
+      operationId: listar_4
       parameters:
       - name: page
         in: query
@@ -1693,7 +1834,7 @@ paths:
 
         El rol nace siempre **activo** y nunca de sistema. Ni `status` ni `isSystem`
         se admiten en el cuerpo: enviarlos devuelve `400`.
-      operationId: registrar_2
+      operationId: registrar_3
       requestBody:
         content:
           application/json:
@@ -2020,7 +2161,7 @@ paths:
         Un filtro sin coincidencias devuelve `200` con la colección vacía, y
         una página más allá de la última hace lo mismo **con el total real**.
         No hay `404` ni `422`.
-      operationId: listar_4
+      operationId: listar_5
       parameters:
       - name: page
         in: query
@@ -2270,7 +2411,7 @@ paths:
 
         No devuelve el producto: lo que se acaba de retirar no es algo que el
         sistema deba seguir ofreciendo a quien lo pidió.
-      operationId: retirar_1
+      operationId: retirar_2
       parameters:
       - name: id
         in: path
@@ -2464,7 +2605,7 @@ paths:
 
         Los filtros inválidos se devuelven **juntos** con `400`. Exige
         `packages:list`; `products:read` no habilita.
-      operationId: listar_5
+      operationId: listar_6
       parameters:
       - name: page
         in: query
@@ -2747,7 +2888,7 @@ paths:
 
         **El código de un paquete retirado no se libera**: un alta con ese código
         responde `409`. El nombre sí. Exige `packages:delete`.
-      operationId: retirar_2
+      operationId: retirar_3
       parameters:
       - name: id
         in: path
@@ -3031,7 +3172,7 @@ paths:
 
         Reglas de composición: **como mucho un upgrade** por venta y con cantidad uno,
         sin productos repetidos y todas las líneas en la misma moneda.
-      operationId: registrar_3
+      operationId: registrar_4
       parameters:
       - name: Idempotency-Key
         in: header
@@ -3656,7 +3797,7 @@ paths:
 
         El nivel y la superior **no se envían**: los calcula el sistema. Enviar
         `level` o `parentMembershipId` devuelve `400`.
-      operationId: registrar_4
+      operationId: registrar_5
       requestBody:
         content:
           application/json:
@@ -3800,7 +3941,7 @@ paths:
         `409` y **no registra nada**: el sistema **no** cierra ni recorta la
         tasa anterior, porque resolver el conflicto es una decisión de quien
         administra, no del servidor.
-      operationId: registrar_5
+      operationId: registrar_6
       requestBody:
         content:
           application/json:
@@ -3871,7 +4012,7 @@ paths:
         (descendente por omisión), con `,asc`/`,desc`. Los parámetros inválidos se
         devuelven **juntos** con `400`. Exige `courses:read`;
         `course-categories:read` no habilita.
-      operationId: listar_6
+      operationId: listar_7
       parameters:
       - name: page
         in: query
@@ -4069,7 +4210,7 @@ paths:
         `includeDeleted=true`, y su detalle trae el motivo y el árbol marcado.
         Retirar uno ya retirado responde `409`, distinto del `404` del inexistente.
         Exige `courses:delete`.
-      operationId: retirar_3
+      operationId: retirar_4
       parameters:
       - name: id
         in: path
@@ -4382,7 +4523,7 @@ paths:
         lección activa deja el módulo `ACTIVO` y no ofrecible. Su título queda libre en
         el módulo. Retirar una ya retirada responde `409`, distinto del `404` de la
         inexistente o de otro módulo. Exige `courses:update`.
-      operationId: retirar_4
+      operationId: retirar_5
       parameters:
       - name: courseId
         in: path
@@ -4440,7 +4581,7 @@ paths:
         marcados; su título queda libre en el curso. Retirar uno ya retirado responde
         `409`, distinto del `404` del inexistente o del de otro curso. Exige
         `courses:update` — el módulo es parte del curso, y no hace falta `courses:delete`.
-      operationId: retirar_5
+      operationId: retirar_6
       parameters:
       - name: courseId
         in: path
@@ -4662,7 +4803,7 @@ paths:
         (descendente por omisión), con `,asc`/`,desc`. Los parámetros inválidos se
         devuelven **juntos** con `400`. Exige `course-categories:read`;
         `courses:read` no habilita.
-      operationId: listar_7
+      operationId: listar_8
       parameters:
       - name: page
         in: query
@@ -4807,7 +4948,7 @@ paths:
         `includeDeleted=true`, y su detalle trae el motivo. Retirar una ya retirada
         responde `409`, distinto del `404` de la inexistente: quien retira dos veces
         merece saber que la primera funcionó. Exige `course-categories:delete`.
-      operationId: retirar_6
+      operationId: retirar_7
       parameters:
       - name: id
         in: path
@@ -4888,7 +5029,7 @@ paths:
         alguna, pero **no puede coincidir** con otro ya registrado ignorando
         mayúsculas y acentos: el catálogo no se edita, y el duplicado sería
         permanente.
-      operationId: registrar_6
+      operationId: registrar_7
       requestBody:
         content:
           application/json:
@@ -4937,7 +5078,7 @@ paths:
         Las tasas **personalizadas** no salen en este listado: están en
         `GET /api/v1/user-commission-rates`. **No hay filtro por fecha**, porque
         las tasas de rol no tienen vigencia.
-      operationId: listar_8
+      operationId: listar_9
       parameters:
       - name: filtros
         in: query
@@ -4992,7 +5133,7 @@ paths:
 
         **El porcentaje cero es válido** y significa «esto no comisiona», que **no
         es lo mismo** que no declarar la tasa.
-      operationId: registrar_7
+      operationId: registrar_8
       requestBody:
         content:
           application/json:
@@ -5052,7 +5193,7 @@ paths:
         sostenga, y esa condición queda solo para la personalizada.
 
         **No es idempotente**: retirar dos veces devuelve `409`.
-      operationId: retirar_7
+      operationId: retirar_8
       parameters:
       - name: id
         in: path
@@ -5150,8 +5291,12 @@ paths:
         **Hace lo mismo que el cierre programado**, y existe para relanzar el que no corrió
         (`RF-CM-009`, `RN-CM-035`). Primero **barre**: devenga las líneas cobradas y con
         vendedor que se quedaron sin desenlace, y reintenta las rechazadas por pasar del 100 %
-        (`RN-CM-034`). Después pasa **todos** los lotes abiertos a `PENDIENTE`, con el instante
-        del cierre como fin de periodo. Lo que devengue un segundo después abre un lote nuevo.
+        (`RN-CM-034`). Después **liquida lo afftrack** (`RF-CM-020`, 29-09-2026): cuenta los
+        FTD activados de cada persona y de su red, paga el mayor escalón alcanzado en su lote
+        abierto y guarda el remanente —se consulta en `GET /afftrack-settlements`—. Por último
+        pasa **todos** los lotes abiertos a `PENDIENTE`, con el instante del cierre como fin de
+        periodo. Lo que devengue un segundo después abre un lote nuevo. **Si la liquidación
+        afftrack falla, no se cierra nada.**
 
         **Sin cuerpo.** Responde la constancia del cierre, que queda además consultable en
         `GET /commission-closings`. **`200` y no `201`**: se ejecuta una acción, no se crea un
@@ -5262,7 +5407,7 @@ paths:
         dicen** cuál de las dos identidades —nombre de usuario o correo— está
         en uso, y que la cuenta de broker ya está declarada por otra persona:
         los dos los necesita quien se registra para poder corregir.
-      operationId: registrar_8
+      operationId: registrar_9
       requestBody:
         content:
           application/json:
@@ -5617,6 +5762,150 @@ paths:
         "500":
           description: Fallo no controlado (`ERR-500`)
       security: []
+  /api/v1/afftrack-rates:
+    get:
+      tags:
+      - Comisiones afftrack
+      summary: Consultar las comisiones afftrack de rol
+      description: |
+        **Permiso requerido:** `afftrack-rates:read`. Sin él, `403` (`AUTH-002`).
+
+        La escala de cada rol en cada producto FTD, paginada y ordenada por
+        producto, rol y **límite ascendente**: los escalones de una escala salen
+        juntos y en el orden en que se alcanzan. Filtros `productId` y `roleId`;
+        con `includeDeleted` entran los retirados, con su `deletedAt` y **sin
+        motivo**.
+
+        Qué escala rige para una persona concreta lo decide el cierre
+        (`RN-CM-039`): la suya, si tiene escalones vigentes
+        (`GET /api/v1/user-afftrack-rates`), y si no, la de su rol.
+      operationId: listar_10
+      parameters:
+      - name: filtros
+        in: query
+        required: true
+        schema:
+          $ref: "#/components/schemas/ListAfftrackRatesRequest"
+      responses:
+        "200":
+          description: Página de escalones
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/AfftrackRatePage"
+        "400":
+          description: Parámetros inválidos
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/AfftrackRatePage"
+        "403":
+          description: Sin `afftrack-rates:read`
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/AfftrackRatePage"
+      x-required-permission: afftrack-rates:read
+    post:
+      tags:
+      - Comisiones afftrack
+      summary: Registrar una comisión afftrack de rol
+      description: |
+        **Permiso requerido:** `afftrack-rates:create`. Sin él, `403` (`AUTH-002`).
+
+        Registra un **escalón** de la escala afftrack de un rol **vendedor** sobre
+        un **producto FTD** —la membresía `BECA → BECA`, `RN-CM-036`—: al reunir
+        `threshold` FTD en un cierre, se pagan `threshold × amountPerFtd`
+        (`amountAtThreshold` en la respuesta).
+
+        Una escala son **varios escalones** del mismo rol y producto con límites
+        distintos. Cada cierre paga **el mayor límite alcanzado, una sola vez**, y
+        lo que sobra pasa al cierre siguiente (`RN-CM-041`). **Registrar es poner
+        en vigor**: rige desde el siguiente cierre.
+
+        El valor está en **la moneda del producto** y no puede tener más decimales
+        que ella (`VAL-005`). **El cero es válido**: alcanzar ese límite no paga,
+        pero consume los FTD. Un producto que no es FTD se rechaza (`EX-005`), y
+        el mismo límite vivo para el mismo rol y producto responde `409`.
+      operationId: registrar_10
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/RegisterAfftrackRateRequest"
+        required: true
+      responses:
+        "201":
+          description: Escalón registrado
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/AfftrackRate"
+        "400":
+          description: "Datos inválidos (`VAL-001` a `VAL-005`, todos juntos los de\
+            \ forma), o el rol no es vendedor (`EX-001`)"
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/AfftrackRate"
+        "403":
+          description: Sin `afftrack-rates:create`
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/AfftrackRate"
+        "409":
+          description: Ya hay un escalón vivo de ese rol y producto con ese límite
+            (`EX-006`)
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/AfftrackRate"
+        "422":
+          description: "El rol no existe (`EX-002`); el producto no existe (`EX-003`),\
+            \ está retirado (`EX-004`) o no es FTD (`EX-005`)"
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/AfftrackRate"
+      x-required-permission: afftrack-rates:create
+  /api/v1/afftrack-rates/{id}/deletion:
+    post:
+      tags:
+      - Comisiones afftrack
+      summary: Retirar una comisión afftrack de rol
+      description: |
+        **Permiso requerido:** `afftrack-rates:delete`. Sin él, `403` (`AUTH-002`).
+
+        Retira el escalón con motivo obligatorio: **deja de aplicarse desde el
+        siguiente cierre**. No se deshace. **Los FTD que cada persona haya
+        reunido no se pierden**: siguen en su remanente, y el siguiente cierre
+        los compara con lo que quede de la escala.
+      operationId: retirar_9
+      parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/DeleteAfftrackRateRequest"
+      responses:
+        "204":
+          description: Escalón retirado
+        "400":
+          description: "Motivo ausente, en blanco o demasiado largo"
+        "403":
+          description: Sin `afftrack-rates:delete`
+        "404":
+          description: No existe
+        "409":
+          description: Ya estaba retirado
+      x-required-permission: afftrack-rates:delete
   /api/v1/users/{id}:
     get:
       tags:
@@ -6168,6 +6457,68 @@ paths:
               schema:
                 $ref: "#/components/schemas/UserCommissionRateResponse"
       x-required-permission: user-commission-rates:update
+  /api/v1/user-afftrack-rates/{id}:
+    patch:
+      tags:
+      - Comisiones afftrack
+      summary: Corregir la comisión afftrack de una persona
+      description: |
+        **Permiso requerido:** `user-afftrack-rates:update`. Sin él, `403` (`AUTH-002`).
+
+        Corrige `threshold`, `amountPerFtd` o `validTo`. **Enviar `validTo` vacío
+        quita el fin**: el escalón vuelve a regir indefinidamente. Vaciar el
+        límite o el valor se rechaza. **La persona, el producto y el inicio no se
+        corrigen** (`EX-008`).
+
+        El choque de vigencias se comprueba con el límite y el fin resultantes:
+        `409` si otro escalón vivo de la misma persona, producto y límite cubre
+        algún día.
+      operationId: corregir_1
+      parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UpdateUserAfftrackRateRequest"
+        required: true
+      responses:
+        "200":
+          description: "Escalón corregido, o sin cambios"
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/UserAfftrackRate"
+        "400":
+          description: "Datos inválidos, campos no corregibles o petición vacía"
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/UserAfftrackRate"
+        "403":
+          description: Sin `user-afftrack-rates:update`
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/UserAfftrackRate"
+        "404":
+          description: "No existe, o está retirado"
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/UserAfftrackRate"
+        "409":
+          description: La vigencia resultante choca con otro escalón
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/UserAfftrackRate"
+      x-required-permission: user-afftrack-rates:update
   /api/v1/teams/{id}:
     get:
       tags:
@@ -6277,7 +6628,7 @@ paths:
         La respuesta es la **forma del detalle**, ya con los valores nuevos y sus
         miembros vigentes; **el estado, la fecha de eliminación y las pertenencias no
         se tocan**. Exige `teams:update`.
-      operationId: corregir_1
+      operationId: corregir_2
       parameters:
       - name: id
         in: path
@@ -6871,7 +7222,7 @@ paths:
 
         **No se exige motivo**, ni siquiera al cambiar el precio. Una petición
         que no cambia nada devuelve `200` y **no registra evento**.
-      operationId: corregir_2
+      operationId: corregir_3
       parameters:
       - name: id
         in: path
@@ -7197,7 +7548,7 @@ paths:
 
         Un cuerpo sin cambios de valor responde `200` sin avanzar `updatedAt` ni
         auditar. Exige `packages:update`.
-      operationId: corregir_3
+      operationId: corregir_4
       parameters:
       - name: id
         in: path
@@ -7629,7 +7980,7 @@ paths:
         El título nuevo no puede ser el de **otro** curso vivo. Un retirado no se
         corrige (`404`). Un cuerpo sin cambios de valor responde `200` sin avanzar
         `updatedAt` ni auditar. Exige `courses:update`.
-      operationId: corregir_4
+      operationId: corregir_5
       parameters:
       - name: id
         in: path
@@ -7779,7 +8130,7 @@ paths:
         módulo no cambia de curso**: `courseId` en el cuerpo es `400`, y un módulo de
         otro curso responde `404`, como el retirado. Un cuerpo sin cambios de valor
         responde `200` sin auditar. Exige `courses:update`.
-      operationId: corregir_5
+      operationId: corregir_6
       parameters:
       - name: courseId
         in: path
@@ -8005,7 +8356,7 @@ paths:
         **El contenido se
         audita como longitud y no como texto.** La lección no cambia de módulo: `moduleId`,
         `courseId` y `status` en el cuerpo son `400`. Exige `courses:update`.
-      operationId: corregir_6
+      operationId: corregir_7
       parameters:
       - name: courseId
         in: path
@@ -8245,7 +8596,7 @@ paths:
 
         Un cuerpo sin cambios de valor responde `200` sin avanzar `updatedAt` ni
         auditar. La respuesta es la forma del detalle. Exige `course-categories:update`.
-      operationId: corregir_7
+      operationId: corregir_8
       parameters:
       - name: id
         in: path
@@ -8378,7 +8729,7 @@ paths:
         producto de precio cero se rechaza con `409` (`EX-008`). Y un importe
         fijo tiene que **caber en los decimales de la moneda del producto**
         (`VAL-013`).
-      operationId: corregir_8
+      operationId: corregir_9
       parameters:
       - name: id
         in: path
@@ -8425,6 +8776,67 @@ paths:
               schema:
                 $ref: "#/components/schemas/CommissionRateResponse"
       x-required-permission: commissions:update
+  /api/v1/afftrack-rates/{id}:
+    patch:
+      tags:
+      - Comisiones afftrack
+      summary: Corregir el límite o el valor de una comisión afftrack de rol
+      description: |
+        **Permiso requerido:** `afftrack-rates:update`. Sin él, `403` (`AUTH-002`).
+
+        Corrige `threshold`, `amountPerFtd` o los dos. **El rol y el producto no
+        se corrigen** (`EX-002`): se retira el escalón y se registra otro. Vaciar
+        un campo se rechaza.
+
+        **Lo ya pagado no cambia**: cada comisión afftrack copió el límite y el
+        valor que pagó. El siguiente cierre usa lo nuevo. Un límite que ya tiene
+        otro escalón vivo del mismo rol y producto responde `409`.
+      operationId: corregir_10
+      parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UpdateAfftrackRateRequest"
+        required: true
+      responses:
+        "200":
+          description: "Escalón corregido, o sin cambios"
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/AfftrackRate"
+        "400":
+          description: "Datos inválidos, campos no corregibles o petición vacía"
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/AfftrackRate"
+        "403":
+          description: Sin `afftrack-rates:update`
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/AfftrackRate"
+        "404":
+          description: "No existe, o está retirado"
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/AfftrackRate"
+        "409":
+          description: Ese límite ya lo tiene otro escalón vivo
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/AfftrackRate"
+      x-required-permission: afftrack-rates:update
   /api/v1/users/{id}/team:
     get:
       tags:
@@ -10238,7 +10650,7 @@ paths:
 
         **No se pagina**: son unos pocos elementos, y partirlos obligaría a dos
         llamadas para pintar un desplegable.
-      operationId: listar_9
+      operationId: listar_11
       parameters:
       - name: includeInactive
         in: query
@@ -10628,7 +11040,7 @@ paths:
 
         Filtros: `origin` (`PROGRAMADO`, `MANUAL`) y `from`/`to` sobre el inicio. Los errores
         de los filtros salen **todos juntos**.
-      operationId: listar_10
+      operationId: listar_12
       parameters:
       - name: filtros
         in: query
@@ -10679,7 +11091,7 @@ paths:
 
         **Alcance global**: quien porta el permiso ve todos los lotes. Ver solo los de la red
         depende de **D-22**; los propios son `GET /commission-batches/mine`.
-      operationId: listar_11
+      operationId: listar_13
       parameters:
       - name: filtros
         in: query
@@ -10728,6 +11140,12 @@ paths:
 
         **Lo copiado, no lo de hoy** (`RN-CM-008`): corregir la tasa después no cambia lo que
         aquí se lee.
+
+        **Cada comisión dice su clase en `commissionKind`** (`RN-CM-044`, 29-09-2026):
+        `POR_VENTA`, con todo lo anterior; o `POR_AFFTRACK`, un escalón pagado en un cierre,
+        que **no trae** `movementDetailId`, `movementId`, `movementCode`, `chainLevel` ni
+        `unitPrice` —no sale de una línea—: `productId` es el producto FTD, `quantity` los FTD
+        pagados, `fixedAmount` el valor por FTD y `afftrackSettlementId` la liquidación.
       operationId: detalle_8
       parameters:
       - name: id
@@ -10825,8 +11243,9 @@ paths:
         **Permiso requerido:** `commission-batches:read-own`. Sin él, `403` (`AUTH-002`).
 
         Uno de **mis** lotes, con sus comisiones, en la forma del detalle de administración
-        (`RF-CM-012`). **Un lote ajeno responde `404`**, igual que uno que no existe: no se
-        confirma que exista.
+        (`RF-CM-012`), **con la clase de cada comisión** —`POR_VENTA` o `POR_AFFTRACK`—.
+        **Un lote ajeno responde `404`**, igual que uno que no existe: no se confirma que
+        exista.
       operationId: miLote
       parameters:
       - name: id
@@ -10888,7 +11307,7 @@ paths:
         Una línea **sin desenlace todavía** no aparece: la recogerá el barrido del siguiente
         cierre. Filtros `outcome`, `movementId`, `productId`, y `from`/`to` sobre el último
         intento, con los errores todos juntos.
-      operationId: listar_12
+      operationId: listar_14
       parameters:
       - name: filtros
         in: query
@@ -10948,7 +11367,7 @@ paths:
 
         **No se pagina**: son unos pocos elementos y partirlos obligaría a dos
         llamadas para pintar un desplegable.
-      operationId: listar_13
+      operationId: listar_15
       parameters:
       - name: includeInactive
         in: query
@@ -11060,7 +11479,7 @@ paths:
 
         **Esta ruta no sustituye a `GET /api/v1/users/{id}/broker-accounts`**,
         que existe para **el superior comercial sin permiso**.
-      operationId: listar_14
+      operationId: listar_16
       parameters:
       - name: page
         in: query
@@ -11714,6 +12133,59 @@ paths:
               schema:
                 $ref: "#/components/schemas/PageResponseChangeAuditItem"
       x-required-permission: audit:read-changes
+  /api/v1/afftrack-settlements:
+    get:
+      tags:
+      - Comisiones afftrack
+      summary: Consultar las liquidaciones afftrack
+      description: |
+        **Permiso requerido:** `afftrack-settlements:read`. Sin él, `403` (`AUTH-002`).
+
+        Lo que **cada cierre** hizo con los FTD de cada persona y producto
+        (`RF-CM-020`): `carriedIn` —el remanente con el que llegó—, `newFtds`
+        —los contados en ese cierre, repartidos en `ownFtds` y `networkFtds`—,
+        `paidFtds` y `carriedOut` —**el remanente para el siguiente cierre**—.
+        Si alcanzó un escalón, `tier` dice cuál **tal como se pagó** —aunque
+        después se corrigiera o retirara— y `amount` lo pagado; si no, los dos
+        son nulos.
+
+        Del cierre más reciente al más antiguo. Filtros `userId`, `productId`,
+        `closingId`, `from`/`to` sobre el instante del cierre y `paid`
+        (`true`: solo las que pagaron). **Filtrando por persona y producto, la
+        primera fila es su remanente vigente.**
+      operationId: listar_17
+      parameters:
+      - name: filtros
+        in: query
+        required: true
+        schema:
+          $ref: "#/components/schemas/ListAfftrackSettlementsRequest"
+      responses:
+        "200":
+          description: Página de liquidaciones
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/AfftrackSettlementPage"
+        "400":
+          description: Filtros inválidos
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/AfftrackSettlementPage"
+        "401":
+          description: Sin token
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/AfftrackSettlementPage"
+        "403":
+          description: Sin `afftrack-settlements:read`
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/AfftrackSettlementPage"
+      x-required-permission: afftrack-settlements:read
   /api/v1/academy-images/{imageId}:
     get:
       tags:
@@ -12740,6 +13212,96 @@ components:
         fullName:
           type: string
     DeleteCommissionRateRequest:
+      type: object
+      properties:
+        reason:
+          type: string
+    RegisterUserAfftrackRateRequest:
+      type: object
+      properties:
+        userId:
+          type: string
+          format: uuid
+        productId:
+          type: string
+          format: uuid
+        threshold:
+          type: number
+        amountPerFtd:
+          type: number
+          minimum: 0.0000
+        validFrom:
+          type: string
+          format: date
+        validTo:
+          type: string
+          format: date
+      required:
+      - amountPerFtd
+      - productId
+      - threshold
+      - userId
+      - validFrom
+    AfftrackRateProduct:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        code:
+          type: string
+        name:
+          type: string
+        currency:
+          $ref: "#/components/schemas/AfftrackRateProductCurrency"
+    AfftrackRateProductCurrency:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        code:
+          type: string
+        decimalPlaces:
+          type: integer
+          format: int32
+    UserAfftrackRate:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        user:
+          $ref: "#/components/schemas/UserAfftrackRateUser"
+        product:
+          $ref: "#/components/schemas/AfftrackRateProduct"
+        threshold:
+          type: integer
+          format: int32
+        amountPerFtd:
+          type: number
+        amountAtThreshold:
+          type: number
+        validFrom:
+          type: string
+          format: date
+        validTo:
+          type: string
+          format: date
+        createdAt:
+          type: string
+          format: date-time
+    UserAfftrackRateUser:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        username:
+          type: string
+        fullName:
+          type: string
+    DeleteAfftrackRateRequest:
       type: object
       properties:
         reason:
@@ -14423,6 +14985,11 @@ components:
         accruedAt:
           type: string
           format: date-time
+        commissionKind:
+          type: string
+        afftrackSettlementId:
+          type: string
+          format: uuid
     CommissionClosingResponse:
       type: object
       properties:
@@ -14623,6 +15190,55 @@ components:
       required:
       - identifier
       - password
+    RegisterAfftrackRateRequest:
+      type: object
+      properties:
+        roleId:
+          type: string
+          format: uuid
+        productId:
+          type: string
+          format: uuid
+        threshold:
+          type: number
+        amountPerFtd:
+          type: number
+          minimum: 0.0000
+      required:
+      - amountPerFtd
+      - productId
+      - roleId
+      - threshold
+    AfftrackRate:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        product:
+          $ref: "#/components/schemas/AfftrackRateProduct"
+        role:
+          $ref: "#/components/schemas/AfftrackRateRole"
+        threshold:
+          type: integer
+          format: int32
+        amountPerFtd:
+          type: number
+        amountAtThreshold:
+          type: number
+        createdAt:
+          type: string
+          format: date-time
+    AfftrackRateRole:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        code:
+          type: string
+        name:
+          type: string
     PatchableString: {}
     PatchableUUID: {}
     UpdateUserRequest:
@@ -14815,6 +15431,21 @@ components:
         validTo:
           $ref: "#/components/schemas/PatchableLocalDate"
         userId:
+          $ref: "#/components/schemas/PatchableObject"
+        validFrom:
+          $ref: "#/components/schemas/PatchableObject"
+    UpdateUserAfftrackRateRequest:
+      type: object
+      properties:
+        threshold:
+          $ref: "#/components/schemas/PatchableBigDecimal"
+        amountPerFtd:
+          $ref: "#/components/schemas/PatchableBigDecimal"
+        validTo:
+          $ref: "#/components/schemas/PatchableLocalDate"
+        userId:
+          $ref: "#/components/schemas/PatchableObject"
+        productId:
           $ref: "#/components/schemas/PatchableObject"
         validFrom:
           $ref: "#/components/schemas/PatchableObject"
@@ -15080,6 +15711,17 @@ components:
         fixedAmount:
           $ref: "#/components/schemas/PatchableBigDecimal"
         roleId:
+          $ref: "#/components/schemas/PatchableObject"
+    UpdateAfftrackRateRequest:
+      type: object
+      properties:
+        threshold:
+          $ref: "#/components/schemas/PatchableBigDecimal"
+        amountPerFtd:
+          $ref: "#/components/schemas/PatchableBigDecimal"
+        roleId:
+          $ref: "#/components/schemas/PatchableObject"
+        productId:
           $ref: "#/components/schemas/PatchableObject"
     PageResponse:
       type: object
@@ -15406,6 +16048,75 @@ components:
           type: array
           items:
             $ref: "#/components/schemas/UserCommissionRateItem"
+        totalElements:
+          type: integer
+          format: int64
+        totalPages:
+          type: integer
+          format: int32
+        page:
+          type: integer
+          format: int32
+        size:
+          type: integer
+          format: int32
+        totalIsExact:
+          type: boolean
+        sort:
+          type: string
+    ListUserAfftrackRatesRequest:
+      type: object
+      properties:
+        page:
+          type: integer
+          format: int32
+        size:
+          type: integer
+          format: int32
+        userId:
+          type: string
+          format: uuid
+        productId:
+          type: string
+          format: uuid
+        onDate:
+          type: string
+          format: date
+        includeDeleted:
+          type: boolean
+    UserAfftrackRateItem:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        user:
+          $ref: "#/components/schemas/UserAfftrackRateUser"
+        product:
+          $ref: "#/components/schemas/AfftrackRateProduct"
+        threshold:
+          type: integer
+          format: int32
+        amountPerFtd:
+          type: number
+        amountAtThreshold:
+          type: number
+        validFrom:
+          type: string
+          format: date
+        validTo:
+          type: string
+          format: date
+        deletedAt:
+          type: string
+          format: date-time
+    UserAfftrackRatePage:
+      type: object
+      properties:
+        content:
+          type: array
+          items:
+            $ref: "#/components/schemas/UserAfftrackRateItem"
         totalElements:
           type: integer
           format: int64
@@ -17427,6 +18138,168 @@ components:
           format: int32
         totalIsExact:
           type: boolean
+    ListAfftrackSettlementsRequest:
+      type: object
+      properties:
+        page:
+          type: integer
+          format: int32
+        size:
+          type: integer
+          format: int32
+        userId:
+          type: string
+          format: uuid
+        productId:
+          type: string
+          format: uuid
+        closingId:
+          type: string
+          format: uuid
+        from:
+          type: string
+          format: date-time
+        to:
+          type: string
+          format: date-time
+        paid:
+          type: boolean
+    AfftrackSettlement:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        closing:
+          $ref: "#/components/schemas/AfftrackSettlementClosing"
+        user:
+          $ref: "#/components/schemas/UserAfftrackRateUser"
+        product:
+          $ref: "#/components/schemas/AfftrackRateProduct"
+        carriedIn:
+          type: integer
+          format: int32
+        newFtds:
+          type: integer
+          format: int32
+        ownFtds:
+          type: integer
+          format: int32
+        networkFtds:
+          type: integer
+          format: int32
+        paidFtds:
+          type: integer
+          format: int32
+        carriedOut:
+          type: integer
+          format: int32
+        tier:
+          $ref: "#/components/schemas/AfftrackSettlementTier"
+        amount:
+          type: number
+    AfftrackSettlementClosing:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        closedAt:
+          type: string
+          format: date-time
+    AfftrackSettlementPage:
+      type: object
+      properties:
+        content:
+          type: array
+          items:
+            $ref: "#/components/schemas/AfftrackSettlement"
+        totalElements:
+          type: integer
+          format: int64
+        totalPages:
+          type: integer
+          format: int32
+        page:
+          type: integer
+          format: int32
+        size:
+          type: integer
+          format: int32
+        totalIsExact:
+          type: boolean
+        sort:
+          type: string
+    AfftrackSettlementTier:
+      type: object
+      properties:
+        threshold:
+          type: integer
+          format: int32
+        amountPerFtd:
+          type: number
+        source:
+          type: string
+    ListAfftrackRatesRequest:
+      type: object
+      properties:
+        page:
+          type: integer
+          format: int32
+        size:
+          type: integer
+          format: int32
+        productId:
+          type: string
+          format: uuid
+        roleId:
+          type: string
+          format: uuid
+        includeDeleted:
+          type: boolean
+    AfftrackRateItem:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        product:
+          $ref: "#/components/schemas/AfftrackRateProduct"
+        role:
+          $ref: "#/components/schemas/AfftrackRateRole"
+        threshold:
+          type: integer
+          format: int32
+        amountPerFtd:
+          type: number
+        amountAtThreshold:
+          type: number
+        deletedAt:
+          type: string
+          format: date-time
+    AfftrackRatePage:
+      type: object
+      properties:
+        content:
+          type: array
+          items:
+            $ref: "#/components/schemas/AfftrackRateItem"
+        totalElements:
+          type: integer
+          format: int64
+        totalPages:
+          type: integer
+          format: int32
+        page:
+          type: integer
+          format: int32
+        size:
+          type: integer
+          format: int32
+        totalIsExact:
+          type: boolean
+        sort:
+          type: string
   securitySchemes:
     bearerAuth:
       type: http

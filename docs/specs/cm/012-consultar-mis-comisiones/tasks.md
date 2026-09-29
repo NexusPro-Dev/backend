@@ -7,6 +7,7 @@
 | Plan | [`plan.md`](plan.md) v0.1.0 |
 | `plan.md` aprobado el | 28-09-2026 |
 | Estado | **En revisión** — todas las tareas `Hecha` el 28-09-2026 |
+| Enmendadas | 29-09-2026 — `T-05` por **la clase de cada comisión** (`RN-CM-044`) |
 | Issue | Pendiente de crear |
 | Rama | `feature/devengo-de-comisiones` |
 
@@ -45,6 +46,8 @@
 
 ## 3.1 Desviaciones respecto del plan
 
+- **`T-05`**: `CA-CM-263` se prueba en `AfftrackSettlementIT`.
+
 - **La variante propia es un parámetro del servicio de `RF-CM-010`**, no un servicio aparte; `MyCommissionBatchesRequest` no declara la persona.
 - **Las pruebas viven en `CommissionBatchesIT`**, junto a las de `RF-CM-010`, y no en `MyCommissionBatchesIT`.
 
@@ -60,3 +63,11 @@
 - [ ] Los seis criterios de aceptación con prueba.
 - [ ] Contrato y `requirements.md` actualizados.
 - [ ] **`tasks.md` aprobadas por el responsable del proyecto.**
+
+## 6. La clase de cada comisión — enmienda del 29-09-2026
+
+| ID | Tarea | Depende de | Verificación | Estado |
+|---|---|---|---|---|
+| `T-05` | `CA-CM-263` en `CommissionBatchesIT` | `RF-CM-010` `T-07` | | **Hecha** — 29-09-2026 |
+
+Rama: `feature/comision-afftrack`.

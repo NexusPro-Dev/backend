@@ -4,11 +4,12 @@
 |---|---|
 | Requerimiento | `RF-CM-010` |
 | Módulo | `CM` — Comisiones |
-| Versión | 0.1.0 |
+| Versión | 0.2.0 |
 | Estado | **Aprobada** |
 | Autor | Responsable técnico |
 | Aprobada por | Responsable del proyecto |
 | Fecha de aprobación | 28-09-2026 |
+| Enmendada el | 29-09-2026 — **cada comisión dice de qué clase es**, `POR_VENTA` o `POR_AFFTRACK` (`RN-CM-044`) |
 
 !!! info "Qué va en este documento"
 
@@ -91,6 +92,8 @@ Los lotes nacen con la primera comisión de una persona en una moneda (`RF-CM-01
 
 **Detalle**: lo mismo, y cada comisión con: la venta —identificador y comprobante—, el producto —identificador y nombre—, la persona que cobra ese nivel y el nivel, la fuente y la tasa exacta, la forma y el valor, el precio unitario y la cantidad, lo devengado, la fecha con que se resolvió y el instante del devengo.
 
+**Desde el 29-09-2026 cada comisión dice su clase** (`RN-CM-044`): **`POR_VENTA`**, con todo lo anterior; o **`POR_AFFTRACK`**, que **no tiene venta, línea ni nivel** y dice en su lugar el producto FTD, **cuántos FTD pagó** —el límite del escalón—, el valor por FTD, la fuente y el escalón exacto, y la liquidación de la que sale (`RF-CM-021`). **El listado cuenta las dos clases** en «cuántas comisiones tiene».
+
 ---
 
 ## 7. Precondiciones y postcondiciones
@@ -144,6 +147,7 @@ Los lotes nacen con la primera comisión de una persona en una moneda (`RF-CM-01
 | `CA-CM-186` | Un lote que no existe responde **no encontrado** |
 | `CA-CM-187` | Los filtros inválidos se rechazan **todos juntos** |
 | `CA-CM-188` | Sin el permiso de cada operación, se rechaza; las dos lecturas **no hacen una consulta por fila** |
+| `CA-CM-262` | El detalle de un lote con comisiones de las dos clases dice la de cada una: las `POR_VENTA` con su venta, línea y nivel; las `POR_AFFTRACK` **sin** ellos, con el producto, los FTD pagados, el valor y su liquidación; el total del lote las suma todas (29-09-2026) |
 
 ---
 
@@ -168,3 +172,5 @@ Ninguna.
 | Versión | Fecha | Cambio | Autor |
 |---|---|---|---|
 | 0.1.0 | 28-09-2026 | Primera versión ([`requirements/cm.md`](../../../requirements/cm.md) v0.20.0). Listado y detalle, con el lote abierto al día. Criterios `CA-CM-181` a `CA-CM-188`. | Responsable del proyecto |
+
+| 0.2.0 | 29-09-2026 | **Cada comisión dice su clase** (`RN-CM-044`, [`requirements/cm.md`](../../../requirements/cm.md) v0.22.0 §5.8): `POR_VENTA` o `POR_AFFTRACK`, y la segunda sin venta, línea ni nivel. `CA-CM-262`. | Responsable del proyecto |

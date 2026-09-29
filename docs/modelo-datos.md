@@ -2,11 +2,11 @@
 
 | Campo | Valor |
 |---|---|
-| Versión | 0.78.0 |
+| Versión | 0.80.0 |
 | Estado | **Borrador** |
 | Responsable | Bonilla Diaz William Steven |
 | Fecha de creación | 21-08-2026 |
-| Última actualización | 28-09-2026 |
+| Última actualización | 29-09-2026 |
 
 !!! info "Qué va en este documento"
 
@@ -667,6 +667,12 @@ Ninguna de las dos guarda una venta, y **las dos escribieron condiciones sobre q
 
     **Cuatro tablas, ninguna escrita todavía**: `commissions`, `commission_batches` —el lote de una persona, un periodo y una moneda, `ABIERTO` mientras crece—, `commission_accruals` —qué pasó con cada línea: `DEVENGADA`, `SIN_COMISION` o `RECHAZADA`— y `commission_closings` —cada cierre del periodo, programado o a mano—. Las crea la migración de `RF-CM-013`, la primera que se construya del submódulo.
 
+!!! info "Y desde el 29-09-2026 no todas las comisiones salen de una línea"
+
+    **`V51` escribió las cuatro tablas** el 28-09-2026. Al día siguiente, por decisión del responsable del proyecto, nace la **comisión afftrack** ([`requirements/cm.md`](requirements/cm.md) v0.22.0, §5.8): se paga **por FTD reunidos en el periodo** —las líneas `BECA → BECA` activadas de una persona y de toda su red—, comparados en cada cierre con una escala de límites, y **lo que sobra pasa al cierre siguiente**. La fila que la paga vive en la misma `commissions`, que gana **`commission_kind`** —`POR_VENTA` o `POR_AFFTRACK`— y deja de exigir línea, nivel y precio unitario a la segunda clase. **La copia de lo que se aplicó se cumple igual**: la fila afftrack guarda el valor por FTD, cuántos pagó y de qué escalón exacto salió.
+
+    **Cuatro tablas más, diseñadas**: `afftrack_rates` y `user_afftrack_rates` —los escalones, de rol y de persona, que calcan las dos tablas de tasas—, `afftrack_settlements` —lo que cada cierre hizo con los FTD de cada persona, **con el remanente**— y `afftrack_ftds` —qué FTD se le contaron a quién, una vez por persona—.
+
 | Quién lo exige | Qué exige |
 |---|---|
 | `requirements/pm.md` §1.4 | Cada compra guardará **el importe que se pagó y la vigencia que compró**, en lugar de leerlos del producto |
@@ -882,7 +888,7 @@ flowchart TB
 | `SP` | `permissions`, `roles`, `role_permissions`, `users`, `user_roles`, `memberships`, `user_products`, `currencies`, `countries`, `document_types`, `user_supervisors`, `client_sellers`, `refresh_tokens`, `password_reset_permits`, `exchange_rates`, `brokers`, `user_brokers`, `teams`, `team_members` | **17 escritas** (`client_sellers` desde `V20`, 21-09-2026) **y dos diseñadas**: `teams` y `team_members`, que creará `V33` con `RF-SP-063` (21-09-2026) |
 | `SP` · auditoría | `audit_change_log`, `audit_deletion_log`, `audit_error_log`, `audit_security_log`, `request_log` | **5, escritas** |
 | `PM` | `products`, `product_comments`, `product_images`, `product_packages`, `product_package_items`, `product_links` | **3 escritas** (`V39`, `V87`, `V90`) **y dos diseñadas**: las de los paquetes, que creará la migración de `RF-PM-017` (14-09-2026). **`product_links` la crea `V35`** (22-09-2026), y con ella `products` **pierde** `video_url` |
-| `CM` | `commission_rates`, `user_commission_rates`, `commissions`, `commission_batches`, `commission_accruals`, `commission_closings` | **2, escritas** (`V6` del esquema consolidado), **y cuatro diseñadas** para la liquidación: las dos primeras el 24-09-2026 y las dos últimas el 28-09-2026, con el devengo automático ([`requirements/cm.md`](requirements/cm.md) v0.19.0 §7.5 a §7.8). `product_commission_rates` existió de `V49` a `V94` (15-09-2026) y `user_commission_rate_products` de `V85` a `V10` (16-09-2026) |
+| `CM` | `commission_rates`, `user_commission_rates`, `commissions`, `commission_batches`, `commission_accruals`, `commission_closings`, `afftrack_rates`, `user_afftrack_rates`, `afftrack_settlements`, `afftrack_ftds` | **6, escritas**: las dos de tasas (`V6` del esquema consolidado) y las cuatro de la liquidación (`V51`, 28-09-2026, [`requirements/cm.md`](requirements/cm.md) §7.5 a §7.8). **Y las cuatro de la comisión afftrack**, escritas por `V54` el 29-09-2026 ([`requirements/cm.md`](requirements/cm.md) v0.22.0 §7.9 a §7.12), que además cambia `commissions`: gana `commission_kind` y `afftrack_settlement_id`. **Diez, escritas.** `product_commission_rates` existió de `V49` a `V94` (15-09-2026) y `user_commission_rate_products` de `V85` a `V10` (16-09-2026) |
 | `MV` | `movements`, `movement_types`, `movement_type_statuses`, `movement_details`, `movement_detail_discounts`, `payment_methods`, `payment_method_exclusions`, `payments`, `accounts`, `movement_entries` | **10, escritas** (`V7` del esquema consolidado, `V14` para las rebajas, `V36` para los estados por tipo, **`V48` para `payments` y `V49` para `accounts` y `movement_entries`**, 26-09-2026: la etapa 6 —pagos, saldos y retiros— de [`requirements/mv.md` §4.3](requirements/mv.md)). Su forma vive en §7.7 a §7.9 de ese documento y no se repite aquí. **`movements` perdió `payment_method_id`** (`V48`), que pasó a `payments` |
 | `AC` | `course_categories`, `courses`, `course_category_items`, `course_recommendations`, `course_memberships`, `course_products`, `course_modules`, `lessons`, `academy_images` | **8 escritas** —`course_categories` (`V18`), `courses` (`V21`), `course_modules` (`V23`), `lessons` (`V24`), `course_category_items` (`V42`), `course_products` (`V43`), `academy_images` (`V44`) y `course_memberships` (`V45`), las cuatro últimas el 25-09-2026— **y una diseñada**, `course_recommendations` (§4.2): las crearán los requerimientos que las estrenan, en el orden de [`requirements/ac.md`](requirements/ac.md) §6.1 |
 
@@ -930,6 +936,10 @@ Son las que siguen —**y desde el 14-09-2026 una de `PM` apunta a `users`**—,
 | `commissions.user_id`, `commission_batches.user_id` | `users` | `CM` → `SP` — quién cobra ese nivel, y de quién es el lote (24-09-2026, diseñadas) |
 | `commission_batches.currency_id` | `currencies` | `CM` → `SP` — la moneda del lote, que es donde **nace** la moneda de una comisión (`RN-CM-017`) |
 | `commission_closings.triggered_by` | `users` | `CM` → `SP` — quién lanzó un cierre a mano; nula en el programado (28-09-2026, diseñada) |
+| `afftrack_rates.product_id`, `user_afftrack_rates.product_id`, `afftrack_settlements.product_id` | `products` | `CM` → `PM` — el producto FTD de cada escalón y de cada liquidación (29-09-2026, diseñadas). Sin `ON DELETE`: el producto no se borra (`RN-PM-010`) |
+| `afftrack_rates.role_id` | `roles` | `CM` → `SP` — el rol vendedor de un escalón de rol (29-09-2026, diseñada) |
+| `user_afftrack_rates.user_id`, `afftrack_settlements.user_id`, `afftrack_ftds.user_id` | `users` | `CM` → `SP` — de quién es el escalón, la liquidación y cada FTD contado (29-09-2026, diseñadas) |
+| `afftrack_ftds.movement_detail_id` | `movement_details` | `CM` → `MV` — la línea FTD contada (29-09-2026, diseñada). **`RESTRICT`**, como `commissions.movement_detail_id`: la tercera clave que obliga a las suites que limpian `movements` a limpiar antes lo de `CM` |
 
 **Y una que no cruza ningún módulo pero conviene ver aquí**: `product_packages.cover_image_id` → `product_images` (`PM` → `PM`, `V11`, 16-09-2026), la segunda columna que señala esa tabla. Junto con `products.cover_image_id`, hace de `product_images` **el valor de dos columnas de dos tablas**, sin que la tabla sepa de cuál viene cada fila.
 
@@ -1060,3 +1070,5 @@ Los documentos que citan una migración vieja por su número —specs, controles
 | 0.76.0 | 28-09-2026 | **La deuda de §4.1 con la comisión tiene dueño** ([`requirements/cm.md`](requirements/cm.md) v0.19.0, §5.7): `CM` devenga **solo y en el momento** cada línea de venta cobrada y con vendedor, y copia en `commissions` la forma, el valor, la base, la moneda y la tasa exacta que aplicó. §4.1 lo recoge con una caja nueva; la deuda que decía «sigue sin dueño» —escrita cuando la venta aún no devengaba— se conserva, porque dice lo que era cierto aquel día. **Cuatro tablas diseñadas** en el inventario de `CM` (§5.1) —`commissions` y `commission_batches` del 24-09-2026, que este documento no había recogido, y `commission_accruals` y `commission_closings` de hoy— y **seis claves foráneas** que cruzan módulo en §5.3, dos de ellas de `CM` hacia `MV` con `RESTRICT`. Sin migración: las crea la de `RF-CM-013`. | Responsable del proyecto |
 | 0.77.0 | 28-09-2026 | **`product_links` admite un tercer tipo, `DESCARGA`** (`V52`, [`requirements/pm.md`](requirements/pm.md) v0.45.0 §5.2.15), por decisión del responsable del proyecto: dónde descarga quien compró lo que compró. **Es entrega y no material de venta**, como `CUPON_BOT`. `V52` reescribe `ck_product_links_type` —el `CHECK` y el enumerado admiten lo mismo a propósito— y el comentario de `type`; ninguna tabla ni fila cambia | Responsable del proyecto |
 | 0.78.0 | 28-09-2026 | **`V53` reescribe el comentario de `product_links.type`**: los enlaces de entrega se ven en `RF-MV-014` desde que se pagó y no desde que se entregó (`RN-MV-032`, [`requirements/mv.md`](requirements/mv.md) v0.51.0). Ningún esquema cambia | Responsable del proyecto |
+| 0.79.0 | 29-09-2026 | **`CM` diseña la comisión afftrack** ([`requirements/cm.md`](requirements/cm.md) v0.22.0 §5.8, §7.9 a §7.12), por decisión del responsable del proyecto: escalones por FTD —líneas `BECA → BECA` activadas— que se liquidan en cada cierre y guardan el remanente. §4.1 lo recoge con una caja nueva. **Cuatro tablas diseñadas** en el inventario de `CM` (§5.1) —`afftrack_rates`, `user_afftrack_rates`, `afftrack_settlements` y `afftrack_ftds`— y **`commissions` cambiará**: gana `commission_kind` (`POR_VENTA` \| `POR_AFFTRACK`) y `afftrack_settlement_id`. **De paso, el inventario de `CM` se pone al día**: decía «cuatro diseñadas» de la liquidación cuando `V51` ya las había escrito el 28-09-2026. **Cuatro claves foráneas más** que cruzan módulo en §5.3, una de ellas de `CM` hacia `MV` con `RESTRICT`. Sin migración todavía. | Responsable del proyecto |
+| 0.80.0 | 29-09-2026 | **Las cuatro tablas afftrack están escritas** (`V54`): `afftrack_rates`, `user_afftrack_rates`, `afftrack_settlements` y `afftrack_ftds`, y `commissions` gana `commission_kind` —sin valor por omisión: se retira en la misma migración— y `afftrack_settlement_id`, con `movement_detail_id`, `chain_level` y `unit_price` nulables y atados a la clase por `ck_commissions_kind`. `CM` pasa a diez tablas escritas. | Responsable del proyecto |

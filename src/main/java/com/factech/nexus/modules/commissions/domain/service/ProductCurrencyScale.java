@@ -40,6 +40,21 @@ public class ProductCurrencyScale {
     if (valor == null || valor.getRateType() != CommissionRateType.FIJO) {
       return;
     }
+    verificarImporte(productId, valor.getFixedAmount(), errorCode, "fixedAmount", "El valor fijo");
+  }
+
+  /**
+   * El mismo límite para un importe suelto: el valor por FTD de un escalón afftrack (`RN-CM-038`),
+   * que no es un {@link CommissionValue} porque no tiene forma que elegir.
+   *
+   * @param campo el campo del cuerpo que se señala en el error
+   * @param nombre cómo se llama el importe en el mensaje
+   */
+  public void verificarImporte(
+      UUID productId, java.math.BigDecimal importe, String errorCode, String campo, String nombre) {
+    if (importe == null) {
+      return;
+    }
     List<SaleView> vistas = productos.saleViewOf(List.of(productId));
     if (vistas.isEmpty()) {
       // El caso de uso ya comprobó que el producto existe; llegar aquí sin él
@@ -48,13 +63,14 @@ public class ProductCurrencyScale {
           "El producto " + productId + " no tiene moneda: no debería llegar aquí.");
     }
     int decimales = vistas.get(0).currencyDecimalPlaces();
-    if (!ProductPrice.cabeEn(valor.getFixedAmount(), decimales)) {
+    if (!ProductPrice.cabeEn(importe, decimales)) {
       String mensaje =
-          "El valor fijo no admite más decimales que los de la moneda del producto ("
+          nombre
+              + " no admite más decimales que los de la moneda del producto ("
               + decimales
               + ").";
       throw new ValidationException(
-          errorCode, mensaje, List.of(new FieldError("fixedAmount", errorCode, mensaje)));
+          errorCode, mensaje, List.of(new FieldError(campo, errorCode, mensaje)));
     }
   }
 }
