@@ -1,17 +1,22 @@
 package com.factech.nexus.modules.commissions.domain.service;
 
 import com.factech.nexus.modules.commissions.domain.models.AccrualOutcome;
+import com.factech.nexus.modules.commissions.domain.models.CommissionRateType;
+import com.factech.nexus.modules.commissions.domain.models.RateSource;
 import com.factech.nexus.modules.commissions.domain.repository.CommissionAccrualRepository;
 import com.factech.nexus.modules.commissions.domain.repository.CommissionAccrualRepository.AccrualRow;
 import com.factech.nexus.modules.commissions.domain.repository.CommissionAccrualRepository.NewCommission;
 import com.factech.nexus.modules.commissions.domain.repository.CommissionBatchRepository;
 import com.factech.nexus.modules.commissions.domain.repository.CommissionBatchRepository.OpenBatch;
+import com.factech.nexus.modules.commissions.domain.repository.CommissionResolutionRepository.ResolvedRate;
 import com.factech.nexus.modules.commissions.domain.service.ChainCommissionCalculator.Level;
 import com.factech.nexus.modules.commissions.domain.service.ChainCommissionCalculator.LevelCommission;
 import com.factech.nexus.modules.commissions.domain.service.ChainCommissionCalculator.Verdict;
 import com.factech.nexus.modules.movements.application.CommissionableLines;
 import com.factech.nexus.modules.movements.application.CommissionableLines.CommissionableLine;
 import com.factech.nexus.modules.products.application.ProductCatalog;
+import com.factech.nexus.modules.system.users.application.LastLinkRoles;
+import com.factech.nexus.modules.system.users.application.SellerRoleCatalog;
 import com.factech.nexus.modules.system.users.application.SupervisorChain;
 import com.factech.nexus.shared.audit.AuditEnums.ChangeAction;
 import com.factech.nexus.shared.audit.AuditEvents.ChangeEvent;
@@ -66,6 +71,8 @@ public class CommissionAccrualService {
   private final BusinessCalendar calendario;
   private final AuditWriter auditoria;
   private final ProductCatalog productos;
+  private final SellerRoleCatalog rolesVendedores;
+  private final LastLinkRoles ultimoEslabon;
   private final TransactionTemplate porLinea;
 
   public CommissionAccrualService(
@@ -77,6 +84,8 @@ public class CommissionAccrualService {
       BusinessCalendar calendario,
       AuditWriter auditoria,
       ProductCatalog productos,
+      SellerRoleCatalog rolesVendedores,
+      LastLinkRoles ultimoEslabon,
       PlatformTransactionManager transacciones) {
     this.lineas = lineas;
     this.cadenas = cadenas;
@@ -86,6 +95,8 @@ public class CommissionAccrualService {
     this.calendario = calendario;
     this.auditoria = auditoria;
     this.productos = productos;
+    this.rolesVendedores = rolesVendedores;
+    this.ultimoEslabon = ultimoEslabon;
     this.porLinea = new TransactionTemplate(transacciones);
     this.porLinea.setPropagationBehavior(TransactionDefinition.PROPAGATION_REQUIRES_NEW);
   }
@@ -105,9 +116,11 @@ public class CommissionAccrualService {
     // Una vez por tanda y no por línea (`RF-CM-013` `plan.md` §12): la definición de FTD es de
     // `PM`, y el conjunto es pequeño.
     Set<UUID> ftd = detailIds.isEmpty() ? Set.of() : productos.ftdProductIds();
+    // Igual, una vez por tanda: los roles del último eslabón (`RN-CM-045`).
+    Set<UUID> eslabon = detailIds.isEmpty() ? Set.of() : ultimoEslabon.ids();
     for (UUID id : detailIds) {
       try {
-        resumen.contar(porLinea.execute(estado -> atenderLinea(id, reintento, ftd)));
+        resumen.contar(porLinea.execute(estado -> atenderLinea(id, reintento, ftd, eslabon)));
       } catch (RuntimeException e) {
         // `EX-001` y `EX-002`: la línea se queda sin desenlace y la recoge el
         // siguiente barrido. No se escribe nada más: la ausencia ES la constancia.
@@ -121,7 +134,8 @@ public class CommissionAccrualService {
   /**
    * @return el desenlace escrito, o vacío si la línea no se atendió (`FA-001`)
    */
-  private Optional<AccrualOutcome> atenderLinea(UUID id, boolean reintento, Set<UUID> ftd) {
+  private Optional<AccrualOutcome> atenderLinea(
+      UUID id, boolean reintento, Set<UUID> ftd, Set<UUID> eslabon) {
     desenlaces.lockLine(id);
     Optional<AccrualRow> previo = desenlaces.find(id);
     if (previo.isPresent() && !(reintento && previo.get().outcome() == AccrualOutcome.RECHAZADA)) {
@@ -144,8 +158,11 @@ public class CommissionAccrualService {
     List<UUID> cadena = cadenas.chainAt(linea.sellerId(), linea.occurredAt());
     for (int nivel = 0; nivel < cadena.size(); nivel++) {
       UUID persona = cadena.get(nivel);
-      niveles.add(
-          new Level(persona, nivel, resolucion.rateFor(persona, linea.productId(), diaDeVenta)));
+      Optional<ResolvedRate> tasa = resolucion.rateFor(persona, linea.productId(), diaDeVenta);
+      if (nivel == 0) {
+        tasa = ventaPropia(persona, linea.productId(), tasa, eslabon);
+      }
+      niveles.add(new Level(persona, nivel, tasa));
     }
     Verdict veredicto =
         ChainCommissionCalculator.calcular(linea.unitPrice(), linea.quantity(), niveles);
@@ -183,6 +200,37 @@ public class CommissionAccrualService {
     }
     auditar(id, linea, veredicto, previo, reintento);
     return Optional.of(veredicto.outcome());
+  }
+
+  /**
+   * `RN-CM-045`: la venta propia de quien no es el último eslabón.
+   *
+   * <p><b>La personalizada sigue ganando</b> —el responsable del proyecto lo corrigió el mismo
+   * 29-09-2026—: solo se sustituye lo que resolvió el rol, o la ausencia de tasa. <b>Sin rol
+   * vendedor no hay rango</b>, y se deja como estaba. <b>Sin directa</b> —un FTD, que no llega
+   * hasta aquí, o un producto anterior a `V55` que nadie tocó— tampoco.
+   */
+  private Optional<ResolvedRate> ventaPropia(
+      UUID vendedor, UUID productId, Optional<ResolvedRate> tasa, Set<UUID> eslabon) {
+    if (tasa.isPresent() && tasa.get().source() == RateSource.PERSONALIZADA) {
+      return tasa;
+    }
+    Optional<UUID> rol = rolesVendedores.sellerRoleOf(vendedor);
+    if (rol.isEmpty() || eslabon.contains(rol.get())) {
+      return tasa;
+    }
+    return productos
+        .directCommissionOf(productId)
+        .map(
+            directa ->
+                new ResolvedRate(
+                    RateSource.DIRECTA,
+                    productId,
+                    CommissionRateType.valueOf(directa.type()),
+                    directa.value(),
+                    null,
+                    null))
+        .or(() -> tasa);
   }
 
   private void auditar(

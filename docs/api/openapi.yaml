@@ -2123,6 +2123,10 @@ paths:
         se ven juntos: la oferta y el hotlink no devuelven el de compra
         (`RN-PM-024`, 12-09-2026).
 
+        Cada fila trae **`directCommission`**, la comisión por venta directa
+        (`RN-PM-051`), **presente y nula** en un FTD. Es un dato de nómina:
+        como el precio de compra, la oferta y el hotlink no la devuelven.
+
         Y trae **`exchange`**, la conversión a la moneda por omisión con la
         tasa vigente hoy, calculada **sobre `price`** —el de compra nunca se
         convierte—. Llega **presente y nula** cuando el producto ya está en
@@ -2325,6 +2329,19 @@ paths:
         admite** desde que existe la renovación de una membresía gratuita— y
         con los decimales que declare su moneda. El rechazo **nombra el
         campo** que incumple.
+
+        **`directCommission` es obligatoria, salvo en un FTD** (`RN-PM-051`,
+        29-09-2026): lo que cobra en su venta propia quien **no es el último
+        eslabón** de la fuerza comercial —hoy un `DIRECTOR` o un `MANAGER`—,
+        en lugar de su tasa de rol. Un objeto con `type` —`PORCENTAJE` o
+        `FIJO`— y **solo** el campo que le toca (`percentage` o
+        `fixedAmount`). El porcentaje va de 0 a 100; el fijo no es negativo,
+        cabe en los decimales de la moneda y **no pasa del precio**; sobre un
+        producto de precio cero **solo se admite fija**. Sin ella, `VAL-024`;
+        con la forma equivocada, `VAL-025`; fuera de rango, `VAL-026`; por
+        encima del precio o de porcentaje sobre un gratuito, `VAL-027`. **Un
+        FTD —un upgrade de `BECA` a `BECA`— no la lleva**: declararla es
+        `VAL-028`, y la respuesta la devuelve **presente y nula**.
 
         **Los dos solo se ven desde administración** (`RN-PM-024`): la oferta
         de un cliente y el hotlink público devuelven **uno**.
@@ -7092,6 +7109,10 @@ paths:
         compra solo se ve aquí y en el listado: la oferta y el hotlink no lo
         devuelven.
 
+        Trae **`directCommission`**, la comisión por venta directa
+        (`RN-PM-051`) —también en un producto retirado—, **presente y nula**
+        en un FTD.
+
         Trae **`links`**, los enlaces del producto **tal cual se guardaron** y
         **presente y vacía** cuando no tiene ninguno (`RN-PM-048`) — también en
         un producto retirado. Como el listado, **los enseña todos**,
@@ -7176,6 +7197,14 @@ paths:
         van con el nombre y no con la descripción: son obligatorios en la
         columna, de modo que «bórralo» no tiene ningún estado al que llevar el
         producto. Devuelven `400` con `VAL-007` y `VAL-008`.
+
+        **`directCommission` se corrige ENTERA y no se vacía** (`RN-PM-051`):
+        el nulo explícito es `VAL-019`, y la forma o el rango equivocados
+        `VAL-020`. **Se revalida en toda edición aunque no viaje**, contra el
+        precio y la moneda que quedan: bajar el precio por debajo de una
+        directa fija, o a cero con una de porcentaje, es `VAL-021`, y cambiar
+        a una moneda en cuyos decimales no cabe, `VAL-020`. En un FTD
+        declararla es `VAL-022`.
 
         **El alcance y la implementación SÍ se corrigen, aunque el tipo y las
         membresías no**: ninguna de las dos define qué derecho otorga el
@@ -10953,7 +10982,9 @@ paths:
 
         **Tres desenlaces, y ninguno es un error:**
 
-        - `RESUELTA`: hay tasa. `source` dice si fue `PERSONALIZADA` o `ROL`. El
+        - `RESUELTA`: hay tasa. `source` dice si fue `PERSONALIZADA` o `ROL` —el esquema
+          lista también `DIRECTA`, que esta consulta **no devuelve nunca**: la aplica el
+          devengo a la venta propia de quien no es el último eslabón (`RN-CM-045`)—. El
           porcentaje puede ser **cero**, y eso significa «no comisiona» — es una
           decisión declarada.
         - `SIN_TARIFA`: la persona vende y **no hay tasa aplicable**. La causa más
@@ -11140,6 +11171,11 @@ paths:
 
         **Lo copiado, no lo de hoy** (`RN-CM-008`): corregir la tasa después no cambia lo que
         aquí se lee.
+
+        **`source` tiene tres valores** desde el 29-09-2026: `PERSONALIZADA`, `ROL` y
+        **`DIRECTA`** —la comisión por venta directa del producto, que cobra en el nivel `0`
+        quien vendió sin ser el último eslabón y sin personalizada (`RN-CM-045`)—. Con
+        `DIRECTA`, **`rateId` es el producto**.
 
         **Cada comisión dice su clase en `commissionKind`** (`RN-CM-044`, 29-09-2026):
         `POR_VENTA`, con todo lo anterior; o `POR_AFFTRACK`, un escalón pagado en un cierre,
@@ -12514,6 +12550,8 @@ components:
           type: number
         purchasePrice:
           type: number
+        directCommission:
+          $ref: "#/components/schemas/ProductDirectCommission"
         currency:
           $ref: "#/components/schemas/CurrencyRef"
         exchange:
@@ -12551,6 +12589,24 @@ components:
           format: date-time
         deletionReason:
           type: string
+    ProductDirectCommission:
+      type: object
+      description: "Lo que cobra en su venta propia quien no es el último eslabón\
+        \ de la fuerza comercial, en lugar de su tasa de rol. Porcentaje o importe\
+        \ fijo, nunca los dos."
+      properties:
+        type:
+          type: string
+          description: PORCENTAJE o FIJO.
+          enum:
+          - PORCENTAJE
+          - FIJO
+        percentage:
+          type: number
+          description: De 0 a 100. Solo si `type` es PORCENTAJE.
+        fixedAmount:
+          type: number
+          description: "Por unidad, en la moneda del producto. Solo si `type` es FIJO."
     ProductLinkResponse:
       type: object
       properties:
@@ -13591,6 +13647,8 @@ components:
           enum:
           - AUTOMATICA
           - MANUAL
+        directCommission:
+          $ref: "#/components/schemas/ProductDirectCommission"
       required:
       - code
       - currencyId
@@ -13632,6 +13690,8 @@ components:
           type: number
         purchasePrice:
           type: number
+        directCommission:
+          $ref: "#/components/schemas/ProductDirectCommission"
         currency:
           $ref: "#/components/schemas/CurrencyRef"
         exchange:
@@ -15486,6 +15546,7 @@ components:
       - parentRoleId
     PatchableInteger: {}
     PatchableListProductLinkRequest: {}
+    PatchableProductDirectCommission: {}
     PatchableProductImplementation: {}
     PatchableProductScope: {}
     UpdateProductRequest:
@@ -15511,6 +15572,8 @@ components:
           $ref: "#/components/schemas/PatchableProductScope"
         implementation:
           $ref: "#/components/schemas/PatchableProductImplementation"
+        directCommission:
+          $ref: "#/components/schemas/PatchableProductDirectCommission"
         type:
           $ref: "#/components/schemas/PatchableObject"
         code:
@@ -16242,6 +16305,8 @@ components:
           type: number
         purchasePrice:
           type: number
+        directCommission:
+          $ref: "#/components/schemas/ProductDirectCommission"
         currency:
           $ref: "#/components/schemas/CurrencyRef"
         exchange:
@@ -17489,6 +17554,7 @@ components:
           enum:
           - PERSONALIZADA
           - ROL
+          - DIRECTA
         validFrom:
           type: string
           format: date
