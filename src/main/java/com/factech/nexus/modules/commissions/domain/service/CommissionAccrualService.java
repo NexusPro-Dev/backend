@@ -11,6 +11,7 @@ import com.factech.nexus.modules.commissions.domain.service.ChainCommissionCalcu
 import com.factech.nexus.modules.commissions.domain.service.ChainCommissionCalculator.Verdict;
 import com.factech.nexus.modules.movements.application.CommissionableLines;
 import com.factech.nexus.modules.movements.application.CommissionableLines.CommissionableLine;
+import com.factech.nexus.modules.products.application.ProductCatalog;
 import com.factech.nexus.modules.system.users.application.SupervisorChain;
 import com.factech.nexus.shared.audit.AuditEnums.ChangeAction;
 import com.factech.nexus.shared.audit.AuditEvents.ChangeEvent;
@@ -25,6 +26,7 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.Set;
 import java.util.UUID;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -63,6 +65,7 @@ public class CommissionAccrualService {
   private final CommissionBatchRepository lotes;
   private final BusinessCalendar calendario;
   private final AuditWriter auditoria;
+  private final ProductCatalog productos;
   private final TransactionTemplate porLinea;
 
   public CommissionAccrualService(
@@ -73,6 +76,7 @@ public class CommissionAccrualService {
       CommissionBatchRepository lotes,
       BusinessCalendar calendario,
       AuditWriter auditoria,
+      ProductCatalog productos,
       PlatformTransactionManager transacciones) {
     this.lineas = lineas;
     this.cadenas = cadenas;
@@ -81,6 +85,7 @@ public class CommissionAccrualService {
     this.lotes = lotes;
     this.calendario = calendario;
     this.auditoria = auditoria;
+    this.productos = productos;
     this.porLinea = new TransactionTemplate(transacciones);
     this.porLinea.setPropagationBehavior(TransactionDefinition.PROPAGATION_REQUIRES_NEW);
   }
@@ -97,9 +102,12 @@ public class CommissionAccrualService {
 
   private AccrualSummary atender(Collection<UUID> detailIds, boolean reintento) {
     AccrualSummary.Builder resumen = new AccrualSummary.Builder();
+    // Una vez por tanda y no por línea (`RF-CM-013` `plan.md` §12): la definición de FTD es de
+    // `PM`, y el conjunto es pequeño.
+    Set<UUID> ftd = detailIds.isEmpty() ? Set.of() : productos.ftdProductIds();
     for (UUID id : detailIds) {
       try {
-        resumen.contar(porLinea.execute(estado -> atenderLinea(id, reintento)));
+        resumen.contar(porLinea.execute(estado -> atenderLinea(id, reintento, ftd)));
       } catch (RuntimeException e) {
         // `EX-001` y `EX-002`: la línea se queda sin desenlace y la recoge el
         // siguiente barrido. No se escribe nada más: la ausencia ES la constancia.
@@ -113,7 +121,7 @@ public class CommissionAccrualService {
   /**
    * @return el desenlace escrito, o vacío si la línea no se atendió (`FA-001`)
    */
-  private Optional<AccrualOutcome> atenderLinea(UUID id, boolean reintento) {
+  private Optional<AccrualOutcome> atenderLinea(UUID id, boolean reintento, Set<UUID> ftd) {
     desenlaces.lockLine(id);
     Optional<AccrualRow> previo = desenlaces.find(id);
     if (previo.isPresent() && !(reintento && previo.get().outcome() == AccrualOutcome.RECHAZADA)) {
@@ -124,6 +132,12 @@ public class CommissionAccrualService {
       return Optional.empty();
     }
     CommissionableLine linea = hallada.get();
+    // `RN-CM-022`, quinta condición (29-09-2026): una línea FTD no devenga por venta y NO QUEDA
+    // CON DESENLACE —ni `SIN_COMISION`—, porque no es de este camino: lo que paga lo decide su
+    // escala en el cierre (`RF-CM-020`). El barrido la volverá a encontrar y a descartar.
+    if (ftd.contains(linea.productId())) {
+      return Optional.empty();
+    }
     LocalDate diaDeVenta = calendario.diaDe(linea.occurredAt());
 
     List<Level> niveles = new ArrayList<>();

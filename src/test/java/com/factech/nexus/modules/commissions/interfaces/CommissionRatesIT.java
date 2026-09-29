@@ -516,6 +516,22 @@ class CommissionRatesIT extends IntegrationTestBase {
         + "}";
   }
 
+  @Test
+  @DisplayName("CA-CM-260 · una tasa sobre un producto FTD: 422 EX-008; sobre otra pareja, entra")
+  void productoFtd() throws Exception {
+    reponerElSuelo(jdbc);
+    UUID ftd = AfftrackFixtures.productoFtd(jdbc, "FTD", false);
+    UUID otraPareja = AfftrackFixtures.upgradeNoFtd(jdbc, "VIP");
+    try {
+      mvc.perform(alta(cuerpo(ftd, MANAGER, "10.00")))
+          .andExpect(status().isUnprocessableEntity())
+          .andExpect(jsonPath("$.errors[0].code").value("EX-008"));
+      mvc.perform(alta(cuerpo(otraPareja, MANAGER, "10.00"))).andExpect(status().isCreated());
+    } finally {
+      AfftrackFixtures.limpiar(jdbc);
+    }
+  }
+
   private static String cuerpo(UUID producto, String rol, String porcentaje) {
     return "{\"productId\":\""
         + producto

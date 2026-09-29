@@ -4,12 +4,13 @@
 |---|---|
 | Requerimiento | `RF-CM-006` |
 | Módulo | `CM` — Comisiones |
-| Versión | 0.6.0 |
+| Versión | 0.8.0 |
 | Estado | **Aprobada** |
 | Autor | Responsable técnico |
 | Aprobada por | Responsable del proyecto |
 | Fecha de aprobación | 02-09-2026 |
 | Enmendada | 11-09-2026 — **la tasa personalizada SE ASOCIA a productos**, con el mismo mecanismo que la de rol: se crea sin producto y se asocia después, a uno o a varios. Entra el ciclo de asociar y desasociar, `RN-CM-012` y `RN-CM-015` la alcanzan, y `RN-CM-006` pasa a comprobarse **al asociar** (Art. I.7) |
+| Enmendada | 29-09-2026 — **un producto FTD no admite tasas personalizadas** (`RN-CM-037`): `EX-009` y `CA-CM-261`. Ver §15 |
 | Enmendada | 14-09-2026 — **el producto gratuito SÍ comisiona, y solo por importe fijo** (`RN-CM-020`, `cm.md` v0.13.0): se invierte lo del 08-09-2026. Ver §15 |
 | Enmendada | 16-09-2026 — **la personalizada NACE con su producto** (`RN-CM-021`, `cm.md` v0.15.0 §5.5): una vigente por persona, producto y día; la asociación desaparece y `RN-CM-006` vuelve al motor. Ver §15 |
 
@@ -255,6 +256,11 @@ Del 11-09-2026 al 16-09-2026 ocurría **al asociar** y nunca al registrar, porqu
 **Condición:** un importe fijo mayor que el precio del producto (`RN-CM-019`, tope individual), o un porcentaje sobre un producto gratuito (`RN-CM-020`). Al registrar y al corregir el valor.
 **Respuesta del sistema:** rechaza con `409` y el mensaje propio de cada caso. Del 11-09-2026 al 16-09-2026 ocurría al asociar; hoy, al registrar.
 
+### EX-009 — El producto es un FTD (29-09-2026)
+
+**Condición:** al registrar, el producto es la membresía `BECA → BECA` (`RN-CM-036`).
+**Respuesta del sistema:** rechaza con `422`, como `RF-CM-001` `EX-008`: sobre un producto FTD la excepción de una persona se declara con un escalón afftrack personal (`RF-CM-019`), no con una tasa.
+
 ### EX-003 — La tasa no existe o está retirada
 
 **Condición:** al corregir, el identificador no corresponde a ninguna tasa viva.
@@ -326,6 +332,7 @@ Del 11-09-2026 al 16-09-2026 ocurría **al asociar** y nunca al registrar, porqu
 | `CA-CM-086` | Rechaza las dos formas a la vez, ninguna, y el valor que no corresponde a la forma |
 | `CA-CM-087` | Admite **dos tasas consecutivas de formas distintas** —porcentaje hasta el 31, importe desde el 1— y **las dos quedan** |
 | `CA-CM-088` | Corregir **cambia la forma** de una tasa viva, y el evento registra el antes y el después **de las dos cosas** |
+| `CA-CM-261` | Se rechaza una tasa personalizada sobre un **producto FTD** con `422` (`EX-009`, `RN-CM-037`) (29-09-2026) |
 | ~~`CA-CM-089`~~ | ~~El valor fijo de una personalizada rige igual sobre productos de monedas distintas, y nada lo advierte~~ **Superado el 16-09-2026** (`CA-CM-148`): una tasa tiene un producto y una moneda, y el importe se valida contra ella |
 
 **`CA-CM-087` y `CA-CM-088` prueban las dos mitades de `FA-006`, y la pareja es el criterio**. Por separado, cada uno comprueba una operación corriente; juntos verifican que **el sistema ofrece las dos maneras de cambiar de forma y no las confunde** — una deja historial, la otra reescribe.
@@ -379,3 +386,5 @@ Aquí cuesta menos que en el catálogo por rol —hay vigencia, y `FA-006` descr
 | 0.5.0 | 14-09-2026 | **El producto gratuito SÍ comisiona, y solo por importe fijo** (`RN-CM-020`, [`cm.md`](../../../requirements/cm.md) v0.13.0), por decisión del responsable del proyecto. Al asociar una personalizada a un producto de precio cero, el **valor fijo entra sin tope** —el tope individual del 11-09-2026 no aplica a los gratuitos— y el **porcentaje se rechaza** con `EX-008`. Nacen `CA-CM-134` y `CA-CM-135`. | Responsable del proyecto |
 | 0.6.0 | 16-09-2026 | **La personalizada NACE con su producto** (`RN-CM-021`, [`cm.md`](../../../requirements/cm.md) v0.15.0 §5.5), por decisión del responsable del proyecto —«una sola comisión personalizada por usuario y producto»—, **conservando la vigencia**. `productId` entra **obligatorio e inmutable** en el alta (`VAL-013`); asociar, desasociar y «los productos de una tasa» **se retiran** (`CA-CM-149`); todo lo que se comprobaba al asociar se comprueba al registrar —producto vivo (`EX-006`, `EX-007`), solapamiento (`EX-002`, otra vez del alta), tope y gratuito (`EX-008`)— y el importe fijo gana los decimales de la moneda (`VAL-014`, `CA-CM-148`). **`RN-CM-006` vuelve al motor** (`CA-CM-147`). `CA-CM-051`, `118`, `121`, `124`, `125` y `089` quedan superados; `054`, `119`, `120`, `134` y `135` se reescriben al alta; nacen `CA-CM-146` a `CA-CM-149`. La corrección y el retiro, en `RF-CM-003` v0.8.0 y `RF-CM-004` v0.4.0. | Responsable del proyecto |
 | 0.7.0 | 19-09-2026 | **Cambia el permiso: `user-commission-rates:create` y no `commissions:create`** (`RF-SP-060`, `RN-SEG-014`, un permiso por operación; [`security.md`](../../../security.md) v0.63.0). Enmienda de Art. I.7 sin cambio de comportamiento: la misma operación, el mismo actor, un código propio sembrado por `V28` y dado a todo rol que portara `commissions:create`. | Responsable del proyecto |
+
+| 0.8.0 | 29-09-2026 | **Un producto FTD no admite tasas personalizadas** (`RN-CM-037`, [`requirements/cm.md`](../../../requirements/cm.md) v0.22.0 §5.8). `EX-009` y `CA-CM-261`. De paso, la cabecera decía 0.6.0 cuando la última fila era 0.7.0. | Responsable del proyecto |

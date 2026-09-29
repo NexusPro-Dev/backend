@@ -173,6 +173,16 @@ public class RegisterCommissionRateService {
       throw new UnprocessableEntityException(
           "EX-004", mensaje, List.of(new FieldError("productId", "EX-004", mensaje)));
     }
+    // `RN-CM-037` (29-09-2026, `RF-CM-001` `EX-008`): sobre un producto FTD no se registra
+    // ninguna tasa por venta. Sus líneas no devengan por venta (`RN-CM-022`), y la
+    // tasa se quedaría registrada sin pagar nunca: el silencio que `RN-CM-012` combate.
+    if (productos.ftdProductIds().contains(producto.id())) {
+      String mensaje =
+          "Sobre un producto FTD no se registran tasas por venta: se paga con comisiones"
+              + " afftrack.";
+      throw new UnprocessableEntityException(
+          "EX-008", mensaje, List.of(new FieldError("productId", "EX-008", mensaje)));
+    }
     return producto;
   }
 }

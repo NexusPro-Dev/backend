@@ -5,11 +5,11 @@
 | Módulo | `CM` — Comisiones |
 | Paquete | `modules/commissions` |
 | Prefijos de permiso | `commissions:` |
-| Versión | 0.21.0 |
+| Versión | 0.23.0 |
 | Estado | **Borrador** |
 | Responsable | Bonilla Diaz William Steven |
 | Fecha de creación | 28-08-2026 |
-| Última actualización | 28-09-2026 |
+| Última actualización | 29-09-2026 |
 
 !!! info "Qué va en este documento"
 
@@ -20,7 +20,7 @@
 !!! warning "Documento en Borrador: dos decisiones lo condicionan"
 
     1. **El código `CM`.** Un código, en cuanto aparece en un identificador, no se cambia jamás ([`modules.md` §2.1](../modules.md#21-regla-de-decision)). En cuanto exista `RF-CM-001`, estas dos letras quedan fijadas para siempre, y `modules.md` §6 advierte que los códigos de los módulos candidatos no deberían fijarse hasta conocer el alcance completo del producto. Se procede por decisión del responsable del proyecto, como ya se hizo con `PM`.
-    2. **La frontera del alcance** (§1.3): hasta el 24-09-2026 este módulo **declaraba cuánto se paga** y no calculaba, no liquidaba y no pagaba. **Desde v0.17.0 liquida**: la razón que sostenía esa frontera —que no existía ninguna tabla de ventas— caducó cuando `MV` construyó la venta. **Y desde v0.19.0 devenga solo**: la comisión de una línea nace en el momento en que la venta está cobrada y la línea tiene vendedor, y el cierre del periodo es un proceso programado (§5.7). Lo que sigue fuera es **sacar el dinero de la plataforma**, que es un retiro de `MV`. El motivo, en §1.4.
+    2. **La frontera del alcance** (§1.3): hasta el 24-09-2026 este módulo **declaraba cuánto se paga** y no calculaba, no liquidaba y no pagaba. **Desde v0.17.0 liquida**: la razón que sostenía esa frontera —que no existía ninguna tabla de ventas— caducó cuando `MV` construyó la venta. **Y desde v0.19.0 devenga solo**: la comisión de una línea nace en el momento en que la venta está cobrada y la línea tiene vendedor, y el cierre del periodo es un proceso programado (§5.7). **Y desde v0.22.0 paga también por FTD**: la comisión afftrack no sale de una línea sino de **cuántos FTD reunió cada persona en el periodo**, comparados en el cierre con una escala de límites (§5.8). Lo que sigue fuera es **sacar el dinero de la plataforma**, que es un retiro de `MV`. El motivo, en §1.4.
 
 ---
 
@@ -64,6 +64,21 @@ Desde el 02-09-2026, y por decisión del responsable del proyecto, **cualquiera 
 
     Se acepta a conciencia (§8, v0.7.0). Se descartó que la tasa declarara su propia moneda porque sería un dato que puede mentir: la moneda es la del producto, y el producto ya está en la fila.
 
+### 1.1.2 La comisión afftrack: se paga por FTD, no por línea — 29-09-2026
+
+Desde el 29-09-2026, y por decisión del responsable del proyecto, el módulo tiene **una tercera forma de pagar**, que no se parece a las dos tasas porque **no mira una línea de venta**: mira **cuántas** reunió una persona.
+
+| | Qué es | Vigencia | ¿Con qué producto? |
+|---|---|---|---|
+| **Comisión afftrack de rol** | «Un `AGENTE` que reúne **50 FTD** cobra **50 × 8.000**» | **No tiene** | **Nace con un producto FTD** y cuenta los FTD de ese producto |
+| **Comisión afftrack personalizada** | «**Esta persona**, al reunir 50 FTD, cobra 50 × 9.000» | **Sí**, como la tasa personalizada | Igual |
+
+**Un FTD es una línea de venta de la membresía gratuita a la gratuita** —un `UPGRADE_MEMBRESIA` de `BECA` a `BECA`, que vale cero— **ya activada** (`RN-CM-036`). **Cada comisión afftrack es un escalón** —un **límite** de FTD y un **valor por FTD**— y un producto puede tener varios para el mismo rol o la misma persona: 50, 60, 100.
+
+**En cada cierre** se suman los FTD que la persona activó en el periodo **y los que le sobraron del anterior**, se busca **el mayor límite alcanzado** y se paga **ese límite por su valor, una sola vez**; lo que sobra **pasa al cierre siguiente** (`RN-CM-041`). Con 55 FTD y escalones de 50 y 60 se pagan 50 × el valor del de 50, y quedan 5. **Cobran también los superiores**, cada uno contando los suyos y los de **toda su red** contra su propia escala (`RN-CM-042`). Lo que se paga entra en el mismo lote que lo devengado por venta, y la fila dice de cuál de las dos clases es: **`POR_VENTA`** o **`POR_AFFTRACK`** (`RN-CM-044`).
+
+**Y una línea FTD no devenga por venta** (`RN-CM-022`, enmendada): vale cero, y lo que paga lo decide su escala, no una tasa.
+
 ### 1.2 Objetivo
 
 Hoy el sistema sabe **qué se vende** (`PM`) y **quién vende** —los roles de tipo `VENDEDOR` y la estructura comercial de `SP`—, y **no sabe cuánto se le paga a quien vende**. Ese dato no existe en ningún sitio: ni un porcentaje, ni una excepción, ni un lugar donde declararlos. Este módulo pone ese objeto en el sistema, que es el paso sin el cual el cálculo de comisiones —cuando exista la venta— no tiene sobre qué operar.
@@ -79,13 +94,15 @@ Hoy el sistema sabe **qué se vende** (`PM`) y **quién vende** —los roles de 
 - **Devengar, solo y en el momento** (28-09-2026, §5.7): cuando una línea de venta queda **cobrada y con vendedor**, resolver la tasa de **cada persona de la cadena comercial** sobre ella, calcular lo devengado y **congelarlo** en el lote abierto de cada una. Es lo que `RN-CM-008` llevaba exigiendo desde el 01-09-2026 sin que existiera nadie que lo hiciera; del 24-09-2026 al 28-09-2026 se diseñó como una liquidación que alguien lanzaba a mano sobre un periodo (§5.6).
 - **Cerrar el periodo**: un proceso programado —y, para relanzarlo, una operación a mano— que pasa los lotes abiertos a `PENDIENTE` y antes **recoge lo que no se devengó** (§5.7).
 - **Consultar los lotes** y el detalle de uno, línea a línea y nivel a nivel; **marcar un lote como pagado**; **dejar que cada vendedor consulte los suyos**, incluido el abierto, que crece con cada venta; y **consultar qué pasó con cada línea**, en particular las rechazadas por pasar del 100 %.
+- **Las comisiones afftrack** (29-09-2026, §5.8): registrar y mantener los **escalones** de rol y de persona sobre cada producto FTD; **liquidarlos en cada cierre** —contar los FTD activados de cada persona y de su red, compararlos con su escala, pagar el escalón alcanzado en el lote y **guardar el remanente**—; y **consultar cada liquidación**, con cuántos FTD traía, cuántos se pagaron y cuántos quedaron.
 
 **No incluye**
 
 - **Revertir o recalcular un lote.** Lo liquidado no se vuelve a tocar (`RN-CM-029`): un lote no se corrige, no se recalcula y no se deshace. Arreglar lo que se liquidó mal es una operación que **no existe todavía**, y se declara aquí para que su ausencia no se confunda con un olvido.
-- **Comisionar lo que no es una venta.** Solo devengan las líneas de movimientos de tipo `VENTA` (`RN-CM-022`); ningún otro tipo paga a nadie.
+- **Comisionar lo que no es una venta.** Solo devengan las líneas de movimientos de tipo `VENTA` (`RN-CM-022`); ningún otro tipo paga a nadie. **Tampoco los FTD salen de otra parte**: son líneas de venta (`RN-CM-036`), y lo que cambia es cómo se pagan, no de dónde vienen.
 - **Sacar el dinero de la plataforma.** **Desde el 26-09-2026 marcar un lote como `PAGADO` SÍ mueve dinero**: lo **abona en la billetera** de su persona, por la operación que `MV` publica (`RN-CM-030` enmendada, `RN-MV-044`). Lo que sigue fuera es **la salida**: el dinero sale de la plataforma por un **retiro**, que es un movimiento de `MV` (`requirements/mv.md` §4.3) y no de este módulo.
-- **Los FTDs.** Pertenecen al área de Finanzas. **El motivo que este documento les daba caducó el 24-09-2026** —decían depender de la venta, que ya existe (§1.4)—, y se corrige aquí: lo que siguen sin tener es quién los declare, y no es este módulo.
+- ~~**Los FTDs.**~~ **Entran el 29-09-2026** (§5.8). Este documento los dejaba fuera «porque pertenecen al área de Finanzas» y, desde el 24-09-2026, porque les faltaba quién los declarara. **Lo que faltaba era la definición, y la dio el responsable del proyecto**: un FTD es una línea de venta `BECA → BECA` activada (`RN-CM-036`), de modo que nadie tiene que declararlo — el sistema ya lo sabe.
+- **Importar los FTD desde la plataforma Afftrack.** El nombre de la comisión viene de ahí, y aun así **el conteo es el del sistema**: las líneas activadas, no un número que llegue de fuera. Conciliar las dos cifras no entra.
 - **Quién puede ver las comisiones de quién.** Sigue siendo alcance de datos y sigue dependiendo de **D-22**, abierta. Lo que `RF-CM-012` resuelve es **el único caso que no la necesita** —cada quien ve los suyos, filtrando por su propio identificador y sin recorrer ninguna estructura—; ver las de la red exige D-22 y no entra. Ver §5.3.
 - **La atribución de la venta.** A qué vendedor se le apunta una venta concreta es una decisión de la venta, no de la tarifa.
 
@@ -126,8 +143,11 @@ Hoy el sistema sabe **qué se vende** (`PM`) y **quién vende** —los roles de 
 | ~~Asociación~~ | ~~Qué tasa rige sobre qué producto~~ **Retirado el 16-09-2026**: ninguna tasa se asocia; las dos nacen con su producto (`RN-CM-021`) | ~~`product_commission_rates`~~ (`V94`), ~~`user_commission_rate_products`~~ (`V10`) |
 | Resolución | Qué le corresponde a una persona por un producto **en una fecha** | Las dos |
 | Liquidación | Convertir **cada línea de venta cobrada y atribuida**, en el momento, en lo que se le debe a cada persona de la cadena; cerrar el periodo; y llevar cada lote hasta `PAGADO` | `commission_batches`, `commissions`, `commission_accruals`, `commission_closings` |
+| Afftrack | Los **escalones** por FTD de cada producto FTD, de rol y de persona; y **su liquidación en el cierre**, con el remanente de cada persona (29-09-2026, §5.8) | `afftrack_rates`, `user_afftrack_rates`, `afftrack_settlements`, `afftrack_ftds` |
 
 **Por qué la asociación dejó de ser un submódulo.** Nació el 02-09-2026 porque una tasa de rol **regía sobre varios productos**, y el 11-09-2026 se extendió a la personalizada «con el mismo mecanismo». El 15-09-2026 la tasa de rol pasó a **ser de un producto** (`RN-CM-021`) y «un producto tiene una tasa por cada rol de la cadena» se declaró en la propia tabla; la personalizada conservó su asociación un día más, porque una excepción de una persona sí abarcaba varios productos. El 16-09-2026 el responsable del proyecto decidió que **también fuera una por persona y producto** (§5.5), y lo que aquel argumento temía —corregir un porcentaje en cincuenta filas y que una se quedara atrás— es lo que se acepta en las dos clases: **cada producto se configura por su cuenta**, y una tasa que quiera repetirse en cincuenta productos son cincuenta tasas.
+
+**Por qué Afftrack es un submódulo y no una forma más de tasa.** Una tasa dice cuánto paga **una línea**; un escalón dice cuánto paga **un número de líneas reunidas en un periodo**. No se resuelven igual —la tasa en la fecha de la venta, el escalón en el cierre—, no se acotan igual —el 100 % de un producto de precio cero no significa nada— y no se guardan igual: el escalón necesita recordar **lo que sobró**. Meterlo en `commission_rates` con un tercer `rate_type` habría obligado a cada consulta de tasas a saltarse las filas que no son tasas.
 
 **Por qué Liquidación es un submódulo y no un módulo aparte.** Todo lo que necesita —la precedencia, las dos clases de tasa, la forma de un valor— es de `CM`, y sacarlo fuera obligaría a publicar la resolución como interfaz de módulo para **un solo consumidor**. Lo que sí queda fuera es el **pago**, que es de Finanzas y no tiene nada que ver con una tasa (§1.4).
 
@@ -144,6 +164,8 @@ Hoy el sistema sabe **qué se vende** (`PM`) y **quién vende** —los roles de 
 | `MV` | **Escucha** | **El aviso de que unas líneas quedaron comisionables** (`RN-CM-031`, `RN-MV-049`, 28-09-2026): `MV` lo publica al confirmar una venta (`RF-MV-003`) y al asignar vendedor a una línea de una venta ya confirmada (`RF-MV-016`), **después de que su transacción se confirme**. Es un evento y no una llamada: `MV` no sabe quién lo escucha, de modo que **no depende de `CM`**, y si devengar falla, la venta sigue confirmada |
 | `MV` | **Escribe**, por la operación que `MV` publica | **El abono del lote** (`RN-CM-030`, `RN-MV-044`, 26-09-2026): al marcar un lote como pagado, `MV` escribe un movimiento `PAGO_COMISION` que abona la billetera de su persona, **en la misma transacción**. Es la forma de **D-26**: cómo se abona lo decide `MV`, y **si** se paga lo decide este módulo. **La referencia vive aquí** —`commission_batches.movement_id`— y no en `movements`, para que `MV` siga sin depender de `CM` |
 | `SP` | Consume | **La cadena de mando a una fecha** (`RN-CM-025`): quién era el superior de quién **el día de la venta**, en toda la profundidad. `user_supervisors` lleva historial (`started_at` / `ended_at`), y `SP` deberá publicarlo como interfaz — igual que publicó `CommercialReach` para `RF-MV-015`, y **en la dirección contraria**: aquella responde «mi red», esta «mis superiores» |
+| `PM` + `SP` | Consume | **Qué producto es un FTD** (`RN-CM-036`, 29-09-2026): un `UPGRADE_MEMBRESIA` cuyo origen y destino son **la membresía del suelo** —la de código `BECA`, `RN-SP-018`—. `PM` dice el origen y el destino; `SP` dice cuál es el suelo. Es la misma lectura que ya hace el alta de las tasas para validar el producto, con dos datos más |
+| `MV` | Consume | **Las líneas FTD activadas** (`RN-CM-040`, 29-09-2026): las líneas de venta `CONFIRMADA`, con vendedor, de un producto FTD y **entregadas** —`delivery_status = ENTREGADA`, con su `delivered_at`— antes del instante del cierre. **Por `JOIN` de lectura**, como ya leen `movements` y `movement_details` las consultas de la liquidación (precedente de `RF-CM-010` y `RF-CM-014`): es una pregunta de este módulo sobre datos que ya existen, y no necesita que `MV` publique nada nuevo |
 
 La dependencia sigue siendo **acíclica**: `CM` → `MV` → `PM` → `SP`, y `CM` → `PM` → `SP`. **`MV` no consume `CM`**, y hubo que comprobarlo: bloquear la anulación de una venta ya liquidada habría obligado a que `MV` preguntara aquí, **cerrando el ciclo**. No hace falta — `RN-MV-005` no deja salir de `CONFIRMADA`, de modo que una venta liquidada no se puede anular sin que este módulo intervenga (`RN-CM-029`). Los consume por las interfaces que cada uno publica (**D-25**).
 
@@ -167,6 +189,25 @@ La dependencia sigue siendo **acíclica**: `CM` → `MV` → `PM` → `SP`, y `C
 | `RF-CM-012` | Consultar mis comisiones | Liquidación | `commission-batches:list-own` (listado) y `commission-batches:read-own` (detalle) |
 | `RF-CM-013` | **Devengar las comisiones de una línea de venta** | Liquidación | **Ninguno**: no tiene ruta. Lo dispara el aviso de `MV` (`RN-CM-031`) y lo repite el barrido del cierre (`RN-CM-034`) |
 | `RF-CM-014` | Consultar el desenlace de las líneas de venta —cuáles devengaron, cuáles no tenían tasa y **cuáles se rechazaron** por pasar del 100 % | Liquidación | `commission-accruals:read` |
+| `RF-CM-015` | **Registrar una comisión afftrack de rol** sobre un producto FTD —un escalón: límite y valor por FTD— | Afftrack | `afftrack-rates:create` |
+| `RF-CM-016` | Consultar las comisiones afftrack de rol | Afftrack | `afftrack-rates:read` |
+| `RF-CM-017` | Corregir el límite o el valor de una comisión afftrack de rol | Afftrack | `afftrack-rates:update` |
+| `RF-CM-018` | Retirar una comisión afftrack de rol | Afftrack | `afftrack-rates:delete` |
+| `RF-CM-019` | **Registrar la comisión afftrack de una persona** sobre un producto FTD, con su vigencia | Afftrack | `user-afftrack-rates:create` — y sus otras tres operaciones `user-afftrack-rates:read`, `update` y `delete` |
+| `RF-CM-020` | **Liquidar las comisiones afftrack en el cierre** | Afftrack | **Ninguno**: no tiene ruta. Corre **dentro** de cada cierre (`RF-CM-009`), después del barrido y antes de pasar los lotes a `PENDIENTE` (`RN-CM-043`) |
+| `RF-CM-021` | Consultar las liquidaciones afftrack —por persona, producto y cierre: cuántos FTD traía, cuántos se pagaron y **cuántos quedaron para el siguiente** | Afftrack | `afftrack-settlements:read` |
+
+!!! info "Siete más el 29-09-2026: la comisión afftrack"
+
+    Por decisión del responsable del proyecto (§5.8), el módulo paga también **por número de FTD reunidos**. **`RF-CM-015` a `RF-CM-018` calcan `RF-CM-001` a `RF-CM-004`** sobre los escalones de rol, y **`RF-CM-019` calca `RF-CM-006`** sobre los de persona, con sus cuatro operaciones bajo un solo número. Son la configuración.
+
+    **`RF-CM-020` es el que paga, y no tiene ruta**, igual que `RF-CM-013`: no lo lanza nadie, **va dentro del cierre**. **`RF-CM-021` es su lectura**, y existe por lo mismo que `RF-CM-014`: una liquidación que corre a medianoche y **deja un remanente** tiene que poder consultarse después, o «¿por qué no cobré mis 45 FTD?» no tiene respuesta.
+
+    **Ninguno de los catorce anteriores cambia de forma.** `RF-CM-009` gana un paso —liquida lo afftrack antes de cerrar— y `RF-CM-013` deja de devengar las líneas FTD (`RN-CM-022`); `RF-CM-001` y `RF-CM-006` rechazan una tasa por venta sobre un producto FTD (`RN-CM-037`); y los lotes de `RF-CM-010` y `RF-CM-012` muestran filas de las dos clases, cada una con su `commissionKind`.
+
+!!! success "Los siete afftrack están construidos (29-09-2026)"
+
+    `V54` crea las cuatro tablas, añade `commission_kind` y `afftrack_settlement_id` a `commissions` y siembra los nueve permisos (catálogo **162**). Los escalones se registran, listan, corrigen y retiran por `/afftrack-rates` y `/user-afftrack-rates`; **cada cierre liquida lo afftrack** entre el barrido y el paso a `PENDIENTE`, en su misma transacción; y las liquidaciones se leen por `/afftrack-settlements`. **Con tripleta previa.** Lo que la construcción cambió respecto de los planes está en la §3.1 de cada `tasks.md`.
 
 !!! info "Seis vivos y dos descartados desde el 15-09-2026"
 
@@ -238,7 +279,7 @@ La dependencia sigue siendo **acíclica**: `CM` → `MV` → `PM` → `SP`, y `C
 | `RN-CM-019` | **Un producto no puede configurarse para pagar más del 100 % de sí mismo** | Al registrar o corregir cualquier tasa | La suma de lo que un producto paga a **todas** sus tasas de rol vivas —cada porcentaje tal cual, cada valor fijo convertido a `fixed_amount ÷ precio × 100`, contra el precio de **ese** producto— no puede superar cien. Se comprueba **al registrar** la tasa de rol (contando la nueva) y **al corregirla** (contra su único producto). **La tasa personalizada tiene su propio tope**, y es **individual y no una suma**: ninguna puede pagar más del 100 % del precio de su producto, y desde el 16-09-2026 se comprueba **al registrarla** y al corregirla. **No entra en la suma de las de rol**, y es deliberado: las personalizadas de personas distintas sobre el mismo producto son **alternativas entre sí**, no cosas que se paguen a la vez, y sumarlas rechazaría configuraciones legítimas. El tope se calcula contra el precio **de hoy**: si el producto cambia de precio después (`RF-PM-004`), nadie vuelve a comprobarlo. **Con precio CERO no aplica** (14-09-2026): un producto gratuito no tiene «cien por ciento» del que pasarse, y qué puede pagar lo dice `RN-CM-020`. **Entre el 08-09-2026 y el 14-09-2026 decía lo contrario** —que cualquier fijo mayor que cero sobre precio cero era «más del 100 %» y se rechazaba—, y se invirtió por decisión del responsable del proyecto (§5.2) | **Crítica** |
 | `RN-CM-020` | **Un producto gratuito comisiona solo por importe fijo** | Al registrar o corregir cualquier tasa | Sobre un producto de **precio cero** (`RN-PM-006`) se admite **cualquier** tasa de **valor fijo**, **sin tope** —no hay cien por ciento de cero—, y **se rechaza toda tasa de porcentaje**: un porcentaje de nada es nada, y registrarlo configura algo que no paga. Se comprueba **al registrar** (`RF-CM-001` desde el 15-09-2026, `RF-CM-006` desde el 16-09-2026) y **al corregir** (`RF-CM-003`): corregir hacia porcentaje una tasa de un producto gratuito se rechaza entera, como el tope. **Se evalúa contra el precio de hoy y nadie vuelve a mirarlo** (§5.2): un porcentaje sobre un producto que después baja a cero **pasa a pagar cero**, y un fijo sobre un gratuito que después sube de precio **no se vuelve a acotar**. Es el mismo hueco temporal que `RN-CM-019` acepta, y se acepta por lo mismo | Alta |
 | `RN-CM-021` | **Toda tasa nace con su producto, y no lo cambia** | Al registrar y en toda corrección de cualquier tasa | **Nace el 15-09-2026** para la de rol y **se extiende a la personalizada el 16-09-2026**, las dos veces por decisión del responsable del proyecto. Toda tasa declara **un producto**, obligatorio, y rige **solo sobre él** desde el alta. El producto **no se corrige**: cambiar de producto es retirar la tasa y registrar otra, porque lo que se pagó por el primero tiene que seguir resolviendo la misma fila. **Una tasa que se quiera repetir en varios productos son varias tasas** — es el precio de que cada producto se configure por su cuenta (§5.4, §5.5). La personalizada además tiene vigencia, y por eso su unicidad es «una **vigente** por persona y producto» (`RN-CM-006`) y no «una viva» | **Crítica** |
-| `RN-CM-022` | **Solo devenga la línea cobrada Y atribuida — y se mira LA LÍNEA, no la venta** | Al devengar (`RF-CM-013`) | **Reescrita el 28-09-2026** por decisión del responsable del proyecto. Una línea devenga si y solo si: su movimiento es de tipo **`VENTA`**; su `status` es **`CONFIRMADA`** —el dinero entró, §1.4 razón 2—; **la línea tiene `seller_id`**; y **no tiene desenlace todavía** (`RN-CM-032`). Son cuatro y ya no cinco: **el estado de tipo `VALIDADO` deja de exigirse**, porque dice que **todas** las líneas tienen vendedor y lo que importa es que **esta** lo tenga. Es seguro porque `RN-MV-035` congela el vendedor de una línea en cuanto la venta se confirma: en una venta `CONFIRMADA` que siga en `VALIDAR_COMISIONES`, **las líneas con vendedor devengan ya** y la que falta devenga cuando se le asigne. Las cuatro van en el **predicado fijo** de la consulta y **ninguna es un filtro**, por el mismo motivo por el que `RN-MV-038` retiró `status` del contrato | **Crítica** |
+| `RN-CM-022` | **Solo devenga la línea cobrada Y atribuida — y se mira LA LÍNEA, no la venta** | Al devengar (`RF-CM-013`) | **Reescrita el 28-09-2026** por decisión del responsable del proyecto. Una línea devenga si y solo si: su movimiento es de tipo **`VENTA`**; su `status` es **`CONFIRMADA`** —el dinero entró, §1.4 razón 2—; **la línea tiene `seller_id`**; y **no tiene desenlace todavía** (`RN-CM-032`). Son cuatro y ya no cinco: **el estado de tipo `VALIDADO` deja de exigirse**, porque dice que **todas** las líneas tienen vendedor y lo que importa es que **esta** lo tenga. Es seguro porque `RN-MV-035` congela el vendedor de una línea en cuanto la venta se confirma: en una venta `CONFIRMADA` que siga en `VALIDAR_COMISIONES`, **las líneas con vendedor devengan ya** y la que falta devenga cuando se le asigne. Las cuatro van en el **predicado fijo** de la consulta y **ninguna es un filtro**, por el mismo motivo por el que `RN-MV-038` retiró `status` del contrato. **Y desde el 29-09-2026 hay una quinta: la línea no es un FTD** (`RN-CM-036`). Una línea FTD **no devenga por venta ni queda con desenlace** —ni `SIN_COMISION` ni ningún otro—: **no es de este camino**, y lo que paga lo decide su escala en el cierre (`RN-CM-041`). Va también en el predicado fijo, de modo que el barrido (`RN-CM-034`) tampoco la recoge | **Crítica** |
 | `RN-CM-023` | **La base es el BRUTO de la línea, y el importe fijo paga POR UNIDAD** | Al liquidar | Decisión del responsable del proyecto, 24-09-2026. La base es **`unit_price × quantity`** —el precio copiado del catálogo por `RN-MV-002`—, de modo que **el descuento de la línea no reduce la comisión**: lo absorbe la empresa. Un porcentaje paga `base × percentage ÷ 100`; un importe fijo paga **`fixed_amount × quantity`**, porque el fijo es «lo que pago por cada cosa vendida» y es la lectura coherente con que `RN-CM-019` lo acote contra el precio **unitario** del producto. **`line_discount` y `line_amount` NO se copian**: no intervienen en la cuenta, y copiarlos sugeriría que sí | **Crítica** |
 | `RN-CM-024` | **La tasa se resuelve con la fecha de LA VENTA, nunca con la del lote** | Al liquidar | La personalizada es la única tasa con vigencia (`RN-CM-009`), de modo que **la fecha decide quién gana**. Liquidar el día 30 preguntando por «hoy» haría ganar a una personalizada que entró en vigor el día 10 **también en las ventas del día 3**: se pagaría una tasa que no regía cuando se vendió. `RF-CM-013` llama a `RF-CM-005` **una vez por línea y por persona**, con la fecha de esa venta, y la guarda en `commissions.resolved_on` para que después se pueda auditar **por qué** ganó la que ganó. **La fecha de la venta es su `occurred_at` leído en `America/Bogota`**, la misma zona con la que `MovementCode` pone el día en el comprobante: leída en UTC, una venta de las 20:00 del día 10 se resolvería con la tasa del 11. **El devengo automático no la cambia** (28-09-2026): que la comisión nazca el día que se asigna el vendedor, y no el de la venta, decide **en qué lote entra** (`RN-CM-033`), nunca **con qué tasa se paga** | **Crítica** |
 | `RN-CM-025` | **La cadena se reconstruye a la fecha de la venta, y cada nivel resuelve la suya** | Al liquidar | Decisión del responsable del proyecto, 24-09-2026. Se parte del `seller_id` de la línea y se sube por `user_supervisors` **vigente ese día** —la tabla lleva historial y su comentario ya decía «*la fila cerrada se conserva: dice a quién se atribuía cada resultado*»—, en toda la profundidad. **Cada nivel resuelve su propia tasa con su propio rol** (`RF-CM-005`) y cobra sobre **la misma base** (`RN-CM-011`). **Quien no tenga tasa sobre ese producto no cobra y NO interrumpe la cadena** (`RN-CM-012`): se sigue subiendo. La estructura **no se recorre hacia abajo**: `CommercialReach` responde «mi red», que es la pregunta contraria, y esta la deberá publicar `SP` (§3) | **Crítica** |
@@ -252,6 +293,15 @@ La dependencia sigue siendo **acíclica**: `CM` → `MV` → `PM` → `SP`, y `C
 | `RN-CM-033` | **Lo devengado entra en el lote ABIERTO de su persona y moneda, y el periodo lo decide el momento del devengo** | Al devengar y al cerrar | Decisión del responsable del proyecto, 28-09-2026. Cada persona tiene, por moneda, **como mucho un lote `ABIERTO`**; la primera comisión que devenga lo crea y las siguientes **se suman a él**, de modo que el vendedor ve crecer lo suyo el mismo día. **El periodo lo decide cuándo nació la comisión (`accrued_at`), no cuándo se vendió**: una venta del día 31 cuyo vendedor se asigna el día 1 devenga el 1, y **entra en el cierre siguiente**. Es lo que evita reabrir un lote cerrado, que `RN-CM-029` prohíbe. **La tasa y la cadena siguen siendo las del día de la venta** (`RN-CM-024`, `RN-CM-025`): el momento del devengo decide **el lote**, nunca **el importe** | **Crítica** |
 | `RN-CM-034` | **Antes de cerrar se barre lo que se quedó sin atender** | Al cerrar (`RF-CM-009`) | El aviso de `MV` es la vía rápida y no la única. **Antes de cerrar**, el cierre busca **las líneas que cumplen `RN-CM-022` y no tienen fila en `commission_accruals`** —la aplicación cayó, el evento se perdió, devengar lanzó una excepción— y **las devenga**; y **reintenta las `RECHAZADAS`**. Lo que devenga el barrido entra en el lote abierto **en ese momento**, y por tanto **en el cierre que se está haciendo**. Sin él, una línea que se pierde una vez no cobra nunca, y nadie lo nota: es el mismo silencio que `RN-CM-012` combate, llegando por una avería en lugar de por una configuración | **Crítica** |
 | `RN-CM-035` | **El cierre es programado, corta en Bogotá, se puede apagar y corre una sola vez aunque haya réplicas** | Al cerrar (`RF-CM-009`) | Decisión del responsable del proyecto, 28-09-2026. **La frecuencia es de configuración** —una expresión `cron` evaluada en **`America/Bogota`**, la zona en que el negocio corta el día ([`architecture.md` §15.1.1](../architecture.md))—, no de código: cerrar cada mes, cada quincena o cada semana es cambiar una línea. **Se puede apagar** por configuración, como exige `SchedulingConfig`. **Corre una sola vez aunque el despliegue tenga réplicas** (**D-09**): la fila del cierre programado se escribe **lo primero**, con la hora nominal del turno como clave única, y la réplica que choca **no hace nada** en lugar de esperar y cerrar un periodo de cero segundos (§7.8, v0.20.0). **Todo lote `ABIERTO` pasa a `PENDIENTE` con el instante del cierre como fin de periodo**, y lo que devengue un segundo después abre un lote nuevo. **El cierre a mano** (`RF-CM-009`, `commission-batches:settle`) hace exactamente lo mismo, con el mismo bloqueo: existe para relanzar el que no corrió, no para cerrar de otra manera. Cada cierre deja una fila en `commission_closings`, **también el que no cerró nada** | Alta |
+| `RN-CM-036` | **Un FTD es una línea de venta `BECA → BECA` activada** | Al liquidar lo afftrack (`RF-CM-020`) y al devengar (`RN-CM-022`) | Decisión del responsable del proyecto, 29-09-2026: «los FTD son las líneas de venta que son membresías y van de beca a beca con un valor de 0; será una activación manual, y para que cuente como FTD debe estar activa». **Un producto es FTD** si es un `UPGRADE_MEMBRESIA` cuyo origen **y** destino son la membresía del suelo, la de código `BECA` (`RN-SP-018`). **Una línea es un FTD** si es de un producto FTD, su venta es `CONFIRMADA`, tiene `seller_id` y **está entregada** —`delivery_status = ENTREGADA`—, que es lo que la activación escribe (`RF-MV-010`); **su momento es `delivered_at`**. **Cada línea es un FTD**, sea cual sea su cantidad: es una membresía, y una persona no se da de alta dos veces en la misma línea. **El precio cero no es parte de la definición**: es lo que vale hoy un `BECA → BECA`, y si algún día costara algo seguiría siendo un FTD. **Lo que pase después de la activación no lo deshace**: una membresía `BECA` sustituida por una de pago (`CANCELADO`, `RN-MV-036`) fue un FTD el día que se activó | **Crítica** |
+| `RN-CM-037` | **La comisión afftrack nace con su producto FTD, y la tasa por venta no admite uno** | Al registrar cualquier tasa o comisión afftrack | **Toda comisión afftrack declara un producto, y tiene que ser FTD** (`RN-CM-036`); como la tasa (`RN-CM-021`), **no lo cambia**. El producto debe existir y **no estar retirado** (`RN-CM-002`, `RN-CM-010`); la de rol, sobre un rol **`VENDEDOR`** (`RN-CM-001`). **Y al revés: sobre un producto FTD no se registra ninguna tasa por venta**, de rol ni personalizada (`RF-CM-001`, `RF-CM-006`) — no pagaría nunca (`RN-CM-022`), y una configuración que existe y no paga es el silencio que `RN-CM-012` combate | **Crítica** |
+| `RN-CM-038` | **Un escalón es un límite entero y un valor por FTD, en la moneda de su producto** | Al registrar y al corregir una comisión afftrack | El **límite** es un entero **mayor que cero** —«al reunir 50»—; el **valor** es un importe **mayor o igual que cero** por FTD, que **cabe en los decimales de la moneda del producto** (`RN-CM-017`, que aquí se aplica igual: el escalón no declara moneda, la toma de su producto). **No hay porcentaje**: el producto FTD vale cero y un porcentaje de cero es cero (`RN-CM-020`). **No hay tope**: `RN-CM-019` y `RN-CM-026` miden contra el precio, y aquí no hay precio contra el que medir | Alta |
+| `RN-CM-039` | **Un solo valor por límite, y la persona sustituye la escala entera de su rol** | Al registrar un escalón, y al liquidar | **De rol**: una sola comisión afftrack viva por **producto, rol y límite** —dos escalones de 50 para el mismo rol harían indeterminado cuál se paga—, con un índice único parcial como `RN-CM-013`. **De persona**: una sola **vigente** por **persona, producto y límite** en cada día, con un `EXCLUDE` como `RN-CM-006`. **Al liquidar** manda la escala de la persona **si tiene al menos un escalón vigente** sobre ese producto el día del cierre, **y entonces se usa solo la suya**; si no, la de su rol vendedor. **No se mezclan escalones de las dos**: decisión del responsable del proyecto, la misma precedencia de `RN-CM-004` llevada a una escala entera. **El día del cierre** es el del último instante del periodo leído en Bogotá: un cierre a las 00:00 del día 1 liquida con lo vigente el día 30 | **Crítica** |
+| `RN-CM-040` | **Un FTD cuenta en el primer cierre tras su activación, y una sola vez por persona** | Al liquidar lo afftrack (`RF-CM-020`) | Decisión del responsable del proyecto, 29-09-2026. En cada cierre, para cada persona, **los FTD nuevos** son las líneas que cumplen `RN-CM-036` con `delivered_at` **anterior al instante del cierre** y que **todavía no se le han contado**. Lo normal es que sea el cierre del periodo en que se activó; **uno activado y sin vendedor** cuenta en el primer cierre tras asignárselo, por lo mismo que `RN-CM-033` lleva al cierre siguiente la línea atribuida tarde. **Que se cuente una vez se declara en el esquema** —`afftrack_ftds`, con la pareja línea y persona como clave primaria—, no en el caso de uso: es lo que impide que relanzar un cierre pague dos veces los mismos FTD | **Crítica** |
+| `RN-CM-041` | **Se paga el mayor límite alcanzado, una sola vez, y lo que sobra pasa al siguiente cierre** | Al liquidar lo afftrack | Decisión del responsable del proyecto, 29-09-2026: «si en el mes vendí 55, y tengo dos comisiones, una de 50 y otra de 60, se multiplica 50 por el valor de la comisión y los 5 que sobraron se dejan para el siguiente corte». **Disponibles** = el remanente del cierre anterior + los FTD nuevos (`RN-CM-040`). Se busca **el escalón de mayor límite que no supere los disponibles**; se paga **`límite × valor`** de ese escalón y **el remanente pasa a ser disponibles − límite**. **Se aplica una vez por cierre, aunque quepa varias**: con 130 y escalones de 50 y 60 se pagan 60 × su valor y quedan **70**, no dos veces 60. **Si no alcanza ninguno**, no se paga nada y **todo queda de remanente**. **Sin ninguna escala** —ni suya ni de su rol— los FTD **se cuentan igual y se acumulan**: son de la persona, y cobrarán el día que tenga escala. El remanente es **por persona y producto**, y se lee de la última liquidación (§7.11) | **Crítica** |
+| `RN-CM-042` | **Un FTD cuenta para quien lo vendió y para toda su cadena de superiores** | Al liquidar lo afftrack | Decisión del responsable del proyecto, 29-09-2026. Cada FTD suma **al vendedor de la línea y a cada superior suyo, a cualquier profundidad**: dicho desde arriba, un superior cuenta **los suyos y los de toda su red**. **La cadena es la del día de la activación** (`delivered_at` en Bogotá), por lo mismo que `RN-CM-025` usa la del día de la venta: ascender a alguien no reescribe a quién se le contó un FTD de hace tres meses. **Cada persona tiene su propia cuenta, su propia escala y su propio remanente**: contar el mismo FTD al vendedor y a su superior **no es pagarlo dos veces**, es el override de `RN-CM-011` en su forma afftrack. **Quien no tiene escala no corta la cadena**: se sigue subiendo | **Crítica** |
+| `RN-CM-043` | **Lo afftrack se liquida dentro del cierre, y entra en el lote que se está cerrando** | Al cerrar (`RF-CM-009`) | El orden del cierre pasa a ser: **barrido** (`RN-CM-034`), **liquidación afftrack** (`RF-CM-020`), **paso a `PENDIENTE`** (`RN-CM-035`). Lo que paga un escalón es una fila de `commissions` que se suma al lote **abierto** de su persona **en la moneda del producto** —y lo abre si no lo hay (`RN-CM-033`)—, de modo que **se cierra y se paga con lo devengado por venta del mismo periodo**: un solo lote, no dos. **Cada persona y producto deja una liquidación** en `afftrack_settlements`, **también la que no pagó nada** —su remanente es lo que la siguiente necesita—, pero solo si tenía algo que liquidar: remanente o FTD nuevos. **Va en la transacción del cierre**: si el cierre falla, no queda ni el pago ni el conteo | **Crítica** |
+| `RN-CM-044` | **Toda comisión generada dice de qué clase es: `POR_VENTA` o `POR_AFFTRACK`** | Al devengar, al liquidar lo afftrack y en toda lectura de lotes | `commissions.commission_kind`, obligatoria. **`POR_VENTA`** es la de siempre: una línea, un nivel de la cadena, una tasa (`RF-CM-013`). **`POR_AFFTRACK`** es la de un escalón: **no tiene línea ni nivel**, dice cuántos FTD pagó y a qué valor, y apunta a su liquidación. Lo que cada clase exige y prohíbe **se declara en el esquema** (§7.4), como `RN-CM-016` hace con la forma de una tasa: una fila `POR_AFFTRACK` con línea, o `POR_VENTA` sin ella, es un estado que el código puede escribir y el negocio no admite. Las filas que existían **son todas `POR_VENTA`** | **Crítica** |
 
 ### 5.2 Por qué las críticas son críticas
 
@@ -446,10 +496,45 @@ Con el valor fijo el agujero **cambió de tamaño y de forma** al volver en v0.7
 
 **Reabrir un lote cerrado para meter la línea atrasada.** Es lo que haría falta si el periodo lo decidiera la fecha de la venta, y lo prohíbe `RN-CM-029`.
 
+### 5.8 La comisión afftrack — 29-09-2026
+
+**La decisión.** El responsable del proyecto pide «otro tipo de comisión estilo las tasas: comisiones afftrack; será sencillo, guardar límite y el valor a pagar. Al final de mes o del corte de los lotes se cuenta cuántos FTD vendí y se compara con las comisiones afftrack: si en el mes vendí 55 y tengo dos comisiones, una de 50 y otra de 60, se multiplica 50 por el valor de la comisión y los 5 que sobraron se dejan para el siguiente corte». Y que la comisión que se genera para pagar **diga de qué tipo es**: «Por venta» o «Por afftrack».
+
+**Lo que la hace distinta de una tasa no es la forma, es la unidad.** Una tasa paga **una línea** en el momento en que se cobra; un escalón paga **un número de líneas** en el momento en que se cierra el periodo, y no se puede calcular antes, porque hasta el cierre no se sabe cuántas hubo. Por eso no devenga en el momento (`RN-CM-031`) sino **dentro del cierre** (`RN-CM-043`), y por eso necesita algo que ninguna tasa necesita: **acordarse de lo que sobró**.
+
+#### Diez preguntas respondidas antes de escribir
+
+| Pregunta | Decisión | Lo que se descartó, y por qué |
+|---|---|---|
+| **¿Qué es un FTD?** | **Una línea de venta `BECA → BECA` activada** (`RN-CM-036`): la membresía gratuita a la gratuita, de valor cero, de activación manual | *Un número que informe la plataforma Afftrack* — obligaría a conciliar dos fuentes, y el sistema ya tiene el dato |
+| **¿Sobre quién se declara la escala?** | **Rol y persona**, como las tasas (`RN-CM-039`) | *Solo por rol*, *solo por persona*, *una escala global* |
+| **¿Con producto?** | **Sí, nace con su producto FTD** (`RN-CM-037`), que le da la moneda | *General para todos los FTD* — habría que exigir que todos los productos FTD compartieran moneda, y nada lo garantiza |
+| **¿La de la persona se mezcla con la del rol?** | **No: la sustituye entera** si tiene al menos un escalón vigente (`RN-CM-039`) | *Juntar los escalones de las dos y tomar el mayor alcanzado* — una persona con un escalón propio de 40 heredaría además el de 60 de su rol, y no es lo que nadie negoció |
+| **¿Vigencia?** | **Solo en la de persona**, como la tasa personalizada | *Sin vigencia en las dos* |
+| **¿Cuándo cuenta un FTD?** | **En el cierre en que se activó** —`delivered_at`—, una vez (`RN-CM-040`) | *En el periodo de la venta si ya está activo* — un FTD vendido el 30 y activado el 2 obligaría a reabrir un periodo cerrado |
+| **¿Y si pasa del mayor límite?** | **Se paga una vez**, y sobra el resto (`RN-CM-041`): 130 con escalones de 50 y 60 pagan 60 y guardan 70 | *Aplicar el mayor tantas veces como quepa* (dos veces 60, sobran 10), *pagar todos al valor del mayor* (130 × valor, no sobra nada) |
+| **¿Quién cobra?** | **El vendedor y toda su cadena**, cada superior con los suyos y los de toda su red (`RN-CM-042`) | *Solo el vendedor de la línea*; *solo la red, sin los propios*; *solo el nivel directo* |
+| **¿Un FTD también devenga por venta?** | **No, solo afftrack** (`RN-CM-022` enmendada) | *Las dos* — pagaría dos veces el mismo alta, una por una tasa sobre un producto de precio cero |
+| **¿Lote propio?** | **El mismo lote** que lo devengado por venta, con su clase en la fila (`RN-CM-044`) | *Un lote aparte de afftrack* — dos lotes por persona, moneda y periodo romperían `RN-CM-028`, y Finanzas pagaría dos veces lo que es una sola nómina |
+
+#### Tres supuestos que se toman por buenos y se dicen
+
+1. **La activación es la entrega**: `delivered_at` de la línea. Es lo que escribe `RF-MV-010` al activar lo manual, y lo que distingue `ACTIVO` de `PENDIENTE_ACTIVACION`.
+2. **Sin escala, los FTD se acumulan** (`RN-CM-041`). Es la lectura de «los que sobraron se dejan para el siguiente corte» llevada al caso en que sobran todos. **Es la contraria de `RN-CM-032`**, donde lo que no tenía tasa no se reintenta nunca, y la diferencia es deliberada: allí se pagaría una venta con una tasa que no existía cuando se vendió; aquí el FTD no se paga con la escala de un día, sino **al reunir un número**, y el número sigue creciendo.
+3. **El superior cuenta aunque su red sea de otro rol**: la cadena es la de `user_supervisors` (`RN-CM-025`), sin mirar qué rol tiene cada eslabón. Cada uno se compara con **su** escala.
+
+#### Lo que se descartó, y por qué
+
+**Guardar el remanente en una tabla de saldos.** Una fila por persona y producto con «cuántos le sobran», que el cierre actualiza. Se descarta porque **la última liquidación ya lo dice** (`carried_out`, §7.11): un saldo sería un segundo sitio donde guardar lo mismo, y el día que los dos discreparan no habría forma de saber cuál tiene razón. Es el mismo argumento con el que §5.7 descartó la bandeja de salida.
+
+**Reutilizar las columnas de la línea en la fila afftrack.** `quantity` = FTD pagados, `fixed_amount` = valor, `unit_price` = cero: cabía sin columnas nuevas. Se descarta porque **`unit_price` en cero diría que se vendió algo gratis**, y `chain_level` no tiene significado —el superior no cobra «un nivel por encima» de un FTD, cobra su propia escala—. Se conservan `quantity`, `rate_type`, `fixed_amount` y `commission_amount`, que **sí significan lo mismo**, y las propias de la línea pasan a ser **exigidas o prohibidas según la clase** (`RN-CM-044`).
+
+**Un tercer `rate_type` en `commission_rates`.** Ver §2: un escalón no es una tasa.
+
 ---
 ## 6. Permisos
 
-**Dieciocho desde el 28-09-2026, uno por operación** (`RF-SP-060`, `RN-SEG-014`; [`security.md` §4.4](../security.md#44-catalogo-de-permisos)). Fueron **cuatro** hasta el 19-09-2026, cada uno gobernando dos o más rutas —`commissions:read` **cuatro**: las tasas de rol, las personalizadas, la vista por producto y la resolución—; **diez** desde entonces; **seis más** el 24-09-2026 con la liquidación; y **dos más** el 28-09-2026 con el devengo automático (§5.7), que ya no devuelve en una respuesta lo que ahora hay que poder consultar después.
+**Veintisiete desde el 29-09-2026, uno por operación** —dieciocho hasta ese día, y **nueve más** con la comisión afftrack (§5.8)— (`RF-SP-060`, `RN-SEG-014`; [`security.md` §4.4](../security.md#44-catalogo-de-permisos)). Fueron **cuatro** hasta el 19-09-2026, cada uno gobernando dos o más rutas —`commissions:read` **cuatro**: las tasas de rol, las personalizadas, la vista por producto y la resolución—; **diez** desde entonces; **seis más** el 24-09-2026 con la liquidación; y **dos más** el 28-09-2026 con el devengo automático (§5.7), que ya no devuelve en una respuesta lo que ahora hay que poder consultar después.
 
 | Código | Operación | Para qué |
 |---|---|---|
@@ -471,6 +556,15 @@ Con el valor fijo el agujero **cambió de tamaño y de forma** al volver en v0.7
 | `commission-batches:read-own` **nuevo** | `GET /commission-batches/mine/{id}` | Consultar **uno de los míos**, con su detalle |
 | `commission-closings:read` **nuevo** | `GET /commission-closings` | Consultar los cierres —programados y a mano—, con cuántos lotes cerró cada uno y cuántas líneas recogió el barrido (`RF-CM-009`, 28-09-2026) |
 | `commission-accruals:read` **nuevo** | `GET /commission-accruals` | Consultar el desenlace de cada línea de venta, filtrable por desenlace: **las `RECHAZADAS` con su motivo** (`RF-CM-014`, 28-09-2026) |
+| `afftrack-rates:read` **nuevo** | `GET /afftrack-rates` | Consultar las comisiones afftrack de rol, cada una con su producto (`RF-CM-016`, 29-09-2026) |
+| `afftrack-rates:create` **nuevo** | `POST /afftrack-rates` | Registrar un escalón de rol sobre un producto FTD (`RF-CM-015`) |
+| `afftrack-rates:update` **nuevo** | `PATCH /afftrack-rates/{id}` | Corregir su límite o su valor (`RF-CM-017`) |
+| `afftrack-rates:delete` **nuevo** | `POST /afftrack-rates/{id}/deletion` | Retirarlo (`RF-CM-018`) |
+| `user-afftrack-rates:read` **nuevo** | `GET /user-afftrack-rates` | Consultar las comisiones afftrack de persona (`RF-CM-019`) |
+| `user-afftrack-rates:create` **nuevo** | `POST /user-afftrack-rates` | Registrar el escalón de una persona sobre un producto FTD, con su vigencia |
+| `user-afftrack-rates:update` **nuevo** | `PATCH /user-afftrack-rates/{id}` | Corregir su límite, su valor o su vigencia |
+| `user-afftrack-rates:delete` **nuevo** | `POST /user-afftrack-rates/{id}/deletion` | Retirarlo |
+| `afftrack-settlements:read` **nuevo** | `GET /afftrack-settlements` | Consultar las liquidaciones afftrack de cada cierre, con el remanente de cada persona (`RF-CM-021`) |
 
 **`commissions:` se queda con las tasas de rol**, que son el recurso principal del módulo, y las personalizadas ganan recurso propio porque tienen identidad y tabla propias (`user_commission_rates`, §7.2). **Cuatro operaciones bajo `RF-CM-006` no contradicen la regla**: la regla cuenta operaciones, no requerimientos.
 
@@ -483,6 +577,10 @@ Con el valor fijo el agujero **cambió de tamaño y de forma** al volver en v0.7
 **Devengar no tiene permiso, y el cierre programado tampoco** (28-09-2026). No los lanza nadie: `RF-CM-013` lo dispara un evento de `MV` y el cierre programado lo dispara el reloj. Es la misma situación que `RF-MV-024`, que no tiene ruta. Lo que sí tiene permiso es **lanzar el cierre a mano**, y es `commission-batches:settle` por lo mismo que antes: calcular la nómina y darla por pagada siguen siendo dos actos distintos.
 
 **`commission-closings:` y `commission-accruals:` son recursos propios** por el criterio de siempre: tienen tabla e identidad propias, y ninguno es un lote.
+
+**`afftrack-rates:`, `user-afftrack-rates:` y `afftrack-settlements:` también lo son** (29-09-2026), y por el mismo criterio que separó `user-commission-rates:` de `commissions:`: tabla e identidad propias. **No se cuelgan de `commissions:`** aunque se parezcan a una tasa, porque dar a alguien la configuración de lo que paga cada venta no tiene por qué darle la de lo que paga cada FTD. **Liquidar lo afftrack no tiene permiso**, igual que devengar: va dentro del cierre, y quien lanza el cierre a mano ya tiene `commission-batches:settle`.
+
+**Lo propio de lo afftrack no entra todavía.** «Cuántos FTD llevo y cuántos me sobran» es la pregunta natural de un vendedor, y su respuesta está en `afftrack_settlements`; hoy la ve quien tiene `afftrack-settlements:read`, y el vendedor ve **lo que cobró** en sus lotes (`RF-CM-012`), con la clase de cada fila. Una lectura propia (`afftrack-settlements:list-own`) es un requerimiento más el día que se pida.
 
 **Asociar reutilizaba `commissions:update` y no estrenó permiso propio** mientras existió (02-09-2026 a 16-09-2026), con el argumento de que «registrar es poner en vigor» (`RN-CM-021`) y `commissions:create` cambiaba lo que se paga tanto como `commissions:update`. **Ese argumento es el que `RF-SP-060` deja de aceptar**: que dos operaciones pesen lo mismo no es motivo para que un rol no pueda recibir una sin la otra. Aquí no cambia nada por ello —cada `commissions:` ya gobernaba una sola operación de las tasas de rol— y queda escrito para que no se repita.
 
@@ -596,6 +694,24 @@ Un importe fijo de comisión **es dinero en la misma moneda que el producto** (`
 | `fk_commissions_batch` | `batch_id` → `commission_batches(id)`, **`ON DELETE CASCADE`** | §7.6. El detalle no sobrevive a su cabecera |
 | `fk_commissions_detail` | `movement_detail_id` → `movement_details(id)`, **`RESTRICT`** | `RN-CM-029`. No se borra una venta liquidada — con el coste que §7.6 declara |
 | `fk_commissions_user` | `user_id` → `users(id)` | `RN-CM-025` |
+| `ck_commissions_kind_values` | `commission_kind IN ('POR_VENTA', 'POR_AFFTRACK')` | `RN-CM-044` (29-09-2026) |
+| `ck_commissions_kind` | **`POR_VENTA`**: `movement_detail_id`, `chain_level` y `unit_price` presentes, `afftrack_settlement_id` nulo. **`POR_AFFTRACK`**: los tres nulos, `afftrack_settlement_id` presente y `rate_type = 'FIJO'` | `RN-CM-044`. Es la restricción que se escribe a medias con facilidad: comprobar solo la línea admitiría una fila afftrack con porcentaje. **`ck_commissions_amount` y `ck_commissions_chain_level` siguen valiendo tal cual**: con el operando nulo evalúan a `NULL` y aceptan, que es lo correcto para la fila afftrack, y la presencia la exige esta |
+| `fk_commissions_settlement` | `afftrack_settlement_id` → `afftrack_settlements(id)` | `RN-CM-043` |
+| `uq_commissions_settlement` | `afftrack_settlement_id` único | `RN-CM-041`. Una liquidación paga **un escalón, una vez**: a lo sumo una fila |
+| `ck_afftrack_rates_threshold`, `ck_user_afftrack_rates_threshold` | `threshold > 0` | `RN-CM-038` |
+| `ck_afftrack_rates_amount`, `ck_user_afftrack_rates_amount` | `amount_per_ftd >= 0` | `RN-CM-038`. Por arriba no lo acota nada: no hay precio contra el que medir |
+| `fk_afftrack_rates_role`, `fk_afftrack_rates_product` | `role_id` → `roles(id)`, `product_id` → `products(id)`, **sin `ON DELETE`** | `RN-CM-037`. Que el producto sea FTD y el rol `VENDEDOR` vive en el dominio: un `CHECK` no consulta otra tabla |
+| `uq_afftrack_rates_product_role_threshold` | Índice único **parcial** sobre `(product_id, role_id, threshold)`, `WHERE deleted_at IS NULL` | `RN-CM-039`. Como `uq_commission_rates_product_role`, con el límite en la clave |
+| `fk_user_afftrack_rates_user`, `fk_user_afftrack_rates_product` | `user_id` → `users(id)`, `product_id` → `products(id)`, sin `ON DELETE` | `RN-CM-037` |
+| `ck_user_afftrack_rates_vigencia` | `valid_to IS NULL OR valid_to >= valid_from` | `RN-CM-009`, aplicada a lo afftrack |
+| `ex_user_afftrack_rates_vigente` | `EXCLUDE USING gist` sobre `user_id`, `product_id`, `threshold` y `daterange(valid_from, valid_to, '[]')`, `WHERE deleted_at IS NULL` | `RN-CM-039`. Se traduce por estado SQL —`23P01` y `40P01`—, como `RN-CM-006` |
+| `uq_afftrack_settlements_closing_user_product` | Único sobre `(closing_id, user_id, product_id)` | `RN-CM-043`. Una liquidación por persona y producto en cada cierre |
+| `ck_afftrack_settlements_counts` | `carried_in >= 0`, `new_ftds >= 0`, `paid_ftds >= 0`, `carried_out >= 0` y **`carried_out = carried_in + new_ftds − paid_ftds`** | `RN-CM-041`. La cuenta del remanente, declarada: una liquidación que pierde o inventa FTD no se puede escribir |
+| `ck_afftrack_settlements_threshold` | `paid_ftds = 0` **si y solo si** `threshold_rate_id IS NULL`; y si hay escalón, `paid_ftds > 0` | `RN-CM-041`. Pagar sin escalón, o tener escalón y no pagar, no existe |
+| `fk_afftrack_settlements_closing`, `…_user`, `…_product` | A `commission_closings`, `users` y `products` | §7.11 |
+| `pk_afftrack_ftds` | `(movement_detail_id, user_id)` como clave primaria | `RN-CM-040`. **Un FTD se cuenta una vez por persona**: es lo que impide que un cierre relanzado vuelva a contarlo |
+| `fk_afftrack_ftds_detail` | `movement_detail_id` → `movement_details(id)`, **`RESTRICT`** | `RN-CM-040`. Con el mismo coste en las suites de `MV` que `fk_commissions_detail` |
+| `fk_afftrack_ftds_settlement` | `settlement_id` → `afftrack_settlements(id)` | En qué liquidación se contó |
 | `pk_commission_accruals` | `movement_detail_id` como clave primaria | `RN-CM-032`. **Un desenlace por línea**, y el choque de dos devengos simultáneos de la misma línea —el aviso y el barrido— muerde aquí antes que en `uq_commissions_detail_user` |
 | `fk_commission_accruals_detail` | `movement_detail_id` → `movement_details(id)`, **`RESTRICT`** | `RN-CM-032`. Por lo mismo que `fk_commissions_detail`, con el mismo coste en las suites de `MV` |
 | `ck_commission_accruals_outcome` | `outcome IN ('DEVENGADA', 'SIN_COMISION', 'RECHAZADA')` | `RN-CM-032` |
@@ -606,6 +722,8 @@ Un importe fijo de comisión **es dinero en la misma moneda que el producto** (`
 **Lo que NO se puede declarar en el esquema, y por eso vive en el dominio:** que el rol sea de tipo `VENDEDOR` (`RN-CM-001`), que el producto no esté retirado (`RN-CM-010`), la precedencia de `RN-CM-004`, la suma del `RN-CM-019` y la forma admitida sobre un producto gratuito (`RN-CM-020`, que necesita el precio de `products`). Un `CHECK` no consulta otra tabla, y menos aún **suma** las filas que encuentra en ella — `RN-CM-019` además lee el precio de `PM`, que ninguna restricción de este esquema puede alcanzar.
 
 **Y lo que la liquidación tampoco puede declarar en el esquema** (24-09-2026): que la venta esté `CONFIRMADA` y la línea tenga vendedor (`RN-CM-022`, que mira `movements` y `movement_details` desde `commissions`), la reconstrucción de la cadena (`RN-CM-025`), el tope de la cadena (`RN-CM-026`, que **suma filas hermanas** igual que `RN-CM-019`) y la transición a `PAGADO` (`RN-CM-030`). Todas viven en el dominio, y por el mismo motivo de siempre: un `CHECK` evalúa **una fila sola**.
+
+**Y lo afftrack tampoco** (29-09-2026): que el producto de un escalón sea FTD, y que una tasa por venta **no** lo sea (`RN-CM-037`), mira el origen y el destino en `products` y el suelo en `memberships`; que la persona sustituya la escala de su rol (`RN-CM-039`), qué escalón se alcanza (`RN-CM-041`) y a quién se le cuenta cada FTD (`RN-CM-042`) son cálculos del cierre. **Lo que sí se declara es lo que no puede equivocarse sin arrastrarse**: la cuenta del remanente, un FTD contado una vez por persona y la forma de cada clase de comisión.
 
 !!! success "El no solapamiento vuelve a caber en una sola tabla — por segunda vez"
 
@@ -647,20 +765,24 @@ Un importe fijo de comisión **es dinero en la misma moneda que el producto** (`
 |---|---|---|---|
 | `id` | `uuid` | No | — |
 | `batch_id` | `uuid` | No | `commission_batches`, `ON DELETE CASCADE` |
-| `movement_detail_id` | `uuid` | No | `movement_details` — la línea que se vendió |
+| `commission_kind` | `varchar(20)` | No | `POR_VENTA` \| `POR_AFFTRACK` (`RN-CM-044`, 29-09-2026). Las filas anteriores, `POR_VENTA` |
+| `movement_detail_id` | `uuid` | **Sí** desde el 29-09-2026 | `movement_details` — la línea que se vendió. Presente **si y solo si** `POR_VENTA` |
+| `afftrack_settlement_id` | `uuid` | **Sí** | `afftrack_settlements` — la liquidación que la pagó. Presente **si y solo si** `POR_AFFTRACK` (29-09-2026) |
 | `user_id` | `uuid` | No | `users` — **quién cobra este nivel** (`RN-CM-025`) |
-| `chain_level` | `smallint` | No | `0` quien vendió, `1` su superior, y así hacia arriba |
-| `source` | `varchar(20)` | No | `PERSONALIZADA` \| `ROL` — **cuál de las dos ganó** (`RN-CM-004`) |
-| `rate_id` | `uuid` | No | La tasa exacta. **Sin clave foránea**: apunta a una de dos tablas |
-| `resolved_on` | `date` | No | La fecha con la que se resolvió: la de la venta (`RN-CM-024`) |
-| `rate_type` | `varchar(20)` | No | `PORCENTAJE` \| `FIJO`, copiado |
+| `chain_level` | `smallint` | **Sí** desde el 29-09-2026 | `0` quien vendió, `1` su superior, y así hacia arriba. Presente **si y solo si** `POR_VENTA`: un superior no cobra lo afftrack «un nivel por encima», cobra su propia escala (`RN-CM-042`) |
+| `source` | `varchar(20)` | No | `PERSONALIZADA` \| `ROL` — **cuál de las dos ganó** (`RN-CM-004`; en lo afftrack, `RN-CM-039`) |
+| `rate_id` | `uuid` | No | La tasa exacta —o el escalón exacto, en `POR_AFFTRACK`—. **Sin clave foránea**: apunta a una de dos tablas (a una de cuatro desde el 29-09-2026, según la clase y `source`) |
+| `resolved_on` | `date` | No | La fecha con la que se resolvió: la de la venta (`RN-CM-024`); en `POR_AFFTRACK`, **el día del cierre** (`RN-CM-039`) |
+| `rate_type` | `varchar(20)` | No | `PORCENTAJE` \| `FIJO`, copiado. En `POR_AFFTRACK`, **siempre `FIJO`** |
 | `percentage` | `numeric(5,2)` | **Sí** | Presente solo si `rate_type = 'PORCENTAJE'` |
-| `fixed_amount` | `numeric(14,4)` | **Sí** | Presente solo si `rate_type = 'FIJO'` |
-| `unit_price` | `numeric(14,2)` | No | Copia de `movement_details.unit_price` |
-| `quantity` | `integer` | No | Copia de `movement_details.quantity` |
+| `fixed_amount` | `numeric(14,4)` | **Sí** | Presente solo si `rate_type = 'FIJO'`. En `POR_AFFTRACK`, **el valor por FTD** del escalón |
+| `unit_price` | `numeric(14,2)` | **Sí** desde el 29-09-2026 | Copia de `movement_details.unit_price`. Presente **si y solo si** `POR_VENTA` |
+| `quantity` | `integer` | No | Copia de `movement_details.quantity`; en `POR_AFFTRACK`, **los FTD pagados** —el límite del escalón— |
 | `commission_amount` | `numeric(14,4)` | No | Lo devengado por este nivel en esta línea |
 | `accrued_at` | `timestamptz` | No | **Cuándo nació** —el instante del devengo—, que decide en qué lote entra (`RN-CM-033`). No es `resolved_on`: aquella es la fecha de la venta y decide la tasa |
 | `created_at` | `timestamptz` | No | — |
+
+**Desde el 29-09-2026 la tabla guarda dos clases de comisión** (`RN-CM-044`), y la columna que las distingue es la que el responsable del proyecto pidió: «otro campo para tipo de comisión, *Por venta* y *Por afftrack*». **Una fila `POR_AFFTRACK` no sale de una línea**: sale de una liquidación (§7.11), paga `quantity × fixed_amount` —los FTD del escalón por su valor— y no tiene nivel. Lo que cada clase exige y prohíbe lo dice `ck_commissions_kind` (§7.4). **`uq_commissions_detail_user` no estorba**: con `movement_detail_id` nulo no choca con nada, y lo que impide pagar dos veces un FTD es `afftrack_ftds` (`RN-CM-040`), no esta tabla.
 
 **`user_id` y `chain_level` son lo que convierte esta tabla en el override de `RN-CM-011`.** Sin ellos habría una comisión por línea y la cadena no cabría; con ellos, una línea produce tantas filas como niveles tenga la cadena **el día de la venta**.
 
@@ -706,6 +828,74 @@ Un importe fijo de comisión **es dinero en la misma moneda que el producto** (`
 **Existe porque un proceso programado no tiene a quién contestar.** Cuando la liquidación era un `POST`, su respuesta era el resumen; hoy el cierre corre a medianoche y **su resumen tiene que quedar escrito** para que alguien pueda preguntar si corrió. **Dos réplicas no cierran dos veces el mismo turno** (v0.20.0). Un bloqueo consultivo solo **ordena**: la réplica que llega segunda esperaría a la primera y después **cerraría otra vez**, dejando lotes con un periodo de medio segundo. Lo que lo impide es que la fila del cierre programado se escribe **antes que nada**, con `scheduled_for` único: la segunda réplica choca, no escribe nada y **no hace nada más**. El cierre a mano no tiene turno y va con un bloqueo consultivo que, si está tomado, responde que hay un cierre en curso.
 
 **`lines_swept` es el número que hay que vigilar**: si no es cero, el evento de `MV` se está perdiendo, y el barrido lo está tapando.
+
+### 7.9 `afftrack_rates` — los escalones de rol de cada producto FTD — 29-09-2026
+
+| Columna | Tipo | Nula | Referencia |
+|---|---|---|---|
+| `id` | `uuid` | No | — |
+| `product_id` | `uuid` | No | `products` — un producto FTD (`RN-CM-036`), y **no se corrige** (`RN-CM-037`) |
+| `role_id` | `uuid` | No | `roles` — de tipo `VENDEDOR` (`RN-CM-001`), y no se corrige |
+| `threshold` | `integer` | No | El **límite**: cuántos FTD hay que reunir (`RN-CM-038`) |
+| `amount_per_ftd` | `numeric(14,4)` | No | El **valor por FTD**, en la moneda del producto. La forma de `fixed_amount`, por la misma razón (§7.1) |
+| `created_at` | `timestamptz` | No | — |
+| `updated_at` | `timestamptz` | No | — |
+| `deleted_at` | `timestamptz` | **Sí** | Retiro lógico (`RN-CM-005`) |
+
+**Calca `commission_rates` sin la forma.** No hay `rate_type`, `percentage` ni `fixed_amount`: un escalón **siempre** paga un importe por FTD (`RN-CM-038`), y declarar un tipo con un solo valor posible sería una columna que no dice nada. **Sin vigencia**, como la tasa de rol: corregir el valor de un escalón reescribe lo que regirá en el próximo cierre, y lo ya pagado lo guarda `commissions` (`RN-CM-008`).
+
+### 7.10 `user_afftrack_rates` — los escalones de una persona — 29-09-2026
+
+| Columna | Tipo | Nula | Referencia |
+|---|---|---|---|
+| `id` | `uuid` | No | — |
+| `user_id` | `uuid` | No | `users` |
+| `product_id` | `uuid` | No | `products` — un producto FTD, y no se corrige |
+| `threshold` | `integer` | No | El límite |
+| `amount_per_ftd` | `numeric(14,4)` | No | El valor por FTD |
+| `valid_from` | `date` | No | — |
+| `valid_to` | `date` | **Sí** | Nulo = indefinidamente |
+| `created_at` | `timestamptz` | No | — |
+| `updated_at` | `timestamptz` | No | — |
+| `deleted_at` | `timestamptz` | **Sí** | Retiro lógico |
+
+**Calca `user_commission_rates`**, con su vigencia en `date` por lo mismo que allí (§7.2). **La unicidad lleva el límite dentro** —`ex_user_afftrack_rates_vigente`—, porque la escala de una persona **son varios escalones vigentes a la vez**, y lo único que no puede repetirse es el mismo límite el mismo día.
+
+### 7.11 `afftrack_settlements` — lo que cada cierre hizo con los FTD de cada persona — 29-09-2026
+
+| Columna | Tipo | Nula | Referencia |
+|---|---|---|---|
+| `id` | `uuid` | No | — |
+| `closing_id` | `uuid` | No | `commission_closings` — el cierre en el que se liquidó |
+| `user_id` | `uuid` | No | `users` — de quién es la cuenta |
+| `product_id` | `uuid` | No | `products` — de qué producto FTD |
+| `carried_in` | `integer` | No | El remanente con el que llegó: el `carried_out` de su liquidación anterior del mismo producto, o cero |
+| `new_ftds` | `integer` | No | Los FTD contados en este cierre: los suyos y los de su red (`RN-CM-040`, `RN-CM-042`) |
+| `paid_ftds` | `integer` | No | Los que se pagaron: el límite del escalón alcanzado, o cero |
+| `carried_out` | `integer` | No | **El remanente para el siguiente cierre**: `carried_in + new_ftds − paid_ftds` |
+| `source` | `varchar(20)` | **Sí** | `PERSONALIZADA` \| `ROL` — de qué escala salió el escalón (`RN-CM-039`). Nulo si no alcanzó ninguno |
+| `threshold_rate_id` | `uuid` | **Sí** | El escalón exacto que se pagó. **Sin clave foránea**, como `commissions.rate_id`: apunta a una de dos tablas. Nulo si no alcanzó ninguno |
+| `created_at` | `timestamptz` | No | — |
+
+**Es la tabla que hace posible el remanente sin guardarlo aparte** (§5.8): la siguiente liquidación de esa persona y producto lee el `carried_out` de la más reciente. **Hay fila también cuando no se pagó nada**, y es lo que hace falta: sin ella, los 40 FTD que no alcanzaron el escalón de 50 no estarían en ningún sitio. **No hay fila cuando no había nada que liquidar** —ni remanente ni FTD nuevos—: un cierre no escribe una fila de ceros por cada persona del sistema.
+
+**La cuenta del remanente está declarada** (`ck_afftrack_settlements_counts`), y es deliberado: es la única cifra del módulo que **pasa de un cierre al siguiente**, de modo que un error aquí no se queda en un lote, se arrastra en todos los que vengan.
+
+**Es un hecho consumado** (`RN-CM-029`): sin `updated_at` ni `deleted_at`.
+
+### 7.12 `afftrack_ftds` — qué FTD se le contaron a quién — 29-09-2026
+
+| Columna | Tipo | Nula | Referencia |
+|---|---|---|---|
+| `movement_detail_id` | `uuid` | No | `movement_details` — la línea FTD |
+| `user_id` | `uuid` | No | `users` — a quién se le contó |
+| `chain_level` | `smallint` | No | `0` si es suya, `1` si es de alguien que depende directamente de ella, y así hacia abajo (`RN-CM-042`) |
+| `settlement_id` | `uuid` | No | `afftrack_settlements` — en qué liquidación se contó |
+| `created_at` | `timestamptz` | No | — |
+
+**La clave primaria es la pareja** `(movement_detail_id, user_id)`, por lo mismo que `uq_commissions_detail_user`: la cadena cuenta el mismo FTD a varias personas, y a cada una una sola vez **en la historia** (`RN-CM-040`). **Es lo que permite preguntar «qué FTD no se le han contado todavía»** con los datos que existen, igual que `commission_accruals` permite al barrido saber qué líneas no se atendieron.
+
+**`chain_level` no decide nada**: la escala de un superior no depende de a qué profundidad está su red. Se guarda para que «¿de dónde salen mis 55?» tenga respuesta —cuántos son míos y cuántos de mi red—.
 ---
 ## 8. Control de cambios
 
@@ -733,3 +923,5 @@ Un importe fijo de comisión **es dinero en la misma moneda que el producto** (`
 | 0.19.0 | 28-09-2026 | **La comisión se devenga sola** (§5.7), por decisión del responsable del proyecto: «venta con estado confirmado, si el detalle tiene un vendedor asignado, se le crea la comisión; si la venta fue el último día pero la confirmación del vendedor fue al día siguiente del cierre, ya queda para el siguiente cierre». **Nada de v0.17.0 estaba construido**, de modo que se cambia el diseño y no hay nada que migrar. **Cinco preguntas respondidas antes de escribir**: se automatiza **el devengo, en el momento**; el cierre es **configurable** (`cron`) y corta en **`America/Bogota`**; la línea atribuida tarde **entra en el cierre siguiente**; el cierre **no paga** —Finanzas sigue marcando `PAGADO`—; y la línea que pasa del 100 % **queda pendiente y se reintenta**. **`RN-CM-022` se reescribe**: se mira **la línea** y no la venta —deja de exigirse `VALIDADO`, porque `RN-MV-035` congela el vendedor de una línea al confirmar—. **Nacen `RN-CM-031` a `RN-CM-035`**: el devengo por evento de `MV` después de su commit, que no deshace la venta; un desenlace por línea —`DEVENGADA`, `SIN_COMISION` (final) o `RECHAZADA` (se reintenta)—; el lote `ABIERTO` y el periodo decidido por el momento del devengo, **nunca la tasa**, que sigue siendo la del día de la venta; el barrido antes de cerrar; y el cierre programado, apagable y único aunque haya réplicas. Se ajustan `RN-CM-024` —la fecha de la venta se lee en Bogotá, y se salda la deuda del 15-09-2026 sobre el «hoy» en UTC de `ResolveCommissionService`—, `RN-CM-026` —el rechazo se guarda y no es definitivo—, `RN-CM-027`, `RN-CM-028` —el periodo son dos instantes— y `RN-CM-030` —tres estados, y solo se paga el `PENDIENTE`—. **`RF-CM-009` deja de calcular y pasa a cerrar** (`POST /commission-batches/closing`), con una lectura nueva de los cierres; **nacen `RF-CM-013`** —devengar, sin ruta ni permiso— **y `RF-CM-014`** —el desenlace de cada línea—. **Dos permisos más**, `commission-closings:read` y `commission-accruals:read`: el módulo pasa de dieciséis a **dieciocho**. **Dos tablas más**, `commission_accruals` y `commission_closings` (§7.7, §7.8); `commission_batches` cambia `date_init`/`date_end` por `period_start`/`period_end` y gana `closing_id`; `commissions` gana `accrued_at`. Se descarta devengar en la transacción de la venta —cerraría el ciclo `MV` → `CM` y ataría el cobro a la configuración de comisiones—, una bandeja de salida —el barrido responde lo mismo con los datos que ya existen— y reabrir lotes cerrados. **Impone a `MV` dos cosas**, que se registran allí (`requirements/mv.md` v0.49.0): enmendar `RN-MV-035` y publicar el aviso de las líneas comisionables (`RN-MV-049`). | Responsable del proyecto |
 | 0.20.0 | 28-09-2026 | **Dos réplicas no cierran dos veces el mismo turno**, visto al escribir la tripleta de `RF-CM-009`: un bloqueo consultivo solo ordena, y la réplica que llega segunda cerraría otra vez con un periodo de medio segundo. `commission_closings` gana **`scheduled_for`** —la hora nominal del turno, única— y **`started_at`**, y `closed_at` pasa a nulo mientras el cierre corre o si falló; nace `uq_commission_closings_scheduled` y `ck_commission_closings_origin` ata `scheduled_for` al origen. `RN-CM-035` lo recoge. Nada estaba construido. | Responsable del proyecto |
 | 0.21.0 | 28-09-2026 | **La liquidación está construida**: `RF-CM-009` a `RF-CM-014` con `V51` (cuatro tablas, ocho permisos, catálogo 153), cada uno con su tripleta escrita antes del código. §4 lo recoge en una caja. Sin cambio de reglas. | Responsable del proyecto |
+| 0.22.0 | 29-09-2026 | **Nace la comisión afftrack** (§1.1.2, §5.8), por decisión del responsable del proyecto: «otro tipo de comisión estilo las tasas; será sencillo, guardar límite y el valor a pagar. Al corte de los lotes se cuenta cuántos FTD vendí y se compara con las comisiones afftrack: si vendí 55 y tengo una de 50 y otra de 60, se multiplica 50 por el valor de la comisión y los 5 que sobraron se dejan para el siguiente corte». Y **la comisión generada dice de qué tipo es**, «Por venta» o «Por afftrack». **Diez preguntas respondidas antes de escribir**: un FTD es **una línea `BECA → BECA` activada**; la escala se declara **por rol y por persona**, cada escalón **con su producto FTD**, que le da la moneda; la de la persona **sustituye entera** la del rol y es la única con vigencia; un FTD cuenta **en el cierre en que se activó**; pasado el mayor límite **se paga una vez** y sobra el resto; cobran **el vendedor y toda su cadena**, cada superior con los suyos y los de toda su red; un FTD **no devenga por venta**; y lo afftrack va **en el mismo lote**. **Tres supuestos** que se declaran en §5.8: la activación es `delivered_at`, sin escala los FTD se acumulan, y el superior cuenta aunque su red sea de otro rol. **`§1.3` retira «Los FTDs» de lo que no incluye**, y deja fuera importarlos desde la plataforma Afftrack. **Nacen `RN-CM-036` a `RN-CM-044`**, y **`RN-CM-022` gana una quinta condición**: la línea no es un FTD. **Nacen `RF-CM-015` a `RF-CM-021`**: cuatro sobre los escalones de rol, uno —con cuatro operaciones— sobre los de persona, **la liquidación, sin ruta y dentro del cierre** (`RN-CM-043`: barrido, liquidación afftrack, paso a `PENDIENTE`) y su lectura. **Nueve permisos más** —`afftrack-rates:` ×4, `user-afftrack-rates:` ×4 y `afftrack-settlements:read`—: el módulo pasa de dieciocho a **veintisiete**. **Cuatro tablas más** (§7.9 a §7.12): `afftrack_rates`, `user_afftrack_rates`, `afftrack_settlements` —que guarda el remanente, sin tabla de saldos aparte— y `afftrack_ftds`; y **`commissions` gana `commission_kind` y `afftrack_settlement_id`**, con `movement_detail_id`, `chain_level` y `unit_price` pasando a exigirse **solo en `POR_VENTA`** (`ck_commissions_kind`). Las filas que ya existen son `POR_VENTA`. **Afecta a construidos**: `RF-CM-001` y `RF-CM-006` rechazan una tasa sobre un producto FTD (`RN-CM-037`), `RF-CM-013` deja de devengar las líneas FTD, `RF-CM-009` gana un paso, y `RF-CM-010` y `RF-CM-012` muestran la clase de cada fila. | Responsable del proyecto |
+| 0.23.0 | 29-09-2026 | **La comisión afftrack está construida**: `RF-CM-015` a `RF-CM-021` con `V54` (cuatro tablas, `commission_kind`, nueve permisos, catálogo 162), cada uno con su tripleta escrita antes del código, y las enmiendas a `RF-CM-001`, `RF-CM-006`, `RF-CM-009`, `RF-CM-010`, `RF-CM-012` y `RF-CM-013`. §4 lo recoge en una caja. Sin cambio de reglas. | Responsable del proyecto |

@@ -5,11 +5,12 @@
 | Requerimiento | `RF-CM-013` |
 | Especificación | [`spec.md`](spec.md) v0.1.0 |
 | `spec.md` aprobada el | 28-09-2026 |
-| Versión | 0.1.0 |
+| Versión | 0.2.0 |
 | Estado | **Aprobado** |
 | Autor | Responsable técnico |
 | Aprobado por | Responsable del proyecto |
 | Fecha de aprobación | 28-09-2026 |
+| Enmendado el | 29-09-2026 — las líneas FTD fuera del devengo y `commission_kind` en la inserción (§12) |
 
 !!! info "Qué va en este documento"
 
@@ -147,3 +148,13 @@ Y un índice de apoyo: `ix_commission_batches_abierto` sobre `(user_id, currency
 - **`SupervisorChainIT`** (en `SP`): cadena vigente, cadena a una fecha pasada, historial cerrado, sin superior.
 - **`CommissionAccrualIT`**: `CA-CM-154` a `CA-CM-169`, **confirmando y asignando por la API de `MV`** —no invocando el servicio—, para que el evento, el `AFTER_COMMIT` y la transacción nueva entren en la prueba. `CA-CM-164` y `CA-CM-165` con dos hilos. `CA-CM-166` con un doble que falla en la segunda línea.
 - **Los seis recuentos del catálogo** (`PermissionsSeedIT`, `JpaPermissionQueryRepositoryIT`, `ListPermissionsServiceIT`, `TeamsPermissionsSeedIT`, `PermissionIT` con `153L`, y la de `CM`): 145 → 153.
+
+## 12. Las líneas FTD, fuera — enmienda del 29-09-2026
+
+`RN-CM-022` gana una quinta condición y `RN-CM-044` una columna.
+
+- **`CommissionAccrualService` descarta las líneas cuyo producto esté en `ProductCatalog.ftdProductIds()`**, pedido **una vez por tanda** —no por línea— tras `CommissionableLines.of`. **Se descarta sin escribir desenlace**, y es deliberado: `commission_accruals` dice qué pasó con una línea **en este camino**, y una línea FTD no es de este camino. **`CommissionableLines` no cambia**: la definición de FTD vive en `PM` (`RF-CM-015` `plan.md` §1), y copiarla en la sentencia de `MV` la tendría en dos sitios.
+- **El precio de no escribir desenlace**: el barrido de cada cierre vuelve a encontrar las líneas FTD —no tienen fila— y las vuelve a descartar. Son pocas —las altas `BECA → BECA`— y la cuenta es en memoria contra un conjunto de un elemento; si pesara, `idsAfter` puede recibir los productos a excluir sin que `MV` sepa qué es un FTD.
+- **La inserción de `commissions` declara `commission_kind = 'POR_VENTA'`**, porque `V54` retira el valor por omisión (`RF-CM-015` `T-02`).
+
+`CommissionAccrualIT` gana `CA-CM-253` —criterio de `RF-CM-020`—: una línea `BECA → BECA` confirmada y con vendedor, sobre un producto con una tasa **sembrada directamente** en la base —el alta ya la rechaza (`RN-CM-037`)—, no deja comisión ni desenlace, ni al confirmar ni tras un cierre.

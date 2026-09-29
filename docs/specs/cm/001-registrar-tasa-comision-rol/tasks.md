@@ -12,6 +12,7 @@
 | Issue | Pendiente de crear |
 | Rama | `feature/flujos-de-pm-y-cm` (`T-01`–`T-15`) · `feature/comision-en-valor-fijo` (`T-16`–`T-27`) |
 | Enmendadas | 15-09-2026 — `T-28` a `T-31` porque **la tasa de rol nace con su producto** (`RN-CM-021`) |
+| Enmendadas | 29-09-2026 — `T-32` porque **un producto FTD no admite tasas por venta** (`RN-CM-037`) |
 
 !!! info "Qué va en este documento"
 
@@ -111,3 +112,11 @@ Ninguno.
 
 - Las veintisiete tareas `Hecha` con su verificación pasando. **Comprobado el 02-09-2026**: `./mvnw clean verify` en verde, **287 unitarias y 902 de integración**, incluida `T-25` — la que no se ve fallar de otro modo.
 - La matriz y el contrato publicado al día, **con el cambio incompatible declarado**.
+
+## 6. Un producto FTD no admite tasas por venta — enmienda del 29-09-2026
+
+| ID | Tarea | Depende de | Verificación | Estado |
+|---|---|---|---|---|
+| `T-32` | `EX-008` en `RegisterCommissionRateService` y `CA-CM-260` en `RegisterCommissionRateIT` | `RF-CM-015` `T-04` | La suite de `RF-CM-001` en verde | **Hecha** — 29-09-2026 |
+
+Rama: `feature/comision-afftrack`.

@@ -5,12 +5,13 @@
 | Requerimiento | `RF-CM-001` |
 | Especificación | [`spec.md`](spec.md) |
 | `spec.md` aprobada el | 02-09-2026 |
-| Versión | 1.1.0 |
+| Versión | 1.2.0 |
 | Estado | **Aprobado** |
 | Autor | Responsable técnico |
 | Aprobado por | Responsable del proyecto |
 | Fecha de aprobación | 02-09-2026 |
 | Enmendada el | 15-09-2026 — **la tasa de rol nace con su producto** (`RN-CM-021`): `V94` y las comprobaciones de la asociación pasan al alta |
+| Enmendada el | 29-09-2026 — `EX-008`: un producto FTD no admite tasas por venta (§12) |
 
 !!! info "Qué va en este documento"
 
@@ -226,3 +227,7 @@ Es una prueba fea —habla `SQL` en lugar de negocio— y es la única capaz de 
 
 **No hay prueba concurrente en este requerimiento, y su ausencia es una afirmación**: no queda ninguna regla que dos altas simultáneas puedan burlar. `RN-CM-016` tampoco es una de ellas — **es una regla dentro de una fila**, no entre filas, y por eso un `CHECK` la cierra del todo. Las que sí quedan se prueban en `RF-CM-006` y `RF-CM-007`.
 | 1.1.0 | 15-09-2026 | **Enmienda por `RN-CM-021`** ([`requirements/cm.md`](../../../requirements/cm.md) v0.14.0 §5.4). **`V94__commission_rates_producto.sql`**: vacía `product_commission_rates` y `commission_rates` —como `V49`, y por lo mismo—, borra la tabla de asociación con su clave foránea compuesta y `uq_commission_rates_id_role`, añade `product_id` `NOT NULL` con `fk_commission_rates_product` sin `ON DELETE`, y `uq_commission_rates_product_role` **parcial** sobre las vivas. `CommissionRate.create` gana el producto; `RegisterCommissionRateService` hereda de `AssociateProductService` —que desaparece— la lectura del producto en `PM` (`ProductCatalog`), el rechazo del retirado, la cuenta de `ProductCommissionCapGuard` y la regla del gratuito, y **valida los decimales del importe fijo contra la moneda del producto** con `CurrencyCatalog`, como `RF-PM-001` hace con el precio. La carrera de dos altas simultáneas del mismo rol sobre el mismo producto muerde en `uq_commission_rates_product_role` y se traduce a `409` en el adaptador, por nombre de restricción. | Responsable técnico |
+
+## 12. Un producto FTD no admite tasas por venta — enmienda del 29-09-2026
+
+`RN-CM-037` ([`requirements/cm.md`](../../../requirements/cm.md) v0.22.0). **Una comprobación más, sin esquema**: `RegisterCommissionRateService.verificarProducto` pregunta, después del retiro, si el producto está en `ProductCatalog.ftdProductIds()` —publicada por `RF-CM-015`— y responde `422` con `EX-008`. **Va antes del importe, del duplicado y del tope**: si el producto no admite tasas, ninguna de las demás respuestas tiene sentido. `RegisterCommissionRateIT` gana `CA-CM-260`, con el producto `BECA → BECA` que siembran las fixtures de `RF-CM-015`.

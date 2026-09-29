@@ -63,8 +63,12 @@ public class CommissionBatchController {
           **Hace lo mismo que el cierre programado**, y existe para relanzar el que no corrió
           (`RF-CM-009`, `RN-CM-035`). Primero **barre**: devenga las líneas cobradas y con
           vendedor que se quedaron sin desenlace, y reintenta las rechazadas por pasar del 100 %
-          (`RN-CM-034`). Después pasa **todos** los lotes abiertos a `PENDIENTE`, con el instante
-          del cierre como fin de periodo. Lo que devengue un segundo después abre un lote nuevo.
+          (`RN-CM-034`). Después **liquida lo afftrack** (`RF-CM-020`, 29-09-2026): cuenta los
+          FTD activados de cada persona y de su red, paga el mayor escalón alcanzado en su lote
+          abierto y guarda el remanente —se consulta en `GET /afftrack-settlements`—. Por último
+          pasa **todos** los lotes abiertos a `PENDIENTE`, con el instante del cierre como fin de
+          periodo. Lo que devengue un segundo después abre un lote nuevo. **Si la liquidación
+          afftrack falla, no se cierra nada.**
 
           **Sin cuerpo.** Responde la constancia del cierre, que queda además consultable en
           `GET /commission-closings`. **`200` y no `201`**: se ejecuta una acción, no se crea un
@@ -124,6 +128,12 @@ public class CommissionBatchController {
 
           **Lo copiado, no lo de hoy** (`RN-CM-008`): corregir la tasa después no cambia lo que
           aquí se lee.
+
+          **Cada comisión dice su clase en `commissionKind`** (`RN-CM-044`, 29-09-2026):
+          `POR_VENTA`, con todo lo anterior; o `POR_AFFTRACK`, un escalón pagado en un cierre,
+          que **no trae** `movementDetailId`, `movementId`, `movementCode`, `chainLevel` ni
+          `unitPrice` —no sale de una línea—: `productId` es el producto FTD, `quantity` los FTD
+          pagados, `fixedAmount` el valor por FTD y `afftrackSettlementId` la liquidación.
           """)
   @ApiResponses({
     @ApiResponse(responseCode = "200", description = "El lote con sus comisiones"),
@@ -194,8 +204,9 @@ public class CommissionBatchController {
       description =
           """
           Uno de **mis** lotes, con sus comisiones, en la forma del detalle de administración
-          (`RF-CM-012`). **Un lote ajeno responde `404`**, igual que uno que no existe: no se
-          confirma que exista.
+          (`RF-CM-012`), **con la clase de cada comisión** —`POR_VENTA` o `POR_AFFTRACK`—.
+          **Un lote ajeno responde `404`**, igual que uno que no existe: no se confirma que
+          exista.
           """)
   @ApiResponses({
     @ApiResponse(responseCode = "200", description = "El lote con sus comisiones"),

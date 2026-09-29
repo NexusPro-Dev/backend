@@ -120,6 +120,33 @@ public class PublishedProductCatalog implements ProductCatalog, RegistrableProdu
   }
 
   /**
+   * Los productos FTD (`RN-CM-036`).
+   *
+   * <p><b>El suelo se resuelve por el código {@code BECA}</b>, con el mismo criterio y el mismo
+   * literal que {@code MembershipCatalog.floor()} en `SP` y {@code SaleRules} en `MV`
+   * (`RN-SP-018`): {@code uq_memberships_code} lo hace único y `V46` lo siembra en todos los
+   * entornos. Se lee con un {@code JOIN} de columnas, no cargando entidades de `SP` (D-25).
+   */
+  @Override
+  @Transactional(readOnly = true)
+  public Set<UUID> ftdProductIds() {
+    List<?> filas =
+        em.createNativeQuery(
+                """
+                SELECT p.id
+                  FROM products p
+                  JOIN memberships m ON m.id = p.source_membership_id
+                 WHERE p.type = 'UPGRADE_MEMBRESIA'
+                   AND p.target_membership_id = p.source_membership_id
+                   AND m.code = 'BECA'
+                """)
+            .getResultList();
+    return filas.stream()
+        .map(fila -> (UUID) fila)
+        .collect(Collectors.toCollection(LinkedHashSet::new));
+  }
+
+  /**
    * La vista de venta del lote (`RF-MV-001` · `T-05`).
    *
    * <p><b>Una sentencia para todo el lote</b>, y ese es el punto: es lo que impide la {@code N+1}

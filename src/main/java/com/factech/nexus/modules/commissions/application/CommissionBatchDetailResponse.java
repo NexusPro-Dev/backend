@@ -50,7 +50,15 @@ public record CommissionBatchDetailResponse(
         filas.stream().map(CommissionLine::from).toList());
   }
 
-  /** Una comisión: un nivel de la cadena sobre una línea de venta. */
+  /**
+   * Una comisión, <b>de una de dos clases</b> (`RN-CM-044`, 29-09-2026).
+   *
+   * <p><b>{@code POR_VENTA}</b>: un nivel de la cadena sobre una línea de venta, con todo lo de
+   * siempre. <b>{@code POR_AFFTRACK}</b>: un escalón pagado en un cierre —<b>sin venta, línea,
+   * nivel ni precio unitario</b>—; {@code productId} es el producto FTD, {@code quantity} los FTD
+   * pagados, {@code fixedAmount} el valor por FTD y {@code afftrackSettlementId} la liquidación de
+   * la que sale (`RF-CM-021`).
+   */
   @Schema(name = "CommissionLine")
   public record CommissionLine(
       UUID id,
@@ -59,7 +67,7 @@ public record CommissionBatchDetailResponse(
       String movementCode,
       UUID productId,
       String productName,
-      int chainLevel,
+      Integer chainLevel,
       String source,
       UUID rateId,
       String rateType,
@@ -69,7 +77,9 @@ public record CommissionBatchDetailResponse(
       int quantity,
       BigDecimal commissionAmount,
       LocalDate resolvedOn,
-      OffsetDateTime accruedAt) {
+      OffsetDateTime accruedAt,
+      String commissionKind,
+      UUID afftrackSettlementId) {
 
     static CommissionLine from(CommissionRow f) {
       return new CommissionLine(
@@ -89,7 +99,9 @@ public record CommissionBatchDetailResponse(
           f.quantity(),
           f.commissionAmount(),
           f.resolvedOn(),
-          f.accruedAt());
+          f.accruedAt(),
+          f.commissionKind(),
+          f.afftrackSettlementId());
     }
   }
 }
