@@ -115,7 +115,8 @@ class ProductRatingIT extends ProductCommentTestSupport {
                     "{\"code\":\"RS_NUEVO\",\"type\":\"BOT\",\"name\":\"Nuevo bot de rating\","
                         + "\"price\":1.00,\"currencyId\":\""
                         + USD
-                        + "\",\"scope\":\"TIENDA\",\"implementation\":\"MANUAL\"}"))
+                        + "\",\"scope\":\"TIENDA\",\"implementation\":\"MANUAL\","
+                        + "\"directCommission\":{\"type\":\"PORCENTAJE\",\"percentage\":0}}"))
         .andExpect(status().isCreated())
         .andExpect(jsonPath("$.rating.average").value(Matchers.nullValue()))
         .andExpect(jsonPath("$.rating.count").value(0));

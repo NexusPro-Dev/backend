@@ -118,6 +118,21 @@ public class RegisterProductService {
     // El origen DESPUÉS del destino, porque `RN-PM-017` compara los dos: sin el
     // destino resuelto no hay contra qué comparar.
     MembershipView origen = verificarOrigen(comando, destino);
+    // `RN-PM-051`: después de las membresías, porque sin el origen resuelto no
+    // se sabe si es un FTD —que no la lleva—; y antes de la unicidad, porque es
+    // un 400 sobre el cuerpo y no un choque con otro producto.
+    boolean ftd =
+        Product.esFtd(
+            comando.type(),
+            comando.sourceMembershipId(),
+            comando.targetMembershipId(),
+            origen == null ? null : origen.code());
+    DirectCommissionRules.verificar(
+        comando.directCommission(),
+        ftd,
+        comando.price(),
+        moneda.decimalPlaces(),
+        DirectCommissionRules.ALTA);
     verificarUnicidad(comando);
 
     OffsetDateTime ahora = OffsetDateTime.now(reloj);
@@ -148,6 +163,7 @@ public class RegisterProductService {
                 comando.validityDays(),
                 comando.scope(),
                 comando.implementation(),
+                comando.directCommission(),
                 ahora));
 
     // Después del producto, porque la clave foránea lo exige, y en la MISMA

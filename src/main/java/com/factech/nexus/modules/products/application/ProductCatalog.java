@@ -195,6 +195,22 @@ public interface ProductCatalog {
    */
   Set<UUID> ftdProductIds();
 
+  /**
+   * <b>La comisión por venta directa de un producto</b> (`RN-PM-051`), para el devengo de `CM`: lo
+   * que cobra en su venta propia quien no es el último eslabón (`RN-CM-045`, `RF-CM-013` `plan.md`
+   * §13).
+   *
+   * <p><b>Retirados incluidos</b>, como {@link #ftdProductIds()}: una venta de ayer de un producto
+   * que hoy se retiró sigue devengando. Vacío en un FTD y en un producto que no existe.
+   */
+  Optional<DirectCommissionView> directCommissionOf(UUID productId);
+
+  /**
+   * La directa tal como cruza la frontera: la forma como texto —{@code PORCENTAJE} o {@code FIJO},
+   * los mismos valores que las tasas de `CM`— y el valor que le corresponde.
+   */
+  record DirectCommissionView(String type, BigDecimal value) {}
+
   record ProductView(UUID id, String code, String name, boolean retired) {}
 
   /** El producto con su tipo reducido a lo que se pregunta: ¿es un servicio? */
