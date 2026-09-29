@@ -74,6 +74,6 @@
 
 | ID | Tarea | Depende de | Verificación | Estado |
 |---|---|---|---|---|
-| `T-08` | El paso afftrack y el instante del cierre posterior al corte en `CloseCommissionPeriodService` (`plan.md` §12) | `RF-CM-020` `T-07` | `CloseCommissionPeriodIT` en verde sin cambiar sus criterios | Pendiente |
+| `T-08` | El paso afftrack y el instante del cierre posterior al corte en `CloseCommissionPeriodService` (`plan.md` §12) | `RF-CM-020` `T-07` | `CloseCommissionPeriodIT` en verde sin cambiar sus criterios | **Hecha** — 29-09-2026 |
 
 Rama: `feature/comision-afftrack`. **Es la misma tarea que `RF-CM-020` `T-07`**, vista desde aquí.

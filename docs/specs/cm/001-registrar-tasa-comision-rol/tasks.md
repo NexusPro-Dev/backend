@@ -117,6 +117,6 @@ Ninguno.
 
 | ID | Tarea | Depende de | Verificación | Estado |
 |---|---|---|---|---|
-| `T-32` | `EX-008` en `RegisterCommissionRateService` y `CA-CM-260` en `RegisterCommissionRateIT` | `RF-CM-015` `T-04` | La suite de `RF-CM-001` en verde | Pendiente |
+| `T-32` | `EX-008` en `RegisterCommissionRateService` y `CA-CM-260` en `RegisterCommissionRateIT` | `RF-CM-015` `T-04` | La suite de `RF-CM-001` en verde | **Hecha** — 29-09-2026 |
 
 Rama: `feature/comision-afftrack`.

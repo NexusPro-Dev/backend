@@ -190,6 +190,6 @@ Decisión del responsable del proyecto (`cm.md` v0.10.0): **una excepción por p
 
 | ID | Tarea | Depende de | Verificación | Estado |
 |---|---|---|---|---|
-| `T-38` | `EX-009` en `RegisterUserCommissionRateService` y `CA-CM-261` en `UserCommissionRateIT` | `RF-CM-015` `T-04` | La suite de `RF-CM-006` en verde | Pendiente |
+| `T-38` | `EX-009` en `RegisterUserCommissionRateService` y `CA-CM-261` en `UserCommissionRateIT` | `RF-CM-015` `T-04` | La suite de `RF-CM-006` en verde | **Hecha** — 29-09-2026 |
 
 Rama: `feature/comision-afftrack`.

@@ -49,6 +49,8 @@
 
 ## 3.1 Desviaciones respecto del plan
 
+- **`T-07`**: `CA-CM-262` se prueba en `AfftrackSettlementIT`, que siembra la comisión afftrack; `CommissionBatchesIT` sigue en verde sin cambios. `CommissionLine.chainLevel` pasa a `Integer`.
+
 - **Los datos de otros módulos se leen con `JOIN` en la misma sentencia**, y no por las interfaces de cada módulo como decía `plan.md` §1: es el precedente de `JpaUserCommissionRateQueryRepository`, que ya une `users`, `products` y `currencies` para leer. Una sentencia por lectura, sin idas por módulo y página, y con la prueba de número de sentencias igual. Por eso `CommissionableLines` **no gana** los métodos que el plan le añadía.
 - **`ix_commission_batches_periodo` ya estaba en `V51`**, sin tarea aparte.
 - **Las pruebas son una suite, `CommissionBatchesIT`**, que cubre también `RF-CM-012`, y no `ListCommissionBatchesIT` y `GetCommissionBatchIT`.
@@ -72,6 +74,6 @@
 
 | ID | Tarea | Depende de | Verificación | Estado |
 |---|---|---|---|---|
-| `T-07` | `LEFT JOIN` a la línea y a la liquidación, `commissionKind` y los campos nulables en `CommissionLineResponse`, prosa de la `@Operation`; `CA-CM-262` | `RF-CM-020` `T-07` | `CommissionBatchesIT`; el diff del `openapi.json` | Pendiente |
+| `T-07` | `LEFT JOIN` a la línea y a la liquidación, `commissionKind` y los campos nulables en `CommissionLineResponse`, prosa de la `@Operation`; `CA-CM-262` | `RF-CM-020` `T-07` | `CommissionBatchesIT`; el diff del `openapi.json` | **Hecha** — 29-09-2026 |
 
 Rama: `feature/comision-afftrack`.

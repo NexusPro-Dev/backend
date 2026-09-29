@@ -6,7 +6,7 @@
 | Especificación | [`spec.md`](spec.md) v0.1.0 |
 | Plan | [`plan.md`](plan.md) v0.1.0 |
 | `plan.md` aprobado el | 29-09-2026 |
-| Estado | **En revisión** |
+| Estado | **En revisión** — tareas `Hecha` el 29-09-2026 |
 | Issue | Pendiente de crear |
 | Rama | `feature/comision-afftrack` |
 
@@ -22,10 +22,10 @@
 
 | ID | Tarea | Depende de | Verificación | Estado |
 |---|---|---|---|---|
-| `T-01` | `AfftrackRate.retirar`, el servicio, el `record` con `@Schema(name)`, la ruta y su entrada en `PERMISO_DE_CADA_OPERACION` | `RF-CM-015` `T-05` | `EndpointPermissionsIT` | Pendiente |
-| `T-02` | `DeleteAfftrackRateIT`: `CA-CM-229` y `CA-CM-230` | `T-01` | | Pendiente |
-| `T-03` | `CA-CM-227` y `CA-CM-228`, con un cierre | `T-02`, `RF-CM-020` | | Pendiente |
-| `T-04` | Contrato OpenAPI y `requirements.md` | `T-03` | | Pendiente |
+| `T-01` | `AfftrackRate.retirar`, el servicio, el `record` con `@Schema(name)`, la ruta y su entrada en `PERMISO_DE_CADA_OPERACION` | `RF-CM-015` `T-05` | `EndpointPermissionsIT` | **Hecha** — 29-09-2026 |
+| `T-02` | `DeleteAfftrackRateIT`: `CA-CM-229` y `CA-CM-230` | `T-01` | | **Hecha** — 29-09-2026 |
+| `T-03` | `CA-CM-227` y `CA-CM-228`, con un cierre | `T-02`, `RF-CM-020` | | **Hecha** — 29-09-2026 |
+| `T-04` | Contrato OpenAPI y `requirements.md` | `T-03` | | **Hecha** — 29-09-2026 |
 
 ---
 
@@ -41,6 +41,13 @@
 |---|---|
 | `CA-CM-229`, `CA-CM-230` | `T-01`, `T-02` |
 | `CA-CM-227`, `CA-CM-228` | `T-03` |
+
+---
+
+## 3.1 Desviaciones respecto del plan
+
+- **`CA-CM-227` y `CA-CM-228` se prueban en `AfftrackSettlementIT`**; los demás, en `AfftrackRatesIT`.
+- **El motivo lo valida `AfftrackReasons`**, compartido con el retiro de `RF-CM-019`.
 
 ---
 

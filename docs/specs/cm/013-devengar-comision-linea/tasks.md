@@ -62,6 +62,8 @@
 
 ## 3.1 Desviaciones respecto del plan
 
+- **`T-14`**: `CA-CM-253` se prueba en `AfftrackSettlementIT`. `CommissionAccrualService` pide `ftdProductIds()` una vez por llamada a `accrue` o `retryRejected`, no por línea.
+
 - **`lockOpenBatch` devuelve el lote y el inicio de su periodo**, y el lote nuevo empieza **como pronto en el fin del último cerrado** (`GREATEST`). Un devengo que tomó su instante justo antes de un cierre y lo esperó en el bloqueo abriría, si no, un lote que empieza **dentro** del cerrado, y `ex_commission_batches_solape` lo rechazaría tres veces seguidas. La comisión toma ese mismo instante como `accrued_at`: es cuándo entró en su lote. No estaba en `plan.md` §4.
 - **`ConfirmSaleService` publica todas las líneas de la venta**, y no solo las que tienen vendedor: cuáles comisionan lo decide `CM` al releerlas (`plan.md` §1, «se relee, no se confía en el aviso»). Así `MV` no repite el predicado de `RN-CM-022`.
 - **La auditoría usa `ChangeAction.CREATE`**, no `INSERT` como decía `plan.md` §7: es el valor que el enum del sistema tiene.
@@ -86,6 +88,6 @@
 
 | ID | Tarea | Depende de | Verificación | Estado |
 |---|---|---|---|---|
-| `T-14` | El descarte por `ftdProductIds()` en `CommissionAccrualService` y `CA-CM-253` en `CommissionAccrualIT` (`plan.md` §12) | `RF-CM-015` `T-02`, `T-04` | `CommissionAccrualIT` y `CloseCommissionPeriodIT` en verde | Pendiente |
+| `T-14` | El descarte por `ftdProductIds()` en `CommissionAccrualService` y `CA-CM-253` en `CommissionAccrualIT` (`plan.md` §12) | `RF-CM-015` `T-02`, `T-04` | `CommissionAccrualIT` y `CloseCommissionPeriodIT` en verde | **Hecha** — 29-09-2026 |
 
 Rama: `feature/comision-afftrack`. **Es la misma tarea que `RF-CM-020` `T-02`**, vista desde aquí.

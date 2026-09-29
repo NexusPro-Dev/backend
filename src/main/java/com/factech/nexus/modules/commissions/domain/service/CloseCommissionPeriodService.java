@@ -50,6 +50,7 @@ public class CloseCommissionPeriodService {
   private final CommissionableLines lineas;
   private final CommissionAccrualRepository desenlaces;
   private final CommissionAccrualService devengo;
+  private final AfftrackSettlementService afftrack;
   private final BusinessCalendar calendario;
   private final UuidV7Generator ids;
   private final AuditWriter auditoria;
@@ -60,6 +61,7 @@ public class CloseCommissionPeriodService {
       CommissionableLines lineas,
       CommissionAccrualRepository desenlaces,
       CommissionAccrualService devengo,
+      AfftrackSettlementService afftrack,
       BusinessCalendar calendario,
       UuidV7Generator ids,
       AuditWriter auditoria,
@@ -68,6 +70,7 @@ public class CloseCommissionPeriodService {
     this.lineas = lineas;
     this.desenlaces = desenlaces;
     this.devengo = devengo;
+    this.afftrack = afftrack;
     this.calendario = calendario;
     this.ids = ids;
     this.auditoria = auditoria;
@@ -117,7 +120,13 @@ public class CloseCommissionPeriodService {
     AccrualSummary reintento = devengo.retryRejected();
     int reintentadas = reintento.atendidas() + reintento.ignoradas() + reintento.fallidas();
 
-    OffsetDateTime ahora = calendario.ahora();
+    // `RN-CM-043` (29-09-2026): lo afftrack se liquida DESPUÉS del barrido y ANTES de cerrar, en
+    // esta misma transacción —si falla, no se cierra nada—. El instante del cierre es posterior al
+    // corte: un lote que la liquidación abre nace en el corte, y `ck_commission_batches_periodo`
+    // exige un fin mayor que el inicio.
+    OffsetDateTime corte = calendario.ahora();
+    afftrack.settle(id, corte);
+    OffsetDateTime ahora = posterior(calendario.ahora(), corte);
     int lotes = cierres.closeOpenBatches(id, ahora);
     cierres.finish(id, ahora, lotes, barrido.atendidas(), reintentadas, reintento.devengadas());
 
@@ -141,6 +150,11 @@ public class CloseCommissionPeriodService {
    * `RN-CM-034`: las líneas comisionables <b>sin desenlace</b>, recorridas por clave en tandas. Lo
    * que devenga entra en el lote abierto de este momento, y por tanto en este cierre.
    */
+  private static OffsetDateTime posterior(OffsetDateTime ahora, OffsetDateTime corte) {
+    OffsetDateTime minimo = corte.plusNanos(1_000);
+    return ahora.isBefore(minimo) ? minimo : ahora;
+  }
+
   private AccrualSummary barrer() {
     List<UUID> pendientes = new ArrayList<>();
     UUID cursor = null;

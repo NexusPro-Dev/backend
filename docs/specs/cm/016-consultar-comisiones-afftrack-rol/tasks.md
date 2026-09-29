@@ -6,7 +6,7 @@
 | Especificación | [`spec.md`](spec.md) v0.1.0 |
 | Plan | [`plan.md`](plan.md) v0.1.0 |
 | `plan.md` aprobado el | 29-09-2026 |
-| Estado | **En revisión** |
+| Estado | **En revisión** — tareas `Hecha` el 29-09-2026 |
 | Issue | Pendiente de crear |
 | Rama | `feature/comision-afftrack` |
 
@@ -22,9 +22,9 @@
 
 | ID | Tarea | Depende de | Verificación | Estado |
 |---|---|---|---|---|
-| `T-01` | Repositorio de consulta, servicio, `record`s con `@Schema(name)`, el `GET` y la ruta en `PERMISO_DE_CADA_OPERACION` | `RF-CM-015` `T-01`, `T-05` | `EndpointPermissionsIT` | Pendiente |
-| `T-02` | `ListAfftrackRatesIT`: `CA-CM-217` a `CA-CM-220` | `T-01`, `RF-CM-015` `T-07` | Número de sentencias en `CA-CM-220` | Pendiente |
-| `T-03` | Contrato OpenAPI y `requirements.md` | `T-02` | | Pendiente |
+| `T-01` | Repositorio de consulta, servicio, `record`s con `@Schema(name)`, el `GET` y la ruta en `PERMISO_DE_CADA_OPERACION` | `RF-CM-015` `T-01`, `T-05` | `EndpointPermissionsIT` | **Hecha** — 29-09-2026 |
+| `T-02` | `ListAfftrackRatesIT`: `CA-CM-217` a `CA-CM-220` | `T-01`, `RF-CM-015` `T-07` | Número de sentencias en `CA-CM-220` | **Hecha** — 29-09-2026 |
+| `T-03` | Contrato OpenAPI y `requirements.md` | `T-02` | | **Hecha** — 29-09-2026 |
 
 ---
 
@@ -39,6 +39,12 @@
 | Criterio | Tarea |
 |---|---|
 | `CA-CM-217` a `CA-CM-220` | `T-01`, `T-02` |
+
+---
+
+## 3.1 Desviaciones respecto del plan
+
+- **La suite es `AfftrackRatesIT`**, compartida con el alta, la corrección y el retiro.
 
 ---
 

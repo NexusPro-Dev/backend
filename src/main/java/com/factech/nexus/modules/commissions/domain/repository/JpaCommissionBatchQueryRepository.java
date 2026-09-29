@@ -99,15 +99,19 @@ public class JpaCommissionBatchQueryRepository implements CommissionBatchQueryRe
     List<Object[]> filas =
         em.createNativeQuery(
                 """
-                SELECT k.id, k.movement_detail_id, d.movement_id, m.code, d.product_id,
-                       d.product_name, k.chain_level, k.source, k.rate_id, k.rate_type,
+                SELECT k.id, k.movement_detail_id, d.movement_id, m.code,
+                       COALESCE(d.product_id, s.product_id), COALESCE(d.product_name, p.name),
+                       k.chain_level, k.source, k.rate_id, k.rate_type,
                        k.percentage, k.fixed_amount, k.unit_price, k.quantity,
-                       k.commission_amount, k.resolved_on, k.accrued_at
+                       k.commission_amount, k.resolved_on, k.accrued_at,
+                       k.commission_kind, k.afftrack_settlement_id
                   FROM commissions k
-                  JOIN movement_details d ON d.id = k.movement_detail_id
-                  JOIN movements m ON m.id = d.movement_id
+                  LEFT JOIN movement_details d ON d.id = k.movement_detail_id
+                  LEFT JOIN movements m ON m.id = d.movement_id
+                  LEFT JOIN afftrack_settlements s ON s.id = k.afftrack_settlement_id
+                  LEFT JOIN products p ON p.id = s.product_id
                  WHERE k.batch_id = :lote
-                 ORDER BY m.occurred_at, d.id, k.chain_level
+                 ORDER BY COALESCE(m.occurred_at, k.accrued_at), d.id, k.chain_level, k.id
                 """)
             .setParameter("lote", batchId)
             .getResultList();
@@ -121,7 +125,7 @@ public class JpaCommissionBatchQueryRepository implements CommissionBatchQueryRe
               (String) f[3],
               (UUID) f[4],
               (String) f[5],
-              ((Number) f[6]).intValue(),
+              f[6] == null ? null : ((Number) f[6]).intValue(),
               (String) f[7],
               (UUID) f[8],
               (String) f[9],
@@ -131,7 +135,9 @@ public class JpaCommissionBatchQueryRepository implements CommissionBatchQueryRe
               ((Number) f[13]).intValue(),
               (BigDecimal) f[14],
               fecha(f[15]),
-              instante(f[16])));
+              instante(f[16]),
+              (String) f[17],
+              (UUID) f[18]));
     }
     return comisiones;
   }

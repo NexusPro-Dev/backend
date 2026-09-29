@@ -6,7 +6,7 @@
 | Especificación | [`spec.md`](spec.md) v0.1.0 |
 | Plan | [`plan.md`](plan.md) v0.1.0 |
 | `plan.md` aprobado el | 29-09-2026 |
-| Estado | **En revisión** |
+| Estado | **En revisión** — tareas `Hecha` el 29-09-2026 |
 | Issue | Pendiente de crear |
 | Rama | `feature/comision-afftrack` |
 
@@ -22,13 +22,13 @@
 
 | ID | Tarea | Depende de | Verificación | Estado |
 |---|---|---|---|---|
-| `T-01` | `UserAfftrackRate` y su repositorio, con `vigentesEn` y la traducción de `23P01`/`40P01` | `RF-CM-015` `T-01` | | Pendiente |
-| `T-02` | Alta: servicio, `record`s, `POST` | `T-01`, `RF-CM-015` `T-04`, `T-06` | | Pendiente |
-| `T-03` | Listado: repositorio de consulta, servicio, `GET` | `T-01` | | Pendiente |
-| `T-04` | Corrección y retiro: servicios, `PATCH` y `POST …/deletion` | `T-01` | | Pendiente |
-| `T-05` | Las cuatro rutas en `PERMISO_DE_CADA_OPERACION` | `T-02`–`T-04` | `EndpointPermissionsIT` | Pendiente |
-| `T-06` | `UserAfftrackRatesIT`: `CA-CM-231` a `CA-CM-240` | `T-05` | `CA-CM-233` con dos hilos; número de sentencias en `CA-CM-240` | Pendiente |
-| `T-07` | Contrato OpenAPI y `requirements.md` | `T-06` | El diff del `openapi.json` sin esquemas fundidos | Pendiente |
+| `T-01` | `UserAfftrackRate` y su repositorio, con `vigentesEn` y la traducción de `23P01`/`40P01` | `RF-CM-015` `T-01` | | **Hecha** — 29-09-2026 |
+| `T-02` | Alta: servicio, `record`s, `POST` | `T-01`, `RF-CM-015` `T-04`, `T-06` | | **Hecha** — 29-09-2026 |
+| `T-03` | Listado: repositorio de consulta, servicio, `GET` | `T-01` | | **Hecha** — 29-09-2026 |
+| `T-04` | Corrección y retiro: servicios, `PATCH` y `POST …/deletion` | `T-01` | | **Hecha** — 29-09-2026 |
+| `T-05` | Las cuatro rutas en `PERMISO_DE_CADA_OPERACION` | `T-02`–`T-04` | `EndpointPermissionsIT` | **Hecha** — 29-09-2026 |
+| `T-06` | `UserAfftrackRatesIT`: `CA-CM-231` a `CA-CM-240` | `T-05` | `CA-CM-233` con dos hilos; número de sentencias en `CA-CM-240` | **Hecha** — 29-09-2026 |
+| `T-07` | Contrato OpenAPI y `requirements.md` | `T-06` | El diff del `openapi.json` sin esquemas fundidos | **Hecha** — 29-09-2026 |
 
 ---
 
@@ -46,6 +46,13 @@
 | `CA-CM-236` | `T-03`, `T-06` |
 | `CA-CM-237` a `CA-CM-239` | `T-04`, `T-06` |
 | `CA-CM-240` | `T-05`, `T-06` |
+
+---
+
+## 3.1 Desviaciones respecto del plan
+
+- **El predicado de vigencia vive en `AfftrackSql.VIGENTE_EN`**, una constante que usan el listado con `onDate` y la escala del cierre (`RF-CM-020`).
+- **La suite es `UserAfftrackRatesIT`**.
 
 ---
 

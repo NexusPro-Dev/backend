@@ -46,6 +46,8 @@
 
 ## 3.1 Desviaciones respecto del plan
 
+- **`T-05`**: `CA-CM-263` se prueba en `AfftrackSettlementIT`.
+
 - **La variante propia es un parámetro del servicio de `RF-CM-010`**, no un servicio aparte; `MyCommissionBatchesRequest` no declara la persona.
 - **Las pruebas viven en `CommissionBatchesIT`**, junto a las de `RF-CM-010`, y no en `MyCommissionBatchesIT`.
 
@@ -66,6 +68,6 @@
 
 | ID | Tarea | Depende de | Verificación | Estado |
 |---|---|---|---|---|
-| `T-05` | `CA-CM-263` en `CommissionBatchesIT` | `RF-CM-010` `T-07` | | Pendiente |
+| `T-05` | `CA-CM-263` en `CommissionBatchesIT` | `RF-CM-010` `T-07` | | **Hecha** — 29-09-2026 |
 
 Rama: `feature/comision-afftrack`.

@@ -295,6 +295,7 @@ class EndpointPermissionsIT extends IntegrationTestBase {
           Map.entry("GET /api/v1/commission-batches/mine/{id}", "commission-batches:read-own"),
           Map.entry("GET /api/v1/commission-accruals", "commission-accruals:read"),
           // ---- CM · la comisión afftrack (V54, 29-09-2026) ----
+          Map.entry("GET /api/v1/afftrack-settlements", "afftrack-settlements:read"),
           Map.entry("POST /api/v1/afftrack-rates", "afftrack-rates:create"),
           Map.entry("GET /api/v1/afftrack-rates", "afftrack-rates:read"),
           Map.entry("PATCH /api/v1/afftrack-rates/{id}", "afftrack-rates:update"),
