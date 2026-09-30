@@ -63,6 +63,7 @@ final class SaleDetailMapper {
     return new SaleResponse(
         cabecera.id(),
         cabecera.code(),
+        cabecera.type(),
         cabecera.status(),
         cabecera.typeStatus(),
         new SaleResponse.Party(

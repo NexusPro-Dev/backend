@@ -6609,6 +6609,10 @@
           "totalAmount" : {
             "type" : "number"
           },
+          "type" : {
+            "description" : "El TIPO de movimiento: VENTA, RETIRO, BONO… Desde el 30-09-2026, cuando el detalle de administración (`RF-MV-007`) empezó a abrir movimientos que no son ventas.",
+            "type" : "string"
+          },
           "typeStatus" : {
             "description" : "El estado del TIPO de movimiento (`RN-MV-033`), aparte del pago. En una venta: VALIDAR_COMISIONES —alguna línea no tiene vendedor, porque quien compra tenía varios y falta elegir (`RF-MV-016`)— o VALIDADO —todas lo tienen—.",
             "type" : "string"
@@ -14352,6 +14356,48 @@
         "summary" : "Consultar las líneas de venta",
         "tags" : [ "Movimientos" ],
         "x-required-permission" : "movements:list-sale-lines"
+      }
+    },
+    "/api/v1/movements/{id}" : {
+      "get" : {
+        "description" : "**Permiso requerido:** `movements:read-detail`. Sin él, `403` (`AUTH-002`).\n\nDevuelve **el comprobante de cualquier movimiento** —una venta, un retiro, un\nbono—, sea quien sea su sujeto y quien lo haya vendido: código, tipo, estado,\nestado del tipo, sujeto, moneda, totales, **pagos** y **líneas**, cada una con lo\nque se vendió **tal como se vendió** y a quién se le acredita. Un movimiento sin\nlíneas —un retiro, un bono— las trae **vacías**.\n\n**Es la misma forma que `GET /api/v1/movements/mine/{id}`**, el detalle propio:\nsobre un movimiento en el que usted participó, las dos responden lo mismo. Aquí\nno hay alcance —quien tiene el permiso abre cualquier fila del libro— y por eso\ntampoco hay un «no es suyo»: lo único que responde `404` es lo que no existe, o un\nidentificador que no tiene forma de identificador.\n\n**El comprobante no es un documento fiscal** ni un soporte de pago adjunto: es el\ndocumento interno del movimiento.\n",
+        "operationId" : "movimiento",
+        "parameters" : [ {
+          "in" : "path",
+          "name" : "id",
+          "required" : true,
+          "schema" : {
+            "format" : "uuid",
+            "type" : "string"
+          }
+        } ],
+        "responses" : {
+          "200" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/SaleResponse"
+                }
+              }
+            },
+            "description" : "El comprobante del movimiento."
+          },
+          "401" : {
+            "description" : "Token ausente o inválido (`AUTH-001`)"
+          },
+          "403" : {
+            "description" : "Autenticado sin `movements:read-detail` (`AUTH-002`)"
+          },
+          "404" : {
+            "description" : "No existe ningún movimiento con ese identificador (`EX-001`), o el identificador no tiene forma de UUID"
+          },
+          "500" : {
+            "description" : "Fallo no controlado (`ERR-500`)"
+          }
+        },
+        "summary" : "Consultar el detalle de un movimiento",
+        "tags" : [ "Movimientos" ],
+        "x-required-permission" : "movements:read-detail"
       }
     },
     "/api/v1/movements/{id}/confirmation" : {

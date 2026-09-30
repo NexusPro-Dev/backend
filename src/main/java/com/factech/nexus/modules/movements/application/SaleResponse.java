@@ -52,6 +52,12 @@ import java.util.UUID;
 public record SaleResponse(
     UUID id,
     String code,
+    @Schema(
+            description =
+                "El TIPO de movimiento: VENTA, RETIRO, BONO… Desde el 30-09-2026, cuando el detalle"
+                    + " de administración (`RF-MV-007`) empezó a abrir movimientos que no son"
+                    + " ventas.")
+        String type,
     String status,
     @Schema(
             description =
@@ -136,6 +142,8 @@ public record SaleResponse(
     return new SaleResponse(
         venta.getId(),
         venta.getCode(),
+        // Registrar solo produce ventas.
+        "VENTA",
         venta.getStatus().name(),
         venta.getTypeStatus().code(),
         sujeto,
