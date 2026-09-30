@@ -5,11 +5,11 @@
 | Proyecto | NEXUS — Renovación de plataforma |
 | Empresa | FACTECH GROUP SAS |
 | Documento | `security.md` |
-| Versión | 0.83.0 |
+| Versión | 0.84.0 |
 | Estado | Borrador |
 | Responsable técnico | Bonilla Diaz William Steven |
 | Fecha de creación | 19-08-2026 |
-| Última actualización | 29-09-2026 |
+| Última actualización | 30-09-2026 |
 | Documento superior | `constitution.md` v0.5.0 |
 | Documento relacionado | `architecture.md` v0.4.0 |
 
@@ -237,6 +237,7 @@ product-commission-rates:read
 
 movements:read   movements:create   movements:confirm  movements:void
 movements:list-own      movements:read-own      movements:read-own-products
+movements:activate-own-product
 movements:list-sales    movements:assign-sellers
 movements:list-sale-lines
 movements:retry-payment  movements:reject-payment
@@ -270,6 +271,8 @@ lessons:learn
 Los cincuenta y uno nuevos: `roles:list`, `roles:change-status`, `roles:assign-parent`, `roles:assign-permissions`, `roles:revoke-permissions`, `permissions:list`, `memberships:list`, `users:list`, `users:change-status`, `users:read-team`, `users:revoke-roles`, `users:revoke-membership` —**retirado por `V38`** el 23-09-2026 con `RF-SP-033`—, `broker-accounts:read-indicators` (trece de `SP`); `products:list`, `products:change-status`, `products:set-cover`, `products:remove-cover`, `products:read-own-comments`, `products:update-comment`, `products:delete-comment`, `packages:list`, `packages:change-status`, `packages:set-cover`, `packages:remove-cover`, `packages:add-product`, `packages:update-product`, `packages:remove-product` (catorce de `PM`); `commissions:read-effective`, los cuatro `user-commission-rates:` y `product-commission-rates:read` (seis de `CM`); `course-categories:list`, `courses:list`, `courses:change-status`, las seis relaciones `courses:assign-…`/`revoke-…`, los cuatro `course-modules:` y los cinco `lessons:` (dieciocho de `AC`). **Ninguno de `MV`**: sus cuatro gobernaban una operación cada uno desde que nacieron.
 
 **Ocho más, declarados el 26-09-2026 y SEMBRADOS el mismo día** por `V48` y `V49`, ya figuran en el bloque: los de la etapa 6 de `MV` —pagos, saldos y retiros— ([`requirements/mv.md`](requirements/mv.md) v0.44.0 §6): `movements:reject-payment`, `movements:retry-payment`, `movements:request-withdrawal`, `movements:approve-withdrawal`, `movements:reject-withdrawal`, `movements:read-own-balances`, `movements:list-own-entries` —el octavo, del mismo día— y `movements:grant-bonus`. Cada uno entrará con la migración de su requerimiento. **Con el primero, `movements:confirm` se queda con una sola operación**: `requirements/mv.md` preveía desde el 02-09-2026 que gobernara también el rechazo (`RF-MV-004`), y `RN-SEG-014` ya no lo admite. **`RF-MV-024` —abonar un lote de comisión— no tiene permiso propio**: no tiene ruta, y lo que se autoriza es marcar el lote como pagado, con `commission-batches:pay`.
+
+**Uno más de `MV`, declarado el 28-09-2026 y SEMBRADO el mismo día por `V50`**, ya en el bloque: `movements:activate-own-product` —activar un producto propio de implementación manual, `POST /api/v1/movements/mine/products/{lineId}/activation` (`RF-MV-010`, `RN-MV-048`; [`requirements/mv.md`](requirements/mv.md) v0.48.0)—. **Sustituye a `movements:implement`**, declarado el 07-09-2026 para que un funcionario autorizara la entrega de lo manual y **nunca sembrado**: desde el 28-09-2026 lo activa quien lo compró, y nadie más. Es de alcance propio, y `V50` lo da **por tipo de rol** (`FUNCIONARIO`, `VENDEDOR` y `CONSUMIDOR`), como los demás `own` (`RN-SEG-015`). El catálogo pasa de 144 a **145**.
 
 **Ocho de `CM` DECLARADOS Y SIN SEMBRAR**, y por eso **todavía no figuran en el bloque**: los de la liquidación ([`requirements/cm.md`](requirements/cm.md) §6). Seis se declararon allí el 24-09-2026 y este documento no los había recogido —`commission-batches:settle`, `commission-batches:read`, `commission-batches:read-detail`, `commission-batches:pay`, `commission-batches:list-own` y `commission-batches:read-own`— y dos nacen el 28-09-2026 con el **devengo automático** (v0.19.0, §5.7): `commission-closings:read` —los cierres del periodo— y `commission-accruals:read` —el desenlace de cada línea, con los rechazos—. **`commission-batches:settle` cambia de ruta sin cambiar de código**: ya no liquida un periodo con `POST /commission-batches`, **cierra** los lotes abiertos con `POST /commission-batches/closing`. **Devengar (`RF-CM-013`) y el cierre programado no llevan permiso**, y no contradicen `RN-SEG-015`: no son operaciones de la API —no exigen token porque no tienen ruta—; los disparan un evento de `MV` y el reloj. Entrarán con la migración de `RF-CM-013`, y con ellos el módulo `CM` pasará de diez permisos sembrados a **dieciocho**.
 
@@ -915,3 +918,4 @@ RNF-SEG-002 merece atención: es una prueba que enumera los endpoints registrado
 | 0.81.0 | 28-09-2026 | **§4.4 declara los ocho permisos de la liquidación de `CM`, sin sembrar** ([`requirements/cm.md`](requirements/cm.md) v0.19.0 §6): los seis `commission-batches:` del 24-09-2026, que este documento no había recogido, y los dos que nacen con el **devengo automático** —`commission-closings:read` y `commission-accruals:read`—. `commission-batches:settle` pasa a gobernar `POST /commission-batches/closing`. Queda escrito por qué devengar y el cierre programado **no llevan permiso** sin contradecir `RN-SEG-015`: no son operaciones de la API. El bloque del catálogo no cambia hasta que la migración de `RF-CM-013` los siembre. | Responsable del proyecto |
 | 0.82.0 | 29-09-2026 | **§4.4 declara los nueve permisos de la comisión afftrack de `CM`, sin sembrar** ([`requirements/cm.md`](requirements/cm.md) v0.22.0 §6): `afftrack-rates:` ×4, `user-afftrack-rates:` ×4 y `afftrack-settlements:read`. Liquidar lo afftrack no lleva permiso: corre dentro del cierre. El bloque del catálogo no cambia hasta que la migración de `RF-CM-015` los siembre. | Responsable del proyecto |
 | 0.83.0 | 29-09-2026 | **Los nueve permisos de la comisión afftrack están sembrados** por `V54` (§4.4), a `SUPERADMIN` y `ADMIN`. El catálogo pasa de 153 a **162**. | Responsable del proyecto |
+| 0.84.0 | 30-09-2026 | **`movements:activate-own-product` entra en §4.4** (`RF-MV-010`, `RN-MV-048`): sembrado el 28-09-2026 por `V50` por tipo de rol, sustituye a `movements:implement`, que nunca se sembró. Este documento no lo había recogido al construirse; el catálogo contaba ya 145 desde entonces. | Responsable técnico |

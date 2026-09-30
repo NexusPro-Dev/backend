@@ -8,7 +8,7 @@
 | Estado | **Aprobado** |
 | Autor | Responsable técnico |
 | Aprobado por | Responsable del proyecto |
-| Enmendado el | 27-08-2026 — `RN-PM-015`; 02-09-2026 — la membresía de **origen** (`RN-PM-017`, `RN-PM-018`); 07-09-2026 — el **alcance** y la **implementación**, corregibles y **no vaciables** (`RN-PM-019`, `RN-PM-020`); 08-09-2026 — el **precio público**, corregible y **sí vaciable** (`RN-PM-023`), y el paso 5 reescrito, §5; 12-09-2026 — **el segundo precio es el de COMPRA** (`purchasePrice`), §4; 14-09-2026 — **el enlace del video**, corregible y **sí vaciable** (`RN-PM-032`), §4; 14-09-2026 — **el icono de un upgrade solo se vacía con portada** (`RN-PM-034`), §4; 15-09-2026 — **el alcance de cuatro valores** (`RN-PM-019`); 22-09-2026 — **los enlaces se corrigen EN BLOQUE** (`RN-PM-048`, `RN-PM-049`), §4 |
+| Enmendado el | 27-08-2026 — `RN-PM-015`; 02-09-2026 — la membresía de **origen** (`RN-PM-017`, `RN-PM-018`); 07-09-2026 — el **alcance** y la **implementación**, corregibles y **no vaciables** (`RN-PM-019`, `RN-PM-020`); 08-09-2026 — el **precio público**, corregible y **sí vaciable** (`RN-PM-023`), y el paso 5 reescrito, §5; 12-09-2026 — **el segundo precio es el de COMPRA** (`purchasePrice`), §4; 14-09-2026 — **el enlace del video**, corregible y **sí vaciable** (`RN-PM-032`), §4; 14-09-2026 — **el icono de un upgrade solo se vacía con portada** (`RN-PM-034`), §4; 15-09-2026 — **el alcance de cuatro valores** (`RN-PM-019`); 22-09-2026 — **los enlaces se corrigen EN BLOQUE** (`RN-PM-048`, `RN-PM-049`), §4; 29-09-2026 — **la comisión por venta directa** y su revalidación (§12) |
 | Fecha de aprobación | 26-08-2026 |
 
 ---
@@ -134,3 +134,7 @@ Consume el **catálogo de monedas** de `SP` cuando llega precio o moneda. Ningun
 | Las comprobaciones de los enlaces | API | Tipo repetido (`CA-PM-391`), tipo desconocido, dirección ausente e identificador fuera de forma (`CA-PM-392`), y **el identificador sobre una dirección con `?`** junto a la misma sin identificador (`CA-PM-393`). En todos, **ningún otro cambio de la misma petición se aplica** |
 | El enlace del video | API | Corregido en un **bot** (`CA-PM-225`); vaciado con `null` y con `""` (`CA-PM-226`); y con forma inválida junto a un cambio de nombre válido, que **no se aplica** (`CA-PM-227`) |
 | Dos correcciones simultáneas | Concurrencia | La última queda **entera**, no una mezcla |
+
+## 12. La comisión por venta directa — enmienda del 29-09-2026
+
+`RN-PM-051`. **`EditProductRequest` gana `directCommission` como `Patchable`**: ausente no toca, un objeto la sustituye **entera** y el nulo explícito se rechaza (`VAL-019`). **La revalidación va al final del orden de verificación de §5**, después de aplicar precio y moneda en memoria y antes de escribir: se construye la directa resultante —la nueva o la guardada— y se comprueba contra el precio y la moneda resultantes con **la misma** función que usa el alta (`RF-PM-001` `plan.md` §12.2). Es lo que hace que bajar el precio por debajo de una directa fija se rechace aunque la directa no viaje. **Que el producto es FTD no se relee**: el tipo y las membresías no se corrigen (`RN-PM-001`), de modo que basta con que la directa guardada sea nula. `ProductUpdateIT` gana `CA-PM-412` a `CA-PM-416`.

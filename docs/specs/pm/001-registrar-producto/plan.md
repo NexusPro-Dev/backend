@@ -8,7 +8,7 @@
 | Estado | **Aprobado** |
 | Autor | Responsable técnico |
 | Aprobado por | Responsable del proyecto |
-| Enmendado el | 27-08-2026 — `RN-PM-015`; 02-09-2026 — la membresía de **origen** (`RN-PM-017`, `RN-PM-018`); 07-09-2026 — **el alcance y la implementación** (`RN-PM-019`, `RN-PM-020`), §2.4, y **la renovación** —el origen puede ser el destino (`RN-PM-017`)—, §2.5; 08-09-2026 — **el segundo precio, el público** (`RN-PM-023`) y **`RN-PM-006` relajada**, §2.6; 12-09-2026 — **el segundo precio pasa a ser el de COMPRA** (`RN-PM-023`, `RN-PM-024`), §2.7; 14-09-2026 — **el enlace de un video** (`RN-PM-032`), §2.8 y §4; 14-09-2026 — **el icono obligatorio en el upgrade** (`RN-PM-034`), §2.9; 15-09-2026 — **el alcance pasa a cuatro valores** (`RN-PM-019`), `V92`; 22-09-2026 — **los ENLACES del producto**, `links` en lugar de `videoUrl` (`RN-PM-048`, `RN-PM-049`), §2.10, §3.1 y §4; 28-09-2026 — **el tercer tipo, `DESCARGA`**: `V52__pm_enlace_de_descarga.sql` reescribe `ck_product_links_type` y el comentario de la columna, y `ProductLinkType` gana el valor **sin ser material de venta**; ningún componente más cambia, porque las lecturas filtran por `esMaterialDeVenta()` |
+| Enmendado el | 27-08-2026 — `RN-PM-015`; 02-09-2026 — la membresía de **origen** (`RN-PM-017`, `RN-PM-018`); 07-09-2026 — **el alcance y la implementación** (`RN-PM-019`, `RN-PM-020`), §2.4, y **la renovación** —el origen puede ser el destino (`RN-PM-017`)—, §2.5; 08-09-2026 — **el segundo precio, el público** (`RN-PM-023`) y **`RN-PM-006` relajada**, §2.6; 12-09-2026 — **el segundo precio pasa a ser el de COMPRA** (`RN-PM-023`, `RN-PM-024`), §2.7; 14-09-2026 — **el enlace de un video** (`RN-PM-032`), §2.8 y §4; 14-09-2026 — **el icono obligatorio en el upgrade** (`RN-PM-034`), §2.9; 15-09-2026 — **el alcance pasa a cuatro valores** (`RN-PM-019`), `V92`; 22-09-2026 — **los ENLACES del producto**, `links` en lugar de `videoUrl` (`RN-PM-048`, `RN-PM-049`), §2.10, §3.1 y §4; 28-09-2026 — **el tercer tipo, `DESCARGA`**: `V52__pm_enlace_de_descarga.sql` reescribe `ck_product_links_type` y el comentario de la columna, y `ProductLinkType` gana el valor **sin ser material de venta**; ningún componente más cambia, porque las lecturas filtran por `esMaterialDeVenta()`; 29-09-2026 — **la comisión por venta directa** y `V55` (§12) |
 | Fecha de aprobación | 26-08-2026 |
 
 !!! info "Qué va en este documento"
@@ -447,3 +447,27 @@ Una sola transacción para el `INSERT` y su evento de auditoría. Las lecturas c
 | El identificador externo y su condición cruzada | API | Con identificador y sin él; con espacios y de 101 caracteres (`VAL-022`); y **con identificador sobre una dirección que lleva `?`** (`VAL-023`), comprobando que **la misma dirección sin identificador se admite** |
 | La migración no pierde ni inventa enlaces | Integración | Sobre un esquema con productos **con y sin** `video_url`: tras `V35`, tantas filas `VIDEO_PRESENTACION` como direcciones había, **ninguna** para los que no tenían, y `products.video_url` **ya no existe** |
 | El contrato publicado coincide | Integración | `OpenApiContractIT` |
+
+## 12. La comisión por venta directa — enmienda del 29-09-2026
+
+`RN-PM-051` ([`requirements/pm.md`](../../../requirements/pm.md) v0.47.0 §5.2.16). **El alta exige la directa salvo en un FTD, y la migración es de este requerimiento** porque es el que crea la tabla del módulo, como `V35` trajo aquí los enlaces.
+
+### 12.1 `V55__pm_cm_comision_directa.sql`
+
+Una migración para los dos módulos, porque las dos mitades nacen de la misma decisión y ninguna tiene sentido sin la otra:
+
+- **`products`** gana `direct_commission_type varchar(20)`, `direct_commission_percentage numeric(5,2)` y `direct_commission_fixed_amount numeric(14,4)`, las tres nulables, con `ck_products_direct_commission_forma` —las tres nulas, o el tipo con **solo** su campo— y `ck_products_direct_commission_rangos` —porcentaje entre 0 y 100, fijo no negativo— (`requirements/pm.md` §10.1). **La nulidad no se ata al FTD en el esquema**: saber si un producto es FTD exige leer `memberships`, y un `CHECK` no consulta otra tabla. Lo sostiene el caso de uso.
+- **Lo que ya existe recibe cero**, salvo los FTD —**porcentaje cero, y fijo cero en un gratuito**, que no admite porcentaje (ver `tasks.md` §7)—: un `UPDATE` que excluye los `UPGRADE_MEMBRESIA` cuyo origen y destino son la membresía de código `BECA` —la misma definición que `ProductCatalog.ftdProductIds()`, escrita esta vez en SQL porque la migración no tiene aplicación—. Decisión del responsable del proyecto: cero y se configura a mano.
+- **`commissions`**: `ck_commissions_source` se sustituye para admitir `DIRECTA`, y nace `ck_commissions_directa` —`source <> 'DIRECTA' OR (commission_kind = 'POR_VENTA' AND chain_level = 0)`— (`requirements/cm.md` §7.4). Las filas que existen son todas `ROL` o `PERSONALIZADA` y pasan las dos.
+- Los `COMMENT ON COLUMN` de las tres columnas citan `RN-PM-051` y `RN-CM-045`.
+
+### 12.2 El dominio y el contrato
+
+- **`DirectCommission`**, un valor de `products/domain/models` con tipo —`PORCENTAJE` o `FIJO`, enumerado propio de `PM`: el de `CM` no se importa, porque `CM` consume `PM` y no al revés— y valor. **Valida su forma y sus rangos al construirse** (`VAL-024` a `VAL-026`), como `ProductLink`.
+- **`Product.register` recibe la directa y el conocimiento de si el producto es FTD**, y aplica las dos condiciones cruzadas: **obligatoria y prohibida según FTD** (`VAL-024`, `VAL-028`) y **el tope contra el precio** —el fijo no pasa del precio; sobre precio cero solo fijo— (`VAL-027`). Quien sabe si es FTD es el servicio, que ya resuelve las dos membresías y conoce el suelo por el mismo camino que `ftdProductIds()`: **una sola definición**, extraída a un predicado que usen las dos.
+- **`RegisterProductRequest` gana `directCommission`**, un objeto con `type`, `percentage` y `fixedAmount`; **`ProductResponse` lo devuelve** con la misma forma, **presente y nulo en un FTD**. Sus `@Schema` se nombran con prefijo de módulo —springdoc funde en un solo esquema dos `record` con el mismo nombre simple—: `ProductDirectCommission`.
+- **La instantánea del evento de creación incluye las tres columnas**, nulas en un FTD.
+
+### 12.3 Pruebas
+
+`ProductsIT` gana `CA-PM-402` a `CA-PM-409`; `DirectCommissionTest` cubre la forma y los rangos sin base. **Toda suite que registra productos por la API o por SQL necesita la directa**: las de la API se ajustan en sus cuerpos de ejemplo y las que siembran por SQL no cambian, porque las columnas son nulables. Es el mismo barrido que exigió el alcance el 07-09-2026.

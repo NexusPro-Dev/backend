@@ -94,6 +94,7 @@ class ProductTest {
                     null,
                     ProductScope.TIENDA,
                     ProductImplementation.AUTOMATICA,
+                    null,
                     AHORA),
             ValidationException.class);
 
@@ -124,6 +125,7 @@ class ProductTest {
             30,
             ProductScope.TIENDA,
             ProductImplementation.AUTOMATICA,
+            null,
             AHORA);
 
     assertThat(conVigencia.getValidityDays()).isEqualTo(30);
@@ -148,6 +150,7 @@ class ProductTest {
             null,
             ProductScope.TIENDA,
             ProductImplementation.AUTOMATICA,
+            null,
             AHORA);
 
     assertThat(producto.getName()).isEqualTo("Asesoría personalizada");
@@ -227,6 +230,7 @@ class ProductTest {
             null,
             ProductScope.TIENDA,
             ProductImplementation.AUTOMATICA,
+            null,
             AHORA);
 
     assertThat(conDescripcion.tieneDescripcion()).isTrue();
@@ -279,6 +283,7 @@ class ProductTest {
             30,
             ProductScope.TIENDA,
             ProductImplementation.AUTOMATICA,
+            null,
             AHORA);
     producto.activate(AHORA);
 
@@ -334,6 +339,7 @@ class ProductTest {
             Patchable.ausente(),
             Patchable.ausente(),
             Patchable.ausente(),
+            Patchable.ausente(),
             AHORA.plusDays(1));
 
     // El precio se compara por VALOR y no por `equals`: `49.99` y `49.9900` son
@@ -353,6 +359,7 @@ class ProductTest {
     Map<String, Object> cambios =
         producto.update(
             Patchable.de("Asesoría premium"),
+            Patchable.ausente(),
             Patchable.ausente(),
             Patchable.ausente(),
             Patchable.ausente(),
@@ -389,10 +396,12 @@ class ProductTest {
             30,
             ProductScope.TIENDA,
             ProductImplementation.AUTOMATICA,
+            null,
             AHORA);
 
     producto.update(
         Patchable.de("Asesoría premium"),
+        Patchable.ausente(),
         Patchable.ausente(),
         Patchable.ausente(),
         Patchable.ausente(),
@@ -427,6 +436,7 @@ class ProductTest {
             30,
             ProductScope.TIENDA,
             ProductImplementation.AUTOMATICA,
+            null,
             AHORA);
 
     Map<String, Object> cambios =
@@ -438,6 +448,7 @@ class ProductTest {
             Patchable.ausente(),
             Patchable.ausente(),
             Patchable.de(null),
+            Patchable.ausente(),
             Patchable.ausente(),
             Patchable.ausente(),
             AHORA.plusDays(1));
@@ -462,6 +473,7 @@ class ProductTest {
     Map<String, Object> cambios =
         producto.update(
             Patchable.de("ASESORIA"),
+            Patchable.ausente(),
             Patchable.ausente(),
             Patchable.ausente(),
             Patchable.ausente(),
@@ -499,6 +511,7 @@ class ProductTest {
                     null,
                     ProductScope.TIENDA,
                     ProductImplementation.AUTOMATICA,
+                    null,
                     AHORA),
             ValidationException.class);
 
@@ -560,6 +573,7 @@ class ProductTest {
             Patchable.ausente(),
             Patchable.ausente(),
             Patchable.ausente(),
+            Patchable.ausente(),
             AHORA.plusDays(1));
 
     assertThat(producto.getIcon()).isEqualTo("rocket");
@@ -590,6 +604,7 @@ class ProductTest {
             Patchable.ausente(),
             Patchable.ausente(),
             Patchable.ausente(),
+            Patchable.ausente(),
             AHORA.plusDays(2));
 
     assertThat(producto.getIcon()).isNull();
@@ -608,6 +623,7 @@ class ProductTest {
                     Patchable.ausente(),
                     Patchable.ausente(),
                     Patchable.de("crown"),
+                    Patchable.ausente(),
                     Patchable.ausente(),
                     Patchable.ausente(),
                     Patchable.ausente(),
@@ -711,6 +727,7 @@ class ProductTest {
             Patchable.ausente(),
             Patchable.ausente(),
             Patchable.ausente(),
+            Patchable.ausente(),
             AHORA.plusDays(1));
 
     assertThat(cambios).containsOnlyKeys("purchase_price");
@@ -733,6 +750,7 @@ class ProductTest {
             Patchable.ausente(),
             Patchable.ausente(),
             Patchable.de(null),
+            Patchable.ausente(),
             Patchable.ausente(),
             Patchable.ausente(),
             Patchable.ausente(),
@@ -763,6 +781,7 @@ class ProductTest {
         Patchable.ausente(),
         Patchable.ausente(),
         Patchable.ausente(),
+        Patchable.ausente(),
         AHORA.plusDays(1));
 
     assertThat(producto.getPurchasePrice()).isEqualByComparingTo("0");
@@ -785,6 +804,7 @@ class ProductTest {
             Patchable.ausente(),
             Patchable.ausente(),
             Patchable.ausente(),
+            Patchable.ausente(),
             AHORA.plusDays(1));
 
     assertThat(cambios).isEmpty();
@@ -803,6 +823,7 @@ class ProductTest {
             Patchable.ausente(),
             Patchable.ausente(),
             Patchable.de(new BigDecimal("59.9900")),
+            Patchable.ausente(),
             Patchable.ausente(),
             Patchable.ausente(),
             Patchable.ausente(),
@@ -911,6 +932,7 @@ class ProductTest {
         Patchable.ausente(),
         Patchable.ausente(),
         Patchable.ausente(),
+        Patchable.ausente(),
         AHORA.plusDays(1));
   }
 
@@ -930,6 +952,7 @@ class ProductTest {
         null,
         ProductScope.TIENDA,
         ProductImplementation.AUTOMATICA,
+        null,
         AHORA);
   }
 
@@ -949,6 +972,7 @@ class ProductTest {
         null,
         ProductScope.TIENDA,
         ProductImplementation.AUTOMATICA,
+        null,
         AHORA);
   }
 
@@ -972,6 +996,7 @@ class ProductTest {
         null,
         ProductScope.TIENDA,
         ProductImplementation.AUTOMATICA,
+        null,
         AHORA);
   }
 
@@ -991,6 +1016,7 @@ class ProductTest {
         null,
         ProductScope.TIENDA,
         ProductImplementation.AUTOMATICA,
+        null,
         AHORA);
   }
 }

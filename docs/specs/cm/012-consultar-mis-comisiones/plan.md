@@ -5,12 +5,13 @@
 | Requerimiento | `RF-CM-012` |
 | Especificación | [`spec.md`](spec.md) v0.1.0 |
 | `spec.md` aprobada el | 28-09-2026 |
-| Versión | 0.2.0 |
+| Versión | 0.3.0 |
 | Estado | **Aprobado** |
 | Autor | Responsable técnico |
 | Aprobado por | Responsable del proyecto |
 | Fecha de aprobación | 28-09-2026 |
 | Enmendado el | 29-09-2026 — hereda la clase de cada comisión de `RF-CM-010` §12 |
+| Enmendado el | 29-09-2026 — hereda la fuente `DIRECTA` de `RF-CM-010` §13 |
 
 !!! info "Qué va en este documento"
 
@@ -101,3 +102,7 @@ Ninguno.
 ## 12. La clase de cada comisión — enmienda del 29-09-2026
 
 **Sin trabajo propio**: las lecturas de «los míos» reutilizan la sentencia y las formas de `RF-CM-010`, que §12 de aquel plan cambia. `CommissionBatchesIT` gana `CA-CM-263`.
+
+## 13. La fuente `DIRECTA` — enmienda del 29-09-2026
+
+Hereda `RF-CM-010` §13 sin cambios de sentencia: la prosa de la `@Operation` gana la tercera fuente. `MyCommissionBatchesIT` gana `CA-CM-272`.

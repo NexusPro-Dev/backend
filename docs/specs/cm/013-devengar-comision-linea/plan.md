@@ -5,12 +5,13 @@
 | Requerimiento | `RF-CM-013` |
 | Especificación | [`spec.md`](spec.md) v0.1.0 |
 | `spec.md` aprobada el | 28-09-2026 |
-| Versión | 0.2.0 |
+| Versión | 0.3.0 |
 | Estado | **Aprobado** |
 | Autor | Responsable técnico |
 | Aprobado por | Responsable del proyecto |
 | Fecha de aprobación | 28-09-2026 |
 | Enmendado el | 29-09-2026 — las líneas FTD fuera del devengo y `commission_kind` en la inserción (§12) |
+| Enmendado el | 29-09-2026 — la directa en el nivel `0`, `LastLinkRoles` en `SP` y `directCommissionOf` en `PM` (§13) |
 
 !!! info "Qué va en este documento"
 
@@ -158,3 +159,19 @@ Y un índice de apoyo: `ix_commission_batches_abierto` sobre `(user_id, currency
 - **La inserción de `commissions` declara `commission_kind = 'POR_VENTA'`**, porque `V54` retira el valor por omisión (`RF-CM-015` `T-02`).
 
 `CommissionAccrualIT` gana `CA-CM-253` —criterio de `RF-CM-020`—: una línea `BECA → BECA` confirmada y con vendedor, sobre un producto con una tasa **sembrada directamente** en la base —el alta ya la rechaza (`RN-CM-037`)—, no deja comisión ni desenlace, ni al confirmar ni tras un cierre.
+
+## 13. La comisión por venta directa — enmienda del 29-09-2026
+
+`RN-CM-045` ([`requirements/cm.md`](../../../requirements/cm.md) v0.24.0 §5.9). **Solo cambia el nivel `0`, y solo cuando lo que ganó es la tasa de rol o nada.**
+
+- **`SP` publica `LastLinkRoles.ids()`**: los roles `VENDEDOR` vivos de los que **no cuelga ningún otro rol `VENDEDOR` vivo** —`NOT EXISTS` sobre `roles.parent_role_id`—. Hoy devuelve uno, `AGENTE`. **Una interfaz y no un método más de `SellerRoleCatalog`**, por la norma de §15.2 de [`architecture.md`](../../../architecture.md): una interfaz por lectura. La implementa `PublishedUserCatalog`, que ya lee `roles` para `sellerRoleOf`. **Se define por la forma y no por el código**, como `CommercialStructure.esCuspide`: un rango nuevo por debajo de `AGENTE` no exige tocar nada.
+- **`PM` publica `ProductCatalog.directCommissionOf(UUID)`**: la directa del producto —tipo y valor, con un tipo propio de `PM`—, o vacío en un FTD.
+- **`CommissionAccrualService` pide `LastLinkRoles.ids()` una vez por tanda**, como `ftdProductIds()` (§12). En el nivel `0`, **después** de `rateFor` —que no cambia—: si lo resuelto **no es `PERSONALIZADA`** y el rol vendedor del vendedor (`SellerRoleCatalog.sellerRoleOf`) **existe y no está en el conjunto**, se sustituye por la directa: `ResolvedRate(DIRECTA, productId, tipo, valor, null, null)`. **Sin rol vendedor no hay rango**, y se resuelve como hoy.
+- **`RateSource` gana `DIRECTA`**, al final. El Javadoc del enumerado dice que su orden es la precedencia de la sentencia de `RF-CM-005`; `DIRECTA` **no sale de esa sentencia** y se dice. **El contrato de `RF-CM-005` pasa a listar `DIRECTA` en el enumerado de `source` sin devolverlo nunca**: se acepta y se escribe en su `@Operation`, porque un segundo enumerado para una sola columna costaría una traducción en cada lectura de lotes.
+- **`ChainCommissionCalculator` no cambia**: recibe un `ResolvedRate` más y la suma de la línea lo cuenta, de modo que `RN-CM-026` rechaza una directa que, con los overrides, pase del 100 %.
+
+**Alternativa descartada: resolverlo en la sentencia de `RF-CM-005`** con una tercera rama. Haría que la consulta de la comisión efectiva dependiera de quién pregunta y para qué, y mezclaría en SQL una regla que depende del nivel de la cadena, que la sentencia no conoce.
+
+**Riesgo: el rango es el de hoy** (`requirements/cm.md` §5.9, supuesto 1). Un ascenso entre la venta y la asignación del vendedor cambia lo que se paga. Se acepta con la regla; la prueba lo fija para que un cambio futuro sea deliberado.
+
+`CommissionAccrualIT` gana `CA-CM-264` a `CA-CM-270`, confirmando por la API de `MV` como el resto de la suite. `LastLinkRolesIT` en `SP`: la jerarquía sembrada devuelve `AGENTE`, y un rol vendedor hijo de `AGENTE` creado en la prueba lo saca del conjunto.

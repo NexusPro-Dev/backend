@@ -129,6 +129,11 @@ public class CommissionBatchController {
           **Lo copiado, no lo de hoy** (`RN-CM-008`): corregir la tasa después no cambia lo que
           aquí se lee.
 
+          **`source` tiene tres valores** desde el 29-09-2026: `PERSONALIZADA`, `ROL` y
+          **`DIRECTA`** —la comisión por venta directa del producto, que cobra en el nivel `0`
+          quien vendió sin ser el último eslabón y sin personalizada (`RN-CM-045`)—. Con
+          `DIRECTA`, **`rateId` es el producto**.
+
           **Cada comisión dice su clase en `commissionKind`** (`RN-CM-044`, 29-09-2026):
           `POR_VENTA`, con todo lo anterior; o `POR_AFFTRACK`, un escalón pagado en un cierre,
           que **no trae** `movementDetailId`, `movementId`, `movementCode`, `chainLevel` ni

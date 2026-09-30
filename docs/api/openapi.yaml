@@ -2123,6 +2123,10 @@ paths:
         se ven juntos: la oferta y el hotlink no devuelven el de compra
         (`RN-PM-024`, 12-09-2026).
 
+        Cada fila trae **`directCommission`**, la comisión por venta directa
+        (`RN-PM-051`), **presente y nula** en un FTD. Es un dato de nómina:
+        como el precio de compra, la oferta y el hotlink no la devuelven.
+
         Y trae **`exchange`**, la conversión a la moneda por omisión con la
         tasa vigente hoy, calculada **sobre `price`** —el de compra nunca se
         convierte—. Llega **presente y nula** cuando el producto ya está en
@@ -2325,6 +2329,19 @@ paths:
         admite** desde que existe la renovación de una membresía gratuita— y
         con los decimales que declare su moneda. El rechazo **nombra el
         campo** que incumple.
+
+        **`directCommission` es obligatoria, salvo en un FTD** (`RN-PM-051`,
+        29-09-2026): lo que cobra en su venta propia quien **no es el último
+        eslabón** de la fuerza comercial —hoy un `DIRECTOR` o un `MANAGER`—,
+        en lugar de su tasa de rol. Un objeto con `type` —`PORCENTAJE` o
+        `FIJO`— y **solo** el campo que le toca (`percentage` o
+        `fixedAmount`). El porcentaje va de 0 a 100; el fijo no es negativo,
+        cabe en los decimales de la moneda y **no pasa del precio**; sobre un
+        producto de precio cero **solo se admite fija**. Sin ella, `VAL-024`;
+        con la forma equivocada, `VAL-025`; fuera de rango, `VAL-026`; por
+        encima del precio o de porcentaje sobre un gratuito, `VAL-027`. **Un
+        FTD —un upgrade de `BECA` a `BECA`— no la lleva**: declararla es
+        `VAL-028`, y la respuesta la devuelve **presente y nula**.
 
         **Los dos solo se ven desde administración** (`RN-PM-024`): la oferta
         de un cliente y el hotlink público devuelven **uno**.
@@ -7092,6 +7109,10 @@ paths:
         compra solo se ve aquí y en el listado: la oferta y el hotlink no lo
         devuelven.
 
+        Trae **`directCommission`**, la comisión por venta directa
+        (`RN-PM-051`) —también en un producto retirado—, **presente y nula**
+        en un FTD.
+
         Trae **`links`**, los enlaces del producto **tal cual se guardaron** y
         **presente y vacía** cuando no tiene ninguno (`RN-PM-048`) — también en
         un producto retirado. Como el listado, **los enseña todos**,
@@ -7176,6 +7197,14 @@ paths:
         van con el nombre y no con la descripción: son obligatorios en la
         columna, de modo que «bórralo» no tiene ningún estado al que llevar el
         producto. Devuelven `400` con `VAL-007` y `VAL-008`.
+
+        **`directCommission` se corrige ENTERA y no se vacía** (`RN-PM-051`):
+        el nulo explícito es `VAL-019`, y la forma o el rango equivocados
+        `VAL-020`. **Se revalida en toda edición aunque no viaje**, contra el
+        precio y la moneda que quedan: bajar el precio por debajo de una
+        directa fija, o a cero con una de porcentaje, es `VAL-021`, y cambiar
+        a una moneda en cuyos decimales no cabe, `VAL-020`. En un FTD
+        declararla es `VAL-022`.
 
         **El alcance y la implementación SÍ se corrigen, aunque el tipo y las
         membresías no**: ninguna de las dos define qué derecho otorga el
@@ -10362,13 +10391,17 @@ paths:
       operationId: misSaldos
       responses:
         "200":
-          description: OK
+          description: "Los saldos, uno por moneda."
           content:
             '*/*':
               schema:
                 type: array
                 items:
                   $ref: "#/components/schemas/Balances"
+        "401":
+          description: Sin token (`AUTH-001`)
+        "403":
+          description: Sin `movements:read-own-balances` (`AUTH-002`)
       x-required-permission: movements:read-own-balances
   /api/v1/movements/mine/balances/entries:
     get:
@@ -10382,7 +10415,8 @@ paths:
         antiguo, con su signo —positivo entró—, el saldo que dejó, el evento y el movimiento
         que lo produjo (`RF-MV-022`). Es donde la persona ve sus retiros, abonos y bonos.
         Filtros: `currencyId`, `account` (`BILLETERA`, `RETENIDO`, `PUNTOS`), `from` y `to`
-        sobre cuándo se escribió, rango semiabierto.
+        sobre cuándo se escribió, rango semiabierto. Los filtros se combinan; una cuenta de
+        la empresa o un periodo invertido son `400`, y los dos errores salen juntos.
       operationId: miHistorial
       parameters:
       - name: page
@@ -10422,11 +10456,18 @@ paths:
           format: date-time
       responses:
         "200":
-          description: OK
+          description: Una página del historial.
           content:
             '*/*':
               schema:
                 $ref: "#/components/schemas/PageResponseEntryResponse"
+        "400":
+          description: "`account` que no es `BILLETERA`, `RETENIDO` ni `PUNTOS` (`VAL-002`),\
+            \ o `from` posterior a `to` (`VAL-003`)"
+        "401":
+          description: Sin token (`AUTH-001`)
+        "403":
+          description: Sin `movements:list-own-entries` (`AUTH-002`)
       x-required-permission: movements:list-own-entries
   /api/v1/memberships/{id}:
     get:
@@ -10953,7 +10994,9 @@ paths:
 
         **Tres desenlaces, y ninguno es un error:**
 
-        - `RESUELTA`: hay tasa. `source` dice si fue `PERSONALIZADA` o `ROL`. El
+        - `RESUELTA`: hay tasa. `source` dice si fue `PERSONALIZADA` o `ROL` —el esquema
+          lista también `DIRECTA`, que esta consulta **no devuelve nunca**: la aplica el
+          devengo a la venta propia de quien no es el último eslabón (`RN-CM-045`)—. El
           porcentaje puede ser **cero**, y eso significa «no comisiona» — es una
           decisión declarada.
         - `SIN_TARIFA`: la persona vende y **no hay tasa aplicable**. La causa más
@@ -11140,6 +11183,11 @@ paths:
 
         **Lo copiado, no lo de hoy** (`RN-CM-008`): corregir la tasa después no cambia lo que
         aquí se lee.
+
+        **`source` tiene tres valores** desde el 29-09-2026: `PERSONALIZADA`, `ROL` y
+        **`DIRECTA`** —la comisión por venta directa del producto, que cobra en el nivel `0`
+        quien vendió sin ser el último eslabón y sin personalizada (`RN-CM-045`)—. Con
+        `DIRECTA`, **`rateId` es el producto**.
 
         **Cada comisión dice su clase en `commissionKind`** (`RN-CM-044`, 29-09-2026):
         `POR_VENTA`, con todo lo anterior; o `POR_AFFTRACK`, un escalón pagado en un cierre,
@@ -12514,6 +12562,8 @@ components:
           type: number
         purchasePrice:
           type: number
+        directCommission:
+          $ref: "#/components/schemas/ProductDirectCommission"
         currency:
           $ref: "#/components/schemas/CurrencyRef"
         exchange:
@@ -12551,6 +12601,24 @@ components:
           format: date-time
         deletionReason:
           type: string
+    ProductDirectCommission:
+      type: object
+      description: "Lo que cobra en su venta propia quien no es el último eslabón\
+        \ de la fuerza comercial, en lugar de su tasa de rol. Porcentaje o importe\
+        \ fijo, nunca los dos."
+      properties:
+        type:
+          type: string
+          description: PORCENTAJE o FIJO.
+          enum:
+          - PORCENTAJE
+          - FIJO
+        percentage:
+          type: number
+          description: De 0 a 100. Solo si `type` es PORCENTAJE.
+        fixedAmount:
+          type: number
+          description: "Por unidad, en la moneda del producto. Solo si `type` es FIJO."
     ProductLinkResponse:
       type: object
       properties:
@@ -13591,6 +13659,8 @@ components:
           enum:
           - AUTOMATICA
           - MANUAL
+        directCommission:
+          $ref: "#/components/schemas/ProductDirectCommission"
       required:
       - code
       - currencyId
@@ -13632,6 +13702,8 @@ components:
           type: number
         purchasePrice:
           type: number
+        directCommission:
+          $ref: "#/components/schemas/ProductDirectCommission"
         currency:
           $ref: "#/components/schemas/CurrencyRef"
         exchange:
@@ -15239,33 +15311,33 @@ components:
           type: string
         name:
           type: string
-    PatchableString: {}
-    PatchableUUID: {}
     UpdateUserRequest:
       type: object
       properties:
         firstName:
-          $ref: "#/components/schemas/PatchableString"
+          type: string
         lastName:
-          $ref: "#/components/schemas/PatchableString"
+          type: string
         email:
-          $ref: "#/components/schemas/PatchableString"
+          type: string
         countryId:
-          $ref: "#/components/schemas/PatchableUUID"
+          type: string
+          format: uuid
         documentTypeId:
-          $ref: "#/components/schemas/PatchableUUID"
+          type: string
+          format: uuid
         documentNumber:
-          $ref: "#/components/schemas/PatchableString"
+          type: string
         phone:
-          $ref: "#/components/schemas/PatchableString"
+          type: string
         companyPhone:
-          $ref: "#/components/schemas/PatchableString"
+          type: string
         addressLine1:
-          $ref: "#/components/schemas/PatchableString"
+          type: string
         addressLine2:
-          $ref: "#/components/schemas/PatchableString"
+          type: string
         city:
-          $ref: "#/components/schemas/PatchableString"
+          type: string
     AssignSupervisorRequest:
       type: object
       properties:
@@ -15359,21 +15431,21 @@ components:
       type: object
       properties:
         firstName:
-          $ref: "#/components/schemas/PatchableString"
+          type: string
         lastName:
-          $ref: "#/components/schemas/PatchableString"
+          type: string
         email:
-          $ref: "#/components/schemas/PatchableString"
+          type: string
         phone:
-          $ref: "#/components/schemas/PatchableString"
+          type: string
         companyPhone:
-          $ref: "#/components/schemas/PatchableString"
+          type: string
         addressLine1:
-          $ref: "#/components/schemas/PatchableString"
+          type: string
         addressLine2:
-          $ref: "#/components/schemas/PatchableString"
+          type: string
         city:
-          $ref: "#/components/schemas/PatchableString"
+          type: string
         currentPassword:
           type: string
     OwnProfileResponse:
@@ -15415,47 +15487,53 @@ components:
           $ref: "#/components/schemas/SupervisorRef"
         mustChangePassword:
           type: boolean
-    PatchableBigDecimal: {}
-    PatchableCommissionRateType: {}
-    PatchableLocalDate: {}
-    PatchableObject: {}
     UpdateUserCommissionRateRequest:
       type: object
       properties:
         rateType:
-          $ref: "#/components/schemas/PatchableCommissionRateType"
+          type: string
+          enum:
+          - PORCENTAJE
+          - FIJO
         percentage:
-          $ref: "#/components/schemas/PatchableBigDecimal"
+          type: number
         fixedAmount:
-          $ref: "#/components/schemas/PatchableBigDecimal"
+          type: number
         validTo:
-          $ref: "#/components/schemas/PatchableLocalDate"
+          type: string
+          format: date
         userId:
-          $ref: "#/components/schemas/PatchableObject"
+          description: "No se corrige: enviarlo, con cualquier valor, se rechaza."
+          not: {}
         validFrom:
-          $ref: "#/components/schemas/PatchableObject"
+          description: "No se corrige: enviarlo, con cualquier valor, se rechaza."
+          not: {}
     UpdateUserAfftrackRateRequest:
       type: object
       properties:
         threshold:
-          $ref: "#/components/schemas/PatchableBigDecimal"
+          type: number
         amountPerFtd:
-          $ref: "#/components/schemas/PatchableBigDecimal"
+          type: number
         validTo:
-          $ref: "#/components/schemas/PatchableLocalDate"
+          type: string
+          format: date
         userId:
-          $ref: "#/components/schemas/PatchableObject"
+          description: "No se corrige: enviarlo, con cualquier valor, se rechaza."
+          not: {}
         productId:
-          $ref: "#/components/schemas/PatchableObject"
+          description: "No se corrige: enviarlo, con cualquier valor, se rechaza."
+          not: {}
         validFrom:
-          $ref: "#/components/schemas/PatchableObject"
+          description: "No se corrige: enviarlo, con cualquier valor, se rechaza."
+          not: {}
     UpdateTeamRequest:
       type: object
       properties:
         name:
-          $ref: "#/components/schemas/PatchableString"
+          type: string
         description:
-          $ref: "#/components/schemas/PatchableString"
+          type: string
     ChangeTeamStatusRequest:
       type: object
       properties:
@@ -15465,9 +15543,9 @@ components:
       type: object
       properties:
         name:
-          $ref: "#/components/schemas/PatchableString"
+          type: string
         description:
-          $ref: "#/components/schemas/PatchableString"
+          type: string
     ChangeRoleStatusRequest:
       type: object
       properties:
@@ -15484,41 +15562,55 @@ components:
           format: uuid
       required:
       - parentRoleId
-    PatchableInteger: {}
-    PatchableListProductLinkRequest: {}
-    PatchableProductImplementation: {}
-    PatchableProductScope: {}
     UpdateProductRequest:
       type: object
       properties:
         name:
-          $ref: "#/components/schemas/PatchableString"
+          type: string
         description:
-          $ref: "#/components/schemas/PatchableString"
+          type: string
         icon:
-          $ref: "#/components/schemas/PatchableString"
+          type: string
         links:
-          $ref: "#/components/schemas/PatchableListProductLinkRequest"
+          type: array
+          items:
+            $ref: "#/components/schemas/ProductLinkRequest"
         price:
-          $ref: "#/components/schemas/PatchableBigDecimal"
+          type: number
         purchasePrice:
-          $ref: "#/components/schemas/PatchableBigDecimal"
+          type: number
         currencyId:
-          $ref: "#/components/schemas/PatchableUUID"
+          type: string
+          format: uuid
         validityDays:
-          $ref: "#/components/schemas/PatchableInteger"
+          type: integer
+          format: int32
         scope:
-          $ref: "#/components/schemas/PatchableProductScope"
+          type: string
+          enum:
+          - TIENDA
+          - HOTLINK
+          - AMBOS
+          - NINGUNO
         implementation:
-          $ref: "#/components/schemas/PatchableProductImplementation"
+          type: string
+          enum:
+          - AUTOMATICA
+          - MANUAL
+        directCommission:
+          $ref: "#/components/schemas/ProductDirectCommission"
         type:
-          $ref: "#/components/schemas/PatchableObject"
+          description: "No se corrige: enviarlo, con cualquier valor, se rechaza."
+          not: {}
         code:
-          $ref: "#/components/schemas/PatchableObject"
+          description: "No se corrige: enviarlo, con cualquier valor, se rechaza."
+          not: {}
         targetMembershipId:
-          $ref: "#/components/schemas/PatchableObject"
+          description: "No se corrige: enviarlo, con cualquier valor, se rechaza."
+          not: {}
         sourceMembershipId:
-          $ref: "#/components/schemas/PatchableObject"
+          description: "No se corrige: enviarlo, con cualquier valor, se rechaza."
+          not: {}
     ChangeProductStatusRequest:
       type: object
       properties:
@@ -15531,29 +15623,39 @@ components:
       type: object
       properties:
         rating:
-          $ref: "#/components/schemas/PatchableInteger"
+          type: integer
+          format: int32
           description: "Puntuación nueva, entera de 1 a 5. No admite nulo."
         comment:
-          $ref: "#/components/schemas/PatchableString"
+          type: string
           description: "Texto nuevo, de 1 a 1000 caracteres tras recortar. No admite\
             \ nulo."
     UpdatePackageRequest:
       type: object
       properties:
         name:
-          $ref: "#/components/schemas/PatchableString"
+          type: string
         description:
-          $ref: "#/components/schemas/PatchableString"
+          type: string
         scope:
-          $ref: "#/components/schemas/PatchableProductScope"
+          type: string
+          enum:
+          - TIENDA
+          - HOTLINK
+          - AMBOS
+          - NINGUNO
         validFrom:
-          $ref: "#/components/schemas/PatchableLocalDate"
+          type: string
+          format: date
         validTo:
-          $ref: "#/components/schemas/PatchableLocalDate"
+          type: string
+          format: date
         code:
-          $ref: "#/components/schemas/PatchableObject"
+          description: "No se corrige: enviarlo, con cualquier valor, se rechaza."
+          not: {}
         currencyId:
-          $ref: "#/components/schemas/PatchableObject"
+          description: "No se corrige: enviarlo, con cualquier valor, se rechaza."
+          not: {}
     ChangePackageStatusRequest:
       type: object
       properties:
@@ -15601,24 +15703,29 @@ components:
           type: boolean
         isActive:
           type: boolean
-    PatchableCourseDifficulty: {}
     UpdateCourseRequest:
       type: object
       properties:
         title:
-          $ref: "#/components/schemas/PatchableString"
+          type: string
         instructorId:
-          $ref: "#/components/schemas/PatchableUUID"
+          type: string
+          format: uuid
         difficulty:
-          $ref: "#/components/schemas/PatchableCourseDifficulty"
+          type: string
+          enum:
+          - PRINCIPIANTE
+          - INTERMEDIO
+          - AVANZADO
         shortDescription:
-          $ref: "#/components/schemas/PatchableString"
+          type: string
         longDescription:
-          $ref: "#/components/schemas/PatchableString"
+          type: string
         introVideoUrl:
-          $ref: "#/components/schemas/PatchableString"
+          type: string
         displayOrder:
-          $ref: "#/components/schemas/PatchableInteger"
+          type: integer
+          format: int32
     ChangeCourseStatusRequest:
       type: object
       properties:
@@ -15633,15 +15740,16 @@ components:
       type: object
       properties:
         title:
-          $ref: "#/components/schemas/PatchableString"
+          type: string
         shortDescription:
-          $ref: "#/components/schemas/PatchableString"
+          type: string
         longDescription:
-          $ref: "#/components/schemas/PatchableString"
+          type: string
         presentationVideoUrl:
-          $ref: "#/components/schemas/PatchableString"
+          type: string
         displayOrder:
-          $ref: "#/components/schemas/PatchableInteger"
+          type: integer
+          format: int32
     ChangeCourseModuleStatusRequest:
       type: object
       properties:
@@ -15652,25 +15760,28 @@ components:
           - INACTIVO
       required:
       - status
-    PatchableBoolean: {}
-    PatchableLessonType: {}
     UpdateLessonRequest:
       type: object
       properties:
         type:
-          $ref: "#/components/schemas/PatchableLessonType"
+          type: string
+          enum:
+          - VIDEO
+          - TEXTO
         title:
-          $ref: "#/components/schemas/PatchableString"
+          type: string
         description:
-          $ref: "#/components/schemas/PatchableString"
+          type: string
         content:
-          $ref: "#/components/schemas/PatchableString"
+          type: string
         durationSeconds:
-          $ref: "#/components/schemas/PatchableInteger"
+          type: integer
+          format: int32
         displayOrder:
-          $ref: "#/components/schemas/PatchableInteger"
+          type: integer
+          format: int32
         open:
-          $ref: "#/components/schemas/PatchableBoolean"
+          type: boolean
     ChangeLessonStatusRequest:
       type: object
       properties:
@@ -15685,15 +15796,16 @@ components:
       type: object
       properties:
         name:
-          $ref: "#/components/schemas/PatchableString"
+          type: string
         description:
-          $ref: "#/components/schemas/PatchableString"
+          type: string
         color:
-          $ref: "#/components/schemas/PatchableString"
+          type: string
         icon:
-          $ref: "#/components/schemas/PatchableString"
+          type: string
         displayOrder:
-          $ref: "#/components/schemas/PatchableInteger"
+          type: integer
+          format: int32
     ChangeCountryStatusRequest:
       type: object
       properties:
@@ -15705,24 +15817,30 @@ components:
       type: object
       properties:
         rateType:
-          $ref: "#/components/schemas/PatchableCommissionRateType"
+          type: string
+          enum:
+          - PORCENTAJE
+          - FIJO
         percentage:
-          $ref: "#/components/schemas/PatchableBigDecimal"
+          type: number
         fixedAmount:
-          $ref: "#/components/schemas/PatchableBigDecimal"
+          type: number
         roleId:
-          $ref: "#/components/schemas/PatchableObject"
+          description: "No se corrige: enviarlo, con cualquier valor, se rechaza."
+          not: {}
     UpdateAfftrackRateRequest:
       type: object
       properties:
         threshold:
-          $ref: "#/components/schemas/PatchableBigDecimal"
+          type: number
         amountPerFtd:
-          $ref: "#/components/schemas/PatchableBigDecimal"
+          type: number
         roleId:
-          $ref: "#/components/schemas/PatchableObject"
+          description: "No se corrige: enviarlo, con cualquier valor, se rechaza."
+          not: {}
         productId:
-          $ref: "#/components/schemas/PatchableObject"
+          description: "No se corrige: enviarlo, con cualquier valor, se rechaza."
+          not: {}
     PageResponse:
       type: object
       properties:
@@ -16242,6 +16360,8 @@ components:
           type: number
         purchasePrice:
           type: number
+        directCommission:
+          $ref: "#/components/schemas/ProductDirectCommission"
         currency:
           $ref: "#/components/schemas/CurrencyRef"
         exchange:
@@ -17489,6 +17609,7 @@ components:
           enum:
           - PERSONALIZADA
           - ROL
+          - DIRECTA
         validFrom:
           type: string
           format: date

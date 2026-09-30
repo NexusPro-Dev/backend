@@ -8,7 +8,7 @@
 | Estado | **Aprobado** |
 | Autor | Responsable técnico |
 | Aprobado por | Responsable del proyecto |
-| Enmendado el | 12-09-2026 — **el segundo precio es el de COMPRA** (`purchasePrice`, `RN-PM-023`, `RN-PM-024`), §4; 08-09-2026 — **los dos precios en cada fila** (`RN-PM-023`, `RN-PM-024`), §4; 27-08-2026 — `RN-PM-015`; 02-09-2026 — la membresía de **origen** (`RN-PM-017`, `RN-PM-018`); 07-09-2026 — los filtros de **alcance** e **implementación** (`RN-PM-019`, `RN-PM-020`); 14-09-2026 — **`videoUrl` en cada fila** (`RN-PM-032`), §4; 14-09-2026 — **`coverImageUrl` en cada fila** (`RN-PM-033`), §4; 15-09-2026 — **el alcance de cuatro valores** en el filtro (`RN-PM-019`); 22-09-2026 — **`links` en cada fila, en lugar de `videoUrl`** (`RN-PM-048` a `RN-PM-050`), §4 |
+| Enmendado el | 12-09-2026 — **el segundo precio es el de COMPRA** (`purchasePrice`, `RN-PM-023`, `RN-PM-024`), §4; 08-09-2026 — **los dos precios en cada fila** (`RN-PM-023`, `RN-PM-024`), §4; 27-08-2026 — `RN-PM-015`; 02-09-2026 — la membresía de **origen** (`RN-PM-017`, `RN-PM-018`); 07-09-2026 — los filtros de **alcance** e **implementación** (`RN-PM-019`, `RN-PM-020`); 14-09-2026 — **`videoUrl` en cada fila** (`RN-PM-032`), §4; 14-09-2026 — **`coverImageUrl` en cada fila** (`RN-PM-033`), §4; 15-09-2026 — **el alcance de cuatro valores** en el filtro (`RN-PM-019`); 22-09-2026 — **`links` en cada fila, en lugar de `videoUrl`** (`RN-PM-048` a `RN-PM-050`), §4; 29-09-2026 — **la comisión por venta directa** en cada fila (§12) |
 | Fecha de aprobación | 26-08-2026 |
 
 ---
@@ -140,3 +140,7 @@ Ninguna. Una consulta de catálogo no es un evento de seguridad; el único lista
 | Los enlaces no son un `N+1` | Integración | Veinte productos con enlaces en una página: **una sentencia** para la página y **una** para sus enlaces, y el total **no crece** con el tamaño de la página (`CA-PM-386`) |
 | Una sola sentencia por consulta | Integración | Con y sin filtros |
 | Uso efectivo del índice | Integración | `EXPLAIN` con volumen sembrado |
+
+## 12. La comisión por venta directa — enmienda del 29-09-2026
+
+`RN-PM-051`. **Las tres columnas entran en la proyección de la página** —la misma sentencia, sin `JOIN` nuevo— y `ProductItem` gana `directCommission` con el esquema `ProductDirectCommission` de `RF-PM-001`. **La oferta (`RF-PM-007`), el hotlink y el catálogo de hotlinks no la seleccionan**: usan sus propias proyecciones, y la prueba lo fija para que nadie la añada copiando la del listado. `ProductListIT` gana `CA-PM-410`.

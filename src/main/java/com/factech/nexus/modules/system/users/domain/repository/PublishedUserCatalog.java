@@ -2,6 +2,7 @@ package com.factech.nexus.modules.system.users.domain.repository;
 
 import com.factech.nexus.modules.system.users.application.ClientCatalog;
 import com.factech.nexus.modules.system.users.application.CurrentMembershipLookup;
+import com.factech.nexus.modules.system.users.application.LastLinkRoles;
 import com.factech.nexus.modules.system.users.application.PublicSellerLookup;
 import com.factech.nexus.modules.system.users.application.SellerRoleCatalog;
 import com.factech.nexus.modules.system.users.application.UserCatalog;
@@ -33,6 +34,7 @@ import org.springframework.transaction.annotation.Transactional;
 public class PublishedUserCatalog
     implements UserCatalog,
         SellerRoleCatalog,
+        LastLinkRoles,
         CurrentMembershipLookup,
         ClientCatalog,
         PublicSellerLookup {
@@ -118,6 +120,33 @@ public class PublishedUserCatalog
                     nombreCompleto((String) fila.get("nombre"), (String) fila.get("apellido")),
                     fila.get("deleted_at") != null))
         .toList();
+  }
+
+  /**
+   * Los roles del último eslabón (`RN-CM-045`): los {@code VENDEDOR} vivos de los que no cuelga
+   * ningún otro {@code VENDEDOR} vivo. <b>No filtra por estado</b>: un rol desactivado sigue dando
+   * forma a la jerarquía, y lo que se pregunta es la forma.
+   */
+  @Override
+  @Transactional(readOnly = true)
+  public Set<UUID> ids() {
+    @SuppressWarnings("unchecked")
+    List<UUID> filas =
+        em.createNativeQuery(
+                """
+                SELECT r.id
+                  FROM roles r
+                 WHERE r.role_type = 'VENDEDOR'
+                   AND r.deleted_at IS NULL
+                   AND NOT EXISTS (
+                         SELECT 1
+                           FROM roles hijo
+                          WHERE hijo.parent_role_id = r.id
+                            AND hijo.role_type = 'VENDEDOR'
+                            AND hijo.deleted_at IS NULL)
+                """)
+            .getResultList();
+    return Set.copyOf(filas);
   }
 
   /**

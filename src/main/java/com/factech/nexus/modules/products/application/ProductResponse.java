@@ -61,6 +61,8 @@ public record ProductResponse(
     MembershipRef targetMembership,
     BigDecimal price,
     BigDecimal purchasePrice,
+    /** `RN-PM-051`: presente y nula en un FTD. */
+    ProductDirectCommission directCommission,
     CurrencyRef currency,
     ExchangeRef exchange,
     Integer validityDays,
@@ -108,6 +110,7 @@ public record ProductResponse(
         producto.getPurchasePrice() == null
             ? null
             : enLaEscalaDe(producto.getPurchasePrice(), moneda),
+        ProductDirectCommission.from(producto.getDirectCommission()),
         new CurrencyRef(moneda.id(), moneda.code(), moneda.decimalPlaces()),
         conversion,
         producto.getValidityDays(),

@@ -8,6 +8,7 @@
 | `plan.md` aprobado el | 28-09-2026 |
 | Estado | **En revisión** — tareas `Hecha` el 28-09-2026, salvo `T-02`, retirada |
 | Enmendadas | 29-09-2026 — `T-07` por **la clase de cada comisión** (`RN-CM-044`) |
+| Enmendadas | 29-09-2026 — `T-08` por **la fuente `DIRECTA`** (`RN-CM-045`) |
 | Issue | Pendiente de crear |
 | Rama | `feature/devengo-de-comisiones` |
 
@@ -77,3 +78,11 @@
 | `T-07` | `LEFT JOIN` a la línea y a la liquidación, `commissionKind` y los campos nulables en `CommissionLineResponse`, prosa de la `@Operation`; `CA-CM-262` | `RF-CM-020` `T-07` | `CommissionBatchesIT`; el diff del `openapi.json` | **Hecha** — 29-09-2026 |
 
 Rama: `feature/comision-afftrack`.
+
+## 7. La fuente `DIRECTA` — enmienda del 29-09-2026
+
+| ID | Tarea | Depende de | Verificación | Estado |
+|---|---|---|---|---|
+| `T-08` | La prosa de la `@Operation` y `CA-CM-271` | `RF-CM-013` `T-17` | `CommissionBatchesIT` | Hecha |
+
+Rama: `feature/comision-venta-directa`.

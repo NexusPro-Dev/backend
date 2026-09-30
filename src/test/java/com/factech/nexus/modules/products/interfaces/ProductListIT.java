@@ -55,6 +55,9 @@ class ProductListIT extends IntegrationTestBase {
   void sembrarCatalogo() {
     ProductLinkTestSupport.limpiar(jdbc);
     jdbc.update("DELETE FROM products");
+    // Antes que las membresías: `user_products` las referencia, y la suite
+    // solo pasaba cuando otra la había vaciado antes (como en `ProductsIT`).
+    jdbc.update("DELETE FROM user_products");
     jdbc.update("DELETE FROM memberships");
     // La cadena va encadenada de verdad: `uq_memberships_parent` es UNIQUE
     // NULLS NOT DISTINCT, de modo que solo UNA membresía puede no tener
@@ -500,6 +503,26 @@ class ProductListIT extends IntegrationTestBase {
         .andExpect(jsonPath("$.content[0].code").value("UPGRADE_PLATA"))
         .andExpect(jsonPath("$.content[0].purchasePrice").doesNotExist())
         .andExpect(jsonPath("$.content[0]").value(org.hamcrest.Matchers.hasKey("purchasePrice")));
+  }
+
+  @Test
+  @DisplayName("`CA-PM-410` — cada fila trae la directa, y nula donde no la hay")
+  void cadaFilaTraeLaDirecta() throws Exception {
+    jdbc.update(
+        "UPDATE products SET direct_commission_type = 'PORCENTAJE',"
+            + " direct_commission_percentage = 7.5 WHERE code = 'UPGRADE_ORO'");
+
+    mvc.perform(listado().param("targetMembershipId", oro.toString()))
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$.content[0].directCommission.type").value("PORCENTAJE"))
+        .andExpect(jsonPath("$.content[0].directCommission.percentage").value(7.5))
+        .andExpect(jsonPath("$.content[0].directCommission.fixedAmount").doesNotExist());
+
+    // Sin directa —lo que en un producto vivo solo es un FTD—, presente y nula.
+    mvc.perform(listado().param("targetMembershipId", plata.toString()))
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$.content[0]").value(org.hamcrest.Matchers.hasKey("directCommission")))
+        .andExpect(jsonPath("$.content[0].directCommission").doesNotExist());
   }
 
   @Test

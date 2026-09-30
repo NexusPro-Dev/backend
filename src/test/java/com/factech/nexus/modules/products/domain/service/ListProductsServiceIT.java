@@ -6,6 +6,7 @@ import com.factech.nexus.IntegrationTestBase;
 import com.factech.nexus.modules.products.application.ListProductsRequest;
 import com.factech.nexus.modules.products.application.ProductItem;
 import com.factech.nexus.modules.products.application.ProductPageResponse;
+import com.factech.nexus.modules.products.interfaces.ProductLinkTestSupport;
 import java.math.BigDecimal;
 import java.time.OffsetDateTime;
 import java.time.ZoneOffset;
@@ -66,7 +67,11 @@ class ListProductsServiceIT extends IntegrationTestBase {
 
   @BeforeEach
   void limpiar() {
+    ProductLinkTestSupport.limpiar(jdbc);
     jdbc.update("DELETE FROM products");
+    // Antes que las membresías: `user_products` las referencia, y la suite
+    // solo pasaba cuando otra la había vaciado antes (como en `ProductListIT`).
+    jdbc.update("DELETE FROM user_products");
     jdbc.update("DELETE FROM memberships");
     estadisticas = sessionFactory.getStatistics();
     estadisticas.setStatisticsEnabled(true);
@@ -204,10 +209,7 @@ class ListProductsServiceIT extends IntegrationTestBase {
     sembrar(VOLUMEN);
     jdbc.update(
         "UPDATE products SET name = 'Ascenso a Zafiro imperial' WHERE code = ?", "VOL_" + VOLUMEN);
-    // Sin estadísticas frescas el planificador decide sobre una tabla que cree
-    // vacía, y elegiría el recorrido secuencial por el mismo motivo que con
-    // pocas filas.
-    jdbc.execute("ANALYZE products");
+    compactarYAnalizar();
 
     String plan =
         String.join(
@@ -232,7 +234,7 @@ class ListProductsServiceIT extends IntegrationTestBase {
   @DisplayName("`T-01` — el orden por omisión usa `ix_products_listado`")
   void elListadoUsaSuIndice() {
     sembrar(VOLUMEN);
-    jdbc.execute("ANALYZE products");
+    compactarYAnalizar();
 
     String plan =
         String.join(
@@ -250,6 +252,22 @@ class ListProductsServiceIT extends IntegrationTestBase {
   }
 
   // ---------------------------------------------------------------------------
+
+  /**
+   * Deja la tabla con las páginas que ocupan sus filas vivas, y sus estadísticas al día.
+   *
+   * <p>Sin estadísticas frescas el planificador decide sobre una tabla que cree vacía, y elegiría
+   * el recorrido secuencial por el mismo motivo que con pocas filas. <b>Y un {@code ANALYZE} solo
+   * no basta</b> (issue #102): el coste del recorrido secuencial es proporcional a las
+   * <b>páginas</b>, no a las filas vivas, y las páginas dependen de cuántas tuplas muertas dejaron
+   * los {@code DELETE} de las suites que corrieron antes en la misma base. Con una coincidencia
+   * entre 2000 los dos planes cuestan casi lo mismo, y ese hinchado decidía el empate. {@code
+   * VACUUM FULL} reescribe la tabla compactada, de modo que el plan se calcula siempre sobre la
+   * misma tabla —y sin debilitar lo que se afirma, como haría {@code enable_seqscan = off}—.
+   */
+  private void compactarYAnalizar() {
+    jdbc.execute("VACUUM (FULL, ANALYZE) products");
+  }
 
   /** Recorre {@code paginas} páginas de {@code tamano} y devuelve los identificadores vistos. */
   private List<UUID> recorrerTodo(String orden, int tamano, int paginas) {
@@ -331,6 +349,7 @@ class ListProductsServiceIT extends IntegrationTestBase {
    */
   @AfterEach
   void vaciarCatalogo() {
+    ProductLinkTestSupport.limpiar(jdbc);
     jdbc.update("DELETE FROM products");
   }
 }

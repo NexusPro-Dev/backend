@@ -21,6 +21,7 @@
 | Enmendada el | 15-09-2026 — **el alcance pasa a cuatro valores explícitos**: `TIENDA`, `HOTLINK`, `AMBOS`, `NINGUNO` (`RN-PM-019` reescrita). `HOTLINKS` deja de admitirse. Ver §15 |
 | Enmendada el | 22-09-2026 — **el alta declara los ENLACES del producto, y `links` sustituye a `videoUrl`** (`RN-PM-048`, `RN-PM-049`): uno por tipo, `VIDEO_PRESENTACION` y `CUPON_BOT`, cada uno con su dirección y un identificador externo opcional. Ver §15 |
 | Enmendada el | 28-09-2026 — **nace el tercer tipo de enlace, `DESCARGA`** (`RN-PM-048`, `RN-PM-050`, [`requirements/pm.md`](../../../requirements/pm.md) v0.45.0 §5.2.15): el alta lo admite como los otros dos. Ver §15 |
+| Enmendada el | 29-09-2026 — **el alta declara la comisión por venta directa** (`RN-PM-051`, [`requirements/pm.md`](../../../requirements/pm.md) v0.47.0 §5.2.16): obligatoria salvo en un FTD, donde se rechaza. Ver §15 |
 
 !!! danger "Un upgrade dice ahora DE DONDE sale, y eso cambia quien puede comprarlo"
 
@@ -116,6 +117,7 @@ Hoy la plataforma no tiene **nada que vender**. La membresía de una persona sol
 | Vigencia | No | Cuántos días dura lo que el producto otorga, contados desde la compra | Entero mayor que cero. **Sin ella, lo adquirido no caduca** (`RN-PM-015`) |
 | Alcance | **Sí** | En qué vistas de venta se ofrece el producto | `TIENDA`, `HOTLINK`, `AMBOS` o `NINGUNO`, **en los dos tipos y sin valor por omisión** (`RN-PM-019`, reescrita el 15-09-2026: dejó de ser una escala). **`HOTLINKS` se rechaza** desde ese día como cualquier valor fuera del dominio (`400`, `CA-PM-112`) |
 | Implementación | **Sí** | Si lo comprado se aplica solo o espera a que alguien lo autorice | `AUTOMATICA` o `MANUAL`, **en los dos tipos y sin valor por omisión** (`RN-PM-020`) |
+| Comisión por venta directa | **Sí, salvo en un FTD** | Lo que cobra en su venta propia **quien no es el último eslabón** de la fuerza comercial, en lugar de su tasa de rol (`RN-CM-045`). **29-09-2026** | Un objeto con **tipo** —`PORCENTAJE` o `FIJO`— y **solo** el campo que le corresponde (`RN-CM-016`). Porcentaje **de cero a cien**; fijo **no negativo**, con los decimales de la moneda y **no por encima del precio**; sobre precio cero, **solo fijo**. **Prohibida en un FTD** —un upgrade de `BECA` a `BECA`— (`RN-PM-051`). Sin valor por omisión |
 
 ### 6.2 Salida
 
@@ -224,6 +226,11 @@ Hoy la plataforma no tiene **nada que vender**. La membresía de una persona sol
 | `VAL-021` | **Dirección del enlace obligatoria** (22-09-2026). No hay enlace sin enlace: la ausencia de un tipo es lo que significa «no tiene» | La dirección del enlace es obligatoria. |
 | `VAL-022` | **Formato del identificador externo** (22-09-2026) | El identificador externo no admite espacios ni puede exceder 100 caracteres. |
 | `VAL-023` | **Identificador externo sobre una dirección con cadena de consulta** (22-09-2026). El identificador se pega como **último segmento de ruta**, y detrás de un `?` o un `#` daría un enlace roto que responde `200` | Un enlace con identificador externo no admite una dirección con `?` ni `#`. |
+| `VAL-024` | **Comisión por venta directa obligatoria**, salvo en un FTD, **y con tipo dentro del dominio** (29-09-2026) | El producto debe declarar su comisión por venta directa, de tipo porcentaje o fijo. |
+| `VAL-025` | **La directa declara una forma y solo una** (`RN-CM-016`) | La comisión por venta directa lleva solo el porcentaje o solo el importe fijo, según su tipo. |
+| `VAL-026` | **Porcentaje de cero a cien; fijo no negativo y con los decimales de la moneda** | El porcentaje de la comisión directa va de 0 a 100, y el importe fijo no puede ser negativo ni tener más decimales que su moneda. |
+| `VAL-027` | **La directa no paga más que el precio**, y sobre un producto gratuito **solo es fija** | La comisión directa no puede superar el precio del producto; en un producto gratuito solo puede ser un importe fijo. |
+| `VAL-028` | **Un FTD no declara directa**: no devenga por venta | Un producto FTD no lleva comisión por venta directa. |
 
 ## 12. Criterios de aceptación
 
@@ -281,6 +288,14 @@ Hoy la plataforma no tiene **nada que vender**. La membresía de una persona sol
 | `CA-PM-384` | El sistema **rechaza un identificador externo con espacios o de más de 100 caracteres** con `VAL-022`, y **rechaza un identificador sobre una dirección que lleva `?` o `#`** con `VAL-023`; la misma dirección **sin** identificador se admite |
 | `CA-PM-400` | El sistema registra un producto **con los tres enlaces** —`VIDEO_PRESENTACION`, `CUPON_BOT` y `DESCARGA`— y la respuesta devuelve **los tres**, crudos (28-09-2026) |
 | `CA-PM-348` | El sistema registra un producto con **cada uno de los cuatro alcances** —`TIENDA`, `HOTLINK`, `AMBOS`, `NINGUNO`— y rechaza **`HOTLINKS`** con `400`, como cualquier valor fuera del dominio (`CA-PM-112`) |
+| `CA-PM-402` | El sistema registra un producto **con directa de porcentaje** y la respuesta la devuelve con su tipo y su valor (29-09-2026) |
+| `CA-PM-403` | El sistema registra un producto **con directa fija** igual a su precio —el tope se admite— y otro gratuito con directa fija de cualquier importe |
+| `CA-PM-404` | El sistema **rechaza un producto que no es FTD sin directa** —ausente o nula— con `VAL-024`, y **no registra nada** |
+| `CA-PM-405` | El sistema rechaza una directa **con los dos campos o con el que no le corresponde** con `VAL-025`; un tipo desconocido se rechaza con `400` al leer el cuerpo, como cualquier enumerado (`CA-PM-112`) |
+| `CA-PM-406` | El sistema rechaza un porcentaje **negativo o mayor que cien**, un fijo negativo y un fijo **con más decimales que la moneda** con `VAL-026` |
+| `CA-PM-407` | El sistema rechaza una directa fija **mayor que el precio**, y una de porcentaje **sobre un producto gratuito**, con `VAL-027` |
+| `CA-PM-408` | El sistema registra un **`BECA → BECA` sin directa**, que la devuelve **presente y nula**, y **rechaza uno que la declare** con `VAL-028` |
+| `CA-PM-409` | La **instantánea del evento de creación incluye las tres columnas** de la directa, nulas en un FTD |
 
 ## 13. Casos límite
 
@@ -333,3 +348,4 @@ Ninguna. Las cinco se resolvieron el 26-08-2026, antes de aprobar la especificac
 | 0.14.0 | 15-09-2026 | **El alcance pasa a cuatro valores explícitos** (`RN-PM-019` reescrita, [`requirements/pm.md`](../../../requirements/pm.md) v0.35.0 §5.2.11), por decisión del responsable del proyecto: `TIENDA`, `HOTLINK`, `AMBOS` y `NINGUNO`. El alta los admite todos y **rechaza `HOTLINKS`** con `400`, que dejó de existir — las filas que lo declaraban pasaron a `AMBOS` en `V92`. `CA-PM-113` se reescribe con `AMBOS`; nace `CA-PM-348`. | Responsable del proyecto |
 | 0.15.0 | 22-09-2026 | **Los enlaces del producto entran en el alta, y `links` sustituye a `videoUrl`** (`RN-PM-048`, `RN-PM-049`, [`requirements/pm.md`](../../../requirements/pm.md) v0.43.0 §5.2.14), por decisión del responsable del proyecto. El alta deja de admitir **un** enlace en un campo y admite **una colección con hasta un enlace por tipo**: `VIDEO_PRESENTACION` —lo que `videoUrl` era— y **`CUPON_BOT`**, dónde registra su cuenta quien ya compró. Cada enlace declara **tipo**, **dirección** —obligatoria: no hay enlace sin enlace, de modo que «no tener» es **no declarar el tipo**, y ahí se aparta del nulo de `videoUrl`— y un **identificador externo** opcional de un sistema ajeno, que NEXUS guarda **sin interpretar**. La respuesta los devuelve **crudos y sin componer** (`RN-PM-049`): quien registra es quien corrige, y tiene que recibir lo que luego mandará en el `PATCH`; y devuelve `links` **presente y vacía** cuando no hay, en lugar del presente-y-nulo del precio de compra, porque una colección vacía ya dice «no hay». `VAL-017` se reescribe para los dos tipos y nacen **`VAL-019`** (tipo obligatorio y en el dominio), **`VAL-020`** (tipo repetido, comprobado **sobre el cuerpo y antes de escribir** para que el choque no lo dé la clave primaria con un `500`), **`VAL-021`** (dirección obligatoria), **`VAL-022`** (formato del identificador) y **`VAL-023`** (identificador sobre una dirección con `?` o `#`, que daría un enlace roto **respondiendo `200`**). `CA-PM-219` a `CA-PM-222` se **reescriben** —decían `videoUrl`— y nacen **`CA-PM-380`** a **`CA-PM-384`**. §13 gana tres casos límite, entre ellos el que separa la colección vacía de la ausente aquí y en `RF-PM-004`. Enmienda de Art. I.7. | Responsable del proyecto |
 | 0.16.0 | 28-09-2026 | **Nace el tercer tipo de enlace, `DESCARGA`** (`RN-PM-048`, `RN-PM-050`, [`requirements/pm.md`](../../../requirements/pm.md) v0.45.0 §5.2.15), por decisión del responsable del proyecto: dónde descarga quien compró lo que compró. **El alta no cambia de forma**: admite un valor más en `type`, con las mismas reglas de dirección e identificador. Es **entrega y no material de venta**, como el cupón, y eso lo deciden las lecturas, no el alta. Nace `CA-PM-400` | Responsable del proyecto |
+| 0.17.0 | 29-09-2026 | **El alta declara la comisión por venta directa** (`RN-PM-051`, [`requirements/pm.md`](../../../requirements/pm.md) v0.47.0 §5.2.16; `RN-CM-045`), por decisión del responsable del proyecto: lo que cobra en su venta propia quien no es el último eslabón, en lugar de su tasa de rol. **Obligatoria salvo en un FTD**, donde se rechaza; forma de tasa, de cero a cien o fija no negativa, no por encima del precio y solo fija sobre precio cero. `VAL-024` a `VAL-028`, `CA-PM-402` a `CA-PM-409`. | Responsable del proyecto |
