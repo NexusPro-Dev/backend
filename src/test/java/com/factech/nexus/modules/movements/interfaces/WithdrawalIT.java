@@ -265,6 +265,12 @@ class WithdrawalIT extends IntegrationTestBase {
 
     assertThat(saldo(jdbc, persona, "RETENIDO")).isEqualByComparingTo("0");
     assertThat(saldo(jdbc, persona, "BILLETERA")).isEqualByComparingTo("70.00");
+    assertThat(saldoDeLaEmpresa("RETIROS")).isEqualByComparingTo("30.00");
+    assertThat(
+            jdbc.queryForObject(
+                "SELECT sum(amount) FROM movement_entries WHERE event = 'APROBACION'",
+                BigDecimal.class))
+        .isEqualByComparingTo("0");
     assertThat(
             jdbc.queryForObject(
                 "SELECT count(*) FROM movement_entries WHERE event = 'APROBACION'"
@@ -294,6 +300,9 @@ class WithdrawalIT extends IntegrationTestBase {
     mvc.perform(aprobar(negado, "{}")).andExpect(status().isConflict());
 
     mvc.perform(aprobar(UUID.randomUUID(), "{}")).andExpect(status().isNotFound());
+    UUID venta = insertarVenta();
+    mvc.perform(aprobar(venta, "{}")).andExpect(status().isNotFound());
+    assertThat(estado(venta)).isEqualTo("PENDIENTE");
     assertThat(saldo(jdbc, persona, "BILLETERA")).isEqualByComparingTo("70.00");
   }
 
@@ -379,11 +388,22 @@ class WithdrawalIT extends IntegrationTestBase {
     llenarBilletera(abonos, persona, "100.00");
     UUID retiro = pedirYLeer("30.00");
     mvc.perform(negar(retiro, "   ")).andExpect(status().isBadRequest());
+    mvc.perform(
+            post("/api/v1/movements/{id}/withdrawal-rejection", retiro)
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("{}")
+                .with(
+                    user(administrador.toString())
+                        .authorities(() -> "movements:reject-withdrawal")))
+        .andExpect(status().isBadRequest());
     assertThat(estado(retiro)).isEqualTo("PENDIENTE");
 
     mvc.perform(negar(retiro, "No")).andExpect(status().isOk());
     mvc.perform(negar(retiro, "Otra vez")).andExpect(status().isConflict());
     mvc.perform(negar(UUID.randomUUID(), "No")).andExpect(status().isNotFound());
+    UUID venta = insertarVenta();
+    mvc.perform(negar(venta, "No")).andExpect(status().isNotFound());
+    assertThat(estado(venta)).isEqualTo("PENDIENTE");
 
     mvc.perform(
             post("/api/v1/movements/{id}/withdrawal-rejection", retiro)
@@ -430,6 +450,42 @@ class WithdrawalIT extends IntegrationTestBase {
 
   private static RequestPostProcessor propio(UUID quien) {
     return user(quien.toString()).authorities(() -> "movements:request-withdrawal");
+  }
+
+  private BigDecimal saldoDeLaEmpresa(String cuenta) {
+    return jdbc
+        .query(
+            "SELECT balance FROM accounts WHERE user_id IS NULL AND kind = ?"
+                + " AND currency_id = CAST(? AS uuid)",
+            (fila, n) -> fila.getBigDecimal(1),
+            cuenta,
+            USD)
+        .stream()
+        .findFirst()
+        .orElse(BigDecimal.ZERO);
+  }
+
+  /**
+   * Una venta pendiente de la persona, escrita directamente: solo hace falta su identificador, para
+   * comprobar que las operaciones del retiro no alcanzan un movimiento de otro tipo.
+   */
+  private UUID insertarVenta() {
+    UUID id = UUID.randomUUID();
+    jdbc.update(
+        """
+        INSERT INTO movements (id, movement_type_id, type_status_id, user_id,
+                               currency_id, code, status, total_amount, discount_amount,
+                               payable_amount, occurred_at)
+        SELECT ?, t.id, s.id, ?, CAST(? AS uuid), ?, 'PENDIENTE', 10.00, 0, 10.00, now()
+          FROM movement_types t
+          JOIN movement_type_statuses s ON s.movement_type_id = t.id AND s.code = 'VALIDADO'
+         WHERE t.code = 'VENTA'
+        """,
+        id,
+        persona,
+        USD,
+        "VEN-WD-" + id.toString().substring(0, 8));
+    return id;
   }
 
   private String estado(UUID movimiento) {

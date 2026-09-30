@@ -4,6 +4,7 @@ import static com.factech.nexus.modules.movements.LedgerFixtures.USD;
 import static com.factech.nexus.modules.movements.LedgerFixtures.llenarBilletera;
 import static com.factech.nexus.modules.movements.LedgerFixtures.saldo;
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.hamcrest.Matchers.hasSize;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.user;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
@@ -13,6 +14,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import com.factech.nexus.IntegrationTestBase;
 import com.factech.nexus.modules.movements.LedgerFixtures;
 import com.factech.nexus.modules.movements.domain.service.CreditService;
+import com.jayway.jsonpath.JsonPath;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.UUID;
@@ -70,7 +72,7 @@ class BalancesAndBonusIT extends IntegrationTestBase {
 
     llenarBilletera(abonos, persona, "100.00");
     llenarBilletera(abonos, otra, "999.00");
-    pedirRetiro(persona, "30.00");
+    UUID retiro = pedirRetiro(persona, "30.00");
 
     mvc.perform(get("/api/v1/movements/mine/balances").with(saldosDe(persona)))
         .andExpect(status().isOk())
@@ -79,6 +81,13 @@ class BalancesAndBonusIT extends IntegrationTestBase {
         .andExpect(jsonPath("$[0].wallet").value(70.00))
         .andExpect(jsonPath("$[0].held").value(30.00))
         .andExpect(jsonPath("$[0].points").value(0));
+
+    // CA-MV-253, la segunda mitad: tras negarlo, los saldos vuelven.
+    negarRetiro(retiro);
+    mvc.perform(get("/api/v1/movements/mine/balances").with(saldosDe(persona)))
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$[0].wallet").value(100.00))
+        .andExpect(jsonPath("$[0].held").value(0));
   }
 
   @Test
@@ -87,7 +96,7 @@ class BalancesAndBonusIT extends IntegrationTestBase {
           + " paginado; sin cuentas de la empresa")
   void historial() throws Exception {
     llenarBilletera(abonos, persona, "100.00");
-    pedirRetiro(persona, "30.00");
+    UUID retiro = pedirRetiro(persona, "30.00");
 
     mvc.perform(get("/api/v1/movements/mine/balances/entries").with(historialDe(persona)))
         .andExpect(status().isOk())
@@ -107,6 +116,43 @@ class BalancesAndBonusIT extends IntegrationTestBase {
         .andExpect(status().isOk())
         .andExpect(jsonPath("$.totalElements").value(1))
         .andExpect(jsonPath("$.content[0].amount").value(30.00));
+
+    // CA-MV-256: aprobado, el retiro suma UNA fila de APROBACION —la de lo
+    // retenido; la otra pata es de la empresa— a las dos de SOLICITUD.
+    aprobarRetiro(retiro);
+    mvc.perform(get("/api/v1/movements/mine/balances/entries").with(historialDe(persona)))
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$.totalElements").value(4))
+        .andExpect(jsonPath("$.content[?(@.event == 'SOLICITUD')]", hasSize(2)))
+        .andExpect(jsonPath("$.content[?(@.event == 'APROBACION')]", hasSize(1)))
+        .andExpect(jsonPath("$.content[?(@.event == 'APROBACION')].account").value("RETENIDO"));
+
+    // CA-MV-257: moneda, cuenta y periodo se combinan.
+    mvc.perform(
+            get("/api/v1/movements/mine/balances/entries")
+                .param("currencyId", USD)
+                .param("account", "RETENIDO")
+                .param("from", "2000-01-01T00:00:00Z")
+                .param("to", "2100-01-01T00:00:00Z")
+                .with(historialDe(persona)))
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$.totalElements").value(2));
+    mvc.perform(
+            get("/api/v1/movements/mine/balances/entries")
+                // Una moneda en la que la persona no tiene cuentas: el filtro no
+                // valida que exista, solo filtra.
+                .param("currencyId", UUID.randomUUID().toString())
+                .param("account", "RETENIDO")
+                .with(historialDe(persona)))
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$.totalElements").value(0));
+    mvc.perform(
+            get("/api/v1/movements/mine/balances/entries")
+                .param("currencyId", USD)
+                .param("to", "2000-01-01T00:00:00Z")
+                .with(historialDe(persona)))
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$.totalElements").value(0));
 
     mvc.perform(
             get("/api/v1/movements/mine/balances/entries")
@@ -261,13 +307,40 @@ class BalancesAndBonusIT extends IntegrationTestBase {
         .formatted(quien, USD, importe, motivo);
   }
 
-  private void pedirRetiro(UUID quien, String importe) throws Exception {
+  private UUID pedirRetiro(UUID quien, String importe) throws Exception {
+    String cuerpo =
+        mvc.perform(
+                post("/api/v1/movements/mine/withdrawals")
+                    .contentType(MediaType.APPLICATION_JSON)
+                    .content("{\"currencyId\":\"" + USD + "\",\"amount\":" + importe + "}")
+                    .with(user(quien.toString()).authorities(() -> "movements:request-withdrawal")))
+            .andExpect(status().isCreated())
+            .andReturn()
+            .getResponse()
+            .getContentAsString();
+    return UUID.fromString(JsonPath.read(cuerpo, "$.movement.id"));
+  }
+
+  private void aprobarRetiro(UUID retiro) throws Exception {
     mvc.perform(
-            post("/api/v1/movements/mine/withdrawals")
+            post("/api/v1/movements/{id}/withdrawal-approval", retiro)
                 .contentType(MediaType.APPLICATION_JSON)
-                .content("{\"currencyId\":\"" + USD + "\",\"amount\":" + importe + "}")
-                .with(user(quien.toString()).authorities(() -> "movements:request-withdrawal")))
-        .andExpect(status().isCreated());
+                .content("{}")
+                .with(
+                    user(administrador.toString())
+                        .authorities(() -> "movements:approve-withdrawal")))
+        .andExpect(status().isOk());
+  }
+
+  private void negarRetiro(UUID retiro) throws Exception {
+    mvc.perform(
+            post("/api/v1/movements/{id}/withdrawal-rejection", retiro)
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("{\"reason\":\"No procede\"}")
+                .with(
+                    user(administrador.toString())
+                        .authorities(() -> "movements:reject-withdrawal")))
+        .andExpect(status().isOk());
   }
 
   private static org.springframework.test.web.servlet.request.RequestPostProcessor saldosDe(

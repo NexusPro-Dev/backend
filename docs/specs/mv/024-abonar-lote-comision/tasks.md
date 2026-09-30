@@ -7,7 +7,7 @@
 | Plan | [`plan.md`](plan.md) v0.1.0 |
 | `plan.md` aprobado el | 26-09-2026 |
 | Estado | **En revisión** — todas las tareas `Hecha`; la última el 28-09-2026, al construirse `RF-CM-011` |
-| Issue | Pendiente de crear |
+| Issue | [#122](https://github.com/NexusPro-Dev/backend/issues/122) |
 | Rama | `feature/pagos-y-saldos` |
 
 !!! info "Qué va en este documento"
@@ -58,7 +58,9 @@
 
 ## 5. Definición de terminado
 
-- [ ] `./mvnw clean verify` en verde.
-- [ ] Los seis criterios de aceptación con prueba.
-- [ ] `requirements.md` actualizado.
+- [x] `./mvnw clean verify` en verde.
+- [x] Los seis criterios de aceptación con prueba.
+- [x] `requirements.md` actualizado.
 - [ ] **`tasks.md` aprobadas por el responsable del proyecto.**
+
+**Cierre documental el 30-09-2026**: construido el 26-09-2026 y mezclado por el PR [#124](https://github.com/NexusPro-Dev/backend/pull/124) sin marcar la definición de terminado. Las casillas se marcan con la suite completa en verde el 30-09-2026, cada criterio con su afirmación, `EndpointPermissionsIT` exigiendo el permiso de la ruta y la prosa del contrato releída.

@@ -10391,13 +10391,17 @@ paths:
       operationId: misSaldos
       responses:
         "200":
-          description: OK
+          description: "Los saldos, uno por moneda."
           content:
             '*/*':
               schema:
                 type: array
                 items:
                   $ref: "#/components/schemas/Balances"
+        "401":
+          description: Sin token (`AUTH-001`)
+        "403":
+          description: Sin `movements:read-own-balances` (`AUTH-002`)
       x-required-permission: movements:read-own-balances
   /api/v1/movements/mine/balances/entries:
     get:
@@ -10411,7 +10415,8 @@ paths:
         antiguo, con su signo —positivo entró—, el saldo que dejó, el evento y el movimiento
         que lo produjo (`RF-MV-022`). Es donde la persona ve sus retiros, abonos y bonos.
         Filtros: `currencyId`, `account` (`BILLETERA`, `RETENIDO`, `PUNTOS`), `from` y `to`
-        sobre cuándo se escribió, rango semiabierto.
+        sobre cuándo se escribió, rango semiabierto. Los filtros se combinan; una cuenta de
+        la empresa o un periodo invertido son `400`, y los dos errores salen juntos.
       operationId: miHistorial
       parameters:
       - name: page
@@ -10451,11 +10456,18 @@ paths:
           format: date-time
       responses:
         "200":
-          description: OK
+          description: Una página del historial.
           content:
             '*/*':
               schema:
                 $ref: "#/components/schemas/PageResponseEntryResponse"
+        "400":
+          description: "`account` que no es `BILLETERA`, `RETENIDO` ni `PUNTOS` (`VAL-002`),\
+            \ o `from` posterior a `to` (`VAL-003`)"
+        "401":
+          description: Sin token (`AUTH-001`)
+        "403":
+          description: Sin `movements:list-own-entries` (`AUTH-002`)
       x-required-permission: movements:list-own-entries
   /api/v1/memberships/{id}:
     get:

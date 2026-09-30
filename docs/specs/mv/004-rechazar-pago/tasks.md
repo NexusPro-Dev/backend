@@ -6,8 +6,8 @@
 | Especificación | [`spec.md`](spec.md) v0.1.0 |
 | Plan | [`plan.md`](plan.md) v0.1.0 |
 | `plan.md` aprobado el | 26-09-2026 |
-| Estado | **En revisión** — `T-01` a `T-06` `Hecha` el 26-09-2026 (el permiso lo siembra `V48`, ver `RF-MV-018` · `tasks.md` §3.1); `T-07` en curso |
-| Issue | Pendiente de crear |
+| Estado | **En revisión** — `T-01` a `T-06` `Hecha` el 26-09-2026 (el permiso lo siembra `V48`, ver `RF-MV-018` · `tasks.md` §3.1); `T-07` `Hecha` el 30-09-2026 |
+| Issue | [#122](https://github.com/NexusPro-Dev/backend/issues/122) |
 | Rama | `feature/pagos-y-saldos` |
 
 !!! info "Qué va en este documento"
@@ -28,7 +28,7 @@
 | `T-04` | `RejectPaymentService`: motivo primero, transición, explicación del fallo, auditoría, respuesta | `T-02`, `T-03`, `RF-MV-018` `T-07` | El motivo se valida antes de leer la venta | **Hecha** — 26-09-2026 |
 | `T-05` | `MovementController`: `POST /{id}/rejection` con `@PreAuthorize('movements:reject-payment')` | `T-04` | Documentado con los códigos de `plan.md` §4 | **Hecha** — 26-09-2026 |
 | `T-06` | `RejectPaymentIT`: `CA-MV-197` a `CA-MV-205` | `T-05`, `RF-MV-018` `T-11` | `CA-MV-203` con `movements:confirm` puesto | **Hecha** — 26-09-2026 |
-| `T-07` | `PermissionIT` y `EndpointPermissionsIT`; contrato regenerado con la prosa releída; `requirements.md` y `security.md` | `T-06` | | Pendiente |
+| `T-07` | `PermissionIT` y `EndpointPermissionsIT`; contrato regenerado con la prosa releída; `requirements.md` y `security.md` | `T-06` | | Hecha |
 
 ---
 
@@ -57,8 +57,10 @@
 
 ## 5. Definición de terminado
 
-- [ ] `./mvnw clean verify` en verde.
-- [ ] Los nueve criterios de aceptación con prueba.
-- [ ] Contrato OpenAPI regenerado, **con la prosa releída**.
-- [ ] `requirements.md` y `security.md` actualizados.
+- [x] `./mvnw clean verify` en verde.
+- [x] Los nueve criterios de aceptación con prueba.
+- [x] Contrato OpenAPI regenerado, **con la prosa releída**.
+- [x] `requirements.md` y `security.md` actualizados.
 - [ ] **`tasks.md` aprobadas por el responsable del proyecto.**
+
+**Cierre documental el 30-09-2026**: construido el 26-09-2026 y mezclado por el PR [#124](https://github.com/NexusPro-Dev/backend/pull/124) sin marcar la definición de terminado. Las casillas se marcan con la suite completa en verde el 30-09-2026, cada criterio con su afirmación, `EndpointPermissionsIT` exigiendo el permiso de la ruta y la prosa del contrato releída.
