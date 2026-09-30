@@ -48,6 +48,7 @@ public class RetryPaymentService {
   private final AuditWriter auditoria;
   private final SaleRules reglas;
   private final Clock reloj;
+  private final PointsPayment puntos;
 
   @Autowired
   public RetryPaymentService(
@@ -55,8 +56,9 @@ public class RetryPaymentService {
       PaymentRepository pagos,
       AuthenticatedActor actor,
       CurrentMembershipLookup membresias,
-      AuditWriter auditoria) {
-    this(movimientos, pagos, actor, membresias, auditoria, Clock.systemUTC());
+      AuditWriter auditoria,
+      PointsPayment puntos) {
+    this(movimientos, pagos, actor, membresias, auditoria, puntos, Clock.systemUTC());
   }
 
   RetryPaymentService(
@@ -65,7 +67,9 @@ public class RetryPaymentService {
       AuthenticatedActor actor,
       CurrentMembershipLookup membresias,
       AuditWriter auditoria,
+      PointsPayment puntos,
       Clock reloj) {
+    this.puntos = puntos;
     this.movimientos = movimientos;
     this.pagos = pagos;
     this.actor = actor;
@@ -125,6 +129,12 @@ public class RetryPaymentService {
     despues.put("status", "PENDIENTE");
     auditoria.recordChange(new ChangeEvent(MODULO, ENTIDAD, pago, ChangeAction.CREATE, despues));
 
+    if (PointsPayment.esPuntos(metodo)) {
+      // Con puntos, el pago nuevo se descuenta y la venta se confirma en el acto
+      // (`RF-MV-030` `FA-001`); si no alcanzan, el pago no llega a existir.
+      UUID moneda = detalle(movementId).currency().id();
+      return new Result(puntos.pagar(movementId, pago, quien, moneda, venta.payableAmount()), true);
+    }
     return new Result(detalle(movementId), true);
   }
 

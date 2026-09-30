@@ -8,6 +8,7 @@ import java.math.BigDecimal;
 import java.time.OffsetDateTime;
 import java.util.Collection;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
 import java.util.UUID;
@@ -71,6 +72,66 @@ public interface MovementRepository {
 
   /** `RF-MV-021`: {@code PENDIENTE} → {@code RECHAZADA}, con instante y motivo. */
   boolean rejectWithdrawalIfPending(UUID movementId, OffsetDateTime at, String reason);
+
+  // ---------------------------------------------------------------------------
+  // La etapa 3 (`requirements/mv.md` §4.4): la compra de puntos
+  // ---------------------------------------------------------------------------
+
+  /**
+   * `RF-MV-027`: la cabecera, sin líneas, con la tasa y los puntos, y su primer pago {@code
+   * PENDIENTE} con la clave. El mismo reintento del comprobante que {@link #save}.
+   *
+   * @return el identificador del pago
+   */
+  UUID savePointsPurchase(Movement compra, Supplier<String> nuevoCodigo, IdempotencyKey clave);
+
+  /** `RF-MV-028`: {@code PENDIENTE} → {@code CONFIRMADA}, condicionado y solo sobre una compra. */
+  boolean confirmPointsPurchaseIfPending(UUID movementId, OffsetDateTime at);
+
+  /** `RF-MV-029`: {@code PENDIENTE} → {@code RECHAZADA}, con instante y motivo. */
+  boolean rejectPointsPurchaseIfPending(UUID movementId, OffsetDateTime at, String reason);
+
+  /**
+   * Confirma el pago pendiente del movimiento, con la referencia si la hay, y devuelve su
+   * identificador. Solo después de ganar la transición de la cabecera.
+   */
+  UUID confirmPendingPayment(UUID movementId, OffsetDateTime at, String providerReference);
+
+  /** Rechaza el pago pendiente del movimiento con el motivo. Solo tras ganar la transición. */
+  void rejectPendingPayment(UUID movementId, OffsetDateTime at, String reason);
+
+  /** Los pagos de cada movimiento indicado, en una sola sentencia (`RF-MV-031`). */
+  Map<UUID, List<PaymentRow>> findPaymentsOf(Collection<UUID> movementIds);
+
+  /** Una compra de puntos, o vacío si no existe o es de otro tipo. */
+  Optional<PointsPurchaseRow> findPointsPurchase(UUID movementId);
+
+  /** `RF-MV-031`: las compras de puntos del actor, las más recientes primero. */
+  List<PointsPurchaseRow> findOwnPointsPurchases(
+      UUID actorId, PointsPurchaseFilter filtro, int offset, int limit);
+
+  long countOwnPointsPurchases(UUID actorId, PointsPurchaseFilter filtro);
+
+  /** Los filtros de `RF-MV-031`. Nulo es «sin filtro». */
+  record PointsPurchaseFilter(
+      String status, UUID currencyId, String code, OffsetDateTime from, OffsetDateTime to) {}
+
+  /** Una compra de puntos, con su tasa, tal como la publican sus respuestas. */
+  record PointsPurchaseRow(
+      UUID id,
+      String code,
+      UUID userId,
+      String status,
+      UUID currencyId,
+      String currencyCode,
+      BigDecimal amount,
+      UUID pointsRateId,
+      BigDecimal pointsPerUnit,
+      BigDecimal points,
+      OffsetDateTime occurredAt,
+      OffsetDateTime confirmedAt,
+      OffsetDateTime rejectedAt,
+      String rejectionReason) {}
 
   /** Un movimiento que no vende, tal como lo publican sus respuestas. */
   record WithdrawalRow(
@@ -330,7 +391,8 @@ public interface MovementRepository {
       OffsetDateTime occurredAt,
       OffsetDateTime confirmedAt,
       OffsetDateTime rejectedAt,
-      String rejectionReason) {}
+      String rejectionReason,
+      BigDecimal points) {}
 
   /**
    * Una línea del detalle.

@@ -112,7 +112,7 @@ Ninguna. El único parámetro es un indicador opcional que no admite valores inv
 | `CA-SP-586` | Los tipos inactivos **no aparecen** salvo que se soliciten explícitamente |
 | `CA-SP-587` | El catálogo **no contiene ningún documento que identifique a un menor de edad** — ni tarjeta de identidad ni registro civil, por abreviación ni por nombre |
 | `CA-SP-588` | El catálogo **no está vacío**: contiene al menos un tipo activo, o el alta de personas sería irrealizable |
-| `CA-SP-589` | El sistema rechaza la consulta a un actor sin el permiso de lectura del catálogo |
+| `CA-SP-589` | ~~El sistema rechaza la consulta a un actor sin el permiso de lectura del catálogo~~ **Desde el 08-09-2026 la consulta es pública** (`RN-SP-041`): sin token responde lo mismo que con él |
 
 **`CA-SP-587` es el criterio que sostiene la validación entera**, y por eso se escribe como una comprobación sobre el **contenido** y no sobre una respuesta. Es la única prueba del sistema que verifica que algo **no está**, y su valor es exactamente ese: el día que alguien añada «Tarjeta de Identidad» a la migración de siembra, la suite lo dirá — que es lo que sustituye al `if` que este diseño no tiene.
 
@@ -123,6 +123,8 @@ Ninguna. El único parámetro es un indicador opcional que no admite valores inv
 - **Persona que solo tiene un documento de menor:** no se registra, y es el comportamiento buscado. La salida no es añadir el tipo al catálogo — eso desactivaría la regla para todo el mundo.
 - **Documento que un menor también puede tener:** existe, y es el límite honesto de este diseño. Un pasaporte lo tiene un niño igual. Ver §14, pregunta 2.
 - **Dos tipos con el mismo nombre en distinta caja o con acentos distintos:** imposible. La unicidad del nombre va sobre `f_unaccent(lower(name))`, con el mismo criterio que `countries`.
+
+**Enmienda del 30-09-2026 a `CA-SP-589`.** El mismo día que se aprobó esta especificación el catálogo se abrió al público (`RN-SP-041`): el formulario de registro elige el tipo de documento antes de que exista la cuenta. El criterio afirmaba lo contrario de lo que el sistema hace, y nadie lo notó porque ninguna prueba lo comprobaba. Se reescribe como lo hizo `CA-MV-033` en el catálogo de métodos de pago; `document-types:read` sigue sembrado y ya no gobierna esta ruta.
 
 ## 14. Preguntas abiertas
 

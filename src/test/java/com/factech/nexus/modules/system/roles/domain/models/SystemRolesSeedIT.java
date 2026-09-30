@@ -47,6 +47,10 @@ class SystemRolesSeedIT extends IntegrationTestBase {
           "movements:list-own",
           // V48 y V49 (26-09-2026, etapa 6 de MV): lo propio de pagos y saldos, por tipo de rol.
           "movements:retry-payment",
+          // `V58` (30-09-2026): la etapa 3 de puntos, lo propio por tipo de rol.
+          "movements:read-points-rates",
+          "movements:buy-points",
+          "movements:list-own-points-purchases",
           "movements:request-withdrawal",
           "movements:read-own-balances",
           "movements:list-own-entries",
@@ -57,6 +61,8 @@ class SystemRolesSeedIT extends IntegrationTestBase {
           "commission-batches:read-own",
           "movements:list-sales",
           "movements:read",
+          // `V56` (30-09-2026): quien lista el libro abre sus filas (`RF-MV-007`).
+          "movements:read-detail",
           "movements:read-own",
           "movements:read-own-products",
           "packages:buy",
@@ -84,6 +90,10 @@ class SystemRolesSeedIT extends IntegrationTestBase {
           "movements:list-own",
           // V48 y V49 (26-09-2026, etapa 6 de MV): lo propio de pagos y saldos, por tipo de rol.
           "movements:retry-payment",
+          // `V58` (30-09-2026): la etapa 3 de puntos, lo propio por tipo de rol.
+          "movements:read-points-rates",
+          "movements:buy-points",
+          "movements:list-own-points-purchases",
           "movements:request-withdrawal",
           "movements:read-own-balances",
           "movements:list-own-entries",
@@ -115,6 +125,10 @@ class SystemRolesSeedIT extends IntegrationTestBase {
           "movements:list-own",
           // V48 y V49 (26-09-2026, etapa 6 de MV): lo propio de pagos y saldos, por tipo de rol.
           "movements:retry-payment",
+          // `V58` (30-09-2026): la etapa 3 de puntos, lo propio por tipo de rol.
+          "movements:read-points-rates",
+          "movements:buy-points",
+          "movements:list-own-points-purchases",
           "movements:request-withdrawal",
           "movements:read-own-balances",
           "movements:list-own-entries",

@@ -93,4 +93,26 @@ public record PurchaseResponse(
         null,
         venta.getCreatedAt());
   }
+
+  /**
+   * La misma compra, ya confirmada: la que se paga con puntos se confirma en el acto (`RF-MV-030`).
+   */
+  public PurchaseResponse confirmada(OffsetDateTime cuando) {
+    return new PurchaseResponse(
+        id,
+        code,
+        "CONFIRMADA",
+        typeStatus,
+        user,
+        packageId,
+        currency,
+        paymentMethod,
+        lines,
+        totalAmount,
+        discountAmount,
+        payableAmount,
+        occurredAt,
+        cuando,
+        createdAt);
+  }
 }

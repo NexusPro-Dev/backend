@@ -2,8 +2,8 @@ package com.factech.nexus.modules.movements.domain.models;
 
 /**
  * Las cuentas de la etapa 6 (`RN-MV-041`, `requirements/mv.md` §4.3). Las tres primeras son de una
- * persona y no bajan de cero; las tres últimas son contrapartidas de la empresa y lo normal es que
- * estén en negativo. Es lo mismo que declara {@code ck_accounts_kind}.
+ * persona y no bajan de cero; las demás son contrapartidas de la empresa y lo normal es que estén
+ * en negativo. Es lo mismo que declara {@code ck_accounts_kind}.
  */
 public enum AccountKind {
   BILLETERA("Billetera", false),
@@ -11,7 +11,9 @@ public enum AccountKind {
   PUNTOS("Puntos", false),
   COMISIONES("Comisiones por pagar", true),
   BONOS("Bonos", true),
-  RETIROS("Retiros pagados", true);
+  RETIROS("Retiros pagados", true),
+  /** La contrapartida de los puntos (`requirements/mv.md` §4.4): en negativo, los que circulan. */
+  PUNTOS_EMITIDOS("Puntos emitidos", true);
 
   private final String nombre;
   private final boolean deLaEmpresa;

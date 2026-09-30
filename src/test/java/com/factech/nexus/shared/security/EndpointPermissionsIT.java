@@ -319,10 +319,25 @@ class EndpointPermissionsIT extends IntegrationTestBase {
           Map.entry("GET /api/v1/movements/mine/balances", "movements:read-own-balances"),
           Map.entry("GET /api/v1/movements/mine/balances/entries", "movements:list-own-entries"),
           Map.entry("POST /api/v1/movements/bonuses", "movements:grant-bonus"),
+          // ---- MV · la etapa 3, puntos (V58, 30-09-2026) ----
+          Map.entry("POST /api/v1/movements/points-rates", "movements:set-points-rate"),
+          Map.entry("GET /api/v1/movements/points-rates", "movements:read-points-rates"),
+          Map.entry("POST /api/v1/movements/mine/points-purchases", "movements:buy-points"),
+          Map.entry(
+              "GET /api/v1/movements/mine/points-purchases", "movements:list-own-points-purchases"),
+          Map.entry(
+              "POST /api/v1/movements/{id}/points-purchase-confirmation",
+              "movements:confirm-points-purchase"),
+          Map.entry(
+              "POST /api/v1/movements/{id}/points-purchase-rejection",
+              "movements:reject-points-purchase"),
           Map.entry("POST /api/v1/movements/{id}/seller-assignments", "movements:assign-sellers"),
           // ---- MV · alcance propio (RF-SP-062, desde el 21-09-2026) ----
           Map.entry("GET /api/v1/movements/mine/shopping", "movements:list-own"),
           Map.entry("GET /api/v1/movements/mine/{id}", "movements:read-own"),
+          Map.entry(
+              "GET /api/v1/movements/{id:[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}}",
+              "movements:read-detail"),
           Map.entry("GET /api/v1/movements/mine/products", "movements:read-own-products"),
           Map.entry(
               "POST /api/v1/movements/mine/products/{lineId}/activation",

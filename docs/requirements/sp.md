@@ -5,11 +5,11 @@
 | Módulo | `SP` — Sistema Principal |
 | Paquete | `modules/system` |
 | Prefijos de permiso | `roles:`, `permissions:`, `audit:`, `memberships:`, `currencies:`, `countries:`, `users:`, `exchange-rates:`, `document-types:`, `brokers:`, `broker-accounts:`, `teams:` |
-| Versión | 1.88.0 |
+| Versión | 1.89.0 |
 | Estado | **Aprobado** |
 | Responsable | Bonilla Diaz William Steven |
 | Fecha de creación | 20-08-2026 |
-| Última actualización | 28-09-2026 |
+| Última actualización | 30-09-2026 |
 | Fecha de aprobación | 20-08-2026 |
 
 !!! info "Qué va en este documento"
@@ -1645,7 +1645,7 @@ Se declara `varchar(6)` y no `char(6)` porque `char(n)` **rellena con espacios**
 
 `updated_at` se incorporó el 21-08-2026 al aprobar el `plan.md` de `RF-SP-020`: el Art. V.7 lo obliga en toda tabla de negocio, y aquí además hay algo que modificar —`RF-SP-022` cambia `is_active`—, de modo que sin la columna no habría forma de saber cuándo se retiró un país de la circulación salvo recorriendo la auditoría.
 
-`code` sigue ISO 3166-1 alfa-3 (`COL`, `USA`). No se edita ni elimina (`RN-SP-009`); lo único modificable es `is_active`, a través de `RF-SP-022`. El catálogo **no se siembra** con la lista internacional completa: los países se dan de alta por la API a medida que la plataforma llega a ellos.
+`code` sigue ISO 3166-1 alfa-3 (`COL`, `USA`). No se edita ni elimina (`RN-SP-009`); lo único modificable es `is_active`, a través de `RF-SP-022`. El catálogo **no se siembra** con la lista internacional completa: los países se dan de alta por la API a medida que la plataforma llega a ellos. **Desde el 30-09-2026 se siembran los quince de la región donde opera** (`V57`), por decisión del responsable del proyecto: Argentina (`ARG`), Bolivia (`BOL`), Brasil (`BRA`), Chile (`CHL`), Colombia (`COL`), Costa Rica (`CRI`), Ecuador (`ECU`), España (`ESP`), Estados Unidos (`USA`), Guatemala (`GTM`), México (`MEX`), Nicaragua (`NIC`), Panamá (`PAN`), Perú (`PER`) y República Dominicana (`DOM`). **Código alfa-3 y nombre en español**, como Colombia: la lista llegó con códigos de dos letras y nombres en inglés, y se preguntó antes de sembrarla. La migración **no pisa** un país que alguien ya hubiera dado de alta por la API con el mismo código o nombre.
 
 !!! important "El catálogo deja de nacer vacío: `RN-SP-034` obliga a sembrar **una** fila, Colombia"
 
@@ -2252,3 +2252,4 @@ La fila se lee «`user_id` pertenece al equipo `team_id` desde `started_at`». U
 | 1.86.0 | 24-09-2026 | **Los vendedores de un cliente llegan con identificador y correo** (`RF-SP-059` §10, enmendada), a petición del responsable del proyecto. **La decisión contraria no se retira por gusto: se le rompió la premisa.** Decía que el identificador no viajaba porque «un cliente no tiene ninguna ruta donde usar un identificador ajeno», y eso dejó de ser cierto el 23-09-2026, cuando `RF-MV-016` publicó `POST /movements/{id}/seller-assignments` — que asigna los vendedores de una venta **eligiéndolos entre los del cliente** y los recibe por `sellerId`. Esta lista es justamente ese conjunto, y sin el identificador quien asigna tenía que traducir un nombre de usuario en otra consulta. **El correo se publica en las DOS rutas**, también en `/users/me/sellers`, por decisión expresa preguntada y confirmada: el cliente ve el correo de su vendedor igual que ya ve su teléfono de empresa. **Lo único que sigue fuera son los roles**, que es administración de accesos y no tiene que ver con quién vende. Es una **ampliación**: nada de lo que ya se lee cambia de forma. | Responsable del proyecto |
 | 1.87.0 | 26-09-2026 | **`SP` publica `CurrentProductsLookup`** (§8; D-25): los identificadores de los productos que una persona tiene **vigentes** en `user_products` —empezados, sin fin pasado y sin cerrar—, en una sola llamada. La pide `AC` para el aula (`RF-AC-033` a `RF-AC-035`, `RN-AC-020`; `ac.md` v0.20.0). Sin cambio de esquema ni de reglas propias. | Responsable técnico |
 | 1.88.0 | 28-09-2026 | **`SP` publica `SupervisorChain`** (§8; D-25): la cadena de mando de una persona **a un instante**, leída del historial de `user_supervisors`. La pide `CM` para devengar las comisiones de la cadena del día de la venta ([`requirements/cm.md`](cm.md) v0.19.0, `RN-CM-025`; [`specs/cm/013-devengar-comision-linea/plan.md`](../specs/cm/013-devengar-comision-linea/plan.md)). Es la condición que `CM` impuso aquí el 24-09-2026 y que no se había registrado. Sin cambio de esquema ni de reglas. | Responsable del proyecto |
+| 1.89.0 | 30-09-2026 | **El catálogo de países siembra los quince de la región** (`V57`, §10.6), por decisión del responsable del proyecto: los catorce que faltaban junto a Colombia, con código ISO alfa-3 y nombre en español. Sin cambio de esquema ni de reglas: `RN-SP-009` sigue igual, y la migración no pisa un país ya dado de alta por la API. | Responsable del proyecto |

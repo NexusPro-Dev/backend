@@ -63,6 +63,7 @@ final class SaleDetailMapper {
     return new SaleResponse(
         cabecera.id(),
         cabecera.code(),
+        cabecera.type(),
         cabecera.status(),
         cabecera.typeStatus(),
         new SaleResponse.Party(
@@ -96,6 +97,7 @@ final class SaleDetailMapper {
                   p.paymentMethodId(), p.paymentMethodCode(), p.paymentMethodName()),
               p.status(),
               p.amount(),
+              p.points(),
               p.providerReference(),
               p.occurredAt(),
               p.confirmedAt(),

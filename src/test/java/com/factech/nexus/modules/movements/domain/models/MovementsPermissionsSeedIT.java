@@ -44,6 +44,10 @@ class MovementsPermissionsSeedIT extends IntegrationTestBase {
           "movements:list-sales",
           // `V48` (`RF-MV-018`, 26-09-2026): volver a pagar lo propio, a todo rol por su tipo.
           "movements:retry-payment",
+          // `V58` (30-09-2026): la etapa 3 de puntos, lo propio por tipo de rol.
+          "movements:read-points-rates",
+          "movements:buy-points",
+          "movements:list-own-points-purchases",
           // `V49` (`RF-MV-019` y `RF-MV-022`): pedir un retiro y consultar los saldos propios.
           "movements:request-withdrawal",
           "movements:read-own-balances",
@@ -76,6 +80,20 @@ class MovementsPermissionsSeedIT extends IntegrationTestBase {
       List.of(
           "movements:approve-withdrawal", "movements:reject-withdrawal", "movements:grant-bonus");
 
+  /**
+   * El de `V56` (`RF-MV-007`, 30-09-2026): el detalle de cualquier movimiento. Va a todo rol que
+   * porte `movements:read` —quien lista el libro abre sus filas—, y el listado y el detalle son dos
+   * permisos por `RN-SEG-014`.
+   */
+  private static final String DETALLE = "movements:read-detail";
+
+  /** Los de `V58` de administración (30-09-2026): la tasa y resolver una compra de puntos. */
+  private static final List<String> LOS_DE_PUNTOS =
+      List.of(
+          "movements:set-points-rate",
+          "movements:confirm-points-purchase",
+          "movements:reject-points-purchase");
+
   @Autowired private JdbcTemplate jdbc;
 
   @Test
@@ -91,9 +109,10 @@ class MovementsPermissionsSeedIT extends IntegrationTestBase {
     assertThat(codigos)
         .containsAll(LOS_CUATRO)
         .containsAll(LOS_PROPIOS)
-        .contains(ASIGNAR, LINEAS, RECHAZAR)
+        .contains(ASIGNAR, LINEAS, RECHAZAR, DETALLE)
         .containsAll(LOS_DE_SALDOS)
-        .hasSize(19);
+        .containsAll(LOS_DE_PUNTOS)
+        .hasSize(26);
   }
 
   @Test
@@ -114,7 +133,7 @@ class MovementsPermissionsSeedIT extends IntegrationTestBase {
     // RN-SEG-007: la raíz de la contención está acotada por el catálogo
     // completo. Un permiso sembrado y no asociado la dejaría por detrás de sus
     // propios hijos.
-    assertThat(permisosDeMovimientosDe(SUPERADMIN)).containsAll(LOS_CUATRO).hasSize(19);
+    assertThat(permisosDeMovimientosDe(SUPERADMIN)).containsAll(LOS_CUATRO).hasSize(26);
   }
 
   @Test
@@ -139,8 +158,9 @@ class MovementsPermissionsSeedIT extends IntegrationTestBase {
             java.util.stream.Stream.concat(
                     java.util.stream.Stream.concat(LOS_CUATRO.stream(), LOS_PROPIOS.stream()),
                     java.util.stream.Stream.concat(
-                        java.util.stream.Stream.of(ASIGNAR, LINEAS, RECHAZAR),
-                        LOS_DE_SALDOS.stream()))
+                        java.util.stream.Stream.of(ASIGNAR, LINEAS, RECHAZAR, DETALLE),
+                        java.util.stream.Stream.concat(
+                            LOS_DE_SALDOS.stream(), LOS_DE_PUNTOS.stream())))
                 .toList());
   }
 
@@ -157,7 +177,7 @@ class MovementsPermissionsSeedIT extends IntegrationTestBase {
     List<UUID> ids =
         jdbc.queryForList("SELECT id FROM permissions WHERE resource = 'movements'", UUID.class);
 
-    assertThat(ids).hasSize(19).doesNotHaveDuplicates();
+    assertThat(ids).hasSize(26).doesNotHaveDuplicates();
     assertThat(ids).allSatisfy(id -> assertThat(id.version()).isEqualTo(7));
     // variant() == 2 es la variante RFC 9562 (bits 10xx).
     assertThat(ids).allSatisfy(id -> assertThat(id.variant()).isEqualTo(2));

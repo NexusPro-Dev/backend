@@ -95,6 +95,9 @@ tags:
     en cada cierre.
 - name: Monedas
   description: Catálogo de monedas. Inmutable por API salvo su estado.
+- name: Puntos
+  description: "A cuánto se venden los puntos en cada moneda, su compra y su confirmació\
+    n. Pagar con puntos no tiene ruta propia: es el método `POINTS` en las compras."
 - name: Registro por enlace
   description: Alta de un cliente desde el enlace de un vendedor. Público (RF-SP-045).
 paths:
@@ -3481,6 +3484,93 @@ paths:
           description: "No está pendiente (`EX-002`), o no tiene un pago pendiente\
             \ (`EX-003`)"
       x-required-permission: movements:reject-payment
+  /api/v1/movements/{id}/points-purchase-rejection:
+    post:
+      tags:
+      - Puntos
+      summary: Rechazar el pago de una compra de puntos
+      description: |
+        **Permiso requerido:** `movements:reject-points-purchase`. Sin él, `403` (`AUTH-002`).
+
+        Declara que **el dinero de una compra de puntos pendiente no entró** (`RF-MV-029`): la
+        compra y su pago quedan `RECHAZADA`/`RECHAZADO` con el motivo, obligatorio. **Es
+        final**: al revés que una venta, una compra de puntos rechazada no se vuelve a pagar;
+        quien quiera los puntos compra otra vez. No se mueve ningún saldo.
+      operationId: rechazarCompra
+      parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/Rejection"
+      responses:
+        "200":
+          description: Rechazada.
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/PointsPurchaseResponse"
+        "400":
+          description: Motivo vacío o de más de 500 caracteres
+        "401":
+          description: Sin token (`AUTH-001`)
+        "403":
+          description: Sin `movements:reject-points-purchase` (`AUTH-002`)
+        "404":
+          description: "No existe, o no es una compra de puntos (`EX-001`)"
+        "409":
+          description: "No está pendiente, con el estado (`EX-002`)"
+      x-required-permission: movements:reject-points-purchase
+  /api/v1/movements/{id}/points-purchase-confirmation:
+    post:
+      tags:
+      - Puntos
+      summary: Confirmar el pago de una compra de puntos
+      description: |
+        **Permiso requerido:** `movements:confirm-points-purchase`. Sin él, `403` (`AUTH-002`).
+
+        Declara que **el dinero de una compra de puntos pendiente entró** y, en el mismo
+        acto, **abona los puntos** en la cuenta de quien compró, desde la cuenta de puntos
+        emitidos de la empresa (`RF-MV-028`). Se abonan **los puntos congelados al
+        comprar**, no los de la tasa de hoy. `providerReference` es opcional. Confirmar dos
+        veces, o una compra rechazada, es `409` y no abona nada.
+      operationId: confirmarCompra
+      parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/Confirmation"
+      responses:
+        "200":
+          description: "Confirmada, con su pago."
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/PointsPurchaseResponse"
+        "400":
+          description: Referencia de más de 120 caracteres
+        "401":
+          description: Sin token (`AUTH-001`)
+        "403":
+          description: Sin `movements:confirm-points-purchase` (`AUTH-002`)
+        "404":
+          description: "No existe, o no es una compra de puntos (`EX-001`)"
+        "409":
+          description: "No está pendiente, con el estado (`EX-002`)"
+      x-required-permission: movements:confirm-points-purchase
   /api/v1/movements/{id}/confirmation:
     post:
       tags:
@@ -3543,6 +3633,76 @@ paths:
         "500":
           description: Conceder la membresía falló; nada quedó escrito (`ERR-500`)
       x-required-permission: movements:confirm
+  /api/v1/movements/points-rates:
+    get:
+      tags:
+      - Puntos
+      summary: Consultar las tasas de puntos vigentes
+      description: |
+        **Permiso requerido:** `movements:read-points-rates`. Sin él, `403` (`AUTH-002`).
+
+        La tasa que rige hoy en cada moneda **activa** que venda puntos, ordenadas por código
+        de moneda y sin paginar (`RF-MV-026`). El histórico no se publica. Con ella se calcula
+        cuántos puntos da una compra y cuántos cuesta pagar con ellos; el cálculo definitivo
+        lo hace la operación, con la tasa de ese momento.
+      operationId: tasasVigentes
+      responses:
+        "200":
+          description: Las vigentes; vacía si ninguna.
+          content:
+            '*/*':
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/PointsRateResponse"
+        "401":
+          description: Sin token (`AUTH-001`)
+        "403":
+          description: Sin `movements:read-points-rates` (`AUTH-002`)
+      x-required-permission: movements:read-points-rates
+    post:
+      tags:
+      - Puntos
+      summary: Fijar la tasa de puntos de una moneda
+      description: |
+        **Permiso requerido:** `movements:set-points-rate`. Sin él, `403` (`AUTH-002`).
+
+        Fija cuántos puntos da **una unidad** de una moneda —`100` es «1 = 100 puntos»—, con
+        hasta cuatro decimales (`RF-MV-025`). **Rige desde ese instante**, y la anterior **no
+        se toca**: queda en el histórico, porque explica las compras que se hicieron con ella
+        (`RN-MV-050`). Fijar la que ya rige responde `200` con ella y no escribe nada. Solo en
+        monedas activas.
+      operationId: fijarTasa
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/SetRate"
+      responses:
+        "201":
+          description: "Tasa nueva, vigente desde ahora."
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/PointsRateResponse"
+        "200":
+          description: "Ya era la vigente: nada cambió."
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/PointsRateResponse"
+        "400":
+          description: "Moneda ausente, o valor ausente, no positivo, con más de cuatro\
+            \ decimales o más de ocho cifras enteras. Los errores salen juntos"
+        "401":
+          description: Sin token (`AUTH-001`)
+        "403":
+          description: Sin `movements:set-points-rate` (`AUTH-002`)
+        "409":
+          description: La moneda está inactiva (`EX-003`)
+        "422":
+          description: La moneda no existe (`EX-002`)
+      x-required-permission: movements:set-points-rate
   /api/v1/movements/mine/{id}/payments:
     post:
       tags:
@@ -3713,6 +3873,130 @@ paths:
         "500":
           description: Fallo no controlado (`ERR-500`)
       x-required-permission: movements:activate-own-product
+  /api/v1/movements/mine/points-purchases:
+    get:
+      tags:
+      - Puntos
+      summary: Consultar mis compras de puntos
+      description: |
+        **Permiso requerido:** `movements:list-own-points-purchases`. Sin él, `403` (`AUTH-002`).
+
+        Las compras de puntos de quien tiene la sesión, **las más recientes primero**, cada
+        una con su tasa, sus puntos, sus pagos y, si se rechazó, el motivo (`RF-MV-031`).
+        Filtros: `status` (`PENDIENTE`, `CONFIRMADA`, `RECHAZADA`), `currencyId`, `code` —un
+        fragmento del comprobante, sin distinguir mayúsculas— y `from`/`to` sobre cuándo se
+        compró, rango semiabierto. Un estado desconocido y un periodo invertido son `400`, y
+        los dos errores salen juntos.
+      operationId: misComprasDePuntos
+      parameters:
+      - name: page
+        in: query
+        required: false
+        schema:
+          type: integer
+          format: int32
+      - name: size
+        in: query
+        required: false
+        schema:
+          type: integer
+          format: int32
+      - name: status
+        in: query
+        required: false
+        schema:
+          type: string
+      - name: currencyId
+        in: query
+        required: false
+        schema:
+          type: string
+          format: uuid
+      - name: code
+        in: query
+        required: false
+        schema:
+          type: string
+      - name: from
+        in: query
+        required: false
+        schema:
+          type: string
+          format: date-time
+      - name: to
+        in: query
+        required: false
+        schema:
+          type: string
+          format: date-time
+      responses:
+        "200":
+          description: Una página de compras.
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/PageResponsePointsPurchaseResponse"
+        "400":
+          description: Estado desconocido (`VAL-001`) o `from` posterior a `to` (`VAL-002`)
+        "401":
+          description: Sin token (`AUTH-001`)
+        "403":
+          description: Sin `movements:list-own-points-purchases` (`AUTH-002`)
+      x-required-permission: movements:list-own-points-purchases
+    post:
+      tags:
+      - Puntos
+      summary: Comprar puntos
+      description: |
+        **Permiso requerido:** `movements:buy-points`. Sin él, `403` (`AUTH-002`).
+
+        Compra puntos para quien tiene la sesión, pagando un **importe** en una moneda con un
+        método de pago (`RF-MV-027`). **La compra nace `PENDIENTE` y no abona nada**: los
+        puntos llegan cuando administración confirme que el pago entró (`RF-MV-028`). Lo que
+        sí queda fijado desde ya es **cuántos**: `amount × tasa vigente`, redondeado hacia
+        abajo, a la tasa de este momento aunque cambie después (`RN-MV-051`). No se paga con
+        `POINTS` ni con un método interno. La cabecera `Idempotency-Key` es obligatoria: la
+        misma petición repetida responde `200` con la compra ya registrada. No comisiona.
+      operationId: comprarPuntos
+      parameters:
+      - name: Idempotency-Key
+        in: header
+        description: Una por compra.
+        required: true
+        schema:
+          type: string
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/Purchase"
+      responses:
+        "201":
+          description: "Compra registrada, pendiente."
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/PointsPurchaseResponse"
+        "200":
+          description: La misma petición repetida.
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/PointsPurchaseResponse"
+        "400":
+          description: "Datos ausentes o malformados, clave ausente o malformada,\
+            \ o un importe que no da ningún punto"
+        "401":
+          description: Sin token (`AUTH-001`)
+        "403":
+          description: Sin `movements:buy-points` (`AUTH-002`)
+        "409":
+          description: "Moneda inactiva o sin tasa (`EX-003`); método desactivado,\
+            \ interno o `POINTS` (`EX-005`); cuenta que todavía no opera (`EX-006`);\
+            \ o la clave es de otra petición (`EX-008`)"
+        "422":
+          description: La moneda (`EX-002`) o el método (`EX-004`) no existen
+      x-required-permission: movements:buy-points
   /api/v1/movements/bonuses:
     post:
       tags:
@@ -9880,6 +10164,53 @@ paths:
           description: Se superó la cota de peticiones por origen (120 por minuto).
             La cabecera `Retry-After` dice cuánto esperar.
       security: []
+  /api/v1/movements/{id}:
+    get:
+      tags:
+      - Movimientos
+      summary: Consultar el detalle de un movimiento
+      description: |
+        **Permiso requerido:** `movements:read-detail`. Sin él, `403` (`AUTH-002`).
+
+        Devuelve **el comprobante de cualquier movimiento** —una venta, un retiro, un
+        bono—, sea quien sea su sujeto y quien lo haya vendido: código, tipo, estado,
+        estado del tipo, sujeto, moneda, totales, **pagos** y **líneas**, cada una con lo
+        que se vendió **tal como se vendió** y a quién se le acredita. Un movimiento sin
+        líneas —un retiro, un bono— las trae **vacías**.
+
+        **Es la misma forma que `GET /api/v1/movements/mine/{id}`**, el detalle propio:
+        sobre un movimiento en el que usted participó, las dos responden lo mismo. Aquí
+        no hay alcance —quien tiene el permiso abre cualquier fila del libro— y por eso
+        tampoco hay un «no es suyo»: lo único que responde `404` es lo que no existe, o un
+        identificador que no tiene forma de identificador.
+
+        **El comprobante no es un documento fiscal** ni un soporte de pago adjunto: es el
+        documento interno del movimiento.
+      operationId: movimiento
+      parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      responses:
+        "200":
+          description: El comprobante del movimiento.
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/SaleResponse"
+        "401":
+          description: Token ausente o inválido (`AUTH-001`)
+        "403":
+          description: Autenticado sin `movements:read-detail` (`AUTH-002`)
+        "404":
+          description: "No existe ningún movimiento con ese identificador (`EX-001`),\
+            \ o el identificador no tiene forma de UUID"
+        "500":
+          description: Fallo no controlado (`ERR-500`)
+      x-required-permission: movements:read-detail
   /api/v1/movements/sales:
     get:
       tags:
@@ -14050,6 +14381,13 @@ components:
             — o RECHAZADO. En masculino: es el estado de un pago, no de la venta."
         amount:
           type: number
+        points:
+          type:
+          - number
+          - "null"
+          description: "Los puntos que costó, si se pagó con puntos (`RF-MV-030`):\
+            \ `amount × tasa vigente`, redondeados hacia arriba. NULO en cualquier\
+            \ otro pago."
         providerReference:
           type:
           - string
@@ -14160,6 +14498,11 @@ components:
           format: uuid
         code:
           type: string
+        type:
+          type: string
+          description: "El TIPO de movimiento: VENTA, RETIRO, BONO… Desde el 30-09-2026,\
+            \ cuando el detalle de administración (`RF-MV-007`) empezó a abrir movimientos\
+            \ que no son ventas."
         status:
           type: string
         typeStatus:
@@ -14324,6 +14667,95 @@ components:
         reason:
           type: string
           description: "Por qué no entró el cobro. Obligatorio, hasta 500 caracteres."
+    Rejection:
+      type: object
+      properties:
+        reason:
+          type: string
+    PointsPurchaseRate:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        pointsPerUnit:
+          type: number
+    PointsPurchaseResponse:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        code:
+          type: string
+          description: "El comprobante, con prefijo `PTS`."
+        status:
+          type: string
+          description: "PENDIENTE —esperando a que se confirme el pago—, CONFIRMADA\
+            \ —los puntos ya están en la cuenta— o RECHAZADA."
+        currency:
+          $ref: "#/components/schemas/SaleCurrency"
+        amount:
+          type: number
+          description: "Lo que se paga, en la moneda."
+        pointsRate:
+          $ref: "#/components/schemas/PointsPurchaseRate"
+          description: "La tasa con que se compró, congelada."
+        points:
+          type: number
+          description: "Los puntos que da: `amount × pointsPerUnit`, redondeados hacia\
+            \ abajo. Confirmar abona exactamente estos."
+        occurredAt:
+          type: string
+          format: date-time
+        confirmedAt:
+          type:
+          - string
+          - "null"
+          format: date-time
+        rejectedAt:
+          type:
+          - string
+          - "null"
+          format: date-time
+        rejectionReason:
+          type:
+          - string
+          - "null"
+          description: Por qué se rechazó el pago. Nulo salvo en una compra rechazada.
+        payments:
+          type: array
+          items:
+            $ref: "#/components/schemas/MovementPayment"
+    Confirmation:
+      type: object
+      properties:
+        providerReference:
+          type: string
+    SetRate:
+      type: object
+      properties:
+        currencyId:
+          type: string
+          format: uuid
+        pointsPerUnit:
+          type: number
+    PointsRateResponse:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        currency:
+          $ref: "#/components/schemas/SaleCurrency"
+        pointsPerUnit:
+          type: number
+          description: Cuántos puntos da una unidad de la moneda. `100.0000` es «1
+            = 100 puntos».
+        validFrom:
+          type: string
+          format: date-time
+          description: Desde cuándo rige.
     RetryPaymentRequest:
       type: object
       properties:
@@ -14482,6 +14914,17 @@ components:
           - MANUAL
         rating:
           $ref: "#/components/schemas/RatingSummary"
+    Purchase:
+      type: object
+      properties:
+        currencyId:
+          type: string
+          format: uuid
+        amount:
+          type: number
+        paymentMethodId:
+          type: string
+          format: uuid
     GrantBonusRequest:
       type: object
       properties:
@@ -17016,6 +17459,27 @@ components:
           type: array
           items:
             $ref: "#/components/schemas/MyProduct"
+        totalElements:
+          type: integer
+          format: int64
+        totalPages:
+          type: integer
+          format: int32
+        page:
+          type: integer
+          format: int32
+        size:
+          type: integer
+          format: int32
+        totalIsExact:
+          type: boolean
+    PageResponsePointsPurchaseResponse:
+      type: object
+      properties:
+        content:
+          type: array
+          items:
+            $ref: "#/components/schemas/PointsPurchaseResponse"
         totalElements:
           type: integer
           format: int64
