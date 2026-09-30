@@ -54,6 +54,29 @@ class CorsIT extends IntegrationTestBase {
   }
 
   @Test
+  @DisplayName(
+      "la comprobación previa admite Idempotency-Key, que exigen las operaciones que mueven dinero")
+  void laClaveDeIdempotenciaPasaLaComprobacionPrevia() throws Exception {
+    // Hasta el 30-09-2026 faltaba en la lista: el navegador cancelaba comprar
+    // puntos, volver a pagar y abonar un bono antes de emitirlos, y el backend
+    // ni se enteraba. Con curl todo funcionaba, porque curl no hace esta
+    // comprobación.
+    mvc.perform(
+            options("/api/v1/movements/mine/points-purchases")
+                .header("Origin", AUTORIZADO)
+                .header("Access-Control-Request-Method", "POST")
+                .header(
+                    "Access-Control-Request-Headers", "authorization,content-type,idempotency-key"))
+        .andExpect(status().isOk())
+        .andExpect(header().string("Access-Control-Allow-Origin", AUTORIZADO))
+        .andExpect(
+            header()
+                .string(
+                    "Access-Control-Allow-Headers",
+                    org.hamcrest.Matchers.containsStringIgnoringCase("idempotency-key")));
+  }
+
+  @Test
   @DisplayName("un origen no declarado se rechaza en la comprobación previa")
   void elOrigenAjenoNoPasa() throws Exception {
     mvc.perform(
