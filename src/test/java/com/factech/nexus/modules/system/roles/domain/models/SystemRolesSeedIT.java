@@ -57,6 +57,8 @@ class SystemRolesSeedIT extends IntegrationTestBase {
           "commission-batches:read-own",
           "movements:list-sales",
           "movements:read",
+          // `V56` (30-09-2026): quien lista el libro abre sus filas (`RF-MV-007`).
+          "movements:read-detail",
           "movements:read-own",
           "movements:read-own-products",
           "packages:buy",

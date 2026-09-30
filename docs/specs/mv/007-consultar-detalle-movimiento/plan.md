@@ -37,7 +37,7 @@ Lo que falta es **la ruta y el servicio que la une a esas dos piezas**. Por eso 
 | `application/SaleResponse` | **Gana `type`** —`VENTA`, `RETIRO`, `BONO`—: el detalle no decía el tipo, y este abre movimientos que no son ventas. Campo nuevo, compatible |
 | `db/migration/V56` | El permiso |
 | `EndpointPermissionsIT` | La ruta nueva en el mapa de cada operación con su permiso |
-| Recuentos del catálogo | `PermissionIT`, `PermissionsSeedIT`, `MovementsPermissionsSeedIT`, `TeamsPermissionsSeedIT`, `SaleLinesPermissionSeedIT` |
+| Recuentos del catálogo | `PermissionIT`, `PermissionsSeedIT`, `MovementsPermissionsSeedIT`, `TeamsPermissionsSeedIT`, `SaleLinesPermissionSeedIT`, `JpaPermissionQueryRepositoryIT`, `ListPermissionsServiceIT`; y `SystemRolesSeedIT`, que fija lo que portan `MANAGER` y `DIRECTOR` |
 | `MovementDetailIT` | **Nueva**: `CA-MV-287` a `CA-MV-292` |
 
 **Un servicio aparte y no un segundo método en `GetMyMovementService`**: aquel lleva el actor inyectado y su Javadoc dice que el alcance va dentro de la consulta para que no haya una comprobación de pertenencia «que alguien pueda mover de sitio». Poner a su lado un método sin alcance es justo eso.
