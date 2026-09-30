@@ -178,6 +178,14 @@ public class LedgerController {
           retirar—, lo **retenido** en retiros sin resolver y los **puntos** (`RF-MV-022`). Una
           persona sin cuentas recibe una lista vacía.
           """)
+  @ApiResponses({
+    @ApiResponse(responseCode = "200", description = "Los saldos, uno por moneda."),
+    @ApiResponse(responseCode = "401", description = "Sin token (`AUTH-001`)", content = @Content),
+    @ApiResponse(
+        responseCode = "403",
+        description = "Sin `movements:read-own-balances` (`AUTH-002`)",
+        content = @Content)
+  })
   public List<BalancesResponse> misSaldos() {
     return saldos.balances();
   }
@@ -192,8 +200,23 @@ public class LedgerController {
           antiguo, con su signo —positivo entró—, el saldo que dejó, el evento y el movimiento
           que lo produjo (`RF-MV-022`). Es donde la persona ve sus retiros, abonos y bonos.
           Filtros: `currencyId`, `account` (`BILLETERA`, `RETENIDO`, `PUNTOS`), `from` y `to`
-          sobre cuándo se escribió, rango semiabierto.
+          sobre cuándo se escribió, rango semiabierto. Los filtros se combinan; una cuenta de
+          la empresa o un periodo invertido son `400`, y los dos errores salen juntos.
           """)
+  @ApiResponses({
+    @ApiResponse(responseCode = "200", description = "Una página del historial."),
+    @ApiResponse(
+        responseCode = "400",
+        description =
+            "`account` que no es `BILLETERA`, `RETENIDO` ni `PUNTOS` (`VAL-002`), o `from`"
+                + " posterior a `to` (`VAL-003`)",
+        content = @Content),
+    @ApiResponse(responseCode = "401", description = "Sin token (`AUTH-001`)", content = @Content),
+    @ApiResponse(
+        responseCode = "403",
+        description = "Sin `movements:list-own-entries` (`AUTH-002`)",
+        content = @Content)
+  })
   public PageResponse<BalanceService.EntryResponse> miHistorial(
       @RequestParam(required = false) Integer page,
       @RequestParam(required = false) Integer size,

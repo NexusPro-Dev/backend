@@ -6,8 +6,8 @@
 | Especificación | [`spec.md`](spec.md) v0.1.0 |
 | Plan | [`plan.md`](plan.md) v0.1.0 |
 | `plan.md` aprobado el | 26-09-2026 |
-| Estado | **En revisión** — todas las tareas `Hecha` el 26-09-2026 salvo la última, de documentación y contrato, en curso |
-| Issue | Pendiente de crear |
+| Estado | **En revisión** — todas las tareas `Hecha` el 26-09-2026; la última, de documentación y contrato (`T-10`), el 30-09-2026 |
+| Issue | [#122](https://github.com/NexusPro-Dev/backend/issues/122) |
 | Rama | `feature/pagos-y-saldos` |
 
 !!! info "Qué va en este documento"
@@ -31,7 +31,7 @@
 | `T-07` | `MovementController`: `POST /mine/withdrawals` con `@PreAuthorize('movements:request-withdrawal')` | `T-06` | Documentado con los códigos de `plan.md` §4 | **Hecha** — 26-09-2026 |
 | `T-08` | Confirmar, anular, rechazar el pago y volver a pagar fijan `VENTA` | `RF-MV-018` `T-08`, `T-10`; `RF-MV-004` `T-03` | `CA-MV-233` | **Hecha** — 26-09-2026 |
 | `T-09` | `RequestWithdrawalIT`: `CA-MV-224` a `CA-MV-235`; `LedgerIT` | `T-07`, `T-08` | `CA-MV-228` con dos hilos; `CA-MV-234` contra la base | **Hecha** — 26-09-2026 |
-| `T-10` | `PermissionIT`, `EndpointPermissionsIT`; contrato regenerado con la prosa releída; `requirements.md`, `security.md`, `modelo-datos.md` (las tres tablas pasan a escritas) | `T-09` | | Pendiente |
+| `T-10` | `PermissionIT`, `EndpointPermissionsIT`; contrato regenerado con la prosa releída; `requirements.md`, `security.md`, `modelo-datos.md` (las tres tablas pasan a escritas) | `T-09` | | Hecha |
 
 ---
 
@@ -73,8 +73,10 @@
 
 ## 5. Definición de terminado
 
-- [ ] `./mvnw clean verify` en verde.
-- [ ] Los doce criterios de aceptación con prueba.
-- [ ] Contrato OpenAPI regenerado, **con la prosa releída**.
-- [ ] `requirements.md`, `security.md` y `modelo-datos.md` actualizados.
+- [x] `./mvnw clean verify` en verde.
+- [x] Los doce criterios de aceptación con prueba.
+- [x] Contrato OpenAPI regenerado, **con la prosa releída**.
+- [x] `requirements.md`, `security.md` y `modelo-datos.md` actualizados.
 - [ ] **`tasks.md` aprobadas por el responsable del proyecto.**
+
+**Cierre documental el 30-09-2026**: construido el 26-09-2026 y mezclado por el PR [#124](https://github.com/NexusPro-Dev/backend/pull/124) sin marcar la definición de terminado. Las casillas se marcan con la suite completa en verde el 30-09-2026, cada criterio con su afirmación, `EndpointPermissionsIT` exigiendo el permiso de la ruta y la prosa del contrato releída.

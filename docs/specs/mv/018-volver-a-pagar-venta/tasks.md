@@ -6,8 +6,8 @@
 | Especificación | [`spec.md`](spec.md) v0.1.0 |
 | Plan | [`plan.md`](plan.md) v0.1.0 |
 | `plan.md` aprobado el | 26-09-2026 |
-| Estado | **En revisión** — `T-01` a `T-14` `Hecha` el 26-09-2026; `T-15` en curso |
-| Issue | Pendiente de crear |
+| Estado | **En revisión** — `T-01` a `T-14` `Hecha` el 26-09-2026; `T-15` `Hecha` el 30-09-2026 |
+| Issue | [#122](https://github.com/NexusPro-Dev/backend/issues/122) |
 | Rama | `feature/pagos-y-saldos` |
 
 !!! info "Qué va en este documento"
@@ -36,7 +36,7 @@
 | `T-12` | `RetryPaymentIT`: `CA-MV-206` a `CA-MV-215` | `T-11` | `CA-MV-210` con dos hilos | **Hecha** — 26-09-2026 |
 | `T-13` | `PaymentsOnRegistrationIT`: `CA-MV-216`; `CA-MV-217` en las suites de los listados | `T-05`, `T-06` | | **Hecha** — 26-09-2026 |
 | `T-14` | `PermissionIT` y `EndpointPermissionsIT` con el permiso nuevo | `T-01`, `T-11` | El catálogo cuenta uno más | **Hecha** — 26-09-2026 |
-| `T-15` | Contrato regenerado, **con la prosa de las `@Operation` releída**; `requirements.md` y `security.md` (el permiso pasa a sembrado) | `T-12`, `T-13` | El `diff` del json enseña `payments` y la cabecera | Pendiente |
+| `T-15` | Contrato regenerado, **con la prosa de las `@Operation` releída**; `requirements.md` y `security.md` (el permiso pasa a sembrado) | `T-12`, `T-13` | El `diff` del json enseña `payments` y la cabecera | Hecha |
 
 ---
 
@@ -78,8 +78,10 @@
 
 ## 5. Definición de terminado
 
-- [ ] `./mvnw clean verify` en verde.
-- [ ] Los doce criterios de aceptación con prueba.
-- [ ] Contrato OpenAPI regenerado, **con la prosa releída**.
-- [ ] `requirements.md` y `security.md` actualizados.
+- [x] `./mvnw clean verify` en verde.
+- [x] Los doce criterios de aceptación con prueba.
+- [x] Contrato OpenAPI regenerado, **con la prosa releída**.
+- [x] `requirements.md` y `security.md` actualizados.
 - [ ] **`tasks.md` aprobadas por el responsable del proyecto.**
+
+**Cierre documental el 30-09-2026**: construido el 26-09-2026 y mezclado por el PR [#124](https://github.com/NexusPro-Dev/backend/pull/124) sin marcar la definición de terminado. Las casillas se marcan con la suite completa en verde el 30-09-2026, cada criterio con su afirmación, `EndpointPermissionsIT` exigiendo el permiso de la ruta y la prosa del contrato releída.

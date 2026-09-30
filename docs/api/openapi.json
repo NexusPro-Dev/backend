@@ -13682,7 +13682,13 @@
                 }
               }
             },
-            "description" : "OK"
+            "description" : "Los saldos, uno por moneda."
+          },
+          "401" : {
+            "description" : "Sin token (`AUTH-001`)"
+          },
+          "403" : {
+            "description" : "Sin `movements:read-own-balances` (`AUTH-002`)"
           }
         },
         "summary" : "Consultar mis saldos",
@@ -13692,7 +13698,7 @@
     },
     "/api/v1/movements/mine/balances/entries" : {
       "get" : {
-        "description" : "**Permiso requerido:** `movements:list-own-entries`. Sin él, `403` (`AUTH-002`).\n\nCada cambio en las cuentas propias, **asiento a asiento**, del más reciente al más\nantiguo, con su signo —positivo entró—, el saldo que dejó, el evento y el movimiento\nque lo produjo (`RF-MV-022`). Es donde la persona ve sus retiros, abonos y bonos.\nFiltros: `currencyId`, `account` (`BILLETERA`, `RETENIDO`, `PUNTOS`), `from` y `to`\nsobre cuándo se escribió, rango semiabierto.\n",
+        "description" : "**Permiso requerido:** `movements:list-own-entries`. Sin él, `403` (`AUTH-002`).\n\nCada cambio en las cuentas propias, **asiento a asiento**, del más reciente al más\nantiguo, con su signo —positivo entró—, el saldo que dejó, el evento y el movimiento\nque lo produjo (`RF-MV-022`). Es donde la persona ve sus retiros, abonos y bonos.\nFiltros: `currencyId`, `account` (`BILLETERA`, `RETENIDO`, `PUNTOS`), `from` y `to`\nsobre cuándo se escribió, rango semiabierto. Los filtros se combinan; una cuenta de\nla empresa o un periodo invertido son `400`, y los dos errores salen juntos.\n",
         "operationId" : "miHistorial",
         "parameters" : [ {
           "in" : "query",
@@ -13751,7 +13757,16 @@
                 }
               }
             },
-            "description" : "OK"
+            "description" : "Una página del historial."
+          },
+          "400" : {
+            "description" : "`account` que no es `BILLETERA`, `RETENIDO` ni `PUNTOS` (`VAL-002`), o `from` posterior a `to` (`VAL-003`)"
+          },
+          "401" : {
+            "description" : "Sin token (`AUTH-001`)"
+          },
+          "403" : {
+            "description" : "Sin `movements:list-own-entries` (`AUTH-002`)"
           }
         },
         "summary" : "Consultar el historial de mis saldos",
