@@ -290,6 +290,35 @@ class CommissionBatchesIT extends IntegrationTestBase {
 
   // ---------------------------------------------------------------------------
 
+  @Test
+  @DisplayName(
+      "CA-CM-271 y CA-CM-272 — la venta propia de un superior sale con fuente DIRECTA y el producto"
+          + " como tasa, en el detalle y en su lote propio")
+  void laFuenteDirecta() throws Exception {
+    jdbc.update(
+        "UPDATE products SET direct_commission_type = 'PORCENTAJE',"
+            + " direct_commission_percentage = 8 WHERE id = ?",
+        producto);
+    confirmar(
+        SettlementFixtures.venta(
+            jdbc, cliente, VENDIDA_EL, linea(producto, director, 1, "100.00")));
+    UUID suyo = loteDe(director);
+
+    mvc.perform(
+            get("/api/v1/commission-batches/{id}", suyo)
+                .with(como("commission-batches:read-detail")))
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$.commissions[0].chainLevel").value(0))
+        .andExpect(jsonPath("$.commissions[0].source").value("DIRECTA"))
+        .andExpect(jsonPath("$.commissions[0].rateId").value(producto.toString()))
+        .andExpect(jsonPath("$.commissions[0].commissionAmount").value(8.0));
+    mvc.perform(
+            get("/api/v1/commission-batches/mine/{id}", suyo)
+                .with(propio(director, "commission-batches:read-own")))
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$.commissions[0].source").value("DIRECTA"));
+  }
+
   private UUID venta(int cantidad) {
     return SettlementFixtures.venta(
         jdbc, cliente, VENDIDA_EL, linea(producto, agente, cantidad, "100.00"));

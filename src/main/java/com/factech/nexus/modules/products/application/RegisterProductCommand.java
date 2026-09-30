@@ -1,5 +1,6 @@
 package com.factech.nexus.modules.products.application;
 
+import com.factech.nexus.modules.products.domain.models.DirectCommission;
 import com.factech.nexus.modules.products.domain.models.ProductImplementation;
 import com.factech.nexus.modules.products.domain.models.ProductScope;
 import com.factech.nexus.modules.products.domain.models.ProductType;
@@ -42,4 +43,5 @@ public record RegisterProductCommand(
     UUID currencyId,
     Integer validityDays,
     ProductScope scope,
-    ProductImplementation implementation) {}
+    ProductImplementation implementation,
+    DirectCommission directCommission) {}

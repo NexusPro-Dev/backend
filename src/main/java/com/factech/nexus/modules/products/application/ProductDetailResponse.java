@@ -66,6 +66,8 @@ public record ProductDetailResponse(
     ProductResponse.MembershipRef targetMembership,
     BigDecimal price,
     BigDecimal purchasePrice,
+    /** `RN-PM-051`: presente y nula en un FTD. */
+    ProductDirectCommission directCommission,
     ProductResponse.CurrencyRef currency,
     ExchangeRef exchange,
     Integer validityDays,
@@ -128,6 +130,7 @@ public record ProductDetailResponse(
         fila.purchasePrice() == null
             ? null
             : ProductPrice.enLaEscalaDe(fila.purchasePrice(), fila.currencyDecimalPlaces()),
+        ProductDirectCommission.from(fila.directCommission()),
         new ProductResponse.CurrencyRef(
             fila.currencyId(), fila.currencyCode(), fila.currencyDecimalPlaces()),
         conversion,

@@ -9,7 +9,7 @@
 | Autor | Responsable técnico |
 | Aprobadas por | Responsable del proyecto |
 | Fecha de aprobación | 26-08-2026 |
-| Enmendadas | 28-08-2026 — `T-16` por el icono corregible; 07-09-2026 — `T-17` y `T-18` por el **alcance** y la **implementación**; 08-09-2026 — `T-19` a `T-21` por el **precio público**; 12-09-2026 — `T-22` porque el segundo precio es el **de compra**; 14-09-2026 — `T-23` por el **enlace del video**; 14-09-2026 — `T-24` por **el icono de un upgrade solo se vacía con portada** (`RN-PM-034`); 22-09-2026 — `T-25` por **los enlaces, que se corrigen en bloque** (`RN-PM-048`, `RN-PM-049`) y se llevan `videoUrl` — issue [#84](https://github.com/NexusPro-Dev/backend/issues/84) |
+| Enmendadas | 28-08-2026 — `T-16` por el icono corregible; 07-09-2026 — `T-17` y `T-18` por el **alcance** y la **implementación**; 08-09-2026 — `T-19` a `T-21` por el **precio público**; 12-09-2026 — `T-22` porque el segundo precio es el **de compra**; 14-09-2026 — `T-23` por el **enlace del video**; 14-09-2026 — `T-24` por **el icono de un upgrade solo se vacía con portada** (`RN-PM-034`); 22-09-2026 — `T-25` por **los enlaces, que se corrigen en bloque** (`RN-PM-048`, `RN-PM-049`) y se llevan `videoUrl` — issue [#84](https://github.com/NexusPro-Dev/backend/issues/84); 29-09-2026 — `T-44` por **la comisión por venta directa** |
 
 ---
 
@@ -106,3 +106,11 @@ Se cierra con un **volcado explícito** justo después de aplicar el cambio de n
 | 5 | `T-11` se comprueba como **diferencia** entre corregir la descripción y corregir el nombre | Un número absoluto obligaría a reescribir la prueba cada vez que cambie el coste del resto. Se añadió la simétrica del catálogo de monedas: corregir sin tocar precio ni moneda no lo consulta |
 
 **Con esto queda cerrada la nota de `RF-PM-005`**: la descripción que `RN-PM-014` exige para publicar ya se pone por su endpoint, y no con una escritura directa en la base.
+
+## 7. La comisión por venta directa — enmienda del 29-09-2026
+
+| ID | Tarea | Depende de | Verificación | Estado |
+|---|---|---|---|---|
+| `T-44` | `directCommission` como `Patchable` y la revalidación al final del orden de verificación, con la función del alta | `RF-PM-001` `T-49` | `ProductUpdateIT`: `CA-PM-412` a `CA-PM-416` | Hecha |
+
+Rama: `feature/comision-venta-directa`.

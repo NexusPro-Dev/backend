@@ -8,7 +8,7 @@
 | Estado | **Aprobado** |
 | Autor | Responsable técnico |
 | Aprobado por | Responsable del proyecto |
-| Enmendado el | 27-08-2026 — `RN-PM-015`; 02-09-2026 — la membresía de **origen** (`RN-PM-017`, `RN-PM-018`); 07-09-2026 — el **alcance** y la **implementación** en la respuesta (`RN-PM-019`, `RN-PM-020`); 08-09-2026 — **los dos precios** (`RN-PM-023`, `RN-PM-024`), §5; 12-09-2026 — **el segundo es el de COMPRA** (`purchasePrice`), §5; 14-09-2026 — **`videoUrl`** (`RN-PM-032`), §5; 14-09-2026 — **`coverImageUrl`** (`RN-PM-033`), §5; 22-09-2026 — **`links` en lugar de `videoUrl`** (`RN-PM-048` a `RN-PM-050`), §5 |
+| Enmendado el | 27-08-2026 — `RN-PM-015`; 02-09-2026 — la membresía de **origen** (`RN-PM-017`, `RN-PM-018`); 07-09-2026 — el **alcance** y la **implementación** en la respuesta (`RN-PM-019`, `RN-PM-020`); 08-09-2026 — **los dos precios** (`RN-PM-023`, `RN-PM-024`), §5; 12-09-2026 — **el segundo es el de COMPRA** (`purchasePrice`), §5; 14-09-2026 — **`videoUrl`** (`RN-PM-032`), §5; 14-09-2026 — **`coverImageUrl`** (`RN-PM-033`), §5; 22-09-2026 — **`links` en lugar de `videoUrl`** (`RN-PM-048` a `RN-PM-050`), §5; 29-09-2026 — **la comisión por venta directa** (§12) |
 | Fecha de aprobación | 26-08-2026 |
 
 ---
@@ -108,3 +108,7 @@ Ninguna.
 | Los enlaces | API | Con los dos, **crudos y con identificador**; sin ninguno, `links` **presente y vacía**; y en un producto retirado, igual — `CUPON_BOT` incluido (`CA-PM-224`, `CA-PM-387`) |
 | Los enlaces no cuestan una consulta por enlace | Integración | El recuento de sentencias es el mismo con un enlace que con dos (`CA-PM-388`) |
 | El puerto no alcanza lo ajeno | Integración | Pedir el motivo de una entidad de otro módulo no devuelve nada |
+
+## 12. La comisión por venta directa — enmienda del 29-09-2026
+
+`RN-PM-051`. **Las tres columnas entran en la lectura del detalle** y la respuesta es `ProductResponse`, que ya la lleva desde `RF-PM-001` `T-49`: no hay componente nuevo. `ProductDetailIT` gana `CA-PM-411`.

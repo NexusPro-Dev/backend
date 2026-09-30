@@ -51,6 +51,9 @@ class ProductUpdateIT extends IntegrationTestBase {
   void sembrarCatalogo() {
     ProductLinkTestSupport.limpiar(jdbc);
     jdbc.update("DELETE FROM products");
+    // Antes que las membresías: `user_products` las referencia, y la suite
+    // solo pasaba cuando otra la había vaciado antes (como en `ProductsIT`).
+    jdbc.update("DELETE FROM user_products");
     jdbc.update("DELETE FROM memberships");
     jdbc.update("DELETE FROM currencies WHERE is_default = false");
     oro = membresia("ORO", "Oro", 1);
@@ -677,6 +680,118 @@ class ProductUpdateIT extends IntegrationTestBase {
                 "{\"links\":[{\"type\":\"CUPON_BOT\",\"url\":\"https://t.me/nexusbot\"}]}"))
         .andExpect(status().isOk())
         .andExpect(jsonPath("$.links[0].externalId").doesNotExist());
+  }
+
+  // ---------------------------------------------------------------------------
+  // La comisión por venta directa (`RN-PM-051`, 29-09-2026)
+  // ---------------------------------------------------------------------------
+
+  /** El producto de la suite, sembrado por SQL, con la directa que se le ponga. */
+  private void conDirecta(String tipo, String porcentaje, String fijo) {
+    jdbc.update(
+        "UPDATE products SET direct_commission_type = ?,"
+            + " direct_commission_percentage = CAST(? AS numeric),"
+            + " direct_commission_fixed_amount = CAST(? AS numeric) WHERE id = CAST(? AS uuid)",
+        tipo,
+        porcentaje,
+        fijo,
+        producto.toString());
+  }
+
+  private String directaDe(UUID id) {
+    return jdbc.queryForObject(
+        "SELECT direct_commission_type || ' '"
+            + " || COALESCE(direct_commission_percentage, direct_commission_fixed_amount)"
+            + " FROM products WHERE id = CAST(? AS uuid)",
+        String.class,
+        id.toString());
+  }
+
+  @Test
+  @DisplayName("`CA-PM-412` — corrige la directa, también de porcentaje a fija")
+  void corrigeLaDirecta() throws Exception {
+    conDirecta("PORCENTAJE", "10", null);
+
+    mvc.perform(corregir(producto, "{\"directCommission\":{\"type\":\"FIJO\",\"fixedAmount\":20}}"))
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$.directCommission.type").value("FIJO"))
+        .andExpect(jsonPath("$.directCommission.fixedAmount").value(20));
+    assertThat(directaDe(producto)).isEqualTo("FIJO 20.0000");
+  }
+
+  @Test
+  @DisplayName(
+      "`CA-PM-413` — vaciarla es VAL-019, y una forma o un rango malos VAL-020, sin aplicar nada")
+  void laDirectaNoSeVaciaNiSeTuerce() throws Exception {
+    conDirecta("PORCENTAJE", "10", null);
+
+    mvc.perform(corregir(producto, "{\"directCommission\":null}"))
+        .andExpect(status().isBadRequest())
+        .andExpect(jsonPath("$.errors[0].code").value("VAL-019"));
+    mvc.perform(
+            corregir(
+                producto,
+                "{\"name\":\"Otro nombre\","
+                    + "\"directCommission\":{\"type\":\"PORCENTAJE\",\"percentage\":150}}"))
+        .andExpect(status().isBadRequest())
+        .andExpect(jsonPath("$.errors[0].code").value("VAL-020"));
+    mvc.perform(corregir(producto, "{\"directCommission\":{\"type\":\"FIJO\",\"percentage\":5}}"))
+        .andExpect(status().isBadRequest())
+        .andExpect(jsonPath("$.errors[0].code").value("VAL-020"));
+
+    assertThat(nombreDe(producto)).isEqualTo("Ascenso a Oro");
+    assertThat(directaDe(producto)).isEqualTo("PORCENTAJE 10.00");
+  }
+
+  @Test
+  @DisplayName(
+      "`CA-PM-414` — el precio y la moneda que quedan revalidan la directa aunque no viaje")
+  void elPrecioRevalidaLaDirecta() throws Exception {
+    conDirecta("FIJO", null, "40");
+    mvc.perform(corregir(producto, "{\"price\":30}"))
+        .andExpect(status().isBadRequest())
+        .andExpect(jsonPath("$.errors[0].code").value("VAL-021"));
+    assertThat(precioDe(producto)).isEqualByComparingTo("49.99");
+
+    conDirecta("FIJO", null, "40.50");
+    mvc.perform(
+            corregir(producto, "{\"currencyId\":\"" + monedaSinDecimales() + "\",\"price\":50}"))
+        .andExpect(status().isBadRequest())
+        .andExpect(jsonPath("$.errors[0].code").value("VAL-020"));
+
+    conDirecta("PORCENTAJE", "10", null);
+    mvc.perform(corregir(producto, "{\"price\":0}"))
+        .andExpect(status().isBadRequest())
+        .andExpect(jsonPath("$.errors[0].code").value("VAL-021"));
+    assertThat(precioDe(producto)).isEqualByComparingTo("49.99");
+  }
+
+  @Test
+  @DisplayName("`CA-PM-415` — un FTD no declara directa: VAL-022")
+  void elFtdNoDeclaraDirecta() throws Exception {
+    UUID ftd = upgrade("ALTA_BECA", "Alta en beca", free, "Entra en beca.", null);
+
+    mvc.perform(corregir(ftd, "{\"directCommission\":{\"type\":\"FIJO\",\"fixedAmount\":0}}"))
+        .andExpect(status().isBadRequest())
+        .andExpect(jsonPath("$.errors[0].code").value("VAL-022"));
+    // Y lo demás de un FTD se corrige sin que la directa estorbe.
+    mvc.perform(corregir(ftd, "{\"name\":\"Alta gratuita\"}")).andExpect(status().isOk());
+  }
+
+  @Test
+  @DisplayName("`CA-PM-416` — la auditoría de la edición lleva la directa antes y después")
+  void laAuditoriaLlevaLaDirecta() throws Exception {
+    conDirecta("PORCENTAJE", "10", null);
+
+    mvc.perform(
+            corregir(
+                producto, "{\"directCommission\":{\"type\":\"PORCENTAJE\",\"percentage\":12.5}}"))
+        .andExpect(status().isOk());
+
+    assertThat(ultimoCambio(producto))
+        .contains("direct_commission")
+        .contains("PORCENTAJE 10.00")
+        .contains("PORCENTAJE 12.5");
   }
 
   private String iconoDe(UUID id) {

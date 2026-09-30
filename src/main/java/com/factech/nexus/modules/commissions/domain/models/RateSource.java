@@ -18,5 +18,13 @@ public enum RateSource {
   PERSONALIZADA,
 
   /** La tasa que el rol vendedor tiene <b>asociada a ese producto</b>. */
-  ROL
+  ROL,
+
+  /**
+   * La comisión por venta directa del producto (`RN-CM-045`, 29-09-2026): la cobra en el nivel
+   * {@code 0} quien no es el último eslabón, en lugar de su tasa de rol. <b>No sale de la sentencia
+   * de `RF-CM-005`</b>, y por eso no altera el orden de arriba: la pone el devengo (`RF-CM-013`)
+   * cuando lo resuelto no es una personalizada. Su {@code rateId} es el producto.
+   */
+  DIRECTA
 }

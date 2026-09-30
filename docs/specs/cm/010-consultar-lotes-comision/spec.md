@@ -4,12 +4,13 @@
 |---|---|
 | Requerimiento | `RF-CM-010` |
 | Módulo | `CM` — Comisiones |
-| Versión | 0.2.0 |
+| Versión | 0.3.0 |
 | Estado | **Aprobada** |
 | Autor | Responsable técnico |
 | Aprobada por | Responsable del proyecto |
 | Fecha de aprobación | 28-09-2026 |
 | Enmendada el | 29-09-2026 — **cada comisión dice de qué clase es**, `POR_VENTA` o `POR_AFFTRACK` (`RN-CM-044`) |
+| Enmendada el | 29-09-2026 — **la fuente de una comisión puede ser `DIRECTA`** (`RN-CM-045`) |
 
 !!! info "Qué va en este documento"
 
@@ -148,6 +149,7 @@ Los lotes nacen con la primera comisión de una persona en una moneda (`RF-CM-01
 | `CA-CM-187` | Los filtros inválidos se rechazan **todos juntos** |
 | `CA-CM-188` | Sin el permiso de cada operación, se rechaza; las dos lecturas **no hacen una consulta por fila** |
 | `CA-CM-262` | El detalle de un lote con comisiones de las dos clases dice la de cada una: las `POR_VENTA` con su venta, línea y nivel; las `POR_AFFTRACK` **sin** ellos, con el producto, los FTD pagados, el valor y su liquidación; el total del lote las suma todas (29-09-2026) |
+| `CA-CM-271` | El detalle de un lote muestra la comisión de una venta propia de un superior con fuente **`DIRECTA`** y, como tasa exacta, **el producto** (29-09-2026) |
 
 ---
 
@@ -174,3 +176,4 @@ Ninguna.
 | 0.1.0 | 28-09-2026 | Primera versión ([`requirements/cm.md`](../../../requirements/cm.md) v0.20.0). Listado y detalle, con el lote abierto al día. Criterios `CA-CM-181` a `CA-CM-188`. | Responsable del proyecto |
 
 | 0.2.0 | 29-09-2026 | **Cada comisión dice su clase** (`RN-CM-044`, [`requirements/cm.md`](../../../requirements/cm.md) v0.22.0 §5.8): `POR_VENTA` o `POR_AFFTRACK`, y la segunda sin venta, línea ni nivel. `CA-CM-262`. | Responsable del proyecto |
+| 0.3.0 | 29-09-2026 | **La fuente de una comisión puede ser `DIRECTA`** (`RN-CM-045`, [`requirements/cm.md`](../../../requirements/cm.md) v0.24.0 §5.9), y entonces la tasa exacta es el producto. La forma de la respuesta no cambia: `source` ya es texto. `CA-CM-271`. | Responsable del proyecto |

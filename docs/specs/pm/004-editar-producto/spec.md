@@ -17,6 +17,7 @@
 | Enmendada el | 22-09-2026 — **los enlaces se corrigen EN BLOQUE** (`RN-PM-048`, `RN-PM-049`): `links` sustituye a `videoUrl`, y la colección que llega **es la que queda**. Ver §15 |
 | Enmendada el | 14-09-2026 — **el icono de un upgrade solo se vacía si hay PORTADA** (`RN-PM-034`, `RF-PM-014`); la portada no se corrige por aquí, y la respuesta gana `coverImageUrl`. Ver §15 |
 | Enmendada el | 15-09-2026 — **el alcance se corrige a cualquiera de los cuatro valores** (`RN-PM-019`); `HOTLINKS` se rechaza con `400` como valor fuera del dominio. Ver §15 |
+| Enmendada el | 29-09-2026 — **la comisión por venta directa se corrige, no se vacía, y se revalida en toda edición** (`RN-PM-051`). Ver §15 |
 
 ---
 
@@ -94,6 +95,7 @@ Un producto se equivoca de nombre, se le escapa una falta en la descripción o c
 | Vigencia | No | Vigencia nueva, en días | Mayor que cero. **Sí admite vaciarse**, y hacerlo convierte el producto en uno que no caduca |
 | Alcance | No | Alcance nuevo | **NO admite vaciarse**: es obligatorio en la columna, de modo que el nulo explícito se rechaza en lugar de borrar (`RN-PM-019`) |
 | Implementación | No | Implementación nueva | Igual. **NO admite vaciarse** (`RN-PM-020`) |
+| Comisión por venta directa | No | La directa nueva, **entera**: tipo y valor (29-09-2026) | Las mismas condiciones que en el alta (`RN-PM-051`). **NO admite vaciarse**, como el precio del sistema. **Prohibida en un FTD**. Y **se revalida aunque no viaje**: cambiar el precio o la moneda la comprueba contra lo que queda, y bajar el precio por debajo de una directa fija se rechaza **entero** |
 
 **Ausente y vacío no son lo mismo.** No enviar un campo significa «déjalo como está»; enviarlo vacío significa «bórralo», y solo lo admiten **la descripción, el icono, la vigencia y el precio de compra**. Confundir los dos estados hace que corregir un nombre borre la descripción sin que nadie lo pida.
 
@@ -186,6 +188,10 @@ Un producto se equivoca de nombre, se le escapa una falta en la descripción o c
 | `VAL-017` | **Formato del identificador externo** (22-09-2026) | El identificador externo no admite espacios ni puede exceder 100 caracteres. |
 | `VAL-018` | **Identificador externo sobre una dirección con cadena de consulta** (22-09-2026) | Un enlace con identificador externo no admite una dirección con `?` ni `#`. |
 | `VAL-010` | **El icono de un upgrade sin portada no se vacía** | Un upgrade sin portada no puede quedarse sin icono: suba primero una portada. |
+| `VAL-019` | **La directa no admite vaciarse**, y su tipo va dentro del dominio (29-09-2026) | La comisión por venta directa no puede quedar vacía y debe ser de tipo porcentaje o fijo. |
+| `VAL-020` | **Forma, rangos y decimales de la directa**, como `VAL-025` y `VAL-026` del alta | La comisión directa lleva solo el campo de su tipo; el porcentaje va de 0 a 100 y el importe fijo no puede ser negativo ni tener más decimales que su moneda. |
+| `VAL-021` | **La directa no paga más que el precio que queda**, y sobre uno gratuito solo es fija. Se comprueba también **cuando lo que cambia es el precio o la moneda** | La comisión directa no puede superar el precio del producto; en un producto gratuito solo puede ser un importe fijo. |
+| `VAL-022` | **Un FTD no declara directa** | Un producto FTD no lleva comisión por venta directa. |
 
 ## 12. Criterios de aceptación
 
@@ -227,6 +233,11 @@ Un producto se equivoca de nombre, se le escapa una falta en la descripción o c
 | `CA-PM-235` | El sistema **vacía el icono** de un upgrade **con portada**, y lo audita; y en un **bot**, `icon: null` sigue siendo un vaciado sin efecto y sin `VAL-010` |
 | `CA-PM-236` | La respuesta de la corrección trae **`coverImageUrl`** —la dirección cuando hay portada, nulo y presente cuando no—, y un `coverImageUrl` en el cuerpo **se rechaza con `400`** sin cambiar nada, como todo campo desconocido |
 | `CA-PM-350` | El sistema corrige el alcance a **cada uno de los cuatro valores** —también a `NINGUNO` en un producto activo, que sigue activo y deja de ofrecerse— y rechaza `HOTLINKS` con `400` —valor fuera del dominio del enumerado— sin aplicar nada más |
+| `CA-PM-412` | El sistema **corrige la directa**, también **de porcentaje a fija**, y la respuesta devuelve la nueva (29-09-2026) |
+| `CA-PM-413` | El sistema **rechaza vaciar la directa** con `VAL-019`, y una forma o un rango inválidos con `VAL-020`, **sin aplicar ningún otro cambio** de la petición |
+| `CA-PM-414` | El sistema **rechaza bajar el precio por debajo de una directa fija** —y pasarlo a cero con una directa de porcentaje— con `VAL-021`, **aunque la directa no viaje**; y un cambio de moneda cuyos decimales no admite la directa fija, con `VAL-020` |
+| `CA-PM-415` | El sistema **rechaza declarar directa en un FTD** con `VAL-022` |
+| `CA-PM-416` | La instantánea del evento de edición incluye **antes y después** de las tres columnas cuando la directa cambia |
 
 ## 13. Casos límite
 
@@ -270,3 +281,4 @@ Ninguna. Dos se resolvieron el 26-08-2026 y **las otras dos quedaron respondidas
 | 0.10.0 | 14-09-2026 | **El icono de un upgrade solo se vacía si hay portada** (`RN-PM-034`, [`requirements/pm.md`](../../../requirements/pm.md) v0.29.0 §5.2.9), por decisión del responsable del proyecto: un upgrade siempre tiene portada o icono, **al registrar y en cada corrección**. Es la segunda cara de la regla —la primera es el alta, `RF-PM-001` v0.13.0; la tercera, quitar la portada, `RF-PM-015`— y vive en `Product.update`, que es el único que ve las dos columnas. **Nace `VAL-010`** y se rechaza **sin aplicar nada más**, como todo rechazo de esta operación; en el bot nada cambia. **La portada no se corrige por aquí**: es un archivo con sus endpoints. La respuesta gana `coverImageUrl`. `CA-PM-234` a `CA-PM-236`. Enmienda que construye `RF-PM-014` (Art. I.7). | Responsable del proyecto |
 | 0.12.0 | 15-09-2026 | **El alcance se corrige a cualquiera de los cuatro valores** (`RN-PM-019` reescrita, [`requirements/pm.md`](../../../requirements/pm.md) v0.35.0 §5.2.11). Corregir un producto activo a `NINGUNO` **no lo desactiva**: sigue activo y deja de ofrecerse, que es exactamente para lo que existe el valor. `HOTLINKS` se rechaza con `400` como valor fuera del dominio. `CA-PM-350`. | Responsable del proyecto |
 | 0.10.0 | 22-09-2026 | **Los enlaces se corrigen EN BLOQUE, y `links` sustituye a `videoUrl`** (`RN-PM-048`, `RN-PM-049`, [`requirements/pm.md`](../../../requirements/pm.md) v0.43.0 §5.2.14). Es **el primer campo de este módulo que se corrige entero y no uno a uno**, y ahí está toda la decisión: `Patchable<List<…>>` conserva los tres estados de siempre —ausente **no toca nada**, nula **o vacía** los quita todos, como `\"\"` acompañaba al nulo en el campo viejo— pero **el tercero vale para el conjunto**: la colección que llega **es la que queda**, de modo que un tipo que estaba y no viene **se borra**, uno que viene y no estaba se crea, y uno que viene y estaba se reescribe. **Se eligió sobre corregir un enlace cada vez** porque aquello obliga a inventar cómo se dice «quita este» —un tipo con dirección nula, un verbo por caso, o tres rutas nuevas con sus tres permisos (`RN-SEG-015`), que es lo que §5.2.14 descartó—, mientras que la petición **ya enseña el estado final**. **El coste se escribe entero**: quien mande `links` con un solo enlace **borra el otro sin haberlo nombrado**, y por eso `CA-PM-390` existe y la prosa de la `@Operation` lo dice con todas las letras. Las comprobaciones son **las mismas que en el alta y viven en el mismo sitio**: `VAL-009` se reescribe para los dos tipos y nacen `VAL-014` a `VAL-018` —tipo obligatorio, tipo repetido (sobre el cuerpo y antes de escribir), dirección obligatoria, formato del identificador y la incompatibilidad con `?` y `#`—. El diff de auditoría trata los enlaces **como un valor**, con el conjunto entero en `before` y en `after`, y **el mismo conjunto no registra evento**. `CA-PM-225` a `CA-PM-227` se **reescriben** y nacen **`CA-PM-389`** a **`CA-PM-393`**. Enmienda de Art. I.7. | Responsable del proyecto |
+| 0.13.0 | 29-09-2026 | **La comisión por venta directa se corrige** (`RN-PM-051`, [`requirements/pm.md`](../../../requirements/pm.md) v0.47.0 §5.2.16): entera, **sin vaciarse** y prohibida en un FTD. **Se revalida en toda edición** contra el precio y la moneda que quedan, de modo que bajar el precio por debajo de una directa fija se rechaza entero. `VAL-019` a `VAL-022`, `CA-PM-412` a `CA-PM-416`. | Responsable del proyecto |

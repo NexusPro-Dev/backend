@@ -5,11 +5,11 @@
 | Módulo | `PM` — Productos y Mercadeo |
 | Paquete | `modules/products` |
 | Prefijos de permiso | `products:` |
-| Versión | 0.46.0 |
+| Versión | 0.48.0 |
 | Estado | **Borrador** |
 | Responsable | Bonilla Diaz William Steven |
 | Fecha de creación | 26-08-2026 |
-| Última actualización | 28-09-2026 |
+| Última actualización | 29-09-2026 |
 
 !!! info "Qué va en este documento"
 
@@ -224,6 +224,7 @@ La dependencia es **acíclica**: `PM` consume `SP` y `SP` no consume nada ([`mod
 | `RN-PM-048` | **Los enlaces de un producto viven aparte, y hay uno por tipo** | Al registrar, al editar y en toda lectura que publique enlaces | Un producto tiene **hasta un enlace por tipo** en `product_links`, y los tipos son **tres**: `VIDEO_PRESENTACION` —el video que lo presenta (`RN-PM-032`)—, `CUPON_BOT` —la dirección donde quien ya compró registra la cuenta que el bot le da— y, desde el 28-09-2026, **`DESCARGA`** —la dirección donde quien ya compró descarga lo que compró (§5.2.15)—. Cada fila lleva una **dirección obligatoria**, con la forma de siempre —`http` o `https`, sin espacios, hasta 500 caracteres, de cualquier dominio— y un **identificador externo opcional** de hasta 100 caracteres sin espacios, que es un dato **de un sistema ajeno**: NEXUS lo guarda y lo devuelve, y **no lo interpreta**. Los tipos valen en los **dos tipos de producto**, son **opcionales**, **no condicionan la activación** y **no estrenan endpoint ni permiso**: se declaran en el alta y se corrigen en la edición (`RF-PM-001`, `RF-PM-004`). Repetir un tipo en la misma petición **se rechaza** —la clave es la pareja producto-tipo, y el esquema no admite el segundo—, y un tipo desconocido también (§5.2.14) | Alta |
 | `RN-PM-049` | **El identificador se pega al final del enlace, y quien administra ve el enlace crudo** | Siempre que se publique un enlace | El enlace **resuelto** es la dirección guardada **sin su barra final**, más `/`, más el identificador externo; **sin identificador, la dirección tal cual**. `https://t.me/MiBot` con `CUPON_ORO_2026` se publica `https://t.me/MiBot/CUPON_ORO_2026`. **Administración ve el crudo**: `RF-PM-002` y `RF-PM-003` devuelven la dirección **como se guardó**, con su identificador al lado, porque es **lo que se edita** —devolver lo resuelto obligaría a que el `PATCH` aceptara algo distinto de lo que el `GET` enseña—. **Todo lo demás ve el resuelto**, que es el enlace que se abre. Y si hay identificador, la dirección **no puede llevar `?` ni `#`**: pegar un segmento detrás de una cadena de consulta da un enlace roto que el sistema no sabría avisar, y por eso se rechaza al escribirlo y no al publicarlo (§5.2.14) | Alta |
 | `RN-PM-050` | **El cupón del bot —y la descarga— no son material de venta: son entrega** | Al publicar la oferta, el hotlink y el registro de lo comprado | `VIDEO_PRESENTACION` sale donde salía el video —las cuatro lecturas, hotlink sin token incluido—. `CUPON_BOT` y, desde el 28-09-2026, `DESCARGA` (§5.2.15) **no salen de ninguna de ellas**; lo que sigue dice «el cupón» y vale igual para la descarga, y **desde la segunda enmienda del 28-09-2026 donde dice «entregada» hay que leer «pagada»**: en `RF-MV-014` viajan con la venta `CONFIRMADA` (`RN-MV-032`, [`requirements/mv.md`](mv.md) v0.51.0): se publica **solo** en `RF-MV-014`, el registro de lo comprado de cada persona, y **solo en la línea cuyo `delivery_status` es `ENTREGADA`** (`RN-MV-030`). Fuera del catálogo público, de la oferta y del hotlink porque un cupón visible **antes** de comprar es la prestación regalada; y fuera de una línea `PENDIENTE` o `RETENIDA` porque entregar lo comprado antes de que alguien lo autorice es justo lo que `RN-MV-021` existe para impedir. **Administración sí lo ve** en `RF-PM-002` y `RF-PM-003`, porque lo administra (§5.2.14) | **Crítica** |
+| `RN-PM-051` | **Todo producto declara su comisión por venta directa, salvo el FTD** | Al registrar y al editar | Decisión del responsable del proyecto, 29-09-2026 (§5.2.16). Es lo que cobra en su venta propia **quien no es el último eslabón** de la fuerza comercial (`RN-CM-045`). **Obligatoria al registrar**, sin valor por omisión en el cuerpo, y con **la forma de una tasa**: porcentaje **o** valor fijo, nunca las dos (`RN-CM-016`). El porcentaje va **de cero a cien**; el fijo, **no negativo**, con los decimales de la moneda del producto (`RN-PM-007`) y **no por encima del precio**; sobre un producto de **precio cero** solo se admite fijo, sin tope (`RN-CM-020`). **Prohibida en un producto FTD** —un `UPGRADE_MEMBRESIA` de `BECA` a `BECA`—, que no devenga por venta (`RN-CM-022`). **Se corrige y no se vacía**, y se revalida en toda edición contra el precio y la moneda que quedan. La forma se declara en el esquema; la exención FTD y el tope contra el precio, en el caso de uso, porque dependen de otra tabla o de otra columna | **Crítica** |
 
 ### 5.2 Por qué las críticas son críticas
 
@@ -730,6 +731,23 @@ Por decisión del responsable del proyecto —«agrega otro tipo de enlace a los
 
 **No cambia ninguna lectura de este módulo**: la oferta, el hotlink y el catálogo de hotlinks piden **los tipos que son material de venta**, y `DESCARGA` no lo es — queda fuera por el mismo predicado que ya dejaba fuera el cupón, sin tocar la sentencia. Y administración lo ve porque ve **todos** los tipos. Lo que sí cambia es `RF-MV-014` ([`requirements/mv.md`](mv.md) v0.50.0): desde el mismo día sus enlaces viajan **dentro del producto**, y la línea entregada trae **todos**.
 
+### 5.2.16 La comisión por venta directa — 29-09-2026
+
+Por decisión del responsable del proyecto, **todo producto declara lo que gana quien lo vende siendo superior**: la comisión por venta directa. La usa `CM` cuando el vendedor de una línea **no es el último eslabón** de la fuerza comercial —hoy un `DIRECTOR` o un `MANAGER`—, en lugar de su tasa de rol ([`requirements/cm.md`](cm.md) §5.9, `RN-CM-045`). Qué paga y a quién lo decide `CM`; **este módulo la guarda, la exige y la valida** (`RN-PM-051`).
+
+| Pregunta | Decisión | Lo que se descartó, y por qué |
+|---|---|---|
+| **¿Por qué aquí y no en `CM`?** | Porque es **obligatoria al registrar**, y el alta es de este módulo | *Una tabla en `CM`* — exigirla al registrar obligaría a `PM` a consultar a `CM`, y `CM` ya consume `PM`: sería un ciclo (`modules.md` §7) |
+| **¿Qué forma tiene?** | **La de una tasa**: porcentaje **o** valor fijo, nunca las dos (`RN-CM-016`), en `directCommission` con `type`, `percentage` y `fixedAmount` | *Solo porcentaje* — un producto gratuito no podría declarar nada que pagara (`RN-CM-020`) |
+| **¿Qué la acota?** | El porcentaje, **de cero a cien**; el fijo, **no negativo, con los decimales de la moneda** (`RN-PM-007`) y **no por encima del precio**. Sobre un producto de **precio cero, solo fijo** y sin tope | *Ningún tope* — un producto podría pagar al superior más de lo que cobra, y eso lo tendría que descubrir el devengo |
+| **¿Los FTD?** | **No la llevan**: se **rechaza** declararla sobre un `BECA → BECA` | *Exigirla también* — una línea FTD no devenga por venta, y la columna mentiría |
+| **¿Lo ya registrado?** | **Cero**, y se configura a mano: porcentaje cero, y **fijo cero en un gratuito**, que no admite porcentaje | *Copiar la tasa de rol de `AGENTE`* — descartado por el responsable del proyecto |
+| **¿Quién la ve?** | **Solo quien tenga `products:read`**: el alta, el detalle, la edición y el listado administrativo | *La oferta y el hotlink* — es un dato de nómina, no de venta, como el precio de compra |
+
+**Se corrige y no se vacía**, como el precio del sistema: su ausencia no es un estado legítimo de un producto que se vende. Corregirla **no reescribe lo devengado** —la comisión copia lo que aplicó (`RN-CM-008`)— y **se revalida en toda edición del producto**, contra el precio y la moneda que quedan: al revés que el tope de `RN-CM-019`, que vive en otro módulo y no se entera, aquí la directa y el precio están en la misma fila, y bajar el precio por debajo de una directa fija se rechaza **entero**, como todo rechazo de `RF-PM-004`. Lo que la directa sume con los overrides de los superiores lo acota el devengo (`RN-CM-026`).
+
+**El tipo y las dos membresías no se corrigen** (`RN-PM-001`), de modo que un producto **no puede dejar de ser FTD ni pasar a serlo**: la exención se decide una vez, al registrarlo.
+
 ### 5.3 Reglas de otros documentos que este módulo aplica
 
 No se copian: se referencian, porque dos copias de una regla acaban divergiendo.
@@ -814,7 +832,7 @@ El alta crea la tabla y el catálogo, y sin catálogo no hay nada que consultar.
 | Actor | Administrador |
 | Permiso requerido | `products:create` |
 | Prioridad | **Crítica** |
-| Reglas aplicables | `RN-PM-001` a `RN-PM-008`, `RN-PM-012`, `RN-PM-013`, `RN-PM-016`, `RN-PM-019`, `RN-PM-020`, `RN-PM-023`, `RN-PM-032`, `RN-PM-034`, `RN-PM-048`, `RN-PM-049` |
+| Reglas aplicables | `RN-PM-001` a `RN-PM-008`, `RN-PM-012`, `RN-PM-013`, `RN-PM-016`, `RN-PM-019`, `RN-PM-020`, `RN-PM-023`, `RN-PM-032`, `RN-PM-034`, `RN-PM-048`, `RN-PM-049`, `RN-PM-051` |
 | Depende de | — |
 | Tripleta | `docs/specs/pm/001-registrar-producto/` |
 | Estado | **Tasks aprobadas** (26-08-2026) |
@@ -828,6 +846,8 @@ Registra un producto declarando su **tipo**, su nombre, su precio y su moneda; s
 **Desde el 14-09-2026 admite también el enlace de un video** (`RN-PM-032`), **opcional y en los dos tipos**, validado **solo en su forma**: URL absoluta `http` o `https`, sin espacios, hasta 500 caracteres. El sistema no sigue el enlace (§5.2.8). **Desde el 22-09-2026 ese video entra dentro de `links`** (`RN-PM-048`), la colección de enlaces del producto: cada uno declara su **tipo** —`VIDEO_PRESENTACION` o `CUPON_BOT`—, su **dirección** y un **identificador externo** opcional. La colección es opcional y puede venir vacía; **un tipo repetido y uno desconocido se rechazan**, y también un identificador sobre una dirección que lleve `?` o `#` (`RN-PM-049`). El alta devuelve los enlaces **como se guardaron**, crudos y con su identificador, porque quien registra tiene `products:read` — y devuelve **una colección vacía** cuando no se declaró ninguno, no un nulo: donde el precio de compra usa el nulo para decir «no se conoce», aquí no hay nada que no conocer (§5.2.14).
 
 **Y desde ese mismo día el icono es obligatorio en un upgrade** (`RN-PM-034`): la portada llega después del alta, de modo que en el alta el icono es lo único que puede pintar el producto, y un upgrade sin él se rechaza. En el bot sigue prohibido (`RN-PM-016`). **La portada no entra por aquí**: el alta sigue siendo JSON, y la imagen se sube después con `RF-PM-014`; la respuesta trae `coverImageUrl` **presente y nulo**, que es lo único que puede traer un producto recién registrado (§5.2.9).
+
+**Y desde el 29-09-2026 declara la comisión por venta directa** (`RN-PM-051`, §5.2.16), **obligatoria salvo en un FTD**, donde se rechaza: `directCommission`, con `type` —`PORCENTAJE` o `FIJO`— y el campo que le corresponda. Como el alcance, no tiene valor por omisión: omitirla dejaría sin decidir cuánto gana un superior que vende. El alta la devuelve, y en un FTD la devuelve **presente y nula**.
 
 #### `RF-PM-002` — Consultar productos
 
@@ -885,12 +905,12 @@ Devuelve además **el alcance y la implementación** (`RN-PM-019`, `RN-PM-020`):
 | Actor | Administrador |
 | Permiso requerido | `products:update` |
 | Prioridad | Alta |
-| Reglas aplicables | `RN-PM-001`, `RN-PM-005` a `RN-PM-008`, `RN-PM-016`, `RN-PM-019`, `RN-PM-020`, `RN-PM-023`, `RN-PM-032`, `RN-PM-034`, `RN-PM-048`, `RN-PM-049` |
+| Reglas aplicables | `RN-PM-001`, `RN-PM-005` a `RN-PM-008`, `RN-PM-016`, `RN-PM-019`, `RN-PM-020`, `RN-PM-023`, `RN-PM-032`, `RN-PM-034`, `RN-PM-048`, `RN-PM-049`, `RN-PM-051` |
 | Depende de | `RF-PM-001` |
 | Tripleta | `docs/specs/pm/004-editar-producto/` |
 | Estado | **Tasks aprobadas** (26-08-2026) |
 
-Permite corregir **nombre, descripción, icono, los enlaces, los dos precios, moneda, vigencia, alcance e implementación**. **No permite cambiar el tipo** (`RN-PM-001`) **ni ninguna de las dos membresías**: las tres definen qué derecho otorga el producto, y cambiarlas convierte lo comprado en otra cosa. Quien necesite otro origen u otro destino registra otro producto y retira el anterior.
+Permite corregir **nombre, descripción, icono, los enlaces, los dos precios, moneda, vigencia, alcance, implementación y —desde el 29-09-2026— la comisión por venta directa** (`RN-PM-051`), que se corrige y no se vacía, y que **se revalida en toda edición** contra el precio y la moneda que quedan: bajar el precio por debajo de una directa fija se rechaza entero. **No permite cambiar el tipo** (`RN-PM-001`) **ni ninguna de las dos membresías**: las tres definen qué derecho otorga el producto, y cambiarlas convierte lo comprado en otra cosa. Quien necesite otro origen u otro destino registra otro producto y retira el anterior.
 
 **El alcance y la implementación entran del lado corregible** (07-09-2026), y esa es la línea que las separa de los tres inmutables: ninguna cambia **qué derecho otorga** el producto —una dice hasta dónde se muestra y la otra quién lo aplica—, de modo que corregirlas no reescribe lo que compró quien lo compró. Congelarlas habría obligado a registrar un producto nuevo para mover un enlace de sitio, y a retirar el viejo con lo vendido colgando de él.
 
@@ -1430,6 +1450,9 @@ Ninguna otra. `memberships`, `currencies` y —desde el 14-09-2026— `users` se
 | `source_membership_id` | `uuid` | No | Sí | Sí | — | `memberships` |
 | `price` | `numeric(14,4)` | No | No | No | — | — |
 | `purchase_price` | `numeric(14,4)` | No | No | **Sí** | — | — |
+| `direct_commission_type` | `varchar(20)` | No | No | **Sí** | — | — |
+| `direct_commission_percentage` | `numeric(5,2)` | No | No | **Sí** | — | — |
+| `direct_commission_fixed_amount` | `numeric(14,4)` | No | No | **Sí** | — | — |
 | `cover_image_id` | `uuid` | No | Sí | Sí | — | `product_images` |
 | `currency_id` | `uuid` | No | Sí | No | — | `currencies` |
 | `status` | `varchar(20)` | No | No | No | `ACTIVO` | — |
@@ -1495,6 +1518,8 @@ Sin columnas de actor, y **sin columna de motivo**: quién retiró el producto y
 | ~~`ck_products_price_positive`~~ → `ck_products_price_no_negativo` | `price >= 0`. **Cambia de umbral Y de nombre el 08-09-2026 en `V67`**: la restricción dejó de decir «positivo», y dejarle el nombre viejo habría hecho que quien lo leyera creyera que el cero sigue prohibido. Su relajación es lo que obliga a `ProductCommissionCapGuard` a dejar de dividir a ciegas (§5.2.4) | `RN-PM-006` |
 | ~~`ck_products_public_price_no_negativo`~~ → `ck_products_purchase_price_no_negativo` | `purchase_price IS NULL OR purchase_price >= 0`. **Se renombra con la columna el 12-09-2026** (§5.2.6), por lo mismo que `ck_products_price_no_negativo` se renombró con su umbral: un nombre que dice «público» sobre un costo miente. La rama `IS NULL` va **delante y explícita**, por lo mismo que en la vigencia y el icono: un `CHECK` que evalúa a `NULL` **acepta** la fila, y el permiso debe ser deliberado y no accidental | `RN-PM-006`, `RN-PM-023` |
 | `ck_products_validity_positive` | `validity_days IS NULL OR validity_days > 0` | `RN-PM-015`. La rama `IS NULL` se escribe **explícita** aunque `validity_days > 0` sola también admitiría el nulo —un `CHECK` que evalúa a `NULL` acepta la fila—: así el permiso es deliberado y no accidental, y el día que la vigencia se vuelva obligatoria basta con quitar esa rama |
+| `ck_products_direct_commission_forma` | Las tres columnas nulas, **o** `direct_commission_type = 'PORCENTAJE'` con solo el porcentaje, **o** `'FIJO'` con solo el importe | `RN-PM-051`, `RN-CM-016` (29-09-2026, `V55`). **Las tres nulas es el FTD**: que un producto que no es FTD las tenga nulas lo impide el caso de uso, porque saber si es FTD exige leer `memberships` |
+| `ck_products_direct_commission_rangos` | `direct_commission_percentage IS NULL OR direct_commission_percentage BETWEEN 0 AND 100`, y `direct_commission_fixed_amount IS NULL OR direct_commission_fixed_amount >= 0` | `RN-PM-051`, `RN-CM-007`. El tope contra el precio no va aquí aunque sea de la misma fila: sobre precio cero no hay tope, y la regla se lee mejor entera en un solo sitio |
 | `fk_products_target_membership` | `target_membership_id` → `memberships(id)` | `RN-PM-003` |
 | `fk_products_source_membership` | `source_membership_id` → `memberships(id)` | `RN-PM-003` |
 | ~~`ck_products_origen_distinto`~~ | ~~`source_membership_id IS NULL OR source_membership_id <> target_membership_id`~~ | **Retirada el 07-09-2026 en `V61`**: prohibía exactamente lo que la **renovación** admite (§5.2.3). Con ella cae **la única mitad de `RN-PM-017` que el esquema sostenía** — la que sobrevive necesita el `level` de dos filas de `memberships`, y un `CHECK` no consulta otra tabla, de modo que la regla vive ahora **entera en el caso de uso** |
@@ -1760,3 +1785,5 @@ Se declaran en la base de datos, no solo en Java (Art. V.6).
 | 0.44.0 | 28-09-2026 | **`MANUAL` deja de significar «espera a que un funcionario lo autorice» y pasa a significar «espera a que quien lo compró lo active»** (`RN-PM-020`), enmienda que llega de `MV` ([`requirements/mv.md`](mv.md) v0.48.0, `RN-MV-048`) por decisión del responsable del proyecto. El catálogo no cambia: el producto sigue declarando `AUTOMATICA` o `MANUAL`, y lo que cambia es quién pide la entrega. | Responsable del proyecto |
 | 0.45.0 | 28-09-2026 | **Nace el tercer tipo de enlace, `DESCARGA`** (§5.2.15), por decisión del responsable del proyecto —«agrega otro tipo de enlace a los productos, descarga»—: dónde descarga quien compró lo que compró. **Es entrega y no material de venta**, como el cupón: `RN-PM-048` pasa de dos tipos a tres y `RN-PM-050` lo nombra junto al cupón; ninguna lectura de este módulo cambia de sentencia, porque la oferta y los hotlinks ya piden solo los tipos de venta. **`V52`** amplía `ck_product_links_type`. Y `PM` publica una lectura más hacia `MV`: los enlaces de un lote, **todos los tipos y resueltos**, que sustituye a la de solo el cupón — `RF-MV-014` los pone dentro del producto de la línea entregada ([`requirements/mv.md`](mv.md) v0.50.0). Enmienda `RF-PM-001` (`T-46`) | Responsable del proyecto |
 | 0.46.0 | 28-09-2026 | **Los enlaces de entrega se ven desde que se pagó, no desde que se entregó** (`RN-MV-032`, [`requirements/mv.md`](mv.md) v0.51.0), por decisión del responsable del proyecto. `RN-PM-050` no cambia en lo que es de este módulo —el cupón y la descarga siguen fuera de la oferta y de los hotlinks—; cambia la frontera que aplica `MV`. **`V53`** reescribe el comentario de `product_links.type`, que `V52` escribió con la frontera anterior | Responsable del proyecto |
+| 0.47.0 | 29-09-2026 | **Todo producto declara su comisión por venta directa** (§5.2.16, `RN-PM-051`), por decisión del responsable del proyecto: lo que cobra en su venta propia quien no es el último eslabón de la fuerza comercial, en lugar de su tasa de rol ([`requirements/cm.md`](cm.md) v0.24.0, `RN-CM-045`). **Vive aquí y no en `CM`** porque es **obligatoria al registrar**, y exigirla desde `CM` cerraría un ciclo. Forma de tasa —porcentaje o fijo—, de cero a cien o no negativo y no por encima del precio, solo fijo sobre precio cero; **prohibida en los FTD**; se corrige y no se vacía, y se revalida en toda edición. **Tres columnas nuevas en `products`** (§10.1) y dos restricciones; `V55` pone **cero** a todo lo ya registrado que no es FTD —fijo en los gratuitos—. Enmienda `RF-PM-001`, `RF-PM-003` y `RF-PM-004`, y el listado administrativo de `RF-PM-002`; **la oferta y el hotlink no la publican** | Responsable del proyecto |
+| 0.48.0 | 29-09-2026 | **La comisión por venta directa está construida** (`RN-PM-051`): `V55`, el alta y la edición que la exigen y la revalidan, y el listado y el detalle que la devuelven (`CA-PM-402` a `CA-PM-416`). **Una precisión al construir**: lo ya registrado que es **gratuito** recibe **fijo cero** y no porcentaje cero, porque un porcentaje sobre precio cero es justo lo que la regla rechaza, y cualquier edición posterior de ese producto habría fallado. §5.2.16 lo recoge. | Responsable del proyecto |

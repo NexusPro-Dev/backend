@@ -3,6 +3,7 @@ package com.factech.nexus.modules.products.domain.service;
 import com.factech.nexus.modules.products.application.ProductDetailResponse;
 import com.factech.nexus.modules.products.application.ProductPrice;
 import com.factech.nexus.modules.products.application.UpdateProductRequest;
+import com.factech.nexus.modules.products.domain.models.DirectCommission;
 import com.factech.nexus.modules.products.domain.models.Product;
 import com.factech.nexus.modules.products.domain.models.ProductLink;
 import com.factech.nexus.modules.products.domain.repository.ProductLinkRepository;
@@ -145,6 +146,7 @@ public class UpdateProductService {
             peticion.validityDays(),
             peticion.scope(),
             peticion.implementation(),
+            directaPedida(peticion),
             ahora);
 
     corregirEnlaces(peticion, producto.getId(), ahora, cambios);
@@ -452,7 +454,8 @@ public class UpdateProductService {
     // El de compra entra en el disparador aunque llegue NULO, porque vaciarlo
     // también cambia lo que va a quedar — deja de haber un importe que medir.
     boolean tocaCompra = peticion.purchasePrice().presente();
-    if (!cambiaMoneda && !cambiaPrecio && !tocaCompra) {
+    boolean tocaDirecta = peticion.directCommission().presente();
+    if (!cambiaMoneda && !cambiaPrecio && !tocaCompra && !tocaDirecta) {
       return;
     }
 
@@ -490,6 +493,34 @@ public class UpdateProductService {
 
     verificarDecimales(precioFinal, "price", moneda);
     verificarDecimales(compraFinal, "purchasePrice", moneda);
+
+    // `RN-PM-051`: la directa QUE QUEDA, contra el precio y la moneda que
+    // quedan — también cuando la directa no viaja: bajar el precio por debajo
+    // de una directa fija se rechaza entero (`CA-PM-414`). Que el producto es
+    // FTD no se relee: el tipo y las membresías no se corrigen (`RN-PM-001`),
+    // de modo que basta con que la guardada sea nula (`plan.md` §12).
+    if (tocaDirecta && peticion.directCommission().valor() == null) {
+      String mensaje = "La comisión por venta directa no puede quedar vacía.";
+      throw new ValidationException(
+          "VAL-019", mensaje, List.of(new FieldError("directCommission", "VAL-019", mensaje)));
+    }
+    DirectCommission guardada = producto.getDirectCommission();
+    DirectCommission directaFinal =
+        tocaDirecta ? peticion.directCommission().valor().toDomain() : guardada;
+    DirectCommissionRules.verificar(
+        directaFinal,
+        guardada == null,
+        precioFinal,
+        moneda.decimalPlaces(),
+        DirectCommissionRules.EDICION);
+  }
+
+  /** La directa pedida como valor del dominio, conservando si viajó o no. */
+  private static Patchable<DirectCommission> directaPedida(UpdateProductRequest peticion) {
+    if (!peticion.directCommission().presente() || peticion.directCommission().valor() == null) {
+      return Patchable.ausente();
+    }
+    return Patchable.de(peticion.directCommission().valor().toDomain());
   }
 
   /**

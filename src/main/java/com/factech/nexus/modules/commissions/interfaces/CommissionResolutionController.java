@@ -60,7 +60,9 @@ public class CommissionResolutionController {
 
           **Tres desenlaces, y ninguno es un error:**
 
-          - `RESUELTA`: hay tasa. `source` dice si fue `PERSONALIZADA` o `ROL`. El
+          - `RESUELTA`: hay tasa. `source` dice si fue `PERSONALIZADA` o `ROL` —el esquema
+            lista también `DIRECTA`, que esta consulta **no devuelve nunca**: la aplica el
+            devengo a la venta propia de quien no es el último eslabón (`RN-CM-045`)—. El
             porcentaje puede ser **cero**, y eso significa «no comisiona» — es una
             decisión declarada.
           - `SIN_TARIFA`: la persona vende y **no hay tasa aplicable**. La causa más

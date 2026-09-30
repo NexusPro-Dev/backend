@@ -61,6 +61,9 @@ class ProductDetailIT extends IntegrationTestBase {
   void sembrarCatalogo() {
     ProductLinkTestSupport.limpiar(jdbc);
     jdbc.update("DELETE FROM products");
+    // Antes que las membresías: `user_products` las referencia, y la suite
+    // solo pasaba cuando otra la había vaciado antes (como en `ProductsIT`).
+    jdbc.update("DELETE FROM user_products");
     jdbc.update("DELETE FROM memberships");
     jdbc.update("DELETE FROM currencies WHERE is_default = false");
     oro = membresia("ORO", "Oro", 1);
@@ -299,6 +302,30 @@ class ProductDetailIT extends IntegrationTestBase {
   }
 
   /** Las sentencias preparadas que cuesta una petición, medidas por Hibernate. */
+  @Test
+  @DisplayName("`CA-PM-411` — el detalle trae la directa, también retirado, y nula si no hay")
+  void elDetalleTraeLaDirecta() throws Exception {
+    jdbc.update(
+        "UPDATE products SET direct_commission_type = 'FIJO',"
+            + " direct_commission_fixed_amount = 3 WHERE id = CAST(? AS uuid)",
+        bot.toString());
+
+    mvc.perform(detalle(bot))
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$.directCommission.type").value("FIJO"))
+        .andExpect(jsonPath("$.directCommission.fixedAmount").value(3));
+
+    retirar(bot, "Se deja de vender.");
+    mvc.perform(detalle(bot))
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$.directCommission.type").value("FIJO"));
+
+    mvc.perform(detalle(upgrade))
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$").value(org.hamcrest.Matchers.hasKey("directCommission")))
+        .andExpect(jsonPath("$.directCommission").doesNotExist());
+  }
+
   private long sentenciasDe(MockHttpServletRequestBuilder peticion) throws Exception {
     Statistics estadisticas = emf.unwrap(org.hibernate.SessionFactory.class).getStatistics();
     estadisticas.clear();

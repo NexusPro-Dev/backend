@@ -184,6 +184,19 @@ public class ProductController {
           con los decimales que declare su moneda. El rechazo **nombra el
           campo** que incumple.
 
+          **`directCommission` es obligatoria, salvo en un FTD** (`RN-PM-051`,
+          29-09-2026): lo que cobra en su venta propia quien **no es el último
+          eslabón** de la fuerza comercial —hoy un `DIRECTOR` o un `MANAGER`—,
+          en lugar de su tasa de rol. Un objeto con `type` —`PORCENTAJE` o
+          `FIJO`— y **solo** el campo que le toca (`percentage` o
+          `fixedAmount`). El porcentaje va de 0 a 100; el fijo no es negativo,
+          cabe en los decimales de la moneda y **no pasa del precio**; sobre un
+          producto de precio cero **solo se admite fija**. Sin ella, `VAL-024`;
+          con la forma equivocada, `VAL-025`; fuera de rango, `VAL-026`; por
+          encima del precio o de porcentaje sobre un gratuito, `VAL-027`. **Un
+          FTD —un upgrade de `BECA` a `BECA`— no la lleva**: declararla es
+          `VAL-028`, y la respuesta la devuelve **presente y nula**.
+
           **Los dos solo se ven desde administración** (`RN-PM-024`): la oferta
           de un cliente y el hotlink público devuelven **uno**.
           """)
@@ -234,6 +247,10 @@ public class ProductController {
           conoce. Este listado y el detalle son **los dos únicos sitios** donde
           se ven juntos: la oferta y el hotlink no devuelven el de compra
           (`RN-PM-024`, 12-09-2026).
+
+          Cada fila trae **`directCommission`**, la comisión por venta directa
+          (`RN-PM-051`), **presente y nula** en un FTD. Es un dato de nómina:
+          como el precio de compra, la oferta y el hotlink no la devuelven.
 
           Y trae **`exchange`**, la conversión a la moneda por omisión con la
           tasa vigente hoy, calculada **sobre `price`** —el de compra nunca se
@@ -497,6 +514,10 @@ public class ProductController {
           compra solo se ve aquí y en el listado: la oferta y el hotlink no lo
           devuelven.
 
+          Trae **`directCommission`**, la comisión por venta directa
+          (`RN-PM-051`) —también en un producto retirado—, **presente y nula**
+          en un FTD.
+
           Trae **`links`**, los enlaces del producto **tal cual se guardaron** y
           **presente y vacía** cuando no tiene ninguno (`RN-PM-048`) — también en
           un producto retirado. Como el listado, **los enseña todos**,
@@ -585,6 +606,14 @@ public class ProductController {
           van con el nombre y no con la descripción: son obligatorios en la
           columna, de modo que «bórralo» no tiene ningún estado al que llevar el
           producto. Devuelven `400` con `VAL-007` y `VAL-008`.
+
+          **`directCommission` se corrige ENTERA y no se vacía** (`RN-PM-051`):
+          el nulo explícito es `VAL-019`, y la forma o el rango equivocados
+          `VAL-020`. **Se revalida en toda edición aunque no viaje**, contra el
+          precio y la moneda que quedan: bajar el precio por debajo de una
+          directa fija, o a cero con una de porcentaje, es `VAL-021`, y cambiar
+          a una moneda en cuyos decimales no cabe, `VAL-020`. En un FTD
+          declararla es `VAL-022`.
 
           **El alcance y la implementación SÍ se corrigen, aunque el tipo y las
           membresías no**: ninguna de las dos define qué derecho otorga el

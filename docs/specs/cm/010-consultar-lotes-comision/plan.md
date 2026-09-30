@@ -5,12 +5,13 @@
 | Requerimiento | `RF-CM-010` |
 | Especificación | [`spec.md`](spec.md) v0.1.0 |
 | `spec.md` aprobada el | 28-09-2026 |
-| Versión | 0.2.0 |
+| Versión | 0.3.0 |
 | Estado | **Aprobado** |
 | Autor | Responsable técnico |
 | Aprobado por | Responsable del proyecto |
 | Fecha de aprobación | 28-09-2026 |
 | Enmendado el | 29-09-2026 — `commissionKind` y la forma de la fila afftrack (§12) |
+| Enmendado el | 29-09-2026 — `source = DIRECTA` (§13) |
 
 !!! info "Qué va en este documento"
 
@@ -114,3 +115,7 @@ Ninguna: son lecturas.
 ## 12. La clase de cada comisión — enmienda del 29-09-2026
 
 `RN-CM-044`. **La sentencia del detalle pasa de unir la línea a unirla por `LEFT JOIN`**, y gana un `LEFT JOIN` a `afftrack_settlements` para el producto de las filas afftrack —`COALESCE` del producto de la línea y del de la liquidación—. `CommissionLineResponse` gana `commissionKind` y `afftrackSettlementId`; **`movementId`, `movementCode`, `detailId`, `chainLevel` y `unitPrice` pasan a nulables** en el contrato, y se dice en la prosa de la `@Operation`: es un cambio de forma que el frontend tiene que leer. `quantity`, `rateType` y `fixedAmount` significan en la fila afftrack los FTD pagados, `FIJO` y el valor por FTD. **`RF-CM-012` hereda el cambio**, porque devuelve las mismas formas. `CommissionBatchesIT` gana `CA-CM-262`.
+
+## 13. La fuente `DIRECTA` — enmienda del 29-09-2026
+
+`RN-CM-045`. **Ninguna sentencia cambia**: `CommissionBatchDetailResponse.source` es texto y lee la columna tal cual. Cambia **la prosa de la `@Operation`**, que enumera las fuentes y gana la tercera, con lo que significa `rateId` en ella —el producto—. `CommissionBatchesIT` gana `CA-CM-271`.

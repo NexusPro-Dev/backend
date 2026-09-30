@@ -8,6 +8,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 import com.factech.nexus.IntegrationTestBase;
+import java.util.List;
 import java.util.UUID;
 import org.hamcrest.Matchers;
 import org.junit.jupiter.api.AfterEach;
@@ -65,7 +66,7 @@ class ProductsIT extends IntegrationTestBase {
     mvc.perform(
             alta(
                 """
-                {"scope":"TIENDA","implementation":"AUTOMATICA","code":"UPGRADE_ORO","type":"UPGRADE_MEMBRESIA","icon":"crown","name":"Ascenso a Oro",
+                {"scope":"TIENDA","implementation":"AUTOMATICA","directCommission":{"type":"PORCENTAJE","percentage":0},"code":"UPGRADE_ORO","type":"UPGRADE_MEMBRESIA","icon":"crown","name":"Ascenso a Oro",
                  "description":"Acceso al nivel oro.","sourceMembershipId":"%s",
                  "targetMembershipId":"%s","price":49.99,"currencyId":"%s",
                  "validityDays":30}
@@ -89,7 +90,7 @@ class ProductsIT extends IntegrationTestBase {
     mvc.perform(
             alta(
                 """
-                {"scope":"TIENDA","implementation":"AUTOMATICA","code":"ASESORIA","type":"BOT","name":"Asesoría",
+                {"scope":"TIENDA","implementation":"AUTOMATICA","directCommission":{"type":"PORCENTAJE","percentage":0},"code":"ASESORIA","type":"BOT","name":"Asesoría",
                  "price":10.00,"currencyId":"%s"}
                 """
                     .formatted(USD)))
@@ -106,7 +107,7 @@ class ProductsIT extends IntegrationTestBase {
     mvc.perform(
             alta(
                 """
-                {"scope":"TIENDA","implementation":"AUTOMATICA","code":"UPGRADE_ORO","type":"UPGRADE_MEMBRESIA","name":"Ascenso a Oro",
+                {"scope":"TIENDA","implementation":"AUTOMATICA","directCommission":{"type":"PORCENTAJE","percentage":0},"code":"UPGRADE_ORO","type":"UPGRADE_MEMBRESIA","name":"Ascenso a Oro",
                  "icon":"  CROWN  ","sourceMembershipId":"%s","targetMembershipId":"%s",
                  "price":49.99,"currencyId":"%s"}
                 """
@@ -121,7 +122,7 @@ class ProductsIT extends IntegrationTestBase {
     mvc.perform(
             alta(
                 """
-                {"scope":"TIENDA","implementation":"AUTOMATICA","code":"ASESORIA","type":"BOT","name":"Asesoría","icon":"crown",
+                {"scope":"TIENDA","implementation":"AUTOMATICA","directCommission":{"type":"PORCENTAJE","percentage":0},"code":"ASESORIA","type":"BOT","name":"Asesoría","icon":"crown",
                  "price":10.00,"currencyId":"%s"}
                 """
                     .formatted(USD)))
@@ -138,7 +139,7 @@ class ProductsIT extends IntegrationTestBase {
       mvc.perform(
               alta(
                   """
-                  {"scope":"%s","implementation":"AUTOMATICA","code":"BOT_%d","type":"BOT","name":"Bot %d",
+                  {"scope":"%s","implementation":"AUTOMATICA","directCommission":{"type":"PORCENTAJE","percentage":0},"code":"BOT_%d","type":"BOT","name":"Bot %d",
                    "price":9.99,"currencyId":"%s"}
                   """
                       .formatted(alcances[i], i, i, USD)))
@@ -148,7 +149,7 @@ class ProductsIT extends IntegrationTestBase {
     mvc.perform(
             alta(
                 """
-                {"scope":"HOTLINKS","implementation":"AUTOMATICA","code":"BOT_X","type":"BOT","name":"Bot X",
+                {"scope":"HOTLINKS","implementation":"AUTOMATICA","directCommission":{"type":"PORCENTAJE","percentage":0},"code":"BOT_X","type":"BOT","name":"Bot X",
                  "price":9.99,"currencyId":"%s"}
                 """
                     .formatted(USD)))
@@ -169,7 +170,7 @@ class ProductsIT extends IntegrationTestBase {
       mvc.perform(
               alta(
                   """
-                  {"scope":"TIENDA","implementation":"AUTOMATICA","code":"UPGRADE_ORO","type":"UPGRADE_MEMBRESIA","name":"Ascenso a Oro",
+                  {"scope":"TIENDA","implementation":"AUTOMATICA","directCommission":{"type":"PORCENTAJE","percentage":0},"code":"UPGRADE_ORO","type":"UPGRADE_MEMBRESIA","name":"Ascenso a Oro",
                    "sourceMembershipId":"%s","targetMembershipId":"%s","price":49.99,
                    "currencyId":"%s"%s}
                   """
@@ -192,7 +193,7 @@ class ProductsIT extends IntegrationTestBase {
         mvc.perform(
                 alta(
                     """
-                    {"scope":"TIENDA","implementation":"AUTOMATICA","code":"ASESORIA","type":"BOT","name":"Asesoría",
+                    {"scope":"TIENDA","implementation":"AUTOMATICA","directCommission":{"type":"PORCENTAJE","percentage":0},"code":"ASESORIA","type":"BOT","name":"Asesoría",
                      "price":49.99,"currencyId":"%s"}
                     """
                         .formatted(USD)))
@@ -219,7 +220,7 @@ class ProductsIT extends IntegrationTestBase {
     mvc.perform(
             alta(
                 """
-                {"scope":"TIENDA","implementation":"AUTOMATICA","code":"UPGRADE_ORO","type":"UPGRADE_MEMBRESIA","name":"Ascenso a Oro",
+                {"scope":"TIENDA","implementation":"AUTOMATICA","directCommission":{"type":"PORCENTAJE","percentage":0},"code":"UPGRADE_ORO","type":"UPGRADE_MEMBRESIA","name":"Ascenso a Oro",
                  "icon":"Crown Oro","sourceMembershipId":"%s","targetMembershipId":"%s",
                  "price":49.99,"currencyId":"%s"}
                 """
@@ -234,7 +235,7 @@ class ProductsIT extends IntegrationTestBase {
     mvc.perform(
             alta(
                 """
-                {"scope":"TIENDA","implementation":"AUTOMATICA","code":"ASESORIA","type":"BOT","name":"Asesoría","price":10.00,
+                {"scope":"TIENDA","implementation":"AUTOMATICA","directCommission":{"type":"PORCENTAJE","percentage":0},"code":"ASESORIA","type":"BOT","name":"Asesoría","price":10.00,
                  "currencyId":"%s"}
                 """
                     .formatted(USD)))
@@ -246,7 +247,7 @@ class ProductsIT extends IntegrationTestBase {
     mvc.perform(
             alta(
                 """
-                {"scope":"TIENDA","implementation":"AUTOMATICA","code":"OTRO","type":"BOT","name":"Otro","price":10.00,
+                {"scope":"TIENDA","implementation":"AUTOMATICA","directCommission":{"type":"PORCENTAJE","percentage":0},"code":"OTRO","type":"BOT","name":"Otro","price":10.00,
                  "currencyId":"%s","status":"ACTIVO"}
                 """
                     .formatted(USD)))
@@ -259,7 +260,7 @@ class ProductsIT extends IntegrationTestBase {
     mvc.perform(
             alta(
                 """
-                {"scope":"TIENDA","implementation":"AUTOMATICA","code":"UPGRADE_ORO","type":"UPGRADE_MEMBRESIA","icon":"crown","name":"Ascenso",
+                {"scope":"TIENDA","implementation":"AUTOMATICA","directCommission":{"type":"PORCENTAJE","percentage":0},"code":"UPGRADE_ORO","type":"UPGRADE_MEMBRESIA","icon":"crown","name":"Ascenso",
                  "price":49.99,"currencyId":"%s"}
                 """
                     .formatted(USD)))
@@ -270,7 +271,7 @@ class ProductsIT extends IntegrationTestBase {
     mvc.perform(
             alta(
                 """
-                {"scope":"TIENDA","implementation":"AUTOMATICA","code":"ASESORIA","type":"BOT","name":"Asesoría","targetMembershipId":"%s",
+                {"scope":"TIENDA","implementation":"AUTOMATICA","directCommission":{"type":"PORCENTAJE","percentage":0},"code":"ASESORIA","type":"BOT","name":"Asesoría","targetMembershipId":"%s",
                  "price":10.00,"currencyId":"%s"}
                 """
                     .formatted(oro, USD)))
@@ -284,7 +285,7 @@ class ProductsIT extends IntegrationTestBase {
     mvc.perform(
             alta(
                 """
-                {"scope":"TIENDA","implementation":"AUTOMATICA","code":"ASESORIA","type":"BOT","name":"Asesoría","sourceMembershipId":"%s",
+                {"scope":"TIENDA","implementation":"AUTOMATICA","directCommission":{"type":"PORCENTAJE","percentage":0},"code":"ASESORIA","type":"BOT","name":"Asesoría","sourceMembershipId":"%s",
                  "price":10.00,"currencyId":"%s"}
                 """
                     .formatted(free, USD)))
@@ -305,7 +306,7 @@ class ProductsIT extends IntegrationTestBase {
     mvc.perform(
             alta(
                 """
-                {"scope":"TIENDA","implementation":"AUTOMATICA","code":"SALTO_ORO","type":"UPGRADE_MEMBRESIA","icon":"crown","name":"De Free a Oro",
+                {"scope":"TIENDA","implementation":"AUTOMATICA","directCommission":{"type":"PORCENTAJE","percentage":0},"code":"SALTO_ORO","type":"UPGRADE_MEMBRESIA","icon":"crown","name":"De Free a Oro",
                  "sourceMembershipId":"%s","targetMembershipId":"%s","price":99.99,
                  "currencyId":"%s"}
                 """
@@ -321,7 +322,7 @@ class ProductsIT extends IntegrationTestBase {
     mvc.perform(
             alta(
                 """
-                {"scope":"TIENDA","implementation":"AUTOMATICA","code":"SIN_ORIGEN","type":"UPGRADE_MEMBRESIA","icon":"crown","name":"Sin origen",
+                {"scope":"TIENDA","implementation":"AUTOMATICA","directCommission":{"type":"PORCENTAJE","percentage":0},"code":"SIN_ORIGEN","type":"UPGRADE_MEMBRESIA","icon":"crown","name":"Sin origen",
                  "targetMembershipId":"%s","price":49.99,"currencyId":"%s"}
                 """
                     .formatted(oro, USD)))
@@ -332,7 +333,7 @@ class ProductsIT extends IntegrationTestBase {
     mvc.perform(
             alta(
                 """
-                {"scope":"TIENDA","implementation":"AUTOMATICA","code":"SIN_DESTINO","type":"UPGRADE_MEMBRESIA","icon":"crown","name":"Sin destino",
+                {"scope":"TIENDA","implementation":"AUTOMATICA","directCommission":{"type":"PORCENTAJE","percentage":0},"code":"SIN_DESTINO","type":"UPGRADE_MEMBRESIA","icon":"crown","name":"Sin destino",
                  "sourceMembershipId":"%s","price":49.99,"currencyId":"%s"}
                 """
                     .formatted(free, USD)))
@@ -356,7 +357,7 @@ class ProductsIT extends IntegrationTestBase {
     mvc.perform(
             alta(
                 """
-                {"scope":"TIENDA","implementation":"AUTOMATICA","code":"DESCENSO","type":"UPGRADE_MEMBRESIA","icon":"crown","name":"Bajada disfrazada",
+                {"scope":"TIENDA","implementation":"AUTOMATICA","directCommission":{"type":"PORCENTAJE","percentage":0},"code":"DESCENSO","type":"UPGRADE_MEMBRESIA","icon":"crown","name":"Bajada disfrazada",
                  "sourceMembershipId":"%s","targetMembershipId":"%s","price":49.99,
                  "currencyId":"%s"}
                 """
@@ -377,7 +378,7 @@ class ProductsIT extends IntegrationTestBase {
     mvc.perform(
             alta(
                 """
-                {"scope":"TIENDA","implementation":"AUTOMATICA","code":"RENOVAR_ORO","type":"UPGRADE_MEMBRESIA","icon":"crown","name":"Renovar Oro",
+                {"scope":"TIENDA","implementation":"AUTOMATICA","directCommission":{"type":"PORCENTAJE","percentage":0},"code":"RENOVAR_ORO","type":"UPGRADE_MEMBRESIA","icon":"crown","name":"Renovar Oro",
                  "sourceMembershipId":"%s","targetMembershipId":"%s","price":49.99,
                  "currencyId":"%s","validityDays":30}
                 """
@@ -395,7 +396,7 @@ class ProductsIT extends IntegrationTestBase {
       mvc.perform(
               alta(
                   """
-                  {"scope":"TIENDA","implementation":"AUTOMATICA","code":"ASESORIA","type":"BOT","name":"Asesoría","price":%s,
+                  {"scope":"TIENDA","implementation":"AUTOMATICA","directCommission":{"type":"PORCENTAJE","percentage":0},"code":"ASESORIA","type":"BOT","name":"Asesoría","price":%s,
                    "currencyId":"%s"}
                   """
                       .formatted(precio, USD)))
@@ -413,7 +414,7 @@ class ProductsIT extends IntegrationTestBase {
     mvc.perform(
             alta(
                 """
-                {"scope":"TIENDA","implementation":"AUTOMATICA","code":"ASESORIA","type":"BOT","name":"Asesoría",
+                {"scope":"TIENDA","implementation":"AUTOMATICA","directCommission":{"type":"FIJO","fixedAmount":0},"code":"ASESORIA","type":"BOT","name":"Asesoría",
                  "price":0,"purchasePrice":0,"currencyId":"%s"}
                 """
                     .formatted(USD)))
@@ -428,7 +429,7 @@ class ProductsIT extends IntegrationTestBase {
     mvc.perform(
             alta(
                 """
-                {"scope":"TIENDA","implementation":"AUTOMATICA","code":"ASESORIA","type":"BOT","name":"Asesoría",
+                {"scope":"TIENDA","implementation":"AUTOMATICA","directCommission":{"type":"PORCENTAJE","percentage":0},"code":"ASESORIA","type":"BOT","name":"Asesoría",
                  "price":49.99,"purchasePrice":59.99,"currencyId":"%s"}
                 """
                     .formatted(USD)))
@@ -448,7 +449,7 @@ class ProductsIT extends IntegrationTestBase {
     mvc.perform(
             alta(
                 """
-                {"scope":"TIENDA","implementation":"AUTOMATICA","code":"ASESORIA","type":"BOT","name":"Asesoría",
+                {"scope":"TIENDA","implementation":"AUTOMATICA","directCommission":{"type":"PORCENTAJE","percentage":0},"code":"ASESORIA","type":"BOT","name":"Asesoría",
                  "price":49.99,"currencyId":"%s"}
                 """
                     .formatted(USD)))
@@ -463,7 +464,7 @@ class ProductsIT extends IntegrationTestBase {
     mvc.perform(
             alta(
                 """
-                {"scope":"TIENDA","implementation":"AUTOMATICA","code":"ASESORIA","type":"BOT","name":"Asesoría",
+                {"scope":"TIENDA","implementation":"AUTOMATICA","directCommission":{"type":"PORCENTAJE","percentage":0},"code":"ASESORIA","type":"BOT","name":"Asesoría",
                  "price":49.99,"purchasePrice":-1,"currencyId":"%s"}
                 """
                     .formatted(USD)))
@@ -481,7 +482,7 @@ class ProductsIT extends IntegrationTestBase {
     mvc.perform(
             alta(
                 """
-                {"scope":"TIENDA","implementation":"AUTOMATICA","code":"ASESORIA","type":"BOT","name":"Asesoría",
+                {"scope":"TIENDA","implementation":"AUTOMATICA","directCommission":{"type":"PORCENTAJE","percentage":0},"code":"ASESORIA","type":"BOT","name":"Asesoría",
                  "price":10.00,"purchasePrice":10.005,"currencyId":"%s"}
                 """
                     .formatted(USD)))
@@ -500,7 +501,7 @@ class ProductsIT extends IntegrationTestBase {
     mvc.perform(
             alta(
                 """
-                {"scope":"TIENDA","implementation":"AUTOMATICA","code":"ASESORIA","type":"BOT","name":"Asesoría",
+                {"scope":"TIENDA","implementation":"AUTOMATICA","directCommission":{"type":"PORCENTAJE","percentage":0},"code":"ASESORIA","type":"BOT","name":"Asesoría",
                  "price":49.99,"purchasePrice":59.99,"currencyId":"%s"}
                 """
                     .formatted(USD)))
@@ -530,7 +531,7 @@ class ProductsIT extends IntegrationTestBase {
     mvc.perform(
             alta(
                 """
-                {"scope":"TIENDA","implementation":"AUTOMATICA","code":"ASESORIA","type":"BOT","name":"Asesoría",
+                {"scope":"TIENDA","implementation":"AUTOMATICA","directCommission":{"type":"PORCENTAJE","percentage":0},"code":"ASESORIA","type":"BOT","name":"Asesoría",
                  "price":49.99,"publicPrice":59.99,"currencyId":"%s"}
                 """
                     .formatted(USD)))
@@ -549,7 +550,7 @@ class ProductsIT extends IntegrationTestBase {
     mvc.perform(
             alta(
                 """
-                {"scope":"TIENDA","implementation":"AUTOMATICA","code":"ASESORIA","type":"BOT","name":"Asesoría",
+                {"scope":"TIENDA","implementation":"AUTOMATICA","directCommission":{"type":"PORCENTAJE","percentage":0},"code":"ASESORIA","type":"BOT","name":"Asesoría",
                  "price":49.99,"currencyId":"%s",
                  "links":[{"type":"VIDEO_PRESENTACION","url":"  https://www.youtube.com/watch?v=dQw4w9WgXcQ  "}]}
                 """
@@ -582,7 +583,7 @@ class ProductsIT extends IntegrationTestBase {
     mvc.perform(
             alta(
                 """
-                {"scope":"TIENDA","implementation":"AUTOMATICA","code":"ASESORIA","type":"BOT","name":"Asesoría",
+                {"scope":"TIENDA","implementation":"AUTOMATICA","directCommission":{"type":"PORCENTAJE","percentage":0},"code":"ASESORIA","type":"BOT","name":"Asesoría",
                  "price":49.99,"currencyId":"%s"}
                 """
                     .formatted(USD)))
@@ -596,7 +597,7 @@ class ProductsIT extends IntegrationTestBase {
     mvc.perform(
             alta(
                 """
-                {"scope":"TIENDA","implementation":"AUTOMATICA","code":"ASESORIA2","type":"BOT","name":"Asesoría 2",
+                {"scope":"TIENDA","implementation":"AUTOMATICA","directCommission":{"type":"PORCENTAJE","percentage":0},"code":"ASESORIA2","type":"BOT","name":"Asesoría 2",
                  "price":49.99,"currencyId":"%s","links":[]}
                 """
                     .formatted(USD)))
@@ -627,7 +628,7 @@ class ProductsIT extends IntegrationTestBase {
       mvc.perform(
               alta(
                   """
-                  {"scope":"TIENDA","implementation":"AUTOMATICA","code":"ASESORIA","type":"BOT","name":"Asesoría",
+                  {"scope":"TIENDA","implementation":"AUTOMATICA","directCommission":{"type":"PORCENTAJE","percentage":0},"code":"ASESORIA","type":"BOT","name":"Asesoría",
                    "price":49.99,"currencyId":"%s","links":[{"type":"VIDEO_PRESENTACION","url":"%s"}]}
                   """
                       .formatted(USD, invalido)))
@@ -642,7 +643,7 @@ class ProductsIT extends IntegrationTestBase {
     mvc.perform(
             alta(
                 """
-                {"scope":"TIENDA","implementation":"AUTOMATICA","code":"ASESORIA","type":"BOT","name":"Asesoría",
+                {"scope":"TIENDA","implementation":"AUTOMATICA","directCommission":{"type":"PORCENTAJE","percentage":0},"code":"ASESORIA","type":"BOT","name":"Asesoría",
                  "price":49.99,"currencyId":"%s","links":[
                    {"type":"VIDEO_PRESENTACION","url":"https://vimeo.com/1"},
                    {"type":"CUPON_BOT","url":"sin-esquema"}]}
@@ -656,7 +657,7 @@ class ProductsIT extends IntegrationTestBase {
     mvc.perform(
             alta(
                 """
-                {"scope":"TIENDA","implementation":"AUTOMATICA","code":"ASESORIA","type":"BOT","name":"Asesoría",
+                {"scope":"TIENDA","implementation":"AUTOMATICA","directCommission":{"type":"PORCENTAJE","percentage":0},"code":"ASESORIA","type":"BOT","name":"Asesoría",
                  "price":49.99,"currencyId":"%s","links":[{"type":"VIDEO_PRESENTACION","url":"%s"}]}
                 """
                     .formatted(USD, "https://example.com/" + "a".repeat(480))))
@@ -669,7 +670,7 @@ class ProductsIT extends IntegrationTestBase {
     mvc.perform(
             alta(
                 """
-                {"scope":"TIENDA","implementation":"AUTOMATICA","code":"ASESORIA","type":"BOT","name":"Asesoría",
+                {"scope":"TIENDA","implementation":"AUTOMATICA","directCommission":{"type":"PORCENTAJE","percentage":0},"code":"ASESORIA","type":"BOT","name":"Asesoría",
                  "price":49.99,"currencyId":"%s",
                  "links":[{"type":"VIDEO_PRESENTACION","url":"https://vimeo.com/123456"}]}
                 """
@@ -690,7 +691,7 @@ class ProductsIT extends IntegrationTestBase {
     mvc.perform(
             alta(
                 """
-                {"scope":"TIENDA","implementation":"AUTOMATICA","code":"ASESORIA","type":"BOT","name":"Asesoría",
+                {"scope":"TIENDA","implementation":"AUTOMATICA","directCommission":{"type":"PORCENTAJE","percentage":0},"code":"ASESORIA","type":"BOT","name":"Asesoría",
                  "price":49.99,"currencyId":"%s","links":[
                    {"type":"VIDEO_PRESENTACION","url":"https://vimeo.com/123456"},
                    {"type":"CUPON_BOT","url":"https://t.me/nexusbot","externalId":"cupon-15"}]}
@@ -711,7 +712,7 @@ class ProductsIT extends IntegrationTestBase {
     mvc.perform(
             alta(
                 """
-                {"scope":"TIENDA","implementation":"AUTOMATICA","code":"ASESORIA","type":"BOT","name":"Asesoría",
+                {"scope":"TIENDA","implementation":"AUTOMATICA","directCommission":{"type":"PORCENTAJE","percentage":0},"code":"ASESORIA","type":"BOT","name":"Asesoría",
                  "price":49.99,"currencyId":"%s","links":[
                    {"type":"VIDEO_PRESENTACION","url":"https://vimeo.com/123456"},
                    {"type":"CUPON_BOT","url":"https://t.me/nexusbot","externalId":"cupon-15"},
@@ -739,7 +740,7 @@ class ProductsIT extends IntegrationTestBase {
     mvc.perform(
             alta(
                 """
-                {"scope":"TIENDA","implementation":"AUTOMATICA","code":"ASESORIA","type":"BOT","name":"Asesoría",
+                {"scope":"TIENDA","implementation":"AUTOMATICA","directCommission":{"type":"PORCENTAJE","percentage":0},"code":"ASESORIA","type":"BOT","name":"Asesoría",
                  "price":49.99,"currencyId":"%s",
                  "links":[{"type":"CUPON_BOT","url":"https://t.me/nexusbot","externalId":"cupon-15"}]}
                 """
@@ -757,7 +758,7 @@ class ProductsIT extends IntegrationTestBase {
     mvc.perform(
             alta(
                 """
-                {"scope":"TIENDA","implementation":"AUTOMATICA","code":"ASESORIA","type":"BOT","name":"Asesoría",
+                {"scope":"TIENDA","implementation":"AUTOMATICA","directCommission":{"type":"PORCENTAJE","percentage":0},"code":"ASESORIA","type":"BOT","name":"Asesoría",
                  "price":49.99,"currencyId":"%s","links":[
                    {"type":"VIDEO_PRESENTACION","url":"https://vimeo.com/1"},
                    {"type":"VIDEO_PRESENTACION","url":"https://vimeo.com/2"}]}
@@ -781,7 +782,7 @@ class ProductsIT extends IntegrationTestBase {
     mvc.perform(
             alta(
                 """
-                {"scope":"TIENDA","implementation":"AUTOMATICA","code":"ASESORIA","type":"BOT","name":"Asesoría",
+                {"scope":"TIENDA","implementation":"AUTOMATICA","directCommission":{"type":"PORCENTAJE","percentage":0},"code":"ASESORIA","type":"BOT","name":"Asesoría",
                  "price":49.99,"currencyId":"%s","links":[{"type":"MANUAL_PDF","url":"https://vimeo.com/1"}]}
                 """
                     .formatted(USD)))
@@ -800,7 +801,7 @@ class ProductsIT extends IntegrationTestBase {
       mvc.perform(
               alta(
                   """
-                  {"scope":"TIENDA","implementation":"AUTOMATICA","code":"ASESORIA","type":"BOT","name":"Asesoría",
+                  {"scope":"TIENDA","implementation":"AUTOMATICA","directCommission":{"type":"PORCENTAJE","percentage":0},"code":"ASESORIA","type":"BOT","name":"Asesoría",
                    "price":49.99,"currencyId":"%s","links":[%s]}
                   """
                       .formatted(USD, enlace)))
@@ -820,7 +821,7 @@ class ProductsIT extends IntegrationTestBase {
       mvc.perform(
               alta(
                   """
-                  {"scope":"TIENDA","implementation":"AUTOMATICA","code":"ASESORIA","type":"BOT","name":"Asesoría",
+                  {"scope":"TIENDA","implementation":"AUTOMATICA","directCommission":{"type":"PORCENTAJE","percentage":0},"code":"ASESORIA","type":"BOT","name":"Asesoría",
                    "price":49.99,"currencyId":"%s",
                    "links":[{"type":"CUPON_BOT","url":"https://t.me/nexusbot","externalId":"%s"}]}
                   """
@@ -836,7 +837,7 @@ class ProductsIT extends IntegrationTestBase {
     mvc.perform(
             alta(
                 """
-                {"scope":"TIENDA","implementation":"AUTOMATICA","code":"ASESORIA","type":"BOT","name":"Asesoría",
+                {"scope":"TIENDA","implementation":"AUTOMATICA","directCommission":{"type":"PORCENTAJE","percentage":0},"code":"ASESORIA","type":"BOT","name":"Asesoría",
                  "price":49.99,"currencyId":"%s",
                  "links":[{"type":"VIDEO_PRESENTACION","url":"https://www.youtube.com/watch?v=abc","externalId":"abc"}]}
                 """
@@ -852,7 +853,7 @@ class ProductsIT extends IntegrationTestBase {
     mvc.perform(
             alta(
                 """
-                {"scope":"TIENDA","implementation":"AUTOMATICA","code":"ASESORIA","type":"BOT","name":"Asesoría",
+                {"scope":"TIENDA","implementation":"AUTOMATICA","directCommission":{"type":"PORCENTAJE","percentage":0},"code":"ASESORIA","type":"BOT","name":"Asesoría",
                  "price":49.99,"currencyId":"%s",
                  "links":[{"type":"VIDEO_PRESENTACION","url":"https://www.youtube.com/watch?v=abc"}]}
                 """
@@ -869,7 +870,7 @@ class ProductsIT extends IntegrationTestBase {
     mvc.perform(
             alta(
                 """
-                {"scope":"TIENDA","implementation":"AUTOMATICA","code":"ASESORIA","type":"BOT","name":"Asesoría","price":10.005,
+                {"scope":"TIENDA","implementation":"AUTOMATICA","directCommission":{"type":"PORCENTAJE","percentage":0},"code":"ASESORIA","type":"BOT","name":"Asesoría","price":10.005,
                  "currencyId":"%s"}
                 """
                     .formatted(USD)))
@@ -879,7 +880,7 @@ class ProductsIT extends IntegrationTestBase {
     mvc.perform(
             alta(
                 """
-                {"scope":"TIENDA","implementation":"AUTOMATICA","code":"ASESORIA","type":"BOT","name":"Asesoría","price":10.00,
+                {"scope":"TIENDA","implementation":"AUTOMATICA","directCommission":{"type":"PORCENTAJE","percentage":0},"code":"ASESORIA","type":"BOT","name":"Asesoría","price":10.00,
                  "currencyId":"%s"}
                 """
                     .formatted(USD)))
@@ -894,7 +895,7 @@ class ProductsIT extends IntegrationTestBase {
     mvc.perform(
             alta(
                 """
-                {"scope":"TIENDA","implementation":"AUTOMATICA","code":"UPGRADE_X","type":"UPGRADE_MEMBRESIA","icon":"crown","name":"Ascenso",
+                {"scope":"TIENDA","implementation":"AUTOMATICA","directCommission":{"type":"PORCENTAJE","percentage":0},"code":"UPGRADE_X","type":"UPGRADE_MEMBRESIA","icon":"crown","name":"Ascenso",
                  "sourceMembershipId":"%s","targetMembershipId":"%s","price":49.99,
                  "currencyId":"%s"}
                 """
@@ -909,7 +910,7 @@ class ProductsIT extends IntegrationTestBase {
     mvc.perform(
             alta(
                 """
-                {"scope":"TIENDA","implementation":"AUTOMATICA","code":"ASESORIA","type":"BOT","name":"Asesoría","price":10.00,
+                {"scope":"TIENDA","implementation":"AUTOMATICA","directCommission":{"type":"PORCENTAJE","percentage":0},"code":"ASESORIA","type":"BOT","name":"Asesoría","price":10.00,
                  "currencyId":"%s"}
                 """
                     .formatted(UUID.randomUUID())))
@@ -923,7 +924,7 @@ class ProductsIT extends IntegrationTestBase {
     mvc.perform(
             alta(
                 """
-                {"scope":"TIENDA","implementation":"AUTOMATICA","code":"ASESORIA","type":"BOT","name":"Asesoría","price":10.00,
+                {"scope":"TIENDA","implementation":"AUTOMATICA","directCommission":{"type":"PORCENTAJE","percentage":0},"code":"ASESORIA","type":"BOT","name":"Asesoría","price":10.00,
                  "currencyId":"%s"}
                 """
                     .formatted(euro)))
@@ -937,7 +938,7 @@ class ProductsIT extends IntegrationTestBase {
     mvc.perform(
             alta(
                 """
-                {"scope":"TIENDA","implementation":"AUTOMATICA","code":"ASESORIA","type":"BOT","name":"Asesoría","price":10.00,
+                {"scope":"TIENDA","implementation":"AUTOMATICA","directCommission":{"type":"PORCENTAJE","percentage":0},"code":"ASESORIA","type":"BOT","name":"Asesoría","price":10.00,
                  "currencyId":"%s"}
                 """
                     .formatted(USD)))
@@ -946,7 +947,7 @@ class ProductsIT extends IntegrationTestBase {
     mvc.perform(
             alta(
                 """
-                {"scope":"TIENDA","implementation":"AUTOMATICA","code":"OTRO","type":"BOT","name":"asesoria","price":10.00,
+                {"scope":"TIENDA","implementation":"AUTOMATICA","directCommission":{"type":"PORCENTAJE","percentage":0},"code":"OTRO","type":"BOT","name":"asesoria","price":10.00,
                  "currencyId":"%s"}
                 """
                     .formatted(USD)))
@@ -960,7 +961,7 @@ class ProductsIT extends IntegrationTestBase {
     mvc.perform(
             alta(
                 """
-                {"scope":"TIENDA","implementation":"AUTOMATICA","code":"ASESORIA","type":"BOT","name":"Asesoría","price":10.00,
+                {"scope":"TIENDA","implementation":"AUTOMATICA","directCommission":{"type":"PORCENTAJE","percentage":0},"code":"ASESORIA","type":"BOT","name":"Asesoría","price":10.00,
                  "currencyId":"%s"}
                 """
                     .formatted(USD)))
@@ -969,7 +970,7 @@ class ProductsIT extends IntegrationTestBase {
     mvc.perform(
             alta(
                 """
-                {"scope":"TIENDA","implementation":"AUTOMATICA","code":"asesoria","type":"BOT","name":"Otro nombre","price":10.00,
+                {"scope":"TIENDA","implementation":"AUTOMATICA","directCommission":{"type":"PORCENTAJE","percentage":0},"code":"asesoria","type":"BOT","name":"Otro nombre","price":10.00,
                  "currencyId":"%s"}
                 """
                     .formatted(USD)))
@@ -983,7 +984,7 @@ class ProductsIT extends IntegrationTestBase {
     mvc.perform(
             alta(
                 """
-                {"scope":"TIENDA","implementation":"AUTOMATICA","code":"PERMANENTE","type":"BOT","name":"Permanente","price":10.00,
+                {"scope":"TIENDA","implementation":"AUTOMATICA","directCommission":{"type":"PORCENTAJE","percentage":0},"code":"PERMANENTE","type":"BOT","name":"Permanente","price":10.00,
                  "currencyId":"%s"}
                 """
                     .formatted(USD)))
@@ -994,7 +995,7 @@ class ProductsIT extends IntegrationTestBase {
       mvc.perform(
               alta(
                   """
-                  {"scope":"TIENDA","implementation":"AUTOMATICA","code":"OTRO","type":"BOT","name":"Otro","price":10.00,
+                  {"scope":"TIENDA","implementation":"AUTOMATICA","directCommission":{"type":"PORCENTAJE","percentage":0},"code":"OTRO","type":"BOT","name":"Otro","price":10.00,
                    "currencyId":"%s","validityDays":%s}
                   """
                       .formatted(USD, vigencia)))
@@ -1015,7 +1016,7 @@ class ProductsIT extends IntegrationTestBase {
                 .contentType(MediaType.APPLICATION_JSON)
                 .content(
                     """
-                    {"scope":"TIENDA","implementation":"AUTOMATICA","code":"UPGRADE_ORO","type":"UPGRADE_MEMBRESIA","icon":"crown","name":"Ascenso a Oro",
+                    {"scope":"TIENDA","implementation":"AUTOMATICA","directCommission":{"type":"PORCENTAJE","percentage":0},"code":"UPGRADE_ORO","type":"UPGRADE_MEMBRESIA","icon":"crown","name":"Ascenso a Oro",
                      "sourceMembershipId":"%s","targetMembershipId":"%s","price":49.99,
                      "currencyId":"%s","validityDays":30}
                     """
@@ -1050,7 +1051,7 @@ class ProductsIT extends IntegrationTestBase {
                 .contentType(MediaType.APPLICATION_JSON)
                 .content(
                     """
-                    {"scope":"TIENDA","implementation":"AUTOMATICA","code":"ASESORIA","type":"BOT","name":"Asesoría","price":10.00,
+                    {"scope":"TIENDA","implementation":"AUTOMATICA","directCommission":{"type":"PORCENTAJE","percentage":0},"code":"ASESORIA","type":"BOT","name":"Asesoría","price":10.00,
                      "currencyId":"%s"}
                     """
                         .formatted(USD)))
@@ -1076,7 +1077,7 @@ class ProductsIT extends IntegrationTestBase {
                 .contentType(MediaType.APPLICATION_JSON)
                 .content(
                     """
-                    {"scope":"TIENDA","implementation":"AUTOMATICA","code":"ASESORIA","type":"BOT","name":"Asesoría","price":10.00,
+                    {"scope":"TIENDA","implementation":"AUTOMATICA","directCommission":{"type":"PORCENTAJE","percentage":0},"code":"ASESORIA","type":"BOT","name":"Asesoría","price":10.00,
                      "currencyId":"%s"}
                     """
                         .formatted(USD)))
@@ -1093,7 +1094,7 @@ class ProductsIT extends IntegrationTestBase {
     mvc.perform(
             alta(
                 """
-                {"implementation":"AUTOMATICA","code":"ASESORIA","type":"BOT","name":"Asesoría",
+                {"implementation":"AUTOMATICA","directCommission":{"type":"PORCENTAJE","percentage":0},"code":"ASESORIA","type":"BOT","name":"Asesoría",
                  "price":10.00,"currencyId":"%s"}
                 """
                     .formatted(USD)))
@@ -1119,7 +1120,7 @@ class ProductsIT extends IntegrationTestBase {
     mvc.perform(
             alta(
                 """
-                {"scope":"TIENDAS","implementation":"AUTOMATICA","code":"ASESORIA","type":"BOT",
+                {"scope":"TIENDAS","implementation":"AUTOMATICA","directCommission":{"type":"PORCENTAJE","percentage":0},"code":"ASESORIA","type":"BOT",
                  "name":"Asesoría","price":10.00,"currencyId":"%s"}
                 """
                     .formatted(USD)))
@@ -1146,7 +1147,7 @@ class ProductsIT extends IntegrationTestBase {
     mvc.perform(
             alta(
                 """
-                {"scope":"AMBOS","implementation":"MANUAL","code":"ASESORIA","type":"BOT",
+                {"scope":"AMBOS","implementation":"MANUAL","directCommission":{"type":"PORCENTAJE","percentage":0},"code":"ASESORIA","type":"BOT",
                  "name":"Asesoría","price":10.00,"currencyId":"%s"}
                 """
                     .formatted(USD)))
@@ -1167,7 +1168,7 @@ class ProductsIT extends IntegrationTestBase {
                 .contentType(MediaType.APPLICATION_JSON)
                 .content(
                     """
-                    {"scope":"AMBOS","implementation":"MANUAL","code":"UPGRADE_ORO",
+                    {"scope":"AMBOS","implementation":"MANUAL","directCommission":{"type":"PORCENTAJE","percentage":0},"code":"UPGRADE_ORO",
                      "type":"UPGRADE_MEMBRESIA","icon":"crown","name":"Ascenso a Oro","sourceMembershipId":"%s",
                      "targetMembershipId":"%s","price":49.99,"currencyId":"%s"}
                     """
@@ -1200,7 +1201,7 @@ class ProductsIT extends IntegrationTestBase {
     mvc.perform(
             alta(
                 """
-                {"scope":"TIENDA","implementation":"AUTOMATICA","code":"UPGRADE_ORO","type":"UPGRADE_MEMBRESIA","icon":"crown","name":"Ascenso a Oro",
+                {"scope":"TIENDA","implementation":"AUTOMATICA","directCommission":{"type":"PORCENTAJE","percentage":0},"code":"UPGRADE_ORO","type":"UPGRADE_MEMBRESIA","icon":"crown","name":"Ascenso a Oro",
                  "sourceMembershipId":"%s","targetMembershipId":"%s","price":49.99,
                  "currencyId":"%s"}
                 """
@@ -1208,6 +1209,153 @@ class ProductsIT extends IntegrationTestBase {
         .andExpect(status().isCreated())
         .andExpect(jsonPath("$.targetMembership.color").value("001337"))
         .andExpect(jsonPath("$.sourceMembership.color").value("004CDC"));
+  }
+
+  // ---------------------------------------------------------------------------
+  // La comisión por venta directa (`RN-PM-051`, 29-09-2026)
+  // ---------------------------------------------------------------------------
+
+  /** Un bot con la directa que se le pase, crudo, en el cuerpo. */
+  private MockHttpServletRequestBuilder botConDirecta(
+      String codigo, String precio, String directa) {
+    return alta(
+        """
+        {"scope":"TIENDA","implementation":"AUTOMATICA","code":"%s","type":"BOT","name":"%s",
+         "price":%s,"currencyId":"%s"%s}
+        """
+            .formatted(
+                codigo,
+                codigo,
+                precio,
+                USD,
+                directa == null ? "" : ",\"directCommission\":" + directa));
+  }
+
+  @Test
+  @DisplayName("`CA-PM-402` — registra un producto con directa de porcentaje y la devuelve")
+  void directaDePorcentaje() throws Exception {
+    mvc.perform(botConDirecta("DC_PCT", "10.00", "{\"type\":\"PORCENTAJE\",\"percentage\":12.5}"))
+        .andExpect(status().isCreated())
+        .andExpect(jsonPath("$.directCommission.type").value("PORCENTAJE"))
+        .andExpect(jsonPath("$.directCommission.percentage").value(12.5))
+        .andExpect(jsonPath("$.directCommission.fixedAmount").value(Matchers.nullValue()));
+  }
+
+  @Test
+  @DisplayName("`CA-PM-403` — la directa fija igual al precio entra, y sobre un gratuito sin tope")
+  void directaFija() throws Exception {
+    mvc.perform(botConDirecta("DC_FIJA", "10.00", "{\"type\":\"FIJO\",\"fixedAmount\":10.00}"))
+        .andExpect(status().isCreated())
+        .andExpect(jsonPath("$.directCommission.type").value("FIJO"))
+        .andExpect(jsonPath("$.directCommission.fixedAmount").value(10.0));
+    mvc.perform(botConDirecta("DC_GRATIS", "0", "{\"type\":\"FIJO\",\"fixedAmount\":5000}"))
+        .andExpect(status().isCreated());
+  }
+
+  @Test
+  @DisplayName("`CA-PM-404` — sin directa, un producto que no es FTD se rechaza con VAL-024")
+  void sinDirectaSeRechaza() throws Exception {
+    mvc.perform(botConDirecta("DC_SIN", "10.00", null))
+        .andExpect(status().isBadRequest())
+        .andExpect(jsonPath("$.errors[0].code").value("VAL-024"))
+        .andExpect(jsonPath("$.errors[0].field").value("directCommission"));
+    mvc.perform(botConDirecta("DC_NULA", "10.00", "null"))
+        .andExpect(status().isBadRequest())
+        .andExpect(jsonPath("$.errors[0].code").value("VAL-024"));
+    assertThat(cuantosProductos()).isZero();
+  }
+
+  @Test
+  @DisplayName("`CA-PM-405` — la directa con los dos campos, o con el que no toca, es VAL-025")
+  void directaConLaFormaEquivocada() throws Exception {
+    mvc.perform(
+            botConDirecta(
+                "DC_DOS", "10.00", "{\"type\":\"PORCENTAJE\",\"percentage\":5,\"fixedAmount\":1}"))
+        .andExpect(status().isBadRequest())
+        .andExpect(jsonPath("$.errors[0].code").value("VAL-025"));
+    mvc.perform(botConDirecta("DC_OTRO", "10.00", "{\"type\":\"FIJO\",\"percentage\":5}"))
+        .andExpect(status().isBadRequest())
+        .andExpect(jsonPath("$.errors[0].code").value("VAL-025"));
+    // Un tipo fuera del dominio lo rechaza la lectura del cuerpo, como
+    // cualquier enumerado (`CA-PM-112`).
+    mvc.perform(botConDirecta("DC_RARO", "10.00", "{\"type\":\"MIXTO\",\"percentage\":5}"))
+        .andExpect(status().isBadRequest());
+    assertThat(cuantosProductos()).isZero();
+  }
+
+  @Test
+  @DisplayName("`CA-PM-406` — fuera de rango o con más decimales que la moneda, VAL-026")
+  void directaFueraDeRango() throws Exception {
+    for (String directa :
+        List.of(
+            "{\"type\":\"PORCENTAJE\",\"percentage\":100.01}",
+            "{\"type\":\"PORCENTAJE\",\"percentage\":-1}",
+            "{\"type\":\"FIJO\",\"fixedAmount\":-1}",
+            "{\"type\":\"FIJO\",\"fixedAmount\":1.234}")) {
+      mvc.perform(botConDirecta("DC_RANGO", "10.00", directa))
+          .andExpect(status().isBadRequest())
+          .andExpect(jsonPath("$.errors[0].code").value("VAL-026"));
+    }
+    assertThat(cuantosProductos()).isZero();
+  }
+
+  @Test
+  @DisplayName("`CA-PM-407` — un fijo sobre el precio, o un porcentaje sobre un gratuito, VAL-027")
+  void directaPorEncimaDelPrecio() throws Exception {
+    mvc.perform(botConDirecta("DC_CARA", "10.00", "{\"type\":\"FIJO\",\"fixedAmount\":10.01}"))
+        .andExpect(status().isBadRequest())
+        .andExpect(jsonPath("$.errors[0].code").value("VAL-027"));
+    mvc.perform(botConDirecta("DC_PCT0", "0", "{\"type\":\"PORCENTAJE\",\"percentage\":10}"))
+        .andExpect(status().isBadRequest())
+        .andExpect(jsonPath("$.errors[0].code").value("VAL-027"));
+    assertThat(cuantosProductos()).isZero();
+  }
+
+  @Test
+  @DisplayName("`CA-PM-408` — un BECA → BECA va sin directa, y declararla es VAL-028")
+  void elFtdNoLlevaDirecta() throws Exception {
+    String ftd =
+        """
+        {"scope":"TIENDA","implementation":"MANUAL","code":"%s","type":"UPGRADE_MEMBRESIA",
+         "icon":"seed","name":"%s","sourceMembershipId":"%s","targetMembershipId":"%s",
+         "price":0,"currencyId":"%s"%s}
+        """;
+    mvc.perform(
+            alta(
+                ftd.formatted(
+                    "FTD_CON",
+                    "Alta con directa",
+                    free,
+                    free,
+                    USD,
+                    ",\"directCommission\":{\"type\":\"FIJO\",\"fixedAmount\":0}")))
+        .andExpect(status().isBadRequest())
+        .andExpect(jsonPath("$.errors[0].code").value("VAL-028"));
+
+    String cuerpo =
+        mvc.perform(alta(ftd.formatted("FTD_SIN", "Alta sin directa", free, free, USD, "")))
+            .andExpect(status().isCreated())
+            .andExpect(jsonPath("$.directCommission").value(Matchers.nullValue()))
+            .andReturn()
+            .getResponse()
+            .getContentAsString();
+    assertThat(cuerpo).contains("\"directCommission\":null");
+  }
+
+  @Test
+  @DisplayName("`CA-PM-409` — la instantánea del alta lleva las tres columnas de la directa")
+  void laInstantaneaLlevaLaDirecta() throws Exception {
+    mvc.perform(botConDirecta("DC_AUD", "10.00", "{\"type\":\"FIJO\",\"fixedAmount\":2.5}"))
+        .andExpect(status().isCreated());
+    String instantanea =
+        jdbc.queryForObject(
+            "SELECT changes::text FROM audit_change_log WHERE module = 'PM' AND action = 'CREATE'"
+                + " ORDER BY occurred_at DESC LIMIT 1",
+            String.class);
+    assertThat(instantanea)
+        .contains("\"direct_commission_type\": \"FIJO\"")
+        .contains("\"direct_commission_percentage\": null")
+        .contains("\"direct_commission_fixed_amount\": \"2.5");
   }
 
   private RequestPostProcessor admin() {
