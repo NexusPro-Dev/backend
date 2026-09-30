@@ -47,5 +47,7 @@ public final class LedgerFixtures {
     jdbc.update("DELETE FROM movement_details");
     jdbc.update("DELETE FROM movements");
     jdbc.update("DELETE FROM accounts");
+    // Las tasas de la etapa 3: los movimientos que las referencian ya no están.
+    jdbc.update("DELETE FROM points_rates");
   }
 }

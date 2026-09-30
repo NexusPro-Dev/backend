@@ -109,6 +109,7 @@ public class RegisterSaleService {
   private final Clock reloj;
   private final SaleRules reglas;
   private final SaleAttribution atribuciones;
+  private final PointsPayment puntos;
 
   @Autowired
   public RegisterSaleService(
@@ -116,8 +117,9 @@ public class RegisterSaleService {
       ProductCatalog productos,
       ClientCatalog clientes,
       CurrentMembershipLookup membresias,
-      AuditWriter auditoria) {
-    this(movimientos, productos, clientes, membresias, auditoria, Clock.systemUTC());
+      AuditWriter auditoria,
+      PointsPayment puntos) {
+    this(movimientos, productos, clientes, membresias, auditoria, puntos, Clock.systemUTC());
   }
 
   RegisterSaleService(
@@ -126,7 +128,9 @@ public class RegisterSaleService {
       ClientCatalog clientes,
       CurrentMembershipLookup membresias,
       AuditWriter auditoria,
+      PointsPayment puntos,
       Clock reloj) {
+    this.puntos = puntos;
     this.movimientos = movimientos;
     this.productos = productos;
     this.clientes = clientes;
@@ -214,6 +218,7 @@ public class RegisterSaleService {
         PaymentStatus.PENDIENTE.name(),
         hecha.venta().getPayableAmount(),
         null,
+        null,
         hecha.venta().getCreatedAt(),
         null,
         null,
@@ -241,12 +246,16 @@ public class RegisterSaleService {
   PurchaseResponse comprarPorElEnlace(
       RegisterSaleRequest peticion, SellerView duenoDelEnlace, IdempotencyKey clave) {
     VentaRegistrada hecha = registrar(peticion, false, SaleChannel.HOTLINK, duenoDelEnlace, clave);
-    return PurchaseResponse.de(
-        hecha.venta(),
-        new SaleResponse.Party(
-            hecha.cliente().id(), hecha.cliente().username(), nombre(hecha.cliente())),
-        new SaleResponse.Money(hecha.referencia().currencyId(), hecha.referencia().currencyCode()),
-        hecha.metodo().code());
+    PurchaseResponse compra =
+        PurchaseResponse.de(
+            hecha.venta(),
+            new SaleResponse.Party(
+                hecha.cliente().id(), hecha.cliente().username(), nombre(hecha.cliente())),
+            new SaleResponse.Money(
+                hecha.referencia().currencyId(), hecha.referencia().currencyCode()),
+            hecha.metodo().code());
+    // Pagada con puntos, ya está confirmada (`RF-MV-030`).
+    return hecha.confirmada() == null ? compra : compra.confirmada(hecha.confirmada());
   }
 
   /**
@@ -263,7 +272,8 @@ public class RegisterSaleService {
       SellerView vendedor,
       SaleView referencia,
       PaymentMethodView metodo,
-      UUID pago) {}
+      UUID pago,
+      OffsetDateTime confirmada) {}
 
   /**
    * El registro, uno solo.
@@ -317,6 +327,13 @@ public class RegisterSaleService {
             referencia.currencyDecimalPlaces());
     PaymentMethodView metodo =
         reglas.resolverMetodoDePago(peticion.paymentMethodId(), total(copiadas));
+    // `RF-MV-030`: con puntos solo paga quien compra desde su propia cuenta. El
+    // registro de un funcionario y el alta por enlace no la tienen, y se rechaza
+    // ANTES de escribir nada. Por el enlace de un vendedor sí: quien compra es
+    // quien pide.
+    if (duenoDelEnlace == null) {
+      PointsPayment.rechazarSiEsPuntos(metodo);
+    }
 
     MovementTypeView tipo = reglas.tipoDeVenta();
     Movement venta =
@@ -338,7 +355,19 @@ public class RegisterSaleService {
     auditoria.recordChange(
         new ChangeEvent(MODULO, ENTIDAD, venta.getId(), ChangeAction.CREATE, venta.instantanea()));
 
-    return new VentaRegistrada(venta, cliente, vendedor, referencia, metodo, pago);
+    OffsetDateTime confirmada = null;
+    if (PointsPayment.esPuntos(metodo)) {
+      confirmada =
+          puntos
+              .pagar(
+                  venta.getId(),
+                  pago,
+                  cliente.id(),
+                  referencia.currencyId(),
+                  venta.getPayableAmount())
+              .confirmedAt();
+    }
+    return new VentaRegistrada(venta, cliente, vendedor, referencia, metodo, pago, confirmada);
   }
 
   // ---------------------------------------------------------------------------

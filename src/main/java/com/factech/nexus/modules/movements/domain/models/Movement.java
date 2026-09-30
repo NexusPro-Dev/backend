@@ -59,6 +59,8 @@ public final class Movement {
   private final OffsetDateTime confirmedAt;
   private final String concept;
   private final String idempotencyKey;
+  private final UUID pointsRateId;
+  private final BigDecimal pointsAmount;
   private final TypeStatus typeStatus;
   private final BigDecimal totalAmount;
   private final BigDecimal discountAmount;
@@ -102,6 +104,8 @@ public final class Movement {
     this.confirmedAt = null;
     this.concept = null;
     this.idempotencyKey = null;
+    this.pointsRateId = null;
+    this.pointsAmount = null;
     this.typeStatus = typeStatus;
     this.occurredAt = occurredAt;
     this.createdAt = createdAt;
@@ -144,12 +148,17 @@ public final class Movement {
       BigDecimal importe,
       String concept,
       String idempotencyKey,
+      UUID paymentMethodId,
+      UUID pointsRateId,
+      BigDecimal pointsAmount,
       OffsetDateTime ahora) {
     this.id = id;
     this.movementTypeId = movementTypeId;
     this.userId = userId;
     this.packageId = null;
-    this.paymentMethodId = null;
+    this.paymentMethodId = paymentMethodId;
+    this.pointsRateId = pointsRateId;
+    this.pointsAmount = pointsAmount;
     this.currencyId = currencyId;
     this.code = code;
     this.lines = List.of();
@@ -189,6 +198,9 @@ public final class Movement {
         importe,
         null,
         null,
+        null,
+        null,
+        null,
         ahora);
   }
 
@@ -217,6 +229,49 @@ public final class Movement {
         importe,
         concepto,
         clave,
+        null,
+        null,
+        null,
+        ahora);
+  }
+
+  /**
+   * `RF-MV-027`: la compra de puntos nace <b>pendiente</b>, sin líneas y con el método de su primer
+   * pago, y <b>congela la tasa y los puntos</b> que dará (`RN-MV-051`). Confirmar abona exactamente
+   * estos, aunque la tasa cambie después.
+   *
+   * @param importe mayor que cero y ya en la escala de su moneda
+   * @param puntos los de {@link PointsAmount#comprados}, mayores que cero
+   */
+  public static Movement compraDePuntos(
+      UUID tipo,
+      UUID sujeto,
+      UUID metodo,
+      UUID moneda,
+      String code,
+      TypeStatus estado,
+      BigDecimal importe,
+      UUID tasa,
+      BigDecimal puntos,
+      OffsetDateTime ahora) {
+    if (metodo == null || tasa == null || puntos == null || puntos.signum() <= 0) {
+      // `ck_movements_points` lo rechazaría al escribir; aquí se ve antes y con su motivo.
+      throw new IllegalArgumentException("Una compra de puntos lleva método, tasa y puntos.");
+    }
+    return new Movement(
+        UUID.randomUUID(),
+        tipo,
+        sujeto,
+        moneda,
+        code,
+        estado,
+        MovementStatus.PENDIENTE,
+        importe,
+        null,
+        null,
+        metodo,
+        tasa,
+        puntos,
         ahora);
   }
 
@@ -360,6 +415,10 @@ public final class Movement {
     if (concept != null) {
       datos.put("concept", concept);
     }
+    if (pointsAmount != null) {
+      datos.put("points_rate_id", pointsRateId.toString());
+      datos.put("points_amount", pointsAmount.toPlainString());
+    }
     datos.put("currency_id", currencyId.toString());
     datos.put("total_amount", totalAmount.toPlainString());
     datos.put("discount_amount", discountAmount.toPlainString());
@@ -436,6 +495,14 @@ public final class Movement {
 
   public String getConcept() {
     return concept;
+  }
+
+  public UUID getPointsRateId() {
+    return pointsRateId;
+  }
+
+  public BigDecimal getPointsAmount() {
+    return pointsAmount;
   }
 
   public String getIdempotencyKey() {

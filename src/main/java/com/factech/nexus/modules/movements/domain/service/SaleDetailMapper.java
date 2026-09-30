@@ -97,6 +97,7 @@ final class SaleDetailMapper {
                   p.paymentMethodId(), p.paymentMethodCode(), p.paymentMethodName()),
               p.status(),
               p.amount(),
+              p.points(),
               p.providerReference(),
               p.occurredAt(),
               p.confirmedAt(),

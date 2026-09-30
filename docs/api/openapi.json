@@ -1629,6 +1629,14 @@
         },
         "type" : "object"
       },
+      "Confirmation" : {
+        "properties" : {
+          "providerReference" : {
+            "type" : "string"
+          }
+        },
+        "type" : "object"
+      },
       "ContactRef" : {
         "properties" : {
           "addressLine1" : {
@@ -3418,6 +3426,10 @@
             "$ref" : "#/components/schemas/MovementPaymentMethod",
             "description" : "Con qué se intentó pagar."
           },
+          "points" : {
+            "description" : "Los puntos que costó, si se pagó con puntos (`RF-MV-030`): `amount × tasa vigente`, redondeados hacia arriba. NULO en cualquier otro pago.",
+            "type" : [ "number", "null" ]
+          },
           "providerReference" : {
             "description" : "La referencia de quien cobra, o de la transferencia en un retiro. NULA si nadie la dio.",
             "type" : [ "string", "null" ]
@@ -4539,6 +4551,36 @@
         },
         "type" : "object"
       },
+      "PageResponsePointsPurchaseResponse" : {
+        "properties" : {
+          "content" : {
+            "items" : {
+              "$ref" : "#/components/schemas/PointsPurchaseResponse"
+            },
+            "type" : "array"
+          },
+          "page" : {
+            "format" : "int32",
+            "type" : "integer"
+          },
+          "size" : {
+            "format" : "int32",
+            "type" : "integer"
+          },
+          "totalElements" : {
+            "format" : "int64",
+            "type" : "integer"
+          },
+          "totalIsExact" : {
+            "type" : "boolean"
+          },
+          "totalPages" : {
+            "format" : "int32",
+            "type" : "integer"
+          }
+        },
+        "type" : "object"
+      },
       "PageResponseProductCommentPublicItem" : {
         "properties" : {
           "content" : {
@@ -4839,6 +4881,93 @@
             "type" : "string"
           },
           "username" : {
+            "type" : "string"
+          }
+        },
+        "type" : "object"
+      },
+      "PointsPurchaseRate" : {
+        "properties" : {
+          "id" : {
+            "format" : "uuid",
+            "type" : "string"
+          },
+          "pointsPerUnit" : {
+            "type" : "number"
+          }
+        },
+        "type" : "object"
+      },
+      "PointsPurchaseResponse" : {
+        "properties" : {
+          "amount" : {
+            "description" : "Lo que se paga, en la moneda.",
+            "type" : "number"
+          },
+          "code" : {
+            "description" : "El comprobante, con prefijo `PTS`.",
+            "type" : "string"
+          },
+          "confirmedAt" : {
+            "format" : "date-time",
+            "type" : [ "string", "null" ]
+          },
+          "currency" : {
+            "$ref" : "#/components/schemas/SaleCurrency"
+          },
+          "id" : {
+            "format" : "uuid",
+            "type" : "string"
+          },
+          "occurredAt" : {
+            "format" : "date-time",
+            "type" : "string"
+          },
+          "payments" : {
+            "items" : {
+              "$ref" : "#/components/schemas/MovementPayment"
+            },
+            "type" : "array"
+          },
+          "points" : {
+            "description" : "Los puntos que da: `amount × pointsPerUnit`, redondeados hacia abajo. Confirmar abona exactamente estos.",
+            "type" : "number"
+          },
+          "pointsRate" : {
+            "$ref" : "#/components/schemas/PointsPurchaseRate",
+            "description" : "La tasa con que se compró, congelada."
+          },
+          "rejectedAt" : {
+            "format" : "date-time",
+            "type" : [ "string", "null" ]
+          },
+          "rejectionReason" : {
+            "description" : "Por qué se rechazó el pago. Nulo salvo en una compra rechazada.",
+            "type" : [ "string", "null" ]
+          },
+          "status" : {
+            "description" : "PENDIENTE —esperando a que se confirme el pago—, CONFIRMADA —los puntos ya están en la cuenta— o RECHAZADA.",
+            "type" : "string"
+          }
+        },
+        "type" : "object"
+      },
+      "PointsRateResponse" : {
+        "properties" : {
+          "currency" : {
+            "$ref" : "#/components/schemas/SaleCurrency"
+          },
+          "id" : {
+            "format" : "uuid",
+            "type" : "string"
+          },
+          "pointsPerUnit" : {
+            "description" : "Cuántos puntos da una unidad de la moneda. `100.0000` es «1 = 100 puntos».",
+            "type" : "number"
+          },
+          "validFrom" : {
+            "description" : "Desde cuándo rige.",
+            "format" : "date-time",
             "type" : "string"
           }
         },
@@ -5324,6 +5453,22 @@
           "validityDays" : {
             "format" : "int32",
             "type" : "integer"
+          }
+        },
+        "type" : "object"
+      },
+      "Purchase" : {
+        "properties" : {
+          "amount" : {
+            "type" : "number"
+          },
+          "currencyId" : {
+            "format" : "uuid",
+            "type" : "string"
+          },
+          "paymentMethodId" : {
+            "format" : "uuid",
+            "type" : "string"
           }
         },
         "type" : "object"
@@ -6119,6 +6264,14 @@
         },
         "type" : "object"
       },
+      "Rejection" : {
+        "properties" : {
+          "reason" : {
+            "type" : "string"
+          }
+        },
+        "type" : "object"
+      },
       "RemoveTeamMembersRequest" : {
         "properties" : {
           "memberIds" : {
@@ -6890,6 +7043,18 @@
           },
           "tokenType" : {
             "type" : "string"
+          }
+        },
+        "type" : "object"
+      },
+      "SetRate" : {
+        "properties" : {
+          "currencyId" : {
+            "format" : "uuid",
+            "type" : "string"
+          },
+          "pointsPerUnit" : {
+            "type" : "number"
           }
         },
         "type" : "object"
@@ -13778,6 +13943,153 @@
         "x-required-permission" : "movements:list-own-entries"
       }
     },
+    "/api/v1/movements/mine/points-purchases" : {
+      "get" : {
+        "description" : "**Permiso requerido:** `movements:list-own-points-purchases`. Sin él, `403` (`AUTH-002`).\n\nLas compras de puntos de quien tiene la sesión, **las más recientes primero**, cada\nuna con su tasa, sus puntos, sus pagos y, si se rechazó, el motivo (`RF-MV-031`).\nFiltros: `status` (`PENDIENTE`, `CONFIRMADA`, `RECHAZADA`), `currencyId`, `code` —un\nfragmento del comprobante, sin distinguir mayúsculas— y `from`/`to` sobre cuándo se\ncompró, rango semiabierto. Un estado desconocido y un periodo invertido son `400`, y\nlos dos errores salen juntos.\n",
+        "operationId" : "misComprasDePuntos",
+        "parameters" : [ {
+          "in" : "query",
+          "name" : "page",
+          "required" : false,
+          "schema" : {
+            "format" : "int32",
+            "type" : "integer"
+          }
+        }, {
+          "in" : "query",
+          "name" : "size",
+          "required" : false,
+          "schema" : {
+            "format" : "int32",
+            "type" : "integer"
+          }
+        }, {
+          "in" : "query",
+          "name" : "status",
+          "required" : false,
+          "schema" : {
+            "type" : "string"
+          }
+        }, {
+          "in" : "query",
+          "name" : "currencyId",
+          "required" : false,
+          "schema" : {
+            "format" : "uuid",
+            "type" : "string"
+          }
+        }, {
+          "in" : "query",
+          "name" : "code",
+          "required" : false,
+          "schema" : {
+            "type" : "string"
+          }
+        }, {
+          "in" : "query",
+          "name" : "from",
+          "required" : false,
+          "schema" : {
+            "format" : "date-time",
+            "type" : "string"
+          }
+        }, {
+          "in" : "query",
+          "name" : "to",
+          "required" : false,
+          "schema" : {
+            "format" : "date-time",
+            "type" : "string"
+          }
+        } ],
+        "responses" : {
+          "200" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/PageResponsePointsPurchaseResponse"
+                }
+              }
+            },
+            "description" : "Una página de compras."
+          },
+          "400" : {
+            "description" : "Estado desconocido (`VAL-001`) o `from` posterior a `to` (`VAL-002`)"
+          },
+          "401" : {
+            "description" : "Sin token (`AUTH-001`)"
+          },
+          "403" : {
+            "description" : "Sin `movements:list-own-points-purchases` (`AUTH-002`)"
+          }
+        },
+        "summary" : "Consultar mis compras de puntos",
+        "tags" : [ "Puntos" ],
+        "x-required-permission" : "movements:list-own-points-purchases"
+      },
+      "post" : {
+        "description" : "**Permiso requerido:** `movements:buy-points`. Sin él, `403` (`AUTH-002`).\n\nCompra puntos para quien tiene la sesión, pagando un **importe** en una moneda con un\nmétodo de pago (`RF-MV-027`). **La compra nace `PENDIENTE` y no abona nada**: los\npuntos llegan cuando administración confirme que el pago entró (`RF-MV-028`). Lo que\nsí queda fijado desde ya es **cuántos**: `amount × tasa vigente`, redondeado hacia\nabajo, a la tasa de este momento aunque cambie después (`RN-MV-051`). No se paga con\n`POINTS` ni con un método interno. La cabecera `Idempotency-Key` es obligatoria: la\nmisma petición repetida responde `200` con la compra ya registrada. No comisiona.\n",
+        "operationId" : "comprarPuntos",
+        "parameters" : [ {
+          "description" : "Una por compra.",
+          "in" : "header",
+          "name" : "Idempotency-Key",
+          "required" : true,
+          "schema" : {
+            "type" : "string"
+          }
+        } ],
+        "requestBody" : {
+          "content" : {
+            "application/json" : {
+              "schema" : {
+                "$ref" : "#/components/schemas/Purchase"
+              }
+            }
+          }
+        },
+        "responses" : {
+          "200" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/PointsPurchaseResponse"
+                }
+              }
+            },
+            "description" : "La misma petición repetida."
+          },
+          "201" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/PointsPurchaseResponse"
+                }
+              }
+            },
+            "description" : "Compra registrada, pendiente."
+          },
+          "400" : {
+            "description" : "Datos ausentes o malformados, clave ausente o malformada, o un importe que no da ningún punto"
+          },
+          "401" : {
+            "description" : "Sin token (`AUTH-001`)"
+          },
+          "403" : {
+            "description" : "Sin `movements:buy-points` (`AUTH-002`)"
+          },
+          "409" : {
+            "description" : "Moneda inactiva o sin tasa (`EX-003`); método desactivado, interno o `POINTS` (`EX-005`); cuenta que todavía no opera (`EX-006`); o la clave es de otra petición (`EX-008`)"
+          },
+          "422" : {
+            "description" : "La moneda (`EX-002`) o el método (`EX-004`) no existen"
+          }
+        },
+        "summary" : "Comprar puntos",
+        "tags" : [ "Puntos" ],
+        "x-required-permission" : "movements:buy-points"
+      }
+    },
     "/api/v1/movements/mine/products" : {
       "get" : {
         "description" : "**Permiso requerido:** `movements:read-own-products`. Sin él, `403` (`AUTH-002`).\n\nDevuelve **los productos de las ventas a su nombre**, uno por línea de venta, del más\nreciente al más antiguo, y **en qué estado está cada uno**:\n\n- `PENDIENTE_PAGO`: la venta no se ha confirmado; todavía no lo tiene.\n- `PENDIENTE_ACTIVACION`: pagado, pero el producto es de implementación manual y\n  **usted** tiene que activarlo —`POST /movements/mine/products/{lineId}/activation`—.\n  **Hasta el 28-09-2026 se llamaba `PENDIENTE_AUTORIZACION`**: es un cambio\n  incompatible.\n- `ACTIVO`: entregado, con `deliveredAt` y —si caduca— `validUntil`, que es la\n  entrega más la vigencia comprada. La vigencia corre **desde la entrega**, no desde\n  la compra.\n- `VENCIDO`: entregado y con la vigencia pasada.\n- `RETENIDO`: pagado y **no se entregará** — `deliveryNote` dice por qué (`RN-MV-029`).\n- `RECHAZADO` / `ANULADO`: la venta terminó así.\n\n**Solo lo que compró usted** —el sujeto de la venta—: lo que vendió a otros no\naparece aquí (está en `/movements/sales`). Dos compras del mismo\nproducto son dos filas, cada una con su vigencia. `state` filtra por estado; el orden\nes fijo.\n\n**`product` viaja con la misma forma que en `GET /api/v1/products/available`**\n(desde el 28-09-2026): tipo, descripción, icono, portada, enlaces resueltos,\ndestino, `price`, moneda, `exchange`, vigencia, alcance, implementación y\nvaloración — **como está hoy en el catálogo**, también si el producto se retiró\ndespués. **Sin precio de compra**. Hasta esa fecha `product` traía solo `id`,\n`code` y `name`: es un cambio incompatible.\n\n**`product.links` depende de la línea** (`RN-MV-032`): **desde que la venta\nestá pagada** —`PENDIENTE_ACTIVACION`, `ACTIVO`, `VENCIDO`, `CANCELADO` y\n`RETENIDO`— trae **todos** los enlaces del producto, **los de entrega\nincluidos**: `CUPON_BOT`, dónde registra su cuenta en el bot —sirve para\nactivarlo—, y `DESCARGA`, dónde descarga lo que compró. En `PENDIENTE_PAGO`,\n`RECHAZADO` y `ANULADO` trae **los mismos que la oferta**, sin los de entrega\naunque el producto los declare. Se leen\ndel catálogo de hoy: si el cupón se añade o cambia después de la venta, llega el\nvigente. **`couponUrl` ya no existe** (desde el 28-09-2026): el cupón se busca en\n`product.links` por su `type`. Es un cambio incompatible.\n\n**`purchasedName` es el nombre que tenía el producto el día de la compra**\n(`RN-MV-002`); `product.name` es el de hoy.\n\n**Cada fila trae `lineId`** (desde el 28-09-2026): la línea de venta, que es lo que se\nactiva.\n",
@@ -14136,6 +14448,89 @@
         "x-required-permission" : "movements:retry-payment"
       }
     },
+    "/api/v1/movements/points-rates" : {
+      "get" : {
+        "description" : "**Permiso requerido:** `movements:read-points-rates`. Sin él, `403` (`AUTH-002`).\n\nLa tasa que rige hoy en cada moneda **activa** que venda puntos, ordenadas por código\nde moneda y sin paginar (`RF-MV-026`). El histórico no se publica. Con ella se calcula\ncuántos puntos da una compra y cuántos cuesta pagar con ellos; el cálculo definitivo\nlo hace la operación, con la tasa de ese momento.\n",
+        "operationId" : "tasasVigentes",
+        "responses" : {
+          "200" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "items" : {
+                    "$ref" : "#/components/schemas/PointsRateResponse"
+                  },
+                  "type" : "array"
+                }
+              }
+            },
+            "description" : "Las vigentes; vacía si ninguna."
+          },
+          "401" : {
+            "description" : "Sin token (`AUTH-001`)"
+          },
+          "403" : {
+            "description" : "Sin `movements:read-points-rates` (`AUTH-002`)"
+          }
+        },
+        "summary" : "Consultar las tasas de puntos vigentes",
+        "tags" : [ "Puntos" ],
+        "x-required-permission" : "movements:read-points-rates"
+      },
+      "post" : {
+        "description" : "**Permiso requerido:** `movements:set-points-rate`. Sin él, `403` (`AUTH-002`).\n\nFija cuántos puntos da **una unidad** de una moneda —`100` es «1 = 100 puntos»—, con\nhasta cuatro decimales (`RF-MV-025`). **Rige desde ese instante**, y la anterior **no\nse toca**: queda en el histórico, porque explica las compras que se hicieron con ella\n(`RN-MV-050`). Fijar la que ya rige responde `200` con ella y no escribe nada. Solo en\nmonedas activas.\n",
+        "operationId" : "fijarTasa",
+        "requestBody" : {
+          "content" : {
+            "application/json" : {
+              "schema" : {
+                "$ref" : "#/components/schemas/SetRate"
+              }
+            }
+          }
+        },
+        "responses" : {
+          "200" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/PointsRateResponse"
+                }
+              }
+            },
+            "description" : "Ya era la vigente: nada cambió."
+          },
+          "201" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/PointsRateResponse"
+                }
+              }
+            },
+            "description" : "Tasa nueva, vigente desde ahora."
+          },
+          "400" : {
+            "description" : "Moneda ausente, o valor ausente, no positivo, con más de cuatro decimales o más de ocho cifras enteras. Los errores salen juntos"
+          },
+          "401" : {
+            "description" : "Sin token (`AUTH-001`)"
+          },
+          "403" : {
+            "description" : "Sin `movements:set-points-rate` (`AUTH-002`)"
+          },
+          "409" : {
+            "description" : "La moneda está inactiva (`EX-003`)"
+          },
+          "422" : {
+            "description" : "La moneda no existe (`EX-002`)"
+          }
+        },
+        "summary" : "Fijar la tasa de puntos de una moneda",
+        "tags" : [ "Puntos" ],
+        "x-required-permission" : "movements:set-points-rate"
+      }
+    },
     "/api/v1/movements/sales" : {
       "get" : {
         "description" : "**Permiso requerido:** `movements:list-sales`. Sin él, `403` (`AUTH-002`).\n\nDevuelve **las ventas que le tocan a quien pregunta según quién es**, paginadas y del\nmás reciente al más antiguo. Es la consulta de las **ventas**; los otros tipos de\nmovimiento tendrán la suya.\n\n**Lo que se ve lo decide el tipo de rol de quien pregunta**, y no un parámetro:\nquien porta un rol de tipo **funcionario** ve todas las ventas; quien porta uno de\ntipo **vendedor** ve las que vendió **él o alguien de su red** —quienes cuelgan de él\nen la estructura comercial vigente, **en toda la profundidad**: el director lo de sus\nagentes, el manager lo de sus directores y por ellos lo de los agentes—; quien porta\nuno de tipo **consumidor** ve solo las ventas **a su nombre**. Un vendedor sin nadie a\ncargo ve lo que vendió él. Un vendedor **no ve aquí lo que compró**: eso es `/mine`.\n\n**`userId` es una persona de mi red como vendedora** —«las ventas de mi agente tal»—\ny acota **dentro** del alcance: una persona fuera de mi red, o inexistente, da una\n**página vacía** y no un error, para que el filtro no sirva para descubrir quién\ncuelga de quién. `code` acepta **una PARTE del comprobante**, sin distinguir\nmayúsculas (`RN-MV-037`). `status`, `paymentMethodId`, `code` y `from`/`to` son los de\n`GET /movements` y se combinan, y también `typeStatus` (`VALIDAR_COMISIONES` o\n`VALIDADO`, desde el 23-09-2026); **el comprobante de una venta que no es de mi\nalcance tampoco aparece**, escrito como sea. **Una venta por validar no está en el\nalcance de ningún vendedor** mientras ninguna de sus líneas sea suya: aparece en\ncuanto se le asigna una (`RF-MV-016`).\n\n**Cada fila es la misma de `GET /movements`** (`type` siempre `VENTA`, `typeStatus`, `user`,\n`sellers`, importes, `confirmedAt` nulo y presente), sin `role`. **El total puede no\nser exacto** por encima del techo de conteo. Ni `movements:read` ni\n`movements:list-own` abren esta consulta.\n",
@@ -14446,6 +14841,114 @@
         "summary" : "Confirmar el pago de una venta pendiente",
         "tags" : [ "Movimientos" ],
         "x-required-permission" : "movements:confirm"
+      }
+    },
+    "/api/v1/movements/{id}/points-purchase-confirmation" : {
+      "post" : {
+        "description" : "**Permiso requerido:** `movements:confirm-points-purchase`. Sin él, `403` (`AUTH-002`).\n\nDeclara que **el dinero de una compra de puntos pendiente entró** y, en el mismo\nacto, **abona los puntos** en la cuenta de quien compró, desde la cuenta de puntos\nemitidos de la empresa (`RF-MV-028`). Se abonan **los puntos congelados al\ncomprar**, no los de la tasa de hoy. `providerReference` es opcional. Confirmar dos\nveces, o una compra rechazada, es `409` y no abona nada.\n",
+        "operationId" : "confirmarCompra",
+        "parameters" : [ {
+          "in" : "path",
+          "name" : "id",
+          "required" : true,
+          "schema" : {
+            "format" : "uuid",
+            "type" : "string"
+          }
+        } ],
+        "requestBody" : {
+          "content" : {
+            "application/json" : {
+              "schema" : {
+                "$ref" : "#/components/schemas/Confirmation"
+              }
+            }
+          }
+        },
+        "responses" : {
+          "200" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/PointsPurchaseResponse"
+                }
+              }
+            },
+            "description" : "Confirmada, con su pago."
+          },
+          "400" : {
+            "description" : "Referencia de más de 120 caracteres"
+          },
+          "401" : {
+            "description" : "Sin token (`AUTH-001`)"
+          },
+          "403" : {
+            "description" : "Sin `movements:confirm-points-purchase` (`AUTH-002`)"
+          },
+          "404" : {
+            "description" : "No existe, o no es una compra de puntos (`EX-001`)"
+          },
+          "409" : {
+            "description" : "No está pendiente, con el estado (`EX-002`)"
+          }
+        },
+        "summary" : "Confirmar el pago de una compra de puntos",
+        "tags" : [ "Puntos" ],
+        "x-required-permission" : "movements:confirm-points-purchase"
+      }
+    },
+    "/api/v1/movements/{id}/points-purchase-rejection" : {
+      "post" : {
+        "description" : "**Permiso requerido:** `movements:reject-points-purchase`. Sin él, `403` (`AUTH-002`).\n\nDeclara que **el dinero de una compra de puntos pendiente no entró** (`RF-MV-029`): la\ncompra y su pago quedan `RECHAZADA`/`RECHAZADO` con el motivo, obligatorio. **Es\nfinal**: al revés que una venta, una compra de puntos rechazada no se vuelve a pagar;\nquien quiera los puntos compra otra vez. No se mueve ningún saldo.\n",
+        "operationId" : "rechazarCompra",
+        "parameters" : [ {
+          "in" : "path",
+          "name" : "id",
+          "required" : true,
+          "schema" : {
+            "format" : "uuid",
+            "type" : "string"
+          }
+        } ],
+        "requestBody" : {
+          "content" : {
+            "application/json" : {
+              "schema" : {
+                "$ref" : "#/components/schemas/Rejection"
+              }
+            }
+          }
+        },
+        "responses" : {
+          "200" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/PointsPurchaseResponse"
+                }
+              }
+            },
+            "description" : "Rechazada."
+          },
+          "400" : {
+            "description" : "Motivo vacío o de más de 500 caracteres"
+          },
+          "401" : {
+            "description" : "Sin token (`AUTH-001`)"
+          },
+          "403" : {
+            "description" : "Sin `movements:reject-points-purchase` (`AUTH-002`)"
+          },
+          "404" : {
+            "description" : "No existe, o no es una compra de puntos (`EX-001`)"
+          },
+          "409" : {
+            "description" : "No está pendiente, con el estado (`EX-002`)"
+          }
+        },
+        "summary" : "Rechazar el pago de una compra de puntos",
+        "tags" : [ "Puntos" ],
+        "x-required-permission" : "movements:reject-points-purchase"
       }
     },
     "/api/v1/movements/{id}/rejection" : {
@@ -19749,6 +20252,9 @@
   }, {
     "description" : "Catálogo de monedas. Inmutable por API salvo su estado.",
     "name" : "Monedas"
+  }, {
+    "description" : "A cuánto se venden los puntos en cada moneda, su compra y su confirmación. Pagar con puntos no tiene ruta propia: es el método `POINTS` en las compras.",
+    "name" : "Puntos"
   }, {
     "description" : "Alta de un cliente desde el enlace de un vendedor. Público (RF-SP-045).",
     "name" : "Registro por enlace"

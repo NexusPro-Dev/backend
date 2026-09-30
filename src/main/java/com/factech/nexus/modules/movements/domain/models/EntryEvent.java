@@ -12,6 +12,11 @@ public enum EntryEvent {
   APROBACION,
   /** El retiro se niega: lo retenido vuelve a la billetera. */
   RECHAZO,
-  /** Un bono o el pago de un lote entran en la billetera. */
-  ABONO
+  /**
+   * Un bono o el pago de un lote entran en la billetera; o, desde el 30-09-2026, los puntos de una
+   * compra confirmada entran en la cuenta de puntos (`RF-MV-028`).
+   */
+  ABONO,
+  /** Una venta se paga con puntos: salen de la cuenta de puntos (`RN-MV-052`). */
+  PAGO
 }
