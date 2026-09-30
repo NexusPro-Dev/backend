@@ -4,7 +4,7 @@
 |---|---|
 | Requerimiento | `RF-MV-002` |
 | Módulo | `MV` — Movimientos |
-| Versión | 0.2.0 |
+| Versión | 0.3.0 |
 | Estado | **Aprobada** |
 | Enmendada el | 16-09-2026 — el vendedor es de cada línea y **siempre lo hay** (`RN-MV-003`); la cabecera lleva un sujeto (`RN-MV-026`). Ver §15 |
 | Autor | Responsable técnico |
@@ -183,3 +183,4 @@ Los de `RF-MV-001`, más dos propios:
 |---|---|---|---|
 | 0.1.0 | 02-09-2026 | Redacción inicial, sin preguntas abiertas. Se escribe **por diferencias** con `RF-MV-001` en lugar de repetirlo, y las diferencias son cuatro: el cliente es el actor, **no se admite la fecha del hecho** —porque elegirla es elegir el periodo en que se comisiona—, la respuesta **no devuelve el vendedor** —el cliente no lo eligió y no es información suya— y no hace falta permiso. Lo que **no** cambia es la venta: `CA-MV-026` exige que las dos operaciones produzcan algo indistinguible, que es lo que permite que los siete requerimientos siguientes no se enteren de que hay dos entradas. Queda declarado que **el vendedor cobra por una compra que no hizo**, y por qué eso es lo que significa que un cliente tenga vendedor. | Responsable técnico |
 | 0.2.0 | 16-09-2026 | **El vendedor baja a cada línea y siempre lo hay; la cabecera lleva un sujeto** (`requirements/mv.md` v0.16.0: `RN-MV-026` nueva, `RN-MV-003` enmendada), por decisión del responsable del proyecto. Para esta operación cambia poco y conviene decir qué: **el actor sigue siendo el sujeto** —ahora con nombre de regla— y **la respuesta sigue sin llevar el vendedor** (§4.3), ahora tampoco en las líneas. Lo que se corrige es el caso límite de §13, que **todavía citaba `EX-003`** —retirada de `RF-MV-001` el 04-09-2026— y la precondición de §7: quien no cuelga de nadie **se vende a sí mismo** en lugar de quedarse fuera o sin atribución. | Responsable del proyecto |
+| 0.3.0 | 30-09-2026 | **Se puede pagar con puntos** (`RF-MV-030`, `RN-MV-052`; [`requirements/mv.md`](../../../requirements/mv.md) v0.54.0 §4.4): con `POINTS`, los puntos de la moneda de la venta se descuentan a la tasa vigente y la compra vuelve **confirmada**, con su entrega y su aviso a comisiones. Si no alcanzan, o la moneda no tiene tasa, conflicto y **nada queda escrito**. Ningún dato de entrada cambia. | Responsable técnico |

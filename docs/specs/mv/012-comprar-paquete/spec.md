@@ -4,7 +4,7 @@
 |---|---|
 | Requerimiento | `RF-MV-012` |
 | Módulo | `MV` — Movimientos |
-| Versión | 0.2.0 |
+| Versión | 0.3.0 |
 | Estado | **Aprobada** |
 | Autor | Responsable técnico |
 | Aprobada por | Responsable del proyecto |
@@ -294,3 +294,4 @@ La de `RF-MV-002` —la venta sin el vendedor—, **con dos añadidos**:
 |---|---|---|---|
 | 0.1.0 | 16-09-2026 | Redacción inicial, sin preguntas abiertas. **Se escribe por diferencias con `RF-MV-002`**, que a su vez hereda de `RF-MV-001`: las cuatro decisiones de aquel —el cliente es quien pide, sin fecha, sin vendedor en la respuesta y sin permiso— valen tal cual y no se repiten. Lo que este documento fija es **lo que el paquete añade**, que es `RN-MV-028` con sus cuatro caras: **entero** —si un producto no procede se rechaza todo, en lugar de vender lo que queda o de recalcular un paquete que nadie configuró—, **uno** —`RN-PM-038` ya decidió que dentro del paquete no hay cantidad—, **solo** —mezclarlo con productos sueltos permitiría dos upgrades por caminos distintos— y **tal como está hoy**, con su vigencia comprobada al registrar porque la oferta que lo pintó no es una promesa. Doce criterios nuevos, `CA-MV-049` a `CA-MV-060`, de los que `CA-MV-050` es el que sostiene todo: **lo que se cobra tiene que ser lo que el catálogo publica**. | Responsable del proyecto |
 | 0.2.0 | 17-09-2026 | **El paquete se indica por su código y no por su identificador** (§6.1, `EX-001`), por decisión del responsable del proyecto el día de la construcción. El código es el nombre público del paquete (`RN-PM-041`: corto, estable, inmutable y único incluso frente a los retirados), es lo que la oferta y el hotlink publican, y es lo que un enlace o una pantalla pueden llevar escrito; el identificador es un dato interno que el cliente no tiene por qué conocer. Es el mismo criterio con el que `RF-MV-013` compra por el código del hotlink. Sin cambio en criterios ni en flujos: lo que se resuelve es lo mismo, y cambia cómo se nombra. | Responsable del proyecto |
+| 0.3.0 | 30-09-2026 | **Se puede pagar con puntos** (`RF-MV-030`, `RN-MV-052`; [`requirements/mv.md`](../../../requirements/mv.md) v0.54.0 §4.4): con `POINTS`, los puntos de la moneda de la venta se descuentan a la tasa vigente y la compra vuelve **confirmada**, con su entrega y su aviso a comisiones. Si no alcanzan, o la moneda no tiene tasa, conflicto y **nada queda escrito**. Ningún dato de entrada cambia. | Responsable técnico |

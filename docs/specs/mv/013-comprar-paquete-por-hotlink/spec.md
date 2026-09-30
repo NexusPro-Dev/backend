@@ -4,7 +4,7 @@
 |---|---|
 | Requerimiento | `RF-MV-013` |
 | Módulo | `MV` — Movimientos |
-| Versión | 0.1.0 |
+| Versión | 0.2.0 |
 | Estado | **Aprobada** |
 | Autor | Responsable técnico |
 | Aprobada por | Responsable del proyecto |
@@ -201,3 +201,4 @@ Las ocho de `RF-MV-012`, **con dos salvedades y una añadida**:
 | Versión | Fecha | Cambio | Responsable |
 |---|---|---|---|
 | 0.1.0 | 16-09-2026 | Redacción inicial, sin preguntas abiertas. **Se escribe por diferencias con `RF-MV-012`**, y las diferencias son las dos que `RF-MV-011` ya introdujo sobre la compra propia de un producto: el paquete llega **por el enlace** y el vendedor de cada línea es **su dueño** (`RN-MV-025`), más la huella que la compra propia no deja — el **vínculo** de `RN-SP-049`. **Lo que se hereda sin repetir** es todo lo que el paquete añade: entero, uno, solo y tal como está hoy (`RN-MV-028`). **La decisión que este documento fija y aquel no tenía** es la del `404` uniforme (§4.1): aquí el rechazo del catálogo **no dice qué falla**, porque quien pregunta llega de fuera y el detalle sería información sobre el catálogo de otro — pero **la uniformidad no alcanza** a lo que es de la operación del propio actor, y `CA-MV-067` lo fija. Siete criterios nuevos, `CA-MV-061` a `CA-MV-067`. | Responsable del proyecto |
+| 0.2.0 | 30-09-2026 | **Se puede pagar con puntos** (`RF-MV-030`, `RN-MV-052`; [`requirements/mv.md`](../../../requirements/mv.md) v0.54.0 §4.4): con `POINTS`, los puntos de la moneda de la venta se descuentan a la tasa vigente y la compra vuelve **confirmada**, con su entrega y su aviso a comisiones. Si no alcanzan, o la moneda no tiene tasa, conflicto y **nada queda escrito**. Ningún dato de entrada cambia. | Responsable técnico |
