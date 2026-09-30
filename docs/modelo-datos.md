@@ -2,7 +2,7 @@
 
 | Campo | Valor |
 |---|---|
-| Versión | 0.83.0 |
+| Versión | 0.84.0 |
 | Estado | **Borrador** |
 | Responsable | Bonilla Diaz William Steven |
 | Fecha de creación | 21-08-2026 |
@@ -682,6 +682,12 @@ Ninguna de las dos guarda una venta, y **las dos escribieron condiciones sobre q
 
     **Vive en `products` y no en `CM`**, en tres columnas con la forma de una tasa —`direct_commission_type`, `direct_commission_percentage` y `direct_commission_fixed_amount`—, porque es **obligatoria al registrar el producto** y exigirla desde `CM` obligaría a `PM` a consultarlo: el ciclo que `modules.md` §7 prohíbe. **Nulas solo en un FTD**, que no devenga por venta; lo ya registrado nace en **cero** —porcentaje, o fijo en un gratuito— (`V55`). **`commissions.source` gana `DIRECTA`**, con `rate_id` apuntando al producto, y `ck_commissions_directa` la ata al nivel `0`. Como todo lo que se liquida, **la fila copia lo que aplicó**: corregir la directa no reescribe lo devengado (`RN-CM-008`).
 
+!!! info "Y desde el 30-09-2026 un lote pendiente se corrige antes de pagarse"
+
+    Por decisión del responsable del proyecto ([`requirements/cm.md`](requirements/cm.md) v0.26.0 §5.10), **un lote deja de ser intocable en el cierre y lo es desde el pago**. A un lote `PENDIENTE` se le **retira** una comisión, que pasa al lote `ABIERTO` de la misma persona y moneda (`RN-CM-046`), y lo retirado por error **se devuelve**. Y el vendedor de una línea de una venta confirmada **se corrige** mientras ninguna comisión de su cadena esté pagada: la cadena vieja **se revierte** y la nueva se devenga como una línea recién atribuida (`RN-CM-047`, [`requirements/mv.md`](requirements/mv.md) v0.58.0 `RN-MV-053`).
+
+    **`commissions` gana tres columnas, y ninguna cambia un importe**: `reverted_at` y `reverted_by` —la comisión revertida **no se borra**: queda en su lote, fuera del total— y `withdrawn_from_batch_id` —el lote pendiente del que salió, que es lo que permite devolverla—. **`uq_commissions_detail_user` pasa a ser parcial**, entre las vivas, para que quien esté en las dos cadenas pueda cobrar la nueva. **`commission_accruals` pierde la fila** de la línea reatribuida, porque dice qué le falta a la línea y a esa le falta todo. Diseñadas, sin migración todavía.
+
 | Quién lo exige | Qué exige |
 |---|---|
 | `requirements/pm.md` §1.4 | Cada compra guardará **el importe que se pagó y la vigencia que compró**, en lugar de leerlos del producto |
@@ -945,6 +951,7 @@ Son las que siguen —**y desde el 14-09-2026 una de `PM` apunta a `users`**—,
 | `commissions.movement_detail_id` | `movement_details` | `CM` → `MV` — la línea que devengó (24-09-2026, diseñada). **`RESTRICT`**: una línea con comisión no se borra, y toda suite que limpie `movements` tendrá que limpiar antes `commissions` y `commission_accruals` |
 | `commission_accruals.movement_detail_id` | `movement_details` | `CM` → `MV` — el desenlace de esa línea, y su clave primaria (28-09-2026, diseñada). **`RESTRICT`**, por lo mismo |
 | `commissions.user_id`, `commission_batches.user_id` | `users` | `CM` → `SP` — quién cobra ese nivel, y de quién es el lote (24-09-2026, diseñadas) |
+| `commissions.reverted_by` | `users` | `CM` → `SP` — quién corrigió el vendedor de la línea y revirtió su cadena (`RN-CM-047`, 30-09-2026, diseñada). Nula mientras la comisión esté viva |
 | `commission_batches.currency_id` | `currencies` | `CM` → `SP` — la moneda del lote, que es donde **nace** la moneda de una comisión (`RN-CM-017`) |
 | `commission_closings.triggered_by` | `users` | `CM` → `SP` — quién lanzó un cierre a mano; nula en el programado (28-09-2026, diseñada) |
 | `afftrack_rates.product_id`, `user_afftrack_rates.product_id`, `afftrack_settlements.product_id` | `products` | `CM` → `PM` — el producto FTD de cada escalón y de cada liquidación (29-09-2026, diseñadas). Sin `ON DELETE`: el producto no se borra (`RN-PM-010`) |
@@ -1086,3 +1093,4 @@ Los documentos que citan una migración vieja por su número —specs, controles
 | 0.81.0 | 29-09-2026 | **`products` gana la comisión por venta directa** ([`requirements/pm.md`](requirements/pm.md) v0.47.0 §5.2.16, `RN-PM-051`; [`requirements/cm.md`](requirements/cm.md) v0.24.0 §5.9, `RN-CM-045`), por decisión del responsable del proyecto: lo que cobra en su venta propia quien no es el último eslabón, en lugar de su tasa de rol, con su personalizada ganando todavía. **Tres columnas diseñadas** en el diagrama de `PM` —`direct_commission_type`, `direct_commission_percentage`, `direct_commission_fixed_amount`—, obligatorias salvo en un FTD, con `ck_products_direct_commission_forma` y `ck_products_direct_commission_rangos`; **`commissions.source` gana `DIRECTA`** y nace `ck_commissions_directa`. §4.1 lo recoge con una caja. Las escribirá `V55`, que pone **cero** a lo ya registrado que no es FTD —fijo en los gratuitos—. **Viven en `PM` y no en `CM`** para que el alta pueda exigirlas sin cerrar un ciclo | Responsable del proyecto |
 | 0.82.0 | 30-09-2026 | **`MV` diseña `points_rates`** para la etapa 3 —comprar puntos y pagar con ellos— ([`requirements/mv.md`](requirements/mv.md) v0.54.0 §4.4 y §7.10), por decisión del responsable del proyecto: una tasa por moneda, con histórico y sin `valid_to`. **`movements` gana `points_rate_id` y `points_amount`**, la tasa y los puntos que una compra congela; `accounts.kind` gana **`PUNTOS_EMITIDOS`**, la contrapartida de la empresa, y `movement_entries.event` gana **`PAGO`**. §5.1 y §5.3 las recogen, con dos claves foráneas nuevas de `MV` hacia `SP`. Sin migración todavía. | Responsable técnico |
 | 0.83.0 | 30-09-2026 | **`points_rates` está escrita** (`V58`), con `movements.points_rate_id` y `points_amount` y los `CHECK` ampliados de `accounts` y `movement_entries`. `MV` pasa a once tablas escritas. | Responsable técnico |
+| 0.84.0 | 30-09-2026 | **Un lote pendiente se corrige antes de pagarse** ([`requirements/cm.md`](requirements/cm.md) v0.26.0 §5.10; [`requirements/mv.md`](requirements/mv.md) v0.58.0): `commissions` gana `reverted_at`, `reverted_by` y `withdrawn_from_batch_id` —esta, hacia el propio `commission_batches`—, y `uq_commissions_detail_user` pasa a ser **parcial entre las vivas**. Nace la clave `commissions.reverted_by` → `users` (§5.3). Diseñadas, sin migración. | Responsable técnico |
