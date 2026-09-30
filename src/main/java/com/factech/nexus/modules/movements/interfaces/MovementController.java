@@ -26,6 +26,7 @@ import com.factech.nexus.modules.movements.domain.service.ListSaleLinesService;
 import com.factech.nexus.modules.movements.domain.service.ListSalesService;
 import com.factech.nexus.modules.movements.domain.service.RegisterSaleService;
 import com.factech.nexus.modules.movements.domain.service.VoidSaleService;
+import com.factech.nexus.modules.system.roles.application.AuthenticatedActor;
 import com.factech.nexus.shared.pagination.PageResponse;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.media.Content;
@@ -73,6 +74,7 @@ public class MovementController {
   private final ListSaleLinesService lineas;
   private final ActivateMyProductService activacion;
   private final GetMovementService comprobante;
+  private final AuthenticatedActor actor;
 
   public MovementController(
       RegisterSaleService alta,
@@ -86,7 +88,8 @@ public class MovementController {
       AssignSellersService asignacion,
       ListSaleLinesService lineas,
       ActivateMyProductService activacion,
-      GetMovementService comprobante) {
+      GetMovementService comprobante,
+      AuthenticatedActor actor) {
     this.alta = alta;
     this.confirmacion = confirmacion;
     this.anulacion = anulacion;
@@ -99,6 +102,7 @@ public class MovementController {
     this.lineas = lineas;
     this.activacion = activacion;
     this.comprobante = comprobante;
+    this.actor = actor;
   }
 
   /**
@@ -627,6 +631,11 @@ public class MovementController {
 
           Reglas de composición: **como mucho un upgrade** por venta y con cantidad uno,
           sin productos repetidos y todas las líneas en la misma moneda.
+
+          **Con puntos** (`POINTS`, `RF-MV-030`) solo se paga una venta **a nombre de quien la
+          registra**: sus puntos se descuentan a la tasa vigente y la venta queda **confirmada**
+          en la misma respuesta. A nombre de otra persona, `409`: nadie gasta los puntos de
+          otro.
           """)
   @ApiResponses({
     @ApiResponse(responseCode = "201", description = "Venta registrada, pendiente de pago."),
@@ -647,8 +656,9 @@ public class MovementController {
             "Lo que solo se sabe después de resolver: la cuenta no puede operar todavía, un"
                 + " producto no está en su oferta, el"
                 + " upgrade BAJA de nivel —renovar el mismo sí se admite—, hay dos upgrades, las"
-                + " monedas difieren, o el método"
-                + " de pago está desactivado.",
+                + " monedas difieren, el método"
+                + " de pago está desactivado, o se paga con puntos a nombre de otra persona o sin"
+                + " puntos suficientes.",
         content = @io.swagger.v3.oas.annotations.media.Content()),
     @ApiResponse(
         responseCode = "422",
@@ -662,7 +672,7 @@ public class MovementController {
   public ResponseEntity<SaleResponse> registrar(
       @Valid @RequestBody RegisterSaleRequest peticion,
       @RequestHeader(value = IdempotencyKey.CABECERA, required = false) String clave) {
-    SaleResponse venta = alta.register(peticion, IdempotencyKey.opcional(clave));
+    SaleResponse venta = alta.register(peticion, IdempotencyKey.opcional(clave), actor.id());
     return ResponseEntity.created(URI.create("/api/v1/movements/" + venta.id())).body(venta);
   }
 
