@@ -4,13 +4,14 @@
 |---|---|
 | Requerimiento | `RF-CM-012` |
 | Módulo | `CM` — Comisiones |
-| Versión | 0.3.0 |
+| Versión | 0.4.0 |
 | Estado | **Aprobada** |
 | Autor | Responsable técnico |
 | Aprobada por | Responsable del proyecto |
 | Fecha de aprobación | 28-09-2026 |
 | Enmendada el | 29-09-2026 — **las comisiones propias dicen su clase**, como en `RF-CM-010` (`RN-CM-044`) |
 | Enmendada el | 29-09-2026 — **la fuente de una comisión propia puede ser `DIRECTA`**, como en `RF-CM-010` (`RN-CM-045`) |
+| Enmendada el | 30-09-2026 — **en mis lotes se ve lo revertido y lo retirado**, como en `RF-CM-010` (`RN-CM-046`, `RN-CM-047`) |
 
 !!! info "Qué va en este documento"
 
@@ -135,6 +136,7 @@ Las de `RF-CM-010`, sin la persona.
 | `CA-CM-202` | Sin el permiso de cada operación, se rechaza; un rol vendedor **lo porta** desde su siembra |
 | `CA-CM-263` | En sus propios lotes, un vendedor ve sus comisiones `POR_AFFTRACK` con su clase, sin venta ni nivel, y el total las incluye (29-09-2026) |
 | `CA-CM-272` | Un `DIRECTOR` que vendió ve en su lote la comisión de esa venta con fuente **`DIRECTA`** (29-09-2026) |
+| `CA-CM-303` | En sus propios lotes, un vendedor ve **sus comisiones revertidas** —fuera del total— y **de qué lote salió** cada una retirada a su abierto, en la forma de `CA-CM-302` (30-09-2026) |
 
 ---
 
@@ -161,3 +163,4 @@ Ninguna.
 
 | 0.2.0 | 29-09-2026 | **Las comisiones propias dicen su clase** (`RN-CM-044`, [`requirements/cm.md`](../../../requirements/cm.md) v0.22.0 §5.8), heredado de `RF-CM-010`. `CA-CM-263`. | Responsable del proyecto |
 | 0.3.0 | 29-09-2026 | **La fuente de una comisión propia puede ser `DIRECTA`** (`RN-CM-045`), heredado de `RF-CM-010`. `CA-CM-272`. | Responsable del proyecto |
+| 0.4.0 | 30-09-2026 | **En mis lotes se ve lo revertido y lo retirado** (`RN-CM-046`, `RN-CM-047`), heredado de `RF-CM-010`: quien cobra tiene que poder ver por qué su pendiente bajó. `CA-CM-303`. | Responsable del proyecto |

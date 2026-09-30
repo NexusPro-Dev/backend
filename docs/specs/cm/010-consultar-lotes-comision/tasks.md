@@ -9,6 +9,7 @@
 | Estado | **En revisión** — tareas `Hecha` el 28-09-2026, salvo `T-02`, retirada |
 | Enmendadas | 29-09-2026 — `T-07` por **la clase de cada comisión** (`RN-CM-044`) |
 | Enmendadas | 29-09-2026 — `T-08` por **la fuente `DIRECTA`** (`RN-CM-045`) |
+| Enmendadas | 30-09-2026 — `T-09` por **lo revertido y lo retirado** (`RN-CM-046`, `RN-CM-047`) |
 | Issue | Pendiente de crear |
 | Rama | `feature/devengo-de-comisiones` |
 
@@ -86,3 +87,11 @@ Rama: `feature/comision-afftrack`.
 | `T-08` | La prosa de la `@Operation` y `CA-CM-271` | `RF-CM-013` `T-17` | `CommissionBatchesIT` | Hecha |
 
 Rama: `feature/comision-venta-directa`.
+
+## 8. Lo revertido y lo retirado — enmienda del 30-09-2026
+
+| ID | Tarea | Depende de | Verificación | Estado |
+|---|---|---|---|---|
+| `T-09` | `revertedAt`, `revertedBy` y `withdrawnFrom` en la línea; `withdrawn` en el detalle; `commissionCount` de las vivas; prosa de las `@Operation` (`plan.md` §14) | `RF-CM-022` `T-01` | `CommissionBatchesIT`: `CA-CM-302`; `CA-CM-188` con su nueva cifra; diff del `json` sin esquemas fundidos | Pendiente |
+
+Rama: `feature/corregir-vendedor-y-mover-comisiones`.

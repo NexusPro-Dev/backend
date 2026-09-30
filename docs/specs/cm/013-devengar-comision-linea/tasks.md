@@ -9,6 +9,7 @@
 | Estado | **En revisión** — `T-01` a `T-12` `Hecha` el 28-09-2026; `T-13` en curso |
 | Enmendadas | 29-09-2026 — `T-14` por **las líneas FTD fuera del devengo** (`RN-CM-022`) |
 | Enmendadas | 29-09-2026 — `T-15` a `T-17` por **la comisión por venta directa** (`RN-CM-045`) |
+| Enmendadas | 30-09-2026 — `T-18` por **la línea revertida** (`RN-CM-047`) |
 | Issue | Pendiente de crear |
 | Rama | `feature/devengo-de-comisiones` |
 
@@ -104,3 +105,11 @@ Rama: `feature/comision-afftrack`. **Es la misma tarea que `RF-CM-020` `T-02`**,
 Rama: `feature/comision-venta-directa`.
 
 **`T-16` no tiene prueba de adaptador propia**: `directCommissionOf` se ejerce en `CA-CM-264` (porcentaje) y `CA-CM-267` (fijo), y un producto sin directa —sembrado por SQL, como en el resto de la suite— deja la tasa resuelta como estaba (29-09-2026).
+
+## 8. La línea revertida — enmienda del 30-09-2026
+
+| ID | Tarea | Depende de | Verificación | Estado |
+|---|---|---|---|---|
+| `T-18` | `CA-CM-304` y `CA-CM-305` en `CommissionAccrualIT` (`plan.md` §14) | `RF-CM-024` `T-03`, `RF-MV-016` `T-13` | `CommissionAccrualIT` en verde | Pendiente |
+
+Rama: `feature/corregir-vendedor-y-mover-comisiones`.

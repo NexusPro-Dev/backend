@@ -5,13 +5,14 @@
 | Requerimiento | `RF-CM-013` |
 | Especificación | [`spec.md`](spec.md) v0.1.0 |
 | `spec.md` aprobada el | 28-09-2026 |
-| Versión | 0.3.0 |
+| Versión | 0.4.0 |
 | Estado | **Aprobado** |
 | Autor | Responsable técnico |
 | Aprobado por | Responsable del proyecto |
 | Fecha de aprobación | 28-09-2026 |
 | Enmendado el | 29-09-2026 — las líneas FTD fuera del devengo y `commission_kind` en la inserción (§12) |
 | Enmendado el | 29-09-2026 — la directa en el nivel `0`, `LastLinkRoles` en `SP` y `directCommissionOf` en `PM` (§13) |
+| Enmendado el | 30-09-2026 — la línea revertida se devenga otra vez, sin código nuevo (§14) |
 
 !!! info "Qué va en este documento"
 
@@ -175,3 +176,14 @@ Y un índice de apoyo: `ix_commission_batches_abierto` sobre `(user_id, currency
 **Riesgo: el rango es el de hoy** (`requirements/cm.md` §5.9, supuesto 1). Un ascenso entre la venta y la asignación del vendedor cambia lo que se paga. Se acepta con la regla; la prueba lo fija para que un cambio futuro sea deliberado.
 
 `CommissionAccrualIT` gana `CA-CM-264` a `CA-CM-270`, confirmando por la API de `MV` como el resto de la suite. `LastLinkRolesIT` en `SP`: la jerarquía sembrada devuelve `AGENTE`, y un rol vendedor hijo de `AGENTE` creado en la prueba lo saca del conjunto.
+
+## 14. La línea revertida — enmienda del 30-09-2026
+
+`RN-CM-047`. **Ningún componente cambia**, y conviene decir por qué basta:
+
+- **`RF-CM-024` borra el desenlace de la línea**, y «sin desenlace» es exactamente lo que el paso 2 de `spec.md` §8 exige para devengar. El aviso de `MV` llega después del commit de la corrección con la línea dentro (`RF-MV-016` `plan.md` §12), y si se pierde, el barrido la encuentra por la misma razón.
+- **El bloqueo consultivo de la línea es el mismo** que toma la reversión, y la reversión lo mantiene hasta el commit de `MV`: el devengo de la cadena nueva no puede empezar antes de que la vieja esté revertida.
+- **`uq_commissions_detail_user` es parcial desde `V59`** y conserva su nombre, de modo que la traducción por nombre de restricción sigue valiendo y la persona que está en las dos cadenas inserta su comisión nueva sin chocar con la revertida.
+- **La auditoría del desenlace es un `CREATE`** otra vez: la fila se borró y vuelve a nacer.
+
+`CommissionAccrualIT` gana `CA-CM-304` —corrigiendo por la ruta de `RF-MV-016`— y `CA-CM-305`, preparando por SQL una línea con su cadena revertida y sin desenlace —lo que deja una corrección cuyo aviso se perdió— y cerrando: el barrido la devenga. **Sin dobles del escuchador**: un `@MockitoSpyBean` crea otro contexto de Spring y ya agotó las conexiones de la suite (`tasks.md` §3.1).

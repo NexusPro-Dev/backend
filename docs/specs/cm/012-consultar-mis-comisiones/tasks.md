@@ -9,6 +9,7 @@
 | Estado | **En revisión** — todas las tareas `Hecha` el 28-09-2026 |
 | Enmendadas | 29-09-2026 — `T-05` por **la clase de cada comisión** (`RN-CM-044`) |
 | Enmendadas | 29-09-2026 — `T-06` por **la fuente `DIRECTA`** (`RN-CM-045`) |
+| Enmendadas | 30-09-2026 — `T-07` por **lo revertido y lo retirado** (`RN-CM-046`, `RN-CM-047`) |
 | Issue | Pendiente de crear |
 | Rama | `feature/devengo-de-comisiones` |
 
@@ -82,3 +83,11 @@ Rama: `feature/comision-afftrack`.
 Rama: `feature/comision-venta-directa`.
 
 **`CA-CM-272` vive en `CommissionBatchesIT`**, junto a `CA-CM-271` y a las demás pruebas de «mis lotes»: `MyCommissionBatchesIT` no existe (29-09-2026).
+
+## 8. Lo revertido y lo retirado — enmienda del 30-09-2026
+
+| ID | Tarea | Depende de | Verificación | Estado |
+|---|---|---|---|---|
+| `T-07` | La prosa de las `@Operation` y `CA-CM-303` en `CommissionBatchesIT` | `RF-CM-010` `T-09` | | Pendiente |
+
+Rama: `feature/corregir-vendedor-y-mover-comisiones`.
