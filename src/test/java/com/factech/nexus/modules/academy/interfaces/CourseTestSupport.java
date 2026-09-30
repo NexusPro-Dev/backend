@@ -88,7 +88,7 @@ final class CourseTestSupport {
         INSERT INTO users (id, username, email, first_name, last_name, password_hash,
                            must_change_password, status, country_id)
         VALUES (?, ?, ?, ?, ?, 'no-se-usa-en-esta-prueba', false, 'ACTIVO',
-                (SELECT id FROM countries ORDER BY code LIMIT 1))
+                (SELECT id FROM countries WHERE code = 'COL'))
         """,
         id,
         usuario,
