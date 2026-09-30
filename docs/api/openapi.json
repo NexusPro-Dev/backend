@@ -4746,20 +4746,6 @@
         },
         "type" : "object"
       },
-      "PatchableBigDecimal" : { },
-      "PatchableBoolean" : { },
-      "PatchableCommissionRateType" : { },
-      "PatchableCourseDifficulty" : { },
-      "PatchableInteger" : { },
-      "PatchableLessonType" : { },
-      "PatchableListProductLinkRequest" : { },
-      "PatchableLocalDate" : { },
-      "PatchableObject" : { },
-      "PatchableProductDirectCommission" : { },
-      "PatchableProductImplementation" : { },
-      "PatchableProductScope" : { },
-      "PatchableString" : { },
-      "PatchableUUID" : { },
       "PaymentMethodCatalogResponse" : {
         "properties" : {
           "content" : {
@@ -7060,16 +7046,18 @@
       "UpdateAfftrackRateRequest" : {
         "properties" : {
           "amountPerFtd" : {
-            "$ref" : "#/components/schemas/PatchableBigDecimal"
+            "type" : "number"
           },
           "productId" : {
-            "$ref" : "#/components/schemas/PatchableObject"
+            "description" : "No se corrige: enviarlo, con cualquier valor, se rechaza.",
+            "not" : { }
           },
           "roleId" : {
-            "$ref" : "#/components/schemas/PatchableObject"
+            "description" : "No se corrige: enviarlo, con cualquier valor, se rechaza.",
+            "not" : { }
           },
           "threshold" : {
-            "$ref" : "#/components/schemas/PatchableBigDecimal"
+            "type" : "number"
           }
         },
         "type" : "object"
@@ -7077,16 +7065,18 @@
       "UpdateCommissionRateRequest" : {
         "properties" : {
           "fixedAmount" : {
-            "$ref" : "#/components/schemas/PatchableBigDecimal"
+            "type" : "number"
           },
           "percentage" : {
-            "$ref" : "#/components/schemas/PatchableBigDecimal"
+            "type" : "number"
           },
           "rateType" : {
-            "$ref" : "#/components/schemas/PatchableCommissionRateType"
+            "enum" : [ "PORCENTAJE", "FIJO" ],
+            "type" : "string"
           },
           "roleId" : {
-            "$ref" : "#/components/schemas/PatchableObject"
+            "description" : "No se corrige: enviarlo, con cualquier valor, se rechaza.",
+            "not" : { }
           }
         },
         "type" : "object"
@@ -7094,19 +7084,20 @@
       "UpdateCourseCategoryRequest" : {
         "properties" : {
           "color" : {
-            "$ref" : "#/components/schemas/PatchableString"
+            "type" : "string"
           },
           "description" : {
-            "$ref" : "#/components/schemas/PatchableString"
+            "type" : "string"
           },
           "displayOrder" : {
-            "$ref" : "#/components/schemas/PatchableInteger"
+            "format" : "int32",
+            "type" : "integer"
           },
           "icon" : {
-            "$ref" : "#/components/schemas/PatchableString"
+            "type" : "string"
           },
           "name" : {
-            "$ref" : "#/components/schemas/PatchableString"
+            "type" : "string"
           }
         },
         "type" : "object"
@@ -7114,19 +7105,20 @@
       "UpdateCourseModuleRequest" : {
         "properties" : {
           "displayOrder" : {
-            "$ref" : "#/components/schemas/PatchableInteger"
+            "format" : "int32",
+            "type" : "integer"
           },
           "longDescription" : {
-            "$ref" : "#/components/schemas/PatchableString"
+            "type" : "string"
           },
           "presentationVideoUrl" : {
-            "$ref" : "#/components/schemas/PatchableString"
+            "type" : "string"
           },
           "shortDescription" : {
-            "$ref" : "#/components/schemas/PatchableString"
+            "type" : "string"
           },
           "title" : {
-            "$ref" : "#/components/schemas/PatchableString"
+            "type" : "string"
           }
         },
         "type" : "object"
@@ -7134,25 +7126,28 @@
       "UpdateCourseRequest" : {
         "properties" : {
           "difficulty" : {
-            "$ref" : "#/components/schemas/PatchableCourseDifficulty"
+            "enum" : [ "PRINCIPIANTE", "INTERMEDIO", "AVANZADO" ],
+            "type" : "string"
           },
           "displayOrder" : {
-            "$ref" : "#/components/schemas/PatchableInteger"
+            "format" : "int32",
+            "type" : "integer"
           },
           "instructorId" : {
-            "$ref" : "#/components/schemas/PatchableUUID"
+            "format" : "uuid",
+            "type" : "string"
           },
           "introVideoUrl" : {
-            "$ref" : "#/components/schemas/PatchableString"
+            "type" : "string"
           },
           "longDescription" : {
-            "$ref" : "#/components/schemas/PatchableString"
+            "type" : "string"
           },
           "shortDescription" : {
-            "$ref" : "#/components/schemas/PatchableString"
+            "type" : "string"
           },
           "title" : {
-            "$ref" : "#/components/schemas/PatchableString"
+            "type" : "string"
           }
         },
         "type" : "object"
@@ -7160,25 +7155,28 @@
       "UpdateLessonRequest" : {
         "properties" : {
           "content" : {
-            "$ref" : "#/components/schemas/PatchableString"
+            "type" : "string"
           },
           "description" : {
-            "$ref" : "#/components/schemas/PatchableString"
+            "type" : "string"
           },
           "displayOrder" : {
-            "$ref" : "#/components/schemas/PatchableInteger"
+            "format" : "int32",
+            "type" : "integer"
           },
           "durationSeconds" : {
-            "$ref" : "#/components/schemas/PatchableInteger"
+            "format" : "int32",
+            "type" : "integer"
           },
           "open" : {
-            "$ref" : "#/components/schemas/PatchableBoolean"
+            "type" : "boolean"
           },
           "title" : {
-            "$ref" : "#/components/schemas/PatchableString"
+            "type" : "string"
           },
           "type" : {
-            "$ref" : "#/components/schemas/PatchableLessonType"
+            "enum" : [ "VIDEO", "TEXTO" ],
+            "type" : "string"
           }
         },
         "type" : "object"
@@ -7186,31 +7184,31 @@
       "UpdateOwnProfileRequest" : {
         "properties" : {
           "addressLine1" : {
-            "$ref" : "#/components/schemas/PatchableString"
+            "type" : "string"
           },
           "addressLine2" : {
-            "$ref" : "#/components/schemas/PatchableString"
+            "type" : "string"
           },
           "city" : {
-            "$ref" : "#/components/schemas/PatchableString"
+            "type" : "string"
           },
           "companyPhone" : {
-            "$ref" : "#/components/schemas/PatchableString"
+            "type" : "string"
           },
           "currentPassword" : {
             "type" : "string"
           },
           "email" : {
-            "$ref" : "#/components/schemas/PatchableString"
+            "type" : "string"
           },
           "firstName" : {
-            "$ref" : "#/components/schemas/PatchableString"
+            "type" : "string"
           },
           "lastName" : {
-            "$ref" : "#/components/schemas/PatchableString"
+            "type" : "string"
           },
           "phone" : {
-            "$ref" : "#/components/schemas/PatchableString"
+            "type" : "string"
           }
         },
         "type" : "object"
@@ -7218,25 +7216,30 @@
       "UpdatePackageRequest" : {
         "properties" : {
           "code" : {
-            "$ref" : "#/components/schemas/PatchableObject"
+            "description" : "No se corrige: enviarlo, con cualquier valor, se rechaza.",
+            "not" : { }
           },
           "currencyId" : {
-            "$ref" : "#/components/schemas/PatchableObject"
+            "description" : "No se corrige: enviarlo, con cualquier valor, se rechaza.",
+            "not" : { }
           },
           "description" : {
-            "$ref" : "#/components/schemas/PatchableString"
+            "type" : "string"
           },
           "name" : {
-            "$ref" : "#/components/schemas/PatchableString"
+            "type" : "string"
           },
           "scope" : {
-            "$ref" : "#/components/schemas/PatchableProductScope"
+            "enum" : [ "TIENDA", "HOTLINK", "AMBOS", "NINGUNO" ],
+            "type" : "string"
           },
           "validFrom" : {
-            "$ref" : "#/components/schemas/PatchableLocalDate"
+            "format" : "date",
+            "type" : "string"
           },
           "validTo" : {
-            "$ref" : "#/components/schemas/PatchableLocalDate"
+            "format" : "date",
+            "type" : "string"
           }
         },
         "type" : "object"
@@ -7244,12 +7247,13 @@
       "UpdateProductCommentRequest" : {
         "properties" : {
           "comment" : {
-            "$ref" : "#/components/schemas/PatchableString",
-            "description" : "Texto nuevo, de 1 a 1000 caracteres tras recortar. No admite nulo."
+            "description" : "Texto nuevo, de 1 a 1000 caracteres tras recortar. No admite nulo.",
+            "type" : "string"
           },
           "rating" : {
-            "$ref" : "#/components/schemas/PatchableInteger",
-            "description" : "Puntuación nueva, entera de 1 a 5. No admite nulo."
+            "description" : "Puntuación nueva, entera de 1 a 5. No admite nulo.",
+            "format" : "int32",
+            "type" : "integer"
           }
         },
         "type" : "object"
@@ -7257,49 +7261,60 @@
       "UpdateProductRequest" : {
         "properties" : {
           "code" : {
-            "$ref" : "#/components/schemas/PatchableObject"
+            "description" : "No se corrige: enviarlo, con cualquier valor, se rechaza.",
+            "not" : { }
           },
           "currencyId" : {
-            "$ref" : "#/components/schemas/PatchableUUID"
+            "format" : "uuid",
+            "type" : "string"
           },
           "description" : {
-            "$ref" : "#/components/schemas/PatchableString"
+            "type" : "string"
           },
           "directCommission" : {
-            "$ref" : "#/components/schemas/PatchableProductDirectCommission"
+            "$ref" : "#/components/schemas/ProductDirectCommission"
           },
           "icon" : {
-            "$ref" : "#/components/schemas/PatchableString"
+            "type" : "string"
           },
           "implementation" : {
-            "$ref" : "#/components/schemas/PatchableProductImplementation"
+            "enum" : [ "AUTOMATICA", "MANUAL" ],
+            "type" : "string"
           },
           "links" : {
-            "$ref" : "#/components/schemas/PatchableListProductLinkRequest"
+            "items" : {
+              "$ref" : "#/components/schemas/ProductLinkRequest"
+            },
+            "type" : "array"
           },
           "name" : {
-            "$ref" : "#/components/schemas/PatchableString"
+            "type" : "string"
           },
           "price" : {
-            "$ref" : "#/components/schemas/PatchableBigDecimal"
+            "type" : "number"
           },
           "purchasePrice" : {
-            "$ref" : "#/components/schemas/PatchableBigDecimal"
+            "type" : "number"
           },
           "scope" : {
-            "$ref" : "#/components/schemas/PatchableProductScope"
+            "enum" : [ "TIENDA", "HOTLINK", "AMBOS", "NINGUNO" ],
+            "type" : "string"
           },
           "sourceMembershipId" : {
-            "$ref" : "#/components/schemas/PatchableObject"
+            "description" : "No se corrige: enviarlo, con cualquier valor, se rechaza.",
+            "not" : { }
           },
           "targetMembershipId" : {
-            "$ref" : "#/components/schemas/PatchableObject"
+            "description" : "No se corrige: enviarlo, con cualquier valor, se rechaza.",
+            "not" : { }
           },
           "type" : {
-            "$ref" : "#/components/schemas/PatchableObject"
+            "description" : "No se corrige: enviarlo, con cualquier valor, se rechaza.",
+            "not" : { }
           },
           "validityDays" : {
-            "$ref" : "#/components/schemas/PatchableInteger"
+            "format" : "int32",
+            "type" : "integer"
           }
         },
         "type" : "object"
@@ -7307,10 +7322,10 @@
       "UpdateRoleRequest" : {
         "properties" : {
           "description" : {
-            "$ref" : "#/components/schemas/PatchableString"
+            "type" : "string"
           },
           "name" : {
-            "$ref" : "#/components/schemas/PatchableString"
+            "type" : "string"
           }
         },
         "type" : "object"
@@ -7318,10 +7333,10 @@
       "UpdateTeamRequest" : {
         "properties" : {
           "description" : {
-            "$ref" : "#/components/schemas/PatchableString"
+            "type" : "string"
           },
           "name" : {
-            "$ref" : "#/components/schemas/PatchableString"
+            "type" : "string"
           }
         },
         "type" : "object"
@@ -7329,22 +7344,26 @@
       "UpdateUserAfftrackRateRequest" : {
         "properties" : {
           "amountPerFtd" : {
-            "$ref" : "#/components/schemas/PatchableBigDecimal"
+            "type" : "number"
           },
           "productId" : {
-            "$ref" : "#/components/schemas/PatchableObject"
+            "description" : "No se corrige: enviarlo, con cualquier valor, se rechaza.",
+            "not" : { }
           },
           "threshold" : {
-            "$ref" : "#/components/schemas/PatchableBigDecimal"
+            "type" : "number"
           },
           "userId" : {
-            "$ref" : "#/components/schemas/PatchableObject"
+            "description" : "No se corrige: enviarlo, con cualquier valor, se rechaza.",
+            "not" : { }
           },
           "validFrom" : {
-            "$ref" : "#/components/schemas/PatchableObject"
+            "description" : "No se corrige: enviarlo, con cualquier valor, se rechaza.",
+            "not" : { }
           },
           "validTo" : {
-            "$ref" : "#/components/schemas/PatchableLocalDate"
+            "format" : "date",
+            "type" : "string"
           }
         },
         "type" : "object"
@@ -7352,22 +7371,26 @@
       "UpdateUserCommissionRateRequest" : {
         "properties" : {
           "fixedAmount" : {
-            "$ref" : "#/components/schemas/PatchableBigDecimal"
+            "type" : "number"
           },
           "percentage" : {
-            "$ref" : "#/components/schemas/PatchableBigDecimal"
+            "type" : "number"
           },
           "rateType" : {
-            "$ref" : "#/components/schemas/PatchableCommissionRateType"
+            "enum" : [ "PORCENTAJE", "FIJO" ],
+            "type" : "string"
           },
           "userId" : {
-            "$ref" : "#/components/schemas/PatchableObject"
+            "description" : "No se corrige: enviarlo, con cualquier valor, se rechaza.",
+            "not" : { }
           },
           "validFrom" : {
-            "$ref" : "#/components/schemas/PatchableObject"
+            "description" : "No se corrige: enviarlo, con cualquier valor, se rechaza.",
+            "not" : { }
           },
           "validTo" : {
-            "$ref" : "#/components/schemas/PatchableLocalDate"
+            "format" : "date",
+            "type" : "string"
           }
         },
         "type" : "object"
@@ -7375,37 +7398,39 @@
       "UpdateUserRequest" : {
         "properties" : {
           "addressLine1" : {
-            "$ref" : "#/components/schemas/PatchableString"
+            "type" : "string"
           },
           "addressLine2" : {
-            "$ref" : "#/components/schemas/PatchableString"
+            "type" : "string"
           },
           "city" : {
-            "$ref" : "#/components/schemas/PatchableString"
+            "type" : "string"
           },
           "companyPhone" : {
-            "$ref" : "#/components/schemas/PatchableString"
+            "type" : "string"
           },
           "countryId" : {
-            "$ref" : "#/components/schemas/PatchableUUID"
+            "format" : "uuid",
+            "type" : "string"
           },
           "documentNumber" : {
-            "$ref" : "#/components/schemas/PatchableString"
+            "type" : "string"
           },
           "documentTypeId" : {
-            "$ref" : "#/components/schemas/PatchableUUID"
+            "format" : "uuid",
+            "type" : "string"
           },
           "email" : {
-            "$ref" : "#/components/schemas/PatchableString"
+            "type" : "string"
           },
           "firstName" : {
-            "$ref" : "#/components/schemas/PatchableString"
+            "type" : "string"
           },
           "lastName" : {
-            "$ref" : "#/components/schemas/PatchableString"
+            "type" : "string"
           },
           "phone" : {
-            "$ref" : "#/components/schemas/PatchableString"
+            "type" : "string"
           }
         },
         "type" : "object"
