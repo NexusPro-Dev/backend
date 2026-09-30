@@ -87,12 +87,17 @@ public class JpaCommissionClosingRepository implements CommissionClosingReposito
   public int closeOpenBatches(UUID closingId, OffsetDateTime at) {
     // El UPDATE toma cada fila con su bloqueo: si un devengo la tiene tomada,
     // espera, y la cierra con la comisión dentro. Un lote nacido en este mismo
-    // instante o después se queda abierto: su periodo no ha empezado.
+    // instante o después se queda abierto: su periodo no ha empezado. Y desde
+    // el 30-09-2026 (`RN-CM-048`) tampoco se cierra el que no tiene ninguna
+    // comisión viva: se devolvieron o revirtieron todas, y un pendiente vacío
+    // no se podría pagar.
     return em.createNativeQuery(
             """
-            UPDATE commission_batches
+            UPDATE commission_batches b
                SET status = 'PENDIENTE', period_end = :at, closing_id = :cierre, updated_at = :at
-             WHERE status = 'ABIERTO' AND period_start < :at
+             WHERE b.status = 'ABIERTO' AND b.period_start < :at
+               AND EXISTS (SELECT 1 FROM commissions c
+                            WHERE c.batch_id = b.id AND c.reverted_at IS NULL)
             """)
         .setParameter("at", at)
         .setParameter("cierre", closingId)

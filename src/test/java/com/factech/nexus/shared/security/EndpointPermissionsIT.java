@@ -291,6 +291,12 @@ class EndpointPermissionsIT extends IntegrationTestBase {
           Map.entry("GET /api/v1/commission-batches", "commission-batches:read"),
           Map.entry("GET /api/v1/commission-batches/{id}", "commission-batches:read-detail"),
           Map.entry("POST /api/v1/commission-batches/{id}/payment", "commission-batches:pay"),
+          Map.entry(
+              "POST /api/v1/commission-batches/{id}/commissions/{commissionId}/withdrawal",
+              "commission-batches:withdraw-commission"),
+          Map.entry(
+              "POST /api/v1/commission-batches/{id}/commissions/{commissionId}/return",
+              "commission-batches:return-commission"),
           Map.entry("GET /api/v1/commission-batches/mine", "commission-batches:list-own"),
           Map.entry("GET /api/v1/commission-batches/mine/{id}", "commission-batches:read-own"),
           Map.entry("GET /api/v1/commission-accruals", "commission-accruals:read"),

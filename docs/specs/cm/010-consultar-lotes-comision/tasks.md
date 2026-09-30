@@ -92,6 +92,6 @@ Rama: `feature/comision-venta-directa`.
 
 | ID | Tarea | Depende de | Verificación | Estado |
 |---|---|---|---|---|
-| `T-09` | `revertedAt`, `revertedBy` y `withdrawnFrom` en la línea; `withdrawn` en el detalle; `commissionCount` de las vivas; prosa de las `@Operation` (`plan.md` §14) | `RF-CM-022` `T-01` | `CommissionBatchesIT`: `CA-CM-302`; `CA-CM-188` con su nueva cifra; diff del `json` sin esquemas fundidos | Pendiente |
+| `T-09` | `revertedAt`, `revertedBy` y `withdrawnFrom` en la línea; `withdrawn` en el detalle; `commissionCount` de las vivas; prosa de las `@Operation` (`plan.md` §14) | `RF-CM-022` `T-01` | `CommissionBatchesIT`: `CA-CM-302`; `CA-CM-188` con su nueva cifra; diff del `json` sin esquemas fundidos | **Hecha** — 30-09-2026 |
 
 Rama: `feature/corregir-vendedor-y-mover-comisiones`.

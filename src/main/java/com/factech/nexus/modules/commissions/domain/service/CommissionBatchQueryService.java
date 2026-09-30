@@ -93,6 +93,7 @@ public class CommissionBatchQueryService {
                 () ->
                     new ResourceNotFoundException(
                         "EX-001", "No existe un lote de comisión con ese identificador."));
-    return CommissionBatchDetailResponse.from(lote, consultas.commissionsOf(id));
+    return CommissionBatchDetailResponse.from(
+        lote, consultas.commissionsOf(id), consultas.withdrawnFrom(id));
   }
 }

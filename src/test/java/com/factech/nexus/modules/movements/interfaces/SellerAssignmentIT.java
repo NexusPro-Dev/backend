@@ -238,7 +238,7 @@ class SellerAssignmentIT extends IntegrationTestBase {
   @Test
   @DisplayName(
       "CA-MV-153 y CA-MV-160 — confirmada por validar: entrega y sigue por validar; lo que falta"
-          + " se asigna, lo asignado no se corrige")
+          + " se asigna, y lo asignado SIN comisión pagada se corrige (RN-MV-053, 30-09-2026)")
   void confirmada() throws Exception {
     UUID venta = ventaPorValidar();
     mvc.perform(asignar(venta, par(botA, ana)).with(conPermiso(ASIGNAR)))
@@ -253,10 +253,12 @@ class SellerAssignmentIT extends IntegrationTestBase {
         .andExpect(jsonPath("$.typeStatus").value("VALIDAR_COMISIONES"))
         .andExpect(jsonPath("$.lines[0].deliveryStatus").value("ENTREGADA"));
 
-    // Corregir la que ya tenía vendedor: congelada.
+    // Corregir la que ya tenía vendedor: hasta el 30-09-2026 quedaba congelada
+    // (EX-003); desde entonces se corrige mientras su comisión no se haya
+    // pagado, y aquí no tiene ninguna (RN-MV-053). El 409 con la comisión
+    // pagada vive en ReleaseCommissionedLineIT (CA-MV-352).
     mvc.perform(asignar(venta, par(botA, pedro)).with(conPermiso(ASIGNAR)))
-        .andExpect(status().isConflict())
-        .andExpect(jsonPath("$.errors[0].code").value("EX-003"));
+        .andExpect(status().isOk());
 
     // La que faltaba sí, y con ella la venta se valida.
     mvc.perform(asignar(venta, par(botB, pedro)).with(conPermiso(ASIGNAR)))
@@ -266,7 +268,7 @@ class SellerAssignmentIT extends IntegrationTestBase {
     assertThat(
             jdbc.queryForObject(
                 "SELECT seller_id FROM movement_details WHERE product_id = ?", UUID.class, botA))
-        .isEqualTo(ana);
+        .isEqualTo(pedro);
   }
 
   @Test

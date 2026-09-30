@@ -110,6 +110,6 @@ Rama: `feature/comision-venta-directa`.
 
 | ID | Tarea | Depende de | Verificación | Estado |
 |---|---|---|---|---|
-| `T-18` | `CA-CM-304` y `CA-CM-305` en `CommissionAccrualIT` (`plan.md` §14) | `RF-CM-024` `T-03`, `RF-MV-016` `T-13` | `CommissionAccrualIT` en verde | Pendiente |
+| `T-18` | `CA-CM-304` y `CA-CM-305` en `CommissionAccrualIT` (`plan.md` §14) | `RF-CM-024` `T-03`, `RF-MV-016` `T-13` | `CommissionAccrualIT` en verde | **Hecha** — 30-09-2026 |
 
 Rama: `feature/corregir-vendedor-y-mover-comisiones`.

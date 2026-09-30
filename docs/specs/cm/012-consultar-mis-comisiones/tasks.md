@@ -88,6 +88,6 @@ Rama: `feature/comision-venta-directa`.
 
 | ID | Tarea | Depende de | Verificación | Estado |
 |---|---|---|---|---|
-| `T-07` | La prosa de las `@Operation` y `CA-CM-303` en `CommissionBatchesIT` | `RF-CM-010` `T-09` | | Pendiente |
+| `T-07` | La prosa de las `@Operation` y `CA-CM-303` en `CommissionBatchesIT` | `RF-CM-010` `T-09` | | **Hecha** — 30-09-2026 |
 
 Rama: `feature/corregir-vendedor-y-mover-comisiones`.

@@ -67,6 +67,6 @@
 
 | ID | Tarea | Depende de | Verificación | Estado |
 |---|---|---|---|---|
-| `T-06` | El `EXISTS` de comisiones vivas en `PayCommissionBatchService`, la prosa del `409` y `CA-CM-301` en `PayCommissionBatchIT` (`plan.md` §12) | `RF-CM-022` `T-05` | `PayCommissionBatchIT` en verde | Pendiente |
+| `T-06` | El `EXISTS` de comisiones vivas en `PayCommissionBatchService`, la prosa del `409` y `CA-CM-301` en `PayCommissionBatchIT` (`plan.md` §12) | `RF-CM-022` `T-05` | `PayCommissionBatchIT` en verde | **Hecha** — 30-09-2026 |
 
 Rama: `feature/corregir-vendedor-y-mover-comisiones`.
