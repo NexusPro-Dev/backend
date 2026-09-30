@@ -5,11 +5,11 @@
 | Módulo | `MV` — Movimientos |
 | Paquete | `modules/movements` |
 | Prefijos de permiso | `movements:` |
-| Versión | 0.51.0 |
+| Versión | 0.52.0 |
 | Estado | **Borrador** |
 | Responsable | Bonilla Diaz William Steven |
 | Fecha de creación | 02-09-2026 |
-| Última actualización | 28-09-2026 |
+| Última actualización | 30-09-2026 |
 
 !!! info "Qué va en este documento"
 
@@ -1024,3 +1024,4 @@ Se siembra por migración y **no se administra por API todavía** (§5.3). Lo m�
 | 0.49.0 | 28-09-2026 | **La comisión se devenga sola, y este módulo avisa** (`requirements/cm.md` v0.19.0, §5.7), por decisión del responsable del proyecto. **Nace `RN-MV-049`**: al confirmar una venta (`RF-MV-003`) y al asignar vendedor a una línea de una venta ya confirmada (`RF-MV-016`), `MV` publica **después de su commit** un evento con las líneas que quedaron comisionables —venta `CONFIRMADA` y línea con vendedor—; no llama a `CM` ni sabe que existe, y si quien escucha falla la venta sigue confirmada. Publica además la lectura de las líneas cobradas y con vendedor, con la que `CM` barre lo que no le llegó. **Se enmienda `RN-MV-035`**: la comisión ya no espera a que **la venta** esté `VALIDADO`, sino a que **la línea** tenga vendedor — la misma regla congela el vendedor al confirmar, de modo que la línea atribuida ya no puede cambiar de dueño. §3 recoge el aviso en la fila de `CM`. Sin cambio de esquema. | Responsable del proyecto |
 | 0.50.0 | 28-09-2026 | **`RF-MV-014` trae los enlaces del producto, todos, en la línea entregada**, por decisión del responsable del proyecto —«en consultar mis productos comprados quiero poder traer los links del producto; si es bot, traer el tipo `CUPON_BOT`» y «que los enlaces solo vengan en los productos, consultar todos los links que tenga el producto»—. **(1) `couponUrl` desaparece** y el cupón pasa a ser uno más de los enlaces del producto, con su tipo: una sola lista, **por línea** y no por producto. Cambio incompatible, declarado. **(2) Cuándo se ve no cambia** (`RN-MV-032`): el responsable confirmó que el cupón **se usa después de activar** (`RF-MV-010`) y no para activar, de modo que la línea entregada trae todos los enlaces y las demás, los de la oferta. **(3) `RN-MV-032` se amplía a todo enlace de entrega**, porque el mismo día nace `DESCARGA` ([`requirements/pm.md`](pm.md) v0.45.0 §5.2.15). §3 cambia la lectura que consume de `PM`. Enmienda la tripleta de `RF-MV-014` (`T-08`, `CA-MV-285`) | Responsable del proyecto |
 | 0.51.0 | 28-09-2026 | **`RN-MV-032` pasa de la entrega al pago**, por decisión del responsable del proyecto —«en la consulta de mis productos, que traiga todos los links», y al preguntarle en qué estados, «desde que se pagó»—. Los enlaces de entrega viajan con la venta `CONFIRMADA` (`PENDIENTE_ACTIVACION`, `ACTIVO`, `VENCIDO`, `CANCELADO` y `RETENIDO`) para que **el cupón sirva para activar** el bot; en `PENDIENTE_PAGO`, `RECHAZADO` y `ANULADO` no, porque por el hotlink se registra una compra sin pagar. `RETENIDO` los trae por elección expresa. Enmienda `RF-MV-014` (`T-09`, `CA-MV-286`) y `CA-MV-282` de `RF-MV-010` | Responsable del proyecto |
+| 0.52.0 | 30-09-2026 | **`RF-MV-010` está construido** desde el 28-09-2026 (issue [#123](https://github.com/NexusPro-Dev/backend/issues/123), PR [#125](https://github.com/NexusPro-Dev/backend/pull/125)): `V50` siembra `movements:activate-own-product` por tipo de rol y la entrega de una línea vive en `LineDelivery`, compartida con confirmar. Sin cambio de reglas. | Responsable técnico |
