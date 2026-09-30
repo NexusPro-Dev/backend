@@ -4,7 +4,7 @@
 |---|---|
 | Requerimiento | `RF-MV-018` |
 | Módulo | `MV` — Movimientos |
-| Versión | 0.1.0 |
+| Versión | 0.2.0 |
 | Estado | **Aprobada** |
 | Autor | Responsable técnico |
 | Aprobada por | Responsable del proyecto |
@@ -223,3 +223,4 @@ El comprador no indica método; el pago se abre con el gratuito. Es el caso raro
 | Versión | Fecha | Cambio | Autor |
 |---|---|---|---|
 | 0.1.0 | 26-09-2026 | Primera versión, con la etapa 6 de `MV` ([`requirements/mv.md`](../../../requirements/mv.md) v0.44.0 y v0.45.0). Lo que la spec carga: **el método es de cada pago y no de la venta**, y por eso **vuelve a pagar el comprador sobre la misma venta**, solo cuando no hay un pago pendiente; **la clave de idempotencia es obligatoria aquí y opcional al comprar**, porque aquí la diferencia entre un reintento y un segundo pago es un cobro; y **el contrato de la venta no se rompe** (§2.2). Criterios `CA-MV-206` a `CA-MV-217`. | Responsable del proyecto |
+| 0.2.0 | 30-09-2026 | **Volver a pagar con puntos confirma en el acto** (`RF-MV-030`, `RN-MV-052`; [`requirements/mv.md`](../../../requirements/mv.md) v0.54.0 §4.4): el pago nuevo se descuenta y la venta se confirma con sus efectos; si no alcanzan, el pago no se abre y la venta sigue pendiente. **Los pagos `POINTS` pendientes anteriores al 30-09-2026 se rechazan** en la migración de la etapa 3, y sus ventas se vuelven a pagar por aquí. | Responsable técnico |

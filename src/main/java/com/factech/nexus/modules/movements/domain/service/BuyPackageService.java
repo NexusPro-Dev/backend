@@ -104,6 +104,7 @@ public class BuyPackageService {
   private final Clock reloj;
   private final SaleRules reglas;
   private final SaleAttribution atribuciones;
+  private final PointsPayment puntos;
 
   @Autowired
   public BuyPackageService(
@@ -113,7 +114,8 @@ public class BuyPackageService {
       ClientCatalog clientes,
       CurrentMembershipLookup membresias,
       CurrentActor actor,
-      AuditWriter auditoria) {
+      AuditWriter auditoria,
+      PointsPayment puntos) {
     this(
         movimientos,
         paquetes,
@@ -122,6 +124,7 @@ public class BuyPackageService {
         membresias,
         actor,
         auditoria,
+        puntos,
         Clock.systemUTC());
   }
 
@@ -133,7 +136,9 @@ public class BuyPackageService {
       CurrentMembershipLookup membresias,
       CurrentActor actor,
       AuditWriter auditoria,
+      PointsPayment puntos,
       Clock reloj) {
+    this.puntos = puntos;
     this.movimientos = movimientos;
     this.paquetes = paquetes;
     this.productos = productos;
@@ -216,16 +221,26 @@ public class BuyPackageService {
             ahora,
             ahora);
 
-    movimientos.save(venta, () -> MovementCode.generar(tipo.prefix(), ahora), clave);
+    UUID pago = movimientos.save(venta, () -> MovementCode.generar(tipo.prefix(), ahora), clave);
 
     auditoria.recordChange(
         new ChangeEvent(MODULO, ENTIDAD, venta.getId(), ChangeAction.CREATE, venta.instantanea()));
 
-    return PurchaseResponse.de(
-        venta,
-        new SaleResponse.Party(cliente.id(), cliente.username(), nombre(cliente)),
-        new SaleResponse.Money(paquete.currencyId(), paquete.currencyCode()),
-        metodo.code());
+    PurchaseResponse compra =
+        PurchaseResponse.de(
+            venta,
+            new SaleResponse.Party(cliente.id(), cliente.username(), nombre(cliente)),
+            new SaleResponse.Money(paquete.currencyId(), paquete.currencyCode()),
+            metodo.code());
+    if (!PointsPayment.esPuntos(metodo)) {
+      return compra;
+    }
+    // Pagada con puntos: se descuenta y se confirma en el acto (`RF-MV-030`).
+    return compra.confirmada(
+        puntos
+            .pagar(
+                venta.getId(), pago, cliente.id(), paquete.currencyId(), venta.getPayableAmount())
+            .confirmedAt());
   }
 
   // ---------------------------------------------------------------------------

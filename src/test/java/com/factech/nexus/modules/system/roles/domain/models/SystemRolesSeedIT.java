@@ -47,6 +47,10 @@ class SystemRolesSeedIT extends IntegrationTestBase {
           "movements:list-own",
           // V48 y V49 (26-09-2026, etapa 6 de MV): lo propio de pagos y saldos, por tipo de rol.
           "movements:retry-payment",
+          // `V58` (30-09-2026): la etapa 3 de puntos, lo propio por tipo de rol.
+          "movements:read-points-rates",
+          "movements:buy-points",
+          "movements:list-own-points-purchases",
           "movements:request-withdrawal",
           "movements:read-own-balances",
           "movements:list-own-entries",
@@ -86,6 +90,10 @@ class SystemRolesSeedIT extends IntegrationTestBase {
           "movements:list-own",
           // V48 y V49 (26-09-2026, etapa 6 de MV): lo propio de pagos y saldos, por tipo de rol.
           "movements:retry-payment",
+          // `V58` (30-09-2026): la etapa 3 de puntos, lo propio por tipo de rol.
+          "movements:read-points-rates",
+          "movements:buy-points",
+          "movements:list-own-points-purchases",
           "movements:request-withdrawal",
           "movements:read-own-balances",
           "movements:list-own-entries",
@@ -117,6 +125,10 @@ class SystemRolesSeedIT extends IntegrationTestBase {
           "movements:list-own",
           // V48 y V49 (26-09-2026, etapa 6 de MV): lo propio de pagos y saldos, por tipo de rol.
           "movements:retry-payment",
+          // `V58` (30-09-2026): la etapa 3 de puntos, lo propio por tipo de rol.
+          "movements:read-points-rates",
+          "movements:buy-points",
+          "movements:list-own-points-purchases",
           "movements:request-withdrawal",
           "movements:read-own-balances",
           "movements:list-own-entries",

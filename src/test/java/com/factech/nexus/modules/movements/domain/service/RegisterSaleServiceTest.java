@@ -79,6 +79,7 @@ class RegisterSaleServiceTest {
             clientes,
             membresias,
             mock(AuditWriter.class),
+            mock(PointsPayment.class),
             java.time.Clock.systemUTC());
 
     when(clientes.findClient(CLIENTE))

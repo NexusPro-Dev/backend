@@ -24,6 +24,12 @@ public record PaymentResponse(
         String status,
     BigDecimal amount,
     @Schema(
+            types = {"number", "null"},
+            description =
+                "Los puntos que costó, si se pagó con puntos (`RF-MV-030`): `amount × tasa"
+                    + " vigente`, redondeados hacia arriba. NULO en cualquier otro pago.")
+        BigDecimal points,
+    @Schema(
             types = {"string", "null"},
             description =
                 "La referencia de quien cobra, o de la transferencia en un retiro. NULA si nadie"

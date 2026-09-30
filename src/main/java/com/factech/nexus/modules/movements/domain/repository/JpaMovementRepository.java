@@ -208,9 +208,11 @@ public class JpaMovementRepository implements MovementRepository {
                   INSERT INTO movements (id, movement_type_id, user_id, currency_id, code, status,
                                          type_status_id, total_amount, discount_amount,
                                          payable_amount, occurred_at, confirmed_at, concept,
-                                         idempotency_key, created_at)
+                                         idempotency_key, points_rate_id, points_amount,
+                                         created_at)
                   VALUES (:id, :tipo, :sujeto, :moneda, :codigo, :estado, :estadoDelTipo,
-                          :importe, 0, :importe, :ocurrio, :confirmado, :concepto, :clave, :creado)
+                          :importe, 0, :importe, :ocurrio, :confirmado, :concepto, :clave,
+                          :tasa, :puntos, :creado)
                   ON CONFLICT (code) DO NOTHING
                   """)
               .setParameter("id", m.getId())
@@ -225,6 +227,8 @@ public class JpaMovementRepository implements MovementRepository {
               .setParameter("confirmado", m.getConfirmedAt())
               .setParameter("concepto", m.getConcept())
               .setParameter("clave", m.getIdempotencyKey())
+              .setParameter("tasa", m.getPointsRateId())
+              .setParameter("puntos", m.getPointsAmount())
               .setParameter("creado", m.getCreatedAt())
               .executeUpdate();
       if (filas == 1) {
@@ -237,6 +241,190 @@ public class JpaMovementRepository implements MovementRepository {
     throw new IllegalStateException(
         "No se pudo emitir un comprobante único en %d intentos para el movimiento %s."
             .formatted(INTENTOS, m.getId()));
+  }
+
+  @Override
+  public UUID savePointsPurchase(
+      Movement compra, Supplier<String> nuevoCodigo, IdempotencyKey clave) {
+    // La cabecera como cualquier movimiento sin líneas, y su primer pago como la
+    // venta: la compra de puntos es las dos cosas (`RF-MV-027` · `plan.md` §1).
+    saveWithoutLines(compra, nuevoCodigo);
+    return insertarPrimerPago(compra, clave);
+  }
+
+  @Override
+  @Transactional
+  public boolean confirmPointsPurchaseIfPending(UUID movementId, OffsetDateTime at) {
+    // La compra PRIMERO, como en la venta: es la fila que serializa confirmar
+    // contra rechazar (`CA-MV-323`).
+    return em.createNativeQuery(
+                """
+                UPDATE movements m SET status = 'CONFIRMADA', confirmed_at = :ahora
+                 WHERE m.id = :id AND m.status = 'PENDIENTE'
+                   AND m.movement_type_id = (SELECT t.id FROM movement_types t
+                                              WHERE t.code = 'COMPRA_PUNTOS')
+                """)
+            .setParameter("id", movementId)
+            .setParameter("ahora", at)
+            .executeUpdate()
+        == 1;
+  }
+
+  @Override
+  @Transactional
+  public boolean rejectPointsPurchaseIfPending(UUID movementId, OffsetDateTime at, String reason) {
+    return em.createNativeQuery(
+                """
+                UPDATE movements m
+                   SET status = 'RECHAZADA', rejected_at = :ahora, rejection_reason = :motivo
+                 WHERE m.id = :id AND m.status = 'PENDIENTE'
+                   AND m.movement_type_id = (SELECT t.id FROM movement_types t
+                                              WHERE t.code = 'COMPRA_PUNTOS')
+                """)
+            .setParameter("id", movementId)
+            .setParameter("ahora", at)
+            .setParameter("motivo", reason)
+            .executeUpdate()
+        == 1;
+  }
+
+  @Override
+  @Transactional
+  public UUID confirmPendingPayment(UUID movementId, OffsetDateTime at, String providerReference) {
+    // Tras ganar la transición de la cabecera: nadie más puede tocar este pago.
+    @SuppressWarnings("unchecked")
+    List<Object> filas =
+        em.createNativeQuery(
+                """
+                UPDATE payments
+                   SET status = 'CONFIRMADO', confirmed_at = :ahora,
+                       provider_reference = :referencia
+                 WHERE movement_id = :id AND status = 'PENDIENTE'
+                RETURNING id
+                """)
+            .setParameter("id", movementId)
+            .setParameter("ahora", at)
+            .setParameter("referencia", providerReference)
+            .getResultList();
+    if (filas.size() != 1) {
+      throw new IllegalStateException(
+          "El movimiento " + movementId + " no tenía un pago pendiente.");
+    }
+    return (UUID) filas.get(0);
+  }
+
+  @Override
+  @Transactional
+  public void rejectPendingPayment(UUID movementId, OffsetDateTime at, String reason) {
+    int filas =
+        em.createNativeQuery(
+                """
+                UPDATE payments
+                   SET status = 'RECHAZADO', rejected_at = :ahora, rejection_reason = :motivo
+                 WHERE movement_id = :id AND status = 'PENDIENTE'
+                """)
+            .setParameter("id", movementId)
+            .setParameter("ahora", at)
+            .setParameter("motivo", reason)
+            .executeUpdate();
+    if (filas != 1) {
+      throw new IllegalStateException(
+          "El movimiento " + movementId + " no tenía un pago pendiente.");
+    }
+  }
+
+  @Override
+  @Transactional(readOnly = true)
+  public Optional<PointsPurchaseRow> findPointsPurchase(UUID movementId) {
+    Filtro filtro = new Filtro();
+    filtro.igual("m.id", "id", movementId);
+    return comprasDePuntos(filtro, 0, 1).stream().findFirst();
+  }
+
+  @Override
+  @Transactional(readOnly = true)
+  public List<PointsPurchaseRow> findOwnPointsPurchases(
+      UUID actorId, PointsPurchaseFilter filtro, int offset, int limit) {
+    return comprasDePuntos(filtroDeCompras(actorId, filtro), offset, limit);
+  }
+
+  @Override
+  @Transactional(readOnly = true)
+  public long countOwnPointsPurchases(UUID actorId, PointsPurchaseFilter filtro) {
+    Filtro f = filtroDeCompras(actorId, filtro);
+    Query consulta =
+        em.createNativeQuery(
+            "SELECT count(*) FROM movements m JOIN movement_types t ON t.id = m.movement_type_id"
+                + " WHERE t.code = 'COMPRA_PUNTOS' AND "
+                + f.sql());
+    f.enlazar(consulta);
+    return ((Number) consulta.getSingleResult()).longValue();
+  }
+
+  /** `RF-MV-031`: el alcance en la sentencia, y los filtros de los demás listados. */
+  private static Filtro filtroDeCompras(UUID actorId, PointsPurchaseFilter filtro) {
+    Filtro f = new Filtro();
+    f.condicion("m.user_id = :actor", "actor", actorId);
+    f.igual("m.status", "estado", filtro.status());
+    f.igual("m.currency_id", "moneda", filtro.currencyId());
+    f.contiene("m.code", "codigo", filtro.code());
+    if (filtro.from() != null) {
+      f.condicion("m.occurred_at >= :desde", "desde", filtro.from());
+    }
+    if (filtro.to() != null) {
+      f.condicion("m.occurred_at < :hasta", "hasta", filtro.to());
+    }
+    return f;
+  }
+
+  /**
+   * Las compras de puntos que cumplen el filtro, con su tasa. Los pagos no van aquí: los lee quien
+   * llama de una vez para toda la página (`RF-MV-031` · `plan.md` §1).
+   */
+  private List<PointsPurchaseRow> comprasDePuntos(Filtro filtro, int offset, int limit) {
+    Query consulta =
+        em.createNativeQuery(
+            """
+            SELECT m.id AS id, m.code AS code, m.user_id AS sujeto, m.status AS status,
+                   c.id AS moneda, c.code AS codigo_moneda, m.payable_amount AS importe,
+                   m.points_rate_id AS tasa, r.points_per_unit AS valor,
+                   m.points_amount AS puntos, m.occurred_at AS ocurrio,
+                   m.confirmed_at AS confirmado, m.rejected_at AS rechazado,
+                   m.rejection_reason AS motivo
+              FROM movements m
+              JOIN movement_types t ON t.id = m.movement_type_id
+              JOIN currencies c ON c.id = m.currency_id
+              JOIN points_rates r ON r.id = m.points_rate_id
+             WHERE t.code = 'COMPRA_PUNTOS'
+            """
+                // FUERA del bloque de texto: el bloque recorta el espacio final.
+                + " AND "
+                + filtro.sql()
+                + " ORDER BY m.occurred_at DESC, m.id DESC OFFSET :salto LIMIT :tope",
+            Tuple.class);
+    filtro.enlazar(consulta);
+    consulta.setParameter("salto", offset).setParameter("tope", limit);
+    @SuppressWarnings("unchecked")
+    List<Tuple> filas = consulta.getResultList();
+    return filas.stream()
+        .map(
+            f ->
+                new PointsPurchaseRow(
+                    (UUID) f.get("id"),
+                    (String) f.get("code"),
+                    (UUID) f.get("sujeto"),
+                    (String) f.get("status"),
+                    (UUID) f.get("moneda"),
+                    ((String) f.get("codigo_moneda")).trim(),
+                    (BigDecimal) f.get("importe"),
+                    (UUID) f.get("tasa"),
+                    (BigDecimal) f.get("valor"),
+                    (BigDecimal) f.get("puntos"),
+                    instante(f.get("ocurrio")),
+                    instante(f.get("confirmado")),
+                    instante(f.get("rechazado")),
+                    (String) f.get("motivo")))
+        .toList();
   }
 
   @Override
@@ -908,38 +1096,60 @@ public class JpaMovementRepository implements MovementRepository {
    * decide el método que publican los listados.
    */
   private List<PaymentRow> pagosDe(UUID movementId) {
+    return findPaymentsOf(List.of(movementId)).getOrDefault(movementId, List.of());
+  }
+
+  /**
+   * Los pagos de varios movimientos en <b>una</b> sentencia, del más antiguo al más reciente en
+   * cada uno. La usa el detalle —con uno— y `RF-MV-031` con la página entera: una consulta por fila
+   * devolvería el mismo JSON y no lo vería ninguna aserción sobre el cuerpo.
+   */
+  @Override
+  @Transactional(readOnly = true)
+  public Map<UUID, List<PaymentRow>> findPaymentsOf(Collection<UUID> movementIds) {
+    Map<UUID, List<PaymentRow>> resultado = new LinkedHashMap<>();
+    if (movementIds.isEmpty()) {
+      return resultado;
+    }
     @SuppressWarnings("unchecked")
     List<Tuple> filas =
         em.createNativeQuery(
                 """
-                SELECT p.id AS id, pm.id AS pm_id, pm.code AS pm_code, pm.name AS pm_name,
+                SELECT p.movement_id AS movimiento, p.id AS id, pm.id AS pm_id,
+                       pm.code AS pm_code, pm.name AS pm_name,
                        p.status AS status, p.amount AS importe,
                        p.provider_reference AS referencia, p.occurred_at AS ocurrio,
                        p.confirmed_at AS confirmado, p.rejected_at AS rechazado,
-                       p.rejection_reason AS motivo
+                       p.rejection_reason AS motivo,
+                       (SELECT -e.amount FROM movement_entries e
+                          JOIN accounts a ON a.id = e.account_id
+                         WHERE e.payment_id = p.id AND e.event = 'PAGO'
+                           AND a.user_id IS NOT NULL) AS puntos
                   FROM payments p
                   JOIN payment_methods pm ON pm.id = p.payment_method_id
-                 WHERE p.movement_id = :movimiento
+                 WHERE p.movement_id IN (:movimientos)
                  ORDER BY p.occurred_at ASC, p.id ASC
                 """,
                 Tuple.class)
-            .setParameter("movimiento", movementId)
+            .setParameter("movimientos", movementIds)
             .getResultList();
-    List<PaymentRow> resultado = new ArrayList<>(filas.size());
     for (Tuple fila : filas) {
-      resultado.add(
-          new PaymentRow(
-              (UUID) fila.get("id"),
-              (UUID) fila.get("pm_id"),
-              (String) fila.get("pm_code"),
-              (String) fila.get("pm_name"),
-              (String) fila.get("status"),
-              (BigDecimal) fila.get("importe"),
-              (String) fila.get("referencia"),
-              instante(fila.get("ocurrio")),
-              instante(fila.get("confirmado")),
-              instante(fila.get("rechazado")),
-              (String) fila.get("motivo")));
+      resultado
+          .computeIfAbsent((UUID) fila.get("movimiento"), k -> new ArrayList<>())
+          .add(
+              new PaymentRow(
+                  (UUID) fila.get("id"),
+                  (UUID) fila.get("pm_id"),
+                  (String) fila.get("pm_code"),
+                  (String) fila.get("pm_name"),
+                  (String) fila.get("status"),
+                  (BigDecimal) fila.get("importe"),
+                  (String) fila.get("referencia"),
+                  instante(fila.get("ocurrio")),
+                  instante(fila.get("confirmado")),
+                  instante(fila.get("rechazado")),
+                  (String) fila.get("motivo"),
+                  (BigDecimal) fila.get("puntos")));
     }
     return resultado;
   }
