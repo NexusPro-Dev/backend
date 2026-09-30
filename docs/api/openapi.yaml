@@ -15299,33 +15299,33 @@ components:
           type: string
         name:
           type: string
-    PatchableString: {}
-    PatchableUUID: {}
     UpdateUserRequest:
       type: object
       properties:
         firstName:
-          $ref: "#/components/schemas/PatchableString"
+          type: string
         lastName:
-          $ref: "#/components/schemas/PatchableString"
+          type: string
         email:
-          $ref: "#/components/schemas/PatchableString"
+          type: string
         countryId:
-          $ref: "#/components/schemas/PatchableUUID"
+          type: string
+          format: uuid
         documentTypeId:
-          $ref: "#/components/schemas/PatchableUUID"
+          type: string
+          format: uuid
         documentNumber:
-          $ref: "#/components/schemas/PatchableString"
+          type: string
         phone:
-          $ref: "#/components/schemas/PatchableString"
+          type: string
         companyPhone:
-          $ref: "#/components/schemas/PatchableString"
+          type: string
         addressLine1:
-          $ref: "#/components/schemas/PatchableString"
+          type: string
         addressLine2:
-          $ref: "#/components/schemas/PatchableString"
+          type: string
         city:
-          $ref: "#/components/schemas/PatchableString"
+          type: string
     AssignSupervisorRequest:
       type: object
       properties:
@@ -15419,21 +15419,21 @@ components:
       type: object
       properties:
         firstName:
-          $ref: "#/components/schemas/PatchableString"
+          type: string
         lastName:
-          $ref: "#/components/schemas/PatchableString"
+          type: string
         email:
-          $ref: "#/components/schemas/PatchableString"
+          type: string
         phone:
-          $ref: "#/components/schemas/PatchableString"
+          type: string
         companyPhone:
-          $ref: "#/components/schemas/PatchableString"
+          type: string
         addressLine1:
-          $ref: "#/components/schemas/PatchableString"
+          type: string
         addressLine2:
-          $ref: "#/components/schemas/PatchableString"
+          type: string
         city:
-          $ref: "#/components/schemas/PatchableString"
+          type: string
         currentPassword:
           type: string
     OwnProfileResponse:
@@ -15475,47 +15475,53 @@ components:
           $ref: "#/components/schemas/SupervisorRef"
         mustChangePassword:
           type: boolean
-    PatchableBigDecimal: {}
-    PatchableCommissionRateType: {}
-    PatchableLocalDate: {}
-    PatchableObject: {}
     UpdateUserCommissionRateRequest:
       type: object
       properties:
         rateType:
-          $ref: "#/components/schemas/PatchableCommissionRateType"
+          type: string
+          enum:
+          - PORCENTAJE
+          - FIJO
         percentage:
-          $ref: "#/components/schemas/PatchableBigDecimal"
+          type: number
         fixedAmount:
-          $ref: "#/components/schemas/PatchableBigDecimal"
+          type: number
         validTo:
-          $ref: "#/components/schemas/PatchableLocalDate"
+          type: string
+          format: date
         userId:
-          $ref: "#/components/schemas/PatchableObject"
+          description: "No se corrige: enviarlo, con cualquier valor, se rechaza."
+          not: {}
         validFrom:
-          $ref: "#/components/schemas/PatchableObject"
+          description: "No se corrige: enviarlo, con cualquier valor, se rechaza."
+          not: {}
     UpdateUserAfftrackRateRequest:
       type: object
       properties:
         threshold:
-          $ref: "#/components/schemas/PatchableBigDecimal"
+          type: number
         amountPerFtd:
-          $ref: "#/components/schemas/PatchableBigDecimal"
+          type: number
         validTo:
-          $ref: "#/components/schemas/PatchableLocalDate"
+          type: string
+          format: date
         userId:
-          $ref: "#/components/schemas/PatchableObject"
+          description: "No se corrige: enviarlo, con cualquier valor, se rechaza."
+          not: {}
         productId:
-          $ref: "#/components/schemas/PatchableObject"
+          description: "No se corrige: enviarlo, con cualquier valor, se rechaza."
+          not: {}
         validFrom:
-          $ref: "#/components/schemas/PatchableObject"
+          description: "No se corrige: enviarlo, con cualquier valor, se rechaza."
+          not: {}
     UpdateTeamRequest:
       type: object
       properties:
         name:
-          $ref: "#/components/schemas/PatchableString"
+          type: string
         description:
-          $ref: "#/components/schemas/PatchableString"
+          type: string
     ChangeTeamStatusRequest:
       type: object
       properties:
@@ -15525,9 +15531,9 @@ components:
       type: object
       properties:
         name:
-          $ref: "#/components/schemas/PatchableString"
+          type: string
         description:
-          $ref: "#/components/schemas/PatchableString"
+          type: string
     ChangeRoleStatusRequest:
       type: object
       properties:
@@ -15544,44 +15550,55 @@ components:
           format: uuid
       required:
       - parentRoleId
-    PatchableInteger: {}
-    PatchableListProductLinkRequest: {}
-    PatchableProductDirectCommission: {}
-    PatchableProductImplementation: {}
-    PatchableProductScope: {}
     UpdateProductRequest:
       type: object
       properties:
         name:
-          $ref: "#/components/schemas/PatchableString"
+          type: string
         description:
-          $ref: "#/components/schemas/PatchableString"
+          type: string
         icon:
-          $ref: "#/components/schemas/PatchableString"
+          type: string
         links:
-          $ref: "#/components/schemas/PatchableListProductLinkRequest"
+          type: array
+          items:
+            $ref: "#/components/schemas/ProductLinkRequest"
         price:
-          $ref: "#/components/schemas/PatchableBigDecimal"
+          type: number
         purchasePrice:
-          $ref: "#/components/schemas/PatchableBigDecimal"
+          type: number
         currencyId:
-          $ref: "#/components/schemas/PatchableUUID"
+          type: string
+          format: uuid
         validityDays:
-          $ref: "#/components/schemas/PatchableInteger"
+          type: integer
+          format: int32
         scope:
-          $ref: "#/components/schemas/PatchableProductScope"
+          type: string
+          enum:
+          - TIENDA
+          - HOTLINK
+          - AMBOS
+          - NINGUNO
         implementation:
-          $ref: "#/components/schemas/PatchableProductImplementation"
+          type: string
+          enum:
+          - AUTOMATICA
+          - MANUAL
         directCommission:
-          $ref: "#/components/schemas/PatchableProductDirectCommission"
+          $ref: "#/components/schemas/ProductDirectCommission"
         type:
-          $ref: "#/components/schemas/PatchableObject"
+          description: "No se corrige: enviarlo, con cualquier valor, se rechaza."
+          not: {}
         code:
-          $ref: "#/components/schemas/PatchableObject"
+          description: "No se corrige: enviarlo, con cualquier valor, se rechaza."
+          not: {}
         targetMembershipId:
-          $ref: "#/components/schemas/PatchableObject"
+          description: "No se corrige: enviarlo, con cualquier valor, se rechaza."
+          not: {}
         sourceMembershipId:
-          $ref: "#/components/schemas/PatchableObject"
+          description: "No se corrige: enviarlo, con cualquier valor, se rechaza."
+          not: {}
     ChangeProductStatusRequest:
       type: object
       properties:
@@ -15594,29 +15611,39 @@ components:
       type: object
       properties:
         rating:
-          $ref: "#/components/schemas/PatchableInteger"
+          type: integer
+          format: int32
           description: "Puntuación nueva, entera de 1 a 5. No admite nulo."
         comment:
-          $ref: "#/components/schemas/PatchableString"
+          type: string
           description: "Texto nuevo, de 1 a 1000 caracteres tras recortar. No admite\
             \ nulo."
     UpdatePackageRequest:
       type: object
       properties:
         name:
-          $ref: "#/components/schemas/PatchableString"
+          type: string
         description:
-          $ref: "#/components/schemas/PatchableString"
+          type: string
         scope:
-          $ref: "#/components/schemas/PatchableProductScope"
+          type: string
+          enum:
+          - TIENDA
+          - HOTLINK
+          - AMBOS
+          - NINGUNO
         validFrom:
-          $ref: "#/components/schemas/PatchableLocalDate"
+          type: string
+          format: date
         validTo:
-          $ref: "#/components/schemas/PatchableLocalDate"
+          type: string
+          format: date
         code:
-          $ref: "#/components/schemas/PatchableObject"
+          description: "No se corrige: enviarlo, con cualquier valor, se rechaza."
+          not: {}
         currencyId:
-          $ref: "#/components/schemas/PatchableObject"
+          description: "No se corrige: enviarlo, con cualquier valor, se rechaza."
+          not: {}
     ChangePackageStatusRequest:
       type: object
       properties:
@@ -15664,24 +15691,29 @@ components:
           type: boolean
         isActive:
           type: boolean
-    PatchableCourseDifficulty: {}
     UpdateCourseRequest:
       type: object
       properties:
         title:
-          $ref: "#/components/schemas/PatchableString"
+          type: string
         instructorId:
-          $ref: "#/components/schemas/PatchableUUID"
+          type: string
+          format: uuid
         difficulty:
-          $ref: "#/components/schemas/PatchableCourseDifficulty"
+          type: string
+          enum:
+          - PRINCIPIANTE
+          - INTERMEDIO
+          - AVANZADO
         shortDescription:
-          $ref: "#/components/schemas/PatchableString"
+          type: string
         longDescription:
-          $ref: "#/components/schemas/PatchableString"
+          type: string
         introVideoUrl:
-          $ref: "#/components/schemas/PatchableString"
+          type: string
         displayOrder:
-          $ref: "#/components/schemas/PatchableInteger"
+          type: integer
+          format: int32
     ChangeCourseStatusRequest:
       type: object
       properties:
@@ -15696,15 +15728,16 @@ components:
       type: object
       properties:
         title:
-          $ref: "#/components/schemas/PatchableString"
+          type: string
         shortDescription:
-          $ref: "#/components/schemas/PatchableString"
+          type: string
         longDescription:
-          $ref: "#/components/schemas/PatchableString"
+          type: string
         presentationVideoUrl:
-          $ref: "#/components/schemas/PatchableString"
+          type: string
         displayOrder:
-          $ref: "#/components/schemas/PatchableInteger"
+          type: integer
+          format: int32
     ChangeCourseModuleStatusRequest:
       type: object
       properties:
@@ -15715,25 +15748,28 @@ components:
           - INACTIVO
       required:
       - status
-    PatchableBoolean: {}
-    PatchableLessonType: {}
     UpdateLessonRequest:
       type: object
       properties:
         type:
-          $ref: "#/components/schemas/PatchableLessonType"
+          type: string
+          enum:
+          - VIDEO
+          - TEXTO
         title:
-          $ref: "#/components/schemas/PatchableString"
+          type: string
         description:
-          $ref: "#/components/schemas/PatchableString"
+          type: string
         content:
-          $ref: "#/components/schemas/PatchableString"
+          type: string
         durationSeconds:
-          $ref: "#/components/schemas/PatchableInteger"
+          type: integer
+          format: int32
         displayOrder:
-          $ref: "#/components/schemas/PatchableInteger"
+          type: integer
+          format: int32
         open:
-          $ref: "#/components/schemas/PatchableBoolean"
+          type: boolean
     ChangeLessonStatusRequest:
       type: object
       properties:
@@ -15748,15 +15784,16 @@ components:
       type: object
       properties:
         name:
-          $ref: "#/components/schemas/PatchableString"
+          type: string
         description:
-          $ref: "#/components/schemas/PatchableString"
+          type: string
         color:
-          $ref: "#/components/schemas/PatchableString"
+          type: string
         icon:
-          $ref: "#/components/schemas/PatchableString"
+          type: string
         displayOrder:
-          $ref: "#/components/schemas/PatchableInteger"
+          type: integer
+          format: int32
     ChangeCountryStatusRequest:
       type: object
       properties:
@@ -15768,24 +15805,30 @@ components:
       type: object
       properties:
         rateType:
-          $ref: "#/components/schemas/PatchableCommissionRateType"
+          type: string
+          enum:
+          - PORCENTAJE
+          - FIJO
         percentage:
-          $ref: "#/components/schemas/PatchableBigDecimal"
+          type: number
         fixedAmount:
-          $ref: "#/components/schemas/PatchableBigDecimal"
+          type: number
         roleId:
-          $ref: "#/components/schemas/PatchableObject"
+          description: "No se corrige: enviarlo, con cualquier valor, se rechaza."
+          not: {}
     UpdateAfftrackRateRequest:
       type: object
       properties:
         threshold:
-          $ref: "#/components/schemas/PatchableBigDecimal"
+          type: number
         amountPerFtd:
-          $ref: "#/components/schemas/PatchableBigDecimal"
+          type: number
         roleId:
-          $ref: "#/components/schemas/PatchableObject"
+          description: "No se corrige: enviarlo, con cualquier valor, se rechaza."
+          not: {}
         productId:
-          $ref: "#/components/schemas/PatchableObject"
+          description: "No se corrige: enviarlo, con cualquier valor, se rechaza."
+          not: {}
     PageResponse:
       type: object
       properties:

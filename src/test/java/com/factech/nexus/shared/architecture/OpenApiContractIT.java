@@ -608,6 +608,70 @@ class OpenApiContractIT extends IntegrationTestBase {
   }
 
   @Test
+  @DisplayName("ningún PATCH publica un campo vacío: Patchable<T> sale como T (issue #94)")
+  void ningunPatchPublicaCamposVacios() throws Exception {
+    // Hasta el 30-09-2026 los trece `Patchable*` salían como `{}` y el
+    // contrato no decía qué admitía ningún PATCH. Se recorren TODOS los
+    // cuerpos de PATCH para que un `Patchable<OtraCosa>` nuevo no reabra el
+    // agujero sin avisar.
+    var cuerpo =
+        mvc.perform(get("/v3/api-docs").with(user("doc")))
+            .andExpect(status().isOk())
+            .andReturn()
+            .getResponse()
+            .getContentAsString(StandardCharsets.UTF_8);
+    var contrato = json.readTree(cuerpo);
+    var esquemas = contrato.path("components").path("schemas");
+    var patchables = new java.util.ArrayList<String>();
+    esquemas
+        .fieldNames()
+        .forEachRemaining(
+            nombre -> {
+              if (nombre.startsWith("Patchable")) {
+                patchables.add(nombre);
+              }
+            });
+    var vacios = new java.util.ArrayList<String>();
+    int campos = 0;
+    for (var ruta = contrato.path("paths").fields(); ruta.hasNext(); ) {
+      var entrada = ruta.next();
+      var ref =
+          entrada
+              .getValue()
+              .path("patch")
+              .path("requestBody")
+              .path("content")
+              .path("application/json")
+              .path("schema")
+              .path("$ref")
+              .asText("");
+      if (ref.isEmpty()) {
+        continue;
+      }
+      var nombre = ref.substring(ref.lastIndexOf('/') + 1);
+      for (var campo = esquemas.path(nombre).path("properties").fields(); campo.hasNext(); ) {
+        var propiedad = campo.next();
+        campos++;
+        var destino = propiedad.getValue();
+        var suRef = destino.path("$ref").asText("");
+        if (!suRef.isEmpty()) {
+          destino = esquemas.path(suRef.substring(suRef.lastIndexOf('/') + 1));
+        }
+        if (destino.isEmpty()) {
+          vacios.add(nombre + "." + propiedad.getKey());
+        }
+      }
+    }
+    org.assertj.core.api.Assertions.assertThat(patchables)
+        .as("esquemas Patchable* en el contrato")
+        .isEmpty();
+    org.assertj.core.api.Assertions.assertThat(campos).isGreaterThan(50);
+    org.assertj.core.api.Assertions.assertThat(vacios)
+        .as("campos de PATCH publicados como {}")
+        .isEmpty();
+  }
+
+  @Test
   @DisplayName("publica el contrato en docs/api/openapi.json, para que el frontend lo consuma")
   void publicaElContratoComoArchivoVersionado() throws Exception {
     // ADR-001. Hasta hoy el contrato no se publicaba en ninguna parte:
