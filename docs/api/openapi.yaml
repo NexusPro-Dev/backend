@@ -9880,6 +9880,53 @@ paths:
           description: Se superó la cota de peticiones por origen (120 por minuto).
             La cabecera `Retry-After` dice cuánto esperar.
       security: []
+  /api/v1/movements/{id}:
+    get:
+      tags:
+      - Movimientos
+      summary: Consultar el detalle de un movimiento
+      description: |
+        **Permiso requerido:** `movements:read-detail`. Sin él, `403` (`AUTH-002`).
+
+        Devuelve **el comprobante de cualquier movimiento** —una venta, un retiro, un
+        bono—, sea quien sea su sujeto y quien lo haya vendido: código, tipo, estado,
+        estado del tipo, sujeto, moneda, totales, **pagos** y **líneas**, cada una con lo
+        que se vendió **tal como se vendió** y a quién se le acredita. Un movimiento sin
+        líneas —un retiro, un bono— las trae **vacías**.
+
+        **Es la misma forma que `GET /api/v1/movements/mine/{id}`**, el detalle propio:
+        sobre un movimiento en el que usted participó, las dos responden lo mismo. Aquí
+        no hay alcance —quien tiene el permiso abre cualquier fila del libro— y por eso
+        tampoco hay un «no es suyo»: lo único que responde `404` es lo que no existe, o un
+        identificador que no tiene forma de identificador.
+
+        **El comprobante no es un documento fiscal** ni un soporte de pago adjunto: es el
+        documento interno del movimiento.
+      operationId: movimiento
+      parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      responses:
+        "200":
+          description: El comprobante del movimiento.
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/SaleResponse"
+        "401":
+          description: Token ausente o inválido (`AUTH-001`)
+        "403":
+          description: Autenticado sin `movements:read-detail` (`AUTH-002`)
+        "404":
+          description: "No existe ningún movimiento con ese identificador (`EX-001`),\
+            \ o el identificador no tiene forma de UUID"
+        "500":
+          description: Fallo no controlado (`ERR-500`)
+      x-required-permission: movements:read-detail
   /api/v1/movements/sales:
     get:
       tags:
@@ -14160,6 +14207,11 @@ components:
           format: uuid
         code:
           type: string
+        type:
+          type: string
+          description: "El TIPO de movimiento: VENTA, RETIRO, BONO… Desde el 30-09-2026,\
+            \ cuando el detalle de administración (`RF-MV-007`) empezó a abrir movimientos\
+            \ que no son ventas."
         status:
           type: string
         typeStatus:

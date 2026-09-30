@@ -17,6 +17,7 @@ import com.factech.nexus.modules.movements.domain.models.IdempotencyKey;
 import com.factech.nexus.modules.movements.domain.service.ActivateMyProductService;
 import com.factech.nexus.modules.movements.domain.service.AssignSellersService;
 import com.factech.nexus.modules.movements.domain.service.ConfirmSaleService;
+import com.factech.nexus.modules.movements.domain.service.GetMovementService;
 import com.factech.nexus.modules.movements.domain.service.GetMyMovementService;
 import com.factech.nexus.modules.movements.domain.service.ListMovementsService;
 import com.factech.nexus.modules.movements.domain.service.ListMyMovementsService;
@@ -71,6 +72,7 @@ public class MovementController {
   private final AssignSellersService asignacion;
   private final ListSaleLinesService lineas;
   private final ActivateMyProductService activacion;
+  private final GetMovementService comprobante;
 
   public MovementController(
       RegisterSaleService alta,
@@ -83,7 +85,8 @@ public class MovementController {
       ListSalesService ventas,
       AssignSellersService asignacion,
       ListSaleLinesService lineas,
-      ActivateMyProductService activacion) {
+      ActivateMyProductService activacion,
+      GetMovementService comprobante) {
     this.alta = alta;
     this.confirmacion = confirmacion;
     this.anulacion = anulacion;
@@ -95,6 +98,7 @@ public class MovementController {
     this.asignacion = asignacion;
     this.lineas = lineas;
     this.activacion = activacion;
+    this.comprobante = comprobante;
   }
 
   /**
@@ -663,12 +667,12 @@ public class MovementController {
   }
 
   /**
-   * <b>Va declarado antes que cualquier variable de ruta a propósito.</b> Hoy este controlador no
-   * tiene ninguna, pero `RF-MV-007` traerá {@code GET /api/v1/movements/{id}} y entonces {@code
-   * mine} empezaría a parecerse a un identificador. Spring resuelve por especificidad —el segmento
-   * literal gana— de modo que <b>funcionará igual</b>; lo que se declara aquí es el orden en que se
-   * escribe, para que quien lea el archivo lo entienda. Una prueba lo fija, porque el síntoma de
-   * romperlo sería un {@code 400} por identificador inválido en la ruta que más se usa.
+   * <b>Va declarado antes que cualquier variable de ruta a propósito.</b> Desde el 30-09-2026
+   * `RF-MV-007` tiene {@code GET /api/v1/movements/{id}}, y {@code mine} se parece a un
+   * identificador. Spring resuelve por especificidad —el segmento literal gana— de modo que
+   * <b>funcionará igual</b>; lo que se declara aquí es el orden en que se escribe, para que quien
+   * lea el archivo lo entienda. Una prueba lo fija, porque el síntoma de romperlo sería un {@code
+   * 400} por identificador inválido en la ruta que más se usa.
    *
    * <p><b>{@code mine} y no {@code me}</b>: `SP` usa {@code /users/me} porque el recurso <b>es</b>
    * la persona. Aquí el recurso son los movimientos, y {@code me} no es uno de ellos.
@@ -966,5 +970,62 @@ public class MovementController {
   })
   public SaleResponse mio(@PathVariable UUID id) {
     return detalle.get(id);
+  }
+
+  /**
+   * El detalle de <b>cualquier</b> movimiento (`RF-MV-007`): el `GET` del recurso que {@code POST}
+   * crea y {@code GET /movements} lista. Sin alcance, con la misma forma que el detalle propio de
+   * arriba, y con su propio permiso: `movements:read` es el del listado (`RN-SEG-014`).
+   *
+   * <p><b>La variable solo admite la forma de un UUID.</b> Sin la expresión, cualquier segmento
+   * suelto bajo {@code /movements} caería aquí y respondería {@code 400} por identificador
+   * malformado —{@code /movements/mine}, la ruta que `RF-MV-008` retiró el 22-09-2026 y que
+   * `CA-MV-140` promete en {@code 404}—. Con ella, lo que no tiene forma de identificador no es
+   * esta ruta y responde {@code 404}, como cualquier ruta que no existe (`spec.md` §11).
+   */
+  @GetMapping("/{id:[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}}")
+  @PreAuthorize("hasAuthority('movements:read-detail')")
+  @Operation(
+      summary = "Consultar el detalle de un movimiento",
+      description =
+          """
+          Devuelve **el comprobante de cualquier movimiento** —una venta, un retiro, un
+          bono—, sea quien sea su sujeto y quien lo haya vendido: código, tipo, estado,
+          estado del tipo, sujeto, moneda, totales, **pagos** y **líneas**, cada una con lo
+          que se vendió **tal como se vendió** y a quién se le acredita. Un movimiento sin
+          líneas —un retiro, un bono— las trae **vacías**.
+
+          **Es la misma forma que `GET /api/v1/movements/mine/{id}`**, el detalle propio:
+          sobre un movimiento en el que usted participó, las dos responden lo mismo. Aquí
+          no hay alcance —quien tiene el permiso abre cualquier fila del libro— y por eso
+          tampoco hay un «no es suyo»: lo único que responde `404` es lo que no existe, o un
+          identificador que no tiene forma de identificador.
+
+          **El comprobante no es un documento fiscal** ni un soporte de pago adjunto: es el
+          documento interno del movimiento.
+          """)
+  @ApiResponses({
+    @ApiResponse(responseCode = "200", description = "El comprobante del movimiento."),
+    @ApiResponse(
+        responseCode = "401",
+        description = "Token ausente o inválido (`AUTH-001`)",
+        content = @Content),
+    @ApiResponse(
+        responseCode = "403",
+        description = "Autenticado sin `movements:read-detail` (`AUTH-002`)",
+        content = @Content),
+    @ApiResponse(
+        responseCode = "404",
+        description =
+            "No existe ningún movimiento con ese identificador (`EX-001`), o el identificador"
+                + " no tiene forma de UUID",
+        content = @Content),
+    @ApiResponse(
+        responseCode = "500",
+        description = "Fallo no controlado (`ERR-500`)",
+        content = @Content)
+  })
+  public SaleResponse movimiento(@PathVariable UUID id) {
+    return comprobante.get(id);
   }
 }

@@ -4,11 +4,12 @@
 |---|---|
 | Requerimiento | `RF-MV-007` |
 | Módulo | `MV` — Movimientos |
-| Versión | 0.1.0 |
+| Versión | 0.2.0 |
 | Estado | **Aprobada** |
 | Autor | Responsable técnico |
 | Aprobada por | Responsable del proyecto |
 | Fecha de aprobación | 30-09-2026 |
+| Enmendada el | 30-09-2026 — **permiso propio** (`RN-SEG-014`) y lo que no tiene forma de identificador responde **no encontrado** (§3, §10, §11, §12, §14). Ver §15 |
 
 !!! info "Qué va en este documento"
 
@@ -34,7 +35,7 @@ Que quien administra el libro pueda **abrir cualquier movimiento** —una venta,
 
 | Actor | Qué hace |
 |---|---|
-| Quien administra el libro | Abre cualquier movimiento por su identificador. Lo habilita el permiso de lectura de todos los movimientos, **el mismo** que habilita el listado de `RF-MV-006` |
+| Quien administra el libro | Abre cualquier movimiento por su identificador. Lo habilita **el permiso del detalle**, que porta todo rol con el del listado de `RF-MV-006` |
 
 ## 4. Alcance
 
@@ -57,7 +58,7 @@ Que quien administra el libro pueda **abrir cualquier movimiento** —una venta,
 | `RN-MV-013` | El total que se muestra es **el congelado al registrar**, no uno recalculado al leer: es el número del comprobante |
 | `RN-MV-002` | Nombre, descripción, precio y vigencia de cada línea son **los copiados al vender**, no los que el catálogo tiene hoy |
 | `RN-MV-047` | El detalle publica **los pagos** del movimiento, cada uno con su método y su estado |
-| `RN-SEG-014` | Un permiso gobierna una operación: el detalle **reutiliza** el permiso del listado porque la autoridad es la misma —ver §14— |
+| `RN-SEG-014` | Un permiso gobierna una operación: el detalle tiene **el suyo**, aparte del del listado —ver §14— |
 
 ## 6. Datos
 
@@ -75,7 +76,7 @@ Que quien administra el libro pueda **abrir cualquier movimiento** —una venta,
 
 | | |
 |---|---|
-| Precondición | El actor tiene el permiso de lectura de todos los movimientos |
+| Precondición | El actor tiene el permiso del detalle de movimientos |
 | Postcondición | Nada cambia |
 
 ## 8. Flujo principal
@@ -99,6 +100,7 @@ No cambia nada: responde lo mismo que respondería a cualquier otro administrado
 | Código | Cuándo | Respuesta |
 |---|---|---|
 | `EX-001` | No existe ningún movimiento con ese identificador | No encontrado |
+| — | Lo pedido no tiene forma de identificador | No encontrado, **como cualquier ruta que no existe** —ver §11— |
 
 **No hay un «existe pero no es suyo»**, porque aquí no hay alcance: quien tiene el permiso ve todos. Es la diferencia con `RF-MV-008`, donde el ajeno responde como inexistente.
 
@@ -106,7 +108,7 @@ No cambia nada: responde lo mismo que respondería a cualquier otro administrado
 
 | Código | Dato | Regla |
 |---|---|---|
-| `VAL-001` | Identificador | Bien formado |
+| — | Identificador | **Sin validación propia**: lo que no tiene forma de identificador no es esta operación y responde no encontrado. Así lo exige `CA-MV-140` de `RF-MV-008`, que promete no encontrado para la ruta que el listado propio abandonó el 22-09-2026 y que, sin esto, se leería como un identificador malformado |
 
 ## 12. Criterios de aceptación
 
@@ -116,8 +118,8 @@ No cambia nada: responde lo mismo que respondería a cualquier otro administrado
 | `CA-MV-288` | Cada línea trae **lo copiado al vender**: si el catálogo cambió el nombre o el precio después, el detalle sigue diciendo lo que se vendió |
 | `CA-MV-289` | El detalle de un **retiro** se devuelve con su tipo, su estado y su pago, y **con la lista de líneas vacía** |
 | `CA-MV-290` | Para un movimiento propio del actor, la respuesta es **la misma** que la de su detalle propio |
-| `CA-MV-291` | Un identificador que no existe responde **no encontrado**; uno malformado, **rechazo de validación** |
-| `CA-MV-292` | Sin el permiso de lectura de todos los movimientos, **rechazo por permiso**, aunque el movimiento sea propio; sin sesión, **no autenticado** |
+| `CA-MV-291` | Un identificador que no existe responde **no encontrado**, y lo que no tiene forma de identificador **también** |
+| `CA-MV-292` | Sin el permiso del detalle, **rechazo por permiso**, aunque el movimiento sea propio **o el actor tenga el del listado**; sin sesión, **no autenticado** |
 
 ## 13. Casos límite
 
@@ -132,7 +134,7 @@ Ninguna abierta.
 | # | Pregunta | Resolución |
 |---|---|---|
 | 1 | ¿«Con su comprobante» pide adjuntar un soporte de pago? | **No.** El comprobante es el documento interno del movimiento (`requirements/mv.md` §1.1, §1.5), y el detalle lo es. El soporte bancario no se guarda hoy y sería otro requerimiento (§4.2) |
-| 2 | ¿Un permiso propio para el detalle, por `RN-SEG-014`? | **No: `movements:read`, el del listado de `RF-MV-006`**, que es el que `requirements/mv.md` §6 le declara desde el 02-09-2026 —«consultar todos los movimientos y el detalle de cualquiera»—. `RN-SEG-014` separa operaciones que un rol podría recibir por separado, y **ver la lista entera del libro sin poder abrir ninguna fila** no es un reparto que tenga sentido: el listado ya enseña de cada movimiento casi todo lo que el detalle trae. Se parte en dos el día que alguien lo pida |
+| 2 | ¿Un permiso propio para el detalle, por `RN-SEG-014`? | **Sí** (enmienda del 30-09-2026). La versión 0.1.0 decía que no —reutilizar `movements:read`, que `requirements/mv.md` §6 le declaraba desde el 02-09-2026—, con el argumento de que listar sin poder abrir no es un reparto con sentido. **No se sostiene**: `RN-SEG-014` no es un criterio que se pondere caso a caso, es la regla del catálogo desde el 19-09-2026 —separó el listado y el detalle de los `read` de ocho recursos— y la hace cumplir una prueba. Nace el permiso del detalle y **se reparte a todo rol que ya porte el del listado**, de modo que nadie que hoy lista el libro se queda sin abrir sus filas |
 | 3 | ¿El detalle de un movimiento que no es venta? | **Sí.** El listado de `RF-MV-006` enseña retiros y bonos, y su detalle es a donde lleva cada fila |
 
 ## 15. Control de cambios
@@ -140,3 +142,4 @@ Ninguna abierta.
 | Versión | Fecha | Cambio | Autor |
 |---|---|---|---|
 | 0.1.0 | 30-09-2026 | Primera versión. Declarado desde el 02-09-2026 en `requirements/mv.md` §4.1 y sin especificar; es el detalle de `RF-MV-006` y el último requerimiento de `MV` sin tripleta | Responsable técnico |
+| 0.2.0 | 30-09-2026 | **Permiso propio, y lo que no tiene forma de identificador es no encontrado**, al construir. (1) La 0.1.0 reutilizaba el permiso del listado; `RN-SEG-014` no lo admite y la prueba que lo hace cumplir lo detectó: nace el del detalle, repartido a quien porta el del listado (§3, §12, §14). (2) Sin validación del identificador: la ruta de la operación habría capturado la que `RF-MV-008` retiró, y su `CA-MV-140` promete no encontrado (§10, §11, `CA-MV-291`) | Responsable técnico |

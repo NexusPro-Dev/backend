@@ -76,6 +76,13 @@ class MovementsPermissionsSeedIT extends IntegrationTestBase {
       List.of(
           "movements:approve-withdrawal", "movements:reject-withdrawal", "movements:grant-bonus");
 
+  /**
+   * El de `V56` (`RF-MV-007`, 30-09-2026): el detalle de cualquier movimiento. Va a todo rol que
+   * porte `movements:read` —quien lista el libro abre sus filas—, y el listado y el detalle son dos
+   * permisos por `RN-SEG-014`.
+   */
+  private static final String DETALLE = "movements:read-detail";
+
   @Autowired private JdbcTemplate jdbc;
 
   @Test
@@ -91,9 +98,9 @@ class MovementsPermissionsSeedIT extends IntegrationTestBase {
     assertThat(codigos)
         .containsAll(LOS_CUATRO)
         .containsAll(LOS_PROPIOS)
-        .contains(ASIGNAR, LINEAS, RECHAZAR)
+        .contains(ASIGNAR, LINEAS, RECHAZAR, DETALLE)
         .containsAll(LOS_DE_SALDOS)
-        .hasSize(19);
+        .hasSize(20);
   }
 
   @Test
@@ -114,7 +121,7 @@ class MovementsPermissionsSeedIT extends IntegrationTestBase {
     // RN-SEG-007: la raíz de la contención está acotada por el catálogo
     // completo. Un permiso sembrado y no asociado la dejaría por detrás de sus
     // propios hijos.
-    assertThat(permisosDeMovimientosDe(SUPERADMIN)).containsAll(LOS_CUATRO).hasSize(19);
+    assertThat(permisosDeMovimientosDe(SUPERADMIN)).containsAll(LOS_CUATRO).hasSize(20);
   }
 
   @Test
@@ -139,7 +146,7 @@ class MovementsPermissionsSeedIT extends IntegrationTestBase {
             java.util.stream.Stream.concat(
                     java.util.stream.Stream.concat(LOS_CUATRO.stream(), LOS_PROPIOS.stream()),
                     java.util.stream.Stream.concat(
-                        java.util.stream.Stream.of(ASIGNAR, LINEAS, RECHAZAR),
+                        java.util.stream.Stream.of(ASIGNAR, LINEAS, RECHAZAR, DETALLE),
                         LOS_DE_SALDOS.stream()))
                 .toList());
   }
@@ -157,7 +164,7 @@ class MovementsPermissionsSeedIT extends IntegrationTestBase {
     List<UUID> ids =
         jdbc.queryForList("SELECT id FROM permissions WHERE resource = 'movements'", UUID.class);
 
-    assertThat(ids).hasSize(19).doesNotHaveDuplicates();
+    assertThat(ids).hasSize(20).doesNotHaveDuplicates();
     assertThat(ids).allSatisfy(id -> assertThat(id.version()).isEqualTo(7));
     // variant() == 2 es la variante RFC 9562 (bits 10xx).
     assertThat(ids).allSatisfy(id -> assertThat(id.variant()).isEqualTo(2));
