@@ -5,11 +5,12 @@
 | Requerimiento | `RF-MV-030` |
 | Especificación | [`spec.md`](spec.md) v0.1.0 |
 | `spec.md` aprobada el | 30-09-2026 |
-| Versión | 0.1.0 |
+| Versión | 0.2.0 |
 | Estado | **Aprobado** |
 | Autor | Responsable técnico |
 | Aprobado por | Responsable del proyecto |
 | Fecha de aprobación | 30-09-2026 |
+| Enmendado el | 30-09-2026 — `EX-003` compara al actor con quien compra (§12) |
 
 !!! info "Qué va en este documento"
 
@@ -127,3 +128,13 @@ La de registrar la venta y la de confirmarla, **las dos**, como si se hubiera co
 ## 11. Estrategia de prueba
 
 Integración, `PayWithPointsIT`: `CA-MV-332` a `CA-MV-342`, por el enlace, el paquete y el reintento; `CA-MV-340` con dos hilos; `CA-MV-337` leyendo la base tras el `409`. `CA-MV-343` en una prueba de la migración que siembra un pago `POINTS` pendiente antes de aplicarla, o, si no cabe en el arnés, comprobando la sentencia sobre la base de desarrollo y la guarda.
+
+## 12. A su propio nombre — enmienda del 30-09-2026
+
+`EX-003` precisada (`spec.md` v0.2.0). **`RegisterSaleService` rechazaba `POINTS` en todo registro de un funcionario**, sin mirar a nombre de quién era la venta: el §4 de este plan lo resumió como «`POINTS` en el registro de un funcionario», y la spec decía «quien registra no es quien compra».
+
+- **`register` gana a quien registra**: `MovementController` le pasa `AuthenticatedActor.id()`, y el rechazo se hace solo si **el `userId` de la venta no es el actor**. El alta por enlace (`RF-SP-045`) no tiene actor y sigue rechazando siempre; la compra por hotlink no pasa por aquí (`duenoDelEnlace`).
+- **Se queda en el controlador y no en el servicio** porque `registrarAltaDeCliente` corre sin sesión, y un `AuthenticatedActor` inyectado en el servicio obligaría a distinguir los dos caminos por excepción.
+- **La sobrecarga sin actor rechaza como antes**: es la que usan las pruebas unitarias, y quien no dice quién registra no puede gastar los puntos de nadie.
+
+`PayWithPointsIT` gana `CA-MV-357`, registrando por `POST /movements` a nombre del propio actor.

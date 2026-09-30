@@ -5,7 +5,7 @@
 | Módulo | `MV` — Movimientos |
 | Paquete | `modules/movements` |
 | Prefijos de permiso | `movements:` |
-| Versión | 0.57.0 |
+| Versión | 0.60.0 |
 | Estado | **Borrador** |
 | Responsable | Bonilla Diaz William Steven |
 | Fecha de creación | 02-09-2026 |
@@ -1114,3 +1114,4 @@ Se siembra por migración y **no se administra por API todavía** (§5.3). Lo m�
 | 0.55.0 | 30-09-2026 | **`RF-MV-025`, `RF-MV-026` y `RF-MV-027` estrenan tripleta** ([`specs/mv/025-fijar-tasa-de-puntos/`](../specs/mv/025-fijar-tasa-de-puntos/spec.md), [`026`](../specs/mv/026-consultar-tasas-de-puntos/spec.md), [`027`](../specs/mv/027-comprar-puntos/spec.md)). Sin cambio de reglas. Tres decisiones que conviene tener aquí: **fijar la misma tasa que rige no escribe nada**; **la migración de toda la etapa la carga `RF-MV-025`**, como `RF-MV-019` cargó `V49`; y **la compra rechaza todo método `INTERNO`** y no solo `GRATIS`, porque la regla de la venta rechaza el gratuito por su código y dejaría pasar `MANUAL`. | Responsable técnico |
 | 0.56.0 | 30-09-2026 | **`RF-MV-028` a `RF-MV-031` estrenan tripleta**, y con ellas **toda la etapa 3 la tiene**. Sin cambio de reglas. **§4.4 cierra su pregunta abierta** con la decisión del responsable del proyecto: los pagos `POINTS` pendientes que ya existían se **rechazan** en la migración, y sus ventas siguen pendientes para volver a pagarse. **Pagar con puntos confirma por el mismo componente que `RF-MV-003`**, extraído de su servicio, y las entradas de compra lo dicen en sus specs, enmendadas el mismo día: `RF-MV-001` y el alta de `RF-SP-045` rechazan `POINTS`; `RF-MV-002`, `RF-MV-012`, `RF-MV-013` y `RF-MV-018` lo admiten y vuelven confirmadas. | Responsable técnico |
 | 0.57.0 | 30-09-2026 | **La etapa 3 está construida** (issue [#149](https://github.com/NexusPro-Dev/backend/issues/149)): `V58` escribe `points_rates`, las dos columnas de `movements`, `PUNTOS_EMITIDOS`, el evento `PAGO`, el tipo `COMPRA_PUNTOS` y los seis permisos de §6, y rechaza los pagos `POINTS` que seguían pendientes. Sin cambio de reglas. **Pagar con puntos confirma por `ConfirmSaleService`** en la misma transacción, sin extraer ningún componente (`RF-MV-030` · `tasks.md` §3.1), y sus rechazos llevan el código de la regla —`RN-MV-052`, `RN-MV-050`— porque entra por cinco rutas con numeraciones distintas. | Responsable técnico |
+| 0.60.0 | 30-09-2026 | **`RF-MV-030` · `EX-003` precisada** ([`specs/mv/030-pagar-con-puntos/spec.md`](../specs/mv/030-pagar-con-puntos/spec.md) v0.2.0): el registro de un funcionario rechazaba los puntos en **toda** venta; ahora solo en la que registra a nombre de **otra** persona, que es lo que la regla decía. Un funcionario que compra para sí paga con sus puntos. Sin cambio de reglas. | Responsable del proyecto |
