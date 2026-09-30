@@ -6,7 +6,7 @@
 | Especificación | [`spec.md`](spec.md) |
 | Plan | [`plan.md`](plan.md) |
 | `plan.md` aprobado el | 08-09-2026 |
-| Estado | **En revisión** |
+| Estado | **En revisión** — `T-01` a `T-11` `Hecha`: construido el 08-09-2026, pruebas y cierre el 30-09-2026 |
 | Issue | Pendiente de crear |
 | Rama | `feature/documento-y-contacto` |
 | Aprobadas por | Pendiente |
@@ -31,17 +31,17 @@ Es una consulta de una tabla sin filtros ni paginación, y aun así **`T-02` es 
 
 | # | Tarea | Depende de | Verificación | Estado |
 |---|---|---|---|---|
-| `T-01` | `V70__create_document_types.sql`, primera mitad: la tabla con `abbreviation`, `name` con intercalación `es-x-icu`, `is_active`, las dos marcas de tiempo, `uq_document_types_abbreviation`, los dos `CHECK` y el índice único funcional sobre `f_unaccent(lower(name))` | — | `mvn flyway:info` la lista aplicada. Prueba de esquema: dos nombres que solo difieran en acentos o en caja son rechazados por `uq_document_types_name`; una abreviación en minúsculas la rechaza el `CHECK` | Pendiente |
-| `T-02` | **La siembra, en la MISMA migración**: `CC`, `CE`, `PA` y `NIT`, con identificadores UUID v7 literales. **Sin tarjeta de identidad y sin registro civil** | `T-01` | `CA-SP-587` y `CA-SP-588`. **Es la tarea que hay que revisar como se revisa una regla, no como se revisa una siembra**: lo que esta lista contiene decide quién puede registrarse en el sistema | Pendiente |
-| `T-03` | `V72__seed_document_types_permission.sql`: el permiso `document-types:read` con UUID v7 literal, **su asociación a `SUPERADMIN` y `ADMIN`**, y la guarda que aborta si falta alguna de las tres filas | `T-01` | Integración: el permiso existe y **los dos roles lo tienen**. Sin la segunda mitad, `ADMIN` no podría concederlo | Pendiente |
-| `T-04` | `application`: `DocumentTypeItem`, `DocumentTypeCatalogResponse` y `ListDocumentTypesRequest` con `includeInactive` como **`Boolean` y no `boolean`** | — | Prueba de API: la petición **sin** el parámetro devuelve `200` y no `400`. Es el defecto exacto que el catálogo de monedas tuvo que corregir | Pendiente |
-| `T-05` | `domain/repository`: puerto `DocumentTypeQueryRepository` y su adaptador, con **una sola sentencia** ordenada por nombre | `T-01`, `T-04` | El puerto **no declara ningún método de escritura**, y eso es `RN-SP-036` en el código. Integración: una sola sentencia, y el orden respeta la intercalación —`Ñ` no cae al final— | Pendiente |
-| `T-06` | `domain/service/ListDocumentTypesService` con `@Transactional(readOnly = true)` | `T-05` | Prueba con dobles: pedir sin inactivos no los trae; pedirlos los **añade**, no los sustituye | Pendiente |
-| `T-07` | `interfaces/DocumentTypeController`: `GET /api/v1/document-types` con `document-types:read` sobre el método. **Un solo método en la clase** | `T-03`, `T-06` | `403` sin el permiso (`CA-SP-589`). **Prueba de arquitectura: la clase no declara ningún `@PostMapping`, `@PatchMapping`, `@PutMapping` ni `@DeleteMapping`** — es la forma verificable de `CA-SP-585` | Pendiente |
-| `T-08` | **La prueba de la ausencia**: sobre el **contenido de la tabla**, ni la tarjeta de identidad ni el registro civil están, por abreviación (`TI`, `RC`) ni por nombre | `T-02` | `CA-SP-587`. **Contra la tabla y NO contra la respuesta del endpoint**: escrita contra la respuesta, una tarjeta de identidad **inactiva** la dejaría verde — y sigue siendo una fila que alguien reactiva con un `UPDATE` | Pendiente |
-| `T-09` | Pruebas de los criterios de `spec.md` §12 | `T-07`, `T-08` | La suite cubre `CA-SP-584` a `CA-SP-589` | Pendiente |
-| `T-10` | Contrato OpenAPI: la ruta documentada, y `OpenApiContractIT` comprueba que **no existe ninguna otra** bajo `/api/v1/document-types` | `T-07` | El contrato publicado coincide con el comportamiento real (Art. VIII.6). Que no haya rutas de escritura tiene que ser **verificable**, no solo cierto hoy | Pendiente |
-| `T-11` | Enmendar la matriz de trazabilidad de `docs/requirements.md` | `T-09` | La fila de `RF-SP-051` refleja el estado y enlaza esta tripleta | Pendiente |
+| `T-01` | `V70__create_document_types.sql`, primera mitad: la tabla con `abbreviation`, `name` con intercalación `es-x-icu`, `is_active`, las dos marcas de tiempo, `uq_document_types_abbreviation`, los dos `CHECK` y el índice único funcional sobre `f_unaccent(lower(name))` | — | `mvn flyway:info` la lista aplicada. Prueba de esquema: dos nombres que solo difieran en acentos o en caja son rechazados por `uq_document_types_name`; una abreviación en minúsculas la rechaza el `CHECK` | Hecha |
+| `T-02` | **La siembra, en la MISMA migración**: `CC`, `CE`, `PA` y `NIT`, con identificadores UUID v7 literales. **Sin tarjeta de identidad y sin registro civil** | `T-01` | `CA-SP-587` y `CA-SP-588`. **Es la tarea que hay que revisar como se revisa una regla, no como se revisa una siembra**: lo que esta lista contiene decide quién puede registrarse en el sistema | Hecha |
+| `T-03` | `V72__seed_document_types_permission.sql`: el permiso `document-types:read` con UUID v7 literal, **su asociación a `SUPERADMIN` y `ADMIN`**, y la guarda que aborta si falta alguna de las tres filas | `T-01` | Integración: el permiso existe y **los dos roles lo tienen**. Sin la segunda mitad, `ADMIN` no podría concederlo | Hecha |
+| `T-04` | `application`: `DocumentTypeItem`, `DocumentTypeCatalogResponse` y `ListDocumentTypesRequest` con `includeInactive` como **`Boolean` y no `boolean`** | — | Prueba de API: la petición **sin** el parámetro devuelve `200` y no `400`. Es el defecto exacto que el catálogo de monedas tuvo que corregir | Hecha |
+| `T-05` | `domain/repository`: puerto `DocumentTypeQueryRepository` y su adaptador, con **una sola sentencia** ordenada por nombre | `T-01`, `T-04` | El puerto **no declara ningún método de escritura**, y eso es `RN-SP-036` en el código. Integración: una sola sentencia, y el orden respeta la intercalación —`Ñ` no cae al final— | Hecha |
+| `T-06` | `domain/service/ListDocumentTypesService` con `@Transactional(readOnly = true)` | `T-05` | Prueba con dobles: pedir sin inactivos no los trae; pedirlos los **añade**, no los sustituye | Hecha |
+| `T-07` | `interfaces/DocumentTypeController`: `GET /api/v1/document-types` con `document-types:read` sobre el método. **Un solo método en la clase** | `T-03`, `T-06` | `403` sin el permiso (`CA-SP-589`). **Prueba de arquitectura: la clase no declara ningún `@PostMapping`, `@PatchMapping`, `@PutMapping` ni `@DeleteMapping`** — es la forma verificable de `CA-SP-585` | Hecha |
+| `T-08` | **La prueba de la ausencia**: sobre el **contenido de la tabla**, ni la tarjeta de identidad ni el registro civil están, por abreviación (`TI`, `RC`) ni por nombre | `T-02` | `CA-SP-587`. **Contra la tabla y NO contra la respuesta del endpoint**: escrita contra la respuesta, una tarjeta de identidad **inactiva** la dejaría verde — y sigue siendo una fila que alguien reactiva con un `UPDATE` | Hecha |
+| `T-09` | Pruebas de los criterios de `spec.md` §12 | `T-07`, `T-08` | La suite cubre `CA-SP-584` a `CA-SP-589` | Hecha |
+| `T-10` | Contrato OpenAPI: la ruta documentada, y `OpenApiContractIT` comprueba que **no existe ninguna otra** bajo `/api/v1/document-types` | `T-07` | El contrato publicado coincide con el comportamiento real (Art. VIII.6). Que no haya rutas de escritura tiene que ser **verificable**, no solo cierto hoy | Hecha |
+| `T-11` | Enmendar la matriz de trazabilidad de `docs/requirements.md` | `T-09` | La fila de `RF-SP-051` refleja el estado y enlaza esta tripleta | Hecha |
 
 **Las enmiendas documentales del plan ya están aplicadas**: `requirements/sp.md` v1.41.0 (§2, `RN-SP-035` a `RN-SP-037`, ficha, §10.15, §10.16 y once restricciones de §10.8), `modelo-datos.md` v0.33.0, `security.md` v0.43.0 y `requirements.md` v0.113.0. No hay tarea para ellas.
 
@@ -80,19 +80,28 @@ graph LR
 |---|---|---|---|---|
 | 1 | **`T-02` no es una siembra, es una regla.** La lista de tipos decide quién puede registrarse en el sistema, y añadir una fila desactiva `RN-SP-035` para todo el mundo. Debe revisarla el responsable del proyecto, no solo el técnico | 08-09-2026 | **Responsable del proyecto** | **Abierto** |
 | 2 | **`PA` y `NIT` no prueban mayoría de edad**, y están en la lista porque el negocio los admite como identificación. Es el límite declarado del diseño (`spec.md` §14, pregunta 2). Si el negocio quiere una lista más estrecha —solo `CC` y `CE`—, es ahora: cambiarla después obliga a mirar qué personas ya se registraron con los que se retiren | 08-09-2026 | **Responsable del proyecto** | **Abierto** |
-| 3 | **El registro público de `RF-SP-045` no puede leer este catálogo.** Pide `document-types:read`, que quien se registra no tiene. **Es el mismo bloqueo que el de países** —bloqueo 6 de `RF-SP-045`— y ahora son **dos** catálogos, lo que convierte una excepción puntual en una decisión de forma: un endpoint público de catálogos bajo `/auth` con su límite de tasa, en lugar de dos parches | 08-09-2026 | **Responsable del proyecto** | **Abierto** |
+| 3 | **El registro público de `RF-SP-045` no puede leer este catálogo.** Pide `document-types:read`, que quien se registra no tiene. **Es el mismo bloqueo que el de países** —bloqueo 6 de `RF-SP-045`— y ahora son **dos** catálogos, lo que convierte una excepción puntual en una decisión de forma: un endpoint público de catálogos bajo `/auth` con su límite de tasa, en lugar de dos parches | 08-09-2026 | **Responsable del proyecto** | Resuelto el 08-09-2026: la ruta es pública (`RN-SP-041`) |
 | 4 | `V71` —las seis columnas de `users`— **depende de `T-01`**: su clave foránea apunta a una tabla que esta migración crea. Pertenece a la enmienda de `RF-SP-024` y se anota aquí solo para fijar el orden | 08-09-2026 | Responsable técnico | Abierto |
 
 ## 5. Definición de terminado
 
 El requerimiento no está terminado hasta cumplir **todas** las condiciones de la constitución §16:
 
-- [ ] Todas las tareas en estado `Hecha`.
-- [ ] Todos los criterios de aceptación con prueba automatizada en verde.
-- [ ] `mvn verify` en verde en local.
-- [ ] Toda escritura emite su evento de auditoría, en la transacción que corresponde. *(No aplica: esta consulta no escribe.)*
-- [ ] Los endpoints nuevos declaran su permiso.
-- [ ] El contrato OpenAPI coincide con el comportamiento real.
-- [ ] Documentación afectada actualizada en el mismo Pull Request.
-- [ ] Matriz de trazabilidad actualizada.
+- [x] Todas las tareas en estado `Hecha`.
+- [x] Todos los criterios de aceptación con prueba automatizada en verde.
+- [x] `mvn verify` en verde en local.
+- [x] Toda escritura emite su evento de auditoría, en la transacción que corresponde. *(No aplica: esta consulta no escribe.)*
+- [x] Los endpoints nuevos declaran su permiso. *(Ninguno: la ruta es pública, `RN-SP-041`, y el contrato lo dice con `security: []`.)*
+- [x] El contrato OpenAPI coincide con el comportamiento real.
+- [x] Documentación afectada actualizada en el mismo Pull Request.
+- [x] Matriz de trazabilidad actualizada.
 - [ ] Pull Request aprobado por alguien distinto del autor e integrado.
+
+## 6. Cierre del 30-09-2026
+
+**Se construyó el 08-09-2026 y la tripleta no lo recogió**: las once tareas seguían en `Pendiente`, la matriz daba el requerimiento por pendiente y **no existía ninguna prueba propia** —ni uno de los seis criterios se comprobaba—. Lo que cambió respecto de lo escrito:
+
+- **`T-01` a `T-03`**: las migraciones `V70` y `V72` no existen con ese número. La consolidación del esquema dejó la tabla en `V3`, el permiso en `V8` y la siembra —`CC`, `CE`, `PA` y `NIT`, sin `TI` ni `RC`— en `V9`.
+- **`T-07`**: el controlador **no lleva `@PreAuthorize`** desde que la ruta se hizo pública; `document-types:read` sigue en el catálogo de permisos y no gobierna esta lectura.
+- **`T-08` a `T-10`**: `DocumentTypesIT` cubre `CA-SP-584` a `CA-SP-589` —la ausencia de documentos de menor, contra la tabla; los verbos de escritura, `405` y ausentes del contrato— y `CA-SP-589` con su sentido actual (`spec.md` §12).
+- **`T-11`**: `requirements.md` v0.239.0.
