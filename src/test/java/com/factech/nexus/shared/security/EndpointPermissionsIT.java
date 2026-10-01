@@ -338,6 +338,27 @@ class EndpointPermissionsIT extends IntegrationTestBase {
           Map.entry(
               "POST /api/v1/movements/{id}/points-purchase-rejection",
               "movements:reject-points-purchase"),
+          // ---- MV · las cuentas de cobro (V61, 01-10-2026) ----
+          Map.entry(
+              "POST /api/v1/movements/payout-institutions", "movements:create-payout-institution"),
+          Map.entry(
+              "GET /api/v1/movements/payout-institutions", "movements:read-payout-institutions"),
+          Map.entry(
+              "PATCH /api/v1/movements/payout-institutions/{id}",
+              "movements:update-payout-institution"),
+          Map.entry(
+              "POST /api/v1/movements/mine/payout-accounts", "movements:create-own-payout-account"),
+          Map.entry(
+              "GET /api/v1/movements/mine/payout-accounts", "movements:list-own-payout-accounts"),
+          Map.entry(
+              "PATCH /api/v1/movements/mine/payout-accounts/{id}",
+              "movements:update-own-payout-account"),
+          Map.entry(
+              "DELETE /api/v1/movements/mine/payout-accounts/{id}",
+              "movements:delete-own-payout-account"),
+          Map.entry(
+              "GET /api/v1/movements/users/{userId}/payout-accounts",
+              "movements:read-user-payout-accounts"),
           Map.entry("POST /api/v1/movements/{id}/seller-assignments", "movements:assign-sellers"),
           // ---- MV · alcance propio (RF-SP-062, desde el 21-09-2026) ----
           Map.entry("GET /api/v1/movements/mine/shopping", "movements:list-own"),

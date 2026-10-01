@@ -112,7 +112,14 @@ public record SaleResponse(
                 "Los intentos de pagarla, del más antiguo al más reciente (`RN-MV-039`,"
                     + " `RN-MV-047`). Desde el 26-09-2026 el método es de cada pago: paymentMethod"
                     + " es el del último.")
-        List<PaymentResponse> payments) {
+        List<PaymentResponse> payments,
+    @Schema(
+            types = {"object", "null"},
+            description =
+                "Solo en un RETIRO (`RN-MV-056`, desde el 01-10-2026): a dónde se paga, copiado al"
+                    + " pedirlo. Es lo que lee quien lo aprueba. NULO en todo lo demás y en los"
+                    + " retiros pedidos antes de esa fecha.")
+        WithdrawalDestinationResponse withdrawalDestination) {
 
   @Schema(name = "SaleParty")
   public record Party(UUID id, String username, String name) {}
@@ -160,6 +167,7 @@ public record SaleResponse(
         null,
         null,
         venta.getCreatedAt(),
-        List.of(primerPago));
+        List.of(primerPago),
+        null);
   }
 }

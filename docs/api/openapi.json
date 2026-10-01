@@ -4908,6 +4908,127 @@
         },
         "type" : "object"
       },
+      "PayoutAccount" : {
+        "properties" : {
+          "accountType" : {
+            "description" : "AHORROS o CORRIENTE en un banco; nulo en una billetera móvil.",
+            "type" : [ "string", "null" ]
+          },
+          "createdAt" : {
+            "format" : "date-time",
+            "type" : "string"
+          },
+          "deletedAt" : {
+            "description" : "Cuándo se dio de baja. Solo lo ve administración (`RF-MV-039`); nulo en las vivas.",
+            "format" : "date-time",
+            "type" : [ "string", "null" ]
+          },
+          "holder" : {
+            "$ref" : "#/components/schemas/PayoutAccountHolder",
+            "description" : "El titular: siempre el dueño de la cuenta, con el nombre y el documento de su usuario tal como están hoy (`RN-MV-055`)."
+          },
+          "id" : {
+            "format" : "uuid",
+            "type" : "string"
+          },
+          "institution" : {
+            "$ref" : "#/components/schemas/PayoutAccountInstitution"
+          },
+          "number" : {
+            "description" : "Solo dígitos.",
+            "type" : "string"
+          },
+          "principal" : {
+            "description" : "La que se usa al pedir un retiro sin indicar cuenta.",
+            "type" : "boolean"
+          },
+          "usable" : {
+            "description" : "Si sirve para pedir un retiro: false cuando su entidad está desactivada (`RN-MV-054`). Hay que registrar otra.",
+            "type" : "boolean"
+          }
+        },
+        "type" : "object"
+      },
+      "PayoutAccountHolder" : {
+        "properties" : {
+          "documentNumber" : {
+            "type" : "string"
+          },
+          "documentType" : {
+            "type" : "string"
+          },
+          "name" : {
+            "type" : "string"
+          }
+        },
+        "type" : "object"
+      },
+      "PayoutAccountInstitution" : {
+        "properties" : {
+          "active" : {
+            "type" : "boolean"
+          },
+          "code" : {
+            "type" : "string"
+          },
+          "id" : {
+            "format" : "uuid",
+            "type" : "string"
+          },
+          "kind" : {
+            "type" : "string"
+          },
+          "name" : {
+            "type" : "string"
+          }
+        },
+        "type" : "object"
+      },
+      "PayoutInstitution" : {
+        "properties" : {
+          "active" : {
+            "description" : "false: no se ofrece, no admite cuentas nuevas ni retiros hacia las que ya tiene.",
+            "type" : "boolean"
+          },
+          "code" : {
+            "type" : "string"
+          },
+          "country" : {
+            "$ref" : "#/components/schemas/PayoutInstitutionCountry"
+          },
+          "createdAt" : {
+            "format" : "date-time",
+            "type" : "string"
+          },
+          "id" : {
+            "format" : "uuid",
+            "type" : "string"
+          },
+          "kind" : {
+            "description" : "BANCO o BILLETERA_MOVIL.",
+            "type" : "string"
+          },
+          "name" : {
+            "type" : "string"
+          }
+        },
+        "type" : "object"
+      },
+      "PayoutInstitutionCountry" : {
+        "properties" : {
+          "code" : {
+            "type" : "string"
+          },
+          "id" : {
+            "format" : "uuid",
+            "type" : "string"
+          },
+          "name" : {
+            "type" : "string"
+          }
+        },
+        "type" : "object"
+      },
       "PermissionCatalogResponse" : {
         "properties" : {
           "content" : {
@@ -6049,6 +6170,51 @@
         "required" : [ "code", "currencyId", "name", "scope", "validFrom" ],
         "type" : "object"
       },
+      "RegisterPayoutAccountRequest" : {
+        "properties" : {
+          "accountType" : {
+            "description" : "AHORROS o CORRIENTE. Obligatorio en un banco; en una billetera móvil no debe venir.",
+            "type" : [ "string", "null" ]
+          },
+          "institutionId" : {
+            "description" : "El banco o la billetera, de `GET /movements/payout-institutions`.",
+            "format" : "uuid",
+            "type" : "string"
+          },
+          "number" : {
+            "description" : "Número de cuenta, o de celular en una billetera. Admite espacios y guiones, que se quitan.",
+            "type" : "string"
+          },
+          "principal" : {
+            "description" : "true la hace la principal y desmarca la anterior. La primera cuenta lo es sin pedirlo.",
+            "type" : [ "boolean", "null" ]
+          }
+        },
+        "type" : "object"
+      },
+      "RegisterPayoutInstitutionRequest" : {
+        "properties" : {
+          "code" : {
+            "description" : "De 2 a 30 caracteres: letra, y después mayúsculas, dígitos o guion bajo. Se guarda en mayúsculas y no se puede cambiar.",
+            "example" : "BANCOLOMBIA",
+            "type" : "string"
+          },
+          "countryId" : {
+            "description" : "El país donde opera. No se puede cambiar.",
+            "format" : "uuid",
+            "type" : "string"
+          },
+          "kind" : {
+            "description" : "BANCO o BILLETERA_MOVIL. No se puede cambiar.",
+            "type" : "string"
+          },
+          "name" : {
+            "description" : "El nombre que ve la persona. Hasta 100 caracteres.",
+            "type" : "string"
+          }
+        },
+        "type" : "object"
+      },
       "RegisterProductRequest" : {
         "properties" : {
           "code" : {
@@ -6870,6 +7036,11 @@
             "description" : "Cuándo se anuló (`RF-MV-005`). NULO en toda venta no anulada.",
             "format" : "date-time",
             "type" : [ "string", "null" ]
+          },
+          "withdrawalDestination" : {
+            "$ref" : "#/components/schemas/WithdrawalDestination",
+            "description" : "Solo en un RETIRO (`RN-MV-056`, desde el 01-10-2026): a dónde se paga, copiado al pedirlo. Es lo que lee quien lo aprueba. NULO en todo lo demás y en los retiros pedidos antes de esa fecha.",
+            "type" : [ "object", "null" ]
           }
         },
         "type" : "object"
@@ -7501,6 +7672,36 @@
         },
         "type" : "object"
       },
+      "UpdatePayoutAccountRequest" : {
+        "properties" : {
+          "accountType" : {
+            "description" : "AHORROS o CORRIENTE; solo en un banco.",
+            "type" : [ "string", "null" ]
+          },
+          "number" : {
+            "description" : "El número corregido.",
+            "type" : [ "string", "null" ]
+          },
+          "principal" : {
+            "description" : "Solo true: la hace la principal. La principal no se quita; se marca otra.",
+            "type" : [ "boolean", "null" ]
+          }
+        },
+        "type" : "object"
+      },
+      "UpdatePayoutInstitutionRequest" : {
+        "properties" : {
+          "active" : {
+            "description" : "false la deja de ofrecer y de admitir cuentas y retiros nuevos.",
+            "type" : [ "boolean", "null" ]
+          },
+          "name" : {
+            "description" : "El nombre nuevo.",
+            "type" : [ "string", "null" ]
+          }
+        },
+        "type" : "object"
+      },
       "UpdateProductCommentRequest" : {
         "properties" : {
           "comment" : {
@@ -8093,6 +8294,57 @@
         },
         "type" : "object"
       },
+      "WithdrawalDestination" : {
+        "properties" : {
+          "accountType" : {
+            "description" : "AHORROS o CORRIENTE; nulo en una billetera.",
+            "type" : [ "string", "null" ]
+          },
+          "holder" : {
+            "$ref" : "#/components/schemas/WithdrawalDestinationHolder"
+          },
+          "institution" : {
+            "$ref" : "#/components/schemas/WithdrawalDestinationInstitution"
+          },
+          "number" : {
+            "type" : "string"
+          },
+          "payoutAccountId" : {
+            "description" : "La cuenta de la que se copió; puede estar dada de baja.",
+            "format" : "uuid",
+            "type" : "string"
+          }
+        },
+        "type" : "object"
+      },
+      "WithdrawalDestinationHolder" : {
+        "properties" : {
+          "documentNumber" : {
+            "type" : "string"
+          },
+          "documentType" : {
+            "type" : "string"
+          },
+          "name" : {
+            "type" : "string"
+          }
+        },
+        "type" : "object"
+      },
+      "WithdrawalDestinationInstitution" : {
+        "properties" : {
+          "code" : {
+            "type" : "string"
+          },
+          "kind" : {
+            "type" : "string"
+          },
+          "name" : {
+            "type" : "string"
+          }
+        },
+        "type" : "object"
+      },
       "WithdrawalRejectionRequest" : {
         "properties" : {
           "reason" : {
@@ -8112,6 +8364,11 @@
             "description" : "De qué billetera se retira.",
             "format" : "uuid",
             "type" : "string"
+          },
+          "payoutAccountId" : {
+            "description" : "A qué cuenta de cobro propia se paga (`RN-MV-056`, desde el 01-10-2026). Si no viene, a la principal. Sin ninguna cuenta, el retiro no se puede pedir.",
+            "format" : "uuid",
+            "type" : [ "string", "null" ]
           }
         },
         "type" : "object"
@@ -8120,6 +8377,10 @@
         "properties" : {
           "balances" : {
             "$ref" : "#/components/schemas/Balances"
+          },
+          "destination" : {
+            "$ref" : "#/components/schemas/WithdrawalDestination",
+            "description" : "A dónde se paga, copiado al pedirlo (`RN-MV-056`, desde el 01-10-2026): no cambia aunque la cuenta se edite o se dé de baja."
           },
           "movement" : {
             "$ref" : "#/components/schemas/LedgerMovement"
@@ -14284,6 +14545,163 @@
         "x-required-permission" : "movements:list-own-entries"
       }
     },
+    "/api/v1/movements/mine/payout-accounts" : {
+      "get" : {
+        "description" : "**Permiso requerido:** `movements:list-own-payout-accounts`. Sin él, `403` (`AUTH-002`).\n\nLas cuentas vivas de quien tiene la sesión (`RF-MV-036`): **la principal primero** y\ndespués de la más reciente a la más antigua. `usable` dice si sirve para pedir un\nretiro: es `false` cuando su entidad está desactivada, y hay que registrar otra.\n",
+        "operationId" : "misCuentas",
+        "responses" : {
+          "200" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "items" : {
+                    "$ref" : "#/components/schemas/PayoutAccount"
+                  },
+                  "type" : "array"
+                }
+              }
+            },
+            "description" : "La lista, quizá vacía."
+          },
+          "401" : {
+            "description" : "Sin token (`AUTH-001`)"
+          },
+          "403" : {
+            "description" : "Sin `movements:list-own-payout-accounts` (`AUTH-002`)"
+          }
+        },
+        "summary" : "Consultar mis cuentas de cobro",
+        "tags" : [ "Cuentas de cobro" ],
+        "x-required-permission" : "movements:list-own-payout-accounts"
+      },
+      "post" : {
+        "description" : "**Permiso requerido:** `movements:create-own-payout-account`. Sin él, `403` (`AUTH-002`).\n\nRegistra **a dónde quiere que le paguen** quien tiene la sesión (`RF-MV-035`). **El\ntitular es siempre esa persona**: el nombre y el documento se toman de su usuario, y\nsin documento no se puede registrar. La entidad tiene que estar activa y ser de su\npaís. En un **banco**, `accountType` (AHORROS o CORRIENTE) y un número de 4 a 20\ndígitos; en una **billetera móvil**, solo el celular, de 7 a 15 dígitos y sin\n`accountType`. El número admite espacios y guiones y se guarda solo con dígitos. **La\nprimera cuenta es la principal**; otra lo es si se pide, y la anterior deja de serlo.\n",
+        "operationId" : "registrarCuenta",
+        "requestBody" : {
+          "content" : {
+            "application/json" : {
+              "schema" : {
+                "$ref" : "#/components/schemas/RegisterPayoutAccountRequest"
+              }
+            }
+          }
+        },
+        "responses" : {
+          "201" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/PayoutAccount"
+                }
+              }
+            },
+            "description" : "Registrada."
+          },
+          "400" : {
+            "description" : "Datos ausentes o malformados (`VAL-001` a `VAL-003`), o que no corresponden al tipo de la entidad (`EX-004`)"
+          },
+          "401" : {
+            "description" : "Sin token (`AUTH-001`)"
+          },
+          "403" : {
+            "description" : "Sin `movements:create-own-payout-account` (`AUTH-002`)"
+          },
+          "409" : {
+            "description" : "Entidad inactiva o de otro país (`EX-003`), persona sin documento (`EX-005`) o cuenta ya registrada (`EX-006`)"
+          },
+          "422" : {
+            "description" : "La entidad no existe (`EX-002`)"
+          }
+        },
+        "summary" : "Registrar una cuenta de cobro propia",
+        "tags" : [ "Cuentas de cobro" ],
+        "x-required-permission" : "movements:create-own-payout-account"
+      }
+    },
+    "/api/v1/movements/mine/payout-accounts/{id}" : {
+      "delete" : {
+        "description" : "**Permiso requerido:** `movements:delete-own-payout-account`. Sin él, `403` (`AUTH-002`).\n\nLa retira, sin vuelta atrás (`RF-MV-038`). Si era la principal, **la principal pasa a\nla más antigua** de las que quedan. Se admite con retiros pendientes hacia ella: su\ndestino quedó copiado al pedirlos.\n",
+        "operationId" : "darDeBajaCuenta",
+        "parameters" : [ {
+          "in" : "path",
+          "name" : "id",
+          "required" : true,
+          "schema" : {
+            "format" : "uuid",
+            "type" : "string"
+          }
+        } ],
+        "responses" : {
+          "204" : {
+            "description" : "Dada de baja."
+          },
+          "401" : {
+            "description" : "Sin token (`AUTH-001`)"
+          },
+          "403" : {
+            "description" : "Sin `movements:delete-own-payout-account` (`AUTH-002`)"
+          },
+          "404" : {
+            "description" : "No es suya, no existe o ya está dada de baja (`EX-001`)"
+          }
+        },
+        "summary" : "Dar de baja una cuenta de cobro propia",
+        "tags" : [ "Cuentas de cobro" ],
+        "x-required-permission" : "movements:delete-own-payout-account"
+      },
+      "patch" : {
+        "description" : "**Permiso requerido:** `movements:update-own-payout-account`. Sin él, `403` (`AUTH-002`).\n\nCorrige el tipo de cuenta o el número, o **la hace la principal** (`RF-MV-037`): la\nanterior deja de serlo. **La principal no se quita** —`principal: false` es un error—:\nse marca otra. La entidad no se cambia; para otra entidad, se registra otra cuenta.\nUna cuenta de una entidad desactivada no se edita: se da de baja. Los retiros ya\npedidos hacia ella **conservan su destino**.\n",
+        "operationId" : "editarCuenta",
+        "parameters" : [ {
+          "in" : "path",
+          "name" : "id",
+          "required" : true,
+          "schema" : {
+            "format" : "uuid",
+            "type" : "string"
+          }
+        } ],
+        "requestBody" : {
+          "content" : {
+            "application/json" : {
+              "schema" : {
+                "$ref" : "#/components/schemas/UpdatePayoutAccountRequest"
+              }
+            }
+          }
+        },
+        "responses" : {
+          "200" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/PayoutAccount"
+                }
+              }
+            },
+            "description" : "Editada, o sin cambios."
+          },
+          "400" : {
+            "description" : "Nada que cambiar, datos malformados, `principal: false`, o datos que no corresponden al tipo de la entidad (`EX-004`)"
+          },
+          "401" : {
+            "description" : "Sin token (`AUTH-001`)"
+          },
+          "403" : {
+            "description" : "Sin `movements:update-own-payout-account` (`AUTH-002`)"
+          },
+          "404" : {
+            "description" : "No es suya, no existe o está dada de baja (`EX-002`)"
+          },
+          "409" : {
+            "description" : "Entidad desactivada (`EX-003`) o número repetido (`EX-005`)"
+          }
+        },
+        "summary" : "Editar una cuenta de cobro propia",
+        "tags" : [ "Cuentas de cobro" ],
+        "x-required-permission" : "movements:update-own-payout-account"
+      }
+    },
     "/api/v1/movements/mine/points-purchases" : {
       "get" : {
         "description" : "**Permiso requerido:** `movements:list-own-points-purchases`. Sin él, `403` (`AUTH-002`).\n\nLas compras de puntos de quien tiene la sesión, **las más recientes primero**, cada\nuna con su tasa, sus puntos, sus pagos y, si se rechazó, el motivo (`RF-MV-031`).\nFiltros: `status` (`PENDIENTE`, `CONFIRMADA`, `RECHAZADA`), `currencyId`, `code` —un\nfragmento del comprobante, sin distinguir mayúsculas— y `from`/`to` sobre cuándo se\ncompró, rango semiabierto. Un estado desconocido y un periodo invertido son `400`, y\nlos dos errores salen juntos.\n",
@@ -14626,7 +15044,7 @@
     },
     "/api/v1/movements/mine/withdrawals" : {
       "post" : {
-        "description" : "**Permiso requerido:** `movements:request-withdrawal`. Sin él, `403` (`AUTH-002`).\n\nPide que le paguen a la persona lo que tiene en su **billetera**, en una moneda\n(`RF-MV-019`). **El importe se aparta en el acto**: sale de la billetera y queda\n**retenido** hasta que alguien lo apruebe o lo niegue (`RN-MV-043`), de modo que no\nse puede gastar ni pedir dos veces. Si la billetera no alcanza, `409` y no queda\nnada registrado.\n\nEl retiro nace `PENDIENTE`. La respuesta trae el retiro y **los tres saldos** de esa\nmoneda como quedan. Sin clave de idempotencia: un retiro repetido retiene dos veces y\nno puede pagar de más.\n",
+        "description" : "**Permiso requerido:** `movements:request-withdrawal`. Sin él, `403` (`AUTH-002`).\n\nPide que le paguen a la persona lo que tiene en su **billetera**, en una moneda\n(`RF-MV-019`). **El importe se aparta en el acto**: sale de la billetera y queda\n**retenido** hasta que alguien lo apruebe o lo niegue (`RN-MV-043`), de modo que no\nse puede gastar ni pedir dos veces. Si la billetera no alcanza, `409` y no queda\nnada registrado.\n\n**Desde el 01-10-2026 el retiro dice a dónde se paga** (`RN-MV-056`): exige una\n**cuenta de cobro** propia y viva, de una entidad activa —`payoutAccountId`, o la\n**principal** si no viene— y que la persona tenga documento. **Sin ninguna cuenta no\nse puede pedir**: hay que registrar una antes (`POST /movements/mine/payout-accounts`).\nEl destino —entidad, tipo de cuenta, número y titular— **se copia al pedir** y no\ncambia aunque la cuenta se edite o se dé de baja. Ninguna de estas comprobaciones\ntoca un saldo.\n\nEl retiro nace `PENDIENTE`. La respuesta trae el retiro, **los tres saldos** de esa\nmoneda como quedan y **el destino**. Sin clave de idempotencia: un retiro repetido\nretiene dos veces y no puede pagar de más.\n",
         "operationId" : "solicitarRetiro",
         "requestBody" : {
           "content" : {
@@ -14646,10 +15064,10 @@
                 }
               }
             },
-            "description" : "Retiro pedido, con los saldos."
+            "description" : "Retiro pedido, con los saldos y el destino."
           },
           "400" : {
-            "description" : "Moneda o importe ausentes, importe no positivo o con decimales de más"
+            "description" : "Moneda o importe ausentes, importe no positivo o con decimales de más, o una cuenta de cobro que no es un identificador"
           },
           "401" : {
             "description" : "Sin token (`AUTH-001`)"
@@ -14658,10 +15076,10 @@
             "description" : "Sin `movements:request-withdrawal` (`AUTH-002`)"
           },
           "409" : {
-            "description" : "La billetera no alcanza, con el disponible (`EX-003`), o la cuenta no opera (`EX-004`)"
+            "description" : "La billetera no alcanza, con el disponible (`EX-003`); la cuenta no opera (`EX-004`); no tiene ninguna cuenta de cobro (`EX-006`); la entidad de la cuenta está desactivada (`EX-008`); o la persona no tiene documento (`EX-009`)"
           },
           "422" : {
-            "description" : "La moneda no existe"
+            "description" : "La moneda no existe (`EX-002`), o la cuenta de cobro indicada no existe, no es suya o está dada de baja (`EX-007`)"
           }
         },
         "summary" : "Solicitar un retiro",
@@ -14787,6 +15205,158 @@
         "summary" : "Volver a pagar una venta propia pendiente",
         "tags" : [ "Movimientos" ],
         "x-required-permission" : "movements:retry-payment"
+      }
+    },
+    "/api/v1/movements/payout-institutions" : {
+      "get" : {
+        "description" : "**Permiso requerido:** `movements:read-payout-institutions`. Sin él, `403` (`AUTH-002`).\n\nEl catálogo de bancos y billeteras móviles (`RF-MV-033`), ordenado por país y por\nnombre, sin paginar. **Por omisión, solo las activas**, que son las que se ofrecen; las\ninactivas se piden con `status`. Para el formulario de una cuenta, filtre por el país\nde la persona: solo esas se admiten al registrarla.\n",
+        "operationId" : "consultarEntidades",
+        "parameters" : [ {
+          "description" : "Solo las de ese país.",
+          "in" : "query",
+          "name" : "countryId",
+          "required" : false,
+          "schema" : {
+            "type" : "string"
+          }
+        }, {
+          "description" : "BANCO o BILLETERA_MOVIL.",
+          "in" : "query",
+          "name" : "kind",
+          "required" : false,
+          "schema" : {
+            "type" : "string"
+          }
+        }, {
+          "description" : "ACTIVA (por omisión), INACTIVA o TODAS.",
+          "in" : "query",
+          "name" : "status",
+          "required" : false,
+          "schema" : {
+            "type" : "string"
+          }
+        } ],
+        "responses" : {
+          "200" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "items" : {
+                    "$ref" : "#/components/schemas/PayoutInstitution"
+                  },
+                  "type" : "array"
+                }
+              }
+            },
+            "description" : "La lista, quizá vacía."
+          },
+          "400" : {
+            "description" : "Un filtro malformado (`VAL-001` a `VAL-003`)"
+          },
+          "401" : {
+            "description" : "Sin token (`AUTH-001`)"
+          },
+          "403" : {
+            "description" : "Sin `movements:read-payout-institutions` (`AUTH-002`)"
+          }
+        },
+        "summary" : "Consultar las entidades de cobro",
+        "tags" : [ "Cuentas de cobro" ],
+        "x-required-permission" : "movements:read-payout-institutions"
+      },
+      "post" : {
+        "description" : "**Permiso requerido:** `movements:create-payout-institution`. Sin él, `403` (`AUTH-002`).\n\nDa de alta un **banco** o una **billetera móvil** de un país (`RF-MV-032`). El código\n—`BANCOLOMBIA`, `NEQUI`— es **único en todo el catálogo** y, como el tipo y el país,\n**no se puede cambiar**: es lo que queda copiado en cada retiro. Nace activa. El\ncatálogo no se siembra: lo llena administración.\n",
+        "operationId" : "registrarEntidad",
+        "requestBody" : {
+          "content" : {
+            "application/json" : {
+              "schema" : {
+                "$ref" : "#/components/schemas/RegisterPayoutInstitutionRequest"
+              }
+            }
+          }
+        },
+        "responses" : {
+          "201" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/PayoutInstitution"
+                }
+              }
+            },
+            "description" : "Registrada."
+          },
+          "400" : {
+            "description" : "Datos ausentes o malformados, todos juntos (`VAL-001` a `VAL-004`)"
+          },
+          "401" : {
+            "description" : "Sin token (`AUTH-001`)"
+          },
+          "403" : {
+            "description" : "Sin `movements:create-payout-institution` (`AUTH-002`)"
+          },
+          "409" : {
+            "description" : "El país está inactivo (`EX-003`) o el código ya existe (`EX-004`)"
+          },
+          "422" : {
+            "description" : "El país no existe (`EX-002`)"
+          }
+        },
+        "summary" : "Registrar una entidad de cobro",
+        "tags" : [ "Cuentas de cobro" ],
+        "x-required-permission" : "movements:create-payout-institution"
+      }
+    },
+    "/api/v1/movements/payout-institutions/{id}" : {
+      "patch" : {
+        "description" : "**Permiso requerido:** `movements:update-payout-institution`. Sin él, `403` (`AUTH-002`).\n\nCorrige el **nombre** o **activa y desactiva** una entidad (`RF-MV-034`). El código, el\ntipo y el país no se editan: enviarlos responde `400`. **Desactivarla** la saca del\ncatálogo y le impide cuentas y retiros nuevos, **sin tocar las cuentas** de nadie; los\nretiros ya pedidos conservan su destino copiado. Enviar lo que ya tiene no escribe\nnada.\n",
+        "operationId" : "editarEntidad",
+        "parameters" : [ {
+          "in" : "path",
+          "name" : "id",
+          "required" : true,
+          "schema" : {
+            "format" : "uuid",
+            "type" : "string"
+          }
+        } ],
+        "requestBody" : {
+          "content" : {
+            "application/json" : {
+              "schema" : {
+                "$ref" : "#/components/schemas/UpdatePayoutInstitutionRequest"
+              }
+            }
+          }
+        },
+        "responses" : {
+          "200" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/PayoutInstitution"
+                }
+              }
+            },
+            "description" : "Editada, o sin cambios."
+          },
+          "400" : {
+            "description" : "Nada que cambiar, nombre inválido o una propiedad que no se edita"
+          },
+          "401" : {
+            "description" : "Sin token (`AUTH-001`)"
+          },
+          "403" : {
+            "description" : "Sin `movements:update-payout-institution` (`AUTH-002`)"
+          },
+          "404" : {
+            "description" : "La entidad no existe (`EX-002`)"
+          }
+        },
+        "summary" : "Editar una entidad de cobro",
+        "tags" : [ "Cuentas de cobro" ],
+        "x-required-permission" : "movements:update-payout-institution"
       }
     },
     "/api/v1/movements/points-rates" : {
@@ -15094,9 +15664,60 @@
         "x-required-permission" : "movements:list-sale-lines"
       }
     },
+    "/api/v1/movements/users/{userId}/payout-accounts" : {
+      "get" : {
+        "description" : "**Permiso requerido:** `movements:read-user-payout-accounts`. Sin él, `403` (`AUTH-002`).\n\nLas cuentas de **cualquier** persona, para administración (`RF-MV-039`): las vivas en\nel orden de «mis cuentas» y, con `includeDeleted=true`, también las dadas de baja, al\nfinal y con su fecha. Alcance global: no sigue la estructura comercial.\n",
+        "operationId" : "cuentasDeUnaPersona",
+        "parameters" : [ {
+          "in" : "path",
+          "name" : "userId",
+          "required" : true,
+          "schema" : {
+            "format" : "uuid",
+            "type" : "string"
+          }
+        }, {
+          "description" : "true incluye las dadas de baja.",
+          "in" : "query",
+          "name" : "includeDeleted",
+          "required" : false,
+          "schema" : {
+            "default" : false,
+            "type" : "boolean"
+          }
+        } ],
+        "responses" : {
+          "200" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "items" : {
+                    "$ref" : "#/components/schemas/PayoutAccount"
+                  },
+                  "type" : "array"
+                }
+              }
+            },
+            "description" : "La lista, quizá vacía."
+          },
+          "401" : {
+            "description" : "Sin token (`AUTH-001`)"
+          },
+          "403" : {
+            "description" : "Sin `movements:read-user-payout-accounts` (`AUTH-002`)"
+          },
+          "404" : {
+            "description" : "La persona no existe o está eliminada (`EX-002`)"
+          }
+        },
+        "summary" : "Consultar las cuentas de cobro de una persona",
+        "tags" : [ "Cuentas de cobro" ],
+        "x-required-permission" : "movements:read-user-payout-accounts"
+      }
+    },
     "/api/v1/movements/{id}" : {
       "get" : {
-        "description" : "**Permiso requerido:** `movements:read-detail`. Sin él, `403` (`AUTH-002`).\n\nDevuelve **el comprobante de cualquier movimiento** —una venta, un retiro, un\nbono—, sea quien sea su sujeto y quien lo haya vendido: código, tipo, estado,\nestado del tipo, sujeto, moneda, totales, **pagos** y **líneas**, cada una con lo\nque se vendió **tal como se vendió** y a quién se le acredita. Un movimiento sin\nlíneas —un retiro, un bono— las trae **vacías**.\n\n**Es la misma forma que `GET /api/v1/movements/mine/{id}`**, el detalle propio:\nsobre un movimiento en el que usted participó, las dos responden lo mismo. Aquí\nno hay alcance —quien tiene el permiso abre cualquier fila del libro— y por eso\ntampoco hay un «no es suyo»: lo único que responde `404` es lo que no existe, o un\nidentificador que no tiene forma de identificador.\n\n**El comprobante no es un documento fiscal** ni un soporte de pago adjunto: es el\ndocumento interno del movimiento.\n",
+        "description" : "**Permiso requerido:** `movements:read-detail`. Sin él, `403` (`AUTH-002`).\n\nDevuelve **el comprobante de cualquier movimiento** —una venta, un retiro, un\nbono—, sea quien sea su sujeto y quien lo haya vendido: código, tipo, estado,\nestado del tipo, sujeto, moneda, totales, **pagos** y **líneas**, cada una con lo\nque se vendió **tal como se vendió** y a quién se le acredita. Un movimiento sin\nlíneas —un retiro, un bono— las trae **vacías**.\n\n**Un retiro trae `withdrawalDestination`** desde el 01-10-2026 (`RN-MV-056`): a\ndónde se paga, **copiado al pedirlo** —entidad, tipo de cuenta, número y titular con\nsu documento—. Es lo que lee quien lo aprueba para saber a dónde enviar el dinero, y\nno cambia aunque la cuenta se edite o se dé de baja. Falta en todo lo demás y en los\nretiros pedidos antes de esa fecha.\n\n**Es la misma forma que `GET /api/v1/movements/mine/{id}`**, el detalle propio:\nsobre un movimiento en el que usted participó, las dos responden lo mismo. Aquí\nno hay alcance —quien tiene el permiso abre cualquier fila del libro— y por eso\ntampoco hay un «no es suyo»: lo único que responde `404` es lo que no existe, o un\nidentificador que no tiene forma de identificador.\n\n**El comprobante no es un documento fiscal** ni un soporte de pago adjunto: es el\ndocumento interno del movimiento.\n",
         "operationId" : "movimiento",
         "parameters" : [ {
           "in" : "path",
@@ -20533,6 +21154,9 @@
   }, {
     "description" : "Con qué se puede pagar, y en qué países no vale cada medio.",
     "name" : "Métodos de pago"
+  }, {
+    "description" : "Los bancos y billeteras móviles a los que se pagan los retiros, y las cuentas de cada persona en ellos. Un retiro exige una cuenta y copia su destino.",
+    "name" : "Cuentas de cobro"
   }, {
     "description" : "Cada cierre del periodo, programado o a mano, con lo que hizo.",
     "name" : "Cierres de comisiones"

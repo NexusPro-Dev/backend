@@ -11,6 +11,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import com.factech.nexus.IntegrationTestBase;
 import com.factech.nexus.modules.movements.LedgerFixtures;
 import com.factech.nexus.modules.movements.PaymentFixtures;
+import com.factech.nexus.modules.movements.PayoutFixtures;
 import com.factech.nexus.modules.movements.domain.service.CreditService;
 import com.jayway.jsonpath.JsonPath;
 import java.nio.charset.StandardCharsets;
@@ -100,6 +101,7 @@ class MovementDetailIT extends IntegrationTestBase {
   @DisplayName("CA-MV-289 — un retiro se abre con su tipo, su estado y sin líneas")
   void unRetiro() throws Exception {
     llenarBilletera(abonos, cliente, "50.00");
+    PayoutFixtures.listaParaRetirar(jdbc, cliente);
     String cuerpo =
         mvc.perform(
                 post("/api/v1/movements/mine/withdrawals")

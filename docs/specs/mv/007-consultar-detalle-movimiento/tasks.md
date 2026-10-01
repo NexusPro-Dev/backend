@@ -76,5 +76,7 @@ Rama: `feature/cuentas-de-cobro`. Después de `RF-MV-019` `T-11` y `T-12`.
 
 | ID | Tarea | Depende de | Verificación | Estado |
 |---|---|---|---|---|
-| `T-08` | `SaleResponse.withdrawalDestination` y su lectura en `SaleDetailMapper`, solo para `RETIRO` | `RF-MV-019` `T-12` | La venta no gana sentencias | Pendiente |
-| `T-09` | `CA-MV-424` y `CA-MV-425` en `MovementDetailIT`; contrato regenerado | `T-08` | Cada criterio afirmado en el cuerpo de la prueba | Pendiente |
+| `T-08` | `SaleResponse.withdrawalDestination` y su lectura en `SaleDetailMapper`, solo para `RETIRO` | `RF-MV-019` `T-12` | La venta no gana sentencias | **Hecha** — 01-10-2026 |
+| `T-09` | `CA-MV-424` y `CA-MV-425` en `MovementDetailIT`; contrato regenerado | `T-08` | Cada criterio afirmado en el cuerpo de la prueba | **Hecha** — 01-10-2026 |
+
+**01-10-2026 — construido** (issue [#157](https://github.com/NexusPro-Dev/backend/issues/157)). El destino lo lee `WithdrawalDestinations.deRetiro`, que solo consulta si el tipo es `RETIRO`; `GetMovementService` y `GetMyMovementService` lo pasan al mapper. **La suite es `WithdrawalDestinationIT`** y no `MovementDetailIT`.

@@ -23,16 +23,18 @@ import org.springframework.transaction.annotation.Transactional;
 public class GetMovementService {
 
   private final MovementRepository movimientos;
+  private final WithdrawalDestinations destinos;
 
-  public GetMovementService(MovementRepository movimientos) {
+  public GetMovementService(MovementRepository movimientos, WithdrawalDestinations destinos) {
     this.movimientos = movimientos;
+    this.destinos = destinos;
   }
 
   @Transactional(readOnly = true)
   public SaleResponse get(UUID movementId) {
     return movimientos
         .findById(movementId)
-        .map(SaleDetailMapper::de)
+        .map(detalle -> SaleDetailMapper.de(detalle, destinos.deRetiro(detalle)))
         .orElseThrow(
             () ->
                 new ResourceNotFoundException(

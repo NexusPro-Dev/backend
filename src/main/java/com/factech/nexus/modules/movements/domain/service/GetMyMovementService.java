@@ -30,10 +30,13 @@ public class GetMyMovementService {
 
   private final MovementRepository movimientos;
   private final AuthenticatedActor actor;
+  private final WithdrawalDestinations destinos;
 
-  public GetMyMovementService(MovementRepository movimientos, AuthenticatedActor actor) {
+  public GetMyMovementService(
+      MovementRepository movimientos, AuthenticatedActor actor, WithdrawalDestinations destinos) {
     this.movimientos = movimientos;
     this.actor = actor;
+    this.destinos = destinos;
   }
 
   @Transactional(readOnly = true)
@@ -45,6 +48,6 @@ public class GetMyMovementService {
                 () ->
                     new ResourceNotFoundException(
                         "VAL-002", "No existe un movimiento suyo con ese identificador."));
-    return SaleDetailMapper.de(detalle);
+    return SaleDetailMapper.de(detalle, destinos.deRetiro(detalle));
   }
 }

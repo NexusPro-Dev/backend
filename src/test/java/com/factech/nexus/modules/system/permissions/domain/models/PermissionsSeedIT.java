@@ -33,7 +33,7 @@ class PermissionsSeedIT extends IntegrationTestBase {
           + " V47: courses:read-available y lessons:learn del aula, RF-AC-034 y RF-AC-035)")
   void catalogoCompleto() {
     assertThat(jdbc.queryForObject("SELECT count(*) FROM permissions", Integer.class))
-        .isEqualTo(172);
+        .isEqualTo(180);
   }
 
   @Test
@@ -238,6 +238,15 @@ class PermissionsSeedIT extends IntegrationTestBase {
             "movements:confirm-points-purchase",
             "movements:reject-points-purchase",
             "movements:list-own-points-purchases",
+            // `V61` (01-10-2026): las cuentas de cobro (`RF-MV-032` a `RF-MV-039`).
+            "movements:create-payout-institution",
+            "movements:read-payout-institutions",
+            "movements:update-payout-institution",
+            "movements:create-own-payout-account",
+            "movements:list-own-payout-accounts",
+            "movements:update-own-payout-account",
+            "movements:delete-own-payout-account",
+            "movements:read-user-payout-accounts",
             // El SEGUNDO recurso de `PM` (`V93`, 15-09-2026), por decisión del
             // responsable del proyecto: armar paquetes y tocar el catálogo son
             // dos capacidades, y los `products:` no habilitan ni una operación
@@ -319,7 +328,7 @@ class PermissionsSeedIT extends IntegrationTestBase {
   void identificadoresUuidV7() {
     List<UUID> ids = jdbc.queryForList("SELECT id FROM permissions", UUID.class);
 
-    assertThat(ids).hasSize(172).doesNotHaveDuplicates();
+    assertThat(ids).hasSize(180).doesNotHaveDuplicates();
     assertThat(ids).allSatisfy(id -> assertThat(id.version()).isEqualTo(7));
     // variant() == 2 es la variante RFC 9562 (bits 10xx).
     assertThat(ids).allSatisfy(id -> assertThat(id.variant()).isEqualTo(2));
@@ -385,13 +394,13 @@ class PermissionsSeedIT extends IntegrationTestBase {
                 "SELECT count(*) FROM role_permissions WHERE role_id ="
                     + " '01a02a33-4c00-7001-9c4f-5e7ad1000001'",
                 Integer.class))
-        .isEqualTo(172);
+        .isEqualTo(180);
     assertThat(
             jdbc.queryForObject(
                 "SELECT count(*) FROM role_permissions WHERE role_id ="
                     + " '01a02a33-4c00-7002-9c4f-5e7ad1000002'",
                 Integer.class))
-        .isEqualTo(170);
+        .isEqualTo(178);
     assertThat(
             jdbc.queryForList(
                 """
@@ -471,8 +480,14 @@ class PermissionsSeedIT extends IntegrationTestBase {
         // Catorce desde `V48`: volver a pagar lo propio (`RF-MV-018`) va a todo rol por su tipo.
         // Y dieciocho desde `V50`: activar lo comprado (`RF-MV-010`), también por tipo.
         // Y veintiuno desde `V58`: la tasa, comprar puntos y mis compras de puntos.
-        .hasSize(21)
+        // Y veintiséis desde `V61`: el catálogo de entidades y las cuatro de la cuenta propia.
+        .hasSize(26)
         .contains(
+            "movements:read-payout-institutions",
+            "movements:create-own-payout-account",
+            "movements:list-own-payout-accounts",
+            "movements:update-own-payout-account",
+            "movements:delete-own-payout-account",
             "movements:read-points-rates",
             "movements:buy-points",
             "movements:list-own-points-purchases",

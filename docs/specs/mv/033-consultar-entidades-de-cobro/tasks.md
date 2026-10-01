@@ -6,8 +6,8 @@
 | Especificación | [`spec.md`](spec.md) v0.1.0 |
 | Plan | [`plan.md`](plan.md) v0.1.0 |
 | `plan.md` aprobado el | 01-10-2026 |
-| Estado | **En revisión** |
-| Issue | Pendiente de crear |
+| Estado | **En revisión** — todas las tareas `Hecha` el 01-10-2026 |
+| Issue | [#157](https://github.com/NexusPro-Dev/backend/issues/157) |
 | Rama | `feature/cuentas-de-cobro` |
 
 !!! info "Qué va en este documento"
@@ -22,11 +22,11 @@
 
 | ID | Tarea | Depende de | Verificación | Estado |
 |---|---|---|---|---|
-| `T-01` | `PayoutInstitutionRepository.list` con los tres filtros y el orden de `plan.md` §1 | `RF-MV-032` · `T-05` | Una sentencia | Pendiente |
-| `T-02` | `PayoutInstitutionService.list`, con la validación de los filtros | `T-01` | `ACTIVA` por omisión | Pendiente |
-| `T-03` | `GET /movements/payout-institutions` en `PayoutInstitutionController` | `T-02` | Documentado con los códigos de `plan.md` §4 | Pendiente |
-| `T-04` | `ListPayoutInstitutionsIT`: `CA-MV-366` a `CA-MV-370` | `T-03` | Cada criterio afirmado en el cuerpo de la prueba | Pendiente |
-| `T-05` | `EndpointPermissionsIT`; contrato con la prosa releída; `requirements.md` | `T-04` | | Pendiente |
+| `T-01` | `PayoutInstitutionRepository.list` con los tres filtros y el orden de `plan.md` §1 | `RF-MV-032` · `T-05` | Una sentencia | **Hecha** — 01-10-2026 |
+| `T-02` | `PayoutInstitutionService.list`, con la validación de los filtros | `T-01` | `ACTIVA` por omisión | **Hecha** — 01-10-2026 |
+| `T-03` | `GET /movements/payout-institutions` en `PayoutInstitutionController` | `T-02` | Documentado con los códigos de `plan.md` §4 | **Hecha** — 01-10-2026 |
+| `T-04` | `ListPayoutInstitutionsIT`: `CA-MV-366` a `CA-MV-370` | `T-03` | Cada criterio afirmado en el cuerpo de la prueba | **Hecha** — 01-10-2026 |
+| `T-05` | `EndpointPermissionsIT`; contrato con la prosa releída; `requirements.md` | `T-04` | | **Hecha** — 01-10-2026 |
 
 ---
 
@@ -46,6 +46,10 @@
 
 ---
 
+## 3.1 Desviaciones respecto del plan
+
+**Un controlador y no tres.** Las ocho rutas viven en `PayoutController`, y las cuatro peticiones con cuerpo en `PayoutRequests`; no hay `PayoutInstitutionController`, `PayoutAccountController`, `PayoutInstitutionRequests` ni `PayoutAccountRequests`. **Sin modelos de dominio `PayoutInstitution` ni `PayoutAccount`**: la validación vive en `PayoutInstitutionService` y `PayoutAccountService`, apoyada en `PayoutInstitutionKind`, `PayoutAccountType` y `PayoutAccountNumber`; por eso no hay unitarias, y cada `VAL-` se prueba por integración. La suite es `PayoutInstitutionsIT`, y no `ListPayoutInstitutionsIT`.
+
 ## 4. Bloqueos
 
 Ninguno.
@@ -55,7 +59,7 @@ Ninguno.
 ## 5. Definición de terminado
 
 - [ ] `./mvnw clean verify` en verde.
-- [ ] Los cinco criterios de aceptación con prueba, **cada uno afirmado en el cuerpo de la prueba**.
-- [ ] Contrato OpenAPI regenerado, **con la prosa releída**.
-- [ ] `requirements.md` actualizado.
+- [x] Los cinco criterios de aceptación con prueba, **cada uno afirmado en el cuerpo de la prueba**.
+- [x] Contrato OpenAPI regenerado, **con la prosa releída**.
+- [x] `requirements.md` actualizado.
 - [ ] **`tasks.md` aprobadas por el responsable del proyecto.**

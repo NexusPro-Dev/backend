@@ -1010,6 +1010,12 @@ public class MovementController {
           que se vendió **tal como se vendió** y a quién se le acredita. Un movimiento sin
           líneas —un retiro, un bono— las trae **vacías**.
 
+          **Un retiro trae `withdrawalDestination`** desde el 01-10-2026 (`RN-MV-056`): a
+          dónde se paga, **copiado al pedirlo** —entidad, tipo de cuenta, número y titular con
+          su documento—. Es lo que lee quien lo aprueba para saber a dónde enviar el dinero, y
+          no cambia aunque la cuenta se edite o se dé de baja. Falta en todo lo demás y en los
+          retiros pedidos antes de esa fecha.
+
           **Es la misma forma que `GET /api/v1/movements/mine/{id}`**, el detalle propio:
           sobre un movimiento en el que usted participó, las dos responden lo mismo. Aquí
           no hay alcance —quien tiene el permiso abre cualquier fila del libro— y por eso

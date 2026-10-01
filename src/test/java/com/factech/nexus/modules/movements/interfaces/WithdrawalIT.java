@@ -12,6 +12,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 
 import com.factech.nexus.IntegrationTestBase;
 import com.factech.nexus.modules.movements.LedgerFixtures;
+import com.factech.nexus.modules.movements.PayoutFixtures;
 import com.factech.nexus.modules.movements.domain.service.CreditService;
 import com.jayway.jsonpath.JsonPath;
 import java.math.BigDecimal;
@@ -516,6 +517,8 @@ class WithdrawalIT extends IntegrationTestBase {
         username + "@factech.co",
         estado);
     darElSuelo(jdbc, id);
+    // Desde el 01-10-2026 un retiro exige una cuenta de cobro (`RN-MV-056`).
+    PayoutFixtures.listaParaRetirar(jdbc, id);
     return id;
   }
 }
