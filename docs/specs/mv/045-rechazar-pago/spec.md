@@ -4,7 +4,7 @@
 |---|---|
 | Requerimiento | `RF-MV-045` |
 | Módulo | `MV` — Movimientos |
-| Versión | 0.1.0 |
+| Versión | 0.1.1 |
 | Estado | **Aprobada** |
 | Autor | Responsable técnico |
 | Aprobada por | Responsable del proyecto |
@@ -137,7 +137,8 @@ La compra pasa a `RECHAZADA` con el motivo. No hay asientos: no se había movido
 | ID | Validación |
 |---|---|
 | `VAL-001` | El pago tiene forma de identificador |
-| `VAL-002` | El motivo no está en blanco y no pasa de 500 caracteres |
+| `VAL-002` | El motivo no está ausente ni en blanco |
+| `VAL-003` | El motivo no pasa de 500 caracteres |
 
 ---
 
@@ -177,3 +178,4 @@ Ninguna.
 | Versión | Fecha | Cambio | Autor |
 |---|---|---|---|
 | 0.1.0 | 01-10-2026 | Primera versión ([`requirements/mv.md`](../../../requirements/mv.md) v0.67.0 §4.8), espejo de `RF-MV-044`. El efecto es el de `RF-MV-004` o `RF-MV-029`, sin cambios; motivo obligatorio; `movements:reject-payment` cubre los dos tipos. Criterios `CA-MV-507` a `CA-MV-515`. | Responsable del proyecto |
+| 0.1.1 | 01-10-2026 | El motivo se valida con **dos** códigos, `VAL-002` (vacío) y `VAL-003` (largo), los de `RF-MV-004`: los que ya publica el contrato. Sin cambio de comportamiento. | Responsable técnico |

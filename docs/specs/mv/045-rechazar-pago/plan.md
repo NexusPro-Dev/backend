@@ -3,7 +3,7 @@
 | Campo | Valor |
 |---|---|
 | Requerimiento | `RF-MV-045` |
-| Especificación | [`spec.md`](spec.md) v0.1.0 |
+| Especificación | [`spec.md`](spec.md) v0.1.1 |
 | `spec.md` aprobada el | 01-10-2026 |
 | Versión | 0.1.0 |
 | Estado | **Aprobado** |
@@ -55,7 +55,7 @@
 | Código | Cuándo |
 |---|---|
 | `200` | El movimiento, con la forma de `GET /movements/{id}` (`SaleResponse`) |
-| `400` | Identificador malformado (`VAL-001`) o motivo vacío o demasiado largo (`VAL-002`) |
+| `400` | Identificador malformado (`VAL-001`), motivo vacío (`VAL-002`) o demasiado largo (`VAL-003`) |
 | `401` / `403` | Sin token / sin `movements:reject-payment` |
 | `404` | El pago no existe (`EX-001`) |
 | `409` | Es de un retiro (`EX-002`), no está pendiente (`EX-003`) o tiene cobro abierto (`EX-004`) |

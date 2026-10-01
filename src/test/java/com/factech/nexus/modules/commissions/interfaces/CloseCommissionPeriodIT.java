@@ -15,6 +15,7 @@ import com.factech.nexus.IntegrationTestBase;
 import com.factech.nexus.modules.commissions.application.CommissionClosingResponse;
 import com.factech.nexus.modules.commissions.domain.service.CloseCommissionPeriodService;
 import com.factech.nexus.modules.commissions.domain.service.CommissionAccrualService;
+import com.factech.nexus.modules.movements.PaymentFixtures;
 import com.factech.nexus.testing.ConcurrencyHarness;
 import com.factech.nexus.testing.ConcurrencyHarness.Outcome;
 import java.math.BigDecimal;
@@ -312,8 +313,10 @@ class CloseCommissionPeriodIT extends IntegrationTestBase {
 
   private void confirmar(UUID venta) throws Exception {
     mvc.perform(
-            post("/api/v1/movements/{id}/confirmation", venta)
-                .with(como(finanzas, "movements:confirm")))
+            post(
+                    "/api/v1/movements/payments/{id}/confirmation",
+                    PaymentFixtures.pagoAConciliar(jdbc, venta))
+                .with(como(finanzas, "movements:confirm-payment")))
         .andExpect(status().isOk());
   }
 

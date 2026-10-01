@@ -246,8 +246,10 @@ class SellerAssignmentIT extends IntegrationTestBase {
 
     // CA-MV-160: confirmar no espera a la atribución.
     mvc.perform(
-            post("/api/v1/movements/{id}/confirmation", venta)
-                .with(conPermiso("movements:confirm")))
+            post(
+                    "/api/v1/movements/payments/{id}/confirmation",
+                    PaymentFixtures.pagoAConciliar(jdbc, venta))
+                .with(conPermiso("movements:confirm-payment")))
         .andExpect(status().isOk())
         .andExpect(jsonPath("$.status").value("CONFIRMADA"))
         .andExpect(jsonPath("$.typeStatus").value("VALIDAR_COMISIONES"))
@@ -342,7 +344,7 @@ class SellerAssignmentIT extends IntegrationTestBase {
   void permisos() throws Exception {
     UUID venta = ventaPorValidar();
 
-    mvc.perform(asignar(venta, par(botA, ana)).with(conPermiso("movements:confirm")))
+    mvc.perform(asignar(venta, par(botA, ana)).with(conPermiso("movements:confirm-payment")))
         .andExpect(status().isForbidden());
     mvc.perform(asignar(venta, par(botA, ana)).with(conPermiso("movements:create")))
         .andExpect(status().isForbidden());

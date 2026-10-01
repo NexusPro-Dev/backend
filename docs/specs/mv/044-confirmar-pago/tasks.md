@@ -6,8 +6,8 @@
 | Especificación | [`spec.md`](spec.md) v0.1.0 |
 | Plan | [`plan.md`](plan.md) v0.1.0 |
 | `plan.md` aprobado el | 01-10-2026 |
-| Estado | **En revisión** |
-| Issue | Pendiente de crear |
+| Estado | **En revisión** — tareas `Hecha` el 01-10-2026 |
+| Issue | [#163](https://github.com/NexusPro-Dev/backend/issues/163) |
 | Rama | `feature/confirmar-por-pago` |
 
 !!! info "Qué va en este documento"
@@ -22,13 +22,13 @@
 
 | ID | Tarea | Depende de | Verificación | Estado |
 |---|---|---|---|---|
-| `T-01` | **`V63__mv_conciliar_por_el_pago.sql`**: nace `movements:confirm-payment` (`01a0ef9c-6800-701f-9c4f-5e7ad7000058`); se reparte por posesión de los retirados; `movements:reject-payment` corrige nombre y descripción; se retiran `movements:confirm`, `movements:confirm-points-purchase` y `movements:reject-points-purchase`; bloque de comprobación | — | Catálogo 179; `SUPERADMIN` y `ADMIN` portan los dos | Pendiente |
-| `T-02` | `PaymentRepository.lockMovementOf` y `findTarget`; la referencia en `MovementRepository.confirmIfPending` | — | El bloqueo es del movimiento y la lectura del pago va después | Pendiente |
-| `T-03` | `PaymentResolutionService.confirm`; `ConfirmSaleService.confirmPayment` y `PointsPurchaseService.confirmPayment`, de paquete; se retiran `ConfirmSaleService.confirm` y `PointsPurchaseService.confirm` | `T-02` | Las comprobaciones en el orden de `spec.md` §10 | Pendiente |
-| `T-04` | `POST /movements/payments/{paymentId}/confirmation` en `PaymentController`; se retiran las rutas de `MovementController` y `PointsController` | `T-03` | Documentado con los códigos de `plan.md` §4 | Pendiente |
-| `T-05` | `ConfirmPaymentIT`: `CA-MV-495` a `CA-MV-506` | `T-01`, `T-04` | Cada criterio afirmado en el cuerpo de la prueba | Pendiente |
-| `T-06` | Las suites que confirmaban por las rutas viejas pasan a la nueva, con un ayudante común que confirma **el pago pendiente de un movimiento** | `T-04` | Ninguna prueba llama a una ruta retirada | Pendiente |
-| `T-07` | El catálogo a 179 en todas las suites que lo cuentan; `EndpointPermissionsIT`; contrato con la prosa releída; `requirements.md` | `T-05`, `T-06` | `./mvnw clean verify` en verde | Pendiente |
+| `T-01` | **`V63__mv_conciliar_por_el_pago.sql`**: nace `movements:confirm-payment` (`01a0ef9c-6800-701f-9c4f-5e7ad7000058`); se reparte por posesión de los retirados; `movements:reject-payment` corrige nombre y descripción; se retiran `movements:confirm`, `movements:confirm-points-purchase` y `movements:reject-points-purchase`; bloque de comprobación | — | Catálogo 179; `SUPERADMIN` y `ADMIN` portan los dos | **Hecha** — 01-10-2026 |
+| `T-02` | `PaymentRepository.lockMovementOf` y `findTarget`; la referencia en `MovementRepository.confirmIfPending` | — | El bloqueo es del movimiento y la lectura del pago va después | **Hecha** — 01-10-2026 |
+| `T-03` | `PaymentResolutionService.confirm`; `ConfirmSaleService.confirmPayment` y `PointsPurchaseService.confirmPayment`, de paquete; se retiran `ConfirmSaleService.confirm` y `PointsPurchaseService.confirm` | `T-02` | Las comprobaciones en el orden de `spec.md` §10 | **Hecha** — 01-10-2026 |
+| `T-04` | `POST /movements/payments/{paymentId}/confirmation` en `PaymentController`; se retiran las rutas de `MovementController` y `PointsController` | `T-03` | Documentado con los códigos de `plan.md` §4 | **Hecha** — 01-10-2026 |
+| `T-05` | `ConfirmPaymentIT`: `CA-MV-495` a `CA-MV-506` | `T-01`, `T-04` | Cada criterio afirmado en el cuerpo de la prueba | **Hecha** — 01-10-2026 |
+| `T-06` | Las suites que confirmaban por las rutas viejas pasan a la nueva, con un ayudante común que confirma **el pago pendiente de un movimiento** | `T-04` | Ninguna prueba llama a una ruta retirada | **Hecha** — 01-10-2026 |
+| `T-07` | El catálogo a 179 en todas las suites que lo cuentan; `EndpointPermissionsIT`; contrato con la prosa releída; `requirements.md` | `T-05`, `T-06` | `./mvnw clean verify` en verde | **Hecha** — 01-10-2026 |
 
 ---
 
@@ -49,6 +49,10 @@
 
 ---
 
+## 3.1 Desviaciones respecto del plan
+
+**Los cuerpos no van en una clase `PaymentRequests`**: la confirmación estrena `ConfirmPaymentRequest`, y el rechazo **reutiliza `RejectPaymentRequest`** de `RF-MV-004`, que ya tenía exactamente la forma —`reason`—; `PointsRequests.Confirmation` y `Rejection` desaparecen. **`CardPayment.exigirSinCobroAbierto` se retira**: la comprobación de `RN-MV-058` la hace `PaymentResolutionService` sobre el pago ya leído (`PaymentTarget.tieneCobroAbierto`), y era su único uso. **`ConfirmSaleService` y `RejectPaymentService` pierden `CardPayment`** por lo mismo. **`T-06` usa `PaymentFixtures.pagoAConciliar`**: el pendiente del movimiento, o el último, o el propio identificador si no tiene pagos —que como pago no existe y responde `404`—; así las suites que pensaban en la venta siguen afirmando lo mismo. **Los `409` cambian de código** en las suites que los afirmaban —`EX-003` con el estado **del pago**, `EX-004` el cobro abierto—, y la respuesta de la compra de puntos pasa a ser el detalle: `PointsPurchaseIT` lee el motivo en `payments[0]`.
+
 ## 4. Bloqueos
 
 Ninguno.
@@ -58,7 +62,7 @@ Ninguno.
 ## 5. Definición de terminado
 
 - [ ] `./mvnw clean verify` en verde.
-- [ ] Los doce criterios de aceptación con prueba, **cada uno afirmado en el cuerpo de la prueba**.
-- [ ] Contrato OpenAPI regenerado, **con la prosa releída**.
-- [ ] `requirements.md` actualizado.
+- [x] Los doce criterios de aceptación con prueba, **cada uno afirmado en el cuerpo de la prueba**.
+- [x] Contrato OpenAPI regenerado, **con la prosa releída**.
+- [x] `requirements.md` actualizado.
 - [ ] **`tasks.md` aprobadas por el responsable del proyecto.**

@@ -85,6 +85,6 @@ Rama: `feature/confirmar-por-pago`. Junto con `RF-MV-044`.
 
 | ID | Tarea | Depende de | Verificación | Estado |
 |---|---|---|---|---|
-| `T-07` | `PointsPurchaseService.confirm` y su ruta se retiran; nace `confirmPayment`, que invoca `RF-MV-044`; `PointsPurchaseIT` pasa a la ruta nueva; `CA-MV-518` en `PointsPurchaseIT` | `RF-MV-044` · `T-03` | Ninguna prueba llama a la ruta retirada | Pendiente |
+| `T-07` | `PointsPurchaseService.confirm` y su ruta se retiran; nace `confirmPayment`, que invoca `RF-MV-044`; `PointsPurchaseIT` pasa a la ruta nueva; `CA-MV-518` en `PointsPurchaseIT` | `RF-MV-044` · `T-03` | Ninguna prueba llama a la ruta retirada | **Hecha** — 01-10-2026 |
 
 Criterios: `CA-MV-518`.

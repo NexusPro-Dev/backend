@@ -14,6 +14,7 @@ import com.factech.nexus.modules.commissions.application.PayCommissionBatchesReq
 import com.factech.nexus.modules.commissions.domain.service.CloseCommissionPeriodService;
 import com.factech.nexus.modules.commissions.domain.service.PayCommissionBatchService;
 import com.factech.nexus.modules.commissions.domain.service.PayCommissionBatchesService;
+import com.factech.nexus.modules.movements.PaymentFixtures;
 import com.factech.nexus.testing.ConcurrencyHarness;
 import java.math.BigDecimal;
 import java.time.OffsetDateTime;
@@ -297,7 +298,11 @@ class PayCommissionBatchesIT extends IntegrationTestBase {
   }
 
   private void confirmar(UUID venta) throws Exception {
-    mvc.perform(post("/api/v1/movements/{id}/confirmation", venta).with(como("movements:confirm")))
+    mvc.perform(
+            post(
+                    "/api/v1/movements/payments/{id}/confirmation",
+                    PaymentFixtures.pagoAConciliar(jdbc, venta))
+                .with(como("movements:confirm-payment")))
         .andExpect(status().isOk());
   }
 

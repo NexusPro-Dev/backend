@@ -232,6 +232,54 @@ public class JpaPaymentRepository implements PaymentRepository {
   }
 
   @Override
+  public Optional<UUID> lockMovementOf(UUID paymentId) {
+    if (paymentId == null) {
+      return Optional.empty();
+    }
+    @SuppressWarnings("unchecked")
+    List<Object> filas =
+        em.createNativeQuery(
+                """
+                SELECT m.id FROM movements m
+                 WHERE m.id = (SELECT p.movement_id FROM payments p WHERE p.id = :pago)
+                   FOR UPDATE
+                """)
+            .setParameter("pago", paymentId)
+            .getResultList();
+    return filas.stream().findFirst().map(UUID.class::cast);
+  }
+
+  @Override
+  public Optional<PaymentTarget> findTarget(UUID paymentId) {
+    @SuppressWarnings("unchecked")
+    List<Tuple> filas =
+        em.createNativeQuery(
+                """
+                SELECT p.id AS pago, p.movement_id AS movimiento, t.code AS tipo,
+                       p.status AS estado, pm.gateway AS pasarela, p.provider_reference AS referencia
+                  FROM payments p
+                  JOIN movements m ON m.id = p.movement_id
+                  JOIN movement_types t ON t.id = m.movement_type_id
+                  JOIN payment_methods pm ON pm.id = p.payment_method_id
+                 WHERE p.id = :pago
+                """,
+                Tuple.class)
+            .setParameter("pago", paymentId)
+            .getResultList();
+    return filas.stream()
+        .findFirst()
+        .map(
+            f ->
+                new PaymentTarget(
+                    (UUID) f.get("pago"),
+                    (UUID) f.get("movimiento"),
+                    (String) f.get("tipo"),
+                    (String) f.get("estado"),
+                    (String) f.get("pasarela"),
+                    (String) f.get("referencia")));
+  }
+
+  @Override
   public boolean isOwnChargeable(UUID movementId, UUID actorId) {
     return movementId != null
         && !em.createNativeQuery(

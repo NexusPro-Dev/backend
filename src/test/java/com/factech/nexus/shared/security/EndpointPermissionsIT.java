@@ -319,9 +319,12 @@ class EndpointPermissionsIT extends IntegrationTestBase {
           // ---- MV ----
           Map.entry("POST /api/v1/movements", "movements:create"),
           Map.entry("GET /api/v1/movements", "movements:read"),
-          Map.entry("POST /api/v1/movements/{id}/confirmation", "movements:confirm"),
+          Map.entry(
+              "POST /api/v1/movements/payments/{paymentId}/confirmation",
+              "movements:confirm-payment"),
           Map.entry("POST /api/v1/movements/{id}/voiding", "movements:void"),
-          Map.entry("POST /api/v1/movements/{id}/rejection", "movements:reject-payment"),
+          Map.entry(
+              "POST /api/v1/movements/payments/{paymentId}/rejection", "movements:reject-payment"),
           Map.entry("POST /api/v1/movements/mine/{id}/payments", "movements:retry-payment"),
           Map.entry("POST /api/v1/movements/mine/withdrawals", "movements:request-withdrawal"),
           Map.entry(
@@ -337,12 +340,6 @@ class EndpointPermissionsIT extends IntegrationTestBase {
           Map.entry("POST /api/v1/movements/mine/points-purchases", "movements:buy-points"),
           Map.entry(
               "GET /api/v1/movements/mine/points-purchases", "movements:list-own-points-purchases"),
-          Map.entry(
-              "POST /api/v1/movements/{id}/points-purchase-confirmation",
-              "movements:confirm-points-purchase"),
-          Map.entry(
-              "POST /api/v1/movements/{id}/points-purchase-rejection",
-              "movements:reject-points-purchase"),
           // ---- MV · la tarjeta por Stripe (V62, 01-10-2026) ----
           Map.entry(
               "POST /api/v1/movements/mine/{id}/card-charge", "movements:pay-pending-by-card"),

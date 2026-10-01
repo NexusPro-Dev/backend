@@ -100,6 +100,6 @@ Rama: `feature/confirmar-por-pago`. Junto con `RF-MV-044`.
 
 | ID | Tarea | Depende de | Verificación | Estado |
 |---|---|---|---|---|
-| `T-71` | `ConfirmSaleService.confirm` y su ruta se retiran; nace `confirmPayment`, que invoca `RF-MV-044`; `ConfirmSaleIT` y `ConfirmSaleConcurrencyIT` pasan a la ruta nueva; `CA-MV-516` en `ConfirmSaleIT` | `RF-MV-044` · `T-03` | Ninguna prueba llama a la ruta retirada | Pendiente |
+| `T-17` | `ConfirmSaleService.confirm` y su ruta se retiran; nace `confirmPayment`, que invoca `RF-MV-044`; `ConfirmSaleIT` y `ConfirmSaleConcurrencyIT` pasan a la ruta nueva; `CA-MV-516` en `ConfirmSaleIT` | `RF-MV-044` · `T-03` | Ninguna prueba llama a la ruta retirada | **Hecha** — 01-10-2026 |
 
 Criterios: `CA-MV-516`.

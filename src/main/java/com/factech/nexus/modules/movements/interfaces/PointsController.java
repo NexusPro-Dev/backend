@@ -21,7 +21,6 @@ import java.util.UUID;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.GetMapping;
-import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestHeader;
@@ -36,7 +35,8 @@ import org.springframework.web.bind.annotation.RestController;
 @Tag(
     name = "Puntos",
     description =
-        "A cuánto se venden los puntos en cada moneda, su compra y su confirmación. Pagar con"
+        "A cuánto se venden los puntos en cada moneda y su compra. Confirmar o rechazar su pago es"
+            + " `POST /api/v1/movements/payments/{paymentId}/…`, como el de una venta. Pagar con"
             + " puntos no tiene ruta propia: es el método `POINTS` en las compras.")
 @RestController
 @RequestMapping("/api/v1/movements")
@@ -215,86 +215,5 @@ public class PointsController {
       @RequestParam(required = false) OffsetDateTime from,
       @RequestParam(required = false) OffsetDateTime to) {
     return compras.listMine(page, size, status, currencyId, code, from, to);
-  }
-
-  @PostMapping("/{id}/points-purchase-confirmation")
-  @PreAuthorize("hasAuthority('movements:confirm-points-purchase')")
-  @Operation(
-      summary = "Confirmar el pago de una compra de puntos",
-      description =
-          """
-          Declara que **el dinero de una compra de puntos pendiente entró** y, en el mismo
-          acto, **abona los puntos** en la cuenta de quien compró, desde la cuenta de puntos
-          emitidos de la empresa (`RF-MV-028`). Se abonan **los puntos congelados al
-          comprar**, no los de la tasa de hoy. `providerReference` es opcional. Confirmar dos
-          veces, o una compra rechazada, es `409` y no abona nada.
-
-          **Desde el 01-10-2026, no alcanza a un pago con cobro abierto en la pasarela**
-          (`RN-MV-058`): lo resuelve su notificación, y responde `409` (`EX-005`). Un pago con tarjeta sin cobro
-          —el que registró un funcionario— se sigue resolviendo a mano.
-          """)
-  @ApiResponses({
-    @ApiResponse(responseCode = "200", description = "Confirmada, con su pago."),
-    @ApiResponse(
-        responseCode = "400",
-        description = "Referencia de más de 120 caracteres",
-        content = @Content),
-    @ApiResponse(responseCode = "401", description = "Sin token (`AUTH-001`)", content = @Content),
-    @ApiResponse(
-        responseCode = "403",
-        description = "Sin `movements:confirm-points-purchase` (`AUTH-002`)",
-        content = @Content),
-    @ApiResponse(
-        responseCode = "404",
-        description = "No existe, o no es una compra de puntos (`EX-001`)",
-        content = @Content),
-    @ApiResponse(
-        responseCode = "409",
-        description = "No está pendiente, con el estado (`EX-002`)",
-        content = @Content)
-  })
-  public PointsPurchaseResponse confirmarCompra(
-      @PathVariable UUID id, @RequestBody(required = false) PointsRequests.Confirmation peticion) {
-    return compras.confirm(id, peticion);
-  }
-
-  @PostMapping("/{id}/points-purchase-rejection")
-  @PreAuthorize("hasAuthority('movements:reject-points-purchase')")
-  @Operation(
-      summary = "Rechazar el pago de una compra de puntos",
-      description =
-          """
-          Declara que **el dinero de una compra de puntos pendiente no entró** (`RF-MV-029`): la
-          compra y su pago quedan `RECHAZADA`/`RECHAZADO` con el motivo, obligatorio. **Es
-          final**: al revés que una venta, una compra de puntos rechazada no se vuelve a pagar;
-          quien quiera los puntos compra otra vez. No se mueve ningún saldo.
-
-          **Desde el 01-10-2026, no alcanza a un pago con cobro abierto en la pasarela**
-          (`RN-MV-058`): lo resuelve su notificación, y responde `409` (`EX-005`). Un pago con tarjeta sin cobro
-          —el que registró un funcionario— se sigue resolviendo a mano.
-          """)
-  @ApiResponses({
-    @ApiResponse(responseCode = "200", description = "Rechazada."),
-    @ApiResponse(
-        responseCode = "400",
-        description = "Motivo vacío o de más de 500 caracteres",
-        content = @Content),
-    @ApiResponse(responseCode = "401", description = "Sin token (`AUTH-001`)", content = @Content),
-    @ApiResponse(
-        responseCode = "403",
-        description = "Sin `movements:reject-points-purchase` (`AUTH-002`)",
-        content = @Content),
-    @ApiResponse(
-        responseCode = "404",
-        description = "No existe, o no es una compra de puntos (`EX-001`)",
-        content = @Content),
-    @ApiResponse(
-        responseCode = "409",
-        description = "No está pendiente, con el estado (`EX-002`)",
-        content = @Content)
-  })
-  public PointsPurchaseResponse rechazarCompra(
-      @PathVariable UUID id, @RequestBody(required = false) PointsRequests.Rejection peticion) {
-    return compras.reject(id, peticion);
   }
 }

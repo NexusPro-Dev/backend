@@ -15,6 +15,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 import com.factech.nexus.IntegrationTestBase;
+import com.factech.nexus.modules.movements.PaymentFixtures;
 import com.factech.nexus.modules.movements.PointsFixtures;
 import com.factech.nexus.modules.movements.domain.service.CreditService;
 import com.jayway.jsonpath.JsonPath;
@@ -336,7 +337,7 @@ class PointsPurchaseIT extends IntegrationTestBase {
     mvc.perform(confirmar(compra, "{}")).andExpect(status().isOk());
     mvc.perform(confirmar(compra, "{}"))
         .andExpect(status().isConflict())
-        .andExpect(jsonPath("$.errors[0].code").value("EX-002"));
+        .andExpect(jsonPath("$.errors[0].code").value("EX-003"));
     mvc.perform(rechazar(compra, "Tarde")).andExpect(status().isConflict());
     assertThat(saldo(jdbc, comprador, "PUNTOS")).isEqualByComparingTo("1000.00");
 
@@ -392,13 +393,17 @@ class PointsPurchaseIT extends IntegrationTestBase {
   void permisoDeConfirmar() throws Exception {
     UUID compra = comprarYLeer(comprador, "1.00", "compra-000026");
     mvc.perform(
-            post(BASE + "/{id}/points-purchase-confirmation", compra)
+            post(
+                    "/api/v1/movements/payments/{id}/confirmation",
+                    PaymentFixtures.pagoAConciliar(jdbc, compra))
                 .contentType(MediaType.APPLICATION_JSON)
                 .content("{}")
-                .with(user(administrador.toString()).authorities(() -> "movements:confirm")))
+                .with(user(administrador.toString()).authorities(() -> "movements:reject-payment")))
         .andExpect(status().isForbidden());
     mvc.perform(
-            post(BASE + "/{id}/points-purchase-confirmation", compra)
+            post(
+                    "/api/v1/movements/payments/{id}/confirmation",
+                    PaymentFixtures.pagoAConciliar(jdbc, compra))
                 .contentType(MediaType.APPLICATION_JSON)
                 .content("{}"))
         .andExpect(status().isUnauthorized());
@@ -423,8 +428,6 @@ class PointsPurchaseIT extends IntegrationTestBase {
     mvc.perform(rechazar(compra, "El banco lo devolvió"))
         .andExpect(status().isOk())
         .andExpect(jsonPath("$.status").value("RECHAZADA"))
-        .andExpect(jsonPath("$.rejectionReason").value("El banco lo devolvió"))
-        .andExpect(jsonPath("$.rejectedAt").exists())
         .andExpect(jsonPath("$.payments[0].status").value("RECHAZADO"))
         .andExpect(jsonPath("$.payments[0].rejectionReason").value("El banco lo devolvió"));
 
@@ -434,7 +437,7 @@ class PointsPurchaseIT extends IntegrationTestBase {
 
     mvc.perform(rechazar(compra, "Otra vez"))
         .andExpect(status().isConflict())
-        .andExpect(jsonPath("$.errors[0].code").value("EX-002"));
+        .andExpect(jsonPath("$.errors[0].code").value("EX-003"));
 
     UUID bono = UUID.fromString(JsonPath.read(bonoDe(comprador), "$.id"));
     mvc.perform(rechazar(bono, "No")).andExpect(status().isNotFound());
@@ -445,15 +448,18 @@ class PointsPurchaseIT extends IntegrationTestBase {
   void permisoDeRechazar() throws Exception {
     UUID compra = comprarYLeer(comprador, "1.00", "compra-000028");
     mvc.perform(
-            post(BASE + "/{id}/points-purchase-rejection", compra)
+            post(
+                    "/api/v1/movements/payments/{id}/rejection",
+                    PaymentFixtures.pagoAConciliar(jdbc, compra))
                 .contentType(MediaType.APPLICATION_JSON)
                 .content("{\"reason\":\"No\"}")
                 .with(
-                    user(administrador.toString())
-                        .authorities(() -> "movements:confirm-points-purchase")))
+                    user(administrador.toString()).authorities(() -> "movements:confirm-payment")))
         .andExpect(status().isForbidden());
     mvc.perform(
-            post(BASE + "/{id}/points-purchase-rejection", compra)
+            post(
+                    "/api/v1/movements/payments/{id}/rejection",
+                    PaymentFixtures.pagoAConciliar(jdbc, compra))
                 .contentType(MediaType.APPLICATION_JSON)
                 .content("{\"reason\":\"No\"}"))
         .andExpect(status().isUnauthorized());
@@ -593,18 +599,21 @@ class PointsPurchaseIT extends IntegrationTestBase {
   }
 
   private MockHttpServletRequestBuilder confirmar(UUID compra, String cuerpo) {
-    return post(BASE + "/{id}/points-purchase-confirmation", compra)
+    return post(
+            "/api/v1/movements/payments/{id}/confirmation",
+            PaymentFixtures.pagoAConciliar(jdbc, compra))
         .contentType(MediaType.APPLICATION_JSON)
         .content(cuerpo)
-        .with(
-            user(administrador.toString()).authorities(() -> "movements:confirm-points-purchase"));
+        .with(user(administrador.toString()).authorities(() -> "movements:confirm-payment"));
   }
 
   private MockHttpServletRequestBuilder rechazar(UUID compra, String motivo) {
-    return post(BASE + "/{id}/points-purchase-rejection", compra)
+    return post(
+            "/api/v1/movements/payments/{id}/rejection",
+            PaymentFixtures.pagoAConciliar(jdbc, compra))
         .contentType(MediaType.APPLICATION_JSON)
         .content("{\"reason\":\"" + motivo + "\"}")
-        .with(user(administrador.toString()).authorities(() -> "movements:reject-points-purchase"));
+        .with(user(administrador.toString()).authorities(() -> "movements:reject-payment"));
   }
 
   private MockHttpServletRequestBuilder misCompras(UUID quien) {

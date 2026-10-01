@@ -105,22 +105,6 @@ public class CardPayment {
   }
 
   /**
-   * `RN-MV-058`: las operaciones a mano —confirmar, rechazar— <b>no alcanzan a un pago con cobro
-   * abierto en la pasarela</b>. Dos fuentes de verdad sobre el mismo pago acabarían discrepando.
-   *
-   * @param codigo el código de error de quien llama
-   */
-  public void exigirSinCobroAbierto(UUID movimiento, String codigo) {
-    if (pagos.lockPendingOf(movimiento).filter(PendingPayment::tieneCobroAbierto).isPresent()) {
-      String mensaje =
-          "El pago pendiente tiene un cobro con tarjeta abierto en la pasarela: lo confirma o lo"
-              + " rechaza su notificación, no una persona.";
-      throw new BusinessRuleException(
-          codigo, mensaje, List.of(new FieldError("payments", codigo, mensaje)));
-    }
-  }
-
-  /**
    * `RF-MV-040` · `FA-002`: la misma petición repetida devuelve <b>el mismo cobro</b>, si el pago
    * sigue pendiente con él; si no, nada.
    */
