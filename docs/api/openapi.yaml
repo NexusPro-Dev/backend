@@ -5735,6 +5735,60 @@ paths:
               schema:
                 $ref: "#/components/schemas/CommissionBatchDetailResponse"
       x-required-permission: commission-batches:return-commission
+  /api/v1/commission-batches/payments:
+    post:
+      tags:
+      - Lotes de comisión
+      summary: Pagar varios lotes de comisión
+      description: |
+        **Permiso requerido:** `commission-batches:pay-batches`. Sin él, `403` (`AUTH-002`).
+
+        Paga de una vez **los lotes que Finanzas elige** (`RF-CM-025`, `RN-CM-049`, 01-10-2026),
+        **cada uno por su cuenta**: exactamente como `POST /commission-batches/{id}/payment`, con
+        su abono en la billetera, su movimiento `PAGO_COMISION` y su constancia, en su propia
+        transacción y en el orden pedido. **Sin tope** de lotes por petición.
+
+        **Lo que impide pagar un lote no frena a los demás**: un lote abierto, ya pagado, sin
+        comisiones vivas, inexistente o cuyo abono falla **se queda como estaba**, y su fila trae
+        `paid: false` con el código y el mensaje que daría pagarlo solo (`reasonCode`,
+        `reason`). Por eso responde **`200` aunque no se pague ninguno**: el resultado está en
+        cada fila, y en `paidCount` y `notPaidCount`.
+
+        Cuerpo: `batchIds`, al menos uno y sin repetir. Si la conexión se corta a mitad, lo pagado
+        queda pagado, y repetir la lista lo devuelve como ya pagado sin abonar dos veces.
+      operationId: pagarVarios
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/PayCommissionBatchesRequest"
+      responses:
+        "200":
+          description: "El resultado de cada lote, en el orden pedido"
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/CommissionBatchesPaymentResponse"
+        "400":
+          description: Lista vacía o con lotes repetidos
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/CommissionBatchesPaymentResponse"
+        "401":
+          description: Sin token
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/CommissionBatchesPaymentResponse"
+        "403":
+          description: Sin `commission-batches:pay-batches` (`commission-batches:pay`
+            no basta)
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/CommissionBatchesPaymentResponse"
+      x-required-permission: commission-batches:pay-batches
   /api/v1/commission-batches/closing:
     post:
       tags:
@@ -15700,6 +15754,46 @@ components:
           type: string
         returnable:
           type: boolean
+    PayCommissionBatchesRequest:
+      type: object
+      properties:
+        batchIds:
+          type: array
+          items:
+            type: string
+            format: uuid
+    CommissionBatchPaymentResult:
+      type: object
+      properties:
+        batchId:
+          type: string
+          format: uuid
+        paid:
+          type: boolean
+        code:
+          type: string
+        paidAmount:
+          type: number
+        movementId:
+          type: string
+          format: uuid
+        reasonCode:
+          type: string
+        reason:
+          type: string
+    CommissionBatchesPaymentResponse:
+      type: object
+      properties:
+        results:
+          type: array
+          items:
+            $ref: "#/components/schemas/CommissionBatchPaymentResult"
+        paidCount:
+          type: integer
+          format: int32
+        notPaidCount:
+          type: integer
+          format: int32
     CommissionClosingResponse:
       type: object
       properties:

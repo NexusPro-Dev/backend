@@ -2,12 +2,15 @@ package com.factech.nexus.modules.commissions.interfaces;
 
 import com.factech.nexus.modules.commissions.application.CommissionBatchDetailResponse;
 import com.factech.nexus.modules.commissions.application.CommissionBatchPageResponse;
+import com.factech.nexus.modules.commissions.application.CommissionBatchesPaymentResponse;
 import com.factech.nexus.modules.commissions.application.CommissionClosingResponse;
 import com.factech.nexus.modules.commissions.application.ListCommissionBatchesRequest;
 import com.factech.nexus.modules.commissions.application.MyCommissionBatchesRequest;
+import com.factech.nexus.modules.commissions.application.PayCommissionBatchesRequest;
 import com.factech.nexus.modules.commissions.domain.service.CloseCommissionPeriodService;
 import com.factech.nexus.modules.commissions.domain.service.CommissionBatchQueryService;
 import com.factech.nexus.modules.commissions.domain.service.PayCommissionBatchService;
+import com.factech.nexus.modules.commissions.domain.service.PayCommissionBatchesService;
 import com.factech.nexus.modules.commissions.domain.service.ReturnCommissionService;
 import com.factech.nexus.modules.commissions.domain.service.WithdrawCommissionService;
 import com.factech.nexus.modules.system.roles.application.AuthenticatedActor;
@@ -21,6 +24,7 @@ import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.ModelAttribute;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
@@ -45,6 +49,7 @@ public class CommissionBatchController {
   private final CloseCommissionPeriodService cierre;
   private final CommissionBatchQueryService consultas;
   private final PayCommissionBatchService pago;
+  private final PayCommissionBatchesService pagoDeVarios;
   private final WithdrawCommissionService retiro;
   private final ReturnCommissionService devolucion;
   private final AuthenticatedActor actor;
@@ -53,12 +58,14 @@ public class CommissionBatchController {
       CloseCommissionPeriodService cierre,
       CommissionBatchQueryService consultas,
       PayCommissionBatchService pago,
+      PayCommissionBatchesService pagoDeVarios,
       WithdrawCommissionService retiro,
       ReturnCommissionService devolucion,
       AuthenticatedActor actor) {
     this.cierre = cierre;
     this.consultas = consultas;
     this.pago = pago;
+    this.pagoDeVarios = pagoDeVarios;
     this.retiro = retiro;
     this.devolucion = devolucion;
     this.actor = actor;
@@ -197,6 +204,41 @@ public class CommissionBatchController {
   @PreAuthorize("hasAuthority('commission-batches:pay')")
   public CommissionBatchDetailResponse pagar(@PathVariable UUID id) {
     return pago.pay(id);
+  }
+
+  @Operation(
+      summary = "Pagar varios lotes de comisión",
+      description =
+          """
+          Paga de una vez **los lotes que Finanzas elige** (`RF-CM-025`, `RN-CM-049`, 01-10-2026),
+          **cada uno por su cuenta**: exactamente como `POST /commission-batches/{id}/payment`, con
+          su abono en la billetera, su movimiento `PAGO_COMISION` y su constancia, en su propia
+          transacción y en el orden pedido. **Sin tope** de lotes por petición.
+
+          **Lo que impide pagar un lote no frena a los demás**: un lote abierto, ya pagado, sin
+          comisiones vivas, inexistente o cuyo abono falla **se queda como estaba**, y su fila trae
+          `paid: false` con el código y el mensaje que daría pagarlo solo (`reasonCode`,
+          `reason`). Por eso responde **`200` aunque no se pague ninguno**: el resultado está en
+          cada fila, y en `paidCount` y `notPaidCount`.
+
+          Cuerpo: `batchIds`, al menos uno y sin repetir. Si la conexión se corta a mitad, lo pagado
+          queda pagado, y repetir la lista lo devuelve como ya pagado sin abonar dos veces.
+          """)
+  @ApiResponses({
+    @ApiResponse(
+        responseCode = "200",
+        description = "El resultado de cada lote, en el orden pedido"),
+    @ApiResponse(responseCode = "400", description = "Lista vacía o con lotes repetidos"),
+    @ApiResponse(responseCode = "401", description = "Sin token"),
+    @ApiResponse(
+        responseCode = "403",
+        description = "Sin `commission-batches:pay-batches` (`commission-batches:pay` no basta)")
+  })
+  @PostMapping("/payments")
+  @PreAuthorize("hasAuthority('commission-batches:pay-batches')")
+  public CommissionBatchesPaymentResponse pagarVarios(
+      @RequestBody(required = false) PayCommissionBatchesRequest peticion) {
+    return pagoDeVarios.payAll(peticion);
   }
 
   @Operation(
