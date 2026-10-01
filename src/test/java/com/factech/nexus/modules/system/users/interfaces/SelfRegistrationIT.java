@@ -36,7 +36,11 @@ import org.springframework.test.web.servlet.request.RequestPostProcessor;
  * {@code VENDEDOR} y un broker, y ninguno de los tres se puede crear por HTTP sin credenciales.
  */
 @AutoConfigureMockMvc
+@org.springframework.context.annotation.Import(
+    com.factech.nexus.modules.movements.FakeCardGateway.Config.class)
 class SelfRegistrationIT extends IntegrationTestBase {
+
+  @Autowired private com.factech.nexus.modules.movements.FakeCardGateway pasarela;
 
   /** `AGENTE`, sembrado por `V7` con `role_type = VENDEDOR`. */
   private static final String AGENTE = "01a02a33-4c00-7007-9c4f-5e7ad1000005";
@@ -582,6 +586,9 @@ class SelfRegistrationIT extends IntegrationTestBase {
   @Test
   @DisplayName("`CA-SP-618` — el enlace DE PAGO se admite: cuenta ACTIVA y membresía del SUELO")
   void elEnlaceDePagoSeAdmite() throws Exception {
+    // CA-MV-434 (01-10-2026): la venta del alta nace pendiente SIN cobro en la
+    // pasarela, aunque se pague con tarjeta: quien compró la paga después.
+    pasarela.reiniciar();
     // Hasta el 09-09-2026 esto era `EX-004`: «ese producto exige un pago» y no
     // había con qué cobrarlo. Ahora el registro anota la venta.
     mvc.perform(registro(cuerpoCon("REG_ORO", "ana.ruiz", "ana@ejemplo.com", "12345678", BROKER)))
@@ -594,6 +601,12 @@ class SelfRegistrationIT extends IntegrationTestBase {
             jdbc.queryForObject(
                 "SELECT status FROM users WHERE username = 'ana.ruiz'", String.class))
         .isEqualTo("ACTIVO");
+    assertThat(pasarela.abiertos()).isEmpty();
+    assertThat(
+            jdbc.queryForObject(
+                "SELECT count(*) FROM payments WHERE provider_reference IS NOT NULL",
+                Integer.class))
+        .isZero();
 
     // Y NO recibe lo comprado: `RN-SP-018` le da el SUELO, y la de ORO se la
     // concederá confirmar la venta (`RN-MV-020`). Concederla aquí sería premiar

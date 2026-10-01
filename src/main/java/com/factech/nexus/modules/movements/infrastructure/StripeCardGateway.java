@@ -219,46 +219,7 @@ public class StripeCardGateway implements CardGateway {
   // ---------------------------------------------------------------------------
 
   private GatewayEvent interpretar(byte[] body) {
-    String texto = new String(body, StandardCharsets.UTF_8);
-    JsonNode evento;
-    try {
-      evento = json.readTree(texto);
-    } catch (java.io.IOException e) {
-      throw new InvalidSignature("El cuerpo no es JSON.");
-    }
-    String tipo = evento.path("type").asText(null);
-    JsonNode objeto = evento.path("data").path("object");
-    String referencia = null;
-    String pago = null;
-    Long importe = null;
-    Long devuelto = null;
-    String disputa = null;
-    String fallo = null;
-    if (tipo != null && tipo.startsWith("payment_intent.")) {
-      referencia = texto(objeto, "id");
-      pago = texto(objeto.path("metadata"), "payment_id");
-      importe =
-          objeto.hasNonNull("amount_received") ? objeto.get("amount_received").asLong() : null;
-      fallo = texto(objeto.path("last_payment_error"), "message");
-    } else if ("charge.refunded".equals(tipo)) {
-      referencia = texto(objeto, "payment_intent");
-      devuelto =
-          objeto.hasNonNull("amount_refunded") ? objeto.get("amount_refunded").asLong() : null;
-    } else if (tipo != null && tipo.startsWith("charge.dispute.")) {
-      referencia = texto(objeto, "payment_intent");
-      disputa = texto(objeto, "status");
-    }
-    return new GatewayEvent(
-        texto(evento, "id"),
-        tipo,
-        texto,
-        referencia,
-        pago,
-        importe,
-        texto(objeto, "currency"),
-        devuelto,
-        disputa,
-        fallo);
+    return StripeEvents.interpretar(json, new String(body, StandardCharsets.UTF_8));
   }
 
   private static String texto(JsonNode nodo, String campo) {

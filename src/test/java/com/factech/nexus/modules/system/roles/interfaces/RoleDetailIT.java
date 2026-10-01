@@ -117,10 +117,11 @@ class RoleDetailIT extends IntegrationTestBase {
     // propios de comisión, `commission-batches:list-own` y `read-own` (`RF-CM-012`). Y TRES
     // MÁS desde `V58` (30-09-2026): la tasa de puntos, comprarlos y mis compras de puntos. Y
     // CINCO MÁS desde `V61` (01-10-2026): el catálogo de entidades y las cuatro de la cuenta
-    // de cobro propia.
+    // de cobro propia. Y UNO MÁS desde `V62`: pagar con tarjeta un pendiente propio.
     mvc.perform(detalle(AGENTE))
         .andExpect(status().isOk())
-        .andExpect(jsonPath("$.permissions.length()").value(ALCANCE_PROPIO.size() + 2 + 2 + 3 + 5))
+        .andExpect(
+            jsonPath("$.permissions.length()").value(ALCANCE_PROPIO.size() + 2 + 2 + 3 + 5 + 1))
         .andExpect(jsonPath("$.permissions[?(@.code == 'roles:read')]").doesNotExist());
   }
 

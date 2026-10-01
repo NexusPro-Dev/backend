@@ -53,7 +53,11 @@ import org.springframework.test.web.servlet.request.RequestPostProcessor;
  * sobreviva tumba a la siguiente suite que empiece con {@code DELETE FROM products}.
  */
 @AutoConfigureMockMvc
+@org.springframework.context.annotation.Import(
+    com.factech.nexus.modules.movements.FakeCardGateway.Config.class)
 class BuyPackageIT extends IntegrationTestBase {
+
+  @Autowired private com.factech.nexus.modules.movements.FakeCardGateway pasarela;
 
   /** La moneda sembrada por `V15`, estable en todos los entornos. */
   private static final String USD = "01a03336-6d00-7001-9c4f-5e7ad3000001";
@@ -656,6 +660,20 @@ class BuyPackageIT extends IntegrationTestBase {
             jdbc.queryForList(
                 "SELECT DISTINCT seller_id::text FROM movement_details", String.class))
         .containsExactly(vendedor.toString());
+  }
+
+  @Test
+  @DisplayName(
+      "CA-MV-427 y CA-MV-472 — con tarjeta, la compra de un paquete abre el cobro por su importe"
+          + " y devuelve el secreto (01-10-2026)")
+  void conTarjetaAbreElCobro() throws Exception {
+    pasarela.reiniciar();
+    comprar(comprador, paqBots, TARJETA)
+        .andExpect(status().isCreated())
+        .andExpect(jsonPath("$.cardCharge.clientSecret").value("pi_prueba_1_secret_prueba"));
+    assertThat(pasarela.abiertos()).hasSize(1);
+    // 24.00 USD: 50 % sobre 10.00 y 1.00 fijo sobre 20.00.
+    assertThat(pasarela.abiertos().get(0).amountMinor()).isEqualTo(2400L);
   }
 
   // ---------------------------------------------------------------------------

@@ -551,6 +551,24 @@
         },
         "type" : "object"
       },
+      "CardCharge" : {
+        "properties" : {
+          "clientSecret" : {
+            "description" : "El secreto de cliente del cobro (el `client_secret` del PaymentIntent de Stripe). Se usa con la clave publicable en Stripe Elements; no se guarda en ningún sitio y se puede volver a pedir con `POST /movements/mine/{id}/card-charge`.",
+            "type" : "string"
+          },
+          "gateway" : {
+            "description" : "La pasarela: STRIPE.",
+            "type" : "string"
+          },
+          "paymentId" : {
+            "description" : "El pago al que pertenece el cobro.",
+            "format" : "uuid",
+            "type" : "string"
+          }
+        },
+        "type" : "object"
+      },
       "CategoryCourseItem" : {
         "properties" : {
           "displayOrder" : {
@@ -3569,6 +3587,10 @@
           "payableAmount" : {
             "type" : "number"
           },
+          "paymentIncident" : {
+            "description" : "La incidencia del último pago (`RN-MV-060`, desde el 01-10-2026): REEMBOLSADO, EN_DISPUTA, DISPUTA_GANADA o DISPUTA_PERDIDA. No cambia el estado: el pago sigue confirmado. NULO si no tiene ninguna.",
+            "type" : [ "string", "null" ]
+          },
           "paymentMethod" : {
             "type" : "string"
           },
@@ -5113,6 +5135,11 @@
             "description" : "Lo que se paga, en la moneda.",
             "type" : "number"
           },
+          "cardCharge" : {
+            "$ref" : "#/components/schemas/CardCharge",
+            "description" : "El cobro abierto en la pasarela, solo al comprar con tarjeta (`RF-MV-040`, desde el 01-10-2026). NULO en todo lo demás.",
+            "type" : [ "object", "null" ]
+          },
           "code" : {
             "description" : "El comprobante, con prefijo `PTS`.",
             "type" : "string"
@@ -5748,6 +5775,11 @@
       },
       "PurchaseResponse" : {
         "properties" : {
+          "cardCharge" : {
+            "$ref" : "#/components/schemas/CardCharge",
+            "description" : "El cobro abierto en la pasarela, si se pagó con tarjeta (`RF-MV-040`, desde el 01-10-2026): con su `clientSecret` la app pide la tarjeta. NULO con otro método, o con la pasarela apagada.",
+            "type" : [ "object", "null" ]
+          },
           "code" : {
             "type" : "string"
           },
@@ -6959,6 +6991,11 @@
       },
       "SaleResponse" : {
         "properties" : {
+          "cardCharge" : {
+            "$ref" : "#/components/schemas/CardCharge",
+            "description" : "El cobro abierto en la pasarela, solo en la respuesta de volver a pagar con tarjeta (`RF-MV-040`, desde el 01-10-2026). NULO en todo lo demás: el secreto no se guarda, y se vuelve a pedir con `POST /movements/mine/{id}/card-charge`.",
+            "type" : [ "object", "null" ]
+          },
           "code" : {
             "type" : "string"
           },
@@ -14294,6 +14331,14 @@
             "format" : "date-time",
             "type" : "string"
           }
+        }, {
+          "description" : "La incidencia del último pago (`RN-MV-060`, desde el 01-10-2026): REEMBOLSADO, EN_DISPUTA, DISPUTA_GANADA, DISPUTA_PERDIDA, o CUALQUIERA para los que tienen alguna.",
+          "in" : "query",
+          "name" : "paymentIncident",
+          "required" : false,
+          "schema" : {
+            "type" : "string"
+          }
         } ],
         "responses" : {
           "200" : {
@@ -14435,6 +14480,44 @@
         "summary" : "Otorgar un bono",
         "tags" : [ "Saldos" ],
         "x-required-permission" : "movements:grant-bonus"
+      }
+    },
+    "/api/v1/movements/gateway-notifications/stripe" : {
+      "post" : {
+        "description" : "**Permiso requerido:** ninguno. Ruta pública: responde sin token.\n\n**La llama Stripe, no el frontend** (`RF-MV-041`). Ruta **pública**: la autentica la\ncabecera `Stripe-Signature`, un HMAC del cuerpo con el secreto del endpoint. Se guarda\nla notificación entera, **una sola vez** aunque llegue repetida, y se responde `200` en\ncuanto queda guardada; procesarla va después: un cobro que entró confirma el pago y la\nventa o la compra de puntos; una tarjeta rechazada deja el pago pendiente; un cobro\ncancelado lo rechaza; un reembolso o una disputa se marcan en el pago (`RN-MV-058` a\n`RN-MV-060`).\n",
+        "operationId" : "stripe",
+        "parameters" : [ {
+          "in" : "header",
+          "name" : "Stripe-Signature",
+          "required" : false,
+          "schema" : {
+            "type" : "string"
+          }
+        } ],
+        "requestBody" : {
+          "content" : {
+            "*/*" : {
+              "schema" : {
+                "format" : "byte",
+                "type" : "string"
+              }
+            }
+          }
+        },
+        "responses" : {
+          "200" : {
+            "description" : "Recibida; cuerpo vacío."
+          },
+          "400" : {
+            "description" : "Firma ausente, inválida o con más de cinco minutos (`RN-MV-059`)"
+          },
+          "503" : {
+            "description" : "La pasarela no está configurada en este entorno (`RN-MV-059`)"
+          }
+        },
+        "security" : [ ],
+        "summary" : "Recibir una notificación de Stripe",
+        "tags" : [ "Pasarela de pago" ]
       }
     },
     "/api/v1/movements/mine/balances" : {
@@ -15130,6 +15213,54 @@
         "summary" : "Consultar el detalle de un movimiento propio",
         "tags" : [ "Movimientos" ],
         "x-required-permission" : "movements:read-own"
+      }
+    },
+    "/api/v1/movements/mine/{id}/card-charge" : {
+      "post" : {
+        "description" : "**Permiso requerido:** `movements:pay-pending-by-card`. Sin él, `403` (`AUTH-002`).\n\nDevuelve el **cobro con tarjeta** de una venta o una compra de puntos propia que tiene\nsu pago pendiente con tarjeta (`RF-MV-042`): **el mismo cobro** si ya estaba abierto\n—porque la app se cerró a mitad, o la tarjeta se rechazó y se quiere probar otra—, o\n**uno nuevo** si nadie lo había abierto —la venta que registró un funcionario—. Con su\n`clientSecret` la app pide la tarjeta con Stripe Elements. **No confirma nada**: lo\nconfirma la notificación de la pasarela. Sin cuerpo.\n",
+        "operationId" : "pagarConTarjeta",
+        "parameters" : [ {
+          "in" : "path",
+          "name" : "id",
+          "required" : true,
+          "schema" : {
+            "format" : "uuid",
+            "type" : "string"
+          }
+        } ],
+        "responses" : {
+          "200" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/CardCharge"
+                }
+              }
+            },
+            "description" : "El cobro, con su secreto."
+          },
+          "401" : {
+            "description" : "Sin token (`AUTH-001`)"
+          },
+          "403" : {
+            "description" : "Sin `movements:pay-pending-by-card` (`AUTH-002`)"
+          },
+          "404" : {
+            "description" : "No existe, no es suya, o no es venta ni compra de puntos (`EX-001`)"
+          },
+          "409" : {
+            "description" : "Sin pago pendiente, con un pago pendiente de otro método, o con el cobro cancelado (`EX-002`)"
+          },
+          "422" : {
+            "description" : "Por debajo del mínimo de la pasarela (`RN-MV-057`)"
+          },
+          "503" : {
+            "description" : "La pasarela no está configurada o no respondió (`RN-MV-057`)"
+          }
+        },
+        "summary" : "Pagar con tarjeta una compra pendiente propia",
+        "tags" : [ "Movimientos" ],
+        "x-required-permission" : "movements:pay-pending-by-card"
       }
     },
     "/api/v1/movements/mine/{id}/payments" : {
@@ -21130,6 +21261,9 @@
   }, {
     "description" : "Tasas de comisión personalizadas: la excepción por persona.",
     "name" : "Comisiones"
+  }, {
+    "description" : "Lo que notifica la pasarela de la tarjeta. Solo la llama Stripe; el frontend no.",
+    "name" : "Pasarela de pago"
   }, {
     "description" : "Todas las cuentas de broker del sistema, para quien administra. Las del propio equipo se consultan sin permiso en GET /api/v1/users/me/team/broker-accounts.",
     "name" : "Cuentas de broker"

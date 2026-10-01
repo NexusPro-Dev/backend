@@ -59,6 +59,11 @@ class EndpointPermissionsIT extends IntegrationTestBase {
   private static final Map<String, String> PUBLICAS =
       Map.ofEntries(
           Map.entry(
+              "POST /api/v1/movements/gateway-notifications/stripe",
+              "PÚBLICO POR DEFINICIÓN (`RF-MV-041`, 01-10-2026): la llama Stripe, no una"
+                  + " persona, y no porta token. La autentica la FIRMA del cuerpo con el secreto"
+                  + " compartido; una firma que no verifica responde 400 sin guardar nada"),
+          Map.entry(
               "POST /api/v1/auth/registration",
               "PÚBLICO POR DEFINICIÓN (`RF-SP-045`, 09-09-2026): quien se registra no tiene cuenta con"
                   + " la que autenticarse. Es el PRIMER endpoint público que ESCRIBE, y lo que"
@@ -338,6 +343,9 @@ class EndpointPermissionsIT extends IntegrationTestBase {
           Map.entry(
               "POST /api/v1/movements/{id}/points-purchase-rejection",
               "movements:reject-points-purchase"),
+          // ---- MV · la tarjeta por Stripe (V62, 01-10-2026) ----
+          Map.entry(
+              "POST /api/v1/movements/mine/{id}/card-charge", "movements:pay-pending-by-card"),
           // ---- MV · las cuentas de cobro (V61, 01-10-2026) ----
           Map.entry(
               "POST /api/v1/movements/payout-institutions", "movements:create-payout-institution"),

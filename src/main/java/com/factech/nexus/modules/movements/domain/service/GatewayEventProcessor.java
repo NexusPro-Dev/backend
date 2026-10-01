@@ -17,6 +17,7 @@ import org.springframework.core.task.TaskExecutor;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.PlatformTransactionManager;
+import org.springframework.transaction.TransactionDefinition;
 import org.springframework.transaction.event.TransactionPhase;
 import org.springframework.transaction.event.TransactionalEventListener;
 import org.springframework.transaction.support.TransactionTemplate;
@@ -70,6 +71,9 @@ public class GatewayEventProcessor {
     this.rechazos = rechazos;
     this.puntos = puntos;
     this.tx = new TransactionTemplate(transacciones);
+    // REQUIRES_NEW: después del COMMIT de quien recibió, una transacción REQUIRED se
+    // sumaría a la que ya terminó y nada de lo que se escribe aquí se confirmaría.
+    this.tx.setPropagationBehavior(TransactionDefinition.PROPAGATION_REQUIRES_NEW);
     this.hilos = hilos;
     this.reloj = Clock.systemUTC();
   }
@@ -154,6 +158,7 @@ public class GatewayEventProcessor {
       return error("El cobro " + evento.chargeReference() + " no corresponde a ningún pago.", null);
     }
     if (evento.paymentIdHint() != null
+        && !evento.paymentIdHint().isBlank()
         && !evento.paymentIdHint().equals(pago.paymentId().toString())) {
       return error("El cobro anota otro pago que el que lo referencia.", pago.paymentId());
     }
