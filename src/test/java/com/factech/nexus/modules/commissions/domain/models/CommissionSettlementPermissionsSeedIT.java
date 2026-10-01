@@ -33,7 +33,9 @@ class CommissionSettlementPermissionsSeedIT extends IntegrationTestBase {
           "commission-accruals:read",
           // `V59` (30-09-2026): retirar y devolver (`RF-CM-022`, `RF-CM-023`).
           "commission-batches:withdraw-commission",
-          "commission-batches:return-commission");
+          "commission-batches:return-commission",
+          // `V60` (01-10-2026): pagar varios lotes (`RF-CM-025`).
+          "commission-batches:pay-batches");
 
   @Autowired private JdbcTemplate jdbc;
 
@@ -60,7 +62,7 @@ class CommissionSettlementPermissionsSeedIT extends IntegrationTestBase {
   }
 
   @Test
-  @DisplayName("SUPERADMIN y ADMIN portan los diez")
+  @DisplayName("SUPERADMIN y ADMIN portan los once")
   void losRolesDeSistema() {
     for (String rol : new String[] {SUPERADMIN, ADMIN}) {
       assertThat(codigosDelRol(rol)).as(rol).containsAll(OCHO);

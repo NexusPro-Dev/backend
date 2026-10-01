@@ -6,7 +6,7 @@
 | Especificación | [`spec.md`](spec.md) v0.1.0 |
 | Plan | [`plan.md`](plan.md) v0.1.0 |
 | `plan.md` aprobado el | 01-10-2026 |
-| Estado | **En revisión** |
+| Estado | **En revisión** — todas las tareas `Hecha` el 01-10-2026 |
 | Issue | Pendiente de crear |
 | Rama | `feature/pagar-varios-lotes` |
 
@@ -22,12 +22,12 @@
 
 | ID | Tarea | Depende de | Verificación | Estado |
 |---|---|---|---|---|
-| `T-01` | **`V60`**: el permiso a `SUPERADMIN` y `ADMIN`; los recuentos del catálogo 171 → 172 y `ADMIN` 169 → 170 | `RF-CM-022` `T-01` | Las suites de siembra en verde | Pendiente |
-| `T-02` | `PayCommissionBatchesRequest` y `CommissionBatchesPaymentResponse`, con `@Schema(name)` | — | — | Pendiente |
-| `T-03` | `PayCommissionBatchesService`, sin `@Transactional` (`plan.md` §1) | `T-02` | — | Pendiente |
-| `T-04` | `POST /payments`, en `PERMISO_DE_CADA_OPERACION` | `T-03` | `EndpointPermissionsIT` | Pendiente |
-| `T-05` | `PayCommissionBatchesIT`: `CA-CM-306` a `CA-CM-314` | `T-04` | `CA-CM-311` con dos hilos | Pendiente |
-| `T-06` | Contrato OpenAPI; `requirements.md` | `T-05` | Diff del `json` | Pendiente |
+| `T-01` | **`V60`**: el permiso a `SUPERADMIN` y `ADMIN`; los recuentos del catálogo 171 → 172 y `ADMIN` 169 → 170 | `RF-CM-022` `T-01` | Las suites de siembra en verde | **Hecha** — 01-10-2026 |
+| `T-02` | `PayCommissionBatchesRequest` y `CommissionBatchesPaymentResponse`, con `@Schema(name)` | — | — | **Hecha** — 01-10-2026 |
+| `T-03` | `PayCommissionBatchesService`, sin `@Transactional` (`plan.md` §1) | `T-02` | — | **Hecha** — 01-10-2026 |
+| `T-04` | `POST /payments`, en `PERMISO_DE_CADA_OPERACION` | `T-03` | `EndpointPermissionsIT` | **Hecha** — 01-10-2026 |
+| `T-05` | `PayCommissionBatchesIT`: `CA-CM-306` a `CA-CM-314` | `T-04` | `CA-CM-311` con dos hilos | **Hecha** — 01-10-2026 |
+| `T-06` | Contrato OpenAPI; `requirements.md` | `T-05` | Diff del `json` | **Hecha** — 01-10-2026 |
 
 ---
 

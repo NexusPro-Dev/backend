@@ -5,7 +5,7 @@
 | Proyecto | NEXUS — Renovación de plataforma |
 | Empresa | FACTECH GROUP SAS |
 | Documento | `security.md` |
-| Versión | 0.91.0 |
+| Versión | 0.92.0 |
 | Estado | Borrador |
 | Responsable técnico | Bonilla Diaz William Steven |
 | Fecha de creación | 19-08-2026 |
@@ -294,7 +294,7 @@ Los cincuenta y uno nuevos: `roles:list`, `roles:change-status`, `roles:assign-p
 
 **Dos más de `CM`, declarados y SEMBRADOS el 30-09-2026 por `V59`** ([`requirements/cm.md`](requirements/cm.md) v0.26.0 §6, §5.10), **todavía fuera del bloque** de arriba: `commission-batches:withdraw-commission` —retirar una comisión de un lote `PENDIENTE` al abierto de su persona, `RF-CM-022`— y `commission-batches:return-commission` —devolverla a su lote de origen, `RF-CM-023`—. **Son dos y no uno** por `RN-SEG-014`: retirar aplaza un pago y devolver lo adelanta, y un rol puede recibir lo primero sin lo segundo. **Ninguno es `commission-batches:update`**: el lote no se edita, se le mueve una comisión. **Revertir la cadena de una línea (`RF-CM-024`) no lleva permiso**: no tiene ruta, y quien corrige el vendedor ya porta `movements:assign-sellers`. `V59` los da a `SUPERADMIN` y `ADMIN`, explícitos, y el catálogo pasa de 169 a **171** (`ADMIN` porta 169). El módulo tiene **veintinueve**.
 
-**Uno más de `CM`, declarado el 01-10-2026 y SIN SEMBRAR** ([`requirements/cm.md`](requirements/cm.md) v0.28.0 §6): `commission-batches:pay-batches` —pagar varios lotes elegidos, `RF-CM-025`—. **No reutiliza `commission-batches:pay`** por `RN-SEG-014`: pagar un lote y lanzar la nómina de muchos son dos operaciones. La migración lo dará a `SUPERADMIN` y `ADMIN`, y el catálogo pasará a **172** (`ADMIN` a 170).
+**Uno más de `CM`, declarado y SEMBRADO el 01-10-2026 por `V60`** ([`requirements/cm.md`](requirements/cm.md) v0.28.0 §6): `commission-batches:pay-batches` —pagar varios lotes elegidos, `RF-CM-025`—. **No reutiliza `commission-batches:pay`** por `RN-SEG-014`: pagar un lote y lanzar la nómina de muchos son dos operaciones. `V60` lo da a `SUPERADMIN` y `ADMIN`, y el catálogo pasa a **172** (`ADMIN` porta 170). El módulo tiene **treinta**.
 
 !!! danger "Un permiso, una operación — `RN-SEG-014`, desde el 19-09-2026"
 
@@ -944,3 +944,4 @@ RNF-SEG-002 merece atención: es una prueba que enumera los endpoints registrado
 | 0.89.0 | 30-09-2026 | **Dos permisos de `CM` declarados y sin sembrar** (§4.4) para corregir un lote pendiente antes de pagarlo ([`requirements/cm.md`](requirements/cm.md) v0.26.0 §5.10): `commission-batches:withdraw-commission` (`RF-CM-022`) y `commission-batches:return-commission` (`RF-CM-023`), a `SUPERADMIN` y `ADMIN` explícitos. **Corregir el vendedor de una venta confirmada no estrena permiso**: sigue siendo `movements:assign-sellers`. **Ninguna ruta pública nueva**. El catálogo sigue en 169 hasta que la migración los siembre. | Responsable técnico |
 | 0.90.0 | 30-09-2026 | **Los dos permisos de `CM` están sembrados** por `V59` (§4.4): `commission-batches:withdraw-commission` y `commission-batches:return-commission`, a `SUPERADMIN` y `ADMIN`. El catálogo pasa de 169 a **171**, y `ADMIN` porta 169. | Responsable técnico |
 | 0.91.0 | 01-10-2026 | **Un permiso de `CM` declarado y sin sembrar** (§4.4): `commission-batches:pay-batches` (`RF-CM-025`), a `SUPERADMIN` y `ADMIN`. **Ninguna ruta pública nueva**. | Responsable técnico |
+| 0.92.0 | 01-10-2026 | **`commission-batches:pay-batches` está sembrado** por `V60`, a `SUPERADMIN` y `ADMIN`. Catálogo **172**, `ADMIN` 170. | Responsable técnico |
