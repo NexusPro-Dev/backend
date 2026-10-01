@@ -39,6 +39,10 @@ public class ListMovementsService {
   private final MovementRepository movimientos;
   private final Pagination paginacion;
 
+  /** `RN-MV-060`: las cuatro incidencias del pago, y {@code CUALQUIERA}. */
+  private static final List<String> INCIDENCIAS =
+      List.of("REEMBOLSADO", "EN_DISPUTA", "DISPUTA_GANADA", "DISPUTA_PERDIDA", "CUALQUIERA");
+
   public ListMovementsService(MovementRepository movimientos, Pagination paginacion) {
     this.movimientos = movimientos;
     this.paginacion = paginacion;
@@ -58,7 +62,8 @@ public class ListMovementsService {
             peticion.paymentMethodId(),
             peticion.code(),
             peticion.from(),
-            peticion.to());
+            peticion.to(),
+            peticion.paymentIncident());
 
     List<MovementRow> filas = movimientos.findAll(filtro, pagina.offset(), pagina.size());
     BoundedCount total = movimientos.countAll(filtro, paginacion.techoDelConteo());
@@ -94,6 +99,18 @@ public class ListMovementsService {
       pagina = paginacion.resolver(peticion.page(), peticion.size());
     } catch (ValidationException paginacionInvalida) {
       problemas.addAll(paginacionInvalida.errors());
+    }
+
+    if (peticion.paymentIncident() != null && !INCIDENCIAS.contains(peticion.paymentIncident())) {
+      problemas.add(
+          new FieldError(
+              "paymentIncident",
+              "VAL-002",
+              "La incidencia '"
+                  + peticion.paymentIncident()
+                  + "' no existe. Valores admitidos: "
+                  + INCIDENCIAS
+                  + "."));
     }
 
     if (peticion.status() != null
@@ -179,6 +196,7 @@ public class ListMovementsService {
         fila.payableAmount(),
         fila.occurredAt(),
         // NULO Y PRESENTE en todo lo que no está confirmado (`RN-MV-004`).
-        fila.confirmedAt());
+        fila.confirmedAt(),
+        fila.paymentIncident());
   }
 }

@@ -57,6 +57,8 @@ class SystemRolesSeedIT extends IntegrationTestBase {
           "movements:list-own-payout-accounts",
           "movements:update-own-payout-account",
           "movements:delete-own-payout-account",
+          // `V62` (01-10-2026): pagar con tarjeta un pendiente propio.
+          "movements:pay-pending-by-card",
           "movements:request-withdrawal",
           "movements:read-own-balances",
           "movements:list-own-entries",
@@ -106,6 +108,8 @@ class SystemRolesSeedIT extends IntegrationTestBase {
           "movements:list-own-payout-accounts",
           "movements:update-own-payout-account",
           "movements:delete-own-payout-account",
+          // `V62` (01-10-2026): pagar con tarjeta un pendiente propio.
+          "movements:pay-pending-by-card",
           "movements:request-withdrawal",
           "movements:read-own-balances",
           "movements:list-own-entries",
@@ -147,6 +151,8 @@ class SystemRolesSeedIT extends IntegrationTestBase {
           "movements:list-own-payout-accounts",
           "movements:update-own-payout-account",
           "movements:delete-own-payout-account",
+          // `V62` (01-10-2026): pagar con tarjeta un pendiente propio.
+          "movements:pay-pending-by-card",
           "movements:request-withdrawal",
           "movements:read-own-balances",
           "movements:list-own-entries",

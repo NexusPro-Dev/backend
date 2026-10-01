@@ -95,6 +95,13 @@ public class PackagePurchaseController {
           (`RN-MV-034`). Si no es cliente de nadie, su superior vigente o usted mismo. A quien
           compra no se le enseña a quién. Es la misma forma que devuelve `GET /api/v1/movements/mine/{id}`
           sin `seller`.
+
+          **Con tarjeta (`CREDIT_CARD`), desde el 01-10-2026, abre el cobro en la pasarela** en
+          el mismo acto (`RF-MV-040`): la respuesta trae `cardCharge.clientSecret`, con el que la
+          app pide la tarjeta con Stripe Elements. **Nada queda confirmado**: lo confirma la
+          notificación de la pasarela. Si la pasarela no responde, `503` y no se registra nada;
+          por debajo del mínimo (0,50 USD), `422`. Con la pasarela apagada, el pago queda
+          pendiente sin cobro, como antes.
           """)
   @ApiResponses({
     @ApiResponse(responseCode = "201", description = "Venta registrada, pendiente de pago."),

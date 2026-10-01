@@ -7,6 +7,7 @@
 | Plan | [`plan.md`](plan.md) v0.2.0 |
 | `plan.md` aprobado el | 17-09-2026 |
 | Estado | **En revisión** — `T-01` a `T-11` `Hecha` el 17-09-2026; `T-12` a `T-15` (§1.1) `Hecha` el 21-09-2026 |
+| Enmendadas | 01-10-2026 — `T-16` a `T-17` por **la tarjeta por Stripe** (§6) |
 | Issue | [#66](https://github.com/NexusPro-Dev/backend/issues/66); la enmienda del 21-09-2026, [#76](https://github.com/NexusPro-Dev/backend/issues/76) |
 | Rama | `feature/venta-de-productos`; la enmienda del 21-09-2026, en `feature/filtro-por-tipo-de-movimiento` |
 
@@ -77,3 +78,18 @@ Enmienda de hecho (Art. I.7) sobre un requerimiento construido: `spec.md` 0.2.0 
 - [x] Contrato OpenAPI regenerado, **con la prosa releída**.
 - [x] `requirements/mv.md`, `requirements.md` y `modelo-datos.md` actualizados.
 - [ ] **`tasks.md` aprobadas por el responsable del proyecto.**
+
+---
+
+## 6. La tarjeta por Stripe — enmienda del 01-10-2026
+
+Rama: `feature/stripe-tarjeta`. Después de las tareas de `RF-MV-040` que cada fila cita.
+
+| ID | Tarea | Depende de | Verificación | Estado |
+|---|---|---|---|---|
+| `T-16` | El parámetro, la condición y el campo de la fila | `RF-MV-040` · `T-01` | | **Hecha** — 01-10-2026 |
+| `T-17` | `CA-MV-469` y `CA-MV-470` en `MovementsIT`; el contrato | la anterior | | **Hecha** — 01-10-2026 |
+
+Criterios: `CA-MV-469` a `CA-MV-470`.
+
+**Construido el 01-10-2026** (issue [#161](https://github.com/NexusPro-Dev/backend/issues/161)). Los criterios se prueban en `CardPaymentIT` —o en la suite de la entrada, para las compras— y no en la suite que cada fila nombra.

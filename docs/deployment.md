@@ -5,7 +5,7 @@
 | Proyecto | NEXUS — Renovación de plataforma |
 | Empresa | FACTECH GROUP SAS |
 | Documento | `deployment.md` |
-| Versión | 0.11.0 |
+| Versión | 0.12.0 |
 | Estado | Borrador |
 | Responsable técnico | Bonilla Diaz William Steven |
 | Fecha de creación | 27-08-2026 |
@@ -253,6 +253,17 @@ Se cargan en el servicio **`backend`**. La columna «Valor en Railway» es liter
 
     El `403` por dominio no verificado **no se ve al arrancar**: la aplicación levanta con normalidad y el fallo aparece la primera vez que alguien olvida su contraseña — que es exactamente cuando nadie está mirando. Y no hay reintento propio: ese mensaje se pierde y solo queda su registro.
 
+### 6.5.1 La pasarela de la tarjeta (Stripe)
+
+| Variable | Valor en Railway | Por qué |
+|---|---|---|
+| `STRIPE_SECRET_KEY` | Una **clave restringida** de Stripe (`rk_test_…` en pruebas, `rk_live_…` en producción), con permiso de escritura solo sobre los cobros (*PaymentIntents*) | Sin ella la pasarela queda **apagada** y se avisa al arrancar: la tarjeta nace pendiente y la confirma una persona. **Restringida y no la secreta completa**: si se filtra, no abre la cuenta entera |
+| `STRIPE_WEBHOOK_SECRET` | El `whsec_…` del endpoint registrado en el panel de Stripe —**uno por entorno**— | Verifica la firma de cada notificación. Sin él la ruta responde `503` y no procesa nada |
+
+**El endpoint se registra en el panel de Stripe** apuntando a `https://<dominio del backend>/api/v1/movements/gateway-notifications/stripe`, suscrito como mínimo a `payment_intent.succeeded`, `payment_intent.payment_failed`, `payment_intent.canceled`, `charge.refunded`, `charge.dispute.created` y `charge.dispute.closed`. **La clave publicable (`pk_…`) no es del backend**: la usa el frontend para pintar el formulario de la tarjeta.
+
+**En local**, la Stripe CLI reenvía las notificaciones a la máquina: `stripe listen --forward-to localhost:8080/api/v1/movements/gateway-notifications/stripe`, y el `whsec_…` que imprime es el que va en `STRIPE_WEBHOOK_SECRET` del `.env`.
+
 ### 6.6 `ENVIRONMENT` ya se lee; `API_URL` todavía no
 
 **Desde el 31-08-2026 `ENVIRONMENT` decide algo, y por eso un valor equivocado tumba el arranque.**
@@ -478,3 +489,4 @@ Ninguno de estos puntos impide desplegar. Todos están declarados para que no se
 | 0.9.0 | 21-09-2026 | **La semilla de desarrollo completa el documento a quien ya existía sin él.** Declara `CC` y el número de documento desde el 10-09-2026 (`RN-SP-035`), pero solo inserta a quien no existe: el entorno de desarrollo compartido, sembrado antes, seguía mostrando a las diecinueve personas de prueba sin documento, y ninguna migración las rellena porque no son datos del sistema. Un bloque repetible les pone **los mismos valores que recibe quien nace hoy** —`CC`, el número derivado del nombre de usuario, y teléfono, dirección y ciudad solo si faltan—, reconociéndolas por el nombre de usuario de la semilla, sin tocar a quien se registró por la API ni al superadministrador (fila de `V9`, se decide en migración) y sin pisar un número que otro ya tenga. `DevelopmentSeedIT` lo cubre. Por petición del responsable del proyecto. | Responsable técnico |
 | 0.10.0 | 01-10-2026 | **La semilla de desarrollo gana un tercer guion: las tasas de comisión de rol** de los productos de prueba, a petición del responsable del proyecto. `semilla-tasas-comision.sql` da a cada producto vivo una tasa para AGENTE, DIRECTOR y MANAGER: **porcentaje** de 10 / 7 / 5 % en los upgrades con precio y en `BOT_PRO_ANUAL`; **importe fijo** en `BOT_SENALES` (4 / 2,50 / 1,50) y `BOT_COPY_TRADING` (8 / 5 / 3); y fijo de 2 / 1 / 0,50 en los dos gratuitos, donde solo comisiona el fijo (`RN-CM-020`). Ninguna cadena pasa del precio (`RN-CM-026`). Es repetible —no toca una tasa viva, tampoco la corregida por la API—, resuelve productos y roles por código y avisa con un `NOTICE` si algún producto queda sin sus tres. `DevelopmentSeedIT` lo cubre. | Responsable técnico |
 | 0.11.0 | 01-10-2026 | **La semilla de productos gana los enlaces de entrega de los bots**, a petición del responsable del proyecto: `CUPON_BOT` con la dirección real de activación de bots.com.co y una `DESCARGA` de prueba (`https://www.bots.com.co/downloads/`), en los cuatro bots vivos. Se añaden también a una base sembrada antes —no dependen de que el producto se acabe de crear— y no pisan un enlace corregido a mano. Como manda `RN-PM-050`, solo los publica «mis productos» con la venta pagada. | Responsable técnico |
+| 0.12.0 | 01-10-2026 | **Nueva §6.5.1: la pasarela de la tarjeta.** `STRIPE_SECRET_KEY` —una clave **restringida** a los cobros, no la secreta completa— y `STRIPE_WEBHOOK_SECRET` —el del endpoint, uno por entorno—; sin ellas la pasarela queda apagada y la tarjeta vuelve a confirmarla una persona. Se documenta la URL del endpoint que se registra en Stripe, los seis eventos a los que se suscribe y cómo recibir las notificaciones en local con la Stripe CLI. | Responsable técnico |

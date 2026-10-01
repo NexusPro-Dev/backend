@@ -59,14 +59,16 @@ public class ConfirmSaleService {
   private final AuditWriter auditoria;
   private final ApplicationEventPublisher avisos;
   private final Clock reloj;
+  private final CardPayment tarjeta;
 
   @Autowired
   public ConfirmSaleService(
       MovementRepository movimientos,
       LineDelivery entrega,
       AuditWriter auditoria,
-      ApplicationEventPublisher avisos) {
-    this(movimientos, entrega, auditoria, avisos, Clock.systemUTC());
+      ApplicationEventPublisher avisos,
+      CardPayment tarjeta) {
+    this(movimientos, entrega, auditoria, avisos, tarjeta, Clock.systemUTC());
   }
 
   ConfirmSaleService(
@@ -74,7 +76,9 @@ public class ConfirmSaleService {
       LineDelivery entrega,
       AuditWriter auditoria,
       ApplicationEventPublisher avisos,
+      CardPayment tarjeta,
       Clock reloj) {
+    this.tarjeta = tarjeta;
     this.movimientos = movimientos;
     this.entrega = entrega;
     this.auditoria = auditoria;
@@ -82,8 +86,31 @@ public class ConfirmSaleService {
     this.reloj = reloj;
   }
 
+  /**
+   * La confirmación a mano. <b>No alcanza a un pago con cobro abierto en la pasarela</b>
+   * (`RN-MV-058`, `EX-007`): lo confirma su notificación, por {@link #confirmByGateway}.
+   */
   @Transactional
   public SaleResponse confirm(UUID movementId) {
+    tarjeta.exigirSinCobroAbierto(movementId, "EX-007");
+    return confirmar(movementId);
+  }
+
+  /**
+   * `RF-MV-041`: la pasarela notificó que el cobro entró. <b>El mismo camino</b> que la
+   * confirmación a mano —transición, entrega, aviso a `CM`—, sin la comprobación de `RN-MV-058`.
+   */
+  @Transactional
+  public SaleResponse confirmByGateway(UUID movementId) {
+    return confirmar(movementId);
+  }
+
+  /** Para el pago con puntos, que confirma en el acto desde dentro (`RF-MV-030`). */
+  SaleResponse confirmInternal(UUID movementId) {
+    return confirmar(movementId);
+  }
+
+  private SaleResponse confirmar(UUID movementId) {
     OffsetDateTime ahora = OffsetDateTime.now(reloj);
 
     // 1. LA TRANSICIÓN, condicionada al estado anterior. Cero filas significa

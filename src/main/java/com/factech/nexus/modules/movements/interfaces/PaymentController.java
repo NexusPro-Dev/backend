@@ -65,6 +65,17 @@ public class PaymentController {
           estar entrando ahora mismo. `paymentMethodId` es obligatorio si la venta cobra algo y
           está prohibido si su importe es cero (`RN-MV-022`). Una venta ajena responde `404`,
           igual que una que no existe.
+
+          **Con tarjeta (`CREDIT_CARD`), desde el 01-10-2026, abre el cobro en la pasarela** en el mismo
+          acto (`RF-MV-040`): la respuesta trae `cardCharge.clientSecret`, con el que la app pide la
+          tarjeta con Stripe Elements. **Nada queda confirmado**: lo confirma la notificación de la
+          pasarela. Si la pasarela no responde, `503` y no se registra nada; por debajo del mínimo
+          (0,50 USD), `422`. Con la pasarela apagada, el pago queda pendiente sin cobro, como antes.
+
+          **Un pago pendiente con cobro abierto ya no bloquea** (`RN-MV-058`): volver a pagar
+          con otro método lo cancela en la pasarela y lo cierra rechazado; si ya se cobró, `409`
+          (`EX-009`). Con tarjeta otra vez, `409` (`EX-010`): el cobro abierto se retoma con
+          `POST /movements/mine/{id}/card-charge`.
           """)
   @ApiResponses({
     @ApiResponse(responseCode = "201", description = "Pago abierto: la venta con sus pagos."),
@@ -98,6 +109,12 @@ public class PaymentController {
     @ApiResponse(
         responseCode = "422",
         description = "El método de pago no existe (`EX-010`)",
+        content = @Content),
+    @ApiResponse(
+        responseCode = "503",
+        description =
+            "La pasarela de pago no respondió; nada se escribió y se puede reintentar"
+                + " (`RN-MV-057`)",
         content = @Content)
   })
   public ResponseEntity<SaleResponse> volverAPagar(
@@ -128,6 +145,10 @@ public class PaymentController {
 
           **Rechazar no es anular**: anular cierra la venta; rechazar cierra un intento de
           cobrarla.
+
+          **Desde el 01-10-2026, no alcanza a un pago con cobro abierto en la pasarela**
+          (`RN-MV-058`): lo resuelve su notificación, y responde `409` (`EX-006`). Un pago con tarjeta sin cobro
+          —el que registró un funcionario— se sigue resolviendo a mano.
           """)
   @ApiResponses({
     @ApiResponse(responseCode = "200", description = "La venta, con el pago rechazado."),

@@ -4,11 +4,12 @@
 |---|---|
 | Requerimiento | `RF-MV-011` |
 | Módulo | `MV` — Movimientos |
-| Versión | 0.1.0 |
+| Versión | 0.2.0 |
 | Estado | **Aprobada** |
 | Autor | Responsable técnico |
 | Aprobada por | Responsable del proyecto |
 | Fecha de aprobación | 24-09-2026 |
+| Enmendada el | 01-10-2026 — **con tarjeta, la compra abre el cobro en la pasarela** y devuelve su secreto (`RF-MV-040`). Ver §14.2 |
 
 !!! info "Qué va en este documento"
 
@@ -120,3 +121,19 @@ Las de `RF-MV-002` sobre el cuerpo, más la de `EX-003`. **El enlace no se valid
 ## 14. Preguntas abiertas
 
 Ninguna. Las dos que este requerimiento tenía abiertas al registrarse las cerró el documento del módulo: **el permiso** —`products:buy-by-hotlink`, por `RN-SEG-015`, que deja sin efecto la línea «Autenticado, sin permiso» de la ficha del 16-09-2026— y **quién escribe el vínculo**, que es `SP` por su interfaz publicada y no `MV` por su cuenta (**D-26**).
+
+---
+
+## 14.2 La tarjeta por Stripe — enmienda del 01-10-2026
+
+Desde el 01-10-2026 ([`requirements/mv.md`](../../../requirements/mv.md) v0.64.0 §4.6) comprar por hotlink con **tarjeta** abre el cobro en la pasarela dentro del mismo acto, y la respuesta trae **`cardCharge`** con el secreto con el que la app pide la tarjeta (`RF-MV-040`). Lo demás no cambia: la venta nace pendiente y la confirma la notificación de la pasarela (`RF-MV-041`).
+
+| ID | Criterio |
+|---|---|
+| `CA-MV-471` | Con tarjeta, la respuesta trae `cardCharge` y el pago su referencia; con otro método, `cardCharge` es nulo (lo prueba `RF-MV-040` · `CA-MV-426`) |
+
+## 15. Control de cambios
+
+| Versión | Fecha | Cambio | Autor |
+|---|---|---|---|
+| 0.2.0 | 01-10-2026 | **La tarjeta por Stripe** ([`requirements/mv.md`](../../../requirements/mv.md) v0.64.0 §4.6): **con tarjeta, la compra abre el cobro en la pasarela** y devuelve su secreto (`RF-MV-040`). Criterios `CA-MV-471`. | Responsable del proyecto |

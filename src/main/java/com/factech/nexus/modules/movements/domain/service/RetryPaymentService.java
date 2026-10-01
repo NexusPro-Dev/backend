@@ -7,6 +7,7 @@ import com.factech.nexus.modules.movements.domain.repository.MovementRepository;
 import com.factech.nexus.modules.movements.domain.repository.MovementRepository.PaymentMethodView;
 import com.factech.nexus.modules.movements.domain.repository.PaymentRepository;
 import com.factech.nexus.modules.movements.domain.repository.PaymentRepository.KeyedPayment;
+import com.factech.nexus.modules.movements.domain.repository.PaymentRepository.PendingPayment;
 import com.factech.nexus.modules.movements.domain.repository.PaymentRepository.RetryTarget;
 import com.factech.nexus.modules.system.roles.application.AuthenticatedActor;
 import com.factech.nexus.modules.system.users.application.CurrentMembershipLookup;
@@ -49,6 +50,7 @@ public class RetryPaymentService {
   private final SaleRules reglas;
   private final Clock reloj;
   private final PointsPayment puntos;
+  private final CardPayment tarjeta;
 
   @Autowired
   public RetryPaymentService(
@@ -57,8 +59,9 @@ public class RetryPaymentService {
       AuthenticatedActor actor,
       CurrentMembershipLookup membresias,
       AuditWriter auditoria,
-      PointsPayment puntos) {
-    this(movimientos, pagos, actor, membresias, auditoria, puntos, Clock.systemUTC());
+      PointsPayment puntos,
+      CardPayment tarjeta) {
+    this(movimientos, pagos, actor, membresias, auditoria, puntos, tarjeta, Clock.systemUTC());
   }
 
   RetryPaymentService(
@@ -68,8 +71,10 @@ public class RetryPaymentService {
       CurrentMembershipLookup membresias,
       AuditWriter auditoria,
       PointsPayment puntos,
+      CardPayment tarjeta,
       Clock reloj) {
     this.puntos = puntos;
+    this.tarjeta = tarjeta;
     this.movimientos = movimientos;
     this.pagos = pagos;
     this.actor = actor;
@@ -111,8 +116,28 @@ public class RetryPaymentService {
     // 4. El método, con las reglas de registrar (`RN-MV-018`, `RN-MV-022`).
     PaymentMethodView metodo = reglas.resolverMetodoDePago(metodoPedido, venta.payableAmount());
 
-    // 5. El pago. Cero filas: la clave o el pendiente único chocaron.
+    // 4b. Un pago pendiente CON COBRO ABIERTO en la pasarela ya no bloquea
+    //     (`RN-MV-058`, 01-10-2026): una tarjeta rechazada no cierra el pago, y
+    //     sin esto quien quisiera pagar de otro modo no podría. Con otro método,
+    //     se cancela el cobro y se cierra ese pago; con tarjeta otra vez, no:
+    //     el cobro abierto se retoma por `RF-MV-042`.
     OffsetDateTime ahora = OffsetDateTime.now(reloj);
+    Optional<PendingPayment> abierto =
+        pagos.lockPendingOf(movementId).filter(PendingPayment::tieneCobroAbierto);
+    if (abierto.isPresent()) {
+      if (metodo.gateway() != null) {
+        String mensaje =
+            "La venta ya tiene un cobro con tarjeta abierto: retómelo con"
+                + " POST /movements/mine/{id}/card-charge.";
+        throw new BusinessRuleException(
+            "EX-010", mensaje, List.of(new FieldError("payments", "EX-010", mensaje)));
+      }
+      tarjeta.cancelarCobro(abierto.get(), "EX-009", "EX-009");
+      pagos.rejectPendingOfSale(
+          movementId, ahora, "Se cambió de método de pago: el cobro con tarjeta se canceló.");
+    }
+
+    // 5. El pago. Cero filas: la clave o el pendiente único chocaron.
     UUID pago = UUID.randomUUID();
     if (!pagos.open(pago, movementId, metodo.id(), venta.payableAmount(), clave.value(), ahora)) {
       Optional<KeyedPayment> carrera = pagos.findByKey(clave.value());
@@ -135,7 +160,8 @@ public class RetryPaymentService {
       UUID moneda = detalle(movementId).currency().id();
       return new Result(puntos.pagar(movementId, pago, quien, moneda, venta.payableAmount()), true);
     }
-    return new Result(detalle(movementId), true);
+    // Con tarjeta, el cobro se abre ahora (`RF-MV-040`).
+    return new Result(detalle(movementId).conCobro(tarjeta.abrirSiToca(metodo, movementId)), true);
   }
 
   /**
@@ -158,7 +184,7 @@ public class RetryPaymentService {
             () ->
                 new ResourceNotFoundException(
                     "EX-001", "No existe una compra propia con ese identificador."));
-    return new Result(detalle(movementId), false);
+    return new Result(detalle(movementId).conCobro(tarjeta.cobroExistente(movementId)), false);
   }
 
   private static BusinessRuleException yaHayUnPagoPendiente() {

@@ -40,13 +40,17 @@ public class VoidSaleService {
   private final MovementRepository movimientos;
   private final AuditWriter auditoria;
   private final Clock reloj;
+  private final CardPayment tarjeta;
 
   @Autowired
-  public VoidSaleService(MovementRepository movimientos, AuditWriter auditoria) {
-    this(movimientos, auditoria, Clock.systemUTC());
+  public VoidSaleService(
+      MovementRepository movimientos, AuditWriter auditoria, CardPayment tarjeta) {
+    this(movimientos, auditoria, tarjeta, Clock.systemUTC());
   }
 
-  VoidSaleService(MovementRepository movimientos, AuditWriter auditoria, Clock reloj) {
+  VoidSaleService(
+      MovementRepository movimientos, AuditWriter auditoria, CardPayment tarjeta, Clock reloj) {
+    this.tarjeta = tarjeta;
     this.movimientos = movimientos;
     this.auditoria = auditoria;
     this.reloj = reloj;
@@ -57,6 +61,11 @@ public class VoidSaleService {
     // 1. El motivo, PRIMERO: sin él no se mira nada.
     VoidReason motivo = new VoidReason(reason);
     OffsetDateTime ahora = OffsetDateTime.now(reloj);
+
+    // 1b. `RN-MV-058` (01-10-2026): el cobro abierto en la pasarela se cancela
+    //     ANTES de escribir. Si ya se cobró, o la pasarela no responde, no se
+    //     anula nada: una venta anulada con un cobro vivo podría pagarse.
+    tarjeta.cancelarSiHayCobroAbierto(movementId, "EX-005", "EX-006");
 
     // 2. La transición condicionada. Cero filas: no pendiente, o no existe.
     if (!movimientos.voidIfPending(movementId, ahora, motivo.value())) {

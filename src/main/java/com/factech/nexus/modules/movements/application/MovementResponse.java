@@ -62,7 +62,14 @@ public record MovementResponse(
             format = "date-time",
             description =
                 "Cuándo entró el dinero. Presente solo en las confirmadas; NULO en las demás.")
-        OffsetDateTime confirmedAt) {
+        OffsetDateTime confirmedAt,
+    @Schema(
+            types = {"string", "null"},
+            description =
+                "La incidencia del último pago (`RN-MV-060`, desde el 01-10-2026): REEMBOLSADO,"
+                    + " EN_DISPUTA, DISPUTA_GANADA o DISPUTA_PERDIDA. No cambia el estado: el pago"
+                    + " sigue confirmado. NULO si no tiene ninguna.")
+        String paymentIncident) {
 
   /** Misma forma que las otras partes del módulo, con nombre propio para no chocar. */
   @Schema(name = "MovementParty")

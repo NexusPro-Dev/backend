@@ -104,7 +104,15 @@ public class SecurityConfig {
     // Mismo alcance acotado dos veces —paquete activo, vivo y de alcance
     // `HOTLINK` o `AMBOS`, y solo el nombre de quien es fuerza comercial— y el
     // mismo `404` uniforme, también para el paquete que hoy no se puede ofrecer.
-    "/api/v1/hotlinks/*/packages/*"
+    "/api/v1/hotlinks/*/packages/*",
+    // LA NOTIFICACIÓN DE LA PASARELA DE PAGO (`RF-MV-041`, 01-10-2026): la
+    // llama Stripe, no una persona, y no porta token. LA AUTENTICA SU FIRMA
+    // —un HMAC del cuerpo con el secreto compartido y una marca de tiempo—, que
+    // prueba quién envió ESE cuerpo y cuándo: más que un token. Es la segunda
+    // pública que escribe —confirma pagos— y por eso una firma que no verifica
+    // responde 400 SIN GUARDAR NADA (`RN-MV-059`). Fuera de la cota: la
+    // pasarela reentrega y no debe toparse con un 429.
+    "/api/v1/movements/gateway-notifications/stripe"
   };
 
   /**

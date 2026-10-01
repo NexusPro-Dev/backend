@@ -37,15 +37,24 @@ public class RejectPaymentService {
   private final PaymentRepository pagos;
   private final AuditWriter auditoria;
   private final Clock reloj;
+  private final CardPayment tarjeta;
 
   @Autowired
   public RejectPaymentService(
-      MovementRepository movimientos, PaymentRepository pagos, AuditWriter auditoria) {
-    this(movimientos, pagos, auditoria, Clock.systemUTC());
+      MovementRepository movimientos,
+      PaymentRepository pagos,
+      AuditWriter auditoria,
+      CardPayment tarjeta) {
+    this(movimientos, pagos, auditoria, tarjeta, Clock.systemUTC());
   }
 
   RejectPaymentService(
-      MovementRepository movimientos, PaymentRepository pagos, AuditWriter auditoria, Clock reloj) {
+      MovementRepository movimientos,
+      PaymentRepository pagos,
+      AuditWriter auditoria,
+      CardPayment tarjeta,
+      Clock reloj) {
+    this.tarjeta = tarjeta;
     this.movimientos = movimientos;
     this.pagos = pagos;
     this.auditoria = auditoria;
@@ -55,6 +64,18 @@ public class RejectPaymentService {
   @Transactional
   public SaleResponse reject(UUID movementId, String reason) {
     RejectionReason motivo = new RejectionReason(reason);
+    // `RN-MV-058` (01-10-2026): un pago con cobro abierto lo rechaza la pasarela.
+    tarjeta.exigirSinCobroAbierto(movementId, "EX-006");
+    return rechazar(movementId, motivo);
+  }
+
+  /** `RF-MV-041`: la pasarela canceló el cobro; el pago se rechaza y la venta sigue pendiente. */
+  @Transactional
+  public SaleResponse rejectByGateway(UUID movementId, String reason) {
+    return rechazar(movementId, new RejectionReason(reason));
+  }
+
+  private SaleResponse rechazar(UUID movementId, RejectionReason motivo) {
     OffsetDateTime ahora = OffsetDateTime.now(reloj);
 
     if (!pagos.rejectPendingOfSale(movementId, ahora, motivo.value())) {

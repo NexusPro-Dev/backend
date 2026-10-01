@@ -269,7 +269,11 @@ public interface MovementRepository {
    * en una venta con importe. El catálogo de `RF-MV-009` sí filtra, y lo hace en su propia
    * consulta.
    */
-  record PaymentMethodView(UUID id, String code, String name, boolean active, String visibility) {}
+  /**
+   * @param gateway la pasarela que cobra el método —`STRIPE` en `CREDIT_CARD`—, o nula (§4.6)
+   */
+  record PaymentMethodView(
+      UUID id, String code, String name, boolean active, String visibility, String gateway) {}
 
   // ---------------------------------------------------------------------------
   // `RF-MV-008` — los movimientos propios
@@ -771,7 +775,8 @@ public interface MovementRepository {
       UUID paymentMethodId,
       String code,
       OffsetDateTime from,
-      OffsetDateTime to) {}
+      OffsetDateTime to,
+      String paymentIncident) {}
 
   /**
    * Una fila del listado global: la cabecera con su tipo y su confirmación, <b>sin papel</b>.
@@ -797,5 +802,6 @@ public interface MovementRepository {
       BigDecimal discountAmount,
       BigDecimal payableAmount,
       OffsetDateTime occurredAt,
-      OffsetDateTime confirmedAt) {}
+      OffsetDateTime confirmedAt,
+      String paymentIncident) {}
 }

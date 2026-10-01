@@ -4,11 +4,12 @@
 |---|---|
 | Requerimiento | `RF-MV-004` |
 | Módulo | `MV` — Movimientos |
-| Versión | 0.1.0 |
+| Versión | 0.2.0 |
 | Estado | **Aprobada** |
 | Autor | Responsable técnico |
 | Aprobada por | Responsable del proyecto |
 | Fecha de aprobación | 26-09-2026 |
+| Enmendada el | 01-10-2026 — **un pago con cobro abierto en la pasarela no se rechaza a mano** (`RN-MV-058`). Ver §14.2 |
 
 !!! info "Qué va en este documento"
 
@@ -187,8 +188,24 @@ Se rechaza igual. Es raro —el pago gratuito no espera dinero de nadie— y no 
 
 ---
 
+## 14.2 La tarjeta por Stripe — enmienda del 01-10-2026
+
+Desde el 01-10-2026 ([`requirements/mv.md`](../../../requirements/mv.md) v0.64.0 §4.6) rechazar a mano **un pago pendiente con cobro abierto** responde **conflicto**: lo rechaza la pasarela cuando el cobro se cancela (`RF-MV-041`), y para cambiar de método está volver a pagar, que **cancela el cobro** primero (`RF-MV-018`). Un pago con tarjeta **sin** cobro se sigue rechazando a mano.
+
+| ID | Situación | Resultado |
+|---|---|---|
+| `EX-006` | El pago pendiente tiene cobro abierto en la pasarela | Conflicto. Nada cambia |
+
+| ID | Criterio |
+|---|---|
+| `CA-MV-464` | Rechazar a mano el pago pendiente de una venta con **cobro abierto** responde conflicto, y el pago sigue pendiente |
+| `CA-MV-465` | Un pago con tarjeta **sin cobro** se rechaza a mano como siempre |
+
+---
+
 ## 15. Control de cambios
 
 | Versión | Fecha | Cambio | Autor |
 |---|---|---|---|
 | 0.1.0 | 26-09-2026 | Primera versión, con la etapa 6 de `MV` ([`requirements/mv.md`](../../../requirements/mv.md) v0.44.0). **Declarado desde el 02-09-2026 como «rechazar una venta pendiente»** y nunca escrito; **cambia de objeto**: lo que se rechaza es el pago, y la venta queda pendiente para volver a pagarse. **El motivo es obligatorio**, **la transición es atómica** como en confirmar y anular, y **el permiso es propio** (`movements:reject-payment`, `RN-SEG-014`). Criterios `CA-MV-197` a `CA-MV-205`. | Responsable del proyecto |
+| 0.2.0 | 01-10-2026 | **La tarjeta por Stripe** ([`requirements/mv.md`](../../../requirements/mv.md) v0.64.0 §4.6): **un pago con cobro abierto en la pasarela no se rechaza a mano** (`RN-MV-058`). Criterios `CA-MV-464` a `CA-MV-465`. | Responsable del proyecto |

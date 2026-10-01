@@ -93,7 +93,8 @@ final class SaleDetailMapper {
         cabecera.voidReason(),
         cabecera.createdAt(),
         pagos(detalle.payments()),
-        destino);
+        destino,
+        null);
   }
 
   /** Los pagos del detalle (`RN-MV-047`), en el orden en que se intentaron. */

@@ -33,7 +33,7 @@ class PermissionsSeedIT extends IntegrationTestBase {
           + " V47: courses:read-available y lessons:learn del aula, RF-AC-034 y RF-AC-035)")
   void catalogoCompleto() {
     assertThat(jdbc.queryForObject("SELECT count(*) FROM permissions", Integer.class))
-        .isEqualTo(180);
+        .isEqualTo(181);
   }
 
   @Test
@@ -247,6 +247,8 @@ class PermissionsSeedIT extends IntegrationTestBase {
             "movements:update-own-payout-account",
             "movements:delete-own-payout-account",
             "movements:read-user-payout-accounts",
+            // `V62` (01-10-2026): pagar con tarjeta un pendiente propio (`RF-MV-042`).
+            "movements:pay-pending-by-card",
             // El SEGUNDO recurso de `PM` (`V93`, 15-09-2026), por decisión del
             // responsable del proyecto: armar paquetes y tocar el catálogo son
             // dos capacidades, y los `products:` no habilitan ni una operación
@@ -328,7 +330,7 @@ class PermissionsSeedIT extends IntegrationTestBase {
   void identificadoresUuidV7() {
     List<UUID> ids = jdbc.queryForList("SELECT id FROM permissions", UUID.class);
 
-    assertThat(ids).hasSize(180).doesNotHaveDuplicates();
+    assertThat(ids).hasSize(181).doesNotHaveDuplicates();
     assertThat(ids).allSatisfy(id -> assertThat(id.version()).isEqualTo(7));
     // variant() == 2 es la variante RFC 9562 (bits 10xx).
     assertThat(ids).allSatisfy(id -> assertThat(id.variant()).isEqualTo(2));
@@ -394,13 +396,13 @@ class PermissionsSeedIT extends IntegrationTestBase {
                 "SELECT count(*) FROM role_permissions WHERE role_id ="
                     + " '01a02a33-4c00-7001-9c4f-5e7ad1000001'",
                 Integer.class))
-        .isEqualTo(180);
+        .isEqualTo(181);
     assertThat(
             jdbc.queryForObject(
                 "SELECT count(*) FROM role_permissions WHERE role_id ="
                     + " '01a02a33-4c00-7002-9c4f-5e7ad1000002'",
                 Integer.class))
-        .isEqualTo(178);
+        .isEqualTo(179);
     assertThat(
             jdbc.queryForList(
                 """
@@ -481,8 +483,10 @@ class PermissionsSeedIT extends IntegrationTestBase {
         // Y dieciocho desde `V50`: activar lo comprado (`RF-MV-010`), también por tipo.
         // Y veintiuno desde `V58`: la tasa, comprar puntos y mis compras de puntos.
         // Y veintiséis desde `V61`: el catálogo de entidades y las cuatro de la cuenta propia.
-        .hasSize(26)
+        // Y veintisiete desde `V62`: pagar con tarjeta un pendiente propio.
+        .hasSize(27)
         .contains(
+            "movements:pay-pending-by-card",
             "movements:read-payout-institutions",
             "movements:create-own-payout-account",
             "movements:list-own-payout-accounts",

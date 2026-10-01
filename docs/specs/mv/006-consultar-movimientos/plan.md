@@ -5,12 +5,13 @@
 | Requerimiento | `RF-MV-006` |
 | Especificación | [`spec.md`](spec.md) v0.2.0 |
 | `spec.md` aprobada el | 17-09-2026 |
-| Versión | 0.2.0 |
+| Versión | 0.3.0 |
 | Estado | **Aprobado** |
 | Enmendado el | 21-09-2026 — el séptimo filtro, `type` (§3, §4.1, §4.3, §9, §11) |
 | Autor | Responsable técnico |
 | Aprobado por | Responsable del proyecto |
 | Fecha de aprobación | 17-09-2026 |
+| Enmendado el | 01-10-2026 — la tarjeta por Stripe (§12) |
 
 !!! warning "Enmendado el 24-09-2026 — el filtro `code` busca por FRAGMENTO"
 
@@ -210,3 +211,9 @@ Un `PageResponse` con `totalIsExact`, que aquí **sí puede valer falso** (`FA-0
 | Orden y estabilidad entre páginas | Integración | |
 | Total acotado: por encima del techo, `totalIsExact` falso y el total es el techo | Integración, con el techo bajado por propiedad | Es la misma forma de `AuditBoundedCountIT` |
 | Filtro por tipo: **discrimina** con un segundo tipo sembrado solo en la prueba, en mayúsculas o minúsculas y combinado con otro filtro; tipo inexistente `400` `VAL-005` **junto** con el estado (21-09-2026) | Integración | Con un solo tipo en el catálogo, filtrar por `VENTA` devuelve todo y no probaría nada. La prueba deja el catálogo como lo encontró |
+
+---
+
+## 12. La tarjeta por Stripe — enmienda del 01-10-2026
+
+Por [`requirements/mv.md`](../../../requirements/mv.md) v0.64.0 §4.6 y `spec.md` §14.2. La sentencia del listado ya une el último pago para el método; gana `p.incident` en la proyección y la condición `p.incident = :incidencia` —o `p.incident IS NOT NULL` con `CUALQUIERA`—. **Parámetro** `paymentIncident` (`REEMBOLSADO`, `EN_DISPUTA`, `DISPUTA_GANADA`, `DISPUTA_PERDIDA`, `CUALQUIERA`); la fila gana `paymentIncident`. **Sin sentencias nuevas.**

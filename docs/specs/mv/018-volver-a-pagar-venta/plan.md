@@ -5,11 +5,12 @@
 | Requerimiento | `RF-MV-018` |
 | Especificación | [`spec.md`](spec.md) v0.1.0 |
 | `spec.md` aprobada el | 26-09-2026 |
-| Versión | 0.1.0 |
+| Versión | 0.2.0 |
 | Estado | **Aprobado** |
 | Autor | Responsable técnico |
 | Aprobado por | Responsable del proyecto |
 | Fecha de aprobación | 26-09-2026 |
+| Enmendado el | 01-10-2026 — la tarjeta por Stripe (§12) |
 
 !!! info "Qué va en este documento"
 
@@ -185,3 +186,9 @@ Un `ChangeEvent` de `MV` sobre `payments`, `INSERT`, con el movimiento, el méto
 ## 11. Estrategia de prueba
 
 **Integración.** `RetryPaymentIT` —`CA-MV-206` a `CA-MV-215`, con dos hilos para `CA-MV-210`—; `PaymentsOnRegistrationIT` —`CA-MV-216`, por las cinco entradas—; y `CA-MV-217` en la suite de cada listado. **Las suites de confirmar y anular ganan sus criterios nuevos** (`RF-MV-003` y `RF-MV-005`). **La migración** se comprueba sobre la base de desarrollo antes de subirla: cada movimiento con un pago, y los estados casados. **Se cuentan las sentencias** del listado con las estadísticas de Hibernate: el `LATERAL` no puede convertirse en una consulta por fila.
+
+---
+
+## 12. La tarjeta por Stripe — enmienda del 01-10-2026
+
+Por [`requirements/mv.md`](../../../requirements/mv.md) v0.64.0 §4.6 y `spec.md` §14.2. `RetryPaymentService.retry`: la comprobación «sin pago pendiente» se relaja **solo** para un pendiente con `provider_reference` y método con `gateway`: entonces, si el método pedido es otro, `CardGateway.cancel` y `rejectPendingOfSale` **antes** de abrir el nuevo, en la misma transacción; si es tarjeta, `EX-010`. Después de abrir el pago, `CardPayment`. **Contrato**: `cardCharge` en la respuesta y la prosa de `409` y `503`.

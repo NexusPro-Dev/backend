@@ -7,6 +7,7 @@
 | Plan | [`plan.md`](plan.md) v0.1.0 |
 | `plan.md` aprobado el | 26-09-2026 |
 | Estado | **En revisión** — `T-01` a `T-06` `Hecha` el 26-09-2026 (el permiso lo siembra `V48`, ver `RF-MV-018` · `tasks.md` §3.1); `T-07` `Hecha` el 30-09-2026 |
+| Enmendadas | 01-10-2026 — `T-08` a `T-09` por **la tarjeta por Stripe** (§6) |
 | Issue | [#122](https://github.com/NexusPro-Dev/backend/issues/122) |
 | Rama | `feature/pagos-y-saldos` |
 
@@ -64,3 +65,18 @@
 - [ ] **`tasks.md` aprobadas por el responsable del proyecto.**
 
 **Cierre documental el 30-09-2026**: construido el 26-09-2026 y mezclado por el PR [#124](https://github.com/NexusPro-Dev/backend/pull/124) sin marcar la definición de terminado. Las casillas se marcan con la suite completa en verde el 30-09-2026, cada criterio con su afirmación, `EndpointPermissionsIT` exigiendo el permiso de la ruta y la prosa del contrato releída.
+
+---
+
+## 6. La tarjeta por Stripe — enmienda del 01-10-2026
+
+Rama: `feature/stripe-tarjeta`. Después de las tareas de `RF-MV-040` que cada fila cita.
+
+| ID | Tarea | Depende de | Verificación | Estado |
+|---|---|---|---|---|
+| `T-08` | La comprobación de `RN-MV-058` en `RejectPaymentService` y el camino de la pasarela | `RF-MV-040` · `T-01` | | **Hecha** — 01-10-2026 |
+| `T-09` | `CA-MV-464` y `CA-MV-465` en `RejectPaymentIT`; la prosa del `409` | la anterior | | **Hecha** — 01-10-2026 |
+
+Criterios: `CA-MV-464` a `CA-MV-465`.
+
+**Construido el 01-10-2026** (issue [#161](https://github.com/NexusPro-Dev/backend/issues/161)). Los criterios se prueban en `CardPaymentIT` —o en la suite de la entrada, para las compras— y no en la suite que cada fila nombra.

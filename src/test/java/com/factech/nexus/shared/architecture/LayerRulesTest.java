@@ -200,6 +200,24 @@ class LayerRulesTest {
 
   @Test
   @DisplayName(
+      "la pasarela es un puerto: nada fuera de su adaptador conoce Stripe (architecture.md §15.4)")
+  void laPasarelaEsUnPuerto() {
+    // `CardGateway` vive en el dominio de `MV` y lo implementa
+    // `StripeCardGateway`, en `movements.infrastructure`. Si un servicio
+    // importara el adaptador —o cualquier cosa de esa capa—, cambiar de
+    // pasarela obligaría a tocar casos de uso, que es lo que el puerto evita.
+    noClasses()
+        .that()
+        .resideOutsideOfPackage("com.factech.nexus.modules.movements.infrastructure..")
+        .should()
+        .dependOnClassesThat()
+        .resideInAPackage("com.factech.nexus.modules.movements.infrastructure..")
+        .because("architecture.md §15.4: la pasarela se usa por el puerto CardGateway")
+        .check(clases);
+  }
+
+  @Test
+  @DisplayName(
       "MV no depende de CM: le pregunta por un puerto que declara él y CM implementa (RN-MV-053)")
   void mvNoDependeDeCm() {
     // `CM` ya depende de `MV` —las líneas que devenga, el abono del lote—, y

@@ -5,7 +5,7 @@
 | Módulo | `MV` — Movimientos |
 | Paquete | `modules/movements` |
 | Prefijos de permiso | `movements:` |
-| Versión | 0.63.0 |
+| Versión | 0.66.0 |
 | Estado | **Borrador** |
 | Responsable | Bonilla Diaz William Steven |
 | Fecha de creación | 02-09-2026 |
@@ -186,6 +186,10 @@ La dependencia es **acíclica**: `MV` → `PM` → `SP`, y `MV` → `SP`. **El p
 | `RF-MV-037` | Editar una cuenta de cobro propia, también para hacerla la principal | Cuentas de cobro | `movements:update-own-payout-account` (nace con él; `RN-SEG-015`) |
 | `RF-MV-038` | Dar de baja una cuenta de cobro propia | Cuentas de cobro | `movements:delete-own-payout-account` (nace con él; `RN-SEG-015`) |
 | `RF-MV-039` | Consultar las cuentas de cobro de una persona | Cuentas de cobro | `movements:read-user-payout-accounts` (nace con él; `RN-SEG-014`) |
+| `RF-MV-040` | Cobrar con tarjeta por la pasarela | Pagos | **Ninguno propio**: viaja en las entradas de compra propia (`RF-MV-002`, `RF-MV-011` a `RF-MV-013`), en volver a pagar (`RF-MV-018`) y en comprar puntos (`RF-MV-027`), con los permisos de cada una |
+| `RF-MV-041` | Recibir las notificaciones de la pasarela | Pagos | **Ninguno: es pública**, y la autentica **la firma de la pasarela** (`RN-MV-059`) |
+| `RF-MV-042` | Pagar con tarjeta un pago pendiente propio —retomarlo, o empezarlo si lo registró otro— | Pagos | `movements:pay-pending-by-card` (nace con él; `RN-SEG-015`) |
+| `RF-MV-043` | Consultar los pagos —**cada intento, de cualquier persona y tipo**— | Pagos | `movements:list-payments` (nace con él; `RN-SEG-014`) |
 
 **Registrar y comprar son dos requerimientos y no uno**, y eso **se aparta del precedente** que `PM` y `CM` fijaron —«el alta es una, no dos»—. La razón por la que aquí no aplica no es el contenido de la venta sino **quién la pide y por dónde entra**: una la origina un funcionario sobre la cuenta de otro y exige `movements:create`; la otra la origina el interesado sobre la suya y no exige permiso ninguno, como `RF-SP-039` y `RF-PM-007`. Fundirlas daría un endpoint con **dos modelos de seguridad**, que es donde se cuela el que sobra.
 
@@ -377,7 +381,7 @@ La dependencia es **acíclica**: `MV` → `PM` → `SP`, y `MV` → `SP`. **El p
 |---|---|---|
 | **2 — Depósitos y FTD** | El dinero que entra a nombre de un cliente, y el primero de todos, que **habilita su cuenta** | Es lo único que saca a una cuenta de `FTD_PENDIENTE` (`RN-SP-026`). Hasta que exista, ese estado lo mueve un actor a mano con `RF-SP-028` |
 | **3 — Puntos** | **Escrita el 30-09-2026: §4.4.** Comprarlos y pagar con ellos: valor almacenado, con su tasa y su saldo | **Su saldo se deriva del libro y no se guarda.** Y **pagar con puntos no mueve caja aunque la venta valga lo mismo**, que es la costura que obliga a distinguir *cuánto vale* de *cuánto entró*. **Enmendado el 26-09-2026** (§4.3): los puntos son **un saldo aparte de la billetera** —no se retiran—, y su saldo **sí se guarda**, como copia de sus asientos que se puede reconstruir de ellos (`RN-MV-041`) |
-| **4 — Pasarela** | El cobro de verdad, y **conservar lo que la pasarela notifica tal como lo dice** | La notificación **se guarda antes de interpretarse** y la respuesta se da **antes** de trabajar; la idempotencia va **en el esquema** y no en el caso de uso, porque toda pasarela reentrega y la doble entrega no es el caso raro: es el normal |
+| **4 — Pasarela** | **Escrita el 01-10-2026 para la tarjeta, con Stripe: §4.6.** El cobro de verdad, y **conservar lo que la pasarela notifica tal como lo dice** | La notificación **se guarda antes de interpretarse** y la respuesta se da **antes** de trabajar; la idempotencia va **en el esquema** y no en el caso de uso, porque toda pasarela reentrega y la doble entrega no es el caso raro: es el normal |
 | **5 — Comisiones** | El devengo de toda la cadena al confirmar una venta, y su pago. **La compra de paquetes la hace inevitable de decidir**: una venta de paquete son varias líneas rebajadas, y `CM` tendrá que declarar si comisiona sobre lo que valía el producto o sobre lo que se cobró por él | **La base es el valor de cada línea**, no el total de la venta (decisión del responsable, 02-09-2026): `CM` resuelve la tasa por **(rol o persona, producto, fecha)**, de modo que una venta de tres productos con una cadena de tres niveles produce **nueve devengos**. Es más trabajo, y es lo único que impide que dos productos con tarifas distintas se promedien. El **override** —que comisione toda la cadena y no solo quien vendió— ya vive en `CM` como `RN-CM-011` |
 | **6 — Pagos, saldos y retiros** | **Escrita el 26-09-2026: §4.3.** El pago como intento, las cuentas de cada persona con sus asientos, el retiro, el abono de los lotes de `CM` y el bono | Una salida tiene **aprobación**, **saldo** y un perfil de riesgo propio, y por eso **no es un depósito con el signo cambiado**: el retiro es un tipo de movimiento con importe positivo, y la dirección del dinero la dicen **sus asientos**, no el signo del importe |
 
@@ -511,6 +515,55 @@ Lo pidió el responsable del proyecto el 01-10-2026: «crearemos cuentas bancari
 - **Un tope de cuentas por persona.** No se ha pedido ninguno.
 - **Los retiros pedidos antes del 01-10-2026** quedan sin destino: la copia no existe y no se inventa. Se pagan como hasta ahora.
 
+### 4.6 Etapa 4 — la tarjeta, por Stripe (01-10-2026)
+
+Lo pidió el responsable del proyecto el 01-10-2026: «la idea es que al pagar por tarjeta de crédito use Stripe, pero que los datos de la tarjeta se pidan en la app». Es **la primera pasarela**, y entra **solo para el método `CREDIT_CARD`**: los demás —`PSE`, `POINTS`, `GRATIS`, `MANUAL`— siguen como estaban, y `PSE` lo confirma todavía una persona.
+
+**Decisiones del responsable del proyecto, preguntadas antes de escribir:**
+
+| Pregunta | Decisión |
+|---|---|
+| ¿Dónde se escriben los datos de la tarjeta? | **En la app**, con el formulario que la pasarela publica para incrustarse (Stripe Elements). **El número viaja del navegador a la pasarela y nunca a esta API** (`RN-MV-057`) |
+| ¿En qué moneda se cobra? | **La del movimiento**, hoy USD, sin conversión |
+| ¿Qué se cobra así? | **Las compras propias** —producto y paquete, para uno mismo y por hotlink—, **volver a pagar** y **comprar puntos** |
+| ¿Y la venta que registra un funcionario, o la del alta por enlace? | **Admiten la tarjeta y nacen pendientes sin cobrar**: no hay nadie al otro lado para escribir la tarjeta. Quien compró la paga después desde su app (`RF-MV-042`) |
+| ¿Qué pasa con un reembolso o una disputa? | **Se registra y se marca en el pago**, sin revertir nada (`RN-MV-060`). Administración lo filtra en el libro (`RF-MV-006`) y decide a mano |
+| ¿Se guardan las tarjetas? | **No.** Se escribe en cada compra |
+| ¿Caduca un cobro sin terminar? | **No.** Queda pendiente hasta que se pague, o hasta que se anule la venta, que **lo cancela en la pasarela** |
+
+**El cobro, paso a paso.** Al registrarse un pago con `CREDIT_CARD` en una entrada en que quien compra es quien paga, el sistema **abre el cobro en la pasarela** —por el importe y la moneda del pago, con su clave de idempotencia— y guarda su identificador en `provider_reference` (`RN-MV-040`, que lo anunciaba desde el 26-09-2026). La respuesta devuelve **el secreto de cliente** del cobro, con el que la app pinta el formulario y lo confirma ante la pasarela. **Nada de eso confirma la venta**: la confirma la notificación firmada que la pasarela envía después (`RN-MV-058`), por el mismo camino que hoy recorre una persona en `RF-MV-003` —o en `RF-MV-028`, si es una compra de puntos—, con la entrega y el aviso a `CM` de siempre.
+
+**Una tarjeta rechazada no cierra el pago.** La pasarela deja reintentar **el mismo cobro** con otra tarjeta, y si el pago se diera por rechazado al primer intento, un acierto posterior llegaría para un pago ya cerrado. De modo que el rechazo de una tarjeta **se registra** —con lo que contestó el banco— y el pago **sigue pendiente**; la app vuelve a pedir la tarjeta sobre el mismo cobro (`RF-MV-042`). **El pago solo se rechaza si el cobro se cancela**: al anular la venta, o al cambiar de método con `RF-MV-018`, que desde hoy **cancela primero el cobro pendiente con tarjeta** en lugar de exigir que alguien lo rechace antes.
+
+**Por qué la notificación y no la app.** La app sabe que el formulario terminó, y no sabe si el dinero entró: un 3-D Secure abandonado, una red que se corta, una app manipulada. La pasarela **firma** cada notificación con un secreto que solo comparten ella y esta API, y **reenvía** las que no recibieron respuesta. Por eso la notificación es **la única fuente de verdad**, y por eso **se guarda antes de interpretarse** y **una sola vez** —su identificador es único en el esquema—, que es lo que la etapa 4 dejó decidido el 02-09-2026 (§4.2).
+
+**Lo que la tarjeta NO cambia:**
+
+- **Las reglas del pago** (`RN-MV-039`, `RN-MV-040`): a lo sumo uno pendiente y uno confirmado por movimiento, y del pago no se vuelve. **Un reembolso no vuelve el pago atrás**: lo marca (`RN-MV-060`).
+- **Los retiros siguen a mano** (§4.3, §4.5). La pasarela paga a cuentas de su propia red, no a los bancos y billeteras móviles de las cuentas de cobro.
+- **Confirmar y rechazar a mano** (`RF-MV-003`, `RF-MV-004`, `RF-MV-028`, `RF-MV-029`) **dejan de alcanzar a un pago que tiene cobro abierto en la pasarela** (`RN-MV-058`): dos fuentes de verdad sobre el mismo pago acabarían discrepando. Un pago con tarjeta **sin** cobro abierto —el que registró un funcionario y nadie empezó a pagar— sigue admitiéndolos.
+
+**Lo que esta sección deja abierto:**
+
+- **Revertir lo entregado y las comisiones** de una venta reembolsada o perdida en disputa. Hoy de `CONFIRMADA` no se sale (`RN-MV-005`); decidirlo es una etapa propia.
+- **Las tarjetas guardadas**, si se piden: un cliente de la pasarela por persona.
+- **`PSE` por la pasarela**, y cualquier otro método.
+- **Avisar por correo** de un reembolso o una disputa.
+
+### 4.7 Consultar los pagos (01-10-2026)
+
+Lo pidió el responsable del proyecto el 01-10-2026 —«un endpoint para ver todas las transacciones… las payments»—. **Cumple una promesa de §4.3** que ninguna lectura cumplía: el número que protegía la vieja venta `RECHAZADA` —cuánto se intenta cobrar y no entra— «sale de `payments` con más detalle que antes, porque cuenta intentos y no ventas». Hasta hoy los pagos solo se veían **dentro** del detalle de cada movimiento (`RF-MV-007`), y el libro (`RF-MV-006`) muestra el método del **último**.
+
+**Decisiones del responsable del proyecto, preguntadas antes de escribir:**
+
+| Pregunta | Decisión |
+|---|---|
+| ¿Quién lo ve? | **Solo administración**: todos los pagos, de cualquier persona. Ni vista propia ni alcance comercial |
+| ¿Qué tipos entran? | **Todos los que tienen pagos** —hoy la venta, la compra de puntos y el retiro—, con un filtro por tipo |
+| ¿Con qué se acota? | **Estado y medio de pago**, **periodo** sobre cuándo se intentó, **la persona** del movimiento y **el comprobante**, por fragmento. **Ni la incidencia ni la referencia de la pasarela**, que viajan en la fila |
+
+**La fila es el intento y no el movimiento**: una venta con tres rechazos y un confirmado son cuatro filas, y por eso es un requerimiento distinto del libro y no un parámetro suyo. Entra por `GET /api/v1/movements/payments` con un permiso propio, `movements:list-payments`, a `SUPERADMIN` y `ADMIN`. **Ninguna regla nueva**, y **no suma**: lo que entra y lo que sale conviven en la lista, y un total que los mezclara no respondería nada. Tripleta en [`specs/mv/043-consultar-pagos/`](../specs/mv/043-consultar-pagos/spec.md).
+
 ---
 
 ## 5. Reglas de negocio
@@ -575,6 +628,10 @@ Lo pidió el responsable del proyecto el 01-10-2026: «crearemos cuentas bancari
 | `RN-MV-054` | **Las entidades de cobro son un catálogo de la empresa, por país, y se desactivan en vez de borrarse** | Al registrar, consultar y editar entidades (`RF-MV-032` a `RF-MV-034`), y al registrar o usar una cuenta (`RF-MV-035`, `RF-MV-037`, `RF-MV-019`) | Decisión del responsable del proyecto, 01-10-2026. Cada entidad tiene un **código** único, inmutable y en mayúsculas (`BANCOLOMBIA`, `NEQUI`), un **nombre**, un **tipo** —`BANCO` o `BILLETERA_MOVIL`— y un **país**. El código y el tipo no se editan, porque las cuentas registradas dependen de ellos: un banco que pasara a ser billetera dejaría sus cuentas con un tipo de cuenta que ya no le corresponde. **No se borran: se desactivan**. Una entidad inactiva no se ofrece a las personas, no admite cuentas nuevas y **no admite retiros nuevos** hacia las cuentas que ya tiene; esas cuentas siguen existiendo y su dueño las ve marcadas, para cambiar de cuenta. El catálogo **nace vacío**: lo llena administración | **Alta** |
 | `RN-MV-055` | **Una cuenta de cobro es de su dueño y a su nombre, y una de ellas es la principal** | Al registrar, editar, dar de baja y consultar cuentas (`RF-MV-035` a `RF-MV-039`) | Decisión del responsable del proyecto, 01-10-2026. **El titular es el usuario**: el nombre y el documento no se escriben, se leen de su cuenta de usuario, y **quien no tiene documento no registra cuentas**. La entidad tiene que estar **activa y ser del país de la persona**. Lo que se escribe depende del tipo de la entidad: en un **banco**, el **tipo de cuenta** —`AHORROS` o `CORRIENTE`— y el **número**, de 4 a 20 dígitos; en una **billetera móvil**, solo el **número de celular**, de 7 a 15 dígitos, sin tipo de cuenta. **La misma entidad y el mismo número no se registran dos veces** para la misma persona. **Una sola principal** entre las vivas: la primera que se registra lo es sin pedirlo, marcar otra desmarca la anterior en el mismo acto, y **dar de baja la principal hace principal a la más antigua de las que quedan**. Se dan de baja **con borrado lógico** y no vuelven: el retiro que salió hacia una cuenta conserva su referencia. **Solo su dueño las registra, edita y da de baja**; una cuenta ajena responde como inexistente | **Crítica** |
 | `RN-MV-056` | **Un retiro dice a dónde se paga, y lo copia al pedirse** | Al solicitar un retiro (`RF-MV-019`) y al consultarlo, aprobarlo o negarlo (`RF-MV-007`, `RF-MV-020`, `RF-MV-021`) | Decisión del responsable del proyecto, 01-10-2026. **Enmienda `RF-MV-019`**: pedir un retiro exige una cuenta de cobro **propia, viva y de una entidad activa**. Se indica cuál, y si no se indica **va a la principal**; quien no tiene ninguna **no puede pedir un retiro** y el error lo dice. En la misma transacción en que retiene (`RN-MV-043`) se escribe **la copia del destino**: entidad, tipo de cuenta, número, nombre del titular y su documento, **tal como eran al pedir**, junto con la referencia a la cuenta. **La copia no cambia nunca**: editar o dar de baja la cuenta después no la toca (`RN-MV-001`). El detalle de un retiro publica su destino. Un retiro pedido antes de esta regla **no tiene destino**, y no se le inventa | **Crítica** |
+| `RN-MV-057` | **Los datos de la tarjeta no tocan esta API: los cobra la pasarela** | Al pagar con `CREDIT_CARD` (`RF-MV-040`, `RF-MV-042`) | Decisión del responsable del proyecto, 01-10-2026. **Ninguna ruta recibe un número de tarjeta, su fecha ni su código**: la app los entrega a la pasarela con su formulario incrustado, y esta API solo conoce **el cobro** —su identificador y su secreto de cliente—. Un pago con `CREDIT_CARD` abre un cobro en la pasarela **por el importe y la moneda del pago**, con **su clave de idempotencia** —de modo que repetir la petición no abre dos cobros— y con el pago y el movimiento anotados en él, y su identificador queda en `provider_reference`. **Se abre solo cuando quien paga está al otro lado**: en las compras propias, volver a pagar y comprar puntos; **no** al registrar un funcionario (`RF-MV-001`) ni en el alta por enlace (`RF-SP-045`), cuyo pago nace pendiente **sin** cobro, hasta que quien compró lo empieza con `RF-MV-042`. **Una tarjeta rechazada no cierra el pago** (§4.6). Si la pasarela no responde al abrir el cobro, **no se registra nada**: ni el movimiento ni el pago | **Crítica** |
+| `RN-MV-058` | **Un pago con cobro en la pasarela lo resuelve solo la pasarela** | Al confirmar o rechazar (`RF-MV-003`, `RF-MV-004`, `RF-MV-028`, `RF-MV-029`), al anular (`RF-MV-005`), al volver a pagar (`RF-MV-018`) y al recibir una notificación (`RF-MV-041`) | Decisión del responsable del proyecto, 01-10-2026. **El cobro exitoso que notifica la pasarela confirma el pago**, y con él el movimiento, por el mismo camino que la confirmación a mano: la venta entrega y avisa a `CM` (`RN-MV-049`); la compra de puntos abona (`RN-MV-051`). **Antes de confirmar se comprueba** que el importe y la moneda notificados son los del pago: si no, no se confirma nada y la notificación queda con su error. **El cobro cancelado rechaza el pago**; **la tarjeta rechazada, no** (§4.6). **Las cuatro operaciones manuales responden conflicto** sobre un pago con cobro abierto: no hay dos fuentes de verdad. **Anular la venta cancela el cobro** en la pasarela antes de cerrar el pago, y **volver a pagar con otro método** también; si la pasarela ya lo cobró, la operación se rechaza y el pago se confirma con la notificación | **Crítica** |
+| `RN-MV-059` | **La notificación se autentica por su firma, se guarda tal cual y se procesa una vez** | Al recibir una notificación (`RF-MV-041`) | Etapa 4, decidida el 02-09-2026 y escrita el 01-10-2026. La ruta es **pública** —la pasarela no tiene sesión— y **rechaza toda notificación cuya firma no verifique** con el secreto compartido, o cuya marca de tiempo sea demasiado vieja, **sin guardar nada**. Una firmada **se guarda entera antes de interpretarse**, y **su identificador es único en el esquema**: la misma notificación reentregada **no se procesa dos veces**. **Se responde en cuanto queda guardada**, y el proceso va después: si falla, la notificación queda pendiente y se reintenta, sin pedir a la pasarela que la reenvíe. **Un tipo de notificación que no se espera se guarda y se ignora** | **Crítica** |
+| `RN-MV-060` | **Un reembolso o una disputa se marcan en el pago, y no revierten nada** | Al recibir una notificación de reembolso o de disputa (`RF-MV-041`), y en el libro de administración (`RF-MV-006`) | Decisión del responsable del proyecto, 01-10-2026. El pago confirmado **sigue confirmado** —`RN-MV-039`: del pago no se vuelve— y gana **una incidencia**: `REEMBOLSADO` —con el importe devuelto, que puede ser parcial—, `EN_DISPUTA`, `DISPUTA_GANADA` o `DISPUTA_PERDIDA`, con su fecha. **La venta, lo entregado, los saldos y las comisiones no cambian.** Administración **filtra el libro por incidencia** y decide a mano: revertir es una etapa que no existe (§4.6) | **Alta** |
 
 ### 5.2 Por qué las críticas son críticas
 
@@ -734,6 +791,8 @@ Hasta hoy esta regla no distinguía: **toda** venta confirmada con un upgrade co
 | `movements:update-own-payout-account` | `movements` | `update-own-payout-account` | Editar una cuenta de cobro propia, o hacerla la principal (`RF-MV-037`). Por tipo de rol. **Sembrado por `V61`** (01-10-2026) |
 | `movements:delete-own-payout-account` | `movements` | `delete-own-payout-account` | Dar de baja una cuenta de cobro propia (`RF-MV-038`). Por tipo de rol. **Sembrado por `V61`** (01-10-2026) |
 | `movements:read-user-payout-accounts` | `movements` | `read-user-payout-accounts` | Consultar las cuentas de cobro de **cualquier** persona (`RF-MV-039`). A `SUPERADMIN` y `ADMIN`: es la lectura de administración, y no sigue la estructura comercial. **Sembrado por `V61`** (01-10-2026) |
+| `movements:pay-pending-by-card` | `movements` | `pay-pending-by-card` | Pagar con tarjeta un pago pendiente **propio**: retomar el cobro, o empezarlo si la venta la registró otro (`RF-MV-042`). Por tipo de rol (`RN-SEG-015`). **Sembrado por `V62`** (01-10-2026). **`RF-MV-041` no lleva permiso**: es pública y la autentica la firma |
+| `movements:list-payments` | `movements` | `list-payments` | Consultar **todos** los pagos —cada intento, de cualquier persona y tipo de movimiento— (`RF-MV-043`). A `SUPERADMIN` y `ADMIN`, explícito: es la lectura de administración. **No es `movements:read`**: el libro y los pagos son dos operaciones (`RN-SEG-014`). **Declarado y SIN SEMBRAR** (01-10-2026); lo sembrará `V63` |
 
 **Confirmar una compra de puntos no reutiliza `movements:confirm`** (30-09-2026). Son dos operaciones —una entrega lo vendido, la otra abona un saldo— y `RN-SEG-014` no deja que un permiso gobierne dos. Y **pagar con puntos no tiene permiso propio**: no es una operación, es un método dentro de la compra, y exigirlo aparte obligaría a conceder dos permisos para comprar una sola vez.
 
@@ -927,7 +986,10 @@ Mismo formato de código que `roles`, `memberships` y `products`: `^[A-Z][A-Z0-9
 | `name` | `varchar(100)` | No |
 | `is_active` | `boolean` | No |
 | `visibility` | `varchar(20)` | No |
+| `gateway` | `varchar(20)` | **Sí** |
 | `created_at` | `timestamptz` | No |
+
+**`gateway` dice qué pasarela cobra ese método** (01-10-2026, §4.6): `STRIPE` en `CREDIT_CARD`, y nulo en los demás, que confirma una persona o el propio sistema. Es una columna y no una constante en el código porque **el día de la segunda pasarela** —`PSE`, otro proveedor— lo que cambia es un dato, no el caso de uso.
 
 Se siembra por migración y **no se administra por API todavía** (§5.3). Lo mínimo para que una venta pueda decir con qué se pagó. **Desde el 26-09-2026 lo referencia `payments` y no `movements`** (`RN-MV-039`): con qué se pagó es de cada intento.
 
@@ -1027,6 +1089,10 @@ Se siembra por migración y **no se administra por API todavía** (§5.3). Lo m�
 | `uq_payout_accounts_numero` | `payout_accounts(user_id, institution_id, number)` **parcial**, `WHERE deleted_at IS NULL` | `RN-MV-055`. Dos peticiones simultáneas burlan la comprobación previa. Parcial, para que una cuenta dada de baja se pueda volver a registrar |
 | `uq_payout_accounts_principal` | `payout_accounts(user_id)` **parcial**, `WHERE is_principal AND deleted_at IS NULL` | `RN-MV-055`. Una sola principal. Cambiarla desmarca primero la anterior en la misma transacción, con la fila de la persona bloqueada |
 | `ck_payout_accounts_baja` | `NOT (is_principal AND deleted_at IS NOT NULL)` | `RN-MV-055`. Una cuenta dada de baja no puede seguir siendo la principal |
+| `uq_gateway_events_externo` | `gateway_events(gateway, external_id)` | `RN-MV-059`. Una notificación, un proceso, aunque llegue diez veces |
+| `ck_gateway_events_outcome` | `outcome` en (`PROCESADO`, `IGNORADO`, `ERROR`) o nulo, y `processed_at` presente si y solo si `outcome` lo está | Un evento procesado sin fecha, o fechado sin desenlace, no dice qué pasó |
+| `ck_payments_incident` | `incident` en (`REEMBOLSADO`, `EN_DISPUTA`, `DISPUTA_GANADA`, `DISPUTA_PERDIDA`) o nulo; `(incident IS NULL) = (incident_at IS NULL)`; `refunded_amount` presente solo con `REEMBOLSADO` y mayor que cero; y la incidencia solo en un pago `CONFIRMADO` | `RN-MV-060`. Lo que cruza a la venta lo sostiene el caso de uso |
+| `ck_payment_methods_gateway` | `gateway` en (`STRIPE`) o nulo | El dominio; crece con cada pasarela |
 | `tg_movement_entries_cuadre` | Disparador de restricción **`DEFERRABLE INITIALLY DEFERRED`**: los asientos de cada `(movement_id, event)` suman cero y son de cuentas de la misma moneda | `RN-MV-042`. Un `CHECK` ve una fila, y esto es la suma de varias que solo tiene sentido al cerrar la transacción |
 
 **`RN-MV-019` no aparece en esa lista, y es a propósito.** No hay nada que declarar: la exclusión **no se comprueba en ninguna operación**, solo se publica. Lo único que el esquema sostiene es que la relación no se duplique y que apunte a filas que existen.
@@ -1050,11 +1116,18 @@ Se siembra por migración y **no se administra por API todavía** (§5.3). Lo m�
 | `confirmed_at` | `timestamptz` | **Sí** | — |
 | `rejected_at` | `timestamptz` | **Sí** | — |
 | `rejection_reason` | `varchar(500)` | **Sí** | — |
+| `incident` | `varchar(20)` | **Sí** | — |
+| `incident_at` | `timestamptz` | **Sí** | — |
+| `refunded_amount` | `numeric(14,2)` | **Sí** | — |
 | `created_at` | `timestamptz` | No | — |
+
+**`incident`, `incident_at` y `refunded_amount` son de la pasarela** (`RN-MV-060`, 01-10-2026): lo que pasó **después** de confirmar —`REEMBOLSADO`, `EN_DISPUTA`, `DISPUTA_GANADA`, `DISPUTA_PERDIDA`—, que **no cambia el estado del pago**. Van juntas las dos primeras; el importe devuelto, solo con `REEMBOLSADO`. Son **la única excepción** a que de un pago solo cambie el estado y una vez: la incidencia puede pasar de `EN_DISPUTA` a su desenlace, y un segundo reembolso parcial sube el importe.
 
 **Cada intento de cobrar o de pagar un movimiento** (`RN-MV-039`, 26-09-2026). **No lleva `updated_at` ni `deleted_at`**, como `movements`: lo único que cambia es su estado, y una sola vez.
 
 **Se llama `payments` y no `transactions`**, por decisión del responsable del proyecto: en un backend con Spring, «transacción» es `@Transactional`, y el nombre de una tabla tiene que decir qué es su fila sin que haya que preguntarlo.
+
+**Un índice más, `ix_payments_occurred_at`** sobre `(occurred_at DESC, id DESC)` (01-10-2026, `V63`, diseñado): el orden del listado de pagos (`RF-MV-043`), que ninguno de los tres que la tabla tiene —por movimiento, por método, por referencia— sirve.
 
 **`provider_reference` admite nulo** porque el pago que confirma una persona mirando un extracto no tiene referencia de nadie; el día de la pasarela será lo que se le pregunte (`RN-MV-040`). **`occurred_at` es cuándo se intentó**, y se separa de `created_at` con el argumento de §7.1. **`rejection_reason` es lo que contestó quien cobra**, o el motivo de la anulación de la venta cuando el pago se cierra por ella.
 
@@ -1156,6 +1229,24 @@ Se siembra por migración y **no se administra por API todavía** (§5.3). Lo m�
 
 **A dónde se paga un retiro, tal como era al pedirlo** (`RN-MV-056`, 01-10-2026). **Una fila por retiro**, con el movimiento como clave: un retiro tiene a lo sumo un destino, y el esquema lo dice sin un índice aparte. **Es una tabla y no columnas de `movements`** porque solo la usa un tipo de movimiento, y nueve columnas nulas en todas las ventas serían nueve sitios donde una venta podría llevar un destino que no le corresponde. **No se edita ni se borra**: es parte del retiro, y `RN-MV-001` vale para ella. `holder_document_type` guarda **la abreviatura** del tipo de documento (`CC`, `CE`) y no su referencia, porque la copia tiene que leerse igual aunque el catálogo cambie.
 
+### 7.14 `gateway_events`
+
+| Columna | Tipo | Nula | Referencia |
+|---|---|---|---|
+| `id` | `uuid` | No | — |
+| `gateway` | `varchar(20)` | No | — |
+| `external_id` | `varchar(100)` | No | — |
+| `type` | `varchar(100)` | No | — |
+| `payload` | `jsonb` | No | — |
+| `payment_id` | `uuid` | **Sí** | `payments` |
+| `received_at` | `timestamptz` | No | — |
+| `processed_at` | `timestamptz` | **Sí** | — |
+| `outcome` | `varchar(20)` | **Sí** | — |
+| `error` | `varchar(500)` | **Sí** | — |
+| `attempts` | `smallint` | No | — |
+
+**Lo que notifica la pasarela, tal como lo dice** (`RN-MV-059`, 01-10-2026). **`(gateway, external_id)` es único**: es lo que hace que una notificación reentregada no se procese dos veces, y vive en el esquema porque la reentrega no es el caso raro sino el normal (§4.2). `payload` es **el cuerpo entero**, sin interpretar: si mañana se entiende mejor un evento, se vuelve a leer. `payment_id` se rellena al procesar, cuando el evento resuelve un pago. `outcome` es `PROCESADO`, `IGNORADO` —un tipo que no se espera— o `ERROR`; nulo mientras está pendiente. `attempts` cuenta los procesos, para no reintentar para siempre lo que no va a salir. **No se edita ni se borra fuera de las suites**: es la constancia de lo que dijo quien cobra.
+
 ---
 
 ## 8. Control de cambios
@@ -1225,3 +1316,6 @@ Se siembra por migración y **no se administra por API todavía** (§5.3). Lo m�
 | 0.61.0 | 01-10-2026 | **Cuentas de cobro: a dónde se paga un retiro** (§4.5), a petición del responsable del proyecto —«crearemos cuentas bancarias para los usuarios para solicitar retiros de disponible y saber a dónde enviar»— y con sus decisiones, preguntadas antes de escribir: **bancos y billeteras móviles**, sin cripto; la entidad sale de **un catálogo que administra la empresa, por país** (`RN-MV-054`); **varias cuentas por persona, una principal**, sin verificación, y **el titular es siempre la propia persona**, con nombre y documento leídos de su usuario (`RN-MV-055`); **la cuenta es obligatoria al pedir un retiro**, y el retiro **copia** el destino, de modo que editar o dar de baja la cuenta después no lo cambia (`RN-MV-056`); administración consulta las cuentas de cualquiera con un permiso propio. **Revierte** lo que §4.3 dejó para la pasarela de salida —«los datos bancarios no se guardan todavía»— y **enmienda `RF-MV-019`**, con un cambio rompedor del contrato: el retiro sin cuenta deja de admitirse. Nacen el submódulo **Cuentas de cobro** (§2), `RF-MV-032` a `RF-MV-039`, `RN-MV-054` a `RN-MV-056` y ocho permisos **declarados y sin sembrar** (§6). §7 diseña `payout_institutions`, `payout_accounts` y `withdrawal_destinations` (§7.11 a §7.13). Sin tripletas ni migración todavía | Responsable del proyecto |
 | 0.62.0 | 01-10-2026 | **Las cuentas de cobro tienen tripleta**: [`specs/mv/032`](../specs/mv/032-registrar-entidad-de-cobro/spec.md) a [`039`](../specs/mv/039-consultar-cuentas-de-cobro-de-usuario/spec.md) (`CA-MV-358` a `CA-MV-414`), y las enmiendas de `RF-MV-019` (spec 0.2.0, `CA-MV-415` a `CA-MV-423`) y `RF-MV-007` (spec 0.3.0, `CA-MV-424` y `CA-MV-425`). Tres decisiones de las tripletas que conviene tener aquí: **la principal pasa a la más antigua** al dar de baja la que lo era; **una cuenta de entidad inactiva no se edita**, solo se da de baja; y **las escrituras sobre las cuentas de una persona se serializan** con un bloqueo consultivo por persona. `SP` gana dos interfaces de lectura: `CountryCatalog` y `PayoutHolderLookup`. Sin cambio de reglas. | Responsable técnico |
 | 0.63.0 | 01-10-2026 | **Las cuentas de cobro están construidas** (issue [#157](https://github.com/NexusPro-Dev/backend/issues/157)): `V61` escribe las tres tablas de §7.11 a §7.13 y siembra los ocho permisos de §6; `PayoutController` publica las ocho rutas, y el retiro y su detalle publican el destino. Sin cambio de reglas. **Dos cosas que la construcción decidió**: la unicidad del código de una entidad la resuelve `INSERT … ON CONFLICT DO NOTHING`, sin abortar la transacción; y la cuenta repetida se comprueba **bajo el bloqueo por persona**, con el índice parcial como segunda defensa. | Responsable técnico |
+| 0.64.0 | 01-10-2026 | **Etapa 4, escrita para la tarjeta: Stripe** (§4.6), a petición del responsable del proyecto —«al pagar por tarjeta de crédito use Stripe, pero que los datos de la tarjeta se pidan en la app»— y con sus decisiones, preguntadas antes de escribir: **los datos de la tarjeta no tocan esta API** (`RN-MV-057`); cobra **en la moneda del movimiento**; alcanza a **las compras propias, volver a pagar y comprar puntos**, y la venta de un funcionario o del alta por enlace nace pendiente **sin cobro** hasta que quien compró lo empieza; **reembolsos y disputas se marcan y no revierten** (`RN-MV-060`); sin tarjetas guardadas y sin caducidad. **La notificación firmada es la única fuente de verdad** (`RN-MV-058`, `RN-MV-059`): se guarda antes de interpretarse y una sola vez, y las operaciones manuales dejan de alcanzar a un pago con cobro abierto. **Una tarjeta rechazada no cierra el pago**: la pasarela deja reintentar el mismo cobro, y el pago se rechaza solo si el cobro se cancela —al anular la venta, o al **volver a pagar con otro método**, que desde hoy cancela primero el cobro pendiente—. Nacen `RF-MV-040` a `RF-MV-042`, `RN-MV-057` a `RN-MV-060` y `movements:pay-pending-by-card`, **declarado y sin sembrar**. §7 gana `payment_methods.gateway`, la incidencia de `payments` y `gateway_events` (§7.14). Se enmiendan, por la tripleta de cada uno, `RF-MV-002`, `RF-MV-011` a `RF-MV-013` (devuelven el secreto del cobro), `RF-MV-003`, `RF-MV-004`, `RF-MV-028`, `RF-MV-029` (`RN-MV-058`), `RF-MV-005` (cancela el cobro), `RF-MV-006` (filtro por incidencia), `RF-MV-018` (cancela el cobro con tarjeta pendiente) y `RF-MV-027`. Sin tripletas ni migración todavía | Responsable del proyecto |
+| 0.65.0 | 01-10-2026 | **Nace `RF-MV-043`, consultar los pagos** (§4.7), a petición del responsable del proyecto y con sus decisiones, preguntadas antes de escribir: **solo administración**, **todos los tipos que tienen pagos** con filtro por tipo, y como filtros estado, medio, periodo, persona y comprobante. **La fila es el intento**, y cumple lo que §4.3 prometía —cuánto se intenta cobrar y no entra—. Permiso propio `movements:list-payments` (§6, sin sembrar) y el índice `ix_payments_occurred_at` (§7.7, diseñado), los dos para `V63`. Tripleta escrita el mismo día (`CA-MV-480` a `CA-MV-494`). | Responsable del proyecto |
+| 0.66.0 | 01-10-2026 | **La tarjeta por Stripe está construida** (issue [#161](https://github.com/NexusPro-Dev/backend/issues/161), `V62`). Sin cambio de reglas. **Tres cosas que la construcción decidió**: la pasarela se llama por su API HTTP, sin su biblioteca (`architecture.md` §15.4); los rechazos del cobro llevan el código de la regla —`RN-MV-057`, `RN-MV-059`— porque entran por cinco rutas con numeraciones distintas, como los de `RN-MV-052`; y la notificación repetida de un pago **ya confirmado** queda `IGNORADO`, no `ERROR`. | Responsable técnico |

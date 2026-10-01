@@ -11,6 +11,8 @@ import com.factech.nexus.modules.products.domain.repository.ProductQueryReposito
 import com.factech.nexus.modules.products.domain.repository.ProductRepository;
 import com.factech.nexus.modules.system.currencies.application.CurrencyCatalog;
 import com.factech.nexus.modules.system.currencies.application.CurrencyCatalog.CurrencyView;
+import com.factech.nexus.modules.system.memberships.application.MembershipCatalog;
+import com.factech.nexus.modules.system.memberships.application.MembershipCatalog.MembershipView;
 import com.factech.nexus.shared.audit.AuditEnums.ChangeAction;
 import com.factech.nexus.shared.audit.AuditEvents.ChangeEvent;
 import com.factech.nexus.shared.audit.AuditWriter;
@@ -76,6 +78,7 @@ public class UpdateProductService {
   private final ProductExchangeResolver conversiones;
   private final ProductLinkReader enlaces;
   private final ProductLinkRepository enlacesEscritura;
+  private final MembershipCatalog membresias;
 
   @Autowired
   public UpdateProductService(
@@ -85,7 +88,8 @@ public class UpdateProductService {
       AuditWriter auditoria,
       ProductExchangeResolver conversiones,
       ProductLinkReader enlaces,
-      ProductLinkRepository enlacesEscritura) {
+      ProductLinkRepository enlacesEscritura,
+      MembershipCatalog membresias) {
     this(
         productos,
         consultas,
@@ -94,6 +98,7 @@ public class UpdateProductService {
         conversiones,
         enlaces,
         enlacesEscritura,
+        membresias,
         Clock.systemUTC());
   }
 
@@ -105,6 +110,7 @@ public class UpdateProductService {
       ProductExchangeResolver conversiones,
       ProductLinkReader enlaces,
       ProductLinkRepository enlacesEscritura,
+      MembershipCatalog membresias,
       Clock reloj) {
     this.productos = productos;
     this.consultas = consultas;
@@ -113,6 +119,7 @@ public class UpdateProductService {
     this.conversiones = conversiones;
     this.enlaces = enlaces;
     this.enlacesEscritura = enlacesEscritura;
+    this.membresias = membresias;
     this.reloj = reloj;
   }
 
@@ -497,8 +504,9 @@ public class UpdateProductService {
     // `RN-PM-051`: la directa QUE QUEDA, contra el precio y la moneda que
     // quedan — también cuando la directa no viaja: bajar el precio por debajo
     // de una directa fija se rechaza entero (`CA-PM-414`). Que el producto es
-    // FTD no se relee: el tipo y las membresías no se corrigen (`RN-PM-001`),
-    // de modo que basta con que la guardada sea nula (`plan.md` §12).
+    // FTD se calcula con la misma definición que el alta, y NO con «la guardada
+    // es nula»: una fila sin directa que no es FTD —la semilla de dev la dejaba
+    // así— quedaba tomada por FTD y rechazaba toda directa con `VAL-022`.
     if (tocaDirecta && peticion.directCommission().valor() == null) {
       String mensaje = "La comisión por venta directa no puede quedar vacía.";
       throw new ValidationException(
@@ -509,10 +517,27 @@ public class UpdateProductService {
         tocaDirecta ? peticion.directCommission().valor().toDomain() : guardada;
     DirectCommissionRules.verificar(
         directaFinal,
-        guardada == null,
+        esFtd(producto),
         precioFinal,
         moneda.decimalPlaces(),
         DirectCommissionRules.EDICION);
+  }
+
+  /**
+   * `RN-CM-036`, con {@link Product#esFtd}: el tipo y las membresías no se corrigen (`RN-PM-001`),
+   * de modo que se miden las guardadas. La membresía solo se lee si puede ser un FTD.
+   */
+  private boolean esFtd(Product producto) {
+    UUID origen = producto.getSourceMembershipId();
+    if (!Product.esFtd(
+        producto.getType(),
+        origen,
+        producto.getTargetMembershipId(),
+        Product.CODIGO_MEMBRESIA_SUELO)) {
+      return false;
+    }
+    String codigo = membresias.find(origen).map(MembershipView::code).orElse(null);
+    return Product.esFtd(producto.getType(), origen, producto.getTargetMembershipId(), codigo);
   }
 
   /** La directa pedida como valor del dominio, conservando si viajó o no. */

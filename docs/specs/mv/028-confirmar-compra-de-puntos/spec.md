@@ -4,11 +4,12 @@
 |---|---|
 | Requerimiento | `RF-MV-028` |
 | Módulo | `MV` — Movimientos |
-| Versión | 0.1.0 |
+| Versión | 0.2.0 |
 | Estado | **Aprobada** |
 | Autor | Responsable técnico |
 | Aprobada por | Responsable del proyecto |
 | Fecha de aprobación | 30-09-2026 |
+| Enmendada el | 01-10-2026 — **una compra con cobro abierto en la pasarela no se confirma a mano** (`RN-MV-058`). Ver §14.2 |
 
 !!! info "Qué va en este documento"
 
@@ -161,8 +162,23 @@ Ninguna.
 
 ---
 
+## 14.2 La tarjeta por Stripe — enmienda del 01-10-2026
+
+Desde el 01-10-2026 ([`requirements/mv.md`](../../../requirements/mv.md) v0.64.0 §4.6) confirmar a mano una compra de puntos **cuyo pago tiene cobro abierto** responde **conflicto**: la confirma la notificación de la pasarela, que **abona los puntos** por el mismo camino (`RF-MV-041`). Sin cobro, se confirma a mano como siempre.
+
+| ID | Situación | Resultado |
+|---|---|---|
+| `EX-005` | El pago tiene cobro abierto en la pasarela | Conflicto. Nada cambia |
+
+| ID | Criterio |
+|---|---|
+| `CA-MV-478` | Confirmar a mano una compra con **cobro abierto** responde conflicto y **no abona** nada; sin cobro, se confirma como siempre |
+
+---
+
 ## 15. Control de cambios
 
 | Versión | Fecha | Cambio | Autor |
 |---|---|---|---|
 | 0.1.0 | 30-09-2026 | Primera versión, con la etapa 3 de `MV` ([`requirements/mv.md`](../../../requirements/mv.md) v0.54.0 §4.4). **Operación propia**, no la confirmación de la venta; abona los puntos congelados, con referencia opcional. Criterios `CA-MV-318` a `CA-MV-325`. | Responsable del proyecto |
+| 0.2.0 | 01-10-2026 | **La tarjeta por Stripe** ([`requirements/mv.md`](../../../requirements/mv.md) v0.64.0 §4.6): **una compra con cobro abierto en la pasarela no se confirma a mano** (`RN-MV-058`). Criterios `CA-MV-478`. | Responsable del proyecto |
