@@ -1723,9 +1723,10 @@
         },
         "type" : "object"
       },
-      "Confirmation" : {
+      "ConfirmPaymentRequest" : {
         "properties" : {
           "providerReference" : {
+            "description" : "La referencia del extracto o de la transferencia. Opcional, hasta 120 caracteres; en blanco equivale a no darla.",
             "type" : "string"
           }
         },
@@ -6545,14 +6546,6 @@
         "properties" : {
           "reason" : {
             "description" : "Por qué no entró el cobro. Obligatorio, hasta 500 caracteres.",
-            "type" : "string"
-          }
-        },
-        "type" : "object"
-      },
-      "Rejection" : {
-        "properties" : {
-          "reason" : {
             "type" : "string"
           }
         },
@@ -15344,6 +15337,117 @@
         "x-required-permission" : "movements:retry-payment"
       }
     },
+    "/api/v1/movements/payments/{paymentId}/confirmation" : {
+      "post" : {
+        "description" : "**Permiso requerido:** `movements:confirm-payment`. Sin él, `403` (`AUTH-002`).\n\nDice **«este pago entró»**, con cualquier método, y **su movimiento lo sigue** en el\nmismo acto (`RF-MV-044`, `RN-MV-061`):\n\n- **El pago de una venta** → la venta pasa a `CONFIRMADA` y **entrega lo que se pueda\n  entregar** (`RF-MV-003`): lo automático queda `ENTREGADA` —un upgrade concede la\n  membresía, salvo que baje de nivel: entonces `RETENIDA` con `deliveryNote`—, y lo\n  manual queda `PENDIENTE` hasta que quien lo compró lo active. Y avisa a comisiones.\n- **El pago de una compra de puntos** → la compra pasa a `CONFIRMADA` y **se abonan los\n  puntos congelados al comprar**, no los de la tasa de hoy (`RF-MV-028`).\n\nCuerpo **opcional**: `providerReference`, la referencia del extracto, que se guarda en\nel pago. Responde **el detalle del movimiento**, con la forma de\n`GET /api/v1/movements/{id}`.\n\n**Confirmar dos veces confirma una vez**: el segundo intento —o una confirmación y un\nrechazo a la vez— recibe `409` diciendo el estado del pago, y nada cambia.\n\n**No alcanza a un pago con cobro abierto en la pasarela** (`RN-MV-058`): lo confirma\nsu notificación. Un pago con tarjeta sin cobro —el que registró un funcionario— se\nconfirma aquí. **Ni al pago de un retiro**, que se resuelve al aprobarlo.\n",
+        "operationId" : "confirmar",
+        "parameters" : [ {
+          "in" : "path",
+          "name" : "paymentId",
+          "required" : true,
+          "schema" : {
+            "format" : "uuid",
+            "type" : "string"
+          }
+        } ],
+        "requestBody" : {
+          "content" : {
+            "application/json" : {
+              "schema" : {
+                "$ref" : "#/components/schemas/ConfirmPaymentRequest"
+              }
+            }
+          }
+        },
+        "responses" : {
+          "200" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/SaleResponse"
+                }
+              }
+            },
+            "description" : "El movimiento, con el pago confirmado."
+          },
+          "400" : {
+            "description" : "Identificador malformado (`VAL-001`) o referencia de más de 120 caracteres (`VAL-002`)"
+          },
+          "401" : {
+            "description" : "Token ausente o inválido (`AUTH-001`)"
+          },
+          "403" : {
+            "description" : "Autenticado sin `movements:confirm-payment` (`AUTH-002`)"
+          },
+          "404" : {
+            "description" : "No existe un pago con ese identificador (`EX-001`)"
+          },
+          "409" : {
+            "description" : "Es el pago de un retiro (`EX-002`), no está pendiente —el mensaje dice su estado— (`EX-003`), o tiene un cobro abierto en la pasarela (`EX-004`). Nada cambió."
+          },
+          "500" : {
+            "description" : "Entregar o abonar falló; nada quedó escrito (`ERR-500`)"
+          }
+        },
+        "summary" : "Confirmar un pago pendiente",
+        "tags" : [ "Movimientos" ],
+        "x-required-permission" : "movements:confirm-payment"
+      }
+    },
+    "/api/v1/movements/payments/{paymentId}/rejection" : {
+      "post" : {
+        "description" : "**Permiso requerido:** `movements:reject-payment`. Sin él, `403` (`AUTH-002`).\n\nDice **«este pago no entró»**, con cualquier método: el pago pasa a `RECHAZADO` con el\ninstante y el motivo, y **su movimiento lo sigue** según su tipo (`RF-MV-045`,\n`RN-MV-061`):\n\n- **El pago de una venta** → la venta **sigue `PENDIENTE`**, y quien compró la puede\n  volver a pagar (`RF-MV-004`, `RF-MV-018`).\n- **El pago de una compra de puntos** → la compra queda **`RECHAZADA`**, con el mismo\n  motivo. Es final: quien quiera los puntos compra otra vez (`RF-MV-029`).\n\n`reason` es obligatorio, hasta 500 caracteres. Responde **el detalle del movimiento**.\n**Rechazar no es anular**: anular cierra la venta; rechazar cierra un intento de\ncobrarla.\n\n**No alcanza a un pago con cobro abierto en la pasarela** (`RN-MV-058`) **ni al pago de\nun retiro**, que se niega por su propia ruta.\n",
+        "operationId" : "rechazar",
+        "parameters" : [ {
+          "in" : "path",
+          "name" : "paymentId",
+          "required" : true,
+          "schema" : {
+            "format" : "uuid",
+            "type" : "string"
+          }
+        } ],
+        "requestBody" : {
+          "content" : {
+            "application/json" : {
+              "schema" : {
+                "$ref" : "#/components/schemas/RejectPaymentRequest"
+              }
+            }
+          }
+        },
+        "responses" : {
+          "200" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/SaleResponse"
+                }
+              }
+            },
+            "description" : "El movimiento, con el pago rechazado."
+          },
+          "400" : {
+            "description" : "Identificador malformado (`VAL-001`), motivo vacío (`VAL-002`) o de más de 500 caracteres (`VAL-003`)"
+          },
+          "401" : {
+            "description" : "Token ausente o inválido (`AUTH-001`)"
+          },
+          "403" : {
+            "description" : "Autenticado sin `movements:reject-payment` (`AUTH-002`)"
+          },
+          "404" : {
+            "description" : "No existe un pago con ese identificador (`EX-001`)"
+          },
+          "409" : {
+            "description" : "Es el pago de un retiro (`EX-002`), no está pendiente —el mensaje dice su estado— (`EX-003`), o tiene un cobro abierto en la pasarela (`EX-004`). Nada cambió."
+          }
+        },
+        "summary" : "Rechazar un pago pendiente",
+        "tags" : [ "Movimientos" ],
+        "x-required-permission" : "movements:reject-payment"
+      }
+    },
     "/api/v1/movements/payout-institutions" : {
       "get" : {
         "description" : "**Permiso requerido:** `movements:read-payout-institutions`. Sin él, `403` (`AUTH-002`).\n\nEl catálogo de bancos y billeteras móviles (`RF-MV-033`), ordenado por país y por\nnombre, sin paginar. **Por omisión, solo las activas**, que son las que se ofrecen; las\ninactivas se piden con `status`. Para el formulario de una cuenta, filtre por el país\nde la persona: solo esas se admiten al registrarla.\n",
@@ -15894,216 +15998,6 @@
         "x-required-permission" : "movements:read-detail"
       }
     },
-    "/api/v1/movements/{id}/confirmation" : {
-      "post" : {
-        "description" : "**Permiso requerido:** `movements:confirm`. Sin él, `403` (`AUTH-002`).\n\nDa por **pagada** una venta pendiente y, en el mismo acto, **entrega lo que se\npueda entregar**. Sin cuerpo: confirmar es un hecho, no un formulario — el importe\nes el de la venta, la fecha es ahora y el método ya está en ella.\n\n**Lo que pasa con cada línea** (`RN-MV-030`), y se ve en la respuesta:\n- `implementation: MANUAL` → queda `PENDIENTE` de autorización (`RN-MV-021`). La\n  venta confirma igual.\n- `AUTOMATICA` y **no** es un upgrade → `ENTREGADA`, con `deliveredAt` ahora.\n- `AUTOMATICA` y es un upgrade → **se concede la membresía** destino del producto,\n  con la vigencia copiada en la línea **contada desde la confirmación** (`RN-MV-020`),\n  cerrando la que la persona tenía — también al renovar el mismo nivel—; **salvo que\n  la comprada sea inferior a la vigente en ese instante**: entonces la venta cobra\n  igual y la línea queda `RETENIDA` con `deliveryNote` (`RN-MV-029`). Nunca baja de\n  nivel a nadie.\n\n**Confirmar dos veces concede una vez.** La transición es atómica y condicionada al\nestado anterior: la segunda confirmación —o un webhook reentregado— recibe `409`\ndiciendo en qué estado está, y **no cambia nada**.\n\n**Lo que NO hace**: no saca a nadie de `FTD_PENDIENTE` (eso lo hace el primer\ndepósito), no devenga comisiones, no adjunta comprobante y no se puede deshacer\n(`RN-MV-005`). **Tampoco espera a la atribución**: una venta `VALIDAR_COMISIONES`\nse confirma y entrega igual, y sigue por validar — lo que esperará a `VALIDADO` es\nla comisión (`RN-MV-035`).\n\n**Desde el 01-10-2026, no alcanza a un pago con cobro abierto en la pasarela**\n(`RN-MV-058`): lo resuelve su notificación, y responde `409` (`EX-007`). Un pago con tarjeta sin cobro\n—el que registró un funcionario— se sigue resolviendo a mano.\n",
-        "operationId" : "confirmar",
-        "parameters" : [ {
-          "in" : "path",
-          "name" : "id",
-          "required" : true,
-          "schema" : {
-            "format" : "uuid",
-            "type" : "string"
-          }
-        } ],
-        "responses" : {
-          "200" : {
-            "content" : {
-              "*/*" : {
-                "schema" : {
-                  "$ref" : "#/components/schemas/SaleResponse"
-                }
-              }
-            },
-            "description" : "Confirmada. El cuerpo dice qué se entregó, qué espera y qué se retuvo."
-          },
-          "400" : {
-            "description" : "Identificador malformado (`VAL-001`)"
-          },
-          "401" : {
-            "description" : "Token ausente o inválido (`AUTH-001`)"
-          },
-          "403" : {
-            "description" : "Sin el permiso `movements:confirm`."
-          },
-          "404" : {
-            "description" : "No existe (`EX-001`)"
-          },
-          "409" : {
-            "description" : "No está pendiente (`EX-002`): ya confirmada, rechazada o anulada. El mensaje dice en qué estado está, y nada cambió."
-          },
-          "500" : {
-            "description" : "Conceder la membresía falló; nada quedó escrito (`ERR-500`)"
-          }
-        },
-        "summary" : "Confirmar el pago de una venta pendiente",
-        "tags" : [ "Movimientos" ],
-        "x-required-permission" : "movements:confirm"
-      }
-    },
-    "/api/v1/movements/{id}/points-purchase-confirmation" : {
-      "post" : {
-        "description" : "**Permiso requerido:** `movements:confirm-points-purchase`. Sin él, `403` (`AUTH-002`).\n\nDeclara que **el dinero de una compra de puntos pendiente entró** y, en el mismo\nacto, **abona los puntos** en la cuenta de quien compró, desde la cuenta de puntos\nemitidos de la empresa (`RF-MV-028`). Se abonan **los puntos congelados al\ncomprar**, no los de la tasa de hoy. `providerReference` es opcional. Confirmar dos\nveces, o una compra rechazada, es `409` y no abona nada.\n\n**Desde el 01-10-2026, no alcanza a un pago con cobro abierto en la pasarela**\n(`RN-MV-058`): lo resuelve su notificación, y responde `409` (`EX-005`). Un pago con tarjeta sin cobro\n—el que registró un funcionario— se sigue resolviendo a mano.\n",
-        "operationId" : "confirmarCompra",
-        "parameters" : [ {
-          "in" : "path",
-          "name" : "id",
-          "required" : true,
-          "schema" : {
-            "format" : "uuid",
-            "type" : "string"
-          }
-        } ],
-        "requestBody" : {
-          "content" : {
-            "application/json" : {
-              "schema" : {
-                "$ref" : "#/components/schemas/Confirmation"
-              }
-            }
-          }
-        },
-        "responses" : {
-          "200" : {
-            "content" : {
-              "*/*" : {
-                "schema" : {
-                  "$ref" : "#/components/schemas/PointsPurchaseResponse"
-                }
-              }
-            },
-            "description" : "Confirmada, con su pago."
-          },
-          "400" : {
-            "description" : "Referencia de más de 120 caracteres"
-          },
-          "401" : {
-            "description" : "Sin token (`AUTH-001`)"
-          },
-          "403" : {
-            "description" : "Sin `movements:confirm-points-purchase` (`AUTH-002`)"
-          },
-          "404" : {
-            "description" : "No existe, o no es una compra de puntos (`EX-001`)"
-          },
-          "409" : {
-            "description" : "No está pendiente, con el estado (`EX-002`)"
-          }
-        },
-        "summary" : "Confirmar el pago de una compra de puntos",
-        "tags" : [ "Puntos" ],
-        "x-required-permission" : "movements:confirm-points-purchase"
-      }
-    },
-    "/api/v1/movements/{id}/points-purchase-rejection" : {
-      "post" : {
-        "description" : "**Permiso requerido:** `movements:reject-points-purchase`. Sin él, `403` (`AUTH-002`).\n\nDeclara que **el dinero de una compra de puntos pendiente no entró** (`RF-MV-029`): la\ncompra y su pago quedan `RECHAZADA`/`RECHAZADO` con el motivo, obligatorio. **Es\nfinal**: al revés que una venta, una compra de puntos rechazada no se vuelve a pagar;\nquien quiera los puntos compra otra vez. No se mueve ningún saldo.\n\n**Desde el 01-10-2026, no alcanza a un pago con cobro abierto en la pasarela**\n(`RN-MV-058`): lo resuelve su notificación, y responde `409` (`EX-005`). Un pago con tarjeta sin cobro\n—el que registró un funcionario— se sigue resolviendo a mano.\n",
-        "operationId" : "rechazarCompra",
-        "parameters" : [ {
-          "in" : "path",
-          "name" : "id",
-          "required" : true,
-          "schema" : {
-            "format" : "uuid",
-            "type" : "string"
-          }
-        } ],
-        "requestBody" : {
-          "content" : {
-            "application/json" : {
-              "schema" : {
-                "$ref" : "#/components/schemas/Rejection"
-              }
-            }
-          }
-        },
-        "responses" : {
-          "200" : {
-            "content" : {
-              "*/*" : {
-                "schema" : {
-                  "$ref" : "#/components/schemas/PointsPurchaseResponse"
-                }
-              }
-            },
-            "description" : "Rechazada."
-          },
-          "400" : {
-            "description" : "Motivo vacío o de más de 500 caracteres"
-          },
-          "401" : {
-            "description" : "Sin token (`AUTH-001`)"
-          },
-          "403" : {
-            "description" : "Sin `movements:reject-points-purchase` (`AUTH-002`)"
-          },
-          "404" : {
-            "description" : "No existe, o no es una compra de puntos (`EX-001`)"
-          },
-          "409" : {
-            "description" : "No está pendiente, con el estado (`EX-002`)"
-          }
-        },
-        "summary" : "Rechazar el pago de una compra de puntos",
-        "tags" : [ "Puntos" ],
-        "x-required-permission" : "movements:reject-points-purchase"
-      }
-    },
-    "/api/v1/movements/{id}/rejection" : {
-      "post" : {
-        "description" : "**Permiso requerido:** `movements:reject-payment`. Sin él, `403` (`AUTH-002`).\n\nDice **«este cobro no entró»**: el pago pendiente de la venta pasa a `RECHAZADO`, con\nel instante y el motivo, y **la venta sigue pendiente** para que el comprador pueda\nvolver a pagarla (`RF-MV-004`). `reason` es obligatorio, hasta 500 caracteres.\n\n**Rechazar no es anular**: anular cierra la venta; rechazar cierra un intento de\ncobrarla.\n\n**Desde el 01-10-2026, no alcanza a un pago con cobro abierto en la pasarela**\n(`RN-MV-058`): lo resuelve su notificación, y responde `409` (`EX-006`). Un pago con tarjeta sin cobro\n—el que registró un funcionario— se sigue resolviendo a mano.\n",
-        "operationId" : "rechazar",
-        "parameters" : [ {
-          "in" : "path",
-          "name" : "id",
-          "required" : true,
-          "schema" : {
-            "format" : "uuid",
-            "type" : "string"
-          }
-        } ],
-        "requestBody" : {
-          "content" : {
-            "application/json" : {
-              "schema" : {
-                "$ref" : "#/components/schemas/RejectPaymentRequest"
-              }
-            }
-          }
-        },
-        "responses" : {
-          "200" : {
-            "content" : {
-              "*/*" : {
-                "schema" : {
-                  "$ref" : "#/components/schemas/SaleResponse"
-                }
-              }
-            },
-            "description" : "La venta, con el pago rechazado."
-          },
-          "400" : {
-            "description" : "Identificador malformado o motivo vacío o demasiado largo"
-          },
-          "401" : {
-            "description" : "Token ausente o inválido (`AUTH-001`)"
-          },
-          "403" : {
-            "description" : "Autenticado sin `movements:reject-payment` (`AUTH-002`)"
-          },
-          "404" : {
-            "description" : "No existe, o no es una venta (`EX-001`)"
-          },
-          "409" : {
-            "description" : "No está pendiente (`EX-002`), o no tiene un pago pendiente (`EX-003`)"
-          }
-        },
-        "summary" : "Rechazar el pago pendiente de una venta",
-        "tags" : [ "Movimientos" ],
-        "x-required-permission" : "movements:reject-payment"
-      }
-    },
     "/api/v1/movements/{id}/seller-assignments" : {
       "post" : {
         "description" : "**Permiso requerido:** `movements:assign-sellers`. Sin él, `403` (`AUTH-002`).\n\nAtribuye cada línea de una venta a **uno de los vendedores de quien compra**. Es lo\nque saca de `VALIDAR_COMISIONES` a una venta cuyo cliente tenía **varios**\nvendedores y que por eso nació con sus líneas **sin vendedor** (`RN-MV-034`).\n\n`lines` lleva una pareja `productId` → `sellerId` por línea —el producto identifica\nla línea dentro de la venta— y **puede ser una parte**: la venta sigue en\n`VALIDAR_COMISIONES` mientras quede alguna sin vendedor, y **pasa sola a\n`VALIDADO`** en cuanto no queda ninguna.\n\n**Qué se puede tocar** (`RN-MV-035`): una línea **sin vendedor** se asigna siempre,\ntambién después de confirmar el pago; **corregir** una que ya lo tiene se admite\nmientras la venta no esté `CONFIRMADA` y, **desde el 30-09-2026, también confirmada\nmientras su comisión no se haya pagado** (`RN-MV-053`): se le pregunta a `CM`, que\nrevierte la comisión de la cadena vieja, y la de la nueva se devenga como si la línea\nse acabara de atribuir. Si algún nivel de la cadena está pagado, o la línea es un FTD\nya contado, `409`. En una venta `RECHAZADA` o\n`ANULADA` no se asigna nada. El vendedor tiene que ser **uno de los del cliente**\n—de registro o de hotlink—: elegir a cualquiera sería atribuir la venta a quien se\nquisiera.\n\n**Todo o nada**: si una sola pareja no procede, no se escribe ninguna. La respuesta\nes la venta como queda, con `typeStatus` y el vendedor de cada línea.\n",
@@ -16144,7 +16038,7 @@
             "description" : "Token ausente o inválido (`AUTH-001`)"
           },
           "403" : {
-            "description" : "Sin el permiso `movements:assign-sellers` (ni `movements:confirm` ni `movements:create` bastan)."
+            "description" : "Sin el permiso `movements:assign-sellers` (ni `movements:confirm-payment` ni `movements:create` bastan)."
           },
           "404" : {
             "description" : "No existe (`EX-001`)"
@@ -16204,7 +16098,7 @@
             "description" : "Token ausente o inválido (`AUTH-001`)"
           },
           "403" : {
-            "description" : "Sin el permiso `movements:void` (tener `movements:confirm` no basta)."
+            "description" : "Sin el permiso `movements:void` (tener `movements:confirm-payment` no basta)."
           },
           "404" : {
             "description" : "No existe (`EX-001`)"
@@ -21334,6 +21228,9 @@
     "description" : "Tasas de comisión por rol: qué paga cada producto.",
     "name" : "Comisiones"
   }, {
+    "description" : "A cuánto se venden los puntos en cada moneda y su compra. Confirmar o rechazar su pago es `POST /api/v1/movements/payments/{paymentId}/…`, como el de una venta. Pagar con puntos no tiene ruta propia: es el método `POINTS` en las compras.",
+    "name" : "Puntos"
+  }, {
     "description" : "Cadena lineal de niveles de consumidor. Inmutable salvo el reordenamiento.",
     "name" : "Membresías"
   }, {
@@ -21360,9 +21257,6 @@
   }, {
     "description" : "Catálogo de monedas. Inmutable por API salvo su estado.",
     "name" : "Monedas"
-  }, {
-    "description" : "A cuánto se venden los puntos en cada moneda, su compra y su confirmación. Pagar con puntos no tiene ruta propia: es el método `POINTS` en las compras.",
-    "name" : "Puntos"
   }, {
     "description" : "Alta de un cliente desde el enlace de un vendedor. Público (RF-SP-045).",
     "name" : "Registro por enlace"

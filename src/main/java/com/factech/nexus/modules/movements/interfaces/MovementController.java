@@ -16,7 +16,6 @@ import com.factech.nexus.modules.movements.application.VoidSaleRequest;
 import com.factech.nexus.modules.movements.domain.models.IdempotencyKey;
 import com.factech.nexus.modules.movements.domain.service.ActivateMyProductService;
 import com.factech.nexus.modules.movements.domain.service.AssignSellersService;
-import com.factech.nexus.modules.movements.domain.service.ConfirmSaleService;
 import com.factech.nexus.modules.movements.domain.service.GetMovementService;
 import com.factech.nexus.modules.movements.domain.service.GetMyMovementService;
 import com.factech.nexus.modules.movements.domain.service.ListMovementsService;
@@ -63,7 +62,6 @@ import org.springframework.web.bind.annotation.RestController;
 public class MovementController {
 
   private final RegisterSaleService alta;
-  private final ConfirmSaleService confirmacion;
   private final VoidSaleService anulacion;
   private final ListMovementsService libro;
   private final ListMyMovementsService listado;
@@ -78,7 +76,6 @@ public class MovementController {
 
   public MovementController(
       RegisterSaleService alta,
-      ConfirmSaleService confirmacion,
       VoidSaleService anulacion,
       ListMovementsService libro,
       ListMyMovementsService listado,
@@ -91,7 +88,6 @@ public class MovementController {
       GetMovementService comprobante,
       AuthenticatedActor actor) {
     this.alta = alta;
-    this.confirmacion = confirmacion;
     this.anulacion = anulacion;
     this.libro = libro;
     this.listado = listado;
@@ -106,83 +102,10 @@ public class MovementController {
   }
 
   /**
-   * <b>{@code POST …/confirmation} y no {@code PATCH …/status}</b>, aunque seis recursos del
-   * sistema cambian de estado con el segundo: aquellos tienen un permiso para todas sus
-   * transiciones, y aquí confirmar y rechazar comparten permiso y anular tiene el suyo. Un {@code
-   * PATCH /status} con tres valores tendría dos modelos de seguridad en un endpoint. El precedente
-   * que encaja es {@code POST /{id}/deletion}: una acción con nombre y con su permiso.
-   */
-  @PostMapping("/{id}/confirmation")
-  @PreAuthorize("hasAuthority('movements:confirm')")
-  @Operation(
-      summary = "Confirmar el pago de una venta pendiente",
-      description =
-          """
-          Da por **pagada** una venta pendiente y, en el mismo acto, **entrega lo que se
-          pueda entregar**. Sin cuerpo: confirmar es un hecho, no un formulario — el importe
-          es el de la venta, la fecha es ahora y el método ya está en ella.
-
-          **Lo que pasa con cada línea** (`RN-MV-030`), y se ve en la respuesta:
-          - `implementation: MANUAL` → queda `PENDIENTE` de autorización (`RN-MV-021`). La
-            venta confirma igual.
-          - `AUTOMATICA` y **no** es un upgrade → `ENTREGADA`, con `deliveredAt` ahora.
-          - `AUTOMATICA` y es un upgrade → **se concede la membresía** destino del producto,
-            con la vigencia copiada en la línea **contada desde la confirmación** (`RN-MV-020`),
-            cerrando la que la persona tenía — también al renovar el mismo nivel—; **salvo que
-            la comprada sea inferior a la vigente en ese instante**: entonces la venta cobra
-            igual y la línea queda `RETENIDA` con `deliveryNote` (`RN-MV-029`). Nunca baja de
-            nivel a nadie.
-
-          **Confirmar dos veces concede una vez.** La transición es atómica y condicionada al
-          estado anterior: la segunda confirmación —o un webhook reentregado— recibe `409`
-          diciendo en qué estado está, y **no cambia nada**.
-
-          **Lo que NO hace**: no saca a nadie de `FTD_PENDIENTE` (eso lo hace el primer
-          depósito), no devenga comisiones, no adjunta comprobante y no se puede deshacer
-          (`RN-MV-005`). **Tampoco espera a la atribución**: una venta `VALIDAR_COMISIONES`
-          se confirma y entrega igual, y sigue por validar — lo que esperará a `VALIDADO` es
-          la comisión (`RN-MV-035`).
-
-          **Desde el 01-10-2026, no alcanza a un pago con cobro abierto en la pasarela**
-          (`RN-MV-058`): lo resuelve su notificación, y responde `409` (`EX-007`). Un pago con tarjeta sin cobro
-          —el que registró un funcionario— se sigue resolviendo a mano.
-          """)
-  @ApiResponses({
-    @ApiResponse(
-        responseCode = "200",
-        description = "Confirmada. El cuerpo dice qué se entregó, qué espera y qué se retuvo."),
-    @ApiResponse(
-        responseCode = "400",
-        description = "Identificador malformado (`VAL-001`)",
-        content = @Content),
-    @ApiResponse(
-        responseCode = "401",
-        description = "Token ausente o inválido (`AUTH-001`)",
-        content = @Content),
-    @ApiResponse(
-        responseCode = "403",
-        description = "Sin el permiso `movements:confirm`.",
-        content = @Content),
-    @ApiResponse(responseCode = "404", description = "No existe (`EX-001`)", content = @Content),
-    @ApiResponse(
-        responseCode = "409",
-        description =
-            "No está pendiente (`EX-002`): ya confirmada, rechazada o anulada. El mensaje dice"
-                + " en qué estado está, y nada cambió.",
-        content = @Content),
-    @ApiResponse(
-        responseCode = "500",
-        description = "Conceder la membresía falló; nada quedó escrito (`ERR-500`)",
-        content = @Content)
-  })
-  public SaleResponse confirmar(@PathVariable UUID id) {
-    return confirmacion.confirm(id);
-  }
-
-  /**
-   * La misma forma que {@code …/confirmation}: una acción con nombre y con <b>su</b> permiso.
-   * `movements:void` y no `movements:confirm`, porque quien concilia pagos no tiene por qué poder
-   * hacer desaparecer del embudo ventas ajenas (`requirements/mv.md` §6).
+   * La misma forma que {@code /movements/payments/{id}/confirmation}: una acción con nombre y con
+   * <b>su</b> permiso. `movements:void` y no `movements:confirm-payment`, porque quien concilia
+   * pagos no tiene por qué poder hacer desaparecer del embudo ventas ajenas (`requirements/mv.md`
+   * §6).
    */
   @PostMapping("/{id}/voiding")
   @PreAuthorize("hasAuthority('movements:void')")
@@ -223,7 +146,8 @@ public class MovementController {
         content = @Content),
     @ApiResponse(
         responseCode = "403",
-        description = "Sin el permiso `movements:void` (tener `movements:confirm` no basta).",
+        description =
+            "Sin el permiso `movements:void` (tener `movements:confirm-payment` no basta).",
         content = @Content),
     @ApiResponse(responseCode = "404", description = "No existe (`EX-001`)", content = @Content),
     @ApiResponse(
@@ -249,10 +173,10 @@ public class MovementController {
   }
 
   /**
-   * La misma forma que {@code …/confirmation} y {@code …/voiding}: una acción con nombre y con
-   * <b>su</b> permiso (`RN-SEG-014`). `movements:assign-sellers` y no `movements:confirm`:
-   * confirmar responde «¿entró el dinero?» y esto «¿a quién se le paga?» (`RF-MV-016` · `plan.md`
-   * §5).
+   * La misma forma que {@code /movements/payments/{id}/confirmation} y {@code …/voiding}: una
+   * acción con nombre y con <b>su</b> permiso (`RN-SEG-014`). `movements:assign-sellers` y no
+   * `movements:confirm-payment`: confirmar responde «¿entró el dinero?» y esto «¿a quién se le
+   * paga?» (`RF-MV-016` · `plan.md` §5).
    */
   @PostMapping("/{id}/seller-assignments")
   @PreAuthorize("hasAuthority('movements:assign-sellers')")
@@ -300,7 +224,7 @@ public class MovementController {
     @ApiResponse(
         responseCode = "403",
         description =
-            "Sin el permiso `movements:assign-sellers` (ni `movements:confirm` ni"
+            "Sin el permiso `movements:assign-sellers` (ni `movements:confirm-payment` ni"
                 + " `movements:create` bastan).",
         content = @Content),
     @ApiResponse(responseCode = "404", description = "No existe (`EX-001`)", content = @Content),

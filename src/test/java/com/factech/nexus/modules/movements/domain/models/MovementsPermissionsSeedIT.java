@@ -29,7 +29,7 @@ class MovementsPermissionsSeedIT extends IntegrationTestBase {
   private static final UUID ADMIN = UUID.fromString("01a02a33-4c00-7002-9c4f-5e7ad1000002");
 
   private static final List<String> LOS_CUATRO =
-      List.of("movements:read", "movements:create", "movements:confirm", "movements:void");
+      List.of("movements:read", "movements:create", "movements:confirm-payment", "movements:void");
 
   /**
    * Los tres de alcance propio que `V31` añadió al recurso el 21-09-2026 (`RF-SP-062`) y el de las
@@ -95,12 +95,11 @@ class MovementsPermissionsSeedIT extends IntegrationTestBase {
    */
   private static final String DETALLE = "movements:read-detail";
 
-  /** Los de `V58` de administración (30-09-2026): la tasa y resolver una compra de puntos. */
-  private static final List<String> LOS_DE_PUNTOS =
-      List.of(
-          "movements:set-points-rate",
-          "movements:confirm-points-purchase",
-          "movements:reject-points-purchase");
+  /**
+   * El de `V58` de administración (30-09-2026): la tasa. Los dos que resolvían una compra de puntos
+   * los retiró `V63` (01-10-2026): se concilia el pago, con los de la venta.
+   */
+  private static final List<String> LOS_DE_PUNTOS = List.of("movements:set-points-rate");
 
   /**
    * Los de `V61` de administración (01-10-2026): el catálogo de entidades de cobro y las cuentas de
@@ -131,7 +130,7 @@ class MovementsPermissionsSeedIT extends IntegrationTestBase {
         .containsAll(LOS_DE_SALDOS)
         .containsAll(LOS_DE_PUNTOS)
         .containsAll(LOS_DE_COBRO)
-        .hasSize(35);
+        .hasSize(33);
   }
 
   @Test
@@ -152,7 +151,7 @@ class MovementsPermissionsSeedIT extends IntegrationTestBase {
     // RN-SEG-007: la raíz de la contención está acotada por el catálogo
     // completo. Un permiso sembrado y no asociado la dejaría por detrás de sus
     // propios hijos.
-    assertThat(permisosDeMovimientosDe(SUPERADMIN)).containsAll(LOS_CUATRO).hasSize(35);
+    assertThat(permisosDeMovimientosDe(SUPERADMIN)).containsAll(LOS_CUATRO).hasSize(33);
   }
 
   @Test
@@ -198,7 +197,7 @@ class MovementsPermissionsSeedIT extends IntegrationTestBase {
     List<UUID> ids =
         jdbc.queryForList("SELECT id FROM permissions WHERE resource = 'movements'", UUID.class);
 
-    assertThat(ids).hasSize(35).doesNotHaveDuplicates();
+    assertThat(ids).hasSize(33).doesNotHaveDuplicates();
     assertThat(ids).allSatisfy(id -> assertThat(id.version()).isEqualTo(7));
     // variant() == 2 es la variante RFC 9562 (bits 10xx).
     assertThat(ids).allSatisfy(id -> assertThat(id.variant()).isEqualTo(2));

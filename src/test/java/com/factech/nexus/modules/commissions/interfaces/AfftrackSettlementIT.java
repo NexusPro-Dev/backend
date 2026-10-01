@@ -12,6 +12,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 import com.factech.nexus.IntegrationTestBase;
+import com.factech.nexus.modules.movements.PaymentFixtures;
 import com.factech.nexus.testing.CommissionCleanup;
 import java.math.BigDecimal;
 import java.time.OffsetDateTime;
@@ -340,8 +341,10 @@ class AfftrackSettlementIT extends IntegrationTestBase {
         SettlementFixtures.venta(
             jdbc, cliente, ACTIVADA, SettlementFixtures.linea(bot, vendedora, 1, "1000.00"));
     mvc.perform(
-            post("/api/v1/movements/{id}/confirmation", venta)
-                .with(user(SUPERADMIN.toString()).authorities(() -> "movements:confirm")))
+            post(
+                    "/api/v1/movements/payments/{id}/confirmation",
+                    PaymentFixtures.pagoAConciliar(jdbc, venta))
+                .with(user(SUPERADMIN.toString()).authorities(() -> "movements:confirm-payment")))
         .andExpect(status().isOk());
     cerrar();
 

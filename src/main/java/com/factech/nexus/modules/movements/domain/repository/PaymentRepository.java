@@ -96,6 +96,45 @@ public interface PaymentRepository {
    */
   boolean setIncident(UUID paymentId, String incident, BigDecimal refunded, OffsetDateTime at);
 
+  // ---------------------------------------------------------------------------
+  // Conciliar por el pago (`RF-MV-044`, `RF-MV-045`, 01-10-2026)
+  // ---------------------------------------------------------------------------
+
+  /**
+   * Bloquea la fila del <b>movimiento</b> del pago —la que serializa confirmar, rechazar, anular y
+   * volver a pagar— y devuelve su identificador. Vacío si el pago no existe.
+   *
+   * <p>El {@code movement_id} de un pago no cambia nunca, de modo que leerlo sin bloqueo es seguro
+   * (`RF-MV-044` · `plan.md` §1).
+   */
+  Optional<UUID> lockMovementOf(UUID paymentId);
+
+  /**
+   * El pago, leído <b>después</b> de {@link #lockMovementOf}: una sentencia nueva ve el estado que
+   * dejó quien tenía el bloqueo. Vacío si no existe.
+   */
+  Optional<PaymentTarget> findTarget(UUID paymentId);
+
+  /**
+   * Lo que conciliar un pago necesita saber de él.
+   *
+   * @param gateway la pasarela del método, o nula
+   * @param providerReference la referencia del pago, o nula
+   */
+  record PaymentTarget(
+      UUID paymentId,
+      UUID movementId,
+      String movementType,
+      String status,
+      String gateway,
+      String providerReference) {
+
+    /** La misma lectura que {@link PendingPayment#tieneCobroAbierto}. */
+    public boolean tieneCobroAbierto() {
+      return gateway != null && providerReference != null;
+    }
+  }
+
   /**
    * Un pago pendiente, con todo lo que hace falta para cobrarlo o cancelar su cobro.
    *

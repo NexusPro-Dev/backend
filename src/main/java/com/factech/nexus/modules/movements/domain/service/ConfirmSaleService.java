@@ -59,16 +59,14 @@ public class ConfirmSaleService {
   private final AuditWriter auditoria;
   private final ApplicationEventPublisher avisos;
   private final Clock reloj;
-  private final CardPayment tarjeta;
 
   @Autowired
   public ConfirmSaleService(
       MovementRepository movimientos,
       LineDelivery entrega,
       AuditWriter auditoria,
-      ApplicationEventPublisher avisos,
-      CardPayment tarjeta) {
-    this(movimientos, entrega, auditoria, avisos, tarjeta, Clock.systemUTC());
+      ApplicationEventPublisher avisos) {
+    this(movimientos, entrega, auditoria, avisos, Clock.systemUTC());
   }
 
   ConfirmSaleService(
@@ -76,9 +74,7 @@ public class ConfirmSaleService {
       LineDelivery entrega,
       AuditWriter auditoria,
       ApplicationEventPublisher avisos,
-      CardPayment tarjeta,
       Clock reloj) {
-    this.tarjeta = tarjeta;
     this.movimientos = movimientos;
     this.entrega = entrega;
     this.auditoria = auditoria;
@@ -87,13 +83,14 @@ public class ConfirmSaleService {
   }
 
   /**
-   * La confirmación a mano. <b>No alcanza a un pago con cobro abierto en la pasarela</b>
-   * (`RN-MV-058`, `EX-007`): lo confirma su notificación, por {@link #confirmByGateway}.
+   * La confirmación a mano, <b>desde el pago</b> (`RF-MV-044`, 01-10-2026): la invoca {@link
+   * PaymentResolutionService} con la venta ya bloqueada y comprobada —que cobra, que el pago
+   * nombrado sigue pendiente y que no tiene cobro abierto (`RN-MV-058`)—.
+   *
+   * @param referencia la del extracto, o nula
    */
-  @Transactional
-  public SaleResponse confirm(UUID movementId) {
-    tarjeta.exigirSinCobroAbierto(movementId, "EX-007");
-    return confirmar(movementId);
+  SaleResponse confirmPayment(UUID movementId, String referencia) {
+    return confirmar(movementId, referencia);
   }
 
   /**
@@ -102,21 +99,21 @@ public class ConfirmSaleService {
    */
   @Transactional
   public SaleResponse confirmByGateway(UUID movementId) {
-    return confirmar(movementId);
+    return confirmar(movementId, null);
   }
 
   /** Para el pago con puntos, que confirma en el acto desde dentro (`RF-MV-030`). */
   SaleResponse confirmInternal(UUID movementId) {
-    return confirmar(movementId);
+    return confirmar(movementId, null);
   }
 
-  private SaleResponse confirmar(UUID movementId) {
+  private SaleResponse confirmar(UUID movementId, String referencia) {
     OffsetDateTime ahora = OffsetDateTime.now(reloj);
 
     // 1. LA TRANSICIÓN, condicionada al estado anterior. Cero filas significa
     //    «no estaba pendiente» o «no existe», y solo entonces se lee para
     //    distinguirlos: `EX-001` frente a `EX-002`.
-    if (!movimientos.confirmIfPending(movementId, ahora)) {
+    if (!movimientos.confirmIfPending(movementId, ahora, referencia)) {
       String estado =
           movimientos
               .findStatus(movementId)
@@ -160,6 +157,9 @@ public class ConfirmSaleService {
     Map<String, Object> despues = new LinkedHashMap<>();
     despues.put("status", "CONFIRMADA");
     despues.put("confirmed_at", ahora.toString());
+    if (referencia != null) {
+      despues.put("provider_reference", referencia);
+    }
     despues.put("lines", resultado);
     cambios.put("after", despues);
     auditoria.recordChange(

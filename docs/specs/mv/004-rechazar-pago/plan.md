@@ -5,7 +5,7 @@
 | Requerimiento | `RF-MV-004` |
 | Especificación | [`spec.md`](spec.md) v0.1.0 |
 | `spec.md` aprobada el | 26-09-2026 |
-| Versión | 0.2.0 |
+| Versión | 0.3.0 |
 | Estado | **Aprobado** |
 | Autor | Responsable técnico |
 | Aprobado por | Responsable del proyecto |
@@ -132,3 +132,7 @@ Integración, `RejectPaymentIT`: `CA-MV-197` a `CA-MV-205`, con el reintento de 
 ## 12. La tarjeta por Stripe — enmienda del 01-10-2026
 
 Por [`requirements/mv.md`](../../../requirements/mv.md) v0.64.0 §4.6 y `spec.md` §14.2. `RejectPaymentService.reject` hace la misma comprobación que la confirmación manual (`RF-MV-003` · `plan.md` §12) antes de la transición, y lanza `EX-006` (`409`). El rechazo **por la pasarela** —cobro cancelado— es otro método que comparte la transición. **Contrato**: la prosa del `409`.
+
+## 13. Sin ruta propia — enmienda del 01-10-2026
+
+Por [`requirements/mv.md`](../../../requirements/mv.md) v0.67.0 §4.8 y `spec.md` §14.3. **La ruta se retira** y el método público del servicio con ella; nace un método **de paquete** que `PaymentResolutionService` invoca con el movimiento ya bloqueado (`RF-MV-045` · `plan.md` §1). La transición, la auditoría y lo demás **no cambian**. El permiso lo retira o lo traslada `V63` (`RF-MV-044` · `plan.md` §2). **Contrato**: la ruta desaparece de OpenAPI.

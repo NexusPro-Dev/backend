@@ -301,7 +301,8 @@ class SystemRolesSeedIT extends IntegrationTestBase {
     // Y LOS CUATRO DE `movements:` SÍ, que es la otra mitad del cambio: sin
     // esta línea, revertir `V40` dejaría la prueba en verde.
     assertThat(deAdmin)
-        .contains("movements:read", "movements:create", "movements:confirm", "movements:void");
+        .contains(
+            "movements:read", "movements:create", "movements:confirm-payment", "movements:void");
     assertThat(deAdmin).hasSize(delCatalogo - 2);
   }
 

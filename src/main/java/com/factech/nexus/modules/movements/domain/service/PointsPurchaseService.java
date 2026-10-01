@@ -62,7 +62,6 @@ public class PointsPurchaseService {
   private static final String ENTIDAD = "movements";
   private static final String TIPO = "COMPRA_PUNTOS";
   private static final String PUNTOS = "POINTS";
-  private static final int LONGITUD_REFERENCIA = 120;
   private static final Set<String> ESTADOS = Set.of("PENDIENTE", "CONFIRMADA", "RECHAZADA");
 
   private final MovementRepository movimientos;
@@ -286,14 +285,12 @@ public class PointsPurchaseService {
   // ---------------------------------------------------------------------------
 
   /**
-   * La confirmación a mano. <b>No alcanza a un pago con cobro abierto en la pasarela</b>
-   * (`RN-MV-058`, `EX-005`): lo confirma su notificación, por {@link #confirmByGateway}.
+   * La confirmación a mano, <b>desde el pago</b> (`RF-MV-044`, 01-10-2026): la invoca {@link
+   * PaymentResolutionService} con la compra ya bloqueada y comprobada, también contra un cobro
+   * abierto (`RN-MV-058`), y con la referencia ya validada.
    */
-  @Transactional
-  public PointsPurchaseResponse confirm(UUID compraId, PointsRequests.Confirmation peticion) {
-    String referencia = referencia(peticion == null ? null : peticion.providerReference());
-    tarjeta.exigirSinCobroAbierto(compraId, "EX-005");
-    return confirmar(compraId, referencia);
+  void confirmPayment(UUID compraId, String referencia) {
+    confirmar(compraId, referencia);
   }
 
   /** `RF-MV-041`: la pasarela notificó que el cobro entró. Con la referencia del cobro. */
@@ -344,12 +341,12 @@ public class PointsPurchaseService {
   // `RF-MV-029` — rechazar
   // ---------------------------------------------------------------------------
 
-  /** El rechazo a mano; no alcanza a un pago con cobro abierto (`RN-MV-058`, `EX-005`). */
-  @Transactional
-  public PointsPurchaseResponse reject(UUID compraId, PointsRequests.Rejection peticion) {
-    RejectionReason motivo = new RejectionReason(peticion == null ? null : peticion.reason());
-    tarjeta.exigirSinCobroAbierto(compraId, "EX-005");
-    return rechazar(compraId, motivo);
+  /**
+   * El rechazo a mano, <b>desde el pago</b> (`RF-MV-045`, 01-10-2026): lo invoca {@link
+   * PaymentResolutionService} con la compra ya bloqueada y comprobada.
+   */
+  void rejectPayment(UUID compraId, RejectionReason motivo) {
+    rechazar(compraId, motivo);
   }
 
   /** `RF-MV-041`: la pasarela canceló el cobro. */
@@ -444,20 +441,6 @@ public class PointsPurchaseService {
     String mensaje = "La compra no está pendiente: está " + compra.status() + ".";
     return new BusinessRuleException(
         "EX-002", mensaje, List.of(new FieldError("status", "EX-002", mensaje)));
-  }
-
-  private static String referencia(String valor) {
-    if (valor == null || valor.isBlank()) {
-      return null;
-    }
-    String limpia = valor.trim();
-    if (limpia.length() > LONGITUD_REFERENCIA) {
-      throw LedgerMovements.invalido(
-          "providerReference",
-          "VAL-001",
-          "La referencia no puede exceder " + LONGITUD_REFERENCIA + " caracteres.");
-    }
-    return limpia;
   }
 
   private PointsPurchaseResponse respuesta(PointsPurchaseRow fila) {

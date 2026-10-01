@@ -368,13 +368,12 @@ class PayWithPointsIT extends IntegrationTestBase {
             .getContentAsString();
     mvc.perform(
             post(
-                    "/api/v1/movements/{id}/points-purchase-confirmation",
-                    (String) JsonPath.read(cuerpo, "$.id"))
+                    "/api/v1/movements/payments/{id}/confirmation",
+                    PaymentFixtures.pagoAConciliar(jdbc, JsonPath.read(cuerpo, "$.id")))
                 .contentType(MediaType.APPLICATION_JSON)
                 .content("{}")
                 .with(
-                    user(administrador.toString())
-                        .authorities(() -> "movements:confirm-points-purchase")))
+                    user(administrador.toString()).authorities(() -> "movements:confirm-payment")))
         .andExpect(status().isOk());
   }
 

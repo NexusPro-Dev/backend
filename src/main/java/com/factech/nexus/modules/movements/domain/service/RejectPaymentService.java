@@ -37,35 +37,27 @@ public class RejectPaymentService {
   private final PaymentRepository pagos;
   private final AuditWriter auditoria;
   private final Clock reloj;
-  private final CardPayment tarjeta;
 
   @Autowired
   public RejectPaymentService(
-      MovementRepository movimientos,
-      PaymentRepository pagos,
-      AuditWriter auditoria,
-      CardPayment tarjeta) {
-    this(movimientos, pagos, auditoria, tarjeta, Clock.systemUTC());
+      MovementRepository movimientos, PaymentRepository pagos, AuditWriter auditoria) {
+    this(movimientos, pagos, auditoria, Clock.systemUTC());
   }
 
   RejectPaymentService(
-      MovementRepository movimientos,
-      PaymentRepository pagos,
-      AuditWriter auditoria,
-      CardPayment tarjeta,
-      Clock reloj) {
-    this.tarjeta = tarjeta;
+      MovementRepository movimientos, PaymentRepository pagos, AuditWriter auditoria, Clock reloj) {
     this.movimientos = movimientos;
     this.pagos = pagos;
     this.auditoria = auditoria;
     this.reloj = reloj;
   }
 
-  @Transactional
-  public SaleResponse reject(UUID movementId, String reason) {
-    RejectionReason motivo = new RejectionReason(reason);
-    // `RN-MV-058` (01-10-2026): un pago con cobro abierto lo rechaza la pasarela.
-    tarjeta.exigirSinCobroAbierto(movementId, "EX-006");
+  /**
+   * El rechazo a mano, <b>desde el pago</b> (`RF-MV-045`, 01-10-2026): lo invoca {@link
+   * PaymentResolutionService} con la venta ya bloqueada y comprobada, también contra un cobro
+   * abierto (`RN-MV-058`).
+   */
+  SaleResponse rejectPayment(UUID movementId, RejectionReason motivo) {
     return rechazar(movementId, motivo);
   }
 

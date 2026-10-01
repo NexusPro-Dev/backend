@@ -33,7 +33,7 @@ class PermissionsSeedIT extends IntegrationTestBase {
           + " V47: courses:read-available y lessons:learn del aula, RF-AC-034 y RF-AC-035)")
   void catalogoCompleto() {
     assertThat(jdbc.queryForObject("SELECT count(*) FROM permissions", Integer.class))
-        .isEqualTo(181);
+        .isEqualTo(179);
   }
 
   @Test
@@ -207,7 +207,6 @@ class PermissionsSeedIT extends IntegrationTestBase {
             "memberships:create",
             "memberships:read",
             "memberships:list",
-            "movements:confirm",
             "movements:create",
             "movements:list-own",
             "movements:read",
@@ -235,8 +234,6 @@ class PermissionsSeedIT extends IntegrationTestBase {
             "movements:set-points-rate",
             "movements:read-points-rates",
             "movements:buy-points",
-            "movements:confirm-points-purchase",
-            "movements:reject-points-purchase",
             "movements:list-own-points-purchases",
             // `V61` (01-10-2026): las cuentas de cobro (`RF-MV-032` a `RF-MV-039`).
             "movements:create-payout-institution",
@@ -247,6 +244,9 @@ class PermissionsSeedIT extends IntegrationTestBase {
             "movements:update-own-payout-account",
             "movements:delete-own-payout-account",
             "movements:read-user-payout-accounts",
+            // `V63` (01-10-2026): se concilia el pago (`RF-MV-044`); sustituye a
+            // movements:confirm, confirm-points-purchase y reject-points-purchase.
+            "movements:confirm-payment",
             // `V62` (01-10-2026): pagar con tarjeta un pendiente propio (`RF-MV-042`).
             "movements:pay-pending-by-card",
             // El SEGUNDO recurso de `PM` (`V93`, 15-09-2026), por decisión del
@@ -330,7 +330,7 @@ class PermissionsSeedIT extends IntegrationTestBase {
   void identificadoresUuidV7() {
     List<UUID> ids = jdbc.queryForList("SELECT id FROM permissions", UUID.class);
 
-    assertThat(ids).hasSize(181).doesNotHaveDuplicates();
+    assertThat(ids).hasSize(179).doesNotHaveDuplicates();
     assertThat(ids).allSatisfy(id -> assertThat(id.version()).isEqualTo(7));
     // variant() == 2 es la variante RFC 9562 (bits 10xx).
     assertThat(ids).allSatisfy(id -> assertThat(id.variant()).isEqualTo(2));
@@ -396,13 +396,13 @@ class PermissionsSeedIT extends IntegrationTestBase {
                 "SELECT count(*) FROM role_permissions WHERE role_id ="
                     + " '01a02a33-4c00-7001-9c4f-5e7ad1000001'",
                 Integer.class))
-        .isEqualTo(181);
+        .isEqualTo(179);
     assertThat(
             jdbc.queryForObject(
                 "SELECT count(*) FROM role_permissions WHERE role_id ="
                     + " '01a02a33-4c00-7002-9c4f-5e7ad1000002'",
                 Integer.class))
-        .isEqualTo(179);
+        .isEqualTo(177);
     assertThat(
             jdbc.queryForList(
                 """

@@ -9,7 +9,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 
 import com.factech.nexus.IntegrationTestBase;
 import com.factech.nexus.modules.movements.PaymentFixtures;
-import com.factech.nexus.testing.CommissionCleanup;
+import com.factech.nexus.modules.movements.PointsFixtures;
 import java.time.OffsetDateTime;
 import java.time.ZoneOffset;
 import java.util.UUID;
@@ -26,8 +26,9 @@ import org.springframework.test.web.servlet.request.MockHttpServletRequestBuilde
 import org.springframework.test.web.servlet.request.RequestPostProcessor;
 
 /**
- * `RF-MV-004` — rechazar el pago pendiente de una venta; y lo que el pago cambia en confirmar
- * (`RF-MV-003`, `CA-MV-218` y `CA-MV-219`) y en anular (`RF-MV-005`, `CA-MV-220`).
+ * `RF-MV-004` y `RF-MV-045` — rechazar el pago pendiente de una venta o de una compra de puntos; y
+ * lo que el pago cambia en confirmar (`RF-MV-003`, `CA-MV-218` y `CA-MV-219`) y en anular
+ * (`RF-MV-005`, `CA-MV-220`).
  */
 @AutoConfigureMockMvc
 class RejectPaymentIT extends IntegrationTestBase {
@@ -36,6 +37,7 @@ class RejectPaymentIT extends IntegrationTestBase {
   private static final String TARJETA = "01a061ba-3400-7002-9c4f-5e7ad7000021";
   private static final String PSE = "01a061ba-3400-7003-9c4f-5e7ad7000022";
   private static final String USD = "01a03336-6d00-7001-9c4f-5e7ad3000001";
+  private static final String RETIRO = "01a0f6c0-8800-7003-9c4f-5e7ad7000012";
   private static final String MOTIVO = "El banco devolvió la transferencia.";
 
   @Autowired private MockMvc mvc;
@@ -51,6 +53,7 @@ class RejectPaymentIT extends IntegrationTestBase {
     administrador = persona("rj-admin");
     cliente = persona("rj-cliente");
     bot = producto("RJ_BOT");
+    PointsFixtures.tasa(jdbc, USD, "100", administrador);
   }
 
   @AfterEach
@@ -106,10 +109,10 @@ class RejectPaymentIT extends IntegrationTestBase {
 
     mvc.perform(rechazar(confirmada, MOTIVO).with(conPermiso("movements:reject-payment")))
         .andExpect(status().isConflict())
-        .andExpect(jsonPath("$.detail").value(org.hamcrest.Matchers.containsString("CONFIRMADA")));
+        .andExpect(jsonPath("$.detail").value(org.hamcrest.Matchers.containsString("CONFIRMADO")));
     mvc.perform(rechazar(anulada, MOTIVO).with(conPermiso("movements:reject-payment")))
         .andExpect(status().isConflict())
-        .andExpect(jsonPath("$.detail").value(org.hamcrest.Matchers.containsString("ANULADA")));
+        .andExpect(jsonPath("$.detail").value(org.hamcrest.Matchers.containsString("RECHAZADO")));
     assertThat(estadoDelPago(confirmada)).isEqualTo("CONFIRMADO");
   }
 
@@ -139,7 +142,7 @@ class RejectPaymentIT extends IntegrationTestBase {
           + " 401")
   void permisos() throws Exception {
     UUID venta = venta("PENDIENTE");
-    mvc.perform(rechazar(venta, MOTIVO).with(conPermiso("movements:confirm")))
+    mvc.perform(rechazar(venta, MOTIVO).with(conPermiso("movements:confirm-payment")))
         .andExpect(status().isForbidden());
     mvc.perform(rechazar(venta, MOTIVO)).andExpect(status().isUnauthorized());
     assertThat(estadoDelPago(venta)).isEqualTo("PENDIENTE");
@@ -173,8 +176,10 @@ class RejectPaymentIT extends IntegrationTestBase {
   void confirmarConfirmaElPago() throws Exception {
     UUID venta = venta("PENDIENTE");
     mvc.perform(
-            post("/api/v1/movements/{id}/confirmation", venta)
-                .with(conPermiso("movements:confirm")))
+            post(
+                    "/api/v1/movements/payments/{id}/confirmation",
+                    PaymentFixtures.pagoAConciliar(jdbc, venta))
+                .with(conPermiso("movements:confirm-payment")))
         .andExpect(status().isOk())
         .andExpect(jsonPath("$.payments[0].status").value("CONFIRMADO"));
 
@@ -197,10 +202,12 @@ class RejectPaymentIT extends IntegrationTestBase {
         .andExpect(status().isOk());
 
     mvc.perform(
-            post("/api/v1/movements/{id}/confirmation", venta)
-                .with(conPermiso("movements:confirm")))
+            post(
+                    "/api/v1/movements/payments/{id}/confirmation",
+                    PaymentFixtures.pagoAConciliar(jdbc, venta))
+                .with(conPermiso("movements:confirm-payment")))
         .andExpect(status().isConflict())
-        .andExpect(jsonPath("$.errors[0].code").value("EX-006"));
+        .andExpect(jsonPath("$.errors[0].code").value("EX-003"));
     assertThat(
             jdbc.queryForObject("SELECT status FROM movements WHERE id = ?", String.class, venta))
         .isEqualTo("PENDIENTE");
@@ -236,9 +243,258 @@ class RejectPaymentIT extends IntegrationTestBase {
   }
 
   // ---------------------------------------------------------------------------
+  // `RF-MV-045` — rechazar un pago, de una venta o de una compra de puntos (01-10-2026)
+  // ---------------------------------------------------------------------------
 
-  private static MockHttpServletRequestBuilder rechazar(UUID venta, String motivo) {
-    return post("/api/v1/movements/{id}/rejection", venta)
+  @Test
+  @DisplayName(
+      "CA-MV-507 — el pago de una venta: RECHAZADO con instante y motivo, la venta PENDIENTE sin"
+          + " pago pendiente, y volver a pagarla funciona")
+  void rechazaElPagoDeUnaVenta() throws Exception {
+    UUID venta = venta("PENDIENTE");
+    UUID pago = PaymentFixtures.pagoAConciliar(jdbc, venta);
+
+    mvc.perform(rechazarPago(pago, MOTIVO))
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$.id").value(venta.toString()))
+        .andExpect(jsonPath("$.type").value("VENTA"))
+        .andExpect(jsonPath("$.status").value("PENDIENTE"))
+        .andExpect(jsonPath("$.payments[0].id").value(pago.toString()))
+        .andExpect(jsonPath("$.payments[0].status").value("RECHAZADO"))
+        .andExpect(jsonPath("$.payments[0].rejectedAt").exists())
+        .andExpect(jsonPath("$.payments[0].rejectionReason").value(MOTIVO));
+    assertThat(
+            jdbc.queryForObject(
+                "SELECT count(*) FROM payments WHERE movement_id = ? AND status = 'PENDIENTE'",
+                Integer.class,
+                venta))
+        .isZero();
+
+    mvc.perform(
+            post("/api/v1/movements/mine/{id}/payments", venta)
+                .header("Idempotency-Key", "rj-reintento-0001")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("{\"paymentMethodId\":\"" + PSE + "\"}")
+                .with(user(cliente.toString()).authorities(() -> "movements:retry-payment")))
+        .andExpect(status().isCreated());
+  }
+
+  @Test
+  @DisplayName(
+      "CA-MV-508 — el pago de una compra de puntos: RECHAZADO, la compra RECHAZADA con el mismo"
+          + " motivo, y ningún asiento")
+  void rechazaElPagoDeUnaCompraDePuntos() throws Exception {
+    UUID compra = comprarPuntos();
+
+    mvc.perform(rechazarPago(PaymentFixtures.pagoAConciliar(jdbc, compra), MOTIVO))
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$.type").value("COMPRA_PUNTOS"))
+        .andExpect(jsonPath("$.status").value("RECHAZADA"))
+        .andExpect(jsonPath("$.payments[0].status").value("RECHAZADO"))
+        .andExpect(jsonPath("$.payments[0].rejectionReason").value(MOTIVO));
+    assertThat(
+            jdbc.queryForObject(
+                "SELECT rejection_reason FROM movements WHERE id = ?", String.class, compra))
+        .isEqualTo(MOTIVO);
+    assertThat(jdbc.queryForObject("SELECT count(*) FROM movement_entries", Integer.class))
+        .isZero();
+  }
+
+  @Test
+  @DisplayName("CA-MV-509 — un motivo ausente, en blanco o de más de 500 es 400, y nada cambia")
+  void elMotivo() throws Exception {
+    UUID venta = venta("PENDIENTE");
+    UUID pago = PaymentFixtures.pagoAConciliar(jdbc, venta);
+
+    mvc.perform(
+            post("/api/v1/movements/payments/{id}/rejection", pago)
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("{}")
+                .with(conPermiso("movements:reject-payment")))
+        .andExpect(status().isBadRequest());
+    mvc.perform(rechazarPago(pago, "   ")).andExpect(status().isBadRequest());
+    mvc.perform(rechazarPago(pago, "x".repeat(501))).andExpect(status().isBadRequest());
+    assertThat(estadoDelPago(venta)).isEqualTo("PENDIENTE");
+  }
+
+  @Test
+  @DisplayName(
+      "CA-MV-510 y CA-MV-511 — un pago que no existe es 404 y uno malformado 400; uno ya"
+          + " confirmado o rechazado es 409 con su estado")
+  void noExisteOYaResuelto() throws Exception {
+    mvc.perform(rechazarPago(UUID.randomUUID(), MOTIVO)).andExpect(status().isNotFound());
+    mvc.perform(
+            post("/api/v1/movements/payments/{id}/rejection", "no-es-un-uuid")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("{\"reason\":\"x\"}")
+                .with(conPermiso("movements:reject-payment")))
+        .andExpect(status().isBadRequest());
+
+    UUID confirmada = venta("CONFIRMADA");
+    mvc.perform(rechazarPago(PaymentFixtures.pagoAConciliar(jdbc, confirmada), MOTIVO))
+        .andExpect(status().isConflict())
+        .andExpect(jsonPath("$.errors[0].code").value("EX-003"))
+        .andExpect(jsonPath("$.detail").value(org.hamcrest.Matchers.containsString("CONFIRMADO")));
+    UUID venta = venta("PENDIENTE");
+    UUID pago = PaymentFixtures.pagoAConciliar(jdbc, venta);
+    mvc.perform(rechazarPago(pago, MOTIVO)).andExpect(status().isOk());
+    mvc.perform(rechazarPago(pago, "Otra vez"))
+        .andExpect(status().isConflict())
+        .andExpect(jsonPath("$.errors[0].code").value("EX-003"))
+        .andExpect(jsonPath("$.detail").value(org.hamcrest.Matchers.containsString("RECHAZADO")));
+    assertThat(estadoDelPago(confirmada)).isEqualTo("CONFIRMADO");
+  }
+
+  @Test
+  @DisplayName(
+      "CA-MV-512 y CA-MV-513 — el pago de un retiro, o uno con cobro abierto en la pasarela, es"
+          + " 409 y nada cambia")
+  void retiroOCobroAbierto() throws Exception {
+    UUID retiro = UUID.randomUUID();
+    jdbc.update(
+        """
+        INSERT INTO movements (id, movement_type_id, type_status_id, user_id, currency_id, code,
+                               status, total_amount, discount_amount, payable_amount, occurred_at)
+        VALUES (?, CAST(? AS uuid),
+                (SELECT s.id FROM movement_type_statuses s
+                  WHERE s.movement_type_id = CAST(? AS uuid) AND s.code = 'REGISTRADO'),
+                ?, CAST(? AS uuid), ?, 'PENDIENTE', 100.00, 0, 100.00, now())
+        """,
+        retiro,
+        RETIRO,
+        RETIRO,
+        cliente,
+        USD,
+        "RET-" + retiro.toString().substring(0, 8).toUpperCase());
+    PaymentFixtures.pagoDe(jdbc, retiro, PSE);
+    mvc.perform(rechazarPago(PaymentFixtures.pagoAConciliar(jdbc, retiro), MOTIVO))
+        .andExpect(status().isConflict())
+        .andExpect(jsonPath("$.errors[0].code").value("EX-002"));
+    assertThat(estadoDelPago(retiro)).isEqualTo("PENDIENTE");
+
+    UUID venta = venta("PENDIENTE");
+    UUID pago = PaymentFixtures.pagoAConciliar(jdbc, venta);
+    jdbc.update("UPDATE payments SET provider_reference = 'pi_abierto' WHERE id = ?", pago);
+    mvc.perform(rechazarPago(pago, MOTIVO))
+        .andExpect(status().isConflict())
+        .andExpect(jsonPath("$.errors[0].code").value("EX-004"));
+    assertThat(estadoDelPago(venta)).isEqualTo("PENDIENTE");
+  }
+
+  @Test
+  @DisplayName(
+      "CA-MV-514 — sin movements:reject-payment es 403, también con confirm-payment; sin token"
+          + " 401; lo portan SUPERADMIN y ADMIN")
+  void permisoDelRechazo() throws Exception {
+    UUID venta = venta("PENDIENTE");
+    UUID pago = PaymentFixtures.pagoAConciliar(jdbc, venta);
+
+    mvc.perform(
+            post("/api/v1/movements/payments/{id}/rejection", pago)
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("{\"reason\":\"x\"}")
+                .with(conPermiso("movements:confirm-payment")))
+        .andExpect(status().isForbidden());
+    mvc.perform(
+            post("/api/v1/movements/payments/{id}/rejection", pago)
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("{\"reason\":\"x\"}"))
+        .andExpect(status().isUnauthorized());
+    assertThat(estadoDelPago(venta)).isEqualTo("PENDIENTE");
+    assertThat(
+            jdbc.queryForList(
+                "SELECT r.code FROM role_permissions rp JOIN roles r ON r.id = rp.role_id"
+                    + " JOIN permissions p ON p.id = rp.permission_id"
+                    + " WHERE p.code = 'movements:reject-payment' ORDER BY r.code",
+                String.class))
+        .containsExactly("ADMIN", "SUPERADMIN");
+  }
+
+  @Test
+  @DisplayName(
+      "CA-MV-515 — queda auditado como en RF-MV-004 y RF-MV-029, con quien rechazó y el motivo")
+  void rechazoAuditado() throws Exception {
+    UUID venta = venta("PENDIENTE");
+    mvc.perform(rechazarPago(PaymentFixtures.pagoAConciliar(jdbc, venta), MOTIVO))
+        .andExpect(status().isOk());
+    UUID compra = comprarPuntos();
+    mvc.perform(rechazarPago(PaymentFixtures.pagoAConciliar(jdbc, compra), MOTIVO))
+        .andExpect(status().isOk());
+
+    assertThat(
+            jdbc.queryForObject(
+                "SELECT changes -> 'after' ->> 'rejection_reason' FROM audit_change_log"
+                    + " WHERE entity = 'payments' AND entity_id = ? AND actor_id = ?",
+                String.class,
+                venta,
+                administrador))
+        .isEqualTo(MOTIVO);
+    assertThat(
+            jdbc.queryForObject(
+                "SELECT changes -> 'after' ->> 'rejection_reason' FROM audit_change_log"
+                    + " WHERE entity = 'movements' AND entity_id = ? AND actor_id = ?"
+                    + " AND action = 'UPDATE'",
+                String.class,
+                compra,
+                administrador))
+        .isEqualTo(MOTIVO);
+  }
+
+  @Test
+  @DisplayName(
+      "CA-MV-517 y CA-MV-519 — las rutas de rechazar por movimiento ya no existen: 404, y nada"
+          + " cambia")
+  void lasRutasDeRechazoRetiradas() throws Exception {
+    UUID venta = venta("PENDIENTE");
+    UUID compra = comprarPuntos();
+
+    mvc.perform(
+            post("/api/v1/movements/{id}/rejection", venta)
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("{\"reason\":\"x\"}")
+                .with(conPermiso("movements:reject-payment")))
+        .andExpect(status().isNotFound());
+    mvc.perform(
+            post("/api/v1/movements/{id}/points-purchase-rejection", compra)
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("{\"reason\":\"x\"}")
+                .with(conPermiso("movements:reject-payment")))
+        .andExpect(status().isNotFound());
+    assertThat(estadoDelPago(venta)).isEqualTo("PENDIENTE");
+    assertThat(estadoDelPago(compra)).isEqualTo("PENDIENTE");
+  }
+
+  // ---------------------------------------------------------------------------
+
+  private MockHttpServletRequestBuilder rechazarPago(UUID pago, String motivo) {
+    return post("/api/v1/movements/payments/{id}/rejection", pago)
+        .contentType(MediaType.APPLICATION_JSON)
+        .content("{\"reason\":\"" + motivo + "\"}")
+        .with(conPermiso("movements:reject-payment"));
+  }
+
+  /** Una compra de puntos pendiente, con tarjeta y la pasarela apagada: sin cobro. */
+  private UUID comprarPuntos() throws Exception {
+    String cuerpo =
+        mvc.perform(
+                post("/api/v1/movements/mine/points-purchases")
+                    .header("Idempotency-Key", "rj-" + UUID.randomUUID())
+                    .contentType(MediaType.APPLICATION_JSON)
+                    .content(
+                        "{\"currencyId\":\"%s\",\"amount\":10.00,\"paymentMethodId\":\"%s\"}"
+                            .formatted(USD, TARJETA))
+                    .with(user(cliente.toString()).authorities(() -> "movements:buy-points")))
+            .andExpect(status().isCreated())
+            .andReturn()
+            .getResponse()
+            .getContentAsString();
+    return UUID.fromString(com.jayway.jsonpath.JsonPath.read(cuerpo, "$.id"));
+  }
+
+  private MockHttpServletRequestBuilder rechazar(UUID venta, String motivo) {
+    return post(
+            "/api/v1/movements/payments/{id}/rejection",
+            PaymentFixtures.pagoAConciliar(jdbc, venta))
         .contentType(MediaType.APPLICATION_JSON)
         .content("{\"reason\":\"" + motivo + "\"}");
   }
@@ -295,9 +551,8 @@ class RejectPaymentIT extends IntegrationTestBase {
   }
 
   private void limpiar() {
-    CommissionCleanup.limpiar(jdbc);
-    jdbc.update("DELETE FROM movement_details");
-    jdbc.update("DELETE FROM movements");
+    // Los movimientos, los asientos, las cuentas y las tasas: las compras de puntos de RF-MV-045.
+    PointsFixtures.limpiar(jdbc);
     jdbc.update("DELETE FROM audit_change_log WHERE entity = 'payments'");
     jdbc.update("DELETE FROM products WHERE code LIKE 'RJ\\_%'");
     jdbc.update(

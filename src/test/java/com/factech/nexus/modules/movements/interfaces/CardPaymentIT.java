@@ -493,13 +493,15 @@ class CardPaymentIT extends IntegrationTestBase {
   void manualesConCobroAbierto() throws Exception {
     Cobro c = cobroAbierto("100.00");
     mvc.perform(
-            post("/api/v1/movements/{id}/confirmation", c.venta())
-                .with(user(admin.toString()).authorities(() -> "movements:confirm")))
+            post(
+                    "/api/v1/movements/payments/{id}/confirmation",
+                    PaymentFixtures.pagoAConciliar(jdbc, c.venta()))
+                .with(user(admin.toString()).authorities(() -> "movements:confirm-payment")))
         .andExpect(status().isConflict())
-        .andExpect(jsonPath("$.errors[0].code").value("EX-007"));
+        .andExpect(jsonPath("$.errors[0].code").value("EX-004"));
     mvc.perform(rechazar(c.venta()))
         .andExpect(status().isConflict())
-        .andExpect(jsonPath("$.errors[0].code").value("EX-006"));
+        .andExpect(jsonPath("$.errors[0].code").value("EX-004"));
     assertThat(estadoDelPago(c.pago())).isEqualTo("PENDIENTE");
     assertThat(estado(c.venta())).isEqualTo("PENDIENTE");
 
@@ -507,8 +509,10 @@ class CardPaymentIT extends IntegrationTestBase {
     mvc.perform(rechazar(sinCobro)).andExpect(status().isOk());
     UUID otraSinCobro = venta(cliente, "PENDIENTE", "100.00", TARJETA);
     mvc.perform(
-            post("/api/v1/movements/{id}/confirmation", otraSinCobro)
-                .with(user(admin.toString()).authorities(() -> "movements:confirm")))
+            post(
+                    "/api/v1/movements/payments/{id}/confirmation",
+                    PaymentFixtures.pagoAConciliar(jdbc, otraSinCobro))
+                .with(user(admin.toString()).authorities(() -> "movements:confirm-payment")))
         .andExpect(status().isOk());
   }
 
@@ -606,14 +610,16 @@ class CardPaymentIT extends IntegrationTestBase {
 
     mvc.perform(confirmarPuntos(compra))
         .andExpect(status().isConflict())
-        .andExpect(jsonPath("$.errors[0].code").value("EX-005"));
+        .andExpect(jsonPath("$.errors[0].code").value("EX-004"));
     mvc.perform(
-            post("/api/v1/movements/{id}/points-purchase-rejection", compra)
+            post(
+                    "/api/v1/movements/payments/{id}/rejection",
+                    PaymentFixtures.pagoAConciliar(jdbc, compra))
                 .contentType(MediaType.APPLICATION_JSON)
                 .content("{\"reason\":\"No\"}")
-                .with(user(admin.toString()).authorities(() -> "movements:reject-points-purchase")))
+                .with(user(admin.toString()).authorities(() -> "movements:reject-payment")))
         .andExpect(status().isConflict())
-        .andExpect(jsonPath("$.errors[0].code").value("EX-005"));
+        .andExpect(jsonPath("$.errors[0].code").value("EX-004"));
     assertThat(estado(compra)).isEqualTo("PENDIENTE");
     assertThat(saldo(jdbc, cliente, "PUNTOS")).isEqualByComparingTo("0");
   }
@@ -671,14 +677,18 @@ class CardPaymentIT extends IntegrationTestBase {
   }
 
   private MockHttpServletRequestBuilder confirmarPuntos(UUID compra) {
-    return post("/api/v1/movements/{id}/points-purchase-confirmation", compra)
+    return post(
+            "/api/v1/movements/payments/{id}/confirmation",
+            PaymentFixtures.pagoAConciliar(jdbc, compra))
         .contentType(MediaType.APPLICATION_JSON)
         .content("{}")
-        .with(user(admin.toString()).authorities(() -> "movements:confirm-points-purchase"));
+        .with(user(admin.toString()).authorities(() -> "movements:confirm-payment"));
   }
 
   private MockHttpServletRequestBuilder rechazar(UUID venta) {
-    return post("/api/v1/movements/{id}/rejection", venta)
+    return post(
+            "/api/v1/movements/payments/{id}/rejection",
+            PaymentFixtures.pagoAConciliar(jdbc, venta))
         .contentType(MediaType.APPLICATION_JSON)
         .content("{\"reason\":\"Fondos insuficientes\"}")
         .with(user(admin.toString()).authorities(() -> "movements:reject-payment"));

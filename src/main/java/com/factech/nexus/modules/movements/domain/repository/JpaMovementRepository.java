@@ -1207,7 +1207,7 @@ public class JpaMovementRepository implements MovementRepository {
    */
   @Override
   @Transactional
-  public boolean confirmIfPending(UUID movementId, OffsetDateTime at) {
+  public boolean confirmIfPending(UUID movementId, OffsetDateTime at, String providerReference) {
     // DESDE EL 26-09-2026 SE CONFIRMA EL PAGO PENDIENTE, y la venta con él
     // (`RF-MV-003` · `spec.md` v0.2.0). La venta va PRIMERO porque es la fila que
     // serializa: rechazar el pago (`RF-MV-004`) bloquea la misma fila antes de
@@ -1234,11 +1234,13 @@ public class JpaMovementRepository implements MovementRepository {
         em.createNativeQuery(
                 """
                 UPDATE payments
-                   SET status = 'CONFIRMADO', confirmed_at = :ahora
+                   SET status = 'CONFIRMADO', confirmed_at = :ahora,
+                       provider_reference = COALESCE(CAST(:referencia AS varchar), provider_reference)
                  WHERE movement_id = :id AND status = 'PENDIENTE'
                 """)
             .setParameter("id", movementId)
             .setParameter("ahora", at)
+            .setParameter("referencia", providerReference)
             .executeUpdate();
     if (pagos != 1) {
       // La fila de la venta está bloqueada por esta transacción: nadie pudo

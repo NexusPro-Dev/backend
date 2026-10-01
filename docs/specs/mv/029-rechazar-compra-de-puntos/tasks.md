@@ -78,3 +78,13 @@ Rama: `feature/stripe-tarjeta`. Después de las tareas de `RF-MV-040` que cada f
 Criterios: `CA-MV-479`.
 
 **Construido el 01-10-2026** (issue [#161](https://github.com/NexusPro-Dev/backend/issues/161)). Los criterios se prueban en `CardPaymentIT` —o en la suite de la entrada, para las compras— y no en la suite que cada fila nombra.
+
+## 7. Sin ruta propia — enmienda del 01-10-2026
+
+Rama: `feature/confirmar-por-pago`. Junto con `RF-MV-045`.
+
+| ID | Tarea | Depende de | Verificación | Estado |
+|---|---|---|---|---|
+| `T-07` | `PointsPurchaseService.reject` y su ruta se retiran; nace `rejectPayment`, que invoca `RF-MV-045`; `PointsPurchaseIT` pasa a la ruta nueva; `CA-MV-519` en `PointsPurchaseIT` | `RF-MV-045` · `T-03` | Ninguna prueba llama a la ruta retirada | **Hecha** — 01-10-2026 |
+
+Criterios: `CA-MV-519`.
