@@ -5,7 +5,7 @@
 | Módulo | `MV` — Movimientos |
 | Paquete | `modules/movements` |
 | Prefijos de permiso | `movements:` |
-| Versión | 0.59.0 |
+| Versión | 0.60.0 |
 | Estado | **Borrador** |
 | Responsable | Bonilla Diaz William Steven |
 | Fecha de creación | 02-09-2026 |
@@ -1117,3 +1117,4 @@ Se siembra por migración y **no se administra por API todavía** (§5.3). Lo m�
 | 0.57.0 | 30-09-2026 | **La etapa 3 está construida** (issue [#149](https://github.com/NexusPro-Dev/backend/issues/149)): `V58` escribe `points_rates`, las dos columnas de `movements`, `PUNTOS_EMITIDOS`, el evento `PAGO`, el tipo `COMPRA_PUNTOS` y los seis permisos de §6, y rechaza los pagos `POINTS` que seguían pendientes. Sin cambio de reglas. **Pagar con puntos confirma por `ConfirmSaleService`** en la misma transacción, sin extraer ningún componente (`RF-MV-030` · `tasks.md` §3.1), y sus rechazos llevan el código de la regla —`RN-MV-052`, `RN-MV-050`— porque entra por cinco rutas con numeraciones distintas. | Responsable técnico |
 | 0.58.0 | 30-09-2026 | **El vendedor de una línea de una venta confirmada se puede corregir mientras su comisión no se haya pagado**, por decisión del responsable del proyecto: «permitamos que se pueda actualizar el vendedor de una línea siempre y cuando esta comisión de la venta no se haya pagado». **Nace `RN-MV-053`**: la pregunta la responde `CM`, por un **puerto que declara este módulo y `CM` implementa**, invocado en la misma transacción antes de escribir; con un no, la corrección entera se rechaza. **Se enmienda `RN-MV-035`** —el vendedor se congela al pagarse la comisión, no al confirmar— y, en consecuencia, `RF-MV-016`, §3 y §7.3. Sin permisos nuevos: corregir sigue siendo `movements:assign-sellers`. Con [`requirements/cm.md`](cm.md) v0.26.0 (`RN-CM-046` a `RN-CM-048`, `RF-CM-022` a `RF-CM-024`). Sin tripletas todavía | Responsable del proyecto |
 | 0.59.0 | 30-09-2026 | **`RN-MV-053` está construida**: `CommissionedLineRelease` vive en `movements.application` y `AssignSellersService` lo invoca antes de escribir, en una venta confirmada, por cada línea que cambia de vendedor; una regla de ArchUnit fija que nada de `movements` depende de `commissions`. Sin cambio de reglas. | Responsable técnico |
+| 0.60.0 | 30-09-2026 | **`RF-MV-030` · `EX-003` precisada** ([`specs/mv/030-pagar-con-puntos/spec.md`](../specs/mv/030-pagar-con-puntos/spec.md) v0.2.0): el registro de un funcionario rechazaba los puntos en **toda** venta; ahora solo en la que registra a nombre de **otra** persona, que es lo que la regla decía. Un funcionario que compra para sí paga con sus puntos. Sin cambio de reglas. | Responsable del proyecto |
