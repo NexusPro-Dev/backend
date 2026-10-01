@@ -4,6 +4,7 @@ import com.factech.nexus.modules.commissions.domain.models.AccrualOutcome;
 import com.factech.nexus.modules.commissions.domain.models.CommissionRateType;
 import com.factech.nexus.shared.persistence.UuidV7Generator;
 import jakarta.persistence.EntityManager;
+import java.math.BigDecimal;
 import java.time.OffsetDateTime;
 import java.util.Collection;
 import java.util.HashSet;
@@ -147,6 +148,57 @@ public class JpaCommissionAccrualRepository implements CommissionAccrualReposito
         .setParameter("cantidad", c.quantity())
         .setParameter("importe", c.amount())
         .setParameter("at", c.accruedAt())
+        .executeUpdate();
+  }
+
+  @Override
+  public boolean hasCountedFtd(UUID detailId) {
+    return (Boolean)
+        em.createNativeQuery(
+                "SELECT EXISTS (SELECT 1 FROM afftrack_ftds WHERE movement_detail_id = :linea)")
+            .setParameter("linea", detailId)
+            .getSingleResult();
+  }
+
+  @Override
+  public List<LiveCommission> lockLiveCommissionsOf(UUID detailId) {
+    @SuppressWarnings("unchecked")
+    List<Object[]> filas =
+        em.createNativeQuery(
+                """
+                SELECT id, batch_id, user_id, commission_amount
+                  FROM commissions
+                 WHERE movement_detail_id = :linea AND reverted_at IS NULL
+                 ORDER BY id
+                   FOR UPDATE
+                """)
+            .setParameter("linea", detailId)
+            .getResultList();
+    return filas.stream()
+        .map(f -> new LiveCommission((UUID) f[0], (UUID) f[1], (UUID) f[2], (BigDecimal) f[3]))
+        .toList();
+  }
+
+  @Override
+  public void revert(Collection<UUID> commissionIds, UUID actorId, OffsetDateTime at) {
+    if (commissionIds.isEmpty()) {
+      return;
+    }
+    em.createNativeQuery(
+            """
+            UPDATE commissions SET reverted_at = :at, reverted_by = :quien
+             WHERE id IN (:ids) AND reverted_at IS NULL
+            """)
+        .setParameter("ids", new java.util.HashSet<>(commissionIds))
+        .setParameter("quien", actorId)
+        .setParameter("at", at)
+        .executeUpdate();
+  }
+
+  @Override
+  public void deleteOutcome(UUID detailId) {
+    em.createNativeQuery("DELETE FROM commission_accruals WHERE movement_detail_id = :linea")
+        .setParameter("linea", detailId)
         .executeUpdate();
   }
 }

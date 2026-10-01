@@ -8,6 +8,7 @@
 | `plan.md` aprobado el | 28-09-2026 |
 | Estado | **En revisión** — todas las tareas `Hecha` el 28-09-2026 |
 | Enmendadas | 29-09-2026 — `T-08` por **la liquidación afftrack** (`RN-CM-043`) |
+| Enmendadas | 30-09-2026 — `T-09` por **los abiertos vacíos** (`RN-CM-048`) |
 | Issue | Pendiente de crear |
 | Rama | `feature/devengo-de-comisiones` |
 
@@ -77,3 +78,11 @@
 | `T-08` | El paso afftrack y el instante del cierre posterior al corte en `CloseCommissionPeriodService` (`plan.md` §12) | `RF-CM-020` `T-07` | `CloseCommissionPeriodIT` en verde sin cambiar sus criterios | **Hecha** — 29-09-2026 |
 
 Rama: `feature/comision-afftrack`. **Es la misma tarea que `RF-CM-020` `T-07`**, vista desde aquí.
+
+## 7. Los abiertos vacíos — enmienda del 30-09-2026
+
+| ID | Tarea | Depende de | Verificación | Estado |
+|---|---|---|---|---|
+| `T-09` | La condición de comisiones vivas en el paso a `PENDIENTE` (`plan.md` §13) y `CA-CM-300` en `CloseCommissionPeriodIT` | `RF-CM-023` `T-03` | `CloseCommissionPeriodIT` en verde | **Hecha** — 30-09-2026 |
+
+Rama: `feature/corregir-vendedor-y-mover-comisiones`.

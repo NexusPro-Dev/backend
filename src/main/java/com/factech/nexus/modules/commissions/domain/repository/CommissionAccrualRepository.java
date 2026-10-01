@@ -36,6 +36,27 @@ public interface CommissionAccrualRepository {
 
   void insertCommission(NewCommission comision);
 
+  /** Si la línea es un FTD ya contado en una liquidación afftrack (`RN-CM-040`, `RN-CM-047`). */
+  boolean hasCountedFtd(UUID detailId);
+
+  /**
+   * Las comisiones <b>vivas</b> de la línea, <b>bloqueadas</b>: las comisiones antes que los lotes
+   * (`RF-CM-022` `plan.md` §1).
+   */
+  List<LiveCommission> lockLiveCommissionsOf(UUID detailId);
+
+  /** Las marca revertidas, por quién y cuándo (`RN-CM-047`). No se borran. */
+  void revert(Collection<UUID> commissionIds, UUID actorId, OffsetDateTime at);
+
+  /**
+   * Borra el desenlace de la línea, para que la cadena nueva se devengue como una línea recién
+   * atribuida (`RN-CM-047`): la fila dice qué le falta a la línea, y a esta le falta todo.
+   */
+  void deleteOutcome(UUID detailId);
+
+  /** Una comisión viva de una línea, con lo que hace falta para revertirla. */
+  record LiveCommission(UUID id, UUID batchId, UUID userId, BigDecimal amount) {}
+
   record AccrualRow(UUID detailId, AccrualOutcome outcome, int attempts) {}
 
   /** Una fila de {@code commissions}, con lo que se aplicó copiado (`RN-CM-008`). */

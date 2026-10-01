@@ -256,8 +256,12 @@ public class MovementController {
           `VALIDADO`** en cuanto no queda ninguna.
 
           **Qué se puede tocar** (`RN-MV-035`): una línea **sin vendedor** se asigna siempre,
-          también después de confirmar el pago; **corregir** una que ya lo tiene solo se
-          admite **mientras la venta no esté `CONFIRMADA`**. En una venta `RECHAZADA` o
+          también después de confirmar el pago; **corregir** una que ya lo tiene se admite
+          mientras la venta no esté `CONFIRMADA` y, **desde el 30-09-2026, también confirmada
+          mientras su comisión no se haya pagado** (`RN-MV-053`): se le pregunta a `CM`, que
+          revierte la comisión de la cadena vieja, y la de la nueva se devenga como si la línea
+          se acabara de atribuir. Si algún nivel de la cadena está pagado, o la línea es un FTD
+          ya contado, `409`. En una venta `RECHAZADA` o
           `ANULADA` no se asigna nada. El vendedor tiene que ser **uno de los del cliente**
           —de registro o de hotlink—: elegir a cualquiera sería atribuir la venta a quien se
           quisiera.
@@ -290,7 +294,8 @@ public class MovementController {
         responseCode = "409",
         description =
             "La venta está rechazada o anulada (`EX-002`), o está confirmada y se intenta"
-                + " corregir una línea que ya tenía vendedor (`EX-003`). Nada cambió.",
+                + " corregir una línea cuya comisión ya se pagó o que ya se contó como FTD"
+                + " (`EX-003`). Nada cambió, en ninguna línea.",
         content = @Content),
     @ApiResponse(
         responseCode = "422",

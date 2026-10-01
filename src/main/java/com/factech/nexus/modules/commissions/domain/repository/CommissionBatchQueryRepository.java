@@ -24,6 +24,12 @@ public interface CommissionBatchQueryRepository {
   /** Sus comisiones, por venta, línea y nivel. */
   List<CommissionRow> commissionsOf(UUID batchId);
 
+  /**
+   * Las comisiones <b>retiradas de este lote</b>, estén donde estén (`RN-CM-046`, `RF-CM-023`): el
+   * pendiente las lista porque es desde él desde donde se devuelven.
+   */
+  List<WithdrawnRow> withdrawnFrom(UUID batchId);
+
   /** Un nulo no filtra. {@code owner} lo fija el token en `RF-CM-012`, nunca la petición. */
   record BatchFilter(
       BatchStatus status, UUID userId, UUID currencyId, OffsetDateTime from, OffsetDateTime to) {}
@@ -65,5 +71,13 @@ public interface CommissionBatchQueryRepository {
       LocalDate resolvedOn,
       OffsetDateTime accruedAt,
       String commissionKind,
-      UUID afftrackSettlementId) {}
+      UUID afftrackSettlementId,
+      OffsetDateTime revertedAt,
+      UUID revertedBy,
+      UUID withdrawnFromId,
+      String withdrawnFromCode) {}
+
+  /** Una comisión retirada, con el lote en que está ahora. */
+  record WithdrawnRow(
+      CommissionRow commission, UUID currentId, String currentCode, BatchStatus currentStatus) {}
 }

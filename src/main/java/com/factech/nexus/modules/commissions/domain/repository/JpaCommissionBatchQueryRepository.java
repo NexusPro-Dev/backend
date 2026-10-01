@@ -31,7 +31,8 @@ public class JpaCommissionBatchQueryRepository implements CommissionBatchQueryRe
       SELECT b.id, b.code, b.user_id, u.username, u.first_name, u.last_name,
              b.currency_id, c.code AS currency_code, b.period_start, b.period_end, b.status,
              b.total_amount,
-             (SELECT count(*) FROM commissions k WHERE k.batch_id = b.id) AS comisiones,
+             (SELECT count(*) FROM commissions k
+               WHERE k.batch_id = b.id AND k.reverted_at IS NULL) AS comisiones,
              b.paid_at, b.movement_id, pm.total_amount AS abonado
         FROM commission_batches b
         JOIN users u ON u.id = b.user_id
@@ -93,53 +94,83 @@ public class JpaCommissionBatchQueryRepository implements CommissionBatchQueryRe
     return filas.stream().findFirst().map(JpaCommissionBatchQueryRepository::lote);
   }
 
+  /**
+   * Las columnas de una comisión, comunes a las del lote y a las retiradas de él. <b>{@code o} es
+   * el lote del que salió</b> (`RN-CM-046`) y <b>{@code a} el lote en que está</b>.
+   */
+  private static final String COMISION =
+      """
+      SELECT k.id, k.movement_detail_id, d.movement_id, m.code,
+             COALESCE(d.product_id, s.product_id), COALESCE(d.product_name, p.name),
+             k.chain_level, k.source, k.rate_id, k.rate_type,
+             k.percentage, k.fixed_amount, k.unit_price, k.quantity,
+             k.commission_amount, k.resolved_on, k.accrued_at,
+             k.commission_kind, k.afftrack_settlement_id,
+             k.reverted_at, k.reverted_by, o.id, o.code,
+             a.id, a.code, a.status
+        FROM commissions k
+        JOIN commission_batches a ON a.id = k.batch_id
+        LEFT JOIN commission_batches o ON o.id = k.withdrawn_from_batch_id
+        LEFT JOIN movement_details d ON d.id = k.movement_detail_id
+        LEFT JOIN movements m ON m.id = d.movement_id
+        LEFT JOIN afftrack_settlements s ON s.id = k.afftrack_settlement_id
+        LEFT JOIN products p ON p.id = s.product_id
+      """;
+
+  private static final String ORDEN_COMISIONES =
+      " ORDER BY COALESCE(m.occurred_at, k.accrued_at), d.id, k.chain_level, k.id";
+
   @Override
   public List<CommissionRow> commissionsOf(UUID batchId) {
     @SuppressWarnings("unchecked")
     List<Object[]> filas =
-        em.createNativeQuery(
-                """
-                SELECT k.id, k.movement_detail_id, d.movement_id, m.code,
-                       COALESCE(d.product_id, s.product_id), COALESCE(d.product_name, p.name),
-                       k.chain_level, k.source, k.rate_id, k.rate_type,
-                       k.percentage, k.fixed_amount, k.unit_price, k.quantity,
-                       k.commission_amount, k.resolved_on, k.accrued_at,
-                       k.commission_kind, k.afftrack_settlement_id
-                  FROM commissions k
-                  LEFT JOIN movement_details d ON d.id = k.movement_detail_id
-                  LEFT JOIN movements m ON m.id = d.movement_id
-                  LEFT JOIN afftrack_settlements s ON s.id = k.afftrack_settlement_id
-                  LEFT JOIN products p ON p.id = s.product_id
-                 WHERE k.batch_id = :lote
-                 ORDER BY COALESCE(m.occurred_at, k.accrued_at), d.id, k.chain_level, k.id
-                """)
+        em.createNativeQuery(COMISION + " WHERE k.batch_id = :lote" + ORDEN_COMISIONES)
             .setParameter("lote", batchId)
             .getResultList();
-    List<CommissionRow> comisiones = new ArrayList<>(filas.size());
-    for (Object[] f : filas) {
-      comisiones.add(
-          new CommissionRow(
-              (UUID) f[0],
-              (UUID) f[1],
-              (UUID) f[2],
-              (String) f[3],
-              (UUID) f[4],
-              (String) f[5],
-              f[6] == null ? null : ((Number) f[6]).intValue(),
-              (String) f[7],
-              (UUID) f[8],
-              (String) f[9],
-              (BigDecimal) f[10],
-              (BigDecimal) f[11],
-              (BigDecimal) f[12],
-              ((Number) f[13]).intValue(),
-              (BigDecimal) f[14],
-              fecha(f[15]),
-              instante(f[16]),
-              (String) f[17],
-              (UUID) f[18]));
-    }
-    return comisiones;
+    return filas.stream().map(JpaCommissionBatchQueryRepository::comision).toList();
+  }
+
+  @Override
+  public List<WithdrawnRow> withdrawnFrom(UUID batchId) {
+    @SuppressWarnings("unchecked")
+    List<Object[]> filas =
+        em.createNativeQuery(
+                COMISION + " WHERE k.withdrawn_from_batch_id = :lote" + ORDEN_COMISIONES)
+            .setParameter("lote", batchId)
+            .getResultList();
+    return filas.stream()
+        .map(
+            f ->
+                new WithdrawnRow(
+                    comision(f), (UUID) f[23], (String) f[24], BatchStatus.valueOf((String) f[25])))
+        .toList();
+  }
+
+  private static CommissionRow comision(Object[] f) {
+    return new CommissionRow(
+        (UUID) f[0],
+        (UUID) f[1],
+        (UUID) f[2],
+        (String) f[3],
+        (UUID) f[4],
+        (String) f[5],
+        f[6] == null ? null : ((Number) f[6]).intValue(),
+        (String) f[7],
+        (UUID) f[8],
+        (String) f[9],
+        (BigDecimal) f[10],
+        (BigDecimal) f[11],
+        (BigDecimal) f[12],
+        ((Number) f[13]).intValue(),
+        (BigDecimal) f[14],
+        fecha(f[15]),
+        instante(f[16]),
+        (String) f[17],
+        (UUID) f[18],
+        instante(f[19]),
+        (UUID) f[20],
+        (UUID) f[21],
+        (String) f[22]);
   }
 
   private static void parametros(Query consulta, BatchFilter filtro) {

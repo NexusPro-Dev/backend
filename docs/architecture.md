@@ -5,11 +5,11 @@
 | Proyecto | NEXUS — Renovación de plataforma |
 | Empresa | FACTECH GROUP SAS |
 | Documento | `architecture.md` |
-| Versión | 0.39.0 |
+| Versión | 0.40.0 |
 | Estado | Borrador |
 | Responsable técnico | Bonilla Diaz William Steven |
 | Fecha de creación | 19-08-2026 |
-| Última actualización | 28-09-2026 |
+| Última actualización | 30-09-2026 |
 | Documento superior | `constitution.md` v0.5.0 |
 | Documento relacionado | `security.md` v0.3.0 |
 
@@ -819,6 +819,14 @@ Declararlo otra vez habría creado **la segunda definición de «vigente»**, qu
 
     Y no contradice el descarte de la inversión que esta misma sección hace más arriba: **aquel se descartó por producir el ciclo, y este se elige por evitarlo**. La regla de fondo no es «quién declara la interfaz», es **que el grafo no tenga ciclos** — de modo que la dirección la decide, en cada caso, cuál de las dos formas mantiene esa propiedad. Cuando el consumidor es el módulo raíz, la interfaz la declara él.
 
+!!! danger "La segunda inversión, el 30-09-2026: `MV` pregunta a `CM`, y la respuesta escribe"
+
+    `RF-MV-016` corrige el vendedor de una línea de venta, y desde el 30-09-2026 lo hace también en una venta confirmada **mientras su comisión no se haya pagado** ([`requirements/mv.md`](requirements/mv.md) v0.58.0, `RN-MV-053`). Saber si está pagada es de `CM`, y `CM` ya depende de `MV`: la norma de esta sección pondría a `MV` a importar una interfaz de `CM` y cerraría el ciclo `MV` → `CM` → `MV`.
+
+    **Se resuelve como la cuarta lectura**: `MV` declara el puerto en su capa `application` y **`CM` lo implementa** (`RF-CM-024`). La dependencia de compilación sigue siendo `CM` → `MV`. **Lo que esta tiene de distinto, y conviene decirlo, es que no es una lectura**: si la línea puede cambiar de dueño, `CM` **revierte** su cadena de comisiones en la misma transacción antes de responder. Se acepta porque la pregunta y la escritura son inseparables —comprobar y revertir por separado dejaría entre medias una ventana en la que alguien paga el lote— y porque la transacción es la de `MV`: si la corrección se rechaza después, la reversión se deshace con ella.
+
+    **La tercera regla de abajo se cumple igual**: el puerto responde **un resultado** —liberada, o negada con su motivo— y no lanza; qué `4xx` produce lo decide `MV`, que es quien tiene el contrato HTTP.
+
 ### Cuatro reglas que hacen que la frontera se sostenga
 
 1. **Devuelven modelos de lectura, nunca entidades.** Devolver el agregado de `SP` filtraría JPA al otro módulo y le daría, de paso, con qué escribir. Lo que cruza la frontera son registros planos sin comportamiento.
@@ -944,3 +952,4 @@ D-08 quedó cerrada en `security.md` §12, junto con las decisiones D-12 a D-15 
 | 0.37.0 | 25-09-2026 | **Academia llama a dos servicios externos** para leer la duración de un video (`requirements/ac.md` v0.16.0 §5.2.11): YouTube Data API v3, con **`YOUTUBE_API_KEY`** nueva en §11, y el oEmbed público de Vimeo, sin credencial. Con plazo corto y siempre a la dirección fija del proveedor. | Responsable técnico |
 | 0.38.0 | 25-09-2026 | **`VIMEO_ACCESS_TOKEN`** en §11: Academia lee la duración de Vimeo por su API con token, porque el oEmbed sin credencial no es fiable (`requirements/ac.md` v0.18.0 §5.2.11). | Responsable técnico |
 | 0.39.0 | 28-09-2026 | **§15.1.1: la zona del negocio tiene un sitio, `BusinessCalendar`** (`shared/time`, `nexus.business.zone`), que nace con el devengo de comisiones ([`requirements/cm.md`](requirements/cm.md) v0.19.0, `RF-CM-013`) y salda el «hoy» en UTC de `ResolveCommissionService`, aplazado el 15-09-2026. Una tarea programada de negocio declara su `zone` con la misma propiedad. | Responsable del proyecto |
+| 0.40.0 | 30-09-2026 | **§15.2 gana su segunda inversión de dependencia**, y la primera que escribe: `MV` declara el puerto con el que pregunta a `CM` si la línea cuyo vendedor se corrige puede cambiar de dueño, y `CM` lo implementa revirtiendo su cadena en la misma transacción ([`requirements/mv.md`](requirements/mv.md) v0.58.0 `RN-MV-053`; [`requirements/cm.md`](requirements/cm.md) v0.26.0 `RN-CM-047`). Responde un resultado y no lanza, como la tercera regla exige. | Responsable del proyecto |

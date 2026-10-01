@@ -74,6 +74,12 @@ public class PayCommissionBatchService {
     if (BatchStatus.PAGADO.name().equals(lote.status())) {
       rechazar("EX-003", "El lote ya está pagado.");
     }
+    // `RN-CM-048` (30-09-2026): a un pendiente se le pueden retirar o revertir
+    // todas, y abonar un lote vacío dejaría un PAGO_COMISION que no paga nada.
+    // Cuentan las comisiones VIVAS, no el total: una viva de cero se paga.
+    if (!lotes.hasLiveCommissions(batchId)) {
+      rechazar("EX-005", "El lote no tiene nada que pagar.");
+    }
 
     PayoutResult abonado =
         abono.pay(

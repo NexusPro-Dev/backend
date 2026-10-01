@@ -4,11 +4,12 @@
 |---|---|
 | Requerimiento | `RF-CM-011` |
 | Módulo | `CM` — Comisiones |
-| Versión | 0.1.0 |
+| Versión | 0.2.0 |
 | Estado | **Aprobada** |
 | Autor | Responsable técnico |
 | Aprobada por | Responsable del proyecto |
 | Fecha de aprobación | 28-09-2026 |
+| Enmendada el | 30-09-2026 — **un lote sin comisiones vivas no se paga** (`RN-CM-048`) |
 
 !!! info "Qué va en este documento"
 
@@ -122,6 +123,7 @@ Uno lo paga; el otro recibe conflicto. **La billetera sube una sola vez.**
 | `EX-002` | El lote está **abierto** | Conflicto: «El lote sigue abierto: se paga después del cierre» |
 | `EX-003` | El lote ya está **pagado** | Conflicto: «El lote ya está pagado» |
 | `EX-004` | El abono falla | El lote **no** cambia; error |
+| `EX-005` | El lote **no tiene comisiones vivas** —se retiraron o revirtieron todas— (30-09-2026) | Conflicto: «El lote no tiene nada que pagar». No se abona nada |
 
 ---
 
@@ -145,6 +147,7 @@ Uno lo paga; el otro recibe conflicto. **La billetera sube una sola vez.**
 | `CA-CM-194` | Un lote de total que redondea a **cero** se paga, con su movimiento de importe cero |
 | `CA-CM-195` | Un lote que no existe responde **no encontrado**; sin `commission-batches:pay`, se rechaza |
 | `CA-CM-196` | Queda **auditado**, con el lote, el importe y el movimiento |
+| `CA-CM-301` | Un lote pendiente **sin comisiones vivas** responde conflicto y **no** se abona nada; en cuanto se le devuelve una, se paga. **Un lote con una comisión viva de importe cero se sigue pagando** (`CA-CM-194`) (30-09-2026) |
 
 ---
 
@@ -168,3 +171,4 @@ Ninguna.
 | Versión | Fecha | Cambio | Autor |
 |---|---|---|---|
 | 0.1.0 | 28-09-2026 | Primera versión ([`requirements/cm.md`](../../../requirements/cm.md) v0.20.0). Solo se paga un lote pendiente, y pagar es abonar por `RF-MV-024` en la misma transacción. Criterios `CA-CM-189` a `CA-CM-196`. | Responsable del proyecto |
+| 0.2.0 | 30-09-2026 | **Un lote sin comisiones vivas no se paga** (`RN-CM-048`, [`requirements/cm.md`](../../../requirements/cm.md) v0.26.0 §5.10): desde que se pueden retirar y revertir comisiones, un pendiente puede quedarse vacío, y abonarlo dejaría un `PAGO_COMISION` que no paga nada. **Lo que cuenta son las comisiones vivas, no el total**: `CA-CM-194` sigue en pie. `EX-005`, `CA-CM-301`. | Responsable del proyecto |

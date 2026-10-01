@@ -2,6 +2,8 @@ package com.factech.nexus.modules.movements.domain.service;
 
 import com.factech.nexus.modules.movements.application.AssignSellersRequest;
 import com.factech.nexus.modules.movements.application.CommissionableLinesEvent;
+import com.factech.nexus.modules.movements.application.CommissionedLineRelease;
+import com.factech.nexus.modules.movements.application.CommissionedLineRelease.ReleaseOutcome;
 import com.factech.nexus.modules.movements.application.SaleResponse;
 import com.factech.nexus.modules.movements.domain.models.MovementStatus;
 import com.factech.nexus.modules.movements.domain.models.SaleTypeStatus;
@@ -9,6 +11,7 @@ import com.factech.nexus.modules.movements.domain.models.TypeStatus;
 import com.factech.nexus.modules.movements.domain.repository.MovementRepository;
 import com.factech.nexus.modules.movements.domain.repository.MovementRepository.AssignmentHeader;
 import com.factech.nexus.modules.movements.domain.repository.MovementRepository.AssignmentLine;
+import com.factech.nexus.modules.system.roles.application.AuthenticatedActor;
 import com.factech.nexus.modules.system.users.application.ClientCatalog;
 import com.factech.nexus.modules.system.users.application.ClientCatalog.SellerView;
 import com.factech.nexus.shared.audit.AuditEnums.ChangeAction;
@@ -44,12 +47,22 @@ import org.springframework.transaction.annotation.Transactional;
  *   <li>La venta, <b>bloqueada</b> hasta el final de la transacción (`EX-001`). Es lo que hace
  *       verdadero el FA-004: confirmar espera a esta fila, o esta espera a confirmar.
  *   <li>El estado del pago (`EX-002`): en una rechazada o anulada no hay nada que comisionar.
- *   <li>Cada línea (`EX-004`, `EX-003`) y cada vendedor (`EX-005`).
+ *   <li>Cada línea (`EX-004`) y cada vendedor (`EX-005`).
+ *   <li><b>En una venta confirmada, cada línea que cambia de vendedor se le pregunta a `CM`</b>
+ *       (`EX-003`, `RN-MV-053`, 30-09-2026).
  *   <li>La escritura y, si no queda ninguna línea sin vendedor, el paso a {@code VALIDADO}.
  * </ol>
  *
  * <p><b>Nada se escribe hasta que todo se ha comprobado</b>, de modo que un rechazo no depende de
  * revertir nada: ninguna asignación de la petición llega a la base.
+ *
+ * <p><b>Corregir en una venta confirmada lo decide `CM`</b> (`RN-MV-053`, 30-09-2026), por el
+ * puerto {@link CommissionedLineRelease} que este módulo declara y `CM` implementa. Se pregunta
+ * <b>después de todas las comprobaciones</b> —un vínculo ajeno en la tercera línea no debe llegar a
+ * revertir la primera— y <b>antes de escribir</b>; con cualquier respuesta que no sea {@code
+ * LIBERADA} se lanza `EX-003` y la transacción se revierte entera, con las reversiones que `CM` ya
+ * hubiera hecho. <b>Sin preguntar</b> cuando la línea no tenía vendedor o el vendedor no cambia: no
+ * hay nada que revertir.
  *
  * <p><b>En una venta ya confirmada, avisa</b> (`RN-MV-049`, 28-09-2026): las líneas que acaban de
  * recibir vendedor pueden comisionar, y se publica un {@link CommissionableLinesEvent} con ellas.
@@ -65,16 +78,22 @@ public class AssignSellersService {
   private final ClientCatalog clientes;
   private final AuditWriter auditoria;
   private final ApplicationEventPublisher avisos;
+  private final CommissionedLineRelease liberacion;
+  private final AuthenticatedActor actor;
 
   public AssignSellersService(
       MovementRepository movimientos,
       ClientCatalog clientes,
       AuditWriter auditoria,
-      ApplicationEventPublisher avisos) {
+      ApplicationEventPublisher avisos,
+      CommissionedLineRelease liberacion,
+      AuthenticatedActor actor) {
     this.movimientos = movimientos;
     this.clientes = clientes;
     this.auditoria = auditoria;
     this.avisos = avisos;
+    this.liberacion = liberacion;
+    this.actor = actor;
   }
 
   @Transactional
@@ -107,7 +126,15 @@ public class AssignSellersService {
     Set<UUID> elegibles =
         clientes.sellersOf(venta.userId()).stream().map(SellerView::id).collect(Collectors.toSet());
     for (int i = 0; i < pedidas.size(); i++) {
-      verificarLinea(pedidas.get(i), i, lineas, elegibles, pago);
+      verificarLinea(pedidas.get(i), i, lineas, elegibles);
+    }
+
+    // 4 bis. `RN-MV-053`: en una confirmada, lo atribuido solo cambia si `CM`
+    //    lo libera. Después de TODAS las comprobaciones y antes de escribir.
+    if (pago == MovementStatus.CONFIRMADA) {
+      for (int i = 0; i < pedidas.size(); i++) {
+        liberar(pedidas.get(i), i, lineas.get(pedidas.get(i).productId()));
+      }
     }
 
     // 5. La escritura: solo lo que cambia.
@@ -202,16 +229,15 @@ public class AssignSellersService {
   }
 
   /**
-   * `EX-004`, `EX-003` y `EX-005`, en ese orden: primero si la línea existe, después si se puede
-   * tocar, y por último si el vendedor vale — no tiene sentido decir que el vendedor no es del
-   * cliente para una línea que no se podía cambiar.
+   * `EX-004` y `EX-005`, en ese orden: primero si la línea existe, y después si el vendedor vale.
+   * <b>`EX-003` ya no va aquí</b> desde el 30-09-2026: si la línea se puede corregir lo decide
+   * `CM`, y solo se le pregunta cuando todo lo demás está comprobado ({@link #liberar}).
    */
   private static void verificarLinea(
       AssignSellersRequest.Line pedida,
       int posicion,
       Map<UUID, AssignmentLine> lineas,
-      Set<UUID> elegibles,
-      MovementStatus pago) {
+      Set<UUID> elegibles) {
     String campo = "lines[" + posicion + "]";
     AssignmentLine linea = lineas.get(pedida.productId());
     if (linea == null) {
@@ -219,24 +245,40 @@ public class AssignSellersService {
       throw new UnprocessableEntityException(
           "EX-004", mensaje, List.of(new FieldError(campo + ".productId", "EX-004", mensaje)));
     }
-    // Confirmada, lo atribuido queda congelado; lo que falta se sigue
-    // asignando, porque confirmar no espera a la atribución. Reescribir el
-    // mismo vendedor no corrige nada, y se admite.
-    if (pago == MovementStatus.CONFIRMADA
-        && linea.sellerId() != null
-        && !linea.sellerId().equals(pedida.sellerId())) {
-      String mensaje =
-          "La venta está confirmada y la línea de "
-              + pedida.productId()
-              + " ya tiene vendedor: no se puede corregir.";
-      throw new BusinessRuleException(
-          "EX-003", mensaje, List.of(new FieldError(campo + ".productId", "EX-003", mensaje)));
-    }
     if (!elegibles.contains(pedida.sellerId())) {
       String mensaje = "El vendedor indicado no es uno de los vendedores de este cliente.";
       throw new UnprocessableEntityException(
           "EX-005", mensaje, List.of(new FieldError(campo + ".sellerId", "EX-005", mensaje)));
     }
+  }
+
+  /**
+   * `EX-003` (`RN-MV-053`): la línea de una venta confirmada que <b>ya tenía</b> vendedor y cambia
+   * de vendedor se le pregunta a `CM`. Lo que falta se sigue asignando sin preguntar —confirmar no
+   * espera a la atribución—, y reescribir el mismo vendedor no corrige nada.
+   */
+  private void liberar(AssignSellersRequest.Line pedida, int posicion, AssignmentLine linea) {
+    if (linea.sellerId() == null || linea.sellerId().equals(pedida.sellerId())) {
+      return;
+    }
+    ReleaseOutcome respuesta = liberacion.release(linea.lineId(), actor.id());
+    if (respuesta == ReleaseOutcome.LIBERADA) {
+      return;
+    }
+    String motivo =
+        respuesta == ReleaseOutcome.COMISION_PAGADA
+            ? "su comisión ya se pagó"
+            : "ya se contó como FTD en una liquidación afftrack";
+    String mensaje =
+        "La venta está confirmada y la línea de "
+            + pedida.productId()
+            + " no se puede corregir: "
+            + motivo
+            + ".";
+    throw new BusinessRuleException(
+        "EX-003",
+        mensaje,
+        List.of(new FieldError("lines[" + posicion + "].productId", "EX-003", mensaje)));
   }
 
   private TypeStatus validadoDe(UUID movementTypeId) {

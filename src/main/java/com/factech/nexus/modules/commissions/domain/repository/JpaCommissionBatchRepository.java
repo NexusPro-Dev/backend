@@ -144,6 +144,79 @@ public class JpaCommissionBatchRepository implements CommissionBatchRepository {
         .executeUpdate();
   }
 
+  @Override
+  public java.util.Optional<LockedCommission> lockCommission(UUID commissionId) {
+    @SuppressWarnings("unchecked")
+    List<Object[]> filas =
+        em.createNativeQuery(
+                """
+                SELECT id, batch_id, commission_amount, reverted_at IS NOT NULL,
+                       withdrawn_from_batch_id
+                  FROM commissions
+                 WHERE id = :id
+                   FOR UPDATE
+                """)
+            .setParameter("id", commissionId)
+            .getResultList();
+    return filas.stream()
+        .findFirst()
+        .map(
+            f ->
+                new LockedCommission(
+                    (UUID) f[0], (UUID) f[1], (BigDecimal) f[2], (Boolean) f[3], (UUID) f[4]));
+  }
+
+  @Override
+  public List<LockedBatch> lockBatches(java.util.Collection<UUID> batchIds) {
+    if (batchIds.isEmpty()) {
+      return List.of();
+    }
+    // ORDER BY id con FOR UPDATE: Postgres toma los bloqueos en el orden en que
+    // devuelve las filas, que es el que evita el interbloqueo (plan.md §1).
+    @SuppressWarnings("unchecked")
+    List<Object[]> filas =
+        em.createNativeQuery(
+                """
+                SELECT id, code, user_id, currency_id, status
+                  FROM commission_batches
+                 WHERE id IN (:ids)
+                 ORDER BY id
+                   FOR UPDATE
+                """)
+            .setParameter("ids", new java.util.HashSet<>(batchIds))
+            .getResultList();
+    return filas.stream()
+        .map(
+            f ->
+                new LockedBatch(
+                    (UUID) f[0], (String) f[1], (UUID) f[2], (UUID) f[3], (String) f[4]))
+        .toList();
+  }
+
+  @Override
+  public void moveCommission(UUID commissionId, UUID toBatchId, UUID withdrawnFromBatchId) {
+    em.createNativeQuery(
+            """
+            UPDATE commissions
+               SET batch_id = :lote, withdrawn_from_batch_id = CAST(:origen AS uuid)
+             WHERE id = :id
+            """)
+        .setParameter("id", commissionId)
+        .setParameter("lote", toBatchId)
+        .setParameter("origen", withdrawnFromBatchId)
+        .executeUpdate();
+  }
+
+  @Override
+  public boolean hasLiveCommissions(UUID batchId) {
+    return (Boolean)
+        em.createNativeQuery(
+                "SELECT EXISTS (SELECT 1 FROM commissions WHERE batch_id = :lote"
+                    + " AND reverted_at IS NULL)")
+            .setParameter("lote", batchId)
+            .getSingleResult();
+  }
+
   private static OffsetDateTime instante(Object valor) {
     if (valor instanceof OffsetDateTime odt) {
       return odt;

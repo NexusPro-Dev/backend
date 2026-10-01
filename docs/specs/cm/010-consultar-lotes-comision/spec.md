@@ -4,13 +4,14 @@
 |---|---|
 | Requerimiento | `RF-CM-010` |
 | Módulo | `CM` — Comisiones |
-| Versión | 0.3.0 |
+| Versión | 0.4.0 |
 | Estado | **Aprobada** |
 | Autor | Responsable técnico |
 | Aprobada por | Responsable del proyecto |
 | Fecha de aprobación | 28-09-2026 |
 | Enmendada el | 29-09-2026 — **cada comisión dice de qué clase es**, `POR_VENTA` o `POR_AFFTRACK` (`RN-CM-044`) |
 | Enmendada el | 29-09-2026 — **la fuente de una comisión puede ser `DIRECTA`** (`RN-CM-045`) |
+| Enmendada el | 30-09-2026 — **lo revertido y lo retirado se ven** (`RN-CM-046`, `RN-CM-047`) |
 
 !!! info "Qué va en este documento"
 
@@ -150,6 +151,7 @@ Los lotes nacen con la primera comisión de una persona en una moneda (`RF-CM-01
 | `CA-CM-188` | Sin el permiso de cada operación, se rechaza; las dos lecturas **no hacen una consulta por fila** |
 | `CA-CM-262` | El detalle de un lote con comisiones de las dos clases dice la de cada una: las `POR_VENTA` con su venta, línea y nivel; las `POR_AFFTRACK` **sin** ellos, con el producto, los FTD pagados, el valor y su liquidación; el total del lote las suma todas (29-09-2026) |
 | `CA-CM-271` | El detalle de un lote muestra la comisión de una venta propia de un superior con fuente **`DIRECTA`** y, como tasa exacta, **el producto** (29-09-2026) |
+| `CA-CM-302` | El detalle muestra las comisiones **revertidas** del lote, con cuándo y quién, **fuera** del total; cada comisión retirada **a** este lote dice **de qué lote salió**; el detalle de un pendiente lista **las retiradas de él**, cada una con el lote en que está y **si aún se puede devolver**; y el número de comisiones del listado cuenta **solo las vivas** (30-09-2026) |
 
 ---
 
@@ -177,3 +179,4 @@ Ninguna.
 
 | 0.2.0 | 29-09-2026 | **Cada comisión dice su clase** (`RN-CM-044`, [`requirements/cm.md`](../../../requirements/cm.md) v0.22.0 §5.8): `POR_VENTA` o `POR_AFFTRACK`, y la segunda sin venta, línea ni nivel. `CA-CM-262`. | Responsable del proyecto |
 | 0.3.0 | 29-09-2026 | **La fuente de una comisión puede ser `DIRECTA`** (`RN-CM-045`, [`requirements/cm.md`](../../../requirements/cm.md) v0.24.0 §5.9), y entonces la tasa exacta es el producto. La forma de la respuesta no cambia: `source` ya es texto. `CA-CM-271`. | Responsable del proyecto |
+| 0.4.0 | 30-09-2026 | **Lo revertido y lo retirado se ven** ([`requirements/cm.md`](../../../requirements/cm.md) v0.26.0 §5.10, `RN-CM-046`, `RN-CM-047`): una comisión revertida sigue en el detalle de su lote, marcada y fuera del total; la retirada dice de qué lote salió; y un pendiente lista lo que se le retiró, que es desde donde se devuelve (`RF-CM-023`). El listado cuenta solo las comisiones vivas. `CA-CM-302`. | Responsable del proyecto |
