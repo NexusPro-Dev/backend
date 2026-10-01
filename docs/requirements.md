@@ -5,7 +5,7 @@
 | Proyecto | NEXUS — Renovación de plataforma |
 | Empresa | FACTECH GROUP SAS |
 | Documento | `requirements.md` |
-| Versión | 0.251.0 |
+| Versión | 0.252.0 |
 | Estado | Borrador |
 | Responsable técnico | Bonilla Diaz William Steven |
 | Fecha de creación | 20-08-2026 |
@@ -241,9 +241,9 @@ Implementa el Art. III.1. Se actualiza **como parte del cambio**, no después (A
 | `RF-MV-029` | Rechazar el pago de una compra de puntos | `MV` | [`specs/mv/029-rechazar-compra-de-puntos/`](specs/mv/029-rechazar-compra-de-puntos/tasks.md) | [#149](https://github.com/NexusPro-Dev/backend/issues/149) | `feature/compra-de-puntos` | — | **En desarrollo** —registrado y construido el 30-09-2026 (`V58`), tasks en revisión—. La deja `RECHAZADA`, con motivo y sin reintento. `movements:reject-points-purchase` |
 | `RF-MV-030` | Pagar una compra con puntos | `MV` | [`specs/mv/030-pagar-con-puntos/`](specs/mv/030-pagar-con-puntos/tasks.md) | [#149](https://github.com/NexusPro-Dev/backend/issues/149) | `feature/compra-de-puntos` | — | **En desarrollo** —registrado y construido el 30-09-2026 (`V58`), tasks en revisión—. Descuenta a la tasa vigente y confirma en el acto (`RN-MV-052`); sin permiso propio. Cierra la deuda de `POINTS` (`mv.md` §7.4) |
 | `RF-MV-031` | Consultar mis compras de puntos | `MV` | [`specs/mv/031-consultar-mis-compras-de-puntos/`](specs/mv/031-consultar-mis-compras-de-puntos/tasks.md) | [#149](https://github.com/NexusPro-Dev/backend/issues/149) | `feature/compra-de-puntos` | — | **En desarrollo** —registrado y construido el 30-09-2026 (`V58`), tasks en revisión—. Con su estado, su tasa y sus puntos. `movements:list-own-points-purchases` |
-| `RF-MV-032` | Registrar una entidad de cobro | `MV` | [`specs/mv/032-registrar-entidad-de-cobro/`](specs/mv/032-registrar-entidad-de-cobro/tasks.md) | Pendiente de crear | `feature/cuentas-de-cobro` | Nace el 01-10-2026 ([`requirements/mv.md`](requirements/mv.md) v0.61.0 §4.5, `RN-MV-054`): un banco o una billetera móvil, con código, tipo y país. `movements:create-payout-institution` | **Pendiente** |
-| `RF-MV-033` | Consultar las entidades de cobro | `MV` | [`specs/mv/033-consultar-entidades-de-cobro/`](specs/mv/033-consultar-entidades-de-cobro/tasks.md) | Pendiente de crear | `feature/cuentas-de-cobro` | Nace el 01-10-2026 (`RN-MV-054`). `movements:read-payout-institutions` | **Pendiente** |
-| `RF-MV-034` | Editar una entidad de cobro | `MV` | [`specs/mv/034-editar-entidad-de-cobro/`](specs/mv/034-editar-entidad-de-cobro/tasks.md) | Pendiente de crear | `feature/cuentas-de-cobro` | Nace el 01-10-2026 (`RN-MV-054`): el nombre y si está activa; el código y el tipo no cambian. `movements:update-payout-institution` | **Pendiente** |
+| `RF-MV-032` | Registrar una entidad de cobro | `MV` | [`specs/mv/032-registrar-entidad-de-cobro/`](specs/mv/032-registrar-entidad-de-cobro/tasks.md) | Pendiente de crear | `feature/cuentas-de-cobro` | Nace el 01-10-2026 ([`requirements/mv.md`](requirements/mv.md) v0.61.0 §4.5, `RN-MV-054`): un banco o una billetera móvil, con código, tipo y país. `movements:create-payout-institution`. Tripleta escrita el 01-10-2026 (`CA-MV-358` a `CA-MV-365`); carga la migración de todo el submódulo y `CountryCatalog` en `SP` | **Pendiente** |
+| `RF-MV-033` | Consultar las entidades de cobro | `MV` | [`specs/mv/033-consultar-entidades-de-cobro/`](specs/mv/033-consultar-entidades-de-cobro/tasks.md) | Pendiente de crear | `feature/cuentas-de-cobro` | Nace el 01-10-2026 (`RN-MV-054`). `movements:read-payout-institutions`. Tripleta escrita el 01-10-2026 (`CA-MV-366` a `CA-MV-370`): solo las activas por omisión | **Pendiente** |
+| `RF-MV-034` | Editar una entidad de cobro | `MV` | [`specs/mv/034-editar-entidad-de-cobro/`](specs/mv/034-editar-entidad-de-cobro/tasks.md) | Pendiente de crear | `feature/cuentas-de-cobro` | Nace el 01-10-2026 (`RN-MV-054`): el nombre y si está activa; el código y el tipo no cambian. `movements:update-payout-institution`. Tripleta escrita el 01-10-2026 (`CA-MV-371` a `CA-MV-377`) | **Pendiente** |
 | `RF-MV-035` | Registrar una cuenta de cobro propia | `MV` | [`specs/mv/035-registrar-cuenta-de-cobro/`](specs/mv/035-registrar-cuenta-de-cobro/tasks.md) | Pendiente de crear | `feature/cuentas-de-cobro` | Nace el 01-10-2026 (`RN-MV-055`): a nombre de quien la registra, en una entidad activa de su país. `movements:create-own-payout-account` | **Pendiente** |
 | `RF-MV-036` | Consultar mis cuentas de cobro | `MV` | [`specs/mv/036-consultar-mis-cuentas-de-cobro/`](specs/mv/036-consultar-mis-cuentas-de-cobro/tasks.md) | Pendiente de crear | `feature/cuentas-de-cobro` | Nace el 01-10-2026 (`RN-MV-055`). `movements:list-own-payout-accounts` | **Pendiente** |
 | `RF-MV-037` | Editar una cuenta de cobro propia | `MV` | [`specs/mv/037-editar-cuenta-de-cobro/`](specs/mv/037-editar-cuenta-de-cobro/tasks.md) | Pendiente de crear | `feature/cuentas-de-cobro` | Nace el 01-10-2026 (`RN-MV-055`): también para hacerla la principal. `movements:update-own-payout-account` | **Pendiente** |
@@ -311,9 +311,9 @@ Un requerimiento solo pasa a `Implementado` cuando cumple **todas** las condicio
 | Indicador | Valor |
 |---|---|
 | Requerimientos registrados | 197 |
-| Requerimientos con `spec.md` redactada | 185 |
-| Requerimientos con `spec.md` aprobada | 125 |
-| Requerimientos con `plan.md` aprobado | 184 |
+| Requerimientos con `spec.md` redactada | 188 |
+| Requerimientos con `spec.md` aprobada | 128 |
+| Requerimientos con `plan.md` aprobado | 187 |
 | Requerimientos con **tripleta completa** —`tasks.md` aprobadas— | 90 |
 | Requerimientos con endpoint funcionando | 157 |
 | Requerimientos implementados | 0 |
@@ -649,3 +649,4 @@ El inventario y el estado de los módulos se consultan en [`modules.md` §4](mod
 | 0.249.0 | 01-10-2026 | **Nace `RF-CM-025`, pagar varios lotes de una vez** ([`requirements/cm.md`](requirements/cm.md) v0.28.0, `RN-CM-049`; [`security.md`](security.md) v0.91.0), con su tripleta (`CA-CM-306` a `CA-CM-314`). Registrados 188 → **189**; `spec.md` redactadas 184 → **185**, aprobadas 124 → **125**; planes 183 → **184**. | Responsable del proyecto |
 | 0.250.0 | 01-10-2026 | **`RF-CM-025` está construido** (`V60`, catálogo **172**): `POST /api/v1/commission-batches/payments` paga cada lote elegido por su cuenta, sin tope. Endpoints funcionando 156 → **157**. | Responsable técnico |
 | 0.251.0 | 01-10-2026 | **Nacen `RF-MV-032` a `RF-MV-039`, las cuentas de cobro de `MV`: a dónde se paga un retiro** ([`requirements/mv.md`](requirements/mv.md) v0.61.0 §4.5, `RN-MV-054` a `RN-MV-056`; [`modelo-datos.md`](modelo-datos.md) v0.86.0; [`security.md`](security.md) v0.93.0). Enmiendan `RF-MV-019`: el retiro exige una cuenta y copia su destino. Registrados 189 → **197**, sin tripletas todavía. | Responsable del proyecto |
+| 0.252.0 | 01-10-2026 | **`RF-MV-032` a `RF-MV-034` estrenan tripleta**: el catálogo de entidades de cobro —registrar (`CA-MV-358` a `CA-MV-365`), consultar (`CA-MV-366` a `CA-MV-370`) y editar (`CA-MV-371` a `CA-MV-377`)—. `RF-MV-032` carga la migración de todo el submódulo y la interfaz `CountryCatalog` de `SP`. `spec.md` redactadas 185 → **188**, aprobadas 125 → **128**; planes 184 → **187**. | Responsable del proyecto |
