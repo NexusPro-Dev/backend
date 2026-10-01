@@ -4,12 +4,13 @@
 |---|---|
 | Requerimiento | `RF-MV-007` |
 | Módulo | `MV` — Movimientos |
-| Versión | 0.2.0 |
+| Versión | 0.3.0 |
 | Estado | **Aprobada** |
 | Autor | Responsable técnico |
 | Aprobada por | Responsable del proyecto |
 | Fecha de aprobación | 30-09-2026 |
 | Enmendada el | 30-09-2026 — **permiso propio** (`RN-SEG-014`) y lo que no tiene forma de identificador responde **no encontrado** (§3, §10, §11, §12, §14). Ver §15 |
+| Enmendada el | 01-10-2026 — **el detalle de un retiro publica su destino** (`RN-MV-056`): §6.2, §12. Ver §15 |
 
 !!! info "Qué va en este documento"
 
@@ -72,6 +73,8 @@ Que quien administra el libro pueda **abrir cualquier movimiento** —una venta,
 
 **La misma que el detalle propio** (`RF-MV-008` §6.3): el movimiento con su código, su tipo, su estado y el estado de su tipo, su sujeto, su moneda, sus pagos, sus totales y **sus líneas**, cada una con lo que se vendió, a quién se le acredita y su estado de entrega. Un movimiento sin líneas —un retiro, un bono— sale con la lista **vacía**, no ausente.
 
+**Desde el 01-10-2026, el detalle de un retiro trae su destino** (`RN-MV-056`): la copia que se escribió al pedirlo —entidad, tipo de cuenta, número y titular con su documento—, **no** los datos vivos de la cuenta. Es lo que lee quien lo aprueba (`RF-MV-020`) para saber a dónde enviar el dinero. **Un retiro pedido antes de ese día, y todo movimiento que no es un retiro, lo traen vacío**. Vale igual para el detalle propio (`RF-MV-008`), que es la misma respuesta.
+
 ## 7. Precondiciones y postcondiciones
 
 | | |
@@ -120,6 +123,8 @@ No cambia nada: responde lo mismo que respondería a cualquier otro administrado
 | `CA-MV-290` | Para un movimiento propio del actor, la respuesta es **la misma** que la de su detalle propio |
 | `CA-MV-291` | Un identificador que no existe responde **no encontrado**, y lo que no tiene forma de identificador **también** |
 | `CA-MV-292` | Sin el permiso del detalle, **rechazo por permiso**, aunque el movimiento sea propio **o el actor tenga el del listado**; sin sesión, **no autenticado** |
+| `CA-MV-424` | **Desde el 01-10-2026.** El detalle de un retiro trae **su destino copiado**, y sigue diciendo lo mismo después de editar o dar de baja la cuenta; el detalle propio del mismo retiro trae el mismo destino |
+| `CA-MV-425` | El detalle de una **venta**, y el de un retiro **sin copia**, traen el destino vacío |
 
 ## 13. Casos límite
 
@@ -143,3 +148,4 @@ Ninguna abierta.
 |---|---|---|---|
 | 0.1.0 | 30-09-2026 | Primera versión. Declarado desde el 02-09-2026 en `requirements/mv.md` §4.1 y sin especificar; es el detalle de `RF-MV-006` y el último requerimiento de `MV` sin tripleta | Responsable técnico |
 | 0.2.0 | 30-09-2026 | **Permiso propio, y lo que no tiene forma de identificador es no encontrado**, al construir. (1) La 0.1.0 reutilizaba el permiso del listado; `RN-SEG-014` no lo admite y la prueba que lo hace cumplir lo detectó: nace el del detalle, repartido a quien porta el del listado (§3, §12, §14). (2) Sin validación del identificador: la ruta de la operación habría capturado la que `RF-MV-008` retiró, y su `CA-MV-140` promete no encontrado (§10, §11, `CA-MV-291`) | Responsable técnico |
+| 0.3.0 | 01-10-2026 | **El detalle de un retiro publica su destino** ([`requirements/mv.md`](../../../requirements/mv.md) v0.61.0 §4.5, `RN-MV-056`): la copia escrita al pedirlo, para que quien aprueba sepa a dónde pagar. Vacío en lo demás. Criterios `CA-MV-424` y `CA-MV-425`. | Responsable del proyecto |
