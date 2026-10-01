@@ -81,6 +81,8 @@ Rama: `feature/stripe-tarjeta`. Después de las tareas de `RF-MV-040` que cada f
 
 | ID | Tarea | Depende de | Verificación | Estado |
 |---|---|---|---|---|
-| `T-13` | La llamada a `CardPayment` y `cardCharge` en la respuesta; la prosa | `RF-MV-040` · `T-05` | | Pendiente |
+| `T-13` | La llamada a `CardPayment` y `cardCharge` en la respuesta; la prosa | `RF-MV-040` · `T-05` | | **Hecha** — 01-10-2026 |
 
 Criterios: `CA-MV-471`.
+
+**Construido el 01-10-2026** (issue [#161](https://github.com/NexusPro-Dev/backend/issues/161)). Los criterios se prueban en `CardPaymentIT` —o en la suite de la entrada, para las compras— y no en la suite que cada fila nombra.

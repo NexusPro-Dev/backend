@@ -68,7 +68,9 @@ Rama: `feature/stripe-tarjeta`. Después de las tareas de `RF-MV-040` que cada f
 
 | ID | Tarea | Depende de | Verificación | Estado |
 |---|---|---|---|---|
-| `T-08` | `CardGateway.cancel` en `VoidSaleService`, antes de escribir, con la traducción de sus dos fallos | `RF-MV-040` · `T-03` | | Pendiente |
-| `T-09` | `CA-MV-466` a `CA-MV-468` en `VoidSaleIT`, con el doble del puerto; la prosa | la anterior | | Pendiente |
+| `T-08` | `CardGateway.cancel` en `VoidSaleService`, antes de escribir, con la traducción de sus dos fallos | `RF-MV-040` · `T-03` | | **Hecha** — 01-10-2026 |
+| `T-09` | `CA-MV-466` a `CA-MV-468` en `VoidSaleIT`, con el doble del puerto; la prosa | la anterior | | **Hecha** — 01-10-2026 |
 
 Criterios: `CA-MV-466` a `CA-MV-468`.
+
+**Construido el 01-10-2026** (issue [#161](https://github.com/NexusPro-Dev/backend/issues/161)). Los criterios se prueban en `CardPaymentIT` —o en la suite de la entrada, para las compras— y no en la suite que cada fila nombra.

@@ -95,8 +95,10 @@ Rama: `feature/stripe-tarjeta`. Después de las tareas de `RF-MV-040` que cada f
 
 | ID | Tarea | Depende de | Verificación | Estado |
 |---|---|---|---|---|
-| `T-16` | La relajación de «sin pago pendiente» con la cancelación previa; `EX-009` y `EX-010` | `RF-MV-040` · `T-03` | | Pendiente |
-| `T-17` | La llamada a `CardPayment` y `cardCharge` en la respuesta | `RF-MV-040` · `T-05` | | Pendiente |
-| `T-18` | `CA-MV-473` a `CA-MV-476` en `RetryPaymentIT`; la prosa | las dos anteriores | | Pendiente |
+| `T-16` | La relajación de «sin pago pendiente» con la cancelación previa; `EX-009` y `EX-010` | `RF-MV-040` · `T-03` | | **Hecha** — 01-10-2026 |
+| `T-17` | La llamada a `CardPayment` y `cardCharge` en la respuesta | `RF-MV-040` · `T-05` | | **Hecha** — 01-10-2026 |
+| `T-18` | `CA-MV-473` a `CA-MV-476` en `RetryPaymentIT`; la prosa | las dos anteriores | | **Hecha** — 01-10-2026 |
 
 Criterios: `CA-MV-473` a `CA-MV-476`.
+
+**Construido el 01-10-2026** (issue [#161](https://github.com/NexusPro-Dev/backend/issues/161)). Los criterios se prueban en `CardPaymentIT` —o en la suite de la entrada, para las compras— y no en la suite que cada fila nombra.

@@ -74,7 +74,9 @@ Rama: `feature/stripe-tarjeta`. Después de las tareas de `RF-MV-040` que cada f
 
 | ID | Tarea | Depende de | Verificación | Estado |
 |---|---|---|---|---|
-| `T-08` | La comprobación de `RN-MV-058` en `RejectPaymentService` y el camino de la pasarela | `RF-MV-040` · `T-01` | | Pendiente |
-| `T-09` | `CA-MV-464` y `CA-MV-465` en `RejectPaymentIT`; la prosa del `409` | la anterior | | Pendiente |
+| `T-08` | La comprobación de `RN-MV-058` en `RejectPaymentService` y el camino de la pasarela | `RF-MV-040` · `T-01` | | **Hecha** — 01-10-2026 |
+| `T-09` | `CA-MV-464` y `CA-MV-465` en `RejectPaymentIT`; la prosa del `409` | la anterior | | **Hecha** — 01-10-2026 |
 
 Criterios: `CA-MV-464` a `CA-MV-465`.
+
+**Construido el 01-10-2026** (issue [#161](https://github.com/NexusPro-Dev/backend/issues/161)). Los criterios se prueban en `CardPaymentIT` —o en la suite de la entrada, para las compras— y no en la suite que cada fila nombra.
