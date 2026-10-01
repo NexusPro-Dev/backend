@@ -41,7 +41,7 @@
 
 **Los filtros que sí tienen índice, y los que no.** El medio lo responde `ix_payments_metodo` (`V48`). La persona se resuelve por el movimiento —`m.user_id`, con `ix_movements_user` (`V12`)—, y el comprobante por fragmento con los trigramas de `ix_movements_codigo_busqueda` (`V39`), exactamente como en el libro (`RN-MV-037`). **El estado y el tipo no llevan índice**: cardinalidad baja, el mismo argumento que `RF-MV-006` · `plan.md` §2 y el mismo **disparador de revisión** (§10): si «¿qué está pendiente?» tarda, el índice es `(status, occurred_at DESC)` parcial sobre `PENDIENTE`.
 
-**La migración es `V63__mv_listado_de_pagos.sql`**: el índice y el permiso de §5. `V62` es de la tarjeta; el número lo reservó este plan el 01-10-2026, de acuerdo con quien construye la tarjeta.
+**La migración es `V64__mv_listado_de_pagos.sql`**: el índice y el permiso de §5. `V62` es de la tarjeta; el número lo reservó este plan el 01-10-2026 —era `V63`, y lo cedió el mismo día a la conciliación por el pago (`RF-MV-044`), que se construye antes: Flyway no aplica fuera de orden—, de acuerdo con quien construye la tarjeta.
 
 ---
 
@@ -55,7 +55,7 @@
 | `domain/repository` | `JpaPaymentRepository` | Modificado | Las dos sentencias sobre **un** predicado, y el conteo con `LIMIT techo + 1` |
 | `domain/service` | `ListPaymentsService` | Nuevo | Valida estado, tipo y rango **juntos**, pagina, cuenta acotado y mapea |
 | `interfaces` | `PaymentController` | Modificado | Un `GET /payments` bajo `/api/v1/movements`, con `@PreAuthorize` |
-| `db/migration` | `V63` | Nueva | El índice de §2 y el permiso de §5 |
+| `db/migration` | `V64` | Nueva | El índice de §2 y el permiso de §5 |
 
 **`PaymentListItemResponse` es una fila nueva y no `PaymentResponse` con el movimiento añadido.** `PaymentResponse` es el pago **dentro** del detalle de un movimiento —allí el movimiento es el contenedor, y repetirlo en cada pago sería ruido—, y este es el pago **suelto**, que sin su movimiento no se entiende. Comparten forma y **cambian por motivos distintos**, que es el argumento de `RF-MV-006` · `plan.md` §3 para no reutilizar la fila propia. **Lleva nombre de esquema explícito y único**: springdoc funde en uno los registros con el mismo nombre simple, y `PaymentResponse` ya publica `MovementPayment` y `MovementPaymentMethod`. El medio de la fila **reutiliza** `PaymentResponse.Method`, que es el mismo dato con el mismo esquema.
 
@@ -125,7 +125,7 @@ Un `PageResponse` con `totalIsExact`, que **puede valer falso** (`FA-003`). Cada
 
 **Permiso propio, y no `movements:read`.** Ver los pagos y ver el libro son dos operaciones, y `RN-SEG-014` no deja que un permiso gobierne dos: `EndpointPermissionsIT.ningunPermisoGobiernaDosOperaciones` lo rechazaría, como rechazó la primera tripleta de `RF-MV-007`.
 
-**`V63` lo siembra a `SUPERADMIN` y `ADMIN`, explícitos**, con el patrón de `V61` y su bloque de comprobación al final. **No va por tipo de rol**: es la lectura de administración (`spec.md` §3), como `movements:read-user-payout-accounts`. Identificador literal `01a0ef9c-6800-701e-9c4f-5e7ad7000057`, el siguiente de la marca de `V61` tras el de `V62`. **El catálogo pasa de 181 a 182**, y `ADMIN` de 179 a 180.
+**`V64` lo siembra a `SUPERADMIN` y `ADMIN`, explícitos**, con el patrón de `V61` y su bloque de comprobación al final. **No va por tipo de rol**: es la lectura de administración (`spec.md` §3), como `movements:read-user-payout-accounts`. Identificador literal `01a0ef9c-6800-701e-9c4f-5e7ad7000057`, el siguiente de la marca de `V61` tras el de `V62`. **El catálogo pasa de 181 a 182**, y `ADMIN` de 179 a 180.
 
 ---
 
@@ -194,4 +194,4 @@ Un `PageResponse` con `totalIsExact`, que **puede valer falso** (`FA-003`). Cada
 | Un pago reembolsado sale `CONFIRMADO` con la incidencia | Integración | Sembrado con un `UPDATE` (§10) |
 | Orden y estabilidad entre páginas | Integración | |
 | Total acotado con el techo bajado por propiedad | Integración | La forma de `MovementsBoundedCountIT` |
-| El catálogo de permisos en 182 | Integración | Las suites que lo cuentan |
+| El catálogo de permisos en 180 —tras `V63`, que lo deja en 179— | Integración | Las suites que lo cuentan |

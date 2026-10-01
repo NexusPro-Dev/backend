@@ -22,7 +22,7 @@
 
 | ID | Tarea | Depende de | Verificación | Estado |
 |---|---|---|---|---|
-| `T-01` | **`V63`**: `ix_payments_occurred_at` sobre `payments (occurred_at DESC, id DESC)`; `movements:list-payments` (`01a0ef9c-6800-701e-9c4f-5e7ad7000057`) a `SUPERADMIN` y `ADMIN`, con el bloque de comprobación de `V61` | `RF-MV-040` · `V62` | El índice existe con las dos columnas en ese orden; el permiso está en los dos roles y en ningún otro | Pendiente |
+| `T-01` | **`V64`**: `ix_payments_occurred_at` sobre `payments (occurred_at DESC, id DESC)`; `movements:list-payments` (`01a0ef9c-6800-701e-9c4f-5e7ad7000057`) a `SUPERADMIN` y `ADMIN`, con el bloque de comprobación de `V61` | `RF-MV-040` · `V62` | El índice existe con las dos columnas en ese orden; el permiso está en los dos roles y en ningún otro | Pendiente |
 | `T-02` | `ListPaymentsRequest` — página, tamaño y los seis filtros; estado y tipo a mayúsculas | — | `type=venta` llega al repositorio como `VENTA` | Pendiente |
 | `T-03` | `PaymentListItemResponse` con `@Schema(name = "PaymentListItem")`, el movimiento anidado y `PaymentResponse.Method`; nulables con `types`, `@JsonInclude(ALWAYS)`; sin `idempotencyKey` ni `points` | — | El contrato declara nulables los siete campos que lo son, y el esquema no se funde con `MovementPayment` | Pendiente |
 | `T-04` | `PaymentRepository`: `PaymentFilter`, la fila de lectura, `findAll` y `countAll` (`BoundedCount`) | `T-02` | El puerto no conoce la petición HTTP | Pendiente |
@@ -31,7 +31,7 @@
 | `T-07` | `PaymentController`: `GET /api/v1/movements/payments` con `@PreAuthorize("hasAuthority('movements:list-payments')")`, documentado | `T-06`, `T-01` | **No** entra en la lista blanca de `EndpointPermissionsIT`; `GET /movements/{id}` sigue respondiendo igual | Pendiente |
 | `T-08` | `PaymentsListIT`: `CA-MV-480` a `CA-MV-493` | `T-07` | `CA-MV-481` con un actor que **tiene** pagos propios; la incidencia sembrada con `UPDATE`; la forma de la fila sobre el JSON en crudo | Pendiente |
 | `T-09` | `PaymentsBoundedCountIT`: `CA-MV-494` con `nexus.pagination.count-limit=3` | `T-07` | Cuatro pagos: total 3 e inexacto; dos: total 2 y exacto | Pendiente |
-| `T-10` | Los recuentos del catálogo de 181 a **182** (`ADMIN` 180): `PermissionIT`, `PermissionsSeedIT` —dos sitios y la lista aprobada—, `MovementsPermissionsSeedIT`, `TeamsPermissionsSeedIT`, `SaleLinesPermissionSeedIT`, `JpaPermissionQueryRepositoryIT`, `ListPermissionsServiceIT`, `SystemRolesSeedIT` | `T-01` | `grep -rnE "\b181\b" src/test` no deja ninguno del catálogo | Pendiente |
+| `T-10` | Los recuentos del catálogo de 179 a **180** (`ADMIN` 178) —eran 181 y 182 antes de `V63`, la conciliación por el pago—: `PermissionIT`, `PermissionsSeedIT` —dos sitios y la lista aprobada—, `MovementsPermissionsSeedIT`, `TeamsPermissionsSeedIT`, `SaleLinesPermissionSeedIT`, `JpaPermissionQueryRepositoryIT`, `ListPermissionsServiceIT`, `SystemRolesSeedIT` | `T-01` | `grep -rnE "\b181\b" src/test` no deja ninguno del catálogo | Pendiente |
 | `T-11` | Regenerar el contrato OpenAPI y releer la prosa del `GET` nuevo; `docs/api/index.md` | `T-08` | `openapi.json` publica `PaymentListItem` y no toca `MovementPayment` | Pendiente |
 | `T-12` | Estado de construcción: `requirements/mv.md` (§4.1, §4.7 y control de cambios), `security.md` (sembrado), `requirements.md` (fila e indicadores) | `T-11` | `RF-MV-043` dice **En desarrollo** en los dos catálogos | Pendiente |
 

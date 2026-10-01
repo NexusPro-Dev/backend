@@ -4,12 +4,12 @@
 |---|---|
 | Requerimiento | `RF-MV-003` |
 | Módulo | `MV` — Movimientos |
-| Versión | 0.3.0 |
+| Versión | 0.4.0 |
 | Estado | **Aprobada** |
 | Autor | Responsable técnico |
 | Aprobada por | Responsable del proyecto |
 | Fecha de aprobación | 17-09-2026 |
-| Enmendada el | 01-10-2026 — **un pago con cobro abierto en la pasarela no se confirma a mano** (`RN-MV-058`). Ver §14.2 |
+| Enmendada el | 01-10-2026 — **sin ruta propia**: se concilia el pago, por `RF-MV-044`. Ver §14.3 · Antes, 01-10-2026 — **un pago con cobro abierto en la pasarela no se confirma a mano** (`RN-MV-058`). Ver §14.2 |
 
 !!! warning "Enmendada el 26-09-2026 — se confirma el PAGO pendiente, y la venta con él"
 
@@ -269,6 +269,18 @@ Desde el 01-10-2026 ([`requirements/mv.md`](../../../requirements/mv.md) v0.64.0
 
 ---
 
+## 14.3 Sin ruta propia — enmienda del 01-10-2026
+
+Desde el 01-10-2026 ([`requirements/mv.md`](../../../requirements/mv.md) v0.67.0 §4.8) **se concilia el pago, no el movimiento**: se entra por `RF-MV-044`, que nombra el pago, y la ruta de este requerimiento —`POST /movements/{id}/confirmation`— **se retira sin alias**. **Lo que este documento describe no cambia** —la transición, la entrega por línea, la retención y el aviso a `CM`—: es lo que `RF-MV-044` hace cuando el pago es de este tipo, y lo que la notificación de la pasarela (`RF-MV-041`) hace por dentro.
+
+**Lo que cambia, por eso.** `EX-001`, `EX-002`, `EX-005`, `EX-006` y `EX-007` los responde `RF-MV-044` sobre el pago nombrado —inexistente, no pendiente, sin permiso, con cobro abierto—: un pago rechazado de una venta pendiente es `EX-003` de allí, y no `EX-006` de aquí. `movements:confirm` se retira y lo sustituye `movements:confirm-payment`. **Y la confirmación de una venta gana la referencia opcional del extracto** (`RF-MV-044` · §2.1), que hasta hoy solo tenía la compra de puntos. **Los criterios de este documento se siguen probando por la ruta nueva**, salvo los que la entrada sustituye: `CA-MV-086` lo sustituye `CA-MV-499`; `CA-MV-087`, `CA-MV-505`; `CA-MV-219`, `CA-MV-500`; `CA-MV-462`, `CA-MV-502`.
+
+| ID | Criterio |
+|---|---|
+| `CA-MV-516` | `POST /movements/{id}/confirmation` responde `404`: la ruta no existe |
+
+---
+
 ## 15. Control de cambios
 
 | Versión | Fecha | Cambio | Autor |
@@ -276,3 +288,4 @@ Desde el 01-10-2026 ([`requirements/mv.md`](../../../requirements/mv.md) v0.64.0
 | 0.1.0 | 17-09-2026 | Primera versión. **El requerimiento estaba declarado desde el 02-09-2026** y bloqueado por **D-26**, que el responsable del proyecto cerró este día —`SP` publica la operación de conceder, `MV` la invoca en su transacción— junto con el caso que `requirements/mv.md` §5.4 dejó abierto: **confirmar no baja de nivel a nadie** (`RN-MV-029`), la salida segura con su coste **a la vista** en lugar de en silencio. Lo que la spec carga: **confirmar es un hecho y no un formulario** (§6.1), la transición es **atómica** para que una pasarela que reentrega conceda una vez (`EX-002`, `EX-003`), la entrega es **de la línea** (`RN-MV-030`) para que una venta con productos que se entregan distinto confirme una vez, y **todo o nada** con la membresía (§7). Lo que deja fuera lo deja a propósito: `FTD`, comisiones, comprobante, autorización manual y corregir lo confirmado. | Responsable del proyecto |
 | 0.2.0 | 26-09-2026 | **Se confirma el pago pendiente, y la venta con él** (`requirements/mv.md` v0.44.0, `RN-MV-039`; Art. I.7 sobre un requerimiento construido), por decisión del responsable del proyecto. La ruta y la forma no cambian; una venta pendiente sin pago pendiente no se confirma. `CA-MV-218` y `CA-MV-219`. | Responsable del proyecto |
 | 0.3.0 | 01-10-2026 | **La tarjeta por Stripe** ([`requirements/mv.md`](../../../requirements/mv.md) v0.64.0 §4.6): **un pago con cobro abierto en la pasarela no se confirma a mano** (`RN-MV-058`). Criterios `CA-MV-462` a `CA-MV-463`. | Responsable del proyecto |
+| 0.4.0 | 01-10-2026 | **Sin ruta propia** ([`requirements/mv.md`](../../../requirements/mv.md) v0.67.0 §4.8): se concilia el pago, y se entra por `RF-MV-044`. El efecto no cambia; la ruta y su permiso se retiran (§14.3). Criterio `CA-MV-516`. | Responsable del proyecto |

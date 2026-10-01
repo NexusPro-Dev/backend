@@ -5,7 +5,7 @@
 | Requerimiento | `RF-MV-003` |
 | Especificación | [`spec.md`](spec.md) v0.1.0 |
 | `spec.md` aprobada el | 17-09-2026 |
-| Versión | 0.2.0 |
+| Versión | 0.3.0 |
 | Estado | **Aprobado** |
 | Autor | Responsable técnico |
 | Aprobado por | Responsable del proyecto |
@@ -226,3 +226,7 @@
 ## 12. La tarjeta por Stripe — enmienda del 01-10-2026
 
 Por [`requirements/mv.md`](../../../requirements/mv.md) v0.64.0 §4.6 y `spec.md` §14.2. `ConfirmSaleService.confirm` (la ruta manual) lee el pago pendiente con su `provider_reference` y su método; si la referencia está y el método tiene `gateway`, lanza `EX-007` (`409`) **antes** de la transición. El camino de la pasarela (`RF-MV-041` · `plan.md` §4) es otro método del mismo servicio que **comparte la transición y la entrega** y no hace esta comprobación. **Contrato**: el `409` gana `EX-007` en la prosa de la `@Operation`.
+
+## 13. Sin ruta propia — enmienda del 01-10-2026
+
+Por [`requirements/mv.md`](../../../requirements/mv.md) v0.67.0 §4.8 y `spec.md` §14.3. **La ruta se retira** y el método público del servicio con ella; nace un método **de paquete** que `PaymentResolutionService` invoca con el movimiento ya bloqueado (`RF-MV-044` · `plan.md` §1). La transición, la entrega, la auditoría y el evento a `CM` **no cambian**. El permiso lo retira o lo traslada `V63` (`RF-MV-044` · `plan.md` §2). **Contrato**: la ruta desaparece de OpenAPI.

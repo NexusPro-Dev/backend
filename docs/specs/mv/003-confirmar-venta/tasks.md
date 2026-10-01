@@ -93,3 +93,13 @@ Rama: `feature/stripe-tarjeta`. Después de las tareas de `RF-MV-040` que cada f
 Criterios: `CA-MV-462` a `CA-MV-463`.
 
 **Construido el 01-10-2026** (issue [#161](https://github.com/NexusPro-Dev/backend/issues/161)). Los criterios se prueban en `CardPaymentIT` —o en la suite de la entrada, para las compras— y no en la suite que cada fila nombra.
+
+## 7. Sin ruta propia — enmienda del 01-10-2026
+
+Rama: `feature/confirmar-por-pago`. Junto con `RF-MV-044`.
+
+| ID | Tarea | Depende de | Verificación | Estado |
+|---|---|---|---|---|
+| `T-71` | `ConfirmSaleService.confirm` y su ruta se retiran; nace `confirmPayment`, que invoca `RF-MV-044`; `ConfirmSaleIT` y `ConfirmSaleConcurrencyIT` pasan a la ruta nueva; `CA-MV-516` en `ConfirmSaleIT` | `RF-MV-044` · `T-03` | Ninguna prueba llama a la ruta retirada | Pendiente |
+
+Criterios: `CA-MV-516`.

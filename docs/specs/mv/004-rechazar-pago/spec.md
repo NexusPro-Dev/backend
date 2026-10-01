@@ -4,12 +4,12 @@
 |---|---|
 | Requerimiento | `RF-MV-004` |
 | Módulo | `MV` — Movimientos |
-| Versión | 0.2.0 |
+| Versión | 0.3.0 |
 | Estado | **Aprobada** |
 | Autor | Responsable técnico |
 | Aprobada por | Responsable del proyecto |
 | Fecha de aprobación | 26-09-2026 |
-| Enmendada el | 01-10-2026 — **un pago con cobro abierto en la pasarela no se rechaza a mano** (`RN-MV-058`). Ver §14.2 |
+| Enmendada el | 01-10-2026 — **sin ruta propia**: se concilia el pago, por `RF-MV-045`. Ver §14.3 · Antes, 01-10-2026 — **un pago con cobro abierto en la pasarela no se rechaza a mano** (`RN-MV-058`). Ver §14.2 |
 
 !!! info "Qué va en este documento"
 
@@ -203,9 +203,22 @@ Desde el 01-10-2026 ([`requirements/mv.md`](../../../requirements/mv.md) v0.64.0
 
 ---
 
+## 14.3 Sin ruta propia — enmienda del 01-10-2026
+
+Desde el 01-10-2026 ([`requirements/mv.md`](../../../requirements/mv.md) v0.67.0 §4.8) **se concilia el pago, no el movimiento**: se entra por `RF-MV-045`, que nombra el pago, y la ruta de este requerimiento —`POST /movements/{id}/rejection`— **se retira sin alias**. **Lo que este documento describe no cambia** —el pago rechazado con su motivo y la venta pendiente, que se puede volver a pagar—: es lo que `RF-MV-045` hace cuando el pago es de este tipo, y lo que la notificación de la pasarela (`RF-MV-041`) hace por dentro.
+
+**Lo que cambia, por eso.** `EX-001` a `EX-003`, `EX-005` y `EX-006` los responde `RF-MV-045` sobre el pago nombrado; `EX-004`, el motivo, es su `VAL-002`. `movements:reject-payment` **se conserva** y pasa a `RF-MV-045`. **Los criterios de este documento se siguen probando por la ruta nueva**, salvo los que la entrada sustituye: `CA-MV-199` y `CA-MV-200` los sustituye `CA-MV-511`; `CA-MV-201`, `CA-MV-510`; `CA-MV-202`, `CA-MV-509`; `CA-MV-203`, `CA-MV-514`; `CA-MV-464`, `CA-MV-513`.
+
+| ID | Criterio |
+|---|---|
+| `CA-MV-517` | `POST /movements/{id}/rejection` responde `404`: la ruta no existe |
+
+---
+
 ## 15. Control de cambios
 
 | Versión | Fecha | Cambio | Autor |
 |---|---|---|---|
 | 0.1.0 | 26-09-2026 | Primera versión, con la etapa 6 de `MV` ([`requirements/mv.md`](../../../requirements/mv.md) v0.44.0). **Declarado desde el 02-09-2026 como «rechazar una venta pendiente»** y nunca escrito; **cambia de objeto**: lo que se rechaza es el pago, y la venta queda pendiente para volver a pagarse. **El motivo es obligatorio**, **la transición es atómica** como en confirmar y anular, y **el permiso es propio** (`movements:reject-payment`, `RN-SEG-014`). Criterios `CA-MV-197` a `CA-MV-205`. | Responsable del proyecto |
 | 0.2.0 | 01-10-2026 | **La tarjeta por Stripe** ([`requirements/mv.md`](../../../requirements/mv.md) v0.64.0 §4.6): **un pago con cobro abierto en la pasarela no se rechaza a mano** (`RN-MV-058`). Criterios `CA-MV-464` a `CA-MV-465`. | Responsable del proyecto |
+| 0.3.0 | 01-10-2026 | **Sin ruta propia** ([`requirements/mv.md`](../../../requirements/mv.md) v0.67.0 §4.8): se concilia el pago, y se entra por `RF-MV-045`. El efecto no cambia; la ruta y su permiso se retiran (§14.3). Criterio `CA-MV-517`. | Responsable del proyecto |
