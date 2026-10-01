@@ -7,6 +7,7 @@
 | Plan | [`plan.md`](plan.md) v0.1.0 |
 | `plan.md` aprobado el | 30-09-2026 |
 | Estado | **En revisión** — todas las tareas `Hecha` el 30-09-2026 |
+| Enmendadas | 30-09-2026 — `T-08` por **a su propio nombre** (`EX-003` precisada) |
 | Issue | [#149](https://github.com/NexusPro-Dev/backend/issues/149) |
 | Rama | `feature/compra-de-puntos` |
 
@@ -69,3 +70,13 @@
 - [x] Contrato OpenAPI regenerado, **con la prosa releída**.
 - [x] `requirements.md` actualizado.
 - [ ] **`tasks.md` aprobadas por el responsable del proyecto.**
+
+## 6. A su propio nombre — enmienda del 30-09-2026
+
+| ID | Tarea | Depende de | Verificación | Estado |
+|---|---|---|---|---|
+| `T-08` | `RegisterSaleService.register` con quien registra; `MovementController` le pasa el actor; `CA-MV-357` en `PayWithPointsIT` (`plan.md` §12) | — | `PayWithPointsIT` y `RegisterSaleServiceTest` en verde | **Hecha** — 30-09-2026 |
+
+**Desviación**: la respuesta del registro pagado con puntos **es la de la confirmación** y no la de la venta tal como nació. Hasta hoy ningún registro de funcionario llegaba a pagarse con puntos, y la respuesta salía `PENDIENTE` aunque la venta quedara confirmada; lo encontró `CA-MV-357`. La compra por hotlink ya lo resolvía por su lado.
+
+Rama: `fix/puntos-a-nombre-propio`.

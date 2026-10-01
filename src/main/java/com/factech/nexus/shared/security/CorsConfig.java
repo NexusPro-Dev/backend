@@ -69,9 +69,16 @@ public class CorsConfig {
    * cualquier llamada; {@code X-Correlation-Id} la propone el cliente para seguir una operación
    * entre sistemas ({@link CorrelationFilter}), y sin declararla aquí el navegador rechazaría la
    * petición en la comprobación previa.
+   *
+   * <p><b>{@code Idempotency-Key}</b> la exigen las operaciones que mueven dinero de `MV` —comprar
+   * puntos, volver a pagar, abonar un bono—. Faltó aquí hasta el 30-09-2026, y con ella el
+   * navegador cancelaba esas llamadas antes de emitirlas: {@code curl} funcionaba y el frontend no.
+   * Va como literal y no como {@code IdempotencyKey.CABECERA} porque {@code shared} no conoce a los
+   * módulos (regla de ArchUnit {@code loCompartidoNoConoceALosModulos}).
    */
   private static final List<String> CABECERAS_ACEPTADAS =
-      List.of("Authorization", "Content-Type", "Accept", CorrelationFilter.CABECERA);
+      List.of(
+          "Authorization", "Content-Type", "Accept", CorrelationFilter.CABECERA, "Idempotency-Key");
 
   /**
    * Cabeceras que el cliente puede <b>leer</b> de la respuesta. El navegador solo expone un puñado

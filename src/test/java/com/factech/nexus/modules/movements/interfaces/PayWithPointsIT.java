@@ -308,6 +308,25 @@ class PayWithPointsIT extends IntegrationTestBase {
 
   @Test
   @DisplayName(
+      "CA-MV-357 — un funcionario que registra una venta A SU PROPIO NOMBRE la paga con sus puntos"
+          + " y queda confirmada")
+  void funcionarioASuNombre() throws Exception {
+    PointsFixtures.tasa(jdbc, USD, "100", administrador);
+    darPuntos(comprador, "20.00");
+    mvc.perform(
+            post("/api/v1/movements")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(
+                    "{\"userId\":\"%s\",\"paymentMethodId\":\"%s\",\"lines\":[{\"productId\":\"%s\",\"quantity\":1}]}"
+                        .formatted(comprador, POINTS, bot))
+                .with(user(comprador.toString()).authorities(() -> "movements:create")))
+        .andExpect(status().isCreated())
+        .andExpect(jsonPath("$.status").value("CONFIRMADA"));
+    assertThat(saldo(jdbc, comprador, "PUNTOS")).isLessThan(new java.math.BigDecimal("2000.00"));
+  }
+
+  @Test
+  @DisplayName(
       "CA-MV-343 — la migración rechaza los pagos POINTS pendientes; la venta sigue pendiente y"
           + " se vuelve a pagar")
   void migracion() throws Exception {
