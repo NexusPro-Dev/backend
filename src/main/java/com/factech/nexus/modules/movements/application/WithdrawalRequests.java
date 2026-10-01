@@ -14,7 +14,14 @@ public final class WithdrawalRequests {
   public record Request(
       @Schema(description = "De qué billetera se retira.") UUID currencyId,
       @Schema(description = "Cuánto. Mayor que cero, con los decimales de la moneda.")
-          BigDecimal amount) {}
+          BigDecimal amount,
+      @Schema(
+              types = {"string", "null"},
+              format = "uuid",
+              description =
+                  "A qué cuenta de cobro propia se paga (`RN-MV-056`, desde el 01-10-2026). Si no"
+                      + " viene, a la principal. Sin ninguna cuenta, el retiro no se puede pedir.")
+          UUID payoutAccountId) {}
 
   /** `RF-MV-020`: aprobar un retiro. */
   @Schema(name = "WithdrawalApprovalRequest")

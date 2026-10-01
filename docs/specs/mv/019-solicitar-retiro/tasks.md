@@ -7,6 +7,7 @@
 | Plan | [`plan.md`](plan.md) v0.1.0 |
 | `plan.md` aprobado el | 26-09-2026 |
 | Estado | **En revisión** — todas las tareas `Hecha` el 26-09-2026; la última, de documentación y contrato (`T-10`), el 30-09-2026 |
+| Enmendadas | 01-10-2026 — `T-11` a `T-14` por **la cuenta de cobro y la copia del destino** (`RN-MV-056`, §6) |
 | Issue | [#122](https://github.com/NexusPro-Dev/backend/issues/122) |
 | Rama | `feature/pagos-y-saldos` |
 
@@ -80,3 +81,24 @@
 - [ ] **`tasks.md` aprobadas por el responsable del proyecto.**
 
 **Cierre documental el 30-09-2026**: construido el 26-09-2026 y mezclado por el PR [#124](https://github.com/NexusPro-Dev/backend/pull/124) sin marcar la definición de terminado. Las casillas se marcan con la suite completa en verde el 30-09-2026, cada criterio con su afirmación, `EndpointPermissionsIT` exigiendo el permiso de la ruta y la prosa del contrato releída.
+
+---
+
+## 6. A dónde se paga — enmienda del 01-10-2026
+
+Rama: `feature/cuentas-de-cobro`. **Después de `RF-MV-032` `T-01` y `RF-MV-035` `T-01` y `T-03`**, que traen las tablas, `PayoutHolderLookup` y el repositorio de cuentas.
+
+| ID | Tarea | Depende de | Verificación | Estado |
+|---|---|---|---|---|
+| `T-11` | `WithdrawalDestination`, `WithdrawalDestinationRepository`, `PayoutAccountRepository.findUsableForWithdrawal` con `FOR SHARE` | `RF-MV-035` `T-03` | | **Hecha** — 01-10-2026 |
+| `T-12` | `WithdrawalService.request`: el paso de la cuenta en el orden de `plan.md` §12 y la copia; `payoutAccountId` en la petición y `destination` en la respuesta | `T-11` | Ninguna comprobación nueva toca un saldo | **Hecha** — 01-10-2026 |
+| `T-13` | El ayudante de prueba (entidad, cuenta principal, persona con documento) en **todas** las suites que piden retiros; `CA-MV-415` a `CA-MV-423` en `WithdrawalIT` | `T-12` | Cada criterio afirmado en el cuerpo de la prueba; las suites de `RF-MV-020` a `RF-MV-022` siguen en verde | **Hecha** — 01-10-2026 |
+| `T-14` | Contrato regenerado con la prosa del cambio rompedor; `requirements.md` | `T-13` | Diff del `json` | **Hecha** — 01-10-2026 |
+
+| Criterio | Tarea |
+|---|---|
+| `CA-MV-415`, `CA-MV-416`, `CA-MV-421` | `T-11`, `T-12`, `T-13` |
+| `CA-MV-417` a `CA-MV-420` | `T-12`, `T-13` |
+| `CA-MV-422`, `CA-MV-423` | `T-12`, `T-13` |
+
+**01-10-2026 — construido** (issue [#157](https://github.com/NexusPro-Dev/backend/issues/157)). La copia la arma y la lee `WithdrawalDestinations`, compartido con el detalle (`RF-MV-007` §7); `findForWithdrawal` toma `FOR SHARE OF a, i`. **La suite es `WithdrawalDestinationIT` y no `WithdrawalIT`**, que solo gana el ayudante (`PayoutFixtures.listaParaRetirar`), igual que `BalancesAndBonusIT` y `MovementDetailIT`.

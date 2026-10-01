@@ -5,11 +5,11 @@
 | Módulo | `MV` — Movimientos |
 | Paquete | `modules/movements` |
 | Prefijos de permiso | `movements:` |
-| Versión | 0.60.0 |
+| Versión | 0.63.0 |
 | Estado | **Borrador** |
 | Responsable | Bonilla Diaz William Steven |
 | Fecha de creación | 02-09-2026 |
-| Última actualización | 30-09-2026 |
+| Última actualización | 01-10-2026 |
 
 !!! info "Qué va en este documento"
 
@@ -95,6 +95,7 @@ Según [`modules.md` §5](../modules.md).
 | Pagos | Cada **intento** de cobrar o de pagar un movimiento, con su método y su estado (26-09-2026) | `payments` |
 | Saldos | Lo que cada persona tiene en la plataforma **y por qué**: las cuentas y sus asientos (26-09-2026) | `accounts`, `movement_entries` |
 | Puntos | A cuánto se venden los puntos en cada moneda, **su compra** y **el pago con ellos** (30-09-2026) | `points_rates`, y los movimientos `COMPRA_PUNTOS` sobre `accounts` |
+| Cuentas de cobro | **A dónde se paga un retiro**: las entidades —bancos y billeteras móviles— que administra la empresa y las cuentas de cada persona en ellas (01-10-2026) | `payout_institutions`, `payout_accounts`, `withdrawal_destinations` |
 
 **Por qué los medios de pago son un submódulo y no un catálogo de `SP`.** Los catálogos de `SP` —monedas, países, membresías— los necesita **el sistema entero** para autorizar, validar o mostrar. Un método de pago solo lo necesita quien registra dinero, y [`modules.md` §2.1](../modules.md#21-regla-de-decision) es explícito: si solo lo usa un módulo, es un submódulo suyo.
 
@@ -177,6 +178,14 @@ La dependencia es **acíclica**: `MV` → `PM` → `SP`, y `MV` → `SP`. **El p
 | `RF-MV-029` | Rechazar el pago de una compra de puntos | Puntos | `movements:reject-points-purchase` (nace con él; `RN-SEG-014`) |
 | `RF-MV-030` | Pagar una compra con puntos | Puntos | **Ninguno propio**: viaja en las entradas de compra propia (`RF-MV-002`, `RF-MV-011` a `RF-MV-013`) y en volver a pagar (`RF-MV-018`), con los permisos de cada una |
 | `RF-MV-031` | Consultar mis compras de puntos | Puntos | `movements:list-own-points-purchases` (nace con él; `RN-SEG-015`) |
+| `RF-MV-032` | Registrar una entidad de cobro —un banco o una billetera móvil— | Cuentas de cobro | `movements:create-payout-institution` (nace con él; `RN-SEG-014`) |
+| `RF-MV-033` | Consultar las entidades de cobro | Cuentas de cobro | `movements:read-payout-institutions` (nace con él; `RN-SEG-015`) |
+| `RF-MV-034` | Editar una entidad de cobro, también para desactivarla | Cuentas de cobro | `movements:update-payout-institution` (nace con él; `RN-SEG-014`) |
+| `RF-MV-035` | Registrar una cuenta de cobro propia | Cuentas de cobro | `movements:create-own-payout-account` (nace con él; `RN-SEG-015`) |
+| `RF-MV-036` | Consultar mis cuentas de cobro | Cuentas de cobro | `movements:list-own-payout-accounts` (nace con él; `RN-SEG-015`) |
+| `RF-MV-037` | Editar una cuenta de cobro propia, también para hacerla la principal | Cuentas de cobro | `movements:update-own-payout-account` (nace con él; `RN-SEG-015`) |
+| `RF-MV-038` | Dar de baja una cuenta de cobro propia | Cuentas de cobro | `movements:delete-own-payout-account` (nace con él; `RN-SEG-015`) |
+| `RF-MV-039` | Consultar las cuentas de cobro de una persona | Cuentas de cobro | `movements:read-user-payout-accounts` (nace con él; `RN-SEG-014`) |
 
 **Registrar y comprar son dos requerimientos y no uno**, y eso **se aparta del precedente** que `PM` y `CM` fijaron —«el alta es una, no dos»—. La razón por la que aquí no aplica no es el contenido de la venta sino **quién la pide y por dónde entra**: una la origina un funcionario sobre la cuenta de otro y exige `movements:create`; la otra la origina el interesado sobre la suya y no exige permiso ninguno, como `RF-SP-039` y `RF-PM-007`. Fundirlas daría un endpoint con **dos modelos de seguridad**, que es donde se cuela el que sobra.
 
@@ -426,7 +435,7 @@ Decisiones del responsable del proyecto del 26-09-2026, tomadas en este orden. *
 
 **Lo que esta etapa deja abierto, dicho de una vez:**
 
-- **Con qué se paga un retiro.** **Decidido el mismo 26-09-2026 por el responsable del proyecto: por ahora, a mano.** Las pasarelas de pago —de cobro y de salida— se integrarán más adelante, y el retiro se construye **con el flujo completo y sin ninguna**: quien aprueba declara que el dinero salió, y el pago que lo liquida se escribe con el método `MANUAL` —`ACTIVO` + `INTERNO`, §7.4— y, si la hay, la referencia de la transferencia en `provider_reference`. **Los datos bancarios de cada persona no se guardan todavía**: llegarán con la primera pasarela de salida, que es quien los necesita. `RF-MV-020` queda desbloqueado.
+- **Con qué se paga un retiro.** **Decidido el mismo 26-09-2026 por el responsable del proyecto: por ahora, a mano.** Las pasarelas de pago —de cobro y de salida— se integrarán más adelante, y el retiro se construye **con el flujo completo y sin ninguna**: quien aprueba declara que el dinero salió, y el pago que lo liquida se escribe con el método `MANUAL` —`ACTIVO` + `INTERNO`, §7.4— y, si la hay, la referencia de la transferencia en `provider_reference`. **Los datos bancarios de cada persona no se guardan todavía**: llegarán con la primera pasarela de salida, que es quien los necesita. `RF-MV-020` queda desbloqueado. **Revertido el 01-10-2026** (§4.5): el retiro sigue siendo a mano, pero quien lo aprueba tiene que saber **a dónde** enviar el dinero, y acordarlo por fuera no deja constancia.
 - **Quién pone la clave de idempotencia.** Para que «la aplicación se cayó» no produzca dos cobros, la manda el cliente (`RN-MV-040`). Qué hacen las entradas de compra que hoy no la mandan lo decide la tripleta de `RF-MV-018`.
 - **Si «mis compras» sigue siendo el libro propio.** **Decidido el mismo 26-09-2026 por el responsable del proyecto: solo ventas** (`RN-MV-047`). El listado fija `VENTA` en la consulta, y **el detalle trae los pagos** del movimiento —cada intento, con su método, su estado y sus fechas—.
 - **El estado del tipo de los tres tipos nuevos.** `type_status_id` es obligatorio desde `V36`, y el eje que mide en la venta —¿a quién se atribuye la comisión?— no existe fuera de ella. Se siembra **un estado por tipo**, `REGISTRADO`, a falta de que alguno necesite más.
@@ -472,6 +481,35 @@ Decisiones del responsable del proyecto del 30-09-2026, **preguntadas antes de e
 - **Quien pidió una compra pendiente no la cancela**: queda `PENDIENTE` hasta que administración confirme o rechace su pago.
 - **Convertir billetera en puntos** sigue sin existir (§4.3).
 - **Con la pasarela** (etapa 4), confirmar y rechazar el pago de una compra de puntos lo hará la notificación, como en la venta.
+
+### 4.5 Cuentas de cobro — a dónde se paga un retiro (01-10-2026)
+
+Lo pidió el responsable del proyecto el 01-10-2026: «crearemos cuentas bancarias para los usuarios para solicitar retiros de disponible y saber a dónde enviar». Hasta ese día el retiro (`RF-MV-019`) decía **cuánto** y nunca **a dónde**: §4.3 había dejado los datos bancarios para la pasarela de salida, y quien aprobaba un retiro tenía que preguntar por fuera a qué cuenta pagar. **El retiro sigue siendo a mano**. Lo que cambia es que la persona deja escrito a dónde quiere el dinero, y quien aprueba lo lee en el retiro.
+
+**Decisiones del responsable del proyecto, preguntadas antes de escribir:**
+
+| Pregunta | Decisión |
+|---|---|
+| ¿Qué destinos? | **Cuentas bancarias y billeteras móviles** —Nequi, Daviplata y las de cada país—. Las direcciones cripto quedan fuera |
+| ¿El banco se escribe o se elige? | **Se elige de un catálogo que administra la empresa**, por país (`RN-MV-054`). Escrito a mano, el mismo banco aparecería de cinco formas y nadie podría contar cuánto se paga a cada uno |
+| ¿Cuántas cuentas? | **Varias por persona, y una es la principal**. El retiro elige una o, si no dice nada, va a la principal (`RN-MV-056`) |
+| ¿Hay que verificarla? | **No**: se usa desde que se registra. Quien aprueba el retiro ve el destino y decide |
+| ¿Quién es el titular? | **Siempre la propia persona**: el nombre y el documento se toman de su cuenta de usuario y no se escriben (`RN-MV-055`) |
+| ¿El retiro puede ir sin cuenta? | **No**: la cuenta es **obligatoria** desde el 01-10-2026, y quien no tiene ninguna registra una antes de pedir |
+| ¿Y si la cuenta cambia con un retiro pendiente? | **Se permite**, porque el retiro **copia** el destino al pedirse (`RN-MV-056`). Editar o dar de baja la cuenta después no cambia a dónde se paga ese retiro |
+| ¿Quién más las ve? | **Quien aprueba, en el retiro**, y además **administración, con un permiso propio**, las de cualquier persona (`RF-MV-039`) |
+
+**Por qué la entidad es un catálogo de este módulo y no de `SP`.** Por el mismo argumento que los medios de pago (§2): las monedas y los países los necesita el sistema entero, y **un banco solo lo necesita quien paga**. Lleva país porque los usuarios ya lo tienen (`users.country_id`): una persona de Colombia elige entre las entidades de Colombia, y ofrecerle las de otro país solo le daría la ocasión de equivocarse.
+
+**Por qué el titular no se escribe.** Si la cuenta pudiera ser de un tercero, quien robara una sesión podría añadir su propia cuenta y pedir un retiro hacia ella, y el retiro no tendría nada raro que lo delatara. Con el titular tomado del usuario, **una cuenta ajena se ve ajena**: el banco rechaza la transferencia a una cuenta cuyo titular no coincide, o quien aprueba lo nota. Por eso **una persona sin documento no registra cuentas**: sin documento no hay titular que copiar, y lo completa un administrador (`RF-SP-027`), porque el documento es identidad y la persona no lo cambia sola (`RN-SP-037`).
+
+**Por qué el retiro copia el destino y no lo referencia.** El retiro es un hecho del libro, y `RN-MV-001` dice que los hechos no se reescriben. Si solo apuntara a la cuenta, editarla después cambiaría a dónde «se pagó» un retiro ya aprobado, y el comprobante mentiría. La copia guarda lo que importa para pagar —entidad, tipo de cuenta, número, titular y documento— **tal como era al pedir**, y conserva además la referencia a la cuenta, para saber de cuál salió. Es lo mismo que la línea de venta hace con el precio (`RN-MV-002`).
+
+**Lo que esta sección deja abierto:**
+
+- **La moneda de la cuenta.** Una cuenta en un banco colombiano recibe pesos, y la billetera de la que sale el retiro puede ser en dólares. Hoy la conversión la hace quien paga, por fuera, como ya ocurría. Si se pide, la cuenta llevará moneda y el retiro exigirá que coincida.
+- **Un tope de cuentas por persona.** No se ha pedido ninguno.
+- **Los retiros pedidos antes del 01-10-2026** quedan sin destino: la copia no existe y no se inventa. Se pagan como hasta ahora.
 
 ---
 
@@ -534,6 +572,9 @@ Decisiones del responsable del proyecto del 30-09-2026, **preguntadas antes de e
 | `RN-MV-051` | **Comprar puntos congela la tasa, y abona solo cuando el pago se confirma** | Al comprar (`RF-MV-027`), al confirmar (`RF-MV-028`) y al rechazar (`RF-MV-029`) | Decisión del responsable del proyecto, 30-09-2026. La compra es un movimiento `COMPRA_PUNTOS` a nombre de quien compra. **Nace `PENDIENTE`** con un pago `PENDIENTE` por el importe, en un método `PUBLICO` y activo **distinto de `POINTS`**, porque los puntos no se compran con puntos. Guarda **la tasa vigente y los puntos que da** (`importe × tasa`, redondeado **hacia abajo** a dos decimales) y **no escribe asientos**: hasta que el dinero entre no hay nada que abonar (`RN-MV-004`). **Confirmar abona exactamente los puntos congelados**, aunque la tasa haya cambiado después, porque se pagó a esa tasa. **Rechazar la deja `RECHAZADA`**, con motivo, sin asientos y sin vuelta atrás. **Una compra abonada no se anula, y sus puntos no vencen**. No lleva líneas ni vendedor (`RN-MV-046`) y **no comisiona** | **Crítica** |
 | `RN-MV-052` | **Pagar con puntos descuenta a la tasa vigente y confirma en el acto** | Al registrar una compra propia con `POINTS` (`RF-MV-002`, `RF-MV-011` a `RF-MV-013`) o al volver a pagarla con él (`RF-MV-018`), según `RF-MV-030` | Decisión del responsable del proyecto, 30-09-2026. La venta cuesta `importe × tasa vigente de su moneda` puntos, redondeados **hacia arriba** a dos decimales, y salen de la cuenta `PUNTOS` **de esa moneda**. El pago nace `CONFIRMADO`, sus asientos se escriben con él (evento `PAGO`) y la venta se confirma en la misma transacción, con los mismos efectos que `RF-MV-003`: entrega y aviso a `CM` (`RN-MV-049`). **Si los puntos no alcanzan no se escribe nada**, y la cuenta se bloquea como en el retiro (`RN-MV-043`). **Solo paga con puntos quien pide y compra a la vez**: `RF-MV-001` y la venta del alta por enlace rechazan `POINTS`. **Rige la tasa vigente y no la de compra**: con un solo saldo no hay lotes que distinguir, y el precio en puntos de la tienda es uno. Si la tasa sube, los puntos que alguien ya tenía compran menos, y se acepta a sabiendas | **Crítica** |
 | `RN-MV-053` | **Corregir el vendedor de una línea de una venta confirmada lo decide `CM`, por un puerto que declara este módulo** | Al corregir el vendedor de una línea que ya lo tiene, en una venta `CONFIRMADA` (`RF-MV-016`) | Decisión del responsable del proyecto, 30-09-2026: «permitamos que se pueda actualizar el vendedor de una línea siempre y cuando esta comisión de la venta no se haya pagado». **Si la comisión se pagó lo sabe `CM`**, y este módulo no lo consume (§3). Por eso **declara un puerto** en su capa `application` —«libera esta línea para que cambie de vendedor»— que **`CM` implementa**, y lo invoca **en su misma transacción y antes de escribir**, con la venta ya bloqueada. `CM` responde que **sí** —y ya revirtió la cadena vieja, `RN-CM-047`— o que **no**, porque algún nivel está en un lote pagado o la línea es un FTD ya contado; con un no, **la corrección entera se rechaza** y no se escribe ninguna línea. Con un sí, la escritura sigue como siempre, y **el aviso de `RN-MV-049` lleva la línea corregida**, de modo que `CM` devenga la cadena nueva después del commit. **Una línea que nunca tuvo vendedor no pasa por el puerto**: no tiene nada que revertir. **Es la única pregunta síncrona de este módulo a `CM`**, y se elige a conciencia: un evento no devuelve respuesta, y una corrección que se aplicara y se deshiciera después dejaría la venta mintiendo entre medias | **Crítica** |
+| `RN-MV-054` | **Las entidades de cobro son un catálogo de la empresa, por país, y se desactivan en vez de borrarse** | Al registrar, consultar y editar entidades (`RF-MV-032` a `RF-MV-034`), y al registrar o usar una cuenta (`RF-MV-035`, `RF-MV-037`, `RF-MV-019`) | Decisión del responsable del proyecto, 01-10-2026. Cada entidad tiene un **código** único, inmutable y en mayúsculas (`BANCOLOMBIA`, `NEQUI`), un **nombre**, un **tipo** —`BANCO` o `BILLETERA_MOVIL`— y un **país**. El código y el tipo no se editan, porque las cuentas registradas dependen de ellos: un banco que pasara a ser billetera dejaría sus cuentas con un tipo de cuenta que ya no le corresponde. **No se borran: se desactivan**. Una entidad inactiva no se ofrece a las personas, no admite cuentas nuevas y **no admite retiros nuevos** hacia las cuentas que ya tiene; esas cuentas siguen existiendo y su dueño las ve marcadas, para cambiar de cuenta. El catálogo **nace vacío**: lo llena administración | **Alta** |
+| `RN-MV-055` | **Una cuenta de cobro es de su dueño y a su nombre, y una de ellas es la principal** | Al registrar, editar, dar de baja y consultar cuentas (`RF-MV-035` a `RF-MV-039`) | Decisión del responsable del proyecto, 01-10-2026. **El titular es el usuario**: el nombre y el documento no se escriben, se leen de su cuenta de usuario, y **quien no tiene documento no registra cuentas**. La entidad tiene que estar **activa y ser del país de la persona**. Lo que se escribe depende del tipo de la entidad: en un **banco**, el **tipo de cuenta** —`AHORROS` o `CORRIENTE`— y el **número**, de 4 a 20 dígitos; en una **billetera móvil**, solo el **número de celular**, de 7 a 15 dígitos, sin tipo de cuenta. **La misma entidad y el mismo número no se registran dos veces** para la misma persona. **Una sola principal** entre las vivas: la primera que se registra lo es sin pedirlo, marcar otra desmarca la anterior en el mismo acto, y **dar de baja la principal hace principal a la más antigua de las que quedan**. Se dan de baja **con borrado lógico** y no vuelven: el retiro que salió hacia una cuenta conserva su referencia. **Solo su dueño las registra, edita y da de baja**; una cuenta ajena responde como inexistente | **Crítica** |
+| `RN-MV-056` | **Un retiro dice a dónde se paga, y lo copia al pedirse** | Al solicitar un retiro (`RF-MV-019`) y al consultarlo, aprobarlo o negarlo (`RF-MV-007`, `RF-MV-020`, `RF-MV-021`) | Decisión del responsable del proyecto, 01-10-2026. **Enmienda `RF-MV-019`**: pedir un retiro exige una cuenta de cobro **propia, viva y de una entidad activa**. Se indica cuál, y si no se indica **va a la principal**; quien no tiene ninguna **no puede pedir un retiro** y el error lo dice. En la misma transacción en que retiene (`RN-MV-043`) se escribe **la copia del destino**: entidad, tipo de cuenta, número, nombre del titular y su documento, **tal como eran al pedir**, junto con la referencia a la cuenta. **La copia no cambia nunca**: editar o dar de baja la cuenta después no la toca (`RN-MV-001`). El detalle de un retiro publica su destino. Un retiro pedido antes de esta regla **no tiene destino**, y no se le inventa | **Crítica** |
 
 ### 5.2 Por qué las críticas son críticas
 
@@ -685,6 +726,14 @@ Hasta hoy esta regla no distinguía: **toda** venta confirmada con un upgrade co
 | `movements:confirm-points-purchase` | `movements` | `confirm-points-purchase` | Confirmar el pago de una compra de puntos pendiente y abonarlos (`RF-MV-028`). A `SUPERADMIN` y `ADMIN`. **Sembrado por `V58`** (30-09-2026) |
 | `movements:reject-points-purchase` | `movements` | `reject-points-purchase` | Rechazar el pago de una compra de puntos pendiente, con motivo (`RF-MV-029`). A `SUPERADMIN` y `ADMIN`. **Sembrado por `V58`** (30-09-2026) |
 | `movements:list-own-points-purchases` | `movements` | `list-own-points-purchases` | Consultar las compras de puntos propias, con su estado (`RF-MV-031`). Por tipo de rol. **Sembrado por `V58`** (30-09-2026) |
+| `movements:create-payout-institution` | `movements` | `create-payout-institution` | Registrar una entidad de cobro —banco o billetera móvil— (`RF-MV-032`). A `SUPERADMIN` y `ADMIN`. **Sembrado por `V61`** (01-10-2026) |
+| `movements:read-payout-institutions` | `movements` | `read-payout-institutions` | Consultar las entidades de cobro (`RF-MV-033`). **Por tipo de rol**: quien registra una cuenta tiene que elegir la entidad. **Sembrado por `V61`** (01-10-2026) |
+| `movements:update-payout-institution` | `movements` | `update-payout-institution` | Editar el nombre de una entidad de cobro, o activarla y desactivarla (`RF-MV-034`). A `SUPERADMIN` y `ADMIN`. **Sembrado por `V61`** (01-10-2026) |
+| `movements:create-own-payout-account` | `movements` | `create-own-payout-account` | Registrar una cuenta de cobro propia (`RF-MV-035`). Por tipo de rol. **Sembrado por `V61`** (01-10-2026) |
+| `movements:list-own-payout-accounts` | `movements` | `list-own-payout-accounts` | Consultar las cuentas de cobro propias (`RF-MV-036`). Por tipo de rol. **Sembrado por `V61`** (01-10-2026) |
+| `movements:update-own-payout-account` | `movements` | `update-own-payout-account` | Editar una cuenta de cobro propia, o hacerla la principal (`RF-MV-037`). Por tipo de rol. **Sembrado por `V61`** (01-10-2026) |
+| `movements:delete-own-payout-account` | `movements` | `delete-own-payout-account` | Dar de baja una cuenta de cobro propia (`RF-MV-038`). Por tipo de rol. **Sembrado por `V61`** (01-10-2026) |
+| `movements:read-user-payout-accounts` | `movements` | `read-user-payout-accounts` | Consultar las cuentas de cobro de **cualquier** persona (`RF-MV-039`). A `SUPERADMIN` y `ADMIN`: es la lectura de administración, y no sigue la estructura comercial. **Sembrado por `V61`** (01-10-2026) |
 
 **Confirmar una compra de puntos no reutiliza `movements:confirm`** (30-09-2026). Son dos operaciones —una entrega lo vendido, la otra abona un saldo— y `RN-SEG-014` no deja que un permiso gobierne dos. Y **pagar con puntos no tiene permiso propio**: no es una operación, es un método dentro de la compra, y exigirlo aparte obligaría a conceder dos permisos para comprar una sola vez.
 
@@ -972,6 +1021,12 @@ Se siembra por migración y **no se administra por API todavía** (§5.3). Lo m�
 | `ck_movements_points` | `(points_rate_id IS NULL) = (points_amount IS NULL)` y `points_amount > 0` | `RN-MV-051`. Una compra de puntos sin tasa, o una tasa sin puntos, no se explica |
 | `ck_points_rates_valor` | `points_per_unit > 0` | `RN-MV-050`. Una tasa de cero regalaría lo que se vende con puntos |
 | `uq_points_rates_vigencia` | `points_rates(currency_id, valid_from)` | `RN-MV-050`. Dos tasas de la misma moneda desde el mismo instante no dicen cuál rige |
+| `uq_payout_institutions_code` | `payout_institutions(code)` | `RN-MV-054`. El código identifica la entidad en el contrato y en la copia del retiro |
+| `ck_payout_institutions_kind` | `kind` en (`BANCO`, `BILLETERA_MOVIL`) | `RN-MV-054`. El dominio |
+| `ck_payout_accounts_forma` | `account_type` en (`AHORROS`, `CORRIENTE`) o nulo, y `number` solo dígitos, de 4 a 20 | `RN-MV-055`. Que el tipo de cuenta vaya **solo** con un banco cruza a otra tabla y lo sostiene el caso de uso |
+| `uq_payout_accounts_numero` | `payout_accounts(user_id, institution_id, number)` **parcial**, `WHERE deleted_at IS NULL` | `RN-MV-055`. Dos peticiones simultáneas burlan la comprobación previa. Parcial, para que una cuenta dada de baja se pueda volver a registrar |
+| `uq_payout_accounts_principal` | `payout_accounts(user_id)` **parcial**, `WHERE is_principal AND deleted_at IS NULL` | `RN-MV-055`. Una sola principal. Cambiarla desmarca primero la anterior en la misma transacción, con la fila de la persona bloqueada |
+| `ck_payout_accounts_baja` | `NOT (is_principal AND deleted_at IS NOT NULL)` | `RN-MV-055`. Una cuenta dada de baja no puede seguir siendo la principal |
 | `tg_movement_entries_cuadre` | Disparador de restricción **`DEFERRABLE INITIALLY DEFERRED`**: los asientos de cada `(movement_id, event)` suman cero y son de cuentas de la misma moneda | `RN-MV-042`. Un `CHECK` ve una fila, y esto es la suma de varias que solo tiene sentido al cerrar la transacción |
 
 **`RN-MV-019` no aparece en esa lista, y es a propósito.** No hay nada que declarar: la exclusión **no se comprueba en ninguna operación**, solo se publica. Lo único que el esquema sostiene es que la relación no se duplique y que apunte a filas que existen.
@@ -1052,6 +1107,55 @@ Se siembra por migración y **no se administra por API todavía** (§5.3). Lo m�
 
 **Es un histórico y no un valor**: fijar una tasa inserta una fila con `valid_from` en el instante en que se fija, y la vigente es la de `valid_from` más reciente que no sea futura. **No hay `valid_to`**: la sustituye la fila siguiente, y guardarlo sería guardar dos veces el mismo hecho, con la posibilidad de que discrepen. **Sin `updated_at` ni `deleted_at`**: una tasa que ya rigió explica compras pasadas (`movements.points_rate_id`), y editarla o borrarla dejaría esas compras sin explicación.
 
+### 7.11 `payout_institutions`
+
+| Columna | Tipo | Nula | Referencia |
+|---|---|---|---|
+| `id` | `uuid` | No | — |
+| `code` | `varchar(30)` | No | — |
+| `name` | `varchar(100)` | No | — |
+| `kind` | `varchar(20)` | No | — |
+| `country_id` | `uuid` | No | `countries` |
+| `is_active` | `boolean` | No | — |
+| `created_at` | `timestamptz` | No | — |
+| `updated_at` | `timestamptz` | No | — |
+
+**Los bancos y las billeteras móviles a los que se paga** (`RN-MV-054`, 01-10-2026). `code` sigue el formato de los demás códigos del sistema —mayúsculas, dígitos y guion bajo— y **no se edita**, como tampoco `kind`. **Sin `deleted_at`**: una entidad con cuentas o con retiros no se borra, se desactiva con `is_active`, que es lo mismo que hacen los catálogos de `SP`. **El país es una columna y no una tabla intermedia**: un banco de dos países son dos entidades, porque sus cuentas no son intercambiables.
+
+### 7.12 `payout_accounts`
+
+| Columna | Tipo | Nula | Referencia |
+|---|---|---|---|
+| `id` | `uuid` | No | — |
+| `user_id` | `uuid` | No | `users` |
+| `institution_id` | `uuid` | No | `payout_institutions` |
+| `account_type` | `varchar(20)` | **Sí** | — |
+| `number` | `varchar(20)` | No | — |
+| `is_principal` | `boolean` | No | — |
+| `created_at` | `timestamptz` | No | — |
+| `updated_at` | `timestamptz` | No | — |
+| `deleted_at` | `timestamptz` | **Sí** | — |
+
+**Las cuentas de cobro de cada persona** (`RN-MV-055`, 01-10-2026). **No guarda el titular**: es el usuario, y se lee de `users` cada vez, de modo que si un administrador corrige el documento de la persona sus cuentas lo reflejan sin tocarlas. Lo que no debe cambiar después de pedir un retiro **no vive aquí, vive en la copia** (§7.13). `account_type` es nulo en una billetera móvil, y en un banco es obligatorio: como cruza a la entidad, lo sostiene el caso de uso. **Lleva `deleted_at`, al revés que casi todo este módulo**, porque una cuenta de cobro no es un hecho del libro sino un dato de la persona: darla de baja no borra nada que haya ocurrido, y el retiro que salió hacia ella conserva su copia.
+
+### 7.13 `withdrawal_destinations`
+
+| Columna | Tipo | Nula | Referencia |
+|---|---|---|---|
+| `movement_id` | `uuid` | No | `movements` — **es la clave primaria** |
+| `payout_account_id` | `uuid` | No | `payout_accounts` |
+| `institution_code` | `varchar(30)` | No | — |
+| `institution_name` | `varchar(100)` | No | — |
+| `institution_kind` | `varchar(20)` | No | — |
+| `account_type` | `varchar(20)` | **Sí** | — |
+| `number` | `varchar(20)` | No | — |
+| `holder_name` | `varchar(201)` | No | — |
+| `holder_document_type` | `varchar(20)` | No | — |
+| `holder_document_number` | `varchar(30)` | No | — |
+| `created_at` | `timestamptz` | No | — |
+
+**A dónde se paga un retiro, tal como era al pedirlo** (`RN-MV-056`, 01-10-2026). **Una fila por retiro**, con el movimiento como clave: un retiro tiene a lo sumo un destino, y el esquema lo dice sin un índice aparte. **Es una tabla y no columnas de `movements`** porque solo la usa un tipo de movimiento, y nueve columnas nulas en todas las ventas serían nueve sitios donde una venta podría llevar un destino que no le corresponde. **No se edita ni se borra**: es parte del retiro, y `RN-MV-001` vale para ella. `holder_document_type` guarda **la abreviatura** del tipo de documento (`CC`, `CE`) y no su referencia, porque la copia tiene que leerse igual aunque el catálogo cambie.
+
 ---
 
 ## 8. Control de cambios
@@ -1118,3 +1222,6 @@ Se siembra por migración y **no se administra por API todavía** (§5.3). Lo m�
 | 0.58.0 | 30-09-2026 | **El vendedor de una línea de una venta confirmada se puede corregir mientras su comisión no se haya pagado**, por decisión del responsable del proyecto: «permitamos que se pueda actualizar el vendedor de una línea siempre y cuando esta comisión de la venta no se haya pagado». **Nace `RN-MV-053`**: la pregunta la responde `CM`, por un **puerto que declara este módulo y `CM` implementa**, invocado en la misma transacción antes de escribir; con un no, la corrección entera se rechaza. **Se enmienda `RN-MV-035`** —el vendedor se congela al pagarse la comisión, no al confirmar— y, en consecuencia, `RF-MV-016`, §3 y §7.3. Sin permisos nuevos: corregir sigue siendo `movements:assign-sellers`. Con [`requirements/cm.md`](cm.md) v0.26.0 (`RN-CM-046` a `RN-CM-048`, `RF-CM-022` a `RF-CM-024`). Sin tripletas todavía | Responsable del proyecto |
 | 0.59.0 | 30-09-2026 | **`RN-MV-053` está construida**: `CommissionedLineRelease` vive en `movements.application` y `AssignSellersService` lo invoca antes de escribir, en una venta confirmada, por cada línea que cambia de vendedor; una regla de ArchUnit fija que nada de `movements` depende de `commissions`. Sin cambio de reglas. | Responsable técnico |
 | 0.60.0 | 30-09-2026 | **`RF-MV-030` · `EX-003` precisada** ([`specs/mv/030-pagar-con-puntos/spec.md`](../specs/mv/030-pagar-con-puntos/spec.md) v0.2.0): el registro de un funcionario rechazaba los puntos en **toda** venta; ahora solo en la que registra a nombre de **otra** persona, que es lo que la regla decía. Un funcionario que compra para sí paga con sus puntos. Sin cambio de reglas. | Responsable del proyecto |
+| 0.61.0 | 01-10-2026 | **Cuentas de cobro: a dónde se paga un retiro** (§4.5), a petición del responsable del proyecto —«crearemos cuentas bancarias para los usuarios para solicitar retiros de disponible y saber a dónde enviar»— y con sus decisiones, preguntadas antes de escribir: **bancos y billeteras móviles**, sin cripto; la entidad sale de **un catálogo que administra la empresa, por país** (`RN-MV-054`); **varias cuentas por persona, una principal**, sin verificación, y **el titular es siempre la propia persona**, con nombre y documento leídos de su usuario (`RN-MV-055`); **la cuenta es obligatoria al pedir un retiro**, y el retiro **copia** el destino, de modo que editar o dar de baja la cuenta después no lo cambia (`RN-MV-056`); administración consulta las cuentas de cualquiera con un permiso propio. **Revierte** lo que §4.3 dejó para la pasarela de salida —«los datos bancarios no se guardan todavía»— y **enmienda `RF-MV-019`**, con un cambio rompedor del contrato: el retiro sin cuenta deja de admitirse. Nacen el submódulo **Cuentas de cobro** (§2), `RF-MV-032` a `RF-MV-039`, `RN-MV-054` a `RN-MV-056` y ocho permisos **declarados y sin sembrar** (§6). §7 diseña `payout_institutions`, `payout_accounts` y `withdrawal_destinations` (§7.11 a §7.13). Sin tripletas ni migración todavía | Responsable del proyecto |
+| 0.62.0 | 01-10-2026 | **Las cuentas de cobro tienen tripleta**: [`specs/mv/032`](../specs/mv/032-registrar-entidad-de-cobro/spec.md) a [`039`](../specs/mv/039-consultar-cuentas-de-cobro-de-usuario/spec.md) (`CA-MV-358` a `CA-MV-414`), y las enmiendas de `RF-MV-019` (spec 0.2.0, `CA-MV-415` a `CA-MV-423`) y `RF-MV-007` (spec 0.3.0, `CA-MV-424` y `CA-MV-425`). Tres decisiones de las tripletas que conviene tener aquí: **la principal pasa a la más antigua** al dar de baja la que lo era; **una cuenta de entidad inactiva no se edita**, solo se da de baja; y **las escrituras sobre las cuentas de una persona se serializan** con un bloqueo consultivo por persona. `SP` gana dos interfaces de lectura: `CountryCatalog` y `PayoutHolderLookup`. Sin cambio de reglas. | Responsable técnico |
+| 0.63.0 | 01-10-2026 | **Las cuentas de cobro están construidas** (issue [#157](https://github.com/NexusPro-Dev/backend/issues/157)): `V61` escribe las tres tablas de §7.11 a §7.13 y siembra los ocho permisos de §6; `PayoutController` publica las ocho rutas, y el retiro y su detalle publican el destino. Sin cambio de reglas. **Dos cosas que la construcción decidió**: la unicidad del código de una entidad la resuelve `INSERT … ON CONFLICT DO NOTHING`, sin abortar la transacción; y la cuenta repetida se comprueba **bajo el bloqueo por persona**, con el índice parcial como segunda defensa. | Responsable técnico |

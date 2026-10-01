@@ -5,7 +5,7 @@
 | Proyecto | NEXUS — Renovación de plataforma |
 | Empresa | FACTECH GROUP SAS |
 | Documento | `modules.md` |
-| Versión | 0.23.0 |
+| Versión | 0.24.0 |
 | Estado | Borrador |
 | Responsable técnico | Bonilla Diaz William Steven |
 | Fecha de creación | 20-08-2026 |
@@ -264,6 +264,7 @@ Lo que decidió no fue la elegancia sino el precedente que este mismo párrafo c
 |---|---|---|
 | Ventas | Registrar, resolver y consultar lo vendido | `movements`, `movement_types`, `movement_details` |
 | Medios de pago | Con qué se pagó | `payment_methods` |
+| Cuentas de cobro | A dónde se paga un retiro (01-10-2026) | `payout_institutions`, `payout_accounts`, `withdrawal_destinations` |
 
 **Dependencias.** `SP` y `PM`. De `SP` necesita los **usuarios** —que el cliente exista y en qué estado está—, la **estructura comercial** —de qué vendedor cuelga el cliente— y las **monedas**; de `PM`, el **producto** con su precio y su vigencia, para **copiarlos**, y la **oferta** que le corresponde a quien compra (`RF-PM-007`). `CM` no aparece porque la dependencia va al revés: es la liquidación la que consumirá a `MV`.
 
@@ -446,3 +447,4 @@ El orden importa: el módulo precede al requerimiento, el requerimiento precede 
 | 0.21.0 | 17-09-2026 | **Se incorpora el módulo `AC` — Academia**, el quinto del sistema, por decisión del responsable del proyecto. Es el candidato que §6 tenía anotado desde el 20-08-2026 (HU08, HU13, HU14) y cumple las dos condiciones de §2.1: **ocho tablas propias** que ni `SP` ni `PM` necesitan, y consumidores previsibles —`PM` y `MV` el día que un curso se venda suelto, Métricas para contar qué se estudia—. Nace con **el catálogo y su lectura**: categorías, cursos con instructor, dificultad, video y portada, clasificados en categorías, con recomendaciones entre cursos y con **una lista explícita de membresías** que les da acceso; módulos dentro del curso, lecciones —de video o de texto— dentro del módulo, con la posibilidad de estar **abiertas a todos** como demostración; y lo que ve el alumno. **Depende de `SP` y solo de `SP`**, y la relación con `PM` que §5.2 anticipó se resolvió en `SP` porque el nivel es la membresía. Tres decisiones quedan escritas en la ficha: el instructor **porta un permiso** (`courses:teach`) y no un rol, para que `SP` no sepa de academia; la portada vive en **una tabla propia** (`academy_images`) y no en la de `PM`, porque §7 prohíbe que un módulo escriba la tabla de otro; y **las sesiones en vivo son del mismo módulo** y se escribirán como `RF-AC-NNN`. Se procede pese a la advertencia de §6 sobre fijar códigos antes de conocer el alcance completo, y queda escrito que se procedió sabiéndolo. | Responsable del proyecto |
 | 0.22.0 | 21-09-2026 | **Submódulo nuevo en `SP`: «Equipos»**, dueño de `teams` y `team_members` ([`requirements/sp.md`](requirements/sp.md) v1.71.0, `RF-SP-063` a `RF-SP-070`), por decisión del responsable del proyecto: cómo se agrupan los managers —la cúspide que `RN-SP-019` exime de superior—, uno vigente por manager y con historial, en la forma de `user_supervisors`. Entra en `SP` y no en el candidato `RC` por lo mismo que la estructura comercial en la 0.10.0: es un dato de organización que las comisiones consumirán, y los códigos de módulo no se fijan antes de conocer el alcance. | Responsable del proyecto |
 | 0.23.0 | 25-09-2026 | **`AC` pasa a depender de `PM`**, por decisión del responsable del proyecto: un curso se abre también por un **servicio** —un producto `BOT`— y es el curso quien lo declara ([`requirements/ac.md`](requirements/ac.md) v0.12.0, §5.2.8). La arista es `AC` → `PM` y no al revés, que es lo que §5.5 anticipaba el 17-09-2026 para «el día que un curso se venda»; `PM` no sabe nada de cursos, y el grafo sigue acíclico. | Responsable del proyecto |
+| 0.24.0 | 01-10-2026 | **`MV` gana el submódulo Cuentas de cobro** ([`requirements/mv.md`](requirements/mv.md) v0.61.0 §4.5): el catálogo de bancos y billeteras móviles y las cuentas de cada persona, para saber a dónde se paga un retiro. Sin dependencias nuevas: `SP` ya lo era. | Responsable técnico |

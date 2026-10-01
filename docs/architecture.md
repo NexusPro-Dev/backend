@@ -5,7 +5,7 @@
 | Proyecto | NEXUS — Renovación de plataforma |
 | Empresa | FACTECH GROUP SAS |
 | Documento | `architecture.md` |
-| Versión | 0.40.0 |
+| Versión | 0.41.0 |
 | Estado | Borrador |
 | Responsable técnico | Bonilla Diaz William Steven |
 | Fecha de creación | 19-08-2026 |
@@ -785,6 +785,8 @@ Se descartó la inversión de dependencia —que `PM` declarase el puerto y `SP`
 | **Si un producto lo publica el hotlink**, por lote | La otra mitad de la oferta (19-09-2026, `RN-MV-007` enmendada): la venta que nace de un enlace se valida contra **el canal hotlink** —`RN-PM-021`, sin persona— y no contra la tienda. `MV` **no lo recalcula**, por lo mismo que la fila anterior | `RF-SP-045`; mañana `RF-MV-011`, `RF-MV-013` |
 | **Si una persona porta un permiso** (`PermissionHolderLookup`) | Sí o no sobre **un código** —«¿porta `courses:teach`?»—, por un rol vivo y activo de una persona no retirada: el predicado de `RN-SEG-010`, compartido como constante con quien resuelve los permisos efectivos. **No la lista**: sería dar con qué reconstruir fuera de `SP` la autorización que es suya | `RF-AC-008`, `RF-AC-011` |
 | **Hasta dónde llega una persona** (`CommercialReach`, 21-09-2026) | El **alcance comercial** del actor, resuelto por `SP` de su tipo de rol y de `user_supervisors`: **todo** (`FUNCIONARIO`), **su red** en profundidad con él dentro (`VENDEDOR`; el conjunto de identificadores), o **solo él** (`CONSUMIDOR` o nadie). Es el resolvedor de [`ADR-005`](architecture/ADR-005-modelo-de-alcance-de-datos.md) opción B con **un** tipo de alcance; `MV` lo recibe y lo aplica como predicado sobre el vendedor de las líneas, **no lo calcula**: «mi red» se define una vez y con su dueño (regla 2) | `RF-MV-015` |
+| **Un país** (`CountryCatalog`, 01-10-2026) | Si existe y si está **activo**, con su código y su nombre. La primera lectura de países fuera de `SP` | `RF-MV-032` |
+| **El titular de una cuenta de cobro** (`PayoutHolderLookup`, 01-10-2026) | Nombre, país y **documento** —la abreviatura de su tipo y el número— de una persona no eliminada, o vacío. **No es `ClientCatalog` ampliado**: aquella es de la venta, y el documento no le hace falta a nadie que venda | `RF-MV-035`, `RF-MV-019` |
 
 **El 04-09-2026, al construirse `RF-MV-001`, esta tabla ganó dos filas y no tres.** El diseño preveía que la interfaz del cliente publicara también su nivel de membresía; **no lo hace**, porque ese puerto ya existía —la tercera fila de esta tabla, desde `RF-PM-007`— con su borde fijado por prueba: una fecha exactamente igual al instante consultado ya no está vigente.
 
@@ -953,3 +955,4 @@ D-08 quedó cerrada en `security.md` §12, junto con las decisiones D-12 a D-15 
 | 0.38.0 | 25-09-2026 | **`VIMEO_ACCESS_TOKEN`** en §11: Academia lee la duración de Vimeo por su API con token, porque el oEmbed sin credencial no es fiable (`requirements/ac.md` v0.18.0 §5.2.11). | Responsable técnico |
 | 0.39.0 | 28-09-2026 | **§15.1.1: la zona del negocio tiene un sitio, `BusinessCalendar`** (`shared/time`, `nexus.business.zone`), que nace con el devengo de comisiones ([`requirements/cm.md`](requirements/cm.md) v0.19.0, `RF-CM-013`) y salda el «hoy» en UTC de `ResolveCommissionService`, aplazado el 15-09-2026. Una tarea programada de negocio declara su `zone` con la misma propiedad. | Responsable del proyecto |
 | 0.40.0 | 30-09-2026 | **§15.2 gana su segunda inversión de dependencia**, y la primera que escribe: `MV` declara el puerto con el que pregunta a `CM` si la línea cuyo vendedor se corrige puede cambiar de dueño, y `CM` lo implementa revirtiendo su cadena en la misma transacción ([`requirements/mv.md`](requirements/mv.md) v0.58.0 `RN-MV-053`; [`requirements/cm.md`](requirements/cm.md) v0.26.0 `RN-CM-047`). Responde un resultado y no lanza, como la tercera regla exige. | Responsable del proyecto |
+| 0.41.0 | 01-10-2026 | **§15.2 gana dos lecturas de `SP` para las cuentas de cobro de `MV`** ([`requirements/mv.md`](requirements/mv.md) v0.61.0 §4.5): `CountryCatalog` —si un país existe y está activo, para el catálogo de entidades de cobro— y `PayoutHolderLookup` —el nombre, el país y el documento del titular, que es siempre el dueño de la cuenta—. Siguen la norma de D-25: las publica el dueño del dato, de solo lectura, con la ausencia como vacío. **El retiro copia lo que lee de la segunda** en el instante en que se pide (`RN-MV-056`). | Responsable técnico |

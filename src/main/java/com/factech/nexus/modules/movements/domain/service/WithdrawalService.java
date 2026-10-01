@@ -16,6 +16,7 @@ import com.factech.nexus.modules.movements.domain.repository.MovementRepository.
 import com.factech.nexus.modules.movements.domain.repository.MovementRepository.PaymentMethodView;
 import com.factech.nexus.modules.movements.domain.repository.MovementRepository.WithdrawalRow;
 import com.factech.nexus.modules.movements.domain.repository.PaymentRepository;
+import com.factech.nexus.modules.movements.domain.repository.WithdrawalDestinationRepository;
 import com.factech.nexus.modules.system.currencies.application.CurrencyCatalog.CurrencyView;
 import com.factech.nexus.modules.system.roles.application.AuthenticatedActor;
 import com.factech.nexus.modules.system.users.application.ClientCatalog;
@@ -62,6 +63,7 @@ public class WithdrawalService {
   private final Ledger asientos;
   private final LedgerMovements comun;
   private final ClientCatalog personas;
+  private final WithdrawalDestinations destinos;
   private final AuthenticatedActor actor;
   private final AuditWriter auditoria;
   private final Clock reloj;
@@ -74,9 +76,20 @@ public class WithdrawalService {
       Ledger asientos,
       LedgerMovements comun,
       ClientCatalog personas,
+      WithdrawalDestinations destinos,
       AuthenticatedActor actor,
       AuditWriter auditoria) {
-    this(movimientos, pagos, libro, asientos, comun, personas, actor, auditoria, Clock.systemUTC());
+    this(
+        movimientos,
+        pagos,
+        libro,
+        asientos,
+        comun,
+        personas,
+        destinos,
+        actor,
+        auditoria,
+        Clock.systemUTC());
   }
 
   WithdrawalService(
@@ -86,6 +99,7 @@ public class WithdrawalService {
       Ledger asientos,
       LedgerMovements comun,
       ClientCatalog personas,
+      WithdrawalDestinations destinos,
       AuthenticatedActor actor,
       AuditWriter auditoria,
       Clock reloj) {
@@ -95,6 +109,7 @@ public class WithdrawalService {
     this.asientos = asientos;
     this.comun = comun;
     this.personas = personas;
+    this.destinos = destinos;
     this.actor = actor;
     this.auditoria = auditoria;
     this.reloj = reloj;
@@ -125,6 +140,13 @@ public class WithdrawalService {
               throw new BusinessRuleException(
                   "EX-004", mensaje, List.of(new FieldError("user", "EX-004", mensaje)));
             });
+
+    // 2b. A dónde se paga (`RN-MV-056`, 01-10-2026): la cuenta indicada o la
+    //     principal, viva, de una entidad activa, y un titular con documento.
+    //     Antes de tocar un saldo: un rechazo aquí no retiene nada (`EX-006` a
+    //     `EX-009`).
+    WithdrawalDestinationRepository.DestinationRow destino =
+        destinos.resolve(quien, peticion.payoutAccountId());
 
     // 3. El retiro, pendiente.
     OffsetDateTime ahora = OffsetDateTime.now(reloj);
@@ -161,10 +183,20 @@ public class WithdrawalService {
           "EX-003", mensaje, List.of(new FieldError("amount", "EX-003", mensaje)));
     }
 
-    auditar(retiro.getId(), ChangeAction.CREATE, Map.of("after", retiro.instantanea()));
+    // 5. La copia del destino, que no cambia nunca.
+    destinos.save(retiro.getId(), destino);
+
+    auditar(
+        retiro.getId(),
+        ChangeAction.CREATE,
+        Map.of(
+            "after", retiro.instantanea(),
+            "destination", WithdrawalDestinations.enmascarado(destino)));
 
     return new WithdrawalResponse(
-        comun.respuesta(retiro.getId(), TIPO), comun.saldos(quien, moneda.id(), moneda.code()));
+        comun.respuesta(retiro.getId(), TIPO),
+        comun.saldos(quien, moneda.id(), moneda.code()),
+        WithdrawalDestinations.respuesta(destino));
   }
 
   // ---------------------------------------------------------------------------

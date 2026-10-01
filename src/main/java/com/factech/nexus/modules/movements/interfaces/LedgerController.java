@@ -66,15 +66,25 @@ public class LedgerController {
           se puede gastar ni pedir dos veces. Si la billetera no alcanza, `409` y no queda
           nada registrado.
 
-          El retiro nace `PENDIENTE`. La respuesta trae el retiro y **los tres saldos** de esa
-          moneda como quedan. Sin clave de idempotencia: un retiro repetido retiene dos veces y
-          no puede pagar de más.
+          **Desde el 01-10-2026 el retiro dice a dónde se paga** (`RN-MV-056`): exige una
+          **cuenta de cobro** propia y viva, de una entidad activa —`payoutAccountId`, o la
+          **principal** si no viene— y que la persona tenga documento. **Sin ninguna cuenta no
+          se puede pedir**: hay que registrar una antes (`POST /movements/mine/payout-accounts`).
+          El destino —entidad, tipo de cuenta, número y titular— **se copia al pedir** y no
+          cambia aunque la cuenta se edite o se dé de baja. Ninguna de estas comprobaciones
+          toca un saldo.
+
+          El retiro nace `PENDIENTE`. La respuesta trae el retiro, **los tres saldos** de esa
+          moneda como quedan y **el destino**. Sin clave de idempotencia: un retiro repetido
+          retiene dos veces y no puede pagar de más.
           """)
   @ApiResponses({
-    @ApiResponse(responseCode = "201", description = "Retiro pedido, con los saldos."),
+    @ApiResponse(responseCode = "201", description = "Retiro pedido, con los saldos y el destino."),
     @ApiResponse(
         responseCode = "400",
-        description = "Moneda o importe ausentes, importe no positivo o con decimales de más",
+        description =
+            "Moneda o importe ausentes, importe no positivo o con decimales de más, o una cuenta"
+                + " de cobro que no es un identificador",
         content = @Content),
     @ApiResponse(responseCode = "401", description = "Sin token (`AUTH-001`)", content = @Content),
     @ApiResponse(
@@ -84,10 +94,17 @@ public class LedgerController {
     @ApiResponse(
         responseCode = "409",
         description =
-            "La billetera no alcanza, con el disponible (`EX-003`), o la cuenta no opera"
-                + " (`EX-004`)",
+            "La billetera no alcanza, con el disponible (`EX-003`); la cuenta no opera"
+                + " (`EX-004`); no tiene ninguna cuenta de cobro (`EX-006`); la entidad de la"
+                + " cuenta está desactivada (`EX-008`); o la persona no tiene documento"
+                + " (`EX-009`)",
         content = @Content),
-    @ApiResponse(responseCode = "422", description = "La moneda no existe", content = @Content)
+    @ApiResponse(
+        responseCode = "422",
+        description =
+            "La moneda no existe (`EX-002`), o la cuenta de cobro indicada no existe, no es"
+                + " suya o está dada de baja (`EX-007`)",
+        content = @Content)
   })
   public ResponseEntity<WithdrawalResponse> solicitarRetiro(
       @RequestBody(required = false) WithdrawalRequests.Request peticion) {
