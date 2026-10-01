@@ -29,7 +29,6 @@ import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
-import org.springframework.context.annotation.Import;
 import org.springframework.http.MediaType;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.test.web.servlet.MockMvc;
@@ -42,7 +41,6 @@ import org.springframework.test.web.servlet.request.RequestPostProcessor;
  * `RF-MV-029`. Con {@link FakeCardGateway}: ninguna prueba llama a Stripe.
  */
 @AutoConfigureMockMvc
-@Import(FakeCardGateway.Config.class)
 class CardPaymentIT extends IntegrationTestBase {
 
   private static final String VENTA = "01a061ba-3400-7001-9c4f-5e7ad7000011";
@@ -62,6 +60,7 @@ class CardPaymentIT extends IntegrationTestBase {
   void sembrar() {
     limpiar();
     pasarela.reiniciar();
+    pasarela.encender(true);
     cliente = persona("cp-cliente");
     otro = persona("cp-otro");
     admin = persona("cp-admin");

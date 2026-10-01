@@ -35,8 +35,6 @@ import org.springframework.test.web.servlet.request.RequestPostProcessor;
  * al agente principal, que es el defecto que este requerimiento corrige—.
  */
 @AutoConfigureMockMvc
-@org.springframework.context.annotation.Import(
-    com.factech.nexus.modules.movements.FakeCardGateway.Config.class)
 class BuyByHotlinkIT extends IntegrationTestBase {
 
   @Autowired private com.factech.nexus.modules.movements.FakeCardGateway pasarela;
@@ -79,24 +77,29 @@ class BuyByHotlinkIT extends IntegrationTestBase {
           + " anota su referencia en el pago y devuelve el secreto (01-10-2026)")
   void conTarjetaAbreElCobro() throws Exception {
     pasarela.reiniciar();
-    String cuerpo =
-        mvc.perform(comprar(cliente, "bh-del-enlace", "BH_BOT"))
-            .andExpect(status().isCreated())
-            .andExpect(jsonPath("$.status").value("PENDIENTE"))
-            .andExpect(jsonPath("$.cardCharge.gateway").value("STRIPE"))
-            .andExpect(jsonPath("$.cardCharge.clientSecret").value("pi_prueba_1_secret_prueba"))
-            .andReturn()
-            .getResponse()
-            .getContentAsString();
-    UUID venta = idDe(cuerpo);
-    assertThat(
-            jdbc.queryForObject(
-                "SELECT provider_reference FROM payments WHERE movement_id = ?",
-                String.class,
-                venta))
-        .isEqualTo("pi_prueba_1");
-    assertThat(pasarela.abiertos()).hasSize(1);
-    assertThat(pasarela.abiertos().get(0).movementId()).isEqualTo(venta);
+    pasarela.encender(true);
+    try {
+      String cuerpo =
+          mvc.perform(comprar(cliente, "bh-del-enlace", "BH_BOT"))
+              .andExpect(status().isCreated())
+              .andExpect(jsonPath("$.status").value("PENDIENTE"))
+              .andExpect(jsonPath("$.cardCharge.gateway").value("STRIPE"))
+              .andExpect(jsonPath("$.cardCharge.clientSecret").value("pi_prueba_1_secret_prueba"))
+              .andReturn()
+              .getResponse()
+              .getContentAsString();
+      UUID venta = idDe(cuerpo);
+      assertThat(
+              jdbc.queryForObject(
+                  "SELECT provider_reference FROM payments WHERE movement_id = ?",
+                  String.class,
+                  venta))
+          .isEqualTo("pi_prueba_1");
+      assertThat(pasarela.abiertos()).hasSize(1);
+      assertThat(pasarela.abiertos().get(0).movementId()).isEqualTo(venta);
+    } finally {
+      pasarela.reiniciar();
+    }
   }
 
   @Test

@@ -20,6 +20,9 @@ import org.springframework.context.annotation.Primary;
  * notificación es la real ({@link StripeEvents}).
  *
  * <p>Procesa las notificaciones <b>en el hilo que las recibe</b>: lo procesado es determinista.
+ *
+ * <p><b>Lo importa {@code IntegrationTestBase} para todas las suites, APAGADO</b>: así no crea un
+ * contexto de Spring aparte. La suite que lo usa lo enciende y lo devuelve apagado.
  */
 public class FakeCardGateway implements CardGateway {
 
@@ -32,17 +35,17 @@ public class FakeCardGateway implements CardGateway {
   private final List<String> cancelados = new ArrayList<>();
   private final AtomicInteger contador = new AtomicInteger();
 
-  private volatile boolean encendida = true;
+  private volatile boolean encendida = false;
   private volatile boolean caida = false;
 
-  /** Vuelve al estado inicial: encendida, sin cobros y respondiendo. */
+  /** Vuelve al estado inicial: APAGADA, sin cobros y respondiendo. */
   public synchronized void reiniciar() {
     porClave.clear();
     porReferencia.clear();
     abiertos.clear();
     cancelados.clear();
     contador.set(0);
-    encendida = true;
+    encendida = false;
     caida = false;
   }
 

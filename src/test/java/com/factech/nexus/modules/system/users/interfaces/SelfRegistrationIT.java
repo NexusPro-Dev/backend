@@ -36,8 +36,6 @@ import org.springframework.test.web.servlet.request.RequestPostProcessor;
  * {@code VENDEDOR} y un broker, y ninguno de los tres se puede crear por HTTP sin credenciales.
  */
 @AutoConfigureMockMvc
-@org.springframework.context.annotation.Import(
-    com.factech.nexus.modules.movements.FakeCardGateway.Config.class)
 class SelfRegistrationIT extends IntegrationTestBase {
 
   @Autowired private com.factech.nexus.modules.movements.FakeCardGateway pasarela;
@@ -586,52 +584,57 @@ class SelfRegistrationIT extends IntegrationTestBase {
   @Test
   @DisplayName("`CA-SP-618` — el enlace DE PAGO se admite: cuenta ACTIVA y membresía del SUELO")
   void elEnlaceDePagoSeAdmite() throws Exception {
-    // CA-MV-434 (01-10-2026): la venta del alta nace pendiente SIN cobro en la
-    // pasarela, aunque se pague con tarjeta: quien compró la paga después.
     pasarela.reiniciar();
-    // Hasta el 09-09-2026 esto era `EX-004`: «ese producto exige un pago» y no
-    // había con qué cobrarlo. Ahora el registro anota la venta.
-    mvc.perform(registro(cuerpoCon("REG_ORO", "ana.ruiz", "ana@ejemplo.com", "12345678", BROKER)))
-        .andExpect(status().isCreated())
-        .andExpect(jsonPath("$.status").value("ACTIVO"))
-        .andExpect(jsonPath("$.sale").isNotEmpty());
+    pasarela.encender(true);
+    try {
+      // CA-MV-434 (01-10-2026): la venta del alta nace pendiente SIN cobro en la
+      // pasarela, aunque se pague con tarjeta: quien compró la paga después.
+      // Hasta el 09-09-2026 esto era `EX-004`: «ese producto exige un pago» y no
+      // había con qué cobrarlo. Ahora el registro anota la venta.
+      mvc.perform(registro(cuerpoCon("REG_ORO", "ana.ruiz", "ana@ejemplo.com", "12345678", BROKER)))
+          .andExpect(status().isCreated())
+          .andExpect(jsonPath("$.status").value("ACTIVO"))
+          .andExpect(jsonPath("$.sale").isNotEmpty());
 
-    // Quien paga no tiene ningún depósito que esperar: su cuenta nace operativa.
-    assertThat(
-            jdbc.queryForObject(
-                "SELECT status FROM users WHERE username = 'ana.ruiz'", String.class))
-        .isEqualTo("ACTIVO");
-    assertThat(pasarela.abiertos()).isEmpty();
-    assertThat(
-            jdbc.queryForObject(
-                "SELECT count(*) FROM payments WHERE provider_reference IS NOT NULL",
-                Integer.class))
-        .isZero();
+      // Quien paga no tiene ningún depósito que esperar: su cuenta nace operativa.
+      assertThat(
+              jdbc.queryForObject(
+                  "SELECT status FROM users WHERE username = 'ana.ruiz'", String.class))
+          .isEqualTo("ACTIVO");
+      assertThat(pasarela.abiertos()).isEmpty();
+      assertThat(
+              jdbc.queryForObject(
+                  "SELECT count(*) FROM payments WHERE provider_reference IS NOT NULL",
+                  Integer.class))
+          .isZero();
 
-    // Y NO recibe lo comprado: `RN-SP-018` le da el SUELO, y la de ORO se la
-    // concederá confirmar la venta (`RN-MV-020`). Concederla aquí sería premiar
-    // un pago que nadie ha comprobado.
-    Map<String, Object> nivel =
-        jdbc.queryForMap(
-            "SELECT ms.code, um.ends_at FROM user_products um"
-                + " JOIN memberships ms ON ms.id = um.membership_id"
-                + " JOIN users u ON u.id = um.user_id WHERE u.username = 'ana.ruiz'");
+      // Y NO recibe lo comprado: `RN-SP-018` le da el SUELO, y la de ORO se la
+      // concederá confirmar la venta (`RN-MV-020`). Concederla aquí sería premiar
+      // un pago que nadie ha comprobado.
+      Map<String, Object> nivel =
+          jdbc.queryForMap(
+              "SELECT ms.code, um.ends_at FROM user_products um"
+                  + " JOIN memberships ms ON ms.id = um.membership_id"
+                  + " JOIN users u ON u.id = um.user_id WHERE u.username = 'ana.ruiz'");
 
-    assertThat(nivel.get("code")).isEqualTo("BECA");
-    // Sin vigencia: el suelo no caduca. La del producto comprado sí, y llegará
-    // con la confirmación.
-    assertThat(nivel.get("ends_at")).isNull();
+      assertThat(nivel.get("code")).isEqualTo("BECA");
+      // Sin vigencia: el suelo no caduca. La del producto comprado sí, y llegará
+      // con la confirmación.
+      assertThat(nivel.get("ends_at")).isNull();
 
-    Map<String, Object> venta =
-        jdbc.queryForMap(
-            "SELECT m.status, pm.code AS metodo, m.total_amount FROM movements m"
-                + " JOIN payments p ON p.movement_id = m.id"
-                + " JOIN payment_methods pm ON pm.id = p.payment_method_id"
-                + " JOIN users c ON c.id = m.user_id WHERE c.username = 'ana.ruiz'");
+      Map<String, Object> venta =
+          jdbc.queryForMap(
+              "SELECT m.status, pm.code AS metodo, m.total_amount FROM movements m"
+                  + " JOIN payments p ON p.movement_id = m.id"
+                  + " JOIN payment_methods pm ON pm.id = p.payment_method_id"
+                  + " JOIN users c ON c.id = m.user_id WHERE c.username = 'ana.ruiz'");
 
-    assertThat(venta.get("status")).isEqualTo("PENDIENTE");
-    assertThat(venta.get("metodo")).isEqualTo("CREDIT_CARD");
-    assertThat(((java.math.BigDecimal) venta.get("total_amount")).compareTo(CIEN)).isZero();
+      assertThat(venta.get("status")).isEqualTo("PENDIENTE");
+      assertThat(venta.get("metodo")).isEqualTo("CREDIT_CARD");
+      assertThat(((java.math.BigDecimal) venta.get("total_amount")).compareTo(CIEN)).isZero();
+    } finally {
+      pasarela.reiniciar();
+    }
   }
 
   @Test

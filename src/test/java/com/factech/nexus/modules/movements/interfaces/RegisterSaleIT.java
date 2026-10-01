@@ -45,8 +45,6 @@ import org.springframework.test.web.servlet.request.RequestPostProcessor;
  * <p>{@code ORO(1) > PLATINO(2) > VIP(3) > BECA(4)}. Subir es ir a un número <b>menor</b>.
  */
 @AutoConfigureMockMvc
-@org.springframework.context.annotation.Import(
-    com.factech.nexus.modules.movements.FakeCardGateway.Config.class)
 class RegisterSaleIT extends IntegrationTestBase {
 
   @Autowired private com.factech.nexus.modules.movements.FakeCardGateway pasarela;
@@ -160,21 +158,26 @@ class RegisterSaleIT extends IntegrationTestBase {
           + " sin secreto: no hay nadie al otro lado para escribir la tarjeta (01-10-2026)")
   void elFuncionarioNoAbreCobro() throws Exception {
     pasarela.reiniciar();
-    String cuerpo =
-        mvc.perform(venta(cliente, TARJETA, linea(botCopy, 1)))
-            .andExpect(status().isCreated())
-            .andExpect(jsonPath("$.status").value("PENDIENTE"))
-            .andExpect(jsonPath("$.cardCharge").doesNotExist())
-            .andReturn()
-            .getResponse()
-            .getContentAsString();
-    assertThat(pasarela.abiertos()).isEmpty();
-    assertThat(
-            jdbc.queryForObject(
-                "SELECT provider_reference FROM payments WHERE movement_id = CAST(? AS uuid)",
-                String.class,
-                (String) com.jayway.jsonpath.JsonPath.read(cuerpo, "$.id")))
-        .isNull();
+    pasarela.encender(true);
+    try {
+      String cuerpo =
+          mvc.perform(venta(cliente, TARJETA, linea(botCopy, 1)))
+              .andExpect(status().isCreated())
+              .andExpect(jsonPath("$.status").value("PENDIENTE"))
+              .andExpect(jsonPath("$.cardCharge").doesNotExist())
+              .andReturn()
+              .getResponse()
+              .getContentAsString();
+      assertThat(pasarela.abiertos()).isEmpty();
+      assertThat(
+              jdbc.queryForObject(
+                  "SELECT provider_reference FROM payments WHERE movement_id = CAST(? AS uuid)",
+                  String.class,
+                  (String) com.jayway.jsonpath.JsonPath.read(cuerpo, "$.id")))
+          .isNull();
+    } finally {
+      pasarela.reiniciar();
+    }
   }
 
   @Test
