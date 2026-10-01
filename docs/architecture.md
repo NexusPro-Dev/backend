@@ -5,7 +5,7 @@
 | Proyecto | NEXUS — Renovación de plataforma |
 | Empresa | FACTECH GROUP SAS |
 | Documento | `architecture.md` |
-| Versión | 0.41.0 |
+| Versión | 0.42.0 |
 | Estado | Borrador |
 | Responsable técnico | Bonilla Diaz William Steven |
 | Fecha de creación | 19-08-2026 |
@@ -661,6 +661,7 @@ Toda configuración dependiente del entorno se inyecta por variable de entorno (
 | `TOKEN_PURGE_ENABLED` · `TOKEN_PURGE_CRON` · `TOKEN_PURGE_RETENTION` | No | Purga de sesiones caducadas; por defecto activa, `0 30 3 * * *` UTC y `P30D` |
 | `REQUEST_LOG_RETENTION_DAYS` | No | Retención del `request_log`. **Hoy no la lee nadie**: la purga sigue pendiente de D-10 |
 | `NOTIFICATION_ENABLED` · `RESEND_API_KEY` · `NOTIFICATION_FROM` | No | Envío saliente (§15.1). Sin clave queda apagado y se avisa al arrancar |
+| `STRIPE_SECRET_KEY` · `STRIPE_WEBHOOK_SECRET` | No | La pasarela de la tarjeta (§15.4). **Sin las dos, queda apagada y se avisa al arrancar**: el pago con `CREDIT_CARD` nace pendiente **sin cobro**, como antes del 01-10-2026, y lo confirma una persona; la ruta de notificaciones responde `503` |
 | `NOTIFICATION_TEMPLATE_PASSWORD_RECOVERY` | No | Plantilla alojada en Resend del correo de `RF-SP-040`, por id o alias. Vacía manda el mensaje **en texto plano** |
 | `YOUTUBE_API_KEY` · `VIMEO_ACCESS_TOKEN` | No | Credenciales con las que Academia lee la duración de una lección de video (`RN-AC-017`, 25-09-2026): la clave de la YouTube Data API v3 y el token de acceso personal de Vimeo, con alcance de lectura. **Sin la de un proveedor, sus lecciones exigen la duración a mano** —Vimeo intenta antes su oEmbed, que no es fiable— |
 
@@ -895,6 +896,16 @@ Las dos alternativas se descartaron por lo que crean, no por lo que cuestan:
 
 El motivo del retiro llega con el permiso de lectura del módulo —`products:read`, en el caso de `PM`— y **no con `audit:read-deletions`**. Es una consecuencia asumida y acotada: la resolvió `RF-PM-003` §14 para **la consulta individual**, y el listado sigue sin llevarlo. Uno a uno el motivo es una consulta; en bloque sería una exportación de decisiones comerciales.
 
+## 15.4 La pasarela de pago (01-10-2026)
+
+**Stripe cobra la tarjeta** ([`requirements/mv.md`](requirements/mv.md) v0.64.0 §4.6), y entra como **el primer proveedor externo que escribe en el sistema**: Resend solo recibe (§15.1) y YouTube y Vimeo solo responden. Su notificación confirma pagos, y con ellos entrega lo comprado y devenga comisiones.
+
+**Es un puerto de `MV`, no infraestructura compartida.** Al revés que el envío de correo, la pasarela solo la usa quien registra dinero, y `modules.md` §2.1 es explícito: si solo lo usa un módulo, es suyo. `MV` declara en su capa de dominio un puerto `CardGateway` —abrir un cobro, cancelarlo, verificar una notificación— y lo implementa un adaptador de Stripe en su capa de infraestructura, que es **el único sitio que importa la biblioteca de Stripe**. Una regla de ArchUnit lo fija: sin ella, el SDK acaba importado en un servicio y cambiar de pasarela obliga a tocar casos de uso.
+
+**Dos llamadas hacia fuera, y ninguna dentro de una transacción larga.** Abrir el cobro ocurre **al registrar el pago**, dentro de su transacción, porque `RN-MV-057` exige que sin cobro no quede ni movimiento ni pago; se acepta porque la llamada es una y corta, y la idempotencia de la pasarela —la clave del pago— hace que reintentar no abra dos. Cancelar ocurre **antes** de cerrar el pago, por lo mismo. **Lo que sí sale de la transacción es procesar la notificación**: se guarda y se responde (`RN-MV-059`), y el proceso corre después, con reintento, por el mismo patrón `AFTER_COMMIT` con que `CM` devenga (`RN-MV-049`).
+
+**Apagable, como el correo.** Sin `STRIPE_SECRET_KEY` y `STRIPE_WEBHOOK_SECRET` el adaptador no se crea, se avisa al arrancar y el método `CREDIT_CARD` se comporta como antes del 01-10-2026: pago pendiente sin cobro, confirmado a mano. **La suite corre así**, salvo las pruebas de la pasarela, que doblan el puerto: ninguna prueba llama a Stripe de verdad.
+
 ---
 
 ## 16. Decisiones pendientes
@@ -956,3 +967,4 @@ D-08 quedó cerrada en `security.md` §12, junto con las decisiones D-12 a D-15 
 | 0.39.0 | 28-09-2026 | **§15.1.1: la zona del negocio tiene un sitio, `BusinessCalendar`** (`shared/time`, `nexus.business.zone`), que nace con el devengo de comisiones ([`requirements/cm.md`](requirements/cm.md) v0.19.0, `RF-CM-013`) y salda el «hoy» en UTC de `ResolveCommissionService`, aplazado el 15-09-2026. Una tarea programada de negocio declara su `zone` con la misma propiedad. | Responsable del proyecto |
 | 0.40.0 | 30-09-2026 | **§15.2 gana su segunda inversión de dependencia**, y la primera que escribe: `MV` declara el puerto con el que pregunta a `CM` si la línea cuyo vendedor se corrige puede cambiar de dueño, y `CM` lo implementa revirtiendo su cadena en la misma transacción ([`requirements/mv.md`](requirements/mv.md) v0.58.0 `RN-MV-053`; [`requirements/cm.md`](requirements/cm.md) v0.26.0 `RN-CM-047`). Responde un resultado y no lanza, como la tercera regla exige. | Responsable del proyecto |
 | 0.41.0 | 01-10-2026 | **§15.2 gana dos lecturas de `SP` para las cuentas de cobro de `MV`** ([`requirements/mv.md`](requirements/mv.md) v0.61.0 §4.5): `CountryCatalog` —si un país existe y está activo, para el catálogo de entidades de cobro— y `PayoutHolderLookup` —el nombre, el país y el documento del titular, que es siempre el dueño de la cuenta—. Siguen la norma de D-25: las publica el dueño del dato, de solo lectura, con la ausencia como vacío. **El retiro copia lo que lee de la segunda** en el instante en que se pide (`RN-MV-056`). | Responsable técnico |
+| 0.42.0 | 01-10-2026 | **Nueva §15.4: la pasarela de pago.** Stripe cobra la tarjeta y es **el primer proveedor externo que escribe en el sistema**. Se decide que sea **un puerto de `MV`** —`CardGateway`, implementado por un adaptador que es el único sitio que importa la biblioteca de Stripe, con una regla de ArchUnit que lo fija— y no infraestructura compartida, porque solo lo usa quien registra dinero. **Abrir y cancelar el cobro** ocurren dentro de la transacción del pago, porque sin cobro no debe quedar nada; **procesar la notificación** sale de ella, después de guardarla. Y **es apagable**: sin sus dos secretos, la tarjeta vuelve a ser un pago pendiente que confirma una persona, y así corre la suite. | Responsable técnico |
