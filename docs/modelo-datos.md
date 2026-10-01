@@ -2,11 +2,11 @@
 
 | Campo | Valor |
 |---|---|
-| Versión | 0.88.0 |
+| Versión | 0.89.0 |
 | Estado | **Borrador** |
 | Responsable | Bonilla Diaz William Steven |
 | Fecha de creación | 21-08-2026 |
-| Última actualización | 30-09-2026 |
+| Última actualización | 01-10-2026 |
 
 !!! info "Qué va en este documento"
 
@@ -1102,3 +1102,4 @@ Los documentos que citan una migración vieja por su número —specs, controles
 | 0.86.0 | 01-10-2026 | **`MV` diseña las cuentas de cobro** ([`requirements/mv.md`](requirements/mv.md) v0.61.0 §4.5, §7.11 a §7.13), por decisión del responsable del proyecto: `payout_institutions` —el catálogo de bancos y billeteras móviles, por país—, `payout_accounts` —las cuentas de cada persona, con borrado lógico y una principal— y `withdrawal_destinations` —la copia del destino de cada retiro, que no se edita—. Dos claves foráneas nuevas hacia `SP` (`countries`, `users`). `MV` pasa a once tablas escritas y **tres diseñadas**. | Responsable técnico |
 | 0.87.0 | 01-10-2026 | **Las tres tablas de las cuentas de cobro están escritas** (`V61`), con los dos índices únicos **parciales** de `payout_accounts` —una principal y ningún número repetido entre las vivas— y `withdrawal_destinations` con el movimiento como clave primaria. `MV` pasa a **catorce** tablas escritas. | Responsable técnico |
 | 0.88.0 | 01-10-2026 | **`MV` diseña la etapa 4 para la tarjeta, con Stripe** ([`requirements/mv.md`](requirements/mv.md) v0.64.0 §4.6): la tabla `gateway_events` —cada notificación de la pasarela, guardada entera antes de interpretarse y única por `(gateway, external_id)`—, `payment_methods.gateway` —qué pasarela cobra cada método— y tres columnas de incidencia en `payments` —reembolso y disputa, que **no** cambian el estado del pago—. | Responsable técnico |
+| 0.89.0 | 01-10-2026 | **`MV` diseña un índice sobre `payments`**: `ix_payments_occurred_at (occurred_at DESC, id DESC)`, el orden del listado de pagos (`RF-MV-043`, [`requirements/mv.md`](requirements/mv.md) v0.65.0 §7.7). **Ninguna tabla ni columna.** Lo escribirá `V63`. | Responsable técnico |

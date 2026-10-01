@@ -5,7 +5,7 @@
 | Módulo | `MV` — Movimientos |
 | Paquete | `modules/movements` |
 | Prefijos de permiso | `movements:` |
-| Versión | 0.64.0 |
+| Versión | 0.65.0 |
 | Estado | **Borrador** |
 | Responsable | Bonilla Diaz William Steven |
 | Fecha de creación | 02-09-2026 |
@@ -189,6 +189,7 @@ La dependencia es **acíclica**: `MV` → `PM` → `SP`, y `MV` → `SP`. **El p
 | `RF-MV-040` | Cobrar con tarjeta por la pasarela | Pagos | **Ninguno propio**: viaja en las entradas de compra propia (`RF-MV-002`, `RF-MV-011` a `RF-MV-013`), en volver a pagar (`RF-MV-018`) y en comprar puntos (`RF-MV-027`), con los permisos de cada una |
 | `RF-MV-041` | Recibir las notificaciones de la pasarela | Pagos | **Ninguno: es pública**, y la autentica **la firma de la pasarela** (`RN-MV-059`) |
 | `RF-MV-042` | Pagar con tarjeta un pago pendiente propio —retomarlo, o empezarlo si lo registró otro— | Pagos | `movements:pay-pending-by-card` (nace con él; `RN-SEG-015`) |
+| `RF-MV-043` | Consultar los pagos —**cada intento, de cualquier persona y tipo**— | Pagos | `movements:list-payments` (nace con él; `RN-SEG-014`) |
 
 **Registrar y comprar son dos requerimientos y no uno**, y eso **se aparta del precedente** que `PM` y `CM` fijaron —«el alta es una, no dos»—. La razón por la que aquí no aplica no es el contenido de la venta sino **quién la pide y por dónde entra**: una la origina un funcionario sobre la cuenta de otro y exige `movements:create`; la otra la origina el interesado sobre la suya y no exige permiso ninguno, como `RF-SP-039` y `RF-PM-007`. Fundirlas daría un endpoint con **dos modelos de seguridad**, que es donde se cuela el que sobra.
 
@@ -549,6 +550,20 @@ Lo pidió el responsable del proyecto el 01-10-2026: «la idea es que al pagar p
 - **`PSE` por la pasarela**, y cualquier otro método.
 - **Avisar por correo** de un reembolso o una disputa.
 
+### 4.7 Consultar los pagos (01-10-2026)
+
+Lo pidió el responsable del proyecto el 01-10-2026 —«un endpoint para ver todas las transacciones… las payments»—. **Cumple una promesa de §4.3** que ninguna lectura cumplía: el número que protegía la vieja venta `RECHAZADA` —cuánto se intenta cobrar y no entra— «sale de `payments` con más detalle que antes, porque cuenta intentos y no ventas». Hasta hoy los pagos solo se veían **dentro** del detalle de cada movimiento (`RF-MV-007`), y el libro (`RF-MV-006`) muestra el método del **último**.
+
+**Decisiones del responsable del proyecto, preguntadas antes de escribir:**
+
+| Pregunta | Decisión |
+|---|---|
+| ¿Quién lo ve? | **Solo administración**: todos los pagos, de cualquier persona. Ni vista propia ni alcance comercial |
+| ¿Qué tipos entran? | **Todos los que tienen pagos** —hoy la venta, la compra de puntos y el retiro—, con un filtro por tipo |
+| ¿Con qué se acota? | **Estado y medio de pago**, **periodo** sobre cuándo se intentó, **la persona** del movimiento y **el comprobante**, por fragmento. **Ni la incidencia ni la referencia de la pasarela**, que viajan en la fila |
+
+**La fila es el intento y no el movimiento**: una venta con tres rechazos y un confirmado son cuatro filas, y por eso es un requerimiento distinto del libro y no un parámetro suyo. Entra por `GET /api/v1/movements/payments` con un permiso propio, `movements:list-payments`, a `SUPERADMIN` y `ADMIN`. **Ninguna regla nueva**, y **no suma**: lo que entra y lo que sale conviven en la lista, y un total que los mezclara no respondería nada. Tripleta en [`specs/mv/043-consultar-pagos/`](../specs/mv/043-consultar-pagos/spec.md).
+
 ---
 
 ## 5. Reglas de negocio
@@ -777,6 +792,7 @@ Hasta hoy esta regla no distinguía: **toda** venta confirmada con un upgrade co
 | `movements:delete-own-payout-account` | `movements` | `delete-own-payout-account` | Dar de baja una cuenta de cobro propia (`RF-MV-038`). Por tipo de rol. **Sembrado por `V61`** (01-10-2026) |
 | `movements:read-user-payout-accounts` | `movements` | `read-user-payout-accounts` | Consultar las cuentas de cobro de **cualquier** persona (`RF-MV-039`). A `SUPERADMIN` y `ADMIN`: es la lectura de administración, y no sigue la estructura comercial. **Sembrado por `V61`** (01-10-2026) |
 | `movements:pay-pending-by-card` | `movements` | `pay-pending-by-card` | Pagar con tarjeta un pago pendiente **propio**: retomar el cobro, o empezarlo si la venta la registró otro (`RF-MV-042`). Por tipo de rol (`RN-SEG-015`). **Declarado y SIN SEMBRAR** (01-10-2026). **`RF-MV-041` no lleva permiso**: es pública y la autentica la firma |
+| `movements:list-payments` | `movements` | `list-payments` | Consultar **todos** los pagos —cada intento, de cualquier persona y tipo de movimiento— (`RF-MV-043`). A `SUPERADMIN` y `ADMIN`, explícito: es la lectura de administración. **No es `movements:read`**: el libro y los pagos son dos operaciones (`RN-SEG-014`). **Declarado y SIN SEMBRAR** (01-10-2026); lo sembrará `V63` |
 
 **Confirmar una compra de puntos no reutiliza `movements:confirm`** (30-09-2026). Son dos operaciones —una entrega lo vendido, la otra abona un saldo— y `RN-SEG-014` no deja que un permiso gobierne dos. Y **pagar con puntos no tiene permiso propio**: no es una operación, es un método dentro de la compra, y exigirlo aparte obligaría a conceder dos permisos para comprar una sola vez.
 
@@ -1111,6 +1127,8 @@ Se siembra por migración y **no se administra por API todavía** (§5.3). Lo m�
 
 **Se llama `payments` y no `transactions`**, por decisión del responsable del proyecto: en un backend con Spring, «transacción» es `@Transactional`, y el nombre de una tabla tiene que decir qué es su fila sin que haya que preguntarlo.
 
+**Un índice más, `ix_payments_occurred_at`** sobre `(occurred_at DESC, id DESC)` (01-10-2026, `V63`, diseñado): el orden del listado de pagos (`RF-MV-043`), que ninguno de los tres que la tabla tiene —por movimiento, por método, por referencia— sirve.
+
 **`provider_reference` admite nulo** porque el pago que confirma una persona mirando un extracto no tiene referencia de nadie; el día de la pasarela será lo que se le pregunte (`RN-MV-040`). **`occurred_at` es cuándo se intentó**, y se separa de `created_at` con el argumento de §7.1. **`rejection_reason` es lo que contestó quien cobra**, o el motivo de la anulación de la venta cuando el pago se cierra por ella.
 
 ### 7.8 `accounts`
@@ -1299,3 +1317,4 @@ Se siembra por migración y **no se administra por API todavía** (§5.3). Lo m�
 | 0.62.0 | 01-10-2026 | **Las cuentas de cobro tienen tripleta**: [`specs/mv/032`](../specs/mv/032-registrar-entidad-de-cobro/spec.md) a [`039`](../specs/mv/039-consultar-cuentas-de-cobro-de-usuario/spec.md) (`CA-MV-358` a `CA-MV-414`), y las enmiendas de `RF-MV-019` (spec 0.2.0, `CA-MV-415` a `CA-MV-423`) y `RF-MV-007` (spec 0.3.0, `CA-MV-424` y `CA-MV-425`). Tres decisiones de las tripletas que conviene tener aquí: **la principal pasa a la más antigua** al dar de baja la que lo era; **una cuenta de entidad inactiva no se edita**, solo se da de baja; y **las escrituras sobre las cuentas de una persona se serializan** con un bloqueo consultivo por persona. `SP` gana dos interfaces de lectura: `CountryCatalog` y `PayoutHolderLookup`. Sin cambio de reglas. | Responsable técnico |
 | 0.63.0 | 01-10-2026 | **Las cuentas de cobro están construidas** (issue [#157](https://github.com/NexusPro-Dev/backend/issues/157)): `V61` escribe las tres tablas de §7.11 a §7.13 y siembra los ocho permisos de §6; `PayoutController` publica las ocho rutas, y el retiro y su detalle publican el destino. Sin cambio de reglas. **Dos cosas que la construcción decidió**: la unicidad del código de una entidad la resuelve `INSERT … ON CONFLICT DO NOTHING`, sin abortar la transacción; y la cuenta repetida se comprueba **bajo el bloqueo por persona**, con el índice parcial como segunda defensa. | Responsable técnico |
 | 0.64.0 | 01-10-2026 | **Etapa 4, escrita para la tarjeta: Stripe** (§4.6), a petición del responsable del proyecto —«al pagar por tarjeta de crédito use Stripe, pero que los datos de la tarjeta se pidan en la app»— y con sus decisiones, preguntadas antes de escribir: **los datos de la tarjeta no tocan esta API** (`RN-MV-057`); cobra **en la moneda del movimiento**; alcanza a **las compras propias, volver a pagar y comprar puntos**, y la venta de un funcionario o del alta por enlace nace pendiente **sin cobro** hasta que quien compró lo empieza; **reembolsos y disputas se marcan y no revierten** (`RN-MV-060`); sin tarjetas guardadas y sin caducidad. **La notificación firmada es la única fuente de verdad** (`RN-MV-058`, `RN-MV-059`): se guarda antes de interpretarse y una sola vez, y las operaciones manuales dejan de alcanzar a un pago con cobro abierto. **Una tarjeta rechazada no cierra el pago**: la pasarela deja reintentar el mismo cobro, y el pago se rechaza solo si el cobro se cancela —al anular la venta, o al **volver a pagar con otro método**, que desde hoy cancela primero el cobro pendiente—. Nacen `RF-MV-040` a `RF-MV-042`, `RN-MV-057` a `RN-MV-060` y `movements:pay-pending-by-card`, **declarado y sin sembrar**. §7 gana `payment_methods.gateway`, la incidencia de `payments` y `gateway_events` (§7.14). Se enmiendan, por la tripleta de cada uno, `RF-MV-002`, `RF-MV-011` a `RF-MV-013` (devuelven el secreto del cobro), `RF-MV-003`, `RF-MV-004`, `RF-MV-028`, `RF-MV-029` (`RN-MV-058`), `RF-MV-005` (cancela el cobro), `RF-MV-006` (filtro por incidencia), `RF-MV-018` (cancela el cobro con tarjeta pendiente) y `RF-MV-027`. Sin tripletas ni migración todavía | Responsable del proyecto |
+| 0.65.0 | 01-10-2026 | **Nace `RF-MV-043`, consultar los pagos** (§4.7), a petición del responsable del proyecto y con sus decisiones, preguntadas antes de escribir: **solo administración**, **todos los tipos que tienen pagos** con filtro por tipo, y como filtros estado, medio, periodo, persona y comprobante. **La fila es el intento**, y cumple lo que §4.3 prometía —cuánto se intenta cobrar y no entra—. Permiso propio `movements:list-payments` (§6, sin sembrar) y el índice `ix_payments_occurred_at` (§7.7, diseñado), los dos para `V63`. Tripleta escrita el mismo día (`CA-MV-480` a `CA-MV-494`). | Responsable del proyecto |
