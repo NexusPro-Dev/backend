@@ -4,11 +4,12 @@
 |---|---|
 | Requerimiento | `RF-MV-003` |
 | Módulo | `MV` — Movimientos |
-| Versión | 0.2.0 |
+| Versión | 0.3.0 |
 | Estado | **Aprobada** |
 | Autor | Responsable técnico |
 | Aprobada por | Responsable del proyecto |
 | Fecha de aprobación | 17-09-2026 |
+| Enmendada el | 01-10-2026 — **un pago con cobro abierto en la pasarela no se confirma a mano** (`RN-MV-058`). Ver §14.2 |
 
 !!! warning "Enmendada el 26-09-2026 — se confirma el PAGO pendiente, y la venta con él"
 
@@ -253,9 +254,25 @@ Cada línea sigue su propia regla. El paquete no cambia nada de este flujo: es u
 
 ---
 
+## 14.2 La tarjeta por Stripe — enmienda del 01-10-2026
+
+Desde el 01-10-2026 ([`requirements/mv.md`](../../../requirements/mv.md) v0.64.0 §4.6) un pago con tarjeta lo confirma **la notificación de la pasarela** (`RF-MV-041`). Confirmar a mano **un pago pendiente que tiene cobro abierto** responde **conflicto** y no cambia nada: dos fuentes de verdad sobre el mismo pago acabarían discrepando (`RN-MV-058`). **Un pago con tarjeta sin cobro** —el que registró un funcionario y nadie empezó a pagar, o cualquiera con la pasarela apagada— **sigue confirmándose a mano**, como hasta ahora. La notificación usa **el mismo camino** de confirmación, sin esta comprobación.
+
+| ID | Situación | Resultado |
+|---|---|---|
+| `EX-007` | El pago pendiente tiene cobro abierto en la pasarela | Conflicto: lo resuelve la pasarela. Nada cambia |
+
+| ID | Criterio |
+|---|---|
+| `CA-MV-462` | Confirmar a mano una venta cuyo pago pendiente tiene **cobro abierto** responde conflicto, y **nada cambia**: ni la venta, ni el pago, ni la entrega |
+| `CA-MV-463` | Una venta con tarjeta **sin cobro** —registrada por un funcionario— se confirma a mano como siempre |
+
+---
+
 ## 15. Control de cambios
 
 | Versión | Fecha | Cambio | Autor |
 |---|---|---|---|
 | 0.1.0 | 17-09-2026 | Primera versión. **El requerimiento estaba declarado desde el 02-09-2026** y bloqueado por **D-26**, que el responsable del proyecto cerró este día —`SP` publica la operación de conceder, `MV` la invoca en su transacción— junto con el caso que `requirements/mv.md` §5.4 dejó abierto: **confirmar no baja de nivel a nadie** (`RN-MV-029`), la salida segura con su coste **a la vista** en lugar de en silencio. Lo que la spec carga: **confirmar es un hecho y no un formulario** (§6.1), la transición es **atómica** para que una pasarela que reentrega conceda una vez (`EX-002`, `EX-003`), la entrega es **de la línea** (`RN-MV-030`) para que una venta con productos que se entregan distinto confirme una vez, y **todo o nada** con la membresía (§7). Lo que deja fuera lo deja a propósito: `FTD`, comisiones, comprobante, autorización manual y corregir lo confirmado. | Responsable del proyecto |
 | 0.2.0 | 26-09-2026 | **Se confirma el pago pendiente, y la venta con él** (`requirements/mv.md` v0.44.0, `RN-MV-039`; Art. I.7 sobre un requerimiento construido), por decisión del responsable del proyecto. La ruta y la forma no cambian; una venta pendiente sin pago pendiente no se confirma. `CA-MV-218` y `CA-MV-219`. | Responsable del proyecto |
+| 0.3.0 | 01-10-2026 | **La tarjeta por Stripe** ([`requirements/mv.md`](../../../requirements/mv.md) v0.64.0 §4.6): **un pago con cobro abierto en la pasarela no se confirma a mano** (`RN-MV-058`). Criterios `CA-MV-462` a `CA-MV-463`. | Responsable del proyecto |

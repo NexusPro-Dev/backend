@@ -7,6 +7,7 @@
 | Plan | [`plan.md`](plan.md) v0.1.0 |
 | `plan.md` aprobado el | 26-09-2026 |
 | Estado | **En revisión** — `T-01` a `T-14` `Hecha` el 26-09-2026; `T-15` `Hecha` el 30-09-2026 |
+| Enmendadas | 01-10-2026 — `T-16` a `T-18` por **la tarjeta por Stripe** (§6) |
 | Issue | [#122](https://github.com/NexusPro-Dev/backend/issues/122) |
 | Rama | `feature/pagos-y-saldos` |
 
@@ -85,3 +86,17 @@
 - [ ] **`tasks.md` aprobadas por el responsable del proyecto.**
 
 **Cierre documental el 30-09-2026**: construido el 26-09-2026 y mezclado por el PR [#124](https://github.com/NexusPro-Dev/backend/pull/124) sin marcar la definición de terminado. Las casillas se marcan con la suite completa en verde el 30-09-2026, cada criterio con su afirmación, `EndpointPermissionsIT` exigiendo el permiso de la ruta y la prosa del contrato releída.
+
+---
+
+## 6. La tarjeta por Stripe — enmienda del 01-10-2026
+
+Rama: `feature/stripe-tarjeta`. Después de las tareas de `RF-MV-040` que cada fila cita.
+
+| ID | Tarea | Depende de | Verificación | Estado |
+|---|---|---|---|---|
+| `T-16` | La relajación de «sin pago pendiente» con la cancelación previa; `EX-009` y `EX-010` | `RF-MV-040` · `T-03` | | Pendiente |
+| `T-17` | La llamada a `CardPayment` y `cardCharge` en la respuesta | `RF-MV-040` · `T-05` | | Pendiente |
+| `T-18` | `CA-MV-473` a `CA-MV-476` en `RetryPaymentIT`; la prosa | las dos anteriores | | Pendiente |
+
+Criterios: `CA-MV-473` a `CA-MV-476`.

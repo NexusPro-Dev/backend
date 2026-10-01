@@ -7,6 +7,7 @@
 | Plan | [`plan.md`](plan.md) |
 | `plan.md` aprobado el | 24-09-2026 |
 | Estado | **En revisión** |
+| Enmendadas | 01-10-2026 — `T-13` por **la tarjeta por Stripe** (§6) |
 | Issue | Pendiente de crear |
 | Rama | `feature/comprar-por-el-hotlink` |
 
@@ -71,3 +72,15 @@
 - [ ] Las enmiendas de §8 aplicadas, cada una con su versión subida.
 - [ ] El contrato regenerado publica la ruta con su permiso.
 - [ ] Pull Request aprobado por alguien distinto del autor e integrado.
+
+---
+
+## 6. La tarjeta por Stripe — enmienda del 01-10-2026
+
+Rama: `feature/stripe-tarjeta`. Después de las tareas de `RF-MV-040` que cada fila cita.
+
+| ID | Tarea | Depende de | Verificación | Estado |
+|---|---|---|---|---|
+| `T-13` | La llamada a `CardPayment` y `cardCharge` en la respuesta; la prosa | `RF-MV-040` · `T-05` | | Pendiente |
+
+Criterios: `CA-MV-471`.

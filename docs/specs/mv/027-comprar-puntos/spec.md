@@ -4,11 +4,12 @@
 |---|---|
 | Requerimiento | `RF-MV-027` |
 | Módulo | `MV` — Movimientos |
-| Versión | 0.1.0 |
+| Versión | 0.2.0 |
 | Estado | **Aprobada** |
 | Autor | Responsable técnico |
 | Aprobada por | Responsable del proyecto |
 | Fecha de aprobación | 30-09-2026 |
+| Enmendada el | 01-10-2026 — **con tarjeta, la compra abre el cobro en la pasarela** y devuelve su secreto (`RF-MV-040`). Ver §14.2 |
 
 !!! info "Qué va en este documento"
 
@@ -192,8 +193,19 @@ Misma clave, misma moneda, importe y método: **se devuelve la compra ya registr
 
 ---
 
+## 14.2 La tarjeta por Stripe — enmienda del 01-10-2026
+
+Desde el 01-10-2026 ([`requirements/mv.md`](../../../requirements/mv.md) v0.64.0 §4.6) comprar puntos con **tarjeta** abre el cobro en la pasarela dentro del mismo acto, y la respuesta trae **`cardCharge`** (`RF-MV-040`). La compra nace pendiente y la confirma la notificación de la pasarela, que **abona los puntos** (`RF-MV-041`). **Una tarjeta rechazada no rechaza la compra**: el pago sigue pendiente y se reintenta sobre el mismo cobro (`RF-MV-042`), al revés que el rechazo a mano, que es final (`RN-MV-051`).
+
+| ID | Criterio |
+|---|---|
+| `CA-MV-477` | Con tarjeta, la respuesta trae `cardCharge` y el pago su referencia (lo prueba `RF-MV-040` · `CA-MV-429`) |
+
+---
+
 ## 15. Control de cambios
 
 | Versión | Fecha | Cambio | Autor |
 |---|---|---|---|
 | 0.1.0 | 30-09-2026 | Primera versión, con la etapa 3 de `MV` ([`requirements/mv.md`](../../../requirements/mv.md) v0.54.0 §4.4). **Nace pendiente, sin abonar nada**, con la tasa y los puntos congelados y su pago pendiente; clave de idempotencia obligatoria; no se compra con `POINTS`. Criterios `CA-MV-306` a `CA-MV-317`. | Responsable del proyecto |
+| 0.2.0 | 01-10-2026 | **La tarjeta por Stripe** ([`requirements/mv.md`](../../../requirements/mv.md) v0.64.0 §4.6): **con tarjeta, la compra abre el cobro en la pasarela** y devuelve su secreto (`RF-MV-040`). Criterios `CA-MV-477`. | Responsable del proyecto |

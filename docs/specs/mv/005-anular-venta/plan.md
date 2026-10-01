@@ -5,11 +5,12 @@
 | Requerimiento | `RF-MV-005` |
 | Especificación | [`spec.md`](spec.md) v0.1.0 |
 | `spec.md` aprobada el | 17-09-2026 |
-| Versión | 0.1.0 |
+| Versión | 0.2.0 |
 | Estado | **Aprobado** |
 | Autor | Responsable técnico |
 | Aprobado por | Responsable del proyecto |
 | Fecha de aprobación | 17-09-2026 |
+| Enmendado el | 01-10-2026 — la tarjeta por Stripe (§12) |
 
 !!! info "Qué va en este documento"
 
@@ -126,3 +127,9 @@ Ninguno. `RF-MV-014` ya muestra `ANULADO` sin cambios.
 ## 11. Estrategia de prueba
 
 Integración, `VoidSaleIT`: transición y motivo, segunda anulación, confirmada con membresía intacta, inexistente, motivo vacío y largo, permisos (incluido el de confirmar), líneas y `RF-MV-014`, auditoría, detalle.
+
+---
+
+## 12. La tarjeta por Stripe — enmienda del 01-10-2026
+
+Por [`requirements/mv.md`](../../../requirements/mv.md) v0.64.0 §4.6 y `spec.md` §14.2. `VoidSaleService.voidSale` lee el pago pendiente con su fila bloqueada; si tiene `provider_reference` y su método `gateway`, llama a `CardGateway.cancel` **antes** de escribir. El adaptador traduce «ya cobrado» (`payment_intent_unexpected_state` con estado `succeeded`) a `EX-005` y la falta de respuesta a `EX-006`. La cancelación produce después la notificación `payment_intent.canceled`, que encuentra el pago ya rechazado y **no hace nada** (`RF-MV-041`). **Contrato**: `409` y `503` en la prosa.

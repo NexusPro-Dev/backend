@@ -7,6 +7,7 @@
 | Plan | [`plan.md`](plan.md) v0.1.0 |
 | `plan.md` aprobado el | 30-09-2026 |
 | Estado | **En revisión** — todas las tareas `Hecha` el 30-09-2026 |
+| Enmendadas | 01-10-2026 — `T-06` por **la tarjeta por Stripe** (§6) |
 | Issue | [#149](https://github.com/NexusPro-Dev/backend/issues/149) |
 | Rama | `feature/compra-de-puntos` |
 
@@ -63,3 +64,15 @@
 - [x] Contrato OpenAPI regenerado, **con la prosa releída**.
 - [x] `requirements.md` actualizado.
 - [ ] **`tasks.md` aprobadas por el responsable del proyecto.**
+
+---
+
+## 6. La tarjeta por Stripe — enmienda del 01-10-2026
+
+Rama: `feature/stripe-tarjeta`. Después de las tareas de `RF-MV-040` que cada fila cita.
+
+| ID | Tarea | Depende de | Verificación | Estado |
+|---|---|---|---|---|
+| `T-06` | La comprobación en la ruta manual; `CA-MV-479` en `PointsPurchaseIT`; la prosa | `RF-MV-040` · `T-01` | | Pendiente |
+
+Criterios: `CA-MV-479`.

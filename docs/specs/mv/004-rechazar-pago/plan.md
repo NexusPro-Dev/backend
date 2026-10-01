@@ -5,11 +5,12 @@
 | Requerimiento | `RF-MV-004` |
 | Especificación | [`spec.md`](spec.md) v0.1.0 |
 | `spec.md` aprobada el | 26-09-2026 |
-| Versión | 0.1.0 |
+| Versión | 0.2.0 |
 | Estado | **Aprobado** |
 | Autor | Responsable técnico |
 | Aprobado por | Responsable del proyecto |
 | Fecha de aprobación | 26-09-2026 |
+| Enmendado el | 01-10-2026 — la tarjeta por Stripe (§12) |
 
 !!! info "Qué va en este documento"
 
@@ -125,3 +126,9 @@ Ninguno.
 ## 11. Estrategia de prueba
 
 Integración, `RejectPaymentIT`: `CA-MV-197` a `CA-MV-205`, con el reintento de `CA-MV-198` por la ruta de `RF-MV-018`.
+
+---
+
+## 12. La tarjeta por Stripe — enmienda del 01-10-2026
+
+Por [`requirements/mv.md`](../../../requirements/mv.md) v0.64.0 §4.6 y `spec.md` §14.2. `RejectPaymentService.reject` hace la misma comprobación que la confirmación manual (`RF-MV-003` · `plan.md` §12) antes de la transición, y lanza `EX-006` (`409`). El rechazo **por la pasarela** —cobro cancelado— es otro método que comparte la transición. **Contrato**: la prosa del `409`.

@@ -5,12 +5,13 @@
 | Requerimiento | `RF-MV-012` |
 | Especificación | [`spec.md`](spec.md) |
 | `spec.md` aprobada el | 16-09-2026 |
-| Versión | 0.2.0 |
+| Versión | 0.3.0 |
 | Estado | **Aprobado** |
 | Autor | Responsable técnico |
 | Aprobado por | Responsable del proyecto |
 | Fecha de aprobación | 16-09-2026 |
 | Enmendado | 21-09-2026 — exige **`packages:buy`** (`RF-SP-062`, `RN-SEG-015`: autenticarse no autoriza nada); lo siembra `V31` |
+| Enmendado el | 01-10-2026 — la tarjeta por Stripe (§12) |
 | Reabierto el | 17-09-2026 — **el paquete entra por su código**: la ruta pasa a `/packages/{code}/purchases` y `PackageCatalog` resuelve por código, ver §3, §4 y §8 (Art. I.7) |
 | Reaprobado el | 17-09-2026 — Responsable del proyecto |
 
@@ -176,3 +177,9 @@ Registro de **cambios**, acción de creación, con la instantánea completa: el 
 | Que la ruta no exige permiso | Integración | Lista blanca, y compra con un actor sin permisos |
 
 **No hay prueba concurrente**, y su ausencia es una afirmación: ninguna regla de esta operación puede burlarse con dos peticiones simultáneas, porque **ninguna venta concede nada al registrarse** (`RN-MV-004`). El conflicto de dos upgrades iguales aparece **al confirmar**, y es de `RF-MV-003`.
+
+---
+
+## 12. La tarjeta por Stripe — enmienda del 01-10-2026
+
+Por [`requirements/mv.md`](../../../requirements/mv.md) v0.64.0 §4.6 y `spec.md` §14.2. `BuyPackageService` llama a `CardPayment` después de guardar el pago; `PurchaseResponse` gana `cardCharge`. **Contrato**: la prosa.

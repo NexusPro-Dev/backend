@@ -7,6 +7,7 @@
 | Plan | [`plan.md`](plan.md) v0.1.0 |
 | `plan.md` aprobado el | 17-09-2026 |
 | Estado | **En revisión** — `T-01` a `T-07` `Hecha` el 17-09-2026 |
+| Enmendadas | 01-10-2026 — `T-08` a `T-09` por **la tarjeta por Stripe** (§6) |
 | Issue | [#69](https://github.com/NexusPro-Dev/backend/issues/69) |
 | Rama | `feature/venta-de-productos` |
 
@@ -58,3 +59,16 @@
 - [x] Contrato OpenAPI regenerado, **con la prosa releída**.
 - [x] `requirements/mv.md`, `modelo-datos.md` y `requirements.md` actualizados.
 - [ ] **`tasks.md` aprobadas por el responsable del proyecto.**
+
+---
+
+## 6. La tarjeta por Stripe — enmienda del 01-10-2026
+
+Rama: `feature/stripe-tarjeta`. Después de las tareas de `RF-MV-040` que cada fila cita.
+
+| ID | Tarea | Depende de | Verificación | Estado |
+|---|---|---|---|---|
+| `T-08` | `CardGateway.cancel` en `VoidSaleService`, antes de escribir, con la traducción de sus dos fallos | `RF-MV-040` · `T-03` | | Pendiente |
+| `T-09` | `CA-MV-466` a `CA-MV-468` en `VoidSaleIT`, con el doble del puerto; la prosa | la anterior | | Pendiente |
+
+Criterios: `CA-MV-466` a `CA-MV-468`.

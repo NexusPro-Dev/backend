@@ -5,11 +5,12 @@
 | Requerimiento | `RF-MV-028` |
 | Especificación | [`spec.md`](spec.md) v0.1.0 |
 | `spec.md` aprobada el | 30-09-2026 |
-| Versión | 0.1.0 |
+| Versión | 0.2.0 |
 | Estado | **Aprobado** |
 | Autor | Responsable técnico |
 | Aprobado por | Responsable del proyecto |
 | Fecha de aprobación | 30-09-2026 |
+| Enmendado el | 01-10-2026 — la tarjeta por Stripe (§12) |
 
 !!! info "Qué va en este documento"
 
@@ -108,3 +109,9 @@ Un `ChangeEvent` sobre `movements`, `UPDATE`, de `PENDIENTE` a `CONFIRMADA`, con
 ## 11. Estrategia de prueba
 
 Integración, `ConfirmPointsPurchaseIT`: `CA-MV-318` a `CA-MV-325`; `CA-MV-323` con dos hilos, confirmar contra rechazar; `CA-MV-319` lee los saldos y los asientos.
+
+---
+
+## 12. La tarjeta por Stripe — enmienda del 01-10-2026
+
+Por [`requirements/mv.md`](../../../requirements/mv.md) v0.64.0 §4.6 y `spec.md` §14.2. La ruta manual de `PointsPurchaseService.confirm` hace la comprobación de `RN-MV-058`; el camino de la pasarela comparte la transición y el abono. **Contrato**: la prosa del `409`.

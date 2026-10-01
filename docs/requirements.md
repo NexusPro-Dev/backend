@@ -5,7 +5,7 @@
 | Proyecto | NEXUS — Renovación de plataforma |
 | Empresa | FACTECH GROUP SAS |
 | Documento | `requirements.md` |
-| Versión | 0.257.0 |
+| Versión | 0.258.0 |
 | Estado | Borrador |
 | Responsable técnico | Bonilla Diaz William Steven |
 | Fecha de creación | 20-08-2026 |
@@ -658,3 +658,4 @@ El inventario y el estado de los módulos se consultan en [`modules.md` §4](mod
 | 0.255.0 | 01-10-2026 | **Las cuentas de cobro están construidas** (issue [#157](https://github.com/NexusPro-Dev/backend/issues/157), `V61`, catálogo **180**): `RF-MV-032` a `RF-MV-039` pasan a **En desarrollo**, y las enmiendas de `RF-MV-019` y `RF-MV-007` también. Endpoints funcionando 157 → **165**. | Responsable técnico |
 | 0.256.0 | 01-10-2026 | **Nacen `RF-MV-040` a `RF-MV-042`, la etapa 4 de `MV` para la tarjeta: Stripe** ([`requirements/mv.md`](requirements/mv.md) v0.64.0 §4.6, `RN-MV-057` a `RN-MV-060`; [`modelo-datos.md`](modelo-datos.md) v0.88.0; [`security.md`](security.md) v0.95.0; [`architecture.md`](architecture.md) v0.42.0 §15.4). Registrados 197 → **200**, sin tripletas todavía. | Responsable del proyecto |
 | 0.257.0 | 01-10-2026 | **`RF-MV-040` a `RF-MV-042` estrenan tripleta**: cobrar con tarjeta (`CA-MV-426` a `CA-MV-437`), recibir las notificaciones de la pasarela (`CA-MV-438` a `CA-MV-452`) y pagar con tarjeta un pago pendiente propio (`CA-MV-453` a `CA-MV-461`). `spec.md` redactadas 193 → **196**, aprobadas 133 → **136**; planes 192 → **195**. | Responsable del proyecto |
+| 0.258.0 | 01-10-2026 | **La tarjeta por Stripe enmienda diez tripletas** (`CA-MV-462` a `CA-MV-479`): confirmar y rechazar a mano —venta y compra de puntos— responden conflicto sobre un pago con cobro abierto (`RF-MV-003`, `RF-MV-004`, `RF-MV-028`, `RF-MV-029`); anular cancela el cobro (`RF-MV-005`); el libro filtra por incidencia (`RF-MV-006`); las compras construidas y la de puntos devuelven `cardCharge` (`RF-MV-011`, `RF-MV-012`, `RF-MV-027`); y volver a pagar abre el cobro con tarjeta y, con otro método, cancela primero el que había (`RF-MV-018`). Sin cambio en los indicadores. | Responsable del proyecto |
