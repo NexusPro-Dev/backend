@@ -1154,7 +1154,7 @@ Se siembra por migración y **no se administra por API todavía** (§5.3). Lo m�
 | `holder_document_number` | `varchar(30)` | No | — |
 | `created_at` | `timestamptz` | No | — |
 
-**A dónde se paga un retiro, tal como era al pedirlo** (`RN-MV-056`, 01-10-2026). **Una fila por retiro**, con el movimiento como clave: un retiro tiene a lo sumo un destino, y el esquema lo dice sin un índice aparte. **Es una tabla y no columnas de `movements`** porque solo la usa un tipo de movimiento, y nueve columnas nulas en todas las ventas serían nueve sitios donde una venta podría llevar un destino que no le corresponde. **No se edita ni se borra**: es parte del retiro, y `RN-MV-001` vale para ella. `holder_document_type` guarda **el código** del tipo de documento y no su referencia, porque la copia tiene que leerse igual aunque el catálogo cambie.
+**A dónde se paga un retiro, tal como era al pedirlo** (`RN-MV-056`, 01-10-2026). **Una fila por retiro**, con el movimiento como clave: un retiro tiene a lo sumo un destino, y el esquema lo dice sin un índice aparte. **Es una tabla y no columnas de `movements`** porque solo la usa un tipo de movimiento, y nueve columnas nulas en todas las ventas serían nueve sitios donde una venta podría llevar un destino que no le corresponde. **No se edita ni se borra**: es parte del retiro, y `RN-MV-001` vale para ella. `holder_document_type` guarda **la abreviatura** del tipo de documento (`CC`, `CE`) y no su referencia, porque la copia tiene que leerse igual aunque el catálogo cambie.
 
 ---
 
