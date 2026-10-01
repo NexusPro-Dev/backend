@@ -374,6 +374,47 @@ class DevelopmentSeedIT extends IntegrationTestBase {
   }
 
   @Test
+  @DisplayName(
+      "los enlaces (01-10-2026): video en los dieciséis; cupón y descarga en los cuatro bots"
+          + " vivos, y en ningún upgrade ni en el retirado")
+  void losEnlaces() {
+    semilla.run(null);
+    semilla.run(null);
+
+    List<String> conCupon =
+        jdbc.queryForList(
+            """
+            SELECT p.code FROM product_links l JOIN products p ON p.id = l.product_id
+             WHERE l.type = 'CUPON_BOT' AND p.code = ANY (?) ORDER BY p.code
+            """,
+            String.class,
+            (Object) PRODUCTOS.toArray(String[]::new));
+    assertThat(conCupon)
+        .containsExactly("BOT_ALERTAS", "BOT_COPY_TRADING", "BOT_PRO_ANUAL", "BOT_SENALES");
+    assertThat(
+            jdbc.queryForList(
+                """
+                SELECT DISTINCT l.url FROM product_links l JOIN products p ON p.id = l.product_id
+                 WHERE l.type = 'CUPON_BOT' AND p.code = ANY (?)
+                """,
+                String.class,
+                (Object) PRODUCTOS.toArray(String[]::new)))
+        .containsExactly(
+            "https://www.bots.com.co/coupons/activate/5cf86881-0e14-4470-8978-a7ec70de8cda/");
+    assertThat(enlaces("DESCARGA")).isEqualTo(4);
+    assertThat(enlaces("VIDEO_PRESENTACION")).isEqualTo(16);
+  }
+
+  private int enlaces(String tipo) {
+    return jdbc.queryForObject(
+        "SELECT count(*) FROM product_links l JOIN products p ON p.id = l.product_id"
+            + " WHERE l.type = ? AND p.code = ANY (?)",
+        Integer.class,
+        tipo,
+        PRODUCTOS.toArray(String[]::new));
+  }
+
+  @Test
   @DisplayName("es IDEMPOTENTE: corre en cada arranque y no duplica a nadie")
   void idempotente() {
     // Es lo que permite que sea un `ApplicationRunner` y no una operación que
