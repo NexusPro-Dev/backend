@@ -395,7 +395,14 @@ public class MovementController {
       @RequestParam(required = false) UUID paymentMethodId,
       @RequestParam(required = false) String code,
       @RequestParam(required = false) OffsetDateTime from,
-      @RequestParam(required = false) OffsetDateTime to) {
+      @RequestParam(required = false) OffsetDateTime to,
+      @io.swagger.v3.oas.annotations.Parameter(
+              description =
+                  "La incidencia del último pago (`RN-MV-060`, desde el 01-10-2026): REEMBOLSADO,"
+                      + " EN_DISPUTA, DISPUTA_GANADA, DISPUTA_PERDIDA, o CUALQUIERA para los que"
+                      + " tienen alguna.")
+          @RequestParam(required = false)
+          String paymentIncident) {
     return libro.list(
         new ListMovementsRequest(
             page,
@@ -408,7 +415,8 @@ public class MovementController {
             paymentMethodId,
             code,
             from,
-            to));
+            to,
+            paymentIncident));
   }
 
   /**

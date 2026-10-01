@@ -42,7 +42,34 @@ public record PointsPurchaseResponse(
             types = {"string", "null"},
             description = "Por qué se rechazó el pago. Nulo salvo en una compra rechazada.")
         String rejectionReason,
-    List<PaymentResponse> payments) {
+    List<PaymentResponse> payments,
+    @Schema(
+            types = {"object", "null"},
+            description =
+                "El cobro abierto en la pasarela, solo al comprar con tarjeta (`RF-MV-040`, desde"
+                    + " el 01-10-2026). NULO en todo lo demás.")
+        CardChargeResponse cardCharge) {
+
+  /** La misma compra, con el cobro abierto; nulo no cambia nada. */
+  public PointsPurchaseResponse conCobro(CardChargeResponse cobro) {
+    if (cobro == null) {
+      return this;
+    }
+    return new PointsPurchaseResponse(
+        id,
+        code,
+        status,
+        currency,
+        amount,
+        pointsRate,
+        points,
+        occurredAt,
+        confirmedAt,
+        rejectedAt,
+        rejectionReason,
+        payments,
+        cobro);
+  }
 
   @Schema(name = "PointsPurchaseRate")
   public record Rate(UUID id, BigDecimal pointsPerUnit) {}

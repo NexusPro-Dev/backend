@@ -27,6 +27,16 @@ public enum ProblemKind {
 
   NO_ENCONTRADO(HttpStatus.NOT_FOUND, "no-encontrado", "El recurso solicitado no existe"),
 
+  /**
+   * Un proveedor externo del que depende la operación no respondió, o no está configurado en este
+   * entorno (`RN-MV-057`, 01-10-2026: la pasarela de pago). <b>Nada se escribió</b>, y la petición
+   * se puede reintentar tal cual.
+   */
+  SERVICIO_NO_DISPONIBLE(
+      HttpStatus.SERVICE_UNAVAILABLE,
+      "servicio-no-disponible",
+      "Un servicio externo no está disponible"),
+
   CUENTA_BLOQUEADA(HttpStatus.LOCKED, "cuenta-bloqueada", "La cuenta está bloqueada"),
 
   METODO_NO_PERMITIDO(

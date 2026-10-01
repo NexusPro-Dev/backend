@@ -110,6 +110,7 @@ public class RegisterSaleService {
   private final SaleRules reglas;
   private final SaleAttribution atribuciones;
   private final PointsPayment puntos;
+  private final CardPayment tarjeta;
 
   @Autowired
   public RegisterSaleService(
@@ -118,8 +119,17 @@ public class RegisterSaleService {
       ClientCatalog clientes,
       CurrentMembershipLookup membresias,
       AuditWriter auditoria,
-      PointsPayment puntos) {
-    this(movimientos, productos, clientes, membresias, auditoria, puntos, Clock.systemUTC());
+      PointsPayment puntos,
+      CardPayment tarjeta) {
+    this(
+        movimientos,
+        productos,
+        clientes,
+        membresias,
+        auditoria,
+        puntos,
+        tarjeta,
+        Clock.systemUTC());
   }
 
   RegisterSaleService(
@@ -129,8 +139,10 @@ public class RegisterSaleService {
       CurrentMembershipLookup membresias,
       AuditWriter auditoria,
       PointsPayment puntos,
+      CardPayment tarjeta,
       Clock reloj) {
     this.puntos = puntos;
+    this.tarjeta = tarjeta;
     this.movimientos = movimientos;
     this.productos = productos;
     this.clientes = clientes;
@@ -275,7 +287,20 @@ public class RegisterSaleService {
                 hecha.referencia().currencyId(), hecha.referencia().currencyCode()),
             hecha.metodo().code());
     // Pagada con puntos, ya está confirmada (`RF-MV-030`).
-    return hecha.confirmada() == null ? compra : compra.confirmada(hecha.confirmada());
+    if (hecha.confirmada() != null) {
+      return compra.confirmada(hecha.confirmada());
+    }
+    // Con tarjeta, el cobro se abre ahora: quien compra está al otro lado (`RF-MV-040`).
+    return compra.conCobro(
+        tarjeta.abrirSiToca(
+            hecha.metodo(),
+            hecha.pago(),
+            hecha.venta().getId(),
+            hecha.venta().getCode(),
+            hecha.venta().getPayableAmount(),
+            hecha.referencia().currencyCode(),
+            hecha.referencia().currencyDecimalPlaces(),
+            clave.value()));
   }
 
   /**

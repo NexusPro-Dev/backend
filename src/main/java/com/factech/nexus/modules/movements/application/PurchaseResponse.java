@@ -67,7 +67,14 @@ public record PurchaseResponse(
             format = "date-time",
             description = "Cuándo entró el dinero. NULO mientras la venta no esté confirmada.")
         OffsetDateTime confirmedAt,
-    OffsetDateTime createdAt) {
+    OffsetDateTime createdAt,
+    @Schema(
+            types = {"object", "null"},
+            description =
+                "El cobro abierto en la pasarela, si se pagó con tarjeta (`RF-MV-040`, desde el"
+                    + " 01-10-2026): con su `clientSecret` la app pide la tarjeta. NULO con otro"
+                    + " método, o con la pasarela apagada.")
+        CardChargeResponse cardCharge) {
 
   public static PurchaseResponse de(
       Movement venta, SaleResponse.Party sujeto, SaleResponse.Money moneda, String metodoDePago) {
@@ -91,7 +98,32 @@ public record PurchaseResponse(
         venta.getOccurredAt(),
         // Acaba de comprarse: nadie ha confirmado nada.
         null,
-        venta.getCreatedAt());
+        venta.getCreatedAt(),
+        null);
+  }
+
+  /** La misma compra, con el cobro abierto en la pasarela (`RF-MV-040`); nulo no cambia nada. */
+  public PurchaseResponse conCobro(CardChargeResponse cobro) {
+    if (cobro == null) {
+      return this;
+    }
+    return new PurchaseResponse(
+        id,
+        code,
+        status,
+        typeStatus,
+        user,
+        packageId,
+        currency,
+        paymentMethod,
+        lines,
+        totalAmount,
+        discountAmount,
+        payableAmount,
+        occurredAt,
+        confirmedAt,
+        createdAt,
+        cobro);
   }
 
   /**
@@ -113,6 +145,7 @@ public record PurchaseResponse(
         payableAmount,
         occurredAt,
         cuando,
-        createdAt);
+        createdAt,
+        cardCharge);
   }
 }

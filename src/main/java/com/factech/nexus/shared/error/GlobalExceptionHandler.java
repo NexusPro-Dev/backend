@@ -137,6 +137,24 @@ public class GlobalExceptionHandler {
     return detalle;
   }
 
+  /** {@code 503}. Se audita: un proveedor caído es lo que operación tiene que ver. */
+  @ExceptionHandler(ServiceUnavailableException.class)
+  public ProblemDetail deServicioNoDisponible(
+      ServiceUnavailableException fallo, HttpServletRequest peticion) {
+    ProblemDetail detalle = problema(ProblemKind.SERVICIO_NO_DISPONIBLE, fallo, peticion);
+    auditar(
+        new ErrorEvent(
+            recurso(peticion),
+            null,
+            operacion(peticion),
+            fallo.errorCode(),
+            ErrorType.INTEGRATION,
+            ProblemKind.SERVICIO_NO_DISPONIBLE.status().value(),
+            Severity.ALTA,
+            fallo.getMessage()));
+    return detalle;
+  }
+
   /** {@code 404}. No se audita: {@code request_log} ya lo cubre. */
   @ExceptionHandler(ResourceNotFoundException.class)
   public ProblemDetail deNoEncontrado(

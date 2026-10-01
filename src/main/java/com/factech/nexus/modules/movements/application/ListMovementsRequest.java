@@ -36,9 +36,15 @@ public record ListMovementsRequest(
     UUID paymentMethodId,
     String code,
     OffsetDateTime from,
-    OffsetDateTime to) {
+    OffsetDateTime to,
+    String paymentIncident) {
 
   public ListMovementsRequest {
+    // `RN-MV-060` (01-10-2026): la incidencia del último pago, o CUALQUIERA.
+    paymentIncident =
+        paymentIncident == null || paymentIncident.isBlank()
+            ? null
+            : paymentIncident.trim().toUpperCase();
     status = status == null || status.isBlank() ? null : status.trim().toUpperCase();
     type = type == null || type.isBlank() ? null : type.trim().toUpperCase();
     typeStatus =

@@ -80,6 +80,7 @@ class RegisterSaleServiceTest {
             membresias,
             mock(AuditWriter.class),
             mock(PointsPayment.class),
+            mock(CardPayment.class),
             java.time.Clock.systemUTC());
 
     when(clientes.findClient(CLIENTE))
@@ -90,7 +91,7 @@ class RegisterSaleServiceTest {
         .thenReturn(
             Optional.of(
                 new PaymentMethodView(
-                    METODO, "CREDIT_CARD", "Tarjeta de credito", true, "PUBLICO")));
+                    METODO, "CREDIT_CARD", "Tarjeta de credito", true, "PUBLICO", "STRIPE")));
     when(movimientos.findTypeByCode("VENTA"))
         .thenReturn(Optional.of(new MovementTypeView(UUID.randomUUID(), "VENTA", "VTA")));
     // `RN-MV-033`: el estado con que nace la venta se resuelve del catálogo.

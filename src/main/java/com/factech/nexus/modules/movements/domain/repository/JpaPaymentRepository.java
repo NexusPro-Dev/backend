@@ -14,6 +14,20 @@ import org.springframework.transaction.annotation.Transactional;
 @Repository
 public class JpaPaymentRepository implements PaymentRepository {
 
+  private static final String PENDIENTE =
+      """
+      SELECT p.id AS pago, m.id AS movimiento, m.code AS codigo, t.code AS tipo,
+             m.status AS estado, pm.code AS metodo, pm.gateway AS pasarela, p.amount AS importe,
+             c.code AS moneda, c.decimal_places AS decimales, p.idempotency_key AS clave,
+             p.provider_reference AS referencia
+        FROM movements m
+        JOIN movement_types t ON t.id = m.movement_type_id
+        JOIN payments p ON p.movement_id = m.id AND p.status = 'PENDIENTE'
+        JOIN payment_methods pm ON pm.id = p.payment_method_id
+        JOIN currencies c ON c.id = m.currency_id
+       WHERE m.id = :id AND t.code IN ('VENTA', 'COMPRA_PUNTOS')
+      """;
+
   private final EntityManager em;
 
   public JpaPaymentRepository(EntityManager em) {
@@ -164,5 +178,125 @@ public class JpaPaymentRepository implements PaymentRepository {
             .setParameter("motivo", reason)
             .executeUpdate();
     return filas == 1;
+  }
+
+  // ---------------------------------------------------------------------------
+  // La pasarela de la tarjeta (`RF-MV-040` a `RF-MV-042`)
+  // ---------------------------------------------------------------------------
+
+  @Override
+  public void setProviderReference(UUID paymentId, String reference) {
+    em.createNativeQuery("UPDATE payments SET provider_reference = :ref WHERE id = :id")
+        .setParameter("id", paymentId)
+        .setParameter("ref", reference)
+        .executeUpdate();
+  }
+
+  @Override
+  public Optional<PendingPayment> lockPendingOf(UUID movementId) {
+    return pendiente(PENDIENTE + " FOR UPDATE OF m", movementId, null);
+  }
+
+  @Override
+  public Optional<PendingPayment> lockPendingOwn(UUID movementId, UUID actorId) {
+    return pendiente(PENDIENTE + " AND m.user_id = :actor FOR UPDATE OF m", movementId, actorId);
+  }
+
+  private Optional<PendingPayment> pendiente(String sql, UUID movementId, UUID actorId) {
+    if (movementId == null) {
+      return Optional.empty();
+    }
+    var consulta = em.createNativeQuery(sql, Tuple.class).setParameter("id", movementId);
+    if (actorId != null) {
+      consulta.setParameter("actor", actorId);
+    }
+    @SuppressWarnings("unchecked")
+    List<Tuple> filas = consulta.getResultList();
+    return filas.stream()
+        .findFirst()
+        .map(
+            f ->
+                new PendingPayment(
+                    (UUID) f.get("pago"),
+                    (UUID) f.get("movimiento"),
+                    (String) f.get("codigo"),
+                    (String) f.get("tipo"),
+                    (String) f.get("estado"),
+                    (String) f.get("metodo"),
+                    (String) f.get("pasarela"),
+                    (BigDecimal) f.get("importe"),
+                    ((String) f.get("moneda")).trim(),
+                    ((Number) f.get("decimales")).intValue(),
+                    (String) f.get("clave"),
+                    (String) f.get("referencia")));
+  }
+
+  @Override
+  public boolean isOwnChargeable(UUID movementId, UUID actorId) {
+    return movementId != null
+        && !em.createNativeQuery(
+                """
+                SELECT 1 FROM movements m
+                  JOIN movement_types t ON t.id = m.movement_type_id
+                 WHERE m.id = :id AND m.user_id = :actor AND t.code IN ('VENTA', 'COMPRA_PUNTOS')
+                """)
+            .setParameter("id", movementId)
+            .setParameter("actor", actorId)
+            .getResultList()
+            .isEmpty();
+  }
+
+  @Override
+  public Optional<ReferencedPayment> findByReference(String reference) {
+    if (reference == null) {
+      return Optional.empty();
+    }
+    @SuppressWarnings("unchecked")
+    List<Tuple> filas =
+        em.createNativeQuery(
+                """
+                SELECT p.id AS pago, m.id AS movimiento, t.code AS tipo, p.status AS estado,
+                       p.amount AS importe, c.code AS moneda, c.decimal_places AS decimales
+                  FROM payments p
+                  JOIN movements m ON m.id = p.movement_id
+                  JOIN movement_types t ON t.id = m.movement_type_id
+                  JOIN currencies c ON c.id = m.currency_id
+                 WHERE p.provider_reference = :ref
+                 ORDER BY p.created_at DESC
+                 LIMIT 1
+                """,
+                Tuple.class)
+            .setParameter("ref", reference)
+            .getResultList();
+    return filas.stream()
+        .findFirst()
+        .map(
+            f ->
+                new ReferencedPayment(
+                    (UUID) f.get("pago"),
+                    (UUID) f.get("movimiento"),
+                    (String) f.get("tipo"),
+                    (String) f.get("estado"),
+                    (BigDecimal) f.get("importe"),
+                    ((String) f.get("moneda")).trim(),
+                    ((Number) f.get("decimales")).intValue()));
+  }
+
+  @Override
+  public boolean setIncident(
+      UUID paymentId, String incident, BigDecimal refunded, OffsetDateTime at) {
+    return em.createNativeQuery(
+                """
+                UPDATE payments
+                   SET incident = :incidencia, incident_at = :ahora,
+                       refunded_amount = CAST(:devuelto AS numeric)
+                 WHERE id = :id AND status = 'CONFIRMADO'
+                """)
+            .setParameter("id", paymentId)
+            .setParameter("incidencia", incident)
+            .setParameter("ahora", at)
+            .setParameter("devuelto", refunded == null ? null : refunded.toPlainString())
+            .executeUpdate()
+        == 1;
   }
 }
