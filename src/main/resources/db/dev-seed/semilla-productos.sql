@@ -222,6 +222,34 @@ SELECT n.id, 'VIDEO_PRESENTACION', e.video
 
 
 -- -----------------------------------------------------------------------------
+-- Los enlaces de ENTREGA de los bots (`RN-PM-048`, `RN-PM-050`), pedidos por el
+-- responsable del proyecto el 01-10-2026: el CUPÓN —donde quien compró
+-- registra la cuenta que el bot le da— con la dirección real de bots.com.co, y
+-- una DESCARGA de prueba. Solo en los cuatro bots VIVOS; el retirado no los
+-- necesita. Ninguno sale en la oferta ni en el hotlink: los publica «mis
+-- productos» (`RF-MV-014`) cuando la venta está pagada.
+--
+-- Sin identificador externo: la dirección se publica tal cual (`RN-PM-049`).
+--
+-- A DIFERENCIA DEL VIDEO, no depende de que el producto se acabe de crear: se
+-- añade también a los bots que ya existían en una base sembrada antes del
+-- 01-10-2026. `ON CONFLICT` sobre la clave —uno por tipo— lo hace repetible y
+-- NO pisa un enlace que alguien haya corregido a mano.
+-- -----------------------------------------------------------------------------
+
+INSERT INTO product_links (product_id, type, url)
+SELECT p.id, e.tipo, e.url
+  FROM (VALUES
+          ('CUPON_BOT', 'https://www.bots.com.co/coupons/activate/5cf86881-0e14-4470-8978-a7ec70de8cda/'),
+          ('DESCARGA',  'https://www.bots.com.co/downloads/')
+       ) AS e (tipo, url)
+ CROSS JOIN products p
+ WHERE p.code IN ('BOT_SENALES', 'BOT_COPY_TRADING', 'BOT_ALERTAS', 'BOT_PRO_ANUAL')
+   AND p.deleted_at IS NULL
+ON CONFLICT ON CONSTRAINT pk_product_links DO NOTHING;
+
+
+-- -----------------------------------------------------------------------------
 -- Guarda: si la cadena de membresías no está completa, los upgrades no
 -- entraron y conviene saberlo en el log del arranque en vez de descubrirlo con
 -- una oferta vacía. Un NOTICE y no una EXCEPTION: la semilla de personas ya
