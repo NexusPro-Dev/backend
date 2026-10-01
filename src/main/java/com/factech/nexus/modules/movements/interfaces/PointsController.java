@@ -129,6 +129,12 @@ public class PointsController {
           abajo, a la tasa de este momento aunque cambie después (`RN-MV-051`). No se paga con
           `POINTS` ni con un método interno. La cabecera `Idempotency-Key` es obligatoria: la
           misma petición repetida responde `200` con la compra ya registrada. No comisiona.
+
+          **Con tarjeta (`CREDIT_CARD`), desde el 01-10-2026, abre el cobro en la pasarela** en el mismo
+          acto (`RF-MV-040`): la respuesta trae `cardCharge.clientSecret`, con el que la app pide la
+          tarjeta con Stripe Elements. **Nada queda confirmado**: lo confirma la notificación de la
+          pasarela. Si la pasarela no responde, `503` y no se registra nada; por debajo del mínimo
+          (0,50 USD), `422`. Con la pasarela apagada, el pago queda pendiente sin cobro, como antes.
           """)
   @ApiResponses({
     @ApiResponse(responseCode = "201", description = "Compra registrada, pendiente."),
@@ -154,6 +160,12 @@ public class PointsController {
     @ApiResponse(
         responseCode = "422",
         description = "La moneda (`EX-002`) o el método (`EX-004`) no existen",
+        content = @Content),
+    @ApiResponse(
+        responseCode = "503",
+        description =
+            "La pasarela de pago no respondió; nada se escribió y se puede reintentar"
+                + " (`RN-MV-057`)",
         content = @Content)
   })
   public ResponseEntity<PointsPurchaseResponse> comprarPuntos(
@@ -216,6 +228,10 @@ public class PointsController {
           emitidos de la empresa (`RF-MV-028`). Se abonan **los puntos congelados al
           comprar**, no los de la tasa de hoy. `providerReference` es opcional. Confirmar dos
           veces, o una compra rechazada, es `409` y no abona nada.
+
+          **Desde el 01-10-2026, no alcanza a un pago con cobro abierto en la pasarela**
+          (`RN-MV-058`): lo resuelve su notificación, y responde `409` (`EX-005`). Un pago con tarjeta sin cobro
+          —el que registró un funcionario— se sigue resolviendo a mano.
           """)
   @ApiResponses({
     @ApiResponse(responseCode = "200", description = "Confirmada, con su pago."),
@@ -252,6 +268,10 @@ public class PointsController {
           compra y su pago quedan `RECHAZADA`/`RECHAZADO` con el motivo, obligatorio. **Es
           final**: al revés que una venta, una compra de puntos rechazada no se vuelve a pagar;
           quien quiera los puntos compra otra vez. No se mueve ningún saldo.
+
+          **Desde el 01-10-2026, no alcanza a un pago con cobro abierto en la pasarela**
+          (`RN-MV-058`): lo resuelve su notificación, y responde `409` (`EX-005`). Un pago con tarjeta sin cobro
+          —el que registró un funcionario— se sigue resolviendo a mano.
           """)
   @ApiResponses({
     @ApiResponse(responseCode = "200", description = "Rechazada."),

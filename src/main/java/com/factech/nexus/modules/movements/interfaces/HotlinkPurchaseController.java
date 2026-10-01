@@ -81,6 +81,13 @@ public class HotlinkPurchaseController {
           enlace responden lo mismo. Es la decisión de seguridad de `RF-PM-008`, y
           esta ruta la hereda porque el enlace es público y los nombres de usuario
           se pueden probar.
+
+          **Con tarjeta (`CREDIT_CARD`), desde el 01-10-2026, abre el cobro en la pasarela** en
+          el mismo acto (`RF-MV-040`): la respuesta trae `cardCharge.clientSecret`, con el que la
+          app pide la tarjeta con Stripe Elements. **Nada queda confirmado**: lo confirma la
+          notificación de la pasarela. Si la pasarela no responde, `503` y no se registra nada;
+          por debajo del mínimo (0,50 USD), `422`. Con la pasarela apagada, el pago queda
+          pendiente sin cobro, como antes.
           """,
       extensions =
           @Extension(

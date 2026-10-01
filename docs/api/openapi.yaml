@@ -2992,6 +2992,13 @@ paths:
         (`RN-MV-034`). Si no es cliente de nadie, su superior vigente o usted mismo. A quien
         compra no se le enseña a quién. Es la misma forma que devuelve `GET /api/v1/movements/mine/{id}`
         sin `seller`.
+
+        **Con tarjeta (`CREDIT_CARD`), desde el 01-10-2026, abre el cobro en la pasarela** en
+        el mismo acto (`RF-MV-040`): la respuesta trae `cardCharge.clientSecret`, con el que la
+        app pide la tarjeta con Stripe Elements. **Nada queda confirmado**: lo confirma la
+        notificación de la pasarela. Si la pasarela no responde, `503` y no se registra nada;
+        por debajo del mínimo (0,50 USD), `422`. Con la pasarela apagada, el pago queda
+        pendiente sin cobro, como antes.
       operationId: comprar
       parameters:
       - name: code
@@ -3212,6 +3219,10 @@ paths:
         registra**: sus puntos se descuentan a la tasa vigente y la venta queda **confirmada**
         en la misma respuesta. A nombre de otra persona, `409`: nadie gasta los puntos de
         otro.
+
+        **Con tarjeta no abre ningún cobro** (`RN-MV-057`, desde el 01-10-2026): no hay nadie al
+        otro lado para escribirla. La venta nace pendiente y quien compró la paga desde su app con
+        `POST /movements/mine/{id}/card-charge`.
       operationId: registrar_4
       parameters:
       - name: Idempotency-Key
@@ -3356,6 +3367,10 @@ paths:
         Nada se retira: una pendiente no había concedido nada. Sus líneas siguen
         `PENDIENTE` de entrega y el registro de lo comprado las muestra `ANULADO`.
         Anular dos veces responde `409` diciendo el estado, y no cambia nada.
+
+        **Desde el 01-10-2026, si el pago pendiente tiene cobro abierto en la pasarela, primero lo
+        cancela** (`RN-MV-058`): si la pasarela ya lo cobró, `409` (`EX-005`) y no se anula; si no
+        responde, `503` (`EX-006`) y tampoco.
       operationId: anular
       parameters:
       - name: id
@@ -3391,6 +3406,9 @@ paths:
             \ El mensaje dice en qué estado está, y nada cambió."
         "500":
           description: Fallo no controlado (`ERR-500`)
+        "503":
+          description: La pasarela de pago no respondió; nada se escribió y se puede
+            reintentar (`RN-MV-057`)
       x-required-permission: movements:void
   /api/v1/movements/{id}/seller-assignments:
     post:
@@ -3477,6 +3495,10 @@ paths:
 
         **Rechazar no es anular**: anular cierra la venta; rechazar cierra un intento de
         cobrarla.
+
+        **Desde el 01-10-2026, no alcanza a un pago con cobro abierto en la pasarela**
+        (`RN-MV-058`): lo resuelve su notificación, y responde `409` (`EX-006`). Un pago con tarjeta sin cobro
+        —el que registró un funcionario— se sigue resolviendo a mano.
       operationId: rechazar
       parameters:
       - name: id
@@ -3521,6 +3543,10 @@ paths:
         compra y su pago quedan `RECHAZADA`/`RECHAZADO` con el motivo, obligatorio. **Es
         final**: al revés que una venta, una compra de puntos rechazada no se vuelve a pagar;
         quien quiera los puntos compra otra vez. No se mueve ningún saldo.
+
+        **Desde el 01-10-2026, no alcanza a un pago con cobro abierto en la pasarela**
+        (`RN-MV-058`): lo resuelve su notificación, y responde `409` (`EX-005`). Un pago con tarjeta sin cobro
+        —el que registró un funcionario— se sigue resolviendo a mano.
       operationId: rechazarCompra
       parameters:
       - name: id
@@ -3565,6 +3591,10 @@ paths:
         emitidos de la empresa (`RF-MV-028`). Se abonan **los puntos congelados al
         comprar**, no los de la tasa de hoy. `providerReference` es opcional. Confirmar dos
         veces, o una compra rechazada, es `409` y no abona nada.
+
+        **Desde el 01-10-2026, no alcanza a un pago con cobro abierto en la pasarela**
+        (`RN-MV-058`): lo resuelve su notificación, y responde `409` (`EX-005`). Un pago con tarjeta sin cobro
+        —el que registró un funcionario— se sigue resolviendo a mano.
       operationId: confirmarCompra
       parameters:
       - name: id
@@ -3628,6 +3658,10 @@ paths:
         (`RN-MV-005`). **Tampoco espera a la atribución**: una venta `VALIDAR_COMISIONES`
         se confirma y entrega igual, y sigue por validar — lo que esperará a `VALIDADO` es
         la comisión (`RN-MV-035`).
+
+        **Desde el 01-10-2026, no alcanza a un pago con cobro abierto en la pasarela**
+        (`RN-MV-058`): lo resuelve su notificación, y responde `409` (`EX-007`). Un pago con tarjeta sin cobro
+        —el que registró un funcionario— se sigue resolviendo a mano.
       operationId: confirmar
       parameters:
       - name: id
@@ -3832,6 +3866,17 @@ paths:
         estar entrando ahora mismo. `paymentMethodId` es obligatorio si la venta cobra algo y
         está prohibido si su importe es cero (`RN-MV-022`). Una venta ajena responde `404`,
         igual que una que no existe.
+
+        **Con tarjeta (`CREDIT_CARD`), desde el 01-10-2026, abre el cobro en la pasarela** en el mismo
+        acto (`RF-MV-040`): la respuesta trae `cardCharge.clientSecret`, con el que la app pide la
+        tarjeta con Stripe Elements. **Nada queda confirmado**: lo confirma la notificación de la
+        pasarela. Si la pasarela no responde, `503` y no se registra nada; por debajo del mínimo
+        (0,50 USD), `422`. Con la pasarela apagada, el pago queda pendiente sin cobro, como antes.
+
+        **Un pago pendiente con cobro abierto ya no bloquea** (`RN-MV-058`): volver a pagar
+        con otro método lo cancela en la pasarela y lo cierra rechazado; si ya se cobró, `409`
+        (`EX-009`). Con tarjeta otra vez, `409` (`EX-010`): el cobro abierto se retoma con
+        `POST /movements/mine/{id}/card-charge`.
       operationId: volverAPagar
       parameters:
       - name: id
@@ -3880,6 +3925,9 @@ paths:
             n (`EX-006`)"
         "422":
           description: El método de pago no existe (`EX-010`)
+        "503":
+          description: La pasarela de pago no respondió; nada se escribió y se puede
+            reintentar (`RN-MV-057`)
       x-required-permission: movements:retry-payment
   /api/v1/movements/mine/{id}/card-charge:
     post:
@@ -4119,6 +4167,12 @@ paths:
         abajo, a la tasa de este momento aunque cambie después (`RN-MV-051`). No se paga con
         `POINTS` ni con un método interno. La cabecera `Idempotency-Key` es obligatoria: la
         misma petición repetida responde `200` con la compra ya registrada. No comisiona.
+
+        **Con tarjeta (`CREDIT_CARD`), desde el 01-10-2026, abre el cobro en la pasarela** en el mismo
+        acto (`RF-MV-040`): la respuesta trae `cardCharge.clientSecret`, con el que la app pide la
+        tarjeta con Stripe Elements. **Nada queda confirmado**: lo confirma la notificación de la
+        pasarela. Si la pasarela no responde, `503` y no se registra nada; por debajo del mínimo
+        (0,50 USD), `422`. Con la pasarela apagada, el pago queda pendiente sin cobro, como antes.
       operationId: comprarPuntos
       parameters:
       - name: Idempotency-Key
@@ -4158,6 +4212,9 @@ paths:
             \ o la clave es de otra petición (`EX-008`)"
         "422":
           description: La moneda (`EX-002`) o el método (`EX-004`) no existen
+        "503":
+          description: La pasarela de pago no respondió; nada se escribió y se puede
+            reintentar (`RN-MV-057`)
       x-required-permission: movements:buy-points
   /api/v1/movements/mine/payout-accounts:
     get:
@@ -4429,6 +4486,13 @@ paths:
         enlace responden lo mismo. Es la decisión de seguridad de `RF-PM-008`, y
         esta ruta la hereda porque el enlace es público y los nombres de usuario
         se pueden probar.
+
+        **Con tarjeta (`CREDIT_CARD`), desde el 01-10-2026, abre el cobro en la pasarela** en
+        el mismo acto (`RF-MV-040`): la respuesta trae `cardCharge.clientSecret`, con el que la
+        app pide la tarjeta con Stripe Elements. **Nada queda confirmado**: lo confirma la
+        notificación de la pasarela. Si la pasarela no responde, `503` y no se registra nada;
+        por debajo del mínimo (0,50 USD), `422`. Con la pasarela apagada, el pago queda
+        pendiente sin cobro, como antes.
       operationId: comprar_1
       parameters:
       - name: username

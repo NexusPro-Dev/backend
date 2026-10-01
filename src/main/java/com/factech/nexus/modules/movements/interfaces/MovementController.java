@@ -142,6 +142,10 @@ public class MovementController {
           (`RN-MV-005`). **Tampoco espera a la atribución**: una venta `VALIDAR_COMISIONES`
           se confirma y entrega igual, y sigue por validar — lo que esperará a `VALIDADO` es
           la comisión (`RN-MV-035`).
+
+          **Desde el 01-10-2026, no alcanza a un pago con cobro abierto en la pasarela**
+          (`RN-MV-058`): lo resuelve su notificación, y responde `409` (`EX-007`). Un pago con tarjeta sin cobro
+          —el que registró un funcionario— se sigue resolviendo a mano.
           """)
   @ApiResponses({
     @ApiResponse(
@@ -200,6 +204,10 @@ public class MovementController {
           Nada se retira: una pendiente no había concedido nada. Sus líneas siguen
           `PENDIENTE` de entrega y el registro de lo comprado las muestra `ANULADO`.
           Anular dos veces responde `409` diciendo el estado, y no cambia nada.
+
+          **Desde el 01-10-2026, si el pago pendiente tiene cobro abierto en la pasarela, primero lo
+          cancela** (`RN-MV-058`): si la pasarela ya lo cobró, `409` (`EX-005`) y no se anula; si no
+          responde, `503` (`EX-006`) y tampoco.
           """)
   @ApiResponses({
     @ApiResponse(responseCode = "200", description = "Anulada, con `voidedAt` y `voidReason`."),
@@ -227,6 +235,12 @@ public class MovementController {
     @ApiResponse(
         responseCode = "500",
         description = "Fallo no controlado (`ERR-500`)",
+        content = @Content),
+    @ApiResponse(
+        responseCode = "503",
+        description =
+            "La pasarela de pago no respondió; nada se escribió y se puede reintentar"
+                + " (`RN-MV-057`)",
         content = @Content)
   })
   public SaleResponse anular(
@@ -649,6 +663,10 @@ public class MovementController {
           registra**: sus puntos se descuentan a la tasa vigente y la venta queda **confirmada**
           en la misma respuesta. A nombre de otra persona, `409`: nadie gasta los puntos de
           otro.
+
+          **Con tarjeta no abre ningún cobro** (`RN-MV-057`, desde el 01-10-2026): no hay nadie al
+          otro lado para escribirla. La venta nace pendiente y quien compró la paga desde su app con
+          `POST /movements/mine/{id}/card-charge`.
           """)
   @ApiResponses({
     @ApiResponse(responseCode = "201", description = "Venta registrada, pendiente de pago."),
