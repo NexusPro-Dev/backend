@@ -34,7 +34,7 @@ Que Finanzas, tras revisar los lotes de un cierre, **pague de una vez los que el
 |---|---|---|
 | **Qué se paga** | **Los lotes que Finanzas elige**, por su identificador | *Todos los pendientes*: pagaría lotes que nadie revisó. *Los de un cierre*: Finanzas puede querer dejar alguno para después |
 | **Si uno no se puede pagar** | **Los demás se pagan igual**, y la respuesta dice cuál no y por qué | *Todo o nada*: un lote vacío o pagado a la vez por otra persona detendría la nómina entera |
-| **Cuántos** | **Como mucho cien** por petición | *Sin tope*: cada lote mueve dinero por su cuenta, y una petición de mil esperaría minutos |
+| **Cuántos** | **Sin tope** | *Cien por petición*: se propuso para que una petición no tardara minutos, y el responsable del proyecto lo retiró: partir la nómina en varias llamadas es peor que esperar. Cada lote sigue siendo una transacción corta |
 | **Cómo se paga cada uno** | **Exactamente como `RF-CM-011`**: mismas condiciones, mismo abono, misma constancia | Una segunda forma de pagar, que algún día divergiría de la primera |
 
 ---
@@ -58,7 +58,6 @@ Que Finanzas, tras revisar los lotes de un cierre, **pague de una vez los que el
 
 - **Elegir los lotes**: la lista la arma quien llama, normalmente desde el listado de lotes pendientes (`RF-CM-010`).
 - **Pagar parcialmente un lote**, o deshacer un pago.
-- **Pagar más de cien** en una petición.
 
 ---
 
@@ -79,7 +78,7 @@ Que Finanzas, tras revisar los lotes de un cierre, **pague de una vez los que el
 
 | Dato | Descripción |
 |---|---|
-| Lotes | Sus identificadores: al menos uno, como mucho cien, sin repetir |
+| Lotes | Sus identificadores: al menos uno, sin repetir |
 
 ### 6.2 Salida
 
@@ -104,7 +103,7 @@ Y **cuántos se pagaron y cuántos no**.
 ## 8. Flujo principal
 
 1. Finanzas pide pagar una lista de lotes.
-2. Se comprueba la lista: no vacía, como mucho cien, sin repetidos.
+2. Se comprueba la lista: no vacía y sin repetidos.
 3. Para cada lote, en el orden pedido, **se intenta pagarlo como si se pagara solo**.
 4. Si se paga, se anota pagado; si no, se anota el motivo y se sigue con el siguiente.
 5. Se devuelve el resultado de cada uno.
@@ -138,7 +137,7 @@ Ese lote sale **no pagado, porque ya estaba pagado**; se abona **una sola vez**.
 | ID | Validación |
 |---|---|
 | `VAL-001` | La lista existe y no está vacía |
-| `VAL-002` | Como mucho cien |
+| ~~`VAL-002`~~ | ~~Como mucho cien~~ **Retirada el 01-10-2026**: no hay tope. El número queda consumido |
 | `VAL-003` | Sin identificadores repetidos |
 
 **Los errores de la lista salen juntos.**
@@ -153,7 +152,7 @@ Ese lote sale **no pagado, porque ya estaba pagado**; se abona **una sola vez**.
 | `CA-CM-307` | En una lista con un lote **abierto**, uno **ya pagado**, uno **sin comisiones vivas** y uno que **no existe**, se pagan los demás y esos cuatro salen **no pagados** con el código y el mensaje de `RF-CM-011` |
 | `CA-CM-308` | Si el **abono de uno falla**, ese lote sigue **pendiente**, sin movimiento, y los demás **se pagan** |
 | `CA-CM-309` | La respuesta trae **una fila por lote, en el orden pedido**, y cuántos se pagaron y cuántos no |
-| `CA-CM-310` | Una lista **vacía**, de **más de cien** o con **repetidos** se rechaza **con todos los errores juntos**, y no se paga nada |
+| `CA-CM-310` | Una lista **vacía** o con **repetidos** se rechaza **con todos los errores juntos**, y no se paga nada; una de **más de cien** se acepta |
 | `CA-CM-311` | **Dos pagos de listas que comparten un lote**, a la vez: el lote se abona **una sola vez**, y en una de las respuestas sale no pagado por ya estar pagado |
 | `CA-CM-312` | Una lista en la que **ninguno** se puede pagar responde **éxito**, con todos no pagados y su motivo |
 | `CA-CM-313` | Cada lote pagado queda **auditado como un pago suelto** |
@@ -181,4 +180,4 @@ Ninguna.
 
 | Versión | Fecha | Cambio | Autor |
 |---|---|---|---|
-| 0.1.0 | 01-10-2026 | Primera versión ([`requirements/cm.md`](../../../requirements/cm.md) v0.28.0, `RN-CM-049`), por petición del responsable del proyecto: una lista que elige Finanzas, cada lote por su cuenta, permiso propio y tope de cien. Criterios `CA-CM-306` a `CA-CM-314`. | Responsable del proyecto |
+| 0.1.0 | 01-10-2026 | Primera versión ([`requirements/cm.md`](../../../requirements/cm.md) v0.28.0, `RN-CM-049`), por petición del responsable del proyecto: una lista que elige Finanzas, cada lote por su cuenta, permiso propio y **sin tope** —el de cien que se propuso lo retiró el responsable el mismo día—. Criterios `CA-CM-306` a `CA-CM-314`. | Responsable del proyecto |

@@ -26,7 +26,7 @@ Pagar un lote es [`RF-CM-011`](../011-marcar-lote-pagado/plan.md), **y se reutil
 **Un bucle sin transacción propia que llama a `PayCommissionBatchService.pay` una vez por lote.**
 
 ```
-validar la lista (VAL-001 a VAL-003, juntos)
+validar la lista (VAL-001 y VAL-003, juntos)
 para cada id, en orden:
     try   pay(id)                         — su propia transacción: @Transactional del bean
           → pagado(id, code, paidAmount, movementId)
@@ -76,7 +76,7 @@ para cada id, en orden:
 | Código | Cuándo |
 |---|---|
 | `200` | Siempre que la lista sea válida, **aunque no se pague ninguno** (`CA-CM-312`): el resultado está en cada fila |
-| `400` | `VAL-001` a `VAL-003`, juntos |
+| `400` | `VAL-001` y `VAL-003`, juntos |
 | `401` / `403` | Sin token / sin el permiso |
 
 **`200` y no `207`**: el contrato del proyecto no usa `Multi-Status`, y la respuesta ya dice lote a lote qué pasó.
@@ -112,7 +112,7 @@ para cada id, en orden:
 | Alternativa | Por qué no |
 |---|---|
 | `TransactionTemplate` con `REQUIRES_NEW` dentro de un servicio transaccional | Lo mismo con más piezas: el proxy de `pay` ya da la transacción por lote |
-| Pagar en paralelo | Más rápido con cien lotes, y con un orden de respuesta que dependería de los hilos. Cien pagos en serie son segundos |
+| Pagar en paralelo | Más rápido con muchos lotes, y con un orden de respuesta que dependería de los hilos y abonos simultáneos contra la misma cuenta de comisiones. En serie, cada pago son milisegundos |
 | Validar todos los lotes antes de pagar ninguno | Daría una foto que podría cambiar antes de pagar; el pago ya comprueba con el lote bloqueado |
 
 ---
@@ -121,6 +121,7 @@ para cada id, en orden:
 
 | Riesgo | Mitigación |
 |---|---|
+| **Sin tope, una lista muy larga tarda** —cada lote es una transacción corta y un abono— y puede pasar del tiempo de espera de un proxy | Se acepta por decisión del responsable; cada lote se confirma al terminar, de modo que si la conexión se corta los pagados quedan pagados, y repetir la lista los da por «ya pagados» |
 | Que alguien anote `@Transactional` en el servicio «por coherencia» | Su Javadoc lo dice, y `CA-CM-308` falla si ocurre: el pago bueno se revertiría con el malo |
 | Los recuentos del catálogo | Las mismas suites que `V59`, más `CommissionSettlementPermissionsSeedIT` |
 
