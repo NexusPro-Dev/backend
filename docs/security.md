@@ -5,7 +5,7 @@
 | Proyecto | NEXUS — Renovación de plataforma |
 | Empresa | FACTECH GROUP SAS |
 | Documento | `security.md` |
-| Versión | 0.92.0 |
+| Versión | 0.93.0 |
 | Estado | Borrador |
 | Responsable técnico | Bonilla Diaz William Steven |
 | Fecha de creación | 19-08-2026 |
@@ -295,6 +295,8 @@ Los cincuenta y uno nuevos: `roles:list`, `roles:change-status`, `roles:assign-p
 **Dos más de `CM`, declarados y SEMBRADOS el 30-09-2026 por `V59`** ([`requirements/cm.md`](requirements/cm.md) v0.26.0 §6, §5.10), **todavía fuera del bloque** de arriba: `commission-batches:withdraw-commission` —retirar una comisión de un lote `PENDIENTE` al abierto de su persona, `RF-CM-022`— y `commission-batches:return-commission` —devolverla a su lote de origen, `RF-CM-023`—. **Son dos y no uno** por `RN-SEG-014`: retirar aplaza un pago y devolver lo adelanta, y un rol puede recibir lo primero sin lo segundo. **Ninguno es `commission-batches:update`**: el lote no se edita, se le mueve una comisión. **Revertir la cadena de una línea (`RF-CM-024`) no lleva permiso**: no tiene ruta, y quien corrige el vendedor ya porta `movements:assign-sellers`. `V59` los da a `SUPERADMIN` y `ADMIN`, explícitos, y el catálogo pasa de 169 a **171** (`ADMIN` porta 169). El módulo tiene **veintinueve**.
 
 **Uno más de `CM`, declarado y SEMBRADO el 01-10-2026 por `V60`** ([`requirements/cm.md`](requirements/cm.md) v0.28.0 §6): `commission-batches:pay-batches` —pagar varios lotes elegidos, `RF-CM-025`—. **No reutiliza `commission-batches:pay`** por `RN-SEG-014`: pagar un lote y lanzar la nómina de muchos son dos operaciones. `V60` lo da a `SUPERADMIN` y `ADMIN`, y el catálogo pasa a **172** (`ADMIN` porta 170). El módulo tiene **treinta**.
+
+**Ocho más de `MV`, declarados el 01-10-2026 y SIN SEMBRAR**, **todavía fuera del bloque** de arriba: los de las **cuentas de cobro** —a dónde se paga un retiro— ([`requirements/mv.md`](requirements/mv.md) v0.61.0 §6, §4.5). **Tres de administración**, a `SUPERADMIN` y `ADMIN` explícito: `movements:create-payout-institution` y `movements:update-payout-institution` —el catálogo de bancos y billeteras móviles, `RF-MV-032` y `RF-MV-034`— y `movements:read-user-payout-accounts` —las cuentas de cobro de **cualquier** persona, `RF-MV-039`—. **Cinco por tipo de rol** (`RN-SEG-015`): `movements:read-payout-institutions` (`RF-MV-033`), `movements:create-own-payout-account`, `movements:list-own-payout-accounts`, `movements:update-own-payout-account` y `movements:delete-own-payout-account` (`RF-MV-035` a `RF-MV-038`). **Las cuatro de la cuenta propia son cuatro y no una** por `RN-SEG-014`. **Y la cuenta ajena responde como inexistente** aunque se porte el permiso propio: es la verificación de propiedad que §6 deja a la capa de aplicación. **Los datos de una cuenta de cobro son datos personales y financieros**: no van a los registros de aplicación, y la auditoría de cambios los recoge como cualquier otra fila. El catálogo pasará de 172 a **180** (`ADMIN` a 178).
 
 !!! danger "Un permiso, una operación — `RN-SEG-014`, desde el 19-09-2026"
 
@@ -945,3 +947,4 @@ RNF-SEG-002 merece atención: es una prueba que enumera los endpoints registrado
 | 0.90.0 | 30-09-2026 | **Los dos permisos de `CM` están sembrados** por `V59` (§4.4): `commission-batches:withdraw-commission` y `commission-batches:return-commission`, a `SUPERADMIN` y `ADMIN`. El catálogo pasa de 169 a **171**, y `ADMIN` porta 169. | Responsable técnico |
 | 0.91.0 | 01-10-2026 | **Un permiso de `CM` declarado y sin sembrar** (§4.4): `commission-batches:pay-batches` (`RF-CM-025`), a `SUPERADMIN` y `ADMIN`. **Ninguna ruta pública nueva**. | Responsable técnico |
 | 0.92.0 | 01-10-2026 | **`commission-batches:pay-batches` está sembrado** por `V60`, a `SUPERADMIN` y `ADMIN`. Catálogo **172**, `ADMIN` 170. | Responsable técnico |
+| 0.93.0 | 01-10-2026 | **Ocho permisos de `MV` declarados y sin sembrar** (§4.4): los de las cuentas de cobro ([`requirements/mv.md`](requirements/mv.md) v0.61.0), tres de administración a `SUPERADMIN` y `ADMIN` y cinco por tipo de rol. El catálogo pasará a **180**. **Ninguna ruta pública nueva**. | Responsable técnico |
