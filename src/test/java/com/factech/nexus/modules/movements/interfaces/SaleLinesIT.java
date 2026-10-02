@@ -483,6 +483,86 @@ class SaleLinesIT extends IntegrationTestBase {
                 .value(org.hamcrest.Matchers.hasItems("typeStatus", "deliveryStatus")));
   }
 
+  @Test
+  @DisplayName(
+      "`CA-MV-520` — hasSeller=false trae SOLO las líneas sin vendedor, con seller nulo; true,"
+          + " solo las que lo tienen; sin el parámetro, todas")
+  void filtroPorConOSinVendedor() throws Exception {
+    mvc.perform(consulta("hasSeller", "false"))
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$.content.length()").value(1))
+        .andExpect(jsonPath("$.totalElements").value(1))
+        .andExpect(jsonPath("$.content[0].movementId").value(ventaSinVendedor.toString()))
+        .andExpect(jsonPath("$.content[0].seller").value(org.hamcrest.Matchers.nullValue()));
+
+    // Sin distinguir caja, como los estados.
+    mvc.perform(consulta("hasSeller", "TRUE"))
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$.content.length()").value(2))
+        .andExpect(jsonPath("$.totalElements").value(2))
+        .andExpect(
+            jsonPath("$.content[*].movementId")
+                .value(
+                    org.hamcrest.Matchers.everyItem(
+                        org.hamcrest.Matchers.is(ventaDeDos.toString()))));
+
+    mvc.perform(consulta())
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$.content.length()").value(3));
+  }
+
+  @Test
+  @DisplayName(
+      "`CA-MV-521` — hasSeller se combina: con VALIDAR_COMISIONES da solo lo que falta por asignar;"
+          + " con sellerId y false, página vacía y 200")
+  void conOSinVendedorSeCombina() throws Exception {
+    // Una venta a medio asignar: una línea con vendedor y otra sin él. Por
+    // `typeStatus` salen las DOS —el filtro es de la venta—; con `hasSeller=false`,
+    // solo la que falta.
+    UUID aMedias = venta(ana, "CONFIRMADA", BASE.plusHours(3), "VTA-SL-0004", "VALIDAR_COMISIONES");
+    linea(aMedias, bot, vendedorUno, 1, "120.00", "0.00", "120.00", 30, "ENTREGADA", BASE);
+    linea(aMedias, curso, null, 1, "80.00", "0.00", "80.00", null, "PENDIENTE", null);
+
+    mvc.perform(
+            consulta()
+                .param("typeStatus", "VALIDAR_COMISIONES")
+                .param("movementId", aMedias.toString()))
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$.content.length()").value(2));
+    mvc.perform(
+            consulta()
+                .param("typeStatus", "VALIDAR_COMISIONES")
+                .param("movementId", aMedias.toString())
+                .param("hasSeller", "false"))
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$.content.length()").value(1))
+        .andExpect(jsonPath("$.content[0].product.code").value("SL_CURSO"))
+        .andExpect(jsonPath("$.content[0].seller").value(org.hamcrest.Matchers.nullValue()));
+
+    // Contradictorio pero bien escrito: página vacía, no 400.
+    mvc.perform(consulta().param("sellerId", vendedorUno.toString()).param("hasSeller", "false"))
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$.content.length()").value(0))
+        .andExpect(jsonPath("$.totalElements").value(0));
+  }
+
+  @Test
+  @DisplayName(
+      "`CA-MV-522` — un hasSeller que no es true ni false es 400 con VAL-007 sobre su campo, junto"
+          + " a los demás problemas")
+  void conOSinVendedorInvalido() throws Exception {
+    mvc.perform(consulta("hasSeller", "quizas"))
+        .andExpect(status().isBadRequest())
+        .andExpect(jsonPath("$.errors[0].field").value("hasSeller"))
+        .andExpect(jsonPath("$.errors[0].code").value("VAL-007"));
+
+    mvc.perform(consulta().param("hasSeller", "1").param("deliveryStatus", "TAMPOCO"))
+        .andExpect(status().isBadRequest())
+        .andExpect(
+            jsonPath("$.errors[*].field")
+                .value(org.hamcrest.Matchers.hasItems("hasSeller", "deliveryStatus")));
+  }
+
   // ---------------------------------------------------------------- fixture
 
   private MockHttpServletRequestBuilder consulta() {

@@ -726,6 +726,7 @@ public interface MovementRepository {
       UUID movementId,
       UUID userId,
       UUID sellerId,
+      Boolean hasSeller,
       UUID productId,
       String deliveryStatus,
       String typeStatus,

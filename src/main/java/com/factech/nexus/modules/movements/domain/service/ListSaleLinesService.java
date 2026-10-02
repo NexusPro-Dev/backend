@@ -53,6 +53,7 @@ public class ListSaleLinesService {
             peticion.movementId(),
             peticion.userId(),
             peticion.sellerId(),
+            peticion.conVendedor(),
             peticion.productId(),
             peticion.deliveryStatus(),
             peticion.typeStatus(),
@@ -127,6 +128,15 @@ public class ListSaleLinesService {
               "typeStatus",
               "VAL-005",
               "El estado del tipo '" + peticion.typeStatus() + "' no existe."));
+    }
+
+    // `hasSeller` (0.3.0, 02-10-2026): un booleano y nada más.
+    if (peticion.conVendedorInvalido()) {
+      problemas.add(
+          new FieldError(
+              "hasSeller",
+              "VAL-007",
+              "El filtro de vendedor admite true o false; llegó '" + peticion.hasSeller() + "'."));
     }
 
     if (peticion.from() != null

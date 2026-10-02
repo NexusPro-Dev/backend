@@ -477,9 +477,11 @@ public class MovementController {
           pedirlas: lo decide la consulta y no un filtro. `movementStatus` viaja en cada
           línea y dirá siempre `CONFIRMADA`.
 
-          **Los siete filtros se combinan** y cada uno responde una pregunta: `movementId`
+          **Los ocho filtros se combinan** y cada uno responde una pregunta: `movementId`
           (las líneas de una venta), `userId` (qué compró esta persona, el sujeto),
-          `sellerId` (qué vendió esta persona, **como vendedora de la línea**), `productId`
+          `sellerId` (qué vendió esta persona, **como vendedora de la línea**), `hasSeller`
+          (`false`: **las líneas sin vendedor asignado**, las que faltan por atribuir; `true`:
+          solo las que lo tienen; desde el 02-10-2026), `productId`
           (qué se vendió de este producto),
           `deliveryStatus` (el de la LÍNEA, que **no** es el de la venta: una confirmada
           tiene líneas `ENTREGADA`, `PENDIENTE` de autorización y `RETENIDA`), `typeStatus` (el estado del TIPO de la venta,
@@ -505,7 +507,8 @@ public class MovementController {
         responseCode = "400",
         description =
             "Paginación inválida, estado o estado de entrega no admitidos (`VAL-002`,"
-                + " `VAL-003`), estado del tipo inexistente (`VAL-005`), identificador"
+                + " `VAL-003`), estado del tipo inexistente (`VAL-005`), `hasSeller` que no es"
+                + " `true` ni `false` (`VAL-007`), identificador"
                 + " malformado (`VAL-001`) o `from` posterior a `to` (`VAL-004`). Los"
                 + " problemas se devuelven juntos.",
         content = @Content),
@@ -528,6 +531,7 @@ public class MovementController {
       @RequestParam(required = false) UUID movementId,
       @RequestParam(required = false) UUID userId,
       @RequestParam(required = false) UUID sellerId,
+      @RequestParam(required = false) String hasSeller,
       @RequestParam(required = false) UUID productId,
       @RequestParam(required = false) String deliveryStatus,
       @RequestParam(required = false) String typeStatus,
@@ -541,6 +545,7 @@ public class MovementController {
             movementId,
             userId,
             sellerId,
+            hasSeller,
             productId,
             deliveryStatus,
             typeStatus,
