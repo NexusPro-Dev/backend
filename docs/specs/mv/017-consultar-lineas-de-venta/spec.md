@@ -91,6 +91,7 @@ Todo por *query string*, todo opcional, y **se combinan**:
 | `movementId` | Las líneas de **una** venta | `uuid`; inexistente → página vacía |
 | `userId` | Qué compró **esta persona** (el sujeto de la venta) | `uuid`; inexistente → página vacía |
 | `sellerId` | Qué vendió **esta persona**, como vendedora **de la línea** | `uuid`; inexistente → página vacía |
+| `hasSeller` | **Las líneas sin vendedor** (`false`) o solo las que lo tienen (`true`) (02-10-2026) | `true` o `false`, sin distinguir caja; otro valor es `400`. Ausente, no filtra |
 | `productId` | Las líneas de **un producto** del catálogo | `uuid`; inexistente → página vacía |
 | `status` | El estado de la **venta** | Del catálogo cerrado; otro valor es `400` |
 | `deliveryStatus` | El estado de **entrega de la línea** | Del catálogo cerrado; otro valor es `400` |
@@ -163,6 +164,7 @@ Ninguna propia. Sin el permiso, `403` (`AUTH-002`); sin token, `401` (`AUTH-001`
 | `VAL-004` | `from` no es posterior a `to` | El rango de fechas es inválido: `from` no puede ser posterior a `to`. |
 | `VAL-005` | La paginación es válida | La del sistema |
 | `VAL-006` | `typeStatus` pertenece al catálogo de estados por tipo (23-09-2026) | El estado del tipo indicado no existe. |
+| `VAL-007` | `hasSeller`, si llega, es `true` o `false` (02-10-2026) | El filtro de vendedor admite `true` o `false`. |
 
 **Los seis se devuelven juntos**, como en `RF-MV-006` y `RF-MV-015`: quien se equivocó en dos filtros corrige una vez.
 
@@ -191,6 +193,9 @@ Ninguna propia. Sin el permiso, `403` (`AUTH-002`); sin token, `401` (`AUTH-001`
 | `CA-MV-179` | La consulta **no devuelve** líneas de movimientos que no son ventas |
 | `CA-MV-180` | `typeStatus` acota por el estado del tipo de la venta: pidiendo `VALIDADO` no salen las líneas de una venta en `VALIDAR_COMISIONES`, y se **combina** con los demás filtros |
 | `CA-MV-181` | Un `typeStatus` desconocido responde `400` sobre el campo `typeStatus`, **junto a los demás problemas** de la misma petición |
+| `CA-MV-520` | `hasSeller=false` devuelve **solo** las líneas sin vendedor, cada una con `seller` presente y nulo; `hasSeller=true`, solo las que lo tienen; sin el parámetro, todas (02-10-2026) |
+| `CA-MV-521` | `hasSeller` **se combina** con los demás filtros: con `typeStatus=VALIDAR_COMISIONES` da las líneas que faltan por asignar; con `sellerId` y `hasSeller=false`, página vacía y `200` |
+| `CA-MV-522` | Un `hasSeller` que no es `true` ni `false` responde `400` sobre el campo `hasSeller` con `VAL-007`, **junto a los demás problemas** |
 
 ## 13. Casos límite
 
@@ -202,6 +207,7 @@ Ninguna propia. Sin el permiso, `403` (`AUTH-002`); sin token, `401` (`AUTH-001`
 | Una línea de un producto eliminado del catálogo | Sale: el nombre está congelado en la línea (`FA-005`) |
 | `size` enorme | Lo acota la paginación del sistema, como en todo listado |
 | Filtrar por `deliveryStatus` en una venta pendiente de pago | Sale si su línea está en ese estado de entrega: son dos ejes distintos y se combinan |
+| `sellerId` y `hasSeller=false` a la vez | Página vacía y `200`: la pregunta es contradictoria pero está bien escrita, como un identificador que no existe |
 | Filtrar por un `typeStatus` que existe pero pertenece a otro tipo de movimiento | Página vacía, y no `400`: el código existe en el catálogo —de modo que la pregunta está bien escrita— pero el listado solo mira ventas |
 
 ## 14. Preguntas abiertas resueltas
@@ -222,3 +228,4 @@ Ninguna propia. Sin el permiso, `403` (`AUTH-002`); sin token, `401` (`AUTH-001`
 |---|---|---|---|
 | 0.1.0 | 23-09-2026 | Redacción inicial, el día que el responsable del proyecto pidió «un endpoint para traer todas las líneas de las ventas, con su propio permiso, paginado». Hereda de `RF-MV-014` la forma de la fila —una por línea, con el nombre congelado— y de `RF-MV-006` la familia de filtros, el `400` conjunto y el techo de conteo. Decide: **administración sin alcance por estructura**, una fila por línea, el estado de entrega **crudo**, sin cupón y solo ventas. Diecisiete criterios, `CA-MV-163` a `CA-MV-179`. | Responsable del proyecto |
 | 0.2.0 | 23-09-2026 | **Entra el filtro `typeStatus` y el campo NO se publica** (enmienda del Art. I.7, el día que `RF-MV-016` integró el eje de estados por tipo), por decisión del responsable del proyecto. Los filtros pasan a **ocho** y los criterios a **diecinueve**: nacen `CA-MV-180` y `CA-MV-181`, y `VAL-006` —que viaja en el cuerpo con el código `VAL-005`, el mismo que `RF-MV-015`—. Entra `RN-MV-033` en §5. La fila no cambia, de modo que **ninguna forma publicada se toca**: quien ya consumía el listado no nota la enmienda. | Responsable del proyecto |
+| 0.3.0 | 02-10-2026 | **Entra el filtro `hasSeller`** (enmienda del Art. I.7), a petición del responsable del proyecto —«que en las líneas de venta se pueda filtrar por las que no tienen vendedor asignado»—. `false` da las líneas sin vendedor, `true` las que lo tienen; se combina con los demás. Hasta hoy la única aproximación era `typeStatus=VALIDAR_COMISIONES`, que acota por **venta** y trae también sus líneas ya asignadas. Validación `VAL-007`; criterios `CA-MV-520` a `CA-MV-522`. | Responsable del proyecto |

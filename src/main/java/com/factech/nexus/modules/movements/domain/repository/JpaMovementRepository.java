@@ -1824,6 +1824,11 @@ public class JpaMovementRepository implements MovementRepository {
     // Por la línea y no por el movimiento: `RN-MV-003` dice que el vendedor es
     // de la línea, y una venta con dos vendedores aparece una vez por cada uno.
     filtro.igual("d.seller_id", "vendedor", f.sellerId());
+    // Con vendedor o sin él (0.3.0, 02-10-2026): sin parámetro, y en la página y
+    // en el conteo a la vez, como todo el predicado.
+    if (f.hasSeller() != null) {
+      filtro.sinParametro(f.hasSeller() ? "d.seller_id IS NOT NULL" : "d.seller_id IS NULL");
+    }
     filtro.igual("d.product_id", "producto", f.productId());
     // El estado de la VENTA ya no es un filtro: va fijo en `TABLAS_LINEAS`
     // (`RN-MV-038`). El de la ENTREGA si lo es, y son cosas distintas — una venta
@@ -1925,6 +1930,11 @@ public class JpaMovementRepository implements MovementRepository {
     void condicion(String sql, String nombre, Object valor) {
       donde.append(" AND ").append(sql);
       parametros.put(nombre, valor);
+    }
+
+    /** Una condición que no compara con nada que llegue de fuera: {@code IS NULL} y similares. */
+    void sinParametro(String sql) {
+      donde.append(" AND ").append(sql);
     }
 
     /** Igualdad simple. Un valor nulo significa «sin filtro» y no añade nada. */
