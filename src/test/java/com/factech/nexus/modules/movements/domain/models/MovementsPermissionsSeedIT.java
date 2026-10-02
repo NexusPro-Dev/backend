@@ -29,7 +29,7 @@ class MovementsPermissionsSeedIT extends IntegrationTestBase {
   private static final UUID ADMIN = UUID.fromString("01a02a33-4c00-7002-9c4f-5e7ad1000002");
 
   private static final List<String> LOS_CUATRO =
-      List.of("movements:read", "movements:create", "movements:confirm", "movements:void");
+      List.of("movements:read", "movements:create", "movements:confirm-payment", "movements:void");
 
   /**
    * Los tres de alcance propio que `V31` añadió al recurso el 21-09-2026 (`RF-SP-062`) y el de las
@@ -53,7 +53,15 @@ class MovementsPermissionsSeedIT extends IntegrationTestBase {
           "movements:read-own-balances",
           "movements:list-own-entries",
           // `V50` (`RF-MV-010`, 28-09-2026): activar lo comprado, por tipo de rol.
-          "movements:activate-own-product");
+          "movements:activate-own-product",
+          // `V61` (01-10-2026): el catálogo de entidades y la cuenta de cobro propia.
+          "movements:read-payout-institutions",
+          "movements:create-own-payout-account",
+          "movements:list-own-payout-accounts",
+          "movements:update-own-payout-account",
+          "movements:delete-own-payout-account",
+          // `V62` (01-10-2026): pagar con tarjeta un pendiente propio.
+          "movements:pay-pending-by-card");
 
   /**
    * El de `V36` (`RF-MV-016`): tampoco es de la reserva —va a SUPERADMIN y ADMIN, explícito— y
@@ -87,12 +95,21 @@ class MovementsPermissionsSeedIT extends IntegrationTestBase {
    */
   private static final String DETALLE = "movements:read-detail";
 
-  /** Los de `V58` de administración (30-09-2026): la tasa y resolver una compra de puntos. */
-  private static final List<String> LOS_DE_PUNTOS =
+  /**
+   * El de `V58` de administración (30-09-2026): la tasa. Los dos que resolvían una compra de puntos
+   * los retiró `V63` (01-10-2026): se concilia el pago, con los de la venta.
+   */
+  private static final List<String> LOS_DE_PUNTOS = List.of("movements:set-points-rate");
+
+  /**
+   * Los de `V61` de administración (01-10-2026): el catálogo de entidades de cobro y las cuentas de
+   * cualquier persona.
+   */
+  private static final List<String> LOS_DE_COBRO =
       List.of(
-          "movements:set-points-rate",
-          "movements:confirm-points-purchase",
-          "movements:reject-points-purchase");
+          "movements:create-payout-institution",
+          "movements:update-payout-institution",
+          "movements:read-user-payout-accounts");
 
   @Autowired private JdbcTemplate jdbc;
 
@@ -112,7 +129,8 @@ class MovementsPermissionsSeedIT extends IntegrationTestBase {
         .contains(ASIGNAR, LINEAS, RECHAZAR, DETALLE)
         .containsAll(LOS_DE_SALDOS)
         .containsAll(LOS_DE_PUNTOS)
-        .hasSize(26);
+        .containsAll(LOS_DE_COBRO)
+        .hasSize(33);
   }
 
   @Test
@@ -133,7 +151,7 @@ class MovementsPermissionsSeedIT extends IntegrationTestBase {
     // RN-SEG-007: la raíz de la contención está acotada por el catálogo
     // completo. Un permiso sembrado y no asociado la dejaría por detrás de sus
     // propios hijos.
-    assertThat(permisosDeMovimientosDe(SUPERADMIN)).containsAll(LOS_CUATRO).hasSize(26);
+    assertThat(permisosDeMovimientosDe(SUPERADMIN)).containsAll(LOS_CUATRO).hasSize(33);
   }
 
   @Test
@@ -160,7 +178,9 @@ class MovementsPermissionsSeedIT extends IntegrationTestBase {
                     java.util.stream.Stream.concat(
                         java.util.stream.Stream.of(ASIGNAR, LINEAS, RECHAZAR, DETALLE),
                         java.util.stream.Stream.concat(
-                            LOS_DE_SALDOS.stream(), LOS_DE_PUNTOS.stream())))
+                            LOS_DE_SALDOS.stream(),
+                            java.util.stream.Stream.concat(
+                                LOS_DE_PUNTOS.stream(), LOS_DE_COBRO.stream()))))
                 .toList());
   }
 
@@ -177,7 +197,7 @@ class MovementsPermissionsSeedIT extends IntegrationTestBase {
     List<UUID> ids =
         jdbc.queryForList("SELECT id FROM permissions WHERE resource = 'movements'", UUID.class);
 
-    assertThat(ids).hasSize(26).doesNotHaveDuplicates();
+    assertThat(ids).hasSize(33).doesNotHaveDuplicates();
     assertThat(ids).allSatisfy(id -> assertThat(id.version()).isEqualTo(7));
     // variant() == 2 es la variante RFC 9562 (bits 10xx).
     assertThat(ids).allSatisfy(id -> assertThat(id.variant()).isEqualTo(2));

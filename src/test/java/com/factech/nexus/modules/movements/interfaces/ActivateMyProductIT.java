@@ -178,7 +178,7 @@ class ActivateMyProductIT extends IntegrationTestBase {
             .authorities(
                 () -> "movements:activate-own-product",
                 () -> "movements:read",
-                () -> "movements:confirm",
+                () -> "movements:confirm-payment",
                 () -> "movements:list-sale-lines");
 
     String ajena =

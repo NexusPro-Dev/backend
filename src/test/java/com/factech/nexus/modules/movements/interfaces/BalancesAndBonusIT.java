@@ -13,6 +13,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 
 import com.factech.nexus.IntegrationTestBase;
 import com.factech.nexus.modules.movements.LedgerFixtures;
+import com.factech.nexus.modules.movements.PayoutFixtures;
 import com.factech.nexus.modules.movements.domain.service.CreditService;
 import com.jayway.jsonpath.JsonPath;
 import java.util.ArrayList;
@@ -308,6 +309,7 @@ class BalancesAndBonusIT extends IntegrationTestBase {
   }
 
   private UUID pedirRetiro(UUID quien, String importe) throws Exception {
+    PayoutFixtures.listaParaRetirar(jdbc, quien);
     String cuerpo =
         mvc.perform(
                 post("/api/v1/movements/mine/withdrawals")

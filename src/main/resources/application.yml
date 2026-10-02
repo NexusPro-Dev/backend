@@ -448,6 +448,21 @@ nexus:
     vimeo-base-url: ${VIMEO_BASE_URL:https://vimeo.com}
     timeout: PT5S
 
+  # La pasarela de la tarjeta, Stripe (RF-MV-040 a RF-MV-042, architecture.md
+  # §15.4, 01-10-2026). SIN LAS DOS CREDENCIALES queda APAGADA y se avisa al
+  # arrancar: el pago con CREDIT_CARD nace pendiente sin cobro y lo confirma
+  # una persona, y la ruta de notificaciones responde 503. La suite corre así.
+  # La clave debe ser RESTRINGIDA (rk_…), con escritura solo sobre los cobros.
+  stripe:
+    secret-key: ${STRIPE_SECRET_KEY:}
+    webhook-secret: ${STRIPE_WEBHOOK_SECRET:}
+    api-base-url: ${STRIPE_API_BASE_URL:https://api.stripe.com}
+    api-version: 2024-06-20
+    timeout: PT10S
+    signature-tolerance: PT5M
+    # Procesar la notificación en el hilo que la recibió. SOLO LAS PRUEBAS.
+    process-inline: false
+
 logging:
   level:
     root: ${LOG_LEVEL:INFO}

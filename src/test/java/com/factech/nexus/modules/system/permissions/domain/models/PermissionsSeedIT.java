@@ -33,7 +33,7 @@ class PermissionsSeedIT extends IntegrationTestBase {
           + " V47: courses:read-available y lessons:learn del aula, RF-AC-034 y RF-AC-035)")
   void catalogoCompleto() {
     assertThat(jdbc.queryForObject("SELECT count(*) FROM permissions", Integer.class))
-        .isEqualTo(169);
+        .isEqualTo(179);
   }
 
   @Test
@@ -137,6 +137,12 @@ class PermissionsSeedIT extends IntegrationTestBase {
             "user-afftrack-rates:update",
             "user-afftrack-rates:delete",
             "afftrack-settlements:read",
+            // `V59` (30-09-2026): retirar y devolver una comisión de un lote pendiente
+            // (`RF-CM-022`, `RF-CM-023`).
+            "commission-batches:withdraw-commission",
+            "commission-batches:return-commission",
+            // `V60` (01-10-2026): pagar varios lotes (`RF-CM-025`).
+            "commission-batches:pay-batches",
             "course-categories:create",
             "course-categories:delete",
             "course-categories:read",
@@ -201,7 +207,6 @@ class PermissionsSeedIT extends IntegrationTestBase {
             "memberships:create",
             "memberships:read",
             "memberships:list",
-            "movements:confirm",
             "movements:create",
             "movements:list-own",
             "movements:read",
@@ -229,9 +234,21 @@ class PermissionsSeedIT extends IntegrationTestBase {
             "movements:set-points-rate",
             "movements:read-points-rates",
             "movements:buy-points",
-            "movements:confirm-points-purchase",
-            "movements:reject-points-purchase",
             "movements:list-own-points-purchases",
+            // `V61` (01-10-2026): las cuentas de cobro (`RF-MV-032` a `RF-MV-039`).
+            "movements:create-payout-institution",
+            "movements:read-payout-institutions",
+            "movements:update-payout-institution",
+            "movements:create-own-payout-account",
+            "movements:list-own-payout-accounts",
+            "movements:update-own-payout-account",
+            "movements:delete-own-payout-account",
+            "movements:read-user-payout-accounts",
+            // `V63` (01-10-2026): se concilia el pago (`RF-MV-044`); sustituye a
+            // movements:confirm, confirm-points-purchase y reject-points-purchase.
+            "movements:confirm-payment",
+            // `V62` (01-10-2026): pagar con tarjeta un pendiente propio (`RF-MV-042`).
+            "movements:pay-pending-by-card",
             // El SEGUNDO recurso de `PM` (`V93`, 15-09-2026), por decisión del
             // responsable del proyecto: armar paquetes y tocar el catálogo son
             // dos capacidades, y los `products:` no habilitan ni una operación
@@ -313,7 +330,7 @@ class PermissionsSeedIT extends IntegrationTestBase {
   void identificadoresUuidV7() {
     List<UUID> ids = jdbc.queryForList("SELECT id FROM permissions", UUID.class);
 
-    assertThat(ids).hasSize(169).doesNotHaveDuplicates();
+    assertThat(ids).hasSize(179).doesNotHaveDuplicates();
     assertThat(ids).allSatisfy(id -> assertThat(id.version()).isEqualTo(7));
     // variant() == 2 es la variante RFC 9562 (bits 10xx).
     assertThat(ids).allSatisfy(id -> assertThat(id.variant()).isEqualTo(2));
@@ -379,13 +396,13 @@ class PermissionsSeedIT extends IntegrationTestBase {
                 "SELECT count(*) FROM role_permissions WHERE role_id ="
                     + " '01a02a33-4c00-7001-9c4f-5e7ad1000001'",
                 Integer.class))
-        .isEqualTo(169);
+        .isEqualTo(179);
     assertThat(
             jdbc.queryForObject(
                 "SELECT count(*) FROM role_permissions WHERE role_id ="
                     + " '01a02a33-4c00-7002-9c4f-5e7ad1000002'",
                 Integer.class))
-        .isEqualTo(167);
+        .isEqualTo(177);
     assertThat(
             jdbc.queryForList(
                 """
@@ -465,8 +482,16 @@ class PermissionsSeedIT extends IntegrationTestBase {
         // Catorce desde `V48`: volver a pagar lo propio (`RF-MV-018`) va a todo rol por su tipo.
         // Y dieciocho desde `V50`: activar lo comprado (`RF-MV-010`), también por tipo.
         // Y veintiuno desde `V58`: la tasa, comprar puntos y mis compras de puntos.
-        .hasSize(21)
+        // Y veintiséis desde `V61`: el catálogo de entidades y las cuatro de la cuenta propia.
+        // Y veintisiete desde `V62`: pagar con tarjeta un pendiente propio.
+        .hasSize(27)
         .contains(
+            "movements:pay-pending-by-card",
+            "movements:read-payout-institutions",
+            "movements:create-own-payout-account",
+            "movements:list-own-payout-accounts",
+            "movements:update-own-payout-account",
+            "movements:delete-own-payout-account",
             "movements:read-points-rates",
             "movements:buy-points",
             "movements:list-own-points-purchases",

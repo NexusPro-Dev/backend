@@ -105,6 +105,7 @@ public class BuyPackageService {
   private final SaleRules reglas;
   private final SaleAttribution atribuciones;
   private final PointsPayment puntos;
+  private final CardPayment tarjeta;
 
   @Autowired
   public BuyPackageService(
@@ -115,7 +116,8 @@ public class BuyPackageService {
       CurrentMembershipLookup membresias,
       CurrentActor actor,
       AuditWriter auditoria,
-      PointsPayment puntos) {
+      PointsPayment puntos,
+      CardPayment tarjeta) {
     this(
         movimientos,
         paquetes,
@@ -125,6 +127,7 @@ public class BuyPackageService {
         actor,
         auditoria,
         puntos,
+        tarjeta,
         Clock.systemUTC());
   }
 
@@ -137,8 +140,10 @@ public class BuyPackageService {
       CurrentActor actor,
       AuditWriter auditoria,
       PointsPayment puntos,
+      CardPayment tarjeta,
       Clock reloj) {
     this.puntos = puntos;
+    this.tarjeta = tarjeta;
     this.movimientos = movimientos;
     this.paquetes = paquetes;
     this.productos = productos;
@@ -233,7 +238,17 @@ public class BuyPackageService {
             new SaleResponse.Money(paquete.currencyId(), paquete.currencyCode()),
             metodo.code());
     if (!PointsPayment.esPuntos(metodo)) {
-      return compra;
+      // Con tarjeta, el cobro se abre ahora, en el mismo acto (`RF-MV-040`).
+      return compra.conCobro(
+          tarjeta.abrirSiToca(
+              metodo,
+              pago,
+              venta.getId(),
+              venta.getCode(),
+              venta.getPayableAmount(),
+              paquete.currencyCode(),
+              paquete.currencyDecimalPlaces(),
+              clave.value()));
     }
     // Pagada con puntos: se descuenta y se confirma en el acto (`RF-MV-030`).
     return compra.confirmada(

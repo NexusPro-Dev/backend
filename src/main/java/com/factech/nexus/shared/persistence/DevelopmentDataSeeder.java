@@ -70,13 +70,18 @@ public class DevelopmentDataSeeder implements ApplicationRunner {
 
   /** El guion vive en el classpath porque tiene que viajar dentro del artefacto que se ejecuta. */
   /**
-   * Los guiones, <b>en orden</b>: primero las personas y después el catálogo de productos. Son
-   * archivos separados porque responden a preguntas distintas —quién existe y qué se vende— y
-   * porque el segundo llegó dieciséis días después: mezclarlos habría hecho ilegible el primero.
-   * Cada uno es repetible por su cuenta, de modo que el orden importa solo por legibilidad del log.
+   * Los guiones, <b>en orden</b>: primero las personas, después el catálogo de productos y, desde
+   * el 01-10-2026, las tasas de comisión de rol de esos productos. Son archivos separados porque
+   * responden a preguntas distintas —quién existe, qué se vende y cuánto se paga por venderlo— y
+   * porque llegaron en días distintos: mezclarlos habría hecho ilegible el primero. Cada uno es
+   * repetible por su cuenta. <b>El tercero sí depende del orden</b>: resuelve los productos por
+   * código, y sin el segundo no encontraría ninguno.
    */
   private static final java.util.List<String> GUIONES =
-      java.util.List.of("db/dev-seed/semilla-desarrollo.sql", "db/dev-seed/semilla-productos.sql");
+      java.util.List.of(
+          "db/dev-seed/semilla-desarrollo.sql",
+          "db/dev-seed/semilla-productos.sql",
+          "db/dev-seed/semilla-tasas-comision.sql");
 
   private final RuntimeEnvironment entorno;
   private final JdbcTemplate jdbc;

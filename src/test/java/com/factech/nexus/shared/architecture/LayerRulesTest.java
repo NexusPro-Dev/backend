@@ -200,6 +200,46 @@ class LayerRulesTest {
 
   @Test
   @DisplayName(
+      "la pasarela es un puerto: nada fuera de su adaptador conoce Stripe (architecture.md §15.4)")
+  void laPasarelaEsUnPuerto() {
+    // `CardGateway` vive en el dominio de `MV` y lo implementa
+    // `StripeCardGateway`, en `movements.infrastructure`. Si un servicio
+    // importara el adaptador —o cualquier cosa de esa capa—, cambiar de
+    // pasarela obligaría a tocar casos de uso, que es lo que el puerto evita.
+    noClasses()
+        .that()
+        .resideOutsideOfPackage("com.factech.nexus.modules.movements.infrastructure..")
+        .should()
+        .dependOnClassesThat()
+        .resideInAPackage("com.factech.nexus.modules.movements.infrastructure..")
+        .because("architecture.md §15.4: la pasarela se usa por el puerto CardGateway")
+        .check(clases);
+  }
+
+  @Test
+  @DisplayName(
+      "MV no depende de CM: le pregunta por un puerto que declara él y CM implementa (RN-MV-053)")
+  void mvNoDependeDeCm() {
+    // `CM` ya depende de `MV` —las líneas que devenga, el abono del lote—, y
+    // desde el 30-09-2026 `MV` le PREGUNTA si una línea comisionada puede
+    // cambiar de vendedor (`RF-CM-024`). La pregunta va por
+    // `CommissionedLineRelease`, que vive en `movements.application` y
+    // `CM` implementa: la dependencia de compilación sigue siendo `CM` → `MV`
+    // (`architecture.md` §15.2). Hasta hoy lo garantizaba que nadie lo hubiera
+    // hecho; un import de `commissions` desde `movements` cerraría el ciclo sin
+    // que nada fallara.
+    noClasses()
+        .that()
+        .resideInAPackage("com.factech.nexus.modules.movements..")
+        .should()
+        .dependOnClassesThat()
+        .resideInAPackage("com.factech.nexus.modules.commissions..")
+        .because("requirements/cm.md §3: MV no consume CM; la dependencia es CM → MV")
+        .check(clases);
+  }
+
+  @Test
+  @DisplayName(
       "AC no entra en el dominio de nadie, ni PM ni SP en el de AC (D-25, RF-AC-001 · T-03)")
   void acNoEntraEnElDominioDeNadieNiNadieEnElSuyo() {
     // `AC` es el módulo que MÁS se parece a `PM` en la forma —catálogo con

@@ -30,12 +30,17 @@ class CommissionSettlementPermissionsSeedIT extends IntegrationTestBase {
           "commission-batches:list-own",
           "commission-batches:read-own",
           "commission-closings:read",
-          "commission-accruals:read");
+          "commission-accruals:read",
+          // `V59` (30-09-2026): retirar y devolver (`RF-CM-022`, `RF-CM-023`).
+          "commission-batches:withdraw-commission",
+          "commission-batches:return-commission",
+          // `V60` (01-10-2026): pagar varios lotes (`RF-CM-025`).
+          "commission-batches:pay-batches");
 
   @Autowired private JdbcTemplate jdbc;
 
   @Test
-  @DisplayName("los ocho existen, con literal de la serie de CM a continuación de V28")
+  @DisplayName("los ocho de V51 y los dos de V59 existen, con literal de la serie de CM")
   void losOchoConSuLiteral() {
     List<String> codigos =
         jdbc.queryForList(
@@ -57,7 +62,7 @@ class CommissionSettlementPermissionsSeedIT extends IntegrationTestBase {
   }
 
   @Test
-  @DisplayName("SUPERADMIN y ADMIN portan los ocho")
+  @DisplayName("SUPERADMIN y ADMIN portan los once")
   void losRolesDeSistema() {
     for (String rol : new String[] {SUPERADMIN, ADMIN}) {
       assertThat(codigosDelRol(rol)).as(rol).containsAll(OCHO);

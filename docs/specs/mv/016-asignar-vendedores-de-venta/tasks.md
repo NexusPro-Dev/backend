@@ -7,6 +7,7 @@
 | Plan | [`plan.md`](plan.md) v0.1.0 |
 | `plan.md` aprobado el | 23-09-2026 |
 | Estado | **En revisión** — `T-01` a `T-10` `Hecha` el 23-09-2026; `T-11` y `T-12` a medias (ver §3) |
+| Enmendadas | 30-09-2026 — `T-13` a `T-15` por **corregir en una venta confirmada** (`RN-MV-053`) |
 | Issue | [#103](https://github.com/NexusPro-Dev/backend/issues/103) |
 | Rama | `feature/estados-de-comision` |
 
@@ -74,3 +75,15 @@
 - [x] Los veinte criterios de aceptación con prueba.
 - [x] `requirements/mv.md`, `modelo-datos.md`, `security.md` y `requirements.md` actualizados.
 - [ ] **`tasks.md` aprobadas por el responsable del proyecto.**
+
+## 5. Corregir en una venta confirmada — enmienda del 30-09-2026
+
+| ID | Tarea | Depende de | Verificación | Estado |
+|---|---|---|---|---|
+| `T-13` | `AssignSellersService`: `EX-003` después de todas las comprobaciones, la llamada a `CommissionedLineRelease` para las líneas que cambian en una venta confirmada, y `assign` con el actor (`plan.md` §12) | `RF-CM-024` `T-01`, `T-03` | `SellerAssignmentIT` en verde con `CA-MV-153` ajustado | **Hecha** — 30-09-2026 |
+| `T-14` | `MovementController` pasa el actor; prosa del `409` en la `@Operation` | `T-13` | Diff del `json` | **Hecha** — 30-09-2026 |
+| `T-15` | `CA-MV-351` a `CA-MV-356` en `ReleaseCommissionedLineIT` | `T-14`, `RF-CM-024` `T-05` | | **Hecha** — 30-09-2026 |
+
+**30-09-2026 — `assign` no recibe al actor**, al revés que `plan.md` §12: `AssignSellersService` inyecta `AuthenticatedActor`, como ya hacen los servicios de `MV` que necesitan saber quién pide (`ListSalesService`, `WithdrawalService`), y la firma de la ruta no cambia. **`CA-MV-153` cambia su segunda mitad**: corregir la línea con vendedor de una venta confirmada, sin comisión pagada, ahora prospera.
+
+Rama: `feature/corregir-vendedor-y-mover-comisiones`.

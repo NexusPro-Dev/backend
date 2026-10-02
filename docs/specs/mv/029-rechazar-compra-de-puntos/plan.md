@@ -5,11 +5,12 @@
 | Requerimiento | `RF-MV-029` |
 | Especificación | [`spec.md`](spec.md) v0.1.0 |
 | `spec.md` aprobada el | 30-09-2026 |
-| Versión | 0.1.0 |
+| Versión | 0.3.0 |
 | Estado | **Aprobado** |
 | Autor | Responsable técnico |
 | Aprobado por | Responsable del proyecto |
 | Fecha de aprobación | 30-09-2026 |
+| Enmendado el | 01-10-2026 — la tarjeta por Stripe (§12) |
 
 !!! info "Qué va en este documento"
 
@@ -105,3 +106,13 @@ Ninguno.
 ## 11. Estrategia de prueba
 
 Integración, `RejectPointsPurchaseIT`: `CA-MV-326` a `CA-MV-331`. La carrera con confirmar vive en `ConfirmPointsPurchaseIT` (`CA-MV-323`).
+
+---
+
+## 12. La tarjeta por Stripe — enmienda del 01-10-2026
+
+Por [`requirements/mv.md`](../../../requirements/mv.md) v0.64.0 §4.6 y `spec.md` §14.2. La ruta manual del rechazo de la compra de puntos hace la comprobación de `RN-MV-058`. **Contrato**: la prosa del `409`.
+
+## 13. Sin ruta propia — enmienda del 01-10-2026
+
+Por [`requirements/mv.md`](../../../requirements/mv.md) v0.67.0 §4.8 y `spec.md` §14.3. **La ruta se retira** y el método público del servicio con ella; nace un método **de paquete** que `PaymentResolutionService` invoca con el movimiento ya bloqueado (`RF-MV-045` · `plan.md` §1). La transición, la auditoría y lo demás **no cambian**. El permiso lo retira o lo traslada `V63` (`RF-MV-044` · `plan.md` §2). **Contrato**: la ruta desaparece de OpenAPI.

@@ -5,11 +5,12 @@
 | Requerimiento | `RF-MV-016` |
 | Especificación | [`spec.md`](spec.md) v0.1.0 |
 | `spec.md` aprobada el | 23-09-2026 |
-| Versión | 0.1.0 |
+| Versión | 0.2.0 |
 | Estado | **Aprobado** |
 | Autor | Responsable técnico |
 | Aprobado por | Responsable del proyecto |
 | Fecha de aprobación | 23-09-2026 |
+| Enmendado el | 30-09-2026 — corregir en una venta confirmada, preguntándole a `CM` por un puerto que `MV` declara (§12) |
 
 !!! info "Qué va en este documento"
 
@@ -157,3 +158,19 @@ Una transacción por petición. El orden es el de la spec §8, y **todas las com
 | `MovementsIT` y `SalesIT` (ampliadas) | `CA-MV-161`; `MyMovementsIT`, `CA-MV-162` |
 | `EndpointPermissionsIT` | La ruta nueva y su permiso |
 | Las cuatro suites que cuentan el catálogo | 134 |
+
+## 12. Corregir en una venta confirmada — enmienda del 30-09-2026
+
+`RN-MV-053` ([`requirements/mv.md`](../../../requirements/mv.md) v0.58.0). **El puerto lo declara `MV` y lo implementa `CM`**: `CommissionedLineRelease` y `ReleaseOutcome`, en `movements.application`, con su forma en [`specs/cm/024-revertir-comisiones-de-linea/plan.md`](../../cm/024-revertir-comisiones-de-linea/plan.md) §1.
+
+- **`verificarLinea` deja de lanzar `EX-003`** por la sola confirmación. Lo que queda de él pasa a después de todas las comprobaciones —línea (`EX-004`) y vendedor (`EX-005`) de **todas** las asignaciones—: un rechazo de forma o de vínculo no debe llegar a revertir nada en `CM`.
+- **Entre las comprobaciones y la escritura**, para cada asignación con la venta `CONFIRMADA`, la línea **con** vendedor y un vendedor **distinto**, se invoca `release(lineId, actorId)`. **Cualquier respuesta que no sea `LIBERADA` lanza `EX-003`** (`409`), con la línea y el motivo —«su comisión ya se pagó» o «ya se contó como FTD»—, y **la transacción se revierte entera**, reversiones de las líneas anteriores incluidas (`CA-MV-354`). **Sin llamar al puerto** cuando la línea no tenía vendedor o el vendedor no cambia (`CA-MV-355`, `CA-MV-356`).
+- **`assign` recibe al actor**: `MovementController` le pasa `AuthenticatedActor.id()`, que el puerto necesita para `reverted_by`.
+- **El aviso no cambia**: `atribuidas` ya contiene las líneas cuyo vendedor cambió, y en una venta confirmada `CM` las devenga después del commit. **Es lo que hace nacer la cadena nueva**, sin código nuevo en `MV`.
+- **El orden de los bloqueos**: la venta ya está bloqueada (§1) cuando el puerto toma la línea y los lotes. Ningún camino de `CM` bloquea una venta, de modo que no hay ciclo de espera.
+
+**Contrato**: la prosa de la `@Operation` corrige el `409` —ya no es «corregir una línea de una venta confirmada», sino «su comisión ya se pagó o se contó como FTD»—, y dice que la corrección en una venta confirmada revierte la comisión vieja.
+
+**Alternativa descartada: llamar al puerto línea a línea dentro de `verificarLinea`.** Revertiría en `CM` la primera línea antes de saber si la tercera tiene un vendedor ajeno. La transacción lo desharía igual, pero es trabajo tirado y bloqueos tomados sin necesidad.
+
+**Pruebas**: `SellerAssignmentIT` cambia la segunda mitad de `CA-MV-153` —ahora la corrección prospera si la comisión no está pagada— y **`CA-MV-351` a `CA-MV-356` viven en `ReleaseCommissionedLineIT`** de `CM`, porque necesitan lotes pagados y FTD contados, que son de `CM`.

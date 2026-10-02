@@ -93,6 +93,10 @@ services:
       # un proveedor, sus lecciones exigen la duración a mano.
       YOUTUBE_API_KEY: ${YOUTUBE_API_KEY:-}
       VIMEO_ACCESS_TOKEN: ${VIMEO_ACCESS_TOKEN:-}
+      # La pasarela de la tarjeta (RF-MV-040). Opcionales: sin las dos, la
+      # tarjeta nace pendiente y la confirma una persona.
+      STRIPE_SECRET_KEY: ${STRIPE_SECRET_KEY:-}
+      STRIPE_WEBHOOK_SECRET: ${STRIPE_WEBHOOK_SECRET:-}
     ports:
       - "8080:8080"
     healthcheck:
@@ -112,6 +116,39 @@ services:
       timeout: 3s
       retries: 5
       start_period: 60s
+
+  # Reenvía a la aplicación las notificaciones de Stripe (RF-MV-041), que en
+  # local no tienen a dónde llegar: sin esto, una compra con tarjeta se cobra en
+  # Stripe y se queda PENDIENTE aquí para siempre (02-10-2026). Es lo mismo que
+  # correr `stripe listen` a mano, pero no depende de una terminal abierta.
+  #
+  # Usa la MISMA clave que la aplicación, y el `whsec_` que firma lo que reenvía
+  # es el que imprime `stripe listen --print-secret` con esa clave: ese es el
+  # que va en STRIPE_WEBHOOK_SECRET del `.env`. Sin clave no hace nada —se
+  # queda dormido y lo dice en su log—, para no tumbar `docker compose up` a
+  # quien no usa la tarjeta.
+  #
+  # SOLO LOCAL. En un entorno desplegado el endpoint se registra en el panel
+  # de Stripe (deployment.md §6.5.1) y este servicio no existe.
+  stripe:
+    image: stripe/stripe-cli:v1.53.0
+    container_name: nexus-stripe
+    restart: unless-stopped
+    depends_on:
+      app:
+        condition: service_healthy
+    environment:
+      STRIPE_API_KEY: ${STRIPE_SECRET_KEY:-}
+    entrypoint: ["/bin/sh", "-c"]
+    command:
+      - >-
+        if [ -z "$$STRIPE_API_KEY" ]; then
+        echo "Sin STRIPE_SECRET_KEY: no se reenvian notificaciones de Stripe.";
+        exec sleep 2147483647;
+        fi;
+        exec stripe listen
+        --forward-to http://app:8080/api/v1/movements/gateway-notifications/stripe
+        --events payment_intent.succeeded,payment_intent.payment_failed,payment_intent.canceled,charge.refunded,charge.dispute.created,charge.dispute.closed
 
   adminer:
     image: adminer

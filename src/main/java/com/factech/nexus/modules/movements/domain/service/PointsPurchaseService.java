@@ -62,7 +62,6 @@ public class PointsPurchaseService {
   private static final String ENTIDAD = "movements";
   private static final String TIPO = "COMPRA_PUNTOS";
   private static final String PUNTOS = "POINTS";
-  private static final int LONGITUD_REFERENCIA = 120;
   private static final Set<String> ESTADOS = Set.of("PENDIENTE", "CONFIRMADA", "RECHAZADA");
 
   private final MovementRepository movimientos;
@@ -76,6 +75,7 @@ public class PointsPurchaseService {
   private final Pagination paginacion;
   private final AuditWriter auditoria;
   private final Clock reloj;
+  private final CardPayment tarjeta;
 
   @Autowired
   public PointsPurchaseService(
@@ -88,7 +88,8 @@ public class PointsPurchaseService {
       ClientCatalog personas,
       AuthenticatedActor actor,
       Pagination paginacion,
-      AuditWriter auditoria) {
+      AuditWriter auditoria,
+      CardPayment tarjeta) {
     this(
         movimientos,
         pagos,
@@ -100,6 +101,7 @@ public class PointsPurchaseService {
         actor,
         paginacion,
         auditoria,
+        tarjeta,
         Clock.systemUTC());
   }
 
@@ -114,7 +116,9 @@ public class PointsPurchaseService {
       AuthenticatedActor actor,
       Pagination paginacion,
       AuditWriter auditoria,
+      CardPayment tarjeta,
       Clock reloj) {
+    this.tarjeta = tarjeta;
     this.movimientos = movimientos;
     this.pagos = pagos;
     this.libro = libro;
@@ -153,7 +157,10 @@ public class PointsPurchaseService {
     UUID quien = actor.id();
     Optional<KeyedPayment> previo = pagos.findByKey(clave.value());
     if (previo.isPresent()) {
-      return new BuyResult(repetida(previo.get(), quien, moneda, importe, peticion), false);
+      return new BuyResult(
+          repetida(previo.get(), quien, moneda, importe, peticion)
+              .conCobro(tarjeta.cobroExistente(previo.get().movementId())),
+          false);
     }
 
     // 3. Una cuenta que todavía no opera no compra (`RN-SP-026`, `EX-006`).
@@ -212,7 +219,10 @@ public class PointsPurchaseService {
         compra.getId(),
         ChangeAction.CREATE,
         Map.of("after", compra.instantanea(), "payment_status", "PENDIENTE"));
-    return new BuyResult(respuesta(leer(compra.getId())), true);
+    // Con tarjeta, el cobro se abre ahora (`RF-MV-040`).
+    return new BuyResult(
+        respuesta(leer(compra.getId())).conCobro(tarjeta.abrirSiToca(metodo, compra.getId())),
+        true);
   }
 
   /**
@@ -274,9 +284,22 @@ public class PointsPurchaseService {
   // `RF-MV-028` — confirmar y abonar
   // ---------------------------------------------------------------------------
 
+  /**
+   * La confirmación a mano, <b>desde el pago</b> (`RF-MV-044`, 01-10-2026): la invoca {@link
+   * PaymentResolutionService} con la compra ya bloqueada y comprobada, también contra un cobro
+   * abierto (`RN-MV-058`), y con la referencia ya validada.
+   */
+  void confirmPayment(UUID compraId, String referencia) {
+    confirmar(compraId, referencia);
+  }
+
+  /** `RF-MV-041`: la pasarela notificó que el cobro entró. Con la referencia del cobro. */
   @Transactional
-  public PointsPurchaseResponse confirm(UUID compraId, PointsRequests.Confirmation peticion) {
-    String referencia = referencia(peticion == null ? null : peticion.providerReference());
+  public PointsPurchaseResponse confirmByGateway(UUID compraId, String referencia) {
+    return confirmar(compraId, referencia);
+  }
+
+  private PointsPurchaseResponse confirmar(UUID compraId, String referencia) {
     OffsetDateTime ahora = OffsetDateTime.now(reloj);
 
     // 1. La transición, condicionada. Quien no la gana no toca nada (`CA-MV-322`, `CA-MV-323`).
@@ -318,9 +341,21 @@ public class PointsPurchaseService {
   // `RF-MV-029` — rechazar
   // ---------------------------------------------------------------------------
 
+  /**
+   * El rechazo a mano, <b>desde el pago</b> (`RF-MV-045`, 01-10-2026): lo invoca {@link
+   * PaymentResolutionService} con la compra ya bloqueada y comprobada.
+   */
+  void rejectPayment(UUID compraId, RejectionReason motivo) {
+    rechazar(compraId, motivo);
+  }
+
+  /** `RF-MV-041`: la pasarela canceló el cobro. */
   @Transactional
-  public PointsPurchaseResponse reject(UUID compraId, PointsRequests.Rejection peticion) {
-    RejectionReason motivo = new RejectionReason(peticion == null ? null : peticion.reason());
+  public PointsPurchaseResponse rejectByGateway(UUID compraId, String motivo) {
+    return rechazar(compraId, new RejectionReason(motivo));
+  }
+
+  private PointsPurchaseResponse rechazar(UUID compraId, RejectionReason motivo) {
     OffsetDateTime ahora = OffsetDateTime.now(reloj);
 
     if (!movimientos.rejectPointsPurchaseIfPending(compraId, ahora, motivo.value())) {
@@ -408,20 +443,6 @@ public class PointsPurchaseService {
         "EX-002", mensaje, List.of(new FieldError("status", "EX-002", mensaje)));
   }
 
-  private static String referencia(String valor) {
-    if (valor == null || valor.isBlank()) {
-      return null;
-    }
-    String limpia = valor.trim();
-    if (limpia.length() > LONGITUD_REFERENCIA) {
-      throw LedgerMovements.invalido(
-          "providerReference",
-          "VAL-001",
-          "La referencia no puede exceder " + LONGITUD_REFERENCIA + " caracteres.");
-    }
-    return limpia;
-  }
-
   private PointsPurchaseResponse respuesta(PointsPurchaseRow fila) {
     return respuesta(
         fila, movimientos.findPaymentsOf(List.of(fila.id())).getOrDefault(fila.id(), List.of()));
@@ -440,7 +461,8 @@ public class PointsPurchaseService {
         fila.confirmedAt(),
         fila.rejectedAt(),
         fila.rejectionReason(),
-        SaleDetailMapper.pagos(pagos));
+        SaleDetailMapper.pagos(pagos),
+        null);
   }
 
   private void auditar(UUID movimiento, ChangeAction accion, Map<String, Object> cambios) {

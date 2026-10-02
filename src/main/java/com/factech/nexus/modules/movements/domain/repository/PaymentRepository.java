@@ -66,6 +66,109 @@ public interface PaymentRepository {
       String providerReference,
       OffsetDateTime at);
 
+  // ---------------------------------------------------------------------------
+  // La pasarela de la tarjeta (`RF-MV-040` a `RF-MV-042`, 01-10-2026)
+  // ---------------------------------------------------------------------------
+
+  /** Anota en el pago la referencia del cobro que la pasarela abrió (`RN-MV-040`). */
+  void setProviderReference(UUID paymentId, String reference);
+
+  /**
+   * El pago pendiente de un movimiento —venta o compra de puntos—, con la fila del
+   * <b>movimiento</b> bloqueada: la misma que bloquean confirmar, rechazar y anular, de modo que
+   * nada se cruza. Vacío si el movimiento no existe, no es de esos tipos o no tiene pago pendiente.
+   */
+  Optional<PendingPayment> lockPendingOf(UUID movementId);
+
+  /** Lo mismo, solo si el movimiento es del actor (`RF-MV-042`). */
+  Optional<PendingPayment> lockPendingOwn(UUID movementId, UUID actorId);
+
+  /** ¿Es una venta o una compra de puntos del actor, sea cual sea su estado? (`RF-MV-042`) */
+  boolean isOwnChargeable(UUID movementId, UUID actorId);
+
+  /** El pago cuyo cobro es esa referencia, con lo que la notificación necesita comprobar. */
+  Optional<ReferencedPayment> findByReference(String reference);
+
+  /**
+   * Marca la incidencia de un pago <b>confirmado</b> (`RN-MV-060`).
+   *
+   * @return {@code false} si el pago no está confirmado
+   */
+  boolean setIncident(UUID paymentId, String incident, BigDecimal refunded, OffsetDateTime at);
+
+  // ---------------------------------------------------------------------------
+  // Conciliar por el pago (`RF-MV-044`, `RF-MV-045`, 01-10-2026)
+  // ---------------------------------------------------------------------------
+
+  /**
+   * Bloquea la fila del <b>movimiento</b> del pago —la que serializa confirmar, rechazar, anular y
+   * volver a pagar— y devuelve su identificador. Vacío si el pago no existe.
+   *
+   * <p>El {@code movement_id} de un pago no cambia nunca, de modo que leerlo sin bloqueo es seguro
+   * (`RF-MV-044` · `plan.md` §1).
+   */
+  Optional<UUID> lockMovementOf(UUID paymentId);
+
+  /**
+   * El pago, leído <b>después</b> de {@link #lockMovementOf}: una sentencia nueva ve el estado que
+   * dejó quien tenía el bloqueo. Vacío si no existe.
+   */
+  Optional<PaymentTarget> findTarget(UUID paymentId);
+
+  /**
+   * Lo que conciliar un pago necesita saber de él.
+   *
+   * @param gateway la pasarela del método, o nula
+   * @param providerReference la referencia del pago, o nula
+   */
+  record PaymentTarget(
+      UUID paymentId,
+      UUID movementId,
+      String movementType,
+      String status,
+      String gateway,
+      String providerReference) {
+
+    /** La misma lectura que {@link PendingPayment#tieneCobroAbierto}. */
+    public boolean tieneCobroAbierto() {
+      return gateway != null && providerReference != null;
+    }
+  }
+
+  /**
+   * Un pago pendiente, con todo lo que hace falta para cobrarlo o cancelar su cobro.
+   *
+   * @param gateway la pasarela del método, o nula
+   * @param providerReference el cobro abierto, o nulo
+   */
+  record PendingPayment(
+      UUID paymentId,
+      UUID movementId,
+      String movementCode,
+      String movementType,
+      String movementStatus,
+      String methodCode,
+      String gateway,
+      BigDecimal amount,
+      String currencyCode,
+      int currencyDecimals,
+      String idempotencyKey,
+      String providerReference) {
+
+    public boolean tieneCobroAbierto() {
+      return gateway != null && providerReference != null;
+    }
+  }
+
+  record ReferencedPayment(
+      UUID paymentId,
+      UUID movementId,
+      String movementType,
+      String status,
+      BigDecimal amount,
+      String currencyCode,
+      int currencyDecimals) {}
+
   record KeyedPayment(UUID paymentId, UUID movementId, UUID paymentMethodId) {}
 
   record RetryTarget(UUID movementId, String status, BigDecimal payableAmount) {}

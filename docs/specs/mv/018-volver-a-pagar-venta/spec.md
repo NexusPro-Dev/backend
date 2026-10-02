@@ -4,11 +4,12 @@
 |---|---|
 | Requerimiento | `RF-MV-018` |
 | Módulo | `MV` — Movimientos |
-| Versión | 0.2.0 |
+| Versión | 0.3.0 |
 | Estado | **Aprobada** |
 | Autor | Responsable técnico |
 | Aprobada por | Responsable del proyecto |
 | Fecha de aprobación | 26-09-2026 |
+| Enmendada el | 01-10-2026 — **con tarjeta abre el cobro**, y **un pago pendiente con cobro abierto ya no bloquea**: se cancela primero (`RN-MV-058`). Ver §14.2 |
 
 !!! info "Qué va en este documento"
 
@@ -218,9 +219,28 @@ El comprador no indica método; el pago se abre con el gratuito. Es el caso raro
 
 ---
 
+## 14.2 La tarjeta por Stripe — enmienda del 01-10-2026
+
+Desde el 01-10-2026 ([`requirements/mv.md`](../../../requirements/mv.md) v0.64.0 §4.6), dos cambios. **Volver a pagar con tarjeta abre el cobro** en la pasarela y devuelve `cardCharge` (`RF-MV-040`). Y **un pago pendiente con cobro abierto ya no exige que alguien lo rechace antes**: una tarjeta rechazada **no cierra** el pago (§4.6), de modo que, sin este cambio, quien quisiera pagar con otro método no podría. **Volver a pagar con otro método cancela primero el cobro** en la pasarela, cierra ese pago **rechazado** y abre el nuevo, en el mismo acto. Si la pasarela **ya lo cobró**, conflicto y nada cambia. **Volver a pagar con tarjeta habiendo ya un cobro abierto** responde conflicto: para retomarlo está `RF-MV-042`.
+
+| ID | Situación | Resultado |
+|---|---|---|
+| `EX-009` | El cobro abierto ya fue cobrado, o la pasarela no responde al cancelarlo | Conflicto, o servicio no disponible. Nada cambia |
+| `EX-010` | Se pide tarjeta y ya hay un cobro con tarjeta abierto | Conflicto: se retoma con `RF-MV-042` |
+
+| ID | Criterio |
+|---|---|
+| `CA-MV-473` | Volver a pagar con **tarjeta** abre el cobro del pago nuevo y devuelve `cardCharge` |
+| `CA-MV-474` | Con un pago pendiente **con cobro abierto**, volver a pagar con **otro método** cancela el cobro, cierra ese pago **rechazado** y abre el nuevo pendiente |
+| `CA-MV-475` | Si la pasarela **ya cobró** ese cobro, o no responde, **nada cambia** |
+| `CA-MV-476` | Volver a pagar con **tarjeta** teniendo ya un cobro con tarjeta abierto responde conflicto, y nada cambia |
+
+---
+
 ## 15. Control de cambios
 
 | Versión | Fecha | Cambio | Autor |
 |---|---|---|---|
 | 0.1.0 | 26-09-2026 | Primera versión, con la etapa 6 de `MV` ([`requirements/mv.md`](../../../requirements/mv.md) v0.44.0 y v0.45.0). Lo que la spec carga: **el método es de cada pago y no de la venta**, y por eso **vuelve a pagar el comprador sobre la misma venta**, solo cuando no hay un pago pendiente; **la clave de idempotencia es obligatoria aquí y opcional al comprar**, porque aquí la diferencia entre un reintento y un segundo pago es un cobro; y **el contrato de la venta no se rompe** (§2.2). Criterios `CA-MV-206` a `CA-MV-217`. | Responsable del proyecto |
 | 0.2.0 | 30-09-2026 | **Volver a pagar con puntos confirma en el acto** (`RF-MV-030`, `RN-MV-052`; [`requirements/mv.md`](../../../requirements/mv.md) v0.54.0 §4.4): el pago nuevo se descuenta y la venta se confirma con sus efectos; si no alcanzan, el pago no se abre y la venta sigue pendiente. **Los pagos `POINTS` pendientes anteriores al 30-09-2026 se rechazan** en la migración de la etapa 3, y sus ventas se vuelven a pagar por aquí. | Responsable técnico |
+| 0.3.0 | 01-10-2026 | **La tarjeta por Stripe** ([`requirements/mv.md`](../../../requirements/mv.md) v0.64.0 §4.6): **con tarjeta abre el cobro**, y **un pago pendiente con cobro abierto ya no bloquea**: se cancela primero (`RN-MV-058`). Criterios `CA-MV-473` a `CA-MV-476`. | Responsable del proyecto |

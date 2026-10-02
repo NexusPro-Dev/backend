@@ -9,6 +9,7 @@
 | Autor | Responsable técnico |
 | Aprobadas por | Responsable del proyecto |
 | Fecha de aprobación | 17-09-2026 |
+| Enmendadas | 01-10-2026 — `T-10` por **la tarjeta por Stripe** (§6) |
 | Issue | Pendiente de crear |
 | Rama | `feature/venta-de-productos` |
 
@@ -97,3 +98,17 @@ Y una cuarta, de `PM`: **`RN-PM-044` se movió de `GetOwnOfferService` a `Packag
 - [x] La matriz de trazabilidad al día: `RF-MV-012` en `En desarrollo`.
 
 **Lo que sigue sin cumplirse para `Implementado`** es lo mismo que en todo el módulo: integrar a `main` con la definición de terminado de la constitución (§16), y el asunto de que `RF-MV-003` confirme lo vendido.
+
+---
+
+## 6. La tarjeta por Stripe — enmienda del 01-10-2026
+
+Rama: `feature/stripe-tarjeta`. Después de las tareas de `RF-MV-040` que cada fila cita.
+
+| ID | Tarea | Depende de | Verificación | Estado |
+|---|---|---|---|---|
+| `T-10` | La llamada a `CardPayment` y `cardCharge` en la respuesta; la prosa | `RF-MV-040` · `T-05` | | **Hecha** — 01-10-2026 |
+
+Criterios: `CA-MV-472`.
+
+**Construido el 01-10-2026** (issue [#161](https://github.com/NexusPro-Dev/backend/issues/161)). Los criterios se prueban en `CardPaymentIT` —o en la suite de la entrada, para las compras— y no en la suite que cada fila nombra.

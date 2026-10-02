@@ -314,6 +314,107 @@ class DevelopmentSeedIT extends IntegrationTestBase {
   }
 
   @Test
+  @DisplayName(
+      "las tasas de comisión (01-10-2026): tres por producto vivo —AGENTE, DIRECTOR y"
+          + " MANAGER—, por porcentaje o por fijo, ninguna en el retirado, y repetible")
+  void lasTasasDeComision() {
+    semilla.run(null);
+    semilla.run(null);
+
+    // Quince productos vivos con tres tasas cada uno; el retirado, ninguna.
+    List<java.util.Map<String, Object>> porProducto =
+        jdbc.queryForList(
+            """
+            SELECT p.code, count(c.id) AS tasas
+              FROM products p
+              LEFT JOIN commission_rates c ON c.product_id = p.id AND c.deleted_at IS NULL
+             WHERE p.code = ANY (?)
+             GROUP BY p.code
+            """,
+            (Object) PRODUCTOS.toArray(String[]::new));
+    assertThat(porProducto).hasSize(16);
+    assertThat(porProducto)
+        .allSatisfy(
+            f ->
+                assertThat(((Number) f.get("tasas")).intValue())
+                    .as("tasas de %s", f.get("code"))
+                    .isEqualTo("BOT_LEGADO".equals(f.get("code")) ? 0 : 3));
+
+    // La mezcla: porcentaje en los upgrades con precio, fijo en dos bots y en los gratuitos.
+    assertThat(tasa("UPGRADE_BECA_ORO", "AGENTE")).isEqualTo("PORCENTAJE|10.00|");
+    assertThat(tasa("BOT_PRO_ANUAL", "MANAGER")).isEqualTo("PORCENTAJE|5.00|");
+    assertThat(tasa("BOT_SENALES", "DIRECTOR")).isEqualTo("FIJO||2.5000");
+    assertThat(tasa("BOT_COPY_TRADING", "AGENTE")).isEqualTo("FIJO||8.0000");
+    // Los gratuitos, solo por fijo (`RN-CM-020`).
+    assertThat(tasa("MEMBRESIA_BECA", "MANAGER")).isEqualTo("FIJO||0.5000");
+    assertThat(tasa("BOT_ALERTAS", "AGENTE")).isEqualTo("FIJO||2.0000");
+
+    // No pisa una tasa corregida a mano.
+    jdbc.update(
+        "UPDATE commission_rates SET percentage = 12.00 WHERE product_id = (SELECT id FROM"
+            + " products WHERE code = 'RENOVAR_ORO') AND role_id = (SELECT id FROM roles"
+            + " WHERE code = 'AGENTE')");
+    semilla.run(null);
+    assertThat(tasa("RENOVAR_ORO", "AGENTE")).isEqualTo("PORCENTAJE|12.00|");
+  }
+
+  private String tasa(String producto, String rol) {
+    return jdbc.queryForObject(
+        """
+        SELECT c.rate_type || '|' || coalesce(c.percentage::text, '') || '|'
+               || coalesce(c.fixed_amount::text, '')
+          FROM commission_rates c
+          JOIN products p ON p.id = c.product_id
+          JOIN roles r ON r.id = c.role_id
+         WHERE p.code = ? AND r.code = ? AND c.deleted_at IS NULL
+        """,
+        String.class,
+        producto,
+        rol);
+  }
+
+  @Test
+  @DisplayName(
+      "los enlaces (01-10-2026): video en los dieciséis; cupón y descarga en los cuatro bots"
+          + " vivos, y en ningún upgrade ni en el retirado")
+  void losEnlaces() {
+    semilla.run(null);
+    semilla.run(null);
+
+    List<String> conCupon =
+        jdbc.queryForList(
+            """
+            SELECT p.code FROM product_links l JOIN products p ON p.id = l.product_id
+             WHERE l.type = 'CUPON_BOT' AND p.code = ANY (?) ORDER BY p.code
+            """,
+            String.class,
+            (Object) PRODUCTOS.toArray(String[]::new));
+    assertThat(conCupon)
+        .containsExactly("BOT_ALERTAS", "BOT_COPY_TRADING", "BOT_PRO_ANUAL", "BOT_SENALES");
+    assertThat(
+            jdbc.queryForList(
+                """
+                SELECT DISTINCT l.url FROM product_links l JOIN products p ON p.id = l.product_id
+                 WHERE l.type = 'CUPON_BOT' AND p.code = ANY (?)
+                """,
+                String.class,
+                (Object) PRODUCTOS.toArray(String[]::new)))
+        .containsExactly(
+            "https://www.bots.com.co/coupons/activate/5cf86881-0e14-4470-8978-a7ec70de8cda/");
+    assertThat(enlaces("DESCARGA")).isEqualTo(4);
+    assertThat(enlaces("VIDEO_PRESENTACION")).isEqualTo(16);
+  }
+
+  private int enlaces(String tipo) {
+    return jdbc.queryForObject(
+        "SELECT count(*) FROM product_links l JOIN products p ON p.id = l.product_id"
+            + " WHERE l.type = ? AND p.code = ANY (?)",
+        Integer.class,
+        tipo,
+        PRODUCTOS.toArray(String[]::new));
+  }
+
+  @Test
   @DisplayName("es IDEMPOTENTE: corre en cada arranque y no duplica a nadie")
   void idempotente() {
     // Es lo que permite que sea un `ApplicationRunner` y no una operación que
@@ -597,6 +698,12 @@ class DevelopmentSeedIT extends IntegrationTestBase {
     // le pone su video a cada producto desde el 22-09-2026 (`RN-PM-048`).
     jdbc.update(
         "DELETE FROM product_links WHERE product_id IN"
+            + " (SELECT id FROM products WHERE code = ANY (?))",
+        (Object) PRODUCTOS.toArray(String[]::new));
+    // Y LAS TASAS DE COMISIÓN, desde el 01-10-2026: `fk_commission_rates_product`
+    // tampoco lleva `ON DELETE`.
+    jdbc.update(
+        "DELETE FROM commission_rates WHERE product_id IN"
             + " (SELECT id FROM products WHERE code = ANY (?))",
         (Object) PRODUCTOS.toArray(String[]::new));
     jdbc.update(

@@ -144,6 +144,6 @@ public class PointsPayment {
     auditoria.recordChange(
         new ChangeEvent(MODULO, ENTIDAD, venta, ChangeAction.UPDATE, Map.of("after", despues)));
 
-    return confirmar.confirm(venta);
+    return confirmar.confirmInternal(venta);
   }
 }

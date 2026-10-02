@@ -5,13 +5,14 @@
 | Requerimiento | `RF-CM-010` |
 | Especificación | [`spec.md`](spec.md) v0.1.0 |
 | `spec.md` aprobada el | 28-09-2026 |
-| Versión | 0.3.0 |
+| Versión | 0.4.0 |
 | Estado | **Aprobado** |
 | Autor | Responsable técnico |
 | Aprobado por | Responsable del proyecto |
 | Fecha de aprobación | 28-09-2026 |
 | Enmendado el | 29-09-2026 — `commissionKind` y la forma de la fila afftrack (§12) |
 | Enmendado el | 29-09-2026 — `source = DIRECTA` (§13) |
+| Enmendado el | 30-09-2026 — lo revertido, el origen de lo retirado y las retiradas de un pendiente (§14) |
 
 !!! info "Qué va en este documento"
 
@@ -119,3 +120,17 @@ Ninguna: son lecturas.
 ## 13. La fuente `DIRECTA` — enmienda del 29-09-2026
 
 `RN-CM-045`. **Ninguna sentencia cambia**: `CommissionBatchDetailResponse.source` es texto y lee la columna tal cual. Cambia **la prosa de la `@Operation`**, que enumera las fuentes y gana la tercera, con lo que significa `rateId` en ella —el producto—. `CommissionBatchesIT` gana `CA-CM-271`.
+
+## 14. Lo revertido y lo retirado — enmienda del 30-09-2026
+
+`RN-CM-046`, `RN-CM-047`.
+
+| Dónde | Cambio |
+|---|---|
+| `CommissionLineResponse` | Gana `revertedAt` y `revertedBy` —nulos en una viva— y `withdrawnFrom`, `{id, code}` del lote del que salió, o nulo. **La fila revertida sigue en `commissions`**, en su orden, y el front la distingue por `revertedAt` |
+| `CommissionBatchDetailResponse` | Gana `withdrawn`: las comisiones con `withdrawn_from_batch_id` igual a este lote, cada una con su forma de línea, **el lote en que está** —`{id, code, status}`— y `returnable`, verdadero si este lote está `PENDIENTE`, el suyo `ABIERTO` y ella viva. Vacío en un abierto o un pagado que no tuvo retiros |
+| El listado | `commissionCount` pasa a contar `WHERE reverted_at IS NULL`. `totalAmount` no cambia: ya es la suma de las vivas (`requirements/cm.md` §7.6) |
+
+**Una sentencia más por detalle, no por fila**: las retiradas se leen con una consulta sobre `ix_commissions_withdrawn_from` unida a su lote. `CA-CM-188` cuenta las sentencias, y su número sube en uno —se ajusta la cifra de la prueba, no se relaja—. **`@Schema(name)` en los `record`s nuevos**, porque el lote actual de una retirada es un `record` pequeño con un nombre simple que otro módulo puede tener ya.
+
+`CommissionBatchesIT` gana `CA-CM-302`, sobre retiros y reversiones hechos por sus rutas.

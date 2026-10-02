@@ -52,9 +52,22 @@ public class RejectPaymentService {
     this.reloj = reloj;
   }
 
+  /**
+   * El rechazo a mano, <b>desde el pago</b> (`RF-MV-045`, 01-10-2026): lo invoca {@link
+   * PaymentResolutionService} con la venta ya bloqueada y comprobada, también contra un cobro
+   * abierto (`RN-MV-058`).
+   */
+  SaleResponse rejectPayment(UUID movementId, RejectionReason motivo) {
+    return rechazar(movementId, motivo);
+  }
+
+  /** `RF-MV-041`: la pasarela canceló el cobro; el pago se rechaza y la venta sigue pendiente. */
   @Transactional
-  public SaleResponse reject(UUID movementId, String reason) {
-    RejectionReason motivo = new RejectionReason(reason);
+  public SaleResponse rejectByGateway(UUID movementId, String reason) {
+    return rechazar(movementId, new RejectionReason(reason));
+  }
+
+  private SaleResponse rechazar(UUID movementId, RejectionReason motivo) {
     OffsetDateTime ahora = OffsetDateTime.now(reloj);
 
     if (!pagos.rejectPendingOfSale(movementId, ahora, motivo.value())) {

@@ -8,4 +8,11 @@ import io.swagger.v3.oas.annotations.media.Schema;
  * se apartó.
  */
 @Schema(name = "WithdrawalResult")
-public record WithdrawalResponse(LedgerMovementResponse movement, BalancesResponse balances) {}
+public record WithdrawalResponse(
+    LedgerMovementResponse movement,
+    BalancesResponse balances,
+    @Schema(
+            description =
+                "A dónde se paga, copiado al pedirlo (`RN-MV-056`, desde el 01-10-2026): no cambia"
+                    + " aunque la cuenta se edite o se dé de baja.")
+        WithdrawalDestinationResponse destination) {}

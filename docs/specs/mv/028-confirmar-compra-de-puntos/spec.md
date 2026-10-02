@@ -4,11 +4,12 @@
 |---|---|
 | Requerimiento | `RF-MV-028` |
 | Módulo | `MV` — Movimientos |
-| Versión | 0.1.0 |
+| Versión | 0.3.0 |
 | Estado | **Aprobada** |
 | Autor | Responsable técnico |
 | Aprobada por | Responsable del proyecto |
 | Fecha de aprobación | 30-09-2026 |
+| Enmendada el | 01-10-2026 — **sin ruta propia**: se concilia el pago, por `RF-MV-044`. Ver §14.3 · Antes, 01-10-2026 — **una compra con cobro abierto en la pasarela no se confirma a mano** (`RN-MV-058`). Ver §14.2 |
 
 !!! info "Qué va en este documento"
 
@@ -161,8 +162,36 @@ Ninguna.
 
 ---
 
+## 14.2 La tarjeta por Stripe — enmienda del 01-10-2026
+
+Desde el 01-10-2026 ([`requirements/mv.md`](../../../requirements/mv.md) v0.64.0 §4.6) confirmar a mano una compra de puntos **cuyo pago tiene cobro abierto** responde **conflicto**: la confirma la notificación de la pasarela, que **abona los puntos** por el mismo camino (`RF-MV-041`). Sin cobro, se confirma a mano como siempre.
+
+| ID | Situación | Resultado |
+|---|---|---|
+| `EX-005` | El pago tiene cobro abierto en la pasarela | Conflicto. Nada cambia |
+
+| ID | Criterio |
+|---|---|
+| `CA-MV-478` | Confirmar a mano una compra con **cobro abierto** responde conflicto y **no abona** nada; sin cobro, se confirma como siempre |
+
+---
+
+## 14.3 Sin ruta propia — enmienda del 01-10-2026
+
+Desde el 01-10-2026 ([`requirements/mv.md`](../../../requirements/mv.md) v0.67.0 §4.8) **se concilia el pago, no el movimiento**: se entra por `RF-MV-044`, que nombra el pago, y la ruta de este requerimiento —`POST /movements/{id}/points-purchase-confirmation`— **se retira sin alias**. **Lo que este documento describe no cambia** —la transición, el pago confirmado con su referencia y el abono de los puntos congelados—: es lo que `RF-MV-044` hace cuando el pago es de este tipo, y lo que la notificación de la pasarela (`RF-MV-041`) hace por dentro.
+
+**Lo que cambia, por eso.** `EX-001`, `EX-002`, `EX-004` y `EX-005` los responde `RF-MV-044` sobre el pago nombrado; `EX-003`, la referencia, es su `VAL-002`. `movements:confirm-points-purchase` se retira y lo sustituye `movements:confirm-payment`. **Los criterios de este documento se siguen probando por la ruta nueva**, salvo los que la entrada sustituye: `CA-MV-322` lo sustituye `CA-MV-500`; `CA-MV-323`, `CA-MV-504`; `CA-MV-324`, `CA-MV-501` —el pago de un retiro es conflicto y no «no encontrado», y el de una venta **se confirma**, porque desde hoy la entrada es la misma—; `CA-MV-325`, `CA-MV-505` y `CA-MV-506`; `CA-MV-478`, `CA-MV-502`.
+
+| ID | Criterio |
+|---|---|
+| `CA-MV-518` | `POST /movements/{id}/points-purchase-confirmation` responde `404`: la ruta no existe |
+
+---
+
 ## 15. Control de cambios
 
 | Versión | Fecha | Cambio | Autor |
 |---|---|---|---|
 | 0.1.0 | 30-09-2026 | Primera versión, con la etapa 3 de `MV` ([`requirements/mv.md`](../../../requirements/mv.md) v0.54.0 §4.4). **Operación propia**, no la confirmación de la venta; abona los puntos congelados, con referencia opcional. Criterios `CA-MV-318` a `CA-MV-325`. | Responsable del proyecto |
+| 0.2.0 | 01-10-2026 | **La tarjeta por Stripe** ([`requirements/mv.md`](../../../requirements/mv.md) v0.64.0 §4.6): **una compra con cobro abierto en la pasarela no se confirma a mano** (`RN-MV-058`). Criterios `CA-MV-478`. | Responsable del proyecto |
+| 0.3.0 | 01-10-2026 | **Sin ruta propia** ([`requirements/mv.md`](../../../requirements/mv.md) v0.67.0 §4.8): se concilia el pago, y se entra por `RF-MV-044`. El efecto no cambia; la ruta y su permiso se retiran (§14.3). Criterio `CA-MV-518`. | Responsable del proyecto |

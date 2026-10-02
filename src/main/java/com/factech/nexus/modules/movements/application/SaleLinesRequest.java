@@ -17,6 +17,9 @@ import java.util.UUID;
  * del tipo de la venta —«¿qué falta por validar?»— y la fila no lo trae. La asimetría es deliberada
  * y está escrita en `spec.md` §14.7, porque leída en el código sola parece un olvido.
  *
+ * <p><b>{@code hasSeller} también llega como texto</b> (0.3.0, 02-10-2026), por la misma razón: un
+ * {@code Boolean} mal escrito lo rechazaría Spring solo. {@link #conVendedor()} lo traduce.
+ *
  * <p><b>Los identificadores sí son {@code UUID}</b>, y la asimetría es la que el módulo ya tiene:
  * un identificador mal formado no es un valor fuera de un dominio cerrado sino un dato ilegible, y
  * el convertidor canónico lo traduce al mismo `VAL-001` de todo el sistema.
@@ -31,6 +34,7 @@ public record SaleLinesRequest(
     UUID movementId,
     UUID userId,
     UUID sellerId,
+    String hasSeller,
     UUID productId,
     String deliveryStatus,
     String typeStatus,
@@ -40,6 +44,7 @@ public record SaleLinesRequest(
 
   public SaleLinesRequest {
     deliveryStatus = enBlancoEsAusente(deliveryStatus);
+    hasSeller = enBlancoEsAusente(hasSeller);
     typeStatus = enBlancoEsAusente(typeStatus);
     code = enBlancoEsAusente(code);
   }
@@ -49,5 +54,17 @@ public record SaleLinesRequest(
    */
   private static String enBlancoEsAusente(String valor) {
     return valor == null || valor.isBlank() ? null : valor.trim();
+  }
+
+  /** ¿Vino {@code hasSeller} con algo que no es un booleano? (`VAL-007`) */
+  public boolean conVendedorInvalido() {
+    return hasSeller != null
+        && !"true".equalsIgnoreCase(hasSeller)
+        && !"false".equalsIgnoreCase(hasSeller);
+  }
+
+  /** {@code true}, {@code false} o nulo —sin filtro—. Solo tras {@link #conVendedorInvalido()}. */
+  public Boolean conVendedor() {
+    return hasSeller == null ? null : "true".equalsIgnoreCase(hasSeller);
   }
 }

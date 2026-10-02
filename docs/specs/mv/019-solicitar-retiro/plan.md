@@ -5,11 +5,12 @@
 | Requerimiento | `RF-MV-019` |
 | Especificación | [`spec.md`](spec.md) v0.1.0 |
 | `spec.md` aprobada el | 26-09-2026 |
-| Versión | 0.1.0 |
+| Versión | 0.2.0 |
 | Estado | **Aprobado** |
 | Autor | Responsable técnico |
 | Aprobado por | Responsable del proyecto |
 | Fecha de aprobación | 26-09-2026 |
+| Enmendado el | 01-10-2026 — el retiro resuelve una cuenta de cobro y escribe la copia de su destino (§12) |
 
 !!! info "Qué va en este documento"
 
@@ -147,3 +148,33 @@ Un `ChangeEvent` sobre `movements`, `INSERT`, con el retiro; **los asientos no l
 ## 11. Estrategia de prueba
 
 **Unitarias**: `AccountNumber`, `AccountKind`, `Money`. **Integración**: `RequestWithdrawalIT` —`CA-MV-224` a `CA-MV-235`, con dos hilos en `CA-MV-228` y un `UPDATE` directo contra la base en `CA-MV-234`—; `LedgerIT` —el cuadre diferido, el orden de bloqueo con dos hilos cruzados, `balance_after`—. **El saldo inicial se siembra en la prueba** con el `Ledger`: hasta que existan `RF-MV-023` y `RF-MV-024` no hay otra vía de llenar una billetera.
+
+---
+
+## 12. A dónde se paga — enmienda del 01-10-2026
+
+`RN-MV-056` ([`requirements/mv.md`](../../../requirements/mv.md) v0.61.0 §4.5; `spec.md` v0.2.0 §4.3). Lo construido el 26-09-2026 es `WithdrawalService.request` (`tasks.md` §3.1); la enmienda le añade **un paso antes del `Ledger`** y **una escritura después del movimiento**.
+
+- **Resolver la cuenta**: con `payoutAccountId`, `payout_accounts` por `id AND user_id = actor AND deleted_at IS NULL`; sin él, la principal viva del actor. Las dos lecturas unen `payout_institutions` y toman **`FOR SHARE` sobre las dos filas**: una baja, una edición o una desactivación simultáneas esperan a que el retiro termine, o el retiro las ve ya hechas. **No toma el bloqueo consultivo por persona** de `RF-MV-035`: no escribe cuentas, y `FOR SHARE` basta para que lo que copia sea lo que existía.
+- **El titular**, por `PayoutHolderLookup` (`RF-MV-035` · `plan.md` §3). Sin documento, `EX-009`.
+- **El orden de las comprobaciones** fija los códigos: forma (`VAL-001` a `VAL-004`) → moneda → estado de la cuenta del actor (`EX-004`) → cuenta de cobro (`EX-006`, `EX-007`, `EX-008`) → titular (`EX-009`) → saldo (`EX-003`). **Ninguna de las nuevas toca un saldo.**
+- **La copia**: un `INSERT` en `withdrawal_destinations` con el `movement_id` del retiro, en la misma transacción, después de insertar el movimiento y antes de responder. Si el `Ledger` rechaza por saldo, la transacción entera se deshace y la copia con ella (`CA-MV-417` lo prueba con la cuenta presente y el saldo corto también).
+
+| Capa | Componente | Cambio |
+|---|---|---|
+| `application` | `WithdrawalRequests.Request` | Gana `payoutAccountId`, opcional |
+| `application` | `WithdrawalDestinationResponse` | Nuevo, con `@Schema(name = "WithdrawalDestination")`: `payoutAccountId`, `institution` (`code`, `name`, `kind`), `accountType`, `number`, `holder` (`name`, `documentType`, `documentNumber`) |
+| `application` | `WithdrawalResponse` | Gana `destination`; `LedgerMovementResponse` no cambia |
+| `domain/models` | `WithdrawalDestination` | Nuevo: la copia, construida de la cuenta, su entidad y el titular |
+| `domain/repository` | `WithdrawalDestinationRepository`, `JpaWithdrawalDestinationRepository` | Nuevos: `insert`, `findByMovement`, `findByMovements` (para `RF-MV-007`) |
+| `domain/repository` | `PayoutAccountRepository` | Gana `findUsableForWithdrawal(actor, id?)`, con `FOR SHARE` |
+| `domain/service` | `WithdrawalService.request` | El paso nuevo y la copia |
+| `interfaces` | `LedgerController` | Prosa de la `@Operation`: la cuenta, la principal y los cuatro códigos nuevos |
+
+**Contrato**: `400` gana `VAL-004`, `409` gana `EX-006`, `EX-008` y `EX-009`, y **`422` gana `EX-007`**, el mismo código que la moneda inexistente: es un identificador del cuerpo que no resuelve. **Es un cambio rompedor** —un cliente que pedía retiros sin cuenta recibe ahora `409`— y se declara en la prosa y en el control de cambios.
+
+**Auditoría**: el `ChangeEvent` del retiro gana el destino, con el número enmascarado (`RF-MV-035` · `plan.md` §6). La copia no lleva un evento propio: es parte del retiro.
+
+**Alternativa descartada: guardar solo la referencia a la cuenta.** Editarla cambiaría a dónde «se pagó» un retiro ya aprobado (`requirements/mv.md` §4.5).
+
+**Pruebas**: `WithdrawalIT` gana `CA-MV-415` a `CA-MV-423`. **Todas las suites que piden retiros** —`WithdrawalIT`, `LedgerIT` si pide alguno, y las de `RF-MV-020` a `RF-MV-022` que se apoyan en uno— necesitan ahora **una entidad y una cuenta en su preparación**: se añade un ayudante de prueba que registra la entidad y la cuenta principal del usuario, y una persona con documento. `CA-MV-422` inserta un retiro sin copia directamente en la base, como los de antes del 01-10-2026.

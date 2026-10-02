@@ -164,3 +164,9 @@ Se siembra **solo para `SUPERADMIN` y `ADMIN`**, al contrario que `movements:lis
 **El fixture**: dos ventas confirmadas con dos y tres líneas, una anulada con una, una línea **sin vendedor**, dos vendedores distintos en la misma venta, dos productos, dos sujetos, y una línea de un movimiento de otro tipo sembrado a mano para `CA-MV-179`.
 
 **Desde 0.2.0 el fixture declara el estado del tipo de cada venta**, que `V36` hizo `NOT NULL`: se resuelve **por código** y no por identificador literal, y el movimiento de otro tipo de `CA-MV-179` necesita **el suyo**, porque la clave ajena de `movements` es compuesta —`(type_status_id, movement_type_id)`— y un estado de otro tipo no vale. Para `CA-MV-180` una de las ventas queda en `VALIDAR_COMISIONES` y la otra en `VALIDADO`.
+
+## 12. El filtro `hasSeller` — enmienda del 02-10-2026
+
+Por `spec.md` 0.3.0. **Llega como texto**, como los estados (`SaleLinesRequest`): un booleano tipado lo rechazaría Spring antes del caso de uso y su `400` no viajaría con los demás; `ListSaleLinesService` lo valida —`true`/`false` sin distinguir caja— y suma `VAL-007` a los problemas. `SaleLinesFilter` gana `Boolean hasSeller`, y `filtroLineas` añade **`d.seller_id IS NULL`** o **`IS NOT NULL`**, sin parámetro: la página y el conteo comparten el predicado, como siempre. **Sin índice nuevo**: el predicado acompaña al de `VENTA` + `CONFIRMADA` que ya acota la tabla, y una línea sin vendedor es la excepción. **Contrato**: el parámetro y su prosa en la `@Operation`.
+
+Prueba en `SaleLinesIT`: `CA-MV-520` a `CA-MV-522`.

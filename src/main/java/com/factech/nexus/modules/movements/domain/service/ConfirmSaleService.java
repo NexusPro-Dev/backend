@@ -82,14 +82,38 @@ public class ConfirmSaleService {
     this.reloj = reloj;
   }
 
+  /**
+   * La confirmación a mano, <b>desde el pago</b> (`RF-MV-044`, 01-10-2026): la invoca {@link
+   * PaymentResolutionService} con la venta ya bloqueada y comprobada —que cobra, que el pago
+   * nombrado sigue pendiente y que no tiene cobro abierto (`RN-MV-058`)—.
+   *
+   * @param referencia la del extracto, o nula
+   */
+  SaleResponse confirmPayment(UUID movementId, String referencia) {
+    return confirmar(movementId, referencia);
+  }
+
+  /**
+   * `RF-MV-041`: la pasarela notificó que el cobro entró. <b>El mismo camino</b> que la
+   * confirmación a mano —transición, entrega, aviso a `CM`—, sin la comprobación de `RN-MV-058`.
+   */
   @Transactional
-  public SaleResponse confirm(UUID movementId) {
+  public SaleResponse confirmByGateway(UUID movementId) {
+    return confirmar(movementId, null);
+  }
+
+  /** Para el pago con puntos, que confirma en el acto desde dentro (`RF-MV-030`). */
+  SaleResponse confirmInternal(UUID movementId) {
+    return confirmar(movementId, null);
+  }
+
+  private SaleResponse confirmar(UUID movementId, String referencia) {
     OffsetDateTime ahora = OffsetDateTime.now(reloj);
 
     // 1. LA TRANSICIÓN, condicionada al estado anterior. Cero filas significa
     //    «no estaba pendiente» o «no existe», y solo entonces se lee para
     //    distinguirlos: `EX-001` frente a `EX-002`.
-    if (!movimientos.confirmIfPending(movementId, ahora)) {
+    if (!movimientos.confirmIfPending(movementId, ahora, referencia)) {
       String estado =
           movimientos
               .findStatus(movementId)
@@ -133,6 +157,9 @@ public class ConfirmSaleService {
     Map<String, Object> despues = new LinkedHashMap<>();
     despues.put("status", "CONFIRMADA");
     despues.put("confirmed_at", ahora.toString());
+    if (referencia != null) {
+      despues.put("provider_reference", referencia);
+    }
     despues.put("lines", resultado);
     cambios.put("after", despues);
     auditoria.recordChange(

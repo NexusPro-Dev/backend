@@ -111,8 +111,10 @@ class VoidSaleIT extends IntegrationTestBase {
   void confirmadaNoSeAnula() throws Exception {
     UUID venta = venta("PENDIENTE", upgrade);
     mvc.perform(
-            post("/api/v1/movements/{id}/confirmation", venta)
-                .with(conPermiso(administrador, "movements:confirm")))
+            post(
+                    "/api/v1/movements/payments/{id}/confirmation",
+                    PaymentFixtures.pagoAConciliar(jdbc, venta))
+                .with(conPermiso(administrador, "movements:confirm-payment")))
         .andExpect(status().isOk());
 
     mvc.perform(anular(venta, MOTIVO).with(conPermiso(administrador, "movements:void")))
@@ -162,7 +164,7 @@ class VoidSaleIT extends IntegrationTestBase {
     UUID venta = venta("PENDIENTE", bot);
 
     // QUIEN CONCILIA NO PUEDE HACER DESAPARECER VENTAS DEL EMBUDO: son dos permisos.
-    mvc.perform(anular(venta, MOTIVO).with(conPermiso(administrador, "movements:confirm")))
+    mvc.perform(anular(venta, MOTIVO).with(conPermiso(administrador, "movements:confirm-payment")))
         .andExpect(status().isForbidden());
     mvc.perform(anular(venta, MOTIVO).with(propio(cliente))).andExpect(status().isForbidden());
     mvc.perform(anular(venta, MOTIVO)).andExpect(status().isUnauthorized());

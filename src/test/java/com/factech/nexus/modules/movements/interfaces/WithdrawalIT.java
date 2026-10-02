@@ -12,6 +12,8 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 
 import com.factech.nexus.IntegrationTestBase;
 import com.factech.nexus.modules.movements.LedgerFixtures;
+import com.factech.nexus.modules.movements.PaymentFixtures;
+import com.factech.nexus.modules.movements.PayoutFixtures;
 import com.factech.nexus.modules.movements.domain.service.CreditService;
 import com.jayway.jsonpath.JsonPath;
 import java.math.BigDecimal;
@@ -199,8 +201,11 @@ class WithdrawalIT extends IntegrationTestBase {
         .andExpect(jsonPath("$.totalElements").value(0));
 
     mvc.perform(
-            post("/api/v1/movements/{id}/confirmation", retiro)
-                .with(user(administrador.toString()).authorities(() -> "movements:confirm")))
+            post(
+                    "/api/v1/movements/payments/{id}/confirmation",
+                    PaymentFixtures.pagoAConciliar(jdbc, retiro))
+                .with(
+                    user(administrador.toString()).authorities(() -> "movements:confirm-payment")))
         .andExpect(status().isNotFound());
     mvc.perform(
             post("/api/v1/movements/{id}/voiding", retiro)
@@ -209,7 +214,9 @@ class WithdrawalIT extends IntegrationTestBase {
                 .with(user(administrador.toString()).authorities(() -> "movements:void")))
         .andExpect(status().isNotFound());
     mvc.perform(
-            post("/api/v1/movements/{id}/rejection", retiro)
+            post(
+                    "/api/v1/movements/payments/{id}/rejection",
+                    PaymentFixtures.pagoAConciliar(jdbc, retiro))
                 .contentType(MediaType.APPLICATION_JSON)
                 .content("{\"reason\":\"x\"}")
                 .with(user(administrador.toString()).authorities(() -> "movements:reject-payment")))
@@ -516,6 +523,8 @@ class WithdrawalIT extends IntegrationTestBase {
         username + "@factech.co",
         estado);
     darElSuelo(jdbc, id);
+    // Desde el 01-10-2026 un retiro exige una cuenta de cobro (`RN-MV-056`).
+    PayoutFixtures.listaParaRetirar(jdbc, id);
     return id;
   }
 }

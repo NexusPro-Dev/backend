@@ -35,7 +35,7 @@ class JpaPermissionQueryRepositoryIT extends IntegrationTestBase {
   @Test
   @DisplayName("sin filtros devuelve el catálogo completo")
   void sinFiltrosDevuelveTodo() {
-    assertThat(repository.find(ListPermissionsQuery.all())).hasSize(169);
+    assertThat(repository.find(ListPermissionsQuery.all())).hasSize(179);
   }
 
   @Test

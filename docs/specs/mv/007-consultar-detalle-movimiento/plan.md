@@ -4,11 +4,12 @@
 |---|---|
 | Requerimiento | `RF-MV-007` |
 | Especificación | [`spec.md`](spec.md) v0.2.0 |
-| Versión | 0.2.0 |
+| Versión | 0.3.0 |
 | Estado | **Aprobado** |
 | Autor | Responsable técnico |
 | Aprobado por | Responsable del proyecto |
 | Fecha de aprobación | 30-09-2026 |
+| Enmendado el | 01-10-2026 — `SaleResponse` gana el destino del retiro (§12) |
 
 !!! info "Qué va en este documento"
 
@@ -101,3 +102,13 @@ Ninguna: es una lectura.
 ## 11. Estrategia de prueba
 
 `MovementDetailIT`, de integración y por HTTP. **La venta se registra por el camino de verdad** —`POST /api/v1/movements`— y no con `INSERT`, para que el detalle lea lo que el sistema escribe; el retiro, con `LedgerFixtures` y la ruta de pedirlo. `CA-MV-290` compara **el cuerpo entero** de las dos rutas sobre el mismo movimiento.
+
+---
+
+## 12. El destino de un retiro — enmienda del 01-10-2026
+
+`RN-MV-056` (`spec.md` v0.3.0 §6.2). **`SaleResponse` gana `withdrawalDestination`**, de tipo `WithdrawalDestinationResponse` (`RF-MV-019` · `plan.md` §12), nulo salvo en un retiro con copia. **`SaleDetailMapper` lo rellena con una sentencia más, y solo si el movimiento es un `RETIRO`**: el detalle de una venta sigue con las mismas sentencias que hoy. Como el detalle propio (`RF-MV-008`) usa el mismo mapper, lo gana sin código propio.
+
+**Es un campo nuevo y nulo**: no rompe a ningún cliente. **No se publica en los listados** (`RF-MV-006`, `RF-MV-015`): quien aprueba abre el detalle, y llevar la copia a cada fila sería un `JOIN` en todas las páginas para un dato que solo se lee de a uno.
+
+**Pruebas**: `MovementDetailIT` gana `CA-MV-424` y `CA-MV-425`.

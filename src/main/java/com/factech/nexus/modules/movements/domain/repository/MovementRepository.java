@@ -269,7 +269,11 @@ public interface MovementRepository {
    * en una venta con importe. El catálogo de `RF-MV-009` sí filtra, y lo hace en su propia
    * consulta.
    */
-  record PaymentMethodView(UUID id, String code, String name, boolean active, String visibility) {}
+  /**
+   * @param gateway la pasarela que cobra el método —`STRIPE` en `CREDIT_CARD`—, o nula (§4.6)
+   */
+  record PaymentMethodView(
+      UUID id, String code, String name, boolean active, String visibility, String gateway) {}
 
   // ---------------------------------------------------------------------------
   // `RF-MV-008` — los movimientos propios
@@ -478,8 +482,10 @@ public interface MovementRepository {
    *
    * @return {@code true} si esta llamada hizo la transición; {@code false} si la venta no estaba
    *     pendiente (o no existe: quien llama distingue los dos casos con {@link #findStatus})
+   * @param providerReference la referencia que se anota en el pago, o nula para dejar la que tenga
+   *     (`RF-MV-044`, 01-10-2026)
    */
-  boolean confirmIfPending(UUID movementId, OffsetDateTime at);
+  boolean confirmIfPending(UUID movementId, OffsetDateTime at, String providerReference);
 
   /**
    * Las líneas de un movimiento con lo que hace falta para entregarlas: la implementación copiada,
@@ -720,6 +726,7 @@ public interface MovementRepository {
       UUID movementId,
       UUID userId,
       UUID sellerId,
+      Boolean hasSeller,
       UUID productId,
       String deliveryStatus,
       String typeStatus,
@@ -771,7 +778,8 @@ public interface MovementRepository {
       UUID paymentMethodId,
       String code,
       OffsetDateTime from,
-      OffsetDateTime to) {}
+      OffsetDateTime to,
+      String paymentIncident) {}
 
   /**
    * Una fila del listado global: la cabecera con su tipo y su confirmación, <b>sin papel</b>.
@@ -797,5 +805,6 @@ public interface MovementRepository {
       BigDecimal discountAmount,
       BigDecimal payableAmount,
       OffsetDateTime occurredAt,
-      OffsetDateTime confirmedAt) {}
+      OffsetDateTime confirmedAt,
+      String paymentIncident) {}
 }

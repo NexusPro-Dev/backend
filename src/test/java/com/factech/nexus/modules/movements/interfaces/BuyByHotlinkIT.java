@@ -37,6 +37,8 @@ import org.springframework.test.web.servlet.request.RequestPostProcessor;
 @AutoConfigureMockMvc
 class BuyByHotlinkIT extends IntegrationTestBase {
 
+  @Autowired private com.factech.nexus.modules.movements.FakeCardGateway pasarela;
+
   private static final String USD = "01a03336-6d00-7001-9c4f-5e7ad3000001";
   private static final String TARJETA = "01a061ba-3400-7002-9c4f-5e7ad7000021";
   private static final OffsetDateTime BASE =
@@ -67,6 +69,37 @@ class BuyByHotlinkIT extends IntegrationTestBase {
   @AfterEach
   void vaciar() {
     limpiar();
+  }
+
+  @Test
+  @DisplayName(
+      "CA-MV-426 y CA-MV-471 — con tarjeta, la compra por hotlink abre el cobro en la pasarela,"
+          + " anota su referencia en el pago y devuelve el secreto (01-10-2026)")
+  void conTarjetaAbreElCobro() throws Exception {
+    pasarela.reiniciar();
+    pasarela.encender(true);
+    try {
+      String cuerpo =
+          mvc.perform(comprar(cliente, "bh-del-enlace", "BH_BOT"))
+              .andExpect(status().isCreated())
+              .andExpect(jsonPath("$.status").value("PENDIENTE"))
+              .andExpect(jsonPath("$.cardCharge.gateway").value("STRIPE"))
+              .andExpect(jsonPath("$.cardCharge.clientSecret").value("pi_prueba_1_secret_prueba"))
+              .andReturn()
+              .getResponse()
+              .getContentAsString();
+      UUID venta = idDe(cuerpo);
+      assertThat(
+              jdbc.queryForObject(
+                  "SELECT provider_reference FROM payments WHERE movement_id = ?",
+                  String.class,
+                  venta))
+          .isEqualTo("pi_prueba_1");
+      assertThat(pasarela.abiertos()).hasSize(1);
+      assertThat(pasarela.abiertos().get(0).movementId()).isEqualTo(venta);
+    } finally {
+      pasarela.reiniciar();
+    }
   }
 
   @Test

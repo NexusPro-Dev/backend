@@ -59,6 +59,11 @@ class EndpointPermissionsIT extends IntegrationTestBase {
   private static final Map<String, String> PUBLICAS =
       Map.ofEntries(
           Map.entry(
+              "POST /api/v1/movements/gateway-notifications/stripe",
+              "PÚBLICO POR DEFINICIÓN (`RF-MV-041`, 01-10-2026): la llama Stripe, no una"
+                  + " persona, y no porta token. La autentica la FIRMA del cuerpo con el secreto"
+                  + " compartido; una firma que no verifica responde 400 sin guardar nada"),
+          Map.entry(
               "POST /api/v1/auth/registration",
               "PÚBLICO POR DEFINICIÓN (`RF-SP-045`, 09-09-2026): quien se registra no tiene cuenta con"
                   + " la que autenticarse. Es el PRIMER endpoint público que ESCRIBE, y lo que"
@@ -291,6 +296,13 @@ class EndpointPermissionsIT extends IntegrationTestBase {
           Map.entry("GET /api/v1/commission-batches", "commission-batches:read"),
           Map.entry("GET /api/v1/commission-batches/{id}", "commission-batches:read-detail"),
           Map.entry("POST /api/v1/commission-batches/{id}/payment", "commission-batches:pay"),
+          Map.entry("POST /api/v1/commission-batches/payments", "commission-batches:pay-batches"),
+          Map.entry(
+              "POST /api/v1/commission-batches/{id}/commissions/{commissionId}/withdrawal",
+              "commission-batches:withdraw-commission"),
+          Map.entry(
+              "POST /api/v1/commission-batches/{id}/commissions/{commissionId}/return",
+              "commission-batches:return-commission"),
           Map.entry("GET /api/v1/commission-batches/mine", "commission-batches:list-own"),
           Map.entry("GET /api/v1/commission-batches/mine/{id}", "commission-batches:read-own"),
           Map.entry("GET /api/v1/commission-accruals", "commission-accruals:read"),
@@ -307,9 +319,12 @@ class EndpointPermissionsIT extends IntegrationTestBase {
           // ---- MV ----
           Map.entry("POST /api/v1/movements", "movements:create"),
           Map.entry("GET /api/v1/movements", "movements:read"),
-          Map.entry("POST /api/v1/movements/{id}/confirmation", "movements:confirm"),
+          Map.entry(
+              "POST /api/v1/movements/payments/{paymentId}/confirmation",
+              "movements:confirm-payment"),
           Map.entry("POST /api/v1/movements/{id}/voiding", "movements:void"),
-          Map.entry("POST /api/v1/movements/{id}/rejection", "movements:reject-payment"),
+          Map.entry(
+              "POST /api/v1/movements/payments/{paymentId}/rejection", "movements:reject-payment"),
           Map.entry("POST /api/v1/movements/mine/{id}/payments", "movements:retry-payment"),
           Map.entry("POST /api/v1/movements/mine/withdrawals", "movements:request-withdrawal"),
           Map.entry(
@@ -325,12 +340,30 @@ class EndpointPermissionsIT extends IntegrationTestBase {
           Map.entry("POST /api/v1/movements/mine/points-purchases", "movements:buy-points"),
           Map.entry(
               "GET /api/v1/movements/mine/points-purchases", "movements:list-own-points-purchases"),
+          // ---- MV · la tarjeta por Stripe (V62, 01-10-2026) ----
           Map.entry(
-              "POST /api/v1/movements/{id}/points-purchase-confirmation",
-              "movements:confirm-points-purchase"),
+              "POST /api/v1/movements/mine/{id}/card-charge", "movements:pay-pending-by-card"),
+          // ---- MV · las cuentas de cobro (V61, 01-10-2026) ----
           Map.entry(
-              "POST /api/v1/movements/{id}/points-purchase-rejection",
-              "movements:reject-points-purchase"),
+              "POST /api/v1/movements/payout-institutions", "movements:create-payout-institution"),
+          Map.entry(
+              "GET /api/v1/movements/payout-institutions", "movements:read-payout-institutions"),
+          Map.entry(
+              "PATCH /api/v1/movements/payout-institutions/{id}",
+              "movements:update-payout-institution"),
+          Map.entry(
+              "POST /api/v1/movements/mine/payout-accounts", "movements:create-own-payout-account"),
+          Map.entry(
+              "GET /api/v1/movements/mine/payout-accounts", "movements:list-own-payout-accounts"),
+          Map.entry(
+              "PATCH /api/v1/movements/mine/payout-accounts/{id}",
+              "movements:update-own-payout-account"),
+          Map.entry(
+              "DELETE /api/v1/movements/mine/payout-accounts/{id}",
+              "movements:delete-own-payout-account"),
+          Map.entry(
+              "GET /api/v1/movements/users/{userId}/payout-accounts",
+              "movements:read-user-payout-accounts"),
           Map.entry("POST /api/v1/movements/{id}/seller-assignments", "movements:assign-sellers"),
           // ---- MV · alcance propio (RF-SP-062, desde el 21-09-2026) ----
           Map.entry("GET /api/v1/movements/mine/shopping", "movements:list-own"),

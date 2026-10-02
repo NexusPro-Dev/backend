@@ -4,11 +4,12 @@
 |---|---|
 | Requerimiento | `RF-MV-005` |
 | Módulo | `MV` — Movimientos |
-| Versión | 0.2.0 |
+| Versión | 0.3.0 |
 | Estado | **Aprobada** |
 | Autor | Responsable técnico |
 | Aprobada por | Responsable del proyecto |
 | Fecha de aprobación | 17-09-2026 |
+| Enmendada el | 01-10-2026 — **anular cancela el cobro abierto en la pasarela** antes de cerrar el pago (`RN-MV-058`). Ver §14.2 |
 
 !!! warning "Enmendada el 26-09-2026 — anular cierra también el pago pendiente"
 
@@ -193,9 +194,27 @@ Una gana. Si ganó anular, confirmar recibe «no está pendiente: está anulada�
 
 ---
 
+## 14.2 La tarjeta por Stripe — enmienda del 01-10-2026
+
+Desde el 01-10-2026 ([`requirements/mv.md`](../../../requirements/mv.md) v0.64.0 §4.6) una venta cuyo pago pendiente tiene **cobro abierto** en la pasarela **se anula cancelando primero el cobro**: si la pasarela lo cancela, el pago se cierra rechazado con el motivo de la anulación y la venta queda anulada, como siempre. **Si la pasarela ya lo cobró**, la anulación se rechaza con conflicto y no cambia nada: el pago se confirmará con su notificación. **Si la pasarela no responde**, servicio no disponible, y nada cambia: anular sin cancelar dejaría un cobro que alguien podría pagar sobre una venta anulada.
+
+| ID | Situación | Resultado |
+|---|---|---|
+| `EX-005` | El cobro abierto ya fue cobrado por la pasarela | Conflicto. Nada cambia |
+| `EX-006` | La pasarela no responde al cancelar el cobro | Servicio no disponible. Nada cambia |
+
+| ID | Criterio |
+|---|---|
+| `CA-MV-466` | Anular una venta con **cobro abierto** cancela el cobro en la pasarela, cierra el pago **rechazado** con el motivo y deja la venta **anulada** |
+| `CA-MV-467` | Si la pasarela **ya cobró**, la anulación responde conflicto y **nada cambia** |
+| `CA-MV-468` | Si la pasarela **no responde** al cancelar, servicio no disponible y **nada cambia** |
+
+---
+
 ## 15. Control de cambios
 
 | Versión | Fecha | Cambio | Autor |
 |---|---|---|---|
 | 0.1.0 | 17-09-2026 | Primera versión, a petición del responsable del proyecto —«¿y para anular un movimiento?»—. **Estaba declarado desde el 02-09-2026**. Lo que la spec carga: **anular no es borrar** —la fila se queda con su motivo, que es lo que separa «anulada» de «desaparecida»—, **el motivo es obligatorio** y se exige antes de tocar nada, **solo lo pendiente** porque lo confirmado ya entregó, y **la misma transición atómica** que confirmar. Lo que deja fuera: rechazar (`RF-MV-004`, otro significado y otro permiso) y que el comprador retire lo suyo. | Responsable del proyecto |
 | 0.2.0 | 26-09-2026 | **Anular cierra también el pago pendiente**, como rechazado y con el motivo de la anulación (`requirements/mv.md` v0.44.0, `RN-MV-039`; Art. I.7 sobre un requerimiento construido). La ruta, el motivo y el permiso no cambian. `CA-MV-220`. | Responsable del proyecto |
+| 0.3.0 | 01-10-2026 | **La tarjeta por Stripe** ([`requirements/mv.md`](../../../requirements/mv.md) v0.64.0 §4.6): **anular cancela el cobro abierto en la pasarela** antes de cerrar el pago (`RN-MV-058`). Criterios `CA-MV-466` a `CA-MV-468`. | Responsable del proyecto |

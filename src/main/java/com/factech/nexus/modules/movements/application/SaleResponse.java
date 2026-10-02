@@ -112,7 +112,51 @@ public record SaleResponse(
                 "Los intentos de pagarla, del más antiguo al más reciente (`RN-MV-039`,"
                     + " `RN-MV-047`). Desde el 26-09-2026 el método es de cada pago: paymentMethod"
                     + " es el del último.")
-        List<PaymentResponse> payments) {
+        List<PaymentResponse> payments,
+    @Schema(
+            types = {"object", "null"},
+            description =
+                "Solo en un RETIRO (`RN-MV-056`, desde el 01-10-2026): a dónde se paga, copiado al"
+                    + " pedirlo. Es lo que lee quien lo aprueba. NULO en todo lo demás y en los"
+                    + " retiros pedidos antes de esa fecha.")
+        WithdrawalDestinationResponse withdrawalDestination,
+    @Schema(
+            types = {"object", "null"},
+            description =
+                "El cobro abierto en la pasarela, solo en la respuesta de volver a pagar con"
+                    + " tarjeta (`RF-MV-040`, desde el 01-10-2026). NULO en todo lo demás: el"
+                    + " secreto no se guarda, y se vuelve a pedir con"
+                    + " `POST /movements/mine/{id}/card-charge`.")
+        CardChargeResponse cardCharge) {
+
+  /** La misma venta, con el cobro abierto (`RF-MV-018` con tarjeta); nulo no cambia nada. */
+  public SaleResponse conCobro(CardChargeResponse cobro) {
+    if (cobro == null) {
+      return this;
+    }
+    return new SaleResponse(
+        id,
+        code,
+        type,
+        status,
+        typeStatus,
+        user,
+        packageId,
+        currency,
+        paymentMethod,
+        lines,
+        totalAmount,
+        discountAmount,
+        payableAmount,
+        occurredAt,
+        confirmedAt,
+        voidedAt,
+        voidReason,
+        createdAt,
+        payments,
+        withdrawalDestination,
+        cobro);
+  }
 
   @Schema(name = "SaleParty")
   public record Party(UUID id, String username, String name) {}
@@ -160,6 +204,8 @@ public record SaleResponse(
         null,
         null,
         venta.getCreatedAt(),
-        List.of(primerPago));
+        List.of(primerPago),
+        null,
+        null);
   }
 }

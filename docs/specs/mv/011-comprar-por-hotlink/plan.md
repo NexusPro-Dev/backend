@@ -9,6 +9,7 @@
 | Autor | Responsable técnico |
 | Aprobado por | Responsable del proyecto |
 | Fecha de aprobación | 24-09-2026 |
+| Enmendado el | 01-10-2026 — la tarjeta por Stripe (§12) |
 
 !!! info "Qué va en este documento"
 
@@ -115,3 +116,9 @@
 | La concurrencia | Dos compras simultáneas por el mismo enlace con el arnés del proyecto: ninguna `500`, un solo vínculo |
 | El rechazo a sí mismo | `422`, y **cero** filas nuevas en `movements` y en `client_sellers` |
 | El `404` único | Vendedor inexistente y producto inexistente devuelven **el mismo cuerpo** |
+
+---
+
+## 12. La tarjeta por Stripe — enmienda del 01-10-2026
+
+Por [`requirements/mv.md`](../../../requirements/mv.md) v0.64.0 §4.6 y `spec.md` §14.2. `BuyByHotlinkService` llama a `CardPayment` después de guardar el pago (`RF-MV-040` · `plan.md` §3); `PurchaseResponse` gana `cardCharge`. **Contrato**: la prosa de la `@Operation` lo dice.

@@ -16,7 +16,6 @@ import com.factech.nexus.modules.movements.application.VoidSaleRequest;
 import com.factech.nexus.modules.movements.domain.models.IdempotencyKey;
 import com.factech.nexus.modules.movements.domain.service.ActivateMyProductService;
 import com.factech.nexus.modules.movements.domain.service.AssignSellersService;
-import com.factech.nexus.modules.movements.domain.service.ConfirmSaleService;
 import com.factech.nexus.modules.movements.domain.service.GetMovementService;
 import com.factech.nexus.modules.movements.domain.service.GetMyMovementService;
 import com.factech.nexus.modules.movements.domain.service.ListMovementsService;
@@ -26,6 +25,7 @@ import com.factech.nexus.modules.movements.domain.service.ListSaleLinesService;
 import com.factech.nexus.modules.movements.domain.service.ListSalesService;
 import com.factech.nexus.modules.movements.domain.service.RegisterSaleService;
 import com.factech.nexus.modules.movements.domain.service.VoidSaleService;
+import com.factech.nexus.modules.system.roles.application.AuthenticatedActor;
 import com.factech.nexus.shared.pagination.PageResponse;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.media.Content;
@@ -62,7 +62,6 @@ import org.springframework.web.bind.annotation.RestController;
 public class MovementController {
 
   private final RegisterSaleService alta;
-  private final ConfirmSaleService confirmacion;
   private final VoidSaleService anulacion;
   private final ListMovementsService libro;
   private final ListMyMovementsService listado;
@@ -73,10 +72,10 @@ public class MovementController {
   private final ListSaleLinesService lineas;
   private final ActivateMyProductService activacion;
   private final GetMovementService comprobante;
+  private final AuthenticatedActor actor;
 
   public MovementController(
       RegisterSaleService alta,
-      ConfirmSaleService confirmacion,
       VoidSaleService anulacion,
       ListMovementsService libro,
       ListMyMovementsService listado,
@@ -86,9 +85,9 @@ public class MovementController {
       AssignSellersService asignacion,
       ListSaleLinesService lineas,
       ActivateMyProductService activacion,
-      GetMovementService comprobante) {
+      GetMovementService comprobante,
+      AuthenticatedActor actor) {
     this.alta = alta;
-    this.confirmacion = confirmacion;
     this.anulacion = anulacion;
     this.libro = libro;
     this.listado = listado;
@@ -99,82 +98,14 @@ public class MovementController {
     this.lineas = lineas;
     this.activacion = activacion;
     this.comprobante = comprobante;
+    this.actor = actor;
   }
 
   /**
-   * <b>{@code POST …/confirmation} y no {@code PATCH …/status}</b>, aunque seis recursos del
-   * sistema cambian de estado con el segundo: aquellos tienen un permiso para todas sus
-   * transiciones, y aquí confirmar y rechazar comparten permiso y anular tiene el suyo. Un {@code
-   * PATCH /status} con tres valores tendría dos modelos de seguridad en un endpoint. El precedente
-   * que encaja es {@code POST /{id}/deletion}: una acción con nombre y con su permiso.
-   */
-  @PostMapping("/{id}/confirmation")
-  @PreAuthorize("hasAuthority('movements:confirm')")
-  @Operation(
-      summary = "Confirmar el pago de una venta pendiente",
-      description =
-          """
-          Da por **pagada** una venta pendiente y, en el mismo acto, **entrega lo que se
-          pueda entregar**. Sin cuerpo: confirmar es un hecho, no un formulario — el importe
-          es el de la venta, la fecha es ahora y el método ya está en ella.
-
-          **Lo que pasa con cada línea** (`RN-MV-030`), y se ve en la respuesta:
-          - `implementation: MANUAL` → queda `PENDIENTE` de autorización (`RN-MV-021`). La
-            venta confirma igual.
-          - `AUTOMATICA` y **no** es un upgrade → `ENTREGADA`, con `deliveredAt` ahora.
-          - `AUTOMATICA` y es un upgrade → **se concede la membresía** destino del producto,
-            con la vigencia copiada en la línea **contada desde la confirmación** (`RN-MV-020`),
-            cerrando la que la persona tenía — también al renovar el mismo nivel—; **salvo que
-            la comprada sea inferior a la vigente en ese instante**: entonces la venta cobra
-            igual y la línea queda `RETENIDA` con `deliveryNote` (`RN-MV-029`). Nunca baja de
-            nivel a nadie.
-
-          **Confirmar dos veces concede una vez.** La transición es atómica y condicionada al
-          estado anterior: la segunda confirmación —o un webhook reentregado— recibe `409`
-          diciendo en qué estado está, y **no cambia nada**.
-
-          **Lo que NO hace**: no saca a nadie de `FTD_PENDIENTE` (eso lo hace el primer
-          depósito), no devenga comisiones, no adjunta comprobante y no se puede deshacer
-          (`RN-MV-005`). **Tampoco espera a la atribución**: una venta `VALIDAR_COMISIONES`
-          se confirma y entrega igual, y sigue por validar — lo que esperará a `VALIDADO` es
-          la comisión (`RN-MV-035`).
-          """)
-  @ApiResponses({
-    @ApiResponse(
-        responseCode = "200",
-        description = "Confirmada. El cuerpo dice qué se entregó, qué espera y qué se retuvo."),
-    @ApiResponse(
-        responseCode = "400",
-        description = "Identificador malformado (`VAL-001`)",
-        content = @Content),
-    @ApiResponse(
-        responseCode = "401",
-        description = "Token ausente o inválido (`AUTH-001`)",
-        content = @Content),
-    @ApiResponse(
-        responseCode = "403",
-        description = "Sin el permiso `movements:confirm`.",
-        content = @Content),
-    @ApiResponse(responseCode = "404", description = "No existe (`EX-001`)", content = @Content),
-    @ApiResponse(
-        responseCode = "409",
-        description =
-            "No está pendiente (`EX-002`): ya confirmada, rechazada o anulada. El mensaje dice"
-                + " en qué estado está, y nada cambió.",
-        content = @Content),
-    @ApiResponse(
-        responseCode = "500",
-        description = "Conceder la membresía falló; nada quedó escrito (`ERR-500`)",
-        content = @Content)
-  })
-  public SaleResponse confirmar(@PathVariable UUID id) {
-    return confirmacion.confirm(id);
-  }
-
-  /**
-   * La misma forma que {@code …/confirmation}: una acción con nombre y con <b>su</b> permiso.
-   * `movements:void` y no `movements:confirm`, porque quien concilia pagos no tiene por qué poder
-   * hacer desaparecer del embudo ventas ajenas (`requirements/mv.md` §6).
+   * La misma forma que {@code /movements/payments/{id}/confirmation}: una acción con nombre y con
+   * <b>su</b> permiso. `movements:void` y no `movements:confirm-payment`, porque quien concilia
+   * pagos no tiene por qué poder hacer desaparecer del embudo ventas ajenas (`requirements/mv.md`
+   * §6).
    */
   @PostMapping("/{id}/voiding")
   @PreAuthorize("hasAuthority('movements:void')")
@@ -196,6 +127,10 @@ public class MovementController {
           Nada se retira: una pendiente no había concedido nada. Sus líneas siguen
           `PENDIENTE` de entrega y el registro de lo comprado las muestra `ANULADO`.
           Anular dos veces responde `409` diciendo el estado, y no cambia nada.
+
+          **Desde el 01-10-2026, si el pago pendiente tiene cobro abierto en la pasarela, primero lo
+          cancela** (`RN-MV-058`): si la pasarela ya lo cobró, `409` (`EX-005`) y no se anula; si no
+          responde, `503` (`EX-006`) y tampoco.
           """)
   @ApiResponses({
     @ApiResponse(responseCode = "200", description = "Anulada, con `voidedAt` y `voidReason`."),
@@ -211,7 +146,8 @@ public class MovementController {
         content = @Content),
     @ApiResponse(
         responseCode = "403",
-        description = "Sin el permiso `movements:void` (tener `movements:confirm` no basta).",
+        description =
+            "Sin el permiso `movements:void` (tener `movements:confirm-payment` no basta).",
         content = @Content),
     @ApiResponse(responseCode = "404", description = "No existe (`EX-001`)", content = @Content),
     @ApiResponse(
@@ -223,6 +159,12 @@ public class MovementController {
     @ApiResponse(
         responseCode = "500",
         description = "Fallo no controlado (`ERR-500`)",
+        content = @Content),
+    @ApiResponse(
+        responseCode = "503",
+        description =
+            "La pasarela de pago no respondió; nada se escribió y se puede reintentar"
+                + " (`RN-MV-057`)",
         content = @Content)
   })
   public SaleResponse anular(
@@ -231,10 +173,10 @@ public class MovementController {
   }
 
   /**
-   * La misma forma que {@code …/confirmation} y {@code …/voiding}: una acción con nombre y con
-   * <b>su</b> permiso (`RN-SEG-014`). `movements:assign-sellers` y no `movements:confirm`:
-   * confirmar responde «¿entró el dinero?» y esto «¿a quién se le paga?» (`RF-MV-016` · `plan.md`
-   * §5).
+   * La misma forma que {@code /movements/payments/{id}/confirmation} y {@code …/voiding}: una
+   * acción con nombre y con <b>su</b> permiso (`RN-SEG-014`). `movements:assign-sellers` y no
+   * `movements:confirm-payment`: confirmar responde «¿entró el dinero?» y esto «¿a quién se le
+   * paga?» (`RF-MV-016` · `plan.md` §5).
    */
   @PostMapping("/{id}/seller-assignments")
   @PreAuthorize("hasAuthority('movements:assign-sellers')")
@@ -252,8 +194,12 @@ public class MovementController {
           `VALIDADO`** en cuanto no queda ninguna.
 
           **Qué se puede tocar** (`RN-MV-035`): una línea **sin vendedor** se asigna siempre,
-          también después de confirmar el pago; **corregir** una que ya lo tiene solo se
-          admite **mientras la venta no esté `CONFIRMADA`**. En una venta `RECHAZADA` o
+          también después de confirmar el pago; **corregir** una que ya lo tiene se admite
+          mientras la venta no esté `CONFIRMADA` y, **desde el 30-09-2026, también confirmada
+          mientras su comisión no se haya pagado** (`RN-MV-053`): se le pregunta a `CM`, que
+          revierte la comisión de la cadena vieja, y la de la nueva se devenga como si la línea
+          se acabara de atribuir. Si algún nivel de la cadena está pagado, o la línea es un FTD
+          ya contado, `409`. En una venta `RECHAZADA` o
           `ANULADA` no se asigna nada. El vendedor tiene que ser **uno de los del cliente**
           —de registro o de hotlink—: elegir a cualquiera sería atribuir la venta a quien se
           quisiera.
@@ -278,7 +224,7 @@ public class MovementController {
     @ApiResponse(
         responseCode = "403",
         description =
-            "Sin el permiso `movements:assign-sellers` (ni `movements:confirm` ni"
+            "Sin el permiso `movements:assign-sellers` (ni `movements:confirm-payment` ni"
                 + " `movements:create` bastan).",
         content = @Content),
     @ApiResponse(responseCode = "404", description = "No existe (`EX-001`)", content = @Content),
@@ -286,7 +232,8 @@ public class MovementController {
         responseCode = "409",
         description =
             "La venta está rechazada o anulada (`EX-002`), o está confirmada y se intenta"
-                + " corregir una línea que ya tenía vendedor (`EX-003`). Nada cambió.",
+                + " corregir una línea cuya comisión ya se pagó o que ya se contó como FTD"
+                + " (`EX-003`). Nada cambió, en ninguna línea.",
         content = @Content),
     @ApiResponse(
         responseCode = "422",
@@ -386,7 +333,14 @@ public class MovementController {
       @RequestParam(required = false) UUID paymentMethodId,
       @RequestParam(required = false) String code,
       @RequestParam(required = false) OffsetDateTime from,
-      @RequestParam(required = false) OffsetDateTime to) {
+      @RequestParam(required = false) OffsetDateTime to,
+      @io.swagger.v3.oas.annotations.Parameter(
+              description =
+                  "La incidencia del último pago (`RN-MV-060`, desde el 01-10-2026): REEMBOLSADO,"
+                      + " EN_DISPUTA, DISPUTA_GANADA, DISPUTA_PERDIDA, o CUALQUIERA para los que"
+                      + " tienen alguna.")
+          @RequestParam(required = false)
+          String paymentIncident) {
     return libro.list(
         new ListMovementsRequest(
             page,
@@ -399,7 +353,8 @@ public class MovementController {
             paymentMethodId,
             code,
             from,
-            to));
+            to,
+            paymentIncident));
   }
 
   /**
@@ -522,9 +477,11 @@ public class MovementController {
           pedirlas: lo decide la consulta y no un filtro. `movementStatus` viaja en cada
           línea y dirá siempre `CONFIRMADA`.
 
-          **Los siete filtros se combinan** y cada uno responde una pregunta: `movementId`
+          **Los ocho filtros se combinan** y cada uno responde una pregunta: `movementId`
           (las líneas de una venta), `userId` (qué compró esta persona, el sujeto),
-          `sellerId` (qué vendió esta persona, **como vendedora de la línea**), `productId`
+          `sellerId` (qué vendió esta persona, **como vendedora de la línea**), `hasSeller`
+          (`false`: **las líneas sin vendedor asignado**, las que faltan por atribuir; `true`:
+          solo las que lo tienen; desde el 02-10-2026), `productId`
           (qué se vendió de este producto),
           `deliveryStatus` (el de la LÍNEA, que **no** es el de la venta: una confirmada
           tiene líneas `ENTREGADA`, `PENDIENTE` de autorización y `RETENIDA`), `typeStatus` (el estado del TIPO de la venta,
@@ -550,7 +507,8 @@ public class MovementController {
         responseCode = "400",
         description =
             "Paginación inválida, estado o estado de entrega no admitidos (`VAL-002`,"
-                + " `VAL-003`), estado del tipo inexistente (`VAL-005`), identificador"
+                + " `VAL-003`), estado del tipo inexistente (`VAL-005`), `hasSeller` que no es"
+                + " `true` ni `false` (`VAL-007`), identificador"
                 + " malformado (`VAL-001`) o `from` posterior a `to` (`VAL-004`). Los"
                 + " problemas se devuelven juntos.",
         content = @Content),
@@ -573,6 +531,7 @@ public class MovementController {
       @RequestParam(required = false) UUID movementId,
       @RequestParam(required = false) UUID userId,
       @RequestParam(required = false) UUID sellerId,
+      @RequestParam(required = false) String hasSeller,
       @RequestParam(required = false) UUID productId,
       @RequestParam(required = false) String deliveryStatus,
       @RequestParam(required = false) String typeStatus,
@@ -586,6 +545,7 @@ public class MovementController {
             movementId,
             userId,
             sellerId,
+            hasSeller,
             productId,
             deliveryStatus,
             typeStatus,
@@ -627,6 +587,15 @@ public class MovementController {
 
           Reglas de composición: **como mucho un upgrade** por venta y con cantidad uno,
           sin productos repetidos y todas las líneas en la misma moneda.
+
+          **Con puntos** (`POINTS`, `RF-MV-030`) solo se paga una venta **a nombre de quien la
+          registra**: sus puntos se descuentan a la tasa vigente y la venta queda **confirmada**
+          en la misma respuesta. A nombre de otra persona, `409`: nadie gasta los puntos de
+          otro.
+
+          **Con tarjeta no abre ningún cobro** (`RN-MV-057`, desde el 01-10-2026): no hay nadie al
+          otro lado para escribirla. La venta nace pendiente y quien compró la paga desde su app con
+          `POST /movements/mine/{id}/card-charge`.
           """)
   @ApiResponses({
     @ApiResponse(responseCode = "201", description = "Venta registrada, pendiente de pago."),
@@ -647,8 +616,9 @@ public class MovementController {
             "Lo que solo se sabe después de resolver: la cuenta no puede operar todavía, un"
                 + " producto no está en su oferta, el"
                 + " upgrade BAJA de nivel —renovar el mismo sí se admite—, hay dos upgrades, las"
-                + " monedas difieren, o el método"
-                + " de pago está desactivado.",
+                + " monedas difieren, el método"
+                + " de pago está desactivado, o se paga con puntos a nombre de otra persona o sin"
+                + " puntos suficientes.",
         content = @io.swagger.v3.oas.annotations.media.Content()),
     @ApiResponse(
         responseCode = "422",
@@ -662,7 +632,7 @@ public class MovementController {
   public ResponseEntity<SaleResponse> registrar(
       @Valid @RequestBody RegisterSaleRequest peticion,
       @RequestHeader(value = IdempotencyKey.CABECERA, required = false) String clave) {
-    SaleResponse venta = alta.register(peticion, IdempotencyKey.opcional(clave));
+    SaleResponse venta = alta.register(peticion, IdempotencyKey.opcional(clave), actor.id());
     return ResponseEntity.created(URI.create("/api/v1/movements/" + venta.id())).body(venta);
   }
 
@@ -994,6 +964,12 @@ public class MovementController {
           estado del tipo, sujeto, moneda, totales, **pagos** y **líneas**, cada una con lo
           que se vendió **tal como se vendió** y a quién se le acredita. Un movimiento sin
           líneas —un retiro, un bono— las trae **vacías**.
+
+          **Un retiro trae `withdrawalDestination`** desde el 01-10-2026 (`RN-MV-056`): a
+          dónde se paga, **copiado al pedirlo** —entidad, tipo de cuenta, número y titular con
+          su documento—. Es lo que lee quien lo aprueba para saber a dónde enviar el dinero, y
+          no cambia aunque la cuenta se edite o se dé de baja. Falta en todo lo demás y en los
+          retiros pedidos antes de esa fecha.
 
           **Es la misma forma que `GET /api/v1/movements/mine/{id}`**, el detalle propio:
           sobre un movimiento en el que usted participó, las dos responden lo mismo. Aquí

@@ -143,9 +143,10 @@ class ProductUpdateConcurrencyIT extends IntegrationTestBase {
     jdbc.update(
         "INSERT INTO products (scope, implementation, id, code, type, name, description, source_membership_id,"
             + " target_membership_id, price,"
-            + " currency_id, validity_days, status, created_at, updated_at)"
+            + " currency_id, validity_days, status, created_at, updated_at,"
+            + " direct_commission_type, direct_commission_percentage)"
             + " VALUES ('TIENDA', 'MANUAL', CAST(? AS uuid), ?, 'BOT', ?, 'Atención prioritaria.', NULL, NULL, 49.99,"
-            + " CAST(? AS uuid), NULL, 'INACTIVO', ?, ?)",
+            + " CAST(? AS uuid), NULL, 'INACTIVO', ?, ?, 'PORCENTAJE', 0)",
         id.toString(),
         codigo,
         nombre,

@@ -118,8 +118,8 @@ class ConfirmSaleIT extends IntegrationTestBase {
 
     mvc.perform(confirmar(venta).with(conPermiso(cajero)))
         .andExpect(status().isConflict())
-        .andExpect(jsonPath("$.errors[0].code").value("EX-002"))
-        .andExpect(jsonPath("$.detail").value(org.hamcrest.Matchers.containsString("CONFIRMADA")));
+        .andExpect(jsonPath("$.errors[0].code").value("EX-003"))
+        .andExpect(jsonPath("$.detail").value(org.hamcrest.Matchers.containsString("CONFIRMADO")));
 
     // UNA membresía nueva, no dos: la segunda confirmación afectó cero filas y
     // no llegó a recorrer las líneas.
@@ -134,7 +134,7 @@ class ConfirmSaleIT extends IntegrationTestBase {
 
     mvc.perform(confirmar(anulada).with(conPermiso(cajero)))
         .andExpect(status().isConflict())
-        .andExpect(jsonPath("$.detail").value(org.hamcrest.Matchers.containsString("ANULADA")));
+        .andExpect(jsonPath("$.detail").value(org.hamcrest.Matchers.containsString("RECHAZADO")));
     assertThat(estadoDe(anulada)).isEqualTo("ANULADA");
   }
 
@@ -349,13 +349,15 @@ class ConfirmSaleIT extends IntegrationTestBase {
   // Auxiliares
   // ---------------------------------------------------------------------------
 
-  private static org.springframework.test.web.servlet.request.MockHttpServletRequestBuilder
-      confirmar(UUID venta) {
-    return post("/api/v1/movements/{id}/confirmation", venta);
+  private org.springframework.test.web.servlet.request.MockHttpServletRequestBuilder confirmar(
+      UUID venta) {
+    return post(
+        "/api/v1/movements/payments/{id}/confirmation",
+        PaymentFixtures.pagoAConciliar(jdbc, venta));
   }
 
   private RequestPostProcessor conPermiso(UUID persona) {
-    return user(persona.toString()).authorities(() -> "movements:confirm");
+    return user(persona.toString()).authorities(() -> "movements:confirm-payment");
   }
 
   private String estadoDe(UUID venta) {

@@ -142,8 +142,12 @@ class ConfirmSaleConcurrencyIT extends IntegrationTestBase {
 
   private int confirmar() throws Exception {
     return mvc.perform(
-            post("/api/v1/movements/{id}/confirmation", venta)
-                .with(user(UUID.randomUUID().toString()).authorities(() -> "movements:confirm")))
+            post(
+                    "/api/v1/movements/payments/{id}/confirmation",
+                    PaymentFixtures.pagoAConciliar(jdbc, venta))
+                .with(
+                    user(UUID.randomUUID().toString())
+                        .authorities(() -> "movements:confirm-payment")))
         .andReturn()
         .getResponse()
         .getStatus();

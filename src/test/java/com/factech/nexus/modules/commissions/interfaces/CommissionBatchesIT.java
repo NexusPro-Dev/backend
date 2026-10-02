@@ -12,6 +12,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 
 import com.factech.nexus.IntegrationTestBase;
 import com.factech.nexus.modules.commissions.domain.service.CloseCommissionPeriodService;
+import com.factech.nexus.modules.movements.PaymentFixtures;
 import java.time.OffsetDateTime;
 import java.time.ZoneOffset;
 import java.util.UUID;
@@ -325,7 +326,11 @@ class CommissionBatchesIT extends IntegrationTestBase {
   }
 
   private void confirmar(UUID venta) throws Exception {
-    mvc.perform(post("/api/v1/movements/{id}/confirmation", venta).with(como("movements:confirm")))
+    mvc.perform(
+            post(
+                    "/api/v1/movements/payments/{id}/confirmation",
+                    PaymentFixtures.pagoAConciliar(jdbc, venta))
+                .with(como("movements:confirm-payment")))
         .andExpect(status().isOk());
   }
 

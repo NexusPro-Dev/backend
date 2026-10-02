@@ -727,7 +727,7 @@ public class JpaMovementRepository implements MovementRepository {
     }
     List<Tuple> filas =
         em.createNativeQuery(
-                "SELECT id, code, name, is_active, visibility FROM payment_methods"
+                "SELECT id, code, name, is_active, visibility, gateway FROM payment_methods"
                     + " WHERE code = :code",
                 Tuple.class)
             .setParameter("code", code.trim().toUpperCase())
@@ -742,7 +742,8 @@ public class JpaMovementRepository implements MovementRepository {
         (String) fila.get("code"),
         (String) fila.get("name"),
         (Boolean) fila.get("is_active"),
-        (String) fila.get("visibility"));
+        (String) fila.get("visibility"),
+        (String) fila.get("gateway"));
   }
 
   @Override
@@ -757,7 +758,7 @@ public class JpaMovementRepository implements MovementRepository {
                 // venta declara o el que el sistema asigna— y no ofrece nada.
                 // Filtrarlo aquí haría irresoluble el pago gratuito, que es
                 // justo el que nadie puede elegir.
-                "SELECT id, code, name, is_active, visibility FROM payment_methods WHERE id = :id",
+                "SELECT id, code, name, is_active, visibility, gateway FROM payment_methods WHERE id = :id",
                 Tuple.class)
             .setParameter("id", id)
             .getResultList();
@@ -771,7 +772,8 @@ public class JpaMovementRepository implements MovementRepository {
                     (String) fila.get("code"),
                     (String) fila.get("name"),
                     (Boolean) fila.get("is_active"),
-                    (String) fila.get("visibility")));
+                    (String) fila.get("visibility"),
+                    (String) fila.get("gateway")));
   }
 
   // ---------------------------------------------------------------------------
@@ -807,7 +809,7 @@ public class JpaMovementRepository implements MovementRepository {
       JOIN movement_type_statuses mts ON mts.id = m.type_status_id
       JOIN users suj ON suj.id = m.user_id
       JOIN currencies cur ON cur.id = m.currency_id
-      LEFT JOIN LATERAL (SELECT p.payment_method_id FROM payments p
+      LEFT JOIN LATERAL (SELECT p.payment_method_id, p.incident FROM payments p
                           WHERE p.movement_id = m.id
                           ORDER BY p.occurred_at DESC, p.id DESC LIMIT 1) up ON true
       LEFT JOIN payment_methods pm ON pm.id = up.payment_method_id
@@ -975,7 +977,7 @@ public class JpaMovementRepository implements MovementRepository {
                     JOIN movement_type_statuses mts ON mts.id = m.type_status_id
                     JOIN users suj ON suj.id = m.user_id
                     JOIN currencies cur ON cur.id = m.currency_id
-                    LEFT JOIN LATERAL (SELECT p.payment_method_id FROM payments p
+                    LEFT JOIN LATERAL (SELECT p.payment_method_id, p.incident FROM payments p
                           WHERE p.movement_id = m.id
                           ORDER BY p.occurred_at DESC, p.id DESC LIMIT 1) up ON true
       LEFT JOIN payment_methods pm ON pm.id = up.payment_method_id
@@ -1011,7 +1013,7 @@ public class JpaMovementRepository implements MovementRepository {
                     JOIN movement_type_statuses mts ON mts.id = m.type_status_id
                     JOIN users suj ON suj.id = m.user_id
                     JOIN currencies cur ON cur.id = m.currency_id
-                    LEFT JOIN LATERAL (SELECT p.payment_method_id FROM payments p
+                    LEFT JOIN LATERAL (SELECT p.payment_method_id, p.incident FROM payments p
                           WHERE p.movement_id = m.id
                           ORDER BY p.occurred_at DESC, p.id DESC LIMIT 1) up ON true
       LEFT JOIN payment_methods pm ON pm.id = up.payment_method_id
@@ -1205,7 +1207,7 @@ public class JpaMovementRepository implements MovementRepository {
    */
   @Override
   @Transactional
-  public boolean confirmIfPending(UUID movementId, OffsetDateTime at) {
+  public boolean confirmIfPending(UUID movementId, OffsetDateTime at, String providerReference) {
     // DESDE EL 26-09-2026 SE CONFIRMA EL PAGO PENDIENTE, y la venta con él
     // (`RF-MV-003` · `spec.md` v0.2.0). La venta va PRIMERO porque es la fila que
     // serializa: rechazar el pago (`RF-MV-004`) bloquea la misma fila antes de
@@ -1232,11 +1234,13 @@ public class JpaMovementRepository implements MovementRepository {
         em.createNativeQuery(
                 """
                 UPDATE payments
-                   SET status = 'CONFIRMADO', confirmed_at = :ahora
+                   SET status = 'CONFIRMADO', confirmed_at = :ahora,
+                       provider_reference = COALESCE(CAST(:referencia AS varchar), provider_reference)
                  WHERE movement_id = :id AND status = 'PENDIENTE'
                 """)
             .setParameter("id", movementId)
             .setParameter("ahora", at)
+            .setParameter("referencia", providerReference)
             .executeUpdate();
     if (pagos != 1) {
       // La fila de la venta está bloqueada por esta transacción: nadie pudo
@@ -1543,7 +1547,7 @@ public class JpaMovementRepository implements MovementRepository {
       JOIN movement_type_statuses mts ON mts.id = m.type_status_id
       JOIN users suj ON suj.id = m.user_id
       JOIN currencies cur ON cur.id = m.currency_id
-      LEFT JOIN LATERAL (SELECT p.payment_method_id FROM payments p
+      LEFT JOIN LATERAL (SELECT p.payment_method_id, p.incident FROM payments p
                           WHERE p.movement_id = m.id
                           ORDER BY p.occurred_at DESC, p.id DESC LIMIT 1) up ON true
       LEFT JOIN payment_methods pm ON pm.id = up.payment_method_id
@@ -1588,6 +1592,12 @@ public class JpaMovementRepository implements MovementRepository {
     if (f.to() != null) {
       filtro.condicion("m.occurred_at < :hasta", "hasta", f.to());
     }
+    // `RN-MV-060` (01-10-2026): la incidencia del último pago, o alguna.
+    if ("CUALQUIERA".equals(f.paymentIncident())) {
+      filtro.condicion("up.incident IS NOT NULL AND :cualquiera", "cualquiera", Boolean.TRUE);
+    } else {
+      filtro.igual("up.incident", "incidencia", f.paymentIncident());
+    }
     return filtro;
   }
 
@@ -1601,7 +1611,8 @@ public class JpaMovementRepository implements MovementRepository {
              cur.id AS cur_id, cur.code AS cur_code, pm.name AS pm_name,
              m.total_amount AS total, m.discount_amount AS descuento,
              m.payable_amount AS pagar,
-             m.occurred_at AS occurred_at, m.confirmed_at AS confirmed_at
+             m.occurred_at AS occurred_at, m.confirmed_at AS confirmed_at,
+             up.incident AS incidencia
       """;
 
   @Override
@@ -1631,7 +1642,8 @@ public class JpaMovementRepository implements MovementRepository {
         (BigDecimal) fila.get("descuento"),
         (BigDecimal) fila.get("pagar"),
         instante(fila.get("occurred_at")),
-        instante(fila.get("confirmed_at")));
+        instante(fila.get("confirmed_at")),
+        (String) fila.get("incidencia"));
   }
 
   /**
@@ -1812,6 +1824,11 @@ public class JpaMovementRepository implements MovementRepository {
     // Por la línea y no por el movimiento: `RN-MV-003` dice que el vendedor es
     // de la línea, y una venta con dos vendedores aparece una vez por cada uno.
     filtro.igual("d.seller_id", "vendedor", f.sellerId());
+    // Con vendedor o sin él (0.3.0, 02-10-2026): sin parámetro, y en la página y
+    // en el conteo a la vez, como todo el predicado.
+    if (f.hasSeller() != null) {
+      filtro.sinParametro(f.hasSeller() ? "d.seller_id IS NOT NULL" : "d.seller_id IS NULL");
+    }
     filtro.igual("d.product_id", "producto", f.productId());
     // El estado de la VENTA ya no es un filtro: va fijo en `TABLAS_LINEAS`
     // (`RN-MV-038`). El de la ENTREGA si lo es, y son cosas distintas — una venta
@@ -1913,6 +1930,11 @@ public class JpaMovementRepository implements MovementRepository {
     void condicion(String sql, String nombre, Object valor) {
       donde.append(" AND ").append(sql);
       parametros.put(nombre, valor);
+    }
+
+    /** Una condición que no compara con nada que llegue de fuera: {@code IS NULL} y similares. */
+    void sinParametro(String sql) {
+      donde.append(" AND ").append(sql);
     }
 
     /** Igualdad simple. Un valor nulo significa «sin filtro» y no añade nada. */

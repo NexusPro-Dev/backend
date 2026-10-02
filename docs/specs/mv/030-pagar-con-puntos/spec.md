@@ -4,11 +4,12 @@
 |---|---|
 | Requerimiento | `RF-MV-030` |
 | Módulo | `MV` — Movimientos |
-| Versión | 0.1.0 |
+| Versión | 0.2.0 |
 | Estado | **Aprobada** |
 | Autor | Responsable técnico |
 | Aprobada por | Responsable del proyecto |
 | Fecha de aprobación | 30-09-2026 |
+| Enmendada el | 30-09-2026 — **quien registra una venta a su propio nombre sí paga con puntos**: `EX-003` compara quién registra con quién compra (`CA-MV-357`) |
 
 !!! info "Qué va en este documento"
 
@@ -133,7 +134,7 @@ Con la misma clave de idempotencia se devuelve la venta ya confirmada, y **no se
 |---|---|---|
 | `EX-001` | Los puntos de esa moneda no alcanzan | Conflicto. **Nada queda escrito** |
 | `EX-002` | La moneda de la venta no tiene tasa vigente | Conflicto. Nada queda escrito |
-| `EX-003` | Quien registra la venta no es quien compra —registro por un funcionario, alta por enlace— | Conflicto |
+| `EX-003` | Quien registra la venta no es quien compra —un funcionario que registra la de **otra** persona, alta por enlace—. **Precisada el 30-09-2026**: un funcionario que registra una venta **a su propio nombre** es quien compra, y paga con puntos | Conflicto |
 
 Y las de cada entrada, que no cambian.
 
@@ -161,6 +162,7 @@ Las de cada entrada. Ninguna nueva.
 | `CA-MV-341` | La **misma petición repetida** devuelve la misma venta y **descuenta una sola vez** |
 | `CA-MV-342` | Un **funcionario** que registra una venta a nombre de otra persona con este método: conflicto, y nada queda escrito |
 | `CA-MV-343` | Tras la migración, **ninguna venta tiene un pago pendiente con este método**: los que había están rechazados, con su motivo, y sus ventas siguen pendientes y se pueden volver a pagar |
+| `CA-MV-357` | Un funcionario que registra una venta **a su propio nombre** con este método la paga con **sus** puntos y queda **confirmada**, como una compra propia (30-09-2026) |
 
 ---
 
@@ -186,3 +188,4 @@ Las de cada entrada. Ninguna nueva.
 | Versión | Fecha | Cambio | Autor |
 |---|---|---|---|
 | 0.1.0 | 30-09-2026 | Primera versión, con la etapa 3 de `MV` ([`requirements/mv.md`](../../../requirements/mv.md) v0.54.0 §4.4). **Un método dentro de las compras propias**, sin operación ni permiso propios: descuenta a la tasa vigente redondeando hacia arriba, confirma en el acto con entrega y comisiones; si no alcanza no queda nada escrito. **Los pagos pendientes con este método que ya existían se rechazan**, por decisión del responsable del proyecto. Criterios `CA-MV-332` a `CA-MV-343`. | Responsable del proyecto |
+| 0.2.0 | 30-09-2026 | **`EX-003` precisada** a petición del responsable del proyecto: la regla era «quien registra no es quien compra», y el registro de un funcionario la aplicaba a **toda** venta, también a la que registra a su propio nombre, que sí es suya. Un superadmin que compraba para sí con sus puntos recibía `409`. Ahora se compara quién registra con quién compra. `CA-MV-342` no cambia; nace `CA-MV-357`. | Responsable del proyecto |

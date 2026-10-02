@@ -1,5 +1,7 @@
 package com.factech.nexus.modules.movements;
 
+import java.util.List;
+import java.util.UUID;
 import org.springframework.jdbc.core.JdbcTemplate;
 
 /**
@@ -32,6 +34,29 @@ public final class PaymentFixtures {
         """,
         metodo.toString(),
         movimiento.toString());
+  }
+
+  /**
+   * El pago que se concilia para un movimiento (`RF-MV-044`, `RF-MV-045`, 01-10-2026): desde ese
+   * día confirmar y rechazar nombran <b>el pago</b>, y las pruebas que piensan en la venta lo
+   * buscan con esto.
+   *
+   * <p>El pendiente si lo hay; si no, el último —para que confirmar dos veces siga respondiendo
+   * conflicto con su estado—; y si el movimiento no tiene ninguno, <b>el propio identificador</b>,
+   * que como pago no existe y responde no encontrado.
+   */
+  public static UUID pagoAConciliar(JdbcTemplate jdbc, Object movimiento) {
+    List<UUID> pagos =
+        jdbc.queryForList(
+            """
+            SELECT id FROM payments
+             WHERE movement_id = CAST(? AS uuid)
+             ORDER BY (status = 'PENDIENTE') DESC, occurred_at DESC, id DESC
+             LIMIT 1
+            """,
+            UUID.class,
+            movimiento.toString());
+    return pagos.isEmpty() ? UUID.fromString(movimiento.toString()) : pagos.get(0);
   }
 
   /** Cambia el método del último pago de la venta: lo que antes era cambiar el de la cabecera. */

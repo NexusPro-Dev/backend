@@ -7,6 +7,7 @@
 | Plan | [`plan.md`](plan.md) v0.1.0 |
 | `plan.md` aprobado el | 30-09-2026 |
 | Estado | **En revisión** — todas las tareas `Hecha` el 30-09-2026 |
+| Enmendadas | 01-10-2026 — `T-06` por **la tarjeta por Stripe** (§6) |
 | Issue | [#149](https://github.com/NexusPro-Dev/backend/issues/149) |
 | Rama | `feature/compra-de-puntos` |
 
@@ -63,3 +64,27 @@
 - [x] Contrato OpenAPI regenerado, **con la prosa releída**.
 - [x] `requirements.md` actualizado.
 - [ ] **`tasks.md` aprobadas por el responsable del proyecto.**
+
+---
+
+## 6. La tarjeta por Stripe — enmienda del 01-10-2026
+
+Rama: `feature/stripe-tarjeta`. Después de las tareas de `RF-MV-040` que cada fila cita.
+
+| ID | Tarea | Depende de | Verificación | Estado |
+|---|---|---|---|---|
+| `T-06` | La comprobación en la ruta manual; `CA-MV-479` en `PointsPurchaseIT`; la prosa | `RF-MV-040` · `T-01` | | **Hecha** — 01-10-2026 |
+
+Criterios: `CA-MV-479`.
+
+**Construido el 01-10-2026** (issue [#161](https://github.com/NexusPro-Dev/backend/issues/161)). Los criterios se prueban en `CardPaymentIT` —o en la suite de la entrada, para las compras— y no en la suite que cada fila nombra.
+
+## 7. Sin ruta propia — enmienda del 01-10-2026
+
+Rama: `feature/confirmar-por-pago`. Junto con `RF-MV-045`.
+
+| ID | Tarea | Depende de | Verificación | Estado |
+|---|---|---|---|---|
+| `T-07` | `PointsPurchaseService.reject` y su ruta se retiran; nace `rejectPayment`, que invoca `RF-MV-045`; `PointsPurchaseIT` pasa a la ruta nueva; `CA-MV-519` en `PointsPurchaseIT` | `RF-MV-045` · `T-03` | Ninguna prueba llama a la ruta retirada | **Hecha** — 01-10-2026 |
+
+Criterios: `CA-MV-519`.

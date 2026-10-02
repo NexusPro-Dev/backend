@@ -4,6 +4,7 @@ import com.factech.nexus.modules.movements.application.PaymentResponse;
 import com.factech.nexus.modules.movements.application.SaleDiscountResponse;
 import com.factech.nexus.modules.movements.application.SaleLineResponse;
 import com.factech.nexus.modules.movements.application.SaleResponse;
+import com.factech.nexus.modules.movements.application.WithdrawalDestinationResponse;
 import com.factech.nexus.modules.movements.domain.repository.MovementRepository.LineDiscountRow;
 import com.factech.nexus.modules.movements.domain.repository.MovementRepository.MovementDetailView;
 import com.factech.nexus.modules.movements.domain.repository.MovementRepository.MovementLineRow;
@@ -24,6 +25,14 @@ final class SaleDetailMapper {
   private SaleDetailMapper() {}
 
   static SaleResponse de(MovementDetailView detalle) {
+    return de(detalle, null);
+  }
+
+  /**
+   * @param destino a dónde se paga, si es un retiro con copia (`RF-MV-007` · `plan.md` §12); nulo
+   *     en todo lo demás
+   */
+  static SaleResponse de(MovementDetailView detalle, WithdrawalDestinationResponse destino) {
     MyMovementRow cabecera = detalle.header();
 
     List<SaleLineResponse> lineas = new ArrayList<>(detalle.lines().size());
@@ -83,7 +92,9 @@ final class SaleDetailMapper {
         cabecera.voidedAt(),
         cabecera.voidReason(),
         cabecera.createdAt(),
-        pagos(detalle.payments()));
+        pagos(detalle.payments()),
+        destino,
+        null);
   }
 
   /** Los pagos del detalle (`RN-MV-047`), en el orden en que se intentaron. */

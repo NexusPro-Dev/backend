@@ -24,6 +24,14 @@ import org.testcontainers.utility.DockerImageName;
  * otra, las pruebas dejan de decir algo sobre lo que se despliega.
  */
 @SpringBootTest
+// EL DOBLE DE LA PASARELA, EN TODAS Y APAGADO (01-10-2026). Importarlo solo en
+// las suites que lo usan creaba un contexto de Spring más —con su pozo de
+// conexiones— y el CI se quedó sin ellas (`too many clients`). Aquí no cambia
+// la clave del contexto, y apagado se comporta como la pasarela sin
+// credenciales: la tarjeta nace pendiente sin cobro. Quien lo necesita lo
+// enciende y lo deja como estaba.
+@org.springframework.context.annotation.Import(
+    com.factech.nexus.modules.movements.FakeCardGateway.Config.class)
 public abstract class IntegrationTestBase {
 
   private static final PostgreSQLContainer<?> POSTGRES =

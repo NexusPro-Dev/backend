@@ -5,11 +5,11 @@
 | Proyecto | NEXUS — Renovación de plataforma |
 | Empresa | FACTECH GROUP SAS |
 | Documento | `architecture.md` |
-| Versión | 0.39.0 |
+| Versión | 0.43.0 |
 | Estado | Borrador |
 | Responsable técnico | Bonilla Diaz William Steven |
 | Fecha de creación | 19-08-2026 |
-| Última actualización | 28-09-2026 |
+| Última actualización | 30-09-2026 |
 | Documento superior | `constitution.md` v0.5.0 |
 | Documento relacionado | `security.md` v0.3.0 |
 
@@ -661,6 +661,7 @@ Toda configuración dependiente del entorno se inyecta por variable de entorno (
 | `TOKEN_PURGE_ENABLED` · `TOKEN_PURGE_CRON` · `TOKEN_PURGE_RETENTION` | No | Purga de sesiones caducadas; por defecto activa, `0 30 3 * * *` UTC y `P30D` |
 | `REQUEST_LOG_RETENTION_DAYS` | No | Retención del `request_log`. **Hoy no la lee nadie**: la purga sigue pendiente de D-10 |
 | `NOTIFICATION_ENABLED` · `RESEND_API_KEY` · `NOTIFICATION_FROM` | No | Envío saliente (§15.1). Sin clave queda apagado y se avisa al arrancar |
+| `STRIPE_SECRET_KEY` · `STRIPE_WEBHOOK_SECRET` | No | La pasarela de la tarjeta (§15.4). **Sin las dos, queda apagada y se avisa al arrancar**: el pago con `CREDIT_CARD` nace pendiente **sin cobro**, como antes del 01-10-2026, y lo confirma una persona; la ruta de notificaciones responde `503` |
 | `NOTIFICATION_TEMPLATE_PASSWORD_RECOVERY` | No | Plantilla alojada en Resend del correo de `RF-SP-040`, por id o alias. Vacía manda el mensaje **en texto plano** |
 | `YOUTUBE_API_KEY` · `VIMEO_ACCESS_TOKEN` | No | Credenciales con las que Academia lee la duración de una lección de video (`RN-AC-017`, 25-09-2026): la clave de la YouTube Data API v3 y el token de acceso personal de Vimeo, con alcance de lectura. **Sin la de un proveedor, sus lecciones exigen la duración a mano** —Vimeo intenta antes su oEmbed, que no es fiable— |
 
@@ -785,6 +786,8 @@ Se descartó la inversión de dependencia —que `PM` declarase el puerto y `SP`
 | **Si un producto lo publica el hotlink**, por lote | La otra mitad de la oferta (19-09-2026, `RN-MV-007` enmendada): la venta que nace de un enlace se valida contra **el canal hotlink** —`RN-PM-021`, sin persona— y no contra la tienda. `MV` **no lo recalcula**, por lo mismo que la fila anterior | `RF-SP-045`; mañana `RF-MV-011`, `RF-MV-013` |
 | **Si una persona porta un permiso** (`PermissionHolderLookup`) | Sí o no sobre **un código** —«¿porta `courses:teach`?»—, por un rol vivo y activo de una persona no retirada: el predicado de `RN-SEG-010`, compartido como constante con quien resuelve los permisos efectivos. **No la lista**: sería dar con qué reconstruir fuera de `SP` la autorización que es suya | `RF-AC-008`, `RF-AC-011` |
 | **Hasta dónde llega una persona** (`CommercialReach`, 21-09-2026) | El **alcance comercial** del actor, resuelto por `SP` de su tipo de rol y de `user_supervisors`: **todo** (`FUNCIONARIO`), **su red** en profundidad con él dentro (`VENDEDOR`; el conjunto de identificadores), o **solo él** (`CONSUMIDOR` o nadie). Es el resolvedor de [`ADR-005`](architecture/ADR-005-modelo-de-alcance-de-datos.md) opción B con **un** tipo de alcance; `MV` lo recibe y lo aplica como predicado sobre el vendedor de las líneas, **no lo calcula**: «mi red» se define una vez y con su dueño (regla 2) | `RF-MV-015` |
+| **Un país** (`CountryCatalog`, 01-10-2026) | Si existe y si está **activo**, con su código y su nombre. La primera lectura de países fuera de `SP` | `RF-MV-032` |
+| **El titular de una cuenta de cobro** (`PayoutHolderLookup`, 01-10-2026) | Nombre, país y **documento** —la abreviatura de su tipo y el número— de una persona no eliminada, o vacío. **No es `ClientCatalog` ampliado**: aquella es de la venta, y el documento no le hace falta a nadie que venda | `RF-MV-035`, `RF-MV-019` |
 
 **El 04-09-2026, al construirse `RF-MV-001`, esta tabla ganó dos filas y no tres.** El diseño preveía que la interfaz del cliente publicara también su nivel de membresía; **no lo hace**, porque ese puerto ya existía —la tercera fila de esta tabla, desde `RF-PM-007`— con su borde fijado por prueba: una fecha exactamente igual al instante consultado ya no está vigente.
 
@@ -818,6 +821,14 @@ Declararlo otra vez habría creado **la segunda definición de «vigente»**, qu
     **Por eso esta única lectura se resuelve invirtiendo la dependencia**: `SP` declara el puerto en su capa `application` y **`PM` lo implementa**. La dependencia de compilación queda `PM` → `SP`, que es la que ya existía, y no aparece ninguna arista nueva.
 
     Y no contradice el descarte de la inversión que esta misma sección hace más arriba: **aquel se descartó por producir el ciclo, y este se elige por evitarlo**. La regla de fondo no es «quién declara la interfaz», es **que el grafo no tenga ciclos** — de modo que la dirección la decide, en cada caso, cuál de las dos formas mantiene esa propiedad. Cuando el consumidor es el módulo raíz, la interfaz la declara él.
+
+!!! danger "La segunda inversión, el 30-09-2026: `MV` pregunta a `CM`, y la respuesta escribe"
+
+    `RF-MV-016` corrige el vendedor de una línea de venta, y desde el 30-09-2026 lo hace también en una venta confirmada **mientras su comisión no se haya pagado** ([`requirements/mv.md`](requirements/mv.md) v0.58.0, `RN-MV-053`). Saber si está pagada es de `CM`, y `CM` ya depende de `MV`: la norma de esta sección pondría a `MV` a importar una interfaz de `CM` y cerraría el ciclo `MV` → `CM` → `MV`.
+
+    **Se resuelve como la cuarta lectura**: `MV` declara el puerto en su capa `application` y **`CM` lo implementa** (`RF-CM-024`). La dependencia de compilación sigue siendo `CM` → `MV`. **Lo que esta tiene de distinto, y conviene decirlo, es que no es una lectura**: si la línea puede cambiar de dueño, `CM` **revierte** su cadena de comisiones en la misma transacción antes de responder. Se acepta porque la pregunta y la escritura son inseparables —comprobar y revertir por separado dejaría entre medias una ventana en la que alguien paga el lote— y porque la transacción es la de `MV`: si la corrección se rechaza después, la reversión se deshace con ella.
+
+    **La tercera regla de abajo se cumple igual**: el puerto responde **un resultado** —liberada, o negada con su motivo— y no lanza; qué `4xx` produce lo decide `MV`, que es quien tiene el contrato HTTP.
 
 ### Cuatro reglas que hacen que la frontera se sostenga
 
@@ -885,6 +896,16 @@ Las dos alternativas se descartaron por lo que crean, no por lo que cuestan:
 
 El motivo del retiro llega con el permiso de lectura del módulo —`products:read`, en el caso de `PM`— y **no con `audit:read-deletions`**. Es una consecuencia asumida y acotada: la resolvió `RF-PM-003` §14 para **la consulta individual**, y el listado sigue sin llevarlo. Uno a uno el motivo es una consulta; en bloque sería una exportación de decisiones comerciales.
 
+## 15.4 La pasarela de pago (01-10-2026)
+
+**Stripe cobra la tarjeta** ([`requirements/mv.md`](requirements/mv.md) v0.64.0 §4.6), y entra como **el primer proveedor externo que escribe en el sistema**: Resend solo recibe (§15.1) y YouTube y Vimeo solo responden. Su notificación confirma pagos, y con ellos entrega lo comprado y devenga comisiones.
+
+**Es un puerto de `MV`, no infraestructura compartida.** Al revés que el envío de correo, la pasarela solo la usa quien registra dinero, y `modules.md` §2.1 es explícito: si solo lo usa un módulo, es suyo. `MV` declara en su capa de dominio un puerto `CardGateway` —abrir un cobro, consultarlo, cancelarlo, verificar una notificación— y lo implementa `StripeCardGateway`, en `movements.infrastructure`, que es **el único sitio que conoce la API de Stripe**. **Se construyó sin la biblioteca de Stripe** (01-10-2026), por su API HTTP con `RestClient`, como Resend, YouTube y Vimeo: son tres llamadas y una verificación de firma, y así el adaptador se prueba contra un servidor simulado y no se añade una dependencia. Una regla de ArchUnit (`laPasarelaEsUnPuerto`) fija que nada fuera de esa capa dependa de ella: cambiar de pasarela no toca casos de uso.
+
+**Dos llamadas hacia fuera, y ninguna dentro de una transacción larga.** Abrir el cobro ocurre **al registrar el pago**, dentro de su transacción, porque `RN-MV-057` exige que sin cobro no quede ni movimiento ni pago; se acepta porque la llamada es una y corta, y la idempotencia de la pasarela —la clave del pago— hace que reintentar no abra dos. Cancelar ocurre **antes** de cerrar el pago, por lo mismo. **Lo que sí sale de la transacción es procesar la notificación**: se guarda y se responde (`RN-MV-059`), y el proceso corre después, con reintento, por el mismo patrón `AFTER_COMMIT` con que `CM` devenga (`RN-MV-049`).
+
+**Apagable, como el correo.** Sin `STRIPE_SECRET_KEY` y `STRIPE_WEBHOOK_SECRET` el adaptador no se crea, se avisa al arrancar y el método `CREDIT_CARD` se comporta como antes del 01-10-2026: pago pendiente sin cobro, confirmado a mano. **La suite corre así**, salvo las pruebas de la pasarela, que doblan el puerto: ninguna prueba llama a Stripe de verdad.
+
 ---
 
 ## 16. Decisiones pendientes
@@ -944,3 +965,7 @@ D-08 quedó cerrada en `security.md` §12, junto con las decisiones D-12 a D-15 
 | 0.37.0 | 25-09-2026 | **Academia llama a dos servicios externos** para leer la duración de un video (`requirements/ac.md` v0.16.0 §5.2.11): YouTube Data API v3, con **`YOUTUBE_API_KEY`** nueva en §11, y el oEmbed público de Vimeo, sin credencial. Con plazo corto y siempre a la dirección fija del proveedor. | Responsable técnico |
 | 0.38.0 | 25-09-2026 | **`VIMEO_ACCESS_TOKEN`** en §11: Academia lee la duración de Vimeo por su API con token, porque el oEmbed sin credencial no es fiable (`requirements/ac.md` v0.18.0 §5.2.11). | Responsable técnico |
 | 0.39.0 | 28-09-2026 | **§15.1.1: la zona del negocio tiene un sitio, `BusinessCalendar`** (`shared/time`, `nexus.business.zone`), que nace con el devengo de comisiones ([`requirements/cm.md`](requirements/cm.md) v0.19.0, `RF-CM-013`) y salda el «hoy» en UTC de `ResolveCommissionService`, aplazado el 15-09-2026. Una tarea programada de negocio declara su `zone` con la misma propiedad. | Responsable del proyecto |
+| 0.40.0 | 30-09-2026 | **§15.2 gana su segunda inversión de dependencia**, y la primera que escribe: `MV` declara el puerto con el que pregunta a `CM` si la línea cuyo vendedor se corrige puede cambiar de dueño, y `CM` lo implementa revirtiendo su cadena en la misma transacción ([`requirements/mv.md`](requirements/mv.md) v0.58.0 `RN-MV-053`; [`requirements/cm.md`](requirements/cm.md) v0.26.0 `RN-CM-047`). Responde un resultado y no lanza, como la tercera regla exige. | Responsable del proyecto |
+| 0.41.0 | 01-10-2026 | **§15.2 gana dos lecturas de `SP` para las cuentas de cobro de `MV`** ([`requirements/mv.md`](requirements/mv.md) v0.61.0 §4.5): `CountryCatalog` —si un país existe y está activo, para el catálogo de entidades de cobro— y `PayoutHolderLookup` —el nombre, el país y el documento del titular, que es siempre el dueño de la cuenta—. Siguen la norma de D-25: las publica el dueño del dato, de solo lectura, con la ausencia como vacío. **El retiro copia lo que lee de la segunda** en el instante en que se pide (`RN-MV-056`). | Responsable técnico |
+| 0.42.0 | 01-10-2026 | **Nueva §15.4: la pasarela de pago.** Stripe cobra la tarjeta y es **el primer proveedor externo que escribe en el sistema**. Se decide que sea **un puerto de `MV`** —`CardGateway`, implementado por un adaptador que es el único sitio que importa la biblioteca de Stripe, con una regla de ArchUnit que lo fija— y no infraestructura compartida, porque solo lo usa quien registra dinero. **Abrir y cancelar el cobro** ocurren dentro de la transacción del pago, porque sin cobro no debe quedar nada; **procesar la notificación** sale de ella, después de guardarla. Y **es apagable**: sin sus dos secretos, la tarjeta vuelve a ser un pago pendiente que confirma una persona, y así corre la suite. | Responsable técnico |
+| 0.43.0 | 01-10-2026 | **§15.4 recoge cómo se construyó la pasarela**: por la API HTTP de Stripe con `RestClient`, **sin su biblioteca**, en `movements.infrastructure`, con la regla de ArchUnit `laPasarelaEsUnPuerto`. El proceso de la notificación corre en una transacción **`REQUIRES_NEW`** tras el `COMMIT` de quien la recibió —con `REQUIRED` se sumaría a la que ya terminó y no confirmaría nada—, en segundo plano por el ejecutor de la aplicación, y con un barrido cada minuto que reintenta hasta cinco veces con `SKIP LOCKED`. | Responsable técnico |

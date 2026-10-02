@@ -5,11 +5,12 @@
 | Requerimiento | `RF-CM-011` |
 | Especificación | [`spec.md`](spec.md) v0.1.0 |
 | `spec.md` aprobada el | 28-09-2026 |
-| Versión | 0.1.0 |
+| Versión | 0.2.0 |
 | Estado | **Aprobado** |
 | Autor | Responsable técnico |
 | Aprobado por | Responsable del proyecto |
 | Fecha de aprobación | 28-09-2026 |
+| Enmendado el | 30-09-2026 — un lote sin comisiones vivas responde `409` (§12) |
 
 !!! info "Qué va en este documento"
 
@@ -117,3 +118,7 @@ Un `ChangeEvent` sobre `commission_batches`, `UPDATE`, `PENDIENTE` → `PAGADO`,
 ## 11. Estrategia de prueba
 
 `PayCommissionBatchIT`: `CA-CM-189` a `CA-CM-196`, con lotes producidos por devengo y cierre reales. `CA-CM-192` con dos hilos. `CA-CM-193` con un doble de `CommissionPayout` que lanza.
+
+## 12. El lote vacío — enmienda del 30-09-2026
+
+`RN-CM-048`. **Tras el `FOR UPDATE` y las comprobaciones de estado**, un `EXISTS` de comisiones vivas del lote; si no hay, `409` (`EX-005`) antes de invocar a `MV`. **Va después del bloqueo** por lo mismo que las otras dos comprobaciones: una devolución concurrente (`RF-CM-023`) toma el mismo lote con `FOR UPDATE`, y el pago que espera lee lo que ella dejó. `PayCommissionBatchIT` gana `CA-CM-301`.

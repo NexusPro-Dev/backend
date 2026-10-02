@@ -371,7 +371,9 @@ class ProductUpdateIT extends IntegrationTestBase {
         .andExpect(jsonPath("$.errors[0].code").value("VAL-004"));
 
     // `RN-PM-006` dejó de exigir «mayor que cero» con la renovación: un
-    // `BECA → BECA` es un producto legítimo que vale cero.
+    // `BECA → BECA` es un producto legítimo que vale cero. Con directa fija:
+    // sobre precio cero un porcentaje es `VAL-021` (`CA-PM-414`).
+    conDirecta("FIJO", null, "0");
     mvc.perform(corregir(producto, "{\"price\":0}"))
         .andExpect(status().isOk())
         .andExpect(jsonPath("$.price").value(0));
@@ -779,6 +781,25 @@ class ProductUpdateIT extends IntegrationTestBase {
   }
 
   @Test
+  @DisplayName(
+      "`CA-PM-415` — lo FTD sale del tipo y las membresías: un bot sin directa guardada la recibe")
+  void unBotSinDirectaGuardadaLaRecibe() throws Exception {
+    // Como lo dejaba la semilla de dev antes del 01-10-2026: un bot con las
+    // tres columnas nulas. Leer «nula» como «FTD» lo rechazaba con VAL-022.
+    UUID senales = bot("BOT_SENALES", "Bot de señales", "Señales automáticas.");
+    jdbc.update(
+        "UPDATE products SET direct_commission_type = NULL, direct_commission_percentage = NULL"
+            + " WHERE id = CAST(? AS uuid)",
+        senales.toString());
+
+    mvc.perform(
+            corregir(senales, "{\"directCommission\":{\"type\":\"PORCENTAJE\",\"percentage\":15}}"))
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$.directCommission.percentage").value(15));
+    assertThat(directaDe(senales)).isEqualTo("PORCENTAJE 15.00");
+  }
+
+  @Test
   @DisplayName("`CA-PM-416` — la auditoría de la edición lleva la directa antes y después")
   void laAuditoriaLlevaLaDirecta() throws Exception {
     conDirecta("PORCENTAJE", "10", null);
@@ -1136,6 +1157,9 @@ class ProductUpdateIT extends IntegrationTestBase {
       Integer vigencia) {
 
     UUID id = UUID.randomUUID();
+    // Como lo deja el alta (`RN-PM-051`): con directa —cero—, salvo el FTD,
+    // que es el upgrade del suelo a sí mismo.
+    boolean ftd = free.equals(destino);
     // Origen y destino VIAJAN JUNTOS: un upgrade declara los dos
     // (`RN-PM-002`) y un bot no declara ninguno. Por eso el origen se
     // deriva del destino en lugar de ser un parametro mas — nunca puede
@@ -1143,10 +1167,12 @@ class ProductUpdateIT extends IntegrationTestBase {
     jdbc.update(
         "INSERT INTO products (scope, implementation, id, code, type, name, description, source_membership_id,"
             + " target_membership_id, price,"
-            + " currency_id, validity_days, status, created_at, updated_at)"
+            + " currency_id, validity_days, status, created_at, updated_at,"
+            + " direct_commission_type, direct_commission_percentage)"
             + " VALUES ('TIENDA', 'MANUAL', CAST(? AS uuid), ?, ?, ?, CAST(? AS text),"
             + " CAST(? AS uuid), CAST(? AS uuid), 49.99,"
-            + " CAST(? AS uuid), CAST(? AS integer), 'INACTIVO', ?, ?)",
+            + " CAST(? AS uuid), CAST(? AS integer), 'INACTIVO', ?, ?,"
+            + " CAST(? AS varchar), CAST(? AS numeric))",
         id.toString(),
         codigo,
         tipo,
@@ -1157,7 +1183,9 @@ class ProductUpdateIT extends IntegrationTestBase {
         USD,
         vigencia,
         BASE,
-        BASE);
+        BASE,
+        ftd ? null : "PORCENTAJE",
+        ftd ? null : "0");
     return id;
   }
 }

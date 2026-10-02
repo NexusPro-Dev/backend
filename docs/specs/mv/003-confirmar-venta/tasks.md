@@ -7,6 +7,7 @@
 | Plan | [`plan.md`](plan.md) v0.1.0 |
 | `plan.md` aprobado el | 17-09-2026 |
 | Estado | **En revisión** — `T-01` a `T-12` `Hecha` el 17-09-2026 |
+| Enmendadas | 01-10-2026 — `T-15` a `T-16` por **la tarjeta por Stripe** (§6) |
 | Issue | [#67](https://github.com/NexusPro-Dev/backend/issues/67) |
 | Rama | `feature/venta-de-productos` |
 
@@ -77,3 +78,28 @@
 - [x] Contrato OpenAPI regenerado, **con la prosa releída**.
 - [x] `requirements/mv.md`, `requirements/sp.md`, `architecture.md`, `modelo-datos.md` y `requirements.md` actualizados.
 - [ ] **`tasks.md` aprobadas por el responsable del proyecto.**
+
+---
+
+## 6. La tarjeta por Stripe — enmienda del 01-10-2026
+
+Rama: `feature/stripe-tarjeta`. Después de las tareas de `RF-MV-040` que cada fila cita.
+
+| ID | Tarea | Depende de | Verificación | Estado |
+|---|---|---|---|---|
+| `T-15` | La comprobación de `RN-MV-058` en la ruta manual de `ConfirmSaleService`, y el camino de la pasarela que comparte la transición | `RF-MV-040` · `T-01` | | **Hecha** — 01-10-2026 |
+| `T-16` | `CA-MV-462` y `CA-MV-463` en `ConfirmSaleIT`; la prosa del `409` | la anterior | | **Hecha** — 01-10-2026 |
+
+Criterios: `CA-MV-462` a `CA-MV-463`.
+
+**Construido el 01-10-2026** (issue [#161](https://github.com/NexusPro-Dev/backend/issues/161)). Los criterios se prueban en `CardPaymentIT` —o en la suite de la entrada, para las compras— y no en la suite que cada fila nombra.
+
+## 7. Sin ruta propia — enmienda del 01-10-2026
+
+Rama: `feature/confirmar-por-pago`. Junto con `RF-MV-044`.
+
+| ID | Tarea | Depende de | Verificación | Estado |
+|---|---|---|---|---|
+| `T-17` | `ConfirmSaleService.confirm` y su ruta se retiran; nace `confirmPayment`, que invoca `RF-MV-044`; `ConfirmSaleIT` y `ConfirmSaleConcurrencyIT` pasan a la ruta nueva; `CA-MV-516` en `ConfirmSaleIT` | `RF-MV-044` · `T-03` | Ninguna prueba llama a la ruta retirada | **Hecha** — 01-10-2026 |
+
+Criterios: `CA-MV-516`.

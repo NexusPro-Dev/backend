@@ -51,6 +51,14 @@ class SystemRolesSeedIT extends IntegrationTestBase {
           "movements:read-points-rates",
           "movements:buy-points",
           "movements:list-own-points-purchases",
+          // `V61` (01-10-2026): las cuentas de cobro, lo propio por tipo de rol.
+          "movements:read-payout-institutions",
+          "movements:create-own-payout-account",
+          "movements:list-own-payout-accounts",
+          "movements:update-own-payout-account",
+          "movements:delete-own-payout-account",
+          // `V62` (01-10-2026): pagar con tarjeta un pendiente propio.
+          "movements:pay-pending-by-card",
           "movements:request-withdrawal",
           "movements:read-own-balances",
           "movements:list-own-entries",
@@ -94,6 +102,14 @@ class SystemRolesSeedIT extends IntegrationTestBase {
           "movements:read-points-rates",
           "movements:buy-points",
           "movements:list-own-points-purchases",
+          // `V61` (01-10-2026): las cuentas de cobro, lo propio por tipo de rol.
+          "movements:read-payout-institutions",
+          "movements:create-own-payout-account",
+          "movements:list-own-payout-accounts",
+          "movements:update-own-payout-account",
+          "movements:delete-own-payout-account",
+          // `V62` (01-10-2026): pagar con tarjeta un pendiente propio.
+          "movements:pay-pending-by-card",
           "movements:request-withdrawal",
           "movements:read-own-balances",
           "movements:list-own-entries",
@@ -129,6 +145,14 @@ class SystemRolesSeedIT extends IntegrationTestBase {
           "movements:read-points-rates",
           "movements:buy-points",
           "movements:list-own-points-purchases",
+          // `V61` (01-10-2026): las cuentas de cobro, lo propio por tipo de rol.
+          "movements:read-payout-institutions",
+          "movements:create-own-payout-account",
+          "movements:list-own-payout-accounts",
+          "movements:update-own-payout-account",
+          "movements:delete-own-payout-account",
+          // `V62` (01-10-2026): pagar con tarjeta un pendiente propio.
+          "movements:pay-pending-by-card",
           "movements:request-withdrawal",
           "movements:read-own-balances",
           "movements:list-own-entries",
@@ -277,7 +301,8 @@ class SystemRolesSeedIT extends IntegrationTestBase {
     // Y LOS CUATRO DE `movements:` SÍ, que es la otra mitad del cambio: sin
     // esta línea, revertir `V40` dejaría la prueba en verde.
     assertThat(deAdmin)
-        .contains("movements:read", "movements:create", "movements:confirm", "movements:void");
+        .contains(
+            "movements:read", "movements:create", "movements:confirm-payment", "movements:void");
     assertThat(deAdmin).hasSize(delCatalogo - 2);
   }
 

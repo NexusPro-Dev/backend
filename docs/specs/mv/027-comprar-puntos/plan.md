@@ -5,11 +5,12 @@
 | Requerimiento | `RF-MV-027` |
 | Especificación | [`spec.md`](spec.md) v0.1.0 |
 | `spec.md` aprobada el | 30-09-2026 |
-| Versión | 0.1.0 |
+| Versión | 0.2.0 |
 | Estado | **Aprobado** |
 | Autor | Responsable técnico |
 | Aprobado por | Responsable del proyecto |
 | Fecha de aprobación | 30-09-2026 |
+| Enmendado el | 01-10-2026 — la tarjeta por Stripe (§12) |
 
 !!! info "Qué va en este documento"
 
@@ -114,3 +115,9 @@ Un `ChangeEvent` sobre `movements`, `INSERT`, con la moneda, el importe, la tasa
 ## 11. Estrategia de prueba
 
 Integración, `BuyPointsIT`: `CA-MV-306` a `CA-MV-317`; `CA-MV-310` con dos hilos y la misma clave; `CA-MV-307` con una tasa de cuatro decimales. Unitarias de `PointsAmount`.
+
+---
+
+## 12. La tarjeta por Stripe — enmienda del 01-10-2026
+
+Por [`requirements/mv.md`](../../../requirements/mv.md) v0.64.0 §4.6 y `spec.md` §14.2. `PointsPurchaseService.buy` llama a `CardPayment` después de guardar el pago; `PointsPurchaseResponse` gana `cardCharge`. **Contrato**: la prosa.

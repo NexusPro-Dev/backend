@@ -5,12 +5,13 @@
 | Requerimiento | `RF-CM-009` |
 | Especificación | [`spec.md`](spec.md) v0.1.0 |
 | `spec.md` aprobada el | 28-09-2026 |
-| Versión | 0.2.0 |
+| Versión | 0.3.0 |
 | Estado | **Aprobado** |
 | Autor | Responsable técnico |
 | Aprobado por | Responsable del proyecto |
 | Fecha de aprobación | 28-09-2026 |
 | Enmendado el | 29-09-2026 — la liquidación afftrack dentro de la transacción externa (§12) |
+| Enmendado el | 30-09-2026 — el paso a pendiente salta los abiertos sin comisiones vivas (§13) |
 
 !!! info "Qué va en este documento"
 
@@ -162,3 +163,14 @@ La externa, con el bloqueo y el cierre de los lotes; una por línea en el barrid
 ```
 
 **Dos cambios de comportamiento, y los dos se dicen**: el instante del cierre deja de ser un `now()` suelto —es posterior al corte, porque un lote que la liquidación abre nace en el corte y `ck_commission_batches_periodo` exige un fin mayor que el inicio—; y **un fallo de la liquidación revierte el cierre entero**, que es `EX-002`, mientras que un fallo del barrido sigue sin pararlo. **La respuesta del cierre a mano no cambia.** `CloseCommissionPeriodIT` tiene que seguir en verde sin tocar sus criterios; los de la liquidación viven en `AfftrackSettlementIT`.
+
+## 13. Los abiertos vacíos — enmienda del 30-09-2026
+
+`RN-CM-048`. **El paso a `PENDIENTE` gana una condición**, y es la única sentencia que cambia:
+
+```
+… WHERE status = 'ABIERTO'
+    AND EXISTS (SELECT 1 FROM commissions c WHERE c.batch_id = b.id AND c.reverted_at IS NULL)
+```
+
+**Lo que no se cierra no se cuenta** en `batches_closed`. El `FOR UPDATE` sobre los abiertos lleva la misma condición, de modo que un abierto vacío **no se bloquea**: una devolución que lo esté vaciando a la vez no espera al cierre, y un devengo que lo llene justo antes lo hace cerrable —si llega a tiempo, entra en este cierre; si no, en el siguiente—. `CloseCommissionPeriodIT` gana `CA-CM-300`, con el abierto vaciado por una devolución (`RF-CM-023`).

@@ -15,10 +15,4 @@ public final class PointsRequests {
 
   /** `RF-MV-027`: comprar puntos. */
   public record Purchase(UUID currencyId, BigDecimal amount, UUID paymentMethodId) {}
-
-  /** `RF-MV-028`: confirmar el pago de una compra, con la referencia del cobro si la hay. */
-  public record Confirmation(String providerReference) {}
-
-  /** `RF-MV-029`: rechazar el pago de una compra, con su motivo. */
-  public record Rejection(String reason) {}
 }

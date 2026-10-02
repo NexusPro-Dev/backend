@@ -4,11 +4,12 @@
 |---|---|
 | Requerimiento | `RF-MV-016` |
 | Módulo | `MV` — Movimientos |
-| Versión | 0.1.0 |
+| Versión | 0.2.0 |
 | Estado | **Aprobada** |
 | Autor | Responsable técnico |
 | Aprobada por | Responsable del proyecto |
 | Fecha de aprobación | 23-09-2026 |
+| Enmendada el | 30-09-2026 — **el vendedor de una línea de una venta confirmada se corrige mientras su comisión no se haya pagado** (`RN-MV-053`) |
 
 !!! info "Qué va en este documento"
 
@@ -56,7 +57,7 @@ Que **toda venta diga si ya se sabe a quién se le atribuye**, y que la venta de
 
 - Un catálogo de **estados por tipo de movimiento**, con los dos de la venta, y que toda venta lleve uno.
 - El **estado inicial** de toda venta, por cualquier entrada: registro por un funcionario, compra propia de un paquete, venta del alta por enlace y —cuando se construyan— las compras por hotlink.
-- **Asignar** el vendedor de una o varias líneas de una venta, y **corregirlo** mientras la venta no esté confirmada.
+- **Asignar** el vendedor de una o varias líneas de una venta, y **corregirlo** mientras la venta no esté confirmada —**y desde el 30-09-2026 también confirmada, mientras su comisión no se haya pagado**—.
 - El paso **automático** a validada cuando no queda ninguna línea sin vendedor.
 - Publicar el estado en la respuesta del registro, del detalle y de los dos listados de administración, y **filtrar** esos listados por él.
 
@@ -79,7 +80,9 @@ Que **toda venta diga si ya se sabe a quién se le atribuye**, y que la venta de
 | `RN-MV-025` | La compra por hotlink se atribuye al dueño del enlace, y por eso nace validada |
 | **`RN-MV-033`** | **Nueva.** Cada tipo tiene sus estados; la venta, `VALIDAR_COMISIONES` y `VALIDADO` |
 | **`RN-MV-034`** | **Nueva.** El estado inicial lo deciden los vendedores de quien compra |
-| **`RN-MV-035`** | **Nueva.** Se asigna entre los del cliente; lo asignado se corrige hasta confirmar; la venta se valida sola |
+| **`RN-MV-035`** | **Nueva.** Se asigna entre los del cliente; lo asignado se corrige hasta confirmar —**hasta pagarse la comisión** desde el 30-09-2026—; la venta se valida sola |
+| **`RN-MV-053`** | **Nueva el 30-09-2026.** En una venta confirmada, si una línea con vendedor puede cambiar de dueño lo decide `CM`: se le pregunta antes de escribir, y con un no **la corrección se rechaza entera** |
+| `RN-CM-047` | La respuesta de `CM`: se niega si algún nivel de la cadena está pagado o la línea es un FTD contado; si no, revierte la cadena vieja, y la nueva se devenga con el aviso de siempre |
 | `RN-SP-049` | Los vendedores de un cliente son sus vínculos, y no se cierran |
 
 ---
@@ -116,10 +119,11 @@ Que **toda venta diga si ya se sabe a quién se le atribuye**, y que la venta de
 2. El sistema comprueba que la petición está bien formada: al menos una asignación, ninguna incompleta, **ninguna línea repetida**.
 3. Toma la venta **en exclusiva**, para que nada la confirme ni la reasigne mientras decide.
 4. Comprueba que la venta no está rechazada ni anulada.
-5. Comprueba, para cada asignación, que la línea es de la venta, que puede cambiarse —sin vendedor, o con vendedor en una venta no confirmada— y que el vendedor es **uno de los de quien compra**.
-6. Escribe los vendedores. Si ninguna línea queda sin vendedor, pasa la venta a **validada**.
-7. Audita el cambio: qué tenía cada línea, qué tiene ahora, y el estado antes y después.
-8. Devuelve la venta como queda.
+5. Comprueba, para cada asignación, que la línea es de la venta y que el vendedor es **uno de los de quien compra**.
+6. **Para cada línea que cambia de vendedor en una venta confirmada**, pregunta a `CM` si su comisión lo permite (`RN-MV-053`). Si alguna no lo permite, **nada cambia**. Desde el 30-09-2026; hasta ese día, una línea así no se podía corregir.
+7. Escribe los vendedores. Si ninguna línea queda sin vendedor, pasa la venta a **validada**.
+8. Audita el cambio: qué tenía cada línea, qué tiene ahora, y el estado antes y después.
+9. Devuelve la venta como queda. Si la venta está confirmada, avisa de las líneas que cambiaron, para que su comisión se devengue (`RN-MV-049`).
 
 **Si cualquier comprobación falla, no cambia nada**: ninguna asignación de la petición se escribe.
 
@@ -133,7 +137,7 @@ Las líneas nombradas quedan con su vendedor; las demás siguen sin él, y la ve
 
 ### FA-002 — La venta ya está confirmada
 
-Se asignan **las líneas que no tienen vendedor**, y la venta pasa a validada si no queda ninguna. **Una línea que ya tiene vendedor no se corrige**: confirmada, lo atribuido queda congelado.
+Se asignan **las líneas que no tienen vendedor**, y la venta pasa a validada si no queda ninguna. **Una línea que ya tiene vendedor se corrige solo si su comisión no se ha pagado** (desde el 30-09-2026, `RN-MV-053`): la cadena vieja deja de cobrar y la nueva se devenga como si la línea se acabara de atribuir. Hasta ese día, confirmada, lo atribuido quedaba congelado.
 
 ### FA-003 — La venta ya está validada y no confirmada
 
@@ -151,7 +155,7 @@ Una espera a la otra. Si confirmar llegó antes, la asignación ve la venta conf
 |---|---|---|
 | `EX-001` | La venta no existe | No encontrado |
 | `EX-002` | La venta está **rechazada o anulada** | Conflicto, diciendo en qué estado está. Nada cambia |
-| `EX-003` | Una línea que **ya tiene vendedor**, en una venta **confirmada** | Conflicto, nombrando la línea. Nada cambia |
+| `EX-003` | Una línea que **ya tiene vendedor**, en una venta **confirmada**, **cuya comisión ya se pagó** —en cualquier nivel de la cadena— **o que ya se contó como FTD**. Enmendada el 30-09-2026: hasta ese día bastaba con que la venta estuviera confirmada | Conflicto, nombrando la línea y el motivo. Nada cambia, en ninguna línea |
 | `EX-004` | Una línea nombrada **no es de la venta** | Rechazo, nombrando cuál. Nada cambia |
 | `EX-005` | Un vendedor **no es de los de quien compra** | Rechazo, nombrando la línea. Nada cambia |
 | `EX-006` | Quien pregunta no tiene `movements:assign-sellers` | Prohibido |
@@ -183,7 +187,7 @@ Una espera a la otra. Si confirmar llegó antes, la asignación ve la venta conf
 | `CA-MV-150` | Asignar **una parte** deja la venta por validar: las asignadas con su vendedor, las demás sin él |
 | `CA-MV-151` | Un vendedor que **no es de los del cliente** responde rechazo, y **ninguna** asignación de la petición se escribe |
 | `CA-MV-152` | Una línea que **no es de la venta** responde rechazo, y nada cambia |
-| `CA-MV-153` | En una venta **confirmada** se asignan las líneas sin vendedor —y pasa a validada—, pero **corregir** una que ya lo tiene responde conflicto |
+| `CA-MV-153` | En una venta **confirmada** se asignan las líneas sin vendedor —y pasa a validada—. ~~Pero **corregir** una que ya lo tiene responde conflicto~~ **Superado en su segunda mitad el 30-09-2026**: ver `CA-MV-351` a `CA-MV-356` |
 | `CA-MV-154` | En una venta **validada y pendiente** se puede corregir el vendedor de una línea, y sigue validada |
 | `CA-MV-155` | Una venta **rechazada o anulada** responde conflicto diciendo su estado |
 | `CA-MV-156` | Una venta que **no existe** responde no encontrado |
@@ -193,6 +197,12 @@ Una espera a la otra. Si confirmar llegó antes, la asignación ve la venta conf
 | `CA-MV-160` | **Confirmar** una venta por validar se admite y entrega lo comprado, y la venta **sigue por validar** |
 | `CA-MV-161` | Los dos listados de administración publican el estado del tipo de cada fila y **filtran** por él; un estado que no existe es un error, no una página vacía |
 | `CA-MV-162` | «Mis compras» **no** publica el estado del tipo |
+| `CA-MV-351` | En una venta **confirmada**, corregir el vendedor de una línea cuyas comisiones están en lotes **abiertos o pendientes** responde con la venta y el vendedor nuevo; la cadena vieja queda **revertida** y la nueva **devengada** (30-09-2026) |
+| `CA-MV-352` | Si **alguna** comisión de la línea está **pagada**, responde conflicto nombrando la línea y el motivo, y **nada cambia** |
+| `CA-MV-353` | Si la línea es un **FTD ya contado**, responde conflicto con ese motivo, y nada cambia |
+| `CA-MV-354` | Una petición con **dos líneas**, una que se puede corregir y otra que no, responde conflicto y **no escribe ninguna** |
+| `CA-MV-355` | Reescribir **el mismo** vendedor en una línea de una venta confirmada se admite, **no pregunta a `CM`** y no revierte nada |
+| `CA-MV-356` | Asignar una línea **sin vendedor** en una venta confirmada **no pregunta a `CM`** —no hay nada que revertir— y devenga como antes |
 
 **`CA-MV-151` es el que sostiene el requerimiento**: si se pudiera elegir a cualquiera, validar sería atribuir la venta a quien uno quisiera, que es justo lo que se quería dejar de hacer en silencio.
 
@@ -221,3 +231,4 @@ Una espera a la otra. Si confirmar llegó antes, la asignación ve la venta conf
 | Versión | Fecha | Cambio | Autor |
 |---|---|---|---|
 | 0.1.0 | 23-09-2026 | Primera versión, por decisión del responsable del proyecto: «agregar estados por tipo de movimiento; para las ventas tendrán dos estados, Validar comisiones y Validado. Si tengo más de un vendedor en `client_seller`, la compra se guarda con estado Validar comisiones y en la línea el vendedor estaría null; si tengo un solo vendedor, se guarda Validado y en la línea se le asigna el vendedor». Sus respuestas del mismo día fijan el resto: **columna aparte** y no sustituir el estado del pago; la validación la hace **el front al asignar**, y la venta pasa sola a validada cuando no falta ninguna línea; **confirmar no espera**, la comisión sí; **todo cliente tiene un vendedor**; el **hotlink** nace validado con el dueño del enlace; se elige **solo entre los del cliente**; y lo asignado **se corrige mientras la venta no esté confirmada**. | Responsable del proyecto |
+| 0.2.0 | 30-09-2026 | **El vendedor de una línea de una venta confirmada se corrige mientras su comisión no se haya pagado** ([`requirements/mv.md`](../../../requirements/mv.md) v0.58.0, `RN-MV-053`; [`requirements/cm.md`](../../../requirements/cm.md) v0.26.0, `RN-CM-047`), por decisión del responsable del proyecto: «permitamos que se pueda actualizar el vendedor de una línea siempre y cuando esta comisión de la venta no se haya pagado». Se pregunta a `CM` antes de escribir; con un no, la corrección entera se rechaza. `EX-003` cambia de motivo, `FA-002` y el flujo principal ganan el paso 6, y `CA-MV-153` queda superado en su segunda mitad. Criterios `CA-MV-351` a `CA-MV-356`. | Responsable del proyecto |

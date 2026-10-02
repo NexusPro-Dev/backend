@@ -2,12 +2,17 @@ package com.factech.nexus.modules.commissions.interfaces;
 
 import com.factech.nexus.modules.commissions.application.CommissionBatchDetailResponse;
 import com.factech.nexus.modules.commissions.application.CommissionBatchPageResponse;
+import com.factech.nexus.modules.commissions.application.CommissionBatchesPaymentResponse;
 import com.factech.nexus.modules.commissions.application.CommissionClosingResponse;
 import com.factech.nexus.modules.commissions.application.ListCommissionBatchesRequest;
 import com.factech.nexus.modules.commissions.application.MyCommissionBatchesRequest;
+import com.factech.nexus.modules.commissions.application.PayCommissionBatchesRequest;
 import com.factech.nexus.modules.commissions.domain.service.CloseCommissionPeriodService;
 import com.factech.nexus.modules.commissions.domain.service.CommissionBatchQueryService;
 import com.factech.nexus.modules.commissions.domain.service.PayCommissionBatchService;
+import com.factech.nexus.modules.commissions.domain.service.PayCommissionBatchesService;
+import com.factech.nexus.modules.commissions.domain.service.ReturnCommissionService;
+import com.factech.nexus.modules.commissions.domain.service.WithdrawCommissionService;
 import com.factech.nexus.modules.system.roles.application.AuthenticatedActor;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
@@ -19,6 +24,7 @@ import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.ModelAttribute;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
@@ -43,16 +49,25 @@ public class CommissionBatchController {
   private final CloseCommissionPeriodService cierre;
   private final CommissionBatchQueryService consultas;
   private final PayCommissionBatchService pago;
+  private final PayCommissionBatchesService pagoDeVarios;
+  private final WithdrawCommissionService retiro;
+  private final ReturnCommissionService devolucion;
   private final AuthenticatedActor actor;
 
   public CommissionBatchController(
       CloseCommissionPeriodService cierre,
       CommissionBatchQueryService consultas,
       PayCommissionBatchService pago,
+      PayCommissionBatchesService pagoDeVarios,
+      WithdrawCommissionService retiro,
+      ReturnCommissionService devolucion,
       AuthenticatedActor actor) {
     this.cierre = cierre;
     this.consultas = consultas;
     this.pago = pago;
+    this.pagoDeVarios = pagoDeVarios;
+    this.retiro = retiro;
+    this.devolucion = devolucion;
     this.actor = actor;
   }
 
@@ -67,7 +82,9 @@ public class CommissionBatchController {
           FTD activados de cada persona y de su red, paga el mayor escalón alcanzado en su lote
           abierto y guarda el remanente —se consulta en `GET /afftrack-settlements`—. Por último
           pasa **todos** los lotes abiertos a `PENDIENTE`, con el instante del cierre como fin de
-          periodo. Lo que devengue un segundo después abre un lote nuevo. **Si la liquidación
+          periodo, **salvo el abierto que no tenga ninguna comisión viva** —se devolvieron o revirtieron
+          todas—, que sigue abierto (`RN-CM-048`, 30-09-2026). Lo que devengue un segundo después abre
+          un lote nuevo. **Si la liquidación
           afftrack falla, no se cierra nada.**
 
           **Sin cuerpo.** Responde la constancia del cierre, que queda además consultable en
@@ -139,6 +156,13 @@ public class CommissionBatchController {
           que **no trae** `movementDetailId`, `movementId`, `movementCode`, `chainLevel` ni
           `unitPrice` —no sale de una línea—: `productId` es el producto FTD, `quantity` los FTD
           pagados, `fixedAmount` el valor por FTD y `afftrackSettlementId` la liquidación.
+
+          **Lo que salió del lote se ve** (30-09-2026, `RN-CM-046`, `RN-CM-047`). Una comisión con
+          `revertedAt` se **revirtió** al corregirse el vendedor de su línea: sigue aquí, **fuera del
+          total** y de `commissionsCount`. `withdrawnFrom` dice de qué lote pendiente se **retiró**
+          una comisión que está en este. Y `withdrawn` lista las **retiradas de este lote**, cada una
+          con el lote en que está (`currentBatch`, `currentStatus`) y `returnable`: si todavía se
+          puede devolver con `POST /commission-batches/{id}/commissions/{commissionId}/return`.
           """)
   @ApiResponses({
     @ApiResponse(responseCode = "200", description = "El lote con sus comisiones"),
@@ -164,7 +188,9 @@ public class CommissionBatchController {
 
           **Solo un lote `PENDIENTE`**: uno `ABIERTO` sigue creciendo y se paga después del
           cierre; uno `PAGADO` no se paga dos veces. Los dos responden **`409`** con el estado en
-          el mensaje. **Sin cuerpo**: se paga el total, entero.
+          el mensaje. **Y uno sin comisiones vivas** —se retiraron o revirtieron todas— responde
+          `409` (`EX-005`, `RN-CM-048`, 30-09-2026); uno con una comisión viva de importe cero se
+          paga. **Sin cuerpo**: se paga el total, entero.
           """)
   @ApiResponses({
     @ApiResponse(responseCode = "200", description = "Pagado, con el lote y `paidAmount`"),
@@ -172,12 +198,115 @@ public class CommissionBatchController {
     @ApiResponse(responseCode = "401", description = "Sin token"),
     @ApiResponse(responseCode = "403", description = "Sin `commission-batches:pay`"),
     @ApiResponse(responseCode = "404", description = "No existe"),
-    @ApiResponse(responseCode = "409", description = "Abierto o ya pagado")
+    @ApiResponse(responseCode = "409", description = "Abierto, ya pagado o sin comisiones vivas")
   })
   @PostMapping("/{id}/payment")
   @PreAuthorize("hasAuthority('commission-batches:pay')")
   public CommissionBatchDetailResponse pagar(@PathVariable UUID id) {
     return pago.pay(id);
+  }
+
+  @Operation(
+      summary = "Pagar varios lotes de comisión",
+      description =
+          """
+          Paga de una vez **los lotes que Finanzas elige** (`RF-CM-025`, `RN-CM-049`, 01-10-2026),
+          **cada uno por su cuenta**: exactamente como `POST /commission-batches/{id}/payment`, con
+          su abono en la billetera, su movimiento `PAGO_COMISION` y su constancia, en su propia
+          transacción y en el orden pedido. **Sin tope** de lotes por petición.
+
+          **Lo que impide pagar un lote no frena a los demás**: un lote abierto, ya pagado, sin
+          comisiones vivas, inexistente o cuyo abono falla **se queda como estaba**, y su fila trae
+          `paid: false` con el código y el mensaje que daría pagarlo solo (`reasonCode`,
+          `reason`). Por eso responde **`200` aunque no se pague ninguno**: el resultado está en
+          cada fila, y en `paidCount` y `notPaidCount`.
+
+          Cuerpo: `batchIds`, al menos uno y sin repetir. Si la conexión se corta a mitad, lo pagado
+          queda pagado, y repetir la lista lo devuelve como ya pagado sin abonar dos veces.
+          """)
+  @ApiResponses({
+    @ApiResponse(
+        responseCode = "200",
+        description = "El resultado de cada lote, en el orden pedido"),
+    @ApiResponse(responseCode = "400", description = "Lista vacía o con lotes repetidos"),
+    @ApiResponse(responseCode = "401", description = "Sin token"),
+    @ApiResponse(
+        responseCode = "403",
+        description = "Sin `commission-batches:pay-batches` (`commission-batches:pay` no basta)")
+  })
+  @PostMapping("/payments")
+  @PreAuthorize("hasAuthority('commission-batches:pay-batches')")
+  public CommissionBatchesPaymentResponse pagarVarios(
+      @RequestBody(required = false) PayCommissionBatchesRequest peticion) {
+    return pagoDeVarios.payAll(peticion);
+  }
+
+  @Operation(
+      summary = "Retirar una comisión de un lote pendiente",
+      description =
+          """
+          Saca una comisión de un lote **`PENDIENTE`** y la pasa al lote **`ABIERTO`** de la misma
+          persona y moneda —que se abre si no lo hay—, para que se pague en el **cierre siguiente**
+          (`RF-CM-022`, `RN-CM-046`, 30-09-2026). Es como se «confirma» un lote antes de pagarlo:
+          lo que no se quiere pagar todavía se retira, y lo que queda es lo confirmado.
+
+          **La comisión no cambia**: conserva su tasa, su importe y su instante de devengo, y
+          recuerda de qué lote salió (`withdrawnFrom`). Los dos totales se ajustan en el mismo acto.
+          Sirve para las dos clases, `POR_VENTA` y `POR_AFFTRACK`.
+
+          **Sin cuerpo.** Responde **el lote pendiente como queda**, con la retirada entre sus
+          `withdrawn`. **`409`** si el lote está abierto o pagado, o si la comisión está revertida;
+          **`404`** si la comisión no es de ese lote.
+          """)
+  @ApiResponses({
+    @ApiResponse(responseCode = "200", description = "Retirada, con el lote pendiente como queda"),
+    @ApiResponse(responseCode = "400", description = "Identificador malformado"),
+    @ApiResponse(responseCode = "401", description = "Sin token"),
+    @ApiResponse(
+        responseCode = "403",
+        description = "Sin `commission-batches:withdraw-commission`"),
+    @ApiResponse(responseCode = "404", description = "El lote o la comisión no existen en él"),
+    @ApiResponse(responseCode = "409", description = "Lote abierto o pagado, o comisión revertida")
+  })
+  @PostMapping("/{id}/commissions/{commissionId}/withdrawal")
+  @PreAuthorize("hasAuthority('commission-batches:withdraw-commission')")
+  public CommissionBatchDetailResponse retirar(
+      @PathVariable UUID id, @PathVariable UUID commissionId) {
+    return retiro.withdraw(id, commissionId);
+  }
+
+  @Operation(
+      summary = "Devolver una comisión a su lote pendiente",
+      description =
+          """
+          Deshace un retiro hecho por error (`RF-CM-023`, `RN-CM-046`, 30-09-2026): la comisión
+          vuelve **al lote pendiente del que salió**, que es el `{id}` de la ruta —el que se está
+          revisando, y el que la lista en `withdrawn`—. Los dos totales se ajustan.
+
+          **Solo mientras las dos mitades del retiro sigan como quedaron**: el lote de origen
+          **`PENDIENTE`** y la comisión **en un lote `ABIERTO`**. Si el origen se pagó, o si el
+          abierto ya se cerró, **`409`**: lo retirado se queda donde está. Una comisión que no se
+          retiró de este lote —también la que nació en el abierto— responde **`404`**.
+
+          **Sin cuerpo.** Responde el lote pendiente como queda.
+          """)
+  @ApiResponses({
+    @ApiResponse(responseCode = "200", description = "Devuelta, con el lote pendiente como queda"),
+    @ApiResponse(responseCode = "400", description = "Identificador malformado"),
+    @ApiResponse(responseCode = "401", description = "Sin token"),
+    @ApiResponse(responseCode = "403", description = "Sin `commission-batches:return-commission`"),
+    @ApiResponse(
+        responseCode = "404",
+        description = "El lote no existe, o no se le retiró esa comisión"),
+    @ApiResponse(
+        responseCode = "409",
+        description = "Origen pagado, abierto ya cerrado o comisión revertida")
+  })
+  @PostMapping("/{id}/commissions/{commissionId}/return")
+  @PreAuthorize("hasAuthority('commission-batches:return-commission')")
+  public CommissionBatchDetailResponse devolver(
+      @PathVariable UUID id, @PathVariable UUID commissionId) {
+    return devolucion.giveBack(id, commissionId);
   }
 
   @Operation(
@@ -209,7 +338,8 @@ public class CommissionBatchController {
       description =
           """
           Uno de **mis** lotes, con sus comisiones, en la forma del detalle de administración
-          (`RF-CM-012`), **con la clase de cada comisión** —`POR_VENTA` o `POR_AFFTRACK`—.
+          (`RF-CM-012`), **con la clase de cada comisión** —`POR_VENTA` o `POR_AFFTRACK`—, y
+          desde el 30-09-2026 **con lo revertido y lo retirado**, como el detalle de administración.
           **Un lote ajeno responde `404`**, igual que uno que no existe: no se confirma que
           exista.
           """)

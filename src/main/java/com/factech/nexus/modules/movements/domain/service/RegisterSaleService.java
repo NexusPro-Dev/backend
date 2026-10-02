@@ -110,6 +110,7 @@ public class RegisterSaleService {
   private final SaleRules reglas;
   private final SaleAttribution atribuciones;
   private final PointsPayment puntos;
+  private final CardPayment tarjeta;
 
   @Autowired
   public RegisterSaleService(
@@ -118,8 +119,17 @@ public class RegisterSaleService {
       ClientCatalog clientes,
       CurrentMembershipLookup membresias,
       AuditWriter auditoria,
-      PointsPayment puntos) {
-    this(movimientos, productos, clientes, membresias, auditoria, puntos, Clock.systemUTC());
+      PointsPayment puntos,
+      CardPayment tarjeta) {
+    this(
+        movimientos,
+        productos,
+        clientes,
+        membresias,
+        auditoria,
+        puntos,
+        tarjeta,
+        Clock.systemUTC());
   }
 
   RegisterSaleService(
@@ -129,8 +139,10 @@ public class RegisterSaleService {
       CurrentMembershipLookup membresias,
       AuditWriter auditoria,
       PointsPayment puntos,
+      CardPayment tarjeta,
       Clock reloj) {
     this.puntos = puntos;
+    this.tarjeta = tarjeta;
     this.movimientos = movimientos;
     this.productos = productos;
     this.clientes = clientes;
@@ -152,7 +164,19 @@ public class RegisterSaleService {
    */
   @Transactional
   public SaleResponse register(RegisterSaleRequest peticion, IdempotencyKey clave) {
-    return register(peticion, false, SaleChannel.TIENDA, clave);
+    return register(peticion, clave, null);
+  }
+
+  /**
+   * El registro con <b>quien registra</b> (`RF-MV-030` `EX-003`, precisada el 30-09-2026): con
+   * puntos solo paga quien compra, y un funcionario que registra una venta <b>a su propio
+   * nombre</b> es quien compra. Sin él —la sobrecarga de arriba— los puntos se rechazan siempre:
+   * quien no dice quién registra no puede gastar los puntos de nadie.
+   */
+  @Transactional
+  public SaleResponse register(
+      RegisterSaleRequest peticion, IdempotencyKey clave, UUID quienRegistra) {
+    return register(peticion, false, SaleChannel.TIENDA, clave, quienRegistra);
   }
 
   /**
@@ -182,15 +206,22 @@ public class RegisterSaleService {
    */
   @Transactional
   SaleResponse registrarAltaDeCliente(RegisterSaleRequest peticion) {
-    return register(peticion, true, SaleChannel.HOTLINK, IdempotencyKey.generada());
+    return register(peticion, true, SaleChannel.HOTLINK, IdempotencyKey.generada(), null);
   }
 
   private SaleResponse register(
       RegisterSaleRequest peticion,
       boolean altaDelCliente,
       SaleChannel canal,
-      IdempotencyKey clave) {
-    VentaRegistrada hecha = registrar(peticion, altaDelCliente, canal, null, clave);
+      IdempotencyKey clave,
+      UUID quienRegistra) {
+    VentaRegistrada hecha = registrar(peticion, altaDelCliente, canal, null, clave, quienRegistra);
+    // Pagada con puntos (`RF-MV-030`), la venta ya está confirmada: la respuesta es
+    // la de la confirmación, con el pago, la entrega y el estado de ahora, y no la
+    // de la venta tal como nació.
+    if (hecha.pagada() != null) {
+      return hecha.pagada();
+    }
     SellerView vendedor = hecha.vendedor();
     return SaleResponse.de(
         hecha.venta(),
@@ -245,7 +276,8 @@ public class RegisterSaleService {
   @Transactional
   PurchaseResponse comprarPorElEnlace(
       RegisterSaleRequest peticion, SellerView duenoDelEnlace, IdempotencyKey clave) {
-    VentaRegistrada hecha = registrar(peticion, false, SaleChannel.HOTLINK, duenoDelEnlace, clave);
+    VentaRegistrada hecha =
+        registrar(peticion, false, SaleChannel.HOTLINK, duenoDelEnlace, clave, null);
     PurchaseResponse compra =
         PurchaseResponse.de(
             hecha.venta(),
@@ -255,7 +287,20 @@ public class RegisterSaleService {
                 hecha.referencia().currencyId(), hecha.referencia().currencyCode()),
             hecha.metodo().code());
     // Pagada con puntos, ya está confirmada (`RF-MV-030`).
-    return hecha.confirmada() == null ? compra : compra.confirmada(hecha.confirmada());
+    if (hecha.confirmada() != null) {
+      return compra.confirmada(hecha.confirmada());
+    }
+    // Con tarjeta, el cobro se abre ahora: quien compra está al otro lado (`RF-MV-040`).
+    return compra.conCobro(
+        tarjeta.abrirSiToca(
+            hecha.metodo(),
+            hecha.pago(),
+            hecha.venta().getId(),
+            hecha.venta().getCode(),
+            hecha.venta().getPayableAmount(),
+            hecha.referencia().currencyCode(),
+            hecha.referencia().currencyDecimalPlaces(),
+            clave.value()));
   }
 
   /**
@@ -273,7 +318,8 @@ public class RegisterSaleService {
       SaleView referencia,
       PaymentMethodView metodo,
       UUID pago,
-      OffsetDateTime confirmada) {}
+      OffsetDateTime confirmada,
+      SaleResponse pagada) {}
 
   /**
    * El registro, uno solo.
@@ -281,13 +327,16 @@ public class RegisterSaleService {
    * @param duenoDelEnlace nulo salvo en la compra por hotlink. Es lo único que las puertas no
    *     comparten: con él, el vendedor de la línea es quien reparte el enlace (`RN-MV-025`); sin
    *     él, se resuelve por los vendedores del cliente (`RN-MV-034`)
+   * @param quienRegistra el actor del registro de un funcionario; nulo en el alta por enlace y en
+   *     el hotlink. Si es quien compra, la venta admite puntos (`RF-MV-030` `EX-003`)
    */
   private VentaRegistrada registrar(
       RegisterSaleRequest peticion,
       boolean altaDelCliente,
       SaleChannel canal,
       SellerView duenoDelEnlace,
-      IdempotencyKey clave) {
+      IdempotencyKey clave,
+      UUID quienRegistra) {
     // LA CLAVE, PRIMERO (`RN-MV-040`): una compra repetida con la misma clave no
     // registra otra venta. Se pregunta antes de nada; si una carrera la toma
     // entretanto, el INSERT del pago choca y la venta entera se revierte.
@@ -328,10 +377,11 @@ public class RegisterSaleService {
     PaymentMethodView metodo =
         reglas.resolverMetodoDePago(peticion.paymentMethodId(), total(copiadas));
     // `RF-MV-030`: con puntos solo paga quien compra desde su propia cuenta. El
-    // registro de un funcionario y el alta por enlace no la tienen, y se rechaza
-    // ANTES de escribir nada. Por el enlace de un vendedor sí: quien compra es
-    // quien pide.
-    if (duenoDelEnlace == null) {
+    // registro de un funcionario A NOMBRE DE OTRA PERSONA y el alta por enlace no
+    // la tienen, y se rechaza ANTES de escribir nada. Por el enlace de un vendedor
+    // sí: quien compra es quien pide. Y el funcionario que registra a su propio
+    // nombre también (`EX-003` precisada el 30-09-2026).
+    if (duenoDelEnlace == null && !cliente.id().equals(quienRegistra)) {
       PointsPayment.rechazarSiEsPuntos(metodo);
     }
 
@@ -355,19 +405,21 @@ public class RegisterSaleService {
     auditoria.recordChange(
         new ChangeEvent(MODULO, ENTIDAD, venta.getId(), ChangeAction.CREATE, venta.instantanea()));
 
-    OffsetDateTime confirmada = null;
+    SaleResponse pagada = null;
     if (PointsPayment.esPuntos(metodo)) {
-      confirmada =
-          puntos
-              .pagar(
-                  venta.getId(),
-                  pago,
-                  cliente.id(),
-                  referencia.currencyId(),
-                  venta.getPayableAmount())
-              .confirmedAt();
+      pagada =
+          puntos.pagar(
+              venta.getId(), pago, cliente.id(), referencia.currencyId(), venta.getPayableAmount());
     }
-    return new VentaRegistrada(venta, cliente, vendedor, referencia, metodo, pago, confirmada);
+    return new VentaRegistrada(
+        venta,
+        cliente,
+        vendedor,
+        referencia,
+        metodo,
+        pago,
+        pagada == null ? null : pagada.confirmedAt(),
+        pagada);
   }
 
   // ---------------------------------------------------------------------------

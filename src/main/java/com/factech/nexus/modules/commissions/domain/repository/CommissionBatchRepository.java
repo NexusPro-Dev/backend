@@ -32,6 +32,29 @@ public interface CommissionBatchRepository {
   /** {@code PENDIENTE} → {@code PAGADO}, con la fecha y el movimiento del abono (`RN-CM-030`). */
   void markPaid(UUID batchId, OffsetDateTime at, UUID movementId);
 
+  /**
+   * La comisión, <b>bloqueada</b> hasta el final de la transacción (`RF-CM-022`, `RF-CM-023`,
+   * `RF-CM-024`). <b>El orden de los bloqueos del módulo es uno</b>: primero las comisiones,
+   * después los lotes, y los lotes por identificador (`RF-CM-022` `plan.md` §1).
+   */
+  java.util.Optional<LockedCommission> lockCommission(UUID commissionId);
+
+  /** Esos lotes, <b>bloqueados en orden de identificador</b>; los que no existen no vuelven. */
+  java.util.List<LockedBatch> lockBatches(java.util.Collection<UUID> batchIds);
+
+  /** La comisión pasa a otro lote, con el lote de origen anotado o vaciado (`RN-CM-046`). */
+  void moveCommission(UUID commissionId, UUID toBatchId, UUID withdrawnFromBatchId);
+
+  /** Si el lote tiene al menos una comisión viva (`RN-CM-048`). */
+  boolean hasLiveCommissions(UUID batchId);
+
+  /** Una comisión, con lo que hace falta para moverla. */
+  record LockedCommission(
+      UUID id, UUID batchId, BigDecimal amount, boolean reverted, UUID withdrawnFromBatchId) {}
+
+  /** Un lote bloqueado. */
+  record LockedBatch(UUID id, String code, UUID userId, UUID currencyId, String status) {}
+
   /** Lo que hace falta para abonar un lote. */
   record BatchToPay(
       UUID id, String code, UUID userId, UUID currencyId, BigDecimal totalAmount, String status) {}
