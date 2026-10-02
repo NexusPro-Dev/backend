@@ -5,11 +5,11 @@
 | Proyecto | NEXUS — Renovación de plataforma |
 | Empresa | FACTECH GROUP SAS |
 | Documento | `deployment.md` |
-| Versión | 0.12.0 |
+| Versión | 0.13.0 |
 | Estado | Borrador |
 | Responsable técnico | Bonilla Diaz William Steven |
 | Fecha de creación | 27-08-2026 |
-| Última actualización | 21-09-2026 |
+| Última actualización | 02-10-2026 |
 | Documento superior | `constitution.md` v0.7.0 |
 | Documentos relacionados | `architecture.md` v0.21.0 · `security.md` v0.35.0 · [`ADR-002`](architecture/ADR-002-plataforma-de-despliegue-railway.md) |
 | Documento derivado | [`manual-de-despliegue.md`](manual-de-despliegue.md) v0.2.0 — el paso a paso |
@@ -262,7 +262,7 @@ Se cargan en el servicio **`backend`**. La columna «Valor en Railway» es liter
 
 **El endpoint se registra en el panel de Stripe** apuntando a `https://<dominio del backend>/api/v1/movements/gateway-notifications/stripe`, suscrito como mínimo a `payment_intent.succeeded`, `payment_intent.payment_failed`, `payment_intent.canceled`, `charge.refunded`, `charge.dispute.created` y `charge.dispute.closed`. **La clave publicable (`pk_…`) no es del backend**: la usa el frontend para pintar el formulario de la tarjeta.
 
-**En local**, la Stripe CLI reenvía las notificaciones a la máquina: `stripe listen --forward-to localhost:8080/api/v1/movements/gateway-notifications/stripe`, y el `whsec_…` que imprime es el que va en `STRIPE_WEBHOOK_SECRET` del `.env`.
+**En local no hay endpoint registrado**, y sin él las notificaciones no llegan: el cobro sale `succeeded` en Stripe y la venta se queda `PENDIENTE` aquí. **Desde el 02-10-2026 las reenvía el servicio `stripe` del `docker-compose.yml`** (`nexus-stripe`, la Stripe CLI fijada a `v1.53.0`), que arranca con `docker compose up`, usa la misma `STRIPE_SECRET_KEY` que la aplicación y reenvía a `http://app:8080/api/v1/movements/gateway-notifications/stripe` los seis eventos de arriba. **El `whsec_…` que va en `STRIPE_WEBHOOK_SECRET` del `.env` es el que imprime `stripe listen --print-secret` con esa clave**, y es estable: no cambia de un arranque a otro. Sin `STRIPE_SECRET_KEY` el servicio se queda dormido y lo dice en su log, sin tumbar el resto. Lo que reenvía se ve en `docker logs nexus-stripe`, y un aviso perdido se recupera con `stripe events resend evt_…`. Con la aplicación fuera de Docker (`mvn spring-boot:run`) sigue valiendo correr a mano `stripe listen --forward-to localhost:8080/api/v1/movements/gateway-notifications/stripe`.
 
 ### 6.6 `ENVIRONMENT` ya se lee; `API_URL` todavía no
 
@@ -490,3 +490,4 @@ Ninguno de estos puntos impide desplegar. Todos están declarados para que no se
 | 0.10.0 | 01-10-2026 | **La semilla de desarrollo gana un tercer guion: las tasas de comisión de rol** de los productos de prueba, a petición del responsable del proyecto. `semilla-tasas-comision.sql` da a cada producto vivo una tasa para AGENTE, DIRECTOR y MANAGER: **porcentaje** de 10 / 7 / 5 % en los upgrades con precio y en `BOT_PRO_ANUAL`; **importe fijo** en `BOT_SENALES` (4 / 2,50 / 1,50) y `BOT_COPY_TRADING` (8 / 5 / 3); y fijo de 2 / 1 / 0,50 en los dos gratuitos, donde solo comisiona el fijo (`RN-CM-020`). Ninguna cadena pasa del precio (`RN-CM-026`). Es repetible —no toca una tasa viva, tampoco la corregida por la API—, resuelve productos y roles por código y avisa con un `NOTICE` si algún producto queda sin sus tres. `DevelopmentSeedIT` lo cubre. | Responsable técnico |
 | 0.11.0 | 01-10-2026 | **La semilla de productos gana los enlaces de entrega de los bots**, a petición del responsable del proyecto: `CUPON_BOT` con la dirección real de activación de bots.com.co y una `DESCARGA` de prueba (`https://www.bots.com.co/downloads/`), en los cuatro bots vivos. Se añaden también a una base sembrada antes —no dependen de que el producto se acabe de crear— y no pisan un enlace corregido a mano. Como manda `RN-PM-050`, solo los publica «mis productos» con la venta pagada. | Responsable técnico |
 | 0.12.0 | 01-10-2026 | **Nueva §6.5.1: la pasarela de la tarjeta.** `STRIPE_SECRET_KEY` —una clave **restringida** a los cobros, no la secreta completa— y `STRIPE_WEBHOOK_SECRET` —el del endpoint, uno por entorno—; sin ellas la pasarela queda apagada y la tarjeta vuelve a confirmarla una persona. Se documenta la URL del endpoint que se registra en Stripe, los seis eventos a los que se suscribe y cómo recibir las notificaciones en local con la Stripe CLI. | Responsable técnico |
+| 0.13.0 | 02-10-2026 | **§6.5.1: el servicio `stripe` del `docker-compose.yml` reenvía las notificaciones en local**, a petición del responsable del proyecto: una compra con tarjeta se cobraba en Stripe y se quedaba pendiente porque `stripe listen` dependía de una terminal abierta. Usa la misma clave que la aplicación; sin ella se queda dormido. Solo local. | Responsable técnico |
