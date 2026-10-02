@@ -5,11 +5,11 @@
 | Proyecto | NEXUS — Renovación de plataforma |
 | Empresa | FACTECH GROUP SAS |
 | Documento | `requirements.md` |
-| Versión | 0.263.0 |
+| Versión | 0.264.0 |
 | Estado | Borrador |
 | Responsable técnico | Bonilla Diaz William Steven |
 | Fecha de creación | 20-08-2026 |
-| Última actualización | 01-10-2026 |
+| Última actualización | 02-10-2026 |
 | Documento superior | `constitution.md` v0.8.0 |
 | Documentos relacionados | `modules.md` v0.21.0 |
 
@@ -667,3 +667,4 @@ El inventario y el estado de los módulos se consultan en [`modules.md` §4](mod
 | 0.261.0 | 01-10-2026 | **Nacen `RF-MV-044` y `RF-MV-045`: se concilia el pago, no el movimiento** ([`requirements/mv.md`](requirements/mv.md) v0.67.0 §4.8; [`security.md`](security.md) v0.98.0), a petición del responsable del proyecto —«centralizarlo todo desde pagos»—. Confirmar y rechazar entran por el `id` del pago, para la venta y la compra de puntos; las rutas de `RF-MV-003`, `RF-MV-004`, `RF-MV-028` y `RF-MV-029` se retiran y esos cuatro describen el efecto en cada tipo. **203 registrados**. La migración será `V63`, y `RF-MV-043` pasa a `V64`. Sin tripletas todavía | Responsable del proyecto |
 | 0.262.0 | 01-10-2026 | **`RF-MV-044` y `RF-MV-045` estrenan tripleta**: confirmar el pago (`CA-MV-495` a `CA-MV-506`; `V63` lleva el permiso nuevo, el traslado de `movements:reject-payment` y los tres retirados) y rechazarlo (`CA-MV-507` a `CA-MV-515`). **Enmiendas** a `RF-MV-003`, `RF-MV-004`, `RF-MV-028` y `RF-MV-029` —sin ruta propia; `CA-MV-516` a `CA-MV-519`— y a `RF-MV-043`, cuya migración pasa a `V64` y su recuento a 180. Siguiente libre: `CA-MV-520`. | Responsable del proyecto |
 | 0.263.0 | 01-10-2026 | **`RF-MV-044` y `RF-MV-045` están construidos** (`V63`, catálogo **179**): pasan a **En desarrollo**, con las enmiendas de `RF-MV-003`, `RF-MV-004`, `RF-MV-028` y `RF-MV-029`, cuyas rutas responden `404`. **169 con endpoint funcionando**. | Responsable técnico |
+| 0.264.0 | 02-10-2026 | **`RF-MV-017` gana el filtro `hasSeller`** (spec 0.3.0, `CA-MV-520` a `CA-MV-522`): las líneas sin vendedor asignado, o solo las que lo tienen. | Responsable del proyecto |

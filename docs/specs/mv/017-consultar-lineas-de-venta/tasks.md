@@ -76,3 +76,14 @@ graph LR
 - [x] Documentación afectada actualizada en el mismo Pull Request.
 - [x] Matriz de trazabilidad actualizada.
 - [ ] Pull Request aprobado por alguien distinto del autor e integrado.
+
+## 6. El filtro `hasSeller` — enmienda del 02-10-2026
+
+Rama: `feature/lineas-sin-vendedor`.
+
+| ID | Tarea | Depende de | Verificación | Estado |
+|---|---|---|---|---|
+| `T-13` | `hasSeller` de punta a punta: `SaleLinesRequest`, `VAL-007` en `ListSaleLinesService`, `SaleLinesFilter` y el predicado de `filtroLineas`; el parámetro y la prosa en `MovementController` | — | El `400` viaja con los demás | Pendiente |
+| `T-14` | `SaleLinesIT`: `CA-MV-520` a `CA-MV-522`; contrato regenerado y `api/index.md` | `T-13` | `./mvnw clean verify` en verde | Pendiente |
+
+Criterios: `CA-MV-520` a `CA-MV-522`.
