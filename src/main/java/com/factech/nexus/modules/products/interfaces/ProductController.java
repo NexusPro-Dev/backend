@@ -118,9 +118,10 @@ public class ProductController {
           puede ser el MISMO**, y entonces el producto es una **renovación**: lo
           que vende es tiempo —su `validityDays`— y no un cambio de nivel.
 
-          **Y no tiene por qué ser el inmediatamente inferior**: saltar niveles es
-          legítimo, y es la razón de que el origen se declare en lugar de
-          deducirse de la cadena.
+          **Y sube un escalón como máximo** (desde el 03-10-2026): el destino es
+          el origen o **el inmediatamente superior**. Un salto —`BECA → ORO`—
+          se rechaza con `422` (`EX-006`, `VAL-029`), después de comprobar
+          que no baja (`VAL-014`).
 
           `icon` es el **nombre** del icono con el que el frontend pinta el producto
           —no una imagen—, en minúsculas y guion medio. Es **opcional**, y solo un
@@ -216,8 +217,9 @@ public class ProductController {
     @ApiResponse(
         responseCode = "422",
         description =
-            "Membresía inexistente, moneda inexistente o inactiva, o un origen POR ENCIMA del"
-                + " destino (`EX-002`, `EX-003`, `EX-006`)")
+            "Membresía inexistente, moneda inexistente o inactiva, un origen POR ENCIMA del"
+                + " destino, o un destino a MÁS DE UN ESCALÓN del origen (`EX-002`, `EX-003`,"
+                + " `EX-006`)")
   })
   public ResponseEntity<ProductResponse> register(
       @Valid @RequestBody RegisterProductRequest peticion) {
@@ -349,14 +351,14 @@ public class ProductController {
           aunque el catálogo de `RF-PM-002` sí los muestre a quien administra.
 
           **Upgrades: los declarados DESDE la membresía vigente de quien mira**,
-          y ninguno más. La coincidencia es exacta: no se comparan niveles ni se
-          recorre la cadena. Quien registró el producto ya decidió a quién va
-          dirigido.
+          y ninguno más. La coincidencia es exacta. Quien registró el producto
+          ya decidió a quién va dirigido.
 
-          Eso incluye **todos** los declarados desde ahí y no solo el inmediato
-          —quien está en el peldaño más bajo elige cuánto saltar, y el precio de
-          cada uno ya expresa el salto—, y llegan ordenados **del salto más
-          corto al más largo**.
+          **Y de esos, solo los que suben un escalón como máximo** (desde el
+          03-10-2026): la renovación y el inmediatamente superior. Un salto
+          registrado antes de esa fecha —o uno que pasó a serlo porque se
+          insertó una membresía en medio— **no se ofrece**, aunque esté activo.
+          Llegan ordenados por nivel de destino, la renovación primero.
 
           **La RENOVACIÓN entra aquí**, y va primera: un producto `X → X`
           declarado desde su propia membresía es el salto de longitud cero. Lo
@@ -364,9 +366,11 @@ public class ProductController {
 
           **Un upgrade hacia el nivel que ya se tiene NO se ofrece cuando su
           origen no es el suyo**: sería el salto de otra persona que acaba donde
-          quien mira ya está. Y **ninguna bajada** llega hasta aquí, aunque este
-          filtro ya no la mire: lo impide `RN-PM-017` **al registrar**, porque un
-          producto declarado desde mi membresía no puede apuntar por debajo.
+          quien mira ya está. Y **ninguna bajada** llega hasta aquí: la impide
+          `RN-PM-017` al registrar, y la condición del escalón tampoco la deja
+          pasar.
+
+          **Un paquete cuyo upgrade salta niveles tampoco se ofrece.**
 
           **Bots: todos los activos, para cualquiera.** No dependen del nivel de
           quien mira ni de que tenga uno.
@@ -461,8 +465,11 @@ public class ProductController {
 
           **No mira la membresía de quien llama**, y ahí se aparta de la oferta
           (`GET /api/v1/products/available`): el vendedor no compra lo que
-          reparte, de modo que un `BECA → ORO` le interesa aunque él esté en
-          `ORO`. Por eso la respuesta no trae `currentMembership`. Cada producto
+          reparte, de modo que un `VIP → PLATINO` le interesa aunque él esté en
+          `ORO`. Por eso la respuesta no trae `currentMembership`. **Lo que sí
+          se omite es el upgrade que salta niveles** (desde el 03-10-2026): el
+          salto es del producto y no de quien mira, y no se publica en ningún
+          canal. Cada producto
           va en la forma de venta —`price`, `exchange`, `links`,
           `coverImageUrl`, `rating`— y **sin `purchasePrice`** (`RN-PM-024`).
 

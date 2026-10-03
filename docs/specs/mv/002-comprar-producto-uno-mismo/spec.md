@@ -4,8 +4,9 @@
 |---|---|
 | Requerimiento | `RF-MV-002` |
 | Módulo | `MV` — Movimientos |
-| Versión | 0.3.0 |
+| Versión | 0.4.0 |
 | Estado | **Aprobada** |
+| Enmendada el | 03-10-2026 — **un upgrade sube un escalón como máximo** (`RN-MV-006`): `CA-MV-024` deja de decir «igual» y nace `CA-MV-528`. Ver §15 |
 | Enmendada el | 16-09-2026 — el vendedor es de cada línea y **siempre lo hay** (`RN-MV-003`); la cabecera lleva un sujeto (`RN-MV-026`). Ver §15 |
 | Autor | Responsable técnico |
 | Aprobada por | Responsable del proyecto |
@@ -89,6 +90,7 @@ Las dos que cambian de significado práctico:
 | `RN-MV-003` | El vendedor se deduce igual y va en cada línea; quien no cuelga de nadie **es su propio vendedor**. Lo que cambia es que **el cliente no lo ve** |
 | `RN-MV-026` | El sujeto de la venta es **el actor**: la única persona de la cabecera |
 | `RN-MV-008` | Pasa de ser una comprobación rara a **el rechazo más frecuente de esta operación**: la cuenta recién registrada por enlace puede entrar y viene a comprar |
+| `RN-MV-006` | **Desde el 03-10-2026 rechaza también el salto**, comparando con **su propia** membresía vigente. Por esta puerta casi nunca se ve: la oferta casa por origen y ya no publica saltos, de modo que lo que se ve es `EX-004`. La comprobación es la de `RF-MV-001` —el mismo caso de uso—, y la renovación se sigue admitiendo |
 
 ## 6. Datos
 
@@ -156,9 +158,10 @@ Las de `RF-MV-001` menos `VAL-001` —cliente obligatorio, que ya no se envía�
 | `CA-MV-021` | La compra queda **a nombre del actor** y de nadie más: no hay forma de indicar otro cliente |
 | `CA-MV-022` | La petición **no admite fecha del hecho**, y la venta lleva la de ahora |
 | `CA-MV-023` | El sistema rechaza la compra de un actor en `FTD_PENDIENTE`, diciéndole **que le falta su depósito** |
-| `CA-MV-024` | El sistema rechaza un producto fuera de **su** oferta, y un upgrade igual o inferior a su nivel |
+| `CA-MV-024` | El sistema rechaza un producto fuera de **su** oferta, y un upgrade **inferior** a su nivel —el igual es una renovación y se admite desde el 07-09-2026 (`RF-MV-001` · `CA-MV-048`)— |
 | `CA-MV-025` | Un funcionario sin membresía que intente comprar es rechazado **por la oferta**, no por su rol |
 | `CA-MV-026` | La venta creada por esta operación y la creada por `RF-MV-001` son **indistinguibles** una vez registradas |
+| `CA-MV-528` | El sistema rechaza comprar un upgrade que **salta niveles** sobre la membresía del actor —un salto registrado antes del 03-10-2026 con origen en su membresía—: no está en **su** oferta (`EX-004`), y no queda venta ni pago |
 
 **`CA-MV-026` es el criterio que sostiene las dos operaciones.** Si la venta del cliente y la del funcionario fueran distintas en algo —un campo, un estado, un tipo—, todo lo que venga después tendría que saber por dónde entró cada una: confirmarla, listarla, comisionarla. Que sean iguales es lo que permite que `RF-MV-003` a `RF-MV-008` no se enteren de que existen dos entradas.
 
@@ -184,3 +187,4 @@ Los de `RF-MV-001`, más dos propios:
 | 0.1.0 | 02-09-2026 | Redacción inicial, sin preguntas abiertas. Se escribe **por diferencias** con `RF-MV-001` en lugar de repetirlo, y las diferencias son cuatro: el cliente es el actor, **no se admite la fecha del hecho** —porque elegirla es elegir el periodo en que se comisiona—, la respuesta **no devuelve el vendedor** —el cliente no lo eligió y no es información suya— y no hace falta permiso. Lo que **no** cambia es la venta: `CA-MV-026` exige que las dos operaciones produzcan algo indistinguible, que es lo que permite que los siete requerimientos siguientes no se enteren de que hay dos entradas. Queda declarado que **el vendedor cobra por una compra que no hizo**, y por qué eso es lo que significa que un cliente tenga vendedor. | Responsable técnico |
 | 0.2.0 | 16-09-2026 | **El vendedor baja a cada línea y siempre lo hay; la cabecera lleva un sujeto** (`requirements/mv.md` v0.16.0: `RN-MV-026` nueva, `RN-MV-003` enmendada), por decisión del responsable del proyecto. Para esta operación cambia poco y conviene decir qué: **el actor sigue siendo el sujeto** —ahora con nombre de regla— y **la respuesta sigue sin llevar el vendedor** (§4.3), ahora tampoco en las líneas. Lo que se corrige es el caso límite de §13, que **todavía citaba `EX-003`** —retirada de `RF-MV-001` el 04-09-2026— y la precondición de §7: quien no cuelga de nadie **se vende a sí mismo** en lugar de quedarse fuera o sin atribución. | Responsable del proyecto |
 | 0.3.0 | 30-09-2026 | **Se puede pagar con puntos** (`RF-MV-030`, `RN-MV-052`; [`requirements/mv.md`](../../../requirements/mv.md) v0.54.0 §4.4): con `POINTS`, los puntos de la moneda de la venta se descuentan a la tasa vigente y la compra vuelve **confirmada**, con su entrega y su aviso a comisiones. Si no alcanzan, o la moneda no tiene tasa, conflicto y **nada queda escrito**. Ningún dato de entrada cambia. | Responsable técnico |
+| 0.4.0 | 03-10-2026 | **Un upgrade sube un escalón como máximo** ([`requirements/mv.md`](../../../requirements/mv.md) v0.72.0, `RN-MV-006`; [`requirements/pm.md`](../../../requirements/pm.md) §5.2.17), por decisión del responsable del proyecto. Esta operación hereda la regla de `RF-MV-001` sin cambio de forma —mismo caso de uso, mismo `EX-005`—, y §5 la nombra porque aquí casi nunca se ve: la oferta propia ya no publica saltos y el rechazo que llega es `EX-004`. Nace `CA-MV-528` para afirmarlo, y **`CA-MV-024` se corrige**: decía «igual o inferior» y la igual es una renovación desde el 07-09-2026 — el criterio se había quedado atrás. | Responsable del proyecto |

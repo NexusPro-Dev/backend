@@ -4,7 +4,7 @@
 |---|---|
 | Requerimiento | `RF-MV-002` |
 | Plan | [`plan.md`](plan.md), aprobado el 02-09-2026 |
-| Versión | 0.2.0 |
+| Versión | 0.3.0 |
 | Estado | **En revisión** |
 | Autor | Responsable técnico |
 | Aprobadas por | Pendiente |
@@ -34,6 +34,7 @@
 | `T-04` | `POST /api/v1/movements/mine`, con el cliente **resuelto del actor antes de mirar el cuerpo** | `T-02`, `T-03` | `201` con `Location`; `401` sin autenticar y **ningún `403`** | **Pendiente** |
 | `T-05` | Pruebas de los criterios de `spec.md` §12 | `T-04` | `CA-MV-019` a `CA-MV-026` | **Pendiente** |
 | `T-06` | Documentación OpenAPI: la operación **no exige permiso**, no admite cliente ni fecha, y **no devuelve el vendedor** | `T-04` | El contrato publicado dice las tres cosas | **Pendiente** |
+| `T-07` | Prueba del salto (03-10-2026, `RN-MV-006`): un salto sembrado por SQL con origen en la membresía del actor no se compra. El código es `RF-MV-001` · `T-36`, y la prosa de la ruta, `RF-MV-001` · `T-39` | `T-05`, `RF-MV-001` · `T-36`, `RF-PM-007` (filtro del escalón) | `CA-MV-528`: `EX-004`, y cero filas nuevas en `movements` y `payments` | **Pendiente** |
 
 ## 2. Orden de ejecución
 
@@ -53,6 +54,7 @@
 | `CA-MV-022` | `T-01`, `T-02`, `T-05` |
 | `CA-MV-023`, `CA-MV-024`, `CA-MV-025` | `T-01`, `T-05` |
 | `CA-MV-026` | `T-01`, `T-05` |
+| `CA-MV-528` | `T-07` |
 
 **`T-06` no cubre ningún criterio**: es el contrato publicado, y queda enumerada para que no parezca que sobra.
 
@@ -64,7 +66,7 @@
 
 ## 5. Definición de terminado
 
-- Las seis tareas `Hecha` con su verificación pasando, y `./mvnw clean verify` en verde.
+- Las siete tareas `Hecha` con su verificación pasando, y `./mvnw clean verify` en verde.
 - **`CA-MV-021` pasando**, que es la que impide comprar a nombre de otro.
 - **`CA-MV-026` pasando**, que es la que garantiza que los siete requerimientos siguientes no tengan que enterarse de que hay dos entradas.
 - El contrato publicado al día, con la operación declarada **sin permiso**.

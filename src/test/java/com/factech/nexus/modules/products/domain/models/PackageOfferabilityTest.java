@@ -17,10 +17,11 @@ import org.junit.jupiter.api.Test;
  */
 class PackageOfferabilityTest {
 
-  private static final Producto ACTIVO = new Producto("BOT_A", true, false);
-  private static final Producto OTRO_ACTIVO = new Producto("BOT_B", true, false);
-  private static final Producto INACTIVO = new Producto("UPGRADE_ORO", false, false);
-  private static final Producto RETIRADO = new Producto("BOT_VIEJO", true, true);
+  private static final Producto ACTIVO = new Producto("BOT_A", true, false, false);
+  private static final Producto OTRO_ACTIVO = new Producto("BOT_B", true, false, false);
+  private static final Producto INACTIVO = new Producto("UPGRADE_ORO", false, false, false);
+  private static final Producto RETIRADO = new Producto("BOT_VIEJO", true, true, false);
+  private static final Producto SALTO = new Producto("BECA_A_ORO", true, false, true);
 
   private static final LocalDate HOY = LocalDate.of(2026, 9, 16);
   private static final Vigencia VIGENTE = new Vigencia(HOY, HOY.minusDays(10), null);
@@ -137,5 +138,36 @@ class PackageOfferabilityTest {
           .as("%s", vigente)
           .isTrue();
     }
+  }
+
+  @Test
+  @DisplayName("`CA-PM-427` — último: un upgrade que salta niveles, nombrado por su código")
+  void elSaltoUltimo() {
+    PackageOfferability decision =
+        PackageOfferability.decidir(
+            PackageStatus.ACTIVO, false, true, VIGENTE, List.of(SALTO, ACTIVO));
+    assertThat(decision.offerable()).isFalse();
+    assertThat(decision.reason()).contains("BECA_A_ORO").contains("salta niveles");
+  }
+
+  @Test
+  @DisplayName(
+      "`CA-PM-427` — un producto inactivo se nombra antes que el salto, aunque vaya después")
+  void elInactivoAntesQueElSalto() {
+    PackageOfferability decision =
+        PackageOfferability.decidir(
+            PackageStatus.ACTIVO, false, true, VIGENTE, List.of(SALTO, INACTIVO));
+    assertThat(decision.reason()).contains("UPGRADE_ORO").contains("inactivo");
+  }
+
+  @Test
+  @DisplayName("`RN-PM-018` — salta: origen menos destino mayor que uno, solo en un upgrade")
+  void queEsSaltar() {
+    // La cadena numera desde la cima: BECA es 4 y ORO es 1.
+    assertThat(PackageOfferability.salta("UPGRADE_MEMBRESIA", 4, 1)).isTrue();
+    assertThat(PackageOfferability.salta("UPGRADE_MEMBRESIA", 4, 3)).isFalse(); // escalón
+    assertThat(PackageOfferability.salta("UPGRADE_MEMBRESIA", 4, 4)).isFalse(); // renovación
+    assertThat(PackageOfferability.salta("BOT", null, null)).isFalse();
+    assertThat(PackageOfferability.salta("UPGRADE_MEMBRESIA", null, 1)).isFalse();
   }
 }

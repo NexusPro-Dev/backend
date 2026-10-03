@@ -4,7 +4,7 @@
 |---|---|
 | Requerimiento | `RF-MV-013` |
 | Módulo | `MV` — Movimientos |
-| Versión | 0.2.0 |
+| Versión | 0.3.0 |
 | Estado | **Aprobada** |
 | Autor | Responsable técnico |
 | Aprobada por | Responsable del proyecto |
@@ -154,7 +154,7 @@ Es el de `RF-MV-012` con **dos pasos distintos al principio y uno nuevo al final
 Las ocho de `RF-MV-012`, **con dos salvedades y una añadida**:
 
 - **`EX-001`, `EX-002` y `EX-003` se funden en una sola respuesta: no encontrado** (§4.1). El paquete que no existe, el que no se ofrece y el que no le corresponde a quien compra son indistinguibles desde fuera.
-- **`EX-004` a `EX-008` valen tal cual** y siguen diciendo qué falla: un producto caído, un upgrade que baja, una cuenta que no opera o un método de pago que no cuadra **no son información sobre el catálogo de otro**, sino sobre la operación que el actor acaba de pedir.
+- **`EX-004` a `EX-008` valen tal cual** y siguen diciendo qué falla: un producto caído, un upgrade que baja —o, desde el 03-10-2026, que salta—, una cuenta que no opera o un método de pago que no cuadra **no son información sobre el catálogo de otro**, sino sobre la operación que el actor acaba de pedir.
 
 ### EX-009 — Comprarse a uno mismo por el propio hotlink
 
@@ -185,6 +185,7 @@ Las ocho de `RF-MV-012`, **con dos salvedades y una añadida**:
 
 - **El vendedor del enlace se desactiva entre que el cliente lo abre y compra:** responde **no encontrado**, porque el hotlink deja de resolver. Es lo mismo que hace `RF-PM-026`.
 - **El cliente está en `FTD_PENDIENTE`:** se rechaza diciendo que le falta el depósito (`EX-006`), y **no** con el no encontrado: es información sobre su propia cuenta.
+- **El upgrade del paquete salta niveles** (registrado antes del 03-10-2026): responde **no encontrado**, porque el hotlink ya no lo publica (`RN-PM-021`) y el salto es un atributo **del catálogo**, no de la operación del actor (§4.1). Si el hotlink lo dejara pasar, `EX-005` lo rechaza igual y **dice que salta**: entonces sí es sobre su propia compra. Ver §14.2.
 - **Dos compras simultáneas por el mismo enlace del mismo cliente:** las dos ventas se registran y **el vínculo se crea una sola vez**. Que no se duplique no puede depender de que nadie pulse dos veces.
 - **El vendedor del enlace es el agente principal y además ya estaba vinculado:** nada nuevo ocurre; ver `FA-001`.
 
@@ -196,9 +197,18 @@ Las ocho de `RF-MV-012`, **con dos salvedades y una añadida**:
 
 **Queda declarado lo mismo que en `RF-MV-012`**: sobre qué importe comisiona una línea rebajada lo decide `CM`, y esta venta guarda las dos cifras.
 
+## 14.2 El upgrade sube un escalón — enmienda del 03-10-2026
+
+Lo de [`RF-MV-012`](../012-comprar-paquete/spec.md) §14.3, **también por el enlace**: `RN-MV-006` vale en todos los canales ([`requirements/mv.md`](../../../requirements/mv.md) v0.72.0). El hotlink **no mira el nivel de quien compra para publicar** (`RN-PM-021`), pero el salto es del producto, y desde el 03-10-2026 un paquete cuyo upgrade salta **no se publica** — de modo que se funde con `EX-002` en el **no encontrado** de §4.1. `EX-005` queda como la red de `MV`, comparando contra la membresía **vigente** de quien compra.
+
+| ID | Criterio |
+|---|---|
+| `CA-MV-541` | Comprar por el enlace un paquete cuyo upgrade **salta niveles** **no registra nada**: responde el **no encontrado** del catálogo, o `EX-005` si el hotlink lo dejara pasar — nunca una venta |
+
 ## 15. Control de cambios
 
 | Versión | Fecha | Cambio | Responsable |
 |---|---|---|---|
 | 0.1.0 | 16-09-2026 | Redacción inicial, sin preguntas abiertas. **Se escribe por diferencias con `RF-MV-012`**, y las diferencias son las dos que `RF-MV-011` ya introdujo sobre la compra propia de un producto: el paquete llega **por el enlace** y el vendedor de cada línea es **su dueño** (`RN-MV-025`), más la huella que la compra propia no deja — el **vínculo** de `RN-SP-049`. **Lo que se hereda sin repetir** es todo lo que el paquete añade: entero, uno, solo y tal como está hoy (`RN-MV-028`). **La decisión que este documento fija y aquel no tenía** es la del `404` uniforme (§4.1): aquí el rechazo del catálogo **no dice qué falla**, porque quien pregunta llega de fuera y el detalle sería información sobre el catálogo de otro — pero **la uniformidad no alcanza** a lo que es de la operación del propio actor, y `CA-MV-067` lo fija. Siete criterios nuevos, `CA-MV-061` a `CA-MV-067`. | Responsable del proyecto |
 | 0.2.0 | 30-09-2026 | **Se puede pagar con puntos** (`RF-MV-030`, `RN-MV-052`; [`requirements/mv.md`](../../../requirements/mv.md) v0.54.0 §4.4): con `POINTS`, los puntos de la moneda de la venta se descuentan a la tasa vigente y la compra vuelve **confirmada**, con su entrega y su aviso a comisiones. Si no alcanzan, o la moneda no tiene tasa, conflicto y **nada queda escrito**. Ningún dato de entrada cambia. | Responsable técnico |
+| 0.3.0 | 03-10-2026 | **El upgrade del paquete sube un escalón como máximo, también por el enlace** (§14.2; [`requirements/mv.md`](../../../requirements/mv.md) v0.72.0, `RN-MV-006`; `RN-PM-021`), por decisión del responsable del proyecto. El paquete que salta ya no se publica por hotlink y responde **no encontrado**; `EX-005` («baja o salta») sigue como red. Criterio nuevo `CA-MV-541`. | Responsable del proyecto |

@@ -3,9 +3,9 @@
 | Campo | Valor |
 |---|---|
 | Requerimiento | `RF-PM-007` |
-| Enmendadas | 02-09-2026 — `pm.md` §5.2.1 declara que la oferta pasará a coincidir por **origen** (`T-20`); 07-09-2026 — `T-21` por el **alcance** y la **implementación**, que se publican y **no filtran**, y `T-22` por la **renovación**; ese mismo día se **cierra `T-20`**, cinco días después de escribirse; 08-09-2026 — `T-24` y `T-25` por el **precio a mostrar**; 12-09-2026 — `T-28` porque el segundo precio es el **de compra** y sale de la oferta; 14-09-2026 — `T-29` por el **enlace del video**; 14-09-2026 — `T-30` por la **dirección de la portada** (`RN-PM-033`); 15-09-2026 — `T-31` porque **la oferta filtra por alcance**; 22-09-2026 — `T-32` por **los enlaces resueltos y sin el cupón** (`RN-PM-048` a `RN-PM-050`) — issue [#84](https://github.com/NexusPro-Dev/backend/issues/84) |
+| Enmendadas | 02-09-2026 — `pm.md` §5.2.1 declara que la oferta pasará a coincidir por **origen** (`T-20`); 07-09-2026 — `T-21` por el **alcance** y la **implementación**, que se publican y **no filtran**, y `T-22` por la **renovación**; ese mismo día se **cierra `T-20`**, cinco días después de escribirse; 08-09-2026 — `T-24` y `T-25` por el **precio a mostrar**; 12-09-2026 — `T-28` porque el segundo precio es el **de compra** y sale de la oferta; 14-09-2026 — `T-29` por el **enlace del video**; 14-09-2026 — `T-30` por la **dirección de la portada** (`RN-PM-033`); 15-09-2026 — `T-31` porque **la oferta filtra por alcance**; 22-09-2026 — `T-32` por **los enlaces resueltos y sin el cupón** (`RN-PM-048` a `RN-PM-050`) — issue [#84](https://github.com/NexusPro-Dev/backend/issues/84); 03-10-2026 — §1.2, **la condición del escalón** (`RN-PM-018`, [`plan.md`](plan.md) §5): `T-33` a `T-36` |
 | Plan | [`plan.md`](plan.md), aprobado el 26-08-2026 |
-| Estado | **En curso** — `T-01` a `T-22` `Hecha`. `T-20` se cerró el 07-09-2026, y con ella la coincidencia por origen |
+| Estado | **En curso** — `T-01` a `T-22` `Hecha`. `T-20` se cerró el 07-09-2026, y con ella la coincidencia por origen. **`T-33` a `T-36` (el escalón) abiertas y `Hecha` el 03-10-2026** |
 | Autor | Responsable técnico |
 | Aprobadas por | Responsable del proyecto |
 | Fecha de aprobación | 26-08-2026 |
@@ -58,6 +58,19 @@
 
 **Verificación de la enmienda de la vigencia (16-09-2026):** `PackageOfferIT` (5), en verde.
 | `T-32` | **Los enlaces en la oferta, resueltos y sin el cupón** (`RF-PM-001` `T-42` y `T-43` traen la tabla y el modelo): `OfferItem` **pierde `videoUrl`** y gana `links`; `findOffer` deja de seleccionar la columna y los enlaces de la oferta se leen **en una sentencia más con el tipo en el predicado** —`CUPON_BOT` no sale de la base—; se publican **resueltos** con la composición de `ProductLink`; y la prosa de la `@Operation` dice qué enlaces viajan y **cuál no, y por qué** | `T-31`, `RF-PM-001` `T-43` | `CA-PM-228` reescrito y `CA-PM-394`, `CA-PM-395` en `ProductOfferIT`, en la misma prueba que sigue comprobando la ausencia de `purchasePrice`. **El contrato regenerado declara `links` en `OfferItem` y ningún `videoUrl`** | **Hecha el 22-09-2026** |
+
+### 1.2 El escalón — 03-10-2026
+
+Un upgrade sube **un escalón como máximo** (`RN-PM-018`, [`requirements/pm.md`](../../../requirements/pm.md) §5.2.17, [`spec.md`](spec.md) v0.20.0). Rama `feature/upgrade-escalonado`; Issue **Pendiente de crear**.
+
+| ID | Tarea | Depende de | Verificación | Estado |
+|---|---|---|---|---|
+| `T-33` | **`findOffer` gana la condición del escalón**: `s.level - m.level BETWEEN 0 AND 1` dentro de la rama de los upgrades del predicado, sobre los dos `JOIN` a `memberships` que ya hace. Ni sentencia ni `JOIN` nuevos, y **nada en Java** | `RF-PM-001` (el alta que rechaza el salto) | `CA-PM-420`: renovación, escalón y salto —el salto sembrado por SQL— en la misma oferta; solo los dos primeros. **Reescribir la prueba de `CA-PM-107` y `CA-PM-089`**, que hoy esperan el salto | **Hecha el 03-10-2026** |
+| `T-34` | **La cadena reordenada, con prueba**: insertar una membresía entre los dos niveles de un escalón ofrecido lo saca de la consulta siguiente | `T-33` | `CA-PM-421`. Cierra el riesgo 2 de [`plan.md`](plan.md) §10, que hasta hoy solo estaba escrito | **Hecha el 03-10-2026** |
+| `T-35` | **`PackageOfferability` cuenta el salto**: `Producto` gana `saltaNiveles` —calculado con el `s_level` y el `m_level` de la fila de `SELECT_PUBLICADO`, sin tocar la sentencia—, y `decidir` un motivo nuevo **detrás** de los de producto inactivo o retirado, que nombra el código del upgrade | `T-33` | Unitaria de `PackageOfferability`: el motivo, su texto y su lugar en el orden fijo. `CA-PM-422` en `PackageOfferIT`. **Alcanza también a `RF-PM-018`, `RF-PM-019`, `RF-PM-026` y a la venta del paquete** (`RF-MV-012`, `RF-MV-013`), que leen el mismo objeto | **Hecha el 03-10-2026** |
+| `T-36` | **Sentencias y contrato**: la cuenta de sentencias no sube; la prosa de la `@Operation` de `GET /products/available` dice que un upgrade que salta niveles, o un paquete que lo lleva, **no se ofrece** | `T-33`, `T-35` | `CA-PM-423` (y `CA-PM-338` sigue verde). El `openapi.json` regenerado y la prosa revisada a mano | **Hecha el 03-10-2026** |
+
+**Verificación de la enmienda del escalón (03-10-2026):** `ProductOfferIT` (`CA-PM-420`, `CA-PM-421` —la cadena reordenada en una transacción, porque las unicidades son diferidas—, `CA-PM-423` dentro de la prueba de sentencias, techo sin cambio) y `PackageOfferIT` (`CA-PM-422`), en verde; `mvn clean verify` completo: 517 unitarias y 2380 de integración, sin fallos. **Al construir apareció una quinta sentencia de venta** que el plan no listaba: `PublishedProductCatalog.hotlinkSaleViewOf`, con la que `RF-MV-011` resuelve el producto del enlace; gana el mismo predicado, y sin él un salto ya registrado se habría podido comprar por hotlink con `409` en lugar del `404` de `CA-MV-532`.
 
 ## 2. Orden de ejecución
 
@@ -83,7 +96,7 @@
 | `CA-PM-067` | `T-09` |
 | `CA-PM-078`, `CA-PM-079` | `T-04` |
 | `CA-PM-088` | `T-10` |
-| `CA-PM-089` | `T-06` |
+| ~~`CA-PM-089`~~ (invertido el 03-10-2026) | `T-06`, `T-33` |
 | `CA-PM-090` | `T-09` |
 | `CA-PM-091` | `T-02` |
 | `CA-PM-101` | `T-16`, `T-18` |
@@ -97,6 +110,11 @@
 | `CA-PM-237` | `T-30` |
 | `CA-PM-351` | `T-31` |
 | `CA-PM-378` | `T-32` |
+| ~~`CA-PM-107`~~ (invertido el 03-10-2026) | `T-20`, `T-33` |
+| `CA-PM-420` | `T-33` |
+| `CA-PM-421` | `T-34` |
+| `CA-PM-422` | `T-35` |
+| `CA-PM-423` | `T-36` |
 
 ## 4. Bloqueos
 
@@ -110,7 +128,7 @@
 
 El requerimiento no está terminado hasta cumplir **todas** las condiciones de la constitución §16:
 
-- [x] Todas las tareas en estado `Hecha`. **`T-20` cerrada el 07-09-2026**, cinco días después de escribirse: lo que la desatascó fue la renovación, que no se puede ofrecer comparando niveles.
+- [x] Todas las tareas en estado `Hecha`. **Reabierto y cerrado el 03-10-2026 por `T-33` a `T-36`** (el escalón). **`T-20` cerrada el 07-09-2026**, cinco días después de escribirse: lo que la desatascó fue la renovación, que no se puede ofrecer comparando niveles.
 - [ ] Todos los criterios de aceptación con prueba automatizada en verde. `CA-PM-106` a `CA-PM-108` no tienen prueba: el código que verificarían no existe.
 - [x] `mvn verify` en verde en local.
 - [x] Toda escritura emite su evento de auditoría, en la transacción que corresponde. **No aplica: este requerimiento no escribe nada** (`plan.md` §7). `V48` tampoco: sembrar un permiso no tiene línea de tiempo que reconstruir, igual que `V40`.

@@ -8,7 +8,7 @@
 | Estado | **Aprobado** |
 | Autor | Responsable técnico |
 | Aprobado por | Responsable del proyecto |
-| Enmendado el | 27-08-2026 — `RN-PM-015`; 02-09-2026 — **la oferta deja de comparar niveles**; 02-09-2026 — `products:sale`; 07-09-2026 — el **alcance** y la **implementación** en la respuesta, **sin filtro** (`RN-PM-019`, `RN-PM-020`), y **construida la coincidencia por ORIGEN** (`T-20`) con la **renovación** dentro; 08-09-2026 — **un solo importe, el que se muestra** (`RN-PM-023`, `RN-PM-024`), §4 y §5; 12-09-2026 — **el segundo precio es el de COMPRA y no se selecciona** (`RN-PM-024`), §4 y §5; 14-09-2026 — **`videoUrl` sí se selecciona y viaja** (`RN-PM-032`), §4 y §5; 14-09-2026 — **`coverImageUrl` viaja** (`RN-PM-033`), §5; 15-09-2026 — **la oferta filtra por alcance**: `scope IN ('TIENDA','AMBOS')` (`RN-PM-019`); 16-09-2026 — **`packages` publica `validFrom` y `validTo`, y `PackageOfferability` recibe hoy** (`RN-PM-047`): `findOfferable` selecciona las dos columnas, `OfferPackageItem` las lleva, y `GetOfferService` pasa el día con un `Clock` UTC |
+| Enmendado el | 27-08-2026 — `RN-PM-015`; 02-09-2026 — **la oferta deja de comparar niveles**; 02-09-2026 — `products:sale`; 07-09-2026 — el **alcance** y la **implementación** en la respuesta, **sin filtro** (`RN-PM-019`, `RN-PM-020`), y **construida la coincidencia por ORIGEN** (`T-20`) con la **renovación** dentro; 08-09-2026 — **un solo importe, el que se muestra** (`RN-PM-023`, `RN-PM-024`), §4 y §5; 12-09-2026 — **el segundo precio es el de COMPRA y no se selecciona** (`RN-PM-024`), §4 y §5; 14-09-2026 — **`videoUrl` sí se selecciona y viaja** (`RN-PM-032`), §4 y §5; 14-09-2026 — **`coverImageUrl` viaja** (`RN-PM-033`), §5; 15-09-2026 — **la oferta filtra por alcance**: `scope IN ('TIENDA','AMBOS')` (`RN-PM-019`); 16-09-2026 — **`packages` publica `validFrom` y `validTo`, y `PackageOfferability` recibe hoy** (`RN-PM-047`): `findOfferable` selecciona las dos columnas, `OfferPackageItem` las lleva, y `GetOfferService` pasa el día con un `Clock` UTC; 03-10-2026 — **vuelve una comparación de niveles, y acota la coincidencia por origen** (`RN-PM-018`, [`spec.md`](spec.md) v0.20.0): el predicado del escalón en `findOffer` y un motivo nuevo en `PackageOfferability`, §5 |
 | Fecha de aprobación | 26-08-2026 |
 
 ---
@@ -18,6 +18,12 @@
 Una consulta sin parámetros que responde **sobre quien llama**. Su dificultad no está en el SQL: está en que **la regla que decide qué ofrecer vive en el servidor o no vive**, y en que el dato que la alimenta —la membresía del actor— pertenece a otro módulo.
 
 Desde el 02-09-2026 esa regla es **más pequeña de lo que era**: un upgrade declara de qué membresía sale, de modo que la oferta pasa de un cálculo —«todos los que llevan por encima de mi nivel»— a una **coincidencia exacta**. **La comparación de niveles no desaparece, se muda**: se comprueba una vez, al registrar el producto (`RN-PM-017`), en lugar de en cada consulta. Lo que aquí quedaba como el riesgo número uno —escribirla al revés— deja de existir porque ya no hay ninguna comparación que escribir.
+
+!!! warning "Desde el 03-10-2026 la comparación vuelve, y no sustituye a la coincidencia: la acota"
+
+    Un upgrade sube **un escalón como máximo** (`RN-PM-018`, [`requirements/pm.md`](../../../requirements/pm.md) §5.2.17), y comprobarlo al registrar **no basta**: los saltos ya registrados no se tocan, y la inserción de una membresía convierte en salto un producto que nació de un escalón. Por eso la oferta compara otra vez los niveles **de hoy**, en la misma sentencia. **La coincidencia por origen se queda entera** —un `PLATINO → ORO` sigue sin ofrecérsele a quien está en `ORO`, aunque sea de un escalón—: la condición nueva solo **quita** de lo que ya coincidía.
+
+    Y con ella **vuelve el riesgo que este párrafo daba por extinguido**: escribir la comparación al revés. La cadena numera desde la cima, de modo que el escalón es `s.level - m.level` —origen menos destino— **entre cero y uno**; escrita como `m.level - s.level` aceptaría exactamente los descensos y rechazaría los escalones, y en una base sin descensos (`RN-PM-017`) **solo dejaría pasar las renovaciones** sin que nada fallara. Lo fija `CA-PM-420`, que prueba renovación, escalón y salto juntos.
 
 Es la tercera y última lectura de D-25, y la única que este requerimiento estrena.
 
@@ -31,7 +37,8 @@ Es la tercera y última lectura de D-25, y la única que este requerimiento estr
 |---|---|---|
 | `modules/system/users/application` | `CurrentMembershipLookup` + adaptador | **En `SP`**: la membresía **vigente** de una persona, o vacío |
 | `application` | `OfferResponse` | Dos colecciones **envueltas**, más el nivel actual del actor |
-| `domain/repository` | `ProductQueryRepository.findOffer(UUID membresia)` | Una sentencia. **El parámetro es el identificador de la membresía, no su nivel**: la coincidencia es por origen |
+| `domain/repository` | `ProductQueryRepository.findOffer(UUID membresia)` | Una sentencia. **El parámetro es el identificador de la membresía, no su nivel**: la coincidencia es por origen. **Desde el 03-10-2026 el predicado gana la condición del escalón** sobre los dos `JOIN` a `memberships` que la sentencia ya hacía (§5) |
+| `domain/models` | `PackageOfferability` | **(03-10-2026)** Un motivo nuevo: **el upgrade del paquete salta niveles**. `Producto` gana `saltaNiveles`, calculado con el `s_level` y el `m_level` que la fila **ya trae** de `SELECT_PUBLICADO` |
 | `domain/service` | `GetOwnOfferService` | `@Transactional(readOnly = true)` |
 | `interfaces` | `ProductController` | `GET /api/v1/products/available` |
 
@@ -79,6 +86,16 @@ Una sola sentencia, con la membresía del actor como parámetro:
 - **Productos activos y no retirados**, siempre.
 - **Upgrades**: solo aquellos cuyo `source_membership_id` **es** la membresía vigente del actor. Coincidencia exacta, sin comparar niveles y sin recorrer la cadena. Quien declaró el producto ya dijo a quién va dirigido.
 - **Sin membresía** —el actor no tiene ninguna vigente—: **cero upgrades** y todos los bots (`FA-001`), y **sale del propio filtro**: el nulo no coincide con ningún origen. Antes había que escribirlo aparte.
+- **El escalón (03-10-2026, `RN-PM-018`).** De los upgrades que coinciden por origen, solo los que suben **un escalón como máximo**, comparados **en la misma sentencia** con los `level` de hoy de los dos `JOIN` a `memberships` que ya estaban —`s` el origen, `m` el destino—:
+
+    ```sql
+    AND ( p.type = 'BOT'
+          OR ( p.source_membership_id = CAST(:membresia AS uuid)
+               AND s.level - m.level BETWEEN 0 AND 1 ) )
+    ```
+
+    **`BETWEEN 0 AND 1` y no `<= 1`**, aunque `RN-PM-017` impida hoy un descenso al registrar: la oferta no debe apoyarse en que esa validación nunca tuvo un hueco, y el coste de la mitad inferior es nulo. **No se filtra después, en Java**: la proyección es la misma que reutilizan otras lecturas, y un filtro en memoria es el que se queda atrás el día que alguien reutilice la sentencia — el mismo argumento de `RN-PM-050` más abajo. **No añade sentencias ni `JOIN`** (`CA-PM-423`).
+- **Los paquetes cuyo upgrade salta** (03-10-2026) **no se filtran en el SQL sino en `PackageOfferability`**, y es deliberado: la ofrecibilidad del paquete ya se decide ahí para cuatro lecturas —detalle, lista, oferta y hotlink— y para la venta del paquete (`RF-MV-012`, `RF-MV-013`), de modo que un motivo más es **una línea en un solo sitio** y el detalle administrativo **dice por qué** no se ofrece —«El upgrade X salta niveles…»—, que es exactamente lo que administración necesita para decidir qué hace con él. Filtrarlo en `findOfferable` lo ocultaría de la oferta sin que el detalle supiera explicarlo. **Va detrás de los motivos de producto inactivo o retirado** en el orden fijo: es de los productos y no del paquete, y entre los de producto, el estado se arregla antes de que importe la cadena.
 - **Bots**: todos los activos, sin filtro (`spec.md` §14, resolución 2).
 - **Y `p.cover_image_id` también se selecciona** (14-09-2026, `RN-PM-033`, enmienda de `RF-PM-014`): `OfferItem` gana `coverImageUrl`, convertido con `ProductImageUrls.de(...)`, **presente y nulo** cuando no hay. **Nada de `product_images`** en la sentencia: la oferta devuelve la dirección y el navegador va a buscar la imagen a `RF-PM-016`, que es público — la oferta exige `products:sale` y la imagen no exige nada, y eso es lo que hace que un `<img>` funcione sin cabecera.
 - **Y los enlaces publicables SÍ se seleccionan** (22-09-2026, `RN-PM-048` a `RN-PM-050`; **era la columna `p.video_url` hasta ese día**). Que esta consulta excluya un dato opcional y traiga otro es la línea entera de `pm.md` §5.2.8: uno se esconde porque enseñaría el margen; el otro se publica porque existe para que lo vean. `OfferItem` **pierde `videoUrl`** y gana `links`, **presente y vacía** cuando el producto no publica ninguno.
@@ -117,6 +134,9 @@ Ninguna.
 | Reutilizar `RF-PM-002` con un filtro | Ese exige `products:read` y devuelve lo inactivo y lo retirado. Son dos preguntas y dos actores |
 | Devolver los arreglos desnudos | Cerraría la puerta a paginar sin romper a todos los clientes |
 | Calcular la vigencia de la membresía aquí | Duplicaría una regla de `SP` cuyo borde ya está fijado por prueba |
+| Comprobar el escalón **solo al registrar** (03-10-2026) | Es lo que §1 hacía con `RN-PM-017`, y aquí no alcanza: los saltos registrados antes del 03-10-2026 siguen activos y la inserción en la cadena crea saltos que nadie da de alta (`requirements/pm.md` §5.2.17) |
+| Desactivar los saltos con una migración (03-10-2026) | Descartado por el responsable del proyecto (`requirements/pm.md` §5.2.17): tomaría por administración una decisión producto a producto, y no resuelve la inserción en la cadena, que seguiría necesitando el predicado |
+| Filtrar el paquete con salto en `findOfferable` (03-10-2026) | Lo ocultaría de la oferta y del hotlink sin que `RF-PM-019` pudiera decir por qué. `PackageOfferability` ya es el sitio de esa pregunta |
 | Sembrar `products:sale` en `CLIENTE` (02-09-2026) | `V30` siembra ese rol **sin permisos a propósito**. Concedérselo de oficio en la migración repetiría exactamente lo que esa decisión evitó |
 
 ## 10. Riesgos
@@ -128,6 +148,8 @@ Ninguna.
 | 3 | Los bots crecen y la respuesta se vuelve grande | La envoltura permite paginar después sin romper el contrato; el disparador es que los bots activos pasen de unas decenas |
 | 4 | **El precio de compra acaba publicado**, por un campo añadido a `OfferItem` «por simetría» con el catálogo administrativo, y con él el margen de NEXUS | La única defensa es que el registro **no tenga** ese campo y que la consulta **no lo seleccione**. `CA-PM-160` prueba la ausencia con un producto que **sí** lo tiene declarado; sin esa prueba, el defecto entra en cualquier ampliación rutinaria y **no falla nada**. Entre el 08-09-2026 y el 12-09-2026 este riesgo no existía porque el segundo importe se publicaba a propósito |
 | 5 | **Se enseña un importe y se cobra otro**, y quien construye la pantalla no lo sabe | Es consecuencia aceptada (`requirements/pm.md` §5.2.4) y **no se corrige aquí**. Queda escrito en §4 y en `spec.md` §13, que es lo único que este plan puede hacer: el importe que confirma `RF-MV-002` sale de `products.price` |
+| 6 | **(03-10-2026) La comparación se escribe al revés**: la cadena numera desde la cima, y `m.level - s.level` en lugar de `s.level - m.level` deja pasar solo las renovaciones sin que nada falle | `CA-PM-420` prueba **en la misma oferta** renovación, escalón y salto: la versión invertida pierde el escalón y la prueba lo ve |
+| 7 | **(03-10-2026) Un salto activo no se ve en ninguna parte y administración no sabe por qué** | Para el paquete, el detalle lo dice (`PackageOfferability`). Para el producto suelto es el coste aceptado de no tocar lo registrado (`requirements/pm.md` §5.2.17): el catálogo administrativo enseña origen y destino con su nivel, y de ahí se lee |
 
 ## 11. Estrategia de prueba
 
@@ -136,8 +158,12 @@ Ninguna.
 | Los doce criterios de `spec.md` §12 | API | |
 | **La coincidencia de origen** | API | Un upgrade desde la membresía del actor **se ofrece**; uno declarado desde otra, **no** (`CA-PM-106`) |
 | **Un upgrade hacia el nivel que ya se tiene** | API | No se ofrece (`CA-PM-108`), y sale solo de la coincidencia: su origen es otro |
-| El paso corto y el salto conviven | API | Dos upgrades desde su membresía, con destinos distintos: **se ofrecen los dos** (`CA-PM-107`) |
-| Todos los declarados desde ahí, no solo el inmediato | API | Actor en el nivel más bajo de una cadena de cuatro (`CA-PM-089`) |
+| ~~El paso corto y el salto conviven~~ | ~~API~~ | ~~Dos upgrades desde su membresía, con destinos distintos: se ofrecen los dos (`CA-PM-107`)~~ **Invertido el 03-10-2026** |
+| ~~Todos los declarados desde ahí, no solo el inmediato~~ | ~~API~~ | ~~Actor en el nivel más bajo de una cadena de cuatro (`CA-PM-089`)~~ **Invertido el 03-10-2026** |
+| **Renovación, escalón y salto en la misma oferta** (03-10-2026) | API | Tres upgrades activos desde la membresía del actor, el salto sembrado por SQL —el alta ya no lo admite—: se ofrecen la renovación y el escalón y **no** el salto (`CA-PM-420`) |
+| **La cadena se reordena** (03-10-2026) | API | Un escalón que se ofrece; se inserta una membresía entre sus dos niveles; la consulta siguiente **no lo trae** (`CA-PM-421`). Era el riesgo 2, ahora con prueba |
+| **El paquete con un salto** (03-10-2026) | API + unitaria | En `PackageOfferability`, el motivo nuevo y su lugar en el orden; en la oferta, el paquete con salto **no aparece** y el de escalón **sí** (`CA-PM-422`) |
+| **Sin sentencias de más** (03-10-2026) | API | Con las estadísticas de Hibernate, el mismo número que antes (`CA-PM-423`, `CA-PM-338`) |
 | Quien no tiene membresía | API | Cero upgrades, todos los bots |
 | **Membresía vencida** | API | Se comporta como quien no tiene nivel (`FA-003`) |
 | Quien está en la cima | API | Lista de upgrades vacía, sin error |

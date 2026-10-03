@@ -2276,9 +2276,10 @@ paths:
         puede ser el MISMO**, y entonces el producto es una **renovación**: lo
         que vende es tiempo —su `validityDays`— y no un cambio de nivel.
 
-        **Y no tiene por qué ser el inmediatamente inferior**: saltar niveles es
-        legítimo, y es la razón de que el origen se declare en lugar de
-        deducirse de la cadena.
+        **Y sube un escalón como máximo** (desde el 03-10-2026): el destino es
+        el origen o **el inmediatamente superior**. Un salto —`BECA → ORO`—
+        se rechaza con `422` (`EX-006`, `VAL-029`), después de comprobar
+        que no baja (`VAL-014`).
 
         `icon` es el **nombre** del icono con el que el frontend pinta el producto
         —no una imagen—, en minúsculas y guion medio. Es **opcional**, y solo un
@@ -2396,8 +2397,9 @@ paths:
               schema:
                 $ref: "#/components/schemas/ProductResponse"
         "422":
-          description: "Membresía inexistente, moneda inexistente o inactiva, o un\
-            \ origen POR ENCIMA del destino (`EX-002`, `EX-003`, `EX-006`)"
+          description: "Membresía inexistente, moneda inexistente o inactiva, un origen\
+            \ POR ENCIMA del destino, o un destino a MÁS DE UN ESCALÓN del origen\
+            \ (`EX-002`, `EX-003`, `EX-006`)"
           content:
             '*/*':
               schema:
@@ -2985,7 +2987,7 @@ paths:
         oferta ya miró: que el paquete esté activo, publicado en la tienda, con sus
         productos, **dentro de su vigencia**, y que le corresponda a usted por su membresía.
         **Y se compra entero**: si un producto del paquete no procede —inactivo, retirado,
-        fuera de su oferta, o un upgrade que baja de nivel— se rechaza la compra completa
+        fuera de su oferta, o un upgrade que baja o **salta** de nivel— se rechaza la compra completa
         nombrando el producto, y **no se registra nada**.
 
         **La respuesta no lleva el vendedor**: si usted tiene **un** vendedor, la venta se
@@ -3038,9 +3040,10 @@ paths:
             \ fuera de la tienda o con un producto inactivo o retirado— (`EX-002`,\
             \ con el mismo motivo que publica el catálogo); no le corresponde a usted\
             \ por su membresía (`EX-003`); un producto no está en su oferta (`EX-004`);\
-            \ el upgrade BAJA de nivel —renovar el mismo sí se admite— (`EX-005`);\
-            \ su cuenta no puede operar todavía (`EX-006`); el método de pago no cuadra\
-            \ con el importe (`RN-MV-022`) o está desactivado (`EX-010`)."
+            \ el upgrade BAJA de nivel o SALTA más de un escalón —renovar el mismo\
+            \ y subir uno sí se admite— (`EX-005`); su cuenta no puede operar todaví\
+            a (`EX-006`); el método de pago no cuadra con el importe (`RN-MV-022`)\
+            \ o está desactivado (`EX-010`)."
         "422":
           description: "Una referencia que no resuelve: ningún paquete tiene ese có\
             digo, o está retirado (`EX-001`); o el método de pago no existe (`EX-010`)."
@@ -3254,9 +3257,10 @@ paths:
         "409":
           description: "Lo que solo se sabe después de resolver: la cuenta no puede\
             \ operar todavía, un producto no está en su oferta, el upgrade BAJA de\
-            \ nivel —renovar el mismo sí se admite—, hay dos upgrades, las monedas\
-            \ difieren, el método de pago está desactivado, o se paga con puntos a\
-            \ nombre de otra persona o sin puntos suficientes."
+            \ nivel o SALTA más de un escalón —renovar el mismo y subir uno sí se\
+            \ admite—, hay dos upgrades, las monedas difieren, el método de pago está\
+            \ desactivado, o se paga con puntos a nombre de otra persona o sin puntos\
+            \ suficientes."
         "422":
           description: "Un dato bien formado que no resuelve: el comprador, un producto\
             \ o el método de pago no existen."
@@ -4444,7 +4448,9 @@ paths:
             \ casos"
         "422":
           description: "Comprar por el **propio** enlace (`EX-003`), o cualquiera\
-            \ de los rechazos de negocio de una venta: nivel, moneda o método de pago"
+            \ de los rechazos de negocio de una venta: nivel —que baja, o que salta\
+            \ más de un escalón desde la membresía de quien compra—, moneda o método\
+            \ de pago"
         "500":
           description: Fallo no controlado (`ERR-500`)
       x-required-permission: products:buy-by-hotlink
@@ -8223,7 +8229,8 @@ paths:
         **primer** motivo que lo impide, en un orden fijo: menos de dos productos,
         sin descripción, inactivo, retirado, **fuera de su vigencia** —«todavía no
         está vigente: empieza el …» o «la vigencia terminó el …», con la fecha—, y
-        un producto inactivo o retirado —**nombrado por su código**—. Nulo cuando
+        un producto inactivo o retirado —**nombrado por su código**—, y por último
+        un upgrade que **salta niveles** (desde el 03-10-2026), nombrado igual. Nulo cuando
         es ofrecible. `validFrom` y `validTo` viajan siempre, el fin nulo cuando es
         indefinido, y **el día de fin cuenta entero**: un paquete que termina hoy
         se ofrece hoy. «Hoy» es el día en UTC.
@@ -10287,8 +10294,11 @@ paths:
 
         **No mira la membresía de quien llama**, y ahí se aparta de la oferta
         (`GET /api/v1/products/available`): el vendedor no compra lo que
-        reparte, de modo que un `BECA → ORO` le interesa aunque él esté en
-        `ORO`. Por eso la respuesta no trae `currentMembership`. Cada producto
+        reparte, de modo que un `VIP → PLATINO` le interesa aunque él esté en
+        `ORO`. Por eso la respuesta no trae `currentMembership`. **Lo que sí
+        se omite es el upgrade que salta niveles** (desde el 03-10-2026): el
+        salto es del producto y no de quien mira, y no se publica en ningún
+        canal. Cada producto
         va en la forma de venta —`price`, `exchange`, `links`,
         `coverImageUrl`, `rating`— y **sin `purchasePrice`** (`RN-PM-024`).
 
@@ -10337,14 +10347,14 @@ paths:
         aunque el catálogo de `RF-PM-002` sí los muestre a quien administra.
 
         **Upgrades: los declarados DESDE la membresía vigente de quien mira**,
-        y ninguno más. La coincidencia es exacta: no se comparan niveles ni se
-        recorre la cadena. Quien registró el producto ya decidió a quién va
-        dirigido.
+        y ninguno más. La coincidencia es exacta. Quien registró el producto
+        ya decidió a quién va dirigido.
 
-        Eso incluye **todos** los declarados desde ahí y no solo el inmediato
-        —quien está en el peldaño más bajo elige cuánto saltar, y el precio de
-        cada uno ya expresa el salto—, y llegan ordenados **del salto más
-        corto al más largo**.
+        **Y de esos, solo los que suben un escalón como máximo** (desde el
+        03-10-2026): la renovación y el inmediatamente superior. Un salto
+        registrado antes de esa fecha —o uno que pasó a serlo porque se
+        insertó una membresía en medio— **no se ofrece**, aunque esté activo.
+        Llegan ordenados por nivel de destino, la renovación primero.
 
         **La RENOVACIÓN entra aquí**, y va primera: un producto `X → X`
         declarado desde su propia membresía es el salto de longitud cero. Lo
@@ -10352,9 +10362,11 @@ paths:
 
         **Un upgrade hacia el nivel que ya se tiene NO se ofrece cuando su
         origen no es el suyo**: sería el salto de otra persona que acaba donde
-        quien mira ya está. Y **ninguna bajada** llega hasta aquí, aunque este
-        filtro ya no la mire: lo impide `RN-PM-017` **al registrar**, porque un
-        producto declarado desde mi membresía no puede apuntar por debajo.
+        quien mira ya está. Y **ninguna bajada** llega hasta aquí: la impide
+        `RN-PM-017` al registrar, y la condición del escalón tampoco la deja
+        pasar.
+
+        **Un paquete cuyo upgrade salta niveles tampoco se ofrece.**
 
         **Bots: todos los activos, para cualquiera.** No dependen del nivel de
         quien mira ni de que tenga uno.
@@ -11467,7 +11479,8 @@ paths:
         registrarse.
 
         **Solo publica productos activos y de alcance `HOTLINK` o `AMBOS`**
-        (`HOTLINKS` hasta el 15-09-2026), y solo el
+        (`HOTLINKS` hasta el 15-09-2026), **y ningún upgrade que salte
+        niveles** (desde el 03-10-2026: responde el mismo `404`), y solo el
         nombre de quien porta un rol de tipo `VENDEDOR`. Ni correo, ni
         identificador, ni estado, ni roles.
 
@@ -11563,7 +11576,8 @@ paths:
         no una reserva**: si un producto cambia de precio, el paquete cambia solo,
         y un fijo que hoy supera su precio cuenta cero.
 
-        **Solo publica paquetes activos y de alcance `HOTLINK` o `AMBOS`**, y **el
+        **Solo publica paquetes activos y de alcance `HOTLINK` o `AMBOS`**, cuyo
+        upgrade —si lleva— no salte niveles (desde el 03-10-2026), y **el
         alcance de los productos no filtra dentro del paquete**: el canal lo decide
         el paquete. Sin `purchasePrice` ni `status` en ningún nivel.
 

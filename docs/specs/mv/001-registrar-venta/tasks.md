@@ -4,8 +4,8 @@
 |---|---|
 | Requerimiento | `RF-MV-001` |
 | Plan | [`plan.md`](plan.md), aprobado el 02-09-2026 |
-| Versión | 0.5.0 |
-| Estado | **En curso** — `T-01` a `T-18` `Hecha`; `CA-MV-008` queda **sin prueba** hasta `RF-SP-045`; `T-25` a `T-30` `Hecha` el 16-09-2026 (§1.3); `T-31` a `T-35` `Hecha` el 16-09-2026 (§1.4) |
+| Versión | 0.6.0 |
+| Estado | **En curso** — `T-01` a `T-18` `Hecha`; `CA-MV-008` queda **sin prueba** hasta `RF-SP-045`; `T-25` a `T-30` `Hecha` el 16-09-2026 (§1.3); `T-31` a `T-35` `Hecha` el 16-09-2026 (§1.4); `T-36` a `T-39` `Hecha` el 03-10-2026 (§1.5, el escalón) |
 | Autor | Responsable técnico |
 | Aprobadas por | Responsable del proyecto |
 | Fecha de aprobación | 04-09-2026 |
@@ -103,6 +103,23 @@ Enmienda del Art. I.7 sobre este requerimiento ya construido, por decisión del 
 | `T-34` | `SaleLineResponse` gana `packageId` (nulable declarado con `types`), `lineDiscount` y `discounts` (lista nunca nula); `RegisterSaleService` construye cada línea sin rebajas | `T-32` | `RegisterSaleIT`: `lines[0].lineDiscount` es `0.00`, `discounts` es `[]` **presente** y `packageId` es nulo **presente**, sobre el JSON en crudo | **Hecha** — 16-09-2026 |
 | `T-35` | Contrato OpenAPI: esquema regenerado y prosa de `POST /movements` con la frase «esta entrada no aplica descuentos» | `T-34` | `docs/api/openapi.*` declaran los tres campos nuevos de la línea | **Hecha** — 16-09-2026 |
 
+### 1.5 El upgrade sube un escalón — 03-10-2026
+
+Enmienda del Art. I.7 sobre este requerimiento ya construido, por decisión del responsable del proyecto ([`requirements/mv.md`](../../../requirements/mv.md) v0.72.0, `RN-MV-006`; `plan.md` §3.2). Rama: `feature/upgrade-escalonado`.
+
+**`T-36` es la única tarea de código de `MV` para esta regla**, y vale para todas las entradas: `SaleRules` la comparten la tienda, la compra propia (`RF-MV-002`), el hotlink (`RF-MV-011`) —que registra a través de `RegisterSaleService`— y los paquetes (`RF-MV-012`, `RF-MV-013`) a través de `BuyPackageService`. Las tripletas de esas entradas **citan esta tarea** y solo añaden sus pruebas.
+
+| ID | Tarea | Depende de | Verificación | Estado |
+|---|---|---|---|---|
+| `T-36` | `SaleRules.verificarQueSube` rechaza también `destino < nivelActual - 1`, con el **mismo `EX-005`** atado a `lines` y un mensaje que **dice que salta** y que solo se sube a la siguiente; el del descenso no cambia. Sin membresía vigente sigue sin rechazar | — | El descenso y el salto dan `EX-005` con mensajes distintos; la renovación y el escalón pasan | **Hecha el 03-10-2026** |
+| `T-37` | `RegisterSaleServiceTest` gana el **salto** —rechazado, y sin guardar movimiento ni pago— y el **escalón** —admitido—, con la oferta simulada dejándolos pasar. El mismo nivel ya lo prueba `T-21` | `T-36` | `CA-MV-526` y `CA-MV-527`. Borrar la condición nueva hace fallar una prueba | **Hecha el 03-10-2026** |
+| `T-38` | `RegisterSaleIT`: un salto **sembrado por SQL** —el alta ya no lo admite (`RF-PM-001`)— con origen en la membresía del cliente se rechaza **por la oferta** (`EX-004`) sin dejar venta, y un escalón se registra | `T-36`, `RF-PM-007` (el filtro del escalón en la oferta) | `CA-MV-526` por HTTP tal como ocurre hoy, y `CA-MV-527` | **Hecha el 03-10-2026** |
+| `T-39` | La prosa de las `@Operation` que emiten `EX-005` —`POST /api/v1/movements`, `/movements/mine`, la compra por hotlink y las dos de paquetes— dice que `EX-005` es **bajar o saltar** de nivel | `T-36` | El contrato regenerado lo dice; el diff de `docs/api/openapi.json` revisado | **Hecha el 03-10-2026** |
+
+**Verificación de la enmienda del escalón (03-10-2026):** `RegisterSaleServiceTest` (`CA-MV-526` por la red de `SaleRules`), `RegisterSaleIT` (`CA-MV-526` por HTTP —`EX-004`, la oferta frena antes— y `CA-MV-527`), `BuyPackageIT` y `BuyByHotlinkIT`, en verde; `mvn clean verify` completo: 517 unitarias y 2380 de integración, sin fallos.
+
+**`CA-MV-526` necesita las dos pruebas por lo mismo que `CA-MV-011`** (§3): por HTTP, en esta entrada, la oferta lo excluye antes; la rama de `EX-005` solo la alcanza la unitaria. Por el hotlink sí se alcanza por HTTP, y lo prueba `RF-MV-011`.
+
 ## 2. Lo que se apartó del plan, y por qué
 
 **Tres apartados, los tres declarados como enmienda (Art. I.7).**
@@ -147,6 +164,8 @@ Queda declarado lo que esto obliga: **las lecturas de `RF-MV-006` y `RF-MV-007` 
 | `CA-MV-016` | `T-12`, `T-13`, `T-15` | Cubierto |
 | `CA-MV-017` | `T-07`, `T-11`, `T-15`, `T-24`, `T-27` | Cubierto; desde el 16-09-2026 afirma que la venta se registra **atribuida a quien compra**, en la respuesta y en `movement_details.seller_id` |
 | `CA-MV-018` | `T-08`, `T-14`, `T-15`, `T-26` | Cubierto; la instantánea lleva `user_id` en la cabecera y `seller_id` en cada línea, y ya no lleva `client_id` |
+| `CA-MV-526` | `T-36`, `T-37`, `T-38` | **Pendiente** — unitaria con `EX-005`; por HTTP, `EX-004` |
+| `CA-MV-527` | `T-36`, `T-37`, `T-38` | **Pendiente** |
 
 **`CA-MV-011` necesita dos pruebas, y merece leerse dos veces.** Por HTTP, un upgrade que no sube **nunca llega** a `RN-MV-006`: la oferta de `RF-PM-007` ya lo excluyó, y el rechazo que se ve es `EX-004`. La prueba de integración lo comprueba así porque es lo que hoy ocurre de verdad, y el criterio queda satisfecho — se rechaza **al registrar**, que es lo que exige.
 

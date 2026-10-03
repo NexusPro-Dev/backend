@@ -70,7 +70,8 @@ class RegisterSaleIT extends IntegrationTestBase {
   private UUID free;
 
   private UUID upVip;
-  private UUID upPlatino;
+  private UUID upRenovacion;
+  private UUID upOro;
   private UUID upFree;
   private UUID botSenales;
   private UUID botCopy;
@@ -97,14 +98,17 @@ class RegisterSaleIT extends IntegrationTestBase {
     UUID sotano = membresia("VTA_SOTANO", "Sótano de venta", 5, free);
 
     upVip = upgrade("VTA_UP_VIP", "Ascenso a Vip", free, vip, "20.00", null, "ACTIVO", false);
-    upPlatino =
-        upgrade("VTA_UP_PLATINO", "Ascenso a Platino", free, platino, "50.00", 30, "ACTIVO", false);
-    // DECLARADO DESDE `free` COMO LOS DEMÁS: desde el 07-09-2026 la oferta
-    // coincide por ORIGEN y no por nivel (`RF-PM-007` · `T-20`), de modo que un
-    // producto declarado desde `vip` no estaría en la oferta del cliente —que
-    // está en `free`— y `RN-MV-007` lo rechazaría antes de llegar a la regla
-    // que cada prueba quiere ejercitar. Es un SALTO, que `RN-PM-018` admite.
-    upgrade("VTA_UP_ORO", "Ascenso a Oro", free, oro, "100.00", 365, "ACTIVO", false);
+    // La RENOVACIÓN de `free`: hasta el 03-10-2026 este producto era un
+    // `free → platino`, un salto de dos escalones, y las pruebas que lo usaban
+    // no miraban el nivel —solo el precio copiado y que hubiera dos upgrades—.
+    // Desde `RN-PM-018` la oferta ya no publica saltos, y una renovación sigue en
+    // ella sin cambiar lo que esas pruebas comprueban.
+    upRenovacion =
+        upgrade("VTA_UP_RENUEVA", "Renovación de Free", free, free, "50.00", 30, "ACTIVO", false);
+    // DECLARADO DESDE `free` COMO LOS DEMÁS, y es un SALTO de tres escalones:
+    // sembrado por la base porque el alta ya no lo admite (`RN-PM-018`), y es
+    // lo que `CA-MV-526` necesita — coincide por origen y aun así no se vende.
+    upOro = upgrade("VTA_UP_ORO", "Ascenso a Oro", free, oro, "100.00", 365, "ACTIVO", false);
 
     // Lleva a BECA, que es el nivel que el cliente YA tiene: la oferta no lo
     // incluye —su ORIGEN es `sotano`, no `free`—, y es lo que hace verificable
@@ -289,7 +293,7 @@ class RegisterSaleIT extends IntegrationTestBase {
   @DisplayName(
       "CA-MV-003: el precio y la vigencia se COPIAN, y corregir el producto después no los cambia")
   void laCopiaSobreviveALaCorreccion() throws Exception {
-    mvc.perform(venta(cliente, TARJETA, linea(upPlatino, 1)))
+    mvc.perform(venta(cliente, TARJETA, linea(upRenovacion, 1)))
         .andExpect(status().isCreated())
         .andExpect(jsonPath("$.lines[0].unitPrice").value(50.00))
         .andExpect(jsonPath("$.lines[0].validityDays").value(30));
@@ -301,7 +305,7 @@ class RegisterSaleIT extends IntegrationTestBase {
     // mostrarse, un precio idéntico pasaría la prueba igual.
     jdbc.update(
         "UPDATE products SET price = 999.00, validity_days = 1 WHERE id = CAST(? AS uuid)",
-        upPlatino.toString());
+        upRenovacion.toString());
 
     Map<String, Object> linea =
         jdbc.queryForMap(
@@ -520,9 +524,37 @@ class RegisterSaleIT extends IntegrationTestBase {
   @Test
   @DisplayName("CA-MV-012: dos upgrades en la misma venta")
   void dosUpgrades() throws Exception {
-    mvc.perform(venta(cliente, TARJETA, linea(upVip, 1), linea(upPlatino, 1)))
+    mvc.perform(venta(cliente, TARJETA, linea(upVip, 1), linea(upRenovacion, 1)))
         .andExpect(status().isConflict())
         .andExpect(jsonPath("$.errors[0].code").value("EX-006"));
+  }
+
+  @Test
+  @DisplayName(
+      "`CA-MV-526` — un upgrade que SALTA niveles no se vende: por HTTP lo frena la oferta"
+          + " (`EX-004`) y no queda venta, línea ni pago")
+  void elUpgradeQueSaltaNoSeVende() throws Exception {
+    // `free → oro` coincide por origen con el cliente, que está en `free`, y
+    // salta tres escalones. Por esta entrada la oferta lo excluye antes de
+    // `SaleRules` (`tasks.md` §3, como `CA-MV-011`); la rama de `EX-005` la
+    // alcanza `RegisterSaleServiceTest`.
+    mvc.perform(venta(cliente, TARJETA, linea(upOro, 1)))
+        .andExpect(status().isConflict())
+        .andExpect(jsonPath("$.errors[0].code").value("EX-004"));
+
+    assertThat(jdbc.queryForObject("SELECT count(*) FROM movements", Integer.class)).isZero();
+    assertThat(jdbc.queryForObject("SELECT count(*) FROM movement_details", Integer.class))
+        .isZero();
+    assertThat(jdbc.queryForObject("SELECT count(*) FROM payments", Integer.class)).isZero();
+  }
+
+  @Test
+  @DisplayName("`CA-MV-527` — un upgrade a la membresía INMEDIATAMENTE superior se registra")
+  void elEscalonSeRegistra() throws Exception {
+    // `free(4) → vip(3)`: un escalón, el caso normal.
+    mvc.perform(venta(cliente, TARJETA, linea(upVip, 1)))
+        .andExpect(status().isCreated())
+        .andExpect(jsonPath("$.status").value("PENDIENTE"));
   }
 
   @Test

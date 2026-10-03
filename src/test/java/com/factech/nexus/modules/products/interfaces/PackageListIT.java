@@ -47,6 +47,7 @@ class PackageListIT extends IntegrationTestBase {
   private UUID vacio;
   private UUID retirado;
   private UUID botCaro;
+  private UUID upgradeOro;
 
   @BeforeEach
   void prepararCatalogo() {
@@ -57,7 +58,8 @@ class PackageListIT extends IntegrationTestBase {
     botCaro = PackageTestSupport.bot(jdbc, "BOT_CARO", "100.00");
     UUID oro =
         PackageTestSupport.upgrade(
-            jdbc, "UPGRADE_ORO", "299.00", membresias.beca(), membresias.oro());
+            jdbc, "UPGRADE_ORO", "299.00", membresias.platino(), membresias.oro());
+    upgradeOro = oro;
 
     // Se insertan en este orden; el orden por omisión los devuelve al revés.
     barato = PackageTestSupport.paquete(jdbc, "BARATO", "Dos bots.", "ACTIVO", "TIENDA");
@@ -263,6 +265,30 @@ class PackageListIT extends IntegrationTestBase {
         .andExpect(jsonPath("$.content[1].status").value("ACTIVO"))
         .andExpect(jsonPath("$.content[1].offerable").value(false))
         .andExpect(jsonPath("$.content[1].validFrom").value(hoy.plusDays(1).toString()));
+  }
+
+  @Test
+  @DisplayName(
+      "`CA-PM-428` — un paquete cuyo upgrade SALTA niveles sale offerable false, el de escalón true, y las sentencias no cambian")
+  void elSaltoPorFila() throws Exception {
+    // Escalón: PLATINO → ORO.
+    estadisticas.clear();
+    mvc.perform(listar(""))
+        .andExpect(jsonPath("$.content[1].code").value("CARO"))
+        .andExpect(jsonPath("$.content[1].offerable").value(true));
+    long conEscalon = estadisticas.getPrepareStatementCount();
+
+    // Salto sembrado por SQL: BECA (3) → ORO (1). El estado no cambia.
+    jdbc.update(
+        "UPDATE products SET source_membership_id = ? WHERE id = ?", membresias.beca(), upgradeOro);
+    estadisticas.clear();
+    mvc.perform(listar(""))
+        .andExpect(jsonPath("$.content[1].code").value("CARO"))
+        .andExpect(jsonPath("$.content[1].status").value("ACTIVO"))
+        .andExpect(jsonPath("$.content[1].offerable").value(false))
+        .andExpect(jsonPath("$.content[2].code").value("BARATO"))
+        .andExpect(jsonPath("$.content[2].offerable").value(true));
+    assertThat(estadisticas.getPrepareStatementCount()).isEqualTo(conEscalon);
   }
 
   private MockHttpServletRequestBuilder listar(String query) {

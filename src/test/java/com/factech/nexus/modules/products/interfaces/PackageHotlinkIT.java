@@ -63,7 +63,7 @@ class PackageHotlinkIT extends IntegrationTestBase {
         PackageTestSupport.paquete(jdbc, "PACK_ORO_BOTS", "Oro con señales.", "ACTIVO", "AMBOS");
     oro =
         PackageTestSupport.upgrade(
-            jdbc, "UPGRADE_ORO", "500.00", membresias.beca(), membresias.oro());
+            jdbc, "UPGRADE_ORO", "500.00", membresias.platino(), membresias.oro());
     bot = PackageTestSupport.bot(jdbc, "BOT_SENALES", "100.00");
     // El bot es de alcance TIENDA a propósito: el alcance de los productos NO
     // filtra dentro del paquete (`CA-PM-332`).
@@ -326,6 +326,27 @@ class PackageHotlinkIT extends IntegrationTestBase {
         Date.valueOf(hoy.plusDays(1)),
         paquete);
     igualQue(delProducto, "hl-vendedora", "PACK_ORO_BOTS");
+  }
+
+  @Test
+  @DisplayName(
+      "`CA-PM-425` — un paquete cuyo upgrade SALTA niveles responde el MISMO 404; el de escalón y el de renovación resuelven")
+  void elSaltoElMismo404() throws Exception {
+    String delProducto =
+        mvc.perform(get("/api/v1/hotlinks/{u}/{c}", "hl-vendedora", "NO_EXISTE"))
+            .andReturn()
+            .getResponse()
+            .getContentAsString();
+    enlace("hl-vendedora", "PACK_ORO_BOTS").andExpect(status().isOk());
+
+    // Salto sembrado por SQL —el alta ya no lo admite—: BECA (3) → ORO (1).
+    jdbc.update(
+        "UPDATE products SET source_membership_id = ? WHERE id = ?", membresias.beca(), oro);
+    igualQue(delProducto, "hl-vendedora", "PACK_ORO_BOTS");
+
+    // Renovación: ORO → ORO.
+    jdbc.update("UPDATE products SET source_membership_id = ? WHERE id = ?", membresias.oro(), oro);
+    enlace("hl-vendedora", "PACK_ORO_BOTS").andExpect(status().isOk());
   }
 
   private ResultActions enlace(String usuario, String codigo) throws Exception {

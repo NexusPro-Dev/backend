@@ -248,7 +248,8 @@ public class RegisterProductService {
   }
 
   /**
-   * `EX-002` sobre la membresía de <b>origen</b>, y `RN-PM-017` entera.
+   * `EX-002` sobre la membresía de <b>origen</b>, `RN-PM-017` entera y, desde el 03-10-2026,
+   * `RN-PM-018`: un escalón como máximo ({@code VAL-029}).
    *
    * <p><b>La comparación de niveles vive aquí y no en el agregado</b>, y no por comodidad: exige el
    * {@code level} de <b>dos filas de `memberships`</b>, que es una tabla de `SP`. El agregado no la
@@ -280,6 +281,19 @@ public class RegisterProductService {
               + " de la de destino.";
       throw new UnprocessableEntityException(
           "EX-006", mensaje, List.of(new FieldError("sourceMembershipId", "VAL-014", mensaje)));
+    }
+    // `RN-PM-018` (03-10-2026): UN ESCALÓN COMO MÁXIMO. Hasta esa fecha el salto
+    // era legítimo y era la razón de declarar el origen; ahora el destino es el
+    // origen —renovación— o el inmediatamente superior. La cadena no tiene huecos
+    // (`RN-SP-007`, `RN-SP-008`), de modo que «inmediatamente superior» es una
+    // resta y no un recorrido. Va DESPUÉS del descenso: una sola validación por
+    // rechazo, y `ORO → BECA` es un descenso antes que un salto (`CA-PM-419`).
+    if (origen.level() - destino.level() > 1) {
+      String mensaje =
+          "Un upgrade sube un nivel como máximo: la membresía de destino debe ser la de origen o"
+              + " la inmediatamente superior.";
+      throw new UnprocessableEntityException(
+          "EX-006", mensaje, List.of(new FieldError("sourceMembershipId", "VAL-029", mensaje)));
     }
     return origen;
   }

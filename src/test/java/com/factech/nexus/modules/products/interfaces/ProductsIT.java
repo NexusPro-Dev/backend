@@ -71,13 +71,13 @@ class ProductsIT extends IntegrationTestBase {
                  "targetMembershipId":"%s","price":49.99,"currencyId":"%s",
                  "validityDays":30}
                 """
-                    .formatted(free, oro, USD)))
+                    .formatted(platino, oro, USD)))
         .andExpect(status().isCreated())
         .andExpect(
             header().string("Location", org.hamcrest.Matchers.startsWith("/api/v1/products/")))
         .andExpect(jsonPath("$.code").value("UPGRADE_ORO"))
-        .andExpect(jsonPath("$.sourceMembership.code").value("BECA"))
-        .andExpect(jsonPath("$.sourceMembership.level").value(4))
+        .andExpect(jsonPath("$.sourceMembership.code").value("PLATINO"))
+        .andExpect(jsonPath("$.sourceMembership.level").value(2))
         .andExpect(jsonPath("$.targetMembership.code").value("ORO"))
         .andExpect(jsonPath("$.targetMembership.level").value(1))
         .andExpect(jsonPath("$.currency.code").value("USD"))
@@ -111,7 +111,7 @@ class ProductsIT extends IntegrationTestBase {
                  "icon":"  CROWN  ","sourceMembershipId":"%s","targetMembershipId":"%s",
                  "price":49.99,"currencyId":"%s"}
                 """
-                    .formatted(free, oro, USD)))
+                    .formatted(platino, oro, USD)))
         .andExpect(status().isCreated())
         .andExpect(jsonPath("$.icon").value("crown"));
   }
@@ -174,7 +174,7 @@ class ProductsIT extends IntegrationTestBase {
                    "sourceMembershipId":"%s","targetMembershipId":"%s","price":49.99,
                    "currencyId":"%s"%s}
                   """
-                      .formatted(free, oro, USD, icono)))
+                      .formatted(platino, oro, USD, icono)))
           .andExpect(status().isBadRequest())
           .andExpect(jsonPath("$.errors[0].code").value("VAL-018"))
           .andExpect(jsonPath("$.errors[0].field").value("icon"));
@@ -224,7 +224,7 @@ class ProductsIT extends IntegrationTestBase {
                  "icon":"Crown Oro","sourceMembershipId":"%s","targetMembershipId":"%s",
                  "price":49.99,"currencyId":"%s"}
                 """
-                    .formatted(free, oro, USD)))
+                    .formatted(platino, oro, USD)))
         .andExpect(status().isBadRequest())
         .andExpect(jsonPath("$.errors[0].code").value("VAL-012"));
   }
@@ -297,10 +297,13 @@ class ProductsIT extends IntegrationTestBase {
   }
 
   @Test
-  @DisplayName("`CA-PM-102` — `RN-PM-018`: el upgrade puede SALTAR niveles, y no solo el contiguo")
-  void saltarNivelesEsLegitimo() throws Exception {
-    // La premisa que hace valer la prueba: entre el origen y el destino hay dos
-    // eslabones. Sin comprobarla, `BECA -> ORO` sería un salto de nombre.
+  @DisplayName(
+      "`CA-PM-418` — `RN-PM-018`: un upgrade que SALTA niveles se rechaza y no registra nada")
+  void saltarNivelesSeRechaza() throws Exception {
+    // Sustituye a `CA-PM-102`, que hasta el 03-10-2026 probaba lo contrario: que
+    // el salto era legítimo. La premisa sigue haciendo falta: entre el origen y
+    // el destino hay dos eslabones. Sin comprobarla, `BECA -> ORO` sería un salto
+    // de nombre, y la prueba pasaría por un escalón mal sembrado.
     assertThat(cuantasMembresias()).isEqualTo(4);
 
     mvc.perform(
@@ -311,9 +314,51 @@ class ProductsIT extends IntegrationTestBase {
                  "currencyId":"%s"}
                 """
                     .formatted(free, oro, USD)))
+        .andExpect(status().isUnprocessableEntity())
+        .andExpect(jsonPath("$.errors[0].code").value("VAL-029"))
+        .andExpect(jsonPath("$.errors[0].field").value("sourceMembershipId"));
+
+    assertThat(cuantosProductos()).as("el rechazo no registró nada").isZero();
+  }
+
+  @Test
+  @DisplayName("`CA-PM-417` — `RN-PM-018`: un upgrade de UN escalón se admite")
+  void unEscalonSeAdmite() throws Exception {
+    // `VIP` es el 3 y `PLATINO` el 2: la diferencia de `level` vale uno, que es
+    // exactamente lo que la regla admite además de la renovación.
+    mvc.perform(
+            alta(
+                """
+                {"scope":"TIENDA","implementation":"AUTOMATICA","directCommission":{"type":"PORCENTAJE","percentage":0},"code":"ESCALON_PLATINO","type":"UPGRADE_MEMBRESIA","icon":"crown","name":"De Vip a Platino",
+                 "sourceMembershipId":"%s","targetMembershipId":"%s","price":59.99,
+                 "currencyId":"%s"}
+                """
+                    .formatted(vip, platino, USD)))
         .andExpect(status().isCreated())
-        .andExpect(jsonPath("$.sourceMembership.level").value(4))
-        .andExpect(jsonPath("$.targetMembership.level").value(1));
+        .andExpect(jsonPath("$.sourceMembership.level").value(3))
+        .andExpect(jsonPath("$.targetMembership.level").value(2));
+  }
+
+  @Test
+  @DisplayName("`CA-PM-419` — un descenso de varios escalones responde `VAL-014`, y NO `VAL-029`")
+  void elDescensoSeCompruebaAntesQueElSalto() throws Exception {
+    // `ORO -> BECA` es a la vez un descenso y una distancia de tres escalones.
+    // El descenso se comprueba primero, y cada rechazo dice una sola cosa: si
+    // saliera `VAL-029`, el mensaje diría «sube un nivel como máximo» a quien
+    // intentaba bajar.
+    mvc.perform(
+            alta(
+                """
+                {"scope":"TIENDA","implementation":"AUTOMATICA","directCommission":{"type":"PORCENTAJE","percentage":0},"code":"DESCENSO_LARGO","type":"UPGRADE_MEMBRESIA","icon":"crown","name":"Bajada larga",
+                 "sourceMembershipId":"%s","targetMembershipId":"%s","price":49.99,
+                 "currencyId":"%s"}
+                """
+                    .formatted(oro, free, USD)))
+        .andExpect(status().isUnprocessableEntity())
+        .andExpect(jsonPath("$.errors.length()").value(1))
+        .andExpect(jsonPath("$.errors[0].code").value("VAL-014"));
+
+    assertThat(cuantosProductos()).as("el rechazo no registró nada").isZero();
   }
 
   @Test
@@ -1020,7 +1065,7 @@ class ProductsIT extends IntegrationTestBase {
                      "sourceMembershipId":"%s","targetMembershipId":"%s","price":49.99,
                      "currencyId":"%s","validityDays":30}
                     """
-                        .formatted(free, oro, USD)))
+                        .formatted(platino, oro, USD)))
         .andExpect(status().isCreated());
 
     String cambios =
@@ -1172,7 +1217,7 @@ class ProductsIT extends IntegrationTestBase {
                      "type":"UPGRADE_MEMBRESIA","icon":"crown","name":"Ascenso a Oro","sourceMembershipId":"%s",
                      "targetMembershipId":"%s","price":49.99,"currencyId":"%s"}
                     """
-                        .formatted(free, oro, USD)))
+                        .formatted(platino, oro, USD)))
         .andExpect(status().isCreated())
         .andExpect(jsonPath("$.scope").value("AMBOS"))
         .andExpect(jsonPath("$.implementation").value("MANUAL"));
@@ -1195,7 +1240,9 @@ class ProductsIT extends IntegrationTestBase {
   @DisplayName("`CA-PM-141` — la membresía resuelta trae su COLOR, junto al código, nombre y nivel")
   void laMembresiaResueltaTraeSuColor() throws Exception {
     // `oro` se siembra con nivel 1, y el color de la semilla es
-    // `upper(lpad(to_hex(nivel * 4919), 6, '0'))` — para el nivel 1, `001337`.
+    // `upper(lpad(to_hex(nivel * 4919), 6, '0'))` — para el nivel 1, `001337`;
+    // para el origen, `platino` (nivel 2), `00266E`. Era `BECA` hasta el
+    // 03-10-2026, cuando `BECA -> ORO` pasó a ser un salto (`RN-PM-018`).
     // Se afirma el valor EXACTO y no solo el formato: así la prueba demuestra
     // que viaja el color de ESA membresía y no el de cualquiera.
     mvc.perform(
@@ -1205,10 +1252,10 @@ class ProductsIT extends IntegrationTestBase {
                  "sourceMembershipId":"%s","targetMembershipId":"%s","price":49.99,
                  "currencyId":"%s"}
                 """
-                    .formatted(free, oro, USD)))
+                    .formatted(platino, oro, USD)))
         .andExpect(status().isCreated())
         .andExpect(jsonPath("$.targetMembership.color").value("001337"))
-        .andExpect(jsonPath("$.sourceMembership.color").value("004CDC"));
+        .andExpect(jsonPath("$.sourceMembership.color").value("00266E"));
   }
 
   // ---------------------------------------------------------------------------

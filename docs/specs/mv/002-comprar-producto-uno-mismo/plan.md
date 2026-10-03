@@ -5,8 +5,9 @@
 | Requerimiento | `RF-MV-002` |
 | Especificación | [`spec.md`](spec.md) |
 | `spec.md` aprobada el | 02-09-2026 |
-| Versión | 0.2.0 |
+| Versión | 0.3.0 |
 | Estado | **Aprobado** |
+| Enmendado el | 03-10-2026 — `RN-MV-006` rechaza también el salto; la comprobación es la de `RF-MV-001` (`plan.md` §3.2) y este plan no cambia de forma: una fila más en la estrategia de prueba (§11) |
 | Enmendado el | 16-09-2026 — `clientId` pasa a llamarse `userId` en `RF-MV-001` y el vendedor vive en la línea; este plan no cambia de forma |
 | Autor | Responsable técnico |
 | Aprobado por | Responsable del proyecto |
@@ -123,6 +124,7 @@ La de `RF-MV-001`. Sin cambios.
 | Sin fecha del hecho | Integración | `CA-MV-022` |
 | Cuenta retenida | Integración | `CA-MV-023` |
 | Oferta y nivel | Integración | `CA-MV-024` |
+| **El salto** | Integración | `CA-MV-528`: un salto sembrado por SQL con origen en la membresía del actor, rechazado **por la oferta**. La rama de `EX-005` la prueba `RF-MV-001` sobre el mismo caso de uso (`T-37`) |
 | Funcionario sin membresía | Integración | `CA-MV-025`: rechazado **por la oferta** |
 | **Las dos puertas producen lo mismo** | Integración | `CA-MV-026`: se registra una venta por cada camino y se comparan campo a campo, salvo identificador, código y fechas |
 

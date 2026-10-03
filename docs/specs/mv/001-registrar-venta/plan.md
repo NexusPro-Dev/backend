@@ -5,8 +5,9 @@
 | Requerimiento | `RF-MV-001` |
 | Especificación | [`spec.md`](spec.md) |
 | `spec.md` aprobada el | 02-09-2026 |
-| Versión | 0.5.0 |
+| Versión | 0.6.0 |
 | Estado | **Aprobado** |
+| Enmendado el | 03-10-2026 — `RN-MV-006` gana la mitad del **salto**: `SaleRules.verificarQueSube` rechaza también un destino más de un nivel por encima del vigente, con el mismo `EX-005` y otro mensaje (§3.2). Sin esquema |
 | Enmendado el | 19-09-2026 — `RN-MV-007` enmendada: `RegisterSaleService` recibe **el canal** (`SaleChannel`) desde la entrada —tienda para el funcionario y la compra propia, hotlink para el registro por enlace— y valida la oferta contra lo que ese canal publica: `ProductCatalog.offeredTo` o `ProductCatalog.publishedByHotlink`, la lectura nueva de `PM`. La petición **no** lo lleva |
 | Enmendado el | 16-09-2026 — `V12`: `user_id` en la cabecera, `seller_id` en cada línea (§2.4); `V14`: el descuento de la línea, sus rebajas y su paquete (§2.5) |
 | Autor | Responsable técnico |
@@ -156,6 +157,16 @@ Cuatro datos que la petición no trae, y **ninguno se calcula aquí** ([`archite
 
     La comprobación no se borra: **estrecha**. Pasa de rechazar `destino >= nivelActual` a rechazar `destino > nivelActual` — el mismo nivel se admite y el inferior sigue sin admitirse. Lo que este aviso defendía era justo eso: que la regla siguiera viva y en `MV` para poder cambiarla **aquí** el día que `PM` moviera su oferta, sin que nadie tuviera que ir a buscarla.
 
+!!! warning "El 03-10-2026 la regla gana una mitad, y vuelve a cambiarse aquí"
+
+    `PM` deja de admitir el salto ([`requirements/pm.md`](../../../requirements/pm.md) §5.2.17) y `RN-MV-006` lo rechaza también al vender. La comprobación vive donde vivía —`SaleRules.verificarQueSube`, que desde el 17-09-2026 comparten esta entrada y la compra de paquetes— y gana **una condición**: además de `destino > nivelActual` —el descenso—, rechaza `destino < nivelActual - 1` —el salto—. Entre las dos queda exactamente lo que se admite: el mismo nivel y el inmediatamente superior. Se escribe `- 1` y no «el siguiente de la cadena» porque la cadena no tiene huecos (`RN-SP-007`, `RN-SP-008`): no hace falta leer ninguna fila más.
+
+    **Mismo código, otro mensaje.** Las dos mitades son `RN-MV-006`, y el que llama reacciona igual —no se vende—, de modo que un `EX` nuevo obligaría a cada entrada y al frontend a reconocer un segundo código para la misma decisión. El mensaje sí distingue, porque quien lo lee necesita saber si lo que compra baja o salta.
+
+    **Se compara con la membresía vigente, no con el origen del producto.** Por la tienda coinciden; por el hotlink no, y la regla es de quien compra. **Sin membresía vigente sigue sin rechazarse**, y **al confirmar no se repite**: `RN-MV-029` mira solo el descenso.
+
+    **Y otra vez la oferta lo garantiza antes**: `RF-PM-007` deja de publicar los saltos ya registrados, de modo que por esta entrada el salto se ve como `EX-004`. Es el mismo caso que el primer aviso de esta sección, y se resuelve igual: la prueba que alcanza `EX-005` es unitaria, con la oferta simulada (`tasks.md` §1.5).
+
 ## 4. Contrato de API
 
 `POST /api/v1/movements` · `201 Created`, con `Location`.
@@ -164,7 +175,7 @@ Cuatro datos que la petición no trae, y **ninguno se calcula aquí** ([`archite
 |---|---|
 | `400` | `VAL-001` a `VAL-007`: lo que se ve **mirando la petición** — falta el comprador, no hay líneas, cantidad no positiva, producto repetido, fecha futura |
 | `403` | Sin el permiso `movements:create` |
-| `409` | Lo que solo se sabe **después de resolver**: cuenta en `FTD_PENDIENTE` (`EX-002`), producto fuera de la oferta (`EX-004`), upgrade que no sube (`EX-005`), dos upgrades (`EX-006`), monedas distintas (`EX-008`), cantidad en un upgrade (`EX-009`), método inactivo (`EX-010`) |
+| `409` | Lo que solo se sabe **después de resolver**: cuenta en `FTD_PENDIENTE` (`EX-002`), producto fuera de la oferta (`EX-004`), upgrade que baja o salta de nivel (`EX-005`), dos upgrades (`EX-006`), monedas distintas (`EX-008`), cantidad en un upgrade (`EX-009`), método inactivo (`EX-010`) |
 | `422` | `EX-001`, `EX-011` y el método inexistente: un dato **bien formado que no resuelve** contra otro módulo |
 
 **El criterio de reparto es el del proyecto, y aquí se aplica a rajatabla**: `400` es forma, `422` es referencia que no existe, `409` es conflicto con el estado del sistema. Lo que empuja tres excepciones al `409` que un lector pondría en `400` —dos upgrades, monedas distintas, cantidad en un upgrade— es que **ninguna de las tres se puede decidir sin haber leído el catálogo**: la petición es idéntica en forma a una correcta, y lo que la hace inválida es qué son esos productos.
@@ -252,6 +263,7 @@ Registro de **cambios**, acción de creación, con la instantánea completa: suj
 | Formato del código | Integración | `CA-MV-006`: prefijo, día del hecho y alfabeto sin `I`, `L`, `O`, `U` |
 | **La venta no cambia el nivel de nadie** | Integración | `CA-MV-007`: la membresía del cliente es la misma después |
 | Las diez negativas | Integración | `CA-MV-008` a `CA-MV-017`, cada una con su código y su distinción |
+| **El escalón** | Unitaria e integración | `CA-MV-526` en `RegisterSaleServiceTest`, con la oferta simulada dejando pasar el salto —por HTTP la oferta lo excluye y se ve `EX-004`, el argumento de `tasks.md` §3 para `CA-MV-011`—; `CA-MV-527` por HTTP, con un producto de un escalón |
 | Auditoría con el vendedor dentro | Integración | `CA-MV-018` |
 | El agregado, sin base de datos | Unitaria | El total como suma de líneas, la composición del código, y que un `Movement` no se puede construir sin líneas |
 | **La siembra de permisos** | Integración | Los cuatro existen **y están asociados a `SUPERADMIN` y `ADMIN`** — riesgo 1 |

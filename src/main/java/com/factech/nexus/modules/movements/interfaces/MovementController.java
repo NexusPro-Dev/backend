@@ -615,7 +615,8 @@ public class MovementController {
         description =
             "Lo que solo se sabe después de resolver: la cuenta no puede operar todavía, un"
                 + " producto no está en su oferta, el"
-                + " upgrade BAJA de nivel —renovar el mismo sí se admite—, hay dos upgrades, las"
+                + " upgrade BAJA de nivel o SALTA más de un escalón —renovar el mismo y subir uno sí"
+                + " se admite—, hay dos upgrades, las"
                 + " monedas difieren, el método"
                 + " de pago está desactivado, o se paga con puntos a nombre de otra persona o sin"
                 + " puntos suficientes.",

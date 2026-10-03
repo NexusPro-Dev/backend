@@ -10,6 +10,7 @@
 | Fecha de aprobación | — |
 | Enmendada el | 22-09-2026 — **`links` sustituye a `videoUrl`, resuelto y sin el `CUPON_BOT`** (`RN-PM-048` a `RN-PM-050`), **heredado de `RF-PM-007` con `OfferItem`**. Ver §15 |
 | Enmendada el | 15-09-2026 — **lista `HOTLINK` y `AMBOS`** (`RN-PM-021` con el alcance de cuatro valores). Ver §15 |
+| Enmendada el | 03-10-2026 — **no lista un upgrade que salte niveles** (`RN-PM-018` reescrita, `RN-PM-021` enmendada, [`requirements/pm.md`](../../../requirements/pm.md) v0.49.0 §5.2.17): `CA-PM-341` y `FA-003` cambian de ejemplo —el `BECA → ORO` que usaban es un salto— y nace `CA-PM-426`. Ver §15 |
 
 ---
 
@@ -37,7 +38,7 @@ Que un vendedor vea **qué puede repartir**: los productos que se publican por e
 
 ### 4.1 Incluye
 
-- Devolver los productos **activos, no retirados y de alcance `HOTLINK` o `AMBOS`**, de los dos tipos, separados en `upgrades` y `services`.
+- Devolver los productos **activos, no retirados y de alcance `HOTLINK` o `AMBOS`**, de los dos tipos, separados en `upgrades` y `services` —**sin los upgrades que saltan niveles** desde el 03-10-2026 (`RN-PM-018`)—.
 - En la **misma forma que la oferta**: `price` con su moneda y `exchange`, **`links`** —resueltos y sin el `CUPON_BOT` (22-09-2026; era `videoUrl`)—, `coverImageUrl`, `rating`, vigencia, alcance e implementación; **sin `purchasePrice`** (`RN-PM-024`).
 - Ordenados como la oferta: upgrades por nivel de destino, bots por fecha de alta.
 
@@ -54,6 +55,7 @@ Que un vendedor vea **qué puede repartir**: los productos que se publican por e
 | ID | Regla | Origen |
 |---|---|---|
 | `RN-PM-021` | **El hotlink solo publica lo activo y de alcance `HOTLINK` o `AMBOS`** — aquí, el conjunto entero de lo que el hotlink publica | `requirements/pm.md` §5.1 |
+| `RN-PM-018` | **(Desde el 03-10-2026)** Un upgrade sube un escalón como máximo — aquí, que el salto **no se lista**: es el conjunto de `RF-PM-008`, y lo que el enlace no resuelve no se reparte. **Sigue sin mirar la membresía del actor**: el salto es del producto, no de quien mira (`pm.md` §5.2.17) | `requirements/pm.md` §5.1 |
 | `RN-PM-019` | El alcance dice en qué vistas está el producto: **solo `HOTLINK` y `AMBOS` entran aquí**; `TIENDA` y `NINGUNO` no | `requirements/pm.md` §5.1 |
 | `RN-PM-009` | Solo se ofrece lo activo | `requirements/pm.md` §5.1 |
 | `RN-PM-024` | El precio de compra no sale de administración: **no se selecciona** | `requirements/pm.md` §5.1 |
@@ -84,7 +86,7 @@ Ninguna. Sin parámetros: responde el catálogo publicable entero.
 ## 8. Flujo principal
 
 1. Llega un `GET` sin parámetros.
-2. El sistema selecciona los productos activos, no retirados y de alcance `HOTLINK` o `AMBOS`, con sus membresías, su moneda y su `rating`, en **una sentencia**.
+2. El sistema selecciona los productos activos, no retirados y de alcance `HOTLINK` o `AMBOS` —y, de los upgrades, **solo los que suben un escalón como máximo**, comparados con los niveles de hoy (`RN-PM-018`)—, con sus membresías, su moneda y su `rating`, en **una sentencia**.
 3. El sistema resuelve la conversión de todos en **dos sentencias más** como máximo, como en la oferta.
 4. Devuelve `200` con las dos listas.
 
@@ -98,9 +100,9 @@ Ninguna. Sin parámetros: responde el catálogo publicable entero.
 
 **Comportamiento:** con el permiso, **ve la lista igual**. Que sus enlaces no resuelvan es cosa de `RF-PM-008` (`RN-PM-022`), no de esta lectura.
 
-### FA-003 — El actor tiene membresía `ORO` y hay un `BECA → ORO`
+### FA-003 — El actor tiene membresía `ORO` y hay un `PLATINO → ORO`
 
-**Comportamiento:** **lo ve.** No es su oferta: es lo que puede repartir.
+**Comportamiento:** **lo ve.** No es su oferta: es lo que puede repartir. **Hasta el 03-10-2026 el ejemplo era `BECA → ORO`**, que en una cadena de cuatro es un salto y desde esa fecha **no se lista para nadie** (`RN-PM-018`) — no por la membresía del actor, que esta lectura sigue sin mirar, sino porque el enlace ya no lo resolvería.
 
 ## 10. Excepciones
 
@@ -117,7 +119,7 @@ Ninguna: no hay entrada.
 | ID | Criterio |
 |---|---|
 | `CA-PM-340` | Con `products:hotlink`, el sistema devuelve **los productos activos de alcance `HOTLINK` o `AMBOS`** en `upgrades` y `services`, en la forma de la oferta, y **excluye** los de alcance `TIENDA` y `NINGUNO`, los inactivos y los retirados |
-| `CA-PM-341` | La respuesta **no mira la membresía del actor**: un vendedor en `ORO` ve el `BECA → ORO`, y la respuesta **no trae `currentMembership`** |
+| `CA-PM-341` | La respuesta **no mira la membresía del actor**: un vendedor en `ORO` ve el `PLATINO → ORO`, y la respuesta **no trae `currentMembership`**. **Reescrito el 03-10-2026**: el ejemplo era `BECA → ORO`, que es un salto y ya no se lista (`CA-PM-426`) |
 | `CA-PM-399` | La respuesta **no trae el `CUPON_BOT`** de un producto que lo declara, y sí su video **resuelto**: quien reparte hotlinks **tiene token y no es administración**, de modo que se le enseña lo mismo que a quien abre el enlace y nada más (22-09-2026) |
 | `CA-PM-342` | La respuesta **no trae `purchasePrice`** bajo ningún nombre aunque el producto lo tenga declarado, y sí trae `price`, `exchange`, `links`, `coverImageUrl` y `rating`. **Reescrito el 22-09-2026**: hasta ese día `links` era el campo `videoUrl` |
 | `CA-PM-343` | El orden es el de la oferta: upgrades por nivel de destino y bots por fecha de alta |
@@ -126,12 +128,14 @@ Ninguna: no hay entrada.
 | `CA-PM-346` | `/products/hotlinks` **no cae en `/products/{id}`**: responde el catálogo y no un `400` por identificador inválido |
 | `CA-PM-347` | La lectura cuesta **una sentencia** más las de la conversión, y **no sube** con el número de productos |
 | `CA-PM-353` | Un producto **`HOTLINK`** activo entra en el catálogo aunque no esté en la tienda, y uno **`NINGUNO`** activo no |
+| `CA-PM-426` | Con una renovación, un escalón y un **salto** activos de alcance `HOTLINK` —el salto registrado antes del 03-10-2026—, el catálogo lista **los dos primeros y no el salto**, sea cual sea la membresía del actor (`RN-PM-018`) |
 
 ## 13. Casos límite
 
 | Caso | Decisión |
 |---|---|
 | Un producto pasa a `TIENDA` después de que el vendedor copió su enlace | Deja de aparecer aquí y el enlace responde `404` (`RN-PM-021`). Esta lectura no reserva nada |
+| **Se inserta una membresía** entre el origen y el destino de un upgrade listado | Deja de aparecer aquí y su enlace responde `404`, sin que nadie toque el producto: los niveles se comparan **los de hoy** (`requirements/pm.md` §5.2.17) |
 | El actor es administrador sin rol de vendedor | Ve la lista (`FA-002`) |
 | Cien productos publicables | Se devuelven todos: es el catálogo, y la oferta tampoco pagina. El día que sean miles se pagina como `RF-PM-002` |
 
@@ -150,3 +154,4 @@ Ninguna: no hay entrada.
 | 0.1.0 | 15-09-2026 | Redacción inicial. **La otra mitad de la vista de venta**: el consumidor ve lo de su membresía (`RF-PM-007`) y el vendedor ve el catálogo de hotlinks — que `products:hotlink` esperaba sin endpoint desde el 07-09-2026. Es `RN-PM-021` vista entera y con token: sin regla nueva, sin membresía de por medio, sin precio de compra, sin enlace armado. Ocho criterios, `CA-PM-340` a `CA-PM-347`. | Responsable técnico |
 | 0.2.0 | 15-09-2026 | **Lista `HOTLINK` y `AMBOS`** (`RN-PM-021`, con el alcance de cuatro valores de [`requirements/pm.md`](../../../requirements/pm.md) v0.35.0 §5.2.11). Nació el mismo día con `HOTLINKS` y cambia de letra horas después: el predicado pasa a `scope IN ('HOTLINK','AMBOS')`. `CA-PM-353`. | Responsable del proyecto |
 | 0.3.0 | 22-09-2026 | **`links` sustituye a `videoUrl`, resuelto y sin el `CUPON_BOT`** (`RN-PM-048` a `RN-PM-050`, [`requirements/pm.md`](../../../requirements/pm.md) v0.43.0 §5.2.14). Llega **con `OfferItem`**, que esta lectura comparte con la oferta: **no cambia una línea de su consulta** y no vuelve a decidir nada, que es exactamente el valor de compartir la proyección. Lo único que se escribe es **`CA-PM-399`**, y se escribe por una razón que conviene dejar dicha: **tener token no convierte esta lectura en administración**. Quien reparte hotlinks no administra el catálogo —ve lo mismo que quien abre el enlace—, y sin ese criterio sería razonable que alguien «mejorara» la vista del vendedor añadiéndole el cupón, que es la prestación que sus clientes compran. Enmienda de Art. I.7. | Responsable del proyecto |
+| 0.4.0 | 03-10-2026 | **No lista un upgrade que salte niveles** (`RN-PM-018` reescrita, `RN-PM-021` enmendada, [`requirements/pm.md`](../../../requirements/pm.md) v0.49.0 §5.2.17), por decisión del responsable del proyecto: el catálogo es el conjunto que `RF-PM-008` resuelve, y lo que el enlace no resuelve no se reparte. **Sigue sin mirar la membresía del actor.** `CA-PM-341` y `FA-003` cambian de ejemplo —`BECA → ORO` es un salto en una cadena de cuatro— y nace `CA-PM-426` | Responsable del proyecto |
