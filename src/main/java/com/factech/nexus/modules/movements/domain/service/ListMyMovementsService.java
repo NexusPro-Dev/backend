@@ -2,8 +2,10 @@ package com.factech.nexus.modules.movements.domain.service;
 
 import com.factech.nexus.modules.movements.application.MyMovementResponse;
 import com.factech.nexus.modules.movements.application.MyMovementsRequest;
+import com.factech.nexus.modules.movements.application.SaleLineResponse;
 import com.factech.nexus.modules.movements.domain.models.MovementStatus;
 import com.factech.nexus.modules.movements.domain.repository.MovementRepository;
+import com.factech.nexus.modules.movements.domain.repository.MovementRepository.MovementLineRow;
 import com.factech.nexus.modules.movements.domain.repository.MovementRepository.MovementSellerRow;
 import com.factech.nexus.modules.movements.domain.repository.MovementRepository.MyMovementRow;
 import com.factech.nexus.modules.movements.domain.repository.MovementRepository.MyMovementsFilter;
@@ -72,9 +74,16 @@ public class ListMyMovementsService {
     long total = movimientos.countMine(actor.id(), filtro);
 
     Map<UUID, List<MyMovementResponse.Party>> vendedores = vendedoresDe(filas);
+    // `CA-MV-525` (03-10-2026): las líneas de TODA la página en una lectura, no
+    // una por fila — una consulta por fila devolvería el mismo JSON.
+    Map<UUID, List<MovementLineRow>> lineas = movimientos.findLinesOf(idsDe(filas));
     List<MyMovementResponse> contenido = new ArrayList<>(filas.size());
     for (MyMovementRow fila : filas) {
-      contenido.add(de(fila, vendedores.getOrDefault(fila.id(), List.of())));
+      contenido.add(
+          de(
+              fila,
+              vendedores.getOrDefault(fila.id(), List.of()),
+              SaleDetailMapper.lineas(lineas.getOrDefault(fila.id(), List.of()))));
     }
     return PageResponse.de(contenido, total, pagina.page(), pagina.size());
   }
@@ -111,12 +120,8 @@ public class ListMyMovementsService {
    * agregado en la paginada, para que esta siga devolviendo una fila por movimiento.
    */
   private Map<UUID, List<MyMovementResponse.Party>> vendedoresDe(List<MyMovementRow> filas) {
-    List<UUID> ids = new ArrayList<>(filas.size());
-    for (MyMovementRow fila : filas) {
-      ids.add(fila.id());
-    }
     Map<UUID, List<MyMovementResponse.Party>> porMovimiento = new LinkedHashMap<>();
-    for (MovementSellerRow vendedor : movimientos.findSellersOf(ids)) {
+    for (MovementSellerRow vendedor : movimientos.findSellersOf(idsDe(filas))) {
       porMovimiento
           .computeIfAbsent(vendedor.movementId(), id -> new ArrayList<>())
           .add(
@@ -128,7 +133,18 @@ public class ListMyMovementsService {
     return porMovimiento;
   }
 
-  static MyMovementResponse de(MyMovementRow fila, List<MyMovementResponse.Party> vendedores) {
+  private static List<UUID> idsDe(List<MyMovementRow> filas) {
+    List<UUID> ids = new ArrayList<>(filas.size());
+    for (MyMovementRow fila : filas) {
+      ids.add(fila.id());
+    }
+    return ids;
+  }
+
+  static MyMovementResponse de(
+      MyMovementRow fila,
+      List<MyMovementResponse.Party> vendedores,
+      List<SaleLineResponse> lineas) {
     return new MyMovementResponse(
         fila.id(),
         fila.code(),
@@ -147,7 +163,8 @@ public class ListMyMovementsService {
         fila.discountAmount(),
         fila.payableAmount(),
         fila.occurredAt(),
-        fila.confirmedAt());
+        fila.confirmedAt(),
+        List.copyOf(lineas));
   }
 
   static String nombreCompleto(String nombre, String apellido) {

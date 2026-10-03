@@ -95,10 +95,10 @@ Enmienda de hecho (Art. I.7), `spec.md` 0.8.0 y `plan.md` 0.7.0 **antes** del c�
 
 | ID | Tarea | Depende de | Verificación | Estado |
 |---|---|---|---|---|
-| `T-30` | `MovementRepository.findLinesOf(ids)`: las líneas y sus rebajas de varios movimientos en dos sentencias; `findMineById` y `findById` leen las suyas por él | — | El detalle devuelve lo mismo que antes (`CA-MV-044`, `CA-MV-223` siguen en verde) | Pendiente |
-| `T-31` | `MyMovementResponse` gana `lines` (`SaleLineResponse`); `ListMyMovementsService` las arma con el mapeo de `SaleDetailMapper` | `T-30` | El campo sale en el JSON de cada fila, vacío y presente si no hay líneas | Pendiente |
-| `T-32` | `MyMovementsIT`: `CA-MV-523` a `CA-MV-525` | `T-31` | `CA-MV-525` cuenta sentencias con dos tamaños de página | Pendiente |
-| `T-33` | `MovementController`: la prosa de `GET /mine/shopping` dice que las líneas viajan; contrato regenerado; `docs/api/index.md` | `T-32` | `openapi.json` declara `lines` en `MyMovement` | Pendiente |
+| `T-30` | `MovementRepository.findLinesOf(ids)`: las líneas y sus rebajas de varios movimientos en dos sentencias; `findMineById` y `findById` leen las suyas por él | — | El detalle devuelve lo mismo que antes (`CA-MV-044`, `CA-MV-223` siguen en verde) | **Hecha** — 03-10-2026 |
+| `T-31` | `MyMovementResponse` gana `lines` (`SaleLineResponse`); `ListMyMovementsService` las arma con el mapeo de `SaleDetailMapper` | `T-30` | El campo sale en el JSON de cada fila, vacío y presente si no hay líneas | **Hecha** — 03-10-2026 |
+| `T-32` | `MyMovementsIT`: `CA-MV-523` a `CA-MV-525` | `T-31` | `CA-MV-525` cuenta sentencias con dos tamaños de página | **Hecha** — 03-10-2026 |
+| `T-33` | `MovementController`: la prosa de `GET /mine/shopping` dice que las líneas viajan; contrato regenerado; `docs/api/index.md` | `T-32` | `openapi.json` declara `lines` en `MyMovement` | **Hecha** — 03-10-2026 |
 
 ---
 

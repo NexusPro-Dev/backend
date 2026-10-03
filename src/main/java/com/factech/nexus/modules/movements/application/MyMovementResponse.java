@@ -10,9 +10,11 @@ import java.util.UUID;
 /**
  * Una fila del listado de movimientos propios (`RF-MV-008`).
  *
- * <p><b>No lleva las líneas del movimiento</b>, y no por ahorrar: una venta puede llevar varias, de
- * modo que incluirlas multiplicaría la respuesta por un dato que solo se mira al abrir uno. Van en
- * el detalle, que devuelve un {@code SaleResponse} igual al de `RF-MV-001`.
+ * <p><b>Lleva las líneas del movimiento desde el 03-10-2026</b> (`RF-MV-008` · `spec.md` §6.2), por
+ * decisión del responsable del proyecto: la pantalla de «mis compras» enseña qué se compró en cada
+ * fila, y sin ellas tenía que abrir el detalle de cada una. Hasta ese día no viajaban, por no
+ * multiplicar la respuesta. <b>La forma es la del detalle</b> ({@link SaleLineResponse}), y los
+ * pagos siguen solo en el detalle.
  *
  * <p><b>Desde el 22-09-2026 esta fila es SIEMPRE una compra</b> (`RF-MV-008` · `spec.md` §2), por
  * decisión del responsable del proyecto: el listado propio trae solo lo comprado, y lo vendido se
@@ -59,7 +61,12 @@ public record MyMovementResponse(
             types = {"string", "null"},
             format = "date-time",
             description = "Cuándo entró el dinero. NULO mientras no esté confirmado.")
-        OffsetDateTime confirmedAt) {
+        OffsetDateTime confirmedAt,
+    @Schema(
+            description =
+                "Las líneas de la venta, con la misma forma que el detalle (desde el 03-10-2026)."
+                    + " VACÍA —nunca nula— si no tiene ninguna.")
+        List<SaleLineResponse> lines) {
 
   /**
    * Misma forma que {@code SaleResponse.Party}, con nombre propio para no chocar en el contrato.
