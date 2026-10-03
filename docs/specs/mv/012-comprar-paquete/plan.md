@@ -5,13 +5,13 @@
 | Requerimiento | `RF-MV-012` |
 | Especificación | [`spec.md`](spec.md) |
 | `spec.md` aprobada el | 16-09-2026 |
-| Versión | 0.3.0 |
+| Versión | 0.4.0 |
 | Estado | **Aprobado** |
 | Autor | Responsable técnico |
 | Aprobado por | Responsable del proyecto |
 | Fecha de aprobación | 16-09-2026 |
 | Enmendado | 21-09-2026 — exige **`packages:buy`** (`RF-SP-062`, `RN-SEG-015`: autenticarse no autoriza nada); lo siembra `V31` |
-| Enmendado el | 01-10-2026 — la tarjeta por Stripe (§12) |
+| Enmendado el | 01-10-2026 — la tarjeta por Stripe (§12) · 03-10-2026 — el upgrade sube un escalón (§13) |
 | Reabierto el | 17-09-2026 — **el paquete entra por su código**: la ruta pasa a `/packages/{code}/purchases` y `PackageCatalog` resuelve por código, ver §3, §4 y §8 (Art. I.7) |
 | Reaprobado el | 17-09-2026 — Responsable del proyecto |
 
@@ -91,7 +91,7 @@ Lo que **sí** se comparte es todo lo de después: copiar, congelar, sumar, emit
 | Estado | Cuándo |
 |---|---|
 | `401` | Sin autenticar |
-| `409` | Lo que solo se sabe **después de resolver**: el paquete no se ofrece hoy (`EX-002`), no le corresponde (`EX-003`), un producto no procede (`EX-004`), el upgrade baja (`EX-005`), la cuenta no opera (`EX-006`), el método no cuadra con el importe (`EX-007`) o está inactivo (`EX-008`) |
+| `409` | Lo que solo se sabe **después de resolver**: el paquete no se ofrece hoy (`EX-002`), no le corresponde (`EX-003`), un producto no procede (`EX-004`), el upgrade baja o salta (`EX-005`), la cuenta no opera (`EX-006`), el método no cuadra con el importe (`EX-007`) o está inactivo (`EX-008`) |
 | `422` | `EX-001` y el método de pago inexistente: **una referencia bien formada que no resuelve** |
 
 **El recurso es el paquete y no el movimiento**, al revés que `RF-MV-002` —que entra por `POST /api/v1/movements/mine`—. Se sigue el precedente de `RF-MV-011`, que compra por `POST /api/v1/hotlinks/{username}/{code}/purchases`: **lo que se compra manda sobre lo que se produce**, porque es lo que el cliente tiene delante cuando pulsa. Lo que se produce —una venta— viaja en la respuesta y en el `Location`.
@@ -172,6 +172,7 @@ Registro de **cambios**, acción de creación, con la instantánea completa: el 
 | El paquete inactivo, vencido y el que no corresponde | Integración | Son tres rechazos distintos con tres mensajes distintos |
 | Un producto del paquete inactivo → **nada se registra** | Integración | La ausencia de filas solo se comprueba contra la base |
 | El upgrade que baja y el que renueva | Integración | `CA-MV-057`, con el precedente de `CA-MV-048` |
+| El upgrade que **salta** —rechazado sin escribir nada— y el de un escalón | Integración | `CA-MV-540`; el salto se siembra por SQL, porque el alta ya no lo admite (§13) |
 | Que corregir el descuento después no cambia lo cobrado | Integración | `CA-MV-053`: la copia solo se verifica cambiando el original |
 | El cálculo de la rebaja por unidad | Unitaria | Ya cubierto por las pruebas de `LineDiscount` (`V14` · `T-32`); aquí no se repite |
 | Que la ruta no exige permiso | Integración | Lista blanca, y compra con un actor sin permisos |
@@ -183,3 +184,15 @@ Registro de **cambios**, acción de creación, con la instantánea completa: el 
 ## 12. La tarjeta por Stripe — enmienda del 01-10-2026
 
 Por [`requirements/mv.md`](../../../requirements/mv.md) v0.64.0 §4.6 y `spec.md` §14.2. `BuyPackageService` llama a `CardPayment` después de guardar el pago; `PurchaseResponse` gana `cardCharge`. **Contrato**: la prosa.
+
+## 13. El upgrade sube un escalón — enmienda del 03-10-2026
+
+Por [`requirements/mv.md`](../../../requirements/mv.md) v0.72.0 y `spec.md` §14.3. **Este requerimiento no gana código propio.** La comparación vive en `SaleRules.verificarQueSube`, que `BuyPackageService` ya llama en el paso 5 con `EX-005` (`plan.md` §3.3: las tres comprobaciones compartidas con `RF-MV-001`); la enmienda de esa clase la declara y la construye [`RF-MV-001`](../001-registrar-venta/tasks.md), y aquí se **cita**, no se repite. El filtro de la oferta es de `PM` (`RN-PM-044`, [`RF-PM-007`](../../pm/007-consultar-oferta-propia/tasks.md)).
+
+**Lo que sí es de aquí es la prueba**, porque es la única que demuestra que la compra del paquete **pasa** por la comprobación compartida: una prueba de `SaleRules` sola no dice nada de quién la llama.
+
+| Decisión | Motivo | Lo descartado |
+|---|---|---|
+| **El salto se siembra por SQL** en la prueba | El alta lo rechaza desde el 03-10-2026 (`RN-PM-018`): no hay otra forma honesta de tener uno, y es exactamente el caso real —los saltos registrados antes— | *Registrarlo antes de enmendar el alta* — ataría la prueba al orden en que se construyen las tareas |
+| **La prueba no exige cuál de los dos códigos sale** —`EX-002` o `EX-005`— y sí que sea **`409` sin nada escrito** | Cuál detiene la compra depende de si `PM` ya filtra el paquete, y eso es de otro requerimiento. Lo que este garantiza es que **no se vende** | *Fijar `EX-005`* — la prueba se rompería el día que `PM` filtre, que es justo lo correcto |
+| **El escalón se prueba en la misma suite** | Es la mitad que se admite, y sin ella un `>` mal escrito rechazaría todo upgrade sin que ningún criterio lo viera | — |

@@ -5,7 +5,7 @@
 | Requerimiento | `RF-PM-026` |
 | Especificación | [`spec.md`](spec.md) |
 | Plan | [`plan.md`](plan.md), aprobado el 15-09-2026 |
-| Estado | **Hecha** — todas las tareas `Hecha` el 15-09-2026; **reabierta el 16-09-2026** por la vigencia (`T-09`) y el **22-09-2026** por los enlaces del producto (`T-10`, `Hecha` ese mismo día); queda el Pull Request |
+| Estado | **En curso** desde el 03-10-2026 —era **Hecha**— — todas las tareas `Hecha` el 15-09-2026; **reabierta el 16-09-2026** por la vigencia (`T-09`) y el **22-09-2026** por los enlaces del producto (`T-10`, `Hecha` ese mismo día); queda el Pull Request. **Reabierta el 03-10-2026 por el escalón** (`T-11`, `Pendiente`), rama `feature/upgrade-escalonado`, issue **Pendiente de crear** |
 | Issue | Pendiente de crear |
 | Rama | `feature/venta-de-productos` |
 | Autor | Responsable técnico |
@@ -30,6 +30,7 @@
 
 **Verificación de la enmienda (16-09-2026):** `PackageHotlinkIT` (9), en verde; el cuerpo del `404` fuera de la vigencia es byte a byte el del hotlink del producto.
 | `T-10` | **Los enlaces de cada producto del paquete** (`RF-PM-008` `T-25` decide la forma): la proyección del producto dentro del paquete **pierde `videoUrl`** y gana `links`; los enlaces se leen en **una sentencia más con el tipo en el predicado**, y se publican **resueltos**; la prosa de la `@Operation` no repite el motivo, lo cita — issue [#84](https://github.com/NexusPro-Dev/backend/issues/84) | `RF-PM-008` `T-25` | `CA-PM-332` reescrito y `CA-PM-398` en el `IT` del hotlink del paquete. **El contrato regenerado no declara ningún `videoUrl`** | **Hecha el 22-09-2026** |
+| `T-11` | **Enmienda del 03-10-2026** (`spec.md` v0.6.0, `RN-PM-018`): **ningún cambio de código propio** —el motivo lo añade `RF-PM-007` `T-35` en `PackageOfferability`—; solo la prueba y la prosa. `PackageHotlinkIT` gana el paquete con salto, y la `@Operation` nombra el motivo entre los del `404` | `RF-PM-007` `T-35` | `CA-PM-425`: con salto, el `404` con el cuerpo de `CA-PM-328`; con escalón o renovación, resuelve | Pendiente |
 
 ## 2. Orden de ejecución
 
@@ -45,6 +46,7 @@
 | `CA-PM-331`, `CA-PM-332` | `T-01`, `T-02`, `T-05` |
 | `CA-PM-333` | `T-04`, `T-06` |
 | `CA-PM-379` | `T-09` |
+| `CA-PM-425` | `T-11` |
 
 ## 4. Bloqueos
 
@@ -54,8 +56,8 @@
 
 ## 5. Definición de terminado
 
-- [x] Todas las tareas en estado `Hecha`.
-- [x] Todos los criterios de aceptación con prueba automatizada en verde.
+- [ ] Todas las tareas en estado `Hecha`. **Reabierto el 03-10-2026** por `T-11`.
+- [ ] Todos los criterios de aceptación con prueba automatizada en verde. **Falta `CA-PM-425`** (03-10-2026).
 - [x] `mvn verify` en verde en local.
 - [x] El contrato OpenAPI coincide con el comportamiento real, prosa incluida.
 - [x] Matriz de trazabilidad y `docs/api/index.md` actualizados.

@@ -22,6 +22,7 @@
 | Enmendada el | 22-09-2026 — **el alta declara los ENLACES del producto, y `links` sustituye a `videoUrl`** (`RN-PM-048`, `RN-PM-049`): uno por tipo, `VIDEO_PRESENTACION` y `CUPON_BOT`, cada uno con su dirección y un identificador externo opcional. Ver §15 |
 | Enmendada el | 28-09-2026 — **nace el tercer tipo de enlace, `DESCARGA`** (`RN-PM-048`, `RN-PM-050`, [`requirements/pm.md`](../../../requirements/pm.md) v0.45.0 §5.2.15): el alta lo admite como los otros dos. Ver §15 |
 | Enmendada el | 29-09-2026 — **el alta declara la comisión por venta directa** (`RN-PM-051`, [`requirements/pm.md`](../../../requirements/pm.md) v0.47.0 §5.2.16): obligatoria salvo en un FTD, donde se rechaza. Ver §15 |
+| Enmendada el | 03-10-2026 — **un upgrade sube un escalón como máximo** (`RN-PM-018` reescrita, [`requirements/pm.md`](../../../requirements/pm.md) v0.49.0 §5.2.17): el **salto se rechaza** al registrar, y `CA-PM-102` se invierte. Ver el segundo aviso de cabecera y §15 |
 
 !!! danger "Un upgrade dice ahora DE DONDE sale, y eso cambia quien puede comprarlo"
 
@@ -30,6 +31,14 @@
     **Lo que eso compra es el salto.** `BECA → ORO` no se podia expresar: la deduccion ofrecia «subir a ORO» a todo el mundo por debajo, al mismo precio, sin distinguir a quien sube tres escalones de quien sube uno. Ahora **cada salto es un producto** y cada uno tiene su precio.
 
     **El origen es obligatorio**, y la consecuencia se acepta entera: si nadie declara un upgrade desde `VIP`, quien este en `VIP` **no vera ninguna subida** — sin error y sin aviso. Es el precio de que la oferta sea explicita en lugar de calculada (`pm.md` §5.2.1).
+
+!!! danger "Y desde el 03-10-2026 el salto ya no se registra"
+
+    Lo que el aviso anterior llama **lo que eso compra** dejó de admitirse por decisión del responsable del proyecto: un upgrade lleva a **la misma membresía que el origen** —la renovación— **o a la inmediatamente superior**, y a ninguna otra (`RN-PM-018` reescrita, `pm.md` §5.2.17). `BECA → ORO` sobre una cadena de cuatro se rechaza con `EX-006` y `VAL-029`.
+
+    **El origen se queda, y sigue siendo obligatorio**: con la renovación, cada destino admite **dos** orígenes —el suyo y el de abajo—, y son dos productos con dos precios. Lo que cae es el salto, no el campo.
+
+    **Los saltos registrados antes no los toca esta spec**: el alta no vuelve a mirar lo ya registrado. Los ocultan las vistas de venta (`RF-PM-007`, `RF-PM-008`, `RF-PM-027`) y los rechaza `MV` al vender (`RN-MV-006`).
 
 
 ---
@@ -56,7 +65,7 @@ Hoy la plataforma no tiene **nada que vender**. La membresía de una persona sol
 
 - Registrar un producto de tipo **upgrade de membresía**, declarando **de qué membresía sale y a cuál lleva**.
 - Registrar un producto de tipo **bot del sistema**, sin ninguna de las dos.
-- Verificar que **las dos membresías existen y que el origen está por debajo del destino**, que la moneda existe y está activa, y que ni el nombre ni el código chocan con los de otro producto.
+- Verificar que **las dos membresías existen, que el origen no está por encima del destino y que el destino está a un escalón como máximo**, que la moneda existe y está activa, y que ni el nombre ni el código chocan con los de otro producto.
 - Dejar constancia del alta en la auditoría de cambios.
 - **Registrarlo `INACTIVO`**: existe, y no se ofrece hasta que alguien lo publique con `RF-PM-005`.
 
@@ -75,7 +84,7 @@ Hoy la plataforma no tiene **nada que vender**. La membresía de una persona sol
 | `RN-PM-002` | Destino obligatorio en el upgrade, prohibido en el bot | `requirements/pm.md` §5.1 |
 | `RN-PM-003` | Origen y destino son membresías reales de la cadena | `requirements/pm.md` §5.1 |
 | `RN-PM-017` | **El origen no está por encima del destino**; el mismo **sí** se admite | `requirements/pm.md` §5.1 |
-| `RN-PM-018` | **Se admite saltar niveles** | `requirements/pm.md` §5.1 |
+| `RN-PM-018` | **Un upgrade sube un escalón como máximo** — **reescrita el 03-10-2026**: decía «se admite saltar niveles». Aquí, que el alta rechaza el destino que no sea el origen ni el inmediatamente superior | `requirements/pm.md` §5.1, §5.2.17 |
 | `RN-PM-005` | Nombre único entre los vivos | `requirements/pm.md` §5.1 |
 | `RN-PM-006` | **Ningún precio es negativo**, y el cero se admite | `requirements/pm.md` §5.1 |
 | `RN-PM-007` | **Los dos precios respetan** los decimales de su moneda | `requirements/pm.md` §5.1 |
@@ -104,8 +113,8 @@ Hoy la plataforma no tiene **nada que vender**. La membresía de una persona sol
 | Tipo | Sí | Upgrade de membresía o bot del sistema | Uno de los dos, y **no se podrá cambiar después** (`RN-PM-001`) |
 | Nombre | Sí | Cómo se llama el producto de cara a quien lo compra | Único entre los productos vivos, sin distinguir mayúsculas ni acentos (`RN-PM-005`) |
 | Descripción | No | Qué se lleva quien lo compra | Con longitud acotada. Opcional al registrar; **sin ella el producto no podrá publicarse** (`RN-PM-014`) |
-| Membresía **de origen** | **Depende del tipo** | Nivel desde el que se compra el upgrade | **Obligatoria** si el tipo es upgrade, **prohibida** si es bot (`RN-PM-002`). Debe existir (`RN-PM-003`) y **no estar por encima** del destino (`RN-PM-017`) — **puede ser la misma**, y entonces el producto es una renovación |
-| Membresía **destino** | **Depende del tipo** | Nivel al que lleva el upgrade | Mismas condiciones. **No tiene por qué ser el inmediatamente superior al origen** (`RN-PM-018`) |
+| Membresía **de origen** | **Depende del tipo** | Nivel desde el que se compra el upgrade | **Obligatoria** si el tipo es upgrade, **prohibida** si es bot (`RN-PM-002`). Debe existir (`RN-PM-003`), **no estar por encima** del destino (`RN-PM-017`) **ni más de un escalón por debajo** (`RN-PM-018`, 03-10-2026) — **puede ser la misma**, y entonces el producto es una renovación |
+| Membresía **destino** | **Depende del tipo** | Nivel al que lleva el upgrade | Mismas condiciones. **Es la misma que el origen o la inmediatamente superior, y ninguna otra** (`RN-PM-018`). **Decía «no tiene por qué ser el inmediatamente superior» hasta el 03-10-2026** |
 | Icono | **Depende del tipo** | **Nombre** del icono con el que el frontend pinta el producto, no una imagen | Minúsculas, dígitos y guion medio, empezando por letra, hasta 50 caracteres. **Obligatorio en el upgrade y prohibido en el bot** (`RN-PM-016`, `RN-PM-034`). **Decía «opcional incluso ahí» hasta el 14-09-2026**: desde que existe la portada, un upgrade sin portada —y en el alta ninguno la tiene— necesita el icono para pintarse |
 | Enlaces | No | **Las direcciones** que el producto declara, cada una con su tipo. **Sustituye al «enlace del video» el 22-09-2026** | Una colección de hasta **un enlace por tipo** (`RN-PM-048`), y los tipos son `VIDEO_PRESENTACION` —el video que lo presenta (`RN-PM-032`)— y `CUPON_BOT` —dónde registra su cuenta quien ya compró—. **Ausente o vacía significan lo mismo**: no declara ninguno. **En los dos tipos de producto**, sin la condición cruzada del icono. **El sistema no sigue ningún enlace**: comprueba la forma y nada más |
 | ├ Tipo del enlace | Sí, en cada uno | Cuál de los dos es, y con él **dónde se publica** | `VIDEO_PRESENTACION` o `CUPON_BOT`. **Un tipo desconocido se rechaza** y **un tipo repetido en la misma petición también** (`RN-PM-048`): la clave es la pareja producto-tipo |
@@ -151,7 +160,7 @@ Hoy la plataforma no tiene **nada que vender**. La membresía de una persona sol
 1. El actor envía el código, el tipo, el nombre, el precio, la moneda y —si es un upgrade— **las dos membresías, la de origen y la de destino**.
 2. El sistema comprueba que los datos obligatorios de **ese tipo** están presentes y que no llegan los que ese tipo prohíbe.
 3. El sistema comprueba que la moneda existe y está activa, y que **cada precio informado** —el del sistema, siempre; el público, si llega— **no es negativo** y no tiene más decimales que los que esa moneda admite.
-4. Si es un upgrade, el sistema comprueba que **las dos membresías existen** y que **el origen no está por encima del destino** (`RN-PM-017`). **Que sean la misma se admite**: es una renovación.
+4. Si es un upgrade, el sistema comprueba que **las dos membresías existen**, que **el origen no está por encima del destino** (`RN-PM-017`) y, **desde el 03-10-2026**, que **el destino no está más de un escalón por encima del origen** (`RN-PM-018`): la diferencia de `level` entre los dos vale cero o uno. **Que sean la misma se admite**: es una renovación. **El descenso se comprueba primero**, de modo que `ORO → BECA` —que también está a más de un escalón— responde con `VAL-014` y no con `VAL-029`: lo que tiene de malo es que baja.
 5. El sistema comprueba que el código no lo ha tenido nunca otro producto, y que el nombre no lo tiene ya otro producto vivo.
 6. El sistema registra el producto **inactivo** y emite el evento de auditoría de creación.
 7. El sistema devuelve el producto registrado.
@@ -199,6 +208,11 @@ Hoy la plataforma no tiene **nada que vender**. La membresía de una persona sol
 **Condición:** otro producto lleva ese código, esté vivo o eliminado.
 **Respuesta del sistema:** rechaza el alta señalando el código. **No se libera al eliminar**, al revés que el nombre: el código es la referencia desde la que una factura dirá qué se vendió, y reutilizarlo haría que dos facturas de años distintos apuntaran a cosas distintas con la misma palabra.
 
+### EX-006 — El destino no está al alcance del origen
+
+**Condición:** el tipo es upgrade, las dos membresías existen, y **el origen está por encima del destino** (`RN-PM-017`, `VAL-014`) o, desde el 03-10-2026, **el destino está más de un escalón por encima del origen** (`RN-PM-018`, `VAL-029`).
+**Respuesta del sistema:** rechaza el alta como dato inválido, sobre `sourceMembershipId`, con la validación que corresponda — **una sola**: el descenso se comprueba primero. **El código lo usa el caso de uso desde el 02-09-2026 y esta spec no lo declaraba**; se declara aquí, con su historia, en lugar de inventarle un número nuevo al salto. Son dos maneras de que el origen y el destino no casen, y comparten excepción y campo; las distingue la validación.
+
 ## 11. Validaciones
 
 | ID | Validación | Mensaje esperado |
@@ -211,6 +225,7 @@ Hoy la plataforma no tiene **nada que vender**. La membresía de una persona sol
 | `VAL-006` | Moneda obligatoria | La moneda es obligatoria. |
 | `VAL-007` | **Origen y destino** obligatorios en el upgrade | Un producto de upgrade debe declarar su membresía de origen y su membresía destino. |
 | `VAL-014` | **El origen no está por encima del destino** | Un upgrade no puede bajar de nivel: la membresía de origen no puede estar por encima de la de destino. |
+| `VAL-029` | **El destino está a un escalón como máximo del origen** (03-10-2026, `RN-PM-018`). Se comprueba **después** de `VAL-014` | Un upgrade sube un nivel como máximo: la membresía de destino debe ser la de origen o la inmediatamente superior. |
 | `VAL-008` | Destino prohibido en el bot | Un producto de bot no puede declarar membresía destino. |
 | `VAL-009` | Código obligatorio | El código del producto es obligatorio. |
 | `VAL-010` | Formato del código | El código solo admite letras mayúsculas, dígitos y guion bajo, y debe empezar por letra. |
@@ -258,10 +273,13 @@ Hoy la plataforma no tiene **nada que vender**. La membresía de una persona sol
 | `CA-PM-092` | El sistema **admite registrar sin vigencia**, y ese producto otorga su derecho sin caducidad |
 | `CA-PM-093` | El sistema rechaza una vigencia de cero, negativa o no entera, en cualquiera de los dos tipos |
 | `CA-PM-101` | El sistema registra un upgrade **con su origen y su destino**, y la respuesta resuelve **las dos** membresías |
-| `CA-PM-102` | El sistema registra un **salto**: `BECA → ORO` con dos niveles de por medio, sin exigir que sean contiguos |
+| ~~`CA-PM-102`~~ | ~~El sistema registra un **salto**: `BECA → ORO` con dos niveles de por medio, sin exigir que sean contiguos~~ **Invertido el 03-10-2026** por `RN-PM-018` reescrita: ver `CA-PM-418`. El identificador no se reutiliza |
 | `CA-PM-103` | El sistema rechaza un upgrade **sin origen**, y otro **sin destino** |
 | `CA-PM-104` | El sistema rechaza un upgrade cuyo origen está **por encima** del destino — un descenso vendido como upgrade |
 | `CA-PM-125` | El sistema **admite** un upgrade cuyo origen **es** el destino: es una **renovación**, y lo que vende es tiempo y no nivel |
+| `CA-PM-417` | El sistema registra un **escalón**: un upgrade desde `BECA` a **la membresía inmediatamente superior**, con la premisa comprobada —las dos son contiguas en la cadena— (03-10-2026) |
+| `CA-PM-418` | El sistema **rechaza un salto** —`BECA → ORO` con dos eslabones de por medio— con `422`, `EX-006` y `VAL-029` sobre `sourceMembershipId`, y **no registra nada**. Sustituye a `CA-PM-102` |
+| `CA-PM-419` | El sistema rechaza un **descenso de más de un escalón** —`ORO → BECA`— con `VAL-014` y **no** con `VAL-029`: el descenso se comprueba primero, y una sola validación por rechazo |
 | `CA-PM-141` | El sistema devuelve el **color** de cada membresía resuelta, junto a su código, su nombre y su nivel |
 | `CA-PM-105` | El sistema rechaza un **bot** que declare cualquiera de las dos membresías |
 | `CA-PM-110` | El sistema **rechaza un alta sin alcance**, en los dos tipos, y el rechazo nombra el campo |
@@ -312,6 +330,8 @@ Hoy la plataforma no tiene **nada que vender**. La membresía de una persona sol
 - **Dos altas simultáneas del mismo upgrade:** dos administradores registran a la vez un upgrade hacia el mismo destino. Una debe quedar y la otra ser rechazada; que las dos queden activas es el desenlace que `RN-PM-004` existe para impedir.
 - **Dos altas simultáneas con el mismo nombre:** mismo caso sobre la unicidad de nombre.
 - **La membresía destino se elimina mientras se registra:** las membresías no se eliminan (`RN-SP-008`), de modo que este caso no existe. Se escribe para que nadie lo busque.
+- **Se inserta una membresía entre origen y destino después del alta (03-10-2026):** un producto que nació de un escalón **pasa a saltar** sin que nadie toque su fila (`RN-SP-007`). **El alta no lo vuelve a mirar**, y no tiene por qué: lo ocultan las vistas de venta y lo rechaza `MV` al vender, que comparan los `level` **de hoy** (`pm.md` §5.2.17).
+- **«Inmediatamente superior» se mide con `level` y no recorriendo la cadena:** la cadena no tiene huecos —ni se borra ni se desactiva un eslabón (`RN-SP-008`)—, de modo que la diferencia de niveles **es** el número de escalones.
 - **Producto de bot con nombre de un upgrade retirado:** el nombre de un producto eliminado **queda libre**, porque la unicidad es entre los vivos.
 
 ## 14. Preguntas abiertas
@@ -349,3 +369,4 @@ Ninguna. Las cinco se resolvieron el 26-08-2026, antes de aprobar la especificac
 | 0.15.0 | 22-09-2026 | **Los enlaces del producto entran en el alta, y `links` sustituye a `videoUrl`** (`RN-PM-048`, `RN-PM-049`, [`requirements/pm.md`](../../../requirements/pm.md) v0.43.0 §5.2.14), por decisión del responsable del proyecto. El alta deja de admitir **un** enlace en un campo y admite **una colección con hasta un enlace por tipo**: `VIDEO_PRESENTACION` —lo que `videoUrl` era— y **`CUPON_BOT`**, dónde registra su cuenta quien ya compró. Cada enlace declara **tipo**, **dirección** —obligatoria: no hay enlace sin enlace, de modo que «no tener» es **no declarar el tipo**, y ahí se aparta del nulo de `videoUrl`— y un **identificador externo** opcional de un sistema ajeno, que NEXUS guarda **sin interpretar**. La respuesta los devuelve **crudos y sin componer** (`RN-PM-049`): quien registra es quien corrige, y tiene que recibir lo que luego mandará en el `PATCH`; y devuelve `links` **presente y vacía** cuando no hay, en lugar del presente-y-nulo del precio de compra, porque una colección vacía ya dice «no hay». `VAL-017` se reescribe para los dos tipos y nacen **`VAL-019`** (tipo obligatorio y en el dominio), **`VAL-020`** (tipo repetido, comprobado **sobre el cuerpo y antes de escribir** para que el choque no lo dé la clave primaria con un `500`), **`VAL-021`** (dirección obligatoria), **`VAL-022`** (formato del identificador) y **`VAL-023`** (identificador sobre una dirección con `?` o `#`, que daría un enlace roto **respondiendo `200`**). `CA-PM-219` a `CA-PM-222` se **reescriben** —decían `videoUrl`— y nacen **`CA-PM-380`** a **`CA-PM-384`**. §13 gana tres casos límite, entre ellos el que separa la colección vacía de la ausente aquí y en `RF-PM-004`. Enmienda de Art. I.7. | Responsable del proyecto |
 | 0.16.0 | 28-09-2026 | **Nace el tercer tipo de enlace, `DESCARGA`** (`RN-PM-048`, `RN-PM-050`, [`requirements/pm.md`](../../../requirements/pm.md) v0.45.0 §5.2.15), por decisión del responsable del proyecto: dónde descarga quien compró lo que compró. **El alta no cambia de forma**: admite un valor más en `type`, con las mismas reglas de dirección e identificador. Es **entrega y no material de venta**, como el cupón, y eso lo deciden las lecturas, no el alta. Nace `CA-PM-400` | Responsable del proyecto |
 | 0.17.0 | 29-09-2026 | **El alta declara la comisión por venta directa** (`RN-PM-051`, [`requirements/pm.md`](../../../requirements/pm.md) v0.47.0 §5.2.16; `RN-CM-045`), por decisión del responsable del proyecto: lo que cobra en su venta propia quien no es el último eslabón, en lugar de su tasa de rol. **Obligatoria salvo en un FTD**, donde se rechaza; forma de tasa, de cero a cien o fija no negativa, no por encima del precio y solo fija sobre precio cero. `VAL-024` a `VAL-028`, `CA-PM-402` a `CA-PM-409`. | Responsable del proyecto |
+| 0.18.0 | 03-10-2026 | **Un upgrade sube un escalón como máximo** (`RN-PM-018` reescrita, [`requirements/pm.md`](../../../requirements/pm.md) v0.49.0 §5.2.17), por decisión del responsable del proyecto. Es la regla contraria a la que la versión 0.5.0 escribió: entonces **el salto era la razón** de declarar el origen; desde hoy el destino es el origen —la renovación, que sigue— **o el inmediatamente superior**. El paso 4 del flujo gana la comprobación **detrás** de la del descenso, de modo que cada rechazo lleva **una** validación: `ORO → BECA` sigue siendo `VAL-014` (`CA-PM-419`) y el salto es **`VAL-029`**, nueva. **Se declara `EX-006`**, que el caso de uso usaba desde el 02-09-2026 sin que esta spec lo nombrara, y cubre las dos. **`CA-PM-102` se invierte** —probaba que `BECA → ORO` se admitía— y lo sustituye `CA-PM-418`; nace `CA-PM-417` para el escalón. **El origen se queda**, y la cabecera dice por qué: con la renovación, cada destino admite dos. Los saltos ya registrados no son de esta spec: el alta no vuelve a mirar lo registrado, y §13 gana el caso de la membresía insertada en medio. Enmienda de Art. I.7. | Responsable del proyecto |

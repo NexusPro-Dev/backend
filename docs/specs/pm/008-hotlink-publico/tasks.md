@@ -5,11 +5,11 @@
 | Requerimiento | `RF-PM-008` |
 | Especificación | [`spec.md`](spec.md) |
 | Plan | [`plan.md`](plan.md), aprobado el 07-09-2026 |
-| Estado | **En curso** — `T-01` a `T-17` **Hecha**, `T-18` retirada. Faltan `T-19` y `T-20`, que nacen el 08-09-2026 al reescribirse `RN-PM-024`: los dos importes se publican |
+| Estado | **En curso** — `T-01` a `T-17` **Hecha**, `T-18` retirada. Faltan `T-19` y `T-20`, que nacen el 08-09-2026 al reescribirse `RN-PM-024`: los dos importes se publican. **`T-26` y `T-27` `Pendiente` desde el 03-10-2026** (el escalón) |
 | Issue | Pendiente de crear |
 | Rama | `feature/hotlink-publico` |
 | Autor | Responsable técnico |
-| Enmendadas | 07-09-2026 — `T-05b` por el **color de la membresía**; 08-09-2026 — `T-17` y `T-18` por el **precio a mostrar** (`RN-PM-024`), y `T-13` y `plan.md` §9 por el **número real de consultas**: son cuatro y no tres, y una sola cuando el vendedor no procede; 12-09-2026 — `T-21` porque el segundo precio es el **de compra** y sale del hotlink; 14-09-2026 — `T-22` por el **enlace del video**; 14-09-2026 — `T-23` por la **dirección de la portada** (`RN-PM-033`); 15-09-2026 — `T-24` por el **alcance de cuatro valores**; 22-09-2026 — `T-25` por **los enlaces resueltos y sin el cupón, sin token** (`RN-PM-048` a `RN-PM-050`) — issue [#84](https://github.com/NexusPro-Dev/backend/issues/84) |
+| Enmendadas | 07-09-2026 — `T-05b` por el **color de la membresía**; 08-09-2026 — `T-17` y `T-18` por el **precio a mostrar** (`RN-PM-024`), y `T-13` y `plan.md` §9 por el **número real de consultas**: son cuatro y no tres, y una sola cuando el vendedor no procede; 12-09-2026 — `T-21` porque el segundo precio es el **de compra** y sale del hotlink; 14-09-2026 — `T-22` por el **enlace del video**; 14-09-2026 — `T-23` por la **dirección de la portada** (`RN-PM-033`); 15-09-2026 — `T-24` por el **alcance de cuatro valores**; 22-09-2026 — `T-25` por **los enlaces resueltos y sin el cupón, sin token** (`RN-PM-048` a `RN-PM-050`) — issue [#84](https://github.com/NexusPro-Dev/backend/issues/84); 03-10-2026 — `T-26` y `T-27` por **el escalón** (`RN-PM-018`, [`plan.md`](plan.md) §5), rama `feature/upgrade-escalonado`, issue **Pendiente de crear** |
 
 ---
 
@@ -43,6 +43,8 @@
 | `T-23` | **La dirección de la portada en el hotlink** (`RF-PM-014` `T-01` trae la columna, `T-09` y `T-10` la proyección y el conversor): `findPublishedByCode` selecciona `p.cover_image_id`, `HotlinkResponse.ProductRef` gana `coverImageUrl`, `GetHotlinkService` lo pasa; y la prosa de la `@Operation` dice que la imagen se sirve sin token y que la dirección no revela el producto | `T-22`, `RF-PM-014 · T-10`, `RF-PM-016 · T-02` | `CA-PM-238` en `HotlinkIT`, con la lectura sin token de la dirección. **El contrato regenerado declara `coverImageUrl` en `ProductRef`** | **Hecha el 14-09-2026** |
 | `T-24` | **`HOTLINK` o `AMBOS`** (`RN-PM-021`): `findPublishedByCode` con `p.scope IN ('HOTLINK','AMBOS')`; la prosa de la `@Operation` lo dice | `T-23`, `RF-PM-001` `T-41` | `CA-PM-352` en `HotlinkIT` | **Hecha el 15-09-2026** |
 | `T-25` | **Los enlaces en el hotlink, resueltos y sin el cupón** (`RF-PM-001` `T-42` y `T-43` traen la tabla y el modelo): `HotlinkResponse.ProductRef` **pierde `videoUrl`** y gana `links`; `findPublishedByCode` deja de seleccionar la columna; `GetHotlinkService` lee los enlaces **con el tipo en el predicado** —`CUPON_BOT` no sale de la base— y los copia **resueltos**; y la prosa de la `@Operation` dice qué viaja, **qué no y por qué no**, en una ruta sin token | `T-24`, `RF-PM-001` `T-43` | `CA-PM-229` reescrito y `CA-PM-396`, `CA-PM-397` en `HotlinkIT`, en la misma prueba que sigue comprobando la ausencia de `purchasePrice`. **El contrato regenerado declara `links` en `ProductRef` y ningún `videoUrl`** | **Hecha el 22-09-2026** |
+| `T-26` | **El escalón en las dos sentencias del hotlink** (03-10-2026, `RN-PM-018`): `findPublishedByCode` gana `AND ( p.type = 'BOT' OR s.level - m.level BETWEEN 0 AND 1 )` sobre los `JOIN` que ya hace, y `findPublishedByHotlink` **el mismo predicado** con los dos `JOIN` a `memberships` que hoy no necesita. **En la misma tarea las dos**: son el mismo conjunto, el que se enseña y el que se vende | `T-24` | `CA-PM-424`: renovación y escalón resuelven, el salto —sembrado por SQL— responde el `404`; y entra en la comparación del **cuerpo entero** de `CA-PM-134`, que pasa de seis respuestas a siete | Pendiente |
+| `T-27` | **Contrato**: la prosa de la `@Operation` del hotlink nombra el séptimo caso del `404` | `T-26` | `openapi.json` regenerado y la prosa revisada a mano | Pendiente |
 
 ## 2. Orden de ejecución
 
@@ -71,6 +73,7 @@
 | `CA-PM-229` | `T-22` |
 | `CA-PM-238` | `T-23` |
 | `CA-PM-352` | `T-24` |
+| `CA-PM-424` | `T-26`, `T-27` |
 | ~~`CA-PM-169`~~ | `T-20` — **retirado el 12-09-2026**: su prueba se invierte de vuelta en `T-21` |
 
 ## 4. Bloqueos

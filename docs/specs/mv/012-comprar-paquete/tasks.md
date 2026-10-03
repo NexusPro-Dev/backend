@@ -4,12 +4,12 @@
 |---|---|
 | Requerimiento | `RF-MV-012` |
 | Plan | [`plan.md`](plan.md), aprobado el 16-09-2026 |
-| Versión | 0.3.0 |
+| Versión | 0.4.0 |
 | Estado | **Aprobadas** |
 | Autor | Responsable técnico |
 | Aprobadas por | Responsable del proyecto |
 | Fecha de aprobación | 17-09-2026 |
-| Enmendadas | 01-10-2026 — `T-10` por **la tarjeta por Stripe** (§6) |
+| Enmendadas | 01-10-2026 — `T-10` por **la tarjeta por Stripe** (§6) · 03-10-2026 — `T-11` por **el upgrade escalonado** (§7) |
 | Issue | Pendiente de crear |
 | Rama | `feature/venta-de-productos` |
 
@@ -112,3 +112,13 @@ Rama: `feature/stripe-tarjeta`. Después de las tareas de `RF-MV-040` que cada f
 Criterios: `CA-MV-472`.
 
 **Construido el 01-10-2026** (issue [#161](https://github.com/NexusPro-Dev/backend/issues/161)). Los criterios se prueban en `CardPaymentIT` —o en la suite de la entrada, para las compras— y no en la suite que cada fila nombra.
+
+## 7. El upgrade sube un escalón — enmienda del 03-10-2026
+
+Por `plan.md` §13. **Sin tarea de código**: la comparación es la de `SaleRules.verificarQueSube`, que construye [`RF-MV-001`](../001-registrar-venta/tasks.md) en su enmienda del 03-10-2026.
+
+| ID | Tarea | Depende de | Verificación | Estado |
+|---|---|---|---|---|
+| `T-11` | `BuyPackageIT`: un paquete cuyo upgrade **salta** —sembrado por SQL— se rechaza con `409` y **sin venta, pago ni auditoría**; uno de **un escalón** se registra | `RF-MV-001` · la tarea que enmienda `SaleRules.verificarQueSube` | `CA-MV-540`; `CA-MV-057` sigue en verde sin tocarla | Pendiente |
+
+Criterios: `CA-MV-540`.

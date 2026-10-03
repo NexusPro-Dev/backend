@@ -7,6 +7,7 @@
 | Plan | [`plan.md`](plan.md) |
 | `plan.md` aprobado el | 24-09-2026 |
 | Estado | **En revisión** |
+| Enmendadas | 03-10-2026 — `T-14` y `T-15` por **el escalón** (§7) |
 | Enmendadas | 01-10-2026 — `T-13` por **la tarjeta por Stripe** (§6) |
 | Issue | Pendiente de crear |
 | Rama | `feature/comprar-por-el-hotlink` |
@@ -86,3 +87,16 @@ Rama: `feature/stripe-tarjeta`. Después de las tareas de `RF-MV-040` que cada f
 Criterios: `CA-MV-471`.
 
 **Construido el 01-10-2026** (issue [#161](https://github.com/NexusPro-Dev/backend/issues/161)). Los criterios se prueban en `CardPaymentIT` —o en la suite de la entrada, para las compras— y no en la suite que cada fila nombra.
+
+---
+
+## 7. El escalón — enmienda del 03-10-2026
+
+Rama: `feature/upgrade-escalonado`. **Sin código propio**: la condición del salto es `RF-MV-001` · `T-36` y la prosa de la ruta `RF-MV-001` · `T-39`. Aquí van las pruebas, porque esta es la entrada donde el salto se ve por HTTP (`plan.md` §13).
+
+| ID | Tarea | Depende de | Verificación | Estado |
+|---|---|---|---|---|
+| `T-14` | Prueba del escalón contra quien compra: el salto se rechaza y el escalón con origen ajeno se registra | `RF-MV-001` · `T-36` | `CA-MV-530`: `409` con `EX-005` y **cero** filas nuevas en `movements`, `payments` y `client_sellers`; `CA-MV-531`: `201` | **Pendiente** |
+| `T-15` | Prueba del salto ya registrado, sembrado por SQL | `RF-PM-008` (el hotlink deja de publicar saltos) | `CA-MV-532`: `404` con **el mismo cuerpo** que un producto inexistente | **Pendiente** |
+
+Criterios: `CA-MV-530` a `CA-MV-532`.

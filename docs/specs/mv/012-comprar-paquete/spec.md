@@ -4,12 +4,12 @@
 |---|---|
 | Requerimiento | `RF-MV-012` |
 | Módulo | `MV` — Movimientos |
-| Versión | 0.4.0 |
+| Versión | 0.5.0 |
 | Estado | **Aprobada** |
 | Autor | Responsable técnico |
 | Aprobada por | Responsable del proyecto |
 | Fecha de aprobación | 16-09-2026 |
-| Enmendada | 21-09-2026 — exige **`packages:buy`** (`RF-SP-062`, `RN-SEG-015`: autenticarse no autoriza nada); lo siembra `V31`; `CA-MV-049` deja de decir «sin ningún permiso» |
+| Enmendada | 21-09-2026 — exige **`packages:buy`** (`RF-SP-062`, `RN-SEG-015`: autenticarse no autoriza nada); lo siembra `V31`; `CA-MV-049` deja de decir «sin ningún permiso» · 03-10-2026 — **el upgrade del paquete tampoco salta de nivel** (`RN-MV-006`, `EX-005`). Ver §14.3 |
 | Enmendada el | 01-10-2026 — **con tarjeta, la compra abre el cobro en la pasarela** y devuelve su secreto (`RF-MV-040`). Ver §14.2 |
 
 !!! info "Qué va en este documento"
@@ -96,7 +96,7 @@ Cada línea nace con cantidad **uno**, de modo que `RN-MV-015` —la cantidad es
 | `RN-MV-002` | Se copia lo que puede cambiar; lo inmutable se referencia | `requirements/mv.md` §5.1 |
 | `RN-MV-003` | El vendedor es de la línea, sale de quien compra y se congela | `requirements/mv.md` §5.1 |
 | `RN-MV-004` | Solo una venta confirmada produce efectos | `requirements/mv.md` §5.1 |
-| `RN-MV-006` | **No se baja de nivel**; renovar el mismo se admite | `requirements/mv.md` §5.1 |
+| `RN-MV-006` | **No se baja de nivel ni se salta**: se renueva el mismo o se sube un escalón | `requirements/mv.md` §5.1 |
 | `RN-MV-007` | El producto tiene que estar en la oferta de quien compra | `requirements/mv.md` §5.1 |
 | `RN-MV-008` | A una cuenta en `FTD_PENDIENTE` no se le vende | `requirements/mv.md` §5.1 |
 | `RN-MV-012` | Todas las líneas comparten la moneda de la cabecera | `requirements/mv.md` §5.1 |
@@ -157,7 +157,7 @@ La de `RF-MV-002` —la venta sin el vendedor—, **con dos añadidos**:
 2. El sistema resuelve **quién es** por su credencial y comprueba que **puede comprar**.
 3. El sistema resuelve **el paquete** y comprueba que **hoy se le puede ofrecer a esa persona**: activo, publicado, **dentro de su vigencia**, con sus productos y con el nivel que le corresponde.
 4. El sistema resuelve **cada producto del paquete** con el descuento que el paquete le declara.
-5. El sistema comprueba, **producto a producto**, que está en la oferta de quien compra; y si alguno lleva upgrade, que **sube de nivel**.
+5. El sistema comprueba, **producto a producto**, que está en la oferta de quien compra; y si alguno lleva upgrade, que **renueva el nivel vigente o sube un escalón**, y no baja ni salta.
 6. El sistema comprueba que **todos comparten moneda** — la del paquete.
 7. El sistema **copia** en cada línea el nombre, la descripción, el precio unitario y la vigencia, y **congela su rebaja** en dinero.
 8. El sistema suma: total, descuento e importe a pagar, y comprueba que la escala corresponde a la moneda.
@@ -221,10 +221,10 @@ La de `RF-MV-002` —la venta sin el vendedor—, **con dos añadidos**:
 **Condición:** está inactivo, retirado, o fuera de la oferta de quien compra.
 **Respuesta del sistema:** rechaza **la compra completa**, nombrando el producto (`RN-MV-028`, §4.1).
 
-### EX-005 — El upgrade del paquete BAJA de nivel
+### EX-005 — El upgrade del paquete BAJA o SALTA de nivel
 
-**Condición:** el producto de upgrade lleva a una membresía **inferior** a la vigente del actor.
-**Respuesta del sistema:** rechaza la compra entera, como `EX-005` de `RF-MV-001` y por lo mismo: no se cobra por algo que quita.
+**Condición:** el producto de upgrade lleva a una membresía **inferior** a la vigente del actor o, desde el 03-10-2026, **más de un escalón por encima** de ella (§14.3).
+**Respuesta del sistema:** rechaza la compra entera, como `EX-005` de `RF-MV-001` y por lo mismo: no se cobra por algo que quita, ni por un salto que el catálogo ya no vende. El mensaje dice **cuál de las dos** ocurre.
 
 ### EX-006 — La cuenta no puede operar
 
@@ -276,6 +276,7 @@ La de `RF-MV-002` —la venta sin el vendedor—, **con dos añadidos**:
 - **Un paquete cuyo descuento deja un producto en cero pero no los demás:** se registra. La línea vale cero, la venta no, y el método de pago se decide **por el total** y no línea a línea.
 - **El mismo paquete comprado dos veces seguidas:** las dos ventas se registran. Ninguna concede nada todavía, y si llevan upgrade el conflicto aparece **al confirmar la segunda**, que es donde `RF-MV-003` tiene que resolverlo — igual que con dos ventas del mismo upgrade suelto.
 - **Un paquete con un solo producto:** no existe. `RN-PM-040` impide activarlo, de modo que nunca llega a la oferta; si alguien lo intenta, cae en `EX-002` diciendo que tiene menos de dos.
+- **Un paquete cuyo upgrade salta niveles, registrado antes del 03-10-2026:** no se vende. Lo detiene primero la oferta de `PM` (`RN-PM-044`) y, si la oferta lo dejara pasar, `EX-005` (§14.3).
 - **Un cliente sin membresía vigente:** solo puede comprar paquetes **sin upgrade**. Los demás caen en `EX-003`, y el mensaje habla de la oferta y no de su rol.
 - **El precio de un producto del paquete cambia entre mirar y pagar:** se cobra **el de ahora**, no el que se vio. Es lo mismo que ocurre al comprar ese producto suelto (`RN-MV-002`), y el comprobante dice qué se cobró.
 
@@ -297,6 +298,21 @@ Desde el 01-10-2026 ([`requirements/mv.md`](../../../requirements/mv.md) v0.64.0
 |---|---|
 | `CA-MV-472` | Con tarjeta, la respuesta trae `cardCharge` y el pago su referencia; con otro método, `cardCharge` es nulo (lo prueba `RF-MV-040` · `CA-MV-427`) |
 
+## 14.3 El upgrade sube un escalón — enmienda del 03-10-2026
+
+Por [`requirements/mv.md`](../../../requirements/mv.md) v0.72.0 (`RN-MV-006`) y [`requirements/pm.md`](../../../requirements/pm.md) v0.49.0 §5.2.17, por decisión del responsable del proyecto: **el upgrade de un paquete lleva a la membresía vigente de quien compra o a la inmediatamente superior**, y ninguna otra.
+
+**Cómo llega a este requerimiento.** Por dos sitios, y los dos hacen falta:
+
+1. **La oferta de `PM` ya no publica un paquete cuyo upgrade salta** (`RN-PM-044`). Como el paquete solo se ofrece a quien tiene vigente **el origen** de su upgrade, el salto del producto y el salto de quien compra son aquí lo mismo, y el rechazo sale casi siempre del paso 3, con `EX-002` y el motivo que `PM` publica en `offerable`.
+2. **`EX-005` lo comprueba otra vez en el paso 5**, contra la membresía **vigente** y no contra el origen. Es la red de `RN-MV-006`: la regla de `MV` no depende de que `PM` siga filtrando igual, el mismo argumento con el que la comprobación del descenso existe aunque la oferta ya la garantice.
+
+**Lo que no cambia**: el rechazo es **al registrar**, antes de cobrar y sin escribir nada; renovar el mismo nivel se admite (`CA-MV-057`); el código es **el mismo `EX-005`**, porque para quien compra la salida es la misma —ese paquete no le corresponde—, y un código nuevo obligaría al frontend a aprender una distinción que no cambia lo que puede hacer.
+
+| ID | Criterio |
+|---|---|
+| `CA-MV-540` | El sistema rechaza el paquete cuyo upgrade **salta niveles** sobre la membresía vigente de quien compra, **sin escribir nada** —ni venta, ni pago, ni auditoría—, y **admite** el de un escalón |
+
 ---
 
 ## 15. Control de cambios
@@ -307,3 +323,4 @@ Desde el 01-10-2026 ([`requirements/mv.md`](../../../requirements/mv.md) v0.64.0
 | 0.2.0 | 17-09-2026 | **El paquete se indica por su código y no por su identificador** (§6.1, `EX-001`), por decisión del responsable del proyecto el día de la construcción. El código es el nombre público del paquete (`RN-PM-041`: corto, estable, inmutable y único incluso frente a los retirados), es lo que la oferta y el hotlink publican, y es lo que un enlace o una pantalla pueden llevar escrito; el identificador es un dato interno que el cliente no tiene por qué conocer. Es el mismo criterio con el que `RF-MV-013` compra por el código del hotlink. Sin cambio en criterios ni en flujos: lo que se resuelve es lo mismo, y cambia cómo se nombra. | Responsable del proyecto |
 | 0.3.0 | 30-09-2026 | **Se puede pagar con puntos** (`RF-MV-030`, `RN-MV-052`; [`requirements/mv.md`](../../../requirements/mv.md) v0.54.0 §4.4): con `POINTS`, los puntos de la moneda de la venta se descuentan a la tasa vigente y la compra vuelve **confirmada**, con su entrega y su aviso a comisiones. Si no alcanzan, o la moneda no tiene tasa, conflicto y **nada queda escrito**. Ningún dato de entrada cambia. | Responsable técnico |
 | 0.4.0 | 01-10-2026 | **La tarjeta por Stripe** ([`requirements/mv.md`](../../../requirements/mv.md) v0.64.0 §4.6): **con tarjeta, la compra abre el cobro en la pasarela** y devuelve su secreto (`RF-MV-040`). Criterios `CA-MV-472`. | Responsable del proyecto |
+| 0.5.0 | 03-10-2026 | **El upgrade del paquete sube un escalón como máximo** (§14.3; [`requirements/mv.md`](../../../requirements/mv.md) v0.72.0, `RN-MV-006`; [`requirements/pm.md`](../../../requirements/pm.md) v0.49.0 §5.2.17), por decisión del responsable del proyecto. `EX-005` pasa a decir «baja **o salta**» y conserva el código. El rechazo llega casi siempre antes, por la oferta (`RN-PM-044`, `EX-002`); `EX-005` es la red de `MV`. Criterio nuevo `CA-MV-540`. | Responsable del proyecto |

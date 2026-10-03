@@ -4,7 +4,7 @@
 |---|---|
 | Requerimiento | `RF-MV-013` |
 | Plan | [`plan.md`](plan.md), aprobado el 16-09-2026 |
-| Versión | 0.1.0 |
+| Versión | 0.2.0 |
 | Estado | **En revisión** |
 | Autor | Responsable técnico |
 | Aprobadas por | Pendiente |
@@ -32,7 +32,7 @@
 | `T-02` | `BuyPackageService`: el vendedor **se recibe** en lugar de deducirse; quien llama decide cuál es | `RF-MV-012` · `T-04` | La compra propia sigue pasando sus doce criterios **sin cambios**: el servicio no sabe por dónde entró | **Pendiente** |
 | `T-03` | `BuyPackageByHotlinkService`: resuelve el enlace, **rechaza la autocompra**, delega la compra y **pide el vínculo** | `T-01`, `T-02` | `CA-MV-061` y `CA-MV-065`; el vínculo se pide **después** de registrar la venta y en la misma transacción | **Pendiente** |
 | `T-04` | `HotlinkPurchaseController`: `POST /api/v1/hotlinks/{username}/packages/{code}/purchases`, **sin permiso** y **con sesión** | `T-03` | Documentado; `401` sin token, y la ruta entra en la lista blanca de permisos — **no en la de rutas públicas** | **Pendiente** |
-| `T-05` | `BuyPackageByHotlinkIT`: los siete criterios, `CA-MV-061` a `CA-MV-067` | `T-04` | Incluidas las dos que importan: la atribución al dueño del enlace **teniendo otro agente**, y el `404` uniforme | **Pendiente** |
+| `T-05` | `BuyPackageByHotlinkIT`: los siete criterios, `CA-MV-061` a `CA-MV-067`, **y desde el 03-10-2026 `CA-MV-541`** —un paquete cuyo upgrade salta, sembrado por SQL, no registra nada— | `T-04` | Incluidas las dos que importan: la atribución al dueño del enlace **teniendo otro agente**, y el `404` uniforme | **Pendiente** |
 | `T-06` | Contrato OpenAPI y matriz: `RF-MV-013` pasa de `Pendiente` a `En desarrollo` | `T-05` | La prosa dice que **ver el enlace es público y comprarlo no**, y que el rechazo del catálogo es `404` a propósito | **Pendiente** |
 
 **`T-02` es la tarea delicada, y su verificación lo dice**: lo que hay que comprobar no es que la compra por hotlink funcione, sino que **la compra propia siga funcionando igual** después de abrir el hueco por donde entra el vendedor.
@@ -57,6 +57,7 @@
 | `CA-MV-065` | `T-03`, `T-05` |
 | `CA-MV-066` | `T-02`, `T-05` |
 | `CA-MV-067` | `T-03`, `T-05` |
+| `CA-MV-541` | `T-05` — depende de `RF-MV-001` · la tarea que enmienda `SaleRules.verificarQueSube` |
 
 ---
 
@@ -78,3 +79,7 @@
 - [ ] Los doce criterios de `RF-MV-012` **siguen en verde sin tocarlos**.
 - [ ] El contrato OpenAPI coincide con el comportamiento real, **también en la prosa**.
 - [ ] La matriz de trazabilidad al día.
+
+## 6. El upgrade sube un escalón — enmienda del 03-10-2026
+
+Por `plan.md` §12. Sin tarea nueva: `CA-MV-541` entra en `T-05`, que sigue pendiente. Versión 0.2.0.

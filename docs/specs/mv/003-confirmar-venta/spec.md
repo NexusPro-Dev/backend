@@ -4,12 +4,12 @@
 |---|---|
 | Requerimiento | `RF-MV-003` |
 | Módulo | `MV` — Movimientos |
-| Versión | 0.4.0 |
+| Versión | 0.5.0 |
 | Estado | **Aprobada** |
 | Autor | Responsable técnico |
 | Aprobada por | Responsable del proyecto |
 | Fecha de aprobación | 17-09-2026 |
-| Enmendada el | 01-10-2026 — **sin ruta propia**: se concilia el pago, por `RF-MV-044`. Ver §14.3 · Antes, 01-10-2026 — **un pago con cobro abierto en la pasarela no se confirma a mano** (`RN-MV-058`). Ver §14.2 |
+| Enmendada el | 03-10-2026 — **al confirmar no se repite el escalón** (`RN-MV-006`): ver §14.4 · Antes, 01-10-2026 — **sin ruta propia**: se concilia el pago, por `RF-MV-044`. Ver §14.3 · Antes, 01-10-2026 — **un pago con cobro abierto en la pasarela no se confirma a mano** (`RN-MV-058`). Ver §14.2 |
 
 !!! warning "Enmendada el 26-09-2026 — se confirma el PAGO pendiente, y la venta con él"
 
@@ -239,6 +239,7 @@ Cada línea sigue su propia regla. El paquete no cambia nada de este flujo: es u
 | El comprador fue **eliminado** después de registrar | La venta confirma —el dinero entró— y conceder la membresía es un **fallo del sistema** (`EX-004`), no un caso de negocio: conceder a una cuenta eliminada no está definido y **no se decide aquí**. Queda declarado en §14 |
 | La venta se registró con la implementación **automática** y el producto se corrigió a **manual** después | Manda **lo copiado en la línea** (`RN-MV-021`, `RN-MV-030`): se entrega. Al revés, se espera. Lo vendido se entrega como se vendió |
 | La persona subió de nivel **entre registrar y confirmar** | `FA-005` si lo comprado quedó por debajo; concede si quedó igual o por encima |
+| Lo comprado era un escalón al registrar y **es un salto al confirmar**, porque se insertó una membresía en medio de la cadena | **Concede**: el escalón **no se vuelve a comprobar** al confirmar (§14.4) |
 | Una venta de **importe cero** (`GRATIS`) | Se confirma como cualquier otra: el «pago» es que no había nada que pagar, y lo comprado se entrega igual |
 | La venta pendiente **más antigua del sistema** | Se confirma igual; no hay caducidad de lo pendiente. Anular lo que no se va a pagar es `RF-MV-005` |
 
@@ -279,6 +280,16 @@ Desde el 01-10-2026 ([`requirements/mv.md`](../../../requirements/mv.md) v0.67.0
 |---|---|
 | `CA-MV-516` | `POST /movements/{id}/confirmation` responde `404`: la ruta no existe |
 
+## 14.4 Al confirmar no se repite el escalón — enmienda del 03-10-2026
+
+Desde el 03-10-2026 `RN-MV-006` rechaza también el **salto** de nivel ([`requirements/mv.md`](../../../requirements/mv.md) v0.72.0; [`requirements/pm.md`](../../../requirements/pm.md) §5.2.17), y lo rechaza **al registrar**. **Confirmar no lo repite**: `RN-MV-029` sigue mirando **solo el descenso**, y ninguna regla de esta operación cambia.
+
+**Por qué.** Entre registrar y confirmar, lo comprado solo puede pasar de escalón a salto por **un** camino: que se **inserte una membresía en medio** de la cadena (`RN-SP-007`). La persona no baja de nivel por ninguna vía (`RN-SP-018`), y si sube, lo que compró queda igual o por debajo —que es `FA-005`, no un salto—. Y en ese instante **el dinero ya entró**: retener la línea dejaría una venta cobrada sin entregar por un cambio del catálogo que nadie le pidió a quien pagó, y `RN-MV-005` impide corregirla. **Conceder lo que se pagó es el mal menor**, y la frontera es la misma que `RN-MV-029` ya trazó: al confirmar se protege de **quitar**, no de **dar de más**.
+
+**Lo descartado**: *retener también el salto*, con motivo, como el descenso — tendría la forma de `RN-MV-029` y ninguno de sus motivos: el descenso quita algo a quien pagó; el salto le da lo que pagó.
+
+Sin criterio nuevo: la ausencia de comprobación no se prueba con un caso propio, y la renovación y el descenso siguen cubiertos por los criterios de `RN-MV-029`.
+
 ---
 
 ## 15. Control de cambios
@@ -289,3 +300,4 @@ Desde el 01-10-2026 ([`requirements/mv.md`](../../../requirements/mv.md) v0.67.0
 | 0.2.0 | 26-09-2026 | **Se confirma el pago pendiente, y la venta con él** (`requirements/mv.md` v0.44.0, `RN-MV-039`; Art. I.7 sobre un requerimiento construido), por decisión del responsable del proyecto. La ruta y la forma no cambian; una venta pendiente sin pago pendiente no se confirma. `CA-MV-218` y `CA-MV-219`. | Responsable del proyecto |
 | 0.3.0 | 01-10-2026 | **La tarjeta por Stripe** ([`requirements/mv.md`](../../../requirements/mv.md) v0.64.0 §4.6): **un pago con cobro abierto en la pasarela no se confirma a mano** (`RN-MV-058`). Criterios `CA-MV-462` a `CA-MV-463`. | Responsable del proyecto |
 | 0.4.0 | 01-10-2026 | **Sin ruta propia** ([`requirements/mv.md`](../../../requirements/mv.md) v0.67.0 §4.8): se concilia el pago, y se entra por `RF-MV-044`. El efecto no cambia; la ruta y su permiso se retiran (§14.3). Criterio `CA-MV-516`. | Responsable del proyecto |
+| 0.5.0 | 03-10-2026 | **Al confirmar no se repite el escalón** (§14.4), al enmendarse `RN-MV-006` ([`requirements/mv.md`](../../../requirements/mv.md) v0.72.0) por decisión del responsable del proyecto. `RN-MV-029` sigue mirando solo el descenso; queda escrito por qué —el único camino de escalón a salto entre registrar y confirmar es insertar una membresía en medio, y el dinero ya entró— y un caso límite nuevo. Sin criterio ni código nuevos. | Responsable del proyecto |

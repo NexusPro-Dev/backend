@@ -5,11 +5,11 @@
 | Requerimiento | `RF-PM-027` |
 | Especificación | [`spec.md`](spec.md) |
 | Plan | [`plan.md`](plan.md), aprobado el 15-09-2026 |
-| Estado | **Hecha** — todas las tareas `Hecha` el 15-09-2026; **reabierta el 22-09-2026** por los enlaces del producto (`T-08`, `Hecha` ese mismo día); queda el Pull Request |
+| Estado | **En curso** desde el 03-10-2026 —era **Hecha**— — todas las tareas `Hecha` el 15-09-2026; **reabierta el 22-09-2026** por los enlaces del producto (`T-08`, `Hecha` ese mismo día); queda el Pull Request. **Reabierta el 03-10-2026 por el escalón** (`T-12`, `Pendiente`) |
 | Issue | Pendiente de crear |
 | Rama | `feature/venta-de-productos` |
 | Autor | Responsable técnico |
-| Enmendadas | 15-09-2026 — `T-11` por el **alcance de cuatro valores** |
+| Enmendadas | 15-09-2026 — `T-11` por el **alcance de cuatro valores**; 03-10-2026 — `T-12` por **el escalón** (`RN-PM-018`), rama `feature/upgrade-escalonado`, issue **Pendiente de crear** |
 
 ---
 
@@ -29,6 +29,7 @@
 | `T-09` | Prueba de sentencias: con tres y con ocho productos, el mismo número | `T-04` | `CA-PM-347` | **Hecha el 15-09-2026** |
 | `T-10` | Actualizar `requirements/pm.md` (§4, §6.1, ficha, §9), la matriz de `docs/requirements.md`, `security.md` y `docs/api/index.md` | `T-08` | Las filas reflejan el estado | **Hecha el 15-09-2026** |
 | `T-11` | **`HOTLINK` o `AMBOS`** (`RN-PM-021`): `findHotlinkCatalog` con `p.scope IN ('HOTLINK','AMBOS')`; la prosa de la `@Operation` lo dice | `T-04`, `RF-PM-001` `T-41` | `CA-PM-353` en `HotlinkCatalogIT` | **Hecha el 15-09-2026** |
+| `T-12` | **El escalón** (03-10-2026, `RN-PM-018`): `findHotlinkCatalog` gana `AND ( p.type = 'BOT' OR s.level - m.level BETWEEN 0 AND 1 )`, **en la misma pasada** que las dos sentencias de `RF-PM-008` `T-26`; `HotlinkCatalogIT` reescribe `CA-PM-341` con `PLATINO → ORO` y gana la terna; la prosa de la `@Operation` dice que el salto no se lista | `T-11`, `RF-PM-008` `T-26` | `CA-PM-426` y `CA-PM-341` reescrito; `CA-PM-347` sin sentencias de más | Pendiente |
 
 ## 2. Orden de ejecución
 
@@ -44,6 +45,7 @@
 | `CA-PM-344`, `CA-PM-345`, `CA-PM-346` | `T-08` |
 | `CA-PM-347` | `T-03`, `T-09` |
 | `CA-PM-353` | `T-11` |
+| `CA-PM-341` (reescrito el 03-10-2026), `CA-PM-426` | `T-12` |
 
 ## 4. Bloqueos
 
