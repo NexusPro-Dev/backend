@@ -9,9 +9,13 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import com.factech.nexus.IntegrationTestBase;
 import com.factech.nexus.modules.movements.PaymentFixtures;
 import com.factech.nexus.testing.CommissionCleanup;
+import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import java.time.OffsetDateTime;
 import java.time.ZoneOffset;
 import java.util.UUID;
+import org.hibernate.SessionFactory;
+import org.hibernate.stat.Statistics;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
@@ -50,6 +54,8 @@ class MyMovementsIT extends IntegrationTestBase {
 
   @Autowired private MockMvc mvc;
   @Autowired private JdbcTemplate jdbc;
+  @Autowired private SessionFactory sessionFactory;
+  @Autowired private ObjectMapper json;
 
   private UUID vendedor;
   private UUID cliente;
@@ -178,8 +184,8 @@ class MyMovementsIT extends IntegrationTestBase {
         .andExpect(jsonPath("$.content[0].currency.code").value("USD"))
         .andExpect(jsonPath("$.content[0].paymentMethod").isNotEmpty())
         .andExpect(jsonPath("$.content[0].payableAmount").value(100.00))
-        // Las líneas NO viajan en el listado: están en el detalle.
-        .andExpect(jsonPath("$.content[0].lines").doesNotExist());
+        // Desde el 03-10-2026 las líneas SÍ viajan en el listado (`CA-MV-523`).
+        .andExpect(jsonPath("$.content[0].lines.length()").value(1));
   }
 
   @Test
@@ -213,6 +219,78 @@ class MyMovementsIT extends IntegrationTestBase {
         .andExpect(jsonPath("$.totalElements").value(1))
         .andExpect(jsonPath("$.content[0].id").value(vendida.toString()))
         .andExpect(jsonPath("$.content[0].sellers.length()").value(1));
+  }
+
+  // ---------------------------------------------------------------------------
+  // Las líneas en el listado — 03-10-2026
+  // ---------------------------------------------------------------------------
+
+  @Test
+  @DisplayName("CA-MV-523 — cada fila trae sus líneas, iguales a las del detalle")
+  void laFilaTraeLasLineasDelDetalle() throws Exception {
+    JsonNode fila =
+        json.readTree(
+                mvc.perform(get("/api/v1/movements/mine/shopping").with(como(cliente)))
+                    .andExpect(status().isOk())
+                    .andReturn()
+                    .getResponse()
+                    .getContentAsString())
+            .at("/content/0");
+    JsonNode detalle =
+        json.readTree(
+            mvc.perform(get("/api/v1/movements/mine/{id}", vendida).with(como(cliente)))
+                .andExpect(status().isOk())
+                .andReturn()
+                .getResponse()
+                .getContentAsString());
+
+    assertThat(fila.get("id").asText()).isEqualTo(vendida.toString());
+    assertThat(fila.get("lines").size()).isEqualTo(1);
+    assertThat(fila.at("/lines/0/productCode").asText()).isEqualTo("MINE_BOT");
+    assertThat(fila.at("/lines/0/seller/username").asText()).isEqualTo("mine-vendedor");
+    // LA MISMA FORMA Y LOS MISMOS VALORES: dos formas de la misma línea
+    // obligarían al cliente a tratarlas distinto según de dónde las leyera.
+    assertThat(fila.get("lines")).isEqualTo(detalle.get("lines"));
+    // Los pagos NO viajan en el listado: siguen en el detalle.
+    assertThat(fila.has("payments")).isFalse();
+  }
+
+  @Test
+  @DisplayName("CA-MV-524 — una venta con varias líneas las trae todas, y sigue siendo UNA fila")
+  void variasLineasEnUnaFila() throws Exception {
+    segundaLinea(vendida, vendedor);
+
+    mvc.perform(get("/api/v1/movements/mine/shopping").with(como(cliente)))
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$.totalElements").value(1))
+        .andExpect(jsonPath("$.content.length()").value(1))
+        .andExpect(jsonPath("$.content[0].lines.length()").value(2))
+        .andExpect(jsonPath("$.content[0].lines[0].productCode").value("MINE_BOT"))
+        .andExpect(jsonPath("$.content[0].lines[1].productCode").value("MINE_BOT_2"));
+  }
+
+  @Test
+  @DisplayName("CA-MV-525 — las líneas de la página se leen sin una consulta por fila")
+  void lasLineasNoSeLeenFilaAFila() throws Exception {
+    Statistics estadisticas = sessionFactory.getStatistics();
+    estadisticas.setStatisticsEnabled(true);
+
+    estadisticas.clear();
+    mvc.perform(get("/api/v1/movements/mine/shopping").with(como(vendedor)))
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$.content.length()").value(1));
+    long conUna = estadisticas.getPrepareStatementCount();
+
+    movimiento(vendedor, vendedor, "PENDIENTE", BASE.plusDays(3));
+    movimiento(vendedor, vendedor, "PENDIENTE", BASE.plusDays(4));
+    estadisticas.clear();
+    mvc.perform(get("/api/v1/movements/mine/shopping").with(como(vendedor)))
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$.content.length()").value(3))
+        .andExpect(jsonPath("$.content[2].lines.length()").value(1));
+
+    // Con una consulta por fila, tres filas harían dos sentencias más que una.
+    assertThat(estadisticas.getPrepareStatementCount()).isEqualTo(conUna);
   }
 
   @Test

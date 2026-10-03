@@ -220,6 +220,74 @@ class BuyByHotlinkIT extends IntegrationTestBase {
     mvc.perform(comprar(cliente, "bh-del-enlace", "BH_BOT")).andExpect(status().isCreated());
   }
 
+  // ------------------------------------------------------------- el escalón
+
+  @Test
+  @DisplayName(
+      "`CA-MV-530` — dos niveles por debajo del destino, un upgrade de UN escalón se rechaza con"
+          + " `EX-005` porque para quien compra SALTA, y no deja venta, pago ni vínculo")
+  void elEscalonEsDeQuienCompra() throws Exception {
+    UUID[] m = cadena();
+    // `M2 → M1` es un escalón como producto, y el hotlink lo publica: no mira el
+    // origen. Para quien está en `M3` son dos escalones (`RN-MV-006`).
+    upgrade("BH_UP_M2_M1", m[1], m[0]);
+    asignarMembresia(cliente, m[2]);
+
+    String cuerpo =
+        mvc.perform(comprar(cliente, "bh-del-enlace", "BH_UP_M2_M1"))
+            .andExpect(status().isConflict())
+            .andExpect(jsonPath("$.errors[0].code").value("EX-005"))
+            .andReturn()
+            .getResponse()
+            .getContentAsString();
+
+    assertThat(cuerpo).contains("salta niveles");
+    assertThat(cuantasVentas()).isZero();
+    assertThat(jdbc.queryForObject("SELECT count(*) FROM payments", Integer.class)).isZero();
+    assertThat(cuantosVendedores(cliente)).isEqualTo(1);
+  }
+
+  @Test
+  @DisplayName(
+      "`CA-MV-531` — un nivel por debajo del destino, el upgrade se registra aunque su origen no"
+          + " sea el de quien compra")
+  void elOrigenAjenoNoImporta() throws Exception {
+    UUID[] m = cadena();
+    // La renovación de `M1`: origen `M1`, que no es el del cliente (`M2`). Para
+    // él es subir un escalón.
+    upgrade("BH_UP_M1_M1", m[0], m[0]);
+    asignarMembresia(cliente, m[1]);
+
+    mvc.perform(comprar(cliente, "bh-del-enlace", "BH_UP_M1_M1")).andExpect(status().isCreated());
+  }
+
+  @Test
+  @DisplayName(
+      "`CA-MV-532` — un salto ya registrado no se compra por el enlace: `404` con el mismo cuerpo"
+          + " que un producto inexistente")
+  void elSaltoRegistradoEsUnCuatroCientosCuatro() throws Exception {
+    UUID[] m = cadena();
+    // Sembrado por la base: el alta ya no lo admite (`RN-PM-018`).
+    upgrade("BH_UP_M3_M1", m[2], m[0]);
+    asignarMembresia(cliente, m[2]);
+
+    String porElSalto =
+        mvc.perform(comprar(cliente, "bh-del-enlace", "BH_UP_M3_M1"))
+            .andExpect(status().isNotFound())
+            .andReturn()
+            .getResponse()
+            .getContentAsString();
+    String porElInexistente =
+        mvc.perform(comprar(cliente, "bh-del-enlace", "NO_EXISTE"))
+            .andExpect(status().isNotFound())
+            .andReturn()
+            .getResponse()
+            .getContentAsString();
+
+    assertThat(loQueDiscrimina(porElSalto)).isEqualTo(loQueDiscrimina(porElInexistente));
+    assertThat(cuantasVentas()).isZero();
+  }
+
   // ---------------------------------------------------------------- peticiones
 
   private org.springframework.test.web.servlet.request.MockHttpServletRequestBuilder comprar(
@@ -374,6 +442,65 @@ class BuyByHotlinkIT extends IntegrationTestBase {
     return id;
   }
 
+  /**
+   * Tres membresías propias, {@code BH_M1} (la más alta) a {@code BH_M3}, colgadas <b>debajo</b>
+   * del eslabón más bajo que haya.
+   *
+   * <p>No se borra la cadena ajena para sembrar una entera, como hacen otras suites: la cadena es
+   * una lista con una sola cima (`uq_memberships_parent`, `NULLS NOT DISTINCT`), y colgar la
+   * nuestra al final la deja intacta sea cual sea su estado. `limpiar` las quita de abajo arriba.
+   */
+  private UUID[] cadena() {
+    UUID[] m = new UUID[3];
+    for (int i = 0; i < 3; i++) {
+      UUID id = UUID.randomUUID();
+      jdbc.update(
+          """
+          INSERT INTO memberships (id, code, name, parent_membership_id, level, color)
+          SELECT ?::uuid, ?, ?, (SELECT id FROM memberships ORDER BY level DESC LIMIT 1),
+                 COALESCE((SELECT max(level) FROM memberships), 0) + 1,
+                 upper(lpad(to_hex(COALESCE((SELECT max(level) FROM memberships), 0) * 7919
+                                   + 4096), 6, '0'))
+          """,
+          id,
+          "BH_M" + (i + 1),
+          "Nivel " + (i + 1) + " de hotlink");
+      m[i] = id;
+    }
+    return m;
+  }
+
+  private void asignarMembresia(UUID persona, UUID membresia) {
+    jdbc.update(
+        "INSERT INTO user_products (id, user_id, membership_id, started_at, ends_at)"
+            + " VALUES (gen_random_uuid(), ?::uuid, ?::uuid, ?, NULL)",
+        persona,
+        membresia,
+        BASE);
+  }
+
+  /** Un upgrade de alcance `AMBOS`, sembrado por la base (el alta ya no admite saltos). */
+  private UUID upgrade(String codigo, UUID origen, UUID destino) {
+    UUID id = UUID.randomUUID();
+    jdbc.update(
+        """
+        INSERT INTO products (id, code, type, name, description, price, currency_id,
+                              validity_days, status, scope, implementation,
+                              source_membership_id, target_membership_id, created_at, updated_at)
+        VALUES (?::uuid, ?, 'UPGRADE_MEMBRESIA', ?, 'Sembrado por BuyByHotlinkIT', 100.00,
+                ?::uuid, 30, 'ACTIVO', 'AMBOS', 'AUTOMATICA', ?::uuid, ?::uuid, ?, ?)
+        """,
+        id,
+        codigo,
+        codigo,
+        USD,
+        origen,
+        destino,
+        BASE,
+        BASE);
+    return id;
+  }
+
   private void limpiar() {
     // LOS VINCULOS VAN PRIMERO, y es justo lo que este requerimiento crea:
     // `client_sellers.first_movement_id` apunta a `movements`, de modo que borrar
@@ -393,8 +520,15 @@ class BuyByHotlinkIT extends IntegrationTestBase {
     jdbc.update("DELETE FROM movements");
     jdbc.update("DELETE FROM products WHERE code LIKE 'BH\\_%'");
     jdbc.update(
+        "DELETE FROM user_products WHERE user_id IN"
+            + " (SELECT id FROM users WHERE username LIKE 'bh-%')");
+    jdbc.update(
         "DELETE FROM user_roles WHERE user_id IN (SELECT id FROM users WHERE username LIKE 'bh-%')");
     jdbc.update("DELETE FROM users WHERE username LIKE 'bh-%'");
     jdbc.update("DELETE FROM roles WHERE code LIKE 'BH\\_%'");
+    // De abajo arriba: cada una es la superior de la siguiente.
+    for (String codigo : java.util.List.of("BH_M3", "BH_M2", "BH_M1")) {
+      jdbc.update("DELETE FROM memberships WHERE code = ?", codigo);
+    }
   }
 }

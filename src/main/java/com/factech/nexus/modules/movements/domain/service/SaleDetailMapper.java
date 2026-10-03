@@ -34,9 +34,44 @@ final class SaleDetailMapper {
    */
   static SaleResponse de(MovementDetailView detalle, WithdrawalDestinationResponse destino) {
     MyMovementRow cabecera = detalle.header();
+    List<SaleLineResponse> lineas = lineas(detalle.lines());
 
-    List<SaleLineResponse> lineas = new ArrayList<>(detalle.lines().size());
-    for (MovementLineRow linea : detalle.lines()) {
+    return new SaleResponse(
+        cabecera.id(),
+        cabecera.code(),
+        cabecera.type(),
+        cabecera.status(),
+        cabecera.typeStatus(),
+        new SaleResponse.Party(
+            cabecera.userId(),
+            cabecera.userUsername(),
+            ListMyMovementsService.nombreCompleto(
+                cabecera.userFirstName(), cabecera.userLastName())),
+        cabecera.packageId(),
+        new SaleResponse.Money(cabecera.currencyId(), cabecera.currencyCode()),
+        cabecera.paymentMethod(),
+        lineas,
+        cabecera.totalAmount(),
+        cabecera.discountAmount(),
+        cabecera.payableAmount(),
+        cabecera.occurredAt(),
+        cabecera.confirmedAt(),
+        cabecera.voidedAt(),
+        cabecera.voidReason(),
+        cabecera.createdAt(),
+        pagos(detalle.payments()),
+        destino,
+        null);
+  }
+
+  /**
+   * Las líneas, con la forma del detalle. Las usa también «mis compras» desde el 03-10-2026
+   * (`RF-MV-008` · `CA-MV-523`): la misma línea con dos formas obligaría al cliente a tratarlas
+   * distinto según de dónde la leyera.
+   */
+  static List<SaleLineResponse> lineas(List<MovementLineRow> filas) {
+    List<SaleLineResponse> lineas = new ArrayList<>(filas.size());
+    for (MovementLineRow linea : filas) {
       List<SaleDiscountResponse> rebajas = new ArrayList<>(linea.discounts().size());
       for (LineDiscountRow rebaja : linea.discounts()) {
         rebajas.add(
@@ -68,33 +103,7 @@ final class SaleDetailMapper {
               linea.deliveredAt(),
               linea.deliveryNote()));
     }
-
-    return new SaleResponse(
-        cabecera.id(),
-        cabecera.code(),
-        cabecera.type(),
-        cabecera.status(),
-        cabecera.typeStatus(),
-        new SaleResponse.Party(
-            cabecera.userId(),
-            cabecera.userUsername(),
-            ListMyMovementsService.nombreCompleto(
-                cabecera.userFirstName(), cabecera.userLastName())),
-        cabecera.packageId(),
-        new SaleResponse.Money(cabecera.currencyId(), cabecera.currencyCode()),
-        cabecera.paymentMethod(),
-        lineas,
-        cabecera.totalAmount(),
-        cabecera.discountAmount(),
-        cabecera.payableAmount(),
-        cabecera.occurredAt(),
-        cabecera.confirmedAt(),
-        cabecera.voidedAt(),
-        cabecera.voidReason(),
-        cabecera.createdAt(),
-        pagos(detalle.payments()),
-        destino,
-        null);
+    return lineas;
   }
 
   /** Los pagos del detalle (`RN-MV-047`), en el orden en que se intentaron. */

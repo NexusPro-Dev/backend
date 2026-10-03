@@ -8,7 +8,7 @@
 | Estado | **Aprobado** |
 | Autor | Responsable técnico |
 | Aprobado por | Responsable del proyecto |
-| Enmendado el | 27-08-2026 — `RN-PM-015`; 02-09-2026 — la membresía de **origen** (`RN-PM-017`, `RN-PM-018`); 07-09-2026 — **el alcance y la implementación** (`RN-PM-019`, `RN-PM-020`), §2.4, y **la renovación** —el origen puede ser el destino (`RN-PM-017`)—, §2.5; 08-09-2026 — **el segundo precio, el público** (`RN-PM-023`) y **`RN-PM-006` relajada**, §2.6; 12-09-2026 — **el segundo precio pasa a ser el de COMPRA** (`RN-PM-023`, `RN-PM-024`), §2.7; 14-09-2026 — **el enlace de un video** (`RN-PM-032`), §2.8 y §4; 14-09-2026 — **el icono obligatorio en el upgrade** (`RN-PM-034`), §2.9; 15-09-2026 — **el alcance pasa a cuatro valores** (`RN-PM-019`), `V92`; 22-09-2026 — **los ENLACES del producto**, `links` en lugar de `videoUrl` (`RN-PM-048`, `RN-PM-049`), §2.10, §3.1 y §4; 28-09-2026 — **el tercer tipo, `DESCARGA`**: `V52__pm_enlace_de_descarga.sql` reescribe `ck_product_links_type` y el comentario de la columna, y `ProductLinkType` gana el valor **sin ser material de venta**; ningún componente más cambia, porque las lecturas filtran por `esMaterialDeVenta()`; 29-09-2026 — **la comisión por venta directa** y `V55` (§12) |
+| Enmendado el | 27-08-2026 — `RN-PM-015`; 02-09-2026 — la membresía de **origen** (`RN-PM-017`, `RN-PM-018`); 07-09-2026 — **el alcance y la implementación** (`RN-PM-019`, `RN-PM-020`), §2.4, y **la renovación** —el origen puede ser el destino (`RN-PM-017`)—, §2.5; 08-09-2026 — **el segundo precio, el público** (`RN-PM-023`) y **`RN-PM-006` relajada**, §2.6; 12-09-2026 — **el segundo precio pasa a ser el de COMPRA** (`RN-PM-023`, `RN-PM-024`), §2.7; 14-09-2026 — **el enlace de un video** (`RN-PM-032`), §2.8 y §4; 14-09-2026 — **el icono obligatorio en el upgrade** (`RN-PM-034`), §2.9; 15-09-2026 — **el alcance pasa a cuatro valores** (`RN-PM-019`), `V92`; 22-09-2026 — **los ENLACES del producto**, `links` en lugar de `videoUrl` (`RN-PM-048`, `RN-PM-049`), §2.10, §3.1 y §4; 28-09-2026 — **el tercer tipo, `DESCARGA`**: `V52__pm_enlace_de_descarga.sql` reescribe `ck_product_links_type` y el comentario de la columna, y `ProductLinkType` gana el valor **sin ser material de venta**; ningún componente más cambia, porque las lecturas filtran por `esMaterialDeVenta()`; 29-09-2026 — **la comisión por venta directa** y `V55` (§12); 03-10-2026 — **un escalón como máximo** (`RN-PM-018` reescrita), sin migración (§13) |
 | Fecha de aprobación | 26-08-2026 |
 
 !!! info "Qué va en este documento"
@@ -327,7 +327,7 @@ Se añade a `LayerRulesTest`: **ninguna clase de `..modules.products..` depende 
 - **`externalId` es opcional, y su relación con `url` es cruzada** (`VAL-023`): con identificador, la dirección **no admite `?` ni `#`**, porque el identificador se pega **como último segmento de ruta** (`RN-PM-049`) y detrás de una cadena de consulta daría un enlace roto **que responde `200`**. Se comprueba en el dominio, con el mismo argumento que `RN-PM-002`: una anotación no puede decir «prohibido si otro campo está informado» sin un validador de clase, y el mensaje que produciría no diría cuál de los dos campos sobra. **El ejemplo de arriba lo enseña a propósito**: el video de YouTube lleva `?v=` y se admite **porque no lleva identificador**; el cupón lleva identificador y su dirección está limpia.
 - **`validityDays` es opcional en los dos tipos.** Ausente o `null` significa lo mismo: el producto no caduca. Se valida en el DTO —entero mayor que cero— porque su regla no depende de ningún otro campo, al revés que el precio.
 - `sourceMembershipId` y `targetMembershipId` son **obligatorios los dos o prohibidos los dos** según `type`, y **la condición se comprueba en el caso de uso y no con validación declarativa**: una anotación de Bean Validation no puede expresar «obligatorio si otro campo vale X» sin un validador de clase, y el mensaje que produce no distingue cuál de las cuatro mitades se incumplió. Con dos campos el mensaje **dice cuál**: `VAL-007` y `VAL-008` viajan con el `field` que falta o que sobra, porque uno que no distinga obliga a probar los dos.
-- **El orden de las comprobaciones importa y está fijado**: moneda → destino → **origen** → unicidad. Que el origen no exista (`EX-002`) y que el origen no esté por debajo del destino (`EX-006`, con `VAL-014`) son dos respuestas distintas, y la segunda no se puede dar sin haber resuelto la primera.
+- **El orden de las comprobaciones importa y está fijado**: moneda → destino → **origen** → unicidad. Que el origen no exista (`EX-002`) y que el origen no esté por debajo del destino (`EX-006`, con `VAL-014`) son dos respuestas distintas, y la segunda no se puede dar sin haber resuelto la primera. **Desde el 03-10-2026, dentro de `EX-006`, el descenso va antes que el salto** (`VAL-014` → `VAL-029`, §13).
 
 - **`scope` e `implementation` son obligatorios y sin valor por omisión**, en los **dos** tipos. Se validan **con anotación** —`@NotNull` sobre el enumerado— y no en el caso de uso, al revés que las membresías: su obligatoriedad **no depende de ningún otro campo**, de modo que no hay nada que un validador de clase pudiera decir que la anotación no diga. Un valor fuera del dominio lo rechaza Jackson al deserializar el enumerado, con `400`.
 - **Ausente y nulo significan lo mismo aquí: falta.** No se admite el valor por omisión ni en el DTO ni en la columna, y la razón es que el defecto **no se vería**: un producto que se guardó con el alcance supuesto se ve exactamente igual que uno declarado, y nadie descubriría nunca que nadie decidió dónde se publica.
@@ -340,7 +340,7 @@ Se añade a `LayerRulesTest`: **ninguna clase de `..modules.products..` depende 
   "type": "UPGRADE_MEMBRESIA",
   "name": "Ascenso a Oro",
   "description": "Acceso a los contenidos de nivel oro.",
-  "sourceMembership": { "id": "018f3a2b-…", "code": "BECA", "name": "Beca", "level": 4 },
+  "sourceMembership": { "id": "018f3a2b-…", "code": "PLATINO", "name": "Platino", "level": 2 },
   "targetMembership": { "id": "018f3a2b-…", "code": "ORO", "name": "Oro", "level": 1 },
   "price": 49.99,
   "purchasePrice": 30.00,
@@ -356,7 +356,7 @@ Se añade a `LayerRulesTest`: **ninguna clase de `..modules.products..` depende 
 }
 ```
 
-- **Las dos membresías llegan resueltas** y no como identificadores sueltos, con los datos que el puerto ya devolvió: resolverlas cuesta cero consultas extra porque la validación ya las trajo. En el ejemplo, `level` 4 → 1 es un **salto de tres escalones**, y es legítimo (`RN-PM-018`).
+- **Las dos membresías llegan resueltas** y no como identificadores sueltos, con los datos que el puerto ya devolvió: resolverlas cuesta cero consultas extra porque la validación ya las trajo. En el ejemplo, `level` 2 → 1 es **un escalón**. **Hasta el 03-10-2026 el ejemplo era `BECA → ORO`**, 4 → 1, y lo presentaba como un salto legítimo; desde esa fecha ese alta se rechaza (`RN-PM-018`, §13), y el ejemplo se corrigió para no enseñar una petición que el sistema no admite.
 - **`sourceMembership` y `targetMembership` viajan como `null` presentes** en los bots, no ausentes: un campo que falta es indistinguible de uno que el cliente no conoce.
 - **El precio se serializa con los decimales de su moneda** y no con la escala de la columna (`CA-PM-082`): `49.99`, no `49.9900`. **Vale para los dos importes, con la misma función y en el mismo sitio** (`ProductPrice`): escrita dos veces, el mismo producto acabaría enseñando sus dos precios con escalas distintas.
 - **`links` viaja presente y vacía** cuando el producto no declara ninguno (`CA-PM-220`, 22-09-2026), y aquí **se aparta a propósito del `null` presente** del resto de esta respuesta: aquella forma existe porque un campo ausente no puede decir «no lo tiene», y una colección vacía **sí** lo dice. Dentro de cada entrada, `externalId` sí viaja como `null` presente, por el motivo de siempre.
@@ -402,7 +402,7 @@ Una sola transacción para el `INSERT` y su evento de auditoría. Las lecturas c
 
 | Alternativa | Por qué se descartó |
 |---|---|
-| **Deducir el origen de la cadena** en lugar de declararlo: el nivel inmediatamente inferior al destino | Es lo que había, escrito de otra forma, y arrastra su defecto: **hace imposible el salto**. Un producto por salto es la razón de la enmienda, no un efecto colateral (`RN-PM-018`) |
+| **Deducir el origen de la cadena** en lugar de declararlo: el nivel inmediatamente inferior al destino | Es lo que había, escrito de otra forma, y arrastra su defecto: **hace imposible el salto**. Un producto por salto es la razón de la enmienda, no un efecto colateral (`RN-PM-018`). **Desde el 03-10-2026 el salto no se admite, y el descarte sigue en pie por otro motivo**: con la renovación cada destino admite **dos** orígenes, y deducir uno haría imposible el otro (§13) |
 | Validar el tipo y el destino con un validador de clase de Bean Validation | Expresa la condición, pero el `400` que produce no distingue si sobró el destino o si faltó, y `VAL-007` y `VAL-008` son dos mensajes distintos |
 | Un endpoint por tipo (`/products/upgrades`, `/products/services`) | Duplicaría el contrato y la mitad del caso de uso para una diferencia de un campo. La spec ya resolvió que es **un** requerimiento |
 | Guardar el precio como `numeric(12,2)` | Fijaría en dos los decimales de toda moneda, cuando `currencies.decimal_places` existe justamente para no asumirlo |
@@ -437,7 +437,7 @@ Una sola transacción para el `INSERT` y su evento de auditoría. Las lecturas c
 | Los once criterios de `spec.md` §12 | API | `MockMvc` con permiso concedido |
 | La condición cruzada de `RN-PM-002` | API | **En los cuatro sentidos**: upgrade sin origen, upgrade sin destino, bot con destino y bot con origen — y el `field` de cada rechazo, porque un mensaje que no distinga obliga a probar los dos |
 | `RN-PM-017` — el origen por debajo del destino | API | Origen **igual** al destino (`400`, lo ve el agregado) y origen **por encima** (`422`, hace falta el `level` de las dos filas). Un descenso vendido como upgrade |
-| `RN-PM-018` — saltar niveles es legítimo | API | `BECA → ORO` con **dos eslabones de por medio**, y la premisa comprobada: sin afirmar que la cadena los tiene, el salto lo sería solo de nombre |
+| ~~`RN-PM-018` — saltar niveles es legítimo~~ | ~~API~~ | **Sustituida el 03-10-2026**: la regla se invirtió, y su prueba es la de §13.4 |
 | El producto nace `INACTIVO` | API | Y enviar `status` devuelve `400`, no se ignora |
 | Código único **incluso contra eliminados** | Integración | Se retira un producto y se intenta reutilizar su código |
 | Traducción por nombre de restricción | Integración | El duplicado produce `409` con el campo correcto, distinguiendo código de nombre |
@@ -471,3 +471,49 @@ Una migración para los dos módulos, porque las dos mitades nacen de la misma d
 ### 12.3 Pruebas
 
 `ProductsIT` gana `CA-PM-402` a `CA-PM-409`; `DirectCommissionTest` cubre la forma y los rangos sin base. **Toda suite que registra productos por la API o por SQL necesita la directa**: las de la API se ajustan en sus cuerpos de ejemplo y las que siembran por SQL no cambian, porque las columnas son nulables. Es el mismo barrido que exigió el alcance el 07-09-2026.
+
+## 13. Un escalón como máximo — enmienda del 03-10-2026
+
+`RN-PM-018` reescrita ([`requirements/pm.md`](../../../requirements/pm.md) v0.49.0 §5.2.17): el destino es el origen o **el inmediatamente superior**. Lo que este requerimiento tiene que hacer es **rechazar el salto en el alta**; lo demás —ocultar los ya registrados, rechazar su venta— es de otras tripletas, y las decisiones y las alternativas de alcance están en aquella sección y no se repiten aquí.
+
+### 13.1 Dónde vive
+
+**En `RegisterProductService.verificarOrigen`, al lado del descenso**, con la misma forma:
+
+```java
+if (origen.level() < destino.level()) {        // VAL-014 — baja
+  ...
+}
+if (origen.level() - destino.level() > 1) {    // VAL-029 — salta
+  throw new UnprocessableEntityException(
+      "EX-006", mensaje, List.of(new FieldError("sourceMembershipId", "VAL-029", mensaje)));
+}
+```
+
+- **Detrás del descenso y no antes**, porque un descenso de dos escalones —`ORO → BECA`— cumple las dos condiciones y lo que tiene de malo es que **baja**. Con el orden al revés respondería «sube demasiado» a algo que no sube (`CA-PM-419`).
+- **`level` numera desde la cima** (§2.3): el origen está más abajo, y por eso es `origen − destino`, no al revés. La resta escrita al revés es negativa en todo escalón legítimo y **nunca dispararía** — el error no falla, admite.
+- **La diferencia de niveles es el número de escalones** porque la cadena no tiene huecos: no se borra ni se desactiva un eslabón (`RN-SP-008`) e insertar uno desplaza los siguientes (`RN-SP-007`). No hace falta recorrer `parent_membership_id`, y `MembershipView` ya trae `level`: **ninguna lectura nueva**.
+- **Mismo `EX-006`, mismo campo, validación nueva.** Son dos maneras de que origen y destino no casen, y el campo que se corrige es el mismo. Un `EX` propio obligaría al cliente a tratar como dos errores lo que en el formulario es uno.
+
+### 13.2 Por qué no en el agregado ni en el esquema
+
+- **No en `Product`**, por lo mismo que el descenso desde `V61` (§2.5): exige el `level` de **dos filas de `memberships`**, que el agregado no conoce ni debe conocer (D-25). El agregado solo sabe comparar identificadores, y eso dejó de decir nada con la renovación.
+- **No en un `CHECK`**: un `CHECK` no consulta otra tabla. **Y aunque pudiera, no bastaría**: la cadena se reordena al insertar una membresía, de modo que una fila válida el día de su alta puede dejar de serlo sin que nadie la toque. Esa es la razón de que la regla viva también en las lecturas de venta y en `MV` —lo deciden sus tripletas— y no solo aquí.
+- **Un trigger** lo comprobaría en el motor, y con el mismo hueco: tampoco se dispararía al reordenar la cadena, que escribe en `memberships` y no en `products`. Se descarta por lo mismo que el `CHECK`, más el coste de que la regla viva en dos lenguajes.
+
+### 13.3 Lo que no cambia
+
+- **Ninguna migración.** Ni columna, ni restricción, ni relleno: los saltos ya registrados **no se tocan** (`pm.md` §5.2.17), y nada en `products` los distingue de los demás.
+- **`RF-PM-004` no cambia**: las dos membresías son inmutables (`RN-PM-001`), de modo que la edición no puede crear un salto. **`RF-PM-005` tampoco**: activar un salto ya registrado sigue siendo posible, y no tiene efecto visible (`pm.md` §5.2.17).
+- **La respuesta y la auditoría no cambian.** El alta que pasa es idéntica a la de ayer; la que no pasa no escribe nada.
+- **El contrato cambia solo en prosa**: la `@Operation` del alta deja de decir que el salto se admite y dice que el destino es el origen o el inmediatamente superior. El esquema no se mueve, y por eso hay que mirarlo a mano (`OpenApiContractIT` no lo nota).
+
+### 13.4 Pruebas
+
+| Qué se prueba | Nivel | Cómo |
+|---|---|---|
+| El escalón se admite | API | `CA-PM-417`: desde `BECA` a la inmediatamente superior, **con la premisa comprobada** —que la cadena las tiene contiguas—, porque sin ella el escalón lo sería solo de nombre |
+| El salto se rechaza | API | `CA-PM-418`: `BECA → ORO`, con `422`, `EX-006`, `VAL-029` sobre `sourceMembershipId`, y **la tabla sin la fila** |
+| El orden de las dos | API | `CA-PM-419`: `ORO → BECA` responde `VAL-014` y no `VAL-029` |
+| La comparación, sin base | Unitaria | `RegisterProductService` con `MembershipCatalog` simulado: diferencia `0` admite, `1` admite, `2` rechaza con `VAL-029`, `-1` rechaza con `VAL-014`, `-2` rechaza con `VAL-014`. Es la prueba que caza la resta escrita al revés |
+| Las suites que registraban saltos | Integración | **Toda suite que da de alta un upgrade de más de un escalón por la API deja de poder hacerlo**. Se buscan y se cambian a escalones; las que siembran por SQL **no fallan** —el alta no las ve— y se dejan, salvo que prueben la venta, que es asunto de `MV` |

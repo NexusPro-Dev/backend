@@ -59,6 +59,7 @@ class HotlinkIT extends IntegrationTestBase {
 
   private UUID oro;
   private UUID free;
+  private UUID suelo;
   private String cop;
 
   @BeforeEach
@@ -68,6 +69,8 @@ class HotlinkIT extends IntegrationTestBase {
     // La cadena encadenada de verdad: `uq_memberships_parent` es UNIQUE NULLS
     // NOT DISTINCT, de modo que solo UNA puede no tener superior.
     free = membresia("HL_FREE", "Free de hotlink", 2, oro);
+    // Un tercer nivel desde el 03-10-2026: con dos no cabe un salto (`RN-PM-018`).
+    suelo = membresia("HL_SUELO", "Suelo de hotlink", 3, free);
     cop = moneda("COP", "Peso colombiano");
 
     persona("vendedora", "Ana", "Ruiz", AGENTE);
@@ -80,6 +83,9 @@ class HotlinkIT extends IntegrationTestBase {
     producto("HL_INACTIVO", "Sin publicar", oro, "AMBOS", "INACTIVO", false);
     producto("HL_RETIRADO", "Retirado", oro, "AMBOS", "ACTIVO", true);
     bot("HL_BOT", "Bot de señales", "AMBOS");
+    // `HL_SUELO → HL_ORO`: dos escalones. Sembrado por la base como uno registrado
+    // antes del 03-10-2026, porque el alta ya no lo admite.
+    upgradeDesde("HL_SALTO", "Salto a Oro", suelo, oro);
   }
 
   @AfterEach
@@ -436,9 +442,10 @@ class HotlinkIT extends IntegrationTestBase {
   }
 
   @Test
-  @DisplayName("`CA-PM-131` a `CA-PM-134` — LOS SEIS CASOS RESPONDEN EL MISMO CUERPO")
+  @DisplayName("`CA-PM-131` a `CA-PM-134`, `CA-PM-424` — LOS SIETE CASOS RESPONDEN EL MISMO CUERPO")
   void elMismoCuerpoEnLosSeisCasos() throws Exception {
-    // ES LA PRUEBA QUE DEFINE EL REQUERIMIENTO. Distinguir estos seis
+    // ES LA PRUEBA QUE DEFINE EL REQUERIMIENTO. Eran seis hasta el 03-10-2026,
+    // cuando el salto se sumó con el mismo cuerpo. Distinguir estos siete
     // convertiría el enlace en un oráculo: bastaría fijar un código bueno e ir
     // variando el usuario para saber quién existe — y, peor, quién es cliente.
     String[][] casos = {
@@ -447,7 +454,8 @@ class HotlinkIT extends IntegrationTestBase {
       {"hl-vendedora", "NO_EXISTE"}, // el código no existe
       {"hl-vendedora", "HL_TIENDA"}, // alcance TIENDA: no se publica
       {"hl-vendedora", "HL_INACTIVO"}, // inactivo
-      {"hl-vendedora", "HL_RETIRADO"} // retirado
+      {"hl-vendedora", "HL_RETIRADO"}, // retirado
+      {"hl-vendedora", "HL_SALTO"} // salta niveles (`CA-PM-424`, 03-10-2026)
     };
 
     List<String> cuerpos = new ArrayList<>();
@@ -465,7 +473,7 @@ class HotlinkIT extends IntegrationTestBase {
     // petición —la ruta y el identificador de correlación—.
     for (String cuerpo : cuerpos) {
       assertThat(normalizar(cuerpo))
-          .as("los seis rechazos deben ser indistinguibles")
+          .as("los siete rechazos deben ser indistinguibles")
           .isEqualTo(normalizar(cuerpos.get(0)));
     }
   }
@@ -484,6 +492,27 @@ class HotlinkIT extends IntegrationTestBase {
         .replaceAll("\"path\"\s*:\s*\"[^\"]*\"", "\"path\":\"?\"")
         .replaceAll("\"correlationId\"\s*:\s*\"[^\"]*\"", "\"correlationId\":\"?\"")
         .replaceAll("\"timestamp\"\s*:\s*\"[^\"]*\"", "\"timestamp\":\"?\"");
+  }
+
+  @Test
+  @DisplayName(
+      "`CA-PM-424` — el salto responde `404`; la renovación y el escalón resuelven con el mismo"
+          + " vendedor")
+  void elSaltoNoResuelveYElEscalonSi() throws Exception {
+    upgradeDesde("HL_RENOVAR", "Renovar el suelo", suelo, suelo);
+    upgradeDesde("HL_ESCALON", "Ascenso a Free", suelo, free);
+
+    mvc.perform(get("/api/v1/hotlinks/{u}/{c}", "hl-vendedora", "HL_RENOVAR"))
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$.product.membership.code").value("HL_SUELO"));
+    mvc.perform(get("/api/v1/hotlinks/{u}/{c}", "hl-vendedora", "HL_ESCALON"))
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$.seller.firstName").value("Ana"))
+        .andExpect(jsonPath("$.product.membership.code").value("HL_FREE"));
+    // Activo, de alcance AMBOS y del mismo vendedor: lo único que lo deja fuera
+    // es el salto, y es del producto — el enlace no mira a quien lo abre.
+    mvc.perform(get("/api/v1/hotlinks/{u}/{c}", "hl-vendedora", "HL_SALTO"))
+        .andExpect(status().isNotFound());
   }
 
   @Test
@@ -649,6 +678,21 @@ class HotlinkIT extends IntegrationTestBase {
         moneda,
         estado,
         retirado ? "2026-09-01T00:00:00Z" : null);
+  }
+
+  /** Un upgrade activo de alcance `AMBOS` con el origen explícito (`RN-PM-018`). */
+  private void upgradeDesde(String codigo, String nombre, UUID origen, UUID destino) {
+    jdbc.update(
+        "INSERT INTO products (scope, implementation, id, code, type, name, source_membership_id,"
+            + " target_membership_id, price, currency_id, status)"
+            + " VALUES ('AMBOS', 'MANUAL', CAST(? AS uuid), ?, 'UPGRADE_MEMBRESIA', ?,"
+            + " CAST(? AS uuid), CAST(? AS uuid), 49.99, CAST(? AS uuid), 'ACTIVO')",
+        UUID.randomUUID().toString(),
+        codigo,
+        nombre,
+        origen.toString(),
+        destino.toString(),
+        USD);
   }
 
   private void tasa(

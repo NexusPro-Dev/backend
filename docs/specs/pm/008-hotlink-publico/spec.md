@@ -17,6 +17,7 @@
 | Enmendada el | 22-09-2026 — **`links` sustituye a `videoUrl`, resueltos y sin el `CUPON_BOT`** (`RN-PM-048` a `RN-PM-050`). **Es la lectura donde publicar el cupón sería más grave**: sin token y por un enlace que se reparte a propósito. Ver §15 |
 | Enmendada el | 14-09-2026 — **el producto del hotlink trae `coverImageUrl`, sin token** (`RN-PM-033`, `RF-PM-014`), y la imagen que señala **tampoco exige token** (`RF-PM-016`). Ver §15 |
 | Enmendada el | 15-09-2026 — **publica `HOTLINK` y `AMBOS`** (`RN-PM-021` con el alcance de cuatro valores); `TIENDA` y `NINGUNO` reciben el `404` uniforme. Ver §15 |
+| Enmendada el | 03-10-2026 — **un upgrade que salta niveles recibe el `404` uniforme** (`RN-PM-018` reescrita, `RN-PM-021` enmendada, [`requirements/pm.md`](../../../requirements/pm.md) v0.49.0 §5.2.17): los casos que no proceden pasan de seis a siete. Nace `CA-PM-424`. Ver §15 |
 
 ---
 
@@ -45,7 +46,7 @@ Que **un enlace repartido por un vendedor abra una pantalla**: qué se vende, cu
 - Resolver **un nombre de usuario y un código de producto** en una sola llamada.
 - Devolver del vendedor **nombre y apellido**, y nada más.
 - Devolver el producto con su **precio en su moneda** y con la **conversión a la moneda por omisión**, usando la tasa vigente hoy.
-- Responder **`404` uniforme** a los seis casos que no proceden.
+- Responder **`404` uniforme** a los siete casos que no proceden (seis hasta el 03-10-2026).
 
 ### 4.2 No incluye
 
@@ -61,7 +62,8 @@ Que **un enlace repartido por un vendedor abra una pantalla**: qué se vende, cu
 |---|---|---|
 | `RN-PM-009` | Solo se ofrece lo activo | `requirements/pm.md` §5.1 |
 | `RN-PM-019` | El alcance dice hasta dónde se muestra, y es acumulativo | `requirements/pm.md` §5.1 |
-| `RN-PM-021` | **El hotlink solo publica lo activo y de alcance `HOTLINK` o `AMBOS`** (`HOTLINKS` hasta el 15-09-2026) | `requirements/pm.md` §5.1 |
+| `RN-PM-021` | **El hotlink solo publica lo activo y de alcance `HOTLINK` o `AMBOS`** (`HOTLINKS` hasta el 15-09-2026) — **y desde el 03-10-2026, ningún upgrade que salte niveles** | `requirements/pm.md` §5.1 |
+| `RN-PM-018` | **(Desde el 03-10-2026)** Un upgrade sube un escalón como máximo — aquí, que el salto **no se publica**: el hotlink no mira el nivel **de quien abre el enlace**, pero el salto es del producto. Se compara en cada consulta con los niveles de hoy (`pm.md` §5.2.17) | `requirements/pm.md` §5.1 |
 | `RN-PM-022` | **De la persona solo el nombre, y solo si es fuerza comercial** | `requirements/pm.md` §5.1 |
 | `RN-PM-024` | **El precio de compra no sale de administración; el precio y la conversión salen en toda lectura** (reescrita el 12-09-2026) — y aquí pesa más que en ninguna otra, porque es **sin token** | `requirements/pm.md` §5.1 |
 | `RN-PM-032` | **Un producto puede enlazar un video, y el enlace sale en toda lectura** — también aquí, **sin token**: es material de venta, no un costo, y lo que se acepta al publicarlo está en `pm.md` §5.2.8. **Dentro de `links` desde el 22-09-2026** | `requirements/pm.md` §5.1 |
@@ -136,7 +138,7 @@ Que **un enlace repartido por un vendedor abra una pantalla**: qué se vende, cu
 
 1. Llega una petición con el nombre de usuario y el código.
 2. El sistema resuelve **el vendedor** por la lectura que `SP` publica. Si esa lectura devuelve vacío —no existe, o existe y no es fuerza comercial—, la respuesta es `404`.
-3. El sistema resuelve **el producto** por su código, exigiendo **activo, no retirado y de alcance `HOTLINK` o `AMBOS`**. Si no lo encuentra, `404`.
+3. El sistema resuelve **el producto** por su código, exigiendo **activo, no retirado y de alcance `HOTLINK` o `AMBOS`** y, **desde el 03-10-2026, si es un upgrade, que suba un escalón como máximo** —su origen es el mismo nivel que el destino o el inmediatamente inferior (`RN-PM-018`)—. Si no lo encuentra, `404`.
 4. El sistema pide a `SP` **la tasa vigente hoy** desde la moneda del producto hasta la moneda por omisión.
 5. El sistema devuelve el vendedor, el producto y la conversión —si la hubo—.
 
@@ -162,8 +164,8 @@ Que **un enlace repartido por un vendedor abra una pantalla**: qué se vende, cu
 
 ### EX-001 — El enlace no lleva a ninguna parte
 
-**Condición:** cualquiera de estos seis casos —nombre de usuario inexistente, persona que no es fuerza comercial, código inexistente, producto inactivo, producto retirado, producto de alcance `TIENDA`—.
-**Respuesta del sistema:** `404` con **el mismo cuerpo** en los seis. **No dice cuál falló.**
+**Condición:** cualquiera de estos siete casos —nombre de usuario inexistente, persona que no es fuerza comercial, código inexistente, producto inactivo, producto retirado, producto de alcance `TIENDA` (o `NINGUNO`) y, **desde el 03-10-2026, upgrade que salta niveles** (`RN-PM-018`)—.
+**Respuesta del sistema:** `404` con **el mismo cuerpo** en los siete. **No dice cuál falló.** El séptimo no tiene nada de oráculo —el salto es del producto, no de una persona—, y aun así responde lo mismo: un motivo distinto solo para él enseñaría al que abre el enlace algo que la pantalla no le sabría explicar, y añadiría una rama al contrato público sin que nadie la necesite.
 
 !!! danger "Por qué los seis responden lo mismo"
 
@@ -208,6 +210,7 @@ Que **un enlace repartido por un vendedor abra una pantalla**: qué se vende, cu
 | `CA-PM-397` | El enlace llega **resuelto**, sin token: con identificador, **pegado al final**; con dirección terminada en `/`, **sin duplicar la barra**; sin identificador, **tal cual** |
 | `CA-PM-238` | La respuesta lleva **`coverImageUrl`** sin token, con la forma `/api/v1/product-images/{uuid}` cuando hay portada y **presente y nulo** cuando no; la dirección **responde `200` sin token** en `RF-PM-016`; y la respuesta sigue sin llevar `purchasePrice` |
 | `CA-PM-352` | El sistema resuelve el enlace de un producto `HOTLINK` y de uno `AMBOS`, y responde el **mismo `404`** para uno `TIENDA` y para uno `NINGUNO`, activos los cuatro |
+| `CA-PM-424` | El sistema responde el **mismo `404`** a un upgrade activo de alcance `HOTLINK` que **salta niveles** —registrado antes del 03-10-2026—, y resuelve el enlace de una **renovación** y de un **escalón** con el mismo vendedor (`RN-PM-018`) |
 | ~~`CA-PM-169`~~ | ~~El sistema publica los dos importes **sin token**~~ — **retirado el 12-09-2026**: su prueba **se invierte de vuelta** y es la de `CA-PM-163`. Se conserva la fila para que quede escrito que se invirtió dos veces, y por qué |
 
 ## 13. Casos límite
@@ -217,6 +220,7 @@ Que **un enlace repartido por un vendedor abra una pantalla**: qué se vende, cu
 | El vendedor **deja de serlo** después de repartir sus enlaces | Los enlaces **dejan de funcionar**, y devuelven el mismo `404` que uno inventado. Es correcto: `RN-PM-022` publica a la fuerza comercial **de hoy**, no a la de cuando se generó el enlace. Que un enlace caduque por eso es una consecuencia aceptada y no un defecto |
 | Dos personas con nombre y apellido iguales | El enlace las distingue por **nombre de usuario**, que es único. Que la pantalla enseñe dos veces «Ana Ruiz» no es problema de este endpoint |
 | El producto **cambia de alcance** a `TIENDA` | El enlace deja de funcionar. Es exactamente lo que `RN-PM-019` existe para permitir: retirar algo de un canal sin retirarlo del catálogo |
+| **Se inserta una membresía** entre el origen y el destino de un upgrade enlazado (`RN-SP-007`) | El enlace **deja de funcionar** y responde `404`, sin que nadie haya tocado el producto: el escalón pasa a ser un salto, y los niveles se comparan **los de hoy** (`requirements/pm.md` §5.2.17). Es la misma clase de caso que el vendedor que deja de serlo |
 | El producto **gana o pierde su precio de compra** entre dos visitas | La respuesta **no cambia en nada**. Es la prueba de que el campo no se selecciona: un cambio en el costo no puede notarse desde un enlace público |
 | El precio de compra está **por encima** de `price` | Se publica `price`, y nada avisa. El endpoint no conoce el costo: vender por debajo de él es una decisión de quien pone los precios (`requirements/pm.md` §5.2.6) |
 | La tasa cambia entre dos visitas | La segunda visita muestra otro importe. **Es correcto y hay que decirlo en la pantalla**: la conversión es informativa y no reserva nada (§6.2) |
@@ -249,3 +253,4 @@ Que **un enlace repartido por un vendedor abra una pantalla**: qué se vende, cu
 | 0.8.0 | 14-09-2026 | **El producto del hotlink trae `coverImageUrl`, sin token** (`RN-PM-033`, [`requirements/pm.md`](../../../requirements/pm.md) v0.29.0 §5.2.9): la dirección de la portada, presente y nula cuando no hay. Es la única lectura del módulo en la que **la dirección y la imagen se sirven las dos sin credencial**, y es a propósito: la pantalla del hotlink no tiene con qué autenticarse y un `<img>` no lleva token. **La dirección señala una imagen y no un producto**: no cambia al reemplazar la portada, y por eso se cachea un año. `CA-PM-238`. Enmienda que construye `RF-PM-014` (Art. I.7). | Responsable del proyecto |
 | 0.10.0 | 15-09-2026 | **Publica `HOTLINK` y `AMBOS`** (`RN-PM-021`, con el alcance de cuatro valores de [`requirements/pm.md`](../../../requirements/pm.md) v0.35.0 §5.2.11). Lo que cambia es la letra del predicado —`scope IN ('HOTLINK','AMBOS')` donde decía `= 'HOTLINKS'`— y lo que gana el canal: un producto puede estar **solo** aquí. `TIENDA` y `NINGUNO` entran en el `404` uniforme. `CA-PM-352`. | Responsable del proyecto |
 | 0.8.0 | 22-09-2026 | **`links` sustituye a `videoUrl`: resueltos, sin token y sin el `CUPON_BOT`** (`RN-PM-048` a `RN-PM-050`, [`requirements/pm.md`](../../../requirements/pm.md) v0.43.0 §5.2.14). Hereda de `RF-PM-007` lo que aquella decidió —el tipo en el predicado, el enlace resuelto, la ausencia en la proyección— y **lo que es propio de esta ficha es el peso**: es la lectura **pública**, la que se abre por un enlace que un vendedor reparte a propósito. Un `CUPON_BOT` publicado aquí lo tendría **cualquiera, sin token, sin compra y sin que ninguna traza lo señalara** — el `200` sería idéntico al bueno, que es exactamente la forma de fallo que `RN-PM-050` describe: no falla, publica. Por eso el tipo se filtra **en la base** y `ProductRef` **no tiene dónde ponerlo**: dos defensas, y la segunda sobrevive a que alguien reescriba la consulta. El video sigue saliendo, tal cual se escribió y **ahora resuelto** (`RN-PM-049`), con lo que `pm.md` §5.2.8 ya aceptó de publicar sin token una dirección que alguien con `products:update` escribió. `CA-PM-229` se **reescribe** y nacen **`CA-PM-396`** y **`CA-PM-397`**. Enmienda de Art. I.7. | Responsable del proyecto |
+| 0.11.0 | 03-10-2026 | **Un upgrade que salta niveles recibe el `404` uniforme** (`RN-PM-018` reescrita y `RN-PM-021` enmendada, [`requirements/pm.md`](../../../requirements/pm.md) v0.49.0 §5.2.17), por decisión del responsable del proyecto: la regla vale **en todos los canales**, y el hotlink, que no mira el nivel de quien abre el enlace, sí mira el del producto. Los casos que no proceden pasan **de seis a siete**, todos con el mismo cuerpo. Nace `CA-PM-424` y un caso límite: la inserción de una membresía rompe el enlace de un escalón | Responsable del proyecto |

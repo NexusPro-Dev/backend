@@ -60,9 +60,10 @@ public interface ProductQueryRepository {
    * `CA-PM-078` y `CA-PM-079`: primero los upgrades por nivel de destino, después los bots por
    * fecha de alta. Quien la consume solo tiene que separar por tipo, sin reordenar.
    *
-   * <p><b>Que no se ofrezcan bajadas ya no lo sostiene esta consulta</b>, y conviene saberlo: lo
-   * sostiene `RN-PM-017` al <b>registrar</b>. Un producto declarado desde mi membresía no puede
-   * apuntar por debajo, porque no habría podido darse de alta.
+   * <p><b>Desde el 03-10-2026 solo trae los upgrades que suben un escalón como máximo</b>
+   * (`RN-PM-018`): la renovación y el inmediatamente superior, con los niveles de hoy. Los saltos
+   * registrados antes, o los que lo son porque se insertó una membresía en medio, no se ofrecen. La
+   * misma condición cierra las bajadas, que ya impedía `RN-PM-017` al registrar.
    *
    * <p><b>No selecciona el precio de compra</b> (`RN-PM-024`): es el costo de NEXUS, y por esta
    * lectura solo viaja {@code price}, el que se cobra. {@code purchasePrice} llega <b>nulo a

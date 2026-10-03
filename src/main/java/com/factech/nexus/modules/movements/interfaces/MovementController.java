@@ -615,7 +615,8 @@ public class MovementController {
         description =
             "Lo que solo se sabe después de resolver: la cuenta no puede operar todavía, un"
                 + " producto no está en su oferta, el"
-                + " upgrade BAJA de nivel —renovar el mismo sí se admite—, hay dos upgrades, las"
+                + " upgrade BAJA de nivel o SALTA más de un escalón —renovar el mismo y subir uno sí"
+                + " se admite—, hay dos upgrades, las"
                 + " monedas difieren, el método"
                 + " de pago está desactivado, o se paga con puntos a nombre de otra persona o sin"
                 + " puntos suficientes.",
@@ -684,9 +685,10 @@ public class MovementController {
           que usted hizo y que este listado ya no le muestra. Es deliberado: sin eso, un
           vendedor no tendría ninguna forma de ver el detalle de lo que vendió.
 
-          **Las líneas no viajan aquí.** Una venta puede llevar varias, y meterlas
-          multiplicaría la respuesta por un dato que solo se mira al abrir uno: están en el
-          detalle.
+          **Cada fila trae sus líneas (`lines`) desde el 03-10-2026**, con **la misma forma
+          que el detalle**: producto, cantidad, precio, vigencia, descuento, vendedor y
+          entrega. Así la pantalla pinta qué se compró sin abrir cada compra. La lista nunca
+          es nula. **Los pagos no viajan aquí**: siguen en el detalle.
 
           **`sellers` es una lista, sin repetir y nunca nula**: el vendedor es de cada línea y
           una venta podría llevar varios. Hoy lleva uno. Va **vacía** en los movimientos que

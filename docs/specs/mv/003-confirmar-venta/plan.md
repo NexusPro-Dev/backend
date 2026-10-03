@@ -5,12 +5,12 @@
 | Requerimiento | `RF-MV-003` |
 | Especificación | [`spec.md`](spec.md) v0.1.0 |
 | `spec.md` aprobada el | 17-09-2026 |
-| Versión | 0.3.0 |
+| Versión | 0.4.0 |
 | Estado | **Aprobado** |
 | Autor | Responsable técnico |
 | Aprobado por | Responsable del proyecto |
 | Fecha de aprobación | 17-09-2026 |
-| Enmendado el | 01-10-2026 — la tarjeta por Stripe (§12) |
+| Enmendado el | 01-10-2026 — la tarjeta por Stripe (§12) · 03-10-2026 — al confirmar no se repite el escalón (§14) |
 
 !!! warning "Enmendado el 23-09-2026 — confirmar escribe lo que la persona TIENE, y no solo su nivel"
 
@@ -230,3 +230,7 @@ Por [`requirements/mv.md`](../../../requirements/mv.md) v0.64.0 §4.6 y `spec.md
 ## 13. Sin ruta propia — enmienda del 01-10-2026
 
 Por [`requirements/mv.md`](../../../requirements/mv.md) v0.67.0 §4.8 y `spec.md` §14.3. **La ruta se retira** y el método público del servicio con ella; nace un método **de paquete** que `PaymentResolutionService` invoca con el movimiento ya bloqueado (`RF-MV-044` · `plan.md` §1). La transición, la entrega, la auditoría y el evento a `CM` **no cambian**. El permiso lo retira o lo traslada `V63` (`RF-MV-044` · `plan.md` §2). **Contrato**: la ruta desaparece de OpenAPI.
+
+## 14. Al confirmar no se repite el escalón — enmienda del 03-10-2026
+
+Por `spec.md` §14.4. **Sin cambio de código ni de prueba.** La entrega sigue comparando niveles **solo para el descenso** (`RN-MV-029`), y no gana la comparación del escalón que `SaleRules.verificarQueSube` hace al registrar ([`RF-MV-001`](../001-registrar-venta/tasks.md), enmienda del 03-10-2026). Se escribe aquí para que la ausencia sea **una decisión y no un olvido**: quien lea las dos comprobaciones de nivel —la del registro y la de la entrega— y vea que miden cosas distintas tiene que encontrar el motivo, y el motivo es que la segunda solo protege de quitar. Las tareas no cambian.

@@ -5,7 +5,7 @@
 | Requerimiento | `RF-MV-013` |
 | Especificación | [`spec.md`](spec.md) |
 | `spec.md` aprobada el | 16-09-2026 |
-| Versión | 0.1.0 |
+| Versión | 0.2.0 |
 | Estado | **Aprobado** |
 | Autor | Responsable técnico |
 | Aprobado por | Responsable del proyecto |
@@ -71,7 +71,7 @@
 |---|---|
 | `401` | Sin autenticar. **Es la diferencia con el hotlink que lo publica**, que es público: verlo no exige cuenta, comprarlo sí |
 | `404` | Todo lo que no procede del enlace o del catálogo: no existe, no se publica por hotlink, no se ofrece hoy, no le corresponde (`spec.md` §4.1) |
-| `409` | Lo que es de la operación del propio actor: producto caído, upgrade que baja, cuenta que no opera, método que no cuadra, **y la autocompra** (`EX-009`) |
+| `409` | Lo que es de la operación del propio actor: producto caído, upgrade que baja o salta, cuenta que no opera, método que no cuadra, **y la autocompra** (`EX-009`) |
 | `422` | El método de pago que no resuelve |
 
 **`EX-009` es `409` y no `404`**, aunque venga por el camino del enlace: quien se compra a sí mismo **sabe que el enlace existe** —es suyo—, de modo que el `404` no protegería nada y solo escondería el motivo.
@@ -145,3 +145,7 @@ La de `RF-MV-012` —la venta con su paquete y sus líneas—, **y la del víncu
 | Que la venta es indistinguible de la de `RF-MV-012` | Integración | `CA-MV-066`, comparando las dos ventas registradas |
 
 **No se repiten las pruebas del paquete** —el precio, las rebajas, el rechazo por producto caído, la vigencia—: las cubre `RF-MV-012` sobre el mismo código. Lo que aquí se prueba es **lo que esta puerta añade**.
+
+## 12. El upgrade sube un escalón — enmienda del 03-10-2026
+
+Por `spec.md` §14.2. **Ningún componente nuevo**: la compra por enlace delega en `BuyPackageService` (§3.1), que ya pasa por `SaleRules.verificarQueSube` —enmendada en [`RF-MV-001`](../001-registrar-venta/tasks.md)—, y el hotlink deja de publicar el salto por `RN-PM-021`, que es de `PM` ([`RF-PM-026`](../../pm/026-hotlink-paquete/tasks.md)). Se gana **una prueba**, `CA-MV-541`, en `T-05`: la única forma de saber que la puerta del enlace no se salta la comprobación es comprar por ella. Como en `RF-MV-012`, la prueba exige **que no se venda** y no cuál de los dos rechazos sale.

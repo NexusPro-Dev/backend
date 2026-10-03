@@ -1,8 +1,10 @@
 package com.factech.nexus.modules.movements.interfaces;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.hamcrest.Matchers.anyOf;
 import static org.hamcrest.Matchers.containsString;
 import static org.hamcrest.Matchers.hasSize;
+import static org.hamcrest.Matchers.is;
 import static org.hamcrest.Matchers.matchesPattern;
 import static org.hamcrest.Matchers.not;
 import static org.hamcrest.Matchers.nullValue;
@@ -466,14 +468,41 @@ class BuyPackageIT extends IntegrationTestBase {
   @DisplayName(
       "CA-MV-057: el upgrade del paquete que BAJA de nivel se rechaza, y el que renueva el mismo se admite")
   void elUpgradeNoBaja() throws Exception {
-    // PAQ_BAJA sale de PLATINO y lleva a BECA. La oferta se lo ofrece —coincide
-    // por ORIGEN— y es la regla de `MV` la que lo para (`RN-MV-006`).
-    assertThat(rechazo(comprador, paqBaja, "EX-005")).contains("UP_PLATINO_BECA");
-    assertThat(jdbc.queryForObject("SELECT count(*) FROM movements", Integer.class)).isZero();
+    // PAQ_BAJA sale de PLATINO y lleva a BECA. Hasta el 03-10-2026 la oferta se
+    // lo ofrecía —coincide por ORIGEN— y la regla de `MV` lo paraba con
+    // `EX-005`. Desde `RN-PM-018` la oferta exige `s.level - m.level BETWEEN 0
+    // AND 1`, cuya mitad inferior cierra también el descenso, y lo frena antes
+    // con `EX-004`. Lo que el criterio exige es el RECHAZO y que no quede nada
+    // escrito (`spec.md` §14.3), no qué capa lo dice primero.
+    rechazoSinVenta(comprador, paqBaja);
 
     comprar(comprador, paqRenueva, TARJETA)
         .andExpect(status().isCreated())
         .andExpect(jsonPath("$.lines[0].productCode").value("UP_PLATINO_PLATINO"));
+  }
+
+  @Test
+  @DisplayName(
+      "`CA-MV-540`: el paquete cuyo upgrade SALTA niveles se rechaza sin escribir nada, y el de un escalón se admite")
+  void elUpgradeDelPaqueteNoSalta() throws Exception {
+    // Sembrados por la base: el alta ya no admite un salto (`RN-PM-018`).
+    // BECA(3) → ORO(1) son dos escalones; BECA(3) → PLATINO(2), uno.
+    UUID upBecaOro = upgrade("UP_BECA_ORO", "90.00", 30, beca, oro);
+    UUID upBecaPlatino = upgrade("UP_BECA_PLATINO", "30.00", 30, beca, platino);
+    UUID paqSalta = paquete("PAQ_SALTA", "Salta con bot.", "ACTIVO", "TIENDA");
+    asociar(paqSalta, upBecaOro, "FIJO", "0");
+    asociar(paqSalta, botA, "FIJO", "0");
+    UUID paqEscalon = paquete("PAQ_ESCALON", "Escalón con bot.", "ACTIVO", "TIENDA");
+    asociar(paqEscalon, upBecaPlatino, "FIJO", "0");
+    asociar(paqEscalon, botA, "FIJO", "0");
+    UUID enBeca = persona("paq-beca", beca);
+    colgarDe(enBeca, vendedor);
+
+    rechazoSinVenta(enBeca, paqSalta);
+
+    comprar(enBeca, paqEscalon, TARJETA)
+        .andExpect(status().isCreated())
+        .andExpect(jsonPath("$.lines[0].productCode").value("UP_BECA_PLATINO"));
   }
 
   @Test
@@ -707,6 +736,28 @@ class BuyPackageIT extends IntegrationTestBase {
             .getResponse()
             .getContentAsString();
     return JsonPath.read(cuerpo, "$.errors[0].message");
+  }
+
+  /**
+   * Un rechazo de nivel sin escribir nada: `409` y ni venta, ni pago, ni auditoría de `MV`.
+   *
+   * <p><b>Acepta `EX-002`, `EX-004` o `EX-005`</b> a propósito (03-10-2026): un paquete cuyo
+   * upgrade salta deja de ser ofrecible y lo frena `EX-002` con el motivo de `PackageOfferability`;
+   * uno que baja ya no está en la oferta del comprador y lo frena `EX-004`; `EX-005` es la red de
+   * `SaleRules` por si las dos lo dejaran pasar. El criterio pide el rechazo, no la capa que lo
+   * emite.
+   */
+  private void rechazoSinVenta(UUID quien, UUID paquete) throws Exception {
+    comprar(quien, paquete, TARJETA)
+        .andExpect(status().isConflict())
+        .andExpect(
+            jsonPath("$.errors[0].code").value(anyOf(is("EX-002"), is("EX-004"), is("EX-005"))));
+    assertThat(jdbc.queryForObject("SELECT count(*) FROM movements", Integer.class)).isZero();
+    assertThat(jdbc.queryForObject("SELECT count(*) FROM payments", Integer.class)).isZero();
+    assertThat(
+            jdbc.queryForObject(
+                "SELECT count(*) FROM audit_change_log WHERE module = 'MV'", Integer.class))
+        .isZero();
   }
 
   /** Sin ninguna autoridad, a propósito: es una compra propia (`CA-MV-049`). */

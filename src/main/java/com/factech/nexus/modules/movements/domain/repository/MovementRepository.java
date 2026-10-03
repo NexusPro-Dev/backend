@@ -326,6 +326,17 @@ public interface MovementRepository {
   List<MovementSellerRow> findSellersOf(Collection<UUID> movementIds);
 
   /**
+   * Las líneas de varios movimientos, con sus rebajas, en <b>dos</b> sentencias sean cuantos sean:
+   * una para las líneas y otra para las rebajas (`RF-MV-008` · `plan.md` §4.1, 03-10-2026).
+   *
+   * <p>La usa «mis compras» con la página entera y el detalle con un solo movimiento, de modo que
+   * la proyección de la línea se escribe una vez. Es aparte de la sentencia paginada por lo mismo
+   * que {@link #findSellersOf}: un {@code JOIN} con las líneas multiplicaría las filas y el {@code
+   * LIMIT} contaría líneas en vez de movimientos. Un movimiento sin líneas no tiene entrada.
+   */
+  Map<UUID, List<MovementLineRow>> findLinesOf(Collection<UUID> movementIds);
+
+  /**
    * El detalle de un movimiento propio, con sus líneas.
    *
    * <p><b>Devuelve vacío tanto si no existe como si es ajeno</b> (`EX-002`): quien llama no puede

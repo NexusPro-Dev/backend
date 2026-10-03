@@ -4,11 +4,12 @@
 |---|---|
 | Requerimiento | `RF-MV-001` |
 | Módulo | `MV` — Movimientos |
-| Versión | 0.7.0 |
+| Versión | 0.8.0 |
 | Estado | **Aprobada** |
 | Autor | Responsable técnico |
 | Aprobada por | Responsable del proyecto |
 | Fecha de aprobación | 02-09-2026 |
+| Enmendada el | 03-10-2026 — **un upgrade sube un escalón como máximo**: `EX-005` rechaza también el **salto** sobre la membresía vigente de quien compra (`RN-MV-006`). Ver §15 |
 | Enmendada el | 16-09-2026 — **el vendedor es de cada línea y en una venta siempre lo hay; la cabecera lleva un sujeto** (`RN-MV-003`, `RN-MV-026`); y **el descuento es de la línea, y la línea recuerda su paquete** (`RN-MV-027`). Ver §15 |
 
 !!! info "Qué va en este documento"
@@ -93,7 +94,7 @@ Es el **primer requerimiento del módulo** y el que pone en el sistema el objeto
 | `RN-MV-002` | Se copia lo que puede cambiar | `requirements/mv.md` §5.1 |
 | `RN-MV-003` | El vendedor **es de la línea**, sale de quien compra y se congela; en una venta **siempre lo hay** | `requirements/mv.md` §5.1 |
 | `RN-MV-004` | Solo una venta confirmada produce efectos | `requirements/mv.md` §5.1 |
-| `RN-MV-006` | **No se baja de nivel**; renovar el mismo se admite | `requirements/mv.md` §5.1 |
+| `RN-MV-006` | **No se baja de nivel ni se salta**: se renueva el mismo o se sube un escalón | `requirements/mv.md` §5.1 |
 | `RN-MV-007` | El producto tiene que estar en la oferta de quien compra | `requirements/mv.md` §5.1 |
 | `RN-MV-008` | A una cuenta en `FTD_PENDIENTE` no se le vende | `requirements/mv.md` §5.1 |
 | `RN-MV-009` | Una venta lleva al menos una línea | `requirements/mv.md` §5.1 |
@@ -197,7 +198,7 @@ Es el **primer requerimiento del módulo** y el que pone en el sistema el objeto
 **Cuándo ocurre:** una de las líneas cambia de nivel y las demás no.
 
 1. Se registra con normalidad. `RN-MV-010` permite **uno** y este es uno.
-2. La comprobación de nivel se hace **solo sobre esa línea**.
+2. La comprobación de nivel se hace **solo sobre esa línea**: que no baje y, desde el 03-10-2026, que no salte (`EX-005`).
 3. Al confirmarse, esa línea será la que conceda el nivel, y las demás no harán nada.
 
 ### FA-003 — El precio del producto cambia después de registrada la venta
@@ -250,14 +251,22 @@ Es el **primer requerimiento del módulo** y el que pone en el sistema el objeto
 **Condición:** el producto existe pero no es de los que esa persona puede comprar — está retirado, inactivo, o no le corresponde por su nivel.
 **Respuesta del sistema:** rechaza la venta **nombrando el producto**, y no registra ninguna línea.
 
-### EX-005 — El upgrade BAJA de nivel
+### EX-005 — El upgrade BAJA de nivel o lo SALTA
 
-**Condición:** el producto lleva a una membresía **inferior** a la que el cliente ya tiene.
-**Respuesta del sistema:** rechaza la venta diciendo que esa membresía está por debajo de la actual. Se rechaza **al registrar y no al confirmar**, que es lo único que evita cobrarle a alguien por algo que le **quita** (`RN-MV-006`).
+**Condición:** el producto lleva a una membresía **inferior** a la que el cliente ya tiene o —desde el 03-10-2026— a una **superior que no es la inmediatamente siguiente**: entre la vigente y la comprada queda al menos un nivel, es decir, el `level` vigente menos el comprado vale más de uno.
+**Respuesta del sistema:** rechaza la venta, con el error atado a `lines`, y el mensaje dice **cuál de las dos cosas** ocurre: que esa membresía está por debajo de la actual, o que salta niveles y solo se puede subir a la siguiente. **El código es el mismo en los dos casos**: los dos son `RN-MV-006` y quien consume la respuesta reacciona igual —no se vende—. Se rechaza **al registrar y no al confirmar**, que es lo único que evita cobrarle a alguien por algo que le **quita** o que no le corresponde (`RN-MV-006`). **No queda venta, ni línea, ni pago.**
 
 !!! info "La membresía IGUAL dejó de ser una excepción el 07-09-2026"
 
     Esta excepción rechazaba «igual o inferior». La mitad de «igual» **no protegía a nadie**: impedía **renovar**, que es pagar por tiempo sobre el nivel que ya se tiene, y `PM` lo admite desde hoy (`requirements/pm.md` §5.2.3). Lo que se queda es lo que importa — **una venta no baja a nadie de nivel**.
+
+!!! warning "El salto dejó de admitirse el 03-10-2026"
+
+    Por decisión del responsable del proyecto ([`requirements/mv.md`](../../../requirements/mv.md) v0.72.0; [`requirements/pm.md`](../../../requirements/pm.md) §5.2.17), un upgrade **sube un escalón como máximo**. La comparación es **contra la membresía vigente de quien compra**, y no contra el origen del producto: por la tienda los dos coinciden —la oferta casa por origen—, pero por el hotlink no (`RF-MV-011`), y es ahí donde esta mitad se alcanza de verdad.
+
+    **Por esta entrada, hoy, un salto no llega a `EX-005`**: `PM` deja de ofrecer los saltos que se registraron antes (`RN-PM-018`), y el rechazo que se ve es `EX-004`. Se comprueba aquí igualmente, por el motivo del aviso de `plan.md` §3.2: la oferta es de `PM`; que una venta no salte niveles es de `MV`.
+
+    **Sin membresía vigente no se rechaza nada**, como hasta ahora: no hay nivel del que partir, y `RN-SP-018` declara que ese estado no existe para nadie. **Y al confirmar no se repite** la comprobación del escalón: `RN-MV-029` sigue mirando solo el descenso.
 
 ### EX-006 — Dos upgrades en la misma venta
 
@@ -321,6 +330,8 @@ Es el **primer requerimiento del módulo** y el que pone en el sistema el objeto
 | `CA-MV-010` | El sistema rechaza un producto **fuera de la oferta** del cliente, nombrándolo, y lo distingue de un producto inexistente |
 | `CA-MV-011` | El sistema rechaza un upgrade a una membresía **inferior** a la vigente |
 | `CA-MV-048` | El sistema **admite** un upgrade a la **misma** membresía vigente: es una **renovación**, y lo que se paga ahí es tiempo y no nivel |
+| `CA-MV-526` | El sistema rechaza con `EX-005` un upgrade que **salta niveles** respecto de la membresía vigente —quien está en la más baja compra una dos niveles por encima—, el mensaje dice que **salta**, y **no queda venta, ni línea, ni pago** |
+| `CA-MV-527` | El sistema **admite** un upgrade a la membresía **inmediatamente superior** a la vigente: subir un escalón es el caso normal, y la renovación la sigue admitiendo `CA-MV-048` |
 | `CA-MV-012` | El sistema rechaza **dos upgrades** en la misma venta |
 | `CA-MV-013` | El sistema rechaza el **mismo producto repetido** y una cantidad mayor que uno en un upgrade |
 | `CA-MV-014` | El sistema rechaza productos en **monedas distintas** |
@@ -339,6 +350,7 @@ Es el **primer requerimiento del módulo** y el que pone en el sistema el objeto
 - **Una persona que no es cliente:** solo los consumidores tienen membresía (`RN-SP-018`), de modo que quien no lo es **no tiene nivel del que partir** y su oferta son **los bots y nada más**. Puede comprarlos: intentar venderle un upgrade cae en `EX-004`, y el mensaje hablará de la oferta y no del rol. **Desde el 04-09-2026 esto importa de verdad**, porque es el caso que la decisión abrió: un agente compra bots con normalidad.
 - **Quien compra y no cuelga de nadie:** **se vende a sí mismo** (`RN-MV-003`, desde el 16-09-2026): cada línea lleva como vendedor a quien compra. Ocurre con la **cúspide de la fuerza comercial**, que por `RN-SP-019` no declara superior, y con cualquiera a quien nadie haya colgado todavía. Entre el 04-09-2026 y el 16-09-2026 esa venta se registraba **sin vendedor** y no comisionaba a nadie; ahora tiene de dónde arrancar la cadena, y **qué hace `CM` con una autoventa lo decide `CM`** — esta operación solo deja escrito quién vendió, y no inventa a nadie: la atribución a uno mismo es la única que no puede estar equivocada.
 - **La membresía del cliente vence entre registrar y confirmar:** la venta ya está registrada y **no se revalida al confirmar**. Es una consecuencia aceptada de que la comprobación sea del momento del registro, y la alternativa —revalidar— haría que una venta pagada pudiera rechazarse por algo que el cliente no controla.
+- **Se inserta una membresía en medio de la cadena entre registrar y confirmar:** la venta se registró como escalón y, con los niveles de después, sería un salto. **Se confirma igual**: el escalón se comprueba al registrar y no al confirmar, el dinero ya entró, y conceder lo que se pagó es el mal menor (`RN-MV-006`, `RN-MV-029`).
 - **El producto se retira del catálogo entre registrar y confirmar:** igual. Lo vendido está copiado y `RN-PM-010` garantiza que el producto no desaparece nunca.
 - **Dos ventas simultáneas del mismo upgrade al mismo cliente:** **las dos se registran**, y no hay ninguna regla que lo impida — ninguna de las dos ha concedido nada todavía. El conflicto aparece al confirmar la segunda, y es `RF-MV-003` quien tiene que resolverlo.
 - **Una venta de importe cero:** posible si el producto es gratuito. Se registra con normalidad; `RN-PM-006` exige precio mayor que cero en el catálogo, de modo que hoy no puede ocurrir, y esta operación no añade una comprobación propia para algo que el catálogo ya impide.
@@ -366,3 +378,4 @@ Es el **primer requerimiento del módulo** y el que pone en el sistema el objeto
 | 0.5.0 | 16-09-2026 | **El descuento es de la línea, y la línea recuerda de qué paquete salió** (`RN-MV-027`, `RN-MV-013` enmendada; `requirements/mv.md` v0.17.0), por decisión del responsable del proyecto. Para esta operación **no cambia lo que hace**: sigue sin aplicar rebajas y sin admitir el precio como entrada. Lo que cambia es **la forma de lo que devuelve** —cada línea trae su descuento (cero), sus rebajas (ninguna) y su paquete (nulo), y viajan aunque estén vacíos— y **lo que la cabecera significa**: total, descuento y a pagar son ahora **sumas de las líneas**, con la misma igualdad de siempre. §4.2 deja de decir que los descuentos «no existen» y pasa a decir que **esta entrada no los aplica**, que es lo cierto desde hoy. | Responsable del proyecto |
 | 0.6.0 | 18-09-2026 | **`CA-MV-002` precisado**: el cliente sale de `user_supervisors` (`requirements/sp.md` v1.63.0 —v1.59.0 en la rama que lo redactó—, `RN-SP-028` revertida; `requirements/mv.md` v0.28.0, `RN-MV-003`), y el vendedor de la línea se resuelve en la fila `REGISTRO` de `client_sellers`. **Mismo resultado sobre los mismos datos, misma respuesta**; cambia la consulta de `ClientCatalog.sellerOf`, que primero mira `client_sellers` y después `user_supervisors` —para un vendedor que compra—. `CA-MV-017` no cambia: quien no tiene vendedor en ninguna de las dos se vende a sí mismo. El código lo cambia `RF-SP-059 · T-09`. | Responsable del proyecto |
 | 0.7.0 | 30-09-2026 | **`POINTS` se rechaza** (`RF-MV-030`, `RN-MV-052`; [`requirements/mv.md`](../../../requirements/mv.md) v0.54.0 §4.4): quien registra la venta no es quien compra, y no puede gastar los puntos de otra persona. Conflicto, y nada queda escrito. | Responsable técnico |
+| 0.8.0 | 03-10-2026 | **`RN-MV-006` gana la mitad del salto** ([`requirements/mv.md`](../../../requirements/mv.md) v0.72.0; [`requirements/pm.md`](../../../requirements/pm.md) v0.49.0, §5.2.17), por decisión del responsable del proyecto —«solo puedo subir de upgrade a nivel por encima mío»—. `EX-005` pasa de rechazar «la membresía inferior» a rechazar **la inferior o la que salta** —más de un nivel por encima de la vigente—, con **el mismo código** y un mensaje que distingue las dos. Nacen `CA-MV-526` —el salto se rechaza y no deja nada— y `CA-MV-527` —el escalón se admite—; la renovación sigue en `CA-MV-048`. **Se compara con la membresía vigente de quien compra**, no con el origen del producto, y por eso vale igual por el hotlink. **Por esta entrada el salto se ve como `EX-004`**, porque la oferta ya no lo publica; la comprobación propia se mantiene por el argumento de `plan.md` §3.2. **Al confirmar no se repite** (§13). Sin esquema. | Responsable del proyecto |
