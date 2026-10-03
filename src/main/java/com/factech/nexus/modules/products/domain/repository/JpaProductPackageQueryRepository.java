@@ -47,6 +47,10 @@ public class JpaProductPackageQueryRepository implements ProductPackageQueryRepo
       p.type AS p_type, p.status AS p_status, p.deleted_at AS p_deleted_at,
       p.price AS p_price, p.purchase_price AS p_purchase_price,
       p.currency_id AS p_currency_id, p.source_membership_id AS p_source_membership_id,
+      COALESCE(p.type = 'UPGRADE_MEMBRESIA'
+               AND (SELECT ps.level FROM memberships ps WHERE ps.id = p.source_membership_id)
+                 - (SELECT pm.level FROM memberships pm WHERE pm.id = p.target_membership_id) > 1,
+               false) AS p_salta,
       i.discount_type AS discount_type, i.discount_value AS discount_value,
       i.created_at AS i_created_at
       """;
@@ -383,6 +387,10 @@ public class JpaProductPackageQueryRepository implements ProductPackageQueryRepo
         (BigDecimal) fila.get("p_purchase_price"),
         (UUID) fila.get("p_currency_id"),
         (UUID) fila.get("p_source_membership_id"),
+        // `RN-PM-018` (03-10-2026): el salto, con los niveles de hoy. Dos subconsultas
+        // escalares en la proyección y no dos JOIN: las tres sentencias que usan esta
+        // proyección no tienen que repetir sus uniones, y no suman ninguna sentencia.
+        Boolean.TRUE.equals(fila.get("p_salta")),
         (String) fila.get("discount_type"),
         (BigDecimal) fila.get("discount_value"),
         momento(fila.get("i_created_at")));

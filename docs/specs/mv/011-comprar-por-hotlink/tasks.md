@@ -96,7 +96,7 @@ Rama: `feature/upgrade-escalonado`. **Sin código propio**: la condición del sa
 
 | ID | Tarea | Depende de | Verificación | Estado |
 |---|---|---|---|---|
-| `T-14` | Prueba del escalón contra quien compra: el salto se rechaza y el escalón con origen ajeno se registra | `RF-MV-001` · `T-36` | `CA-MV-530`: `409` con `EX-005` y **cero** filas nuevas en `movements`, `payments` y `client_sellers`; `CA-MV-531`: `201` | **Pendiente** |
-| `T-15` | Prueba del salto ya registrado, sembrado por SQL | `RF-PM-008` (el hotlink deja de publicar saltos) | `CA-MV-532`: `404` con **el mismo cuerpo** que un producto inexistente | **Pendiente** |
+| `T-14` | Prueba del escalón contra quien compra: el salto se rechaza y el escalón con origen ajeno se registra | `RF-MV-001` · `T-36` | `CA-MV-530`: `409` con `EX-005` y **cero** filas nuevas en `movements`, `payments` y `client_sellers`; `CA-MV-531`: `201` | **Hecha el 03-10-2026** |
+| `T-15` | Prueba del salto ya registrado, sembrado por SQL | `RF-PM-008` (el hotlink deja de publicar saltos) | `CA-MV-532`: `404` con **el mismo cuerpo** que un producto inexistente | **Hecha el 03-10-2026** |
 
 Criterios: `CA-MV-530` a `CA-MV-532`.

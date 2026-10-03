@@ -43,6 +43,7 @@ class HotlinkCatalogIT extends IntegrationTestBase {
   @Autowired private GetHotlinkCatalogService servicio;
 
   private UUID oro;
+  private UUID platino;
   private UUID free;
   private UUID imagen;
 
@@ -50,19 +51,23 @@ class HotlinkCatalogIT extends IntegrationTestBase {
   void sembrar() {
     limpiar();
     oro = membresia("ORO", "Oro", 1, null);
-    UUID vip = membresia("VIP", "Vip", 2, oro);
-    free = membresia("BECA", "Beca", 3, vip);
+    platino = membresia("PLATINO", "Platino", 2, oro);
+    free = membresia("BECA", "Beca", 3, platino);
 
     // ENTRAN: activos y de alcance HOTLINK o AMBOS, de los dos tipos, con distinto
-    // nivel de destino para que el orden sea observable.
-    producto("HL_VIP", "UPGRADE_MEMBRESIA", free, vip, "20.00", "ACTIVO", "AMBOS", BASE, false);
-    producto("HL_ORO", "UPGRADE_MEMBRESIA", free, oro, "100.00", "ACTIVO", "AMBOS", BASE, false);
+    // nivel de destino para que el orden sea observable. Los dos upgrades son de
+    // UN escalón desde el 03-10-2026 (`RN-PM-018`): hasta entonces `HL_ORO` salía
+    // de `BECA`, y un salto ya no se lista.
+    producto(
+        "HL_PLATINO", "UPGRADE_MEMBRESIA", free, platino, "20.00", "ACTIVO", "AMBOS", BASE, false);
+    producto("HL_ORO", "UPGRADE_MEMBRESIA", platino, oro, "100.00", "ACTIVO", "AMBOS", BASE, false);
     producto("HL_BOT_B", "BOT", null, null, "9.00", "ACTIVO", "AMBOS", BASE.plusDays(2), false);
     producto("HL_BOT_A", "BOT", null, null, "7.00", "ACTIVO", "AMBOS", BASE.plusDays(1), false);
 
-    // NO ENTRAN: alcance TIENDA, inactivo, retirado. El de TIENDA sale desde
-    // VIP: `uq_products_upgrade_target` admite un solo activo por pareja.
-    producto("TIENDA_ORO", "UPGRADE_MEMBRESIA", vip, oro, "90.00", "ACTIVO", "TIENDA", BASE, false);
+    // NO ENTRAN: alcance TIENDA, inactivo, retirado. El de TIENDA es la renovación
+    // de ORO: `uq_products_upgrade_target` admite un solo activo por pareja, y las
+    // dos de un escalón ya las tienen los que entran.
+    producto("TIENDA_ORO", "UPGRADE_MEMBRESIA", oro, oro, "90.00", "ACTIVO", "TIENDA", BASE, false);
     producto("HL_INACTIVO", "BOT", null, null, "1.00", "INACTIVO", "AMBOS", BASE, false);
     producto("HL_RETIRADO", "BOT", null, null, "1.00", "ACTIVO", "AMBOS", BASE, true);
 
@@ -92,7 +97,7 @@ class HotlinkCatalogIT extends IntegrationTestBase {
         .andExpect(status().isOk())
         .andExpect(jsonPath("$.upgrades.content", Matchers.hasSize(2)))
         // Upgrades por nivel de destino, del más bajo al más alto (`m.level DESC`).
-        .andExpect(jsonPath("$.upgrades.content[0].code").value("HL_VIP"))
+        .andExpect(jsonPath("$.upgrades.content[0].code").value("HL_PLATINO"))
         .andExpect(jsonPath("$.upgrades.content[1].code").value("HL_ORO"))
         .andExpect(jsonPath("$.services.content", Matchers.hasSize(2)))
         // Bots por fecha de alta.
@@ -104,7 +109,7 @@ class HotlinkCatalogIT extends IntegrationTestBase {
   }
 
   @Test
-  @DisplayName("`CA-PM-341` — no mira la membresía del actor: en ORO se ve el BECA → ORO")
+  @DisplayName("`CA-PM-341` — no mira la membresía del actor: en ORO se ve el PLATINO → ORO")
   void noMiraLaMembresia() throws Exception {
     UUID vendedor = persona("hlcat-vendedor");
     asignar(vendedor, oro);
@@ -118,6 +123,34 @@ class HotlinkCatalogIT extends IntegrationTestBase {
             .getResponse()
             .getContentAsString();
     assertThat(cuerpo).doesNotContain("currentMembership");
+  }
+
+  @Test
+  @DisplayName(
+      "`CA-PM-426` — renovación y escalón sí, el SALTO no, sea cual sea la membresía del actor")
+  void elSaltoNoSeLista() throws Exception {
+    // El salto, sembrado por la base como uno registrado antes del 03-10-2026:
+    // el alta ya no lo admite (`RN-PM-018`). `BECA → ORO` son dos escalones.
+    producto("HL_RENOVAR", "UPGRADE_MEMBRESIA", free, free, "5.00", "ACTIVO", "AMBOS", BASE, false);
+    producto("HL_SALTO", "UPGRADE_MEMBRESIA", free, oro, "150.00", "ACTIVO", "AMBOS", BASE, false);
+
+    UUID enBeca = persona("hlcat-beca");
+    asignar(enBeca, free);
+    UUID enOro = persona("hlcat-oro");
+    asignar(enOro, oro);
+
+    // Sin membresía, en el suelo y en la cima: el mismo conjunto. El salto es del
+    // producto, no de quien mira.
+    for (MockHttpServletRequestBuilder peticion :
+        new MockHttpServletRequestBuilder[] {catalogo(), catalogo(enBeca), catalogo(enOro)}) {
+      mvc.perform(peticion)
+          .andExpect(status().isOk())
+          .andExpect(
+              jsonPath(
+                  "$.upgrades.content[*].code",
+                  Matchers.contains("HL_RENOVAR", "HL_PLATINO", "HL_ORO")))
+          .andExpect(jsonPath("$..code", Matchers.not(Matchers.hasItem("HL_SALTO"))));
+    }
   }
 
   @Test
@@ -175,12 +208,13 @@ class HotlinkCatalogIT extends IntegrationTestBase {
   @Test
   @DisplayName("`CA-PM-353` — un HOTLINK activo entra aunque no esté en la tienda; un NINGUNO no")
   void soloHotlinkYAmbos() throws Exception {
-    jdbc.update("UPDATE products SET scope = 'HOTLINK' WHERE code = 'HL_VIP'");
+    jdbc.update("UPDATE products SET scope = 'HOTLINK' WHERE code = 'HL_PLATINO'");
     jdbc.update("UPDATE products SET scope = 'NINGUNO' WHERE code = 'HL_BOT_A'");
 
     mvc.perform(catalogo())
         .andExpect(status().isOk())
-        .andExpect(jsonPath("$.upgrades.content[*].code", Matchers.contains("HL_VIP", "HL_ORO")))
+        .andExpect(
+            jsonPath("$.upgrades.content[*].code", Matchers.contains("HL_PLATINO", "HL_ORO")))
         .andExpect(jsonPath("$.upgrades.content[0].scope").value("HOTLINK"))
         .andExpect(jsonPath("$.services.content[*].code", Matchers.contains("HL_BOT_B")));
   }

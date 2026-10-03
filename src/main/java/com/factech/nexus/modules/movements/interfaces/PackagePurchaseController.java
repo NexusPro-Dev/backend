@@ -86,7 +86,7 @@ public class PackagePurchaseController {
           oferta ya miró: que el paquete esté activo, publicado en la tienda, con sus
           productos, **dentro de su vigencia**, y que le corresponda a usted por su membresía.
           **Y se compra entero**: si un producto del paquete no procede —inactivo, retirado,
-          fuera de su oferta, o un upgrade que baja de nivel— se rechaza la compra completa
+          fuera de su oferta, o un upgrade que baja o **salta** de nivel— se rechaza la compra completa
           nombrando el producto, y **no se registra nada**.
 
           **La respuesta no lleva el vendedor**: si usted tiene **un** vendedor, la venta se
@@ -124,8 +124,9 @@ public class PackagePurchaseController {
                 + " vencido, sin descripción, con menos de dos productos, fuera de la tienda o"
                 + " con un producto inactivo o retirado— (`EX-002`, con el mismo motivo que publica"
                 + " el catálogo); no le corresponde a usted por su membresía (`EX-003`); un"
-                + " producto no está en su oferta (`EX-004`); el upgrade BAJA de nivel —renovar el"
-                + " mismo sí se admite— (`EX-005`); su cuenta no puede operar todavía (`EX-006`);"
+                + " producto no está en su oferta (`EX-004`); el upgrade BAJA de nivel o SALTA más"
+                + " de un escalón —renovar el mismo y subir uno sí se admite— (`EX-005`); su cuenta"
+                + " no puede operar todavía (`EX-006`);"
                 + " el método de pago no cuadra con el importe (`RN-MV-022`) o está desactivado"
                 + " (`EX-010`).",
         content = @Content),

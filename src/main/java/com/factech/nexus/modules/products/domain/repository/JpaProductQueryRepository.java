@@ -248,13 +248,18 @@ public class JpaProductQueryRepository implements ProductQueryRepository {
    * ofrece también {@code PLATINO → ORO} — el salto de otro que acaba donde él ya está. El filtro
    * por origen distingue las dos cosas sin una condición más.
    *
-   * <h2>Que no se ofrezcan bajadas ya NO lo sostiene esta consulta</h2>
+   * <h2>Y desde el 03-10-2026 vuelve a comparar niveles, pero solo para acotar</h2>
    *
-   * <p>Lo sostiene `RN-PM-017` al <b>registrar</b>: un producto cuyo origen sea la membresía del
-   * actor no puede apuntar por debajo, porque no habría podido darse de alta. La regla se mudó de
-   * la consulta al alta el 02-09-2026 (`requirements/pm.md` §5.2.1) y el código tardó cinco días en
-   * seguirla. <b>Quien toque `RegisterProductService.verificarOrigen` está tocando también lo que
-   * esta consulta da por cierto.</b>
+   * <p>`RN-PM-018`: de los upgrades que coinciden por origen se ofrecen los que suben <b>un escalón
+   * como máximo</b> — {@code s.level - m.level BETWEEN 0 AND 1}. El alta ya lo rechaza, y aun así
+   * hace falta aquí: los saltos registrados antes de esa fecha siguen en la tabla, e insertar una
+   * membresía en medio de la cadena convierte en salto un producto que nació de un escalón
+   * (`requirements/pm.md` §5.2.17). <b>No sustituye a la coincidencia</b>: {@code PLATINO → ORO} es
+   * de un escalón y sigue sin ofrecérsele a quien está en {@code ORO}.
+   *
+   * <p>La mitad inferior del {@code BETWEEN} cierra también las bajadas, que hasta hoy sostenía
+   * solo `RN-PM-017` al registrar. <b>El orden de la resta es la trampa</b>: la cadena numera desde
+   * la cima, y escrita como {@code m.level - s.level} dejaría pasar solo las renovaciones.
    *
    * <h2>Sin membresía no es «sin filtro»</h2>
    *
@@ -308,7 +313,10 @@ public class JpaProductQueryRepository implements ProductQueryRepository {
                    -- primera vez. HOTLINK y NINGUNO no son de la tienda.
                    AND p.scope IN ('TIENDA', 'AMBOS')
                    AND ( p.type = 'BOT'
-                         OR p.source_membership_id = CAST(:membresia AS uuid) )
+                         OR ( p.source_membership_id = CAST(:membresia AS uuid)
+                              -- `RN-PM-018` (03-10-2026): un escalón como máximo.
+                              -- La cadena numera desde la cima: origen MENOS destino.
+                              AND s.level - m.level BETWEEN 0 AND 1 ) )
                  ORDER BY CASE WHEN p.type = 'UPGRADE_MEMBRESIA' THEN 0 ELSE 1 END,
                           m.level DESC,
                           p.created_at ASC,
@@ -364,6 +372,9 @@ public class JpaProductQueryRepository implements ProductQueryRepository {
                  WHERE p.deleted_at IS NULL
                    AND p.status = 'ACTIVO'
                    AND p.scope IN ('HOTLINK', 'AMBOS')
+                   -- `RN-PM-018` (03-10-2026): el salto no se publica. El hotlink
+                   -- no mira a quien compra, pero el salto es del producto.
+                   AND ( p.type = 'BOT' OR s.level - m.level BETWEEN 0 AND 1 )
                  ORDER BY CASE WHEN p.type = 'UPGRADE_MEMBRESIA' THEN 0 ELSE 1 END,
                           m.level DESC,
                           p.created_at ASC,
@@ -523,6 +534,8 @@ public class JpaProductQueryRepository implements ProductQueryRepository {
                    AND p.status = 'ACTIVO'
                    AND p.deleted_at IS NULL
                    AND p.scope IN ('HOTLINK', 'AMBOS')
+                   -- `RN-PM-018` (03-10-2026): un salto responde el mismo 404.
+                   AND ( p.type = 'BOT' OR s.level - m.level BETWEEN 0 AND 1 )
                 """,
                 Tuple.class)
             .setParameter("codigo", code)
@@ -539,15 +552,21 @@ public class JpaProductQueryRepository implements ProductQueryRepository {
       return List.of();
     }
     // El predicado de `RN-PM-021`, el mismo del enlace público y del catálogo de
-    // hotlinks: activo, no retirado y de alcance HOTLINK o AMBOS.
+    // hotlinks: activo, no retirado y de alcance HOTLINK o AMBOS; y desde el
+    // 03-10-2026, sin saltos (`RN-PM-018`). Es la sentencia con la que `MV` valida
+    // la venta por hotlink, de modo que un salto ya registrado se rechaza aquí,
+    // antes de llegar a `SaleRules`.
     return em.createNativeQuery(
             """
             SELECT p.id
               FROM products p
+              LEFT JOIN memberships s ON s.id = p.source_membership_id
+              LEFT JOIN memberships m ON m.id = p.target_membership_id
              WHERE p.id IN (:ids)
                AND p.status = 'ACTIVO'
                AND p.deleted_at IS NULL
                AND p.scope IN ('HOTLINK', 'AMBOS')
+               AND ( p.type = 'BOT' OR s.level - m.level BETWEEN 0 AND 1 )
             """,
             UUID.class)
         .setParameter("ids", ids)

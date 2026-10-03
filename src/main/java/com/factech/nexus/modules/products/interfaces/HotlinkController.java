@@ -50,7 +50,8 @@ public class HotlinkController {
           registrarse.
 
           **Solo publica productos activos y de alcance `HOTLINK` o `AMBOS`**
-          (`HOTLINKS` hasta el 15-09-2026), y solo el
+          (`HOTLINKS` hasta el 15-09-2026), **y ningún upgrade que salte
+          niveles** (desde el 03-10-2026: responde el mismo `404`), y solo el
           nombre de quien porta un rol de tipo `VENDEDOR`. Ni correo, ni
           identificador, ni estado, ni roles.
 
@@ -126,7 +127,8 @@ public class HotlinkController {
           no una reserva**: si un producto cambia de precio, el paquete cambia solo,
           y un fijo que hoy supera su precio cuenta cero.
 
-          **Solo publica paquetes activos y de alcance `HOTLINK` o `AMBOS`**, y **el
+          **Solo publica paquetes activos y de alcance `HOTLINK` o `AMBOS`**, cuyo
+          upgrade —si lleva— no salte niveles (desde el 03-10-2026), y **el
           alcance de los productos no filtra dentro del paquete**: el canal lo decide
           el paquete. Sin `purchasePrice` ni `status` en ningún nivel.
 

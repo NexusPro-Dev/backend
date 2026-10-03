@@ -259,8 +259,9 @@ public class PublishedProductCatalog implements ProductCatalog, RegistrableProdu
       return Optional.empty();
     }
     // EL PREDICADO ES EL DE `RF-PM-008`, copiado a proposito y no inventado:
-    // activo, no retirado y de alcance HOTLINK o AMBOS. Vender por enlace algo
-    // que el enlace no publica seria una puerta trasera al catalogo.
+    // activo, no retirado y de alcance HOTLINK o AMBOS; y desde el 03-10-2026,
+    // sin saltos (`RN-PM-018`). Vender por enlace algo que el enlace no publica
+    // seria una puerta trasera al catalogo.
     @SuppressWarnings("unchecked")
     List<Tuple> filas =
         em.createNativeQuery(
@@ -275,11 +276,13 @@ public class PublishedProductCatalog implements ProductCatalog, RegistrableProdu
                        p.implementation AS implementation
                   FROM products p
                   LEFT JOIN memberships m ON m.id = p.target_membership_id
+                  LEFT JOIN memberships s ON s.id = p.source_membership_id
                   LEFT JOIN currencies  c ON c.id = p.currency_id
                  WHERE upper(p.code) = upper(:codigo)
                    AND p.status = 'ACTIVO'
                    AND p.deleted_at IS NULL
                    AND p.scope IN ('HOTLINK', 'AMBOS')
+                   AND ( p.type = 'BOT' OR s.level - m.level BETWEEN 0 AND 1 )
                 """,
                 Tuple.class)
             .setParameter("codigo", code)

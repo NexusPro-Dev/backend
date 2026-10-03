@@ -119,6 +119,6 @@ Por `plan.md` §13. **Sin tarea de código**: la comparación es la de `SaleRule
 
 | ID | Tarea | Depende de | Verificación | Estado |
 |---|---|---|---|---|
-| `T-11` | `BuyPackageIT`: un paquete cuyo upgrade **salta** —sembrado por SQL— se rechaza con `409` y **sin venta, pago ni auditoría**; uno de **un escalón** se registra | `RF-MV-001` · la tarea que enmienda `SaleRules.verificarQueSube` | `CA-MV-540`; `CA-MV-057` sigue en verde sin tocarla | Pendiente |
+| `T-11` | `BuyPackageIT`: un paquete cuyo upgrade **salta** —sembrado por SQL— se rechaza con `409` y **sin venta, pago ni auditoría**; uno de **un escalón** se registra | `RF-MV-001` · la tarea que enmienda `SaleRules.verificarQueSube` | `CA-MV-540`; `CA-MV-057` sigue en verde sin tocarla | **Hecha el 03-10-2026** |
 
 Criterios: `CA-MV-540`.
