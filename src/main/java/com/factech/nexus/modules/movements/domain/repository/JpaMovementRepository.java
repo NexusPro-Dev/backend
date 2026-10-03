@@ -1032,15 +1032,31 @@ public class JpaMovementRepository implements MovementRepository {
       return Optional.empty();
     }
 
+    return Optional.of(
+        new MovementDetailView(
+            cabecera(cabecera.get(0)),
+            findLinesOf(List.of(movementId)).getOrDefault(movementId, List.of()),
+            pagosDe(movementId)));
+  }
+
+  @Override
+  @Transactional(readOnly = true)
+  public Map<UUID, List<MovementLineRow>> findLinesOf(Collection<UUID> movementIds) {
+    Map<UUID, List<MovementLineRow>> resultado = new LinkedHashMap<>();
+    if (movementIds == null || movementIds.isEmpty()) {
+      return resultado;
+    }
     // EL CÓDIGO Y EL NOMBRE DEL PRODUCTO SALEN DE `products`, no de la línea:
     // `V54` NO LOS CONGELA en `movement_details`, que guarda el identificador, la
     // cantidad, el precio y la vigencia y nada más. Queda declarado en el puerto
     // y en `tasks.md` §3 — renombrar un producto cambia cómo se ve una venta ya
     // registrada, y eso no se resuelve aquí.
+    @SuppressWarnings("unchecked")
     List<Tuple> lineas =
         em.createNativeQuery(
                 """
-                SELECT d.id AS linea_id, d.product_id AS product_id, p.code AS p_code,
+                SELECT d.movement_id AS movimiento, d.id AS linea_id,
+                       d.product_id AS product_id, p.code AS p_code,
                        d.product_name AS p_name, d.product_description AS p_desc,
                        d.quantity AS cantidad, d.unit_price AS precio,
                        d.line_discount AS descuento, d.line_amount AS importe,
@@ -1057,40 +1073,41 @@ public class JpaMovementRepository implements MovementRepository {
                   -- LEFT: la columna admite nulo por los tipos de movimiento que
                   -- no venden nada y, desde `V36`, en una venta por validar.
                   LEFT JOIN users v ON v.id = d.seller_id
-                 WHERE d.movement_id = :movimiento
-                 ORDER BY p.code ASC
+                 WHERE d.movement_id IN (:movimientos)
+                 ORDER BY d.movement_id, p.code ASC
                 """,
                 Tuple.class)
-            .setParameter("movimiento", movementId)
+            .setParameter("movimientos", List.copyOf(movementIds))
             .getResultList();
 
-    Map<UUID, List<LineDiscountRow>> rebajas = rebajasDe(movementId);
-    List<MovementLineRow> detalle = new ArrayList<>(lineas.size());
+    Map<UUID, List<LineDiscountRow>> rebajas = rebajasDe(movementIds);
     for (Tuple linea : lineas) {
-      detalle.add(
-          new MovementLineRow(
-              (UUID) linea.get("product_id"),
-              (String) linea.get("p_code"),
-              (String) linea.get("p_name"),
-              (String) linea.get("p_desc"),
-              ((Number) linea.get("cantidad")).intValue(),
-              (BigDecimal) linea.get("precio"),
-              (BigDecimal) linea.get("descuento"),
-              (BigDecimal) linea.get("importe"),
-              linea.get("vigencia") == null ? null : ((Number) linea.get("vigencia")).intValue(),
-              (UUID) linea.get("ven_id"),
-              (String) linea.get("ven_username"),
-              (String) linea.get("ven_first"),
-              (String) linea.get("ven_last"),
-              rebajas.getOrDefault((UUID) linea.get("linea_id"), List.of()),
-              (String) linea.get("impl"),
-              (String) linea.get("entrega"),
-              instante(linea.get("entregada_en")),
-              (String) linea.get("motivo")));
+      resultado
+          .computeIfAbsent((UUID) linea.get("movimiento"), id -> new ArrayList<>())
+          .add(
+              new MovementLineRow(
+                  (UUID) linea.get("product_id"),
+                  (String) linea.get("p_code"),
+                  (String) linea.get("p_name"),
+                  (String) linea.get("p_desc"),
+                  ((Number) linea.get("cantidad")).intValue(),
+                  (BigDecimal) linea.get("precio"),
+                  (BigDecimal) linea.get("descuento"),
+                  (BigDecimal) linea.get("importe"),
+                  linea.get("vigencia") == null
+                      ? null
+                      : ((Number) linea.get("vigencia")).intValue(),
+                  (UUID) linea.get("ven_id"),
+                  (String) linea.get("ven_username"),
+                  (String) linea.get("ven_first"),
+                  (String) linea.get("ven_last"),
+                  rebajas.getOrDefault((UUID) linea.get("linea_id"), List.of()),
+                  (String) linea.get("impl"),
+                  (String) linea.get("entrega"),
+                  instante(linea.get("entregada_en")),
+                  (String) linea.get("motivo")));
     }
-
-    return Optional.of(
-        new MovementDetailView(cabecera(cabecera.get(0)), detalle, pagosDe(movementId)));
+    return resultado;
   }
 
   /**
@@ -1983,7 +2000,7 @@ public class JpaMovementRepository implements MovementRepository {
   }
 
   /** Las rebajas de todas las líneas del movimiento, por línea. Una consulta y no una por línea. */
-  private Map<UUID, List<LineDiscountRow>> rebajasDe(UUID movementId) {
+  private Map<UUID, List<LineDiscountRow>> rebajasDe(Collection<UUID> movementIds) {
     List<Tuple> filas =
         em.createNativeQuery(
                 """
@@ -1991,11 +2008,11 @@ public class JpaMovementRepository implements MovementRepository {
                        r.discount_value AS dinero
                   FROM movement_detail_discounts r
                   JOIN movement_details d ON d.id = r.movement_detail_id
-                 WHERE d.movement_id = :movimiento
+                 WHERE d.movement_id IN (:movimientos)
                  ORDER BY r.created_at ASC, r.id ASC
                 """,
                 Tuple.class)
-            .setParameter("movimiento", movementId)
+            .setParameter("movimientos", List.copyOf(movementIds))
             .getResultList();
     Map<UUID, List<LineDiscountRow>> porLinea = new LinkedHashMap<>();
     for (Tuple fila : filas) {

@@ -5,11 +5,11 @@
 | Proyecto | NEXUS — Renovación de plataforma |
 | Empresa | FACTECH GROUP SAS |
 | Documento | `api/index.md` |
-| Versión | 1.78.0 |
+| Versión | 1.79.0 |
 | Estado | Publicado |
 | Responsable técnico | Bonilla Diaz William Steven |
 | Fecha de creación | 25-08-2026 |
-| Última actualización | 02-10-2026 |
+| Última actualización | 03-10-2026 |
 | Documento superior | `architecture.md` v0.14.0 |
 
 ---
@@ -182,3 +182,4 @@ Lo que sigue siendo cierto, y conviene saberlo antes de tropezar:
 | 1.76.0 | 30-09-2026 | **Nacen las rutas de los puntos** (`RF-MV-025` a `RF-MV-031`, etiqueta «Puntos»): `POST` y `GET /api/v1/movements/points-rates` (fijar la tasa de una moneda y consultar las vigentes), `POST` y `GET /api/v1/movements/mine/points-purchases` (comprar puntos, con `Idempotency-Key` obligatoria, y mis compras) y `POST /api/v1/movements/{id}/points-purchase-confirmation` y `…/points-purchase-rejection`. **Pagar con puntos no tiene ruta**: el método `POINTS` en las compras propias —por el enlace, el paquete y el reintento— devuelve la venta **ya confirmada**, y `RF-MV-001` lo rechaza con `409`. `MovementPayment` gana `points`: los que costó un pago con puntos, nulo en cualquier otro. | Responsable técnico |
 | 1.77.0 | 01-10-2026 | **CAMBIO INCOMPATIBLE: se concilia el pago, no el movimiento** (`RF-MV-044`, `RF-MV-045`, `RN-MV-061`; [`requirements/mv.md`](../requirements/mv.md) v0.67.0 §4.8). **Nacen `POST /api/v1/movements/payments/{paymentId}/confirmation`** —con `movements:confirm-payment` y cuerpo opcional `{"providerReference"}`— **y `…/rejection`** —con `movements:reject-payment` y `{"reason"}` obligatorio—, para el pago de una venta o de una compra de puntos, con cualquier método. Las dos responden **el detalle del movimiento** (la forma de `GET /api/v1/movements/{id}`), también para la compra de puntos, que hasta hoy respondía su propia forma. **Desaparecen, sin alias, `POST /api/v1/movements/{id}/confirmation`, `/{id}/rejection`, `/{id}/points-purchase-confirmation` y `/{id}/points-purchase-rejection`**: responden `404`. Los `409` se renumeran: `EX-002` es el pago de un retiro, `EX-003` un pago que no está pendiente —el mensaje dice su estado— y `EX-004` un cobro abierto en la pasarela. El `id` del pago lo publican el detalle y las compras de puntos en `payments[].id`. |
 | 1.78.0 | 02-10-2026 | **`GET /api/v1/movements/sales/lines` gana `hasSeller`** (`RF-MV-017` 0.3.0): `false` trae **solo las líneas sin vendedor asignado** —las que faltan por atribuir—, `true` solo las que lo tienen; sin el parámetro no filtra. Se combina con los demás filtros, sin distinguir caja; un valor que no es `true` ni `false` es `400` con `VAL-007`, junto a los demás problemas. Parámetro nuevo, compatible. |
+| 1.79.0 | 03-10-2026 | **Cada fila de `GET /api/v1/movements/mine/shopping` trae `lines`** (`RF-MV-008` 0.8.0): las líneas de la compra, con **la misma forma que el detalle** (`SaleLineResponse`), nunca nulas. Es un campo nuevo y no rompe a nadie; el frontend puede pintar qué se compró sin abrir cada compra. Los pagos siguen solo en el detalle. | Responsable técnico |
