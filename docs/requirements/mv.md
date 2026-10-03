@@ -5,11 +5,11 @@
 | Módulo | `MV` — Movimientos |
 | Paquete | `modules/movements` |
 | Prefijos de permiso | `movements:` |
-| Versión | 0.70.0 |
+| Versión | 0.71.0 |
 | Estado | **Borrador** |
 | Responsable | Bonilla Diaz William Steven |
 | Fecha de creación | 02-09-2026 |
-| Última actualización | 02-10-2026 |
+| Última actualización | 03-10-2026 |
 
 !!! info "Qué va en este documento"
 
@@ -154,7 +154,7 @@ La dependencia es **acíclica**: `MV` → `PM` → `SP`, y `MV` → `SP`. **El p
 | `RF-MV-005` | Anular una venta pendiente | Ventas | `movements:void` |
 | `RF-MV-006` | Consultar los movimientos | Ventas | `movements:read` |
 | `RF-MV-007` | Consultar el detalle de un movimiento, con su comprobante | Ventas | `movements:read-detail` |
-| `RF-MV-008` | Consultar los movimientos propios — **«mis compras» en `/movements/mine/shopping`** (22-09-2026) | Ventas | `movements:list-own` (listado) y `movements:read-own` (detalle) |
+| `RF-MV-008` | Consultar los movimientos propios — **«mis compras» en `/movements/mine/shopping`** (22-09-2026), **con las líneas de cada compra** (03-10-2026) | Ventas | `movements:list-own` (listado) y `movements:read-own` (detalle) |
 | `RF-MV-009` | Consultar los métodos de pago | Medios de pago | **Ninguno: es público** |
 | `RF-MV-010` | Activar un producto comprado de implementación manual — **lo activa quien lo compró** (28-09-2026) | Ventas | `movements:activate-own-product` |
 | `RF-MV-011` | Comprar un producto por el hotlink de un vendedor | Ventas | `products:buy-by-hotlink` (nacerá con él; `RN-SEG-015`) |
@@ -1348,3 +1348,4 @@ Se siembra por migración y **no se administra por API todavía** (§5.3). Lo m�
 | 0.68.0 | 01-10-2026 | **Tripletas de `RF-MV-044` y `RF-MV-045`** ([`specs/mv/044-confirmar-pago/`](../specs/mv/044-confirmar-pago/spec.md), [`specs/mv/045-rechazar-pago/`](../specs/mv/045-rechazar-pago/spec.md); `CA-MV-495` a `CA-MV-515`), y las enmiendas de `RF-MV-003`, `RF-MV-004`, `RF-MV-028` y `RF-MV-029` —§14.3 de cada spec, `CA-MV-516` a `CA-MV-519`—. **Dos cosas que las tripletas decidieron**: la confirmación de una venta **gana la referencia opcional** del extracto, que solo tenía la compra de puntos; y el pago de un retiro responde **conflicto**, no «no encontrado», porque el pago existe. Sin cambio de reglas. | Responsable técnico |
 | 0.69.0 | 01-10-2026 | **Se concilia el pago: construido** (`V63`). Sin cambio de reglas. **Tres cosas que la construcción decidió**: el servicio nuevo bloquea **el movimiento** y lee el pago después, en dos sentencias, para no invertir el orden de los bloqueos; la comprobación del cobro abierto se hace sobre el pago ya leído y `CardPayment` deja de hacerla; y el rechazo **reutiliza el cuerpo** de `RF-MV-004`. | Responsable técnico |
 | 0.70.0 | 02-10-2026 | **`RF-MV-017` gana el filtro `hasSeller`** —las líneas sin vendedor asignado—, a petición del responsable del proyecto ([`specs/mv/017-consultar-lineas-de-venta/`](../specs/mv/017-consultar-lineas-de-venta/spec.md) 0.3.0, `CA-MV-520` a `CA-MV-522`). Sin cambio de reglas. Siguiente libre: `CA-MV-523`. | Responsable del proyecto |
+| 0.71.0 | 03-10-2026 | **«Mis compras» (`RF-MV-008`) trae las líneas de cada compra**, con la forma del detalle, a petición del responsable del proyecto: «es para mostrar en el front sin la necesidad de hacer otra consulta aparte» ([`specs/mv/008-consultar-ventas-propias/`](../specs/mv/008-consultar-ventas-propias/spec.md) 0.8.0, `CA-MV-523` a `CA-MV-525`). Sin cambio de reglas. Siguiente libre: `CA-MV-526`. | Responsable del proyecto |

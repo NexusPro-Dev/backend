@@ -4,7 +4,7 @@
 |---|---|
 | Requerimiento | `RF-MV-008` |
 | Módulo | `MV` — Movimientos |
-| Versión | 0.7.0 |
+| Versión | 0.8.0 |
 | Estado | **Aprobada** |
 | Enmendada el | 16-09-2026 — el vendedor es de cada línea (`RN-MV-003`) y la cabecera lleva un sujeto (`RN-MV-026`): «lo que vendí» se responde por las líneas. Ver §15 |
 | Enmendada el | 21-09-2026 — el listado se filtra también **por tipo** y cada fila **dice su tipo** (§6.1, §6.2, §11, §12). Ver §15 |
@@ -12,6 +12,7 @@
 | Enmendada el | 22-09-2026 — **el listado trae solo lo COMPRADO**: la mitad de vendedor se va a `RF-MV-015`, y el papel desaparece de la fila. El **detalle no se acota** (§2.1, §4, §6.2, §12). Ver §15 |
 | Enmendada el | 22-09-2026 (segunda del día) — **el listado se llama «mis compras» y vive en su propia ruta**; el detalle y los productos comprados no se mueven (§4.1, §12). Ver §15 |
 | Enmendada el | 26-09-2026 — **«mis compras» son solo ventas**: se retira el filtro por tipo; el método es el del **último pago**, y **el detalle publica los pagos** (`RN-MV-047`; §6.1, §6.3, §12). Ver §15 |
+| Enmendada el | 03-10-2026 — **cada fila de «mis compras» trae sus líneas**, con la forma del detalle (§6.2, §12). Ver §15 |
 | Autor | Responsable técnico |
 | Aprobada por | Responsable del proyecto |
 | Fecha de aprobación | 05-09-2026 |
@@ -164,10 +165,11 @@ Cada movimiento devuelve:
 | Moneda y método de pago | Con qué se paga |
 | Importes | Total, descuento y lo que se paga de verdad |
 | Cuándo ocurrió | La fecha del movimiento |
+| **Líneas** (03-10-2026) | Las líneas de la venta, **con la misma forma que el detalle** (§6.3): producto, cantidad, precio, vigencia, descuento, vendedor y entrega. Nunca nula |
 
 **El papel viaja aunque se pueda deducir.** Quien consume la respuesta ya tiene su propio identificador y podría compararlo con las dos partes; hacerlo bien —incluido el caso de ser las dos— es lógica que **acabaría escrita en cada cliente de la API**, y escrita distinto en cada uno.
 
-**Las líneas del movimiento NO van en el listado.** Una venta puede llevar varias, y meterlas multiplicaría la respuesta para un dato que solo se mira al abrir uno. Van en el detalle.
+**Las líneas del movimiento SÍ van en el listado desde el 03-10-2026**, por decisión del responsable del proyecto: «es para mostrar en el front sin la necesidad de hacer otra consulta aparte». Hasta ese día no viajaban, con el argumento de que multiplicaban la respuesta por un dato que solo se miraba al abrir uno; **el argumento dejó de valer**, porque la pantalla de «mis compras» enseña qué se compró en cada fila, y sin las líneas tenía que abrir el detalle de cada compra —una consulta por fila— para pintar la página. El coste que aquel argumento temía es acotado: la página tiene tamaño máximo y una venta lleva pocas líneas. **La forma es la del detalle y no una reducida**: dos formas de la misma línea obligarían al cliente a tratarlas distinto según de dónde las leyera. **Los pagos NO viajan en el listado**: el método del último ya está en la fila, y el resto solo se mira al abrir uno.
 
 ### 6.3 Salida — el detalle
 
@@ -267,6 +269,9 @@ La lista de vendedores viaja **vacía y presente**. **Desde el 16-09-2026 no es 
 | `CA-MV-221` | El listado trae **solo ventas**: un retiro, un abono o un bono a nombre de quien pregunta **no aparece** (26-09-2026) |
 | `CA-MV-222` | El filtro por método busca **sobre el último pago**: una venta pagada al segundo intento con otro método aparece bajo el segundo (26-09-2026) |
 | `CA-MV-223` | El detalle propio trae **los pagos** de la venta, en orden, y ninguno lleva la clave de idempotencia (26-09-2026) |
+| `CA-MV-523` | Cada fila del listado trae **sus líneas**, con la misma forma y los mismos valores que el detalle de esa venta (03-10-2026) |
+| `CA-MV-524` | Una venta con **varias líneas** las trae todas en su fila, y sigue contando **una** fila en el total y en la página (03-10-2026) |
+| `CA-MV-525` | Las líneas de la página se leen **sin una consulta por fila**: el número de sentencias no crece con el tamaño de la página (03-10-2026) |
 
 **`CA-MV-035`, `CA-MV-036` y `CA-MV-037` quedan retirados el 22-09-2026** —los tres papeles del listado— y sus números **no se reutilizan**: describían la decisión que el aviso de §2 revierte. `CA-MV-036` sobrevive dentro de `CA-MV-137`, que es lo mismo visto desde el único papel que queda.
 
@@ -307,3 +312,4 @@ La lista de vendedores viaja **vacía y presente**. **Desde el 16-09-2026 no es 
 | 0.6.0 | 22-09-2026 | **El listado se llama «mis compras» y se muda a su propia ruta** (Art. I.7; `requirements/mv.md` v0.36.0), por decisión del responsable del proyecto: «`movements/mine/shopping` para consultar todo lo que el usuario en sesión ha comprado». Es la consecuencia de nombre de la enmienda de esta misma mañana: desde que el listado trae solo compras, seguir llamándolo «lo propio» prometía más de lo que devuelve. **No queda alias**: dos rutas con el mismo permiso romperían la inyectividad operación → permiso que `RN-SEG-014` exige y que `EndpointPermissionsIT` comprueba, de modo que la ruta anterior **deja de existir** — segundo cambio incompatible del día, declarado. **El detalle y los productos comprados no se mueven**: el primero abre también lo vendido y no es «compras»; el segundo ya tenía su ruta. `CA-MV-140`. Ni el permiso, ni los filtros, ni la fila cambian. | Responsable del proyecto |
 | 0.5.0 | 22-09-2026 | **El listado trae SOLO lo comprado, y la fila pierde el papel** (Art. I.7; `requirements/mv.md` v0.34.0), por decisión del responsable del proyecto: «que mis compras solo traiga lo del usuario en sesión». **Se revierte la decisión de fondo de §2.1** —«propio son dos papeles»— y se explica por qué el argumento ya no aplica: aquella descartó «solo lo comprado» porque dejaba al vendedor sin su pregunta, y desde el 21-09-2026 esa pregunta la responde `RF-MV-015` con **más** alcance —él y toda su red—. `role` se **retira del contrato**, cambio rompedor declarado, porque valdría siempre `BUYER` (el argumento de `RF-MV-006` §6.2). **El detalle NO se acota** y la asimetría se declara: acotarlo dejaría a un vendedor sin ninguna vía para abrir lo que vendió, porque `RF-MV-007` no existe. `CA-MV-035` a `CA-MV-037` retirados sin reutilizar número; nacen `CA-MV-137` a `CA-MV-139`; `FA-002` y dos casos límite reescritos. Ni el permiso, ni los filtros, ni la paginación cambian. | Responsable del proyecto |
 | 0.7.0 | 26-09-2026 | **«Mis compras» son solo ventas, y su detalle enseña los pagos** (`requirements/mv.md` v0.45.0, `RN-MV-047`; Art. I.7 sobre un requerimiento construido), por decisión del responsable del proyecto. **Se retira el filtro `type`** —`CA-MV-120` queda retirado y su número no se reutiliza— con el argumento de `RN-MV-038`; `CA-MV-121` sigue, porque la fila sigue diciendo su tipo. El método es el del último pago (`RN-MV-039`). `CA-MV-221` a `CA-MV-223`; lo construye `RF-MV-018` · `tasks.md` `T-06` y `T-07`. | Responsable del proyecto |
+| 0.8.0 | 03-10-2026 | **Cada fila de «mis compras» trae sus líneas** (Art. I.7 sobre un requerimiento construido; `requirements/mv.md` v0.71.0), por decisión del responsable del proyecto: «es para mostrar en el front sin la necesidad de hacer otra consulta aparte». Se **revierte** la decisión de §6.2 —«las líneas NO van en el listado»— y se dice por qué el argumento ya no aplica. La forma es **la del detalle** (§6.3). Los pagos siguen solo en el detalle. `CA-MV-523` a `CA-MV-525`. **Ni el alcance, ni los filtros, ni el permiso, ni el detalle cambian.** | Responsable del proyecto |

@@ -5,13 +5,14 @@
 | Requerimiento | `RF-MV-008` |
 | Especificación | [`spec.md`](spec.md) v0.1.0 |
 | `spec.md` aprobada el | 05-09-2026 |
-| Versión | 0.6.0 |
+| Versión | 0.7.0 |
 | Estado | **Aprobado** |
 | Enmendado el | 16-09-2026 — la mitad «lo que vendí» se resuelve por `movement_details.seller_id` (§2.1, §4.1) |
 | Enmendado el | 21-09-2026 — el filtro `type` y el campo `type` en la fila (§3, §4.1, §4.3, §11) |
 | Enmendado el | 21-09-2026 (segunda del día) — `paymentMethodId`, `code`, `from` y `to`, con la forma de `RF-MV-006` (§4.3, §11) |
 | Enmendado el | 22-09-2026 — el listado se acota al sujeto y la fila pierde `role` (§2.2, §3, §4.1, §9, §11); el detalle no cambia |
 | Enmendado el | 22-09-2026 (segunda del día) — el listado se muda a `GET /movements/mine/shopping` (§4, §9, §10) |
+| Enmendado el | 03-10-2026 — cada fila del listado trae `lines`, con la forma de `SaleLineResponse`, leídas en **una** sentencia por página (§4.1) |
 | Autor | Responsable técnico |
 | Aprobado por | Responsable del proyecto |
 | Fecha de aprobación | 05-09-2026 |
@@ -144,6 +145,7 @@ Devuelve un `PageResponse` con las filas. Cada una:
 | `currency`, `paymentMethod` | | |
 | `totalAmount`, `discountAmount`, `payableAmount` | | |
 | `occurredAt` | | |
+| `lines` (03-10-2026) | lista de `SaleLineResponse`, **nunca nula** | Las líneas de la venta, **la misma forma que el detalle** (§4.2) y armadas por el mismo código (`SaleDetailMapper`). Se leen con `findLinesOf(ids)` —una sentencia para las líneas de **toda la página** y otra para sus rebajas—, igual que `sellers` con `findSellersOf`: un `JOIN` en la sentencia paginada multiplicaría las filas y rompería el `LIMIT`. El detalle pasa a leer sus líneas por el mismo método con un solo identificador, de modo que la proyección de la línea se escribe **una vez** |
 
 **`sellers` es una lista y no un objeto nulable, y es a propósito.** `RN-MV-003` admite que las líneas de una venta lleven vendedores distintos, y un objeto obligaría a elegir uno o a mentir. La lista dice la verdad con un elemento hoy y con varios el día que exista el caso, y **vacía** dice «este movimiento no tiene vendedor» sin que ningún consumidor tenga que interpretar un nulo. La trampa de la nulabilidad —`types = {"object","null"}` y no `nullable`, porque este contrato es **OpenAPI 3.1** y springdoc descarta `nullable` en silencio— sigue viva en `SaleLineResponse.seller`, que es donde el nulo todavía significa algo.
 
@@ -251,3 +253,7 @@ Devuelve un `SaleResponse`, idéntico al de `RF-MV-001`.
 | Página vacía para quien no participó | Integración | |
 | `401` sin autenticar | Integración | |
 | `/mine` no lo captura una variable de ruta | Integración | La declara `MovementRoutingIT` o la propia clase |
+
+!!! note "Enmienda del 03-10-2026 — las líneas en el listado"
+
+    `spec.md` 0.8.0: cada fila de `GET /movements/mine/shopping` trae `lines` (§4.1). **Sin migración y sin permisos.** Las líneas se leen por página con `findLinesOf`, que también usa el detalle; `CA-MV-525` cuenta las sentencias con las estadísticas de Hibernate.

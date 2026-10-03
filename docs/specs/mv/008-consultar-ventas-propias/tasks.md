@@ -89,6 +89,17 @@ Enmienda de hecho (Art. I.7), `spec.md` 0.6.0 y `plan.md` 0.6.0 **antes** del c�
 | `T-28` | `MovementController`: `@GetMapping("/mine")` pasa a `@GetMapping("/mine/shopping")`, con la prosa al día; `EndpointPermissionsIT` y `OwnScopePermissionsIT` cambian la ruta de su tabla | — | La inyectividad operación → permiso sigue en verde: hay **una** ruta con `movements:list-own` | `Hecha` |
 | `T-29` | `MyMovementsIT` y `ConfirmSaleIT` llaman a la ruta nueva; nace `CA-MV-140` —la anterior responde `404`— y la prueba de enrutado se muda; contrato regenerado, `docs/api/index.md` y matriz | `T-28` | `openapi.json` declara `/movements/mine/shopping` y **no** `/movements/mine` | `Hecha` |
 
+### 1.6 Las líneas en «mis compras» — 03-10-2026
+
+Enmienda de hecho (Art. I.7), `spec.md` 0.8.0 y `plan.md` 0.7.0 **antes** del código, por decisión del responsable del proyecto: «es para mostrar en el front sin la necesidad de hacer otra consulta aparte». Sin migración y sin permisos. Rama `feature/lineas-en-mis-compras`.
+
+| ID | Tarea | Depende de | Verificación | Estado |
+|---|---|---|---|---|
+| `T-30` | `MovementRepository.findLinesOf(ids)`: las líneas y sus rebajas de varios movimientos en dos sentencias; `findMineById` y `findById` leen las suyas por él | — | El detalle devuelve lo mismo que antes (`CA-MV-044`, `CA-MV-223` siguen en verde) | Pendiente |
+| `T-31` | `MyMovementResponse` gana `lines` (`SaleLineResponse`); `ListMyMovementsService` las arma con el mapeo de `SaleDetailMapper` | `T-30` | El campo sale en el JSON de cada fila, vacío y presente si no hay líneas | Pendiente |
+| `T-32` | `MyMovementsIT`: `CA-MV-523` a `CA-MV-525` | `T-31` | `CA-MV-525` cuenta sentencias con dos tamaños de página | Pendiente |
+| `T-33` | `MovementController`: la prosa de `GET /mine/shopping` dice que las líneas viajan; contrato regenerado; `docs/api/index.md` | `T-32` | `openapi.json` declara `lines` en `MyMovement` | Pendiente |
+
 ---
 
 ## 2. Cobertura de los criterios de aceptación
@@ -106,6 +117,7 @@ Enmienda de hecho (Art. I.7), `spec.md` 0.6.0 y `plan.md` 0.6.0 **antes** del c�
 | `CA-MV-133`, `CA-MV-134`, `CA-MV-135` | `T-21`, `T-22` — 21-09-2026 |
 | `CA-MV-137`, `CA-MV-138`, `CA-MV-139` | `T-24`, `T-25`, `T-26` — 22-09-2026 |
 | `CA-MV-140` | `T-28`, `T-29` — 22-09-2026 |
+| `CA-MV-523`, `CA-MV-524`, `CA-MV-525` | `T-30` a `T-33` — 03-10-2026 |
 
 ---
 
