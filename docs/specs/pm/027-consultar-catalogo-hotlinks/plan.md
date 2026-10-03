@@ -8,7 +8,7 @@
 | Autor | Responsable técnico |
 | Aprobado por | Responsable del proyecto |
 | Fecha de aprobación | 15-09-2026 |
-| Enmendado el | 15-09-2026 — **`HOTLINK` o `AMBOS`** en el predicado (`RN-PM-021`) |
+| Enmendado el | 15-09-2026 — **`HOTLINK` o `AMBOS`** en el predicado (`RN-PM-021`); 03-10-2026 — **la condición del escalón en el predicado** (`RN-PM-018`, [`spec.md`](spec.md) v0.4.0), §3 |
 
 ---
 
@@ -26,7 +26,7 @@
 
 | Capa | Elemento | Módulo |
 |---|---|---|
-| `domain/repository` | `ProductQueryRepository.findHotlinkCatalog()` y su sentencia en `JpaProductQueryRepository`: el `SELECT` de la oferta con `WHERE deleted_at IS NULL AND status = 'ACTIVO' AND scope = 'HOTLINKS'`, mismo `ORDER BY` | `PM` |
+| `domain/repository` | `ProductQueryRepository.findHotlinkCatalog()` y su sentencia en `JpaProductQueryRepository`: el `SELECT` de la oferta con `WHERE deleted_at IS NULL AND status = 'ACTIVO' AND scope = 'HOTLINKS'`, mismo `ORDER BY`. **Desde el 03-10-2026 el predicado gana** `AND ( p.type = 'BOT' OR s.level - m.level BETWEEN 0 AND 1 )`, sobre los dos `JOIN` a `memberships` que la sentencia ya hace: **el mismo predicado que `findPublishedByCode` y `findPublishedByHotlink`** ([`RF-PM-008`](../008-hotlink-publico/plan.md) §5), porque los tres publican un solo conjunto. Ni sentencia ni `JOIN` nuevos; la razón de comparar en cada lectura es la de [`requirements/pm.md`](../../../requirements/pm.md) §5.2.17 | `PM` |
 | `domain/service` | **`GetHotlinkCatalogService.catalog()`** — `@Transactional(readOnly = true)`, sin `CurrentActor` ni `CurrentMembershipLookup` | `PM` |
 | `application` | **`HotlinkCatalogResponse(upgrades, services)`**, con `OfferResponse.Offered` reutilizado; **sin `currentMembership`** | `PM` |
 | `interfaces` | `ProductController` — `GET /api/v1/products/hotlinks`, `@PreAuthorize("hasAuthority('products:hotlink')")` | `PM` |
@@ -72,12 +72,15 @@ Ninguna: lectura.
 | # | Riesgo | Mitigación |
 |---|---|---|
 | 1 | **Alguien añade `p.purchase_price` a la sentencia nueva** «porque el vendedor debería saber el margen» | `OfferItem` no tiene el campo, y `CA-PM-342` comprueba que el cuerpo no lo trae bajo ningún nombre con un costo declarado |
-| 2 | **Se filtra por la membresía del actor** «por coherencia con la oferta» | `CA-PM-341`: un vendedor en `ORO` ve el `BECA → ORO` |
+| 2 | **Se filtra por la membresía del actor** «por coherencia con la oferta» | `CA-PM-341`: un vendedor en `ORO` ve el `PLATINO → ORO` (era `BECA → ORO` hasta el 03-10-2026, que hoy es un salto y no se lista) |
+| 4 | **(03-10-2026) El catálogo y el enlace dejan de publicar lo mismo**: el escalón entra en una de las tres sentencias y no en las otras | Se cambian en la misma pasada (`RF-PM-008` `T-26`, aquí `T-12`), y `CA-PM-426` aquí y `CA-PM-424` allí prueban la misma terna —renovación, escalón, salto— |
+| 5 | **(03-10-2026) La comparación se escribe al revés** | `CA-PM-426` lista renovación y escalón en la misma respuesta: la versión invertida pierde el escalón |
 | 3 | **La ruta cae en `/{id}`** tras un reordenado | `CA-PM-346` |
 
 ## 11. Estrategia de prueba
 
 - **Integración de API** (`HotlinkCatalogIT`): los ocho criterios de `spec.md` §12, con un catálogo que mezcla `TIENDA` y `HOTLINKS`, activos e inactivos, un retirado, y un costo declarado. **Las que definen el requerimiento**: `CA-PM-340` —el conjunto— y `CA-PM-341` —sin la membresía de quien llama—.
+- **Del escalón** (03-10-2026): una renovación, un escalón y un salto —sembrado por SQL— de alcance `HOTLINK`; se listan los dos primeros con el actor en cualquier membresía (`CA-PM-426`). `CA-PM-341` se reescribe con `PLATINO → ORO`.
 - **De sentencias**: `CA-PM-347` cuenta consultas con tres y con ocho productos, y son las mismas.
 - **De seguridad**: `EndpointPermissionsIT` lista la ruta con `products:hotlink`; `CA-PM-345` prueba `403` con los otros dos permisos de vista.
 - **De contrato**: `OpenApiContractIT` regenera; `HotlinkCatalogResponse` entra en el contrato.

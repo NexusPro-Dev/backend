@@ -267,7 +267,8 @@ public class PackageController {
           **primer** motivo que lo impide, en un orden fijo: menos de dos productos,
           sin descripción, inactivo, retirado, **fuera de su vigencia** —«todavía no
           está vigente: empieza el …» o «la vigencia terminó el …», con la fecha—, y
-          un producto inactivo o retirado —**nombrado por su código**—. Nulo cuando
+          un producto inactivo o retirado —**nombrado por su código**—, y por último
+          un upgrade que **salta niveles** (desde el 03-10-2026), nombrado igual. Nulo cuando
           es ofrecible. `validFrom` y `validTo` viajan siempre, el fin nulo cuando es
           indefinido, y **el día de fin cuenta entero**: un paquete que termina hoy
           se ofrece hoy. «Hoy» es el día en UTC.

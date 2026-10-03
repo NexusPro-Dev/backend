@@ -7,6 +7,7 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyCollection;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
@@ -122,6 +123,20 @@ class RegisterSaleServiceTest {
 
     assertThatThrownBy(() -> servicio.register(peticion(producto, 1)))
         .isInstanceOf(BusinessRuleException.class);
+  }
+
+  @Test
+  @DisplayName("`CA-MV-526` — EX-005: un upgrade que SALTA niveles se rechaza y no registra nada")
+  void elUpgradeQueSalta() {
+    // Del 3 al 1 hay dos escalones. La oferta simulada lo deja pasar a propósito:
+    // por HTTP la tienda lo filtra antes, y lo que se prueba aquí es la red de `MV`.
+    UUID producto = ofrecer(upgrade("UP_SALTO", 1));
+    enNivel(3);
+
+    assertThatThrownBy(() -> servicio.register(peticion(producto, 1)))
+        .isInstanceOf(BusinessRuleException.class)
+        .hasMessageContaining("salta niveles");
+    verify(movimientos, never()).save(any(), any(), any());
   }
 
   @Test

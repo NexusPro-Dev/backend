@@ -9,6 +9,7 @@
 | Autor | Responsable técnico |
 | Aprobado por | Responsable del proyecto |
 | Fecha de aprobación | 24-09-2026 |
+| Enmendado el | 03-10-2026 — el escalón (§13) |
 | Enmendado el | 01-10-2026 — la tarjeta por Stripe (§12) |
 
 !!! info "Qué va en este documento"
@@ -122,3 +123,19 @@
 ## 12. La tarjeta por Stripe — enmienda del 01-10-2026
 
 Por [`requirements/mv.md`](../../../requirements/mv.md) v0.64.0 §4.6 y `spec.md` §14.2. `BuyByHotlinkService` llama a `CardPayment` después de guardar el pago (`RF-MV-040` · `plan.md` §3); `PurchaseResponse` gana `cardCharge`. **Contrato**: la prosa de la `@Operation` lo dice.
+
+---
+
+## 13. El escalón — enmienda del 03-10-2026
+
+Por [`requirements/mv.md`](../../../requirements/mv.md) v0.72.0 (`RN-MV-006`) y `spec.md` §14.3. **Ningún componente nuevo ni modificado en este requerimiento**: `BuyByHotlinkService` registra a través de `RegisterSaleService`, que llama a `SaleRules.verificarQueSube` sea cual sea el canal, y la condición del salto la escribe `RF-MV-001` · `T-36`. Que la regla viva en un solo sitio es lo que la hace valer aquí sin una línea propia.
+
+**Por qué se prueba aquí y no solo allí.** Por la tienda, la oferta casa por origen y el salto no llega a `EX-005`; **por el enlace sí llega**, porque el hotlink no mira el origen frente a quien compra. Es la única entrada donde `CA-MV-526` se ve por HTTP, y la prueba que lo afirma tiene que vivir en la suite de esta ruta.
+
+| Qué | Cómo |
+|---|---|
+| El salto | Integración: quien está en la más baja compra por el enlace un upgrade de un escalón entre dos niveles superiores. `409` con `EX-005`, y **cero** filas nuevas en `movements`, `payments` y `client_sellers` (`CA-MV-530`) |
+| El escalón con origen ajeno | Integración: el destino está un nivel por encima de quien compra y el origen del producto es otro. `201` (`CA-MV-531`) |
+| El salto ya registrado | Integración: un `BECA → ORO` sembrado por SQL —el alta ya no lo admite—. `404` con el mismo cuerpo que un producto inexistente (`CA-MV-532`); depende de que `RF-PM-008` lo deje de publicar |
+
+**Contrato**: la prosa de la `@Operation` de la compra por hotlink nombra `EX-005` como bajar o saltar — `RF-MV-001` · `T-39`.

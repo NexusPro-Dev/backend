@@ -10,6 +10,7 @@
 | Fecha de aprobación | — |
 | Enmendada el | 16-09-2026 — **cada fila trae `coverImageUrl`, la dirección de la portada del paquete** (`RN-PM-045`, `RF-PM-028`). Ver §15 |
 | Enmendada el | 16-09-2026 — **cada fila trae `validFrom` y `validTo`**, y un paquete fuera de su vigencia sale `offerable: false` (`RN-PM-047`). Ver §15 |
+| Enmendada el | 03-10-2026 — **un paquete cuyo upgrade salta niveles sale `offerable: false`** (`RN-PM-018`, `RN-PM-044`). El motivo lo dice el detalle. Ver §15 |
 
 ---
 
@@ -55,6 +56,7 @@ Es `RF-PM-002` para paquetes: el catálogo de administración, paginado, con fil
 | `RN-PM-041` | Los retirados existen y se listan si se piden | `requirements/pm.md` §5.1 |
 | `RN-PM-024` | La conversión sale en toda lectura | `requirements/pm.md` §5.1 |
 | `RN-PM-047` | **(Desde el 16-09-2026)** Las fechas de vigencia viajan por fila; fuera de ellas `offerable` es falso y el estado no cambia | `requirements/pm.md` §5.1 |
+| `RN-PM-018` | **(Desde el 03-10-2026)** Un paquete cuyo upgrade salta niveles sale `offerable: false`, y su estado no cambia | `requirements/pm.md` §5.1 |
 
 ## 6. Datos
 
@@ -134,6 +136,7 @@ Las cuatro primeras se devuelven **juntas**.
 | `CA-PM-275` | `exchange` llega resuelto por fila, en una sentencia por página |
 | `CA-PM-276` | Los filtros inválidos se devuelven **juntos** con `400`, y sin `packages:list` responde `403` aunque el actor porte `products:read` |
 | `CA-PM-376` | Cada fila devuelve **`validFrom` y `validTo`**, el fin presente y nulo cuando es indefinido; y un paquete activo con todo en regla cuya vigencia **terminó ayer** o **empieza mañana** sale con `offerable: false`, y **sigue listado como `ACTIVO`** (16-09-2026) |
+| `CA-PM-428` | **(03-10-2026)** En la misma página, un paquete activo y vigente cuyo upgrade **salta niveles** —sembrado por SQL— sale `offerable: false`, y uno con un upgrade de **un escalón**, `offerable: true`; el número de sentencias **no cambia** (`CA-PM-274`) |
 | `CA-PM-367` | Cada fila devuelve **`coverImageUrl`** con la forma `/api/v1/product-images/{uuid}` cuando el paquete tiene portada, y **presente y nula** cuando no, **sin que el número de sentencias suba** (16-09-2026) |
 
 ## 13. Casos límite
@@ -161,3 +164,4 @@ Las cuatro primeras se devuelven **juntas**.
 | 0.3.0 | 16-09-2026 | **Cada fila trae `coverImageUrl`, la dirección de la portada del paquete** (`RN-PM-045`, [`requirements/pm.md`](../../../requirements/pm.md) v0.37.0 §5.2.12): la misma ruta pública que la del producto, sobre `cover_image_id` y sin consulta más; presente y nula cuando no hay. `CA-PM-367`. Enmienda que construye `RF-PM-028` (Art. I.7). | Responsable del proyecto |
 | 0.4.0 | 16-09-2026 | **Cada fila trae `validFrom` y `validTo`, y la vigencia decide `offerable` por fila** (`RN-PM-047`, [`requirements/pm.md`](../../../requirements/pm.md) v0.39.0 §5.2.13): fuera de sus fechas el paquete sale `false` y sigue listado con el estado que alguien decidió, como con un producto inactivo. Sin filtro por vigencia, por lo mismo que sin filtro por `offerable`. `CA-PM-376`. | Responsable del proyecto |
 | 0.5.0 | 19-09-2026 | **Cambia el permiso: `packages:list` y no `packages:read`** (`RF-SP-060`, `RN-SEG-014`, un permiso por operación; [`security.md`](../../../security.md) v0.63.0). Enmienda de Art. I.7 sin cambio de comportamiento: la misma operación, el mismo actor, un código propio sembrado por `V28` y dado a todo rol que portara `packages:read`. | Responsable del proyecto |
+| 0.6.0 | 03-10-2026 | **Un paquete cuyo upgrade salta niveles sale `offerable: false`** (`RN-PM-018` reescrita, `RN-PM-044`, [`requirements/pm.md`](../../../requirements/pm.md) v0.49.0 §5.2.17). La lista sigue sin `offerableReason` (§4.2): el porqué lo dice el detalle (`RF-PM-019`, `CA-PM-427`). Nace `CA-PM-428`. | Responsable del proyecto |

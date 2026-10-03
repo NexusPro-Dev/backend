@@ -8,7 +8,7 @@
 | Autor | Responsable técnico |
 | Aprobado por | Responsable del proyecto |
 | Fecha de aprobación | 07-09-2026 |
-| Enmendado el | 14-09-2026 — **`videoUrl` en el producto, sin token** (`RN-PM-032`), §4; 14-09-2026 — **`coverImageUrl` en el producto, sin token** (`RN-PM-033`), §4; 15-09-2026 — **`HOTLINK` o `AMBOS`** en el predicado (`RN-PM-021`); 22-09-2026 — **`links` resueltos y sin el `CUPON_BOT`** (`RN-PM-048` a `RN-PM-050`), §4 |
+| Enmendado el | 14-09-2026 — **`videoUrl` en el producto, sin token** (`RN-PM-032`), §4; 14-09-2026 — **`coverImageUrl` en el producto, sin token** (`RN-PM-033`), §4; 15-09-2026 — **`HOTLINK` o `AMBOS`** en el predicado (`RN-PM-021`); 22-09-2026 — **`links` resueltos y sin el `CUPON_BOT`** (`RN-PM-048` a `RN-PM-050`), §4; 03-10-2026 — **el escalón en el predicado** (`RN-PM-018`, [`spec.md`](spec.md) v0.11.0): `findPublishedByCode` y `findPublishedByHotlink` no resuelven un upgrade que salta niveles, §5 |
 
 ---
 
@@ -35,7 +35,8 @@ La búsqueda del producto por código **ya está cubierta** por `uq_products_cod
 | `interfaces` | `HotlinkController` | `PM` |
 | `application` | `HotlinkResponse`, con `SellerRef` y `ExchangeRef` | `PM` |
 | `domain/service` | `GetHotlinkService` | `PM` |
-| `domain/repository` | `ProductQueryRepository.findPublishedByCode(String)` | `PM` |
+| `domain/repository` | `ProductQueryRepository.findPublishedByCode(String)` — **y desde el 03-10-2026 la condición del escalón en su predicado** | `PM` |
+| `domain/repository` | **(03-10-2026)** `ProductQueryRepository.findPublishedByHotlink(Collection<UUID>)` — el conjunto contra el que `MV` valida la venta por hotlink (`RN-MV-007`), con **el mismo predicado**: su propio comentario dice que es «el mismo del enlace público y del catálogo de hotlinks», y dejar de serlo haría vendible por el enlace lo que el enlace no enseña | `PM` |
 | **`application`** | **`PublicSellerLookup`** — nombre y apellido por nombre de usuario | **`SP`** |
 | **`application`** | **`ExchangeRateLookup`** — la tasa vigente entre dos monedas | **`SP`** |
 | `shared/security` | La ruta entra en `RUTAS_PUBLICAS` y en la política de límite de tasa | `shared` |
@@ -109,6 +110,14 @@ La búsqueda del producto por código **ya está cubierta** por `uq_products_cod
 
     `CA-PM-134` compara **el cuerpo entero** de las seis respuestas, no solo el estado. Sin esa comparación, el día que alguien mejore un mensaje nadie se enteraría.
 
+**El séptimo caso entra por el mismo punto de salida, y sin un `if` más** (03-10-2026, `RN-PM-018`). El salto **no se decide en el servicio**: el predicado de `findPublishedByCode` gana la condición del escalón sobre los dos `JOIN` a `memberships` que la sentencia ya hace,
+
+```sql
+AND ( p.type = 'BOT' OR s.level - m.level BETWEEN 0 AND 1 )
+```
+
+de modo que un salto **no vuelve de la base** y el servicio lo trata como un código inexistente — el mismo `404`, por construcción y no por disciplina. La razón de comparar en cada lectura y no solo al registrar es la de [`requirements/pm.md`](../../../requirements/pm.md) §5.2.17. **`findPublishedByHotlink` gana el mismo predicado**, con los dos `JOIN` que hoy no hace: es una sentencia de identificadores y no los necesitaba hasta ahora, pero tiene que publicar **exactamente** el mismo conjunto que esta lectura y que el catálogo (`RF-PM-027`).
+
 ## 6. Autorización
 
 **Ninguna.** La ruta entra en `RUTAS_PUBLICAS` de `SecurityConfig`, con su motivo escrito al lado como las cinco que ya hay. Y entra en `EndpointPermissionsIT` en la lista de rutas **sin permiso a propósito**, que es lo que impide que una ruta pública se cuele por descuido.
@@ -141,6 +150,8 @@ La ruta se acota **por origen** en `RateLimitFilter`, y no por identidad: no hay
 | **Distinguir los mensajes de `404`** | Convierte el endpoint en un oráculo de existencia de personas |
 | **`404` cuando no hay tasa vigente** | Escondería un producto vendible porque nadie declaró una tasa |
 | **Elegir la moneda por parámetro** | Superficie pública añadida, y abre la pregunta sin dueño de qué hacer cuando no hay tasa para ese par |
+| **(03-10-2026) Un `404` propio para el salto** —«este producto ya no se vende así»— | El salto no es un oráculo de personas, pero sería una rama más del contrato público que ninguna pantalla sabe explicar a quien abre un enlace; y obligaría a resolver el producto **antes** de decidir, en lugar de dejarlo fuera del predicado |
+| **(03-10-2026) Filtrar el salto en el servicio**, con los niveles que la fila ya trae | Funcionaría aquí y se olvidaría en `findPublishedByHotlink`, que no trae niveles: los dos conjuntos dejarían de coincidir y el enlace vendería lo que no enseña. En el predicado, las dos sentencias se leen juntas |
 | **Cachear la respuesta en el servidor** | La tasa y el estado del producto cambian, y una caché mal invalidada publicaría un producto retirado. Si hace falta, se resuelve con cabeceras y no con estado |
 
 ## 11. Riesgos
@@ -154,11 +165,14 @@ La ruta se acota **por origen** en `RateLimitFilter`, y no por identidad: no hay
 | 5 | **Se construye antes que `RF-SP-047`** y la conversión queda siempre vacía | Declarado como bloqueo en `tasks.md` §4 |
 | 6 | **Se publica el precio de compra sin token** — el margen de NEXUS, a la vista de quien reciba un enlace por mensajería. **Vuelve a ser un riesgo el 12-09-2026**: entre el 08-09-2026 y esa fecha el segundo importe se publicaba a propósito, cuando era lo que se anunciaba | La única defensa es que `ProductRef` **no tenga** el campo y que la consulta **no lo seleccione**. `CA-PM-163` prueba la ausencia con un producto que **sí** tiene costo declarado; `CA-PM-169`, que afirmaba la presencia, se invierte de vuelta |
 | 7 | **Se convierte un importe y se publica el otro** | `CA-PM-162` comprueba la cuenta al revés: el importe convertido **dividido por la tasa** devuelve el publicado. Con `rate` en la respuesta, cualquier descuadre es deducible desde fuera |
+| 8 | **(03-10-2026) El enlace y la venta por enlace dejan de publicar lo mismo**: el escalón entra en `findPublishedByCode` y se olvida en `findPublishedByHotlink` | Las dos sentencias se cambian en la misma tarea (`tasks.md` `T-26`), y `RF-MV-011` lo prueba del lado de la venta. `MV` lo rechazaría igual por `RN-MV-006` —contra la membresía de quien compra—, pero con otro motivo y después de haber enseñado el producto |
+| 9 | **(03-10-2026) La comparación se escribe al revés** (`m.level - s.level`) | `CA-PM-424` resuelve en la misma prueba una renovación, un escalón y un salto: la versión invertida pierde el escalón |
 
 ## 12. Estrategia de prueba
 
 - **Integración de API**: los once criterios de `spec.md` §12.
-- **La prueba del oráculo**: los **seis** casos que no proceden, comparando el cuerpo entero entre ellos. Es la prueba que define el requerimiento.
+- **La prueba del oráculo**: los **seis** casos que no proceden, comparando el cuerpo entero entre ellos. Es la prueba que define el requerimiento. **Desde el 03-10-2026, siete**: el salto entra en la misma comparación (`CA-PM-424`).
+- **Del escalón** (03-10-2026): renovación y escalón se resuelven, el salto —sembrado por SQL, porque el alta ya no lo admite— responde el `404` uniforme (`CA-PM-424`).
 - **De la conversión**: con tasa, sin tasa, y con el producto ya en la moneda de casa.
 - **Del precio que se publica**: `price` con precio de compra declarado y sin él (`CA-PM-161`), que la conversión sale de `price` (`CA-PM-162`), y que el precio de compra **no aparece en el cuerpo** bajo ningún nombre (`CA-PM-163`).
 - **De número de consultas**: tres, y **dos** cuando el vendedor no procede — la tasa no se pide si no hay a quién enseñársela.

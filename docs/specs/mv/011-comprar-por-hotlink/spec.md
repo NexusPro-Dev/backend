@@ -4,11 +4,12 @@
 |---|---|
 | Requerimiento | `RF-MV-011` |
 | Módulo | `MV` — Movimientos |
-| Versión | 0.2.0 |
+| Versión | 0.3.0 |
 | Estado | **Aprobada** |
 | Autor | Responsable técnico |
 | Aprobada por | Responsable del proyecto |
 | Fecha de aprobación | 24-09-2026 |
+| Enmendada el | 03-10-2026 — **el escalón se comprueba contra quien compra** (`RN-MV-006`): nace `EX-005` en esta spec. Ver §14.3 |
 | Enmendada el | 01-10-2026 — **con tarjeta, la compra abre el cobro en la pasarela** y devuelve su secreto (`RF-MV-040`). Ver §14.2 |
 
 !!! info "Qué va en este documento"
@@ -53,6 +54,7 @@ Produce **la misma venta** que comprar un producto para uno mismo —tipo `VENTA
 | `RN-SP-049` | La forma del vínculo: `REGISTRO` uno y solo uno, `HOTLINK` los que traiga cada enlace |
 | `RN-MV-001` a `RN-MV-016` | Lo que hace que esto sea una venta como las demás: no se edita ni se borra, el precio y la vigencia se congelan, el código es único |
 | `RN-MV-022`, `RN-MV-026` | La cabecera lleva un sujeto, y el sujeto de una compra propia es quien compra |
+| `RN-MV-006` | **Aquí es donde se alcanza de verdad**, desde el 03-10-2026: el hotlink no casa por origen, de modo que un producto de un escalón puede ser un **salto** —o un descenso— para quien compra. Ver §14.3 |
 | `RN-PM-021`, `RN-PM-022` | Qué producto se puede repartir por enlace y qué publica el enlace de él |
 | `RN-SEG-015` | **Esta ruta exige permiso**, como toda otra: `products:buy-by-hotlink`. Ver §10 |
 
@@ -73,7 +75,7 @@ Produce **la misma venta** que comprar un producto para uno mismo —tipo `VENTA
 
 1. Quien compra abre el enlace y pide comprar.
 2. El sistema resuelve el enlace: el vendedor por su nombre de usuario y el producto por su código, **con las mismas comprobaciones que `RF-PM-008`** y el mismo `404` único.
-3. Rechaza si quien compra es el dueño del enlace (`EX-003`).
+3. Rechaza si quien compra es el dueño del enlace (`EX-003`), y si el producto es un upgrade que **baja o salta** de nivel respecto de la membresía vigente de quien compra (`EX-005`).
 4. Registra la venta: `PENDIENTE`, sujeto quien compra, una línea con el producto, su precio y su vigencia congelados, y `seller_id` el dueño del enlace.
 5. Crea el vínculo `HOTLINK` si no existía, con esta venta.
 6. Devuelve la venta, con la misma forma que `RF-MV-002`.
@@ -94,6 +96,7 @@ Produce **la misma venta** que comprar un producto para uno mismo —tipo `VENTA
 | `EX-002` | Quien llama no porta `products:buy-by-hotlink` | `403` (`AUTH-002`) |
 | `EX-003` | Quien compra **es el dueño del enlace** | `422`. Un vendedor no es su propio cliente, y admitirlo le dejaría atribuirse ventas propias |
 | `EX-004` | El método de pago no existe o no se ofrece en su país | El de `RF-MV-002`, sin cambio |
+| `EX-005` | El producto es un upgrade que **baja** o **salta** de nivel respecto de la membresía **vigente de quien compra** | `409`, el de `RF-MV-001` con el mismo código y el campo `lines`: lo emite el caso de uso compartido. **No queda venta, ni pago, ni vínculo** |
 
 ## 11. Validaciones
 
@@ -117,6 +120,7 @@ Las de `RF-MV-002` sobre el cuerpo, más la de `EX-003`. **El enlace no se valid
 - **El dueño del enlace deja de ser vendedor entre abrir el enlace y comprar**: la resolución falla y responde `EX-001`. No se conserva ninguna atribución a medias.
 - **El cliente tiene ya tres vendedores por enlace**: se le suma el cuarto. `client_sellers` no acota cuántos, y acotarlo sería inventar un límite que nadie pidió.
 - **Dos compras simultáneas por el mismo enlace**: el vínculo lo decide el esquema —la pareja es la clave primaria—, no una comprobación previa. Ver `plan.md` §7.
+- **La membresía de quien compra cambia entre abrir el enlace y comprar**: cuenta la de **al comprar**. El enlace no mira el nivel de nadie al publicar (`RN-PM-021`), de modo que no hay nada que haya prometido antes.
 
 ## 14. Preguntas abiertas
 
@@ -132,8 +136,29 @@ Desde el 01-10-2026 ([`requirements/mv.md`](../../../requirements/mv.md) v0.64.0
 |---|---|
 | `CA-MV-471` | Con tarjeta, la respuesta trae `cardCharge` y el pago su referencia; con otro método, `cardCharge` es nulo (lo prueba `RF-MV-040` · `CA-MV-426`) |
 
+## 14.3 El escalón — enmienda del 03-10-2026
+
+Por decisión del responsable del proyecto ([`requirements/mv.md`](../../../requirements/mv.md) v0.72.0, `RN-MV-006`; [`requirements/pm.md`](../../../requirements/pm.md) v0.49.0, §5.2.17), **un upgrade sube un escalón como máximo, en todos los canales**. Por la tienda la oferta ya lo garantiza —casa por origen—; **por el hotlink no**, y es aquí donde la regla de `MV` se ve:
+
+| Quien compra | Producto del enlace | Resultado |
+|---|---|---|
+| En el nivel de origen | Un escalón por encima | Se registra |
+| En el nivel de destino | Cualquiera de un escalón que acabe en su nivel | Se registra: es una **renovación** para él |
+| Un nivel por debajo del destino, sea cual sea el origen del producto | Cualquiera | Se registra: es **su** escalón. El hotlink nunca miró el origen, y esta regla no empieza a hacerlo |
+| Dos o más niveles por debajo del destino | Cualquiera | **`EX-005`**: salta |
+| Por encima del destino | Cualquiera | **`EX-005`**: baja, como ya ocurría |
+
+**Un salto registrado antes del 03-10-2026 no llega a esta comprobación**: el hotlink deja de publicarlo (`RN-PM-021`) y su compra responde el `404` único de `EX-001`, como un producto retirado.
+
+| ID | Criterio |
+|---|---|
+| `CA-MV-530` | Quien está **dos niveles o más por debajo** del destino compra por el enlace un upgrade de un escalón: `409` con `EX-005`, el mensaje dice que **salta**, y **no queda venta, ni pago, ni vínculo `HOTLINK`** |
+| `CA-MV-531` | Quien está **un nivel por debajo** del destino compra por el enlace un upgrade **cuyo origen no es el suyo**: se registra con normalidad — el escalón es de quien compra, no del producto |
+| `CA-MV-532` | Un **salto registrado antes** del 03-10-2026 —sembrado por SQL— no se compra por el enlace: `404` con **el mismo cuerpo** que un producto inexistente (`EX-001`) |
+
 ## 15. Control de cambios
 
 | Versión | Fecha | Cambio | Autor |
 |---|---|---|---|
 | 0.2.0 | 01-10-2026 | **La tarjeta por Stripe** ([`requirements/mv.md`](../../../requirements/mv.md) v0.64.0 §4.6): **con tarjeta, la compra abre el cobro en la pasarela** y devuelve su secreto (`RF-MV-040`). Criterios `CA-MV-471`. | Responsable del proyecto |
+| 0.3.0 | 03-10-2026 | **El escalón se comprueba contra quien compra** (§14.3; [`requirements/mv.md`](../../../requirements/mv.md) v0.72.0, `RN-MV-006`), por decisión del responsable del proyecto. **Nace `EX-005` en esta spec**, con el código y la forma del de `RF-MV-001` porque lo emite el mismo caso de uso: hasta hoy la venta por enlace lo heredaba en silencio, y desde hoy es **la entrada donde más se alcanza** —el hotlink no casa por origen, de modo que un producto de un escalón puede ser un salto para quien compra—. Nacen `CA-MV-530` a `CA-MV-532`: el salto respecto de la vigente se rechaza sin dejar nada, el escalón se admite aunque el origen del producto no sea el suyo, y un salto ya registrado no se resuelve por el enlace. | Responsable del proyecto |

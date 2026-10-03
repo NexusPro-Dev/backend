@@ -2,11 +2,11 @@
 
 | Campo | Valor |
 |---|---|
-| Versión | 0.90.0 |
+| Versión | 0.91.0 |
 | Estado | **Borrador** |
 | Responsable | Bonilla Diaz William Steven |
 | Fecha de creación | 21-08-2026 |
-| Última actualización | 01-10-2026 |
+| Última actualización | 03-10-2026 |
 
 !!! info "Qué va en este documento"
 
@@ -622,6 +622,8 @@ erDiagram
 
     **Y `RN-PM-017` ya no cabe en el motor NI A MEDIAS, desde el 07-09-2026.** Aquel `CHECK` exigía que las dos membresías **no fueran la misma**, y eso es exactamente lo que la **renovación** admite: `V61` lo retira (`requirements/pm.md` §5.2.3). La mitad que sobrevive —«el origen no está por encima del destino»— **nunca** cupo aquí, porque obliga a leer el `level` de **dos filas de `memberships`** y un `CHECK` no consulta otra tabla. De modo que la regla pasa a vivir **entera en el caso de uso**, sin la red que tenía. Es el mismo reparto que `RN-PM-007` con los decimales de la moneda, y conviene tenerlo escrito: **una regla crítica sin una sola línea en el esquema** depende de que nadie inserte en esta tabla saltándose la aplicación.
 
+    **Y desde el 03-10-2026 el salto ya no se admite** (`RN-PM-018`, [`requirements/pm.md`](requirements/pm.md) §5.2.17): el destino es el origen o **el inmediatamente superior**. **No cambia nada en el esquema**, y no por descuido: la regla necesita el `level` de dos filas de `memberships`, igual que `RN-PM-017`, y aunque cupiera en un `CHECK` no bastaría, porque **insertar una membresía reordena la cadena** y convierte en salto una fila que nadie toca. Por eso vive al registrar, en cada consulta de venta y al vender. Las dos columnas y la unicidad por pareja **se quedan**: con la renovación, cada destino admite dos orígenes, y los saltos registrados antes de esa fecha **siguen en la tabla**, sin publicarse.
+
 !!! danger "`products` tiene DOS PRECIOS desde el 08-09-2026, y solo uno de ellos se cobra"
 
     `price` es **el que se cobra**: lo copia `movement_details.unit_price` y sobre él calcula `RN-CM-019`. `purchase_price` es **lo que NEXUS paga por el producto** cuando tiene que comprarlo —ahí se guarda lo que costó—, es **opcional**, **ninguna otra tabla lo lee** y **no sale de administración**: lo devuelven `RF-PM-002` y `RF-PM-003`, y la oferta y el hotlink **no lo seleccionan** (`RN-PM-024`, `requirements/pm.md` §5.2.6).
@@ -1104,3 +1106,4 @@ Los documentos que citan una migración vieja por su número —specs, controles
 | 0.88.0 | 01-10-2026 | **`MV` diseña la etapa 4 para la tarjeta, con Stripe** ([`requirements/mv.md`](requirements/mv.md) v0.64.0 §4.6): la tabla `gateway_events` —cada notificación de la pasarela, guardada entera antes de interpretarse y única por `(gateway, external_id)`—, `payment_methods.gateway` —qué pasarela cobra cada método— y tres columnas de incidencia en `payments` —reembolso y disputa, que **no** cambian el estado del pago—. | Responsable técnico |
 | 0.89.0 | 01-10-2026 | **`MV` diseña un índice sobre `payments`**: `ix_payments_occurred_at (occurred_at DESC, id DESC)`, el orden del listado de pagos (`RF-MV-043`, [`requirements/mv.md`](requirements/mv.md) v0.65.0 §7.7). **Ninguna tabla ni columna.** Lo escribirá `V63`. | Responsable técnico |
 | 0.90.0 | 01-10-2026 | **La etapa 4 para la tarjeta está escrita** (`V62`): `gateway_events`, `payment_methods.gateway` —`STRIPE` en `CREDIT_CARD`— y la incidencia de `payments`, con `ix_payments_provider_reference` para que la notificación encuentre su pago. `MV` pasa a **quince** tablas escritas. | Responsable técnico |
+| 0.91.0 | 03-10-2026 | **Un upgrade sube un escalón como máximo** (`RN-PM-018` reescrita, [`requirements/pm.md`](requirements/pm.md) v0.49.0; `RN-MV-006`, [`requirements/mv.md`](requirements/mv.md) v0.72.0). **Sin migración**: la regla no cabe en el esquema —lee dos filas de `memberships`, y la cadena se reordena al insertar—, y los saltos ya registrados no se tocan; dejan de publicarse y de venderse. Lo dice la nota de `products`. | Responsable del proyecto |

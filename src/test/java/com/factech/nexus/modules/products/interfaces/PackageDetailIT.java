@@ -54,7 +54,7 @@ class PackageDetailIT extends IntegrationTestBase {
     paquete = PackageTestSupport.paquete(jdbc, "COMBO", "Oro con señales.", "ACTIVO", "AMBOS");
     oro =
         PackageTestSupport.upgrade(
-            jdbc, "UPGRADE_ORO", "299.00", membresias.beca(), membresias.oro());
+            jdbc, "UPGRADE_ORO", "299.00", membresias.platino(), membresias.oro());
     bot = PackageTestSupport.bot(jdbc, "BOT_SENALES", "39.00");
     jdbc.update("UPDATE products SET purchase_price = 20.00 WHERE id = ?", bot);
     PackageTestSupport.asociar(jdbc, paquete, oro, "PORCENTAJE", "10");
@@ -339,6 +339,38 @@ class PackageDetailIT extends IntegrationTestBase {
     jdbc.update(
         "UPDATE product_packages SET valid_from = ? WHERE id = ?", Date.valueOf(hoy), paquete);
     mvc.perform(detalle(paquete)).andExpect(jsonPath("$.offerable").value(true));
+  }
+
+  @Test
+  @DisplayName(
+      "`CA-PM-427` — un upgrade que SALTA niveles es el último motivo, nombrado; un producto inactivo va antes; escalón y renovación son ofrecibles")
+  void elSaltoEsElUltimoMotivo() throws Exception {
+    // Escalón: PLATINO → ORO, ofrecible.
+    mvc.perform(detalle(paquete)).andExpect(jsonPath("$.offerable").value(true));
+
+    // El salto se siembra por SQL: el alta ya no lo admite (`RN-PM-018`). BECA es
+    // el nivel 3 y ORO el 1 en esta cadena.
+    jdbc.update(
+        "UPDATE products SET source_membership_id = ? WHERE id = ?", membresias.beca(), oro);
+    mvc.perform(detalle(paquete))
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$.status").value("ACTIVO"))
+        .andExpect(jsonPath("$.offerable").value(false))
+        .andExpect(jsonPath("$.offerableReason").value(containsString("UPGRADE_ORO")))
+        .andExpect(jsonPath("$.offerableReason").value(containsString("salta niveles")));
+
+    // Un producto inactivo se nombra ANTES que el salto.
+    jdbc.update("UPDATE products SET status = 'INACTIVO' WHERE id = ?", bot);
+    mvc.perform(detalle(paquete))
+        .andExpect(jsonPath("$.offerableReason").value(containsString("BOT_SENALES")))
+        .andExpect(jsonPath("$.offerableReason").value(containsString("inactivo")));
+    jdbc.update("UPDATE products SET status = 'ACTIVO' WHERE id = ?", bot);
+
+    // Renovación: ORO → ORO, ofrecible.
+    jdbc.update("UPDATE products SET source_membership_id = ? WHERE id = ?", membresias.oro(), oro);
+    mvc.perform(detalle(paquete))
+        .andExpect(jsonPath("$.offerable").value(true))
+        .andExpect(jsonPath("$.offerableReason").value(nullValue()));
   }
 
   private MockHttpServletRequestBuilder detalle(UUID id) {

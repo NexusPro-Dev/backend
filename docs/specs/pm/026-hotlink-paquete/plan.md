@@ -10,6 +10,7 @@
 | Fecha de aprobación | 15-09-2026 |
 | Reabierto el | 16-09-2026 — **`validFrom` y `validTo` en la respuesta, y hoy en la ofrecibilidad** (`RN-PM-047`), ver §11 (Art. I.7) |
 | Reaprobado el | 16-09-2026 — Responsable del proyecto |
+| Enmendado el | 03-10-2026 — **el paquete con un upgrade que salta niveles recibe el `404`** (`RN-PM-018`, [`spec.md`](spec.md) v0.6.0): **sin cambio en este plan más allá de §7 y §11**, porque lo decide `PackageOfferability` ([`RF-PM-007`](../007-consultar-oferta-propia/plan.md) §5) |
 
 ---
 
@@ -89,7 +90,7 @@
 
 `@Transactional(readOnly = true)`. **Cuatro sentencias como máximo**: vendedor, paquete con productos, moneda de casa, tasa; **tres** cuando no hay nada que convertir; **una** cuando el vendedor no existe. La ofrecibilidad no cuesta sentencia: se decide sobre las filas que ya vinieron (`status`, `deleted_at`, cuántas, y `description` del paquete).
 
-**El `404` por no ofrecible se decide en Java y no en el `WHERE`**, a propósito: si la sentencia filtrara «todos activos» con un `NOT EXISTS`, la regla de `RN-PM-039` viviría en dos sitios —`PackageOfferability` para el detalle y la oferta, y el SQL para el hotlink— y el segundo se quedaría atrás.
+**El `404` por no ofrecible se decide en Java y no en el `WHERE`** —también, desde el 03-10-2026, el del upgrade que **salta niveles** (`RN-PM-018`): `SELECT_PUBLICADO` ya trae el `s_level` y el `m_level` de cada producto, y `PackageOfferability` los compara sin sentencia nueva—, a propósito: si la sentencia filtrara «todos activos» con un `NOT EXISTS`, la regla de `RN-PM-039` viviría en dos sitios —`PackageOfferability` para el detalle y la oferta, y el SQL para el hotlink— y el segundo se quedaría atrás.
 
 ## 8. Impacto sobre otros módulos
 
@@ -118,5 +119,6 @@
 
 - **Integración de API** (`PackageHotlinkIT`, junto a `HotlinkIT`): los ocho criterios; la que define el requerimiento es **`CA-PM-329`** —desactivar un producto del paquete apaga el enlace, reactivarlo lo enciende—, y la que más pesa es **`CA-PM-328`**, que compara el cuerpo del `404` con el del hotlink del producto.
 - **Cota de tasa** (`RateLimitIT`): `CA-PM-333`, dos peticiones de producto agotan la tercera de paquete desde el mismo origen.
-- **Sentencias**: cuatro con conversión, tres sin ella, una con vendedor inexistente.
+- **El escalón** (03-10-2026): el paquete con un upgrade que salta niveles —sembrado por SQL— responde el `404` con el cuerpo de `CA-PM-328`, y con un escalón o una renovación resuelve (`CA-PM-425`).
+- **Sentencias**: cuatro con conversión, tres sin ella, una con vendedor inexistente. **No cambian el 03-10-2026.**
 - **Seguridad** (`EndpointPermissionsIT`): la ruta entre las públicas.

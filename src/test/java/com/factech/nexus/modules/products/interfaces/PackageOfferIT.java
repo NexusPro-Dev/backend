@@ -279,6 +279,35 @@ class PackageOfferIT extends IntegrationTestBase {
 
   // ---------------------------------------------------------------------------
 
+  @Test
+  @DisplayName(
+      "`CA-PM-422` — a quien está en BECA no se le ofrece el paquete cuyo upgrade SALTA niveles, y sí el de un escalón")
+  void elPaqueteConSaltoNoSeOfrece() throws Exception {
+    // Los dos upgrades salen de BECA (nivel 3): uno a PLATINO (2), un escalón; otro
+    // a ORO (1), un salto sembrado por SQL, porque el alta ya no lo admite.
+    UUID escalon =
+        PackageTestSupport.upgrade(jdbc, "UP_BECA_PLATINO", "30.00", m.beca(), m.platino());
+    UUID salto = PackageTestSupport.upgrade(jdbc, "UP_BECA_ORO", "90.00", m.beca(), m.oro());
+    UUID botC = PackageTestSupport.bot(jdbc, "BOT_C", "5.00");
+    UUID botD = PackageTestSupport.bot(jdbc, "BOT_D", "5.00");
+
+    UUID conEscalon =
+        PackageTestSupport.paquete(jdbc, "CON_ESCALON", "Platino con bot.", "ACTIVO", "TIENDA");
+    PackageTestSupport.asociar(jdbc, conEscalon, escalon, "FIJO", "0");
+    PackageTestSupport.asociar(jdbc, conEscalon, botC, "FIJO", "0");
+    UUID conSalto =
+        PackageTestSupport.paquete(jdbc, "CON_SALTO", "Oro con bot.", "ACTIVO", "TIENDA");
+    PackageTestSupport.asociar(jdbc, conSalto, salto, "FIJO", "0");
+    PackageTestSupport.asociar(jdbc, conSalto, botD, "FIJO", "0");
+
+    UUID enBeca = persona("oferta-pk-beca", m.beca());
+    oferta(enBeca)
+        .andExpect(status().isOk())
+        .andExpect(
+            jsonPath("$.packages.content[*].code")
+                .value(org.hamcrest.Matchers.containsInAnyOrder("SOLO_BOTS", "CON_ESCALON")));
+  }
+
   private ResultActions oferta(UUID quien) throws Exception {
     return mvc.perform(
         get("/api/v1/products/available")

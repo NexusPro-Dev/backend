@@ -8,7 +8,7 @@
 | Autor | Responsable técnico |
 | Aprobadas por | Responsable del proyecto |
 | Fecha de aprobación | 26-08-2026 |
-| Enmendadas | 28-08-2026 — `T-19` a `T-22` por el renombrado a `BOT` y el icono del upgrade; 02-09-2026 — `T-23` a `T-26` por la membresía de **origen**; 07-09-2026 — `T-27` a `T-30` por el **alcance** y la **implementación**, y `T-31` por la **renovación**; 08-09-2026 — `T-33` a `T-37` por el **precio público** y la relajación de `RN-PM-006`; 12-09-2026 — `T-38` porque el segundo precio pasa a ser el **de compra**; 14-09-2026 — `T-39` por el **enlace del video**; 14-09-2026 — `T-40` por el **icono obligatorio en el upgrade** (`RN-PM-034`); 15-09-2026 — `T-41` por el **alcance de cuatro valores** (`RN-PM-019`); 22-09-2026 — `T-42` a `T-45` por **los enlaces del producto** (`RN-PM-048`, `RN-PM-049`), que traen `product_links` y se llevan `products.video_url` — issue [#84](https://github.com/NexusPro-Dev/backend/issues/84); 28-09-2026 — `T-46` por **el tipo `DESCARGA`** (`RN-PM-048`, `RN-PM-050`); 29-09-2026 — `T-47` a `T-50` por **la comisión por venta directa** (`RN-PM-051`) |
+| Enmendadas | 28-08-2026 — `T-19` a `T-22` por el renombrado a `BOT` y el icono del upgrade; 02-09-2026 — `T-23` a `T-26` por la membresía de **origen**; 07-09-2026 — `T-27` a `T-30` por el **alcance** y la **implementación**, y `T-31` por la **renovación**; 08-09-2026 — `T-33` a `T-37` por el **precio público** y la relajación de `RN-PM-006`; 12-09-2026 — `T-38` porque el segundo precio pasa a ser el **de compra**; 14-09-2026 — `T-39` por el **enlace del video**; 14-09-2026 — `T-40` por el **icono obligatorio en el upgrade** (`RN-PM-034`); 15-09-2026 — `T-41` por el **alcance de cuatro valores** (`RN-PM-019`); 22-09-2026 — `T-42` a `T-45` por **los enlaces del producto** (`RN-PM-048`, `RN-PM-049`), que traen `product_links` y se llevan `products.video_url` — issue [#84](https://github.com/NexusPro-Dev/backend/issues/84); 28-09-2026 — `T-46` por **el tipo `DESCARGA`** (`RN-PM-048`, `RN-PM-050`); 29-09-2026 — `T-47` a `T-50` por **la comisión por venta directa** (`RN-PM-051`); 03-10-2026 — `T-51` a `T-53` por **el escalón** (`RN-PM-018` reescrita), §8 |
 
 !!! info "Qué va en este documento"
 
@@ -90,7 +90,7 @@
 | `CA-PM-069` | `T-01`, `T-09` |
 | `CA-PM-070` | `T-03` |
 | `CA-PM-071` | `T-10` |
-| `CA-PM-101`, `CA-PM-102` | `T-23`, `T-24`, `T-26` |
+| `CA-PM-101`, `CA-PM-102` (invertido el 03-10-2026) | `T-23`, `T-24`, `T-26` |
 | `CA-PM-103`, `CA-PM-105` | `T-24`, `T-26` |
 | `CA-PM-104` | `T-24`, `T-25`, `T-26`, `T-31` |
 | `CA-PM-125` | `T-31` |
@@ -106,6 +106,7 @@
 | `CA-PM-219` a `CA-PM-222` | `T-39` |
 | `CA-PM-230`, `CA-PM-231` | `T-40` |
 | `CA-PM-348` | `T-41` |
+| `CA-PM-417`, `CA-PM-418`, `CA-PM-419` | `T-51`, `T-52` |
 
 ## 4. Bloqueos
 
@@ -146,3 +147,17 @@ Rama: `feature/comision-venta-directa`. **`V55` es también de `RF-CM-013`**: la
 | 2 | **`V55` pone FIJO cero, y no porcentaje cero, a los productos gratuitos** | Un porcentaje sobre precio cero es justo lo que `VAL-027` rechaza: con porcentaje cero, cualquier edición posterior de un gratuito fallaría con `VAL-021`. Lo destapó `CA-PM-149` |
 | 3 | **Un tipo fuera del dominio se rechaza al leer el cuerpo**, con `400`, y no con `VAL-024` | Es un enumerado, y Jackson lo rechaza antes del caso de uso, como `CA-PM-112`. `CA-PM-405` queda escrito así |
 | 4 | **`ProductListIT`, `ProductDetailIT` y `ProductUpdateIT` vacían `user_products` antes de `memberships`** | Pasaban solo cuando otra suite la había vaciado antes; al correrlas sueltas fallaban por la clave foránea. Es el mismo arreglo que `ProductsIT` ya tenía |
+
+## 8. Un escalón como máximo — enmienda del 03-10-2026
+
+**En revisión.** `RN-PM-018` reescrita ([`requirements/pm.md`](../../../requirements/pm.md) v0.49.0 §5.2.17; `plan.md` §13). Sin migración.
+
+| ID | Tarea | Depende de | Verificación | Estado |
+|---|---|---|---|---|
+| `T-51` | `RegisterProductService.verificarOrigen` rechaza `origen.level() - destino.level() > 1` con `EX-006` y `VAL-029` sobre `sourceMembershipId`, **detrás** de la comprobación del descenso; el Javadoc del método y el de `Product.sourceMembershipId` dejan de decir que el salto se admite; la prosa de la `@Operation` del alta dice que el destino es el origen o el inmediatamente superior; y el contrato se regenera | — | Unitaria nueva sobre el servicio con `MembershipCatalog` simulado: diferencias `0` y `1` admiten, `2` da `VAL-029`, `-1` y `-2` dan `VAL-014`. El `diff` de `docs/api/openapi.json` revisado a mano: **solo prosa** | **Hecha el 03-10-2026** |
+| `T-52` | `ProductsIT`: la prueba de `CA-PM-102` se **invierte** en `CA-PM-418` —el mismo `BECA → ORO`, ahora `422` y sin fila— y entran `CA-PM-417` (escalón, con la premisa de contigüidad comprobada) y `CA-PM-419` (`ORO → BECA` da `VAL-014`, no `VAL-029`) | `T-51` | Los tres criterios en verde; ninguna prueba de la suite afirma ya que un salto se registra | **Hecha el 03-10-2026** |
+| `T-53` | **Barrido**: toda suite que registra por la API un upgrade de **más de un escalón** —como dato de partida, no como lo que prueba— pasa a registrar un escalón. Las que siembran por SQL se dejan, salvo que lo sembrado se venda: eso lo decide `MV` | `T-51` | `./mvnw clean verify` en verde. La búsqueda queda escrita en el PR: qué suites registraban saltos y a qué escalón pasaron | **Hecha el 03-10-2026** |
+
+**Verificación de la enmienda del escalón (03-10-2026):** `ProductsIT` (`CA-PM-417` a `CA-PM-419`; siete fixtures `BECA → ORO` pasaron a `PLATINO → ORO`, y dos de ellas —las del icono— solo fallaban porque el salto se rechazaba antes que el icono), en verde; `mvn clean verify` completo: 517 unitarias y 2380 de integración, sin fallos.
+
+Rama: `feature/upgrade-escalonado`. Issue: Pendiente de crear.

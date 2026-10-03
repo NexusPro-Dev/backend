@@ -118,7 +118,8 @@ public class HotlinkPurchaseController {
         responseCode = "422",
         description =
             "Comprar por el **propio** enlace (`EX-003`), o cualquiera de los rechazos de negocio"
-                + " de una venta: nivel, moneda o método de pago",
+                + " de una venta: nivel —que baja, o que salta más de un escalón desde la membresía"
+                + " de quien compra—, moneda o método de pago",
         content = @Content),
     @ApiResponse(
         responseCode = "500",

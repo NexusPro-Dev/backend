@@ -5,9 +5,9 @@
 | Requerimiento | `RF-PM-018` |
 | Especificación | [`spec.md`](spec.md) |
 | Plan | [`plan.md`](plan.md), aprobado el 15-09-2026 |
-| Estado | **Hecha** — todas las tareas `Hecha` el 15-09-2026; **reabierta el 16-09-2026** por la vigencia (`T-12`); queda el Pull Request |
+| Estado | **Hecha** — todas las tareas `Hecha` el 15-09-2026; **reabierta el 16-09-2026** por la vigencia (`T-12`) y **el 03-10-2026** por el salto (`T-13`, `Hecha` ese mismo día); queda el Pull Request |
 | Issue | Pendiente de crear |
-| Rama | `feature/venta-de-productos` |
+| Rama | `feature/venta-de-productos`; la enmienda del 03-10-2026 (`T-13`), `feature/upgrade-escalonado` |
 | Autor | Responsable técnico |
 
 ---
@@ -28,6 +28,7 @@
 | `T-10` | Documentación OpenAPI. **La prosa dice** que el precio se calcula, que `offerable` es columna y no filtro, y qué significa ordenar por precio | `T-06` | El contrato declara `200`, `400`, `401`, `403` | **Hecha el 15-09-2026** |
 | `T-11` | Actualizar la matriz de `docs/requirements.md` y `docs/api/index.md` | `T-09` | La fila de `RF-PM-018` refleja el estado | **Hecha el 15-09-2026** |
 | `T-12` | **Enmienda del 16-09-2026** (`spec.md` v0.4.0, `RN-PM-047`): `search` selecciona `valid_from` y `valid_to`, `PackageRow` los lleva, `PackageItemSummary` los publica, y `ListPackagesService` pasa **hoy** (`Clock` UTC) a `PackageOfferability`; la prosa de la `@Operation` dice que la vigencia no filtra | `T-04`, `RF-PM-017 · T-13` | `PackageListIT`: `CA-PM-376` | **Hecha el 16-09-2026** |
+| `T-13` | **Enmienda del 03-10-2026** (`spec.md` v0.6.0, `RN-PM-018`): `findItemsOf` selecciona además el `level` del origen y del destino de cada producto —en la misma sentencia—, y `ListPackagesService` pasa el dato a `PackageOfferability`, que decide el motivo (`RF-PM-019 · T-14`) | `RF-PM-019 · T-14` | `PackageListIT` (`CA-PM-428`), con `CA-PM-274` contando las mismas sentencias | **Hecha el 03-10-2026** |
 
 **Verificación (15-09-2026):** `PackageListIT` (8), en verde; el `mvn verify` completo queda en 370 unitarias y 1422 de integración, con las únicas rojas fuera del módulo (`DevelopmentSeedIT` por una edición sin confirmar de la semilla, y una prueba de `SP` que desempata mal dos asientos con el mismo instante).
 
@@ -46,6 +47,7 @@
 | `CA-PM-274` | `T-03`, `T-07` |
 | `CA-PM-276` | `T-01`, `T-09` |
 | `CA-PM-376` | `T-12` |
+| `CA-PM-428` | `T-13` |
 
 ## 4. Bloqueos
 
@@ -55,7 +57,7 @@
 
 ## 5. Definición de terminado
 
-- [x] Todas las tareas en estado `Hecha`.
+- [x] Todas las tareas en estado `Hecha` (`T-13`, la del escalón, el 03-10-2026).
 - [x] Todos los criterios de aceptación con prueba automatizada en verde.
 - [x] `mvn verify` en verde en local.
 - [ ] El número de sentencias no depende del tamaño de la página, y está probado.

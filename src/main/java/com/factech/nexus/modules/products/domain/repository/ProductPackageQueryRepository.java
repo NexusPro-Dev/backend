@@ -84,7 +84,11 @@ public interface ProductPackageQueryRepository {
 
     public PackageOfferability.Producto paraOfrecibilidad() {
       return new PackageOfferability.Producto(
-          producto.code(), "ACTIVO".equals(producto.status()), retirado);
+          producto.code(),
+          "ACTIVO".equals(producto.status()),
+          retirado,
+          PackageOfferability.salta(
+              producto.type(), producto.sourceMembershipLevel(), producto.targetMembershipLevel()));
     }
   }
 
@@ -174,6 +178,7 @@ public interface ProductPackageQueryRepository {
       BigDecimal productPurchasePrice,
       UUID productCurrencyId,
       UUID productSourceMembershipId,
+      boolean productSkipsLevels,
       String discountType,
       BigDecimal discountValue,
       OffsetDateTime createdAt) {
@@ -188,7 +193,10 @@ public interface ProductPackageQueryRepository {
 
     public PackageOfferability.Producto paraOfrecibilidad() {
       return new PackageOfferability.Producto(
-          productCode, "ACTIVO".equals(productStatus), productDeletedAt != null);
+          productCode,
+          "ACTIVO".equals(productStatus),
+          productDeletedAt != null,
+          productSkipsLevels);
     }
   }
 

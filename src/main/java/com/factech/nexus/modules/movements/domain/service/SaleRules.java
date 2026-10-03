@@ -81,7 +81,17 @@ final class SaleRules {
   // ---------------------------------------------------------------------------
 
   /**
-   * `RN-MV-006`: <b>no se baja de nivel</b>, y renovar el mismo <b>sí</b> se admite.
+   * `RN-MV-006`: <b>no se baja de nivel ni se salta</b>; se renueva el mismo o se sube <b>un
+   * escalón</b>.
+   *
+   * <p><b>El salto se rechaza desde el 03-10-2026</b> (`requirements/pm.md` §5.2.17): la membresía
+   * comprada es la vigente o la inmediatamente superior —{@code level} vigente menos uno, porque la
+   * cadena no tiene huecos—. Se compara <b>con la membresía vigente de quien compra</b> y no con el
+   * origen del producto, de modo que vale igual en el hotlink, que no mira el origen para ofrecer,
+   * y alcanza a los saltos que `PM` registró antes de esa fecha. <b>Mismo {@code EX-005}</b> y
+   * mismo campo, con otro mensaje: el frontend ya sabe qué hacer con ese código. Por la tienda casi
+   * nunca se llega aquí —la oferta ya filtra el salto y responde antes—, y por eso esta
+   * comprobación es la que sostiene la regla y no la oferta.
    *
    * <p><b>Se comprueba aunque la oferta ya lo garantice hoy</b>, y eso no es redundancia por exceso
    * de celo: la oferta es una decisión de `PM` y puede ampliarse —el día que se vendan renovaciones
@@ -120,6 +130,16 @@ final class SaleRules {
     if (destino == null || destino > nivelActual.get()) {
       String mensaje =
           "El producto «%s» lleva a una membresía inferior a la que esa persona ya tiene."
+              .formatted(upgrade.code());
+      throw new BusinessRuleException(
+          codigo, mensaje, List.of(new FieldError("lines", codigo, mensaje)));
+    }
+    // `RN-MV-006`, segunda mitad (03-10-2026): UN ESCALÓN COMO MÁXIMO. Va después
+    // del descenso para que cada rechazo diga una sola cosa.
+    if (nivelActual.get() - destino > 1) {
+      String mensaje =
+          ("El producto «%s» salta niveles: solo se puede comprar la membresía que esa persona"
+                  + " ya tiene o la inmediatamente superior.")
               .formatted(upgrade.code());
       throw new BusinessRuleException(
           codigo, mensaje, List.of(new FieldError("lines", codigo, mensaje)));
