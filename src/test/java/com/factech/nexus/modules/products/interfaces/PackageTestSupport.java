@@ -35,7 +35,7 @@ final class PackageTestSupport {
         "DELETE FROM exchange_rates WHERE source_currency_id IN"
             + " (SELECT id FROM currencies WHERE is_default = false)"
             + " OR target_currency_id IN (SELECT id FROM currencies WHERE is_default = false)");
-    jdbc.update("DELETE FROM currencies WHERE is_default = false");
+    com.factech.nexus.testing.CurrencyCleanup.noPorOmision(jdbc);
   }
 
   /**

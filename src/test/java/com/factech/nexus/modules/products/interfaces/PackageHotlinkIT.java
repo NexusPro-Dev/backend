@@ -234,7 +234,7 @@ class PackageHotlinkIT extends IntegrationTestBase {
     UUID cop = UUID.randomUUID();
     jdbc.update(
         "INSERT INTO currencies (id, code, name, symbol, decimal_places, is_default, is_active)"
-            + " VALUES (?, 'COP', 'Peso', '$', 0, false, true)",
+            + " VALUES (?, 'ZCP', 'Peso', '$', 0, false, true)",
         cop);
     jdbc.update("UPDATE product_packages SET currency_id = ? WHERE id = ?", cop, paquete);
     jdbc.update(

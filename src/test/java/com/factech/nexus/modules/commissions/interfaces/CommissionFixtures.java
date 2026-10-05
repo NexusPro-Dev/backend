@@ -82,7 +82,8 @@ final class CommissionFixtures {
   static UUID sembrarProducto(JdbcTemplate jdbc, String codigo, boolean retirado, String precio) {
     UUID id = UUID.randomUUID();
     String monedaId =
-        jdbc.queryForObject("SELECT CAST(id AS text) FROM currencies LIMIT 1", String.class);
+        jdbc.queryForObject(
+            "SELECT CAST(id AS text) FROM currencies WHERE is_default", String.class);
     jdbc.update(
         "INSERT INTO products (scope, implementation, id, code, type, name, price, currency_id, status, deleted_at)"
             + " VALUES ('TIENDA', 'MANUAL', CAST(? AS uuid), ?, 'BOT', ?, CAST(? AS bigint), CAST(? AS uuid),"

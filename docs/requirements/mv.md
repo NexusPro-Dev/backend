@@ -5,7 +5,7 @@
 | Módulo | `MV` — Movimientos |
 | Paquete | `modules/movements` |
 | Prefijos de permiso | `movements:` |
-| Versión | 0.80.0 |
+| Versión | 0.81.0 |
 | Estado | **Borrador** |
 | Responsable | Bonilla Diaz William Steven |
 | Fecha de creación | 02-09-2026 |
@@ -607,6 +607,8 @@ Decisiones del responsable del proyecto del 05-10-2026, **preguntadas antes de e
 | ¿Quién la fija y quién la ve? | **La fijan `SUPERADMIN` y `ADMIN`**, con permiso propio; **la vigente la consulta quien paga o retira**, por tipo de rol | *Solo administración* — el cliente no sabría cuántos pesos va a pagar hasta llegar al cobro |
 
 **Lo que guarda cada fila.** El país, **la moneda local** —la de los métodos de ese país, hoy COP para Colombia—, **la moneda base** —la moneda por omisión del sistema en el momento de fijar, hoy USD—, el **precio de cobro**, el **precio de retiro**, desde cuándo rige y quién la fijó. **La moneda base se copia y no se deduce**: si algún día cambia la moneda por omisión, una fila antigua tiene que seguir diciendo de qué moneda convertía.
+
+**La de Colombia nace sembrada** (`V70`, 05-10-2026, por decisión del responsable del proyecto, **en todos los entornos**): **1 USD = 3.400 COP al cobrar y 3.200 COP al pagar un retiro**, con COP —sembrada en `V9`— como moneda local y a nombre del superadministrador. Desde ahí, cambiarla es fijar otra por la API, y la sembrada queda en la historia.
 
 **Lo que esta etapa NO hace todavía.** No convierte nada: **la usarán** el cobro y el retiro por PayRetailers, que se escriben después, y cada uno **guardará qué fila usó y el importe convertido** —como la compra de puntos guarda su tasa (`RN-MV-051`)—. Tampoco publica el histórico: `RF-MV-047` devuelve la vigente de cada país, y los cambios quedan en la tabla y en la auditoría, como en `RF-MV-026`. **No se exige que el precio de retiro sea menor que el de cobro**: es lo habitual, pero es una decisión comercial de quien la fija, y el sistema no la impone.
 
@@ -1458,3 +1460,4 @@ Se siembra por migración y **no se administra por API todavía** (§5.3). Lo m�
 | 0.78.0 | 05-10-2026 | **Se escribe el cobro por la pasarela local, PayRetailers** (§4.10), con decisiones del responsable del proyecto: el método `PSE` («Múltiples métodos de pago») pasa a cobrarlo la pasarela, en **su página de pago**, en **moneda local** con el precio de cobro y **redondeado hacia arriba** (`RN-MV-063`); **el aviso no se cree** —no va firmado ni se reintenta—: dispara una consulta a la pasarela, y un **barrido programado** pregunta por los pendientes (`RN-MV-064`). Se cobra en las mismas entradas que la tarjeta. Nacen `RF-MV-048` a `RF-MV-051`, `movements:pay-pending-locally`, tres columnas en `payments` y la incidencia `COBRO_TARDIO`, que escribirá `V69` | Responsable del proyecto |
 | 0.79.0 | 05-10-2026 | **Tripletas de `RF-MV-048` a `RF-MV-051`** ([`specs/mv/048-cobrar-por-la-pasarela-local/`](../specs/mv/048-cobrar-por-la-pasarela-local/tasks.md) a [`051`](../specs/mv/051-pagar-pendiente-por-la-pasarela-local/tasks.md)), `CA-MV-600` a `CA-MV-629`. Al planificar `RF-MV-051` `payments` gana una cuarta columna del cobro local, **`checkout_url`**, para devolver la misma página sin preguntar a la pasarela | Responsable técnico |
 | 0.80.0 | 05-10-2026 | **El cobro por la pasarela local está construido** (§4.10): `V69` escribe las cuatro columnas del cobro local, la incidencia `COBRO_TARDIO` —la primera sobre un pago **rechazado**—, `PAYRETAILERS` en `PSE` y `movements:pay-pending-locally` (catálogo **182**). **Precisión de la construcción**: PayRetailers abre un *paywall* y la transacción nace cuando el cliente elige método, de modo que **el cobro se consulta por nuestro `trackingId`** —el identificador del pago— y no por su `uid`. Sin cambio de reglas | Responsable técnico |
+| 0.81.0 | 05-10-2026 | **La conversión de Colombia nace sembrada** (§4.9), por decisión del responsable del proyecto y en todos los entornos: `V70` la escribe —1 USD = 3.400 COP al cobrar, 3.200 al retirar— sobre COP, que `V9` siembra desde hoy ([`requirements/sp.md`](sp.md) v1.92.0) | Responsable del proyecto |

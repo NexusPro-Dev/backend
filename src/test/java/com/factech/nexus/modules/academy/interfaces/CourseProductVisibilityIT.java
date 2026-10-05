@@ -341,7 +341,7 @@ class CourseProductVisibilityIT extends IntegrationTestBase {
     jdbc.update(
         "INSERT INTO products (id, code, type, name, price, currency_id, scope, implementation,"
             + " status, source_membership_id, target_membership_id)"
-            + " VALUES (?, ?, ?, ?, 10000, (SELECT id FROM currencies ORDER BY code LIMIT 1),"
+            + " VALUES (?, ?, ?, ?, 10000, (SELECT id FROM currencies WHERE is_default),"
             + " 'NINGUNO', 'AUTOMATICA', ?, "
             + (upgrade
                 ? "(SELECT id FROM memberships WHERE code = 'BECA'),"

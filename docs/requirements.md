@@ -5,7 +5,7 @@
 | Proyecto | NEXUS — Renovación de plataforma |
 | Empresa | FACTECH GROUP SAS |
 | Documento | `requirements.md` |
-| Versión | 0.276.0 |
+| Versión | 0.277.0 |
 | Estado | Borrador |
 | Responsable técnico | Bonilla Diaz William Steven |
 | Fecha de creación | 20-08-2026 |
@@ -686,3 +686,4 @@ El inventario y el estado de los módulos se consultan en [`modules.md` §4](mod
 | 0.274.0 | 05-10-2026 | **Nacen `RF-MV-048` a `RF-MV-051`, el cobro por la pasarela local, PayRetailers** ([`requirements/mv.md`](requirements/mv.md) v0.78.0 §4.10, `RN-MV-063` y `RN-MV-064`; [`security.md`](security.md) v0.101.0; [`architecture.md`](architecture.md) v0.46.0 §15.5; [`deployment.md`](deployment.md) v0.14.0 §6.5.2; [`modelo-datos.md`](modelo-datos.md) v0.95.0): cobrar en moneda local, recibir los avisos —que no se creen—, conciliar con un barrido y pagar un pendiente propio. Registrados 205 → 209 | Responsable del proyecto |
 | 0.275.0 | 05-10-2026 | **`RF-MV-048` a `RF-MV-051` estrenan tripleta**: cobrar en moneda local (`CA-MV-600` a `CA-MV-610`, carga `V69`), los avisos que no se creen (`CA-MV-612` a `CA-MV-619`), el barrido (`CA-MV-620` a `CA-MV-624`) y pagar un pendiente propio (`CA-MV-625` a `CA-MV-629`). Specs redactadas 201 → 205, aprobadas 141 → 145, planes 200 → 204; tareas en revisión | Responsable del proyecto |
 | 0.276.0 | 05-10-2026 | **El cobro por la pasarela local está construido** (`V69`, catálogo **182**): `PSE` lo cobra PayRetailers en su página, en moneda local; el aviso solo dispara una consulta por `trackingId`; el barrido cada cinco minutos; `POST /movements/mine/{id}/local-charge`. `RF-MV-048` a `RF-MV-051` pasan a **En desarrollo**, con `LocalChargeIT` (`CA-MV-600` a `CA-MV-629`). **Endpoint funcionando +2**: el aviso y pagar un pendiente; cobrar y el barrido no tienen ruta propia. **Falta probarlo contra el sandbox de PayRetailers**, sin credenciales todavía | Responsable técnico |
+| 0.277.0 | 05-10-2026 | **COP y la conversión de Colombia se siembran** ([`requirements/sp.md`](requirements/sp.md) v1.92.0, [`requirements/mv.md`](requirements/mv.md) v0.81.0 §4.9): COP en `V9`, editada en el sitio —toda base ya migrada debe recrearse—, y la conversión en `V70`, 3.400 al cobrar y 3.200 al retirar, en todos los entornos. Sin requerimientos nuevos | Responsable del proyecto |

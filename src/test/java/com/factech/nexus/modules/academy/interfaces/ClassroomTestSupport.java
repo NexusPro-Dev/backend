@@ -67,7 +67,7 @@ final class ClassroomTestSupport {
     jdbc.update(
         "INSERT INTO products (id, code, type, name, price, currency_id, scope, implementation,"
             + " status) VALUES (?, ?, 'BOT', ?, 10000,"
-            + " (SELECT id FROM currencies ORDER BY code LIMIT 1), 'NINGUNO', 'AUTOMATICA',"
+            + " (SELECT id FROM currencies WHERE is_default), 'NINGUNO', 'AUTOMATICA',"
             + " 'ACTIVO')",
         id,
         codigo,

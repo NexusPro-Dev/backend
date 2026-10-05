@@ -759,7 +759,7 @@ class ProductListIT extends IntegrationTestBase {
     // La conversión trajo dos tablas más a esta clase (08-09-2026). Se limpian
     // aquí y en este orden: las tasas apuntan a las monedas.
     jdbc.update("DELETE FROM exchange_rates");
-    jdbc.update("DELETE FROM currencies WHERE is_default = false");
+    com.factech.nexus.testing.CurrencyCleanup.noPorOmision(jdbc);
   }
 
   /** Una moneda distinta de la de casa, que es lo que hace que haya algo que convertir. */

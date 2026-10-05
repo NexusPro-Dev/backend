@@ -33,7 +33,7 @@ final class AfftrackFixtures {
         "INSERT INTO products (scope, implementation, id, code, type, name, source_membership_id,"
             + " target_membership_id, price, currency_id, status)"
             + " VALUES ('TIENDA', 'MANUAL', ?, ?, 'UPGRADE_MEMBRESIA', ?, ?, ?, 5000,"
-            + " (SELECT id FROM currencies LIMIT 1), 'INACTIVO')",
+            + " (SELECT id FROM currencies WHERE is_default), 'INACTIVO')",
         id,
         "AF_" + codigo,
         "Producto " + codigo,
@@ -49,7 +49,7 @@ final class AfftrackFixtures {
         "INSERT INTO products (scope, implementation, id, code, type, name, source_membership_id,"
             + " target_membership_id, price, currency_id, status, deleted_at)"
             + " VALUES ('HOTLINK', 'MANUAL', ?, ?, 'UPGRADE_MEMBRESIA', ?, ?, ?, 0,"
-            + " (SELECT id FROM currencies LIMIT 1), 'INACTIVO', CASE WHEN ? THEN now() END)",
+            + " (SELECT id FROM currencies WHERE is_default), 'INACTIVO', CASE WHEN ? THEN now() END)",
         id,
         "AF_" + codigo,
         "Producto " + codigo,

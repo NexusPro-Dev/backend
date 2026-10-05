@@ -276,7 +276,7 @@ class CommissionAccrualIT extends IntegrationTestBase {
           + " otro lote")
   void elLoteAbierto() throws Exception {
     CommissionFixtures.sembrarTasaDeRol(jdbc, producto, AGENTE, "10.00");
-    UUID cop = moneda("COP");
+    UUID cop = moneda("ZCP");
     UUID enPesos = producto("CA_COP", "1000.00", cop);
     CommissionFixtures.sembrarTasaDeRol(jdbc, enPesos, AGENTE, "10.00");
 
@@ -823,7 +823,7 @@ class CommissionAccrualIT extends IntegrationTestBase {
     jdbc.update("DELETE FROM user_commission_rates");
     jdbc.update("DELETE FROM commission_rates");
     jdbc.update("DELETE FROM products WHERE code LIKE 'CA\\_%'");
-    jdbc.update("DELETE FROM currencies WHERE code = 'COP'");
+    jdbc.update("DELETE FROM currencies WHERE code = 'ZCP'");
     jdbc.update(
         "DELETE FROM client_sellers WHERE client_id IN (SELECT id FROM users WHERE username LIKE"
             + " 'ca-%')");

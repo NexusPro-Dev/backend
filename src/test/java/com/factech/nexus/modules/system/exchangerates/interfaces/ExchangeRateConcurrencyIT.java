@@ -60,13 +60,13 @@ class ExchangeRateConcurrencyIT extends IntegrationTestBase {
   void dejarLoQueEncontro() {
     // Las tasas primero: apuntan a las monedas que se borran a continuación.
     jdbc.update("DELETE FROM exchange_rates");
-    jdbc.update("DELETE FROM currencies WHERE is_default = false");
+    com.factech.nexus.testing.CurrencyCleanup.noPorOmision(jdbc);
   }
 
   @BeforeEach
   void dejarElCatalogoLimpio() {
     jdbc.update("DELETE FROM exchange_rates");
-    jdbc.update("DELETE FROM currencies WHERE is_default = false");
+    com.factech.nexus.testing.CurrencyCleanup.noPorOmision(jdbc);
     cop = insertarMoneda("COP", "Peso colombiano");
   }
 

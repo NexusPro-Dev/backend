@@ -209,7 +209,7 @@ class PackageOfferIT extends IntegrationTestBase {
     UUID cop = UUID.randomUUID();
     jdbc.update(
         "INSERT INTO currencies (id, code, name, symbol, decimal_places, is_default, is_active)"
-            + " VALUES (?, 'COP', 'Peso', '$', 0, false, true)",
+            + " VALUES (?, 'ZCP', 'Peso', '$', 0, false, true)",
         cop);
     jdbc.update(
         "INSERT INTO exchange_rates (id, source_currency_id, target_currency_id, price,"

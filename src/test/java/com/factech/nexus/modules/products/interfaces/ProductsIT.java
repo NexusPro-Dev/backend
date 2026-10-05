@@ -46,7 +46,7 @@ class ProductsIT extends IntegrationTestBase {
 
   @BeforeEach
   void prepararCatalogo() {
-    jdbc.update("DELETE FROM currencies WHERE is_default = false");
+    com.factech.nexus.testing.CurrencyCleanup.noPorOmision(jdbc);
     jdbc.update("DELETE FROM products");
     // Antes que las membresías: `user_products` las referencia (`V57`), y
     // sin esto la suite solo pasaba cuando otra las había vaciado antes.

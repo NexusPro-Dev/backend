@@ -63,7 +63,7 @@ class ExchangeRateIT extends IntegrationTestBase {
   void dejarLoQueEncontro() {
     // Las tasas primero: apuntan a las monedas que se borran a continuación.
     jdbc.update("DELETE FROM exchange_rates");
-    jdbc.update("DELETE FROM currencies WHERE is_default = false");
+    com.factech.nexus.testing.CurrencyCleanup.noPorOmision(jdbc);
   }
 
   @BeforeEach
@@ -71,7 +71,7 @@ class ExchangeRateIT extends IntegrationTestBase {
     // Las tasas primero: apuntan a las monedas que se borran a continuación.
     jdbc.update("DELETE FROM exchange_rates");
     jdbc.update("DELETE FROM audit_change_log WHERE entity = 'exchange_rates'");
-    jdbc.update("DELETE FROM currencies WHERE is_default = false");
+    com.factech.nexus.testing.CurrencyCleanup.noPorOmision(jdbc);
     cop = insertarMoneda("COP", "Peso colombiano", true);
     eur = insertarMoneda("EUR", "Euro", true);
   }

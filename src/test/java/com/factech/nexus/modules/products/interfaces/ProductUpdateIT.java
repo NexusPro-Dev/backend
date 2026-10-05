@@ -56,7 +56,7 @@ class ProductUpdateIT extends IntegrationTestBase {
     // solo pasaba cuando otra la había vaciado antes (como en `ProductsIT`).
     jdbc.update("DELETE FROM user_products");
     jdbc.update("DELETE FROM memberships");
-    jdbc.update("DELETE FROM currencies WHERE is_default = false");
+    com.factech.nexus.testing.CurrencyCleanup.noPorOmision(jdbc);
     oro = membresia("ORO", "Oro", 1);
     // El SUELO de la cadena: es el origen de todo upgrade que se siembre
     // aqui. Va encadenado bajo `oro` porque `uq_memberships_parent` es
@@ -1016,7 +1016,7 @@ class ProductUpdateIT extends IntegrationTestBase {
     UUID id = UUID.randomUUID();
     jdbc.update(
         "INSERT INTO currencies (id, code, name, symbol, decimal_places, is_default, is_active)"
-            + " VALUES (CAST(? AS uuid), 'COP', 'Peso colombiano', '$', 0, false, true)",
+            + " VALUES (CAST(? AS uuid), 'ZCP', 'Peso colombiano', '$', 0, false, true)",
         id.toString());
     return id.toString();
   }

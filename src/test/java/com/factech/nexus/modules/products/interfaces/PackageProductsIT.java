@@ -221,7 +221,7 @@ class PackageProductsIT extends IntegrationTestBase {
     UUID cop = UUID.randomUUID();
     jdbc.update(
         "INSERT INTO currencies (id, code, name, symbol, decimal_places, is_default, is_active)"
-            + " VALUES (?, 'COP', 'Peso', '$', 0, false, true)",
+            + " VALUES (?, 'ZCP', 'Peso', '$', 0, false, true)",
         cop);
     UUID enPesos = UUID.randomUUID();
     jdbc.update(
@@ -235,7 +235,7 @@ class PackageProductsIT extends IntegrationTestBase {
     mvc.perform(asociar(paquete, enPesos, "FIJO", "0"))
         .andExpect(status().isConflict())
         .andExpect(jsonPath("$.errors[0].code").value("EX-004"))
-        .andExpect(jsonPath("$.detail").value(containsString("COP")))
+        .andExpect(jsonPath("$.detail").value(containsString("ZCP")))
         .andExpect(jsonPath("$.detail").value(containsString("USD")));
 
     jdbc.update("DELETE FROM products WHERE id = ?", enPesos);

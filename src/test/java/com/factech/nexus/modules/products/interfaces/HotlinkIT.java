@@ -590,7 +590,7 @@ class HotlinkIT extends IntegrationTestBase {
     jdbc.update("DELETE FROM users WHERE username LIKE 'hl-%'");
     jdbc.update("DELETE FROM user_products");
     jdbc.update("DELETE FROM memberships");
-    jdbc.update("DELETE FROM currencies WHERE is_default = false");
+    com.factech.nexus.testing.CurrencyCleanup.noPorOmision(jdbc);
   }
 
   private UUID membresia(String codigo, String nombre, int nivel, UUID superior) {

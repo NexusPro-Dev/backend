@@ -43,7 +43,7 @@ class CurrenciesIT extends IntegrationTestBase {
 
   @BeforeEach
   void dejarSoloLaSembrada() {
-    jdbc.update("DELETE FROM currencies WHERE is_default = false");
+    com.factech.nexus.testing.CurrencyCleanup.noPorOmision(jdbc);
   }
 
   // ---------------------------------------------------------------------------

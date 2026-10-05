@@ -15,7 +15,12 @@
 -- ---------------------------------------------------------------------------
 
 INSERT INTO currencies (id, code, name, symbol, decimal_places, is_default, is_active) VALUES
-('01a03336-6d00-7001-9c4f-5e7ad3000001', 'USD', 'Dólar estadounidense', '$', 2, true, true);
+('01a03336-6d00-7001-9c4f-5e7ad3000001', 'USD', 'Dólar estadounidense', '$', 2, true, true),
+-- COP, desde el 05-10-2026 (editado en el sitio, por decisión del responsable del
+-- proyecto): la moneda local de Colombia, a la que convierte la pasarela local
+-- (RN-MV-062, V70). No es la de casa. Rompe la suma de comprobación de esta
+-- migración: toda base ya migrada debe recrearse.
+('01a03336-6d00-7002-9c4f-5e7ad3000002', 'COP', 'Peso colombiano', '$', 2, false, true);
 
 INSERT INTO audit_change_log (
     id, occurred_at, actor_id, correlation_id, ip_address, user_agent,
@@ -34,6 +39,24 @@ SELECT
         'is_active',      c.is_active)
   FROM currencies c
  WHERE c.code = 'USD';
+
+INSERT INTO audit_change_log (
+    id, occurred_at, actor_id, correlation_id, ip_address, user_agent,
+    module, entity, entity_id, action, changes
+)
+SELECT
+    '01a03336-6d00-7012-9c4f-5e7ad3000002'::uuid,
+    now(), NULL, NULL, NULL, NULL,
+    'SP', 'currencies', c.id, 'CREATE',
+    jsonb_build_object(
+        'code',           c.code,
+        'name',           c.name,
+        'symbol',         c.symbol,
+        'decimal_places', c.decimal_places,
+        'is_default',     c.is_default,
+        'is_active',      c.is_active)
+  FROM currencies c
+ WHERE c.code = 'COP';
 
 -- ---------------------------------------------------------------------------
 -- La cadena de membresías: ORO en la cima (level 1), PLATINO, VIP y BECA en el
