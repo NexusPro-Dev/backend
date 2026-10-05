@@ -3,7 +3,6 @@ package com.factech.nexus.modules.products.domain.service;
 import com.factech.nexus.modules.products.application.ProductDetailResponse;
 import com.factech.nexus.modules.products.application.ProductPrice;
 import com.factech.nexus.modules.products.application.UpdateProductRequest;
-import com.factech.nexus.modules.products.domain.models.DirectCommission;
 import com.factech.nexus.modules.products.domain.models.Product;
 import com.factech.nexus.modules.products.domain.models.ProductLink;
 import com.factech.nexus.modules.products.domain.repository.ProductLinkRepository;
@@ -153,7 +152,6 @@ public class UpdateProductService {
             peticion.validityDays(),
             peticion.scope(),
             peticion.implementation(),
-            directaPedida(peticion),
             ahora);
 
     corregirEnlaces(peticion, producto.getId(), ahora, cambios);
@@ -461,8 +459,7 @@ public class UpdateProductService {
     // El de compra entra en el disparador aunque llegue NULO, porque vaciarlo
     // también cambia lo que va a quedar — deja de haber un importe que medir.
     boolean tocaCompra = peticion.purchasePrice().presente();
-    boolean tocaDirecta = peticion.directCommission().presente();
-    if (!cambiaMoneda && !cambiaPrecio && !tocaCompra && !tocaDirecta) {
+    if (!cambiaMoneda && !cambiaPrecio && !tocaCompra) {
       return;
     }
 
@@ -500,52 +497,9 @@ public class UpdateProductService {
 
     verificarDecimales(precioFinal, "price", moneda);
     verificarDecimales(compraFinal, "purchasePrice", moneda);
-
-    // `RN-PM-051`: la directa QUE QUEDA, contra el precio y la moneda que
-    // quedan — también cuando la directa no viaja: bajar el precio por debajo
-    // de una directa fija se rechaza entero (`CA-PM-414`). Que el producto es
-    // FTD se calcula con la misma definición que el alta, y NO con «la guardada
-    // es nula»: una fila sin directa que no es FTD —la semilla de dev la dejaba
-    // así— quedaba tomada por FTD y rechazaba toda directa con `VAL-022`.
-    if (tocaDirecta && peticion.directCommission().valor() == null) {
-      String mensaje = "La comisión por venta directa no puede quedar vacía.";
-      throw new ValidationException(
-          "VAL-019", mensaje, List.of(new FieldError("directCommission", "VAL-019", mensaje)));
-    }
-    DirectCommission guardada = producto.getDirectCommission();
-    DirectCommission directaFinal =
-        tocaDirecta ? peticion.directCommission().valor().toDomain() : guardada;
-    DirectCommissionRules.verificar(
-        directaFinal,
-        esFtd(producto),
-        precioFinal,
-        moneda.decimalPlaces(),
-        DirectCommissionRules.EDICION);
-  }
-
-  /**
-   * `RN-CM-036`, con {@link Product#esFtd}: el tipo y las membresías no se corrigen (`RN-PM-001`),
-   * de modo que se miden las guardadas. La membresía solo se lee si puede ser un FTD.
-   */
-  private boolean esFtd(Product producto) {
-    UUID origen = producto.getSourceMembershipId();
-    if (!Product.esFtd(
-        producto.getType(),
-        origen,
-        producto.getTargetMembershipId(),
-        Product.CODIGO_MEMBRESIA_SUELO)) {
-      return false;
-    }
-    String codigo = membresias.find(origen).map(MembershipView::code).orElse(null);
-    return Product.esFtd(producto.getType(), origen, producto.getTargetMembershipId(), codigo);
-  }
-
-  /** La directa pedida como valor del dominio, conservando si viajó o no. */
-  private static Patchable<DirectCommission> directaPedida(UpdateProductRequest peticion) {
-    if (!peticion.directCommission().presente() || peticion.directCommission().valor() == null) {
-      return Patchable.ausente();
-    }
-    return Patchable.de(peticion.directCommission().valor().toDomain());
+    // La directa se revalidaba aquí del 29-09-2026 al 05-10-2026 (`RN-PM-051`):
+    // pasó a la tasa de rol de `CM` (`RN-CM-050`), que no se entera del precio,
+    // como la tasa de rol (`RN-CM-019`). El tope lo pone el devengo (`RN-CM-026`).
   }
 
   /**

@@ -43,6 +43,8 @@ public class JpaCommissionRateQueryRepository implements CommissionRateQueryRepo
       p.currency_id AS currency_id, c.code AS currency_code, c.decimal_places AS decimal_places,
       t.role_id AS role_id, r.code AS role_code, r.name AS role_name,
       t.rate_type AS rate_type, t.percentage AS percentage, t.fixed_amount AS fixed_amount,
+      t.direct_rate_type AS direct_rate_type, t.direct_percentage AS direct_percentage,
+      t.direct_fixed_amount AS direct_fixed_amount,
       t.deleted_at AS deleted_at
       """;
 
@@ -170,6 +172,11 @@ public class JpaCommissionRateQueryRepository implements CommissionRateQueryRepo
         CommissionRows.forma(fila.get("rate_type")),
         (BigDecimal) fila.get("percentage"),
         (BigDecimal) fila.get("fixed_amount"),
+        fila.get("direct_rate_type") == null
+            ? null
+            : CommissionRows.forma(fila.get("direct_rate_type")),
+        (BigDecimal) fila.get("direct_percentage"),
+        (BigDecimal) fila.get("direct_fixed_amount"),
         CommissionRows.momento(fila.get("deleted_at")));
   }
 

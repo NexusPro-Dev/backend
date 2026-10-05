@@ -13,6 +13,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 import com.factech.nexus.IntegrationTestBase;
+import org.hamcrest.Matchers;
 import java.util.UUID;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
@@ -530,6 +531,130 @@ class CommissionRatesIT extends IntegrationTestBase {
     } finally {
       AfftrackFixtures.limpiar(jdbc);
     }
+  }
+
+  // ---------------------------------------------------------------------------
+  // La comisión por venta directa de la tasa (`RN-CM-050`, 05-10-2026)
+  // ---------------------------------------------------------------------------
+
+  /** Una tasa de porcentaje con la directa que se le pase, cruda, en el cuerpo. */
+  private static String conDirecta(UUID producto, String rol, String directa) {
+    return "{\"productId\":\""
+        + producto
+        + "\",\"roleId\":\""
+        + rol
+        + "\",\"rateType\":\"PORCENTAJE\",\"percentage\":5,\"directCommission\":"
+        + directa
+        + "}";
+  }
+
+  private static String fijoConDirecta(UUID producto, String rol, String directa) {
+    return "{\"productId\":\""
+        + producto
+        + "\",\"roleId\":\""
+        + rol
+        + "\",\"rateType\":\"FIJO\",\"fixedAmount\":1,\"directCommission\":"
+        + directa
+        + "}";
+  }
+
+  @Test
+  @DisplayName("CA-CM-315 · la tasa de un DIRECTOR se registra con su directa y la devuelve")
+  void registraLaDirecta() throws Exception {
+    mvc.perform(
+            alta(
+                conDirecta(
+                    producto, DIRECTOR, "{\"rateType\":\"PORCENTAJE\",\"percentage\":12.5}")))
+        .andExpect(status().isCreated())
+        .andExpect(jsonPath("$.directCommission.rateType").value("PORCENTAJE"))
+        .andExpect(jsonPath("$.directCommission.percentage").value(12.5))
+        .andExpect(jsonPath("$.directCommission.fixedAmount").value(Matchers.nullValue()));
+
+    assertThat(
+            jdbc.queryForObject(
+                "SELECT direct_rate_type || ' ' || direct_percentage FROM commission_rates"
+                    + " WHERE product_id = ?",
+                String.class,
+                producto))
+        .isEqualTo("PORCENTAJE 12.50");
+  }
+
+  @Test
+  @DisplayName("CA-CM-316 · sin directa, la respuesta la trae presente y nula")
+  void sinDirectaPresenteYNula() throws Exception {
+    String cuerpo =
+        mvc.perform(alta(cuerpo(producto, DIRECTOR, "5.00")))
+            .andExpect(status().isCreated())
+            .andReturn()
+            .getResponse()
+            .getContentAsString();
+    assertThat(cuerpo).contains("\"directCommission\":null");
+  }
+
+  @Test
+  @DisplayName("CA-CM-317 · una directa sobre el AGENTE, el último eslabón, es 422 EX-009")
+  void elUltimoEslabonNoLlevaDirecta() throws Exception {
+    mvc.perform(
+            alta(conDirecta(producto, AGENTE, "{\"rateType\":\"PORCENTAJE\",\"percentage\":5}")))
+        .andExpect(status().isUnprocessableEntity())
+        .andExpect(jsonPath("$.errors[0].code").value("EX-009"))
+        .andExpect(jsonPath("$.errors[0].field").value("directCommission"));
+    assertThat(cuantasTasas()).isZero();
+  }
+
+  @Test
+  @DisplayName("CA-CM-318 · sobre un gratuito, una directa de porcentaje es 409 EX-006 y una fija entra")
+  void laDirectaSobreUnGratuito() throws Exception {
+    UUID gratis = CommissionFixtures.sembrarProducto(jdbc, "BOT_GRATIS", false, "0.0000");
+
+    mvc.perform(
+            alta(
+                fijoConDirecta(
+                    gratis, DIRECTOR, "{\"rateType\":\"PORCENTAJE\",\"percentage\":5}")))
+        .andExpect(status().isConflict())
+        .andExpect(jsonPath("$.errors[0].code").value("EX-006"));
+    mvc.perform(
+            alta(fijoConDirecta(gratis, DIRECTOR, "{\"rateType\":\"FIJO\",\"fixedAmount\":3}")))
+        .andExpect(status().isCreated());
+  }
+
+  @Test
+  @DisplayName("CA-CM-319 · una directa fija mayor que el precio es 409 EX-010, e igual entra")
+  void laDirectaFijaNoPasaDelPrecio() throws Exception {
+    mvc.perform(
+            alta(
+                conDirecta(
+                    producto, DIRECTOR, "{\"rateType\":\"FIJO\",\"fixedAmount\":10.01}")))
+        .andExpect(status().isConflict())
+        .andExpect(jsonPath("$.errors[0].code").value("EX-010"))
+        .andExpect(jsonPath("$.errors[0].field").value("directCommission.fixedAmount"));
+    mvc.perform(
+            alta(conDirecta(producto, DIRECTOR, "{\"rateType\":\"FIJO\",\"fixedAmount\":10}")))
+        .andExpect(status().isCreated());
+  }
+
+  @Test
+  @DisplayName("CA-CM-320 · la directa no cuenta en el tope de RN-CM-019")
+  void laDirectaNoCuentaEnElTope() throws Exception {
+    mvc.perform(alta(cuerpo(producto, AGENTE, "95.00"))).andExpect(status().isCreated());
+
+    mvc.perform(
+            alta(
+                conDirecta(
+                    producto, DIRECTOR, "{\"rateType\":\"PORCENTAJE\",\"percentage\":50}")))
+        .andExpect(status().isCreated());
+  }
+
+  @Test
+  @DisplayName("CA-CM-321 · una directa con la forma y el valor cruzados es 400 VAL-011")
+  void laDirectaConLaFormaCruzada() throws Exception {
+    mvc.perform(
+            alta(conDirecta(producto, DIRECTOR, "{\"rateType\":\"FIJO\",\"percentage\":5}")))
+        .andExpect(status().isBadRequest())
+        .andExpect(jsonPath("$.errors[0].code").value("VAL-011"))
+        .andExpect(
+            jsonPath("$.errors[0].field").value(Matchers.startsWith("directCommission.")));
+    assertThat(cuantasTasas()).isZero();
   }
 
   private static String cuerpo(UUID producto, String rol, String porcentaje) {

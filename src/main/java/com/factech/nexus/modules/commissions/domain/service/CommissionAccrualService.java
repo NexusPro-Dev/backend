@@ -1,7 +1,7 @@
 package com.factech.nexus.modules.commissions.domain.service;
 
 import com.factech.nexus.modules.commissions.domain.models.AccrualOutcome;
-import com.factech.nexus.modules.commissions.domain.models.CommissionRateType;
+import com.factech.nexus.modules.commissions.domain.repository.CommissionRateRepository;
 import com.factech.nexus.modules.commissions.domain.models.RateSource;
 import com.factech.nexus.modules.commissions.domain.repository.CommissionAccrualRepository;
 import com.factech.nexus.modules.commissions.domain.repository.CommissionAccrualRepository.AccrualRow;
@@ -73,6 +73,7 @@ public class CommissionAccrualService {
   private final ProductCatalog productos;
   private final SellerRoleCatalog rolesVendedores;
   private final LastLinkRoles ultimoEslabon;
+  private final CommissionRateRepository tasas;
   private final TransactionTemplate porLinea;
 
   public CommissionAccrualService(
@@ -86,6 +87,7 @@ public class CommissionAccrualService {
       ProductCatalog productos,
       SellerRoleCatalog rolesVendedores,
       LastLinkRoles ultimoEslabon,
+      CommissionRateRepository tasas,
       PlatformTransactionManager transacciones) {
     this.lineas = lineas;
     this.cadenas = cadenas;
@@ -97,6 +99,7 @@ public class CommissionAccrualService {
     this.productos = productos;
     this.rolesVendedores = rolesVendedores;
     this.ultimoEslabon = ultimoEslabon;
+    this.tasas = tasas;
     this.porLinea = new TransactionTemplate(transacciones);
     this.porLinea.setPropagationBehavior(TransactionDefinition.PROPAGATION_REQUIRES_NEW);
   }
@@ -207,8 +210,11 @@ public class CommissionAccrualService {
    *
    * <p><b>La personalizada sigue ganando</b> —el responsable del proyecto lo corrigió el mismo
    * 29-09-2026—: solo se sustituye lo que resolvió el rol, o la ausencia de tasa. <b>Sin rol
-   * vendedor no hay rango</b>, y se deja como estaba. <b>Sin directa</b> —un FTD, que no llega
-   * hasta aquí, o un producto anterior a `V55` que nadie tocó— tampoco.
+   * vendedor no hay rango</b>, y se deja como estaba.
+   *
+   * <p><b>Desde el 05-10-2026 la directa es la de su tasa de rol</b> sobre el producto (`RN-CM-050`):
+   * una por rol, opcional. <b>Sin tasa de rol viva, o sin directa en ella</b>, queda lo que resolvió
+   * `RF-CM-005`. La comisión apunta a la tasa, no al producto.
    */
   private Optional<ResolvedRate> ventaPropia(
       UUID vendedor, UUID productId, Optional<ResolvedRate> tasa, Set<UUID> eslabon) {
@@ -219,15 +225,16 @@ public class CommissionAccrualService {
     if (rol.isEmpty() || eslabon.contains(rol.get())) {
       return tasa;
     }
-    return productos
-        .directCommissionOf(productId)
+    return tasas
+        .findAlive(productId, rol.get())
+        .filter(deRol -> deRol.getDirect() != null)
         .map(
-            directa ->
+            deRol ->
                 new ResolvedRate(
                     RateSource.DIRECTA,
-                    productId,
-                    CommissionRateType.valueOf(directa.type()),
-                    directa.value(),
+                    deRol.getId(),
+                    deRol.getDirect().getRateType(),
+                    deRol.getDirect().cifra(),
                     null,
                     null))
         .or(() -> tasa);

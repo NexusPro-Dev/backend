@@ -32,7 +32,13 @@ public record CommissionRateResponse(
     RoleRef role,
     CommissionRateType rateType,
     BigDecimal percentage,
-    BigDecimal fixedAmount) {
+    BigDecimal fixedAmount,
+    @Schema(
+            description =
+                "La comisión por venta directa de este rol sobre este producto (RN-CM-050)."
+                    + " Siempre presente; nula si el rol no la declara.",
+            nullable = true)
+        DirectCommissionBody directCommission) {
 
   /**
    * El producto, resuelto, con su precio y su moneda.
@@ -73,7 +79,8 @@ public record CommissionRateResponse(
         new RoleRef(rol.id(), rol.code(), rol.name()),
         tasa.getValue().getRateType(),
         tasa.getPercentage(),
-        tasa.getFixedAmount());
+        tasa.getFixedAmount(),
+        DirectCommissionBody.from(tasa.getDirect()));
   }
 
   /** Desde una fila leída, con el producto y el rol ya resueltos por la misma sentencia. */
@@ -89,6 +96,8 @@ public record CommissionRateResponse(
         new RoleRef(fila.roleId(), fila.roleCode(), fila.roleName()),
         fila.rateType(),
         fila.percentage(),
-        fila.fixedAmount());
+        fila.fixedAmount(),
+        DirectCommissionBody.from(
+            fila.directRateType(), fila.directPercentage(), fila.directFixedAmount()));
   }
 }

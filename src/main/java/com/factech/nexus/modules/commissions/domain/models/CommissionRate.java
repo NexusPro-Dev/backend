@@ -3,6 +3,7 @@ package com.factech.nexus.modules.commissions.domain.models;
 import com.factech.nexus.shared.error.FieldError;
 import com.factech.nexus.shared.error.ValidationException;
 import com.factech.nexus.shared.patch.Patchable;
+import jakarta.persistence.AttributeOverride;
 import jakarta.persistence.Column;
 import jakarta.persistence.Embedded;
 import jakarta.persistence.Entity;
@@ -71,6 +72,26 @@ public class CommissionRate {
    */
   @Embedded private CommissionValue value;
 
+  /**
+   * <b>La comisión por venta directa de este rol sobre este producto</b> (`RN-CM-050`, 05-10-2026):
+   * lo que cobra el rol cuando vende él mismo, si no es el último eslabón (`RN-CM-045`).
+   *
+   * <p>La misma forma que {@link #value} —porcentaje o fijo, nunca las dos—, en otras tres
+   * columnas. <b>Nula es «sin directa»</b>: la venta propia paga entonces la tasa de rol. Que el rol
+   * no sea el último eslabón lo comprueba el caso de uso, porque depende de la jerarquía de roles.
+   */
+  @Embedded
+  @AttributeOverride(
+      name = "rateType",
+      column = @Column(name = "direct_rate_type", length = 20))
+  @AttributeOverride(
+      name = "percentage",
+      column = @Column(name = "direct_percentage", precision = 5, scale = 2))
+  @AttributeOverride(
+      name = "fixedAmount",
+      column = @Column(name = "direct_fixed_amount", precision = 14, scale = 2))
+  private CommissionValue direct;
+
   @Column(name = "created_at", nullable = false, updatable = false)
   private OffsetDateTime createdAt;
 
@@ -90,6 +111,17 @@ public class CommissionRate {
    */
   public static CommissionRate create(
       UUID id, UUID productId, UUID roleId, CommissionValue value, OffsetDateTime ahora) {
+    return create(id, productId, roleId, value, null, ahora);
+  }
+
+  /** Con su comisión por venta directa, que puede ser nula (`RN-CM-050`). */
+  public static CommissionRate create(
+      UUID id,
+      UUID productId,
+      UUID roleId,
+      CommissionValue value,
+      CommissionValue direct,
+      OffsetDateTime ahora) {
     if (productId == null) {
       String mensaje = "El producto de la tasa es obligatorio.";
       throw new ValidationException(
@@ -107,6 +139,7 @@ public class CommissionRate {
     tasa.productId = productId;
     tasa.roleId = roleId;
     tasa.value = value;
+    tasa.direct = direct;
     tasa.createdAt = ahora;
     tasa.updatedAt = ahora;
     return tasa;
@@ -127,6 +160,17 @@ public class CommissionRate {
    *     petición no cambió nada
    */
   public Map<String, Object> update(Patchable<CommissionValue> nuevoValor, OffsetDateTime ahora) {
+    return update(nuevoValor, Patchable.ausente(), ahora);
+  }
+
+  /**
+   * Corrige la tasa y su directa. La directa ausente no se toca, un valor la sustituye entera y el
+   * nulo la vacía (`RN-CM-050`): al revés que la tasa, quedarse sin directa es un estado legítimo.
+   */
+  public Map<String, Object> update(
+      Patchable<CommissionValue> nuevoValor,
+      Patchable<CommissionValue> nuevaDirecta,
+      OffsetDateTime ahora) {
 
     Map<String, Object> cambios = new LinkedHashMap<>();
 
@@ -148,6 +192,20 @@ public class CommissionRate {
         cambios.put(
             "value", Map.of("before", value.paraAuditoria(), "after", valor.paraAuditoria()));
         value = valor;
+      }
+    }
+
+    if (nuevaDirecta.presente()) {
+      CommissionValue directa = nuevaDirecta.valor();
+      boolean igual =
+          directa == null ? direct == null : direct != null && direct.mismoValorQue(directa);
+      if (!igual) {
+        cambios.put(
+            "direct",
+            Map.of(
+                "before", direct == null ? "—" : direct.paraAuditoria(),
+                "after", directa == null ? "—" : directa.paraAuditoria()));
+        direct = directa;
       }
     }
 
@@ -193,6 +251,11 @@ public class CommissionRate {
     // única copia que queda de lo que la tasa decía antes.
     estado.put("rate_type", value.getRateType().name());
     estado.put("value", value.cifra().toPlainString());
+    // La directa, si la hay (`RN-CM-050`), con su forma por lo mismo que la tasa.
+    if (direct != null) {
+      estado.put("direct_rate_type", direct.getRateType().name());
+      estado.put("direct_value", direct.cifra().toPlainString());
+    }
     return estado;
   }
 
@@ -223,6 +286,11 @@ public class CommissionRate {
    * <p>Se conserva por comodidad de quien arma respuestas, y hay que leerlo con {@link
    * CommissionValue#getRateType()} delante: un nulo aquí <b>no significa que falte</b>.
    */
+  /** La comisión por venta directa, o {@code null} si el rol no la declara (`RN-CM-050`). */
+  public CommissionValue getDirect() {
+    return direct;
+  }
+
   public BigDecimal getPercentage() {
     return value.getPercentage();
   }

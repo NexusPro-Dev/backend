@@ -56,6 +56,7 @@ public class UpdateCommissionRateService {
   private final ProductCatalog productos;
   private final ProductCommissionCapGuard tope;
   private final ProductCurrencyScale escala;
+  private final DirectCommissionGuard directa;
   private final AuditWriter auditoria;
   private final Clock reloj;
 
@@ -66,8 +67,9 @@ public class UpdateCommissionRateService {
       ProductCatalog productos,
       ProductCommissionCapGuard tope,
       ProductCurrencyScale escala,
+      DirectCommissionGuard directa,
       AuditWriter auditoria) {
-    this(tasas, consultas, productos, tope, escala, auditoria, Clock.systemUTC());
+    this(tasas, consultas, productos, tope, escala, directa, auditoria, Clock.systemUTC());
   }
 
   UpdateCommissionRateService(
@@ -76,6 +78,7 @@ public class UpdateCommissionRateService {
       ProductCatalog productos,
       ProductCommissionCapGuard tope,
       ProductCurrencyScale escala,
+      DirectCommissionGuard directa,
       AuditWriter auditoria,
       Clock reloj) {
     this.tasas = tasas;
@@ -83,6 +86,7 @@ public class UpdateCommissionRateService {
     this.productos = productos;
     this.tope = tope;
     this.escala = escala;
+    this.directa = directa;
     this.auditoria = auditoria;
     this.reloj = reloj;
   }
@@ -118,7 +122,21 @@ public class UpdateCommissionRateService {
       verificarContraSuProducto(tasa, peticion.valor().valor());
     }
 
-    Map<String, Object> cambios = tasa.update(peticion.valor(), OffsetDateTime.now(reloj));
+    // La directa (`RN-CM-050`) se comprueba solo si llega un objeto: el nulo la
+    // vacía, y vaciarla se admite siempre —es la salida de una directa que
+    // quedó guardada cuando la jerarquía cambió—.
+    var directaNueva = peticion.directa();
+    if (directaNueva.presente() && directaNueva.valor() != null) {
+      directa.verificar(
+          tasa.getProductId(),
+          codigoDe(tasa.getProductId()),
+          tasa.getRoleId(),
+          directaNueva.valor(),
+          "EX-008");
+    }
+
+    Map<String, Object> cambios =
+        tasa.update(peticion.valor(), directaNueva, OffsetDateTime.now(reloj));
 
     if (!cambios.isEmpty()) {
       tasas.flushChanges();
@@ -146,12 +164,15 @@ public class UpdateCommissionRateService {
    * <p>Hasta el 15-09-2026 recorría <b>todos</b> los productos asociados y rechazaba la corrección
    * entera si cualquiera se pasaba; con un producto por tasa, es una comprobación.
    */
+  private String codigoDe(UUID productId) {
+    return productos
+        .find(productId)
+        .map(ProductCatalog.ProductView::code)
+        .orElse(productId.toString());
+  }
+
   private void verificarContraSuProducto(CommissionRate tasa, CommissionValue valorNuevo) {
-    String codigo =
-        productos
-            .find(tasa.getProductId())
-            .map(ProductCatalog.ProductView::code)
-            .orElse(tasa.getProductId().toString());
+    String codigo = codigoDe(tasa.getProductId());
     escala.verificar(tasa.getProductId(), valorNuevo, "VAL-013");
     tope.verificar(tasa.getProductId(), codigo, tasa.getId(), valorNuevo, "EX-006", "EX-008");
   }

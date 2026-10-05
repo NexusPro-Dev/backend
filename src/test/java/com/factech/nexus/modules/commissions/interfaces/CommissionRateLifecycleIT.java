@@ -11,6 +11,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 import com.factech.nexus.IntegrationTestBase;
+import org.hamcrest.Matchers;
 import java.util.UUID;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
@@ -443,6 +444,107 @@ class CommissionRateLifecycleIT extends IntegrationTestBase {
         .andExpect(jsonPath("$.errors[0].field").value("fixedAmount"));
 
     assertThat(formaEnBase()).isEqualTo("PORCENTAJE");
+  }
+
+  // ---------------------------------------------------------------------------
+  // La comisión por venta directa de la tasa (`RN-CM-050`, 05-10-2026)
+  // ---------------------------------------------------------------------------
+
+  private String directaEnBase(UUID id) {
+    return jdbc.queryForObject(
+        "SELECT COALESCE(direct_rate_type || ' '"
+            + " || COALESCE(direct_percentage, direct_fixed_amount), 'NINGUNA')"
+            + " FROM commission_rates WHERE id = CAST(? AS uuid)",
+        String.class,
+        id.toString());
+  }
+
+  @Test
+  @DisplayName("CA-CM-323 · la corrección declara la directa y la sustituye entera")
+  void corrigeLaDirecta() throws Exception {
+    UUID delDirector = CommissionFixtures.sembrarTasaDeRol(jdbc, producto, DIRECTOR, "5.00");
+
+    mvc.perform(
+            correccion(
+                delDirector,
+                "{\"directCommission\":{\"rateType\":\"PORCENTAJE\",\"percentage\":8}}"))
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$.directCommission.rateType").value("PORCENTAJE"))
+        .andExpect(jsonPath("$.directCommission.percentage").value(8));
+    mvc.perform(
+            correccion(
+                delDirector, "{\"directCommission\":{\"rateType\":\"FIJO\",\"fixedAmount\":20}}"))
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$.directCommission.rateType").value("FIJO"))
+        .andExpect(jsonPath("$.directCommission.percentage").value(Matchers.nullValue()));
+
+    assertThat(directaEnBase(delDirector)).isEqualTo("FIJO 20.00");
+  }
+
+  @Test
+  @DisplayName("CA-CM-324 · directCommission null la vacía, y la tasa queda como estaba")
+  void vaciarLaDirecta() throws Exception {
+    mvc.perform(
+            correccion(
+                tasa, "{\"directCommission\":{\"rateType\":\"PORCENTAJE\",\"percentage\":8}}"))
+        .andExpect(status().isOk());
+
+    mvc.perform(correccion(tasa, "{\"directCommission\":null}"))
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$.directCommission").value(Matchers.nullValue()))
+        .andExpect(jsonPath("$.percentage").value(10.00));
+    assertThat(directaEnBase(tasa)).isEqualTo("NINGUNA");
+  }
+
+  @Test
+  @DisplayName("CA-CM-325 · corregir solo la tasa no toca la directa")
+  void corregirLaTasaNoTocaLaDirecta() throws Exception {
+    mvc.perform(
+            correccion(
+                tasa, "{\"directCommission\":{\"rateType\":\"PORCENTAJE\",\"percentage\":8}}"))
+        .andExpect(status().isOk());
+
+    mvc.perform(correccion(tasa, "{\"rateType\":\"PORCENTAJE\",\"percentage\":12}"))
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$.directCommission.percentage").value(8));
+    assertThat(directaEnBase(tasa)).isEqualTo("PORCENTAJE 8.00");
+  }
+
+  @Test
+  @DisplayName("CA-CM-326 · declarar directa en la tasa de un AGENTE es 422 EX-009")
+  void elAgenteNoLlevaDirecta() throws Exception {
+    UUID delAgente = CommissionFixtures.sembrarTasaDeRol(jdbc, producto, AGENTE, "5.00");
+
+    mvc.perform(
+            correccion(
+                delAgente, "{\"directCommission\":{\"rateType\":\"PORCENTAJE\",\"percentage\":8}}"))
+        .andExpect(status().isUnprocessableEntity())
+        .andExpect(jsonPath("$.errors[0].code").value("EX-009"));
+    // Vaciarla sí se admite siempre: es la salida de una directa que quedó
+    // guardada cuando la jerarquía cambió.
+    mvc.perform(correccion(delAgente, "{\"directCommission\":null}")).andExpect(status().isOk());
+    assertThat(directaEnBase(delAgente)).isEqualTo("NINGUNA");
+  }
+
+  @Test
+  @DisplayName(
+      "CA-CM-327 · una directa de porcentaje sobre un gratuito es EX-008, y una fija sobre el"
+          + " precio EX-010")
+  void laDirectaContraElPrecio() throws Exception {
+    UUID gratis = CommissionFixtures.sembrarProducto(jdbc, "BOT_GRATIS", false, "0.0000");
+    UUID enGratis = CommissionFixtures.sembrarTasaDeRol(jdbc, gratis, MANAGER, "FIJO", "1.00");
+
+    mvc.perform(
+            correccion(
+                enGratis, "{\"directCommission\":{\"rateType\":\"PORCENTAJE\",\"percentage\":5}}"))
+        .andExpect(status().isConflict())
+        .andExpect(jsonPath("$.errors[0].code").value("EX-008"));
+    mvc.perform(
+            correccion(
+                tasa, "{\"directCommission\":{\"rateType\":\"FIJO\",\"fixedAmount\":1000.01}}"))
+        .andExpect(status().isConflict())
+        .andExpect(jsonPath("$.errors[0].code").value("EX-010"));
+    assertThat(directaEnBase(tasa)).isEqualTo("NINGUNA");
   }
 
   // ---------------------------------------------------------------------------

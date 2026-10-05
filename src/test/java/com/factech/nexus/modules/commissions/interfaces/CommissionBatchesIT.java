@@ -293,13 +293,22 @@ class CommissionBatchesIT extends IntegrationTestBase {
 
   @Test
   @DisplayName(
-      "CA-CM-271 y CA-CM-272 — la venta propia de un superior sale con fuente DIRECTA y el producto"
-          + " como tasa, en el detalle y en su lote propio")
+      "CA-CM-271 y CA-CM-272 — la venta propia de un superior sale con fuente DIRECTA y su tasa de"
+          + " rol como tasa, en el detalle y en su lote propio")
   void laFuenteDirecta() throws Exception {
+    // Desde el 05-10-2026 la directa es de la tasa de rol (`RN-CM-050`), y
+    // `rateId` apunta a ella.
     jdbc.update(
-        "UPDATE products SET direct_commission_type = 'PORCENTAJE',"
-            + " direct_commission_percentage = 8 WHERE id = ?",
-        producto);
+        "UPDATE commission_rates SET direct_rate_type = 'PORCENTAJE', direct_percentage = 8"
+            + " WHERE product_id = ? AND role_id = CAST(? AS uuid)",
+        producto,
+        DIRECTOR);
+    UUID tasaDelDirector =
+        jdbc.queryForObject(
+            "SELECT id FROM commission_rates WHERE product_id = ? AND role_id = CAST(? AS uuid)",
+            UUID.class,
+            producto,
+            DIRECTOR);
     confirmar(
         SettlementFixtures.venta(
             jdbc, cliente, VENDIDA_EL, linea(producto, director, 1, "100.00")));
@@ -311,7 +320,7 @@ class CommissionBatchesIT extends IntegrationTestBase {
         .andExpect(status().isOk())
         .andExpect(jsonPath("$.commissions[0].chainLevel").value(0))
         .andExpect(jsonPath("$.commissions[0].source").value("DIRECTA"))
-        .andExpect(jsonPath("$.commissions[0].rateId").value(producto.toString()))
+        .andExpect(jsonPath("$.commissions[0].rateId").value(tasaDelDirector.toString()))
         .andExpect(jsonPath("$.commissions[0].commissionAmount").value(8.0));
     mvc.perform(
             get("/api/v1/commission-batches/mine/{id}", suyo)

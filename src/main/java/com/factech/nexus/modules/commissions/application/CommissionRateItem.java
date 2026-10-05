@@ -1,5 +1,6 @@
 package com.factech.nexus.modules.commissions.application;
 
+import io.swagger.v3.oas.annotations.media.Schema;
 import com.factech.nexus.modules.commissions.domain.models.CommissionRateType;
 import com.factech.nexus.modules.commissions.domain.repository.CommissionRateQueryRepository.RateRow;
 import com.fasterxml.jackson.annotation.JsonInclude;
@@ -21,6 +22,12 @@ public record CommissionRateItem(
     CommissionRateType rateType,
     BigDecimal percentage,
     BigDecimal fixedAmount,
+    @Schema(
+            description =
+                "La comisión por venta directa de este rol sobre este producto (RN-CM-050)."
+                    + " Siempre presente; nula si el rol no la declara.",
+            nullable = true)
+        DirectCommissionBody directCommission,
     OffsetDateTime deletedAt) {
 
   public static CommissionRateItem from(RateRow fila) {
@@ -32,6 +39,7 @@ public record CommissionRateItem(
         base.rateType(),
         base.percentage(),
         base.fixedAmount(),
+        base.directCommission(),
         fila.deletedAt());
   }
 }

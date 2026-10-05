@@ -371,9 +371,7 @@ class ProductUpdateIT extends IntegrationTestBase {
         .andExpect(jsonPath("$.errors[0].code").value("VAL-004"));
 
     // `RN-PM-006` dejó de exigir «mayor que cero» con la renovación: un
-    // `BECA → BECA` es un producto legítimo que vale cero. Con directa fija:
-    // sobre precio cero un porcentaje es `VAL-021` (`CA-PM-414`).
-    conDirecta("FIJO", null, "0");
+    // `BECA → BECA` es un producto legítimo que vale cero.
     mvc.perform(corregir(producto, "{\"price\":0}"))
         .andExpect(status().isOk())
         .andExpect(jsonPath("$.price").value(0));
@@ -685,134 +683,26 @@ class ProductUpdateIT extends IntegrationTestBase {
   }
 
   // ---------------------------------------------------------------------------
-  // La comisión por venta directa (`RN-PM-051`, 29-09-2026)
+  // La comisión por venta directa (`RN-PM-051`, 29-09-2026; retirada el 05-10-2026)
   // ---------------------------------------------------------------------------
-
-  /** El producto de la suite, sembrado por SQL, con la directa que se le ponga. */
-  private void conDirecta(String tipo, String porcentaje, String fijo) {
-    jdbc.update(
-        "UPDATE products SET direct_commission_type = ?,"
-            + " direct_commission_percentage = CAST(? AS numeric),"
-            + " direct_commission_fixed_amount = CAST(? AS numeric) WHERE id = CAST(? AS uuid)",
-        tipo,
-        porcentaje,
-        fijo,
-        producto.toString());
-  }
-
-  private String directaDe(UUID id) {
-    return jdbc.queryForObject(
-        "SELECT direct_commission_type || ' '"
-            + " || COALESCE(direct_commission_percentage, direct_commission_fixed_amount)"
-            + " FROM products WHERE id = CAST(? AS uuid)",
-        String.class,
-        id.toString());
-  }
-
-  @Test
-  @DisplayName("`CA-PM-412` — corrige la directa, también de porcentaje a fija")
-  void corrigeLaDirecta() throws Exception {
-    conDirecta("PORCENTAJE", "10", null);
-
-    mvc.perform(corregir(producto, "{\"directCommission\":{\"type\":\"FIJO\",\"fixedAmount\":20}}"))
-        .andExpect(status().isOk())
-        .andExpect(jsonPath("$.directCommission.type").value("FIJO"))
-        .andExpect(jsonPath("$.directCommission.fixedAmount").value(20));
-    assertThat(directaDe(producto)).isEqualTo("FIJO 20.0000");
-  }
 
   @Test
   @DisplayName(
-      "`CA-PM-413` — vaciarla es VAL-019, y una forma o un rango malos VAL-020, sin aplicar nada")
-  void laDirectaNoSeVaciaNiSeTuerce() throws Exception {
-    conDirecta("PORCENTAJE", "10", null);
-
-    mvc.perform(corregir(producto, "{\"directCommission\":null}"))
-        .andExpect(status().isBadRequest())
-        .andExpect(jsonPath("$.errors[0].code").value("VAL-019"));
+      "`CA-PM-432` — la edición ya no corrige la directa: el campo es desconocido, y el precio"
+          + " baja sin revalidar ninguna")
+  void laEdicionYaNoCorrigeLaDirecta() throws Exception {
+    // `RN-PM-051` retirada: la directa es de la tasa de rol de `CM` (`RN-CM-050`).
     mvc.perform(
             corregir(
                 producto,
                 "{\"name\":\"Otro nombre\","
-                    + "\"directCommission\":{\"type\":\"PORCENTAJE\",\"percentage\":150}}"))
-        .andExpect(status().isBadRequest())
-        .andExpect(jsonPath("$.errors[0].code").value("VAL-020"));
-    mvc.perform(corregir(producto, "{\"directCommission\":{\"type\":\"FIJO\",\"percentage\":5}}"))
-        .andExpect(status().isBadRequest())
-        .andExpect(jsonPath("$.errors[0].code").value("VAL-020"));
-
+                    + "\"directCommission\":{\"type\":\"FIJO\",\"fixedAmount\":20}}"))
+        .andExpect(status().isBadRequest());
     assertThat(nombreDe(producto)).isEqualTo("Ascenso a Oro");
-    assertThat(directaDe(producto)).isEqualTo("PORCENTAJE 10.00");
-  }
 
-  @Test
-  @DisplayName(
-      "`CA-PM-414` — el precio y la moneda que quedan revalidan la directa aunque no viaje")
-  void elPrecioRevalidaLaDirecta() throws Exception {
-    conDirecta("FIJO", null, "40");
-    mvc.perform(corregir(producto, "{\"price\":30}"))
-        .andExpect(status().isBadRequest())
-        .andExpect(jsonPath("$.errors[0].code").value("VAL-021"));
-    assertThat(precioDe(producto)).isEqualByComparingTo("49.99");
-
-    conDirecta("FIJO", null, "40.50");
-    mvc.perform(
-            corregir(producto, "{\"currencyId\":\"" + monedaSinDecimales() + "\",\"price\":50}"))
-        .andExpect(status().isBadRequest())
-        .andExpect(jsonPath("$.errors[0].code").value("VAL-020"));
-
-    conDirecta("PORCENTAJE", "10", null);
-    mvc.perform(corregir(producto, "{\"price\":0}"))
-        .andExpect(status().isBadRequest())
-        .andExpect(jsonPath("$.errors[0].code").value("VAL-021"));
-    assertThat(precioDe(producto)).isEqualByComparingTo("49.99");
-  }
-
-  @Test
-  @DisplayName("`CA-PM-415` — un FTD no declara directa: VAL-022")
-  void elFtdNoDeclaraDirecta() throws Exception {
-    UUID ftd = upgrade("ALTA_BECA", "Alta en beca", free, "Entra en beca.", null);
-
-    mvc.perform(corregir(ftd, "{\"directCommission\":{\"type\":\"FIJO\",\"fixedAmount\":0}}"))
-        .andExpect(status().isBadRequest())
-        .andExpect(jsonPath("$.errors[0].code").value("VAL-022"));
-    // Y lo demás de un FTD se corrige sin que la directa estorbe.
-    mvc.perform(corregir(ftd, "{\"name\":\"Alta gratuita\"}")).andExpect(status().isOk());
-  }
-
-  @Test
-  @DisplayName(
-      "`CA-PM-415` — lo FTD sale del tipo y las membresías: un bot sin directa guardada la recibe")
-  void unBotSinDirectaGuardadaLaRecibe() throws Exception {
-    // Como lo dejaba la semilla de dev antes del 01-10-2026: un bot con las
-    // tres columnas nulas. Leer «nula» como «FTD» lo rechazaba con VAL-022.
-    UUID senales = bot("BOT_SENALES", "Bot de señales", "Señales automáticas.");
-    jdbc.update(
-        "UPDATE products SET direct_commission_type = NULL, direct_commission_percentage = NULL"
-            + " WHERE id = CAST(? AS uuid)",
-        senales.toString());
-
-    mvc.perform(
-            corregir(senales, "{\"directCommission\":{\"type\":\"PORCENTAJE\",\"percentage\":15}}"))
+    mvc.perform(corregir(producto, "{\"price\":1}"))
         .andExpect(status().isOk())
-        .andExpect(jsonPath("$.directCommission.percentage").value(15));
-    assertThat(directaDe(senales)).isEqualTo("PORCENTAJE 15.00");
-  }
-
-  @Test
-  @DisplayName("`CA-PM-416` — la auditoría de la edición lleva la directa antes y después")
-  void laAuditoriaLlevaLaDirecta() throws Exception {
-    conDirecta("PORCENTAJE", "10", null);
-
-    mvc.perform(
-            corregir(
-                producto, "{\"directCommission\":{\"type\":\"PORCENTAJE\",\"percentage\":12.5}}"))
-        .andExpect(status().isOk());
-
-    assertThat(ultimoCambio(producto))
-        .contains("direct_commission")
-        .contains("PORCENTAJE 10.00")
-        .contains("PORCENTAJE 12.5");
+        .andExpect(jsonPath("$.directCommission").doesNotExist());
   }
 
   private String iconoDe(UUID id) {
@@ -1157,9 +1047,6 @@ class ProductUpdateIT extends IntegrationTestBase {
       Integer vigencia) {
 
     UUID id = UUID.randomUUID();
-    // Como lo deja el alta (`RN-PM-051`): con directa —cero—, salvo el FTD,
-    // que es el upgrade del suelo a sí mismo.
-    boolean ftd = free.equals(destino);
     // Origen y destino VIAJAN JUNTOS: un upgrade declara los dos
     // (`RN-PM-002`) y un bot no declara ninguno. Por eso el origen se
     // deriva del destino en lugar de ser un parametro mas — nunca puede
@@ -1167,12 +1054,10 @@ class ProductUpdateIT extends IntegrationTestBase {
     jdbc.update(
         "INSERT INTO products (scope, implementation, id, code, type, name, description, source_membership_id,"
             + " target_membership_id, price,"
-            + " currency_id, validity_days, status, created_at, updated_at,"
-            + " direct_commission_type, direct_commission_percentage)"
+            + " currency_id, validity_days, status, created_at, updated_at)"
             + " VALUES ('TIENDA', 'MANUAL', CAST(? AS uuid), ?, ?, ?, CAST(? AS text),"
             + " CAST(? AS uuid), CAST(? AS uuid), 49.99,"
-            + " CAST(? AS uuid), CAST(? AS integer), 'INACTIVO', ?, ?,"
-            + " CAST(? AS varchar), CAST(? AS numeric))",
+            + " CAST(? AS uuid), CAST(? AS integer), 'INACTIVO', ?, ?)",
         id.toString(),
         codigo,
         tipo,
@@ -1183,9 +1068,7 @@ class ProductUpdateIT extends IntegrationTestBase {
         USD,
         vigencia,
         BASE,
-        BASE,
-        ftd ? null : "PORCENTAJE",
-        ftd ? null : "0");
+        BASE);
     return id;
   }
 }

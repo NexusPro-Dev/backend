@@ -1,5 +1,6 @@
 package com.factech.nexus.modules.commissions.application;
 
+import io.swagger.v3.oas.annotations.media.Schema;
 import com.factech.nexus.modules.commissions.domain.models.CommissionRateType;
 import com.factech.nexus.modules.commissions.domain.models.CommissionValue;
 import com.factech.nexus.shared.patch.Patchable;
@@ -37,13 +38,22 @@ public record UpdateCommissionRateRequest(
     @JsonDeserialize(using = PatchableDeserializer.class) Patchable<CommissionRateType> rateType,
     @JsonDeserialize(using = PatchableDeserializer.class) Patchable<BigDecimal> percentage,
     @JsonDeserialize(using = PatchableDeserializer.class) Patchable<BigDecimal> fixedAmount,
-    @JsonDeserialize(using = PatchableDeserializer.class) Patchable<Object> roleId) {
+    @JsonDeserialize(using = PatchableDeserializer.class) Patchable<Object> roleId,
+    @Schema(
+            description =
+                "La comisión por venta directa (RN-CM-050), entera: ausente no la toca, un objeto"
+                    + " la sustituye y null la vacía.",
+            nullable = true,
+            implementation = DirectCommissionBody.class)
+        @JsonDeserialize(using = PatchableDeserializer.class)
+        Patchable<DirectCommissionBody> directCommission) {
 
   public UpdateCommissionRateRequest {
     rateType = rateType == null ? Patchable.ausente() : rateType;
     percentage = percentage == null ? Patchable.ausente() : percentage;
     fixedAmount = fixedAmount == null ? Patchable.ausente() : fixedAmount;
     roleId = roleId == null ? Patchable.ausente() : roleId;
+    directCommission = directCommission == null ? Patchable.ausente() : directCommission;
   }
 
   /** ¿Trae el que no se puede corregir? (`VAL-009`) */
@@ -53,7 +63,19 @@ public record UpdateCommissionRateRequest(
 
   /** ¿Se envió algún campo corregible, con el valor que sea? */
   public boolean informaAlgo() {
-    return rateType.presente() || percentage.presente() || fixedAmount.presente();
+    return rateType.presente()
+        || percentage.presente()
+        || fixedAmount.presente()
+        || directCommission.presente();
+  }
+
+  /** La directa en la forma del dominio, con la presencia del parche (`RN-CM-050`). */
+  public Patchable<CommissionValue> directa() {
+    if (!directCommission.presente()) {
+      return Patchable.ausente();
+    }
+    DirectCommissionBody cuerpo = directCommission.valor();
+    return Patchable.de(cuerpo == null ? null : cuerpo.toValue());
   }
 
   /**

@@ -98,10 +98,7 @@ public record RegisterProductRequest(
     // deserializar el enumerado, también con `400`.
     @NotNull(message = "VAL-015: El alcance del producto es obligatorio.") ProductScope scope,
     @NotNull(message = "VAL-016: La implementación del producto es obligatoria.")
-        ProductImplementation implementation,
-    // SIN `@NotNull`: es obligatoria SALVO EN UN FTD (`RN-PM-051`), y saber si lo
-    // es exige resolver las membresías. La comprueba el caso de uso.
-    ProductDirectCommission directCommission) {
+        ProductImplementation implementation) {
 
   /**
    * Recorta antes de que corran las validaciones.
@@ -135,7 +132,6 @@ public record RegisterProductRequest(
         currencyId,
         validityDays,
         scope,
-        implementation,
-        directCommission == null ? null : directCommission.toDomain());
+        implementation);
   }
 }

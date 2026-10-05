@@ -88,6 +88,16 @@ public class CommissionRateController {
 
           **El porcentaje cero es válido** y significa «esto no comisiona», que **no
           es lo mismo** que no declarar la tasa.
+
+          **`directCommission`, opcional, es la comisión por venta directa del rol**
+          (`RN-CM-050`, 05-10-2026): lo que cobra cuando vende él mismo, en lugar de
+          esta tasa. La misma forma —`rateType` y **solo** su campo—. **Solo para
+          los roles que no son el último eslabón** (hoy `DIRECTOR` y `MANAGER`):
+          sobre el último es `422` (`EX-009`). El fijo cabe en los decimales de la
+          moneda (`VAL-014`) y **no pasa del precio** (`409`, `EX-010`); sobre un
+          gratuito, solo fija (`EX-006`). **No cuenta en el tope** de `RN-CM-019`.
+          Ausente o nula: sin directa, y su venta propia paga esta tasa. La
+          respuesta la trae siempre, **presente y nula** si no hay.
           """)
   @ApiResponses({
     @ApiResponse(responseCode = "201", description = "Tasa registrada, y rigiendo desde ya"),
@@ -101,10 +111,13 @@ public class CommissionRateController {
         responseCode = "409",
         description =
             "Ya hay una tasa viva de ese rol sobre ese producto (`EX-007`), el producto pagaría"
-                + " más de cien (`EX-005`), o es gratuito y la tasa es de porcentaje (`EX-006`)"),
+                + " más de cien (`EX-005`), es gratuito y la tasa o la directa es de porcentaje"
+                + " (`EX-006`), o la directa fija pasa del precio (`EX-010`)"),
     @ApiResponse(
         responseCode = "422",
-        description = "El rol no existe (`EX-002`), o el producto no existe o está retirado")
+        description =
+            "El rol no existe (`EX-002`), el producto no existe o está retirado, o la directa"
+                + " va sobre un rol que es el último eslabón (`EX-009`)")
   })
   @PostMapping
   @PreAuthorize("hasAuthority('commissions:create')")
@@ -128,6 +141,9 @@ public class CommissionRateController {
           moneda del producto—.
           Se filtra por `productId`, `roleId` y `rateType`, y con
           `includeDeleted` entran las retiradas.
+
+          Cada tasa trae **`directCommission`**, la comisión por venta directa de
+          su rol (`RN-CM-050`, 05-10-2026), **presente y nula** si no la declara.
 
           **Toda tasa viva rige** sobre su producto (`RN-CM-021`): ya no hay un
           contador de asociaciones que mirar.
@@ -172,6 +188,13 @@ public class CommissionRateController {
           producto de precio cero se rechaza con `409` (`EX-008`). Y un importe
           fijo tiene que **caber en los decimales de la moneda del producto**
           (`VAL-013`).
+
+          **`directCommission`** (`RN-CM-050`, 05-10-2026): **ausente no la toca**,
+          un objeto **la sustituye entera** y **`null` la vacía** —sin directa, la
+          venta propia del rol paga la tasa—. Un objeto se comprueba como en el
+          alta: último eslabón `422` (`EX-009`), decimales `VAL-014`, fija por
+          encima del precio `409` (`EX-010`) y porcentaje sobre un gratuito `409`
+          (`EX-008`). Vaciarla se admite siempre.
           """)
   @ApiResponses({
     @ApiResponse(responseCode = "200", description = "Tasa corregida"),
@@ -181,8 +204,12 @@ public class CommissionRateController {
     @ApiResponse(
         responseCode = "409",
         description =
-            "El nuevo valor dejaría al producto pagando más de cien (`EX-006`), o dejaría de"
-                + " porcentaje la tasa de un producto gratuito (`EX-008`)")
+            "El nuevo valor dejaría al producto pagando más de cien (`EX-006`), dejaría de"
+                + " porcentaje la tasa o la directa de un producto gratuito (`EX-008`), o la"
+                + " directa fija pasaría del precio (`EX-010`)"),
+    @ApiResponse(
+        responseCode = "422",
+        description = "Directa sobre un rol que es el último eslabón (`EX-009`)")
   })
   @PatchMapping("/{id}")
   @PreAuthorize("hasAuthority('commissions:update')")

@@ -303,27 +303,12 @@ class ProductDetailIT extends IntegrationTestBase {
 
   /** Las sentencias preparadas que cuesta una petición, medidas por Hibernate. */
   @Test
-  @DisplayName("`CA-PM-411` — el detalle trae la directa, también retirado, y nula si no hay")
-  void elDetalleTraeLaDirecta() throws Exception {
-    jdbc.update(
-        "UPDATE products SET direct_commission_type = 'FIJO',"
-            + " direct_commission_fixed_amount = 3 WHERE id = CAST(? AS uuid)",
-        bot.toString());
-
+  @DisplayName("`CA-PM-431` — el detalle ya no trae la directa: es de la tasa de rol de CM")
+  void elDetalleYaNoTraeLaDirecta() throws Exception {
     mvc.perform(detalle(bot))
         .andExpect(status().isOk())
-        .andExpect(jsonPath("$.directCommission.type").value("FIJO"))
-        .andExpect(jsonPath("$.directCommission.fixedAmount").value(3));
-
-    retirar(bot, "Se deja de vender.");
-    mvc.perform(detalle(bot))
-        .andExpect(status().isOk())
-        .andExpect(jsonPath("$.directCommission.type").value("FIJO"));
-
-    mvc.perform(detalle(upgrade))
-        .andExpect(status().isOk())
-        .andExpect(jsonPath("$").value(org.hamcrest.Matchers.hasKey("directCommission")))
-        .andExpect(jsonPath("$.directCommission").doesNotExist());
+        .andExpect(
+            jsonPath("$").value(org.hamcrest.Matchers.not(org.hamcrest.Matchers.hasKey("directCommission"))));
   }
 
   private long sentenciasDe(MockHttpServletRequestBuilder peticion) throws Exception {

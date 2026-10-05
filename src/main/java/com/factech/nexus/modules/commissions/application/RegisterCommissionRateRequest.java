@@ -1,5 +1,7 @@
 package com.factech.nexus.modules.commissions.application;
 
+import jakarta.validation.Valid;
+import io.swagger.v3.oas.annotations.media.Schema;
 import com.factech.nexus.modules.commissions.domain.models.CommissionRateType;
 import com.factech.nexus.modules.commissions.domain.models.CommissionValue;
 import jakarta.validation.constraints.DecimalMax;
@@ -65,7 +67,14 @@ public record RegisterCommissionRateRequest(
             integer = 10,
             fraction = 4,
             message = "VAL-012: El valor fijo admite como mucho cuatro decimales.")
-        BigDecimal fixedAmount) {
+        BigDecimal fixedAmount,
+    @Schema(
+            description =
+                "La comisión por venta directa del rol (RN-CM-050), opcional: solo para los roles"
+                    + " que no son el último eslabón. Ausente o nula: sin directa.",
+            nullable = true)
+        @Valid
+        DirectCommissionBody directCommission) {
 
   /**
    * La forma y el valor, <b>construidos juntos</b>.
@@ -75,5 +84,10 @@ public record RegisterCommissionRateRequest(
    */
   public CommissionValue valor() {
     return CommissionValue.of(rateType, percentage, fixedAmount);
+  }
+
+  /** La directa en la forma del dominio, o {@code null} si no llega (`RN-CM-050`). */
+  public CommissionValue directa() {
+    return directCommission == null ? null : directCommission.toValue();
   }
 }

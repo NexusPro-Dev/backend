@@ -39,6 +39,12 @@ public interface CommissionRateRepository {
   boolean existsAlive(UUID productId, UUID roleId);
 
   /**
+   * La tasa viva de ese rol sobre ese producto, si la hay (`RN-CM-013`: una como mucho). La lee el
+   * devengo para la directa del vendedor (`RN-CM-050`).
+   */
+  Optional<CommissionRate> findAlive(UUID productId, UUID roleId);
+
+  /**
    * ¿La tasa está asociada a algún producto?
    *
    * <p>Lo necesita el retiro: retirar una tasa asociada <b>dejaría de pagar sin que nada lo

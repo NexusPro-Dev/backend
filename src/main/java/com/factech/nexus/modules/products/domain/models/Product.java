@@ -172,21 +172,6 @@ public class Product {
   @Column(name = "purchase_price", precision = 14, scale = 4)
   private BigDecimal purchasePrice;
 
-  /**
-   * La comisión por venta directa (`RN-PM-051`): lo que cobra en su venta propia quien no es el
-   * último eslabón, y que `CM` aplica en lugar de su tasa de rol (`RN-CM-045`). <b>Tres columnas
-   * nulas solo en un FTD</b>; que un producto que no es FTD las tenga lo sostiene el caso de uso,
-   * porque saberlo exige leer las membresías.
-   */
-  @Enumerated(EnumType.STRING)
-  @Column(name = "direct_commission_type", length = 20)
-  private DirectCommissionType directCommissionType;
-
-  @Column(name = "direct_commission_percentage", precision = 5, scale = 2)
-  private BigDecimal directCommissionPercentage;
-
-  @Column(name = "direct_commission_fixed_amount", precision = 14, scale = 4)
-  private BigDecimal directCommissionFixedAmount;
 
   @Column(name = "currency_id", nullable = false)
   private UUID currencyId;
@@ -271,7 +256,6 @@ public class Product {
       Integer validityDays,
       ProductScope scope,
       ProductImplementation implementation,
-      DirectCommission directCommission,
       OffsetDateTime ahora) {
 
     Product producto = new Product();
@@ -301,9 +285,6 @@ public class Product {
     producto.validityDays = validityDays;
     producto.scope = scope;
     producto.implementation = implementation;
-    // Ya validada por el caso de uso contra el precio, la moneda y el FTD
-    // (`DirectCommissionRules`): aquí solo se guarda.
-    producto.asignarDirecta(directCommission);
     producto.status = ProductStatus.INACTIVO;
     producto.createdAt = ahora;
     producto.updatedAt = ahora;
@@ -377,7 +358,6 @@ public class Product {
       Patchable<Integer> nuevaVigencia,
       Patchable<ProductScope> nuevoAlcance,
       Patchable<ProductImplementation> nuevaImplementacion,
-      Patchable<DirectCommission> nuevaDirecta,
       OffsetDateTime ahora) {
 
     Map<String, Object> cambios = new LinkedHashMap<>();
@@ -476,22 +456,6 @@ public class Product {
         cambios.put(
             "implementation", Map.of("before", implementation.name(), "after", valor.name()));
         implementation = valor;
-      }
-    }
-    // `RN-PM-051`: se corrige ENTERA y no se vacía —el nulo lo rechaza el caso
-    // de uso, que además la revalida contra el precio y la moneda que quedan—.
-    if (nuevaDirecta.presente() && nuevaDirecta.valor() != null) {
-      DirectCommission valor = nuevaDirecta.valor();
-      DirectCommission anterior = getDirectCommission();
-      if (!valor.mismaQue(anterior)) {
-        cambios.put(
-            "direct_commission",
-            Map.of(
-                "before",
-                anterior == null ? "" : anterior.comoTexto(),
-                "after",
-                valor.comoTexto()));
-        asignarDirecta(valor);
       }
     }
 
@@ -606,16 +570,8 @@ public class Product {
     // cuando no se conoce — `LinkedHashMap` sí lo admite, al revés que
     // `Map.of`. Los eventos anteriores al 12-09-2026 llevan `public_price`.
     estado.put("purchase_price", purchasePrice == null ? null : purchasePrice.toPlainString());
-    // Las tres columnas de la directa, nulas en un FTD (`CA-PM-409`).
-    estado.put(
-        "direct_commission_type",
-        directCommissionType == null ? null : directCommissionType.name());
-    estado.put(
-        "direct_commission_percentage",
-        directCommissionPercentage == null ? null : directCommissionPercentage.toPlainString());
-    estado.put(
-        "direct_commission_fixed_amount",
-        directCommissionFixedAmount == null ? null : directCommissionFixedAmount.toPlainString());
+    // Las tres columnas de la directa estuvieron aquí del 29-09-2026 al
+    // 05-10-2026: la directa pasó a la tasa de rol de `CM` (`RN-CM-050`).
     // `video_url` estuvo en esta instantánea entre el 14-09-2026 y el
     // 22-09-2026. Los enlaces entran ahora desde el caso de uso, que es quien
     // los tiene, y con su propia clave `links`.
@@ -901,20 +857,6 @@ public class Product {
     return purchasePrice;
   }
 
-  /** La comisión por venta directa, o {@code null} en un FTD (`RN-PM-051`). */
-  public DirectCommission getDirectCommission() {
-    if (directCommissionType == null) {
-      return null;
-    }
-    return new DirectCommission(
-        directCommissionType, directCommissionPercentage, directCommissionFixedAmount);
-  }
-
-  private void asignarDirecta(DirectCommission directa) {
-    directCommissionType = directa == null ? null : directa.type();
-    directCommissionPercentage = directa == null ? null : directa.percentage();
-    directCommissionFixedAmount = directa == null ? null : directa.fixedAmount();
-  }
 
   /**
    * ¿Es un FTD? Un upgrade de la membresía del suelo a sí misma (`RN-CM-036`).

@@ -119,34 +119,6 @@ public class PublishedProductCatalog implements ProductCatalog, RegistrableProdu
         .findFirst();
   }
 
-  /** La directa del producto (`RN-PM-051`); vacío en un FTD o si no existe. */
-  @Override
-  @Transactional(readOnly = true)
-  public Optional<DirectCommissionView> directCommissionOf(UUID productId) {
-    if (productId == null) {
-      return Optional.empty();
-    }
-    List<?> filas =
-        em.createNativeQuery(
-                """
-                SELECT p.direct_commission_type,
-                       COALESCE(p.direct_commission_percentage, p.direct_commission_fixed_amount)
-                  FROM products p
-                 WHERE p.id = :id
-                   AND p.direct_commission_type IS NOT NULL
-                """)
-            .setParameter("id", productId)
-            .getResultList();
-    return filas.stream()
-        .findFirst()
-        .map(
-            fila -> {
-              Object[] columnas = (Object[]) fila;
-              return new DirectCommissionView(
-                  columnas[0].toString(), new java.math.BigDecimal(columnas[1].toString()));
-            });
-  }
-
   /**
    * Los productos FTD (`RN-CM-036`).
    *

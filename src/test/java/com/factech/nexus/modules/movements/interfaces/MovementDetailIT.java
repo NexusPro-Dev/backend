@@ -225,9 +225,9 @@ class MovementDetailIT extends IntegrationTestBase {
     jdbc.update(
         "INSERT INTO products (scope, implementation, id, code, type, name, description,"
             + " source_membership_id, target_membership_id, price, currency_id, validity_days,"
-            + " status, direct_commission_type, direct_commission_percentage)"
+            + " status)"
             + " VALUES ('TIENDA', 'AUTOMATICA', ?, 'DM_BOT', 'BOT', 'Bot del detalle', 'Un bot',"
-            + " NULL, NULL, 100.00, CAST(? AS uuid), 30, 'ACTIVO', 'PORCENTAJE', 0)",
+            + " NULL, NULL, 100.00, CAST(? AS uuid), 30, 'ACTIVO')",
         id,
         USD);
     return id;

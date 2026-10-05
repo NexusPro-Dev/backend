@@ -426,22 +426,38 @@ class CommissionAccrualIT extends IntegrationTestBase {
   // ---------------------------------------------------------------------------
 
   // ---------------------------------------------------------------------------
-  // La comisión por venta directa (`RN-CM-045`, 29-09-2026)
+  // La comisión por venta directa (`RN-CM-045`, 29-09-2026; de la tasa de rol desde el
+  // 05-10-2026, `RN-CM-050`)
   // ---------------------------------------------------------------------------
 
-  /** La directa del producto, puesta por SQL: el alta de `PM` ya tiene sus pruebas. */
-  private void directa(UUID deProducto, String tipo, String valor) {
-    jdbc.update(
-        "UPDATE products SET direct_commission_type = ?,"
-            + " direct_commission_percentage = CASE WHEN ? = 'PORCENTAJE' THEN CAST(? AS numeric) END,"
-            + " direct_commission_fixed_amount = CASE WHEN ? = 'FIJO' THEN CAST(? AS numeric) END"
-            + " WHERE id = ?",
-        tipo,
-        tipo,
-        valor,
-        tipo,
-        valor,
-        deProducto);
+  /**
+   * La directa de la tasa de rol viva de ese rol sobre el producto, puesta por SQL: el alta de
+   * `RF-CM-001` ya tiene sus pruebas.
+   */
+  private void directa(UUID deProducto, String rol, String tipo, String valor) {
+    int filas =
+        jdbc.update(
+            "UPDATE commission_rates SET direct_rate_type = ?,"
+                + " direct_percentage = CASE WHEN ? = 'PORCENTAJE' THEN CAST(? AS numeric) END,"
+                + " direct_fixed_amount = CASE WHEN ? = 'FIJO' THEN CAST(? AS numeric) END"
+                + " WHERE product_id = ? AND role_id = CAST(? AS uuid) AND deleted_at IS NULL",
+            tipo,
+            tipo,
+            valor,
+            tipo,
+            valor,
+            deProducto,
+            rol);
+    assertThat(filas).as("la tasa de rol donde poner la directa").isEqualTo(1);
+  }
+
+  private UUID tasaDe(UUID deProducto, String rol) {
+    return jdbc.queryForObject(
+        "SELECT id FROM commission_rates WHERE product_id = ? AND role_id = CAST(? AS uuid)"
+            + " AND deleted_at IS NULL",
+        UUID.class,
+        deProducto,
+        rol);
   }
 
   private void tasasDeLaCadena() {
@@ -452,11 +468,11 @@ class CommissionAccrualIT extends IntegrationTestBase {
 
   @Test
   @DisplayName(
-      "CA-CM-264 — un DIRECTOR que vende cobra la DIRECTA del producto en el nivel 0, y su manager"
-          + " su tasa de rol")
+      "CA-CM-264 — un DIRECTOR que vende cobra la DIRECTA de su tasa de rol en el nivel 0, y su"
+          + " manager su tasa de rol")
   void elDirectorCobraLaDirecta() throws Exception {
     tasasDeLaCadena();
-    directa(producto, "PORCENTAJE", "8.00");
+    directa(producto, DIRECTOR, "PORCENTAJE", "8.00");
     UUID venta = venta(VENDIDA_EL, linea(producto, director, 1, "100.00"));
 
     confirmar(venta);
@@ -468,7 +484,8 @@ class CommissionAccrualIT extends IntegrationTestBase {
     Map<String, Object> propia = filas.get(0);
     assertThat(((Number) propia.get("chain_level")).intValue()).isZero();
     assertThat(propia.get("source")).isEqualTo("DIRECTA");
-    assertThat(propia.get("rate_id")).isEqualTo(producto);
+    // `CA-CM-328`: desde el 05-10-2026 apunta a la tasa de rol, no al producto.
+    assertThat(propia.get("rate_id")).isEqualTo(tasaDe(producto, DIRECTOR));
     assertThat(propia.get("rate_type")).isEqualTo("PORCENTAJE");
     assertThat((BigDecimal) propia.get("percentage")).isEqualByComparingTo("8");
     assertThat((BigDecimal) propia.get("commission_amount")).isEqualByComparingTo("8");
@@ -480,7 +497,8 @@ class CommissionAccrualIT extends IntegrationTestBase {
   @DisplayName("CA-CM-265 — un AGENTE que vende cobra su tasa de rol: nadie cobra la directa")
   void elAgenteNoUsaLaDirecta() throws Exception {
     tasasDeLaCadena();
-    directa(producto, "PORCENTAJE", "8.00");
+    directa(producto, DIRECTOR, "PORCENTAJE", "8.00");
+    directa(producto, MANAGER, "PORCENTAJE", "8.00");
     UUID venta = venta(VENDIDA_EL, linea(producto, agente, 1, "100.00"));
 
     confirmar(venta);
@@ -494,7 +512,7 @@ class CommissionAccrualIT extends IntegrationTestBase {
   @DisplayName("CA-CM-266 — un DIRECTOR con personalizada vigente cobra la personalizada")
   void laPersonalizadaGanaALaDirecta() throws Exception {
     tasasDeLaCadena();
-    directa(producto, "PORCENTAJE", "8.00");
+    directa(producto, DIRECTOR, "PORCENTAJE", "8.00");
     CommissionFixtures.sembrarTasaPersonal(jdbc, director, producto, "20.00", "2026-01-01", null);
     UUID venta = venta(VENDIDA_EL, linea(producto, director, 1, "100.00"));
 
@@ -506,31 +524,11 @@ class CommissionAccrualIT extends IntegrationTestBase {
   }
 
   @Test
-  @DisplayName(
-      "CA-CM-267 — sin tasa de rol el DIRECTOR cobra igual la directa; y un MANAGER que vende la"
-          + " cobra sin nadie encima")
-  void laDirectaNoNecesitaTasaDeRol() throws Exception {
-    CommissionFixtures.sembrarTasaDeRol(jdbc, producto, MANAGER, "2.00");
-    directa(producto, "FIJO", "4.0000");
-    UUID delDirector = venta(VENDIDA_EL, linea(producto, director, 1, "100.00"));
-    UUID delManager = venta(VENDIDA_EL, linea(producto, manager, 1, "100.00"));
-
-    confirmar(delDirector);
-    confirmar(delManager);
-
-    List<Map<String, Object>> director = comisionesDe(lineaDe(delDirector));
-    assertThat(director.get(0).get("source")).isEqualTo("DIRECTA");
-    assertThat((BigDecimal) director.get(0).get("commission_amount")).isEqualByComparingTo("4");
-    List<Map<String, Object>> manager = comisionesDe(lineaDe(delManager));
-    assertThat(manager).hasSize(1);
-    assertThat(manager.get(0).get("source")).isEqualTo("DIRECTA");
-  }
-
-  @Test
   @DisplayName("CA-CM-268 — la directa más los superiores por encima del 100 %: RECHAZADA")
   void laDirectaCuentaEnElTope() throws Exception {
+    CommissionFixtures.sembrarTasaDeRol(jdbc, producto, DIRECTOR, "5.00");
     CommissionFixtures.sembrarTasaDeRol(jdbc, producto, MANAGER, "20.00");
-    directa(producto, "PORCENTAJE", "90.00");
+    directa(producto, DIRECTOR, "PORCENTAJE", "90.00");
     UUID venta = venta(VENDIDA_EL, linea(producto, director, 1, "100.00"));
 
     confirmar(venta);
@@ -543,28 +541,86 @@ class CommissionAccrualIT extends IntegrationTestBase {
   @Test
   @DisplayName("CA-CM-269 — una directa de cero deja una comisión de cero y la línea DEVENGADA")
   void laDirectaDeCero() throws Exception {
-    directa(producto, "PORCENTAJE", "0");
+    CommissionFixtures.sembrarTasaDeRol(jdbc, producto, DIRECTOR, "5.00");
+    directa(producto, DIRECTOR, "PORCENTAJE", "0");
     UUID venta = venta(VENDIDA_EL, linea(producto, director, 1, "100.00"));
 
     confirmar(venta);
 
     UUID linea = lineaDe(venta);
     assertThat(desenlace(linea)).isEqualTo("DEVENGADA");
-    assertThat((BigDecimal) comisionesDe(linea).get(0).get("commission_amount")).isZero();
+    Map<String, Object> propia = comisionesDe(linea).get(0);
+    assertThat(propia.get("source")).isEqualTo("DIRECTA");
+    assertThat((BigDecimal) propia.get("commission_amount")).isZero();
   }
 
   @Test
   @DisplayName("CA-CM-270 — corregir la directa después no cambia lo devengado")
   void corregirLaDirectaNoReescribe() throws Exception {
-    directa(producto, "PORCENTAJE", "8.00");
+    CommissionFixtures.sembrarTasaDeRol(jdbc, producto, DIRECTOR, "5.00");
+    directa(producto, DIRECTOR, "PORCENTAJE", "8.00");
     UUID venta = venta(VENDIDA_EL, linea(producto, director, 1, "100.00"));
     confirmar(venta);
 
-    directa(producto, "PORCENTAJE", "50.00");
+    directa(producto, DIRECTOR, "PORCENTAJE", "50.00");
 
     Map<String, Object> propia = comisionesDe(lineaDe(venta)).get(0);
     assertThat((BigDecimal) propia.get("percentage")).isEqualByComparingTo("8");
     assertThat((BigDecimal) propia.get("commission_amount")).isEqualByComparingTo("8");
+  }
+
+  @Test
+  @DisplayName(
+      "CA-CM-328 — un DIRECTOR y un MANAGER que venden el mismo producto cobran cada uno la"
+          + " directa de su rol")
+  void cadaRolCobraSuDirecta() throws Exception {
+    tasasDeLaCadena();
+    directa(producto, DIRECTOR, "PORCENTAJE", "8.00");
+    directa(producto, MANAGER, "FIJO", "3.00");
+    UUID delDirector = venta(VENDIDA_EL, linea(producto, director, 1, "100.00"));
+    UUID delManager = venta(VENDIDA_EL, linea(producto, manager, 1, "100.00"));
+
+    confirmar(delDirector);
+    confirmar(delManager);
+
+    Map<String, Object> deDirector = comisionesDe(lineaDe(delDirector)).get(0);
+    assertThat(deDirector.get("source")).isEqualTo("DIRECTA");
+    assertThat(deDirector.get("rate_id")).isEqualTo(tasaDe(producto, DIRECTOR));
+    assertThat((BigDecimal) deDirector.get("commission_amount")).isEqualByComparingTo("8");
+    List<Map<String, Object>> deManager = comisionesDe(lineaDe(delManager));
+    assertThat(deManager).hasSize(1);
+    assertThat(deManager.get(0).get("source")).isEqualTo("DIRECTA");
+    assertThat(deManager.get(0).get("rate_id")).isEqualTo(tasaDe(producto, MANAGER));
+    assertThat((BigDecimal) deManager.get(0).get("commission_amount")).isEqualByComparingTo("3");
+  }
+
+  @Test
+  @DisplayName("CA-CM-329 — la tasa del DIRECTOR sin directa: su venta propia cobra la tasa de rol")
+  void sinDirectaCobraLaTasaDeRol() throws Exception {
+    tasasDeLaCadena();
+    UUID venta = venta(VENDIDA_EL, linea(producto, director, 1, "100.00"));
+
+    confirmar(venta);
+
+    Map<String, Object> propia = comisionesDe(lineaDe(venta)).get(0);
+    assertThat(propia.get("user_id")).isEqualTo(director);
+    assertThat(propia.get("source")).isEqualTo("ROL");
+    assertThat((BigDecimal) propia.get("commission_amount")).isEqualByComparingTo("5");
+  }
+
+  @Test
+  @DisplayName(
+      "CA-CM-330 — un DIRECTOR sin tasa de rol no tiene directa: no cobra en el nivel 0, y su"
+          + " manager sí cobra su tasa")
+  void sinTasaDeRolNoHayDirecta() throws Exception {
+    CommissionFixtures.sembrarTasaDeRol(jdbc, producto, MANAGER, "2.00");
+    UUID venta = venta(VENDIDA_EL, linea(producto, director, 1, "100.00"));
+
+    confirmar(venta);
+
+    List<Map<String, Object>> filas = comisionesDe(lineaDe(venta));
+    assertThat(filas).extracting(f -> f.get("user_id")).containsExactly(manager);
+    assertThat(filas.get(0).get("source")).isEqualTo("ROL");
   }
 
   private record Linea(

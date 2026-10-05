@@ -506,23 +506,13 @@ class ProductListIT extends IntegrationTestBase {
   }
 
   @Test
-  @DisplayName("`CA-PM-410` — cada fila trae la directa, y nula donde no la hay")
-  void cadaFilaTraeLaDirecta() throws Exception {
-    jdbc.update(
-        "UPDATE products SET direct_commission_type = 'PORCENTAJE',"
-            + " direct_commission_percentage = 7.5 WHERE code = 'UPGRADE_ORO'");
-
+  @DisplayName("`CA-PM-430` — las filas ya no traen la directa: es de la tasa de rol de CM")
+  void lasFilasYaNoTraenLaDirecta() throws Exception {
     mvc.perform(listado().param("targetMembershipId", oro.toString()))
         .andExpect(status().isOk())
-        .andExpect(jsonPath("$.content[0].directCommission.type").value("PORCENTAJE"))
-        .andExpect(jsonPath("$.content[0].directCommission.percentage").value(7.5))
-        .andExpect(jsonPath("$.content[0].directCommission.fixedAmount").doesNotExist());
-
-    // Sin directa —lo que en un producto vivo solo es un FTD—, presente y nula.
-    mvc.perform(listado().param("targetMembershipId", plata.toString()))
-        .andExpect(status().isOk())
-        .andExpect(jsonPath("$.content[0]").value(org.hamcrest.Matchers.hasKey("directCommission")))
-        .andExpect(jsonPath("$.content[0].directCommission").doesNotExist());
+        .andExpect(
+            jsonPath("$.content[0]")
+                .value(org.hamcrest.Matchers.not(org.hamcrest.Matchers.hasKey("directCommission"))));
   }
 
   @Test

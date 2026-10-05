@@ -57,6 +57,28 @@ class CommissionRateListIT extends IntegrationTestBase {
   }
 
   @Test
+  @DisplayName("CA-CM-322 · cada tasa trae su directa, y presente y nula si no la declara")
+  void cadaTasaTraeSuDirecta() throws Exception {
+    jdbc.update(
+        "UPDATE commission_rates SET direct_rate_type = 'FIJO', direct_fixed_amount = 3"
+            + " WHERE product_id = ? AND role_id = CAST(? AS uuid)",
+        productoA,
+        DIRECTOR);
+
+    mvc.perform(listado().param("roleId", DIRECTOR))
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$.content[0].directCommission.rateType").value("FIJO"))
+        .andExpect(jsonPath("$.content[0].directCommission.fixedAmount").value(3));
+    mvc.perform(listado().param("roleId", MANAGER))
+        .andExpect(status().isOk())
+        .andExpect(
+            jsonPath("$.content[0]")
+                .value(org.hamcrest.Matchers.hasKey("directCommission")))
+        .andExpect(
+            jsonPath("$.content[0].directCommission").value(org.hamcrest.Matchers.nullValue()));
+  }
+
+  @Test
   @DisplayName("CA-CM-141 · cada fila trae SU producto resuelto, y ya no cuenta asociaciones")
   void cadaFilaTraeSuProducto() throws Exception {
     mvc.perform(listado().param("roleId", MANAGER))

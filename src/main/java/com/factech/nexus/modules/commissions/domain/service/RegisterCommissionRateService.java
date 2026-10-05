@@ -50,6 +50,7 @@ public class RegisterCommissionRateService {
   private final ProductCatalog productos;
   private final ProductCommissionCapGuard tope;
   private final ProductCurrencyScale escala;
+  private final DirectCommissionGuard directa;
   private final AuditWriter auditoria;
   private final UuidV7Generator ids;
   private final Clock reloj;
@@ -61,9 +62,10 @@ public class RegisterCommissionRateService {
       ProductCatalog productos,
       ProductCommissionCapGuard tope,
       ProductCurrencyScale escala,
+      DirectCommissionGuard directa,
       AuditWriter auditoria,
       UuidV7Generator ids) {
-    this(tasas, roles, productos, tope, escala, auditoria, ids, Clock.systemUTC());
+    this(tasas, roles, productos, tope, escala, directa, auditoria, ids, Clock.systemUTC());
   }
 
   RegisterCommissionRateService(
@@ -72,6 +74,7 @@ public class RegisterCommissionRateService {
       ProductCatalog productos,
       ProductCommissionCapGuard tope,
       ProductCurrencyScale escala,
+      DirectCommissionGuard directa,
       AuditWriter auditoria,
       UuidV7Generator ids,
       Clock reloj) {
@@ -80,6 +83,7 @@ public class RegisterCommissionRateService {
     this.productos = productos;
     this.tope = tope;
     this.escala = escala;
+    this.directa = directa;
     this.auditoria = auditoria;
     this.ids = ids;
     this.reloj = reloj;
@@ -104,6 +108,11 @@ public class RegisterCommissionRateService {
     // `RN-CM-020`). Bloquea el producto: dos altas a la vez suman en serie.
     tope.verificar(producto.id(), producto.code(), null, peticion.valor(), "EX-005", "EX-006");
 
+    // La directa (`RN-CM-050`): último eslabón, decimales, gratuito y su tope
+    // individual. No entra en la suma de arriba: se paga EN LUGAR de la tasa.
+    var directaNueva = peticion.directa();
+    directa.verificar(producto.id(), producto.code(), rol.id(), directaNueva, "EX-006");
+
     CommissionRate nueva =
         tasas.save(
             CommissionRate.create(
@@ -111,6 +120,7 @@ public class RegisterCommissionRateService {
                 producto.id(),
                 peticion.roleId(),
                 peticion.valor(),
+                directaNueva,
                 OffsetDateTime.now(reloj)));
 
     auditoria.recordChange(

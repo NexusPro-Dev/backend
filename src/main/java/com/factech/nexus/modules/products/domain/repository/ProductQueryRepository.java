@@ -176,9 +176,6 @@ public interface ProductQueryRepository {
       String targetMembershipColor,
       BigDecimal price,
       BigDecimal purchasePrice,
-      // `RN-PM-051`: la directa, solo en las dos lecturas de administración —el
-      // listado y el detalle—; nula en las públicas y en un FTD.
-      com.factech.nexus.modules.products.domain.models.DirectCommission directCommission,
       UUID currencyId,
       String currencyCode,
       int currencyDecimalPlaces,

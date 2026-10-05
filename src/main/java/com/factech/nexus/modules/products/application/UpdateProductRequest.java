@@ -77,13 +77,7 @@ public record UpdateProductRequest(
     @JsonDeserialize(using = PatchableDeserializer.class) Patchable<ProductScope> scope,
     @JsonDeserialize(using = PatchableDeserializer.class)
         Patchable<ProductImplementation> implementation,
-    /**
-     * La comisión por venta directa (`RN-PM-051`), <b>entera</b>: ausente no la toca, un objeto la
-     * sustituye y el nulo explícito se rechaza (`VAL-019`) — como el precio del sistema, no tiene
-     * un estado vacío al que llevar un producto que se vende.
-     */
-    @JsonDeserialize(using = PatchableDeserializer.class)
-        Patchable<ProductDirectCommission> directCommission,
+
     @JsonDeserialize(using = PatchableDeserializer.class) Patchable<Object> type,
     @JsonDeserialize(using = PatchableDeserializer.class) Patchable<Object> code,
     @JsonDeserialize(using = PatchableDeserializer.class) Patchable<Object> targetMembershipId,
@@ -106,7 +100,7 @@ public record UpdateProductRequest(
     validityDays = validityDays == null ? Patchable.ausente() : validityDays;
     scope = scope == null ? Patchable.ausente() : scope;
     implementation = implementation == null ? Patchable.ausente() : implementation;
-    directCommission = directCommission == null ? Patchable.ausente() : directCommission;
+
     type = type == null ? Patchable.ausente() : type;
     code = code == null ? Patchable.ausente() : code;
     targetMembershipId = targetMembershipId == null ? Patchable.ausente() : targetMembershipId;
@@ -132,7 +126,6 @@ public record UpdateProductRequest(
         || currencyId.presente()
         || validityDays.presente()
         || scope.presente()
-        || implementation.presente()
-        || directCommission.presente();
+        || implementation.presente();
   }
 }

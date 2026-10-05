@@ -1,8 +1,6 @@
 package com.factech.nexus.modules.products.domain.repository;
 
 import com.factech.nexus.modules.products.application.ListProductsRequest;
-import com.factech.nexus.modules.products.domain.models.DirectCommission;
-import com.factech.nexus.modules.products.domain.models.DirectCommissionType;
 import jakarta.persistence.EntityManager;
 import jakarta.persistence.Query;
 import jakarta.persistence.Tuple;
@@ -61,9 +59,6 @@ public class JpaProductQueryRepository implements ProductQueryRepository {
                p.source_membership_id AS s_id, s.code AS s_code, s.name AS s_name,
                s.level AS s_level, s.color AS s_color,
                p.price AS price, p.purchase_price AS purchase_price,
-               p.direct_commission_type AS dc_type,
-               p.direct_commission_percentage AS dc_percentage,
-               p.direct_commission_fixed_amount AS dc_fixed_amount,
                p.currency_id AS c_id, c.code AS c_code,
                c.decimal_places AS c_decimales,
                p.validity_days AS validity_days, p.scope AS scope,
@@ -118,7 +113,6 @@ public class JpaProductQueryRepository implements ProductQueryRepository {
               // El precio de compra viaja SOLO en las dos lecturas de
               // administración —esta y el detalle— (`RN-PM-024`).
               (BigDecimal) fila.get("purchase_price"),
-              directa(fila),
               (UUID) fila.get("c_id"),
               (String) fila.get("c_code"),
               ((Number) fila.get("c_decimales")).intValue(),
@@ -169,9 +163,6 @@ public class JpaProductQueryRepository implements ProductQueryRepository {
                        p.source_membership_id AS s_id, s.code AS s_code, s.name AS s_name,
                        s.level AS s_level, s.color AS s_color, s.color AS s_color,
                        p.price AS price, p.purchase_price AS purchase_price,
-                       p.direct_commission_type AS dc_type,
-                       p.direct_commission_percentage AS dc_percentage,
-                       p.direct_commission_fixed_amount AS dc_fixed_amount,
                        p.currency_id AS c_id, c.code AS c_code,
                        c.decimal_places AS c_decimales,
                        p.validity_days AS validity_days, p.scope AS scope,
@@ -218,7 +209,6 @@ public class JpaProductQueryRepository implements ProductQueryRepository {
                     (String) fila.get("m_color"),
                     (BigDecimal) fila.get("price"),
                     (BigDecimal) fila.get("purchase_price"),
-                    directa(fila),
                     (UUID) fila.get("c_id"),
                     (String) fila.get("c_code"),
                     ((Number) fila.get("c_decimales")).intValue(),
@@ -464,8 +454,6 @@ public class JpaProductQueryRepository implements ProductQueryRepository {
               // precio público, cuando el segundo importe era lo que se
               // anunciaba.
               null,
-              // Tampoco la directa: es un dato de nómina (`RN-PM-051`).
-              null,
               (UUID) fila.get("c_id"),
               (String) fila.get("c_code"),
               ((Number) fila.get("c_decimales")).intValue(),
@@ -605,8 +593,6 @@ public class JpaProductQueryRepository implements ProductQueryRepository {
         // NULO A PROPÓSITO: el costo no se selecciona en la lectura sin token
         // (`RN-PM-024`, 12-09-2026). Ver el Javadoc de arriba.
         null,
-        // Tampoco la directa (`RN-PM-051`).
-        null,
         (UUID) fila.get("c_id"),
         (String) fila.get("c_code"),
         ((Number) fila.get("c_decimales")).intValue(),
@@ -724,18 +710,6 @@ public class JpaProductQueryRepository implements ProductQueryRepository {
 
   private static Integer entero(Object valor) {
     return valor == null ? null : ((Number) valor).intValue();
-  }
-
-  /** La directa de la fila, o {@code null} en un FTD (`RN-PM-051`). */
-  private static DirectCommission directa(Tuple fila) {
-    Object tipo = fila.get("dc_type");
-    if (tipo == null) {
-      return null;
-    }
-    return new DirectCommission(
-        DirectCommissionType.valueOf(tipo.toString()),
-        decimal(fila.get("dc_percentage")),
-        decimal(fila.get("dc_fixed_amount")));
   }
 
   @Override
