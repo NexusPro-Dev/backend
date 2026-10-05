@@ -242,7 +242,7 @@ De ahí sale la forma de la respuesta. Una tasa que paga y una que no **serían 
 ### EX-010 — La directa fija paga más que el precio (05-10-2026)
 
 **Condición:** la directa es de valor fijo y supera el precio del producto, que no es gratuito (`RN-CM-050`).
-**Respuesta del sistema:** rechaza el alta con `422` y el mensaje «La comisión por venta directa no puede pagar más que el precio del producto.», en `directCommission.fixedAmount`. Es el tope individual de la directa; el de la cadena lo pone el devengo (`RN-CM-026`).
+**Respuesta del sistema:** rechaza el alta con `409` —como `EX-005` y `EX-006`, que también comparan contra el precio— y el mensaje «La comisión por venta directa no puede pagar más que el precio del producto.», en `directCommission.fixedAmount`. Es el tope individual de la directa; el de la cadena lo pone el devengo (`RN-CM-026`).
 
 ## 11. Validaciones
 
@@ -287,8 +287,8 @@ De ahí sale la forma de la respuesta. Una tasa que paga y una que no **serían 
 | `CA-CM-315` | El sistema registra la tasa de un **`DIRECTOR`** con **comisión por venta directa** y la devuelve en `directCommission`, con su forma y su valor (05-10-2026) |
 | `CA-CM-316` | Una tasa registrada **sin** `directCommission` la devuelve **presente y nula** |
 | `CA-CM-317` | El sistema rechaza con `422` (`EX-009`) una directa sobre la tasa de un **`AGENTE`**, el último eslabón |
-| `CA-CM-318` | El sistema rechaza con `422` (`EX-006`) una directa de **porcentaje** sobre un producto **gratuito**, y admite una **fija** |
-| `CA-CM-319` | El sistema rechaza con `422` (`EX-010`) una directa fija **mayor que el precio**, y admite una **igual** |
+| `CA-CM-318` | El sistema rechaza con `409` (`EX-006`) una directa de **porcentaje** sobre un producto **gratuito**, y admite una **fija** |
+| `CA-CM-319` | El sistema rechaza con `409` (`EX-010`) una directa fija **mayor que el precio**, y admite una **igual** |
 | `CA-CM-320` | Una directa **no cuenta en el tope** de `RN-CM-019`: con las tasas de rol del producto sumando cien, una directa de cincuenta se registra |
 | `CA-CM-321` | Una directa con la forma y el valor cruzados se rechaza con `400` (`VAL-011`), señalando `directCommission` |
 | `CA-CM-335` | El sistema rechaza con `400` un importe fijo **con tres decimales**, tanto el de la tasa como el de su directa, **en el formato de la petición y antes de mirar la moneda**. Admite el mismo importe con dos, lo guarda en centésimas (`12.50` → `1250`) y lo devuelve como `12.50`. Lo mismo vale para la personalizada (`RF-CM-006`, `CA-CM-148`) (05-10-2026) |

@@ -255,7 +255,7 @@ Quien necesite conservar qué se pagó antes tiene **una sola vía, y está fuer
 ### EX-010 — La directa fija paga más que el precio (05-10-2026)
 
 **Condición:** la directa que queda es fija y supera el precio del producto, que no es gratuito.
-**Respuesta del sistema:** `422`, como `RF-CM-001` `EX-010`.
+**Respuesta del sistema:** `409`, como `RF-CM-001` `EX-010`.
 
 ## 11. Validaciones
 

@@ -8,7 +8,6 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 import com.factech.nexus.IntegrationTestBase;
-import java.util.List;
 import java.util.UUID;
 import org.hamcrest.Matchers;
 import org.junit.jupiter.api.AfterEach;
@@ -1293,7 +1292,7 @@ class ProductsIT extends IntegrationTestBase {
     assertThat(cuerpo).doesNotContain("directCommission");
   }
 
-    private RequestPostProcessor admin() {
+  private RequestPostProcessor admin() {
     return user(UUID.randomUUID().toString()).authorities(() -> "products:create");
   }
 

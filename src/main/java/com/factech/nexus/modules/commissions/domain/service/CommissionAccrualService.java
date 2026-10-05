@@ -1,13 +1,13 @@
 package com.factech.nexus.modules.commissions.domain.service;
 
 import com.factech.nexus.modules.commissions.domain.models.AccrualOutcome;
-import com.factech.nexus.modules.commissions.domain.repository.CommissionRateRepository;
 import com.factech.nexus.modules.commissions.domain.models.RateSource;
 import com.factech.nexus.modules.commissions.domain.repository.CommissionAccrualRepository;
 import com.factech.nexus.modules.commissions.domain.repository.CommissionAccrualRepository.AccrualRow;
 import com.factech.nexus.modules.commissions.domain.repository.CommissionAccrualRepository.NewCommission;
 import com.factech.nexus.modules.commissions.domain.repository.CommissionBatchRepository;
 import com.factech.nexus.modules.commissions.domain.repository.CommissionBatchRepository.OpenBatch;
+import com.factech.nexus.modules.commissions.domain.repository.CommissionRateRepository;
 import com.factech.nexus.modules.commissions.domain.repository.CommissionResolutionRepository.ResolvedRate;
 import com.factech.nexus.modules.commissions.domain.service.ChainCommissionCalculator.Level;
 import com.factech.nexus.modules.commissions.domain.service.ChainCommissionCalculator.LevelCommission;
@@ -212,9 +212,9 @@ public class CommissionAccrualService {
    * 29-09-2026—: solo se sustituye lo que resolvió el rol, o la ausencia de tasa. <b>Sin rol
    * vendedor no hay rango</b>, y se deja como estaba.
    *
-   * <p><b>Desde el 05-10-2026 la directa es la de su tasa de rol</b> sobre el producto (`RN-CM-050`):
-   * una por rol, opcional. <b>Sin tasa de rol viva, o sin directa en ella</b>, queda lo que resolvió
-   * `RF-CM-005`. La comisión apunta a la tasa, no al producto.
+   * <p><b>Desde el 05-10-2026 la directa es la de su tasa de rol</b> sobre el producto
+   * (`RN-CM-050`): una por rol, opcional. <b>Sin tasa de rol viva, o sin directa en ella</b>, queda
+   * lo que resolvió `RF-CM-005`. La comisión apunta a la tasa, no al producto.
    */
   private Optional<ResolvedRate> ventaPropia(
       UUID vendedor, UUID productId, Optional<ResolvedRate> tasa, Set<UUID> eslabon) {

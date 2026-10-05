@@ -107,6 +107,6 @@ Rama: `feature/comision-venta-directa`.
 
 | ID | Tarea | Depende de | Verificación | Estado |
 |---|---|---|---|---|
-| `T-45` | Quitar `directCommission` del detalle (`plan.md` §13) | `RF-PM-001` `T-54` | `CA-PM-431` | Pendiente |
+| `T-45` | Quitar `directCommission` del detalle (`plan.md` §13) | `RF-PM-001` `T-54` | `CA-PM-431` | **Hecha** — 05-10-2026 |
 
 Rama: `develop`.

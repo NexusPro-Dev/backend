@@ -308,7 +308,9 @@ class ProductDetailIT extends IntegrationTestBase {
     mvc.perform(detalle(bot))
         .andExpect(status().isOk())
         .andExpect(
-            jsonPath("$").value(org.hamcrest.Matchers.not(org.hamcrest.Matchers.hasKey("directCommission"))));
+            jsonPath("$")
+                .value(
+                    org.hamcrest.Matchers.not(org.hamcrest.Matchers.hasKey("directCommission"))));
   }
 
   private long sentenciasDe(MockHttpServletRequestBuilder peticion) throws Exception {

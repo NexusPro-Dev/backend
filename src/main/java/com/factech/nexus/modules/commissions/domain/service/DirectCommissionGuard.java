@@ -92,7 +92,8 @@ public class DirectCommissionGuard {
     }
 
     if (fija && directa.getFixedAmount().compareTo(precio) > 0) {
-      String mensaje = "La comisión por venta directa no puede pagar más que el precio del producto.";
+      String mensaje =
+          "La comisión por venta directa no puede pagar más que el precio del producto.";
       throw new BusinessRuleException(
           "EX-010", mensaje, List.of(new FieldError(CAMPO + ".fixedAmount", "EX-010", mensaje)));
     }

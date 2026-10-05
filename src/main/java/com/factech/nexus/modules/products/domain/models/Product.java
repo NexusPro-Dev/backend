@@ -172,7 +172,6 @@ public class Product {
   @Column(name = "purchase_price", precision = 14, scale = 4)
   private BigDecimal purchasePrice;
 
-
   @Column(name = "currency_id", nullable = false)
   private UUID currencyId;
 
@@ -856,7 +855,6 @@ public class Product {
   public BigDecimal getPurchasePrice() {
     return purchasePrice;
   }
-
 
   /**
    * ¿Es un FTD? Un upgrade de la membresía del suelo a sí misma (`RN-CM-036`).

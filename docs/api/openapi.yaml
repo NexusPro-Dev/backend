@@ -2135,10 +2135,6 @@ paths:
         se ven juntos: la oferta y el hotlink no devuelven el de compra
         (`RN-PM-024`, 12-09-2026).
 
-        Cada fila trae **`directCommission`**, la comisión por venta directa
-        (`RN-PM-051`), **presente y nula** en un FTD. Es un dato de nómina:
-        como el precio de compra, la oferta y el hotlink no la devuelven.
-
         Y trae **`exchange`**, la conversión a la moneda por omisión con la
         tasa vigente hoy, calculada **sobre `price`** —el de compra nunca se
         convierte—. Llega **presente y nula** cuando el producto ya está en
@@ -2343,18 +2339,9 @@ paths:
         con los decimales que declare su moneda. El rechazo **nombra el
         campo** que incumple.
 
-        **`directCommission` es obligatoria, salvo en un FTD** (`RN-PM-051`,
-        29-09-2026): lo que cobra en su venta propia quien **no es el último
-        eslabón** de la fuerza comercial —hoy un `DIRECTOR` o un `MANAGER`—,
-        en lugar de su tasa de rol. Un objeto con `type` —`PORCENTAJE` o
-        `FIJO`— y **solo** el campo que le toca (`percentage` o
-        `fixedAmount`). El porcentaje va de 0 a 100; el fijo no es negativo,
-        cabe en los decimales de la moneda y **no pasa del precio**; sobre un
-        producto de precio cero **solo se admite fija**. Sin ella, `VAL-024`;
-        con la forma equivocada, `VAL-025`; fuera de rango, `VAL-026`; por
-        encima del precio o de porcentaje sobre un gratuito, `VAL-027`. **Un
-        FTD —un upgrade de `BECA` a `BECA`— no la lleva**: declararla es
-        `VAL-028`, y la respuesta la devuelve **presente y nula**.
+        **La comisión por venta directa ya no es de este recurso** (05-10-2026): se
+        declara en la tasa de rol de cada producto (`/commission-rates`,
+        `RN-CM-050`), y `directCommission` aquí es un campo desconocido (`400`).
 
         **Los dos solo se ven desde administración** (`RN-PM-024`): la oferta
         de un cliente y el hotlink público devuelven **uno**.
@@ -5619,6 +5606,9 @@ paths:
         Se filtra por `productId`, `roleId` y `rateType`, y con
         `includeDeleted` entran las retiradas.
 
+        Cada tasa trae **`directCommission`**, la comisión por venta directa de
+        su rol (`RN-CM-050`, 05-10-2026), **presente y nula** si no la declara.
+
         **Toda tasa viva rige** sobre su producto (`RN-CM-021`): ya no hay un
         contador de asociaciones que mirar.
 
@@ -5680,6 +5670,16 @@ paths:
 
         **El porcentaje cero es válido** y significa «esto no comisiona», que **no
         es lo mismo** que no declarar la tasa.
+
+        **`directCommission`, opcional, es la comisión por venta directa del rol**
+        (`RN-CM-050`, 05-10-2026): lo que cobra cuando vende él mismo, en lugar de
+        esta tasa. La misma forma —`rateType` y **solo** su campo—. **Solo para
+        los roles que no son el último eslabón** (hoy `DIRECTOR` y `MANAGER`):
+        sobre el último es `422` (`EX-009`). El fijo cabe en los decimales de la
+        moneda (`VAL-014`) y **no pasa del precio** (`409`, `EX-010`); sobre un
+        gratuito, solo fija (`EX-006`). **No cuenta en el tope** de `RN-CM-019`.
+        Ausente o nula: sin directa, y su venta propia paga esta tasa. La
+        respuesta la trae siempre, **presente y nula** si no hay.
       operationId: registrar_8
       requestBody:
         content:
@@ -5709,15 +5709,16 @@ paths:
                 $ref: "#/components/schemas/CommissionRateResponse"
         "409":
           description: "Ya hay una tasa viva de ese rol sobre ese producto (`EX-007`),\
-            \ el producto pagaría más de cien (`EX-005`), o es gratuito y la tasa\
-            \ es de porcentaje (`EX-006`)"
+            \ el producto pagaría más de cien (`EX-005`), es gratuito y la tasa o\
+            \ la directa es de porcentaje (`EX-006`), o la directa fija pasa del precio\
+            \ (`EX-010`)"
           content:
             '*/*':
               schema:
                 $ref: "#/components/schemas/CommissionRateResponse"
         "422":
-          description: "El rol no existe (`EX-002`), o el producto no existe o está\
-            \ retirado"
+          description: "El rol no existe (`EX-002`), el producto no existe o está\
+            \ retirado, o la directa va sobre un rol que es el último eslabón (`EX-009`)"
           content:
             '*/*':
               schema:
@@ -7839,10 +7840,6 @@ paths:
         compra solo se ve aquí y en el listado: la oferta y el hotlink no lo
         devuelven.
 
-        Trae **`directCommission`**, la comisión por venta directa
-        (`RN-PM-051`) —también en un producto retirado—, **presente y nula**
-        en un FTD.
-
         Trae **`links`**, los enlaces del producto **tal cual se guardaron** y
         **presente y vacía** cuando no tiene ninguno (`RN-PM-048`) — también en
         un producto retirado. Como el listado, **los enseña todos**,
@@ -7928,13 +7925,9 @@ paths:
         columna, de modo que «bórralo» no tiene ningún estado al que llevar el
         producto. Devuelven `400` con `VAL-007` y `VAL-008`.
 
-        **`directCommission` se corrige ENTERA y no se vacía** (`RN-PM-051`):
-        el nulo explícito es `VAL-019`, y la forma o el rango equivocados
-        `VAL-020`. **Se revalida en toda edición aunque no viaje**, contra el
-        precio y la moneda que quedan: bajar el precio por debajo de una
-        directa fija, o a cero con una de porcentaje, es `VAL-021`, y cambiar
-        a una moneda en cuyos decimales no cabe, `VAL-020`. En un FTD
-        declararla es `VAL-022`.
+        **La comisión por venta directa ya no es de este recurso** (05-10-2026): se
+        declara en la tasa de rol de cada producto (`/commission-rates`,
+        `RN-CM-050`), y `directCommission` aquí es un campo desconocido (`400`).
 
         **El alcance y la implementación SÍ se corrigen, aunque el tipo y las
         membresías no**: ninguna de las dos define qué derecho otorga el
@@ -9605,6 +9598,13 @@ paths:
         producto de precio cero se rechaza con `409` (`EX-008`). Y un importe
         fijo tiene que **caber en los decimales de la moneda del producto**
         (`VAL-013`).
+
+        **`directCommission`** (`RN-CM-050`, 05-10-2026): **ausente no la toca**,
+        un objeto **la sustituye entera** y **`null` la vacía** —sin directa, la
+        venta propia del rol paga la tasa—. Un objeto se comprueba como en el
+        alta: último eslabón `422` (`EX-009`), decimales `VAL-014`, fija por
+        encima del precio `409` (`EX-010`) y porcentaje sobre un gratuito `409`
+        (`EX-008`). Vaciarla se admite siempre.
       operationId: corregir_9
       parameters:
       - name: id
@@ -9646,7 +9646,14 @@ paths:
                 $ref: "#/components/schemas/CommissionRateResponse"
         "409":
           description: "El nuevo valor dejaría al producto pagando más de cien (`EX-006`),\
-            \ o dejaría de porcentaje la tasa de un producto gratuito (`EX-008`)"
+            \ dejaría de porcentaje la tasa o la directa de un producto gratuito (`EX-008`),\
+            \ o la directa fija pasaría del precio (`EX-010`)"
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/CommissionRateResponse"
+        "422":
+          description: Directa sobre un rol que es el último eslabón (`EX-009`)
           content:
             '*/*':
               schema:
@@ -12142,9 +12149,10 @@ paths:
         aquí se lee.
 
         **`source` tiene tres valores** desde el 29-09-2026: `PERSONALIZADA`, `ROL` y
-        **`DIRECTA`** —la comisión por venta directa del producto, que cobra en el nivel `0`
+        **`DIRECTA`** —la comisión por venta directa de su rol, que cobra en el nivel `0`
         quien vendió sin ser el último eslabón y sin personalizada (`RN-CM-045`)—. Con
-        `DIRECTA`, **`rateId` es el producto**.
+        `DIRECTA`, **`rateId` es la tasa de rol que la declara** desde el 05-10-2026
+        (`RN-CM-050`); en lo devengado antes, **el producto**.
 
         **Cada comisión dice su clase en `commissionKind`** (`RN-CM-044`, 29-09-2026):
         `POR_VENTA`, con todo lo anterior; o `POR_AFFTRACK`, un escalón pagado en un cierre,
@@ -13527,8 +13535,6 @@ components:
           type: number
         purchasePrice:
           type: number
-        directCommission:
-          $ref: "#/components/schemas/ProductDirectCommission"
         currency:
           $ref: "#/components/schemas/CurrencyRef"
         exchange:
@@ -13566,24 +13572,6 @@ components:
           format: date-time
         deletionReason:
           type: string
-    ProductDirectCommission:
-      type: object
-      description: "Lo que cobra en su venta propia quien no es el último eslabón\
-        \ de la fuerza comercial, en lugar de su tasa de rol. Porcentaje o importe\
-        \ fijo, nunca los dos."
-      properties:
-        type:
-          type: string
-          description: PORCENTAJE o FIJO.
-          enum:
-          - PORCENTAJE
-          - FIJO
-        percentage:
-          type: number
-          description: De 0 a 100. Solo si `type` es PORCENTAJE.
-        fixedAmount:
-          type: number
-          description: "Por unidad, en la moneda del producto. Solo si `type` es FIJO."
     ProductLinkResponse:
       type: object
       properties:
@@ -14624,8 +14612,6 @@ components:
           enum:
           - AUTOMATICA
           - MANUAL
-        directCommission:
-          $ref: "#/components/schemas/ProductDirectCommission"
       required:
       - code
       - currencyId
@@ -14667,8 +14653,6 @@ components:
           type: number
         purchasePrice:
           type: number
-        directCommission:
-          $ref: "#/components/schemas/ProductDirectCommission"
         currency:
           $ref: "#/components/schemas/CurrencyRef"
         exchange:
@@ -16203,6 +16187,27 @@ components:
           type: string
         isActive:
           type: boolean
+    CommissionRateDirect:
+      type: object
+      description: "La comisión por venta directa del rol sobre el producto (RN-CM-050):\
+        \ lo que cobra cuando vende él mismo, si no es el último eslabón. Porcentaje\
+        \ o fijo, nunca las dos."
+      properties:
+        rateType:
+          type: string
+          description: PORCENTAJE o FIJO.
+          enum:
+          - PORCENTAJE
+          - FIJO
+        percentage:
+          type: number
+          maximum: 100.00
+          minimum: 0.00
+        fixedAmount:
+          type: number
+          minimum: 0.00
+      required:
+      - rateType
     RegisterCommissionRateRequest:
       type: object
       properties:
@@ -16224,6 +16229,11 @@ components:
         fixedAmount:
           type: number
           minimum: 0.0000
+        directCommission:
+          $ref: "#/components/schemas/CommissionRateDirect"
+          description: "La comisión por venta directa del rol (RN-CM-050), opcional:\
+            \ solo para los roles que no son el último eslabón. Ausente o nula: sin\
+            \ directa."
       required:
       - productId
       - rateType
@@ -16247,6 +16257,10 @@ components:
           type: number
         fixedAmount:
           type: number
+        directCommission:
+          $ref: "#/components/schemas/CommissionRateDirect"
+          description: La comisión por venta directa de este rol sobre este producto
+            (RN-CM-050). Siempre presente; nula si el rol no la declara.
     CommissionRateRole:
       type: object
       properties:
@@ -16969,8 +16983,6 @@ components:
           enum:
           - AUTOMATICA
           - MANUAL
-        directCommission:
-          $ref: "#/components/schemas/ProductDirectCommission"
         type:
           description: "No se corrige: enviarlo, con cualquier valor, se rechaza."
           not: {}
@@ -17232,6 +17244,10 @@ components:
         roleId:
           description: "No se corrige: enviarlo, con cualquier valor, se rechaza."
           not: {}
+        directCommission:
+          $ref: "#/components/schemas/CommissionRateDirect"
+          description: "La comisión por venta directa (RN-CM-050), entera: ausente\
+            \ no la toca, un objeto la sustituye y null la vacía."
     UpdateAfftrackRateRequest:
       type: object
       properties:
@@ -17764,8 +17780,6 @@ components:
           type: number
         purchasePrice:
           type: number
-        directCommission:
-          $ref: "#/components/schemas/ProductDirectCommission"
         currency:
           $ref: "#/components/schemas/CurrencyRef"
         exchange:
@@ -19101,6 +19115,10 @@ components:
           type: number
         fixedAmount:
           type: number
+        directCommission:
+          $ref: "#/components/schemas/CommissionRateDirect"
+          description: La comisión por venta directa de este rol sobre este producto
+            (RN-CM-050). Siempre presente; nula si el rol no la declara.
         deletedAt:
           type: string
           format: date-time

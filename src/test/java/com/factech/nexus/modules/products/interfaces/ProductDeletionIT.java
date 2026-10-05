@@ -49,6 +49,9 @@ class ProductDeletionIT extends IntegrationTestBase {
   @BeforeEach
   void sembrarCatalogo() {
     jdbc.update("DELETE FROM products");
+    // Antes que las membresías: `user_products` las referencia, y la suite
+    // solo pasaba cuando otra la había vaciado antes (como en `ProductListIT`).
+    jdbc.update("DELETE FROM user_products");
     jdbc.update("DELETE FROM memberships");
     jdbc.update("DELETE FROM audit_deletion_log WHERE module = 'PM'");
     oro = membresia("ORO", "Oro", 1);

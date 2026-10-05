@@ -1,9 +1,9 @@
 package com.factech.nexus.modules.commissions.application;
 
-import jakarta.validation.Valid;
-import io.swagger.v3.oas.annotations.media.Schema;
 import com.factech.nexus.modules.commissions.domain.models.CommissionRateType;
 import com.factech.nexus.modules.commissions.domain.models.CommissionValue;
+import io.swagger.v3.oas.annotations.media.Schema;
+import jakarta.validation.Valid;
 import jakarta.validation.constraints.DecimalMax;
 import jakarta.validation.constraints.DecimalMin;
 import jakarta.validation.constraints.Digits;

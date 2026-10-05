@@ -94,8 +94,7 @@ public class JpaCommissionRateRepository implements CommissionRateRepository {
 
   @Override
   public Optional<CommissionRate> findAlive(UUID productId, UUID roleId) {
-    return em
-        .createQuery(
+    return em.createQuery(
             "SELECT t FROM CommissionRate t WHERE t.productId = :producto AND t.roleId = :rol"
                 + " AND t.deletedAt IS NULL",
             CommissionRate.class)

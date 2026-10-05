@@ -1,9 +1,9 @@
 package com.factech.nexus.modules.commissions.application;
 
-import io.swagger.v3.oas.annotations.media.Schema;
 import com.factech.nexus.modules.commissions.domain.models.CommissionRateType;
 import com.factech.nexus.modules.commissions.domain.repository.CommissionRateQueryRepository.RateRow;
 import com.fasterxml.jackson.annotation.JsonInclude;
+import io.swagger.v3.oas.annotations.media.Schema;
 import java.math.BigDecimal;
 import java.time.OffsetDateTime;
 import java.util.UUID;

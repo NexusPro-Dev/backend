@@ -7,7 +7,7 @@
 | Versión | 1.5.0 |
 | Estado | **En revisión** |
 | Autor | Responsable técnico |
-| Aprobadas por | Pendiente |
+| Aprobadas por | **Hecha** — 05-10-2026 |
 | Fecha de aprobación | Pendiente |
 | Issue | Pendiente de crear |
 | Rama | `feature/flujos-de-pm-y-cm` (`T-01`–`T-16`) · `feature/comision-en-valor-fijo` (`T-17`–`T-22`) · `feature/venta-de-productos` (`T-23`–`T-26`) |

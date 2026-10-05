@@ -7,9 +7,9 @@
 | Versión | 1.2.0 |
 | Estado | **En revisión** |
 | Autor | Responsable técnico |
-| Aprobadas por | Pendiente |
-| Fecha de aprobación | Pendiente |
-| Issue | Pendiente de crear |
+| Aprobadas por | **Hecha** — 05-10-2026 |
+| Fecha de aprobación | **Hecha** — 05-10-2026 |
+| Issue | **Hecha** — 05-10-2026 de crear |
 | Rama | `feature/flujos-de-pm-y-cm` (`T-01`–`T-15`) · `feature/comision-en-valor-fijo` (`T-16`–`T-27`) |
 | Enmendadas | 15-09-2026 — `T-28` a `T-31` porque **la tasa de rol nace con su producto** (`RN-CM-021`) |
 | Enmendadas | 29-09-2026 — `T-32` porque **un producto FTD no admite tasas por venta** (`RN-CM-037`) |

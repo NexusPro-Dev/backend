@@ -11,7 +11,6 @@ import com.factech.nexus.modules.products.domain.repository.ProductRepository;
 import com.factech.nexus.modules.system.currencies.application.CurrencyCatalog;
 import com.factech.nexus.modules.system.currencies.application.CurrencyCatalog.CurrencyView;
 import com.factech.nexus.modules.system.memberships.application.MembershipCatalog;
-import com.factech.nexus.modules.system.memberships.application.MembershipCatalog.MembershipView;
 import com.factech.nexus.shared.audit.AuditEnums.ChangeAction;
 import com.factech.nexus.shared.audit.AuditEvents.ChangeEvent;
 import com.factech.nexus.shared.audit.AuditWriter;

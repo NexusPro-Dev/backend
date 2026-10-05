@@ -61,7 +61,6 @@ public record ProductResponse(
     MembershipRef targetMembership,
     BigDecimal price,
     BigDecimal purchasePrice,
-
     CurrencyRef currency,
     ExchangeRef exchange,
     Integer validityDays,
@@ -109,7 +108,6 @@ public record ProductResponse(
         producto.getPurchasePrice() == null
             ? null
             : enLaEscalaDe(producto.getPurchasePrice(), moneda),
-
         new CurrencyRef(moneda.id(), moneda.code(), moneda.decimalPlaces()),
         conversion,
         producto.getValidityDays(),

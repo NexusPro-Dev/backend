@@ -1,6 +1,5 @@
 package com.factech.nexus.modules.products.application;
 
-
 import com.factech.nexus.modules.products.domain.models.ProductImplementation;
 import com.factech.nexus.modules.products.domain.models.ProductScope;
 import com.factech.nexus.modules.products.domain.models.ProductType;

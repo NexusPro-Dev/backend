@@ -58,7 +58,6 @@ public record ProductItem(
     ProductResponse.MembershipRef targetMembership,
     BigDecimal price,
     BigDecimal purchasePrice,
-
     ProductResponse.CurrencyRef currency,
     ExchangeRef exchange,
     Integer validityDays,
@@ -110,7 +109,6 @@ public record ProductItem(
         fila.purchasePrice() == null
             ? null
             : ProductPrice.enLaEscalaDe(fila.purchasePrice(), fila.currencyDecimalPlaces()),
-
         new ProductResponse.CurrencyRef(
             fila.currencyId(), fila.currencyCode(), fila.currencyDecimalPlaces()),
         conversion,

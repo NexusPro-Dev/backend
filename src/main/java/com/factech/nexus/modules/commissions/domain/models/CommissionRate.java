@@ -77,13 +77,12 @@ public class CommissionRate {
    * lo que cobra el rol cuando vende él mismo, si no es el último eslabón (`RN-CM-045`).
    *
    * <p>La misma forma que {@link #value} —porcentaje o fijo, nunca las dos—, en otras tres
-   * columnas. <b>Nula es «sin directa»</b>: la venta propia paga entonces la tasa de rol. Que el rol
-   * no sea el último eslabón lo comprueba el caso de uso, porque depende de la jerarquía de roles.
+   * columnas. <b>Nula es «sin directa»</b>: la venta propia paga entonces la tasa de rol. Que el
+   * rol no sea el último eslabón lo comprueba el caso de uso, porque depende de la jerarquía de
+   * roles.
    */
   @Embedded
-  @AttributeOverride(
-      name = "rateType",
-      column = @Column(name = "direct_rate_type", length = 20))
+  @AttributeOverride(name = "rateType", column = @Column(name = "direct_rate_type", length = 20))
   @AttributeOverride(
       name = "percentage",
       column = @Column(name = "direct_percentage", precision = 5, scale = 2))

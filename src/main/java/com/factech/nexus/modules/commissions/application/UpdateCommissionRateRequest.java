@@ -1,11 +1,11 @@
 package com.factech.nexus.modules.commissions.application;
 
-import io.swagger.v3.oas.annotations.media.Schema;
 import com.factech.nexus.modules.commissions.domain.models.CommissionRateType;
 import com.factech.nexus.modules.commissions.domain.models.CommissionValue;
 import com.factech.nexus.shared.patch.Patchable;
 import com.factech.nexus.shared.patch.PatchableDeserializer;
 import com.fasterxml.jackson.databind.annotation.JsonDeserialize;
+import io.swagger.v3.oas.annotations.media.Schema;
 import java.math.BigDecimal;
 
 /**

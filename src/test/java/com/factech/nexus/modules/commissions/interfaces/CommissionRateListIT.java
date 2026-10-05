@@ -71,9 +71,7 @@ class CommissionRateListIT extends IntegrationTestBase {
         .andExpect(jsonPath("$.content[0].directCommission.fixedAmount").value(3));
     mvc.perform(listado().param("roleId", MANAGER))
         .andExpect(status().isOk())
-        .andExpect(
-            jsonPath("$.content[0]")
-                .value(org.hamcrest.Matchers.hasKey("directCommission")))
+        .andExpect(jsonPath("$.content[0]").value(org.hamcrest.Matchers.hasKey("directCommission")))
         .andExpect(
             jsonPath("$.content[0].directCommission").value(org.hamcrest.Matchers.nullValue()));
   }

@@ -13,8 +13,8 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 import com.factech.nexus.IntegrationTestBase;
-import org.hamcrest.Matchers;
 import java.util.UUID;
+import org.hamcrest.Matchers;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
@@ -603,18 +603,17 @@ class CommissionRatesIT extends IntegrationTestBase {
   }
 
   @Test
-  @DisplayName("CA-CM-318 · sobre un gratuito, una directa de porcentaje es 409 EX-006 y una fija entra")
+  @DisplayName(
+      "CA-CM-318 · sobre un gratuito, una directa de porcentaje es 409 EX-006 y una fija entra")
   void laDirectaSobreUnGratuito() throws Exception {
     UUID gratis = CommissionFixtures.sembrarProducto(jdbc, "BOT_GRATIS", false, "0.0000");
 
     mvc.perform(
             alta(
-                fijoConDirecta(
-                    gratis, DIRECTOR, "{\"rateType\":\"PORCENTAJE\",\"percentage\":5}")))
+                fijoConDirecta(gratis, DIRECTOR, "{\"rateType\":\"PORCENTAJE\",\"percentage\":5}")))
         .andExpect(status().isConflict())
         .andExpect(jsonPath("$.errors[0].code").value("EX-006"));
-    mvc.perform(
-            alta(fijoConDirecta(gratis, DIRECTOR, "{\"rateType\":\"FIJO\",\"fixedAmount\":3}")))
+    mvc.perform(alta(fijoConDirecta(gratis, DIRECTOR, "{\"rateType\":\"FIJO\",\"fixedAmount\":3}")))
         .andExpect(status().isCreated());
   }
 
@@ -622,14 +621,11 @@ class CommissionRatesIT extends IntegrationTestBase {
   @DisplayName("CA-CM-319 · una directa fija mayor que el precio es 409 EX-010, e igual entra")
   void laDirectaFijaNoPasaDelPrecio() throws Exception {
     mvc.perform(
-            alta(
-                conDirecta(
-                    producto, DIRECTOR, "{\"rateType\":\"FIJO\",\"fixedAmount\":10.01}")))
+            alta(conDirecta(producto, DIRECTOR, "{\"rateType\":\"FIJO\",\"fixedAmount\":10.01}")))
         .andExpect(status().isConflict())
         .andExpect(jsonPath("$.errors[0].code").value("EX-010"))
         .andExpect(jsonPath("$.errors[0].field").value("directCommission.fixedAmount"));
-    mvc.perform(
-            alta(conDirecta(producto, DIRECTOR, "{\"rateType\":\"FIJO\",\"fixedAmount\":10}")))
+    mvc.perform(alta(conDirecta(producto, DIRECTOR, "{\"rateType\":\"FIJO\",\"fixedAmount\":10}")))
         .andExpect(status().isCreated());
   }
 
@@ -639,21 +635,17 @@ class CommissionRatesIT extends IntegrationTestBase {
     mvc.perform(alta(cuerpo(producto, AGENTE, "95.00"))).andExpect(status().isCreated());
 
     mvc.perform(
-            alta(
-                conDirecta(
-                    producto, DIRECTOR, "{\"rateType\":\"PORCENTAJE\",\"percentage\":50}")))
+            alta(conDirecta(producto, DIRECTOR, "{\"rateType\":\"PORCENTAJE\",\"percentage\":50}")))
         .andExpect(status().isCreated());
   }
 
   @Test
   @DisplayName("CA-CM-321 · una directa con la forma y el valor cruzados es 400 VAL-011")
   void laDirectaConLaFormaCruzada() throws Exception {
-    mvc.perform(
-            alta(conDirecta(producto, DIRECTOR, "{\"rateType\":\"FIJO\",\"percentage\":5}")))
+    mvc.perform(alta(conDirecta(producto, DIRECTOR, "{\"rateType\":\"FIJO\",\"percentage\":5}")))
         .andExpect(status().isBadRequest())
         .andExpect(jsonPath("$.errors[0].code").value("VAL-011"))
-        .andExpect(
-            jsonPath("$.errors[0].field").value(Matchers.startsWith("directCommission.")));
+        .andExpect(jsonPath("$.errors[0].field").value(Matchers.startsWith("directCommission.")));
     assertThat(cuantasTasas()).isZero();
   }
 

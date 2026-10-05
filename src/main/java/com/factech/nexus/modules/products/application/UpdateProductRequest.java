@@ -77,7 +77,6 @@ public record UpdateProductRequest(
     @JsonDeserialize(using = PatchableDeserializer.class) Patchable<ProductScope> scope,
     @JsonDeserialize(using = PatchableDeserializer.class)
         Patchable<ProductImplementation> implementation,
-
     @JsonDeserialize(using = PatchableDeserializer.class) Patchable<Object> type,
     @JsonDeserialize(using = PatchableDeserializer.class) Patchable<Object> code,
     @JsonDeserialize(using = PatchableDeserializer.class) Patchable<Object> targetMembershipId,

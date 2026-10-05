@@ -512,7 +512,8 @@ class ProductListIT extends IntegrationTestBase {
         .andExpect(status().isOk())
         .andExpect(
             jsonPath("$.content[0]")
-                .value(org.hamcrest.Matchers.not(org.hamcrest.Matchers.hasKey("directCommission"))));
+                .value(
+                    org.hamcrest.Matchers.not(org.hamcrest.Matchers.hasKey("directCommission"))));
   }
 
   @Test
