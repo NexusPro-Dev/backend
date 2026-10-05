@@ -2,7 +2,7 @@
 
 | Campo | Valor |
 |---|---|
-| Versión | 0.97.0 |
+| Versión | 0.98.0 |
 | Estado | **Borrador** |
 | Responsable | Bonilla Diaz William Steven |
 | Fecha de creación | 21-08-2026 |
@@ -1126,3 +1126,4 @@ Los documentos que citan una migración vieja por su número —specs, controles
 | 0.95.0 | 05-10-2026 | **`payments` gana el cobro en moneda local** ([`requirements/mv.md`](requirements/mv.md) v0.78.0 §4.10 y §7.7, `RN-MV-063`): `charge_currency_id`, `charge_amount` —en centésimas— y `conversion_rate_id`, juntas o ninguna; `payment_methods.gateway` admite `PAYRETAILERS` y la incidencia de un pago admite `COBRO_TARDIO`. Lo escribirá `V69` | Responsable del proyecto |
 | 0.96.0 | 05-10-2026 | **`country_conversion_rates` gana la tienda de la pasarela local** ([`requirements/mv.md`](requirements/mv.md) v0.82.0 §7.15, `RN-MV-063`): `shop_id` y `shop_secret_key`, **cifrada**, las dos nulas o las dos presentes (`ck_country_conversion_rates_tienda`). Las escribe `V71`. Sin claves foráneas nuevas | Responsable del proyecto |
 | 0.97.0 | 05-10-2026 | **`movements` gana `external_reference`** y **`points_amount` va con signo y sin tasa en el ajuste de puntos** ([`requirements/mv.md`](requirements/mv.md) v0.83.0 §4.11 y §7.1, `RN-MV-076`): `ck_movements_points` se relaja —una tasa exige puntos positivos; unos puntos nunca son cero— y nace `ck_movements_external_reference`. `movement_entries` admite el evento `AJUSTE`. Lo escribe `V72`. Ninguna tabla nueva. | Responsable técnico |
+| 0.98.0 | 05-10-2026 | **`movements` gana `recorded_by`** ([`requirements/mv.md`](requirements/mv.md) v0.84.0 §7.1, `RF-MV-053`): quién registró un ajuste de puntos, FK a `users` con `ON DELETE SET NULL`; nula en lo demás. Con un índice parcial para listar los ajustes. Lo escribe `V73`. | Responsable técnico |

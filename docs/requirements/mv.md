@@ -5,7 +5,7 @@
 | Módulo | `MV` — Movimientos |
 | Paquete | `modules/movements` |
 | Prefijos de permiso | `movements:` |
-| Versión | 0.83.0 |
+| Versión | 0.84.0 |
 | Estado | **Borrador** |
 | Responsable | Bonilla Diaz William Steven |
 | Fecha de creación | 02-09-2026 |
@@ -200,6 +200,8 @@ La dependencia es **acíclica**: `MV` → `PM` → `SP`, y `MV` → `SP`. **El p
 | `RF-MV-050` | Conciliar los cobros pendientes con la pasarela local | Pagos | **Ninguno: no tiene ruta**. Es una tarea programada (`RN-MV-064`) |
 | `RF-MV-051` | Pagar por la pasarela local un pago pendiente propio —retomarlo, o empezarlo si lo registró otro— | Pagos | `movements:pay-pending-locally` (nace con él; `RN-SEG-015`) |
 | `RF-MV-052` | **Ajustar los puntos de una persona** a mano —sumar o restar—, con motivo y una referencia opcional (§4.11) | Puntos | `movements:adjust-points` (nace con él; `RN-SEG-014`) |
+| `RF-MV-053` | **Consultar los ajustes de puntos**, de cualquier persona, paginados y con filtros (§4.11) | Puntos | `movements:list-points-adjustments` (nace con él; `RN-SEG-014`) |
+| `RF-MV-054` | **Consultar los saldos de una persona** —billetera, retenido y puntos, por moneda—, para administración (§4.11) | Saldos | `movements:read-user-balances` (nace con él; `RN-SEG-014`) |
 
 **Registrar y comprar son dos requerimientos y no uno**, y eso **se aparta del precedente** que `PM` y `CM` fijaron —«el alta es una, no dos»—. La razón por la que aquí no aplica no es el contenido de la venta sino **quién la pide y por dónde entra**: una la origina un funcionario sobre la cuenta de otro y exige `movements:create`; la otra la origina el interesado sobre la suya y no exige permiso ninguno, como `RF-SP-039` y `RF-PM-007`. Fundirlas daría un endpoint con **dos modelos de seguridad**, que es donde se cuela el que sobra.
 
@@ -678,6 +680,13 @@ Decisiones del responsable del proyecto del 05-10-2026, **preguntadas antes de e
 
 **Lo que queda fuera**: revertir un ajuste —se corrige con otro del signo contrario, que deja su propio rastro—; topes y aprobación por un segundo actor; adjuntar el comprobante como archivo.
 
+**La pantalla de ajustes (05-10-2026, a petición del frontend en nombre del responsable)** necesita dos lecturas más:
+
+- **`RF-MV-053`, los ajustes ya hechos**: un listado paginado de todos los `AJUSTE_PUNTOS`, con filtros por persona, moneda, periodo, sentido —suma o resta— y una búsqueda libre sobre el comprobante, el motivo, la referencia y el nombre, usuario o correo de la persona. **Cada fila dice quién lo hizo**, y por eso el ajuste guarda desde ahora **quién lo registró** en el propio movimiento (`movements.recorded_by`, §7.1): hasta hoy solo lo sabía la auditoría, y leer la auditoría para pintar una tabla de negocio la convertiría en un dato del dominio. **No publica ni busca por el documento de identidad**, con el criterio del listado de personas de `SP`: exponer documentos en un listado paginado alcanza a mucha más gente que un detalle.
+- **`RF-MV-054`, los saldos de una persona**, con la forma de «mis saldos» (`RF-MV-022`) pero para cualquiera: quien ajusta tiene que ver **cuántos puntos tiene** antes de restar. Es la lectura de administración, y no sigue la estructura comercial.
+
+**Dos permisos nuevos y no reutilizar `movements:adjust-points`** (`RN-SEG-014`): listar, leer saldos y ajustar son tres operaciones. Los tres a `SUPERADMIN` y `ADMIN`, explícito.
+
 ## 5. Reglas de negocio
 
 ### 5.1 Catálogo
@@ -906,6 +915,8 @@ Hasta hoy esta regla no distinguía: **toda** venta confirmada con un upgrade co
 | `movements:reject-points-purchase` | `movements` | `reject-points-purchase` | Rechazar el pago de una compra de puntos pendiente, con motivo (`RF-MV-029`). A `SUPERADMIN` y `ADMIN`. **Sembrado por `V58`** (30-09-2026). **Se retira el 01-10-2026** (§4.8): lo sustituye `movements:reject-payment` |
 | `movements:list-own-points-purchases` | `movements` | `list-own-points-purchases` | Consultar las compras de puntos propias, con su estado (`RF-MV-031`). Por tipo de rol. **Sembrado por `V58`** (30-09-2026) |
 | `movements:adjust-points` | `movements` | `adjust-points` | Sumar o restar puntos a mano a cualquier persona, con motivo (`RF-MV-052`, `RN-MV-076`). A `SUPERADMIN` y `ADMIN`, explícito: es tarea de administración, como el bono. **Sembrado por `V72`** (05-10-2026) |
+| `movements:list-points-adjustments` | `movements` | `list-points-adjustments` | Consultar los ajustes de puntos de cualquier persona, con quién los hizo (`RF-MV-053`). A `SUPERADMIN` y `ADMIN`, explícito. **Lo siembra `V73`** (05-10-2026) |
+| `movements:read-user-balances` | `movements` | `read-user-balances` | Consultar los saldos de **cualquier** persona —billetera, retenido y puntos— (`RF-MV-054`). A `SUPERADMIN` y `ADMIN`, explícito: es la lectura de administración. **Lo siembra `V73`** (05-10-2026) |
 | `movements:create-payout-institution` | `movements` | `create-payout-institution` | Registrar una entidad de cobro —banco o billetera móvil— (`RF-MV-032`). A `SUPERADMIN` y `ADMIN`. **Sembrado por `V61`** (01-10-2026) |
 | `movements:read-payout-institutions` | `movements` | `read-payout-institutions` | Consultar las entidades de cobro (`RF-MV-033`). **Por tipo de rol**: quien registra una cuenta tiene que elegir la entidad. **Sembrado por `V61`** (01-10-2026) |
 | `movements:update-payout-institution` | `movements` | `update-payout-institution` | Editar el nombre de una entidad de cobro, o activarla y desactivarla (`RF-MV-034`). A `SUPERADMIN` y `ADMIN`. **Sembrado por `V61`** (01-10-2026) |
@@ -981,6 +992,7 @@ Hasta hoy esta regla no distinguía: **toda** venta confirmada con un upgrade co
 | `points_rate_id` | `uuid` | **Sí** | `points_rates` |
 | `points_amount` | `bigint` (centésimas) | **Sí** | — |
 | `external_reference` | `varchar(120)` | **Sí** | — |
+| `recorded_by` | `uuid` | **Sí** | `users` |
 | `created_at` | `timestamptz` | No | — |
 | `reference_id` | `uuid` | **Sí** | **Pendiente de definir** |
 
@@ -988,7 +1000,7 @@ Hasta hoy esta regla no distinguía: **toda** venta confirmada con un upgrade co
 
 **`points_rate_id` y `points_amount` son de la compra de puntos** (`RN-MV-051`, 30-09-2026): la tasa con que se compró y los puntos que da, congelados al registrar. **Van juntas** —`ck_movements_points`: las dos nulas o las dos no— y solo en `COMPRA_PUNTOS`, lo que **no cabe en un `CHECK`** porque el tipo es otra tabla: lo sostiene el caso de uso. Una venta pagada con puntos **no** las lleva: lo que gastó queda en sus asientos, con su pago.
 
-**Desde el 05-10-2026 `points_amount` va también sola, y con signo, en un ajuste** (`RN-MV-076`): los puntos que se sumaron —positivos— o se restaron —negativos—, **sin tasa**. `ck_movements_points` se relaja a lo que de verdad es invariante: **una tasa exige puntos positivos**, y unos puntos nunca son cero. Que la compra lleve tasa y el ajuste no lo sostiene el caso de uso. **`external_reference`** es la referencia del comprobante que soporta un ajuste —el número de la consignación—, opcional y nula en todo lo demás.
+**Desde el 05-10-2026 `points_amount` va también sola, y con signo, en un ajuste** (`RN-MV-076`): los puntos que se sumaron —positivos— o se restaron —negativos—, **sin tasa**. `ck_movements_points` se relaja a lo que de verdad es invariante: **una tasa exige puntos positivos**, y unos puntos nunca son cero. Que la compra lleve tasa y el ajuste no lo sostiene el caso de uso. **`external_reference`** es la referencia del comprobante que soporta un ajuste —el número de la consignación—, opcional y nula en todo lo demás. **`recorded_by`** (05-10-2026, `RF-MV-053`) es **quién registró** el movimiento cuando no es su sujeto: hoy lo escribe solo el ajuste, y queda nulo en lo demás y en los ajustes anteriores a `V73`. **No sustituye a la auditoría**, que sigue siendo la fuente del actor de todo lo demás.
 
 **`payment_method_id` sale de esta tabla el 26-09-2026** (`RN-MV-039`) y pasa a `payments` (§7.7): el método es de cada intento, y una venta pagada al segundo intento con otro método tendría que elegir cuál de los dos declara. **La migración que lo mueve crea un pago por cada movimiento existente**, con el método que tenía y el estado que le corresponde: `CONFIRMADO` para la venta confirmada —con su `confirmed_at`—, `PENDIENTE` para la pendiente y `RECHAZADO` para la anulada, con el motivo de la anulación. Ninguna venta está hoy `RECHAZADA`: `RF-MV-004` no se construyó nunca.
 
@@ -1502,3 +1514,4 @@ Se siembra por migración y **no se administra por API todavía** (§5.3). Lo m�
 | 0.81.0 | 05-10-2026 | **La conversión de Colombia nace sembrada** (§4.9), por decisión del responsable del proyecto y en todos los entornos: `V70` la escribe —1 USD = 3.400 COP al cobrar, 3.200 al retirar— sobre COP, que `V9` siembra desde hoy ([`requirements/sp.md`](sp.md) v1.92.0) | Responsable del proyecto |
 | 0.82.0 | 05-10-2026 | **La tienda de la pasarela local va en la conversión del país** (`RN-MV-063` enmendada, §7.15), por decisión del responsable del proyecto —«guardar el id en la tabla de country_conversion, ya que la idea es que sea dinámico»—: PayRetailers da un `shopId` con su clave por país. `V71` añade `shop_id` y `shop_secret_key` —**cifrada** con la llave `PAYRETAILERS_ENCRYPTION_KEY`—; un ADMIN las fija con los precios (`RF-MV-046`), se heredan de la vigente si no se mandan, y la clave no se devuelve ni se audita. Sin tienda, el país no cobra por la pasarela local. Criterios `CA-MV-630` a `CA-MV-635` ([`specs/mv/046`](../specs/mv/046-fijar-conversion-de-un-pais/spec.md) v0.2.0, [`specs/mv/048`](../specs/mv/048-cobrar-por-la-pasarela-local/spec.md) v0.2.0) | Responsable del proyecto |
 | 0.83.0 | 05-10-2026 | **El ajuste de puntos a mano** (§4.11), por decisión del responsable del proyecto —le consignan por fuera a la cuenta empresarial y él abona los puntos—, preguntada antes de escribir: **ajuste libre en puntos**, sin dinero ni tasa; **suma y resta**, sin dejar el saldo en negativo; **motivo obligatorio, referencia opcional y clave de idempotencia**. Nacen `RF-MV-052`, `RN-MV-076`, el tipo `AJUSTE_PUNTOS` (prefijo `AJP`), el evento `AJUSTE`, la columna `movements.external_reference` y el permiso `movements:adjust-points`; se relaja `ck_movements_points`. **La migración es `V72`** | Responsable del proyecto |
+| 0.84.0 | 05-10-2026 | **Las dos lecturas de la pantalla de ajustes** (§4.11), pedidas por el frontend en nombre del responsable: nacen `RF-MV-053` —consultar los ajustes de puntos, con quién los hizo— y `RF-MV-054` —los saldos de cualquier persona—, con `movements:list-points-adjustments` y `movements:read-user-balances`, y la columna `movements.recorded_by`. **La migración es `V73`** | Responsable técnico |
