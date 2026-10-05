@@ -5,7 +5,7 @@
 | Proyecto | NEXUS — Renovación de plataforma |
 | Empresa | FACTECH GROUP SAS |
 | Documento | `requirements.md` |
-| Versión | 0.274.0 |
+| Versión | 0.275.0 |
 | Estado | Borrador |
 | Responsable técnico | Bonilla Diaz William Steven |
 | Fecha de creación | 20-08-2026 |
@@ -323,9 +323,9 @@ Un requerimiento solo pasa a `Implementado` cuando cumple **todas** las condicio
 | Indicador | Valor |
 |---|---|
 | Requerimientos registrados | 209 |
-| Requerimientos con `spec.md` redactada | 201 |
-| Requerimientos con `spec.md` aprobada | 141 |
-| Requerimientos con `plan.md` aprobado | 200 |
+| Requerimientos con `spec.md` redactada | 205 |
+| Requerimientos con `spec.md` aprobada | 145 |
+| Requerimientos con `plan.md` aprobado | 204 |
 | Requerimientos con **tripleta completa** —`tasks.md` aprobadas— | 90 |
 | Requerimientos con endpoint funcionando | 171 |
 | Requerimientos implementados | 0 |
@@ -684,3 +684,4 @@ El inventario y el estado de los módulos se consultan en [`modules.md` §4](mod
 | 0.272.0 | 05-10-2026 | **La venta del alta gratuita nace confirmada, y la activa el primer depósito** ([`requirements/sp.md`](requirements/sp.md) v1.91.0, `RN-SP-057`; [`mv.md`](requirements/mv.md) v0.76.0, `RN-MV-075`; [`cm.md`](requirements/cm.md) v0.32.0; [`architecture.md`](architecture.md) v0.45.0 §15.2), por decisión del responsable del proyecto: «cuando se registre la compra se guardará como confirmada pero solo se activará cuando se confirme el primer depósito», con la comisión **también al depósito**. El enlace `BECA → BECA` concede el suelo, y la membresía del producto, que será vitalicia, la entrega la activación. Pasar la cuenta de `FTD_PENDIENTE` a `ACTIVO` la dispara en la misma transacción, por el puerto `FirstDepositActivation`, que declara `SP` e implementa `MV`. `delivered_at`, el momento del FTD, es el del depósito. Enmienda `RF-SP-045`, `RF-SP-028`, `RF-MV-001`, `RF-MV-010` y `RF-CM-020` (Art. I.7): criterios `CA-SP-803` a `806`, `CA-MV-580` a `584` y `CA-CM-339`, y `EX-006` en `RF-MV-010`. Obliga a `V68`, que migra las cuentas que esperan en `FTD_PENDIENTE`. Ninguna compuerta se mueve. | Responsable del proyecto |
 | 0.273.0 | 05-10-2026 | **`RF-MV-046` y `RF-MV-047` están construidos** (`V67`, catálogo **181**): `country_conversion_rates` y `POST` / `GET /api/v1/movements/conversion-rates`, con `CountryConversionRatesIT` (`CA-MV-548` a `CA-MV-561`). Pasan a **En desarrollo**. **171 con endpoint funcionando** | Responsable técnico |
 | 0.274.0 | 05-10-2026 | **Nacen `RF-MV-048` a `RF-MV-051`, el cobro por la pasarela local, PayRetailers** ([`requirements/mv.md`](requirements/mv.md) v0.78.0 §4.10, `RN-MV-063` y `RN-MV-064`; [`security.md`](security.md) v0.101.0; [`architecture.md`](architecture.md) v0.46.0 §15.5; [`deployment.md`](deployment.md) v0.14.0 §6.5.2; [`modelo-datos.md`](modelo-datos.md) v0.95.0): cobrar en moneda local, recibir los avisos —que no se creen—, conciliar con un barrido y pagar un pendiente propio. Registrados 205 → 209 | Responsable del proyecto |
+| 0.275.0 | 05-10-2026 | **`RF-MV-048` a `RF-MV-051` estrenan tripleta**: cobrar en moneda local (`CA-MV-600` a `CA-MV-610`, carga `V69`), los avisos que no se creen (`CA-MV-612` a `CA-MV-619`), el barrido (`CA-MV-620` a `CA-MV-624`) y pagar un pendiente propio (`CA-MV-625` a `CA-MV-629`). Specs redactadas 201 → 205, aprobadas 141 → 145, planes 200 → 204; tareas en revisión | Responsable del proyecto |

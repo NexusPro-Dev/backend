@@ -5,7 +5,7 @@
 | Módulo | `MV` — Movimientos |
 | Paquete | `modules/movements` |
 | Prefijos de permiso | `movements:` |
-| Versión | 0.78.0 |
+| Versión | 0.79.0 |
 | Estado | **Borrador** |
 | Responsable | Bonilla Diaz William Steven |
 | Fecha de creación | 02-09-2026 |
@@ -1190,7 +1190,7 @@ Se siembra por migración y **no se administra por API todavía** (§5.3). Lo m�
 | `uq_gateway_events_externo` | `gateway_events(gateway, external_id)` | `RN-MV-059`. Una notificación, un proceso, aunque llegue diez veces |
 | `ck_gateway_events_outcome` | `outcome` en (`PROCESADO`, `IGNORADO`, `ERROR`) o nulo, y `processed_at` presente si y solo si `outcome` lo está | Un evento procesado sin fecha, o fechado sin desenlace, no dice qué pasó |
 | `ck_payments_incident` | `incident` en (`REEMBOLSADO`, `EN_DISPUTA`, `DISPUTA_GANADA`, `DISPUTA_PERDIDA`, y desde `V69` `COBRO_TARDIO`) o nulo; `(incident IS NULL) = (incident_at IS NULL)`; `refunded_amount` presente solo con `REEMBOLSADO` y mayor que cero; y la incidencia solo en un pago `CONFIRMADO` | `RN-MV-060`. Lo que cruza a la venta lo sostiene el caso de uso |
-| `ck_payments_cobro_local` | `charge_currency_id`, `charge_amount` y `conversion_rate_id` todas nulas o todas presentes, y `charge_amount > 0` | `RN-MV-063` (05-10-2026, `V69`). Un cobro en moneda local sin su conversión no se podría explicar |
+| `ck_payments_cobro_local` | `charge_currency_id`, `charge_amount`, `conversion_rate_id` y `checkout_url` todas nulas o todas presentes, y `charge_amount > 0` | `RN-MV-063` (05-10-2026, `V69`). Un cobro en moneda local sin su conversión no se podría explicar |
 | `ck_payment_methods_gateway` | `gateway` en (`STRIPE`, `PAYRETAILERS`) o nulo — **`PAYRETAILERS` desde `V69`** (05-10-2026) | El dominio; crece con cada pasarela |
 | `tg_movement_entries_cuadre` | Disparador de restricción **`DEFERRABLE INITIALLY DEFERRED`**: los asientos de cada `(movement_id, event)` suman cero y son de cuentas de la misma moneda | `RN-MV-042`. Un `CHECK` ve una fila, y esto es la suma de varias que solo tiene sentido al cerrar la transacción |
 
@@ -1221,9 +1221,10 @@ Se siembra por migración y **no se administra por API todavía** (§5.3). Lo m�
 | `charge_currency_id` | `uuid` | **Sí** | `currencies` — la moneda en que cobró la pasarela local (`RN-MV-063`, `V69`) |
 | `charge_amount` | `bigint` (centésimas) | **Sí** | — el importe convertido, ya redondeado (`RN-MV-063`, `V69`) |
 | `conversion_rate_id` | `uuid` | **Sí** | `country_conversion_rates` — la conversión que se usó (`RN-MV-063`, `V69`) |
+| `checkout_url` | `varchar(500)` | **Sí** | — la página de pago del cobro abierto, para volver a ella (`RF-MV-051`, `V69`) |
 | `created_at` | `timestamptz` | No | — |
 
-**`charge_currency_id`, `charge_amount` y `conversion_rate_id` van juntas o ninguna** (`ck_payments_cobro_local`, `V69`): solo las lleva un pago de la pasarela local, y las escribe **al abrir el cobro**. Un pago en USD, con tarjeta o confirmado a mano, las deja nulas. **`incident` gana `COBRO_TARDIO`** (`RN-MV-064`): un cobro aprobado sobre un pago que ya no lo esperaba.
+**`charge_currency_id`, `charge_amount`, `conversion_rate_id` y `checkout_url` van juntas o ninguna** (`ck_payments_cobro_local`, `V69`): solo las lleva un pago de la pasarela local, y las escribe **al abrir el cobro**. Un pago en USD, con tarjeta o confirmado a mano, las deja nulas. **`incident` gana `COBRO_TARDIO`** (`RN-MV-064`): un cobro aprobado sobre un pago que ya no lo esperaba.
 
 **`incident`, `incident_at` y `refunded_amount` son de la pasarela** (`RN-MV-060`, 01-10-2026): lo que pasó **después** de confirmar —`REEMBOLSADO`, `EN_DISPUTA`, `DISPUTA_GANADA`, `DISPUTA_PERDIDA`—, que **no cambia el estado del pago**. Van juntas las dos primeras; el importe devuelto, solo con `REEMBOLSADO`. Son **la única excepción** a que de un pago solo cambie el estado y una vez: la incidencia puede pasar de `EN_DISPUTA` a su desenlace, y un segundo reembolso parcial sube el importe.
 
@@ -1455,3 +1456,4 @@ Se siembra por migración y **no se administra por API todavía** (§5.3). Lo m�
 | 0.76.0 | 05-10-2026 | **La venta del alta gratuita nace confirmada, y su línea la activa el primer depósito** (`RN-MV-075` nueva; `RN-MV-004` y `RN-MV-048` precisadas), por decisión del responsable del proyecto: «cuando se registre la compra se guardará como confirmada pero solo se activará cuando se confirme el primer depósito», con la comisión **también al depósito**. Confirmar no entrega, contra `RN-MV-020`: la línea espera `PENDIENTE_ACTIVACION`, el comprador no puede activarla y la entrega llega cuando `SP` saca a la cuenta de `FTD_PENDIENTE` (`RN-SP-057`). Con ella sale el aviso a `CM`, y `delivered_at` es el momento del FTD (`RN-CM-036`). **Las cuentas que hoy esperan en `FTD_PENDIENTE` se migran**: su venta del alta pasa a confirmada y su línea a pendiente de activación (`V68`). Las que ya están `ACTIVO` no se tocan, para no fechar un FTD que no se sabe cuándo ocurrió. Enmienda `RF-MV-001` y `RF-MV-010` (Art. I.7). | Responsable del proyecto |
 | 0.77.0 | 05-10-2026 | **La conversión por país está construida** (§4.9, §7.15): `V67` escribe `country_conversion_rates` y siembra `movements:set-conversion-rate` y `movements:read-conversion-rates` (catálogo **181**); `POST` y `GET /api/v1/movements/conversion-rates`. Con tripleta previa. Sin cambio de reglas | Responsable técnico |
 | 0.78.0 | 05-10-2026 | **Se escribe el cobro por la pasarela local, PayRetailers** (§4.10), con decisiones del responsable del proyecto: el método `PSE` («Múltiples métodos de pago») pasa a cobrarlo la pasarela, en **su página de pago**, en **moneda local** con el precio de cobro y **redondeado hacia arriba** (`RN-MV-063`); **el aviso no se cree** —no va firmado ni se reintenta—: dispara una consulta a la pasarela, y un **barrido programado** pregunta por los pendientes (`RN-MV-064`). Se cobra en las mismas entradas que la tarjeta. Nacen `RF-MV-048` a `RF-MV-051`, `movements:pay-pending-locally`, tres columnas en `payments` y la incidencia `COBRO_TARDIO`, que escribirá `V69` | Responsable del proyecto |
+| 0.79.0 | 05-10-2026 | **Tripletas de `RF-MV-048` a `RF-MV-051`** ([`specs/mv/048-cobrar-por-la-pasarela-local/`](../specs/mv/048-cobrar-por-la-pasarela-local/tasks.md) a [`051`](../specs/mv/051-pagar-pendiente-por-la-pasarela-local/tasks.md)), `CA-MV-600` a `CA-MV-629`. Al planificar `RF-MV-051` `payments` gana una cuarta columna del cobro local, **`checkout_url`**, para devolver la misma página sin preguntar a la pasarela | Responsable técnico |
