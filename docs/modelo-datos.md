@@ -2,7 +2,7 @@
 
 | Campo | Valor |
 |---|---|
-| Versión | 0.95.0 |
+| Versión | 0.96.0 |
 | Estado | **Borrador** |
 | Responsable | Bonilla Diaz William Steven |
 | Fecha de creación | 21-08-2026 |
@@ -1124,3 +1124,4 @@ Los documentos que citan una migración vieja por su número —specs, controles
 | 0.93.0 | 05-10-2026 | **Todo importe en dinero pasa a `bigint` en centésimas** ([`ADR-006`](architecture/ADR-006-importes-en-unidades-minimas.md)), por decisión del responsable del proyecto, en las trece tablas que guardan dinero, y el diagrama lo recoge en `products`, las tasas de comisión y los paquetes. **Porcentajes y tasas no cambian.** Un aviso al principio del documento marca como forma anterior todo lo que aquí razona sobre `numeric(14,4)`, en lugar de reescribir esa historia: las decisiones se tomaron con aquella forma, y por eso se cuentan con ella. `currencies.decimal_places` queda acotado a `0..2`. | Responsable del proyecto |
 | 0.94.0 | 05-10-2026 | **`MV` diseña `country_conversion_rates`** ([`requirements/mv.md`](requirements/mv.md) v0.75.0 §4.9 y §7.15, `RN-MV-062`), por decisión del responsable del proyecto: la conversión de cada país, **1 USD = X moneda local**, con un precio de cobro y otro de retiro en la misma fila e historia hacia delante, para la pasarela local (PayRetailers). Cuatro claves foráneas hacia `SP`. **Sus precios no pasan a centésimas** (`ADR-006`): son proporciones. La escribirá `V67` | Responsable del proyecto |
 | 0.95.0 | 05-10-2026 | **`payments` gana el cobro en moneda local** ([`requirements/mv.md`](requirements/mv.md) v0.78.0 §4.10 y §7.7, `RN-MV-063`): `charge_currency_id`, `charge_amount` —en centésimas— y `conversion_rate_id`, juntas o ninguna; `payment_methods.gateway` admite `PAYRETAILERS` y la incidencia de un pago admite `COBRO_TARDIO`. Lo escribirá `V69` | Responsable del proyecto |
+| 0.96.0 | 05-10-2026 | **`country_conversion_rates` gana la tienda de la pasarela local** ([`requirements/mv.md`](requirements/mv.md) v0.82.0 §7.15, `RN-MV-063`): `shop_id` y `shop_secret_key`, **cifrada**, las dos nulas o las dos presentes (`ck_country_conversion_rates_tienda`). Las escribe `V71`. Sin claves foráneas nuevas | Responsable del proyecto |

@@ -4,7 +4,7 @@
 |---|---|
 | Requerimiento | `RF-MV-048` |
 | Módulo | `MV` — Movimientos |
-| Versión | 0.1.0 |
+| Versión | 0.2.0 |
 | Estado | **Aprobada** |
 | Autor | Responsable técnico |
 | Aprobada por | Responsable del proyecto |
@@ -157,6 +157,9 @@ Las de cada entrada. Ninguna nueva.
 | `CA-MV-608` | Un pago con `PSE` y cobro abierto **no se confirma ni se rechaza a mano**; uno **sin** cobro sí |
 | `CA-MV-609` | La **tarjeta no cambia**: `CREDIT_CARD` sigue yendo a su pasarela, y `PSE` nunca va a la de la tarjeta |
 | `CA-MV-610` | La venta, sus líneas y su total siguen **en su moneda**; solo el cobro está en moneda local |
+| `CA-MV-630` | El cobro se abre con **la tienda de la conversión vigente**, con su clave descifrada; si la conversión **no tiene tienda**, `409` `RN-MV-063`, sin compra ni pago |
+| `CA-MV-631` | El cobro se **consulta con la tienda que lo abrió** y la clave vigente de esa tienda, aunque después el país haya cambiado de tienda; la clave nunca está en claro en la tabla |
+| `CA-MV-632` | Cada llamada se autentica con **la tienda que se le pasa** y la *Subscription Key* de la cuenta; la pasarela se enciende solo con esa clave y una llave de cifrado válida; la clave cifrada no se descifra con otra llave ni en otro país |
 
 ---
 
@@ -181,3 +184,4 @@ Las de cada entrada. Ninguna nueva.
 | Versión | Fecha | Cambio | Autor |
 |---|---|---|---|
 | 0.1.0 | 05-10-2026 | Primera versión, con la pasarela local ([`requirements/mv.md`](../../../requirements/mv.md) v0.78.0 §4.10). **`PSE` lo cobra PayRetailers**, en su página, en moneda local con el precio de cobro y hacia arriba. Criterios `CA-MV-600` a `CA-MV-610`. | Responsable del proyecto |
+| 0.2.0 | 05-10-2026 | **La tienda, en la conversión** ([`requirements/mv.md`](../../../requirements/mv.md) v0.82.0, `RN-MV-063` enmendada): PayRetailers da un `shopId` por país, y el cobro se abre y se consulta con la tienda de la conversión. Criterios `CA-MV-630` a `CA-MV-632`. | Responsable del proyecto |

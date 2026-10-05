@@ -100,6 +100,10 @@ public abstract class IntegrationTestBase {
     // El aviso de la pasarela local se procesa en el hilo que lo recibe: lo procesado es
     // determinista, como con la tarjeta.
     registry.add("nexus.payretailers.process-inline", () -> "true");
+    // La llave que cifra las claves de las tiendas (`RN-MV-063`): una de prueba, de 32 bytes.
+    // Sin Subscription Key la pasarela real sigue apagada; la enciende el doble.
+    registry.add(
+        "nexus.payretailers.encryption-key", () -> "MDEyMzQ1Njc4OWFiY2RlZjAxMjM0NTY3ODlhYmNkZWY=");
 
     // El límite de tasa queda APAGADO para la suite general, y es deliberado:
     // varias clases provocan ráfagas contra el inicio de sesión a propósito

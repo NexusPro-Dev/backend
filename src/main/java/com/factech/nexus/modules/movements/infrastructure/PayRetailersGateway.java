@@ -1,6 +1,7 @@
 package com.factech.nexus.modules.movements.infrastructure;
 
 import com.factech.nexus.modules.movements.domain.service.LocalPaymentGateway;
+import com.factech.nexus.modules.movements.domain.service.ShopSecrets;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ObjectNode;
@@ -37,9 +38,10 @@ import org.springframework.web.client.RestClientResponseException;
  *       cliente todavía no eligió método»: pendiente.
  * </ul>
  *
- * <p><b>Autenticación</b>: HTTP Basic con {@code shopId} y la clave secreta, y la cabecera {@code
- * Ocp-Apim-Subscription-Key}. <b>Los importes viajan en la unidad mínima</b> de la moneda, como
- * texto en la petición y como número en la respuesta; se confirma con el sandbox.
+ * <p><b>Autenticación</b>: HTTP Basic con {@code shopId} y la clave secreta <b>de la tienda que se
+ * le pasa</b> —una por país, guardadas en la conversión (`RN-MV-063`)—, y la cabecera {@code
+ * Ocp-Apim-Subscription-Key}, de la cuenta. <b>Los importes viajan en la unidad mínima</b> de la
+ * moneda, como texto en la petición y como número en la respuesta; se confirma con el sandbox.
  */
 @Component
 public class PayRetailersGateway implements LocalPaymentGateway {
@@ -56,37 +58,44 @@ public class PayRetailersGateway implements LocalPaymentGateway {
                   (a, b) -> a));
 
   private final PayRetailersSettings ajustes;
+  private final ShopSecrets secretos;
   private final RestClient http;
   private final ObjectMapper json;
 
   @Autowired
   public PayRetailersGateway(
-      PayRetailersSettings ajustes, RestClient.Builder constructor, ObjectMapper json) {
+      PayRetailersSettings ajustes,
+      ShopSecrets secretos,
+      RestClient.Builder constructor,
+      ObjectMapper json) {
     this(
         ajustes,
+        secretos,
         constructor.requestFactory(fabrica(ajustes.timeout())).baseUrl(ajustes.baseUrl()).build(),
         json);
-    if (!ajustes.encendida()) {
+    if (!enabled()) {
       LOG.warn(
-          "Pasarela local APAGADA: faltan PAYRETAILERS_SHOP_ID, PAYRETAILERS_SECRET_KEY o"
-              + " PAYRETAILERS_SUBSCRIPTION_KEY. El pago con PSE nace pendiente sin cobro y lo"
+          "Pasarela local APAGADA: faltan PAYRETAILERS_SUBSCRIPTION_KEY o una"
+              + " PAYRETAILERS_ENCRYPTION_KEY válida. El pago con PSE nace pendiente sin cobro y lo"
               + " confirma una persona.");
     }
   }
 
-  PayRetailersGateway(PayRetailersSettings ajustes, RestClient http, ObjectMapper json) {
+  PayRetailersGateway(
+      PayRetailersSettings ajustes, ShopSecrets secretos, RestClient http, ObjectMapper json) {
     this.ajustes = ajustes;
+    this.secretos = secretos;
     this.http = http;
     this.json = json;
   }
 
   @Override
   public boolean enabled() {
-    return ajustes.encendida();
+    return ajustes.conSubscriptionKey() && secretos.ready();
   }
 
   @Override
-  public LocalCharge open(LocalChargeOrder orden) {
+  public LocalCharge open(Shop tienda, LocalChargeOrder orden) {
     ObjectNode cuerpo = json.createObjectNode();
     cuerpo.put("amount", Long.toString(orden.amountMinor()));
     cuerpo.put("currency", orden.currency());
@@ -108,7 +117,7 @@ public class PayRetailersGateway implements LocalPaymentGateway {
       JsonNode respuesta =
           http.post()
               .uri("/paywalls")
-              .headers(this::cabeceras)
+              .headers(h -> cabeceras(h, tienda))
               .contentType(MediaType.APPLICATION_JSON)
               .body(cuerpo)
               .retrieve()
@@ -135,12 +144,12 @@ public class PayRetailersGateway implements LocalPaymentGateway {
   }
 
   @Override
-  public Optional<LocalTransaction> findByTracking(UUID paymentId) {
+  public Optional<LocalTransaction> findByTracking(UUID paymentId, Shop tienda) {
     try {
       JsonNode t =
           http.get()
               .uri("/transactions/byTracking/{tracking}", paymentId.toString())
-              .headers(this::cabeceras)
+              .headers(h -> cabeceras(h, tienda))
               .retrieve()
               .body(JsonNode.class);
       if (t == null || t.isNull()) {
@@ -209,8 +218,8 @@ public class PayRetailersGateway implements LocalPaymentGateway {
     return ALFA2.getOrDefault(codigo, codigo);
   }
 
-  private void cabeceras(HttpHeaders h) {
-    String basico = ajustes.shopId() + ":" + ajustes.secretKey();
+  private void cabeceras(HttpHeaders h, Shop tienda) {
+    String basico = tienda.shopId() + ":" + tienda.secretKey();
     h.set(
         HttpHeaders.AUTHORIZATION,
         "Basic " + Base64.getEncoder().encodeToString(basico.getBytes(StandardCharsets.UTF_8)));

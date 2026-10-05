@@ -17,6 +17,8 @@ import com.factech.nexus.modules.movements.PointsFixtures;
 import com.factech.nexus.modules.movements.domain.service.LocalChargeSweep;
 import com.factech.nexus.modules.movements.domain.service.LocalPaymentGateway.LocalChargeOrder;
 import com.factech.nexus.modules.movements.domain.service.LocalPaymentGateway.Outcome;
+import com.factech.nexus.modules.movements.domain.service.LocalPaymentGateway.Shop;
+import com.factech.nexus.modules.movements.domain.service.ShopSecrets;
 import com.factech.nexus.testing.CommissionCleanup;
 import com.jayway.jsonpath.JsonPath;
 import java.time.OffsetDateTime;
@@ -53,6 +55,7 @@ class LocalChargeIT extends IntegrationTestBase {
   @Autowired private FakeLocalPaymentGateway pasarela;
   @Autowired private FakeCardGateway tarjeta;
   @Autowired private LocalChargeSweep barrido;
+  @Autowired private ShopSecrets secretos;
 
   private UUID cliente;
   private UUID otro;
@@ -168,6 +171,47 @@ class LocalChargeIT extends IntegrationTestBase {
         .andExpect(jsonPath("$.detail").value("El documento no es válido."));
     assertThat(compras()).isZero();
     assertThat(jdbc.queryForObject("SELECT count(*) FROM payments", Integer.class)).isZero();
+  }
+
+  @Test
+  @DisplayName(
+      "CA-MV-630 — el cobro se abre con la tienda de la conversión vigente, con su clave"
+          + " descifrada; si la conversión no tiene tienda es 409 y no queda ni compra ni pago")
+  void tiendaDeLaConversion() throws Exception {
+    mvc.perform(comprarPuntos(cliente, "20.00", PSE, "lc-puntos-0010"))
+        .andExpect(status().isCreated());
+    assertThat(pasarela.tiendasAbiertas()).containsExactly(new Shop("shop-col", "clave-col"));
+
+    // Una conversión más nueva, sin tienda: la del cobro anterior queda en la historia.
+    conversion("4150.5", "3950", null, null, "1 minute");
+    mvc.perform(comprarPuntos(cliente, "20.00", PSE, "lc-puntos-0011"))
+        .andExpect(status().isConflict())
+        .andExpect(jsonPath("$.errors[0].code").value("RN-MV-063"));
+    assertThat(compras()).isEqualTo(1);
+    assertThat(pasarela.abiertos()).hasSize(1);
+  }
+
+  @Test
+  @DisplayName(
+      "CA-MV-631 — el cobro se consulta con la tienda que lo abrió y la clave vigente de ESA"
+          + " tienda, aunque después el país haya cambiado de tienda")
+  void consultaConLaTiendaDelCobro() throws Exception {
+    Cobro c = cobroAbierto("10.00");
+    // La misma tienda, con la clave rotada; y después, otra tienda.
+    conversion("4150.5", "3950", "shop-col", "clave-rotada", "1 hour");
+    conversion("4150.5", "3950", "shop-otra", "clave-otra", "1 minute");
+    pasarela.responder(c.pago(), Outcome.APROBADO, "APPROVED", 4150500L, "ZZC");
+
+    mvc.perform(avisar(c.pago(), "APPROVED")).andExpect(status().isOk());
+
+    assertThat(pasarela.tiendasConsultadas()).containsExactly(new Shop("shop-col", "clave-rotada"));
+    assertThat(estadoDelPago(c.pago())).isEqualTo("CONFIRMADO");
+    // Y la clave nunca está en claro en la tabla.
+    assertThat(
+            jdbc.queryForObject(
+                "SELECT count(*) FROM country_conversion_rates WHERE shop_secret_key LIKE 'clave%'",
+                Integer.class))
+        .isZero();
   }
 
   @Test
@@ -522,17 +566,28 @@ class LocalChargeIT extends IntegrationTestBase {
         .with(user(admin.toString()).authorities(() -> "movements:void"));
   }
 
+  /** La conversión de Colombia desde ayer, con su tienda {@code shop-col} (`RN-MV-063`). */
   private void conversion(String cobro, String retiro) {
+    conversion(cobro, retiro, "shop-col", "clave-col", "1 day");
+  }
+
+  /** Con la clave cifrada como la cifra el servicio; tienda nula, sin tienda. */
+  private void conversion(
+      String cobro, String retiro, String tienda, String clave, String haceCuanto) {
+    UUID colombia = jdbc.queryForObject("SELECT id FROM countries WHERE code = 'COL'", UUID.class);
     jdbc.update(
         "INSERT INTO country_conversion_rates (id, country_id, currency_id, base_currency_id,"
-            + " pay_in_price, payout_price, valid_from, created_by)"
-            + " VALUES (gen_random_uuid(), (SELECT id FROM countries WHERE code = 'COL'), ?,"
-            + " CAST(? AS uuid), CAST(? AS numeric), CAST(? AS numeric), now() - interval '1 day',"
-            + " ?)",
+            + " pay_in_price, payout_price, shop_id, shop_secret_key, valid_from, created_by)"
+            + " VALUES (gen_random_uuid(), ?, ?, CAST(? AS uuid), CAST(? AS numeric),"
+            + " CAST(? AS numeric), ?, ?, now() - CAST(? AS interval), ?)",
+        colombia,
         cop,
         USD,
         cobro,
         retiro,
+        tienda,
+        tienda == null ? null : secretos.encrypt(clave, colombia),
+        haceCuanto,
         admin);
   }
 

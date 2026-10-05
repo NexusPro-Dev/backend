@@ -1861,6 +1861,14 @@
             "description" : "Al pagar un retiro, en la misma unidad que `payInPrice`.",
             "type" : "number"
           },
+          "shopId" : {
+            "description" : "La tienda de PayRetailers del país; nula si no tiene, y entonces no se cobra por la pasarela local en él.",
+            "type" : "string"
+          },
+          "shopSecretKeySet" : {
+            "description" : "Si la tienda tiene su clave secreta. La clave nunca se devuelve.",
+            "type" : "boolean"
+          },
           "validFrom" : {
             "description" : "Desde cuándo rige.",
             "format" : "date-time",
@@ -7473,6 +7481,15 @@
           "payoutPrice" : {
             "description" : "Precio al pagar un retiro, en la misma unidad.",
             "type" : "number"
+          },
+          "secretKey" : {
+            "description" : "La clave secreta de esa tienda. Se guarda cifrada y NUNCA se devuelve. Obligatoria con una tienda nueva; sin ella, se hereda la vigente de la misma tienda.",
+            "type" : "string",
+            "writeOnly" : true
+          },
+          "shopId" : {
+            "description" : "La tienda de PayRetailers del país (`RN-MV-063`): una por país. Opcional: sin ella se hereda la de la conversión vigente.",
+            "type" : "string"
           }
         },
         "type" : "object"

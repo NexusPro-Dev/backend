@@ -29,9 +29,17 @@ public interface CountryConversionRateRepository {
       UUID baseCurrencyId,
       BigDecimal payInPrice,
       BigDecimal payoutPrice,
+      String shopId,
+      String shopSecretKey,
       OffsetDateTime validFrom,
       UUID by);
 
+  /**
+   * La conversión con su tienda (`RN-MV-063`).
+   *
+   * @param shopId la tienda de la pasarela local del país; nula si no tiene
+   * @param shopSecretKey su clave secreta, <b>cifrada</b>; nunca sale por la API
+   */
   record ConversionRow(
       UUID id,
       UUID countryId,
@@ -45,5 +53,7 @@ public interface CountryConversionRateRepository {
       int baseCurrencyDecimalPlaces,
       BigDecimal payInPrice,
       BigDecimal payoutPrice,
+      String shopId,
+      String shopSecretKey,
       OffsetDateTime validFrom) {}
 }

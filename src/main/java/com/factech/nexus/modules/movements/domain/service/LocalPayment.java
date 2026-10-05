@@ -29,8 +29,9 @@ import org.springframework.transaction.annotation.Transactional;
 /**
  * <b>El cobro por la pasarela local</b> (`RF-MV-048`, `RF-MV-051`, `RN-MV-063`): el gemelo de
  * {@link CardPayment} para `PSE`. Abre el cobro en la moneda del país de quien paga, con el precio
- * de cobro de su conversión vigente, redondeado hacia arriba a unidad entera, y guarda en el pago
- * cómo se convirtió. <b>No confirma nada</b>: eso es {@link LocalChargeReconciler}.
+ * de cobro de su conversión vigente, redondeado hacia arriba a unidad entera, y <b>en la tienda de
+ * esa conversión</b> —PayRetailers da una por país—, y guarda en el pago cómo se convirtió. <b>No
+ * confirma nada</b>: eso es {@link LocalChargeReconciler}.
  */
 @Component
 public class LocalPayment {
@@ -42,6 +43,7 @@ public class LocalPayment {
   private final PaymentRepository pagos;
   private final LocalChargeRepository cobros;
   private final CountryConversionRateRepository conversiones;
+  private final ShopSecrets secretos;
   private final Clock reloj;
 
   @Autowired
@@ -49,8 +51,9 @@ public class LocalPayment {
       LocalPaymentGateway pasarela,
       PaymentRepository pagos,
       LocalChargeRepository cobros,
-      CountryConversionRateRepository conversiones) {
-    this(pasarela, pagos, cobros, conversiones, Clock.systemUTC());
+      CountryConversionRateRepository conversiones,
+      ShopSecrets secretos) {
+    this(pasarela, pagos, cobros, conversiones, secretos, Clock.systemUTC());
   }
 
   LocalPayment(
@@ -58,11 +61,13 @@ public class LocalPayment {
       PaymentRepository pagos,
       LocalChargeRepository cobros,
       CountryConversionRateRepository conversiones,
+      ShopSecrets secretos,
       Clock reloj) {
     this.pasarela = pasarela;
     this.pagos = pagos;
     this.cobros = cobros;
     this.conversiones = conversiones;
+    this.secretos = secretos;
     this.reloj = reloj;
   }
 
@@ -157,12 +162,35 @@ public class LocalPayment {
               + pendiente.currencyCode()
               + ".");
     }
+    // PayRetailers da una tienda por país, y vive en la conversión: sin ella no hay dónde cobrar.
+    if (conversion.shopId() == null) {
+      throw conflicto(
+          CODIGO,
+          "El país "
+              + quien.countryCode()
+              + " no tiene tienda de la pasarela local en su conversión: no se puede cobrar por"
+              + " ella.");
+    }
+    LocalPaymentGateway.Shop tienda;
+    try {
+      tienda =
+          new LocalPaymentGateway.Shop(
+              conversion.shopId(),
+              secretos.decrypt(conversion.shopSecretKey(), conversion.countryId()));
+    } catch (IllegalStateException ilegible) {
+      LOG.error(
+          "La clave de la tienda de {} no se pudo descifrar: {}",
+          quien.countryCode(),
+          ilegible.getMessage());
+      throw noDisponible(CODIGO, "La pasarela local no está bien configurada para este país.");
+    }
     BigDecimal local = convertir(pendiente.amount(), conversion.payInPrice());
 
     LocalPaymentGateway.LocalCharge cobro;
     try {
       cobro =
           pasarela.open(
+              tienda,
               new LocalPaymentGateway.LocalChargeOrder(
                   pendiente.paymentId(),
                   pendiente.movementCode(),

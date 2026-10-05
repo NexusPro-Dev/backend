@@ -5,7 +5,7 @@
 | Proyecto | NEXUS — Renovación de plataforma |
 | Empresa | FACTECH GROUP SAS |
 | Documento | `deployment.md` |
-| Versión | 0.14.0 |
+| Versión | 0.15.0 |
 | Estado | Borrador |
 | Responsable técnico | Bonilla Diaz William Steven |
 | Fecha de creación | 27-08-2026 |
@@ -268,15 +268,16 @@ Se cargan en el servicio **`backend`**. La columna «Valor en Railway» es liter
 
 | Variable | Valor en Railway | Por qué |
 |---|---|---|
-| `PAYRETAILERS_SHOP_ID` | El identificador de la tienda, del menú *Shops* del backoffice de PayRetailers —**uno por entorno**— | Con la clave secreta, autentica cada llamada por HTTP Basic. **Sin las tres credenciales la pasarela queda apagada** y se avisa al arrancar |
-| `PAYRETAILERS_SECRET_KEY` | La clave secreta de esa tienda | Secreto: nunca en el repositorio ni en el chat |
-| `PAYRETAILERS_SUBSCRIPTION_KEY` | La *Subscription Key* de la API (`Ocp-Apim-Subscription-Key`) | Va en cada petición |
+| `PAYRETAILERS_SUBSCRIPTION_KEY` | La *Subscription Key* de la API (`Ocp-Apim-Subscription-Key`), de la cuenta | Va en cada petición. **Sin ella, o sin una llave de cifrado válida, la pasarela queda apagada** y se avisa al arrancar |
+| `PAYRETAILERS_ENCRYPTION_KEY` | 32 bytes en Base64, generados una vez por entorno: `openssl rand -base64 32` | Cifra las claves secretas de las tiendas en la base. Secreto: nunca en el repositorio ni en el chat. **No se cambia**: cambiarla deja ilegibles las claves guardadas y hay que volver a fijarlas |
 | `PAYRETAILERS_BASE_URL` | `https://api-sandbox.payretailers.com/payments/v2` en pruebas; la de producción la da PayRetailers | **Por omisión, la del sandbox**: un entorno mal configurado prueba, no cobra |
 | `PAYRETAILERS_NOTIFICATION_URL` | `https://<dominio del backend>/api/v1/movements/gateway-notifications/payretailers` | La dirección **pública** a la que PayRetailers envía los avisos; viaja en cada cobro |
 | `PAYRETAILERS_RETURN_URL` | La página del frontend a la que vuelve el cliente al terminar, por ejemplo `https://<dominio del frontend>/pagos/resultado` | Solo devuelve al cliente: **no confirma nada** |
 | `PAYRETAILERS_TEST_MODE` | `false` | Con `true` los cobros se marcan de prueba y PayRetailers no los procesa |
 | `PAYRETAILERS_RECONCILE_CRON` | Por omisión `0 */5 * * * *`, cada cinco minutos | El barrido de los cobros pendientes (`RF-MV-050`) |
 | `PAYRETAILERS_RECONCILE_AFTER` | Por omisión `PT10M` | Cuánto espera un cobro sin noticias antes de que el barrido pregunte por él |
+
+**Las tiendas no van en el entorno.** PayRetailers da **una por país** —un *Shop ID* con su clave secreta, del menú *Shops* de su backoffice—, y **viven en la conversión del país** (`RN-MV-063`): un ADMIN las fija con `POST /api/v1/movements/conversion-rates`, mandando `shopId` y `secretKey` junto a los precios. La clave se guarda cifrada y **no se devuelve nunca**; la consulta solo dice si la hay (`shopSecretKeySet`). Las conversiones siguientes heredan la tienda si no se manda otra. **Un país cuya conversión no tenga tienda no puede pagar con `PSE`** (`409`).
 
 **En local los avisos no llegan solos**: PayRetailers necesita una dirección pública. Para probarlos hace falta un túnel —ngrok o Cloudflare Tunnel— que publique el puerto `8080`, y poner su dirección en `PAYRETAILERS_NOTIFICATION_URL`. **Sin túnel el sistema sigue funcionando**: el barrido pregunta por los cobros pendientes y los confirma igual, solo que unos minutos más tarde.
 
@@ -508,3 +509,4 @@ Ninguno de estos puntos impide desplegar. Todos están declarados para que no se
 | 0.12.0 | 01-10-2026 | **Nueva §6.5.1: la pasarela de la tarjeta.** `STRIPE_SECRET_KEY` —una clave **restringida** a los cobros, no la secreta completa— y `STRIPE_WEBHOOK_SECRET` —el del endpoint, uno por entorno—; sin ellas la pasarela queda apagada y la tarjeta vuelve a confirmarla una persona. Se documenta la URL del endpoint que se registra en Stripe, los seis eventos a los que se suscribe y cómo recibir las notificaciones en local con la Stripe CLI. | Responsable técnico |
 | 0.13.0 | 02-10-2026 | **§6.5.1: el servicio `stripe` del `docker-compose.yml` reenvía las notificaciones en local**, a petición del responsable del proyecto: una compra con tarjeta se cobraba en Stripe y se quedaba pendiente porque `stripe listen` dependía de una terminal abierta. Usa la misma clave que la aplicación; sin ella se queda dormido. Solo local. | Responsable técnico |
 | 0.14.0 | 05-10-2026 | **Nueva §6.5.2: la pasarela local, PayRetailers** ([`requirements/mv.md`](requirements/mv.md) v0.78.0 §4.10): tres credenciales —`shopId`, clave secreta y *Subscription Key*—, la URL base con el sandbox por omisión, la dirección pública de los avisos, la de retorno al frontend, el modo de prueba y el barrido. En local, un túnel para los avisos o esperar al barrido | Responsable del proyecto |
+| 0.15.0 | 05-10-2026 | **§6.5.2: la tienda de PayRetailers sale del entorno y va en la conversión de cada país** ([`requirements/mv.md`](requirements/mv.md) v0.82.0, `RN-MV-063`): se retiran `PAYRETAILERS_SHOP_ID` y `PAYRETAILERS_SECRET_KEY`, y entra `PAYRETAILERS_ENCRYPTION_KEY`, la llave que cifra las claves de las tiendas en la base | Responsable del proyecto |

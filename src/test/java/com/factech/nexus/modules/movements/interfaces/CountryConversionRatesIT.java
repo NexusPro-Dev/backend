@@ -302,6 +302,132 @@ class CountryConversionRatesIT extends IntegrationTestBase {
   }
 
   // ---------------------------------------------------------------------------
+  // `RN-MV-063` — la tienda de la pasarela local, en la conversión
+  // ---------------------------------------------------------------------------
+
+  @Test
+  @DisplayName(
+      "CA-MV-633 — fijar con tienda y clave: la respuesta y la consulta dan la tienda y que hay"
+          + " clave, nunca la clave; en la tabla va cifrada y la auditoría no la lleva")
+  void tiendaYClaveCifrada() throws Exception {
+    String respuesta =
+        mvc.perform(fijar(pais, local, "4150", "3950", "shop-zca", "secreto-zca"))
+            .andExpect(status().isCreated())
+            .andExpect(jsonPath("$.shopId").value("shop-zca"))
+            .andExpect(jsonPath("$.shopSecretKeySet").value(true))
+            .andExpect(jsonPath("$.secretKey").doesNotExist())
+            .andReturn()
+            .getResponse()
+            .getContentAsString();
+    assertThat(respuesta).doesNotContain("secreto-zca");
+    mvc.perform(consultar(cliente).param("countryId", pais.toString()))
+        .andExpect(jsonPath("$[0].shopId").value("shop-zca"))
+        .andExpect(jsonPath("$[0].shopSecretKeySet").value(true))
+        .andExpect(jsonPath("$[0].secretKey").doesNotExist());
+
+    String guardada = claveGuardada(pais);
+    assertThat(guardada).startsWith("v1:").doesNotContain("secreto-zca");
+    String cambios =
+        jdbc.queryForObject(
+            "SELECT CAST(changes AS text) FROM audit_change_log"
+                + " WHERE entity = 'country_conversion_rates' AND actor_id = ?",
+            String.class,
+            administrador);
+    assertThat(cambios).contains("shop-zca").doesNotContain("secreto-zca").doesNotContain(guardada);
+  }
+
+  @Test
+  @DisplayName(
+      "CA-MV-634 — sin tienda ni clave se heredan las vigentes; la misma tienda con la misma clave"
+          + " no escribe; cambiar solo la clave sí")
+  void tiendaHeredada() throws Exception {
+    mvc.perform(fijar(pais, local, "4150", "3950", "shop-zca", "secreto-zca"))
+        .andExpect(status().isCreated());
+    String primera = claveGuardada(pais);
+
+    mvc.perform(fijar(pais, local, "4200", "3950"))
+        .andExpect(status().isCreated())
+        .andExpect(jsonPath("$.shopId").value("shop-zca"))
+        .andExpect(jsonPath("$.shopSecretKeySet").value(true));
+    assertThat(claveGuardada(pais)).isEqualTo(primera);
+
+    mvc.perform(fijar(pais, local, "4200", "3950", "shop-zca", "secreto-zca"))
+        .andExpect(status().isOk());
+    assertThat(filas(pais)).hasSize(2);
+
+    mvc.perform(fijar(pais, local, "4200", "3950", null, "secreto-nuevo"))
+        .andExpect(status().isCreated())
+        .andExpect(jsonPath("$.shopId").value("shop-zca"));
+    assertThat(filas(pais)).hasSize(3);
+    assertThat(claveGuardada(pais)).isNotEqualTo(primera);
+  }
+
+  @Test
+  @DisplayName(
+      "CA-MV-635 — una tienda nueva sin su clave, o una clave sin tienda, es 422; una tienda vacía"
+          + " es 400; en ningún caso se escribe")
+  void tiendaIncompleta() throws Exception {
+    mvc.perform(fijar(pais, local, "4150", "3950", null, "secreto-zca"))
+        .andExpect(status().isUnprocessableEntity())
+        .andExpect(jsonPath("$.errors[0].code").value("EX-005"));
+    mvc.perform(fijar(pais, local, "4150", "3950", "shop-zca", "secreto-zca"))
+        .andExpect(status().isCreated());
+    mvc.perform(fijar(pais, local, "4150", "3950", "shop-otra", null))
+        .andExpect(status().isUnprocessableEntity())
+        .andExpect(jsonPath("$.errors[0].field").value("secretKey"))
+        .andExpect(jsonPath("$.errors[0].code").value("EX-005"));
+    mvc.perform(fijar(pais, local, "4150", "3950", "  ", "secreto"))
+        .andExpect(status().isBadRequest())
+        .andExpect(jsonPath("$.errors[0].code").value("VAL-005"));
+    assertThat(filas(pais)).hasSize(1);
+  }
+
+  @Test
+  @DisplayName("el esquema de V71: una tienda sin clave, o una clave sin tienda, se rechaza")
+  void esquemaDeLaTienda() {
+    for (String[] tienda : new String[][] {{"shop", null}, {null, "v1:x"}, {" ", "v1:x"}}) {
+      org.assertj.core.api.Assertions.assertThatThrownBy(
+              () ->
+                  jdbc.update(
+                      "INSERT INTO country_conversion_rates (id, country_id, currency_id,"
+                          + " base_currency_id, pay_in_price, payout_price, shop_id,"
+                          + " shop_secret_key, valid_from, created_by)"
+                          + " VALUES (gen_random_uuid(), ?, ?, CAST(? AS uuid), 1, 1, ?, ?,"
+                          + " now(), ?)",
+                      pais,
+                      local,
+                      USD,
+                      tienda[0],
+                      tienda[1],
+                      administrador))
+          .isInstanceOf(org.springframework.dao.DataIntegrityViolationException.class);
+    }
+  }
+
+  // ---------------------------------------------------------------------------
+
+  private MockHttpServletRequestBuilder fijar(
+      UUID elPais, UUID moneda, String cobro, String retiro, String tienda, String clave) {
+    String cuerpo =
+        "{\"countryId\":\"%s\",\"currencyId\":\"%s\",\"payInPrice\":%s,\"payoutPrice\":%s"
+                .formatted(elPais, moneda, cobro, retiro)
+            + (tienda == null ? "" : ",\"shopId\":\"" + tienda + "\"")
+            + (clave == null ? "" : ",\"secretKey\":\"" + clave + "\"")
+            + "}";
+    return post("/api/v1/movements/conversion-rates")
+        .contentType(MediaType.APPLICATION_JSON)
+        .content(cuerpo)
+        .with(fijador(administrador));
+  }
+
+  /** La clave guardada de la vigente del país, tal como está en la tabla. */
+  private String claveGuardada(UUID elPais) {
+    return jdbc.queryForObject(
+        "SELECT shop_secret_key FROM country_conversion_rates WHERE country_id = ?"
+            + " ORDER BY valid_from DESC LIMIT 1",
+        String.class,
+        elPais);
+  }
 
   private MockHttpServletRequestBuilder fijar(
       UUID elPais, UUID moneda, String cobro, String retiro) {

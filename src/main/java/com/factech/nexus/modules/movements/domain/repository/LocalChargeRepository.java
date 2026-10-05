@@ -28,6 +28,14 @@ public interface LocalChargeRepository {
   /** Quien paga el movimiento —su titular—, con los datos que la pasarela pide. */
   Optional<PayerRow> findPayer(UUID movementId);
 
+  /**
+   * La tienda que abrió el cobro local del pago: la de la conversión con que se abrió —no la del
+   * país que tenga hoy quien paga—, con la clave <b>vigente</b> de esa misma tienda en ese país,
+   * por si se cambió después. Vacío si el pago no tiene cobro local o su conversión no tenía
+   * tienda.
+   */
+  Optional<ChargeShop> findChargeShop(UUID paymentId, OffsetDateTime at);
+
   /** El pago, bloqueado, para aplicar lo que dijo la pasarela. */
   Optional<ReconcileTarget> lockForReconcile(UUID paymentId);
 
@@ -54,6 +62,9 @@ public interface LocalChargeRepository {
       String phone,
       UUID countryId,
       String countryCode) {}
+
+  /** La tienda del cobro, con su clave cifrada y el país con que se cifró. */
+  record ChargeShop(UUID countryId, String shopId, String shopSecretKey) {}
 
   record ReconcileTarget(
       UUID paymentId,

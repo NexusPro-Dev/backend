@@ -21,6 +21,13 @@ public record CountryConversionRateResponse(
         BigDecimal payInPrice,
     @Schema(description = "Al pagar un retiro, en la misma unidad que `payInPrice`.")
         BigDecimal payoutPrice,
+    @Schema(
+            description =
+                "La tienda de PayRetailers del país; nula si no tiene, y entonces no se cobra"
+                    + " por la pasarela local en él.")
+        String shopId,
+    @Schema(description = "Si la tienda tiene su clave secreta. La clave nunca se devuelve.")
+        boolean shopSecretKeySet,
     @Schema(description = "Desde cuándo rige.") OffsetDateTime validFrom) {
 
   @Schema(name = "ConversionRateCountry")
@@ -38,6 +45,8 @@ public record CountryConversionRateResponse(
             fila.baseCurrencyId(), fila.baseCurrencyCode(), fila.baseCurrencyDecimalPlaces()),
         fila.payInPrice(),
         fila.payoutPrice(),
+        fila.shopId(),
+        fila.shopSecretKey() != null,
         fila.validFrom());
   }
 }

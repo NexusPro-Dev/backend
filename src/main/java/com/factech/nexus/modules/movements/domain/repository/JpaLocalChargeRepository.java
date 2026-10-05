@@ -107,6 +107,37 @@ public class JpaLocalChargeRepository implements LocalChargeRepository {
   }
 
   @Override
+  public Optional<ChargeShop> findChargeShop(UUID paymentId, OffsetDateTime at) {
+    // La propia fila del cobro cumple el filtro: el LATERAL siempre encuentra al menos esa.
+    @SuppressWarnings("unchecked")
+    List<Tuple> filas =
+        em.createNativeQuery(
+                """
+                SELECT r.country_id AS pais, v.shop_id AS tienda, v.shop_secret_key AS clave
+                  FROM payments p
+                  JOIN country_conversion_rates r ON r.id = p.conversion_rate_id
+                  JOIN LATERAL (
+                       SELECT x.shop_id, x.shop_secret_key
+                         FROM country_conversion_rates x
+                        WHERE x.country_id = r.country_id AND x.shop_id = r.shop_id
+                          AND x.valid_from <= GREATEST(:ahora, r.valid_from)
+                        ORDER BY x.valid_from DESC
+                        LIMIT 1) v ON true
+                 WHERE p.id = :id
+                """,
+                Tuple.class)
+            .setParameter("id", paymentId)
+            .setParameter("ahora", at)
+            .getResultList();
+    return filas.stream()
+        .findFirst()
+        .map(
+            f ->
+                new ChargeShop(
+                    (UUID) f.get("pais"), (String) f.get("tienda"), (String) f.get("clave")));
+  }
+
+  @Override
   public Optional<ReconcileTarget> lockForReconcile(UUID paymentId) {
     // El movimiento primero y en el mismo orden que la conciliación de siempre
     // (`RF-MV-044`): dos caminos que bloquean al revés se interbloquean.

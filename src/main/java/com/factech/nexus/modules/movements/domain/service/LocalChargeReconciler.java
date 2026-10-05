@@ -3,6 +3,7 @@ package com.factech.nexus.modules.movements.domain.service;
 import com.factech.nexus.modules.movements.domain.repository.GatewayEventRepository;
 import com.factech.nexus.modules.movements.domain.repository.GatewayEventRepository.StoredEvent;
 import com.factech.nexus.modules.movements.domain.repository.LocalChargeRepository;
+import com.factech.nexus.modules.movements.domain.repository.LocalChargeRepository.ChargeShop;
 import com.factech.nexus.modules.movements.domain.repository.LocalChargeRepository.ReconcileTarget;
 import com.factech.nexus.modules.movements.domain.service.LocalPaymentGateway.LocalTransaction;
 import com.factech.nexus.modules.movements.domain.service.LocalPaymentGateway.Notice;
@@ -51,6 +52,7 @@ public class LocalChargeReconciler {
   private final LocalPaymentGateway pasarela;
   private final GatewayEventRepository eventos;
   private final LocalChargeRepository cobros;
+  private final ShopSecrets secretos;
   private final ConfirmSaleService ventas;
   private final RejectPaymentService rechazos;
   private final PointsPurchaseService puntos;
@@ -65,6 +67,7 @@ public class LocalChargeReconciler {
       LocalPaymentGateway pasarela,
       GatewayEventRepository eventos,
       LocalChargeRepository cobros,
+      ShopSecrets secretos,
       ConfirmSaleService ventas,
       RejectPaymentService rechazos,
       PointsPurchaseService puntos,
@@ -75,6 +78,7 @@ public class LocalChargeReconciler {
     this.pasarela = pasarela;
     this.eventos = eventos;
     this.cobros = cobros;
+    this.secretos = secretos;
     this.ventas = ventas;
     this.rechazos = rechazos;
     this.puntos = puntos;
@@ -183,7 +187,17 @@ public class LocalChargeReconciler {
    * @throws LocalPaymentGateway.Unavailable si la pasarela no respondió: el pago no cambia
    */
   public Desenlace conciliar(UUID pagoId) {
-    Optional<LocalTransaction> respuesta = pasarela.findByTracking(pagoId);
+    // La tienda que lo abrió: la de su conversión (`RN-MV-063`).
+    ChargeShop tienda =
+        tx.execute(e -> cobros.findChargeShop(pagoId, OffsetDateTime.now(reloj)).orElse(null));
+    if (tienda == null) {
+      return new Desenlace("IGNORADO", "El pago no tiene cobro local con tienda.");
+    }
+    Optional<LocalTransaction> respuesta =
+        pasarela.findByTracking(
+            pagoId,
+            new LocalPaymentGateway.Shop(
+                tienda.shopId(), secretos.decrypt(tienda.shopSecretKey(), tienda.countryId())));
     return tx.execute(e -> aplicar(pagoId, respuesta.orElse(null)));
   }
 

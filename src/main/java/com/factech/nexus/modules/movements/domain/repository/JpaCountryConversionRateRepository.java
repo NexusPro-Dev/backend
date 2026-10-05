@@ -27,7 +27,8 @@ public class JpaCountryConversionRateRepository implements CountryConversionRate
       r.id AS id, p.id AS pais, p.code AS pais_codigo, p.name AS pais_nombre,
       m.id AS moneda, m.code AS moneda_codigo, m.decimal_places AS moneda_decimales,
       b.id AS base, b.code AS base_codigo, b.decimal_places AS base_decimales,
-      r.pay_in_price AS cobro, r.payout_price AS retiro, r.valid_from AS desde
+      r.pay_in_price AS cobro, r.payout_price AS retiro, r.shop_id AS tienda,
+      r.shop_secret_key AS clave, r.valid_from AS desde
       """;
 
   private static final String TABLAS =
@@ -97,14 +98,18 @@ public class JpaCountryConversionRateRepository implements CountryConversionRate
       UUID baseCurrencyId,
       BigDecimal payInPrice,
       BigDecimal payoutPrice,
+      String shopId,
+      String shopSecretKey,
       OffsetDateTime validFrom,
       UUID by) {
     em.createNativeQuery(
             """
             INSERT INTO country_conversion_rates (id, country_id, currency_id, base_currency_id,
-                                                  pay_in_price, payout_price, valid_from,
-                                                  created_by, created_at)
-            VALUES (:id, :pais, :moneda, :base, :cobro, :retiro, :desde, :quien, :desde)
+                                                  pay_in_price, payout_price, shop_id,
+                                                  shop_secret_key, valid_from, created_by,
+                                                  created_at)
+            VALUES (:id, :pais, :moneda, :base, :cobro, :retiro, CAST(:tienda AS varchar),
+                    CAST(:clave AS text), :desde, :quien, :desde)
             """)
         .setParameter("id", id)
         .setParameter("pais", countryId)
@@ -112,6 +117,8 @@ public class JpaCountryConversionRateRepository implements CountryConversionRate
         .setParameter("base", baseCurrencyId)
         .setParameter("cobro", payInPrice)
         .setParameter("retiro", payoutPrice)
+        .setParameter("tienda", shopId)
+        .setParameter("clave", shopSecretKey)
         .setParameter("desde", validFrom)
         .setParameter("quien", by)
         .executeUpdate();
@@ -131,6 +138,8 @@ public class JpaCountryConversionRateRepository implements CountryConversionRate
         ((Number) f.get("base_decimales")).intValue(),
         (BigDecimal) f.get("cobro"),
         (BigDecimal) f.get("retiro"),
+        (String) f.get("tienda"),
+        (String) f.get("clave"),
         instante(f.get("desde")));
   }
 

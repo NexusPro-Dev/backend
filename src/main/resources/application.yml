@@ -464,13 +464,16 @@ nexus:
     process-inline: false
 
   # La pasarela local, PayRetailers (RF-MV-048 a RF-MV-051, architecture.md §15.5,
-  # deployment.md §6.5.2, 05-10-2026). SIN LAS TRES CREDENCIALES queda APAGADA y se
-  # avisa al arrancar: PSE nace pendiente sin cobro y lo confirma una persona, la ruta
-  # del aviso responde 503 y el barrido no corre. La suite corre así.
+  # deployment.md §6.5.2, 05-10-2026). LAS TIENDAS NO VAN AQUÍ: PayRetailers da una por
+  # país, y su shop_id y su clave secreta —cifrada— viven en la conversión del país
+  # (RN-MV-063), que fija un ADMIN por la API. Aquí, lo de la cuenta: la Subscription
+  # Key y la llave maestra que cifra las claves. SIN LAS DOS queda APAGADA y se avisa
+  # al arrancar: PSE nace pendiente sin cobro y lo confirma una persona, la ruta del
+  # aviso responde 503 y el barrido no corre. La suite corre así.
   payretailers:
-    shop-id: ${PAYRETAILERS_SHOP_ID:}
-    secret-key: ${PAYRETAILERS_SECRET_KEY:}
     subscription-key: ${PAYRETAILERS_SUBSCRIPTION_KEY:}
+    # 32 bytes en Base64 (AES-256). Cambiarla deja ilegibles las claves guardadas.
+    encryption-key: ${PAYRETAILERS_ENCRYPTION_KEY:}
     # Por omisión, el sandbox: un entorno mal configurado prueba, no cobra.
     base-url: ${PAYRETAILERS_BASE_URL:https://api-sandbox.payretailers.com/payments/v2}
     notification-url: ${PAYRETAILERS_NOTIFICATION_URL:}

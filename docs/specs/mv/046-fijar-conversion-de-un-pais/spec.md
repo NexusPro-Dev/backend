@@ -4,7 +4,7 @@
 |---|---|
 | Requerimiento | `RF-MV-046` |
 | Módulo | `MV` — Movimientos |
-| Versión | 0.1.0 |
+| Versión | 0.2.0 |
 | Estado | **Aprobada** |
 | Autor | Responsable técnico |
 | Aprobada por | Responsable del proyecto |
@@ -158,6 +158,9 @@ Se devuelve la vigente, **sin escribir nada y sin auditar**: no ha cambiado nada
 | `CA-MV-554` | Sin `movements:set-conversion-rate` responde prohibido; sin autenticar, `401` |
 | `CA-MV-555` | Queda **auditado**, con quién la fijó y lo que regía antes |
 | `CA-MV-556` | Las conversiones de **otros países** no cambian |
+| `CA-MV-633` | Con `shopId` y `secretKey`, la conversión guarda **la tienda y su clave cifrada**; la respuesta y la consulta dan `shopId` y `shopSecretKeySet`, **nunca la clave**, y la auditoría tampoco la lleva |
+| `CA-MV-634` | Sin `shopId` ni `secretKey` se **heredan** los de la vigente; la misma tienda con la misma clave y los mismos precios no escribe; cambiar solo la clave sí |
+| `CA-MV-635` | Una **tienda nueva sin su clave**, o una **clave sin tienda**, es `422` `EX-005`; una tienda vacía es `400` `VAL-005`; sin llave de cifrado en el entorno, guardar una clave es `503` `EX-006`. En ningún caso se escribe |
 
 ---
 
@@ -184,3 +187,4 @@ Se devuelve la vigente, **sin escribir nada y sin auditar**: no ha cambiado nada
 | Versión | Fecha | Cambio | Autor |
 |---|---|---|---|
 | 0.1.0 | 05-10-2026 | Primera versión, con la conversión por país ([`requirements/mv.md`](../../../requirements/mv.md) v0.75.0 §4.9). **Los dos precios juntos, 1 USD = X moneda local, la base copiada del sistema**; fijar inserta una conversión nueva y conserva las anteriores; fijar la vigente no escribe nada. Criterios `CA-MV-548` a `CA-MV-556`. | Responsable del proyecto |
+| 0.2.0 | 05-10-2026 | **La tienda de la pasarela local se fija con la conversión** ([`requirements/mv.md`](../../../requirements/mv.md) v0.82.0, `RN-MV-063`, `V71`): `shopId` y `secretKey` opcionales, heredados de la vigente si no se mandan; la clave se cifra y no sale nunca. Criterios `CA-MV-633` a `CA-MV-635`. | Responsable del proyecto |

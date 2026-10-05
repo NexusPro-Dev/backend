@@ -29,6 +29,8 @@ public class FakeLocalPaymentGateway implements LocalPaymentGateway {
   private final List<LocalChargeOrder> abiertos = new ArrayList<>();
   private final Map<UUID, LocalTransaction> respuestas = new ConcurrentHashMap<>();
   private final List<UUID> consultas = new ArrayList<>();
+  private final List<Shop> tiendasAbiertas = new ArrayList<>();
+  private final List<Shop> tiendasConsultadas = new ArrayList<>();
   private final java.util.Set<UUID> sinRespuesta = ConcurrentHashMap.newKeySet();
   private final AtomicInteger contador = new AtomicInteger();
 
@@ -41,6 +43,9 @@ public class FakeLocalPaymentGateway implements LocalPaymentGateway {
     abiertos.clear();
     respuestas.clear();
     consultas.clear();
+    tiendasAbiertas.clear();
+    tiendasConsultadas.clear();
+    sinRespuesta.clear();
     contador.set(0);
     encendida = false;
     caida = false;
@@ -79,13 +84,23 @@ public class FakeLocalPaymentGateway implements LocalPaymentGateway {
     return List.copyOf(consultas);
   }
 
+  /** La tienda —con su clave en claro— con que se abrió cada cobro, en el orden de abiertos. */
+  public synchronized List<Shop> tiendasAbiertas() {
+    return List.copyOf(tiendasAbiertas);
+  }
+
+  /** La tienda con que se hizo cada consulta, en el orden de {@link #consultas()}. */
+  public synchronized List<Shop> tiendasConsultadas() {
+    return List.copyOf(tiendasConsultadas);
+  }
+
   @Override
   public boolean enabled() {
     return encendida;
   }
 
   @Override
-  public synchronized LocalCharge open(LocalChargeOrder orden) {
+  public synchronized LocalCharge open(Shop tienda, LocalChargeOrder orden) {
     if (caida) {
       throw new Unavailable("La pasarela de prueba está caída.", null);
     }
@@ -93,16 +108,22 @@ public class FakeLocalPaymentGateway implements LocalPaymentGateway {
       throw new Rejected(rechazo);
     }
     abiertos.add(orden);
+    tiendasAbiertas.add(tienda);
     int n = contador.incrementAndGet();
     return new LocalCharge("pw_" + n, "https://pago.prueba/" + n);
   }
 
   @Override
-  public synchronized Optional<LocalTransaction> findByTracking(UUID paymentId) {
+  public synchronized Optional<LocalTransaction> findByTracking(UUID paymentId, Shop tienda) {
     if (caida) {
       throw new Unavailable("La pasarela de prueba está caída.", null);
     }
+    // Hasta el 05-10-2026 se anotaba y no se usaba: `CA-MV-622` pasaba sin probar nada.
+    if (sinRespuesta.contains(paymentId)) {
+      throw new Unavailable("La pasarela de prueba no responde por ese pago.", null);
+    }
     consultas.add(paymentId);
+    tiendasConsultadas.add(tienda);
     return Optional.ofNullable(respuestas.get(paymentId));
   }
 
