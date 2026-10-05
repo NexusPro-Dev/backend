@@ -1781,6 +1781,37 @@
         },
         "type" : "object"
       },
+      "ConversionRateCountry" : {
+        "properties" : {
+          "code" : {
+            "type" : "string"
+          },
+          "id" : {
+            "format" : "uuid",
+            "type" : "string"
+          },
+          "name" : {
+            "type" : "string"
+          }
+        },
+        "type" : "object"
+      },
+      "ConversionRateCurrency" : {
+        "properties" : {
+          "code" : {
+            "type" : "string"
+          },
+          "decimalPlaces" : {
+            "format" : "int32",
+            "type" : "integer"
+          },
+          "id" : {
+            "format" : "uuid",
+            "type" : "string"
+          }
+        },
+        "type" : "object"
+      },
       "CorrectPackageDiscountRequest" : {
         "properties" : {
           "discountType" : {
@@ -1801,6 +1832,39 @@
               "$ref" : "#/components/schemas/CountryResponse"
             },
             "type" : "array"
+          }
+        },
+        "type" : "object"
+      },
+      "CountryConversionRateResponse" : {
+        "properties" : {
+          "baseCurrency" : {
+            "$ref" : "#/components/schemas/ConversionRateCurrency",
+            "description" : "La moneda de la que se convierte, copiada al fijar: hoy USD."
+          },
+          "country" : {
+            "$ref" : "#/components/schemas/ConversionRateCountry"
+          },
+          "currency" : {
+            "$ref" : "#/components/schemas/ConversionRateCurrency",
+            "description" : "La moneda local, a la que se convierte."
+          },
+          "id" : {
+            "format" : "uuid",
+            "type" : "string"
+          },
+          "payInPrice" : {
+            "description" : "Al cobrar: cuántas unidades de la moneda local vale una de la base. `4150.0000` es «1 USD = 4.150 COP».",
+            "type" : "number"
+          },
+          "payoutPrice" : {
+            "description" : "Al pagar un retiro, en la misma unidad que `payInPrice`.",
+            "type" : "number"
+          },
+          "validFrom" : {
+            "description" : "Desde cuándo rige.",
+            "format" : "date-time",
+            "type" : "string"
           }
         },
         "type" : "object"
@@ -7345,6 +7409,29 @@
           },
           "tokenType" : {
             "type" : "string"
+          }
+        },
+        "type" : "object"
+      },
+      "SetCountryConversionRateRequest" : {
+        "properties" : {
+          "countryId" : {
+            "description" : "El país cuya conversión se fija.",
+            "format" : "uuid",
+            "type" : "string"
+          },
+          "currencyId" : {
+            "description" : "La moneda local del país, a la que se convierte.",
+            "format" : "uuid",
+            "type" : "string"
+          },
+          "payInPrice" : {
+            "description" : "Precio al cobrar: 1 unidad de la moneda base = X moneda local.",
+            "type" : "number"
+          },
+          "payoutPrice" : {
+            "description" : "Precio al pagar un retiro, en la misma unidad.",
+            "type" : "number"
           }
         },
         "type" : "object"
@@ -14499,6 +14586,102 @@
         "x-required-permission" : "movements:grant-bonus"
       }
     },
+    "/api/v1/movements/conversion-rates" : {
+      "get" : {
+        "description" : "**Permiso requerido:** `movements:read-conversion-rates`. Sin él, `403` (`AUTH-002`).\n\nLa conversión que rige hoy en cada país **activo** que tenga una, ordenadas por código\nde país y sin paginar (`RF-MV-047`). Con `countryId`, solo la de ese país; vacía si no\ntiene. El histórico no se publica. Con ella se calcula cuánto se pagará o se recibirá en\nmoneda local; el importe definitivo lo fijará la operación, con la conversión de ese\nmomento.\n",
+        "operationId" : "vigentes",
+        "parameters" : [ {
+          "description" : "Solo la conversión de este país.",
+          "in" : "query",
+          "name" : "countryId",
+          "required" : false,
+          "schema" : {
+            "format" : "uuid",
+            "type" : "string"
+          }
+        } ],
+        "responses" : {
+          "200" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "items" : {
+                    "$ref" : "#/components/schemas/CountryConversionRateResponse"
+                  },
+                  "type" : "array"
+                }
+              }
+            },
+            "description" : "Las vigentes; vacía si ninguna."
+          },
+          "400" : {
+            "description" : "`countryId` sin forma de identificador"
+          },
+          "401" : {
+            "description" : "Sin token (`AUTH-001`)"
+          },
+          "403" : {
+            "description" : "Sin `movements:read-conversion-rates` (`AUTH-002`)"
+          }
+        },
+        "summary" : "Consultar la conversión vigente de cada país",
+        "tags" : [ "Conversión por país" ],
+        "x-required-permission" : "movements:read-conversion-rates"
+      },
+      "post" : {
+        "description" : "**Permiso requerido:** `movements:set-conversion-rate`. Sin él, `403` (`AUTH-002`).\n\nFija a cuánto se convierte **una unidad de la moneda base** —la moneda por omisión del\nsistema, hoy USD, que la conversión copia— a la **moneda local** del país, con **dos\nprecios**: `payInPrice` al cobrar y `payoutPrice` al pagar un retiro. `4150` es\n«1 USD = 4.150 COP». Los dos son mayores que cero, con hasta cuatro decimales, y se\nfijan juntos (`RF-MV-046`, `RN-MV-062`).\n\n**Rige desde ese instante**, y la anterior **no se toca**: queda en el histórico, porque\nexplicará los cobros y retiros que se hagan con ella. Fijar la que ya rige —misma moneda\nlocal y mismos dos precios— responde `200` con ella y no escribe nada. País y moneda\ntienen que estar activos, y la moneda local no puede ser la base. No se exige que el\nprecio de retiro sea menor que el de cobro.\n",
+        "operationId" : "fijar",
+        "requestBody" : {
+          "content" : {
+            "application/json" : {
+              "schema" : {
+                "$ref" : "#/components/schemas/SetCountryConversionRateRequest"
+              }
+            }
+          }
+        },
+        "responses" : {
+          "200" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/CountryConversionRateResponse"
+                }
+              }
+            },
+            "description" : "Ya era la vigente: nada cambió."
+          },
+          "201" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/CountryConversionRateResponse"
+                }
+              }
+            },
+            "description" : "Conversión nueva, vigente desde ahora."
+          },
+          "400" : {
+            "description" : "País o moneda ausentes, o un precio ausente, no positivo, con más de cuatro decimales o más de diez cifras enteras. Los errores salen juntos"
+          },
+          "401" : {
+            "description" : "Sin token (`AUTH-001`)"
+          },
+          "403" : {
+            "description" : "Sin `movements:set-conversion-rate` (`AUTH-002`)"
+          },
+          "409" : {
+            "description" : "El país o la moneda están inactivos (`EX-003`), o la moneda local es la base (`EX-004`)"
+          },
+          "422" : {
+            "description" : "El país o la moneda no existen (`EX-002`)"
+          }
+        },
+        "summary" : "Fijar la conversión de un país",
+        "tags" : [ "Conversión por país" ],
+        "x-required-permission" : "movements:set-conversion-rate"
+      }
+    },
     "/api/v1/movements/gateway-notifications/stripe" : {
       "post" : {
         "description" : "**Permiso requerido:** ninguno. Ruta pública: responde sin token.\n\n**La llama Stripe, no el frontend** (`RF-MV-041`). Ruta **pública**: la autentica la\ncabecera `Stripe-Signature`, un HMAC del cuerpo con el secreto del endpoint. Se guarda\nla notificación entera, **una sola vez** aunque llegue repetida, y se responde `200` en\ncuanto queda guardada; procesarla va después: un cobro que entró confirma el pago y la\nventa o la compra de puntos; una tarjeta rechazada deja el pago pendiente; un cobro\ncancelado lo rechaza; un reembolso o una disputa se marcan en el pago (`RN-MV-058` a\n`RN-MV-060`).\n",
@@ -21204,6 +21387,9 @@
   }, {
     "description" : "Los cajones del catálogo de cursos.",
     "name" : "Categorías de cursos"
+  }, {
+    "description" : "El precio de cobro y el de retiro de cada país, 1 USD = X moneda local. Los usará la pasarela local (PayRetailers), que cobra y paga en la moneda del país.",
+    "name" : "Conversión por país"
   }, {
     "description" : "Alta y administración de las personas del sistema.",
     "name" : "Usuarios"

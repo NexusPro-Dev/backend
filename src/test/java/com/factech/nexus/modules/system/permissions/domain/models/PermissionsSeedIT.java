@@ -33,7 +33,7 @@ class PermissionsSeedIT extends IntegrationTestBase {
           + " V47: courses:read-available y lessons:learn del aula, RF-AC-034 y RF-AC-035)")
   void catalogoCompleto() {
     assertThat(jdbc.queryForObject("SELECT count(*) FROM permissions", Integer.class))
-        .isEqualTo(179);
+        .isEqualTo(181);
   }
 
   @Test
@@ -233,6 +233,8 @@ class PermissionsSeedIT extends IntegrationTestBase {
             // `V58` (30-09-2026): la etapa 3, comprar puntos y pagar con ellos.
             "movements:set-points-rate",
             "movements:read-points-rates",
+            "movements:set-conversion-rate",
+            "movements:read-conversion-rates",
             "movements:buy-points",
             "movements:list-own-points-purchases",
             // `V61` (01-10-2026): las cuentas de cobro (`RF-MV-032` a `RF-MV-039`).
@@ -330,7 +332,7 @@ class PermissionsSeedIT extends IntegrationTestBase {
   void identificadoresUuidV7() {
     List<UUID> ids = jdbc.queryForList("SELECT id FROM permissions", UUID.class);
 
-    assertThat(ids).hasSize(179).doesNotHaveDuplicates();
+    assertThat(ids).hasSize(181).doesNotHaveDuplicates();
     assertThat(ids).allSatisfy(id -> assertThat(id.version()).isEqualTo(7));
     // variant() == 2 es la variante RFC 9562 (bits 10xx).
     assertThat(ids).allSatisfy(id -> assertThat(id.variant()).isEqualTo(2));
@@ -396,13 +398,13 @@ class PermissionsSeedIT extends IntegrationTestBase {
                 "SELECT count(*) FROM role_permissions WHERE role_id ="
                     + " '01a02a33-4c00-7001-9c4f-5e7ad1000001'",
                 Integer.class))
-        .isEqualTo(179);
+        .isEqualTo(181);
     assertThat(
             jdbc.queryForObject(
                 "SELECT count(*) FROM role_permissions WHERE role_id ="
                     + " '01a02a33-4c00-7002-9c4f-5e7ad1000002'",
                 Integer.class))
-        .isEqualTo(177);
+        .isEqualTo(179);
     assertThat(
             jdbc.queryForList(
                 """
@@ -484,9 +486,11 @@ class PermissionsSeedIT extends IntegrationTestBase {
         // Y veintiuno desde `V58`: la tasa, comprar puntos y mis compras de puntos.
         // Y veintiséis desde `V61`: el catálogo de entidades y las cuatro de la cuenta propia.
         // Y veintisiete desde `V62`: pagar con tarjeta un pendiente propio.
-        .hasSize(27)
+        // Y veintiocho desde `V67`: consultar la conversión por país.
+        .hasSize(28)
         .contains(
             "movements:pay-pending-by-card",
+            "movements:read-conversion-rates",
             "movements:read-payout-institutions",
             "movements:create-own-payout-account",
             "movements:list-own-payout-accounts",
