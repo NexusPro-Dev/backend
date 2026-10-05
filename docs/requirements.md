@@ -5,11 +5,11 @@
 | Proyecto | NEXUS — Renovación de plataforma |
 | Empresa | FACTECH GROUP SAS |
 | Documento | `requirements.md` |
-| Versión | 0.265.0 |
+| Versión | 0.266.0 |
 | Estado | Borrador |
 | Responsable técnico | Bonilla Diaz William Steven |
 | Fecha de creación | 20-08-2026 |
-| Última actualización | 03-10-2026 |
+| Última actualización | 05-10-2026 |
 | Documento superior | `constitution.md` v0.8.0 |
 | Documentos relacionados | `modules.md` v0.21.0 |
 
@@ -669,3 +669,4 @@ El inventario y el estado de los módulos se consultan en [`modules.md` §4](mod
 | 0.263.0 | 01-10-2026 | **`RF-MV-044` y `RF-MV-045` están construidos** (`V63`, catálogo **179**): pasan a **En desarrollo**, con las enmiendas de `RF-MV-003`, `RF-MV-004`, `RF-MV-028` y `RF-MV-029`, cuyas rutas responden `404`. **169 con endpoint funcionando**. | Responsable técnico |
 | 0.264.0 | 02-10-2026 | **`RF-MV-017` gana el filtro `hasSeller`** (spec 0.3.0, `CA-MV-520` a `CA-MV-522`): las líneas sin vendedor asignado, o solo las que lo tienen. | Responsable del proyecto |
 | 0.265.0 | 03-10-2026 | **Un upgrade sube un escalón como máximo, o renueva el mismo**, por decisión del responsable del proyecto: `RN-PM-018` se reescribe —decía «se admite saltar niveles»— ([`requirements/pm.md`](requirements/pm.md) v0.49.0, §5.2.17) y `RN-MV-006` gana la mitad del salto ([`requirements/mv.md`](requirements/mv.md) v0.72.0). Se impone al registrar el producto y al vender, en todos los canales; los saltos ya registrados no se tocan y dejan de publicarse y de venderse. **Las tripletas están enmendadas**: `RF-PM-001`, `007`, `008`, `018`, `019`, `026` y `027`; `RF-MV-001`, `002`, `003` (solo la nota de que confirmar no repite el escalón), `011`, `012` y `013`. Ningún estado cambia: cada fila anota sus tareas pendientes. `CA-PM-417` a `CA-PM-428` y `CA-MV-526` a `CA-MV-541`, con huecos (siguiente CA-PM `429`, CA-MV `542`). `RF-MV-011` gana el enlace a su tripleta, que existía y la matriz no apuntaba. **Construida el mismo día** (`mvn clean verify`: 517 unitarias y 2380 de integración, sin fallos); quedan sin prueba `CA-MV-528` y `CA-MV-541`, porque `RF-MV-002` y `RF-MV-013` todavía no tienen endpoint. | Responsable del proyecto |
+| 0.266.0 | 05-10-2026 | **La comisión por venta directa pasa a la tasa de rol, una por rol** ([`requirements/cm.md`](requirements/cm.md) v0.30.0 §5.11, `RN-CM-050`; [`requirements/pm.md`](requirements/pm.md) v0.50.0; [`modelo-datos.md`](modelo-datos.md) v0.92.0), por decisión del responsable del proyecto: en la tabla de comisiones generales, los roles que no son el último eslabón declaran su directa, opcional. Se enmiendan `RF-CM-001`, `RF-CM-002`, `RF-CM-003`, `RF-CM-013` y `RF-PM-001` a `RF-PM-004`; sin filas nuevas en la matriz ni permisos nuevos | Responsable del proyecto |

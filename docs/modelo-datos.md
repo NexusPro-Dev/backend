@@ -2,11 +2,11 @@
 
 | Campo | Valor |
 |---|---|
-| Versión | 0.91.0 |
+| Versión | 0.92.0 |
 | Estado | **Borrador** |
 | Responsable | Bonilla Diaz William Steven |
 | Fecha de creación | 21-08-2026 |
-| Última actualización | 03-10-2026 |
+| Última actualización | 05-10-2026 |
 
 !!! info "Qué va en este documento"
 
@@ -491,9 +491,7 @@ erDiagram
         uuid source_membership_id FK "obligatorio en upgrade, PROHIBIDO en bot · DE DONDE sale"
         numeric price "14,4 · EL QUE SE COBRA · la escala la decide la MONEDA"
         numeric purchase_price "14,4 · LO QUE PAGA NEXUS · NULL = no se conoce · solo administracion"
-        varchar direct_commission_type "PORCENTAJE o FIJO · RN-PM-051 · la venta propia de quien no es el ultimo eslabon · NULL solo en FTD"
-        numeric direct_commission_percentage "5,2 · 0 a 100 · solo si PORCENTAJE"
-        numeric direct_commission_fixed_amount "14,4 · no mas que el precio · solo si FIJO"
+
         uuid cover_image_id FK "V90 · la portada · NULL = no tiene · UNICO: una imagen es portada de UN producto"
         integer validity_days "NULL = no caduca"
         timestamptz deleted_at "lógico · RN-PM-010"
@@ -506,6 +504,9 @@ erDiagram
         varchar rate_type "PORCENTAJE o FIJO · lo declara, no se deduce"
         numeric percentage "5,2 · NULL si es FIJO · cero es un VALOR"
         numeric fixed_amount "14,4 como products.price · NULL si es PORCENTAJE · SIN MONEDA"
+        varchar direct_rate_type "V64 · RN-CM-050 · venta propia de un rol que no es el ultimo eslabon · NULL sin directa"
+        numeric direct_percentage "5,2 · 0 a 100 · solo si PORCENTAJE"
+        numeric direct_fixed_amount "14,2 · no mas que el precio · solo si FIJO"
         timestamptz deleted_at "lógico · RN-CM-005"
     }
 
@@ -679,6 +680,8 @@ Ninguna de las dos guarda una venta, y **las dos escribieron condiciones sobre q
     **Cuatro tablas más, diseñadas**: `afftrack_rates` y `user_afftrack_rates` —los escalones, de rol y de persona, que calcan las dos tablas de tasas—, `afftrack_settlements` —lo que cada cierre hizo con los FTD de cada persona, **con el remanente**— y `afftrack_ftds` —qué FTD se le contaron a quién, una vez por persona—.
 
 !!! info "Y desde el 29-09-2026 el superior que vende cobra lo que dice el producto"
+
+    **Desde el 05-10-2026 la directa vive en `commission_rates`, una por rol** ([`requirements/cm.md`](requirements/cm.md) v0.30.0 §5.11, `RN-CM-050`): tres columnas `direct_*` en la misma fila de la tasa de rol, **opcionales** y solo en los roles que no son el último eslabón. `V64` copia la de cada producto a sus tasas de rol vivas que no son el último eslabón y **borra las tres columnas de `products`** (`RN-PM-051` retirada). Lo que sigue es la historia del 29-09-2026.
 
     Por decisión del responsable del proyecto, **todo producto declara una comisión por venta directa** ([`requirements/pm.md`](requirements/pm.md) v0.47.0 §5.2.16, `RN-PM-051`): lo que cobra en su venta propia **quien no es el último eslabón** de la fuerza comercial —hoy un `DIRECTOR` o un `MANAGER`—, **en lugar de su tasa de rol**; su personalizada vigente sigue ganando ([`requirements/cm.md`](requirements/cm.md) v0.24.0 §5.9, `RN-CM-045`).
 
@@ -1107,3 +1110,4 @@ Los documentos que citan una migración vieja por su número —specs, controles
 | 0.89.0 | 01-10-2026 | **`MV` diseña un índice sobre `payments`**: `ix_payments_occurred_at (occurred_at DESC, id DESC)`, el orden del listado de pagos (`RF-MV-043`, [`requirements/mv.md`](requirements/mv.md) v0.65.0 §7.7). **Ninguna tabla ni columna.** Lo escribirá `V63`. | Responsable técnico |
 | 0.90.0 | 01-10-2026 | **La etapa 4 para la tarjeta está escrita** (`V62`): `gateway_events`, `payment_methods.gateway` —`STRIPE` en `CREDIT_CARD`— y la incidencia de `payments`, con `ix_payments_provider_reference` para que la notificación encuentre su pago. `MV` pasa a **quince** tablas escritas. | Responsable técnico |
 | 0.91.0 | 03-10-2026 | **Un upgrade sube un escalón como máximo** (`RN-PM-018` reescrita, [`requirements/pm.md`](requirements/pm.md) v0.49.0; `RN-MV-006`, [`requirements/mv.md`](requirements/mv.md) v0.72.0). **Sin migración**: la regla no cabe en el esquema —lee dos filas de `memberships`, y la cadena se reordena al insertar—, y los saltos ya registrados no se tocan; dejan de publicarse y de venderse. Lo dice la nota de `products`. | Responsable del proyecto |
+| 0.92.0 | 05-10-2026 | **La comisión por venta directa pasa de `products` a `commission_rates`** ([`requirements/cm.md`](requirements/cm.md) v0.30.0 §5.11, `RN-CM-050`; [`requirements/pm.md`](requirements/pm.md) v0.50.0, `RN-PM-051` retirada): `commission_rates` gana `direct_rate_type`, `direct_percentage` y `direct_fixed_amount` (`14,2`), con `ck_commission_rates_direct_forma` y `ck_commission_rates_direct_rangos`; `products` pierde sus tres columnas `direct_commission_*` y sus dos `CHECK` (`V64`). `commissions.rate_id` con `source = DIRECTA` apunta desde `V64` a la tasa de rol | Responsable del proyecto |
