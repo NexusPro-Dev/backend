@@ -4,7 +4,7 @@
 |---|---|
 | Requerimiento | `RF-CM-001` |
 | Plan | [`plan.md`](plan.md), aprobado el 02-09-2026 |
-| Versión | 1.1.0 |
+| Versión | 1.2.0 |
 | Estado | **En revisión** |
 | Autor | Responsable técnico |
 | Aprobadas por | Pendiente |
@@ -13,6 +13,7 @@
 | Rama | `feature/flujos-de-pm-y-cm` (`T-01`–`T-15`) · `feature/comision-en-valor-fijo` (`T-16`–`T-27`) |
 | Enmendadas | 15-09-2026 — `T-28` a `T-31` porque **la tasa de rol nace con su producto** (`RN-CM-021`) |
 | Enmendadas | 29-09-2026 — `T-32` porque **un producto FTD no admite tasas por venta** (`RN-CM-037`) |
+| Enmendadas | 05-10-2026 — `T-36` y `T-37` porque **los importes se guardan en centésimas** (`ADR-006`) |
 
 !!! info "Qué va en este documento"
 
@@ -128,5 +129,14 @@ Rama: `feature/comision-afftrack`.
 | `T-33` | `V64__cm_directa_por_rol.sql`: columnas y `CHECK` en `commission_rates`, migración desde `products` y borrado de sus columnas (`plan.md` §13) | — | Flyway aplica sobre la base de dev; los productos sin tasa donde poner su directa salen en el registro | Pendiente |
 | `T-34` | `direct` en `CommissionRate`; `directCommission` en la petición y en las dos respuestas | `T-33` | Compila; `openapi.json` con `CommissionRateDirect` | Pendiente |
 | `T-35` | `EX-009`, `VAL-014`, `EX-006` y `EX-010` sobre la directa en `RegisterCommissionRateService` | `T-34` | `RegisterCommissionRateIT`: `CA-CM-315` a `CA-CM-321` | Pendiente |
+
+Rama: `develop` (commits directos desde el 05-10-2026).
+
+## 8. Los importes fijos en centésimas — enmienda del 05-10-2026
+
+| ID | Tarea | Depende de | Verificación | Estado |
+|---|---|---|---|---|
+| `T-36` | `@Convert` con el convertidor compartido en `fixed_amount` de `commission_rates` y `user_commission_rates` y en `direct_fixed_amount` (`plan.md` §14). `@Digits(fraction = 2)` y el mensaje en `RegisterCommissionRateRequest`, `RegisterUserCommissionRateRequest`, `RegisterAfftrackRateRequest` y `RegisterUserAfftrackRateRequest`. Revisión una a una del SQL nativo de las tasas (`JpaCommissionRateQueryRepository`, `JpaUserCommissionRateQueryRepository`, `JpaProductCommissionRateQueryRepository`): se convierte al mapear y al vincular | `RF-MV-001` `T-40` (el convertidor) y `T-41` (`V65`); `T-33` | Compila. `openapi.json` sin más diferencia que el `maxFractionDigits`/mensaje del importe | Pendiente |
+| `T-37` | Pruebas: `CA-CM-335` en `RegisterCommissionRateIT` y en la suite de la personalizada. Las suites de `CM` que **insertan tasas por SQL** pasan a escribir centésimas | `T-36` | `./mvnw verify` en verde, con `CA-CM-335` comparando la columna (`1250`) y la respuesta (`12.50`) | Pendiente |
 
 Rama: `develop` (commits directos desde el 05-10-2026).

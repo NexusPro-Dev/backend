@@ -5,11 +5,12 @@
 | Requerimiento | `RF-CM-020` |
 | Especificación | [`spec.md`](spec.md) v0.1.0 |
 | `spec.md` aprobada el | 29-09-2026 |
-| Versión | 0.1.0 |
+| Versión | 0.2.0 |
 | Estado | **Aprobado** |
 | Autor | Responsable técnico |
 | Aprobado por | Responsable del proyecto |
 | Fecha de aprobación | 29-09-2026 |
+| Enmendado el | 05-10-2026 — el valor por FTD y la liquidación en centésimas (§12) |
 
 !!! info "Qué va en este documento"
 
@@ -162,3 +163,15 @@ Para cada (persona, producto) en C ∪ R:
 - **`AfftrackSettlementIT`**: `CA-CM-241` a `CA-CM-252`, activando líneas `BECA → BECA` por la API de `MV` —`RF-MV-010`— y **cerrando por la API** (`POST /commission-batches/closing`), para que el paso entre de verdad en la transacción del cierre. `CA-CM-246` con historial de `user_supervisors`. `CA-CM-252` **provocando el fallo con un dato** —un escalón cuyo `límite × valor` desborda `numeric(14,4)` al escribir la comisión— y **no con `@MockitoSpyBean`**, que crea otro contexto de Spring y agota las conexiones de la base.
 - **`CommissionAccrualIT`** gana `CA-CM-253` (enmienda de `RF-CM-013`).
 - **`CommissionKindSchemaIT`**: `CA-CM-254`, con inserciones directas que el esquema tiene que rechazar.
+
+## 12. El valor por FTD y la liquidación en centésimas — enmienda del 05-10-2026
+
+[`ADR-006`](../../../architecture/ADR-006-importes-en-unidades-minimas.md) y [`requirements/cm.md`](../../../requirements/cm.md) v0.31.0 §7.4.
+
+**Esquema — `V65` (`RF-MV-001` `T-41`).** `afftrack_rates.amount_per_ftd` y `user_afftrack_rates.amount_per_ftd` pasan de `numeric(14,4)` a `bigint` con `round(col * 100)`. La comisión `POR_AFFTRACK` vive en `commissions`, y su conversión es la de `RF-CM-013` §16.
+
+**Dominio y peticiones.** `AfftrackRate.amountPerFtd` y `UserAfftrackRate.amountPerFtd` ganan `@Convert`. El `@Digits` del valor pasa a `fraction = 2` en las dos peticiones de alta, y la tarea es de `RF-CM-001` `T-36`, que las toca todas a la vez. **`límite × valor` con dos decimales da un número de dos decimales**, de modo que la liquidación no redondea y la fila sale exacta.
+
+**SQL nativo.** `JpaAfftrackRateQueryRepository`, `JpaUserAfftrackRateQueryRepository`, `JpaAfftrackSettlementRepository` y `JpaAfftrackSettlementQueryRepository` se revisan uno a uno: si el producto `límite × valor` se calcula en SQL, opera en centésimas y se convierte al mapear.
+
+**`CA-CM-252` pierde su provocación**, porque §11 la hacía con un escalón cuyo `límite × valor` desbordaba `numeric(14,4)`. `tasks.md` §6 lo declara y propone cómo rehacerla.

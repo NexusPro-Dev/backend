@@ -4,8 +4,8 @@
 |---|---|
 | Requerimiento | `RF-MV-001` |
 | Plan | [`plan.md`](plan.md), aprobado el 02-09-2026 |
-| Versión | 0.6.0 |
-| Estado | **En curso** — `T-01` a `T-18` `Hecha`; `CA-MV-008` queda **sin prueba** hasta `RF-SP-045`; `T-25` a `T-30` `Hecha` el 16-09-2026 (§1.3); `T-31` a `T-35` `Hecha` el 16-09-2026 (§1.4); `T-36` a `T-39` `Hecha` el 03-10-2026 (§1.5, el escalón) |
+| Versión | 0.7.0 |
+| Estado | **En curso** — `T-01` a `T-18` `Hecha`; `CA-MV-008` queda **sin prueba** hasta `RF-SP-045`; `T-25` a `T-30` `Hecha` el 16-09-2026 (§1.3); `T-31` a `T-35` `Hecha` el 16-09-2026 (§1.4); `T-36` a `T-39` `Hecha` el 03-10-2026 (§1.5, el escalón); `T-40` a `T-44` **Pendiente** (§1.6, los importes en centésimas) |
 | Autor | Responsable técnico |
 | Aprobadas por | Responsable del proyecto |
 | Fecha de aprobación | 04-09-2026 |
@@ -120,6 +120,22 @@ Enmienda del Art. I.7 sobre este requerimiento ya construido, por decisión del 
 
 **`CA-MV-526` necesita las dos pruebas por lo mismo que `CA-MV-011`** (§3): por HTTP, en esta entrada, la oferta lo excluye antes; la rama de `EX-005` solo la alcanza la unitaria. Por el hotlink sí se alcanza por HTTP, y lo prueba `RF-MV-011`.
 
+### 1.6 Los importes en centésimas — 05-10-2026
+
+Enmienda del Art. I.7 sobre este requerimiento ya construido, por decisión del responsable del proyecto ([`ADR-006`](../../../architecture/ADR-006-importes-en-unidades-minimas.md); [`requirements/mv.md`](../../../requirements/mv.md) v0.73.0; `plan.md` §2.6). Se trabaja con commits directos en `develop`.
+
+**Esta sección construye la pieza común y la migración entera.** `PM` (`RF-PM-001`, `RF-PM-017`) y `CM` (`RF-CM-001`, `RF-CM-013`, `RF-CM-020`) dependen de `T-40` y `T-41` para anotar sus entidades y revisar su SQL nativo, y `RF-SP-019` remite a `T-41` para su `CHECK`. **`V65` va detrás de `V64`**, la comisión directa por rol, que construye otra línea de trabajo el mismo día: hasta que `V64` esté en `develop`, `T-41` no empieza.
+
+| ID | Tarea | Depende de | Verificación | Estado |
+|---|---|---|---|---|
+| `T-40` | **El convertidor compartido** en `shared`: `MinorUnitsConverter` (`AttributeConverter<BigDecimal, Long>`, **sin `autoApply`**) y el ayudante `MinorUnits` con `toMinor` y `fromMinor`, que el convertidor usa por dentro y el SQL nativo usa por fuera. `HALF_UP` como red; nulo pasa a nulo | — | Unitarias: `12.50` ↔ `1250`, `0` ↔ `0`, negativos (un asiento de débito), nulo, `10.005` → `1001` (la red), y un valor que no cabe en un `long` falla en lugar de truncarse | Pendiente |
+| `T-41` | **`V65`**: `ALTER COLUMN … TYPE bigint USING round(col * 100)` sobre todas las columnas de ADR-006 §1, en las trece tablas. **Antes**, `DROP` de `ck_movement_detail_discounts_value`, `ck_product_package_items_percentage` y `ck_currencies_decimal_places`; **después**, se recrean con `<= 10000`, `<= 10000` y `BETWEEN 0 AND 2`. `COMMENT ON COLUMN` de cada una dice «en centésimas». No toca porcentajes, `exchange_rates.price` ni `points_rates.points_per_unit` | `T-40`, la `V64` en `develop` | La suite arranca sobre el esquema migrado (`ddl-auto: validate` contra las entidades de `T-42` y de `PM`/`CM`); una prueba de migración siembra filas con el esquema de `V64` y comprueba `10.0050` → `1001` y `12.50` → `1250`; `CA-MV-544` | Pendiente |
+| `T-42` | **`@Convert(converter = MinorUnitsConverter.class)`** en las entidades de `MV`: `movements` (`total_amount`, `discount_amount`, `payable_amount`, `points_amount`), `movement_details` (`unit_price`, `line_discount`, `line_amount`), `movement_detail_discounts` (`value`, `discount_value`), `payments` (`amount`, `refunded_amount`), `accounts` (`balance`) y `movement_entries` (`amount`, `balance_after`). El dominio no cambia | `T-40`, `T-41` | `CA-MV-542`, `CA-MV-545`; la suite de `MV` en verde sin tocar ninguna aserción de importe que pase por HTTP | Pendiente |
+| `T-43` | **El SQL nativo y las proyecciones de `MV`** que leen o comparan importes —mis compras, ventas de mi alcance, el detalle de un movimiento, los pagos, los saldos y el libro—: lo que se lee pasa por `MinorUnits.fromMinor` al mapearse, y lo que se compara se vincula con `toMinor`. **Nunca se divide en SQL.** Y **las siembras de las suites** que insertan importes con `JdbcTemplate` o SQL crudo pasan a escribir centésimas | `T-40`, `T-41` | Un `grep` de las columnas convertidas en las consultas nativas de `MV`, sin ninguna sin revisar; `CA-MV-543` | Pendiente |
+| `T-44` | **Las pruebas de `CA-MV-542` a `CA-MV-546`**: `CA-MV-542` y `CA-MV-545` en `RegisterSaleIT` (base y respuesta a la vez), `CA-MV-543` comparando la lectura nativa con la del alta, `CA-MV-544` sobre el libro sembrado y `CA-MV-546` en `BuyPointsIT` (`RF-MV-027`) | `T-42`, `T-43` | Las cinco pasan; cambiar el factor del convertidor a `1000` hace fallar `CA-MV-542` y `CA-MV-543` | Pendiente |
+
+**`CA-MV-543` se prueba contra la entidad y no contra una constante**, porque lo que puede romperse es justo la diferencia entre los dos caminos: una consulta nativa olvidada devuelve `1250` donde la entidad devuelve `12.50`, y una aserción contra `12.50` escrita a mano solo lo atrapa si alguien acertó a sembrar ese valor.
+
 ## 2. Lo que se apartó del plan, y por qué
 
 **Tres apartados, los tres declarados como enmienda (Art. I.7).**
@@ -166,6 +182,10 @@ Queda declarado lo que esto obliga: **las lecturas de `RF-MV-006` y `RF-MV-007` 
 | `CA-MV-018` | `T-08`, `T-14`, `T-15`, `T-26` | Cubierto; la instantánea lleva `user_id` en la cabecera y `seller_id` en cada línea, y ya no lleva `client_id` |
 | `CA-MV-526` | `T-36`, `T-37`, `T-38` | **Pendiente** — unitaria con `EX-005`; por HTTP, `EX-004` |
 | `CA-MV-527` | `T-36`, `T-37`, `T-38` | **Pendiente** |
+| `CA-MV-542` | `T-40`, `T-42`, `T-44` | **Pendiente** |
+| `CA-MV-543` | `T-43`, `T-44` | **Pendiente** |
+| `CA-MV-544` | `T-41`, `T-44` | **Pendiente** |
+| `CA-MV-545` | `T-41`, `T-42`, `T-44` | **Pendiente** |
 
 **`CA-MV-011` necesita dos pruebas, y merece leerse dos veces.** Por HTTP, un upgrade que no sube **nunca llega** a `RN-MV-006`: la oferta de `RF-PM-007` ya lo excluyó, y el rechazo que se ve es `EX-004`. La prueba de integración lo comprueba así porque es lo que hoy ocurre de verdad, y el criterio queda satisfecho — se rechaza **al registrar**, que es lo que exige.
 
@@ -195,6 +215,10 @@ Pero la oferta es una decisión de **`PM`** y puede ampliarse; que una venta no 
 No se cambió el esquema —lo fija un documento aprobado, y la decisión es del responsable del proyecto— y **no se dejó pasar**: `RegisterSaleService` rechaza al registrar el precio que no quepa, que es el único momento en que alguien está mirando. Hoy la única moneda sembrada es `USD` con dos decimales, de modo que esa rama no se alcanza.
 
 **Lo que hay que decidir** es si los importes del libro pasan a `numeric(14,4)` —como los del catálogo— o si el sistema declara que no admitirá monedas de más de dos decimales. Mientras no se decida, el rechazo es la postura segura.
+
+!!! success "Decidido el 05-10-2026 por [`ADR-006`](../../../architecture/ADR-006-importes-en-unidades-minimas.md): **la segunda**"
+
+    El responsable del proyecto decidió guardar todo importe como `bigint` en centésimas, y con eso **ningún importe tiene más de dos decimales**: `currencies.decimal_places` queda acotado a `0..2` (`V65`, `T-41`), y los del catálogo bajan de cuatro a dos en lugar de subir los del libro. **El libro ya no puede redondear en silencio lo que alguien pagó**, porque no hay moneda que lo obligue. El rechazo de `RegisterSaleService` se queda: no se alcanza con ningún dato válido, y sigue siendo la red si alguien sembrara una moneda que el `CHECK` no dejara pasar por otra vía.
 
 ## 6. Definición de terminado
 

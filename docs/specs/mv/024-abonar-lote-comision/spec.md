@@ -4,7 +4,7 @@
 |---|---|
 | Requerimiento | `RF-MV-024` |
 | Módulo | `MV` — Movimientos |
-| Versión | 0.1.0 |
+| Versión | 0.2.0 |
 | Estado | **Aprobada** |
 | Autor | Responsable técnico |
 | Aprobada por | Responsable del proyecto |
@@ -37,7 +37,7 @@ Que cuando `CM` da por pagado un lote de comisión, **el dinero aparezca en la b
 | Decisión | Qué se decidió |
 |---|---|
 | **Una vez por lote** | La misma orden dos veces **devuelve el mismo abono**. Lo sostiene el esquema, con la identidad del lote como clave |
-| **Redondeo a la moneda** | El lote suma con cuatro decimales y el libro guarda dinero con los de la moneda: se redondea **a la mitad hacia arriba** |
+| **Redondeo a la moneda** | El lote suma con cuatro decimales y el libro guarda dinero con los de la moneda: se redondea **a la mitad hacia arriba**. **Desde el 05-10-2026 el lote ya llega con dos** (`ADR-006`, ver §15): la regla se queda, y hoy no cambia ninguna cifra |
 | **Un lote de cero se abona igual** | Con un movimiento de importe cero **y sin asientos**, para que el lote pagado tenga su movimiento (`RN-MV-044`) |
 | **Falla entero** | Si algo falla, no queda abono y `CM` no marca el lote |
 | **La persona no se valida aquí** | El lote ya se liquidó a nombre de alguien que existía; si hoy está eliminado, el dinero sigue siendo suyo y la decisión de pagarlo es de `CM` |
@@ -90,7 +90,7 @@ Que cuando `CM` da por pagado un lote de comisión, **el dinero aparezca en la b
 |---|---|
 | Persona | A quién se le debe |
 | Moneda | La del lote |
-| Importe | El total del lote, con sus cuatro decimales |
+| Importe | El total del lote, con sus decimales —cuatro hasta el 05-10-2026; desde entonces, dos (`ADR-006`)— |
 | Identidad del lote | Para no abonar dos veces y para citarlo en el concepto |
 | Código del lote | Para el concepto, que es lo que la persona lee en su historial |
 
@@ -173,7 +173,7 @@ Se registra el movimiento de importe cero, sin asientos. La billetera no cambia.
 | La persona no tiene billetera en esa moneda | Se crea |
 | La persona está eliminada | Se abona igual (§2.1) |
 | Un importe con exactamente dos decimales | Sin cambio |
-| `0.005` en una moneda de dos decimales | Redondea a `0.01` |
+| `0.005` en una moneda de dos decimales | Redondea a `0.01`. **Desde el 05-10-2026 ningún lote lo trae**: `CM` redondea cada comisión al guardarla y el total se guarda en centésimas. El caso se queda como prueba unitaria del redondeo, que sigue siendo la regla |
 
 ---
 
@@ -188,3 +188,4 @@ Ninguna propia. **`RF-CM-011` no tiene tripleta todavía**: cuando se escriba, i
 | Versión | Fecha | Cambio | Autor |
 |---|---|---|---|
 | 0.1.0 | 26-09-2026 | Primera versión, con la etapa 6 de `MV` ([`requirements/mv.md`](../../../requirements/mv.md) v0.46.0) y `RN-CM-030` enmendada ([`requirements/cm.md`](../../../requirements/cm.md) v0.18.0). **Una operación publicada, sin ruta**, que `CM` invoca en su transacción: abona **una vez por lote**, **redondeado a la moneda**, y un lote de cero sin asientos. Criterios `CA-MV-269` a `CA-MV-274`. | Responsable del proyecto |
+| 0.2.0 | 05-10-2026 | **El lote ya no trae cuatro decimales** ([`ADR-006`](../../../architecture/ADR-006-importes-en-unidades-minimas.md), [`requirements/mv.md`](../../../requirements/mv.md) v0.73.0, `RN-MV-044` precisada). `CM` guarda cada comisión y el total del lote como `bigint` en centésimas, y redondea con `HALF_UP` **al guardar** la comisión (`RF-CM-013`), de modo que lo que llega a este abono ya tiene dos decimales y el redondeo no cambia ninguna cifra. **La regla no se retira**: es la que dice qué pasa si alguna vez el lote llegara con más, y retirarla dejaría el abono sin definir para ese caso. Solo cambia el texto, y ningún criterio. | Responsable del proyecto |

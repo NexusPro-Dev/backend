@@ -4,12 +4,13 @@
 |---|---|
 | Requerimiento | `RF-CM-011` |
 | Módulo | `CM` — Comisiones |
-| Versión | 0.2.0 |
+| Versión | 0.3.0 |
 | Estado | **Aprobada** |
 | Autor | Responsable técnico |
 | Aprobada por | Responsable del proyecto |
 | Fecha de aprobación | 28-09-2026 |
 | Enmendada el | 30-09-2026 — **un lote sin comisiones vivas no se paga** (`RN-CM-048`) |
+| Enmendada el | 05-10-2026 — el lote ya no puede tener cuatro decimales ([`ADR-006`](../../../architecture/ADR-006-importes-en-unidades-minimas.md)); §13 |
 
 !!! info "Qué va en este documento"
 
@@ -156,7 +157,7 @@ Uno lo paga; el otro recibe conflicto. **La billetera sube una sola vez.**
 | Caso | Comportamiento |
 |---|---|
 | La persona del lote está eliminada | Se paga igual: el dinero es suyo (`RF-MV-024` §2.1) |
-| El lote tiene total en cuatro decimales | Se abona redondeado; el lote conserva sus cuatro |
+| ~~El lote tiene total en cuatro decimales~~ | ~~Se abona redondeado; el lote conserva sus cuatro~~ **Deja de poder ocurrir el 05-10-2026**: el total se guarda en centésimas y es la suma exacta de comisiones ya redondeadas al guardarse (`RF-CM-013`, `CA-CM-337`), de modo que el abono es el total tal cual. El redondeo de `RN-MV-044` se queda, sin efecto |
 
 ---
 
@@ -172,3 +173,4 @@ Ninguna.
 |---|---|---|---|
 | 0.1.0 | 28-09-2026 | Primera versión ([`requirements/cm.md`](../../../requirements/cm.md) v0.20.0). Solo se paga un lote pendiente, y pagar es abonar por `RF-MV-024` en la misma transacción. Criterios `CA-CM-189` a `CA-CM-196`. | Responsable del proyecto |
 | 0.2.0 | 30-09-2026 | **Un lote sin comisiones vivas no se paga** (`RN-CM-048`, [`requirements/cm.md`](../../../requirements/cm.md) v0.26.0 §5.10): desde que se pueden retirar y revertir comisiones, un pendiente puede quedarse vacío, y abonarlo dejaría un `PAGO_COMISION` que no paga nada. **Lo que cuenta son las comisiones vivas, no el total**: `CA-CM-194` sigue en pie. `EX-005`, `CA-CM-301`. | Responsable del proyecto |
+| 0.3.0 | 05-10-2026 | **El lote ya no puede tener total en cuatro decimales** ([`ADR-006`](../../../architecture/ADR-006-importes-en-unidades-minimas.md), [`requirements/cm.md`](../../../requirements/cm.md) v0.31.0): las comisiones se guardan en centésimas, redondeadas al guardarse, y el lote suma enteros. El caso límite de §13 se tacha, sin borrarlo, porque explica por qué `RN-MV-044` redondea. Ningún criterio cambia. | Responsable del proyecto |

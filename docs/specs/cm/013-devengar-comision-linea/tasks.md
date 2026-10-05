@@ -10,6 +10,7 @@
 | Enmendadas | 29-09-2026 — `T-14` por **las líneas FTD fuera del devengo** (`RN-CM-022`) |
 | Enmendadas | 29-09-2026 — `T-15` a `T-17` por **la comisión por venta directa** (`RN-CM-045`) |
 | Enmendadas | 30-09-2026 — `T-18` por **la línea revertida** (`RN-CM-047`) |
+| Enmendadas | 05-10-2026 — `T-20` a `T-22` porque **la comisión se guarda en centésimas** (`ADR-006`) |
 | Issue | Pendiente de crear |
 | Rama | `feature/devengo-de-comisiones` |
 
@@ -119,5 +120,19 @@ Rama: `feature/corregir-vendedor-y-mover-comisiones`.
 | ID | Tarea | Depende de | Verificación | Estado |
 |---|---|---|---|---|
 | `T-19` | `ventaPropia` lee la directa de la tasa de rol del vendedor (`plan.md` §15) | `RF-CM-001` `T-34` | `CommissionAccrualIT`: `CA-CM-264` a `CA-CM-270` reescritas sobre la tasa, y `CA-CM-328` a `CA-CM-330` | Pendiente |
+
+Rama: `develop`.
+
+## 10. La comisión y el lote en centésimas — enmienda del 05-10-2026
+
+| ID | Tarea | Depende de | Verificación | Estado |
+|---|---|---|---|---|
+| `T-20` | `@Convert` en `commissions` (`fixed_amount`, `unit_price`, `commission_amount`) y `commission_batches.total_amount`. **La fila se construye con el importe redondeado a dos con `HALF_UP`**, después de comprobar `RN-CM-019` con los cuatro. Revisión del SQL nativo de comisiones, lotes, cierre y resolución: se vincula y se mapea en centésimas (`plan.md` §16) | `RF-MV-001` `T-40` (el convertidor) y `T-41` (`V65`); `T-19` | Compila; unitaria del redondeo: `0.005` → `0.01`, `0.0049` → `0.00` | Pendiente |
+| `T-21` | Pruebas: `CA-CM-336` y `CA-CM-337` en `CommissionAccrualIT`. Las suites que siembran comisiones o lotes por SQL (`CommissionCleanup` y sus usuarias) escriben centésimas | `T-20` | `./mvnw verify` en verde | Pendiente |
+| `T-22` | **Rehacer la provocación de `CA-CM-166`**, que ya no falla con el dato de §3.1 (ver abajo) | `T-20` | `CA-CM-166` vuelve a fallar a propósito en la segunda línea, y la suite deja el esquema como lo encontró | Pendiente |
+
+**`CA-CM-166` se provocaba con un dato que ya no provoca nada.** Era una línea de cien mil millones al 10 %, cuya comisión, diez mil millones, no cabía en `numeric(14,4)`. Con `bigint` en centésimas el techo es de unos 9,2·10¹⁶ unidades de dinero, y **ningún dato admitido llega a él**. Por porcentaje, la comisión no pasa del importe de la línea (`RN-CM-019`), y la línea desborda antes. Por fijo, `CA-CM-161` rechaza la cadena que pasa del importe de la línea. En afftrack, el valor por FTD tiene diez cifras enteras como mucho y el límite hay que alcanzarlo en FTD contados. **La prueba dejaría de fallar, y pasaría por la razón equivocada.**
+
+**Propuesta, sin decidir aquí si hace falta código de producción:** que la suite añada al empezar una restricción **solo de prueba** sobre `commissions` (por ejemplo `ALTER TABLE commissions ADD CONSTRAINT ck_prueba_fallo CHECK (commission_amount <> <importe testigo>) NOT VALID`), que la provoque con ese importe exacto y que la retire en un `finally` y en la limpieza **al terminar**, no solo al empezar. Con `NOT VALID` no se revisan las filas existentes, y la restricción no sale de la suite. Se descarta `@MockitoSpyBean` por lo que ya se dijo: un contexto de Spring más agota las conexiones de la suite. Si se prefiere que el fallo nazca en producción —un techo de dominio para la comisión, con su `EX`—, eso es una regla de negocio nueva y pasa antes por `cm.md`. **`AfftrackSettlementIT` (`RF-CM-020`) tiene el mismo problema con `CA-CM-252`, y conviene resolver los dos de la misma forma.**
 
 Rama: `develop`.

@@ -8,7 +8,7 @@
 | Autor | Responsable técnico |
 | Aprobadas por | Responsable del proyecto |
 | Fecha de aprobación | 26-08-2026 |
-| Enmendadas | 28-08-2026 — `T-19` a `T-22` por el renombrado a `BOT` y el icono del upgrade; 02-09-2026 — `T-23` a `T-26` por la membresía de **origen**; 07-09-2026 — `T-27` a `T-30` por el **alcance** y la **implementación**, y `T-31` por la **renovación**; 08-09-2026 — `T-33` a `T-37` por el **precio público** y la relajación de `RN-PM-006`; 12-09-2026 — `T-38` porque el segundo precio pasa a ser el **de compra**; 14-09-2026 — `T-39` por el **enlace del video**; 14-09-2026 — `T-40` por el **icono obligatorio en el upgrade** (`RN-PM-034`); 15-09-2026 — `T-41` por el **alcance de cuatro valores** (`RN-PM-019`); 22-09-2026 — `T-42` a `T-45` por **los enlaces del producto** (`RN-PM-048`, `RN-PM-049`), que traen `product_links` y se llevan `products.video_url` — issue [#84](https://github.com/NexusPro-Dev/backend/issues/84); 28-09-2026 — `T-46` por **el tipo `DESCARGA`** (`RN-PM-048`, `RN-PM-050`); 29-09-2026 — `T-47` a `T-50` por **la comisión por venta directa** (`RN-PM-051`); 03-10-2026 — `T-51` a `T-53` por **el escalón** (`RN-PM-018` reescrita), §8 |
+| Enmendadas | 28-08-2026 — `T-19` a `T-22` por el renombrado a `BOT` y el icono del upgrade; 02-09-2026 — `T-23` a `T-26` por la membresía de **origen**; 07-09-2026 — `T-27` a `T-30` por el **alcance** y la **implementación**, y `T-31` por la **renovación**; 08-09-2026 — `T-33` a `T-37` por el **precio público** y la relajación de `RN-PM-006`; 12-09-2026 — `T-38` porque el segundo precio pasa a ser el **de compra**; 14-09-2026 — `T-39` por el **enlace del video**; 14-09-2026 — `T-40` por el **icono obligatorio en el upgrade** (`RN-PM-034`); 15-09-2026 — `T-41` por el **alcance de cuatro valores** (`RN-PM-019`); 22-09-2026 — `T-42` a `T-45` por **los enlaces del producto** (`RN-PM-048`, `RN-PM-049`), que traen `product_links` y se llevan `products.video_url` — issue [#84](https://github.com/NexusPro-Dev/backend/issues/84); 28-09-2026 — `T-46` por **el tipo `DESCARGA`** (`RN-PM-048`, `RN-PM-050`); 29-09-2026 — `T-47` a `T-50` por **la comisión por venta directa** (`RN-PM-051`); 03-10-2026 — `T-51` a `T-53` por **el escalón** (`RN-PM-018` reescrita), §8; 05-10-2026 — `T-55` y `T-56` por **los importes en centésimas** ([`ADR-006`](../../../architecture/ADR-006-importes-en-unidades-minimas.md)), §10 |
 
 !!! info "Qué va en este documento"
 
@@ -81,6 +81,7 @@
 | `CA-PM-001`, `CA-PM-002` | `T-10`, `T-13`, `T-14` |
 | `CA-PM-003`, `CA-PM-004` | `T-10`, `T-14` |
 | `CA-PM-005`, `CA-PM-006` | `T-06`, `T-10`, `T-14` |
+| `CA-PM-433` a `CA-PM-435` | `T-55`, `T-56` |
 | `CA-PM-007` | `T-06`, `T-10` |
 | `CA-PM-008` | `T-09`, `T-14` |
 | `CA-PM-010` | `T-05`, `T-10` |
@@ -167,5 +168,14 @@ Rama: `feature/upgrade-escalonado`. Issue: Pendiente de crear.
 | ID | Tarea | Depende de | Verificación | Estado |
 |---|---|---|---|---|
 | `T-54` | Retirar la directa del producto: modelo, alta, respuesta, auditoría, `ProductCatalog` y semilla (`plan.md` §14) | `RF-CM-001` `T-33` | `ProductsIT`: `CA-PM-429`; `openapi.json` sin `ProductDirectCommission` | Pendiente |
+
+Rama: `develop`.
+
+## 10. Los importes en centésimas — enmienda del 05-10-2026
+
+| ID | Tarea | Depende de | Verificación | Estado |
+|---|---|---|---|---|
+| `T-55` | `@Convert` con el convertidor compartido en `Product.price` y `Product.purchasePrice`; `@Digits(fraction = 2)` y el texto de `VAL-005` («dos decimales») en `RegisterProductRequest`; **revisión una a una** de las lecturas por SQL nativo de `PM` que devuelven o comparan un importe —`JpaProductQueryRepository`, `PublishedProductCatalog`, `JpaProductPackageQueryRepository`, `JpaPackageItemRepository` y las que aparezcan— para convertir al mapear con el ayudante compartido (`plan.md` §15) | `RF-MV-001` `T-40`, `T-41` | Compila; `ProductsIT`, `ProductUpdateIT`, `PackagesIT` y las suites del hotlink y la oferta, en verde | Pendiente |
+| `T-56` | Pruebas de `CA-PM-433` a `CA-PM-435`, y las semillas por SQL de las suites de `PM` pasan a escribir centésimas | `T-55` | `ProductsIT`: `CA-PM-433`, `CA-PM-434`; `CA-PM-435` según `plan.md` §15.3 | Pendiente |
 
 Rama: `develop`.

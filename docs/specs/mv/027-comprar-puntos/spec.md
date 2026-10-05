@@ -4,11 +4,12 @@
 |---|---|
 | Requerimiento | `RF-MV-027` |
 | Módulo | `MV` — Movimientos |
-| Versión | 0.2.0 |
+| Versión | 0.3.0 |
 | Estado | **Aprobada** |
 | Autor | Responsable técnico |
 | Aprobada por | Responsable del proyecto |
 | Fecha de aprobación | 30-09-2026 |
+| Enmendada el | 05-10-2026 — **los puntos se guardan en centésimas**, como el dinero (`CA-MV-546`; [`ADR-006`](../../../architecture/ADR-006-importes-en-unidades-minimas.md)). Ver §15 |
 | Enmendada el | 01-10-2026 — **con tarjeta, la compra abre el cobro en la pasarela** y devuelve su secreto (`RF-MV-040`). Ver §14.2 |
 
 !!! info "Qué va en este documento"
@@ -174,6 +175,7 @@ Misma clave, misma moneda, importe y método: **se devuelve la compra ya registr
 | `CA-MV-315` | Una cuenta **a la espera de su primer depósito** no compra: conflicto |
 | `CA-MV-316` | Sin `movements:buy-points` responde prohibido; sin autenticar, `401` |
 | `CA-MV-317` | Queda **auditada**; si la tasa cambia después, la compra **conserva la suya** y sus puntos |
+| `CA-MV-546` | Los puntos de la compra se guardan **en centésimas** —`3.33` puntos son `333` en `movements.points_amount`—, y el asiento que los abona en la cuenta `PUNTOS` al confirmar está **en la misma unidad**: el saldo sube exactamente lo que la compra congeló. La respuesta sigue devolviendo `3.33`, y `CA-MV-307` sigue valiendo |
 
 ---
 
@@ -209,3 +211,4 @@ Desde el 01-10-2026 ([`requirements/mv.md`](../../../requirements/mv.md) v0.64.0
 |---|---|---|---|
 | 0.1.0 | 30-09-2026 | Primera versión, con la etapa 3 de `MV` ([`requirements/mv.md`](../../../requirements/mv.md) v0.54.0 §4.4). **Nace pendiente, sin abonar nada**, con la tasa y los puntos congelados y su pago pendiente; clave de idempotencia obligatoria; no se compra con `POINTS`. Criterios `CA-MV-306` a `CA-MV-317`. | Responsable del proyecto |
 | 0.2.0 | 01-10-2026 | **La tarjeta por Stripe** ([`requirements/mv.md`](../../../requirements/mv.md) v0.64.0 §4.6): **con tarjeta, la compra abre el cobro en la pasarela** y devuelve su secreto (`RF-MV-040`). Criterios `CA-MV-477`. | Responsable del proyecto |
+| 0.3.0 | 05-10-2026 | **Los puntos se guardan en centésimas** ([`ADR-006`](../../../architecture/ADR-006-importes-en-unidades-minimas.md), [`requirements/mv.md`](../../../requirements/mv.md) v0.73.0). `ADR-006` deja fuera lo que no es dinero, pero **los puntos van con el libro**: `accounts` y `movement_entries` llevan dinero y puntos en las mismas columnas, y `movements.points_amount` es lo que se abona en la cuenta `PUNTOS`. Si la compra guardara puntos en una unidad y el asiento en otra, la conciliación compararía cifras que difieren en un factor de cien. `CA-MV-546` lo fija. **La tasa no cambia**: `points_rates.points_per_unit` sigue en `numeric(12,4)`, porque es una tasa y no un importe, y `CA-MV-307` —redondear hacia abajo a dos decimales— se calcula igual. | Responsable del proyecto |

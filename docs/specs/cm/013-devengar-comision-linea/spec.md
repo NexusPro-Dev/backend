@@ -4,7 +4,7 @@
 |---|---|
 | Requerimiento | `RF-CM-013` |
 | Módulo | `CM` — Comisiones |
-| Versión | 0.5.0 |
+| Versión | 0.6.0 |
 | Estado | **Aprobada** |
 | Autor | Responsable técnico |
 | Aprobada por | Responsable del proyecto |
@@ -12,6 +12,7 @@
 | Enmendada el | 29-09-2026 — **una línea FTD no devenga por venta**: quinta condición de `RN-CM-022`; y la comisión se escribe con su clase, `POR_VENTA` (`RN-CM-044`) |
 | Enmendada el | 29-09-2026 — **quien no es el último eslabón cobra su venta propia con la directa del producto**, salvo que tenga personalizada vigente (`RN-CM-045`) |
 | Enmendada el | 30-09-2026 — **una línea cuya cadena se revirtió se devenga otra vez** (`RN-CM-047`) |
+| Enmendada el | 05-10-2026 — **la comisión se guarda en centésimas, redondeada al guardarse** ([`ADR-006`](../../../architecture/ADR-006-importes-en-unidades-minimas.md)): `CA-CM-336` y `CA-CM-337` |
 
 !!! info "Qué va en este documento"
 
@@ -211,6 +212,8 @@ Uno la atiende; el otro no hace nada. **Nunca se devenga dos veces** (`RN-CM-027
 | `CA-CM-328` | Desde el 05-10-2026 la directa es **la de la tasa de rol del vendedor** sobre el producto (`RN-CM-050`): un `DIRECTOR` y un `MANAGER` que venden el mismo producto cobran **cada uno la suya**, y `rate_id` es **la tasa de rol**. Enmienda `CA-CM-264` |
 | `CA-CM-329` | Un `DIRECTOR` cuya tasa de rol **no declara directa** cobra en el nivel `0` **su tasa de rol**, con `source = ROL` |
 | `CA-CM-330` | Un `DIRECTOR` **sin tasa de rol** sobre el producto **no cobra** en el nivel `0` —no hay directa donde leerla—; sus superiores cobran su override. Enmienda `CA-CM-267` |
+| `CA-CM-336` | La comisión **se calcula con cuatro decimales y se guarda redondeada a dos con `HALF_UP`**: el 10 % de una línea de `0.05` da `0.005`, se guarda `1` (en centésimas) y se lee `0.01`. El redondeo lo hace el dominio al construir la fila, no el convertidor (05-10-2026) |
+| `CA-CM-337` | El **total del lote** es la suma **exacta** de sus comisiones en centésimas, y el abono al pagarlo (`RF-CM-011`, `RF-MV-024`) es **exactamente ese total**, sin redondeo adicional (05-10-2026) |
 
 **`CA-CM-166` es el que sostiene la decisión de §2.1**: el cobro no depende de la configuración de comisiones.
 
@@ -245,3 +248,4 @@ Uno la atiende; el otro no hace nada. **Nunca se devenga dos veces** (`RN-CM-027
 | 0.3.0 | 29-09-2026 | **Quien no es el último eslabón cobra su venta propia con la directa del producto** (`RN-CM-045`, [`requirements/cm.md`](../../../requirements/cm.md) v0.24.0 §5.9): en el nivel `0`, si no tiene personalizada vigente, la directa sustituye su tasa de rol; los niveles de encima no cambian. El último eslabón se lee en la jerarquía de roles. `CA-CM-264` a `CA-CM-270`. | Responsable del proyecto |
 | 0.4.0 | 30-09-2026 | **Una línea cuya cadena se revirtió se devenga otra vez** (`RN-CM-047`, [`requirements/cm.md`](../../../requirements/cm.md) v0.26.0 §5.10): `RF-CM-024` borra su desenlace, y el aviso de `MV` al corregir el vendedor la trae aquí como a cualquier línea recién atribuida. **La unicidad cuenta solo las vivas** (`RN-CM-027`), de modo que quien está en las dos cadenas cobra la nueva. `CA-CM-304`, `CA-CM-305`. | Responsable del proyecto |
 | 0.5.0 | 05-10-2026 | **La directa se lee en la tasa de rol del vendedor** (`RN-CM-050`, [`requirements/cm.md`](../../../requirements/cm.md) v0.30.0 §5.11) y no en el producto: una por rol, opcional, y `rate_id` apunta a la tasa. `CA-CM-328` a `CA-CM-330`; se enmiendan `CA-CM-264` (la directa y su `rate_id`) y `CA-CM-267` (sin tasa de rol ya no hay directa). | Responsable del proyecto |
+| 0.6.0 | 05-10-2026 | **La comisión se guarda en centésimas** ([`ADR-006`](../../../architecture/ADR-006-importes-en-unidades-minimas.md), [`requirements/cm.md`](../../../requirements/cm.md) v0.31.0), por decisión del responsable del proyecto. `commission_amount`, `fixed_amount` y `unit_price` de `commissions` y `total_amount` del lote pasan a `bigint`. **El cálculo no cambia: sigue con cuatro decimales en memoria**, y lo que cambia es dónde se pierde la precisión, que ahora es **al guardar la fila, con `HALF_UP`**, y no al pagar. `CA-CM-336` fija ese redondeo y `CA-CM-337` su consecuencia: el lote suma enteros, y el abono es su total sin tocarlo. **`CA-CM-166` no cambia de enunciado**, pero el dato que lo provocaba ya no provoca nada, y `tasks.md` §10 lo declara. | Responsable del proyecto |

@@ -10,6 +10,7 @@
 | Fecha de aprobación | 15-09-2026 |
 | Reabierto el | 16-09-2026 — **la vigencia del paquete** (`RN-PM-047`): `V13`, dos campos en el alta y en la respuesta, ver §2, §3, §4 y §11 (Art. I.7) |
 | Reaprobado el | 16-09-2026 — Responsable del proyecto |
+| Enmendado el | 05-10-2026 — **`discount_value` en centésimas** ([`ADR-006`](../../../architecture/ADR-006-importes-en-unidades-minimas.md)), `V65`; ver §12 |
 
 ---
 
@@ -166,3 +167,16 @@ Cuatro filas con identificador literal —la serie de `PM` continúa: `…000008
 - **Siembra** (`PackagesPermissionsSeedIT`): cuatro permisos, identificadores estables, dos asociaciones cada uno.
 - **Contrato**: el esquema declara `PackageDetailResponse` con `offerable` y `offerableReason`; la prosa dice que nace vacío e inactivo y que el precio se calcula.
 - **Vigencia (16-09-2026)**: unitaria de `verificarVigencia` —sin inicio, fin anterior, mismo día, sin fin—; de API, `CA-PM-372` y `CA-PM-373`, y la migración sobre una fila anterior a `V13` recibe su fecha de alta.
+
+## 12. El descuento en centésimas — enmienda del 05-10-2026
+
+[`ADR-006`](../../../architecture/ADR-006-importes-en-unidades-minimas.md). **`product_package_items.discount_value` pasa de `numeric(14,4)` a `bigint` en centésimas, en los dos tipos.** El esquema de §2 queda así para esa columna y su techo:
+
+```sql
+discount_value  bigint        NOT NULL,   -- centésimas: 12.50 (% o fijo) → 1250
+CONSTRAINT ck_product_package_items_percentage CHECK (discount_type <> 'PORCENTAJE' OR discount_value <= 10000),
+```
+
+**Un solo factor para la columna entera**, y no centésimas en `FIJO` y otra unidad en `PORCENTAJE`: lo que un `SELECT` devuelve no puede depender del valor de otra columna de la misma fila para saber en qué unidad está. **La migración y el `CHECK` los escribe `V65`** (`RF-MV-001` `T-41`, una sola para los cuatro módulos); aquí cambia el `@Convert` de `DiscountValue.value` —el embebible de `PackageItem.discount`— y las lecturas por SQL nativo del detalle del paquete, que convierten al mapear (`RF-PM-001` `plan.md` §15.2). **`PackagePricing` no cambia**: recibe `BigDecimal` en decimales, como antes.
+
+**Prueba:** `CA-PM-436`, por la ruta de asociación de `RF-PM-023` —el alta no escribe descuentos—, más un `INSERT` directo de `10001` en `PORCENTAJE` que el `CHECK` rechaza.

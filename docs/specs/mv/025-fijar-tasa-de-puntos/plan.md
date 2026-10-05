@@ -5,8 +5,9 @@
 | Requerimiento | `RF-MV-025` |
 | Especificación | [`spec.md`](spec.md) v0.1.0 |
 | `spec.md` aprobada el | 30-09-2026 |
-| Versión | 0.1.0 |
+| Versión | 0.2.0 |
 | Estado | **Aprobado** |
+| Enmendado el | 05-10-2026 — `movements.points_amount` pasa a `bigint` en centésimas (`V65`, [`ADR-006`](../../../architecture/ADR-006-importes-en-unidades-minimas.md)); **`points_rates.points_per_unit` no cambia**. Ver §2 |
 | Autor | Responsable técnico |
 | Aprobado por | Responsable del proyecto |
 | Fecha de aprobación | 30-09-2026 |
@@ -38,7 +39,7 @@
 | `fk_points_rates_created_by` | `created_by` → `users(id)` **`ON DELETE CASCADE`** | La lección de `product_links`: una FK sin `ON DELETE` rompe las suites que limpian personas. En producción nadie borra personas |
 | `ck_points_rates_valor`, `uq_points_rates_vigencia` | Los de `requirements/mv.md` §7.6 | |
 | `ix_points_rates_vigente` | `(currency_id, valid_from DESC)` | La lectura de la vigente es un `LIMIT 1` sobre él |
-| `movements.points_rate_id`, `movements.points_amount` | `uuid NULL` → `points_rates(id)` `RESTRICT`; `numeric(14,2) NULL` | `RN-MV-051`, `RF-MV-027` |
+| `movements.points_rate_id`, `movements.points_amount` | `uuid NULL` → `points_rates(id)` `RESTRICT`; `numeric(14,2) NULL` — **`bigint NULL` en centésimas desde `V65`** (05-10-2026) | `RN-MV-051`, `RF-MV-027` |
 | `ck_movements_points` | `(points_rate_id IS NULL) = (points_amount IS NULL)` y `points_amount > 0` | `requirements/mv.md` §7.6 |
 | `ck_accounts_kind` | **Se sustituye**: añade `PUNTOS_EMITIDOS` entre las de la empresa | `requirements/mv.md` §4.4 |
 | `ck_movement_entries_event` | **Se sustituye**: añade `PAGO` | `RN-MV-052` |
@@ -50,6 +51,10 @@
 **Guardas al final**, como `V49`: el tipo y su estado existen, los seis permisos existen, y cada rol del sistema porta los que le tocan.
 
 ---
+
+!!! warning "Enmienda del 05-10-2026: los puntos de la compra en centésimas, la tasa no"
+
+    [`ADR-006`](../../../architecture/ADR-006-importes-en-unidades-minimas.md) guarda todo importe como `bigint` en centésimas, y `V65` (`RF-MV-001` `T-41`) convierte `movements.points_amount` con ellos, porque **los puntos van con el libro**: el asiento que los abona en la cuenta `PUNTOS` está en `movement_entries.amount`, que se convierte, y la compra y su asiento tienen que estar en la misma unidad. **`points_rates.points_per_unit` se queda en `numeric(12,4)`**: es una tasa, no un importe, y con dos decimales una moneda de poco valor por punto se guardaría como cero, que es el mismo motivo por el que `exchange_rates.price` queda fuera. `ck_movements_points` compara con cero y sigue valiendo. **Este requerimiento no gana tareas**: `SetPointsRateService` no escribe ninguna columna convertida, y `CA-MV-296` —rechazar cinco decimales en la tasa— no cambia.
 
 ## 3. Componentes afectados
 

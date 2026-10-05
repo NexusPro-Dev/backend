@@ -8,7 +8,7 @@
 | Estado | **Aprobado** |
 | Autor | Responsable técnico |
 | Aprobado por | Responsable del proyecto |
-| Enmendado el | 27-08-2026 — `RN-PM-015`; 02-09-2026 — la membresía de **origen** (`RN-PM-017`, `RN-PM-018`); 07-09-2026 — el **alcance** y la **implementación**, corregibles y **no vaciables** (`RN-PM-019`, `RN-PM-020`); 08-09-2026 — el **precio público**, corregible y **sí vaciable** (`RN-PM-023`), y el paso 5 reescrito, §5; 12-09-2026 — **el segundo precio es el de COMPRA** (`purchasePrice`), §4; 14-09-2026 — **el enlace del video**, corregible y **sí vaciable** (`RN-PM-032`), §4; 14-09-2026 — **el icono de un upgrade solo se vacía con portada** (`RN-PM-034`), §4; 15-09-2026 — **el alcance de cuatro valores** (`RN-PM-019`); 22-09-2026 — **los enlaces se corrigen EN BLOQUE** (`RN-PM-048`, `RN-PM-049`), §4; 29-09-2026 — **la comisión por venta directa** y su revalidación (§12) |
+| Enmendado el | 27-08-2026 — `RN-PM-015`; 02-09-2026 — la membresía de **origen** (`RN-PM-017`, `RN-PM-018`); 07-09-2026 — el **alcance** y la **implementación**, corregibles y **no vaciables** (`RN-PM-019`, `RN-PM-020`); 08-09-2026 — el **precio público**, corregible y **sí vaciable** (`RN-PM-023`), y el paso 5 reescrito, §5; 12-09-2026 — **el segundo precio es el de COMPRA** (`purchasePrice`), §4; 14-09-2026 — **el enlace del video**, corregible y **sí vaciable** (`RN-PM-032`), §4; 14-09-2026 — **el icono de un upgrade solo se vacía con portada** (`RN-PM-034`), §4; 15-09-2026 — **el alcance de cuatro valores** (`RN-PM-019`); 22-09-2026 — **los enlaces se corrigen EN BLOQUE** (`RN-PM-048`, `RN-PM-049`), §4; 29-09-2026 — **la comisión por venta directa** y su revalidación (§12); 05-10-2026 — **los importes en centésimas** ([`ADR-006`](../../../architecture/ADR-006-importes-en-unidades-minimas.md)), sin cambio de diseño (§14) |
 | Fecha de aprobación | 26-08-2026 |
 
 ---
@@ -144,3 +144,10 @@ Consume el **catálogo de monedas** de `SP` cuando llega precio o moneda. Ningun
 ## 13. Se retira la comisión por venta directa — enmienda del 05-10-2026
 
 `UpdateProductRequest` pierde el `Patchable` y el servicio de edición pierde la revalidación de §12 y el uso de `Product.esFtd` para ella. `ProductUpdateIT` cambia `CA-PM-412` a `CA-PM-416` por `CA-PM-432`.
+
+## 14. Los importes en centésimas — enmienda del 05-10-2026
+
+[`ADR-006`](../../../architecture/ADR-006-importes-en-unidades-minimas.md). **La edición no cambia de diseño.** El precio y el precio de compra llegan en decimales y se guardan en centésimas por el convertidor de `Product` (`RF-PM-001` `plan.md` §15). Dos precisiones:
+
+- **El precio leído de la base trae escala dos y no cuatro**: el convertidor devuelve `BigDecimal.valueOf(centésimas, 2)`, de modo que `49.99` llega como `49.99` y no como `49.9900`. **`ProductPrice.cabeEn` se queda como está**, midiendo la escala significativa y comparando con `compareTo`: es lo correcto para cualquier escala, y quitarlo ataría la regla a lo que hoy devuelve el convertidor.
+- **El tercer decimal en la edición** lo rechaza el caso de uso con `VAL-005` sobre el campo, como hoy (`UpdateProductRequest` no lleva `@Digits`: el importe viaja en un `Patchable`). Con la moneda acotada a dos decimales, «más que su moneda» incluye siempre el tercero.

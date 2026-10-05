@@ -5,13 +5,14 @@
 | Requerimiento | `RF-CM-001` |
 | Especificación | [`spec.md`](spec.md) |
 | `spec.md` aprobada el | 02-09-2026 |
-| Versión | 1.3.0 |
+| Versión | 1.4.0 |
 | Estado | **Aprobado** |
 | Autor | Responsable técnico |
 | Aprobado por | Responsable del proyecto |
 | Fecha de aprobación | 02-09-2026 |
 | Enmendada el | 15-09-2026 — **la tasa de rol nace con su producto** (`RN-CM-021`): `V94` y las comprobaciones de la asociación pasan al alta |
 | Enmendada el | 29-09-2026 — `EX-008`: un producto FTD no admite tasas por venta (§12) |
+| Enmendada el | 05-10-2026 — los importes fijos en centésimas, con el convertidor compartido (§14) |
 
 !!! info "Qué va en este documento"
 
@@ -245,3 +246,19 @@ Es una prueba fea —habla `SQL` en lugar de negocio— y es la única capaz de 
 **Alternativa descartada: un `record` `DirectCommission` propio en el dominio.** Sería una copia de `CommissionValue` con otro nombre; la diferencia entre las dos está en dónde se aplican, no en qué son.
 
 `RegisterCommissionRateIT` gana `CA-CM-315` a `CA-CM-321`. `@Schema(name)` en el `record` nuevo, y se mira el diff del `openapi.json` (springdoc funde `record`s de mismo nombre simple).
+
+## 14. Los importes fijos en centésimas — enmienda del 05-10-2026
+
+[`ADR-006`](../../../architecture/ADR-006-importes-en-unidades-minimas.md) y [`requirements/cm.md`](../../../requirements/cm.md) v0.31.0 §7.
+
+**Esquema — `V65`, que es de `RF-MV-001` (`T-41`) y convierte todas las columnas de dinero de una vez.** `commission_rates.fixed_amount` (`numeric(14,4)`), `commission_rates.direct_fixed_amount` (`numeric(14,2)`, recién nacida en `V64`) y `user_commission_rates.fixed_amount` pasan a `bigint` con `round(col * 100)`. Las que tenían tres o cuatro decimales se redondean con `HALF_UP`, que es lo que hace `round` de PostgreSQL sobre `numeric`. **Los porcentajes —`percentage` y `direct_percentage`— no se tocan**: siguen en `numeric(5,2)` con su `CHECK` de cero a cien. Los `CHECK` de forma y de signo no comparan con ninguna constante de dinero, y siguen valiendo tal cual sobre el entero. `V65` no crea esta tabla ni la toca de otra forma: este plan solo declara lo que le toca a `CM` de esa migración.
+
+**Dominio.** `CommissionValue.fixedAmount` sigue siendo `BigDecimal` y gana `@Convert` con el convertidor compartido (`RF-MV-001` `T-40`), y lo mismo hacen los dos usos incrustados (`value` y `direct` con sus `@AttributeOverride`) en las dos tablas. **El caso de uso no ve centésimas**: `ProductCurrencyScale` y `VAL-014` siguen comparando decimales contra la moneda como hasta ahora.
+
+**Peticiones.** El `@Digits` del importe fijo pasa de `fraction = 4` a `fraction = 2` en `RegisterCommissionRateRequest` y en `RegisterUserCommissionRateRequest`. `DirectCommissionBody` ya nació con dos, porque `V64` se escribió con la regla delante. Las dos peticiones de afftrack, `RegisterAfftrackRateRequest` y `RegisterUserAfftrackRateRequest`, cambian igual el valor por FTD, aunque sus columnas las enmienda `RF-CM-020`. Las cuatro peticiones de corrección no llevan `@Digits` (validan en el servicio contra la moneda, `VAL-014`), y eso basta: la moneda ya no admite más de dos. **El mensaje de cada `@Digits` pasa a decir «dos decimales».** `@Digits` ignora los ceros a la derecha, de modo que `10.0000` se sigue admitiendo y `CA-CM-024` no cambia.
+
+**SQL nativo.** Toda consulta que lee `fixed_amount` o `direct_fixed_amount` sin pasar por la entidad —las proyecciones de `JpaCommissionRateQueryRepository`, `JpaUserCommissionRateQueryRepository` y `JpaProductCommissionRateQueryRepository`, que alimentan además el listado de `RF-CM-002` y la resolución de `RF-CM-005`, y `ProductCommissionCapGuard`, que pasa el fijo a porcentaje dividiéndolo por el precio: el cociente no cambia si los dos llegan en la misma unidad, y lo que se revisa es que lleguen así— se revisa con la regla del ADR: **se convierte al mapear, nunca se divide en SQL**. El síntoma de olvidarse de una no es un error: es un importe cien veces mayor con un `200`.
+
+**Alternativa descartada: dejar el `@Digits` en cuatro y confiar en `VAL-014`.** Daría el mismo rechazo con USD, pero dejaría escrito en el contrato que se admiten cuatro decimales, y eso es lo que el ADR retira.
+
+`RegisterCommissionRateIT` gana `CA-CM-335`, que compara también el valor de la columna leída por SQL (`1250`) con el devuelto (`12.50`).

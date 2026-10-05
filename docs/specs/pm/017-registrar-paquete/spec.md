@@ -10,6 +10,7 @@
 | Fecha de aprobación | — |
 | Enmendada el | 16-09-2026 — **la respuesta trae `coverImageUrl`, presente y nula**: la portada llega después del alta (`RN-PM-045`, `RF-PM-028`). Ver §15 |
 | Enmendada el | 16-09-2026 — **el paquete declara su vigencia**: `validFrom` obligatorio y `validTo` opcional (`RN-PM-047`, `V13`). Ver §15 |
+| Enmendada el | 05-10-2026 — **el descuento de cada producto del paquete se guarda en centésimas**, también cuando es un porcentaje ([`ADR-006`](../../../architecture/ADR-006-importes-en-unidades-minimas.md)). `CA-PM-436`. Ver §15 |
 
 ---
 
@@ -151,6 +152,7 @@ Las cuatro primeras y `VAL-006` se devuelven **juntas**: quien se equivocó en d
 | `CA-PM-371` | La respuesta del alta trae **`coverImageUrl` presente y nula** (16-09-2026) |
 | `CA-PM-372` | El sistema registra el paquete con `validFrom` y sin `validTo` —la respuesta trae **`validTo` presente y nulo**— y con los dos, y **admite** un inicio futuro y un fin ya pasado (16-09-2026) |
 | `CA-PM-373` | El sistema rechaza con `400` la ausencia de `validFrom` **junto** con los demás errores de forma, y con `400` un `validTo` anterior a `validFrom` (16-09-2026) |
+| `CA-PM-436` | Un descuento **en porcentaje de `12.50`** se guarda como **`1250`** en `product_package_items.discount_value` —la columna guarda centésimas sea cual sea el tipo— y el detalle del paquete lo devuelve como `12.50`, con el precio dentro del paquete calculado igual que antes. Un porcentaje mayor que cien lo sigue rechazando la API, y **en la base** `ck_product_package_items_percentage` acota en **`10000`**: un `INSERT` directo de `10001` en `PORCENTAJE` se rechaza (05-10-2026) |
 
 ## 13. Casos límite
 
@@ -179,3 +181,4 @@ Las cuatro primeras y `VAL-006` se devuelven **juntas**: quien se equivocó en d
 | 0.2.0 | 15-09-2026 | **Construida** (`V91`, `V93`, `PackagesIT`). Dos enmiendas de Art. I.7 al construir: **el alcance adopta los cuatro valores** de [`requirements/pm.md`](../../../requirements/pm.md) v0.35.0 §5.2.11 —`VAL-004` cambia de mensaje y `ck_product_packages_scope` nace ya con los cuatro—; y **la siembra de permisos es `V93` y no `V92`**, porque `V92` la tomó el alcance de los productos el mismo día («una migración reservada no está reservada», como el plan advertía). Los identificadores de los permisos son los previstos: `…000008` a `…000011`. | Responsable técnico |
 | 0.3.0 | 16-09-2026 | **La respuesta trae `coverImageUrl`, presente y nula** (`RN-PM-045`, [`requirements/pm.md`](../../../requirements/pm.md) v0.37.0 §5.2.12): la portada del paquete llega después del alta, con `RF-PM-028`, y el alta sigue siendo JSON. Sin icono ni color en el cuerpo: el paquete no los declara. `CA-PM-371`. Enmienda que construye `RF-PM-028` (Art. I.7). | Responsable del proyecto |
 | 0.4.0 | 16-09-2026 | **El paquete declara su vigencia** (`RN-PM-047`, [`requirements/pm.md`](../../../requirements/pm.md) v0.39.0 §5.2.13): `validFrom` obligatorio, `validTo` opcional y no anterior al inicio, las dos en la respuesta, **sin regla contra el pasado** — un fin de ayer es un paquete que nace cerrado, no un error. `VAL-006`, `VAL-007`, `CA-PM-372`, `CA-PM-373`. Es la enmienda que trae `V13` (Art. I.7). | Responsable del proyecto |
+| 0.5.0 | 05-10-2026 | **El descuento de los productos del paquete se guarda en centésimas** ([`ADR-006`](../../../architecture/ADR-006-importes-en-unidades-minimas.md), [`requirements/pm.md`](../../../requirements/pm.md) v0.51.0). `product_package_items.discount_value` pasa de `numeric(14,4)` a `bigint`, **también en `PORCENTAJE`**: `12.50 %` se guarda `1250`, igual que un fijo de `12.50`. Partir la columna por tipo haría que el mismo campo cambiara de unidad según la fila. El techo del porcentaje en el esquema pasa de `100` a `10000`; **en la API no cambia**, porque el contrato sigue en decimales. El alta del paquete **no escribe descuentos** —nace vacío—, y por eso `CA-PM-436` se recorre por la asociación (`RF-PM-023`); vive aquí porque es esta tripleta la que creó la tabla. | Responsable del proyecto |

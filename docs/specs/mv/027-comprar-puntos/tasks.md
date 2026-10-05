@@ -7,7 +7,7 @@
 | Plan | [`plan.md`](plan.md) v0.1.0 |
 | `plan.md` aprobado el | 30-09-2026 |
 | Estado | **En revisión** — todas las tareas `Hecha` el 30-09-2026 |
-| Enmendadas | 01-10-2026 — `T-07` por **la tarjeta por Stripe** (§6) |
+| Enmendadas | 01-10-2026 — `T-07` por **la tarjeta por Stripe** (§6); 05-10-2026 — `T-08` por **los importes en centésimas** (§7) |
 | Issue | [#149](https://github.com/NexusPro-Dev/backend/issues/149) |
 | Rama | `feature/compra-de-puntos` |
 
@@ -82,3 +82,11 @@ Rama: `feature/stripe-tarjeta`. Después de las tareas de `RF-MV-040` que cada f
 Criterios: `CA-MV-477`.
 
 **Construido el 01-10-2026** (issue [#161](https://github.com/NexusPro-Dev/backend/issues/161)). Los criterios se prueban en `CardPaymentIT` —o en la suite de la entrada, para las compras— y no en la suite que cada fila nombra.
+
+## 7. Los puntos en centésimas — enmienda del 05-10-2026
+
+Por [`ADR-006`](../../../architecture/ADR-006-importes-en-unidades-minimas.md) y `spec.md` v0.3.0. **No hay código propio de este requerimiento**: la columna la convierte `V65` y la anota la entidad de `movements`, las dos en la tripleta central, `RF-MV-001` §1.6. Lo que queda aquí es la prueba.
+
+| ID | Tarea | Depende de | Verificación | Estado |
+|---|---|---|---|---|
+| `T-08` | `BuyPointsIT` gana `CA-MV-546`: tras confirmar una compra, `movements.points_amount` en la base, el asiento de la cuenta `PUNTOS` y el saldo de la persona coinciden en centésimas, y la respuesta devuelve los puntos en decimales. Las siembras de la suite que insertan tasas o saldos por SQL se revisan con `RF-MV-001` · `T-43` | `RF-MV-001` · `T-42`, `T-43`, `T-44` | `CA-MV-546`, y `CA-MV-306` a `CA-MV-317` siguen en verde | Pendiente |

@@ -10,6 +10,7 @@
 | Issue | Pendiente de crear |
 | Rama | `feature/consultar-monedas` |
 | Aprobadas por | Responsable técnico el 24-08-2026 |
+| Enmendadas | 05-10-2026 — `T-13` por **el techo de dos decimales** (`ADR-006`) |
 
 !!! info "Qué va en este documento"
 
@@ -41,6 +42,7 @@ La consulta es trivial: una sentencia sobre una tabla de una fila. **El peso est
 | `T-10` | Enmendar `requirements/sp.md`: §10.5 gana `updated_at`, que no declaraba pese al Art. V.7 y pese a que `is_active` cambia por API; §10.7 gana `uq_currencies_name`, `uq_currencies_single_default` y `ck_currencies_default_active` | `T-01` | El documento y el esquema declaran las mismas restricciones (Art. XII.3) | Hecha |
 | `T-11` | Documentación OpenAPI del endpoint: el parámetro `includeInactive`, la respuesta `200` con `content` y los estados `400`, `401`, `403` y `500` | `T-08` | El contrato publicado coincide con el comportamiento real (Art. VIII.6), y documenta que `includeInactive` **añade** en lugar de sustituir | Hecha |
 | `T-12` | Actualizar la matriz de trazabilidad de `docs/requirements.md` | `T-08` | La fila de `RF-SP-019` refleja el estado y enlaza esta tripleta | Hecha |
+| `T-13` | **El techo de `decimal_places` baja a dos** (05-10-2026, `ADR-006`): lo reescribe `V65`, en `RF-MV-001` · `T-41`. Aquí, la prueba: una moneda insertada con tres decimales viola `ck_currencies_decimal_places`, y con cero y con dos se admite | `RF-MV-001` · `T-41` | `CA-SP-802` | Pendiente |
 
 **Estados:** `Pendiente` · `En curso` · `Hecha` · `Bloqueada`.
 
@@ -81,6 +83,7 @@ graph LR
 | `CA-SP-168` | `T-01`, `T-07`, `T-08` |
 | `CA-SP-169` | `T-01`, `T-02`, `T-08` |
 | `CA-SP-170` | `T-05`, `T-08` |
+| `CA-SP-802` | `T-13` (con `RF-MV-001` · `T-41`) |
 
 `RN-SP-010` no tiene tarea que la implemente: se cumple porque no existe endpoint de escritura, y lo que la hace verificable es el `405` de `T-08` más el `readOnly = true` de `T-06`. El último caso límite de `spec.md` §13 —moneda por defecto inactiva— lo garantiza `ck_currencies_default_active` de `T-01`, **sin esperar a `RF-SP-023`**.
 

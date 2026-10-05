@@ -5,8 +5,9 @@
 | Requerimiento | `RF-MV-001` |
 | Especificación | [`spec.md`](spec.md) |
 | `spec.md` aprobada el | 02-09-2026 |
-| Versión | 0.6.0 |
+| Versión | 0.7.0 |
 | Estado | **Aprobado** |
+| Enmendado el | 05-10-2026 — `V65`: **los importes en centésimas** (`bigint`), con un convertidor JPA compartido; `MV` es la tripleta que construye el convertidor y la migración entera ([`ADR-006`](../../../architecture/ADR-006-importes-en-unidades-minimas.md); §2.6) |
 | Enmendado el | 03-10-2026 — `RN-MV-006` gana la mitad del **salto**: `SaleRules.verificarQueSube` rechaza también un destino más de un nivel por encima del vigente, con el mismo `EX-005` y otro mensaje (§3.2). Sin esquema |
 | Enmendado el | 19-09-2026 — `RN-MV-007` enmendada: `RegisterSaleService` recibe **el canal** (`SaleChannel`) desde la entrada —tienda para el funcionario y la compra propia, hotlink para el registro por enlace— y valida la oferta contra lo que ese canal publica: `ProductCatalog.offeredTo` o `ProductCatalog.publishedByHotlink`, la lectura nueva de `PM`. La petición **no** lo lleva |
 | Enmendado el | 16-09-2026 — `V12`: `user_id` en la cabecera, `seller_id` en cada línea (§2.4); `V14`: el descuento de la línea, sus rebajas y su paquete (§2.5) |
@@ -92,6 +93,10 @@ Enmienda del Art. I.7 sobre un requerimiento construido, por decisión del respo
 
 ### 2.5 `V14`: el descuento es de la línea, y la línea recuerda su paquete — 16-09-2026
 
+!!! warning "Los tipos de esta sección los cambia `V65` (§2.6)"
+
+    `line_discount` y `discount_value` son `bigint` en centésimas, y `value` también, sea `PORCENTAJE` o `FIJO`. La tabla siguiente se deja como se decidió.
+
 Enmienda del Art. I.7 sobre un requerimiento construido, por decisión del responsable del proyecto ([`requirements/mv.md`](../../../requirements/mv.md) v0.17.0: `RN-MV-027` nueva, `RN-MV-013` enmendada). `V14__mv_descuentos_por_linea.sql` enmienda `V7` y `V12`, y **es la primera migración de `MV` que crea una tabla después de la consolidación**:
 
 | Cambio | Cómo | Por qué así |
@@ -106,6 +111,27 @@ Enmienda del Art. I.7 sobre un requerimiento construido, por decisión del respo
 **El agregado cambia y el caso de uso apenas**: `Movement` deja de fijar `discountAmount` en cero y lo suma de las líneas; `RegisterSaleService` construye cada línea **sin rebajas**, que es lo que esta operación decide. La conversión de un porcentaje a dinero vive en `LineDiscount` con la regla de `ProductPrice` —mitad hacia arriba a los decimales de la moneda— y **no se reimplementa la cuenta de `PM`**: `MV` recibe el tipo y el valor y congela el resultado; cómo se rebaja dentro de un paquete lo decide `RN-PM-036`.
 
 **`MV` no depende de `products..domain..`** (regla de ArchUnit, `T-19`), de modo que el tipo de descuento se declara aquí —`MovementDiscountType`— con los mismos dos valores que `DiscountType` de `PM`. Es un duplicado de dos literales y no un modelo compartido, y es el precio de que la frontera siga siendo verificable.
+
+### 2.6 `V65`: los importes en centésimas — 05-10-2026
+
+Enmienda del Art. I.7 sobre un requerimiento construido, por decisión del responsable del proyecto ([`ADR-006`](../../../architecture/ADR-006-importes-en-unidades-minimas.md); [`requirements/mv.md`](../../../requirements/mv.md) v0.73.0). **Este plan construye la pieza común y la migración entera**, aunque convierta columnas de `PM` y `CM`: una migración que cambia la unidad de la mitad del esquema **no se parte por módulos**, porque cada versión intermedia tendría importes en dos unidades y alguna consulta que los cruce (el precio del catálogo contra el de la línea, el lote contra el abono) daría un resultado cien veces equivocado. `PM` y `CM` ponen en sus entidades la anotación y revisan su SQL nativo, cada uno en su tripleta.
+
+| Cambio | Cómo | Por qué así |
+|---|---|---|
+| El convertidor | `MinorUnitsConverter implements AttributeConverter<BigDecimal, Long>` en `shared`, **no** `autoApply`: cada columna lo declara con `@Convert`. Al leer, `BigDecimal.valueOf(centésimas, 2)`; al escribir, `setScale(2, HALF_UP)` y `movePointRight(2).longValueExact()` | `autoApply` alcanzaría también los porcentajes y las tasas, que son `BigDecimal` y **no** se convierten. Declararlo en cada columna hace que la lista de columnas convertidas se lea en el código. El `HALF_UP` es una red, no la regla (ADR-006 §4) |
+| El ayudante | `MinorUnits.toMinor(BigDecimal)` y `MinorUnits.fromMinor(long)`, que el convertidor usa por dentro | **El SQL nativo los necesita**: lo que lee lo convierte al mapearlo con `fromMinor`, y lo que compara lo vincula con `toMinor`. Un solo sitio que multiplica y divide, y no dos |
+| `V65` | `ALTER COLUMN … TYPE bigint USING round(col * 100)` sobre las columnas de las trece tablas de ADR-006 §1. **Antes**, `DROP CONSTRAINT` de los `CHECK` que comparan un importe con una constante distinta de cero; **después**, se vuelven a crear con la constante en centésimas | `ALTER … TYPE` revalida los `CHECK` al terminar, y `value <= 100` sobre un `1250` recién convertido haría fallar la migración. Los que comparan con cero o son igualdades lineales (`payable_amount = total_amount - discount_amount`, `line_amount = quantity * unit_price - line_discount`) siguen valiendo multiplicados por cien y no se tocan |
+| Los `CHECK` que se reescriben | `ck_movement_detail_discounts_value` (`value <= 100` → `<= 10000`), `ck_product_package_items_percentage` (`discount_value <= 100` → `<= 10000`) y `ck_currencies_decimal_places` (`<= 4` → `<= 2`) | Son los únicos tres que comparan con una constante distinta de cero. `ck_commission_rates_percentage`, `ck_user_commission_rates_percentage`, `ck_commissions_percentage` y la mitad porcentual de `ck_commission_rates_direct_rangos` (`V64`) **no se tocan**: miran columnas de porcentaje, que no se convierten |
+| El cuadre del libro | `f_movement_entries_cuadre` (`V49`) declara `suma numeric` y compara con `balance`: **no se reescribe** | Sumar `bigint` en un `numeric` es exacto, y la comparación sigue siendo entre la misma unidad. Es un disparador de fila diferido, de modo que `ALTER … TYPE` no lo dispara |
+| Los comentarios | `COMMENT ON COLUMN` de cada columna convertida dice **«en centésimas»** | Quien lea la base sin leer el código tiene que saber que `1250` es `12,50` |
+
+**La migración redondea con `round` de PostgreSQL**, que sobre `numeric` deshace el empate alejándose de cero, exactamente como `RoundingMode.HALF_UP`. En las columnas de `MV` no hay nada que redondear, porque todas eran `numeric(14,2)`, salvo `movement_detail_discounts.value`, que era `numeric(14,4)`. **Va detrás de `V64`** (la comisión directa por rol), que añade `commission_rates.direct_fixed_amount` y retira `products.direct_commission_*`: `V65` convierte la primera y no menciona las segundas.
+
+**Las entidades de `MV` cambian una anotación por columna y nada más**: `movements`, `movement_details`, `movement_detail_discounts`, `payments`, `accounts` y `movement_entries`, `points_amount` incluido. El dominio sigue en `BigDecimal`, y `Movement`, `MovementLine`, `LineDiscount` y `LedgerMovements` siguen redondeando a los decimales de la moneda **antes** de que el valor llegue al convertidor.
+
+**Lo que cuesta de verdad es el SQL nativo.** Cada consulta de `MV` que lee o compara un importe sin pasar por la entidad —mis compras, ventas de mi alcance, el detalle, los pagos, los saldos y el libro— se revisa una a una (`tasks.md` `T-43`), y con ella las siembras de las suites que insertan importes con `JdbcTemplate`, que pasan a escribir centésimas. **Olvidar una no falla**: devuelve un `200` con una cifra cien veces distinta. Por eso `CA-MV-543` compara la lectura nativa con la de la entidad, y no con una constante.
+
+**Alternativa descartada: dividir en SQL** (`total_amount / 100.0`). Ahorra el mapeo, pero PostgreSQL devuelve un `numeric` de escala arbitraria, y la conversión quedaría repartida entre dos lenguajes. ADR-006 §5 lo prohíbe por eso.
 
 ## 3. Componentes afectados
 

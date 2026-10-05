@@ -4,11 +4,12 @@
 |---|---|
 | Requerimiento | `RF-CM-020` |
 | Módulo | `CM` — Comisiones |
-| Versión | 0.1.0 |
+| Versión | 0.2.0 |
 | Estado | **Aprobada** |
 | Autor | Responsable técnico |
 | Aprobada por | Responsable del proyecto |
 | Fecha de aprobación | 29-09-2026 |
+| Enmendada el | 05-10-2026 — **el valor por FTD admite dos decimales y la liquidación se guarda en centésimas** ([`ADR-006`](../../../architecture/ADR-006-importes-en-unidades-minimas.md)): `CA-CM-338` |
 
 !!! info "Qué va en este documento"
 
@@ -199,6 +200,7 @@ Ninguna: no hay entrada.
 | `CA-CM-252` | Si la liquidación falla, **el cierre se revierte entero**: ningún lote cerrado, ninguna liquidación, ningún FTD contado |
 | `CA-CM-253` | Una línea FTD **no devenga por venta** aunque haya una tasa sobre su producto registrada antes de `RN-CM-037`, y el barrido no la recoge |
 | `CA-CM-254` | Una fila de comisión con línea y clase `POR_AFFTRACK`, o sin línea y clase `POR_VENTA`, **la rechaza el esquema** |
+| `CA-CM-338` | El sistema rechaza con `400` un valor por FTD **con tres decimales**, en la escala de rol y en la personal; con dos lo admite. La comisión `POR_AFFTRACK` que liquida el cierre —`límite × valor`— **se guarda en centésimas** y el lote suma exactamente ese importe (05-10-2026) |
 
 ---
 
@@ -224,3 +226,4 @@ Ninguna. Los tres supuestos de `cm.md` §5.8 —la activación es la entrega, si
 | Versión | Fecha | Cambio | Autor |
 |---|---|---|---|
 | 0.1.0 | 29-09-2026 | Primera versión, con la comisión afftrack ([`requirements/cm.md`](../../../requirements/cm.md) v0.22.0 §5.8). Criterios `CA-CM-241` a `CA-CM-254`. | Responsable del proyecto |
+| 0.2.0 | 05-10-2026 | **El valor por FTD admite dos decimales y la liquidación se guarda en centésimas** ([`ADR-006`](../../../architecture/ADR-006-importes-en-unidades-minimas.md), [`requirements/cm.md`](../../../requirements/cm.md) v0.31.0), por decisión del responsable del proyecto. `amount_per_ftd` de las dos escalas pasa de `numeric(14,4)` a `bigint`. `límite × valor` es exacto con dos decimales, de modo que **la liquidación no redondea nada**. `CA-CM-338` fija el rechazo del tercer decimal y la unidad de la fila. **`CA-CM-252` no cambia de enunciado**, pero el dato que lo provocaba ya no provoca nada, y `tasks.md` §6 lo declara. | Responsable del proyecto |

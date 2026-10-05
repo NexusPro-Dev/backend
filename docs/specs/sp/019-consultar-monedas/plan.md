@@ -9,6 +9,7 @@
 | Autor | Responsable técnico |
 | Aprobado por | Responsable técnico |
 | Fecha de aprobación | 21-08-2026 |
+| Enmendado el | 05-10-2026 — `ck_currencies_decimal_places` pasa a `BETWEEN 0 AND 2` (`V65`, [`ADR-006`](../../../architecture/ADR-006-importes-en-unidades-minimas.md)). Ver §2 |
 
 !!! info "Qué va en este documento"
 
@@ -49,7 +50,7 @@ Restricciones:
 | `uq_currencies_code` | `UNIQUE (code)` | `requirements/sp.md` §10.7. Total, no parcial: no hay borrado lógico |
 | `uq_currencies_name` | `UNIQUE (name)` | No está en §10.7 y se añade (§8). Dos filas con el mismo nombre y distinto código serían indistinguibles en cualquier selector |
 | `ck_currencies_code_format` | `CHECK (code ~ '^[A-Z]{3}$')` | ISO 4217 en mayúsculas (`requirements/sp.md` §10.5). En el esquema y no solo en el DTO, porque **el único punto de entrada de esta tabla es una migración**: una validación en Java no la cubriría en absoluto |
-| `ck_currencies_decimal_places` | `CHECK (decimal_places BETWEEN 0 AND 4)` | Cero es legítimo —hay monedas sin fracción (`spec.md` §13)— y cuatro es el máximo que usa ISO 4217. Sin cota, una errata de siembra produce redondeos silenciosamente erróneos en todo cálculo posterior |
+| `ck_currencies_decimal_places` | `CHECK (decimal_places BETWEEN 0 AND 4)` — **`BETWEEN 0 AND 2` desde `V65`** (05-10-2026) | Cero es legítimo —hay monedas sin fracción (`spec.md` §13)— y cuatro es el máximo que usa ISO 4217. Sin cota, una errata de siembra produce redondeos silenciosamente erróneos en todo cálculo posterior. **El techo baja a dos** porque desde `ADR-006` los importes se guardan en centésimas: una moneda de tres decimales no cabría, y es mejor que lo rechace el esquema que dejar que el convertidor redondee en silencio |
 | `uq_currencies_single_default` | `CREATE UNIQUE INDEX … ON currencies ((is_default)) WHERE is_default` | `CA-SP-169`. Garantiza **como máximo** una moneda por defecto; el «exactamente una» lo aporta la siembra. Es la misma construcción que `uq_roles_single_root` en `RF-SP-001` §2 |
 | `ck_currencies_default_active` | `CHECK (NOT is_default OR is_active)` | El último caso límite de `spec.md` §13: dar de baja la moneda con la que opera el sistema dejaría los importes sin referencia válida. Ver abajo |
 
@@ -94,6 +95,10 @@ Cuatro decisiones sobre esta migración:
 Falla, y no advierte. Un backend financiero que atiende peticiones sin moneda de referencia produce datos que habrá que corregir después uno por uno, mientras que un arranque fallido es visible de inmediato y no corrompe nada. El coste —que un error de siembra deje el servicio caído— es precisamente el aviso que se quiere.
 
 La comprobación es de arranque y no de cada petición: el catálogo solo cambia por migración o por `RF-SP-023`, que tiene sus propias restricciones.
+
+!!! warning "Enmienda del 05-10-2026: el techo de `decimal_places` lo reescribe `V65`"
+
+    La reescribe la migración de los importes en centésimas, que construye `RF-MV-001` (`T-41`), y no una migración de este requerimiento: bajar el techo y convertir los importes son la misma decisión ([`ADR-006`](../../../architecture/ADR-006-importes-en-unidades-minimas.md)), y separarlas dejaría una versión del esquema que admite una moneda de cuatro decimales con importes que solo guardan dos. **No hay dato que migrar**: la única moneda sembrada es `USD`, con dos. **La obligación de §8** —el redondeo usa el `decimal_places` de la moneda del importe, nunca una constante— **sigue en pie**: el factor cien es de almacenamiento, no de redondeo, y una moneda sin fracción sigue redondeando a cero decimales antes de que el importe llegue al convertidor.
 
 ## 3. Componentes afectados
 

@@ -8,6 +8,7 @@
 | Autor | Responsable técnico |
 | Aprobada por | Responsable técnico |
 | Fecha de aprobación | 21-08-2026 |
+| Enmendada el | 05-10-2026 — **una moneda tiene como mucho dos decimales**, porque los importes se guardan en centésimas ([`ADR-006`](../../../architecture/ADR-006-importes-en-unidades-minimas.md); [`requirements/sp.md`](../../../requirements/sp.md) v1.90.0). `CA-SP-802` nuevo y un caso límite precisado |
 
 ---
 
@@ -103,6 +104,7 @@ Ninguna. El único parámetro es un indicador opcional que no admite valores inv
 | `CA-SP-170` | Las monedas inactivas no aparecen salvo que se soliciten explícitamente |
 | `CA-SP-132` | El catálogo contiene al menos la moneda con la que opera el sistema |
 | `CA-SP-133` | El sistema rechaza la consulta a un actor sin el permiso de lectura de monedas |
+| `CA-SP-802` | **La base rechaza una moneda con tres decimales** (`ck_currencies_decimal_places`), y admite una con cero y una con dos. Desde el 05-10-2026 |
 
 ## 13. Casos límite
 
@@ -110,6 +112,7 @@ Ninguna. El único parámetro es un indicador opcional que no admite valores inv
 - **Moneda sin símbolo:** el símbolo es opcional; se devuelve vacío sin error.
 - **Catálogo con una sola moneda:** es el estado esperado hoy; la respuesta sigue siendo una colección, no un objeto suelto.
 - **Moneda sin decimales:** hay monedas que no usan fracción. Cero decimales es un valor legítimo y distinto de «no se sabe».
+- **Moneda de tres o cuatro decimales** (enmienda del 05-10-2026): **no se admite**. Los importes se guardan como enteros en centésimas ([`ADR-006`](../../../architecture/ADR-006-importes-en-unidades-minimas.md)), y un tercer decimal no tiene dónde guardarse. ISO 4217 tiene monedas de tres decimales, y el día que haya que operar en una, la decisión que se reabre es ADR-006 y no este catálogo. Como el catálogo solo se puebla por migración (`RN-SP-010`), quien lo intente lo descubre al migrar, no en producción.
 - **Moneda por defecto inactiva:** no debe poder ocurrir. Dar de baja la moneda con la que opera el sistema dejaría los importes sin referencia válida; lo impide `RF-SP-023`.
 
 ## 14. Preguntas abiertas

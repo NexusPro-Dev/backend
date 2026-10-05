@@ -6,7 +6,8 @@
 | Especificación | [`spec.md`](spec.md) v0.1.0 |
 | Plan | [`plan.md`](plan.md) v0.1.0 |
 | `plan.md` aprobado el | 29-09-2026 |
-| Estado | **En revisión** — tareas `Hecha` el 29-09-2026 |
+| Estado | **En revisión** — `T-01` a `T-09` `Hecha` el 29-09-2026; `T-10` y `T-11` pendientes (05-10-2026) |
+| Enmendadas | 05-10-2026 — `T-10` y `T-11` porque **los importes se guardan en centésimas** (`ADR-006`) |
 | Issue | Pendiente de crear |
 | Rama | `feature/comision-afftrack` |
 
@@ -73,3 +74,14 @@
 - [ ] Los catorce criterios de aceptación con prueba.
 - [ ] `requirements.md` actualizado.
 - [ ] **`tasks.md` aprobadas por el responsable del proyecto.**
+
+## 6. El valor por FTD y la liquidación en centésimas — enmienda del 05-10-2026
+
+| ID | Tarea | Depende de | Verificación | Estado |
+|---|---|---|---|---|
+| `T-10` | `@Convert` en `afftrack_rates.amount_per_ftd` y `user_afftrack_rates.amount_per_ftd`. Revisión del SQL nativo de las escalas y de la liquidación (`plan.md` §12). **Rehacer la provocación de `CA-CM-252`** (ver abajo) | `RF-MV-001` `T-40` (el convertidor) y `T-41` (`V65`); `RF-CM-001` `T-36`; `RF-CM-013` `T-20` | Compila; `CA-CM-252` vuelve a fallar a propósito y la suite deja el esquema como lo encontró | Pendiente |
+| `T-11` | Pruebas: `CA-CM-338` en `AfftrackSettlementIT` y en las suites de alta de las dos escalas; las que siembran escalones por SQL escriben centésimas | `T-10` | `./mvnw verify` en verde | Pendiente |
+
+**`CA-CM-252` se provocaba con un dato que ya no provoca nada.** Era un escalón cuyo `límite × valor` no cabía en `numeric(14,4)` al escribir la comisión. Con `bigint` en centésimas el techo es de unos 9,2·10¹⁶ unidades de dinero, y **ningún dato admitido llega a él**. Por porcentaje, la comisión no pasa del importe de la línea (`RN-CM-019`), y la línea desborda antes. Por fijo, `CA-CM-161` rechaza la cadena que pasa del importe de la línea. En afftrack, el valor por FTD tiene diez cifras enteras como mucho y el límite hay que alcanzarlo en FTD contados. **La prueba dejaría de fallar, y pasaría por la razón equivocada.**
+
+**Propuesta, sin decidir aquí si hace falta código de producción:** que la suite añada al empezar una restricción **solo de prueba** sobre `commissions` (por ejemplo `ALTER TABLE commissions ADD CONSTRAINT ck_prueba_fallo CHECK (commission_amount <> <importe testigo>) NOT VALID`), que la provoque con ese importe exacto y que la retire en un `finally` y en la limpieza **al terminar**, no solo al empezar. Con `NOT VALID` no se revisan las filas existentes, y la restricción no sale de la suite. Se descarta `@MockitoSpyBean` por lo que ya se dijo: un contexto de Spring más agota las conexiones de la suite. Si se prefiere que el fallo nazca en producción —un techo de dominio para la comisión, con su `EX`—, eso es una regla de negocio nueva y pasa antes por `cm.md`. **Conviene resolverlo igual que `CA-CM-166` (`RF-CM-013` `T-22`).**

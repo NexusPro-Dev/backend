@@ -4,11 +4,12 @@
 |---|---|
 | Requerimiento | `RF-MV-001` |
 | Módulo | `MV` — Movimientos |
-| Versión | 0.8.0 |
+| Versión | 0.9.0 |
 | Estado | **Aprobada** |
 | Autor | Responsable técnico |
 | Aprobada por | Responsable del proyecto |
 | Fecha de aprobación | 02-09-2026 |
+| Enmendada el | 05-10-2026 — **los importes se guardan en centésimas** ([`ADR-006`](../../../architecture/ADR-006-importes-en-unidades-minimas.md)): cuatro criterios nuevos, `CA-MV-542` a `CA-MV-545`, sobre lo que se guarda y lo que se devuelve. El contrato no cambia. Ver §15 |
 | Enmendada el | 03-10-2026 — **un upgrade sube un escalón como máximo**: `EX-005` rechaza también el **salto** sobre la membresía vigente de quien compra (`RN-MV-006`). Ver §15 |
 | Enmendada el | 16-09-2026 — **el vendedor es de cada línea y en una venta siempre lo hay; la cabecera lleva un sujeto** (`RN-MV-003`, `RN-MV-026`); y **el descuento es de la línea, y la línea recuerda su paquete** (`RN-MV-027`). Ver §15 |
 
@@ -339,8 +340,14 @@ Es el **primer requerimiento del módulo** y el que pone en el sistema el objeto
 | `CA-MV-016` | El sistema rechaza una venta **sin líneas**, sin cliente y con fecha futura |
 | `CA-MV-017` | **Invertido el 04-09-2026 y enmendado el 16-09-2026.** El sistema **registra** la venta de quien no cuelga de ningún vendedor, sin error, **y cada línea queda atribuida a quien compra** — él es su propio vendedor. Entre las dos fechas la registraba sin atribución; antes del 04-09 la rechazaba |
 | `CA-MV-018` | La auditoría de cambios contiene la creación con la instantánea completa, **incluido el vendedor congelado de cada línea** |
+| `CA-MV-542` | Una venta de `12.50` guarda **`1250`** en `movements.total_amount` y `payable_amount`, y en `movement_details.unit_price` y `line_amount`; **la respuesta devuelve `12.50`**, no `1250` ni `0.125` |
+| `CA-MV-543` | Los listados y detalles que leen importes **por SQL nativo** devuelven el mismo importe que se guardó: **ni multiplicado ni dividido por cien** respecto del que devuelve el alta |
+| `CA-MV-544` | Después de `V65`, **el saldo de cada cuenta sigue siendo la suma de sus asientos**, y la venta que se registra sobre el esquema convertido cuadra con las anteriores |
+| `CA-MV-545` | Una rebaja de línea en **porcentaje de `12.50`** se guarda **`1250`** en `movement_detail_discounts.value`, y la rebaja en dinero que se calcula **es la misma** que antes de la conversión |
 
 **`CA-MV-007` afirma que el sistema NO hace algo**, y es el criterio que sostiene todo el módulo. Sin él, la diferencia entre registrar y confirmar es una palabra en un documento; con él, es algo que falla si alguien la borra.
+
+**`CA-MV-542` a `CA-MV-545` no prueban una regla de negocio: prueban que el almacenamiento no la cambia** ([`ADR-006`](../../../architecture/ADR-006-importes-en-unidades-minimas.md)). El síntoma de un importe mal convertido no es un error, es una cifra **cien veces mayor o menor con un `200`**, y por eso `CA-MV-542` mira la base y la respuesta a la vez, y `CA-MV-543` compara dos lecturas que llegan por caminos distintos: la de la entidad, que pasa por el convertidor, y la nativa, que no.
 
 **`CA-MV-003` se prueba corrigiendo el producto después**, y no solo comparando el precio al registrar. La copia solo se puede verificar cambiando el original: si la venta leyera el catálogo al mostrarse, un precio idéntico pasaría la prueba igual.
 
@@ -379,3 +386,4 @@ Es el **primer requerimiento del módulo** y el que pone en el sistema el objeto
 | 0.6.0 | 18-09-2026 | **`CA-MV-002` precisado**: el cliente sale de `user_supervisors` (`requirements/sp.md` v1.63.0 —v1.59.0 en la rama que lo redactó—, `RN-SP-028` revertida; `requirements/mv.md` v0.28.0, `RN-MV-003`), y el vendedor de la línea se resuelve en la fila `REGISTRO` de `client_sellers`. **Mismo resultado sobre los mismos datos, misma respuesta**; cambia la consulta de `ClientCatalog.sellerOf`, que primero mira `client_sellers` y después `user_supervisors` —para un vendedor que compra—. `CA-MV-017` no cambia: quien no tiene vendedor en ninguna de las dos se vende a sí mismo. El código lo cambia `RF-SP-059 · T-09`. | Responsable del proyecto |
 | 0.7.0 | 30-09-2026 | **`POINTS` se rechaza** (`RF-MV-030`, `RN-MV-052`; [`requirements/mv.md`](../../../requirements/mv.md) v0.54.0 §4.4): quien registra la venta no es quien compra, y no puede gastar los puntos de otra persona. Conflicto, y nada queda escrito. | Responsable técnico |
 | 0.8.0 | 03-10-2026 | **`RN-MV-006` gana la mitad del salto** ([`requirements/mv.md`](../../../requirements/mv.md) v0.72.0; [`requirements/pm.md`](../../../requirements/pm.md) v0.49.0, §5.2.17), por decisión del responsable del proyecto —«solo puedo subir de upgrade a nivel por encima mío»—. `EX-005` pasa de rechazar «la membresía inferior» a rechazar **la inferior o la que salta** —más de un nivel por encima de la vigente—, con **el mismo código** y un mensaje que distingue las dos. Nacen `CA-MV-526` —el salto se rechaza y no deja nada— y `CA-MV-527` —el escalón se admite—; la renovación sigue en `CA-MV-048`. **Se compara con la membresía vigente de quien compra**, no con el origen del producto, y por eso vale igual por el hotlink. **Por esta entrada el salto se ve como `EX-004`**, porque la oferta ya no lo publica; la comprobación propia se mantiene por el argumento de `plan.md` §3.2. **Al confirmar no se repite** (§13). Sin esquema. | Responsable del proyecto |
+| 0.9.0 | 05-10-2026 | **Los importes se guardan en centésimas** ([`ADR-006`](../../../architecture/ADR-006-importes-en-unidades-minimas.md), [`requirements/mv.md`](../../../requirements/mv.md) v0.73.0), por decisión del responsable del proyecto. **El comportamiento no cambia**: la venta se calcula, se valida y se devuelve igual, y el contrato tampoco. Cambia la forma en que se guarda, y para eso hay cuatro criterios: `CA-MV-542` (lo que se guarda y lo que se devuelve), `CA-MV-543` (el SQL nativo, que no pasa por el convertidor), `CA-MV-544` (el libro cuadra después de `V65`) y `CA-MV-545` (la rebaja en porcentaje comparte columna con la fija y también va en centésimas). **`EX-008` no cambia**, pero su motivo se estrecha: desde ahora ninguna moneda pasa de dos decimales (`currencies.decimal_places` `0..2`), y el rechazo por decimales que `tasks.md` §5 dejaba como «postura segura» ya no se alcanza con ningún dato válido. | Responsable del proyecto |

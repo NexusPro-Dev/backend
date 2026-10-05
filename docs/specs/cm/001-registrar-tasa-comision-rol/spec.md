@@ -4,13 +4,14 @@
 |---|---|
 | Requerimiento | `RF-CM-001` |
 | Módulo | `CM` — Comisiones |
-| Versión | 1.3.0 |
+| Versión | 1.4.0 |
 | Estado | **Aprobada** |
 | Autor | Responsable técnico |
 | Aprobada por | Responsable del proyecto |
 | Fecha de aprobación | 02-09-2026 |
 | Enmendada el | 15-09-2026 — **la tasa de rol nace con su producto** (`RN-CM-021`): `productId` obligatorio, `RN-CM-013`, `RN-CM-019` y `RN-CM-020` en el alta, y el importe fijo contra los decimales de la moneda del producto. Ver §15 |
 | Enmendada el | 29-09-2026 — **un producto FTD no admite tasas por venta** (`RN-CM-037`): `EX-008` y `CA-CM-260`. Ver §15 |
+| Enmendada el | 05-10-2026 — **el importe fijo admite dos decimales como mucho** y se guarda en centésimas ([`ADR-006`](../../../architecture/ADR-006-importes-en-unidades-minimas.md)): `CA-CM-335`. Ver §15 |
 
 !!! info "Qué va en este documento"
 
@@ -290,6 +291,7 @@ De ahí sale la forma de la respuesta. Una tasa que paga y una que no **serían 
 | `CA-CM-319` | El sistema rechaza con `422` (`EX-010`) una directa fija **mayor que el precio**, y admite una **igual** |
 | `CA-CM-320` | Una directa **no cuenta en el tope** de `RN-CM-019`: con las tasas de rol del producto sumando cien, una directa de cincuenta se registra |
 | `CA-CM-321` | Una directa con la forma y el valor cruzados se rechaza con `400` (`VAL-011`), señalando `directCommission` |
+| `CA-CM-335` | El sistema rechaza con `400` un importe fijo **con tres decimales**, tanto el de la tasa como el de su directa, **en el formato de la petición y antes de mirar la moneda**. Admite el mismo importe con dos, lo guarda en centésimas (`12.50` → `1250`) y lo devuelve como `12.50`. Lo mismo vale para la personalizada (`RF-CM-006`, `CA-CM-148`) (05-10-2026) |
 
 **`CA-CM-081` cubre dos peticiones distintas en un criterio** —el valor que no corresponde a la forma, y la forma ausente— porque las dos verifican lo mismo: que **la forma y el valor se comprueban juntos** y no por separado.
 
@@ -336,3 +338,4 @@ De ahí sale la forma de la respuesta. Una tasa que paga y una que no **serían 
 
 | 1.2.0 | 29-09-2026 | **Un producto FTD no admite tasas por venta** (`RN-CM-037`, [`requirements/cm.md`](../../../requirements/cm.md) v0.22.0 §5.8), con la comisión afftrack: las líneas `BECA → BECA` no devengan por venta, y una tasa sobre ellas no pagaría nunca. `EX-008` y `CA-CM-260`. | Responsable del proyecto |
 | 1.3.0 | 05-10-2026 | **La tasa de rol declara su comisión por venta directa** (`RN-CM-050`, [`requirements/cm.md`](../../../requirements/cm.md) v0.30.0 §5.11), por decisión del responsable del proyecto: `directCommission`, opcional, solo en los roles que no son el último eslabón. Nacen `EX-009` y `EX-010` y `CA-CM-315` a `CA-CM-321`; la directa no cuenta en el tope de `RN-CM-019`. | Responsable del proyecto |
+| 1.4.0 | 05-10-2026 | **El importe fijo admite dos decimales como mucho y se guarda en centésimas** ([`ADR-006`](../../../architecture/ADR-006-importes-en-unidades-minimas.md), [`requirements/cm.md`](../../../requirements/cm.md) v0.31.0), por decisión del responsable del proyecto. **El comportamiento visible apenas cambia**: `VAL-014` ya rechazaba los decimales de más contra la moneda del producto, y ninguna moneda pasa ya de dos (`currencies.decimal_places` acotado a `0..2`). Lo que cambia es **dónde se rechaza el tercero**: lo hace el formato de la petición, que admitía cuatro, sin esperar a la moneda. `CA-CM-335` lo fija para la tasa, su directa y la personalizada. **Los porcentajes no cambian.** | Responsable del proyecto |

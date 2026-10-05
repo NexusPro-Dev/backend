@@ -5,7 +5,7 @@
 | Requerimiento | `RF-CM-013` |
 | Especificación | [`spec.md`](spec.md) v0.1.0 |
 | `spec.md` aprobada el | 28-09-2026 |
-| Versión | 0.5.0 |
+| Versión | 0.6.0 |
 | Estado | **Aprobado** |
 | Autor | Responsable técnico |
 | Aprobado por | Responsable del proyecto |
@@ -13,6 +13,7 @@
 | Enmendado el | 29-09-2026 — las líneas FTD fuera del devengo y `commission_kind` en la inserción (§12) |
 | Enmendado el | 29-09-2026 — la directa en el nivel `0`, `LastLinkRoles` en `SP` y `directCommissionOf` en `PM` (§13) |
 | Enmendado el | 30-09-2026 — la línea revertida se devenga otra vez, sin código nuevo (§14) |
+| Enmendado el | 05-10-2026 — la comisión y el lote en centésimas, redondeo al construir la fila (§16) |
 
 !!! info "Qué va en este documento"
 
@@ -191,3 +192,17 @@ Y un índice de apoyo: `ix_commission_batches_abierto` sobre `(user_id, currency
 ## 15. La directa de la tasa de rol — enmienda del 05-10-2026
 
 `RN-CM-050`. `CommissionAccrualService.ventaPropia` deja de leer `ProductCatalog.directCommissionOf` —que se retira— y lee la **tasa de rol viva del vendedor sobre el producto** por su rol vendedor (`commission_rates`, `product_id` y `role_id`): si declara directa, la devuelve como `ResolvedRate` con `source = DIRECTA` y `rateId` **la tasa**; si no, devuelve lo que resolvió `RF-CM-005`. Una lectura nueva en el repositorio de tasas, `directOf(productId, roleId)`, dentro del mismo módulo. **Cambia `CA-CM-267`**: el `DIRECTOR` sin tasa de rol sobre el producto ya no tiene directa, y `RF-CM-005` tampoco le da tasa, así que su nivel queda **sin tasa** como cualquier otro. `CommissionAccrualIT` reescribe la siembra de la directa —de `products` a `commission_rates`— y gana `CA-CM-328` a `CA-CM-330`.
+
+## 16. La comisión y el lote en centésimas — enmienda del 05-10-2026
+
+[`ADR-006`](../../../architecture/ADR-006-importes-en-unidades-minimas.md) y [`requirements/cm.md`](../../../requirements/cm.md) v0.31.0 §7.2 y §7.3.
+
+**Esquema — `V65` (`RF-MV-001` `T-41`).** `commissions.fixed_amount` y `commission_amount` (`numeric(14,4)`), `commissions.unit_price` (`numeric(14,2)`) y `commission_batches.total_amount` (`numeric(14,4)`) pasan a `bigint` con `round(col * 100)`. **El total del lote se recalcula en la misma migración** como suma de las comisiones ya convertidas de cada lote, en lugar de convertirlo por su cuenta. Redondear cada comisión y redondear la suma no dan el mismo número, y el invariante «el total es la suma de sus comisiones» tiene que salir intacto de la migración. `commissions.percentage` no cambia.
+
+**El redondeo es explícito y vive en el dominio.** `ChainCommissionCalculator` sigue calculando con `ESCALA` cuatro, y **la fila de comisión se construye con el importe ya redondeado a dos con `HALF_UP`**. El convertidor también redondearía, pero el ADR lo deja como red y no como regla, y aquí hay una razón más: **el total del lote se suma en memoria** antes de escribirse. Si se sumaran importes de cuatro decimales y el convertidor redondeara después, el total no sería la suma de las filas guardadas, y `CA-CM-337` fallaría por un céntimo. La regla de rechazo de `RN-CM-019` (la cadena no pasa del importe de la línea) **se compara antes de redondear**, como hoy: redondear primero podría colar una cadena que se pasa por menos de medio céntimo.
+
+**SQL nativo.** `JpaCommissionAccrualRepository`, `JpaCommissionAccrualQueryRepository`, `JpaCommissionBatchRepository`, `JpaCommissionBatchQueryRepository`, `JpaCommissionClosingRepository` y `JpaCommissionResolutionRepository` se revisan uno a uno. La suma del lote (`total_amount = total_amount + :importe`) **vincula el importe en centésimas**, y las lecturas convierten al mapear. Que la suma se haga en SQL sobre enteros es exacto, y por eso se queda en SQL.
+
+**`CA-CM-166` pierde su provocación** (`tasks.md` §3.1: una línea de cien mil millones al 10 % cuya comisión no cabía en `numeric(14,4)`). `tasks.md` §10 lo declara y propone cómo rehacerla.
+
+`CommissionAccrualIT` gana `CA-CM-336` y `CA-CM-337`. Este último recorre devengo, cierre y pago por la API, y compara el abono del libro con el total del lote **en centésimas**.
