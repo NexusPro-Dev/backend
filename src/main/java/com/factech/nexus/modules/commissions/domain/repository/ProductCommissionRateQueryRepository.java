@@ -35,5 +35,8 @@ public interface ProductCommissionRateQueryRepository {
       CommissionRateType rateType,
       BigDecimal percentage,
       BigDecimal fixedAmount,
+      CommissionRateType directRateType,
+      BigDecimal directPercentage,
+      BigDecimal directFixedAmount,
       OffsetDateTime createdAt) {}
 }

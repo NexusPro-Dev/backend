@@ -5,7 +5,7 @@
 | Requerimiento | `RF-CM-002` |
 | Especificación | [`spec.md`](spec.md) |
 | `spec.md` aprobada el | 02-09-2026 |
-| Versión | 1.6.0 |
+| Versión | 1.7.0 |
 | Reabierto el | ~~11-09-2026 — la tasa personalizada lleva producto: el listado lo publica y admite filtrar por él~~ — **aquella forma se deshizo el mismo día** (`V85`: la personalizada se asocia, no declara); 12-09-2026 — **la asociación de la personalizada se puede LEER**: filtro por producto y cuenta en el listado, y la quinta lectura (Art. I.7) |
 | Estado | **Aprobado** |
 | Autor | Responsable técnico |
@@ -218,3 +218,7 @@ Permiso `commissions:read` en las cinco. Alcance global explícito.
 ## 14. La comisión por venta directa de la tasa — enmienda del 05-10-2026
 
 `RN-CM-050`. La consulta del listado lee las tres columnas `direct_*` de `commission_rates` en la misma fila —sin unión nueva—, `RateRow` las gana y `CommissionRateItem` devuelve `directCommission` con el `record` de `RF-CM-001` (`CommissionRateDirect`). Los filtros no cambian. `CommissionRatesIT` gana `CA-CM-322`.
+
+## 15. La directa en la vista por producto — enmienda del 05-10-2026
+
+`RN-CM-050`. `JpaProductCommissionRateQueryRepository` lee las tres columnas `direct_*` de la misma fila, `AssociationRow` las gana y `ProductAssociationItem` devuelve `directCommission` con `CommissionRateDirect`, como el listado de §14. **El permiso no cambia**: la directa es parte de lo que el producto paga a ese rol, que es justo lo que esta vista responde. `CommissionRateListIT` gana `CA-CM-331`.

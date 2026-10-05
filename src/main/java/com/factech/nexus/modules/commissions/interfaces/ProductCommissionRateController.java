@@ -49,6 +49,10 @@ public class ProductCommissionRateController {
           **Una lista vacía significa que ese producto no paga comisión a nadie**
           — nadie registró una tasa sobre él (`RN-CM-012`).
 
+          Cada rol trae **`directCommission`**, su comisión por venta directa sobre
+          el producto (`RN-CM-050`, 05-10-2026), **presente y nula** si no la
+          declara: lo que cobra ese rol cuando vende él mismo, en lugar de su tasa.
+
           **Esto no resuelve la comisión de una persona, y solo devuelve roles.** Las
           tasas personalizadas también se asocian a productos desde el 11-09-2026 y
           ganan sobre estas, pero **no aparecen aquí**: qué personas tienen excepción

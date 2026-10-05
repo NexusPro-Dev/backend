@@ -4,7 +4,7 @@
 |---|---|
 | Requerimiento | `RF-CM-002` |
 | Módulo | `CM` — Comisiones |
-| Versión | 1.5.0 |
+| Versión | 1.7.0 |
 | Estado | **Aprobada** |
 | Autor | Responsable técnico |
 | Aprobada por | Responsable del proyecto |
@@ -240,6 +240,7 @@ Ninguna propia. Los parámetros mal formados los rechaza la validación de entra
 | `CA-CM-141` | Cada tasa de rol del listado trae **su producto** —`id`, `code`, `name`— y el filtro `productId` devuelve solo las de ese producto; `GET /commission-rates/{id}/products` **ya no existe** (`404` de ruta) |
 | `CA-CM-145` | El producto de cada tasa de rol trae **su precio** y **su moneda** —`id`, `code`, `decimalPlaces`—, **sea cual sea la forma de la tasa**; y la misma forma la devuelven el alta y la corrección |
 | `CA-CM-322` | Cada tasa de rol del listado trae **`directCommission`**: su forma y su valor si la declara, y **presente y nula** si no (05-10-2026, `RN-CM-050`) |
+| `CA-CM-331` | La vista por producto —`GET /api/v1/product-commission-rates`— trae también **`directCommission`** en cada rol, **presente y nula** si no la declara, con el mismo permiso de siempre (05-10-2026, `RN-CM-050`) |
 
 !!! danger "`CA-CM-098` es el criterio que delata la implementación perezosa, y hay que construirlo para que falle"
 
@@ -285,4 +286,5 @@ Ninguna propia. Los parámetros mal formados los rechaza la validación de entra
 | 1.3.0 | 15-09-2026 | **El producto trae su precio y su moneda**, a petición del responsable del proyecto: un porcentaje es una parte del precio y un importe fijo es dinero en la moneda del producto, y sin los dos la cifra de la fila no dice cuánto es. Van dentro de `product` —`price`, y `currency` con `id`, `code` y `decimalPlaces`, la misma forma que `PM` publica en sus fichas—, **siempre**, sea cual sea la forma. El alta y la corrección devuelven lo mismo. Sin cambio de esquema; la lectura por producto (`GET /product-commission-rates`) **no cambia**. `CA-CM-145`. | Responsable del proyecto |
 | 1.4.0 | 16-09-2026 | **La personalizada nace con su producto** (`RN-CM-021`, [`requirements/cm.md`](../../../requirements/cm.md) v0.15.0 §5.5): el listado de personalizadas deja de contar asociados y **trae el producto** con precio y moneda, como el de rol; el filtro `productId` pasa a la columna; **la quinta lectura se retira** (`GET /user-commission-rates/{id}/products`, `404`). `CA-CM-127` a `CA-CM-129` superados; nace `CA-CM-150`. | Responsable del proyecto |
 | 1.5.0 | 19-09-2026 | **`GET /api/v1/product-commission-rates` cambia de permiso: `product-commission-rates:read` y no `commissions:read`** (`RF-SP-060`, `RN-SEG-014`, un permiso por operación; [`security.md`](../../../security.md) v0.63.0). Enmienda de Art. I.7 sin cambio de comportamiento; el listado de tasas de rol sigue con `commissions:read`. | Responsable del proyecto |
-| 1.5.0 | 05-10-2026 | **Cada tasa de rol trae su comisión por venta directa** (`RN-CM-050`, [`requirements/cm.md`](../../../requirements/cm.md) v0.30.0 §5.11), para que la tabla de comisiones generales la muestre en la fila de su rol. `CA-CM-322`. | Responsable del proyecto |
+| 1.6.0 | 05-10-2026 | **Cada tasa de rol trae su comisión por venta directa** (`RN-CM-050`, [`requirements/cm.md`](../../../requirements/cm.md) v0.30.0 §5.11), para que la tabla de comisiones generales la muestre en la fila de su rol. `CA-CM-322`. | Responsable del proyecto |
+| 1.7.0 | 05-10-2026 | **La vista por producto también trae la directa** (`RN-CM-050`), a petición del frontend: la ficha del producto lee de `GET /api/v1/product-commission-rates` qué paga a cada rol, y sin la directa no podía mostrarla ni corregirla en la tabla de comisiones generales. Mismo permiso, `product-commission-rates:read`. `CA-CM-331`. | Responsable del proyecto |

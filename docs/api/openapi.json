@@ -5256,6 +5256,10 @@
             "format" : "date-time",
             "type" : "string"
           },
+          "directCommission" : {
+            "$ref" : "#/components/schemas/CommissionRateDirect",
+            "description" : "La comisión por venta directa de este rol sobre este producto (RN-CM-050). Siempre presente; nula si el rol no la declara."
+          },
           "fixedAmount" : {
             "type" : "number"
           },
@@ -17344,7 +17348,7 @@
     },
     "/api/v1/product-commission-rates" : {
       "get" : {
-        "description" : "**Permiso requerido:** `product-commission-rates:read`. Sin él, `403` (`AUTH-002`).\n\nDevuelve una entrada **por cada rol** que cobra comisión por ese producto,\ncon el valor ya resuelto: las tasas de rol **vivas** de ese producto\n(`RN-CM-021`). Es lo mismo que `GET /api/v1/commission-rates?productId=`,\nsin paginar y con la forma de siempre.\n\n**Una lista vacía significa que ese producto no paga comisión a nadie**\n— nadie registró una tasa sobre él (`RN-CM-012`).\n\n**Esto no resuelve la comisión de una persona, y solo devuelve roles.** Las\ntasas personalizadas también se asocian a productos desde el 11-09-2026 y\nganan sobre estas, pero **no aparecen aquí**: qué personas tienen excepción\nen este producto lo responde `GET /api/v1/user-commission-rates?productId=`,\npaginado y con su historial. Para saber qué cobra alguien concreto, use\n`GET /api/v1/commissions/effective`.\n",
+        "description" : "**Permiso requerido:** `product-commission-rates:read`. Sin él, `403` (`AUTH-002`).\n\nDevuelve una entrada **por cada rol** que cobra comisión por ese producto,\ncon el valor ya resuelto: las tasas de rol **vivas** de ese producto\n(`RN-CM-021`). Es lo mismo que `GET /api/v1/commission-rates?productId=`,\nsin paginar y con la forma de siempre.\n\n**Una lista vacía significa que ese producto no paga comisión a nadie**\n— nadie registró una tasa sobre él (`RN-CM-012`).\n\nCada rol trae **`directCommission`**, su comisión por venta directa sobre\nel producto (`RN-CM-050`, 05-10-2026), **presente y nula** si no la\ndeclara: lo que cobra ese rol cuando vende él mismo, en lugar de su tasa.\n\n**Esto no resuelve la comisión de una persona, y solo devuelve roles.** Las\ntasas personalizadas también se asocian a productos desde el 11-09-2026 y\nganan sobre estas, pero **no aparecen aquí**: qué personas tienen excepción\nen este producto lo responde `GET /api/v1/user-commission-rates?productId=`,\npaginado y con su historial. Para saber qué cobra alguien concreto, use\n`GET /api/v1/commissions/effective`.\n",
         "operationId" : "porProducto",
         "parameters" : [ {
           "in" : "query",

@@ -77,6 +77,37 @@ class CommissionRateListIT extends IntegrationTestBase {
   }
 
   @Test
+  @DisplayName("CA-CM-331 · la vista por producto trae la directa de cada rol, y nula si no hay")
+  void laVistaPorProductoTraeLaDirecta() throws Exception {
+    jdbc.update(
+        "UPDATE commission_rates SET direct_rate_type = 'PORCENTAJE', direct_percentage = 7.5"
+            + " WHERE product_id = ? AND role_id = CAST(? AS uuid)",
+        productoA,
+        DIRECTOR);
+
+    mvc.perform(
+            get("/api/v1/product-commission-rates")
+                .param("productId", productoA.toString())
+                .with(
+                    user(SUPERADMIN.toString()).authorities(() -> "product-commission-rates:read")))
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$.content.length()").value(2))
+        .andExpect(
+            jsonPath("$.content[?(@.role.code == 'DIRECTOR')].directCommission.rateType")
+                .value(org.hamcrest.Matchers.contains("PORCENTAJE")))
+        .andExpect(
+            jsonPath("$.content[?(@.role.code == 'DIRECTOR')].directCommission.percentage")
+                .value(org.hamcrest.Matchers.contains(7.5)))
+        .andExpect(
+            jsonPath("$.content[?(@.role.code == 'MANAGER')]")
+                .value(
+                    org.hamcrest.Matchers.contains(
+                        org.hamcrest.Matchers.hasEntry(
+                            org.hamcrest.Matchers.equalTo("directCommission"),
+                            org.hamcrest.Matchers.nullValue()))));
+  }
+
+  @Test
   @DisplayName("CA-CM-141 · cada fila trae SU producto resuelto, y ya no cuenta asociaciones")
   void cadaFilaTraeSuProducto() throws Exception {
     mvc.perform(listado().param("roleId", MANAGER))

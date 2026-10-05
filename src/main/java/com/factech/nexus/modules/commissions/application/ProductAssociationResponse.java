@@ -3,6 +3,7 @@ package com.factech.nexus.modules.commissions.application;
 import com.factech.nexus.modules.commissions.domain.models.CommissionRateType;
 import com.factech.nexus.modules.commissions.domain.repository.ProductCommissionRateQueryRepository.AssociationRow;
 import com.fasterxml.jackson.annotation.JsonInclude;
+import io.swagger.v3.oas.annotations.media.Schema;
 import java.math.BigDecimal;
 import java.time.OffsetDateTime;
 import java.util.List;
@@ -42,6 +43,12 @@ public record ProductAssociationResponse(List<ProductAssociationItem> content) {
       CommissionRateType rateType,
       BigDecimal percentage,
       BigDecimal fixedAmount,
+      @Schema(
+              description =
+                  "La comisión por venta directa de este rol sobre este producto (RN-CM-050)."
+                      + " Siempre presente; nula si el rol no la declara.",
+              nullable = true)
+          DirectCommissionBody directCommission,
       OffsetDateTime createdAt) {
 
     public static ProductAssociationItem from(AssociationRow fila) {
@@ -52,6 +59,8 @@ public record ProductAssociationResponse(List<ProductAssociationItem> content) {
           fila.rateType(),
           fila.percentage(),
           fila.fixedAmount(),
+          DirectCommissionBody.from(
+              fila.directRateType(), fila.directPercentage(), fila.directFixedAmount()),
           fila.createdAt());
     }
   }

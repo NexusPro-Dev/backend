@@ -4,7 +4,7 @@
 |---|---|
 | Requerimiento | `RF-CM-002` |
 | Plan | [`plan.md`](plan.md), aprobado el 02-09-2026 |
-| Versión | 1.5.0 |
+| Versión | 1.6.0 |
 | Estado | **En revisión** |
 | Autor | Responsable técnico |
 | Aprobadas por | **Hecha** — 05-10-2026 |
@@ -133,5 +133,13 @@ Ninguno. **`T-17` depende de que `V50` esté aplicada** (`RF-CM-001` `T-16` a `T
 | ID | Tarea | Depende de | Verificación | Estado |
 |---|---|---|---|---|
 | `T-30` | `direct_*` en la consulta y en `RateRow`; `directCommission` en `CommissionRateItem` (`plan.md` §14) | `RF-CM-001` `T-34` | `CA-CM-322` | Pendiente |
+
+Rama: `develop`.
+
+## 7. La directa en la vista por producto — enmienda del 05-10-2026
+
+| ID | Tarea | Depende de | Verificación | Estado |
+|---|---|---|---|---|
+| `T-31` | `direct_*` en la vista por producto y `directCommission` en `ProductAssociationItem` (`plan.md` §15) | `T-30` | `CA-CM-331` | **Hecha** — 05-10-2026 |
 
 Rama: `develop`.
