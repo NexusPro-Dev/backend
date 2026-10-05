@@ -5,7 +5,7 @@
 | Módulo | `CM` — Comisiones |
 | Paquete | `modules/commissions` |
 | Prefijos de permiso | `commissions:` |
-| Versión | 0.30.0 |
+| Versión | 0.31.0 |
 | Estado | **Borrador** |
 | Responsable | Bonilla Diaz William Steven |
 | Fecha de creación | 28-08-2026 |
@@ -725,10 +725,10 @@ El vendedor de una línea es de `MV`, y lo corrige `RF-MV-016`; **saber si su co
 | `role_id` | `uuid` | No | `roles` |
 | `rate_type` | `varchar(20)` | No | `PORCENTAJE` \| `FIJO` |
 | `percentage` | `numeric(5,2)` | **Sí** | Presente solo si `rate_type = 'PORCENTAJE'` |
-| `fixed_amount` | `numeric(14,4)` | **Sí** | Presente solo si `rate_type = 'FIJO'` |
+| `fixed_amount` | `bigint` (centésimas) | **Sí** | Presente solo si `rate_type = 'FIJO'` |
 | `direct_rate_type` | `varchar(20)` | **Sí** | `PORCENTAJE` \| `FIJO` — la comisión por venta directa de este rol sobre este producto (`RN-CM-050`, `V64`). Nula: sin directa |
 | `direct_percentage` | `numeric(5,2)` | **Sí** | Presente solo si `direct_rate_type = 'PORCENTAJE'` |
-| `direct_fixed_amount` | `numeric(14,2)` | **Sí** | Presente solo si `direct_rate_type = 'FIJO'`. Dos decimales, por la regla de importes del 05-10-2026 |
+| `direct_fixed_amount` | `bigint` (centésimas) | **Sí** | Presente solo si `direct_rate_type = 'FIJO'`. Nace en `V64` como `numeric(14,2)` y `V65` la convierte ([`ADR-006`](../architecture/ADR-006-importes-en-unidades-minimas.md)) |
 | `created_at` | `timestamptz` | No | — |
 | `updated_at` | `timestamptz` | No | — |
 | `deleted_at` | `timestamptz` | **Sí** | Retiro lógico |
@@ -739,7 +739,11 @@ El vendedor de una línea es de `MV`, y lo corrige `RF-MV-016`; **saber si su co
 
 **`percentage` se declara `numeric(5,2)`** y `RN-CM-007` lo acota a `[0, 100]`. No se usa un entero de puntos básicos —que es la otra forma habitual— porque el dato que el negocio declara y lee es un porcentaje, y convertirlo en las dos direcciones es una fuente de errores de escala que ninguna prueba de camino feliz detecta.
 
-**`fixed_amount` se declara `numeric(14,4)`, exactamente como `products.price`**, y la razón es más fuerte que la simetría. `products.price` tiene esa forma porque **la escala real la decide la moneda**: `currencies.decimal_places` va de 0 a 4, y `RN-PM-007` la valida en el dominio porque un `CHECK` no consulta otra tabla.
+!!! warning "Superado el 05-10-2026 por [`ADR-006`](../architecture/ADR-006-importes-en-unidades-minimas.md)"
+
+    Todo importe de este módulo —`fixed_amount`, `direct_fixed_amount`, `unit_price`, `commission_amount`, `total_amount` y `amount_per_ftd`— es `bigint` en centésimas desde `V65`, con dos decimales como máximo, porque `currencies.decimal_places` ya no pasa de dos. Los porcentajes siguen en `numeric(5,2)`. Lo que sigue explica la forma anterior.
+
+**`fixed_amount` se declaraba `numeric(14,4)`, exactamente como `products.price`**, y la razón es más fuerte que la simetría. `products.price` tiene esa forma porque **la escala real la decide la moneda**: `currencies.decimal_places` va de 0 a 4, y `RN-PM-007` la valida en el dominio porque un `CHECK` no consulta otra tabla.
 
 Un importe fijo de comisión **es dinero en la misma moneda que el producto** (`RN-CM-017`). Con menos decimales, una comisión en una moneda de cuatro no se podría expresar; con otra escala, la comparación que la liquidación tendrá que hacer —lo que se paga contra lo que se cobró— obligaría a redondear justo ahí, que es donde un redondeo se convierte en dinero.
 
@@ -756,7 +760,7 @@ Un importe fijo de comisión **es dinero en la misma moneda que el producto** (`
 | `product_id` | `uuid` | No | `products` — **desde el 16-09-2026** (`V10`), y **no se corrige** (`RN-CM-021`) |
 | `rate_type` | `varchar(20)` | No | `PORCENTAJE` \| `FIJO` |
 | `percentage` | `numeric(5,2)` | **Sí** | Presente solo si `rate_type = 'PORCENTAJE'` |
-| `fixed_amount` | `numeric(14,4)` | **Sí** | Presente solo si `rate_type = 'FIJO'` |
+| `fixed_amount` | `bigint` (centésimas) | **Sí** | Presente solo si `rate_type = 'FIJO'` |
 | `valid_from` | `date` | No | — |
 | `valid_to` | `date` | **Sí** | Nulo = indefinidamente |
 | `created_at` | `timestamptz` | No | — |
@@ -880,7 +884,7 @@ Un importe fijo de comisión **es dinero en la misma moneda que el producto** (`
 | `period_end` | `timestamptz` | **Sí** | Fin del periodo, exclusive: **el instante del cierre**. Nulo **si y solo si** el lote está `ABIERTO` |
 | `status` | `varchar(20)` | No | `ABIERTO` \| `PENDIENTE` \| `PAGADO` (`RN-CM-030`, `RN-CM-033`) |
 | `closing_id` | `uuid` | **Sí** | `commission_closings` — el cierre que lo pasó a `PENDIENTE`. Nulo **si y solo si** está `ABIERTO` |
-| `total_amount` | `numeric(14,4)` | No | La suma de sus comisiones, en su moneda |
+| `total_amount` | `bigint` (centésimas) | No | La suma de sus comisiones, en su moneda |
 | `paid_at` | `timestamptz` | **Sí** | Presente **si y solo si** `status = 'PAGADO'` |
 | `movement_id` | `uuid` | **Sí** | `movements` — el `PAGO_COMISION` que lo abonó (`RN-CM-030`, 26-09-2026). Presente **si y solo si** `status = 'PAGADO'`, y **único** |
 | `created_at` | `timestamptz` | No | — |
@@ -912,10 +916,10 @@ Un importe fijo de comisión **es dinero en la misma moneda que el producto** (`
 | `resolved_on` | `date` | No | La fecha con la que se resolvió: la de la venta (`RN-CM-024`); en `POR_AFFTRACK`, **el día del cierre** (`RN-CM-039`) |
 | `rate_type` | `varchar(20)` | No | `PORCENTAJE` \| `FIJO`, copiado. En `POR_AFFTRACK`, **siempre `FIJO`** |
 | `percentage` | `numeric(5,2)` | **Sí** | Presente solo si `rate_type = 'PORCENTAJE'` |
-| `fixed_amount` | `numeric(14,4)` | **Sí** | Presente solo si `rate_type = 'FIJO'`. En `POR_AFFTRACK`, **el valor por FTD** del escalón |
-| `unit_price` | `numeric(14,2)` | **Sí** desde el 29-09-2026 | Copia de `movement_details.unit_price`. Presente **si y solo si** `POR_VENTA` |
+| `fixed_amount` | `bigint` (centésimas) | **Sí** | Presente solo si `rate_type = 'FIJO'`. En `POR_AFFTRACK`, **el valor por FTD** del escalón |
+| `unit_price` | `bigint` (centésimas) | **Sí** desde el 29-09-2026 | Copia de `movement_details.unit_price`. Presente **si y solo si** `POR_VENTA` |
 | `quantity` | `integer` | No | Copia de `movement_details.quantity`; en `POR_AFFTRACK`, **los FTD pagados** —el límite del escalón— |
-| `commission_amount` | `numeric(14,4)` | No | Lo devengado por este nivel en esta línea |
+| `commission_amount` | `bigint` (centésimas) | No | Lo devengado por este nivel en esta línea |
 | `accrued_at` | `timestamptz` | No | **Cuándo nació** —el instante del devengo—, que decide en qué lote entra (`RN-CM-033`). No es `resolved_on`: aquella es la fecha de la venta y decide la tasa |
 | `reverted_at` | `timestamptz` | **Sí** | **Cuándo se revirtió** con toda la cadena de su línea, al corregirse el vendedor (`RN-CM-047`, 30-09-2026). Presente: la fila **no cuenta** en el total de su lote ni en la unicidad (`RN-CM-027`) |
 | `reverted_by` | `uuid` | **Sí** | `users` — quién corrigió el vendedor. Presente **si y solo si** `reverted_at` |
@@ -932,7 +936,11 @@ Un importe fijo de comisión **es dinero en la misma moneda que el producto** (`
 
 **`fk_commissions_detail` es `RESTRICT` y eso tiene consecuencias lejos.** No se borra una línea de venta ya liquidada — es dinero. Pero `movement_details` cuelga de `movements` con `ON DELETE CASCADE`, de modo que **cualquier suite que limpie con `DELETE FROM movements` fallará en cuanto exista una comisión**, y fallará en otra suite, según el orden alfabético de ejecución. Las suites de `MV` tendrán que limpiar `commissions` antes; se prefiere eso a que un borrado de pruebas pueda llevarse por delante una comisión pagada.
 
-**`commission_amount` se declara `numeric(14,4)` y no `(14,2)`**, aunque el dinero de `MV` use dos decimales. Es la forma de `fixed_amount` y de `products.price`, y la razón es la misma: **la escala real la decide la moneda** (`currencies.decimal_places`, de 0 a 4). Con dos decimales, una comisión en una moneda de cuatro se redondearía **al calcularla**, que es donde un redondeo se convierte en dinero. El redondeo a los decimales de la moneda ocurre **al pagar**, fuera de este módulo.
+!!! warning "Superado el 05-10-2026 por [`ADR-006`](../architecture/ADR-006-importes-en-unidades-minimas.md)"
+
+    `commission_amount` es `bigint` en centésimas. **El cálculo sigue haciéndose con cuatro decimales en memoria y se redondea con `HALF_UP` al guardarse**: lo que cambia es dónde se pierde la precisión, no cómo se calcula. Con la moneda acotada a dos decimales, el redondeo al pagar (`RN-MV-044`) deja de tener efecto.
+
+**`commission_amount` se declaraba `numeric(14,4)` y no `(14,2)`**, aunque el dinero de `MV` use dos decimales. Es la forma de `fixed_amount` y de `products.price`, y la razón es la misma: **la escala real la decide la moneda** (`currencies.decimal_places`, de 0 a 4). Con dos decimales, una comisión en una moneda de cuatro se redondearía **al calcularla**, que es donde un redondeo se convierte en dinero. El redondeo a los decimales de la moneda ocurre **al pagar**, fuera de este módulo.
 
 **Tres columnas más el 30-09-2026, y ninguna cambia un importe** (§5.10). `batch_id` **deja de ser inmutable**: una comisión se retira y se devuelve. `reverted_at` es la forma de que una fila deje de contar sin borrarse. **El total del lote pasa a ser la suma de sus comisiones vivas**, y sigue guardándose por lo mismo que antes: cada retiro, devolución o reversión lo ajusta con un `UPDATE` que suma sobre la fila, **bloqueando los lotes implicados siempre en el mismo orden** —por identificador—, como el libro de `MV` (`RN-MV-042`).
 
@@ -979,7 +987,7 @@ Un importe fijo de comisión **es dinero en la misma moneda que el producto** (`
 | `product_id` | `uuid` | No | `products` — un producto FTD (`RN-CM-036`), y **no se corrige** (`RN-CM-037`) |
 | `role_id` | `uuid` | No | `roles` — de tipo `VENDEDOR` (`RN-CM-001`), y no se corrige |
 | `threshold` | `integer` | No | El **límite**: cuántos FTD hay que reunir (`RN-CM-038`) |
-| `amount_per_ftd` | `numeric(14,4)` | No | El **valor por FTD**, en la moneda del producto. La forma de `fixed_amount`, por la misma razón (§7.1) |
+| `amount_per_ftd` | `bigint` (centésimas) | No | El **valor por FTD**, en la moneda del producto. La forma de `fixed_amount`, por la misma razón (§7.1) |
 | `created_at` | `timestamptz` | No | — |
 | `updated_at` | `timestamptz` | No | — |
 | `deleted_at` | `timestamptz` | **Sí** | Retiro lógico (`RN-CM-005`) |
@@ -994,7 +1002,7 @@ Un importe fijo de comisión **es dinero en la misma moneda que el producto** (`
 | `user_id` | `uuid` | No | `users` |
 | `product_id` | `uuid` | No | `products` — un producto FTD, y no se corrige |
 | `threshold` | `integer` | No | El límite |
-| `amount_per_ftd` | `numeric(14,4)` | No | El valor por FTD |
+| `amount_per_ftd` | `bigint` (centésimas) | No | El valor por FTD |
 | `valid_from` | `date` | No | — |
 | `valid_to` | `date` | **Sí** | Nulo = indefinidamente |
 | `created_at` | `timestamptz` | No | — |
@@ -1074,3 +1082,4 @@ Un importe fijo de comisión **es dinero en la misma moneda que el producto** (`
 | 0.28.0 | 01-10-2026 | **Nace `RF-CM-025`, pagar varios lotes de una vez**, por petición del responsable del proyecto, con sus cuatro respuestas: **una lista que elige Finanzas** (no «todos los pendientes»), **cada lote por su cuenta** (no «todo o nada»), **permiso propio** `commission-batches:pay-batches` y **sin tope** de lotes por petición —se propuso uno de cien y el responsable lo retiró: una petición larga es preferible a partir la nómina en varias—. Nace `RN-CM-049`. Módulo 29 → 30 permisos. | Responsable del proyecto |
 | 0.29.0 | 01-10-2026 | **`RF-CM-025` está construido**: `V60` siembra `commission-batches:pay-batches` (catálogo **172**) y `POST /commission-batches/payments` paga cada lote con el servicio de `RF-CM-011`, en su propia transacción. Con tripleta previa. Sin cambio de reglas. | Responsable técnico |
 | 0.30.0 | 05-10-2026 | **La comisión por venta directa pasa a la tasa de rol** (§5.11), por decisión del responsable del proyecto: «en el mismo registro de general, para los vendedores que no sean el último eslabón, poder configurar la comisión por venta directa». Nace `RN-CM-050`: una por rol y producto, en la misma fila de `commission_rates`, **opcional** —sin ella cobra la tasa de rol— y **rechazada en el último eslabón** (`EX-009`). Se enmiendan `RN-CM-045` (la directa es la del rol; `rate_id` apunta a la tasa) y §1.1.3, §3, §5.9, §7.1 y §7.4. `V64` migra la directa de cada producto a sus tasas de rol vivas que no son el último eslabón y retira las columnas de `products` (`RN-PM-051` retirada en `PM`). Cambian `RF-CM-001`, `RF-CM-002`, `RF-CM-003` y `RF-CM-013`. Sin permisos nuevos | Responsable del proyecto |
+| 0.31.0 | 05-10-2026 | **Los importes de `CM` pasan a `bigint` en centésimas** (§7: `fixed_amount` de las dos tasas, `direct_fixed_amount`, `total_amount` del lote, `unit_price`, `fixed_amount` y `commission_amount` de la comisión, y `amount_per_ftd` de las dos tasas afftrack), por decisión del responsable del proyecto ([`ADR-006`](../architecture/ADR-006-importes-en-unidades-minimas.md)). **Los porcentajes no cambian.** El importe fijo y el valor por FTD admitían cuatro decimales y pasan a **dos**: el `@Digits` de las cuatro peticiones de alta rechaza el tercero. **La comisión se sigue calculando con cuatro decimales** y se redondea con `HALF_UP` al guardarse. Enmienda `RF-CM-001`, `RF-CM-002`, `RF-CM-013` y `RF-CM-020` (Art. I.7), y obliga a `V65`, que va detrás de la `V64` de la comisión directa. | Responsable del proyecto |

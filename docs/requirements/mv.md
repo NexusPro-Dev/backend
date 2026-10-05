@@ -5,11 +5,11 @@
 | Módulo | `MV` — Movimientos |
 | Paquete | `modules/movements` |
 | Prefijos de permiso | `movements:` |
-| Versión | 0.72.0 |
+| Versión | 0.73.0 |
 | Estado | **Borrador** |
 | Responsable | Bonilla Diaz William Steven |
 | Fecha de creación | 02-09-2026 |
-| Última actualización | 03-10-2026 |
+| Última actualización | 05-10-2026 |
 
 !!! info "Qué va en este documento"
 
@@ -636,7 +636,7 @@ Lo pidió el responsable del proyecto el 01-10-2026: «al confirmar el payment s
 | `RN-MV-041` | **Cada persona tiene tres saldos por moneda, y ninguno baja de cero** | Siempre | 26-09-2026. `BILLETERA`, `RETENIDO` y `PUNTOS` (§4.3): una cuenta de cada una por persona y moneda, **creada la primera vez que hace falta** y no al dar de alta a nadie. **Los puntos son un saldo aparte**, por decisión del responsable: no se retiran. **El `balance` de una cuenta es una copia de la suma de sus asientos**: se guarda para no sumar la historia en cada lectura, y tiene que poder reconstruirse de ella en cualquier momento. Enmienda lo que §4.2 decía de los puntos —«su saldo se deriva del libro y no se guarda»—, que sigue siendo verdad en lo que importa, **la verdad es el libro**, y deja de serlo en lo que costaba. **El saldo de una cuenta de persona no puede ser negativo**, y lo sostiene el esquema; las de la empresa sí pueden, porque son contrapartidas | **Crítica** |
 | `RN-MV-042` | **Solo escribe asientos lo que toca un saldo, y cada evento suma cero** | Al solicitar, aprobar o negar un retiro, al abonar un lote y al otorgar un bono; **desde el 30-09-2026**, al abonar una compra de puntos (`RF-MV-028`) y al pagar con ellos (`RF-MV-030`) | 26-09-2026. Los asientos son **de doble entrada**: cada evento de un movimiento escribe al menos dos, y **suman cero** —lo que sale de una cuenta entra en otra, y las dos son de la misma moneda—. Lo comprueba el esquema **al cerrar la transacción**, con un disparador diferido, porque un `CHECK` ve una fila sola. **Un asiento no se edita ni se borra**: lo que se escribió mal se compensa con otro evento, como una venta mal registrada se anula y no se corrige (`RN-MV-001`). **Las cuentas de un evento se bloquean siempre en el mismo orden** —por identificador— antes de escribir: dos eventos que toquen las mismas dos cuentas en orden contrario se esperan el uno al otro, y el motor aborta uno con `40P01` | **Crítica** |
 | `RN-MV-043` | **Un retiro retiene al pedirlo, y se resuelve una sola vez** | Al solicitar (`RF-MV-019`), aprobar (`RF-MV-020`) y negar (`RF-MV-021`) | 26-09-2026. Pedir un retiro **pasa el importe de la billetera a `RETENIDO`** en la misma transacción, y se rechaza si la billetera no alcanza —con la cuenta bloqueada, para que dos peticiones simultáneas no pasen las dos—. **Aprobarlo** lo saca de `RETENIDO` hacia la cuenta `RETIROS` de la empresa y escribe el pago que lo liquida; **negarlo** lo devuelve a la billetera, y el retiro queda `RECHAZADA` **con su motivo**, obligatorio, como el de una anulación. `PENDIENTE` → `CONFIRMADA` o `RECHAZADA`, y de ahí no se sale | **Crítica** |
-| `RN-MV-044` | **Pagar un lote de comisión es abonarlo en la billetera, una vez** | Al marcar un lote como pagado (`RF-CM-011`, `RF-MV-024`) | Decisión del responsable del proyecto, 26-09-2026. Marcar un lote como pagado **crea un movimiento `PAGO_COMISION`** a nombre de su persona, por el importe y en la moneda del lote —**redondeado a los decimales de la moneda, a la mitad hacia arriba**: el lote suma en `numeric(14,4)` y el libro guarda dinero en `numeric(14,2)`—, que nace `CONFIRMADA` y abona la billetera desde la cuenta `COMISIONES` de la empresa. **En la misma transacción** en que el lote pasa a `PAGADO`: si el abono falla, el lote no se paga, y al revés. **Un lote se abona una sola vez**, y lo sostiene el esquema **del lado de `CM`**: `commission_batches.movement_id`, único. **Y del lado de `MV`**, con la clave de idempotencia del movimiento, `lote-<identificador del lote>` (v0.46.0): la operación publicada, llamada dos veces con el mismo lote, **devuelve el mismo abono**. **Un lote que redondea a cero** se abona con un movimiento de importe cero **y sin asientos** —un asiento de cero no existe (`ck_movement_entries_amount`)—, para que `PAGADO` siga teniendo su movimiento. Es la forma de **D-26** —`MV` publica una operación que recibe lo mínimo y responde lo que quedó— y **enmienda `RN-CM-030`**, que es de `CM` | **Crítica** |
+| `RN-MV-044` | **Pagar un lote de comisión es abonarlo en la billetera, una vez** | Al marcar un lote como pagado (`RF-CM-011`, `RF-MV-024`) | Decisión del responsable del proyecto, 26-09-2026. Marcar un lote como pagado **crea un movimiento `PAGO_COMISION`** a nombre de su persona, por el importe y en la moneda del lote —**redondeado a los decimales de la moneda, a la mitad hacia arriba**: el lote sumaba en `numeric(14,4)` y el libro en `numeric(14,2)`; desde el 05-10-2026 los dos guardan centésimas ([`ADR-006`](../architecture/ADR-006-importes-en-unidades-minimas.md)) y el redondeo no cambia nada, pero la regla se queda por si una moneda volviera a admitir más decimales—, que nace `CONFIRMADA` y abona la billetera desde la cuenta `COMISIONES` de la empresa. **En la misma transacción** en que el lote pasa a `PAGADO`: si el abono falla, el lote no se paga, y al revés. **Un lote se abona una sola vez**, y lo sostiene el esquema **del lado de `CM`**: `commission_batches.movement_id`, único. **Y del lado de `MV`**, con la clave de idempotencia del movimiento, `lote-<identificador del lote>` (v0.46.0): la operación publicada, llamada dos veces con el mismo lote, **devuelve el mismo abono**. **Un lote que redondea a cero** se abona con un movimiento de importe cero **y sin asientos** —un asiento de cero no existe (`ck_movement_entries_amount`)—, para que `PAGADO` siga teniendo su movimiento. Es la forma de **D-26** —`MV` publica una operación que recibe lo mínimo y responde lo que quedó— y **enmienda `RN-CM-030`**, que es de `CM` | **Crítica** |
 | `RN-MV-045` | **Un bono abona la billetera, y lleva su motivo** | Al otorgar un bono (`RF-MV-023`) | 26-09-2026. Nace `CONFIRMADA`, a nombre de quien lo recibe, y abona su billetera desde la cuenta `BONOS` de la empresa. **El motivo es obligatorio** y se guarda en el movimiento (`concept`) y no solo en la auditoría: un bono sin motivo es dinero regalado que nadie sabe explicar. **Es retirable**, como todo lo que está en la billetera. **Lleva clave de idempotencia obligatoria** (v0.46.0): otorgar dos veces el mismo bono por un doble clic es dinero regalado dos veces, y no hay ningún pago que lo detenga | Alta |
 | `RN-MV-046` | **Los tipos que no venden no llevan líneas** | Siempre | 26-09-2026. `RETIRO`, `PAGO_COMISION`, `BONO` y —**desde el 30-09-2026**— `COMPRA_PUNTOS` **no escriben `movement_details`**: lo que cuenta es el importe de la cabecera, y con ello no tienen vendedor, ni paquete, ni comisionan. `RN-MV-009` —al menos una línea— es de la venta y sigue siéndolo. Sus tres importes cumplen la igualdad de siempre con el descuento en cero. **No aparecen donde se pregunta por ventas**: `RF-MV-015` y `RF-MV-017` ya fijan `VENTA` en la consulta. `RF-MV-006` es el libro entero y los muestra, separables por el filtro de tipo | Alta |
 | `RN-MV-047` | **«Mis compras» son ventas, y su detalle enseña los pagos** | Al consultar los movimientos propios (`RF-MV-008`) | Decisión del responsable del proyecto, 26-09-2026. El listado de `GET /movements/mine/shopping` **fija `VENTA` en la consulta**, como `RF-MV-015` y `RF-MV-017`: los retiros, abonos y bonos de la persona no son compras, y se consultarán por sus saldos (`RF-MV-022`). **El filtro `type` se retira de esa ruta**, con el argumento de `RN-MV-038`: solo podía tomar un valor útil, y un parámetro cuyo resultado está predeterminado invita a construir sobre él. **El detalle** (`GET /movements/mine/{id}`) **publica los pagos del movimiento**, del más antiguo al más reciente: método, estado, importe, referencia de quien cobra, cuándo se intentó y cuándo se resolvió, y el motivo del rechazo. **No publica la clave de idempotencia**, que es del cliente que la mandó y no dice nada a quien lee. Es un cambio del contrato —se retira un filtro y se añade un campo— y se declara | Alta |
@@ -867,9 +867,9 @@ Hasta hoy esta regla no distinguía: **toda** venta confirmada con un upgrade co
 | `code` | `varchar(30)` | No | — |
 | `status` | `varchar(20)` | No | — |
 | `type_status_id` | `uuid` | No | `movement_type_statuses`, **junto con `movement_type_id`** |
-| `total_amount` | `numeric(14,2)` | No | — |
-| `discount_amount` | `numeric(14,2)` | No | — |
-| `payable_amount` | `numeric(14,2)` | No | — |
+| `total_amount` | `bigint` (centésimas) | No | — |
+| `discount_amount` | `bigint` (centésimas) | No | — |
+| `payable_amount` | `bigint` (centésimas) | No | — |
 | `occurred_at` | `timestamptz` | No | — |
 | `confirmed_at` | `timestamptz` | **Sí** | — |
 | `voided_at` | `timestamptz` | **Sí** | — |
@@ -879,7 +879,7 @@ Hasta hoy esta regla no distinguía: **toda** venta confirmada con un upgrade co
 | `concept` | `varchar(500)` | **Sí** | — |
 | `idempotency_key` | `varchar(80)` | **Sí** | — |
 | `points_rate_id` | `uuid` | **Sí** | `points_rates` |
-| `points_amount` | `numeric(14,2)` | **Sí** | — |
+| `points_amount` | `bigint` (centésimas) | **Sí** | — |
 | `created_at` | `timestamptz` | No | — |
 | `reference_id` | `uuid` | **Sí** | **Pendiente de definir** |
 
@@ -956,9 +956,9 @@ Mismo formato de código que `roles`, `memberships` y `products`: `^[A-Z][A-Z0-9
 | `product_name` | `varchar(150)` | No | — |
 | `product_description` | `text` | **Sí** | — |
 | `quantity` | `integer` | No | — |
-| `unit_price` | `numeric(14,2)` | No | — |
-| `line_discount` | `numeric(14,2)` | No | — |
-| `line_amount` | `numeric(14,2)` | No | — |
+| `unit_price` | `bigint` (centésimas) | No | — |
+| `line_discount` | `bigint` (centésimas) | No | — |
+| `line_amount` | `bigint` (centésimas) | No | — |
 | `validity_days` | `integer` | **Sí** | — |
 | `implementation` | `varchar(20)` | No | — |
 | `delivery_status` | `varchar(20)` | No | — |
@@ -986,15 +986,19 @@ Mismo formato de código que `roles`, `memberships` y `products`: `^[A-Z][A-Z0-9
 | `id` | `uuid` | No | — |
 | `movement_detail_id` | `uuid` | No | `movement_details` |
 | `type` | `varchar(20)` | No | — |
-| `value` | `numeric(14,4)` | No | — |
-| `discount_value` | `numeric(14,2)` | No | — |
+| `value` | `bigint` (centésimas) | No | — |
+| `discount_value` | `bigint` (centésimas) | No | — |
 | `created_at` | `timestamptz` | No | — |
 
 **Cada rebaja de una línea, como se pactó y como se cobró** (`RN-MV-027`, 16-09-2026). `type` y `value` son la declaración —`PORCENTAJE` `10`, o `FIJO` `5.00`— y `discount_value` es lo que valió **en dinero y por unidad** en el momento de la venta. Las dos cosas se guardan porque responden preguntas distintas: «¿qué le prometieron?» y «¿cuánto le rebajaron?». Un porcentaje solo no sobrevive a una corrección del precio del producto; un importe solo no explica de dónde salió.
 
 **Varias filas por línea se admiten** y hoy no las produce nadie: una línea de paquete llevará una, la del paquete. La forma de lista existe para que una segunda rebaja —una campaña, un cupón— no obligue a rehacer la tabla, y `line_discount` es `quantity × Σ discount_value` en cualquier caso.
 
-**`value` va en `numeric(14,4)` y `discount_value` en `numeric(14,2)`**, y no es una inconsistencia: la primera es la declaración, con la escala de `product_package_items.discount_value` de donde vendrá; la segunda es dinero del libro, con la escala de todos los importes de `MV`.
+!!! warning "Superado el 05-10-2026 por [`ADR-006`](../architecture/ADR-006-importes-en-unidades-minimas.md)"
+
+    Las dos son `bigint` en centésimas desde `V65`, como todo importe del módulo. `value` lo es también cuando el tipo es `PORCENTAJE` (`12,50 %` se guarda `1250`, y su `CHECK` acota en `10000`), igual que `product_package_items.discount_value`, de donde viene. Lo que sigue explica la forma anterior.
+
+**`value` iba en `numeric(14,4)` y `discount_value` en `numeric(14,2)`**, y no era una inconsistencia: la primera es la declaración, con la escala de `product_package_items.discount_value` de donde vendrá; la segunda es dinero del libro, con la escala de todos los importes de `MV`.
 
 **No lleva `updated_at` ni `deleted_at`**, como `movements`: una rebaja aplicada no se edita ni se retira.
 
@@ -1134,7 +1138,7 @@ Se siembra por migración y **no se administra por API todavía** (§5.3). Lo m�
 | `movement_id` | `uuid` | No | `movements` |
 | `payment_method_id` | `uuid` | No | `payment_methods` |
 | `status` | `varchar(20)` | No | — |
-| `amount` | `numeric(14,2)` | No | — |
+| `amount` | `bigint` (centésimas) | No | — |
 | `idempotency_key` | `varchar(80)` | No | — |
 | `provider_reference` | `varchar(120)` | **Sí** | — |
 | `occurred_at` | `timestamptz` | No | — |
@@ -1143,7 +1147,7 @@ Se siembra por migración y **no se administra por API todavía** (§5.3). Lo m�
 | `rejection_reason` | `varchar(500)` | **Sí** | — |
 | `incident` | `varchar(20)` | **Sí** | — |
 | `incident_at` | `timestamptz` | **Sí** | — |
-| `refunded_amount` | `numeric(14,2)` | **Sí** | — |
+| `refunded_amount` | `bigint` (centésimas) | **Sí** | — |
 | `created_at` | `timestamptz` | No | — |
 
 **`incident`, `incident_at` y `refunded_amount` son de la pasarela** (`RN-MV-060`, 01-10-2026): lo que pasó **después** de confirmar —`REEMBOLSADO`, `EN_DISPUTA`, `DISPUTA_GANADA`, `DISPUTA_PERDIDA`—, que **no cambia el estado del pago**. Van juntas las dos primeras; el importe devuelto, solo con `REEMBOLSADO`. Son **la única excepción** a que de un pago solo cambie el estado y una vez: la incidencia puede pasar de `EN_DISPUTA` a su desenlace, y un segundo reembolso parcial sube el importe.
@@ -1166,7 +1170,7 @@ Se siembra por migración y **no se administra por API todavía** (§5.3). Lo m�
 | `name` | `varchar(100)` | No | — |
 | `number` | `varchar(30)` | No | — |
 | `currency_id` | `uuid` | No | `currencies` |
-| `balance` | `numeric(14,2)` | No | — |
+| `balance` | `bigint` (centésimas) | No | — |
 | `created_at` | `timestamptz` | No | — |
 
 **Lo que cada persona tiene en la plataforma, y lo que la empresa ha dado o pagado** (`RN-MV-041`, 26-09-2026). `user_id` nulo es una cuenta de la empresa (§4.3). **Una por titular, tipo y moneda**, con la unicidad en `NULLS NOT DISTINCT` (§7.6).
@@ -1182,8 +1186,8 @@ Se siembra por migración y **no se administra por API todavía** (§5.3). Lo m�
 | `payment_id` | `uuid` | **Sí** | `payments` |
 | `account_id` | `uuid` | No | `accounts` |
 | `event` | `varchar(30)` | No | — |
-| `amount` | `numeric(14,2)` | No | — |
-| `balance_after` | `numeric(14,2)` | No | — |
+| `amount` | `bigint` (centésimas) | No | — |
+| `balance_after` | `bigint` (centésimas) | No | — |
 | `created_at` | `timestamptz` | No | — |
 
 **Los asientos** (`RN-MV-042`, 26-09-2026). **Cuelgan del movimiento y no del pago**, y es consecuencia directa de `RETENIDO`: la retención ocurre **al pedir** el retiro, antes de que exista ningún pago. `payment_id` se rellena cuando lo que produce el evento es un pago —la aprobación de un retiro—.
@@ -1350,3 +1354,4 @@ Se siembra por migración y **no se administra por API todavía** (§5.3). Lo m�
 | 0.70.0 | 02-10-2026 | **`RF-MV-017` gana el filtro `hasSeller`** —las líneas sin vendedor asignado—, a petición del responsable del proyecto ([`specs/mv/017-consultar-lineas-de-venta/`](../specs/mv/017-consultar-lineas-de-venta/spec.md) 0.3.0, `CA-MV-520` a `CA-MV-522`). Sin cambio de reglas. Siguiente libre: `CA-MV-523`. | Responsable del proyecto |
 | 0.71.0 | 03-10-2026 | **«Mis compras» (`RF-MV-008`) trae las líneas de cada compra**, con la forma del detalle, a petición del responsable del proyecto: «es para mostrar en el front sin la necesidad de hacer otra consulta aparte» ([`specs/mv/008-consultar-ventas-propias/`](../specs/mv/008-consultar-ventas-propias/spec.md) 0.8.0, `CA-MV-523` a `CA-MV-525`). Sin cambio de reglas. Siguiente libre: `CA-MV-526`. | Responsable del proyecto |
 | 0.72.0 | 03-10-2026 | **`RN-MV-006` gana su segunda mitad: tampoco se salta de nivel**, por decisión del responsable del proyecto —«solo puedo subir de upgrade a nivel por encima mío»— ([`requirements/pm.md`](pm.md) v0.49.0, §5.2.17). La membresía comprada es la vigente —renovación— o **la inmediatamente superior**; cualquier otra se rechaza **al registrar**, con el **mismo `EX-005`**, en **todos los canales**: la tienda, la compra propia, el paquete y el hotlink. Se compara contra la membresía **vigente de quien compra** y no contra el origen del producto, y por eso alcanza también a los saltos que `PM` registró antes y ya no publica. **Al confirmar no se repite** (`RN-MV-029` sigue igual), y queda escrito por qué. Sin migración. **La versión 0.71.0 la toma «mis compras con líneas»** (`RF-MV-008`, PR #169), abierto a la vez. **Construida el mismo día** en `SaleRules.verificarQueSube` (`CA-MV-526`, `527`, `530` a `532` y `540`). **Por HTTP en la tienda el salto llega como `EX-004`**, porque la oferta lo filtra antes; `EX-005` por salto solo lo alcanza el hotlink y la prueba unitaria. | Responsable del proyecto |
+| 0.73.0 | 05-10-2026 | **Los importes de `MV` pasan a `bigint` en centésimas** (§7), por decisión del responsable del proyecto ([`ADR-006`](../architecture/ADR-006-importes-en-unidades-minimas.md)): la venta, sus líneas y sus rebajas, el pago y su reembolso, el saldo de la cuenta y los asientos del libro. **La API no cambia**: un convertidor JPA multiplica por cien al guardar y divide al leer. **Los puntos van con el libro**: `accounts` y `movement_entries` llevan dinero y puntos en las mismas columnas, y `movements.points_amount` es lo que se abona en la cuenta `PUNTOS`. Se convierten las tres, porque un asiento de puntos y la compra que lo origina tienen que estar en la misma unidad. **`points_rates.points_per_unit` se queda en `numeric(12,4)`**, porque es una tasa y no un importe. `movement_detail_discounts.value` va también en centésimas cuando es un porcentaje. `RN-MV-044` precisa que su redondeo deja de tener efecto. Enmienda `RF-MV-001`, `RF-MV-025` y `RF-MV-027` (Art. I.7), y obliga a `V65`. | Responsable del proyecto |

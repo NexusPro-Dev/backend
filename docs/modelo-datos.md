@@ -2,11 +2,15 @@
 
 | Campo | Valor |
 |---|---|
-| Versión | 0.92.0 |
+| Versión | 0.93.0 |
 | Estado | **Borrador** |
 | Responsable | Bonilla Diaz William Steven |
 | Fecha de creación | 21-08-2026 |
 | Última actualización | 05-10-2026 |
+
+!!! info "Desde el 05-10-2026, los importes en centésimas: [`ADR-006`](architecture/ADR-006-importes-en-unidades-minimas.md)"
+
+    **Todo importe en dinero es `bigint` en centésimas**: `12,50` se guarda `1250`. Lo aplica `V65` a precios, descuentos, tasas fijas y montos de comisión, ventas, pagos, saldos y asientos. Porcentajes y tasas (de cambio, de puntos) siguen en `numeric`. Donde este documento razona sobre `numeric(14,4)` o sobre «la escala la decide la moneda», describe la forma anterior: hoy ningún importe tiene más de dos decimales y `currencies.decimal_places` va de 0 a 2.
 
 !!! info "Qué va en este documento"
 
@@ -489,8 +493,8 @@ erDiagram
         varchar implementation "AUTOMATICA o MANUAL · decide si confirmar una venta ENTREGA"
         uuid target_membership_id FK "obligatorio en upgrade, PROHIBIDO en bot · A DONDE lleva"
         uuid source_membership_id FK "obligatorio en upgrade, PROHIBIDO en bot · DE DONDE sale"
-        numeric price "14,4 · EL QUE SE COBRA · la escala la decide la MONEDA"
-        numeric purchase_price "14,4 · LO QUE PAGA NEXUS · NULL = no se conoce · solo administracion"
+        bigint price "CENTESIMAS · EL QUE SE COBRA · 2 decimales como mucho"
+        bigint purchase_price "CENTESIMAS · LO QUE PAGA NEXUS · NULL = no se conoce · solo administracion"
 
         uuid cover_image_id FK "V90 · la portada · NULL = no tiene · UNICO: una imagen es portada de UN producto"
         integer validity_days "NULL = no caduca"
@@ -503,10 +507,10 @@ erDiagram
         uuid role_id FK "qué gana ese rol POR ESTE PRODUCTO"
         varchar rate_type "PORCENTAJE o FIJO · lo declara, no se deduce"
         numeric percentage "5,2 · NULL si es FIJO · cero es un VALOR"
-        numeric fixed_amount "14,4 como products.price · NULL si es PORCENTAJE · SIN MONEDA"
+        bigint fixed_amount "CENTESIMAS como products.price · NULL si es PORCENTAJE · SIN MONEDA"
         varchar direct_rate_type "V64 · RN-CM-050 · venta propia de un rol que no es el ultimo eslabon · NULL sin directa"
         numeric direct_percentage "5,2 · 0 a 100 · solo si PORCENTAJE"
-        numeric direct_fixed_amount "14,2 · no mas que el precio · solo si FIJO"
+        bigint direct_fixed_amount "CENTESIMAS · no mas que el precio · solo si FIJO"
         timestamptz deleted_at "lógico · RN-CM-005"
     }
 
@@ -518,7 +522,7 @@ erDiagram
         uuid product_id FK "V10 · de UN producto, y no se corrige · EXCLUDE con user_id y el rango entre las vivas"
         varchar rate_type "PORCENTAJE o FIJO"
         numeric percentage "5,2 · NULL si es FIJO"
-        numeric fixed_amount "14,4 · NULL si es PORCENTAJE · en la moneda de SU producto"
+        bigint fixed_amount "CENTESIMAS · NULL si es PORCENTAJE · en la moneda de SU producto"
         date valid_from "la ÚNICA tabla con vigencia"
         date valid_to "NULL = indefinidamente"
         timestamptz deleted_at "lógico"
@@ -572,7 +576,7 @@ erDiagram
         uuid package_id PK,FK "la PK es la regla:"
         uuid product_id PK,FK "un producto UNA vez por paquete, sin cantidad"
         varchar discount_type "PORCENTAJE o FIJO"
-        numeric discount_value "14,4 · 0..100 si porcentaje · 0..precio del producto si fijo"
+        bigint discount_value "CENTESIMAS · 0..10000 si porcentaje · 0..precio del producto si fijo"
         timestamptz updated_at "el descuento se corrige · desasociar BORRA la fila"
     }
 ```
@@ -604,7 +608,7 @@ erDiagram
 **Tres cosas del dibujo que conviene leer despacio:**
 
 - **`rate_type` es una columna y no algo deducido de qué campo esté lleno.** Sin ella, «una forma y solo una» sería una propiedad emergente de dos nulos, y una fila con los dos vacíos no permitiría saber **cuál** de las dos quiso declarar quien la insertó.
-- **`fixed_amount` comparte forma con `products.price`, `numeric(14,4)`, y no por simetría.** El precio tiene esa forma porque **la escala real la decide la moneda** —`currencies.decimal_places` va de 0 a 4— y un importe de comisión es dinero en esa misma moneda. Con menos decimales, una comisión en una moneda de cuatro no se podría expresar.
+- **`fixed_amount` comparte forma con `products.price` —`bigint` en centésimas desde el 05-10-2026, antes `numeric(14,4)`— y no por simetría.** El precio tiene esa forma porque **la escala real la decide la moneda** —`currencies.decimal_places` va de 0 a 4— y un importe de comisión es dinero en esa misma moneda. Con menos decimales, una comisión en una moneda de cuatro no se podría expresar.
 - **Y no lleva moneda.** La toma del producto que se vende, de modo que **la misma fila paga cosas distintas** según a cuál se aplique. Es consecuencia aceptada (`cm.md` §1.1.1), no defecto, y **alcanza por igual a las dos clases de tasa** desde el 11-09-2026: las dos se asocian a varios productos, y un importe fijo se lee en la moneda de cada uno.
 
 !!! danger "Y aparece una asimetría con `products` que ninguna restricción puede cerrar"
@@ -631,7 +635,7 @@ erDiagram
 
     **Nació como `public_price` el 08-09-2026 —lo que se anunciaba— y se renombró el 12-09-2026 al cambiar de significado.** El renombrado no es cosmético: cuando el número era un rótulo, publicarlo sin token era una decisión de forma; ahora que es el costo, publicarlo enseña el margen. La columna cambia de significado **vacía de él** — lo que el hotlink llegó a devolver era el rótulo, no un costo.
 
-    **Comparten forma —`numeric(14,4)`— y también moneda**: no hay una segunda `currency_id`; si NEXUS paga en otra moneda, quien registra el costo lo convierte al declararlo, y una compra con su moneda, su tasa y su fecha es una tabla de compras, no una columna de esta. Lo que no comparten es la obligatoriedad, y ahí está toda la decisión: **el nulo de `purchase_price` significa «no se conoce»** —el producto no se ha comprado todavía, o no aplica—, no «costó cero». Los dos estados existen y son distintos, y por eso la columna admite nulo en lugar de llevar `DEFAULT 0`.
+    **Comparten forma —`bigint` en centésimas, antes `numeric(14,4)`— y también moneda**: no hay una segunda `currency_id`; si NEXUS paga en otra moneda, quien registra el costo lo convierte al declararlo, y una compra con su moneda, su tasa y su fecha es una tabla de compras, no una columna de esta. Lo que no comparten es la obligatoriedad, y ahí está toda la decisión: **el nulo de `purchase_price` significa «no se conoce»** —el producto no se ha comprado todavía, o no aplica—, no «costó cero». Los dos estados existen y son distintos, y por eso la columna admite nulo en lugar de llevar `DEFAULT 0`.
 
     **Y aparece la tercera columna de esta tabla cuya regla el esquema no puede sostener**, junto a `RN-PM-007` y `RN-PM-017`: que un importe **no se cobre** no es expresable en ninguna restricción. Lo único que lo sostiene es **dónde no aparece** — `movement_details` copia `price`, y el puerto que `PM` publica para vender (`ProductCatalog.saleViewOf`) no lleva el otro. Añadirlo ahí bastaría para que empezara a cobrarse sin que nada fallara.
 
@@ -1111,3 +1115,4 @@ Los documentos que citan una migración vieja por su número —specs, controles
 | 0.90.0 | 01-10-2026 | **La etapa 4 para la tarjeta está escrita** (`V62`): `gateway_events`, `payment_methods.gateway` —`STRIPE` en `CREDIT_CARD`— y la incidencia de `payments`, con `ix_payments_provider_reference` para que la notificación encuentre su pago. `MV` pasa a **quince** tablas escritas. | Responsable técnico |
 | 0.91.0 | 03-10-2026 | **Un upgrade sube un escalón como máximo** (`RN-PM-018` reescrita, [`requirements/pm.md`](requirements/pm.md) v0.49.0; `RN-MV-006`, [`requirements/mv.md`](requirements/mv.md) v0.72.0). **Sin migración**: la regla no cabe en el esquema —lee dos filas de `memberships`, y la cadena se reordena al insertar—, y los saltos ya registrados no se tocan; dejan de publicarse y de venderse. Lo dice la nota de `products`. | Responsable del proyecto |
 | 0.92.0 | 05-10-2026 | **La comisión por venta directa pasa de `products` a `commission_rates`** ([`requirements/cm.md`](requirements/cm.md) v0.30.0 §5.11, `RN-CM-050`; [`requirements/pm.md`](requirements/pm.md) v0.50.0, `RN-PM-051` retirada): `commission_rates` gana `direct_rate_type`, `direct_percentage` y `direct_fixed_amount` (`14,2`), con `ck_commission_rates_direct_forma` y `ck_commission_rates_direct_rangos`; `products` pierde sus tres columnas `direct_commission_*` y sus dos `CHECK` (`V64`). `commissions.rate_id` con `source = DIRECTA` apunta desde `V64` a la tasa de rol | Responsable del proyecto |
+| 0.93.0 | 05-10-2026 | **Todo importe en dinero pasa a `bigint` en centésimas** ([`ADR-006`](architecture/ADR-006-importes-en-unidades-minimas.md)), por decisión del responsable del proyecto, en las trece tablas que guardan dinero, y el diagrama lo recoge en `products`, las tasas de comisión y los paquetes. **Porcentajes y tasas no cambian.** Un aviso al principio del documento marca como forma anterior todo lo que aquí razona sobre `numeric(14,4)`, en lugar de reescribir esa historia: las decisiones se tomaron con aquella forma, y por eso se cuentan con ella. `currencies.decimal_places` queda acotado a `0..2`. | Responsable del proyecto |

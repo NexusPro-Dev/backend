@@ -5,11 +5,11 @@
 | Proyecto | NEXUS — Renovación de plataforma |
 | Empresa | FACTECH GROUP SAS |
 | Documento | `architecture.md` |
-| Versión | 0.43.0 |
+| Versión | 0.44.0 |
 | Estado | Borrador |
 | Responsable técnico | Bonilla Diaz William Steven |
 | Fecha de creación | 19-08-2026 |
-| Última actualización | 30-09-2026 |
+| Última actualización | 05-10-2026 |
 | Documento superior | `constitution.md` v0.5.0 |
 | Documento relacionado | `security.md` v0.3.0 |
 
@@ -168,6 +168,9 @@ PostgreSQL es el único motor (Art. V.1). El esquema vive en migraciones Flyway 
 | Restricción única | `uq_<tabla>_<columnas>` | `uq_roles_name` |
 | Clave foránea (nombre) | `fk_<tabla>_<tabla_referida>` | `fk_role_permissions_roles` |
 | Migración | `V<n>__<descripcion>.sql` | `V1__crear_roles.sql` |
+| Importe en dinero | `bigint` en **centésimas**, nunca `numeric` ([`ADR-006`](architecture/ADR-006-importes-en-unidades-minimas.md)) | `price bigint` (`12,50` se guarda `1250`) |
+
+**Los importes se guardan como enteros en centésimas** desde el 05-10-2026 ([`ADR-006`](architecture/ADR-006-importes-en-unidades-minimas.md)). La entidad sigue declarando `BigDecimal`, y un `AttributeConverter` compartido multiplica por cien al escribir y divide al leer, de modo que **el dominio y la API no ven centésimas**. Las ve el SQL nativo: lo que se lee se convierte al mapearlo, lo que se compara se convierte antes de vincularlo, y nunca se divide en SQL. Ningún importe tiene más de dos decimales. Porcentajes y tasas (de cambio, de puntos) no son importes y siguen en `numeric`.
 
 ### 6.3 Identificadores
 
@@ -727,6 +730,7 @@ Nomenclatura: `ADR-NNN-<titulo-en-kebab-case>.md`
 | [`ADR-003`](architecture/ADR-003-retencion-de-los-registros.md) | **Propuesta, sin decidir.** Retención de `request_log` y de los cuatro registros de auditoría (**D-10**). Presenta las tres opciones con su coste y recomienda **cinco plazos por separado con purga por borrado**, dejando tres tablas sin purgar a conciencia. Lo que falta es de negocio, no técnico: cuánto tiempo el sistema debe poder responder «quién hizo esto» | 27-08-2026 |
 | [`ADR-004`](architecture/ADR-004-raspado-de-metricas-y-alertas.md) | **Propuesta, sin decidir.** Quién raspa las métricas y a quién se le avisa (issue #43). Recomienda **puerto de administración separado** —cero código, sin tocar el modelo de permisos y sin esperar a D-19— y construir **primero** la vigilancia de la ausencia de eventos de auditoría, que es la mitad que `RF-SP-001` §10 prometió y no cumple | 27-08-2026 |
 | [`ADR-005`](architecture/ADR-005-modelo-de-alcance-de-datos.md) | **Propuesta, sin decidir.** Modelo de alcance de datos (**D-22**). Recomienda un `ScopeResolver` con el alcance **declarado por requerimiento**, y sobre todo un orden: primero la comprobación de arquitectura que obliga a declararlo —incluido `GLOBAL` explícito—, porque es lo que convierte los cuarenta y dos endpoints ya publicados en una lista que el compilador mantiene | 27-08-2026 |
+| [`ADR-006`](architecture/ADR-006-importes-en-unidades-minimas.md) | **Importes en unidades mínimas.** Todo importe en dinero se guarda como `bigint` en centésimas, con un convertidor JPA que mantiene el dominio y la API en decimales. Dos decimales con `HALF_UP`, de modo que `currencies.decimal_places` queda acotado a `0..2`. Porcentajes y tasas quedan fuera. Lo que el convertidor no cubre es el SQL nativo, y el ADR fija cómo se trata | 05-10-2026 |
 
 Las decisiones D-01 a D-07, cerradas el 19-08-2026, están registradas en `constitution.md` §20.
 
@@ -969,3 +973,4 @@ D-08 quedó cerrada en `security.md` §12, junto con las decisiones D-12 a D-15 
 | 0.41.0 | 01-10-2026 | **§15.2 gana dos lecturas de `SP` para las cuentas de cobro de `MV`** ([`requirements/mv.md`](requirements/mv.md) v0.61.0 §4.5): `CountryCatalog` —si un país existe y está activo, para el catálogo de entidades de cobro— y `PayoutHolderLookup` —el nombre, el país y el documento del titular, que es siempre el dueño de la cuenta—. Siguen la norma de D-25: las publica el dueño del dato, de solo lectura, con la ausencia como vacío. **El retiro copia lo que lee de la segunda** en el instante en que se pide (`RN-MV-056`). | Responsable técnico |
 | 0.42.0 | 01-10-2026 | **Nueva §15.4: la pasarela de pago.** Stripe cobra la tarjeta y es **el primer proveedor externo que escribe en el sistema**. Se decide que sea **un puerto de `MV`** —`CardGateway`, implementado por un adaptador que es el único sitio que importa la biblioteca de Stripe, con una regla de ArchUnit que lo fija— y no infraestructura compartida, porque solo lo usa quien registra dinero. **Abrir y cancelar el cobro** ocurren dentro de la transacción del pago, porque sin cobro no debe quedar nada; **procesar la notificación** sale de ella, después de guardarla. Y **es apagable**: sin sus dos secretos, la tarjeta vuelve a ser un pago pendiente que confirma una persona, y así corre la suite. | Responsable técnico |
 | 0.43.0 | 01-10-2026 | **§15.4 recoge cómo se construyó la pasarela**: por la API HTTP de Stripe con `RestClient`, **sin su biblioteca**, en `movements.infrastructure`, con la regla de ArchUnit `laPasarelaEsUnPuerto`. El proceso de la notificación corre en una transacción **`REQUIRES_NEW`** tras el `COMMIT` de quien la recibió —con `REQUIRED` se sumaría a la que ya terminó y no confirmaría nada—, en segundo plano por el ejecutor de la aplicación, y con un barrido cada minuto que reintenta hasta cinco veces con `SKIP LOCKED`. | Responsable técnico |
+| 0.44.0 | 05-10-2026 | **§6.2 gana la convención de los importes, y §15 su `ADR-006`**: todo importe en dinero se guarda como `bigint` en **centésimas**, por decisión del responsable del proyecto. **No había ningún `double`**: los importes eran `numeric`, exactos, y así se le dijo. El cambio arregla de paso una mezcla de escalas, porque el catálogo aceptaba cuatro decimales y la venta los redondeaba a dos. La conversión la hace **un convertidor JPA**, y dominio y API siguen en decimales. **Lo que el convertidor no ve es el SQL nativo**, y §6.2 fija la regla: se convierte al mapear y al vincular, y nunca se divide en SQL. | Responsable del proyecto |

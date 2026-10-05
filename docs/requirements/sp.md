@@ -5,11 +5,11 @@
 | Módulo | `SP` — Sistema Principal |
 | Paquete | `modules/system` |
 | Prefijos de permiso | `roles:`, `permissions:`, `audit:`, `memberships:`, `currencies:`, `countries:`, `users:`, `exchange-rates:`, `document-types:`, `brokers:`, `broker-accounts:`, `teams:` |
-| Versión | 1.89.0 |
+| Versión | 1.90.0 |
 | Estado | **Aprobado** |
 | Responsable | Bonilla Diaz William Steven |
 | Fecha de creación | 20-08-2026 |
-| Última actualización | 30-09-2026 |
+| Última actualización | 05-10-2026 |
 | Fecha de aprobación | 20-08-2026 |
 
 !!! info "Qué va en este documento"
@@ -1630,7 +1630,7 @@ Se declara `varchar(6)` y no `char(6)` porque `char(n)` **rellena con espacios**
 
 `code` sigue ISO 4217 (`USD`). Se puebla por migración y no se modifica por API (`RN-SP-010`), salvo `is_active` a través de `RF-SP-023`.
 
-`decimal_places` condiciona el redondeo de todo cálculo financiero y no siempre vale dos: hay monedas sin fracción, en las que cero es un valor legítimo. `is_default` marca la moneda con la que opera el sistema, y **exactamente una fila la lleva a `true`**: la restricción se declara en el esquema con un índice único parcial, no solo en el dominio (Art. V.6). La moneda por defecto no puede desactivarse.
+`decimal_places` condiciona el redondeo de todo cálculo financiero y no siempre vale dos: hay monedas sin fracción, en las que cero es un valor legítimo. **Desde el 05-10-2026 no pasa de dos** ([`ADR-006`](../architecture/ADR-006-importes-en-unidades-minimas.md)): todo importe se guarda como entero en centésimas, y una moneda de tres o cuatro decimales no cabe. `is_default` marca la moneda con la que opera el sistema, y **exactamente una fila la lleva a `true`**: la restricción se declara en el esquema con un índice único parcial, no solo en el dominio (Art. V.6). La moneda por defecto no puede desactivarse.
 
 ### 10.6 Campos principales — `countries`
 
@@ -1736,7 +1736,7 @@ Declaradas en la base de datos, no solo en Java (Art. V.6):
 | `uq_currencies_code` | `currencies(code)` |
 | `uq_currencies_name` | `currencies(name)` — dos filas con el mismo nombre y distinto código serían indistinguibles en cualquier selector |
 | `ck_currencies_code_format` | `currencies(code ~ '^[A-Z]{3}$')` — ISO 4217. En el esquema y no en el DTO, porque el único punto de entrada de esta tabla es una migración |
-| `ck_currencies_decimal_places` | `currencies(decimal_places BETWEEN 0 AND 4)` — cero es legítimo y cuatro es el máximo de ISO 4217. Sin cota, una errata de siembra produce redondeos silenciosamente erróneos en todo cálculo posterior |
+| `ck_currencies_decimal_places` | `currencies(decimal_places BETWEEN 0 AND 2)` — cero es legítimo. **Hasta el 05-10-2026 el techo era cuatro**, el máximo de ISO 4217, y `V65` lo baja a **dos** porque los importes se guardan en centésimas ([`ADR-006`](../architecture/ADR-006-importes-en-unidades-minimas.md)). Ninguna moneda sembrada pasaba de dos y el catálogo no se edita por API (`RN-SP-010`). Sin cota, una errata de siembra produce redondeos silenciosamente erróneos en todo cálculo posterior |
 | `uq_currencies_single_default` | **Índice único parcial**: `currencies ((is_default)) WHERE is_default` — `CA-SP-169`. Misma construcción que `uq_roles_single_root` |
 | `ck_currencies_default_active` | `currencies(NOT is_default OR is_active)` — dar de baja la moneda con la que opera el sistema dejaría los importes sin referencia válida. Hace que `RF-SP-023` nazca con la mitad de su trabajo hecho, y protege también contra una migración descuidada |
 | `uq_countries_code` | `countries(code)` |
@@ -2253,3 +2253,4 @@ La fila se lee «`user_id` pertenece al equipo `team_id` desde `started_at`». U
 | 1.87.0 | 26-09-2026 | **`SP` publica `CurrentProductsLookup`** (§8; D-25): los identificadores de los productos que una persona tiene **vigentes** en `user_products` —empezados, sin fin pasado y sin cerrar—, en una sola llamada. La pide `AC` para el aula (`RF-AC-033` a `RF-AC-035`, `RN-AC-020`; `ac.md` v0.20.0). Sin cambio de esquema ni de reglas propias. | Responsable técnico |
 | 1.88.0 | 28-09-2026 | **`SP` publica `SupervisorChain`** (§8; D-25): la cadena de mando de una persona **a un instante**, leída del historial de `user_supervisors`. La pide `CM` para devengar las comisiones de la cadena del día de la venta ([`requirements/cm.md`](cm.md) v0.19.0, `RN-CM-025`; [`specs/cm/013-devengar-comision-linea/plan.md`](../specs/cm/013-devengar-comision-linea/plan.md)). Es la condición que `CM` impuso aquí el 24-09-2026 y que no se había registrado. Sin cambio de esquema ni de reglas. | Responsable del proyecto |
 | 1.89.0 | 30-09-2026 | **El catálogo de países siembra los quince de la región** (`V57`, §10.6), por decisión del responsable del proyecto: los catorce que faltaban junto a Colombia, con código ISO alfa-3 y nombre en español. Sin cambio de esquema ni de reglas: `RN-SP-009` sigue igual, y la migración no pisa un país ya dado de alta por la API. | Responsable del proyecto |
+| 1.90.0 | 05-10-2026 | **`currencies.decimal_places` pasa a admitir de `0` a `2`** (§10.5, §10.8), y no de `0` a `4`. Es consecuencia de [`ADR-006`](../architecture/ADR-006-importes-en-unidades-minimas.md): el responsable del proyecto decidió guardar todo importe como `bigint` en centésimas, y una moneda de tres o cuatro decimales no cabe ahí. **No hay dato que perder**: la única moneda sembrada es `USD`, con dos, y el catálogo no se edita por API (`RN-SP-010`). **La tasa de cambio no cambia**: `exchange_rates.price` sigue en `numeric(18,8)` porque no es un importe (§10.14), y el ADR la deja fuera expresamente. Obliga a `V65`. | Responsable del proyecto |

@@ -5,7 +5,7 @@
 | Módulo | `PM` — Productos y Mercadeo |
 | Paquete | `modules/products` |
 | Prefijos de permiso | `products:` |
-| Versión | 0.50.0 |
+| Versión | 0.51.0 |
 | Estado | **Borrador** |
 | Responsable | Bonilla Diaz William Steven |
 | Fecha de creación | 26-08-2026 |
@@ -1484,8 +1484,8 @@ Ninguna otra. `memberships`, `currencies` y —desde el 14-09-2026— `users` se
 | `icon` | `varchar(50)` | No | No | Sí | — | — |
 | `target_membership_id` | `uuid` | No | Sí | Sí | — | `memberships` |
 | `source_membership_id` | `uuid` | No | Sí | Sí | — | `memberships` |
-| `price` | `numeric(14,4)` | No | No | No | — | — |
-| `purchase_price` | `numeric(14,4)` | No | No | **Sí** | — | — |
+| `price` | `bigint` (centésimas) | No | No | No | — | — |
+| `purchase_price` | `bigint` (centésimas) | No | No | **Sí** | — | — |
 | ~~`direct_commission_type`~~ | ~~`varchar(20)`~~ | — | — | — | — | Borrada por `V64` (05-10-2026, `RN-CM-050`) |
 | ~~`direct_commission_percentage`~~ | ~~`numeric(5,2)`~~ | — | — | — | — | Borrada por `V64` |
 | ~~`direct_commission_fixed_amount`~~ | ~~`numeric(14,4)`~~ | — | — | — | — | Borrada por `V64` |
@@ -1529,7 +1529,11 @@ Sin columnas de actor, y **sin columna de motivo**: quién retiró el producto y
 
 **El valor por omisión de `status` es `INACTIVO`** (`RN-PM-012`), y con él se descartó por ahora el tercer valor `BORRADOR`: la distinción entre «nunca publicado» y «retirado de la venta» es fina y no urge, y añadirla después es exactamente la migración barata que este párrafo describe. Resuelto el 26-08-2026 al aprobar `RF-PM-001`.
 
-**`price` se declara `numeric(14,4)` y no `numeric(12,2)`.** La escala no puede fijarse en dos porque `currencies.decimal_places` no siempre vale dos, y el sistema declara ese campo precisamente para no asumirlo. Cuatro decimales cubren toda moneda ISO 4217 en circulación. La escala **efectiva** de cada producto la decide su moneda, y esa es `RN-PM-007`.
+!!! warning "Superado el 05-10-2026 por [`ADR-006`](../architecture/ADR-006-importes-en-unidades-minimas.md)"
+
+    `price` y `purchase_price` son `bigint` en centésimas desde `V65`, con dos decimales como máximo: `currencies.decimal_places` ya no pasa de dos (`requirements/sp.md` v1.90.0). `RN-PM-007` no cambia. Lo que sigue explica la forma anterior.
+
+**`price` se declaraba `numeric(14,4)` y no `numeric(12,2)`.** La escala no puede fijarse en dos porque `currencies.decimal_places` no siempre vale dos, y el sistema declara ese campo precisamente para no asumirlo. Cuatro decimales cubren toda moneda ISO 4217 en circulación. La escala **efectiva** de cada producto la decide su moneda, y esa es `RN-PM-007`.
 
 **`purchase_price` comparte forma con `price` y es la única columna de dinero de este esquema que admite nulo** (`RN-PM-023`; nació como `public_price` el 08-09-2026 y se renombró el 12-09-2026 al cambiar de significado, §5.2.6). La forma es la misma porque **es el mismo dinero en la misma moneda**: un costo que no cupiera donde cabe el precio de venta sería una asimetría sin causa. Lo que no comparte es la obligatoriedad, y ahí está la decisión: **el nulo significa «no se conoce el costo»** —el producto no se ha comprado todavía, o no aplica—, no «costó cero». Los dos estados existen y son distintos, que es exactamente el motivo por el que la columna admite nulo en lugar de llevar `DEFAULT 0`.
 
@@ -1691,11 +1695,11 @@ Se declaran en la base de datos, no solo en Java (Art. V.6).
 | `package_id` | `uuid` | Sí | Sí | No | — | `product_packages` |
 | `product_id` | `uuid` | Sí | Sí | No | — | `products` |
 | `discount_type` | `varchar(20)` | No | No | No | — | — |
-| `discount_value` | `numeric(14,4)` | No | No | No | — | — |
+| `discount_value` | `bigint` (centésimas) | No | No | No | — | — |
 | `created_at` | `timestamptz` | No | No | No | `now()` | — |
 | `updated_at` | `timestamptz` | No | No | No | `now()` | — |
 
-**La clave primaria es la regla** (`RN-PM-038`): un producto una vez por paquete, sin columna de cantidad. **`discount_value` comparte forma con `products.price`** porque en `FIJO` es dinero en la misma moneda; en `PORCENTAJE` usa dos de sus cuatro decimales y el resto van a cero, que es lo que `ck_product_package_items_percentage` acota por arriba. **Sin retiro lógico**: desasociar borra la fila (`RN-PM-042`), y la instantánea queda en la auditoría de eliminación.
+**La clave primaria es la regla** (`RN-PM-038`): un producto una vez por paquete, sin columna de cantidad. **`discount_value` comparte forma con `products.price`** porque en `FIJO` es dinero en la misma moneda. **En `PORCENTAJE` va también en centésimas** desde el 05-10-2026 ([`ADR-006`](../architecture/ADR-006-importes-en-unidades-minimas.md)): `12,50 %` se guarda `1250`, y `ck_product_package_items_percentage` acota por arriba en `10000`. Partir la columna por tipo haría que el mismo campo cambiara de unidad según la fila. **Sin retiro lógico**: desasociar borra la fila (`RN-PM-042`), y la instantánea queda en la auditoría de eliminación.
 
 #### Restricciones exigidas en el esquema
 
@@ -1826,3 +1830,4 @@ Se declaran en la base de datos, no solo en Java (Art. V.6).
 | 0.48.0 | 29-09-2026 | **La comisión por venta directa está construida** (`RN-PM-051`): `V55`, el alta y la edición que la exigen y la revalidan, y el listado y el detalle que la devuelven (`CA-PM-402` a `CA-PM-416`). **Una precisión al construir**: lo ya registrado que es **gratuito** recibe **fijo cero** y no porcentaje cero, porque un porcentaje sobre precio cero es justo lo que la regla rechaza, y cualquier edición posterior de ese producto habría fallado. §5.2.16 lo recoge. | Responsable del proyecto |
 | 0.49.0 | 03-10-2026 | **Un upgrade sube un escalón como máximo** (§5.2.17), por decisión del responsable del proyecto: **`RN-PM-018` se reescribe entera** —decía «se admite saltar niveles»— y pasa a **crítica**. El destino es el mismo que el origen —la renovación, que sigue— o **el inmediatamente superior**, que en una cadena sin huecos (`RN-SP-007`, `RN-SP-008`) es `level − 1`. **Se impone al registrar y al vender, en todos los canales** ([`requirements/mv.md`](mv.md) v0.72.0, `RN-MV-006`). **Los saltos ya registrados no se tocan**: ni migración ni cambio de estado; dejan de publicarse en la oferta (`RN-PM-011`), el hotlink (`RN-PM-021`) y los paquetes (`RN-PM-044`), y `MV` rechaza venderlos. **Eso obliga a que las vistas de venta vuelvan a comparar niveles** además de coincidir por origen —lo que §5.2.1 había retirado—, y no solo por lo ya registrado: insertar una membresía en medio de la cadena convierte en salto un producto de un escalón sin tocar su fila. **El origen se queda**: con la renovación, cada destino admite dos. Sin migración: la regla no cabe en un `CHECK` (§10.3). Enmienda las tripletas de `RF-PM-001`, `RF-PM-007`, `RF-PM-008`, `RF-PM-018`, `RF-PM-019`, `RF-PM-026` y `RF-PM-027` (Art. I.7). **Construida el mismo día** (`CA-PM-417` a `CA-PM-428`): el alta (`VAL-029`), el predicado del escalón en las **cinco** sentencias de venta —la quinta, `hotlinkSaleViewOf`, con la que `MV` resuelve la compra por hotlink, apareció al construir— y el motivo nuevo de `PackageOfferability`, el último del orden. | Responsable del proyecto |
 | 0.50.0 | 05-10-2026 | **Se retira `RN-PM-051`: la comisión por venta directa deja de ser un campo del producto** y pasa a la tasa de rol de `CM`, una por rol que no es el último eslabón y opcional ([`requirements/cm.md`](cm.md) §5.11, `RN-CM-050`), por decisión del responsable del proyecto. `V64` la migra y borra las tres columnas y sus dos `CHECK`; `directCommission` sale de `RF-PM-001` a `RF-PM-004` y `ProductCatalog.directCommissionOf` se retira. §5.2.16 queda como historia | Responsable del proyecto |
+| 0.51.0 | 05-10-2026 | **Los importes del catálogo pasan a `bigint` en centésimas** (§10: `products.price`, `products.purchase_price` y `product_package_items.discount_value`), por decisión del responsable del proyecto ([`ADR-006`](../architecture/ADR-006-importes-en-unidades-minimas.md)). **La API no cambia**: un convertidor JPA multiplica por cien al guardar y divide al leer. **Lo que sí cambia es el máximo de decimales**: era cuatro y pasa a **dos**, de modo que `VAL-005` rechaza el tercero, y la migración redondea con `HALF_UP` lo que hubiera. `RN-PM-007` sigue igual, porque ya exigía los decimales de la moneda, y la moneda ya no pasa de dos (`requirements/sp.md` v1.90.0). **El descuento en porcentaje de un paquete también va en centésimas**, porque comparte columna con el fijo. Enmienda `RF-PM-001`, `RF-PM-003`, `RF-PM-004` y `RF-PM-017` (Art. I.7), y obliga a `V65`. | Responsable del proyecto |
