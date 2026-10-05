@@ -213,10 +213,10 @@ public class JpaMovementRepository implements MovementRepository {
                                          type_status_id, total_amount, discount_amount,
                                          payable_amount, occurred_at, confirmed_at, concept,
                                          idempotency_key, points_rate_id, points_amount,
-                                         created_at)
+                                         external_reference, created_at)
                   VALUES (:id, :tipo, :sujeto, :moneda, :codigo, :estado, :estadoDelTipo,
                           :importe, 0, :importe, :ocurrio, :confirmado, :concepto, :clave,
-                          :tasa, :puntos, :creado)
+                          :tasa, :puntos, CAST(:referencia AS varchar), :creado)
                   ON CONFLICT (code) DO NOTHING
                   """)
               .setParameter("id", m.getId())
@@ -233,6 +233,7 @@ public class JpaMovementRepository implements MovementRepository {
               .setParameter("clave", m.getIdempotencyKey())
               .setParameter("tasa", m.getPointsRateId())
               .setParameter("puntos", MinorUnits.toMinor(m.getPointsAmount()))
+              .setParameter("referencia", m.getExternalReference())
               .setParameter("creado", m.getCreatedAt())
               .executeUpdate();
       if (filas == 1) {
@@ -430,6 +431,43 @@ public class JpaMovementRepository implements MovementRepository {
                     instante(f.get("rechazado")),
                     (String) f.get("motivo")))
         .toList();
+  }
+
+  @Override
+  @Transactional(readOnly = true)
+  public Optional<PointsAdjustmentRow> findPointsAdjustment(UUID movementId) {
+    @SuppressWarnings("unchecked")
+    List<Tuple> filas =
+        em.createNativeQuery(
+                """
+                SELECT m.id AS id, m.code AS code, m.user_id AS sujeto, m.status AS status,
+                       c.id AS moneda, c.code AS codigo_moneda, m.points_amount AS puntos,
+                       m.concept AS concepto, m.external_reference AS referencia,
+                       m.occurred_at AS ocurrio, m.confirmed_at AS confirmado
+                  FROM movements m
+                  JOIN movement_types t ON t.id = m.movement_type_id
+                  JOIN currencies c ON c.id = m.currency_id
+                 WHERE m.id = :id AND t.code = 'AJUSTE_PUNTOS'
+                """,
+                Tuple.class)
+            .setParameter("id", movementId)
+            .getResultList();
+    return filas.stream()
+        .findFirst()
+        .map(
+            f ->
+                new PointsAdjustmentRow(
+                    (UUID) f.get("id"),
+                    (String) f.get("code"),
+                    (UUID) f.get("sujeto"),
+                    (String) f.get("status"),
+                    (UUID) f.get("moneda"),
+                    ((String) f.get("codigo_moneda")).trim(),
+                    MinorUnits.fromMinor(f.get("puntos")),
+                    (String) f.get("concepto"),
+                    (String) f.get("referencia"),
+                    instante(f.get("ocurrio")),
+                    instante(f.get("confirmado"))));
   }
 
   @Override

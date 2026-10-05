@@ -108,7 +108,9 @@ class MovementsPermissionsSeedIT extends IntegrationTestBase {
           "movements:set-points-rate",
           // `V67` (05-10-2026): fijar la conversión de un país (`RF-MV-046`), también de
           // administración.
-          "movements:set-conversion-rate");
+          "movements:set-conversion-rate",
+          // `V72` (05-10-2026): ajustar los puntos a mano (`RF-MV-052`), de administración.
+          "movements:adjust-points");
 
   /**
    * Los de `V61` de administración (01-10-2026): el catálogo de entidades de cobro y las cuentas de
@@ -139,7 +141,7 @@ class MovementsPermissionsSeedIT extends IntegrationTestBase {
         .containsAll(LOS_DE_SALDOS)
         .containsAll(LOS_DE_PUNTOS)
         .containsAll(LOS_DE_COBRO)
-        .hasSize(36);
+        .hasSize(37);
   }
 
   @Test
@@ -160,7 +162,7 @@ class MovementsPermissionsSeedIT extends IntegrationTestBase {
     // RN-SEG-007: la raíz de la contención está acotada por el catálogo
     // completo. Un permiso sembrado y no asociado la dejaría por detrás de sus
     // propios hijos.
-    assertThat(permisosDeMovimientosDe(SUPERADMIN)).containsAll(LOS_CUATRO).hasSize(36);
+    assertThat(permisosDeMovimientosDe(SUPERADMIN)).containsAll(LOS_CUATRO).hasSize(37);
   }
 
   @Test
@@ -206,7 +208,7 @@ class MovementsPermissionsSeedIT extends IntegrationTestBase {
     List<UUID> ids =
         jdbc.queryForList("SELECT id FROM permissions WHERE resource = 'movements'", UUID.class);
 
-    assertThat(ids).hasSize(36).doesNotHaveDuplicates();
+    assertThat(ids).hasSize(37).doesNotHaveDuplicates();
     assertThat(ids).allSatisfy(id -> assertThat(id.version()).isEqualTo(7));
     // variant() == 2 es la variante RFC 9562 (bits 10xx).
     assertThat(ids).allSatisfy(id -> assertThat(id.variant()).isEqualTo(2));

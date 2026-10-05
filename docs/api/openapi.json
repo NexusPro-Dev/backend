@@ -5252,6 +5252,83 @@
         },
         "type" : "object"
       },
+      "PointsAdjustmentRequest" : {
+        "properties" : {
+          "concept" : {
+            "description" : "Por qué. Obligatorio, hasta 500 caracteres.",
+            "type" : "string"
+          },
+          "currencyId" : {
+            "description" : "En qué cuenta de puntos: los puntos son de una moneda.",
+            "format" : "uuid",
+            "type" : "string"
+          },
+          "points" : {
+            "description" : "Distintos de cero, con dos decimales como mucho. Positivos suman; negativos restan, y nunca por debajo de cero.",
+            "type" : "number"
+          },
+          "reference" : {
+            "description" : "La referencia del comprobante —el número de la consignación—. Opcional; si viene, con contenido y hasta 120 caracteres.",
+            "type" : [ "string", "null" ]
+          },
+          "userId" : {
+            "description" : "A quién.",
+            "format" : "uuid",
+            "type" : "string"
+          }
+        },
+        "type" : "object"
+      },
+      "PointsAdjustmentResponse" : {
+        "properties" : {
+          "code" : {
+            "description" : "El comprobante, con prefijo `AJP`.",
+            "type" : "string"
+          },
+          "concept" : {
+            "description" : "Por qué.",
+            "type" : "string"
+          },
+          "confirmedAt" : {
+            "format" : "date-time",
+            "type" : "string"
+          },
+          "currency" : {
+            "$ref" : "#/components/schemas/SaleCurrency",
+            "description" : "La moneda de la cuenta de puntos ajustada."
+          },
+          "id" : {
+            "format" : "uuid",
+            "type" : "string"
+          },
+          "occurredAt" : {
+            "format" : "date-time",
+            "type" : "string"
+          },
+          "points" : {
+            "description" : "Los puntos, con su signo: positivos se sumaron, negativos se restaron.",
+            "type" : "number"
+          },
+          "pointsBalance" : {
+            "description" : "El saldo de puntos de la persona en esa moneda, ahora. En una petición repetida es el de este momento, que puede haber cambiado desde el ajuste.",
+            "type" : "number"
+          },
+          "reference" : {
+            "description" : "La referencia del comprobante que lo soporta, si se indicó.",
+            "type" : [ "string", "null" ]
+          },
+          "status" : {
+            "description" : "Siempre CONFIRMADA: el ajuste se aplica en el acto.",
+            "type" : "string"
+          },
+          "userId" : {
+            "description" : "A quién se le ajustaron los puntos.",
+            "format" : "uuid",
+            "type" : "string"
+          }
+        },
+        "type" : "object"
+      },
       "PointsPurchaseRate" : {
         "properties" : {
           "id" : {
@@ -15943,6 +16020,70 @@
         "x-required-permission" : "movements:update-payout-institution"
       }
     },
+    "/api/v1/movements/points-adjustments" : {
+      "post" : {
+        "description" : "**Permiso requerido:** `movements:adjust-points`. Sin él, `403` (`AUTH-002`).\n\nSuma o resta **puntos** a mano en la cuenta de puntos de una persona, en una moneda\n(`RF-MV-052`, `RN-MV-076`): para lo que se pagó **por fuera de la plataforma** —una\nconsignación directa a la cuenta de la empresa— o para corregir un error. `points` va\n**con signo**: positivo suma, negativo resta. **No hay importe en dinero ni tasa**.\nNace `CONFIRMADA`, sin pago, y mueve los puntos en el acto desde o hacia la cuenta de\npuntos emitidos de la empresa. **Una resta nunca deja el saldo por debajo de cero**:\nsi no alcanza, `422` y nada cambia. **El motivo (`concept`) y la cabecera\n`Idempotency-Key` son obligatorios**; `reference`, el comprobante, es opcional. La\nmisma petición repetida responde `200` con el ajuste ya hecho. No se revierte: se\ncompensa con otro ajuste. No comisiona.\n",
+        "operationId" : "ajustarPuntos",
+        "parameters" : [ {
+          "description" : "Una por ajuste.",
+          "in" : "header",
+          "name" : "Idempotency-Key",
+          "required" : true,
+          "schema" : {
+            "type" : "string"
+          }
+        } ],
+        "requestBody" : {
+          "content" : {
+            "application/json" : {
+              "schema" : {
+                "$ref" : "#/components/schemas/PointsAdjustmentRequest"
+              }
+            }
+          }
+        },
+        "responses" : {
+          "200" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/PointsAdjustmentResponse"
+                }
+              }
+            },
+            "description" : "La misma petición repetida."
+          },
+          "201" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/PointsAdjustmentResponse"
+                }
+              }
+            },
+            "description" : "Ajustado."
+          },
+          "400" : {
+            "description" : "Datos ausentes o malformados —puntos en cero o con más de dos decimales, motivo vacío, referencia en blanco o larga—, o clave ausente o malformada"
+          },
+          "401" : {
+            "description" : "Sin token (`AUTH-001`)"
+          },
+          "403" : {
+            "description" : "Sin `movements:adjust-points` (`AUTH-002`)"
+          },
+          "409" : {
+            "description" : "La clave es de otra petición (`EX-005`)"
+          },
+          "422" : {
+            "description" : "La persona o la moneda no existen (`EX-002`), o la resta es mayor que los puntos que tiene (`EX-006`, con los disponibles en el mensaje)"
+          }
+        },
+        "summary" : "Ajustar los puntos de una persona",
+        "tags" : [ "Puntos" ],
+        "x-required-permission" : "movements:adjust-points"
+      }
+    },
     "/api/v1/movements/points-rates" : {
       "get" : {
         "description" : "**Permiso requerido:** `movements:read-points-rates`. Sin él, `403` (`AUTH-002`).\n\nLa tasa que rige hoy en cada moneda **activa** que venda puntos, ordenadas por código\nde moneda y sin paginar (`RF-MV-026`). El histórico no se publica. Con ella se calcula\ncuántos puntos da una compra y cuántos cuesta pagar con ellos; el cálculo definitivo\nlo hace la operación, con la tasa de ese momento.\n",
@@ -21575,11 +21716,11 @@
     "description" : "Catálogo de los brokers con los que opera la plataforma. Solo lectura: se puebla por migración (RN-SP-039).",
     "name" : "Brokers"
   }, {
+    "description" : "A cuánto se venden los puntos en cada moneda, su compra y su ajuste a mano. Confirmar o rechazar el pago de una compra es `POST /api/v1/movements/payments/{paymentId}/…`, como el de una venta. Pagar con puntos no tiene ruta propia: es el método `POINTS` en las compras.",
+    "name" : "Puntos"
+  }, {
     "description" : "Tasas de comisión por rol: qué paga cada producto.",
     "name" : "Comisiones"
-  }, {
-    "description" : "A cuánto se venden los puntos en cada moneda y su compra. Confirmar o rechazar su pago es `POST /api/v1/movements/payments/{paymentId}/…`, como el de una venta. Pagar con puntos no tiene ruta propia: es el método `POINTS` en las compras.",
-    "name" : "Puntos"
   }, {
     "description" : "Cadena lineal de niveles de consumidor. Inmutable salvo el reordenamiento.",
     "name" : "Membresías"

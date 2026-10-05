@@ -133,6 +133,23 @@ public interface MovementRepository {
       OffsetDateTime rejectedAt,
       String rejectionReason) {}
 
+  /** `RF-MV-052`: un ajuste de puntos, o vacío si no existe o es de otro tipo. */
+  Optional<PointsAdjustmentRow> findPointsAdjustment(UUID movementId);
+
+  /** Un ajuste de puntos, con sus puntos con signo, tal como lo publica su respuesta. */
+  record PointsAdjustmentRow(
+      UUID id,
+      String code,
+      UUID userId,
+      String status,
+      UUID currencyId,
+      String currencyCode,
+      BigDecimal points,
+      String concept,
+      String externalReference,
+      OffsetDateTime occurredAt,
+      OffsetDateTime confirmedAt) {}
+
   /** Un movimiento que no vende, tal como lo publican sus respuestas. */
   record WithdrawalRow(
       UUID id,

@@ -61,6 +61,7 @@ public final class Movement {
   private final String idempotencyKey;
   private final UUID pointsRateId;
   private final BigDecimal pointsAmount;
+  private final String externalReference;
   private final TypeStatus typeStatus;
   private final BigDecimal totalAmount;
   private final BigDecimal discountAmount;
@@ -106,6 +107,7 @@ public final class Movement {
     this.idempotencyKey = null;
     this.pointsRateId = null;
     this.pointsAmount = null;
+    this.externalReference = null;
     this.typeStatus = typeStatus;
     this.occurredAt = occurredAt;
     this.createdAt = createdAt;
@@ -151,6 +153,7 @@ public final class Movement {
       UUID paymentMethodId,
       UUID pointsRateId,
       BigDecimal pointsAmount,
+      String externalReference,
       OffsetDateTime ahora) {
     this.id = id;
     this.movementTypeId = movementTypeId;
@@ -159,6 +162,7 @@ public final class Movement {
     this.paymentMethodId = paymentMethodId;
     this.pointsRateId = pointsRateId;
     this.pointsAmount = pointsAmount;
+    this.externalReference = externalReference;
     this.currencyId = currencyId;
     this.code = code;
     this.lines = List.of();
@@ -201,6 +205,7 @@ public final class Movement {
         null,
         null,
         null,
+        null,
         ahora);
   }
 
@@ -229,6 +234,7 @@ public final class Movement {
         importe,
         concepto,
         clave,
+        null,
         null,
         null,
         null,
@@ -272,6 +278,50 @@ public final class Movement {
         metodo,
         tasa,
         puntos,
+        null,
+        ahora);
+  }
+
+  /**
+   * `RF-MV-052`: el ajuste de puntos nace <b>confirmado</b> y <b>sin dinero</b> —los tres importes
+   * en cero—, con los puntos <b>con su signo</b> y sin tasa, su motivo y la referencia del
+   * comprobante si la hay (`RN-MV-076`).
+   *
+   * @param decimales los de la moneda, para la escala de los importes en cero
+   * @param puntos distintos de cero: positivos suman, negativos restan
+   */
+  public static Movement ajusteDePuntos(
+      UUID tipo,
+      UUID sujeto,
+      UUID moneda,
+      String code,
+      TypeStatus estado,
+      int decimales,
+      BigDecimal puntos,
+      String concepto,
+      String referencia,
+      String clave,
+      OffsetDateTime ahora) {
+    if (puntos == null || puntos.signum() == 0 || concepto == null || clave == null) {
+      // `ck_movements_points` rechazaría los puntos en cero al escribir; aquí se ve antes.
+      throw new IllegalArgumentException(
+          "Un ajuste lleva puntos distintos de cero, motivo y clave.");
+    }
+    return new Movement(
+        UUID.randomUUID(),
+        tipo,
+        sujeto,
+        moneda,
+        code,
+        estado,
+        MovementStatus.CONFIRMADA,
+        BigDecimal.ZERO.setScale(decimales),
+        concepto,
+        clave,
+        null,
+        null,
+        puntos,
+        referencia,
         ahora);
   }
 
@@ -415,8 +465,12 @@ public final class Movement {
     if (concept != null) {
       datos.put("concept", concept);
     }
+    if (externalReference != null) {
+      datos.put("external_reference", externalReference);
+    }
     if (pointsAmount != null) {
-      datos.put("points_rate_id", pointsRateId.toString());
+      // Nulo y presente en un ajuste (`RN-MV-076`): sus puntos no tienen tasa.
+      datos.put("points_rate_id", pointsRateId == null ? null : pointsRateId.toString());
       datos.put("points_amount", pointsAmount.toPlainString());
     }
     datos.put("currency_id", currencyId.toString());
@@ -503,6 +557,10 @@ public final class Movement {
 
   public BigDecimal getPointsAmount() {
     return pointsAmount;
+  }
+
+  public String getExternalReference() {
+    return externalReference;
   }
 
   public String getIdempotencyKey() {

@@ -80,13 +80,13 @@ tags:
 - name: Brokers
   description: "Catálogo de los brokers con los que opera la plataforma. Solo lectura:\
     \ se puebla por migración (RN-SP-039)."
+- name: Puntos
+  description: "A cuánto se venden los puntos en cada moneda, su compra y su ajuste\
+    \ a mano. Confirmar o rechazar el pago de una compra es `POST /api/v1/movements/payments/{paymentId}/…\
+    `, como el de una venta. Pagar con puntos no tiene ruta propia: es el método `POINTS`\
+    \ en las compras."
 - name: Comisiones
   description: "Tasas de comisión por rol: qué paga cada producto."
-- name: Puntos
-  description: "A cuánto se venden los puntos en cada moneda y su compra. Confirmar\
-    \ o rechazar su pago es `POST /api/v1/movements/payments/{paymentId}/…`, como\
-    \ el de una venta. Pagar con puntos no tiene ruta propia: es el método `POINTS`\
-    \ en las compras."
 - name: Membresías
   description: Cadena lineal de niveles de consumidor. Inmutable salvo el reordenamiento.
 - name: Módulos de curso
@@ -3548,6 +3548,65 @@ paths:
         "422":
           description: La moneda no existe (`EX-002`)
       x-required-permission: movements:set-points-rate
+  /api/v1/movements/points-adjustments:
+    post:
+      tags:
+      - Puntos
+      summary: Ajustar los puntos de una persona
+      description: |
+        **Permiso requerido:** `movements:adjust-points`. Sin él, `403` (`AUTH-002`).
+
+        Suma o resta **puntos** a mano en la cuenta de puntos de una persona, en una moneda
+        (`RF-MV-052`, `RN-MV-076`): para lo que se pagó **por fuera de la plataforma** —una
+        consignación directa a la cuenta de la empresa— o para corregir un error. `points` va
+        **con signo**: positivo suma, negativo resta. **No hay importe en dinero ni tasa**.
+        Nace `CONFIRMADA`, sin pago, y mueve los puntos en el acto desde o hacia la cuenta de
+        puntos emitidos de la empresa. **Una resta nunca deja el saldo por debajo de cero**:
+        si no alcanza, `422` y nada cambia. **El motivo (`concept`) y la cabecera
+        `Idempotency-Key` son obligatorios**; `reference`, el comprobante, es opcional. La
+        misma petición repetida responde `200` con el ajuste ya hecho. No se revierte: se
+        compensa con otro ajuste. No comisiona.
+      operationId: ajustarPuntos
+      parameters:
+      - name: Idempotency-Key
+        in: header
+        description: Una por ajuste.
+        required: true
+        schema:
+          type: string
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/PointsAdjustmentRequest"
+      responses:
+        "201":
+          description: Ajustado.
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/PointsAdjustmentResponse"
+        "200":
+          description: La misma petición repetida.
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/PointsAdjustmentResponse"
+        "400":
+          description: "Datos ausentes o malformados —puntos en cero o con más de\
+            \ dos decimales, motivo vacío, referencia en blanco o larga—, o clave\
+            \ ausente o malformada"
+        "401":
+          description: Sin token (`AUTH-001`)
+        "403":
+          description: Sin `movements:adjust-points` (`AUTH-002`)
+        "409":
+          description: La clave es de otra petición (`EX-005`)
+        "422":
+          description: "La persona o la moneda no existen (`EX-002`), o la resta es\
+            \ mayor que los puntos que tiene (`EX-006`, con los disponibles en el\
+            \ mensaje)"
+      x-required-permission: movements:adjust-points
   /api/v1/movements/payout-institutions:
     get:
       tags:
@@ -15602,6 +15661,73 @@ components:
           type: string
           format: date-time
           description: Desde cuándo rige.
+    PointsAdjustmentRequest:
+      type: object
+      properties:
+        userId:
+          type: string
+          format: uuid
+          description: A quién.
+        currencyId:
+          type: string
+          format: uuid
+          description: "En qué cuenta de puntos: los puntos son de una moneda."
+        points:
+          type: number
+          description: "Distintos de cero, con dos decimales como mucho. Positivos\
+            \ suman; negativos restan, y nunca por debajo de cero."
+        concept:
+          type: string
+          description: "Por qué. Obligatorio, hasta 500 caracteres."
+        reference:
+          type:
+          - string
+          - "null"
+          description: "La referencia del comprobante —el número de la consignació\
+            n—. Opcional; si viene, con contenido y hasta 120 caracteres."
+    PointsAdjustmentResponse:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        code:
+          type: string
+          description: "El comprobante, con prefijo `AJP`."
+        userId:
+          type: string
+          format: uuid
+          description: A quién se le ajustaron los puntos.
+        status:
+          type: string
+          description: "Siempre CONFIRMADA: el ajuste se aplica en el acto."
+        currency:
+          $ref: "#/components/schemas/SaleCurrency"
+          description: La moneda de la cuenta de puntos ajustada.
+        points:
+          type: number
+          description: "Los puntos, con su signo: positivos se sumaron, negativos\
+            \ se restaron."
+        concept:
+          type: string
+          description: Por qué.
+        reference:
+          type:
+          - string
+          - "null"
+          description: "La referencia del comprobante que lo soporta, si se indicó\
+            ."
+        occurredAt:
+          type: string
+          format: date-time
+        confirmedAt:
+          type: string
+          format: date-time
+        pointsBalance:
+          type: number
+          description: "El saldo de puntos de la persona en esa moneda, ahora. En\
+            \ una petición repetida es el de este momento, que puede haber cambiado\
+            \ desde el ajuste."
     RegisterPayoutInstitutionRequest:
       type: object
       properties:

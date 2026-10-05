@@ -1,9 +1,11 @@
 package com.factech.nexus.modules.movements.interfaces;
 
+import com.factech.nexus.modules.movements.application.PointsAdjustmentResponse;
 import com.factech.nexus.modules.movements.application.PointsPurchaseResponse;
 import com.factech.nexus.modules.movements.application.PointsRateResponse;
 import com.factech.nexus.modules.movements.application.PointsRequests;
 import com.factech.nexus.modules.movements.domain.models.IdempotencyKey;
+import com.factech.nexus.modules.movements.domain.service.PointsAdjustmentService;
 import com.factech.nexus.modules.movements.domain.service.PointsPurchaseService;
 import com.factech.nexus.modules.movements.domain.service.PointsRateService;
 import com.factech.nexus.shared.pagination.PageResponse;
@@ -35,19 +37,78 @@ import org.springframework.web.bind.annotation.RestController;
 @Tag(
     name = "Puntos",
     description =
-        "A cuánto se venden los puntos en cada moneda y su compra. Confirmar o rechazar su pago es"
-            + " `POST /api/v1/movements/payments/{paymentId}/…`, como el de una venta. Pagar con"
-            + " puntos no tiene ruta propia: es el método `POINTS` en las compras.")
+        "A cuánto se venden los puntos en cada moneda, su compra y su ajuste a mano. Confirmar o"
+            + " rechazar el pago de una compra es `POST /api/v1/movements/payments/{paymentId}/…`,"
+            + " como el de una venta. Pagar con puntos no tiene ruta propia: es el método `POINTS`"
+            + " en las compras.")
 @RestController
 @RequestMapping("/api/v1/movements")
 public class PointsController {
 
   private final PointsRateService tasas;
   private final PointsPurchaseService compras;
+  private final PointsAdjustmentService ajustes;
 
-  public PointsController(PointsRateService tasas, PointsPurchaseService compras) {
+  public PointsController(
+      PointsRateService tasas, PointsPurchaseService compras, PointsAdjustmentService ajustes) {
     this.tasas = tasas;
     this.compras = compras;
+    this.ajustes = ajustes;
+  }
+
+  @PostMapping("/points-adjustments")
+  @PreAuthorize("hasAuthority('movements:adjust-points')")
+  @Operation(
+      summary = "Ajustar los puntos de una persona",
+      description =
+          """
+          Suma o resta **puntos** a mano en la cuenta de puntos de una persona, en una moneda
+          (`RF-MV-052`, `RN-MV-076`): para lo que se pagó **por fuera de la plataforma** —una
+          consignación directa a la cuenta de la empresa— o para corregir un error. `points` va
+          **con signo**: positivo suma, negativo resta. **No hay importe en dinero ni tasa**.
+          Nace `CONFIRMADA`, sin pago, y mueve los puntos en el acto desde o hacia la cuenta de
+          puntos emitidos de la empresa. **Una resta nunca deja el saldo por debajo de cero**:
+          si no alcanza, `422` y nada cambia. **El motivo (`concept`) y la cabecera
+          `Idempotency-Key` son obligatorios**; `reference`, el comprobante, es opcional. La
+          misma petición repetida responde `200` con el ajuste ya hecho. No se revierte: se
+          compensa con otro ajuste. No comisiona.
+          """)
+  @ApiResponses({
+    @ApiResponse(responseCode = "201", description = "Ajustado."),
+    @ApiResponse(responseCode = "200", description = "La misma petición repetida."),
+    @ApiResponse(
+        responseCode = "400",
+        description =
+            "Datos ausentes o malformados —puntos en cero o con más de dos decimales, motivo"
+                + " vacío, referencia en blanco o larga—, o clave ausente o malformada",
+        content = @Content),
+    @ApiResponse(responseCode = "401", description = "Sin token (`AUTH-001`)", content = @Content),
+    @ApiResponse(
+        responseCode = "403",
+        description = "Sin `movements:adjust-points` (`AUTH-002`)",
+        content = @Content),
+    @ApiResponse(
+        responseCode = "409",
+        description = "La clave es de otra petición (`EX-005`)",
+        content = @Content),
+    @ApiResponse(
+        responseCode = "422",
+        description =
+            "La persona o la moneda no existen (`EX-002`), o la resta es mayor que los puntos que"
+                + " tiene (`EX-006`, con los disponibles en el mensaje)",
+        content = @Content)
+  })
+  public ResponseEntity<PointsAdjustmentResponse> ajustarPuntos(
+      @RequestBody(required = false) PointsRequests.Adjustment peticion,
+      @Parameter(in = ParameterIn.HEADER, required = true, description = "Una por ajuste.")
+          @RequestHeader(value = IdempotencyKey.CABECERA, required = false)
+          String clave) {
+    PointsAdjustmentService.AdjustmentResult hecho = ajustes.adjust(peticion, clave);
+    if (!hecho.created()) {
+      return ResponseEntity.ok(hecho.adjustment());
+    }
+    return ResponseEntity.created(URI.create("/api/v1/movements/" + hecho.adjustment().id()))
+        .body(hecho.adjustment());
   }
 
   @PostMapping("/points-rates")

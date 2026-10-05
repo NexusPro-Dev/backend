@@ -18,5 +18,10 @@ public enum EntryEvent {
    */
   ABONO,
   /** Una venta se paga con puntos: salen de la cuenta de puntos (`RN-MV-052`). */
-  PAGO
+  PAGO,
+  /**
+   * Administración suma o resta puntos a mano (`RN-MV-076`, desde el 05-10-2026), en los dos
+   * sentidos entre la cuenta de puntos y {@code PUNTOS_EMITIDOS}.
+   */
+  AJUSTE
 }
