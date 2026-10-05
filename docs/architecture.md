@@ -5,7 +5,7 @@
 | Proyecto | NEXUS — Renovación de plataforma |
 | Empresa | FACTECH GROUP SAS |
 | Documento | `architecture.md` |
-| Versión | 0.45.0 |
+| Versión | 0.46.0 |
 | Estado | Borrador |
 | Responsable técnico | Bonilla Diaz William Steven |
 | Fecha de creación | 19-08-2026 |
@@ -665,6 +665,7 @@ Toda configuración dependiente del entorno se inyecta por variable de entorno (
 | `REQUEST_LOG_RETENTION_DAYS` | No | Retención del `request_log`. **Hoy no la lee nadie**: la purga sigue pendiente de D-10 |
 | `NOTIFICATION_ENABLED` · `RESEND_API_KEY` · `NOTIFICATION_FROM` | No | Envío saliente (§15.1). Sin clave queda apagado y se avisa al arrancar |
 | `STRIPE_SECRET_KEY` · `STRIPE_WEBHOOK_SECRET` | No | La pasarela de la tarjeta (§15.4). **Sin las dos, queda apagada y se avisa al arrancar**: el pago con `CREDIT_CARD` nace pendiente **sin cobro**, como antes del 01-10-2026, y lo confirma una persona; la ruta de notificaciones responde `503` |
+| `PAYRETAILERS_SHOP_ID` · `PAYRETAILERS_SECRET_KEY` · `PAYRETAILERS_SUBSCRIPTION_KEY` · `PAYRETAILERS_BASE_URL` · `PAYRETAILERS_NOTIFICATION_URL` · `PAYRETAILERS_RETURN_URL` · `PAYRETAILERS_TEST_MODE` · `PAYRETAILERS_RECONCILE_CRON` · `PAYRETAILERS_RECONCILE_AFTER` | No | La pasarela local (§15.5). **Sin las tres credenciales queda apagada y se avisa al arrancar**: el pago con `PSE` nace pendiente **sin cobro**, como antes del 05-10-2026, y lo confirma una persona. Ver [`deployment.md` §6.5.2](deployment.md) |
 | `NOTIFICATION_TEMPLATE_PASSWORD_RECOVERY` | No | Plantilla alojada en Resend del correo de `RF-SP-040`, por id o alias. Vacía manda el mensaje **en texto plano** |
 | `YOUTUBE_API_KEY` · `VIMEO_ACCESS_TOKEN` | No | Credenciales con las que Academia lee la duración de una lección de video (`RN-AC-017`, 25-09-2026): la clave de la YouTube Data API v3 y el token de acceso personal de Vimeo, con alcance de lectura. **Sin la de un proveedor, sus lecciones exigen la duración a mano** —Vimeo intenta antes su oEmbed, que no es fiable— |
 
@@ -916,6 +917,20 @@ El motivo del retiro llega con el permiso de lectura del módulo —`products:re
 
 **Apagable, como el correo.** Sin `STRIPE_SECRET_KEY` y `STRIPE_WEBHOOK_SECRET` el adaptador no se crea, se avisa al arrancar y el método `CREDIT_CARD` se comporta como antes del 01-10-2026: pago pendiente sin cobro, confirmado a mano. **La suite corre así**, salvo las pruebas de la pasarela, que doblan el puerto: ninguna prueba llama a Stripe de verdad.
 
+## 15.5 La pasarela local: PayRetailers (05-10-2026)
+
+**PayRetailers cobra los métodos locales** —PSE, Nequi, Efecty y Bre-B en Colombia— en **moneda local** ([`requirements/mv.md`](requirements/mv.md) v0.78.0 §4.10), y es **el segundo proveedor externo que escribe en el sistema**, después de Stripe (§15.4). Se repiten las tres decisiones de entonces —**puerto de `MV`, adaptador único, apagable**— y cambia **la fuente de verdad**.
+
+**Un puerto propio, `LocalPaymentGateway`, y no el de la tarjeta.** `CardGateway` describe un cobro que la app confirma con un secreto de cliente y que la pasarela notifica firmado; aquí el cliente **se va a otra página** y vuelve, y los avisos **no se firman**. Forzar los dos en una interfaz obligaría a cada uno a implementar a medias los métodos del otro. `LocalPaymentGateway` tiene **dos** operaciones —**abrir un cobro** (devuelve el identificador y la dirección de la página de pago) y **consultar un cobro** por su identificador—, y lo implementa `PayRetailersGateway`, en `movements.infrastructure`, **el único sitio que conoce la API de PayRetailers**. Como Stripe, **por HTTP con `RestClient` y sin biblioteca**: la API son dos llamadas JSON, y autenticar es una cabecera (`Ocp-Apim-Subscription-Key`) y HTTP Basic con `shopId` y la clave secreta.
+
+**La fuente de verdad es la consulta, no el aviso.** Con Stripe la notificación **es** la verdad porque va firmada; aquí **el aviso no prueba nada**. Se guarda en `gateway_events` —con `gateway = 'PAYRETAILERS'`, por lo mismo que los de Stripe: lo que llegó, tal como llegó (`RN-MV-059`)— y **dispara `consultar`**: lo que diga la pasarela, con nuestras credenciales, es lo que se aplica. **Un barrido programado hace la misma consulta** por cada cobro pendiente sin noticias desde hace un rato (`RN-MV-064`), porque PayRetailers **no reentrega**. **Las dos entradas acaban en el mismo método**, que confirma o rechaza el pago por `RN-MV-061`: el aviso y el barrido no pueden discrepar porque no deciden, preguntan.
+
+**Llamadas hacia fuera y transacciones.** Abrir el cobro ocurre **al registrar el pago**, dentro de su transacción, como con Stripe y por lo mismo: sin cobro no debe quedar pago, y la referencia propia —el identificador del pago— hace que reintentar no abra dos. **La consulta ocurre fuera de toda transacción**, y el resultado se aplica en una transacción corta por pago, como el procesado de la notificación de Stripe.
+
+**El barrido es un `@Scheduled` con su expresión `cron` configurable**, como el cierre de comisiones, y **toma un bloqueo consultivo de PostgreSQL** para que dos instancias no consulten a la vez los mismos cobros. **Solo consulta los cobros que tienen identificador de la pasarela**, están `PENDIENTE` y llevan más de `PAYRETAILERS_RECONCILE_AFTER` sin noticias, en lotes acotados.
+
+**Apagable.** Sin `PAYRETAILERS_SHOP_ID`, `PAYRETAILERS_SECRET_KEY` y `PAYRETAILERS_SUBSCRIPTION_KEY` el adaptador no se crea, se avisa al arrancar, la ruta del aviso responde `503`, el barrido no corre y **`PSE` se comporta como antes**: pendiente sin cobro, confirmado a mano. **La suite corre así**, salvo las pruebas de la pasarela local, que doblan el puerto: **ninguna prueba llama a PayRetailers**.
+
 ---
 
 ## 16. Decisiones pendientes
@@ -981,3 +996,4 @@ D-08 quedó cerrada en `security.md` §12, junto con las decisiones D-12 a D-15 
 | 0.43.0 | 01-10-2026 | **§15.4 recoge cómo se construyó la pasarela**: por la API HTTP de Stripe con `RestClient`, **sin su biblioteca**, en `movements.infrastructure`, con la regla de ArchUnit `laPasarelaEsUnPuerto`. El proceso de la notificación corre en una transacción **`REQUIRES_NEW`** tras el `COMMIT` de quien la recibió —con `REQUIRED` se sumaría a la que ya terminó y no confirmaría nada—, en segundo plano por el ejecutor de la aplicación, y con un barrido cada minuto que reintenta hasta cinco veces con `SKIP LOCKED`. | Responsable técnico |
 | 0.44.0 | 05-10-2026 | **§6.2 gana la convención de los importes, y §15 su `ADR-006`**: todo importe en dinero se guarda como `bigint` en **centésimas**, por decisión del responsable del proyecto. **No había ningún `double`**: los importes eran `numeric`, exactos, y así se le dijo. El cambio arregla de paso una mezcla de escalas, porque el catálogo aceptaba cuatro decimales y la venta los redondeaba a dos. La conversión la hace **un convertidor JPA**, y dominio y API siguen en decimales. **Lo que el convertidor no ve es el SQL nativo**, y §6.2 fija la regla: se convierte al mapear y al vincular, y nunca se divide en SQL. | Responsable del proyecto |
 | 0.45.0 | 05-10-2026 | **§15.2 gana su tercera inversión de dependencia: `SP` pide a `MV` que active lo comprado al registrarse** (`FirstDepositActivation`; [`requirements/sp.md`](requirements/sp.md) v1.91.0, `RN-SP-057`; [`requirements/mv.md`](requirements/mv.md) v0.76.0, `RN-MV-075`). La venta del alta gratuita nace confirmada y su línea espera al primer depósito, que confirma `SP` al sacar a la cuenta de `FTD_PENDIENTE`. `SP` declara el puerto y `MV` lo implementa, como la venta del registro, para no cerrar el ciclo. Es una escritura en la transacción del cambio de estado: si falla, la cuenta no cambia. | Responsable del proyecto |
+| 0.46.0 | 05-10-2026 | **Nueva §15.5: la pasarela local, PayRetailers** ([`requirements/mv.md`](requirements/mv.md) v0.78.0 §4.10). Un puerto propio de `MV`, `LocalPaymentGateway` —abrir y consultar un cobro—, con su adaptador único `PayRetailersGateway` por `RestClient`. **Cambia la fuente de verdad**: el aviso no va firmado, de modo que **se pregunta a la pasarela**, y un **barrido programado** con bloqueo consultivo pregunta por los pendientes. Apagable sin sus tres credenciales; nueve variables nuevas en §14 | Responsable del proyecto |

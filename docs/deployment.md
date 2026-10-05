@@ -5,7 +5,7 @@
 | Proyecto | NEXUS — Renovación de plataforma |
 | Empresa | FACTECH GROUP SAS |
 | Documento | `deployment.md` |
-| Versión | 0.13.0 |
+| Versión | 0.14.0 |
 | Estado | Borrador |
 | Responsable técnico | Bonilla Diaz William Steven |
 | Fecha de creación | 27-08-2026 |
@@ -264,6 +264,22 @@ Se cargan en el servicio **`backend`**. La columna «Valor en Railway» es liter
 
 **En local no hay endpoint registrado**, y sin él las notificaciones no llegan: el cobro sale `succeeded` en Stripe y la venta se queda `PENDIENTE` aquí. **Desde el 02-10-2026 las reenvía el servicio `stripe` del `docker-compose.yml`** (`nexus-stripe`, la Stripe CLI fijada a `v1.53.0`), que arranca con `docker compose up`, usa la misma `STRIPE_SECRET_KEY` que la aplicación y reenvía a `http://app:8080/api/v1/movements/gateway-notifications/stripe` los seis eventos de arriba. **El `whsec_…` que va en `STRIPE_WEBHOOK_SECRET` del `.env` es el que imprime `stripe listen --print-secret` con esa clave**, y es estable: no cambia de un arranque a otro. Sin `STRIPE_SECRET_KEY` el servicio se queda dormido y lo dice en su log, sin tumbar el resto. Lo que reenvía se ve en `docker logs nexus-stripe`, y un aviso perdido se recupera con `stripe events resend evt_…`. Con la aplicación fuera de Docker (`mvn spring-boot:run`) sigue valiendo correr a mano `stripe listen --forward-to localhost:8080/api/v1/movements/gateway-notifications/stripe`.
 
+### 6.5.2 La pasarela local (PayRetailers)
+
+| Variable | Valor en Railway | Por qué |
+|---|---|---|
+| `PAYRETAILERS_SHOP_ID` | El identificador de la tienda, del menú *Shops* del backoffice de PayRetailers —**uno por entorno**— | Con la clave secreta, autentica cada llamada por HTTP Basic. **Sin las tres credenciales la pasarela queda apagada** y se avisa al arrancar |
+| `PAYRETAILERS_SECRET_KEY` | La clave secreta de esa tienda | Secreto: nunca en el repositorio ni en el chat |
+| `PAYRETAILERS_SUBSCRIPTION_KEY` | La *Subscription Key* de la API (`Ocp-Apim-Subscription-Key`) | Va en cada petición |
+| `PAYRETAILERS_BASE_URL` | `https://api-sandbox.payretailers.com/payments/v2` en pruebas; la de producción la da PayRetailers | **Por omisión, la del sandbox**: un entorno mal configurado prueba, no cobra |
+| `PAYRETAILERS_NOTIFICATION_URL` | `https://<dominio del backend>/api/v1/movements/gateway-notifications/payretailers` | La dirección **pública** a la que PayRetailers envía los avisos; viaja en cada cobro |
+| `PAYRETAILERS_RETURN_URL` | La página del frontend a la que vuelve el cliente al terminar, por ejemplo `https://<dominio del frontend>/pagos/resultado` | Solo devuelve al cliente: **no confirma nada** |
+| `PAYRETAILERS_TEST_MODE` | `false` | Con `true` los cobros se marcan de prueba y PayRetailers no los procesa |
+| `PAYRETAILERS_RECONCILE_CRON` | Por omisión `0 */5 * * * *`, cada cinco minutos | El barrido de los cobros pendientes (`RF-MV-050`) |
+| `PAYRETAILERS_RECONCILE_AFTER` | Por omisión `PT10M` | Cuánto espera un cobro sin noticias antes de que el barrido pregunte por él |
+
+**En local los avisos no llegan solos**: PayRetailers necesita una dirección pública. Para probarlos hace falta un túnel —ngrok o Cloudflare Tunnel— que publique el puerto `8080`, y poner su dirección en `PAYRETAILERS_NOTIFICATION_URL`. **Sin túnel el sistema sigue funcionando**: el barrido pregunta por los cobros pendientes y los confirma igual, solo que unos minutos más tarde.
+
 ### 6.6 `ENVIRONMENT` ya se lee; `API_URL` todavía no
 
 **Desde el 31-08-2026 `ENVIRONMENT` decide algo, y por eso un valor equivocado tumba el arranque.**
@@ -491,3 +507,4 @@ Ninguno de estos puntos impide desplegar. Todos están declarados para que no se
 | 0.11.0 | 01-10-2026 | **La semilla de productos gana los enlaces de entrega de los bots**, a petición del responsable del proyecto: `CUPON_BOT` con la dirección real de activación de bots.com.co y una `DESCARGA` de prueba (`https://www.bots.com.co/downloads/`), en los cuatro bots vivos. Se añaden también a una base sembrada antes —no dependen de que el producto se acabe de crear— y no pisan un enlace corregido a mano. Como manda `RN-PM-050`, solo los publica «mis productos» con la venta pagada. | Responsable técnico |
 | 0.12.0 | 01-10-2026 | **Nueva §6.5.1: la pasarela de la tarjeta.** `STRIPE_SECRET_KEY` —una clave **restringida** a los cobros, no la secreta completa— y `STRIPE_WEBHOOK_SECRET` —el del endpoint, uno por entorno—; sin ellas la pasarela queda apagada y la tarjeta vuelve a confirmarla una persona. Se documenta la URL del endpoint que se registra en Stripe, los seis eventos a los que se suscribe y cómo recibir las notificaciones en local con la Stripe CLI. | Responsable técnico |
 | 0.13.0 | 02-10-2026 | **§6.5.1: el servicio `stripe` del `docker-compose.yml` reenvía las notificaciones en local**, a petición del responsable del proyecto: una compra con tarjeta se cobraba en Stripe y se quedaba pendiente porque `stripe listen` dependía de una terminal abierta. Usa la misma clave que la aplicación; sin ella se queda dormido. Solo local. | Responsable técnico |
+| 0.14.0 | 05-10-2026 | **Nueva §6.5.2: la pasarela local, PayRetailers** ([`requirements/mv.md`](requirements/mv.md) v0.78.0 §4.10): tres credenciales —`shopId`, clave secreta y *Subscription Key*—, la URL base con el sandbox por omisión, la dirección pública de los avisos, la de retorno al frontend, el modo de prueba y el barrido. En local, un túnel para los avisos o esperar al barrido | Responsable del proyecto |

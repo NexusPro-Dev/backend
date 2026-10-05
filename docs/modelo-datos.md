@@ -2,7 +2,7 @@
 
 | Campo | Valor |
 |---|---|
-| Versión | 0.94.0 |
+| Versión | 0.95.0 |
 | Estado | **Borrador** |
 | Responsable | Bonilla Diaz William Steven |
 | Fecha de creación | 21-08-2026 |
@@ -961,6 +961,8 @@ Son las que siguen —**y desde el 14-09-2026 una de `PM` apunta a `users`**—,
 | `country_conversion_rates.currency_id` | `currencies` | `MV` → `SP` — la moneda local del país, a la que se convierte (`RN-MV-062`, `V67`) |
 | `country_conversion_rates.base_currency_id` | `currencies` | `MV` → `SP` — la moneda de la que se convierte, copiada al fijar: la moneda por omisión de ese momento (`RN-MV-062`, `V67`) |
 | `country_conversion_rates.created_by` | `users` | `MV` → `SP` — quién fijó la conversión (`V67`). En la fila y no solo en la auditoría, como `points_rates.created_by`: de un precio se pregunta quién lo puso |
+| `payments.charge_currency_id` | `currencies` | `MV` → `SP` — la moneda en que cobró la pasarela local (`RN-MV-063`, 05-10-2026, `V69`) |
+| `payments.conversion_rate_id` | `country_conversion_rates` | Dentro de `MV` — la conversión con que se calculó el cobro en moneda local (`RN-MV-063`, `V69`, `RESTRICT`) |
 | `payout_accounts.user_id` | `users` | `MV` → `SP` — el dueño de la cuenta de cobro, que es también su titular (`RN-MV-055`, 01-10-2026, `V61`, **`ON DELETE CASCADE`**: en producción nadie borra personas y las suites sí). **El nombre y el documento no se copian aquí**: se leen del usuario |
 | `withdrawal_destinations.movement_id` | `movements` | `MV` → `MV` (01-10-2026, `V61`) — **no cruza módulo**; es la clave primaria, y un retiro tiene a lo sumo un destino (`RN-MV-056`) |
 | `gateway_events.payment_id` | `payments` | `MV` → `MV` (01-10-2026, `V62`) — **no cruza módulo**; el pago que la notificación resolvió, nulo hasta procesarla o si no resuelve ninguno. **`ON DELETE SET NULL`**: la notificación es la constancia de lo que dijo la pasarela y sobrevive a la limpieza de las suites |
@@ -1121,3 +1123,4 @@ Los documentos que citan una migración vieja por su número —specs, controles
 | 0.92.0 | 05-10-2026 | **La comisión por venta directa pasa de `products` a `commission_rates`** ([`requirements/cm.md`](requirements/cm.md) v0.30.0 §5.11, `RN-CM-050`; [`requirements/pm.md`](requirements/pm.md) v0.50.0, `RN-PM-051` retirada): `commission_rates` gana `direct_rate_type`, `direct_percentage` y `direct_fixed_amount` (`14,2`), con `ck_commission_rates_direct_forma` y `ck_commission_rates_direct_rangos`; `products` pierde sus tres columnas `direct_commission_*` y sus dos `CHECK` (`V64`). `commissions.rate_id` con `source = DIRECTA` apunta desde `V64` a la tasa de rol | Responsable del proyecto |
 | 0.93.0 | 05-10-2026 | **Todo importe en dinero pasa a `bigint` en centésimas** ([`ADR-006`](architecture/ADR-006-importes-en-unidades-minimas.md)), por decisión del responsable del proyecto, en las trece tablas que guardan dinero, y el diagrama lo recoge en `products`, las tasas de comisión y los paquetes. **Porcentajes y tasas no cambian.** Un aviso al principio del documento marca como forma anterior todo lo que aquí razona sobre `numeric(14,4)`, en lugar de reescribir esa historia: las decisiones se tomaron con aquella forma, y por eso se cuentan con ella. `currencies.decimal_places` queda acotado a `0..2`. | Responsable del proyecto |
 | 0.94.0 | 05-10-2026 | **`MV` diseña `country_conversion_rates`** ([`requirements/mv.md`](requirements/mv.md) v0.75.0 §4.9 y §7.15, `RN-MV-062`), por decisión del responsable del proyecto: la conversión de cada país, **1 USD = X moneda local**, con un precio de cobro y otro de retiro en la misma fila e historia hacia delante, para la pasarela local (PayRetailers). Cuatro claves foráneas hacia `SP`. **Sus precios no pasan a centésimas** (`ADR-006`): son proporciones. La escribirá `V67` | Responsable del proyecto |
+| 0.95.0 | 05-10-2026 | **`payments` gana el cobro en moneda local** ([`requirements/mv.md`](requirements/mv.md) v0.78.0 §4.10 y §7.7, `RN-MV-063`): `charge_currency_id`, `charge_amount` —en centésimas— y `conversion_rate_id`, juntas o ninguna; `payment_methods.gateway` admite `PAYRETAILERS` y la incidencia de un pago admite `COBRO_TARDIO`. Lo escribirá `V69` | Responsable del proyecto |
