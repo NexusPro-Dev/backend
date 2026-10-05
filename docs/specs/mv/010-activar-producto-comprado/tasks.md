@@ -3,10 +3,10 @@
 | Campo | Valor |
 |---|---|
 | Requerimiento | `RF-MV-010` |
-| Especificación | [`spec.md`](spec.md) v0.1.0 |
-| Plan | [`plan.md`](plan.md) v0.1.0 |
+| Especificación | [`spec.md`](spec.md) v0.3.0 |
+| Plan | [`plan.md`](plan.md) v0.2.0 |
 | `plan.md` aprobado el | 28-09-2026 |
-| Estado | **En revisión** — `T-01` a `T-08` `Hecha` el 28-09-2026 |
+| Estado | **En revisión** — `T-01` a `T-08` `Hecha` el 28-09-2026; `T-09` y `T-10` **Pendiente** (05-10-2026, `RN-MV-075`) |
 | Issue | [#123](https://github.com/NexusPro-Dev/backend/issues/123) |
 | Rama | `feature/activar-producto-comprado` |
 
@@ -30,6 +30,8 @@
 | `T-06` | `MovementController`: `POST /mine/products/{lineId}/activation`, antes de `/mine/{id}`; la prosa de `GET /mine/products` | `T-05` | Documentado con los códigos de `plan.md` §4 | Hecha |
 | `T-07` | `ActivateMyProductIT`: `CA-MV-275` a `CA-MV-283` | `T-06` | `CA-MV-278` con el superadministrador | Hecha |
 | `T-08` | `PermissionIT`, `EndpointPermissionsIT`; contrato con la prosa releída; `requirements.md`, `security.md` | `T-07` | | Hecha |
+| `T-09` | **`EX-006`** en `ActivateMyProductService`: el actor en `FTD_PENDIENTE` responde conflicto **antes** de las comprobaciones de la línea; y la prosa de la ruta en `MovementController` (05-10-2026) | — | `CA-MV-583` | Pendiente |
+| `T-10` | **Pruebas**: `CA-MV-583` en `ActivateMyProductIT`; `CA-MV-584` en `FirstDepositActivationIT`, nueva, sobre el adaptador de `RF-MV-001` `T-46` (05-10-2026) | `T-09`, `RF-MV-001` `T-46` | Las dos pasan; la segunda llamada de `CA-MV-584` no escribe ninguna posesión | Pendiente |
 
 ---
 
@@ -48,6 +50,8 @@
 | `CA-MV-279` a `CA-MV-281` | `T-05`, `T-07` |
 | `CA-MV-282` | `T-04`, `T-07` |
 | `CA-MV-283` | `T-01`, `T-06`, `T-07` |
+| `CA-MV-583` | `T-09`, `T-10` |
+| `CA-MV-584` | `RF-MV-001` `T-46`, `T-10` |
 
 ---
 

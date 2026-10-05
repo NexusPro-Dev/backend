@@ -5,7 +5,7 @@
 | Proyecto | NEXUS — Renovación de plataforma |
 | Empresa | FACTECH GROUP SAS |
 | Documento | `architecture.md` |
-| Versión | 0.44.0 |
+| Versión | 0.45.0 |
 | Estado | Borrador |
 | Responsable técnico | Bonilla Diaz William Steven |
 | Fecha de creación | 19-08-2026 |
@@ -834,6 +834,12 @@ Declararlo otra vez habría creado **la segunda definición de «vigente»**, qu
 
     **La tercera regla de abajo se cumple igual**: el puerto responde **un resultado** —liberada, o negada con su motivo— y no lanza; qué `4xx` produce lo decide `MV`, que es quien tiene el contrato HTTP.
 
+!!! danger "La tercera inversión, el 05-10-2026: `SP` pide a `MV` que active lo comprado al registrarse"
+
+    La venta del alta gratuita nace confirmada y su línea espera al primer depósito (`RN-MV-075`), que hoy confirma `RF-SP-028` al sacar a la cuenta de `FTD_PENDIENTE` (`RN-SP-057`). Activar es **entregar una línea**, y eso es de `MV`; pero quien sabe que llegó el depósito es `SP`. Que `SP` importara una interfaz de `MV` cerraría el ciclo `SP` → `MV` → `SP`.
+
+    **Se resuelve como la venta del registro** (`RN-SP-043`, `RegistrationSaleRegistrar`): `SP` declara `FirstDepositActivation` en su capa `application` y **`MV` lo implementa** (`PublishedFirstDepositActivation`). La dependencia de compilación sigue siendo `MV` → `SP`. **Es una escritura**, y sigue la norma de §15.2.1: se une a la transacción del cambio de estado, y **si falla, la cuenta no sale de `FTD_PENDIENTE`**. Una cuenta activa sin lo que compró sería un FTD que nadie contará.
+
 ### Cuatro reglas que hacen que la frontera se sostenga
 
 1. **Devuelven modelos de lectura, nunca entidades.** Devolver el agregado de `SP` filtraría JPA al otro módulo y le daría, de paso, con qué escribir. Lo que cruza la frontera son registros planos sin comportamiento.
@@ -974,3 +980,4 @@ D-08 quedó cerrada en `security.md` §12, junto con las decisiones D-12 a D-15 
 | 0.42.0 | 01-10-2026 | **Nueva §15.4: la pasarela de pago.** Stripe cobra la tarjeta y es **el primer proveedor externo que escribe en el sistema**. Se decide que sea **un puerto de `MV`** —`CardGateway`, implementado por un adaptador que es el único sitio que importa la biblioteca de Stripe, con una regla de ArchUnit que lo fija— y no infraestructura compartida, porque solo lo usa quien registra dinero. **Abrir y cancelar el cobro** ocurren dentro de la transacción del pago, porque sin cobro no debe quedar nada; **procesar la notificación** sale de ella, después de guardarla. Y **es apagable**: sin sus dos secretos, la tarjeta vuelve a ser un pago pendiente que confirma una persona, y así corre la suite. | Responsable técnico |
 | 0.43.0 | 01-10-2026 | **§15.4 recoge cómo se construyó la pasarela**: por la API HTTP de Stripe con `RestClient`, **sin su biblioteca**, en `movements.infrastructure`, con la regla de ArchUnit `laPasarelaEsUnPuerto`. El proceso de la notificación corre en una transacción **`REQUIRES_NEW`** tras el `COMMIT` de quien la recibió —con `REQUIRED` se sumaría a la que ya terminó y no confirmaría nada—, en segundo plano por el ejecutor de la aplicación, y con un barrido cada minuto que reintenta hasta cinco veces con `SKIP LOCKED`. | Responsable técnico |
 | 0.44.0 | 05-10-2026 | **§6.2 gana la convención de los importes, y §15 su `ADR-006`**: todo importe en dinero se guarda como `bigint` en **centésimas**, por decisión del responsable del proyecto. **No había ningún `double`**: los importes eran `numeric`, exactos, y así se le dijo. El cambio arregla de paso una mezcla de escalas, porque el catálogo aceptaba cuatro decimales y la venta los redondeaba a dos. La conversión la hace **un convertidor JPA**, y dominio y API siguen en decimales. **Lo que el convertidor no ve es el SQL nativo**, y §6.2 fija la regla: se convierte al mapear y al vincular, y nunca se divide en SQL. | Responsable del proyecto |
+| 0.45.0 | 05-10-2026 | **§15.2 gana su tercera inversión de dependencia: `SP` pide a `MV` que active lo comprado al registrarse** (`FirstDepositActivation`; [`requirements/sp.md`](requirements/sp.md) v1.91.0, `RN-SP-057`; [`requirements/mv.md`](requirements/mv.md) v0.76.0, `RN-MV-075`). La venta del alta gratuita nace confirmada y su línea espera al primer depósito, que confirma `SP` al sacar a la cuenta de `FTD_PENDIENTE`. `SP` declara el puerto y `MV` lo implementa, como la venta del registro, para no cerrar el ciclo. Es una escritura en la transacción del cambio de estado: si falla, la cuenta no cambia. | Responsable del proyecto |

@@ -3,10 +3,11 @@
 | Campo | Valor |
 |---|---|
 | Requerimiento | `RF-MV-010` |
-| Especificación | [`spec.md`](spec.md) v0.1.0 |
+| Especificación | [`spec.md`](spec.md) v0.3.0 |
 | `spec.md` aprobada el | 28-09-2026 |
-| Versión | 0.1.0 |
+| Versión | 0.2.0 |
 | Estado | **Aprobado** |
+| Enmendado el | 05-10-2026 — `EX-006` y la entrega por el primer depósito (§12) |
 | Autor | Responsable técnico |
 | Aprobado por | Responsable del proyecto |
 | Fecha de aprobación | 28-09-2026 |
@@ -120,3 +121,18 @@ Un `ChangeEvent` sobre `movement_details`, `UPDATE`, de `PENDIENTE` al estado qu
 ## 11. Estrategia de prueba
 
 Integración, **`ActivateMyProductIT`**: `CA-MV-275` a `CA-MV-283`. La venta se registra y se confirma por sus rutas; `CA-MV-276` envejece la confirmación en la base antes de activar. `MyProductsIT` cambia `CA-MV-103` al nuevo nombre y comprueba `lineId`. `PermissionIT` cuenta uno más.
+
+---
+
+## 12. Enmienda del 05-10-2026: lo que compra el alta gratuita lo activa el primer depósito
+
+Por `RN-MV-075` ([`requirements/mv.md`](../../../requirements/mv.md) v0.76.0) y `RN-SP-057` ([`requirements/sp.md`](../../../requirements/sp.md) v1.91.0). **Dos piezas, y ninguna toca el esquema.**
+
+**`EX-006` en `ActivateMyProductService`.** Antes de las comprobaciones de la línea, si el actor está en `FTD_PENDIENTE` se responde conflicto. Se lee con `ClientCatalog`, que `MV` ya usa para lo mismo en `RN-MV-008`. **Va antes y no después**: una línea del alta es manual, pendiente y de una venta confirmada, de modo que sin esta comprobación **pasaría todas las demás** y se activaría. **Se comprueba el estado de la cuenta y no si la línea es del alta**: mientras la cuenta espera su depósito no puede haber comprado nada más (`RN-MV-008`), así que las dos preguntas tienen la misma respuesta, y la de la cuenta no necesita leer `client_sellers`.
+
+**`PublishedFirstDepositActivation`** (`RF-MV-001` `T-46`) implementa el puerto `FirstDepositActivation` que declara `SP`. Con `Propagation.MANDATORY` corre dentro de la transacción del cambio de estado, de modo que **si la entrega falla, la cuenta no sale de `FTD_PENDIENTE`** (`RN-SP-057`). **No reutiliza `ActivateMyProductService`**, que exige al comprador como actor (`RN-MV-048`), solo admite líneas manuales (`EX-003`) y audita como activación propia. Reutiliza `LineDelivery`, que es la pieza que esa activación y la confirmación ya comparten: activar es entregar, venga de donde venga. **Publica `CommissionableLinesEvent`** con las líneas entregadas, después del commit, que es lo que la confirmación del alta no hizo. El `delivered_at` de cada línea es el momento del FTD para `CM` (`RN-CM-036`). **Bloquea la venta** con `pagos.lockMovementOf` antes de leer las líneas, como la conciliación, y por eso dos llamadas a la vez entregan una vez.
+
+**Alternativa descartada: que `SP` llame al endpoint de activación en nombre del cliente.** Obligaría a un actor fingido y a relajar `RN-MV-048`, que es justo la regla que dice que nadie activa lo ajeno.
+
+**Prueba.** `ActivateMyProductIT`: `CA-MV-583`. `FirstDepositActivationIT`, nueva: `CA-MV-584`, invocando el puerto dentro de una transacción con una venta del alta sembrada, sin pasar por `SP`. El recorrido completo —alta, cambio de estado y entrega— lo prueba `RF-SP-028`.
+

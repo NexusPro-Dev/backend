@@ -9,6 +9,7 @@
 | Aprobada por | Responsable técnico |
 | Fecha de aprobación | 21-08-2026 |
 | Enmendada | 22-08-2026 — `RN-SP-022` rechaza retirar el acceso a quien tiene equipo a cargo, al registrarse `RF-SP-041` (Art. I.7) |
+| Enmendada | 05-10-2026 — **sacar a una cuenta de `FTD_PENDIENTE` activa lo que compró al registrarse** (`RN-SP-057`, `RN-MV-075`): nacen `CA-SP-804` a `CA-SP-806` (Art. I.7). Ver §15 |
 
 ---
 
@@ -219,6 +220,9 @@ Nadie se retira el acceso a sí mismo (`RN-SP-017`) y el sistema no puede quedar
 | `CA-SP-237` | El sistema rechaza que el actor cambie el estado de su propia cuenta |
 | `CA-SP-238` | El sistema rechaza retirar el acceso al último usuario **activo** con el rol raíz, aunque existan otros inactivos que lo porten |
 | `CA-SP-239` | El sistema no registra evento cuando el usuario ya estaba en el estado solicitado |
+| `CA-SP-804` | Pasar a `ACTIVO` una cuenta en `FTD_PENDIENTE` **activa la línea de su venta del alta** en la misma operación: la persona posee el producto, con la membresía del producto y su vigencia contada desde ese instante, y la línea queda `ENTREGADA` con su fecha de entrega (05-10-2026) |
+| `CA-SP-805` | Si la activación falla, **la cuenta sigue en `FTD_PENDIENTE`**, no queda nada escrito y la respuesta es un error (05-10-2026) |
+| `CA-SP-806` | Devolver el acceso a una cuenta `INACTIVO` o `BLOQUEADO`, o pasar a `ACTIVO` una cuenta `FTD_PENDIENTE` **sin venta del alta**, no activa nada (05-10-2026) |
 | `CA-SP-240` | El sistema registra el cambio en la auditoría de cambios y en la de seguridad, con el usuario afectado como objeto del evento |
 
 ## 13. Casos límite
@@ -243,3 +247,11 @@ Ninguna. Las cuatro se resolvieron el 21-08-2026, antes de aprobar la especifica
 | 2 | ¿Se admite bloquear manualmente a alguien? | **Sí.** Se resolvió en contra de la propuesta del borrador, que temía la ambigüedad entre `BLOQUEADO` e `INACTIVO`. Esa ambigüedad se cierra dándoles significados distintos y explícitos (§2): `INACTIVO` es una decisión **organizativa** —la persona ya no debe operar— y `BLOQUEADO` es una respuesta de **seguridad** —hay sospecha sobre la cuenta—. Ambos impiden entrar y ambos revocan sesiones, pero cuentan historias distintas y por eso conviene poder filtrarlos por separado en `RF-SP-025`. El **bloqueo manual no caduca**: no lleva momento de expiración y solo se levanta devolviendo la cuenta a activa (`CA-SP-350`), a diferencia del automático, que expira solo |
 | 3 | ¿Se exige motivo al desactivar a una persona? | **Sí, al desactivar y al bloquear; no al reactivar.** Es un patrón nuevo respecto de `RF-SP-007`, `RF-SP-022` y `RF-SP-023`, que resolvieron que no, y la asimetría es deliberada: allí lo afectado era un rol o una fila de catálogo, y aquí es el acceso de una persona, sobre la que «¿por qué se le retiró?» es una pregunta que se hace de verdad. El motivo se guarda en el detalle del evento de seguridad, no en una columna de `users`: no es un atributo de la cuenta sino de la operación. Devolver el acceso no se justifica —`EX-004` rechaza el motivo enviado al reactivar—, porque un motivo que a veces significa una cosa y a veces otra no informa de nada |
 | 4 | ¿`RN-SP-001` se comprueba sobre usuarios activos o sobre usuarios existentes? | **Sobre usuarios activos.** La regla decía «al menos un usuario con rol `SUPERADMIN`» sin calificar el estado, y leída así la garantía sería vacía: un superadministrador inactivo no puede entrar ni administrar nada, de modo que el sistema podría quedarse sin ninguna vía de administración cumpliendo la regla al pie de la letra. `RN-SP-001` se enmienda para decirlo, y la **misma lectura se aplica en `RF-SP-029` y `RF-SP-031`**, o las tres divergirán. `CA-SP-238` la verifica en el caso que la hace visible: último activo, con otros inactivos que también portan el rol |
+
+---
+
+## 15. Control de cambios
+
+| Versión | Fecha | Cambio | Responsable |
+|---|---|---|---|
+| 1.1.0 | 05-10-2026 | **Sacar a una cuenta de `FTD_PENDIENTE` activa lo que compró al registrarse** ([`requirements/sp.md`](../../../requirements/sp.md) v1.91.0, `RN-SP-057`; [`requirements/mv.md`](../../../requirements/mv.md) v0.76.0, `RN-MV-075`), por decisión del responsable del proyecto: la venta del alta gratuita nace confirmada y «solo se activará cuando se confirme el primer depósito». Hasta que exista el webhook del bróker (`RF-SP-054`), **confirmar el depósito es esta operación**: la transición `FTD_PENDIENTE` → `ACTIVO` activa, en la misma transacción, la línea de la venta del alta, y si la activación falla la cuenta no cambia. Ninguna otra transición activa nada. Nacen `CA-SP-804` a `CA-SP-806`. Las versiones anteriores no llevaban tabla. | Responsable del proyecto |

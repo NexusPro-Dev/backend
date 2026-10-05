@@ -7,6 +7,7 @@
 | Plan | [`plan.md`](plan.md) |
 | `plan.md` aprobado el | 22-08-2026 |
 | Estado | **Aprobadas** — 24-08-2026 |
+| Enmendadas | 05-10-2026 — `T-19` y `T-20`: la salida de `FTD_PENDIENTE` activa lo comprado en el alta (`plan.md` §12) |
 | Issue | Pendiente de crear |
 | Rama | `feature/ciclo-de-vida-de-usuario` |
 | Aprobadas por | Responsable técnico, 24-08-2026 |
@@ -53,6 +54,8 @@ Cuatro tareas crean piezas que **otros cuatro requerimientos heredan** (`T-03`, 
 | `T-16` | Pruebas de los casos límite de `spec.md` §13 y de `plan.md` §11: `FA-003`, bloqueo que expira mientras se libera, bloqueo manual seguido de desactivación, reactivar con equipo a cargo, y sesión en varios dispositivos | `T-13` | El bloqueo manual **sigue vigente** pasado el tiempo que habría durado uno automático; reactivar nunca se rechaza por `RN-SP-022` ni por `RN-SP-001` | **En curso** |
 | `T-17` | Documentación OpenAPI: el cuerpo con su motivo condicional, la respuesta `200` y los estados `400`, `401`, `403`, `404`, `409` y `500` | `T-14` | El contrato publicado coincide con el comportamiento real (Art. VIII.6), y documenta que un bloqueo manual **no caduca** | **Hecha** |
 | `T-18` | Enmendar `requirements/sp.md` §6.1 (precedencias), §10.8 (`ix_user_supervisors_supervisor_vigente` con su predicado) y §10.10 (reparto de columnas); `security.md` §9 con el mismo reparto; y actualizar la matriz de trazabilidad | `T-14` | §10.8 recoge el nombre definitivo del índice en lugar del que `RF-SP-024` anticipó | **En curso** |
+| `T-19` | **`FirstDepositActivation`** en `system/users/application`, y su llamada en `ChangeUserStatusService.change`: solo de `FTD_PENDIENTE` a `ACTIVO`, después de `applyStatus`, en la misma transacción, con el `first_movement_id` de la fila `REGISTRO` de `client_sellers`; sin fila, no se llama | `RF-MV-001` · `PublishedFirstDepositActivation` | `CA-SP-804` a `CA-SP-806` | Pendiente |
+| `T-20` | **Las pruebas**: `CA-SP-804` con un registro gratuito real seguido del cambio de estado, y con ella `CA-SP-510` y `CA-SP-511` de `RF-SP-045` —la vigencia se concede ahora aquí—; `CA-SP-805` con un puerto que lanza; `CA-SP-806` con las otras transiciones. **Y la prosa de la operación en el contrato**, que dice qué hace esta transición | `T-19` | Las cinco pasan; el contrato regenerado lo dice | Pendiente |
 
 **Estados:** `Pendiente` · `En curso` · `Hecha` · `Bloqueada`.
 
@@ -101,6 +104,7 @@ graph LR
 | `CA-SP-238` | `T-05`, `T-14`, `T-15` |
 | `CA-SP-239` | `T-04`, `T-11`, `T-14` |
 | `CA-SP-240` | `T-11`, `T-14` |
+| `CA-SP-804`, `CA-SP-805`, `CA-SP-806` | `T-19`, `T-20` |
 
 `CA-SP-238` se prueba en **dos formas** y las dos hacen falta: la secuencial —un activo y dos inactivos que portan el rol— verifica que la regla se mide sobre usuarios **activos**; la concurrente (`T-15`) verifica que se **serializa**. Una implementación puede pasar la primera y fallar la segunda, y el fallo solo se manifiesta en producción.
 

@@ -4,8 +4,9 @@
 |---|---|
 | Requerimiento | `RF-MV-001` |
 | Módulo | `MV` — Movimientos |
-| Versión | 0.9.0 |
+| Versión | 0.10.0 |
 | Estado | **Aprobada** |
+| Enmendada el | 05-10-2026 — **la venta del alta gratuita nace confirmada y no entrega nada hasta el primer depósito** ([`requirements/mv.md`](../../../requirements/mv.md) v0.76.0, `RN-MV-075`; [`requirements/sp.md`](../../../requirements/sp.md) v1.91.0, `RN-SP-057`): §6.2, `CA-MV-580` a `CA-MV-582` |
 | Autor | Responsable técnico |
 | Aprobada por | Responsable del proyecto |
 | Fecha de aprobación | 02-09-2026 |
@@ -139,7 +140,7 @@ Es el **primer requerimiento del módulo** y el que pone en el sistema el objeto
 | Dato | Descripción |
 |---|---|
 | Venta | La venta registrada, con su identificador y su **código de comprobante** |
-| Estado | **Pendiente**, siempre. No hay ningún camino por el que esta operación devuelva otra cosa |
+| Estado | **Pendiente**. Por esta ruta no hay ningún camino que devuelva otra cosa. **La única excepción no entra por aquí**: la venta del alta gratuita, que anota el registro por enlace por el adaptador de paquete, nace `CONFIRMADA` con sus líneas pendientes de activación (`RN-MV-075`, 05-10-2026) |
 | Cliente resuelto | Quién compró, con su nombre, y no solo su identificador |
 | Líneas | Cada producto con su nombre, su cantidad, **el precio que se le copió**, la vigencia copiada, **el descuento de la línea y sus rebajas** —hoy cero y ninguna—, **el paquete del que salió** —hoy ninguno—, el importe de la línea **y el vendedor al que se atribuye**, con su nombre |
 | Moneda | La de la venta, resuelta |
@@ -344,6 +345,9 @@ Es el **primer requerimiento del módulo** y el que pone en el sistema el objeto
 | `CA-MV-543` | Los listados y detalles que leen importes **por SQL nativo** devuelven el mismo importe que se guardó: **ni multiplicado ni dividido por cien** respecto del que devuelve el alta |
 | `CA-MV-544` | Después de `V65`, **el saldo de cada cuenta sigue siendo la suma de sus asientos**, y la venta que se registra sobre el esquema convertido cuadra con las anteriores |
 | `CA-MV-545` | Una rebaja de línea en **porcentaje de `12.50`** se guarda **`1250`** en `movement_detail_discounts.value`, y la rebaja en dinero que se calcula **es la misma** que antes de la conversión |
+| `CA-MV-580` | La venta que anota el **alta de una cuenta `FTD_PENDIENTE`** nace **`CONFIRMADA`**, con `confirmed_at` y su pago `GRATIS` `CONFIRMADO`, y **sus líneas quedan `PENDIENTE` de entrega**, sean automáticas o manuales: no se escribe ninguna posesión con su línea y **no sale el aviso de líneas comisionables** (`RN-MV-075`) (05-10-2026) |
+| `CA-MV-581` | La venta del **alta de pago** —cuenta que nace `ACTIVO`— sigue naciendo **`PENDIENTE`**, con su pago pendiente, como cualquier otra venta (05-10-2026) |
+| `CA-MV-582` | `V68` deja **confirmada**, con su pago, la venta del alta que seguía pendiente de **cada cuenta en `FTD_PENDIENTE`**, con las líneas pendientes de activación; **la de una cuenta `ACTIVO` no cambia** (05-10-2026) |
 
 **`CA-MV-007` afirma que el sistema NO hace algo**, y es el criterio que sostiene todo el módulo. Sin él, la diferencia entre registrar y confirmar es una palabra en un documento; con él, es algo que falla si alguien la borra.
 
@@ -387,3 +391,4 @@ Es el **primer requerimiento del módulo** y el que pone en el sistema el objeto
 | 0.7.0 | 30-09-2026 | **`POINTS` se rechaza** (`RF-MV-030`, `RN-MV-052`; [`requirements/mv.md`](../../../requirements/mv.md) v0.54.0 §4.4): quien registra la venta no es quien compra, y no puede gastar los puntos de otra persona. Conflicto, y nada queda escrito. | Responsable técnico |
 | 0.8.0 | 03-10-2026 | **`RN-MV-006` gana la mitad del salto** ([`requirements/mv.md`](../../../requirements/mv.md) v0.72.0; [`requirements/pm.md`](../../../requirements/pm.md) v0.49.0, §5.2.17), por decisión del responsable del proyecto —«solo puedo subir de upgrade a nivel por encima mío»—. `EX-005` pasa de rechazar «la membresía inferior» a rechazar **la inferior o la que salta** —más de un nivel por encima de la vigente—, con **el mismo código** y un mensaje que distingue las dos. Nacen `CA-MV-526` —el salto se rechaza y no deja nada— y `CA-MV-527` —el escalón se admite—; la renovación sigue en `CA-MV-048`. **Se compara con la membresía vigente de quien compra**, no con el origen del producto, y por eso vale igual por el hotlink. **Por esta entrada el salto se ve como `EX-004`**, porque la oferta ya no lo publica; la comprobación propia se mantiene por el argumento de `plan.md` §3.2. **Al confirmar no se repite** (§13). Sin esquema. | Responsable del proyecto |
 | 0.9.0 | 05-10-2026 | **Los importes se guardan en centésimas** ([`ADR-006`](../../../architecture/ADR-006-importes-en-unidades-minimas.md), [`requirements/mv.md`](../../../requirements/mv.md) v0.73.0), por decisión del responsable del proyecto. **El comportamiento no cambia**: la venta se calcula, se valida y se devuelve igual, y el contrato tampoco. Cambia la forma en que se guarda, y para eso hay cuatro criterios: `CA-MV-542` (lo que se guarda y lo que se devuelve), `CA-MV-543` (el SQL nativo, que no pasa por el convertidor), `CA-MV-544` (el libro cuadra después de `V65`) y `CA-MV-545` (la rebaja en porcentaje comparte columna con la fija y también va en centésimas). **`EX-008` no cambia**, pero su motivo se estrecha: desde ahora ninguna moneda pasa de dos decimales (`currencies.decimal_places` `0..2`), y el rechazo por decimales que `tasks.md` §5 dejaba como «postura segura» ya no se alcanza con ningún dato válido. | Responsable del proyecto |
+| 0.10.0 | 05-10-2026 | **La venta del alta gratuita nace confirmada, y lo que confirma espera al primer depósito** ([`requirements/mv.md`](../../../requirements/mv.md) v0.76.0, `RN-MV-075`), por decisión del responsable del proyecto: «cuando se registre la compra se guardará como confirmada pero solo se activará cuando se confirme el primer depósito». **No cambia esta ruta**: la venta que se registra por `POST /movements` sigue naciendo pendiente (§6.2). Cambia la del registro por enlace, que entra por el adaptador de paquete: nace `CONFIRMADA` sin entregar sus líneas ni avisar a `CM`, y la entrega llega con el depósito (`RN-SP-057`, `RF-MV-010` v0.3.0). `CA-MV-580` a `CA-MV-582`, el último sobre la migración de las cuentas que ya esperaban. | Responsable del proyecto |

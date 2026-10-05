@@ -7,6 +7,7 @@
 | Plan | [`plan.md`](plan.md) |
 | `plan.md` aprobado el | 01-09-2026 |
 | Estado | **Construido el 09-09-2026** — `T-01` a `T-24` **Hecha** salvo `T-02`, que no hizo falta. Suite completa en verde: **1136**. **Enmendado el 18-09-2026**: `T-02` deja de existir y la atribución cambia de tabla — lo construye `RF-SP-059 · T-08` |
+| Enmendadas | 05-10-2026 — `T-25` a `T-27`: el suelo al registrarse y la venta confirmada (`plan.md` §12) |
 | Issue | Pendiente de crear |
 | Rama | `feature/registro-de-clientes-por-enlace` |
 | Aprobadas por | **Hecha el 09-09-2026** |
@@ -41,6 +42,9 @@
 | `T-22` | **El camino de pago** (`RN-SP-044`): muere `EX-004`; el estado inicial y la membresía concedida pasan a depender del producto —`FTD_PENDIENTE` + la del producto, o `ACTIVO` + la del suelo— | `T-21` | `CA-SP-618`. La membresía comprada **no** se concede aquí: la concede `RN-MV-020` |
 | `T-23` | **Exención de `RN-MV-008` para la venta del alta**, de paquete, en `MV` | `T-21` | Sin ella **ninguna alta gratuita es posible**: la venta que la origina se rechazaría a sí misma. Y con ella `CA-MV-008` deja de ser inalcanzable y **gana su prueba** en `RegisterSaleIT` |
 | `T-24` | **Mueren `product` y `referrer` del primer nivel** (09-09-2026): el enlace viaja entero dentro de `movement`, y `VAL-001` y `VAL-002` se mudan allí. Se retiran `VAL-016` y la mitad de `EX-010` | `T-21` | `CA-SP-623`. **Lo que no se puede expresar no hay que comprobarlo**: las dos comprobaciones existían solo para vigilar que los dos campos duplicados no discreparan |
+| `T-25` | **El suelo en los dos caminos** (05-10-2026, `plan.md` §12): `RegisterClientByLinkService.concederMembresia` concede `membresias.floor()` sin producto ni vigencia también en el gratuito, y la rama que escribía la posesión del producto desaparece | `RF-MV-001` · `PublishedFirstDepositActivation` | `CA-SP-509`, `CA-SP-803` | Pendiente |
+| `T-26` | **`SelfRegistrationIT`**: `losCuatroHechos` y `sinVigencia` pasan al suelo, la vigencia (`CA-SP-510` y `CA-SP-511`) se mueve a la prueba de la activación en `RF-SP-028`, y `elRegistroGratuitoAnotaSuVenta` afirma la venta y el pago `CONFIRMADA`/`CONFIRMADO` y la línea `PENDIENTE` (`CA-SP-617`) | `T-25` | `CA-SP-509` a `CA-SP-511`, `CA-SP-617`, `CA-SP-803` | Pendiente |
+| `T-27` | **La prosa y la semilla**: `RegistrationController` (la descripción de la operación y la de la respuesta `201`) y `SelfRegistrationResponse` dejan de decir que la venta del gratuito «nace `PENDIENTE`»; el producto `BECA → BECA` de `dev-seed/semilla-productos.sql` pasa a vitalicio | `T-25` | El contrato regenerado lo dice; `DevelopmentSeedIT` en verde | Pendiente |
 
 ## 2. Orden de ejecución
 
@@ -54,7 +58,7 @@
 |---|---|
 | `CA-SP-507` | `T-11`, `T-16` |
 | `CA-SP-508` | `T-01`, `T-07` |
-| `CA-SP-509`, `CA-SP-510`, `CA-SP-511` | `T-07` |
+| `CA-SP-509`, `CA-SP-510`, `CA-SP-511` | `T-07`; desde el 05-10-2026, `T-25` y `T-26` (y la vigencia en `RF-SP-028`) |
 | `CA-SP-512` | `T-07` |
 | `CA-SP-513` | `T-07` |
 | `CA-SP-525`, `CA-SP-526` | `T-06` |
@@ -67,7 +71,8 @@
 | `CA-SP-522` | `T-03`, `T-14` |
 | `CA-SP-523` | `T-13` |
 | `CA-SP-524` | `T-04` |
-| `CA-SP-617`, `CA-SP-620`, `CA-SP-621` | `T-21` |
+| `CA-SP-617`, `CA-SP-620`, `CA-SP-621` | `T-21`; `CA-SP-617` desde el 05-10-2026, `T-26` |
+| `CA-SP-803` | `T-25`, `T-26` |
 | `CA-SP-623` | `T-24` |
 | ~~`CA-SP-619`~~, ~~`CA-SP-622`~~ | **Retirados el 09-09-2026**: comprobaban divergencias que el cuerpo ya no puede expresar |
 | `CA-SP-618` | `T-22` |

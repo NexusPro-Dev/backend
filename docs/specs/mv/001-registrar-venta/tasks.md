@@ -4,8 +4,8 @@
 |---|---|
 | Requerimiento | `RF-MV-001` |
 | Plan | [`plan.md`](plan.md), aprobado el 02-09-2026 |
-| Versión | 0.7.0 |
-| Estado | **En curso** — `T-01` a `T-18` `Hecha`; `CA-MV-008` queda **sin prueba** hasta `RF-SP-045`; `T-25` a `T-30` `Hecha` el 16-09-2026 (§1.3); `T-31` a `T-35` `Hecha` el 16-09-2026 (§1.4); `T-36` a `T-39` `Hecha` el 03-10-2026 (§1.5, el escalón); `T-40` a `T-44` `Hecha` el 05-10-2026 (§1.6, los importes en centésimas; `T-42` sin entidades, ver §2.4) |
+| Versión | 0.8.0 |
+| Estado | **En curso** — `T-01` a `T-18` `Hecha`; `CA-MV-008` queda **sin prueba** hasta `RF-SP-045`; `T-25` a `T-30` `Hecha` el 16-09-2026 (§1.3); `T-31` a `T-35` `Hecha` el 16-09-2026 (§1.4); `T-36` a `T-39` `Hecha` el 03-10-2026 (§1.5, el escalón); `T-40` a `T-44` `Hecha` el 05-10-2026 (§1.6, los importes en centésimas; `T-42` sin entidades, ver §2.4); `T-45` a `T-48` **Pendiente** (§1.7, el alta gratuita confirmada) |
 | Autor | Responsable técnico |
 | Aprobadas por | Responsable del proyecto |
 | Fecha de aprobación | 04-09-2026 |
@@ -136,6 +136,17 @@ Enmienda del Art. I.7 sobre este requerimiento ya construido, por decisión del 
 
 **`CA-MV-543` se prueba contra la entidad y no contra una constante**, porque lo que puede romperse es justo la diferencia entre los dos caminos: una consulta nativa olvidada devuelve `1250` donde la entidad devuelve `12.50`, y una aserción contra `12.50` escrita a mano solo lo atrapa si alguien acertó a sembrar ese valor.
 
+### 1.7 La venta del alta gratuita nace confirmada — 05-10-2026
+
+Enmienda del Art. I.7 por `RN-MV-075` y `RN-SP-057` (`plan.md` §2.7). **El cambio de `SP`** —el puerto `FirstDepositActivation` y la llamada desde el cambio de estado— **es de `RF-SP-028`**, y la prohibición de activar a mano es de `RF-MV-010` (`T-09`, `T-10`). Aquí van la venta, el adaptador y la migración.
+
+| ID | Tarea | Depende de | Verificación | Estado |
+|---|---|---|---|---|
+| `T-45` | **La confirmación sin entrega del alta**: `registrarAltaDeCliente`, con el sujeto en `FTD_PENDIENTE`, llama a `confirmIfPending` en la misma transacción. **No** llama a `LineDelivery` ni publica `CommissionableLinesEvent`. El alta de pago no cambia. La prosa de `RegistrationSaleRegistrar`, `RegistrationController` y `SelfRegistrationResponse` («nace `PENDIENTE`») se corrige | — | `CA-MV-580`, `CA-MV-581` | Pendiente |
+| `T-46` | **`PublishedFirstDepositActivation`** (`movements.domain.service`, `Propagation.MANDATORY`), que implementa el puerto `FirstDepositActivation` de `SP`: comprueba que la venta es **del sujeto** y está **`CONFIRMADA`**, entrega con `LineDelivery.deliver` cada línea `PENDIENTE` (automática o manual; un upgrade puede quedar `RETENIDA`, `RN-MV-029`) y publica `CommissionableLinesEvent` con las entregadas. **Idempotente**: sin líneas pendientes no hace nada y no publica nada | `T-45` | `CA-MV-584` (`RF-MV-010`) | Pendiente |
+| `T-47` | **`V68`**: la venta del alta y su pago, de `PENDIENTE` a confirmados, para cada cuenta en `FTD_PENDIENTE`, con `confirmed_at` = `created_at` de la venta (`plan.md` §2.7). Las líneas no se tocan. Las cuentas `ACTIVO` tampoco | — | `CA-MV-582`, con una venta sembrada `PENDIENTE` y la expresión de la migración ejecutada sobre ella, como `CA-PM-435` | Pendiente |
+| `T-48` | **Pruebas**: `CA-MV-580` y `CA-MV-581` en `SelfRegistrationIT` —que hoy afirma `PENDIENTE` en `CA-SP-617`—, en la base y en la respuesta; y `CA-MV-582` | `T-45`, `T-47` | Las tres pasan; quitar la confirmación de `T-45` hace fallar `CA-MV-580` | Pendiente |
+
 ## 2. Lo que se apartó del plan, y por qué
 
 **Tres apartados, los tres declarados como enmienda (Art. I.7).**
@@ -192,6 +203,8 @@ Queda declarado lo que esto obliga: **las lecturas de `RF-MV-006` y `RF-MV-007` 
 | `CA-MV-543` | `T-43`, `T-44` | Cubierto |
 | `CA-MV-544` | `T-41`, `T-44` | Cubierto |
 | `CA-MV-545` | `T-41`, `T-42`, `T-44` | Cubierto |
+| `CA-MV-580`, `CA-MV-581` | `T-45`, `T-48` | **Pendiente** |
+| `CA-MV-582` | `T-47`, `T-48` | **Pendiente** |
 
 **`CA-MV-011` necesita dos pruebas, y merece leerse dos veces.** Por HTTP, un upgrade que no sube **nunca llega** a `RN-MV-006`: la oferta de `RF-PM-007` ya lo excluyó, y el rechazo que se ve es `EX-004`. La prueba de integración lo comprueba así porque es lo que hoy ocurre de verdad, y el criterio queda satisfecho — se rechaza **al registrar**, que es lo que exige.
 

@@ -5,8 +5,9 @@
 | Requerimiento | `RF-MV-001` |
 | Especificación | [`spec.md`](spec.md) |
 | `spec.md` aprobada el | 02-09-2026 |
-| Versión | 0.7.0 |
+| Versión | 0.8.0 |
 | Estado | **Aprobado** |
+| Enmendado el | 05-10-2026 — **la venta del alta gratuita nace confirmada sin entregar** (`RN-MV-075`) y `V68` migra las que esperaban (§2.7) |
 | Enmendado el | 05-10-2026 — `V65`: **los importes en centésimas** (`bigint`), con un convertidor JPA compartido; `MV` es la tripleta que construye el convertidor y la migración entera ([`ADR-006`](../../../architecture/ADR-006-importes-en-unidades-minimas.md); §2.6) |
 | Enmendado el | 03-10-2026 — `RN-MV-006` gana la mitad del **salto**: `SaleRules.verificarQueSube` rechaza también un destino más de un nivel por encima del vigente, con el mismo `EX-005` y otro mensaje (§3.2). Sin esquema |
 | Enmendado el | 19-09-2026 — `RN-MV-007` enmendada: `RegisterSaleService` recibe **el canal** (`SaleChannel`) desde la entrada —tienda para el funcionario y la compra propia, hotlink para el registro por enlace— y valida la oferta contra lo que ese canal publica: `ProductCatalog.offeredTo` o `ProductCatalog.publishedByHotlink`, la lectura nueva de `PM`. La petición **no** lo lleva |
@@ -132,6 +133,20 @@ Enmienda del Art. I.7 sobre un requerimiento construido, por decisión del respo
 **Lo que cuesta de verdad es el SQL nativo.** Cada consulta de `MV` que lee o compara un importe sin pasar por la entidad —mis compras, ventas de mi alcance, el detalle, los pagos, los saldos y el libro— se revisa una a una (`tasks.md` `T-43`), y con ella las siembras de las suites que insertan importes con `JdbcTemplate`, que pasan a escribir centésimas. **Olvidar una no falla**: devuelve un `200` con una cifra cien veces distinta. Por eso `CA-MV-543` compara la lectura nativa con la de la entidad, y no con una constante.
 
 **Alternativa descartada: dividir en SQL** (`total_amount / 100.0`). Ahorra el mapeo, pero PostgreSQL devuelve un `numeric` de escala arbitraria, y la conversión quedaría repartida entre dos lenguajes. ADR-006 §5 lo prohíbe por eso.
+
+### 2.7 La venta del alta gratuita nace confirmada, y `V68` — 05-10-2026
+
+Enmienda del Art. I.7 por `RN-MV-075` ([`requirements/mv.md`](../../../requirements/mv.md) v0.76.0) y `RN-SP-057` ([`requirements/sp.md`](../../../requirements/sp.md) v1.91.0).
+
+**Dónde se decide.** En `RegisterSaleService.registrarAltaDeCliente`, que solo alcanza el adaptador del registro (`PublishedRegistrationSaleRegistrar`). Después de guardar la venta, **si el sujeto está en `FTD_PENDIENTE`**, se confirma en la misma transacción con `MovementRepository.confirmIfPending`, que ya hace la transición condicionada de la cabecera y del pago. **Se usa la transición y no el caso de uso**: `ConfirmSaleService.confirmar` entrega las líneas y publica `CommissionableLinesEvent`, y esas son justo las dos cosas que aquí no deben ocurrir. **No se toca `Movement.registrar`**, que sigue construyendo siempre `PENDIENTE`: el agregado no sabe nada del alta, y la excepción se queda en el único sitio por el que entra.
+
+**Se pregunta por el estado de la cuenta y no por el importe.** Lo que la regla protege es la espera del depósito, y eso lo dice `FTD_PENDIENTE`. Que hoy coincida con el importe cero —el `BECA → BECA` gratuito— es una consecuencia de `RN-SP-044`, no la condición: si mañana un `BECA → BECA` costara algo (`RN-CM-036` lo prevé), la cuenta seguiría naciendo `FTD_PENDIENTE` y su venta tendría un pago que esperar. **Ese caso no existe hoy**, porque el alta gratuita exige importe cero (`RN-MV-022`), y si llegara se replantearía la regla.
+
+**La entrega la hace `PublishedFirstDepositActivation`** (`RF-MV-010` §12), cuando `SP` saca a la cuenta de `FTD_PENDIENTE`. Es otro puerto de `SP` que `MV` implementa, por la misma razón que la venta del registro: `MV` ya depende de `SP`, y la dirección inversa cerraría el ciclo.
+
+**`V68` — datos, sin esquema.** Para cada usuario en `FTD_PENDIENTE`, su venta del alta —la de `client_sellers.first_movement_id`— pasa a `CONFIRMADA` y su pago a `CONFIRMADO`, **solo si** sigue `PENDIENTE` con el pago `GRATIS` `PENDIENTE`. Las líneas no se tocan: siguen `PENDIENTE`, que es lo que la regla nueva deja. **`confirmed_at` es el `created_at` de la venta y no `now()`**: la regla dice que esa venta nace confirmada, y fecharla el día de la migración inventaría un hueco de días entre el alta y una confirmación que, con la regla vigente, habría sido el mismo instante. Además, `now()` haría aparecer esas ventas como confirmadas hoy en cualquier listado por fecha de confirmación. **Las cuentas `ACTIVO` no se tocan**: ya salieron de la espera sin que nada se entregara, y entregar ahora fecharía un FTD (`delivered_at`) que no se sabe cuándo ocurrió. **No hay auditoría por fila**: es una migración, como `V65`, y su encabezado lo dice.
+
+**Alternativa descartada: confirmar al depósito y no al alta.** Dejaría la venta pendiente hasta el depósito y entregaría al confirmarla, sin ninguna excepción a `RN-MV-020`. Se descarta porque es lo contrario de lo que el responsable pidió: la venta **es** una compra hecha, y lo que espera es su activación. Un pendiente que no espera ningún pago tampoco tiene quién lo rechace ni lo anule.
 
 ## 3. Componentes afectados
 

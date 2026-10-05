@@ -4,8 +4,9 @@
 |---|---|
 | Requerimiento | `RF-MV-010` |
 | Módulo | `MV` — Movimientos |
-| Versión | 0.1.0 |
+| Versión | 0.3.0 |
 | Estado | **Aprobada** |
+| Enmendada el | 05-10-2026 — **la línea del alta gratuita no la activa el comprador, la activa el primer depósito** ([`requirements/mv.md`](../../../requirements/mv.md) v0.76.0, `RN-MV-075`): `EX-006`, `CA-MV-583` y `CA-MV-584` |
 | Autor | Responsable técnico |
 | Aprobada por | Responsable del proyecto |
 | Fecha de aprobación | 28-09-2026 |
@@ -137,6 +138,7 @@ Entre la compra y la activación la persona subió por otra vía. La línea qued
 | `EX-003` | La línea no es manual: se entrega sola al confirmar | Conflicto. Nada cambia |
 | `EX-004` | La línea ya no está pendiente: entregada o retenida | Conflicto, diciendo en qué estado está. Nada cambia |
 | `EX-005` | Quien pregunta no tiene `movements:activate-own-product` | Prohibido |
+| `EX-006` | **La cuenta del comprador espera su primer depósito** (`FTD_PENDIENTE`): lo que compró al registrarse se activa con ese depósito y no a mano (`RN-MV-075`). Se comprueba **antes** que el estado de la línea | Conflicto, con el mensaje «Lo que compraste se activa al confirmarse tu primer depósito.». Nada cambia |
 
 ---
 
@@ -161,6 +163,8 @@ Entre la compra y la activación la persona subió por otra vía. La línea qued
 | `CA-MV-281` | Activar **por segunda vez** responde conflicto y **no escribe una segunda posesión** |
 | `CA-MV-282` | La línea de un producto que declara el **cupón del bot** lo trae resuelto **antes y después de activarla**: la venta está pagada, y el cupón sirve para activar (enmendado el 28-09-2026; hasta entonces, «antes de activarla, no») |
 | `CA-MV-283` | Sin `movements:activate-own-product` responde prohibido —**también con `movements:read-own-products`**—; sin autenticar, `401`; un identificador malformado, rechazo. La activación queda auditada |
+| `CA-MV-583` | Con el comprador en **`FTD_PENDIENTE`**, activar una línea de su venta del alta responde **conflicto** (`EX-006`), aunque la línea sea manual, pendiente y de una venta confirmada, y **nada cambia**: ni posesión, ni `delivered_at`, ni auditoría (05-10-2026) |
+| `CA-MV-584` | La activación por el **primer depósito** (`PublishedFirstDepositActivation`, `RN-SP-057`) entrega **todas** las líneas pendientes de la venta del alta —también las automáticas—, escribe la posesión con la línea y `delivered_at`, y **publica el aviso de líneas comisionables** con ellas. **Una segunda llamada no entrega nada ni publica nada** (05-10-2026) |
 
 ---
 
@@ -186,3 +190,4 @@ Ninguna.
 |---|---|---|---|
 | 0.1.0 | 28-09-2026 | Primera versión, a petición del responsable del proyecto —«creemos un endpoint para activar el producto; ojo, solo lo puede activar quien lo compró»— ([`requirements/mv.md`](../../../requirements/mv.md) v0.48.0, `RN-MV-048`). **El requerimiento deja de ser una autorización de un funcionario** y pasa a ser la activación de quien compró; **lo ajeno responde como inexistente**; **activar es entregar**, con la vigencia desde la activación. Criterios `CA-MV-275` a `CA-MV-283`. | Responsable del proyecto |
 | 0.2.0 | 28-09-2026 | **El cupón llega antes de activar** (`RN-MV-032`, [`requirements/mv.md`](../../../requirements/mv.md) v0.51.0): desde que se pagó, la línea trae todos los enlaces del producto, por decisión del responsable del proyecto. Se enmienda `CA-MV-282`. Activar sigue siendo lo que entrega y hace correr la vigencia | Responsable del proyecto |
+| 0.3.0 | 05-10-2026 | **La línea del alta gratuita la activa el primer depósito, no el comprador** ([`requirements/mv.md`](../../../requirements/mv.md) v0.76.0, `RN-MV-075`; `RN-MV-048` precisada), por decisión del responsable del proyecto. Mientras la cuenta está en `FTD_PENDIENTE`, activar responde conflicto (`EX-006`, `CA-MV-583`). Y **nace una segunda vía de entrega** que no es este endpoint: la que `SP` dispara al confirmarse el depósito, que entrega las líneas pendientes de esa venta sean automáticas o manuales (`CA-MV-584`). La versión de la cabecera decía 0.1.0 aunque la tabla iba en 0.2.0; queda en 0.3.0. | Responsable del proyecto |

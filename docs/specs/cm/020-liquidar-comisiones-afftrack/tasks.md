@@ -6,7 +6,7 @@
 | Especificación | [`spec.md`](spec.md) v0.1.0 |
 | Plan | [`plan.md`](plan.md) v0.1.0 |
 | `plan.md` aprobado el | 29-09-2026 |
-| Estado | **En revisión** — `T-01` a `T-09` `Hecha` el 29-09-2026; `T-10` y `T-11` `Hecha` el 05-10-2026 |
+| Estado | **En revisión** — `T-01` a `T-09` `Hecha` el 29-09-2026; `T-10` y `T-11` `Hecha` el 05-10-2026; `T-12` **Pendiente** (`RN-MV-075`) |
 | Enmendadas | 05-10-2026 — `T-10` y `T-11` porque **los importes se guardan en centésimas** (`ADR-006`) |
 | Issue | Pendiente de crear |
 | Rama | `feature/comision-afftrack` |
@@ -48,6 +48,7 @@
 | `CA-CM-241` a `CA-CM-252` | `T-03`–`T-08` |
 | `CA-CM-253` | `T-02` |
 | `CA-CM-254` | `T-01` |
+| `CA-CM-339` | `T-12` |
 
 ---
 
@@ -81,6 +82,7 @@
 |---|---|---|---|---|
 | `T-10` | `@Convert` en `afftrack_rates.amount_per_ftd` y `user_afftrack_rates.amount_per_ftd`. Revisión del SQL nativo de las escalas y de la liquidación (`plan.md` §12). **Rehacer la provocación de `CA-CM-252`** (ver abajo) | `RF-MV-001` `T-40` (el convertidor) y `T-41` (`V65`); `RF-CM-001` `T-36`; `RF-CM-013` `T-20` | Compila; `CA-CM-252` vuelve a fallar a propósito y la suite deja el esquema como lo encontró | **Hecha el 05-10-2026** |
 | `T-11` | Pruebas: `CA-CM-338` en `AfftrackSettlementIT` y en las suites de alta de las dos escalas; las que siembran escalones por SQL escriben centésimas | `T-10` | `./mvnw verify` en verde | **Hecha el 05-10-2026** |
+| `T-12` | **Prueba de `CA-CM-339`** en `AfftrackSettlementIT`: una venta del alta confirmada con la línea `PENDIENTE` no cuenta en un cierre; tras entregarla con `delivered_at` posterior a ese cierre, cuenta en el siguiente. **Sin código de producción** (05-10-2026) | `RF-MV-001` `T-46` | `CA-CM-339` | Pendiente |
 
 **`CA-CM-252` se provocaba con un dato que ya no provoca nada.** Era un escalón cuyo `límite × valor` no cabía en `numeric(14,4)` al escribir la comisión. Con `bigint` en centésimas el techo es de unos 9,2·10¹⁶ unidades de dinero, y **ningún dato admitido llega a él**. Por porcentaje, la comisión no pasa del importe de la línea (`RN-CM-019`), y la línea desborda antes. Por fijo, `CA-CM-161` rechaza la cadena que pasa del importe de la línea. En afftrack, el valor por FTD tiene diez cifras enteras como mucho y el límite hay que alcanzarlo en FTD contados. **La prueba dejaría de fallar, y pasaría por la razón equivocada.**
 

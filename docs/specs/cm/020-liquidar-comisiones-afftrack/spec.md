@@ -4,12 +4,13 @@
 |---|---|
 | Requerimiento | `RF-CM-020` |
 | Módulo | `CM` — Comisiones |
-| Versión | 0.2.0 |
+| Versión | 0.3.0 |
 | Estado | **Aprobada** |
 | Autor | Responsable técnico |
 | Aprobada por | Responsable del proyecto |
 | Fecha de aprobación | 29-09-2026 |
 | Enmendada el | 05-10-2026 — **el valor por FTD admite dos decimales y la liquidación se guarda en centésimas** ([`ADR-006`](../../../architecture/ADR-006-importes-en-unidades-minimas.md)): `CA-CM-338` |
+| Enmendada el | 05-10-2026 — **el FTD de un alta gratuita se activa con el primer depósito** ([`requirements/cm.md`](../../../requirements/cm.md) v0.32.0, `RN-CM-036`; `RN-MV-075`): `CA-CM-339`. Sin cambio de comportamiento en este requerimiento |
 
 !!! info "Qué va en este documento"
 
@@ -201,6 +202,7 @@ Ninguna: no hay entrada.
 | `CA-CM-253` | Una línea FTD **no devenga por venta** aunque haya una tasa sobre su producto registrada antes de `RN-CM-037`, y el barrido no la recoge |
 | `CA-CM-254` | Una fila de comisión con línea y clase `POR_AFFTRACK`, o sin línea y clase `POR_VENTA`, **la rechaza el esquema** |
 | `CA-CM-338` | El sistema rechaza con `400` un valor por FTD **con tres decimales**, en la escala de rol y en la personal; con dos lo admite. La comisión `POR_AFFTRACK` que liquida el cierre —`límite × valor`— **se guarda en centésimas** y el lote suma exactamente ese importe (05-10-2026) |
+| `CA-CM-339` | El FTD de un **alta gratuita** no cuenta en un cierre **anterior a su primer depósito**, aunque su venta esté confirmada desde el alta, y **cuenta en el primer cierre posterior**: su momento es el `delivered_at` que escribe el depósito (`RN-MV-075`) (05-10-2026) |
 
 ---
 
@@ -227,3 +229,4 @@ Ninguna. Los tres supuestos de `cm.md` §5.8 —la activación es la entrega, si
 |---|---|---|---|
 | 0.1.0 | 29-09-2026 | Primera versión, con la comisión afftrack ([`requirements/cm.md`](../../../requirements/cm.md) v0.22.0 §5.8). Criterios `CA-CM-241` a `CA-CM-254`. | Responsable del proyecto |
 | 0.2.0 | 05-10-2026 | **El valor por FTD admite dos decimales y la liquidación se guarda en centésimas** ([`ADR-006`](../../../architecture/ADR-006-importes-en-unidades-minimas.md), [`requirements/cm.md`](../../../requirements/cm.md) v0.31.0), por decisión del responsable del proyecto. `amount_per_ftd` de las dos escalas pasa de `numeric(14,4)` a `bigint`. `límite × valor` es exacto con dos decimales, de modo que **la liquidación no redondea nada**. `CA-CM-338` fija el rechazo del tercer decimal y la unidad de la fila. **`CA-CM-252` no cambia de enunciado**, pero el dato que lo provocaba ya no provoca nada, y `tasks.md` §6 lo declara. | Responsable del proyecto |
+| 0.3.0 | 05-10-2026 | **El FTD de un alta gratuita espera al primer depósito** ([`requirements/cm.md`](../../../requirements/cm.md) v0.32.0), consecuencia de `RN-MV-075`: la venta del alta nace confirmada, pero su línea no se entrega hasta que la cuenta sale de `FTD_PENDIENTE`. **Nada cambia aquí**: la liquidación ya contaba desde `delivered_at` y solo las líneas entregadas. `CA-CM-339` lo fija con una prueba, porque ahora hay una venta confirmada cuyo FTD **todavía no** ha ocurrido. | Responsable del proyecto |

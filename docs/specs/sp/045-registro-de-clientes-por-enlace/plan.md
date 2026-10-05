@@ -8,6 +8,7 @@
 | Enmendado el | 09-09-2026 — **la cuenta de broker** (`RN-SP-042`) y **los tres catálogos públicos**, que cierran el bloqueo 6 |
 | Enmendado el | 09-09-2026 — **el movimiento del alta** (`RN-SP-043`) y **el camino de pago** (`RN-SP-044`): dos componentes nuevos, la segunda inversión de dirección de la tripleta y un sexto hecho en la transacción |
 | Enmendado el | 09-09-2026 — **mueren `product` y `referrer` del primer nivel**: el enlace viaja entero dentro de `movement`, y con el duplicado se van `VAL-016` y la mitad de `EX-010` |
+| Enmendado el | 05-10-2026 — **el enlace gratuito concede el suelo y su venta nace confirmada** (`RN-SP-057`, `RN-MV-075`), ver §12 |
 | Autor | Responsable técnico |
 | Aprobado por | Responsable del proyecto |
 | Fecha de aprobación | 01-09-2026 |
@@ -244,3 +245,22 @@ La auditoría de seguridad va **después de confirmar**, como en el resto del si
 | Unicidad bajo concurrencia | Integración | Dos registros simultáneos con el mismo nombre de usuario |
 | El arranque falla sin la membresía `BECA` | Integración | Contexto que no levanta |
 | **La suite de `SP` sigue en verde sin tocarla** | Toda | Es lo que verifica el riesgo 5 |
+
+## 12. Enmienda del 05-10-2026 — el suelo al registrarse, el producto al depositar
+
+**Lo que cambia en `RegisterClientByLinkService`, y es poco.** `concederMembresia` deja de distinguir caminos: los dos conceden **el suelo** —`membresias.floor()`, sin producto, sin línea y sin vigencia—, que es lo que el camino de pago ya hacía. La rama del gratuito, que escribía la posesión con el producto, su membresía destino y `validity_days` y con `movement_detail_id` nulo, **desaparece**: esa posesión la escribe ahora la **entrega** de la línea, con su `movement_detail_id`, cuando llegue el depósito (`RN-MV-036`). Y eso arregla de paso lo que la rama vieja tenía de raro, que era la única posesión de un producto sin la línea que lo entregó.
+
+**La venta la decide `MV`, no este plan.** El registro sigue llamando a `RegistrationSaleRegistrar` igual que antes; que la venta del alta de una cuenta `FTD_PENDIENTE` nazca `CONFIRMADA` y no entregue es `RN-MV-075`, y se construye en `RF-MV-001`. Lo único que `SP` tiene que saber es que **ya no concede el producto**.
+
+**La activación no es de este requerimiento.** Sacar a la cuenta de `FTD_PENDIENTE` es `RF-SP-028`, y es ahí donde se llama al puerto nuevo `FirstDepositActivation` (`RN-SP-057`; [`architecture.md`](../../../architecture.md) §15.2).
+
+**El contrato cambia de prosa, no de forma.** `RegistrationController` y `SelfRegistrationResponse` dicen que la venta «nace `PENDIENTE`», y en el camino gratuito ya no es así. La respuesta no lleva el estado de la venta, de modo que no cambia ningún campo.
+
+**La semilla de desarrollo.** El producto `BECA → BECA` de `semilla-productos.sql` pasa a **vitalicio** (`validity_days` nulo), que es como el responsable del proyecto dice que se configurará.
+
+| Prueba | Tipo | Qué fija |
+|---|---|---|
+| El gratuito concede el suelo y no el producto | Integración | `CA-SP-509`, `CA-SP-803`: una sola fila en `user_products`, sin producto ni vigencia |
+| La venta del gratuito nace confirmada | Integración | `CA-SP-617`: venta y pago confirmados, línea `PENDIENTE` de entrega |
+| El de pago no cambia | Integración | `CA-SP-618` sigue igual |
+

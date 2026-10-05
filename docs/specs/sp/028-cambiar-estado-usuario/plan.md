@@ -9,6 +9,7 @@
 | Autor | Responsable técnico |
 | Aprobado por | Responsable del proyecto |
 | Fecha de aprobación | 22-08-2026 |
+| Enmendado el | 05-10-2026 — **la salida de `FTD_PENDIENTE` activa lo comprado en el alta** (`RN-SP-057`), ver §12 |
 
 !!! info "Qué va en este documento"
 
@@ -397,3 +398,20 @@ Casos límite de `spec.md` §13 y decisiones de este plan que exigen prueba prop
 | Número de sentencias por petición | Integración | Sobre alguien que **no** porta el rol raíz y **no** retira el acceso, la operación **no** ejecuta ni la consulta de portadores ni la de equipo |
 
 Las reglas de ArchUnit introducidas en `RF-SP-001` y `RF-SP-003` cubren también este requerimiento; en particular que `application` no importe `shared/security` salvo por sus puertos, que es lo que mantiene el registro de invalidación fuera del caso de uso.
+
+## 12. Enmienda del 05-10-2026 — confirmar el depósito activa lo comprado al registrarse
+
+**Un puerto nuevo de `SP`, que `MV` implementa.** `FirstDepositActivation`, en `system/users/application`, con `activate(UUID userId, UUID movementId)`. Lo implementa `MV` (`PublishedFirstDepositActivation`, tarea de `RF-MV-001`) entregando las líneas pendientes de esa venta, como hace con `RegistrationSaleRegistrar` para anotarla. **La dirección es la de `RN-SP-043`**: `MV` ya depende de `SP`, y si `SP` importara una interfaz de `MV` cerraría el ciclo; `SP` la declara y `MV` la implementa ([`architecture.md`](../../../architecture.md) §15.2).
+
+**Dónde se llama.** En `ChangeUserStatusService.change`, **solo** cuando el estado actual es `FTD_PENDIENTE` y el destino es `ACTIVO`, **después** de `applyStatus` y **dentro de la misma transacción**. El `movementId` sale de la fila `REGISTRO` de `client_sellers` (`first_movement_id`), que el registro escribió con la venta del alta. **Sin esa fila no se llama**: una cuenta `FTD_PENDIENTE` sin venta del alta no debería existir, y si existe, sacarla de ahí no tiene nada que activar (`CA-SP-806`).
+
+**Si el puerto lanza, la transacción se deshace entera**: el estado no cambia, la auditoría no se escribe y la respuesta es el error que corresponda (`CA-SP-805`). Es la norma de las escrituras entre módulos de §15.2.1: **una escritura a medias es peor que ninguna**, y una cuenta activa sin lo que compró es un FTD que nadie contará.
+
+**Qué NO cambia.** La validación, el motivo condicional, `RN-SP-001` y `RN-SP-022`, la revocación de sesiones al retirar el acceso y la auditoría de seguridad siguen igual. La activación audita **en `MV` y en `SP`** por su cuenta, como cualquier entrega: el cambio de estado no la describe.
+
+| Prueba | Tipo | Qué fija |
+|---|---|---|
+| `FTD_PENDIENTE` → `ACTIVO` activa la línea del alta | Integración | `CA-SP-804`: posesión del producto con su vigencia, línea `ENTREGADA` con `delivered_at` |
+| La activación falla y nada cambia | Integración | `CA-SP-805`: con un puerto que lanza, el estado sigue en `FTD_PENDIENTE` |
+| Otras transiciones no activan | Integración | `CA-SP-806`: `INACTIVO` → `ACTIVO`, y `FTD_PENDIENTE` sin venta del alta |
+
