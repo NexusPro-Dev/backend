@@ -5,7 +5,7 @@
 | Módulo | `MV` — Movimientos |
 | Paquete | `modules/movements` |
 | Prefijos de permiso | `movements:` |
-| Versión | 0.74.0 |
+| Versión | 0.75.0 |
 | Estado | **Borrador** |
 | Responsable | Bonilla Diaz William Steven |
 | Fecha de creación | 02-09-2026 |
@@ -96,6 +96,7 @@ Según [`modules.md` §5](../modules.md).
 | Saldos | Lo que cada persona tiene en la plataforma **y por qué**: las cuentas y sus asientos (26-09-2026) | `accounts`, `movement_entries` |
 | Puntos | A cuánto se venden los puntos en cada moneda, **su compra** y **el pago con ellos** (30-09-2026) | `points_rates`, y los movimientos `COMPRA_PUNTOS` sobre `accounts` |
 | Cuentas de cobro | **A dónde se paga un retiro**: las entidades —bancos y billeteras móviles— que administra la empresa y las cuentas de cada persona en ellas (01-10-2026) | `payout_institutions`, `payout_accounts`, `withdrawal_destinations` |
+| Conversión por país | **A cuánto se convierte un dólar a la moneda de cada país**, con un precio para **cobrar** y otro para **pagar retiros** (05-10-2026). La usará la pasarela local, PayRetailers, que cobra y paga en moneda local | `country_conversion_rates` |
 
 **Por qué los medios de pago son un submódulo y no un catálogo de `SP`.** Los catálogos de `SP` —monedas, países, membresías— los necesita **el sistema entero** para autorizar, validar o mostrar. Un método de pago solo lo necesita quien registra dinero, y [`modules.md` §2.1](../modules.md#21-regla-de-decision) es explícito: si solo lo usa un módulo, es un submódulo suyo.
 
@@ -192,6 +193,8 @@ La dependencia es **acíclica**: `MV` → `PM` → `SP`, y `MV` → `SP`. **El p
 | `RF-MV-043` | Consultar los pagos —**cada intento, de cualquier persona y tipo**— | Pagos | `movements:list-payments` (nace con él; `RN-SEG-014`) |
 | `RF-MV-044` | **Confirmar un pago pendiente** —de una venta o de una compra de puntos, con cualquier método—, y con él su movimiento (§4.8) | Pagos | `movements:confirm-payment` (nace con él; `RN-SEG-014`) |
 | `RF-MV-045` | **Rechazar un pago pendiente** —de una venta o de una compra de puntos, con cualquier método—, con motivo (§4.8) | Pagos | `movements:reject-payment` (lo hereda de `RF-MV-004`) |
+| `RF-MV-046` | Fijar la conversión de un país —su precio de cobro y su precio de retiro— | Conversión por país | `movements:set-conversion-rate` (nace con él; `RN-SEG-014`) |
+| `RF-MV-047` | Consultar la conversión vigente de cada país | Conversión por país | `movements:read-conversion-rates` (nace con él; `RN-SEG-015`) |
 
 **Registrar y comprar son dos requerimientos y no uno**, y eso **se aparta del precedente** que `PM` y `CM` fijaron —«el alta es una, no dos»—. La razón por la que aquí no aplica no es el contenido de la venta sino **quién la pide y por dónde entra**: una la origina un funcionario sobre la cuenta de otro y exige `movements:create`; la otra la origina el interesado sobre la suya y no exige permiso ninguno, como `RF-SP-039` y `RF-PM-007`. Fundirlas daría un endpoint con **dos modelos de seguridad**, que es donde se cuela el que sobra.
 
@@ -585,6 +588,24 @@ Lo pidió el responsable del proyecto el 01-10-2026: «al confirmar el payment s
 
 **Es un cambio rompedor del contrato**, declarado: las cuatro rutas responden `404` desde el día en que se construya, y el frontend llama a las nuevas con el `id` del pago, que el detalle (`RF-MV-007`, `RF-MV-008`) y el listado de pagos (`RF-MV-043`) ya publican.
 
+### 4.9 La conversión por país — antes de la pasarela local (05-10-2026)
+
+El responsable del proyecto pidió integrar **PayRetailers** para cobrar y pagar retiros con métodos locales —en Colombia: PSE, Nequi, Efecty y Bre-B— y, **antes que la pasarela**, «una tabla para administrar la conversión según el país, con dos tipos: un precio de conversión para los cobros y otro para los retiros». Los métodos locales cobran y pagan **solo en la moneda del país** (COP), y las ventas son en **USD**: hace falta un precio, y no el mismo en las dos direcciones, porque cambiar dinero no cuesta igual al entrar que al salir.
+
+Decisiones del responsable del proyecto del 05-10-2026, **preguntadas antes de escribir**:
+
+| Pregunta | Decisión | Lo que se descartó, y por qué |
+|---|---|---|
+| ¿Se reutiliza la tasa de cambio de `SP` (`RF-SP-047`)? | **No: una tabla propia**, por país | La tasa de `SP` es **una** por par de monedas y sirve para **mostrar** precios; esta lleva **dos precios** que la empresa fija como política comercial, y la elige **el país** del método, no la moneda |
+| ¿Una fila por precio o los dos juntos? | **Los dos en la misma fila**: cobro y retiro se fijan a la vez | *Una fila por tipo* — dejaría cambiar uno sin mirar el otro; el responsable prefiere que se revisen juntos |
+| ¿Con historia? | **Sí, hacia delante**, como la tasa de puntos (`RN-MV-050`): fijar inserta una fila que rige desde ese instante; nada se edita ni se borra | *Solo el valor actual* — un cobro o un retiro pasados no se podrían explicar |
+| ¿En qué sentido? | **1 USD = X moneda local**: `4150.0000` es «un dólar son 4.150 pesos» | *1 moneda local = X USD* — es como guarda `SP` su tasa, pero no como se lee ni como se negocia |
+| ¿Quién la fija y quién la ve? | **La fijan `SUPERADMIN` y `ADMIN`**, con permiso propio; **la vigente la consulta quien paga o retira**, por tipo de rol | *Solo administración* — el cliente no sabría cuántos pesos va a pagar hasta llegar al cobro |
+
+**Lo que guarda cada fila.** El país, **la moneda local** —la de los métodos de ese país, hoy COP para Colombia—, **la moneda base** —la moneda por omisión del sistema en el momento de fijar, hoy USD—, el **precio de cobro**, el **precio de retiro**, desde cuándo rige y quién la fijó. **La moneda base se copia y no se deduce**: si algún día cambia la moneda por omisión, una fila antigua tiene que seguir diciendo de qué moneda convertía.
+
+**Lo que esta etapa NO hace todavía.** No convierte nada: **la usarán** el cobro y el retiro por PayRetailers, que se escriben después, y cada uno **guardará qué fila usó y el importe convertido** —como la compra de puntos guarda su tasa (`RN-MV-051`)—. Tampoco publica el histórico: `RF-MV-047` devuelve la vigente de cada país, y los cambios quedan en la tabla y en la auditoría, como en `RF-MV-026`. **No se exige que el precio de retiro sea menor que el de cobro**: es lo habitual, pero es una decisión comercial de quien la fija, y el sistema no la impone.
+
 ---
 
 ## 5. Reglas de negocio
@@ -654,6 +675,7 @@ Lo pidió el responsable del proyecto el 01-10-2026: «al confirmar el payment s
 | `RN-MV-059` | **La notificación se autentica por su firma, se guarda tal cual y se procesa una vez** | Al recibir una notificación (`RF-MV-041`) | Etapa 4, decidida el 02-09-2026 y escrita el 01-10-2026. La ruta es **pública** —la pasarela no tiene sesión— y **rechaza toda notificación cuya firma no verifique** con el secreto compartido, o cuya marca de tiempo sea demasiado vieja, **sin guardar nada**. Una firmada **se guarda entera antes de interpretarse**, y **su identificador es único en el esquema**: la misma notificación reentregada **no se procesa dos veces**. **Se responde en cuanto queda guardada**, y el proceso va después: si falla, la notificación queda pendiente y se reintenta, sin pedir a la pasarela que la reenvíe. **Un tipo de notificación que no se espera se guarda y se ignora** | **Crítica** |
 | `RN-MV-060` | **Un reembolso o una disputa se marcan en el pago, y no revierten nada** | Al recibir una notificación de reembolso o de disputa (`RF-MV-041`), y en el libro de administración (`RF-MV-006`) | Decisión del responsable del proyecto, 01-10-2026. El pago confirmado **sigue confirmado** —`RN-MV-039`: del pago no se vuelve— y gana **una incidencia**: `REEMBOLSADO` —con el importe devuelto, que puede ser parcial—, `EN_DISPUTA`, `DISPUTA_GANADA` o `DISPUTA_PERDIDA`, con su fecha. **La venta, lo entregado, los saldos y las comisiones no cambian.** Administración **filtra el libro por incidencia** y decide a mano: revertir es una etapa que no existe (§4.6) | **Alta** |
 | `RN-MV-061` | **Se concilia el pago, y el movimiento lo sigue** | Al confirmar o rechazar un pago (`RF-MV-044`, `RF-MV-045`) | Decisión del responsable del proyecto, 01-10-2026. Confirmar y rechazar **nombran un pago**, no un movimiento, y valen igual para cualquier método. **Solo un pago `PENDIENTE` de un movimiento que cobra** —`VENTA` o `COMPRA_PUNTOS`— se resuelve así: un pago que no existe es `404`, uno ya resuelto o de un retiro es conflicto, con su estado. **El movimiento cambia en la misma transacción y según su tipo**: la venta confirmada entrega y avisa a `CM` (`RF-MV-003`), y con el pago rechazado sigue `PENDIENTE` (`RF-MV-004`); la compra de puntos confirmada abona (`RF-MV-028`), y rechazada queda `RECHAZADA` (`RF-MV-029`). **Si el movimiento no puede seguir al pago, el pago tampoco cambia**: no hay pago confirmado de un movimiento sin confirmar | **Crítica** |
+| `RN-MV-062` | **La conversión de un país lleva dos precios, se fija hacia delante y no se edita** | Al fijarla (`RF-MV-046`) y al consultarla (`RF-MV-047`); al cobrar y al pagar retiros por la pasarela local, cuando se construyan | Decisión del responsable del proyecto, 05-10-2026 (§4.9). Cada país tiene **a lo sumo una conversión vigente**: cuántas unidades de su **moneda local** vale **una unidad de la moneda base** —la moneda por omisión del sistema al fijarla, que la fila **copia**—, con un **precio de cobro** y un **precio de retiro**, los dos **mayores que cero** y con cuatro decimales como mucho. **Fijarla inserta una fila nueva** que rige desde ese instante; la anterior no se toca, y ninguna se borra. Rige la de `valid_from` más reciente que no sea futura. **El país tiene que estar activo, y la moneda local activa y distinta de la base**. Un país sin conversión **no cobra ni paga** por la pasarela local | **Crítica** |
 
 ### 5.2 Por qué las críticas son críticas
 
@@ -802,6 +824,8 @@ Hasta hoy esta regla no distinguía: **toda** venta confirmada con un upgrade co
 | `movements:grant-bonus` | `movements` | `grant-bonus` | Otorgar un bono, con su motivo (`RF-MV-023`). **Declarado y SIN SEMBRAR** (26-09-2026) |
 | `movements:set-points-rate` | `movements` | `set-points-rate` | Fijar la tasa de puntos de una moneda (`RF-MV-025`). A `SUPERADMIN` y `ADMIN`, explícito: el precio de los puntos es tarea de administración. **Sembrado por `V58`** (30-09-2026) |
 | `movements:read-points-rates` | `movements` | `read-points-rates` | Consultar la tasa de puntos vigente de cada moneda (`RF-MV-026`). Por tipo de rol: quien compra o paga con puntos necesita saber a cuánto. **No es pública**, al revés que `RF-MV-009`: aquel catálogo lo pide el formulario de registro antes de que exista la cuenta, y a la tasa solo le sirve a quien ya puede comprar. **Sembrado por `V58`** (30-09-2026) |
+| `movements:set-conversion-rate` | `movements` | `set-conversion-rate` | Fijar la conversión de un país, con su precio de cobro y su precio de retiro (`RF-MV-046`). A `SUPERADMIN` y `ADMIN`, explícito: es política comercial. **Sembrado por `V67`** (05-10-2026) |
+| `movements:read-conversion-rates` | `movements` | `read-conversion-rates` | Consultar la conversión vigente de cada país (`RF-MV-047`). **Por tipo de rol**: quien paga en moneda local o retira a una cuenta local necesita saber a cuánto. **Sembrado por `V67`** (05-10-2026) |
 | `movements:buy-points` | `movements` | `buy-points` | Comprar puntos para uno mismo (`RF-MV-027`). Por tipo de rol, como toda operación sobre uno mismo (`RN-SEG-015`). **Sembrado por `V58`** (30-09-2026) |
 | `movements:confirm-points-purchase` | `movements` | `confirm-points-purchase` | Confirmar el pago de una compra de puntos pendiente y abonarlos (`RF-MV-028`). A `SUPERADMIN` y `ADMIN`. **Sembrado por `V58`** (30-09-2026). **Se retira el 01-10-2026** (§4.8): lo sustituye `movements:confirm-payment` |
 | `movements:reject-points-purchase` | `movements` | `reject-points-purchase` | Rechazar el pago de una compra de puntos pendiente, con motivo (`RF-MV-029`). A `SUPERADMIN` y `ADMIN`. **Sembrado por `V58`** (30-09-2026). **Se retira el 01-10-2026** (§4.8): lo sustituye `movements:reject-payment` |
@@ -1112,6 +1136,9 @@ Se siembra por migración y **no se administra por API todavía** (§5.3). Lo m�
 | `ck_movements_points` | `(points_rate_id IS NULL) = (points_amount IS NULL)` y `points_amount > 0` | `RN-MV-051`. Una compra de puntos sin tasa, o una tasa sin puntos, no se explica |
 | `ck_points_rates_valor` | `points_per_unit > 0` | `RN-MV-050`. Una tasa de cero regalaría lo que se vende con puntos |
 | `uq_points_rates_vigencia` | `points_rates(currency_id, valid_from)` | `RN-MV-050`. Dos tasas de la misma moneda desde el mismo instante no dicen cuál rige |
+| `ck_country_conversion_rates_precios` | `pay_in_price > 0 AND payout_price > 0` | `RN-MV-062`. Un precio de cero regalaría lo que se cobra o lo que se paga |
+| `ck_country_conversion_rates_monedas` | `currency_id <> base_currency_id` | `RN-MV-062`. Convertir una moneda a sí misma no es una conversión |
+| `uq_country_conversion_rates_vigencia` | `country_conversion_rates(country_id, valid_from)` | `RN-MV-062`. Dos conversiones del mismo país desde el mismo instante harían indeterminada la vigente |
 | `uq_payout_institutions_code` | `payout_institutions(code)` | `RN-MV-054`. El código identifica la entidad en el contrato y en la copia del retiro |
 | `ck_payout_institutions_kind` | `kind` en (`BANCO`, `BILLETERA_MOVIL`) | `RN-MV-054`. El dominio |
 | `ck_payout_accounts_forma` | `account_type` en (`AHORROS`, `CORRIENTE`) o nulo, y `number` solo dígitos, de 4 a 20 | `RN-MV-055`. Que el tipo de cuenta vaya **solo** con un banco cruza a otra tabla y lo sostiene el caso de uso |
@@ -1276,6 +1303,26 @@ Se siembra por migración y **no se administra por API todavía** (§5.3). Lo m�
 
 **Lo que notifica la pasarela, tal como lo dice** (`RN-MV-059`, 01-10-2026). **`(gateway, external_id)` es único**: es lo que hace que una notificación reentregada no se procese dos veces, y vive en el esquema porque la reentrega no es el caso raro sino el normal (§4.2). `payload` es **el cuerpo entero**, sin interpretar: si mañana se entiende mejor un evento, se vuelve a leer. `payment_id` se rellena al procesar, cuando el evento resuelve un pago. `outcome` es `PROCESADO`, `IGNORADO` —un tipo que no se espera— o `ERROR`; nulo mientras está pendiente. `attempts` cuenta los procesos, para no reintentar para siempre lo que no va a salir. **No se edita ni se borra fuera de las suites**: es la constancia de lo que dijo quien cobra.
 
+### 7.15 `country_conversion_rates`
+
+| Columna | Tipo | Nula | Referencia |
+|---|---|---|---|
+| `id` | `uuid` | No | — |
+| `country_id` | `uuid` | No | `countries` |
+| `currency_id` | `uuid` | No | `currencies` — la moneda **local** |
+| `base_currency_id` | `uuid` | No | `currencies` — la moneda **de la que se convierte**, copiada al fijar |
+| `pay_in_price` | `numeric(14,4)` | No | — |
+| `payout_price` | `numeric(14,4)` | No | — |
+| `valid_from` | `timestamptz` | No | — |
+| `created_by` | `uuid` | No | `users` |
+| `created_at` | `timestamptz` | No | — |
+
+**A cuánto se convierte una unidad de la moneda base a la moneda de cada país** (`RN-MV-062`, 05-10-2026). `pay_in_price` es el precio **al cobrar** y `payout_price` **al pagar un retiro**: `4150.0000` es «1 USD = 4.150 COP».
+
+**Los precios NO son importes**, y por eso **no pasan a centésimas** como el resto de §7 (`ADR-006`): son proporciones, como `points_per_unit` y la tasa de `SP`. Van con **cuatro decimales**, que admiten también monedas de poca cifra.
+
+**Es un histórico y no un valor**, como `points_rates` (§7.10): sin `valid_to`, sin `updated_at` y sin `deleted_at`. Una conversión que ya rigió explicará cobros y retiros pasados, y editarla o borrarla los dejaría sin explicación.
+
 ---
 
 ## 8. Control de cambios
@@ -1356,3 +1403,4 @@ Se siembra por migración y **no se administra por API todavía** (§5.3). Lo m�
 | 0.72.0 | 03-10-2026 | **`RN-MV-006` gana su segunda mitad: tampoco se salta de nivel**, por decisión del responsable del proyecto —«solo puedo subir de upgrade a nivel por encima mío»— ([`requirements/pm.md`](pm.md) v0.49.0, §5.2.17). La membresía comprada es la vigente —renovación— o **la inmediatamente superior**; cualquier otra se rechaza **al registrar**, con el **mismo `EX-005`**, en **todos los canales**: la tienda, la compra propia, el paquete y el hotlink. Se compara contra la membresía **vigente de quien compra** y no contra el origen del producto, y por eso alcanza también a los saltos que `PM` registró antes y ya no publica. **Al confirmar no se repite** (`RN-MV-029` sigue igual), y queda escrito por qué. Sin migración. **La versión 0.71.0 la toma «mis compras con líneas»** (`RF-MV-008`, PR #169), abierto a la vez. **Construida el mismo día** en `SaleRules.verificarQueSube` (`CA-MV-526`, `527`, `530` a `532` y `540`). **Por HTTP en la tienda el salto llega como `EX-004`**, porque la oferta lo filtra antes; `EX-005` por salto solo lo alcanza el hotlink y la prueba unitaria. | Responsable del proyecto |
 | 0.73.0 | 05-10-2026 | **Los importes de `MV` pasan a `bigint` en centésimas** (§7), por decisión del responsable del proyecto ([`ADR-006`](../architecture/ADR-006-importes-en-unidades-minimas.md)): la venta, sus líneas y sus rebajas, el pago y su reembolso, el saldo de la cuenta y los asientos del libro. **La API no cambia**: un convertidor JPA multiplica por cien al guardar y divide al leer. **Los puntos van con el libro**: `accounts` y `movement_entries` llevan dinero y puntos en las mismas columnas, y `movements.points_amount` es lo que se abona en la cuenta `PUNTOS`. Se convierten las tres, porque un asiento de puntos y la compra que lo origina tienen que estar en la misma unidad. **`points_rates.points_per_unit` se queda en `numeric(12,4)`**, porque es una tasa y no un importe. `movement_detail_discounts.value` va también en centésimas cuando es un porcentaje. `RN-MV-044` precisa que su redondeo deja de tener efecto. Enmienda `RF-MV-001`, `RF-MV-025` y `RF-MV-027` (Art. I.7), y obliga a `V65`. | Responsable del proyecto |
 | 0.74.0 | 05-10-2026 | **El código de una entidad de cobro puede empezar por dígito** (§7.11, `RN-MV-054`), a petición del responsable del proyecto. Hasta ahora seguía la forma de los demás códigos del sistema, que empiezan por letra, pero muchos bancos se identifican por un código numérico, el de compensación de su país, y la regla obligaba a inventarles un prefijo. La forma pasa de `^[A-Z][A-Z0-9_]{1,29}$` a `^[A-Z0-9][A-Z0-9_]{1,29}$`: sigue sin admitir el guion bajo al principio, y sigue con dos caracteres como mínimo. **Solo cambia en este catálogo**: los códigos de roles, membresías, productos y paquetes siguen empezando por letra. Enmienda `RF-MV-032` (Art. I.7) y obliga a `V66`, de modo que `RF-MV-043` pasa a `V67`. | Responsable del proyecto |
+| 0.75.0 | 05-10-2026 | **Nace la conversión por país** (§4.9, §7.15), por decisión del responsable del proyecto: antes de integrar PayRetailers —que cobra y paga retiros en moneda local—, «una tabla para administrar la conversión según el país, con un precio para los cobros y otro para los retiros». Los dos precios van en la misma fila, **1 USD = X moneda local**, con historia hacia delante como la tasa de puntos. Nacen `RF-MV-046` (fijar), `RF-MV-047` (consultar la vigente), `RN-MV-062`, dos permisos (`movements:set-conversion-rate` y `movements:read-conversion-rates`, catálogo 179 → 181) y `country_conversion_rates`, que escribirá `V67`. Todavía no convierte nada: lo usarán el cobro y el retiro por la pasarela local | Responsable del proyecto |

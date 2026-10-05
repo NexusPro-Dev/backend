@@ -5,11 +5,11 @@
 | Proyecto | NEXUS — Renovación de plataforma |
 | Empresa | FACTECH GROUP SAS |
 | Documento | `security.md` |
-| Versión | 0.99.0 |
+| Versión | 0.100.0 |
 | Estado | Borrador |
 | Responsable técnico | Bonilla Diaz William Steven |
 | Fecha de creación | 19-08-2026 |
-| Última actualización | 01-10-2026 |
+| Última actualización | 05-10-2026 |
 | Documento superior | `constitution.md` v0.5.0 |
 | Documento relacionado | `architecture.md` v0.4.0 |
 
@@ -253,6 +253,7 @@ movements:request-withdrawal     movements:approve-withdrawal     movements:reje
 movements:read-own-balances      movements:list-own-entries       movements:grant-bonus
 movements:set-points-rate        movements:read-points-rates      movements:buy-points
 movements:confirm-points-purchase  movements:reject-points-purchase  movements:list-own-points-purchases
+movements:set-conversion-rate      movements:read-conversion-rates
 
 exchange-rates:read     exchange-rates:create
 exchange-rates:update   exchange-rates:delete
@@ -961,3 +962,4 @@ RNF-SEG-002 merece atención: es una prueba que enumera los endpoints registrado
 | 0.97.0 | 01-10-2026 | **`movements:pay-pending-by-card` está sembrado** por `V62`, por tipo de rol. Catálogo **181**. **La ruta de notificaciones de Stripe está construida**: pública, autenticada por la firma HMAC del cuerpo con tolerancia de cinco minutos, fuera de la cota de tasa; una firma inválida responde `400` sin guardar nada y, sin la pasarela configurada, `503`. **Nace el `503` en el catálogo de problemas** (`servicio-no-disponible`) y se audita como fallo de integración. | Responsable técnico |
 | 0.98.0 | 01-10-2026 | **Se concilia el pago, no el movimiento** (§4.4; [`requirements/mv.md`](requirements/mv.md) v0.67.0 §4.8): nace `movements:confirm-payment` (`RF-MV-044`), `movements:reject-payment` pasa a `RF-MV-045` y se retiran `movements:confirm`, `movements:confirm-points-purchase` y `movements:reject-points-purchase`. Lo aplicará `V63`, y el catálogo pasará de 181 a **179**; `movements:list-payments` (`RF-MV-043`) pasa a `V64`. **Ninguna ruta pública nueva**. | Responsable del proyecto |
 | 0.99.0 | 01-10-2026 | **`V63` aplica la conciliación por el pago** (§4.4): `movements:confirm-payment` sembrado por posesión de los que sustituye, `movements:reject-payment` renombrado, y los tres retirados borrados. Catálogo **179** (`ADMIN` 177; `MV` treinta y tres). | Responsable técnico |
+| 0.100.0 | 05-10-2026 | **Dos permisos de `MV` para la conversión por país** ([`requirements/mv.md`](requirements/mv.md) v0.75.0 §4.9 y §6): `movements:set-conversion-rate` (`RF-MV-046`), a `SUPERADMIN` y `ADMIN` explícito porque es política comercial, y `movements:read-conversion-rates` (`RF-MV-047`), **por tipo de rol** como `movements:read-points-rates`: quien paga o retira en moneda local necesita saber a cuánto. Los siembra `V67`. Catálogo **179 → 181** | Responsable del proyecto |
