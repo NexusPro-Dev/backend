@@ -4,7 +4,7 @@
 |---|---|
 | Requerimiento | `RF-MV-005` |
 | Módulo | `MV` — Movimientos |
-| Versión | 0.3.0 |
+| Versión | 0.4.0 |
 | Estado | **Aprobada** |
 | Autor | Responsable técnico |
 | Aprobada por | Responsable del proyecto |
@@ -218,3 +218,4 @@ Desde el 01-10-2026 ([`requirements/mv.md`](../../../requirements/mv.md) v0.64.0
 | 0.1.0 | 17-09-2026 | Primera versión, a petición del responsable del proyecto —«¿y para anular un movimiento?»—. **Estaba declarado desde el 02-09-2026**. Lo que la spec carga: **anular no es borrar** —la fila se queda con su motivo, que es lo que separa «anulada» de «desaparecida»—, **el motivo es obligatorio** y se exige antes de tocar nada, **solo lo pendiente** porque lo confirmado ya entregó, y **la misma transición atómica** que confirmar. Lo que deja fuera: rechazar (`RF-MV-004`, otro significado y otro permiso) y que el comprador retire lo suyo. | Responsable del proyecto |
 | 0.2.0 | 26-09-2026 | **Anular cierra también el pago pendiente**, como rechazado y con el motivo de la anulación (`requirements/mv.md` v0.44.0, `RN-MV-039`; Art. I.7 sobre un requerimiento construido). La ruta, el motivo y el permiso no cambian. `CA-MV-220`. | Responsable del proyecto |
 | 0.3.0 | 01-10-2026 | **La tarjeta por Stripe** ([`requirements/mv.md`](../../../requirements/mv.md) v0.64.0 §4.6): **anular cancela el cobro abierto en la pasarela** antes de cerrar el pago (`RN-MV-058`). Criterios `CA-MV-466` a `CA-MV-468`. | Responsable del proyecto |
+| 0.4.0 | 05-10-2026 | **Enmendada por la pasarela local** (`RF-MV-048`, [`requirements/mv.md`](../../../requirements/mv.md) v0.80.0 §4.10): anular con un **cobro abierto en la pasarela local** no lo cancela en la pasarela —PayRetailers no lo permite—: rechaza el pago, y si el cobro se aprueba después queda la incidencia `COBRO_TARDIO` (`RN-MV-064`). Se prueba en `LocalChargeIT`. | Responsable del proyecto |

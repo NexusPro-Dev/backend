@@ -23,7 +23,8 @@ public interface GatewayEventRepository {
   Optional<StoredEvent> lockPending(UUID id);
 
   /** Las pendientes que el barrido reintenta: recibidas antes de ese instante y con intentos. */
-  List<UUID> pendingForRetry(OffsetDateTime receivedBefore, int maxAttempts, int limit);
+  List<UUID> pendingForRetry(
+      String gateway, OffsetDateTime receivedBefore, int maxAttempts, int limit);
 
   /** El desenlace: {@code PROCESADO}, {@code IGNORADO} o {@code ERROR}. */
   void finish(UUID id, String outcome, String error, UUID paymentId, OffsetDateTime at);

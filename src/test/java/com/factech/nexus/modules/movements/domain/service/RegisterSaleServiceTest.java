@@ -82,6 +82,7 @@ class RegisterSaleServiceTest {
             mock(AuditWriter.class),
             mock(PointsPayment.class),
             mock(CardPayment.class),
+            mock(LocalPayment.class),
             mock(ConfirmSaleService.class),
             java.time.Clock.systemUTC());
 

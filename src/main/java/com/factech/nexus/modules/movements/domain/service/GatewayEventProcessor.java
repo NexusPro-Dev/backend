@@ -94,7 +94,8 @@ public class GatewayEventProcessor {
       return;
     }
     for (UUID id :
-        eventos.pendingForRetry(OffsetDateTime.now(reloj).minusMinutes(1), INTENTOS, 100)) {
+        eventos.pendingForRetry(
+            pasarela.name(), OffsetDateTime.now(reloj).minusMinutes(1), INTENTOS, 100)) {
       procesar(id);
     }
   }

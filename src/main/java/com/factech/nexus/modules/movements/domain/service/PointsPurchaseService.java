@@ -76,6 +76,7 @@ public class PointsPurchaseService {
   private final AuditWriter auditoria;
   private final Clock reloj;
   private final CardPayment tarjeta;
+  private final LocalPayment local;
 
   @Autowired
   public PointsPurchaseService(
@@ -89,7 +90,8 @@ public class PointsPurchaseService {
       AuthenticatedActor actor,
       Pagination paginacion,
       AuditWriter auditoria,
-      CardPayment tarjeta) {
+      CardPayment tarjeta,
+      LocalPayment local) {
     this(
         movimientos,
         pagos,
@@ -102,6 +104,7 @@ public class PointsPurchaseService {
         paginacion,
         auditoria,
         tarjeta,
+        local,
         Clock.systemUTC());
   }
 
@@ -117,8 +120,10 @@ public class PointsPurchaseService {
       Pagination paginacion,
       AuditWriter auditoria,
       CardPayment tarjeta,
+      LocalPayment local,
       Clock reloj) {
     this.tarjeta = tarjeta;
+    this.local = local;
     this.movimientos = movimientos;
     this.pagos = pagos;
     this.libro = libro;
@@ -159,7 +164,8 @@ public class PointsPurchaseService {
     if (previo.isPresent()) {
       return new BuyResult(
           repetida(previo.get(), quien, moneda, importe, peticion)
-              .conCobro(tarjeta.cobroExistente(previo.get().movementId())),
+              .conCobro(tarjeta.cobroExistente(previo.get().movementId()))
+              .conCobroLocal(local.cobroExistente(previo.get().movementId())),
           false);
     }
 
@@ -221,7 +227,9 @@ public class PointsPurchaseService {
         Map.of("after", compra.instantanea(), "payment_status", "PENDIENTE"));
     // Con tarjeta, el cobro se abre ahora (`RF-MV-040`).
     return new BuyResult(
-        respuesta(leer(compra.getId())).conCobro(tarjeta.abrirSiToca(metodo, compra.getId())),
+        respuesta(leer(compra.getId()))
+            .conCobro(tarjeta.abrirSiToca(metodo, compra.getId()))
+            .conCobroLocal(local.abrirSiToca(metodo, compra.getId())),
         true);
   }
 
@@ -462,6 +470,7 @@ public class PointsPurchaseService {
         fila.rejectedAt(),
         fila.rejectionReason(),
         SaleDetailMapper.pagos(pagos),
+        null,
         null);
   }
 

@@ -74,7 +74,14 @@ public record PurchaseResponse(
                 "El cobro abierto en la pasarela, si se pagó con tarjeta (`RF-MV-040`, desde el"
                     + " 01-10-2026): con su `clientSecret` la app pide la tarjeta. NULO con otro"
                     + " método, o con la pasarela apagada.")
-        CardChargeResponse cardCharge) {
+        CardChargeResponse cardCharge,
+    @Schema(
+            types = {"object", "null"},
+            description =
+                "El cobro abierto en la pasarela local, si se pagó con `PSE` (`RF-MV-048`, desde el"
+                    + " 05-10-2026): la app lleva al cliente a su `checkoutUrl`. NULO con otro método,"
+                    + " o con la pasarela local apagada.")
+        LocalChargeResponse localCharge) {
 
   public static PurchaseResponse de(
       Movement venta, SaleResponse.Party sujeto, SaleResponse.Money moneda, String metodoDePago) {
@@ -99,6 +106,7 @@ public record PurchaseResponse(
         // Acaba de comprarse: nadie ha confirmado nada.
         null,
         venta.getCreatedAt(),
+        null,
         null);
   }
 
@@ -123,6 +131,32 @@ public record PurchaseResponse(
         occurredAt,
         confirmedAt,
         createdAt,
+        cobro,
+        localCharge);
+  }
+
+  /** La misma, con el cobro abierto en la pasarela local (`RF-MV-048`); nulo no cambia nada. */
+  public PurchaseResponse conCobroLocal(LocalChargeResponse cobro) {
+    if (cobro == null) {
+      return this;
+    }
+    return new PurchaseResponse(
+        id,
+        code,
+        status,
+        typeStatus,
+        user,
+        packageId,
+        currency,
+        paymentMethod,
+        lines,
+        totalAmount,
+        discountAmount,
+        payableAmount,
+        occurredAt,
+        confirmedAt,
+        createdAt,
+        cardCharge,
         cobro);
   }
 
@@ -146,6 +180,7 @@ public record PurchaseResponse(
         occurredAt,
         cuando,
         createdAt,
-        cardCharge);
+        cardCharge,
+        localCharge);
   }
 }

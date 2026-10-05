@@ -50,6 +50,7 @@ class SystemRolesSeedIT extends IntegrationTestBase {
           // `V58` (30-09-2026): la etapa 3 de puntos, lo propio por tipo de rol.
           "movements:read-points-rates",
           "movements:read-conversion-rates",
+          "movements:pay-pending-locally",
           "movements:buy-points",
           "movements:list-own-points-purchases",
           // `V61` (01-10-2026): las cuentas de cobro, lo propio por tipo de rol.
@@ -102,6 +103,7 @@ class SystemRolesSeedIT extends IntegrationTestBase {
           // `V58` (30-09-2026): la etapa 3 de puntos, lo propio por tipo de rol.
           "movements:read-points-rates",
           "movements:read-conversion-rates",
+          "movements:pay-pending-locally",
           "movements:buy-points",
           "movements:list-own-points-purchases",
           // `V61` (01-10-2026): las cuentas de cobro, lo propio por tipo de rol.
@@ -146,6 +148,7 @@ class SystemRolesSeedIT extends IntegrationTestBase {
           // `V58` (30-09-2026): la etapa 3 de puntos, lo propio por tipo de rol.
           "movements:read-points-rates",
           "movements:read-conversion-rates",
+          "movements:pay-pending-locally",
           "movements:buy-points",
           "movements:list-own-points-purchases",
           // `V61` (01-10-2026): las cuentas de cobro, lo propio por tipo de rol.

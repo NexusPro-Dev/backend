@@ -1,6 +1,7 @@
 package com.factech.nexus.modules.movements.interfaces;
 
 import com.factech.nexus.modules.movements.domain.service.GatewayEventIntake;
+import com.factech.nexus.modules.movements.domain.service.LocalChargeReconciler;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.media.Content;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
@@ -20,15 +21,18 @@ import org.springframework.web.bind.annotation.RestController;
 @Tag(
     name = "Pasarela de pago",
     description =
-        "Lo que notifica la pasarela de la tarjeta. Solo la llama Stripe; el frontend no.")
+        "Lo que notifican las pasarelas: la de la tarjeta (Stripe) y la local (PayRetailers). Solo"
+            + " las llaman ellas; el frontend no.")
 @RestController
 @RequestMapping("/api/v1/movements/gateway-notifications")
 public class GatewayNotificationController {
 
   private final GatewayEventIntake recepcion;
+  private final LocalChargeReconciler local;
 
-  public GatewayNotificationController(GatewayEventIntake recepcion) {
+  public GatewayNotificationController(GatewayEventIntake recepcion, LocalChargeReconciler local) {
     this.recepcion = recepcion;
+    this.local = local;
   }
 
   @PostMapping(value = "/stripe", consumes = "*/*")
@@ -59,6 +63,34 @@ public class GatewayNotificationController {
       @RequestBody(required = false) byte[] cuerpo,
       @RequestHeader(value = "Stripe-Signature", required = false) String firma) {
     recepcion.receive(cuerpo, firma);
+    return ResponseEntity.ok().build();
+  }
+
+  @PostMapping(value = "/payretailers", consumes = "*/*")
+  @Operation(
+      summary = "Recibir un aviso de PayRetailers",
+      description =
+          """
+          El aviso de la pasarela local (`RF-MV-049`). **No va firmado, y por eso no se cree**
+          (`RN-MV-064`): se guarda tal como llegó, se responde `200` y, después, se
+          **pregunta a la pasarela** por el cobro de su `trackingId` con las credenciales de esta
+          API. Lo que conteste es lo que se aplica: aprobado confirma el pago y la venta o la
+          compra de puntos; fallido, rechazado, cancelado o caducado lo rechaza; pendiente no hace
+          nada. Un aviso de un cobro que no es de ningún pago se ignora sin preguntar.
+          """)
+  @ApiResponses({
+    @ApiResponse(responseCode = "200", description = "Recibido; cuerpo vacío.", content = @Content),
+    @ApiResponse(
+        responseCode = "400",
+        description = "Ilegible: sin `uid` o sin `trackingId` (`RN-MV-064`)",
+        content = @Content),
+    @ApiResponse(
+        responseCode = "503",
+        description = "La pasarela local no está configurada en este entorno (`RN-MV-064`)",
+        content = @Content)
+  })
+  public ResponseEntity<Void> payretailers(@RequestBody(required = false) byte[] cuerpo) {
+    local.receive(cuerpo);
     return ResponseEntity.ok().build();
   }
 }

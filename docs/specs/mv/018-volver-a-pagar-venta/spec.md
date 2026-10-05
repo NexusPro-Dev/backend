@@ -4,7 +4,7 @@
 |---|---|
 | Requerimiento | `RF-MV-018` |
 | Módulo | `MV` — Movimientos |
-| Versión | 0.3.0 |
+| Versión | 0.4.0 |
 | Estado | **Aprobada** |
 | Autor | Responsable técnico |
 | Aprobada por | Responsable del proyecto |
@@ -244,3 +244,4 @@ Desde el 01-10-2026 ([`requirements/mv.md`](../../../requirements/mv.md) v0.64.0
 | 0.1.0 | 26-09-2026 | Primera versión, con la etapa 6 de `MV` ([`requirements/mv.md`](../../../requirements/mv.md) v0.44.0 y v0.45.0). Lo que la spec carga: **el método es de cada pago y no de la venta**, y por eso **vuelve a pagar el comprador sobre la misma venta**, solo cuando no hay un pago pendiente; **la clave de idempotencia es obligatoria aquí y opcional al comprar**, porque aquí la diferencia entre un reintento y un segundo pago es un cobro; y **el contrato de la venta no se rompe** (§2.2). Criterios `CA-MV-206` a `CA-MV-217`. | Responsable del proyecto |
 | 0.2.0 | 30-09-2026 | **Volver a pagar con puntos confirma en el acto** (`RF-MV-030`, `RN-MV-052`; [`requirements/mv.md`](../../../requirements/mv.md) v0.54.0 §4.4): el pago nuevo se descuenta y la venta se confirma con sus efectos; si no alcanzan, el pago no se abre y la venta sigue pendiente. **Los pagos `POINTS` pendientes anteriores al 30-09-2026 se rechazan** en la migración de la etapa 3, y sus ventas se vuelven a pagar por aquí. | Responsable técnico |
 | 0.3.0 | 01-10-2026 | **La tarjeta por Stripe** ([`requirements/mv.md`](../../../requirements/mv.md) v0.64.0 §4.6): **con tarjeta abre el cobro**, y **un pago pendiente con cobro abierto ya no bloquea**: se cancela primero (`RN-MV-058`). Criterios `CA-MV-473` a `CA-MV-476`. | Responsable del proyecto |
+| 0.4.0 | 05-10-2026 | **Enmendada por la pasarela local** (`RF-MV-048`, [`requirements/mv.md`](../../../requirements/mv.md) v0.80.0 §4.10): volver a pagar con `PSE` **abre el cobro de la pasarela local**; con un cobro local abierto, volver a pagar con **la misma pasarela** pide retomarlo (`EX-010`) y con **otra** lo deja sin efecto y rechaza ese pago. Se prueba en `LocalChargeIT`. | Responsable del proyecto |

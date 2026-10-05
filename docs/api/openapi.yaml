@@ -30,9 +30,6 @@ tags:
   description: Los equipos en que se organiza la cúspide de la fuerza comercial.
 - name: Comisiones
   description: "Tasas de comisión personalizadas: la excepción por persona."
-- name: Pasarela de pago
-  description: Lo que notifica la pasarela de la tarjeta. Solo la llama Stripe; el
-    frontend no.
 - name: Cuentas de broker
   description: "Todas las cuentas de broker del sistema, para quien administra. Las\
     \ del propio equipo se consultan sin permiso en GET /api/v1/users/me/team/broker-accounts."
@@ -97,6 +94,9 @@ tags:
     l."
 - name: Permisos
   description: Catálogo de permisos del sistema. Solo lectura.
+- name: Pasarela de pago
+  description: "Lo que notifican las pasarelas: la de la tarjeta (Stripe) y la local\
+    \ (PayRetailers). Solo las llaman ellas; el frontend no."
 - name: Lotes de comisión
   description: "Lo que se le debe a cada persona, por periodo y moneda: abierto mientras\
     \ crece, pendiente tras el cierre, pagado cuando Finanzas lo abona en la billetera."
@@ -3836,6 +3836,50 @@ paths:
           description: La pasarela de pago no respondió; nada se escribió y se puede
             reintentar (`RN-MV-057`)
       x-required-permission: movements:retry-payment
+  /api/v1/movements/mine/{id}/local-charge:
+    post:
+      tags:
+      - Movimientos
+      summary: Pagar por la pasarela local una compra pendiente propia
+      description: |
+        **Permiso requerido:** `movements:pay-pending-locally`. Sin él, `403` (`AUTH-002`).
+
+        Devuelve el **cobro de la pasarela local** de una venta o una compra de puntos propia
+        con su pago pendiente con `PSE` (`RF-MV-051`): **el mismo** si ya estaba abierto
+        —el cliente cerró la página de pago—, o **uno nuevo** si nadie lo había abierto —la
+        venta que registró un funcionario—, en la moneda del país de quien paga con su
+        conversión vigente (`RN-MV-063`). La app lleva al cliente a `checkoutUrl`. **No
+        confirma nada**: lo confirma la consulta a la pasarela que disparan su aviso o el
+        barrido (`RN-MV-064`). Sin cuerpo.
+      operationId: pagarPorLaPasarelaLocal
+      parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      responses:
+        "200":
+          description: "El cobro, con su página de pago."
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/LocalCharge"
+        "401":
+          description: Sin token (`AUTH-001`)
+        "403":
+          description: Sin `movements:pay-pending-locally` (`AUTH-002`)
+        "404":
+          description: "No existe, o no es suya (`EX-001`)"
+        "409":
+          description: "Sin pago pendiente, con un pago pendiente de otro método (`EX-002`),\
+            \ o el país de quien paga sin conversión vigente (`RN-MV-063`)"
+        "422":
+          description: La pasarela rechazó el cobro (`RN-MV-063`)
+        "503":
+          description: La pasarela local no está configurada o no respondió
+      x-required-permission: movements:pay-pending-locally
   /api/v1/movements/mine/{id}/card-charge:
     post:
       tags:
@@ -4226,6 +4270,35 @@ paths:
           description: "Firma ausente, inválida o con más de cinco minutos (`RN-MV-059`)"
         "503":
           description: La pasarela no está configurada en este entorno (`RN-MV-059`)
+      security: []
+  /api/v1/movements/gateway-notifications/payretailers:
+    post:
+      tags:
+      - Pasarela de pago
+      summary: Recibir un aviso de PayRetailers
+      description: |
+        **Permiso requerido:** ninguno. Ruta pública: responde sin token.
+
+        El aviso de la pasarela local (`RF-MV-049`). **No va firmado, y por eso no se cree**
+        (`RN-MV-064`): se guarda tal como llegó, se responde `200` y, después, se
+        **pregunta a la pasarela** por el cobro de su `trackingId` con las credenciales de esta
+        API. Lo que conteste es lo que se aplica: aprobado confirma el pago y la venta o la
+        compra de puntos; fallido, rechazado, cancelado o caducado lo rechaza; pendiente no hace
+        nada. Un aviso de un cobro que no es de ningún pago se ignora sin preguntar.
+      operationId: payretailers
+      requestBody:
+        content:
+          '*/*':
+            schema:
+              type: string
+              format: byte
+      responses:
+        "200":
+          description: Recibido; cuerpo vacío.
+        "400":
+          description: "Ilegible: sin `uid` o sin `trackingId` (`RN-MV-064`)"
+        "503":
+          description: La pasarela local no está configurada en este entorno (`RN-MV-064`)
       security: []
   /api/v1/movements/conversion-rates:
     get:
@@ -14929,6 +15002,28 @@ components:
           description: "El secreto de cliente del cobro (el `client_secret` del PaymentIntent\
             \ de Stripe). Se usa con la clave publicable en Stripe Elements; no se\
             \ guarda en ningún sitio y se puede volver a pedir con `POST /movements/mine/{id}/card-charge`."
+    LocalCharge:
+      type: object
+      properties:
+        paymentId:
+          type: string
+          format: uuid
+          description: El pago al que pertenece el cobro.
+        gateway:
+          type: string
+          description: "La pasarela: PAYRETAILERS."
+        checkoutUrl:
+          type: string
+          description: "La página de pago de la pasarela. La app lleva allí al cliente,\
+            \ que elige el método —PSE, Nequi, Efecty, Bre-B— y vuelve al terminar."
+        currency:
+          $ref: "#/components/schemas/SaleCurrency"
+          description: La moneda local en que se cobra.
+        amount:
+          type: number
+          description: "Lo que se cobra en moneda local: el importe del pago por el\
+            \ precio de cobro de la conversión del país, redondeado hacia arriba a\
+            \ unidad entera (`RN-MV-063`)."
     PurchaseLineResponse:
       type: object
       properties:
@@ -15056,6 +15151,14 @@ components:
           description: "El cobro abierto en la pasarela, si se pagó con tarjeta (`RF-MV-040`,\
             \ desde el 01-10-2026): con su `clientSecret` la app pide la tarjeta.\
             \ NULO con otro método, o con la pasarela apagada."
+        localCharge:
+          type:
+          - object
+          - "null"
+          $ref: "#/components/schemas/LocalCharge"
+          description: "El cobro abierto en la pasarela local, si se pagó con `PSE`\
+            \ (`RF-MV-048`, desde el 05-10-2026): la app lleva al cliente a su `checkoutUrl`.\
+            \ NULO con otro método, o con la pasarela local apagada."
     SaleCurrency:
       type: object
       properties:
@@ -15341,6 +15444,14 @@ components:
           description: "El cobro abierto en la pasarela, solo en la respuesta de volver\
             \ a pagar con tarjeta (`RF-MV-040`, desde el 01-10-2026). NULO en todo\
             \ lo demás: el secreto no se guarda, y se vuelve a pedir con `POST /movements/mine/{id}/card-charge`."
+        localCharge:
+          type:
+          - object
+          - "null"
+          $ref: "#/components/schemas/LocalCharge"
+          description: "El cobro abierto en la pasarela local, si se pagó con `PSE`\
+            \ (`RF-MV-048`, desde el 05-10-2026): la app lleva al cliente a su `checkoutUrl`.\
+            \ NULO con otro método, o con la pasarela local apagada."
     WithdrawalDestination:
       type: object
       properties:
@@ -15797,6 +15908,14 @@ components:
           $ref: "#/components/schemas/CardCharge"
           description: "El cobro abierto en la pasarela, solo al comprar con tarjeta\
             \ (`RF-MV-040`, desde el 01-10-2026). NULO en todo lo demás."
+        localCharge:
+          type:
+          - object
+          - "null"
+          $ref: "#/components/schemas/LocalCharge"
+          description: "El cobro abierto en la pasarela local, si se pagó con `PSE`\
+            \ (`RF-MV-048`, desde el 05-10-2026): la app lleva al cliente a su `checkoutUrl`.\
+            \ NULO con otro método, o con la pasarela local apagada."
     RegisterPayoutAccountRequest:
       type: object
       properties:

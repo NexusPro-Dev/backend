@@ -463,6 +463,26 @@ nexus:
     # Procesar la notificación en el hilo que la recibió. SOLO LAS PRUEBAS.
     process-inline: false
 
+  # La pasarela local, PayRetailers (RF-MV-048 a RF-MV-051, architecture.md §15.5,
+  # deployment.md §6.5.2, 05-10-2026). SIN LAS TRES CREDENCIALES queda APAGADA y se
+  # avisa al arrancar: PSE nace pendiente sin cobro y lo confirma una persona, la ruta
+  # del aviso responde 503 y el barrido no corre. La suite corre así.
+  payretailers:
+    shop-id: ${PAYRETAILERS_SHOP_ID:}
+    secret-key: ${PAYRETAILERS_SECRET_KEY:}
+    subscription-key: ${PAYRETAILERS_SUBSCRIPTION_KEY:}
+    # Por omisión, el sandbox: un entorno mal configurado prueba, no cobra.
+    base-url: ${PAYRETAILERS_BASE_URL:https://api-sandbox.payretailers.com/payments/v2}
+    notification-url: ${PAYRETAILERS_NOTIFICATION_URL:}
+    return-url: ${PAYRETAILERS_RETURN_URL:}
+    test-mode: ${PAYRETAILERS_TEST_MODE:false}
+    timeout: PT15S
+    reconcile-cron: ${PAYRETAILERS_RECONCILE_CRON:0 */5 * * * *}
+    reconcile-after: ${PAYRETAILERS_RECONCILE_AFTER:PT10M}
+    reconcile-batch: 50
+    # Procesar el aviso en el hilo que lo recibió. SOLO LAS PRUEBAS.
+    process-inline: false
+
 logging:
   level:
     root: ${LOG_LEVEL:INFO}

@@ -4,7 +4,7 @@
 |---|---|
 | Requerimiento | `RF-MV-012` |
 | Módulo | `MV` — Movimientos |
-| Versión | 0.5.0 |
+| Versión | 0.6.0 |
 | Estado | **Aprobada** |
 | Autor | Responsable técnico |
 | Aprobada por | Responsable del proyecto |
@@ -324,3 +324,4 @@ Por [`requirements/mv.md`](../../../requirements/mv.md) v0.72.0 (`RN-MV-006`) y 
 | 0.3.0 | 30-09-2026 | **Se puede pagar con puntos** (`RF-MV-030`, `RN-MV-052`; [`requirements/mv.md`](../../../requirements/mv.md) v0.54.0 §4.4): con `POINTS`, los puntos de la moneda de la venta se descuentan a la tasa vigente y la compra vuelve **confirmada**, con su entrega y su aviso a comisiones. Si no alcanzan, o la moneda no tiene tasa, conflicto y **nada queda escrito**. Ningún dato de entrada cambia. | Responsable técnico |
 | 0.4.0 | 01-10-2026 | **La tarjeta por Stripe** ([`requirements/mv.md`](../../../requirements/mv.md) v0.64.0 §4.6): **con tarjeta, la compra abre el cobro en la pasarela** y devuelve su secreto (`RF-MV-040`). Criterios `CA-MV-472`. | Responsable del proyecto |
 | 0.5.0 | 03-10-2026 | **El upgrade del paquete sube un escalón como máximo** (§14.3; [`requirements/mv.md`](../../../requirements/mv.md) v0.72.0, `RN-MV-006`; [`requirements/pm.md`](../../../requirements/pm.md) v0.49.0 §5.2.17), por decisión del responsable del proyecto. `EX-005` pasa a decir «baja **o salta**» y conserva el código. El rechazo llega casi siempre antes, por la oferta (`RN-PM-044`, `EX-002`); `EX-005` es la red de `MV`. Criterio nuevo `CA-MV-540`. | Responsable del proyecto |
+| 0.6.0 | 05-10-2026 | **Enmendada por la pasarela local** (`RF-MV-048`, [`requirements/mv.md`](../../../requirements/mv.md) v0.80.0 §4.10): con el método `PSE`, la compra del paquete **abre el cobro de la pasarela local** en moneda local y la respuesta trae `localCharge`. Se prueba en `LocalChargeIT`. | Responsable del proyecto |

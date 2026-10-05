@@ -112,7 +112,12 @@ public class SecurityConfig {
     // pública que escribe —confirma pagos— y por eso una firma que no verifica
     // responde 400 SIN GUARDAR NADA (`RN-MV-059`). Fuera de la cota: la
     // pasarela reentrega y no debe toparse con un 429.
-    "/api/v1/movements/gateway-notifications/stripe"
+    "/api/v1/movements/gateway-notifications/stripe",
+    // EL AVISO DE LA PASARELA LOCAL (`RF-MV-049`, 05-10-2026): lo llama PayRetailers, y
+    // NO VA FIRMADO. Por eso NO SE CREE (`RN-MV-064`): se guarda y solo dispara una
+    // consulta autenticada a la pasarela, cuya respuesta es la que manda. Un aviso de un
+    // cobro que no es de ningún pago no consulta nada. Fuera de la cota, como el de Stripe.
+    "/api/v1/movements/gateway-notifications/payretailers"
   };
 
   /**

@@ -4,7 +4,7 @@
 |---|---|
 | Requerimiento | `RF-MV-045` |
 | Módulo | `MV` — Movimientos |
-| Versión | 0.1.1 |
+| Versión | 0.2.0 |
 | Estado | **Aprobada** |
 | Autor | Responsable técnico |
 | Aprobada por | Responsable del proyecto |
@@ -179,3 +179,4 @@ Ninguna.
 |---|---|---|---|
 | 0.1.0 | 01-10-2026 | Primera versión ([`requirements/mv.md`](../../../requirements/mv.md) v0.67.0 §4.8), espejo de `RF-MV-044`. El efecto es el de `RF-MV-004` o `RF-MV-029`, sin cambios; motivo obligatorio; `movements:reject-payment` cubre los dos tipos. Criterios `CA-MV-507` a `CA-MV-515`. | Responsable del proyecto |
 | 0.1.1 | 01-10-2026 | El motivo se valida con **dos** códigos, `VAL-002` (vacío) y `VAL-003` (largo), los de `RF-MV-004`: los que ya publica el contrato. Sin cambio de comportamiento. | Responsable técnico |
+| 0.2.0 | 05-10-2026 | **Enmendada por la pasarela local** (`RF-MV-048`, [`requirements/mv.md`](../../../requirements/mv.md) v0.80.0 §4.10): un pago con **cobro abierto en la pasarela local** tampoco se rechaza a mano (`RN-MV-058`); uno de `PSE` sin cobro, sí. Se prueba en `LocalChargeIT`. | Responsable del proyecto |

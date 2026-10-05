@@ -64,6 +64,11 @@ class EndpointPermissionsIT extends IntegrationTestBase {
                   + " persona, y no porta token. La autentica la FIRMA del cuerpo con el secreto"
                   + " compartido; una firma que no verifica responde 400 sin guardar nada"),
           Map.entry(
+              "POST /api/v1/movements/gateway-notifications/payretailers",
+              "PÚBLICO POR DEFINICIÓN (`RF-MV-049`, 05-10-2026): lo llama PayRetailers, sin token"
+                  + " y SIN FIRMA. Por eso no se cree: solo dispara una consulta autenticada a la"
+                  + " pasarela, cuya respuesta es la que manda (`RN-MV-064`)"),
+          Map.entry(
               "POST /api/v1/auth/registration",
               "PÚBLICO POR DEFINICIÓN (`RF-SP-045`, 09-09-2026): quien se registra no tiene cuenta con"
                   + " la que autenticarse. Es el PRIMER endpoint público que ESCRIBE, y lo que"
@@ -339,6 +344,8 @@ class EndpointPermissionsIT extends IntegrationTestBase {
           Map.entry("GET /api/v1/movements/points-rates", "movements:read-points-rates"),
           Map.entry("POST /api/v1/movements/conversion-rates", "movements:set-conversion-rate"),
           Map.entry("GET /api/v1/movements/conversion-rates", "movements:read-conversion-rates"),
+          Map.entry(
+              "POST /api/v1/movements/mine/{id}/local-charge", "movements:pay-pending-locally"),
           Map.entry("POST /api/v1/movements/mine/points-purchases", "movements:buy-points"),
           Map.entry(
               "GET /api/v1/movements/mine/points-purchases", "movements:list-own-points-purchases"),

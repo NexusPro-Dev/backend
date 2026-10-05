@@ -4,7 +4,7 @@
 |---|---|
 | Requerimiento | `RF-MV-044` |
 | Módulo | `MV` — Movimientos |
-| Versión | 0.1.0 |
+| Versión | 0.2.0 |
 | Estado | **Aprobada** |
 | Autor | Responsable técnico |
 | Aprobada por | Responsable del proyecto |
@@ -197,3 +197,4 @@ Ninguna.
 | Versión | Fecha | Cambio | Autor |
 |---|---|---|---|
 | 0.1.0 | 01-10-2026 | Primera versión ([`requirements/mv.md`](../../../requirements/mv.md) v0.67.0 §4.8). **Se concilia el pago**: una entrada para la venta y la compra de puntos, con cualquier método; el efecto es el de `RF-MV-003` o `RF-MV-028`, sin cambios; referencia opcional también en la venta; responde el detalle del movimiento. Nace `RN-MV-061`. Criterios `CA-MV-495` a `CA-MV-506`. | Responsable del proyecto |
+| 0.2.0 | 05-10-2026 | **Enmendada por la pasarela local** (`RF-MV-048`, [`requirements/mv.md`](../../../requirements/mv.md) v0.80.0 §4.10): un pago con **cobro abierto en la pasarela local** tampoco se confirma a mano (`RN-MV-058`); uno de `PSE` sin cobro, sí. Se prueba en `LocalChargeIT`. | Responsable del proyecto |

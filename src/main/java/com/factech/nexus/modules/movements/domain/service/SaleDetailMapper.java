@@ -61,6 +61,7 @@ final class SaleDetailMapper {
         cabecera.createdAt(),
         pagos(detalle.payments()),
         destino,
+        null,
         null);
   }
 

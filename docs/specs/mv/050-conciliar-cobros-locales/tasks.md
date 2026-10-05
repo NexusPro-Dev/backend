@@ -6,7 +6,7 @@
 | Especificación | [`spec.md`](spec.md) v0.1.0 |
 | Plan | [`plan.md`](plan.md) v0.1.0 |
 | `plan.md` aprobado el | 05-10-2026 |
-| Estado | **En revisión** |
+| Estado | **En revisión** — todas las tareas `Hecha` el 05-10-2026 |
 | Issue | Pendiente de crear |
 | Rama | `develop` (commits directos desde el 05-10-2026) |
 
@@ -18,9 +18,9 @@
 
 | ID | Tarea | Depende de | Verificación | Estado |
 |---|---|---|---|---|
-| `T-01` | `PaymentRepository.localChargesToReconcile` | `RF-MV-048` `T-01` | Elige solo pendientes con cobro local y más de la espera | Pendiente |
-| `T-02` | `LocalChargeSweep` con el bloqueo consultivo y la configuración | `T-01`, `RF-MV-049` `T-01` | Apagada no hace nada | Pendiente |
-| `T-03` | `LocalChargeSweepIT`: `CA-MV-620` a `CA-MV-624` | `T-02` | Cada criterio afirmado en el cuerpo de su prueba | Pendiente |
+| `T-01` | `PaymentRepository.localChargesToReconcile` | `RF-MV-048` `T-01` | Elige solo pendientes con cobro local y más de la espera | **Hecha** — 05-10-2026 |
+| `T-02` | `LocalChargeSweep` con el bloqueo consultivo y la configuración | `T-01`, `RF-MV-049` `T-01` | Apagada no hace nada | **Hecha** — 05-10-2026 |
+| `T-03` | `LocalChargeSweepIT`: `CA-MV-620` a `CA-MV-624` | `T-02` | Cada criterio afirmado en el cuerpo de su prueba | **Hecha** — 05-10-2026 |
 
 ---
 
@@ -46,6 +46,6 @@ Ninguno.
 
 ## 5. Definición de terminado
 
-- [ ] Las suites afectadas en verde.
-- [ ] Los cinco criterios de aceptación con prueba.
+- [x] Las suites afectadas en verde.
+- [x] Los cinco criterios de aceptación con prueba.
 - [ ] **`tasks.md` aprobadas por el responsable del proyecto.**

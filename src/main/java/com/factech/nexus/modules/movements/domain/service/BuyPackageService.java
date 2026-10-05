@@ -106,6 +106,7 @@ public class BuyPackageService {
   private final SaleAttribution atribuciones;
   private final PointsPayment puntos;
   private final CardPayment tarjeta;
+  private final LocalPayment local;
 
   @Autowired
   public BuyPackageService(
@@ -117,7 +118,8 @@ public class BuyPackageService {
       CurrentActor actor,
       AuditWriter auditoria,
       PointsPayment puntos,
-      CardPayment tarjeta) {
+      CardPayment tarjeta,
+      LocalPayment local) {
     this(
         movimientos,
         paquetes,
@@ -128,6 +130,7 @@ public class BuyPackageService {
         auditoria,
         puntos,
         tarjeta,
+        local,
         Clock.systemUTC());
   }
 
@@ -141,9 +144,11 @@ public class BuyPackageService {
       AuditWriter auditoria,
       PointsPayment puntos,
       CardPayment tarjeta,
+      LocalPayment local,
       Clock reloj) {
     this.puntos = puntos;
     this.tarjeta = tarjeta;
+    this.local = local;
     this.movimientos = movimientos;
     this.paquetes = paquetes;
     this.productos = productos;
@@ -239,16 +244,19 @@ public class BuyPackageService {
             metodo.code());
     if (!PointsPayment.esPuntos(metodo)) {
       // Con tarjeta, el cobro se abre ahora, en el mismo acto (`RF-MV-040`).
-      return compra.conCobro(
-          tarjeta.abrirSiToca(
-              metodo,
-              pago,
-              venta.getId(),
-              venta.getCode(),
-              venta.getPayableAmount(),
-              paquete.currencyCode(),
-              paquete.currencyDecimalPlaces(),
-              clave.value()));
+      return compra
+          .conCobro(
+              tarjeta.abrirSiToca(
+                  metodo,
+                  pago,
+                  venta.getId(),
+                  venta.getCode(),
+                  venta.getPayableAmount(),
+                  paquete.currencyCode(),
+                  paquete.currencyDecimalPlaces(),
+                  clave.value()))
+          // Con `PSE`, el cobro de la pasarela local (`RF-MV-048`).
+          .conCobroLocal(local.abrirSiToca(metodo, venta.getId()));
     }
     // Pagada con puntos: se descuenta y se confirma en el acto (`RF-MV-030`).
     return compra.confirmada(

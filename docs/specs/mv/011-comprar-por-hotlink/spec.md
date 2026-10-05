@@ -4,7 +4,7 @@
 |---|---|
 | Requerimiento | `RF-MV-011` |
 | Módulo | `MV` — Movimientos |
-| Versión | 0.3.0 |
+| Versión | 0.4.0 |
 | Estado | **Aprobada** |
 | Autor | Responsable técnico |
 | Aprobada por | Responsable del proyecto |
@@ -162,3 +162,4 @@ Por decisión del responsable del proyecto ([`requirements/mv.md`](../../../requ
 |---|---|---|---|
 | 0.2.0 | 01-10-2026 | **La tarjeta por Stripe** ([`requirements/mv.md`](../../../requirements/mv.md) v0.64.0 §4.6): **con tarjeta, la compra abre el cobro en la pasarela** y devuelve su secreto (`RF-MV-040`). Criterios `CA-MV-471`. | Responsable del proyecto |
 | 0.3.0 | 03-10-2026 | **El escalón se comprueba contra quien compra** (§14.3; [`requirements/mv.md`](../../../requirements/mv.md) v0.72.0, `RN-MV-006`), por decisión del responsable del proyecto. **Nace `EX-005` en esta spec**, con el código y la forma del de `RF-MV-001` porque lo emite el mismo caso de uso: hasta hoy la venta por enlace lo heredaba en silencio, y desde hoy es **la entrada donde más se alcanza** —el hotlink no casa por origen, de modo que un producto de un escalón puede ser un salto para quien compra—. Nacen `CA-MV-530` a `CA-MV-532`: el salto respecto de la vigente se rechaza sin dejar nada, el escalón se admite aunque el origen del producto no sea el suyo, y un salto ya registrado no se resuelve por el enlace. | Responsable del proyecto |
+| 0.4.0 | 05-10-2026 | **Enmendada por la pasarela local** (`RF-MV-048`, [`requirements/mv.md`](../../../requirements/mv.md) v0.80.0 §4.10): con el método `PSE`, la compra **abre el cobro de la pasarela local** en moneda local y la respuesta trae `localCharge`. Se prueba en `LocalChargeIT`. | Responsable del proyecto |

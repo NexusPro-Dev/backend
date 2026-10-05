@@ -58,7 +58,8 @@ public class CardPayment {
 
   /** ¿Cobra este método la pasarela, y está encendida? */
   public boolean cobraLaPasarela(PaymentMethodView metodo) {
-    return metodo.gateway() != null && pasarela.enabled();
+    // `STRIPE` y no «tiene pasarela»: desde `V69` `PSE` la tiene, y es la local (`CA-MV-609`).
+    return pasarela.name().equals(metodo.gateway()) && pasarela.enabled();
   }
 
   /**
@@ -110,7 +111,10 @@ public class CardPayment {
    */
   public CardChargeResponse cobroExistente(UUID movimiento) {
     PendingPayment pendiente = pagos.lockPendingOf(movimiento).orElse(null);
-    if (pendiente == null || !pendiente.tieneCobroAbierto() || !pasarela.enabled()) {
+    if (pendiente == null
+        || !pendiente.tieneCobroAbierto()
+        || !pasarela.name().equals(pendiente.gateway())
+        || !pasarela.enabled()) {
       return null;
     }
     try {
@@ -133,7 +137,7 @@ public class CardPayment {
         pagos
             .lockPendingOwn(movimiento, actor)
             .orElseThrow(() -> sinPagoPendiente(movimiento, actor));
-    if (pendiente.gateway() == null) {
+    if (!pasarela.name().equals(pendiente.gateway())) {
       throw conflicto(
           "El pago pendiente es con "
               + pendiente.methodCode()
@@ -182,6 +186,11 @@ public class CardPayment {
    */
   public void cancelarCobro(
       PendingPayment pendiente, String codigoYaCobrado, String codigoSinRespuesta) {
+    // El cobro de la pasarela local no se cancela: PayRetailers no lo permite. Quien llama
+    // rechaza el pago, y si el cliente paga después es un cobro tardío (`RN-MV-064`).
+    if (LocalPayment.esLocal(pendiente.gateway())) {
+      return;
+    }
     CancelResult resultado;
     try {
       resultado = pasarela.cancel(pendiente.providerReference());

@@ -65,16 +65,19 @@ public class JpaGatewayEventRepository implements GatewayEventRepository {
   }
 
   @Override
-  public List<UUID> pendingForRetry(OffsetDateTime receivedBefore, int maxAttempts, int limit) {
+  public List<UUID> pendingForRetry(
+      String gateway, OffsetDateTime receivedBefore, int maxAttempts, int limit) {
     @SuppressWarnings("unchecked")
     List<UUID> ids =
         em.createNativeQuery(
                 """
                 SELECT id FROM gateway_events
-                 WHERE processed_at IS NULL AND received_at < :antes AND attempts < :maximo
+                 WHERE gateway = :pasarela AND processed_at IS NULL AND received_at < :antes
+                   AND attempts < :maximo
                  ORDER BY received_at
                  LIMIT :limite
                 """)
+            .setParameter("pasarela", gateway)
             .setParameter("antes", receivedBefore)
             .setParameter("maximo", maxAttempts)
             .setParameter("limite", limit)

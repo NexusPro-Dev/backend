@@ -48,7 +48,14 @@ public record PointsPurchaseResponse(
             description =
                 "El cobro abierto en la pasarela, solo al comprar con tarjeta (`RF-MV-040`, desde"
                     + " el 01-10-2026). NULO en todo lo demás.")
-        CardChargeResponse cardCharge) {
+        CardChargeResponse cardCharge,
+    @Schema(
+            types = {"object", "null"},
+            description =
+                "El cobro abierto en la pasarela local, si se pagó con `PSE` (`RF-MV-048`, desde el"
+                    + " 05-10-2026): la app lleva al cliente a su `checkoutUrl`. NULO con otro método,"
+                    + " o con la pasarela local apagada.")
+        LocalChargeResponse localCharge) {
 
   /** La misma compra, con el cobro abierto; nulo no cambia nada. */
   public PointsPurchaseResponse conCobro(CardChargeResponse cobro) {
@@ -68,6 +75,29 @@ public record PointsPurchaseResponse(
         rejectedAt,
         rejectionReason,
         payments,
+        cobro,
+        localCharge);
+  }
+
+  /** La misma, con el cobro abierto en la pasarela local (`RF-MV-048`); nulo no cambia nada. */
+  public PointsPurchaseResponse conCobroLocal(LocalChargeResponse cobro) {
+    if (cobro == null) {
+      return this;
+    }
+    return new PointsPurchaseResponse(
+        id,
+        code,
+        status,
+        currency,
+        amount,
+        pointsRate,
+        points,
+        occurredAt,
+        confirmedAt,
+        rejectedAt,
+        rejectionReason,
+        payments,
+        cardCharge,
         cobro);
   }
 

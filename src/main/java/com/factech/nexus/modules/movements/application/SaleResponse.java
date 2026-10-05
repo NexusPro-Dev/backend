@@ -127,7 +127,14 @@ public record SaleResponse(
                     + " tarjeta (`RF-MV-040`, desde el 01-10-2026). NULO en todo lo demás: el"
                     + " secreto no se guarda, y se vuelve a pedir con"
                     + " `POST /movements/mine/{id}/card-charge`.")
-        CardChargeResponse cardCharge) {
+        CardChargeResponse cardCharge,
+    @Schema(
+            types = {"object", "null"},
+            description =
+                "El cobro abierto en la pasarela local, si se pagó con `PSE` (`RF-MV-048`, desde el"
+                    + " 05-10-2026): la app lleva al cliente a su `checkoutUrl`. NULO con otro método,"
+                    + " o con la pasarela local apagada.")
+        LocalChargeResponse localCharge) {
 
   /** La misma venta, con el cobro abierto (`RF-MV-018` con tarjeta); nulo no cambia nada. */
   public SaleResponse conCobro(CardChargeResponse cobro) {
@@ -155,6 +162,37 @@ public record SaleResponse(
         createdAt,
         payments,
         withdrawalDestination,
+        cobro,
+        localCharge);
+  }
+
+  /** La misma, con el cobro abierto en la pasarela local (`RF-MV-048`); nulo no cambia nada. */
+  public SaleResponse conCobroLocal(LocalChargeResponse cobro) {
+    if (cobro == null) {
+      return this;
+    }
+    return new SaleResponse(
+        id,
+        code,
+        type,
+        status,
+        typeStatus,
+        user,
+        packageId,
+        currency,
+        paymentMethod,
+        lines,
+        totalAmount,
+        discountAmount,
+        payableAmount,
+        occurredAt,
+        confirmedAt,
+        voidedAt,
+        voidReason,
+        createdAt,
+        payments,
+        withdrawalDestination,
+        cardCharge,
         cobro);
   }
 
@@ -205,6 +243,7 @@ public record SaleResponse(
         null,
         venta.getCreatedAt(),
         List.of(primerPago),
+        null,
         null,
         null);
   }

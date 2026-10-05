@@ -4,7 +4,7 @@
 |---|---|
 | Requerimiento | `RF-MV-002` |
 | Módulo | `MV` — Movimientos |
-| Versión | 0.4.0 |
+| Versión | 0.5.0 |
 | Estado | **Aprobada** |
 | Enmendada el | 03-10-2026 — **un upgrade sube un escalón como máximo** (`RN-MV-006`): `CA-MV-024` deja de decir «igual» y nace `CA-MV-528`. Ver §15 |
 | Enmendada el | 16-09-2026 — el vendedor es de cada línea y **siempre lo hay** (`RN-MV-003`); la cabecera lleva un sujeto (`RN-MV-026`). Ver §15 |
@@ -188,3 +188,4 @@ Los de `RF-MV-001`, más dos propios:
 | 0.2.0 | 16-09-2026 | **El vendedor baja a cada línea y siempre lo hay; la cabecera lleva un sujeto** (`requirements/mv.md` v0.16.0: `RN-MV-026` nueva, `RN-MV-003` enmendada), por decisión del responsable del proyecto. Para esta operación cambia poco y conviene decir qué: **el actor sigue siendo el sujeto** —ahora con nombre de regla— y **la respuesta sigue sin llevar el vendedor** (§4.3), ahora tampoco en las líneas. Lo que se corrige es el caso límite de §13, que **todavía citaba `EX-003`** —retirada de `RF-MV-001` el 04-09-2026— y la precondición de §7: quien no cuelga de nadie **se vende a sí mismo** en lugar de quedarse fuera o sin atribución. | Responsable del proyecto |
 | 0.3.0 | 30-09-2026 | **Se puede pagar con puntos** (`RF-MV-030`, `RN-MV-052`; [`requirements/mv.md`](../../../requirements/mv.md) v0.54.0 §4.4): con `POINTS`, los puntos de la moneda de la venta se descuentan a la tasa vigente y la compra vuelve **confirmada**, con su entrega y su aviso a comisiones. Si no alcanzan, o la moneda no tiene tasa, conflicto y **nada queda escrito**. Ningún dato de entrada cambia. | Responsable técnico |
 | 0.4.0 | 03-10-2026 | **Un upgrade sube un escalón como máximo** ([`requirements/mv.md`](../../../requirements/mv.md) v0.72.0, `RN-MV-006`; [`requirements/pm.md`](../../../requirements/pm.md) §5.2.17), por decisión del responsable del proyecto. Esta operación hereda la regla de `RF-MV-001` sin cambio de forma —mismo caso de uso, mismo `EX-005`—, y §5 la nombra porque aquí casi nunca se ve: la oferta propia ya no publica saltos y el rechazo que llega es `EX-004`. Nace `CA-MV-528` para afirmarlo, y **`CA-MV-024` se corrige**: decía «igual o inferior» y la igual es una renovación desde el 07-09-2026 — el criterio se había quedado atrás. | Responsable del proyecto |
+| 0.5.0 | 05-10-2026 | **Enmendada por la pasarela local** (`RF-MV-048`, [`requirements/mv.md`](../../../requirements/mv.md) v0.80.0 §4.10): con el método `PSE`, la compra **abre el cobro de la pasarela local** en moneda local y la respuesta trae `localCharge` con su página de pago. Se prueba en `LocalChargeIT`. | Responsable del proyecto |

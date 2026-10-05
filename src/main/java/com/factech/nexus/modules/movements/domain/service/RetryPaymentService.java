@@ -51,6 +51,7 @@ public class RetryPaymentService {
   private final Clock reloj;
   private final PointsPayment puntos;
   private final CardPayment tarjeta;
+  private final LocalPayment local;
 
   @Autowired
   public RetryPaymentService(
@@ -60,8 +61,18 @@ public class RetryPaymentService {
       CurrentMembershipLookup membresias,
       AuditWriter auditoria,
       PointsPayment puntos,
-      CardPayment tarjeta) {
-    this(movimientos, pagos, actor, membresias, auditoria, puntos, tarjeta, Clock.systemUTC());
+      CardPayment tarjeta,
+      LocalPayment local) {
+    this(
+        movimientos,
+        pagos,
+        actor,
+        membresias,
+        auditoria,
+        puntos,
+        tarjeta,
+        local,
+        Clock.systemUTC());
   }
 
   RetryPaymentService(
@@ -72,9 +83,11 @@ public class RetryPaymentService {
       AuditWriter auditoria,
       PointsPayment puntos,
       CardPayment tarjeta,
+      LocalPayment local,
       Clock reloj) {
     this.puntos = puntos;
     this.tarjeta = tarjeta;
+    this.local = local;
     this.movimientos = movimientos;
     this.pagos = pagos;
     this.actor = actor;
@@ -125,16 +138,25 @@ public class RetryPaymentService {
     Optional<PendingPayment> abierto =
         pagos.lockPendingOf(movementId).filter(PendingPayment::tieneCobroAbierto);
     if (abierto.isPresent()) {
-      if (metodo.gateway() != null) {
+      // Misma pasarela: el cobro abierto se retoma por su ruta. Otra, o ninguna: se cancela
+      // —o, si es la local, se deja sin efecto— y se abre el pago nuevo.
+      if (metodo.gateway() != null && metodo.gateway().equals(abierto.get().gateway())) {
         String mensaje =
-            "La venta ya tiene un cobro con tarjeta abierto: retómelo con"
-                + " POST /movements/mine/{id}/card-charge.";
+            LocalPayment.esLocal(abierto.get().gateway())
+                ? "La venta ya tiene un cobro abierto en la pasarela local: retómelo con"
+                    + " POST /movements/mine/{id}/local-charge."
+                : "La venta ya tiene un cobro con tarjeta abierto: retómelo con"
+                    + " POST /movements/mine/{id}/card-charge.";
         throw new BusinessRuleException(
             "EX-010", mensaje, List.of(new FieldError("payments", "EX-010", mensaje)));
       }
       tarjeta.cancelarCobro(abierto.get(), "EX-009", "EX-009");
       pagos.rejectPendingOfSale(
-          movementId, ahora, "Se cambió de método de pago: el cobro con tarjeta se canceló.");
+          movementId,
+          ahora,
+          LocalPayment.esLocal(abierto.get().gateway())
+              ? "Se cambió de método de pago: el cobro de la pasarela local queda sin efecto."
+              : "Se cambió de método de pago: el cobro con tarjeta se canceló.");
     }
 
     // 5. El pago. Cero filas: la clave o el pendiente único chocaron.
@@ -161,7 +183,11 @@ public class RetryPaymentService {
       return new Result(puntos.pagar(movementId, pago, quien, moneda, venta.payableAmount()), true);
     }
     // Con tarjeta, el cobro se abre ahora (`RF-MV-040`).
-    return new Result(detalle(movementId).conCobro(tarjeta.abrirSiToca(metodo, movementId)), true);
+    return new Result(
+        detalle(movementId)
+            .conCobro(tarjeta.abrirSiToca(metodo, movementId))
+            .conCobroLocal(local.abrirSiToca(metodo, movementId)),
+        true);
   }
 
   /**
@@ -184,7 +210,11 @@ public class RetryPaymentService {
             () ->
                 new ResourceNotFoundException(
                     "EX-001", "No existe una compra propia con ese identificador."));
-    return new Result(detalle(movementId).conCobro(tarjeta.cobroExistente(movementId)), false);
+    return new Result(
+        detalle(movementId)
+            .conCobro(tarjeta.cobroExistente(movementId))
+            .conCobroLocal(local.cobroExistente(movementId)),
+        false);
   }
 
   private static BusinessRuleException yaHayUnPagoPendiente() {

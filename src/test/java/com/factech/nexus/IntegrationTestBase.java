@@ -30,8 +30,11 @@ import org.testcontainers.utility.DockerImageName;
 // la clave del contexto, y apagado se comporta como la pasarela sin
 // credenciales: la tarjeta nace pendiente sin cobro. Quien lo necesita lo
 // enciende y lo deja como estaba.
-@org.springframework.context.annotation.Import(
-    com.factech.nexus.modules.movements.FakeCardGateway.Config.class)
+@org.springframework.context.annotation.Import({
+  com.factech.nexus.modules.movements.FakeCardGateway.Config.class,
+  // La pasarela local (05-10-2026), por lo mismo: en todas y apagada.
+  com.factech.nexus.modules.movements.FakeLocalPaymentGateway.Config.class
+})
 public abstract class IntegrationTestBase {
 
   private static final PostgreSQLContainer<?> POSTGRES =
@@ -94,6 +97,9 @@ public abstract class IntegrationTestBase {
     // una página de veinte. Su coste es un contador por sentencia, y la suite
     // no lo nota.
     registry.add("spring.jpa.properties.hibernate.generate_statistics", () -> "true");
+    // El aviso de la pasarela local se procesa en el hilo que lo recibe: lo procesado es
+    // determinista, como con la tarjeta.
+    registry.add("nexus.payretailers.process-inline", () -> "true");
 
     // El límite de tasa queda APAGADO para la suite general, y es deliberado:
     // varias clases provocan ráfagas contra el inicio de sesión a propósito

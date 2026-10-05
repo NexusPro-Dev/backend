@@ -97,6 +97,15 @@ services:
       # tarjeta nace pendiente y la confirma una persona.
       STRIPE_SECRET_KEY: ${STRIPE_SECRET_KEY:-}
       STRIPE_WEBHOOK_SECRET: ${STRIPE_WEBHOOK_SECRET:-}
+      # La pasarela local, PayRetailers (RF-MV-048, deployment.md §6.5.2). Opcionales:
+      # sin las tres credenciales, PSE nace pendiente y lo confirma una persona.
+      PAYRETAILERS_SHOP_ID: ${PAYRETAILERS_SHOP_ID:-}
+      PAYRETAILERS_SECRET_KEY: ${PAYRETAILERS_SECRET_KEY:-}
+      PAYRETAILERS_SUBSCRIPTION_KEY: ${PAYRETAILERS_SUBSCRIPTION_KEY:-}
+      PAYRETAILERS_BASE_URL: ${PAYRETAILERS_BASE_URL:-https://api-sandbox.payretailers.com/payments/v2}
+      PAYRETAILERS_NOTIFICATION_URL: ${PAYRETAILERS_NOTIFICATION_URL:-}
+      PAYRETAILERS_RETURN_URL: ${PAYRETAILERS_RETURN_URL:-}
+      PAYRETAILERS_TEST_MODE: ${PAYRETAILERS_TEST_MODE:-false}
     ports:
       - "8080:8080"
     healthcheck:

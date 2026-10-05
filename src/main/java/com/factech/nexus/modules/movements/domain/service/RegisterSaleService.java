@@ -112,6 +112,7 @@ public class RegisterSaleService {
   private final SaleAttribution atribuciones;
   private final PointsPayment puntos;
   private final CardPayment tarjeta;
+  private final LocalPayment local;
   private final ConfirmSaleService confirmacion;
 
   @Autowired
@@ -123,6 +124,7 @@ public class RegisterSaleService {
       AuditWriter auditoria,
       PointsPayment puntos,
       CardPayment tarjeta,
+      LocalPayment local,
       ConfirmSaleService confirmacion) {
     this(
         movimientos,
@@ -132,6 +134,7 @@ public class RegisterSaleService {
         auditoria,
         puntos,
         tarjeta,
+        local,
         confirmacion,
         Clock.systemUTC());
   }
@@ -144,10 +147,12 @@ public class RegisterSaleService {
       AuditWriter auditoria,
       PointsPayment puntos,
       CardPayment tarjeta,
+      LocalPayment local,
       ConfirmSaleService confirmacion,
       Clock reloj) {
     this.puntos = puntos;
     this.tarjeta = tarjeta;
+    this.local = local;
     this.confirmacion = confirmacion;
     this.movimientos = movimientos;
     this.productos = productos;
@@ -297,16 +302,19 @@ public class RegisterSaleService {
       return compra.confirmada(hecha.confirmada());
     }
     // Con tarjeta, el cobro se abre ahora: quien compra está al otro lado (`RF-MV-040`).
-    return compra.conCobro(
-        tarjeta.abrirSiToca(
-            hecha.metodo(),
-            hecha.pago(),
-            hecha.venta().getId(),
-            hecha.venta().getCode(),
-            hecha.venta().getPayableAmount(),
-            hecha.referencia().currencyCode(),
-            hecha.referencia().currencyDecimalPlaces(),
-            clave.value()));
+    return compra
+        .conCobro(
+            tarjeta.abrirSiToca(
+                hecha.metodo(),
+                hecha.pago(),
+                hecha.venta().getId(),
+                hecha.venta().getCode(),
+                hecha.venta().getPayableAmount(),
+                hecha.referencia().currencyCode(),
+                hecha.referencia().currencyDecimalPlaces(),
+                clave.value()))
+        // Con `PSE`, el cobro de la pasarela local (`RF-MV-048`).
+        .conCobroLocal(local.abrirSiToca(hecha.metodo(), hecha.venta().getId()));
   }
 
   /**
