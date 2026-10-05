@@ -2,8 +2,8 @@ package com.factech.nexus.modules.commissions.domain.repository;
 
 import com.factech.nexus.modules.commissions.domain.models.RateSource;
 import com.factech.nexus.modules.commissions.domain.service.AfftrackTierPicker.Tier;
+import com.factech.nexus.shared.persistence.MinorUnits;
 import jakarta.persistence.EntityManager;
-import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.time.OffsetDateTime;
 import java.util.ArrayList;
@@ -141,7 +141,7 @@ public class JpaAfftrackSettlementRepository implements AfftrackSettlementReposi
   }
 
   private static Tier escalon(Object[] f, RateSource fuente) {
-    return new Tier((UUID) f[2], fuente, ((Number) f[3]).intValue(), (BigDecimal) f[4]);
+    return new Tier((UUID) f[2], fuente, ((Number) f[3]).intValue(), MinorUnits.fromMinor(f[4]));
   }
 
   @Override
@@ -205,9 +205,9 @@ public class JpaAfftrackSettlementRepository implements AfftrackSettlementReposi
         .setParameter("fuente", c.source())
         .setParameter("escalon", c.rateId())
         .setParameter("dia", c.resolvedOn())
-        .setParameter("valor", c.amountPerFtd())
+        .setParameter("valor", MinorUnits.toMinor(c.amountPerFtd()))
         .setParameter("cantidad", c.quantity())
-        .setParameter("importe", c.amount())
+        .setParameter("importe", MinorUnits.toMinor(c.amount()))
         .setParameter("at", c.accruedAt())
         .executeUpdate();
   }

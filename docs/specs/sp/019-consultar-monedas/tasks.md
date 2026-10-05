@@ -42,7 +42,7 @@ La consulta es trivial: una sentencia sobre una tabla de una fila. **El peso est
 | `T-10` | Enmendar `requirements/sp.md`: §10.5 gana `updated_at`, que no declaraba pese al Art. V.7 y pese a que `is_active` cambia por API; §10.7 gana `uq_currencies_name`, `uq_currencies_single_default` y `ck_currencies_default_active` | `T-01` | El documento y el esquema declaran las mismas restricciones (Art. XII.3) | Hecha |
 | `T-11` | Documentación OpenAPI del endpoint: el parámetro `includeInactive`, la respuesta `200` con `content` y los estados `400`, `401`, `403` y `500` | `T-08` | El contrato publicado coincide con el comportamiento real (Art. VIII.6), y documenta que `includeInactive` **añade** en lugar de sustituir | Hecha |
 | `T-12` | Actualizar la matriz de trazabilidad de `docs/requirements.md` | `T-08` | La fila de `RF-SP-019` refleja el estado y enlaza esta tripleta | Hecha |
-| `T-13` | **El techo de `decimal_places` baja a dos** (05-10-2026, `ADR-006`): lo reescribe `V65`, en `RF-MV-001` · `T-41`. Aquí, la prueba: una moneda insertada con tres decimales viola `ck_currencies_decimal_places`, y con cero y con dos se admite | `RF-MV-001` · `T-41` | `CA-SP-802` | Pendiente |
+| `T-13` | **El techo de `decimal_places` baja a dos** (05-10-2026, `ADR-006`): lo reescribe `V65`, en `RF-MV-001` · `T-41`. Aquí, la prueba: una moneda insertada con tres decimales viola `ck_currencies_decimal_places`, y con cero y con dos se admite | `RF-MV-001` · `T-41` | `CA-SP-802` | **Hecha el 05-10-2026** |
 
 **Estados:** `Pendiente` · `En curso` · `Hecha` · `Bloqueada`.
 

@@ -188,8 +188,10 @@ nuevos AS (
          p.icono,
          origen.id,
          destino.id,
-         p.precio,
-         p.costo,
+         -- La tabla de valores habla en decimales, que es como se leen; la columna
+         -- guarda centésimas desde V65 (ADR-006).
+         round(p.precio * 100),
+         round(p.costo * 100),
          (SELECT id FROM currencies WHERE is_default = true),
          p.dias,
          p.estado,

@@ -181,8 +181,9 @@ public class CreditService implements CommissionPayout {
       throw new IllegalArgumentException("Orden de abono incompleta o con importe negativo.");
     }
     CurrencyView moneda = comun.moneda(orden.currencyId());
-    // `RN-MV-044`: el lote suma con cuatro decimales y el libro guarda dinero
-    // con los de la moneda. A la mitad hacia arriba, como todo importe de `PM`.
+    // `RN-MV-044`: el libro guarda dinero con los decimales de la moneda, a la
+    // mitad hacia arriba. Desde V65 el lote ya llega con dos (ADR-006) y esto no
+    // cambia nada; se queda por si una moneda volviera a admitir más.
     BigDecimal importe = orden.amount().setScale(moneda.decimalPlaces(), RoundingMode.HALF_UP);
     String clave = "lote-" + orden.batchId();
 

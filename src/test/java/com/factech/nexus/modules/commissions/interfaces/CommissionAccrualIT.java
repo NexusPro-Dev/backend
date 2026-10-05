@@ -3,6 +3,8 @@ package com.factech.nexus.modules.commissions.interfaces;
 import static com.factech.nexus.modules.commissions.interfaces.CommissionFixtures.AGENTE;
 import static com.factech.nexus.modules.commissions.interfaces.CommissionFixtures.DIRECTOR;
 import static com.factech.nexus.modules.commissions.interfaces.CommissionFixtures.MANAGER;
+import static com.factech.nexus.modules.commissions.interfaces.CommissionFixtures.centesimas;
+import static com.factech.nexus.modules.commissions.interfaces.CommissionFixtures.importe;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.user;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
@@ -105,13 +107,13 @@ class CommissionAccrualIT extends IntegrationTestBase {
     assertThat(delAgente.get("rate_id")).isEqualTo(tasaAgente);
     assertThat(delAgente.get("rate_type")).isEqualTo("PORCENTAJE");
     assertThat((BigDecimal) delAgente.get("percentage")).isEqualByComparingTo("10.00");
-    assertThat((BigDecimal) delAgente.get("commission_amount")).isEqualByComparingTo("10.0000");
+    assertThat(importe(delAgente.get("commission_amount"))).isEqualByComparingTo("10.0000");
     assertThat(delAgente.get("resolved_on").toString()).isEqualTo("2026-09-10");
     assertThat(delAgente.get("accrued_at")).isNotNull();
     assertThat(filas.get(1).get("user_id")).isEqualTo(director);
-    assertThat((BigDecimal) filas.get(1).get("commission_amount")).isEqualByComparingTo("5");
+    assertThat(importe(filas.get(1).get("commission_amount"))).isEqualByComparingTo("5");
     assertThat(filas.get(2).get("user_id")).isEqualTo(manager);
-    assertThat((BigDecimal) filas.get(2).get("commission_amount")).isEqualByComparingTo("2.5");
+    assertThat(importe(filas.get(2).get("commission_amount"))).isEqualByComparingTo("2.5");
   }
 
   @Test
@@ -231,8 +233,8 @@ class CommissionAccrualIT extends IntegrationTestBase {
     confirmar(venta);
 
     List<Map<String, Object>> filas = comisionesDe(lineaDe(venta));
-    assertThat((BigDecimal) filas.get(0).get("commission_amount")).isEqualByComparingTo("30");
-    assertThat((BigDecimal) filas.get(1).get("commission_amount")).isEqualByComparingTo("9");
+    assertThat(importe(filas.get(0).get("commission_amount"))).isEqualByComparingTo("30");
+    assertThat(importe(filas.get(1).get("commission_amount"))).isEqualByComparingTo("9");
   }
 
   // ---------------------------------------------------------------------------
@@ -290,8 +292,8 @@ class CommissionAccrualIT extends IntegrationTestBase {
     assertThat(lotes).hasSize(2);
     assertThat(lotes).allSatisfy(l -> assertThat(l.get("status")).isEqualTo("ABIERTO"));
     assertThat(lotes).allSatisfy(l -> assertThat(l.get("period_end")).isNull());
-    assertThat((BigDecimal) lotes.get(0).get("total_amount")).isEqualByComparingTo("30");
-    assertThat((BigDecimal) lotes.get(1).get("total_amount")).isEqualByComparingTo("100");
+    assertThat(importe(lotes.get(0).get("total_amount"))).isEqualByComparingTo("30");
+    assertThat(importe(lotes.get(1).get("total_amount"))).isEqualByComparingTo("100");
   }
 
   // ---------------------------------------------------------------------------
@@ -338,21 +340,30 @@ class CommissionAccrualIT extends IntegrationTestBase {
       "CA-CM-166 — si devengar FALLA, la venta sigue confirmada, esa línea queda sin desenlace y"
           + " las demás devengan")
   void unFalloNoDeshaceLaVenta() throws Exception {
-    // Una línea de cien mil millones al 10 %: la comisión no cabe en
-    // numeric(14,4) y escribirla falla en la base. Es un fallo inesperado de
-    // verdad, sin dobles: un contexto de Spring más agotaría las conexiones de
-    // la suite. La otra línea, de otra vendedora, no se entera.
-    UUID enorme = producto("CA_ENORME", "100.00", USD);
+    // Hasta `V65` lo provocaba una línea cuya comisión no cabía en numeric(14,4). En
+    // centésimas bigint ningún dato admitido llega al techo, así que lo provoca una
+    // restricción que solo existe en esta prueba: rechaza exactamente la comisión testigo
+    // (el 10 % de 1234,50 = 123,45) y se retira al acabar, aquí y en la limpieza. Sigue siendo
+    // un fallo de la base, sin dobles: un contexto de Spring más agotaría las conexiones de la
+    // suite. La otra línea, de otra vendedora, no se entera.
+    UUID enorme = producto("CA_ENORME", "1234.50", USD);
     CommissionFixtures.sembrarTasaDeRol(jdbc, enorme, AGENTE, "10.00");
     UUID vendedoraSola = persona("ca-sola", AGENTE);
     CommissionFixtures.sembrarTasaDeRol(jdbc, producto, AGENTE, "10.00");
     UUID venta =
         venta(
             VENDIDA_EL,
-            linea(enorme, agente, 1, "100000000000.00"),
+            linea(enorme, agente, 1, "1234.50"),
             linea(producto, vendedoraSola, 1, "100.00"));
 
-    confirmar(venta);
+    jdbc.execute(
+        "ALTER TABLE commissions ADD CONSTRAINT ck_prueba_devengo_falla"
+            + " CHECK (commission_amount <> 12345) NOT VALID");
+    try {
+      confirmar(venta);
+    } finally {
+      jdbc.execute("ALTER TABLE commissions DROP CONSTRAINT IF EXISTS ck_prueba_devengo_falla");
+    }
 
     assertThat(
             jdbc.queryForObject("SELECT status FROM movements WHERE id = ?", String.class, venta))
@@ -439,13 +450,13 @@ class CommissionAccrualIT extends IntegrationTestBase {
         jdbc.update(
             "UPDATE commission_rates SET direct_rate_type = ?,"
                 + " direct_percentage = CASE WHEN ? = 'PORCENTAJE' THEN CAST(? AS numeric) END,"
-                + " direct_fixed_amount = CASE WHEN ? = 'FIJO' THEN CAST(? AS numeric) END"
+                + " direct_fixed_amount = CASE WHEN ? = 'FIJO' THEN CAST(? AS bigint) END"
                 + " WHERE product_id = ? AND role_id = CAST(? AS uuid) AND deleted_at IS NULL",
             tipo,
             tipo,
             valor,
             tipo,
-            valor,
+            centesimas(valor),
             deProducto,
             rol);
     assertThat(filas).as("la tasa de rol donde poner la directa").isEqualTo(1);
@@ -488,9 +499,9 @@ class CommissionAccrualIT extends IntegrationTestBase {
     assertThat(propia.get("rate_id")).isEqualTo(tasaDe(producto, DIRECTOR));
     assertThat(propia.get("rate_type")).isEqualTo("PORCENTAJE");
     assertThat((BigDecimal) propia.get("percentage")).isEqualByComparingTo("8");
-    assertThat((BigDecimal) propia.get("commission_amount")).isEqualByComparingTo("8");
+    assertThat(importe(propia.get("commission_amount"))).isEqualByComparingTo("8");
     assertThat(filas.get(1).get("source")).isEqualTo("ROL");
-    assertThat((BigDecimal) filas.get(1).get("commission_amount")).isEqualByComparingTo("2");
+    assertThat(importe(filas.get(1).get("commission_amount"))).isEqualByComparingTo("2");
   }
 
   @Test
@@ -505,7 +516,7 @@ class CommissionAccrualIT extends IntegrationTestBase {
 
     List<Map<String, Object>> filas = comisionesDe(lineaDe(venta));
     assertThat(filas).extracting(f -> f.get("source")).containsExactly("ROL", "ROL", "ROL");
-    assertThat((BigDecimal) filas.get(0).get("commission_amount")).isEqualByComparingTo("10");
+    assertThat(importe(filas.get(0).get("commission_amount"))).isEqualByComparingTo("10");
   }
 
   @Test
@@ -520,7 +531,7 @@ class CommissionAccrualIT extends IntegrationTestBase {
 
     Map<String, Object> propia = comisionesDe(lineaDe(venta)).get(0);
     assertThat(propia.get("source")).isEqualTo("PERSONALIZADA");
-    assertThat((BigDecimal) propia.get("commission_amount")).isEqualByComparingTo("20");
+    assertThat(importe(propia.get("commission_amount"))).isEqualByComparingTo("20");
   }
 
   @Test
@@ -551,7 +562,7 @@ class CommissionAccrualIT extends IntegrationTestBase {
     assertThat(desenlace(linea)).isEqualTo("DEVENGADA");
     Map<String, Object> propia = comisionesDe(linea).get(0);
     assertThat(propia.get("source")).isEqualTo("DIRECTA");
-    assertThat((BigDecimal) propia.get("commission_amount")).isZero();
+    assertThat(importe(propia.get("commission_amount"))).isZero();
   }
 
   @Test
@@ -566,7 +577,7 @@ class CommissionAccrualIT extends IntegrationTestBase {
 
     Map<String, Object> propia = comisionesDe(lineaDe(venta)).get(0);
     assertThat((BigDecimal) propia.get("percentage")).isEqualByComparingTo("8");
-    assertThat((BigDecimal) propia.get("commission_amount")).isEqualByComparingTo("8");
+    assertThat(importe(propia.get("commission_amount"))).isEqualByComparingTo("8");
   }
 
   @Test
@@ -586,12 +597,12 @@ class CommissionAccrualIT extends IntegrationTestBase {
     Map<String, Object> deDirector = comisionesDe(lineaDe(delDirector)).get(0);
     assertThat(deDirector.get("source")).isEqualTo("DIRECTA");
     assertThat(deDirector.get("rate_id")).isEqualTo(tasaDe(producto, DIRECTOR));
-    assertThat((BigDecimal) deDirector.get("commission_amount")).isEqualByComparingTo("8");
+    assertThat(importe(deDirector.get("commission_amount"))).isEqualByComparingTo("8");
     List<Map<String, Object>> deManager = comisionesDe(lineaDe(delManager));
     assertThat(deManager).hasSize(1);
     assertThat(deManager.get(0).get("source")).isEqualTo("DIRECTA");
     assertThat(deManager.get(0).get("rate_id")).isEqualTo(tasaDe(producto, MANAGER));
-    assertThat((BigDecimal) deManager.get(0).get("commission_amount")).isEqualByComparingTo("3");
+    assertThat(importe(deManager.get(0).get("commission_amount"))).isEqualByComparingTo("3");
   }
 
   @Test
@@ -605,7 +616,7 @@ class CommissionAccrualIT extends IntegrationTestBase {
     Map<String, Object> propia = comisionesDe(lineaDe(venta)).get(0);
     assertThat(propia.get("user_id")).isEqualTo(director);
     assertThat(propia.get("source")).isEqualTo("ROL");
-    assertThat((BigDecimal) propia.get("commission_amount")).isEqualByComparingTo("5");
+    assertThat(importe(propia.get("commission_amount"))).isEqualByComparingTo("5");
   }
 
   @Test
@@ -652,7 +663,7 @@ class CommissionAccrualIT extends IntegrationTestBase {
         VALUES (?, CAST(? AS uuid),
                 (SELECT s.id FROM movement_type_statuses s
                   WHERE s.movement_type_id = CAST(? AS uuid) AND s.code = ?),
-                ?, ?, ?, 'PENDIENTE', 100.00, 0, 100.00, CAST(? AS timestamptz))
+                ?, ?, ?, 'PENDIENTE', 10000, 0, 10000, CAST(? AS timestamptz))
         """,
         id,
         VENTA,
@@ -669,19 +680,19 @@ class CommissionAccrualIT extends IntegrationTestBase {
           INSERT INTO movement_details (id, movement_id, product_id, seller_id, product_name,
                                         quantity, unit_price, line_discount, line_amount,
                                         implementation)
-          SELECT ?, ?, p.id, ?, p.name, ?, CAST(? AS numeric), CAST(? AS numeric),
-                 ? * CAST(? AS numeric) - CAST(? AS numeric), p.implementation
+          SELECT ?, ?, p.id, ?, p.name, ?, CAST(? AS bigint), CAST(? AS bigint),
+                 ? * CAST(? AS bigint) - CAST(? AS bigint), p.implementation
             FROM products p WHERE p.id = ?
           """,
           UUID.randomUUID(),
           id,
           l.vendedor(),
           l.cantidad(),
-          l.precio(),
-          l.descuento(),
+          centesimas(l.precio()),
+          centesimas(l.descuento()),
           l.cantidad(),
-          l.precio(),
-          l.descuento(),
+          centesimas(l.precio()),
+          centesimas(l.descuento()),
           l.producto());
     }
     return id;
@@ -730,12 +741,12 @@ class CommissionAccrualIT extends IntegrationTestBase {
     UUID id = UUID.randomUUID();
     jdbc.update(
         "INSERT INTO products (scope, implementation, id, code, type, name, price, currency_id,"
-            + " status) VALUES ('TIENDA', 'MANUAL', ?, ?, 'BOT', ?, CAST(? AS numeric),"
+            + " status) VALUES ('TIENDA', 'MANUAL', ?, ?, 'BOT', ?, CAST(? AS bigint),"
             + " CAST(? AS uuid), 'ACTIVO')",
         id,
         codigo,
         "Producto " + codigo,
-        precio,
+        centesimas(precio),
         moneda.toString());
     return id;
   }
@@ -797,13 +808,15 @@ class CommissionAccrualIT extends IntegrationTestBase {
   }
 
   private BigDecimal totalDelLote(UUID persona) {
-    return jdbc.queryForObject(
-        "SELECT total_amount FROM commission_batches WHERE user_id = ? AND status = 'ABIERTO'",
-        BigDecimal.class,
-        persona);
+    return importe(
+        jdbc.queryForObject(
+            "SELECT total_amount FROM commission_batches WHERE user_id = ? AND status = 'ABIERTO'",
+            Long.class,
+            persona));
   }
 
   private void limpiar() {
+    jdbc.execute("ALTER TABLE commissions DROP CONSTRAINT IF EXISTS ck_prueba_devengo_falla");
     CommissionCleanup.limpiar(jdbc);
     jdbc.update("DELETE FROM movement_details");
     jdbc.update("DELETE FROM movements");

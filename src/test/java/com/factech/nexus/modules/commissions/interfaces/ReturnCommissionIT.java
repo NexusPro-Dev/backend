@@ -1,6 +1,7 @@
 package com.factech.nexus.modules.commissions.interfaces;
 
 import static com.factech.nexus.modules.commissions.interfaces.CommissionFixtures.AGENTE;
+import static com.factech.nexus.modules.commissions.interfaces.CommissionFixtures.importe;
 import static com.factech.nexus.modules.commissions.interfaces.SettlementFixtures.linea;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.user;
@@ -81,7 +82,7 @@ class ReturnCommissionIT extends IntegrationTestBase {
     var fila = jdbc.queryForMap("SELECT * FROM commissions WHERE id = ?", comision);
     assertThat(fila.get("batch_id")).isEqualTo(pendiente);
     assertThat(fila.get("withdrawn_from_batch_id")).isNull();
-    assertThat((BigDecimal) fila.get("commission_amount")).isEqualByComparingTo("10");
+    assertThat(importe(fila.get("commission_amount"))).isEqualByComparingTo("10");
     assertThat(total(pendiente)).isEqualByComparingTo("20");
     assertThat(total(abierto)).isEqualByComparingTo("0");
   }
@@ -325,8 +326,9 @@ class ReturnCommissionIT extends IntegrationTestBase {
   }
 
   private BigDecimal total(UUID lote) {
-    return jdbc.queryForObject(
-        "SELECT total_amount FROM commission_batches WHERE id = ?", BigDecimal.class, lote);
+    return importe(
+        jdbc.queryForObject(
+            "SELECT total_amount FROM commission_batches WHERE id = ?", Long.class, lote));
   }
 
   private String estado(UUID lote) {

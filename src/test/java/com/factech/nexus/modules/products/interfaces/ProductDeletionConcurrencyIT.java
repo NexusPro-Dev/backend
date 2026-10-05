@@ -151,7 +151,7 @@ class ProductDeletionConcurrencyIT extends IntegrationTestBase {
         "INSERT INTO products (scope, implementation, id, code, type, name, description, source_membership_id,"
             + " target_membership_id, price,"
             + " currency_id, validity_days, status, created_at, updated_at)"
-            + " VALUES ('TIENDA', 'MANUAL', CAST(? AS uuid), ?, 'BOT', ?, 'Atención prioritaria.', NULL, NULL, 10.00,"
+            + " VALUES ('TIENDA', 'MANUAL', CAST(? AS uuid), ?, 'BOT', ?, 'Atención prioritaria.', NULL, NULL, 1000,"
             + " CAST(? AS uuid), NULL, 'INACTIVO', ?, ?)",
         id.toString(),
         codigo,

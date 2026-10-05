@@ -56,7 +56,7 @@ class PackageDetailIT extends IntegrationTestBase {
         PackageTestSupport.upgrade(
             jdbc, "UPGRADE_ORO", "299.00", membresias.platino(), membresias.oro());
     bot = PackageTestSupport.bot(jdbc, "BOT_SENALES", "39.00");
-    jdbc.update("UPDATE products SET purchase_price = 20.00 WHERE id = ?", bot);
+    jdbc.update("UPDATE products SET purchase_price = 2000 WHERE id = ?", bot);
     PackageTestSupport.asociar(jdbc, paquete, oro, "PORCENTAJE", "10");
     PackageTestSupport.asociar(jdbc, paquete, bot, "FIJO", "39.00");
 
@@ -104,7 +104,7 @@ class PackageDetailIT extends IntegrationTestBase {
   @DisplayName(
       "`CA-PM-278` — corregir el precio de un producto CAMBIA el paquete en la siguiente lectura, sin tocarlo")
   void elPrecioSeCalcula() throws Exception {
-    jdbc.update("UPDATE products SET price = 199.00 WHERE id = ?", oro);
+    jdbc.update("UPDATE products SET price = 19900 WHERE id = ?", oro);
     // El paquete no se toca: ni `updated_at` ni ninguna columna.
     mvc.perform(detalle(paquete))
         .andExpect(status().isOk())
@@ -117,7 +117,7 @@ class PackageDetailIT extends IntegrationTestBase {
   @DisplayName(
       "`CA-PM-279` — el fijo que HOY supera el precio cuenta cero y el total no baja de cero")
   void elFijoQueSuperaElPrecioCuentaCero() throws Exception {
-    jdbc.update("UPDATE products SET price = 10.00 WHERE id = ?", bot);
+    jdbc.update("UPDATE products SET price = 1000 WHERE id = ?", bot);
     mvc.perform(detalle(paquete))
         .andExpect(status().isOk())
         .andExpect(jsonPath("$.items[1].priceInPackage").value(0.00))
@@ -209,7 +209,7 @@ class PackageDetailIT extends IntegrationTestBase {
       jdbc.update(
           """
           INSERT INTO products (id, code, type, name, price, currency_id, status, scope, implementation)
-          VALUES (?, ?, 'BOT', ?, 100000, ?, 'ACTIVO', 'AMBOS', 'AUTOMATICA')
+          VALUES (?, ?, 'BOT', ?, 10000000, ?, 'ACTIVO', 'AMBOS', 'AUTOMATICA')
           """,
           id,
           id.equals(a) ? "BOT_COP_A" : "BOT_COP_B",

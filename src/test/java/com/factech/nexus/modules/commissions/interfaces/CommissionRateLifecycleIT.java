@@ -401,10 +401,11 @@ class CommissionRateLifecycleIT extends IntegrationTestBase {
         .andExpect(jsonPath("$.errors[0].code").value("EX-008"));
 
     assertThat(
-            jdbc.queryForObject(
-                "SELECT fixed_amount FROM commission_rates WHERE id = CAST(? AS uuid)",
-                java.math.BigDecimal.class,
-                enGratis.toString()))
+            CommissionFixtures.importe(
+                jdbc.queryForObject(
+                    "SELECT fixed_amount FROM commission_rates WHERE id = CAST(? AS uuid)",
+                    Long.class,
+                    enGratis.toString())))
         .isEqualByComparingTo("75000");
   }
 
@@ -478,7 +479,8 @@ class CommissionRateLifecycleIT extends IntegrationTestBase {
         .andExpect(jsonPath("$.directCommission.rateType").value("FIJO"))
         .andExpect(jsonPath("$.directCommission.percentage").value(Matchers.nullValue()));
 
-    assertThat(directaEnBase(delDirector)).isEqualTo("FIJO 20.00");
+    // En centésimas desde V65 (ADR-006).
+    assertThat(directaEnBase(delDirector)).isEqualTo("FIJO 2000");
   }
 
   @Test
@@ -588,10 +590,11 @@ class CommissionRateLifecycleIT extends IntegrationTestBase {
   }
 
   private java.math.BigDecimal fixedAmountEnBase() {
-    return jdbc.queryForObject(
-        "SELECT fixed_amount FROM commission_rates WHERE id = CAST(? AS uuid)",
-        java.math.BigDecimal.class,
-        tasa.toString());
+    return CommissionFixtures.importe(
+        jdbc.queryForObject(
+            "SELECT fixed_amount FROM commission_rates WHERE id = CAST(? AS uuid)",
+            Long.class,
+            tasa.toString()));
   }
 
   private String rolEnBase() {

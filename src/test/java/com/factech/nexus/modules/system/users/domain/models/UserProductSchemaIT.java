@@ -200,7 +200,7 @@ class UserProductSchemaIT extends IntegrationTestBase {
     UUID id = UUID.randomUUID();
     jdbc.update(
         "INSERT INTO products (id, code, type, name, price, currency_id, scope, implementation)"
-            + " VALUES (CAST(? AS uuid), ?, 'BOT', ?, 100, "
+            + " VALUES (CAST(? AS uuid), ?, 'BOT', ?, 10000, "
             + " (SELECT id FROM currencies ORDER BY code LIMIT 1), 'NINGUNO', 'AUTOMATICA')",
         id.toString(),
         codigo,

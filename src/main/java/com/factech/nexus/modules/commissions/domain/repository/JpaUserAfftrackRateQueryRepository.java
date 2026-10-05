@@ -1,9 +1,9 @@
 package com.factech.nexus.modules.commissions.domain.repository;
 
+import com.factech.nexus.shared.persistence.MinorUnits;
 import jakarta.persistence.EntityManager;
 import jakarta.persistence.Query;
 import jakarta.persistence.Tuple;
-import java.math.BigDecimal;
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -128,8 +128,8 @@ public class JpaUserAfftrackRateQueryRepository implements UserAfftrackRateQuery
         (String) fila.get("currency_code"),
         ((Number) fila.get("decimal_places")).intValue(),
         ((Number) fila.get("threshold")).intValue(),
-        (BigDecimal) fila.get("amount_per_ftd"),
-        (BigDecimal) fila.get("amount_at_threshold"),
+        MinorUnits.fromMinor(fila.get("amount_per_ftd")),
+        MinorUnits.fromMinor(fila.get("amount_at_threshold")),
         CommissionRows.fecha(fila.get("valid_from")),
         CommissionRows.fecha(fila.get("valid_to")),
         CommissionRows.momento(fila.get("created_at")),

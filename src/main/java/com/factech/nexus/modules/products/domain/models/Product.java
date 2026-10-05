@@ -4,7 +4,9 @@ import com.factech.nexus.shared.error.FieldError;
 import com.factech.nexus.shared.error.ValidationException;
 import com.factech.nexus.shared.images.CambioDePortada;
 import com.factech.nexus.shared.patch.Patchable;
+import com.factech.nexus.shared.persistence.MinorUnitsConverter;
 import jakarta.persistence.Column;
+import jakarta.persistence.Convert;
 import jakarta.persistence.Entity;
 import jakarta.persistence.EnumType;
 import jakarta.persistence.Enumerated;
@@ -139,8 +141,12 @@ public class Product {
    * <p><b>Admite cero desde el 08-09-2026</b> (`RN-PM-006`, `V67`). Lo que tumbó el «mayor que
    * cero» no fue el precio público sino la <b>renovación</b>: un {@code BECA → BECA} es un producto
    * legítimo que vale eso, y prohibirlo obligaba a inventarle un céntimo.
+   *
+   * <p>En la base, {@code bigint} en <b>centésimas</b> desde {@code V65} (ADR-006): {@code 49.99}
+   * se guarda {@code 4999}. Nunca más de dos decimales.
    */
-  @Column(name = "price", nullable = false, precision = 14, scale = 4)
+  @Column(name = "price", nullable = false)
+  @Convert(converter = MinorUnitsConverter.class)
   private BigDecimal price;
 
   /**
@@ -168,8 +174,11 @@ public class Product {
    * <p><b>Se llamó {@code publicPrice} —lo que se anunciaba— del 08-09-2026 al 12-09-2026</b>
    * (`V67` → `V86`). La forma es la misma; lo que cambió es qué es el número y quién puede verlo
    * (`requirements/pm.md` §5.2.6).
+   *
+   * <p>En centésimas, como {@link #price} (ADR-006).
    */
-  @Column(name = "purchase_price", precision = 14, scale = 4)
+  @Column(name = "purchase_price")
+  @Convert(converter = MinorUnitsConverter.class)
   private BigDecimal purchasePrice;
 
   @Column(name = "currency_id", nullable = false)

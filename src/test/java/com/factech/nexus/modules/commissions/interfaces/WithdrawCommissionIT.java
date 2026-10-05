@@ -1,6 +1,7 @@
 package com.factech.nexus.modules.commissions.interfaces;
 
 import static com.factech.nexus.modules.commissions.interfaces.CommissionFixtures.AGENTE;
+import static com.factech.nexus.modules.commissions.interfaces.CommissionFixtures.importe;
 import static com.factech.nexus.modules.commissions.interfaces.SettlementFixtures.linea;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.user;
@@ -129,7 +130,7 @@ class WithdrawCommissionIT extends IntegrationTestBase {
         "INSERT INTO commissions (id, batch_id, commission_kind, afftrack_settlement_id, user_id,"
             + " source, rate_id, resolved_on, rate_type, fixed_amount, quantity,"
             + " commission_amount, accrued_at, created_at)"
-            + " VALUES (?, ?, 'POR_AFFTRACK', ?, ?, 'ROL', ?, DATE '2026-09-30', 'FIJO', 5, 1, 5,"
+            + " VALUES (?, ?, 'POR_AFFTRACK', ?, ?, 'ROL', ?, DATE '2026-09-30', 'FIJO', 500, 1, 500,"
             + " now(), now())",
         escalon,
         pendiente,
@@ -137,7 +138,7 @@ class WithdrawCommissionIT extends IntegrationTestBase {
         agente,
         UUID.randomUUID());
     jdbc.update(
-        "UPDATE commission_batches SET total_amount = total_amount + 5 WHERE id = ?", pendiente);
+        "UPDATE commission_batches SET total_amount = total_amount + 500 WHERE id = ?", pendiente);
     var antes = jdbc.queryForMap("SELECT * FROM afftrack_settlements WHERE id = ?", liquidacion);
 
     mvc.perform(retirar(pendiente, escalon).with(como(RETIRAR))).andExpect(status().isOk());
@@ -341,8 +342,9 @@ class WithdrawCommissionIT extends IntegrationTestBase {
   }
 
   private BigDecimal total(UUID lote) {
-    return jdbc.queryForObject(
-        "SELECT total_amount FROM commission_batches WHERE id = ?", BigDecimal.class, lote);
+    return importe(
+        jdbc.queryForObject(
+            "SELECT total_amount FROM commission_batches WHERE id = ?", Long.class, lote));
   }
 
   private String estado(UUID lote) {
@@ -354,10 +356,11 @@ class WithdrawCommissionIT extends IntegrationTestBase {
     return jdbc
         .queryForList(
             "SELECT balance FROM accounts WHERE user_id = ? AND kind = 'BILLETERA'",
-            BigDecimal.class,
+            Long.class,
             persona)
         .stream()
         .findFirst()
+        .map(CommissionFixtures::importe)
         .orElse(BigDecimal.ZERO);
   }
 

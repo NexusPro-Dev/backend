@@ -67,7 +67,7 @@ class PackageHotlinkIT extends IntegrationTestBase {
     bot = PackageTestSupport.bot(jdbc, "BOT_SENALES", "100.00");
     // El bot es de alcance TIENDA a propósito: el alcance de los productos NO
     // filtra dentro del paquete (`CA-PM-332`).
-    jdbc.update("UPDATE products SET scope = 'TIENDA', purchase_price = 40.00 WHERE id = ?", bot);
+    jdbc.update("UPDATE products SET scope = 'TIENDA', purchase_price = 4000 WHERE id = ?", bot);
     PackageTestSupport.asociar(jdbc, paquete, oro, "PORCENTAJE", "10");
     PackageTestSupport.asociar(jdbc, paquete, bot, "FIJO", "20.00");
 

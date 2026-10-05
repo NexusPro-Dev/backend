@@ -111,7 +111,7 @@ class MovementsBoundedCountIT extends IntegrationTestBase {
                                  currency_id, code, status, total_amount, discount_amount,
                                  payable_amount, occurred_at)
           VALUES (?, CAST(? AS uuid), (SELECT s.id FROM movement_type_statuses s WHERE s.movement_type_id = CAST(? AS uuid) AND s.code = 'VALIDADO'), ?, CAST(? AS uuid), ?, 'PENDIENTE',
-                  100.00, 0, 100.00, CAST(? AS timestamptz))
+                  10000, 0, 10000, CAST(? AS timestamptz))
           """,
           id,
           VENTA,

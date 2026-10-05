@@ -432,7 +432,7 @@ class ActivateMyProductIT extends IntegrationTestBase {
         "INSERT INTO products (scope, implementation, id, code, type, name, description,"
             + " source_membership_id, target_membership_id, price, currency_id, validity_days, status)"
             + " VALUES ('TIENDA', ?, ?, ?, ?, ?, 'De prueba', CAST(? AS uuid), CAST(? AS uuid),"
-            + " 100.00, CAST(? AS uuid), ?, 'ACTIVO')",
+            + " 10000, CAST(? AS uuid), ?, 'ACTIVO')",
         implementacion,
         id,
         codigo,
@@ -455,7 +455,7 @@ class ActivateMyProductIT extends IntegrationTestBase {
                                payable_amount, occurred_at, confirmed_at,
                                voided_at, void_reason)
         VALUES (?, CAST(? AS uuid), (SELECT s.id FROM movement_type_statuses s WHERE s.movement_type_id = CAST(? AS uuid) AND s.code = 'VALIDADO'), ?, CAST(? AS uuid), ?, ?,
-                100.00, 0, 100.00, CAST(? AS timestamptz),
+                10000, 0, 10000, CAST(? AS timestamptz),
                 CASE WHEN ? = 'CONFIRMADA' THEN CAST(? AS timestamptz) ELSE NULL END,
                 CASE WHEN ? = 'ANULADA' THEN now() ELSE NULL END,
                 CASE WHEN ? = 'ANULADA' THEN 'Sembrada anulada' ELSE NULL END)
@@ -478,7 +478,7 @@ class ActivateMyProductIT extends IntegrationTestBase {
         INSERT INTO movement_details (id, movement_id, product_id, seller_id, product_name,
                                       product_description, quantity, unit_price, line_amount,
                                       validity_days, implementation)
-        SELECT ?, ?, p.id, ?, p.name, p.description, 1, 100.00, 100.00, p.validity_days,
+        SELECT ?, ?, p.id, ?, p.name, p.description, 1, 10000, 10000, p.validity_days,
                p.implementation
           FROM products p WHERE p.id = ?
         """,

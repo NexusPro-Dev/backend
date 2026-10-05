@@ -149,7 +149,7 @@ class PayCommissionBatchesIT extends IntegrationTestBase {
       jdbc.update("UPDATE commission_batches SET total_amount = -1 WHERE id = ?", roto);
       respuesta = pagarPorServicio(lotes);
     } finally {
-      jdbc.update("UPDATE commission_batches SET total_amount = 10 WHERE id = ?", roto);
+      jdbc.update("UPDATE commission_batches SET total_amount = 1000 WHERE id = ?", roto);
       jdbc.execute(
           "ALTER TABLE commission_batches ADD CONSTRAINT ck_commission_batches_total"
               + " CHECK (total_amount >= 0)");
@@ -329,10 +329,11 @@ class PayCommissionBatchesIT extends IntegrationTestBase {
     return jdbc
         .queryForList(
             "SELECT balance FROM accounts WHERE user_id = ? AND kind = 'BILLETERA'",
-            BigDecimal.class,
+            Long.class,
             persona)
         .stream()
         .findFirst()
+        .map(CommissionFixtures::importe)
         .orElse(BigDecimal.ZERO);
   }
 

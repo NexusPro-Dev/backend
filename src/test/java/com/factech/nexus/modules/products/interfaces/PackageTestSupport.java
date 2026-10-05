@@ -1,5 +1,6 @@
 package com.factech.nexus.modules.products.interfaces;
 
+import com.factech.nexus.shared.persistence.MinorUnits;
 import java.math.BigDecimal;
 import java.util.UUID;
 import org.springframework.jdbc.core.JdbcTemplate;
@@ -122,7 +123,7 @@ final class PackageTestSupport {
         "UPGRADE_MEMBRESIA".equals(tipo) ? "crown" : null,
         origen,
         destino,
-        new BigDecimal(precio),
+        MinorUnits.toMinor(new BigDecimal(precio)),
         USD,
         estado);
     return id;
@@ -136,6 +137,7 @@ final class PackageTestSupport {
         paquete,
         producto,
         forma,
-        new BigDecimal(valor));
+        // En centésimas también el porcentaje (ADR-006): 12.50 % se guarda 1250.
+        MinorUnits.toMinor(new BigDecimal(valor)));
   }
 }

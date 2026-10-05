@@ -483,7 +483,7 @@ class MovementsIT extends IntegrationTestBase {
         "INSERT INTO products (scope, implementation, id, code, type, name, description, source_membership_id,"
             + " target_membership_id, price, currency_id, validity_days, status)"
             + " VALUES ('TIENDA', 'MANUAL', ?, ?, 'BOT', ?, 'Producto de prueba', NULL,"
-            + " NULL, CAST(? AS numeric), CAST(? AS uuid), NULL, 'ACTIVO')",
+            + " NULL, CAST(? AS numeric) * 100, CAST(? AS uuid), NULL, 'ACTIVO')",
         id,
         codigo,
         nombre,
@@ -534,7 +534,7 @@ class MovementsIT extends IntegrationTestBase {
                                payable_amount, occurred_at, confirmed_at,
                                voided_at, void_reason)
         VALUES (?, CAST(? AS uuid), (SELECT s.id FROM movement_type_statuses s WHERE s.movement_type_id = CAST(? AS uuid) AND s.code = 'VALIDADO'), ?, CAST(? AS uuid), ?, ?,
-                100.00, 0, 100.00, CAST(? AS timestamptz),
+                10000, 0, 10000, CAST(? AS timestamptz),
                 CASE WHEN ? = 'CONFIRMADA' THEN CAST(? AS timestamptz) ELSE NULL END,
                 -- `ck_movements_voided`: una anulada lleva fecha y motivo, y solo ella.
                 CASE WHEN ? = 'ANULADA' THEN now() ELSE NULL END,
@@ -565,7 +565,7 @@ class MovementsIT extends IntegrationTestBase {
         INSERT INTO movement_details (id, movement_id, product_id, seller_id, product_name,
                                       product_description, quantity, unit_price,
                                       line_amount, validity_days, implementation)
-        VALUES (?, ?, ?, ?, 'Bot de prueba', 'Lo que decia el catalogo', 1, 100.00, 100.00, NULL,
+        VALUES (?, ?, ?, ?, 'Bot de prueba', 'Lo que decia el catalogo', 1, 10000, 10000, NULL,
                 'AUTOMATICA')
         """,
         UUID.randomUUID(),

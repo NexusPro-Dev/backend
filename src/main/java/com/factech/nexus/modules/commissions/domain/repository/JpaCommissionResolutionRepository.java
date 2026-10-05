@@ -2,6 +2,7 @@ package com.factech.nexus.modules.commissions.domain.repository;
 
 import com.factech.nexus.modules.commissions.domain.models.CommissionRateType;
 import com.factech.nexus.modules.commissions.domain.models.RateSource;
+import com.factech.nexus.shared.persistence.MinorUnits;
 import jakarta.persistence.EntityManager;
 import jakarta.persistence.Tuple;
 import java.math.BigDecimal;
@@ -127,7 +128,7 @@ public class JpaCommissionResolutionRepository implements CommissionResolutionRe
     BigDecimal valor =
         forma == CommissionRateType.PORCENTAJE
             ? (BigDecimal) fila.get("percentage")
-            : (BigDecimal) fila.get("fixed_amount");
+            : MinorUnits.fromMinor(fila.get("fixed_amount"));
     return new ResolvedRate(
         prioridad == 0 ? RateSource.PERSONALIZADA : RateSource.ROL,
         (UUID) fila.get("rate_id"),

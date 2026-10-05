@@ -106,7 +106,7 @@ abstract class ProductCommentTestSupport extends IntegrationTestBase {
     jdbc.update(
         "INSERT INTO products (id, code, type, name, description, price, currency_id, status,"
             + " scope, implementation, created_at, updated_at, deleted_at)"
-            + " VALUES (CAST(? AS uuid), ?, 'BOT', ?, 'Descripción de prueba', 10.00,"
+            + " VALUES (CAST(? AS uuid), ?, 'BOT', ?, 'Descripción de prueba', 1000,"
             + " CAST(? AS uuid), ?, 'AMBOS', 'AUTOMATICA', now(), now(),"
             + " CASE WHEN ? THEN now() ELSE NULL END)",
         id.toString(),

@@ -162,17 +162,24 @@ class AfftrackRatesIT extends IntegrationTestBase {
   }
 
   @Test
-  @DisplayName("CA-CM-215 · decimales de más para la moneda del producto: 400; los justos entran")
+  @DisplayName(
+      "CA-CM-215 y CA-CM-338 · decimales de más para la moneda del producto: 400; los justos"
+          + " entran y se guardan en centésimas")
   void decimales() throws Exception {
     int decimales = decimalesDeLaMoneda();
     String demasiados = "1." + "1".repeat(decimales + 1);
-    if (decimales < 4) {
-      mvc.perform(alta(ftd, MANAGER, "50", demasiados))
-          .andExpect(status().isBadRequest())
-          .andExpect(jsonPath("$.errors[0].code").value("VAL-005"));
-    }
+    // Desde `V65` ninguna moneda pasa de dos decimales y el valor por FTD tampoco (`@Digits`):
+    // con una moneda de dos, el tercero lo para el `@Digits` (VAL-004) antes que la moneda
+    // (VAL-005), que solo se alcanza con una moneda de menos.
+    mvc.perform(alta(ftd, MANAGER, "50", demasiados))
+        .andExpect(status().isBadRequest())
+        .andExpect(jsonPath("$.errors[0].code").value(decimales < 2 ? "VAL-005" : "VAL-004"));
     String justos = decimales == 0 ? "1" : "1." + "1".repeat(decimales);
     mvc.perform(alta(ftd, MANAGER, "50", justos)).andExpect(status().isCreated());
+    assertThat(
+            jdbc.queryForObject(
+                "SELECT amount_per_ftd FROM afftrack_rates WHERE product_id = ?", Long.class, ftd))
+        .isEqualTo(CommissionFixtures.centesimas(justos));
   }
 
   @Test

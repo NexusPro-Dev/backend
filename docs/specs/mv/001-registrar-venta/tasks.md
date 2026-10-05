@@ -5,7 +5,7 @@
 | Requerimiento | `RF-MV-001` |
 | Plan | [`plan.md`](plan.md), aprobado el 02-09-2026 |
 | Versión | 0.7.0 |
-| Estado | **En curso** — `T-01` a `T-18` `Hecha`; `CA-MV-008` queda **sin prueba** hasta `RF-SP-045`; `T-25` a `T-30` `Hecha` el 16-09-2026 (§1.3); `T-31` a `T-35` `Hecha` el 16-09-2026 (§1.4); `T-36` a `T-39` `Hecha` el 03-10-2026 (§1.5, el escalón); `T-40` a `T-44` **Pendiente** (§1.6, los importes en centésimas) |
+| Estado | **En curso** — `T-01` a `T-18` `Hecha`; `CA-MV-008` queda **sin prueba** hasta `RF-SP-045`; `T-25` a `T-30` `Hecha` el 16-09-2026 (§1.3); `T-31` a `T-35` `Hecha` el 16-09-2026 (§1.4); `T-36` a `T-39` `Hecha` el 03-10-2026 (§1.5, el escalón); `T-40` a `T-44` `Hecha` el 05-10-2026 (§1.6, los importes en centésimas; `T-42` sin entidades, ver §2.4) |
 | Autor | Responsable técnico |
 | Aprobadas por | Responsable del proyecto |
 | Fecha de aprobación | 04-09-2026 |
@@ -128,11 +128,11 @@ Enmienda del Art. I.7 sobre este requerimiento ya construido, por decisión del 
 
 | ID | Tarea | Depende de | Verificación | Estado |
 |---|---|---|---|---|
-| `T-40` | **El convertidor compartido** en `shared`: `MinorUnitsConverter` (`AttributeConverter<BigDecimal, Long>`, **sin `autoApply`**) y el ayudante `MinorUnits` con `toMinor` y `fromMinor`, que el convertidor usa por dentro y el SQL nativo usa por fuera. `HALF_UP` como red; nulo pasa a nulo | — | Unitarias: `12.50` ↔ `1250`, `0` ↔ `0`, negativos (un asiento de débito), nulo, `10.005` → `1001` (la red), y un valor que no cabe en un `long` falla en lugar de truncarse | Pendiente |
-| `T-41` | **`V65`**: `ALTER COLUMN … TYPE bigint USING round(col * 100)` sobre todas las columnas de ADR-006 §1, en las trece tablas. **Antes**, `DROP` de `ck_movement_detail_discounts_value`, `ck_product_package_items_percentage` y `ck_currencies_decimal_places`; **después**, se recrean con `<= 10000`, `<= 10000` y `BETWEEN 0 AND 2`. `COMMENT ON COLUMN` de cada una dice «en centésimas». No toca porcentajes, `exchange_rates.price` ni `points_rates.points_per_unit` | `T-40`, la `V64` en `develop` | La suite arranca sobre el esquema migrado (`ddl-auto: validate` contra las entidades de `T-42` y de `PM`/`CM`); una prueba de migración siembra filas con el esquema de `V64` y comprueba `10.0050` → `1001` y `12.50` → `1250`; `CA-MV-544` | Pendiente |
-| `T-42` | **`@Convert(converter = MinorUnitsConverter.class)`** en las entidades de `MV`: `movements` (`total_amount`, `discount_amount`, `payable_amount`, `points_amount`), `movement_details` (`unit_price`, `line_discount`, `line_amount`), `movement_detail_discounts` (`value`, `discount_value`), `payments` (`amount`, `refunded_amount`), `accounts` (`balance`) y `movement_entries` (`amount`, `balance_after`). El dominio no cambia | `T-40`, `T-41` | `CA-MV-542`, `CA-MV-545`; la suite de `MV` en verde sin tocar ninguna aserción de importe que pase por HTTP | Pendiente |
-| `T-43` | **El SQL nativo y las proyecciones de `MV`** que leen o comparan importes —mis compras, ventas de mi alcance, el detalle de un movimiento, los pagos, los saldos y el libro—: lo que se lee pasa por `MinorUnits.fromMinor` al mapearse, y lo que se compara se vincula con `toMinor`. **Nunca se divide en SQL.** Y **las siembras de las suites** que insertan importes con `JdbcTemplate` o SQL crudo pasan a escribir centésimas | `T-40`, `T-41` | Un `grep` de las columnas convertidas en las consultas nativas de `MV`, sin ninguna sin revisar; `CA-MV-543` | Pendiente |
-| `T-44` | **Las pruebas de `CA-MV-542` a `CA-MV-546`**: `CA-MV-542` y `CA-MV-545` en `RegisterSaleIT` (base y respuesta a la vez), `CA-MV-543` comparando la lectura nativa con la del alta, `CA-MV-544` sobre el libro sembrado y `CA-MV-546` en `BuyPointsIT` (`RF-MV-027`) | `T-42`, `T-43` | Las cinco pasan; cambiar el factor del convertidor a `1000` hace fallar `CA-MV-542` y `CA-MV-543` | Pendiente |
+| `T-40` | **El convertidor compartido** en `shared`: `MinorUnitsConverter` (`AttributeConverter<BigDecimal, Long>`, **sin `autoApply`**) y el ayudante `MinorUnits` con `toMinor` y `fromMinor`, que el convertidor usa por dentro y el SQL nativo usa por fuera. `HALF_UP` como red; nulo pasa a nulo | — | Unitarias: `12.50` ↔ `1250`, `0` ↔ `0`, negativos (un asiento de débito), nulo, `10.005` → `1001` (la red), y un valor que no cabe en un `long` falla en lugar de truncarse | **Hecha el 05-10-2026** |
+| `T-41` | **`V65`**: `ALTER COLUMN … TYPE bigint USING round(col * 100)` sobre todas las columnas de ADR-006 §1, en las trece tablas. **Antes**, `DROP` de `ck_movement_detail_discounts_value`, `ck_product_package_items_percentage` y `ck_currencies_decimal_places`; **después**, se recrean con `<= 10000`, `<= 10000` y `BETWEEN 0 AND 2`. `COMMENT ON COLUMN` de cada una dice «en centésimas». No toca porcentajes, `exchange_rates.price` ni `points_rates.points_per_unit` | `T-40`, la `V64` en `develop` | La suite arranca sobre el esquema migrado (`ddl-auto: validate` contra las entidades de `T-42` y de `PM`/`CM`); una prueba de migración siembra filas con el esquema de `V64` y comprueba `10.0050` → `1001` y `12.50` → `1250`; `CA-MV-544` | **Hecha el 05-10-2026** |
+| `T-42` | **`@Convert(converter = MinorUnitsConverter.class)`** en las entidades de `MV`: `movements` (`total_amount`, `discount_amount`, `payable_amount`, `points_amount`), `movement_details` (`unit_price`, `line_discount`, `line_amount`), `movement_detail_discounts` (`value`, `discount_value`), `payments` (`amount`, `refunded_amount`), `accounts` (`balance`) y `movement_entries` (`amount`, `balance_after`). El dominio no cambia | `T-40`, `T-41` | `CA-MV-542`, `CA-MV-545`; la suite de `MV` en verde sin tocar ninguna aserción de importe que pase por HTTP | **Hecha el 05-10-2026** |
+| `T-43` | **El SQL nativo y las proyecciones de `MV`** que leen o comparan importes —mis compras, ventas de mi alcance, el detalle de un movimiento, los pagos, los saldos y el libro—: lo que se lee pasa por `MinorUnits.fromMinor` al mapearse, y lo que se compara se vincula con `toMinor`. **Nunca se divide en SQL.** Y **las siembras de las suites** que insertan importes con `JdbcTemplate` o SQL crudo pasan a escribir centésimas | `T-40`, `T-41` | Un `grep` de las columnas convertidas en las consultas nativas de `MV`, sin ninguna sin revisar; `CA-MV-543` | **Hecha el 05-10-2026** |
+| `T-44` | **Las pruebas de `CA-MV-542` a `CA-MV-546`**: `CA-MV-542` y `CA-MV-545` en `RegisterSaleIT` (base y respuesta a la vez), `CA-MV-543` comparando la lectura nativa con la del alta, `CA-MV-544` sobre el libro sembrado y `CA-MV-546` en `BuyPointsIT` (`RF-MV-027`) | `T-42`, `T-43` | Las cinco pasan; cambiar el factor del convertidor a `1000` hace fallar `CA-MV-542` y `CA-MV-543` | **Hecha el 05-10-2026** |
 
 **`CA-MV-543` se prueba contra la entidad y no contra una constante**, porque lo que puede romperse es justo la diferencia entre los dos caminos: una consulta nativa olvidada devuelve `1250` donde la entidad devuelve `12.50`, y una aserción contra `12.50` escrita a mano solo lo atrapa si alguien acertó a sembrar ese valor.
 
@@ -159,6 +159,12 @@ Es el primer agregado del sistema que no lo es —`Product`, `Role` y `Membershi
 
 Queda declarado lo que esto obliga: **las lecturas de `RF-MV-006` y `RF-MV-007` usarán un repositorio de consulta con registros planos**, como `ProductQueryRepository` y su `ProductRow` — que es el patrón dominante del proyecto para leer, y no una excepción que este requerimiento invente.
 
+### 2.4 `T-42` no anotó ninguna entidad, porque `MV` no tiene entidades JPA (05-10-2026)
+
+`T-42` pedía `@Convert` en las entidades de `MV`, y **no existen**: `Movement` no es una entidad JPA (§2.3), y tampoco lo son la línea, la rebaja, el pago, la cuenta ni el asiento. **Todo `MV` lee y escribe por SQL nativo**, de modo que la conversión entera cae en `T-43`: `MinorUnits.toMinor` al vincular y `fromMinor` al mapear, en `JpaMovementRepository`, `JpaLedgerRepository`, `JpaPaymentRepository` y `JpaCommissionableLines`. `T-42` se da por hecha porque no hay nada que anotar, no porque se anotara algo.
+
+**Lo que esto cambia de la red:** con una entidad, un importe que se escribiera sin convertir fallaría en el convertidor. Por SQL nativo, PostgreSQL convierte en silencio un `numeric` `12.50` a `bigint` `13`. Lo que sostiene la conversión es la revisión de `T-43`, más `CA-MV-542` y `CA-MV-543`, que comparan la base con la respuesta. **La lectura sí falla sola**: un `(BigDecimal)` sobre una columna `bigint` es un `ClassCastException`, y así aparecieron los últimos diez que quedaban en las pruebas.
+
 ## 3. Cobertura de los criterios de aceptación
 
 | Criterio | Tareas | Estado |
@@ -182,10 +188,10 @@ Queda declarado lo que esto obliga: **las lecturas de `RF-MV-006` y `RF-MV-007` 
 | `CA-MV-018` | `T-08`, `T-14`, `T-15`, `T-26` | Cubierto; la instantánea lleva `user_id` en la cabecera y `seller_id` en cada línea, y ya no lleva `client_id` |
 | `CA-MV-526` | `T-36`, `T-37`, `T-38` | **Pendiente** — unitaria con `EX-005`; por HTTP, `EX-004` |
 | `CA-MV-527` | `T-36`, `T-37`, `T-38` | **Pendiente** |
-| `CA-MV-542` | `T-40`, `T-42`, `T-44` | **Pendiente** |
-| `CA-MV-543` | `T-43`, `T-44` | **Pendiente** |
-| `CA-MV-544` | `T-41`, `T-44` | **Pendiente** |
-| `CA-MV-545` | `T-41`, `T-42`, `T-44` | **Pendiente** |
+| `CA-MV-542` | `T-40`, `T-42`, `T-44` | Cubierto |
+| `CA-MV-543` | `T-43`, `T-44` | Cubierto |
+| `CA-MV-544` | `T-41`, `T-44` | Cubierto |
+| `CA-MV-545` | `T-41`, `T-42`, `T-44` | Cubierto |
 
 **`CA-MV-011` necesita dos pruebas, y merece leerse dos veces.** Por HTTP, un upgrade que no sube **nunca llega** a `RN-MV-006`: la oferta de `RF-PM-007` ya lo excluyó, y el rechazo que se ve es `EX-004`. La prueba de integración lo comprueba así porque es lo que hoy ocurre de verdad, y el criterio queda satisfecho — se rechaza **al registrar**, que es lo que exige.
 

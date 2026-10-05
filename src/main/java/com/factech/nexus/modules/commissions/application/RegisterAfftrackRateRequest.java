@@ -39,8 +39,8 @@ public record RegisterAfftrackRateRequest(
             message = "VAL-004: El valor por FTD es obligatorio y no puede ser negativo.")
         @Digits(
             integer = 10,
-            fraction = 4,
-            message = "VAL-004: El valor por FTD admite como mucho cuatro decimales.")
+            fraction = 2,
+            message = "VAL-004: El valor por FTD admite como mucho dos decimales.")
         BigDecimal amountPerFtd) {
 
   /** El límite, ya validado como entero positivo. */

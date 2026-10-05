@@ -430,7 +430,7 @@ class BuyByHotlinkIT extends IntegrationTestBase {
         """
         INSERT INTO products (id, code, type, name, description, price, currency_id,
                               validity_days, status, scope, implementation, created_at, updated_at)
-        VALUES (?::uuid, ?, 'BOT', ?, 'Sembrado por BuyByHotlinkIT', 100.00, ?::uuid,
+        VALUES (?::uuid, ?, 'BOT', ?, 'Sembrado por BuyByHotlinkIT', 10000, ?::uuid,
                 30, 'ACTIVO', 'AMBOS', 'MANUAL', ?, ?)
         """,
         id,
@@ -487,7 +487,7 @@ class BuyByHotlinkIT extends IntegrationTestBase {
         INSERT INTO products (id, code, type, name, description, price, currency_id,
                               validity_days, status, scope, implementation,
                               source_membership_id, target_membership_id, created_at, updated_at)
-        VALUES (?::uuid, ?, 'UPGRADE_MEMBRESIA', ?, 'Sembrado por BuyByHotlinkIT', 100.00,
+        VALUES (?::uuid, ?, 'UPGRADE_MEMBRESIA', ?, 'Sembrado por BuyByHotlinkIT', 10000,
                 ?::uuid, 30, 'ACTIVO', 'AMBOS', 'AUTOMATICA', ?::uuid, ?::uuid, ?, ?)
         """,
         id,

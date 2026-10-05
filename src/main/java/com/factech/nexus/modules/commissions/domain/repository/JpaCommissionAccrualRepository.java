@@ -2,9 +2,9 @@ package com.factech.nexus.modules.commissions.domain.repository;
 
 import com.factech.nexus.modules.commissions.domain.models.AccrualOutcome;
 import com.factech.nexus.modules.commissions.domain.models.CommissionRateType;
+import com.factech.nexus.shared.persistence.MinorUnits;
 import com.factech.nexus.shared.persistence.UuidV7Generator;
 import jakarta.persistence.EntityManager;
-import java.math.BigDecimal;
 import java.time.OffsetDateTime;
 import java.util.Collection;
 import java.util.HashSet;
@@ -130,7 +130,7 @@ public class JpaCommissionAccrualRepository implements CommissionAccrualReposito
                  rate_id, resolved_on, rate_type, percentage, fixed_amount, unit_price, quantity,
                  commission_amount, accrued_at, created_at)
             VALUES (:id, :lote, 'POR_VENTA', :linea, :persona, :nivel, :fuente, :tasa,
-                    :fecha, :tipo, CAST(:porcentaje AS numeric), CAST(:fijo AS numeric),
+                    :fecha, :tipo, CAST(:porcentaje AS numeric), CAST(:fijo AS bigint),
                     :precio, :cantidad, :importe, :at, :at)
             """)
         .setParameter("id", ids.next())
@@ -143,10 +143,10 @@ public class JpaCommissionAccrualRepository implements CommissionAccrualReposito
         .setParameter("fecha", c.resolvedOn())
         .setParameter("tipo", c.rateType().name())
         .setParameter("porcentaje", porcentaje ? c.value() : null)
-        .setParameter("fijo", porcentaje ? null : c.value())
-        .setParameter("precio", c.unitPrice())
+        .setParameter("fijo", porcentaje ? null : MinorUnits.toMinor(c.value()))
+        .setParameter("precio", MinorUnits.toMinor(c.unitPrice()))
         .setParameter("cantidad", c.quantity())
-        .setParameter("importe", c.amount())
+        .setParameter("importe", MinorUnits.toMinor(c.amount()))
         .setParameter("at", c.accruedAt())
         .executeUpdate();
   }
@@ -175,7 +175,10 @@ public class JpaCommissionAccrualRepository implements CommissionAccrualReposito
             .setParameter("linea", detailId)
             .getResultList();
     return filas.stream()
-        .map(f -> new LiveCommission((UUID) f[0], (UUID) f[1], (UUID) f[2], (BigDecimal) f[3]))
+        .map(
+            f ->
+                new LiveCommission(
+                    (UUID) f[0], (UUID) f[1], (UUID) f[2], MinorUnits.fromMinor(f[3])))
         .toList();
   }
 

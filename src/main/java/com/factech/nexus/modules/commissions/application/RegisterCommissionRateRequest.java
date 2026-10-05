@@ -65,8 +65,8 @@ public record RegisterCommissionRateRequest(
     @DecimalMin(value = "0.0000", message = "VAL-012: El valor fijo no puede ser negativo.")
         @Digits(
             integer = 10,
-            fraction = 4,
-            message = "VAL-012: El valor fijo admite como mucho cuatro decimales.")
+            fraction = 2,
+            message = "VAL-012: El valor fijo admite como mucho dos decimales.")
         BigDecimal fixedAmount,
     @Schema(
             description =

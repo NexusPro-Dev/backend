@@ -484,7 +484,7 @@ class ProductCoverIT extends IntegrationTestBase {
             + " source_membership_id, target_membership_id, price, currency_id, status,"
             + " created_at, updated_at)"
             + " VALUES ('TIENDA', 'MANUAL', CAST(? AS uuid), ?, ?, ?, 'Descripción.', ?,"
-            + " CAST(? AS uuid), CAST(? AS uuid), 49.99, CAST(? AS uuid), 'INACTIVO', ?, ?)",
+            + " CAST(? AS uuid), CAST(? AS uuid), 4999, CAST(? AS uuid), 'INACTIVO', ?, ?)",
         id.toString(),
         codigo,
         tipo,

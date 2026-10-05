@@ -86,9 +86,7 @@ public class CommissionRate {
   @AttributeOverride(
       name = "percentage",
       column = @Column(name = "direct_percentage", precision = 5, scale = 2))
-  @AttributeOverride(
-      name = "fixedAmount",
-      column = @Column(name = "direct_fixed_amount", precision = 14, scale = 2))
+  @AttributeOverride(name = "fixedAmount", column = @Column(name = "direct_fixed_amount"))
   private CommissionValue direct;
 
   @Column(name = "created_at", nullable = false, updatable = false)

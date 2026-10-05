@@ -6,6 +6,7 @@ import com.factech.nexus.modules.movements.domain.models.Movement;
 import com.factech.nexus.modules.movements.domain.models.MovementLine;
 import com.factech.nexus.modules.movements.domain.models.TypeStatus;
 import com.factech.nexus.shared.pagination.BoundedCount;
+import com.factech.nexus.shared.persistence.MinorUnits;
 import jakarta.persistence.EntityManager;
 import jakarta.persistence.Query;
 import jakarta.persistence.Tuple;
@@ -104,9 +105,11 @@ public class JpaMovementRepository implements MovementRepository {
         .setParameter("codigo", venta.getCode())
         .setParameter("estado", venta.getStatus().name())
         .setParameter("estadoDelTipo", venta.getTypeStatus().id())
-        .setParameter("total", venta.getTotalAmount())
-        .setParameter("descuento", venta.getDiscountAmount())
-        .setParameter("aPagar", venta.getPayableAmount())
+        // Los importes en centésimas (ADR-006): un `numeric` vinculado a una
+        // columna `bigint` lo redondearía PostgreSQL en silencio.
+        .setParameter("total", MinorUnits.toMinor(venta.getTotalAmount()))
+        .setParameter("descuento", MinorUnits.toMinor(venta.getDiscountAmount()))
+        .setParameter("aPagar", MinorUnits.toMinor(venta.getPayableAmount()))
         .setParameter("ocurrio", venta.getOccurredAt())
         .setParameter("creado", venta.getCreatedAt())
         // `confirmed_at` NO se escribe, y su ausencia es la que satisface
@@ -141,9 +144,9 @@ public class JpaMovementRepository implements MovementRepository {
           .setParameter("nombre", linea.getProductName())
           .setParameter("descripcion", linea.getProductDescription())
           .setParameter("cantidad", linea.getQuantity())
-          .setParameter("precio", linea.getUnitPrice())
-          .setParameter("descuento", linea.getLineDiscount())
-          .setParameter("importe", linea.getLineAmount())
+          .setParameter("precio", MinorUnits.toMinor(linea.getUnitPrice()))
+          .setParameter("descuento", MinorUnits.toMinor(linea.getLineDiscount()))
+          .setParameter("importe", MinorUnits.toMinor(linea.getLineAmount()))
           .setParameter("vigencia", linea.getValidityDays())
           // La copia de cómo se entrega (`RN-MV-030`). La entrega misma no se
           // escribe: `delivery_status` nace `PENDIENTE` por el DEFAULT de `V16`,
@@ -173,7 +176,7 @@ public class JpaMovementRepository implements MovementRepository {
         .setParameter("id", pago)
         .setParameter("venta", venta.getId())
         .setParameter("metodo", venta.getPaymentMethodId())
-        .setParameter("importe", venta.getPayableAmount())
+        .setParameter("importe", MinorUnits.toMinor(venta.getPayableAmount()))
         .setParameter("clave", clave.value())
         .setParameter("creado", venta.getCreatedAt())
         .executeUpdate();
@@ -193,8 +196,9 @@ public class JpaMovementRepository implements MovementRepository {
           .setParameter("id", rebaja.getId())
           .setParameter("linea", linea.getId())
           .setParameter("tipo", rebaja.getType().name())
-          .setParameter("valor", rebaja.getValue())
-          .setParameter("dinero", rebaja.getDiscountValue())
+          // También el porcentaje va en centésimas: 12.50 % se guarda 1250.
+          .setParameter("valor", MinorUnits.toMinor(rebaja.getValue()))
+          .setParameter("dinero", MinorUnits.toMinor(rebaja.getDiscountValue()))
           .executeUpdate();
     }
   }
@@ -222,13 +226,13 @@ public class JpaMovementRepository implements MovementRepository {
               .setParameter("codigo", m.getCode())
               .setParameter("estado", m.getStatus().name())
               .setParameter("estadoDelTipo", m.getTypeStatus().id())
-              .setParameter("importe", m.getPayableAmount())
+              .setParameter("importe", MinorUnits.toMinor(m.getPayableAmount()))
               .setParameter("ocurrio", m.getOccurredAt())
               .setParameter("confirmado", m.getConfirmedAt())
               .setParameter("concepto", m.getConcept())
               .setParameter("clave", m.getIdempotencyKey())
               .setParameter("tasa", m.getPointsRateId())
-              .setParameter("puntos", m.getPointsAmount())
+              .setParameter("puntos", MinorUnits.toMinor(m.getPointsAmount()))
               .setParameter("creado", m.getCreatedAt())
               .executeUpdate();
       if (filas == 1) {
@@ -416,10 +420,11 @@ public class JpaMovementRepository implements MovementRepository {
                     (String) f.get("status"),
                     (UUID) f.get("moneda"),
                     ((String) f.get("codigo_moneda")).trim(),
-                    (BigDecimal) f.get("importe"),
+                    MinorUnits.fromMinor(f.get("importe")),
                     (UUID) f.get("tasa"),
+                    // `points_per_unit` es una tasa, no un importe: no va en centésimas.
                     (BigDecimal) f.get("valor"),
-                    (BigDecimal) f.get("puntos"),
+                    MinorUnits.fromMinor(f.get("puntos")),
                     instante(f.get("ocurrio")),
                     instante(f.get("confirmado")),
                     instante(f.get("rechazado")),
@@ -471,7 +476,7 @@ public class JpaMovementRepository implements MovementRepository {
                     (UUID) f.get("moneda"),
                     (String) f.get("codigo_moneda"),
                     (String) f.get("status"),
-                    (BigDecimal) f.get("importe"),
+                    MinorUnits.fromMinor(f.get("importe")),
                     (String) f.get("concepto"),
                     instante(f.get("ocurrio")),
                     instante(f.get("confirmado")),
@@ -1091,9 +1096,9 @@ public class JpaMovementRepository implements MovementRepository {
                   (String) linea.get("p_name"),
                   (String) linea.get("p_desc"),
                   ((Number) linea.get("cantidad")).intValue(),
-                  (BigDecimal) linea.get("precio"),
-                  (BigDecimal) linea.get("descuento"),
-                  (BigDecimal) linea.get("importe"),
+                  MinorUnits.fromMinor(linea.get("precio")),
+                  MinorUnits.fromMinor(linea.get("descuento")),
+                  MinorUnits.fromMinor(linea.get("importe")),
                   linea.get("vigencia") == null
                       ? null
                       : ((Number) linea.get("vigencia")).intValue(),
@@ -1162,13 +1167,13 @@ public class JpaMovementRepository implements MovementRepository {
                   (String) fila.get("pm_code"),
                   (String) fila.get("pm_name"),
                   (String) fila.get("status"),
-                  (BigDecimal) fila.get("importe"),
+                  MinorUnits.fromMinor(fila.get("importe")),
                   (String) fila.get("referencia"),
                   instante(fila.get("ocurrio")),
                   instante(fila.get("confirmado")),
                   instante(fila.get("rechazado")),
                   (String) fila.get("motivo"),
-                  (BigDecimal) fila.get("puntos")));
+                  MinorUnits.fromMinor(fila.get("puntos"))));
     }
     return resultado;
   }
@@ -1655,9 +1660,9 @@ public class JpaMovementRepository implements MovementRepository {
         (UUID) fila.get("cur_id"),
         (String) fila.get("cur_code"),
         (String) fila.get("pm_name"),
-        (BigDecimal) fila.get("total"),
-        (BigDecimal) fila.get("descuento"),
-        (BigDecimal) fila.get("pagar"),
+        MinorUnits.fromMinor(fila.get("total")),
+        MinorUnits.fromMinor(fila.get("descuento")),
+        MinorUnits.fromMinor(fila.get("pagar")),
         instante(fila.get("occurred_at")),
         instante(fila.get("confirmed_at")),
         (String) fila.get("incidencia"));
@@ -1928,9 +1933,9 @@ public class JpaMovementRepository implements MovementRepository {
         (String) fila.get("pro_code"),
         (String) fila.get("pro_name"),
         ((Number) fila.get("cantidad")).intValue(),
-        (BigDecimal) fila.get("precio"),
-        (BigDecimal) fila.get("rebaja"),
-        (BigDecimal) fila.get("importe"),
+        MinorUnits.fromMinor(fila.get("precio")),
+        MinorUnits.fromMinor(fila.get("rebaja")),
+        MinorUnits.fromMinor(fila.get("importe")),
         fila.get("vigencia") == null ? null : ((Number) fila.get("vigencia")).intValue(),
         (String) fila.get("moneda"),
         (String) fila.get("implementacion"),
@@ -2021,8 +2026,8 @@ public class JpaMovementRepository implements MovementRepository {
           .add(
               new LineDiscountRow(
                   (String) fila.get("tipo"),
-                  (BigDecimal) fila.get("valor"),
-                  (BigDecimal) fila.get("dinero")));
+                  MinorUnits.fromMinor(fila.get("valor")),
+                  MinorUnits.fromMinor(fila.get("dinero"))));
     }
     return porLinea;
   }
@@ -2042,9 +2047,9 @@ public class JpaMovementRepository implements MovementRepository {
         (UUID) fila.get("cur_id"),
         (String) fila.get("cur_code"),
         (String) fila.get("pm_name"),
-        (BigDecimal) fila.get("total"),
-        (BigDecimal) fila.get("descuento"),
-        (BigDecimal) fila.get("pagar"),
+        MinorUnits.fromMinor(fila.get("total")),
+        MinorUnits.fromMinor(fila.get("descuento")),
+        MinorUnits.fromMinor(fila.get("pagar")),
         instante(fila.get("occurred_at")),
         instante(fila.get("confirmed_at")),
         instante(fila.get("voided_at")),

@@ -18,10 +18,13 @@ import com.factech.nexus.modules.movements.PointsFixtures;
 import com.factech.nexus.modules.movements.StripeEventsJson;
 import com.factech.nexus.modules.movements.domain.service.CardGateway.ChargeOrder;
 import com.factech.nexus.modules.movements.domain.service.GatewayEventProcessor;
+import com.factech.nexus.shared.persistence.MinorUnits;
 import com.factech.nexus.testing.CommissionCleanup;
 import com.jayway.jsonpath.JsonPath;
+import java.math.BigDecimal;
 import java.time.OffsetDateTime;
 import java.time.ZoneOffset;
+import java.util.Map;
 import java.util.UUID;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
@@ -724,10 +727,11 @@ class CardPaymentIT extends IntegrationTestBase {
   }
 
   private String incidencia(UUID pago) {
-    return jdbc.queryForObject(
-        "SELECT incident || '|' || coalesce(refunded_amount::text, '') FROM payments WHERE id = ?",
-        String.class,
-        pago);
+    // El reembolso está en centésimas (ADR-006): se convierte aquí y no en SQL.
+    Map<String, Object> fila =
+        jdbc.queryForMap("SELECT incident, refunded_amount FROM payments WHERE id = ?", pago);
+    BigDecimal devuelto = MinorUnits.fromMinor(fila.get("refunded_amount"));
+    return fila.get("incident") + "|" + (devuelto == null ? "" : devuelto.toPlainString());
   }
 
   private String desenlace(UUID pago) {
@@ -765,7 +769,7 @@ class CardPaymentIT extends IntegrationTestBase {
         VALUES (?, CAST(? AS uuid),
                 (SELECT s.id FROM movement_type_statuses s
                   WHERE s.movement_type_id = CAST(? AS uuid) AND s.code = 'VALIDADO'),
-                ?, CAST(? AS uuid), ?, ?, CAST(? AS numeric), 0, CAST(? AS numeric),
+                ?, CAST(? AS uuid), ?, ?, CAST(? AS numeric) * 100, 0, CAST(? AS numeric) * 100,
                 CAST(? AS timestamptz),
                 CASE WHEN ? = 'CONFIRMADA' THEN now() ELSE NULL END)
         """,
@@ -786,7 +790,7 @@ class CardPaymentIT extends IntegrationTestBase {
         INSERT INTO movement_details (id, movement_id, product_id, seller_id, product_name,
                                       product_description, quantity, unit_price, line_amount,
                                       validity_days, implementation)
-        SELECT ?, ?, p.id, ?, p.name, p.description, 1, CAST(? AS numeric), CAST(? AS numeric),
+        SELECT ?, ?, p.id, ?, p.name, p.description, 1, CAST(? AS numeric) * 100, CAST(? AS numeric) * 100,
                p.validity_days, p.implementation FROM products p WHERE p.id = ?
         """,
         UUID.randomUUID(),
@@ -831,7 +835,7 @@ class CardPaymentIT extends IntegrationTestBase {
     jdbc.update(
         "INSERT INTO products (scope, implementation, id, code, type, name, description,"
             + " price, currency_id, validity_days, status)"
-            + " VALUES ('TIENDA', 'AUTOMATICA', ?, ?, 'BOT', ?, 'x', 100.00, CAST(? AS uuid), 30,"
+            + " VALUES ('TIENDA', 'AUTOMATICA', ?, ?, 'BOT', ?, 'x', 10000, CAST(? AS uuid), 30,"
             + " 'ACTIVO')",
         id,
         codigo,

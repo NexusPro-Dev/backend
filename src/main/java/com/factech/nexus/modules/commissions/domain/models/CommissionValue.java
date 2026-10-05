@@ -2,7 +2,9 @@ package com.factech.nexus.modules.commissions.domain.models;
 
 import com.factech.nexus.shared.error.FieldError;
 import com.factech.nexus.shared.error.ValidationException;
+import com.factech.nexus.shared.persistence.MinorUnitsConverter;
 import jakarta.persistence.Column;
+import jakarta.persistence.Convert;
 import jakarta.persistence.Embeddable;
 import jakarta.persistence.EnumType;
 import jakarta.persistence.Enumerated;
@@ -65,11 +67,11 @@ public class CommissionValue {
   /**
    * Presente solo si la forma es {@link CommissionRateType#FIJO}.
    *
-   * <p>{@code numeric(14,4)}, la misma forma que {@code products.price}, porque la escala real la
-   * decide la moneda ({@code currencies.decimal_places}, de 0 a 4). Con menos decimales, una
-   * comisión en una moneda de cuatro no se podría expresar.
+   * <p>En la base, {@code bigint} en centésimas, como {@code products.price} (ADR-006): ningún
+   * importe pasa de dos decimales desde que {@code currencies.decimal_places} va de 0 a 2.
    */
-  @Column(name = "fixed_amount", precision = 14, scale = 4)
+  @Column(name = "fixed_amount")
+  @Convert(converter = MinorUnitsConverter.class)
   private BigDecimal fixedAmount;
 
   /** Exigido por JPA. */

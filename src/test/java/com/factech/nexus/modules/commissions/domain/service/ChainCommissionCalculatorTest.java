@@ -34,7 +34,36 @@ class ChainCommissionCalculatorTest {
     assertThat(v.outcome()).isEqualTo(AccrualOutcome.DEVENGADA);
     assertThat(v.commissions().get(0).amount()).isEqualByComparingTo("30");
     assertThat(v.commissions().get(1).amount()).isEqualByComparingTo("9");
-    assertThat(v.commissions().get(0).amount().scale()).isEqualTo(4);
+    // Lo que devenga sale en las centésimas que se guardan (`V65`, `CA-CM-336`).
+    assertThat(v.commissions().get(0).amount().scale()).isEqualTo(2);
+  }
+
+  @Test
+  @DisplayName(
+      "CA-CM-336 — se calcula con cuatro decimales y se redondea HALF_UP a dos al devengar")
+  void redondeaAlDevengar() {
+    // El 10 % de 0,05 es 0,005: se guarda 0,01, y no 0,00 ni 0,005.
+    Verdict v =
+        ChainCommissionCalculator.calcular(
+            new BigDecimal("0.05"), 1, List.of(nivel(A, 0, porcentaje("10.00"))));
+
+    assertThat(v.outcome()).isEqualTo(AccrualOutcome.DEVENGADA);
+    assertThat(v.commissions().get(0).amount()).isEqualByComparingTo("0.01");
+    assertThat(v.commissions().get(0).amount().scale()).isEqualTo(2);
+  }
+
+  @Test
+  @DisplayName("CA-CM-336 — el tope se compara ANTES de redondear (`RN-CM-026`)")
+  void elTopeSeComparaSinRedondear() {
+    // 60 % + 40,01 % de 1,00 son 0,6000 + 0,4001 = 1,0001: pasa de la línea. Redondeado, la
+    // segunda daría 0,40 y la suma cabría justa; la regla mira lo calculado, no lo guardado.
+    Verdict v =
+        ChainCommissionCalculator.calcular(
+            new BigDecimal("1.00"),
+            1,
+            List.of(nivel(A, 0, porcentaje("60.00")), nivel(B, 1, porcentaje("40.01"))));
+
+    assertThat(v.outcome()).isEqualTo(AccrualOutcome.RECHAZADA);
   }
 
   @Test

@@ -74,7 +74,7 @@ class ConfirmSaleConcurrencyIT extends IntegrationTestBase {
         "INSERT INTO products (scope, implementation, id, code, type, name, description,"
             + " source_membership_id, target_membership_id, price, currency_id, validity_days, status)"
             + " VALUES ('TIENDA', 'AUTOMATICA', ?, 'CC_VIP', 'UPGRADE_MEMBRESIA', 'Ascenso', 'x',"
-            + " CAST(? AS uuid), CAST(? AS uuid), 100.00, CAST(? AS uuid), 30, 'ACTIVO')",
+            + " CAST(? AS uuid), CAST(? AS uuid), 10000, CAST(? AS uuid), 30, 'ACTIVO')",
         producto,
         BECA,
         VIP,
@@ -87,7 +87,7 @@ class ConfirmSaleConcurrencyIT extends IntegrationTestBase {
                                code, status, total_amount, discount_amount, payable_amount,
                                occurred_at)
         VALUES (?, CAST(? AS uuid), (SELECT s.id FROM movement_type_statuses s WHERE s.movement_type_id = CAST(? AS uuid) AND s.code = 'VALIDADO'), ?, CAST(? AS uuid), ?, 'PENDIENTE',
-                100.00, 0, 100.00, CAST(? AS timestamptz))
+                10000, 0, 10000, CAST(? AS timestamptz))
         """,
         venta,
         VENTA,
@@ -102,7 +102,7 @@ class ConfirmSaleConcurrencyIT extends IntegrationTestBase {
         INSERT INTO movement_details (id, movement_id, product_id, seller_id, product_name,
                                       product_description, quantity, unit_price, line_amount,
                                       validity_days, implementation)
-        VALUES (?, ?, ?, ?, 'Ascenso', 'x', 1, 100.00, 100.00, 30, 'AUTOMATICA')
+        VALUES (?, ?, ?, ?, 'Ascenso', 'x', 1, 10000, 10000, 30, 'AUTOMATICA')
         """,
         UUID.randomUUID(),
         venta,

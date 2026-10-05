@@ -1,9 +1,9 @@
 package com.factech.nexus.modules.commissions.domain.repository;
 
+import com.factech.nexus.shared.persistence.MinorUnits;
 import jakarta.persistence.EntityManager;
 import jakarta.persistence.Query;
 import jakarta.persistence.Tuple;
-import java.math.BigDecimal;
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -134,8 +134,8 @@ public class JpaAfftrackSettlementQueryRepository implements AfftrackSettlementQ
         ((Number) fila.get("paid_ftds")).intValue(),
         ((Number) fila.get("carried_out")).intValue(),
         (String) fila.get("source"),
-        (BigDecimal) fila.get("amount_per_ftd"),
-        (BigDecimal) fila.get("amount"));
+        MinorUnits.fromMinor(fila.get("amount_per_ftd")),
+        MinorUnits.fromMinor(fila.get("amount")));
   }
 
   private static final class Filtro {

@@ -200,7 +200,7 @@ class ProductImageIT extends IntegrationTestBase {
     jdbc.update(
         "INSERT INTO products (scope, implementation, id, code, type, name, description, price,"
             + " currency_id, status, created_at, updated_at)"
-            + " VALUES (?, 'MANUAL', CAST(? AS uuid), ?, 'BOT', ?, 'Descripción.', 49.99,"
+            + " VALUES (?, 'MANUAL', CAST(? AS uuid), ?, 'BOT', ?, 'Descripción.', 4999,"
             + " CAST(? AS uuid), 'INACTIVO', now(), now())",
         alcance,
         id.toString(),

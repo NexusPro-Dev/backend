@@ -270,7 +270,7 @@ class ProductListIT extends IntegrationTestBase {
   void laConversionLlegaResuelta() throws Exception {
     String cop = insertarMoneda("COP", "Peso colombiano");
     jdbc.update(
-        "UPDATE products SET currency_id = CAST(? AS uuid), price = 1000.00"
+        "UPDATE products SET currency_id = CAST(? AS uuid), price = 100000"
             + " WHERE code = 'UPGRADE_ORO'",
         cop);
     jdbc.update(
@@ -485,8 +485,7 @@ class ProductListIT extends IntegrationTestBase {
   @Test
   @DisplayName("`CA-PM-151` — cada fila trae los DOS precios, y el de compra nulo y presente")
   void cadaFilaTraeLosDosPrecios() throws Exception {
-    jdbc.update(
-        "UPDATE products SET purchase_price = CAST('59.99' AS numeric) WHERE code = 'UPGRADE_ORO'");
+    jdbc.update("UPDATE products SET purchase_price = 5999 WHERE code = 'UPGRADE_ORO'");
 
     // El listado y el detalle son los DOS ÚNICOS sitios donde los dos importes
     // se ven juntos, y lo que los separa de la oferta es `products:read`.
@@ -728,7 +727,7 @@ class ProductListIT extends IntegrationTestBase {
             + " target_membership_id, price,"
             + " currency_id, validity_days, status, created_at, updated_at)"
             + " VALUES ('TIENDA', 'MANUAL', CAST(? AS uuid), ?, ?, ?, NULL,"
-            + " CAST(? AS uuid), CAST(? AS uuid), CAST(? AS numeric),"
+            + " CAST(? AS uuid), CAST(? AS uuid), CAST(? AS numeric) * 100,"
             + " CAST(? AS uuid), CAST(? AS integer), ?, ?, ?)",
         UUID.randomUUID().toString(),
         codigo,

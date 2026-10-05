@@ -397,7 +397,7 @@ class SaleLinesIT extends IntegrationTestBase {
                 (SELECT s.id FROM movement_type_statuses s
                   WHERE s.movement_type_id = CAST(? AS uuid) AND s.code = 'VALIDADO'),
                 ?, CAST(? AS uuid), 'DEP-SL-0001',
-                'CONFIRMADA', 50.00, 0, 50.00, CAST(? AS timestamptz),
+                'CONFIRMADA', 5000, 0, 5000, CAST(? AS timestamptz),
                 -- `ck_movements_confirmed`: una confirmada lleva su fecha.
                 CAST(? AS timestamptz))
         """,
@@ -414,7 +414,7 @@ class SaleLinesIT extends IntegrationTestBase {
         INSERT INTO movement_details (id, movement_id, product_id, seller_id, product_name,
                                       quantity, unit_price, line_amount, implementation,
                                       delivery_status)
-        SELECT ?, ?, p.id, NULL, p.name, 1, 50.00, 50.00, p.implementation, 'PENDIENTE'
+        SELECT ?, ?, p.id, NULL, p.name, 1, 5000, 5000, p.implementation, 'PENDIENTE'
           FROM products p WHERE p.id = ?
         """,
         UUID.randomUUID(),
@@ -616,7 +616,7 @@ class SaleLinesIT extends IntegrationTestBase {
         "INSERT INTO products (scope, implementation, id, code, type, name, description,"
             + " source_membership_id, target_membership_id, price, currency_id, validity_days,"
             + " status) VALUES ('TIENDA', 'AUTOMATICA', ?, ?, 'BOT', ?, 'Producto de prueba',"
-            + " NULL, NULL, 100.00, CAST(? AS uuid), NULL, 'ACTIVO')",
+            + " NULL, NULL, 10000, CAST(? AS uuid), NULL, 'ACTIVO')",
         id,
         codigo,
         nombre,
@@ -649,7 +649,7 @@ class SaleLinesIT extends IntegrationTestBase {
                 (SELECT s.id FROM movement_type_statuses s
                   WHERE s.movement_type_id = CAST(? AS uuid) AND s.code = ?),
                 ?, CAST(? AS uuid), ?, ?,
-                300.00, 20.00, 280.00, CAST(? AS timestamptz),
+                30000, 2000, 28000, CAST(? AS timestamptz),
                 CASE WHEN ? = 'CONFIRMADA' THEN CAST(? AS timestamptz) ELSE NULL END,
                 CASE WHEN ? = 'ANULADA' THEN now() ELSE NULL END,
                 CASE WHEN ? = 'ANULADA' THEN 'Sembrada anulada' ELSE NULL END)
@@ -688,8 +688,8 @@ class SaleLinesIT extends IntegrationTestBase {
                                       product_description, quantity, unit_price, line_discount,
                                       line_amount, validity_days, implementation,
                                       delivery_status, delivered_at, delivery_note)
-        SELECT ?, ?, p.id, ?, p.name, p.description, ?, CAST(? AS numeric), CAST(? AS numeric),
-               CAST(? AS numeric), ?, p.implementation, ?, CAST(? AS timestamptz),
+        SELECT ?, ?, p.id, ?, p.name, p.description, ?, CAST(? AS numeric) * 100, CAST(? AS numeric) * 100,
+               CAST(? AS numeric) * 100, ?, p.implementation, ?, CAST(? AS timestamptz),
                CASE WHEN ? = 'RETENIDA' THEN 'Retenida por revision' ELSE NULL END
           FROM products p WHERE p.id = ?
         """,

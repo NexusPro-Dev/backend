@@ -61,7 +61,7 @@ class ConfirmPaymentIT extends IntegrationTestBase {
     jdbc.update(
         "INSERT INTO products (scope, implementation, id, code, type, name, description,"
             + " price, currency_id, validity_days, status)"
-            + " VALUES ('TIENDA', 'AUTOMATICA', ?, 'CP_BOT', 'BOT', 'Bot CP', 'Un bot', 100.00,"
+            + " VALUES ('TIENDA', 'AUTOMATICA', ?, 'CP_BOT', 'BOT', 'Bot CP', 'Un bot', 10000,"
             + " CAST(? AS uuid), 15, 'ACTIVO')",
         bot,
         USD);
@@ -426,7 +426,7 @@ class ConfirmPaymentIT extends IntegrationTestBase {
         INSERT INTO movement_details (id, movement_id, product_id, seller_id, product_name,
                                       product_description, quantity, unit_price, line_amount,
                                       validity_days, implementation)
-        SELECT gen_random_uuid(), ?, p.id, ?, p.name, p.description, 1, 100.00, 100.00,
+        SELECT gen_random_uuid(), ?, p.id, ?, p.name, p.description, 1, 10000, 10000,
                p.validity_days, p.implementation
           FROM products p WHERE p.id = ?
         """,
@@ -447,7 +447,7 @@ class ConfirmPaymentIT extends IntegrationTestBase {
                 (SELECT s.id FROM movement_type_statuses s
                   WHERE s.movement_type_id = CAST(? AS uuid)
                     AND s.code IN ('VALIDADO', 'REGISTRADO')),
-                ?, CAST(? AS uuid), ?, 'PENDIENTE', 100.00, 0, 100.00, now())
+                ?, CAST(? AS uuid), ?, 'PENDIENTE', 10000, 0, 10000, now())
         """,
         id,
         tipo,

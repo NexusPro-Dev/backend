@@ -412,7 +412,7 @@ class ProductDeletionIT extends IntegrationTestBase {
             + " currency_id, validity_days, status, created_at, updated_at)"
             + " VALUES ('TIENDA', 'MANUAL', CAST(? AS uuid), ?, ?, ?, CAST(? AS text),"
             + " CAST(? AS uuid), CAST(? AS uuid),"
-            + " CAST(? AS numeric), CAST(? AS uuid), NULL, 'INACTIVO', ?, ?)",
+            + " CAST(? AS numeric) * 100, CAST(? AS uuid), NULL, 'INACTIVO', ?, ?)",
         id.toString(),
         codigo,
         tipo,

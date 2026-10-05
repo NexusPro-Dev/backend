@@ -52,8 +52,8 @@ public record RegisterUserCommissionRateRequest(
     @DecimalMin(value = "0.0000", message = "VAL-012: El valor fijo no puede ser negativo.")
         @Digits(
             integer = 10,
-            fraction = 4,
-            message = "VAL-012: El valor fijo admite como mucho cuatro decimales.")
+            fraction = 2,
+            message = "VAL-012: El valor fijo admite como mucho dos decimales.")
         BigDecimal fixedAmount,
     @NotNull(message = "VAL-004: El inicio de vigencia es obligatorio.") LocalDate validFrom,
     LocalDate validTo) {

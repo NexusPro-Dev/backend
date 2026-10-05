@@ -1,6 +1,7 @@
 package com.factech.nexus.modules.commissions.domain.repository;
 
 import com.factech.nexus.modules.commissions.domain.models.BatchStatus;
+import com.factech.nexus.shared.persistence.MinorUnits;
 import jakarta.persistence.EntityManager;
 import jakarta.persistence.Query;
 import java.math.BigDecimal;
@@ -159,10 +160,10 @@ public class JpaCommissionBatchQueryRepository implements CommissionBatchQueryRe
         (UUID) f[8],
         (String) f[9],
         (BigDecimal) f[10],
-        (BigDecimal) f[11],
-        (BigDecimal) f[12],
+        MinorUnits.fromMinor(f[11]),
+        MinorUnits.fromMinor(f[12]),
         ((Number) f[13]).intValue(),
-        (BigDecimal) f[14],
+        MinorUnits.fromMinor(f[14]),
         fecha(f[15]),
         instante(f[16]),
         (String) f[17],
@@ -195,11 +196,11 @@ public class JpaCommissionBatchQueryRepository implements CommissionBatchQueryRe
         instante(f[8]),
         instante(f[9]),
         BatchStatus.valueOf((String) f[10]),
-        (BigDecimal) f[11],
+        MinorUnits.fromMinor(f[11]),
         ((Number) f[12]).longValue(),
         instante(f[13]),
         (UUID) f[14],
-        (BigDecimal) f[15]);
+        MinorUnits.fromMinor(f[15]));
   }
 
   private static LocalDate fecha(Object valor) {

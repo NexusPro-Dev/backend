@@ -10,6 +10,7 @@ import com.factech.nexus.modules.movements.LedgerFixtures;
 import com.factech.nexus.modules.movements.application.CommissionPayout;
 import com.factech.nexus.modules.movements.application.CommissionPayout.PayoutOrder;
 import com.factech.nexus.modules.movements.application.CommissionPayout.PayoutResult;
+import com.factech.nexus.shared.persistence.MinorUnits;
 import java.math.BigDecimal;
 import java.util.UUID;
 import org.junit.jupiter.api.AfterEach;
@@ -79,9 +80,10 @@ class CommissionPayoutIT extends IntegrationTestBase {
                 hecho.movementId()))
         .isEqualTo("CONFIRMADA|Comisión del lote LOT-20260926-ABC123");
     assertThat(
-            jdbc.queryForObject(
-                "SELECT balance FROM accounts WHERE user_id IS NULL AND kind = 'COMISIONES'",
-                BigDecimal.class))
+            MinorUnits.fromMinor(
+                jdbc.queryForObject(
+                    "SELECT balance FROM accounts WHERE user_id IS NULL AND kind = 'COMISIONES'",
+                    Long.class)))
         .isEqualByComparingTo("-12.35");
   }
 

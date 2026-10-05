@@ -66,7 +66,7 @@ final class ClassroomTestSupport {
     UUID id = UUID.randomUUID();
     jdbc.update(
         "INSERT INTO products (id, code, type, name, price, currency_id, scope, implementation,"
-            + " status) VALUES (?, ?, 'BOT', ?, 100,"
+            + " status) VALUES (?, ?, 'BOT', ?, 10000,"
             + " (SELECT id FROM currencies ORDER BY code LIMIT 1), 'NINGUNO', 'AUTOMATICA',"
             + " 'ACTIVO')",
         id,

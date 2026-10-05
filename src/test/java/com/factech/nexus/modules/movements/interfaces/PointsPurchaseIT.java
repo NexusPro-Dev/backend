@@ -18,6 +18,7 @@ import com.factech.nexus.IntegrationTestBase;
 import com.factech.nexus.modules.movements.PaymentFixtures;
 import com.factech.nexus.modules.movements.PointsFixtures;
 import com.factech.nexus.modules.movements.domain.service.CreditService;
+import com.factech.nexus.shared.persistence.MinorUnits;
 import com.jayway.jsonpath.JsonPath;
 import java.math.BigDecimal;
 import java.util.ArrayList;
@@ -646,9 +647,11 @@ class PointsPurchaseIT extends IntegrationTestBase {
   }
 
   private BigDecimal emitidos() {
-    return jdbc.queryForObject(
-        "SELECT balance FROM accounts WHERE user_id IS NULL AND kind = 'PUNTOS_EMITIDOS'",
-        BigDecimal.class);
+    // En centésimas en la base (ADR-006), también los puntos.
+    return MinorUnits.fromMinor(
+        jdbc.queryForObject(
+            "SELECT balance FROM accounts WHERE user_id IS NULL AND kind = 'PUNTOS_EMITIDOS'",
+            Long.class));
   }
 
   private int auditoriaDe(UUID compra, String accion) {

@@ -221,8 +221,7 @@ class ProductDetailIT extends IntegrationTestBase {
         .andExpect(content().string(Matchers.containsString("\"purchasePrice\":null")));
 
     jdbc.update(
-        "UPDATE products SET purchase_price = CAST('59.99' AS numeric) WHERE id = CAST(? AS uuid)",
-        upgrade.toString());
+        "UPDATE products SET purchase_price = 5999 WHERE id = CAST(? AS uuid)", upgrade.toString());
 
     // Y los dos salen con los decimales de SU moneda, con la misma función:
     // escrita dos veces, el mismo producto enseñaría uno con dos decimales y
@@ -557,7 +556,7 @@ class ProductDetailIT extends IntegrationTestBase {
             + " target_membership_id, price,"
             + " currency_id, validity_days, status, created_at, updated_at)"
             + " VALUES ('TIENDA', 'MANUAL', CAST(? AS uuid), ?, ?, ?, NULL,"
-            + " CAST(? AS uuid), CAST(? AS uuid), CAST(? AS numeric),"
+            + " CAST(? AS uuid), CAST(? AS uuid), CAST(? AS numeric) * 100,"
             + " CAST(? AS uuid), CAST(? AS integer), 'INACTIVO', ?, ?)",
         id.toString(),
         codigo,

@@ -78,7 +78,7 @@ class HotlinkCatalogIT extends IntegrationTestBase {
         imagen.toString());
     jdbc.update(
         "UPDATE products SET cover_image_id = CAST(? AS uuid),"
-            + " purchase_price = 60.00 WHERE code = 'HL_ORO'",
+            + " purchase_price = 6000 WHERE code = 'HL_ORO'",
         imagen.toString());
     ProductLinkTestSupport.enlace(
         jdbc, "HL_ORO", "VIDEO_PRESENTACION", "https://vimeo.com/1", null);
@@ -357,7 +357,7 @@ class HotlinkCatalogIT extends IntegrationTestBase {
             + " source_membership_id, target_membership_id, price, currency_id, status,"
             + " created_at, updated_at, deleted_at)"
             + " VALUES (?, 'MANUAL', CAST(? AS uuid), ?, ?, ?, 'Descripción de prueba', ?,"
-            + " CAST(? AS uuid), CAST(? AS uuid), CAST(? AS numeric), CAST(? AS uuid), ?, ?, ?,"
+            + " CAST(? AS uuid), CAST(? AS uuid), CAST(? AS numeric) * 100, CAST(? AS uuid), ?, ?, ?,"
             + " CAST(? AS timestamptz))",
         alcance,
         UUID.randomUUID().toString(),

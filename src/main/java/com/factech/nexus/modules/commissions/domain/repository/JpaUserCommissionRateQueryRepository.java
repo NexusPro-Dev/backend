@@ -1,5 +1,6 @@
 package com.factech.nexus.modules.commissions.domain.repository;
 
+import com.factech.nexus.shared.persistence.MinorUnits;
 import jakarta.persistence.EntityManager;
 import jakarta.persistence.Query;
 import jakarta.persistence.Tuple;
@@ -126,13 +127,13 @@ public class JpaUserCommissionRateQueryRepository implements UserCommissionRateQ
         (UUID) fila.get("product_id"),
         (String) fila.get("product_code"),
         (String) fila.get("product_name"),
-        (BigDecimal) fila.get("product_price"),
+        MinorUnits.fromMinor(fila.get("product_price")),
         (UUID) fila.get("currency_id"),
         (String) fila.get("currency_code"),
         ((Number) fila.get("decimal_places")).intValue(),
         CommissionRows.forma(fila.get("rate_type")),
         (BigDecimal) fila.get("percentage"),
-        (BigDecimal) fila.get("fixed_amount"),
+        MinorUnits.fromMinor(fila.get("fixed_amount")),
         CommissionRows.fecha(fila.get("valid_from")),
         CommissionRows.fecha(fila.get("valid_to")),
         CommissionRows.momento(fila.get("deleted_at")));

@@ -2,6 +2,8 @@ package com.factech.nexus.modules.commissions.interfaces;
 
 import static com.factech.nexus.modules.commissions.interfaces.CommissionFixtures.AGENTE;
 import static com.factech.nexus.modules.commissions.interfaces.CommissionFixtures.MANAGER;
+import static com.factech.nexus.modules.commissions.interfaces.CommissionFixtures.centesimas;
+import static com.factech.nexus.modules.commissions.interfaces.CommissionFixtures.importe;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.user;
@@ -14,7 +16,6 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import com.factech.nexus.IntegrationTestBase;
 import com.factech.nexus.modules.movements.PaymentFixtures;
 import com.factech.nexus.testing.CommissionCleanup;
-import java.math.BigDecimal;
 import java.time.OffsetDateTime;
 import java.util.Map;
 import java.util.UUID;
@@ -65,6 +66,7 @@ class AfftrackSettlementIT extends IntegrationTestBase {
   }
 
   private void limpiar() {
+    jdbc.execute("ALTER TABLE commissions DROP CONSTRAINT IF EXISTS ck_prueba_afftrack_falla");
     CommissionCleanup.limpiar(jdbc);
     jdbc.update("DELETE FROM user_afftrack_rates");
     jdbc.update("DELETE FROM afftrack_rates");
@@ -90,8 +92,8 @@ class AfftrackSettlementIT extends IntegrationTestBase {
         .containsEntry("carried_out", 5);
     Map<String, Object> comision = comisionAfftrack(vendedora);
     assertThat(comision.get("quantity")).isEqualTo(50);
-    assertThat((BigDecimal) comision.get("fixed_amount")).isEqualByComparingTo("8000");
-    assertThat((BigDecimal) comision.get("commission_amount")).isEqualByComparingTo("400000");
+    assertThat(importe(comision.get("fixed_amount"))).isEqualByComparingTo("8000");
+    assertThat(importe(comision.get("commission_amount"))).isEqualByComparingTo("400000");
     assertThat(comision.get("status")).isEqualTo("PENDIENTE");
   }
 
@@ -267,19 +269,29 @@ class AfftrackSettlementIT extends IntegrationTestBase {
     assertThat(c.get("currency_id"))
         .isEqualTo(
             jdbc.queryForObject("SELECT currency_id FROM products WHERE id = ?", UUID.class, ftd));
-    assertThat((BigDecimal) c.get("total_amount")).isEqualByComparingTo("200");
+    assertThat(importe(c.get("total_amount"))).isEqualByComparingTo("200");
   }
 
   @Test
   @DisplayName("CA-CM-252 · si la liquidación falla, el cierre se revierte entero")
   void fallaYRevierte() throws Exception {
-    // Un escalón cuyo `límite × valor` no cabe en `numeric(14,4)`: falla al escribir la comisión.
-    escalonDeRol(MANAGER, 2, "9999999999.9999");
+    // Hasta `V65` el fallo lo provocaba un `límite × valor` que no cabía en `numeric(14,4)`. En
+    // centésimas `bigint` ningún dato admitido llega al techo, así que lo provoca una restricción
+    // que solo existe en esta prueba: rechaza exactamente el importe testigo (2 × 100 = 200,00) y
+    // se retira al acabar, aquí y en la limpieza.
+    escalonDeRol(MANAGER, 2, "100");
     ftds(vendedora, 2);
-    mvc.perform(
-            post("/api/v1/commission-batches/closing")
-                .with(user(SUPERADMIN.toString()).authorities(() -> "commission-batches:settle")))
-        .andExpect(status().is5xxServerError());
+    jdbc.execute(
+        "ALTER TABLE commissions ADD CONSTRAINT ck_prueba_afftrack_falla"
+            + " CHECK (commission_amount <> 20000) NOT VALID");
+    try {
+      mvc.perform(
+              post("/api/v1/commission-batches/closing")
+                  .with(user(SUPERADMIN.toString()).authorities(() -> "commission-batches:settle")))
+          .andExpect(status().is5xxServerError());
+    } finally {
+      jdbc.execute("ALTER TABLE commissions DROP CONSTRAINT IF EXISTS ck_prueba_afftrack_falla");
+    }
     assertThat(jdbc.queryForObject("SELECT count(*) FROM afftrack_settlements", Long.class))
         .isZero();
     assertThat(jdbc.queryForObject("SELECT count(*) FROM afftrack_ftds", Long.class)).isZero();
@@ -517,7 +529,7 @@ class AfftrackSettlementIT extends IntegrationTestBase {
         .andExpect(status().isOk());
     Map<String, Object> c = comisionAfftrack(vendedora);
     assertThat(c.get("quantity")).isEqualTo(2);
-    assertThat((BigDecimal) c.get("fixed_amount")).isEqualByComparingTo("100");
+    assertThat(importe(c.get("fixed_amount"))).isEqualByComparingTo("100");
     assertThat(ultima(vendedora)).containsEntry("paid_ftds", 2);
   }
 
@@ -596,13 +608,13 @@ class AfftrackSettlementIT extends IntegrationTestBase {
     UUID id = UUID.randomUUID();
     jdbc.update(
         "INSERT INTO afftrack_rates (id, product_id, role_id, threshold, amount_per_ftd,"
-            + " created_at, updated_at) VALUES (?, ?, CAST(? AS uuid), ?, CAST(? AS numeric),"
+            + " created_at, updated_at) VALUES (?, ?, CAST(? AS uuid), ?, CAST(? AS bigint),"
             + " now(), now())",
         id,
         ftd,
         rol,
         limite,
-        valor);
+        centesimas(valor));
     return id;
   }
 
@@ -611,13 +623,13 @@ class AfftrackSettlementIT extends IntegrationTestBase {
     jdbc.update(
         "INSERT INTO user_afftrack_rates (id, user_id, product_id, threshold, amount_per_ftd,"
             + " valid_from, valid_to, created_at, updated_at)"
-            + " VALUES (?, ?, ?, ?, CAST(? AS numeric), CAST(? AS date), CAST(? AS date), now(),"
+            + " VALUES (?, ?, ?, ?, CAST(? AS bigint), CAST(? AS date), CAST(? AS date), now(),"
             + " now())",
         id,
         persona,
         ftd,
         limite,
-        valor,
+        centesimas(valor),
         desde,
         hasta);
     return id;

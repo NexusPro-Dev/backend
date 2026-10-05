@@ -191,7 +191,7 @@ class HotlinkIT extends IntegrationTestBase {
   @DisplayName("`CA-PM-161` — se publica `price` aunque el producto tenga precio de compra")
   void publicaElPrecioQueSeCobra() throws Exception {
     jdbc.update(
-        "UPDATE products SET price = 49.99, purchase_price = 30.00 WHERE code = 'HL_UPGRADE'");
+        "UPDATE products SET price = 4999, purchase_price = 3000 WHERE code = 'HL_UPGRADE'");
 
     mvc.perform(get("/api/v1/hotlinks/{u}/{c}", "hl-vendedora", "HL_UPGRADE"))
         .andExpect(status().isOk())
@@ -203,7 +203,7 @@ class HotlinkIT extends IntegrationTestBase {
   @DisplayName("`CA-PM-161` — sin precio de compra, la respuesta es exactamente la misma")
   void sinPrecioDeCompraLaRespuestaNoCambia() throws Exception {
     jdbc.update(
-        "UPDATE products SET price = 49.99, purchase_price = NULL WHERE code = 'HL_UPGRADE'");
+        "UPDATE products SET price = 4999, purchase_price = NULL WHERE code = 'HL_UPGRADE'");
     String sinCosto =
         mvc.perform(get("/api/v1/hotlinks/{u}/{c}", "hl-vendedora", "HL_UPGRADE"))
             .andExpect(status().isOk())
@@ -212,7 +212,7 @@ class HotlinkIT extends IntegrationTestBase {
             .getResponse()
             .getContentAsString();
 
-    jdbc.update("UPDATE products SET purchase_price = 30.00 WHERE code = 'HL_UPGRADE'");
+    jdbc.update("UPDATE products SET purchase_price = 3000 WHERE code = 'HL_UPGRADE'");
     String conCosto =
         mvc.perform(get("/api/v1/hotlinks/{u}/{c}", "hl-vendedora", "HL_UPGRADE"))
             .andReturn()
@@ -229,7 +229,7 @@ class HotlinkIT extends IntegrationTestBase {
   @DisplayName("`CA-PM-162` — la conversión se calcula sobre `price`, nunca sobre el costo")
   void laConversionSaleDelPrecio() throws Exception {
     productoEnMoneda("HL_DOS_PRECIOS", "Dos precios", cop, "1000.00");
-    jdbc.update("UPDATE products SET purchase_price = 2000.00 WHERE code = 'HL_DOS_PRECIOS'");
+    jdbc.update("UPDATE products SET purchase_price = 200000 WHERE code = 'HL_DOS_PRECIOS'");
     tasa(cop, USD, "0.00024096", LocalDate.now().minusDays(1), null);
 
     // Si la conversión saliera del costo, con la tasa delante cualquiera podría
@@ -256,7 +256,7 @@ class HotlinkIT extends IntegrationTestBase {
     // Con enlace y con costo declarado: viaja el primero —la dirección que
     // administración escribió, sin seguirla— y el segundo no. Es la única
     // pareja de campos opcionales que esta lectura separa (`pm.md` §5.2.8).
-    jdbc.update("UPDATE products SET purchase_price = 30.00 WHERE code = 'HL_BOT'");
+    jdbc.update("UPDATE products SET purchase_price = 3000 WHERE code = 'HL_BOT'");
     ProductLinkTestSupport.enlace(
         jdbc, "HL_BOT", "VIDEO_PRESENTACION", "https://Vimeo.com/123456/", null);
 
@@ -343,7 +343,7 @@ class HotlinkIT extends IntegrationTestBase {
             + " 'image/png', decode('89504E470D0A1A0A00', 'hex'))",
         imagen.toString());
     jdbc.update(
-        "UPDATE products SET cover_image_id = CAST(? AS uuid), purchase_price = 30.00"
+        "UPDATE products SET cover_image_id = CAST(? AS uuid), purchase_price = 3000"
             + " WHERE code = 'HL_BOT'",
         imagen.toString());
 
@@ -396,7 +396,7 @@ class HotlinkIT extends IntegrationTestBase {
   @DisplayName("`CA-PM-163` — el precio de compra NO aparece en el cuerpo, bajo ningún nombre")
   void elPrecioDeCompraNoViajaSinToken() throws Exception {
     jdbc.update(
-        "UPDATE products SET price = 49.99, purchase_price = 30.00 WHERE code = 'HL_UPGRADE'");
+        "UPDATE products SET price = 4999, purchase_price = 3000 WHERE code = 'HL_UPGRADE'");
 
     String cuerpo =
         mvc.perform(get("/api/v1/hotlinks/{u}/{c}", "hl-vendedora", "HL_UPGRADE"))
@@ -666,7 +666,7 @@ class HotlinkIT extends IntegrationTestBase {
         "INSERT INTO products (scope, implementation, id, code, type, name, source_membership_id,"
             + " target_membership_id, price, currency_id, status, deleted_at)"
             + " VALUES (?, 'MANUAL', CAST(? AS uuid), ?, ?, ?, CAST(? AS uuid),"
-            + " CAST(? AS uuid), CAST(? AS numeric), CAST(? AS uuid), ?, CAST(? AS timestamptz))",
+            + " CAST(? AS uuid), CAST(? AS numeric) * 100, CAST(? AS uuid), ?, CAST(? AS timestamptz))",
         alcance,
         UUID.randomUUID().toString(),
         codigo,
@@ -686,7 +686,7 @@ class HotlinkIT extends IntegrationTestBase {
         "INSERT INTO products (scope, implementation, id, code, type, name, source_membership_id,"
             + " target_membership_id, price, currency_id, status)"
             + " VALUES ('AMBOS', 'MANUAL', CAST(? AS uuid), ?, 'UPGRADE_MEMBRESIA', ?,"
-            + " CAST(? AS uuid), CAST(? AS uuid), 49.99, CAST(? AS uuid), 'ACTIVO')",
+            + " CAST(? AS uuid), CAST(? AS uuid), 4999, CAST(? AS uuid), 'ACTIVO')",
         UUID.randomUUID().toString(),
         codigo,
         nombre,

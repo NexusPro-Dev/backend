@@ -10,6 +10,7 @@ import com.factech.nexus.modules.products.domain.service.ProductExchangeResolver
 import com.factech.nexus.modules.products.domain.service.ProductLinkReader;
 import com.factech.nexus.modules.system.users.application.CurrentMembershipLookup;
 import com.factech.nexus.modules.system.users.application.RegistrableProductLookup;
+import com.factech.nexus.shared.persistence.MinorUnits;
 import jakarta.persistence.EntityManager;
 import jakarta.persistence.Tuple;
 import java.math.BigDecimal;
@@ -214,7 +215,7 @@ public class PublishedProductCatalog implements ProductCatalog, RegistrableProdu
         (String) fila.get("name"),
         (String) fila.get("description"),
         "UPGRADE_MEMBRESIA".equals(fila.get("type")),
-        (BigDecimal) fila.get("price"),
+        MinorUnits.fromMinor(fila.get("price")),
         (UUID) fila.get("c_id"),
         (String) fila.get("c_code"),
         ((Number) fila.get("c_decimales")).intValue(),

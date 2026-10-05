@@ -64,10 +64,12 @@ class PayCommissionBatchIT extends IntegrationTestBase {
       "CA-CM-189 — pagar un lote PENDIENTE lo deja PAGADO con fecha y movimiento, y la billetera"
           + " sube en el total REDONDEADO a la moneda")
   void pagaYAbona() throws Exception {
-    // El lote suma 3,3350 con cuatro decimales: la billetera recibe 3,34.
+    // Hasta `V65` el lote sumaba con cuatro decimales (3,3350) y la billetera recibía el total
+    // redondeado. Desde entonces el lote ya guarda centésimas, y el abono es exactamente su total
+    // (`CA-CM-337`): el redondeo de `RN-MV-044` sigue escrito, pero no cambia nada.
     CommissionFixtures.sembrarTasaDeRol(jdbc, producto, AGENTE, "3.33");
     UUID lote = pendiente(1);
-    jdbc.update("UPDATE commission_batches SET total_amount = 3.3350 WHERE id = ?", lote);
+    jdbc.update("UPDATE commission_batches SET total_amount = 334 WHERE id = ?", lote);
 
     mvc.perform(pagar(lote).with(como("commission-batches:pay")))
         .andExpect(status().isOk())
@@ -137,7 +139,7 @@ class PayCommissionBatchIT extends IntegrationTestBase {
         // El abono falló, y con él la transacción entera.
       }
     } finally {
-      jdbc.update("UPDATE commission_batches SET total_amount = 10 WHERE id = ?", lote);
+      jdbc.update("UPDATE commission_batches SET total_amount = 1000 WHERE id = ?", lote);
       jdbc.execute(
           "ALTER TABLE commission_batches ADD CONSTRAINT ck_commission_batches_total"
               + " CHECK (total_amount >= 0)");
@@ -232,10 +234,11 @@ class PayCommissionBatchIT extends IntegrationTestBase {
     return jdbc
         .queryForList(
             "SELECT balance FROM accounts WHERE user_id = ? AND kind = 'BILLETERA'",
-            BigDecimal.class,
+            Long.class,
             persona)
         .stream()
         .findFirst()
+        .map(CommissionFixtures::importe)
         .orElse(BigDecimal.ZERO);
   }
 

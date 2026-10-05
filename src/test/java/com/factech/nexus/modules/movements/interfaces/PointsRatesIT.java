@@ -205,8 +205,8 @@ class PointsRatesIT extends IntegrationTestBase {
                                status, total_amount, discount_amount, payable_amount,
                                occurred_at, points_rate_id, points_amount)
         SELECT gen_random_uuid(), t.id, s.id, ?, CAST(? AS uuid),
-               'PTS-' || substr(md5(random()::text), 1, 12), 'PENDIENTE', 10, 0, 10, now(), ?,
-               CAST(? AS numeric)
+               'PTS-' || substr(md5(random()::text), 1, 12), 'PENDIENTE', 1000, 0, 1000, now(), ?,
+               CAST(? AS numeric) * 100
           FROM movement_types t
           JOIN movement_type_statuses s ON s.movement_type_id = t.id AND s.code = 'REGISTRADO'
          WHERE t.code = 'COMPRA_PUNTOS'

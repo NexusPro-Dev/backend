@@ -195,7 +195,7 @@ class ListProductsServiceIT extends IntegrationTestBase {
   @DisplayName("`T-11` — y también al ordenar por precio, donde el empate se provoca a mano")
   void paginacionEstableConPreciosIguales() {
     sembrar(9);
-    jdbc.update("UPDATE products SET price = 10.0000");
+    jdbc.update("UPDATE products SET price = 1000");
 
     List<UUID> recorridos = recorrerTodo("price,asc", 2, 5);
 
@@ -323,7 +323,7 @@ class ListProductsServiceIT extends IntegrationTestBase {
             UUID.randomUUID().toString(),
             "VOL_" + i,
             "Producto " + i,
-            new BigDecimal(i + ".00"),
+            com.factech.nexus.shared.persistence.MinorUnits.toMinor(new BigDecimal(i + ".00")),
             USD,
             BASE,
             BASE

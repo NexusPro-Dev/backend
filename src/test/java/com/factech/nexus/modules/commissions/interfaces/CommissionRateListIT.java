@@ -60,7 +60,7 @@ class CommissionRateListIT extends IntegrationTestBase {
   @DisplayName("CA-CM-322 · cada tasa trae su directa, y presente y nula si no la declara")
   void cadaTasaTraeSuDirecta() throws Exception {
     jdbc.update(
-        "UPDATE commission_rates SET direct_rate_type = 'FIJO', direct_fixed_amount = 3"
+        "UPDATE commission_rates SET direct_rate_type = 'FIJO', direct_fixed_amount = 300"
             + " WHERE product_id = ? AND role_id = CAST(? AS uuid)",
         productoA,
         DIRECTOR);

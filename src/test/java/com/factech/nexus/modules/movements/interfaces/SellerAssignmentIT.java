@@ -523,7 +523,7 @@ class SellerAssignmentIT extends IntegrationTestBase {
                                currency_id, code, status, total_amount, discount_amount,
                                payable_amount, occurred_at)
         VALUES (?, CAST(? AS uuid), ?, ?, CAST(? AS uuid), ?, 'PENDIENTE',
-                10.00, 0, 10.00, now())
+                1000, 0, 1000, now())
         """,
         UUID.randomUUID(),
         VENTA,
@@ -596,7 +596,7 @@ class SellerAssignmentIT extends IntegrationTestBase {
     jdbc.update(
         "INSERT INTO products (scope, implementation, id, code, type, name, description,"
             + " price, currency_id, validity_days, status)"
-            + " VALUES ('TIENDA', 'AUTOMATICA', ?, ?, 'BOT', ?, 'x', 10.00, CAST(? AS uuid), 30,"
+            + " VALUES ('TIENDA', 'AUTOMATICA', ?, ?, 'BOT', ?, 'x', 1000, CAST(? AS uuid), 30,"
             + " 'ACTIVO')",
         id,
         codigo,

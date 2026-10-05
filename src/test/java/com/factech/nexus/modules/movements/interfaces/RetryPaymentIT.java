@@ -290,7 +290,7 @@ class RetryPaymentIT extends IntegrationTestBase {
         VALUES (?, CAST(? AS uuid),
                 (SELECT s.id FROM movement_type_statuses s
                   WHERE s.movement_type_id = CAST(? AS uuid) AND s.code = 'VALIDADO'),
-                ?, CAST(? AS uuid), ?, ?, CAST(? AS numeric), 0, CAST(? AS numeric),
+                ?, CAST(? AS uuid), ?, ?, CAST(? AS numeric) * 100, 0, CAST(? AS numeric) * 100,
                 CAST(? AS timestamptz),
                 CASE WHEN ? = 'CONFIRMADA' THEN now() ELSE NULL END,
                 CASE WHEN ? = 'ANULADA' THEN now() ELSE NULL END,
@@ -315,7 +315,7 @@ class RetryPaymentIT extends IntegrationTestBase {
         INSERT INTO movement_details (id, movement_id, product_id, seller_id, product_name,
                                       product_description, quantity, unit_price, line_amount,
                                       validity_days, implementation)
-        SELECT ?, ?, p.id, ?, p.name, p.description, 1, CAST(? AS numeric), CAST(? AS numeric),
+        SELECT ?, ?, p.id, ?, p.name, p.description, 1, CAST(? AS numeric) * 100, CAST(? AS numeric) * 100,
                p.validity_days, p.implementation FROM products p WHERE p.id = ?
         """,
         UUID.randomUUID(),
@@ -359,7 +359,7 @@ class RetryPaymentIT extends IntegrationTestBase {
     jdbc.update(
         "INSERT INTO products (scope, implementation, id, code, type, name, description,"
             + " price, currency_id, validity_days, status)"
-            + " VALUES ('TIENDA', 'MANUAL', ?, ?, 'BOT', ?, 'x', 100.00, CAST(? AS uuid), 30,"
+            + " VALUES ('TIENDA', 'MANUAL', ?, ?, 'BOT', ?, 'x', 10000, CAST(? AS uuid), 30,"
             + " 'ACTIVO')",
         id,
         codigo,

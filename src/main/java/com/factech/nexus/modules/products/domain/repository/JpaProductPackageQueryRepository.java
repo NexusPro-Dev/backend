@@ -3,10 +3,10 @@ package com.factech.nexus.modules.products.domain.repository;
 import com.factech.nexus.modules.products.application.ListPackagesRequest;
 import com.factech.nexus.modules.products.domain.models.DiscountType;
 import com.factech.nexus.modules.products.domain.models.DiscountValue;
+import com.factech.nexus.shared.persistence.MinorUnits;
 import jakarta.persistence.EntityManager;
 import jakarta.persistence.Query;
 import jakarta.persistence.Tuple;
-import java.math.BigDecimal;
 import java.sql.Timestamp;
 import java.time.Instant;
 import java.time.LocalDate;
@@ -283,7 +283,7 @@ public class JpaProductPackageQueryRepository implements ProductPackageQueryRepo
                 JpaProductQueryRepository.fila(fila),
                 DiscountValue.leido(
                     DiscountType.valueOf((String) fila.get("discount_type")),
-                    (BigDecimal) fila.get("discount_value")),
+                    MinorUnits.fromMinor(fila.get("discount_value"))),
                 fila.get("deleted_at") != null));
       }
     }
@@ -383,8 +383,8 @@ public class JpaProductPackageQueryRepository implements ProductPackageQueryRepo
         (String) fila.get("p_type"),
         (String) fila.get("p_status"),
         momento(fila.get("p_deleted_at")),
-        (BigDecimal) fila.get("p_price"),
-        (BigDecimal) fila.get("p_purchase_price"),
+        MinorUnits.fromMinor(fila.get("p_price")),
+        MinorUnits.fromMinor(fila.get("p_purchase_price")),
         (UUID) fila.get("p_currency_id"),
         (UUID) fila.get("p_source_membership_id"),
         // `RN-PM-018` (03-10-2026): el salto, con los niveles de hoy. Dos subconsultas
@@ -392,7 +392,7 @@ public class JpaProductPackageQueryRepository implements ProductPackageQueryRepo
         // proyección no tienen que repetir sus uniones, y no suman ninguna sentencia.
         Boolean.TRUE.equals(fila.get("p_salta")),
         (String) fila.get("discount_type"),
-        (BigDecimal) fila.get("discount_value"),
+        MinorUnits.fromMinor(fila.get("discount_value")),
         momento(fila.get("i_created_at")));
   }
 

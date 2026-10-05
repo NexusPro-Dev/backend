@@ -213,9 +213,10 @@ public interface ProductCatalog {
    * es una decisión de `PM` y puede ampliarse —renovaciones del mismo nivel, por ejemplo—, y esta
    * regla no puede depender de que otro módulo siga decidiendo lo mismo.
    *
-   * <p><b>{@code price} llega con la escala de la columna</b> ({@code numeric(14,4)}), de modo que
-   * {@code 49.99} llega como {@code 49.9900}. Quien lo compare con los decimales de su moneda debe
-   * usar {@link ProductPrice#cabeEn}, que mide la escala significativa.
+   * <p><b>{@code price} llega con escala dos</b>, la de las centésimas en que se guarda (ADR-006),
+   * y no con la de su moneda: en una moneda sin fracción, {@code 50} llega como {@code 50.00}.
+   * Quien lo compare con los decimales de su moneda debe usar {@link ProductPrice#cabeEn}, que mide
+   * la escala significativa.
    *
    * <p>{@code validityDays} nulo significa <b>no caduca</b> (`RN-PM-015`), no «sin dato».
    *

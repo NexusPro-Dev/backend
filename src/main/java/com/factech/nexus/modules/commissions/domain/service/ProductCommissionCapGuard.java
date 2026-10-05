@@ -214,8 +214,8 @@ public class ProductCommissionCapGuard {
 
   /**
    * `compareTo` y no `equals`: `0`, `0.00` y `0.0000` son el mismo cero con distinta escala, y
-   * `equals` los daría por distintos — la fila leída de la base llega con la escala de la columna,
-   * `numeric(14,4)`.
+   * `equals` los daría por distintos — el precio leído llega con la escala de las centésimas, dos
+   * (ADR-006), y el que se compara puede traer otra.
    */
   private static boolean esGratuito(BigDecimal precio) {
     return precio.compareTo(BigDecimal.ZERO) == 0;

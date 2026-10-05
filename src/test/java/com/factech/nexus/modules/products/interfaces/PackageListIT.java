@@ -187,8 +187,8 @@ class PackageListIT extends IntegrationTestBase {
         .andExpect(jsonPath("$.content[1].code").value("BARATO"))
         .andExpect(jsonPath("$.content[2].code").value("CARO"));
     // CARO baja a 269.10 + 0 = 269.10; BARATO sube a 10 + 500 = 510 (50 % de 1000).
-    jdbc.update("UPDATE products SET price = 20.00 WHERE id = ?", botCaro);
-    jdbc.update("UPDATE products SET price = 1000.00 WHERE code = 'BOT_B'");
+    jdbc.update("UPDATE products SET price = 2000 WHERE id = ?", botCaro);
+    jdbc.update("UPDATE products SET price = 100000 WHERE code = 'BOT_B'");
     mvc.perform(listar("?sort=price"))
         .andExpect(jsonPath("$.content[0].code").value("VACIO"))
         .andExpect(jsonPath("$.content[1].code").value("CARO"))

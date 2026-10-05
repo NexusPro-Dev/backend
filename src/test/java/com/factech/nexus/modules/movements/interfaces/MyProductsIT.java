@@ -513,7 +513,7 @@ class MyProductsIT extends IntegrationTestBase {
         "INSERT INTO products (scope, implementation, id, code, type, name, description, source_membership_id,"
             + " target_membership_id, price, currency_id, validity_days, status)"
             + " VALUES ('TIENDA', ?, ?, ?, 'BOT', ?, 'Producto de prueba', NULL,"
-            + " NULL, 100.00, CAST(? AS uuid), NULL, 'ACTIVO')",
+            + " NULL, 10000, CAST(? AS uuid), NULL, 'ACTIVO')",
         implementacion,
         id,
         codigo,
@@ -551,7 +551,7 @@ class MyProductsIT extends IntegrationTestBase {
                                payable_amount, occurred_at, confirmed_at,
                                voided_at, void_reason, rejected_at, rejection_reason)
         VALUES (?, CAST(? AS uuid), (SELECT s.id FROM movement_type_statuses s WHERE s.movement_type_id = CAST(? AS uuid) AND s.code = 'VALIDADO'), ?, CAST(? AS uuid), ?, ?,
-                100.00, 0, 100.00, CAST(? AS timestamptz),
+                10000, 0, 10000, CAST(? AS timestamptz),
                 CASE WHEN ? = 'CONFIRMADA' THEN CAST(? AS timestamptz) ELSE NULL END,
                 -- `ck_movements_voided`: una anulada lleva fecha y motivo, y solo ella.
                 CASE WHEN ? = 'ANULADA' THEN now() ELSE NULL END,
@@ -585,7 +585,7 @@ class MyProductsIT extends IntegrationTestBase {
                                       product_description, quantity, unit_price, line_amount,
                                       validity_days, implementation, delivery_status, delivered_at,
                                       delivery_note)
-        SELECT ?, ?, p.id, ?, p.name, p.description, 1, 100.00, 100.00, ?, p.implementation, ?,
+        SELECT ?, ?, p.id, ?, p.name, p.description, 1, 10000, 10000, ?, p.implementation, ?,
                CAST(? AS timestamptz), CASE WHEN ? = 'RETENIDA' THEN 'Retenida' ELSE NULL END
           FROM products p WHERE p.id = ?
         """,

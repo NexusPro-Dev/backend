@@ -3,6 +3,7 @@ package com.factech.nexus.modules.commissions.domain.service;
 import com.factech.nexus.modules.commissions.domain.models.AccrualOutcome;
 import com.factech.nexus.modules.commissions.domain.models.CommissionRateType;
 import com.factech.nexus.modules.commissions.domain.repository.CommissionResolutionRepository.ResolvedRate;
+import com.factech.nexus.shared.persistence.MinorUnits;
 import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.util.ArrayList;
@@ -28,8 +29,11 @@ import java.util.UUID;
  *       no tiene tope (`RN-CM-020`); un porcentaje de cero es cero y no suma.
  * </ul>
  *
- * <p>Los importes se calculan con <b>cuatro decimales</b>, la escala de {@code commission_amount}:
- * el redondeo a la moneda ocurre al pagar (`RN-MV-044`), no aquí.
+ * <p>Los importes se calculan con <b>cuatro decimales</b> y el tope se compara con ellos, sin
+ * redondear (`RN-CM-026`). <b>Solo lo que devenga se redondea</b>, con {@code HALF_UP} a dos
+ * decimales, porque {@code commission_amount} guarda centésimas desde `V65` (ADR-006, `CA-CM-336`).
+ * Se redondea aquí, en el dominio, y no en el convertidor: el lote suma estas cifras ya redondeadas
+ * y el abono paga exactamente esa suma.
  */
 public final class ChainCommissionCalculator {
 
@@ -73,14 +77,21 @@ public final class ChainCommissionCalculator {
               + base.stripTrailingZeros().toPlainString()
               + ": pasa del 100 % de la línea.");
     }
-    return Verdict.devengada(cobran);
+    return Verdict.devengada(cobran.stream().map(LevelCommission::redondeada).toList());
   }
 
   /** Un nivel de la cadena y la tasa que resolvió, si la tiene. */
   public record Level(UUID userId, int level, Optional<ResolvedRate> rate) {}
 
   /** Lo que cobra un nivel. */
-  public record LevelCommission(UUID userId, int level, ResolvedRate rate, BigDecimal amount) {}
+  public record LevelCommission(UUID userId, int level, ResolvedRate rate, BigDecimal amount) {
+
+    /** La misma, con el importe en las centésimas que se guardan (`CA-CM-336`). */
+    LevelCommission redondeada() {
+      return new LevelCommission(
+          userId, level, rate, amount.setScale(MinorUnits.ESCALA, RoundingMode.HALF_UP));
+    }
+  }
 
   /** El desenlace de la línea, con lo que cobra cada nivel si devengó. */
   public record Verdict(AccrualOutcome outcome, List<LevelCommission> commissions, String reason) {

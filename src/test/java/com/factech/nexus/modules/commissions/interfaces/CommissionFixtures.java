@@ -1,5 +1,7 @@
 package com.factech.nexus.modules.commissions.interfaces;
 
+import com.factech.nexus.shared.persistence.MinorUnits;
+import java.math.BigDecimal;
 import java.util.UUID;
 import org.springframework.jdbc.core.JdbcTemplate;
 
@@ -25,6 +27,20 @@ final class CommissionFixtures {
   static final String NO_VENDEDOR = "01a02a33-4c00-7002-9c4f-5e7ad1000002";
 
   private CommissionFixtures() {}
+
+  /**
+   * Las centésimas en que se guarda un importe escrito como texto (ADR-006). Las siembras siguen
+   * hablando en decimales, como la API; se convierte al vincular, igual que en el código de
+   * producción, y nunca en SQL.
+   */
+  static Long centesimas(String importe) {
+    return importe == null ? null : MinorUnits.toMinor(new BigDecimal(importe));
+  }
+
+  /** El importe que guardan unas centésimas leídas directamente de la base. */
+  static BigDecimal importe(Object centesimas) {
+    return MinorUnits.fromMinor(centesimas);
+  }
 
   static UUID sembrarPersonaConRol(JdbcTemplate jdbc, String usuario, String rol) {
     UUID id = UUID.randomUUID();
@@ -69,12 +85,12 @@ final class CommissionFixtures {
         jdbc.queryForObject("SELECT CAST(id AS text) FROM currencies LIMIT 1", String.class);
     jdbc.update(
         "INSERT INTO products (scope, implementation, id, code, type, name, price, currency_id, status, deleted_at)"
-            + " VALUES ('TIENDA', 'MANUAL', CAST(? AS uuid), ?, 'BOT', ?, CAST(? AS numeric), CAST(? AS uuid),"
+            + " VALUES ('TIENDA', 'MANUAL', CAST(? AS uuid), ?, 'BOT', ?, CAST(? AS bigint), CAST(? AS uuid),"
             + " 'INACTIVO', CASE WHEN ? THEN now() ELSE NULL END)",
         id.toString(),
         codigo,
         "Producto " + codigo,
-        precio,
+        centesimas(precio),
         monedaId,
         retirado);
     return id;
@@ -106,13 +122,13 @@ final class CommissionFixtures {
     jdbc.update(
         "INSERT INTO commission_rates (id, product_id, role_id, rate_type, percentage, fixed_amount)"
             + " VALUES (CAST(? AS uuid), CAST(? AS uuid), CAST(? AS uuid), ?,"
-            + " CAST(? AS numeric), CAST(? AS numeric))",
+            + " CAST(? AS numeric), CAST(? AS bigint))",
         id.toString(),
         producto.toString(),
         rol,
         forma,
         esPorcentaje ? valor : null,
-        esPorcentaje ? null : valor);
+        esPorcentaje ? null : centesimas(valor));
     return id;
   }
 
@@ -149,13 +165,13 @@ final class CommissionFixtures {
             + " (id, user_id, product_id, rate_type, percentage, fixed_amount, valid_from,"
             + " valid_to)"
             + " VALUES (CAST(? AS uuid), CAST(? AS uuid), CAST(? AS uuid), ?, CAST(? AS numeric),"
-            + " CAST(? AS numeric), CAST(? AS date), CAST(? AS date))",
+            + " CAST(? AS bigint), CAST(? AS date), CAST(? AS date))",
         id.toString(),
         persona.toString(),
         producto.toString(),
         forma,
         esPorcentaje ? valor : null,
-        esPorcentaje ? null : valor,
+        esPorcentaje ? null : centesimas(valor),
         desde,
         hasta);
     return id;

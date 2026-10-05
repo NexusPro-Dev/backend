@@ -112,7 +112,8 @@ SELECT pg_temp.uuid_v7(),
        r.id,
        e.tipo,
        CASE WHEN e.tipo = 'PORCENTAJE' THEN e.valor END,
-       CASE WHEN e.tipo = 'FIJO' THEN e.valor END
+       -- El fijo se escribe en centésimas desde V65 (ADR-006); el porcentaje, no.
+       CASE WHEN e.tipo = 'FIJO' THEN round(e.valor * 100) END
   FROM entradas e
   JOIN products p ON p.code = e.producto AND p.deleted_at IS NULL
   JOIN roles r    ON r.code = e.rol

@@ -136,8 +136,8 @@ public final class MovementLine {
    * lo impediría.
    *
    * @param precio el precio del catálogo <b>ya llevado a la escala de su moneda</b>. Llega con la
-   *     escala de la columna de `PM` —{@code numeric(14,4)}—, y ajustarlo es responsabilidad de
-   *     quien resuelve la venta, que es quien conoce la moneda
+   *     escala de las centésimas de `PM` —dos decimales (ADR-006)—, y ajustarlo es responsabilidad
+   *     de quien resuelve la venta, que es quien conoce la moneda
    * @param sellerId quien vendió <b>esta</b> línea (`RN-MV-003`), o nulo si quien compra tiene
    *     varios vendedores y todavía no se ha elegido (`RN-MV-034`)
    * @param productName y {@code productDescription} <b>se copian</b> (`RN-MV-002`): son lo que el

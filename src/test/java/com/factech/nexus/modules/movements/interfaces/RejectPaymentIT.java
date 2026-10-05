@@ -358,7 +358,7 @@ class RejectPaymentIT extends IntegrationTestBase {
         VALUES (?, CAST(? AS uuid),
                 (SELECT s.id FROM movement_type_statuses s
                   WHERE s.movement_type_id = CAST(? AS uuid) AND s.code = 'REGISTRADO'),
-                ?, CAST(? AS uuid), ?, 'PENDIENTE', 100.00, 0, 100.00, now())
+                ?, CAST(? AS uuid), ?, 'PENDIENTE', 10000, 0, 10000, now())
         """,
         retiro,
         RETIRO,
@@ -518,7 +518,7 @@ class RejectPaymentIT extends IntegrationTestBase {
         VALUES (?, CAST(? AS uuid),
                 (SELECT s.id FROM movement_type_statuses s
                   WHERE s.movement_type_id = CAST(? AS uuid) AND s.code = 'VALIDADO'),
-                ?, CAST(? AS uuid), ?, ?, 100.00, 0, 100.00, CAST(? AS timestamptz),
+                ?, CAST(? AS uuid), ?, ?, 10000, 0, 10000, CAST(? AS timestamptz),
                 CASE WHEN ? = 'CONFIRMADA' THEN now() ELSE NULL END,
                 CASE WHEN ? = 'ANULADA' THEN now() ELSE NULL END,
                 CASE WHEN ? = 'ANULADA' THEN 'Sembrada anulada' ELSE NULL END)
@@ -540,7 +540,7 @@ class RejectPaymentIT extends IntegrationTestBase {
         INSERT INTO movement_details (id, movement_id, product_id, seller_id, product_name,
                                       product_description, quantity, unit_price, line_amount,
                                       validity_days, implementation)
-        SELECT ?, ?, p.id, ?, p.name, p.description, 1, 100.00, 100.00, p.validity_days,
+        SELECT ?, ?, p.id, ?, p.name, p.description, 1, 10000, 10000, p.validity_days,
                p.implementation FROM products p WHERE p.id = ?
         """,
         UUID.randomUUID(),
@@ -582,7 +582,7 @@ class RejectPaymentIT extends IntegrationTestBase {
     jdbc.update(
         "INSERT INTO products (scope, implementation, id, code, type, name, description,"
             + " price, currency_id, validity_days, status)"
-            + " VALUES ('TIENDA', 'MANUAL', ?, ?, 'BOT', ?, 'x', 100.00, CAST(? AS uuid), 30,"
+            + " VALUES ('TIENDA', 'MANUAL', ?, ?, 'BOT', ?, 'x', 10000, CAST(? AS uuid), 30,"
             + " 'ACTIVO')",
         id,
         codigo,

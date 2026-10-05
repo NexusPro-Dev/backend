@@ -7,8 +7,8 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 import com.factech.nexus.IntegrationTestBase;
+import com.factech.nexus.shared.persistence.MinorUnits;
 import com.factech.nexus.testing.CommissionCleanup;
-import java.math.BigDecimal;
 import java.time.OffsetDateTime;
 import java.time.ZoneOffset;
 import java.util.Map;
@@ -220,8 +220,8 @@ class RegisterSaleIT extends IntegrationTestBase {
     assertThat(jdbc.queryForObject("SELECT count(*) FROM movement_detail_discounts", Integer.class))
         .isZero();
     assertThat(
-            jdbc.queryForObject(
-                "SELECT line_discount FROM movement_details", java.math.BigDecimal.class))
+            MinorUnits.fromMinor(
+                jdbc.queryForObject("SELECT line_discount FROM movement_details", Long.class)))
         .isEqualByComparingTo("0.00");
   }
 
@@ -304,7 +304,8 @@ class RegisterSaleIT extends IntegrationTestBase {
     // al registrar no probaría nada: si la venta releyera el catálogo al
     // mostrarse, un precio idéntico pasaría la prueba igual.
     jdbc.update(
-        "UPDATE products SET price = 999.00, validity_days = 1 WHERE id = CAST(? AS uuid)",
+        // 999.00 en centésimas (ADR-006).
+        "UPDATE products SET price = 99900, validity_days = 1 WHERE id = CAST(? AS uuid)",
         upRenovacion.toString());
 
     Map<String, Object> linea =
@@ -313,8 +314,8 @@ class RegisterSaleIT extends IntegrationTestBase {
                 + " WHERE movement_id = CAST(? AS uuid)",
             ventaId.toString());
 
-    assertThat((BigDecimal) linea.get("unit_price")).isEqualByComparingTo("50.00");
-    assertThat((BigDecimal) linea.get("line_amount")).isEqualByComparingTo("50.00");
+    assertThat(MinorUnits.fromMinor(linea.get("unit_price"))).isEqualByComparingTo("50.00");
+    assertThat(MinorUnits.fromMinor(linea.get("line_amount"))).isEqualByComparingTo("50.00");
     assertThat(linea.get("validity_days")).isEqualTo(30);
   }
 
@@ -756,7 +757,7 @@ class RegisterSaleIT extends IntegrationTestBase {
             + " target_membership_id, price, currency_id, validity_days, status, created_at,"
             + " updated_at, deleted_at)"
             + " VALUES ('TIENDA', 'MANUAL', CAST(? AS uuid), ?, ?, ?, 'Producto de prueba', CAST(? AS uuid),"
-            + " CAST(? AS uuid), CAST(? AS numeric), CAST(? AS uuid), CAST(? AS integer), ?, ?, ?,"
+            + " CAST(? AS uuid), CAST(? AS numeric) * 100, CAST(? AS uuid), CAST(? AS integer), ?, ?, ?,"
             + " CAST(? AS timestamptz))",
         id.toString(),
         codigo,

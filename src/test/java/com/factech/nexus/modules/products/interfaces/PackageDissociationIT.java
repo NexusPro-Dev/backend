@@ -104,8 +104,8 @@ class PackageDissociationIT extends IntegrationTestBase {
     assertThat((String) fila.get("snapshot"))
         .contains("\"product_id\": \"" + botA + "\"")
         .contains("\"discount_type\": \"FIJO\"")
-        .contains("\"discount_value\": \"20.0000\"")
-        .contains("\"product_price\": \"100.0000\"");
+        .contains("\"discount_value\": \"20.00\"")
+        .contains("\"product_price\": \"100.00\"");
   }
 
   @Test

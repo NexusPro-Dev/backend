@@ -1,5 +1,6 @@
 package com.factech.nexus.modules.commissions.domain.repository;
 
+import com.factech.nexus.shared.persistence.MinorUnits;
 import jakarta.persistence.EntityManager;
 import jakarta.persistence.Tuple;
 import java.math.BigDecimal;
@@ -78,7 +79,7 @@ public class JpaProductCommissionRateQueryRepository
         (UUID) fila.get("rate_id"),
         CommissionRows.forma(fila.get("rate_type")),
         (BigDecimal) fila.get("percentage"),
-        (BigDecimal) fila.get("fixed_amount"),
+        MinorUnits.fromMinor(fila.get("fixed_amount")),
         CommissionRows.momento(fila.get("created_at")));
   }
 }

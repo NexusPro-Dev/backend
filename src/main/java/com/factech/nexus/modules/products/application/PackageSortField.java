@@ -22,12 +22,18 @@ public enum PackageSortField {
   PRICE("price", PackageSortField.PRECIO_CALCULADO),
   CREATED_AT("createdAt", "k.created_at");
 
-  /** La suma sin redondear de {@code máx(0, precio − fijo)} y {@code precio × (1 − p ÷ 100)}. */
+  /**
+   * La suma sin redondear de {@code máx(0, precio − fijo)} y {@code precio × (1 − p ÷ 100)}.
+   *
+   * <p><b>Opera en centésimas</b> (ADR-006): precio y fijo lo son, y el porcentaje también —{@code
+   * 12.50 %} se guarda {@code 1250}—, de modo que {@code p ÷ 100} se escribe {@code ÷ 10000}. El
+   * divisor es {@code numeric} para que la división no sea entera: {@code bigint / bigint} trunca.
+   */
   public static final String PRECIO_CALCULADO =
       """
       (SELECT COALESCE(SUM(CASE WHEN i.discount_type = 'FIJO'
                                 THEN GREATEST(0, p.price - i.discount_value)
-                                ELSE p.price - p.price * i.discount_value / 100 END), 0)
+                                ELSE p.price - p.price * i.discount_value / 10000.0 END), 0)
          FROM product_package_items i JOIN products p ON p.id = i.product_id
         WHERE i.package_id = k.id)""";
 

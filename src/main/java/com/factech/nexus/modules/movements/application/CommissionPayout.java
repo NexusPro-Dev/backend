@@ -24,7 +24,8 @@ public interface CommissionPayout {
   PayoutResult pay(PayoutOrder orden);
 
   /**
-   * @param amount el total del lote, con sus cuatro decimales; no negativo
+   * @param amount el total del lote, con dos decimales desde que se guarda en centésimas (ADR-006);
+   *     no negativo
    * @param batchId la identidad del lote: es lo que impide abonarlo dos veces
    * @param batchCode el código del lote, para el concepto que la persona lee en su historial
    */

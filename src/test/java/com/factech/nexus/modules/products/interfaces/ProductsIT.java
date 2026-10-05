@@ -8,6 +8,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 import com.factech.nexus.IntegrationTestBase;
+import com.factech.nexus.shared.persistence.MinorUnits;
 import java.util.UUID;
 import org.hamcrest.Matchers;
 import org.junit.jupiter.api.AfterEach;
@@ -931,6 +932,77 @@ class ProductsIT extends IntegrationTestBase {
         .andExpect(status().isCreated())
         // Y sale con los decimales de su moneda, no con la escala de la columna.
         .andExpect(jsonPath("$.price").value(10.00));
+  }
+
+  @Test
+  @DisplayName("`CA-PM-433` — tres decimales no caben en centésimas: los dos precios, con VAL-005")
+  void tresDecimalesNoCaben() throws Exception {
+    // Hasta V65 el DTO admitía cuatro, lo que admitía la columna; desde ADR-006
+    // la columna guarda centésimas y el formato de la petición ya no deja pasar
+    // el tercero, con la moneda que sea.
+    mvc.perform(
+            alta(
+                """
+                {"scope":"TIENDA","implementation":"AUTOMATICA","code":"ASESORIA","type":"BOT","name":"Asesoría",
+                 "price":9.999,"currencyId":"%s"}
+                """
+                    .formatted(USD)))
+        .andExpect(status().isBadRequest())
+        .andExpect(jsonPath("$.errors[0].code").value("VAL-005"))
+        .andExpect(jsonPath("$.errors[0].field").value("price"));
+    mvc.perform(
+            alta(
+                """
+                {"scope":"TIENDA","implementation":"AUTOMATICA","code":"ASESORIA","type":"BOT","name":"Asesoría",
+                 "price":10.00,"purchasePrice":9.999,"currencyId":"%s"}
+                """
+                    .formatted(USD)))
+        .andExpect(status().isBadRequest())
+        .andExpect(jsonPath("$.errors[0].code").value("VAL-005"))
+        .andExpect(jsonPath("$.errors[0].field").value("purchasePrice"));
+
+    assertThat(cuantosProductos()).isZero();
+  }
+
+  @Test
+  @DisplayName("`CA-PM-434` — 49.99 se guarda 4999 y vuelve como 49.99 (ADR-006)")
+  void seGuardaEnCentesimas() throws Exception {
+    mvc.perform(
+            alta(
+                """
+                {"scope":"TIENDA","implementation":"AUTOMATICA","code":"ASESORIA","type":"BOT","name":"Asesoría",
+                 "price":49.99,"purchasePrice":30.00,"currencyId":"%s"}
+                """
+                    .formatted(USD)))
+        .andExpect(status().isCreated())
+        .andExpect(jsonPath("$.price").value(49.99))
+        .andExpect(jsonPath("$.purchasePrice").value(30.00));
+
+    // La base y la respuesta a la vez: un factor equivocado no falla por forma,
+    // devuelve un importe cien veces mayor con un 201.
+    assertThat(
+            jdbc.queryForObject("SELECT price FROM products WHERE code = 'ASESORIA'", Long.class))
+        .isEqualTo(4999L);
+    assertThat(
+            jdbc.queryForObject(
+                "SELECT purchase_price FROM products WHERE code = 'ASESORIA'", Long.class))
+        .isEqualTo(3000L);
+  }
+
+  @Test
+  @DisplayName("`CA-PM-435` — la expresión de V65 redondea HALF_UP: 10.0050 → 1001 → 10.01")
+  void laMigracionRedondea() {
+    // La suite migra siempre hasta la última versión, de modo que no hay filas
+    // anteriores a V65 sobre las que mirar el redondeo: se prueba la expresión
+    // exacta que la migración aplica, sobre el mismo motor.
+    Long arriba =
+        jdbc.queryForObject("SELECT round(CAST(? AS numeric) * 100)", Long.class, "10.0050");
+    Long abajo =
+        jdbc.queryForObject("SELECT round(CAST(? AS numeric) * 100)", Long.class, "10.0049");
+
+    assertThat(arriba).isEqualTo(1001L);
+    assertThat(abajo).isEqualTo(1000L);
+    assertThat(MinorUnits.fromMinor(arriba)).isEqualByComparingTo("10.01");
   }
 
   @Test

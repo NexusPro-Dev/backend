@@ -195,7 +195,7 @@ class ProductStatusConcurrencyIT extends IntegrationTestBase {
             + " target_membership_id, price,"
             + " currency_id, validity_days, status, created_at, updated_at)"
             + " VALUES ('TIENDA', 'MANUAL', CAST(? AS uuid), ?, 'UPGRADE_MEMBRESIA', ?, 'Sube al nivel oro.',"
-            + " CAST(? AS uuid), CAST(? AS uuid), 10.00, CAST(? AS uuid), NULL, 'INACTIVO', ?, ?)",
+            + " CAST(? AS uuid), CAST(? AS uuid), 1000, CAST(? AS uuid), NULL, 'INACTIVO', ?, ?)",
         id.toString(),
         codigo,
         nombre,

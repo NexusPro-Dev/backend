@@ -493,9 +493,12 @@ class CommissionRatesIT extends IntegrationTestBase {
     String deMas = "1." + "0".repeat(decimales) + "1";
     String justos = decimales == 0 ? "1" : "1." + "0".repeat(decimales - 1) + "1";
 
+    // Desde V65 el importe se guarda en centésimas (ADR-006, `CA-CM-335`): con una moneda de dos,
+    // el tercero lo para el `@Digits` (VAL-012) antes que la moneda (VAL-014), que solo se alcanza
+    // con una moneda de menos.
     mvc.perform(alta(fijo(producto, MANAGER, deMas)))
         .andExpect(status().isBadRequest())
-        .andExpect(jsonPath("$.errors[0].code").value("VAL-014"))
+        .andExpect(jsonPath("$.errors[0].code").value(decimales < 2 ? "VAL-014" : "VAL-012"))
         .andExpect(jsonPath("$.errors[0].field").value("fixedAmount"));
     assertThat(cuantasTasas()).isZero();
 

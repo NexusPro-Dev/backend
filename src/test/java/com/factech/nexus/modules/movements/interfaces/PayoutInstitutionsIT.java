@@ -472,7 +472,7 @@ class PayoutInstitutionsIT extends IntegrationTestBase {
         """
         INSERT INTO movements (id, movement_type_id, type_status_id, user_id, currency_id, code,
                                status, total_amount, discount_amount, payable_amount, occurred_at)
-        SELECT ?, t.id, s.id, ?, CAST(? AS uuid), ?, 'PENDIENTE', 10, 0, 10, now()
+        SELECT ?, t.id, s.id, ?, CAST(? AS uuid), ?, 'PENDIENTE', 1000, 0, 1000, now()
           FROM movement_types t
           JOIN movement_type_statuses s ON s.movement_type_id = t.id AND s.code = 'REGISTRADO'
          WHERE t.code = 'RETIRO'

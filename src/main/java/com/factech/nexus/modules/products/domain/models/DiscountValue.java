@@ -3,7 +3,9 @@ package com.factech.nexus.modules.products.domain.models;
 import com.factech.nexus.shared.error.BusinessRuleException;
 import com.factech.nexus.shared.error.FieldError;
 import com.factech.nexus.shared.error.ValidationException;
+import com.factech.nexus.shared.persistence.MinorUnitsConverter;
 import jakarta.persistence.Column;
+import jakarta.persistence.Convert;
 import jakarta.persistence.Embeddable;
 import jakarta.persistence.EnumType;
 import jakarta.persistence.Enumerated;
@@ -32,7 +34,13 @@ public class DiscountValue {
   @Column(name = "discount_type", nullable = false, length = 20)
   private DiscountType type;
 
-  @Column(name = "discount_value", nullable = false, precision = 14, scale = 4)
+  /**
+   * En la base, {@code bigint} en centésimas (ADR-006), <b>también en {@code PORCENTAJE}</b>:
+   * {@code 12.50 %} se guarda {@code 1250}. Partir la columna por tipo haría que el mismo campo
+   * cambiara de unidad según la fila.
+   */
+  @Column(name = "discount_value", nullable = false)
+  @Convert(converter = MinorUnitsConverter.class)
   private BigDecimal value;
 
   /** Exigido por JPA. */

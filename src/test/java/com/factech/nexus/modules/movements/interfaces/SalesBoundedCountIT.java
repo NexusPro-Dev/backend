@@ -65,7 +65,7 @@ class SalesBoundedCountIT extends IntegrationTestBase {
         "INSERT INTO products (scope, implementation, id, code, type, name, description, source_membership_id,"
             + " target_membership_id, price, currency_id, validity_days, status)"
             + " VALUES ('TIENDA', 'MANUAL', ?, 'TECHO_BOT', 'BOT', 'Bot del techo', 'Producto de prueba', NULL,"
-            + " NULL, CAST(? AS numeric), CAST(? AS uuid), NULL, 'ACTIVO')",
+            + " NULL, CAST(? AS numeric) * 100, CAST(? AS uuid), NULL, 'ACTIVO')",
         producto,
         "100.00",
         USD);
@@ -127,7 +127,7 @@ class SalesBoundedCountIT extends IntegrationTestBase {
                                  currency_id, code, status, total_amount, discount_amount,
                                  payable_amount, occurred_at)
           VALUES (?, CAST(? AS uuid), (SELECT s.id FROM movement_type_statuses s WHERE s.movement_type_id = CAST(? AS uuid) AND s.code = 'VALIDADO'), ?, CAST(? AS uuid), ?, 'PENDIENTE',
-                  100.00, 0, 100.00, CAST(? AS timestamptz))
+                  10000, 0, 10000, CAST(? AS timestamptz))
           """,
           id,
           VENTA,
@@ -142,7 +142,7 @@ class SalesBoundedCountIT extends IntegrationTestBase {
           INSERT INTO movement_details (id, movement_id, product_id, seller_id, product_name,
                                         product_description, quantity, unit_price,
                                         line_amount, validity_days, implementation)
-          VALUES (?, ?, ?, ?, 'Bot del techo', 'Lo que decia el catalogo', 1, 100.00, 100.00, NULL,
+          VALUES (?, ?, ?, ?, 'Bot del techo', 'Lo que decia el catalogo', 1, 10000, 10000, NULL,
                   'MANUAL')
           """,
           UUID.randomUUID(),

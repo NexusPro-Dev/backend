@@ -15,6 +15,7 @@ import com.factech.nexus.modules.movements.LedgerFixtures;
 import com.factech.nexus.modules.movements.PaymentFixtures;
 import com.factech.nexus.modules.movements.PayoutFixtures;
 import com.factech.nexus.modules.movements.domain.service.CreditService;
+import com.factech.nexus.shared.persistence.MinorUnits;
 import com.jayway.jsonpath.JsonPath;
 import java.math.BigDecimal;
 import java.util.ArrayList;
@@ -464,7 +465,8 @@ class WithdrawalIT extends IntegrationTestBase {
         .query(
             "SELECT balance FROM accounts WHERE user_id IS NULL AND kind = ?"
                 + " AND currency_id = CAST(? AS uuid)",
-            (fila, n) -> fila.getBigDecimal(1),
+            // En centésimas en la base (ADR-006).
+            (fila, n) -> MinorUnits.fromMinor(fila.getLong(1)),
             cuenta,
             USD)
         .stream()
@@ -483,7 +485,7 @@ class WithdrawalIT extends IntegrationTestBase {
         INSERT INTO movements (id, movement_type_id, type_status_id, user_id,
                                currency_id, code, status, total_amount, discount_amount,
                                payable_amount, occurred_at)
-        SELECT ?, t.id, s.id, ?, CAST(? AS uuid), ?, 'PENDIENTE', 10.00, 0, 10.00, now()
+        SELECT ?, t.id, s.id, ?, CAST(? AS uuid), ?, 'PENDIENTE', 1000, 0, 1000, now()
           FROM movement_types t
           JOIN movement_type_statuses s ON s.movement_type_id = t.id AND s.code = 'VALIDADO'
          WHERE t.code = 'VENTA'

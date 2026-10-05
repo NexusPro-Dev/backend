@@ -6,6 +6,7 @@ import static org.springframework.security.test.web.servlet.request.SecurityMock
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.patch;
 
 import com.factech.nexus.IntegrationTestBase;
+import com.factech.nexus.shared.persistence.MinorUnits;
 import com.factech.nexus.testing.ConcurrencyHarness.Outcome;
 import java.time.OffsetDateTime;
 import java.time.ZoneOffset;
@@ -77,7 +78,7 @@ class ProductUpdateConcurrencyIT extends IntegrationTestBase {
         jdbc.queryForMap(
             "SELECT name, price FROM products WHERE id = CAST(? AS uuid)", producto.toString());
     String nombre = (String) fila.get("name");
-    String precio = fila.get("price").toString();
+    String precio = MinorUnits.fromMinor(fila.get("price")).toString();
 
     // El par tiene que ser coherente: `Soporte A` con `11.11` o `Soporte B` con
     // `22.22`. `Soporte A` con `22.22` sería la mezcla que el bloqueo impide.
@@ -144,7 +145,7 @@ class ProductUpdateConcurrencyIT extends IntegrationTestBase {
         "INSERT INTO products (scope, implementation, id, code, type, name, description, source_membership_id,"
             + " target_membership_id, price,"
             + " currency_id, validity_days, status, created_at, updated_at)"
-            + " VALUES ('TIENDA', 'MANUAL', CAST(? AS uuid), ?, 'BOT', ?, 'Atención prioritaria.', NULL, NULL, 49.99,"
+            + " VALUES ('TIENDA', 'MANUAL', CAST(? AS uuid), ?, 'BOT', ?, 'Atención prioritaria.', NULL, NULL, 4999,"
             + " CAST(? AS uuid), NULL, 'INACTIVO', ?, ?)",
         id.toString(),
         codigo,

@@ -10,6 +10,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 import com.factech.nexus.IntegrationTestBase;
+import com.factech.nexus.shared.persistence.MinorUnits;
 import com.factech.nexus.testing.CommissionCleanup;
 import java.util.Map;
 import java.util.UUID;
@@ -575,7 +576,7 @@ class SelfRegistrationIT extends IntegrationTestBase {
     // `RN-MV-022`: importe cero y pago gratuito son lo mismo. El formulario no
     // lo envía —no puede: el catálogo público no lo devuelve— y lo pone `MV`.
     assertThat(venta.get("metodo")).isEqualTo("GRATIS");
-    assertThat(((java.math.BigDecimal) venta.get("total_amount")).signum()).isZero();
+    assertThat(MinorUnits.fromMinor(venta.get("total_amount")).signum()).isZero();
     // El vendedor NO se impone: `RN-MV-003` lo saca del superior que el registro
     // acaba de asignar, y aquí se comprueba que son el mismo.
     assertThat(venta.get("vendedor")).isEqualTo("reg-agente");
@@ -631,7 +632,7 @@ class SelfRegistrationIT extends IntegrationTestBase {
 
       assertThat(venta.get("status")).isEqualTo("PENDIENTE");
       assertThat(venta.get("metodo")).isEqualTo("CREDIT_CARD");
-      assertThat(((java.math.BigDecimal) venta.get("total_amount")).compareTo(CIEN)).isZero();
+      assertThat(MinorUnits.fromMinor(venta.get("total_amount")).compareTo(CIEN)).isZero();
     } finally {
       pasarela.reiniciar();
     }
@@ -1061,7 +1062,7 @@ class SelfRegistrationIT extends IntegrationTestBase {
         "INSERT INTO products (id, code, type, name, source_membership_id, target_membership_id,"
             + " price, currency_id, validity_days, status, scope, implementation)"
             + " VALUES (CAST(? AS uuid), ?, 'UPGRADE_MEMBRESIA', ?, CAST(? AS uuid),"
-            + " CAST(? AS uuid), CAST(? AS numeric), CAST(? AS uuid), CAST(? AS integer), 'ACTIVO',"
+            + " CAST(? AS uuid), CAST(? AS numeric) * 100, CAST(? AS uuid), CAST(? AS integer), 'ACTIVO',"
             + " ?, 'AUTOMATICA')",
         UUID.randomUUID().toString(),
         codigo,

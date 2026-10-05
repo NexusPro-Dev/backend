@@ -6,7 +6,7 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 import com.factech.nexus.IntegrationTestBase;
 import com.factech.nexus.modules.movements.LedgerFixtures;
-import java.math.BigDecimal;
+import com.factech.nexus.shared.persistence.MinorUnits;
 import java.util.UUID;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
@@ -95,14 +95,15 @@ class LedgerIT extends IntegrationTestBase {
                 Integer.class))
         .isZero();
     assertThat(
-            jdbc.queryForObject(
-                """
-                SELECT e.balance_after FROM movement_entries e
-                  JOIN accounts a ON a.id = e.account_id
-                 WHERE a.user_id = ? ORDER BY e.created_at DESC, e.id DESC LIMIT 1
-                """,
-                BigDecimal.class,
-                persona))
+            MinorUnits.fromMinor(
+                jdbc.queryForObject(
+                    """
+                    SELECT e.balance_after FROM movement_entries e
+                      JOIN accounts a ON a.id = e.account_id
+                     WHERE a.user_id = ? ORDER BY e.created_at DESC, e.id DESC LIMIT 1
+                    """,
+                    Long.class,
+                    persona)))
         .isEqualByComparingTo("15.50");
   }
 }

@@ -2,6 +2,7 @@ package com.factech.nexus.modules.commissions.interfaces;
 
 import static com.factech.nexus.modules.commissions.interfaces.CommissionFixtures.AGENTE;
 import static com.factech.nexus.modules.commissions.interfaces.CommissionFixtures.DIRECTOR;
+import static com.factech.nexus.modules.commissions.interfaces.CommissionFixtures.importe;
 import static com.factech.nexus.modules.commissions.interfaces.SettlementFixtures.linea;
 import static com.factech.nexus.modules.commissions.interfaces.SettlementFixtures.lineaDe;
 import static org.assertj.core.api.Assertions.assertThat;
@@ -16,6 +17,7 @@ import com.factech.nexus.modules.commissions.application.CommissionClosingRespon
 import com.factech.nexus.modules.commissions.domain.service.CloseCommissionPeriodService;
 import com.factech.nexus.modules.commissions.domain.service.CommissionAccrualService;
 import com.factech.nexus.modules.movements.PaymentFixtures;
+import com.factech.nexus.shared.persistence.MinorUnits;
 import com.factech.nexus.testing.ConcurrencyHarness;
 import com.factech.nexus.testing.ConcurrencyHarness.Outcome;
 import java.math.BigDecimal;
@@ -112,7 +114,7 @@ class CloseCommissionPeriodIT extends IntegrationTestBase {
 
     Map<String, Object> cerrado = loteDe(agente, "PENDIENTE");
     Map<String, Object> nuevo = loteDe(agente, "ABIERTO");
-    assertThat((BigDecimal) nuevo.get("total_amount")).isEqualByComparingTo("20");
+    assertThat(importe(nuevo.get("total_amount"))).isEqualByComparingTo("20");
     assertThat(instante(nuevo.get("period_start")))
         .isAfterOrEqualTo(instante(cerrado.get("period_end")));
   }
@@ -266,9 +268,10 @@ class CloseCommissionPeriodIT extends IntegrationTestBase {
                 linea))
         .isEqualTo(2);
     BigDecimal lotes =
-        jdbc.queryForObject("SELECT sum(total_amount) FROM commission_batches", BigDecimal.class);
+        importe(
+            jdbc.queryForObject("SELECT sum(total_amount) FROM commission_batches", Long.class));
     BigDecimal comisiones =
-        jdbc.queryForObject("SELECT sum(commission_amount) FROM commissions", BigDecimal.class);
+        importe(jdbc.queryForObject("SELECT sum(commission_amount) FROM commissions", Long.class));
     assertThat(lotes).isEqualByComparingTo(comisiones);
     assertThat(lotes).isEqualByComparingTo("60");
   }
@@ -340,7 +343,7 @@ class CloseCommissionPeriodIT extends IntegrationTestBase {
   }
 
   private BigDecimal totalDe(UUID persona, String estado) {
-    return (BigDecimal) loteDe(persona, estado).get("total_amount");
+    return MinorUnits.fromMinor(loteDe(persona, estado).get("total_amount"));
   }
 
   private String desenlace(UUID linea) {

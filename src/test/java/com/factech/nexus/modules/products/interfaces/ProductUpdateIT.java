@@ -7,6 +7,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 import com.factech.nexus.IntegrationTestBase;
+import com.factech.nexus.shared.persistence.MinorUnits;
 import java.time.OffsetDateTime;
 import java.time.ZoneOffset;
 import java.util.UUID;
@@ -935,17 +936,17 @@ class ProductUpdateIT extends IntegrationTestBase {
   }
 
   private java.math.BigDecimal precioDe(UUID id) {
-    return jdbc.queryForObject(
-        "SELECT price FROM products WHERE id = CAST(? AS uuid)",
-        java.math.BigDecimal.class,
-        id.toString());
+    return MinorUnits.fromMinor(
+        jdbc.queryForObject(
+            "SELECT price FROM products WHERE id = CAST(? AS uuid)", Long.class, id.toString()));
   }
 
   private java.math.BigDecimal precioDeCompraDe(UUID id) {
-    return jdbc.queryForObject(
-        "SELECT purchase_price FROM products WHERE id = CAST(? AS uuid)",
-        java.math.BigDecimal.class,
-        id.toString());
+    return MinorUnits.fromMinor(
+        jdbc.queryForObject(
+            "SELECT purchase_price FROM products WHERE id = CAST(? AS uuid)",
+            Long.class,
+            id.toString()));
   }
 
   private String descripcionDe(UUID id) {
@@ -1056,7 +1057,7 @@ class ProductUpdateIT extends IntegrationTestBase {
             + " target_membership_id, price,"
             + " currency_id, validity_days, status, created_at, updated_at)"
             + " VALUES ('TIENDA', 'MANUAL', CAST(? AS uuid), ?, ?, ?, CAST(? AS text),"
-            + " CAST(? AS uuid), CAST(? AS uuid), 49.99,"
+            + " CAST(? AS uuid), CAST(? AS uuid), 4999,"
             + " CAST(? AS uuid), CAST(? AS integer), 'INACTIVO', ?, ?)",
         id.toString(),
         codigo,

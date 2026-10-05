@@ -1,6 +1,8 @@
 package com.factech.nexus.modules.commissions.domain.models;
 
+import com.factech.nexus.shared.persistence.MinorUnitsConverter;
 import jakarta.persistence.Column;
+import jakarta.persistence.Convert;
 import jakarta.persistence.Entity;
 import jakarta.persistence.Id;
 import jakarta.persistence.Table;
@@ -40,6 +42,7 @@ public class AfftrackRate {
   private int threshold;
 
   @Column(name = "amount_per_ftd", nullable = false)
+  @Convert(converter = MinorUnitsConverter.class)
   private BigDecimal amountPerFtd;
 
   @Column(name = "created_at", nullable = false, updatable = false)

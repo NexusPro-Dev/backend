@@ -2,6 +2,7 @@ package com.factech.nexus.modules.commissions.interfaces;
 
 import static com.factech.nexus.modules.commissions.interfaces.CommissionFixtures.AGENTE;
 import static com.factech.nexus.modules.commissions.interfaces.CommissionFixtures.DIRECTOR;
+import static com.factech.nexus.modules.commissions.interfaces.CommissionFixtures.importe;
 import static com.factech.nexus.modules.commissions.interfaces.SettlementFixtures.linea;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.user;
@@ -594,18 +595,20 @@ class ReleaseCommissionedLineIT extends IntegrationTestBase {
   }
 
   private BigDecimal total(UUID lote) {
-    return jdbc.queryForObject(
-        "SELECT total_amount FROM commission_batches WHERE id = ?", BigDecimal.class, lote);
+    return importe(
+        jdbc.queryForObject(
+            "SELECT total_amount FROM commission_batches WHERE id = ?", Long.class, lote));
   }
 
   private BigDecimal billeteraDe(UUID persona) {
     return jdbc
         .queryForList(
             "SELECT balance FROM accounts WHERE user_id = ? AND kind = 'BILLETERA'",
-            BigDecimal.class,
+            Long.class,
             persona)
         .stream()
         .findFirst()
+        .map(CommissionFixtures::importe)
         .orElse(BigDecimal.ZERO);
   }
 

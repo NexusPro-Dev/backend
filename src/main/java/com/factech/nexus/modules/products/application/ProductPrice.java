@@ -11,9 +11,9 @@ import java.math.BigDecimal;
  * según por dónde se pidiera, y la diferencia solo se vería comparando dos respuestas que nadie
  * compara.
  *
- * <p><b>La escala la fija la MONEDA, no la columna.</b> {@code numeric(14,4)} es una decisión de
- * almacenamiento —existe para admitir monedas de más de dos decimales— y no algo que el contrato
- * deba exponer: {@code 49.99} en una moneda de dos decimales y no {@code 49.9900} (`CA-PM-082`).
+ * <p><b>La escala la fija la MONEDA, no la columna.</b> Las centésimas en que se guarda el precio
+ * (ADR-006) son una decisión de almacenamiento y no algo que el contrato deba exponer: {@code 50}
+ * en una moneda sin fracción y no {@code 50.00} (`CA-PM-082`).
  */
 public final class ProductPrice {
 
@@ -37,11 +37,11 @@ public final class ProductPrice {
    * ¿Cabe este importe en una moneda de {@code decimales} decimales? (`RN-PM-007`)
    *
    * <p><b>Se mide sobre la escala significativa</b>, no sobre la que traiga el número. Y no es una
-   * sutileza: el precio <b>leído de la base</b> viene con la escala de la columna —{@code
-   * numeric(14,4)}, de modo que {@code 49.99} llega como {@code 49.9900}—, y compararlo en crudo
-   * daría cuatro decimales contra los dos de la moneda. El síntoma fue exacto: cambiar <b>solo</b>
-   * la moneda de un producto, sin tocar su precio, se rechazaba por decimales que ese precio no
-   * tiene.
+   * sutileza: el precio <b>leído de la base</b> viene con la escala de la columna —hasta {@code
+   * V65} {@code numeric(14,4)}, de modo que {@code 49.99} llegaba como {@code 49.9900}; desde
+   * entonces escala dos—, y compararlo en crudo daría más decimales que los de la moneda. El
+   * síntoma fue exacto: cambiar <b>solo</b> la moneda de un producto, sin tocar su precio, se
+   * rechazaba por decimales que ese precio no tiene.
    *
    * <p>Con la escala significativa, {@code 10.005} sigue sin caber en una moneda de dos decimales
    * —que es lo que `RN-PM-007` impide— y {@code 10.000} sí cabe, porque <b>es</b> {@code 10}.

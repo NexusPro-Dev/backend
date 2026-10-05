@@ -89,7 +89,8 @@ class MovementDetailIT extends IntegrationTestBase {
   @DisplayName("CA-MV-288 — cada línea dice lo que se vendió, aunque el catálogo haya cambiado")
   void loCopiadoAlVender() throws Exception {
     UUID venta = venta();
-    jdbc.update("UPDATE products SET name = 'Renombrado', price = 999.00 WHERE id = ?", bot);
+    // 999.00 en centésimas (ADR-006).
+    jdbc.update("UPDATE products SET name = 'Renombrado', price = 99900 WHERE id = ?", bot);
 
     mvc.perform(get("/api/v1/movements/{id}", venta).with(lector(administrador)))
         .andExpect(status().isOk())
@@ -195,7 +196,7 @@ class MovementDetailIT extends IntegrationTestBase {
         VALUES (?, CAST(? AS uuid),
                 (SELECT s.id FROM movement_type_statuses s
                   WHERE s.movement_type_id = CAST(? AS uuid) AND s.code = 'VALIDADO'),
-                ?, CAST(? AS uuid), ?, 'PENDIENTE', 100.00, 0, 100.00, now())
+                ?, CAST(? AS uuid), ?, 'PENDIENTE', 10000, 0, 10000, now())
         """,
         id,
         VENTA,
@@ -209,7 +210,7 @@ class MovementDetailIT extends IntegrationTestBase {
         INSERT INTO movement_details (id, movement_id, product_id, seller_id, product_name,
                                       product_description, quantity, unit_price, line_amount,
                                       validity_days, implementation)
-        SELECT ?, ?, p.id, ?, p.name, p.description, 1, 100.00, 100.00, p.validity_days,
+        SELECT ?, ?, p.id, ?, p.name, p.description, 1, 10000, 10000, p.validity_days,
                p.implementation
           FROM products p WHERE p.id = ?
         """,
@@ -227,7 +228,7 @@ class MovementDetailIT extends IntegrationTestBase {
             + " source_membership_id, target_membership_id, price, currency_id, validity_days,"
             + " status)"
             + " VALUES ('TIENDA', 'AUTOMATICA', ?, 'DM_BOT', 'BOT', 'Bot del detalle', 'Un bot',"
-            + " NULL, NULL, 100.00, CAST(? AS uuid), 30, 'ACTIVO')",
+            + " NULL, NULL, 10000, CAST(? AS uuid), 30, 'ACTIVO')",
         id,
         USD);
     return id;

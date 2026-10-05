@@ -11,7 +11,8 @@ import java.util.UUID;
  *
  * <p><b>{@code periodEnd} nulo</b> es un lote {@code ABIERTO}: sigue creciendo, y {@code
  * totalAmount} es el de ahora. <b>{@code paidAmount}</b> es lo que se abonó en la billetera,
- * redondeado a la moneda; el total conserva sus cuatro decimales (`RN-CM-030`).
+ * redondeado a la moneda (`RN-CM-030`). Desde `V65` el total ya llega en centésimas, como el abono,
+ * de modo que los dos coinciden (ADR-006, `CA-CM-337`).
  */
 @Schema(name = "CommissionBatchItem")
 public record CommissionBatchItem(

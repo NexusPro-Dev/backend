@@ -1,5 +1,6 @@
 package com.factech.nexus.modules.commissions.domain.repository;
 
+import com.factech.nexus.shared.persistence.MinorUnits;
 import com.factech.nexus.shared.persistence.UuidV7Generator;
 import com.factech.nexus.shared.time.BusinessCalendar;
 import jakarta.persistence.EntityManager;
@@ -99,7 +100,7 @@ public class JpaCommissionBatchRepository implements CommissionBatchRepository {
              WHERE id = :id
             """)
         .setParameter("id", batchId)
-        .setParameter("importe", amount)
+        .setParameter("importe", MinorUnits.toMinor(amount))
         .setParameter("at", at)
         .executeUpdate();
   }
@@ -126,7 +127,7 @@ public class JpaCommissionBatchRepository implements CommissionBatchRepository {
                     (String) f[1],
                     (UUID) f[2],
                     (UUID) f[3],
-                    (BigDecimal) f[4],
+                    MinorUnits.fromMinor(f[4]),
                     (String) f[5]));
   }
 
@@ -163,7 +164,11 @@ public class JpaCommissionBatchRepository implements CommissionBatchRepository {
         .map(
             f ->
                 new LockedCommission(
-                    (UUID) f[0], (UUID) f[1], (BigDecimal) f[2], (Boolean) f[3], (UUID) f[4]));
+                    (UUID) f[0],
+                    (UUID) f[1],
+                    MinorUnits.fromMinor(f[2]),
+                    (Boolean) f[3],
+                    (UUID) f[4]));
   }
 
   @Override

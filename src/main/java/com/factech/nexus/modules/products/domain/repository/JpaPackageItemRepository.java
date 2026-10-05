@@ -4,10 +4,10 @@ import com.factech.nexus.modules.products.domain.models.PackageItem;
 import com.factech.nexus.modules.products.domain.models.PackageItemId;
 import com.factech.nexus.shared.error.BusinessRuleException;
 import com.factech.nexus.shared.error.FieldError;
+import com.factech.nexus.shared.persistence.MinorUnits;
 import jakarta.persistence.EntityManager;
 import jakarta.persistence.PersistenceException;
 import jakarta.persistence.Tuple;
-import java.math.BigDecimal;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
@@ -77,7 +77,7 @@ public class JpaPackageItemRepository implements PackageItemRepository {
                     (String) fila.get("code"),
                     (String) fila.get("type"),
                     (UUID) fila.get("source_membership_id"),
-                    (BigDecimal) fila.get("price")))
+                    MinorUnits.fromMinor(fila.get("price"))))
         .toList();
   }
 

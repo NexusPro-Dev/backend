@@ -1,8 +1,8 @@
 package com.factech.nexus.modules.movements.domain.repository;
 
 import com.factech.nexus.modules.movements.application.CommissionableLines;
+import com.factech.nexus.shared.persistence.MinorUnits;
 import jakarta.persistence.EntityManager;
-import java.math.BigDecimal;
 import java.time.OffsetDateTime;
 import java.util.ArrayList;
 import java.util.Collection;
@@ -71,7 +71,7 @@ public class JpaCommissionableLines implements CommissionableLines {
               (UUID) f[1],
               (UUID) f[2],
               (UUID) f[3],
-              (BigDecimal) f[4],
+              MinorUnits.fromMinor(f[4]),
               ((Number) f[5]).intValue(),
               (UUID) f[6],
               instante(f[7])));

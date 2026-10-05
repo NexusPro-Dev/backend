@@ -3,6 +3,7 @@ package com.factech.nexus.modules.movements.domain.repository;
 import com.factech.nexus.modules.movements.domain.models.AccountKind;
 import com.factech.nexus.modules.movements.domain.models.AccountNumber;
 import com.factech.nexus.modules.movements.domain.models.EntryEvent;
+import com.factech.nexus.shared.persistence.MinorUnits;
 import jakarta.persistence.EntityManager;
 import jakarta.persistence.Query;
 import jakarta.persistence.Tuple;
@@ -94,9 +95,9 @@ public class JpaLedgerRepository implements LedgerRepository {
                 RETURNING balance
                 """)
             .setParameter("id", cuenta)
-            .setParameter("delta", delta)
+            .setParameter("delta", MinorUnits.toMinor(delta))
             .getResultList();
-    return filas.stream().findFirst().map(BigDecimal.class::cast);
+    return filas.stream().findFirst().map(MinorUnits::fromMinor);
   }
 
   @Override
@@ -120,8 +121,8 @@ public class JpaLedgerRepository implements LedgerRepository {
         .setParameter("pago", pago)
         .setParameter("cuenta", cuenta)
         .setParameter("evento", evento.name())
-        .setParameter("importe", importe)
-        .setParameter("saldo", saldoTras)
+        .setParameter("importe", MinorUnits.toMinor(importe))
+        .setParameter("saldo", MinorUnits.toMinor(saldoTras))
         .setParameter("cuando", cuando)
         .executeUpdate();
   }
@@ -141,7 +142,7 @@ public class JpaLedgerRepository implements LedgerRepository {
             .setParameter("tipo", tipo.name())
             .setParameter("moneda", moneda)
             .getResultList();
-    return filas.stream().findFirst().map(BigDecimal.class::cast).orElse(BigDecimal.ZERO);
+    return filas.stream().findFirst().map(MinorUnits::fromMinor).orElse(BigDecimal.ZERO);
   }
 
   @Override
@@ -167,7 +168,7 @@ public class JpaLedgerRepository implements LedgerRepository {
               (UUID) f.get("moneda"),
               (String) f.get("codigo"),
               (String) f.get("tipo"),
-              (BigDecimal) f.get("saldo")));
+              MinorUnits.fromMinor(f.get("saldo"))));
     }
     return resultado;
   }
@@ -250,8 +251,8 @@ public class JpaLedgerRepository implements LedgerRepository {
               (String) f.get("cuenta"),
               (UUID) f.get("moneda"),
               (String) f.get("codigo"),
-              (BigDecimal) f.get("importe"),
-              (BigDecimal) f.get("saldo"),
+              MinorUnits.fromMinor(f.get("importe")),
+              MinorUnits.fromMinor(f.get("saldo")),
               (String) f.get("evento"),
               (UUID) f.get("mov_id"),
               (String) f.get("mov_code"),

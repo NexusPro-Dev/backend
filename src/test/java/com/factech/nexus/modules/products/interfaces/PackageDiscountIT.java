@@ -81,7 +81,7 @@ class PackageDiscountIT extends IntegrationTestBase {
     assertThat(ultimo)
         .contains("\"product_id\": \"" + bot + "\"")
         .contains("\"type\": {\"after\": \"PORCENTAJE\", \"before\": \"FIJO\"}")
-        .contains("\"value\": {\"after\": \"50\", \"before\": \"30.0000\"}");
+        .contains("\"value\": {\"after\": \"50\", \"before\": \"30.00\"}");
   }
 
   @Test
@@ -95,7 +95,7 @@ class PackageDiscountIT extends IntegrationTestBase {
     mvc.perform(corregir(paquete, bot, "FIJO", "100.00")).andExpect(status().isOk());
 
     // El precio baja a 50 después de asociar con fijo 100: 60 no, 50 sí.
-    jdbc.update("UPDATE products SET price = 50.00 WHERE id = ?", bot);
+    jdbc.update("UPDATE products SET price = 5000 WHERE id = ?", bot);
     mvc.perform(corregir(paquete, bot, "FIJO", "60.00"))
         .andExpect(status().isConflict())
         .andExpect(jsonPath("$.detail").value(containsString("50 USD")));

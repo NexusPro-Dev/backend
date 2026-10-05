@@ -1,6 +1,7 @@
 package com.factech.nexus.modules.products.domain.repository;
 
 import com.factech.nexus.modules.products.application.ListProductsRequest;
+import com.factech.nexus.shared.persistence.MinorUnits;
 import jakarta.persistence.EntityManager;
 import jakarta.persistence.Query;
 import jakarta.persistence.Tuple;
@@ -109,10 +110,10 @@ public class JpaProductQueryRepository implements ProductQueryRepository {
               (String) fila.get("m_name"),
               entero(fila.get("m_level")),
               (String) fila.get("m_color"),
-              (BigDecimal) fila.get("price"),
+              MinorUnits.fromMinor(fila.get("price")),
               // El precio de compra viaja SOLO en las dos lecturas de
               // administración —esta y el detalle— (`RN-PM-024`).
-              (BigDecimal) fila.get("purchase_price"),
+              MinorUnits.fromMinor(fila.get("purchase_price")),
               (UUID) fila.get("c_id"),
               (String) fila.get("c_code"),
               ((Number) fila.get("c_decimales")).intValue(),
@@ -207,8 +208,8 @@ public class JpaProductQueryRepository implements ProductQueryRepository {
                     (String) fila.get("m_name"),
                     entero(fila.get("m_level")),
                     (String) fila.get("m_color"),
-                    (BigDecimal) fila.get("price"),
-                    (BigDecimal) fila.get("purchase_price"),
+                    MinorUnits.fromMinor(fila.get("price")),
+                    MinorUnits.fromMinor(fila.get("purchase_price")),
                     (UUID) fila.get("c_id"),
                     (String) fila.get("c_code"),
                     ((Number) fila.get("c_decimales")).intValue(),
@@ -446,7 +447,7 @@ public class JpaProductQueryRepository implements ProductQueryRepository {
               (String) fila.get("m_name"),
               entero(fila.get("m_level")),
               (String) fila.get("m_color"),
-              (BigDecimal) fila.get("price"),
+              MinorUnits.fromMinor(fila.get("price")),
               // NULO A PROPÓSITO: el precio de compra es el costo de NEXUS y
               // esta consulta NO LO SELECCIONA (`RN-PM-024`, 12-09-2026). Si lo
               // trajera, estaría a un campo de distancia de publicarse en la
@@ -589,7 +590,7 @@ public class JpaProductQueryRepository implements ProductQueryRepository {
         (String) fila.get("m_name"),
         entero(fila.get("m_level")),
         (String) fila.get("m_color"),
-        (BigDecimal) fila.get("price"),
+        MinorUnits.fromMinor(fila.get("price")),
         // NULO A PROPÓSITO: el costo no se selecciona en la lectura sin token
         // (`RN-PM-024`, 12-09-2026). Ver el Javadoc de arriba.
         null,

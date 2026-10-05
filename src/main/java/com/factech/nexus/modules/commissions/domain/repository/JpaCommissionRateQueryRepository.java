@@ -1,5 +1,6 @@
 package com.factech.nexus.modules.commissions.domain.repository;
 
+import com.factech.nexus.shared.persistence.MinorUnits;
 import jakarta.persistence.EntityManager;
 import jakarta.persistence.Query;
 import jakarta.persistence.Tuple;
@@ -162,7 +163,7 @@ public class JpaCommissionRateQueryRepository implements CommissionRateQueryRepo
         (UUID) fila.get("product_id"),
         (String) fila.get("product_code"),
         (String) fila.get("product_name"),
-        (BigDecimal) fila.get("product_price"),
+        MinorUnits.fromMinor(fila.get("product_price")),
         (UUID) fila.get("currency_id"),
         (String) fila.get("currency_code"),
         ((Number) fila.get("decimal_places")).intValue(),
@@ -171,12 +172,12 @@ public class JpaCommissionRateQueryRepository implements CommissionRateQueryRepo
         (String) fila.get("role_name"),
         CommissionRows.forma(fila.get("rate_type")),
         (BigDecimal) fila.get("percentage"),
-        (BigDecimal) fila.get("fixed_amount"),
+        MinorUnits.fromMinor(fila.get("fixed_amount")),
         fila.get("direct_rate_type") == null
             ? null
             : CommissionRows.forma(fila.get("direct_rate_type")),
         (BigDecimal) fila.get("direct_percentage"),
-        (BigDecimal) fila.get("direct_fixed_amount"),
+        MinorUnits.fromMinor(fila.get("direct_fixed_amount")),
         CommissionRows.momento(fila.get("deleted_at")));
   }
 

@@ -276,14 +276,23 @@ class UserCommissionRateIT extends IntegrationTestBase {
     String deMas = "1." + "0".repeat(decimales) + "1";
     String justos = decimales == 0 ? "1" : "1." + "0".repeat(decimales - 1) + "1";
 
+    // Desde `V65` ninguna moneda pasa de dos decimales y el importe fijo tampoco (`@Digits`,
+    // `CA-CM-335`): con una moneda de dos, el tercero lo para el `@Digits` (VAL-012) antes que la
+    // moneda (VAL-014), que solo se alcanza con una moneda de menos.
     mvc.perform(alta(fijo(vendedora, producto, deMas, "2026-01-01")))
         .andExpect(status().isBadRequest())
-        .andExpect(jsonPath("$.errors[0].code").value("VAL-014"))
+        .andExpect(jsonPath("$.errors[0].code").value(decimales < 2 ? "VAL-014" : "VAL-012"))
         .andExpect(jsonPath("$.errors[0].field").value("fixedAmount"));
     assertThat(cuantas()).isZero();
 
     mvc.perform(alta(fijo(vendedora, producto, justos, "2026-01-01")))
         .andExpect(status().isCreated());
+    assertThat(
+            jdbc.queryForObject(
+                "SELECT fixed_amount FROM user_commission_rates WHERE product_id = ?",
+                Long.class,
+                producto))
+        .isEqualTo(CommissionFixtures.centesimas(justos));
   }
 
   @Test

@@ -45,12 +45,12 @@ final class SettlementFixtures {
     UUID id = UUID.randomUUID();
     jdbc.update(
         "INSERT INTO products (scope, implementation, id, code, type, name, price, currency_id,"
-            + " status) VALUES ('TIENDA', 'MANUAL', ?, ?, 'BOT', ?, CAST(? AS numeric),"
+            + " status) VALUES ('TIENDA', 'MANUAL', ?, ?, 'BOT', ?, CAST(? AS bigint),"
             + " CAST(? AS uuid), 'ACTIVO')",
         id,
         "ST_" + codigo,
         "Producto " + codigo,
-        precio,
+        CommissionFixtures.centesimas(precio),
         USD);
     return id;
   }
@@ -65,7 +65,7 @@ final class SettlementFixtures {
         VALUES (?, CAST(? AS uuid),
                 (SELECT s.id FROM movement_type_statuses s
                   WHERE s.movement_type_id = CAST(? AS uuid) AND s.code = 'VALIDADO'),
-                ?, CAST(? AS uuid), ?, 'PENDIENTE', 100.00, 0, 100.00, CAST(? AS timestamptz))
+                ?, CAST(? AS uuid), ?, 'PENDIENTE', 10000, 0, 10000, CAST(? AS timestamptz))
         """,
         id,
         VENTA,
@@ -80,7 +80,7 @@ final class SettlementFixtures {
           """
           INSERT INTO movement_details (id, movement_id, product_id, seller_id, product_name,
                                         quantity, unit_price, line_amount, implementation)
-          SELECT ?, ?, p.id, ?, p.name, ?, CAST(? AS numeric), ? * CAST(? AS numeric),
+          SELECT ?, ?, p.id, ?, p.name, ?, CAST(? AS bigint), ? * CAST(? AS bigint),
                  p.implementation
             FROM products p WHERE p.id = ?
           """,
@@ -88,9 +88,9 @@ final class SettlementFixtures {
           id,
           l.vendedor(),
           l.cantidad(),
-          l.precio(),
+          CommissionFixtures.centesimas(l.precio()),
           l.cantidad(),
-          l.precio(),
+          CommissionFixtures.centesimas(l.precio()),
           l.producto());
     }
     return id;

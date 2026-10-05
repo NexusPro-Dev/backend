@@ -87,17 +87,15 @@ public class RegisterSaleService {
   private static final String ENTIDAD = "movements";
 
   /**
-   * Los decimales con los que el libro guarda los importes ({@code numeric(14,2)}).
+   * Los decimales con los que el libro guarda los importes: las centésimas de ADR-006.
    *
-   * <p><b>Y aquí hay una tensión declarada, no resuelta por este requerimiento.</b> {@code
-   * currencies.decimal_places} admite de cero a cuatro (`V14`) y {@code products.price} es {@code
-   * numeric(14,4)} justamente por eso, mientras que `requirements/mv.md` §7 fija los importes del
-   * movimiento en dos decimales. Con una moneda de tres o cuatro, el libro <b>redondearía en
-   * silencio lo que alguien pagó</b>.
+   * <p><b>La tensión que aquí se declaraba la cerró ADR-006</b> (05-10-2026): {@code
+   * currencies.decimal_places} admitía de cero a cuatro y el libro solo dos, de modo que una moneda
+   * de tres o cuatro <b>redondearía en silencio lo que alguien pagó</b>. Desde `V65` la moneda no
+   * pasa de dos y ningún importe tampoco.
    *
-   * <p>No se cambia el esquema aquí —lo fija un documento aprobado— y no se deja pasar: el importe
-   * que no quepa se rechaza al registrar, que es el único momento en que alguien está mirando. Hoy
-   * la única moneda sembrada es {@code USD} con dos decimales, de modo que esa rama no se alcanza.
+   * <p>El rechazo al registrar se queda como red: no lo alcanza ningún dato válido, y saltaría si
+   * alguien sembrara una moneda que el {@code CHECK} no dejara pasar por otra vía.
    */
   private static final int DECIMALES_DEL_LIBRO = 2;
 

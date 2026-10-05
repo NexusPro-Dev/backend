@@ -758,7 +758,9 @@ class ProductOfferIT extends IntegrationTestBase {
   /** Le pone precio de compra a un producto ya sembrado, que es lo que la siembra no hace. */
   private void declararPrecioDeCompra(String codigo, String importe) {
     jdbc.update(
-        "UPDATE products SET purchase_price = CAST(? AS numeric) WHERE code = ?", importe, codigo);
+        "UPDATE products SET purchase_price = CAST(? AS numeric) * 100 WHERE code = ?",
+        importe,
+        codigo);
   }
 
   // ---------------------------------------------------------------------------
@@ -1015,7 +1017,7 @@ class ProductOfferIT extends IntegrationTestBase {
             + " target_membership_id, price,"
             + " currency_id, validity_days, status, created_at, updated_at, deleted_at)"
             + " VALUES ('TIENDA', 'MANUAL', CAST(? AS uuid), ?, ?, ?, 'Descripción de prueba', CAST(? AS uuid),"
-            + " CAST(? AS uuid), CAST(? AS numeric), CAST(? AS uuid), CAST(? AS integer), ?, ?,"
+            + " CAST(? AS uuid), CAST(? AS numeric) * 100, CAST(? AS uuid), CAST(? AS integer), ?, ?,"
             + " ?, CAST(? AS timestamptz))",
         UUID.randomUUID().toString(),
         codigo,

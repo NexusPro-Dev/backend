@@ -16,6 +16,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 import com.factech.nexus.IntegrationTestBase;
+import com.factech.nexus.shared.persistence.MinorUnits;
 import com.factech.nexus.testing.CommissionCleanup;
 import com.jayway.jsonpath.JsonPath;
 import java.math.BigDecimal;
@@ -287,10 +288,11 @@ class BuyPackageIT extends IntegrationTestBase {
     // 33 % de 49.99 = 16.4967 → 16.50, y 12.5 % de 20.00 = 2.50; se cobra
     // 33.49 + 17.50 = 50.99, y NO 69.99 − 18.9967 redondeado.
     assertThat(
-            jdbc.queryForObject(
-                "SELECT payable_amount FROM movements WHERE package_id = ?::uuid",
-                BigDecimal.class,
-                paqRedondeo))
+            MinorUnits.fromMinor(
+                jdbc.queryForObject(
+                    "SELECT payable_amount FROM movements WHERE package_id = ?::uuid",
+                    Long.class,
+                    paqRedondeo)))
         .isEqualByComparingTo("50.99");
   }
 
@@ -311,12 +313,13 @@ class BuyPackageIT extends IntegrationTestBase {
                 + " (SELECT sum(line_discount) FROM movement_details) AS rebajado,"
                 + " (SELECT sum(line_amount) FROM movement_details) AS neto"
                 + " FROM movements");
-    assertThat((BigDecimal) cabecera.get("total_amount")).isEqualByComparingTo("30.00");
-    assertThat((BigDecimal) cabecera.get("discount_amount")).isEqualByComparingTo("6.00");
-    assertThat((BigDecimal) cabecera.get("payable_amount")).isEqualByComparingTo("24.00");
-    assertThat((BigDecimal) cabecera.get("bruto")).isEqualByComparingTo("30.00");
-    assertThat((BigDecimal) cabecera.get("rebajado")).isEqualByComparingTo("6.00");
-    assertThat((BigDecimal) cabecera.get("neto")).isEqualByComparingTo("24.00");
+    // En centésimas en la base (ADR-006); las sumas también, y son exactas.
+    assertThat(MinorUnits.fromMinor(cabecera.get("total_amount"))).isEqualByComparingTo("30.00");
+    assertThat(MinorUnits.fromMinor(cabecera.get("discount_amount"))).isEqualByComparingTo("6.00");
+    assertThat(MinorUnits.fromMinor(cabecera.get("payable_amount"))).isEqualByComparingTo("24.00");
+    assertThat(MinorUnits.fromMinor(cabecera.get("bruto"))).isEqualByComparingTo("30.00");
+    assertThat(MinorUnits.fromMinor(cabecera.get("rebajado"))).isEqualByComparingTo("6.00");
+    assertThat(MinorUnits.fromMinor(cabecera.get("neto"))).isEqualByComparingTo("24.00");
   }
 
   @Test
@@ -334,7 +337,8 @@ class BuyPackageIT extends IntegrationTestBase {
     // Se corrige el descuento del bot A (50 % → 90 %) y se saca el bot B del
     // paquete. Lo vendido no se entera.
     jdbc.update(
-        "UPDATE product_package_items SET discount_value = 90 WHERE package_id = ?::uuid AND"
+        // 90 % en centésimas (ADR-006).
+        "UPDATE product_package_items SET discount_value = 9000 WHERE package_id = ?::uuid AND"
             + " product_id = ?::uuid",
         paqBots,
         botA);
@@ -608,7 +612,8 @@ class BuyPackageIT extends IntegrationTestBase {
       "Un fijo mayor que el precio de hoy deja la línea en cero, como publica el catálogo, y lo pactado se guarda tal cual")
   void elFijoQueSuperaElPrecio() throws Exception {
     // El hueco temporal de `RN-PM-037`: el precio bajó después de asociar.
-    jdbc.update("UPDATE products SET price = 0.50 WHERE id = ?::uuid", botB);
+    // 0.50 en centésimas (ADR-006).
+    jdbc.update("UPDATE products SET price = 50 WHERE id = ?::uuid", botB);
     comprar(comprador, paqBots, TARJETA)
         .andExpect(status().isCreated())
         .andExpect(jsonPath("$.lines[1].unitPrice").value(0.50))
@@ -830,7 +835,7 @@ class BuyPackageIT extends IntegrationTestBase {
         INSERT INTO products (id, code, type, name, description, icon, source_membership_id,
                               target_membership_id, price, currency_id, validity_days, status,
                               scope, implementation, created_at, updated_at)
-        VALUES (?::uuid, ?, ?, ?, ?, ?, ?::uuid, ?::uuid, ?::numeric, ?::uuid, ?::integer, 'ACTIVO',
+        VALUES (?::uuid, ?, ?, ?, ?, ?, ?::uuid, ?::uuid, ?::numeric * 100, ?::uuid, ?::integer, 'ACTIVO',
                 'AMBOS', 'MANUAL', ?, ?)
         """,
         id,
@@ -871,7 +876,7 @@ class BuyPackageIT extends IntegrationTestBase {
   private void asociar(UUID paquete, UUID producto, String forma, String valor) {
     jdbc.update(
         "INSERT INTO product_package_items (package_id, product_id, discount_type, discount_value,"
-            + " created_at) VALUES (?::uuid, ?::uuid, ?, ?::numeric, ?)",
+            + " created_at) VALUES (?::uuid, ?::uuid, ?, ?::numeric * 100, ?)",
         paquete,
         producto,
         forma,

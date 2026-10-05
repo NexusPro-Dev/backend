@@ -2,6 +2,7 @@ package com.factech.nexus.modules.movements;
 
 import com.factech.nexus.modules.movements.application.WithdrawalRequests;
 import com.factech.nexus.modules.movements.domain.service.CreditService;
+import com.factech.nexus.shared.persistence.MinorUnits;
 import com.factech.nexus.testing.CommissionCleanup;
 import java.math.BigDecimal;
 import java.util.UUID;
@@ -32,7 +33,8 @@ public final class LedgerFixtures {
         .query(
             "SELECT balance FROM accounts WHERE user_id = ? AND kind = ?"
                 + " AND currency_id = CAST(? AS uuid)",
-            (fila, n) -> fila.getBigDecimal(1),
+            // En centésimas en la base (ADR-006).
+            (fila, n) -> MinorUnits.fromMinor(fila.getLong(1)),
             persona,
             cuenta,
             USD)

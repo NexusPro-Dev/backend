@@ -61,7 +61,7 @@ class PackageOfferIT extends IntegrationTestBase {
     UUID upOroOro = PackageTestSupport.upgrade(jdbc, "UP_ORO_ORO", "50.00", m.oro(), m.oro());
     botA = PackageTestSupport.bot(jdbc, "BOT_A", "10.00");
     UUID botB = PackageTestSupport.bot(jdbc, "BOT_B", "20.00");
-    jdbc.update("UPDATE products SET purchase_price = 5.00 WHERE id = ?", botA);
+    jdbc.update("UPDATE products SET purchase_price = 500 WHERE id = ?", botA);
 
     desdePlatino =
         PackageTestSupport.paquete(jdbc, "DESDE_PLATINO", "Oro con bot.", "ACTIVO", "TIENDA");
@@ -224,7 +224,7 @@ class PackageOfferIT extends IntegrationTestBase {
     UUID c1 = PackageTestSupport.bot(jdbc, "BOT_COP_A", "10.00");
     UUID c2 = PackageTestSupport.bot(jdbc, "BOT_COP_B", "20.00");
     jdbc.update(
-        "UPDATE products SET currency_id = ?, price = 40000 WHERE id IN (?, ?)", cop, c1, c2);
+        "UPDATE products SET currency_id = ?, price = 4000000 WHERE id IN (?, ?)", cop, c1, c2);
     PackageTestSupport.asociar(jdbc, enPesos, c1, "FIJO", "0");
     PackageTestSupport.asociar(jdbc, enPesos, c2, "FIJO", "0");
 

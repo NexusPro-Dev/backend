@@ -89,4 +89,4 @@ Por [`ADR-006`](../../../architecture/ADR-006-importes-en-unidades-minimas.md) y
 
 | ID | Tarea | Depende de | Verificación | Estado |
 |---|---|---|---|---|
-| `T-08` | `BuyPointsIT` gana `CA-MV-546`: tras confirmar una compra, `movements.points_amount` en la base, el asiento de la cuenta `PUNTOS` y el saldo de la persona coinciden en centésimas, y la respuesta devuelve los puntos en decimales. Las siembras de la suite que insertan tasas o saldos por SQL se revisan con `RF-MV-001` · `T-43` | `RF-MV-001` · `T-42`, `T-43`, `T-44` | `CA-MV-546`, y `CA-MV-306` a `CA-MV-317` siguen en verde | Pendiente |
+| `T-08` | `BuyPointsIT` gana `CA-MV-546`: tras confirmar una compra, `movements.points_amount` en la base, el asiento de la cuenta `PUNTOS` y el saldo de la persona coinciden en centésimas, y la respuesta devuelve los puntos en decimales. Las siembras de la suite que insertan tasas o saldos por SQL se revisan con `RF-MV-001` · `T-43` | `RF-MV-001` · `T-42`, `T-43`, `T-44` | `CA-MV-546`, y `CA-MV-306` a `CA-MV-317` siguen en verde | **Hecha el 05-10-2026** |

@@ -1,5 +1,6 @@
 package com.factech.nexus.modules.movements.domain.repository;
 
+import com.factech.nexus.shared.persistence.MinorUnits;
 import jakarta.persistence.EntityManager;
 import jakarta.persistence.Tuple;
 import java.math.BigDecimal;
@@ -76,7 +77,9 @@ public class JpaPaymentRepository implements PaymentRepository {
         .map(
             f ->
                 new RetryTarget(
-                    (UUID) f.get("id"), (String) f.get("status"), (BigDecimal) f.get("importe")));
+                    (UUID) f.get("id"),
+                    (String) f.get("status"),
+                    MinorUnits.fromMinor(f.get("importe"))));
   }
 
   @Override
@@ -99,7 +102,7 @@ public class JpaPaymentRepository implements PaymentRepository {
             .setParameter("id", paymentId)
             .setParameter("movimiento", movementId)
             .setParameter("metodo", paymentMethodId)
-            .setParameter("importe", amount)
+            .setParameter("importe", MinorUnits.toMinor(amount))
             .setParameter("clave", idempotencyKey)
             .setParameter("ahora", at)
             .executeUpdate();
@@ -127,7 +130,7 @@ public class JpaPaymentRepository implements PaymentRepository {
         .setParameter("id", paymentId)
         .setParameter("movimiento", movementId)
         .setParameter("metodo", paymentMethodId)
-        .setParameter("importe", amount)
+        .setParameter("importe", MinorUnits.toMinor(amount))
         .setParameter("clave", idempotencyKey)
         .setParameter("referencia", providerReference)
         .setParameter("ahora", at)
@@ -224,7 +227,7 @@ public class JpaPaymentRepository implements PaymentRepository {
                     (String) f.get("estado"),
                     (String) f.get("metodo"),
                     (String) f.get("pasarela"),
-                    (BigDecimal) f.get("importe"),
+                    MinorUnits.fromMinor(f.get("importe")),
                     ((String) f.get("moneda")).trim(),
                     ((Number) f.get("decimales")).intValue(),
                     (String) f.get("clave"),
@@ -325,7 +328,7 @@ public class JpaPaymentRepository implements PaymentRepository {
                     (UUID) f.get("movimiento"),
                     (String) f.get("tipo"),
                     (String) f.get("estado"),
-                    (BigDecimal) f.get("importe"),
+                    MinorUnits.fromMinor(f.get("importe")),
                     ((String) f.get("moneda")).trim(),
                     ((Number) f.get("decimales")).intValue()));
   }
@@ -337,13 +340,15 @@ public class JpaPaymentRepository implements PaymentRepository {
                 """
                 UPDATE payments
                    SET incident = :incidencia, incident_at = :ahora,
-                       refunded_amount = CAST(:devuelto AS numeric)
+                       refunded_amount = CAST(:devuelto AS bigint)
                  WHERE id = :id AND status = 'CONFIRMADO'
                 """)
             .setParameter("id", paymentId)
             .setParameter("incidencia", incident)
             .setParameter("ahora", at)
-            .setParameter("devuelto", refunded == null ? null : refunded.toPlainString())
+            // En centésimas (ADR-006), y como texto por lo mismo que antes: un nulo sin tipo.
+            .setParameter(
+                "devuelto", refunded == null ? null : String.valueOf(MinorUnits.toMinor(refunded)))
             .executeUpdate()
         == 1;
   }

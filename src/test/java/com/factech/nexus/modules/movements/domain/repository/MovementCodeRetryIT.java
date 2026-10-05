@@ -156,7 +156,7 @@ class MovementCodeRetryIT extends IntegrationTestBase {
         INSERT INTO movements (id, movement_type_id, type_status_id, user_id,
                                currency_id, code, status, total_amount, discount_amount,
                                payable_amount, occurred_at)
-        VALUES (CAST(? AS uuid), CAST(? AS uuid), (SELECT s.id FROM movement_type_statuses s WHERE s.movement_type_id = CAST(? AS uuid) AND s.code = 'VALIDADO'), CAST(? AS uuid), CAST(? AS uuid), ?, 'PENDIENTE', 10.00, 0, 10.00, ?)
+        VALUES (CAST(? AS uuid), CAST(? AS uuid), (SELECT s.id FROM movement_type_statuses s WHERE s.movement_type_id = CAST(? AS uuid) AND s.code = 'VALIDADO'), CAST(? AS uuid), CAST(? AS uuid), ?, 'PENDIENTE', 1000, 0, 1000, ?)
         """,
         UUID.randomUUID().toString(),
         TIPO_VENTA,
@@ -173,7 +173,7 @@ class MovementCodeRetryIT extends IntegrationTestBase {
     jdbc.update(
         "INSERT INTO products (scope, implementation, id, code, type, name, price, currency_id, status,"
             + " created_at, updated_at)"
-            + " VALUES ('TIENDA', 'MANUAL', CAST(? AS uuid), 'RTY_BOT', 'BOT', 'Bot de prueba', 10.00,"
+            + " VALUES ('TIENDA', 'MANUAL', CAST(? AS uuid), 'RTY_BOT', 'BOT', 'Bot de prueba', 1000,"
             + " CAST(? AS uuid), 'ACTIVO', ?, ?)",
         id.toString(),
         USD,

@@ -159,7 +159,7 @@ class ProductLinksSchemaIT extends IntegrationTestBase {
         "INSERT INTO products (scope, implementation, id, code, type, name, description,"
             + " source_membership_id, target_membership_id, price, currency_id, validity_days,"
             + " status) VALUES ('TIENDA', 'AUTOMATICA', ?, ?, 'BOT', 'Bot de esquema',"
-            + " 'Producto de prueba', NULL, NULL, 100.00, CAST(? AS uuid), NULL, 'ACTIVO')",
+            + " 'Producto de prueba', NULL, NULL, 10000, CAST(? AS uuid), NULL, 'ACTIVO')",
         id,
         codigo,
         USD);

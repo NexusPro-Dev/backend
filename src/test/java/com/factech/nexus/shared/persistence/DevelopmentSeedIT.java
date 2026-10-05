@@ -263,9 +263,9 @@ class DevelopmentSeedIT extends IntegrationTestBase {
     assertThat(upgrades.stream().filter(u -> u.get("origen").equals(u.get("destino"))).count())
         .isEqualTo(4);
     assertThat(
-            jdbc.queryForObject(
-                "SELECT price FROM products WHERE code = 'MEMBRESIA_BECA'",
-                java.math.BigDecimal.class))
+            MinorUnits.fromMinor(
+                jdbc.queryForObject(
+                    "SELECT price FROM products WHERE code = 'MEMBRESIA_BECA'", Long.class)))
         .isEqualByComparingTo("0");
 
     // Los bots no llevan membresía (`RN-PM-002`), y uno declara su precio de compra.
@@ -277,9 +277,10 @@ class DevelopmentSeedIT extends IntegrationTestBase {
                 (Object) PRODUCTOS.toArray(String[]::new)))
         .isEqualTo(5);
     assertThat(
-            jdbc.queryForObject(
-                "SELECT purchase_price FROM products WHERE code = 'BOT_PRO_ANUAL'",
-                java.math.BigDecimal.class))
+            MinorUnits.fromMinor(
+                jdbc.queryForObject(
+                    "SELECT purchase_price FROM products WHERE code = 'BOT_PRO_ANUAL'",
+                    Long.class)))
         .isEqualByComparingTo("250");
 
     // El inactivo comparte par con un activo —el índice único es parcial— y el
@@ -343,11 +344,11 @@ class DevelopmentSeedIT extends IntegrationTestBase {
     // La mezcla: porcentaje en los upgrades con precio, fijo en dos bots y en los gratuitos.
     assertThat(tasa("UPGRADE_BECA_ORO", "AGENTE")).isEqualTo("PORCENTAJE|10.00|");
     assertThat(tasa("BOT_PRO_ANUAL", "MANAGER")).isEqualTo("PORCENTAJE|5.00|");
-    assertThat(tasa("BOT_SENALES", "DIRECTOR")).isEqualTo("FIJO||2.5000");
-    assertThat(tasa("BOT_COPY_TRADING", "AGENTE")).isEqualTo("FIJO||8.0000");
+    assertThat(tasa("BOT_SENALES", "DIRECTOR")).isEqualTo("FIJO||250");
+    assertThat(tasa("BOT_COPY_TRADING", "AGENTE")).isEqualTo("FIJO||800");
     // Los gratuitos, solo por fijo (`RN-CM-020`).
-    assertThat(tasa("MEMBRESIA_BECA", "MANAGER")).isEqualTo("FIJO||0.5000");
-    assertThat(tasa("BOT_ALERTAS", "AGENTE")).isEqualTo("FIJO||2.0000");
+    assertThat(tasa("MEMBRESIA_BECA", "MANAGER")).isEqualTo("FIJO||50");
+    assertThat(tasa("BOT_ALERTAS", "AGENTE")).isEqualTo("FIJO||200");
 
     // No pisa una tasa corregida a mano.
     jdbc.update(

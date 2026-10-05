@@ -175,7 +175,7 @@ Rama: `develop`.
 
 | ID | Tarea | Depende de | Verificación | Estado |
 |---|---|---|---|---|
-| `T-55` | `@Convert` con el convertidor compartido en `Product.price` y `Product.purchasePrice`; `@Digits(fraction = 2)` y el texto de `VAL-005` («dos decimales») en `RegisterProductRequest`; **revisión una a una** de las lecturas por SQL nativo de `PM` que devuelven o comparan un importe —`JpaProductQueryRepository`, `PublishedProductCatalog`, `JpaProductPackageQueryRepository`, `JpaPackageItemRepository` y las que aparezcan— para convertir al mapear con el ayudante compartido (`plan.md` §15) | `RF-MV-001` `T-40`, `T-41` | Compila; `ProductsIT`, `ProductUpdateIT`, `PackagesIT` y las suites del hotlink y la oferta, en verde | Pendiente |
-| `T-56` | Pruebas de `CA-PM-433` a `CA-PM-435`, y las semillas por SQL de las suites de `PM` pasan a escribir centésimas | `T-55` | `ProductsIT`: `CA-PM-433`, `CA-PM-434`; `CA-PM-435` según `plan.md` §15.3 | Pendiente |
+| `T-55` | `@Convert` con el convertidor compartido en `Product.price` y `Product.purchasePrice`; `@Digits(fraction = 2)` y el texto de `VAL-005` («dos decimales») en `RegisterProductRequest`; **revisión una a una** de las lecturas por SQL nativo de `PM` que devuelven o comparan un importe —`JpaProductQueryRepository`, `PublishedProductCatalog`, `JpaProductPackageQueryRepository`, `JpaPackageItemRepository` y las que aparezcan— para convertir al mapear con el ayudante compartido (`plan.md` §15) | `RF-MV-001` `T-40`, `T-41` | Compila; `ProductsIT`, `ProductUpdateIT`, `PackagesIT` y las suites del hotlink y la oferta, en verde | **Hecha el 05-10-2026** |
+| `T-56` | Pruebas de `CA-PM-433` a `CA-PM-435`, y las semillas por SQL de las suites de `PM` pasan a escribir centésimas | `T-55` | `ProductsIT`: `CA-PM-433`, `CA-PM-434`; `CA-PM-435` según `plan.md` §15.3 | **Hecha el 05-10-2026** |
 
 Rama: `develop`.

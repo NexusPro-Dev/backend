@@ -212,7 +212,7 @@ class UpdateProductServiceIT extends IntegrationTestBase {
         "INSERT INTO products (scope, implementation, id, code, type, name, description, source_membership_id,"
             + " target_membership_id, price,"
             + " currency_id, validity_days, status, created_at, updated_at)"
-            + " VALUES ('TIENDA', 'MANUAL', CAST(? AS uuid), ?, 'BOT', ?, ?, NULL, NULL, 49.99, CAST(? AS uuid), NULL,"
+            + " VALUES ('TIENDA', 'MANUAL', CAST(? AS uuid), ?, 'BOT', ?, ?, NULL, NULL, 4999, CAST(? AS uuid), NULL,"
             + " 'INACTIVO', ?, ?)",
         id.toString(),
         codigo,

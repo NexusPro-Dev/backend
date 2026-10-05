@@ -15,6 +15,7 @@ import com.factech.nexus.IntegrationTestBase;
 import com.factech.nexus.modules.movements.LedgerFixtures;
 import com.factech.nexus.modules.movements.PayoutFixtures;
 import com.factech.nexus.modules.movements.domain.service.CreditService;
+import com.factech.nexus.shared.persistence.MinorUnits;
 import com.jayway.jsonpath.JsonPath;
 import java.util.ArrayList;
 import java.util.List;
@@ -202,9 +203,10 @@ class BalancesAndBonusIT extends IntegrationTestBase {
 
     assertThat(saldo(jdbc, persona, "BILLETERA")).isEqualByComparingTo("25.50");
     assertThat(
-            jdbc.queryForObject(
-                "SELECT balance FROM accounts WHERE user_id IS NULL AND kind = 'BONOS'",
-                java.math.BigDecimal.class))
+            MinorUnits.fromMinor(
+                jdbc.queryForObject(
+                    "SELECT balance FROM accounts WHERE user_id IS NULL AND kind = 'BONOS'",
+                    Long.class)))
         .isEqualByComparingTo("-25.50");
   }
 

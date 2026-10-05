@@ -268,7 +268,7 @@ class VoidSaleIT extends IntegrationTestBase {
         "INSERT INTO products (scope, implementation, id, code, type, name, description,"
             + " source_membership_id, target_membership_id, price, currency_id, validity_days, status)"
             + " VALUES ('TIENDA', 'AUTOMATICA', ?, ?, ?, ?, 'x', CAST(? AS uuid), CAST(? AS uuid),"
-            + " 100.00, CAST(? AS uuid), 30, 'ACTIVO')",
+            + " 10000, CAST(? AS uuid), 30, 'ACTIVO')",
         id,
         codigo,
         tipo,
@@ -286,7 +286,7 @@ class VoidSaleIT extends IntegrationTestBase {
         INSERT INTO movements (id, movement_type_id, type_status_id, user_id, currency_id,
                                code, status, total_amount, discount_amount, payable_amount,
                                occurred_at)
-        VALUES (?, CAST(? AS uuid), (SELECT s.id FROM movement_type_statuses s WHERE s.movement_type_id = CAST(? AS uuid) AND s.code = 'VALIDADO'), ?, CAST(? AS uuid), ?, ?, 100.00, 0, 100.00,
+        VALUES (?, CAST(? AS uuid), (SELECT s.id FROM movement_type_statuses s WHERE s.movement_type_id = CAST(? AS uuid) AND s.code = 'VALIDADO'), ?, CAST(? AS uuid), ?, ?, 10000, 0, 10000,
                 CAST(? AS timestamptz))
         """,
         id,
@@ -303,7 +303,7 @@ class VoidSaleIT extends IntegrationTestBase {
         INSERT INTO movement_details (id, movement_id, product_id, seller_id, product_name,
                                       product_description, quantity, unit_price, line_amount,
                                       validity_days, implementation)
-        SELECT ?, ?, p.id, ?, p.name, p.description, 1, 100.00, 100.00, p.validity_days,
+        SELECT ?, ?, p.id, ?, p.name, p.description, 1, 10000, 10000, p.validity_days,
                p.implementation FROM products p WHERE p.id = ?
         """,
         UUID.randomUUID(),

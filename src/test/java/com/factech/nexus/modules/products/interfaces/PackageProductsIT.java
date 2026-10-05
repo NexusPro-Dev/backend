@@ -103,6 +103,25 @@ class PackageProductsIT extends IntegrationTestBase {
   }
 
   @Test
+  @DisplayName(
+      "`CA-PM-436` — un porcentaje de 12.50 se guarda 1250 y la cuenta no cambia (ADR-006)")
+  void elPorcentajeTambienEnCentesimas() throws Exception {
+    // La columna guarda dinero o porcentaje según el tipo, y va entera en
+    // centésimas: partirla haría que el mismo campo cambiara de unidad por fila.
+    UUID bot = PackageTestSupport.bot(jdbc, "BOT_A", "49.99");
+    mvc.perform(asociar(paquete, bot, "PORCENTAJE", "12.50"))
+        .andExpect(status().isCreated())
+        .andExpect(jsonPath("$.items[0].priceInPackage").value(43.74));
+
+    assertThat(
+            jdbc.queryForObject(
+                "SELECT discount_value FROM product_package_items WHERE product_id = ?",
+                Long.class,
+                bot))
+        .isEqualTo(1250L);
+  }
+
+  @Test
   @DisplayName("`CA-PM-306` — el descuento cero se admite en las dos formas y savings no cambia")
   void descuentoCero() throws Exception {
     UUID a = PackageTestSupport.bot(jdbc, "BOT_A", "10.00");
@@ -208,7 +227,7 @@ class PackageProductsIT extends IntegrationTestBase {
     jdbc.update(
         """
         INSERT INTO products (id, code, type, name, price, currency_id, status, scope, implementation)
-        VALUES (?, 'BOT_PESOS', 'BOT', 'Bot en pesos', 4150, ?, 'ACTIVO', 'AMBOS', 'AUTOMATICA')
+        VALUES (?, 'BOT_PESOS', 'BOT', 'Bot en pesos', 415000, ?, 'ACTIVO', 'AMBOS', 'AUTOMATICA')
         """,
         enPesos,
         cop);
@@ -293,7 +312,7 @@ class PackageProductsIT extends IntegrationTestBase {
     assertThat((String) fila.get("changes"))
         .contains("\"product_id\": \"" + bot + "\"")
         .contains("\"discount_type\": \"FIJO\"")
-        .contains("\"product_price\": \"49.0000\"");
+        .contains("\"product_price\": \"49.00\"");
 
     UUID retirado = PackageTestSupport.paquete(jdbc, "RETIRADO", null, "INACTIVO", "TIENDA");
     jdbc.update("UPDATE product_packages SET deleted_at = now() WHERE id = ?", retirado);

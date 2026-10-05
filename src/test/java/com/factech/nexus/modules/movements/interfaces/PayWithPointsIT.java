@@ -13,6 +13,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import com.factech.nexus.IntegrationTestBase;
 import com.factech.nexus.modules.movements.PaymentFixtures;
 import com.factech.nexus.modules.movements.PointsFixtures;
+import com.factech.nexus.shared.persistence.MinorUnits;
 import com.jayway.jsonpath.JsonPath;
 import java.math.BigDecimal;
 import java.nio.charset.StandardCharsets;
@@ -227,12 +228,13 @@ class PayWithPointsIT extends IntegrationTestBase {
         .andExpect(jsonPath("$.errors[0].code").value("RN-MV-052"));
     assertThat(estadoDe(venta)).isEqualTo("PENDIENTE");
     assertThat(
-            jdbc.queryForObject(
-                "SELECT balance FROM accounts WHERE user_id = ? AND kind = 'PUNTOS'"
-                    + " AND currency_id = ?",
-                BigDecimal.class,
-                comprador,
-                otra))
+            MinorUnits.fromMinor(
+                jdbc.queryForObject(
+                    "SELECT balance FROM accounts WHERE user_id = ? AND kind = 'PUNTOS'"
+                        + " AND currency_id = ?",
+                    Long.class,
+                    comprador,
+                    otra)))
         .isEqualByComparingTo("5000.00");
   }
 
@@ -421,7 +423,7 @@ class PayWithPointsIT extends IntegrationTestBase {
         VALUES (?, CAST(? AS uuid),
                 (SELECT s.id FROM movement_type_statuses s
                   WHERE s.movement_type_id = CAST(? AS uuid) AND s.code = 'VALIDADO'),
-                ?, CAST(? AS uuid), ?, 'PENDIENTE', CAST(? AS numeric), 0, CAST(? AS numeric),
+                ?, CAST(? AS uuid), ?, 'PENDIENTE', CAST(? AS numeric) * 100, 0, CAST(? AS numeric) * 100,
                 ?)
         """,
         id,
@@ -439,7 +441,7 @@ class PayWithPointsIT extends IntegrationTestBase {
         INSERT INTO movement_details (id, movement_id, product_id, seller_id, product_name,
                                       product_description, quantity, unit_price, line_amount,
                                       validity_days, implementation)
-        SELECT ?, ?, p.id, ?, p.name, p.description, 1, CAST(? AS numeric), CAST(? AS numeric),
+        SELECT ?, ?, p.id, ?, p.name, p.description, 1, CAST(? AS numeric) * 100, CAST(? AS numeric) * 100,
                p.validity_days, p.implementation FROM products p WHERE p.id = ?
         """,
         UUID.randomUUID(),
@@ -469,11 +471,13 @@ class PayWithPointsIT extends IntegrationTestBase {
   }
 
   private BigDecimal emitidos() {
-    return jdbc.queryForObject(
-        "SELECT balance FROM accounts WHERE user_id IS NULL AND kind = 'PUNTOS_EMITIDOS'"
-            + " AND currency_id = CAST(? AS uuid)",
-        BigDecimal.class,
-        USD);
+    // En centésimas en la base (ADR-006), también los puntos.
+    return MinorUnits.fromMinor(
+        jdbc.queryForObject(
+            "SELECT balance FROM accounts WHERE user_id IS NULL AND kind = 'PUNTOS_EMITIDOS'"
+                + " AND currency_id = CAST(? AS uuid)",
+            Long.class,
+            USD));
   }
 
   // ---------------------------------------------------------------- siembra
@@ -515,7 +519,7 @@ class PayWithPointsIT extends IntegrationTestBase {
         """
         INSERT INTO products (id, code, type, name, description, price, currency_id,
                               validity_days, status, scope, implementation, created_at, updated_at)
-        VALUES (?, ?, 'BOT', ?, 'Sembrado por PayWithPointsIT', CAST(? AS numeric),
+        VALUES (?, ?, 'BOT', ?, 'Sembrado por PayWithPointsIT', CAST(? AS numeric) * 100,
                 CAST(? AS uuid), 30, 'ACTIVO', 'AMBOS', 'AUTOMATICA', ?, ?)
         """,
         id,
