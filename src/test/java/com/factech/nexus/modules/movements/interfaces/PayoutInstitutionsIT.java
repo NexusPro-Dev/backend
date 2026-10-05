@@ -154,6 +154,23 @@ class PayoutInstitutionsIT extends IntegrationTestBase {
   }
 
   @Test
+  @DisplayName(
+      "CA-MV-547 — un código que empieza por dígito se registra; por guion bajo, no (05-10-2026)")
+  void codigoQueEmpiezaPorDigito() throws Exception {
+    // Muchos bancos se identifican por su código de compensación, que es numérico.
+    mvc.perform(crear("1007", "Banco por código", "BANCO", colombia))
+        .andExpect(status().isCreated())
+        .andExpect(jsonPath("$.code").value("1007"));
+    mvc.perform(crear("0507_nequi", "Billetera por código", "BILLETERA_MOVIL", colombia))
+        .andExpect(status().isCreated())
+        .andExpect(jsonPath("$.code").value("0507_NEQUI"));
+    mvc.perform(crear("_1007", "Guion primero", "BANCO", colombia))
+        .andExpect(status().isBadRequest())
+        .andExpect(jsonPath("$.errors[0].field").value("code"));
+    assertThat(entidades()).isEqualTo(2);
+  }
+
+  @Test
   @DisplayName("CA-MV-363 — país inexistente: 422; país inactivo: 409. Nada cambia")
   void paises() throws Exception {
     mvc.perform(crear("ZSINPAIS", "Sin país", "BANCO", UUID.randomUUID()))

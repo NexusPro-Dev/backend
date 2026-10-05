@@ -38,7 +38,7 @@ public class PayoutInstitutionService {
 
   private static final String MODULO = "MV";
   private static final String ENTIDAD = "payout_institutions";
-  private static final Pattern CODIGO = Pattern.compile("[A-Z][A-Z0-9_]{1,29}");
+  private static final Pattern CODIGO = Pattern.compile("[A-Z0-9][A-Z0-9_]{1,29}");
   private static final int NOMBRE = 100;
 
   private final PayoutInstitutionRepository entidades;
@@ -85,8 +85,8 @@ public class PayoutInstitutionService {
           new FieldError(
               "code",
               "VAL-001",
-              "El código es obligatorio: de 2 a 30 caracteres, empieza por letra y sigue con"
-                  + " letras, dígitos o guion bajo."));
+              "El código es obligatorio: de 2 a 30 caracteres, empieza por letra o dígito y sigue"
+                  + " con letras, dígitos o guion bajo."));
     }
     String problema = problemaDelNombre(nombre);
     if (problema != null) {

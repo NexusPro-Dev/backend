@@ -4,7 +4,7 @@
 |---|---|
 | Requerimiento | `RF-MV-032` |
 | Módulo | `MV` — Movimientos |
-| Versión | 0.1.0 |
+| Versión | 0.2.0 |
 | Estado | **Aprobada** |
 | Autor | Responsable técnico |
 | Aprobada por | Responsable del proyecto |
@@ -83,7 +83,7 @@ Que administración pueda dar de alta **los bancos y las billeteras móviles** a
 
 | Dato | Obligatorio | Descripción |
 |---|---|---|
-| Código | Sí | De 2 a 30 caracteres: empieza por letra y sigue con mayúsculas, dígitos o guion bajo. Se admite en minúsculas y se guarda en mayúsculas |
+| Código | Sí | De 2 a 30 caracteres: empieza por letra **o por dígito** y sigue con mayúsculas, dígitos o guion bajo. Se admite en minúsculas y se guarda en mayúsculas |
 | Nombre | Sí | El que verá la persona. De 1 a 100 caracteres, sin espacios a los lados |
 | Tipo | Sí | `BANCO` o `BILLETERA_MOVIL` |
 | País | Sí | El país donde opera |
@@ -154,6 +154,7 @@ Ninguno.
 | `CA-MV-363` | País inexistente: rechazo; país **inactivo**: conflicto. En los dos casos nada cambia |
 | `CA-MV-364` | Sin `movements:create-payout-institution` responde prohibido; sin autenticar, `401` |
 | `CA-MV-365` | Queda **auditada**, con quién la registró |
+| `CA-MV-547` | Un código que **empieza por dígito** —`1007`, `0507_NEQUI`— se registra; uno que empieza por guion bajo se rechaza (05-10-2026) |
 
 ---
 
@@ -163,6 +164,7 @@ Ninguno.
 |---|---|
 | Dos entidades con el mismo **nombre** y distinto código | Se admite: el nombre es para leerlo, y dos países pueden tener un banco que se llame igual |
 | El mismo banco en dos países | Dos entidades, con dos códigos (`BANCOLOMBIA`, `BANCOLOMBIA_PA`) |
+| Un código solo de dígitos (`1007`) | Se admite desde el 05-10-2026: es el código de compensación con el que muchos bancos se identifican |
 
 ---
 
@@ -177,3 +179,4 @@ Ninguna.
 | Versión | Fecha | Cambio | Autor |
 |---|---|---|---|
 | 0.1.0 | 01-10-2026 | Primera versión, con las cuentas de cobro de `MV` ([`requirements/mv.md`](../../../requirements/mv.md) v0.61.0 §4.5). **Código único en todo el catálogo e inmutable**, tipo inmutable, un país, nace activa. Criterios `CA-MV-358` a `CA-MV-365`. | Responsable del proyecto |
+| 0.2.0 | 05-10-2026 | **El código puede empezar por dígito** ([`requirements/mv.md`](../../../requirements/mv.md) v0.74.0), a petición del responsable del proyecto: muchos bancos tienen un código numérico. §6.1 y `VAL-001` lo admiten, y `CA-MV-547` lo fija. El guion bajo sigue sin poder ir al principio. | Responsable del proyecto |

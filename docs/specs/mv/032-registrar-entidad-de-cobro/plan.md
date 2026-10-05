@@ -5,7 +5,8 @@
 | Requerimiento | `RF-MV-032` |
 | Especificación | [`spec.md`](spec.md) v0.1.0 |
 | `spec.md` aprobada el | 01-10-2026 |
-| Versión | 0.1.0 |
+| Versión | 0.2.0 |
+| Enmendado el | 05-10-2026 — el código puede empezar por dígito (`V66`) |
 | Estado | **Aprobado** |
 | Autor | Responsable técnico |
 | Aprobado por | Responsable del proyecto |
@@ -35,7 +36,7 @@
 |---|---|---|
 | `payout_institutions` | Las columnas de [`requirements/mv.md` §7.11](../../../requirements/mv.md) | `RN-MV-054` |
 | `uq_payout_institutions_code`, `ck_payout_institutions_kind` | Los de `requirements/mv.md` §7.6 | |
-| `ck_payout_institutions_code` | `code ~ '^[A-Z][A-Z0-9_]{1,29}$'` | La forma de los demás códigos del sistema, con el mínimo de dos |
+| `ck_payout_institutions_code` | `code ~ '^[A-Z0-9][A-Z0-9_]{1,29}$'` | **Desde `V66` (05-10-2026) admite un dígito al principio**: muchos bancos se identifican por su código de compensación, que es numérico. Hasta entonces era `^[A-Z][A-Z0-9_]{1,29}$`, la forma de los demás códigos del sistema. Se conserva el mínimo de dos y el guion bajo no puede ir primero |
 | `ck_payout_institutions_name` | `length(btrim(name)) > 0` | Como `ck_countries_name_not_blank` |
 | `fk_payout_institutions_country` | `country_id` → `countries(id)` `RESTRICT` | Los países no se borran |
 | `ix_payout_institutions_country` | `(country_id, name)` | El catálogo de un país, ordenado (`RF-MV-033`) |
