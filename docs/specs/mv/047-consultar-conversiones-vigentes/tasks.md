@@ -6,7 +6,7 @@
 | Especificación | [`spec.md`](spec.md) v0.1.0 |
 | Plan | [`plan.md`](plan.md) v0.1.0 |
 | `plan.md` aprobado el | 05-10-2026 |
-| Estado | **En revisión** |
+| Estado | **En revisión** — todas las tareas `Hecha` el 05-10-2026 |
 | Issue | Pendiente de crear |
 | Rama | `develop` (commits directos desde el 05-10-2026) |
 
@@ -22,10 +22,10 @@
 
 | ID | Tarea | Depende de | Verificación | Estado |
 |---|---|---|---|---|
-| `T-01` | `currentAll(instante, país)` en el repositorio, en una sentencia | `RF-MV-046` `T-01`, `T-03` | Una sola sentencia, contada | Pendiente |
-| `T-02` | `CountryConversionRateService.current` y el `GET /movements/conversion-rates` con `countryId` opcional | `T-01` | Documentado con los códigos de `plan.md` §4 | Pendiente |
-| `T-03` | `CountryConversionRatesIT`: `CA-MV-557` a `CA-MV-561` | `T-02` | Cada criterio afirmado en el cuerpo de su prueba | Pendiente |
-| `T-04` | `EndpointPermissionsIT`; contrato con la prosa releída | `T-03` | | Pendiente |
+| `T-01` | `currentAll(instante, país)` en el repositorio, en una sentencia | `RF-MV-046` `T-01`, `T-03` | Una sola sentencia, contada | **Hecha** — 05-10-2026 |
+| `T-02` | `CountryConversionRateService.current` y el `GET /movements/conversion-rates` con `countryId` opcional | `T-01` | Documentado con los códigos de `plan.md` §4 | **Hecha** — 05-10-2026 |
+| `T-03` | `CountryConversionRatesIT`: `CA-MV-557` a `CA-MV-561` | `T-02` | Cada criterio afirmado en el cuerpo de su prueba | **Hecha** — 05-10-2026 |
+| `T-04` | `EndpointPermissionsIT`; contrato con la prosa releída | `T-03` | | **Hecha** — 05-10-2026 |
 
 ---
 
@@ -52,8 +52,8 @@ Ninguno.
 
 ## 5. Definición de terminado
 
-- [ ] Las suites afectadas en verde.
-- [ ] Los cinco criterios de aceptación con prueba, **cada uno afirmado en el cuerpo de la prueba**.
-- [ ] Contrato OpenAPI regenerado, **con la prosa releída**.
-- [ ] `requirements.md` al día.
+- [x] Las suites afectadas en verde.
+- [x] Los cinco criterios de aceptación con prueba, **cada uno afirmado en el cuerpo de la prueba**.
+- [x] Contrato OpenAPI regenerado, **con la prosa releída**.
+- [x] `requirements.md` al día.
 - [ ] **`tasks.md` aprobadas por el responsable del proyecto.**
