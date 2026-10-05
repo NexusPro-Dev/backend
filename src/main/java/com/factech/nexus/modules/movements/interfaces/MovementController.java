@@ -886,7 +886,9 @@ public class MovementController {
         description =
             "La venta no está confirmada (`EX-002`), el producto no es de implementación manual"
                 + " (`EX-003`) o ya no está pendiente de activación (`EX-004`); el mensaje dice"
-                + " en qué estado está",
+                + " en qué estado está. Y la cuenta de quien pide todavía espera su primer"
+                + " depósito (`EX-006`): lo que compró al registrarse lo activa ese depósito,"
+                + " no él",
         content = @Content),
     @ApiResponse(
         responseCode = "500",

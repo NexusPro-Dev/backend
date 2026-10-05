@@ -1275,6 +1275,15 @@ public class JpaMovementRepository implements MovementRepository {
   @Override
   @Transactional(readOnly = true)
   public List<DeliveryLineRow> findLinesForDelivery(UUID movementId) {
+    return lineasParaEntregar(movementId, false);
+  }
+
+  @Override
+  public List<DeliveryLineRow> findPendingLinesForDelivery(UUID movementId) {
+    return lineasParaEntregar(movementId, true);
+  }
+
+  private List<DeliveryLineRow> lineasParaEntregar(UUID movementId, boolean soloPendientes) {
     @SuppressWarnings("unchecked")
     List<Tuple> filas =
         em.createNativeQuery(
@@ -1289,10 +1298,13 @@ public class JpaMovementRepository implements MovementRepository {
                   -- se lee del producto, que `RN-PM-010` garantiza que sigue ahí.
                   LEFT JOIN memberships m ON m.id = p.target_membership_id
                  WHERE d.movement_id = :movimiento
+                   AND (CAST(:soloPendientes AS boolean) = false
+                        OR d.delivery_status = 'PENDIENTE')
                  ORDER BY p.code ASC
                 """,
                 Tuple.class)
             .setParameter("movimiento", movementId)
+            .setParameter("soloPendientes", soloPendientes)
             .getResultList();
     List<DeliveryLineRow> resultado = new ArrayList<>(filas.size());
     for (Tuple fila : filas) {

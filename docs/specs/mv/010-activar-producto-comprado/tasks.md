@@ -30,8 +30,8 @@
 | `T-06` | `MovementController`: `POST /mine/products/{lineId}/activation`, antes de `/mine/{id}`; la prosa de `GET /mine/products` | `T-05` | Documentado con los códigos de `plan.md` §4 | Hecha |
 | `T-07` | `ActivateMyProductIT`: `CA-MV-275` a `CA-MV-283` | `T-06` | `CA-MV-278` con el superadministrador | Hecha |
 | `T-08` | `PermissionIT`, `EndpointPermissionsIT`; contrato con la prosa releída; `requirements.md`, `security.md` | `T-07` | | Hecha |
-| `T-09` | **`EX-006`** en `ActivateMyProductService`: el actor en `FTD_PENDIENTE` responde conflicto **antes** de las comprobaciones de la línea; y la prosa de la ruta en `MovementController` (05-10-2026) | — | `CA-MV-583` | Pendiente |
-| `T-10` | **Pruebas**: `CA-MV-583` en `ActivateMyProductIT`; `CA-MV-584` en `FirstDepositActivationIT`, nueva, sobre el adaptador de `RF-MV-001` `T-46` (05-10-2026) | `T-09`, `RF-MV-001` `T-46` | Las dos pasan; la segunda llamada de `CA-MV-584` no escribe ninguna posesión | Pendiente |
+| `T-09` | **`EX-006`** en `ActivateMyProductService`: el actor en `FTD_PENDIENTE` responde conflicto **antes** de las comprobaciones de la línea; y la prosa de la ruta en `MovementController` (05-10-2026) | — | `CA-MV-583` | **Hecha el 05-10-2026** |
+| `T-10` | **Pruebas**: `CA-MV-583` en `ActivateMyProductIT`; `CA-MV-584` sobre el adaptador de `RF-MV-001` `T-46` (05-10-2026). **Se apartó del plan**: vive en `SelfRegistrationIT` (`laActivacionEsIdempotente`) y no en una `FirstDepositActivationIT` nueva, porque necesita todo el montaje del registro —enlace, vendedor y venta del alta— y entra por el camino real, el cambio de estado de `SP`, en lugar de invocar el puerto a pelo | `T-09`, `RF-MV-001` `T-46` | Las dos pasan; la segunda llamada de `CA-MV-584` no escribe ninguna posesión | **Hecha el 05-10-2026** |
 
 ---
 

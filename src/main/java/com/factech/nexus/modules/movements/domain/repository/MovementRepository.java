@@ -508,6 +508,13 @@ public interface MovementRepository {
   List<DeliveryLineRow> findLinesForDelivery(UUID movementId);
 
   /**
+   * Las líneas de la venta que siguen <b>pendientes de entrega</b>, con lo mismo que {@link
+   * #findLinesForDelivery}: lo que activa el primer depósito (`RN-MV-075`, 05-10-2026). Una línea
+   * ya entregada o retenida no vuelve a salir, y eso es lo que hace idempotente la activación.
+   */
+  List<DeliveryLineRow> findPendingLinesForDelivery(UUID movementId);
+
+  /**
    * `RF-MV-005`: {@code PENDIENTE} → {@code ANULADA} con el instante y el motivo, en una sola
    * sentencia condicionada al estado anterior — la misma forma que {@link #confirmIfPending}, y por
    * lo mismo. No hay líneas que recorrer: una pendiente no concedió nada.

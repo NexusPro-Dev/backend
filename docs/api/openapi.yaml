@@ -3986,7 +3986,9 @@ paths:
         "409":
           description: "La venta no está confirmada (`EX-002`), el producto no es\
             \ de implementación manual (`EX-003`) o ya no está pendiente de activació\
-            n (`EX-004`); el mensaje dice en qué estado está"
+            n (`EX-004`); el mensaje dice en qué estado está. Y la cuenta de quien\
+            \ pide todavía espera su primer depósito (`EX-006`): lo que compró al\
+            \ registrarse lo activa ese depósito, no él"
         "500":
           description: Fallo no controlado (`ERR-500`)
       x-required-permission: movements:activate-own-product
@@ -6205,8 +6207,12 @@ paths:
         rechazarlo**: haría creer a quien lo manda que quedó guardado.
 
         **El registro anota una venta** (`RN-SP-043`), siempre — también en el
-        enlace gratuito. Nace `PENDIENTE`, de modo que registrarse **no paga
-        nada**, y su código se devuelve en `sale`.
+        enlace gratuito, y su código se devuelve en `sale`. Con un enlace de
+        pago nace `PENDIENTE`, de modo que registrarse **no paga nada**. Con
+        el gratuito nace `CONFIRMADA` —no hay cobro que esperar— pero **no
+        entrega nada** (`RN-MV-075`): la membresía del producto la activa el
+        primer depósito, al pasar la cuenta de `FTD_PENDIENTE` a `ACTIVO`
+        (`RN-SP-057`). Hasta entonces la persona tiene la membresía del suelo.
 
         **`brokerAccounts` es una LISTA: se declaran UNA O MÁS cuentas** en el
         mismo registro, porque una persona puede operar con varios brokers y
@@ -6258,7 +6264,8 @@ paths:
       responses:
         "201":
           description: "Cuenta creada —`FTD_PENDIENTE` con el enlace gratuito, `ACTIVO`\
-            \ con uno de pago— y venta anotada en estado `PENDIENTE`"
+            \ con uno de pago— y venta anotada: `CONFIRMADA` y pendiente de activació\
+            n con el gratuito, `PENDIENTE` de pago con el de pago"
           content:
             '*/*':
               schema:
@@ -7017,6 +7024,15 @@ paths:
         nadie sin administración ni a ningún equipo huérfano.
 
         Retirar el acceso **revoca todas las sesiones** de la persona.
+
+        **Pasar de `FTD_PENDIENTE` a `ACTIVO` es confirmar el primer
+        depósito** (`RN-SP-057`, 05-10-2026), y **activa lo que la persona
+        compró al registrarse**: la línea de su venta del alta se entrega en la
+        misma operación —la membresía del producto, con su vigencia desde ese
+        instante— y su fecha es la del FTD para las comisiones. Si esa entrega
+        falla, la cuenta **no sale** de `FTD_PENDIENTE`. Ninguna otra
+        transición activa nada. `FTD_PENDIENTE` como **destino** sigue sin
+        admitirse.
       operationId: cambiarEstado
       parameters:
       - name: id

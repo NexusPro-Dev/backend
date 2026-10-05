@@ -69,8 +69,12 @@ public class RegistrationController {
           rechazarlo**: haría creer a quien lo manda que quedó guardado.
 
           **El registro anota una venta** (`RN-SP-043`), siempre — también en el
-          enlace gratuito. Nace `PENDIENTE`, de modo que registrarse **no paga
-          nada**, y su código se devuelve en `sale`.
+          enlace gratuito, y su código se devuelve en `sale`. Con un enlace de
+          pago nace `PENDIENTE`, de modo que registrarse **no paga nada**. Con
+          el gratuito nace `CONFIRMADA` —no hay cobro que esperar— pero **no
+          entrega nada** (`RN-MV-075`): la membresía del producto la activa el
+          primer depósito, al pasar la cuenta de `FTD_PENDIENTE` a `ACTIVO`
+          (`RN-SP-057`). Hasta entonces la persona tiene la membresía del suelo.
 
           **`brokerAccounts` es una LISTA: se declaran UNA O MÁS cuentas** en el
           mismo registro, porque una persona puede operar con varios brokers y
@@ -118,7 +122,8 @@ public class RegistrationController {
         responseCode = "201",
         description =
             "Cuenta creada —`FTD_PENDIENTE` con el enlace gratuito, `ACTIVO` con uno de pago— y"
-                + " venta anotada en estado `PENDIENTE`",
+                + " venta anotada: `CONFIRMADA` y pendiente de activación con el gratuito,"
+                + " `PENDIENTE` de pago con el de pago",
         content = @Content(schema = @Schema(implementation = SelfRegistrationResponse.class))),
     @ApiResponse(responseCode = "400", description = "Datos inválidos (serie `VAL-nnn`)"),
     @ApiResponse(

@@ -104,10 +104,31 @@ public class ConfirmSaleService {
 
   /** Para el pago con puntos, que confirma en el acto desde dentro (`RF-MV-030`). */
   SaleResponse confirmInternal(UUID movementId) {
-    return confirmar(movementId, null);
+    return confirmar(movementId, null, true);
+  }
+
+  /**
+   * La venta del alta gratuita, <b>confirmada sin entregar nada</b> (`RN-MV-075`, 05-10-2026).
+   *
+   * <p>La misma transición que cualquier confirmación —venta `CONFIRMADA`, pago `CONFIRMADO`,
+   * condicionada al estado anterior— y la misma auditoría, pero <b>sin entrega y sin aviso a
+   * `CM`</b>: sus líneas esperan al primer depósito, que las entrega por {@link
+   * PublishedFirstDepositActivation}, y es entonces cuando sale el aviso. Hacerlo aquí concedería
+   * la membresía del producto y fecharía el FTD (`RN-CM-036`) en el alta, que es justo lo que la
+   * regla aplaza.
+   *
+   * <p>De paquete: solo lo alcanza {@link RegisterSaleService#registrarAltaDeCliente}, dentro de la
+   * transacción del registro.
+   */
+  SaleResponse confirmarSinEntregar(UUID movementId) {
+    return confirmar(movementId, null, false);
   }
 
   private SaleResponse confirmar(UUID movementId, String referencia) {
+    return confirmar(movementId, referencia, true);
+  }
+
+  private SaleResponse confirmar(UUID movementId, String referencia, boolean entregarYAvisar) {
     OffsetDateTime ahora = OffsetDateTime.now(reloj);
 
     // 1. LA TRANSICIÓN, condicionada al estado anterior. Cero filas significa
@@ -147,7 +168,7 @@ public class ConfirmSaleService {
     List<Map<String, Object>> resultado = new ArrayList<>();
     List<UUID> lineas = new ArrayList<>();
     for (DeliveryLineRow linea : movimientos.findLinesForDelivery(movementId)) {
-      resultado.add(entregar(linea, sujeto, ahora));
+      resultado.add(entregarYAvisar ? entregar(linea, sujeto, ahora) : pendiente(linea));
       lineas.add(linea.lineId());
     }
 
@@ -166,8 +187,11 @@ public class ConfirmSaleService {
         new ChangeEvent(MODULO, ENTIDAD, movementId, ChangeAction.UPDATE, cambios));
 
     // 4. El aviso para `CM` (`RN-MV-049`). Dentro de la transacción: se entrega
-    //    después del commit, o no se entrega.
-    avisos.publishEvent(new CommissionableLinesEvent(movementId, lineas));
+    //    después del commit, o no se entrega. La venta del alta gratuita no avisa:
+    //    lo hará su activación por el primer depósito (`RN-MV-075`).
+    if (entregarYAvisar) {
+      avisos.publishEvent(new CommissionableLinesEvent(movementId, lineas));
+    }
 
     // 5. La venta como queda, con la misma forma que registrar y que el detalle.
     return SaleDetailMapper.de(
@@ -186,11 +210,16 @@ public class ConfirmSaleService {
     if (Implementation.MANUAL.name().equals(linea.implementation())) {
       // `RN-MV-021`: lo manual espera a que quien lo compró lo active
       // (`RF-MV-010`, `RN-MV-048`). Lo que queda pendiente es la entrega, no el cobro.
-      Map<String, Object> asiento = new LinkedHashMap<>();
-      asiento.put("product_code", linea.productCode());
-      asiento.put("delivery_status", DeliveryStatus.PENDIENTE.name());
-      return asiento;
+      return pendiente(linea);
     }
     return entrega.deliver(linea, sujeto, ahora);
+  }
+
+  /** Una línea que queda sin entregar, para el asiento de auditoría. */
+  private static Map<String, Object> pendiente(DeliveryLineRow linea) {
+    Map<String, Object> asiento = new LinkedHashMap<>();
+    asiento.put("product_code", linea.productCode());
+    asiento.put("delivery_status", DeliveryStatus.PENDIENTE.name());
+    return asiento;
   }
 }

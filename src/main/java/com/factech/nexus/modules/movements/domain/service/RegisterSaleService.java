@@ -99,6 +99,9 @@ public class RegisterSaleService {
    */
   private static final int DECIMALES_DEL_LIBRO = 2;
 
+  /** El estado de la cuenta que se da de alta gratis: su venta nace confirmada (`RN-MV-075`). */
+  private static final String FTD_PENDIENTE = "FTD_PENDIENTE";
+
   private final MovementRepository movimientos;
   private final ProductCatalog productos;
   private final ClientCatalog clientes;
@@ -109,6 +112,7 @@ public class RegisterSaleService {
   private final SaleAttribution atribuciones;
   private final PointsPayment puntos;
   private final CardPayment tarjeta;
+  private final ConfirmSaleService confirmacion;
 
   @Autowired
   public RegisterSaleService(
@@ -118,7 +122,8 @@ public class RegisterSaleService {
       CurrentMembershipLookup membresias,
       AuditWriter auditoria,
       PointsPayment puntos,
-      CardPayment tarjeta) {
+      CardPayment tarjeta,
+      ConfirmSaleService confirmacion) {
     this(
         movimientos,
         productos,
@@ -127,6 +132,7 @@ public class RegisterSaleService {
         auditoria,
         puntos,
         tarjeta,
+        confirmacion,
         Clock.systemUTC());
   }
 
@@ -138,9 +144,11 @@ public class RegisterSaleService {
       AuditWriter auditoria,
       PointsPayment puntos,
       CardPayment tarjeta,
+      ConfirmSaleService confirmacion,
       Clock reloj) {
     this.puntos = puntos;
     this.tarjeta = tarjeta;
+    this.confirmacion = confirmacion;
     this.movimientos = movimientos;
     this.productos = productos;
     this.clientes = clientes;
@@ -408,6 +416,12 @@ public class RegisterSaleService {
       pagada =
           puntos.pagar(
               venta.getId(), pago, cliente.id(), referencia.currencyId(), venta.getPayableAmount());
+    } else if (altaDelCliente && FTD_PENDIENTE.equals(cliente.status())) {
+      // `RN-MV-075` (05-10-2026): el alta gratuita nace confirmada —no hay cobro
+      // que esperar— y SIN entregar: sus líneas las activa el primer depósito
+      // (`RN-SP-057`). Solo el alta de una cuenta FTD_PENDIENTE; la de pago nace
+      // ACTIVO y su venta sigue esperando al pago, como cualquier otra.
+      pagada = confirmacion.confirmarSinEntregar(venta.getId());
     }
     return new VentaRegistrada(
         venta,

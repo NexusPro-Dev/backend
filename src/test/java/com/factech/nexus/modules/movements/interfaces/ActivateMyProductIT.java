@@ -232,6 +232,33 @@ class ActivateMyProductIT extends IntegrationTestBase {
   }
 
   @Test
+  @DisplayName(
+      "CA-MV-583 — quien espera su primer depósito no activa nada: 409 EX-006 y nada cambia"
+          + " (05-10-2026)")
+  void laCuentaQueEsperaSuDepositoNoActiva() throws Exception {
+    // Manual, pendiente y de una venta confirmada: todo lo que RF-MV-010 pide.
+    // Lo único que falla es la cuenta, y es lo primero que se mira.
+    UUID linea = lineaDe(venta(cliente, "CONFIRMADA", botManual));
+    jdbc.update("UPDATE users SET status = 'FTD_PENDIENTE' WHERE id = ?", cliente);
+
+    mvc.perform(activar(linea).with(propio(cliente)))
+        .andExpect(status().isConflict())
+        .andExpect(jsonPath("$.errors[0].code").value("EX-006"));
+
+    assertThat(entregaDe(linea)).isEqualTo("PENDIENTE");
+    assertThat(
+            jdbc.queryForObject(
+                "SELECT count(*) FROM user_products WHERE movement_detail_id = ?",
+                Integer.class,
+                linea))
+        .isZero();
+    assertThat(
+            jdbc.queryForObject(
+                "SELECT count(*) FROM audit_change_log WHERE entity_id = ?", Integer.class, linea))
+        .isZero();
+  }
+
+  @Test
   @DisplayName("CA-MV-281 — la segunda activación es 409 y no escribe una segunda posesión")
   void laSegundaNoEntregaOtraVez() throws Exception {
     UUID linea = lineaDe(venta(cliente, "CONFIRMADA", botManual));

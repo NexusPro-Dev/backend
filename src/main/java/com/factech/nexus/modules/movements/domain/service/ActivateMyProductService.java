@@ -6,6 +6,7 @@ import com.factech.nexus.modules.movements.domain.models.Implementation;
 import com.factech.nexus.modules.movements.domain.repository.MovementRepository;
 import com.factech.nexus.modules.movements.domain.repository.MovementRepository.OwnLineRow;
 import com.factech.nexus.modules.system.roles.application.AuthenticatedActor;
+import com.factech.nexus.modules.system.users.application.ClientCatalog;
 import com.factech.nexus.shared.audit.AuditEnums.ChangeAction;
 import com.factech.nexus.shared.audit.AuditEvents.ChangeEvent;
 import com.factech.nexus.shared.audit.AuditWriter;
@@ -46,6 +47,7 @@ public class ActivateMyProductService {
   private final ListMyProductsService comprado;
   private final AuthenticatedActor actor;
   private final AuditWriter auditoria;
+  private final ClientCatalog personas;
   private final Clock reloj;
 
   @Autowired
@@ -54,8 +56,9 @@ public class ActivateMyProductService {
       LineDelivery entrega,
       ListMyProductsService comprado,
       AuthenticatedActor actor,
-      AuditWriter auditoria) {
-    this(movimientos, entrega, comprado, actor, auditoria, Clock.systemUTC());
+      AuditWriter auditoria,
+      ClientCatalog personas) {
+    this(movimientos, entrega, comprado, actor, auditoria, personas, Clock.systemUTC());
   }
 
   ActivateMyProductService(
@@ -64,7 +67,9 @@ public class ActivateMyProductService {
       ListMyProductsService comprado,
       AuthenticatedActor actor,
       AuditWriter auditoria,
+      ClientCatalog personas,
       Clock reloj) {
+    this.personas = personas;
     this.movimientos = movimientos;
     this.entrega = entrega;
     this.comprado = comprado;
@@ -87,7 +92,20 @@ public class ActivateMyProductService {
                     new ResourceNotFoundException(
                         "EX-001", "No existe un producto comprado suyo con ese identificador."));
 
-    // 2. LO QUE TIENE QUE CUMPLIR, antes de escribir nada.
+    // 2. `EX-006` (`RN-MV-075`, 05-10-2026): una cuenta que espera su primer
+    //    depósito no activa nada a mano. Lo que compró al registrarse lo activa
+    //    ese depósito (`RN-SP-057`), y activarlo antes adelantaría el FTD.
+    personas
+        .findClient(sujeto)
+        .filter(p -> "FTD_PENDIENTE".equals(p.status()))
+        .ifPresent(
+            p ->
+                conflicto(
+                    "EX-006",
+                    "status",
+                    "Lo que compraste se activa al confirmarse tu primer depósito."));
+
+    // 3. LO QUE TIENE QUE CUMPLIR, antes de escribir nada.
     if (!"CONFIRMADA".equals(linea.movementStatus())) {
       conflicto(
           "EX-002", "status", "La venta no está confirmada: está " + linea.movementStatus() + ".");
@@ -105,13 +123,13 @@ public class ActivateMyProductService {
           "El producto ya no está pendiente de activación: está " + linea.deliveryStatus() + ".");
     }
 
-    // 3. ENTREGAR, con lo mismo que confirmar hace con una línea automática:
+    // 4. ENTREGAR, con lo mismo que confirmar hace con una línea automática:
     //    la posesión, la vigencia desde AHORA y —si es un upgrade— el nivel,
     //    sin bajar a nadie (`RN-MV-029`).
     OffsetDateTime ahora = OffsetDateTime.now(reloj);
     Map<String, Object> resultado = entrega.deliver(linea.line(), sujeto, ahora);
 
-    // 4. Auditoría: la línea, de pendiente a lo que quedó.
+    // 5. Auditoría: la línea, de pendiente a lo que quedó.
     Map<String, Object> cambios = new LinkedHashMap<>();
     cambios.put("before", Map.of("delivery_status", DeliveryStatus.PENDIENTE.name()));
     Map<String, Object> despues = new LinkedHashMap<>(resultado);
@@ -119,7 +137,7 @@ public class ActivateMyProductService {
     cambios.put("after", despues);
     auditoria.recordChange(new ChangeEvent(MODULO, ENTIDAD, lineId, ChangeAction.UPDATE, cambios));
 
-    // 5. El producto como queda, con la misma forma que el registro de lo comprado.
+    // 6. El producto como queda, con la misma forma que el registro de lo comprado.
     return comprado.get(lineId);
   }
 

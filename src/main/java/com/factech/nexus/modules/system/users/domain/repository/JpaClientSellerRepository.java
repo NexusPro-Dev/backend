@@ -96,6 +96,22 @@ public class JpaClientSellerRepository implements ClientSellerRepository {
   }
 
   @Override
+  @Transactional(readOnly = true)
+  public Optional<UUID> findRegistrationMovementOf(UUID clientId) {
+    @SuppressWarnings("unchecked")
+    List<UUID> filas =
+        em.createNativeQuery(
+                """
+                SELECT first_movement_id FROM client_sellers
+                 WHERE client_id = :cliente AND origin = 'REGISTRO'
+                   AND first_movement_id IS NOT NULL
+                """)
+            .setParameter("cliente", clientId)
+            .getResultList();
+    return filas.stream().findFirst();
+  }
+
+  @Override
   @Transactional
   public void attachFirstMovement(UUID clientId, UUID sellerId, UUID movementId) {
     em.createNativeQuery(

@@ -2,10 +2,12 @@ package com.factech.nexus.modules.system.users.domain.service;
 
 import com.factech.nexus.modules.system.roles.application.AuthenticatedActor;
 import com.factech.nexus.modules.system.users.application.ChangeUserStatusRequest;
+import com.factech.nexus.modules.system.users.application.FirstDepositActivation;
 import com.factech.nexus.modules.system.users.application.UserStatusResponse;
 import com.factech.nexus.modules.system.users.domain.models.ChangeReason;
 import com.factech.nexus.modules.system.users.domain.models.User;
 import com.factech.nexus.modules.system.users.domain.models.UserStatus;
+import com.factech.nexus.modules.system.users.domain.repository.ClientSellerRepository;
 import com.factech.nexus.modules.system.users.domain.repository.UserRepository;
 import com.factech.nexus.modules.system.users.domain.security.RootAdministratorPresence;
 import com.factech.nexus.modules.system.users.domain.security.SelfOperationGuard;
@@ -76,6 +78,8 @@ public class ChangeUserStatusService {
   private final AccessRevocationPublisher cortes;
   private final AuthenticatedActor actor;
   private final AuditWriter auditoria;
+  private final ClientSellerRepository vinculos;
+  private final FirstDepositActivation activacion;
   private final Clock reloj;
 
   @Autowired
@@ -85,8 +89,19 @@ public class ChangeUserStatusService {
       SessionRevoker sesiones,
       AccessRevocationPublisher cortes,
       AuthenticatedActor actor,
-      AuditWriter auditoria) {
-    this(usuarios, raiz, sesiones, cortes, actor, auditoria, Clock.systemUTC());
+      AuditWriter auditoria,
+      ClientSellerRepository vinculos,
+      FirstDepositActivation activacion) {
+    this(
+        usuarios,
+        raiz,
+        sesiones,
+        cortes,
+        actor,
+        auditoria,
+        vinculos,
+        activacion,
+        Clock.systemUTC());
   }
 
   ChangeUserStatusService(
@@ -96,7 +111,11 @@ public class ChangeUserStatusService {
       AccessRevocationPublisher cortes,
       AuthenticatedActor actor,
       AuditWriter auditoria,
+      ClientSellerRepository vinculos,
+      FirstDepositActivation activacion,
       Clock reloj) {
+    this.vinculos = vinculos;
+    this.activacion = activacion;
     this.usuarios = usuarios;
     this.raiz = raiz;
     this.sesiones = sesiones;
@@ -159,6 +178,16 @@ public class ChangeUserStatusService {
     // y la cuenta empieza limpia— como al bloquear A MANO, donde el nulo de
     // `locked_until` ES la marca de que ese bloqueo no expira solo.
     usuarios.applyStatus(userId, destino.name(), true, ahora);
+
+    // `RN-SP-057` (05-10-2026): salir de FTD_PENDIENTE es la confirmación del
+    // primer depósito, y activa lo que se compró al registrarse. En ESTA
+    // transacción: si la entrega falla, la cuenta no sale de la espera. Solo
+    // esta transición; volver a ACTIVO desde INACTIVO o BLOQUEADO no activa nada.
+    if (actual == UserStatus.FTD_PENDIENTE && destino == UserStatus.ACTIVO) {
+      vinculos
+          .findRegistrationMovementOf(userId)
+          .ifPresent(venta -> activacion.activate(userId, venta));
+    }
 
     if (retiraElAcceso) {
       // Dentro de la transacción: si falla, el cambio se revierte entero antes

@@ -234,7 +234,7 @@ public class RegisterClientByLinkService {
                 estadoInicial(producto),
                 ahora));
 
-    concederMembresia(usuario, producto, ahora);
+    concederMembresia(usuario, ahora);
 
     // `RN-SP-027`: no se registra un cliente sin atribución. La alternativa
     // —admitirlo con la atribución vacía— produciría clientes huérfanos que
@@ -328,41 +328,22 @@ public class RegisterClientByLinkService {
   }
 
   /**
-   * `RN-SP-018` — toda persona nace con nivel, y cuál depende del camino.
+   * `RN-SP-018` — toda persona nace con nivel: <b>el del suelo, en los dos caminos</b>.
+   *
+   * <p>Sin producto y sin vigencia. Lo comprado lo concede <b>su entrega</b>, y la entrega nunca
+   * ocurre en el alta:
    *
    * <ul>
-   *   <li><b>Camino gratuito</b>: la membresía <b>del producto</b>, con su vigencia. No hay nada
-   *       que confirmar — nadie pagó nada.
-   *   <li><b>Camino de pago</b>: la membresía <b>del suelo</b>, sin vigencia. La comprada la
-   *       concede <b>confirmar la venta</b> (`RN-MV-020`), y concederla aquí duplicaría lo que hace
-   *       la confirmación — dos concesiones para una sola compra, y la segunda sin pago verificado.
-   *       Es la contraparte de `RN-MV-004`: registrar una venta no concede nada.
+   *   <li><b>Camino de pago</b>: la entrega llega al <b>confirmar la venta</b> (`RN-MV-020`).
+   *       Concederla aquí duplicaría lo que hace la confirmación — dos concesiones para una sola
+   *       compra, y la segunda sin pago verificado. Es la contraparte de `RN-MV-004`.
+   *   <li><b>Camino gratuito</b>, desde el 05-10-2026 (`RN-SP-044`, `RN-SP-057`): la venta nace
+   *       confirmada pero <b>no entrega</b>, y la membresía del producto la concede la
+   *       <b>activación por el primer depósito</b>. Hasta entonces el alta la concedía aquí, sin
+   *       línea, y confirmar esa venta la habría concedido dos veces.
    * </ul>
    */
-  private void concederMembresia(
-      User usuario, RegistrableProductView producto, OffsetDateTime ahora) {
-
-    if (esRenovacionGratuita(producto)) {
-      // Vigencia nula significa que la membresía NO CADUCA (`FA-001`), y no que
-      // caduque hoy.
-      OffsetDateTime fin =
-          producto.validityDays() == null ? null : ahora.plusDays(producto.validityDays());
-
-      // CON producto: esto sí es lo que el enlace entrega, aunque no se cobre.
-      // La línea no existe —el registro no pasa por una confirmación— y por eso
-      // `movement_detail_id` va nulo.
-      usuarios.grantProduct(
-          new UserRepository.ProductGrant(
-              ids.next(),
-              usuario.getId(),
-              producto.id(),
-              producto.targetMembershipId(),
-              null,
-              producto.validityDays(),
-              ahora,
-              fin));
-      return;
-    }
+  private void concederMembresia(User usuario, OffsetDateTime ahora) {
     // El suelo, sin producto: aquí no se entregó nada (`RN-SP-056`).
     usuarios.grantProduct(
         new UserRepository.ProductGrant(

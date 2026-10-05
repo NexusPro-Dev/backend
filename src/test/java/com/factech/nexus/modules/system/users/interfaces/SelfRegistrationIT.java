@@ -10,8 +10,11 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 import com.factech.nexus.IntegrationTestBase;
+import com.factech.nexus.modules.movements.application.CommissionableLinesEvent;
+import com.factech.nexus.modules.system.users.application.FirstDepositActivation;
 import com.factech.nexus.shared.persistence.MinorUnits;
 import com.factech.nexus.testing.CommissionCleanup;
+import java.nio.charset.StandardCharsets;
 import java.util.Map;
 import java.util.UUID;
 import org.junit.jupiter.api.AfterEach;
@@ -20,11 +23,16 @@ import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
+import org.springframework.core.io.ClassPathResource;
 import org.springframework.http.MediaType;
 import org.springframework.jdbc.core.JdbcTemplate;
+import org.springframework.test.context.event.ApplicationEvents;
+import org.springframework.test.context.event.RecordApplicationEvents;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.request.MockHttpServletRequestBuilder;
 import org.springframework.test.web.servlet.request.RequestPostProcessor;
+import org.springframework.transaction.PlatformTransactionManager;
+import org.springframework.transaction.support.TransactionTemplate;
 
 /**
  * Registro de clientes por enlace (`RF-SP-045`).
@@ -37,6 +45,7 @@ import org.springframework.test.web.servlet.request.RequestPostProcessor;
  * {@code VENDEDOR} y un broker, y ninguno de los tres se puede crear por HTTP sin credenciales.
  */
 @AutoConfigureMockMvc
+@RecordApplicationEvents
 class SelfRegistrationIT extends IntegrationTestBase {
 
   @Autowired private com.factech.nexus.modules.movements.FakeCardGateway pasarela;
@@ -60,6 +69,9 @@ class SelfRegistrationIT extends IntegrationTestBase {
 
   @Autowired private MockMvc mvc;
   @Autowired private JdbcTemplate jdbc;
+  @Autowired private FirstDepositActivation activacion;
+  @Autowired private PlatformTransactionManager transacciones;
+  @Autowired private ApplicationEvents eventos;
 
   private UUID free;
   private UUID oro;
@@ -163,7 +175,8 @@ class SelfRegistrationIT extends IntegrationTestBase {
   }
 
   @Test
-  @DisplayName("`CA-SP-509`, `CA-SP-510` y `CA-SP-711` — rol, membresía con vigencia y atribución")
+  @DisplayName(
+      "`CA-SP-509`, `CA-SP-803` y `CA-SP-711` — rol, membresía del SUELO y atribución (05-10-2026)")
   void losCuatroHechos() throws Exception {
     mvc.perform(registro(cuerpo("ana.ruiz", "ana@ejemplo.com", "12345678")))
         .andExpect(status().isCreated());
@@ -176,15 +189,25 @@ class SelfRegistrationIT extends IntegrationTestBase {
                 CLIENTE))
         .isOne();
 
-    // La vigencia sale del producto: treinta días, no nula.
+    // `CA-SP-803` (05-10-2026): el gratuito concede el SUELO —sin producto y sin
+    // vigencia—, y el producto del enlace no aparece en lo que posee hasta que el
+    // primer depósito lo active (`RN-SP-057`). Hasta entonces recibía aquí la del
+    // producto, con sus treinta días.
     assertThat(
             jdbc.queryForObject(
                 "SELECT count(*) FROM user_products um JOIN users u ON u.id = um.user_id"
                     + " WHERE u.username = 'ana.ruiz' AND um.membership_id = ?::uuid"
-                    + " AND um.ends_at IS NOT NULL",
+                    + " AND um.product_id IS NULL AND um.ends_at IS NULL",
                 Integer.class,
                 free.toString()))
         .isOne();
+    assertThat(
+            jdbc.queryForObject(
+                "SELECT count(*) FROM user_products um JOIN users u ON u.id = um.user_id"
+                    + " JOIN products p ON p.id = um.product_id"
+                    + " WHERE u.username = 'ana.ruiz' AND p.code = 'REG_FREE'",
+                Integer.class))
+        .isZero();
 
     // `CA-SP-711` (18-09-2026, invierte `CA-SP-513`): la atribución es la fila
     // REGISTRO de `client_sellers`, cita la venta del enlace, y `user_supervisors`
@@ -263,20 +286,175 @@ class SelfRegistrationIT extends IntegrationTestBase {
   }
 
   @Test
-  @DisplayName("`CA-SP-511` — un producto sin vigencia produce una membresía sin fecha de fin")
+  @DisplayName(
+      "`CA-SP-804` y `CA-SP-510` — pasar a ACTIVO una cuenta FTD_PENDIENTE activa su alta, con"
+          + " la vigencia del producto contada desde ahí (05-10-2026)")
+  void elPrimerDepositoActivaElAlta() throws Exception {
+    mvc.perform(registro(cuerpo("ana.ruiz", "ana@ejemplo.com", "12345678")))
+        .andExpect(status().isCreated());
+    assertThat(lineaDelAlta()).isEqualTo("PENDIENTE");
+
+    activar("ana.ruiz").andExpect(status().isOk());
+
+    // La línea, entregada y fechada: su `delivered_at` es el momento del FTD.
+    Map<String, Object> linea =
+        jdbc.queryForMap(
+            "SELECT d.id, d.delivery_status, d.delivered_at FROM movement_details d"
+                + " JOIN movements m ON m.id = d.movement_id JOIN users u ON u.id = m.user_id"
+                + " WHERE u.username = 'ana.ruiz'");
+    assertThat(linea.get("delivery_status")).isEqualTo("ENTREGADA");
+    assertThat(linea.get("delivered_at")).isNotNull();
+    // Y la posesión, con el producto y la línea, y su vigencia (`CA-SP-510`):
+    // treinta días, no nula. La del suelo queda cerrada por la del producto.
+    assertThat(
+            jdbc.queryForObject(
+                "SELECT count(*) FROM user_products um"
+                    + " WHERE um.movement_detail_id = ?::uuid AND um.ends_at IS NOT NULL"
+                    + " AND um.closed_at IS NULL",
+                Integer.class,
+                linea.get("id").toString()))
+        .isOne();
+    assertThat(estadoDe("ana.ruiz")).isEqualTo("ACTIVO");
+  }
+
+  @Test
+  @DisplayName(
+      "`CA-SP-511` — un producto sin vigencia produce, al activarse, una membresía sin fecha de"
+          + " fin (05-10-2026)")
   void sinVigencia() throws Exception {
     jdbc.update("UPDATE products SET validity_days = NULL WHERE code = 'REG_FREE'");
 
     mvc.perform(registro(cuerpo("ana.ruiz", "ana@ejemplo.com", "12345678")))
         .andExpect(status().isCreated());
+    activar("ana.ruiz").andExpect(status().isOk());
 
-    // Nula significa que NO CADUCA, no que caduque hoy.
+    // Nula significa que NO CADUCA, no que caduque hoy. Es el caso normal desde
+    // que la BECA del producto se configura vitalicia.
     assertThat(
             jdbc.queryForObject(
-                "SELECT count(*) FROM user_products um JOIN users u ON u.id = um.user_id"
-                    + " WHERE u.username = 'ana.ruiz' AND um.ends_at IS NULL",
+                "SELECT count(*) FROM user_products um JOIN products p ON p.id = um.product_id"
+                    + " JOIN users u ON u.id = um.user_id"
+                    + " WHERE u.username = 'ana.ruiz' AND p.code = 'REG_FREE'"
+                    + " AND um.ends_at IS NULL AND um.movement_detail_id IS NOT NULL",
                 Integer.class))
         .isOne();
+  }
+
+  @Test
+  @DisplayName(
+      "`CA-SP-805` — si la activación falla, la cuenta sigue en FTD_PENDIENTE y no queda nada"
+          + " (05-10-2026)")
+  void laActivacionQueFallaNoSacaDeLaEspera() throws Exception {
+    mvc.perform(registro(cuerpo("ana.ruiz", "ana@ejemplo.com", "12345678")))
+        .andExpect(status().isCreated());
+    // La venta del alta, devuelta a pendiente a mano: el adaptador de MV la
+    // rechaza —no es una venta confirmada— y su fallo revierte el cambio de estado.
+    jdbc.update(
+        "UPDATE movements SET status = 'PENDIENTE', confirmed_at = NULL"
+            + " WHERE user_id = (SELECT id FROM users WHERE username = 'ana.ruiz')");
+
+    activar("ana.ruiz").andExpect(status().isInternalServerError());
+
+    assertThat(estadoDe("ana.ruiz")).isEqualTo("FTD_PENDIENTE");
+    assertThat(lineaDelAlta()).isEqualTo("PENDIENTE");
+    assertThat(
+            jdbc.queryForObject(
+                "SELECT count(*) FROM user_products WHERE movement_detail_id IS NOT NULL",
+                Integer.class))
+        .isZero();
+  }
+
+  @Test
+  @DisplayName(
+      "`CA-SP-806` — devolver el acceso desde INACTIVO, o activar una cuenta sin venta del alta,"
+          + " no activa nada (05-10-2026)")
+  void lasOtrasTransicionesNoActivanNada() throws Exception {
+    mvc.perform(registro(cuerpo("ana.ruiz", "ana@ejemplo.com", "12345678")))
+        .andExpect(status().isCreated());
+    String id = idDe("ana.ruiz");
+
+    // FTD_PENDIENTE → INACTIVO → ACTIVO: la segunda no sale de FTD_PENDIENTE.
+    mvc.perform(
+            patch("/api/v1/users/" + id + "/status")
+                .with(administrador())
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("{\"status\":\"INACTIVO\",\"reason\":\"Prueba\"}"))
+        .andExpect(status().isOk());
+    activar("ana.ruiz").andExpect(status().isOk());
+    assertThat(lineaDelAlta()).isEqualTo("PENDIENTE");
+
+    // Sin venta del alta que citar, FTD_PENDIENTE → ACTIVO tampoco activa nada.
+    mvc.perform(registro(cuerpo("beto.paz", "beto@ejemplo.com", "87654321")))
+        .andExpect(status().isCreated());
+    jdbc.update(
+        "UPDATE client_sellers SET first_movement_id = NULL"
+            + " WHERE client_id = (SELECT id FROM users WHERE username = 'beto.paz')");
+    activar("beto.paz").andExpect(status().isOk());
+    assertThat(estadoDe("beto.paz")).isEqualTo("ACTIVO");
+    assertThat(
+            jdbc.queryForObject(
+                "SELECT count(*) FROM user_products WHERE movement_detail_id IS NOT NULL",
+                Integer.class))
+        .isZero();
+  }
+
+  @Test
+  @DisplayName(
+      "`CA-MV-584` — la activación entrega las líneas pendientes y avisa a CM; una segunda llamada"
+          + " no entrega ni avisa (05-10-2026)")
+  void laActivacionEsIdempotente() throws Exception {
+    mvc.perform(registro(cuerpo("ana.ruiz", "ana@ejemplo.com", "12345678")))
+        .andExpect(status().isCreated());
+    UUID cliente = UUID.fromString(idDe("ana.ruiz"));
+    UUID venta =
+        jdbc.queryForObject("SELECT id FROM movements WHERE user_id = ?", UUID.class, cliente);
+
+    // El alta no avisó a CM: confirmar sin entregar no publica (`CA-MV-580`).
+    assertThat(eventos.stream(CommissionableLinesEvent.class)).isEmpty();
+
+    TransactionTemplate transaccion = new TransactionTemplate(transacciones);
+    transaccion.executeWithoutResult(t -> activacion.activate(cliente, venta));
+    assertThat(lineaDelAlta()).isEqualTo("ENTREGADA");
+    assertThat(eventos.stream(CommissionableLinesEvent.class)).hasSize(1);
+
+    transaccion.executeWithoutResult(t -> activacion.activate(cliente, venta));
+    assertThat(eventos.stream(CommissionableLinesEvent.class)).hasSize(1);
+    assertThat(
+            jdbc.queryForObject(
+                "SELECT count(*) FROM user_products WHERE movement_detail_id IS NOT NULL",
+                Integer.class))
+        .isOne();
+  }
+
+  @Test
+  @DisplayName(
+      "`CA-MV-582` — V68 confirma la venta del alta de las cuentas en FTD_PENDIENTE, y no toca la"
+          + " de una cuenta ACTIVO (05-10-2026)")
+  void laMigracionConfirmaLasAltasQueEsperan() throws Exception {
+    mvc.perform(registro(cuerpo("ana.ruiz", "ana@ejemplo.com", "12345678")))
+        .andExpect(status().isCreated());
+    mvc.perform(registro(cuerpo("beto.paz", "beto@ejemplo.com", "87654321")))
+        .andExpect(status().isCreated());
+    // Las dos ventas, devueltas a como nacían antes del 05-10-2026; y beto ya
+    // salió de la espera por la vía anterior.
+    jdbc.update("UPDATE movements SET status = 'PENDIENTE', confirmed_at = NULL");
+    jdbc.update("UPDATE payments SET status = 'PENDIENTE', confirmed_at = NULL");
+    jdbc.update("UPDATE users SET status = 'ACTIVO' WHERE username = 'beto.paz'");
+
+    jdbc.execute(
+        new ClassPathResource("db/migration/V68__mv_alta_gratuita_confirmada.sql")
+            .getContentAsString(StandardCharsets.UTF_8));
+
+    Map<String, Object> ana = ventaDe("ana.ruiz");
+    assertThat(ana.get("status")).isEqualTo("CONFIRMADA");
+    assertThat(ana.get("pago")).isEqualTo("CONFIRMADO");
+    // Fechada en el alta, no en el día de la migración.
+    assertThat(ana.get("confirmed_at")).isEqualTo(ana.get("created_at"));
+    assertThat(lineaDelAlta()).isEqualTo("PENDIENTE");
+
+    Map<String, Object> beto = ventaDe("beto.paz");
+    assertThat(beto.get("status")).isEqualTo("PENDIENTE");
+    assertThat(beto.get("pago")).isEqualTo("PENDIENTE");
   }
 
   @Test
@@ -543,7 +721,9 @@ class SelfRegistrationIT extends IntegrationTestBase {
   // ---------------------------------------------------------------------------
 
   @Test
-  @DisplayName("`CA-SP-617` — el registro gratuito anota su venta, PENDIENTE y con pago gratuito")
+  @DisplayName(
+      "`CA-SP-617` y `CA-MV-580` — el registro gratuito anota su venta CONFIRMADA, con pago"
+          + " gratuito y la línea pendiente de activación (05-10-2026)")
   void elRegistroGratuitoAnotaSuVenta() throws Exception {
     String codigo =
         objeto(
@@ -557,7 +737,8 @@ class SelfRegistrationIT extends IntegrationTestBase {
 
     Map<String, Object> venta =
         jdbc.queryForMap(
-            "SELECT m.code, m.status, pm.code AS metodo, m.total_amount,"
+            "SELECT m.code, m.status, m.confirmed_at, p.status AS pago, d.delivery_status,"
+                + " d.id AS linea, pm.code AS metodo, m.total_amount,"
                 + " c.username AS cliente, v.username AS vendedor"
                 + " FROM movements m"
                 + " JOIN payments p ON p.movement_id = m.id"
@@ -570,9 +751,19 @@ class SelfRegistrationIT extends IntegrationTestBase {
                 + " WHERE c.username = 'ana.ruiz'");
 
     assertThat(venta.get("code")).isEqualTo(codigo);
-    // `RN-MV-004`: registrar NO concede nada. Que nazca pendiente es lo que
-    // sostiene que la membresía comprada llegue al confirmar y no antes.
-    assertThat(venta.get("status")).isEqualTo("PENDIENTE");
+    // `RN-MV-075` (05-10-2026): nace CONFIRMADA —no hay cobro que esperar—, con
+    // su pago, pero SIN entregar: la línea espera al primer depósito y no hay
+    // ninguna posesión con ella. Hasta entonces nacía PENDIENTE para siempre.
+    assertThat(venta.get("status")).isEqualTo("CONFIRMADA");
+    assertThat(venta.get("confirmed_at")).isNotNull();
+    assertThat(venta.get("pago")).isEqualTo("CONFIRMADO");
+    assertThat(venta.get("delivery_status")).isEqualTo("PENDIENTE");
+    assertThat(
+            jdbc.queryForObject(
+                "SELECT count(*) FROM user_products WHERE movement_detail_id = ?::uuid",
+                Integer.class,
+                venta.get("linea").toString()))
+        .isZero();
     // `RN-MV-022`: importe cero y pago gratuito son lo mismo. El formulario no
     // lo envía —no puede: el catálogo público no lo devuelve— y lo pone `MV`.
     assertThat(venta.get("metodo")).isEqualTo("GRATIS");
@@ -583,7 +774,9 @@ class SelfRegistrationIT extends IntegrationTestBase {
   }
 
   @Test
-  @DisplayName("`CA-SP-618` — el enlace DE PAGO se admite: cuenta ACTIVA y membresía del SUELO")
+  @DisplayName(
+      "`CA-SP-618` y `CA-MV-581` — el enlace DE PAGO se admite: cuenta ACTIVA, membresía del SUELO"
+          + " y venta PENDIENTE")
   void elEnlaceDePagoSeAdmite() throws Exception {
     pasarela.reiniciar();
     pasarela.encender(true);
@@ -792,6 +985,42 @@ class SelfRegistrationIT extends IntegrationTestBase {
             () -> "users:read-team",
             () -> "users:update",
             () -> "users:change-status");
+  }
+
+  /** El estado de entrega de la única línea de la venta del alta de ana.ruiz. */
+  private String lineaDelAlta() {
+    return jdbc.queryForObject(
+        "SELECT d.delivery_status FROM movement_details d JOIN movements m ON m.id = d.movement_id"
+            + " JOIN users u ON u.id = m.user_id WHERE u.username = 'ana.ruiz'",
+        String.class);
+  }
+
+  private String idDe(String username) {
+    return jdbc.queryForObject(
+        "SELECT id::text FROM users WHERE username = ?", String.class, username);
+  }
+
+  private String estadoDe(String username) {
+    return jdbc.queryForObject(
+        "SELECT status FROM users WHERE username = ?", String.class, username);
+  }
+
+  private Map<String, Object> ventaDe(String username) {
+    return jdbc.queryForMap(
+        "SELECT m.status, m.confirmed_at, m.created_at, p.status AS pago FROM movements m"
+            + " JOIN payments p ON p.movement_id = m.id JOIN users u ON u.id = m.user_id"
+            + " WHERE u.username = ?",
+        username);
+  }
+
+  /** El primer depósito, hoy: un administrador pasa la cuenta a ACTIVO (`RF-SP-028`). */
+  private org.springframework.test.web.servlet.ResultActions activar(String username)
+      throws Exception {
+    return mvc.perform(
+        patch("/api/v1/users/" + idDe(username) + "/status")
+            .with(administrador())
+            .contentType(MediaType.APPLICATION_JSON)
+            .content("{\"status\":\"ACTIVO\"}"));
   }
 
   private MockHttpServletRequestBuilder registro(String cuerpo) {

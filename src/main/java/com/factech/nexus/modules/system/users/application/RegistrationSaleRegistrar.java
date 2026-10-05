@@ -19,10 +19,12 @@ import java.util.UUID;
  * pago exista y admita ese producto—. Escribir aquí una venta «simplificada» daría <b>dos
  * definiciones de lo que es vender</b>, y la segunda se quedaría atrás sin que nada fallara.
  *
- * <p><b>La venta nace {@code PENDIENTE} y eso no es configurable</b>: el agregado de `MV` no admite
- * construirse en otro estado. `RN-MV-004` dice que registrar <b>no concede nada</b> y `RN-MV-020`
- * que <b>confirmar sí</b> — de ahí sale que quien paga reciba su membresía al confirmarse el pago y
- * no al registrarse.
+ * <p><b>La venta nace {@code PENDIENTE}</b>: el agregado de `MV` no admite construirse en otro
+ * estado. `RN-MV-004` dice que registrar <b>no concede nada</b> y `RN-MV-020` que <b>confirmar
+ * sí</b> — de ahí sale que quien paga reciba su membresía al confirmarse el pago y no al
+ * registrarse. <b>Salvo el alta gratuita</b> (`RN-MV-075`, 05-10-2026): `MV` la confirma en la
+ * misma transacción, porque no hay cobro que esperar, pero <b>sin entregar nada</b>. Lo comprado
+ * espera al primer depósito, que lo activa por {@link FirstDepositActivation}.
  */
 public interface RegistrationSaleRegistrar {
 

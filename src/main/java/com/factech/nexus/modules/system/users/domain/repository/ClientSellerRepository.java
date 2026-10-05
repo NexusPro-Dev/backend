@@ -52,6 +52,12 @@ public interface ClientSellerRepository {
 
   void attachFirstMovement(UUID clientId, UUID sellerId, UUID movementId);
 
+  /**
+   * La venta que creó la fila {@code REGISTRO} del cliente —su {@code first_movement_id}—, si la
+   * hay: la venta del alta, que el primer depósito activa (`RN-SP-057`, 05-10-2026).
+   */
+  Optional<UUID> findRegistrationMovementOf(UUID clientId);
+
   /** La fila {@code REGISTRO} del cliente, si alguien lo registró. */
   Optional<ClientSellerRow> findPrincipalOf(UUID clientId);
 

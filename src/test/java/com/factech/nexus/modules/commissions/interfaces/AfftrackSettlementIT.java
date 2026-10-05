@@ -222,6 +222,29 @@ class AfftrackSettlementIT extends IntegrationTestBase {
   }
 
   @Test
+  @DisplayName(
+      "CA-CM-339 · el FTD de un alta gratuita cuenta en el primer cierre tras el depósito, no antes"
+          + " (05-10-2026)")
+  void elAltaGratuitaCuentaDesdeElDeposito() throws Exception {
+    escalonDeRol(MANAGER, 1, "100");
+    // La venta del alta: confirmada desde el registro y con la línea pendiente
+    // de activación (`RN-MV-075`). No es un FTD todavía.
+    venta(vendedora, ftd, "CONFIRMADA", false, ACTIVADA);
+
+    cerrar();
+    assertThat(liquidaciones(vendedora)).isZero();
+
+    // El primer depósito la activa: la entrega fija `delivered_at` AHORA, después
+    // del cierre anterior. Es lo que escribe PublishedFirstDepositActivation.
+    jdbc.update(
+        "UPDATE movement_details SET delivery_status = 'ENTREGADA', delivered_at = ?"
+            + " WHERE delivery_status = 'PENDIENTE'",
+        OffsetDateTime.now());
+    cerrar();
+    assertThat(ultima(vendedora)).containsEntry("new_ftds", 1);
+  }
+
+  @Test
   @DisplayName("CA-CM-249 · relanzar el cierre no vuelve a contar ningún FTD")
   void relanzar() throws Exception {
     ftds(vendedora, 3);

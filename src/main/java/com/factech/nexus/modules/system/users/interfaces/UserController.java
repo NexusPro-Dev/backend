@@ -1069,6 +1069,15 @@ public class UserController {
           nadie sin administración ni a ningún equipo huérfano.
 
           Retirar el acceso **revoca todas las sesiones** de la persona.
+
+          **Pasar de `FTD_PENDIENTE` a `ACTIVO` es confirmar el primer
+          depósito** (`RN-SP-057`, 05-10-2026), y **activa lo que la persona
+          compró al registrarse**: la línea de su venta del alta se entrega en la
+          misma operación —la membresía del producto, con su vigencia desde ese
+          instante— y su fecha es la del FTD para las comisiones. Si esa entrega
+          falla, la cuenta **no sale** de `FTD_PENDIENTE`. Ninguna otra
+          transición activa nada. `FTD_PENDIENTE` como **destino** sigue sin
+          admitirse.
           """)
   @ApiResponses({
     @ApiResponse(

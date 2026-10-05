@@ -17,8 +17,9 @@ import java.util.UUID;
  * tiene texto cuando falta algo</b>.
  *
  * <p><b>Y lleva el código de la venta</b> ({@code sale}), porque desde el 09-09-2026 todo registro
- * anota un movimiento. Va {@code PENDIENTE} —el agregado de `MV` no admite otro estado al nacer—, y
- * es lo que quien se registra necesita para que le confirmen el pago.
+ * anota un movimiento: {@code PENDIENTE} con un enlace de pago, y es lo que quien se registra
+ * necesita para que le confirmen el pago; {@code CONFIRMADA} con el gratuito desde el 05-10-2026
+ * (`RN-MV-075`), con lo comprado a la espera de que el primer depósito lo active.
  */
 @JsonInclude(JsonInclude.Include.ALWAYS)
 public record SelfRegistrationResponse(
