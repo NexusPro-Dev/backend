@@ -5,7 +5,7 @@
 | Proyecto | NEXUS — Renovación de plataforma |
 | Empresa | FACTECH GROUP SAS |
 | Documento | `security.md` |
-| Versión | 0.101.0 |
+| Versión | 0.102.0 |
 | Estado | Borrador |
 | Responsable técnico | Bonilla Diaz William Steven |
 | Fecha de creación | 19-08-2026 |
@@ -254,6 +254,7 @@ movements:read-own-balances      movements:list-own-entries       movements:gran
 movements:set-points-rate        movements:read-points-rates      movements:buy-points
 movements:confirm-points-purchase  movements:reject-points-purchase  movements:list-own-points-purchases
 movements:set-conversion-rate      movements:read-conversion-rates
+movements:adjust-points
 
 exchange-rates:read     exchange-rates:create
 exchange-rates:update   exchange-rates:delete
@@ -965,3 +966,4 @@ RNF-SEG-002 merece atención: es una prueba que enumera los endpoints registrado
 | 0.99.0 | 01-10-2026 | **`V63` aplica la conciliación por el pago** (§4.4): `movements:confirm-payment` sembrado por posesión de los que sustituye, `movements:reject-payment` renombrado, y los tres retirados borrados. Catálogo **179** (`ADMIN` 177; `MV` treinta y tres). | Responsable técnico |
 | 0.100.0 | 05-10-2026 | **Dos permisos de `MV` para la conversión por país** ([`requirements/mv.md`](requirements/mv.md) v0.75.0 §4.9 y §6): `movements:set-conversion-rate` (`RF-MV-046`), a `SUPERADMIN` y `ADMIN` explícito porque es política comercial, y `movements:read-conversion-rates` (`RF-MV-047`), **por tipo de rol** como `movements:read-points-rates`: quien paga o retira en moneda local necesita saber a cuánto. Los siembra `V67`. Catálogo **179 → 181** | Responsable del proyecto |
 | 0.101.0 | 05-10-2026 | **La pasarela local, PayRetailers** ([`requirements/mv.md`](requirements/mv.md) v0.78.0 §4.10). **Una ruta pública más**, la decimosexta: el aviso de PayRetailers (`RF-MV-049`), que **no va firmado** y por eso **no se cree** —solo dispara una consulta autenticada a la pasarela (`RN-MV-064`)—; fuera de la cota de tasa, como la de Stripe, y fuera de CORS. **Un permiso más**, `movements:pay-pending-locally` (`RF-MV-051`), por tipo de rol como `movements:pay-pending-by-card`, que sembrará `V69`: catálogo **181 → 182** | Responsable del proyecto |
+| 0.102.0 | 05-10-2026 | **Un permiso de `MV` para el ajuste de puntos a mano** ([`requirements/mv.md`](requirements/mv.md) v0.83.0 §4.11 y §6): `movements:adjust-points` (`RF-MV-052`, `RN-MV-076`), a `SUPERADMIN` y `ADMIN` **explícito**, como `movements:grant-bonus`: sumar o restar puntos a cualquier persona es tarea de administración. **No reutiliza `movements:grant-bonus`** por `RN-SEG-014`: el bono abona dinero retirable y el ajuste mueve puntos en los dos sentidos. Lo siembra `V72`; el catálogo pasa de 182 a **183** (`ADMIN` 181). Ninguna ruta pública nueva. | Responsable técnico |
