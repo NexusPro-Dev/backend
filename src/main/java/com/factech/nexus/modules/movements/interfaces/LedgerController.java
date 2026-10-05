@@ -207,6 +207,34 @@ public class LedgerController {
     return saldos.balances();
   }
 
+  @GetMapping("/users/{userId}/balances")
+  @PreAuthorize("hasAuthority('movements:read-user-balances')")
+  @Operation(
+      summary = "Consultar los saldos de una persona",
+      description =
+          """
+          Los saldos de **cualquier** persona, con la misma forma que «mis saldos»: por cada
+          moneda en que tenga algo, la **billetera**, lo **retenido** y los **puntos**
+          (`RF-MV-054`). Es la lectura de administración —p. ej., ver cuántos puntos tiene antes
+          de restarle con un ajuste (`RF-MV-052`)—, y no sigue la estructura comercial. Una
+          persona sin cuentas devuelve una lista vacía.
+          """)
+  @ApiResponses({
+    @ApiResponse(responseCode = "200", description = "Los saldos, uno por moneda."),
+    @ApiResponse(responseCode = "401", description = "Sin token (`AUTH-001`)", content = @Content),
+    @ApiResponse(
+        responseCode = "403",
+        description = "Sin `movements:read-user-balances` (`AUTH-002`)",
+        content = @Content),
+    @ApiResponse(
+        responseCode = "404",
+        description = "La persona no existe o está eliminada (`EX-001`)",
+        content = @Content)
+  })
+  public List<BalancesResponse> saldosDe(@PathVariable UUID userId) {
+    return saldos.balancesOf(userId);
+  }
+
   @GetMapping("/mine/balances/entries")
   @PreAuthorize("hasAuthority('movements:list-own-entries')")
   @Operation(

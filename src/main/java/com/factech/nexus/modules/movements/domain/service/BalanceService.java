@@ -8,7 +8,9 @@ import com.factech.nexus.modules.movements.domain.repository.LedgerRepository.Ba
 import com.factech.nexus.modules.movements.domain.repository.LedgerRepository.EntryFilter;
 import com.factech.nexus.modules.movements.domain.repository.LedgerRepository.EntryRow;
 import com.factech.nexus.modules.system.roles.application.AuthenticatedActor;
+import com.factech.nexus.modules.system.users.application.ClientCatalog;
 import com.factech.nexus.shared.error.FieldError;
+import com.factech.nexus.shared.error.ResourceNotFoundException;
 import com.factech.nexus.shared.error.ValidationException;
 import com.factech.nexus.shared.pagination.PageResponse;
 import com.factech.nexus.shared.pagination.Pagination;
@@ -36,11 +38,17 @@ public class BalanceService {
   private final LedgerRepository libro;
   private final AuthenticatedActor actor;
   private final Pagination paginacion;
+  private final ClientCatalog personas;
 
-  public BalanceService(LedgerRepository libro, AuthenticatedActor actor, Pagination paginacion) {
+  public BalanceService(
+      LedgerRepository libro,
+      AuthenticatedActor actor,
+      Pagination paginacion,
+      ClientCatalog personas) {
     this.libro = libro;
     this.actor = actor;
     this.paginacion = paginacion;
+    this.personas = personas;
   }
 
   /** Una fila del historial (`RF-MV-022` · `spec.md` §6.4). */
@@ -61,9 +69,26 @@ public class BalanceService {
 
   @Transactional(readOnly = true)
   public List<BalancesResponse> balances() {
+    return saldosDe(actor.id());
+  }
+
+  /**
+   * `RF-MV-054`: los saldos de cualquier persona, para administración. La misma forma que los
+   * propios; una persona inexistente o eliminada es {@code 404}.
+   */
+  @Transactional(readOnly = true)
+  public List<BalancesResponse> balancesOf(UUID persona) {
+    personas
+        .findClient(persona)
+        .orElseThrow(
+            () -> new ResourceNotFoundException("EX-001", "La persona indicada no existe."));
+    return saldosDe(persona);
+  }
+
+  private List<BalancesResponse> saldosDe(UUID persona) {
     Map<UUID, BigDecimal[]> porMoneda = new LinkedHashMap<>();
     Map<UUID, String> codigos = new LinkedHashMap<>();
-    for (BalanceRow fila : libro.balancesOf(actor.id())) {
+    for (BalanceRow fila : libro.balancesOf(persona)) {
       BigDecimal[] tres =
           porMoneda.computeIfAbsent(
               fila.currencyId(),

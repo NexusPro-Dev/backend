@@ -3549,6 +3549,106 @@ paths:
           description: La moneda no existe (`EX-002`)
       x-required-permission: movements:set-points-rate
   /api/v1/movements/points-adjustments:
+    get:
+      tags:
+      - Puntos
+      summary: Consultar los ajustes de puntos
+      description: |
+        **Permiso requerido:** `movements:list-points-adjustments`. Sin él, `403` (`AUTH-002`).
+
+        Los ajustes de puntos de **todas** las personas (`RF-MV-053`), paginados y **los más
+        recientes primero**. Cada fila trae la persona —sin documento—, la moneda, los puntos
+        **con su signo**, el motivo, la referencia y **quién lo hizo** (`adjustedBy`, nulo en
+        los ajustes anteriores a que se guardara).
+
+        **Filtros**, combinables: `userId`, `currencyId`, `from` (inclusive) y `to`
+        (exclusive) sobre cuándo ocurrió, `sign` —`SUMA` o `RESTA`— y `q`, un fragmento del
+        comprobante, el motivo, la referencia, o el nombre, usuario o correo de la persona,
+        sin distinguir acentos ni mayúsculas. **`sort`**: `occurredAt` (por omisión, `desc`),
+        `points` o `code`, con `,asc` o `,desc`. Un filtro sin coincidencias devuelve la página
+        vacía.
+      operationId: listarAjustes
+      parameters:
+      - name: page
+        in: query
+        required: false
+        schema:
+          type: integer
+          format: int32
+      - name: size
+        in: query
+        required: false
+        schema:
+          type: integer
+          format: int32
+      - name: sort
+        in: query
+        description: "occurredAt (por omisión, desc), points o code; con ,asc o ,desc."
+        required: false
+        schema:
+          type: string
+          description: "occurredAt (por omisión, desc), points o code; con ,asc o\
+            \ ,desc."
+      - name: userId
+        in: query
+        required: false
+        schema:
+          type: string
+          format: uuid
+      - name: currencyId
+        in: query
+        required: false
+        schema:
+          type: string
+          format: uuid
+      - name: from
+        in: query
+        description: "Desde cuándo ocurrió, inclusive."
+        required: false
+        schema:
+          type: string
+          format: date-time
+          description: "Desde cuándo ocurrió, inclusive."
+      - name: to
+        in: query
+        description: "Hasta cuándo ocurrió, exclusive."
+        required: false
+        schema:
+          type: string
+          format: date-time
+          description: "Hasta cuándo ocurrió, exclusive."
+      - name: sign
+        in: query
+        description: SUMA (puntos positivos) o RESTA (negativos).
+        required: false
+        schema:
+          type: string
+          description: SUMA (puntos positivos) o RESTA (negativos).
+      - name: q
+        in: query
+        description: "Fragmento del comprobante, el motivo, la referencia, o el nombre,\
+          \ usuario o correo de la persona; sin distinguir acentos ni mayúsculas.\
+          \ No busca por documento."
+        required: false
+        schema:
+          type: string
+          description: "Fragmento del comprobante, el motivo, la referencia, o el\
+            \ nombre, usuario o correo de la persona; sin distinguir acentos ni mayú\
+            sculas. No busca por documento."
+      responses:
+        "200":
+          description: Página de ajustes.
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/PageResponsePointsAdjustmentItem"
+        "400":
+          description: "Página, orden, sentido o periodo inválidos, todos juntos"
+        "401":
+          description: Sin token (`AUTH-001`)
+        "403":
+          description: Sin `movements:list-points-adjustments` (`AUTH-002`)
+      x-required-permission: movements:list-points-adjustments
     post:
       tags:
       - Puntos
@@ -11079,6 +11179,43 @@ paths:
         "404":
           description: La persona no existe o está eliminada (`EX-002`)
       x-required-permission: movements:read-user-payout-accounts
+  /api/v1/movements/users/{userId}/balances:
+    get:
+      tags:
+      - Saldos
+      summary: Consultar los saldos de una persona
+      description: |
+        **Permiso requerido:** `movements:read-user-balances`. Sin él, `403` (`AUTH-002`).
+
+        Los saldos de **cualquier** persona, con la misma forma que «mis saldos»: por cada
+        moneda en que tenga algo, la **billetera**, lo **retenido** y los **puntos**
+        (`RF-MV-054`). Es la lectura de administración —p. ej., ver cuántos puntos tiene antes
+        de restarle con un ajuste (`RF-MV-052`)—, y no sigue la estructura comercial. Una
+        persona sin cuentas devuelve una lista vacía.
+      operationId: saldosDe
+      parameters:
+      - name: userId
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      responses:
+        "200":
+          description: "Los saldos, uno por moneda."
+          content:
+            '*/*':
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Balances"
+        "401":
+          description: Sin token (`AUTH-001`)
+        "403":
+          description: Sin `movements:read-user-balances` (`AUTH-002`)
+        "404":
+          description: La persona no existe o está eliminada (`EX-001`)
+      x-required-permission: movements:read-user-balances
   /api/v1/movements/sales:
     get:
       tags:
@@ -18792,6 +18929,86 @@ components:
         code:
           type: string
         name:
+          type: string
+    PageResponsePointsAdjustmentItem:
+      type: object
+      properties:
+        content:
+          type: array
+          items:
+            $ref: "#/components/schemas/PointsAdjustmentItem"
+        totalElements:
+          type: integer
+          format: int64
+        totalPages:
+          type: integer
+          format: int32
+        page:
+          type: integer
+          format: int32
+        size:
+          type: integer
+          format: int32
+        totalIsExact:
+          type: boolean
+    PointsAdjustmentActor:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        fullName:
+          type: string
+    PointsAdjustmentItem:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        code:
+          type: string
+          description: "El comprobante, con prefijo `AJP`."
+        status:
+          type: string
+          description: Siempre CONFIRMADA.
+        user:
+          $ref: "#/components/schemas/PointsAdjustmentPerson"
+          description: A quién se le ajustaron los puntos.
+        currency:
+          $ref: "#/components/schemas/SaleCurrency"
+        points:
+          type: number
+          description: "Con su signo: positivos se sumaron, negativos se restaron."
+        concept:
+          type: string
+        reference:
+          type:
+          - string
+          - "null"
+        occurredAt:
+          type: string
+          format: date-time
+        confirmedAt:
+          type: string
+          format: date-time
+        adjustedBy:
+          type:
+          - object
+          - "null"
+          $ref: "#/components/schemas/PointsAdjustmentActor"
+          description: Quién hizo el ajuste. NULO en los ajustes anteriores a que
+            se guardara (V73).
+    PointsAdjustmentPerson:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        fullName:
+          type: string
+        username:
+          type: string
+        email:
           type: string
     MyMovement:
       type: object

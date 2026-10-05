@@ -340,6 +340,10 @@ class EndpointPermissionsIT extends IntegrationTestBase {
           Map.entry("GET /api/v1/movements/mine/balances/entries", "movements:list-own-entries"),
           Map.entry("POST /api/v1/movements/bonuses", "movements:grant-bonus"),
           Map.entry("POST /api/v1/movements/points-adjustments", "movements:adjust-points"),
+          Map.entry(
+              "GET /api/v1/movements/points-adjustments", "movements:list-points-adjustments"),
+          Map.entry(
+              "GET /api/v1/movements/users/{userId}/balances", "movements:read-user-balances"),
           // ---- MV · la etapa 3, puntos (V58, 30-09-2026) ----
           Map.entry("POST /api/v1/movements/points-rates", "movements:set-points-rate"),
           Map.entry("GET /api/v1/movements/points-rates", "movements:read-points-rates"),

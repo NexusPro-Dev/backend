@@ -1,5 +1,7 @@
 package com.factech.nexus.modules.movements.interfaces;
 
+import com.factech.nexus.modules.movements.application.ListPointsAdjustmentsRequest;
+import com.factech.nexus.modules.movements.application.PointsAdjustmentItem;
 import com.factech.nexus.modules.movements.application.PointsAdjustmentResponse;
 import com.factech.nexus.modules.movements.application.PointsPurchaseResponse;
 import com.factech.nexus.modules.movements.application.PointsRateResponse;
@@ -23,6 +25,7 @@ import java.util.UUID;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.ModelAttribute;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestHeader;
@@ -54,6 +57,42 @@ public class PointsController {
     this.tasas = tasas;
     this.compras = compras;
     this.ajustes = ajustes;
+  }
+
+  @GetMapping("/points-adjustments")
+  @PreAuthorize("hasAuthority('movements:list-points-adjustments')")
+  @Operation(
+      summary = "Consultar los ajustes de puntos",
+      description =
+          """
+          Los ajustes de puntos de **todas** las personas (`RF-MV-053`), paginados y **los más
+          recientes primero**. Cada fila trae la persona —sin documento—, la moneda, los puntos
+          **con su signo**, el motivo, la referencia y **quién lo hizo** (`adjustedBy`, nulo en
+          los ajustes anteriores a que se guardara).
+
+          **Filtros**, combinables: `userId`, `currencyId`, `from` (inclusive) y `to`
+          (exclusive) sobre cuándo ocurrió, `sign` —`SUMA` o `RESTA`— y `q`, un fragmento del
+          comprobante, el motivo, la referencia, o el nombre, usuario o correo de la persona,
+          sin distinguir acentos ni mayúsculas. **`sort`**: `occurredAt` (por omisión, `desc`),
+          `points` o `code`, con `,asc` o `,desc`. Un filtro sin coincidencias devuelve la página
+          vacía.
+          """)
+  @ApiResponses({
+    @ApiResponse(responseCode = "200", description = "Página de ajustes."),
+    @ApiResponse(
+        responseCode = "400",
+        description = "Página, orden, sentido o periodo inválidos, todos juntos",
+        content = @Content),
+    @ApiResponse(responseCode = "401", description = "Sin token (`AUTH-001`)", content = @Content),
+    @ApiResponse(
+        responseCode = "403",
+        description = "Sin `movements:list-points-adjustments` (`AUTH-002`)",
+        content = @Content)
+  })
+  public PageResponse<PointsAdjustmentItem> listarAjustes(
+      @org.springdoc.core.annotations.ParameterObject @ModelAttribute
+          ListPointsAdjustmentsRequest filtros) {
+    return ajustes.list(filtros);
   }
 
   @PostMapping("/points-adjustments")

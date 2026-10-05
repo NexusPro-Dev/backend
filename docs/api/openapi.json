@@ -4784,6 +4784,36 @@
         },
         "type" : "object"
       },
+      "PageResponsePointsAdjustmentItem" : {
+        "properties" : {
+          "content" : {
+            "items" : {
+              "$ref" : "#/components/schemas/PointsAdjustmentItem"
+            },
+            "type" : "array"
+          },
+          "page" : {
+            "format" : "int32",
+            "type" : "integer"
+          },
+          "size" : {
+            "format" : "int32",
+            "type" : "integer"
+          },
+          "totalElements" : {
+            "format" : "int64",
+            "type" : "integer"
+          },
+          "totalIsExact" : {
+            "type" : "boolean"
+          },
+          "totalPages" : {
+            "format" : "int32",
+            "type" : "integer"
+          }
+        },
+        "type" : "object"
+      },
       "PageResponsePointsPurchaseResponse" : {
         "properties" : {
           "content" : {
@@ -5244,6 +5274,83 @@
             "type" : "string"
           },
           "status" : {
+            "type" : "string"
+          },
+          "username" : {
+            "type" : "string"
+          }
+        },
+        "type" : "object"
+      },
+      "PointsAdjustmentActor" : {
+        "properties" : {
+          "fullName" : {
+            "type" : "string"
+          },
+          "id" : {
+            "format" : "uuid",
+            "type" : "string"
+          }
+        },
+        "type" : "object"
+      },
+      "PointsAdjustmentItem" : {
+        "properties" : {
+          "adjustedBy" : {
+            "$ref" : "#/components/schemas/PointsAdjustmentActor",
+            "description" : "Quién hizo el ajuste. NULO en los ajustes anteriores a que se guardara (V73).",
+            "type" : [ "object", "null" ]
+          },
+          "code" : {
+            "description" : "El comprobante, con prefijo `AJP`.",
+            "type" : "string"
+          },
+          "concept" : {
+            "type" : "string"
+          },
+          "confirmedAt" : {
+            "format" : "date-time",
+            "type" : "string"
+          },
+          "currency" : {
+            "$ref" : "#/components/schemas/SaleCurrency"
+          },
+          "id" : {
+            "format" : "uuid",
+            "type" : "string"
+          },
+          "occurredAt" : {
+            "format" : "date-time",
+            "type" : "string"
+          },
+          "points" : {
+            "description" : "Con su signo: positivos se sumaron, negativos se restaron.",
+            "type" : "number"
+          },
+          "reference" : {
+            "type" : [ "string", "null" ]
+          },
+          "status" : {
+            "description" : "Siempre CONFIRMADA.",
+            "type" : "string"
+          },
+          "user" : {
+            "$ref" : "#/components/schemas/PointsAdjustmentPerson",
+            "description" : "A quién se le ajustaron los puntos."
+          }
+        },
+        "type" : "object"
+      },
+      "PointsAdjustmentPerson" : {
+        "properties" : {
+          "email" : {
+            "type" : "string"
+          },
+          "fullName" : {
+            "type" : "string"
+          },
+          "id" : {
+            "format" : "uuid",
             "type" : "string"
           },
           "username" : {
@@ -16021,6 +16128,114 @@
       }
     },
     "/api/v1/movements/points-adjustments" : {
+      "get" : {
+        "description" : "**Permiso requerido:** `movements:list-points-adjustments`. Sin él, `403` (`AUTH-002`).\n\nLos ajustes de puntos de **todas** las personas (`RF-MV-053`), paginados y **los más\nrecientes primero**. Cada fila trae la persona —sin documento—, la moneda, los puntos\n**con su signo**, el motivo, la referencia y **quién lo hizo** (`adjustedBy`, nulo en\nlos ajustes anteriores a que se guardara).\n\n**Filtros**, combinables: `userId`, `currencyId`, `from` (inclusive) y `to`\n(exclusive) sobre cuándo ocurrió, `sign` —`SUMA` o `RESTA`— y `q`, un fragmento del\ncomprobante, el motivo, la referencia, o el nombre, usuario o correo de la persona,\nsin distinguir acentos ni mayúsculas. **`sort`**: `occurredAt` (por omisión, `desc`),\n`points` o `code`, con `,asc` o `,desc`. Un filtro sin coincidencias devuelve la página\nvacía.\n",
+        "operationId" : "listarAjustes",
+        "parameters" : [ {
+          "in" : "query",
+          "name" : "page",
+          "required" : false,
+          "schema" : {
+            "format" : "int32",
+            "type" : "integer"
+          }
+        }, {
+          "in" : "query",
+          "name" : "size",
+          "required" : false,
+          "schema" : {
+            "format" : "int32",
+            "type" : "integer"
+          }
+        }, {
+          "description" : "occurredAt (por omisión, desc), points o code; con ,asc o ,desc.",
+          "in" : "query",
+          "name" : "sort",
+          "required" : false,
+          "schema" : {
+            "description" : "occurredAt (por omisión, desc), points o code; con ,asc o ,desc.",
+            "type" : "string"
+          }
+        }, {
+          "in" : "query",
+          "name" : "userId",
+          "required" : false,
+          "schema" : {
+            "format" : "uuid",
+            "type" : "string"
+          }
+        }, {
+          "in" : "query",
+          "name" : "currencyId",
+          "required" : false,
+          "schema" : {
+            "format" : "uuid",
+            "type" : "string"
+          }
+        }, {
+          "description" : "Desde cuándo ocurrió, inclusive.",
+          "in" : "query",
+          "name" : "from",
+          "required" : false,
+          "schema" : {
+            "description" : "Desde cuándo ocurrió, inclusive.",
+            "format" : "date-time",
+            "type" : "string"
+          }
+        }, {
+          "description" : "Hasta cuándo ocurrió, exclusive.",
+          "in" : "query",
+          "name" : "to",
+          "required" : false,
+          "schema" : {
+            "description" : "Hasta cuándo ocurrió, exclusive.",
+            "format" : "date-time",
+            "type" : "string"
+          }
+        }, {
+          "description" : "SUMA (puntos positivos) o RESTA (negativos).",
+          "in" : "query",
+          "name" : "sign",
+          "required" : false,
+          "schema" : {
+            "description" : "SUMA (puntos positivos) o RESTA (negativos).",
+            "type" : "string"
+          }
+        }, {
+          "description" : "Fragmento del comprobante, el motivo, la referencia, o el nombre, usuario o correo de la persona; sin distinguir acentos ni mayúsculas. No busca por documento.",
+          "in" : "query",
+          "name" : "q",
+          "required" : false,
+          "schema" : {
+            "description" : "Fragmento del comprobante, el motivo, la referencia, o el nombre, usuario o correo de la persona; sin distinguir acentos ni mayúsculas. No busca por documento.",
+            "type" : "string"
+          }
+        } ],
+        "responses" : {
+          "200" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/PageResponsePointsAdjustmentItem"
+                }
+              }
+            },
+            "description" : "Página de ajustes."
+          },
+          "400" : {
+            "description" : "Página, orden, sentido o periodo inválidos, todos juntos"
+          },
+          "401" : {
+            "description" : "Sin token (`AUTH-001`)"
+          },
+          "403" : {
+            "description" : "Sin `movements:list-points-adjustments` (`AUTH-002`)"
+          }
+        },
+        "summary" : "Consultar los ajustes de puntos",
+        "tags" : [ "Puntos" ],
+        "x-required-permission" : "movements:list-points-adjustments"
+      },
       "post" : {
         "description" : "**Permiso requerido:** `movements:adjust-points`. Sin él, `403` (`AUTH-002`).\n\nSuma o resta **puntos** a mano en la cuenta de puntos de una persona, en una moneda\n(`RF-MV-052`, `RN-MV-076`): para lo que se pagó **por fuera de la plataforma** —una\nconsignación directa a la cuenta de la empresa— o para corregir un error. `points` va\n**con signo**: positivo suma, negativo resta. **No hay importe en dinero ni tasa**.\nNace `CONFIRMADA`, sin pago, y mueve los puntos en el acto desde o hacia la cuenta de\npuntos emitidos de la empresa. **Una resta nunca deja el saldo por debajo de cero**:\nsi no alcanza, `422` y nada cambia. **El motivo (`concept`) y la cabecera\n`Idempotency-Key` son obligatorios**; `reference`, el comprobante, es opcional. La\nmisma petición repetida responde `200` con el ajuste ya hecho. No se revierte: se\ncompensa con otro ajuste. No comisiona.\n",
         "operationId" : "ajustarPuntos",
@@ -16394,6 +16609,48 @@
         "summary" : "Consultar las líneas de venta",
         "tags" : [ "Movimientos" ],
         "x-required-permission" : "movements:list-sale-lines"
+      }
+    },
+    "/api/v1/movements/users/{userId}/balances" : {
+      "get" : {
+        "description" : "**Permiso requerido:** `movements:read-user-balances`. Sin él, `403` (`AUTH-002`).\n\nLos saldos de **cualquier** persona, con la misma forma que «mis saldos»: por cada\nmoneda en que tenga algo, la **billetera**, lo **retenido** y los **puntos**\n(`RF-MV-054`). Es la lectura de administración —p. ej., ver cuántos puntos tiene antes\nde restarle con un ajuste (`RF-MV-052`)—, y no sigue la estructura comercial. Una\npersona sin cuentas devuelve una lista vacía.\n",
+        "operationId" : "saldosDe",
+        "parameters" : [ {
+          "in" : "path",
+          "name" : "userId",
+          "required" : true,
+          "schema" : {
+            "format" : "uuid",
+            "type" : "string"
+          }
+        } ],
+        "responses" : {
+          "200" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "items" : {
+                    "$ref" : "#/components/schemas/Balances"
+                  },
+                  "type" : "array"
+                }
+              }
+            },
+            "description" : "Los saldos, uno por moneda."
+          },
+          "401" : {
+            "description" : "Sin token (`AUTH-001`)"
+          },
+          "403" : {
+            "description" : "Sin `movements:read-user-balances` (`AUTH-002`)"
+          },
+          "404" : {
+            "description" : "La persona no existe o está eliminada (`EX-001`)"
+          }
+        },
+        "summary" : "Consultar los saldos de una persona",
+        "tags" : [ "Saldos" ],
+        "x-required-permission" : "movements:read-user-balances"
       }
     },
     "/api/v1/movements/users/{userId}/payout-accounts" : {

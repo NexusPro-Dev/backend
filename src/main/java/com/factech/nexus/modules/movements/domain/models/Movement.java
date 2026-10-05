@@ -62,6 +62,7 @@ public final class Movement {
   private final UUID pointsRateId;
   private final BigDecimal pointsAmount;
   private final String externalReference;
+  private final UUID recordedBy;
   private final TypeStatus typeStatus;
   private final BigDecimal totalAmount;
   private final BigDecimal discountAmount;
@@ -108,6 +109,7 @@ public final class Movement {
     this.pointsRateId = null;
     this.pointsAmount = null;
     this.externalReference = null;
+    this.recordedBy = null;
     this.typeStatus = typeStatus;
     this.occurredAt = occurredAt;
     this.createdAt = createdAt;
@@ -154,6 +156,7 @@ public final class Movement {
       UUID pointsRateId,
       BigDecimal pointsAmount,
       String externalReference,
+      UUID recordedBy,
       OffsetDateTime ahora) {
     this.id = id;
     this.movementTypeId = movementTypeId;
@@ -163,6 +166,7 @@ public final class Movement {
     this.pointsRateId = pointsRateId;
     this.pointsAmount = pointsAmount;
     this.externalReference = externalReference;
+    this.recordedBy = recordedBy;
     this.currencyId = currencyId;
     this.code = code;
     this.lines = List.of();
@@ -206,6 +210,7 @@ public final class Movement {
         null,
         null,
         null,
+        null,
         ahora);
   }
 
@@ -234,6 +239,7 @@ public final class Movement {
         importe,
         concepto,
         clave,
+        null,
         null,
         null,
         null,
@@ -279,6 +285,7 @@ public final class Movement {
         tasa,
         puntos,
         null,
+        null,
         ahora);
   }
 
@@ -289,6 +296,7 @@ public final class Movement {
    *
    * @param decimales los de la moneda, para la escala de los importes en cero
    * @param puntos distintos de cero: positivos suman, negativos restan
+   * @param registradoPor quién lo hizo (`RF-MV-053`): administración, nunca el sujeto
    */
   public static Movement ajusteDePuntos(
       UUID tipo,
@@ -301,6 +309,7 @@ public final class Movement {
       String concepto,
       String referencia,
       String clave,
+      UUID registradoPor,
       OffsetDateTime ahora) {
     if (puntos == null || puntos.signum() == 0 || concepto == null || clave == null) {
       // `ck_movements_points` rechazaría los puntos en cero al escribir; aquí se ve antes.
@@ -322,6 +331,7 @@ public final class Movement {
         null,
         puntos,
         referencia,
+        registradoPor,
         ahora);
   }
 
@@ -468,6 +478,9 @@ public final class Movement {
     if (externalReference != null) {
       datos.put("external_reference", externalReference);
     }
+    if (recordedBy != null) {
+      datos.put("recorded_by", recordedBy.toString());
+    }
     if (pointsAmount != null) {
       // Nulo y presente en un ajuste (`RN-MV-076`): sus puntos no tienen tasa.
       datos.put("points_rate_id", pointsRateId == null ? null : pointsRateId.toString());
@@ -557,6 +570,10 @@ public final class Movement {
 
   public BigDecimal getPointsAmount() {
     return pointsAmount;
+  }
+
+  public UUID getRecordedBy() {
+    return recordedBy;
   }
 
   public String getExternalReference() {
