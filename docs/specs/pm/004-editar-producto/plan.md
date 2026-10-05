@@ -140,3 +140,7 @@ Consume el **catálogo de monedas** de `SP` cuando llega precio o moneda. Ningun
 `RN-PM-051`. **`EditProductRequest` gana `directCommission` como `Patchable`**: ausente no toca, un objeto la sustituye **entera** y el nulo explícito se rechaza (`VAL-019`). **La revalidación va al final del orden de verificación de §5**, después de aplicar precio y moneda en memoria y antes de escribir: se construye la directa resultante —la nueva o la guardada— y se comprueba contra el precio y la moneda resultantes con **la misma** función que usa el alta (`RF-PM-001` `plan.md` §12.2). Es lo que hace que bajar el precio por debajo de una directa fija se rechace aunque la directa no viaje. **Que el producto es FTD se calcula con `Product.esFtd`**, la definición del alta, sobre el tipo y las membresías guardados —que no se corrigen (`RN-PM-001`)—. `ProductUpdateIT` gana `CA-PM-412` a `CA-PM-416`.
 
 **Corrección del 01-10-2026.** Esta sección decía «basta con que la directa guardada sea nula», y no basta: una fila que no es FTD y no tiene directa —la semilla de dev las creaba así— quedaba tomada por FTD, y la edición rechazaba cualquier directa con `VAL-022`. La semilla rellena ahora la directa como `V55`, y `CA-PM-415` cubre también un bot sin directa guardada.
+
+## 13. Se retira la comisión por venta directa — enmienda del 05-10-2026
+
+`UpdateProductRequest` pierde el `Patchable` y el servicio de edición pierde la revalidación de §12 y el uso de `Product.esFtd` para ella. `ProductUpdateIT` cambia `CA-PM-412` a `CA-PM-416` por `CA-PM-432`.

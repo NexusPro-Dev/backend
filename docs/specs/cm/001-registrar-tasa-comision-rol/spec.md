@@ -4,7 +4,7 @@
 |---|---|
 | Requerimiento | `RF-CM-001` |
 | Módulo | `CM` — Comisiones |
-| Versión | 1.2.0 |
+| Versión | 1.3.0 |
 | Estado | **Aprobada** |
 | Autor | Responsable técnico |
 | Aprobada por | Responsable del proyecto |
@@ -105,6 +105,7 @@ De ahí sale la forma de la respuesta. Una tasa que paga y una que no **serían 
 | Forma | Sí | Si se paga **una proporción de la venta** o **una cantidad de dinero** | Una de las dos, y **solo una** (`RN-CM-016`) |
 | Porcentaje | **Solo si la forma es proporción** | Qué proporción de la venta gana | De **cero a cien** (`RN-CM-007`) |
 | Valor fijo | **Solo si la forma es cantidad** | Cuánto dinero gana por venta | **Cero o más, sin tope** (`RN-CM-018`). **Sin moneda** (`RN-CM-017`) |
+| Comisión por venta directa | **No** (05-10-2026) | Lo que cobra **ese rol** cuando vende él mismo ese producto (`RN-CM-050`), en `directCommission` con `rateType`, `percentage` y `fixedAmount` | **Solo si el rol no es el último eslabón** (`EX-009`). La forma de una tasa (`RN-CM-016`); porcentaje de cero a cien, fijo no negativo con los decimales de la moneda del producto y **no mayor que el precio** (`EX-010`); sobre un producto gratuito, solo fijo (`EX-006`). **No cuenta en el tope de `RN-CM-019`**. Ausente o nula: sin directa |
 
 **Cuatro campos, de los que siempre llegan tres**: hay una elección que hacer, y la elección se **declara** en lugar de deducirse.
 
@@ -232,6 +233,16 @@ De ahí sale la forma de la respuesta. Una tasa que paga y una que no **serían 
 
 **Hasta el 15-09-2026 solo había dos**, y no era que esta operación comprobara poco: producto inexistente, producto retirado, tope y duplicado eran excepciones de la asociación (`RF-CM-007`), porque el alta no tenía producto. Desde `RN-CM-021` lo tiene, y las cinco viven aquí. Lo que sigue fuera —persona sin el rol, solapamiento de vigencias— es de `RF-CM-006`.
 
+### EX-009 — Directa sobre el último eslabón (05-10-2026)
+
+**Condición:** la petición trae `directCommission` y el rol es el último eslabón —el rol `VENDEDOR` del que no cuelga ningún otro rol `VENDEDOR`, hoy `AGENTE`— (`RN-CM-050`, `RN-CM-045`).
+**Respuesta del sistema:** rechaza el alta con `422` y el mensaje «La comisión por venta directa solo la declaran los roles que no son el último eslabón.», en el campo `directCommission`. **Sin esta excepción se guardaría una directa que no paga nunca** (`RN-CM-012`).
+
+### EX-010 — La directa fija paga más que el precio (05-10-2026)
+
+**Condición:** la directa es de valor fijo y supera el precio del producto, que no es gratuito (`RN-CM-050`).
+**Respuesta del sistema:** rechaza el alta con `422` y el mensaje «La comisión por venta directa no puede pagar más que el precio del producto.», en `directCommission.fixedAmount`. Es el tope individual de la directa; el de la cadena lo pone el devengo (`RN-CM-026`).
+
 ## 11. Validaciones
 
 | ID | Regla | Mensaje |
@@ -272,6 +283,13 @@ De ahí sale la forma de la respuesta. Una tasa que paga y una que no **serían 
 | `CA-CM-139` | El sistema aplica **en el alta** el tope del producto (`RN-CM-019`: la suma con las tasas vivas del producto no pasa de cien) y la regla del gratuito (`RN-CM-020`: porcentaje rechazado, fijo admitido sin tope) |
 | `CA-CM-140` | El sistema rechaza un **importe fijo con más decimales** de los que admite la moneda del producto (`VAL-014`), y admite el mismo importe con los decimales correctos |
 | `CA-CM-260` | El sistema rechaza una tasa sobre un **producto FTD** con `422` (`EX-008`, `RN-CM-037`), y admite la misma tasa sobre un upgrade de otra pareja (29-09-2026) |
+| `CA-CM-315` | El sistema registra la tasa de un **`DIRECTOR`** con **comisión por venta directa** y la devuelve en `directCommission`, con su forma y su valor (05-10-2026) |
+| `CA-CM-316` | Una tasa registrada **sin** `directCommission` la devuelve **presente y nula** |
+| `CA-CM-317` | El sistema rechaza con `422` (`EX-009`) una directa sobre la tasa de un **`AGENTE`**, el último eslabón |
+| `CA-CM-318` | El sistema rechaza con `422` (`EX-006`) una directa de **porcentaje** sobre un producto **gratuito**, y admite una **fija** |
+| `CA-CM-319` | El sistema rechaza con `422` (`EX-010`) una directa fija **mayor que el precio**, y admite una **igual** |
+| `CA-CM-320` | Una directa **no cuenta en el tope** de `RN-CM-019`: con las tasas de rol del producto sumando cien, una directa de cincuenta se registra |
+| `CA-CM-321` | Una directa con la forma y el valor cruzados se rechaza con `400` (`VAL-011`), señalando `directCommission` |
 
 **`CA-CM-081` cubre dos peticiones distintas en un criterio** —el valor que no corresponde a la forma, y la forma ausente— porque las dos verifican lo mismo: que **la forma y el valor se comprueban juntos** y no por separado.
 
@@ -317,3 +335,4 @@ De ahí sale la forma de la respuesta. Una tasa que paga y una que no **serían 
 | 1.1.0 | 15-09-2026 | **La tasa de rol nace con su producto** (`RN-CM-021`, [`requirements/cm.md`](../../../requirements/cm.md) v0.14.0 §5.4), por decisión del responsable del proyecto. `productId` entra **obligatorio e inmutable** en el cuerpo —la ruta no cambia—; y todo lo que hasta hoy se comprobaba al asociar se comprueba **aquí**: que el producto exista y no esté retirado, un solo rol por producto (`409`), el tope (`RN-CM-019`) y el gratuito (`RN-CM-020`). **Y el importe fijo gana los decimales de la moneda del producto** (`VAL-014`), porque por primera vez la tasa sabe en qué moneda pagará. **`CA-CM-002`, `CA-CM-003` y `CA-CM-004` quedan superados**: la tasa nace con producto, la respuesta lo lleva, y «varias del mismo rol» solo entre productos distintos. `CA-CM-136` a `CA-CM-140`. | Responsable del proyecto |
 
 | 1.2.0 | 29-09-2026 | **Un producto FTD no admite tasas por venta** (`RN-CM-037`, [`requirements/cm.md`](../../../requirements/cm.md) v0.22.0 §5.8), con la comisión afftrack: las líneas `BECA → BECA` no devengan por venta, y una tasa sobre ellas no pagaría nunca. `EX-008` y `CA-CM-260`. | Responsable del proyecto |
+| 1.3.0 | 05-10-2026 | **La tasa de rol declara su comisión por venta directa** (`RN-CM-050`, [`requirements/cm.md`](../../../requirements/cm.md) v0.30.0 §5.11), por decisión del responsable del proyecto: `directCommission`, opcional, solo en los roles que no son el último eslabón. Nacen `EX-009` y `EX-010` y `CA-CM-315` a `CA-CM-321`; la directa no cuenta en el tope de `RN-CM-019`. | Responsable del proyecto |

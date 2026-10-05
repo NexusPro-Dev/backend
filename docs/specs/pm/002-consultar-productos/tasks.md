@@ -115,3 +115,11 @@ Y una tarea que creció: `T-01` acabó con **dos** pruebas de plan y no una. La 
 Rama: `feature/comision-venta-directa`.
 
 **La aserción de las lecturas públicas es el contrato**: `OfferItem`, `HotlinkResponse` y `HotlinkCatalogResponse` no declaran `directCommission`, y se comprobó sobre el `openapi.json` regenerado (29-09-2026).
+
+## 8. Se retira la comisión por venta directa — enmienda del 05-10-2026
+
+| ID | Tarea | Depende de | Verificación | Estado |
+|---|---|---|---|---|
+| `T-45` | Quitar `directCommission` del listado (`plan.md` §13) | `RF-PM-001` `T-54` | `CA-PM-430` | Pendiente |
+
+Rama: `develop`.

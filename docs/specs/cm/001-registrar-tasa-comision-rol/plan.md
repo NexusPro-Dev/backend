@@ -5,7 +5,7 @@
 | Requerimiento | `RF-CM-001` |
 | Especificación | [`spec.md`](spec.md) |
 | `spec.md` aprobada el | 02-09-2026 |
-| Versión | 1.2.0 |
+| Versión | 1.3.0 |
 | Estado | **Aprobado** |
 | Autor | Responsable técnico |
 | Aprobado por | Responsable del proyecto |
@@ -231,3 +231,17 @@ Es una prueba fea —habla `SQL` en lugar de negocio— y es la única capaz de 
 ## 12. Un producto FTD no admite tasas por venta — enmienda del 29-09-2026
 
 `RN-CM-037` ([`requirements/cm.md`](../../../requirements/cm.md) v0.22.0). **Una comprobación más, sin esquema**: `RegisterCommissionRateService.verificarProducto` pregunta, después del retiro, si el producto está en `ProductCatalog.ftdProductIds()` —publicada por `RF-CM-015`— y responde `422` con `EX-008`. **Va antes del importe, del duplicado y del tope**: si el producto no admite tasas, ninguna de las demás respuestas tiene sentido. `RegisterCommissionRateIT` gana `CA-CM-260`, con el producto `BECA → BECA` que siembran las fixtures de `RF-CM-015`.
+
+## 13. La comisión por venta directa de la tasa — enmienda del 05-10-2026
+
+`RN-CM-050` ([`requirements/cm.md`](../../../requirements/cm.md) v0.30.0 §5.11).
+
+**Esquema — `V64__cm_directa_por_rol.sql`.** `commission_rates` gana `direct_rate_type varchar(20)`, `direct_percentage numeric(5,2)` y `direct_fixed_amount numeric(14,2)`, nulas, con `ck_commission_rates_direct_forma` (las tres nulas, o la forma con solo su valor) y `ck_commission_rates_direct_rangos`. **Migra**: copia `products.direct_commission_*` a cada tasa viva cuyo rol es `VENDEDOR` y **no** es el último eslabón —la misma consulta que `LastLinkRoles.ids()`, escrita en SQL—, redondeando el fijo a dos decimales; deja en el registro de la migración (`RAISE NOTICE`) los productos con directa distinta de cero que no tenían ninguna tasa así donde ponerla; y **borra** las tres columnas de `products` con sus dos `CHECK`. Las comisiones ya devengadas con `source = DIRECTA` **no se tocan**: su `rate_id` sigue siendo el producto.
+
+**Dominio.** `CommissionRate` gana un segundo `CommissionValue` incrustado y nulo, `direct`, con `@AttributeOverride` a las columnas `direct_*`; `CommissionValue` se reutiliza tal cual, porque la forma y los rangos son los mismos (`RN-CM-016`, `RN-CM-007`). `RegisterCommissionRateRequest` gana `@Valid DirectCommissionBody directCommission` —`record` propio con `@Schema(name = "CommissionRateDirect")`, mismas anotaciones de rango que la tasa—, y `CommissionRateResponse` y `CommissionRateItem` la devuelven siempre, nula si falta.
+
+**Orden de verificación en `RegisterCommissionRateService`**, después de lo que ya hay y antes de guardar: (1) **`EX-009`** si llega directa y el rol está en `LastLinkRoles.ids()` —el mismo puerto de `SP` que usa el devengo—; (2) los decimales del fijo contra la moneda (`ProductCurrencyScale`, `VAL-014`, campo `directCommission.fixedAmount`); (3) **`EX-006`** si es porcentaje sobre un gratuito; (4) **`EX-010`** si el fijo supera el precio. **`ProductCommissionCapGuard` no la ve**: suma `value`, no `direct`.
+
+**Alternativa descartada: un `record` `DirectCommission` propio en el dominio.** Sería una copia de `CommissionValue` con otro nombre; la diferencia entre las dos está en dónde se aplican, no en qué son.
+
+`RegisterCommissionRateIT` gana `CA-CM-315` a `CA-CM-321`. `@Schema(name)` en el `record` nuevo, y se mira el diff del `openapi.json` (springdoc funde `record`s de mismo nombre simple).

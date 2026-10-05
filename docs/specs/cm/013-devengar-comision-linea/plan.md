@@ -5,7 +5,7 @@
 | Requerimiento | `RF-CM-013` |
 | Especificación | [`spec.md`](spec.md) v0.1.0 |
 | `spec.md` aprobada el | 28-09-2026 |
-| Versión | 0.4.0 |
+| Versión | 0.5.0 |
 | Estado | **Aprobado** |
 | Autor | Responsable técnico |
 | Aprobado por | Responsable del proyecto |
@@ -187,3 +187,7 @@ Y un índice de apoyo: `ix_commission_batches_abierto` sobre `(user_id, currency
 - **La auditoría del desenlace es un `CREATE`** otra vez: la fila se borró y vuelve a nacer.
 
 `CommissionAccrualIT` gana `CA-CM-304` —corrigiendo por la ruta de `RF-MV-016`— y `CA-CM-305`, preparando por SQL una línea con su cadena revertida y sin desenlace —lo que deja una corrección cuyo aviso se perdió— y cerrando: el barrido la devenga. **Sin dobles del escuchador**: un `@MockitoSpyBean` crea otro contexto de Spring y ya agotó las conexiones de la suite (`tasks.md` §3.1).
+
+## 15. La directa de la tasa de rol — enmienda del 05-10-2026
+
+`RN-CM-050`. `CommissionAccrualService.ventaPropia` deja de leer `ProductCatalog.directCommissionOf` —que se retira— y lee la **tasa de rol viva del vendedor sobre el producto** por su rol vendedor (`commission_rates`, `product_id` y `role_id`): si declara directa, la devuelve como `ResolvedRate` con `source = DIRECTA` y `rateId` **la tasa**; si no, devuelve lo que resolvió `RF-CM-005`. Una lectura nueva en el repositorio de tasas, `directOf(productId, roleId)`, dentro del mismo módulo. **Cambia `CA-CM-267`**: el `DIRECTOR` sin tasa de rol sobre el producto ya no tiene directa, y `RF-CM-005` tampoco le da tasa, así que su nivel queda **sin tasa** como cualquier otro. `CommissionAccrualIT` reescribe la siembra de la directa —de `products` a `commission_rates`— y gana `CA-CM-328` a `CA-CM-330`.

@@ -4,7 +4,7 @@
 |---|---|
 | Requerimiento | `RF-CM-012` |
 | Módulo | `CM` — Comisiones |
-| Versión | 0.4.0 |
+| Versión | 0.5.0 |
 | Estado | **Aprobada** |
 | Autor | Responsable técnico |
 | Aprobada por | Responsable del proyecto |
@@ -164,3 +164,4 @@ Ninguna.
 | 0.2.0 | 29-09-2026 | **Las comisiones propias dicen su clase** (`RN-CM-044`, [`requirements/cm.md`](../../../requirements/cm.md) v0.22.0 §5.8), heredado de `RF-CM-010`. `CA-CM-263`. | Responsable del proyecto |
 | 0.3.0 | 29-09-2026 | **La fuente de una comisión propia puede ser `DIRECTA`** (`RN-CM-045`), heredado de `RF-CM-010`. `CA-CM-272`. | Responsable del proyecto |
 | 0.4.0 | 30-09-2026 | **En mis lotes se ve lo revertido y lo retirado** (`RN-CM-046`, `RN-CM-047`), heredado de `RF-CM-010`: quien cobra tiene que poder ver por qué su pendiente bajó. `CA-CM-303`. | Responsable del proyecto |
+| 0.5.0 | 05-10-2026 | Heredado de `RF-CM-010` 0.5.0: con `DIRECTA`, la tasa exacta es la tasa de rol desde `V64`. Sin criterio nuevo. | Responsable del proyecto |

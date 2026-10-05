@@ -113,3 +113,11 @@ Rama: `feature/comision-venta-directa`.
 | `T-18` | `CA-CM-304` y `CA-CM-305` en `CommissionAccrualIT` (`plan.md` §14) | `RF-CM-024` `T-03`, `RF-MV-016` `T-13` | `CommissionAccrualIT` en verde | **Hecha** — 30-09-2026 |
 
 Rama: `feature/corregir-vendedor-y-mover-comisiones`.
+
+## 9. La directa de la tasa de rol — enmienda del 05-10-2026
+
+| ID | Tarea | Depende de | Verificación | Estado |
+|---|---|---|---|---|
+| `T-19` | `ventaPropia` lee la directa de la tasa de rol del vendedor (`plan.md` §15) | `RF-CM-001` `T-34` | `CommissionAccrualIT`: `CA-CM-264` a `CA-CM-270` reescritas sobre la tasa, y `CA-CM-328` a `CA-CM-330` | Pendiente |
+
+Rama: `develop`.

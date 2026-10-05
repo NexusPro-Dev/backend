@@ -144,3 +144,7 @@ Ninguna. Una consulta de catálogo no es un evento de seguridad; el único lista
 ## 12. La comisión por venta directa — enmienda del 29-09-2026
 
 `RN-PM-051`. **Las tres columnas entran en la proyección de la página** —la misma sentencia, sin `JOIN` nuevo— y `ProductItem` gana `directCommission` con el esquema `ProductDirectCommission` de `RF-PM-001`. **La oferta (`RF-PM-007`), el hotlink y el catálogo de hotlinks no la seleccionan**: usan sus propias proyecciones, y la prueba lo fija para que nadie la añada copiando la del listado. `ProductListIT` gana `CA-PM-410`.
+
+## 13. Se retira la comisión por venta directa — enmienda del 05-10-2026
+
+`ProductItem` y la consulta del listado pierden las tres columnas. `ProductListIT` cambia `CA-PM-410` por `CA-PM-430`.

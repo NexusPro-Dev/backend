@@ -114,3 +114,11 @@ Se cierra con un **volcado explícito** justo después de aplicar el cambio de n
 | `T-44` | `directCommission` como `Patchable` y la revalidación al final del orden de verificación, con la función del alta | `RF-PM-001` `T-49` | `ProductUpdateIT`: `CA-PM-412` a `CA-PM-416` | Hecha |
 
 Rama: `feature/comision-venta-directa`.
+
+## 8. Se retira la comisión por venta directa — enmienda del 05-10-2026
+
+| ID | Tarea | Depende de | Verificación | Estado |
+|---|---|---|---|---|
+| `T-45` | Quitar `directCommission` y su revalidación de la edición (`plan.md` §13) | `RF-PM-001` `T-54` | `CA-PM-432` | Pendiente |
+
+Rama: `develop`.

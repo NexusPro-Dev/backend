@@ -4,7 +4,7 @@
 |---|---|
 | Requerimiento | `RF-CM-003` |
 | Módulo | `CM` — Comisiones |
-| Versión | 0.8.0 |
+| Versión | 0.9.0 |
 | Estado | **Aprobada** |
 | Autor | Responsable técnico |
 | Aprobada por | Responsable del proyecto |
@@ -247,6 +247,16 @@ Quien necesite conservar qué se pagó antes tiene **una sola vía, y está fuer
 
 **La otra dirección se admite sin tope**: corregir a valor fijo —del importe que sea— una tasa asociada a un producto gratuito **pasa**, porque no hay cien por ciento de cero. Es exactamente lo contrario de lo que esta spec decía entre el 08-09-2026 y el 14-09-2026, y `CA-CM-117` lo recoge.
 
+### EX-009 — Directa sobre el último eslabón (05-10-2026)
+
+**Condición:** la corrección de una **tasa de rol** trae un objeto en `directCommission` y su rol es el último eslabón (`RN-CM-050`).
+**Respuesta del sistema:** `422`, con el mensaje y el campo de `RF-CM-001` `EX-009`. **Vaciarla —`null`— sí se admite** siempre: es la salida de una directa que quedó guardada cuando la jerarquía cambió.
+
+### EX-010 — La directa fija paga más que el precio (05-10-2026)
+
+**Condición:** la directa que queda es fija y supera el precio del producto, que no es gratuito.
+**Respuesta del sistema:** `422`, como `RF-CM-001` `EX-010`.
+
 ## 11. Validaciones
 
 | ID | Regla | Mensaje |
@@ -291,6 +301,11 @@ Quien necesite conservar qué se pagó antes tiene **una sola vía, y está fuer
 | `CA-CM-133` | La **personalizada** obedece lo mismo al corregirse: a fijo sobre un gratuito pasa, a porcentaje se rechaza con `EX-008` |
 | `CA-CM-142` | La corrección de una tasa de rol comprueba el tope (`RN-CM-019`), el gratuito (`RN-CM-020`) y **los decimales de la moneda** (`RN-CM-017`) **contra su único producto**; el cuerpo **no admite `productId`** (`400`, es inmutable) |
 | `CA-CM-151` | La corrección de una **personalizada** hace lo mismo contra su único producto —tope individual, gratuito y decimales (`VAL-014`)—, y al alargar `validTo` comprueba el solapamiento **con las de la misma persona sobre ese producto** (`409`); `productId` en el cuerpo responde `400` (16-09-2026) |
+| `CA-CM-323` | La corrección de una tasa de **`DIRECTOR`** con `directCommission` la **declara o la sustituye entera**, y la respuesta la devuelve (05-10-2026, `RN-CM-050`) |
+| `CA-CM-324` | `directCommission: null` **la vacía**, y la tasa de rol queda como estaba |
+| `CA-CM-325` | Una corrección **sin** `directCommission` —solo el porcentaje de la tasa— **no toca** la directa |
+| `CA-CM-326` | Declarar directa en la tasa de un **`AGENTE`** se rechaza con `422` (`EX-009`) |
+| `CA-CM-327` | Una directa de porcentaje sobre un gratuito se rechaza (`EX-008`), y una fija mayor que el precio también (`EX-010`) |
 
 !!! danger "`CA-CM-091` es el criterio más importante de los seis, y el único que puede fallar en silencio"
 
@@ -351,3 +366,4 @@ Lo que se paga a cambio está escrito y es real: `CA-CM-095` deja constancia de 
 | 0.6.0 | 14-09-2026 | **El producto gratuito SÍ comisiona, y solo por importe fijo** (`RN-CM-020`, [`cm.md`](../../../requirements/cm.md) v0.13.0), por decisión del responsable del proyecto: v0.5.0 se invierte. Nace `EX-008` —corregir hacia porcentaje una tasa asociada a un producto de precio cero se rechaza entera, en las dos clases—, y corregir hacia valor fijo **pasa sin tope**. `CA-CM-117` se reescribe en vez de borrarse; nacen `CA-CM-132` y `CA-CM-133`. | Responsable del proyecto |
 | 0.7.0 | 15-09-2026 | **La tasa de rol se corrige contra su único producto** (`RN-CM-021`, [`requirements/cm.md`](../../../requirements/cm.md) v0.14.0 §5.4): donde hasta hoy la corrección revisaba **todos** los productos asociados y se rechazaba entera si cualquiera se pasaba, ahora hay uno solo —y el importe fijo gana los decimales de su moneda—. El producto **no se corrige**: un `productId` en el cuerpo es un campo desconocido y responde `400`. `CA-CM-142`. | Responsable del proyecto |
 | 0.8.0 | 16-09-2026 | **La personalizada se corrige contra su único producto** (`RN-CM-021`, [`requirements/cm.md`](../../../requirements/cm.md) v0.15.0 §5.5): donde hasta hoy revalidaba solapamiento y tope en todos los productos asociados, ahora hay uno; el importe fijo gana los decimales de su moneda; el producto no se corrige. `CA-CM-151`. | Responsable del proyecto |
+| 0.9.0 | 05-10-2026 | **La corrección de una tasa de rol alcanza su comisión por venta directa** (`RN-CM-050`, [`requirements/cm.md`](../../../requirements/cm.md) v0.30.0 §5.11): `directCommission` ausente no la toca, un objeto la sustituye entera y `null` la vacía. Nacen `EX-009` y `EX-010` y `CA-CM-323` a `CA-CM-327`. Solo para la tasa de rol: la personalizada no tiene directa. | Responsable del proyecto |

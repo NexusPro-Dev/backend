@@ -4,7 +4,7 @@
 |---|---|
 | Requerimiento | `RF-CM-010` |
 | Módulo | `CM` — Comisiones |
-| Versión | 0.4.0 |
+| Versión | 0.5.0 |
 | Estado | **Aprobada** |
 | Autor | Responsable técnico |
 | Aprobada por | Responsable del proyecto |
@@ -180,3 +180,4 @@ Ninguna.
 | 0.2.0 | 29-09-2026 | **Cada comisión dice su clase** (`RN-CM-044`, [`requirements/cm.md`](../../../requirements/cm.md) v0.22.0 §5.8): `POR_VENTA` o `POR_AFFTRACK`, y la segunda sin venta, línea ni nivel. `CA-CM-262`. | Responsable del proyecto |
 | 0.3.0 | 29-09-2026 | **La fuente de una comisión puede ser `DIRECTA`** (`RN-CM-045`, [`requirements/cm.md`](../../../requirements/cm.md) v0.24.0 §5.9), y entonces la tasa exacta es el producto. La forma de la respuesta no cambia: `source` ya es texto. `CA-CM-271`. | Responsable del proyecto |
 | 0.4.0 | 30-09-2026 | **Lo revertido y lo retirado se ven** ([`requirements/cm.md`](../../../requirements/cm.md) v0.26.0 §5.10, `RN-CM-046`, `RN-CM-047`): una comisión revertida sigue en el detalle de su lote, marcada y fuera del total; la retirada dice de qué lote salió; y un pendiente lista lo que se le retiró, que es desde donde se devuelve (`RF-CM-023`). El listado cuenta solo las comisiones vivas. `CA-CM-302`. | Responsable del proyecto |
+| 0.5.0 | 05-10-2026 | **Con `DIRECTA`, la tasa exacta es la tasa de rol que la declara** (`RN-CM-050`) en lo devengado desde `V64`; en lo anterior sigue siendo el producto. `CA-CM-271` se lee así. Sin criterio nuevo. | Responsable del proyecto |

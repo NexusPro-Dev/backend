@@ -517,3 +517,7 @@ if (origen.level() - destino.level() > 1) {    // VAL-029 — salta
 | El orden de las dos | API | `CA-PM-419`: `ORO → BECA` responde `VAL-014` y no `VAL-029` |
 | La comparación, sin base | Unitaria | `RegisterProductService` con `MembershipCatalog` simulado: diferencia `0` admite, `1` admite, `2` rechaza con `VAL-029`, `-1` rechaza con `VAL-014`, `-2` rechaza con `VAL-014`. Es la prueba que caza la resta escrita al revés |
 | Las suites que registraban saltos | Integración | **Toda suite que da de alta un upgrade de más de un escalón por la API deja de poder hacerlo**. Se buscan y se cambian a escalones; las que siembran por SQL **no fallan** —el alta no las ve— y se dejan, salvo que prueben la venta, que es asunto de `MV` |
+
+## 14. Se retira la comisión por venta directa — enmienda del 05-10-2026
+
+`RN-PM-051` retirada ([`requirements/pm.md`](../../../requirements/pm.md) v0.50.0): la directa pasa a la tasa de rol de `CM` (`RN-CM-050`). **`V64`** —la escribe `RF-CM-001` `T-33`— borra las columnas de `products` después de migrarlas. Salen `ProductDirectCommission`, `DirectCommission`, `DirectCommissionType`, `DirectCommissionRules` y el campo de `Product`, de `RegisterProductRequest`/`Command`, de `ProductResponse` y de la instantánea de auditoría; `ProductCatalog.directCommissionOf` se retira con su implementación. La semilla de dev deja de reparar la directa. `ProductsIT` pierde `CA-PM-402` a `CA-PM-409` y gana `CA-PM-429`; las suites que sembraban productos con directa por SQL dejan de escribirla.

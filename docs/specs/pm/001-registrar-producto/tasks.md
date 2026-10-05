@@ -161,3 +161,11 @@ Rama: `feature/comision-venta-directa`. **`V55` es también de `RF-CM-013`**: la
 **Verificación de la enmienda del escalón (03-10-2026):** `ProductsIT` (`CA-PM-417` a `CA-PM-419`; siete fixtures `BECA → ORO` pasaron a `PLATINO → ORO`, y dos de ellas —las del icono— solo fallaban porque el salto se rechazaba antes que el icono), en verde; `mvn clean verify` completo: 517 unitarias y 2380 de integración, sin fallos.
 
 Rama: `feature/upgrade-escalonado`. Issue: Pendiente de crear.
+
+## 9. Se retira la comisión por venta directa — enmienda del 05-10-2026
+
+| ID | Tarea | Depende de | Verificación | Estado |
+|---|---|---|---|---|
+| `T-54` | Retirar la directa del producto: modelo, alta, respuesta, auditoría, `ProductCatalog` y semilla (`plan.md` §14) | `RF-CM-001` `T-33` | `ProductsIT`: `CA-PM-429`; `openapi.json` sin `ProductDirectCommission` | Pendiente |
+
+Rama: `develop`.

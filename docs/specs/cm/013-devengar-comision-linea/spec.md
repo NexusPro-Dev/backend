@@ -4,7 +4,7 @@
 |---|---|
 | Requerimiento | `RF-CM-013` |
 | Módulo | `CM` — Comisiones |
-| Versión | 0.4.0 |
+| Versión | 0.5.0 |
 | Estado | **Aprobada** |
 | Autor | Responsable técnico |
 | Aprobada por | Responsable del proyecto |
@@ -208,6 +208,9 @@ Uno la atiende; el otro no hace nada. **Nunca se devenga dos veces** (`RN-CM-027
 | `CA-CM-270` | Corregir la directa **después** de devengar **no cambia** lo devengado (`RN-CM-008`) |
 | `CA-CM-304` | Una línea cuya cadena se **revirtió** al corregirse su vendedor (`RF-CM-024`) se devenga **otra vez** con el aviso de la corrección, como una línea recién atribuida: con la tasa y la cadena **del día de la venta**, en el lote **abierto** de cada persona; y quien estaba en la cadena vieja cobra la nueva aunque tenga una comisión **revertida** de la misma línea (30-09-2026) |
 | `CA-CM-305` | Si el aviso de la corrección **se pierde**, la línea queda sin desenlace y **el barrido del siguiente cierre** la devenga |
+| `CA-CM-328` | Desde el 05-10-2026 la directa es **la de la tasa de rol del vendedor** sobre el producto (`RN-CM-050`): un `DIRECTOR` y un `MANAGER` que venden el mismo producto cobran **cada uno la suya**, y `rate_id` es **la tasa de rol**. Enmienda `CA-CM-264` |
+| `CA-CM-329` | Un `DIRECTOR` cuya tasa de rol **no declara directa** cobra en el nivel `0` **su tasa de rol**, con `source = ROL` |
+| `CA-CM-330` | Un `DIRECTOR` **sin tasa de rol** sobre el producto **no cobra** en el nivel `0` —no hay directa donde leerla—; sus superiores cobran su override. Enmienda `CA-CM-267` |
 
 **`CA-CM-166` es el que sostiene la decisión de §2.1**: el cobro no depende de la configuración de comisiones.
 
@@ -241,3 +244,4 @@ Uno la atiende; el otro no hace nada. **Nunca se devenga dos veces** (`RN-CM-027
 | 0.2.0 | 29-09-2026 | **Una línea FTD no devenga por venta** (`RN-CM-022` con su quinta condición, [`requirements/cm.md`](../../../requirements/cm.md) v0.22.0 §5.8): no queda con desenlace, ni `SIN_COMISION` ni ningún otro, y el barrido no la recoge; lo que paga lo decide `RF-CM-020`. Y cada comisión se escribe con su clase, `POR_VENTA` (`RN-CM-044`). **El criterio es `CA-CM-253`, de `RF-CM-020`**, que se prueba en la suite de este requerimiento. | Responsable del proyecto |
 | 0.3.0 | 29-09-2026 | **Quien no es el último eslabón cobra su venta propia con la directa del producto** (`RN-CM-045`, [`requirements/cm.md`](../../../requirements/cm.md) v0.24.0 §5.9): en el nivel `0`, si no tiene personalizada vigente, la directa sustituye su tasa de rol; los niveles de encima no cambian. El último eslabón se lee en la jerarquía de roles. `CA-CM-264` a `CA-CM-270`. | Responsable del proyecto |
 | 0.4.0 | 30-09-2026 | **Una línea cuya cadena se revirtió se devenga otra vez** (`RN-CM-047`, [`requirements/cm.md`](../../../requirements/cm.md) v0.26.0 §5.10): `RF-CM-024` borra su desenlace, y el aviso de `MV` al corregir el vendedor la trae aquí como a cualquier línea recién atribuida. **La unicidad cuenta solo las vivas** (`RN-CM-027`), de modo que quien está en las dos cadenas cobra la nueva. `CA-CM-304`, `CA-CM-305`. | Responsable del proyecto |
+| 0.5.0 | 05-10-2026 | **La directa se lee en la tasa de rol del vendedor** (`RN-CM-050`, [`requirements/cm.md`](../../../requirements/cm.md) v0.30.0 §5.11) y no en el producto: una por rol, opcional, y `rate_id` apunta a la tasa. `CA-CM-328` a `CA-CM-330`; se enmiendan `CA-CM-264` (la directa y su `rate_id`) y `CA-CM-267` (sin tasa de rol ya no hay directa). | Responsable del proyecto |

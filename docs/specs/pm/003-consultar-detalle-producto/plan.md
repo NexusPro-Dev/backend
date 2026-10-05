@@ -112,3 +112,7 @@ Ninguna.
 ## 12. La comisión por venta directa — enmienda del 29-09-2026
 
 `RN-PM-051`. **Las tres columnas entran en la lectura del detalle** y la respuesta es `ProductResponse`, que ya la lleva desde `RF-PM-001` `T-49`: no hay componente nuevo. `ProductDetailIT` gana `CA-PM-411`.
+
+## 13. Se retira la comisión por venta directa — enmienda del 05-10-2026
+
+`ProductDetailResponse` y su consulta pierden las tres columnas. `ProductDetailIT` cambia `CA-PM-411` por `CA-PM-431`.

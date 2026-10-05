@@ -120,3 +120,13 @@ Ninguno.
 | `T-32` | `EX-008` en `RegisterCommissionRateService` y `CA-CM-260` en `RegisterCommissionRateIT` | `RF-CM-015` `T-04` | La suite de `RF-CM-001` en verde | **Hecha** — 29-09-2026 |
 
 Rama: `feature/comision-afftrack`.
+
+## 7. La comisión por venta directa de la tasa — enmienda del 05-10-2026
+
+| ID | Tarea | Depende de | Verificación | Estado |
+|---|---|---|---|---|
+| `T-33` | `V64__cm_directa_por_rol.sql`: columnas y `CHECK` en `commission_rates`, migración desde `products` y borrado de sus columnas (`plan.md` §13) | — | Flyway aplica sobre la base de dev; los productos sin tasa donde poner su directa salen en el registro | Pendiente |
+| `T-34` | `direct` en `CommissionRate`; `directCommission` en la petición y en las dos respuestas | `T-33` | Compila; `openapi.json` con `CommissionRateDirect` | Pendiente |
+| `T-35` | `EX-009`, `VAL-014`, `EX-006` y `EX-010` sobre la directa en `RegisterCommissionRateService` | `T-34` | `RegisterCommissionRateIT`: `CA-CM-315` a `CA-CM-321` | Pendiente |
+
+Rama: `develop` (commits directos desde el 05-10-2026).

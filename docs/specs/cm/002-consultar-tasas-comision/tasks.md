@@ -4,7 +4,7 @@
 |---|---|
 | Requerimiento | `RF-CM-002` |
 | Plan | [`plan.md`](plan.md), aprobado el 02-09-2026 |
-| Versión | 1.4.0 |
+| Versión | 1.5.0 |
 | Estado | **En revisión** |
 | Autor | Responsable técnico |
 | Aprobadas por | Pendiente |
@@ -127,3 +127,11 @@ Ninguno. **`T-17` depende de que `V50` esté aplicada** (`RF-CM-001` `T-16` a `T
 - Quince de las dieciséis primeras tareas `Hecha` con su verificación pasando. **`T-16` queda pendiente y declarada.** `./mvnw clean verify` en verde. **Comprobado el 02-09-2026**: 278 unitarias y 876 de integración.
 - **Las seis del valor fijo, `Hecha`**, con `CA-CM-098` construido sobre **un importe fijo menor que algún porcentaje del mismo rol** — sin ese dato la prueba pasa sin verificar nada. **Comprobado el 02-09-2026**: 287 unitarias y 902 de integración, suite entera en verde.
 - La matriz y el contrato publicado al día.
+
+## 6. La comisión por venta directa de la tasa — enmienda del 05-10-2026
+
+| ID | Tarea | Depende de | Verificación | Estado |
+|---|---|---|---|---|
+| `T-30` | `direct_*` en la consulta y en `RateRow`; `directCommission` en `CommissionRateItem` (`plan.md` §14) | `RF-CM-001` `T-34` | `CA-CM-322` | Pendiente |
+
+Rama: `develop`.

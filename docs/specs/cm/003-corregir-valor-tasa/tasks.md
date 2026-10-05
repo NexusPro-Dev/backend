@@ -4,7 +4,7 @@
 |---|---|
 | Requerimiento | `RF-CM-003` |
 | Plan | [`plan.md`](plan.md), aprobado el 03-09-2026 |
-| Versión | 0.6.0 |
+| Versión | 0.7.0 |
 | Estado | **En revisión** |
 | Autor | Responsable técnico |
 | Aprobadas por | Pendiente |
@@ -144,3 +144,11 @@ Ninguno para construir. **`T-15` depende de `RF-CM-001` `T-20`**, que es donde n
 - **Las ocho del valor fijo, `Hecha`**, con `CA-CM-024` y `CA-CM-091` **pasando a la vez** — que es la condición que ninguna de las dos comprueba por su cuenta. **Comprobado el 02-09-2026**: 287 unitarias y 902 de integración, suite entera en verde.
 - **`T-23` a `T-29`, `Hecha`**, con `CA-CM-110` a `CA-CM-114` pasando y sin regresión en las anteriores.
 - La matriz, `cm.md`, `modelo-datos.md` y el contrato publicado al día.
+
+## 6. La comisión por venta directa de la tasa — enmienda del 05-10-2026
+
+| ID | Tarea | Depende de | Verificación | Estado |
+|---|---|---|---|---|
+| `T-33` | `directCommission` como `Patchable` en la corrección, con las verificaciones de `RF-CM-001` cuando llega un objeto (`plan.md` §12) | `RF-CM-001` `T-35` | `CA-CM-323` a `CA-CM-327` | Pendiente |
+
+Rama: `develop`.
