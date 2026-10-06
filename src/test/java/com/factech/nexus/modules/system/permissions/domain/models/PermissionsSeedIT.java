@@ -33,7 +33,7 @@ class PermissionsSeedIT extends IntegrationTestBase {
           + " V47: courses:read-available y lessons:learn del aula, RF-AC-034 y RF-AC-035)")
   void catalogoCompleto() {
     assertThat(jdbc.queryForObject("SELECT count(*) FROM permissions", Integer.class))
-        .isEqualTo(189);
+        .isEqualTo(196);
   }
 
   @Test
@@ -71,14 +71,17 @@ class PermissionsSeedIT extends IntegrationTestBase {
             String.class);
 
     assertThat(acciones)
-        .hasSize(18)
+        // Veinticuatro desde `V75`: los seis del segundo factor (RF-SP-071 a RF-SP-076).
+        .hasSize(24)
         .containsExactly(
             "assign-roles",
             "assign-supervisor",
             "change-own-password",
             "change-status",
+            "confirm-own-mfa",
             "create",
             "delete",
+            "disable-own-mfa",
             "list",
             "read",
             "read-clients",
@@ -87,10 +90,14 @@ class PermissionsSeedIT extends IntegrationTestBase {
             "read-own-sellers",
             "read-sellers",
             "read-team",
+            "regenerate-own-recovery-codes",
+            "reset-mfa",
             "reset-password",
             "revoke-roles",
+            "start-own-mfa",
             "update",
-            "update-own-profile");
+            "update-own-profile",
+            "verify-own-mfa");
   }
 
   @Test
@@ -106,6 +113,14 @@ class PermissionsSeedIT extends IntegrationTestBase {
             "audit:read-deletions",
             "audit:read-errors",
             "audit:read-security",
+            // V75 (06-10-2026): el segundo factor, RF-SP-071 a RF-SP-077.
+            "users:start-own-mfa",
+            "users:confirm-own-mfa",
+            "users:verify-own-mfa",
+            "users:regenerate-own-recovery-codes",
+            "users:disable-own-mfa",
+            "users:reset-mfa",
+            "roles:require-mfa",
             "commissions:create",
             "commissions:delete",
             "commissions:read",
@@ -343,7 +358,7 @@ class PermissionsSeedIT extends IntegrationTestBase {
   void identificadoresUuidV7() {
     List<UUID> ids = jdbc.queryForList("SELECT id FROM permissions", UUID.class);
 
-    assertThat(ids).hasSize(189).doesNotHaveDuplicates();
+    assertThat(ids).hasSize(196).doesNotHaveDuplicates();
     assertThat(ids).allSatisfy(id -> assertThat(id.version()).isEqualTo(7));
     // variant() == 2 es la variante RFC 9562 (bits 10xx).
     assertThat(ids).allSatisfy(id -> assertThat(id.variant()).isEqualTo(2));
@@ -409,13 +424,13 @@ class PermissionsSeedIT extends IntegrationTestBase {
                 "SELECT count(*) FROM role_permissions WHERE role_id ="
                     + " '01a02a33-4c00-7001-9c4f-5e7ad1000001'",
                 Integer.class))
-        .isEqualTo(189);
+        .isEqualTo(196);
     assertThat(
             jdbc.queryForObject(
                 "SELECT count(*) FROM role_permissions WHERE role_id ="
                     + " '01a02a33-4c00-7002-9c4f-5e7ad1000002'",
                 Integer.class))
-        .isEqualTo(187);
+        .isEqualTo(194);
     assertThat(
             jdbc.queryForList(
                 """
@@ -499,7 +514,8 @@ class PermissionsSeedIT extends IntegrationTestBase {
         // Y veintisiete desde `V62`: pagar con tarjeta un pendiente propio.
         // Y veintiocho desde `V67`: consultar la conversión por país.
         // Y veintinueve desde `V69`: pagar por la pasarela local un pendiente propio.
-        .hasSize(29)
+        // Y treinta y cuatro desde `V75`: los cinco del propio segundo factor, a los tres tipos.
+        .hasSize(34)
         .contains(
             "movements:pay-pending-by-card",
             "movements:read-conversion-rates",

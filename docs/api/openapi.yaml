@@ -109,6 +109,8 @@ tags:
   description: "Paquetes de productos: varios productos con su descuento."
 - name: Lecciones
   description: "Lo que se estudia: un video o un texto dentro de un módulo."
+- name: Segundo factor
+  description: El authenticator de quien porta el token.
 - name: Comisiones afftrack
   description: Escalones por FTD —membresía BECA → BECA activada— que se liquidan
     en cada cierre.
@@ -975,6 +977,72 @@ paths:
         "500":
           description: Fallo no controlado (`ERR-500`)
       x-required-permission: users:delete
+  /api/v1/users/me/mfa/totp:
+    post:
+      tags:
+      - Segundo factor
+      summary: Iniciar la activación del segundo factor
+      description: |
+        **Permiso requerido:** `users:start-own-mfa`. Sin él, `403` (`AUTH-002`).
+
+        Genera un secreto para la app autenticadora y lo deja **pendiente**: no se exige
+        al entrar hasta que se confirme con el primer código, y caduca a los diez minutos.
+
+        La respuesta trae la URI `otpauth://` que el cliente pinta como **código QR**, el
+        mismo secreto escrito —para quien no pueda escanear— y su caducidad. Iniciar otra
+        vez sustituye al pendiente anterior.
+
+        **Con un factor ya activo es cambiar de teléfono**, y exige haber verificado el
+        código hace cinco minutos o menos: si no, `403` con el tipo
+        `reverificacion-requerida` y la ruta para hacerlo.
+      operationId: iniciar
+      responses:
+        "201":
+          description: Pendiente creado
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/MfaEnrollmentResponse"
+        "403":
+          description: "Sin el permiso, o cambio de teléfono sin verificación reciente"
+      x-required-permission: users:start-own-mfa
+  /api/v1/users/me/mfa/totp/confirmation:
+    post:
+      tags:
+      - Segundo factor
+      summary: Confirmar el segundo factor
+      description: |
+        **Permiso requerido:** `users:confirm-own-mfa`. Sin él, `403` (`AUTH-002`).
+
+        Activa el factor pendiente con el código que muestra la app en este momento.
+
+        La respuesta trae **los diez códigos de recuperación**, y es **la única vez** que
+        existen en claro: el servidor guarda su resumen y no puede volver a mostrarlos.
+
+        Si la persona tenía otro factor activo, queda retirado y sus códigos dejan de
+        servir. Un código equivocado no consume intentos de la cuenta y no mata el
+        pendiente: se puede reintentar sin volver a escanear.
+      operationId: confirmar
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/MfaConfirmationRequest"
+        required: true
+      responses:
+        "200":
+          description: "Factor activo; los códigos, una vez"
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/MfaConfirmationResponse"
+        "400":
+          description: El código no tiene seis dígitos
+        "409":
+          description: Otra confirmación terminó antes
+        "422":
+          description: "Sin pendiente, caducado, o el código no vale"
+      x-required-permission: users:confirm-own-mfa
   /api/v1/user-commission-rates:
     get:
       tags:
@@ -3878,7 +3946,7 @@ paths:
         **No alcanza a un pago con cobro abierto en la pasarela** (`RN-MV-058`): lo confirma
         su notificación. Un pago con tarjeta sin cobro —el que registró un funcionario— se
         confirma aquí. **Ni al pago de un retiro**, que se resuelve al aprobarlo.
-      operationId: confirmar
+      operationId: confirmar_1
       parameters:
       - name: paymentId
         in: path
@@ -14609,6 +14677,35 @@ components:
       properties:
         reason:
           type: string
+    MfaEnrollmentResponse:
+      type: object
+      properties:
+        otpauthUri:
+          type: string
+        secret:
+          type: string
+        expiresAt:
+          type: string
+          format: date-time
+    MfaConfirmationRequest:
+      type: object
+      properties:
+        code:
+          type: string
+          description: Los seis dígitos que muestra la app en este momento.
+          example: 123456
+    MfaConfirmationResponse:
+      type: object
+      properties:
+        enabledAt:
+          type: string
+          format: date-time
+        replacedPrevious:
+          type: boolean
+        recoveryCodes:
+          type: array
+          items:
+            type: string
     RegisterUserCommissionRateRequest:
       type: object
       properties:

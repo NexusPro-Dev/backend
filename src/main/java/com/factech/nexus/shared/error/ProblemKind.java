@@ -87,6 +87,18 @@ public enum ProblemKind {
       "cambio-de-contrasena-requerido",
       "Debe cambiar su contraseña antes de operar"),
 
+  /**
+   * La operación es sensible y el segundo factor no se verificó hace poco (`RN-SP-063`).
+   *
+   * <p>Tercer {@code 403} con {@code type} propio, por lo mismo que {@link
+   * #CAMBIO_DE_CONTRASENA_REQUERIDO}: lo que el cliente hace con él es distinto de los otros dos
+   * —pedir el código y repetir la petición—, y lleva {@code verificationPath} para saber dónde.
+   */
+  REVERIFICACION_REQUERIDA(
+      HttpStatus.FORBIDDEN,
+      "reverificacion-requerida",
+      "Debe verificar de nuevo su segundo factor para esta operación"),
+
   INTERNO(HttpStatus.INTERNAL_SERVER_ERROR, "interno", "Error interno");
 
   private static final String BASE = "https://nexus.factech.co/errors/";

@@ -204,6 +204,13 @@ public class GlobalExceptionHandler {
     return problema(ProblemKind.SIN_PERMISO, fallo, peticion);
   }
 
+  /** {@code 403} de reverificación (`RN-SP-063`), <b>sin auditar</b>: no es una intrusión. */
+  @ExceptionHandler(RecentMfaRequiredException.class)
+  public ProblemDetail deReverificacion(
+      RecentMfaRequiredException fallo, HttpServletRequest peticion) {
+    return problema(ProblemKind.REVERIFICACION_REQUERIDA, fallo, peticion);
+  }
+
   // ---------------------------------------------------------------------------
   // Excepciones del framework
   // ---------------------------------------------------------------------------

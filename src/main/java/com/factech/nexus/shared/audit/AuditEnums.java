@@ -113,6 +113,21 @@ public final class AuditEnums {
      *
      * <p>Añadido el 25-08-2026 con {@code V36}; el catálogo pasa de veinte a <b>veintiuno</b>.
      */
-    SESSION_TOKENS_PURGED
+    SESSION_TOKENS_PURGED,
+
+    // El segundo factor (security.md §8.1, V75, 06-10-2026): de veintiuno a veintiocho.
+    MFA_ENABLED,
+    MFA_DISABLED,
+    MFA_RESET,
+
+    /**
+     * Un código del segundo factor rechazado. <b>No reutiliza {@link #LOGIN_FAILURE}</b>: quien
+     * falla aquí acertó la contraseña, y esa es la señal que hay que poder buscar.
+     */
+    MFA_VERIFICATION_FAILED,
+
+    MFA_RECOVERY_CODE_USED,
+    MFA_RECOVERY_CODES_REGENERATED,
+    ROLE_MFA_REQUIREMENT_CHANGED
   }
 }

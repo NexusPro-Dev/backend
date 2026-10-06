@@ -52,6 +52,8 @@ services:
       # Secreto de desarrollo. En cualquier otro entorno llega por variable
       # de entorno y nunca desde un archivo versionado (Art. IV.3).
       JWT_SECRET: desarrollo-no-usar-fuera-de-local
+      # Llave del segundo factor (security.md §3.3). La de local no vale fuera.
+      MFA_ENCRYPTION_KEY: ZGVzYXJyb2xsby1uby11c2FyLWZ1ZXJhLWRlLWxvYyE=
       # Swagger y el contrato OpenAPI, accesibles sin autenticar. Solo local.
       EXPOSE_API_DOCS: "true"
       # Credencial inicial del superadministrador (V22). Local y solo local:

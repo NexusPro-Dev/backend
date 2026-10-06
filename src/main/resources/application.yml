@@ -211,6 +211,23 @@ nexus:
 
   security:
     jwt-secret: ${JWT_SECRET}
+
+    # Segundo factor (RF-SP-071 a RF-SP-077, security.md §3.3).
+    mfa:
+      # 32 bytes en Base64 (AES-256) que cifran el secreto TOTP de cada persona.
+      # SIN valor por defecto, como JWT_SECRET (Art. IX.5): sin ella no hay
+      # forma segura de guardar un factor, y el contexto no arranca. Perderla
+      # deja a todo el mundo sin segundo factor: se respalda con JWT_SECRET.
+      encryption-key: ${MFA_ENCRYPTION_KEY}
+      # El nombre que verá la app autenticadora. Se fija antes del primer
+      # despliegue: cambiarlo deja las entradas ya escaneadas con el viejo.
+      issuer: ${MFA_ISSUER:NEXUS}
+      # Cuánto vale la reverificación para las operaciones sensibles (RN-SP-063).
+      recent-window: PT5M
+      # Cuánto espera un factor pendiente a que lo confirmen (RN-SP-058).
+      pending-ttl: PT10M
+      # Cuánto vive el desafío entre la contraseña y el código (RN-SP-059).
+      challenge-ttl: PT5M
     # Documentación de la API accesible sin autenticar. Por defecto NO, que
     # es lo seguro: el contrato describe cada endpoint y cada permiso del
     # sistema. Se habilita de forma explícita donde interese.

@@ -40,6 +40,9 @@ public class AccessTokenIssuer {
   /** Nombre del claim con los códigos de rol. */
   public static final String CLAIM_ROLES = "roles";
 
+  /** La activación del segundo factor está pendiente y es obligatoria (`RN-SP-062`). */
+  public static final String CLAIM_ACTIVACION_OBLIGATORIA = "mer";
+
   private final JwtEncoder encoder;
   private final AccessRevocationRegistry cortes;
   private final String emisor;
@@ -63,7 +66,25 @@ public class AccessTokenIssuer {
    * @param cambioObligatorio si su credencial la fijó alguien que no es ella
    */
   public String emitir(UUID usuario, List<String> roles, boolean cambioObligatorio, Instant ahora) {
-    JwtClaimsSet claims =
+    return emitir(usuario, roles, cambioObligatorio, false, null, ahora);
+  }
+
+  /**
+   * Con los dos claims del segundo factor (`security.md` §5.2, 06-10-2026).
+   *
+   * @param activacionObligatoria {@code mer}: un rol de la persona exige el factor y no lo tiene
+   *     activo (`RN-SP-062`)
+   * @param factorVerificadoEn {@code mfa}: cuándo verificó esta sesión el segundo factor por última
+   *     vez, o nulo si nunca; el claim se omite entonces, y su ausencia es la información
+   */
+  public String emitir(
+      UUID usuario,
+      List<String> roles,
+      boolean cambioObligatorio,
+      boolean activacionObligatoria,
+      Instant factorVerificadoEn,
+      Instant ahora) {
+    JwtClaimsSet.Builder claims =
         JwtClaimsSet.builder()
             .issuer(emisor)
             .subject(usuario.toString())
@@ -77,10 +98,16 @@ public class AccessTokenIssuer {
             .expiresAt(ahora.plus(vida))
             .claim(CLAIM_ROLES, roles)
             .claim(CLAIM_CAMBIO_OBLIGATORIO, cambioObligatorio)
-            .build();
+            .claim(CLAIM_ACTIVACION_OBLIGATORIA, activacionObligatoria);
+
+    if (factorVerificadoEn != null) {
+      claims.claim(RecentMfa.CLAIM, factorVerificadoEn.getEpochSecond());
+    }
+
+    JwtClaimsSet terminado = claims.build();
 
     return encoder
-        .encode(JwtEncoderParameters.from(JwsHeader.with(MacAlgorithm.HS256).build(), claims))
+        .encode(JwtEncoderParameters.from(JwsHeader.with(MacAlgorithm.HS256).build(), terminado))
         .getTokenValue();
   }
 

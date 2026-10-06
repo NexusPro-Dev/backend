@@ -69,6 +69,8 @@ public abstract class IntegrationTestBase {
     // Secreto de prueba. No es el de ningún entorno y no concede nada:
     // ninguna prueba lo comparte con otro proceso.
     registry.add("JWT_SECRET", () -> "secreto-de-prueba-solo-para-la-suite-automatizada");
+    // La llave del secreto TOTP (RF-SP-071): sin ella el contexto no arranca.
+    registry.add("MFA_ENCRYPTION_KEY", () -> "ZmVkY2JhOTg3NjU0MzIxMGZlZGNiYTk4NzY1NDMyMTA=");
 
     // El entorno de la suite es `testing`, que es lo que es: no es local de
     // nadie y no es el sistema real. Se declara porque desde el 31-08-2026 la
@@ -260,7 +262,11 @@ public abstract class IntegrationTestBase {
                            'movements:retry-payment', 'movements:request-withdrawal',
                            'movements:read-own-balances', 'movements:list-own-entries',
                            -- V50 (28-09-2026): activar lo comprado, RF-MV-010.
-                           'movements:activate-own-product')
+                           'movements:activate-own-product',
+                           -- V75 (06-10-2026): el propio segundo factor, a los tres tipos.
+                           'users:start-own-mfa', 'users:confirm-own-mfa',
+                           'users:verify-own-mfa', 'users:regenerate-own-recovery-codes',
+                           'users:disable-own-mfa')
                 OR (r.role_type IN ('FUNCIONARIO', 'VENDEDOR')
                     AND p.code IN ('users:read-own-clients', 'broker-accounts:read-own-team',
                                    'broker-accounts:read-team-member',
@@ -302,7 +308,13 @@ public abstract class IntegrationTestBase {
           "indicators:read-sales-summary",
           "indicators:read-sales-series",
           "indicators:read-sales-by-product",
-          "indicators:read-sales-by-seller");
+          "indicators:read-sales-by-seller",
+          // V75 (06-10-2026): el propio segundo factor, a los tres tipos.
+          "users:start-own-mfa",
+          "users:confirm-own-mfa",
+          "users:verify-own-mfa",
+          "users:regenerate-own-recovery-codes",
+          "users:disable-own-mfa");
 
   protected static java.util.UUID crearRolAcotado(
       org.springframework.jdbc.core.JdbcTemplate jdbc, String codigo, String nombre) {

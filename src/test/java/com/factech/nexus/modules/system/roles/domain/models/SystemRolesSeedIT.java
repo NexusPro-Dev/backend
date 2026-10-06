@@ -41,6 +41,12 @@ class SystemRolesSeedIT extends IntegrationTestBase {
    */
   private static final List<String> LA_CUSPIDE =
       List.of(
+          // V75 (06-10-2026): el propio segundo factor, a los tres tipos.
+          "users:start-own-mfa",
+          "users:confirm-own-mfa",
+          "users:verify-own-mfa",
+          "users:regenerate-own-recovery-codes",
+          "users:disable-own-mfa",
           "broker-accounts:read-own-team",
           "broker-accounts:read-team-member",
           "movements:create",
@@ -100,6 +106,12 @@ class SystemRolesSeedIT extends IntegrationTestBase {
    */
   private static final List<String> EL_AGENTE =
       List.of(
+          // V75 (06-10-2026): el propio segundo factor, a los tres tipos.
+          "users:start-own-mfa",
+          "users:confirm-own-mfa",
+          "users:verify-own-mfa",
+          "users:regenerate-own-recovery-codes",
+          "users:disable-own-mfa",
           "broker-accounts:read-own-team",
           "broker-accounts:read-team-member",
           "movements:list-own",
@@ -151,6 +163,12 @@ class SystemRolesSeedIT extends IntegrationTestBase {
    */
   private static final List<String> EL_CLIENTE =
       List.of(
+          // V75 (06-10-2026): el propio segundo factor, a los tres tipos.
+          "users:start-own-mfa",
+          "users:confirm-own-mfa",
+          "users:verify-own-mfa",
+          "users:regenerate-own-recovery-codes",
+          "users:disable-own-mfa",
           "movements:create",
           "movements:list-own",
           // V48 y V49 (26-09-2026, etapa 6 de MV): lo propio de pagos y saldos, por tipo de rol.

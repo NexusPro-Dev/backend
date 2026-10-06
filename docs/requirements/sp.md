@@ -5,7 +5,7 @@
 | Módulo | `SP` — Sistema Principal |
 | Paquete | `modules/system` |
 | Prefijos de permiso | `roles:`, `permissions:`, `audit:`, `memberships:`, `currencies:`, `countries:`, `users:`, `exchange-rates:`, `document-types:`, `brokers:`, `broker-accounts:`, `teams:` |
-| Versión | 1.98.0 |
+| Versión | 1.99.0 |
 | Estado | **Aprobado** |
 | Responsable | Bonilla Diaz William Steven |
 | Fecha de creación | 20-08-2026 |
@@ -406,7 +406,7 @@ EXCLUDE USING gist (
 | `RF-SP-068` | Eliminar equipo | Baja | `teams:delete` | **En desarrollo** |
 | `RF-SP-069` | Asignar miembros a un equipo | Alta | `teams:assign-members` | **En desarrollo** |
 | `RF-SP-070` | Retirar miembros de un equipo | Media | `teams:remove-members` | **En desarrollo** |
-| `RF-SP-071` | Activar el segundo factor con una app autenticadora | **Crítica** | `users:start-own-mfa`, `users:confirm-own-mfa` | **Tasks aprobadas** |
+| `RF-SP-071` | Activar el segundo factor con una app autenticadora | **Crítica** | `users:start-own-mfa`, `users:confirm-own-mfa` | **En desarrollo** |
 | `RF-SP-072` | Iniciar sesión con el segundo factor | **Crítica** | — (público, autorizado por el desafío) | **Tasks aprobadas** |
 | `RF-SP-073` | Reverificar el segundo factor antes de una operación sensible | **Crítica** | `users:verify-own-mfa` | **Tasks aprobadas** |
 | `RF-SP-074` | Regenerar los propios códigos de recuperación | Alta | `users:regenerate-own-recovery-codes` | **Tasks aprobadas** |
@@ -1417,7 +1417,7 @@ Cierra la pertenencia vigente de uno o varios managers **de este equipo**, con m
 | Reglas aplicables | `RN-SP-058`, `RN-SP-060`, `RN-SP-061`, `RN-SP-063` (para cambiar de authenticator) |
 | Depende de | `RF-SP-034` |
 | Tripleta | `docs/specs/sp/071-activar-segundo-factor/` |
-| Estado | **Tasks aprobadas** (06-10-2026) |
+| Estado | **En desarrollo** (06-10-2026) — construido el mismo día que sus tasks |
 
 **Lo pidió el responsable del proyecto el 06-10-2026**, y eligió el authenticator por encima del SMS y del correo. **Iniciar** (`POST /api/v1/users/me/mfa/totp`) genera un secreto aleatorio de veinte bytes, lo guarda **cifrado** como factor pendiente y devuelve la URI `otpauth://totp/NEXUS:<usuario>?secret=…&issuer=NEXUS`, que el frontend pinta como QR, junto al secreto en Base32 para quien no pueda escanear. **Confirmar** (`POST /api/v1/users/me/mfa/totp/confirmation`) recibe el primer código: si vale, el factor pasa a activo y la respuesta lleva **los diez códigos de recuperación**, la única vez que existen en claro (`RN-SP-061`).
 
@@ -2476,3 +2476,4 @@ La fila se lee «esta persona vinculó este authenticator». `status` es `PENDIE
 | 1.96.0 | 06-10-2026 | **`RF-SP-077` estrena tripleta** y con ella **los siete del segundo factor quedan escritos**, todos en `Tasks en revisión`. La ficha añade dos enmiendas que trajo su spec: `RF-SP-002` y `RF-SP-003` publican la marca del rol. Precisiones: **nadie cambia la marca de un rol que porta** (`RN-SEG-011`), de modo que la de `ADMIN` solo la cambia el superadministrador; un rol **inactivo** se puede marcar y no obliga. | Responsable técnico |
 | 1.97.0 | 06-10-2026 | **`RN-SP-065` confirmada** por el responsable del proyecto: nadie restablece el segundo factor de quien tiene más privilegios. Se cierra la pregunta abierta de `RF-SP-076` y su bloqueo. | Responsable técnico |
 | 1.98.0 | 06-10-2026 | **Las siete `tasks.md` del segundo factor, aprobadas** por el responsable del proyecto: `RF-SP-071` a `RF-SP-077` pasan a `Tasks aprobadas`. **`RN-SP-065` se extiende a la contraseña** por decisión suya: nadie restablece **el segundo factor ni la contraseña** de quien tiene más privilegios. Enmienda `RF-SP-038` (`EX-004`, `CA-SP-894`, `CA-SP-895`), que se construye con `RF-SP-076`. | Responsable técnico |
+| 1.99.0 | 06-10-2026 | **`RF-SP-071` pasa a `En desarrollo`**: activar el authenticator está construido —`POST /users/me/mfa/totp` y `…/confirmation`—, con `V75`, que trae el esquema de los siete. **Ninguna regla cambia.** | Responsable técnico |

@@ -5,7 +5,7 @@
 | Proyecto | NEXUS — Renovación de plataforma |
 | Empresa | FACTECH GROUP SAS |
 | Documento | `deployment.md` |
-| Versión | 0.15.0 |
+| Versión | 0.16.0 |
 | Estado | Borrador |
 | Responsable técnico | Bonilla Diaz William Steven |
 | Fecha de creación | 27-08-2026 |
@@ -101,6 +101,16 @@ openssl rand -base64 48
 Se pega tal cual en la variable. No se guarda en ningún archivo del repositorio, ni en un comentario, ni en un mensaje de chat (`security.md` §7.1). Si alguna vez se expone, **se rota**: borrarlo de donde estuviera no lo vuelve seguro.
 
 Rotarlo invalida todos los tokens de acceso vivos —quince minutos como mucho— y obliga a volver a autenticarse. Es una operación aceptable y debe poder hacerse sin miedo.
+
+#### 4.1.1 `MFA_ENCRYPTION_KEY`
+
+La llave que cifra el **secreto del segundo factor** de cada persona ([`security.md` §3.3](security.md)). Desde el 06-10-2026, con `V75`.
+
+```bash
+openssl rand -base64 32
+```
+
+Treinta y dos bytes en Base64, **distinta en cada entorno** y obligatoria: **sin ella el servicio no arranca**, porque no hay forma segura de guardar el factor de nadie. Al revés que `JWT_SECRET`, **no se rota a la ligera**: los secretos guardados solo se descifran con la llave que los cifró, de modo que cambiarla —o perderla— deja a todo el mundo sin poder usar su authenticator, y habría que restablecerlos uno a uno (`RF-SP-076`). Se guarda y se respalda **junto con `JWT_SECRET`**.
 
 ### 4.2 `SUPERADMIN_PASSWORD_HASH`
 
@@ -219,6 +229,7 @@ Se cargan en el servicio **`backend`**. La columna «Valor en Railway» es liter
 | Variable | Valor en Railway | Por qué |
 |---|---|---|
 | `JWT_SECRET` | El secreto de §4.1 | Obligatoria y sin valor por defecto |
+| `MFA_ENCRYPTION_KEY` | La llave de §4.1.1 | Obligatoria y sin valor por defecto. **No se cambia**: cambiarla deja ilegibles los segundos factores |
 | `SUPERADMIN_EMAIL` | El correo real del superadministrador | Solo actúa en el primer arranque (§8.2) |
 | `SUPERADMIN_PASSWORD_HASH` | El resumen de §4.2, con los `$` **sin duplicar** | Ídem |
 | `CORS_ALLOWED_ORIGINS` | El dominio del frontend, o **vacío** | Ver §9. El comodín `*` tumba el arranque |
@@ -510,3 +521,4 @@ Ninguno de estos puntos impide desplegar. Todos están declarados para que no se
 | 0.13.0 | 02-10-2026 | **§6.5.1: el servicio `stripe` del `docker-compose.yml` reenvía las notificaciones en local**, a petición del responsable del proyecto: una compra con tarjeta se cobraba en Stripe y se quedaba pendiente porque `stripe listen` dependía de una terminal abierta. Usa la misma clave que la aplicación; sin ella se queda dormido. Solo local. | Responsable técnico |
 | 0.14.0 | 05-10-2026 | **Nueva §6.5.2: la pasarela local, PayRetailers** ([`requirements/mv.md`](requirements/mv.md) v0.78.0 §4.10): tres credenciales —`shopId`, clave secreta y *Subscription Key*—, la URL base con el sandbox por omisión, la dirección pública de los avisos, la de retorno al frontend, el modo de prueba y el barrido. En local, un túnel para los avisos o esperar al barrido | Responsable del proyecto |
 | 0.15.0 | 05-10-2026 | **§6.5.2: la tienda de PayRetailers sale del entorno y va en la conversión de cada país** ([`requirements/mv.md`](requirements/mv.md) v0.82.0, `RN-MV-063`): se retiran `PAYRETAILERS_SHOP_ID` y `PAYRETAILERS_SECRET_KEY`, y entra `PAYRETAILERS_ENCRYPTION_KEY`, la llave que cifra las claves de las tiendas en la base | Responsable del proyecto |
+| 0.16.0 | 06-10-2026 | **Nueva §4.1.1: `MFA_ENCRYPTION_KEY`**, la llave que cifra el secreto del segundo factor ([`security.md`](security.md) §3.3, `RF-SP-071`, `V75`). Obligatoria y sin valor por defecto, como `JWT_SECRET`, y con la diferencia que importa: **no se rota**, porque cambiarla deja ilegibles los factores guardados. Una fila más en §6.3. | Responsable técnico |
