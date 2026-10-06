@@ -6373,6 +6373,21 @@
         },
         "type" : "object"
       },
+      "RecoveryCodesResponse" : {
+        "properties" : {
+          "generatedAt" : {
+            "format" : "date-time",
+            "type" : "string"
+          },
+          "recoveryCodes" : {
+            "items" : {
+              "type" : "string"
+            },
+            "type" : "array"
+          }
+        },
+        "type" : "object"
+      },
       "RefreshRequest" : {
         "properties" : {
           "refreshToken" : {
@@ -21704,6 +21719,31 @@
         "summary" : "Consultar mis clientes",
         "tags" : [ "Usuarios" ],
         "x-required-permission" : "users:read-own-clients"
+      }
+    },
+    "/api/v1/users/me/mfa/recovery-codes" : {
+      "post" : {
+        "description" : "**Permiso requerido:** `users:regenerate-own-recovery-codes`. Sin él, `403` (`AUTH-002`).\n\n**Operación sensible** (`RN-SP-063`): exige haber verificado el segundo factor hace cinco minutos o menos. Si no, `403` con el tipo `reverificacion-requerida` y `verificationPath`: se presenta el código en `POST /api/v1/auth/mfa/verification` y se repite la petición con el token que devuelve.\n\nDiez códigos nuevos (`RF-SP-074`); **todos los anteriores dejan de servir**,\nusados o no. La respuesta es **la única vez** que existen en claro.\n\nPara cuando se gastaron, se perdieron o quedaron a la vista. No hace falta\ncambiar de teléfono. Es **sensible**: los códigos valen lo mismo que el\nteléfono, de modo que una sesión robada no debe poder regenerarlos.\n",
+        "operationId" : "regenerarCodigos",
+        "responses" : {
+          "201" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/RecoveryCodesResponse"
+                }
+              }
+            },
+            "description" : "Códigos nuevos; los anteriores, anulados"
+          },
+          "409" : {
+            "description" : "No tiene activado el segundo factor"
+          }
+        },
+        "summary" : "Regenerar los códigos de recuperación",
+        "tags" : [ "Segundo factor" ],
+        "x-required-permission" : "users:regenerate-own-recovery-codes",
+        "x-requires-recent-mfa" : true
       }
     },
     "/api/v1/users/me/mfa/totp" : {

@@ -248,6 +248,9 @@ class EndpointPermissionsIT extends IntegrationTestBase {
           Map.entry("POST /api/v1/users/me/mfa/totp/confirmation", "users:confirm-own-mfa"),
           // RF-SP-073 (06-10-2026): reverificar antes de una operación sensible.
           Map.entry("POST /api/v1/auth/mfa/verification", "users:verify-own-mfa"),
+          // RF-SP-074 (06-10-2026): regenerar los propios códigos de recuperación.
+          Map.entry(
+              "POST /api/v1/users/me/mfa/recovery-codes", "users:regenerate-own-recovery-codes"),
           Map.entry("GET /api/v1/users/me/sellers", "users:read-own-sellers"),
           Map.entry("GET /api/v1/users/me/clients", "users:read-own-clients"),
           Map.entry("GET /api/v1/users/me/team/broker-accounts", "broker-accounts:read-own-team"),

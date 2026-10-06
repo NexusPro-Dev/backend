@@ -3,7 +3,9 @@ package com.factech.nexus.modules.system.auth.interfaces;
 import com.factech.nexus.modules.system.auth.application.MfaConfirmationRequest;
 import com.factech.nexus.modules.system.auth.application.MfaConfirmationResponse;
 import com.factech.nexus.modules.system.auth.application.MfaEnrollmentResponse;
+import com.factech.nexus.modules.system.auth.application.RecoveryCodesResponse;
 import com.factech.nexus.modules.system.auth.domain.service.MfaEnrollmentService;
+import com.factech.nexus.modules.system.auth.domain.service.RecoveryCodeRegenerationService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.media.Content;
 import io.swagger.v3.oas.annotations.media.Schema;
@@ -31,9 +33,12 @@ import org.springframework.web.bind.annotation.RestController;
 public class MfaController {
 
   private final MfaEnrollmentService activacion;
+  private final RecoveryCodeRegenerationService regeneracion;
 
-  public MfaController(MfaEnrollmentService activacion) {
+  public MfaController(
+      MfaEnrollmentService activacion, RecoveryCodeRegenerationService regeneracion) {
     this.activacion = activacion;
+    this.regeneracion = regeneracion;
   }
 
   @PostMapping("/totp")
@@ -101,5 +106,31 @@ public class MfaController {
     return ResponseEntity.ok()
         .cacheControl(CacheControl.noStore())
         .body(activacion.confirmar(peticion == null ? null : peticion.code()));
+  }
+
+  @PostMapping("/recovery-codes")
+  @PreAuthorize("hasAuthority('users:regenerate-own-recovery-codes')")
+  @Operation(
+      summary = "Regenerar los códigos de recuperación",
+      description =
+          """
+          Diez códigos nuevos (`RF-SP-074`); **todos los anteriores dejan de servir**,
+          usados o no. La respuesta es **la única vez** que existen en claro.
+
+          Para cuando se gastaron, se perdieron o quedaron a la vista. No hace falta
+          cambiar de teléfono. Es **sensible**: los códigos valen lo mismo que el
+          teléfono, de modo que una sesión robada no debe poder regenerarlos.
+          """)
+  @ApiResponses({
+    @ApiResponse(responseCode = "201", description = "Códigos nuevos; los anteriores, anulados"),
+    @ApiResponse(
+        responseCode = "409",
+        description = "No tiene activado el segundo factor",
+        content = @Content(schema = @Schema(hidden = true)))
+  })
+  public ResponseEntity<RecoveryCodesResponse> regenerarCodigos() {
+    return ResponseEntity.status(HttpStatus.CREATED)
+        .cacheControl(CacheControl.noStore())
+        .body(regeneracion.regenerar());
   }
 }
