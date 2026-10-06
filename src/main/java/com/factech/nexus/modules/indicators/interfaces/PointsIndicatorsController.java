@@ -42,29 +42,34 @@ public class PointsIndicatorsController {
       summary = "Consultar el resumen de puntos",
       description =
           """
-          Por cada moneda: los puntos **comprados** —compras de puntos ya cobradas—, los
-          **redimidos** —gastados al pagar ventas—, los **sumados** y **restados** por ajustes a
-          mano de administración, cada uno con cuántos movimientos los produjeron, y **el saldo
-          de hoy**. Todo en positivo: el sentido lo da el nombre de la cifra.
+          **La suma de las filas de la lista de los movimientos de puntos** de administración
+          (`GET /movements/points-movements`, `RF-MV-056`): la misma definición y la misma fecha,
+          de modo que con los mismos filtros cuadran. Por cada moneda:
 
-          **Lo comprado, lo redimido y los ajustes son los del periodo**, y el periodo mira
-          **cuándo se movieron los puntos**: una compra cuenta el día en que se cobró, no el día
-          en que se pidió. **El saldo es el de hoy**, sea cual sea el periodo. Con un periodo que
-          lo cubre todo, `balance = purchased − redeemed + added − removed`.
+          - **`purchases`**, las compras de puntos (`COMPRA_PUNTOS`) **por estado** —`confirmed`,
+            `pending`, `rejected`—, cada una con `count`, `points` y **`amount`, lo pagado**.
+            Los puntos de una pendiente o rechazada son los que daría o habría dado: **no mueven
+            el saldo**.
+          - **`spent`**, las ventas pagadas con puntos (`GASTO_PUNTOS`): `count` y los `points`
+            que de verdad se descontaron.
+          - **`adjustments`**, los ajustes a mano (`AJUSTE_PUNTOS`): `added` y `removed`.
+          - **`balance`, el saldo de HOY**: no lo acotan ni el periodo, ni `type`, ni `status`.
 
-          **De quién son los puntos lo decide el tipo de rol de quien pregunta**, como en los
-          indicadores de ventas: un **funcionario** ve los de todas las personas; un
-          **vendedor**, los suyos y los de las personas de su red; cualquier otro, los suyos.
-          `userId` acota a **una persona titular de mi alcance**; fuera de él —o inexistente— la
-          lista sale vacía, y no un error. El periodo es el de los demás indicadores: días de
-          Bogotá, **sin fechas toda la historia** —y entonces el saldo es siempre la suma de las
-          clases—, una sola fecha deja la otra abierta, sin tope.
+          Todo en positivo: el sentido lo da el nombre. **La fecha es la de la fila de la lista**:
+          cuándo ocurrió la compra o el ajuste —una compra pedida el 30 y cobrada el 1 cuenta el
+          30— y cuándo se descontaron los puntos de un gasto. Sin filtros, `balance =
+          purchases.confirmed.points − spent.points + added.points − removed.points`.
 
-          **`granularity`** (`DAY`, `WEEK` o `MONTH`, opcional) añade `buckets`: por tramo,
-          las cuatro clases de cada moneda de `currencies`, en su orden y con ceros; todos los
-          tramos presentes, y su suma es la del periodo. **El saldo no se parte**: va solo en
-          `currencies`, porque es el de hoy. Ni los permisos de
-          ventas ni el de los saldos de una persona abren este.
+          **`type`** (`COMPRA_PUNTOS`, `AJUSTE_PUNTOS`, `GASTO_PUNTOS`) y **`status`**
+          (`PENDIENTE`, `CONFIRMADA`, `RECHAZADA`) acotan como en la lista. **De quién son los
+          puntos lo decide el tipo de rol de quien pregunta**: un **funcionario**, los de todas las
+          personas; un **vendedor**, los suyos y los de su red; cualquier otro, los suyos.
+          `userId` acota a una persona titular de mi alcance; fuera de él la lista sale vacía. El
+          periodo: días de Bogotá, sin fechas toda la historia, sin tope.
+
+          **`granularity`** (`DAY`, `WEEK`, `MONTH`) añade `buckets`: lo mismo por tramo, con las
+          monedas de `currencies` en su orden y con ceros; **el saldo no se parte**. Ni los
+          permisos de ventas ni los de la lista de puntos abren este.
           """)
   @ApiResponses({
     @ApiResponse(responseCode = "200", description = "El resumen, una entrada por moneda."),
@@ -72,7 +77,8 @@ public class PointsIndicatorsController {
         responseCode = "400",
         description =
             "Fecha o identificador malformado (`VAL-001`), `from` posterior a `to` (`VAL-002`)"
-                + " o un tramo que no es `DAY`, `WEEK` ni `MONTH` (`VAL-005`); los dos últimos, juntos.",
+                + ", un tramo que no es `DAY`, `WEEK` ni `MONTH` (`VAL-005`), un `type` (`VAL-006`) o"
+                + " un `status` (`VAL-007`) desconocidos; los de negocio, juntos.",
         content = @Content),
     @ApiResponse(
         responseCode = "401",
@@ -92,7 +98,10 @@ public class PointsIndicatorsController {
       @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate to,
       @RequestParam(required = false) UUID currencyId,
       @RequestParam(required = false) UUID userId,
+      @RequestParam(required = false) String type,
+      @RequestParam(required = false) String status,
       @RequestParam(required = false) String granularity) {
-    return resumen.get(new SalesIndicatorRequest(from, to, currencyId, userId), granularity);
+    return resumen.get(
+        new SalesIndicatorRequest(from, to, currencyId, userId), type, status, granularity);
   }
 }

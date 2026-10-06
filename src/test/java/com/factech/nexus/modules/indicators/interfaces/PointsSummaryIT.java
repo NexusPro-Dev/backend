@@ -2,6 +2,7 @@ package com.factech.nexus.modules.indicators.interfaces;
 
 import static com.factech.nexus.modules.movements.PointsFixtures.POINTS;
 import static com.factech.nexus.modules.movements.PointsFixtures.TARJETA;
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.hamcrest.Matchers.contains;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.user;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
@@ -117,23 +118,117 @@ class PointsSummaryIT extends IntegrationTestBase {
 
   @Test
   @DisplayName(
-      "CA-IN-041 a CA-IN-045 — comprados solo los cobrados, redimidos en positivo, ajustes aparte,"
-          + " el saldo cuadra y cada moneda por su lado")
+      "CA-IN-043, CA-IN-044, CA-IN-045 y CA-IN-068 — compras por estado con lo pagado, gastos y"
+          + " ajustes aparte, el saldo cuadra y cada moneda por su lado")
   void lasCifras() throws Exception {
     resumen(director1)
         .andExpect(status().isOk())
         .andExpect(jsonPath("$.currencies[*].currency.code", contains("COP", "USD")))
-        .andExpect(jsonPath("$.currencies[0].purchased.points").value(100.0))
+        .andExpect(jsonPath("$.currencies[0].purchases.confirmed.points").value(100.0))
+        .andExpect(jsonPath("$.currencies[0].purchases.confirmed.amount").value(1000.0))
         .andExpect(jsonPath("$.currencies[0].balance").value(100.0))
-        .andExpect(jsonPath("$.currencies[1].purchased.points").value(2000.0))
-        .andExpect(jsonPath("$.currencies[1].purchased.count").value(1))
-        .andExpect(jsonPath("$.currencies[1].redeemed.points").value(1000.0))
-        .andExpect(jsonPath("$.currencies[1].redeemed.count").value(1))
-        .andExpect(jsonPath("$.currencies[1].added.points").value(50.0))
-        .andExpect(jsonPath("$.currencies[1].removed.points").value(30.0))
-        .andExpect(jsonPath("$.currencies[1].removed.count").value(1))
-        // CA-IN-044: el periodo lo cubre todo, y 2000 − 1000 + 50 − 30 = 1020.
+        .andExpect(jsonPath("$.currencies[1].purchases.confirmed.count").value(1))
+        .andExpect(jsonPath("$.currencies[1].purchases.confirmed.points").value(2000.0))
+        .andExpect(jsonPath("$.currencies[1].purchases.confirmed.amount").value(20.0))
+        .andExpect(jsonPath("$.currencies[1].purchases.pending.count").value(1))
+        .andExpect(jsonPath("$.currencies[1].purchases.pending.points").value(500.0))
+        .andExpect(jsonPath("$.currencies[1].purchases.pending.amount").value(5.0))
+        .andExpect(jsonPath("$.currencies[1].purchases.rejected.points").value(300.0))
+        .andExpect(jsonPath("$.currencies[1].purchases.rejected.amount").value(3.0))
+        .andExpect(jsonPath("$.currencies[1].spent.count").value(1))
+        .andExpect(jsonPath("$.currencies[1].spent.points").value(1000.0))
+        .andExpect(jsonPath("$.currencies[1].adjustments.added.points").value(50.0))
+        .andExpect(jsonPath("$.currencies[1].adjustments.removed.count").value(1))
+        .andExpect(jsonPath("$.currencies[1].adjustments.removed.points").value(30.0))
+        // CA-IN-071: sin filtros, 2000 − 1000 + 50 − 30 = 1020; lo pendiente y lo
+        // rechazado no mueven el saldo.
         .andExpect(jsonPath("$.currencies[1].balance").value(1020.0));
+  }
+
+  @Test
+  @DisplayName(
+      "CA-IN-067 — con los mismos filtros, las cifras son la suma de las filas de la lista de"
+          + " administración de los movimientos de puntos")
+  void cuadraConLaLista() throws Exception {
+    String lista =
+        mvc.perform(
+                get("/api/v1/movements/points-movements")
+                    .param("size", "100")
+                    .with(
+                        user(funcionario.toString())
+                            .authorities(() -> "movements:list-points-movements")))
+            .andExpect(status().isOk())
+            .andReturn()
+            .getResponse()
+            .getContentAsString();
+    String indicador =
+        mvc.perform(get(RUTA).with(conPermiso(funcionario)))
+            .andReturn()
+            .getResponse()
+            .getContentAsString();
+
+    // Lo que dice la lista, fila a fila: por moneda, tipo, estado y signo.
+    java.util.Map<String, java.math.BigDecimal[]> deLaLista = new java.util.HashMap<>();
+    java.util.List<java.util.Map<String, Object>> filas = JsonPath.read(lista, "$.content");
+    for (java.util.Map<String, Object> f : filas) {
+      java.math.BigDecimal puntos = new java.math.BigDecimal(f.get("points").toString());
+      String tipo = (String) f.get("type");
+      String clave =
+          JsonPath.read(f, "$.currency.code")
+              + "|"
+              + (tipo.equals("AJUSTE_PUNTOS") ? tipo + (puntos.signum() > 0 ? "+" : "-") : tipo)
+              + "|"
+              + (tipo.equals("COMPRA_PUNTOS") ? f.get("status") : "");
+      java.math.BigDecimal[] suma =
+          deLaLista.computeIfAbsent(
+              clave,
+              k ->
+                  new java.math.BigDecimal[] {
+                    java.math.BigDecimal.ZERO, java.math.BigDecimal.ZERO, java.math.BigDecimal.ZERO
+                  });
+      suma[0] = suma[0].add(java.math.BigDecimal.ONE);
+      suma[1] = suma[1].add(puntos.abs());
+      if (tipo.equals("COMPRA_PUNTOS")) {
+        suma[2] = suma[2].add(new java.math.BigDecimal(f.get("amount").toString()));
+      }
+    }
+
+    // Y lo que dice el indicador, por las mismas claves.
+    java.util.Map<String, String> rutas = new java.util.LinkedHashMap<>();
+    rutas.put("COMPRA_PUNTOS|CONFIRMADA", "purchases.confirmed");
+    rutas.put("COMPRA_PUNTOS|PENDIENTE", "purchases.pending");
+    rutas.put("COMPRA_PUNTOS|RECHAZADA", "purchases.rejected");
+    rutas.put("GASTO_PUNTOS|", "spent");
+    rutas.put("AJUSTE_PUNTOS+|", "adjustments.added");
+    rutas.put("AJUSTE_PUNTOS-|", "adjustments.removed");
+    java.util.List<String> monedas = JsonPath.read(indicador, "$.currencies[*].currency.code");
+    int comparadas = 0;
+    for (int i = 0; i < monedas.size(); i++) {
+      for (var r : rutas.entrySet()) {
+        java.math.BigDecimal[] esperado =
+            deLaLista.getOrDefault(
+                monedas.get(i) + "|" + r.getKey(),
+                new java.math.BigDecimal[] {
+                  java.math.BigDecimal.ZERO, java.math.BigDecimal.ZERO, java.math.BigDecimal.ZERO
+                });
+        String base = "$.currencies[" + i + "]." + r.getValue();
+        assertThat(((Number) JsonPath.read(indicador, base + ".count")).longValue())
+            .as(monedas.get(i) + " " + r.getKey() + " cuántas")
+            .isEqualTo(esperado[0].longValue());
+        assertThat(new java.math.BigDecimal(JsonPath.read(indicador, base + ".points").toString()))
+            .as(monedas.get(i) + " " + r.getKey() + " puntos")
+            .isEqualByComparingTo(esperado[1]);
+        if (r.getKey().startsWith("COMPRA_PUNTOS")) {
+          assertThat(
+                  new java.math.BigDecimal(JsonPath.read(indicador, base + ".amount").toString()))
+              .as(monedas.get(i) + " " + r.getKey() + " pagado")
+              .isEqualByComparingTo(esperado[2]);
+        }
+        comparadas++;
+      }
+    }
+    assertThat(comparadas).isEqualTo(12);
+    assertThat(filas).hasSize(8);
   }
 
   @Test
@@ -142,13 +237,13 @@ class PointsSummaryIT extends IntegrationTestBase {
   void alcance() throws Exception {
     resumen(funcionario)
         .andExpect(jsonPath("$.currencies[1].currency.code").value("USD"))
-        .andExpect(jsonPath("$.currencies[1].purchased.points").value(2100.0))
-        .andExpect(jsonPath("$.currencies[1].purchased.count").value(2))
+        .andExpect(jsonPath("$.currencies[1].purchases.confirmed.points").value(2100.0))
+        .andExpect(jsonPath("$.currencies[1].purchases.confirmed.count").value(2))
         .andExpect(jsonPath("$.currencies[1].balance").value(1120.0));
     resumen(director2)
         .andExpect(jsonPath("$.currencies[*].currency.code", contains("USD")))
-        .andExpect(jsonPath("$.currencies[0].purchased.points").value(100.0))
-        .andExpect(jsonPath("$.currencies[0].redeemed.points").value(0.0));
+        .andExpect(jsonPath("$.currencies[0].purchases.confirmed.points").value(100.0))
+        .andExpect(jsonPath("$.currencies[0].spent.points").value(0.0));
     resumen(agente1)
         .andExpect(jsonPath("$.currencies[*].currency.code", contains("USD")))
         .andExpect(jsonPath("$.currencies[0].balance").value(1020.0));
@@ -156,8 +251,8 @@ class PointsSummaryIT extends IntegrationTestBase {
 
   @Test
   @DisplayName(
-      "CA-IN-047 — la persona acota dentro del alcance; fuera, lista vacía y no error; la moneda"
-          + " acota")
+      "CA-IN-047, CA-IN-070 y CA-IN-071 — persona, moneda, tipo y estado acotan; el saldo no se"
+          + " mueve con el tipo ni el estado; los desconocidos, juntos")
   void filtros() throws Exception {
     mvc.perform(get(RUTA).param("userId", agente1.toString()).with(conPermiso(director1)))
         .andExpect(jsonPath("$.currencies[*].currency.code", contains("USD")));
@@ -169,15 +264,31 @@ class PointsSummaryIT extends IntegrationTestBase {
         .andExpect(jsonPath("$.currencies").isEmpty());
     mvc.perform(get(RUTA).param("currencyId", COP).with(conPermiso(director1)))
         .andExpect(jsonPath("$.currencies[*].currency.code", contains("COP")));
+
+    mvc.perform(get(RUTA).param("type", "gasto_puntos").with(conPermiso(agente1)))
+        .andExpect(jsonPath("$.currencies[0].spent.count").value(1))
+        .andExpect(jsonPath("$.currencies[0].purchases.confirmed.count").value(0))
+        .andExpect(jsonPath("$.currencies[0].adjustments.added.count").value(0))
+        .andExpect(jsonPath("$.currencies[0].balance").value(1020.0));
+    mvc.perform(get(RUTA).param("status", "PENDIENTE").with(conPermiso(agente1)))
+        .andExpect(jsonPath("$.currencies[0].purchases.pending.count").value(1))
+        .andExpect(jsonPath("$.currencies[0].purchases.confirmed.count").value(0))
+        .andExpect(jsonPath("$.currencies[0].spent.count").value(0))
+        .andExpect(jsonPath("$.currencies[0].balance").value(1020.0));
+
+    mvc.perform(
+            get(RUTA).param("type", "BONO").param("status", "ANULADA").with(conPermiso(agente1)))
+        .andExpect(status().isBadRequest())
+        .andExpect(jsonPath("$.errors[*].code", contains("VAL-006", "VAL-007")));
   }
 
   @Test
   @DisplayName(
-      "CA-IN-044 y CA-IN-048 — el periodo mira cuándo se movieron los puntos; el saldo es el de"
-          + " hoy, sea cual sea el periodo")
-  void periodo() throws Exception {
+      "CA-IN-069 y CA-IN-072 — la fecha es la de la fila de la lista: cuándo ocurrió la compra, y"
+          + " cuándo se descontaron los puntos de un gasto")
+  void fechaDeLaFila() throws Exception {
     // La compra de director2 se pidió el 30 de agosto y se cobró el 1 de
-    // septiembre (en Bogotá): cuenta el 1.
+    // septiembre (en Bogotá): cuenta el 30.
     jdbc.update(
         "UPDATE movements SET occurred_at = '2026-08-30T15:00:00Z' WHERE user_id = ?"
             + " AND movement_type_id = (SELECT id FROM movement_types WHERE code = 'COMPRA_PUNTOS')",
@@ -186,20 +297,34 @@ class PointsSummaryIT extends IntegrationTestBase {
         "UPDATE movement_entries SET created_at = '2026-09-01T15:00:00Z' WHERE account_id IN"
             + " (SELECT id FROM accounts WHERE user_id = ?)",
         director2);
-
-    rango(director2, "2026-09-01", "2026-09-01")
-        .andExpect(jsonPath("$.currencies[0].purchased.points").value(100.0))
-        .andExpect(jsonPath("$.currencies[0].balance").value(100.0));
-    // El 30 de agosto no hubo movimiento de puntos; el saldo sigue siendo el de hoy.
     rango(director2, "2026-08-30", "2026-08-30")
-        .andExpect(jsonPath("$.currencies[0].purchased.points").value(0.0))
+        .andExpect(jsonPath("$.currencies[0].purchases.confirmed.points").value(100.0))
         .andExpect(jsonPath("$.currencies[0].balance").value(100.0));
+    rango(director2, "2026-09-01", "2026-09-01")
+        .andExpect(jsonPath("$.currencies[0].purchases.confirmed.points").value(0.0))
+        .andExpect(jsonPath("$.currencies[0].balance").value(100.0));
+
+    // El gasto de agente1: la venta ocurrió el 1 y los puntos se descontaron el
+    // 2 —como al volver a pagar—: cuenta el 2.
+    jdbc.update(
+        "UPDATE movements SET occurred_at = '2026-09-01T15:00:00Z' WHERE user_id = ?"
+            + " AND movement_type_id = (SELECT id FROM movement_types WHERE code = 'VENTA')",
+        agente1);
+    jdbc.update(
+        "UPDATE movement_entries SET created_at = '2026-09-02T15:00:00Z' WHERE event = 'PAGO'"
+            + " AND movement_id IN (SELECT id FROM movements WHERE user_id = ?)",
+        agente1);
+    rango(agente1, "2026-09-02", "2026-09-02")
+        .andExpect(jsonPath("$.currencies[0].spent.count").value(1))
+        .andExpect(jsonPath("$.currencies[0].spent.points").value(1000.0));
+    rango(agente1, "2026-09-01", "2026-09-01")
+        .andExpect(jsonPath("$.currencies[0].spent.count").value(0));
   }
 
   @Test
   @DisplayName(
       "CA-IN-057 y CA-IN-058 — sin fechas, el saldo es la suma de las clases; con tramo, las"
-          + " clases por tramo y sin saldo")
+          + " cifras por tramo y sin saldo")
   void totalidadYTramos() throws Exception {
     resumen(director1)
         .andExpect(jsonPath("$.period.from").value(org.hamcrest.Matchers.nullValue()))
@@ -216,22 +341,27 @@ class PointsSummaryIT extends IntegrationTestBase {
         .andExpect(jsonPath("$.granularity").value("MONTH"))
         .andExpect(jsonPath("$.buckets[0].start").value("2026-09-01"))
         .andExpect(jsonPath("$.buckets[0].currencies[*].currency.code", contains("COP", "USD")))
-        .andExpect(jsonPath("$.buckets[0].currencies[1].purchased.points").value(0.0))
+        .andExpect(jsonPath("$.buckets[0].currencies[1].purchases.confirmed.points").value(0.0))
         .andExpect(jsonPath("$.buckets[-1].start").value(mesEnCurso))
-        .andExpect(jsonPath("$.buckets[-1].currencies[1].purchased.points").value(2000.0))
-        .andExpect(jsonPath("$.buckets[-1].currencies[1].redeemed.points").value(1000.0))
-        .andExpect(jsonPath("$.buckets[-1].currencies[1].removed.points").value(30.0))
+        .andExpect(jsonPath("$.buckets[-1].currencies[1].purchases.confirmed.points").value(2000.0))
+        .andExpect(jsonPath("$.buckets[-1].currencies[1].purchases.pending.points").value(500.0))
+        .andExpect(jsonPath("$.buckets[-1].currencies[1].spent.points").value(1000.0))
+        .andExpect(jsonPath("$.buckets[-1].currencies[1].adjustments.removed.points").value(30.0))
         .andExpect(jsonPath("$.buckets[-1].currencies[1].balance").doesNotExist());
   }
 
   @Test
   @DisplayName(
-      "CA-IN-049 — sin el permiso, 403; ni los de ventas ni el de saldos de una persona lo abren;"
+      "CA-IN-049 — sin el permiso, 403; ni los de ventas ni los de la lista de puntos lo abren;"
           + " sin token, 401")
   void permisos() throws Exception {
     mvc.perform(get(RUTA).with(user(director1.toString()))).andExpect(status().isForbidden());
     for (String otro :
-        new String[] {"indicators:read-sales-summary", "movements:read-user-balances"}) {
+        new String[] {
+          "indicators:read-sales-summary",
+          "movements:read-user-balances",
+          "movements:list-points-movements"
+        }) {
       mvc.perform(get(RUTA).with(user(director1.toString()).authorities(() -> otro)))
           .andExpect(status().isForbidden());
     }

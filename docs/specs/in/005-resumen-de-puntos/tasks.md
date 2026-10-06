@@ -40,9 +40,9 @@
 
 | ID | Tarea | Depende de | Verificación | Estado |
 |---|---|---|---|---|
-| `T-09` | `MOVIMIENTOS` visible en el paquete; `PointsFigures` con la forma nueva; `JpaPointsFigures` agregando sobre ella | — | Mismas filas que la lista | Pendiente |
-| `T-10` | `PointsSummaryResponse` con `purchases`, `spent`, `adjustments`; `GetPointsSummaryService` con `type` y `status` (`VAL-006`, `VAL-007`); el controlador | `T-09` | El saldo no depende de los filtros | Pendiente |
-| `T-11` | `PointsSummaryIT`: `CA-IN-067` a `CA-IN-072`, con la lista de `RF-MV-056` como referencia; los casos antiguos reescritos; contrato y documentos | `T-10` | | Pendiente |
+| `T-09` | `MOVIMIENTOS` visible en el paquete; `PointsFigures` con la forma nueva; `JpaPointsFigures` agregando sobre ella | — | Mismas filas que la lista | **Hecha** — 06-10-2026 |
+| `T-10` | `PointsSummaryResponse` con `purchases`, `spent`, `adjustments`; `GetPointsSummaryService` con `type` y `status` (`VAL-006`, `VAL-007`); el controlador | `T-09` | El saldo no depende de los filtros | **Hecha** — 06-10-2026 |
+| `T-11` | `PointsSummaryIT`: `CA-IN-067` a `CA-IN-072`, con la lista de `RF-MV-056` como referencia; los casos antiguos reescritos; contrato y documentos | `T-10` | | **Hecha** — 06-10-2026 |
 
 ---
 
@@ -66,6 +66,8 @@
 **`PointsSummaryIT` hace cada movimiento por su ruta de `MV`** —comprar, confirmar, rechazar, pagar por el enlace con `POINTS`, ajustar—, y solo toca la base para mover en el tiempo los asientos de una compra (`CA-IN-048`).
 
 ---
+
+**`CA-IN-067` se prueba contra la propia lista** (06-10-2026): `PointsSummaryIT.cuadraConLaLista` pide `GET /movements/points-movements` y el indicador con el mismo actor, y compara, por moneda, tipo, estado y signo, cuántas filas, sus puntos y lo pagado. Además del módulo, se corrieron las suites de la lista de `RF-MV-055` y `RF-MV-056` (`PointsMovementsIT`, `OwnPointsMovementsIT`, `PayWithPointsIT`, `PointsPurchaseIT`, `PointsReceiptIT`), porque `MOVIMIENTOS` dejó de ser privada.
 
 ## 4. Bloqueos declarados
 

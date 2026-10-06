@@ -12706,29 +12706,34 @@ paths:
       description: |
         **Permiso requerido:** `indicators:read-points-summary`. Sin él, `403` (`AUTH-002`).
 
-        Por cada moneda: los puntos **comprados** —compras de puntos ya cobradas—, los
-        **redimidos** —gastados al pagar ventas—, los **sumados** y **restados** por ajustes a
-        mano de administración, cada uno con cuántos movimientos los produjeron, y **el saldo
-        de hoy**. Todo en positivo: el sentido lo da el nombre de la cifra.
+        **La suma de las filas de la lista de los movimientos de puntos** de administración
+        (`GET /movements/points-movements`, `RF-MV-056`): la misma definición y la misma fecha,
+        de modo que con los mismos filtros cuadran. Por cada moneda:
 
-        **Lo comprado, lo redimido y los ajustes son los del periodo**, y el periodo mira
-        **cuándo se movieron los puntos**: una compra cuenta el día en que se cobró, no el día
-        en que se pidió. **El saldo es el de hoy**, sea cual sea el periodo. Con un periodo que
-        lo cubre todo, `balance = purchased − redeemed + added − removed`.
+        - **`purchases`**, las compras de puntos (`COMPRA_PUNTOS`) **por estado** —`confirmed`,
+          `pending`, `rejected`—, cada una con `count`, `points` y **`amount`, lo pagado**.
+          Los puntos de una pendiente o rechazada son los que daría o habría dado: **no mueven
+          el saldo**.
+        - **`spent`**, las ventas pagadas con puntos (`GASTO_PUNTOS`): `count` y los `points`
+          que de verdad se descontaron.
+        - **`adjustments`**, los ajustes a mano (`AJUSTE_PUNTOS`): `added` y `removed`.
+        - **`balance`, el saldo de HOY**: no lo acotan ni el periodo, ni `type`, ni `status`.
 
-        **De quién son los puntos lo decide el tipo de rol de quien pregunta**, como en los
-        indicadores de ventas: un **funcionario** ve los de todas las personas; un
-        **vendedor**, los suyos y los de las personas de su red; cualquier otro, los suyos.
-        `userId` acota a **una persona titular de mi alcance**; fuera de él —o inexistente— la
-        lista sale vacía, y no un error. El periodo es el de los demás indicadores: días de
-        Bogotá, **sin fechas toda la historia** —y entonces el saldo es siempre la suma de las
-        clases—, una sola fecha deja la otra abierta, sin tope.
+        Todo en positivo: el sentido lo da el nombre. **La fecha es la de la fila de la lista**:
+        cuándo ocurrió la compra o el ajuste —una compra pedida el 30 y cobrada el 1 cuenta el
+        30— y cuándo se descontaron los puntos de un gasto. Sin filtros, `balance =
+        purchases.confirmed.points − spent.points + added.points − removed.points`.
 
-        **`granularity`** (`DAY`, `WEEK` o `MONTH`, opcional) añade `buckets`: por tramo,
-        las cuatro clases de cada moneda de `currencies`, en su orden y con ceros; todos los
-        tramos presentes, y su suma es la del periodo. **El saldo no se parte**: va solo en
-        `currencies`, porque es el de hoy. Ni los permisos de
-        ventas ni el de los saldos de una persona abren este.
+        **`type`** (`COMPRA_PUNTOS`, `AJUSTE_PUNTOS`, `GASTO_PUNTOS`) y **`status`**
+        (`PENDIENTE`, `CONFIRMADA`, `RECHAZADA`) acotan como en la lista. **De quién son los
+        puntos lo decide el tipo de rol de quien pregunta**: un **funcionario**, los de todas las
+        personas; un **vendedor**, los suyos y los de su red; cualquier otro, los suyos.
+        `userId` acota a una persona titular de mi alcance; fuera de él la lista sale vacía. El
+        periodo: días de Bogotá, sin fechas toda la historia, sin tope.
+
+        **`granularity`** (`DAY`, `WEEK`, `MONTH`) añade `buckets`: lo mismo por tramo, con las
+        monedas de `currencies` en su orden y con ceros; **el saldo no se parte**. Ni los
+        permisos de ventas ni los de la lista de puntos abren este.
       operationId: resumen_1
       parameters:
       - name: from
@@ -12755,6 +12760,16 @@ paths:
         schema:
           type: string
           format: uuid
+      - name: type
+        in: query
+        required: false
+        schema:
+          type: string
+      - name: status
+        in: query
+        required: false
+        schema:
+          type: string
       - name: granularity
         in: query
         required: false
@@ -12769,8 +12784,9 @@ paths:
                 $ref: "#/components/schemas/PointsSummary"
         "400":
           description: "Fecha o identificador malformado (`VAL-001`), `from` posterior\
-            \ a `to` (`VAL-002`) o un tramo que no es `DAY`, `WEEK` ni `MONTH` (`VAL-005`);\
-            \ los dos últimos, juntos."
+            \ a `to` (`VAL-002`), un tramo que no es `DAY`, `WEEK` ni `MONTH` (`VAL-005`),\
+            \ un `type` (`VAL-006`) o un `status` (`VAL-007`) desconocidos; los de\
+            \ negocio, juntos."
         "401":
           description: Token ausente o inválido (`AUTH-001`)
         "403":
@@ -20575,17 +20591,49 @@ components:
           type: array
           items:
             $ref: "#/components/schemas/IndicatorAmount"
+    PointsAdjustments:
+      type: object
+      properties:
+        added:
+          $ref: "#/components/schemas/PointsFlow"
+        removed:
+          $ref: "#/components/schemas/PointsFlow"
     PointsFlow:
       type: object
       properties:
+        count:
+          type: integer
+          format: int64
+          description: Cuántos movimientos.
         points:
           type: number
           description: "Puntos, en positivo."
           example: 1500.0
+    PointsPurchase:
+      type: object
+      properties:
         count:
           type: integer
           format: int64
-          description: Cuántos movimientos los produjeron.
+          description: Cuántas.
+        points:
+          type: number
+          description: "Puntos, en positivo; en una pendiente o rechazada, los que\
+            \ daría o habría dado."
+          example: 1500.0
+        amount:
+          type: number
+          description: "Lo pagado por ellas, en la moneda."
+          example: 15.0
+    PointsPurchases:
+      type: object
+      properties:
+        confirmed:
+          $ref: "#/components/schemas/PointsPurchase"
+        pending:
+          $ref: "#/components/schemas/PointsPurchase"
+        rejected:
+          $ref: "#/components/schemas/PointsPurchase"
     PointsSummary:
       type: object
       properties:
@@ -20601,8 +20649,8 @@ components:
             ."
         buckets:
           type: array
-          description: "Las cuatro clases por tramo y moneda, todos los tramos presentes;\
-            \ nulo si no se pidió tramo. El saldo no se parte: va solo en currencies."
+          description: "Lo mismo por tramo y moneda, todos los tramos presentes; nulo\
+            \ si no se pidió tramo. El saldo no se parte: va solo en currencies."
           items:
             $ref: "#/components/schemas/PointsSummaryBucket"
     PointsSummaryBucket:
@@ -20622,34 +20670,29 @@ components:
       properties:
         currency:
           $ref: "#/components/schemas/IndicatorCurrency"
-        purchased:
+        purchases:
+          $ref: "#/components/schemas/PointsPurchases"
+        spent:
           $ref: "#/components/schemas/PointsFlow"
-        redeemed:
-          $ref: "#/components/schemas/PointsFlow"
-        added:
-          $ref: "#/components/schemas/PointsFlow"
-        removed:
-          $ref: "#/components/schemas/PointsFlow"
+        adjustments:
+          $ref: "#/components/schemas/PointsAdjustments"
     PointsSummaryCurrency:
       type: object
       properties:
         currency:
           $ref: "#/components/schemas/IndicatorCurrency"
-        purchased:
+        purchases:
+          $ref: "#/components/schemas/PointsPurchases"
+          description: "Las compras de puntos (COMPRA_PUNTOS), por estado."
+        spent:
           $ref: "#/components/schemas/PointsFlow"
-          description: Compras de puntos cobradas en el periodo.
-        redeemed:
-          $ref: "#/components/schemas/PointsFlow"
-          description: Puntos gastados al pagar ventas en el periodo.
-        added:
-          $ref: "#/components/schemas/PointsFlow"
-          description: "Ajustes a mano que sumaron, en el periodo."
-        removed:
-          $ref: "#/components/schemas/PointsFlow"
-          description: "Ajustes a mano que restaron, en el periodo."
+          description: Las ventas pagadas con puntos (GASTO_PUNTOS).
+        adjustments:
+          $ref: "#/components/schemas/PointsAdjustments"
+          description: Los ajustes a mano (AJUSTE_PUNTOS).
         balance:
           type: number
-          description: "El saldo de HOY, sea cual sea el periodo."
+          description: "El saldo de HOY, sea cual sea el periodo o el filtro."
           example: 1150.0
     HotlinkResponse:
       type: object
