@@ -5,7 +5,7 @@
 | Proyecto | NEXUS — Renovación de plataforma |
 | Empresa | FACTECH GROUP SAS |
 | Documento | `api/index.md` |
-| Versión | 1.89.0 |
+| Versión | 1.90.0 |
 | Estado | Publicado |
 | Responsable técnico | Bonilla Diaz William Steven |
 | Fecha de creación | 25-08-2026 |
@@ -195,3 +195,4 @@ Lo que sigue siendo cierto, y conviene saberlo antes de tropezar:
 | 1.87.0 | 06-10-2026 | **Nace `POST /api/v1/users/me/mfa/recovery-codes`** (`RF-SP-074`), con **`users:regenerate-own-recovery-codes`**: diez códigos de recuperación nuevos —`{ generatedAt, recoveryCodes }`, `201`, `Cache-Control: no-store`— y **todos los anteriores dejan de servir**, usados o no. **Es la única vez que existen en claro**: la interfaz tiene que mostrarlos y ofrecer guardarlos. **Es sensible**: sin verificación reciente responde `403` `reverificacion-requerida`. Sin factor activo, `409`. Un buen momento para ofrecerla es cuando `recoveryCodesRemaining` llega bajo al entrar o reverificar. | Responsable técnico |
 | 1.88.0 | 06-10-2026 | **Nace `GET /api/v1/indicators/points/summary`** (`RF-IN-005`), con **`indicators:read-points-summary`** (`V76`): por moneda, lo comprado, lo redimido y los ajustes del periodo y el saldo de hoy. Tres esquemas nuevos. **Ampliación**: ninguna forma existente cambia. | Responsable técnico |
 | 1.89.0 | 06-10-2026 | **Nace `POST /api/v1/users/me/mfa/deactivation`** (`RF-SP-075`), con **`users:disable-own-mfa`**: retira el propio authenticator. Cuerpo `{ currentPassword }`. **Es sensible** —`403` `reverificacion-requerida` sin verificación reciente— y **no se admite si un rol de la persona exige el factor** (`409`). Responde **`200` con una sesión nueva** (`SessionResponse`): **todas las sesiones anteriores quedan cerradas**, y el cliente tiene que **sustituir su token de acceso y su refresh token** por los de la respuesta. Contraseña incorrecta, `422`; si bloquea la cuenta, `423`. | Responsable técnico |
+| 1.90.0 | 06-10-2026 | **Nace `POST /api/v1/users/{id}/mfa/reset`** (`RF-SP-076`), con **`users:reset-mfa`**: retira el segundo factor de otra persona. Cuerpo `{ reason }`, obligatorio y de hasta 500 caracteres. `204`. **Cierra todas las sesiones de la persona** y no toca su contraseña. **Sensible.** `403` sobre uno mismo y **sobre quien tenga algún permiso que el actor no tiene** —un `ADMIN` sobre el superadministrador—, sin decir cuál; `404` si no existe; `409` si no tiene factor. **Y `POST /api/v1/users/{id}/password-reset` gana ese mismo `403`** (`RN-SP-065`, `RF-SP-038`). | Responsable técnico |
