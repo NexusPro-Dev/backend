@@ -98,7 +98,9 @@ class PermissionDetailIT extends IntegrationTestBase {
     // recorrido inverso del catálogo, que corresponde a otra consulta.
     assertThat(new ObjectMapper().readTree(cuerpo).properties())
         .extracting(java.util.Map.Entry::getKey)
-        .containsExactlyInAnyOrder("id", "code", "resource", "action", "name", "description");
+        // Y `requiresRecentMfa` desde RF-SP-073 (`CA-SP-850`): si la operación es sensible.
+        .containsExactlyInAnyOrder(
+            "id", "code", "resource", "action", "name", "description", "requiresRecentMfa");
   }
 
   private MockHttpServletRequestBuilder detalle(String id) {

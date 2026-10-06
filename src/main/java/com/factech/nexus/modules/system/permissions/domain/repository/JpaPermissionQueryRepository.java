@@ -56,7 +56,8 @@ public class JpaPermissionQueryRepository implements PermissionQueryRepository {
             permission.get("resource"),
             permission.get("action"),
             permission.get("name"),
-            permission.get("description")));
+            permission.get("description"),
+            permission.get("requiresRecentMfa")));
 
     List<Predicate> filters = new ArrayList<>();
 
@@ -106,7 +107,8 @@ public class JpaPermissionQueryRepository implements PermissionQueryRepository {
             permission.get("resource"),
             permission.get("action"),
             permission.get("name"),
-            permission.get("description")));
+            permission.get("description"),
+            permission.get("requiresRecentMfa")));
     criteria.where(cb.equal(permission.get("id"), id));
 
     return entityManager.createQuery(criteria).getResultList().stream().findFirst();

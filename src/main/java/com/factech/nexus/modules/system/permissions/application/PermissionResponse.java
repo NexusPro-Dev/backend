@@ -15,10 +15,24 @@ import java.util.UUID;
  */
 @JsonInclude(JsonInclude.Include.ALWAYS)
 public record PermissionResponse(
-    UUID id, String code, String resource, String action, String name, String description) {
+    UUID id,
+    String code,
+    String resource,
+    String action,
+    String name,
+    String description,
+    // `RF-SP-073` (`CA-SP-850`): la operación que gobierna exige haber verificado el segundo
+    // factor hace poco. Es lo que deja a la interfaz pedir el código ANTES de intentarla.
+    boolean requiresRecentMfa) {
 
   public static PermissionResponse from(PermissionItem item) {
     return new PermissionResponse(
-        item.id(), item.code(), item.resource(), item.action(), item.name(), item.description());
+        item.id(),
+        item.code(),
+        item.resource(),
+        item.action(),
+        item.name(),
+        item.description(),
+        item.requiresRecentMfa());
   }
 }

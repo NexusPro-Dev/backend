@@ -48,6 +48,10 @@ public class Permission {
   @Column(name = "description")
   private String description;
 
+  /** Operación sensible (`RN-SP-063`). La escribe solo una migración. */
+  @Column(name = "requires_recent_mfa", nullable = false, insertable = false, updatable = false)
+  private boolean requiresRecentMfa;
+
   // Las marcas temporales las escribe la base de datos con su valor por
   // omisión y ninguna migración las toca después. Se mapean por Art. V.7 y
   // para que `ddl-auto: validate` vea la tabla completa, no porque el catálogo

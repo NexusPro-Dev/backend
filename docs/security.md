@@ -5,7 +5,7 @@
 | Proyecto | NEXUS — Renovación de plataforma |
 | Empresa | FACTECH GROUP SAS |
 | Documento | `security.md` |
-| Versión | 0.108.0 |
+| Versión | 0.109.0 |
 | Estado | Borrador |
 | Responsable técnico | Bonilla Diaz William Steven |
 | Fecha de creación | 19-08-2026 |
@@ -1067,3 +1067,4 @@ RNF-SEG-002 merece atención: es una prueba que enumera los endpoints registrado
 | 0.106.0 | 06-10-2026 | Al escribir los planes de `RF-SP-071` a `RF-SP-073`: la prueba reciente la exige **`RecentMfaInterceptor`, no un filtro** (§3.3) —el permiso de una operación se evalúa en el controlador, después de los filtros, y solo un interceptor sabe qué operación es; por eso comprueba él mismo la autoridad antes de mirar la prueba—. §4.4: los siete permisos los siembra **`V75`** y el catálogo pasará de **189 a 196** (`V74` es la de `IN`). | Responsable técnico |
 | 0.107.0 | 06-10-2026 | **Los cuatro permisos de `IN` están sembrados** por `V74` (§4.4; `RF-IN-001`): a todo rol `FUNCIONARIO` y `VENDEDOR` por su tipo, ninguno a `CONSUMIDOR`. Catálogo **189**, `ADMIN` 187. **Construida la primera ruta**, `GET /indicators/sales/summary`; las otras tres tienen permiso y todavía no ruta. | Responsable técnico |
 | 0.108.0 | 06-10-2026 | **Los siete permisos del segundo factor, sembrados** por `V75` (§4.4), con `RF-SP-071`: catálogo **196**, `ADMIN` 194; las dieciocho operaciones sensibles, marcadas; `SUPERADMIN` y `ADMIN`, obligados; los siete eventos de §8.1, en el `CHECK`. | Responsable técnico |
+| 0.109.0 | 06-10-2026 | **Las operaciones sensibles ya piden el código otra vez** (§3.3, §4.4; `RF-SP-073`): `RecentMfaInterceptor` sobre `/api/**`, que comprueba primero la autoridad para que la falta de permiso gane, y `POST /auth/mfa/verification`. El contrato marca cada operación sensible con `x-requires-recent-mfa` y su `403` —hoy catorce; las cuatro restantes nacen con `RF-SP-074` a `RF-SP-077`—, y el catálogo de permisos publica `requiresRecentMfa`. | Responsable técnico |

@@ -5,6 +5,8 @@ import com.factech.nexus.modules.system.auth.application.LoginRequest;
 import com.factech.nexus.modules.system.auth.application.LoginResponse;
 import com.factech.nexus.modules.system.auth.application.LogoutRequest;
 import com.factech.nexus.modules.system.auth.application.MfaLoginRequest;
+import com.factech.nexus.modules.system.auth.application.MfaVerificationRequest;
+import com.factech.nexus.modules.system.auth.application.MfaVerificationResponse;
 import com.factech.nexus.modules.system.auth.application.PasswordRecoveryConfirmation;
 import com.factech.nexus.modules.system.auth.application.PasswordRecoveryRequest;
 import com.factech.nexus.modules.system.auth.application.PasswordRecoveryResponse;
@@ -14,6 +16,7 @@ import com.factech.nexus.modules.system.auth.domain.service.ChangeOwnPasswordSer
 import com.factech.nexus.modules.system.auth.domain.service.ConfirmPasswordRecoveryService;
 import com.factech.nexus.modules.system.auth.domain.service.LoginService;
 import com.factech.nexus.modules.system.auth.domain.service.MfaLoginService;
+import com.factech.nexus.modules.system.auth.domain.service.MfaVerificationService;
 import com.factech.nexus.modules.system.auth.domain.service.RequestPasswordRecoveryService;
 import com.factech.nexus.modules.system.auth.domain.service.SessionService;
 import com.factech.nexus.shared.security.OpenApiSecurityConfig;
@@ -26,7 +29,9 @@ import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 import io.swagger.v3.oas.annotations.security.SecurityRequirements;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
+import org.springframework.http.CacheControl;
 import org.springframework.http.HttpStatus;
+import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
@@ -55,6 +60,7 @@ public class AuthController {
 
   private final LoginService inicio;
   private final MfaLoginService segundoPaso;
+  private final MfaVerificationService reverificacion;
   private final SessionService sesion;
   private final ChangeOwnPasswordService cambioDeContrasena;
   private final RequestPasswordRecoveryService solicitudDeRecuperacion;
@@ -63,12 +69,14 @@ public class AuthController {
   public AuthController(
       LoginService inicio,
       MfaLoginService segundoPaso,
+      MfaVerificationService reverificacion,
       SessionService sesion,
       ChangeOwnPasswordService cambioDeContrasena,
       RequestPasswordRecoveryService solicitudDeRecuperacion,
       ConfirmPasswordRecoveryService confirmacionDeRecuperacion) {
     this.inicio = inicio;
     this.segundoPaso = segundoPaso;
+    this.reverificacion = reverificacion;
     this.sesion = sesion;
     this.cambioDeContrasena = cambioDeContrasena;
     this.solicitudDeRecuperacion = solicitudDeRecuperacion;
@@ -228,6 +236,55 @@ public class AuthController {
   })
   public SessionResponse loginConSegundoFactor(@RequestBody MfaLoginRequest peticion) {
     return segundoPaso.completar(peticion);
+  }
+
+  @PostMapping("/mfa/verification")
+  @PreAuthorize("hasAuthority('users:verify-own-mfa')")
+  @SecurityRequirement(name = OpenApiSecurityConfig.ESQUEMA)
+  @Operation(
+      summary = "Reverificar el segundo factor",
+      description =
+          """
+          Presenta otra vez el código de la app —o uno de recuperación— **sin cerrar la
+          sesión**, y devuelve un **token de acceso nuevo** con la prueba del segundo
+          factor en el instante actual (`RF-SP-073`). Con él, durante cinco minutos
+          —`mfaValidUntil`—, las operaciones sensibles se atienden. El refresh token
+          no cambia.
+
+          Es la respuesta al `403` con el tipo `reverificacion-requerida`: pedir el
+          código, llamar aquí y **repetir la petición con el token nuevo**. La
+          interfaz puede también pedirlo **antes**, porque el catálogo de permisos dice
+          cuáles son sensibles (`requiresRecentMfa`).
+
+          **Un código equivocado es `422` y no `401`** —el token que autentica la
+          petición es válido— y **cuenta para el bloqueo de la cuenta**. Si ese fallo
+          la bloquea, la respuesta es `423` y **se cierran todas las sesiones** de la
+          persona.
+          """)
+  @ApiResponses({
+    @ApiResponse(responseCode = "200", description = "Token con la prueba reciente"),
+    @ApiResponse(
+        responseCode = "400",
+        description = "Sin exactamente un código con forma reconocible",
+        content = @Content),
+    @ApiResponse(
+        responseCode = "409",
+        description = "No tiene activado el segundo factor",
+        content = @Content),
+    @ApiResponse(
+        responseCode = "422",
+        description = "Código inválido, con `remainingAttempts`",
+        content = @Content),
+    @ApiResponse(
+        responseCode = "423",
+        description = "La cuenta quedó bloqueada; sus sesiones, cerradas",
+        content = @Content)
+  })
+  public ResponseEntity<MfaVerificationResponse> reverificar(
+      @RequestBody MfaVerificationRequest peticion) {
+    return ResponseEntity.ok()
+        .cacheControl(CacheControl.noStore())
+        .body(reverificacion.verificar(peticion));
   }
 
   @PostMapping("/refresh")

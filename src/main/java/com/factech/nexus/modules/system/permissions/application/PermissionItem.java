@@ -20,4 +20,17 @@ import java.util.UUID;
  * @param description puede ser nula; el contrato la devuelve como {@code null}, nunca omitida
  */
 public record PermissionItem(
-    UUID id, String code, String resource, String action, String name, String description) {}
+    UUID id,
+    String code,
+    String resource,
+    String action,
+    String name,
+    String description,
+    boolean requiresRecentMfa) {
+
+  /** Sin la marca de operación sensible (`RN-SP-063`): la que lleva casi todo el catálogo. */
+  public PermissionItem(
+      UUID id, String code, String resource, String action, String name, String description) {
+    this(id, code, resource, action, name, description, false);
+  }
+}

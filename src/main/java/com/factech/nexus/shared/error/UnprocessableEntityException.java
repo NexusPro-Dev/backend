@@ -32,6 +32,15 @@ public class UnprocessableEntityException extends DomainException {
     super(errorCode, message);
   }
 
+  /** Con miembros de extensión, como los intentos restantes de `RF-SP-073` `VAL-003`. */
+  public UnprocessableEntityException(
+      String errorCode,
+      String message,
+      List<FieldError> errors,
+      java.util.Map<String, Object> extensions) {
+    super(errorCode, message, errors, extensions);
+  }
+
   public UnprocessableEntityException(String errorCode, String message, List<FieldError> errors) {
     super(errorCode, message, errors);
   }

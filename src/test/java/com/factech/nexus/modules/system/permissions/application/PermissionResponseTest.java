@@ -43,13 +43,15 @@ class PermissionResponseTest {
   }
 
   @Test
-  @DisplayName("el permiso serializa exactamente sus seis campos")
+  @DisplayName(
+      "el permiso serializa exactamente sus siete campos (`requiresRecentMfa` desde RF-SP-073)")
   void seisCampos() throws Exception {
     var arbol = mapper.readTree(mapper.writeValueAsString(PermissionResponse.from(item("X"))));
 
     assertThat(arbol.fieldNames())
         .toIterable()
-        .containsExactlyInAnyOrder("id", "code", "resource", "action", "name", "description");
+        .containsExactlyInAnyOrder(
+            "id", "code", "resource", "action", "name", "description", "requiresRecentMfa");
   }
 
   @Test
