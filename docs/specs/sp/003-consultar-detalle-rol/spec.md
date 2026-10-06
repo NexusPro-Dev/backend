@@ -148,3 +148,11 @@ Ninguna. Las tres se resolvieron el 20-08-2026, antes de aprobar la especificaci
 | 1 | ¿Se consulta el detalle de un rol eliminado? | No, se trata como inexistente. La auditoría de eliminación ya conserva el estado del rol al borrarse (Art. V.13), que es el mecanismo diseñado para reconstruir qué era. Duplicarlo aquí añadiría una rama al endpoint y una segunda fuente del mismo dato |
 | 2 | ¿Los roles hijos se devuelven completos? | No, solo el conteo. El listado se obtiene con `RF-SP-002` filtrando por rol padre, que ya existe y ya está paginado. Así el tamaño de la respuesta no depende de cuántos hijos tenga el rol |
 | 3 | ¿Se indica cuántos usuarios tienen el rol? | Sí. Es la pregunta que se hace antes de desactivar o eliminar un rol, y cuesta una subconsulta sobre `user_roles`. Con el módulo `USR` retirado (`modules.md` v0.9.0), esa tabla pertenece a `SP` y no hace falta interfaz publicada alguna |
+
+---
+
+## 15. Control de cambios
+
+| Versión | Fecha | Cambio | Responsable |
+|---|---|---|---|
+| — | 06-10-2026 | **Enmendada por `RF-SP-077`** (Art. I.7): el detalle dice **si el rol exige el segundo factor** a sus portadores (`RN-SP-062`) ([`077` · `spec.md`](../077-exigir-segundo-factor-por-rol/spec.md) `CA-SP-891`). | Responsable técnico |

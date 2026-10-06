@@ -5,7 +5,7 @@
 | Módulo | `SP` — Sistema Principal |
 | Paquete | `modules/system` |
 | Prefijos de permiso | `roles:`, `permissions:`, `audit:`, `memberships:`, `currencies:`, `countries:`, `users:`, `exchange-rates:`, `document-types:`, `brokers:`, `broker-accounts:`, `teams:` |
-| Versión | 1.95.0 |
+| Versión | 1.96.0 |
 | Estado | **Aprobado** |
 | Responsable | Bonilla Diaz William Steven |
 | Fecha de creación | 20-08-2026 |
@@ -412,7 +412,7 @@ EXCLUDE USING gist (
 | `RF-SP-074` | Regenerar los propios códigos de recuperación | Alta | `users:regenerate-own-recovery-codes` | **Tasks en revisión** |
 | `RF-SP-075` | Desactivar el propio segundo factor | Media | `users:disable-own-mfa` | **Tasks en revisión** |
 | `RF-SP-076` | Restablecer el segundo factor de un usuario | Alta | `users:reset-mfa` | **Tasks en revisión** |
-| `RF-SP-077` | Exigir el segundo factor a los portadores de un rol | **Crítica** | `roles:require-mfa` | Pendiente |
+| `RF-SP-077` | Exigir el segundo factor a los portadores de un rol | **Crítica** | `roles:require-mfa` | **Tasks en revisión** |
 
 !!! info "Dónde vive el estado de un requerimiento"
 
@@ -1519,13 +1519,13 @@ Cierra la pertenencia vigente de uno o varios managers **de este equipo**, con m
 | Reglas aplicables | `RN-SP-062`, `RN-SEG-011`, `RN-SP-063` |
 | Depende de | `RF-SP-071` |
 | Tripleta | `docs/specs/sp/077-exigir-segundo-factor-por-rol/` |
-| Estado | Pendiente |
+| Estado | **Tasks en revisión** (06-10-2026) |
 
 `PATCH /api/v1/roles/{id}/mfa-requirement` con `{ "required": true | false }`. **Es una operación propia y no un campo más de `RF-SP-004`** por dos razones: lleva permiso propio (`RN-SEG-014`) y es sensible, y editar el nombre de un rol no lo es; y **se admite sobre roles de sistema**, que `RN-SEG-012` protege en su identidad y su posición, no en lo que exigen a sus portadores —es la misma excepción que ya tienen sus permisos—. **Quitar la marca a `SUPERADMIN` se rechaza**: la raíz lo exige siempre.
 
 **El efecto no es inmediato, y se declara**: el claim `mer` se calcula al emitir el token, de modo que quien ya tiene sesión entra retenido **al siguiente refresco**, en quince minutos como mucho. Es la misma contrapartida que `mcp` (`security.md` §5.2). Marcar un rol **no** revoca sesiones: retendría a la vez a todas sus personas sin darles ocasión de activar nada.
 
-**Enmienda además `RF-SP-039`** (Art. I.7): el propio perfil publica `mfa` —si hay factor activo y si algún rol lo exige—, que es lo que el frontend necesita para ofrecer activarlo o advertir que es obligatorio.
+**Enmienda además `RF-SP-002` y `RF-SP-003`** —el listado y el detalle de roles muestran la marca— **y `RF-SP-039`** (Art. I.7): el propio perfil publica `mfa` —si hay factor activo y si algún rol lo exige—, que es lo que el frontend necesita para ofrecer activarlo o advertir que es obligatorio.
 
 ## 7. Requerimientos no funcionales
 
@@ -2473,3 +2473,4 @@ La fila se lee «esta persona vinculó este authenticator». `status` es `PENDIE
 | 1.93.0 | 06-10-2026 | **Nace el submódulo Segundo factor: `RF-SP-071` a `RF-SP-077`**, por decisión del responsable del proyecto, que eligió **el authenticator** —TOTP, cualquier app— y lo hizo **obligatorio por rol**: nacen marcados `SUPERADMIN` y `ADMIN`, el resto lo decide quien administra roles. Pidió además, en la primera etapa, los **códigos de recuperación**, el **restablecimiento por un administrador** y **volver a pedir el código antes de las operaciones sensibles, incluida la configuración de los permisos de los roles**. Nacen `RN-SP-058` a `RN-SP-064`; `roles` gana `requires_mfa` y `permissions` `requires_recent_mfa` (§10.1, §10.2); entran `user_mfa_factors`, `mfa_recovery_codes` y `mfa_challenges` (§10.22 a §10.24). **Enmienda `RF-SP-034`** —con factor activo, la contraseña emite un desafío y no tokens— y **`RF-SP-039`** —el perfil publica el estado del factor—. Siete permisos nuevos, sin sembrar ([`security.md`](../security.md) v0.105.0 §4.4). Sin tripletas todavía. | Responsable técnico |
 | 1.94.0 | 06-10-2026 | **`RF-SP-071` a `RF-SP-073` estrenan tripleta** y pasan a `Tasks en revisión`. Dos precisiones que trajeron sus planes: `user_mfa_factors.secret_ciphertext` es **`text`** y no `bytea` (§10.22), con el formato `v1:<base64>` de la clave de la tienda, que es el cifrado que se reutiliza; y los siete se siembran en **una sola migración, `V75`**. | Responsable técnico |
 | 1.95.0 | 06-10-2026 | **`RF-SP-074` a `RF-SP-076` estrenan tripleta** y pasan a `Tasks en revisión`. **Nace `RN-SP-065`, propuesta y sin confirmar**: nadie restablece el segundo factor de quien tiene más privilegios. La trajo la spec de `RF-SP-076` al ver que `ADMIN`, con `users:reset-password` y `users:reset-mfa`, podría tomar la cuenta del superadministrador; queda como pregunta abierta de esa spec y como bloqueo de una sola tarea. | Responsable técnico |
+| 1.96.0 | 06-10-2026 | **`RF-SP-077` estrena tripleta** y con ella **los siete del segundo factor quedan escritos**, todos en `Tasks en revisión`. La ficha añade dos enmiendas que trajo su spec: `RF-SP-002` y `RF-SP-003` publican la marca del rol. Precisiones: **nadie cambia la marca de un rol que porta** (`RN-SEG-011`), de modo que la de `ADMIN` solo la cambia el superadministrador; un rol **inactivo** se puede marcar y no obliga. | Responsable técnico |

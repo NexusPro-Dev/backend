@@ -150,3 +150,11 @@ Ninguna. Las tres se resolvieron el 20-08-2026, antes de aprobar la especificaci
 | 1 | ¿La búsqueda distingue mayúsculas y acentos? | Insensible a ambos. En español lo normal es teclear sin tildes, y una búsqueda que no las ignora obliga a escribir el término exactamente como se registró. Exige la extensión `unaccent` y un índice funcional |
 | 2 | ¿Tamaño de página por defecto y máximo? | 20 y 100, uniformes para todo el sistema. Fijado en `architecture.md` §7.4 |
 | 3 | ¿El listado indica cuántos usuarios tiene cada rol? | No. La pregunta se hace sobre un rol concreto, no sobre la lista: en el detalle cuesta una consulta, aquí una por fila. Se resuelve en `RF-SP-003` |
+
+---
+
+## 15. Control de cambios
+
+| Versión | Fecha | Cambio | Responsable |
+|---|---|---|---|
+| — | 06-10-2026 | **Enmendada por `RF-SP-077`** (Art. I.7): cada rol del listado dice **si exige el segundo factor** a sus portadores (`RN-SP-062`) ([`077` · `spec.md`](../077-exigir-segundo-factor-por-rol/spec.md) `CA-SP-891`). | Responsable técnico |
