@@ -4,7 +4,7 @@
 |---|---|
 | Requerimiento | `RF-MV-052` |
 | Módulo | `MV` — Movimientos |
-| Versión | 0.1.0 |
+| Versión | 0.2.0 |
 | Estado | **Aprobada** |
 | Autor | Responsable técnico |
 | Aprobada por | Responsable del proyecto |
@@ -194,3 +194,4 @@ Misma clave, misma persona, moneda y puntos: **se devuelve el ajuste ya hecho** 
 | Versión | Fecha | Cambio | Autor |
 |---|---|---|---|
 | 0.1.0 | 05-10-2026 | Primera versión ([`requirements/mv.md`](../../../requirements/mv.md) v0.83.0 §4.11, `RN-MV-076`), con las decisiones del responsable del proyecto: **ajuste libre en puntos**, **suma y resta** sin saldo negativo, **motivo obligatorio y referencia opcional**, clave de idempotencia obligatoria. Criterios `CA-MV-636` a `CA-MV-646`. | Responsable del proyecto |
+| 0.2.0 | 06-10-2026 | **El ajuste admite un comprobante como archivo** ([`requirements/mv.md`](../../../requirements/mv.md) v0.88.0 §4.12, `RN-MV-077`): lo que §4.2 dejaba fuera lo trae [`RF-MV-057`](../057-adjuntar-comprobante-de-ajuste/spec.md), por la misma petición o después. Sin archivo, este requerimiento no cambia. | Responsable del proyecto |

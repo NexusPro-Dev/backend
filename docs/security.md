@@ -5,7 +5,7 @@
 | Proyecto | NEXUS — Renovación de plataforma |
 | Empresa | FACTECH GROUP SAS |
 | Documento | `security.md` |
-| Versión | 0.112.0 |
+| Versión | 0.113.0 |
 | Estado | Borrador |
 | Responsable técnico | Bonilla Diaz William Steven |
 | Fecha de creación | 19-08-2026 |
@@ -273,9 +273,11 @@ movements:retry-payment  movements:reject-payment
 movements:request-withdrawal     movements:approve-withdrawal     movements:reject-withdrawal
 movements:read-own-balances      movements:list-own-entries       movements:grant-bonus
 movements:set-points-rate        movements:read-points-rates      movements:buy-points
-movements:confirm-points-purchase  movements:reject-points-purchase  movements:list-own-points-purchases
+movements:confirm-points-purchase  movements:reject-points-purchase  movements:list-own-points-movements
+movements:read-own-points-movement  movements:download-own-points-receipt
 movements:set-conversion-rate      movements:read-conversion-rates
-movements:adjust-points     movements:list-points-adjustments     movements:read-user-balances
+movements:adjust-points     movements:list-points-movements     movements:read-user-balances
+movements:read-points-movement  movements:download-points-receipt  movements:attach-points-receipt
 
 exchange-rates:read     exchange-rates:create
 exchange-rates:update   exchange-rates:delete
@@ -1074,3 +1076,4 @@ RNF-SEG-002 merece atención: es una prueba que enumera los endpoints registrado
 | 0.110.0 | 06-10-2026 | **Un permiso de `IN` declarado y sin sembrar** (§4.4): `indicators:read-points-summary` (`RF-IN-005`), por tipo de rol a `FUNCIONARIO` y `VENDEDOR` cuando lo siembre `V76`. Catálogo 196 → **197**. Ninguna ruta pública nueva. | Responsable técnico |
 | 0.111.0 | 06-10-2026 | **`indicators:read-points-summary` está sembrado** por `V76` (§4.4; `RF-IN-005`), por tipo de rol a `FUNCIONARIO` y `VENDEDOR`. Catálogo **197**, `ADMIN` 195. | Responsable técnico |
 | 0.112.0 | 06-10-2026 | **El segundo factor está construido entero** (§3.3; `RF-SP-071` a `RF-SP-077`): las **dieciocho operaciones sensibles** de §4.4 tienen ruta y piden la verificación reciente —el responsable del proyecto confirmó la lista el 06-10-2026—, y `RN-SP-065` alcanza ya al restablecimiento del segundo factor y al de la contraseña. La recuperación del último superadministrador, que la API no permite, queda en [`deployment.md`](deployment.md) §12.1. | Responsable técnico |
+| 0.113.0 | 06-10-2026 | **Los movimientos de puntos y el comprobante del ajuste** (§4.4; [`requirements/mv.md`](requirements/mv.md) v0.88.0 §4.12, `RF-MV-055` a `RF-MV-057`): `movements:list-own-points-purchases` y `movements:list-points-adjustments` **se renombran** a `movements:list-own-points-movements` y `movements:list-points-movements` —sus listados se sustituyen por los que traen compras y ajustes juntos, y renombrar conserva las asignaciones—, y nacen cinco: el detalle y la descarga del comprobante en cada alcance —los propios por tipo de rol (`RN-SEG-015`), los de administración a `SUPERADMIN` y `ADMIN`— y `movements:attach-points-receipt`. **Ninguno es sensible**: la lista de dieciocho no cambia. Catálogo 197 → **202**, por `V77`. | Responsable técnico |

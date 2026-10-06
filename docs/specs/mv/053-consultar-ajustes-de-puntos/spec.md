@@ -4,8 +4,8 @@
 |---|---|
 | Requerimiento | `RF-MV-053` |
 | Módulo | `MV` — Movimientos |
-| Versión | 0.1.0 |
-| Estado | **Aprobada** |
+| Versión | 0.2.0 |
+| Estado | **Retirada** — 06-10-2026, la sustituye `RF-MV-056` |
 | Autor | Responsable técnico |
 | Aprobada por | Responsable del proyecto |
 | Fecha de aprobación | 05-10-2026 |
@@ -170,3 +170,4 @@ Ninguna.
 | Versión | Fecha | Cambio | Autor |
 |---|---|---|---|
 | 0.1.0 | 05-10-2026 | Primera versión ([`requirements/mv.md`](../../../requirements/mv.md) v0.84.0 §4.11), pedida por el frontend para la pantalla de ajustes. Criterios `CA-MV-647` a `CA-MV-655`. | Responsable técnico |
+| 0.2.0 | 06-10-2026 | **Retirada** ([`requirements/mv.md`](../../../requirements/mv.md) v0.88.0 §4.12): la sustituye [`RF-MV-056`](../056-consultar-movimientos-de-puntos/spec.md), que trae también las compras de puntos y hereda lo que aquí se decidió. `movements:list-points-adjustments` se renombra a `movements:list-points-movements`. | Responsable del proyecto |

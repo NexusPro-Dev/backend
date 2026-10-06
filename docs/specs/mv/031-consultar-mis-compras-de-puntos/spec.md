@@ -4,8 +4,8 @@
 |---|---|
 | Requerimiento | `RF-MV-031` |
 | Módulo | `MV` — Movimientos |
-| Versión | 0.1.0 |
-| Estado | **Aprobada** |
+| Versión | 0.2.0 |
+| Estado | **Retirada** — 06-10-2026, la sustituye `RF-MV-055` |
 | Autor | Responsable técnico |
 | Aprobada por | Responsable del proyecto |
 | Fecha de aprobación | 30-09-2026 |
@@ -164,3 +164,4 @@ Ninguna.
 | Versión | Fecha | Cambio | Autor |
 |---|---|---|---|
 | 0.1.0 | 30-09-2026 | Primera versión, con la etapa 3 de `MV` ([`requirements/mv.md`](../../../requirements/mv.md) v0.54.0 §4.4). **Solo las propias**, sin detalle aparte, con los filtros de los demás listados. Criterios `CA-MV-344` a `CA-MV-350`. | Responsable del proyecto |
+| 0.2.0 | 06-10-2026 | **Retirada** ([`requirements/mv.md`](../../../requirements/mv.md) v0.88.0 §4.12): el responsable del proyecto pidió las compras de puntos y los ajustes en una sola lista. La sustituye [`RF-MV-055`](../055-consultar-mis-movimientos-de-puntos/spec.md), que conserva lo de aquí —estado, tasa, puntos y pagos, en el detalle— y añade los ajustes. `movements:list-own-points-purchases` se renombra a `movements:list-own-points-movements`. | Responsable del proyecto |

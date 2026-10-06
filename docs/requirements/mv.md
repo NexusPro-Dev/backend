@@ -5,7 +5,7 @@
 | Módulo | `MV` — Movimientos |
 | Paquete | `modules/movements` |
 | Prefijos de permiso | `movements:` |
-| Versión | 0.87.0 |
+| Versión | 0.88.0 |
 | Estado | **Borrador** |
 | Responsable | Bonilla Diaz William Steven |
 | Fecha de creación | 02-09-2026 |
@@ -180,7 +180,7 @@ La dependencia es **acíclica**: `MV` → `PM` → `SP`, y `MV` → `SP`. **El p
 | `RF-MV-028` | Confirmar el pago de una compra de puntos — **desde el 01-10-2026 sin ruta propia**: es el efecto que `RF-MV-044` y `RF-MV-041` invocan sobre una compra de puntos (§4.8) | Puntos | **Ninguno propio** desde el 01-10-2026. Hasta ese día, `movements:confirm-points-purchase`, que se retira |
 | `RF-MV-029` | Rechazar el pago de una compra de puntos — **desde el 01-10-2026 sin ruta propia**: es el efecto que `RF-MV-045` invoca sobre una compra de puntos (§4.8) | Puntos | **Ninguno propio** desde el 01-10-2026. Hasta ese día, `movements:reject-points-purchase`, que se retira |
 | `RF-MV-030` | Pagar una compra con puntos | Puntos | **Ninguno propio**: viaja en las entradas de compra propia (`RF-MV-002`, `RF-MV-011` a `RF-MV-013`) y en volver a pagar (`RF-MV-018`), con los permisos de cada una |
-| `RF-MV-031` | Consultar mis compras de puntos | Puntos | `movements:list-own-points-purchases` (nace con él; `RN-SEG-015`) |
+| `RF-MV-031` | Consultar mis compras de puntos — **retirado el 06-10-2026**: lo sustituye `RF-MV-055`, que trae las compras junto con los ajustes (§4.12) | Puntos | `movements:list-own-points-purchases`, **renombrado** a `movements:list-own-points-movements` |
 | `RF-MV-032` | Registrar una entidad de cobro —un banco o una billetera móvil— | Cuentas de cobro | `movements:create-payout-institution` (nace con él; `RN-SEG-014`) |
 | `RF-MV-033` | Consultar las entidades de cobro | Cuentas de cobro | `movements:read-payout-institutions` (nace con él; `RN-SEG-015`) |
 | `RF-MV-034` | Editar una entidad de cobro, también para desactivarla | Cuentas de cobro | `movements:update-payout-institution` (nace con él; `RN-SEG-014`) |
@@ -202,8 +202,11 @@ La dependencia es **acíclica**: `MV` → `PM` → `SP`, y `MV` → `SP`. **El p
 | `RF-MV-050` | Conciliar los cobros pendientes con la pasarela local | Pagos | **Ninguno: no tiene ruta**. Es una tarea programada (`RN-MV-064`) |
 | `RF-MV-051` | Pagar por la pasarela local un pago pendiente propio —retomarlo, o empezarlo si lo registró otro— | Pagos | `movements:pay-pending-locally` (nace con él; `RN-SEG-015`) |
 | `RF-MV-052` | **Ajustar los puntos de una persona** a mano —sumar o restar—, con motivo y una referencia opcional (§4.11) | Puntos | `movements:adjust-points` (nace con él; `RN-SEG-014`) |
-| `RF-MV-053` | **Consultar los ajustes de puntos**, de cualquier persona, paginados y con filtros (§4.11) | Puntos | `movements:list-points-adjustments` (nace con él; `RN-SEG-014`) |
+| `RF-MV-053` | Consultar los ajustes de puntos — **retirado el 06-10-2026**: lo sustituye `RF-MV-056`, que trae los ajustes junto con las compras (§4.12) | Puntos | `movements:list-points-adjustments`, **renombrado** a `movements:list-points-movements` |
 | `RF-MV-054` | **Consultar los saldos de una persona** —billetera, retenido y puntos, por moneda—, para administración (§4.11) | Saldos | `movements:read-user-balances` (nace con él; `RN-SEG-014`) |
+| `RF-MV-055` | **Consultar mis movimientos de puntos** —mis compras de puntos y los ajustes que recibí, en una sola lista—, **su detalle** y **el comprobante** de un ajuste (§4.12) | Puntos | `movements:list-own-points-movements` (el de `RF-MV-031`, renombrado), `movements:read-own-points-movement` y `movements:download-own-points-receipt` (nacen con él; `RN-SEG-015`) |
+| `RF-MV-056` | **Consultar los movimientos de puntos** de cualquier persona —compras y ajustes—, **su detalle** y **el comprobante** de un ajuste (§4.12) | Puntos | `movements:list-points-movements` (el de `RF-MV-053`, renombrado), `movements:read-points-movement` y `movements:download-points-receipt` (nacen con él; `RN-SEG-014`) |
+| `RF-MV-057` | **Adjuntar el comprobante de un ajuste de puntos** —PDF, PNG o JPG—, al ajustar o después, y reemplazarlo (§4.12) | Puntos | `movements:attach-points-receipt` (nace con él; `RN-SEG-014`); al ajustar viaja con `movements:adjust-points` |
 
 **Registrar y comprar son dos requerimientos y no uno**, y eso **se aparta del precedente** que `PM` y `CM` fijaron —«el alta es una, no dos»—. La razón por la que aquí no aplica no es el contenido de la venta sino **quién la pide y por dónde entra**: una la origina un funcionario sobre la cuenta de otro y exige `movements:create`; la otra la origina el interesado sobre la suya y no exige permiso ninguno, como `RF-SP-039` y `RF-PM-007`. Fundirlas daría un endpoint con **dos modelos de seguridad**, que es donde se cuela el que sobra.
 
@@ -680,7 +683,7 @@ Decisiones del responsable del proyecto del 05-10-2026, **preguntadas antes de e
 
 **El movimiento no lleva dinero**: sus tres importes de cabecera son cero, y los puntos —con su signo— van en `points_amount`, sin tasa (§7.1). **Nace `CONFIRMADA`** y escribe sus asientos en el acto: no hay cobro que esperar. **No comisiona** y no lleva líneas (`RN-MV-046`). Aparece en el historial de saldos de la persona (`RF-MV-022`) y en el libro entero (`RF-MV-006`); **no** en «mis compras de puntos» (`RF-MV-031`), que son compras.
 
-**Lo que queda fuera**: revertir un ajuste —se corrige con otro del signo contrario, que deja su propio rastro—; topes y aprobación por un segundo actor; adjuntar el comprobante como archivo.
+**Lo que queda fuera**: revertir un ajuste —se corrige con otro del signo contrario, que deja su propio rastro—; topes y aprobación por un segundo actor. ~~Adjuntar el comprobante como archivo~~: **se admite desde el 06-10-2026** (§4.12, `RF-MV-057`).
 
 **La pantalla de ajustes (05-10-2026, a petición del frontend en nombre del responsable)** necesita dos lecturas más:
 
@@ -688,6 +691,28 @@ Decisiones del responsable del proyecto del 05-10-2026, **preguntadas antes de e
 - **`RF-MV-054`, los saldos de una persona**, con la forma de «mis saldos» (`RF-MV-022`) pero para cualquiera: quien ajusta tiene que ver **cuántos puntos tiene** antes de restar. Es la lectura de administración, y no sigue la estructura comercial.
 
 **Dos permisos nuevos y no reutilizar `movements:adjust-points`** (`RN-SEG-014`): listar, leer saldos y ajustar son tres operaciones. Los tres a `SUPERADMIN` y `ADMIN`, explícito.
+
+### 4.12 Los movimientos de puntos en una sola consulta, y el comprobante como archivo (06-10-2026)
+
+**El caso que lo pide**: la persona tenía dos sitios para saber de dónde le salen los puntos —«mis compras de puntos» (`RF-MV-031`) y, para los ajustes, solo el historial de saldos (`RF-MV-022`), que enseña asientos y no movimientos—, y administración tenía la tabla de ajustes (`RF-MV-053`) pero ninguna de compras. Y el ajuste, que nace justo de un pago hecho por fuera, guardaba el número de la consignación pero no la consignación.
+
+Decisiones del responsable del proyecto del 06-10-2026, **preguntadas antes de escribir**:
+
+| Pregunta | Decisión |
+|---|---|
+| ¿Qué consulta única? | **Las dos, por alcance**: la propia —mis compras y los ajustes que recibí— y la de administración —las de todos—. **Una fila común** con el tipo, `COMPRA_PUNTOS` o `AJUSTE_PUNTOS`, y un filtro por él |
+| ¿Y las rutas de hoy? | **Se retiran** los dos listados (`RF-MV-031`, `RF-MV-053`). Comprar y ajustar siguen donde estaban |
+| ¿Detalle? | **Uno en cada alcance**: la fila más lo que solo cabe en un detalle —la tasa, los pagos y el motivo del rechazo de una compra; el comprobante de un ajuste— |
+| ¿Quién ve el comprobante? | **Administración y la persona ajustada** |
+| ¿Cómo se adjunta? | **Uno por ajuste, opcional, al ajustar o después**, y se puede reemplazar. **PDF, PNG o JPG hasta 5 MB**, reconocido **por su contenido** y no por su nombre |
+
+**Los permisos de los listados retirados se renombran en lugar de retirarse** (`RN-SEG-014`, `RN-SEG-015`): la lista nueva hace lo que hacía la vieja y algo más, quienes los portaban son exactamente quienes deben portar los nuevos, y renombrar conserva sus asignaciones —también las que administración hiciera a mano a un rol propio—. Retirar uno y sembrar otro las perdería en silencio. **El detalle y el comprobante llevan permiso propio**, uno por ruta, como pide `RN-SEG-015`: el frontend decide con ellos qué vista ofrece.
+
+**Quién hizo un ajuste no se publica en el alcance propio**: la persona ve que le sumaron o le restaron, por qué y con qué comprobante, pero no qué administrador lo registró; lo ve administración, como hasta ahora. Es el criterio de `RN-MV-003`: quien registra una operación sobre la cuenta de otro queda en la constancia, no en lo que se le enseña a ese otro.
+
+**El comprobante vive en la base**, como las portadas (`RN-PM-033`): una fila por ajuste con el archivo, su tipo, su tamaño y su resumen `SHA-256` (§7.16). Reemplazarlo **sustituye** el archivo —no se acumulan versiones— y la auditoría guarda el resumen del anterior, que es lo que permite demostrar después qué se reemplazó (`RN-MV-077`).
+
+**Lo que queda fuera**: varios archivos por ajuste; quitar un comprobante sin poner otro; comprobantes en las compras de puntos —su pago se concilia por su método (§4.8)—; previsualizar en el servidor.
 
 ## 5. Reglas de negocio
 
@@ -761,6 +786,7 @@ Decisiones del responsable del proyecto del 05-10-2026, **preguntadas antes de e
 | `RN-MV-064` | **Un aviso de la pasarela local no se cree: se pregunta a la pasarela, y un barrido pregunta por los que no llegan** | Al recibir un aviso (`RF-MV-049`) y en el barrido (`RF-MV-050`) | Decisión del responsable del proyecto, 05-10-2026 (§4.10). PayRetailers **no firma** sus avisos y **no los reintenta**. Cada aviso **se guarda tal como llegó** (`RN-MV-059`) y solo provoca **una consulta del cobro a la pasarela**, autenticada con las credenciales de esta API; **manda la respuesta de esa consulta**. Aprobado confirma el pago (`RN-MV-061`); fallido, rechazado, cancelado o caducado lo rechaza, y **ese cobro no se reintenta**; pendiente no hace nada. Un aviso de un cobro que **no es de ningún pago** se guarda y se ignora, **sin consultar**. Además, **un barrido programado** consulta los cobros pendientes de la pasarela local que lleven un tiempo sin noticias. **Un cobro aprobado sobre un pago que ya no está pendiente** no confirma nada: se marca la incidencia **`COBRO_TARDIO`** (`RN-MV-060`) | **Crítica** |
 | `RN-MV-075` | **La venta del alta gratuita nace confirmada, y su línea se activa con el primer depósito** | Al registrarse por un enlace `BECA → BECA` (`RF-SP-045`) y al confirmarse su primer depósito (`RN-SP-057`) | Decisión del responsable del proyecto, 05-10-2026. La venta que anota el alta de una cuenta `FTD_PENDIENTE` nace **`CONFIRMADA`**, con su pago `GRATIS` `CONFIRMADO`: no hay ningún cobro que esperar, y dejarla `PENDIENTE` la dejaba pendiente para siempre. **Pero confirmarla no entrega nada**, en contra de `RN-MV-020`: sus líneas quedan `PENDIENTE` de entrega —`PENDIENTE_ACTIVACION` hacia fuera—, **sea el producto automático o manual**, y **el comprador no puede activarlas** (`RN-MV-048`), porque lo que esperan no es a él, es al depósito. **Las activa el primer depósito**: cuando `SP` saca a la cuenta de `FTD_PENDIENTE`, `MV` entrega esas líneas como entrega cualquier otra —posesión, nivel, `delivered_at`— y **solo entonces** publica el aviso de líneas comisionables (`RN-MV-049`). **De ahí sale que la comisión espere al depósito**: la línea `BECA → BECA` es un FTD, que `CM` cuenta desde su `delivered_at` (`RN-CM-036`); y una línea que no fuera FTD tampoco se comisionaría antes, porque el aviso no sale hasta la activación. **El barrido del cierre** (`RN-CM-034`) sí recoge las líneas confirmadas con vendedor y sin desenlace, y por eso **la línea del alta gratuita es siempre la de un producto FTD**, que el devengo por venta descarta | **Crítica** |
 | `RN-MV-076` | **Un ajuste de puntos lleva motivo, y nunca deja el saldo en negativo** | Al ajustar los puntos de una persona (`RF-MV-052`) | Decisión del responsable del proyecto, 05-10-2026. El ajuste es un movimiento `AJUSTE_PUNTOS` a nombre de quien lo recibe, **nace `CONFIRMADA`**, sin pago y sin dinero —importes de cabecera en cero—, con **los puntos con su signo** en `points_amount` y **sin tasa**. Suma desde `PUNTOS_EMITIDOS` o resta hacia ella, en un evento `AJUSTE` de dos asientos que suman cero. **El motivo es obligatorio** y va en `concept`; la **referencia** del comprobante es opcional. **Una resta que dejaría la cuenta `PUNTOS` por debajo de cero no escribe nada.** **Clave de idempotencia obligatoria**: ajustar dos veces por un doble clic regalaría o quitaría dos veces. No se revierte: se compensa con otro ajuste. No lleva líneas ni comisiona (`RN-MV-046`) | **Crítica** |
+| `RN-MV-077` | **El comprobante de un ajuste es un solo archivo PDF, PNG o JPG de hasta 5 MB, reconocido por su contenido, y solo lo ven administración y la persona ajustada** | Al ajustar con archivo (`RF-MV-052`), al adjuntarlo o reemplazarlo (`RF-MV-057`) y al descargarlo (`RF-MV-055`, `RF-MV-056`) | Decisión del responsable del proyecto, 06-10-2026 (§4.12). **Opcional** y **uno por ajuste**: adjuntar otro **reemplaza** al anterior, que no se conserva. **El tipo se decide por las primeras bytes** —`%PDF-`, la firma PNG o la JPEG—, **nunca por el nombre ni por el tipo que declare el cliente**: un ejecutable renombrado a `.pdf` se rechaza. Vacío, mayor de 5 MB o de otro tipo **no escribe nada**, tampoco el ajuste que lo traía. **Solo se adjunta a un `AJUSTE_PUNTOS`**. Se descarga **siempre como adjunto**, con el tipo con que se guardó, para que el navegador no lo interprete en el sitio. **La auditoría guarda el nombre, el tipo, el tamaño y el resumen `SHA-256`** —del nuevo y, al reemplazar, del anterior—, **nunca el contenido** | **Alta** |
 
 ### 5.2 Por qué las críticas son críticas
 
@@ -915,10 +941,15 @@ Hasta hoy esta regla no distinguía: **toda** venta confirmada con un upgrade co
 | `movements:buy-points` | `movements` | `buy-points` | Comprar puntos para uno mismo (`RF-MV-027`). Por tipo de rol, como toda operación sobre uno mismo (`RN-SEG-015`). **Sembrado por `V58`** (30-09-2026) |
 | `movements:confirm-points-purchase` | `movements` | `confirm-points-purchase` | Confirmar el pago de una compra de puntos pendiente y abonarlos (`RF-MV-028`). A `SUPERADMIN` y `ADMIN`. **Sembrado por `V58`** (30-09-2026). **Se retira el 01-10-2026** (§4.8): lo sustituye `movements:confirm-payment` |
 | `movements:reject-points-purchase` | `movements` | `reject-points-purchase` | Rechazar el pago de una compra de puntos pendiente, con motivo (`RF-MV-029`). A `SUPERADMIN` y `ADMIN`. **Sembrado por `V58`** (30-09-2026). **Se retira el 01-10-2026** (§4.8): lo sustituye `movements:reject-payment` |
-| `movements:list-own-points-purchases` | `movements` | `list-own-points-purchases` | Consultar las compras de puntos propias, con su estado (`RF-MV-031`). Por tipo de rol. **Sembrado por `V58`** (30-09-2026) |
+| `movements:list-own-points-movements` | `movements` | `list-own-points-movements` | Consultar los movimientos de puntos propios —compras y ajustes recibidos— (`RF-MV-055`). Por tipo de rol. **Sembrado por `V58`** (30-09-2026) como `movements:list-own-points-purchases`, para `RF-MV-031`; **renombrado por `V77`** (06-10-2026) |
 | `movements:adjust-points` | `movements` | `adjust-points` | Sumar o restar puntos a mano a cualquier persona, con motivo (`RF-MV-052`, `RN-MV-076`). A `SUPERADMIN` y `ADMIN`, explícito: es tarea de administración, como el bono. **Sembrado por `V72`** (05-10-2026) |
-| `movements:list-points-adjustments` | `movements` | `list-points-adjustments` | Consultar los ajustes de puntos de cualquier persona, con quién los hizo (`RF-MV-053`). A `SUPERADMIN` y `ADMIN`, explícito. **Sembrado por `V73`** (05-10-2026) |
+| `movements:list-points-movements` | `movements` | `list-points-movements` | Consultar los movimientos de puntos —compras y ajustes— de cualquier persona, con quién hizo cada ajuste (`RF-MV-056`). A `SUPERADMIN` y `ADMIN`, explícito. **Sembrado por `V73`** (05-10-2026) como `movements:list-points-adjustments`, para `RF-MV-053`; **renombrado por `V77`** (06-10-2026) |
 | `movements:read-user-balances` | `movements` | `read-user-balances` | Consultar los saldos de **cualquier** persona —billetera, retenido y puntos— (`RF-MV-054`). A `SUPERADMIN` y `ADMIN`, explícito: es la lectura de administración. **Sembrado por `V73`** (05-10-2026) |
+| `movements:read-own-points-movement` | `movements` | `read-own-points-movement` | El detalle de un movimiento de puntos propio (`RF-MV-055`). Por tipo de rol, como el listado. **Sembrado por `V77`** (06-10-2026) |
+| `movements:download-own-points-receipt` | `movements` | `download-own-points-receipt` | Descargar el comprobante de un ajuste de puntos propio (`RF-MV-055`, `RN-MV-077`). Por tipo de rol. **Sembrado por `V77`** (06-10-2026) |
+| `movements:read-points-movement` | `movements` | `read-points-movement` | El detalle de un movimiento de puntos de cualquier persona (`RF-MV-056`). A `SUPERADMIN` y `ADMIN`, explícito. **Sembrado por `V77`** (06-10-2026) |
+| `movements:download-points-receipt` | `movements` | `download-points-receipt` | Descargar el comprobante de cualquier ajuste de puntos (`RF-MV-056`, `RN-MV-077`). A `SUPERADMIN` y `ADMIN`, explícito. **Sembrado por `V77`** (06-10-2026) |
+| `movements:attach-points-receipt` | `movements` | `attach-points-receipt` | Adjuntar o reemplazar el comprobante de un ajuste ya hecho (`RF-MV-057`, `RN-MV-077`). A `SUPERADMIN` y `ADMIN`, explícito, como ajustar. **Sembrado por `V77`** (06-10-2026) |
 | `movements:create-payout-institution` | `movements` | `create-payout-institution` | Registrar una entidad de cobro —banco o billetera móvil— (`RF-MV-032`). A `SUPERADMIN` y `ADMIN`. **Sembrado por `V61`** (01-10-2026) |
 | `movements:read-payout-institutions` | `movements` | `read-payout-institutions` | Consultar las entidades de cobro (`RF-MV-033`). **Por tipo de rol**: quien registra una cuenta tiene que elegir la entidad. **Sembrado por `V61`** (01-10-2026) |
 | `movements:update-payout-institution` | `movements` | `update-payout-institution` | Editar el nombre de una entidad de cobro, o activarla y desactivarla (`RF-MV-034`). A `SUPERADMIN` y `ADMIN`. **Sembrado por `V61`** (01-10-2026) |
@@ -1427,6 +1458,21 @@ Se siembra por migración y **no se administra por API todavía** (§5.3). Lo m�
 
 **Es un histórico y no un valor**, como `points_rates` (§7.10): sin `valid_to`, sin `updated_at` y sin `deleted_at`. Una conversión que ya rigió explicará cobros y retiros pasados, y editarla o borrarla los dejaría sin explicación.
 
+### 7.16 `points_adjustment_receipts`
+
+| Columna | Tipo | Nula | Referencia |
+|---|---|---|---|
+| `movement_id` | `uuid` | No | `movements` — **clave primaria**: uno por ajuste |
+| `file_name` | `varchar(255)` | No | — el nombre con que se subió, sin ruta |
+| `content_type` | `varchar(30)` | No | — `application/pdf`, `image/png` o `image/jpeg`, **el que dicen sus bytes** |
+| `size_bytes` | `integer` | No | — de 1 a 5.242.880 |
+| `sha256` | `char(64)` | No | — el resumen del contenido, en hexadecimal |
+| `content` | `bytea` | No | — el archivo |
+| `uploaded_by` | `uuid` | **Sí** | `users`, `ON DELETE SET NULL` |
+| `uploaded_at` | `timestamptz` | No | — |
+
+**El comprobante de un ajuste de puntos** (`RN-MV-077`, 06-10-2026, `V77`). **La clave primaria es el movimiento**: un ajuste tiene uno o ninguno, y reemplazarlo es un `UPDATE` de la misma fila. Que el movimiento sea un `AJUSTE_PUNTOS` lo sostiene el caso de uso —un `CHECK` no consulta `movement_types`—. `ck_points_adjustment_receipts_type` y `ck_points_adjustment_receipts_size` repiten en el esquema lo que el dominio valida. **El contenido no se lee en los listados**: la fila de un movimiento dice solo si tiene comprobante.
+
 ---
 
 ## 8. Control de cambios
@@ -1520,3 +1566,4 @@ Se siembra por migración y **no se administra por API todavía** (§5.3). Lo m�
 | 0.85.0 | 06-10-2026 | **`MV` publica `SalesFigures` para el módulo `IN`** (§3; [`requirements/in.md`](in.md), `RF-IN-001`): las sumas de lo vendido por un alcance que otro resuelve, contadas por línea y separadas por moneda. Es la forma de `CommissionableLines`. Ningún requerimiento de `MV` cambia. | Responsable técnico |
 | 0.86.0 | 06-10-2026 | **El historial de saldos (`RF-MV-022`) filtra por VARIAS cuentas** (R-62, a petición del frontend; tripleta enmendada, `CA-MV-660`): `account` es repetible y el asiento entra si su cuenta es cualquiera de las indicadas, para que el historial de Balance enseñe solo dinero —`BILLETERA` y `RETENIDO`— sin los puntos. Ampliación compatible. Siguiente `CA-MV-661`. | Responsable técnico |
 | 0.87.0 | 06-10-2026 | **`MV` publica `PointsFigures` para `IN`** (§3; `RF-IN-005`): los puntos comprados, redimidos y ajustados de un intervalo, leídos de los asientos de las cuentas `PUNTOS` por su evento, y el saldo de hoy. Ningún requerimiento de `MV` cambia. | Responsable técnico |
+| 0.88.0 | 06-10-2026 | **Los movimientos de puntos en una sola consulta, y el comprobante como archivo** (§4.12), por decisión del responsable del proyecto preguntada antes de escribir: **dos listas por alcance** —la propia, `RF-MV-055`, con mis compras y los ajustes que recibí; la de administración, `RF-MV-056`, con las de todos—, **cada una con su detalle y la descarga del comprobante**; **se retiran** los listados de `RF-MV-031` y `RF-MV-053`, y **sus permisos se renombran** para conservar las asignaciones; **el ajuste admite un comprobante PDF, PNG o JPG** de hasta 5 MB, al ajustar o después, reemplazable (`RF-MV-057`), que **ven administración y la persona ajustada**. Nacen `RN-MV-077`, la tabla `points_adjustment_receipts` (§7.16) y cinco permisos (catálogo 197 → **202**). **La migración es `V77`**. | Responsable del proyecto |
