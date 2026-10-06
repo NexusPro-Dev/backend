@@ -5,7 +5,7 @@
 | Proyecto | NEXUS — Renovación de plataforma |
 | Empresa | FACTECH GROUP SAS |
 | Documento | `modules.md` |
-| Versión | 0.26.0 |
+| Versión | 0.27.0 |
 | Estado | Borrador |
 | Responsable técnico | Bonilla Diaz William Steven |
 | Fecha de creación | 20-08-2026 |
@@ -336,13 +336,14 @@ Lo que decidió no fue la elegancia sino el precedente que este mismo párrafo c
 
 **Propósito.** Es dueño de **qué cifras agregadas existen y quién ve cada una**. Cuenta sobre los hechos que otros módulos registran —hoy, las ventas de `MV`— y publica cada cifra como un **indicador** con su ruta y su permiso, de modo que el reparto de indicadores por rol lo decide quien administra roles y no el código.
 
-**Alcance.** Se construye **por tandas**, y hoy solo está escrita la primera: **las ventas** —el resumen de un periodo, su evolución por día, semana o mes, las ventas por producto y las ventas por vendedor—, cada una **acotada al alcance** de quien la mira: administración ve todo, un vendedor lo suyo y lo de su red en profundidad. Las tandas siguientes, declaradas y sin escribir: **comisiones**, **puntos y retiros** y **academia**.
+**Alcance.** Se construye **por tandas**, y hoy solo está escrita la primera: **las ventas** —el resumen de un periodo, su evolución por día, semana o mes, las ventas por producto y las ventas por vendedor—, cada una **acotada al alcance** de quien la mira: administración ve todo, un vendedor lo suyo y lo de su red en profundidad. **Desde el 06-10-2026, la segunda: los puntos** —lo comprado, lo redimido, los ajustes y el saldo de hoy, con el mismo alcance—. Las tandas siguientes, declaradas y sin escribir: **comisiones**, **retiros** y **academia**.
 
 **No incluye.** **Una tabla rol → indicador**: el reparto es el permiso (`RN-IN-001`). **El tablero** —qué indicadores van juntos y en qué orden—, que es del frontend. **Los indicadores de la red comercial** de `RF-SP-058`, que siguen en `SP`. **Convertir entre monedas**: el dinero va separado por moneda (`RN-IN-004`). **Guardar fotos de las cifras**, ni **exportarlas**.
 
 | Submódulo | Responsabilidad | Entidades principales |
 |---|---|---|
 | Ventas | Lo vendido: resumen, evolución, por producto y por vendedor | **Ninguna propia** — lee las ventas que `MV` publica agregadas |
+| Puntos | Lo comprado, lo redimido, los ajustes y el saldo de los puntos (06-10-2026) | **Ninguna propia** — lee los asientos de puntos que `MV` publica agregados |
 
 **Dependencias.** `SP` y `MV`. De `SP`, **el alcance comercial** de quien pregunta (`CommercialReach`, el mismo que aplica `RF-MV-015`) y la identidad de cada vendedor (`UserCatalog`). De `MV`, **las ventas agregadas por un alcance**, una interfaz que todavía no existe y que pedirá `RF-IN-001`. Ninguno de los dos consume a `IN`.
 
@@ -490,3 +491,4 @@ El orden importa: el módulo precede al requerimiento, el requerimiento precede 
 | 0.24.0 | 01-10-2026 | **`MV` gana el submódulo Cuentas de cobro** ([`requirements/mv.md`](requirements/mv.md) v0.61.0 §4.5): el catálogo de bancos y billeteras móviles y las cuentas de cada persona, para saber a dónde se paga un retiro. Sin dependencias nuevas: `SP` ya lo era. | Responsable técnico |
 | 0.25.0 | 06-10-2026 | **Se incorpora el módulo `IN` — Indicadores**, el sexto del sistema, por decisión del responsable del proyecto: «un módulo para indicadores, para repartir qué indicadores se pueden ver por roles». Es el candidato «Métricas» que §6 tenía anotado desde el 20-08-2026 (HU08). Ficha en §5.6 —la plantilla pasa a §5.7—, fila en §4 con dependencias `SP` y `MV`, y documento [`requirements/in.md`](requirements/in.md) v0.1.0. **Es el primer módulo que se incorpora sin cumplir §2.1**: no es dueño de tablas y nadie lo consume; lo que posee es el catálogo de indicadores y su reparto por permiso, y la excepción queda escrita en la ficha con las dos salidas descartadas. El mapa de §3 incorpora además `CM` y `MV`, que faltaban desde que entraron. | Responsable técnico |
 | 0.26.0 | 06-10-2026 | **Submódulo nuevo en `SP`: «Segundo factor»**, dueño de `user_mfa_factors`, `mfa_recovery_codes` y `mfa_challenges` ([`requirements/sp.md`](requirements/sp.md) v1.93.0, `RF-SP-071` a `RF-SP-077`), por decisión del responsable del proyecto: authenticator obligatorio por rol. | Responsable técnico |
+| 0.27.0 | 06-10-2026 | **`IN` gana el submódulo Puntos** (§5.6; [`requirements/in.md`](requirements/in.md) v0.6.0, `RF-IN-005`): lo comprado, lo redimido, los ajustes y el saldo de los puntos, con el alcance de los indicadores de ventas. Sin dependencias nuevas: `MV` ya lo era, y publicará `PointsFigures`. | Responsable técnico |
