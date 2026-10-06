@@ -6,6 +6,7 @@ import java.math.BigDecimal;
 import java.time.OffsetDateTime;
 import java.util.List;
 import java.util.Optional;
+import java.util.Set;
 import java.util.UUID;
 
 /**
@@ -57,7 +58,17 @@ public interface LedgerRepository {
 
   record BalanceRow(UUID currencyId, String currencyCode, String kind, BigDecimal balance) {}
 
-  record EntryFilter(UUID currencyId, String account, OffsetDateTime from, OffsetDateTime to) {}
+  /**
+   * Los filtros del historial (`RF-MV-022`).
+   *
+   * @param accounts las cuentas, combinadas con «o» (R-62, 06-10-2026); vacío es sin filtro
+   */
+  record EntryFilter(
+      UUID currencyId, Set<String> accounts, OffsetDateTime from, OffsetDateTime to) {
+    public EntryFilter {
+      accounts = accounts == null ? Set.of() : Set.copyOf(accounts);
+    }
+  }
 
   record EntryRow(
       UUID id,

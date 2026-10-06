@@ -245,15 +245,19 @@ public class LedgerController {
           antiguo, con su signo —positivo entró—, el saldo que dejó, el evento y el movimiento
           que lo produjo (`RF-MV-022`). Es donde la persona ve sus retiros, abonos y bonos.
           Filtros: `currencyId`, `account` (`BILLETERA`, `RETENIDO`, `PUNTOS`), `from` y `to`
-          sobre cuándo se escribió, rango semiabierto. Los filtros se combinan; una cuenta de
-          la empresa o un periodo invertido son `400`, y los dos errores salen juntos.
+          sobre cuándo se escribió, rango semiabierto. **`account` se puede repetir**
+          (`?account=BILLETERA&account=RETENIDO`, desde el 06-10-2026): el asiento entra si su
+          cuenta es **cualquiera** de las indicadas —así se pide solo el dinero, sin los
+          puntos— y repetir una es lo mismo que pedirla una vez. Los filtros se combinan; una
+          cuenta que no sea de las tres —basta una entre varias— o un periodo invertido son
+          `400`, y los dos errores salen juntos.
           """)
   @ApiResponses({
     @ApiResponse(responseCode = "200", description = "Una página del historial."),
     @ApiResponse(
         responseCode = "400",
         description =
-            "`account` que no es `BILLETERA`, `RETENIDO` ni `PUNTOS` (`VAL-002`), o `from`"
+            "Alguna `account` que no es `BILLETERA`, `RETENIDO` ni `PUNTOS` (`VAL-002`), o `from`"
                 + " posterior a `to` (`VAL-003`)",
         content = @Content),
     @ApiResponse(responseCode = "401", description = "Sin token (`AUTH-001`)", content = @Content),
@@ -266,7 +270,7 @@ public class LedgerController {
       @RequestParam(required = false) Integer page,
       @RequestParam(required = false) Integer size,
       @RequestParam(required = false) UUID currencyId,
-      @RequestParam(required = false) String account,
+      @RequestParam(required = false) List<String> account,
       @RequestParam(required = false) OffsetDateTime from,
       @RequestParam(required = false) OffsetDateTime to) {
     return saldos.entries(page, size, currencyId, account, from, to);

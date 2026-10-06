@@ -192,8 +192,8 @@ public class JpaLedgerRepository implements LedgerRepository {
     if (f.currencyId() != null) {
       sql.append(" AND a.currency_id = :moneda");
     }
-    if (f.account() != null) {
-      sql.append(" AND a.kind = :cuenta");
+    if (!f.accounts().isEmpty()) {
+      sql.append(" AND a.kind IN (:cuentas)");
     }
     if (f.from() != null) {
       sql.append(" AND e.created_at >= :desde");
@@ -209,8 +209,8 @@ public class JpaLedgerRepository implements LedgerRepository {
     if (f.currencyId() != null) {
       q.setParameter("moneda", f.currencyId());
     }
-    if (f.account() != null) {
-      q.setParameter("cuenta", f.account());
+    if (!f.accounts().isEmpty()) {
+      q.setParameter("cuentas", f.accounts());
     }
     if (f.from() != null) {
       q.setParameter("desde", f.from());

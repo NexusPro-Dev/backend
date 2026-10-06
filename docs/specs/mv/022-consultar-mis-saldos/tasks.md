@@ -41,10 +41,10 @@ Enmienda de hecho (Art. I.7), `spec.md` 0.2.0 y `plan.md` 0.2.0 **antes** del c�
 
 | ID | Tarea | Depende de | Verificación | Estado |
 |---|---|---|---|---|
-| `T-07` | `EntryFilter.account` a `Set<String>`; `JpaLedgerRepository` con `a.kind IN (:cuentas)`; `BalanceService.entries` recibe la lista, valida cada valor —los inválidos juntos en un `VAL-002`— y quita repetidos | — | Un solo valor da la misma sentencia que hoy salvo el `IN` | Pendiente |
-| `T-08` | `LedgerController`: `account` como `List<String>`, documentado como repetible | `T-07` | `openapi.json` declara `account` como arreglo | Pendiente |
-| `T-09` | `BalancesAndBonusIT`: `CA-MV-660` | `T-08` | `BILLETERA`+`RETENIDO` sin `PUNTOS`; repetido; uno inválido entre varios | Pendiente |
-| `T-10` | Contrato regenerado y prosa releída; `docs/api/index.md`; `requirements/mv.md` | `T-09` | | Pendiente |
+| `T-07` | `EntryFilter.account` a `Set<String>`; `JpaLedgerRepository` con `a.kind IN (:cuentas)`; `BalanceService.entries` recibe la lista, valida cada valor —los inválidos juntos en un `VAL-002`— y quita repetidos | — | Un solo valor da la misma sentencia que hoy salvo el `IN` | **Hecha** — 06-10-2026 |
+| `T-08` | `LedgerController`: `account` como `List<String>`, documentado como repetible | `T-07` | `openapi.json` declara `account` como arreglo | **Hecha** — 06-10-2026 |
+| `T-09` | `BalancesAndBonusIT`: `CA-MV-660` | `T-08` | `BILLETERA`+`RETENIDO` sin `PUNTOS`; repetido; uno inválido entre varios | **Hecha** — 06-10-2026 |
+| `T-10` | Contrato regenerado y prosa releída; `docs/api/index.md`; `requirements/mv.md` | `T-09` | | **Hecha** — 06-10-2026 |
 
 ---
 
@@ -62,6 +62,8 @@ Enmienda de hecho (Art. I.7), `spec.md` 0.2.0 y `plan.md` 0.2.0 **antes** del c�
 ## 3.1 Desviaciones respecto del plan
 
 **Los dos permisos los siembra `V49`.** Un solo servicio (`BalanceService`) para las dos lecturas. La suite es `BalancesAndBonusIT`, compartida con `RF-MV-023`.
+
+**La enmienda R-62 no corrió la suite completa** (06-10-2026): se construyó en un worktree aparte mientras otra sesión ocupaba el árbol con el segundo factor, y se verificaron las tres suites que tocan el historial —`BalancesAndBonusIT` (8), `PointsAdjustmentIT` (8)— y el contrato (`OpenApiContractIT`, 32). Ninguna otra prueba usa `EntryFilter` ni la ruta.
 
 ## 4. Bloqueos
 

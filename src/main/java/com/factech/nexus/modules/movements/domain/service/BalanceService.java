@@ -18,6 +18,7 @@ import java.math.BigDecimal;
 import java.time.OffsetDateTime;
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -120,15 +121,35 @@ public class BalanceService {
       Integer page,
       Integer size,
       UUID currencyId,
-      String account,
+      List<String> account,
       OffsetDateTime from,
       OffsetDateTime to) {
     // Los 400 SALEN JUNTOS: quien se equivocó en dos filtros lo sabe de una vez.
     List<FieldError> errores = new ArrayList<>();
-    String cuenta = account == null || account.isBlank() ? null : account.trim().toUpperCase();
-    if (cuenta != null && !CUENTAS_DE_PERSONA.contains(cuenta)) {
+    // Varias cuentas, combinadas con «o» (R-62, 06-10-2026): el historial de
+    // Balance pide BILLETERA y RETENIDO, sin los puntos. Repetir una es lo mismo
+    // que pedirla una vez, y basta una inválida para rechazar, diciendo cuáles.
+    Set<String> cuentas = new LinkedHashSet<>();
+    List<String> invalidas = new ArrayList<>();
+    for (String valor : account == null ? List.<String>of() : account) {
+      if (valor == null || valor.isBlank()) {
+        continue;
+      }
+      String cuenta = valor.trim().toUpperCase();
+      if (CUENTAS_DE_PERSONA.contains(cuenta)) {
+        cuentas.add(cuenta);
+      } else {
+        invalidas.add(valor.trim());
+      }
+    }
+    if (!invalidas.isEmpty()) {
       errores.add(
-          new FieldError("account", "VAL-002", "La cuenta es BILLETERA, RETENIDO o PUNTOS."));
+          new FieldError(
+              "account",
+              "VAL-002",
+              "La cuenta es BILLETERA, RETENIDO o PUNTOS; no lo son: "
+                  + String.join(", ", invalidas)
+                  + "."));
     }
     if (from != null && to != null && from.isAfter(to)) {
       errores.add(
@@ -138,7 +159,7 @@ public class BalanceService {
       throw new ValidationException(errores.get(0).code(), errores.get(0).message(), errores);
     }
     Pagination.Slice pagina = paginacion.resolver(page, size);
-    EntryFilter filtro = new EntryFilter(currencyId, cuenta, from, to);
+    EntryFilter filtro = new EntryFilter(currencyId, cuentas, from, to);
     UUID quien = actor.id();
 
     List<EntryResponse> filas = new ArrayList<>();

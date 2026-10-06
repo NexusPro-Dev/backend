@@ -5,7 +5,7 @@
 | Proyecto | NEXUS — Renovación de plataforma |
 | Empresa | FACTECH GROUP SAS |
 | Documento | `api/index.md` |
-| Versión | 1.80.0 |
+| Versión | 1.81.0 |
 | Estado | Publicado |
 | Responsable técnico | Bonilla Diaz William Steven |
 | Fecha de creación | 25-08-2026 |
@@ -186,3 +186,4 @@ Lo que sigue siendo cierto, y conviene saberlo antes de tropezar:
 | 1.78.0 | 02-10-2026 | **`GET /api/v1/movements/sales/lines` gana `hasSeller`** (`RF-MV-017` 0.3.0): `false` trae **solo las líneas sin vendedor asignado** —las que faltan por atribuir—, `true` solo las que lo tienen; sin el parámetro no filtra. Se combina con los demás filtros, sin distinguir caja; un valor que no es `true` ni `false` es `400` con `VAL-007`, junto a los demás problemas. Parámetro nuevo, compatible. |
 | 1.79.0 | 03-10-2026 | **Cada fila de `GET /api/v1/movements/mine/shopping` trae `lines`** (`RF-MV-008` 0.8.0): las líneas de la compra, con **la misma forma que el detalle** (`SaleLineResponse`), nunca nulas. Es un campo nuevo y no rompe a nadie; el frontend puede pintar qué se compró sin abrir cada compra. Los pagos siguen solo en el detalle. | Responsable técnico |
 | 1.80.0 | 06-10-2026 | **Nace `GET /api/v1/indicators/sales/summary`**, la primera ruta del módulo `IN` (`RF-IN-001`), con **`indicators:read-sales-summary`** (`V74`, a `FUNCIONARIO` y `VENDEDOR`). Periodo en días de Bogotá; un importe por moneda; ceros fuera del alcance. Seis esquemas nuevos, ninguno fundido con los de `MV`. **Ampliación**: ninguna forma existente cambia. | Responsable técnico |
+| 1.81.0 | 06-10-2026 | **`account` de `GET /api/v1/movements/mine/balances/entries` se puede repetir** (R-62; `RF-MV-022`, `CA-MV-660`): `?account=BILLETERA&account=RETENIDO` trae los asientos de **cualquiera** de las dos —el dinero, sin los puntos—. En el contrato, el parámetro pasa de cadena a **arreglo de cadenas**; **un solo valor se comporta igual que antes**, repetir uno es pedirlo una vez, y basta uno inválido entre varios para el `400` `VAL-002`, cuyo mensaje nombra los inválidos. **Ampliación**: ningún cliente actual cambia. | Responsable técnico |

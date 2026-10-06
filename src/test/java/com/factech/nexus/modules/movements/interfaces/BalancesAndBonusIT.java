@@ -175,6 +175,60 @@ class BalancesAndBonusIT extends IntegrationTestBase {
   }
 
   @Test
+  @DisplayName(
+      "CA-MV-660 — varias cuentas se combinan con «o»: el dinero sin los puntos; repetir no"
+          + " cambia nada; una inválida entre varias es 400 (R-62)")
+  void variasCuentas() throws Exception {
+    llenarBilletera(abonos, persona, "100.00");
+    pedirRetiro(persona, "30.00");
+    mvc.perform(
+            post("/api/v1/movements/points-adjustments")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(
+                    "{\"userId\":\"%s\",\"currencyId\":\"%s\",\"points\":5,\"concept\":\"R-62\"}"
+                        .formatted(persona, USD))
+                .header("Idempotency-Key", "r62-ajuste-000001")
+                .with(user(administrador.toString()).authorities(() -> "movements:adjust-points")))
+        .andExpect(status().isCreated());
+
+    // Sin filtro, las tres cuentas: el bono, las dos patas del retiro y el ajuste.
+    mvc.perform(get("/api/v1/movements/mine/balances/entries").with(historialDe(persona)))
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$.totalElements").value(4));
+
+    // El dinero, sin los puntos: lo que pide el historial de Balance.
+    mvc.perform(
+            get("/api/v1/movements/mine/balances/entries")
+                .param("account", "BILLETERA")
+                .param("account", "retenido")
+                .with(historialDe(persona)))
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$.totalElements").value(3))
+        .andExpect(jsonPath("$.content[?(@.account == 'PUNTOS')]", hasSize(0)));
+
+    // Una sola sigue filtrando igual, y repetirla es pedirla una vez.
+    mvc.perform(
+            get("/api/v1/movements/mine/balances/entries")
+                .param("account", "PUNTOS")
+                .param("account", "PUNTOS")
+                .with(historialDe(persona)))
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$.totalElements").value(1))
+        .andExpect(jsonPath("$.content[0].account").value("PUNTOS"));
+
+    // Basta una inválida entre varias, y el error la nombra.
+    mvc.perform(
+            get("/api/v1/movements/mine/balances/entries")
+                .param("account", "BILLETERA")
+                .param("account", "BONOS")
+                .with(historialDe(persona)))
+        .andExpect(status().isBadRequest())
+        .andExpect(jsonPath("$.errors[0].code").value("VAL-002"))
+        .andExpect(
+            jsonPath("$.errors[0].message").value(org.hamcrest.Matchers.containsString("BONOS")));
+  }
+
+  @Test
   @DisplayName("CA-MV-259 — cada operación exige su permiso")
   void permisosDeSaldos() throws Exception {
     mvc.perform(get("/api/v1/movements/mine/balances").with(historialDe(persona)))

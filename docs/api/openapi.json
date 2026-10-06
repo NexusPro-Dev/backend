@@ -15193,7 +15193,7 @@
     },
     "/api/v1/movements/mine/balances/entries" : {
       "get" : {
-        "description" : "**Permiso requerido:** `movements:list-own-entries`. Sin él, `403` (`AUTH-002`).\n\nCada cambio en las cuentas propias, **asiento a asiento**, del más reciente al más\nantiguo, con su signo —positivo entró—, el saldo que dejó, el evento y el movimiento\nque lo produjo (`RF-MV-022`). Es donde la persona ve sus retiros, abonos y bonos.\nFiltros: `currencyId`, `account` (`BILLETERA`, `RETENIDO`, `PUNTOS`), `from` y `to`\nsobre cuándo se escribió, rango semiabierto. Los filtros se combinan; una cuenta de\nla empresa o un periodo invertido son `400`, y los dos errores salen juntos.\n",
+        "description" : "**Permiso requerido:** `movements:list-own-entries`. Sin él, `403` (`AUTH-002`).\n\nCada cambio en las cuentas propias, **asiento a asiento**, del más reciente al más\nantiguo, con su signo —positivo entró—, el saldo que dejó, el evento y el movimiento\nque lo produjo (`RF-MV-022`). Es donde la persona ve sus retiros, abonos y bonos.\nFiltros: `currencyId`, `account` (`BILLETERA`, `RETENIDO`, `PUNTOS`), `from` y `to`\nsobre cuándo se escribió, rango semiabierto. **`account` se puede repetir**\n(`?account=BILLETERA&account=RETENIDO`, desde el 06-10-2026): el asiento entra si su\ncuenta es **cualquiera** de las indicadas —así se pide solo el dinero, sin los\npuntos— y repetir una es lo mismo que pedirla una vez. Los filtros se combinan; una\ncuenta que no sea de las tres —basta una entre varias— o un periodo invertido son\n`400`, y los dos errores salen juntos.\n",
         "operationId" : "miHistorial",
         "parameters" : [ {
           "in" : "query",
@@ -15224,7 +15224,10 @@
           "name" : "account",
           "required" : false,
           "schema" : {
-            "type" : "string"
+            "items" : {
+              "type" : "string"
+            },
+            "type" : "array"
           }
         }, {
           "in" : "query",
@@ -15255,7 +15258,7 @@
             "description" : "Una página del historial."
           },
           "400" : {
-            "description" : "`account` que no es `BILLETERA`, `RETENIDO` ni `PUNTOS` (`VAL-002`), o `from` posterior a `to` (`VAL-003`)"
+            "description" : "Alguna `account` que no es `BILLETERA`, `RETENIDO` ni `PUNTOS` (`VAL-002`), o `from` posterior a `to` (`VAL-003`)"
           },
           "401" : {
             "description" : "Sin token (`AUTH-001`)"
