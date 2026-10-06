@@ -5,7 +5,7 @@
 | Módulo | `SP` — Sistema Principal |
 | Paquete | `modules/system` |
 | Prefijos de permiso | `roles:`, `permissions:`, `audit:`, `memberships:`, `currencies:`, `countries:`, `users:`, `exchange-rates:`, `document-types:`, `brokers:`, `broker-accounts:`, `teams:` |
-| Versión | 1.102.0 |
+| Versión | 1.103.0 |
 | Estado | **Aprobado** |
 | Responsable | Bonilla Diaz William Steven |
 | Fecha de creación | 20-08-2026 |
@@ -410,7 +410,7 @@ EXCLUDE USING gist (
 | `RF-SP-072` | Iniciar sesión con el segundo factor | **Crítica** | — (público, autorizado por el desafío) | **En desarrollo** |
 | `RF-SP-073` | Reverificar el segundo factor antes de una operación sensible | **Crítica** | `users:verify-own-mfa` | **En desarrollo** |
 | `RF-SP-074` | Regenerar los propios códigos de recuperación | Alta | `users:regenerate-own-recovery-codes` | **En desarrollo** |
-| `RF-SP-075` | Desactivar el propio segundo factor | Media | `users:disable-own-mfa` | **Tasks aprobadas** |
+| `RF-SP-075` | Desactivar el propio segundo factor | Media | `users:disable-own-mfa` | **En desarrollo** |
 | `RF-SP-076` | Restablecer el segundo factor de un usuario | Alta | `users:reset-mfa` | **Tasks aprobadas** |
 | `RF-SP-077` | Exigir el segundo factor a los portadores de un rol | **Crítica** | `roles:require-mfa` | **Tasks aprobadas** |
 
@@ -1487,9 +1487,9 @@ Cierra la pertenencia vigente de uno o varios managers **de este equipo**, con m
 | Reglas aplicables | `RN-SP-062`, `RN-SP-063` |
 | Depende de | `RF-SP-071`, `RF-SP-073` |
 | Tripleta | `docs/specs/sp/075-desactivar-segundo-factor/` |
-| Estado | **Tasks aprobadas** (06-10-2026) |
+| Estado | **En desarrollo** (06-10-2026) — construido el mismo día que sus tasks |
 
-`POST /api/v1/users/me/mfa/deactivation` con la **contraseña actual** en el cuerpo, además de la reverificación: es la operación que más baja la seguridad de una cuenta, y se le piden los dos factores a la vez. **`409` si la persona porta un rol que exige el factor** (`RN-SP-062`): en ese caso no hay desactivación, solo cambio de teléfono (`RF-SP-071`). Retira el factor y sus códigos y **revoca las demás sesiones** de la persona —no la actual—, como `RF-SP-037` al cambiar la contraseña.
+`POST /api/v1/users/me/mfa/deactivation` con la **contraseña actual** en el cuerpo, además de la reverificación: es la operación que más baja la seguridad de una cuenta, y se le piden los dos factores a la vez. **`409` si la persona porta un rol que exige el factor** (`RN-SP-062`): en ese caso no hay desactivación, solo cambio de teléfono (`RF-SP-071`). Retira el factor y sus códigos, **cierra todas las sesiones de la persona y devuelve una nueva** a quien la llamó: este dispositivo sigue dentro y los demás no pueden renovar (`075` · `tasks.md` §3.1).
 
 #### `RF-SP-076` — Restablecer el segundo factor de un usuario
 
@@ -2480,3 +2480,4 @@ La fila se lee «esta persona vinculó este authenticator». `status` es `PENDIE
 | 1.100.0 | 06-10-2026 | **`RF-SP-072` pasa a `En desarrollo`**: el inicio de sesión en dos pasos está construido —`POST /auth/login` emite el desafío, `POST /auth/login/mfa` lo completa— y **la obligación del rol ya retiene**: `SUPERADMIN` y `ADMIN` activan el factor en su siguiente inicio de sesión. Con él se adelantó el estado del factor en el perfil (`RF-SP-077` `CA-SP-892`), a petición del responsable del proyecto. **Ninguna regla cambia.** | Responsable técnico |
 | 1.101.0 | 06-10-2026 | **`RF-SP-073` pasa a `En desarrollo`**: las operaciones sensibles piden el código otra vez —`RecentMfaInterceptor`— y `POST /auth/mfa/verification` lo recibe sin cerrar la sesión. **Configurar los permisos de un rol**, que pidió el responsable del proyecto, es la operación con que se prueba. **Ninguna regla cambia.** | Responsable técnico |
 | 1.102.0 | 06-10-2026 | **`RF-SP-074` pasa a `En desarrollo`**: `POST /users/me/mfa/recovery-codes` regenera los diez códigos y anula los vigentes; es sensible, y el interceptor de `RF-SP-073` le pide la verificación reciente. **Ninguna regla cambia.** | Responsable técnico |
+| 1.103.0 | 06-10-2026 | **`RF-SP-075` pasa a `En desarrollo`**: `POST /users/me/mfa/deactivation`. La ficha se precisa: **cierra todas las sesiones y devuelve una nueva** —el token de acceso no dice de qué sesión viene, como ya sabía `RF-SP-037`—. **Ninguna regla cambia.** | Responsable técnico |
