@@ -5,7 +5,7 @@
 | Módulo | `SP` — Sistema Principal |
 | Paquete | `modules/system` |
 | Prefijos de permiso | `roles:`, `permissions:`, `audit:`, `memberships:`, `currencies:`, `countries:`, `users:`, `exchange-rates:`, `document-types:`, `brokers:`, `broker-accounts:`, `teams:` |
-| Versión | 1.94.0 |
+| Versión | 1.95.0 |
 | Estado | **Aprobado** |
 | Responsable | Bonilla Diaz William Steven |
 | Fecha de creación | 20-08-2026 |
@@ -235,6 +235,7 @@ Reglas que no son transversales de seguridad y por tanto sí llevan el prefijo d
 | `RN-SP-062` | **El rol decide si exige el segundo factor** | Al iniciar y renovar sesión, al desactivar el propio factor (`RF-SP-075`) y al marcar un rol (`RF-SP-077`) | Lo decide `roles.requires_mfa` (§10.2). Quien porte **al menos un rol `ACTIVO` que lo exija** y no tenga factor activo **entra retenido**: su token lleva el claim `mer` y solo alcanza las dos rutas para activarlo, su perfil y las de sesión —la misma forma que la retención por contraseña provisional (`security.md` §3.2)—. Mientras porte ese rol **no puede desactivar** su factor. **Nacen marcados `SUPERADMIN` y `ADMIN`**; el resto lo marca quien administra roles. Decisión del responsable del proyecto, 06-10-2026: obligatorio por rol, y no para todos ni para nadie | **Crítica** |
 | `RN-SP-063` | **Las operaciones sensibles piden el código otra vez** | Al atender una operación cuyo permiso lleva `permissions.requires_recent_mfa` (§10.1) | El token tiene que probar un segundo factor verificado hace **cinco minutos o menos** (claim `mfa`; la ventana vive en configuración). Si no, **`403`** con un `type` propio, y el cliente pide el código (`RF-SP-073`) y reintenta. **Quien no tenga factor activo no puede hacerlas**: una operación sensible exige authenticator, lo exija o no el rol. **La marca la pone una migración, no la API**, porque el catálogo de permisos es de solo lectura (`RF-SP-010`); la lista inicial está en [`security.md` §4.4](../security.md): **administrar los permisos de un rol** —que el responsable del proyecto pidió expresamente—, los roles de una persona, qué roles exigen el factor, restablecer contraseñas y factores ajenos, eliminar personas, confirmar y rechazar pagos, aprobar retiros, pagar lotes de comisión, ajustar puntos, y fijar conversiones y tasas de puntos | **Crítica** |
 | `RN-SP-064` | **Restablecer el factor de otra persona deja motivo y cierra sus sesiones** | Al restablecer (`RF-SP-076`) | Es la salida de quien perdió el teléfono **y** los códigos. Retira el factor activo y sus códigos, **revoca todas sus sesiones** y exige **motivo**, que queda en `audit_deletion_log` (Art. V.13). **Nunca sobre uno mismo** (`RN-SEG-011`): si quien administra pudiera restablecer el suyo, una sesión robada de administrador se saltaría el segundo factor con dos peticiones. Si la persona porta un rol que lo exige, su próximo inicio de sesión entra retenido (`RN-SP-062`) hasta que lo active de nuevo | **Crítica** |
+| `RN-SP-065` | **Nadie restablece el segundo factor de quien tiene más privilegios** | Al restablecer el factor de otra persona (`RF-SP-076`) | Los permisos efectivos de la persona deben estar **contenidos** en los de quien restablece; si no, `403` sin decir cuál falta. Sin esta regla, quien porte a la vez `users:reset-password` y `users:reset-mfa` —`ADMIN` los porta— **tomaría la cuenta del superadministrador en dos peticiones**. Es `RN-SEG-010` aplicado al acceso. **Propuesta del responsable técnico el 06-10-2026, pendiente de confirmar por el responsable del proyecto** | **Crítica** |
 
 !!! danger "`RN-SP-025` vive en el motor, y hasta el 02-09-2026 no vivía en ninguna parte"
 
@@ -408,9 +409,9 @@ EXCLUDE USING gist (
 | `RF-SP-071` | Activar el segundo factor con una app autenticadora | **Crítica** | `users:start-own-mfa`, `users:confirm-own-mfa` | **Tasks en revisión** |
 | `RF-SP-072` | Iniciar sesión con el segundo factor | **Crítica** | — (público, autorizado por el desafío) | **Tasks en revisión** |
 | `RF-SP-073` | Reverificar el segundo factor antes de una operación sensible | **Crítica** | `users:verify-own-mfa` | **Tasks en revisión** |
-| `RF-SP-074` | Regenerar los propios códigos de recuperación | Alta | `users:regenerate-own-recovery-codes` | Pendiente |
-| `RF-SP-075` | Desactivar el propio segundo factor | Media | `users:disable-own-mfa` | Pendiente |
-| `RF-SP-076` | Restablecer el segundo factor de un usuario | Alta | `users:reset-mfa` | Pendiente |
+| `RF-SP-074` | Regenerar los propios códigos de recuperación | Alta | `users:regenerate-own-recovery-codes` | **Tasks en revisión** |
+| `RF-SP-075` | Desactivar el propio segundo factor | Media | `users:disable-own-mfa` | **Tasks en revisión** |
+| `RF-SP-076` | Restablecer el segundo factor de un usuario | Alta | `users:reset-mfa` | **Tasks en revisión** |
 | `RF-SP-077` | Exigir el segundo factor a los portadores de un rol | **Crítica** | `roles:require-mfa` | Pendiente |
 
 !!! info "Dónde vive el estado de un requerimiento"
@@ -1471,7 +1472,7 @@ Cierra la pertenencia vigente de uno o varios managers **de este equipo**, con m
 | Reglas aplicables | `RN-SP-061`, `RN-SP-063` |
 | Depende de | `RF-SP-071`, `RF-SP-073` |
 | Tripleta | `docs/specs/sp/074-regenerar-codigos-de-recuperacion/` |
-| Estado | Pendiente |
+| Estado | **Tasks en revisión** (06-10-2026) |
 
 `POST /api/v1/users/me/mfa/recovery-codes`. Es **sensible** porque los códigos valen lo mismo que el teléfono: quien regenera con una sesión robada obtiene diez entradas a la cuenta. Los anteriores quedan `superseded_at` en la misma transacción (§10.23), y la respuesta trae los nuevos **una sola vez**.
 
@@ -1486,7 +1487,7 @@ Cierra la pertenencia vigente de uno o varios managers **de este equipo**, con m
 | Reglas aplicables | `RN-SP-062`, `RN-SP-063` |
 | Depende de | `RF-SP-071`, `RF-SP-073` |
 | Tripleta | `docs/specs/sp/075-desactivar-segundo-factor/` |
-| Estado | Pendiente |
+| Estado | **Tasks en revisión** (06-10-2026) |
 
 `POST /api/v1/users/me/mfa/deactivation` con la **contraseña actual** en el cuerpo, además de la reverificación: es la operación que más baja la seguridad de una cuenta, y se le piden los dos factores a la vez. **`409` si la persona porta un rol que exige el factor** (`RN-SP-062`): en ese caso no hay desactivación, solo cambio de teléfono (`RF-SP-071`). Retira el factor y sus códigos y **revoca las demás sesiones** de la persona —no la actual—, como `RF-SP-037` al cambiar la contraseña.
 
@@ -1498,12 +1499,12 @@ Cierra la pertenencia vigente de uno o varios managers **de este equipo**, con m
 | Actor | Administrador de usuarios |
 | Permiso requerido | `users:reset-mfa` — **sensible** (`RN-SP-063`) |
 | Prioridad | Alta |
-| Reglas aplicables | `RN-SP-064`, `RN-SEG-011`, `RN-SP-063` |
+| Reglas aplicables | `RN-SP-064`, `RN-SP-065`, `RN-SEG-011`, `RN-SP-063` |
 | Depende de | `RF-SP-071`, `RF-SP-073` |
 | Tripleta | `docs/specs/sp/076-restablecer-segundo-factor/` |
-| Estado | Pendiente |
+| Estado | **Tasks en revisión** (06-10-2026) |
 
-`POST /api/v1/users/{id}/mfa/reset` con `reason`. Retira el factor activo —y el pendiente, si lo hay— y los códigos, revoca **todas** las sesiones de la persona y escribe el evento `MFA_RESET` con severidad alta y el motivo en `audit_deletion_log`. **`403` sobre uno mismo**, con el mismo argumento que `RN-SEG-011`. **No toca la contraseña**: si la persona también la olvidó, son dos operaciones —esta y `RF-SP-038`—, y mezclarlas haría que un restablecimiento de factor revelara una credencial.
+`POST /api/v1/users/{id}/mfa/reset` con `reason`. Retira el factor activo —y el pendiente, si lo hay— y los códigos, revoca **todas** las sesiones de la persona y escribe el evento `MFA_RESET` con severidad alta y el motivo en `audit_deletion_log`. **`403` sobre uno mismo**, con el mismo argumento que `RN-SEG-011`, **y sobre quien tenga algún permiso que el actor no tiene** (`RN-SP-065`, pendiente de confirmar). **No toca la contraseña**: si la persona también la olvidó, son dos operaciones —esta y `RF-SP-038`—, y mezclarlas haría que un restablecimiento de factor revelara una credencial.
 
 **Quién verifica que quien llama es de verdad la persona** queda fuera del sistema, y se declara: el administrador la identifica por teléfono, en persona o como la empresa decida. Es el eslabón débil de todo segundo factor y no tiene solución técnica; lo que el sistema puede hacer es **dejarlo escrito** —quién, a quién, cuándo y por qué— y que sea sensible.
 
@@ -2471,3 +2472,4 @@ La fila se lee «esta persona vinculó este authenticator». `status` es `PENDIE
 | 1.92.0 | 05-10-2026 | **El catálogo de monedas siembra COP**, «Peso colombiano», con dos decimales, activa y **no** por omisión, por decisión del responsable del proyecto: es la moneda local a la que convierte la pasarela local en Colombia ([`requirements/mv.md`](mv.md) v0.81.0 §4.9). **Va en `V9`, editada en el sitio**, con su registro de creación como USD; rompe la suma de comprobación de esa migración y **toda base ya migrada debe recrearse**, como el 23-09-2026 | Responsable del proyecto |
 | 1.93.0 | 06-10-2026 | **Nace el submódulo Segundo factor: `RF-SP-071` a `RF-SP-077`**, por decisión del responsable del proyecto, que eligió **el authenticator** —TOTP, cualquier app— y lo hizo **obligatorio por rol**: nacen marcados `SUPERADMIN` y `ADMIN`, el resto lo decide quien administra roles. Pidió además, en la primera etapa, los **códigos de recuperación**, el **restablecimiento por un administrador** y **volver a pedir el código antes de las operaciones sensibles, incluida la configuración de los permisos de los roles**. Nacen `RN-SP-058` a `RN-SP-064`; `roles` gana `requires_mfa` y `permissions` `requires_recent_mfa` (§10.1, §10.2); entran `user_mfa_factors`, `mfa_recovery_codes` y `mfa_challenges` (§10.22 a §10.24). **Enmienda `RF-SP-034`** —con factor activo, la contraseña emite un desafío y no tokens— y **`RF-SP-039`** —el perfil publica el estado del factor—. Siete permisos nuevos, sin sembrar ([`security.md`](../security.md) v0.105.0 §4.4). Sin tripletas todavía. | Responsable técnico |
 | 1.94.0 | 06-10-2026 | **`RF-SP-071` a `RF-SP-073` estrenan tripleta** y pasan a `Tasks en revisión`. Dos precisiones que trajeron sus planes: `user_mfa_factors.secret_ciphertext` es **`text`** y no `bytea` (§10.22), con el formato `v1:<base64>` de la clave de la tienda, que es el cifrado que se reutiliza; y los siete se siembran en **una sola migración, `V75`**. | Responsable técnico |
+| 1.95.0 | 06-10-2026 | **`RF-SP-074` a `RF-SP-076` estrenan tripleta** y pasan a `Tasks en revisión`. **Nace `RN-SP-065`, propuesta y sin confirmar**: nadie restablece el segundo factor de quien tiene más privilegios. La trajo la spec de `RF-SP-076` al ver que `ADMIN`, con `users:reset-password` y `users:reset-mfa`, podría tomar la cuenta del superadministrador; queda como pregunta abierta de esa spec y como bloqueo de una sola tarea. | Responsable técnico |
