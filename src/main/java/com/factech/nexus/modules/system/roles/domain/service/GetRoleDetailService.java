@@ -53,6 +53,7 @@ public class GetRoleDetailService {
         fila.roleType(),
         fila.status(),
         fila.isSystem(),
+        fila.requiresMfa(),
         fila.tienePadre()
             ? new RoleSummaryResponse(fila.parentId(), fila.parentCode(), fila.parentName())
             : null,

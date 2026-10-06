@@ -75,6 +75,17 @@ public interface RoleRepository {
   boolean isAssignedTo(UUID roleId, UUID userId);
 
   /**
+   * Cuántas personas activas portan el rol, y cuántas de ellas no tienen el segundo factor activo
+   * (`RF-SP-077` `CA-SP-888`): las que quedarán retenidas si el rol lo exige.
+   */
+  Portadores contarPortadores(UUID roleId);
+
+  /**
+   * @param sinSegundoFactor las que no tienen un factor {@code ACTIVO}
+   */
+  record Portadores(long activos, long sinSegundoFactor) {}
+
+  /**
    * Códigos de los roles hijos <b>vigentes</b> (`RF-SP-009`, `EX-002`).
    *
    * <p>Devuelve los códigos y no un conteo porque la respuesta debe informar <b>cuáles</b> lo

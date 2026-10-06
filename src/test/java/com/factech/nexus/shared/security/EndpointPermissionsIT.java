@@ -255,6 +255,8 @@ class EndpointPermissionsIT extends IntegrationTestBase {
           Map.entry("POST /api/v1/users/me/mfa/deactivation", "users:disable-own-mfa"),
           // RF-SP-076 (06-10-2026): restablecer el segundo factor de otra persona.
           Map.entry("POST /api/v1/users/{id}/mfa/reset", "users:reset-mfa"),
+          // RF-SP-077 (06-10-2026): exigir el segundo factor a los portadores de un rol.
+          Map.entry("PATCH /api/v1/roles/{id}/mfa-requirement", "roles:require-mfa"),
           Map.entry("GET /api/v1/users/me/sellers", "users:read-own-sellers"),
           Map.entry("GET /api/v1/users/me/clients", "users:read-own-clients"),
           Map.entry("GET /api/v1/users/me/team/broker-accounts", "broker-accounts:read-own-team"),

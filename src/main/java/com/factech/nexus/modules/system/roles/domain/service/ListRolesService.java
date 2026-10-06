@@ -162,6 +162,7 @@ public class ListRolesService {
         fila.roleType(),
         fila.status(),
         fila.isSystem(),
+        fila.requiresMfa(),
         fila.tienePadre()
             ? new RoleSummaryResponse(fila.parentId(), fila.parentCode(), fila.parentName())
             : null,

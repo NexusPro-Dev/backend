@@ -107,6 +107,27 @@ public class JpaRoleRepository implements RoleRepository {
             .setParameter("id", roleId));
   }
 
+  @Override
+  public Portadores contarPortadores(UUID roleId) {
+    Object[] fila =
+        (Object[])
+            em.createNativeQuery(
+                    """
+                    SELECT count(*),
+                           count(*) FILTER (WHERE NOT EXISTS (
+                               SELECT 1 FROM user_mfa_factors f
+                                WHERE f.user_id = u.id AND f.status = 'ACTIVO'))
+                      FROM user_roles ur
+                      JOIN users u ON u.id = ur.user_id
+                     WHERE ur.role_id = :rol
+                       AND u.deleted_at IS NULL
+                       AND u.status IN ('ACTIVO', 'FTD_PENDIENTE')
+                    """)
+                .setParameter("rol", roleId)
+                .getSingleResult();
+    return new Portadores(((Number) fila[0]).longValue(), ((Number) fila[1]).longValue());
+  }
+
   /**
    * Lee {@code user_roles} con SQL nativo y no por una asociación.
    *

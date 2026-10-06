@@ -49,7 +49,7 @@ public class JpaRoleQueryRepository implements RoleQueryRepository {
         """
         SELECT r.id AS id, r.code AS code, r.name AS name,
                r.description AS description, r.role_type AS role_type,
-               r.status AS status, r.is_system AS is_system,
+               r.status AS status, r.is_system AS is_system, r.requires_mfa AS requires_mfa,
                r.deleted_at AS deleted_at,
                p.id AS p_id, p.code AS p_code, p.name AS p_name
           FROM roles r
@@ -79,6 +79,7 @@ public class JpaRoleQueryRepository implements RoleQueryRepository {
               (String) fila.get("role_type"),
               (String) fila.get("status"),
               Boolean.TRUE.equals(fila.get("is_system")),
+              Boolean.TRUE.equals(fila.get("requires_mfa")),
               (java.util.UUID) fila.get("p_id"),
               (String) fila.get("p_code"),
               (String) fila.get("p_name"),
@@ -107,7 +108,7 @@ public class JpaRoleQueryRepository implements RoleQueryRepository {
                 """
                 SELECT r.id AS id, r.code AS code, r.name AS name,
                        r.description AS description, r.role_type AS role_type,
-                       r.status AS status, r.is_system AS is_system,
+                       r.status AS status, r.is_system AS is_system, r.requires_mfa AS requires_mfa,
                        r.created_at AS created_at, r.updated_at AS updated_at,
                        p.id AS p_id, p.code AS p_code, p.name AS p_name,
                        (SELECT count(*) FROM roles h
@@ -135,6 +136,7 @@ public class JpaRoleQueryRepository implements RoleQueryRepository {
                     (String) fila.get("role_type"),
                     (String) fila.get("status"),
                     Boolean.TRUE.equals(fila.get("is_system")),
+                    Boolean.TRUE.equals(fila.get("requires_mfa")),
                     (java.util.UUID) fila.get("p_id"),
                     (String) fila.get("p_code"),
                     (String) fila.get("p_name"),

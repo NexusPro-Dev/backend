@@ -48,5 +48,7 @@ public record RoleListItem(
     String roleType,
     String status,
     boolean isSystem,
+    // `RF-SP-077` (`CA-SP-891`): sus portadores están obligados a usar el segundo factor.
+    boolean requiresMfa,
     RoleSummaryResponse parentRole,
     OffsetDateTime deletedAt) {}

@@ -8512,6 +8512,59 @@ paths:
               schema:
                 $ref: "#/components/schemas/RoleResponse"
       x-required-permission: roles:assign-parent
+  /api/v1/roles/{id}/mfa-requirement:
+    patch:
+      tags:
+      - Roles
+      summary: Exigir el segundo factor a los portadores de un rol
+      description: |
+        **Permiso requerido:** `roles:require-mfa`. Sin él, `403` (`AUTH-002`).
+
+        **Operación sensible** (`RN-SP-063`): exige haber verificado el segundo factor hace cinco minutos o menos. Si no, `403` con el tipo `reverificacion-requerida` y `verificationPath`: se presenta el código en `POST /api/v1/auth/mfa/verification` y se repite la petición con el token que devuelve.
+
+        Marca o desmarca el rol (`RF-SP-077`): con la marca, **quien lo porte y no tenga el
+        segundo factor activo queda retenido** hasta activarlo. Cuerpo `{ required }`.
+
+        **El efecto llega con la siguiente renovación de sesión** —quince minutos como
+        mucho—: no se cierra ninguna sesión. La respuesta dice **a cuántas personas activas
+        afecta y cuántas no tienen el factor** —las que quedarán retenidas—, para ver el
+        alcance antes de que nadie lo note.
+
+        **Se admite sobre los roles de sistema** —la marca es justo para ellos— y **nunca
+        sobre un rol que el actor porta** (`403`): la de `ADMIN` solo la cambia el
+        superadministrador. **El rol raíz lo exige siempre** (`422` al desmarcarlo). Pedir
+        el valor que ya tiene responde igual y no escribe nada. Es **sensible**.
+      operationId: exigirSegundoFactor
+      parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/RoleMfaRequirementRequest"
+        required: true
+      responses:
+        "200":
+          description: El rol con su marca y a quién afecta
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/RoleMfaRequirementResponse"
+        "400":
+          description: Falta `required`
+        "403":
+          description: Sin el permiso; el actor porta el rol; o sin verificación reciente
+        "404":
+          description: El rol no existe o está eliminado
+        "422":
+          description: Desmarcar el rol raíz
+      x-required-permission: roles:require-mfa
+      x-requires-recent-mfa: true
   /api/v1/products/{id}:
     get:
       tags:
@@ -18257,6 +18310,28 @@ components:
           format: uuid
       required:
       - parentRoleId
+    RoleMfaRequirementRequest:
+      type: object
+      properties:
+        required:
+          type: boolean
+          description: Si sus portadores están obligados a usar el authenticator.
+    RoleMfaRequirementResponse:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        code:
+          type: string
+        requiresMfa:
+          type: boolean
+        activeHolders:
+          type: integer
+          format: int64
+        holdersWithoutMfa:
+          type: integer
+          format: int64
     UpdateProductRequest:
       type: object
       properties:
@@ -19037,6 +19112,8 @@ components:
         status:
           type: string
         isSystem:
+          type: boolean
+        requiresMfa:
           type: boolean
         parentRole:
           $ref: "#/components/schemas/RoleSummaryResponse"

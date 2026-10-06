@@ -7,6 +7,8 @@ import com.factech.nexus.modules.system.roles.application.DeleteRoleRequest;
 import com.factech.nexus.modules.system.roles.application.ListRolesRequest;
 import com.factech.nexus.modules.system.roles.application.RoleDetailResponse;
 import com.factech.nexus.modules.system.roles.application.RoleListItem;
+import com.factech.nexus.modules.system.roles.application.RoleMfaRequirementRequest;
+import com.factech.nexus.modules.system.roles.application.RoleMfaRequirementResponse;
 import com.factech.nexus.modules.system.roles.application.RolePermissionsRequest;
 import com.factech.nexus.modules.system.roles.application.RoleResponse;
 import com.factech.nexus.modules.system.roles.application.UpdateRoleRequest;
@@ -17,6 +19,7 @@ import com.factech.nexus.modules.system.roles.domain.service.DeleteRoleService;
 import com.factech.nexus.modules.system.roles.domain.service.GetRoleDetailService;
 import com.factech.nexus.modules.system.roles.domain.service.GrantRolePermissionsService;
 import com.factech.nexus.modules.system.roles.domain.service.ListRolesService;
+import com.factech.nexus.modules.system.roles.domain.service.RequireRoleMfaService;
 import com.factech.nexus.modules.system.roles.domain.service.RevokeRolePermissionsService;
 import com.factech.nexus.modules.system.roles.domain.service.UpdateRoleService;
 import com.factech.nexus.shared.pagination.PageResponse;
@@ -72,6 +75,7 @@ public class RoleController {
   private final GrantRolePermissionsService concesion;
   private final RevokeRolePermissionsService revocacion;
   private final DeleteRoleService baja;
+  private final RequireRoleMfaService exigencia;
 
   public RoleController(
       CreateRoleService alta,
@@ -82,7 +86,8 @@ public class RoleController {
       ChangeRoleParentService padre,
       GrantRolePermissionsService concesion,
       RevokeRolePermissionsService revocacion,
-      DeleteRoleService baja) {
+      DeleteRoleService baja,
+      RequireRoleMfaService exigencia) {
     this.alta = alta;
     this.listado = listado;
     this.detalleDelRol = detalleDelRol;
@@ -92,6 +97,7 @@ public class RoleController {
     this.concesion = concesion;
     this.revocacion = revocacion;
     this.baja = baja;
+    this.exigencia = exigencia;
   }
 
   /**
@@ -624,5 +630,48 @@ public class RoleController {
   @ResponseStatus(HttpStatus.NO_CONTENT)
   public void eliminar(@PathVariable UUID id, @RequestBody DeleteRoleRequest peticion) {
     baja.delete(id, peticion);
+  }
+
+  @PatchMapping("/{id}/mfa-requirement")
+  @PreAuthorize("hasAuthority('roles:require-mfa')")
+  @Operation(
+      summary = "Exigir el segundo factor a los portadores de un rol",
+      description =
+          """
+          Marca o desmarca el rol (`RF-SP-077`): con la marca, **quien lo porte y no tenga el
+          segundo factor activo queda retenido** hasta activarlo. Cuerpo `{ required }`.
+
+          **El efecto llega con la siguiente renovación de sesión** —quince minutos como
+          mucho—: no se cierra ninguna sesión. La respuesta dice **a cuántas personas activas
+          afecta y cuántas no tienen el factor** —las que quedarán retenidas—, para ver el
+          alcance antes de que nadie lo note.
+
+          **Se admite sobre los roles de sistema** —la marca es justo para ellos— y **nunca
+          sobre un rol que el actor porta** (`403`): la de `ADMIN` solo la cambia el
+          superadministrador. **El rol raíz lo exige siempre** (`422` al desmarcarlo). Pedir
+          el valor que ya tiene responde igual y no escribe nada. Es **sensible**.
+          """)
+  @ApiResponses({
+    @ApiResponse(responseCode = "200", description = "El rol con su marca y a quién afecta"),
+    @ApiResponse(
+        responseCode = "400",
+        description = "Falta `required`",
+        content = @Content(schema = @Schema(hidden = true))),
+    @ApiResponse(
+        responseCode = "403",
+        description = "Sin el permiso; el actor porta el rol; o sin verificación reciente",
+        content = @Content(schema = @Schema(hidden = true))),
+    @ApiResponse(
+        responseCode = "404",
+        description = "El rol no existe o está eliminado",
+        content = @Content(schema = @Schema(hidden = true))),
+    @ApiResponse(
+        responseCode = "422",
+        description = "Desmarcar el rol raíz",
+        content = @Content(schema = @Schema(hidden = true)))
+  })
+  public RoleMfaRequirementResponse exigirSegundoFactor(
+      @PathVariable UUID id, @RequestBody RoleMfaRequirementRequest peticion) {
+    return exigencia.cambiar(id, peticion);
   }
 }

@@ -7282,6 +7282,9 @@
             },
             "type" : "array"
           },
+          "requiresMfa" : {
+            "type" : "boolean"
+          },
           "roleType" : {
             "type" : "string"
           },
@@ -7291,6 +7294,38 @@
           "updatedAt" : {
             "format" : "date-time",
             "type" : "string"
+          }
+        },
+        "type" : "object"
+      },
+      "RoleMfaRequirementRequest" : {
+        "properties" : {
+          "required" : {
+            "description" : "Si sus portadores están obligados a usar el authenticator.",
+            "type" : "boolean"
+          }
+        },
+        "type" : "object"
+      },
+      "RoleMfaRequirementResponse" : {
+        "properties" : {
+          "activeHolders" : {
+            "format" : "int64",
+            "type" : "integer"
+          },
+          "code" : {
+            "type" : "string"
+          },
+          "holdersWithoutMfa" : {
+            "format" : "int64",
+            "type" : "integer"
+          },
+          "id" : {
+            "format" : "uuid",
+            "type" : "string"
+          },
+          "requiresMfa" : {
+            "type" : "boolean"
           }
         },
         "type" : "object"
@@ -20156,6 +20191,59 @@
         "summary" : "Eliminar un rol",
         "tags" : [ "Roles" ],
         "x-required-permission" : "roles:delete"
+      }
+    },
+    "/api/v1/roles/{id}/mfa-requirement" : {
+      "patch" : {
+        "description" : "**Permiso requerido:** `roles:require-mfa`. Sin él, `403` (`AUTH-002`).\n\n**Operación sensible** (`RN-SP-063`): exige haber verificado el segundo factor hace cinco minutos o menos. Si no, `403` con el tipo `reverificacion-requerida` y `verificationPath`: se presenta el código en `POST /api/v1/auth/mfa/verification` y se repite la petición con el token que devuelve.\n\nMarca o desmarca el rol (`RF-SP-077`): con la marca, **quien lo porte y no tenga el\nsegundo factor activo queda retenido** hasta activarlo. Cuerpo `{ required }`.\n\n**El efecto llega con la siguiente renovación de sesión** —quince minutos como\nmucho—: no se cierra ninguna sesión. La respuesta dice **a cuántas personas activas\nafecta y cuántas no tienen el factor** —las que quedarán retenidas—, para ver el\nalcance antes de que nadie lo note.\n\n**Se admite sobre los roles de sistema** —la marca es justo para ellos— y **nunca\nsobre un rol que el actor porta** (`403`): la de `ADMIN` solo la cambia el\nsuperadministrador. **El rol raíz lo exige siempre** (`422` al desmarcarlo). Pedir\nel valor que ya tiene responde igual y no escribe nada. Es **sensible**.\n",
+        "operationId" : "exigirSegundoFactor",
+        "parameters" : [ {
+          "in" : "path",
+          "name" : "id",
+          "required" : true,
+          "schema" : {
+            "format" : "uuid",
+            "type" : "string"
+          }
+        } ],
+        "requestBody" : {
+          "content" : {
+            "application/json" : {
+              "schema" : {
+                "$ref" : "#/components/schemas/RoleMfaRequirementRequest"
+              }
+            }
+          },
+          "required" : true
+        },
+        "responses" : {
+          "200" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/RoleMfaRequirementResponse"
+                }
+              }
+            },
+            "description" : "El rol con su marca y a quién afecta"
+          },
+          "400" : {
+            "description" : "Falta `required`"
+          },
+          "403" : {
+            "description" : "Sin el permiso; el actor porta el rol; o sin verificación reciente"
+          },
+          "404" : {
+            "description" : "El rol no existe o está eliminado"
+          },
+          "422" : {
+            "description" : "Desmarcar el rol raíz"
+          }
+        },
+        "summary" : "Exigir el segundo factor a los portadores de un rol",
+        "tags" : [ "Roles" ],
+        "x-required-permission" : "roles:require-mfa",
+        "x-requires-recent-mfa" : true
       }
     },
     "/api/v1/roles/{id}/parent" : {

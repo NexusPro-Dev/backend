@@ -80,6 +80,10 @@ public class Role {
   @Column(name = "is_system", nullable = false)
   private boolean isSystem;
 
+  /** Sus portadores deben usar el segundo factor (`RN-SP-062`). La escribe `RF-SP-077`. */
+  @Column(name = "requires_mfa", nullable = false)
+  private boolean requiresMfa;
+
   @Column(name = "created_at", nullable = false, updatable = false)
   private OffsetDateTime createdAt;
 
@@ -220,6 +224,31 @@ public class Role {
    * (`RN-SEG-002`), y eso ocurre solo, sin tocar nada más, porque los permisos efectivos se
    * resuelven contra los roles vigentes en cada petición.
    */
+  /**
+   * Exige o deja de exigir el segundo factor a sus portadores (`RF-SP-077`, `RN-SP-062`).
+   *
+   * <p>Devuelve si cambió: pedir el valor que ya tiene no escribe nada (`FA-001`). <b>La raíz lo
+   * exige siempre</b>, y lo dicen dos sitios: aquí, con un mensaje, y `ck_roles_root_requires_mfa`
+   * en el esquema, para una escritura que se salte este método.
+   *
+   * @throws IllegalStateException si se pide quitárselo a la raíz
+   */
+  public boolean exigirSegundoFactor(boolean exigido, OffsetDateTime ahora) {
+    if (!exigido && isRoot()) {
+      throw new IllegalStateException("El rol raíz exige siempre el segundo factor.");
+    }
+    if (exigido == requiresMfa) {
+      return false;
+    }
+    requiresMfa = exigido;
+    updatedAt = ahora;
+    return true;
+  }
+
+  public boolean requiresMfa() {
+    return requiresMfa;
+  }
+
   public boolean changeStatus(RoleStatus nuevo, OffsetDateTime ahora) {
     if (nuevo == status) {
       return false;
