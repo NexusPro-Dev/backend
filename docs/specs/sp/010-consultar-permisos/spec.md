@@ -129,3 +129,11 @@ Ninguna. Las tres se resolvieron el 21-08-2026, antes de aprobar la especificaci
 | 1 | ¿El catálogo debe poder consultarse sin paginar? | **No se pagina en absoluto.** El catálogo alimenta la composición de un rol, y esa tarea necesita verlo entero. Se conservan el filtro y la búsqueda, que son lo que de verdad acota. La misma decisión se tomó en `RF-SP-017` y `RF-SP-021`, por el mismo motivo: son catálogos que alimentan un selector |
 | 2 | ¿Debe indicarse cuántos roles declaran cada permiso? | **No.** Es el recorrido inverso del catálogo y encarece una consulta hoy trivial. Es el criterio con el que `RF-SP-003` dejó fuera el listado de roles hijos: la relación se consulta desde el lado que ya la tiene. Si hace falta, será una consulta propia con su requerimiento |
 | 3 | ¿Se agrupan los permisos por recurso? | **Se devuelven planos.** Agrupar es presentación, y el filtro por recurso ya permite acotar. Una respuesta plana es además la que menos supone sobre cómo se pinta |
+
+---
+
+## 15. Control de cambios
+
+| Versión | Fecha | Cambio | Responsable |
+|---|---|---|---|
+| — | 06-10-2026 | **Enmendada por `RF-SP-073`** (Art. I.7): cada elemento del listado dice **si el permiso es sensible** —si la operación que gobierna exige haber presentado el código del segundo factor hace poco (`RN-SP-063`)—, para que la interfaz pida el código antes de intentarla ([`073` · `spec.md`](../073-reverificar-segundo-factor/spec.md) `CA-SP-850`). | Responsable técnico |

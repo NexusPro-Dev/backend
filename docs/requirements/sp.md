@@ -5,7 +5,7 @@
 | Módulo | `SP` — Sistema Principal |
 | Paquete | `modules/system` |
 | Prefijos de permiso | `roles:`, `permissions:`, `audit:`, `memberships:`, `currencies:`, `countries:`, `users:`, `exchange-rates:`, `document-types:`, `brokers:`, `broker-accounts:`, `teams:` |
-| Versión | 1.93.0 |
+| Versión | 1.94.0 |
 | Estado | **Aprobado** |
 | Responsable | Bonilla Diaz William Steven |
 | Fecha de creación | 20-08-2026 |
@@ -405,9 +405,9 @@ EXCLUDE USING gist (
 | `RF-SP-068` | Eliminar equipo | Baja | `teams:delete` | **En desarrollo** |
 | `RF-SP-069` | Asignar miembros a un equipo | Alta | `teams:assign-members` | **En desarrollo** |
 | `RF-SP-070` | Retirar miembros de un equipo | Media | `teams:remove-members` | **En desarrollo** |
-| `RF-SP-071` | Activar el segundo factor con una app autenticadora | **Crítica** | `users:start-own-mfa`, `users:confirm-own-mfa` | Pendiente |
-| `RF-SP-072` | Iniciar sesión con el segundo factor | **Crítica** | — (público, autorizado por el desafío) | Pendiente |
-| `RF-SP-073` | Reverificar el segundo factor antes de una operación sensible | **Crítica** | `users:verify-own-mfa` | Pendiente |
+| `RF-SP-071` | Activar el segundo factor con una app autenticadora | **Crítica** | `users:start-own-mfa`, `users:confirm-own-mfa` | **Tasks en revisión** |
+| `RF-SP-072` | Iniciar sesión con el segundo factor | **Crítica** | — (público, autorizado por el desafío) | **Tasks en revisión** |
+| `RF-SP-073` | Reverificar el segundo factor antes de una operación sensible | **Crítica** | `users:verify-own-mfa` | **Tasks en revisión** |
 | `RF-SP-074` | Regenerar los propios códigos de recuperación | Alta | `users:regenerate-own-recovery-codes` | Pendiente |
 | `RF-SP-075` | Desactivar el propio segundo factor | Media | `users:disable-own-mfa` | Pendiente |
 | `RF-SP-076` | Restablecer el segundo factor de un usuario | Alta | `users:reset-mfa` | Pendiente |
@@ -1416,7 +1416,7 @@ Cierra la pertenencia vigente de uno o varios managers **de este equipo**, con m
 | Reglas aplicables | `RN-SP-058`, `RN-SP-060`, `RN-SP-061`, `RN-SP-063` (para cambiar de authenticator) |
 | Depende de | `RF-SP-034` |
 | Tripleta | `docs/specs/sp/071-activar-segundo-factor/` |
-| Estado | Pendiente |
+| Estado | **Tasks en revisión** (06-10-2026) |
 
 **Lo pidió el responsable del proyecto el 06-10-2026**, y eligió el authenticator por encima del SMS y del correo. **Iniciar** (`POST /api/v1/users/me/mfa/totp`) genera un secreto aleatorio de veinte bytes, lo guarda **cifrado** como factor pendiente y devuelve la URI `otpauth://totp/NEXUS:<usuario>?secret=…&issuer=NEXUS`, que el frontend pinta como QR, junto al secreto en Base32 para quien no pueda escanear. **Confirmar** (`POST /api/v1/users/me/mfa/totp/confirmation`) recibe el primer código: si vale, el factor pasa a activo y la respuesta lleva **los diez códigos de recuperación**, la única vez que existen en claro (`RN-SP-061`).
 
@@ -1435,7 +1435,7 @@ Cierra la pertenencia vigente de uno o varios managers **de este equipo**, con m
 | Reglas aplicables | `RN-SP-059`, `RN-SP-060`, `RN-SP-061`, `RN-SP-062` |
 | Depende de | `RF-SP-034`, `RF-SP-071` |
 | Tripleta | `docs/specs/sp/072-iniciar-sesion-con-segundo-factor/` |
-| Estado | Pendiente |
+| Estado | **Tasks en revisión** (06-10-2026) |
 
 **Enmienda `RF-SP-034`** (Art. I.7): con el factor activo, una contraseña correcta deja de responder con tokens y responde `200` con `mfaRequired: true`, un `challengeToken` y su vigencia. Las comprobaciones de `RF-SP-034` —bloqueo, contraseña contra resumen de descarte, estado después de la contraseña— **no cambian de orden**, y el desafío se emite **después** del paso 5, de modo que todo lo que aquel requerimiento defiende sigue defendido.
 
@@ -1454,7 +1454,7 @@ Cierra la pertenencia vigente de uno o varios managers **de este equipo**, con m
 | Reglas aplicables | `RN-SP-060`, `RN-SP-061`, `RN-SP-063` |
 | Depende de | `RF-SP-071` |
 | Tripleta | `docs/specs/sp/073-reverificar-segundo-factor/` |
-| Estado | Pendiente |
+| Estado | **Tasks en revisión** (06-10-2026) |
 
 `POST /api/v1/auth/mfa/verification` recibe un código y, si vale, **devuelve un token de acceso nuevo** con el claim `mfa` en el instante actual; el refresh token no cambia. Con él, durante cinco minutos, las operaciones marcadas `requires_recent_mfa` se atienden. **No hay estado nuevo en el servidor**: la prueba viaja en el token firmado, como `mcp` (`security.md` §5.2), y no obliga a leer la base en cada petición sensible.
 
@@ -2312,7 +2312,7 @@ La fila se lee «`user_id` pertenece al equipo `team_id` desde `started_at`». U
 | `id` | `uuid` | Sí | No | No | — | — |
 | `user_id` | `uuid` | No | Sí | No | — | `users` |
 | `factor_type` | `varchar(20)` | No | No | No | `TOTP` | — |
-| `secret_ciphertext` | `bytea` | No | No | No | — | — |
+| `secret_ciphertext` | `text` | No | No | No | — | — |
 | `status` | `varchar(20)` | No | No | No | `PENDIENTE` | — |
 | `last_used_step` | `bigint` | No | No | Sí | — | — |
 | `pending_expires_at` | `timestamptz` | No | No | Sí | — | — |
@@ -2328,7 +2328,7 @@ La fila se lee «esta persona vinculó este authenticator». `status` es `PENDIE
 
 **`uq_user_mfa_factors_activo` y `uq_user_mfa_factors_pendiente`** —únicos parciales sobre `user_id`, `WHERE status = 'ACTIVO'` y `WHERE status = 'PENDIENTE'`— declaran `RN-SP-058` en el motor. Por la misma lección que `RN-SP-025`: dos confirmaciones concurrentes dejarían dos authenticators activos, y el caso de uso no lo vería.
 
-**`secret_ciphertext` va cifrado, no resumido** (`RF-SP-071`): AES-256-GCM, nonce aleatorio por fila guardado junto al cifrado, llave en `MFA_ENCRYPTION_KEY` y `user_id` como dato asociado. **No se devuelve por ninguna API** después de iniciar, **no se audita** y **no se registra** (Art. IV.8).
+**`secret_ciphertext` va cifrado, no resumido** (`RF-SP-071`): AES-256-GCM, nonce aleatorio por fila guardado junto al cifrado en el formato `v1:<base64>` de la clave de la tienda —por eso `text` y no `bytea`—, llave en `MFA_ENCRYPTION_KEY` y `user_id` como dato asociado. **No se devuelve por ninguna API** después de iniciar, **no se audita** y **no se registra** (Art. IV.8).
 
 `last_used_step` es el periodo TOTP del último código aceptado (`RN-SP-060`); se escribe en la misma transacción que acepta el código, con la fila bloqueada, para que dos peticiones simultáneas con el mismo código no pasen las dos.
 
@@ -2470,3 +2470,4 @@ La fila se lee «esta persona vinculó este authenticator». `status` es `PENDIE
 | 1.91.0 | 05-10-2026 | **El registro gratuito deja de conceder la membresía del producto, y la concede el primer depósito** (`RN-SP-057` nueva; `RN-SP-026`, `RN-SP-044` y `RF-SP-045` enmendadas), por decisión del responsable del proyecto: «cuando se registre la compra se guardará como confirmada pero solo se activará cuando se confirme el primer depósito». El enlace `BECA → BECA` concede **el suelo**, como el de pago; su venta nace **confirmada** y su línea **pendiente de activación** (`RN-MV-075`); y pasar la cuenta de `FTD_PENDIENTE` a `ACTIVO` la activa en la misma transacción, por un puerto que `MV` implementa. **La vigencia deja de importar** porque la membresía `BECA` del producto se configurará **vitalicia** (sin días de vigencia), también a decisión del responsable. Enmienda `RF-SP-045` y `RF-SP-028` (Art. I.7). | Responsable del proyecto |
 | 1.92.0 | 05-10-2026 | **El catálogo de monedas siembra COP**, «Peso colombiano», con dos decimales, activa y **no** por omisión, por decisión del responsable del proyecto: es la moneda local a la que convierte la pasarela local en Colombia ([`requirements/mv.md`](mv.md) v0.81.0 §4.9). **Va en `V9`, editada en el sitio**, con su registro de creación como USD; rompe la suma de comprobación de esa migración y **toda base ya migrada debe recrearse**, como el 23-09-2026 | Responsable del proyecto |
 | 1.93.0 | 06-10-2026 | **Nace el submódulo Segundo factor: `RF-SP-071` a `RF-SP-077`**, por decisión del responsable del proyecto, que eligió **el authenticator** —TOTP, cualquier app— y lo hizo **obligatorio por rol**: nacen marcados `SUPERADMIN` y `ADMIN`, el resto lo decide quien administra roles. Pidió además, en la primera etapa, los **códigos de recuperación**, el **restablecimiento por un administrador** y **volver a pedir el código antes de las operaciones sensibles, incluida la configuración de los permisos de los roles**. Nacen `RN-SP-058` a `RN-SP-064`; `roles` gana `requires_mfa` y `permissions` `requires_recent_mfa` (§10.1, §10.2); entran `user_mfa_factors`, `mfa_recovery_codes` y `mfa_challenges` (§10.22 a §10.24). **Enmienda `RF-SP-034`** —con factor activo, la contraseña emite un desafío y no tokens— y **`RF-SP-039`** —el perfil publica el estado del factor—. Siete permisos nuevos, sin sembrar ([`security.md`](../security.md) v0.105.0 §4.4). Sin tripletas todavía. | Responsable técnico |
+| 1.94.0 | 06-10-2026 | **`RF-SP-071` a `RF-SP-073` estrenan tripleta** y pasan a `Tasks en revisión`. Dos precisiones que trajeron sus planes: `user_mfa_factors.secret_ciphertext` es **`text`** y no `bytea` (§10.22), con el formato `v1:<base64>` de la clave de la tienda, que es el cifrado que se reutiliza; y los siete se siembran en **una sola migración, `V75`**. | Responsable técnico |

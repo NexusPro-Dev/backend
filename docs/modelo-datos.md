@@ -2,7 +2,7 @@
 
 | Campo | Valor |
 |---|---|
-| Versión | 0.99.0 |
+| Versión | 0.100.0 |
 | Estado | **Borrador** |
 | Responsable | Bonilla Diaz William Steven |
 | Fecha de creación | 21-08-2026 |
@@ -208,7 +208,7 @@ erDiagram
         uuid id PK "diseñada 06-10-2026 · RF-SP-071"
         uuid user_id FK "uno ACTIVO y uno PENDIENTE como mucho · índices parciales"
         varchar factor_type "TOTP · WebAuthn mañana"
-        bytea secret_ciphertext "AES-256-GCM · user_id como dato asociado · nunca sale"
+        text secret_ciphertext "AES-256-GCM · user_id como dato asociado · nunca sale"
         varchar status "PENDIENTE ACTIVO RETIRADO"
         bigint last_used_step "NULL · RN-SP-060 · un código sirve una vez"
         timestamptz pending_expires_at "NULL · diez minutos"
@@ -1171,3 +1171,4 @@ Los documentos que citan una migración vieja por su número —specs, controles
 | 0.97.0 | 05-10-2026 | **`movements` gana `external_reference`** y **`points_amount` va con signo y sin tasa en el ajuste de puntos** ([`requirements/mv.md`](requirements/mv.md) v0.83.0 §4.11 y §7.1, `RN-MV-076`): `ck_movements_points` se relaja —una tasa exige puntos positivos; unos puntos nunca son cero— y nace `ck_movements_external_reference`. `movement_entries` admite el evento `AJUSTE`. Lo escribe `V72`. Ninguna tabla nueva. | Responsable técnico |
 | 0.98.0 | 05-10-2026 | **`movements` gana `recorded_by`** ([`requirements/mv.md`](requirements/mv.md) v0.84.0 §7.1, `RF-MV-053`): quién registró un ajuste de puntos, FK a `users` con `ON DELETE SET NULL`; nula en lo demás. Con un índice parcial para listar los ajustes. Lo escribe `V73`. | Responsable técnico |
 | 0.99.0 | 06-10-2026 | **Entra el segundo factor** ([`requirements/sp.md`](requirements/sp.md) v1.93.0 §10.1, §10.2, §10.22 a §10.24; [`security.md`](security.md) v0.105.0 §3.3): tres tablas diseñadas —`user_mfa_factors` (el authenticator, con el secreto **cifrado** y su historial), `mfa_recovery_codes` y `mfa_challenges`— y tres columnas: `roles.requires_mfa`, `permissions.requires_recent_mfa` y `refresh_tokens.mfa_verified_at`. Sin migración. | Responsable técnico |
+| 0.100.0 | 06-10-2026 | `user_mfa_factors.secret_ciphertext` es `text`, no `bytea` ([`requirements/sp.md`](requirements/sp.md) v1.94.0 §10.22): reutiliza el formato `v1:<base64>` del cifrado de la clave de la tienda. | Responsable técnico |

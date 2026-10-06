@@ -115,3 +115,11 @@ Ninguna. Las dos se resolvieron el 21-08-2026, antes de aprobar la especificaci�
 |---|---|---|
 | 1 | ¿Debe devolver qué roles declaran el permiso? | **No.** Misma resolución y mismo motivo que la pregunta 2 de `RF-SP-010`: es el recorrido inverso del catálogo, encarece una consulta trivial y la relación se consulta desde el lado que ya la tiene. Si hace falta, será una consulta propia con su requerimiento |
 | 2 | ¿Se accede por identificador o también por código? | **Solo por identificador**, como en `RF-SP-003`. Admitir dos formas de direccionar el mismo recurso obliga a distinguir en cada petición si lo recibido es un identificador o un código, y a decidir qué ocurre cuando un código parece un identificador. El código sigue siendo la vía legible para *encontrar* el permiso: es filtro y búsqueda en `RF-SP-010` |
+
+---
+
+## 15. Control de cambios
+
+| Versión | Fecha | Cambio | Responsable |
+|---|---|---|---|
+| — | 06-10-2026 | **Enmendada por `RF-SP-073`** (Art. I.7): el detalle dice **si el permiso es sensible** —si la operación que gobierna exige haber presentado el código del segundo factor hace poco (`RN-SP-063`)—, para que la interfaz pida el código antes de intentarla ([`073` · `spec.md`](../073-reverificar-segundo-factor/spec.md) `CA-SP-850`). | Responsable técnico |
