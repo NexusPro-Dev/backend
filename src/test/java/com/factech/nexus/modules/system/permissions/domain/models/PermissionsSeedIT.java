@@ -33,7 +33,7 @@ class PermissionsSeedIT extends IntegrationTestBase {
           + " V47: courses:read-available y lessons:learn del aula, RF-AC-034 y RF-AC-035)")
   void catalogoCompleto() {
     assertThat(jdbc.queryForObject("SELECT count(*) FROM permissions", Integer.class))
-        .isEqualTo(197);
+        .isEqualTo(202);
   }
 
   @Test
@@ -254,7 +254,11 @@ class PermissionsSeedIT extends IntegrationTestBase {
             // `V72` (05-10-2026): ajustar los puntos a mano (`RF-MV-052`).
             "movements:adjust-points",
             // `V73` (05-10-2026): las lecturas de la pantalla de ajustes.
-            "movements:list-points-adjustments",
+            "movements:list-points-movements",
+            // `V77` (06-10-2026): los movimientos de puntos y el comprobante.
+            "movements:read-points-movement",
+            "movements:download-points-receipt",
+            "movements:attach-points-receipt",
             "movements:read-user-balances",
             // `V74` (06-10-2026): el módulo `IN`, un permiso por indicador (`RN-IN-001`).
             "indicators:read-sales-summary",
@@ -264,7 +268,9 @@ class PermissionsSeedIT extends IntegrationTestBase {
             // `V76` (06-10-2026): el resumen de puntos, `RF-IN-005`.
             "indicators:read-points-summary",
             "movements:buy-points",
-            "movements:list-own-points-purchases",
+            "movements:list-own-points-movements",
+            "movements:read-own-points-movement",
+            "movements:download-own-points-receipt",
             // `V61` (01-10-2026): las cuentas de cobro (`RF-MV-032` a `RF-MV-039`).
             "movements:create-payout-institution",
             "movements:read-payout-institutions",
@@ -360,7 +366,7 @@ class PermissionsSeedIT extends IntegrationTestBase {
   void identificadoresUuidV7() {
     List<UUID> ids = jdbc.queryForList("SELECT id FROM permissions", UUID.class);
 
-    assertThat(ids).hasSize(197).doesNotHaveDuplicates();
+    assertThat(ids).hasSize(202).doesNotHaveDuplicates();
     assertThat(ids).allSatisfy(id -> assertThat(id.version()).isEqualTo(7));
     // variant() == 2 es la variante RFC 9562 (bits 10xx).
     assertThat(ids).allSatisfy(id -> assertThat(id.variant()).isEqualTo(2));
@@ -426,13 +432,13 @@ class PermissionsSeedIT extends IntegrationTestBase {
                 "SELECT count(*) FROM role_permissions WHERE role_id ="
                     + " '01a02a33-4c00-7001-9c4f-5e7ad1000001'",
                 Integer.class))
-        .isEqualTo(197);
+        .isEqualTo(202);
     assertThat(
             jdbc.queryForObject(
                 "SELECT count(*) FROM role_permissions WHERE role_id ="
                     + " '01a02a33-4c00-7002-9c4f-5e7ad1000002'",
                 Integer.class))
-        .isEqualTo(195);
+        .isEqualTo(200);
     assertThat(
             jdbc.queryForList(
                 """
@@ -517,7 +523,8 @@ class PermissionsSeedIT extends IntegrationTestBase {
         // Y veintiocho desde `V67`: consultar la conversión por país.
         // Y veintinueve desde `V69`: pagar por la pasarela local un pendiente propio.
         // Y treinta y cuatro desde `V75`: los cinco del propio segundo factor, a los tres tipos.
-        .hasSize(34)
+        // Y treinta y seis desde `V77`: el detalle y el comprobante de lo propio en puntos.
+        .hasSize(36)
         .contains(
             "movements:pay-pending-by-card",
             "movements:read-conversion-rates",
@@ -529,7 +536,9 @@ class PermissionsSeedIT extends IntegrationTestBase {
             "movements:delete-own-payout-account",
             "movements:read-points-rates",
             "movements:buy-points",
-            "movements:list-own-points-purchases",
+            "movements:list-own-points-movements",
+            "movements:read-own-points-movement",
+            "movements:download-own-points-receipt",
             "movements:retry-payment",
             "movements:activate-own-product",
             "movements:create",

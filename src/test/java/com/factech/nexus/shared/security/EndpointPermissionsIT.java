@@ -360,7 +360,23 @@ class EndpointPermissionsIT extends IntegrationTestBase {
           Map.entry("POST /api/v1/movements/bonuses", "movements:grant-bonus"),
           Map.entry("POST /api/v1/movements/points-adjustments", "movements:adjust-points"),
           Map.entry(
-              "GET /api/v1/movements/points-adjustments", "movements:list-points-adjustments"),
+              "PUT /api/v1/movements/points-adjustments/{id}/receipt",
+              "movements:attach-points-receipt"),
+          // ---- MV · los movimientos de puntos (V77, 06-10-2026) ----
+          Map.entry("GET /api/v1/movements/points-movements", "movements:list-points-movements"),
+          Map.entry(
+              "GET /api/v1/movements/points-movements/{id}", "movements:read-points-movement"),
+          Map.entry(
+              "GET /api/v1/movements/points-movements/{id}/receipt",
+              "movements:download-points-receipt"),
+          Map.entry(
+              "GET /api/v1/movements/mine/points-movements", "movements:list-own-points-movements"),
+          Map.entry(
+              "GET /api/v1/movements/mine/points-movements/{id}",
+              "movements:read-own-points-movement"),
+          Map.entry(
+              "GET /api/v1/movements/mine/points-movements/{id}/receipt",
+              "movements:download-own-points-receipt"),
           Map.entry(
               "GET /api/v1/movements/users/{userId}/balances", "movements:read-user-balances"),
           // ---- IN · los indicadores de ventas (V74, 06-10-2026) ----
@@ -375,8 +391,6 @@ class EndpointPermissionsIT extends IntegrationTestBase {
           Map.entry(
               "POST /api/v1/movements/mine/{id}/local-charge", "movements:pay-pending-locally"),
           Map.entry("POST /api/v1/movements/mine/points-purchases", "movements:buy-points"),
-          Map.entry(
-              "GET /api/v1/movements/mine/points-purchases", "movements:list-own-points-purchases"),
           // ---- MV · la tarjeta por Stripe (V62, 01-10-2026) ----
           Map.entry(
               "POST /api/v1/movements/mine/{id}/card-charge", "movements:pay-pending-by-card"),

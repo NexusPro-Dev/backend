@@ -47,7 +47,10 @@ class MovementsPermissionsSeedIT extends IntegrationTestBase {
           // `V58` (30-09-2026): la etapa 3 de puntos, lo propio por tipo de rol.
           "movements:read-points-rates",
           "movements:buy-points",
-          "movements:list-own-points-purchases",
+          "movements:list-own-points-movements",
+          // `V77` (06-10-2026): el detalle y el comprobante de lo propio (`RF-MV-055`).
+          "movements:read-own-points-movement",
+          "movements:download-own-points-receipt",
           // `V49` (`RF-MV-019` y `RF-MV-022`): pedir un retiro y consultar los saldos propios.
           "movements:request-withdrawal",
           "movements:read-own-balances",
@@ -112,8 +115,13 @@ class MovementsPermissionsSeedIT extends IntegrationTestBase {
           // `V72` (05-10-2026): ajustar los puntos a mano (`RF-MV-052`), de administración.
           "movements:adjust-points",
           // `V73` (05-10-2026): las lecturas de la pantalla de ajustes (`RF-MV-053`, `RF-MV-054`).
-          "movements:list-points-adjustments",
-          "movements:read-user-balances");
+          "movements:list-points-movements",
+          "movements:read-user-balances",
+          // `V77` (06-10-2026): los movimientos de puntos y el comprobante (`RF-MV-056`,
+          // `RF-MV-057`).
+          "movements:read-points-movement",
+          "movements:download-points-receipt",
+          "movements:attach-points-receipt");
 
   /**
    * Los de `V61` de administración (01-10-2026): el catálogo de entidades de cobro y las cuentas de
@@ -144,7 +152,7 @@ class MovementsPermissionsSeedIT extends IntegrationTestBase {
         .containsAll(LOS_DE_SALDOS)
         .containsAll(LOS_DE_PUNTOS)
         .containsAll(LOS_DE_COBRO)
-        .hasSize(39);
+        .hasSize(44);
   }
 
   @Test
@@ -165,7 +173,7 @@ class MovementsPermissionsSeedIT extends IntegrationTestBase {
     // RN-SEG-007: la raíz de la contención está acotada por el catálogo
     // completo. Un permiso sembrado y no asociado la dejaría por detrás de sus
     // propios hijos.
-    assertThat(permisosDeMovimientosDe(SUPERADMIN)).containsAll(LOS_CUATRO).hasSize(39);
+    assertThat(permisosDeMovimientosDe(SUPERADMIN)).containsAll(LOS_CUATRO).hasSize(44);
   }
 
   @Test
@@ -211,7 +219,7 @@ class MovementsPermissionsSeedIT extends IntegrationTestBase {
     List<UUID> ids =
         jdbc.queryForList("SELECT id FROM permissions WHERE resource = 'movements'", UUID.class);
 
-    assertThat(ids).hasSize(39).doesNotHaveDuplicates();
+    assertThat(ids).hasSize(44).doesNotHaveDuplicates();
     assertThat(ids).allSatisfy(id -> assertThat(id.version()).isEqualTo(7));
     // variant() == 2 es la variante RFC 9562 (bits 10xx).
     assertThat(ids).allSatisfy(id -> assertThat(id.variant()).isEqualTo(2));

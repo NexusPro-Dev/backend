@@ -106,16 +106,6 @@ public interface MovementRepository {
   /** Una compra de puntos, o vacío si no existe o es de otro tipo. */
   Optional<PointsPurchaseRow> findPointsPurchase(UUID movementId);
 
-  /** `RF-MV-031`: las compras de puntos del actor, las más recientes primero. */
-  List<PointsPurchaseRow> findOwnPointsPurchases(
-      UUID actorId, PointsPurchaseFilter filtro, int offset, int limit);
-
-  long countOwnPointsPurchases(UUID actorId, PointsPurchaseFilter filtro);
-
-  /** Los filtros de `RF-MV-031`. Nulo es «sin filtro». */
-  record PointsPurchaseFilter(
-      String status, UUID currencyId, String code, OffsetDateTime from, OffsetDateTime to) {}
-
   /** Una compra de puntos, con su tasa, tal como la publican sus respuestas. */
   record PointsPurchaseRow(
       UUID id,
@@ -135,42 +125,6 @@ public interface MovementRepository {
 
   /** `RF-MV-052`: un ajuste de puntos, o vacío si no existe o es de otro tipo. */
   Optional<PointsAdjustmentRow> findPointsAdjustment(UUID movementId);
-
-  /** `RF-MV-053`: una página de ajustes, en el orden ya resuelto contra la lista blanca. */
-  List<PointsAdjustmentListRow> findPointsAdjustments(
-      PointsAdjustmentFilter filtro, String orden, int offset, int limit);
-
-  BoundedCount countPointsAdjustments(PointsAdjustmentFilter filtro, int techo);
-
-  /** Los filtros de `RF-MV-053`. Nulo es «sin filtro»; {@code sign} es SUMA o RESTA. */
-  record PointsAdjustmentFilter(
-      UUID userId,
-      UUID currencyId,
-      OffsetDateTime from,
-      OffsetDateTime to,
-      String sign,
-      String search) {}
-
-  /** Una fila del listado de ajustes, con la persona y quien lo hizo. */
-  record PointsAdjustmentListRow(
-      UUID id,
-      String code,
-      String status,
-      UUID userId,
-      String userFirstName,
-      String userLastName,
-      String username,
-      String email,
-      UUID currencyId,
-      String currencyCode,
-      BigDecimal points,
-      String concept,
-      String externalReference,
-      OffsetDateTime occurredAt,
-      OffsetDateTime confirmedAt,
-      UUID recordedBy,
-      String recordedByFirstName,
-      String recordedByLastName) {}
 
   /** Un ajuste de puntos, con sus puntos con signo, tal como lo publica su respuesta. */
   record PointsAdjustmentRow(

@@ -347,6 +347,54 @@ paths:
         "500":
           description: Fallo no controlado (`ERR-500`)
       x-required-permission: packages:remove-cover
+  /api/v1/movements/points-adjustments/{id}/receipt:
+    put:
+      tags:
+      - Puntos
+      summary: Adjuntar o reemplazar el comprobante de un ajuste
+      description: |
+        **Permiso requerido:** `movements:attach-points-receipt`. Sin él, `403` (`AUTH-002`).
+
+        Adjunta el comprobante a un ajuste de puntos ya hecho, **o reemplaza el que tenía**
+        (`RF-MV-057`, `RN-MV-077`): `multipart/form-data` con una parte `file`, un **PDF,
+        PNG o JPG de hasta 5 MB**, reconocido **por su contenido**. **El anterior no se
+        conserva**; la auditoría guarda su nombre, tipo, tamaño y resumen. Responde `200` con
+        los datos del comprobante, haya o no uno anterior. Sobre una compra de puntos o un
+        movimiento que no existe, `404`. No mueve puntos.
+      operationId: adjuntarComprobante
+      parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      requestBody:
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              properties:
+                file:
+                  type: string
+                  format: binary
+      responses:
+        "200":
+          description: El comprobante guardado.
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/PointsReceiptInfo"
+        "400":
+          description: "Sin archivo (`VAL-001`), vacío (`VAL-002`), de otro tipo (`VAL-003`)\
+            \ o mayor de 5 MB (`VAL-004`)"
+        "401":
+          description: Sin token (`AUTH-001`)
+        "403":
+          description: Sin `movements:attach-points-receipt` (`AUTH-002`)
+        "404":
+          description: No existe un ajuste de puntos con ese identificador (`EX-002`)
+      x-required-permission: movements:attach-points-receipt
   /api/v1/courses/{id}/cover:
     put:
       tags:
@@ -3771,125 +3819,25 @@ paths:
       x-required-permission: movements:set-points-rate
       x-requires-recent-mfa: true
   /api/v1/movements/points-adjustments:
-    get:
-      tags:
-      - Puntos
-      summary: Consultar los ajustes de puntos
-      description: |
-        **Permiso requerido:** `movements:list-points-adjustments`. Sin él, `403` (`AUTH-002`).
-
-        Los ajustes de puntos de **todas** las personas (`RF-MV-053`), paginados y **los más
-        recientes primero**. Cada fila trae la persona —sin documento—, la moneda, los puntos
-        **con su signo**, el motivo, la referencia y **quién lo hizo** (`adjustedBy`, nulo en
-        los ajustes anteriores a que se guardara).
-
-        **Filtros**, combinables: `userId`, `currencyId`, `from` (inclusive) y `to`
-        (exclusive) sobre cuándo ocurrió, `sign` —`SUMA` o `RESTA`— y `q`, un fragmento del
-        comprobante, el motivo, la referencia, o el nombre, usuario o correo de la persona,
-        sin distinguir acentos ni mayúsculas. **`sort`**: `occurredAt` (por omisión, `desc`),
-        `points` o `code`, con `,asc` o `,desc`. Un filtro sin coincidencias devuelve la página
-        vacía.
-      operationId: listarAjustes
-      parameters:
-      - name: page
-        in: query
-        required: false
-        schema:
-          type: integer
-          format: int32
-      - name: size
-        in: query
-        required: false
-        schema:
-          type: integer
-          format: int32
-      - name: sort
-        in: query
-        description: "occurredAt (por omisión, desc), points o code; con ,asc o ,desc."
-        required: false
-        schema:
-          type: string
-          description: "occurredAt (por omisión, desc), points o code; con ,asc o\
-            \ ,desc."
-      - name: userId
-        in: query
-        required: false
-        schema:
-          type: string
-          format: uuid
-      - name: currencyId
-        in: query
-        required: false
-        schema:
-          type: string
-          format: uuid
-      - name: from
-        in: query
-        description: "Desde cuándo ocurrió, inclusive."
-        required: false
-        schema:
-          type: string
-          format: date-time
-          description: "Desde cuándo ocurrió, inclusive."
-      - name: to
-        in: query
-        description: "Hasta cuándo ocurrió, exclusive."
-        required: false
-        schema:
-          type: string
-          format: date-time
-          description: "Hasta cuándo ocurrió, exclusive."
-      - name: sign
-        in: query
-        description: SUMA (puntos positivos) o RESTA (negativos).
-        required: false
-        schema:
-          type: string
-          description: SUMA (puntos positivos) o RESTA (negativos).
-      - name: q
-        in: query
-        description: "Fragmento del comprobante, el motivo, la referencia, o el nombre,\
-          \ usuario o correo de la persona; sin distinguir acentos ni mayúsculas.\
-          \ No busca por documento."
-        required: false
-        schema:
-          type: string
-          description: "Fragmento del comprobante, el motivo, la referencia, o el\
-            \ nombre, usuario o correo de la persona; sin distinguir acentos ni mayú\
-            sculas. No busca por documento."
-      responses:
-        "200":
-          description: Página de ajustes.
-          content:
-            '*/*':
-              schema:
-                $ref: "#/components/schemas/PageResponsePointsAdjustmentItem"
-        "400":
-          description: "Página, orden, sentido o periodo inválidos, todos juntos"
-        "401":
-          description: Sin token (`AUTH-001`)
-        "403":
-          description: Sin `movements:list-points-adjustments` (`AUTH-002`)
-      x-required-permission: movements:list-points-adjustments
     post:
       tags:
       - Puntos
-      summary: Ajustar los puntos de una persona
+      summary: "Ajustar los puntos de una persona, con el comprobante"
       description: |
         **Permiso requerido:** `movements:adjust-points`. Sin él, `403` (`AUTH-002`).
 
         **Operación sensible** (`RN-SP-063`): exige haber verificado el segundo factor hace cinco minutos o menos. Si no, `403` con el tipo `reverificacion-requerida` y `verificationPath`: se presenta el código en `POST /api/v1/auth/mfa/verification` y se repite la petición con el token que devuelve.
 
-        Suma o resta **puntos** a mano en la cuenta de puntos de una persona, en una moneda
-        (`RF-MV-052`, `RN-MV-076`): para lo que se pagó **por fuera de la plataforma** —una
-        consignación directa a la cuenta de la empresa— o para corregir un error. `points` va
-        **con signo**: positivo suma, negativo resta. **No hay importe en dinero ni tasa**.
-        Nace `CONFIRMADA`, sin pago, y mueve los puntos en el acto desde o hacia la cuenta de
-        puntos emitidos de la empresa. **Una resta nunca deja el saldo por debajo de cero**:
-        si no alcanza, `422` y nada cambia. **El motivo (`concept`) y la cabecera
-        `Idempotency-Key` son obligatorios**; `reference`, el comprobante, es opcional. La
-        misma petición repetida responde `200` con el ajuste ya hecho. No se revierte: se
-        compensa con otro ajuste. No comisiona.
+        **La misma operación que el `POST` JSON**, con el comprobante adjunto en la misma
+        petición (`RF-MV-057`, `RN-MV-077`): `multipart/form-data` con una parte
+        `adjustment` —el JSON de siempre, con `Content-Type: application/json`— y una parte
+        `file` —un **PDF, PNG o JPG de hasta 5 MB**, reconocido **por su contenido**, nunca
+        por el nombre ni por el tipo de la parte—. **Todo o nada**: un archivo vacío
+        (`VAL-002`), de otro tipo (`VAL-003`) o mayor de 5 MB (`VAL-004`) **no crea el
+        ajuste**, y una resta que no alcanza no guarda el archivo. **La repetición compara
+        también el archivo**: la misma clave con el mismo archivo responde `200` con el ajuste
+        hecho; con otro, o con archivo donde no lo había, `409`. La respuesta trae
+        `receipt`.
       operationId: ajustarPuntos
       parameters:
       - name: Idempotency-Key
@@ -3903,9 +3851,18 @@ paths:
           application/json:
             schema:
               $ref: "#/components/schemas/PointsAdjustmentRequest"
+          multipart/form-data:
+            schema:
+              type: object
+              properties:
+                adjustment:
+                  $ref: "#/components/schemas/PointsAdjustmentRequest"
+                file:
+                  type: string
+                  format: binary
       responses:
         "201":
-          description: Ajustado.
+          description: "Ajustado, con el comprobante."
           content:
             '*/*':
               schema:
@@ -3917,19 +3874,16 @@ paths:
               schema:
                 $ref: "#/components/schemas/PointsAdjustmentResponse"
         "400":
-          description: "Datos ausentes o malformados —puntos en cero o con más de\
-            \ dos decimales, motivo vacío, referencia en blanco o larga—, o clave\
-            \ ausente o malformada"
+          description: "Los de la petición JSON, o el archivo vacío (`VAL-002`), de\
+            \ otro tipo (`VAL-003`) o mayor de 5 MB (`VAL-004`)"
         "401":
           description: Sin token (`AUTH-001`)
         "403":
           description: Sin `movements:adjust-points` (`AUTH-002`)
         "409":
-          description: La clave es de otra petición (`EX-005`)
+          description: "La clave es de otra petición, también por el archivo (`EX-005`)"
         "422":
-          description: "La persona o la moneda no existen (`EX-002`), o la resta es\
-            \ mayor que los puntos que tiene (`EX-006`, con los disponibles en el\
-            \ mensaje)"
+          description: "Los de la petición JSON (`EX-002`, `EX-006`)"
       x-required-permission: movements:adjust-points
       x-requires-recent-mfa: true
   /api/v1/movements/payout-institutions:
@@ -4427,75 +4381,6 @@ paths:
           description: Fallo no controlado (`ERR-500`)
       x-required-permission: movements:activate-own-product
   /api/v1/movements/mine/points-purchases:
-    get:
-      tags:
-      - Puntos
-      summary: Consultar mis compras de puntos
-      description: |
-        **Permiso requerido:** `movements:list-own-points-purchases`. Sin él, `403` (`AUTH-002`).
-
-        Las compras de puntos de quien tiene la sesión, **las más recientes primero**, cada
-        una con su tasa, sus puntos, sus pagos y, si se rechazó, el motivo (`RF-MV-031`).
-        Filtros: `status` (`PENDIENTE`, `CONFIRMADA`, `RECHAZADA`), `currencyId`, `code` —un
-        fragmento del comprobante, sin distinguir mayúsculas— y `from`/`to` sobre cuándo se
-        compró, rango semiabierto. Un estado desconocido y un periodo invertido son `400`, y
-        los dos errores salen juntos.
-      operationId: misComprasDePuntos
-      parameters:
-      - name: page
-        in: query
-        required: false
-        schema:
-          type: integer
-          format: int32
-      - name: size
-        in: query
-        required: false
-        schema:
-          type: integer
-          format: int32
-      - name: status
-        in: query
-        required: false
-        schema:
-          type: string
-      - name: currencyId
-        in: query
-        required: false
-        schema:
-          type: string
-          format: uuid
-      - name: code
-        in: query
-        required: false
-        schema:
-          type: string
-      - name: from
-        in: query
-        required: false
-        schema:
-          type: string
-          format: date-time
-      - name: to
-        in: query
-        required: false
-        schema:
-          type: string
-          format: date-time
-      responses:
-        "200":
-          description: Una página de compras.
-          content:
-            '*/*':
-              schema:
-                $ref: "#/components/schemas/PageResponsePointsPurchaseResponse"
-        "400":
-          description: Estado desconocido (`VAL-001`) o `from` posterior a `to` (`VAL-002`)
-        "401":
-          description: Sin token (`AUTH-001`)
-        "403":
-          description: Sin `movements:list-own-points-purchases` (`AUTH-002`)
-      x-required-permission: movements:list-own-points-purchases
     post:
       tags:
       - Puntos
@@ -11879,6 +11764,194 @@ paths:
         "500":
           description: Fallo no controlado (`ERR-500`)
       x-required-permission: movements:list-sale-lines
+  /api/v1/movements/points-movements:
+    get:
+      tags:
+      - Puntos
+      summary: Consultar los movimientos de puntos
+      description: |
+        **Permiso requerido:** `movements:list-points-movements`. Sin él, `403` (`AUTH-002`).
+
+        **Las compras de puntos y los ajustes de todas las personas**, en una sola lista
+        paginada y **los más recientes primero** (`RF-MV-056`), con la fila de la lista
+        propia más **quién hizo cada ajuste** (`adjustedBy`, nulo en una compra y en los
+        ajustes anteriores a que se guardara). La persona sale con nombre, usuario y correo,
+        **sin documento**.
+
+        **Filtros**: los de la lista propia, más `userId`; y `q` busca además en el nombre,
+        usuario o correo de la persona. **Sustituye a `GET /points-adjustments`**, retirada el
+        06-10-2026; ajustar sigue siendo `POST /points-adjustments`.
+      operationId: movimientos
+      parameters:
+      - name: page
+        in: query
+        required: false
+        schema:
+          type: integer
+          format: int32
+      - name: size
+        in: query
+        required: false
+        schema:
+          type: integer
+          format: int32
+      - name: sort
+        in: query
+        description: "occurredAt (por omisión, desc), points o code; con ,asc o ,desc."
+        required: false
+        schema:
+          type: string
+          description: "occurredAt (por omisión, desc), points o code; con ,asc o\
+            \ ,desc."
+      - name: type
+        in: query
+        description: COMPRA_PUNTOS o AJUSTE_PUNTOS.
+        required: false
+        schema:
+          type: string
+          description: COMPRA_PUNTOS o AJUSTE_PUNTOS.
+      - name: status
+        in: query
+        description: "PENDIENTE, CONFIRMADA o RECHAZADA."
+        required: false
+        schema:
+          type: string
+          description: "PENDIENTE, CONFIRMADA o RECHAZADA."
+      - name: currencyId
+        in: query
+        required: false
+        schema:
+          type: string
+          format: uuid
+      - name: from
+        in: query
+        description: "Desde cuándo ocurrió, inclusive."
+        required: false
+        schema:
+          type: string
+          format: date-time
+          description: "Desde cuándo ocurrió, inclusive."
+      - name: to
+        in: query
+        description: "Hasta cuándo ocurrió, exclusive."
+        required: false
+        schema:
+          type: string
+          format: date-time
+          description: "Hasta cuándo ocurrió, exclusive."
+      - name: sign
+        in: query
+        description: "SUMA (puntos positivos) o RESTA (negativos: solo ajustes)."
+        required: false
+        schema:
+          type: string
+          description: "SUMA (puntos positivos) o RESTA (negativos: solo ajustes)."
+      - name: q
+        in: query
+        description: "Fragmento del comprobante, el motivo o la referencia, sin distinguir\
+          \ acentos ni mayúsculas. En la lista de administración, también el nombre,\
+          \ usuario o correo de la persona; nunca el documento."
+        required: false
+        schema:
+          type: string
+          description: "Fragmento del comprobante, el motivo o la referencia, sin\
+            \ distinguir acentos ni mayúsculas. En la lista de administración, tambié\
+            n el nombre, usuario o correo de la persona; nunca el documento."
+      - name: userId
+        in: query
+        required: false
+        schema:
+          type: string
+          format: uuid
+      responses:
+        "200":
+          description: Una página; vacía si no hay ninguno.
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/PageResponsePointsMovementItem"
+        "400":
+          description: "Página, orden, tipo, estado, sentido o periodo inválidos,\
+            \ todos juntos"
+        "401":
+          description: Sin token (`AUTH-001`)
+        "403":
+          description: Sin `movements:list-points-movements` (`AUTH-002`)
+      x-required-permission: movements:list-points-movements
+  /api/v1/movements/points-movements/{id}:
+    get:
+      tags:
+      - Puntos
+      summary: Consultar el detalle de un movimiento de puntos
+      description: |
+        **Permiso requerido:** `movements:read-points-movement`. Sin él, `403` (`AUTH-002`).
+
+        Cualquier compra de puntos o ajuste (`RF-MV-056`), con lo del detalle propio y **quién
+        hizo el ajuste**.
+      operationId: movimiento_1
+      parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      responses:
+        "200":
+          description: El detalle.
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/PointsMovementDetail"
+        "401":
+          description: Sin token (`AUTH-001`)
+        "403":
+          description: Sin `movements:read-points-movement` (`AUTH-002`)
+        "404":
+          description: No existe o no es de puntos (`EX-002`)
+      x-required-permission: movements:read-points-movement
+  /api/v1/movements/points-movements/{id}/receipt:
+    get:
+      tags:
+      - Puntos
+      summary: Descargar el comprobante de un ajuste
+      description: |
+        **Permiso requerido:** `movements:download-points-receipt`. Sin él, `403` (`AUTH-002`).
+
+        El archivo del comprobante de cualquier ajuste, como en la descarga propia
+        (`RF-MV-056`, `RN-MV-077`).
+      operationId: comprobante
+      parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      responses:
+        "200":
+          description: El archivo.
+          content:
+            application/pdf:
+              schema:
+                type: string
+                format: binary
+            image/png:
+              schema:
+                type: string
+                format: binary
+            image/jpeg:
+              schema:
+                type: string
+                format: binary
+        "401":
+          description: Sin token (`AUTH-001`)
+        "403":
+          description: Sin `movements:download-points-receipt` (`AUTH-002`)
+        "404":
+          description: "No existe o no es de puntos (`EX-002`), o no tiene comprobante\
+            \ (`EX-003`)"
+      x-required-permission: movements:download-points-receipt
   /api/v1/movements/mine/{id}:
     get:
       tags:
@@ -12125,6 +12198,196 @@ paths:
         "500":
           description: Fallo no controlado (`ERR-500`)
       x-required-permission: movements:read-own-products
+  /api/v1/movements/mine/points-movements:
+    get:
+      tags:
+      - Puntos
+      summary: Consultar mis movimientos de puntos
+      description: |
+        **Permiso requerido:** `movements:list-own-points-movements`. Sin él, `403` (`AUTH-002`).
+
+        **Mis compras de puntos y los ajustes que administración me hizo**, en una sola lista
+        paginada y **los más recientes primero** (`RF-MV-055`). Cada fila dice su `type`
+        —`COMPRA_PUNTOS` o `AJUSTE_PUNTOS`— y lo que no aplica va nulo: una compra trae
+        `amount` y no `concept`; un ajuste trae `concept`, `reference` y `hasReceipt`, y no
+        `amount`. **Los puntos van con su signo**: la compra suma siempre —pendiente, los que
+        dará—; el ajuste suma o resta. **`adjustedBy` va siempre nulo aquí**: quién hizo el
+        ajuste lo ve administración.
+
+        **Filtros**, combinables: `type`, `status` (`PENDIENTE`, `CONFIRMADA`, `RECHAZADA`),
+        `currencyId`, `from` (inclusive) y `to` (exclusive), `sign` —`SUMA` o `RESTA`— y `q`,
+        un fragmento del comprobante, el motivo o la referencia, sin distinguir acentos ni
+        mayúsculas. **`sort`**: `occurredAt` (por omisión, `desc`), `points` o `code`, con
+        `,asc` o `,desc`. **Sustituye a `GET /mine/points-purchases`**, retirada el 06-10-2026.
+      operationId: misMovimientos
+      parameters:
+      - name: page
+        in: query
+        required: false
+        schema:
+          type: integer
+          format: int32
+      - name: size
+        in: query
+        required: false
+        schema:
+          type: integer
+          format: int32
+      - name: sort
+        in: query
+        description: "occurredAt (por omisión, desc), points o code; con ,asc o ,desc."
+        required: false
+        schema:
+          type: string
+          description: "occurredAt (por omisión, desc), points o code; con ,asc o\
+            \ ,desc."
+      - name: type
+        in: query
+        description: COMPRA_PUNTOS o AJUSTE_PUNTOS.
+        required: false
+        schema:
+          type: string
+          description: COMPRA_PUNTOS o AJUSTE_PUNTOS.
+      - name: status
+        in: query
+        description: "PENDIENTE, CONFIRMADA o RECHAZADA."
+        required: false
+        schema:
+          type: string
+          description: "PENDIENTE, CONFIRMADA o RECHAZADA."
+      - name: currencyId
+        in: query
+        required: false
+        schema:
+          type: string
+          format: uuid
+      - name: from
+        in: query
+        description: "Desde cuándo ocurrió, inclusive."
+        required: false
+        schema:
+          type: string
+          format: date-time
+          description: "Desde cuándo ocurrió, inclusive."
+      - name: to
+        in: query
+        description: "Hasta cuándo ocurrió, exclusive."
+        required: false
+        schema:
+          type: string
+          format: date-time
+          description: "Hasta cuándo ocurrió, exclusive."
+      - name: sign
+        in: query
+        description: "SUMA (puntos positivos) o RESTA (negativos: solo ajustes)."
+        required: false
+        schema:
+          type: string
+          description: "SUMA (puntos positivos) o RESTA (negativos: solo ajustes)."
+      - name: q
+        in: query
+        description: "Fragmento del comprobante, el motivo o la referencia, sin distinguir\
+          \ acentos ni mayúsculas. En la lista de administración, también el nombre,\
+          \ usuario o correo de la persona; nunca el documento."
+        required: false
+        schema:
+          type: string
+          description: "Fragmento del comprobante, el motivo o la referencia, sin\
+            \ distinguir acentos ni mayúsculas. En la lista de administración, tambié\
+            n el nombre, usuario o correo de la persona; nunca el documento."
+      responses:
+        "200":
+          description: Una página; vacía si no hay ninguno.
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/PageResponsePointsMovementItem"
+        "400":
+          description: "Página, orden, tipo, estado, sentido o periodo inválidos,\
+            \ todos juntos"
+        "401":
+          description: Sin token (`AUTH-001`)
+        "403":
+          description: Sin `movements:list-own-points-movements` (`AUTH-002`)
+      x-required-permission: movements:list-own-points-movements
+  /api/v1/movements/mine/points-movements/{id}:
+    get:
+      tags:
+      - Puntos
+      summary: Consultar el detalle de un movimiento de puntos propio
+      description: |
+        **Permiso requerido:** `movements:read-own-points-movement`. Sin él, `403` (`AUTH-002`).
+
+        Una compra de puntos o un ajuste **propio** (`RF-MV-055`): la fila de la lista
+        (`movement`), y además, en una compra, **la tasa** con que se compró, **sus pagos** y,
+        si se rechazó, **el motivo**; en un ajuste, **los datos del comprobante** —nombre,
+        tipo, tamaño y resumen—, sin el archivo, que se descarga aparte. **Uno de otra persona
+        responde `404`, igual que uno que no existe.**
+      operationId: miMovimiento
+      parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      responses:
+        "200":
+          description: El detalle.
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/PointsMovementDetail"
+        "401":
+          description: Sin token (`AUTH-001`)
+        "403":
+          description: Sin `movements:read-own-points-movement` (`AUTH-002`)
+        "404":
+          description: "No existe, no es de puntos o es de otra persona (`EX-002`)"
+      x-required-permission: movements:read-own-points-movement
+  /api/v1/movements/mine/points-movements/{id}/receipt:
+    get:
+      tags:
+      - Puntos
+      summary: Descargar el comprobante de un ajuste propio
+      description: |
+        **Permiso requerido:** `movements:download-own-points-receipt`. Sin él, `403` (`AUTH-002`).
+
+        **El archivo tal como se subió** —PDF, PNG o JPG— con el tipo con que se guardó,
+        **siempre como adjunto** y con `X-Content-Type-Options: nosniff` (`RF-MV-055`,
+        `RN-MV-077`).
+      operationId: miComprobante
+      parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      responses:
+        "200":
+          description: El archivo.
+          content:
+            application/pdf:
+              schema:
+                type: string
+                format: binary
+            image/png:
+              schema:
+                type: string
+                format: binary
+            image/jpeg:
+              schema:
+                type: string
+                format: binary
+        "401":
+          description: Sin token (`AUTH-001`)
+        "403":
+          description: Sin `movements:download-own-points-receipt` (`AUTH-002`)
+        "404":
+          description: "No existe, no es de puntos o es de otra persona (`EX-002`),\
+            \ o no tiene comprobante (`EX-003`)"
+      x-required-permission: movements:download-own-points-receipt
   /api/v1/movements/mine/balances:
     get:
       tags:
@@ -14750,6 +15013,25 @@ components:
           type: number
         purchasePrice:
           type: number
+    PointsReceiptInfo:
+      type: object
+      properties:
+        fileName:
+          type: string
+          description: "El nombre con que se subió, sin ruta."
+        contentType:
+          type: string
+          description: "application/pdf, image/png o image/jpeg: el que dicen sus\
+            \ bytes."
+        sizeBytes:
+          type: integer
+          format: int64
+        sha256:
+          type: string
+          description: "El resumen SHA-256 del archivo, en hexadecimal."
+        uploadedAt:
+          type: string
+          format: date-time
     CourseCategoryRef:
       type: object
       properties:
@@ -16599,6 +16881,13 @@ components:
           description: "El saldo de puntos de la persona en esa moneda, ahora. En\
             \ una petición repetida es el de este momento, que puede haber cambiado\
             \ desde el ajuste."
+        receipt:
+          type:
+          - object
+          - "null"
+          $ref: "#/components/schemas/PointsReceiptInfo"
+          description: "El comprobante adjunto (`RF-MV-057`), sin el archivo. Nulo\
+            \ si el ajuste no lo tiene."
     RegisterPayoutInstitutionRequest:
       type: object
       properties:
@@ -19741,13 +20030,13 @@ components:
           type: string
         name:
           type: string
-    PageResponsePointsAdjustmentItem:
+    PageResponsePointsMovementItem:
       type: object
       properties:
         content:
           type: array
           items:
-            $ref: "#/components/schemas/PointsAdjustmentItem"
+            $ref: "#/components/schemas/PointsMovementItem"
         totalElements:
           type: integer
           format: int64
@@ -19762,7 +20051,7 @@ components:
           format: int32
         totalIsExact:
           type: boolean
-    PointsAdjustmentActor:
+    PointsMovementActor:
       type: object
       properties:
         id:
@@ -19770,7 +20059,7 @@ components:
           format: uuid
         fullName:
           type: string
-    PointsAdjustmentItem:
+    PointsMovementItem:
       type: object
       properties:
         id:
@@ -19778,38 +20067,63 @@ components:
           format: uuid
         code:
           type: string
-          description: "El comprobante, con prefijo `AJP`."
+          description: "El comprobante: prefijo `PTS` en una compra, `AJP` en un ajuste."
+        type:
+          type: string
+          description: COMPRA_PUNTOS o AJUSTE_PUNTOS.
         status:
           type: string
-          description: Siempre CONFIRMADA.
+          description: "PENDIENTE, CONFIRMADA o RECHAZADA. Un ajuste es siempre CONFIRMADA."
         user:
-          $ref: "#/components/schemas/PointsAdjustmentPerson"
-          description: A quién se le ajustaron los puntos.
+          $ref: "#/components/schemas/PointsMovementPerson"
+          description: De quién son los puntos.
         currency:
           $ref: "#/components/schemas/SaleCurrency"
         points:
           type: number
-          description: "Con su signo: positivos se sumaron, negativos se restaron."
+          description: "Con su signo. Una compra suma siempre —pendiente, los que\
+            \ dará; rechazada, los que habría dado—; un ajuste suma o resta."
+        amount:
+          type:
+          - number
+          - "null"
+          description: "Lo que se paga, en la moneda. Solo en una compra."
         concept:
-          type: string
+          type:
+          - string
+          - "null"
+          description: Por qué. Solo en un ajuste.
         reference:
           type:
           - string
           - "null"
+          description: "La referencia del comprobante. Solo en un ajuste, si se indicó\
+            ."
         occurredAt:
           type: string
           format: date-time
         confirmedAt:
-          type: string
+          type:
+          - string
+          - "null"
           format: date-time
+        rejectedAt:
+          type:
+          - string
+          - "null"
+          format: date-time
+        hasReceipt:
+          type: boolean
+          description: Si el ajuste tiene comprobante adjunto. Siempre false en una
+            compra.
         adjustedBy:
           type:
           - object
           - "null"
-          $ref: "#/components/schemas/PointsAdjustmentActor"
-          description: Quién hizo el ajuste. NULO en los ajustes anteriores a que
-            se guardara (V73).
-    PointsAdjustmentPerson:
+          $ref: "#/components/schemas/PointsMovementActor"
+          description: "Quién hizo el ajuste. NULO en una compra, en los ajustes anteriores\
+            \ a que se guardara y SIEMPRE en la lista propia."
+    PointsMovementPerson:
       type: object
       properties:
         id:
@@ -19821,6 +20135,36 @@ components:
           type: string
         email:
           type: string
+    PointsMovementDetail:
+      type: object
+      properties:
+        movement:
+          $ref: "#/components/schemas/PointsMovementItem"
+          description: Lo mismo que la fila de la lista.
+        pointsRate:
+          type:
+          - object
+          - "null"
+          $ref: "#/components/schemas/PointsPurchaseRate"
+          description: "La tasa con que se compró, congelada. Solo en una compra."
+        rejectionReason:
+          type:
+          - string
+          - "null"
+          description: Por qué se rechazó el pago. Solo en una compra rechazada.
+        payments:
+          type: array
+          description: "Los pagos de una compra, del más antiguo al más reciente.\
+            \ Vacía en un ajuste."
+          items:
+            $ref: "#/components/schemas/MovementPayment"
+        receipt:
+          type:
+          - object
+          - "null"
+          $ref: "#/components/schemas/PointsReceiptInfo"
+          description: "El comprobante de un ajuste, sin el archivo. Nulo si no lo\
+            \ tiene o en una compra."
     MyMovement:
       type: object
       description: Un movimiento en el que participa quien consulta.
@@ -19917,27 +20261,6 @@ components:
           type: array
           items:
             $ref: "#/components/schemas/MyProduct"
-        totalElements:
-          type: integer
-          format: int64
-        totalPages:
-          type: integer
-          format: int32
-        page:
-          type: integer
-          format: int32
-        size:
-          type: integer
-          format: int32
-        totalIsExact:
-          type: boolean
-    PageResponsePointsPurchaseResponse:
-      type: object
-      properties:
-        content:
-          type: array
-          items:
-            $ref: "#/components/schemas/PointsPurchaseResponse"
         totalElements:
           type: integer
           format: int64

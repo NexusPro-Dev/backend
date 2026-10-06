@@ -1,9 +1,6 @@
 package com.factech.nexus.modules.movements.domain.service;
 
-import com.factech.nexus.modules.movements.application.ListPointsAdjustmentsRequest;
-import com.factech.nexus.modules.movements.application.PointsAdjustmentItem;
 import com.factech.nexus.modules.movements.application.PointsAdjustmentResponse;
-import com.factech.nexus.modules.movements.application.PointsAdjustmentSortField;
 import com.factech.nexus.modules.movements.application.PointsRequests;
 import com.factech.nexus.modules.movements.application.SaleResponse;
 import com.factech.nexus.modules.movements.domain.models.AccountKind;
@@ -12,13 +9,14 @@ import com.factech.nexus.modules.movements.domain.models.IdempotencyKey;
 import com.factech.nexus.modules.movements.domain.models.Movement;
 import com.factech.nexus.modules.movements.domain.models.MovementCode;
 import com.factech.nexus.modules.movements.domain.models.PointsAmount;
+import com.factech.nexus.modules.movements.domain.models.PointsReceipt;
 import com.factech.nexus.modules.movements.domain.models.RejectionReason;
 import com.factech.nexus.modules.movements.domain.repository.LedgerRepository;
 import com.factech.nexus.modules.movements.domain.repository.MovementRepository;
 import com.factech.nexus.modules.movements.domain.repository.MovementRepository.MovementTypeView;
-import com.factech.nexus.modules.movements.domain.repository.MovementRepository.PointsAdjustmentFilter;
-import com.factech.nexus.modules.movements.domain.repository.MovementRepository.PointsAdjustmentListRow;
 import com.factech.nexus.modules.movements.domain.repository.MovementRepository.PointsAdjustmentRow;
+import com.factech.nexus.modules.movements.domain.repository.PointsMovementQuery;
+import com.factech.nexus.modules.movements.domain.repository.PointsMovementQuery.ReceiptInfoRow;
 import com.factech.nexus.modules.system.currencies.application.CurrencyCatalog.CurrencyView;
 import com.factech.nexus.modules.system.roles.application.AuthenticatedActor;
 import com.factech.nexus.modules.system.users.application.ClientCatalog;
@@ -29,15 +27,12 @@ import com.factech.nexus.shared.error.BusinessRuleException;
 import com.factech.nexus.shared.error.FieldError;
 import com.factech.nexus.shared.error.UnprocessableEntityException;
 import com.factech.nexus.shared.error.ValidationException;
-import com.factech.nexus.shared.pagination.BoundedCount;
-import com.factech.nexus.shared.pagination.PageResponse;
-import com.factech.nexus.shared.pagination.Pagination;
 import java.math.BigDecimal;
 import java.time.Clock;
 import java.time.OffsetDateTime;
-import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Optional;
 import java.util.UUID;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -68,7 +63,8 @@ public class PointsAdjustmentService {
   private final ClientCatalog personas;
   private final AuditWriter auditoria;
   private final AuthenticatedActor actor;
-  private final Pagination paginacion;
+  private final PointsMovementQuery lecturas;
+  private final AttachPointsReceiptService adjuntador;
   private final Clock reloj;
 
   @Autowired
@@ -80,7 +76,8 @@ public class PointsAdjustmentService {
       ClientCatalog personas,
       AuditWriter auditoria,
       AuthenticatedActor actor,
-      Pagination paginacion) {
+      PointsMovementQuery lecturas,
+      AttachPointsReceiptService adjuntador) {
     this(
         movimientos,
         libro,
@@ -89,7 +86,8 @@ public class PointsAdjustmentService {
         personas,
         auditoria,
         actor,
-        paginacion,
+        lecturas,
+        adjuntador,
         Clock.systemUTC());
   }
 
@@ -101,7 +99,8 @@ public class PointsAdjustmentService {
       ClientCatalog personas,
       AuditWriter auditoria,
       AuthenticatedActor actor,
-      Pagination paginacion,
+      PointsMovementQuery lecturas,
+      AttachPointsReceiptService adjuntador,
       Clock reloj) {
     this.movimientos = movimientos;
     this.libro = libro;
@@ -110,15 +109,27 @@ public class PointsAdjustmentService {
     this.personas = personas;
     this.auditoria = auditoria;
     this.actor = actor;
-    this.paginacion = paginacion;
+    this.lecturas = lecturas;
+    this.adjuntador = adjuntador;
     this.reloj = reloj;
   }
 
   /** Lo que salió de un ajuste: el ajuste, y si es nuevo o ya existía (`FA-001`). */
   public record AdjustmentResult(PointsAdjustmentResponse adjustment, boolean created) {}
 
+  /** Sin comprobante: la petición JSON de siempre. */
   @Transactional
   public AdjustmentResult adjust(PointsRequests.Adjustment peticion, String claveRecibida) {
+    return adjust(peticion, claveRecibida, null);
+  }
+
+  /**
+   * Con el comprobante ya validado, o nulo (`RF-MV-057`): se guarda en la misma transacción que el
+   * movimiento y sus asientos, de modo que una resta que no alcanza lo revierte también.
+   */
+  @Transactional
+  public AdjustmentResult adjust(
+      PointsRequests.Adjustment peticion, String claveRecibida, PointsReceipt comprobante) {
     // 1. Todo lo que no cuesta una consulta, antes de nada (`EX-001`).
     IdempotencyKey clave = new IdempotencyKey(claveRecibida);
     if (peticion == null || peticion.userId() == null) {
@@ -137,7 +148,11 @@ public class PointsAdjustmentService {
       boolean misma =
           ya.userId().equals(peticion.userId())
               && ya.currencyId().equals(moneda.id())
-              && ya.points().compareTo(puntos) == 0;
+              && ya.points().compareTo(puntos) == 0
+              // El archivo también decide si es la misma petición (`RF-MV-057` `EX-003`).
+              && Objects.equals(
+                  lecturas.findReceiptInfo(ya.id()).map(ReceiptInfoRow::sha256).orElse(null),
+                  comprobante == null ? null : comprobante.sha256());
       if (!misma) {
         throw Conflicto.claveAjena();
       }
@@ -201,86 +216,16 @@ public class PointsAdjustmentService {
             ChangeAction.CREATE,
             Map.of("after", ajuste.instantanea(), "event", EntryEvent.AJUSTE.name())));
 
+    if (comprobante != null) {
+      // La fila del ajuste es de esta transacción: nadie más puede verla todavía.
+      adjuntador.guardar(ajuste.getId(), comprobante);
+    }
+
     PointsAdjustmentRow hecho =
         movimientos
             .findPointsAdjustment(ajuste.getId())
             .orElseThrow(() -> new IllegalStateException("El ajuste desapareció."));
     return new AdjustmentResult(respuesta(hecho), true);
-  }
-
-  // ---------------------------------------------------------------------------
-  // `RF-MV-053` — consultar los ajustes
-  // ---------------------------------------------------------------------------
-
-  @Transactional(readOnly = true)
-  public PageResponse<PointsAdjustmentItem> list(ListPointsAdjustmentsRequest peticion) {
-    // Todos los problemas juntos (`EX-001`), como los demás listados.
-    List<FieldError> problemas = new ArrayList<>();
-    Pagination.Slice pagina = null;
-    try {
-      pagina = paginacion.resolver(peticion.page(), peticion.size());
-    } catch (ValidationException e) {
-      problemas.addAll(e.errors());
-    }
-    String orden = null;
-    try {
-      orden = PointsAdjustmentSortField.resolver(peticion.sort());
-    } catch (ValidationException e) {
-      problemas.addAll(e.errors());
-    }
-    if (peticion.sign() != null && !List.of("SUMA", "RESTA").contains(peticion.sign())) {
-      problemas.add(
-          new FieldError(
-              "sign", "VAL-003", "El sentido '" + peticion.sign() + "' no existe: SUMA o RESTA."));
-    }
-    if (peticion.from() != null
-        && peticion.to() != null
-        && peticion.from().isAfter(peticion.to())) {
-      problemas.add(
-          new FieldError("from", "VAL-004", "La fecha inicial no puede ser posterior a la final."));
-    }
-    if (!problemas.isEmpty()) {
-      throw new ValidationException(
-          problemas.get(0).code(), "La consulta solicitada no es válida.", problemas);
-    }
-
-    PointsAdjustmentFilter filtro =
-        new PointsAdjustmentFilter(
-            peticion.userId(),
-            peticion.currencyId(),
-            peticion.from(),
-            peticion.to(),
-            peticion.sign(),
-            peticion.q());
-    List<PointsAdjustmentItem> contenido =
-        movimientos.findPointsAdjustments(filtro, orden, pagina.offset(), pagina.size()).stream()
-            .map(PointsAdjustmentService::fila)
-            .toList();
-    BoundedCount total = movimientos.countPointsAdjustments(filtro, paginacion.techoDelConteo());
-    return PageResponse.de(contenido, total, pagina.page(), pagina.size());
-  }
-
-  private static PointsAdjustmentItem fila(PointsAdjustmentListRow f) {
-    return new PointsAdjustmentItem(
-        f.id(),
-        f.code(),
-        f.status(),
-        new PointsAdjustmentItem.Person(
-            f.userId(), nombre(f.userFirstName(), f.userLastName()), f.username(), f.email()),
-        new SaleResponse.Money(f.currencyId(), f.currencyCode()),
-        f.points(),
-        f.concept(),
-        f.externalReference(),
-        f.occurredAt(),
-        f.confirmedAt(),
-        f.recordedBy() == null
-            ? null
-            : new PointsAdjustmentItem.Actor(
-                f.recordedBy(), nombre(f.recordedByFirstName(), f.recordedByLastName())));
-  }
-
-  private static String nombre(String nombres, String apellidos) {
-    return (nombres + " " + apellidos).strip();
   }
 
   private PointsAdjustmentResponse respuesta(PointsAdjustmentRow fila) {
@@ -295,7 +240,8 @@ public class PointsAdjustmentService {
         fila.externalReference(),
         fila.occurredAt(),
         fila.confirmedAt(),
-        libro.balanceOf(fila.userId(), AccountKind.PUNTOS, fila.currencyId()));
+        libro.balanceOf(fila.userId(), AccountKind.PUNTOS, fila.currencyId()),
+        lecturas.findReceiptInfo(fila.id()).map(AttachPointsReceiptService::info).orElse(null));
   }
 
   /** Distintos de cero y con dos decimales como mucho, llevados a esa escala. */

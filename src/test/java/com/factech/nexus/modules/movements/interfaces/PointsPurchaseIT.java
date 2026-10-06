@@ -29,7 +29,6 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
 import org.hibernate.SessionFactory;
-import org.hibernate.stat.Statistics;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
@@ -40,11 +39,10 @@ import org.springframework.http.MediaType;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.request.MockHttpServletRequestBuilder;
-import org.springframework.test.web.servlet.request.RequestPostProcessor;
 
 /**
- * `RF-MV-027` comprar puntos, `RF-MV-028` confirmar, `RF-MV-029` rechazar y `RF-MV-031` mis compras
- * de puntos.
+ * `RF-MV-027` comprar puntos, `RF-MV-028` confirmar y `RF-MV-029` rechazar. Mis compras de puntos
+ * (`RF-MV-031`) se retiraron el 06-10-2026: sus criterios viven en `OwnPointsMovementsIT`.
  */
 @AutoConfigureMockMvc
 class PointsPurchaseIT extends IntegrationTestBase {
@@ -273,9 +271,14 @@ class PointsPurchaseIT extends IntegrationTestBase {
         .isEqualTo(1);
 
     PointsFixtures.tasa(jdbc, USD, "200", administrador);
-    mvc.perform(misCompras(comprador))
-        .andExpect(jsonPath("$.content[0].pointsRate.pointsPerUnit").value(100.0))
-        .andExpect(jsonPath("$.content[0].points").value(500.00));
+    // La tasa queda congelada: se ve en el detalle (`RF-MV-055`).
+    mvc.perform(
+            get(BASE + "/mine/points-movements/{id}", compra)
+                .with(
+                    user(comprador.toString())
+                        .authorities(() -> "movements:read-own-points-movement")))
+        .andExpect(jsonPath("$.pointsRate.pointsPerUnit").value(100.0))
+        .andExpect(jsonPath("$.movement.points").value(500.00));
   }
 
   // ---------------------------------------------------------------------------
@@ -469,102 +472,6 @@ class PointsPurchaseIT extends IntegrationTestBase {
   }
 
   // ---------------------------------------------------------------------------
-  // `RF-MV-031` — mis compras de puntos
-  // ---------------------------------------------------------------------------
-
-  @Test
-  @DisplayName(
-      "CA-MV-344, CA-MV-345 y CA-MV-348 — las propias, las más recientes primero, con tasa,"
-          + " puntos, pagos y motivo; nada ajeno ni de otro tipo; vacío sin compras")
-  void misComprasDePuntos() throws Exception {
-    mvc.perform(misCompras(comprador))
-        .andExpect(status().isOk())
-        .andExpect(jsonPath("$.totalElements").value(0));
-
-    UUID pendiente = comprarYLeer(comprador, "1.00", "compra-000029");
-    UUID confirmada = comprarYLeer(comprador, "2.00", "compra-000030");
-    UUID rechazada = comprarYLeer(comprador, "3.00", "compra-000031");
-    mvc.perform(confirmar(confirmada, "{}")).andExpect(status().isOk());
-    mvc.perform(rechazar(rechazada, "No entró")).andExpect(status().isOk());
-    comprarYLeer(otro, "4.00", "compra-000032");
-    bonoDe(comprador);
-
-    mvc.perform(misCompras(comprador))
-        .andExpect(status().isOk())
-        .andExpect(jsonPath("$.totalElements").value(3))
-        .andExpect(jsonPath("$.content[0].id").value(rechazada.toString()))
-        .andExpect(jsonPath("$.content[0].rejectionReason").value("No entró"))
-        .andExpect(jsonPath("$.content[0].payments[0].status").value("RECHAZADO"))
-        .andExpect(jsonPath("$.content[1].id").value(confirmada.toString()))
-        .andExpect(jsonPath("$.content[1].status").value("CONFIRMADA"))
-        .andExpect(jsonPath("$.content[1].points").value(200.00))
-        .andExpect(jsonPath("$.content[2].id").value(pendiente.toString()))
-        .andExpect(jsonPath("$.content[2].pointsRate.pointsPerUnit").value(100.0));
-  }
-
-  @Test
-  @DisplayName(
-      "CA-MV-346 y CA-MV-347 — filtra por estado, moneda, fragmento de comprobante y periodo; los"
-          + " errores de filtro salen juntos")
-  void filtros() throws Exception {
-    UUID confirmada = comprarYLeer(comprador, "2.00", "compra-000033");
-    comprarYLeer(comprador, "1.00", "compra-000034");
-    mvc.perform(confirmar(confirmada, "{}")).andExpect(status().isOk());
-    String codigo =
-        jdbc.queryForObject("SELECT code FROM movements WHERE id = ?", String.class, confirmada);
-
-    mvc.perform(misCompras(comprador).param("status", "confirmada"))
-        .andExpect(jsonPath("$.totalElements").value(1))
-        .andExpect(jsonPath("$.content[0].id").value(confirmada.toString()));
-    mvc.perform(misCompras(comprador).param("currencyId", USD))
-        .andExpect(jsonPath("$.totalElements").value(2));
-    mvc.perform(misCompras(comprador).param("currencyId", UUID.randomUUID().toString()))
-        .andExpect(jsonPath("$.totalElements").value(0));
-    mvc.perform(misCompras(comprador).param("code", codigo.substring(4).toLowerCase()))
-        .andExpect(jsonPath("$.totalElements").value(1));
-    mvc.perform(
-            misCompras(comprador)
-                .param("from", "2000-01-01T00:00:00Z")
-                .param("to", "2100-01-01T00:00:00Z"))
-        .andExpect(jsonPath("$.totalElements").value(2));
-    mvc.perform(misCompras(comprador).param("to", "2000-01-01T00:00:00Z"))
-        .andExpect(jsonPath("$.totalElements").value(0));
-
-    mvc.perform(
-            misCompras(comprador)
-                .param("status", "ANULADA")
-                .param("from", "2026-12-01T00:00:00Z")
-                .param("to", "2026-01-01T00:00:00Z"))
-        .andExpect(status().isBadRequest())
-        .andExpect(jsonPath("$.errors.length()").value(2));
-  }
-
-  @Test
-  @DisplayName("CA-MV-349 y CA-MV-350 — el permiso; y la página en un número fijo de sentencias")
-  void permisoYSentencias() throws Exception {
-    mvc.perform(
-            get(BASE + "/mine/points-purchases")
-                .with(user(comprador.toString()).authorities(() -> "movements:buy-points")))
-        .andExpect(status().isForbidden());
-    mvc.perform(get(BASE + "/mine/points-purchases")).andExpect(status().isUnauthorized());
-
-    comprarYLeer(comprador, "1.00", "compra-000035");
-    Statistics estadisticas = sessionFactory.getStatistics();
-    estadisticas.setStatisticsEnabled(true);
-    estadisticas.clear();
-    mvc.perform(misCompras(comprador)).andExpect(status().isOk());
-    long conUna = estadisticas.getPrepareStatementCount();
-
-    comprarYLeer(comprador, "2.00", "compra-000036");
-    comprarYLeer(comprador, "3.00", "compra-000037");
-    estadisticas.clear();
-    mvc.perform(misCompras(comprador))
-        .andExpect(status().isOk())
-        .andExpect(jsonPath("$.content.length()").value(3));
-    assertThat(estadisticas.getPrepareStatementCount()).isEqualTo(conUna);
-  }
-
-  // ---------------------------------------------------------------------------
 
   private MockHttpServletRequestBuilder comprar(
       UUID quien, String importe, String metodo, String clave) {
@@ -615,13 +522,6 @@ class PointsPurchaseIT extends IntegrationTestBase {
         .contentType(MediaType.APPLICATION_JSON)
         .content("{\"reason\":\"" + motivo + "\"}")
         .with(user(administrador.toString()).authorities(() -> "movements:reject-payment"));
-  }
-
-  private MockHttpServletRequestBuilder misCompras(UUID quien) {
-    return get(BASE + "/mine/points-purchases")
-        .with(
-            (RequestPostProcessor)
-                user(quien.toString()).authorities(() -> "movements:list-own-points-purchases"));
   }
 
   private String bonoDe(UUID quien) throws Exception {

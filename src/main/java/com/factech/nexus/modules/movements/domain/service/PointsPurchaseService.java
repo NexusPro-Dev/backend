@@ -15,7 +15,6 @@ import com.factech.nexus.modules.movements.domain.repository.MovementRepository;
 import com.factech.nexus.modules.movements.domain.repository.MovementRepository.MovementTypeView;
 import com.factech.nexus.modules.movements.domain.repository.MovementRepository.PaymentMethodView;
 import com.factech.nexus.modules.movements.domain.repository.MovementRepository.PaymentRow;
-import com.factech.nexus.modules.movements.domain.repository.MovementRepository.PointsPurchaseFilter;
 import com.factech.nexus.modules.movements.domain.repository.MovementRepository.PointsPurchaseRow;
 import com.factech.nexus.modules.movements.domain.repository.PaymentRepository;
 import com.factech.nexus.modules.movements.domain.repository.PaymentRepository.KeyedPayment;
@@ -30,19 +29,13 @@ import com.factech.nexus.shared.error.BusinessRuleException;
 import com.factech.nexus.shared.error.FieldError;
 import com.factech.nexus.shared.error.ResourceNotFoundException;
 import com.factech.nexus.shared.error.UnprocessableEntityException;
-import com.factech.nexus.shared.error.ValidationException;
-import com.factech.nexus.shared.pagination.PageResponse;
-import com.factech.nexus.shared.pagination.Pagination;
 import java.math.BigDecimal;
 import java.time.Clock;
 import java.time.OffsetDateTime;
-import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
-import java.util.Locale;
 import java.util.Map;
 import java.util.Optional;
-import java.util.Set;
 import java.util.UUID;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
@@ -62,7 +55,6 @@ public class PointsPurchaseService {
   private static final String ENTIDAD = "movements";
   private static final String TIPO = "COMPRA_PUNTOS";
   private static final String PUNTOS = "POINTS";
-  private static final Set<String> ESTADOS = Set.of("PENDIENTE", "CONFIRMADA", "RECHAZADA");
 
   private final MovementRepository movimientos;
   private final PaymentRepository pagos;
@@ -72,7 +64,6 @@ public class PointsPurchaseService {
   private final PointsRateService tasas;
   private final ClientCatalog personas;
   private final AuthenticatedActor actor;
-  private final Pagination paginacion;
   private final AuditWriter auditoria;
   private final Clock reloj;
   private final CardPayment tarjeta;
@@ -88,7 +79,6 @@ public class PointsPurchaseService {
       PointsRateService tasas,
       ClientCatalog personas,
       AuthenticatedActor actor,
-      Pagination paginacion,
       AuditWriter auditoria,
       CardPayment tarjeta,
       LocalPayment local) {
@@ -101,7 +91,6 @@ public class PointsPurchaseService {
         tasas,
         personas,
         actor,
-        paginacion,
         auditoria,
         tarjeta,
         local,
@@ -117,7 +106,6 @@ public class PointsPurchaseService {
       PointsRateService tasas,
       ClientCatalog personas,
       AuthenticatedActor actor,
-      Pagination paginacion,
       AuditWriter auditoria,
       CardPayment tarjeta,
       LocalPayment local,
@@ -132,7 +120,6 @@ public class PointsPurchaseService {
     this.tasas = tasas;
     this.personas = personas;
     this.actor = actor;
-    this.paginacion = paginacion;
     this.auditoria = auditoria;
     this.reloj = reloj;
   }
@@ -380,54 +367,6 @@ public class PointsPurchaseService {
     auditar(compraId, ChangeAction.UPDATE, cambios);
 
     return respuesta(leer(compraId));
-  }
-
-  // ---------------------------------------------------------------------------
-  // `RF-MV-031` — las propias
-  // ---------------------------------------------------------------------------
-
-  @Transactional(readOnly = true)
-  public PageResponse<PointsPurchaseResponse> listMine(
-      Integer page,
-      Integer size,
-      String status,
-      UUID currencyId,
-      String code,
-      OffsetDateTime from,
-      OffsetDateTime to) {
-    // Los 400 SALEN JUNTOS (`EX-001`).
-    List<FieldError> errores = new ArrayList<>();
-    String estado =
-        status == null || status.isBlank() ? null : status.trim().toUpperCase(Locale.ROOT);
-    if (estado != null && !ESTADOS.contains(estado)) {
-      errores.add(
-          new FieldError("status", "VAL-001", "El estado es PENDIENTE, CONFIRMADA o RECHAZADA."));
-    }
-    if (from != null && to != null && from.isAfter(to)) {
-      errores.add(
-          new FieldError("from", "VAL-002", "La fecha inicial no puede ser posterior a la final."));
-    }
-    if (!errores.isEmpty()) {
-      throw new ValidationException(errores.get(0).code(), errores.get(0).message(), errores);
-    }
-    Pagination.Slice pagina = paginacion.resolver(page, size);
-    PointsPurchaseFilter filtro = new PointsPurchaseFilter(estado, currencyId, code, from, to);
-    UUID quien = actor.id();
-
-    List<PointsPurchaseRow> filas =
-        movimientos.findOwnPointsPurchases(quien, filtro, pagina.offset(), pagina.size());
-    // Los pagos de toda la página, de una vez (`CA-MV-350`).
-    Map<UUID, List<PaymentRow>> pagosDeCada =
-        movimientos.findPaymentsOf(filas.stream().map(PointsPurchaseRow::id).toList());
-    List<PointsPurchaseResponse> contenido = new ArrayList<>(filas.size());
-    for (PointsPurchaseRow fila : filas) {
-      contenido.add(respuesta(fila, pagosDeCada.getOrDefault(fila.id(), List.of())));
-    }
-    return PageResponse.de(
-        contenido,
-        movimientos.countOwnPointsPurchases(quien, filtro),
-        pagina.page(),
-        pagina.size());
   }
 
   // ---------------------------------------------------------------------------

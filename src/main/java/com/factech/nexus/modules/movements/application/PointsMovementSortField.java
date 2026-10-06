@@ -7,11 +7,12 @@ import java.util.List;
 import java.util.Locale;
 
 /**
- * Los tres órdenes del listado de ajustes (`RF-MV-053`, `VAL-002`), con el identificador de
- * desempate en el mismo sentido, como {@code CourseCategorySortField}. <b>El orden por omisión es
- * el más reciente primero</b>, que es el del índice {@code ix_movements_ajustes}.
+ * Los tres órdenes de las listas de movimientos de puntos (`RF-MV-055`, `RF-MV-056`, `VAL-002`),
+ * con el identificador de desempate en el mismo sentido, como {@code CourseCategorySortField}.
+ * <b>El orden por omisión es el más reciente primero</b>, que es el del índice {@code
+ * ix_movements_puntos}.
  */
-public enum PointsAdjustmentSortField {
+public enum PointsMovementSortField {
   OCCURRED_AT("occurredAt", "m.occurred_at", true),
   POINTS("points", "m.points_amount", true),
   CODE("code", "m.code", false);
@@ -22,7 +23,7 @@ public enum PointsAdjustmentSortField {
   private final String columna;
   private final boolean desciendePorOmision;
 
-  PointsAdjustmentSortField(String publico, String columna, boolean desciendePorOmision) {
+  PointsMovementSortField(String publico, String columna, boolean desciendePorOmision) {
     this.publico = publico;
     this.columna = columna;
     this.desciendePorOmision = desciendePorOmision;
@@ -35,7 +36,7 @@ public enum PointsAdjustmentSortField {
     }
     String[] partes = sort.split(",", 2);
     String campo = partes[0].trim();
-    PointsAdjustmentSortField resuelto =
+    PointsMovementSortField resuelto =
         Arrays.stream(values())
             .filter(valor -> valor.publico.equalsIgnoreCase(campo))
             .findFirst()

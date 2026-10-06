@@ -1,16 +1,16 @@
 package com.factech.nexus.modules.movements.interfaces;
 
-import com.factech.nexus.modules.movements.application.ListPointsAdjustmentsRequest;
-import com.factech.nexus.modules.movements.application.PointsAdjustmentItem;
 import com.factech.nexus.modules.movements.application.PointsAdjustmentResponse;
 import com.factech.nexus.modules.movements.application.PointsPurchaseResponse;
 import com.factech.nexus.modules.movements.application.PointsRateResponse;
+import com.factech.nexus.modules.movements.application.PointsReceiptInfo;
 import com.factech.nexus.modules.movements.application.PointsRequests;
 import com.factech.nexus.modules.movements.domain.models.IdempotencyKey;
+import com.factech.nexus.modules.movements.domain.models.PointsReceipt;
+import com.factech.nexus.modules.movements.domain.service.AttachPointsReceiptService;
 import com.factech.nexus.modules.movements.domain.service.PointsAdjustmentService;
 import com.factech.nexus.modules.movements.domain.service.PointsPurchaseService;
 import com.factech.nexus.modules.movements.domain.service.PointsRateService;
-import com.factech.nexus.shared.pagination.PageResponse;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.enums.ParameterIn;
@@ -18,20 +18,24 @@ import io.swagger.v3.oas.annotations.media.Content;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import io.swagger.v3.oas.annotations.tags.Tag;
+import java.io.IOException;
+import java.io.UncheckedIOException;
 import java.net.URI;
-import java.time.OffsetDateTime;
 import java.util.List;
 import java.util.UUID;
+import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.GetMapping;
-import org.springframework.web.bind.annotation.ModelAttribute;
+import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestHeader;
 import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RequestParam;
+import org.springframework.web.bind.annotation.RequestPart;
 import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.multipart.MultipartFile;
 
 /**
  * La etapa 3 de `MV` (`requirements/mv.md` §4.4): las tasas de puntos y la compra de puntos. Bajo
@@ -51,48 +55,17 @@ public class PointsController {
   private final PointsRateService tasas;
   private final PointsPurchaseService compras;
   private final PointsAdjustmentService ajustes;
+  private final AttachPointsReceiptService comprobantes;
 
   public PointsController(
-      PointsRateService tasas, PointsPurchaseService compras, PointsAdjustmentService ajustes) {
+      PointsRateService tasas,
+      PointsPurchaseService compras,
+      PointsAdjustmentService ajustes,
+      AttachPointsReceiptService comprobantes) {
     this.tasas = tasas;
     this.compras = compras;
     this.ajustes = ajustes;
-  }
-
-  @GetMapping("/points-adjustments")
-  @PreAuthorize("hasAuthority('movements:list-points-adjustments')")
-  @Operation(
-      summary = "Consultar los ajustes de puntos",
-      description =
-          """
-          Los ajustes de puntos de **todas** las personas (`RF-MV-053`), paginados y **los más
-          recientes primero**. Cada fila trae la persona —sin documento—, la moneda, los puntos
-          **con su signo**, el motivo, la referencia y **quién lo hizo** (`adjustedBy`, nulo en
-          los ajustes anteriores a que se guardara).
-
-          **Filtros**, combinables: `userId`, `currencyId`, `from` (inclusive) y `to`
-          (exclusive) sobre cuándo ocurrió, `sign` —`SUMA` o `RESTA`— y `q`, un fragmento del
-          comprobante, el motivo, la referencia, o el nombre, usuario o correo de la persona,
-          sin distinguir acentos ni mayúsculas. **`sort`**: `occurredAt` (por omisión, `desc`),
-          `points` o `code`, con `,asc` o `,desc`. Un filtro sin coincidencias devuelve la página
-          vacía.
-          """)
-  @ApiResponses({
-    @ApiResponse(responseCode = "200", description = "Página de ajustes."),
-    @ApiResponse(
-        responseCode = "400",
-        description = "Página, orden, sentido o periodo inválidos, todos juntos",
-        content = @Content),
-    @ApiResponse(responseCode = "401", description = "Sin token (`AUTH-001`)", content = @Content),
-    @ApiResponse(
-        responseCode = "403",
-        description = "Sin `movements:list-points-adjustments` (`AUTH-002`)",
-        content = @Content)
-  })
-  public PageResponse<PointsAdjustmentItem> listarAjustes(
-      @org.springdoc.core.annotations.ParameterObject @ModelAttribute
-          ListPointsAdjustmentsRequest filtros) {
-    return ajustes.list(filtros);
+    this.comprobantes = comprobantes;
   }
 
   @PostMapping("/points-adjustments")
@@ -142,12 +115,117 @@ public class PointsController {
       @Parameter(in = ParameterIn.HEADER, required = true, description = "Una por ajuste.")
           @RequestHeader(value = IdempotencyKey.CABECERA, required = false)
           String clave) {
-    PointsAdjustmentService.AdjustmentResult hecho = ajustes.adjust(peticion, clave);
+    return ajustado(ajustes.adjust(peticion, clave));
+  }
+
+  @PostMapping(value = "/points-adjustments", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
+  @PreAuthorize("hasAuthority('movements:adjust-points')")
+  @Operation(
+      summary = "Ajustar los puntos de una persona, con el comprobante",
+      description =
+          """
+          **La misma operación que el `POST` JSON**, con el comprobante adjunto en la misma
+          petición (`RF-MV-057`, `RN-MV-077`): `multipart/form-data` con una parte
+          `adjustment` —el JSON de siempre, con `Content-Type: application/json`— y una parte
+          `file` —un **PDF, PNG o JPG de hasta 5 MB**, reconocido **por su contenido**, nunca
+          por el nombre ni por el tipo de la parte—. **Todo o nada**: un archivo vacío
+          (`VAL-002`), de otro tipo (`VAL-003`) o mayor de 5 MB (`VAL-004`) **no crea el
+          ajuste**, y una resta que no alcanza no guarda el archivo. **La repetición compara
+          también el archivo**: la misma clave con el mismo archivo responde `200` con el ajuste
+          hecho; con otro, o con archivo donde no lo había, `409`. La respuesta trae
+          `receipt`.
+          """)
+  @ApiResponses({
+    @ApiResponse(responseCode = "201", description = "Ajustado, con el comprobante."),
+    @ApiResponse(responseCode = "200", description = "La misma petición repetida."),
+    @ApiResponse(
+        responseCode = "400",
+        description =
+            "Los de la petición JSON, o el archivo vacío (`VAL-002`), de otro tipo (`VAL-003`)"
+                + " o mayor de 5 MB (`VAL-004`)",
+        content = @Content),
+    @ApiResponse(responseCode = "401", description = "Sin token (`AUTH-001`)", content = @Content),
+    @ApiResponse(
+        responseCode = "403",
+        description = "Sin `movements:adjust-points` (`AUTH-002`)",
+        content = @Content),
+    @ApiResponse(
+        responseCode = "409",
+        description = "La clave es de otra petición, también por el archivo (`EX-005`)",
+        content = @Content),
+    @ApiResponse(
+        responseCode = "422",
+        description = "Los de la petición JSON (`EX-002`, `EX-006`)",
+        content = @Content)
+  })
+  public ResponseEntity<PointsAdjustmentResponse> ajustarPuntosConComprobante(
+      @RequestPart(value = "adjustment", required = false) PointsRequests.Adjustment peticion,
+      @RequestPart(value = "file", required = false) MultipartFile file,
+      @Parameter(in = ParameterIn.HEADER, required = true, description = "Una por ajuste.")
+          @RequestHeader(value = IdempotencyKey.CABECERA, required = false)
+          String clave) {
+    // El archivo se valida antes de nada: inválido, ni se mira la base.
+    PointsReceipt comprobante =
+        file == null ? null : PointsReceipt.de(file.getOriginalFilename(), bytesDe(file));
+    return ajustado(ajustes.adjust(peticion, clave, comprobante));
+  }
+
+  @PutMapping(
+      value = "/points-adjustments/{id}/receipt",
+      consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
+  @PreAuthorize("hasAuthority('movements:attach-points-receipt')")
+  @Operation(
+      summary = "Adjuntar o reemplazar el comprobante de un ajuste",
+      description =
+          """
+          Adjunta el comprobante a un ajuste de puntos ya hecho, **o reemplaza el que tenía**
+          (`RF-MV-057`, `RN-MV-077`): `multipart/form-data` con una parte `file`, un **PDF,
+          PNG o JPG de hasta 5 MB**, reconocido **por su contenido**. **El anterior no se
+          conserva**; la auditoría guarda su nombre, tipo, tamaño y resumen. Responde `200` con
+          los datos del comprobante, haya o no uno anterior. Sobre una compra de puntos o un
+          movimiento que no existe, `404`. No mueve puntos.
+          """)
+  @ApiResponses({
+    @ApiResponse(responseCode = "200", description = "El comprobante guardado."),
+    @ApiResponse(
+        responseCode = "400",
+        description =
+            "Sin archivo (`VAL-001`), vacío (`VAL-002`), de otro tipo (`VAL-003`) o mayor de 5 MB"
+                + " (`VAL-004`)",
+        content = @Content),
+    @ApiResponse(responseCode = "401", description = "Sin token (`AUTH-001`)", content = @Content),
+    @ApiResponse(
+        responseCode = "403",
+        description = "Sin `movements:attach-points-receipt` (`AUTH-002`)",
+        content = @Content),
+    @ApiResponse(
+        responseCode = "404",
+        description = "No existe un ajuste de puntos con ese identificador (`EX-002`)",
+        content = @Content)
+  })
+  public PointsReceiptInfo adjuntarComprobante(
+      @PathVariable UUID id, @RequestPart(value = "file", required = false) MultipartFile file) {
+    return comprobantes.attach(id, file == null ? null : file.getOriginalFilename(), bytesDe(file));
+  }
+
+  private static ResponseEntity<PointsAdjustmentResponse> ajustado(
+      PointsAdjustmentService.AdjustmentResult hecho) {
     if (!hecho.created()) {
       return ResponseEntity.ok(hecho.adjustment());
     }
     return ResponseEntity.created(URI.create("/api/v1/movements/" + hecho.adjustment().id()))
         .body(hecho.adjustment());
+  }
+
+  private static byte[] bytesDe(MultipartFile file) {
+    if (file == null) {
+      return null;
+    }
+    try {
+      return file.getBytes();
+    } catch (IOException fallo) {
+      throw new UncheckedIOException("No se pudo leer el comprobante de la petición.", fallo);
+    }
   }
 
   @PostMapping("/points-rates")
@@ -279,41 +357,5 @@ public class PointsController {
     }
     return ResponseEntity.created(URI.create("/api/v1/movements/" + hecho.purchase().id()))
         .body(hecho.purchase());
-  }
-
-  @GetMapping("/mine/points-purchases")
-  @PreAuthorize("hasAuthority('movements:list-own-points-purchases')")
-  @Operation(
-      summary = "Consultar mis compras de puntos",
-      description =
-          """
-          Las compras de puntos de quien tiene la sesión, **las más recientes primero**, cada
-          una con su tasa, sus puntos, sus pagos y, si se rechazó, el motivo (`RF-MV-031`).
-          Filtros: `status` (`PENDIENTE`, `CONFIRMADA`, `RECHAZADA`), `currencyId`, `code` —un
-          fragmento del comprobante, sin distinguir mayúsculas— y `from`/`to` sobre cuándo se
-          compró, rango semiabierto. Un estado desconocido y un periodo invertido son `400`, y
-          los dos errores salen juntos.
-          """)
-  @ApiResponses({
-    @ApiResponse(responseCode = "200", description = "Una página de compras."),
-    @ApiResponse(
-        responseCode = "400",
-        description = "Estado desconocido (`VAL-001`) o `from` posterior a `to` (`VAL-002`)",
-        content = @Content),
-    @ApiResponse(responseCode = "401", description = "Sin token (`AUTH-001`)", content = @Content),
-    @ApiResponse(
-        responseCode = "403",
-        description = "Sin `movements:list-own-points-purchases` (`AUTH-002`)",
-        content = @Content)
-  })
-  public PageResponse<PointsPurchaseResponse> misComprasDePuntos(
-      @RequestParam(required = false) Integer page,
-      @RequestParam(required = false) Integer size,
-      @RequestParam(required = false) String status,
-      @RequestParam(required = false) UUID currencyId,
-      @RequestParam(required = false) String code,
-      @RequestParam(required = false) OffsetDateTime from,
-      @RequestParam(required = false) OffsetDateTime to) {
-    return compras.listMine(page, size, status, currencyId, code, from, to);
   }
 }

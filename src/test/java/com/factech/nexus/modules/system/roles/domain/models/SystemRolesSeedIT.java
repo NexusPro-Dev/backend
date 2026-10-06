@@ -65,7 +65,9 @@ class SystemRolesSeedIT extends IntegrationTestBase {
           // `V76` (06-10-2026): el resumen de puntos.
           "indicators:read-points-summary",
           "movements:buy-points",
-          "movements:list-own-points-purchases",
+          "movements:list-own-points-movements",
+          "movements:read-own-points-movement",
+          "movements:download-own-points-receipt",
           // `V61` (01-10-2026): las cuentas de cobro, lo propio por tipo de rol.
           "movements:read-payout-institutions",
           "movements:create-own-payout-account",
@@ -131,7 +133,9 @@ class SystemRolesSeedIT extends IntegrationTestBase {
           // `V76` (06-10-2026): el resumen de puntos.
           "indicators:read-points-summary",
           "movements:buy-points",
-          "movements:list-own-points-purchases",
+          "movements:list-own-points-movements",
+          "movements:read-own-points-movement",
+          "movements:download-own-points-receipt",
           // `V61` (01-10-2026): las cuentas de cobro, lo propio por tipo de rol.
           "movements:read-payout-institutions",
           "movements:create-own-payout-account",
@@ -182,7 +186,9 @@ class SystemRolesSeedIT extends IntegrationTestBase {
           "movements:read-conversion-rates",
           "movements:pay-pending-locally",
           "movements:buy-points",
-          "movements:list-own-points-purchases",
+          "movements:list-own-points-movements",
+          "movements:read-own-points-movement",
+          "movements:download-own-points-receipt",
           // `V61` (01-10-2026): las cuentas de cobro, lo propio por tipo de rol.
           "movements:read-payout-institutions",
           "movements:create-own-payout-account",

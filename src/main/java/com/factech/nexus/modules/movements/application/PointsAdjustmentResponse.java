@@ -28,4 +28,10 @@ public record PointsAdjustmentResponse(
             description =
                 "El saldo de puntos de la persona en esa moneda, ahora. En una petición repetida es"
                     + " el de este momento, que puede haber cambiado desde el ajuste.")
-        BigDecimal pointsBalance) {}
+        BigDecimal pointsBalance,
+    @Schema(
+            types = {"object", "null"},
+            description =
+                "El comprobante adjunto (`RF-MV-057`), sin el archivo. Nulo si el ajuste no lo"
+                    + " tiene.")
+        PointsReceiptInfo receipt) {}
