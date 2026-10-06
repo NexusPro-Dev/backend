@@ -5,7 +5,7 @@
 | Módulo | `SP` — Sistema Principal |
 | Paquete | `modules/system` |
 | Prefijos de permiso | `roles:`, `permissions:`, `audit:`, `memberships:`, `currencies:`, `countries:`, `users:`, `exchange-rates:`, `document-types:`, `brokers:`, `broker-accounts:`, `teams:` |
-| Versión | 1.101.0 |
+| Versión | 1.102.0 |
 | Estado | **Aprobado** |
 | Responsable | Bonilla Diaz William Steven |
 | Fecha de creación | 20-08-2026 |
@@ -409,7 +409,7 @@ EXCLUDE USING gist (
 | `RF-SP-071` | Activar el segundo factor con una app autenticadora | **Crítica** | `users:start-own-mfa`, `users:confirm-own-mfa` | **En desarrollo** |
 | `RF-SP-072` | Iniciar sesión con el segundo factor | **Crítica** | — (público, autorizado por el desafío) | **En desarrollo** |
 | `RF-SP-073` | Reverificar el segundo factor antes de una operación sensible | **Crítica** | `users:verify-own-mfa` | **En desarrollo** |
-| `RF-SP-074` | Regenerar los propios códigos de recuperación | Alta | `users:regenerate-own-recovery-codes` | **Tasks aprobadas** |
+| `RF-SP-074` | Regenerar los propios códigos de recuperación | Alta | `users:regenerate-own-recovery-codes` | **En desarrollo** |
 | `RF-SP-075` | Desactivar el propio segundo factor | Media | `users:disable-own-mfa` | **Tasks aprobadas** |
 | `RF-SP-076` | Restablecer el segundo factor de un usuario | Alta | `users:reset-mfa` | **Tasks aprobadas** |
 | `RF-SP-077` | Exigir el segundo factor a los portadores de un rol | **Crítica** | `roles:require-mfa` | **Tasks aprobadas** |
@@ -1472,7 +1472,7 @@ Cierra la pertenencia vigente de uno o varios managers **de este equipo**, con m
 | Reglas aplicables | `RN-SP-061`, `RN-SP-063` |
 | Depende de | `RF-SP-071`, `RF-SP-073` |
 | Tripleta | `docs/specs/sp/074-regenerar-codigos-de-recuperacion/` |
-| Estado | **Tasks aprobadas** (06-10-2026) |
+| Estado | **En desarrollo** (06-10-2026) — construido el mismo día que sus tasks |
 
 `POST /api/v1/users/me/mfa/recovery-codes`. Es **sensible** porque los códigos valen lo mismo que el teléfono: quien regenera con una sesión robada obtiene diez entradas a la cuenta. Los anteriores quedan `superseded_at` en la misma transacción (§10.23), y la respuesta trae los nuevos **una sola vez**.
 
@@ -2479,3 +2479,4 @@ La fila se lee «esta persona vinculó este authenticator». `status` es `PENDIE
 | 1.99.0 | 06-10-2026 | **`RF-SP-071` pasa a `En desarrollo`**: activar el authenticator está construido —`POST /users/me/mfa/totp` y `…/confirmation`—, con `V75`, que trae el esquema de los siete. **Ninguna regla cambia.** | Responsable técnico |
 | 1.100.0 | 06-10-2026 | **`RF-SP-072` pasa a `En desarrollo`**: el inicio de sesión en dos pasos está construido —`POST /auth/login` emite el desafío, `POST /auth/login/mfa` lo completa— y **la obligación del rol ya retiene**: `SUPERADMIN` y `ADMIN` activan el factor en su siguiente inicio de sesión. Con él se adelantó el estado del factor en el perfil (`RF-SP-077` `CA-SP-892`), a petición del responsable del proyecto. **Ninguna regla cambia.** | Responsable técnico |
 | 1.101.0 | 06-10-2026 | **`RF-SP-073` pasa a `En desarrollo`**: las operaciones sensibles piden el código otra vez —`RecentMfaInterceptor`— y `POST /auth/mfa/verification` lo recibe sin cerrar la sesión. **Configurar los permisos de un rol**, que pidió el responsable del proyecto, es la operación con que se prueba. **Ninguna regla cambia.** | Responsable técnico |
+| 1.102.0 | 06-10-2026 | **`RF-SP-074` pasa a `En desarrollo`**: `POST /users/me/mfa/recovery-codes` regenera los diez códigos y anula los vigentes; es sensible, y el interceptor de `RF-SP-073` le pide la verificación reciente. **Ninguna regla cambia.** | Responsable técnico |
