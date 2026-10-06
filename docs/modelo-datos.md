@@ -2,11 +2,11 @@
 
 | Campo | Valor |
 |---|---|
-| Versión | 0.98.0 |
+| Versión | 0.99.0 |
 | Estado | **Borrador** |
 | Responsable | Bonilla Diaz William Steven |
 | Fecha de creación | 21-08-2026 |
-| Última actualización | 05-10-2026 |
+| Última actualización | 06-10-2026 |
 
 !!! info "Desde el 05-10-2026, los importes en centésimas: [`ADR-006`](architecture/ADR-006-importes-en-unidades-minimas.md)"
 
@@ -66,6 +66,9 @@ erDiagram
     roles ||--o{ user_roles : "se asigna a"
     users ||--o{ refresh_tokens : "abre sesión"
     users ||--o{ password_reset_permits : "pide restablecer · RF-SP-040"
+    users ||--o{ user_mfa_factors : "vincula su authenticator · RN-SP-058 · uno activo"
+    user_mfa_factors ||--o{ mfa_recovery_codes : "diez vigentes · RN-SP-061"
+    users ||--o{ mfa_challenges : "entre la contraseña y el código · RN-SP-059"
     users ||--o{ user_supervisors : "está a cargo de alguien"
     users ||--o{ user_supervisors : "tiene gente a cargo"
     users ||--o{ client_sellers : "lo registró o le vendió · cliente · RN-SP-049"
@@ -106,6 +109,7 @@ erDiagram
         varchar action "50"
         varchar name "100"
         text description "NULL"
+        boolean requires_recent_mfa "default false · operación sensible · RN-SP-063"
         timestamptz created_at "now"
         timestamptz updated_at "now"
     }
@@ -119,6 +123,7 @@ erDiagram
         uuid parent_role_id FK "NULL solo en el rol raíz"
         varchar status "20 · ACTIVO INACTIVO · default ACTIVO"
         boolean is_system "default false · bloquea toda edición"
+        boolean requires_mfa "default false · RN-SP-062 · la raíz siempre true"
         timestamptz created_at "now"
         timestamptz updated_at "now"
         timestamptz deleted_at "NULL · borrado lógico"
@@ -185,6 +190,7 @@ erDiagram
         uuid replaced_by_id FK "NULL · rotación"
         inet ip "—"
         text user_agent "—"
+        timestamptz mfa_verified_at "NULL · cuándo verificó el segundo factor esta familia · 06-10-2026"
     }
 
     password_reset_permits {
@@ -195,6 +201,41 @@ erDiagram
         timestamptz used_at "NULL · de un solo uso"
         timestamptz invalidated_at "NULL · FA-002 · lo invalida el siguiente"
         inet ip "—"
+        timestamptz created_at "now"
+    }
+
+    user_mfa_factors {
+        uuid id PK "diseñada 06-10-2026 · RF-SP-071"
+        uuid user_id FK "uno ACTIVO y uno PENDIENTE como mucho · índices parciales"
+        varchar factor_type "TOTP · WebAuthn mañana"
+        bytea secret_ciphertext "AES-256-GCM · user_id como dato asociado · nunca sale"
+        varchar status "PENDIENTE ACTIVO RETIRADO"
+        bigint last_used_step "NULL · RN-SP-060 · un código sirve una vez"
+        timestamptz pending_expires_at "NULL · diez minutos"
+        timestamptz confirmed_at "NULL"
+        timestamptz retired_at "NULL"
+        varchar retired_reason "NULL · REEMPLAZADO DESACTIVADO RESTABLECIDO CADUCADO"
+        timestamptz created_at "now"
+        timestamptz updated_at "now"
+    }
+
+    mfa_recovery_codes {
+        uuid id PK "RN-SP-061"
+        uuid factor_id FK "cuelgan del factor, no de la persona"
+        varchar code_hash "Argon2id con sal"
+        timestamptz used_at "NULL · de un solo uso"
+        timestamptz superseded_at "NULL · regenerar anula los diez"
+        timestamptz created_at "now"
+    }
+
+    mfa_challenges {
+        uuid id PK "RN-SP-059 · la forma de password_reset_permits"
+        uuid user_id FK "—"
+        varchar challenge_hash UK "SHA-256 · nunca el valor"
+        timestamptz expires_at "cinco minutos"
+        smallint failed_attempts "0 a 5"
+        timestamptz consumed_at "NULL"
+        inet requested_ip "NULL"
         timestamptz created_at "now"
     }
 
@@ -254,6 +295,7 @@ Diez decisiones que el dibujo no explica solo:
     Sobre ella, `uq_user_roles_vendedor` —parcial, `WHERE role_type = 'VENDEDOR'`— cierra la regla **en el motor**. Se decidió así el 02-09-2026 por un precedente y no por gusto: `RN-SP-018` se comprobaba en el caso de uso, **no aguantó la concurrencia**, y hubo que corregirla el 26-08-2026 sobre esta misma tabla.
 - **La credencial provisional necesita dos columnas, no una.** `must_change_password` dice *que* hay que cambiarla; `password_expires_at` dice *hasta cuándo sirve*. `RF-SP-038` §7 exige ambas cosas —fija la marca y «el momento en que la credencial provisional caduca», superado el cual hay que restablecerla de nuevo— y hasta ahora el modelo solo declaraba la primera. La columna es nulable porque solo tiene sentido mientras la credencial sea provisional, y deja de tenerlo en cuanto la persona elige la suya: que `RF-SP-037` y `RF-SP-040` la limpien junto con la marca es la lectura natural, pero **ninguna de las dos lo dice** y es parte de lo que sus `plan.md` tendrán que fijar.
 - **El permiso temporal de `RF-SP-040` es una tabla, no una columna.** Tiene vigencia propia, se consume de un solo uso y una solicitud nueva invalida la anterior (`FA-002`), de modo que necesita filas con estado y no un campo en `users`. Su forma copia la de `refresh_tokens` por el mismo motivo: **nunca se guarda el valor en claro**, solo su hash, porque quien leyera la tabla podría entrar como cualquiera. Es la tabla más provisional del modelo —`RF-SP-040` todavía no tiene `plan.md`—, y los nombres de sus columnas quedan sujetos a él.
+- **El segundo factor son tres tablas y dos columnas, y el secreto es lo único del modelo que se CIFRA en lugar de resumirse** (06-10-2026, [`requirements/sp.md`](requirements/sp.md) §10.22 a §10.24, `RN-SP-058` a `RN-SP-064`). La contraseña, el refresh token, el permiso de recuperación, el desafío y los códigos de recuperación se guardan como resumen porque el servidor solo tiene que **comprobarlos**; el secreto TOTP no, porque tiene que **recalcular** el código cada vez. `user_mfa_factors` guarda historial —un factor retirado no se borra— por lo mismo que `user_supervisors`: cuándo tuvo alguien segundo factor es una pregunta que se hace después. `roles.requires_mfa` decide quién está obligado y `permissions.requires_recent_mfa` qué operaciones piden el código otra vez; `refresh_tokens.mfa_verified_at` es lo que permite que un refresco conserve la prueba sin renovarla.
 
 ---
 
@@ -859,6 +901,7 @@ flowchart TB
             C9["team_members<br/>solo la cúspide"]
             C3["refresh_tokens"]
             C5["password_reset_permits"]
+            C10["user_mfa_factors · mfa_recovery_codes · mfa_challenges<br/>segundo factor · diseñadas"]
         end
         subgraph AUD["Auditoría · todos escriben"]
             direction LR
@@ -909,7 +952,7 @@ flowchart TB
 
 | Módulo | Tablas | Estado |
 |---|---|---|
-| `SP` | `permissions`, `roles`, `role_permissions`, `users`, `user_roles`, `memberships`, `user_products`, `currencies`, `countries`, `document_types`, `user_supervisors`, `client_sellers`, `refresh_tokens`, `password_reset_permits`, `exchange_rates`, `brokers`, `user_brokers`, `teams`, `team_members` | **17 escritas** (`client_sellers` desde `V20`, 21-09-2026) **y dos diseñadas**: `teams` y `team_members`, que creará `V33` con `RF-SP-063` (21-09-2026) |
+| `SP` | `permissions`, `roles`, `role_permissions`, `users`, `user_roles`, `memberships`, `user_products`, `currencies`, `countries`, `document_types`, `user_supervisors`, `client_sellers`, `refresh_tokens`, `password_reset_permits`, `exchange_rates`, `brokers`, `user_brokers`, `teams`, `team_members`, `user_mfa_factors`, `mfa_recovery_codes`, `mfa_challenges` | **17 escritas** (`client_sellers` desde `V20`, 21-09-2026) **y dos diseñadas**: `teams` y `team_members`, que creará `V33` con `RF-SP-063` (21-09-2026) · **y tres más diseñadas el 06-10-2026** para el segundo factor —`user_mfa_factors`, `mfa_recovery_codes`, `mfa_challenges`—, sin migración |
 | `SP` · auditoría | `audit_change_log`, `audit_deletion_log`, `audit_error_log`, `audit_security_log`, `request_log` | **5, escritas** |
 | `PM` | `products`, `product_comments`, `product_images`, `product_packages`, `product_package_items`, `product_links` | **3 escritas** (`V39`, `V87`, `V90`) **y dos diseñadas**: las de los paquetes, que creará la migración de `RF-PM-017` (14-09-2026). **`product_links` la crea `V35`** (22-09-2026), y con ella `products` **pierde** `video_url` |
 | `CM` | `commission_rates`, `user_commission_rates`, `commissions`, `commission_batches`, `commission_accruals`, `commission_closings`, `afftrack_rates`, `user_afftrack_rates`, `afftrack_settlements`, `afftrack_ftds` | **6, escritas**: las dos de tasas (`V6` del esquema consolidado) y las cuatro de la liquidación (`V51`, 28-09-2026, [`requirements/cm.md`](requirements/cm.md) §7.5 a §7.8). **Y las cuatro de la comisión afftrack**, escritas por `V54` el 29-09-2026 ([`requirements/cm.md`](requirements/cm.md) v0.22.0 §7.9 a §7.12), que además cambia `commissions`: gana `commission_kind` y `afftrack_settlement_id`. **Diez, escritas.** `product_commission_rates` existió de `V49` a `V94` (15-09-2026) y `user_commission_rate_products` de `V85` a `V10` (16-09-2026) |
@@ -1127,3 +1170,4 @@ Los documentos que citan una migración vieja por su número —specs, controles
 | 0.96.0 | 05-10-2026 | **`country_conversion_rates` gana la tienda de la pasarela local** ([`requirements/mv.md`](requirements/mv.md) v0.82.0 §7.15, `RN-MV-063`): `shop_id` y `shop_secret_key`, **cifrada**, las dos nulas o las dos presentes (`ck_country_conversion_rates_tienda`). Las escribe `V71`. Sin claves foráneas nuevas | Responsable del proyecto |
 | 0.97.0 | 05-10-2026 | **`movements` gana `external_reference`** y **`points_amount` va con signo y sin tasa en el ajuste de puntos** ([`requirements/mv.md`](requirements/mv.md) v0.83.0 §4.11 y §7.1, `RN-MV-076`): `ck_movements_points` se relaja —una tasa exige puntos positivos; unos puntos nunca son cero— y nace `ck_movements_external_reference`. `movement_entries` admite el evento `AJUSTE`. Lo escribe `V72`. Ninguna tabla nueva. | Responsable técnico |
 | 0.98.0 | 05-10-2026 | **`movements` gana `recorded_by`** ([`requirements/mv.md`](requirements/mv.md) v0.84.0 §7.1, `RF-MV-053`): quién registró un ajuste de puntos, FK a `users` con `ON DELETE SET NULL`; nula en lo demás. Con un índice parcial para listar los ajustes. Lo escribe `V73`. | Responsable técnico |
+| 0.99.0 | 06-10-2026 | **Entra el segundo factor** ([`requirements/sp.md`](requirements/sp.md) v1.93.0 §10.1, §10.2, §10.22 a §10.24; [`security.md`](security.md) v0.105.0 §3.3): tres tablas diseñadas —`user_mfa_factors` (el authenticator, con el secreto **cifrado** y su historial), `mfa_recovery_codes` y `mfa_challenges`— y tres columnas: `roles.requires_mfa`, `permissions.requires_recent_mfa` y `refresh_tokens.mfa_verified_at`. Sin migración. | Responsable técnico |

@@ -5,11 +5,11 @@
 | Módulo | `SP` — Sistema Principal |
 | Paquete | `modules/system` |
 | Prefijos de permiso | `roles:`, `permissions:`, `audit:`, `memberships:`, `currencies:`, `countries:`, `users:`, `exchange-rates:`, `document-types:`, `brokers:`, `broker-accounts:`, `teams:` |
-| Versión | 1.92.0 |
+| Versión | 1.93.0 |
 | Estado | **Aprobado** |
 | Responsable | Bonilla Diaz William Steven |
 | Fecha de creación | 20-08-2026 |
-| Última actualización | 05-10-2026 |
+| Última actualización | 06-10-2026 |
 | Fecha de aprobación | 20-08-2026 |
 
 !!! info "Qué va en este documento"
@@ -73,6 +73,7 @@ Según [`modules.md` §5.1](../modules.md).
 | **Estructura comercial** | Quién está a cargo de quién dentro de la fuerza comercial: el superior de cada vendedor y el equipo que tiene a cargo | `RF-SP-041`, `RF-SP-042` |
 | **Equipos** | Cómo se organiza **la cúspide** de la fuerza comercial: cada equipo reúne managers —quienes portan el rol vendedor de mayor rango y por eso no tienen superior (`RN-SP-019`)—, y con cada manager entra, por su cadena de mando en `user_supervisors`, toda la red que cuelga de él. **Un equipo no manda**: agrupa | `RF-SP-063` a `RF-SP-070` |
 | **Credenciales y acceso** | Inicio y cierre de sesión, refresco, y gestión de la contraseña | `RF-SP-034` a `RF-SP-038`, `RF-SP-040` |
+| **Segundo factor** | El código de una app autenticadora (Google Authenticator, Microsoft Authenticator, Authy…) como segunda prueba de identidad: activarlo, entrar con él, volver a presentarlo antes de una operación sensible, los códigos de recuperación, su retiro y **qué roles lo exigen**. Nace el 06-10-2026 por decisión del responsable del proyecto | `RF-SP-071` a `RF-SP-077` |
 | Auditoría | Consulta de los cuatro registros | `RF-SP-011` a `RF-SP-014` |
 
 !!! note "Sobre el submódulo Parámetros"
@@ -227,6 +228,13 @@ Reglas que no son transversales de seguridad y por tanto sí llevan el prefijo d
 | `RN-SP-056` | **Lo que una persona posee se guarda una vez y en un solo sitio** | Al entregar lo comprado (`RF-MV-003`), al registrarse (`RF-SP-024`, `RF-SP-045`) y al anular (`RF-MV-008`) | Nace el 23-09-2026 por decisión del responsable del proyecto, y con ella `user_memberships` pasa a ser **`user_products`**: una fila por **cosa que alguien tiene**, sea un bot o una membresía, con su periodo. **Una membresía no es una cosa aparte: es una cosa poseída que además concede nivel**, y se reconoce porque lleva `membership_id` poblado — el resto lo lleva nulo. Tres consecuencias que no son de forma. **Primera:** la fila abierta única y la exclusión de solapes **solo alcanzan a las membresías**, porque nadie tiene dos niveles a la vez pero sí dos bots. **Segunda:** `product_id` es nulo **solo en lo que no se compra** —el suelo de `RN-SP-018` y la semilla fundacional—, y `ck_user_products_origen` impide una fila que no sea ni una cosa ni un nivel. **Tercera:** la posesión apunta a **la línea que la produjo** (`movement_detail_id`, único), de modo que entregar dos veces la misma línea no puede duplicarla. Lo que **no** cambia es de quién es la tabla: sigue siendo de `SP`, y `MV` escribe en ella por la operación publicada de **D-26** | **Crítica** |
 | `RN-SP-057` | **Confirmar el primer depósito activa lo que se compró al registrarse** | Al pasar una cuenta de `FTD_PENDIENTE` a `ACTIVO` (hoy `RF-SP-028`; mañana el webhook de `RF-SP-054`) | Decisión del responsable del proyecto, 05-10-2026: la venta del alta gratuita «se guardará como confirmada pero solo se activará cuando se confirme el primer depósito». **En la misma transacción** en que la cuenta sale de `FTD_PENDIENTE`, `SP` pide a `MV` que **active las líneas pendientes de la venta del alta** (`RN-MV-075`), por un puerto que `SP` declara y `MV` implementa, como la venta del registro (`RN-SP-043`). Activar es **entregar**: se concede la membresía del producto y la línea queda `ENTREGADA` con su `delivered_at`, que es el **momento del FTD** para `CM` (`RN-CM-036`). **Si la activación falla, la cuenta no sale de `FTD_PENDIENTE`**: un cliente activo sin lo que compró sería un FTD que nadie contará. Solo ocurre en **esa** transición; volver a `ACTIVO` desde `INACTIVO` o `BLOQUEADO` no activa nada, porque ya se activó o nunca hubo nada que activar | **Crítica** |
 | `RN-SP-055` | **La pertenencia sigue al rol: quien deja de ser manager sale de su equipo** | Al retirar a una persona el rol vendedor de mayor rango (`RF-SP-031`) y al eliminarla (`RF-SP-029`) | Si la persona tiene una pertenencia vigente, la operación **la cierra en la misma transacción**, auditando ambos hechos bajo el mismo identificador de correlación — la forma que `RN-SP-019` ya da al superior cuando se retira el último rol `VENDEDOR`. Sin esta regla, un equipo podría contener a alguien que ya no es manager, y `RN-SP-051` se cumpliría al asignar y dejaría de cumplirse después sin que nadie lo notara. **Un descenso es un retiro**: quien pasa de manager a director pierde el rol de mayor rango y por tanto su equipo; su nuevo superior lo coloca, por `user_supervisors`, en el equipo de ese superior. Cambiar el estado de la persona (`RF-SP-028`) **no** la saca del equipo: un manager suspendido sigue siendo manager. Es una enmienda de hecho (Art. I.7) a `RF-SP-029` y `RF-SP-031`, construidos, que se aplica en sus tripletas antes de tocar su código, con la tarea declarada en `RF-SP-070` | Alta |
+| `RN-SP-058` | **Un solo authenticator activo por persona, y solo se activa al probarlo** | Al activar el segundo factor (`RF-SP-071`) | Activar son **dos pasos**: iniciar crea un secreto **pendiente** y confirmarlo con un código válido lo vuelve **activo**. Un secreto que nadie confirmó no se exige al entrar —la persona puede no haber terminado de escanear el QR— y **caduca a los diez minutos**. Cada persona tiene **como mucho un factor activo y uno pendiente**, y lo declara el esquema (`uq_user_mfa_factors_activo`, `uq_user_mfa_factors_pendiente`, §10.22), no el caso de uso. Confirmar uno nuevo teniendo otro activo —**cambiar de teléfono**— **retira el anterior** en la misma transacción, y para iniciarlo hace falta verificación reciente (`RN-SP-063`): sin ella, una sesión robada cambiaría el authenticator de su víctima por el suyo | **Crítica** |
+| `RN-SP-059` | **Con el segundo factor activo, la contraseña sola no abre sesión** | Al iniciar sesión (`RF-SP-034`, `RF-SP-072`) | Una contraseña correcta sobre una cuenta con factor activo **no emite tokens**: emite un **desafío** de un solo uso, **cinco minutos** y **cinco intentos**, y la sesión nace al presentarlo con un código. Que el desafío exista **no permite enumerar cuentas**: solo aparece tras una contraseña correcta, y quien la tiene ya sabe que la cuenta existe. **Los códigos fallidos consumen intentos de la cuenta**, con la misma `LockoutPolicy` y el mismo contador que la contraseña (`security.md` §3.2): sin eso, quien ya tiene la contraseña prueba el millón de combinaciones sin freno. Acertar la contraseña **no** pone el contador a cero; lo pone a cero completar el segundo paso | **Crítica** |
+| `RN-SP-060` | **Un código del authenticator sirve una sola vez** | Al verificar un código (`RF-SP-071`, `RF-SP-072`, `RF-SP-073`) | TOTP de RFC 6238: **seis dígitos, periodo de treinta segundos, HMAC-SHA1**, que es lo que toda app autenticadora entiende sin que nadie configure nada. Se acepta el periodo actual y **uno a cada lado** por desfase de reloj, y solo si es **posterior al último usado** (`last_used_step`): un código visto por encima del hombro o interceptado no se puede repetir, ni siquiera dentro de sus noventa segundos de vida | Alta |
+| `RN-SP-061` | **Diez códigos de recuperación, de un solo uso, que se ven una sola vez** | Al confirmar el factor (`RF-SP-071`) y al regenerarlos (`RF-SP-074`) | Se entregan **diez** al confirmar y **solo en esa respuesta**: el servidor guarda el resumen Argon2id, nunca el valor, como con la contraseña. Cada uno sirve **una vez** en lugar del código del authenticator, al entrar y al reverificar. Regenerarlos **anula todos los anteriores**, usados o no. Usar uno **deja evento de seguridad**: significa que la persona no tiene su teléfono, y si no fue ella, es lo primero que hay que poder ver | Alta |
+| `RN-SP-062` | **El rol decide si exige el segundo factor** | Al iniciar y renovar sesión, al desactivar el propio factor (`RF-SP-075`) y al marcar un rol (`RF-SP-077`) | Lo decide `roles.requires_mfa` (§10.2). Quien porte **al menos un rol `ACTIVO` que lo exija** y no tenga factor activo **entra retenido**: su token lleva el claim `mer` y solo alcanza las dos rutas para activarlo, su perfil y las de sesión —la misma forma que la retención por contraseña provisional (`security.md` §3.2)—. Mientras porte ese rol **no puede desactivar** su factor. **Nacen marcados `SUPERADMIN` y `ADMIN`**; el resto lo marca quien administra roles. Decisión del responsable del proyecto, 06-10-2026: obligatorio por rol, y no para todos ni para nadie | **Crítica** |
+| `RN-SP-063` | **Las operaciones sensibles piden el código otra vez** | Al atender una operación cuyo permiso lleva `permissions.requires_recent_mfa` (§10.1) | El token tiene que probar un segundo factor verificado hace **cinco minutos o menos** (claim `mfa`; la ventana vive en configuración). Si no, **`403`** con un `type` propio, y el cliente pide el código (`RF-SP-073`) y reintenta. **Quien no tenga factor activo no puede hacerlas**: una operación sensible exige authenticator, lo exija o no el rol. **La marca la pone una migración, no la API**, porque el catálogo de permisos es de solo lectura (`RF-SP-010`); la lista inicial está en [`security.md` §4.4](../security.md): **administrar los permisos de un rol** —que el responsable del proyecto pidió expresamente—, los roles de una persona, qué roles exigen el factor, restablecer contraseñas y factores ajenos, eliminar personas, confirmar y rechazar pagos, aprobar retiros, pagar lotes de comisión, ajustar puntos, y fijar conversiones y tasas de puntos | **Crítica** |
+| `RN-SP-064` | **Restablecer el factor de otra persona deja motivo y cierra sus sesiones** | Al restablecer (`RF-SP-076`) | Es la salida de quien perdió el teléfono **y** los códigos. Retira el factor activo y sus códigos, **revoca todas sus sesiones** y exige **motivo**, que queda en `audit_deletion_log` (Art. V.13). **Nunca sobre uno mismo** (`RN-SEG-011`): si quien administra pudiera restablecer el suyo, una sesión robada de administrador se saltaría el segundo factor con dos peticiones. Si la persona porta un rol que lo exige, su próximo inicio de sesión entra retenido (`RN-SP-062`) hasta que lo active de nuevo | **Crítica** |
 
 !!! danger "`RN-SP-025` vive en el motor, y hasta el 02-09-2026 no vivía en ninguna parte"
 
@@ -397,6 +405,13 @@ EXCLUDE USING gist (
 | `RF-SP-068` | Eliminar equipo | Baja | `teams:delete` | **En desarrollo** |
 | `RF-SP-069` | Asignar miembros a un equipo | Alta | `teams:assign-members` | **En desarrollo** |
 | `RF-SP-070` | Retirar miembros de un equipo | Media | `teams:remove-members` | **En desarrollo** |
+| `RF-SP-071` | Activar el segundo factor con una app autenticadora | **Crítica** | `users:start-own-mfa`, `users:confirm-own-mfa` | Pendiente |
+| `RF-SP-072` | Iniciar sesión con el segundo factor | **Crítica** | — (público, autorizado por el desafío) | Pendiente |
+| `RF-SP-073` | Reverificar el segundo factor antes de una operación sensible | **Crítica** | `users:verify-own-mfa` | Pendiente |
+| `RF-SP-074` | Regenerar los propios códigos de recuperación | Alta | `users:regenerate-own-recovery-codes` | Pendiente |
+| `RF-SP-075` | Desactivar el propio segundo factor | Media | `users:disable-own-mfa` | Pendiente |
+| `RF-SP-076` | Restablecer el segundo factor de un usuario | Alta | `users:reset-mfa` | Pendiente |
+| `RF-SP-077` | Exigir el segundo factor a los portadores de un rol | **Crítica** | `roles:require-mfa` | Pendiente |
 
 !!! info "Dónde vive el estado de un requerimiento"
 
@@ -1390,6 +1405,127 @@ Cierra la pertenencia vigente de uno o varios managers **de este equipo**, con m
 
 **Trae consigo la enmienda de `RN-SP-055` a `RF-SP-029` y `RF-SP-031`**: retirar el rol de manager o eliminar a la persona cierra su pertenencia en la misma transacción. Se declara aquí y no en `RF-SP-069` porque es un retiro que ocurre por otra causa, y su tripleta es la que toca los dos casos de uso construidos, en el orden del Art. I.7: primero sus tripletas, después su código.
 
+#### `RF-SP-071` — Activar el segundo factor con una app autenticadora
+
+| Campo | Valor |
+|---|---|
+| Objetivo | Que una persona vincule una app autenticadora a su cuenta, de modo que para entrar haga falta, además de la contraseña, el código de seis dígitos que muestra su teléfono |
+| Actor | Cualquier persona autenticada |
+| Permiso requerido | `users:start-own-mfa` (iniciar) y `users:confirm-own-mfa` (confirmar): dos operaciones, dos permisos (`RN-SEG-014`) |
+| Prioridad | **Crítica** |
+| Reglas aplicables | `RN-SP-058`, `RN-SP-060`, `RN-SP-061`, `RN-SP-063` (para cambiar de authenticator) |
+| Depende de | `RF-SP-034` |
+| Tripleta | `docs/specs/sp/071-activar-segundo-factor/` |
+| Estado | Pendiente |
+
+**Lo pidió el responsable del proyecto el 06-10-2026**, y eligió el authenticator por encima del SMS y del correo. **Iniciar** (`POST /api/v1/users/me/mfa/totp`) genera un secreto aleatorio de veinte bytes, lo guarda **cifrado** como factor pendiente y devuelve la URI `otpauth://totp/NEXUS:<usuario>?secret=…&issuer=NEXUS`, que el frontend pinta como QR, junto al secreto en Base32 para quien no pueda escanear. **Confirmar** (`POST /api/v1/users/me/mfa/totp/confirmation`) recibe el primer código: si vale, el factor pasa a activo y la respuesta lleva **los diez códigos de recuperación**, la única vez que existen en claro (`RN-SP-061`).
+
+**El secreto se cifra y no se resume**, al contrario que la contraseña, y no por descuido: el servidor tiene que **recalcular** el código cada vez, de modo que necesita el valor. Se cifra con AES-256-GCM —el mismo esquema que la clave de la tienda de PayRetailers (`RN-MV-063`)— con una llave propia del entorno y **el identificador de la persona como dato asociado**: una fila copiada a otra cuenta no descifra.
+
+**Iniciar con un factor ya activo es cambiar de teléfono**, y exige verificación reciente (`RN-SP-063`). Esa condición depende del estado de la persona y no del permiso, de modo que no la puede llevar la marca del catálogo: la comprueba el caso de uso. Un factor pendiente anterior se **sustituye**: nunca hay dos.
+
+#### `RF-SP-072` — Iniciar sesión con el segundo factor
+
+| Campo | Valor |
+|---|---|
+| Objetivo | Completar el inicio de sesión de una cuenta con segundo factor presentando el código del authenticator, o uno de recuperación |
+| Actor | Cualquier persona con factor activo |
+| Permiso requerido | — Público: lo autoriza el **desafío** que emitió `RF-SP-034` |
+| Prioridad | **Crítica** |
+| Reglas aplicables | `RN-SP-059`, `RN-SP-060`, `RN-SP-061`, `RN-SP-062` |
+| Depende de | `RF-SP-034`, `RF-SP-071` |
+| Tripleta | `docs/specs/sp/072-iniciar-sesion-con-segundo-factor/` |
+| Estado | Pendiente |
+
+**Enmienda `RF-SP-034`** (Art. I.7): con el factor activo, una contraseña correcta deja de responder con tokens y responde `200` con `mfaRequired: true`, un `challengeToken` y su vigencia. Las comprobaciones de `RF-SP-034` —bloqueo, contraseña contra resumen de descarte, estado después de la contraseña— **no cambian de orden**, y el desafío se emite **después** del paso 5, de modo que todo lo que aquel requerimiento defiende sigue defendido.
+
+`POST /api/v1/auth/login/mfa` recibe el desafío y **un** código —del authenticator o de recuperación—. Si vale, abre la sesión exactamente como la abría `RF-SP-034`: refresh token, último acceso, evento `LOGIN_SUCCESS`, con dos diferencias: el token lleva el claim `mfa` y la familia de refresh guarda cuándo se verificó el factor (`refresh_tokens.mfa_verified_at`). Si no vale, el rechazo es el genérico de credenciales, **consume intento de la cuenta** y del desafío; al quinto, el desafío muere y hay que volver a empezar desde la contraseña. **Vuelve a leer la cuenta con su fila bloqueada** antes de abrir la sesión, por la misma carrera que cierra el paso 5 de `RF-SP-034`: entre los dos pasos pueden haber desactivado a la persona.
+
+**El desafío se guarda como el permiso de recuperación**: solo su resumen, con caducidad que se evalúa al consultar y sin proceso que lo limpie (§10.24).
+
+#### `RF-SP-073` — Reverificar el segundo factor antes de una operación sensible
+
+| Campo | Valor |
+|---|---|
+| Objetivo | Que quien va a hacer una operación sensible pruebe otra vez que tiene su teléfono, sin cerrar la sesión |
+| Actor | Cualquier persona con factor activo |
+| Permiso requerido | `users:verify-own-mfa` |
+| Prioridad | **Crítica** |
+| Reglas aplicables | `RN-SP-060`, `RN-SP-061`, `RN-SP-063` |
+| Depende de | `RF-SP-071` |
+| Tripleta | `docs/specs/sp/073-reverificar-segundo-factor/` |
+| Estado | Pendiente |
+
+`POST /api/v1/auth/mfa/verification` recibe un código y, si vale, **devuelve un token de acceso nuevo** con el claim `mfa` en el instante actual; el refresh token no cambia. Con él, durante cinco minutos, las operaciones marcadas `requires_recent_mfa` se atienden. **No hay estado nuevo en el servidor**: la prueba viaja en el token firmado, como `mcp` (`security.md` §5.2), y no obliga a leer la base en cada petición sensible.
+
+**Por qué un token nuevo y no una cabecera con el código en cada petición**: el código sirve una vez (`RN-SP-060`), de modo que dos operaciones sensibles seguidas —asignar dos permisos a un rol, confirmar dos pagos— obligarían a esperar treinta segundos entre una y otra. La ventana de cinco minutos es la que lo permite sin abrir más de lo necesario. Los fallos **consumen intento de la cuenta**, como en `RF-SP-072`: una sesión robada no puede usar esta ruta para probar códigos.
+
+#### `RF-SP-074` — Regenerar los propios códigos de recuperación
+
+| Campo | Valor |
+|---|---|
+| Objetivo | Obtener diez códigos de recuperación nuevos y anular los anteriores, por haberlos gastado, perdido o expuesto |
+| Actor | Cualquier persona con factor activo |
+| Permiso requerido | `users:regenerate-own-recovery-codes` — **sensible** (`RN-SP-063`) |
+| Prioridad | Alta |
+| Reglas aplicables | `RN-SP-061`, `RN-SP-063` |
+| Depende de | `RF-SP-071`, `RF-SP-073` |
+| Tripleta | `docs/specs/sp/074-regenerar-codigos-de-recuperacion/` |
+| Estado | Pendiente |
+
+`POST /api/v1/users/me/mfa/recovery-codes`. Es **sensible** porque los códigos valen lo mismo que el teléfono: quien regenera con una sesión robada obtiene diez entradas a la cuenta. Los anteriores quedan `superseded_at` en la misma transacción (§10.23), y la respuesta trae los nuevos **una sola vez**.
+
+#### `RF-SP-075` — Desactivar el propio segundo factor
+
+| Campo | Valor |
+|---|---|
+| Objetivo | Que quien activó el authenticator por su cuenta pueda retirarlo |
+| Actor | Cualquier persona con factor activo que **no** porte un rol que lo exija |
+| Permiso requerido | `users:disable-own-mfa` — **sensible** (`RN-SP-063`) |
+| Prioridad | Media |
+| Reglas aplicables | `RN-SP-062`, `RN-SP-063` |
+| Depende de | `RF-SP-071`, `RF-SP-073` |
+| Tripleta | `docs/specs/sp/075-desactivar-segundo-factor/` |
+| Estado | Pendiente |
+
+`POST /api/v1/users/me/mfa/deactivation` con la **contraseña actual** en el cuerpo, además de la reverificación: es la operación que más baja la seguridad de una cuenta, y se le piden los dos factores a la vez. **`409` si la persona porta un rol que exige el factor** (`RN-SP-062`): en ese caso no hay desactivación, solo cambio de teléfono (`RF-SP-071`). Retira el factor y sus códigos y **revoca las demás sesiones** de la persona —no la actual—, como `RF-SP-037` al cambiar la contraseña.
+
+#### `RF-SP-076` — Restablecer el segundo factor de un usuario
+
+| Campo | Valor |
+|---|---|
+| Objetivo | Devolver el acceso a quien perdió el teléfono y los códigos de recuperación |
+| Actor | Administrador de usuarios |
+| Permiso requerido | `users:reset-mfa` — **sensible** (`RN-SP-063`) |
+| Prioridad | Alta |
+| Reglas aplicables | `RN-SP-064`, `RN-SEG-011`, `RN-SP-063` |
+| Depende de | `RF-SP-071`, `RF-SP-073` |
+| Tripleta | `docs/specs/sp/076-restablecer-segundo-factor/` |
+| Estado | Pendiente |
+
+`POST /api/v1/users/{id}/mfa/reset` con `reason`. Retira el factor activo —y el pendiente, si lo hay— y los códigos, revoca **todas** las sesiones de la persona y escribe el evento `MFA_RESET` con severidad alta y el motivo en `audit_deletion_log`. **`403` sobre uno mismo**, con el mismo argumento que `RN-SEG-011`. **No toca la contraseña**: si la persona también la olvidó, son dos operaciones —esta y `RF-SP-038`—, y mezclarlas haría que un restablecimiento de factor revelara una credencial.
+
+**Quién verifica que quien llama es de verdad la persona** queda fuera del sistema, y se declara: el administrador la identifica por teléfono, en persona o como la empresa decida. Es el eslabón débil de todo segundo factor y no tiene solución técnica; lo que el sistema puede hacer es **dejarlo escrito** —quién, a quién, cuándo y por qué— y que sea sensible.
+
+#### `RF-SP-077` — Exigir el segundo factor a los portadores de un rol
+
+| Campo | Valor |
+|---|---|
+| Objetivo | Decidir, rol por rol, si quienes lo portan están obligados a usar el authenticator |
+| Actor | Administrador de roles |
+| Permiso requerido | `roles:require-mfa` — **sensible** (`RN-SP-063`) |
+| Prioridad | **Crítica** |
+| Reglas aplicables | `RN-SP-062`, `RN-SEG-011`, `RN-SP-063` |
+| Depende de | `RF-SP-071` |
+| Tripleta | `docs/specs/sp/077-exigir-segundo-factor-por-rol/` |
+| Estado | Pendiente |
+
+`PATCH /api/v1/roles/{id}/mfa-requirement` con `{ "required": true | false }`. **Es una operación propia y no un campo más de `RF-SP-004`** por dos razones: lleva permiso propio (`RN-SEG-014`) y es sensible, y editar el nombre de un rol no lo es; y **se admite sobre roles de sistema**, que `RN-SEG-012` protege en su identidad y su posición, no en lo que exigen a sus portadores —es la misma excepción que ya tienen sus permisos—. **Quitar la marca a `SUPERADMIN` se rechaza**: la raíz lo exige siempre.
+
+**El efecto no es inmediato, y se declara**: el claim `mer` se calcula al emitir el token, de modo que quien ya tiene sesión entra retenido **al siguiente refresco**, en quince minutos como mucho. Es la misma contrapartida que `mcp` (`security.md` §5.2). Marcar un rol **no** revoca sesiones: retendría a la vez a todas sus personas sin darles ocasión de activar nada.
+
+**Enmienda además `RF-SP-039`** (Art. I.7): el propio perfil publica `mfa` —si hay factor activo y si algún rol lo exige—, que es lo que el frontend necesita para ofrecer activarlo o advertir que es obligatorio.
+
 ## 7. Requerimientos no funcionales
 
 Definidos en [`security.md` §11](../security.md) y en la constitución. Los que este módulo debe satisfacer:
@@ -1489,6 +1625,14 @@ Ninguna con sistemas externos ni con otros módulos. Al absorber los usuarios, s
 | `POST` | `/api/v1/teams/{id}/deletion` | `RF-SP-068` | `teams:delete` |
 | `POST` | `/api/v1/teams/{id}/members` | `RF-SP-069` | `teams:assign-members` |
 | `POST` | `/api/v1/teams/{id}/members/removals` | `RF-SP-070` | `teams:remove-members` |
+| `POST` | `/api/v1/users/me/mfa/totp` | `RF-SP-071` | `users:start-own-mfa` |
+| `POST` | `/api/v1/users/me/mfa/totp/confirmation` | `RF-SP-071` | `users:confirm-own-mfa` |
+| `POST` | `/api/v1/auth/login/mfa` | `RF-SP-072` | — (público, autorizado por el desafío) |
+| `POST` | `/api/v1/auth/mfa/verification` | `RF-SP-073` | `users:verify-own-mfa` |
+| `POST` | `/api/v1/users/me/mfa/recovery-codes` | `RF-SP-074` | `users:regenerate-own-recovery-codes` · sensible |
+| `POST` | `/api/v1/users/me/mfa/deactivation` | `RF-SP-075` | `users:disable-own-mfa` · sensible |
+| `POST` | `/api/v1/users/{id}/mfa/reset` | `RF-SP-076` | `users:reset-mfa` · sensible |
+| `PATCH` | `/api/v1/roles/{id}/mfa-requirement` | `RF-SP-077` | `roles:require-mfa` · sensible |
 
 Rutas propuestas. El contrato exacto de cada una se fija en el `plan.md` de su tripleta.
 
@@ -1511,6 +1655,9 @@ Rutas propuestas. El contrato exacto de cada una se fija en el `plan.md` de su t
 | `client_sellers` | Los vendedores de cada cliente: el principal —`REGISTRO`, quien lo registró, inmutable— y los vinculados por hotlink (`RN-SP-049`); **la única tabla donde un cliente se relaciona con un vendedor** desde el 18-09-2026 | `SP` |
 | `refresh_tokens` | Sesiones revocables | `SP` |
 | `password_reset_permits` | Permisos de un solo uso para recuperar la contraseña olvidada | `SP` |
+| `user_mfa_factors` | El authenticator de cada persona —su secreto cifrado—, pendiente, activo o retirado, con su historial (`RN-SP-058`) | `SP` |
+| `mfa_recovery_codes` | Los códigos de recuperación de cada factor, solo su resumen (`RN-SP-061`) | `SP` |
+| `mfa_challenges` | Desafíos de un solo uso entre la contraseña y el código al iniciar sesión (`RN-SP-059`) | `SP` |
 | `audit_change_log` | Auditoría de creación y edición | `SP` |
 | `audit_deletion_log` | Auditoría de eliminación | `SP` |
 | `audit_error_log` | Auditoría de fallos | `SP` |
@@ -1530,10 +1677,13 @@ Estructura lógica en [`security.md` §9](../security.md) y [`architecture.md` �
 | `action` | `varchar(50)` | No | No | No | — | — |
 | `name` | `varchar(100)` | No | No | No | — | — |
 | `description` | `text` | No | No | Sí | — | — |
+| `requires_recent_mfa` | `boolean` | No | No | No | `false` | — |
 | `created_at` | `timestamptz` | No | No | No | `now()` | — |
 | `updated_at` | `timestamptz` | No | No | No | `now()` | — |
 
 `code` es la concatenación `resource:action` y es único (`uq_permissions_code`). Se mantiene como columna propia para poder consultarlo y referenciarlo directamente.
+
+**`requires_recent_mfa` marca las operaciones sensibles** (`RN-SP-063`, desde el 06-10-2026): la operación que gobierna ese permiso solo se atiende con un segundo factor verificado hace cinco minutos o menos. **Es una columna del permiso y no una lista en el código** porque el permiso ya es la operación —uno por operación, `RN-SEG-014`—, y porque así `RF-SP-010` y `RF-SP-015` la publican y el frontend sabe **antes** de llamar que tendrá que pedir el código. La escribe solo una migración, como el resto del catálogo.
 
 ### 10.2 Campos principales — `roles`
 
@@ -1547,9 +1697,12 @@ Estructura lógica en [`security.md` §9](../security.md) y [`architecture.md` �
 | `parent_role_id` | `uuid` | No | Sí | Sí | — | `roles` |
 | `status` | `varchar(20)` | No | No | No | `ACTIVO` | — |
 | `is_system` | `boolean` | No | No | No | `false` | — |
+| `requires_mfa` | `boolean` | No | No | No | `false` | — |
 | `created_at` | `timestamptz` | No | No | No | `now()` | — |
 | `updated_at` | `timestamptz` | No | No | No | `now()` | — |
 | `deleted_at` | `timestamptz` | No | No | Sí | — | — |
+
+**`requires_mfa` obliga a los portadores del rol a usar el authenticator** (`RN-SP-062`, desde el 06-10-2026). La escribe `RF-SP-077`, no `RF-SP-004`. `ck_roles_root_requires_mfa` impide que el rol raíz la tenga en falso: el `CHECK` es `parent_role_id IS NOT NULL OR requires_mfa`, y es la forma de que «`SUPERADMIN` lo exige siempre» no dependa de que el caso de uso se acuerde.
 
 `description` lleva un `CHECK` de **500 caracteres** como longitud máxima (`ck_roles_description_length`). El límite se declara en el esquema, no solo en el DTO de entrada: sin un número, `VAL-007` de `RF-SP-001` no es implementable, y el listado de `RF-SP-002` devolvería respuestas de tamaño impredecible con hasta cien filas por página. Resuelto el 21-08-2026, al aprobar el plan de `RF-SP-001`.
 
@@ -2152,6 +2305,65 @@ La fila se lee «`user_id` pertenece al equipo `team_id` desde `started_at`». U
 
     Como `user_supervisors` y `client_sellers`: ninguna consulta debe filtrar por equipo para decidir **qué datos ve** alguien. Un equipo agrupa managers para organizarlos y, cuando `CM` lo necesite, para atribuir lo que su red produjo; el modelo de alcance sigue pendiente como **D-22** ([`security.md` §6](../security.md)), y el día que se resuelva será allí donde se decida si «mi equipo» significa algo para la autorización.
 
+### 10.22 Campos principales — `user_mfa_factors`
+
+| Campo | Tipo | PK | FK | Nullable | Default | Entidad relacional |
+|---|---|---|---|---|---|---|
+| `id` | `uuid` | Sí | No | No | — | — |
+| `user_id` | `uuid` | No | Sí | No | — | `users` |
+| `factor_type` | `varchar(20)` | No | No | No | `TOTP` | — |
+| `secret_ciphertext` | `bytea` | No | No | No | — | — |
+| `status` | `varchar(20)` | No | No | No | `PENDIENTE` | — |
+| `last_used_step` | `bigint` | No | No | Sí | — | — |
+| `pending_expires_at` | `timestamptz` | No | No | Sí | — | — |
+| `confirmed_at` | `timestamptz` | No | No | Sí | — | — |
+| `retired_at` | `timestamptz` | No | No | Sí | — | — |
+| `retired_reason` | `varchar(30)` | No | No | Sí | — | — |
+| `created_at` | `timestamptz` | No | No | No | `now()` | — |
+| `updated_at` | `timestamptz` | No | No | No | `now()` | — |
+
+La fila se lee «esta persona vinculó este authenticator». `status` es `PENDIENTE`, `ACTIVO` o `RETIRADO` (`ck_user_mfa_factors_status`), y **las filas retiradas no se borran**: cuándo tuvo alguien segundo factor y por qué dejó de tenerlo es una pregunta de seguridad. `retired_reason` dice cuál de los cuatro caminos lo retiró —`REEMPLAZADO` (otro teléfono, `RF-SP-071`), `DESACTIVADO` (`RF-SP-075`), `RESTABLECIDO` (`RF-SP-076`) o `CADUCADO` (un pendiente que nadie confirmó)— por lo mismo que `password_reset_permits` separa `consumed_at` de `superseded_at`.
+
+**`factor_type` existe con un solo valor**, y es deliberado: el día que lleguen las llaves de acceso (WebAuthn) serán otra fila de esta tabla con otro tipo, y la columna evita una migración que renombre la tabla entera. Hoy su `CHECK` solo admite `TOTP`.
+
+**`uq_user_mfa_factors_activo` y `uq_user_mfa_factors_pendiente`** —únicos parciales sobre `user_id`, `WHERE status = 'ACTIVO'` y `WHERE status = 'PENDIENTE'`— declaran `RN-SP-058` en el motor. Por la misma lección que `RN-SP-025`: dos confirmaciones concurrentes dejarían dos authenticators activos, y el caso de uso no lo vería.
+
+**`secret_ciphertext` va cifrado, no resumido** (`RF-SP-071`): AES-256-GCM, nonce aleatorio por fila guardado junto al cifrado, llave en `MFA_ENCRYPTION_KEY` y `user_id` como dato asociado. **No se devuelve por ninguna API** después de iniciar, **no se audita** y **no se registra** (Art. IV.8).
+
+`last_used_step` es el periodo TOTP del último código aceptado (`RN-SP-060`); se escribe en la misma transacción que acepta el código, con la fila bloqueada, para que dos peticiones simultáneas con el mismo código no pasen las dos.
+
+### 10.23 Campos principales — `mfa_recovery_codes`
+
+| Campo | Tipo | PK | FK | Nullable | Default | Entidad relacional |
+|---|---|---|---|---|---|---|
+| `id` | `uuid` | Sí | No | No | — | — |
+| `factor_id` | `uuid` | No | Sí | No | — | `user_mfa_factors` |
+| `code_hash` | `varchar(255)` | No | No | No | — | — |
+| `used_at` | `timestamptz` | No | No | Sí | — | — |
+| `superseded_at` | `timestamptz` | No | No | Sí | — | — |
+| `created_at` | `timestamptz` | No | No | No | `now()` | — |
+
+**Cuelgan del factor y no de la persona**: retirar un factor deja sin efecto sus códigos sin tener que tocarlos, porque un código solo vale si su factor está `ACTIVO`. Regenerar (`RF-SP-074`) marca `superseded_at` en los diez vigentes y crea diez nuevos.
+
+**`code_hash` es Argon2id, con su sal**, igual que la contraseña: un código de recuperación vale lo mismo que el teléfono. Que con sal no se pueda buscar por igualdad es el precio, y es pequeño: se comparan **como mucho diez** resúmenes por intento —los vigentes del factor—, y el desafío ya acota los intentos a cinco.
+
+### 10.24 Campos principales — `mfa_challenges`
+
+| Campo | Tipo | PK | FK | Nullable | Default | Entidad relacional |
+|---|---|---|---|---|---|---|
+| `id` | `uuid` | Sí | No | No | — | — |
+| `user_id` | `uuid` | No | Sí | No | — | `users` |
+| `challenge_hash` | `varchar(255)` | No | No | No | — | — |
+| `expires_at` | `timestamptz` | No | No | No | — | — |
+| `failed_attempts` | `smallint` | No | No | No | `0` | — |
+| `consumed_at` | `timestamptz` | No | No | Sí | — | — |
+| `requested_ip` | `inet` | No | No | Sí | — | — |
+| `created_at` | `timestamptz` | No | No | No | `now()` | — |
+
+**La forma de `password_reset_permits`** (§10.13), y por los mismos motivos: solo el resumen del desafío —SHA-256, como el refresh token, porque el valor es aleatorio de 256 bits y no hay nada que adivinar—, caducidad evaluada al consultar y **ningún proceso que lo limpie**. Hereda también su hueco declarado: la purga no tiene requerimiento. Crece más deprisa que aquella —un desafío por inicio de sesión de quien tiene el factor— y por eso se anota en [`security.md` §5.5.2](../security.md) junto a ella.
+
+**Un desafío nuevo no invalida los anteriores**, al contrario que el permiso de recuperación: dos pestañas que inician sesión a la vez son un caso legítimo, y cada desafío ya está acotado a cinco minutos y cinco intentos. `failed_attempts` llega como mucho a cinco (`ck_mfa_challenges_attempts`).
+
 ## 11. Control de cambios
 
 | Versión | Fecha | Cambio | Responsable |
@@ -2257,3 +2469,4 @@ La fila se lee «`user_id` pertenece al equipo `team_id` desde `started_at`». U
 | 1.90.0 | 05-10-2026 | **`currencies.decimal_places` pasa a admitir de `0` a `2`** (§10.5, §10.8), y no de `0` a `4`. Es consecuencia de [`ADR-006`](../architecture/ADR-006-importes-en-unidades-minimas.md): el responsable del proyecto decidió guardar todo importe como `bigint` en centésimas, y una moneda de tres o cuatro decimales no cabe ahí. **No hay dato que perder**: la única moneda sembrada es `USD`, con dos, y el catálogo no se edita por API (`RN-SP-010`). **La tasa de cambio no cambia**: `exchange_rates.price` sigue en `numeric(18,8)` porque no es un importe (§10.14), y el ADR la deja fuera expresamente. Obliga a `V65`. | Responsable del proyecto |
 | 1.91.0 | 05-10-2026 | **El registro gratuito deja de conceder la membresía del producto, y la concede el primer depósito** (`RN-SP-057` nueva; `RN-SP-026`, `RN-SP-044` y `RF-SP-045` enmendadas), por decisión del responsable del proyecto: «cuando se registre la compra se guardará como confirmada pero solo se activará cuando se confirme el primer depósito». El enlace `BECA → BECA` concede **el suelo**, como el de pago; su venta nace **confirmada** y su línea **pendiente de activación** (`RN-MV-075`); y pasar la cuenta de `FTD_PENDIENTE` a `ACTIVO` la activa en la misma transacción, por un puerto que `MV` implementa. **La vigencia deja de importar** porque la membresía `BECA` del producto se configurará **vitalicia** (sin días de vigencia), también a decisión del responsable. Enmienda `RF-SP-045` y `RF-SP-028` (Art. I.7). | Responsable del proyecto |
 | 1.92.0 | 05-10-2026 | **El catálogo de monedas siembra COP**, «Peso colombiano», con dos decimales, activa y **no** por omisión, por decisión del responsable del proyecto: es la moneda local a la que convierte la pasarela local en Colombia ([`requirements/mv.md`](mv.md) v0.81.0 §4.9). **Va en `V9`, editada en el sitio**, con su registro de creación como USD; rompe la suma de comprobación de esa migración y **toda base ya migrada debe recrearse**, como el 23-09-2026 | Responsable del proyecto |
+| 1.93.0 | 06-10-2026 | **Nace el submódulo Segundo factor: `RF-SP-071` a `RF-SP-077`**, por decisión del responsable del proyecto, que eligió **el authenticator** —TOTP, cualquier app— y lo hizo **obligatorio por rol**: nacen marcados `SUPERADMIN` y `ADMIN`, el resto lo decide quien administra roles. Pidió además, en la primera etapa, los **códigos de recuperación**, el **restablecimiento por un administrador** y **volver a pedir el código antes de las operaciones sensibles, incluida la configuración de los permisos de los roles**. Nacen `RN-SP-058` a `RN-SP-064`; `roles` gana `requires_mfa` y `permissions` `requires_recent_mfa` (§10.1, §10.2); entran `user_mfa_factors`, `mfa_recovery_codes` y `mfa_challenges` (§10.22 a §10.24). **Enmienda `RF-SP-034`** —con factor activo, la contraseña emite un desafío y no tokens— y **`RF-SP-039`** —el perfil publica el estado del factor—. Siete permisos nuevos, sin sembrar ([`security.md`](../security.md) v0.105.0 §4.4). Sin tripletas todavía. | Responsable técnico |

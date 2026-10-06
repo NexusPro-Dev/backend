@@ -5,7 +5,7 @@
 | Proyecto | NEXUS — Renovación de plataforma |
 | Empresa | FACTECH GROUP SAS |
 | Documento | `security.md` |
-| Versión | 0.104.0 |
+| Versión | 0.105.0 |
 | Estado | Borrador |
 | Responsable técnico | Bonilla Diaz William Steven |
 | Fecha de creación | 19-08-2026 |
@@ -123,6 +123,27 @@ El número **no puede depender de que la cuenta exista**, o sería el verificado
 Por el mismo motivo, **todo** rechazo consume intento, incluidos los dos que se producen con la contraseña correcta —cuenta no habilitada y credencial provisional caducada—: si no lo consumieran, su respuesta llevaría un número distinto.
 
 **La expiración del bloqueo viaja como dato, no escrita en el mensaje.** Un texto que diga «vuelva a intentarlo en dos minutos» es cierto en el instante en que se compone y deja de serlo enseguida: la respuesta viaja, el cliente la conserva y la persona la lee después. Se entregan el **instante** de desbloqueo y la **duración** restante —dos valores, porque el primero sobrevive a que la respuesta se guarde y el segundo permite descontarla sin depender de que el reloj del cliente coincida con el del servidor—. El bloqueo **manual** no lleva ninguno de los dos, y esa ausencia es la información: no expira solo.
+
+### 3.3 Segundo factor
+
+Decidido el 06-10-2026 por el responsable del proyecto ([`requirements/sp.md`](requirements/sp.md) §2, `RF-SP-071` a `RF-SP-077`). **El factor es el código de una app autenticadora**: TOTP de RFC 6238 —seis dígitos, treinta segundos, HMAC-SHA1—, el que entienden Google Authenticator, Microsoft Authenticator, Authy y cualquier otra sin integrar nada con ninguna. La app y el servidor **no se comunican nunca**: los dos guardan el mismo secreto y calculan el código con el reloj.
+
+**Lo que se descartó, y por qué:**
+
+| Alternativa | Por qué no |
+|---|---|
+| **SMS** | Cuesta por envío, se intercepta con el robo de la línea (*SIM swapping*) y obligaría a verificar el teléfono, que hoy no es vía de acceso (`RF-SP-044`) |
+| **Código por correo** | El correo **ya es** la vía de recuperación de la contraseña (`RF-SP-040`): quien controla el buzón tendría los dos factores a la vez, y el segundo dejaría de ser segundo |
+| **Aprobación por notificación** («¿Eres tú?») | La de Microsoft Authenticator solo sirve a cuentas de Microsoft; para el resto hace falta una app propia o un servicio de pago (Duo, Okta Verify). Con TOTP la persona **escribe** el código |
+| **Llaves de acceso (WebAuthn)** | Es lo más fuerte y no se descarta: se **aplaza**, porque exige más del frontend. `user_mfa_factors.factor_type` está para que entren como otra fila |
+
+**Las reglas son las de `RN-SP-058` a `RN-SP-064`** y no se repiten aquí. Lo que este documento fija es lo transversal:
+
+- **Lo exige el rol, no la persona** (`RN-SP-062`): `roles.requires_mfa`, con `SUPERADMIN` y `ADMIN` marcados desde la siembra. Quien porte un rol que lo exija y no lo haya activado **entra retenido**, como con la contraseña provisional de §3.2: claim `mer` en el token, y `MfaEnrollmentFilter`, después de `MustChangePasswordFilter`, responde **`403`** con su propio `type` en todo lo que no sea activar el factor (`RF-SP-071`), el propio perfil (`RF-SP-039`) y las tres rutas públicas de sesión. **Con las dos marcas, la contraseña va primero**: activar un authenticator con una credencial que otra persona conoce es proteger la cuenta para las dos.
+- **Las operaciones sensibles piden el código otra vez** (`RN-SP-063`), con `permissions.requires_recent_mfa`: el token tiene que llevar un claim `mfa` de hace **cinco minutos o menos** (`nexus.security.mfa.recent-window`), o se responde **`403`** con un `type` distinto de los dos anteriores. Lo aplica un tercer filtro, `RecentMfaFilter`, después de la autorización: primero se decide si la persona **puede** y solo entonces si **lo ha probado hace poco**; al revés, el `403` de reverificación delataría qué operaciones existen a quien no tiene el permiso. La lista inicial está en §4.4.
+- **Los fallos del segundo factor cuentan para el bloqueo de §3.2**, con el mismo contador y la misma progresión que la contraseña. Un fallo de segundo factor **significa que la contraseña era correcta**, y se audita aparte (§8.1).
+- **El secreto se cifra y no se resume** (`requirements/sp.md` §10.22), con AES-256-GCM y la llave `MFA_ENCRYPTION_KEY`, **sin valor por defecto en ningún entorno** (Art. IX.5). Perder la llave deja a todo el mundo sin segundo factor —habría que restablecerlos uno a uno—, y por eso entra en la política de §7.1 junto a `JWT_SECRET`.
+- **Los códigos de recuperación se resumen con Argon2id**, como las contraseñas: valen lo mismo que el teléfono.
 
 ---
 
@@ -308,6 +329,20 @@ Los cincuenta y uno nuevos: `roles:list`, `roles:change-status`, `roles:assign-p
 
 **Cuatro del módulo nuevo `IN` — Indicadores, declarados el 06-10-2026 y SIN SEMBRAR**, **todavía fuera del bloque** de arriba ([`requirements/in.md`](requirements/in.md) v0.1.0 §5.2, §6): `indicators:read-sales-summary` (`RF-IN-001`), `indicators:read-sales-series` (`RF-IN-002`), `indicators:read-sales-by-product` (`RF-IN-003`) e `indicators:read-sales-by-seller` (`RF-IN-004`). **Cada indicador es una ruta y un permiso, y ese permiso ES el reparto** (`RN-IN-001`): qué rol ve qué indicador lo decide quien administra roles (`RF-SP-005`), sin una tabla rol → indicador, y el frontend lo sabe por los permisos efectivos del perfil propio. **Son de alcance**, como `movements:list-sales`: el permiso abre la ruta y `CommercialReach` decide qué cifras se ven (`RN-IN-002`), de modo que fuera del alcance se responde con ceros y no con `403`. La migración que los siembre los dará **por tipo de rol** (`RN-SEG-015`) a `FUNCIONARIO` —con `SUPERADMIN` y `ADMIN` dentro— y a `VENDEDOR`, **y no a `CONSUMIDOR`**, que con su alcance no vería nada. **Ninguna ruta pública nueva.** El catálogo pasará de 185 a **189** cuando se siembren.
 
+**Siete más de `SP` — el segundo factor, declarados el 06-10-2026 y SIN SEMBRAR**, **todavía fuera del bloque** de arriba ([`requirements/sp.md`](requirements/sp.md) v1.93.0 §6.1, `RF-SP-071` a `RF-SP-077`; §3.3). **Cinco de alcance propio** —`users:start-own-mfa`, `users:confirm-own-mfa`, `users:verify-own-mfa`, `users:regenerate-own-recovery-codes` y `users:disable-own-mfa`—, que la migración dará **por tipo de rol a los tres tipos** (`RN-SEG-015`), como los once de `V31`: cualquiera puede proteger su cuenta, y un rol que exija el factor sin conceder los dos primeros retendría a sus personas sin salida. **Dos de administración** —`users:reset-mfa` y `roles:require-mfa`—, a `SUPERADMIN` y `ADMIN`. **Una ruta pública nueva**, `POST /api/v1/auth/login/mfa`, que entra en la lista cerrada de `EndpointPermissionsIT` (quince). El catálogo pasará de 185 a **192**, o de 189 a **196** si la de `IN` entra antes: el número final depende del orden de las dos migraciones.
+
+**Y la misma migración marca las operaciones sensibles** (`permissions.requires_recent_mfa`, `RN-SP-063`). La lista inicial, que se amplía por migración:
+
+| Módulo | Permisos sensibles | Por qué |
+|---|---|---|
+| `SP` — privilegios | `roles:assign-permissions`, `roles:revoke-permissions`, `roles:require-mfa`, `users:assign-roles`, `users:revoke-roles` | Cambian quién puede qué. **Configurar los permisos de un rol lo pidió el responsable del proyecto de forma expresa** |
+| `SP` — acceso ajeno | `users:reset-password`, `users:reset-mfa`, `users:delete` | Abren o cierran la puerta de otra persona |
+| `SP` — acceso propio | `users:regenerate-own-recovery-codes`, `users:disable-own-mfa` | Valen lo mismo que el teléfono: una sesión robada no debe poder hacerlas |
+| `MV` — dinero | `movements:confirm-payment`, `movements:reject-payment`, `movements:approve-withdrawal`, `movements:adjust-points`, `movements:set-conversion-rate`, `movements:set-points-rate` | Mueven dinero o fijan a cuánto se convierte; `set-conversion-rate` escribe además la clave de la tienda de PayRetailers |
+| `CM` — dinero | `commission-batches:pay`, `commission-batches:pay-batches` | Pagan comisiones |
+
+**Dieciocho.** Lo que queda fuera es deliberado: las tasas de comisión, los productos y los cursos se corrigen sin dinero que salga por la puerta, y pedir el código en cada edición enseñaría a la gente a escribirlo sin mirar. **Cambiar el propio authenticator** (`RF-SP-071` con un factor ya activo) también es sensible, pero no puede marcarse aquí porque depende del estado de la persona y no del permiso: lo comprueba el caso de uso.
+
 !!! danger "Un permiso, una operación — `RN-SEG-014`, desde el 19-09-2026"
 
     **Hasta el 19-09-2026 veintiún códigos gobernaban más de una operación**: `roles:update` cinco —editar el nombre, y también cambiar el estado, reubicar, **asignar y revocar permisos**—, `courses:update` diez, `packages:update` siete, `products:comment` y `commissions:read` cuatro, `users:read` tres, y los `read` de ocho recursos su listado y su detalle. Eran agrupaciones razonadas —«quien puede corregir el curso tiene que poder armarlo»—, y el razonamiento respondía a qué hace junto **un administrador completo**, que ya lo tiene todo. El catálogo existe para **los roles que se crean con una parte**, y para esos un permiso que agrupa es un permiso que **no se puede conceder a medias**: dar «editar un rol» era dar «repartir permisos».
@@ -435,9 +470,11 @@ Combina las dos propiedades que se necesitan a la vez: validar la mayoría de pe
 | Revocable | No, expira | Sí, inmediatamente |
 | Se envía en | `Authorization: Bearer <token>` | Únicamente al endpoint de refresco |
 
-**Claims del token de acceso:** `iss`, `sub` (id del usuario), `jti`, `iat`, `exp`, los códigos de rol y **`mcp`**. **NO DEBEN** incluirse datos personales, correo, ni información sensible: un JWT va firmado, no cifrado, y cualquiera que lo posea puede leer su contenido.
+**Claims del token de acceso:** `iss`, `sub` (id del usuario), `jti`, `iat`, `exp`, los códigos de rol, **`mcp`** y, desde el 06-10-2026, **`mfa`** y **`mer`**. **NO DEBEN** incluirse datos personales, correo, ni información sensible: un JWT va firmado, no cifrado, y cualquiera que lo posea puede leer su contenido.
 
 **`mcp`** es un booleano que indica que la cuenta tiene pendiente el **cambio obligatorio de contraseña** (§3.2). Se añadió el 24-08-2026 al aprobar el plan de `RF-SP-034`, que es quien lo necesita: sin él, negar el resto de endpoints mientras la marca esté puesta obliga a leer `users.must_change_password` **en cada petición**, que es exactamente la consulta por petición que la decisión D-08 y `architecture.md` §4 existen para evitar. No contradice la prohibición del párrafo anterior —no identifica a nadie ni dice nada de la persona más allá de que le toca cambiar la contraseña— y su único lector posible es quien ya porta el token, es decir, su propio titular.
+
+**`mfa` y `mer`** (06-10-2026, §3.3) siguen el mismo razonamiento. `mfa` es el **instante** —segundos desde la época— en que esta sesión verificó el segundo factor por última vez, y falta si nunca lo hizo: al entrar con código lo fija `RF-SP-072`, al reverificar lo renueva `RF-SP-073`, y el refresco **copia el de la familia** (`refresh_tokens.mfa_verified_at`) sin renovarlo, de modo que la ventana de cinco minutos de `RN-SP-063` no se estira refrescando. `mer` es un booleano: la persona porta un rol que exige el factor y no lo tiene activo (`RN-SP-062`). Ninguno identifica a nadie ni dice nada que su titular no sepa.
 
 Quien lo lee y lo aplica es `MustChangePasswordFilter` (§3.2), desde el 26-08-2026. **El claim se calcula al emitir el token**, de modo que quien cambia su contraseña conserva uno con `mcp` en verdadero hasta quince minutos; `RF-SP-037` lo neutraliza revocando todas las sesiones, con lo que ese token ya no puede renovarse. Es la contrapartida declarada de no consultar la base en cada petición.
 
@@ -469,6 +506,32 @@ sequenceDiagram
     A-->>C: 204
 ```
 
+**Con segundo factor activo** (§3.3, desde el 06-10-2026) el inicio de sesión tiene dos pasos, y la reverificación es un tercero que se da dentro de la sesión:
+
+```mermaid
+sequenceDiagram
+    participant C as Cliente
+    participant A as API
+    participant D as PostgreSQL
+
+    Note over C,D: Paso 1 — la contraseña (RF-SP-034)
+    C->>A: POST /api/v1/auth/login
+    A->>D: verifica credenciales, igual que sin factor
+    A->>D: persiste el hash del desafío (5 min, 5 intentos)
+    A-->>C: 200 mfaRequired + challengeToken
+
+    Note over C,D: Paso 2 — el código (RF-SP-072)
+    C->>A: POST /api/v1/auth/login/mfa
+    A->>D: consume el desafío, verifica el código, fija last_used_step
+    A->>D: persiste el hash del refresh token, con mfa_verified_at
+    A-->>C: access (con mfa) + refresh
+
+    Note over C,D: Antes de una operación sensible (RF-SP-073)
+    C->>A: POST /api/v1/auth/mfa/verification
+    A->>D: verifica el código, fija last_used_step
+    A-->>C: access nuevo con mfa = ahora
+```
+
 ### 5.4 Rotación y detección de reutilización
 
 Cada uso de un refresh token lo **revoca** y emite uno nuevo (rotación). Se conserva el vínculo con el token que lo reemplazó.
@@ -498,6 +561,7 @@ Implantadas el 25-08-2026. Los números viven en configuración —`nexus.securi
 | Endpoint | Por origen | Por identidad | Ventana | Espera al superarla |
 |---|---|---|---|---|
 | Inicio de sesión | 10 | 5 | 1 minuto | — |
+| Segundo paso del inicio de sesión (`RF-SP-072`) — **diseñado** el 06-10-2026 | 10 | — | 1 minuto | — |
 | Refresco | 60 | — | 1 minuto | — |
 | Solicitud de recuperación | 5 | 5 | 1 minuto | **5 minutos** |
 | Confirmación de recuperación | 30 | — | 1 hora | — |
@@ -545,6 +609,7 @@ Implantada el 25-08-2026 (issue #25). Hasta entonces la última regla de §5.5 e
 - **Deja constancia.** Cada purga que borra algo emite el evento `SESSION_TOKENS_PURGED` de §8.1 con cuántas filas y cuántas familias retiró y hasta qué fecha de corte. Una purga que elimina evidencia sin registrar cuánta eliminó no es auditable, y su ausencia sería indistinguible de una que nunca corrió. **No lleva identidad**: quién tenía esas sesiones no responde ninguna de las preguntas de este evento, y convertiría el mantenimiento en un rastro de quién usó el sistema.
 - **Con varias instancias, purga una sola.** Se toma un cerrojo de aviso en el motor (`pg_try_advisory_xact_lock`), que es el único sitio donde las réplicas se ven; la que no lo obtiene sale sin hacer nada. Es lo que evita que tres réplicas compitan por las mismas filas cuando llegue el despliegue escalado. **La purga sí está preparada para varias instancias**; el corte de acceso y el límite de tasa, no — y son ellos los que hoy imponen la réplica única.
 - **Los permisos de recuperación de contraseña siguen sin purgarse**, y desde el 26-08-2026 su tabla sí existe: `password_reset_permits`, que `RF-SP-040` crea. Hereda esta misma decisión y **el mismo hueco**: ningún requerimiento cubre la purga, de modo que la tabla crece con cada solicitud. Crece despacio —un permiso por olvido, no uno por refresco— y por eso no urge, pero conviene que no se descubra sola.
+- **Los desafíos del segundo factor tampoco se purgan** (`mfa_challenges`, desde el 06-10-2026, `RF-SP-072`): mismo hueco, y crece **más deprisa** que el anterior —un desafío por cada inicio de sesión de quien tiene el factor activo—. Es el candidato natural para la primera ampliación de esta purga, con un plazo corto: un desafío caducado no sostiene ninguna detección, al contrario que un refresh token revocado.
 
 
 ---
@@ -714,6 +779,13 @@ Los siguientes **DEBEN** registrarse en `audit_security_log` (Art. IV.7), ademá
 | **Cambio del correo de un usuario** | Alta | `SUCCESS` |
 | **Ráfaga que topa con el límite de tasa** | Alta | `FAILURE` |
 | **Purga de sesiones caducadas** | Informativa | `SUCCESS` |
+| **Activación o cambio del segundo factor** (`MFA_ENABLED`) | Alta | `SUCCESS` |
+| **Desactivación del propio segundo factor** (`MFA_DISABLED`) | Alta | `SUCCESS` |
+| **Restablecimiento del segundo factor de otra persona** (`MFA_RESET`) | Alta | `SUCCESS` |
+| **Código del segundo factor rechazado** (`MFA_VERIFICATION_FAILED`) | Media | `FAILURE` |
+| **Uso de un código de recuperación** (`MFA_RECOVERY_CODE_USED`) | Alta | `SUCCESS` |
+| **Regeneración de los códigos de recuperación** (`MFA_RECOVERY_CODES_REGENERATED`) | Alta | `SUCCESS` |
+| **Cambio de la exigencia de segundo factor de un rol** (`ROLE_MFA_REQUIREMENT_CHANGED`) | Alta | `SUCCESS` |
 
 El **alta de un usuario** entró el 22-08-2026, al aprobarse el plan de `RF-SP-024`. Faltaba por cuándo se escribió este documento —antes de que `SP` absorbiera los usuarios—, y su ausencia era contradictoria: la creación de un **rol** sí estaba en el catálogo, y crear a la persona que porta ese rol pesa al menos igual. `CA-SP-200` lo exige, y el evento lleva en su detalle los roles concedidos en el alta. **Es un solo evento, no dos**: aunque el alta conceda roles, no emite además el de «asignación o retiro de roles», porque una sola operación produciría dos hechos y cualquier recuento de asignaciones contaría de más.
 
@@ -730,6 +802,13 @@ El **rechazo por límite de tasa** entró el 25-08-2026, con `V34`, y el catálo
 Su detalle lleva la operación y el eje que se agotó, **nunca la identidad**: decir «esta cuenta está limitada» confirmaría que existe.
 
 La **purga de sesiones caducadas** entró el 25-08-2026, con `V36`, y el catálogo pasa de veinte a **veintiuno**. Es el primer evento del catálogo **cuyo actor es siempre nulo**: no lo hizo nadie, lo hizo el sistema a su hora. Su severidad es **informativa** porque una purga que ocurre es rutina; lo que merece atención es que **deje** de ocurrir, y eso no lo cuenta un evento sino su ausencia (issue #31). No reutiliza «cierre de sesión» —aquello es una persona cerrando la suya— ni «reutilización de token» —aquello es una alarma de robo—: esto es mantenimiento sobre sesiones que ya no existían, y mezclarlo contaminaría dos lecturas que se consultan por separado.
+
+**Los siete del segundo factor** entraron el 06-10-2026 (§3.3, `RF-SP-071` a `RF-SP-077`), diseñados y sin migración, y el catálogo pasará de veintiuno a **veintiocho**. Cuatro decisiones:
+
+- **`MFA_VERIFICATION_FAILED` no reutiliza «inicio de sesión fallido»**, aunque ocurra al entrar: quien falla aquí **acertó la contraseña**, y esa es la señal que hay que poder buscar —una ráfaga de estos eventos sobre una cuenta dice que su contraseña está en manos de otro—. Se emite igual al reverificar. Severidad media, como el fallo de contraseña, porque un dígito mal tecleado también lo produce; cuando los fallos bloquean la cuenta, el bloqueo es `ACCOUNT_LOCKED`, alto, como siempre.
+- **El uso de un código de recuperación es alto aunque salga bien**: significa que la persona no tiene su teléfono, y si no fue ella es lo primero que hay que ver. Su detalle dice **cuántos quedan** vigentes, nunca cuál se usó.
+- **La reverificación correcta no se audita**. La operación sensible que viene detrás ya deja sus dos eventos, y uno más por cada código bien tecleado sepultaría este registro sin responder ninguna pregunta.
+- **El inicio de sesión con factor sigue siendo `LOGIN_SUCCESS`**, con `"mfa": true` en el detalle: es el mismo hecho con más garantías, no otro hecho.
 
 La denegación de autorización se registra **aquí y no en `audit_error_log`**: un `403` no es un fallo del sistema, es el sistema funcionando. Tratarlo como error contamina la búsqueda de fallos reales (`architecture.md` §6.6.4).
 
@@ -767,11 +846,14 @@ Estructura lógica. Las columnas exactas se fijan en la migración Flyway corres
 | Tabla | Propósito | Campos distintivos |
 |---|---|---|
 | `users` | Identidad y credencial | `username`, `email`, `first_name`, `last_name`, `password_hash`, `must_change_password`, `status`, `deleted_at`, `failed_attempts`, `locked_until`, `last_login_at` |
-| `roles` | Agrupación de permisos | `code`, `name`, `description`, `parent_role_id`, `status`, `is_system` |
-| `permissions` | Catálogo de permisos | `code`, `resource`, `action`, `name`, `description` |
+| `roles` | Agrupación de permisos | `code`, `name`, `description`, `parent_role_id`, `status`, `is_system`, `requires_mfa` |
+| `permissions` | Catálogo de permisos | `code`, `resource`, `action`, `name`, `description`, `requires_recent_mfa` |
 | `role_permissions` | Permisos declarados por rol | `role_id`, `permission_id` |
 | `user_roles` | Roles asignados a usuarios | `user_id`, `role_id`, `created_at` |
-| `refresh_tokens` | Sesiones revocables | `user_id`, `token_hash`, `expires_at`, `revoked_at`, `revoked_reason`, `replaced_by_id`, `ip`, `user_agent`, más el origen de la familia para medir la duración máxima de sesión |
+| `refresh_tokens` | Sesiones revocables | `user_id`, `token_hash`, `expires_at`, `revoked_at`, `revoked_reason`, `replaced_by_id`, `ip`, `user_agent`, más el origen de la familia para medir la duración máxima de sesión, y `mfa_verified_at` (§5.2) |
+| `user_mfa_factors` | El authenticator de cada persona (§3.3) | `user_id`, `factor_type`, `secret_ciphertext` **cifrado**, `status`, `last_used_step`, `confirmed_at`, `retired_at`, `retired_reason` |
+| `mfa_recovery_codes` | Códigos de recuperación | `factor_id`, `code_hash` (Argon2id), `used_at`, `superseded_at` |
+| `mfa_challenges` | El paso entre la contraseña y el código | `user_id`, `challenge_hash`, `expires_at`, `failed_attempts`, `consumed_at`, `requested_ip` |
 | `audit_security_log` | Eventos de control de acceso (§8) | `event_type`, `severity`, `outcome`, `target_user_id`, `detail`, más el núcleo común (`actor_id`, `correlation_id`, `ip_address`, `user_agent`) |
 
 !!! note "Qué requerimiento crea cada columna de `users`"
@@ -819,6 +901,12 @@ Todas siguen las convenciones de `architecture.md` §6: clave primaria `uuid` v7
 | Reescritura de la evidencia de seguridad | `audit_security_log` es de solo inserción, restringido por privilegios de base de datos (§9) |
 | Secreto filtrado en el repositorio | Prohibición absoluta y política de rotación (§7.1) |
 | Endpoint publicado por olvido | Denegar por defecto; lista explícita de endpoints públicos (§6) |
+| Contraseña filtrada o reutilizada de otro servicio | Segundo factor, obligatorio por rol (§3.3, `RN-SP-062`) |
+| Sesión robada que hace una operación sensible | Reverificación de hace cinco minutos o menos (`RN-SP-063`); la sesión sola no basta |
+| Fuerza bruta sobre los seis dígitos | Los fallos consumen el bloqueo de la cuenta y el desafío muere al quinto (`RN-SP-059`) |
+| Código interceptado y repetido | `last_used_step`: un código sirve una sola vez (`RN-SP-060`) |
+| Copia de la base de datos | Secretos TOTP cifrados con una llave fuera de la base; códigos de recuperación y desafíos solo como resumen |
+| Administrador que se quita su propio factor | `RN-SP-064`: nadie restablece el suyo, y desactivarlo exige no portar un rol que lo exija |
 
 ---
 
@@ -849,6 +937,7 @@ RNF-SEG-002 merece atención: es una prueba que enumera los endpoints registrado
 | D-13 | Granularidad de permisos | Permisos `recurso:acción` como datos, asignados a roles |
 | D-14 | Roles por usuario | Múltiples roles; permisos efectivos por unión |
 | D-15 | Algoritmo de hash de contraseñas | Argon2id |
+| **D-27** | **Segundo factor** (06-10-2026, responsable del proyecto) | **App autenticadora (TOTP)**, obligatoria por rol —`SUPERADMIN` y `ADMIN` desde la siembra—, con códigos de recuperación, restablecimiento por un administrador y reverificación en las operaciones sensibles, incluida la configuración de los permisos de los roles (§3.3) |
 
 **Pendientes**
 
@@ -971,3 +1060,4 @@ RNF-SEG-002 merece atención: es una prueba que enumera los endpoints registrado
 | 0.102.0 | 05-10-2026 | **Un permiso de `MV` para el ajuste de puntos a mano** ([`requirements/mv.md`](requirements/mv.md) v0.83.0 §4.11 y §6): `movements:adjust-points` (`RF-MV-052`, `RN-MV-076`), a `SUPERADMIN` y `ADMIN` **explícito**, como `movements:grant-bonus`: sumar o restar puntos a cualquier persona es tarea de administración. **No reutiliza `movements:grant-bonus`** por `RN-SEG-014`: el bono abona dinero retirable y el ajuste mueve puntos en los dos sentidos. Lo siembra `V72`; el catálogo pasa de 182 a **183** (`ADMIN` 181). Ninguna ruta pública nueva. | Responsable técnico |
 | 0.103.0 | 05-10-2026 | **Dos permisos de lectura de `MV` para la pantalla de ajustes** ([`requirements/mv.md`](requirements/mv.md) v0.84.0 §4.11 y §6): `movements:list-points-adjustments` (`RF-MV-053`) y `movements:read-user-balances` (`RF-MV-054`), a `SUPERADMIN` y `ADMIN` explícito: son lecturas de administración que no siguen la estructura comercial. **No reutilizan `movements:adjust-points`** (`RN-SEG-014`). Los siembra `V73`; el catálogo pasa a **185** (`ADMIN` 183). | Responsable técnico |
 | 0.104.0 | 06-10-2026 | **Cuatro permisos del módulo nuevo `IN` — Indicadores, declarados y sin sembrar** (§4.4; [`requirements/in.md`](requirements/in.md) v0.1.0): `indicators:read-sales-summary`, `-series`, `-by-product` y `-by-seller`. **Un permiso por indicador es el mecanismo de reparto por rol** (`RN-IN-001`), y las cifras se acotan con `CommercialReach` (`RN-IN-002`). Se sembrarán por tipo de rol a `FUNCIONARIO` y `VENDEDOR`, no a `CONSUMIDOR`. **Ninguna ruta pública nueva.** | Responsable técnico |
+| 0.105.0 | 06-10-2026 | **Nace el segundo factor** (§3.3 nueva; D-27 cerrada), por decisión del responsable del proyecto: **app autenticadora (TOTP)**, obligatoria por rol —`SUPERADMIN` y `ADMIN` desde la siembra—, con códigos de recuperación, restablecimiento por un administrador y **reverificación en las operaciones sensibles, incluida la configuración de los permisos de los roles** ([`requirements/sp.md`](requirements/sp.md) v1.93.0, `RF-SP-071` a `RF-SP-077`, `RN-SP-058` a `RN-SP-064`). §5.2 gana los claims `mfa` y `mer`; §5.3, el flujo en dos pasos; §5.5.1, la cota del segundo paso; §5.5.2, el hueco de purga de `mfa_challenges`. §4.4 declara **siete permisos sin sembrar** —el catálogo pasará a 192, o a 196 tras los de `IN`— y la **lista de dieciocho operaciones sensibles** (`permissions.requires_recent_mfa`). §8.1, **siete eventos nuevos** (de veintiuno a veintiocho). §9 y §10, las tres tablas y seis amenazas. Diseñado, sin migración. | Responsable técnico |

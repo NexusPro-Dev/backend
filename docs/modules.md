@@ -5,7 +5,7 @@
 | Proyecto | NEXUS — Renovación de plataforma |
 | Empresa | FACTECH GROUP SAS |
 | Documento | `modules.md` |
-| Versión | 0.25.0 |
+| Versión | 0.26.0 |
 | Estado | Borrador |
 | Responsable técnico | Bonilla Diaz William Steven |
 | Fecha de creación | 20-08-2026 |
@@ -160,6 +160,7 @@ Se resolvió el 20-08-2026, antes de redactar el primer requerimiento: el códig
 | Estructura comercial | Quién está a cargo de quién dentro de la fuerza comercial, con historial | `user_supervisors` |
 | Equipos | Cómo se organiza la cúspide de la fuerza comercial: cada equipo reúne managers, uno vigente por manager y con historial. Agrupa, no manda | `teams`, `team_members` |
 | Credenciales y acceso | Inicio y cierre de sesión, refresco con rotación, y gestión de la contraseña | `users`, `refresh_tokens` |
+| Segundo factor | El código de una app autenticadora como segunda prueba de identidad, obligatorio por rol; los códigos de recuperación y la reverificación antes de las operaciones sensibles | `user_mfa_factors`, `mfa_recovery_codes`, `mfa_challenges` |
 | Auditoría | Consulta de los cuatro registros de auditoría, por separado o desde la vista transversal | `audit_change_log`, `audit_deletion_log`, `audit_error_log`, `audit_security_log` |
 
 
@@ -488,3 +489,4 @@ El orden importa: el módulo precede al requerimiento, el requerimiento precede 
 | 0.23.0 | 25-09-2026 | **`AC` pasa a depender de `PM`**, por decisión del responsable del proyecto: un curso se abre también por un **servicio** —un producto `BOT`— y es el curso quien lo declara ([`requirements/ac.md`](requirements/ac.md) v0.12.0, §5.2.8). La arista es `AC` → `PM` y no al revés, que es lo que §5.5 anticipaba el 17-09-2026 para «el día que un curso se venda»; `PM` no sabe nada de cursos, y el grafo sigue acíclico. | Responsable del proyecto |
 | 0.24.0 | 01-10-2026 | **`MV` gana el submódulo Cuentas de cobro** ([`requirements/mv.md`](requirements/mv.md) v0.61.0 §4.5): el catálogo de bancos y billeteras móviles y las cuentas de cada persona, para saber a dónde se paga un retiro. Sin dependencias nuevas: `SP` ya lo era. | Responsable técnico |
 | 0.25.0 | 06-10-2026 | **Se incorpora el módulo `IN` — Indicadores**, el sexto del sistema, por decisión del responsable del proyecto: «un módulo para indicadores, para repartir qué indicadores se pueden ver por roles». Es el candidato «Métricas» que §6 tenía anotado desde el 20-08-2026 (HU08). Ficha en §5.6 —la plantilla pasa a §5.7—, fila en §4 con dependencias `SP` y `MV`, y documento [`requirements/in.md`](requirements/in.md) v0.1.0. **Es el primer módulo que se incorpora sin cumplir §2.1**: no es dueño de tablas y nadie lo consume; lo que posee es el catálogo de indicadores y su reparto por permiso, y la excepción queda escrita en la ficha con las dos salidas descartadas. El mapa de §3 incorpora además `CM` y `MV`, que faltaban desde que entraron. | Responsable técnico |
+| 0.26.0 | 06-10-2026 | **Submódulo nuevo en `SP`: «Segundo factor»**, dueño de `user_mfa_factors`, `mfa_recovery_codes` y `mfa_challenges` ([`requirements/sp.md`](requirements/sp.md) v1.93.0, `RF-SP-071` a `RF-SP-077`), por decisión del responsable del proyecto: authenticator obligatorio por rol. | Responsable técnico |
