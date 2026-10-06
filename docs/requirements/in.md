@@ -5,7 +5,7 @@
 | Módulo | `IN` — Indicadores |
 | Paquete | `modules/indicators` |
 | Prefijo de permisos | `indicators:` |
-| Versión | 0.1.0 |
+| Versión | 0.2.0 |
 | Estado | **Borrador** |
 | Responsable | Bonilla Diaz William Steven |
 | Fecha de creación | 06-10-2026 |
@@ -21,7 +21,7 @@
 
     1. **El código `IN`.** Un código, en cuanto aparece en un identificador, no se cambia jamás ([`modules.md` §2.1](../modules.md#21-regla-de-decision)). Se fija por decisión del responsable del proyecto del 06-10-2026, como con `PM`, `CM`, `MV` y `AC`, y [`modules.md` §5.6](../modules.md#56-in-indicadores) deja escrito el riesgo que se asume.
     2. **No es dueño de ninguna tabla** (§1.4). Es la primera vez que un módulo se incorpora sin cumplir la primera condición de [`modules.md` §2.1](../modules.md#21-regla-de-decision), y se hace a sabiendas.
-    3. **Una interfaz que `MV` no publica todavía**: las ventas **agregadas** por un alcance (§3). La pedirá `RF-IN-001`, que es el primero que la necesita, por el mismo reparto con el que `RF-AC-008` pidió la suya a `SP`.
+    3. **Una interfaz que `MV` no publica todavía**: las ventas **agregadas** por un alcance (§3), **`SalesFigures`** desde las tripletas del 06-10-2026. La publica `RF-IN-001` · `T-02`, que es el primero que la necesita, por el mismo reparto con el que `RF-AC-008` pidió la suya a `SP`.
 
 ---
 
@@ -87,13 +87,13 @@ Según [`modules.md` §5.6](../modules.md#56-in-indicadores).
 |---|---|---|
 | `SP` | Consume | **El alcance comercial** de quien pregunta (`RN-IN-002`): `CommercialReach.reachOf`, la misma interfaz que consume `RF-MV-015`. **Ya publicada** |
 | `SP` | Consume | **La identidad** de cada vendedor —nombre de usuario y nombre completo— para la fila de `RF-IN-004`. `UserCatalog`, ya publicada |
-| `MV` | Consume | **Las ventas agregadas** por periodo, moneda, estado, producto o vendedor, **acotadas a un alcance** (`RN-IN-003`). **No existe todavía**: la pide `RF-IN-001` y la amplían los otros tres |
+| `MV` | Consume | **Las ventas agregadas** por periodo, moneda, estado, producto o vendedor, **acotadas a un alcance** (`RN-IN-003`): **`SalesFigures`**. **No existe todavía**: la publica `RF-IN-001` y la amplían los otros tres, un método cada uno |
 
 La dependencia es **acíclica**: `IN` → `SP` e `IN` → `MV`. Ni `SP` ni `MV` consumen a `IN`, y no lo harán: un indicador se lee, no se usa para decidir nada.
 
 !!! danger "Lo que `MV` tiene que publicar"
 
-    Una interfaz de lectura en la capa `application` de `MV` —su nombre lo fija el plan de `RF-IN-001`— que reciba **un alcance ya resuelto** (todo, o un conjunto de vendedores), un periodo y los filtros, y devuelva **cifras**, no filas. **`MV` no resuelve el alcance**: lo recibe, igual que en `RF-MV-015`, para que haya **una** definición de «mi red» y viva en `SP`.
+    Una interfaz de lectura en la capa `application` de `MV` —**`SalesFigures`**, [`RF-IN-001` · `plan.md`](../specs/in/001-resumen-de-ventas/plan.md) §3.1— que reciba **un alcance ya resuelto** (todo, o un conjunto de vendedores), un periodo y los filtros, y devuelva **cifras**, no filas. **`MV` no resuelve el alcance**: lo recibe, igual que en `RF-MV-015`, para que haya **una** definición de «mi red» y viva en `SP`.
 
     **No se reutiliza `RF-MV-015`**, aunque recorra las mismas ventas: aquel devuelve ventas enteras —una venta se ve si **alguna** de sus líneas cae en mi red (`RN-MV-031`)— y aquí se suman **líneas** (`RN-IN-003`). Sumar el `payable_amount` de las ventas que lista `RF-MV-015` le contaría a un director el importe de las líneas que vendió alguien de fuera de su red.
 
@@ -120,7 +120,7 @@ La dependencia es **acíclica**: `IN` → `SP` e `IN` → `MV`. Ni `SP` ni `MV` 
 | `RN-IN-001` | **Un indicador, un permiso**, y ese permiso es el reparto | Siempre | Cada indicador se publica en **su propia ruta** con **su propio permiso** `indicators:read-<indicador>` (`RN-SEG-014`, `RN-SEG-015`). **Qué rol ve qué indicador lo decide quien administra roles** asignando o revocando ese permiso (`RF-SP-005`, `RF-SP-006`), y el frontend sabe qué mostrar por los permisos efectivos de `GET /users/me` (`RF-SP-039`). No existe una tabla rol → indicador. Decisión del responsable del proyecto, 06-10-2026 (§5.2.1) | **Crítica** |
 | `RN-IN-002` | **Las cifras se acotan al alcance de quien mira** | Al calcular cualquier indicador | El alcance lo resuelve `SP` (`CommercialReach`, precedencia de `RN-MV-031`): **`FUNCIONARIO`**, todo; **`VENDEDOR`**, él y quienes cuelgan de él en la estructura de mando **vigente**, en toda la profundidad; **cualquier otro**, solo él. Un filtro por vendedor (`sellerId`) **dentro** del alcance lo estrecha; **fuera** de él responde **cifras en cero o colección vacía**, nunca `403` ni `404`: el indicador no es un oráculo de quién cuelga de quién. Decisión del responsable del proyecto, 06-10-2026 | **Crítica** |
 | `RN-IN-003` | **Las ventas se cuentan por línea**, y cada línea es de su vendedor | Al calcular un indicador de ventas | El importe es la suma de `line_amount` de las líneas **cuyo vendedor está en el alcance** (`RN-MV-003`: el vendedor es de la línea). Una venta **cuenta como una** si al menos una de sus líneas está en el alcance, y su importe es **solo el de esas líneas**. Las líneas **sin vendedor** —ventas en `VALIDAR_COMISIONES` (`RN-MV-034`)— solo entran en el alcance **total**, y por vendedor se agrupan como «sin asignar» | **Crítica** |
-| `RN-IN-004` | **El dinero se agrupa por moneda y nunca se suma entre monedas** | Siempre que un indicador dé un importe | Cada importe va con su moneda (`movements.currency_id`), en **centésimas** como en el resto de la API. Sumar pesos con dólares exige escoger una tasa —¿la de hoy?, ¿la de cada venta?— y esa decisión no es de un indicador: el día que se quiera un total en una moneda será un requerimiento propio que diga con qué tasa. Las **cantidades** —ventas, líneas, unidades— sí se suman entre monedas | **Alta** |
+| `RN-IN-004` | **El dinero se agrupa por moneda y nunca se suma entre monedas** | Siempre que un indicador dé un importe | Cada importe va con su moneda (`movements.currency_id`) y **en decimales, como el resto de la API**: la base guarda centésimas y la suma se hace en centésimas, que se convierten **una vez, al mapear** (`MinorUnits`, ADR-006: nunca se divide en SQL). Sumar pesos con dólares exige escoger una tasa —¿la de hoy?, ¿la de cada venta?— y esa decisión no es de un indicador: el día que se quiera un total en una moneda será un requerimiento propio que diga con qué tasa. Las **cantidades** —ventas, líneas, unidades— sí se suman entre monedas | **Alta** |
 | `RN-IN-005` | **Qué es una venta para los indicadores** | Al calcular un indicador de ventas | Solo movimientos de tipo **`VENTA`**: la compra de puntos (`COMPRA_PUNTOS`) no vende un producto y no comisiona. El periodo se aplica a **`occurred_at`** —cuándo ocurrió la venta, no cuándo se registró—, **semiabierto** (`[from, to)`), como los listados de auditoría y de movimientos. **«Vendido» es `CONFIRMADA`**; `PENDIENTE` y `ANULADA` se informan aparte, cada una con su cantidad y su importe, y nunca se suman a lo vendido. La venta del **alta gratuita** (`RN-SP-043`) es una `VENTA` confirmada de importe cero: **cuenta** como venta y no mueve el importe | **Alta** |
 | `RN-IN-006` | **Los indicadores no guardan nada** | Siempre | Cada lectura cuenta sobre los datos vivos de su dueño. No hay fotos, ni caché, ni tablas de `IN`. Si el volumen llega a exigirlo, las fotos serán tablas **de `IN`** y un requerimiento propio dirá cada cuánto se toman y qué pasa con lo que cambia después —una venta pendiente que se confirma, una línea que gana vendedor— | Media |
 | `RN-IN-007` | **Los días son los de Bogotá** | Al agrupar por día, semana o mes, y al interpretar una fecha sin hora | El corte de cada día, semana —de lunes a domingo— y mes se hace en la zona **`America/Bogota`**, la misma con la que `CM` cierra sus periodos. Agrupar en UTC pondría las ventas de las siete de la noche en el día siguiente | Media |
@@ -166,10 +166,10 @@ La migración que los siembre los da **por tipo de rol**, como los demás permis
 
 | ID | Nombre | Submódulo | Prioridad | Permiso | Estado |
 |---|---|---|---|---|---|
-| `RF-IN-001` | Consultar el resumen de ventas | Ventas | Alta | `indicators:read-sales-summary` | Pendiente |
-| `RF-IN-002` | Consultar la evolución de las ventas | Ventas | Alta | `indicators:read-sales-series` | Pendiente |
-| `RF-IN-003` | Consultar las ventas por producto | Ventas | Media | `indicators:read-sales-by-product` | Pendiente |
-| `RF-IN-004` | Consultar las ventas por vendedor | Ventas | Media | `indicators:read-sales-by-seller` | Pendiente |
+| `RF-IN-001` | Consultar el resumen de ventas | Ventas | Alta | `indicators:read-sales-summary` | **Tasks en revisión** (06-10-2026) |
+| `RF-IN-002` | Consultar la evolución de las ventas | Ventas | Alta | `indicators:read-sales-series` | **Tasks en revisión** (06-10-2026) |
+| `RF-IN-003` | Consultar las ventas por producto | Ventas | Media | `indicators:read-sales-by-product` | **Tasks en revisión** (06-10-2026) |
+| `RF-IN-004` | Consultar las ventas por vendedor | Ventas | Media | `indicators:read-sales-by-seller` | **Tasks en revisión** (06-10-2026) |
 
 **Prioridades:** Crítica · Alta · Media · Baja.
 **Estados:** los de [`requirements.md` §4](../requirements.md#4-matriz-de-trazabilidad).
@@ -186,8 +186,8 @@ La migración que los siembre los da **por tipo de rol**, como los demás permis
 | Prioridad | Alta |
 | Reglas aplicables | `RN-IN-001` a `RN-IN-005`, `RN-IN-007` |
 | Depende de | `SP` publica `CommercialReach`; **`MV` publica las ventas agregadas** (§3) |
-| Tripleta | `docs/specs/in/001-resumen-de-ventas/` |
-| Estado | Pendiente |
+| Tripleta | [`docs/specs/in/001-resumen-de-ventas/`](../specs/in/001-resumen-de-ventas/spec.md) |
+| Estado | **Tasks en revisión** — `spec.md` y `plan.md` aprobados el 06-10-2026 |
 
 Para un periodo y, opcionalmente, una moneda o un vendedor de mi alcance: **cuántas ventas** se confirmaron, cuántas líneas y cuántas unidades, y **por cuánto** en cada moneda; y aparte, con su cantidad y su importe, las que siguen **pendientes** y las **anuladas**. Es el primero en construirse porque es el que estrena la interfaz de `MV`.
 
@@ -201,8 +201,8 @@ Para un periodo y, opcionalmente, una moneda o un vendedor de mi alcance: **cuá
 | Prioridad | Alta |
 | Reglas aplicables | `RN-IN-001` a `RN-IN-005`, `RN-IN-007` |
 | Depende de | `RF-IN-001` |
-| Tripleta | `docs/specs/in/002-evolucion-de-ventas/` |
-| Estado | Pendiente |
+| Tripleta | [`docs/specs/in/002-evolucion-de-ventas/`](../specs/in/002-evolucion-de-ventas/spec.md) |
+| Estado | **Tasks en revisión** — `spec.md` y `plan.md` aprobados el 06-10-2026 |
 
 Las mismas cifras de lo **confirmado** que `RF-IN-001`, partidas en **días, semanas o meses** de Bogotá. **Cada tramo del periodo aparece aunque no tenga ventas**, con ceros: una serie con huecos se dibuja como una línea que une dos puntos lejanos y miente sobre lo que pasó entre ellos. El número de tramos tiene tope, que fija la spec.
 
@@ -216,8 +216,8 @@ Las mismas cifras de lo **confirmado** que `RF-IN-001`, partidas en **días, sem
 | Prioridad | Media |
 | Reglas aplicables | `RN-IN-001` a `RN-IN-005` |
 | Depende de | `RF-IN-001` |
-| Tripleta | `docs/specs/in/003-ventas-por-producto/` |
-| Estado | Pendiente |
+| Tripleta | [`docs/specs/in/003-ventas-por-producto/`](../specs/in/003-ventas-por-producto/spec.md) |
+| Estado | **Tasks en revisión** — `spec.md` y `plan.md` aprobados el 06-10-2026 |
 
 Lo **confirmado** en el periodo agrupado por producto —unidades, líneas e importe por moneda—, de más a menos, con un límite de filas. **El producto es el de la línea**, con el nombre congelado en la venta (`movement_details.product_name`): un producto renombrado o retirado sigue apareciendo con el nombre con que se vendió. Un **paquete** aporta una línea por cada producto que lleva (`RN-MV-028`), de modo que aquí se ven los productos y no el paquete.
 
@@ -231,8 +231,8 @@ Lo **confirmado** en el periodo agrupado por producto —unidades, líneas e imp
 | Prioridad | Media |
 | Reglas aplicables | `RN-IN-001` a `RN-IN-005` |
 | Depende de | `RF-IN-001`; `SP` publica la identidad del vendedor (`UserCatalog`) |
-| Tripleta | `docs/specs/in/004-ventas-por-vendedor/` |
-| Estado | Pendiente |
+| Tripleta | [`docs/specs/in/004-ventas-por-vendedor/`](../specs/in/004-ventas-por-vendedor/spec.md) |
+| Estado | **Tasks en revisión** — `spec.md` y `plan.md` aprobados el 06-10-2026 |
 
 Lo **confirmado** en el periodo agrupado por **el vendedor de la línea**, de más a menos. Para un vendedor, **cada persona de su red y él mismo**, cada una con **lo que vendió ella** —no lo de su red: el acumulado por rama es de `RF-SP-058`, que lo hace para el FTD, y si se quiere para las ventas será otro requerimiento—. Para administración, todos los vendedores y una fila **«sin asignar»** con las líneas que aún no tienen vendedor (`RN-IN-003`).
 
@@ -280,3 +280,4 @@ El contrato detallado de cada endpoint —parámetros, valores por defecto del p
 | Versión | Fecha | Cambio | Responsable |
 |---|---|---|---|
 | 0.1.0 | 06-10-2026 | **Creación del módulo `IN` — Indicadores**, por decisión del responsable del proyecto: «un módulo para indicadores, para repartir qué indicadores se pueden ver por roles». Tres decisiones lo definen: **el reparto es el permiso** —uno por indicador, asignado desde la administración de roles, sin tabla propia— (`RN-IN-001`, §5.2.1); **las cifras dependen de quién mira** —`CommercialReach`, como `RF-MV-015`— (`RN-IN-002`, §5.2.2); y **la primera tanda es de ventas**, `RF-IN-001` a `RF-IN-004`, contadas **por línea** (`RN-IN-003`) y **separadas por moneda** (`RN-IN-004`). Se incorpora **sin tablas propias**, a sabiendas de `modules.md` §2.1 (§1.4). Los cuatro permisos quedan declarados y sin sembrar (§5.2.4). | Bonilla Diaz William Steven |
+| 0.2.0 | 06-10-2026 | **Las cuatro tripletas de ventas están escritas** —`spec.md` y `plan.md` aprobados, `tasks.md` en revisión—, en `docs/specs/in/001` a `004`, con los criterios `CA-IN-001` a `CA-IN-037`. Fijan lo que este documento dejaba abierto: `MV` publica **`SalesFigures`** (§3); el periodo se pide **en días de Bogotá**, con el último incluido, por defecto el mes en curso y con un **tope de 366 días**; el corte fuera del alcance responde **ceros sin consultar**; los rankings se ordenan **por importe con moneda y por unidades sin ella**; y lo **sin asignar** va aparte, solo para administración. La migración de los cuatro permisos la construye `RF-IN-001` · `T-01`. Se corrige además `RN-IN-004`: los importes van **en decimales**, como el resto de la API, y no en centésimas. | Bonilla Diaz William Steven |
