@@ -4,11 +4,15 @@
 |---|---|
 | Requerimiento | `RF-MV-022` |
 | Módulo | `MV` — Movimientos |
-| Versión | 0.1.0 |
+| Versión | 0.2.0 |
 | Estado | **Aprobada** |
 | Autor | Responsable técnico |
 | Aprobada por | Responsable del proyecto |
 | Fecha de aprobación | 26-09-2026 |
+
+!!! warning "Enmendado el 06-10-2026 — `account` admite VARIAS cuentas (R-62)"
+
+    A petición del frontend (R-62) y por decisión del responsable del proyecto: el historial de Balance muestra **solo el dinero** —retiros, pagos de comisión, bonos— y no los puntos, que tienen su historial en «Mis puntos». Con una cuenta por petición eso obliga a pedir `BILLETERA` y `RETENIDO` por separado, y filtrar los puntos en el navegador rompería la paginación. **La cuenta pasa a ser un conjunto**: se puede indicar una, varias o ninguna, y un asiento entra si su cuenta es **cualquiera** de las indicadas. **Es una ampliación y no un cambio de contrato**: una sola cuenta sigue filtrando exactamente igual, y ninguna sigue siendo todas. Indicar la misma dos veces es lo mismo que indicarla una. Basta **una** que no sea de persona para que la consulta sea un error, y el error dice cuáles.
 
 !!! info "Qué va en este documento"
 
@@ -94,7 +98,7 @@ Por cada moneda en la que la persona tenga al menos una cuenta: **la moneda**, *
 |---|---|---|
 | Página y tamaño | No | Como en todos los listados |
 | Moneda | No | Solo los cambios en esa moneda |
-| Cuenta | No | `BILLETERA`, `RETENIDO` o `PUNTOS`. Uno que no sea de persona es un error: es un conjunto cerrado |
+| Cuenta | No | `BILLETERA`, `RETENIDO` o `PUNTOS`, **una o varias** (06-10-2026): el asiento entra si su cuenta es cualquiera de ellas. Una que no sea de persona es un error: es un conjunto cerrado |
 | Desde, hasta | No | Sobre cuándo se escribió el asiento, rango semiabierto; «desde» posterior a «hasta» es un error |
 
 ### 6.4 Salida — el historial
@@ -142,7 +146,7 @@ Saldos: una lista **vacía**. Historial: una página **vacía**. Ninguna de las 
 | ID | Validación |
 |---|---|
 | `VAL-001` | La moneda, si viene, es un identificador válido |
-| `VAL-002` | La cuenta, si viene, es de las tres de una persona |
+| `VAL-002` | Cada cuenta indicada es de las tres de una persona; el error nombra las que no lo son |
 | `VAL-003` | «Desde» no es posterior a «hasta» |
 
 ---
@@ -160,6 +164,7 @@ Saldos: una lista **vacía**. Historial: una página **vacía**. Ninguna de las 
 | `CA-MV-257` | Los filtros por moneda, cuenta y periodo **se combinan**; una cuenta de empresa o un periodo invertido responden rechazo |
 | `CA-MV-258` | El historial va **paginado** y el orden es estable entre páginas |
 | `CA-MV-259` | Cada operación exige **su** permiso: con uno solo de los dos, la otra responde prohibido; sin autenticar, `401` |
+| `CA-MV-660` | Con **varias cuentas** —`BILLETERA` y `RETENIDO`— el historial trae los asientos de **cualquiera** de ellas y ninguno de las demás, paginado como siempre; una sola sigue filtrando igual; repetir una no cambia nada; y **una sola inválida entre varias** es rechazo (06-10-2026, R-62) |
 
 ---
 
@@ -184,3 +189,4 @@ Saldos: una lista **vacía**. Historial: una página **vacía**. Ninguna de las 
 | Versión | Fecha | Cambio | Autor |
 |---|---|---|---|
 | 0.1.0 | 26-09-2026 | Primera versión, con la etapa 6 de `MV` ([`requirements/mv.md`](../../../requirements/mv.md) v0.46.0). **Dos operaciones y dos permisos** —los saldos y su historial—, porque son dos preguntas; el historial es **asiento a asiento** y es donde la persona ve sus retiros, abonos y bonos. Criterios `CA-MV-251` a `CA-MV-259`. | Responsable del proyecto |
+| 0.2.0 | 06-10-2026 | **La cuenta del historial admite varias** (R-62, a petición del frontend; Art. I.7): §6.3, `VAL-002` y `CA-MV-660`. Ampliación compatible: una sola cuenta filtra igual. | Responsable técnico |

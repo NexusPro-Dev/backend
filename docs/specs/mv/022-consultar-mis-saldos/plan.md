@@ -3,13 +3,17 @@
 | Campo | Valor |
 |---|---|
 | Requerimiento | `RF-MV-022` |
-| Especificación | [`spec.md`](spec.md) v0.1.0 |
+| Especificación | [`spec.md`](spec.md) v0.2.0 |
 | `spec.md` aprobada el | 26-09-2026 |
-| Versión | 0.1.0 |
+| Versión | 0.2.0 |
 | Estado | **Aprobado** |
 | Autor | Responsable técnico |
 | Aprobado por | Responsable del proyecto |
 | Fecha de aprobación | 26-09-2026 |
+
+!!! warning "Enmendado el 06-10-2026 — `account` admite VARIAS cuentas (R-62)"
+
+    A petición del frontend (R-62) y por decisión del responsable del proyecto: el historial de Balance muestra **solo el dinero** —retiros, pagos de comisión, bonos— y no los puntos, que tienen su historial en «Mis puntos». Con una cuenta por petición eso obliga a pedir `BILLETERA` y `RETENIDO` por separado, y filtrar los puntos en el navegador rompería la paginación. **Cómo se construye**: `account` pasa a ser un parámetro **repetible** (`?account=BILLETERA&account=RETENIDO`), que Spring recibe como lista; el servicio la valida entera —cada valor contra los tres de persona, los inválidos juntos en **un** `VAL-002`— y la reduce a un conjunto sin repetidos; `EntryFilter.account` pasa de `String` a `Set<String>` y el predicado de `JpaLedgerRepository` de `a.kind = :cuenta` a **`a.kind IN (:cuentas)`**, con el conjunto vacío como «sin filtro». **Se descartó la lista separada por comas** (`account=BILLETERA,RETENIDO`): es la forma que ningún otro filtro del sistema usa, y obligaría a decidir qué hacer con una coma dentro de un valor. Sin cambio de esquema ni de permisos. En el contrato, `account` pasa de cadena a **arreglo de cadenas**; un cliente que mande un solo valor no nota nada.
 
 !!! info "Qué va en este documento"
 
@@ -52,7 +56,7 @@
 | `GET` | `/api/v1/movements/mine/balances` | `movements:read-own-balances` |
 | `GET` | `/api/v1/movements/mine/balances/entries` | `movements:list-own-entries` |
 
-**Saldos**: `200` con `[{ currency, wallet, held, points }]`. **Historial**: `200` con la página envuelta de siempre; filtros `currencyId`, `account` (`BILLETERA`, `RETENIDO`, `PUNTOS`), `from`, `to`. **El total es exacto**: es el conjunto de una persona, como en `RF-MV-008`.
+**Saldos**: `200` con `[{ currency, wallet, held, points }]`. **Historial**: `200` con la página envuelta de siempre; filtros `currencyId`, `account` (`BILLETERA`, `RETENIDO`, `PUNTOS`; **repetible** desde el 06-10-2026), `from`, `to`. **El total es exacto**: es el conjunto de una persona, como en `RF-MV-008`.
 
 | Código | Cuándo |
 |---|---|

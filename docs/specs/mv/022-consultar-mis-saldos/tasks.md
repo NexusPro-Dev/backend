@@ -3,8 +3,8 @@
 | Campo | Valor |
 |---|---|
 | Requerimiento | `RF-MV-022` |
-| Especificación | [`spec.md`](spec.md) v0.1.0 |
-| Plan | [`plan.md`](plan.md) v0.1.0 |
+| Especificación | [`spec.md`](spec.md) v0.2.0 |
+| Plan | [`plan.md`](plan.md) v0.2.0 |
 | `plan.md` aprobado el | 26-09-2026 |
 | Estado | **En revisión** — todas las tareas `Hecha` el 26-09-2026; la última, de documentación y contrato (`T-06`), el 30-09-2026 |
 | Issue | [#122](https://github.com/NexusPro-Dev/backend/issues/122) |
@@ -35,6 +35,17 @@
 
 **Después de `RF-MV-019` a `RF-MV-021`**: `T-01` → `T-02` → `T-03` → `T-04` → `T-05` → `T-06`.
 
+## 2.1 Tareas de la enmienda: varias cuentas en el historial — 06-10-2026 (R-62)
+
+Enmienda de hecho (Art. I.7), `spec.md` 0.2.0 y `plan.md` 0.2.0 **antes** del código. Aprobada por el responsable del proyecto el 06-10-2026.
+
+| ID | Tarea | Depende de | Verificación | Estado |
+|---|---|---|---|---|
+| `T-07` | `EntryFilter.account` a `Set<String>`; `JpaLedgerRepository` con `a.kind IN (:cuentas)`; `BalanceService.entries` recibe la lista, valida cada valor —los inválidos juntos en un `VAL-002`— y quita repetidos | — | Un solo valor da la misma sentencia que hoy salvo el `IN` | Pendiente |
+| `T-08` | `LedgerController`: `account` como `List<String>`, documentado como repetible | `T-07` | `openapi.json` declara `account` como arreglo | Pendiente |
+| `T-09` | `BalancesAndBonusIT`: `CA-MV-660` | `T-08` | `BILLETERA`+`RETENIDO` sin `PUNTOS`; repetido; uno inválido entre varios | Pendiente |
+| `T-10` | Contrato regenerado y prosa releída; `docs/api/index.md`; `requirements/mv.md` | `T-09` | | Pendiente |
+
 ---
 
 ## 3. Cobertura de los criterios de aceptación
@@ -44,6 +55,7 @@
 | `CA-MV-251` a `CA-MV-254` | `T-02`, `T-03`, `T-05` |
 | `CA-MV-255` a `CA-MV-258` | `T-02`, `T-03`, `T-05` |
 | `CA-MV-259` | `T-04`, `T-05` |
+| `CA-MV-660` | `T-07` a `T-09` — 06-10-2026 |
 
 ---
 

@@ -5,7 +5,7 @@
 | Módulo | `MV` — Movimientos |
 | Paquete | `modules/movements` |
 | Prefijos de permiso | `movements:` |
-| Versión | 0.85.0 |
+| Versión | 0.86.0 |
 | Estado | **Borrador** |
 | Responsable | Bonilla Diaz William Steven |
 | Fecha de creación | 02-09-2026 |
@@ -1517,3 +1517,4 @@ Se siembra por migración y **no se administra por API todavía** (§5.3). Lo m�
 | 0.83.0 | 05-10-2026 | **El ajuste de puntos a mano** (§4.11), por decisión del responsable del proyecto —le consignan por fuera a la cuenta empresarial y él abona los puntos—, preguntada antes de escribir: **ajuste libre en puntos**, sin dinero ni tasa; **suma y resta**, sin dejar el saldo en negativo; **motivo obligatorio, referencia opcional y clave de idempotencia**. Nacen `RF-MV-052`, `RN-MV-076`, el tipo `AJUSTE_PUNTOS` (prefijo `AJP`), el evento `AJUSTE`, la columna `movements.external_reference` y el permiso `movements:adjust-points`; se relaja `ck_movements_points`. **La migración es `V72`** | Responsable del proyecto |
 | 0.84.0 | 05-10-2026 | **Las dos lecturas de la pantalla de ajustes** (§4.11), pedidas por el frontend en nombre del responsable: nacen `RF-MV-053` —consultar los ajustes de puntos, con quién los hizo— y `RF-MV-054` —los saldos de cualquier persona—, con `movements:list-points-adjustments` y `movements:read-user-balances`, y la columna `movements.recorded_by`. **La migración es `V73`** | Responsable técnico |
 | 0.85.0 | 06-10-2026 | **`MV` publica `SalesFigures` para el módulo `IN`** (§3; [`requirements/in.md`](in.md), `RF-IN-001`): las sumas de lo vendido por un alcance que otro resuelve, contadas por línea y separadas por moneda. Es la forma de `CommissionableLines`. Ningún requerimiento de `MV` cambia. | Responsable técnico |
+| 0.86.0 | 06-10-2026 | **El historial de saldos (`RF-MV-022`) filtra por VARIAS cuentas** (R-62, a petición del frontend; tripleta enmendada, `CA-MV-660`): `account` es repetible y el asiento entra si su cuenta es cualquiera de las indicadas, para que el historial de Balance enseñe solo dinero —`BILLETERA` y `RETENIDO`— sin los puntos. Ampliación compatible. Siguiente `CA-MV-661`. | Responsable técnico |
