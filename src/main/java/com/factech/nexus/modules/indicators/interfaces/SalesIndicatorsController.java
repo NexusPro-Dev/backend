@@ -55,6 +55,12 @@ public class SalesIndicatorsController {
           **anuladas**, cada una con su cantidad y su importe. Solo cuentan las ventas: una
           compra de puntos no es una venta.
 
+          **`total` es el número de ventas sea cual sea su estado**, y **cada bloque dice en
+          `free` cuántas fueron gratuitas** (desde el 06-10-2026): una venta es gratuita si su
+          importe a pagar —el de la venta entera— es cero, como la del alta por enlace. **Las
+          gratuitas siguen contando en `sales`**, de modo que las pagadas son
+          `confirmed.sales - confirmed.free`.
+
           **Lo que se ve lo decide el tipo de rol de quien pregunta**, como en
           `GET /movements/sales`: un **funcionario** ve toda la plataforma, también las líneas
           que aún no tienen vendedor; un **vendedor** ve lo que vendió **él y su red**, en toda

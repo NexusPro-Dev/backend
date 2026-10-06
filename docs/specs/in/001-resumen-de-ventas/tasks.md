@@ -39,9 +39,9 @@ Enmienda de hecho (Art. I.7), `spec.md` 0.2.0 y `plan.md` 0.2.0 **antes** del c�
 
 | ID | Tarea | Depende de | Verificación | Estado |
 |---|---|---|---|---|
-| `T-11` | `SalesFigures.Totals` gana `free`; `JpaSalesFigures.summary` cuenta las gratuitas con `FILTER (WHERE m.payable_amount = 0)` | — | La serie de `RF-IN-002` sigue sumando lo confirmado | Pendiente |
-| `T-12` | `SalesSummaryResponse` gana `total` (`sales`, `free`) y `free` en cada estado; `GetSalesSummaryService` suma el total | `T-11` | `@Schema` propio para `total` | Pendiente |
-| `T-13` | `SalesSummaryIT`: `CA-IN-038` a `CA-IN-040`; contrato regenerado; `api/index.md`, matriz | `T-12` | Las cifras de antes no cambian | Pendiente |
+| `T-11` | `SalesFigures.Totals` gana `free`; `JpaSalesFigures.summary` cuenta las gratuitas con `FILTER (WHERE m.payable_amount = 0)` | — | La serie de `RF-IN-002` sigue sumando lo confirmado | **Hecha** — 06-10-2026 |
+| `T-12` | `SalesSummaryResponse` gana `total` (`sales`, `free`) y `free` en cada estado; `GetSalesSummaryService` suma el total | `T-11` | `@Schema` propio para `total` | **Hecha** — 06-10-2026 |
+| `T-13` | `SalesSummaryIT`: `CA-IN-038` a `CA-IN-040`; contrato regenerado; `api/index.md`, matriz | `T-12` | Las cifras de antes no cambian | **Hecha** — 06-10-2026 |
 
 ---
 

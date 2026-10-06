@@ -61,17 +61,25 @@ public class GetSalesSummaryService {
             .orElseGet(Summary::empty);
 
     Totals confirmadas = resumen.confirmed();
+    Totals pendientes = resumen.pending();
+    Totals anuladas = resumen.voided();
+    // Los tres estados no se solapan: cada venta está en uno solo, y el total es
+    // su suma (`CA-IN-038`).
     return new SalesSummaryResponse(
         periodo,
+        new SalesSummaryResponse.Total(
+            confirmadas.sales() + pendientes.sales() + anuladas.sales(),
+            confirmadas.free() + pendientes.free() + anuladas.free()),
         new SalesSummaryResponse.Confirmed(
             confirmadas.sales(),
             confirmadas.lines(),
             confirmadas.units(),
+            confirmadas.free(),
             importes(confirmadas.amounts())),
         new SalesSummaryResponse.Other(
-            resumen.pending().sales(), importes(resumen.pending().amounts())),
+            pendientes.sales(), pendientes.free(), importes(pendientes.amounts())),
         new SalesSummaryResponse.Other(
-            resumen.voided().sales(), importes(resumen.voided().amounts())));
+            anuladas.sales(), anuladas.free(), importes(anuladas.amounts())));
   }
 
   static List<IndicatorAmount> importes(List<Amount> importes) {

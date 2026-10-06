@@ -7608,6 +7608,9 @@
           "period" : {
             "$ref" : "#/components/schemas/IndicatorPeriod"
           },
+          "total" : {
+            "$ref" : "#/components/schemas/SalesSummaryTotal"
+          },
           "voided" : {
             "$ref" : "#/components/schemas/SalesSummaryOther"
           }
@@ -7621,6 +7624,11 @@
               "$ref" : "#/components/schemas/IndicatorAmount"
             },
             "type" : "array"
+          },
+          "free" : {
+            "description" : "Cuántas fueron gratuitas; siguen contando en sales.",
+            "format" : "int64",
+            "type" : "integer"
           },
           "lines" : {
             "format" : "int64",
@@ -7645,7 +7653,27 @@
             },
             "type" : "array"
           },
+          "free" : {
+            "description" : "Cuántas fueron gratuitas; siguen contando en sales.",
+            "format" : "int64",
+            "type" : "integer"
+          },
           "sales" : {
+            "format" : "int64",
+            "type" : "integer"
+          }
+        },
+        "type" : "object"
+      },
+      "SalesSummaryTotal" : {
+        "properties" : {
+          "free" : {
+            "description" : "Cuántas de ellas fueron gratuitas: importe a pagar cero.",
+            "format" : "int64",
+            "type" : "integer"
+          },
+          "sales" : {
+            "description" : "Confirmadas, pendientes y anuladas.",
             "format" : "int64",
             "type" : "integer"
           }
@@ -14851,7 +14879,7 @@
     },
     "/api/v1/indicators/sales/summary" : {
       "get" : {
-        "description" : "**Permiso requerido:** `indicators:read-sales-summary`. Sin él, `403` (`AUTH-002`).\n\nDevuelve **cuánto se vendió en un periodo**: las ventas **confirmadas** —cuántas,\ncuántas líneas, cuántas unidades y por cuánto—, y aparte las **pendientes** y las\n**anuladas**, cada una con su cantidad y su importe. Solo cuentan las ventas: una\ncompra de puntos no es una venta.\n\n**Lo que se ve lo decide el tipo de rol de quien pregunta**, como en\n`GET /movements/sales`: un **funcionario** ve toda la plataforma, también las líneas\nque aún no tienen vendedor; un **vendedor** ve lo que vendió **él y su red**, en toda\nla profundidad; cualquier otro, lo que vendió él.\n\n**Se cuenta por LÍNEA, no por venta.** Una venta con una línea de mi red y otra de una\nrama ajena cuenta **una** venta con **solo** el importe de mi línea. Por eso el importe\nde un vendedor **puede ser menor** que la suma de los totales de las ventas que ve en\nsu listado: las dos cifras son correctas y responden preguntas distintas.\n\n**Un importe por moneda**, nunca sumados entre sí; una moneda sin ventas no aparece.\nLas cantidades sí se suman.\n\n**El periodo se pide en días** de la zona del negocio (`America/Bogota`): `from` y\n`to` incluidos, el último entero. Sin fechas, el mes en curso hasta hoy; con solo\n`to`, desde el primero de su mes. Como mucho **366 días**. La respuesta devuelve el\nperiodo efectivo.\n\n`sellerId` acota a una persona **de mi alcance**; fuera de él —o inexistente— la\nrespuesta son **ceros**, y no un error, para que el filtro no sirva para descubrir\nquién cuelga de quién. Una `currencyId` inexistente también da ceros. Ni\n`movements:list-sales` ni otro permiso de indicadores abren este.\n",
+        "description" : "**Permiso requerido:** `indicators:read-sales-summary`. Sin él, `403` (`AUTH-002`).\n\nDevuelve **cuánto se vendió en un periodo**: las ventas **confirmadas** —cuántas,\ncuántas líneas, cuántas unidades y por cuánto—, y aparte las **pendientes** y las\n**anuladas**, cada una con su cantidad y su importe. Solo cuentan las ventas: una\ncompra de puntos no es una venta.\n\n**`total` es el número de ventas sea cual sea su estado**, y **cada bloque dice en\n`free` cuántas fueron gratuitas** (desde el 06-10-2026): una venta es gratuita si su\nimporte a pagar —el de la venta entera— es cero, como la del alta por enlace. **Las\ngratuitas siguen contando en `sales`**, de modo que las pagadas son\n`confirmed.sales - confirmed.free`.\n\n**Lo que se ve lo decide el tipo de rol de quien pregunta**, como en\n`GET /movements/sales`: un **funcionario** ve toda la plataforma, también las líneas\nque aún no tienen vendedor; un **vendedor** ve lo que vendió **él y su red**, en toda\nla profundidad; cualquier otro, lo que vendió él.\n\n**Se cuenta por LÍNEA, no por venta.** Una venta con una línea de mi red y otra de una\nrama ajena cuenta **una** venta con **solo** el importe de mi línea. Por eso el importe\nde un vendedor **puede ser menor** que la suma de los totales de las ventas que ve en\nsu listado: las dos cifras son correctas y responden preguntas distintas.\n\n**Un importe por moneda**, nunca sumados entre sí; una moneda sin ventas no aparece.\nLas cantidades sí se suman.\n\n**El periodo se pide en días** de la zona del negocio (`America/Bogota`): `from` y\n`to` incluidos, el último entero. Sin fechas, el mes en curso hasta hoy; con solo\n`to`, desde el primero de su mes. Como mucho **366 días**. La respuesta devuelve el\nperiodo efectivo.\n\n`sellerId` acota a una persona **de mi alcance**; fuera de él —o inexistente— la\nrespuesta son **ceros**, y no un error, para que el filtro no sirva para descubrir\nquién cuelga de quién. Una `currencyId` inexistente también da ceros. Ni\n`movements:list-sales` ni otro permiso de indicadores abren este.\n",
         "operationId" : "resumen",
         "parameters" : [ {
           "in" : "query",

@@ -57,6 +57,9 @@ public class JpaSalesFigures implements SalesFigures {
     String sql =
         "SELECT m.status, m.currency_id, c.code, "
             + CIFRAS
+            // La gratuidad es de la CABECERA —lo que se cobra por la venta entera—
+            // y no de las líneas del alcance (`RN-IN-008`, `CA-IN-040`).
+            + ", count(DISTINCT m.id) FILTER (WHERE m.payable_amount = 0)"
             + DE_LAS_VENTAS
             + " AND m.status IN ('CONFIRMADA', 'PENDIENTE', 'ANULADA')"
             + donde(scope, currencyId)
@@ -73,7 +76,8 @@ public class JpaSalesFigures implements SalesFigures {
               new Amount((UUID) f[1], (String) f[2], MinorUnits.fromMinor(f[6])),
               ((Number) f[3]).longValue(),
               ((Number) f[4]).longValue(),
-              ((Number) f[5]).longValue());
+              ((Number) f[5]).longValue(),
+              ((Number) f[7]).longValue());
     }
     return new Summary(
         totales(porEstado.get("CONFIRMADA")),
@@ -176,18 +180,20 @@ public class JpaSalesFigures implements SalesFigures {
     private long ventas;
     private long lineas;
     private long unidades;
+    private long gratuitas;
     private final List<Amount> importes = new ArrayList<>();
 
-    void sumar(Amount importe, long ventas, long lineas, long unidades) {
+    void sumar(Amount importe, long ventas, long lineas, long unidades, long gratuitas) {
       this.ventas += ventas;
       this.lineas += lineas;
       this.unidades += unidades;
+      this.gratuitas += gratuitas;
       importes.add(importe);
     }
 
     Totals totales() {
       importes.sort(Comparator.comparing(Amount::currencyCode));
-      return new Totals(ventas, lineas, unidades, importes);
+      return new Totals(ventas, lineas, unidades, gratuitas, importes);
     }
   }
 }

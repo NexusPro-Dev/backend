@@ -5,7 +5,7 @@
 | Proyecto | NEXUS — Renovación de plataforma |
 | Empresa | FACTECH GROUP SAS |
 | Documento | `requirements.md` |
-| Versión | 0.293.0 |
+| Versión | 0.294.0 |
 | Estado | Borrador |
 | Responsable técnico | Bonilla Diaz William Steven |
 | Fecha de creación | 20-08-2026 |
@@ -717,3 +717,4 @@ El inventario y el estado de los módulos se consultan en [`modules.md` §4](mod
 | 0.291.0 | 06-10-2026 | **`RF-SP-071` construido — el primero del segundo factor**: activar el authenticator, con `V75` (las tres tablas, las tres columnas, los siete permisos —catálogo 196, `ADMIN` 194—, las dieciocho operaciones sensibles y `SUPERADMIN` y `ADMIN` obligados). Endpoint funcionando 177 → **178**. La obligación todavía no retiene a nadie: eso llega con `RF-SP-072`. | Responsable técnico |
 | 0.292.0 | 06-10-2026 | **`RF-IN-002` construido** ([`requirements/in.md`](requirements/in.md) v0.4.0): `GET /api/v1/indicators/sales/series`, la evolución de lo confirmado por día, semana o mes de Bogotá. §5: endpoint funcionando 178 → **179**. | Responsable técnico |
 | 0.293.0 | 06-10-2026 | **`RF-SP-072` construido — el inicio de sesión en dos pasos**, y con él la obligación del rol empieza a retener: **`SUPERADMIN` y `ADMIN` activan el factor en su siguiente inicio de sesión**. Endpoint funcionando 179 → **180**. El perfil propio publica el estado del factor (`RF-SP-077` `CA-SP-892`, adelantado). | Responsable técnico |
+| 0.294.0 | 06-10-2026 | **`RF-IN-001` enmendado y construido: el total de ventas y las gratuitas** ([`requirements/in.md`](requirements/in.md) v0.5.0, `RN-IN-008`, `CA-IN-038` a `CA-IN-040`), por decisión del responsable del proyecto. Mismo permiso y misma ruta; ningún indicador de §5 se mueve. | Responsable técnico |

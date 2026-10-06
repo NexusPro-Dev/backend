@@ -111,14 +111,19 @@ public interface SalesFigures {
   /** Un importe en una moneda. */
   record Amount(UUID currencyId, String currencyCode, BigDecimal amount) {}
 
-  /** Las cifras de una situación de la venta. */
-  record Totals(long sales, long lines, long units, List<Amount> amounts) {
+  /**
+   * Las cifras de una situación de la venta.
+   *
+   * @param free cuántas de esas ventas fueron <b>gratuitas</b>: su importe a pagar, el de la venta
+   *     entera, es cero (`RN-IN-008`, 06-10-2026). Siguen contando en {@code sales}
+   */
+  record Totals(long sales, long lines, long units, long free, List<Amount> amounts) {
     public Totals {
       amounts = List.copyOf(amounts);
     }
 
     public static Totals empty() {
-      return new Totals(0, 0, 0, List.of());
+      return new Totals(0, 0, 0, 0, List.of());
     }
   }
 

@@ -229,6 +229,54 @@ class SalesSummaryIT extends IntegrationTestBase {
 
   @Test
   @DisplayName(
+      "CA-IN-038 y CA-IN-039 — el total es la suma de los tres estados, y las gratuitas se"
+          + " cuentan en cada uno")
+  void totalYGratuitas() throws Exception {
+    // Funcionario: 10 confirmadas, 1 pendiente y 1 anulada; la única gratuita
+    // es el alta de agente2, confirmada.
+    septiembre(funcionario)
+        .andExpect(jsonPath("$.total.sales").value(12))
+        .andExpect(jsonPath("$.total.free").value(1))
+        .andExpect(jsonPath("$.confirmed.free").value(1))
+        .andExpect(jsonPath("$.pending.free").value(0))
+        .andExpect(jsonPath("$.voided.free").value(0));
+    septiembre(manager)
+        .andExpect(jsonPath("$.total.sales").value(9))
+        .andExpect(jsonPath("$.total.free").value(1));
+    // Un agente sin gratuitas, y el filtro por vendedor acota el total igual.
+    septiembre(agente1)
+        .andExpect(jsonPath("$.total.sales").value(3))
+        .andExpect(jsonPath("$.total.free").value(0));
+    mvc.perform(septiembreDe(director1).param("sellerId", agente2.toString()))
+        .andExpect(jsonPath("$.total.sales").value(2))
+        .andExpect(jsonPath("$.total.free").value(1))
+        .andExpect(jsonPath("$.confirmed.free").value(1))
+        .andExpect(jsonPath("$.pending.sales").value(1));
+  }
+
+  @Test
+  @DisplayName(
+      "CA-IN-040 — la gratuidad es de la venta entera: una cobrada con una línea a cero no lo es,"
+          + " y una gratuita lo es para cada vendedor que tenga una línea en ella")
+  void gratuidadDeLaVentaEntera() throws Exception {
+    // Cobrada (5,00 la venta) con una línea de agente1 a cero.
+    UUID cobrada = venta(agente3, "CONFIRMADA", USD, "2026-09-20T15:00:00Z", 500, 1);
+    linea(cobrada, otroProducto, agente1, 0, 1);
+    // Gratuita, con una línea de cada rama.
+    UUID gratuita = venta(agente1, "CONFIRMADA", USD, "2026-09-21T15:00:00Z", 0, 1);
+    linea(gratuita, otroProducto, agente3, 0, 1);
+
+    rango(agente1, "2026-09-20", "2026-09-21")
+        .andExpect(jsonPath("$.total.sales").value(2))
+        .andExpect(jsonPath("$.total.free").value(1))
+        .andExpect(jsonPath("$.confirmed.free").value(1));
+    rango(director2, "2026-09-20", "2026-09-21")
+        .andExpect(jsonPath("$.total.sales").value(2))
+        .andExpect(jsonPath("$.confirmed.free").value(1));
+  }
+
+  @Test
+  @DisplayName(
       "CA-IN-009 — los días son de Bogotá: las 20:00 del 30 entra en septiembre; las 23:00 del 31"
           + " de agosto, no")
   void diasDeBogota() throws Exception {
