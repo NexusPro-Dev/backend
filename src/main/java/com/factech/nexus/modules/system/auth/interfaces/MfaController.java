@@ -2,8 +2,11 @@ package com.factech.nexus.modules.system.auth.interfaces;
 
 import com.factech.nexus.modules.system.auth.application.MfaConfirmationRequest;
 import com.factech.nexus.modules.system.auth.application.MfaConfirmationResponse;
+import com.factech.nexus.modules.system.auth.application.MfaDeactivationRequest;
 import com.factech.nexus.modules.system.auth.application.MfaEnrollmentResponse;
 import com.factech.nexus.modules.system.auth.application.RecoveryCodesResponse;
+import com.factech.nexus.modules.system.auth.application.SessionResponse;
+import com.factech.nexus.modules.system.auth.domain.service.MfaDeactivationService;
 import com.factech.nexus.modules.system.auth.domain.service.MfaEnrollmentService;
 import com.factech.nexus.modules.system.auth.domain.service.RecoveryCodeRegenerationService;
 import io.swagger.v3.oas.annotations.Operation;
@@ -34,11 +37,15 @@ public class MfaController {
 
   private final MfaEnrollmentService activacion;
   private final RecoveryCodeRegenerationService regeneracion;
+  private final MfaDeactivationService desactivacion;
 
   public MfaController(
-      MfaEnrollmentService activacion, RecoveryCodeRegenerationService regeneracion) {
+      MfaEnrollmentService activacion,
+      RecoveryCodeRegenerationService regeneracion,
+      MfaDeactivationService desactivacion) {
     this.activacion = activacion;
     this.regeneracion = regeneracion;
+    this.desactivacion = desactivacion;
   }
 
   @PostMapping("/totp")
@@ -132,5 +139,50 @@ public class MfaController {
     return ResponseEntity.status(HttpStatus.CREATED)
         .cacheControl(CacheControl.noStore())
         .body(regeneracion.regenerar());
+  }
+
+  @PostMapping("/deactivation")
+  @PreAuthorize("hasAuthority('users:disable-own-mfa')")
+  @Operation(
+      summary = "Desactivar el propio segundo factor",
+      description =
+          """
+          Retira el authenticator y sus códigos de recuperación (`RF-SP-075`): desde
+          entonces, entrar pide solo la contraseña.
+
+          **Pide los dos factores a la vez**: es sensible —verificación de hace cinco
+          minutos o menos— y lleva la **contraseña vigente** en el cuerpo. **No se
+          admite si un rol de la persona exige el segundo factor** (`409`): para ella
+          no hay desactivación, solo cambio de teléfono.
+
+          **Cierra todas las sesiones y devuelve una nueva**: este dispositivo sigue
+          dentro con las credenciales de la respuesta, y los demás dejan de poder
+          renovar —su token de acceso caduca en quince minutos como mucho—. Una
+          contraseña equivocada es `422` y cuenta para el bloqueo; si bloquea, `423`
+          y no queda ninguna sesión.
+          """)
+  @ApiResponses({
+    @ApiResponse(responseCode = "200", description = "Factor retirado; la sesión nueva"),
+    @ApiResponse(
+        responseCode = "400",
+        description = "Falta la contraseña",
+        content = @Content(schema = @Schema(hidden = true))),
+    @ApiResponse(
+        responseCode = "409",
+        description = "Sin factor activo, o un rol de la persona lo exige",
+        content = @Content(schema = @Schema(hidden = true))),
+    @ApiResponse(
+        responseCode = "422",
+        description = "La contraseña actual no es correcta",
+        content = @Content(schema = @Schema(hidden = true))),
+    @ApiResponse(
+        responseCode = "423",
+        description = "La cuenta quedó bloqueada; sus sesiones, cerradas",
+        content = @Content(schema = @Schema(hidden = true)))
+  })
+  public ResponseEntity<SessionResponse> desactivar(@RequestBody MfaDeactivationRequest peticion) {
+    return ResponseEntity.ok()
+        .cacheControl(CacheControl.noStore())
+        .body(desactivacion.desactivar(peticion));
   }
 }

@@ -86,17 +86,32 @@ public class CredentialFailures {
    * @param etapa {@code LOGIN} o {@code STEP_UP}, para el detalle del evento
    */
   public FalloDeCodigo rechazarCodigo(AuthUser cuenta, String etapa, OffsetDateTime ahora) {
+    Map<String, Object> detalle = new HashMap<>();
+    detalle.put("stage", etapa);
+    return registrarFallo(
+        cuenta, SecurityEventType.MFA_VERIFICATION_FAILED, Severity.MEDIA, detalle, ahora);
+  }
+
+  /**
+   * Un fallo de credencial de quien ya está autenticado —el código al reverificar, la contraseña al
+   * desactivar el factor (`RF-SP-075`)—: consume un intento de la cuenta y se audita con el evento
+   * que diga quien llama, o {@code ACCOUNT_LOCKED} si bloquea.
+   */
+  public FalloDeCodigo registrarFallo(
+      AuthUser cuenta,
+      SecurityEventType evento,
+      Severity severidad,
+      Map<String, Object> detalle,
+      OffsetDateTime ahora) {
     int intentos = cuenta.failedAttempts() + 1;
     OffsetDateTime hasta = politica.bloqueoTras(intentos, ahora).orElse(null);
     cuentas.registrarFallo(cuenta.id(), intentos, hasta);
 
-    Map<String, Object> detalle = new HashMap<>();
-    detalle.put("stage", etapa);
     boolean bloquea = hasta != null;
     auditoria.recordSecurity(
         new SecurityEvent(
-            bloquea ? SecurityEventType.ACCOUNT_LOCKED : SecurityEventType.MFA_VERIFICATION_FAILED,
-            bloquea ? Severity.ALTA : Severity.MEDIA,
+            bloquea ? SecurityEventType.ACCOUNT_LOCKED : evento,
+            bloquea ? Severity.ALTA : severidad,
             Outcome.FAILURE,
             cuenta.id(),
             detalle));

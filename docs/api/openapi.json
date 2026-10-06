@@ -3685,6 +3685,15 @@
         },
         "type" : "object"
       },
+      "MfaDeactivationRequest" : {
+        "properties" : {
+          "currentPassword" : {
+            "description" : "La contraseña vigente. Nunca se registra.",
+            "type" : "string"
+          }
+        },
+        "type" : "object"
+      },
       "MfaEnrollmentResponse" : {
         "properties" : {
           "expiresAt" : {
@@ -21843,6 +21852,50 @@
         "summary" : "Consultar mis clientes",
         "tags" : [ "Usuarios" ],
         "x-required-permission" : "users:read-own-clients"
+      }
+    },
+    "/api/v1/users/me/mfa/deactivation" : {
+      "post" : {
+        "description" : "**Permiso requerido:** `users:disable-own-mfa`. Sin él, `403` (`AUTH-002`).\n\n**Operación sensible** (`RN-SP-063`): exige haber verificado el segundo factor hace cinco minutos o menos. Si no, `403` con el tipo `reverificacion-requerida` y `verificationPath`: se presenta el código en `POST /api/v1/auth/mfa/verification` y se repite la petición con el token que devuelve.\n\nRetira el authenticator y sus códigos de recuperación (`RF-SP-075`): desde\nentonces, entrar pide solo la contraseña.\n\n**Pide los dos factores a la vez**: es sensible —verificación de hace cinco\nminutos o menos— y lleva la **contraseña vigente** en el cuerpo. **No se\nadmite si un rol de la persona exige el segundo factor** (`409`): para ella\nno hay desactivación, solo cambio de teléfono.\n\n**Cierra todas las sesiones y devuelve una nueva**: este dispositivo sigue\ndentro con las credenciales de la respuesta, y los demás dejan de poder\nrenovar —su token de acceso caduca en quince minutos como mucho—. Una\ncontraseña equivocada es `422` y cuenta para el bloqueo; si bloquea, `423`\ny no queda ninguna sesión.\n",
+        "operationId" : "desactivar",
+        "requestBody" : {
+          "content" : {
+            "application/json" : {
+              "schema" : {
+                "$ref" : "#/components/schemas/MfaDeactivationRequest"
+              }
+            }
+          },
+          "required" : true
+        },
+        "responses" : {
+          "200" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/SessionResponse"
+                }
+              }
+            },
+            "description" : "Factor retirado; la sesión nueva"
+          },
+          "400" : {
+            "description" : "Falta la contraseña"
+          },
+          "409" : {
+            "description" : "Sin factor activo, o un rol de la persona lo exige"
+          },
+          "422" : {
+            "description" : "La contraseña actual no es correcta"
+          },
+          "423" : {
+            "description" : "La cuenta quedó bloqueada; sus sesiones, cerradas"
+          }
+        },
+        "summary" : "Desactivar el propio segundo factor",
+        "tags" : [ "Segundo factor" ],
+        "x-required-permission" : "users:disable-own-mfa",
+        "x-requires-recent-mfa" : true
       }
     },
     "/api/v1/users/me/mfa/recovery-codes" : {
