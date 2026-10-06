@@ -3,8 +3,8 @@
 | Campo | Valor |
 |---|---|
 | Requerimiento | `RF-IN-005` |
-| Especificación | [`spec.md`](spec.md) v0.3.0 |
-| Plan | [`plan.md`](plan.md) v0.3.0 |
+| Especificación | [`spec.md`](spec.md) v0.2.0 |
+| Plan | [`plan.md`](plan.md) v0.2.0 |
 | `plan.md` aprobado el | 06-10-2026 |
 | Estado | **Aprobadas** — por el responsable del proyecto, 06-10-2026. `T-01` a `T-06` `Hecha` el mismo día |
 | Issue | Pendiente de crear |
@@ -36,14 +36,6 @@
 | `T-07` | `PointsFigures.flowsByBucket`; `GetPointsSummaryService` con el periodo abierto, `granularity` y `buckets` | `RF-IN-001` · `T-14` | El saldo solo en el total | **Hecha** — 06-10-2026 |
 | `T-08` | `PointsSummaryIT`: `CA-IN-057` y `CA-IN-058`; contrato y documentos | `T-07` | | **Hecha** — 06-10-2026 |
 
-### 1.2 Alineado con la lista de los movimientos de puntos — 06-10-2026
-
-| ID | Tarea | Depende de | Verificación | Estado |
-|---|---|---|---|---|
-| `T-09` | `MOVIMIENTOS` visible en el paquete; `PointsFigures` con la forma nueva; `JpaPointsFigures` agregando sobre ella | — | Mismas filas que la lista | **Hecha** — 06-10-2026 |
-| `T-10` | `PointsSummaryResponse` con `purchases`, `spent`, `adjustments`; `GetPointsSummaryService` con `type` y `status` (`VAL-006`, `VAL-007`); el controlador | `T-09` | El saldo no depende de los filtros | **Hecha** — 06-10-2026 |
-| `T-11` | `PointsSummaryIT`: `CA-IN-067` a `CA-IN-072`, con la lista de `RF-MV-056` como referencia; los casos antiguos reescritos; contrato y documentos | `T-10` | | **Hecha** — 06-10-2026 |
-
 ---
 
 ## 2. Cobertura de los criterios de aceptación
@@ -66,8 +58,6 @@
 **`PointsSummaryIT` hace cada movimiento por su ruta de `MV`** —comprar, confirmar, rechazar, pagar por el enlace con `POINTS`, ajustar—, y solo toca la base para mover en el tiempo los asientos de una compra (`CA-IN-048`).
 
 ---
-
-**`CA-IN-067` se prueba contra la propia lista** (06-10-2026): `PointsSummaryIT.cuadraConLaLista` pide `GET /movements/points-movements` y el indicador con el mismo actor, y compara, por moneda, tipo, estado y signo, cuántas filas, sus puntos y lo pagado. Además del módulo, se corrieron las suites de la lista de `RF-MV-055` y `RF-MV-056` (`PointsMovementsIT`, `OwnPointsMovementsIT`, `PayWithPointsIT`, `PointsPurchaseIT`, `PointsReceiptIT`), porque `MOVIMIENTOS` dejó de ser privada.
 
 ## 4. Bloqueos declarados
 

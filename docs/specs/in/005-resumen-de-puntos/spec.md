@@ -4,15 +4,11 @@
 |---|---|
 | Requerimiento | `RF-IN-005` |
 | Módulo | `IN` — Indicadores |
-| Versión | 0.3.0 |
+| Versión | 0.2.0 |
 | Estado | **Aprobada** |
 | Autor | Responsable técnico |
 | Aprobada por | Responsable del proyecto |
 | Fecha de aprobación | 06-10-2026 |
-
-!!! warning "Enmendado el 06-10-2026 — alineado con la lista de los movimientos de puntos (`RF-MV-056`)"
-
-    Decisión del responsable del proyecto, 06-10-2026: «actualiza el indicador de puntos según el endpoint de consulta de todos los puntos de admin» —la lista de los movimientos de puntos de `RF-MV-056`—, con tres decisiones suyas: **la fecha es cuándo ocurrió**, como en la lista; **las compras van por estado, con lo pagado**; y **los nombres son los de la lista**. **El indicador suma las filas de esa lista** —la misma definición, la misma fecha—, de modo que con los mismos filtros cuadran. **Las compras van por estado** —confirmadas, pendientes y rechazadas—, cada una con cuántas, sus puntos y **lo pagado** por moneda; los puntos de una pendiente o rechazada son los que daría o habría dado, y **no** mueven el saldo. **Los gastos** son una fila por venta pagada con puntos, con lo que de verdad se descontó, y **su fecha es cuándo se descontó**. **Los ajustes**, lo sumado y lo restado. **La fecha de compras y ajustes es cuándo ocurrieron**, no cuándo entraron los puntos: una compra pedida el 30 y cobrada el 1 cuenta el 30. Se añaden los filtros de la lista **por tipo y por estado**; ninguno de los dos cambia el saldo, que sigue siendo el de hoy. **La respuesta cambia de forma**: `purchases`, `spent` y `adjustments` en lugar de `purchased`, `redeemed`, `added` y `removed`.
 
 !!! warning "Enmendado el 06-10-2026 — sin fechas, todo; y cada indicador se puede partir en tramos (RN-IN-010)"
 
@@ -181,23 +177,17 @@ Las de `RF-IN-001` §11 —el periodo y los identificadores—, con sus mismos c
 
 | ID | Criterio |
 |---|---|
-| `CA-IN-041` | ~~Comprados son los puntos de las compras cobradas~~ — **sustituido el 06-10-2026 por `CA-IN-068`**: las compras van por estado |
-| `CA-IN-042` | Lo **gastado** —antes «redimido»— son los puntos descontados al pagar ventas, en positivo (nombre cambiado el 06-10-2026) |
+| `CA-IN-041` | **Comprados** son los puntos de las compras **cobradas** en el periodo; una compra pendiente o rechazada no suma nada |
+| `CA-IN-042` | **Redimidos** son los puntos gastados al pagar ventas en el periodo, en positivo |
 | `CA-IN-043` | Los **ajustes** van aparte: lo sumado y lo restado, cada uno con su cuenta de ajustes |
 | `CA-IN-044` | El **saldo** es el de hoy, sea cual sea el periodo; y con un periodo que lo cubre todo, **saldo = comprados − redimidos + sumados − restados** |
 | `CA-IN-045` | Todo va **por moneda**: los puntos de una moneda no se suman con los de otra |
 | `CA-IN-046` | El **alcance** es el de ventas: un funcionario ve todos; un director, los suyos y los de sus agentes, no los de otra rama; un agente, los suyos |
 | `CA-IN-047` | El filtro por **persona** acota dentro del alcance; fuera o inexistente, ceros y no error. El de **moneda** acota |
-| `CA-IN-048` | ~~El periodo es sobre cuándo se movieron los puntos~~ — **sustituido el 06-10-2026 por `CA-IN-072`** |
+| `CA-IN-048` | El periodo es sobre **cuándo se movieron los puntos**, en días de Bogotá: una compra pedida el 30 y cobrada el 1 cuenta el 1 |
 | `CA-IN-049` | Sin el permiso, **prohibido**; sin autenticar, `401`; **ningún permiso de ventas lo abre** |
 | `CA-IN-057` | **Sin fechas, toda la historia**, y entonces **el saldo es siempre comprados − redimidos + sumados − restados** (06-10-2026) |
 | `CA-IN-058` | **Con tramo**, cada tramo trae las cuatro clases por moneda, todos los tramos presentes, y la suma de los tramos es el total del periodo; **el saldo solo va en el total** (06-10-2026) |
-| `CA-IN-067` | **Con los mismos filtros, las cifras son la suma de las filas de la lista de administración** de los movimientos de puntos: cuántas y cuántos puntos por tipo, y lo pagado de las compras (06-10-2026) |
-| `CA-IN-068` | **Las compras van por estado** —confirmadas, pendientes, rechazadas—, con cuántas, sus puntos y lo pagado; las pendientes y rechazadas **no** mueven el saldo (06-10-2026) |
-| `CA-IN-069` | **Los gastos** son una fila por venta pagada con puntos, con lo descontado, en la fecha del descuento: una venta registrada antes y pagada con puntos después cae en la fecha del pago (06-10-2026) |
-| `CA-IN-070` | Los filtros **por tipo y por estado** acotan como en la lista; uno desconocido es un error, junto a los demás (06-10-2026) |
-| `CA-IN-071` | **El saldo** es el de hoy: no lo cambian ni el periodo, ni el tipo, ni el estado; y sin filtros, saldo = compras confirmadas − gastos + sumados − restados (06-10-2026) |
-| `CA-IN-072` | **La fecha de compras y ajustes es cuándo ocurrieron**: una compra pedida el 30 y cobrada el 1 cuenta el 30 (06-10-2026) |
 
 **`CA-IN-044` es el que sostiene el indicador**: si el saldo y las cifras del periodo no cuadran cuando deben, alguna clase se está contando mal o falta.
 
@@ -226,4 +216,3 @@ Ninguna.
 |---|---|---|---|
 | 0.1.0 | 06-10-2026 | Primera versión, con la tanda de puntos del módulo `IN`, a petición del responsable del proyecto. Tres decisiones suyas: **según el alcance**, **los ajustes aparte** y **el saldo de hoy** con las cifras del periodo. Nace `RN-IN-009`. Nueve criterios, `CA-IN-041` a `CA-IN-049`. | Responsable técnico |
 | 0.2.0 | 06-10-2026 | **`RN-IN-010`**: sin fechas, toda la historia; sin tope; y el tramo opcional, sin partir el saldo. `CA-IN-057` y `CA-IN-058`. | Responsable técnico |
-| 0.3.0 | 06-10-2026 | **Alineado con la lista de los movimientos de puntos** (`RF-MV-056`): suma sus filas, con su fecha; compras por estado con lo pagado; nombres y filtros de la lista. `CA-IN-067` a `CA-IN-072`; `CA-IN-041` y `CA-IN-048` sustituidos, `CA-IN-042` renombrado. | Responsable técnico |

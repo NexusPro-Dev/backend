@@ -5,7 +5,7 @@
 | Proyecto | NEXUS — Renovación de plataforma |
 | Empresa | FACTECH GROUP SAS |
 | Documento | `requirements.md` |
-| Versión | 0.307.0 |
+| Versión | 0.306.0 |
 | Estado | Borrador |
 | Responsable técnico | Bonilla Diaz William Steven |
 | Fecha de creación | 20-08-2026 |
@@ -735,4 +735,3 @@ El inventario y el estado de los módulos se consultan en [`modules.md` §4](mod
 | 0.304.0 | 06-10-2026 | **`RF-MV-055` a `RF-MV-057` construidos** (`V77`), con sus `tasks.md` aprobadas por el responsable del proyecto: seis lecturas nuevas —lista, detalle y comprobante en cada alcance— y el comprobante del ajuste, al ajustar o después. **Se retiran** `GET /mine/points-purchases` y `GET /points-adjustments`. Endpoint funcionando 186 → **187** (tres nuevos, dos retirados). Tripleta completa 102 → **105**. Suite completa en verde (567 unitarias, 2574 de integración). | Responsable técnico |
 | 0.305.0 | 06-10-2026 | **Los puntos gastados entran en las listas de movimientos de puntos** ([`requirements/mv.md`](requirements/mv.md) v0.89.0 §4.12; enmienda a `RF-MV-055` y `RF-MV-056`, `CA-MV-696` a `CA-MV-699`), a petición del responsable del proyecto: el tipo `GASTO_PUNTOS`, una fila por venta pagada con puntos, con su detalle de líneas. Construido el mismo día, sin migración ni permisos; suite completa en verde (567 unitarias, 2576 de integración). Ningún indicador cambia. | Responsable técnico |
 | 0.306.0 | 06-10-2026 | **Nace `RF-IN-006`, el resumen de líneas de venta** ([`requirements/in.md`](requirements/in.md) v0.9.0, `RN-IN-011`), a petición del responsable del proyecto: unidades vendidas, ventas por estado y lo sin vendedor, para administración y sin alcance. Tripleta el mismo día; `tasks.md` en revisión. Registrados, `spec.md` redactada y aprobada y `plan.md` aprobado suben uno. | Responsable técnico |
-| 0.307.0 | 06-10-2026 | **`RF-IN-005` enmendado y construido: el indicador de puntos suma las filas de la lista de administración** ([`requirements/in.md`](requirements/in.md) v0.10.0, `RN-IN-009`; `CA-IN-067` a `CA-IN-072`), por decisión del responsable del proyecto. Ningún indicador de §5 se mueve. | Responsable técnico |

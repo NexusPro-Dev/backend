@@ -6,7 +6,6 @@ import com.factech.nexus.modules.movements.application.SalesFigures.Interval;
 import com.factech.nexus.shared.persistence.MinorUnits;
 import jakarta.persistence.EntityManager;
 import jakarta.persistence.Query;
-import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.time.ZoneId;
 import java.util.ArrayList;
@@ -17,29 +16,23 @@ import org.springframework.stereotype.Repository;
 import org.springframework.transaction.annotation.Transactional;
 
 /**
- * {@link PointsFigures} sobre sentencias nativas (`RF-IN-005`, `plan.md` v0.3.0).
+ * {@link PointsFigures} sobre sentencias nativas (`RF-IN-005` · `T-02`, `plan.md` §4.4).
  *
- * <p><b>Suma las filas de la lista de los movimientos de puntos</b> (`RF-MV-056`): agrega sobre la
- * misma tabla derivada, {@link JpaPointsMovementQuery#MOVIMIENTOS}, con los mismos nombres de
- * columna y la misma fecha —cuándo ocurrió la compra o el ajuste, cuándo se descontó un gasto—. Hay
- * <b>una</b> definición de «movimiento de puntos», y es la de la lista: si cambia, el indicador la
- * sigue. <b>Los filtros van fuera de la derivada</b>, como en la lista, para que las dos lecturas
- * sigan siendo la misma.
- *
- * <p><b>Un tipo que no se espera es un fallo y no se ignora</b>: una cifra que se calla una fila no
- * falla, miente, y el saldo dejaría de cuadrar sin que nadie supiera por qué.
+ * <p><b>Un evento que no se espera es un fallo y no se ignora.</b> Si mañana algo nuevo mueve
+ * puntos, este indicador tiene que enterarse: una cifra que se calla un movimiento no falla,
+ * miente, y {@code CA-IN-044} —el saldo como suma de las clases— dejaría de cuadrar sin que nadie
+ * supiera por qué.
  */
 @Repository
 public class JpaPointsFigures implements PointsFigures {
 
-  private static final String CIFRAS =
-      " m.currency_id, c.code, m.tipo, m.status, m.points_amount > 0,"
-          + " count(*), sum(m.points_amount), sum(m.importe)";
-
-  private static final String DE_LA_LISTA =
-      " FROM " + JpaPointsMovementQuery.MOVIMIENTOS + " JOIN currencies c ON c.id = m.currency_id";
-
   private static final String DE_LAS_CUENTAS = " a.kind = 'PUNTOS' AND a.user_id IS NOT NULL";
+
+  private static final String DE_LOS_ASIENTOS =
+      " FROM movement_entries e"
+          + " JOIN accounts a ON a.id = e.account_id AND"
+          + DE_LAS_CUENTAS
+          + " JOIN currencies c ON c.id = a.currency_id";
 
   private final EntityManager em;
 
@@ -49,18 +42,17 @@ public class JpaPointsFigures implements PointsFigures {
 
   @Override
   @Transactional(readOnly = true)
-  public List<Flow> flows(
-      Set<UUID> holders, Interval interval, UUID currencyId, String type, String status) {
+  public List<Flow> flows(Set<UUID> holders, Interval interval, UUID currencyId) {
     String sql =
-        "SELECT"
-            + CIFRAS
-            + DE_LA_LISTA
-            + donde(holders, interval, currencyId, type, status)
-            + " GROUP BY 1, 2, 3, 4, 5";
+        "SELECT a.currency_id, c.code, e.event, e.amount > 0, sum(e.amount),"
+            + " count(DISTINCT e.movement_id)"
+            + DE_LOS_ASIENTOS
+            + periodo(interval)
+            + filtros(holders, currencyId)
+            + " GROUP BY 1, 2, 3, 4";
     @SuppressWarnings("unchecked")
     List<Object[]> filas =
-        enlazar(em.createNativeQuery(sql), holders, interval, currencyId, type, status)
-            .getResultList();
+        enlazar(em.createNativeQuery(sql), holders, interval, currencyId).getResultList();
     List<Flow> flujos = new ArrayList<>(filas.size());
     for (Object[] f : filas) {
       flujos.add(flujo(f, 0));
@@ -69,26 +61,24 @@ public class JpaPointsFigures implements PointsFigures {
   }
 
   /**
-   * {@link #flows} con el tramo delante, sobre la hora de la zona recibida de la fecha de la fila.
+   * {@link #flows} con el tramo delante (`RN-IN-010`): el mismo predicado y el mismo mapeo, y el
+   * tramo sobre la hora de la zona recibida de {@code e.created_at}, que es cuándo se movieron los
+   * puntos.
    */
   @Override
   @Transactional(readOnly = true)
   public List<BucketFlow> flowsByBucket(
-      Set<UUID> holders,
-      Interval interval,
-      UUID currencyId,
-      String type,
-      String status,
-      Granularity granularity,
-      ZoneId zone) {
+      Set<UUID> holders, Interval interval, UUID currencyId, Granularity granularity, ZoneId zone) {
     String sql =
-        "SELECT CAST(date_trunc(:unidad, m.occurred_at AT TIME ZONE :zona) AS date),"
-            + CIFRAS
-            + DE_LA_LISTA
-            + donde(holders, interval, currencyId, type, status)
-            + " GROUP BY 1, 2, 3, 4, 5, 6 ORDER BY 1";
+        "SELECT CAST(date_trunc(:unidad, e.created_at AT TIME ZONE :zona) AS date),"
+            + " a.currency_id, c.code, e.event, e.amount > 0, sum(e.amount),"
+            + " count(DISTINCT e.movement_id)"
+            + DE_LOS_ASIENTOS
+            + periodo(interval)
+            + filtros(holders, currencyId)
+            + " GROUP BY 1, 2, 3, 4, 5 ORDER BY 1";
     Query consulta =
-        enlazar(em.createNativeQuery(sql), holders, interval, currencyId, type, status)
+        enlazar(em.createNativeQuery(sql), holders, interval, currencyId)
             .setParameter(
                 "unidad",
                 switch (granularity) {
@@ -107,31 +97,33 @@ public class JpaPointsFigures implements PointsFigures {
     return tramos;
   }
 
+  private static Flow flujo(Object[] f, int de) {
+    return new Flow(
+        (UUID) f[de],
+        (String) f[de + 1],
+        clase((String) f[de + 2], (Boolean) f[de + 3]),
+        MinorUnits.fromMinor(Math.abs(((Number) f[de + 4]).longValue())),
+        ((Number) f[de + 5]).longValue());
+  }
+
+  /** Hasta, siempre; desde, si lo hay —sin él es toda la historia, `RN-IN-010`—. */
+  private static String periodo(Interval interval) {
+    return " WHERE e.created_at < :hasta"
+        + (interval.from() != null ? " AND e.created_at >= :desde" : "");
+  }
+
   @Override
   @Transactional(readOnly = true)
   public List<Balance> balances(Set<UUID> holders, UUID currencyId) {
-    StringBuilder sql =
-        new StringBuilder(
-            "SELECT a.currency_id, c.code, sum(a.balance)"
-                + " FROM accounts a JOIN currencies c ON c.id = a.currency_id"
-                + " WHERE"
-                + DE_LAS_CUENTAS);
-    if (holders != null) {
-      sql.append(" AND a.user_id IN (:titulares)");
-    }
-    if (currencyId != null) {
-      sql.append(" AND a.currency_id = :moneda");
-    }
-    sql.append(" GROUP BY 1, 2");
-    Query consulta = em.createNativeQuery(sql.toString());
-    if (holders != null) {
-      consulta.setParameter("titulares", holders);
-    }
-    if (currencyId != null) {
-      consulta.setParameter("moneda", currencyId);
-    }
+    String sql =
+        "SELECT a.currency_id, c.code, sum(a.balance)"
+            + " FROM accounts a JOIN currencies c ON c.id = a.currency_id"
+            + " WHERE"
+            + DE_LAS_CUENTAS
+            + filtros(holders, currencyId)
+            + " GROUP BY 1, 2";
     @SuppressWarnings("unchecked")
-    List<Object[]> filas = consulta.getResultList();
+    List<Object[]> filas = enlazar(em.createNativeQuery(sql), holders, currencyId).getResultList();
     List<Balance> saldos = new ArrayList<>(filas.size());
     for (Object[] f : filas) {
       saldos.add(new Balance((UUID) f[0], (String) f[1], MinorUnits.fromMinor(f[2])));
@@ -139,79 +131,50 @@ public class JpaPointsFigures implements PointsFigures {
     return saldos;
   }
 
-  /** Una fila agregada: moneda, tipo, estado, signo, cuántas, puntos y lo pagado. */
-  private static Flow flujo(Object[] f, int de) {
-    Kind clase = clase((String) f[de + 2], (Boolean) f[de + 4]);
-    BigDecimal pagado =
-        clase == Kind.PURCHASE ? MinorUnits.fromMinor(f[de + 7]) : MinorUnits.fromMinor(0L);
-    return new Flow(
-        (UUID) f[de],
-        (String) f[de + 1],
-        clase,
-        (String) f[de + 3],
-        ((Number) f[de + 5]).longValue(),
-        MinorUnits.fromMinor(Math.abs(((Number) f[de + 6]).longValue())),
-        pagado);
-  }
-
-  /** El tipo de la fila y, en el ajuste, el signo de sus puntos (`RN-IN-009`). */
-  private static Kind clase(String tipo, boolean suma) {
-    return switch (tipo) {
-      case "COMPRA_PUNTOS" -> Kind.PURCHASE;
-      case "GASTO_PUNTOS" -> Kind.SPENT;
-      case "AJUSTE_PUNTOS" -> suma ? Kind.ADDED : Kind.REMOVED;
-      default ->
-          throw new IllegalStateException(
-              "Un movimiento de puntos que el indicador no sabe clasificar: "
-                  + tipo
-                  + ". RN-IN-009 tiene que decir qué es.");
-    };
-  }
-
-  /** Los filtros, fuera de la derivada y con sus nombres de columna. */
-  private static String donde(
-      Set<UUID> holders, Interval interval, UUID currencyId, String type, String status) {
-    StringBuilder sql = new StringBuilder(" WHERE m.occurred_at < :hasta");
-    if (interval.from() != null) {
-      sql.append(" AND m.occurred_at >= :desde");
+  /** El evento y el signo del asiento dicen la clase (`RN-IN-009`). */
+  private static Kind clase(String evento, boolean entra) {
+    if ("ABONO".equals(evento) && entra) {
+      return Kind.PURCHASED;
     }
+    if ("PAGO".equals(evento) && !entra) {
+      return Kind.REDEEMED;
+    }
+    if ("AJUSTE".equals(evento)) {
+      return entra ? Kind.ADDED : Kind.REMOVED;
+    }
+    throw new IllegalStateException(
+        "Un asiento de puntos que el indicador no sabe clasificar: evento "
+            + evento
+            + (entra ? ", entrada" : ", salida")
+            + ". RN-IN-009 tiene que decir qué es.");
+  }
+
+  private static String filtros(Set<UUID> holders, UUID currencyId) {
+    StringBuilder sql = new StringBuilder();
     if (holders != null) {
-      sql.append(" AND m.user_id IN (:titulares)");
+      sql.append(" AND a.user_id IN (:titulares)");
     }
     if (currencyId != null) {
-      sql.append(" AND m.currency_id = :moneda");
-    }
-    if (type != null) {
-      sql.append(" AND m.tipo = :tipo");
-    }
-    if (status != null) {
-      sql.append(" AND m.status = :estado");
+      sql.append(" AND a.currency_id = :moneda");
     }
     return sql.toString();
   }
 
   private static Query enlazar(
-      Query consulta,
-      Set<UUID> holders,
-      Interval interval,
-      UUID currencyId,
-      String type,
-      String status) {
+      Query consulta, Set<UUID> holders, Interval interval, UUID currencyId) {
     consulta.setParameter("hasta", interval.to());
     if (interval.from() != null) {
       consulta.setParameter("desde", interval.from());
     }
+    return enlazar(consulta, holders, currencyId);
+  }
+
+  private static Query enlazar(Query consulta, Set<UUID> holders, UUID currencyId) {
     if (holders != null) {
       consulta.setParameter("titulares", holders);
     }
     if (currencyId != null) {
       consulta.setParameter("moneda", currencyId);
-    }
-    if (type != null) {
-      consulta.setParameter("tipo", type);
-    }
-    if (status != null) {
-      consulta.setParameter("estado", status);
     }
     return consulta;
   }

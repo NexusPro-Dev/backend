@@ -3,17 +3,13 @@
 | Campo | Valor |
 |---|---|
 | Requerimiento | `RF-IN-005` |
-| Especificación | [`spec.md`](spec.md) v0.3.0 |
+| Especificación | [`spec.md`](spec.md) v0.2.0 |
 | `spec.md` aprobada el | 06-10-2026 |
-| Versión | 0.3.0 |
+| Versión | 0.2.0 |
 | Estado | **Aprobado** |
 | Autor | Responsable técnico |
 | Aprobado por | Responsable del proyecto |
 | Fecha de aprobación | 06-10-2026 |
-
-!!! warning "Enmendado el 06-10-2026 — alineado con la lista de los movimientos de puntos (`RF-MV-056`)"
-
-    Decisión del responsable del proyecto, 06-10-2026: «actualiza el indicador de puntos según el endpoint de consulta de todos los puntos de admin» —la lista de los movimientos de puntos de `RF-MV-056`—, con tres decisiones suyas: **la fecha es cuándo ocurrió**, como en la lista; **las compras van por estado, con lo pagado**; y **los nombres son los de la lista**. **Cómo se construye.** `JpaPointsFigures` deja de leer los asientos y **agrega sobre la tabla derivada de la lista** —`JpaPointsMovementQuery.MOVIMIENTOS`, que pasa de privada a visible en el paquete—, con el mismo `m.occurred_at`, `m.user_id` y `m.currency_id`: **una sola definición de «movimiento de puntos»**, la de `MV`, y si cambia el indicador la sigue. Se agrupa por tipo, estado y signo de los puntos —el signo separa lo sumado de lo restado en el ajuste—, con `count(*)`, la suma de los puntos y la de lo pagado. El saldo no cambia: `accounts`. **El mapeo que fallaba ante un evento desconocido se retira**: ya no se leen eventos sino tipos, y un tipo nuevo en la derivada se rechaza igual. `PointsFigures` cambia de forma: `Flow(currency, kind, status, count, points, amount)` con `Kind` = `PURCHASE` \| `SPENT` \| `ADDED` \| `REMOVED`; `flows` y `flowsByBucket` reciben además el tipo y el estado.
 
 !!! warning "Enmendado el 06-10-2026 — sin fechas, todo; y cada indicador se puede partir en tramos (RN-IN-010)"
 

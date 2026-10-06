@@ -43,13 +43,8 @@ public class JpaPointsMovementQuery implements PointsMovementQuery {
    * Compras y ajustes, y los gastos. <b>Los puntos de un gasto son la suma de sus asientos</b> —lo
    * que de verdad se descontó, negativo—, no un recálculo con la tasa; <b>cuándo ocurrió es cuándo
    * se descontó</b>; y su motivo, los productos de sus líneas.
-   *
-   * <p><b>Visible en el paquete y no privada</b> (06-10-2026): {@link JpaPointsFigures} la
-   * reutiliza para el indicador de puntos (`RF-IN-005`, `RN-IN-009`), que suma estas mismas filas.
-   * Una sola definición de «movimiento de puntos»: si cambia, el indicador la sigue. Los filtros
-   * van siempre fuera.
    */
-  static final String MOVIMIENTOS =
+  private static final String MOVIMIENTOS =
       """
       (SELECT m.id, m.code,
               CASE WHEN m.movement_type_id = '%1$s' THEN 'COMPRA_PUNTOS' ELSE 'AJUSTE_PUNTOS' END
