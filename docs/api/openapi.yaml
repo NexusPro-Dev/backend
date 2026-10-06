@@ -12241,9 +12241,16 @@ paths:
         Las cantidades sí se suman.
 
         **El periodo se pide en días** de la zona del negocio (`America/Bogota`): `from` y
-        `to` incluidos, el último entero. Sin fechas, el mes en curso hasta hoy; con solo
-        `to`, desde el primero de su mes. Como mucho **366 días**. La respuesta devuelve el
-        periodo efectivo.
+        `to` incluidos, el último entero. **Sin fechas, toda la historia** hasta hoy; con una
+        sola, la otra queda abierta —solo `from`, hasta hoy; solo `to`, desde el principio—.
+        **Sin tope de días.** La respuesta devuelve el periodo efectivo, con `from` **nulo**
+        si no se pidió.
+
+        **`granularity`** (`DAY`, `WEEK` o `MONTH`, opcional) parte las cifras en tramos del
+        calendario de Bogotá —la semana de lunes—: la respuesta trae además `buckets`, uno por
+        tramo y todos presentes, del primero con datos —o del de `from`— al de hoy —o al de
+        `to`—, y **la suma de los tramos es el total**. Sin `granularity`, `buckets` y
+        `granularity` vienen nulos y la respuesta es la de siempre.
 
         `sellerId` acota a una persona **de mi alcance**; fuera de él —o inexistente— la
         respuesta son **ceros**, y no un error, para que el filtro no sirva para descubrir
@@ -12275,6 +12282,11 @@ paths:
         schema:
           type: string
           format: uuid
+      - name: granularity
+        in: query
+        required: false
+        schema:
+          type: string
       responses:
         "200":
           description: "El resumen, aunque sea de ceros."
@@ -12284,7 +12296,8 @@ paths:
                 $ref: "#/components/schemas/SalesSummary"
         "400":
           description: "Fecha o identificador malformado (`VAL-001`), `from` posterior\
-            \ a `to` (`VAL-002`) o un periodo de más de 366 días (`VAL-003`)."
+            \ a `to` (`VAL-002`) o un tramo que no es `DAY`, `WEEK` ni `MONTH` (`VAL-005`);\
+            \ los dos últimos, juntos."
         "401":
           description: Token ausente o inválido (`AUTH-001`)
         "403":
@@ -12313,8 +12326,9 @@ paths:
         Los tramos son **del calendario de Bogotá**: la semana va de **lunes a domingo** y el
         mes del uno al último día. `start` dice dónde empieza el tramo en el calendario; **el
         primero y el último pueden estar recortados** por el periodo, que es el que se devuelve
-        en `period`. `from`, `to`, `currencyId` y `sellerId` son los del resumen, con el mismo
-        tope de 366 días y los mismos ceros fuera del alcance. Ni el permiso del resumen ni
+        en `period`. `from`, `to`, `currencyId` y `sellerId` son los del resumen, con los mismos
+        ceros fuera del alcance; **sin `from`, la serie empieza en el tramo de la primera venta**
+        (sin ventas, es el tramo de hoy), y no hay tope. Ni el permiso del resumen ni
         otro de indicadores abren este.
       operationId: evolucion
       parameters:
@@ -12356,9 +12370,8 @@ paths:
                 $ref: "#/components/schemas/SalesSeries"
         "400":
           description: "Fecha o identificador malformado (`VAL-001`), `from` posterior\
-            \ a `to` (`VAL-002`), más de 366 días (`VAL-003`) o un tramo que no es\
-            \ `DAY`, `WEEK` ni `MONTH` (`VAL-005`). Los problemas del periodo y del\
-            \ tramo se devuelven juntos."
+            \ a `to` (`VAL-002`), o un tramo que no es `DAY`, `WEEK` ni `MONTH` (`VAL-005`).\
+            \ Los problemas del periodo y del tramo se devuelven juntos."
         "401":
           description: Token ausente o inválido (`AUTH-001`)
         "403":
@@ -12389,7 +12402,13 @@ paths:
         **vendedor**, los suyos y los de las personas de su red; cualquier otro, los suyos.
         `userId` acota a **una persona titular de mi alcance**; fuera de él —o inexistente— la
         lista sale vacía, y no un error. El periodo es el de los demás indicadores: días de
-        Bogotá, por defecto el mes en curso hasta hoy, como mucho 366. Ni los permisos de
+        Bogotá, **sin fechas toda la historia** —y entonces el saldo es siempre la suma de las
+        clases—, una sola fecha deja la otra abierta, sin tope.
+
+        **`granularity`** (`DAY`, `WEEK` o `MONTH`, opcional) añade `buckets`: por tramo,
+        las cuatro clases de cada moneda de `currencies`, en su orden y con ceros; todos los
+        tramos presentes, y su suma es la del periodo. **El saldo no se parte**: va solo en
+        `currencies`, porque es el de hoy. Ni los permisos de
         ventas ni el de los saldos de una persona abren este.
       operationId: resumen_1
       parameters:
@@ -12417,6 +12436,11 @@ paths:
         schema:
           type: string
           format: uuid
+      - name: granularity
+        in: query
+        required: false
+        schema:
+          type: string
       responses:
         "200":
           description: "El resumen, una entrada por moneda."
@@ -12426,7 +12450,8 @@ paths:
                 $ref: "#/components/schemas/PointsSummary"
         "400":
           description: "Fecha o identificador malformado (`VAL-001`), `from` posterior\
-            \ a `to` (`VAL-002`) o un periodo de más de 366 días (`VAL-003`)."
+            \ a `to` (`VAL-002`) o un tramo que no es `DAY`, `WEEK` ni `MONTH` (`VAL-005`);\
+            \ los dos últimos, juntos."
         "401":
           description: Token ausente o inválido (`AUTH-001`)
         "403":
@@ -19989,7 +20014,8 @@ components:
         from:
           type: string
           format: date
-          description: "Primer día del periodo, incluido."
+          description: "Primer día del periodo, incluido; nulo si no se pidió: desde\
+            \ el principio."
           example: 2026-09-01
         to:
           type: string
@@ -20005,6 +20031,33 @@ components:
       properties:
         period:
           $ref: "#/components/schemas/IndicatorPeriod"
+        total:
+          $ref: "#/components/schemas/SalesSummaryTotal"
+        confirmed:
+          $ref: "#/components/schemas/SalesSummaryConfirmed"
+        pending:
+          $ref: "#/components/schemas/SalesSummaryOther"
+        voided:
+          $ref: "#/components/schemas/SalesSummaryOther"
+        granularity:
+          type: string
+          description: "El tramo pedido —DAY, WEEK o MONTH—, o nulo si no se pidió\
+            ."
+        buckets:
+          type: array
+          description: "Los mismos bloques por tramo, todos los tramos presentes;\
+            \ nulo si no se pidió tramo. La suma de los tramos es el total."
+          items:
+            $ref: "#/components/schemas/SalesSummaryBucket"
+    SalesSummaryBucket:
+      type: object
+      properties:
+        start:
+          type: string
+          format: date
+          description: Día en que empieza el tramo en el calendario; el primero y
+            el último pueden estar recortados por el periodo.
+          example: 2026-09-07
         total:
           $ref: "#/components/schemas/SalesSummaryTotal"
         confirmed:
@@ -20118,6 +20171,41 @@ components:
           type: array
           items:
             $ref: "#/components/schemas/PointsSummaryCurrency"
+        granularity:
+          type: string
+          description: "El tramo pedido —DAY, WEEK o MONTH—, o nulo si no se pidió\
+            ."
+        buckets:
+          type: array
+          description: "Las cuatro clases por tramo y moneda, todos los tramos presentes;\
+            \ nulo si no se pidió tramo. El saldo no se parte: va solo en currencies."
+          items:
+            $ref: "#/components/schemas/PointsSummaryBucket"
+    PointsSummaryBucket:
+      type: object
+      properties:
+        start:
+          type: string
+          format: date
+          description: Día en que empieza el tramo en el calendario.
+          example: 2026-09-07
+        currencies:
+          type: array
+          items:
+            $ref: "#/components/schemas/PointsSummaryBucketCurrency"
+    PointsSummaryBucketCurrency:
+      type: object
+      properties:
+        currency:
+          $ref: "#/components/schemas/IndicatorCurrency"
+        purchased:
+          $ref: "#/components/schemas/PointsFlow"
+        redeemed:
+          $ref: "#/components/schemas/PointsFlow"
+        added:
+          $ref: "#/components/schemas/PointsFlow"
+        removed:
+          $ref: "#/components/schemas/PointsFlow"
     PointsSummaryCurrency:
       type: object
       properties:

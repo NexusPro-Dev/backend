@@ -75,9 +75,16 @@ public class SalesIndicatorsController {
           Las cantidades sí se suman.
 
           **El periodo se pide en días** de la zona del negocio (`America/Bogota`): `from` y
-          `to` incluidos, el último entero. Sin fechas, el mes en curso hasta hoy; con solo
-          `to`, desde el primero de su mes. Como mucho **366 días**. La respuesta devuelve el
-          periodo efectivo.
+          `to` incluidos, el último entero. **Sin fechas, toda la historia** hasta hoy; con una
+          sola, la otra queda abierta —solo `from`, hasta hoy; solo `to`, desde el principio—.
+          **Sin tope de días.** La respuesta devuelve el periodo efectivo, con `from` **nulo**
+          si no se pidió.
+
+          **`granularity`** (`DAY`, `WEEK` o `MONTH`, opcional) parte las cifras en tramos del
+          calendario de Bogotá —la semana de lunes—: la respuesta trae además `buckets`, uno por
+          tramo y todos presentes, del primero con datos —o del de `from`— al de hoy —o al de
+          `to`—, y **la suma de los tramos es el total**. Sin `granularity`, `buckets` y
+          `granularity` vienen nulos y la respuesta es la de siempre.
 
           `sellerId` acota a una persona **de mi alcance**; fuera de él —o inexistente— la
           respuesta son **ceros**, y no un error, para que el filtro no sirva para descubrir
@@ -90,7 +97,7 @@ public class SalesIndicatorsController {
         responseCode = "400",
         description =
             "Fecha o identificador malformado (`VAL-001`), `from` posterior a `to` (`VAL-002`)"
-                + " o un periodo de más de 366 días (`VAL-003`).",
+                + " o un tramo que no es `DAY`, `WEEK` ni `MONTH` (`VAL-005`); los dos últimos, juntos.",
         content = @Content),
     @ApiResponse(
         responseCode = "401",
@@ -109,8 +116,9 @@ public class SalesIndicatorsController {
       @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate from,
       @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate to,
       @RequestParam(required = false) UUID currencyId,
-      @RequestParam(required = false) UUID sellerId) {
-    return resumen.get(new SalesIndicatorRequest(from, to, currencyId, sellerId));
+      @RequestParam(required = false) UUID sellerId,
+      @RequestParam(required = false) String granularity) {
+    return resumen.get(new SalesIndicatorRequest(from, to, currencyId, sellerId), granularity);
   }
 
   @GetMapping("/sales/series")
@@ -132,8 +140,9 @@ public class SalesIndicatorsController {
           Los tramos son **del calendario de Bogotá**: la semana va de **lunes a domingo** y el
           mes del uno al último día. `start` dice dónde empieza el tramo en el calendario; **el
           primero y el último pueden estar recortados** por el periodo, que es el que se devuelve
-          en `period`. `from`, `to`, `currencyId` y `sellerId` son los del resumen, con el mismo
-          tope de 366 días y los mismos ceros fuera del alcance. Ni el permiso del resumen ni
+          en `period`. `from`, `to`, `currencyId` y `sellerId` son los del resumen, con los mismos
+          ceros fuera del alcance; **sin `from`, la serie empieza en el tramo de la primera venta**
+          (sin ventas, es el tramo de hoy), y no hay tope. Ni el permiso del resumen ni
           otro de indicadores abren este.
           """)
   @ApiResponses({
@@ -142,7 +151,7 @@ public class SalesIndicatorsController {
         responseCode = "400",
         description =
             "Fecha o identificador malformado (`VAL-001`), `from` posterior a `to` (`VAL-002`),"
-                + " más de 366 días (`VAL-003`) o un tramo que no es `DAY`, `WEEK` ni `MONTH`"
+                + " o un tramo que no es `DAY`, `WEEK` ni `MONTH`"
                 + " (`VAL-005`). Los problemas del periodo y del tramo se devuelven juntos.",
         content = @Content),
     @ApiResponse(

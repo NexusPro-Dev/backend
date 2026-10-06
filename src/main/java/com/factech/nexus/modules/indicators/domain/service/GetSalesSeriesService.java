@@ -17,7 +17,6 @@ import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.time.ZoneId;
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.Comparator;
 import java.util.HashMap;
 import java.util.List;
@@ -65,7 +64,7 @@ public class GetSalesSeriesService {
     // Los problemas juntos: el periodo y el tramo (`VAL-005`).
     List<FieldError> problemas = new ArrayList<>();
     IndicatorPeriod periodo = periodos.resolve(peticion.from(), peticion.to(), problemas);
-    Granularity tramo = tramo(granularity, problemas);
+    Granularity tramo = SalesPeriodResolver.granularity(granularity, Granularity.DAY, problemas);
     if (!problemas.isEmpty()) {
       throw new ValidationException(
           problemas.get(0).code(), "La consulta solicitada no es válida.", problemas);
@@ -101,7 +100,8 @@ public class GetSalesSeriesService {
     }
 
     List<SalesSeriesResponse.Bucket> tramos = new ArrayList<>();
-    for (LocalDate inicio : SalesCalendar.starts(periodo.from(), periodo.to(), tramo)) {
+    // Sin «desde», desde el tramo de la primera venta (`RN-IN-010`).
+    for (LocalDate inicio : SalesPeriodResolver.starts(periodo, tramo, porTramo.keySet())) {
       List<Bucket> deEste = porTramo.getOrDefault(inicio, List.of());
       long ventas = 0;
       long lineas = 0;
@@ -120,27 +120,5 @@ public class GetSalesSeriesService {
       tramos.add(new SalesSeriesResponse.Bucket(inicio, ventas, lineas, unidades, importes));
     }
     return new SalesSeriesResponse(periodo, tramo.name(), ordenadas, tramos);
-  }
-
-  private static Granularity tramo(String valor, List<FieldError> problemas) {
-    if (valor == null || valor.isBlank()) {
-      return Granularity.DAY;
-    }
-    String normalizado = valor.trim().toUpperCase();
-    for (Granularity g : Granularity.values()) {
-      if (g.name().equals(normalizado)) {
-        return g;
-      }
-    }
-    problemas.add(
-        new FieldError(
-            "granularity",
-            "VAL-005",
-            "El tramo '"
-                + valor
-                + "' no existe. Valores admitidos: "
-                + Arrays.stream(Granularity.values()).map(Enum::name).toList()
-                + "."));
-    return Granularity.DAY;
   }
 }

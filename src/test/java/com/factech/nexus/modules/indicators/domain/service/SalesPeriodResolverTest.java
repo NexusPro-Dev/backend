@@ -30,20 +30,17 @@ class SalesPeriodResolverTest {
   private final List<FieldError> problemas = new ArrayList<>();
 
   @Test
-  @DisplayName("CA-IN-010 — sin fechas, el mes en curso de Bogotá hasta hoy de Bogotá")
+  @DisplayName("CA-IN-050 — sin fechas, desde el principio hasta hoy de Bogotá")
   void porDefecto() {
     assertThat(periodos.resolve(null, null, problemas))
-        .isEqualTo(
-            new IndicatorPeriod(
-                LocalDate.of(2026, 10, 1), LocalDate.of(2026, 10, 5), "America/Bogota"));
+        .isEqualTo(new IndicatorPeriod(null, LocalDate.of(2026, 10, 5), "America/Bogota"));
     assertThat(problemas).isEmpty();
   }
 
   @Test
-  @DisplayName("solo «hasta»: desde el primero de SU mes, no del mes en curso")
+  @DisplayName("CA-IN-051 — solo «hasta»: desde el principio")
   void soloHasta() {
-    assertThat(periodos.resolve(null, LocalDate.of(2026, 8, 31), problemas).from())
-        .isEqualTo(LocalDate.of(2026, 8, 1));
+    assertThat(periodos.resolve(null, LocalDate.of(2026, 8, 31), problemas).from()).isNull();
   }
 
   @Test
@@ -63,14 +60,21 @@ class SalesPeriodResolverTest {
   }
 
   @Test
-  @DisplayName("VAL-003 — 366 días sí, 367 no, contando el año bisiesto")
-  void tope() {
-    // 2028 es bisiesto: del 1 de enero al 31 de diciembre son 366 días.
-    assertThat(periodos.resolve(LocalDate.of(2028, 1, 1), LocalDate.of(2028, 12, 31), problemas))
+  @DisplayName("CA-IN-052 — sin tope: varios años son un periodo válido")
+  void sinTope() {
+    assertThat(periodos.resolve(LocalDate.of(2020, 1, 1), LocalDate.of(2026, 10, 5), problemas))
         .isNotNull();
-    assertThat(periodos.resolve(LocalDate.of(2027, 1, 1), LocalDate.of(2028, 1, 2), problemas))
-        .isNull();
-    assertThat(problemas).extracting(FieldError::code).containsExactly("VAL-003");
+    assertThat(problemas).isEmpty();
+  }
+
+  @Test
+  @DisplayName("VAL-005 — un tramo desconocido; sin tramo, el de por defecto")
+  void tramo() {
+    assertThat(SalesPeriodResolver.granularity("week", null, problemas))
+        .isEqualTo(com.factech.nexus.modules.movements.application.SalesFigures.Granularity.WEEK);
+    assertThat(SalesPeriodResolver.granularity(null, null, problemas)).isNull();
+    SalesPeriodResolver.granularity("HORA", null, problemas);
+    assertThat(problemas).extracting(FieldError::code).containsExactly("VAL-005");
   }
 
   @Test
@@ -83,5 +87,12 @@ class SalesPeriodResolverTest {
 
     assertThat(un.from()).isEqualTo(OffsetDateTime.parse("2026-09-30T05:00:00Z"));
     assertThat(un.to()).isEqualTo(OffsetDateTime.parse("2026-10-01T05:00:00Z"));
+
+    // Sin «desde», sin límite inferior.
+    assertThat(
+            periodos
+                .interval(new IndicatorPeriod(null, LocalDate.of(2026, 9, 30), "America/Bogota"))
+                .from())
+        .isNull();
   }
 }

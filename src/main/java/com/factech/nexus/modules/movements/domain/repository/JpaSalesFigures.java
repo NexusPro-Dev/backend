@@ -11,6 +11,7 @@ import java.util.Comparator;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.TreeMap;
 import java.util.UUID;
 import org.springframework.stereotype.Repository;
 import org.springframework.transaction.annotation.Transactional;
@@ -39,11 +40,16 @@ public class JpaSalesFigures implements SalesFigures {
         JOIN movement_types t ON t.id = m.movement_type_id AND t.code = 'VENTA'
         JOIN movement_details d ON d.movement_id = m.id
         JOIN currencies c ON c.id = m.currency_id
-       WHERE m.occurred_at >= :desde AND m.occurred_at < :hasta
+       WHERE m.occurred_at < :hasta
       """;
 
   private static final String CIFRAS =
       "count(DISTINCT m.id), count(*), sum(d.quantity), sum(d.line_amount)";
+
+  // La gratuidad es de la CABECERA —lo que se cobra por la venta entera— y no
+  // de las líneas del alcance (`RN-IN-008`, `CA-IN-040`).
+  private static final String CIFRAS_DEL_RESUMEN =
+      CIFRAS + ", count(DISTINCT m.id) FILTER (WHERE m.payable_amount = 0)";
 
   private final EntityManager em;
 
@@ -56,13 +62,10 @@ public class JpaSalesFigures implements SalesFigures {
   public Summary summary(SalesScope scope, Interval interval, UUID currencyId) {
     String sql =
         "SELECT m.status, m.currency_id, c.code, "
-            + CIFRAS
-            // La gratuidad es de la CABECERA —lo que se cobra por la venta entera—
-            // y no de las líneas del alcance (`RN-IN-008`, `CA-IN-040`).
-            + ", count(DISTINCT m.id) FILTER (WHERE m.payable_amount = 0)"
+            + CIFRAS_DEL_RESUMEN
             + DE_LAS_VENTAS
             + " AND m.status IN ('CONFIRMADA', 'PENDIENTE', 'ANULADA')"
-            + donde(scope, currencyId)
+            + donde(scope, interval, currencyId)
             + " GROUP BY m.status, m.currency_id, c.code";
 
     @SuppressWarnings("unchecked")
@@ -70,15 +73,59 @@ public class JpaSalesFigures implements SalesFigures {
         enlazar(em.createNativeQuery(sql), scope, interval, currencyId).getResultList();
     Map<String, Acumulado> porEstado = new LinkedHashMap<>();
     for (Object[] f : filas) {
-      porEstado
-          .computeIfAbsent((String) f[0], estado -> new Acumulado())
-          .sumar(
-              new Amount((UUID) f[1], (String) f[2], MinorUnits.fromMinor(f[6])),
-              ((Number) f[3]).longValue(),
-              ((Number) f[4]).longValue(),
-              ((Number) f[5]).longValue(),
-              ((Number) f[7]).longValue());
+      sumar(porEstado, f, 0);
     }
+    return resumen(porEstado);
+  }
+
+  /**
+   * El resumen de {@link #summary}, con el tramo delante en el {@code GROUP BY} (`RN-IN-010`): la
+   * misma sentencia y el mismo mapeo, para que la suma de los tramos sea el total.
+   */
+  @Override
+  @Transactional(readOnly = true)
+  public List<BucketSummary> summaryByBucket(
+      SalesScope scope, Interval interval, UUID currencyId, Granularity granularity, ZoneId zone) {
+    String sql =
+        "SELECT CAST(date_trunc(:unidad, m.occurred_at AT TIME ZONE :zona) AS date),"
+            + " m.status, m.currency_id, c.code, "
+            + CIFRAS_DEL_RESUMEN
+            + DE_LAS_VENTAS
+            + " AND m.status IN ('CONFIRMADA', 'PENDIENTE', 'ANULADA')"
+            + donde(scope, interval, currencyId)
+            + " GROUP BY 1, 2, 3, 4";
+    Query consulta =
+        enlazar(em.createNativeQuery(sql), scope, interval, currencyId)
+            .setParameter("unidad", unidad(granularity))
+            .setParameter("zona", zone.getId());
+
+    @SuppressWarnings("unchecked")
+    List<Object[]> filas = consulta.getResultList();
+    Map<LocalDate, Map<String, Acumulado>> porTramo = new TreeMap<>();
+    for (Object[] f : filas) {
+      sumar(porTramo.computeIfAbsent(dia(f[0]), k -> new LinkedHashMap<>()), f, 1);
+    }
+    List<BucketSummary> tramos = new ArrayList<>(porTramo.size());
+    porTramo.forEach(
+        (inicio, porEstado) -> tramos.add(new BucketSummary(inicio, resumen(porEstado))));
+    return tramos;
+  }
+
+  /**
+   * Una fila del resumen —estado, moneda, cifras y gratuitas— a partir de la columna {@code de}.
+   */
+  private static void sumar(Map<String, Acumulado> porEstado, Object[] f, int de) {
+    porEstado
+        .computeIfAbsent((String) f[de], estado -> new Acumulado())
+        .sumar(
+            new Amount((UUID) f[de + 1], (String) f[de + 2], MinorUnits.fromMinor(f[de + 6])),
+            ((Number) f[de + 3]).longValue(),
+            ((Number) f[de + 4]).longValue(),
+            ((Number) f[de + 5]).longValue(),
+            ((Number) f[de + 7]).longValue());
+  }
+
+  private static Summary resumen(Map<String, Acumulado> porEstado) {
     return new Summary(
         totales(porEstado.get("CONFIRMADA")),
         totales(porEstado.get("PENDIENTE")),
@@ -101,7 +148,7 @@ public class JpaSalesFigures implements SalesFigures {
             + CIFRAS
             + DE_LAS_VENTAS
             + " AND m.status = 'CONFIRMADA'"
-            + donde(scope, currencyId)
+            + donde(scope, interval, currencyId)
             + " GROUP BY 1, 2, 3 ORDER BY 1, 3";
 
     Query consulta =
@@ -125,9 +172,15 @@ public class JpaSalesFigures implements SalesFigures {
     return tramos;
   }
 
-  /** El alcance y la moneda: lo que comparten todas las lecturas. */
-  private static String donde(SalesScope scope, UUID currencyId) {
+  /**
+   * El límite inferior —si lo hay: sin él es toda la historia, `RN-IN-010`—, el alcance y la
+   * moneda: lo que comparten todas las lecturas.
+   */
+  private static String donde(SalesScope scope, Interval interval, UUID currencyId) {
     StringBuilder sql = new StringBuilder();
+    if (interval.from() != null) {
+      sql.append(" AND m.occurred_at >= :desde");
+    }
     if (!scope.isEverything()) {
       sql.append(" AND d.seller_id IN (:vendedores)");
     }
@@ -139,7 +192,10 @@ public class JpaSalesFigures implements SalesFigures {
 
   private static Query enlazar(
       Query consulta, SalesScope scope, Interval interval, UUID currencyId) {
-    consulta.setParameter("desde", interval.from()).setParameter("hasta", interval.to());
+    consulta.setParameter("hasta", interval.to());
+    if (interval.from() != null) {
+      consulta.setParameter("desde", interval.from());
+    }
     if (!scope.isEverything()) {
       consulta.setParameter("vendedores", scope.sellers());
     }

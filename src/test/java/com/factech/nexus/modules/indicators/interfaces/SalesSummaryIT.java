@@ -291,12 +291,65 @@ class SalesSummaryIT extends IntegrationTestBase {
   @Test
   @DisplayName("CA-IN-010 — sin fechas, el mes en curso de Bogotá hasta hoy, y se devuelve")
   void periodoPorDefecto() throws Exception {
+    // CA-IN-050: sin fechas, TODA la historia, también una venta de 2020.
+    venta(suelto, "CONFIRMADA", USD, "2020-05-05T15:00:00Z", 100, 1);
     LocalDate hoy = LocalDate.now(ZoneId.of("America/Bogota"));
     mvc.perform(get(RUTA).with(conPermiso(funcionario)))
         .andExpect(status().isOk())
-        .andExpect(jsonPath("$.period.from").value(hoy.withDayOfMonth(1).toString()))
+        .andExpect(jsonPath("$.period.from").value(org.hamcrest.Matchers.nullValue()))
         .andExpect(jsonPath("$.period.to").value(hoy.toString()))
-        .andExpect(jsonPath("$.period.zone").value("America/Bogota"));
+        .andExpect(jsonPath("$.period.zone").value("America/Bogota"))
+        // Las 10 confirmadas de septiembre, la del 31 de agosto, la de 2020, una
+        // pendiente y una anulada.
+        .andExpect(jsonPath("$.total.sales").value(14))
+        .andExpect(jsonPath("$.granularity").value(org.hamcrest.Matchers.nullValue()))
+        .andExpect(jsonPath("$.buckets").value(org.hamcrest.Matchers.nullValue()));
+  }
+
+  @Test
+  @DisplayName("CA-IN-051 y CA-IN-052 — una sola fecha deja la otra abierta; y no hay tope de días")
+  void unaSolaFechaYSinTope() throws Exception {
+    // Solo «desde» el 30: la de las 20:00 del 30 en Bogotá, hasta hoy.
+    mvc.perform(get(RUTA).param("from", "2026-09-30").with(conPermiso(funcionario)))
+        .andExpect(jsonPath("$.total.sales").value(1));
+    // Solo «hasta» el 31 de agosto: desde el principio, la del 31.
+    mvc.perform(get(RUTA).param("to", "2026-08-31").with(conPermiso(funcionario)))
+        .andExpect(jsonPath("$.period.from").value(org.hamcrest.Matchers.nullValue()))
+        .andExpect(jsonPath("$.total.sales").value(1));
+    rango(funcionario, "2020-01-01", "2026-09-30").andExpect(status().isOk());
+  }
+
+  @Test
+  @DisplayName(
+      "CA-IN-053 — con tramo, los mismos bloques por tramo, todos presentes, y su suma es el"
+          + " total")
+  void porTramos() throws Exception {
+    mvc.perform(
+            get(RUTA)
+                .param("from", "2026-08-01")
+                .param("to", "2026-09-30")
+                .param("granularity", "month")
+                .with(conPermiso(funcionario)))
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$.granularity").value("MONTH"))
+        .andExpect(jsonPath("$.total.sales").value(13))
+        .andExpect(jsonPath("$.buckets.length()").value(2))
+        .andExpect(jsonPath("$.buckets[0].start").value("2026-08-01"))
+        .andExpect(jsonPath("$.buckets[0].total.sales").value(1))
+        .andExpect(jsonPath("$.buckets[0].confirmed.amounts[0].amount").value(0.01))
+        .andExpect(jsonPath("$.buckets[1].total.sales").value(12))
+        .andExpect(jsonPath("$.buckets[1].confirmed.free").value(1))
+        .andExpect(jsonPath("$.buckets[1].pending.sales").value(1));
+    // Por días, en un tramo sin ventas, ceros.
+    mvc.perform(
+            get(RUTA)
+                .param("from", "2026-09-13")
+                .param("to", "2026-09-14")
+                .param("granularity", "DAY")
+                .with(conPermiso(agente1)))
+        .andExpect(jsonPath("$.buckets.length()").value(2))
+        .andExpect(jsonPath("$.buckets[1].total.sales").value(0))
+        .andExpect(jsonPath("$.buckets[1].confirmed.amounts").isEmpty());
   }
 
   // ---------------------------------------------------------------------------
@@ -344,9 +397,16 @@ class SalesSummaryIT extends IntegrationTestBase {
     rango(funcionario, "2026-09-30", "2026-09-01")
         .andExpect(status().isBadRequest())
         .andExpect(jsonPath("$.errors[0].code").value("VAL-002"));
-    rango(funcionario, "2025-01-01", "2026-01-02")
+    // CA-IN-054: un tramo desconocido y un rango invertido, juntos.
+    mvc.perform(
+            get(RUTA)
+                .param("from", "2026-09-30")
+                .param("to", "2026-09-01")
+                .param("granularity", "HORA")
+                .with(conPermiso(funcionario)))
         .andExpect(status().isBadRequest())
-        .andExpect(jsonPath("$.errors[0].code").value("VAL-003"));
+        .andExpect(jsonPath("$.errors.length()").value(2))
+        .andExpect(jsonPath("$.errors[1].code").value("VAL-005"));
     mvc.perform(get(RUTA).param("from", "30-09-2026").with(conPermiso(funcionario)))
         .andExpect(status().isBadRequest())
         .andExpect(jsonPath("$.errors[0].code").value("VAL-001"));

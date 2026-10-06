@@ -57,7 +57,13 @@ public class PointsIndicatorsController {
           **vendedor**, los suyos y los de las personas de su red; cualquier otro, los suyos.
           `userId` acota a **una persona titular de mi alcance**; fuera de él —o inexistente— la
           lista sale vacía, y no un error. El periodo es el de los demás indicadores: días de
-          Bogotá, por defecto el mes en curso hasta hoy, como mucho 366. Ni los permisos de
+          Bogotá, **sin fechas toda la historia** —y entonces el saldo es siempre la suma de las
+          clases—, una sola fecha deja la otra abierta, sin tope.
+
+          **`granularity`** (`DAY`, `WEEK` o `MONTH`, opcional) añade `buckets`: por tramo,
+          las cuatro clases de cada moneda de `currencies`, en su orden y con ceros; todos los
+          tramos presentes, y su suma es la del periodo. **El saldo no se parte**: va solo en
+          `currencies`, porque es el de hoy. Ni los permisos de
           ventas ni el de los saldos de una persona abren este.
           """)
   @ApiResponses({
@@ -66,7 +72,7 @@ public class PointsIndicatorsController {
         responseCode = "400",
         description =
             "Fecha o identificador malformado (`VAL-001`), `from` posterior a `to` (`VAL-002`)"
-                + " o un periodo de más de 366 días (`VAL-003`).",
+                + " o un tramo que no es `DAY`, `WEEK` ni `MONTH` (`VAL-005`); los dos últimos, juntos.",
         content = @Content),
     @ApiResponse(
         responseCode = "401",
@@ -85,7 +91,8 @@ public class PointsIndicatorsController {
       @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate from,
       @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate to,
       @RequestParam(required = false) UUID currencyId,
-      @RequestParam(required = false) UUID userId) {
-    return resumen.get(new SalesIndicatorRequest(from, to, currencyId, userId));
+      @RequestParam(required = false) UUID userId,
+      @RequestParam(required = false) String granularity) {
+    return resumen.get(new SalesIndicatorRequest(from, to, currencyId, userId), granularity);
   }
 }

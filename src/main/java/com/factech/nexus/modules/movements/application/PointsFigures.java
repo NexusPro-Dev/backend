@@ -1,7 +1,10 @@
 package com.factech.nexus.modules.movements.application;
 
+import com.factech.nexus.modules.movements.application.SalesFigures.Granularity;
 import com.factech.nexus.modules.movements.application.SalesFigures.Interval;
 import java.math.BigDecimal;
+import java.time.LocalDate;
+import java.time.ZoneId;
 import java.util.List;
 import java.util.Set;
 import java.util.UUID;
@@ -28,8 +31,18 @@ public interface PointsFigures {
    */
   List<Flow> flows(Set<UUID> holders, Interval interval, UUID currencyId);
 
+  /**
+   * {@link #flows} partido en tramos de calendario de {@code zone} sobre cuándo se movieron los
+   * puntos (`RN-IN-010`): solo los tramos con movimientos, con su inicio.
+   */
+  List<BucketFlow> flowsByBucket(
+      Set<UUID> holders, Interval interval, UUID currencyId, Granularity granularity, ZoneId zone);
+
   /** El saldo de hoy, por moneda, de esos titulares; nulo es todo. */
   List<Balance> balances(Set<UUID> holders, UUID currencyId);
+
+  /** Lo de una clase y moneda en un tramo. */
+  record BucketFlow(LocalDate start, Flow flow) {}
 
   /** La clase de un movimiento de puntos. */
   enum Kind {

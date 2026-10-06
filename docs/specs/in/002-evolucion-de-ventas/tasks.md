@@ -33,7 +33,7 @@
 
 | ID | Tarea | Depende de | Verificación | Estado |
 |---|---|---|---|---|
-| `T-07` | `GetSalesSeriesService` sobre el periodo abierto; `SalesSeriesIT`: `CA-IN-055` y `CA-IN-056`, y `CA-IN-020`/`CA-IN-022` reescritos | `RF-IN-001` · `T-15` | | Pendiente |
+| `T-07` | `GetSalesSeriesService` sobre el periodo abierto; `SalesSeriesIT`: `CA-IN-055` y `CA-IN-056`, y `CA-IN-020`/`CA-IN-022` reescritos | `RF-IN-001` · `T-15` | | **Hecha** — 06-10-2026 |
 
 ---
 

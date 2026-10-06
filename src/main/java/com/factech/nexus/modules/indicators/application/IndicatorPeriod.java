@@ -1,5 +1,6 @@
 package com.factech.nexus.modules.indicators.application;
 
+import com.fasterxml.jackson.annotation.JsonInclude;
 import io.swagger.v3.oas.annotations.media.Schema;
 import java.time.LocalDate;
 
@@ -9,7 +10,11 @@ import java.time.LocalDate;
  */
 @Schema(name = "IndicatorPeriod")
 public record IndicatorPeriod(
-    @Schema(description = "Primer día del periodo, incluido.", example = "2026-09-01")
+    @JsonInclude(JsonInclude.Include.ALWAYS)
+        @Schema(
+            description =
+                "Primer día del periodo, incluido; nulo si no se pidió: desde el principio.",
+            example = "2026-09-01")
         LocalDate from,
     @Schema(description = "Último día del periodo, incluido entero.", example = "2026-09-30")
         LocalDate to,

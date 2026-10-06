@@ -47,9 +47,9 @@ Enmienda de hecho (Art. I.7), `spec.md` 0.2.0 y `plan.md` 0.2.0 **antes** del c�
 
 | ID | Tarea | Depende de | Verificación | Estado |
 |---|---|---|---|---|
-| `T-14` | `Interval` con «desde» nulo; `SalesPeriodResolver` sin mes por defecto ni tope, con `from` nulo; los predicados de `JpaSalesFigures` omiten el límite inferior | — | `SalesPeriodResolverTest` reescrito | Pendiente |
-| `T-15` | `SalesFigures.summaryByBucket`; `SalesCalendar` arranca en el primer dato si no hay «desde»; `GetSalesSummaryService` con `granularity` y `buckets` (nulos sin tramo); `VAL-005` junto a `VAL-002` | `T-14` | Suma de los tramos = total | Pendiente |
-| `T-16` | `SalesSummaryIT`: `CA-IN-050` a `CA-IN-054`; los casos que asumían el mes en curso y los 366 días, reescritos; contrato y documentos | `T-15` | | Pendiente |
+| `T-14` | `Interval` con «desde» nulo; `SalesPeriodResolver` sin mes por defecto ni tope, con `from` nulo; los predicados de `JpaSalesFigures` omiten el límite inferior | — | `SalesPeriodResolverTest` reescrito | **Hecha** — 06-10-2026 |
+| `T-15` | `SalesFigures.summaryByBucket`; `SalesCalendar` arranca en el primer dato si no hay «desde»; `GetSalesSummaryService` con `granularity` y `buckets` (nulos sin tramo); `VAL-005` junto a `VAL-002` | `T-14` | Suma de los tramos = total | **Hecha** — 06-10-2026 |
+| `T-16` | `SalesSummaryIT`: `CA-IN-050` a `CA-IN-054`; los casos que asumían el mes en curso y los 366 días, reescritos; contrato y documentos | `T-15` | | **Hecha** — 06-10-2026 |
 
 ---
 
@@ -78,6 +78,8 @@ Enmienda de hecho (Art. I.7), `spec.md` 0.2.0 y `plan.md` 0.2.0 **antes** del c�
 **El reparto se comprueba en `SalesSummaryIT`** (`elRepartoDeV74`): solo `FUNCIONARIO` y `VENDEDOR` portan el permiso. Los recuentos del catálogo —189, `ADMIN` 187— suben en las seis suites que los cuentan, e `IntegrationTestBase` repone los cuatro en `reponerAlcancePropio` y los cuenta en `ALCANCE_PROPIO`.
 
 ---
+
+**Los nulos de `RN-IN-010` van presentes** (06-10-2026): `period.from`, `granularity` y `buckets` llevan `@JsonInclude(ALWAYS)`, como `confirmedAt`, porque la configuración del proyecto omite los nulos y aquí el nulo significa algo —«desde el principio», «sin tramos»—.
 
 ## 4. Bloqueos declarados
 

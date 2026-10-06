@@ -49,6 +49,17 @@ public interface SalesFigures {
   List<Bucket> confirmedByBucket(
       SalesScope scope, Interval interval, UUID currencyId, Granularity granularity, ZoneId zone);
 
+  /**
+   * El resumen de {@link #summary} partido en tramos de calendario de {@code zone} (`RF-IN-001`,
+   * `RN-IN-010`): uno por tramo <b>con ventas</b>, con su inicio. Los vacíos los rellena quien
+   * pregunta, como en {@link #confirmedByBucket}.
+   */
+  List<BucketSummary> summaryByBucket(
+      SalesScope scope, Interval interval, UUID currencyId, Granularity granularity, ZoneId zone);
+
+  /** El resumen de un tramo. */
+  record BucketSummary(LocalDate start, Summary summary) {}
+
   /** El tamaño de un tramo. */
   enum Granularity {
     DAY,
@@ -99,10 +110,14 @@ public interface SalesFigures {
     }
   }
 
-  /** De {@code from} incluido a {@code to} excluido. `MV` no sabe de días ni de zonas. */
+  /**
+   * De {@code from} incluido a {@code to} excluido. `MV` no sabe de días ni de zonas.
+   *
+   * @param from nulo es <b>sin límite inferior</b>: toda la historia hasta {@code to} (`RN-IN-010`)
+   */
   record Interval(OffsetDateTime from, OffsetDateTime to) {
     public Interval {
-      if (!from.isBefore(to)) {
+      if (from != null && !from.isBefore(to)) {
         throw new IllegalArgumentException("El intervalo debe empezar antes de acabar");
       }
     }

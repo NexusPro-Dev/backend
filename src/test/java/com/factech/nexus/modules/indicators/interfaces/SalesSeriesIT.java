@@ -208,15 +208,25 @@ class SalesSeriesIT extends IntegrationTestBase {
   @Test
   @DisplayName("CA-IN-020 — sin tramo, días; sin fechas, el mes en curso hasta hoy")
   void porDefecto() throws Exception {
+    // CA-IN-055: sin fechas, desde el tramo de la primera venta del alcance —la
+    // del 8 de septiembre de agente1— hasta hoy.
     LocalDate hoy = LocalDate.now(ZoneId.of("America/Bogota"));
-    LocalDate primero = hoy.withDayOfMonth(1);
+    LocalDate primera = LocalDate.of(2026, 9, 8);
     mvc.perform(get(SERIE).with(user(director1.toString()).authorities(() -> PERMISO)))
         .andExpect(status().isOk())
         .andExpect(jsonPath("$.granularity").value("DAY"))
-        .andExpect(jsonPath("$.period.from").value(primero.toString()))
+        .andExpect(jsonPath("$.period.from").value(org.hamcrest.Matchers.nullValue()))
         .andExpect(jsonPath("$.period.to").value(hoy.toString()))
+        .andExpect(jsonPath("$.buckets[0].start").value(primera.toString()))
         .andExpect(
-            jsonPath("$.buckets.length()").value((int) ChronoUnit.DAYS.between(primero, hoy) + 1));
+            jsonPath("$.buckets.length()").value((int) ChronoUnit.DAYS.between(primera, hoy) + 1));
+    // Sin ventas en el alcance, un solo tramo: el de hoy.
+    mvc.perform(
+            get(SERIE)
+                .param("sellerId", director2.toString())
+                .with(user(director1.toString()).authorities(() -> PERMISO)))
+        .andExpect(jsonPath("$.buckets.length()").value(1))
+        .andExpect(jsonPath("$.buckets[0].start").value(hoy.toString()));
   }
 
   @Test
@@ -255,9 +265,10 @@ class SalesSeriesIT extends IntegrationTestBase {
         .andExpect(status().isBadRequest())
         .andExpect(jsonPath("$.errors.length()").value(2))
         .andExpect(jsonPath("$.errors[*].code", contains("VAL-002", "VAL-005")));
+    // CA-IN-056: sin tope, una serie diaria de más de 366 días es válida.
     serie(director1, "2025-01-01", "2026-01-02", "DAY")
-        .andExpect(status().isBadRequest())
-        .andExpect(jsonPath("$.errors[0].code").value("VAL-003"));
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$.buckets.length()").value(367));
 
     mvc.perform(get(SERIE).with(user(director1.toString()))).andExpect(status().isForbidden());
     mvc.perform(

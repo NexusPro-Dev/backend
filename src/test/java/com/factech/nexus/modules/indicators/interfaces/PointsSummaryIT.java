@@ -198,6 +198,34 @@ class PointsSummaryIT extends IntegrationTestBase {
 
   @Test
   @DisplayName(
+      "CA-IN-057 y CA-IN-058 — sin fechas, el saldo es la suma de las clases; con tramo, las"
+          + " clases por tramo y sin saldo")
+  void totalidadYTramos() throws Exception {
+    resumen(director1)
+        .andExpect(jsonPath("$.period.from").value(org.hamcrest.Matchers.nullValue()))
+        .andExpect(jsonPath("$.currencies[1].balance").value(1020.0));
+
+    // Por meses desde septiembre: todo lo de hoy cae en el mes en curso.
+    String mesEnCurso =
+        java.time.LocalDate.now(java.time.ZoneId.of("America/Bogota")).withDayOfMonth(1).toString();
+    mvc.perform(
+            get(RUTA)
+                .param("from", "2026-09-01")
+                .param("granularity", "MONTH")
+                .with(conPermiso(director1)))
+        .andExpect(jsonPath("$.granularity").value("MONTH"))
+        .andExpect(jsonPath("$.buckets[0].start").value("2026-09-01"))
+        .andExpect(jsonPath("$.buckets[0].currencies[*].currency.code", contains("COP", "USD")))
+        .andExpect(jsonPath("$.buckets[0].currencies[1].purchased.points").value(0.0))
+        .andExpect(jsonPath("$.buckets[-1].start").value(mesEnCurso))
+        .andExpect(jsonPath("$.buckets[-1].currencies[1].purchased.points").value(2000.0))
+        .andExpect(jsonPath("$.buckets[-1].currencies[1].redeemed.points").value(1000.0))
+        .andExpect(jsonPath("$.buckets[-1].currencies[1].removed.points").value(30.0))
+        .andExpect(jsonPath("$.buckets[-1].currencies[1].balance").doesNotExist());
+  }
+
+  @Test
+  @DisplayName(
       "CA-IN-049 — sin el permiso, 403; ni los de ventas ni el de saldos de una persona lo abren;"
           + " sin token, 401")
   void permisos() throws Exception {

@@ -33,8 +33,8 @@
 
 | ID | Tarea | Depende de | Verificación | Estado |
 |---|---|---|---|---|
-| `T-07` | `PointsFigures.flowsByBucket`; `GetPointsSummaryService` con el periodo abierto, `granularity` y `buckets` | `RF-IN-001` · `T-14` | El saldo solo en el total | Pendiente |
-| `T-08` | `PointsSummaryIT`: `CA-IN-057` y `CA-IN-058`; contrato y documentos | `T-07` | | Pendiente |
+| `T-07` | `PointsFigures.flowsByBucket`; `GetPointsSummaryService` con el periodo abierto, `granularity` y `buckets` | `RF-IN-001` · `T-14` | El saldo solo en el total | **Hecha** — 06-10-2026 |
+| `T-08` | `PointsSummaryIT`: `CA-IN-057` y `CA-IN-058`; contrato y documentos | `T-07` | | **Hecha** — 06-10-2026 |
 
 ---
 

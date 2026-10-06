@@ -5,7 +5,7 @@
 | Proyecto | NEXUS — Renovación de plataforma |
 | Empresa | FACTECH GROUP SAS |
 | Documento | `requirements.md` |
-| Versión | 0.300.0 |
+| Versión | 0.301.0 |
 | Estado | Borrador |
 | Responsable técnico | Bonilla Diaz William Steven |
 | Fecha de creación | 20-08-2026 |
@@ -725,3 +725,4 @@ El inventario y el estado de los módulos se consultan en [`modules.md` §4](mod
 | 0.298.0 | 06-10-2026 | **`RF-IN-005` construido** ([`requirements/in.md`](requirements/in.md) v0.7.0): `GET /api/v1/indicators/points/summary`, sus `tasks.md` aprobadas. §5: tripleta completa 101 → **102**, endpoint funcionando 182 → **183**. | Responsable técnico |
 | 0.299.0 | 06-10-2026 | **`RF-SP-075` construido — desactivar el propio segundo factor**. Endpoint funcionando 183 → **184**. El contrato marca dieciséis operaciones sensibles. | Responsable técnico |
 | 0.300.0 | 06-10-2026 | **`RF-SP-076` construido — restablecer el segundo factor de otra persona**, y con él **`RN-SP-065` llega al restablecimiento de contraseñas** (`RF-SP-038` `T-13`). Endpoint funcionando 184 → **185**. El contrato marca diecisiete operaciones sensibles. | Responsable técnico |
+| 0.301.0 | 06-10-2026 | **`RN-IN-010` construido: sin fechas, todo; sin tope; y `granularity` en los resúmenes** ([`requirements/in.md`](requirements/in.md) v0.8.0), por decisión del responsable del proyecto. Enmienda `RF-IN-001`, `RF-IN-002` y `RF-IN-005` (`CA-IN-050` a `CA-IN-058`); ningún indicador de §5 se mueve. | Responsable técnico |
