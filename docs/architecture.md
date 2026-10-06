@@ -5,7 +5,7 @@
 | Proyecto | NEXUS — Renovación de plataforma |
 | Empresa | FACTECH GROUP SAS |
 | Documento | `architecture.md` |
-| Versión | 0.48.0 |
+| Versión | 0.49.0 |
 | Estado | Borrador |
 | Responsable técnico | Bonilla Diaz William Steven |
 | Fecha de creación | 19-08-2026 |
@@ -794,6 +794,7 @@ Se descartó la inversión de dependencia —que `PM` declarase el puerto y `SP`
 | **Un país** (`CountryCatalog`, 01-10-2026) | Si existe y si está **activo**, con su código y su nombre. La primera lectura de países fuera de `SP` | `RF-MV-032` |
 | **El titular de una cuenta de cobro** (`PayoutHolderLookup`, 01-10-2026) | Nombre, país y **documento** —la abreviatura de su tipo y el número— de una persona no eliminada, o vacío. **No es `ClientCatalog` ampliado**: aquella es de la venta, y el documento no le hace falta a nadie que venda | `RF-MV-035`, `RF-MV-019` |
 | **Las cifras de lo vendido** (`SalesFigures`, 06-10-2026; **la publica `MV`**) | Ventas, líneas, unidades e importe por moneda de un intervalo, **contadas por línea** sobre un alcance que el consumidor ya resolvió con `CommercialReach`. Devuelve sumas, nunca filas: el consumidor no lee `movements`. Es la forma de `CommissionableLines`, que `MV` publica para `CM` | `RF-IN-001` |
+| **Las cifras de los puntos** (`PointsFigures`, 06-10-2026; **la publica `MV`**) | Por titular y moneda: lo comprado, lo redimido y los ajustes de un intervalo, leídos de los asientos de las cuentas `PUNTOS` por su evento, y el saldo de hoy. Un evento que no sabe clasificar es un fallo, no se calla | `RF-IN-005` |
 
 **El 04-09-2026, al construirse `RF-MV-001`, esta tabla ganó dos filas y no tres.** El diseño preveía que la interfaz del cliente publicara también su nivel de membresía; **no lo hace**, porque ese puerto ya existía —la tercera fila de esta tabla, desde `RF-PM-007`— con su borde fijado por prueba: una fecha exactamente igual al instante consultado ya no está vigente.
 
@@ -1002,3 +1003,4 @@ D-08 quedó cerrada en `security.md` §12, junto con las decisiones D-12 a D-15 
 | 0.46.0 | 05-10-2026 | **Nueva §15.5: la pasarela local, PayRetailers** ([`requirements/mv.md`](requirements/mv.md) v0.78.0 §4.10). Un puerto propio de `MV`, `LocalPaymentGateway` —abrir y consultar un cobro—, con su adaptador único `PayRetailersGateway` por `RestClient`. **Cambia la fuente de verdad**: el aviso no va firmado, de modo que **se pregunta a la pasarela**, y un **barrido programado** con bloqueo consultivo pregunta por los pendientes. Apagable sin sus tres credenciales; nueve variables nuevas en §14 | Responsable del proyecto |
 | 0.47.0 | 05-10-2026 | **§15.5: la tienda de PayRetailers de cada país es un dato de la conversión, no configuración** ([`requirements/mv.md`](requirements/mv.md) v0.82.0, `RN-MV-063`, `V71`): el puerto recibe la tienda en cada llamada, el cobro se consulta con la que lo abrió, y la clave va cifrada con AES-256-GCM (`ShopSecrets`) bajo `PAYRETAILERS_ENCRYPTION_KEY` | Responsable del proyecto |
 | 0.48.0 | 06-10-2026 | **§15.2 gana `SalesFigures`**, la que `MV` publica para el módulo `IN` (`RF-IN-001`; [`requirements/in.md`](requirements/in.md)): las sumas de lo vendido sobre un alcance ya resuelto. `IN` es el primer módulo **sin tablas propias**, y la excepción a `modules.md` §2.1 solo se sostiene porque lee por interfaces; `LayerRulesTest` lo exige y exige además que **nadie dependa de `IN`**. | Responsable técnico |
+| 0.49.0 | 06-10-2026 | **§15.2 gana `PointsFigures`**, la segunda lectura que `MV` publica para `IN` (`RF-IN-005`). | Responsable técnico |

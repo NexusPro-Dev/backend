@@ -93,18 +93,18 @@ class TeamsPermissionsSeedIT extends IntegrationTestBase {
           + " (RF-MV-016) suma uno a los tres")
   void elCatalogoQuedaEnCientoTreintaYTres() {
     assertThat(jdbc.queryForObject("SELECT count(*) FROM permissions", Integer.class))
-        .isEqualTo(196);
+        .isEqualTo(197);
     assertThat(
             jdbc.queryForObject(
                 "SELECT count(*) FROM role_permissions WHERE role_id = CAST(? AS uuid)",
                 Integer.class,
                 SUPERADMIN))
-        .isEqualTo(196);
+        .isEqualTo(197);
     assertThat(
             jdbc.queryForObject(
                 "SELECT count(*) FROM role_permissions WHERE role_id = CAST(? AS uuid)",
                 Integer.class,
                 ADMIN))
-        .isEqualTo(194);
+        .isEqualTo(195);
   }
 }

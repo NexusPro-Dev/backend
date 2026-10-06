@@ -5,7 +5,7 @@
 | Módulo | `MV` — Movimientos |
 | Paquete | `modules/movements` |
 | Prefijos de permiso | `movements:` |
-| Versión | 0.86.0 |
+| Versión | 0.87.0 |
 | Estado | **Borrador** |
 | Responsable | Bonilla Diaz William Steven |
 | Fecha de creación | 02-09-2026 |
@@ -116,6 +116,7 @@ Según [`modules.md` §5](../modules.md).
 | `PM` | Consume | **La oferta de quien compra** (`RF-PM-007`), que es lo que este módulo valida en `RN-MV-007` |
 | `CM` | **Es consumido, y desde el 26-09-2026 le escribe** | **No lo consume `MV`: es `CM` quien consume a `MV`.** Desde el 26-09-2026 además **le escribe**: al marcar un lote como pagado (`RF-CM-011`) invoca la operación que `MV` publica para **abonarlo en la billetera** (`RN-MV-044`, `RF-MV-024`). **La referencia entre el lote y su movimiento vive en `CM`** —`commission_batches` apunta a `movements`— y no al revés: una clave foránea desde `movements` haría a `MV` depender de `CM` y cerraría el ciclo que `requirements/cm.md` §3 comprobó que no existe. **Y desde el 28-09-2026 le avisa**, sin conocerlo: al confirmar una venta y al asignar vendedores, publica un evento con las líneas que quedaron comisionables, y `CM` las devenga (`RN-MV-049`). **Y desde el 30-09-2026 le pregunta**, también sin conocerlo: al corregir el vendedor de una línea de una venta ya confirmada, invoca un **puerto que declara este módulo y que `CM` implementa** para saber si la línea puede cambiar de dueño (`RN-MV-053`) |
 | `IN` | **Es consumido** | **Las cifras de lo vendido** (`SalesFigures`, 06-10-2026, `RF-IN-001`): `IN` le da un alcance ya resuelto —todo, o un conjunto de vendedores—, un intervalo y una moneda, y recibe **sumas**: ventas, líneas, unidades e importe por moneda, **por línea** (`RN-IN-003`) y solo de `VENTA`. `MV` no sabe qué es un indicador, igual que no sabe qué es una comisión. `MV` no consume a `IN` |
+| `IN` | **Es consumido** | **Las cifras de los puntos** (`PointsFigures`, 06-10-2026, `RF-IN-005`): por titular y moneda, lo comprado, lo redimido y los ajustes de un intervalo —leídos de los asientos de las cuentas `PUNTOS`, por su evento— y el saldo de hoy. Sumas, nunca filas |
 
 La dependencia es **acíclica**: `MV` → `PM` → `SP`, y `MV` → `SP`. **El puerto de `RN-MV-053` no la cambia** (30-09-2026): lo declara `MV` en su capa `application` y lo implementa `CM`, de modo que la dependencia de compilación sigue siendo `CM` → `MV` —la inversión que [`architecture.md` §15.2](../architecture.md) admite cuando es ella la que evita el ciclo—.
 
@@ -1518,3 +1519,4 @@ Se siembra por migración y **no se administra por API todavía** (§5.3). Lo m�
 | 0.84.0 | 05-10-2026 | **Las dos lecturas de la pantalla de ajustes** (§4.11), pedidas por el frontend en nombre del responsable: nacen `RF-MV-053` —consultar los ajustes de puntos, con quién los hizo— y `RF-MV-054` —los saldos de cualquier persona—, con `movements:list-points-adjustments` y `movements:read-user-balances`, y la columna `movements.recorded_by`. **La migración es `V73`** | Responsable técnico |
 | 0.85.0 | 06-10-2026 | **`MV` publica `SalesFigures` para el módulo `IN`** (§3; [`requirements/in.md`](in.md), `RF-IN-001`): las sumas de lo vendido por un alcance que otro resuelve, contadas por línea y separadas por moneda. Es la forma de `CommissionableLines`. Ningún requerimiento de `MV` cambia. | Responsable técnico |
 | 0.86.0 | 06-10-2026 | **El historial de saldos (`RF-MV-022`) filtra por VARIAS cuentas** (R-62, a petición del frontend; tripleta enmendada, `CA-MV-660`): `account` es repetible y el asiento entra si su cuenta es cualquiera de las indicadas, para que el historial de Balance enseñe solo dinero —`BILLETERA` y `RETENIDO`— sin los puntos. Ampliación compatible. Siguiente `CA-MV-661`. | Responsable técnico |
+| 0.87.0 | 06-10-2026 | **`MV` publica `PointsFigures` para `IN`** (§3; `RF-IN-005`): los puntos comprados, redimidos y ajustados de un intervalo, leídos de los asientos de las cuentas `PUNTOS` por su evento, y el saldo de hoy. Ningún requerimiento de `MV` cambia. | Responsable técnico |

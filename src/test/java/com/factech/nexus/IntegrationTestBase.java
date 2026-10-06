@@ -294,7 +294,9 @@ public abstract class IntegrationTestBase {
                                    'indicators:read-sales-summary',
                                    'indicators:read-sales-series',
                                    'indicators:read-sales-by-product',
-                                   'indicators:read-sales-by-seller')))
+                                   'indicators:read-sales-by-seller',
+                                   -- V76 (06-10-2026): el resumen de puntos, RF-IN-005.
+                                   'indicators:read-points-summary')))
         ON CONFLICT ON CONSTRAINT pk_role_permissions DO NOTHING
         """);
   }
@@ -329,6 +331,8 @@ public abstract class IntegrationTestBase {
           "indicators:read-sales-series",
           "indicators:read-sales-by-product",
           "indicators:read-sales-by-seller",
+          // V76 (06-10-2026): el resumen de puntos.
+          "indicators:read-points-summary",
           // V75 (06-10-2026): el propio segundo factor, a los tres tipos.
           "users:start-own-mfa",
           "users:confirm-own-mfa",

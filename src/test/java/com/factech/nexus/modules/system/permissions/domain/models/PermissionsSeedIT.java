@@ -33,7 +33,7 @@ class PermissionsSeedIT extends IntegrationTestBase {
           + " V47: courses:read-available y lessons:learn del aula, RF-AC-034 y RF-AC-035)")
   void catalogoCompleto() {
     assertThat(jdbc.queryForObject("SELECT count(*) FROM permissions", Integer.class))
-        .isEqualTo(196);
+        .isEqualTo(197);
   }
 
   @Test
@@ -261,6 +261,8 @@ class PermissionsSeedIT extends IntegrationTestBase {
             "indicators:read-sales-series",
             "indicators:read-sales-by-product",
             "indicators:read-sales-by-seller",
+            // `V76` (06-10-2026): el resumen de puntos, `RF-IN-005`.
+            "indicators:read-points-summary",
             "movements:buy-points",
             "movements:list-own-points-purchases",
             // `V61` (01-10-2026): las cuentas de cobro (`RF-MV-032` a `RF-MV-039`).
@@ -358,7 +360,7 @@ class PermissionsSeedIT extends IntegrationTestBase {
   void identificadoresUuidV7() {
     List<UUID> ids = jdbc.queryForList("SELECT id FROM permissions", UUID.class);
 
-    assertThat(ids).hasSize(196).doesNotHaveDuplicates();
+    assertThat(ids).hasSize(197).doesNotHaveDuplicates();
     assertThat(ids).allSatisfy(id -> assertThat(id.version()).isEqualTo(7));
     // variant() == 2 es la variante RFC 9562 (bits 10xx).
     assertThat(ids).allSatisfy(id -> assertThat(id.variant()).isEqualTo(2));
@@ -424,13 +426,13 @@ class PermissionsSeedIT extends IntegrationTestBase {
                 "SELECT count(*) FROM role_permissions WHERE role_id ="
                     + " '01a02a33-4c00-7001-9c4f-5e7ad1000001'",
                 Integer.class))
-        .isEqualTo(196);
+        .isEqualTo(197);
     assertThat(
             jdbc.queryForObject(
                 "SELECT count(*) FROM role_permissions WHERE role_id ="
                     + " '01a02a33-4c00-7002-9c4f-5e7ad1000002'",
                 Integer.class))
-        .isEqualTo(194);
+        .isEqualTo(195);
     assertThat(
             jdbc.queryForList(
                 """

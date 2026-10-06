@@ -5,7 +5,7 @@
 | Módulo | `IN` — Indicadores |
 | Paquete | `modules/indicators` |
 | Prefijo de permisos | `indicators:` |
-| Versión | 0.6.0 |
+| Versión | 0.7.0 |
 | Estado | **Borrador** |
 | Responsable | Bonilla Diaz William Steven |
 | Fecha de creación | 06-10-2026 |
@@ -175,7 +175,7 @@ La migración que los siembre los da **por tipo de rol**, como los demás permis
 | `RF-IN-002` | Consultar la evolución de las ventas | Ventas | Alta | `indicators:read-sales-series` | **En desarrollo** (06-10-2026) |
 | `RF-IN-003` | Consultar las ventas por producto | Ventas | Media | `indicators:read-sales-by-product` | **Tasks aprobadas** (06-10-2026) |
 | `RF-IN-004` | Consultar las ventas por vendedor | Ventas | Media | `indicators:read-sales-by-seller` | **Tasks aprobadas** (06-10-2026) |
-| `RF-IN-005` | Consultar el resumen de puntos | Puntos | Alta | `indicators:read-points-summary` | **Tasks en revisión** (06-10-2026) |
+| `RF-IN-005` | Consultar el resumen de puntos | Puntos | Alta | `indicators:read-points-summary` | **En desarrollo** (06-10-2026) |
 
 **Prioridades:** Crítica · Alta · Media · Baja.
 **Estados:** los de [`requirements.md` §4](../requirements.md#4-matriz-de-trazabilidad).
@@ -253,7 +253,7 @@ Lo **confirmado** en el periodo agrupado por **el vendedor de la línea**, de m�
 | Reglas aplicables | `RN-IN-001`, `RN-IN-002`, `RN-IN-004`, `RN-IN-007`, `RN-IN-009` |
 | Depende de | `SP` publica `CommercialReach`; **`MV` publica `PointsFigures`** |
 | Tripleta | [`docs/specs/in/005-resumen-de-puntos/`](../specs/in/005-resumen-de-puntos/spec.md) |
-| Estado | **Tasks en revisión** — `spec.md` y `plan.md` aprobados el 06-10-2026 |
+| Estado | **En desarrollo** — construido el 06-10-2026, con `PointsFigures` y `V76` |
 
 **Nace el 06-10-2026 a petición del responsable del proyecto** —«el siguiente indicador es para saber la información de los puntos: cuántos se han comprado, cuántos se han redimido y el balance»—, con tres decisiones suyas: **según el alcance**, como los de ventas; **los ajustes a mano aparte**, lo sumado y lo restado, para que el saldo se explique; y **el saldo de hoy**, con lo comprado, lo redimido y los ajustes **del periodo**. Por moneda, porque los puntos se compran y se gastan en una. **Con un periodo que lo cubre todo, el saldo es comprados − redimidos + sumados − restados**, y es la prueba de que no se pierde nada.
 
@@ -307,3 +307,4 @@ El contrato detallado de cada endpoint —parámetros, valores por defecto del p
 | 0.4.0 | 06-10-2026 | **`RF-IN-002` construido**: `GET /indicators/sales/series`, lo confirmado por día, semana —de lunes— o mes de Bogotá, con todos los tramos y todas las monedas del periodo en cada uno. `SalesFigures` gana `confirmedByBucket`; el predicado de `MV` queda en un solo sitio para que la serie sume exactamente el resumen. | Bonilla Diaz William Steven |
 | 0.5.0 | 06-10-2026 | **El resumen de ventas gana el total y las gratuitas** (`RF-IN-001` enmendado; Art. I.7), por decisión del responsable del proyecto: el número de ventas sea cual sea su estado, y en cada estado y en el total cuántas fueron **gratuitas**. Nace **`RN-IN-008`**: gratuita es la venta de importe cero, la del método `GRATIS`, y sigue contando como venta. Mismo permiso y misma ruta. | Bonilla Diaz William Steven |
 | 0.6.0 | 06-10-2026 | **Nace la tanda de puntos: `RF-IN-005`, el resumen de puntos**, a petición del responsable del proyecto, con su tripleta (`CA-IN-041` a `CA-IN-049`) y el submódulo Puntos. Nace **`RN-IN-009`**: comprado, redimido y ajuste son el evento del asiento de la cuenta `PUNTOS`; el periodo mira cuándo se movieron los puntos y el saldo es el de hoy. Permiso propio, `indicators:read-points-summary`, que sembrará `V76` por tipo de rol a `FUNCIONARIO` y `VENDEDOR`. `MV` publicará `PointsFigures`. | Bonilla Diaz William Steven |
+| 0.7.0 | 06-10-2026 | **`RF-IN-005` construido**: `V76` siembra `indicators:read-points-summary` (catálogo 197), `MV` publica `PointsFigures` y `GET /indicators/points/summary` responde. | Bonilla Diaz William Steven |

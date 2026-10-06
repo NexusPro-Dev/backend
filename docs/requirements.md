@@ -5,7 +5,7 @@
 | Proyecto | NEXUS — Renovación de plataforma |
 | Empresa | FACTECH GROUP SAS |
 | Documento | `requirements.md` |
-| Versión | 0.297.0 |
+| Versión | 0.298.0 |
 | Estado | Borrador |
 | Responsable técnico | Bonilla Diaz William Steven |
 | Fecha de creación | 20-08-2026 |
@@ -314,7 +314,7 @@ Implementa el Art. III.1. Se actualiza **como parte del cambio**, no después (A
 | `RF-IN-002` | Consultar la evolución de las ventas | `IN` | [`specs/in/002-evolucion-de-ventas/`](specs/in/002-evolucion-de-ventas/tasks.md) | Pendiente de crear | `develop` | Suites del módulo en verde (06-10-2026): `SalesSeriesIT` (8), `SalesCalendarTest` (4). **Construido**: `GET /indicators/sales/series`, `SalesFigures.confirmedByBucket`. **Nace el 06-10-2026** con el módulo ([`requirements/in.md`](requirements/in.md) v0.1.0): lo confirmado por día, semana o mes de Bogotá, sin huecos (`RN-IN-007`) | **En desarrollo** |
 | `RF-IN-003` | Consultar las ventas por producto | `IN` | [`specs/in/003-ventas-por-producto/`](specs/in/003-ventas-por-producto/tasks.md) | Pendiente de crear | — | Sin código. Tripleta del 06-10-2026 (`spec.md` y `plan.md` aprobados). **Nace el 06-10-2026** con el módulo ([`requirements/in.md`](requirements/in.md) v0.1.0): lo confirmado por producto de la línea, con su nombre congelado | **Tasks aprobadas** |
 | `RF-IN-004` | Consultar las ventas por vendedor | `IN` | [`specs/in/004-ventas-por-vendedor/`](specs/in/004-ventas-por-vendedor/tasks.md) | Pendiente de crear | — | Sin código. Tripleta del 06-10-2026 (`spec.md` y `plan.md` aprobados). **Nace el 06-10-2026** con el módulo ([`requirements/in.md`](requirements/in.md) v0.1.0): lo confirmado por vendedor de la línea, cada uno con lo suyo; administración ve además lo «sin asignar» | **Tasks aprobadas** |
-| `RF-IN-005` | Consultar el resumen de puntos | `IN` | [`specs/in/005-resumen-de-puntos/`](specs/in/005-resumen-de-puntos/tasks.md) | Pendiente de crear | — | Sin código. **Nace el 06-10-2026** ([`requirements/in.md`](requirements/in.md) v0.6.0, `RN-IN-009`): comprados, redimidos, ajustes y saldo de hoy de los puntos, por moneda y según el alcance. Tripleta del mismo día (`spec.md` y `plan.md` aprobados) | **Tasks en revisión** |
+| `RF-IN-005` | Consultar el resumen de puntos | `IN` | [`specs/in/005-resumen-de-puntos/`](specs/in/005-resumen-de-puntos/tasks.md) | Pendiente de crear | `develop` | `PointsSummaryIT` en verde (06-10-2026). **Construido**: `V76`, `PointsFigures`, `GET /indicators/points/summary`. **Nace el 06-10-2026** ([`requirements/in.md`](requirements/in.md) v0.6.0, `RN-IN-009`): comprados, redimidos, ajustes y saldo de hoy de los puntos, por moneda y según el alcance. Tripleta del mismo día (`spec.md` y `plan.md` aprobados) | **En desarrollo** |
 
 
 **Estados**, que reflejan las tres compuertas del Art. I.6:
@@ -342,8 +342,8 @@ Un requerimiento solo pasa a `Implementado` cuando cumple **todas** las condicio
 | Requerimientos con `spec.md` redactada | 220 |
 | Requerimientos con `spec.md` aprobada | 160 |
 | Requerimientos con `plan.md` aprobado | 219 |
-| Requerimientos con **tripleta completa** —`tasks.md` aprobadas— | 101 |
-| Requerimientos con endpoint funcionando | 182 |
+| Requerimientos con **tripleta completa** —`tasks.md` aprobadas— | 102 |
+| Requerimientos con endpoint funcionando | 183 |
 | Requerimientos implementados | 0 |
 
 La vista **por módulo** de estos mismos indicadores está en la [portada](index.md#indicadores), que los cruza con el inventario de [`modules.md` §4](modules.md#4-inventario-de-modulos). Aquí se cuenta por compuerta; allí se cuenta por módulo.
@@ -722,3 +722,4 @@ El inventario y el estado de los módulos se consultan en [`modules.md` §4](mod
 | 0.295.0 | 06-10-2026 | **`RF-SP-073` construido — las operaciones sensibles piden el código otra vez**, entre ellas **configurar los permisos de un rol**, que pidió el responsable del proyecto. Endpoint funcionando 180 → **181**. Enmiendas en código de `RF-SP-010` y `RF-SP-015`: el catálogo publica `requiresRecentMfa`. | Responsable técnico |
 | 0.296.0 | 06-10-2026 | **Nace `RF-IN-005`, el resumen de puntos** ([`requirements/in.md`](requirements/in.md) v0.6.0, `RN-IN-009`), a petición del responsable del proyecto: comprados, redimidos y ajustes del periodo, y el saldo de hoy, por moneda y según el alcance. Tripleta el mismo día; `tasks.md` en revisión. Registrados, `spec.md` redactada y aprobada y `plan.md` aprobado suben uno. | Responsable técnico |
 | 0.297.0 | 06-10-2026 | **`RF-SP-074` construido — regenerar los códigos de recuperación**. Endpoint funcionando 181 → **182**. El contrato marca ya quince operaciones sensibles. | Responsable técnico |
+| 0.298.0 | 06-10-2026 | **`RF-IN-005` construido** ([`requirements/in.md`](requirements/in.md) v0.7.0): `GET /api/v1/indicators/points/summary`, sus `tasks.md` aprobadas. §5: tripleta completa 101 → **102**, endpoint funcionando 182 → **183**. | Responsable técnico |
