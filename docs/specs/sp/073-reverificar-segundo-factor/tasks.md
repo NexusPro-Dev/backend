@@ -61,7 +61,7 @@ Ninguna de diseño. Cinco de detalle:
 | 4 | — | `PermissionItem` conserva un constructor de seis campos que pone `requiresRecentMfa` en falso | Las pruebas que lo construyen a mano no tienen por qué saber del segundo factor |
 | 5 | Las dieciocho operaciones sensibles llevan en el contrato el `403` y `x-requires-recent-mfa` | **Catorce**: las cuatro restantes son rutas de `RF-SP-074` a `RF-SP-077`, que todavía no existen | Su permiso ya está marcado en `V75`; la extensión aparecerá sola cuando nazca cada ruta |
 
-**Pruebas**: `MfaStepUpIT` (14), `PermissionResponseTest` (siete campos). Suite completa: ver la fila de control de cambios.
+**Pruebas**: `MfaStepUpIT` (14), `PermissionResponseTest` y `PermissionDetailIT` (siete campos). Suite completa: 561 unitarias y 2512 de integración con un único fallo —`PermissionDetailIT`, una lista cerrada de los campos del detalle que no conocía `requiresRecentMfa`—, corregido y vuelto a correr en verde (`./mvnw clean verify`, 06-10-2026).
 
 ## 4. Bloqueos
 
