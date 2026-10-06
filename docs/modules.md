@@ -5,11 +5,11 @@
 | Proyecto | NEXUS — Renovación de plataforma |
 | Empresa | FACTECH GROUP SAS |
 | Documento | `modules.md` |
-| Versión | 0.24.0 |
+| Versión | 0.25.0 |
 | Estado | Borrador |
 | Responsable técnico | Bonilla Diaz William Steven |
 | Fecha de creación | 20-08-2026 |
-| Última actualización | 25-09-2026 |
+| Última actualización | 06-10-2026 |
 | Documento superior | `constitution.md` v0.7.0 |
 | Documentos relacionados | `architecture.md` v0.17.0, `requirements.md` v0.51.0 |
 
@@ -75,6 +75,9 @@ graph TD
     SP["<b>SP</b> — Sistema Principal<br/><i>roles, permisos, auditoría</i>"]
     PM["<b>PM</b> — Productos y Mercadeo<br/><i>catálogo de venta</i>"]
     AC["<b>AC</b> — Academia<br/><i>cursos, módulos y lecciones</i>"]
+    CM["<b>CM</b> — Comisiones<br/><i>tasas y liquidación</i>"]
+    MV["<b>MV</b> — Movimientos<br/><i>el libro: ventas, pagos, saldos</i>"]
+    IN["<b>IN</b> — Indicadores<br/><i>cifras agregadas, por permiso</i>"]
 
     C1["<b>?</b> — por inventariar"]:::pend
     C2["<b>?</b> — por inventariar"]:::pend
@@ -82,6 +85,12 @@ graph TD
     PM --> SP
     AC --> SP
     AC --> PM
+    CM --> SP
+    CM --> PM
+    MV --> SP
+    MV --> PM
+    IN --> SP
+    IN --> MV
     C1 -.-> SP
     C2 -.-> SP
 
@@ -105,6 +114,7 @@ Las dependencias apuntan **del consumidor al proveedor** y deben ser acíclicas 
 | `CM` | Comisiones | `modules/commissions` | `commissions:` | `SP`, `PM` | En desarrollo · **rehecho y construido el 02-09-2026** |
 | `MV` | Movimientos | `modules/movements` | `movements:` | `SP`, `PM` | Propuesto · **renace el 02-09-2026, empezando por la venta** |
 | `AC` | Academia | `modules/academy` | `course-categories:`, `courses:` | `SP`, `PM` | En diseño · **incorporado el 17-09-2026, empezando por el catálogo de cursos y lo que ve el alumno** |
+| `IN` | Indicadores | `modules/indicators` | `indicators:` | `SP`, `MV` | En diseño · **incorporado el 06-10-2026, empezando por las ventas; sin tablas propias** (§5.6) |
 
 
 **Estados:** `Propuesto` · `En diseño` · `En desarrollo` · `Implementado` · `Obsoleto`.
@@ -321,7 +331,36 @@ Lo que decidió no fue la elegancia sino el precedente que este mismo párrafo c
 
     §6 advierte que los códigos de los módulos candidatos **no deberían fijarse hasta conocer el alcance completo** del producto. Se procede igualmente **por decisión del responsable del proyecto**, como con `PM`, `CM` y `MV`, y queda escrito que se procedió sabiéndolo. El riesgo concreto: si el área acaba abarcando las sesiones en vivo con otro nombre —«Formación», «Escuela»— el código `AC` no se cambia jamás. Y una consecuencia que conviene ver ahora: las **sesiones en vivo** de HU13 y HU14 son del mismo candidato, de modo que cuando se escriban serán `RF-AC-NNN` y no un módulo aparte, salvo que resulten dueñas de tablas que el catálogo de cursos no necesite — y entonces se promoverán por §2.3.
 
-### 5.6 Plantilla para un módulo nuevo
+### 5.6 `IN` — Indicadores
+
+**Propósito.** Es dueño de **qué cifras agregadas existen y quién ve cada una**. Cuenta sobre los hechos que otros módulos registran —hoy, las ventas de `MV`— y publica cada cifra como un **indicador** con su ruta y su permiso, de modo que el reparto de indicadores por rol lo decide quien administra roles y no el código.
+
+**Alcance.** Se construye **por tandas**, y hoy solo está escrita la primera: **las ventas** —el resumen de un periodo, su evolución por día, semana o mes, las ventas por producto y las ventas por vendedor—, cada una **acotada al alcance** de quien la mira: administración ve todo, un vendedor lo suyo y lo de su red en profundidad. Las tandas siguientes, declaradas y sin escribir: **comisiones**, **puntos y retiros** y **academia**.
+
+**No incluye.** **Una tabla rol → indicador**: el reparto es el permiso (`RN-IN-001`). **El tablero** —qué indicadores van juntos y en qué orden—, que es del frontend. **Los indicadores de la red comercial** de `RF-SP-058`, que siguen en `SP`. **Convertir entre monedas**: el dinero va separado por moneda (`RN-IN-004`). **Guardar fotos de las cifras**, ni **exportarlas**.
+
+| Submódulo | Responsabilidad | Entidades principales |
+|---|---|---|
+| Ventas | Lo vendido: resumen, evolución, por producto y por vendedor | **Ninguna propia** — lee las ventas que `MV` publica agregadas |
+
+**Dependencias.** `SP` y `MV`. De `SP`, **el alcance comercial** de quien pregunta (`CommercialReach`, el mismo que aplica `RF-MV-015`) y la identidad de cada vendedor (`UserCatalog`). De `MV`, **las ventas agregadas por un alcance**, una interfaz que todavía no existe y que pedirá `RF-IN-001`. Ninguno de los dos consume a `IN`.
+
+**Diseño detallado.** [`requirements/in.md`](requirements/in.md).
+
+!!! warning "El primer módulo sin tablas propias — una excepción a §2.1, escrita"
+
+    §2.1 define un módulo por dos condiciones —**es dueño de tablas** y **otros lo consumen**— y `IN` no cumple ninguna el día que nace. **Se incorpora igual, por decisión del responsable del proyecto del 06-10-2026**, porque lo que posee no son datos sino **el catálogo de indicadores y su reparto**, y las dos alternativas eran peores:
+
+    - **Que cada módulo publique sus indicadores** cumple §2.1, pero reparte el catálogo en cinco documentos y cinco prefijos de ruta, y deja sin dueño al indicador que cruce dos módulos —ventas contra comisiones—: ponerlo en uno obliga a ese uno a consumir al otro.
+    - **Un submódulo de `SP`**, que ya resuelve el alcance y ya tiene un indicador, obligaría a `SP` a consumir a `MV` y a `CM`, que ya consumen a `SP`: el ciclo que §7 prohíbe.
+
+    **Lo que la excepción no autoriza** es leer tablas ajenas: la consulta agregada la escribe **`MV`**, dueño de las columnas y de los estados, y `IN` la consume por interfaz como cualquier otro módulo (§7, [`architecture.md` §15.2](architecture.md)). **Deja de ser excepción** en cuanto `IN` necesite una tabla propia —fotos diarias, metas por vendedor, umbrales—, que será suya y de nadie más.
+
+!!! warning "El código se fija sabiendo lo que §6 advierte"
+
+    Como con `PM`, `CM`, `MV` y `AC`, el código se fija **por decisión del responsable del proyecto** antes de conocer el alcance completo. El candidato de §6 se llamaba «Métricas»; se eligió **`IN` — Indicadores** porque es la palabra que usa el negocio. Si el área acaba abarcando los **reportes** —exportar, programar envíos—, serán `RF-IN-NNN` y no un módulo aparte.
+
+### 5.7 Plantilla para un módulo nuevo
 
 ```markdown
 ### `COD` — Nombre del módulo
@@ -357,7 +396,7 @@ La Épica 2 del documento de historias de usuario (HU08–HU14) define siete rol
 | ~~Finanzas~~ | HU09 | **Absorbido de nuevo el 02-09-2026 por `MV`** (§5.4). El módulo declara como alcance **todo hecho económico** y no solo la venta, de modo que retiros, pagos y balances son sus **etapas posteriores** y no un módulo aparte. Fue candidato otra vez durante un día, entre que `MV` se retiró y volvió |
 | ~~Academia~~ | HU08, HU13, HU14 | **Incorporado el 17-09-2026 como `AC`** (§5.5), con el **catálogo de cursos** —categorías, cursos, módulos y lecciones— y **lo que ve el alumno**. Las **sesiones en vivo** siguen fuera, y no por reparto: son del mismo módulo y se escribirán como `RF-AC-NNN` cuando llegue su tanda |
 | Señales | HU14 | Publicación y consumo de señales |
-| Métricas | HU08 | Indicadores y reportes de la plataforma |
+| ~~Métricas~~ | HU08 | **Incorporado el 06-10-2026 como `IN` — Indicadores** (§5.6), empezando por las cifras de ventas. Los **reportes** —exportar, programar envíos— siguen fuera y serán del mismo módulo cuando se pidan |
 
 !!! warning "Candidatos, no decisiones"
 
@@ -409,7 +448,7 @@ Las preguntas 2 y 4 son las que determinan si es realmente un módulo (§2.1).
 
 1. Verificar contra §2.1 que es un módulo y no un submódulo de uno existente.
 2. Registrar la fila en el inventario de §4.
-3. Escribir su ficha en §5, a partir de la plantilla de §5.3.
+3. Escribir su ficha en §5, a partir de la plantilla de §5.7.
 4. Crear `docs/requirements/<código en minúscula>.md` con la plantilla de requerimientos por módulo.
 5. Registrar sus requerimientos en la matriz de `requirements.md`.
 6. Crear la carpeta `docs/specs/<código en minúscula>/`, donde vivirá la tripleta de cada requerimiento.
@@ -448,3 +487,4 @@ El orden importa: el módulo precede al requerimiento, el requerimiento precede 
 | 0.22.0 | 21-09-2026 | **Submódulo nuevo en `SP`: «Equipos»**, dueño de `teams` y `team_members` ([`requirements/sp.md`](requirements/sp.md) v1.71.0, `RF-SP-063` a `RF-SP-070`), por decisión del responsable del proyecto: cómo se agrupan los managers —la cúspide que `RN-SP-019` exime de superior—, uno vigente por manager y con historial, en la forma de `user_supervisors`. Entra en `SP` y no en el candidato `RC` por lo mismo que la estructura comercial en la 0.10.0: es un dato de organización que las comisiones consumirán, y los códigos de módulo no se fijan antes de conocer el alcance. | Responsable del proyecto |
 | 0.23.0 | 25-09-2026 | **`AC` pasa a depender de `PM`**, por decisión del responsable del proyecto: un curso se abre también por un **servicio** —un producto `BOT`— y es el curso quien lo declara ([`requirements/ac.md`](requirements/ac.md) v0.12.0, §5.2.8). La arista es `AC` → `PM` y no al revés, que es lo que §5.5 anticipaba el 17-09-2026 para «el día que un curso se venda»; `PM` no sabe nada de cursos, y el grafo sigue acíclico. | Responsable del proyecto |
 | 0.24.0 | 01-10-2026 | **`MV` gana el submódulo Cuentas de cobro** ([`requirements/mv.md`](requirements/mv.md) v0.61.0 §4.5): el catálogo de bancos y billeteras móviles y las cuentas de cada persona, para saber a dónde se paga un retiro. Sin dependencias nuevas: `SP` ya lo era. | Responsable técnico |
+| 0.25.0 | 06-10-2026 | **Se incorpora el módulo `IN` — Indicadores**, el sexto del sistema, por decisión del responsable del proyecto: «un módulo para indicadores, para repartir qué indicadores se pueden ver por roles». Es el candidato «Métricas» que §6 tenía anotado desde el 20-08-2026 (HU08). Ficha en §5.6 —la plantilla pasa a §5.7—, fila en §4 con dependencias `SP` y `MV`, y documento [`requirements/in.md`](requirements/in.md) v0.1.0. **Es el primer módulo que se incorpora sin cumplir §2.1**: no es dueño de tablas y nadie lo consume; lo que posee es el catálogo de indicadores y su reparto por permiso, y la excepción queda escrita en la ficha con las dos salidas descartadas. El mapa de §3 incorpora además `CM` y `MV`, que faltaban desde que entraron. | Responsable técnico |
