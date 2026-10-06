@@ -5,7 +5,7 @@
 | Módulo | `IN` — Indicadores |
 | Paquete | `modules/indicators` |
 | Prefijo de permisos | `indicators:` |
-| Versión | 0.2.0 |
+| Versión | 0.3.0 |
 | Estado | **Borrador** |
 | Responsable | Bonilla Diaz William Steven |
 | Fecha de creación | 06-10-2026 |
@@ -166,10 +166,10 @@ La migración que los siembre los da **por tipo de rol**, como los demás permis
 
 | ID | Nombre | Submódulo | Prioridad | Permiso | Estado |
 |---|---|---|---|---|---|
-| `RF-IN-001` | Consultar el resumen de ventas | Ventas | Alta | `indicators:read-sales-summary` | **Tasks en revisión** (06-10-2026) |
-| `RF-IN-002` | Consultar la evolución de las ventas | Ventas | Alta | `indicators:read-sales-series` | **Tasks en revisión** (06-10-2026) |
-| `RF-IN-003` | Consultar las ventas por producto | Ventas | Media | `indicators:read-sales-by-product` | **Tasks en revisión** (06-10-2026) |
-| `RF-IN-004` | Consultar las ventas por vendedor | Ventas | Media | `indicators:read-sales-by-seller` | **Tasks en revisión** (06-10-2026) |
+| `RF-IN-001` | Consultar el resumen de ventas | Ventas | Alta | `indicators:read-sales-summary` | **En desarrollo** (06-10-2026) |
+| `RF-IN-002` | Consultar la evolución de las ventas | Ventas | Alta | `indicators:read-sales-series` | **Tasks aprobadas** (06-10-2026) |
+| `RF-IN-003` | Consultar las ventas por producto | Ventas | Media | `indicators:read-sales-by-product` | **Tasks aprobadas** (06-10-2026) |
+| `RF-IN-004` | Consultar las ventas por vendedor | Ventas | Media | `indicators:read-sales-by-seller` | **Tasks aprobadas** (06-10-2026) |
 
 **Prioridades:** Crítica · Alta · Media · Baja.
 **Estados:** los de [`requirements.md` §4](../requirements.md#4-matriz-de-trazabilidad).
@@ -187,7 +187,7 @@ La migración que los siembre los da **por tipo de rol**, como los demás permis
 | Reglas aplicables | `RN-IN-001` a `RN-IN-005`, `RN-IN-007` |
 | Depende de | `SP` publica `CommercialReach`; **`MV` publica las ventas agregadas** (§3) |
 | Tripleta | [`docs/specs/in/001-resumen-de-ventas/`](../specs/in/001-resumen-de-ventas/spec.md) |
-| Estado | **Tasks en revisión** — `spec.md` y `plan.md` aprobados el 06-10-2026 |
+| Estado | **En desarrollo** — construido el 06-10-2026, con `SalesFigures` y `V74` |
 
 Para un periodo y, opcionalmente, una moneda o un vendedor de mi alcance: **cuántas ventas** se confirmaron, cuántas líneas y cuántas unidades, y **por cuánto** en cada moneda; y aparte, con su cantidad y su importe, las que siguen **pendientes** y las **anuladas**. Es el primero en construirse porque es el que estrena la interfaz de `MV`.
 
@@ -202,7 +202,7 @@ Para un periodo y, opcionalmente, una moneda o un vendedor de mi alcance: **cuá
 | Reglas aplicables | `RN-IN-001` a `RN-IN-005`, `RN-IN-007` |
 | Depende de | `RF-IN-001` |
 | Tripleta | [`docs/specs/in/002-evolucion-de-ventas/`](../specs/in/002-evolucion-de-ventas/spec.md) |
-| Estado | **Tasks en revisión** — `spec.md` y `plan.md` aprobados el 06-10-2026 |
+| Estado | **Tasks aprobadas** — 06-10-2026; se construye sobre `RF-IN-001` |
 
 Las mismas cifras de lo **confirmado** que `RF-IN-001`, partidas en **días, semanas o meses** de Bogotá. **Cada tramo del periodo aparece aunque no tenga ventas**, con ceros: una serie con huecos se dibuja como una línea que une dos puntos lejanos y miente sobre lo que pasó entre ellos. El número de tramos tiene tope, que fija la spec.
 
@@ -217,7 +217,7 @@ Las mismas cifras de lo **confirmado** que `RF-IN-001`, partidas en **días, sem
 | Reglas aplicables | `RN-IN-001` a `RN-IN-005` |
 | Depende de | `RF-IN-001` |
 | Tripleta | [`docs/specs/in/003-ventas-por-producto/`](../specs/in/003-ventas-por-producto/spec.md) |
-| Estado | **Tasks en revisión** — `spec.md` y `plan.md` aprobados el 06-10-2026 |
+| Estado | **Tasks aprobadas** — 06-10-2026; se construye sobre `RF-IN-001` |
 
 Lo **confirmado** en el periodo agrupado por producto —unidades, líneas e importe por moneda—, de más a menos, con un límite de filas. **El producto es el de la línea**, con el nombre congelado en la venta (`movement_details.product_name`): un producto renombrado o retirado sigue apareciendo con el nombre con que se vendió. Un **paquete** aporta una línea por cada producto que lleva (`RN-MV-028`), de modo que aquí se ven los productos y no el paquete.
 
@@ -232,7 +232,7 @@ Lo **confirmado** en el periodo agrupado por producto —unidades, líneas e imp
 | Reglas aplicables | `RN-IN-001` a `RN-IN-005` |
 | Depende de | `RF-IN-001`; `SP` publica la identidad del vendedor (`UserCatalog`) |
 | Tripleta | [`docs/specs/in/004-ventas-por-vendedor/`](../specs/in/004-ventas-por-vendedor/spec.md) |
-| Estado | **Tasks en revisión** — `spec.md` y `plan.md` aprobados el 06-10-2026 |
+| Estado | **Tasks aprobadas** — 06-10-2026; se construye sobre `RF-IN-001` |
 
 Lo **confirmado** en el periodo agrupado por **el vendedor de la línea**, de más a menos. Para un vendedor, **cada persona de su red y él mismo**, cada una con **lo que vendió ella** —no lo de su red: el acumulado por rama es de `RF-SP-058`, que lo hace para el FTD, y si se quiere para las ventas será otro requerimiento—. Para administración, todos los vendedores y una fila **«sin asignar»** con las líneas que aún no tienen vendedor (`RN-IN-003`).
 
@@ -281,3 +281,4 @@ El contrato detallado de cada endpoint —parámetros, valores por defecto del p
 |---|---|---|---|
 | 0.1.0 | 06-10-2026 | **Creación del módulo `IN` — Indicadores**, por decisión del responsable del proyecto: «un módulo para indicadores, para repartir qué indicadores se pueden ver por roles». Tres decisiones lo definen: **el reparto es el permiso** —uno por indicador, asignado desde la administración de roles, sin tabla propia— (`RN-IN-001`, §5.2.1); **las cifras dependen de quién mira** —`CommercialReach`, como `RF-MV-015`— (`RN-IN-002`, §5.2.2); y **la primera tanda es de ventas**, `RF-IN-001` a `RF-IN-004`, contadas **por línea** (`RN-IN-003`) y **separadas por moneda** (`RN-IN-004`). Se incorpora **sin tablas propias**, a sabiendas de `modules.md` §2.1 (§1.4). Los cuatro permisos quedan declarados y sin sembrar (§5.2.4). | Bonilla Diaz William Steven |
 | 0.2.0 | 06-10-2026 | **Las cuatro tripletas de ventas están escritas** —`spec.md` y `plan.md` aprobados, `tasks.md` en revisión—, en `docs/specs/in/001` a `004`, con los criterios `CA-IN-001` a `CA-IN-037`. Fijan lo que este documento dejaba abierto: `MV` publica **`SalesFigures`** (§3); el periodo se pide **en días de Bogotá**, con el último incluido, por defecto el mes en curso y con un **tope de 366 días**; el corte fuera del alcance responde **ceros sin consultar**; los rankings se ordenan **por importe con moneda y por unidades sin ella**; y lo **sin asignar** va aparte, solo para administración. La migración de los cuatro permisos la construye `RF-IN-001` · `T-01`. Se corrige además `RN-IN-004`: los importes van **en decimales**, como el resto de la API, y no en centésimas. | Bonilla Diaz William Steven |
+| 0.3.0 | 06-10-2026 | **Las cuatro `tasks.md` aprobadas** por el responsable del proyecto, y **`RF-IN-001` construido**: `V74` siembra los cuatro permisos (catálogo 189), `MV` publica `SalesFigures` y `GET /indicators/sales/summary` responde. Dos desviaciones, en sus tareas: la suma se prueba por HTTP y no con una suite propia de `MV`, y una fecha o un identificador mal formados son `VAL-001` del manejador común. | Bonilla Diaz William Steven |

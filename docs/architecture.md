@@ -5,11 +5,11 @@
 | Proyecto | NEXUS — Renovación de plataforma |
 | Empresa | FACTECH GROUP SAS |
 | Documento | `architecture.md` |
-| Versión | 0.47.0 |
+| Versión | 0.48.0 |
 | Estado | Borrador |
 | Responsable técnico | Bonilla Diaz William Steven |
 | Fecha de creación | 19-08-2026 |
-| Última actualización | 05-10-2026 |
+| Última actualización | 06-10-2026 |
 | Documento superior | `constitution.md` v0.5.0 |
 | Documento relacionado | `security.md` v0.3.0 |
 
@@ -793,6 +793,7 @@ Se descartó la inversión de dependencia —que `PM` declarase el puerto y `SP`
 | **Hasta dónde llega una persona** (`CommercialReach`, 21-09-2026) | El **alcance comercial** del actor, resuelto por `SP` de su tipo de rol y de `user_supervisors`: **todo** (`FUNCIONARIO`), **su red** en profundidad con él dentro (`VENDEDOR`; el conjunto de identificadores), o **solo él** (`CONSUMIDOR` o nadie). Es el resolvedor de [`ADR-005`](architecture/ADR-005-modelo-de-alcance-de-datos.md) opción B con **un** tipo de alcance; `MV` lo recibe y lo aplica como predicado sobre el vendedor de las líneas, **no lo calcula**: «mi red» se define una vez y con su dueño (regla 2) | `RF-MV-015` |
 | **Un país** (`CountryCatalog`, 01-10-2026) | Si existe y si está **activo**, con su código y su nombre. La primera lectura de países fuera de `SP` | `RF-MV-032` |
 | **El titular de una cuenta de cobro** (`PayoutHolderLookup`, 01-10-2026) | Nombre, país y **documento** —la abreviatura de su tipo y el número— de una persona no eliminada, o vacío. **No es `ClientCatalog` ampliado**: aquella es de la venta, y el documento no le hace falta a nadie que venda | `RF-MV-035`, `RF-MV-019` |
+| **Las cifras de lo vendido** (`SalesFigures`, 06-10-2026; **la publica `MV`**) | Ventas, líneas, unidades e importe por moneda de un intervalo, **contadas por línea** sobre un alcance que el consumidor ya resolvió con `CommercialReach`. Devuelve sumas, nunca filas: el consumidor no lee `movements`. Es la forma de `CommissionableLines`, que `MV` publica para `CM` | `RF-IN-001` |
 
 **El 04-09-2026, al construirse `RF-MV-001`, esta tabla ganó dos filas y no tres.** El diseño preveía que la interfaz del cliente publicara también su nivel de membresía; **no lo hace**, porque ese puerto ya existía —la tercera fila de esta tabla, desde `RF-PM-007`— con su borde fijado por prueba: una fecha exactamente igual al instante consultado ya no está vigente.
 
@@ -1000,3 +1001,4 @@ D-08 quedó cerrada en `security.md` §12, junto con las decisiones D-12 a D-15 
 | 0.45.0 | 05-10-2026 | **§15.2 gana su tercera inversión de dependencia: `SP` pide a `MV` que active lo comprado al registrarse** (`FirstDepositActivation`; [`requirements/sp.md`](requirements/sp.md) v1.91.0, `RN-SP-057`; [`requirements/mv.md`](requirements/mv.md) v0.76.0, `RN-MV-075`). La venta del alta gratuita nace confirmada y su línea espera al primer depósito, que confirma `SP` al sacar a la cuenta de `FTD_PENDIENTE`. `SP` declara el puerto y `MV` lo implementa, como la venta del registro, para no cerrar el ciclo. Es una escritura en la transacción del cambio de estado: si falla, la cuenta no cambia. | Responsable del proyecto |
 | 0.46.0 | 05-10-2026 | **Nueva §15.5: la pasarela local, PayRetailers** ([`requirements/mv.md`](requirements/mv.md) v0.78.0 §4.10). Un puerto propio de `MV`, `LocalPaymentGateway` —abrir y consultar un cobro—, con su adaptador único `PayRetailersGateway` por `RestClient`. **Cambia la fuente de verdad**: el aviso no va firmado, de modo que **se pregunta a la pasarela**, y un **barrido programado** con bloqueo consultivo pregunta por los pendientes. Apagable sin sus tres credenciales; nueve variables nuevas en §14 | Responsable del proyecto |
 | 0.47.0 | 05-10-2026 | **§15.5: la tienda de PayRetailers de cada país es un dato de la conversión, no configuración** ([`requirements/mv.md`](requirements/mv.md) v0.82.0, `RN-MV-063`, `V71`): el puerto recibe la tienda en cada llamada, el cobro se consulta con la que lo abrió, y la clave va cifrada con AES-256-GCM (`ShopSecrets`) bajo `PAYRETAILERS_ENCRYPTION_KEY` | Responsable del proyecto |
+| 0.48.0 | 06-10-2026 | **§15.2 gana `SalesFigures`**, la que `MV` publica para el módulo `IN` (`RF-IN-001`; [`requirements/in.md`](requirements/in.md)): las sumas de lo vendido sobre un alcance ya resuelto. `IN` es el primer módulo **sin tablas propias**, y la excepción a `modules.md` §2.1 solo se sostiene porque lee por interfaces; `LayerRulesTest` lo exige y exige además que **nadie dependa de `IN`**. | Responsable técnico |

@@ -238,9 +238,10 @@ public abstract class IntegrationTestBase {
   /**
    * Vuelve a dar a los roles de sistema lo que `V31` reparte por tipo (`RF-SP-062`): los once de
    * alcance propio a `FUNCIONARIO` y `VENDEDOR`, ocho a `CONSUMIDOR`; y lo que `V32` da a los tres
-   * tipos (`movements:list-sales`, `RF-MV-015`). Para las suites que vacían `MANAGER`, `DIRECTOR`,
-   * `AGENTE` y `CLIENTE` —que hasta el 21-09-2026 nacían vacíos— y tienen que dejarlos como los
-   * deja la migración, no como los dejaba `V8`.
+   * tipos (`movements:list-sales`, `RF-MV-015`), y los cuatro indicadores de `V74` a `FUNCIONARIO`
+   * y `VENDEDOR` (`RF-IN-001`). Para las suites que vacían `MANAGER`, `DIRECTOR`, `AGENTE` y
+   * `CLIENTE` —que hasta el 21-09-2026 nacían vacíos— y tienen que dejarlos como los deja la
+   * migración, no como los dejaba `V8`.
    */
   protected static void reponerAlcancePropio(org.springframework.jdbc.core.JdbcTemplate jdbc) {
     jdbc.update(
@@ -262,7 +263,12 @@ public abstract class IntegrationTestBase {
                            'movements:activate-own-product')
                 OR (r.role_type IN ('FUNCIONARIO', 'VENDEDOR')
                     AND p.code IN ('users:read-own-clients', 'broker-accounts:read-own-team',
-                                   'broker-accounts:read-team-member')))
+                                   'broker-accounts:read-team-member',
+                                   -- V74 (06-10-2026): los indicadores de ventas, RN-IN-001.
+                                   'indicators:read-sales-summary',
+                                   'indicators:read-sales-series',
+                                   'indicators:read-sales-by-product',
+                                   'indicators:read-sales-by-seller')))
         ON CONFLICT ON CONSTRAINT pk_role_permissions DO NOTHING
         """);
   }
@@ -291,7 +297,12 @@ public abstract class IntegrationTestBase {
           // V50 (28-09-2026): activar lo comprado, RF-MV-010.
           "movements:activate-own-product",
           "packages:buy",
-          "movements:list-sales");
+          "movements:list-sales",
+          // V74 (06-10-2026): los indicadores de ventas, a FUNCIONARIO y VENDEDOR.
+          "indicators:read-sales-summary",
+          "indicators:read-sales-series",
+          "indicators:read-sales-by-product",
+          "indicators:read-sales-by-seller");
 
   protected static java.util.UUID crearRolAcotado(
       org.springframework.jdbc.core.JdbcTemplate jdbc, String codigo, String nombre) {

@@ -217,6 +217,38 @@ class LayerRulesTest {
   }
 
   @Test
+  @DisplayName("IN cuenta por las interfaces publicadas y nadie depende de IN (requirements/in.md)")
+  void inSoloLeePorInterfaces() {
+    // `IN` es el primer módulo sin tablas propias (`requirements/in.md` §1.4):
+    // lo que cuenta es de `MV` y el alcance es de `SP`. La excepción a
+    // `modules.md` §2.1 solo se sostiene si `IN` NO lee tablas ajenas —la suma
+    // la escribe el dueño, en `SalesFigures`—; un repositorio de `MV` importado
+    // desde aquí sería la segunda definición de «qué es una venta».
+    noClasses()
+        .that()
+        .resideInAPackage("com.factech.nexus.modules.indicators..")
+        .should()
+        .dependOnClassesThat()
+        .resideInAnyPackage(
+            "com.factech.nexus.modules.system..domain..",
+            "com.factech.nexus.modules.movements..domain..",
+            "com.factech.nexus.modules.products..domain..",
+            "com.factech.nexus.modules.commissions..domain..",
+            "com.factech.nexus.modules.academy..domain..")
+        .because("requirements/in.md §1.4: IN consume por interfaces publicadas, nunca por tablas")
+        .check(clases);
+    // Y un indicador se lee, no se usa para decidir nada: ningún módulo lo consume.
+    noClasses()
+        .that()
+        .resideOutsideOfPackage("com.factech.nexus.modules.indicators..")
+        .should()
+        .dependOnClassesThat()
+        .resideInAPackage("com.factech.nexus.modules.indicators..")
+        .because("requirements/in.md §3: ningún módulo consume a IN")
+        .check(clases);
+  }
+
+  @Test
   @DisplayName(
       "MV no depende de CM: le pregunta por un puerto que declara él y CM implementa (RN-MV-053)")
   void mvNoDependeDeCm() {

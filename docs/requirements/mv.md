@@ -5,11 +5,11 @@
 | Módulo | `MV` — Movimientos |
 | Paquete | `modules/movements` |
 | Prefijos de permiso | `movements:` |
-| Versión | 0.84.0 |
+| Versión | 0.85.0 |
 | Estado | **Borrador** |
 | Responsable | Bonilla Diaz William Steven |
 | Fecha de creación | 02-09-2026 |
-| Última actualización | 05-10-2026 |
+| Última actualización | 06-10-2026 |
 
 !!! info "Qué va en este documento"
 
@@ -115,6 +115,7 @@ Según [`modules.md` §5](../modules.md).
 | `PM` | Consume | **Los enlaces de lo que ya se entregó** (`RN-MV-032`, 22-09-2026): hasta el 28-09-2026 solo el de tipo `CUPON_BOT`; desde entonces **todos los tipos** (`RN-PM-048`), **ya resueltos** por `PM` y pedidos **en lote**, una vez por página de `RF-MV-014`, para las líneas entregadas. Este módulo **no lee `product_links`** ni compone nada: la regla de la composición (`RN-PM-049`) vive donde vive el dato |
 | `PM` | Consume | **La oferta de quien compra** (`RF-PM-007`), que es lo que este módulo valida en `RN-MV-007` |
 | `CM` | **Es consumido, y desde el 26-09-2026 le escribe** | **No lo consume `MV`: es `CM` quien consume a `MV`.** Desde el 26-09-2026 además **le escribe**: al marcar un lote como pagado (`RF-CM-011`) invoca la operación que `MV` publica para **abonarlo en la billetera** (`RN-MV-044`, `RF-MV-024`). **La referencia entre el lote y su movimiento vive en `CM`** —`commission_batches` apunta a `movements`— y no al revés: una clave foránea desde `movements` haría a `MV` depender de `CM` y cerraría el ciclo que `requirements/cm.md` §3 comprobó que no existe. **Y desde el 28-09-2026 le avisa**, sin conocerlo: al confirmar una venta y al asignar vendedores, publica un evento con las líneas que quedaron comisionables, y `CM` las devenga (`RN-MV-049`). **Y desde el 30-09-2026 le pregunta**, también sin conocerlo: al corregir el vendedor de una línea de una venta ya confirmada, invoca un **puerto que declara este módulo y que `CM` implementa** para saber si la línea puede cambiar de dueño (`RN-MV-053`) |
+| `IN` | **Es consumido** | **Las cifras de lo vendido** (`SalesFigures`, 06-10-2026, `RF-IN-001`): `IN` le da un alcance ya resuelto —todo, o un conjunto de vendedores—, un intervalo y una moneda, y recibe **sumas**: ventas, líneas, unidades e importe por moneda, **por línea** (`RN-IN-003`) y solo de `VENTA`. `MV` no sabe qué es un indicador, igual que no sabe qué es una comisión. `MV` no consume a `IN` |
 
 La dependencia es **acíclica**: `MV` → `PM` → `SP`, y `MV` → `SP`. **El puerto de `RN-MV-053` no la cambia** (30-09-2026): lo declara `MV` en su capa `application` y lo implementa `CM`, de modo que la dependencia de compilación sigue siendo `CM` → `MV` —la inversión que [`architecture.md` §15.2](../architecture.md) admite cuando es ella la que evita el ciclo—.
 
@@ -1515,3 +1516,4 @@ Se siembra por migración y **no se administra por API todavía** (§5.3). Lo m�
 | 0.82.0 | 05-10-2026 | **La tienda de la pasarela local va en la conversión del país** (`RN-MV-063` enmendada, §7.15), por decisión del responsable del proyecto —«guardar el id en la tabla de country_conversion, ya que la idea es que sea dinámico»—: PayRetailers da un `shopId` con su clave por país. `V71` añade `shop_id` y `shop_secret_key` —**cifrada** con la llave `PAYRETAILERS_ENCRYPTION_KEY`—; un ADMIN las fija con los precios (`RF-MV-046`), se heredan de la vigente si no se mandan, y la clave no se devuelve ni se audita. Sin tienda, el país no cobra por la pasarela local. Criterios `CA-MV-630` a `CA-MV-635` ([`specs/mv/046`](../specs/mv/046-fijar-conversion-de-un-pais/spec.md) v0.2.0, [`specs/mv/048`](../specs/mv/048-cobrar-por-la-pasarela-local/spec.md) v0.2.0) | Responsable del proyecto |
 | 0.83.0 | 05-10-2026 | **El ajuste de puntos a mano** (§4.11), por decisión del responsable del proyecto —le consignan por fuera a la cuenta empresarial y él abona los puntos—, preguntada antes de escribir: **ajuste libre en puntos**, sin dinero ni tasa; **suma y resta**, sin dejar el saldo en negativo; **motivo obligatorio, referencia opcional y clave de idempotencia**. Nacen `RF-MV-052`, `RN-MV-076`, el tipo `AJUSTE_PUNTOS` (prefijo `AJP`), el evento `AJUSTE`, la columna `movements.external_reference` y el permiso `movements:adjust-points`; se relaja `ck_movements_points`. **La migración es `V72`** | Responsable del proyecto |
 | 0.84.0 | 05-10-2026 | **Las dos lecturas de la pantalla de ajustes** (§4.11), pedidas por el frontend en nombre del responsable: nacen `RF-MV-053` —consultar los ajustes de puntos, con quién los hizo— y `RF-MV-054` —los saldos de cualquier persona—, con `movements:list-points-adjustments` y `movements:read-user-balances`, y la columna `movements.recorded_by`. **La migración es `V73`** | Responsable técnico |
+| 0.85.0 | 06-10-2026 | **`MV` publica `SalesFigures` para el módulo `IN`** (§3; [`requirements/in.md`](in.md), `RF-IN-001`): las sumas de lo vendido por un alcance que otro resuelve, contadas por línea y separadas por moneda. Es la forma de `CommissionableLines`. Ningún requerimiento de `MV` cambia. | Responsable técnico |

@@ -51,6 +51,11 @@ class SystemRolesSeedIT extends IntegrationTestBase {
           "movements:read-points-rates",
           "movements:read-conversion-rates",
           "movements:pay-pending-locally",
+          // `V74` (06-10-2026): los indicadores de ventas, a FUNCIONARIO y VENDEDOR (RN-IN-001).
+          "indicators:read-sales-summary",
+          "indicators:read-sales-series",
+          "indicators:read-sales-by-product",
+          "indicators:read-sales-by-seller",
           "movements:buy-points",
           "movements:list-own-points-purchases",
           // `V61` (01-10-2026): las cuentas de cobro, lo propio por tipo de rol.
@@ -104,6 +109,11 @@ class SystemRolesSeedIT extends IntegrationTestBase {
           "movements:read-points-rates",
           "movements:read-conversion-rates",
           "movements:pay-pending-locally",
+          // `V74` (06-10-2026): los indicadores de ventas, a FUNCIONARIO y VENDEDOR (RN-IN-001).
+          "indicators:read-sales-summary",
+          "indicators:read-sales-series",
+          "indicators:read-sales-by-product",
+          "indicators:read-sales-by-seller",
           "movements:buy-points",
           "movements:list-own-points-purchases",
           // `V61` (01-10-2026): las cuentas de cobro, lo propio por tipo de rol.

@@ -80,6 +80,9 @@ tags:
 - name: Brokers
   description: "Catálogo de los brokers con los que opera la plataforma. Solo lectura:\
     \ se puebla por migración (RN-SP-039)."
+- name: Indicadores
+  description: "Cifras agregadas de la plataforma. Cada indicador tiene su permiso,\
+    \ y sus cifras se acotan al alcance de quien pregunta."
 - name: Puntos
   description: "A cuánto se venden los puntos en cada moneda, su compra y su ajuste\
     \ a mano. Confirmar o rechazar el pago de una compra es `POST /api/v1/movements/payments/{paymentId}/…\
@@ -11851,6 +11854,84 @@ paths:
         "500":
           description: Fallo no controlado (`ERR-500`)
       x-required-permission: memberships:read
+  /api/v1/indicators/sales/summary:
+    get:
+      tags:
+      - Indicadores
+      summary: Consultar el resumen de ventas
+      description: |
+        **Permiso requerido:** `indicators:read-sales-summary`. Sin él, `403` (`AUTH-002`).
+
+        Devuelve **cuánto se vendió en un periodo**: las ventas **confirmadas** —cuántas,
+        cuántas líneas, cuántas unidades y por cuánto—, y aparte las **pendientes** y las
+        **anuladas**, cada una con su cantidad y su importe. Solo cuentan las ventas: una
+        compra de puntos no es una venta.
+
+        **Lo que se ve lo decide el tipo de rol de quien pregunta**, como en
+        `GET /movements/sales`: un **funcionario** ve toda la plataforma, también las líneas
+        que aún no tienen vendedor; un **vendedor** ve lo que vendió **él y su red**, en toda
+        la profundidad; cualquier otro, lo que vendió él.
+
+        **Se cuenta por LÍNEA, no por venta.** Una venta con una línea de mi red y otra de una
+        rama ajena cuenta **una** venta con **solo** el importe de mi línea. Por eso el importe
+        de un vendedor **puede ser menor** que la suma de los totales de las ventas que ve en
+        su listado: las dos cifras son correctas y responden preguntas distintas.
+
+        **Un importe por moneda**, nunca sumados entre sí; una moneda sin ventas no aparece.
+        Las cantidades sí se suman.
+
+        **El periodo se pide en días** de la zona del negocio (`America/Bogota`): `from` y
+        `to` incluidos, el último entero. Sin fechas, el mes en curso hasta hoy; con solo
+        `to`, desde el primero de su mes. Como mucho **366 días**. La respuesta devuelve el
+        periodo efectivo.
+
+        `sellerId` acota a una persona **de mi alcance**; fuera de él —o inexistente— la
+        respuesta son **ceros**, y no un error, para que el filtro no sirva para descubrir
+        quién cuelga de quién. Una `currencyId` inexistente también da ceros. Ni
+        `movements:list-sales` ni otro permiso de indicadores abren este.
+      operationId: resumen
+      parameters:
+      - name: from
+        in: query
+        required: false
+        schema:
+          type: string
+          format: date
+      - name: to
+        in: query
+        required: false
+        schema:
+          type: string
+          format: date
+      - name: currencyId
+        in: query
+        required: false
+        schema:
+          type: string
+          format: uuid
+      - name: sellerId
+        in: query
+        required: false
+        schema:
+          type: string
+          format: uuid
+      responses:
+        "200":
+          description: "El resumen, aunque sea de ceros."
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/SalesSummary"
+        "400":
+          description: "Fecha o identificador malformado (`VAL-001`), `from` posterior\
+            \ a `to` (`VAL-002`) o un periodo de más de 366 días (`VAL-003`)."
+        "401":
+          description: Token ausente o inválido (`AUTH-001`)
+        "403":
+          description: Sin el permiso `indicators:read-sales-summary` (`AUTH-002`).
+        "500":
+          description: Fallo no controlado (`ERR-500`)
+      x-required-permission: indicators:read-sales-summary
   /api/v1/hotlinks/{username}/{code}:
     get:
       tags:
@@ -19256,6 +19337,78 @@ components:
           format: int32
         color:
           type: string
+    IndicatorAmount:
+      type: object
+      properties:
+        currency:
+          $ref: "#/components/schemas/IndicatorCurrency"
+        amount:
+          type: number
+          description: "En decimales, como el resto de la API."
+          example: 1250.0
+    IndicatorCurrency:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        code:
+          type: string
+          example: USD
+    IndicatorPeriod:
+      type: object
+      properties:
+        from:
+          type: string
+          format: date
+          description: "Primer día del periodo, incluido."
+          example: 2026-09-01
+        to:
+          type: string
+          format: date
+          description: "Último día del periodo, incluido entero."
+          example: 2026-09-30
+        zone:
+          type: string
+          description: Zona en que se cortan los días.
+          example: America/Bogota
+    SalesSummary:
+      type: object
+      properties:
+        period:
+          $ref: "#/components/schemas/IndicatorPeriod"
+        confirmed:
+          $ref: "#/components/schemas/SalesSummaryConfirmed"
+        pending:
+          $ref: "#/components/schemas/SalesSummaryOther"
+        voided:
+          $ref: "#/components/schemas/SalesSummaryOther"
+    SalesSummaryConfirmed:
+      type: object
+      properties:
+        sales:
+          type: integer
+          format: int64
+        lines:
+          type: integer
+          format: int64
+        units:
+          type: integer
+          format: int64
+        amounts:
+          type: array
+          items:
+            $ref: "#/components/schemas/IndicatorAmount"
+    SalesSummaryOther:
+      type: object
+      properties:
+        sales:
+          type: integer
+          format: int64
+        amounts:
+          type: array
+          items:
+            $ref: "#/components/schemas/IndicatorAmount"
     HotlinkResponse:
       type: object
       properties:

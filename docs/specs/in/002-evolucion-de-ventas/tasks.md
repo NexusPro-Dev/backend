@@ -6,7 +6,7 @@
 | Especificación | [`spec.md`](spec.md) v0.1.0 |
 | Plan | [`plan.md`](plan.md) v0.1.0 |
 | `plan.md` aprobado el | 06-10-2026 |
-| Estado | **En revisión** |
+| Estado | **Aprobadas** — por el responsable del proyecto, 06-10-2026 |
 | Issue | Pendiente de crear |
 | Rama | `develop` (commits directos desde el 05-10-2026) |
 
