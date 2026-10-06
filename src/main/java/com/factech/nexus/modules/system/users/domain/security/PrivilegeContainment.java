@@ -56,4 +56,16 @@ public final class PrivilegeContainment {
   public static boolean loAlcanza(AssignableRole rol, Set<String> permisosDelActor) {
     return permisosDelActor.containsAll(rol.permissionCodes());
   }
+
+  /**
+   * ¿Abarca el actor todo lo que la persona puede? (`RN-SP-065`, 06-10-2026)
+   *
+   * <p>Es `RN-SEG-010` aplicado al acceso: nadie restablece el segundo factor (`RF-SP-076`) ni la
+   * contraseña (`RF-SP-038`) de quien puede algo que él no. Sin esto, quien porte a la vez los dos
+   * restablecimientos tomaría la cuenta del superadministrador en dos peticiones. Vive aquí y no en
+   * cada servicio por lo mismo que {@link #excesos}: la contención se comprueba en un solo sitio.
+   */
+  public static boolean abarca(Set<String> permisosDelActor, Set<String> permisosDeLaPersona) {
+    return permisosDelActor.containsAll(permisosDeLaPersona);
+  }
 }

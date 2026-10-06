@@ -4,6 +4,7 @@ import com.factech.nexus.modules.system.roles.application.AuthenticatedActor;
 import com.factech.nexus.modules.system.users.application.ResetPasswordRequest;
 import com.factech.nexus.modules.system.users.domain.models.User;
 import com.factech.nexus.modules.system.users.domain.repository.UserRepository;
+import com.factech.nexus.modules.system.users.domain.security.PrivilegeContainment;
 import com.factech.nexus.modules.system.users.domain.security.SelfOperationGuard;
 import com.factech.nexus.shared.audit.AuditEnums.Outcome;
 import com.factech.nexus.shared.audit.AuditEnums.SecurityEventType;
@@ -12,9 +13,11 @@ import com.factech.nexus.shared.audit.AuditEvents.SecurityEvent;
 import com.factech.nexus.shared.audit.AuditWriter;
 import com.factech.nexus.shared.error.BusinessRuleException;
 import com.factech.nexus.shared.error.FieldError;
+import com.factech.nexus.shared.error.ForbiddenException;
 import com.factech.nexus.shared.error.ResourceNotFoundException;
 import com.factech.nexus.shared.error.ValidationException;
 import com.factech.nexus.shared.security.AccessRevocationPublisher;
+import com.factech.nexus.shared.security.EffectivePermissions;
 import com.factech.nexus.shared.security.PasswordHasher;
 import com.factech.nexus.shared.security.PasswordPolicy;
 import com.factech.nexus.shared.security.SessionRevoker;
@@ -23,6 +26,7 @@ import java.time.Duration;
 import java.time.OffsetDateTime;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.UUID;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
@@ -64,6 +68,7 @@ public class ResetUserPasswordService {
   private final SessionRevoker sesiones;
   private final AccessRevocationPublisher cortes;
   private final AuthenticatedActor actor;
+  private final EffectivePermissions permisos;
   private final AuditWriter auditoria;
   private final Duration vigencia;
   private final Clock reloj;
@@ -76,6 +81,7 @@ public class ResetUserPasswordService {
       SessionRevoker sesiones,
       AccessRevocationPublisher cortes,
       AuthenticatedActor actor,
+      EffectivePermissions permisos,
       AuditWriter auditoria,
       @Value("${nexus.security.password.provisional-ttl:PT48H}") Duration vigencia) {
     this(
@@ -85,6 +91,7 @@ public class ResetUserPasswordService {
         sesiones,
         cortes,
         actor,
+        permisos,
         auditoria,
         vigencia,
         Clock.systemUTC());
@@ -97,6 +104,7 @@ public class ResetUserPasswordService {
       SessionRevoker sesiones,
       AccessRevocationPublisher cortes,
       AuthenticatedActor actor,
+      EffectivePermissions permisos,
       AuditWriter auditoria,
       Duration vigencia,
       Clock reloj) {
@@ -106,6 +114,7 @@ public class ResetUserPasswordService {
     this.sesiones = sesiones;
     this.cortes = cortes;
     this.actor = actor;
+    this.permisos = permisos;
     this.auditoria = auditoria;
     this.vigencia = vigencia;
     this.reloj = reloj;
@@ -138,6 +147,14 @@ public class ResetUserPasswordService {
               + " contraseña, que exige conocer la actual.";
       throw new BusinessRuleException(
           "RN-SP-017", mensaje, List.of(new FieldError("id", "RN-SP-017", mensaje)));
+    }
+
+    // 5. `RN-SP-065` (06-10-2026, `EX-004`): nadie restablece la contraseña de quien puede algo
+    //    que él no. Sin decir cuál falta: diría qué puede hacer la persona.
+    Set<String> deLaPersona = permisos.forUser(userId).orElseGet(Set::of);
+    if (!PrivilegeContainment.abarca(actor.permissions(), deLaPersona)) {
+      throw new ForbiddenException(
+          "RN-SP-065", "No puede restablecer la contraseña de esta persona.");
     }
 
     OffsetDateTime ahora = OffsetDateTime.now(reloj);
