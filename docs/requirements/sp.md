@@ -5,7 +5,7 @@
 | Módulo | `SP` — Sistema Principal |
 | Paquete | `modules/system` |
 | Prefijos de permiso | `roles:`, `permissions:`, `audit:`, `memberships:`, `currencies:`, `countries:`, `users:`, `exchange-rates:`, `document-types:`, `brokers:`, `broker-accounts:`, `teams:` |
-| Versión | 1.104.0 |
+| Versión | 1.105.0 |
 | Estado | **Aprobado** |
 | Responsable | Bonilla Diaz William Steven |
 | Fecha de creación | 20-08-2026 |
@@ -412,7 +412,7 @@ EXCLUDE USING gist (
 | `RF-SP-074` | Regenerar los propios códigos de recuperación | Alta | `users:regenerate-own-recovery-codes` | **En desarrollo** |
 | `RF-SP-075` | Desactivar el propio segundo factor | Media | `users:disable-own-mfa` | **En desarrollo** |
 | `RF-SP-076` | Restablecer el segundo factor de un usuario | Alta | `users:reset-mfa` | **En desarrollo** |
-| `RF-SP-077` | Exigir el segundo factor a los portadores de un rol | **Crítica** | `roles:require-mfa` | **Tasks aprobadas** |
+| `RF-SP-077` | Exigir el segundo factor a los portadores de un rol | **Crítica** | `roles:require-mfa` | **En desarrollo** |
 
 !!! info "Dónde vive el estado de un requerimiento"
 
@@ -1502,7 +1502,7 @@ Cierra la pertenencia vigente de uno o varios managers **de este equipo**, con m
 | Reglas aplicables | `RN-SP-064`, `RN-SP-065`, `RN-SEG-011`, `RN-SP-063` |
 | Depende de | `RF-SP-071`, `RF-SP-073` |
 | Tripleta | `docs/specs/sp/076-restablecer-segundo-factor/` |
-| Estado | **En desarrollo** (06-10-2026) — construido el mismo día que sus tasks; queda el procedimiento del último superadministrador (`T-05`) |
+| Estado | **En desarrollo** (06-10-2026) — construido el mismo día que sus tasks, con el procedimiento del último superadministrador en `deployment.md` §12.1 |
 
 `POST /api/v1/users/{id}/mfa/reset` con `reason`. Retira el factor activo —y el pendiente, si lo hay— y los códigos, revoca **todas** las sesiones de la persona y escribe el evento `MFA_RESET` con severidad alta y el motivo en `audit_deletion_log`. **`403` sobre uno mismo**, con el mismo argumento que `RN-SEG-011`, **y sobre quien tenga algún permiso que el actor no tiene** (`RN-SP-065`). **No toca la contraseña**: si la persona también la olvidó, son dos operaciones —esta y `RF-SP-038`—, y mezclarlas haría que un restablecimiento de factor revelara una credencial.
 
@@ -1519,7 +1519,7 @@ Cierra la pertenencia vigente de uno o varios managers **de este equipo**, con m
 | Reglas aplicables | `RN-SP-062`, `RN-SEG-011`, `RN-SP-063` |
 | Depende de | `RF-SP-071` |
 | Tripleta | `docs/specs/sp/077-exigir-segundo-factor-por-rol/` |
-| Estado | **Tasks aprobadas** (06-10-2026) |
+| Estado | **En desarrollo** (06-10-2026) — construido el mismo día que sus tasks |
 
 `PATCH /api/v1/roles/{id}/mfa-requirement` con `{ "required": true | false }`. **Es una operación propia y no un campo más de `RF-SP-004`** por dos razones: lleva permiso propio (`RN-SEG-014`) y es sensible, y editar el nombre de un rol no lo es; y **se admite sobre roles de sistema**, que `RN-SEG-012` protege en su identidad y su posición, no en lo que exigen a sus portadores —es la misma excepción que ya tienen sus permisos—. **Quitar la marca a `SUPERADMIN` se rechaza**: la raíz lo exige siempre.
 
@@ -2482,3 +2482,4 @@ La fila se lee «esta persona vinculó este authenticator». `status` es `PENDIE
 | 1.102.0 | 06-10-2026 | **`RF-SP-074` pasa a `En desarrollo`**: `POST /users/me/mfa/recovery-codes` regenera los diez códigos y anula los vigentes; es sensible, y el interceptor de `RF-SP-073` le pide la verificación reciente. **Ninguna regla cambia.** | Responsable técnico |
 | 1.103.0 | 06-10-2026 | **`RF-SP-075` pasa a `En desarrollo`**: `POST /users/me/mfa/deactivation`. La ficha se precisa: **cierra todas las sesiones y devuelve una nueva** —el token de acceso no dice de qué sesión viene, como ya sabía `RF-SP-037`—. **Ninguna regla cambia.** | Responsable técnico |
 | 1.104.0 | 06-10-2026 | **`RF-SP-076` pasa a `En desarrollo`**: `POST /users/{id}/mfa/reset`, con motivo, cerrando las sesiones de la persona, nunca sobre uno mismo ni sobre quien tiene más privilegios. **`RN-SP-065` se aplica también al restablecimiento de contraseñas** (`RF-SP-038` `T-13`): un `ADMIN` ya no restablece la del superadministrador. **Ninguna regla cambia.** | Responsable técnico |
+| 1.105.0 | 06-10-2026 | **`RF-SP-077` pasa a `En desarrollo` y con él los siete del segundo factor están construidos**: `PATCH /roles/{id}/mfa-requirement` y la marca en el listado y el detalle de roles. `RF-SP-076` cierra su `T-05` con el procedimiento del último superadministrador. **Ninguna regla cambia.** | Responsable técnico |

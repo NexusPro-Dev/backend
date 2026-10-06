@@ -5,7 +5,7 @@
 | Proyecto | NEXUS — Renovación de plataforma |
 | Empresa | FACTECH GROUP SAS |
 | Documento | `deployment.md` |
-| Versión | 0.17.0 |
+| Versión | 0.18.0 |
 | Estado | Borrador |
 | Responsable técnico | Bonilla Diaz William Steven |
 | Fecha de creación | 27-08-2026 |
@@ -489,6 +489,43 @@ De modo que el Art. V.15 sigue sin responderse en Railway **hoy**, pero ya no po
 
     La salida de una migración mala es **hacia adelante**: otra migración que corrija. No hay botón para lo otro.
 
+### 12.1 El último superadministrador perdió el teléfono y los códigos
+
+`RN-SP-065` impide que un administrador restablezca el segundo factor de quien tiene más privilegios (`RF-SP-076`), y **el superadministrador los tiene todos**: solo otro superadministrador puede restablecer el suyo. **Si no hay otro, no hay salida por la API**, y es deliberado: la alternativa —que `ADMIN` pudiera— es la toma de cuenta que esa regla cierra. La salida es este procedimiento, que exige **acceso a la base**, que es justo lo que un administrador de la aplicación no tiene.
+
+**Antes de ejecutarlo**: comprobar por un canal ajeno al sistema que quien lo pide es de verdad el titular, y anotar quién lo autoriza. El sistema no puede hacer esa comprobación (`RF-SP-076` · `spec.md` §2.1).
+
+```sql
+BEGIN;
+
+-- 1. Retirar el factor activo y el pendiente, como lo haría RF-SP-076.
+UPDATE user_mfa_factors
+   SET status = 'RETIRADO', retired_at = now(), retired_reason = 'RESTABLECIDO',
+       pending_expires_at = NULL, updated_at = now()
+ WHERE user_id = (SELECT id FROM users WHERE username = 'superadmin')
+   AND status IN ('ACTIVO', 'PENDIENTE');
+
+-- 2. Cerrar todas sus sesiones: una abierta en el teléfono perdido la tiene otro.
+UPDATE refresh_tokens
+   SET revoked_at = now(), revoked_reason = 'ACCESO_RETIRADO'
+ WHERE user_id = (SELECT id FROM users WHERE username = 'superadmin')
+   AND revoked_at IS NULL;
+
+-- 3. Dejar constancia, sin actor: no lo hizo nadie desde la aplicación.
+INSERT INTO audit_security_log (id, occurred_at, actor_id, event_type, severity, outcome,
+                                target_user_id, detail)
+SELECT gen_random_uuid(), now(), NULL, 'MFA_RESET', 'ALTA', 'SUCCESS', id,
+       jsonb_build_object('procedure', 'deployment.md §12.1',
+                          'reason', '<por qué, y quién lo autorizó>')
+  FROM users WHERE username = 'superadmin';
+
+COMMIT;
+```
+
+**Después**: el superadministrador entra con su contraseña y, como su rol exige el segundo factor, **queda retenido hasta activar uno nuevo** (`RF-SP-072` `FA-002`), con su teléfono nuevo y sus diez códigos nuevos. Si además olvidó la contraseña, se recupera aparte por correo (`RF-SP-040`). **No hace falta reiniciar el servicio**: el token de acceso que tuviera vivo caduca en quince minutos y ya no puede renovarse.
+
+Probado el 06-10-2026 contra la base local dentro de una transacción deshecha: retira el factor, revoca las sesiones y escribe el evento, y los tres `CHECK` del esquema lo admiten.
+
 ---
 
 ## 13. Lo que este despliegue no resuelve
@@ -527,3 +564,4 @@ Ninguno de estos puntos impide desplegar. Todos están declarados para que no se
 | 0.15.0 | 05-10-2026 | **§6.5.2: la tienda de PayRetailers sale del entorno y va en la conversión de cada país** ([`requirements/mv.md`](requirements/mv.md) v0.82.0, `RN-MV-063`): se retiran `PAYRETAILERS_SHOP_ID` y `PAYRETAILERS_SECRET_KEY`, y entra `PAYRETAILERS_ENCRYPTION_KEY`, la llave que cifra las claves de las tiendas en la base | Responsable del proyecto |
 | 0.16.0 | 06-10-2026 | **Nueva §4.1.1: `MFA_ENCRYPTION_KEY`**, la llave que cifra el secreto del segundo factor ([`security.md`](security.md) §3.3, `RF-SP-071`, `V75`). Obligatoria y sin valor por defecto, como `JWT_SECRET`, y con la diferencia que importa: **no se rota**, porque cambiarla deja ilegibles los factores guardados. Una fila más en §6.3. | Responsable técnico |
 | 0.17.0 | 06-10-2026 | Aviso en §4.1.1: **desde `RF-SP-072`, `SUPERADMIN` y `ADMIN` activan el segundo factor en su primer inicio de sesión tras desplegar** —teléfono con una app autenticadora a mano, y los diez códigos de recuperación guardados—. | Responsable técnico |
+| 0.18.0 | 06-10-2026 | **Nueva §12.1: recuperar al último superadministrador** que perdió el teléfono y los códigos (`RF-SP-076` `T-05`). `RN-SP-065` impide hacerlo por la API —es la toma de cuenta que la regla cierra—, de modo que se hace por la base, con tres sentencias en una transacción: retirar el factor, cerrar las sesiones y dejar el evento. Probado contra la base local en una transacción deshecha. | Responsable técnico |
