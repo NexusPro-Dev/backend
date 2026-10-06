@@ -5576,6 +5576,13 @@
       },
       "PointsMovementDetail" : {
         "properties" : {
+          "lines" : {
+            "description" : "Lo que se compró con los puntos: las líneas de la venta. Solo en un gasto; vacía en lo demás.",
+            "items" : {
+              "$ref" : "#/components/schemas/PointsMovementLine"
+            },
+            "type" : "array"
+          },
           "movement" : {
             "$ref" : "#/components/schemas/PointsMovementItem",
             "description" : "Lo mismo que la fila de la lista."
@@ -5612,15 +5619,15 @@
             "type" : [ "object", "null" ]
           },
           "amount" : {
-            "description" : "Lo que se paga, en la moneda. Solo en una compra.",
+            "description" : "Lo que se paga, en la moneda: en una compra, la compra; en un gasto, la venta. Nulo en un ajuste.",
             "type" : [ "number", "null" ]
           },
           "code" : {
-            "description" : "El comprobante: prefijo `PTS` en una compra, `AJP` en un ajuste.",
+            "description" : "El comprobante: prefijo `PTS` en una compra, `AJP` en un ajuste; en un gasto, el de la venta.",
             "type" : "string"
           },
           "concept" : {
-            "description" : "Por qué. Solo en un ajuste.",
+            "description" : "En un ajuste, por qué; en un gasto, los productos comprados.",
             "type" : [ "string", "null" ]
           },
           "confirmedAt" : {
@@ -5643,7 +5650,7 @@
             "type" : "string"
           },
           "points" : {
-            "description" : "Con su signo. Una compra suma siempre —pendiente, los que dará; rechazada, los que habría dado—; un ajuste suma o resta.",
+            "description" : "Con su signo. Una compra suma siempre —pendiente, los que dará; rechazada, los que habría dado—; un ajuste suma o resta; un gasto resta lo que se descontó.",
             "type" : "number"
           },
           "reference" : {
@@ -5659,12 +5666,27 @@
             "type" : "string"
           },
           "type" : {
-            "description" : "COMPRA_PUNTOS o AJUSTE_PUNTOS.",
+            "description" : "COMPRA_PUNTOS, AJUSTE_PUNTOS o GASTO_PUNTOS —una venta pagada con puntos, que no es un tipo de movimiento sino una forma de leerla—.",
             "type" : "string"
           },
           "user" : {
             "$ref" : "#/components/schemas/PointsMovementPerson",
             "description" : "De quién son los puntos."
+          }
+        },
+        "type" : "object"
+      },
+      "PointsMovementLine" : {
+        "properties" : {
+          "amount" : {
+            "type" : "number"
+          },
+          "productName" : {
+            "type" : "string"
+          },
+          "quantity" : {
+            "format" : "int32",
+            "type" : "integer"
           }
         },
         "type" : "object"
@@ -16169,7 +16191,7 @@
     },
     "/api/v1/movements/mine/points-movements" : {
       "get" : {
-        "description" : "**Permiso requerido:** `movements:list-own-points-movements`. Sin él, `403` (`AUTH-002`).\n\n**Mis compras de puntos y los ajustes que administración me hizo**, en una sola lista\npaginada y **los más recientes primero** (`RF-MV-055`). Cada fila dice su `type`\n—`COMPRA_PUNTOS` o `AJUSTE_PUNTOS`— y lo que no aplica va nulo: una compra trae\n`amount` y no `concept`; un ajuste trae `concept`, `reference` y `hasReceipt`, y no\n`amount`. **Los puntos van con su signo**: la compra suma siempre —pendiente, los que\ndará—; el ajuste suma o resta. **`adjustedBy` va siempre nulo aquí**: quién hizo el\najuste lo ve administración.\n\n**Filtros**, combinables: `type`, `status` (`PENDIENTE`, `CONFIRMADA`, `RECHAZADA`),\n`currencyId`, `from` (inclusive) y `to` (exclusive), `sign` —`SUMA` o `RESTA`— y `q`,\nun fragmento del comprobante, el motivo o la referencia, sin distinguir acentos ni\nmayúsculas. **`sort`**: `occurredAt` (por omisión, `desc`), `points` o `code`, con\n`,asc` o `,desc`. **Sustituye a `GET /mine/points-purchases`**, retirada el 06-10-2026.\n",
+        "description" : "**Permiso requerido:** `movements:list-own-points-movements`. Sin él, `403` (`AUTH-002`).\n\n**Mis compras de puntos, los ajustes que administración me hizo y lo que gasté**, en una\nsola lista paginada y **los más recientes primero** (`RF-MV-055`). Cada fila dice su\n`type` —`COMPRA_PUNTOS`, `AJUSTE_PUNTOS` o `GASTO_PUNTOS`— y lo que no aplica va nulo:\nuna compra trae `amount` y no `concept`; un ajuste trae `concept`, `reference` y\n`hasReceipt`, y no `amount`; **un gasto es una venta pagada con puntos**: su `code` es el\nde la venta, `amount` lo que costó y `concept` los productos. **Los puntos van con su\nsigno**: la compra suma siempre —pendiente, los que dará—; el ajuste suma o resta; el\ngasto resta, exactamente lo que se descontó. **`adjustedBy` va siempre nulo aquí**: quién hizo el\najuste lo ve administración.\n\n**Filtros**, combinables: `type`, `status` (`PENDIENTE`, `CONFIRMADA`, `RECHAZADA`),\n`currencyId`, `from` (inclusive) y `to` (exclusive), `sign` —`SUMA` o `RESTA`— y `q`,\nun fragmento del comprobante, el motivo o la referencia, sin distinguir acentos ni\nmayúsculas. **`sort`**: `occurredAt` (por omisión, `desc`), `points` o `code`, con\n`,asc` o `,desc`. **Sustituye a `GET /mine/points-purchases`**, retirada el 06-10-2026.\n",
         "operationId" : "misMovimientos",
         "parameters" : [ {
           "in" : "query",
@@ -16197,12 +16219,12 @@
             "type" : "string"
           }
         }, {
-          "description" : "COMPRA_PUNTOS o AJUSTE_PUNTOS.",
+          "description" : "COMPRA_PUNTOS, AJUSTE_PUNTOS o GASTO_PUNTOS.",
           "in" : "query",
           "name" : "type",
           "required" : false,
           "schema" : {
-            "description" : "COMPRA_PUNTOS o AJUSTE_PUNTOS.",
+            "description" : "COMPRA_PUNTOS, AJUSTE_PUNTOS o GASTO_PUNTOS.",
             "type" : "string"
           }
         }, {
@@ -16243,12 +16265,12 @@
             "type" : "string"
           }
         }, {
-          "description" : "SUMA (puntos positivos) o RESTA (negativos: solo ajustes).",
+          "description" : "SUMA (puntos positivos) o RESTA (negativos: ajustes y gastos).",
           "in" : "query",
           "name" : "sign",
           "required" : false,
           "schema" : {
-            "description" : "SUMA (puntos positivos) o RESTA (negativos: solo ajustes).",
+            "description" : "SUMA (puntos positivos) o RESTA (negativos: ajustes y gastos).",
             "type" : "string"
           }
         }, {
@@ -16289,7 +16311,7 @@
     },
     "/api/v1/movements/mine/points-movements/{id}" : {
       "get" : {
-        "description" : "**Permiso requerido:** `movements:read-own-points-movement`. Sin él, `403` (`AUTH-002`).\n\nUna compra de puntos o un ajuste **propio** (`RF-MV-055`): la fila de la lista\n(`movement`), y además, en una compra, **la tasa** con que se compró, **sus pagos** y,\nsi se rechazó, **el motivo**; en un ajuste, **los datos del comprobante** —nombre,\ntipo, tamaño y resumen—, sin el archivo, que se descarga aparte. **Uno de otra persona\nresponde `404`, igual que uno que no existe.**\n",
+        "description" : "**Permiso requerido:** `movements:read-own-points-movement`. Sin él, `403` (`AUTH-002`).\n\nUna compra de puntos, un ajuste o un gasto **propio** (`RF-MV-055`): la fila de la lista\n(`movement`), y además, en una compra, **la tasa** con que se compró, **sus pagos** y,\nsi se rechazó, **el motivo**; en un gasto, **las líneas** de la venta (`lines`) y su\npago; en un ajuste, **los datos del comprobante** —nombre,\ntipo, tamaño y resumen—, sin el archivo, que se descarga aparte. **Uno de otra persona\nresponde `404`, igual que uno que no existe.**\n",
         "operationId" : "miMovimiento",
         "parameters" : [ {
           "in" : "path",
@@ -17305,7 +17327,7 @@
     },
     "/api/v1/movements/points-movements" : {
       "get" : {
-        "description" : "**Permiso requerido:** `movements:list-points-movements`. Sin él, `403` (`AUTH-002`).\n\n**Las compras de puntos y los ajustes de todas las personas**, en una sola lista\npaginada y **los más recientes primero** (`RF-MV-056`), con la fila de la lista\npropia más **quién hizo cada ajuste** (`adjustedBy`, nulo en una compra y en los\najustes anteriores a que se guardara). La persona sale con nombre, usuario y correo,\n**sin documento**.\n\n**Filtros**: los de la lista propia, más `userId`; y `q` busca además en el nombre,\nusuario o correo de la persona. **Sustituye a `GET /points-adjustments`**, retirada el\n06-10-2026; ajustar sigue siendo `POST /points-adjustments`.\n",
+        "description" : "**Permiso requerido:** `movements:list-points-movements`. Sin él, `403` (`AUTH-002`).\n\n**Las compras de puntos, los ajustes y los gastos de todas las personas**, en una sola lista\npaginada y **los más recientes primero** (`RF-MV-056`), con la fila de la lista\npropia más **quién hizo cada ajuste** (`adjustedBy`, nulo en una compra y en los\najustes anteriores a que se guardara). La persona sale con nombre, usuario y correo,\n**sin documento**.\n\n**Filtros**: los de la lista propia, más `userId`; y `q` busca además en el nombre,\nusuario o correo de la persona. **Sustituye a `GET /points-adjustments`**, retirada el\n06-10-2026; ajustar sigue siendo `POST /points-adjustments`.\n",
         "operationId" : "movimientos",
         "parameters" : [ {
           "in" : "query",
@@ -17333,12 +17355,12 @@
             "type" : "string"
           }
         }, {
-          "description" : "COMPRA_PUNTOS o AJUSTE_PUNTOS.",
+          "description" : "COMPRA_PUNTOS, AJUSTE_PUNTOS o GASTO_PUNTOS.",
           "in" : "query",
           "name" : "type",
           "required" : false,
           "schema" : {
-            "description" : "COMPRA_PUNTOS o AJUSTE_PUNTOS.",
+            "description" : "COMPRA_PUNTOS, AJUSTE_PUNTOS o GASTO_PUNTOS.",
             "type" : "string"
           }
         }, {
@@ -17379,12 +17401,12 @@
             "type" : "string"
           }
         }, {
-          "description" : "SUMA (puntos positivos) o RESTA (negativos: solo ajustes).",
+          "description" : "SUMA (puntos positivos) o RESTA (negativos: ajustes y gastos).",
           "in" : "query",
           "name" : "sign",
           "required" : false,
           "schema" : {
-            "description" : "SUMA (puntos positivos) o RESTA (negativos: solo ajustes).",
+            "description" : "SUMA (puntos positivos) o RESTA (negativos: ajustes y gastos).",
             "type" : "string"
           }
         }, {

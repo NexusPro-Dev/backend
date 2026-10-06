@@ -4,7 +4,7 @@
 |---|---|
 | Requerimiento | `RF-MV-055` |
 | Módulo | `MV` — Movimientos |
-| Versión | 0.1.0 |
+| Versión | 0.2.0 |
 | Estado | **Aprobada** |
 | Autor | Responsable técnico |
 | Aprobada por | Responsable del proyecto |
@@ -32,6 +32,7 @@ Hasta hoy la persona tenía «mis compras de puntos» (`RF-MV-031`), que no ense
 
 | Decisión | Qué se decidió |
 |---|---|
+| **Lo gastado también** (0.2.0) | Una venta pagada con puntos es una fila más, de tipo `GASTO_PUNTOS`: **los puntos en negativo, los que se descontaron** —leídos de lo que se descontó, no recalculados—, el importe de la venta y, como motivo, los productos comprados. No hay devolución: una venta confirmada no se anula |
 | **Una fila común** | Compra y ajuste comparten fila; el tipo dice cuál es, y lo que no aplica a uno va vacío —una compra no tiene motivo; un ajuste no tiene importe— |
 | **Los puntos con su signo** | La compra suma siempre; el ajuste suma o resta. Una compra pendiente o rechazada enseña los puntos que daría o que habría dado |
 | **Quién hizo el ajuste no se enseña** | La persona ve qué le hicieron, por qué y con qué soporte, no qué administrador lo registró (`requirements/mv.md` §4.12) |
@@ -86,7 +87,7 @@ Hasta hoy la persona tenía «mis compras de puntos» (`RF-MV-031`), que no ense
 |---|---|---|
 | Página y tamaño | No | Como en los demás listados |
 | Orden | No | Fecha (por omisión, descendente), puntos o comprobante, ascendente o descendente |
-| Tipo | No | `COMPRA_PUNTOS` o `AJUSTE_PUNTOS` |
+| Tipo | No | `COMPRA_PUNTOS`, `AJUSTE_PUNTOS` o `GASTO_PUNTOS` |
 | Estado | No | `PENDIENTE`, `CONFIRMADA` o `RECHAZADA` |
 | Moneda | No | Los de una moneda |
 | Desde, hasta | No | Sobre cuándo ocurrió; desde inclusive, hasta exclusive |
@@ -98,7 +99,7 @@ Hasta hoy la persona tenía «mis compras de puntos» (`RF-MV-031`), que no ense
 
 **La fila**: identificador, comprobante, tipo, estado, la persona, la moneda, **los puntos con su signo**, el importe pagado (solo compra), el motivo y la referencia (solo ajuste), cuándo ocurrió, se confirmó y se rechazó, **si tiene comprobante**, y quién hizo el ajuste —**siempre vacío en este alcance**—.
 
-**El detalle**: la fila, más la tasa con que se compró, los pagos y el motivo del rechazo (compra), y del comprobante su nombre, tipo, tamaño, resumen y cuándo se subió (ajuste).
+**El detalle**: la fila, más la tasa con que se compró, los pagos y el motivo del rechazo (compra); del comprobante su nombre, tipo, tamaño, resumen y cuándo se subió (ajuste); y **las líneas de la venta** —producto, cantidad e importe— y sus pagos (gasto).
 
 **La descarga**: el archivo, con el tipo con que se guardó, como adjunto.
 
@@ -165,6 +166,9 @@ Ninguno.
 | `CA-MV-670` | El detalle de una compra trae la tasa, los pagos y, si se rechazó, el motivo; el de un ajuste, los datos del comprobante |
 | `CA-MV-671` | El detalle de un movimiento de otra persona, de uno que no es de puntos o de uno inexistente responde `404`, igual en los tres casos |
 | `CA-MV-672` | La descarga devuelve **exactamente el archivo subido**, con su tipo, como adjunto; sin comprobante, de otra persona o sobre una compra, `404` |
+| `CA-MV-696` | **Una venta pagada con puntos sale como `GASTO_PUNTOS`**, con los puntos descontados en negativo, el importe de la venta y sus productos como motivo; una venta pagada con otro método no sale |
+| `CA-MV-697` | `type=GASTO_PUNTOS` trae solo los gastos, y `RESTA` trae gastos y ajustes negativos |
+| `CA-MV-698` | El detalle de un gasto trae las líneas de la venta y su pago; descargar un comprobante sobre un gasto, `404` |
 | `CA-MV-673` | Sin el permiso de cada consulta responde prohibido; sin autenticar, `401`. **La ruta de `RF-MV-031` ya no existe** |
 
 ---
@@ -190,3 +194,4 @@ Ninguna.
 | Versión | Fecha | Cambio | Autor |
 |---|---|---|---|
 | 0.1.0 | 06-10-2026 | Primera versión ([`requirements/mv.md`](../../../requirements/mv.md) v0.88.0 §4.12, `RN-MV-077`), con las decisiones del responsable del proyecto: compras y ajustes en una sola lista, con detalle y comprobante; sustituye el listado de `RF-MV-031`. Criterios `CA-MV-662` a `CA-MV-673`. | Responsable del proyecto |
+| 0.2.0 | 06-10-2026 | **Lo gastado también** ([`requirements/mv.md`](../../../requirements/mv.md) v0.89.0 §4.12), a petición del responsable del proyecto: un tercer tipo, `GASTO_PUNTOS`. Criterios `CA-MV-696` a `CA-MV-698`. | Responsable del proyecto |

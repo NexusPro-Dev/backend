@@ -15,12 +15,13 @@ public record ListPointsMovementsRequest(
     Integer size,
     @Schema(description = "occurredAt (por omisión, desc), points o code; con ,asc o ,desc.")
         String sort,
-    @Schema(description = "COMPRA_PUNTOS o AJUSTE_PUNTOS.") String type,
+    @Schema(description = "COMPRA_PUNTOS, AJUSTE_PUNTOS o GASTO_PUNTOS.") String type,
     @Schema(description = "PENDIENTE, CONFIRMADA o RECHAZADA.") String status,
     UUID currencyId,
     @Schema(description = "Desde cuándo ocurrió, inclusive.") OffsetDateTime from,
     @Schema(description = "Hasta cuándo ocurrió, exclusive.") OffsetDateTime to,
-    @Schema(description = "SUMA (puntos positivos) o RESTA (negativos: solo ajustes).") String sign,
+    @Schema(description = "SUMA (puntos positivos) o RESTA (negativos: ajustes y gastos).")
+        String sign,
     @Schema(
             description =
                 "Fragmento del comprobante, el motivo o la referencia, sin distinguir acentos ni"

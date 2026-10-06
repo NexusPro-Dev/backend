@@ -37,7 +37,7 @@ import org.springframework.transaction.annotation.Transactional;
 public class PointsMovementReader {
 
   private static final List<String> TIPOS =
-      List.of(PointsMovementQuery.COMPRA, PointsMovementQuery.AJUSTE);
+      List.of(PointsMovementQuery.COMPRA, PointsMovementQuery.AJUSTE, PointsMovementQuery.GASTO);
   private static final List<String> ESTADOS = List.of("PENDIENTE", "CONFIRMADA", "RECHAZADA");
   private static final List<String> SENTIDOS = List.of("SUMA", "RESTA");
 
@@ -119,7 +119,9 @@ public class PointsMovementReader {
           new FieldError(
               "type",
               "VAL-005",
-              "El tipo '" + peticion.type() + "' no existe: COMPRA_PUNTOS o AJUSTE_PUNTOS."));
+              "El tipo '"
+                  + peticion.type()
+                  + "' no existe: COMPRA_PUNTOS, AJUSTE_PUNTOS o GASTO_PUNTOS."));
     }
     if (peticion.status() != null && !ESTADOS.contains(peticion.status())) {
       problemas.add(
@@ -169,17 +171,24 @@ public class PointsMovementReader {
     PointsMovementRow f =
         lecturas.findOne(movementId, duenio).orElseThrow(PointsMovementReader::noExiste);
     boolean compra = PointsMovementQuery.COMPRA.equals(f.type());
+    boolean ajuste = PointsMovementQuery.AJUSTE.equals(f.type());
     return new PointsMovementDetail(
         fila(f, administracion),
         compra ? new PointsPurchaseResponse.Rate(f.pointsRateId(), f.pointsPerUnit()) : null,
         f.rejectionReason(),
-        compra
-            ? SaleDetailMapper.pagos(
-                movimientos.findPaymentsOf(List.of(f.id())).getOrDefault(f.id(), List.of()))
-            : List.of(),
-        compra
-            ? null
-            : lecturas.findReceiptInfo(f.id()).map(AttachPointsReceiptService::info).orElse(null));
+        // La compra y el gasto tienen pagos; el ajuste no.
+        ajuste
+            ? List.of()
+            : SaleDetailMapper.pagos(
+                movimientos.findPaymentsOf(List.of(f.id())).getOrDefault(f.id(), List.of())),
+        ajuste
+            ? lecturas.findReceiptInfo(f.id()).map(AttachPointsReceiptService::info).orElse(null)
+            : null,
+        PointsMovementQuery.GASTO.equals(f.type())
+            ? lecturas.findLines(f.id()).stream()
+                .map(l -> new PointsMovementDetail.Line(l.productName(), l.quantity(), l.amount()))
+                .toList()
+            : List.of());
   }
 
   private PointsReceiptFile archivo(UUID movementId, UUID duenio) {

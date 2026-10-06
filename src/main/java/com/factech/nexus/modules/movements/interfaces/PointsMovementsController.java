@@ -54,12 +54,14 @@ public class PointsMovementsController {
       summary = "Consultar mis movimientos de puntos",
       description =
           """
-          **Mis compras de puntos y los ajustes que administración me hizo**, en una sola lista
-          paginada y **los más recientes primero** (`RF-MV-055`). Cada fila dice su `type`
-          —`COMPRA_PUNTOS` o `AJUSTE_PUNTOS`— y lo que no aplica va nulo: una compra trae
-          `amount` y no `concept`; un ajuste trae `concept`, `reference` y `hasReceipt`, y no
-          `amount`. **Los puntos van con su signo**: la compra suma siempre —pendiente, los que
-          dará—; el ajuste suma o resta. **`adjustedBy` va siempre nulo aquí**: quién hizo el
+          **Mis compras de puntos, los ajustes que administración me hizo y lo que gasté**, en una
+          sola lista paginada y **los más recientes primero** (`RF-MV-055`). Cada fila dice su
+          `type` —`COMPRA_PUNTOS`, `AJUSTE_PUNTOS` o `GASTO_PUNTOS`— y lo que no aplica va nulo:
+          una compra trae `amount` y no `concept`; un ajuste trae `concept`, `reference` y
+          `hasReceipt`, y no `amount`; **un gasto es una venta pagada con puntos**: su `code` es el
+          de la venta, `amount` lo que costó y `concept` los productos. **Los puntos van con su
+          signo**: la compra suma siempre —pendiente, los que dará—; el ajuste suma o resta; el
+          gasto resta, exactamente lo que se descontó. **`adjustedBy` va siempre nulo aquí**: quién hizo el
           ajuste lo ve administración.
 
           **Filtros**, combinables: `type`, `status` (`PENDIENTE`, `CONFIRMADA`, `RECHAZADA`),
@@ -91,9 +93,10 @@ public class PointsMovementsController {
       summary = "Consultar el detalle de un movimiento de puntos propio",
       description =
           """
-          Una compra de puntos o un ajuste **propio** (`RF-MV-055`): la fila de la lista
+          Una compra de puntos, un ajuste o un gasto **propio** (`RF-MV-055`): la fila de la lista
           (`movement`), y además, en una compra, **la tasa** con que se compró, **sus pagos** y,
-          si se rechazó, **el motivo**; en un ajuste, **los datos del comprobante** —nombre,
+          si se rechazó, **el motivo**; en un gasto, **las líneas** de la venta (`lines`) y su
+          pago; en un ajuste, **los datos del comprobante** —nombre,
           tipo, tamaño y resumen—, sin el archivo, que se descarga aparte. **Uno de otra persona
           responde `404`, igual que uno que no existe.**
           """)
@@ -160,7 +163,7 @@ public class PointsMovementsController {
       summary = "Consultar los movimientos de puntos",
       description =
           """
-          **Las compras de puntos y los ajustes de todas las personas**, en una sola lista
+          **Las compras de puntos, los ajustes y los gastos de todas las personas**, en una sola lista
           paginada y **los más recientes primero** (`RF-MV-056`), con la fila de la lista
           propia más **quién hizo cada ajuste** (`adjustedBy`, nulo en una compra y en los
           ajustes anteriores a que se guardara). La persona sale con nombre, usuario y correo,

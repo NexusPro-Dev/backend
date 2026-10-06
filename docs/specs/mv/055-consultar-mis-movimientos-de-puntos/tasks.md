@@ -6,7 +6,7 @@
 | Especificación | [`spec.md`](spec.md) v0.1.0 |
 | Plan | [`plan.md`](plan.md) v0.1.0 |
 | `plan.md` aprobado el | 06-10-2026 |
-| Estado | **Aprobadas** — por el responsable del proyecto, 06-10-2026. `T-01` a `T-07` `Hecha` |
+| Estado | **Aprobadas** — por el responsable del proyecto, 06-10-2026. `T-01` a `T-08` `Hecha` |
 | Issue | Pendiente de crear |
 | Rama | `develop` (commits directos desde el 05-10-2026) |
 
@@ -22,6 +22,7 @@
 | `T-04` | `PointsMovementsController`: las tres rutas propias, documentadas | `T-03` | Contrato | **Hecha** — 06-10-2026 |
 | `T-05` | Retirar `GET /mine/points-purchases`, `listMine` y su consulta | `T-04` | | **Hecha** — 06-10-2026 |
 | `T-06` | `OwnPointsMovementsIT`: `CA-MV-662` a `CA-MV-673` | `T-04`, `RF-MV-057` `T-04` | | **Hecha** — 06-10-2026 |
+| `T-08` | **Los gastos** (`spec.md` v0.2.0): la rama de `movement_entries`, el tipo `GASTO_PUNTOS` en la validación, las líneas en el detalle; `CA-MV-696` a `CA-MV-698` | `T-07` | Suite en verde | **Hecha** — 06-10-2026, en `PayWithPointsIT` |
 | `T-07` | Recuentos del catálogo (202), `EndpointPermissionsIT`, listas de alcance propio de `IntegrationTestBase`, contrato | `T-06` | Suite en verde | **Hecha** — 06-10-2026 |
 
 ---
@@ -49,3 +50,5 @@
 |---|---|---|---|
 | — | 06-10-2026 | Primera versión. | Responsable técnico |
 | — | 06-10-2026 | Aprobadas y construidas el mismo día; suite completa en verde (567 unitarias, 2574 de integración). | Responsable técnico |
+| — | 06-10-2026 | `T-08`, los gastos, aprobada por el responsable del proyecto («agrégalo»). | Responsable técnico |
+| — | 06-10-2026 | `T-08` `Hecha`: los gastos, `CA-MV-696` a `CA-MV-698` en `PayWithPointsIT` (ya monta una venta pagada con puntos). Suite completa en verde (567 unitarias, 2576 de integración). | Responsable técnico |

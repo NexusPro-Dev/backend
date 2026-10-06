@@ -4,7 +4,7 @@
 |---|---|
 | Requerimiento | `RF-MV-056` |
 | Módulo | `MV` — Movimientos |
-| Versión | 0.1.0 |
+| Versión | 0.2.0 |
 | Estado | **Aprobada** |
 | Autor | Responsable técnico |
 | Aprobada por | Responsable del proyecto |
@@ -147,6 +147,7 @@ Las de `RF-MV-055` §11.
 | `CA-MV-681` | El detalle de cualquier compra o ajuste trae lo de `RF-MV-055` y quién hizo el ajuste; el de un movimiento que no es de puntos, o inexistente, `404` |
 | `CA-MV-682` | La descarga devuelve exactamente el archivo subido, con su tipo, como adjunto; sin comprobante o sobre una compra, `404` |
 | `CA-MV-683` | **Un bono, una venta o un retiro no aparecen** en la lista |
+| `CA-MV-699` | **Los gastos de todas las personas** salen como `GASTO_PUNTOS`, sin quién hizo el ajuste, y la búsqueda por la persona los alcanza; su detalle trae las líneas |
 | `CA-MV-684` | Sin el permiso de cada consulta responde prohibido; sin autenticar, `401`. **La ruta de `RF-MV-053` ya no existe** |
 
 ---
@@ -171,3 +172,4 @@ Ninguna.
 | Versión | Fecha | Cambio | Autor |
 |---|---|---|---|
 | 0.1.0 | 06-10-2026 | Primera versión ([`requirements/mv.md`](../../../requirements/mv.md) v0.88.0 §4.12, `RN-MV-077`): compras y ajustes de todas las personas en una tabla, con detalle y comprobante; sustituye `RF-MV-053`. Criterios `CA-MV-674` a `CA-MV-684`. | Responsable del proyecto |
+| 0.2.0 | 06-10-2026 | **Los gastos también** (`RF-MV-055` v0.2.0, [`requirements/mv.md`](../../../requirements/mv.md) v0.89.0 §4.12). Criterio `CA-MV-699`. | Responsable del proyecto |

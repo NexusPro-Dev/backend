@@ -5,7 +5,7 @@
 | Proyecto | NEXUS — Renovación de plataforma |
 | Empresa | FACTECH GROUP SAS |
 | Documento | `requirements.md` |
-| Versión | 0.304.0 |
+| Versión | 0.305.0 |
 | Estado | Borrador |
 | Responsable técnico | Bonilla Diaz William Steven |
 | Fecha de creación | 20-08-2026 |
@@ -732,3 +732,4 @@ El inventario y el estado de los módulos se consultan en [`modules.md` §4](mod
 | 0.302.0 | 06-10-2026 | **`RF-SP-077` construido — el segundo factor queda entero**: los siete, `RF-SP-071` a `RF-SP-077`, en `En desarrollo`, y las dieciocho operaciones sensibles en el contrato. Endpoint funcionando 185 → **186**. `RF-SP-076` cierra el procedimiento del último superadministrador ([`deployment.md`](deployment.md) v0.18.0 §12.1). | Responsable técnico |
 | 0.303.0 | 06-10-2026 | **Nacen `RF-MV-055` a `RF-MV-057`: los movimientos de puntos en una sola consulta, y el comprobante como archivo** ([`requirements/mv.md`](requirements/mv.md) v0.88.0 §4.12, `RN-MV-077`; [`modelo-datos.md`](modelo-datos.md) v0.101.0), por decisión del responsable del proyecto: compras y ajustes juntos en la lista propia y en la de administración, cada una con detalle y descarga del comprobante; un comprobante PDF, PNG o JPG por ajuste. **`RF-MV-031` y `RF-MV-053` se retiran** —sus listados los sustituyen los nuevos y sus permisos se renombran—. Tripletas escritas, `CA-MV-662` a `CA-MV-695`; `V77`. Registrados 224 → **227**. | Responsable del proyecto |
 | 0.304.0 | 06-10-2026 | **`RF-MV-055` a `RF-MV-057` construidos** (`V77`), con sus `tasks.md` aprobadas por el responsable del proyecto: seis lecturas nuevas —lista, detalle y comprobante en cada alcance— y el comprobante del ajuste, al ajustar o después. **Se retiran** `GET /mine/points-purchases` y `GET /points-adjustments`. Endpoint funcionando 186 → **187** (tres nuevos, dos retirados). Tripleta completa 102 → **105**. Suite completa en verde (567 unitarias, 2574 de integración). | Responsable técnico |
+| 0.305.0 | 06-10-2026 | **Los puntos gastados entran en las listas de movimientos de puntos** ([`requirements/mv.md`](requirements/mv.md) v0.89.0 §4.12; enmienda a `RF-MV-055` y `RF-MV-056`, `CA-MV-696` a `CA-MV-699`), a petición del responsable del proyecto: el tipo `GASTO_PUNTOS`, una fila por venta pagada con puntos, con su detalle de líneas. Construido el mismo día, sin migración ni permisos; suite completa en verde (567 unitarias, 2576 de integración). Ningún indicador cambia. | Responsable técnico |

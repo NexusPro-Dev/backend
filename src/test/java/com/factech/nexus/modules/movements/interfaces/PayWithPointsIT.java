@@ -6,6 +6,7 @@ import static com.factech.nexus.modules.movements.PointsFixtures.POINTS;
 import static com.factech.nexus.modules.movements.PointsFixtures.TARJETA;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.user;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
@@ -350,6 +351,118 @@ class PayWithPointsIT extends IntegrationTestBase {
   // ---------------------------------------------------------------------------
 
   /** Compra puntos por la API y los confirma: el saldo es la copia de sus asientos. */
+  @Test
+  @DisplayName(
+      "CA-MV-696 a CA-MV-698 — lo gastado sale en mis movimientos de puntos como GASTO_PUNTOS:"
+          + " los puntos descontados en negativo, el importe y los productos; su detalle trae las"
+          + " líneas y el pago; una venta pagada con otro método no sale")
+  void gastoEnMisMovimientos() throws Exception {
+    PointsFixtures.tasa(jdbc, USD, "100", administrador);
+    darPuntos(comprador, "20.00"); // 2000 puntos
+    UUID venta = comprarConPuntos();
+    venta(comprador, "5.00", TARJETA); // pagada con tarjeta y pendiente: no es un gasto
+
+    String mia = "/api/v1/movements/mine/points-movements";
+    mvc.perform(
+            get(mia)
+                .with(
+                    user(comprador.toString())
+                        .authorities(() -> "movements:list-own-points-movements")))
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$.totalElements").value(2))
+        .andExpect(jsonPath("$.content[0].id").value(venta.toString()))
+        .andExpect(jsonPath("$.content[0].type").value("GASTO_PUNTOS"))
+        .andExpect(jsonPath("$.content[0].status").value("CONFIRMADA"))
+        .andExpect(jsonPath("$.content[0].points").value(-1000))
+        .andExpect(jsonPath("$.content[0].amount").value(10))
+        .andExpect(jsonPath("$.content[0].concept").value("PW_BOT"))
+        .andExpect(jsonPath("$.content[0].hasReceipt").value(false))
+        .andExpect(jsonPath("$.content[0].adjustedBy").value(org.hamcrest.Matchers.nullValue()))
+        .andExpect(jsonPath("$.content[1].type").value("COMPRA_PUNTOS"));
+    mvc.perform(
+            get(mia)
+                .param("type", "GASTO_PUNTOS")
+                .with(
+                    user(comprador.toString())
+                        .authorities(() -> "movements:list-own-points-movements")))
+        .andExpect(jsonPath("$.totalElements").value(1));
+    mvc.perform(
+            get(mia)
+                .param("sign", "RESTA")
+                .with(
+                    user(comprador.toString())
+                        .authorities(() -> "movements:list-own-points-movements")))
+        .andExpect(jsonPath("$.totalElements").value(1))
+        .andExpect(jsonPath("$.content[0].id").value(venta.toString()));
+
+    mvc.perform(
+            get(mia + "/{id}", venta)
+                .with(
+                    user(comprador.toString())
+                        .authorities(() -> "movements:read-own-points-movement")))
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$.movement.type").value("GASTO_PUNTOS"))
+        .andExpect(jsonPath("$.lines.length()").value(1))
+        .andExpect(jsonPath("$.lines[0].productName").value("PW_BOT"))
+        .andExpect(jsonPath("$.lines[0].quantity").value(1))
+        .andExpect(jsonPath("$.lines[0].amount").value(10))
+        .andExpect(jsonPath("$.payments[0].paymentMethod.code").value("POINTS"))
+        .andExpect(jsonPath("$.pointsRate").value(org.hamcrest.Matchers.nullValue()))
+        .andExpect(jsonPath("$.receipt").value(org.hamcrest.Matchers.nullValue()));
+    mvc.perform(
+            get(mia + "/{id}/receipt", venta)
+                .with(
+                    user(comprador.toString())
+                        .authorities(() -> "movements:download-own-points-receipt")))
+        .andExpect(status().isNotFound());
+  }
+
+  @Test
+  @DisplayName(
+      "CA-MV-699 — administración ve los gastos de todos como GASTO_PUNTOS, sin quién hizo un"
+          + " ajuste, la búsqueda por la persona los alcanza y su detalle trae las líneas")
+  void gastoEnLaListaDeAdministracion() throws Exception {
+    PointsFixtures.tasa(jdbc, USD, "100", administrador);
+    darPuntos(comprador, "20.00");
+    UUID venta = comprarConPuntos();
+
+    String todos = "/api/v1/movements/points-movements";
+    mvc.perform(
+            get(todos)
+                .param("type", "GASTO_PUNTOS")
+                .param("q", "pw-comprador")
+                .with(
+                    user(administrador.toString())
+                        .authorities(() -> "movements:list-points-movements")))
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$.totalElements").value(1))
+        .andExpect(jsonPath("$.content[0].id").value(venta.toString()))
+        .andExpect(jsonPath("$.content[0].user.id").value(comprador.toString()))
+        .andExpect(jsonPath("$.content[0].adjustedBy").value(org.hamcrest.Matchers.nullValue()));
+    mvc.perform(
+            get(todos + "/{id}", venta)
+                .with(
+                    user(administrador.toString())
+                        .authorities(() -> "movements:read-points-movement")))
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$.lines[0].productName").value("PW_BOT"));
+  }
+
+  /** Compra el bot por el enlace del vendedor, pagando con puntos: 10 USD a 100 = 1000 puntos. */
+  private UUID comprarConPuntos() throws Exception {
+    String cuerpo =
+        mvc.perform(
+                post("/api/v1/hotlinks/{u}/{c}/purchases", "pw-vendedor", "PW_BOT")
+                    .contentType(MediaType.APPLICATION_JSON)
+                    .content("{\"paymentMethodId\":\"" + POINTS + "\"}")
+                    .with(user(comprador.toString()).authorities(() -> "products:buy-by-hotlink")))
+            .andExpect(status().isCreated())
+            .andReturn()
+            .getResponse()
+            .getContentAsString();
+    return UUID.fromString(JsonPath.read(cuerpo, "$.id"));
+  }
+
   private void darPuntos(UUID quien, String importe) throws Exception {
     darPuntosEn(quien, USD, importe);
   }

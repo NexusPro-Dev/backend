@@ -5,7 +5,7 @@
 | Requerimiento | `RF-MV-055` |
 | Especificación | [`spec.md`](spec.md) v0.1.0 |
 | `spec.md` aprobada el | 06-10-2026 |
-| Versión | 0.1.0 |
+| Versión | 0.2.0 |
 | Estado | **Aprobado** |
 | Autor | Responsable técnico |
 | Aprobado por | Responsable del proyecto |
@@ -24,6 +24,8 @@
 **El detalle** lee la fila y, según el tipo, **los pagos** —con `findPaymentsOf`, el de `RF-MV-031`— o **los datos del comprobante** —sin el contenido—. **La descarga** lee el contenido y responde con su tipo, `Content-Disposition: attachment` con el nombre guardado y `X-Content-Type-Options: nosniff` (`RN-MV-077`).
 
 **Ajeno es inexistente** (`EX-002`): el detalle y la descarga del alcance propio buscan con la persona en la condición, de modo que un movimiento de otro no se encuentra; no hay una comprobación de propiedad aparte que pudiera responder distinto.
+
+**Los gastos (0.2.0) sí exigen un `UNION ALL`**, y es la alternativa que §1 descartó para compra y ajuste: un gasto no vive en `movements` como un tipo de puntos, sino en un asiento `PAGO` de una cuenta `PUNTOS` (`RF-MV-030`). La consulta pasa a leer **una tabla derivada con la forma de la fila**: la rama de `movements` de antes y una rama nueva sobre `movement_entries` —evento `PAGO`, cuenta `PUNTOS` de una persona—, agrupada por venta, con la suma de sus asientos como puntos —negativa— y los productos de sus líneas como motivo. **Filtros, búsqueda, orden y conteo se escriben una sola vez sobre la derivada**: los nombres de sus columnas son los de `movements`, de modo que la lista blanca de orden no cambia. El planificador empuja los predicados de la persona a las dos ramas. Cuándo ocurrió un gasto es cuándo se descontó: la fecha del asiento.
 
 ---
 
@@ -47,7 +49,7 @@ Catálogo 197 → **202** con los de `RF-MV-056` y `RF-MV-057`. Guardas: los cin
 
 | Capa | Componente | Cambio |
 |---|---|---|
-| `domain/repository` | `PointsMovementQuery`, `JpaPointsMovementQuery` | Nuevos: `find`, `count`, `findOne`, `findReceiptInfo`, `findReceiptFile` |
+| `domain/repository` | `PointsMovementQuery`, `JpaPointsMovementQuery` | Nuevos: `find`, `count`, `findOne`, `findReceiptInfo`, `findReceiptFile`; **0.2.0**: la rama de los gastos y `findLines` |
 | `domain/service` | `PointsMovementReader` | Nuevo: valida, resuelve el alcance y arma fila, detalle y descarga |
 | `domain/service` | `PointsPurchaseService` | **Pierde `listMine`** y lo que solo él usaba |
 | `domain/repository` | `MovementRepository`, `JpaMovementRepository` | **Pierden** `findOwnPointsPurchases`, `countOwnPointsPurchases` y `PointsPurchaseFilter` |
@@ -105,3 +107,12 @@ Ninguna: son lecturas. **La descarga tampoco se audita**: es una lectura de un d
 ## 8. Estrategia de prueba
 
 Integración, `OwnPointsMovementsIT`: `CA-MV-662` a `CA-MV-673`. Se retira `OwnPointsPurchasesIT` —o la parte de él que probaba el listado— y lo que de él siga valiendo pasa aquí.
+
+---
+
+## 9. Control de cambios
+
+| Versión | Fecha | Cambio | Autor |
+|---|---|---|---|
+| 0.1.0 | 06-10-2026 | Primera versión. | Responsable técnico |
+| 0.2.0 | 06-10-2026 | Los gastos: la tabla derivada con `UNION ALL` (§1) y las líneas en el detalle. | Responsable técnico |

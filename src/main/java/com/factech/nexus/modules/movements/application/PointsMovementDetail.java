@@ -7,7 +7,7 @@ import java.util.List;
 /**
  * El detalle de un movimiento de puntos (`RF-MV-055`, `RF-MV-056`): la fila, y lo que solo cabe en
  * un detalle —la tasa, los pagos y el motivo del rechazo de una compra; el comprobante de un
- * ajuste—.
+ * ajuste; las líneas y el pago de un gasto—.
  */
 @JsonInclude(JsonInclude.Include.ALWAYS)
 @Schema(name = "PointsMovementDetail")
@@ -29,4 +29,13 @@ public record PointsMovementDetail(
             types = {"object", "null"},
             description =
                 "El comprobante de un ajuste, sin el archivo. Nulo si no lo tiene o en una compra.")
-        PointsReceiptInfo receipt) {}
+        PointsReceiptInfo receipt,
+    @Schema(
+            description =
+                "Lo que se compró con los puntos: las líneas de la venta. Solo en un gasto; vacía"
+                    + " en lo demás.")
+        List<Line> lines) {
+
+  @Schema(name = "PointsMovementLine")
+  public record Line(String productName, int quantity, java.math.BigDecimal amount) {}
+}

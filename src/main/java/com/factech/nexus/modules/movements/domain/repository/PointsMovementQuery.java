@@ -17,6 +17,9 @@ public interface PointsMovementQuery {
   String COMPRA = "COMPRA_PUNTOS";
   String AJUSTE = "AJUSTE_PUNTOS";
 
+  /** Una venta pagada con puntos (0.2.0): no es un tipo de movimiento, es una forma de leerla. */
+  String GASTO = "GASTO_PUNTOS";
+
   /**
    * Una página, en el orden ya resuelto contra la lista blanca de {@code PointsMovementSortField}.
    */
@@ -29,6 +32,9 @@ public interface PointsMovementQuery {
    * persona: ajeno es inexistente (`RF-MV-055` `EX-002`).
    */
   Optional<PointsMovementRow> findOne(UUID movementId, UUID owner);
+
+  /** Las líneas de la venta de un gasto, en su orden. */
+  List<LineRow> findLines(UUID movementId);
 
   /** Los datos del comprobante de un ajuste, sin el archivo. */
   Optional<ReceiptInfoRow> findReceiptInfo(UUID movementId);
@@ -78,6 +84,8 @@ public interface PointsMovementQuery {
       UUID recordedBy,
       String recordedByFirstName,
       String recordedByLastName) {}
+
+  record LineRow(String productName, int quantity, BigDecimal amount) {}
 
   record ReceiptInfoRow(
       String fileName,

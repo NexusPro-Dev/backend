@@ -22,11 +22,14 @@ import org.springframework.transaction.annotation.Transactional;
 /**
  * Las lecturas de los movimientos de puntos (`RF-MV-055`, `RF-MV-056`).
  *
- * <p><b>Una consulta sobre {@code movements} de los dos tipos, sin {@code UNION}</b>: compra y
- * ajuste viven en la misma tabla y se distinguen por columnas que en el otro van vacías (`plan.md`
- * §1). <b>Los tipos van por su identificador literal</b> (`V58`, `V72`), que es el predicado de
- * {@code ix_movements_puntos} y {@code ix_movements_puntos_persona}: el planificador solo usa un
- * índice parcial cuyo predicado ve escrito.
+ * <p><b>Una tabla derivada con la forma de la fila</b> ({@link #MOVIMIENTOS}), en dos ramas
+ * (`RF-MV-055` `plan.md` §1, 0.2.0): compra y ajuste viven en {@code movements} y se leen juntos;
+ * <b>el gasto no es un tipo de movimiento</b> —es una venta pagada con {@code POINTS}— y sale de
+ * sus asientos {@code PAGO} en la cuenta {@code PUNTOS} de una persona, agrupados por venta. Los
+ * nombres de las columnas de la derivada son los de {@code movements}, de modo que los filtros, la
+ * búsqueda, el orden de {@code PointsMovementSortField} y el conteo se escriben una sola vez.
+ * <b>Los tipos de la primera rama van por su identificador literal</b> (`V58`, `V72`), el predicado
+ * de {@code ix_movements_puntos} y {@code ix_movements_puntos_persona}.
  *
  * <p><b>El documento de identidad no se lee</b> (`RF-MV-056` `CA-MV-680`).
  */
@@ -36,34 +39,63 @@ public class JpaPointsMovementQuery implements PointsMovementQuery {
   static final String TIPO_COMPRA = "01a0ef9c-6800-7001-9c4f-5e7ad7000015";
   static final String TIPO_AJUSTE = "01a0ef9c-6800-7025-9c4f-5e7ad7000016";
 
+  /**
+   * Compras y ajustes, y los gastos. <b>Los puntos de un gasto son la suma de sus asientos</b> —lo
+   * que de verdad se descontó, negativo—, no un recálculo con la tasa; <b>cuándo ocurrió es cuándo
+   * se descontó</b>; y su motivo, los productos de sus líneas.
+   */
+  private static final String MOVIMIENTOS =
+      """
+      (SELECT m.id, m.code,
+              CASE WHEN m.movement_type_id = '%1$s' THEN 'COMPRA_PUNTOS' ELSE 'AJUSTE_PUNTOS' END
+                AS tipo,
+              m.status, m.user_id, m.currency_id, m.points_amount, m.payable_amount AS importe,
+              m.concept, m.external_reference, m.occurred_at, m.confirmed_at, m.rejected_at,
+              m.rejection_reason, m.points_rate_id, m.recorded_by
+         FROM movements m
+        WHERE m.movement_type_id IN ('%1$s', '%2$s')
+       UNION ALL
+       SELECT v.id, v.code, 'GASTO_PUNTOS', v.status, a.user_id, a.currency_id,
+              sum(e.amount), v.payable_amount,
+              (SELECT string_agg(d.product_name, ', ' ORDER BY d.id)
+                 FROM movement_details d WHERE d.movement_id = v.id),
+              NULL, max(e.created_at), v.confirmed_at, v.rejected_at, v.rejection_reason,
+              NULL, NULL
+         FROM movement_entries e
+         JOIN accounts a ON a.id = e.account_id AND a.kind = 'PUNTOS' AND a.user_id IS NOT NULL
+         JOIN movements v ON v.id = e.movement_id
+        WHERE e.event = 'PAGO'
+        GROUP BY v.id, a.user_id, a.currency_id) m"""
+          .formatted(TIPO_COMPRA, TIPO_AJUSTE);
+
   private static final String COLUMNAS =
       """
-      SELECT m.id AS id, m.code AS code,
-             CASE WHEN m.movement_type_id = '%s' THEN 'COMPRA_PUNTOS' ELSE 'AJUSTE_PUNTOS' END
-               AS tipo,
+      SELECT m.id AS id, m.code AS code, m.tipo AS tipo,
              m.status AS status, u.id AS sujeto, u.first_name AS suj_first,
              u.last_name AS suj_last, u.username AS username, u.email AS email,
              c.id AS moneda, c.code AS codigo_moneda, m.points_amount AS puntos,
-             m.payable_amount AS importe, m.concept AS concepto,
+             m.importe AS importe, m.concept AS concepto,
              m.external_reference AS referencia, m.occurred_at AS ocurrio,
              m.confirmed_at AS confirmado, m.rejected_at AS rechazado,
              m.rejection_reason AS motivo, m.points_rate_id AS tasa, t.points_per_unit AS valor,
              EXISTS (SELECT 1 FROM points_adjustment_receipts x WHERE x.movement_id = m.id)
                AS comprobante,
              r.id AS registro, r.first_name AS reg_first, r.last_name AS reg_last
-      """
-          .formatted(TIPO_COMPRA);
+      """;
 
-  /** Quien lo registró y la tasa entran con {@code LEFT JOIN}: el ajuste no tiene tasa. */
+  /**
+   * Quien lo registró y la tasa entran con {@code LEFT JOIN}: el ajuste y el gasto no tienen tasa.
+   */
   private static final String TABLAS =
-      """
-       FROM movements m
+      " FROM "
+          + MOVIMIENTOS
+          + """
+
        JOIN users u ON u.id = m.user_id
        JOIN currencies c ON c.id = m.currency_id
        LEFT JOIN points_rates t ON t.id = m.points_rate_id
        LEFT JOIN users r ON r.id = m.recorded_by
-      WHERE m.movement_type_id IN ('%s', '%s') AND\s"""
-          .formatted(TIPO_COMPRA, TIPO_AJUSTE);
+      WHERE\s""";
 
   private final EntityManager em;
 
@@ -118,6 +150,31 @@ public class JpaPointsMovementQuery implements PointsMovementQuery {
     @SuppressWarnings("unchecked")
     List<Tuple> filas = consulta.getResultList();
     return filas.stream().findFirst().map(JpaPointsMovementQuery::fila);
+  }
+
+  @Override
+  @Transactional(readOnly = true)
+  public List<LineRow> findLines(UUID movementId) {
+    @SuppressWarnings("unchecked")
+    List<Tuple> filas =
+        em.createNativeQuery(
+                """
+                SELECT d.product_name AS nombre, d.quantity AS cantidad, d.line_amount AS importe
+                  FROM movement_details d
+                 WHERE d.movement_id = :id
+                 ORDER BY d.id
+                """,
+                Tuple.class)
+            .setParameter("id", movementId)
+            .getResultList();
+    return filas.stream()
+        .map(
+            t ->
+                new LineRow(
+                    (String) t.get("nombre"),
+                    ((Number) t.get("cantidad")).intValue(),
+                    MinorUnits.fromMinor(t.get("importe"))))
+        .toList();
   }
 
   @Override
@@ -181,10 +238,8 @@ public class JpaPointsMovementQuery implements PointsMovementQuery {
     if (p.userId() != null) {
       f.condicion("m.user_id = :persona", "persona", p.userId());
     }
-    if (COMPRA.equals(p.type())) {
-      f.sinParametro("m.movement_type_id = '" + TIPO_COMPRA + "'");
-    } else if (AJUSTE.equals(p.type())) {
-      f.sinParametro("m.movement_type_id = '" + TIPO_AJUSTE + "'");
+    if (p.type() != null) {
+      f.condicion("m.tipo = :tipo", "tipo", p.type());
     }
     if (p.status() != null) {
       f.condicion("m.status = :estado", "estado", p.status());
@@ -240,7 +295,7 @@ public class JpaPointsMovementQuery implements PointsMovementQuery {
   }
 
   private static PointsMovementRow fila(Tuple t) {
-    boolean compra = "COMPRA_PUNTOS".equals(t.get("tipo"));
+    boolean ajuste = AJUSTE.equals(t.get("tipo"));
     return new PointsMovementRow(
         (UUID) t.get("id"),
         (String) t.get("code"),
@@ -255,7 +310,7 @@ public class JpaPointsMovementQuery implements PointsMovementQuery {
         ((String) t.get("codigo_moneda")).trim(),
         MinorUnits.fromMinor(t.get("puntos")),
         // El ajuste no lleva dinero: sus importes de cabecera son cero (`RN-MV-076`).
-        compra ? MinorUnits.fromMinor(t.get("importe")) : null,
+        ajuste ? null : MinorUnits.fromMinor(t.get("importe")),
         (String) t.get("concepto"),
         (String) t.get("referencia"),
         instante(t.get("ocurrio")),

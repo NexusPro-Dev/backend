@@ -16,9 +16,16 @@ import java.util.UUID;
 @Schema(name = "PointsMovementItem")
 public record PointsMovementItem(
     UUID id,
-    @Schema(description = "El comprobante: prefijo `PTS` en una compra, `AJP` en un ajuste.")
+    @Schema(
+            description =
+                "El comprobante: prefijo `PTS` en una compra, `AJP` en un ajuste; en un gasto, el de"
+                    + " la venta.")
         String code,
-    @Schema(description = "COMPRA_PUNTOS o AJUSTE_PUNTOS.") String type,
+    @Schema(
+            description =
+                "COMPRA_PUNTOS, AJUSTE_PUNTOS o GASTO_PUNTOS —una venta pagada con puntos, que no es"
+                    + " un tipo de movimiento sino una forma de leerla—.")
+        String type,
     @Schema(description = "PENDIENTE, CONFIRMADA o RECHAZADA. Un ajuste es siempre CONFIRMADA.")
         String status,
     @Schema(description = "De quién son los puntos.") Person user,
@@ -26,15 +33,17 @@ public record PointsMovementItem(
     @Schema(
             description =
                 "Con su signo. Una compra suma siempre —pendiente, los que dará; rechazada, los que"
-                    + " habría dado—; un ajuste suma o resta.")
+                    + " habría dado—; un ajuste suma o resta; un gasto resta lo que se descontó.")
         BigDecimal points,
     @Schema(
             types = {"number", "null"},
-            description = "Lo que se paga, en la moneda. Solo en una compra.")
+            description =
+                "Lo que se paga, en la moneda: en una compra, la compra; en un gasto, la venta. Nulo"
+                    + " en un ajuste.")
         BigDecimal amount,
     @Schema(
             types = {"string", "null"},
-            description = "Por qué. Solo en un ajuste.")
+            description = "En un ajuste, por qué; en un gasto, los productos comprados.")
         String concept,
     @Schema(
             types = {"string", "null"},
