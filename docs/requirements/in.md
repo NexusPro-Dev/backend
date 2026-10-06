@@ -5,7 +5,7 @@
 | Módulo | `IN` — Indicadores |
 | Paquete | `modules/indicators` |
 | Prefijo de permisos | `indicators:` |
-| Versión | 0.8.0 |
+| Versión | 0.9.0 |
 | Estado | **Borrador** |
 | Responsable | Bonilla Diaz William Steven |
 | Fecha de creación | 06-10-2026 |
@@ -78,7 +78,7 @@ Según [`modules.md` §5.6](../modules.md#56-in-indicadores).
 
 | Submódulo | Responsabilidad | Requerimientos |
 |---|---|---|
-| Ventas | Las cifras de lo vendido: resumen, evolución, por producto y por vendedor | `RF-IN-001` a `RF-IN-004` |
+| Ventas | Las cifras de lo vendido: resumen, evolución, por producto y por vendedor; y, para administración, el resumen de líneas de venta (06-10-2026) | `RF-IN-001` a `RF-IN-004`, `RF-IN-006` |
 | Puntos | Lo comprado, lo redimido, los ajustes y el saldo de los puntos (06-10-2026) | `RF-IN-005` |
 
 ---
@@ -130,6 +130,7 @@ La dependencia es **acíclica**: `IN` → `SP` e `IN` → `MV`. Ni `SP` ni `MV` 
 | `RN-IN-008` | **Gratuita es la venta de importe cero** | Al contar las ventas gratuitas (`RF-IN-001`) | Una venta es gratuita si **lo que se cobra por ella entera** es cero —el importe a pagar de la venta, no el de las líneas del alcance—, que es lo mismo que decir que se registró con el método `GRATIS` (`RN-MV-022`); hoy, la del alta por enlace (`RN-MV-075`). **Sigue contando como venta** en su estado, con importe cero, y además se cuenta aparte como gratuita. Decisión del responsable del proyecto, 06-10-2026 | Media |
 | `RN-IN-009` | **Qué es comprado, redimido y ajuste de puntos, y cuándo cuenta** | Al contar los puntos (`RF-IN-005`) | Cada cambio en los puntos de una persona es un asiento de su cuenta `PUNTOS`, y **el evento del asiento dice la clase**: una compra **cobrada** es lo **comprado**; un pago de una venta con puntos, lo **redimido**; un ajuste a mano, lo **sumado** o lo **restado** según su signo. **El periodo mira cuándo se movieron los puntos** —una compra cuenta el día en que se cobró—, y **el saldo es el de hoy**, sea cual sea el periodo. Todo **por moneda** y **en positivo**. Decisión del responsable del proyecto, 06-10-2026 | Alta |
 | `RN-IN-010` | **Sin fechas, todo; y cada indicador se parte en tramos si se pide** | Al pedir cualquier indicador | **Sin `from` ni `to`, el indicador cuenta toda la historia** hasta hoy. **Con una sola fecha, la otra queda abierta**: solo «desde», hasta hoy; solo «hasta», desde el principio. **No hay tope de días**. Y **todo indicador acepta un tramo** —día, semana de lunes o mes, del calendario de Bogotá—: con él, la respuesta trae además **sus mismas cifras partidas por tramo**, todos los tramos presentes, del primero con datos —o del de «desde»— al de hoy —o al de «hasta»—; la suma de los tramos es el total. **El saldo de puntos no se parte**: es de hoy. Decisión del responsable del proyecto, 06-10-2026 | Alta |
+| `RN-IN-011` | **Un indicador de administración no se acota por alcance** | Al calcular el resumen de líneas de venta (`RF-IN-006`) | Excepción declarada a `RN-IN-002`: **quien porta el permiso ve las cifras enteras**, sea cual sea su tipo de rol. Lo justifica lo que cuenta: **lo que no tiene vendedor no está en el alcance de ningún vendedor**, y acotarlo lo dejaría en cero para todos menos para administración. El permiso se siembra solo a `SUPERADMIN` y `ADMIN`; si administración se lo da a otro rol, ese rol lo ve todo. Decisión del responsable del proyecto, 06-10-2026 | Alta |
 
 ### 5.2 Decisiones que definen el módulo — 06-10-2026
 
@@ -177,6 +178,7 @@ La migración que los siembre los da **por tipo de rol**, como los demás permis
 | `RF-IN-003` | Consultar las ventas por producto | Ventas | Media | `indicators:read-sales-by-product` | **Tasks aprobadas** (06-10-2026) |
 | `RF-IN-004` | Consultar las ventas por vendedor | Ventas | Media | `indicators:read-sales-by-seller` | **Tasks aprobadas** (06-10-2026) |
 | `RF-IN-005` | Consultar el resumen de puntos | Puntos | Alta | `indicators:read-points-summary` | **En desarrollo** (06-10-2026) |
+| `RF-IN-006` | Consultar el resumen de líneas de venta | Ventas | Alta | `indicators:read-sale-lines-summary` | **Tasks en revisión** (06-10-2026) |
 
 **Prioridades:** Crítica · Alta · Media · Baja.
 **Estados:** los de [`requirements.md` §4](../requirements.md#4-matriz-de-trazabilidad).
@@ -258,6 +260,21 @@ Lo **confirmado** en el periodo agrupado por **el vendedor de la línea**, de m�
 
 **Nace el 06-10-2026 a petición del responsable del proyecto** —«el siguiente indicador es para saber la información de los puntos: cuántos se han comprado, cuántos se han redimido y el balance»—, con tres decisiones suyas: **según el alcance**, como los de ventas; **los ajustes a mano aparte**, lo sumado y lo restado, para que el saldo se explique; y **el saldo de hoy**, con lo comprado, lo redimido y los ajustes **del periodo**. Por moneda, porque los puntos se compran y se gastan en una. **Con un periodo que lo cubre todo, el saldo es comprados − redimidos + sumados − restados**, y es la prueba de que no se pierde nada.
 
+#### `RF-IN-006` — Consultar el resumen de líneas de venta
+
+| Campo | Valor |
+|---|---|
+| Objetivo | Saber, sobre **todas** las líneas de venta, cuántos productos —unidades— se vendieron, cuántas ventas hubo y cuántas ventas y líneas siguen **sin vendedor** |
+| Actor | Administración; **quien porte el permiso lo ve entero** (`RN-IN-011`) |
+| Permiso requerido | `indicators:read-sale-lines-summary` |
+| Prioridad | Alta |
+| Reglas aplicables | `RN-IN-001`, `RN-IN-003`, `RN-IN-004`, `RN-IN-005`, `RN-IN-007`, `RN-IN-010`, `RN-IN-011` |
+| Depende de | **`MV` amplía `SalesFigures`** con lo sin vendedor |
+| Tripleta | [`docs/specs/in/006-resumen-de-lineas-de-venta/`](../specs/in/006-resumen-de-lineas-de-venta/spec.md) |
+| Estado | **Tasks en revisión** — `spec.md` y `plan.md` aprobados el 06-10-2026 |
+
+**Nace el 06-10-2026 a petición del responsable del proyecto** —«el siguiente indicador será para las líneas de ventas: total productos vendidos, total de ventas, ventas sin vendedor»—. Por estado de la venta: ventas, líneas, **unidades** e importe por moneda, y el total; y aparte **lo sin vendedor** —ventas con alguna línea sin vendedor, esas líneas, sus unidades y su importe—, sin las anuladas, porque dice lo que **falta por atribuir**. Sus cifras por estado son las del resumen de ventas de administración.
+
 ---
 
 ## 7. Requerimientos no funcionales
@@ -287,6 +304,7 @@ Lo **confirmado** en el periodo agrupado por **el vendedor de la línea**, de m�
 | `GET` | `/api/v1/indicators/sales/by-product` | `RF-IN-003` | `indicators:read-sales-by-product` |
 | `GET` | `/api/v1/indicators/sales/by-seller` | `RF-IN-004` | `indicators:read-sales-by-seller` |
 | `GET` | `/api/v1/indicators/points/summary` | `RF-IN-005` | `indicators:read-points-summary` |
+| `GET` | `/api/v1/indicators/sales/lines/summary` | `RF-IN-006` | `indicators:read-sale-lines-summary` |
 
 El contrato detallado de cada endpoint —parámetros, valores por defecto del periodo, topes— se define en el `plan.md` de su tripleta.
 
@@ -310,3 +328,4 @@ El contrato detallado de cada endpoint —parámetros, valores por defecto del p
 | 0.6.0 | 06-10-2026 | **Nace la tanda de puntos: `RF-IN-005`, el resumen de puntos**, a petición del responsable del proyecto, con su tripleta (`CA-IN-041` a `CA-IN-049`) y el submódulo Puntos. Nace **`RN-IN-009`**: comprado, redimido y ajuste son el evento del asiento de la cuenta `PUNTOS`; el periodo mira cuándo se movieron los puntos y el saldo es el de hoy. Permiso propio, `indicators:read-points-summary`, que sembrará `V76` por tipo de rol a `FUNCIONARIO` y `VENDEDOR`. `MV` publicará `PointsFigures`. | Bonilla Diaz William Steven |
 | 0.7.0 | 06-10-2026 | **`RF-IN-005` construido**: `V76` siembra `indicators:read-points-summary` (catálogo 197), `MV` publica `PointsFigures` y `GET /indicators/points/summary` responde. | Bonilla Diaz William Steven |
 | 0.8.0 | 06-10-2026 | **Nace `RN-IN-010`: sin fechas, todo; sin tope; y cada indicador se parte en tramos si se pide**, por decisión del responsable del proyecto. Enmienda `RF-IN-001`, `RF-IN-002` y `RF-IN-005` (Art. I.7): el periodo por defecto deja de ser el mes en curso, `VAL-003` se retira, y el resumen de ventas y el de puntos ganan `granularity`, que añade a la respuesta sus cifras por tramo sin cambiar los totales. `CA-IN-050` a `CA-IN-058`. | Bonilla Diaz William Steven |
+| 0.9.0 | 06-10-2026 | **Nace `RF-IN-006`, el resumen de líneas de venta**, a petición del responsable del proyecto, con su tripleta (`CA-IN-059` a `CA-IN-066`): unidades vendidas, ventas por estado y lo sin vendedor, sobre todo el libro. Nace **`RN-IN-011`**, la primera excepción a `RN-IN-002`: este indicador no se acota por alcance, y su permiso, `indicators:read-sale-lines-summary`, se sembrará por `V78` solo a `SUPERADMIN` y `ADMIN`. | Bonilla Diaz William Steven |
