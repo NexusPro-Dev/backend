@@ -5,7 +5,7 @@
 | Módulo | `IN` — Indicadores |
 | Paquete | `modules/indicators` |
 | Prefijo de permisos | `indicators:` |
-| Versión | 0.9.0 |
+| Versión | 0.10.0 |
 | Estado | **Borrador** |
 | Responsable | Bonilla Diaz William Steven |
 | Fecha de creación | 06-10-2026 |
@@ -178,7 +178,7 @@ La migración que los siembre los da **por tipo de rol**, como los demás permis
 | `RF-IN-003` | Consultar las ventas por producto | Ventas | Media | `indicators:read-sales-by-product` | **Tasks aprobadas** (06-10-2026) |
 | `RF-IN-004` | Consultar las ventas por vendedor | Ventas | Media | `indicators:read-sales-by-seller` | **Tasks aprobadas** (06-10-2026) |
 | `RF-IN-005` | Consultar el resumen de puntos | Puntos | Alta | `indicators:read-points-summary` | **En desarrollo** (06-10-2026) |
-| `RF-IN-006` | Consultar el resumen de líneas de venta | Ventas | Alta | `indicators:read-sale-lines-summary` | **Tasks en revisión** (06-10-2026) |
+| `RF-IN-006` | Consultar el resumen de líneas de venta | Ventas | Alta | `indicators:read-sale-lines-summary` | **En desarrollo** (06-10-2026) |
 
 **Prioridades:** Crítica · Alta · Media · Baja.
 **Estados:** los de [`requirements.md` §4](../requirements.md#4-matriz-de-trazabilidad).
@@ -271,7 +271,7 @@ Lo **confirmado** en el periodo agrupado por **el vendedor de la línea**, de m�
 | Reglas aplicables | `RN-IN-001`, `RN-IN-003`, `RN-IN-004`, `RN-IN-005`, `RN-IN-007`, `RN-IN-010`, `RN-IN-011` |
 | Depende de | **`MV` amplía `SalesFigures`** con lo sin vendedor |
 | Tripleta | [`docs/specs/in/006-resumen-de-lineas-de-venta/`](../specs/in/006-resumen-de-lineas-de-venta/spec.md) |
-| Estado | **Tasks en revisión** — `spec.md` y `plan.md` aprobados el 06-10-2026 |
+| Estado | **En desarrollo** — construido el 06-10-2026, con `V78` y lo sin vendedor en `SalesFigures` |
 
 **Nace el 06-10-2026 a petición del responsable del proyecto** —«el siguiente indicador será para las líneas de ventas: total productos vendidos, total de ventas, ventas sin vendedor»—. Por estado de la venta: ventas, líneas, **unidades** e importe por moneda, y el total; y aparte **lo sin vendedor** —ventas con alguna línea sin vendedor, esas líneas, sus unidades y su importe—, sin las anuladas, porque dice lo que **falta por atribuir**. Sus cifras por estado son las del resumen de ventas de administración.
 
@@ -329,3 +329,4 @@ El contrato detallado de cada endpoint —parámetros, valores por defecto del p
 | 0.7.0 | 06-10-2026 | **`RF-IN-005` construido**: `V76` siembra `indicators:read-points-summary` (catálogo 197), `MV` publica `PointsFigures` y `GET /indicators/points/summary` responde. | Bonilla Diaz William Steven |
 | 0.8.0 | 06-10-2026 | **Nace `RN-IN-010`: sin fechas, todo; sin tope; y cada indicador se parte en tramos si se pide**, por decisión del responsable del proyecto. Enmienda `RF-IN-001`, `RF-IN-002` y `RF-IN-005` (Art. I.7): el periodo por defecto deja de ser el mes en curso, `VAL-003` se retira, y el resumen de ventas y el de puntos ganan `granularity`, que añade a la respuesta sus cifras por tramo sin cambiar los totales. `CA-IN-050` a `CA-IN-058`. | Bonilla Diaz William Steven |
 | 0.9.0 | 06-10-2026 | **Nace `RF-IN-006`, el resumen de líneas de venta**, a petición del responsable del proyecto, con su tripleta (`CA-IN-059` a `CA-IN-066`): unidades vendidas, ventas por estado y lo sin vendedor, sobre todo el libro. Nace **`RN-IN-011`**, la primera excepción a `RN-IN-002`: este indicador no se acota por alcance, y su permiso, `indicators:read-sale-lines-summary`, se sembrará por `V78` solo a `SUPERADMIN` y `ADMIN`. | Bonilla Diaz William Steven |
+| 0.10.0 | 06-10-2026 | **`RF-IN-006` construido**: `V78` siembra `indicators:read-sale-lines-summary` a `SUPERADMIN` y `ADMIN` (catálogo 203), `SalesFigures` gana lo sin vendedor y `GET /indicators/sales/lines/summary` responde, sin alcance. | Bonilla Diaz William Steven |

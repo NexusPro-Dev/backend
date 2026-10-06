@@ -12698,6 +12698,73 @@ paths:
         "500":
           description: Fallo no controlado (`ERR-500`)
       x-required-permission: indicators:read-sales-series
+  /api/v1/indicators/sales/lines/summary:
+    get:
+      tags:
+      - Indicadores
+      summary: Consultar el resumen de líneas de venta
+      description: |
+        **Permiso requerido:** `indicators:read-sale-lines-summary`. Sin él, `403` (`AUTH-002`).
+
+        Sobre **todas** las líneas de venta de la plataforma: por estado de la venta
+        —`confirmed`, `pending`, `voided`— las ventas, las líneas, **las unidades** (los
+        productos vendidos: la suma de las cantidades) y el importe por moneda; el **total**; y
+        aparte **`unassigned`, lo que no tiene vendedor**: las ventas con alguna línea sin
+        vendedor, esas líneas, sus unidades y su importe, **sin las anuladas**, porque es lo que
+        falta por atribuir.
+
+        **No se acota por alcance**: quien porte el permiso ve las cifras de toda la plataforma,
+        sea cual sea su tipo de rol. El permiso se siembra solo a administración; dárselo a un
+        rol vendedor es darle esta vista entera. Las cifras por estado son las que ve
+        administración en `GET /indicators/sales/summary`.
+
+        El periodo, la moneda y `granularity` son los de los demás indicadores: días de
+        Bogotá, sin fechas toda la historia, sin tope; con `granularity`, `buckets` trae los
+        mismos bloques por tramo, todos presentes, y su suma es el total. **No hay filtro por
+        vendedor.** Ni `movements:list-sale-lines` ni otro permiso de indicadores abren este.
+      operationId: resumenDeLineas
+      parameters:
+      - name: from
+        in: query
+        required: false
+        schema:
+          type: string
+          format: date
+      - name: to
+        in: query
+        required: false
+        schema:
+          type: string
+          format: date
+      - name: currencyId
+        in: query
+        required: false
+        schema:
+          type: string
+          format: uuid
+      - name: granularity
+        in: query
+        required: false
+        schema:
+          type: string
+      responses:
+        "200":
+          description: "El resumen, aunque sea de ceros."
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/SaleLinesSummary"
+        "400":
+          description: "Fecha o identificador malformado (`VAL-001`), `from` posterior\
+            \ a `to` (`VAL-002`) o un tramo desconocido (`VAL-005`); los dos últimos,\
+            \ juntos."
+        "401":
+          description: Token ausente o inválido (`AUTH-001`)
+        "403":
+          description: Sin el permiso `indicators:read-sale-lines-summary` (`AUTH-002`).
+        "500":
+          description: Fallo no controlado (`ERR-500`)
+      x-required-permission: indicators:read-sale-lines-summary
   /api/v1/indicators/points/summary:
     get:
       tags:
@@ -20575,6 +20642,82 @@ components:
           type: array
           items:
             $ref: "#/components/schemas/IndicatorAmount"
+    SaleLinesBlock:
+      type: object
+      properties:
+        sales:
+          type: integer
+          format: int64
+        lines:
+          type: integer
+          format: int64
+        units:
+          type: integer
+          format: int64
+          description: "Productos vendidos: la suma de las cantidades."
+        amounts:
+          type: array
+          items:
+            $ref: "#/components/schemas/IndicatorAmount"
+    SaleLinesBucket:
+      type: object
+      properties:
+        start:
+          type: string
+          format: date
+          description: Día en que empieza el tramo en el calendario.
+          example: 2026-09-07
+        total:
+          $ref: "#/components/schemas/SaleLinesTotal"
+        confirmed:
+          $ref: "#/components/schemas/SaleLinesBlock"
+        pending:
+          $ref: "#/components/schemas/SaleLinesBlock"
+        voided:
+          $ref: "#/components/schemas/SaleLinesBlock"
+        unassigned:
+          $ref: "#/components/schemas/SaleLinesBlock"
+    SaleLinesSummary:
+      type: object
+      properties:
+        period:
+          $ref: "#/components/schemas/IndicatorPeriod"
+        total:
+          $ref: "#/components/schemas/SaleLinesTotal"
+        confirmed:
+          $ref: "#/components/schemas/SaleLinesBlock"
+        pending:
+          $ref: "#/components/schemas/SaleLinesBlock"
+        voided:
+          $ref: "#/components/schemas/SaleLinesBlock"
+        unassigned:
+          $ref: "#/components/schemas/SaleLinesBlock"
+          description: "Las líneas sin vendedor de las ventas no anuladas —lo que\
+            \ falta por atribuir—: ventas con alguna, esas líneas, sus unidades y\
+            \ su importe."
+        granularity:
+          type: string
+          description: "El tramo pedido —DAY, WEEK o MONTH—, o nulo si no se pidió\
+            ."
+        buckets:
+          type: array
+          description: "Los mismos bloques por tramo, todos los tramos presentes;\
+            \ nulo si no se pidió tramo. La suma de los tramos es el total."
+          items:
+            $ref: "#/components/schemas/SaleLinesBucket"
+    SaleLinesTotal:
+      type: object
+      properties:
+        sales:
+          type: integer
+          format: int64
+        lines:
+          type: integer
+          format: int64
+        units:
+          type: integer
+          format: int64
+          description: "Productos vendidos: la suma de las cantidades."
     PointsFlow:
       type: object
       properties:

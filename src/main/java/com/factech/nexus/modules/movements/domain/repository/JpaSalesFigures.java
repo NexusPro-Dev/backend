@@ -48,6 +48,10 @@ public class JpaSalesFigures implements SalesFigures {
 
   // La gratuidad es de la CABECERA —lo que se cobra por la venta entera— y no
   // de las líneas del alcance (`RN-IN-008`, `CA-IN-040`).
+  /** Lo que falta por atribuir: líneas sin vendedor de ventas no anuladas (`RF-IN-006`). */
+  private static final String SIN_VENDEDOR =
+      " AND d.seller_id IS NULL AND m.status IN ('CONFIRMADA', 'PENDIENTE')";
+
   private static final String CIFRAS_DEL_RESUMEN =
       CIFRAS + ", count(DISTINCT m.id) FILTER (WHERE m.payable_amount = 0)";
 
@@ -108,6 +112,61 @@ public class JpaSalesFigures implements SalesFigures {
     List<BucketSummary> tramos = new ArrayList<>(porTramo.size());
     porTramo.forEach(
         (inicio, porEstado) -> tramos.add(new BucketSummary(inicio, resumen(porEstado))));
+    return tramos;
+  }
+
+  /**
+   * Las líneas sin vendedor de las ventas no anuladas (`RF-IN-006`, `plan.md` §4.3): la sentencia
+   * del resumen con {@code d.seller_id IS NULL}, sobre todo el libro. Se le pone un estado fijo
+   * delante para reutilizar el mismo mapeo, y que se cuente exactamente igual.
+   */
+  @Override
+  @Transactional(readOnly = true)
+  public Totals unassigned(Interval interval, UUID currencyId) {
+    String sql =
+        "SELECT 'SIN_VENDEDOR', m.currency_id, c.code, "
+            + CIFRAS_DEL_RESUMEN
+            + DE_LAS_VENTAS
+            + SIN_VENDEDOR
+            + donde(SalesScope.everything(), interval, currencyId)
+            + " GROUP BY m.currency_id, c.code";
+    @SuppressWarnings("unchecked")
+    List<Object[]> filas =
+        enlazar(em.createNativeQuery(sql), SalesScope.everything(), interval, currencyId)
+            .getResultList();
+    Map<String, Acumulado> acumulado = new LinkedHashMap<>();
+    for (Object[] f : filas) {
+      sumar(acumulado, f, 0);
+    }
+    return totales(acumulado.get("SIN_VENDEDOR"));
+  }
+
+  @Override
+  @Transactional(readOnly = true)
+  public List<BucketTotals> unassignedByBucket(
+      Interval interval, UUID currencyId, Granularity granularity, ZoneId zone) {
+    String sql =
+        "SELECT CAST(date_trunc(:unidad, m.occurred_at AT TIME ZONE :zona) AS date),"
+            + " 'SIN_VENDEDOR', m.currency_id, c.code, "
+            + CIFRAS_DEL_RESUMEN
+            + DE_LAS_VENTAS
+            + SIN_VENDEDOR
+            + donde(SalesScope.everything(), interval, currencyId)
+            + " GROUP BY 1, 3, 4";
+    Query consulta =
+        enlazar(em.createNativeQuery(sql), SalesScope.everything(), interval, currencyId)
+            .setParameter("unidad", unidad(granularity))
+            .setParameter("zona", zone.getId());
+    @SuppressWarnings("unchecked")
+    List<Object[]> filas = consulta.getResultList();
+    Map<LocalDate, Map<String, Acumulado>> porTramo = new TreeMap<>();
+    for (Object[] f : filas) {
+      sumar(porTramo.computeIfAbsent(dia(f[0]), k -> new LinkedHashMap<>()), f, 1);
+    }
+    List<BucketTotals> tramos = new ArrayList<>(porTramo.size());
+    porTramo.forEach(
+        (inicio, acumulado) ->
+            tramos.add(new BucketTotals(inicio, totales(acumulado.get("SIN_VENDEDOR")))));
     return tramos;
   }
 

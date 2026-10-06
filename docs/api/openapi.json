@@ -7711,6 +7711,109 @@
         },
         "type" : "object"
       },
+      "SaleLinesBlock" : {
+        "properties" : {
+          "amounts" : {
+            "items" : {
+              "$ref" : "#/components/schemas/IndicatorAmount"
+            },
+            "type" : "array"
+          },
+          "lines" : {
+            "format" : "int64",
+            "type" : "integer"
+          },
+          "sales" : {
+            "format" : "int64",
+            "type" : "integer"
+          },
+          "units" : {
+            "description" : "Productos vendidos: la suma de las cantidades.",
+            "format" : "int64",
+            "type" : "integer"
+          }
+        },
+        "type" : "object"
+      },
+      "SaleLinesBucket" : {
+        "properties" : {
+          "confirmed" : {
+            "$ref" : "#/components/schemas/SaleLinesBlock"
+          },
+          "pending" : {
+            "$ref" : "#/components/schemas/SaleLinesBlock"
+          },
+          "start" : {
+            "description" : "Día en que empieza el tramo en el calendario.",
+            "example" : "2026-09-07",
+            "format" : "date",
+            "type" : "string"
+          },
+          "total" : {
+            "$ref" : "#/components/schemas/SaleLinesTotal"
+          },
+          "unassigned" : {
+            "$ref" : "#/components/schemas/SaleLinesBlock"
+          },
+          "voided" : {
+            "$ref" : "#/components/schemas/SaleLinesBlock"
+          }
+        },
+        "type" : "object"
+      },
+      "SaleLinesSummary" : {
+        "properties" : {
+          "buckets" : {
+            "description" : "Los mismos bloques por tramo, todos los tramos presentes; nulo si no se pidió tramo. La suma de los tramos es el total.",
+            "items" : {
+              "$ref" : "#/components/schemas/SaleLinesBucket"
+            },
+            "type" : "array"
+          },
+          "confirmed" : {
+            "$ref" : "#/components/schemas/SaleLinesBlock"
+          },
+          "granularity" : {
+            "description" : "El tramo pedido —DAY, WEEK o MONTH—, o nulo si no se pidió.",
+            "type" : "string"
+          },
+          "pending" : {
+            "$ref" : "#/components/schemas/SaleLinesBlock"
+          },
+          "period" : {
+            "$ref" : "#/components/schemas/IndicatorPeriod"
+          },
+          "total" : {
+            "$ref" : "#/components/schemas/SaleLinesTotal"
+          },
+          "unassigned" : {
+            "$ref" : "#/components/schemas/SaleLinesBlock",
+            "description" : "Las líneas sin vendedor de las ventas no anuladas —lo que falta por atribuir—: ventas con alguna, esas líneas, sus unidades y su importe."
+          },
+          "voided" : {
+            "$ref" : "#/components/schemas/SaleLinesBlock"
+          }
+        },
+        "type" : "object"
+      },
+      "SaleLinesTotal" : {
+        "properties" : {
+          "lines" : {
+            "format" : "int64",
+            "type" : "integer"
+          },
+          "sales" : {
+            "format" : "int64",
+            "type" : "integer"
+          },
+          "units" : {
+            "description" : "Productos vendidos: la suma de las cantidades.",
+            "format" : "int64",
+            "type" : "integer"
+          }
+        },
+        "type" : "object"
+      },
       "SaleParty" : {
         "properties" : {
           "id" : {
@@ -15239,6 +15342,71 @@
         "summary" : "Consultar el resumen de puntos",
         "tags" : [ "Indicadores" ],
         "x-required-permission" : "indicators:read-points-summary"
+      }
+    },
+    "/api/v1/indicators/sales/lines/summary" : {
+      "get" : {
+        "description" : "**Permiso requerido:** `indicators:read-sale-lines-summary`. Sin él, `403` (`AUTH-002`).\n\nSobre **todas** las líneas de venta de la plataforma: por estado de la venta\n—`confirmed`, `pending`, `voided`— las ventas, las líneas, **las unidades** (los\nproductos vendidos: la suma de las cantidades) y el importe por moneda; el **total**; y\naparte **`unassigned`, lo que no tiene vendedor**: las ventas con alguna línea sin\nvendedor, esas líneas, sus unidades y su importe, **sin las anuladas**, porque es lo que\nfalta por atribuir.\n\n**No se acota por alcance**: quien porte el permiso ve las cifras de toda la plataforma,\nsea cual sea su tipo de rol. El permiso se siembra solo a administración; dárselo a un\nrol vendedor es darle esta vista entera. Las cifras por estado son las que ve\nadministración en `GET /indicators/sales/summary`.\n\nEl periodo, la moneda y `granularity` son los de los demás indicadores: días de\nBogotá, sin fechas toda la historia, sin tope; con `granularity`, `buckets` trae los\nmismos bloques por tramo, todos presentes, y su suma es el total. **No hay filtro por\nvendedor.** Ni `movements:list-sale-lines` ni otro permiso de indicadores abren este.\n",
+        "operationId" : "resumenDeLineas",
+        "parameters" : [ {
+          "in" : "query",
+          "name" : "from",
+          "required" : false,
+          "schema" : {
+            "format" : "date",
+            "type" : "string"
+          }
+        }, {
+          "in" : "query",
+          "name" : "to",
+          "required" : false,
+          "schema" : {
+            "format" : "date",
+            "type" : "string"
+          }
+        }, {
+          "in" : "query",
+          "name" : "currencyId",
+          "required" : false,
+          "schema" : {
+            "format" : "uuid",
+            "type" : "string"
+          }
+        }, {
+          "in" : "query",
+          "name" : "granularity",
+          "required" : false,
+          "schema" : {
+            "type" : "string"
+          }
+        } ],
+        "responses" : {
+          "200" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/SaleLinesSummary"
+                }
+              }
+            },
+            "description" : "El resumen, aunque sea de ceros."
+          },
+          "400" : {
+            "description" : "Fecha o identificador malformado (`VAL-001`), `from` posterior a `to` (`VAL-002`) o un tramo desconocido (`VAL-005`); los dos últimos, juntos."
+          },
+          "401" : {
+            "description" : "Token ausente o inválido (`AUTH-001`)"
+          },
+          "403" : {
+            "description" : "Sin el permiso `indicators:read-sale-lines-summary` (`AUTH-002`)."
+          },
+          "500" : {
+            "description" : "Fallo no controlado (`ERR-500`)"
+          }
+        },
+        "summary" : "Consultar el resumen de líneas de venta",
+        "tags" : [ "Indicadores" ],
+        "x-required-permission" : "indicators:read-sale-lines-summary"
       }
     },
     "/api/v1/indicators/sales/series" : {

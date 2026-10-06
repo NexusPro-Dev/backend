@@ -6,7 +6,7 @@
 | Especificación | [`spec.md`](spec.md) v0.1.0 |
 | Plan | [`plan.md`](plan.md) v0.1.0 |
 | `plan.md` aprobado el | 06-10-2026 |
-| Estado | **En revisión** |
+| Estado | **Aprobadas** — por el responsable del proyecto, 06-10-2026. `T-01` a `T-06` `Hecha` el mismo día |
 | Issue | Pendiente de crear |
 | Rama | `develop` (commits directos desde el 05-10-2026) |
 
@@ -22,12 +22,12 @@
 
 | ID | Tarea | Depende de | Verificación | Estado |
 |---|---|---|---|---|
-| `T-01` | **`V78`**: `indicators:read-sale-lines-summary` (`…-5e7ad8000006`) a `SUPERADMIN` y `ADMIN`, explícitos; guardas 203 / 203 / 201 / ningún otro rol / contención | — | Recuentos del catálogo a 203 y 201 | Pendiente |
-| `T-02` | `SalesFigures.unassigned` y `unassignedByBucket`; `JpaSalesFigures` con la sentencia de `plan.md` §4.3 | — | Sin alcance en la firma | Pendiente |
-| `T-03` | `SaleLinesSummaryResponse`; `GetSaleLinesSummaryService` sin alcance, con periodo y tramos | `T-02` | Los nulos presentes | Pendiente |
-| `T-04` | `SalesIndicatorsController`: `GET /api/v1/indicators/sales/lines/summary`, documentado —sin alcance, lo ve entero quien porte el permiso— | `T-03` | La ruta en `PERMISO_DE_CADA_OPERACION` | Pendiente |
-| `T-05` | `SaleLinesSummaryIT`: `CA-IN-059` a `CA-IN-066` | `T-01`, `T-04` | Cuadra con el resumen de ventas | Pendiente |
-| `T-06` | Contrato regenerado; `api/index.md`, `requirements/mv.md` §3, `security.md` (sembrado), `requirements/in.md` y matriz | `T-05` | Solo altas | Pendiente |
+| `T-01` | **`V78`**: `indicators:read-sale-lines-summary` (`…-5e7ad8000006`) a `SUPERADMIN` y `ADMIN`, explícitos; guardas 203 / 203 / 201 / ningún otro rol / contención | — | Recuentos del catálogo a 203 y 201 | **Hecha** — 06-10-2026 |
+| `T-02` | `SalesFigures.unassigned` y `unassignedByBucket`; `JpaSalesFigures` con la sentencia de `plan.md` §4.3 | — | Sin alcance en la firma | **Hecha** — 06-10-2026 |
+| `T-03` | `SaleLinesSummaryResponse`; `GetSaleLinesSummaryService` sin alcance, con periodo y tramos | `T-02` | Los nulos presentes | **Hecha** — 06-10-2026 |
+| `T-04` | `SalesIndicatorsController`: `GET /api/v1/indicators/sales/lines/summary`, documentado —sin alcance, lo ve entero quien porte el permiso— | `T-03` | La ruta en `PERMISO_DE_CADA_OPERACION` | **Hecha** — 06-10-2026 |
+| `T-05` | `SaleLinesSummaryIT`: `CA-IN-059` a `CA-IN-066` | `T-01`, `T-04` | Cuadra con el resumen de ventas | **Hecha** — 06-10-2026 |
+| `T-06` | Contrato regenerado; `api/index.md`, `requirements/mv.md` §3, `security.md` (sembrado), `requirements/in.md` y matriz | `T-05` | Solo altas | **Hecha** — 06-10-2026 |
 
 ---
 
@@ -44,7 +44,7 @@
 
 ## 3. Desviaciones respecto del plan
 
-Ninguna todavía.
+**Lo sin vendedor reutiliza el mapeo del resumen** (`T-02`): la sentencia lleva un estado fijo delante para pasar por el mismo `sumar` que el resumen, de modo que ventas, líneas, unidades e importes se cuentan exactamente igual. El servicio recibe el periodo, la moneda y el tramo sueltos, sin `SalesIndicatorRequest`, porque no hay vendedor por el que acotar.
 
 ---
 
@@ -56,8 +56,8 @@ Ninguno.
 
 ## 5. Definición de terminado
 
-- [ ] `./mvnw clean verify` en verde.
-- [ ] Los ocho criterios de aceptación con prueba.
-- [ ] Contrato OpenAPI regenerado, **con la prosa releída**.
-- [ ] `requirements/in.md`, `requirements/mv.md`, `security.md`, `requirements.md` y `api/index.md` actualizados.
-- [ ] **`tasks.md` aprobadas por el responsable del proyecto.**
+- [x] `./mvnw clean verify` en verde — 567 unitarias y 2581 de integración (06-10-2026).
+- [x] Los ocho criterios de aceptación con prueba (`SaleLinesSummaryIT`, 5).
+- [x] Contrato OpenAPI regenerado, **con la prosa releída**: solo altas.
+- [x] `requirements/in.md`, `requirements/mv.md`, `security.md`, `requirements.md` y `api/index.md` actualizados.
+- [x] **`tasks.md` aprobadas por el responsable del proyecto** (06-10-2026).

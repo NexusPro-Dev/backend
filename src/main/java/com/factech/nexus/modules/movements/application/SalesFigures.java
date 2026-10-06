@@ -60,6 +60,21 @@ public interface SalesFigures {
   /** El resumen de un tramo. */
   record BucketSummary(LocalDate start, Summary summary) {}
 
+  /**
+   * <b>Lo que no tiene vendedor</b> (`RF-IN-006`): las líneas sin vendedor de las ventas no
+   * anuladas —lo que falta por atribuir—, con sus ventas, líneas, unidades e importe por moneda.
+   * <b>No recibe alcance</b>, a propósito: lo sin vendedor no está en el alcance de ningún vendedor
+   * (`RN-IN-003`) y solo tiene sentido sobre todo el libro (`RN-IN-011`).
+   */
+  Totals unassigned(Interval interval, UUID currencyId);
+
+  /** {@link #unassigned} partido en tramos de calendario de {@code zone}, solo los que tienen. */
+  List<BucketTotals> unassignedByBucket(
+      Interval interval, UUID currencyId, Granularity granularity, ZoneId zone);
+
+  /** Las cifras de un tramo. */
+  record BucketTotals(LocalDate start, Totals totals) {}
+
   /** El tamaño de un tramo. */
   enum Granularity {
     DAY,

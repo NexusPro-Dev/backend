@@ -1,8 +1,10 @@
 package com.factech.nexus.modules.indicators.interfaces;
 
+import com.factech.nexus.modules.indicators.application.SaleLinesSummaryResponse;
 import com.factech.nexus.modules.indicators.application.SalesIndicatorRequest;
 import com.factech.nexus.modules.indicators.application.SalesSeriesResponse;
 import com.factech.nexus.modules.indicators.application.SalesSummaryResponse;
+import com.factech.nexus.modules.indicators.domain.service.GetSaleLinesSummaryService;
 import com.factech.nexus.modules.indicators.domain.service.GetSalesSeriesService;
 import com.factech.nexus.modules.indicators.domain.service.GetSalesSummaryService;
 import io.swagger.v3.oas.annotations.Operation;
@@ -37,11 +39,15 @@ public class SalesIndicatorsController {
 
   private final GetSalesSummaryService resumen;
   private final GetSalesSeriesService evolucion;
+  private final GetSaleLinesSummaryService lineas;
 
   public SalesIndicatorsController(
-      GetSalesSummaryService resumen, GetSalesSeriesService evolucion) {
+      GetSalesSummaryService resumen,
+      GetSalesSeriesService evolucion,
+      GetSaleLinesSummaryService lineas) {
     this.resumen = resumen;
     this.evolucion = evolucion;
+    this.lineas = lineas;
   }
 
   @GetMapping("/sales/summary")
@@ -174,5 +180,61 @@ public class SalesIndicatorsController {
       @RequestParam(required = false) UUID sellerId,
       @RequestParam(required = false) String granularity) {
     return evolucion.get(new SalesIndicatorRequest(from, to, currencyId, sellerId), granularity);
+  }
+
+  /**
+   * <b>Bajo {@code /sales/lines}</b>, como {@code GET /movements/sales/lines} en `MV`: la tanda de
+   * ventas mirada desde las líneas. <b>Sin alcance</b> (`RN-IN-011`).
+   */
+  @GetMapping("/sales/lines/summary")
+  @PreAuthorize("hasAuthority('indicators:read-sale-lines-summary')")
+  @Operation(
+      summary = "Consultar el resumen de líneas de venta",
+      description =
+          """
+          Sobre **todas** las líneas de venta de la plataforma: por estado de la venta
+          —`confirmed`, `pending`, `voided`— las ventas, las líneas, **las unidades** (los
+          productos vendidos: la suma de las cantidades) y el importe por moneda; el **total**; y
+          aparte **`unassigned`, lo que no tiene vendedor**: las ventas con alguna línea sin
+          vendedor, esas líneas, sus unidades y su importe, **sin las anuladas**, porque es lo que
+          falta por atribuir.
+
+          **No se acota por alcance**: quien porte el permiso ve las cifras de toda la plataforma,
+          sea cual sea su tipo de rol. El permiso se siembra solo a administración; dárselo a un
+          rol vendedor es darle esta vista entera. Las cifras por estado son las que ve
+          administración en `GET /indicators/sales/summary`.
+
+          El periodo, la moneda y `granularity` son los de los demás indicadores: días de
+          Bogotá, sin fechas toda la historia, sin tope; con `granularity`, `buckets` trae los
+          mismos bloques por tramo, todos presentes, y su suma es el total. **No hay filtro por
+          vendedor.** Ni `movements:list-sale-lines` ni otro permiso de indicadores abren este.
+          """)
+  @ApiResponses({
+    @ApiResponse(responseCode = "200", description = "El resumen, aunque sea de ceros."),
+    @ApiResponse(
+        responseCode = "400",
+        description =
+            "Fecha o identificador malformado (`VAL-001`), `from` posterior a `to` (`VAL-002`)"
+                + " o un tramo desconocido (`VAL-005`); los dos últimos, juntos.",
+        content = @Content),
+    @ApiResponse(
+        responseCode = "401",
+        description = "Token ausente o inválido (`AUTH-001`)",
+        content = @Content),
+    @ApiResponse(
+        responseCode = "403",
+        description = "Sin el permiso `indicators:read-sale-lines-summary` (`AUTH-002`).",
+        content = @Content),
+    @ApiResponse(
+        responseCode = "500",
+        description = "Fallo no controlado (`ERR-500`)",
+        content = @Content)
+  })
+  public SaleLinesSummaryResponse resumenDeLineas(
+      @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate from,
+      @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate to,
+      @RequestParam(required = false) UUID currencyId,
+      @RequestParam(required = false) String granularity) {
+    return lineas.get(from, to, currencyId, granularity);
   }
 }
