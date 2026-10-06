@@ -4,7 +4,7 @@
 |---|---|
 | Requerimiento | `RF-SP-076` |
 | Módulo | `SP` — Sistema Principal |
-| Versión | 0.1.0 |
+| Versión | 0.2.0 |
 | Estado | **Aprobada** |
 | Autor | Responsable técnico |
 | Aprobada por | Responsable del proyecto |
@@ -71,7 +71,7 @@ Sin esta operación, perder las dos cosas a la vez deja la cuenta inaccesible pa
 | Regla | Cómo aplica |
 |---|---|
 | `RN-SP-064` | Motivo, cierre de sesiones, nunca sobre uno mismo |
-| `RN-SP-065` | **Nueva.** Nunca sobre quien tiene permisos que el actor no tiene |
+| `RN-SP-065` | Nunca sobre quien tiene permisos que el actor no tiene |
 | `RN-SP-062` | Si la persona está obligada, entra retenida hasta activarlo de nuevo |
 | `RN-SP-063` | Es sensible |
 
@@ -174,7 +174,7 @@ Ninguno.
 
 | # | Pregunta | Estado |
 |---|---|---|
-| 1 | `RN-SP-065` —nadie restablece el factor de quien tiene más privilegios— **la propuso el responsable técnico** al escribir esta spec, por el riesgo de toma de cuenta descrito en §2.1. **Queda pendiente de confirmación del responsable del proyecto.** `RF-SP-038`, restablecer contraseñas, no tiene hoy esa contención | **Abierta** |
+| 1 | `RN-SP-065` —nadie restablece el factor de quien tiene más privilegios— **la propuso el responsable técnico** al escribir esta spec, por el riesgo de toma de cuenta descrito en §2.1. `RF-SP-038`, restablecer contraseñas, no tiene hoy esa contención | **Confirmada** por el responsable del proyecto el 06-10-2026 |
 
 ---
 
@@ -183,3 +183,4 @@ Ninguno.
 | Versión | Fecha | Cambio | Autor |
 |---|---|---|---|
 | 0.1.0 | 06-10-2026 | Primera versión ([`requirements/sp.md`](../../../requirements/sp.md) v1.95.0, `RN-SP-064`; `RN-SP-065` nueva y pendiente de confirmar). | Responsable técnico |
+| 0.2.0 | 06-10-2026 | **`RN-SP-065` confirmada** por el responsable del proyecto; la pregunta 1 de §14 queda cerrada. | Responsable técnico |

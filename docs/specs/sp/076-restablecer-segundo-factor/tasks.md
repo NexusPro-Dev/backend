@@ -3,7 +3,7 @@
 | Campo | Valor |
 |---|---|
 | Requerimiento | `RF-SP-076` |
-| Especificación | [`spec.md`](spec.md) v0.1.0 |
+| Especificación | [`spec.md`](spec.md) v0.2.0 |
 | Plan | [`plan.md`](plan.md) v0.1.0 |
 | `plan.md` aprobado el | 06-10-2026 |
 | Estado | **En revisión** |
@@ -47,9 +47,7 @@
 
 ## 4. Bloqueos
 
-| # | Bloqueo | Bloquea |
-|---|---|---|
-| 1 | **`RN-SP-065` pendiente de confirmación** del responsable del proyecto (`spec.md` §14) | `CA-SP-874` y la comprobación de contención de `T-02`. El resto puede construirse |
+Ninguno, salvo `RF-SP-073`. `RN-SP-065` quedó confirmada el 06-10-2026.
 
 ---
 
@@ -68,3 +66,4 @@
 | Versión | Fecha | Cambio | Autor |
 |---|---|---|---|
 | 0.1.0 | 06-10-2026 | Primera versión. | Responsable técnico |
+| 0.2.0 | 06-10-2026 | Sin bloqueos: `RN-SP-065` confirmada. | Responsable técnico |
