@@ -3,8 +3,8 @@
 | Campo | Valor |
 |---|---|
 | Requerimiento | `RF-IN-001` |
-| Especificación | [`spec.md`](spec.md) v0.1.0 |
-| Plan | [`plan.md`](plan.md) v0.1.0 |
+| Especificación | [`spec.md`](spec.md) v0.2.0 |
+| Plan | [`plan.md`](plan.md) v0.2.0 |
 | `plan.md` aprobado el | 06-10-2026 |
 | Estado | **Aprobadas** — por el responsable del proyecto, 06-10-2026. `T-01` a `T-10` `Hecha` el mismo día |
 | Issue | Pendiente de crear |
@@ -33,6 +33,16 @@
 | `T-09` | `LayerRulesTest`: `IN` no depende de `domain` de otro módulo y nadie depende de `IN` | `T-07` | La regla falla si se rompe a propósito | **Hecha** — 06-10-2026 |
 | `T-10` | Contrato OpenAPI regenerado y prosa releída; `docs/api/index.md`; `requirements/in.md` y `mv.md` (§3, `SalesFigures`); `architecture.md` §15.2; `security.md` §4.4 (sembrados); matriz | `T-08` | `openapi.json` declara la ruta con `x-required-permission` y ningún esquema fundido | **Hecha** — 06-10-2026 |
 
+### 1.1 El total y las gratuitas — 06-10-2026
+
+Enmienda de hecho (Art. I.7), `spec.md` 0.2.0 y `plan.md` 0.2.0 **antes** del código, por decisión del responsable del proyecto.
+
+| ID | Tarea | Depende de | Verificación | Estado |
+|---|---|---|---|---|
+| `T-11` | `SalesFigures.Totals` gana `free`; `JpaSalesFigures.summary` cuenta las gratuitas con `FILTER (WHERE m.payable_amount = 0)` | — | La serie de `RF-IN-002` sigue sumando lo confirmado | Pendiente |
+| `T-12` | `SalesSummaryResponse` gana `total` (`sales`, `free`) y `free` en cada estado; `GetSalesSummaryService` suma el total | `T-11` | `@Schema` propio para `total` | Pendiente |
+| `T-13` | `SalesSummaryIT`: `CA-IN-038` a `CA-IN-040`; contrato regenerado; `api/index.md`, matriz | `T-12` | Las cifras de antes no cambian | Pendiente |
+
 ---
 
 ## 2. Cobertura de los criterios de aceptación
@@ -46,6 +56,7 @@
 | `CA-IN-011`, `CA-IN-012` | `T-05`, `T-06`, `T-08` |
 | `CA-IN-013` | `T-04`, `T-06`, `T-08` |
 | `CA-IN-014` | `T-01`, `T-07`, `T-08` |
+| `CA-IN-038` a `CA-IN-040` | `T-11` a `T-13` — 06-10-2026 |
 
 ---
 

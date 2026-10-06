@@ -4,11 +4,15 @@
 |---|---|
 | Requerimiento | `RF-IN-001` |
 | Módulo | `IN` — Indicadores |
-| Versión | 0.1.0 |
+| Versión | 0.2.0 |
 | Estado | **Aprobada** |
 | Autor | Responsable técnico |
 | Aprobada por | Responsable del proyecto |
 | Fecha de aprobación | 06-10-2026 |
+
+!!! warning "Enmendado el 06-10-2026 — el total de ventas y las gratuitas"
+
+    Por decisión del responsable del proyecto: el indicador de ventas tiene que dar **el número de ventas**, **el total por estado** y **cuántas fueron gratuitas**. El total por estado ya estaba; faltaban los otros dos, y entran **en este mismo resumen**, con su permiso y su ruta, en lugar de en un indicador nuevo. **El total** es el número de ventas del periodo y del alcance **sea cual sea su estado**: la suma de las confirmadas, las pendientes y las anuladas, que no se solapan porque cada venta está en un solo estado. **Las gratuitas** se cuentan **en cada estado y en el total** (`RN-IN-008`): una venta es gratuita si su importe a pagar es cero —la del alta por enlace—, y **sigue contando dentro de su estado**, de modo que «las pagadas» son las confirmadas menos las gratuitas confirmadas. La gratuidad es **de la venta entera**: una venta cobrada que tenga una línea a cero no es gratuita.
 
 !!! info "Qué va en este documento"
 
@@ -83,6 +87,7 @@ Una venta en pesos y otra en dólares no tienen un total sin una tasa, y **escog
 | **`RN-IN-004`** | Un importe por moneda, nunca sumados entre sí; las cantidades sí se suman |
 | **`RN-IN-005`** | Solo ventas; el periodo es sobre cuándo **ocurrió**; «vendido» es confirmado; pendiente y anulado aparte; el alta gratuita cuenta con importe cero |
 | **`RN-IN-007`** | Los días del periodo son los de Bogotá |
+| **`RN-IN-008`** | Gratuita es la venta de importe cero; sigue contando en su estado (06-10-2026) |
 | `RN-MV-003` | El vendedor es de la línea |
 | `RN-MV-031` | La precedencia funcionario > vendedor > consumidor, y «mi red» es la estructura de mando vigente |
 
@@ -108,9 +113,10 @@ Una venta en pesos y otra en dólares no tienen un total sin una tasa, y **escog
 | Dato | Descripción |
 |---|---|
 | Periodo | Los dos días efectivos —los pedidos o los de por defecto— y la zona en que se interpretan |
-| Confirmadas | Ventas, líneas, unidades, y el importe **por moneda** |
-| Pendientes | Ventas y el importe por moneda |
-| Anuladas | Ventas y el importe por moneda |
+| Total (06-10-2026) | Ventas, **sea cual sea su estado**, y cuántas de ellas fueron gratuitas |
+| Confirmadas | Ventas, líneas, unidades, el importe **por moneda**, y cuántas fueron gratuitas |
+| Pendientes | Ventas, el importe por moneda y cuántas fueron gratuitas |
+| Anuladas | Ventas, el importe por moneda y cuántas fueron gratuitas |
 
 **Cada importe va con su moneda** —identificador y código—, y **una moneda sin ventas no aparece**: una lista de ceros por cada moneda del catálogo no informa nada. Sin ventas en el periodo, las cantidades son cero y las listas de importes están vacías.
 
@@ -207,6 +213,9 @@ Lo que vendió **deja de contarse** para mí desde ese instante, aunque lo vendi
 | `CA-IN-012` | Quien **dejó de colgar de mí** deja de contar para mí |
 | `CA-IN-013` | Un rango invertido, un periodo de más de 366 días y un identificador mal formado son un error, **devueltos juntos** |
 | `CA-IN-014` | Sin el permiso, **prohibido**; sin autenticar, `401`; **ni el permiso del listado de ventas ni el de otro indicador lo abren** |
+| `CA-IN-038` | El **total** es la suma de las confirmadas, las pendientes y las anuladas del alcance, y acota igual por periodo, vendedor y moneda (06-10-2026) |
+| `CA-IN-039` | Las **gratuitas** se cuentan en cada estado y en el total; el alta gratuita confirmada cuenta **una** venta confirmada, con importe cero, y **una** gratuita confirmada (06-10-2026) |
+| `CA-IN-040` | La gratuidad es **de la venta entera**: una venta cobrada con una línea a cero no es gratuita, y una gratuita lo es para todo vendedor que tenga una línea en ella (06-10-2026) |
 
 **`CA-IN-005` es el que sostiene el módulo**, y `CA-IN-011` el que lo protege: el primero prueba que se suma por línea y no por venta; el segundo, que el filtro por vendedor no se convierte en la forma de descubrir la estructura.
 
@@ -238,3 +247,4 @@ Lo que vendió **deja de contarse** para mí desde ese instante, aunque lo vendi
 | Versión | Fecha | Cambio | Autor |
 |---|---|---|---|
 | 0.1.0 | 06-10-2026 | Primera versión, con el módulo `IN` ([`requirements/in.md`](../../../requirements/in.md) v0.1.0). Fija las definiciones que heredan los otros tres indicadores de ventas: **por línea** y no por venta (§2.1, `CA-IN-005`), **por moneda** (§2.2), el periodo **en días de Bogotá** con el último incluido y un tope de 366 días, y **ceros** fuera del alcance. Catorce criterios, `CA-IN-001` a `CA-IN-014`. | Responsable técnico |
+| 0.2.0 | 06-10-2026 | **El total y las gratuitas** (§6.2, `RN-IN-008`, `CA-IN-038` a `CA-IN-040`), por decisión del responsable del proyecto: enmienda en el mismo resumen, sin indicador nuevo. Ampliación: ninguna cifra que ya se devolvía cambia. | Responsable técnico |

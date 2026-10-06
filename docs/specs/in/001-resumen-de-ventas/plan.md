@@ -3,13 +3,17 @@
 | Campo | Valor |
 |---|---|
 | Requerimiento | `RF-IN-001` |
-| Especificación | [`spec.md`](spec.md) v0.1.0 |
+| Especificación | [`spec.md`](spec.md) v0.2.0 |
 | `spec.md` aprobada el | 06-10-2026 |
-| Versión | 0.1.0 |
+| Versión | 0.2.0 |
 | Estado | **Aprobado** |
 | Autor | Responsable técnico |
 | Aprobado por | Responsable del proyecto |
 | Fecha de aprobación | 06-10-2026 |
+
+!!! warning "Enmendado el 06-10-2026 — el total de ventas y las gratuitas"
+
+    Por decisión del responsable del proyecto: el indicador de ventas tiene que dar **el número de ventas**, **el total por estado** y **cuántas fueron gratuitas**. El total por estado ya estaba; faltaban los otros dos, y entran **en este mismo resumen**, con su permiso y su ruta, en lugar de en un indicador nuevo. **Cómo se construye.** La sentencia de §4.4 gana una columna, `count(DISTINCT m.id) FILTER (WHERE m.payable_amount = 0)`, en el mismo `GROUP BY` por estado y moneda: la gratuidad se mira en la **cabecera** —lo que se cobra por la venta entera— y no en la suma de las líneas del alcance. `SalesFigures.Totals` gana `free`; `IN` suma el total en Java, como ya suma las ventas entre monedas, porque los tres estados no se solapan. En la respuesta, `total` es un bloque nuevo —`sales` y `free`— y cada bloque de estado gana `free`. **Sin cambio de esquema ni de permisos**; el contrato solo crece. Se mira `payable_amount` y no el método de pago porque el método vive en `payments`, uno por intento, y `RN-MV-022` ya garantiza que importe cero y `GRATIS` son lo mismo.
 
 !!! info "Qué va en este documento"
 

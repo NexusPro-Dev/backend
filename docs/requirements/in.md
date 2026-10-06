@@ -5,7 +5,7 @@
 | Módulo | `IN` — Indicadores |
 | Paquete | `modules/indicators` |
 | Prefijo de permisos | `indicators:` |
-| Versión | 0.4.0 |
+| Versión | 0.5.0 |
 | Estado | **Borrador** |
 | Responsable | Bonilla Diaz William Steven |
 | Fecha de creación | 06-10-2026 |
@@ -124,6 +124,7 @@ La dependencia es **acíclica**: `IN` → `SP` e `IN` → `MV`. Ni `SP` ni `MV` 
 | `RN-IN-005` | **Qué es una venta para los indicadores** | Al calcular un indicador de ventas | Solo movimientos de tipo **`VENTA`**: la compra de puntos (`COMPRA_PUNTOS`) no vende un producto y no comisiona. El periodo se aplica a **`occurred_at`** —cuándo ocurrió la venta, no cuándo se registró—, **semiabierto** (`[from, to)`), como los listados de auditoría y de movimientos. **«Vendido» es `CONFIRMADA`**; `PENDIENTE` y `ANULADA` se informan aparte, cada una con su cantidad y su importe, y nunca se suman a lo vendido. La venta del **alta gratuita** (`RN-SP-043`) es una `VENTA` confirmada de importe cero: **cuenta** como venta y no mueve el importe | **Alta** |
 | `RN-IN-006` | **Los indicadores no guardan nada** | Siempre | Cada lectura cuenta sobre los datos vivos de su dueño. No hay fotos, ni caché, ni tablas de `IN`. Si el volumen llega a exigirlo, las fotos serán tablas **de `IN`** y un requerimiento propio dirá cada cuánto se toman y qué pasa con lo que cambia después —una venta pendiente que se confirma, una línea que gana vendedor— | Media |
 | `RN-IN-007` | **Los días son los de Bogotá** | Al agrupar por día, semana o mes, y al interpretar una fecha sin hora | El corte de cada día, semana —de lunes a domingo— y mes se hace en la zona **`America/Bogota`**, la misma con la que `CM` cierra sus periodos. Agrupar en UTC pondría las ventas de las siete de la noche en el día siguiente | Media |
+| `RN-IN-008` | **Gratuita es la venta de importe cero** | Al contar las ventas gratuitas (`RF-IN-001`) | Una venta es gratuita si **lo que se cobra por ella entera** es cero —el importe a pagar de la venta, no el de las líneas del alcance—, que es lo mismo que decir que se registró con el método `GRATIS` (`RN-MV-022`); hoy, la del alta por enlace (`RN-MV-075`). **Sigue contando como venta** en su estado, con importe cero, y además se cuenta aparte como gratuita. Decisión del responsable del proyecto, 06-10-2026 | Media |
 
 ### 5.2 Decisiones que definen el módulo — 06-10-2026
 
@@ -189,7 +190,7 @@ La migración que los siembre los da **por tipo de rol**, como los demás permis
 | Tripleta | [`docs/specs/in/001-resumen-de-ventas/`](../specs/in/001-resumen-de-ventas/spec.md) |
 | Estado | **En desarrollo** — construido el 06-10-2026, con `SalesFigures` y `V74` |
 
-Para un periodo y, opcionalmente, una moneda o un vendedor de mi alcance: **cuántas ventas** se confirmaron, cuántas líneas y cuántas unidades, y **por cuánto** en cada moneda; y aparte, con su cantidad y su importe, las que siguen **pendientes** y las **anuladas**. Es el primero en construirse porque es el que estrena la interfaz de `MV`.
+Para un periodo y, opcionalmente, una moneda o un vendedor de mi alcance: **cuántas ventas hubo en total**, sea cual sea su estado (06-10-2026); **cuántas** se confirmaron, cuántas líneas y cuántas unidades, y **por cuánto** en cada moneda; y aparte, con su cantidad y su importe, las que siguen **pendientes** y las **anuladas**. **Cada una de esas cifras dice además cuántas fueron gratuitas** (`RN-IN-008`, 06-10-2026). Es el primero en construirse porque es el que estrena la interfaz de `MV`.
 
 #### `RF-IN-002` — Consultar la evolución de las ventas
 
@@ -283,3 +284,4 @@ El contrato detallado de cada endpoint —parámetros, valores por defecto del p
 | 0.2.0 | 06-10-2026 | **Las cuatro tripletas de ventas están escritas** —`spec.md` y `plan.md` aprobados, `tasks.md` en revisión—, en `docs/specs/in/001` a `004`, con los criterios `CA-IN-001` a `CA-IN-037`. Fijan lo que este documento dejaba abierto: `MV` publica **`SalesFigures`** (§3); el periodo se pide **en días de Bogotá**, con el último incluido, por defecto el mes en curso y con un **tope de 366 días**; el corte fuera del alcance responde **ceros sin consultar**; los rankings se ordenan **por importe con moneda y por unidades sin ella**; y lo **sin asignar** va aparte, solo para administración. La migración de los cuatro permisos la construye `RF-IN-001` · `T-01`. Se corrige además `RN-IN-004`: los importes van **en decimales**, como el resto de la API, y no en centésimas. | Bonilla Diaz William Steven |
 | 0.3.0 | 06-10-2026 | **Las cuatro `tasks.md` aprobadas** por el responsable del proyecto, y **`RF-IN-001` construido**: `V74` siembra los cuatro permisos (catálogo 189), `MV` publica `SalesFigures` y `GET /indicators/sales/summary` responde. Dos desviaciones, en sus tareas: la suma se prueba por HTTP y no con una suite propia de `MV`, y una fecha o un identificador mal formados son `VAL-001` del manejador común. | Bonilla Diaz William Steven |
 | 0.4.0 | 06-10-2026 | **`RF-IN-002` construido**: `GET /indicators/sales/series`, lo confirmado por día, semana —de lunes— o mes de Bogotá, con todos los tramos y todas las monedas del periodo en cada uno. `SalesFigures` gana `confirmedByBucket`; el predicado de `MV` queda en un solo sitio para que la serie sume exactamente el resumen. | Bonilla Diaz William Steven |
+| 0.5.0 | 06-10-2026 | **El resumen de ventas gana el total y las gratuitas** (`RF-IN-001` enmendado; Art. I.7), por decisión del responsable del proyecto: el número de ventas sea cual sea su estado, y en cada estado y en el total cuántas fueron **gratuitas**. Nace **`RN-IN-008`**: gratuita es la venta de importe cero, la del método `GRATIS`, y sigue contando como venta. Mismo permiso y misma ruta. | Bonilla Diaz William Steven |
