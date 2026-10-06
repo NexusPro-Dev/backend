@@ -3,8 +3,8 @@
 | Campo | Valor |
 |---|---|
 | Requerimiento | `RF-IN-002` |
-| Especificación | [`spec.md`](spec.md) v0.1.0 |
-| Plan | [`plan.md`](plan.md) v0.1.0 |
+| Especificación | [`spec.md`](spec.md) v0.2.0 |
+| Plan | [`plan.md`](plan.md) v0.2.0 |
 | `plan.md` aprobado el | 06-10-2026 |
 | Estado | **Aprobadas** — por el responsable del proyecto, 06-10-2026. `T-01` a `T-06` `Hecha` el mismo día |
 | Issue | Pendiente de crear |
@@ -28,6 +28,12 @@
 | `T-04` | `SalesIndicatorsController`: `GET /api/v1/indicators/sales/series`, documentado | `T-03` | La ruta en `PERMISO_DE_CADA_OPERACION` | **Hecha** — 06-10-2026 |
 | `T-05` | `SalesSeriesIT`: `CA-IN-015` a `CA-IN-022`, con la suma cruzada contra el resumen | `T-04` | Coste: una sentencia con 7 y con 90 tramos | **Hecha** — 06-10-2026 |
 | `T-06` | Contrato regenerado y prosa releída; `docs/api/index.md`; ficha y matriz | `T-05` | `openapi.json` con la ruta y su permiso | **Hecha** — 06-10-2026 |
+
+### 1.1 Sin fechas, desde la primera venta — 06-10-2026 (`RN-IN-010`)
+
+| ID | Tarea | Depende de | Verificación | Estado |
+|---|---|---|---|---|
+| `T-07` | `GetSalesSeriesService` sobre el periodo abierto; `SalesSeriesIT`: `CA-IN-055` y `CA-IN-056`, y `CA-IN-020`/`CA-IN-022` reescritos | `RF-IN-001` · `T-15` | | Pendiente |
 
 ---
 

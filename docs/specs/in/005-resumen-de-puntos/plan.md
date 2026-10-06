@@ -3,13 +3,17 @@
 | Campo | Valor |
 |---|---|
 | Requerimiento | `RF-IN-005` |
-| Especificación | [`spec.md`](spec.md) v0.1.0 |
+| Especificación | [`spec.md`](spec.md) v0.2.0 |
 | `spec.md` aprobada el | 06-10-2026 |
-| Versión | 0.1.0 |
+| Versión | 0.2.0 |
 | Estado | **Aprobado** |
 | Autor | Responsable técnico |
 | Aprobado por | Responsable del proyecto |
 | Fecha de aprobación | 06-10-2026 |
+
+!!! warning "Enmendado el 06-10-2026 — sin fechas, todo; y cada indicador se puede partir en tramos (RN-IN-010)"
+
+    Decisión del responsable del proyecto, 06-10-2026: «los indicadores se recogen en su totalidad a no ser que se les envíe una fecha en los filtros», y «tener la capacidad de pedir los indicadores por meses, por días y por semanas, y adicionalmente un filtro de inicio y fin; si van vacíos se consulta todo». **Cómo se construye.** El periodo abierto es el de `RF-IN-001` · `T-14`. **Los tramos** son una tercera sentencia, la de los movimientos de §4.4 agrupada además por `date_trunc` sobre la hora de Bogotá de `e.created_at`, solo si se pide tramo: `PointsFigures.flowsByBucket`. En la respuesta, `granularity` y `buckets` son nulos sin tramo; cada tramo lleva `start` y, por moneda, las cuatro clases, sin saldo.
 
 !!! info "Qué va en este documento"
 

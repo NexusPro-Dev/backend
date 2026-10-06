@@ -3,8 +3,8 @@
 | Campo | Valor |
 |---|---|
 | Requerimiento | `RF-IN-001` |
-| Especificación | [`spec.md`](spec.md) v0.2.0 |
-| Plan | [`plan.md`](plan.md) v0.2.0 |
+| Especificación | [`spec.md`](spec.md) v0.3.0 |
+| Plan | [`plan.md`](plan.md) v0.3.0 |
 | `plan.md` aprobado el | 06-10-2026 |
 | Estado | **Aprobadas** — por el responsable del proyecto, 06-10-2026. `T-01` a `T-10` `Hecha` el mismo día |
 | Issue | Pendiente de crear |
@@ -43,6 +43,14 @@ Enmienda de hecho (Art. I.7), `spec.md` 0.2.0 y `plan.md` 0.2.0 **antes** del c�
 | `T-12` | `SalesSummaryResponse` gana `total` (`sales`, `free`) y `free` en cada estado; `GetSalesSummaryService` suma el total | `T-11` | `@Schema` propio para `total` | **Hecha** — 06-10-2026 |
 | `T-13` | `SalesSummaryIT`: `CA-IN-038` a `CA-IN-040`; contrato regenerado; `api/index.md`, matriz | `T-12` | Las cifras de antes no cambian | **Hecha** — 06-10-2026 |
 
+### 1.2 Sin fechas, todo; y los tramos — 06-10-2026 (`RN-IN-010`)
+
+| ID | Tarea | Depende de | Verificación | Estado |
+|---|---|---|---|---|
+| `T-14` | `Interval` con «desde» nulo; `SalesPeriodResolver` sin mes por defecto ni tope, con `from` nulo; los predicados de `JpaSalesFigures` omiten el límite inferior | — | `SalesPeriodResolverTest` reescrito | Pendiente |
+| `T-15` | `SalesFigures.summaryByBucket`; `SalesCalendar` arranca en el primer dato si no hay «desde»; `GetSalesSummaryService` con `granularity` y `buckets` (nulos sin tramo); `VAL-005` junto a `VAL-002` | `T-14` | Suma de los tramos = total | Pendiente |
+| `T-16` | `SalesSummaryIT`: `CA-IN-050` a `CA-IN-054`; los casos que asumían el mes en curso y los 366 días, reescritos; contrato y documentos | `T-15` | | Pendiente |
+
 ---
 
 ## 2. Cobertura de los criterios de aceptación
@@ -57,6 +65,7 @@ Enmienda de hecho (Art. I.7), `spec.md` 0.2.0 y `plan.md` 0.2.0 **antes** del c�
 | `CA-IN-013` | `T-04`, `T-06`, `T-08` |
 | `CA-IN-014` | `T-01`, `T-07`, `T-08` |
 | `CA-IN-038` a `CA-IN-040` | `T-11` a `T-13` — 06-10-2026 |
+| `CA-IN-050` a `CA-IN-054` | `T-14` a `T-16` — 06-10-2026 |
 
 ---
 

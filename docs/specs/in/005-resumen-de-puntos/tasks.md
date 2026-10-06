@@ -3,8 +3,8 @@
 | Campo | Valor |
 |---|---|
 | Requerimiento | `RF-IN-005` |
-| Especificación | [`spec.md`](spec.md) v0.1.0 |
-| Plan | [`plan.md`](plan.md) v0.1.0 |
+| Especificación | [`spec.md`](spec.md) v0.2.0 |
+| Plan | [`plan.md`](plan.md) v0.2.0 |
 | `plan.md` aprobado el | 06-10-2026 |
 | Estado | **Aprobadas** — por el responsable del proyecto, 06-10-2026. `T-01` a `T-06` `Hecha` el mismo día |
 | Issue | Pendiente de crear |
@@ -28,6 +28,13 @@
 | `T-04` | `PointsIndicatorsController`: `GET /api/v1/indicators/points/summary`, documentado | `T-03` | La ruta en `PERMISO_DE_CADA_OPERACION` | **Hecha** — 06-10-2026 |
 | `T-05` | `PointsSummaryIT`: `CA-IN-041` a `CA-IN-049`, con compras, pagos y ajustes por las rutas de `MV` | `T-01`, `T-04` | `CA-IN-044` cuadra | **Hecha** — 06-10-2026 |
 | `T-06` | Contrato regenerado y prosa releída; `api/index.md`, `requirements/mv.md` §3, `architecture.md` §15.2, `security.md` (sembrado), `requirements/in.md` y matriz | `T-05` | Solo altas en el contrato | **Hecha** — 06-10-2026 |
+
+### 1.1 Sin fechas, todo; y los tramos — 06-10-2026 (`RN-IN-010`)
+
+| ID | Tarea | Depende de | Verificación | Estado |
+|---|---|---|---|---|
+| `T-07` | `PointsFigures.flowsByBucket`; `GetPointsSummaryService` con el periodo abierto, `granularity` y `buckets` | `RF-IN-001` · `T-14` | El saldo solo en el total | Pendiente |
+| `T-08` | `PointsSummaryIT`: `CA-IN-057` y `CA-IN-058`; contrato y documentos | `T-07` | | Pendiente |
 
 ---
 

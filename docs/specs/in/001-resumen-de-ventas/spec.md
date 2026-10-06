@@ -4,11 +4,15 @@
 |---|---|
 | Requerimiento | `RF-IN-001` |
 | Módulo | `IN` — Indicadores |
-| Versión | 0.2.0 |
+| Versión | 0.3.0 |
 | Estado | **Aprobada** |
 | Autor | Responsable técnico |
 | Aprobada por | Responsable del proyecto |
 | Fecha de aprobación | 06-10-2026 |
+
+!!! warning "Enmendado el 06-10-2026 — sin fechas, todo; y cada indicador se puede partir en tramos (RN-IN-010)"
+
+    Decisión del responsable del proyecto, 06-10-2026: «los indicadores se recogen en su totalidad a no ser que se les envíe una fecha en los filtros», y «tener la capacidad de pedir los indicadores por meses, por días y por semanas, y adicionalmente un filtro de inicio y fin; si van vacíos se consulta todo». **El periodo**: sin «desde» ni «hasta», **todas las ventas de la historia**; con una sola fecha, la otra queda abierta; y **ya no hay tope de 366 días** (`VAL-003` se retira). **Los tramos**: con un tramo pedido —día, semana o mes—, el resumen trae además, **por cada tramo**, los mismos bloques —total, confirmadas, pendientes, anuladas, con sus gratuitas—; todos los tramos aparecen, la suma de los tramos es el total, y sin tramo la respuesta es la de siempre. Los tramos los decide `RF-IN-002` §2.2: del calendario de Bogotá, la semana de lunes, recortados al periodo.
 
 !!! warning "Enmendado el 06-10-2026 — el total de ventas y las gratuitas"
 
@@ -99,14 +103,15 @@ Una venta en pesos y otra en dólares no tienen un total sin una tasa, y **escog
 
 | Dato | Obligatorio | Descripción |
 |---|---|---|
-| Desde | No | **Día** de Bogotá en que empieza el periodo, incluido. Por defecto, el primero del mes en curso |
+| Desde | No | **Día** de Bogotá en que empieza el periodo, incluido. **Sin él, desde el principio** (06-10-2026; antes, el primero del mes en curso) |
 | Hasta | No | **Día** de Bogotá en que acaba el periodo, **incluido entero**. Por defecto, hoy |
+| Tramo (06-10-2026) | No | Día, semana o mes. **Sin él, no hay tramos**: la respuesta es solo el total |
 | Moneda | No | Solo lo vendido en esa moneda. Una que no exista da **ceros**, no un error: el filtro no es un catálogo de monedas |
 | Vendedor | No | Solo lo que vendió esa persona, **si está en mi alcance**. Fuera de él —o inexistente— da **ceros**: el indicador no confirma quién cuelga de quién |
 
 **El periodo se da en días y no en instantes**, al revés que los listados de movimientos. Un indicador se pregunta en días —«septiembre», «esta semana»— y quien lo pide no debería tener que calcular a qué hora UTC empieza el uno de septiembre en Bogotá. Por dentro sigue siendo **semiabierto**: del comienzo del primer día al comienzo del día siguiente al último.
 
-**El periodo no puede pasar de 366 días.** Es el año con bisiesto: suficiente para cualquier comparación anual, y un tope que impide que una petición recorra el libro entero de varios años.
+~~**El periodo no puede pasar de 366 días.**~~ **Retirado el 06-10-2026** (`RN-IN-010`): si la historia entera se puede pedir sin fechas, acotar un rango con fechas no protege nada. Es el año con bisiesto: suficiente para cualquier comparación anual, y un tope que impide que una petición recorra el libro entero de varios años.
 
 ### 6.2 Salida
 
@@ -188,7 +193,8 @@ Lo que vendió **deja de contarse** para mí desde ese instante, aunque lo vendi
 |---|---|
 | `VAL-001` | «Desde» y «hasta», si vienen, son días bien formados |
 | `VAL-002` | «Desde» no es posterior a «hasta» |
-| `VAL-003` | El periodo efectivo no pasa de 366 días |
+| ~~`VAL-003`~~ | ~~El periodo efectivo no pasa de 366 días~~ — **retirada el 06-10-2026** (`RN-IN-010`) |
+| `VAL-005` | El tramo, si viene, es día, semana o mes (06-10-2026) |
 | `VAL-004` | La moneda y el vendedor, si vienen, son identificadores bien formados |
 
 **Los problemas de validación se devuelven juntos**, como en todo el sistema. Un «desde» sin «hasta» toma hoy como final; un «hasta» sin «desde» toma el primero de **su** mes, no del mes en curso, para que pedir «hasta el 31 de agosto» no produzca un rango invertido.
@@ -208,14 +214,19 @@ Lo que vendió **deja de contarse** para mí desde ese instante, aunque lo vendi
 | `CA-IN-007` | Confirmadas, pendientes y anuladas van **separadas**; ni las pendientes ni las anuladas se suman a lo vendido |
 | `CA-IN-008` | Solo cuentan las **ventas**: una compra de puntos en el periodo no cambia el resumen; el alta gratuita confirmada suma **una venta** y **cero** de importe |
 | `CA-IN-009` | El periodo es sobre **cuándo ocurrió** la venta, en días de **Bogotá**: una venta a las 20:00 del 30 de septiembre en Bogotá —ya 1 de octubre en UTC— cuenta en septiembre; el último día entra **entero** |
-| `CA-IN-010` | Sin fechas, el periodo es el **mes en curso hasta hoy**, y la respuesta lo devuelve |
+| `CA-IN-010` | ~~Sin fechas, el periodo es el mes en curso hasta hoy~~ — **sustituido el 06-10-2026 por `CA-IN-050`** |
 | `CA-IN-011` | El filtro por **vendedor** acota dentro del alcance; uno fuera de mi red o inexistente da **ceros** y no un error. El filtro por **moneda** acota; una inexistente da ceros |
 | `CA-IN-012` | Quien **dejó de colgar de mí** deja de contar para mí |
-| `CA-IN-013` | Un rango invertido, un periodo de más de 366 días y un identificador mal formado son un error, **devueltos juntos** |
+| `CA-IN-013` | Un rango invertido y un identificador mal formado son un error (el de más de 366 días se retira el 06-10-2026) |
 | `CA-IN-014` | Sin el permiso, **prohibido**; sin autenticar, `401`; **ni el permiso del listado de ventas ni el de otro indicador lo abren** |
 | `CA-IN-038` | El **total** es la suma de las confirmadas, las pendientes y las anuladas del alcance, y acota igual por periodo, vendedor y moneda (06-10-2026) |
 | `CA-IN-039` | Las **gratuitas** se cuentan en cada estado y en el total; el alta gratuita confirmada cuenta **una** venta confirmada, con importe cero, y **una** gratuita confirmada (06-10-2026) |
 | `CA-IN-040` | La gratuidad es **de la venta entera**: una venta cobrada con una línea a cero no es gratuita, y una gratuita lo es para todo vendedor que tenga una línea en ella (06-10-2026) |
+| `CA-IN-050` | **Sin fechas, toda la historia**: una venta de hace años cuenta; la respuesta devuelve `from` vacío y `to` hoy (06-10-2026) |
+| `CA-IN-051` | **Con una sola fecha, la otra queda abierta**: solo «desde», hasta hoy; solo «hasta», desde el principio (06-10-2026) |
+| `CA-IN-052` | **No hay tope**: un periodo de varios años es válido (06-10-2026) |
+| `CA-IN-053` | **Con tramo**, la respuesta trae por cada tramo los mismos bloques, todos los tramos presentes, y **la suma de los tramos es el total**; sin tramo, no trae tramos (06-10-2026) |
+| `CA-IN-054` | Un tramo desconocido y un rango invertido son un error, **juntos** (06-10-2026) |
 
 **`CA-IN-005` es el que sostiene el módulo**, y `CA-IN-011` el que lo protege: el primero prueba que se suma por línea y no por venta; el segundo, que el filtro por vendedor no se convierte en la forma de descubrir la estructura.
 
@@ -248,3 +259,4 @@ Lo que vendió **deja de contarse** para mí desde ese instante, aunque lo vendi
 |---|---|---|---|
 | 0.1.0 | 06-10-2026 | Primera versión, con el módulo `IN` ([`requirements/in.md`](../../../requirements/in.md) v0.1.0). Fija las definiciones que heredan los otros tres indicadores de ventas: **por línea** y no por venta (§2.1, `CA-IN-005`), **por moneda** (§2.2), el periodo **en días de Bogotá** con el último incluido y un tope de 366 días, y **ceros** fuera del alcance. Catorce criterios, `CA-IN-001` a `CA-IN-014`. | Responsable técnico |
 | 0.2.0 | 06-10-2026 | **El total y las gratuitas** (§6.2, `RN-IN-008`, `CA-IN-038` a `CA-IN-040`), por decisión del responsable del proyecto: enmienda en el mismo resumen, sin indicador nuevo. Ampliación: ninguna cifra que ya se devolvía cambia. | Responsable técnico |
+| 0.3.0 | 06-10-2026 | **`RN-IN-010`**: sin fechas, toda la historia; una sola fecha deja la otra abierta; sin tope (`VAL-003` retirada); y el tramo opcional, que añade los bloques por tramo. `CA-IN-050` a `CA-IN-054`; `CA-IN-010` sustituido. | Responsable técnico |

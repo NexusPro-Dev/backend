@@ -4,11 +4,15 @@
 |---|---|
 | Requerimiento | `RF-IN-005` |
 | Módulo | `IN` — Indicadores |
-| Versión | 0.1.0 |
+| Versión | 0.2.0 |
 | Estado | **Aprobada** |
 | Autor | Responsable técnico |
 | Aprobada por | Responsable del proyecto |
 | Fecha de aprobación | 06-10-2026 |
+
+!!! warning "Enmendado el 06-10-2026 — sin fechas, todo; y cada indicador se puede partir en tramos (RN-IN-010)"
+
+    Decisión del responsable del proyecto, 06-10-2026: «los indicadores se recogen en su totalidad a no ser que se les envíe una fecha en los filtros», y «tener la capacidad de pedir los indicadores por meses, por días y por semanas, y adicionalmente un filtro de inicio y fin; si van vacíos se consulta todo». **Sin fechas, todo**: comprados, redimidos y ajustes de **toda la historia**, de modo que, sin fechas, **el saldo siempre es comprados − redimidos + sumados − restados**. Con una sola fecha, la otra queda abierta; sin tope. **Con tramo**, la respuesta trae además, **por cada tramo**, las cuatro clases por moneda; **el saldo no se parte**, porque es el de hoy.
 
 !!! info "Qué va en este documento"
 
@@ -104,7 +108,7 @@ El saldo es **el de hoy** y las otras cifras son **las del periodo**, de modo qu
 
 | Dato | Obligatorio | Descripción |
 |---|---|---|
-| Desde, hasta | No | Como en `RF-IN-001`: días de Bogotá, el último incluido, por defecto el mes en curso hasta hoy, como mucho 366 días. **No acotan el saldo** |
+| Desde, hasta | No | Como en `RF-IN-001`: días de Bogotá, el último incluido, **sin fechas, toda la historia; una sola deja la otra abierta; sin tope** (06-10-2026, `RN-IN-010`). **No acotan el saldo** |
 | Moneda | No | Solo esa moneda; una que no exista da ceros |
 | Persona | No | Solo los puntos de esa persona, **si está en mi alcance**; si no —o no existe—, ceros |
 
@@ -182,6 +186,8 @@ Las de `RF-IN-001` §11 —el periodo y los identificadores—, con sus mismos c
 | `CA-IN-047` | El filtro por **persona** acota dentro del alcance; fuera o inexistente, ceros y no error. El de **moneda** acota |
 | `CA-IN-048` | El periodo es sobre **cuándo se movieron los puntos**, en días de Bogotá: una compra pedida el 30 y cobrada el 1 cuenta el 1 |
 | `CA-IN-049` | Sin el permiso, **prohibido**; sin autenticar, `401`; **ningún permiso de ventas lo abre** |
+| `CA-IN-057` | **Sin fechas, toda la historia**, y entonces **el saldo es siempre comprados − redimidos + sumados − restados** (06-10-2026) |
+| `CA-IN-058` | **Con tramo**, cada tramo trae las cuatro clases por moneda, todos los tramos presentes, y la suma de los tramos es el total del periodo; **el saldo solo va en el total** (06-10-2026) |
 
 **`CA-IN-044` es el que sostiene el indicador**: si el saldo y las cifras del periodo no cuadran cuando deben, alguna clase se está contando mal o falta.
 
@@ -209,3 +215,4 @@ Ninguna.
 | Versión | Fecha | Cambio | Autor |
 |---|---|---|---|
 | 0.1.0 | 06-10-2026 | Primera versión, con la tanda de puntos del módulo `IN`, a petición del responsable del proyecto. Tres decisiones suyas: **según el alcance**, **los ajustes aparte** y **el saldo de hoy** con las cifras del periodo. Nace `RN-IN-009`. Nueve criterios, `CA-IN-041` a `CA-IN-049`. | Responsable técnico |
+| 0.2.0 | 06-10-2026 | **`RN-IN-010`**: sin fechas, toda la historia; sin tope; y el tramo opcional, sin partir el saldo. `CA-IN-057` y `CA-IN-058`. | Responsable técnico |

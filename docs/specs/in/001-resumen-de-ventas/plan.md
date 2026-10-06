@@ -3,13 +3,17 @@
 | Campo | Valor |
 |---|---|
 | Requerimiento | `RF-IN-001` |
-| Especificación | [`spec.md`](spec.md) v0.2.0 |
+| Especificación | [`spec.md`](spec.md) v0.3.0 |
 | `spec.md` aprobada el | 06-10-2026 |
-| Versión | 0.2.0 |
+| Versión | 0.3.0 |
 | Estado | **Aprobado** |
 | Autor | Responsable técnico |
 | Aprobado por | Responsable del proyecto |
 | Fecha de aprobación | 06-10-2026 |
+
+!!! warning "Enmendado el 06-10-2026 — sin fechas, todo; y cada indicador se puede partir en tramos (RN-IN-010)"
+
+    Decisión del responsable del proyecto, 06-10-2026: «los indicadores se recogen en su totalidad a no ser que se les envíe una fecha en los filtros», y «tener la capacidad de pedir los indicadores por meses, por días y por semanas, y adicionalmente un filtro de inicio y fin; si van vacíos se consulta todo». **Cómo se construye.** `SalesFigures.Interval` admite **«desde» nulo** —sin límite inferior— y el predicado lo omite; «hasta» sin fecha es el comienzo de mañana en Bogotá, que es «hasta hoy». `SalesPeriodResolver` deja de poner el primero del mes y de comprobar los 366 días, y devuelve `from` nulo cuando no se pidió. **Los tramos** son una segunda sentencia, la de §4.4 agrupada además por `date_trunc` sobre la hora de Bogotá —la de `RF-IN-002`—, solo si se pide tramo; `IN` los cruza con el calendario de `SalesCalendar`, que **sin «desde» arranca en el tramo del primer dato devuelto** y llega al de «hasta» o al de hoy. En la respuesta, `granularity` y `buckets` son **nulos** sin tramo, para que el contrato de antes no cambie. `period.from` puede venir nulo.
 
 !!! warning "Enmendado el 06-10-2026 — el total de ventas y las gratuitas"
 

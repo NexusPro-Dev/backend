@@ -4,11 +4,15 @@
 |---|---|
 | Requerimiento | `RF-IN-002` |
 | Módulo | `IN` — Indicadores |
-| Versión | 0.1.0 |
+| Versión | 0.2.0 |
 | Estado | **Aprobada** |
 | Autor | Responsable técnico |
 | Aprobada por | Responsable del proyecto |
 | Fecha de aprobación | 06-10-2026 |
+
+!!! warning "Enmendado el 06-10-2026 — sin fechas, todo; y cada indicador se puede partir en tramos (RN-IN-010)"
+
+    Decisión del responsable del proyecto, 06-10-2026: «los indicadores se recogen en su totalidad a no ser que se les envíe una fecha en los filtros», y «tener la capacidad de pedir los indicadores por meses, por días y por semanas, y adicionalmente un filtro de inicio y fin; si van vacíos se consulta todo». **Sin fechas, la serie empieza en el tramo de la primera venta del alcance y llega al de hoy**; sin ninguna venta, es un solo tramo, el de hoy. **Ya no hay tope**: el de 366 días se retira con `RN-IN-010`. El tramo por defecto sigue siendo el día. La serie sigue existiendo aunque el resumen pueda partirse en tramos: es la forma ligera —solo lo confirmado— para dibujar.
 
 !!! info "Qué va en este documento"
 
@@ -75,10 +79,10 @@ Las de [`RF-IN-001`](../001-resumen-de-ventas/spec.md) §5, todas. **`RN-IN-007`
 
 | Dato | Obligatorio | Descripción |
 |---|---|---|
-| Desde, hasta, moneda, vendedor | No | Como en `RF-IN-001` §6.1, con sus mismos valores por defecto |
+| Desde, hasta, moneda, vendedor | No | Como en `RF-IN-001` §6.1. **Sin «desde», desde el tramo de la primera venta** del alcance (06-10-2026) |
 | Tramo | No | Día, semana o mes. **Por defecto, día** |
 
-**El tope de 366 días basta para cualquier tramo**: 366 días, 53 semanas o 13 meses son series que se dibujan sin problema.
+~~**El tope de 366 días basta para cualquier tramo**~~ **(retirado el 06-10-2026, `RN-IN-010`)**: 366 días, 53 semanas o 13 meses son series que se dibujan sin problema.
 
 ### 6.2 Salida
 
@@ -156,9 +160,11 @@ Devueltas juntas.
 | `CA-IN-017` | Cada tramo lleva un importe por **cada moneda que aparece en el periodo**, con cero donde no vendió en ella |
 | `CA-IN-018` | Las semanas van de **lunes a domingo** y los meses del uno al último día, **en Bogotá**; el primero y el último se recortan al periodo y dicen dónde empiezan en el calendario |
 | `CA-IN-019` | Una venta a las 20:00 de Bogotá cae en **su** día de Bogotá, no en el siguiente de UTC |
-| `CA-IN-020` | Sin tramo, es **día**; sin fechas, el mes en curso hasta hoy |
+| `CA-IN-020` | Sin tramo, es **día**; ~~sin fechas, el mes en curso hasta hoy~~ — la segunda mitad la sustituye `CA-IN-055` (06-10-2026) |
 | `CA-IN-021` | El alcance es el de `RF-IN-001`: un director ve la serie suya y de sus agentes; un vendedor fuera de su red da ceros y no un error |
 | `CA-IN-022` | Un tramo desconocido, un rango invertido y más de 366 días son un error, juntos; sin el permiso, **prohibido**, y **el del resumen no lo abre** |
+| `CA-IN-055` | **Sin fechas**, la serie empieza en el tramo de la **primera venta** del alcance y acaba en el de hoy; sin ninguna venta, es un tramo, el de hoy (06-10-2026) |
+| `CA-IN-056` | **Sin tope**: una serie diaria de más de 366 días es válida (06-10-2026) |
 
 **`CA-IN-015` es el que ata este indicador al anterior**: si las dos cifras no cuadran, uno de los dos cuenta mal, y la prueba no necesita saber cuál para fallar.
 
@@ -186,3 +192,4 @@ Ninguna propia; la de `RF-IN-001` §14 —contar por confirmación— aplicaría
 | Versión | Fecha | Cambio | Autor |
 |---|---|---|---|
 | 0.1.0 | 06-10-2026 | Primera versión. Hereda de `RF-IN-001` qué se cuenta y decide **cómo se parte**: tramos de calendario de Bogotá —semana de lunes a domingo—, recortados al periodo, **todos presentes** y con **todas las monedas** del periodo en cada uno. Solo lo confirmado. Ocho criterios, `CA-IN-015` a `CA-IN-022`. | Responsable técnico |
+| 0.2.0 | 06-10-2026 | **`RN-IN-010`**: sin fechas, desde la primera venta hasta hoy; sin tope. `CA-IN-055` y `CA-IN-056`. | Responsable técnico |
