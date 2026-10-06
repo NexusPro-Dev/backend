@@ -238,6 +238,26 @@ public abstract class IntegrationTestBase {
    * de borrarlo en su limpieza, como con cualquier rol que la prueba cree.
    */
   /**
+   * Quita la obligación del segundo factor a {@code ADMIN} (`RN-SP-062`, `V75`), para las suites
+   * que entran por la API con una persona de ese rol y no prueban el segundo factor: con la
+   * obligación puesta, el inicio de sesión las dejaría retenidas (`RF-SP-072` · `plan.md` §10). La
+   * raíz no se toca —`ck_roles_root_requires_mfa` no lo admite—. Quien la llame la repone con
+   * {@link #reponerSegundoFactorObligatorio} al terminar.
+   */
+  protected static void sinSegundoFactorObligatorio(
+      org.springframework.jdbc.core.JdbcTemplate jdbc) {
+    jdbc.update(
+        "UPDATE roles SET requires_mfa = false WHERE id = '01a02a33-4c00-7002-9c4f-5e7ad1000002'");
+  }
+
+  /** Deja {@code ADMIN} obligado, como lo deja `V75`. */
+  protected static void reponerSegundoFactorObligatorio(
+      org.springframework.jdbc.core.JdbcTemplate jdbc) {
+    jdbc.update(
+        "UPDATE roles SET requires_mfa = true WHERE id = '01a02a33-4c00-7002-9c4f-5e7ad1000002'");
+  }
+
+  /**
    * Vuelve a dar a los roles de sistema lo que `V31` reparte por tipo (`RF-SP-062`): los once de
    * alcance propio a `FUNCIONARIO` y `VENDEDOR`, ocho a `CONSUMIDOR`; y lo que `V32` da a los tres
    * tipos (`movements:list-sales`, `RF-MV-015`), y los cuatro indicadores de `V74` a `FUNCIONARIO`

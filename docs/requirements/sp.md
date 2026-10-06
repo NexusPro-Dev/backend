@@ -5,7 +5,7 @@
 | Módulo | `SP` — Sistema Principal |
 | Paquete | `modules/system` |
 | Prefijos de permiso | `roles:`, `permissions:`, `audit:`, `memberships:`, `currencies:`, `countries:`, `users:`, `exchange-rates:`, `document-types:`, `brokers:`, `broker-accounts:`, `teams:` |
-| Versión | 1.99.0 |
+| Versión | 1.100.0 |
 | Estado | **Aprobado** |
 | Responsable | Bonilla Diaz William Steven |
 | Fecha de creación | 20-08-2026 |
@@ -407,7 +407,7 @@ EXCLUDE USING gist (
 | `RF-SP-069` | Asignar miembros a un equipo | Alta | `teams:assign-members` | **En desarrollo** |
 | `RF-SP-070` | Retirar miembros de un equipo | Media | `teams:remove-members` | **En desarrollo** |
 | `RF-SP-071` | Activar el segundo factor con una app autenticadora | **Crítica** | `users:start-own-mfa`, `users:confirm-own-mfa` | **En desarrollo** |
-| `RF-SP-072` | Iniciar sesión con el segundo factor | **Crítica** | — (público, autorizado por el desafío) | **Tasks aprobadas** |
+| `RF-SP-072` | Iniciar sesión con el segundo factor | **Crítica** | — (público, autorizado por el desafío) | **En desarrollo** |
 | `RF-SP-073` | Reverificar el segundo factor antes de una operación sensible | **Crítica** | `users:verify-own-mfa` | **Tasks aprobadas** |
 | `RF-SP-074` | Regenerar los propios códigos de recuperación | Alta | `users:regenerate-own-recovery-codes` | **Tasks aprobadas** |
 | `RF-SP-075` | Desactivar el propio segundo factor | Media | `users:disable-own-mfa` | **Tasks aprobadas** |
@@ -1436,7 +1436,7 @@ Cierra la pertenencia vigente de uno o varios managers **de este equipo**, con m
 | Reglas aplicables | `RN-SP-059`, `RN-SP-060`, `RN-SP-061`, `RN-SP-062` |
 | Depende de | `RF-SP-034`, `RF-SP-071` |
 | Tripleta | `docs/specs/sp/072-iniciar-sesion-con-segundo-factor/` |
-| Estado | **Tasks aprobadas** (06-10-2026) |
+| Estado | **En desarrollo** (06-10-2026) — construido el mismo día que sus tasks |
 
 **Enmienda `RF-SP-034`** (Art. I.7): con el factor activo, una contraseña correcta deja de responder con tokens y responde `200` con `mfaRequired: true`, un `challengeToken` y su vigencia. Las comprobaciones de `RF-SP-034` —bloqueo, contraseña contra resumen de descarte, estado después de la contraseña— **no cambian de orden**, y el desafío se emite **después** del paso 5, de modo que todo lo que aquel requerimiento defiende sigue defendido.
 
@@ -2477,3 +2477,4 @@ La fila se lee «esta persona vinculó este authenticator». `status` es `PENDIE
 | 1.97.0 | 06-10-2026 | **`RN-SP-065` confirmada** por el responsable del proyecto: nadie restablece el segundo factor de quien tiene más privilegios. Se cierra la pregunta abierta de `RF-SP-076` y su bloqueo. | Responsable técnico |
 | 1.98.0 | 06-10-2026 | **Las siete `tasks.md` del segundo factor, aprobadas** por el responsable del proyecto: `RF-SP-071` a `RF-SP-077` pasan a `Tasks aprobadas`. **`RN-SP-065` se extiende a la contraseña** por decisión suya: nadie restablece **el segundo factor ni la contraseña** de quien tiene más privilegios. Enmienda `RF-SP-038` (`EX-004`, `CA-SP-894`, `CA-SP-895`), que se construye con `RF-SP-076`. | Responsable técnico |
 | 1.99.0 | 06-10-2026 | **`RF-SP-071` pasa a `En desarrollo`**: activar el authenticator está construido —`POST /users/me/mfa/totp` y `…/confirmation`—, con `V75`, que trae el esquema de los siete. **Ninguna regla cambia.** | Responsable técnico |
+| 1.100.0 | 06-10-2026 | **`RF-SP-072` pasa a `En desarrollo`**: el inicio de sesión en dos pasos está construido —`POST /auth/login` emite el desafío, `POST /auth/login/mfa` lo completa— y **la obligación del rol ya retiene**: `SUPERADMIN` y `ADMIN` activan el factor en su siguiente inicio de sesión. Con él se adelantó el estado del factor en el perfil (`RF-SP-077` `CA-SP-892`), a petición del responsable del proyecto. **Ninguna regla cambia.** | Responsable técnico |

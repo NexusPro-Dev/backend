@@ -183,11 +183,27 @@ public class SessionService {
     // a entrar.
     boolean debeCambiarla = cuenta.credencialAjena();
 
+    // `RF-SP-072`: la obligación del rol se RECALCULA en cada rotación, como la
+    // contraseña —quien activa el factor deja de estar retenido en su siguiente
+    // renovación, y a quien le marcan el rol empieza a estarlo—; y el instante del
+    // segundo factor se COPIA de la familia sin renovarlo, para que la ventana de
+    // `RN-SP-063` no se estire refrescando (`security.md` §5.2).
+    boolean debeActivarlo = cuenta.activacionObligatoriaPendiente();
+    OffsetDateTime factor = rotado.getMfaVerifiedAt();
+
     return SessionResponse.de(
-        tokens.emitir(cuenta.id(), cuenta.roleCodes(), debeCambiarla, ahora.toInstant()),
+        tokens.emitir(
+            cuenta.id(),
+            cuenta.roleCodes(),
+            debeCambiarla,
+            debeActivarlo,
+            factor == null ? null : factor.toInstant(),
+            ahora.toInstant()),
         siguiente,
         tokens.vidaEnSegundos(),
-        debeCambiarla);
+        debeCambiarla,
+        debeActivarlo,
+        null);
   }
 
   /**

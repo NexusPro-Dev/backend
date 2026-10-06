@@ -462,6 +462,17 @@ class AuthIT extends IntegrationTestBase {
         "INSERT INTO user_roles (user_id, role_id, role_type) SELECT ?, r.id, r.role_type FROM roles r WHERE r.id = ?::uuid",
         persona,
         "01a02a33-4c00-7002-9c4f-5e7ad1000002");
+    // `ADMIN` exige el segundo factor desde `V75`, y esta prueba no trata de él:
+    // con la obligación puesta, la persona entraría retenida (`RF-SP-072`).
+    sinSegundoFactorObligatorio(jdbc);
+    try {
+      retirarElRolCierraLaPuerta();
+    } finally {
+      reponerSegundoFactorObligatorio(jdbc);
+    }
+  }
+
+  private void retirarElRolCierraLaPuerta() throws Exception {
     String token = accessToken(login("JPerez", CLAVE));
 
     mvc.perform(get("/api/v1/memberships").header("Authorization", "Bearer " + token))

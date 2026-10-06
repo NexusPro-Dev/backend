@@ -25,7 +25,9 @@ public record AuthUser(
     int failedAttempts,
     OffsetDateTime lockedUntil,
     OffsetDateTime provisionalExpiresAt,
-    List<String> roleCodes) {
+    List<String> roleCodes,
+    boolean requiereSegundoFactor,
+    boolean tieneSegundoFactor) {
 
   /**
    * ¿Esta cuenta puede autenticarse?
@@ -70,6 +72,16 @@ public record AuthUser(
 
   public boolean bloqueadaPorIntentos(OffsetDateTime ahora) {
     return lockedUntil != null && lockedUntil.isAfter(ahora);
+  }
+
+  /**
+   * ¿Entra retenida hasta activar el segundo factor? (`RN-SP-062`, `RF-SP-072` `FA-002`)
+   *
+   * <p>Porta al menos un rol activo que lo exige y no tiene ninguno activo. Un factor solo
+   * pendiente no cuenta: no protege nada.
+   */
+  public boolean activacionObligatoriaPendiente() {
+    return requiereSegundoFactor && !tieneSegundoFactor;
   }
 
   public boolean bloqueadaAMano() {

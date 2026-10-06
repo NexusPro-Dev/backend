@@ -40,6 +40,8 @@ import org.springframework.test.web.servlet.MockMvc;
       "nexus.security.rate-limit.login.por-identidad=2",
       "nexus.security.rate-limit.login.ventana=PT1M",
       "nexus.security.rate-limit.refresh.por-origen=2",
+      "nexus.security.rate-limit.login-mfa.por-origen=2",
+      "nexus.security.rate-limit.login-mfa.ventana=PT1M",
       "nexus.security.rate-limit.refresh.ventana=PT1M",
       "nexus.security.rate-limit.hotlink.por-origen=2",
       "nexus.security.rate-limit.hotlink.ventana=PT1M",
@@ -123,6 +125,17 @@ class RateLimitIT extends IntegrationTestBase {
     atendida(refresh());
     atendida(refresh());
     refresh().andExpect(status().isTooManyRequests());
+  }
+
+  @Test
+  @DisplayName("`CA-SP-832` — el segundo paso del inicio de sesión tiene su propia cota por origen")
+  void elSegundoPasoTieneSuCota() throws Exception {
+    atendida(segundoPaso());
+    atendida(segundoPaso());
+    segundoPaso().andExpect(status().isTooManyRequests());
+
+    // Y no gasta la del primer paso.
+    atendida(login("uno"));
   }
 
   @Test
@@ -438,6 +451,13 @@ class RateLimitIT extends IntegrationTestBase {
             .content(
                 "{\"identifier\":\"%s\",\"password\":\"ClaveIncorrecta2026\"}"
                     .formatted(identificador)));
+  }
+
+  private org.springframework.test.web.servlet.ResultActions segundoPaso() throws Exception {
+    return mvc.perform(
+        post("/api/v1/auth/login/mfa")
+            .contentType(MediaType.APPLICATION_JSON)
+            .content("{\"challengeToken\":\"no-existe\",\"code\":\"123456\"}"));
   }
 
   private org.springframework.test.web.servlet.ResultActions refresh() throws Exception {

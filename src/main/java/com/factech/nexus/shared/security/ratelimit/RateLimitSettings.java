@@ -66,6 +66,7 @@ public record RateLimitSettings(
     boolean enabled,
     int capacity,
     Politica login,
+    Politica loginMfa,
     Politica refresh,
     Politica recovery,
     Politica recoveryConfirmation,

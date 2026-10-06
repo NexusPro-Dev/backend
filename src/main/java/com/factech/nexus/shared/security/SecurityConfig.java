@@ -63,6 +63,8 @@ public class SecurityConfig {
     // cierre: exigir un token vigente impediría cerrar la sesión justo cuando
     // más falta hace, que es cuando se sospecha que la robaron.
     "/api/v1/auth/login",
+    // El segundo paso (`RF-SP-072`, 06-10-2026): lo autoriza el desafío.
+    "/api/v1/auth/login/mfa",
     "/api/v1/auth/refresh",
     "/api/v1/auth/logout",
     // Y las dos de la recuperación (`RF-SP-040`), por definición: quien olvidó
@@ -332,6 +334,8 @@ public class SecurityConfig {
         // carece del permiso reciba el 403 que le corresponde por lo que
         // intentaba hacer, no uno que le cuente algo de su cuenta.
         .addFilterAfter(new MustChangePasswordFilter(json), ActorCaptureFilter.class)
+        // DETRÁS del de la contraseña: con las dos marcas manda ella (`CA-SP-837`).
+        .addFilterAfter(new MfaEnrollmentFilter(json), MustChangePasswordFilter.class)
         .headers(Customizer.withDefaults());
 
     return http.build();

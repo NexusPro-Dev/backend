@@ -2,7 +2,9 @@ package com.factech.nexus.modules.system.auth.interfaces;
 
 import com.factech.nexus.modules.system.auth.application.ChangePasswordRequest;
 import com.factech.nexus.modules.system.auth.application.LoginRequest;
+import com.factech.nexus.modules.system.auth.application.LoginResponse;
 import com.factech.nexus.modules.system.auth.application.LogoutRequest;
+import com.factech.nexus.modules.system.auth.application.MfaLoginRequest;
 import com.factech.nexus.modules.system.auth.application.PasswordRecoveryConfirmation;
 import com.factech.nexus.modules.system.auth.application.PasswordRecoveryRequest;
 import com.factech.nexus.modules.system.auth.application.PasswordRecoveryResponse;
@@ -11,6 +13,7 @@ import com.factech.nexus.modules.system.auth.application.SessionResponse;
 import com.factech.nexus.modules.system.auth.domain.service.ChangeOwnPasswordService;
 import com.factech.nexus.modules.system.auth.domain.service.ConfirmPasswordRecoveryService;
 import com.factech.nexus.modules.system.auth.domain.service.LoginService;
+import com.factech.nexus.modules.system.auth.domain.service.MfaLoginService;
 import com.factech.nexus.modules.system.auth.domain.service.RequestPasswordRecoveryService;
 import com.factech.nexus.modules.system.auth.domain.service.SessionService;
 import com.factech.nexus.shared.security.OpenApiSecurityConfig;
@@ -51,6 +54,7 @@ import org.springframework.web.bind.annotation.RestController;
 public class AuthController {
 
   private final LoginService inicio;
+  private final MfaLoginService segundoPaso;
   private final SessionService sesion;
   private final ChangeOwnPasswordService cambioDeContrasena;
   private final RequestPasswordRecoveryService solicitudDeRecuperacion;
@@ -58,11 +62,13 @@ public class AuthController {
 
   public AuthController(
       LoginService inicio,
+      MfaLoginService segundoPaso,
       SessionService sesion,
       ChangeOwnPasswordService cambioDeContrasena,
       RequestPasswordRecoveryService solicitudDeRecuperacion,
       ConfirmPasswordRecoveryService confirmacionDeRecuperacion) {
     this.inicio = inicio;
+    this.segundoPaso = segundoPaso;
     this.sesion = sesion;
     this.cambioDeContrasena = cambioDeContrasena;
     this.solicitudDeRecuperacion = solicitudDeRecuperacion;
@@ -126,12 +132,26 @@ public class AuthController {
           por qué—, más las propias rutas de sesión. **Todo lo demás responde
           `403`** con el tipo `cambio-de-contrasena-requerido`. No está rota:
           está esperando exactamente eso.
+
+          **Con el segundo factor activo, este es solo el primer paso**
+          (`RF-SP-072`): la contraseña correcta responde `mfaRequired: true`, un
+          `challengeToken` y su vida en segundos, y **ningún token**. La sesión
+          nace en `POST /api/v1/auth/login/mfa` con ese desafío y el código de la
+          app. Sin factor, `mfaRequired` es `false` y la respuesta es la de
+          siempre: un cliente que solo lea `accessToken` sigue funcionando con
+          esas cuentas.
+
+          **Y si un rol de la persona exige el factor y no lo tiene**,
+          `mfaEnrollmentRequired` llega en verdadero y todo lo que no sea
+          activarlo, el propio perfil o las rutas de sesión responde `403` con el
+          tipo `activacion-de-segundo-factor-requerida`. Las cuentas iniciales
+          —`SUPERADMIN` y `ADMIN`— están obligadas desde `V75`.
           """)
   @ApiResponses({
     @ApiResponse(
         responseCode = "200",
-        description = "Credenciales de sesión.",
-        content = @Content(schema = @Schema(implementation = SessionResponse.class))),
+        description = "Credenciales de sesión, o el desafío del segundo factor.",
+        content = @Content(schema = @Schema(implementation = LoginResponse.class))),
     @ApiResponse(
         responseCode = "400",
         description = "Identificador o contraseña ausentes",
@@ -155,8 +175,59 @@ public class AuthController {
         description = "Fallo no controlado (`ERR-500`)",
         content = @Content)
   })
-  public SessionResponse login(@Valid @RequestBody LoginRequest peticion) {
+  public LoginResponse login(@Valid @RequestBody LoginRequest peticion) {
     return inicio.login(peticion.identifier(), peticion.password());
+  }
+
+  @PostMapping("/login/mfa")
+  @Operation(
+      summary = "Completar el inicio de sesión con el segundo factor",
+      description =
+          """
+          El segundo paso (`RF-SP-072`): el `challengeToken` que entregó
+          `POST /api/v1/auth/login` y **uno** de los dos códigos —`code`, los
+          seis dígitos de la app, o `recoveryCode`, uno de los diez de
+          recuperación—. Responde lo mismo que el refresco: token de acceso,
+          refresh token y vigencia.
+
+          **Pública**: la autoriza el desafío, como al primer paso la contraseña.
+          El desafío vale **cinco minutos y cinco intentos**; al quinto fallo hay
+          que volver a la contraseña.
+
+          **Un código equivocado cuenta para el bloqueo de la cuenta**, en el
+          mismo contador que la contraseña, y el rechazo trae
+          `remainingAttempts`. Un desafío caducado, consumido o inexistente
+          responde igual pero **sin** `remainingAttempts`.
+
+          Con un código de recuperación, `recoveryCodesRemaining` dice cuántos
+          quedan: es el momento de regenerarlos.
+          """)
+  @ApiResponses({
+    @ApiResponse(
+        responseCode = "200",
+        description = "Sesión abierta.",
+        content = @Content(schema = @Schema(implementation = SessionResponse.class))),
+    @ApiResponse(
+        responseCode = "400",
+        description = "Sin desafío, o sin exactamente un código con forma reconocible",
+        content = @Content),
+    @ApiResponse(
+        responseCode = "401",
+        description =
+            "Código inválido (con `remainingAttempts`), o desafío caducado, consumido o"
+                + " inexistente (sin él)",
+        content = @Content),
+    @ApiResponse(
+        responseCode = "423",
+        description = "La cuenta está bloqueada",
+        content = @Content),
+    @ApiResponse(
+        responseCode = "429",
+        description = "Demasiados intentos desde el mismo origen",
+        content = @Content)
+  })
+  public SessionResponse loginConSegundoFactor(@RequestBody MfaLoginRequest peticion) {
+    return segundoPaso.completar(peticion);
   }
 
   @PostMapping("/refresh")

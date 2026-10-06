@@ -132,7 +132,13 @@ public class GetOwnProfileService {
                     new OwnProfileResponse.SupervisorRef(
                         jefe.username(), jefe.firstName(), jefe.lastName(), jefe.roleCode()))
             .orElse(null),
-        mustChangePassword(quien));
+        mustChangePassword(quien),
+        segundoFactor(quien));
+  }
+
+  private OwnProfileResponse.MfaRef segundoFactor(UUID quien) {
+    UserQueryRepository.MfaRow estado = consultas.mfaOf(quien);
+    return new OwnProfileResponse.MfaRef(estado.enabled(), estado.enabledAt(), estado.required());
   }
 
   /**

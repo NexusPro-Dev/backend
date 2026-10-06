@@ -59,7 +59,16 @@ public record OwnProfileResponse(
     MembershipRef membership,
     OffsetDateTime lastLoginAt,
     SupervisorRef supervisor,
-    boolean mustChangePassword) {
+    boolean mustChangePassword,
+    MfaRef mfa) {
+
+  /**
+   * El segundo factor (`RF-SP-077` `CA-SP-892`, adelantado en `RF-SP-072` a petición del
+   * responsable del proyecto, 06-10-2026): si está activo, desde cuándo, y si algún rol de la
+   * persona lo exige. Es lo que la interfaz necesita para ofrecer activarlo o advertir que es
+   * obligatorio. <b>Siempre presente</b>; {@code enabledAt} desaparece cuando no hay factor.
+   */
+  public record MfaRef(boolean enabled, OffsetDateTime enabledAt, boolean required) {}
 
   /**
    * El país del actor (`RN-SP-034`, 07-09-2026), y <b>nunca ausente</b>.

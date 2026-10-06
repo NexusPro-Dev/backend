@@ -65,6 +65,9 @@ class AccessRevocationIT extends IntegrationTestBase {
   @BeforeEach
   void prepararCuenta() {
     limpiar();
+    // La persona porta `ADMIN`, que exige el segundo factor desde `V75`; esta suite no
+    // trata de él, y con la obligación puesta entraría retenida (`RF-SP-072`).
+    sinSegundoFactorObligatorio(jdbc);
     persona = UUID.randomUUID();
     jdbc.update(
         """
@@ -83,6 +86,7 @@ class AccessRevocationIT extends IntegrationTestBase {
   @AfterEach
   void limpiarDespues() {
     limpiar();
+    reponerSegundoFactorObligatorio(jdbc);
   }
 
   private void limpiar() {

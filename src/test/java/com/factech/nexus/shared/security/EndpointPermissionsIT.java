@@ -59,6 +59,11 @@ class EndpointPermissionsIT extends IntegrationTestBase {
   private static final Map<String, String> PUBLICAS =
       Map.ofEntries(
           Map.entry(
+              "POST /api/v1/auth/login/mfa",
+              "PÚBLICO POR DEFINICIÓN (`RF-SP-072`, 06-10-2026): el segundo paso del inicio de"
+                  + " sesión. Quien lo llama todavía no tiene token; lo autoriza el desafío que"
+                  + " entregó la contraseña"),
+          Map.entry(
               "POST /api/v1/movements/gateway-notifications/stripe",
               "PÚBLICO POR DEFINICIÓN (`RF-MV-041`, 01-10-2026): la llama Stripe, no una"
                   + " persona, y no porta token. La autentica la FIRMA del cuerpo con el secreto"

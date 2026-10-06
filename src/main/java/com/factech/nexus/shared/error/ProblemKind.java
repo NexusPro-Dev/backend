@@ -88,6 +88,18 @@ public enum ProblemKind {
       "Debe cambiar su contraseña antes de operar"),
 
   /**
+   * Un rol de la persona exige el segundo factor y no lo tiene activo (`RN-SP-062`, `RF-SP-072`).
+   *
+   * <p>Lo produce {@code MfaEnrollmentFilter}, por lo mismo y con la misma forma que {@link
+   * #CAMBIO_DE_CONTRASENA_REQUERIDO}: un {@code 403} con {@code type} propio y la ruta que resuelve
+   * la retención, {@code enrollmentPath}.
+   */
+  ACTIVACION_DE_SEGUNDO_FACTOR_REQUERIDA(
+      HttpStatus.FORBIDDEN,
+      "activacion-de-segundo-factor-requerida",
+      "Debe activar el segundo factor antes de operar"),
+
+  /**
    * La operación es sensible y el segundo factor no se verificó hace poco (`RN-SP-063`).
    *
    * <p>Tercer {@code 403} con {@code type} propio, por lo mismo que {@link

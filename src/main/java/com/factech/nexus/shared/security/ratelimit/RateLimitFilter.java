@@ -72,6 +72,7 @@ public class RateLimitFilter extends OncePerRequestFilter {
   private static final Logger LOG = LoggerFactory.getLogger(RateLimitFilter.class);
 
   private static final String LOGIN = "/api/v1/auth/login";
+  private static final String LOGIN_MFA = "/api/v1/auth/login/mfa";
   private static final String REFRESH = "/api/v1/auth/refresh";
   private static final String RECOVERY = "/api/v1/auth/password-recovery";
   private static final String RECOVERY_CONFIRMATION = "/api/v1/auth/password-recovery/confirmation";
@@ -304,6 +305,11 @@ public class RateLimitFilter extends OncePerRequestFilter {
     }
     if (LOGIN.equals(ruta)) {
       return new Regla(ruta, ajustes.login());
+    }
+    // El segundo paso (`RF-SP-072`): solo por origen, porque su cuerpo no lleva
+    // identidad —lleva un desafío—, como la confirmación de la recuperación.
+    if (LOGIN_MFA.equals(ruta)) {
+      return new Regla(ruta, ajustes.loginMfa());
     }
     if (REFRESH.equals(ruta)) {
       return new Regla(ruta, ajustes.refresh());

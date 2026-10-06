@@ -70,6 +70,8 @@ public class MustChangePasswordFilter extends OncePerRequestFilter {
               + " el indicador de cambio obligatorio viaja ahí",
           "POST /api/v1/auth/login",
           "Público: obtener una credencial no puede exigir haber usado la anterior",
+          "POST /api/v1/auth/login/mfa",
+          "Público (`RF-SP-072`): el segundo paso del mismo inicio de sesión",
           "POST /api/v1/auth/refresh",
           "Público: el refresco RECALCULA la marca (`FA-002` punto 4). Negarlo dejaría a la"
               + " persona esperando a que su token de acceso caduque para volver a entrar",

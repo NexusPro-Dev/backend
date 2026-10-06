@@ -26,7 +26,7 @@
 | `T-02` | `RequireRoleMfaService` | `T-01` | | Pendiente |
 | `T-03` | `PATCH /roles/{id}/mfa-requirement` con su petición y su respuesta | `T-02` | Documentado con los códigos de `plan.md` §4 | Pendiente |
 | `T-04` | `requiresMfa` en `RoleListItem` y `RoleDetailResponse` | `RF-SP-071` `T-01` | | Pendiente |
-| `T-05` | `MfaStatusLookup` y `mfa` en `OwnProfileResponse` | `RF-SP-071` `T-05` | `LayerRulesTest` en verde | Pendiente |
+| `T-05` | `MfaStatusLookup` y `mfa` en `OwnProfileResponse` | `RF-SP-071` `T-05` | `LayerRulesTest` en verde | **Hecha** — 06-10-2026, **adelantada en `RF-SP-072` `T-10`** a petición del responsable del proyecto |
 | `T-06` | `RoleMfaRequirementIT` (`CA-SP-880` a `CA-SP-891`, `CA-SP-893`); `CA-SP-892` en la suite del perfil | `T-03`, `T-04`, `T-05`, `RF-SP-072`, `RF-SP-073` | | Pendiente |
 | `T-07` | `EndpointPermissionsIT`; contrato regenerado con la prosa releída —tres respuestas de lectura cambian—; `requirements.md` | `T-06` | Suite completa en verde | Pendiente |
 
@@ -70,3 +70,4 @@ Ninguno, salvo `RF-SP-072` y `RF-SP-073`.
 |---|---|---|---|
 | 0.1.0 | 06-10-2026 | Primera versión. | Responsable técnico |
 | — | 06-10-2026 | Aprobadas por el responsable del proyecto. | Responsable técnico |
+| — | 06-10-2026 | `T-05` —el estado del factor en el perfil, `CA-SP-892`— se construyó con `RF-SP-072`, a petición del responsable del proyecto. | Responsable técnico |

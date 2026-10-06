@@ -29,7 +29,14 @@ public class JpaAuthUserRepository implements AuthUserRepository {
                (SELECT string_agg(r.code, ',' ORDER BY r.code)
                   FROM user_roles ur JOIN roles r ON r.id = ur.role_id
                  WHERE ur.user_id = u.id AND r.deleted_at IS NULL AND r.status = 'ACTIVO'),
-               '')                  AS roles
+               '')                  AS roles,
+             -- RN-SP-062: algún rol ACTIVO que exige el segundo factor.
+             EXISTS (SELECT 1 FROM user_roles ur JOIN roles r ON r.id = ur.role_id
+                      WHERE ur.user_id = u.id AND r.deleted_at IS NULL
+                        AND r.status = 'ACTIVO' AND r.requires_mfa) AS requiere_mfa,
+             -- Y si tiene uno ACTIVO: un pendiente no protege nada.
+             EXISTS (SELECT 1 FROM user_mfa_factors f
+                      WHERE f.user_id = u.id AND f.status = 'ACTIVO') AS tiene_mfa
         FROM users u
       """;
 
@@ -183,7 +190,9 @@ public class JpaAuthUserRepository implements AuthUserRepository {
                     ((Number) fila.get("failed_attempts")).intValue(),
                     momento(fila.get("locked_until")),
                     momento(fila.get("provisional_expires_at")),
-                    codigos((String) fila.get("roles"))))
+                    codigos((String) fila.get("roles")),
+                    Boolean.TRUE.equals(fila.get("requiere_mfa")),
+                    Boolean.TRUE.equals(fila.get("tiene_mfa"))))
         .findFirst();
   }
 

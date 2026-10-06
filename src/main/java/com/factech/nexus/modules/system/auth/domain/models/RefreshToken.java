@@ -55,6 +55,14 @@ public class RefreshToken {
   @Column(name = "created_at", nullable = false, updatable = false)
   private OffsetDateTime createdAt;
 
+  /**
+   * Cuándo verificó el segundo factor esta familia (`security.md` §5.2). La rotación lo
+   * <b>copia</b> y no lo renueva: la ventana de cinco minutos de `RN-SP-063` no se estira
+   * refrescando.
+   */
+  @Column(name = "mfa_verified_at", updatable = false)
+  private OffsetDateTime mfaVerifiedAt;
+
   /** Exigido por JPA. */
   protected RefreshToken() {}
 
@@ -66,9 +74,21 @@ public class RefreshToken {
    */
   public static RefreshToken abrirSesion(
       UUID id, UUID userId, String tokenHash, OffsetDateTime ahora, OffsetDateTime expira) {
+    return abrirSesion(id, userId, tokenHash, ahora, expira, null);
+  }
+
+  /** Con el instante en que se verificó el segundo factor, o nulo si no hubo (`RF-SP-072`). */
+  public static RefreshToken abrirSesion(
+      UUID id,
+      UUID userId,
+      String tokenHash,
+      OffsetDateTime ahora,
+      OffsetDateTime expira,
+      OffsetDateTime mfaVerifiedAt) {
     RefreshToken token = nuevo(id, userId, tokenHash, ahora, expira);
     token.familyId = id;
     token.familyStartedAt = ahora;
+    token.mfaVerifiedAt = mfaVerifiedAt;
     return token;
   }
 
@@ -82,6 +102,7 @@ public class RefreshToken {
     RefreshToken token = nuevo(id, anterior.userId, tokenHash, ahora, expira);
     token.familyId = anterior.familyId;
     token.familyStartedAt = anterior.familyStartedAt;
+    token.mfaVerifiedAt = anterior.mfaVerifiedAt;
     return token;
   }
 
@@ -122,6 +143,10 @@ public class RefreshToken {
 
   public OffsetDateTime getFamilyStartedAt() {
     return familyStartedAt;
+  }
+
+  public OffsetDateTime getMfaVerifiedAt() {
+    return mfaVerifiedAt;
   }
 
   public boolean estaRevocado() {

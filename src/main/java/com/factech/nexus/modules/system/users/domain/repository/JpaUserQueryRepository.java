@@ -173,6 +173,26 @@ public class JpaUserQueryRepository implements UserQueryRepository {
 
   @Override
   @Transactional(readOnly = true)
+  public MfaRow mfaOf(UUID id) {
+    Tuple fila =
+        (Tuple)
+            em.createNativeQuery(
+                    """
+                    SELECT (SELECT f.confirmed_at FROM user_mfa_factors f
+                             WHERE f.user_id = :id AND f.status = 'ACTIVO') AS enabled_at,
+                           EXISTS (SELECT 1 FROM user_roles ur JOIN roles r ON r.id = ur.role_id
+                                    WHERE ur.user_id = :id AND r.deleted_at IS NULL
+                                      AND r.status = 'ACTIVO' AND r.requires_mfa) AS required
+                    """,
+                    Tuple.class)
+                .setParameter("id", id)
+                .getSingleResult();
+    OffsetDateTime desde = momento(fila.get("enabled_at"));
+    return new MfaRow(desde != null, desde, Boolean.TRUE.equals(fila.get("required")));
+  }
+
+  @Override
+  @Transactional(readOnly = true)
   public Optional<UserRow> findDetail(UUID id) {
     List<Tuple> filas =
         em.createNativeQuery(

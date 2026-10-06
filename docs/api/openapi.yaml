@@ -6886,6 +6886,20 @@ paths:
         por qué—, más las propias rutas de sesión. **Todo lo demás responde
         `403`** con el tipo `cambio-de-contrasena-requerido`. No está rota:
         está esperando exactamente eso.
+
+        **Con el segundo factor activo, este es solo el primer paso**
+        (`RF-SP-072`): la contraseña correcta responde `mfaRequired: true`, un
+        `challengeToken` y su vida en segundos, y **ningún token**. La sesión
+        nace en `POST /api/v1/auth/login/mfa` con ese desafío y el código de la
+        app. Sin factor, `mfaRequired` es `false` y la respuesta es la de
+        siempre: un cliente que solo lea `accessToken` sigue funcionando con
+        esas cuentas.
+
+        **Y si un rol de la persona exige el factor y no lo tiene**,
+        `mfaEnrollmentRequired` llega en verdadero y todo lo que no sea
+        activarlo, el propio perfil o las rutas de sesión responde `403` con el
+        tipo `activacion-de-segundo-factor-requerida`. Las cuentas iniciales
+        —`SUPERADMIN` y `ADMIN`— están obligadas desde `V75`.
       operationId: login
       requestBody:
         content:
@@ -6895,11 +6909,11 @@ paths:
         required: true
       responses:
         "200":
-          description: Credenciales de sesión.
+          description: "Credenciales de sesión, o el desafío del segundo factor."
           content:
             '*/*':
               schema:
-                $ref: "#/components/schemas/SessionResponse"
+                $ref: "#/components/schemas/LoginResponse"
         "400":
           description: Identificador o contraseña ausentes
         "401":
@@ -6912,6 +6926,55 @@ paths:
             \ `retryAfterSeconds`; el manual no los lleva, porque no expira solo"
         "500":
           description: Fallo no controlado (`ERR-500`)
+      security: []
+  /api/v1/auth/login/mfa:
+    post:
+      tags:
+      - Sesión
+      summary: Completar el inicio de sesión con el segundo factor
+      description: |
+        **Permiso requerido:** ninguno. Ruta pública: responde sin token.
+
+        El segundo paso (`RF-SP-072`): el `challengeToken` que entregó
+        `POST /api/v1/auth/login` y **uno** de los dos códigos —`code`, los
+        seis dígitos de la app, o `recoveryCode`, uno de los diez de
+        recuperación—. Responde lo mismo que el refresco: token de acceso,
+        refresh token y vigencia.
+
+        **Pública**: la autoriza el desafío, como al primer paso la contraseña.
+        El desafío vale **cinco minutos y cinco intentos**; al quinto fallo hay
+        que volver a la contraseña.
+
+        **Un código equivocado cuenta para el bloqueo de la cuenta**, en el
+        mismo contador que la contraseña, y el rechazo trae
+        `remainingAttempts`. Un desafío caducado, consumido o inexistente
+        responde igual pero **sin** `remainingAttempts`.
+
+        Con un código de recuperación, `recoveryCodesRemaining` dice cuántos
+        quedan: es el momento de regenerarlos.
+      operationId: loginConSegundoFactor
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/MfaLoginRequest"
+        required: true
+      responses:
+        "200":
+          description: Sesión abierta.
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/SessionResponse"
+        "400":
+          description: "Sin desafío, o sin exactamente un código con forma reconocible"
+        "401":
+          description: "Código inválido (con `remainingAttempts`), o desafío caducado,\
+            \ consumido o inexistente (sin él)"
+        "423":
+          description: La cuenta está bloqueada
+        "429":
+          description: Demasiados intentos desde el mismo origen
       security: []
   /api/v1/afftrack-rates:
     get:
@@ -17427,6 +17490,11 @@ components:
           format: int64
         mustChangePassword:
           type: boolean
+        mfaEnrollmentRequired:
+          type: boolean
+        recoveryCodesRemaining:
+          type: integer
+          format: int32
     ChangePasswordRequest:
       type: object
       properties:
@@ -17481,6 +17549,38 @@ components:
       required:
       - identifier
       - password
+    LoginResponse:
+      type: object
+      properties:
+        mfaRequired:
+          type: boolean
+        challengeToken:
+          type: string
+        challengeExpiresIn:
+          type: integer
+          format: int64
+        accessToken:
+          type: string
+        refreshToken:
+          type: string
+        tokenType:
+          type: string
+        expiresIn:
+          type: integer
+          format: int64
+        mustChangePassword:
+          type: boolean
+        mfaEnrollmentRequired:
+          type: boolean
+    MfaLoginRequest:
+      type: object
+      properties:
+        challengeToken:
+          type: string
+        code:
+          type: string
+        recoveryCode:
+          type: string
     RegisterAfftrackRateRequest:
       type: object
       properties:
@@ -17667,6 +17767,16 @@ components:
           type: string
         currentPassword:
           type: string
+    MfaRef:
+      type: object
+      properties:
+        enabled:
+          type: boolean
+        enabledAt:
+          type: string
+          format: date-time
+        required:
+          type: boolean
     OwnProfileResponse:
       type: object
       properties:
@@ -17706,6 +17816,8 @@ components:
           $ref: "#/components/schemas/SupervisorRef"
         mustChangePassword:
           type: boolean
+        mfa:
+          $ref: "#/components/schemas/MfaRef"
     UpdateUserCommissionRateRequest:
       type: object
       properties:

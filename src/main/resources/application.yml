@@ -284,6 +284,14 @@ nexus:
         por-identidad: 5
         ventana: PT1M
 
+      # El segundo paso del inicio de sesión (RF-SP-072). Solo por origen: el
+      # cuerpo lleva un desafío y no una identidad. Lo que frena a quien prueba
+      # códigos es el bloqueo de la cuenta y los cinco intentos del desafío; esto
+      # frena el bucle.
+      login-mfa:
+        por-origen: 10
+        ventana: PT1M
+
       # Un cliente legítimo refresca cada quince minutos: el margen es enorme a
       # propósito, porque una interfaz con varias pestañas refresca en ráfaga.
       # Lo que se corta es el bucle, que consulta la base en cada llamada.

@@ -5,7 +5,7 @@
 | Proyecto | NEXUS — Renovación de plataforma |
 | Empresa | FACTECH GROUP SAS |
 | Documento | `deployment.md` |
-| Versión | 0.16.0 |
+| Versión | 0.17.0 |
 | Estado | Borrador |
 | Responsable técnico | Bonilla Diaz William Steven |
 | Fecha de creación | 27-08-2026 |
@@ -111,6 +111,10 @@ openssl rand -base64 32
 ```
 
 Treinta y dos bytes en Base64, **distinta en cada entorno** y obligatoria: **sin ella el servicio no arranca**, porque no hay forma segura de guardar el factor de nadie. Al revés que `JWT_SECRET`, **no se rota a la ligera**: los secretos guardados solo se descifran con la llave que los cifró, de modo que cambiarla —o perderla— deja a todo el mundo sin poder usar su authenticator, y habría que restablecerlos uno a uno (`RF-SP-076`). Se guarda y se respalda **junto con `JWT_SECRET`**.
+
+!!! warning "Desde `RF-SP-072`, el superadministrador activa su segundo factor en el primer inicio de sesión"
+
+    `SUPERADMIN` y `ADMIN` exigen el segundo factor desde `V75` (`RN-SP-062`). Tras desplegar, **quien entre con esos roles y no lo tenga activo queda retenido**: el sistema solo le deja activarlo (`POST /api/v1/users/me/mfa/totp` y su confirmación), ver su perfil y cerrar sesión. Hace falta **el teléfono con una app autenticadora a mano** en ese primer inicio, y **guardar los diez códigos de recuperación** que entrega la confirmación: si se pierden el teléfono y los códigos del último superadministrador, la recuperación ya no es por la API (`RF-SP-076`).
 
 ### 4.2 `SUPERADMIN_PASSWORD_HASH`
 
@@ -522,3 +526,4 @@ Ninguno de estos puntos impide desplegar. Todos están declarados para que no se
 | 0.14.0 | 05-10-2026 | **Nueva §6.5.2: la pasarela local, PayRetailers** ([`requirements/mv.md`](requirements/mv.md) v0.78.0 §4.10): tres credenciales —`shopId`, clave secreta y *Subscription Key*—, la URL base con el sandbox por omisión, la dirección pública de los avisos, la de retorno al frontend, el modo de prueba y el barrido. En local, un túnel para los avisos o esperar al barrido | Responsable del proyecto |
 | 0.15.0 | 05-10-2026 | **§6.5.2: la tienda de PayRetailers sale del entorno y va en la conversión de cada país** ([`requirements/mv.md`](requirements/mv.md) v0.82.0, `RN-MV-063`): se retiran `PAYRETAILERS_SHOP_ID` y `PAYRETAILERS_SECRET_KEY`, y entra `PAYRETAILERS_ENCRYPTION_KEY`, la llave que cifra las claves de las tiendas en la base | Responsable del proyecto |
 | 0.16.0 | 06-10-2026 | **Nueva §4.1.1: `MFA_ENCRYPTION_KEY`**, la llave que cifra el secreto del segundo factor ([`security.md`](security.md) §3.3, `RF-SP-071`, `V75`). Obligatoria y sin valor por defecto, como `JWT_SECRET`, y con la diferencia que importa: **no se rota**, porque cambiarla deja ilegibles los factores guardados. Una fila más en §6.3. | Responsable técnico |
+| 0.17.0 | 06-10-2026 | Aviso en §4.1.1: **desde `RF-SP-072`, `SUPERADMIN` y `ADMIN` activan el segundo factor en su primer inicio de sesión tras desplegar** —teléfono con una app autenticadora a mano, y los diez códigos de recuperación guardados—. | Responsable técnico |

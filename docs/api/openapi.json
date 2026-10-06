@@ -3491,6 +3491,40 @@
         "required" : [ "identifier", "password" ],
         "type" : "object"
       },
+      "LoginResponse" : {
+        "properties" : {
+          "accessToken" : {
+            "type" : "string"
+          },
+          "challengeExpiresIn" : {
+            "format" : "int64",
+            "type" : "integer"
+          },
+          "challengeToken" : {
+            "type" : "string"
+          },
+          "expiresIn" : {
+            "format" : "int64",
+            "type" : "integer"
+          },
+          "mfaEnrollmentRequired" : {
+            "type" : "boolean"
+          },
+          "mfaRequired" : {
+            "type" : "boolean"
+          },
+          "mustChangePassword" : {
+            "type" : "boolean"
+          },
+          "refreshToken" : {
+            "type" : "string"
+          },
+          "tokenType" : {
+            "type" : "string"
+          }
+        },
+        "type" : "object"
+      },
       "LogoutRequest" : {
         "properties" : {
           "allSessions" : {
@@ -3662,6 +3696,35 @@
           },
           "secret" : {
             "type" : "string"
+          }
+        },
+        "type" : "object"
+      },
+      "MfaLoginRequest" : {
+        "properties" : {
+          "challengeToken" : {
+            "type" : "string"
+          },
+          "code" : {
+            "type" : "string"
+          },
+          "recoveryCode" : {
+            "type" : "string"
+          }
+        },
+        "type" : "object"
+      },
+      "MfaRef" : {
+        "properties" : {
+          "enabled" : {
+            "type" : "boolean"
+          },
+          "enabledAt" : {
+            "format" : "date-time",
+            "type" : "string"
+          },
+          "required" : {
+            "type" : "boolean"
           }
         },
         "type" : "object"
@@ -4300,6 +4363,9 @@
           },
           "membership" : {
             "$ref" : "#/components/schemas/MembershipRef"
+          },
+          "mfa" : {
+            "$ref" : "#/components/schemas/MfaRef"
           },
           "mustChangePassword" : {
             "type" : "boolean"
@@ -7835,8 +7901,15 @@
             "format" : "int64",
             "type" : "integer"
           },
+          "mfaEnrollmentRequired" : {
+            "type" : "boolean"
+          },
           "mustChangePassword" : {
             "type" : "boolean"
+          },
+          "recoveryCodesRemaining" : {
+            "format" : "int32",
+            "type" : "integer"
           },
           "refreshToken" : {
             "type" : "string"
@@ -9900,7 +9973,7 @@
     },
     "/api/v1/auth/login" : {
       "post" : {
-        "description" : "**Permiso requerido:** ninguno. Ruta pública: responde sin token.\n\nAutentica con **nombre de usuario o correo** —el mismo campo para los\ndos— y entrega las credenciales de sesión.\n\nEl rechazo por credenciales lleva `remainingAttempts`: **cuántos\nintentos quedan** antes del bloqueo. El identificador que no\ncorresponde a ninguna cuenta los gasta igual, de modo que el número no\npermite averiguar qué cuentas existen.\n\nLa cuenta bloqueada recibe `423` y un mensaje que la identifica como\ntal: es una excepción consciente al mensaje genérico, porque quien\nprovocó el bloqueo ya sabe que la cuenta existe. Si el bloqueo es\n**automático**, la respuesta añade `unlockAt` —el instante en que se\nlevanta— y `retryAfterSeconds` —lo que falta—. El bloqueo **manual**\nno los lleva: esa cuenta no se desbloquea sola.\n\n**La espera no va escrita en el mensaje, y es deliberado.** Un texto\ncon «vuelva en dos minutos» es cierto al serializarse y deja de serlo\nenseguida. Con `retryAfterSeconds` el cliente **descuenta** —una\ncuenta regresiva no envejece— sin depender de que su reloj coincida\ncon el del servidor, que es lo que sí ocurriría calculándola a partir\nde `unlockAt`.\n\nSi la contraseña la fijó otra persona, la respuesta autentica **y\nadvierte** con `mustChangePassword`: hace falta una sesión para poder\ncambiarla.\n\n### Con qué cuenta se entra\n\n**El nombre de usuario y el correo valen los dos**, en este mismo\ncampo. La cuenta inicial de cualquier despliegue es **`superadmin`**,\ny su correo es el que ese despliegue declaró en `SUPERADMIN_EMAIL`.\n\n**Su contraseña no está escrita en ninguna parte, y eso es la regla y\nno un olvido**: la fija cada despliegue en `SUPERADMIN_PASSWORD_HASH`,\ny la migración `V9` **se niega a arrancar** si no viene declarada, en\nlugar de caer en una conocida (Art. IX.5). **No hay una credencial por\ndefecto que probar aquí**: la sabe quien desplegó, y en `.env.example`\nesa variable viaja **vacía** a propósito.\n\n**En local, con `DEV_SEED_ENABLED`**, la semilla añade diecinueve\npersonas de prueba —`admin1`, `manager1`, `director1`, `agente1`,\n`cliente1`…— que **comparten la contraseña del superadministrador**:\nno se inventa una nueva, de modo que quien conoce esa una entra con\ntodas. Esa semilla **no se activa en ningún entorno desplegado**.\n\n**Y la primera sesión casi no abre nada, que es lo que más despista.**\nLa cuenta inicial nace marcada para cambio obligatorio, así que con el\ntoken que se recibe aquí solo se llega a `POST /api/v1/auth/password`\n—quien limpia la marca— y a `GET /api/v1/users/me` —para poder saber\npor qué—, más las propias rutas de sesión. **Todo lo demás responde\n`403`** con el tipo `cambio-de-contrasena-requerido`. No está rota:\nestá esperando exactamente eso.\n",
+        "description" : "**Permiso requerido:** ninguno. Ruta pública: responde sin token.\n\nAutentica con **nombre de usuario o correo** —el mismo campo para los\ndos— y entrega las credenciales de sesión.\n\nEl rechazo por credenciales lleva `remainingAttempts`: **cuántos\nintentos quedan** antes del bloqueo. El identificador que no\ncorresponde a ninguna cuenta los gasta igual, de modo que el número no\npermite averiguar qué cuentas existen.\n\nLa cuenta bloqueada recibe `423` y un mensaje que la identifica como\ntal: es una excepción consciente al mensaje genérico, porque quien\nprovocó el bloqueo ya sabe que la cuenta existe. Si el bloqueo es\n**automático**, la respuesta añade `unlockAt` —el instante en que se\nlevanta— y `retryAfterSeconds` —lo que falta—. El bloqueo **manual**\nno los lleva: esa cuenta no se desbloquea sola.\n\n**La espera no va escrita en el mensaje, y es deliberado.** Un texto\ncon «vuelva en dos minutos» es cierto al serializarse y deja de serlo\nenseguida. Con `retryAfterSeconds` el cliente **descuenta** —una\ncuenta regresiva no envejece— sin depender de que su reloj coincida\ncon el del servidor, que es lo que sí ocurriría calculándola a partir\nde `unlockAt`.\n\nSi la contraseña la fijó otra persona, la respuesta autentica **y\nadvierte** con `mustChangePassword`: hace falta una sesión para poder\ncambiarla.\n\n### Con qué cuenta se entra\n\n**El nombre de usuario y el correo valen los dos**, en este mismo\ncampo. La cuenta inicial de cualquier despliegue es **`superadmin`**,\ny su correo es el que ese despliegue declaró en `SUPERADMIN_EMAIL`.\n\n**Su contraseña no está escrita en ninguna parte, y eso es la regla y\nno un olvido**: la fija cada despliegue en `SUPERADMIN_PASSWORD_HASH`,\ny la migración `V9` **se niega a arrancar** si no viene declarada, en\nlugar de caer en una conocida (Art. IX.5). **No hay una credencial por\ndefecto que probar aquí**: la sabe quien desplegó, y en `.env.example`\nesa variable viaja **vacía** a propósito.\n\n**En local, con `DEV_SEED_ENABLED`**, la semilla añade diecinueve\npersonas de prueba —`admin1`, `manager1`, `director1`, `agente1`,\n`cliente1`…— que **comparten la contraseña del superadministrador**:\nno se inventa una nueva, de modo que quien conoce esa una entra con\ntodas. Esa semilla **no se activa en ningún entorno desplegado**.\n\n**Y la primera sesión casi no abre nada, que es lo que más despista.**\nLa cuenta inicial nace marcada para cambio obligatorio, así que con el\ntoken que se recibe aquí solo se llega a `POST /api/v1/auth/password`\n—quien limpia la marca— y a `GET /api/v1/users/me` —para poder saber\npor qué—, más las propias rutas de sesión. **Todo lo demás responde\n`403`** con el tipo `cambio-de-contrasena-requerido`. No está rota:\nestá esperando exactamente eso.\n\n**Con el segundo factor activo, este es solo el primer paso**\n(`RF-SP-072`): la contraseña correcta responde `mfaRequired: true`, un\n`challengeToken` y su vida en segundos, y **ningún token**. La sesión\nnace en `POST /api/v1/auth/login/mfa` con ese desafío y el código de la\napp. Sin factor, `mfaRequired` es `false` y la respuesta es la de\nsiempre: un cliente que solo lea `accessToken` sigue funcionando con\nesas cuentas.\n\n**Y si un rol de la persona exige el factor y no lo tiene**,\n`mfaEnrollmentRequired` llega en verdadero y todo lo que no sea\nactivarlo, el propio perfil o las rutas de sesión responde `403` con el\ntipo `activacion-de-segundo-factor-requerida`. Las cuentas iniciales\n—`SUPERADMIN` y `ADMIN`— están obligadas desde `V75`.\n",
         "operationId" : "login",
         "requestBody" : {
           "content" : {
@@ -9917,11 +9990,11 @@
             "content" : {
               "*/*" : {
                 "schema" : {
-                  "$ref" : "#/components/schemas/SessionResponse"
+                  "$ref" : "#/components/schemas/LoginResponse"
                 }
               }
             },
-            "description" : "Credenciales de sesión."
+            "description" : "Credenciales de sesión, o el desafío del segundo factor."
           },
           "400" : {
             "description" : "Identificador o contraseña ausentes"
@@ -9938,6 +10011,49 @@
         },
         "security" : [ ],
         "summary" : "Iniciar sesión",
+        "tags" : [ "Sesión" ]
+      }
+    },
+    "/api/v1/auth/login/mfa" : {
+      "post" : {
+        "description" : "**Permiso requerido:** ninguno. Ruta pública: responde sin token.\n\nEl segundo paso (`RF-SP-072`): el `challengeToken` que entregó\n`POST /api/v1/auth/login` y **uno** de los dos códigos —`code`, los\nseis dígitos de la app, o `recoveryCode`, uno de los diez de\nrecuperación—. Responde lo mismo que el refresco: token de acceso,\nrefresh token y vigencia.\n\n**Pública**: la autoriza el desafío, como al primer paso la contraseña.\nEl desafío vale **cinco minutos y cinco intentos**; al quinto fallo hay\nque volver a la contraseña.\n\n**Un código equivocado cuenta para el bloqueo de la cuenta**, en el\nmismo contador que la contraseña, y el rechazo trae\n`remainingAttempts`. Un desafío caducado, consumido o inexistente\nresponde igual pero **sin** `remainingAttempts`.\n\nCon un código de recuperación, `recoveryCodesRemaining` dice cuántos\nquedan: es el momento de regenerarlos.\n",
+        "operationId" : "loginConSegundoFactor",
+        "requestBody" : {
+          "content" : {
+            "application/json" : {
+              "schema" : {
+                "$ref" : "#/components/schemas/MfaLoginRequest"
+              }
+            }
+          },
+          "required" : true
+        },
+        "responses" : {
+          "200" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/SessionResponse"
+                }
+              }
+            },
+            "description" : "Sesión abierta."
+          },
+          "400" : {
+            "description" : "Sin desafío, o sin exactamente un código con forma reconocible"
+          },
+          "401" : {
+            "description" : "Código inválido (con `remainingAttempts`), o desafío caducado, consumido o inexistente (sin él)"
+          },
+          "423" : {
+            "description" : "La cuenta está bloqueada"
+          },
+          "429" : {
+            "description" : "Demasiados intentos desde el mismo origen"
+          }
+        },
+        "security" : [ ],
+        "summary" : "Completar el inicio de sesión con el segundo factor",
         "tags" : [ "Sesión" ]
       }
     },

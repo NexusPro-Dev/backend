@@ -102,4 +102,12 @@ public interface UserQueryRepository {
 
   /** Proyección de un rol asignado, con su estado. */
   record RoleRow(UUID id, String code, String name, String status) {}
+
+  /**
+   * El estado del segundo factor de una persona (`RF-SP-077`, adelantado en `RF-SP-072`): si tiene
+   * uno activo y desde cuándo, y si algún rol activo suyo lo exige (`RN-SP-062`).
+   */
+  MfaRow mfaOf(UUID id);
+
+  record MfaRow(boolean enabled, java.time.OffsetDateTime enabledAt, boolean required) {}
 }
