@@ -1,7 +1,9 @@
 package com.factech.nexus.modules.movements.application;
 
 import java.math.BigDecimal;
+import java.time.LocalDate;
 import java.time.OffsetDateTime;
+import java.time.ZoneId;
 import java.util.List;
 import java.util.Set;
 import java.util.UUID;
@@ -33,6 +35,40 @@ public interface SalesFigures {
    * @param currencyId si no es nulo, solo lo vendido en esa moneda
    */
   Summary summary(SalesScope scope, Interval interval, UUID currencyId);
+
+  /**
+   * Lo confirmado del intervalo partido en tramos de calendario de {@code zone} (`RF-IN-002`): una
+   * fila por tramo <b>y moneda</b>, solo de los tramos con ventas. Rellenar los vacíos es de quien
+   * pregunta, que es quien decide que se dibujan.
+   *
+   * <p>La semana empieza el <b>lunes</b> y el mes el día uno. El primer y el último tramo salen ya
+   * recortados por el intervalo, porque es el intervalo el que filtra.
+   *
+   * @param zone en qué zona se corta cada día; `MV` no la decide, la recibe
+   */
+  List<Bucket> confirmedByBucket(
+      SalesScope scope, Interval interval, UUID currencyId, Granularity granularity, ZoneId zone);
+
+  /** El tamaño de un tramo. */
+  enum Granularity {
+    DAY,
+    WEEK,
+    MONTH
+  }
+
+  /**
+   * Lo confirmado de un tramo en una moneda.
+   *
+   * @param start el día en que empieza el tramo en el calendario, aunque el intervalo lo recorte
+   */
+  record Bucket(
+      LocalDate start,
+      UUID currencyId,
+      String currencyCode,
+      long sales,
+      long lines,
+      long units,
+      BigDecimal amount) {}
 
   /**
    * A qué vendedores se acota la suma. <b>No tiene «ninguno»</b>: el corte fuera del alcance es una

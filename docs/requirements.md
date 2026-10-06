@@ -5,7 +5,7 @@
 | Proyecto | NEXUS — Renovación de plataforma |
 | Empresa | FACTECH GROUP SAS |
 | Documento | `requirements.md` |
-| Versión | 0.291.0 |
+| Versión | 0.292.0 |
 | Estado | Borrador |
 | Responsable técnico | Bonilla Diaz William Steven |
 | Fecha de creación | 20-08-2026 |
@@ -311,7 +311,7 @@ Implementa el Art. III.1. Se actualiza **como parte del cambio**, no después (A
 | `RF-AC-037` | Dar visibilidad de un curso a un servicio | `AC` | [`specs/ac/037-dar-visibilidad-curso-servicio/`](specs/ac/037-dar-visibilidad-curso-servicio/tasks.md) | Pendiente de crear | `feature/ajustes-academia` | Suite completa en verde (25-09-2026). `CourseProductVisibilityIT` (10). **Construido**: `V43` crea `course_products`; `ProductCatalog.findKind` | **En desarrollo** |
 | `RF-AC-038` | Quitar la visibilidad de un curso a un servicio | `AC` | [`specs/ac/038-quitar-visibilidad-curso-servicio/`](specs/ac/038-quitar-visibilidad-curso-servicio/tasks.md) | Pendiente de crear | `feature/ajustes-academia` | Suite completa en verde (25-09-2026). `CourseProductVisibilityIT`. **Construido** | **En desarrollo** |
 | `RF-IN-001` | Consultar el resumen de ventas | `IN` | [`specs/in/001-resumen-de-ventas/`](specs/in/001-resumen-de-ventas/tasks.md) | Pendiente de crear | `develop` | Suite completa en verde (06-10-2026): 540 unitarias y 2459 de integración. `SalesSummaryIT` (12), `SalesPeriodResolverTest` (6), `SalesScopeResolverTest` (3), `LayerRulesTest` con la regla de `IN`. **Construido**: `V74` (catálogo 189), `SalesFigures` en `MV`, `GET /indicators/sales/summary` **Nace el 06-10-2026** con el módulo ([`requirements/in.md`](requirements/in.md) v0.1.0): lo confirmado, lo pendiente y lo anulado de un periodo, por moneda y acotado al alcance de quien mira (`RN-IN-002`, `RN-IN-003`). **Estrena la interfaz agregada que `MV` todavía no publica** | **En desarrollo** |
-| `RF-IN-002` | Consultar la evolución de las ventas | `IN` | [`specs/in/002-evolucion-de-ventas/`](specs/in/002-evolucion-de-ventas/tasks.md) | Pendiente de crear | — | Sin código. Tripleta del 06-10-2026 (`spec.md` y `plan.md` aprobados). **Nace el 06-10-2026** con el módulo ([`requirements/in.md`](requirements/in.md) v0.1.0): lo confirmado por día, semana o mes de Bogotá, sin huecos (`RN-IN-007`) | **Tasks aprobadas** |
+| `RF-IN-002` | Consultar la evolución de las ventas | `IN` | [`specs/in/002-evolucion-de-ventas/`](specs/in/002-evolucion-de-ventas/tasks.md) | Pendiente de crear | `develop` | Suites del módulo en verde (06-10-2026): `SalesSeriesIT` (8), `SalesCalendarTest` (4). **Construido**: `GET /indicators/sales/series`, `SalesFigures.confirmedByBucket`. **Nace el 06-10-2026** con el módulo ([`requirements/in.md`](requirements/in.md) v0.1.0): lo confirmado por día, semana o mes de Bogotá, sin huecos (`RN-IN-007`) | **En desarrollo** |
 | `RF-IN-003` | Consultar las ventas por producto | `IN` | [`specs/in/003-ventas-por-producto/`](specs/in/003-ventas-por-producto/tasks.md) | Pendiente de crear | — | Sin código. Tripleta del 06-10-2026 (`spec.md` y `plan.md` aprobados). **Nace el 06-10-2026** con el módulo ([`requirements/in.md`](requirements/in.md) v0.1.0): lo confirmado por producto de la línea, con su nombre congelado | **Tasks aprobadas** |
 | `RF-IN-004` | Consultar las ventas por vendedor | `IN` | [`specs/in/004-ventas-por-vendedor/`](specs/in/004-ventas-por-vendedor/tasks.md) | Pendiente de crear | — | Sin código. Tripleta del 06-10-2026 (`spec.md` y `plan.md` aprobados). **Nace el 06-10-2026** con el módulo ([`requirements/in.md`](requirements/in.md) v0.1.0): lo confirmado por vendedor de la línea, cada uno con lo suyo; administración ve además lo «sin asignar» | **Tasks aprobadas** |
 
@@ -342,7 +342,7 @@ Un requerimiento solo pasa a `Implementado` cuando cumple **todas** las condicio
 | Requerimientos con `spec.md` aprobada | 159 |
 | Requerimientos con `plan.md` aprobado | 218 |
 | Requerimientos con **tripleta completa** —`tasks.md` aprobadas— | 101 |
-| Requerimientos con endpoint funcionando | 178 |
+| Requerimientos con endpoint funcionando | 179 |
 | Requerimientos implementados | 0 |
 
 La vista **por módulo** de estos mismos indicadores está en la [portada](index.md#indicadores), que los cruza con el inventario de [`modules.md` §4](modules.md#4-inventario-de-modulos). Aquí se cuenta por compuerta; allí se cuenta por módulo.
@@ -715,3 +715,4 @@ El inventario y el estado de los módulos se consultan en [`modules.md` §4](mod
 | 0.289.0 | 06-10-2026 | **`RN-SP-065` confirmada** por el responsable del proyecto ([`requirements/sp.md`](requirements/sp.md) v1.97.0): nadie restablece el segundo factor de quien tiene más privilegios. `RF-SP-076` queda sin bloqueos. | Responsable técnico |
 | 0.290.0 | 06-10-2026 | **Las siete `tasks.md` del segundo factor, aprobadas** por el responsable del proyecto ([`requirements/sp.md`](requirements/sp.md) v1.98.0): `RF-SP-071` a `RF-SP-077` pasan a `Tasks aprobadas` y la tripleta completa sube de 94 a **101**. **`RN-SP-065` se extiende a la contraseña**: enmienda `RF-SP-038`. | Responsable técnico |
 | 0.291.0 | 06-10-2026 | **`RF-SP-071` construido — el primero del segundo factor**: activar el authenticator, con `V75` (las tres tablas, las tres columnas, los siete permisos —catálogo 196, `ADMIN` 194—, las dieciocho operaciones sensibles y `SUPERADMIN` y `ADMIN` obligados). Endpoint funcionando 177 → **178**. La obligación todavía no retiene a nadie: eso llega con `RF-SP-072`. | Responsable técnico |
+| 0.292.0 | 06-10-2026 | **`RF-IN-002` construido** ([`requirements/in.md`](requirements/in.md) v0.4.0): `GET /api/v1/indicators/sales/series`, la evolución de lo confirmado por día, semana o mes de Bogotá. §5: endpoint funcionando 178 → **179**. | Responsable técnico |

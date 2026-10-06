@@ -12006,6 +12006,80 @@ paths:
         "500":
           description: Fallo no controlado (`ERR-500`)
       x-required-permission: indicators:read-sales-summary
+  /api/v1/indicators/sales/series:
+    get:
+      tags:
+      - Indicadores
+      summary: Consultar la evolución de las ventas
+      description: |
+        **Permiso requerido:** `indicators:read-sales-series`. Sin él, `403` (`AUTH-002`).
+
+        Lo **confirmado** del periodo partido en tramos de **día**, **semana** o **mes**
+        (`granularity`, por defecto `DAY`), para dibujarlo. Cuenta exactamente lo mismo que el
+        resumen —por línea, un importe por moneda, el alcance de quien pregunta—, y **la suma
+        de los tramos es lo confirmado del resumen** para el mismo periodo y filtros.
+
+        **Cada tramo del periodo aparece, también los vacíos, con ceros**: una serie con huecos
+        se dibuja uniendo puntos lejanos. **Cada tramo trae un importe por cada moneda de
+        `currencies`, en ese orden**, con cero donde no vendió en ella, de modo que cada moneda
+        es una serie completa.
+
+        Los tramos son **del calendario de Bogotá**: la semana va de **lunes a domingo** y el
+        mes del uno al último día. `start` dice dónde empieza el tramo en el calendario; **el
+        primero y el último pueden estar recortados** por el periodo, que es el que se devuelve
+        en `period`. `from`, `to`, `currencyId` y `sellerId` son los del resumen, con el mismo
+        tope de 366 días y los mismos ceros fuera del alcance. Ni el permiso del resumen ni
+        otro de indicadores abren este.
+      operationId: evolucion
+      parameters:
+      - name: from
+        in: query
+        required: false
+        schema:
+          type: string
+          format: date
+      - name: to
+        in: query
+        required: false
+        schema:
+          type: string
+          format: date
+      - name: currencyId
+        in: query
+        required: false
+        schema:
+          type: string
+          format: uuid
+      - name: sellerId
+        in: query
+        required: false
+        schema:
+          type: string
+          format: uuid
+      - name: granularity
+        in: query
+        required: false
+        schema:
+          type: string
+      responses:
+        "200":
+          description: "La serie, aunque sea de ceros."
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/SalesSeries"
+        "400":
+          description: "Fecha o identificador malformado (`VAL-001`), `from` posterior\
+            \ a `to` (`VAL-002`), más de 366 días (`VAL-003`) o un tramo que no es\
+            \ `DAY`, `WEEK` ni `MONTH` (`VAL-005`). Los problemas del periodo y del\
+            \ tramo se devuelven juntos."
+        "401":
+          description: Token ausente o inválido (`AUTH-001`)
+        "403":
+          description: Sin el permiso `indicators:read-sales-series` (`AUTH-002`).
+        "500":
+          description: Fallo no controlado (`ERR-500`)
+      x-required-permission: indicators:read-sales-series
   /api/v1/hotlinks/{username}/{code}:
     get:
       tags:
@@ -19506,6 +19580,46 @@ components:
       type: object
       properties:
         sales:
+          type: integer
+          format: int64
+        amounts:
+          type: array
+          items:
+            $ref: "#/components/schemas/IndicatorAmount"
+    SalesSeries:
+      type: object
+      properties:
+        period:
+          $ref: "#/components/schemas/IndicatorPeriod"
+        granularity:
+          type: string
+          description: "DAY, WEEK o MONTH."
+          example: WEEK
+        currencies:
+          type: array
+          description: "Las monedas con ventas en el periodo, por código."
+          items:
+            $ref: "#/components/schemas/IndicatorCurrency"
+        buckets:
+          type: array
+          items:
+            $ref: "#/components/schemas/SalesSeriesBucket"
+    SalesSeriesBucket:
+      type: object
+      properties:
+        start:
+          type: string
+          format: date
+          description: Día en que empieza el tramo en el calendario; el primero y
+            el último pueden estar recortados por el periodo.
+          example: 2026-09-07
+        sales:
+          type: integer
+          format: int64
+        lines:
+          type: integer
+          format: int64
+        units:
           type: integer
           format: int64
         amounts:

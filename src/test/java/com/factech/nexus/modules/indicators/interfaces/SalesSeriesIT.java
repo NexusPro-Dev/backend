@@ -1,0 +1,392 @@
+package com.factech.nexus.modules.indicators.interfaces;
+
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.hamcrest.Matchers.contains;
+import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.user;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
+
+import com.factech.nexus.IntegrationTestBase;
+import com.factech.nexus.modules.movements.PaymentFixtures;
+import com.factech.nexus.testing.CommissionCleanup;
+import com.jayway.jsonpath.JsonPath;
+import jakarta.persistence.EntityManagerFactory;
+import java.math.BigDecimal;
+import java.time.LocalDate;
+import java.time.ZoneId;
+import java.time.temporal.ChronoUnit;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.UUID;
+import org.hibernate.SessionFactory;
+import org.hibernate.stat.Statistics;
+import org.junit.jupiter.api.AfterEach;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.DisplayName;
+import org.junit.jupiter.api.Test;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
+import org.springframework.jdbc.core.JdbcTemplate;
+import org.springframework.test.web.servlet.MockMvc;
+import org.springframework.test.web.servlet.ResultActions;
+
+/**
+ * `RF-IN-002` · `T-05` — la evolución de las ventas (`CA-IN-015` a `CA-IN-022`).
+ *
+ * <pre>
+ *   director1 ─── agente1        director2 (otra rama)
+ * </pre>
+ *
+ * <p>Todo en septiembre de 2026; el 7, el 14 y el 21 son lunes. Los importes, en centésimas.
+ */
+@AutoConfigureMockMvc
+class SalesSeriesIT extends IntegrationTestBase {
+  private static final String VENTA = "01a061ba-3400-7001-9c4f-5e7ad7000011";
+  private static final String TARJETA = "01a061ba-3400-7002-9c4f-5e7ad7000021";
+  private static final String USD = "01a03336-6d00-7001-9c4f-5e7ad3000001";
+  private static final String COP = "01a03336-6d00-7002-9c4f-5e7ad3000002";
+  private static final String DIRECTOR = "01a02a33-4c00-7006-9c4f-5e7ad1000004";
+  private static final String AGENTE = "01a02a33-4c00-7007-9c4f-5e7ad1000005";
+
+  private static final String SERIE = "/api/v1/indicators/sales/series";
+  private static final String RESUMEN = "/api/v1/indicators/sales/summary";
+  private static final String PERMISO = "indicators:read-sales-series";
+
+  @Autowired private MockMvc mvc;
+  @Autowired private JdbcTemplate jdbc;
+  @Autowired private EntityManagerFactory emf;
+
+  private UUID director1;
+  private UUID director2;
+  private UUID agente1;
+  private UUID producto;
+
+  @BeforeEach
+  void sembrar() {
+    limpiar();
+    director1 = persona("ins-director1", DIRECTOR);
+    director2 = persona("ins-director2", DIRECTOR);
+    agente1 = persona("ins-agente1", AGENTE);
+    producto = producto("INS_BOT");
+    jdbc.update(
+        "INSERT INTO user_supervisors (id, user_id, supervisor_id, started_at)"
+            + " VALUES (gen_random_uuid(), ?, ?, now())",
+        agente1,
+        director1);
+
+    venta(agente1, "CONFIRMADA", USD, "2026-09-08T15:00:00Z", 1000);
+    venta(agente1, "CONFIRMADA", COP, "2026-09-10T15:00:00Z", 100000);
+    venta(agente1, "PENDIENTE", USD, "2026-09-11T15:00:00Z", 700);
+    // Las 20:00 del 15 en Bogotá, que en UTC ya es el 16.
+    venta(agente1, "CONFIRMADA", USD, "2026-09-16T01:00:00Z", 100);
+    venta(director1, "CONFIRMADA", USD, "2026-09-22T15:00:00Z", 10000);
+    venta(director2, "CONFIRMADA", USD, "2026-09-09T15:00:00Z", 500000);
+  }
+
+  @AfterEach
+  void devolverLaBaseASuSitio() {
+    limpiar();
+  }
+
+  @Test
+  @DisplayName(
+      "CA-IN-016 y CA-IN-017 — todos los días, también los vacíos, y en cada uno todas las"
+          + " monedas del periodo, en orden")
+  void diasCompletos() throws Exception {
+    serie(director1, "2026-09-08", "2026-09-14", null)
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$.granularity").value("DAY"))
+        .andExpect(jsonPath("$.currencies[*].code", contains("COP", "USD")))
+        .andExpect(jsonPath("$.buckets.length()").value(7))
+        .andExpect(jsonPath("$.buckets[0].start").value("2026-09-08"))
+        .andExpect(jsonPath("$.buckets[0].sales").value(1))
+        .andExpect(jsonPath("$.buckets[0].amounts[0].currency.code").value("COP"))
+        .andExpect(jsonPath("$.buckets[0].amounts[0].amount").value(0.0))
+        .andExpect(jsonPath("$.buckets[0].amounts[1].amount").value(10.0))
+        // El 9 vendió director2, que no es de esta rama.
+        .andExpect(jsonPath("$.buckets[1].sales").value(0))
+        .andExpect(jsonPath("$.buckets[1].amounts.length()").value(2))
+        .andExpect(jsonPath("$.buckets[2].amounts[0].amount").value(1000.0))
+        // El 11 hay una pendiente: no es lo vendido.
+        .andExpect(jsonPath("$.buckets[3].sales").value(0))
+        .andExpect(jsonPath("$.buckets[6].start").value("2026-09-14"));
+  }
+
+  @Test
+  @DisplayName("CA-IN-015 — la suma de los tramos es lo confirmado del resumen, por moneda")
+  void cuadraConElResumen() throws Exception {
+    for (String tramo : new String[] {"DAY", "WEEK", "MONTH"}) {
+      String serie =
+          mvc.perform(
+                  get(SERIE)
+                      .param("from", "2026-09-01")
+                      .param("to", "2026-09-30")
+                      .param("granularity", tramo)
+                      .with(user(director1.toString()).authorities(() -> PERMISO)))
+              .andReturn()
+              .getResponse()
+              .getContentAsString();
+      String resumen =
+          mvc.perform(
+                  get(RESUMEN)
+                      .param("from", "2026-09-01")
+                      .param("to", "2026-09-30")
+                      .with(
+                          user(director1.toString())
+                              .authorities(() -> "indicators:read-sales-summary")))
+              .andReturn()
+              .getResponse()
+              .getContentAsString();
+
+      List<Map<String, Object>> tramos = JsonPath.read(serie, "$.buckets");
+      long ventas = 0;
+      long lineas = 0;
+      long unidades = 0;
+      Map<String, BigDecimal> porMoneda = new HashMap<>();
+      for (Map<String, Object> t : tramos) {
+        ventas += ((Number) t.get("sales")).longValue();
+        lineas += ((Number) t.get("lines")).longValue();
+        unidades += ((Number) t.get("units")).longValue();
+        List<Map<String, Object>> importes = JsonPath.read(t, "$.amounts");
+        for (Map<String, Object> i : importes) {
+          String moneda = JsonPath.read(i, "$.currency.code");
+          porMoneda.merge(moneda, new BigDecimal(i.get("amount").toString()), BigDecimal::add);
+        }
+      }
+      assertThat(ventas)
+          .as(tramo)
+          .isEqualTo(((Number) JsonPath.read(resumen, "$.confirmed.sales")).longValue());
+      assertThat(lineas)
+          .as(tramo)
+          .isEqualTo(((Number) JsonPath.read(resumen, "$.confirmed.lines")).longValue());
+      assertThat(unidades)
+          .as(tramo)
+          .isEqualTo(((Number) JsonPath.read(resumen, "$.confirmed.units")).longValue());
+      List<Map<String, Object>> delResumen = JsonPath.read(resumen, "$.confirmed.amounts");
+      assertThat(porMoneda).as(tramo).hasSize(delResumen.size());
+      for (Map<String, Object> i : delResumen) {
+        String moneda = JsonPath.read(i, "$.currency.code");
+        assertThat(porMoneda.get(moneda))
+            .as(tramo + " " + moneda)
+            .isEqualByComparingTo(new BigDecimal(i.get("amount").toString()));
+      }
+    }
+  }
+
+  @Test
+  @DisplayName(
+      "CA-IN-018 — semanas de lunes y meses del calendario, recortados al periodo, con su inicio")
+  void tramosDelCalendario() throws Exception {
+    // Del jueves 10 al miércoles 23: la primera semana empieza el lunes 7, pero
+    // la venta del 8 queda fuera del periodo.
+    serie(director1, "2026-09-10", "2026-09-23", "WEEK")
+        .andExpect(
+            jsonPath("$.buckets[*].start", contains("2026-09-07", "2026-09-14", "2026-09-21")))
+        .andExpect(jsonPath("$.buckets[*].sales", contains(1, 1, 1)))
+        .andExpect(jsonPath("$.buckets[0].amounts[0].amount").value(1000.0))
+        .andExpect(jsonPath("$.buckets[0].amounts[1].amount").value(0.0))
+        .andExpect(jsonPath("$.buckets[1].amounts[1].amount").value(1.0))
+        .andExpect(jsonPath("$.buckets[2].amounts[1].amount").value(100.0));
+
+    serie(director1, "2026-08-31", "2026-10-01", "month")
+        .andExpect(jsonPath("$.granularity").value("MONTH"))
+        .andExpect(
+            jsonPath("$.buckets[*].start", contains("2026-08-01", "2026-09-01", "2026-10-01")))
+        .andExpect(jsonPath("$.buckets[*].sales", contains(0, 4, 0)));
+  }
+
+  @Test
+  @DisplayName("CA-IN-019 — una venta a las 20:00 de Bogotá cae en su día, no en el de UTC")
+  void diaDeBogota() throws Exception {
+    serie(agente1, "2026-09-15", "2026-09-16", "DAY")
+        .andExpect(jsonPath("$.buckets[*].sales", contains(1, 0)))
+        .andExpect(jsonPath("$.buckets[0].amounts[0].amount").value(1.0));
+  }
+
+  @Test
+  @DisplayName("CA-IN-020 — sin tramo, días; sin fechas, el mes en curso hasta hoy")
+  void porDefecto() throws Exception {
+    LocalDate hoy = LocalDate.now(ZoneId.of("America/Bogota"));
+    LocalDate primero = hoy.withDayOfMonth(1);
+    mvc.perform(get(SERIE).with(user(director1.toString()).authorities(() -> PERMISO)))
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$.granularity").value("DAY"))
+        .andExpect(jsonPath("$.period.from").value(primero.toString()))
+        .andExpect(jsonPath("$.period.to").value(hoy.toString()))
+        .andExpect(
+            jsonPath("$.buckets.length()").value((int) ChronoUnit.DAYS.between(primero, hoy) + 1));
+  }
+
+  @Test
+  @DisplayName(
+      "CA-IN-021 — el alcance del resumen: la otra rama no; un vendedor ajeno, ceros con todos los"
+          + " tramos")
+  void alcance() throws Exception {
+    serie(director2, "2026-09-01", "2026-09-30", "MONTH")
+        .andExpect(jsonPath("$.buckets[0].sales").value(1))
+        .andExpect(jsonPath("$.currencies[*].code", contains("USD")))
+        .andExpect(jsonPath("$.buckets[0].amounts[0].amount").value(5000.0));
+
+    mvc.perform(
+            get(SERIE)
+                .param("from", "2026-09-08")
+                .param("to", "2026-09-14")
+                .param("sellerId", director2.toString())
+                .with(user(director1.toString()).authorities(() -> PERMISO)))
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$.buckets.length()").value(7))
+        .andExpect(jsonPath("$.currencies").isEmpty())
+        .andExpect(jsonPath("$.buckets[*].sales", contains(0, 0, 0, 0, 0, 0, 0)));
+  }
+
+  @Test
+  @DisplayName(
+      "CA-IN-022 — tramo desconocido y rango invertido juntos; 366 días; sin el permiso, 403, y"
+          + " el del resumen no abre")
+  void validacionesYPermisos() throws Exception {
+    mvc.perform(
+            get(SERIE)
+                .param("from", "2026-09-30")
+                .param("to", "2026-09-01")
+                .param("granularity", "HORA")
+                .with(user(director1.toString()).authorities(() -> PERMISO)))
+        .andExpect(status().isBadRequest())
+        .andExpect(jsonPath("$.errors.length()").value(2))
+        .andExpect(jsonPath("$.errors[*].code", contains("VAL-002", "VAL-005")));
+    serie(director1, "2025-01-01", "2026-01-02", "DAY")
+        .andExpect(status().isBadRequest())
+        .andExpect(jsonPath("$.errors[0].code").value("VAL-003"));
+
+    mvc.perform(get(SERIE).with(user(director1.toString()))).andExpect(status().isForbidden());
+    mvc.perform(
+            get(SERIE)
+                .with(
+                    user(director1.toString()).authorities(() -> "indicators:read-sales-summary")))
+        .andExpect(status().isForbidden());
+    mvc.perform(get(SERIE)).andExpect(status().isUnauthorized());
+  }
+
+  @Test
+  @DisplayName("RNF-PERF — una sentencia de suma sea cual sea el número de tramos")
+  void elCosteNoCreceConLosTramos() throws Exception {
+    Statistics estadisticas = emf.unwrap(SessionFactory.class).getStatistics();
+
+    estadisticas.clear();
+    serie(director1, "2026-09-08", "2026-09-14", "DAY").andExpect(status().isOk());
+    long siete = estadisticas.getPrepareStatementCount();
+
+    estadisticas.clear();
+    serie(director1, "2026-07-01", "2026-09-28", "DAY").andExpect(status().isOk());
+    long noventa = estadisticas.getPrepareStatementCount();
+
+    assertThat(noventa).isEqualTo(siete);
+  }
+
+  // ---------------------------------------------------------------------------
+
+  private ResultActions serie(UUID actor, String desde, String hasta, String tramo)
+      throws Exception {
+    var peticion =
+        get(SERIE)
+            .param("from", desde)
+            .param("to", hasta)
+            .with(user(actor.toString()).authorities(() -> PERMISO));
+    return mvc.perform(tramo == null ? peticion : peticion.param("granularity", tramo));
+  }
+
+  private void limpiar() {
+    CommissionCleanup.limpiar(jdbc);
+    jdbc.update("DELETE FROM movement_details");
+    jdbc.update("DELETE FROM payments");
+    jdbc.update("DELETE FROM movements");
+    jdbc.update("DELETE FROM products WHERE code LIKE 'INS_BOT%'");
+    jdbc.update(
+        "DELETE FROM user_supervisors WHERE user_id IN (SELECT id FROM users WHERE username LIKE"
+            + " 'ins-%') OR supervisor_id IN (SELECT id FROM users WHERE username LIKE 'ins-%')");
+    jdbc.update(
+        "DELETE FROM user_roles WHERE user_id IN (SELECT id FROM users WHERE username LIKE"
+            + " 'ins-%')");
+    jdbc.update(
+        "DELETE FROM user_products WHERE user_id IN (SELECT id FROM users WHERE username LIKE"
+            + " 'ins-%')");
+    jdbc.update("DELETE FROM users WHERE username LIKE 'ins-%'");
+  }
+
+  private UUID persona(String username, String rol) {
+    UUID id = UUID.randomUUID();
+    jdbc.update(
+        """
+        INSERT INTO users (id, username, email, first_name, last_name, password_hash,
+                           must_change_password, status, country_id)
+        VALUES (?, ?, ?, 'Nombre', 'Apellido', 'x', false, 'ACTIVO',
+                (SELECT id FROM countries WHERE code = 'COL'))
+        """,
+        id,
+        username,
+        username + "@factech.co");
+    jdbc.update(
+        "INSERT INTO user_roles (user_id, role_id, role_type)"
+            + " SELECT ?, r.id, r.role_type FROM roles r WHERE r.id = ?::uuid",
+        id,
+        rol);
+    return id;
+  }
+
+  private UUID producto(String codigo) {
+    UUID id = UUID.randomUUID();
+    jdbc.update(
+        "INSERT INTO products (scope, implementation, id, code, type, name, description,"
+            + " source_membership_id, target_membership_id, price, currency_id, validity_days,"
+            + " status) VALUES ('TIENDA', 'MANUAL', ?, ?, 'BOT', ?, 'Producto de prueba', NULL,"
+            + " NULL, 10000, CAST(? AS uuid), NULL, 'ACTIVO')",
+        id,
+        codigo,
+        "Bot " + codigo,
+        USD);
+    return id;
+  }
+
+  private void venta(UUID vendedor, String estado, String moneda, String cuando, long centesimas) {
+    UUID id = UUID.randomUUID();
+    jdbc.update(
+        """
+        INSERT INTO movements (id, movement_type_id, type_status_id, user_id,
+                               currency_id, code, status, total_amount, discount_amount,
+                               payable_amount, occurred_at, confirmed_at)
+        VALUES (?, CAST(? AS uuid),
+                (SELECT s.id FROM movement_type_statuses s
+                  WHERE s.movement_type_id = CAST(? AS uuid) AND s.code = 'VALIDADO'),
+                ?, CAST(? AS uuid), ?, ?, ?, 0, ?, CAST(? AS timestamptz),
+                CASE WHEN ? = 'CONFIRMADA' THEN CAST(? AS timestamptz) END)
+        """,
+        id,
+        VENTA,
+        VENTA,
+        director1,
+        moneda,
+        "INS-" + id.toString().substring(0, 8).toUpperCase(),
+        estado,
+        centesimas,
+        centesimas,
+        cuando,
+        estado,
+        cuando);
+    PaymentFixtures.pagoDe(jdbc, id, TARJETA);
+    jdbc.update(
+        """
+        INSERT INTO movement_details (id, movement_id, product_id, seller_id, product_name,
+                                      product_description, quantity, unit_price,
+                                      line_amount, validity_days, implementation)
+        VALUES (?, ?, ?, ?, 'Bot de la serie', 'Lo que decía el catálogo', 1, ?, ?, NULL,
+                'MANUAL')
+        """,
+        UUID.randomUUID(),
+        id,
+        producto,
+        vendedor,
+        centesimas,
+        centesimas);
+  }
+}

@@ -349,6 +349,7 @@ class EndpointPermissionsIT extends IntegrationTestBase {
               "GET /api/v1/movements/users/{userId}/balances", "movements:read-user-balances"),
           // ---- IN · los indicadores de ventas (V74, 06-10-2026) ----
           Map.entry("GET /api/v1/indicators/sales/summary", "indicators:read-sales-summary"),
+          Map.entry("GET /api/v1/indicators/sales/series", "indicators:read-sales-series"),
           // ---- MV · la etapa 3, puntos (V58, 30-09-2026) ----
           Map.entry("POST /api/v1/movements/points-rates", "movements:set-points-rate"),
           Map.entry("GET /api/v1/movements/points-rates", "movements:read-points-rates"),

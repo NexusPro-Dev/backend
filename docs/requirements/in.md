@@ -5,7 +5,7 @@
 | Módulo | `IN` — Indicadores |
 | Paquete | `modules/indicators` |
 | Prefijo de permisos | `indicators:` |
-| Versión | 0.3.0 |
+| Versión | 0.4.0 |
 | Estado | **Borrador** |
 | Responsable | Bonilla Diaz William Steven |
 | Fecha de creación | 06-10-2026 |
@@ -167,7 +167,7 @@ La migración que los siembre los da **por tipo de rol**, como los demás permis
 | ID | Nombre | Submódulo | Prioridad | Permiso | Estado |
 |---|---|---|---|---|---|
 | `RF-IN-001` | Consultar el resumen de ventas | Ventas | Alta | `indicators:read-sales-summary` | **En desarrollo** (06-10-2026) |
-| `RF-IN-002` | Consultar la evolución de las ventas | Ventas | Alta | `indicators:read-sales-series` | **Tasks aprobadas** (06-10-2026) |
+| `RF-IN-002` | Consultar la evolución de las ventas | Ventas | Alta | `indicators:read-sales-series` | **En desarrollo** (06-10-2026) |
 | `RF-IN-003` | Consultar las ventas por producto | Ventas | Media | `indicators:read-sales-by-product` | **Tasks aprobadas** (06-10-2026) |
 | `RF-IN-004` | Consultar las ventas por vendedor | Ventas | Media | `indicators:read-sales-by-seller` | **Tasks aprobadas** (06-10-2026) |
 
@@ -202,7 +202,7 @@ Para un periodo y, opcionalmente, una moneda o un vendedor de mi alcance: **cuá
 | Reglas aplicables | `RN-IN-001` a `RN-IN-005`, `RN-IN-007` |
 | Depende de | `RF-IN-001` |
 | Tripleta | [`docs/specs/in/002-evolucion-de-ventas/`](../specs/in/002-evolucion-de-ventas/spec.md) |
-| Estado | **Tasks aprobadas** — 06-10-2026; se construye sobre `RF-IN-001` |
+| Estado | **En desarrollo** — construido el 06-10-2026 |
 
 Las mismas cifras de lo **confirmado** que `RF-IN-001`, partidas en **días, semanas o meses** de Bogotá. **Cada tramo del periodo aparece aunque no tenga ventas**, con ceros: una serie con huecos se dibuja como una línea que une dos puntos lejanos y miente sobre lo que pasó entre ellos. El número de tramos tiene tope, que fija la spec.
 
@@ -282,3 +282,4 @@ El contrato detallado de cada endpoint —parámetros, valores por defecto del p
 | 0.1.0 | 06-10-2026 | **Creación del módulo `IN` — Indicadores**, por decisión del responsable del proyecto: «un módulo para indicadores, para repartir qué indicadores se pueden ver por roles». Tres decisiones lo definen: **el reparto es el permiso** —uno por indicador, asignado desde la administración de roles, sin tabla propia— (`RN-IN-001`, §5.2.1); **las cifras dependen de quién mira** —`CommercialReach`, como `RF-MV-015`— (`RN-IN-002`, §5.2.2); y **la primera tanda es de ventas**, `RF-IN-001` a `RF-IN-004`, contadas **por línea** (`RN-IN-003`) y **separadas por moneda** (`RN-IN-004`). Se incorpora **sin tablas propias**, a sabiendas de `modules.md` §2.1 (§1.4). Los cuatro permisos quedan declarados y sin sembrar (§5.2.4). | Bonilla Diaz William Steven |
 | 0.2.0 | 06-10-2026 | **Las cuatro tripletas de ventas están escritas** —`spec.md` y `plan.md` aprobados, `tasks.md` en revisión—, en `docs/specs/in/001` a `004`, con los criterios `CA-IN-001` a `CA-IN-037`. Fijan lo que este documento dejaba abierto: `MV` publica **`SalesFigures`** (§3); el periodo se pide **en días de Bogotá**, con el último incluido, por defecto el mes en curso y con un **tope de 366 días**; el corte fuera del alcance responde **ceros sin consultar**; los rankings se ordenan **por importe con moneda y por unidades sin ella**; y lo **sin asignar** va aparte, solo para administración. La migración de los cuatro permisos la construye `RF-IN-001` · `T-01`. Se corrige además `RN-IN-004`: los importes van **en decimales**, como el resto de la API, y no en centésimas. | Bonilla Diaz William Steven |
 | 0.3.0 | 06-10-2026 | **Las cuatro `tasks.md` aprobadas** por el responsable del proyecto, y **`RF-IN-001` construido**: `V74` siembra los cuatro permisos (catálogo 189), `MV` publica `SalesFigures` y `GET /indicators/sales/summary` responde. Dos desviaciones, en sus tareas: la suma se prueba por HTTP y no con una suite propia de `MV`, y una fecha o un identificador mal formados son `VAL-001` del manejador común. | Bonilla Diaz William Steven |
+| 0.4.0 | 06-10-2026 | **`RF-IN-002` construido**: `GET /indicators/sales/series`, lo confirmado por día, semana —de lunes— o mes de Bogotá, con todos los tramos y todas las monedas del periodo en cada uno. `SalesFigures` gana `confirmedByBucket`; el predicado de `MV` queda en un solo sitio para que la serie sume exactamente el resumen. | Bonilla Diaz William Steven |
