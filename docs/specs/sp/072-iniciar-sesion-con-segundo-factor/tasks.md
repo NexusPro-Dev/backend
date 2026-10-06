@@ -6,7 +6,7 @@
 | Especificación | [`spec.md`](spec.md) v0.1.0 |
 | Plan | [`plan.md`](plan.md) v0.1.0 |
 | `plan.md` aprobado el | 06-10-2026 |
-| Estado | **En revisión** |
+| Estado | **Aprobadas** — por el responsable del proyecto, 06-10-2026 |
 | Issue | Pendiente de crear |
 | Rama | `develop` (commits directos desde el 05-10-2026) |
 
@@ -72,3 +72,4 @@ Ninguno, salvo `RF-SP-071`.
 | Versión | Fecha | Cambio | Autor |
 |---|---|---|---|
 | 0.1.0 | 06-10-2026 | Primera versión. | Responsable técnico |
+| — | 06-10-2026 | Aprobadas por el responsable del proyecto. | Responsable técnico |

@@ -202,3 +202,11 @@ Casos límite de `spec.md` §13 con prueba propia (Art. VII.3):
 | Restablecimiento seguido de cambio propio | Integración | La marca y la caducidad se limpian; las sesiones se revocan dos veces sin efecto adverso |
 
 **`CA-SP-392` es la única prueba de este requerimiento que no puede escribirse dentro de él.** La caducidad se fija aquí y se comprueba en `RF-SP-034`, de modo que la prueba tiene que ejecutar el restablecimiento, adelantar el reloj y después intentar iniciar sesión. Escrita solo desde este lado verificaría que la columna se pobló, que no es lo mismo que verificar que la ventana se cierra.
+
+---
+
+## 12. Control de cambios
+
+| Versión | Fecha | Cambio | Responsable |
+|---|---|---|---|
+| — | 06-10-2026 | **Enmendado por `RN-SP-065`**: tras `SelfOperationGuard` y la resolución de la persona, `ResetUserPasswordService` comprueba con **`PrivilegeContainment`** —el de `RF-SP-030`— que los permisos efectivos de la persona estén contenidos en los del actor; si no, `403` `sin-permiso` sin decir cuál falta, auditado como `AUTHORIZATION_DENIED`. Mismo orden que `RF-SP-076` · `plan.md` §1. | Responsable técnico |

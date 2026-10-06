@@ -8,7 +8,7 @@
 | Autor | Responsable técnico |
 | Aprobada por | Responsable técnico |
 | Fecha de aprobación | 21-08-2026 |
-| Enmendada el | 25-08-2026 — ver §15 |
+| Enmendada el | 06-10-2026 — ver §15, dos veces |
 
 ---
 
@@ -126,6 +126,11 @@ Ninguno. La operación no admite variantes: o se cumplen todas las condiciones, 
 **Condición:** el identificador no corresponde a ningún usuario vigente.
 **Respuesta del sistema:** rechaza la operación e informa que el usuario no existe, sin distinguir ambos casos.
 
+### EX-004 — La persona tiene más privilegios que el actor
+
+**Condición:** la persona tiene algún permiso efectivo que el actor no tiene. Añadida el 06-10-2026 por `RN-SP-065`.
+**Respuesta del sistema:** rechaza la operación sin decir qué permiso falta —decirlo enseñaría qué puede hacer la persona— y no cambia nada. Sin esta excepción, un `ADMIN` restablecía la contraseña del superadministrador: con el segundo factor de este fuera de su alcance (`RF-SP-076`) ya no le bastaría para entrar, pero seguiría siendo **una barrera menos** sobre la cuenta más poderosa del sistema, y el responsable del proyecto decidió cerrarla también aquí.
+
 ## 11. Validaciones
 
 | ID | Validación | Mensaje esperado |
@@ -152,6 +157,8 @@ Ninguno. La operación no admite variantes: o se cumplen todas las condiciones, 
 | `CA-SP-393` | El sistema no devuelve la contraseña asignada en la respuesta, y ningún registro la contiene |
 | `CA-SP-394` | Restablecer la contraseña **no** levanta un bloqueo vigente, ni automático ni manual |
 | `CA-SP-337` | El sistema rechaza la operación a un actor que posee `users:update` pero no `users:reset-password` |
+| `CA-SP-894` | El sistema rechaza restablecer la contraseña de una persona con algún permiso que el actor no tiene —un `ADMIN` sobre el superadministrador—, sin decir cuál, y nada cambia |
+| `CA-SP-895` | El superadministrador **sí** puede restablecer la de un `ADMIN`, y un `ADMIN` la de quien tiene permisos contenidos en los suyos |
 
 ## 13. Casos límite
 
@@ -180,5 +187,6 @@ Ninguna. Las cuatro se resolvieron el 21-08-2026, antes de aprobar la especifica
 
 | Versión | Fecha | Cambio | Responsable |
 |---|---|---|---|
+| 0.3.0 | 06-10-2026 | **Enmendada por `RN-SP-065`** (Art. I.7), por decisión del responsable del proyecto: nadie restablece la contraseña de quien tiene más privilegios. Nace `EX-004` y dos criterios, `CA-SP-894` y `CA-SP-895`. La regla nació en `RF-SP-076` para el segundo factor y se extiende aquí por el mismo motivo. | Responsable técnico |
 | 0.2.0 | 25-08-2026 | **La caducidad deja de caducar.** Por decisión del responsable del proyecto, `provisional_password_expires_at` pasa a ser lo único que decide el cambio obligatorio —nula, navega; con fecha, la cambia— y **deja de cortar el acceso**: una credencial provisional vencida ya no rechaza, autentica y obliga a cambiarla. `CA-SP-392` queda **retirado** y lo sustituye `CA-SP-479`. El coste está declarado en §13 y no se disimula: la ventana en que el administrador conoce una credencial válida queda **abierta indefinidamente**, que es justo lo que este requerimiento había acotado el 24-08-2026. El plazo de `nexus.security.password.provisional-ttl` sigue escribiéndose y ya no tiene efecto sobre el acceso. | Responsable técnico |
 | 0.1.0 | 21-08-2026 | Redacción inicial. | Responsable técnico |
