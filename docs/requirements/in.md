@@ -5,11 +5,11 @@
 | Módulo | `IN` — Indicadores |
 | Paquete | `modules/indicators` |
 | Prefijo de permisos | `indicators:` |
-| Versión | 0.10.0 |
+| Versión | 0.11.0 |
 | Estado | **Borrador** |
 | Responsable | Bonilla Diaz William Steven |
 | Fecha de creación | 06-10-2026 |
-| Última actualización | 06-10-2026 |
+| Última actualización | 07-10-2026 |
 
 !!! info "Qué va en este documento"
 
@@ -264,7 +264,7 @@ Lo **confirmado** en el periodo agrupado por **el vendedor de la línea**, de m�
 
 | Campo | Valor |
 |---|---|
-| Objetivo | Saber, sobre **todas** las líneas de venta, cuántos productos —unidades— se vendieron, cuántas ventas hubo y cuántas ventas y líneas siguen **sin vendedor** |
+| Objetivo | Saber, sobre **todas** las líneas de venta y **por tipo de producto**, cuántos productos —unidades— se vendieron y cuántas ventas y líneas siguen **sin vendedor** (enmendado el 07-10-2026) |
 | Actor | Administración; **quien porte el permiso lo ve entero** (`RN-IN-011`) |
 | Permiso requerido | `indicators:read-sale-lines-summary` |
 | Prioridad | Alta |
@@ -330,3 +330,4 @@ El contrato detallado de cada endpoint —parámetros, valores por defecto del p
 | 0.8.0 | 06-10-2026 | **Nace `RN-IN-010`: sin fechas, todo; sin tope; y cada indicador se parte en tramos si se pide**, por decisión del responsable del proyecto. Enmienda `RF-IN-001`, `RF-IN-002` y `RF-IN-005` (Art. I.7): el periodo por defecto deja de ser el mes en curso, `VAL-003` se retira, y el resumen de ventas y el de puntos ganan `granularity`, que añade a la respuesta sus cifras por tramo sin cambiar los totales. `CA-IN-050` a `CA-IN-058`. | Bonilla Diaz William Steven |
 | 0.9.0 | 06-10-2026 | **Nace `RF-IN-006`, el resumen de líneas de venta**, a petición del responsable del proyecto, con su tripleta (`CA-IN-059` a `CA-IN-066`): unidades vendidas, ventas por estado y lo sin vendedor, sobre todo el libro. Nace **`RN-IN-011`**, la primera excepción a `RN-IN-002`: este indicador no se acota por alcance, y su permiso, `indicators:read-sale-lines-summary`, se sembrará por `V78` solo a `SUPERADMIN` y `ADMIN`. | Bonilla Diaz William Steven |
 | 0.10.0 | 06-10-2026 | **`RF-IN-006` construido**: `V78` siembra `indicators:read-sale-lines-summary` a `SUPERADMIN` y `ADMIN` (catálogo 203), `SalesFigures` gana lo sin vendedor y `GET /indicators/sales/lines/summary` responde, sin alcance. | Bonilla Diaz William Steven |
+| 0.11.0 | 07-10-2026 | **`RF-IN-006` se agrupa por tipo de producto** (Art. I.7), por decisión del responsable del proyecto: **lo vendido** —solo lo confirmado— por tipo y en total, y **lo sin vendedor** también por tipo y en total. Desaparecen los bloques de pendientes y anuladas. `CA-IN-067` a `CA-IN-070`. | Bonilla Diaz William Steven |

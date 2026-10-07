@@ -3,13 +3,17 @@
 | Campo | Valor |
 |---|---|
 | Requerimiento | `RF-IN-006` |
-| Especificación | [`spec.md`](spec.md) v0.1.0 |
+| Especificación | [`spec.md`](spec.md) v0.2.0 |
 | `spec.md` aprobada el | 06-10-2026 |
-| Versión | 0.1.0 |
+| Versión | 0.2.0 |
 | Estado | **Aprobado** |
 | Autor | Responsable técnico |
 | Aprobado por | Responsable del proyecto |
 | Fecha de aprobación | 06-10-2026 |
+
+!!! warning "Enmendado el 07-10-2026 — por tipo de producto, y lo sin vendedor también"
+
+    Decisión del responsable del proyecto, 07-10-2026: «mejor agrupemos por lo siguiente: por tipo de producto y líneas de ventas sin vendedores», con dos precisiones suyas: **por tipo de producto, solo lo vendido** —lo confirmado—, y **lo sin vendedor también por tipo**. **Cómo se construye.** El total de lo vendido es `summary(everything()).confirmed()` y el de lo sin vendedor `unassigned`, los dos ya publicados. **Lo por tipo es una lectura nueva de `SalesFigures`**, `byProductType(Lines, Interval, UUID currencyId)` —`Lines` = `SOLD` \| `UNASSIGNED`— y su versión por tramo: la sentencia del resumen con `JOIN products p ON p.id = d.product_id` —como ya hacen otras lecturas de `JpaMovementRepository`— y `p.type` en el lugar del estado, para pasar por el mismo mapeo. `SOLD` filtra `m.status = 'CONFIRMADA'`; `UNASSIGNED`, lo de `SIN_VENDEDOR`. La respuesta: `sold` y `unassigned`, cada uno con `total` y `byType`; `byType` trae los tipos con datos, por nombre.
 
 !!! info "Qué va en este documento"
 

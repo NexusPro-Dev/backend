@@ -4,11 +4,15 @@
 |---|---|
 | Requerimiento | `RF-IN-006` |
 | Módulo | `IN` — Indicadores |
-| Versión | 0.1.0 |
+| Versión | 0.2.0 |
 | Estado | **Aprobada** |
 | Autor | Responsable técnico |
 | Aprobada por | Responsable del proyecto |
 | Fecha de aprobación | 06-10-2026 |
+
+!!! warning "Enmendado el 07-10-2026 — por tipo de producto, y lo sin vendedor también"
+
+    Decisión del responsable del proyecto, 07-10-2026: «mejor agrupemos por lo siguiente: por tipo de producto y líneas de ventas sin vendedores», con dos precisiones suyas: **por tipo de producto, solo lo vendido** —lo confirmado—, y **lo sin vendedor también por tipo**. **La respuesta cambia de forma**: deja de agruparse por estado de la venta y pasa a dos bloques, cada uno **en total y por tipo de producto** —`BOT`, `UPGRADE_MEMBRESIA`, los que existan—: **lo vendido**, solo las ventas **confirmadas**, con ventas, líneas, unidades e importe por moneda; y **lo sin vendedor**, las líneas sin vendedor de las ventas no anuladas, igual. **Desaparecen pendientes y anuladas.** El tipo es el del producto de la línea. **Una venta con líneas de dos tipos cuenta en cada tipo, y una vez en el total**, de modo que las ventas por tipo pueden sumar más que el total; las líneas, las unidades y los importes, no. El total de lo vendido es el confirmado del resumen de ventas de administración. Con tramo, los dos bloques por tramo.
 
 !!! info "Qué va en este documento"
 
@@ -159,13 +163,17 @@ Las del periodo y el tramo de `RF-IN-001` §11 (`VAL-001`, `VAL-002`, `VAL-005`)
 | ID | Criterio |
 |---|---|
 | `CA-IN-059` | **Productos vendidos son unidades**: una línea de tres unidades suma tres |
-| `CA-IN-060` | Por estado: ventas, líneas, unidades e importe por moneda; el **total** suma los tres estados |
-| `CA-IN-061` | Las cifras por estado **coinciden con las del resumen de ventas** de administración para el mismo periodo y moneda |
+| `CA-IN-060` | ~~Por estado~~ — **sustituido el 07-10-2026 por `CA-IN-067`**: ya no se agrupa por estado |
+| `CA-IN-061` | El **total de lo vendido coincide con lo confirmado del resumen de ventas** de administración para el mismo periodo y moneda (enmendado el 07-10-2026) |
 | `CA-IN-062` | **Sin vendedor**: las ventas con alguna línea sin vendedor, esas líneas, sus unidades y su importe; una venta con una línea con vendedor y otra sin él cuenta **una** venta y **una** línea sin vendedor |
 | `CA-IN-063` | Lo sin vendedor **excluye las anuladas** |
 | `CA-IN-064` | **Sin alcance**: un vendedor con el permiso ve las mismas cifras que administración, incluido lo sin vendedor |
 | `CA-IN-065` | El periodo, la moneda y los tramos de `RN-IN-010`: con tramo, los mismos bloques por tramo y su suma es el total |
 | `CA-IN-066` | Sin el permiso, **prohibido**, también con los permisos de ventas o del listado de líneas de `MV`; sin token, `401`; el permiso se siembra **solo** a `SUPERADMIN` y `ADMIN` |
+| `CA-IN-067` | **Lo vendido** son solo las ventas confirmadas, en total y **por tipo de producto**: ventas, líneas, unidades e importe por moneda (07-10-2026) |
+| `CA-IN-068` | Una venta con líneas de **dos tipos** cuenta una venta en cada tipo y **una** en el total; las líneas, unidades e importes por tipo suman el total (07-10-2026) |
+| `CA-IN-069` | **Lo sin vendedor**, en total y **por tipo de producto**, sin las anuladas (07-10-2026) |
+| `CA-IN-070` | La respuesta **no trae pendientes ni anuladas**; con tramo, los dos bloques por tramo y su suma es el total (07-10-2026) |
 
 ---
 
@@ -189,3 +197,4 @@ Ninguna.
 | Versión | Fecha | Cambio | Autor |
 |---|---|---|---|
 | 0.1.0 | 06-10-2026 | Primera versión, a petición del responsable del proyecto: **unidades** como productos vendidos, **ventas y líneas** sin vendedor, y un indicador **propio, de administración y sin alcance** (`RN-IN-011`). Ocho criterios, `CA-IN-059` a `CA-IN-066`. | Responsable técnico |
+| 0.2.0 | 07-10-2026 | **Por tipo de producto**: lo vendido —solo confirmado— y lo sin vendedor, cada uno en total y por tipo; sin pendientes ni anuladas. `CA-IN-067` a `CA-IN-070`; `CA-IN-060` sustituido y `CA-IN-061` enmendado. | Responsable técnico |

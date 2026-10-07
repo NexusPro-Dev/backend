@@ -3,8 +3,8 @@
 | Campo | Valor |
 |---|---|
 | Requerimiento | `RF-IN-006` |
-| Especificación | [`spec.md`](spec.md) v0.1.0 |
-| Plan | [`plan.md`](plan.md) v0.1.0 |
+| Especificación | [`spec.md`](spec.md) v0.2.0 |
+| Plan | [`plan.md`](plan.md) v0.2.0 |
 | `plan.md` aprobado el | 06-10-2026 |
 | Estado | **Aprobadas** — por el responsable del proyecto, 06-10-2026. `T-01` a `T-06` `Hecha` el mismo día |
 | Issue | Pendiente de crear |
@@ -29,6 +29,14 @@
 | `T-05` | `SaleLinesSummaryIT`: `CA-IN-059` a `CA-IN-066` | `T-01`, `T-04` | Cuadra con el resumen de ventas | **Hecha** — 06-10-2026 |
 | `T-06` | Contrato regenerado; `api/index.md`, `requirements/mv.md` §3, `security.md` (sembrado), `requirements/in.md` y matriz | `T-05` | Solo altas | **Hecha** — 06-10-2026 |
 
+### 1.1 Por tipo de producto — 07-10-2026
+
+| ID | Tarea | Depende de | Verificación | Estado |
+|---|---|---|---|---|
+| `T-07` | `SalesFigures.byProductType` y `byProductTypeAndBucket`, con `Lines`; `JpaSalesFigures` con el cruce a `products` | — | El mismo mapeo que el resumen | Pendiente |
+| `T-08` | `SaleLinesSummaryResponse` con `sold` y `unassigned` (`total` y `byType`); `GetSaleLinesSummaryService`; la descripción de la ruta | `T-07` | Sin pendientes ni anuladas | Pendiente |
+| `T-09` | `SaleLinesSummaryIT`: `CA-IN-067` a `CA-IN-070` y los casos de antes reescritos; contrato y documentos | `T-08` | | Pendiente |
+
 ---
 
 ## 2. Cobertura de los criterios de aceptación
@@ -39,6 +47,7 @@
 | `CA-IN-062`, `CA-IN-063` | `T-02`, `T-05` |
 | `CA-IN-064`, `CA-IN-065` | `T-03`, `T-05` |
 | `CA-IN-066` | `T-01`, `T-04`, `T-05` |
+| `CA-IN-067` a `CA-IN-070` | `T-07` a `T-09` — 07-10-2026 |
 
 ---
 
