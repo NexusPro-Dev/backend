@@ -14,7 +14,8 @@ import java.util.UUID;
  * del cliente (`RF-SP-026`) y sin identificador no hay enlace —lo pidió el frontend el 21-09-2026—;
  * y una cartera se trabaja, de modo que hay que distinguir al que se registró y todavía no depositó
  * ({@code FTD_PENDIENTE}, `RN-SP-026`) del activo y del desactivado. Lo que se publica es lo que el
- * vendedor ya ve de esa persona en su detalle: ni correo, ni roles, ni membresía.
+ * vendedor ya ve de esa persona en su detalle: ni roles, ni membresía. <b>El correo sí, desde el
+ * 07-10-2026</b> (`CA-SP-896`): para escribirle a un cliente sin abrir su ficha.
  *
  * <p>{@code principal} se deriva de {@code origin} y se publica igualmente, por lo mismo que en
  * `RF-SP-059`: es una regla de negocio y no se reparte entre los consumidores del contrato.
@@ -23,6 +24,7 @@ public record SellerClientItem(
     @Schema(description = "Identificador del cliente, con el que se abre su ficha (`RF-SP-026`).")
         UUID id,
     String username,
+    @Schema(description = "Correo del cliente (desde el 07-10-2026, `CA-SP-896`).") String email,
     String firstName,
     String lastName,
     @Schema(
@@ -51,6 +53,7 @@ public record SellerClientItem(
     return new SellerClientItem(
         fila.clientId(),
         fila.username(),
+        fila.email(),
         fila.firstName(),
         fila.lastName(),
         fila.status(),

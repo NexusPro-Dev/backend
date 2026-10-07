@@ -8,7 +8,7 @@
 | Autor | Responsable técnico |
 | Aprobada por | Responsable del proyecto |
 | Fecha de aprobación | 21-09-2026 |
-| Enmendada | 21-09-2026 — exige **`users:read-own-clients`** (`RF-SP-062`, `RN-SEG-015`: autenticarse no autoriza nada); lo siembra `V31` (la ruta `/me`); a `CONSUMIDOR` no |
+| Enmendada | 21-09-2026 — exige **`users:read-own-clients`** (`RF-SP-062`, `RN-SEG-015`: autenticarse no autoriza nada); lo siembra `V31` (la ruta `/me`); a `CONSUMIDOR` no; 07-10-2026 — **cada fila trae el `email` del cliente**, por petición del responsable del proyecto (`CA-SP-896`) |
 
 ---
 
@@ -85,6 +85,7 @@ Una **página** —`content`, `totalElements`, `totalPages`, `page`, `size`, `to
 |---|---|
 | `id` | El identificador del cliente |
 | `username`, `firstName`, `lastName` | Quién es |
+| `email` | Su correo, **desde el 07-10-2026**: el vendedor trabaja su cartera y necesita escribirle sin abrir la ficha de cada uno |
 | `status` | Su estado (`ACTIVO`, `FTD_PENDIENTE`, `INACTIVO`, `BLOQUEADO`), tal como lo publica `RF-SP-025`. Para un vendedor es el dato que más importa de la cartera: quién se registró y **todavía no depositó** (`RN-SP-026`) |
 | `origin` | `REGISTRO` si el vendedor lo registró, `HOTLINK` si le vendió por su enlace |
 | `principal` | `true` si el vendedor es su principal —derivado de `origin`, publicado igual, por lo mismo que en `RF-SP-059` §6.2— |
@@ -133,7 +134,7 @@ Una **página** —`content`, `totalElements`, `totalPages`, `page`, `size`, `to
 
 **`users:read-clients` es un permiso nuevo y no un hijo de nadie.** `V28` repartió los cincuenta y un códigos que nacieron de dividir otros, dando cada hijo a todo rol que portara el padre. Este no divide a nadie: la operación no existía. `V30` lo siembra a `SUPERADMIN` y `ADMIN` explícitamente, como `V22` y `V29`, y a `CLIENTE` no.
 
-**Lo que se publica de cada cliente** (§6.2) es lo que el vendedor ya ve de él en `RF-SP-026`: ni correo, ni roles, ni membresía. La cartera dice quién es y desde cuándo; el detalle dice el resto.
+**Lo que se publica de cada cliente** (§6.2) es lo que el vendedor ya ve de él en `RF-SP-026`: ni roles, ni membresía. La cartera dice quién es y desde cuándo; el detalle dice el resto. **El correo se publica desde el 07-10-2026**, por petición del responsable del proyecto («al consultar mis clientes, agrégale que se devuelva el correo»): la decisión original lo dejaba en la ficha, y una cartera que se trabaja —escribirle a quien no ha depositado— lo pedía en la lista. Viaja también por `GET /users/{id}/clients`, que publica la misma fila.
 
 ## 11. Validaciones
 
@@ -156,6 +157,7 @@ Una **página** —`content`, `totalElements`, `totalPages`, `page`, `size`, `to
 | `CA-SP-719` | Un cliente **desactivado o bloqueado** sigue en la cartera de quien lo registró, con su estado; uno **eliminado** no sale ni se cuenta |
 | `CA-SP-720` | El **superior comercial** de un vendedor recibe `403` en `GET /users/{id}/clients` de su subordinado si no porta el permiso: la estructura no autoriza |
 | `CA-SP-721` | Un vendedor subordinado en `user_supervisors` **no aparece** en la cartera de su superior: la lista lee solo `client_sellers` |
+| `CA-SP-896` | Cada fila de `GET /users/me/clients` y de `GET /users/{id}/clients` trae el `email` del cliente (desde el 07-10-2026); siguen sin viajar `roles` ni la membresía |
 | `CA-SP-722` | `V30` siembra `users:read-clients` con identificador literal, asociado a `SUPERADMIN` y `ADMIN`; el catálogo cuenta **ciento trece** y `EndpointPermissionsIT` recibe `/users/{id}/clients` con ese código y `/users/me/clients` como autenticada sin permiso |
 
 ## 13. Casos límite
@@ -185,3 +187,4 @@ Una **página** —`content`, `totalElements`, `totalPages`, `page`, `size`, `to
 | Versión | Fecha | Cambio | Responsable |
 |---|---|---|---|
 | 0.1.0 | 21-09-2026 | Redacción inicial, tres días después de registrarse como `RF-SP-060` en la rama de `RF-SP-059` y el mismo día de renumerarse a `061`. Por petición del responsable del proyecto: «un endpoint para consultar mis clientes o los clientes de un vendedor», con un permiso único por endpoint «para que el frontend se pueda separar y saber qué vistas mostrar» (`RN-SEG-014`). Hereda de `RF-SP-059` los dos modelos de autorización y el `403`; decide al revés que él el `id` (sí), el estado (sí), el orden (recientes primero) y la paginación (sí), y dice por qué cada uno. Sin migración de esquema: solo `V30`, un permiso. | Responsable del proyecto |
+| 0.2.0 | 07-10-2026 | **Cada fila de la cartera trae el `email` del cliente**, por petición del responsable del proyecto. Se revierte el «ni correo» de §10; §6.2 gana la fila y nace `CA-SP-896`. Sin migración ni permiso nuevo: la consulta ya cruzaba con `users`. | Responsable del proyecto |

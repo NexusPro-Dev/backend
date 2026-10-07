@@ -570,7 +570,8 @@ public class UserController {
           del cliente (`GET /api/v1/users/{id}`), y una cartera se trabaja —quien
           se registró y **todavía no depositó** está en `FTD_PENDIENTE`—. Lo que
           se publica es lo que el vendedor ya ve de esa persona en su detalle:
-          ni correo, ni roles, ni membresía.
+          ni roles, ni membresía. **Y su `email`, desde el 07-10-2026**
+          (`CA-SP-896`), para escribirle sin abrir su ficha.
 
           **Un cliente desactivado o bloqueado sigue saliendo**, con su estado:
           el vínculo es un hecho. **Uno eliminado no**: para el sistema no existe

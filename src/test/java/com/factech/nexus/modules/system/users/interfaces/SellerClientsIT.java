@@ -100,8 +100,8 @@ class SellerClientsIT extends IntegrationTestBase {
 
   @Test
   @DisplayName(
-      "`CA-SP-714` — el vendedor ve su cartera sin permiso, los más recientes primero, con id,"
-          + " estado, origen, principal y fecha")
+      "`CA-SP-714` y `CA-SP-896` — el vendedor ve su cartera sin permiso, los más recientes"
+          + " primero, con id, correo, estado, origen, principal y fecha")
   void elVendedorVeSuCartera() throws Exception {
     mvc.perform(get("/api/v1/users/me/clients").with(comoPersona(agente)))
         .andExpect(status().isOk())
@@ -110,6 +110,7 @@ class SellerClientsIT extends IntegrationTestBase {
         .andExpect(jsonPath("$.content", hasSize(4)))
         .andExpect(jsonPath("$.content[0].id").value(clienteReciente.toString()))
         .andExpect(jsonPath("$.content[0].username").value("nvega"))
+        .andExpect(jsonPath("$.content[0].email").value("nvega@factech.co"))
         .andExpect(jsonPath("$.content[0].firstName").value("Nora"))
         .andExpect(jsonPath("$.content[0].lastName").value("Vega"))
         .andExpect(jsonPath("$.content[0].status").value("FTD_PENDIENTE"))
@@ -122,7 +123,6 @@ class SellerClientsIT extends IntegrationTestBase {
         .andExpect(jsonPath("$.content[2].username").value("mlozano"))
         .andExpect(jsonPath("$.content[3].username").value("bruiz"))
         // Lo que NO viaja de un cliente: lo mismo que su ficha no da a la cartera.
-        .andExpect(jsonPath("$.content[0].email").doesNotExist())
         .andExpect(jsonPath("$.content[0].roles").doesNotExist());
   }
 

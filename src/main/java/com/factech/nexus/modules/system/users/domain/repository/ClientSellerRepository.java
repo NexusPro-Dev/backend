@@ -121,6 +121,7 @@ public interface ClientSellerRepository {
   record SellerClientRow(
       UUID clientId,
       String username,
+      String email,
       String firstName,
       String lastName,
       String status,

@@ -172,7 +172,7 @@ public class JpaClientSellerRepository implements ClientSellerRepository {
     List<Tuple> filas =
         em.createNativeQuery(
                 """
-                SELECT cs.client_id AS client_id, c.username AS username,
+                SELECT cs.client_id AS client_id, c.username AS username, c.email AS email,
                        c.first_name AS first_name, c.last_name AS last_name,
                        c.status AS status, cs.origin AS origin, cs.created_at AS linked_at
                 """
@@ -191,6 +191,7 @@ public class JpaClientSellerRepository implements ClientSellerRepository {
     return new SellerClientRow(
         (UUID) fila.get("client_id"),
         (String) fila.get("username"),
+        (String) fila.get("email"),
         (String) fila.get("first_name"),
         (String) fila.get("last_name"),
         (String) fila.get("status"),
