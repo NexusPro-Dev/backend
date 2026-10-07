@@ -5,11 +5,15 @@ import java.util.List;
 
 /**
  * El resumen de lotes de comisiones (`RF-IN-007` §6.2): los lotes <b>como están hoy</b>, por estado
- * y en total. Sin alcance (`RN-IN-011`) y sin periodo (`RN-IN-012`): por eso no lleva {@code
- * period}.
+ * y en total. Sin alcance (`RN-IN-011`). El periodo elige los lotes, no su estado (`RN-IN-012`).
  */
 @Schema(name = "CommissionBatchesSummary")
 public record CommissionBatchesSummaryResponse(
+    @Schema(
+            description =
+                "Qué lotes se contaron: los que su periodo de comisiones toca estos días. Sin"
+                    + " fechas, desde el principio hasta hoy.")
+        IndicatorPeriod period,
     @Schema(description = "Los lotes abiertos: siguen creciendo con cada comisión que se devenga.")
         Block open,
     @Schema(description = "Los lotes pendientes: cerrados, esperando a que se paguen.")

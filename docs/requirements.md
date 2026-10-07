@@ -5,7 +5,7 @@
 | Proyecto | NEXUS — Renovación de plataforma |
 | Empresa | FACTECH GROUP SAS |
 | Documento | `requirements.md` |
-| Versión | 0.315.0 |
+| Versión | 0.316.0 |
 | Estado | Borrador |
 | Responsable técnico | Bonilla Diaz William Steven |
 | Fecha de creación | 20-08-2026 |
@@ -745,3 +745,4 @@ El inventario y el estado de los módulos se consultan en [`modules.md` §4](mod
 | 0.313.0 | 07-10-2026 | **Corregir el vendedor de una línea borra su cadena vieja** ([`requirements/cm.md`](requirements/cm.md) v0.34.0 §5.10, `RN-CM-047` enmendada; [`requirements/mv.md`](requirements/mv.md) v0.94.0): la comisión vieja se elimina y se crea la nueva; solo un lote `PAGADO` lo impide. `V80`. Se enmiendan las tripletas de `RF-CM-024`, `RF-CM-010`, `RF-CM-012`, `RF-CM-013`, `RF-CM-022`, `RF-CM-023` y `RF-MV-016`; sin RF ni permisos nuevos. | Responsable del proyecto |
 | 0.314.0 | 07-10-2026 | **`RF-MV-015` se filtra también por cliente** ([`requirements/mv.md`](requirements/mv.md) v0.95.0, `CA-MV-701` y `CA-MV-702`), a petición del responsable del proyecto: `clientId` en `GET /movements/sales`, dentro del alcance. Tripleta enmendada antes del código. Ningún indicador de §5 se mueve. | Responsable técnico |
 | 0.315.0 | 07-10-2026 | **`RF-IN-006` se filtra por vendedor, cliente, producto y comprobante** ([`requirements/in.md`](requirements/in.md) v0.16.0, `CA-IN-080` a `CA-IN-085`), a petición del responsable del proyecto. Tripleta enmendada antes del código. Ningún indicador de §5 se mueve. | Responsable técnico |
+| 0.316.0 | 07-10-2026 | **`RF-IN-007` se filtra por vendedor y por fechas** ([`requirements/in.md`](requirements/in.md) v0.17.0, `CA-IN-086` a `CA-IN-089`), a petición del responsable del proyecto; `RN-IN-012` enmendada. Tripleta enmendada antes del código. Ningún indicador de §5 se mueve. | Responsable técnico |

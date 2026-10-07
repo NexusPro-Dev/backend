@@ -2,9 +2,13 @@ package com.factech.nexus.modules.indicators.domain.service;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
+import com.factech.nexus.modules.commissions.application.CommissionBatchFigures;
 import com.factech.nexus.modules.commissions.application.CommissionBatchFigures.StatusTotals;
 import com.factech.nexus.modules.indicators.application.CommissionBatchesSummaryResponse;
+import com.factech.nexus.shared.time.BusinessCalendar;
 import java.math.BigDecimal;
+import java.time.Clock;
+import java.time.ZoneId;
 import java.util.List;
 import java.util.UUID;
 import org.junit.jupiter.api.DisplayName;
@@ -19,8 +23,7 @@ class GetCommissionBatchesSummaryServiceTest {
   @Test
   @DisplayName("sin filas, los cuatro bloques en cero")
   void sinFilas() {
-    CommissionBatchesSummaryResponse r =
-        new GetCommissionBatchesSummaryService(moneda -> List.of()).get(null);
+    CommissionBatchesSummaryResponse r = servicio(filtro -> List.of()).get(null, null, null, null);
 
     for (CommissionBatchesSummaryResponse.Block b :
         List.of(r.open(), r.pending(), r.paid(), r.total())) {
@@ -33,13 +36,13 @@ class GetCommissionBatchesSummaryServiceTest {
   @DisplayName("un estado desconocido no se pierde: cuenta solo en el total")
   void unEstadoDesconocido() {
     CommissionBatchesSummaryResponse r =
-        new GetCommissionBatchesSummaryService(
-                moneda ->
+        servicio(
+                filtro ->
                     List.of(
                         new StatusTotals("PENDIENTE", USD, "USD", 2, new BigDecimal("20.00")),
                         new StatusTotals("ANULADO", USD, "USD", 1, new BigDecimal("4.00")),
                         new StatusTotals("ABIERTO", COP, "COP", 1, new BigDecimal("1000.00"))))
-            .get(null);
+            .get(null, null, null, null);
 
     assertThat(r.pending().batches()).isEqualTo(2);
     assertThat(r.open().batches()).isEqualTo(1);
@@ -50,5 +53,12 @@ class GetCommissionBatchesSummaryServiceTest {
         .containsExactly(
             org.assertj.core.groups.Tuple.tuple("COP", new BigDecimal("1000.00")),
             org.assertj.core.groups.Tuple.tuple("USD", new BigDecimal("24.00")));
+  }
+
+  private static GetCommissionBatchesSummaryService servicio(CommissionBatchFigures cifras) {
+    return new GetCommissionBatchesSummaryService(
+        cifras,
+        new SalesPeriodResolver(
+            new BusinessCalendar(ZoneId.of("America/Bogota"), Clock.systemUTC())));
   }
 }

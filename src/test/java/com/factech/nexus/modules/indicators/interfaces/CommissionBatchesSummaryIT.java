@@ -25,7 +25,8 @@ import org.springframework.test.web.servlet.ResultActions;
 import org.springframework.test.web.servlet.request.RequestPostProcessor;
 
 /**
- * `RF-IN-007` · `T-05` — el resumen de lotes de comisiones (`CA-IN-072` a `CA-IN-079`).
+ * `RF-IN-007` · `T-05` y `T-09` — el resumen de lotes de comisiones (`CA-IN-072` a `CA-IN-079`, y
+ * `CA-IN-086` a `CA-IN-089` desde el 07-10-2026).
  *
  * <p>Los lotes se siembran por SQL, en centésimas, y se cambian por SQL como los cambian el cierre,
  * el pago y la retirada de `CM`: el indicador lee el estado y el total de cada lote, y esas
@@ -112,7 +113,9 @@ class CommissionBatchesSummaryIT extends IntegrationTestBase {
         .andExpect(jsonPath("$.total.amounts[*].currency.code", contains("COP", "USD")))
         .andExpect(jsonPath("$.total.amounts[0].amount").value(1000.0))
         .andExpect(jsonPath("$.total.amounts[1].amount").value(65.5))
-        .andExpect(jsonPath("$.period").doesNotExist());
+        .andExpect(jsonPath("$.period.from").isEmpty())
+        .andExpect(jsonPath("$.period.to").isNotEmpty())
+        .andExpect(jsonPath("$.period.zone").value("America/Bogota"));
   }
 
   @Test
@@ -154,24 +157,8 @@ class CommissionBatchesSummaryIT extends IntegrationTestBase {
   }
 
   @Test
-  @DisplayName(
-      "CA-IN-076 — una foto de hoy: cerrar y pagar mueven el lote de bloque, y las fechas se"
-          + " ignoran")
+  @DisplayName("CA-IN-076 — una foto de hoy: cerrar y pagar mueven el lote de bloque")
   void unaFotoDeHoy() throws Exception {
-    String antes = resumen(funcionario).andReturn().getResponse().getContentAsString();
-    String conFechas =
-        mvc.perform(
-                get(RUTA)
-                    .param("from", "2026-01-01")
-                    .param("to", "2026-01-31")
-                    .param("granularity", "MONTH")
-                    .with(conPermiso(funcionario)))
-            .andExpect(status().isOk())
-            .andReturn()
-            .getResponse()
-            .getContentAsString();
-    assertThat(conFechas).isEqualTo(antes);
-
     // El cierre: el abierto b1 pasa a pendiente.
     jdbc.update(
         "UPDATE commission_batches SET status = 'PENDIENTE', period_end = now(), closing_id = ?"
@@ -252,6 +239,131 @@ class CommissionBatchesSummaryIT extends IntegrationTestBase {
                 String.class,
                 PERMISO))
         .containsExactlyInAnyOrder("SUPERADMIN", "ADMIN");
+  }
+
+  @Test
+  @DisplayName(
+      "CA-IN-086 — con vendedor, solo sus lotes en los tres estados; uno inexistente da ceros; uno"
+          + " mal formado, 400")
+  void porVendedor() throws Exception {
+    mvc.perform(get(RUTA).param("sellerId", agente1.toString()).with(conPermiso(funcionario)))
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$.open.batches").value(2))
+        .andExpect(jsonPath("$.open.amounts[*].currency.code", contains("COP", "USD")))
+        .andExpect(jsonPath("$.open.amounts[1].amount").value(10.0))
+        .andExpect(jsonPath("$.pending.batches").value(1))
+        .andExpect(jsonPath("$.pending.amounts[0].amount").value(20.0))
+        .andExpect(jsonPath("$.paid.batches").value(1))
+        .andExpect(jsonPath("$.total.batches").value(4))
+        .andExpect(jsonPath("$.total.amounts[1].amount").value(60.0));
+
+    mvc.perform(
+            get(RUTA).param("sellerId", UUID.randomUUID().toString()).with(conPermiso(funcionario)))
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$.total.batches").value(0))
+        .andExpect(jsonPath("$.total.amounts").isEmpty());
+
+    mvc.perform(get(RUTA).param("sellerId", "no-es-uuid").with(conPermiso(funcionario)))
+        .andExpect(status().isBadRequest());
+  }
+
+  @Test
+  @DisplayName(
+      "CA-IN-087 — con fechas, los lotes cuyo periodo toca el rango, en su estado de hoy; un"
+          + " periodo que acaba justo al empezar el rango no entra")
+  void porFechas() throws Exception {
+    // Septiembre: b4 y b5. b6 termina el 01-09 a las 00:00 de Bogotá, justo cuando empieza.
+    mvc.perform(
+            get(RUTA)
+                .param("from", "2026-09-01")
+                .param("to", "2026-09-30")
+                .with(conPermiso(funcionario)))
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$.period.from").value("2026-09-01"))
+        .andExpect(jsonPath("$.period.to").value("2026-09-30"))
+        .andExpect(jsonPath("$.open.batches").value(0))
+        .andExpect(jsonPath("$.pending.batches").value(2))
+        .andExpect(jsonPath("$.pending.amounts[0].amount").value(20.0))
+        .andExpect(jsonPath("$.paid.batches").value(0))
+        .andExpect(jsonPath("$.total.batches").value(2));
+
+    // Desde octubre, sin hasta: los abiertos, que no tienen fin.
+    mvc.perform(get(RUTA).param("from", "2026-10-01").with(conPermiso(funcionario)))
+        .andExpect(jsonPath("$.open.batches").value(3))
+        .andExpect(jsonPath("$.pending.batches").value(0))
+        .andExpect(jsonPath("$.total.batches").value(3));
+
+    // Hasta agosto, sin desde: b6, pagado.
+    mvc.perform(get(RUTA).param("to", "2026-08-31").with(conPermiso(funcionario)))
+        .andExpect(jsonPath("$.period.from").isEmpty())
+        .andExpect(jsonPath("$.paid.batches").value(1))
+        .andExpect(jsonPath("$.total.batches").value(1));
+
+    // El estado es el de hoy: pagar b4 lo pasa a pagados también en septiembre.
+    jdbc.update(
+        "UPDATE commission_batches SET status = 'PAGADO', paid_at = now(), movement_id = ?"
+            + " WHERE id = ?",
+        abono(),
+        b4);
+    mvc.perform(
+            get(RUTA)
+                .param("from", "2026-09-01")
+                .param("to", "2026-09-30")
+                .with(conPermiso(funcionario)))
+        .andExpect(jsonPath("$.pending.batches").value(1))
+        .andExpect(jsonPath("$.paid.batches").value(1))
+        .andExpect(jsonPath("$.paid.amounts[0].amount").value(20.0))
+        .andExpect(jsonPath("$.total.batches").value(2));
+  }
+
+  @Test
+  @DisplayName(
+      "CA-IN-088 — sin fechas, todos los lotes; desde posterior a hasta, 400 con VAL-002; el"
+          + " tramo se ignora")
+  void sinFechasYFechasAlReves() throws Exception {
+    String sinFechas = resumen(funcionario).andReturn().getResponse().getContentAsString();
+    String conTramo =
+        mvc.perform(get(RUTA).param("granularity", "MONTH").with(conPermiso(funcionario)))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.total.batches").value(6))
+            .andReturn()
+            .getResponse()
+            .getContentAsString();
+    assertThat(conTramo).isEqualTo(sinFechas);
+
+    mvc.perform(
+            get(RUTA)
+                .param("from", "2026-09-30")
+                .param("to", "2026-09-01")
+                .with(conPermiso(funcionario)))
+        .andExpect(status().isBadRequest())
+        .andExpect(jsonPath("$.errors[0].code").value("VAL-002"));
+  }
+
+  @Test
+  @DisplayName("CA-IN-089 — vendedor, fechas y moneda se combinan")
+  void seCombinan() throws Exception {
+    mvc.perform(
+            get(RUTA)
+                .param("sellerId", agente2.toString())
+                .param("from", "2026-09-01")
+                .param("to", "2026-09-30")
+                .param("currencyId", USD)
+                .with(conPermiso(funcionario)))
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$.pending.batches").value(1))
+        .andExpect(jsonPath("$.pending.amounts[0].amount").value(0.0))
+        .andExpect(jsonPath("$.total.batches").value(1));
+
+    mvc.perform(
+            get(RUTA)
+                .param("sellerId", agente1.toString())
+                .param("from", "2026-10-01")
+                .param("currencyId", COP)
+                .with(conPermiso(funcionario)))
+        .andExpect(jsonPath("$.open.batches").value(1))
+        .andExpect(jsonPath("$.open.amounts[0].amount").value(1000.0))
+        .andExpect(jsonPath("$.total.batches").value(1));
   }
 
   @Test

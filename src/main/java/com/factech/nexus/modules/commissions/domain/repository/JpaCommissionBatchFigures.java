@@ -15,6 +15,9 @@ import org.springframework.transaction.annotation.Transactional;
  * <p><b>Suma {@code total_amount} y no las comisiones vivas</b>: es el valor que el lote tiene y el
  * que se paga, y retirar, devolver o revertir lo ajustan en la misma transacción (`RN-CM-046`,
  * `RN-CM-047`). Las centésimas se convierten <b>una vez, al mapear</b> ({@link MinorUnits}).
+ *
+ * <p><b>Las fechas eligen por solape</b> (`RF-IN-007` 0.2.0): el periodo del lote es semiabierto
+ * —termina donde empieza el siguiente—, y uno abierto no tiene fin.
  */
 @Repository
 public class JpaCommissionBatchFigures implements CommissionBatchFigures {
@@ -25,6 +28,11 @@ public class JpaCommissionBatchFigures implements CommissionBatchFigures {
         FROM commission_batches b
         JOIN currencies c ON c.id = b.currency_id
        WHERE (CAST(:moneda AS uuid) IS NULL OR b.currency_id = CAST(:moneda AS uuid))
+         AND (CAST(:persona AS uuid) IS NULL OR b.user_id = CAST(:persona AS uuid))
+         AND (CAST(:hasta AS timestamptz) IS NULL OR b.period_start < CAST(:hasta AS timestamptz))
+         AND (CAST(:desde AS timestamptz) IS NULL
+              OR b.period_end IS NULL
+              OR b.period_end > CAST(:desde AS timestamptz))
        GROUP BY b.status, b.currency_id, c.code
        ORDER BY b.status, c.code
       """;
@@ -37,10 +45,15 @@ public class JpaCommissionBatchFigures implements CommissionBatchFigures {
 
   @Override
   @Transactional(readOnly = true)
-  public List<StatusTotals> byStatus(UUID currencyId) {
+  public List<StatusTotals> byStatus(BatchFilter filter) {
     @SuppressWarnings("unchecked")
     List<Object[]> filas =
-        em.createNativeQuery(POR_ESTADO).setParameter("moneda", currencyId).getResultList();
+        em.createNativeQuery(POR_ESTADO)
+            .setParameter("moneda", filter.currencyId())
+            .setParameter("persona", filter.userId())
+            .setParameter("desde", filter.from())
+            .setParameter("hasta", filter.to())
+            .getResultList();
     List<StatusTotals> cifras = new ArrayList<>(filas.size());
     for (Object[] f : filas) {
       cifras.add(

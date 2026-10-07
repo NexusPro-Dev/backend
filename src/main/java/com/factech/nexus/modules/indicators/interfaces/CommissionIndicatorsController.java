@@ -7,7 +7,9 @@ import io.swagger.v3.oas.annotations.media.Content;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import io.swagger.v3.oas.annotations.tags.Tag;
+import java.time.LocalDate;
 import java.util.UUID;
+import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
@@ -47,11 +49,21 @@ public class CommissionIndicatorsController {
           cuatro bloques vienen siempre**, en cero si no hay lotes. `amounts` es una lista, un
           valor por moneda, y nunca hay que sumarla.
 
-          **Es una foto de hoy: no tiene periodo.** No acepta `from`, `to` ni `granularity`; si
-          llegan, se ignoran, y la respuesta no lleva `period`. El único filtro es `currencyId`:
-          solo los lotes de esa moneda, y ceros si no existe.
+          **El estado es el de hoy.** Los filtros eligen **qué lotes** se cuentan, opcionales y
+          combinables:
 
-          **No se acota por alcance**: quien porte el permiso ve los lotes de todas las personas.
+          - **`from` y `to`**, días ISO en la zona del negocio: solo los lotes **cuyo periodo de
+            comisiones toca esos días** —empezó antes de que termine `to` y no había terminado
+            al empezar `from`—; un lote abierto no tiene fin, y entra si empezó antes de que
+            termine `to`. Un lote de septiembre pagado ayer sale en `paid`: las fechas no
+            reconstruyen el estado de entonces. Sin `from`, desde el principio; sin `to`, hoy;
+            sin ninguno, todos los lotes. `period` dice qué días se usaron. `from` posterior a
+            `to` es `400` (`VAL-002`). `granularity` se ignora.
+          - **`sellerId`**: solo los lotes de esa persona; ceros si no existe.
+          - **`currencyId`**: solo los lotes de esa moneda; ceros si no existe.
+
+          **No se acota por alcance**: quien porte el permiso ve los lotes de todas las personas, y
+          `sellerId` solo estrecha lo que ya ve.
           El permiso se siembra solo a administración; dárselo a un rol vendedor es darle esta
           vista entera. Ni `commission-batches:read` ni otro permiso de indicadores abren este.
           """)
@@ -59,7 +71,9 @@ public class CommissionIndicatorsController {
     @ApiResponse(responseCode = "200", description = "El resumen, aunque sea de ceros."),
     @ApiResponse(
         responseCode = "400",
-        description = "`currencyId` malformado (`VAL-001`).",
+        description =
+            "`currencyId`, `sellerId` o una fecha malformados (`VAL-001`); `from` posterior a"
+                + " `to` (`VAL-002`).",
         content = @Content),
     @ApiResponse(
         responseCode = "401",
@@ -75,7 +89,10 @@ public class CommissionIndicatorsController {
         content = @Content)
   })
   public CommissionBatchesSummaryResponse resumenDeLotes(
-      @RequestParam(required = false) UUID currencyId) {
-    return lotes.get(currencyId);
+      @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate from,
+      @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate to,
+      @RequestParam(required = false) UUID currencyId,
+      @RequestParam(required = false) UUID sellerId) {
+    return lotes.get(from, to, currencyId, sellerId);
   }
 }

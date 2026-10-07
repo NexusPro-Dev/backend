@@ -12906,16 +12906,44 @@ paths:
         cuatro bloques vienen siempre**, en cero si no hay lotes. `amounts` es una lista, un
         valor por moneda, y nunca hay que sumarla.
 
-        **Es una foto de hoy: no tiene periodo.** No acepta `from`, `to` ni `granularity`; si
-        llegan, se ignoran, y la respuesta no lleva `period`. El único filtro es `currencyId`:
-        solo los lotes de esa moneda, y ceros si no existe.
+        **El estado es el de hoy.** Los filtros eligen **qué lotes** se cuentan, opcionales y
+        combinables:
 
-        **No se acota por alcance**: quien porte el permiso ve los lotes de todas las personas.
+        - **`from` y `to`**, días ISO en la zona del negocio: solo los lotes **cuyo periodo de
+          comisiones toca esos días** —empezó antes de que termine `to` y no había terminado
+          al empezar `from`—; un lote abierto no tiene fin, y entra si empezó antes de que
+          termine `to`. Un lote de septiembre pagado ayer sale en `paid`: las fechas no
+          reconstruyen el estado de entonces. Sin `from`, desde el principio; sin `to`, hoy;
+          sin ninguno, todos los lotes. `period` dice qué días se usaron. `from` posterior a
+          `to` es `400` (`VAL-002`). `granularity` se ignora.
+        - **`sellerId`**: solo los lotes de esa persona; ceros si no existe.
+        - **`currencyId`**: solo los lotes de esa moneda; ceros si no existe.
+
+        **No se acota por alcance**: quien porte el permiso ve los lotes de todas las personas, y
+        `sellerId` solo estrecha lo que ya ve.
         El permiso se siembra solo a administración; dárselo a un rol vendedor es darle esta
         vista entera. Ni `commission-batches:read` ni otro permiso de indicadores abren este.
       operationId: resumenDeLotes
       parameters:
+      - name: from
+        in: query
+        required: false
+        schema:
+          type: string
+          format: date
+      - name: to
+        in: query
+        required: false
+        schema:
+          type: string
+          format: date
       - name: currencyId
+        in: query
+        required: false
+        schema:
+          type: string
+          format: uuid
+      - name: sellerId
         in: query
         required: false
         schema:
@@ -12929,7 +12957,8 @@ paths:
               schema:
                 $ref: "#/components/schemas/CommissionBatchesSummary"
         "400":
-          description: '`currencyId` malformado (`VAL-001`).'
+          description: "`currencyId`, `sellerId` o una fecha malformados (`VAL-001`);\
+            \ `from` posterior a `to` (`VAL-002`)."
         "401":
           description: Token ausente o inválido (`AUTH-001`)
         "403":
@@ -20910,6 +20939,10 @@ components:
     CommissionBatchesSummary:
       type: object
       properties:
+        period:
+          $ref: "#/components/schemas/IndicatorPeriod"
+          description: "Qué lotes se contaron: los que su periodo de comisiones toca\
+            \ estos días. Sin fechas, desde el principio hasta hoy."
         open:
           $ref: "#/components/schemas/CommissionBatchesBlock"
           description: "Los lotes abiertos: siguen creciendo con cada comisión que\

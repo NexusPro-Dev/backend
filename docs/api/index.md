@@ -5,7 +5,7 @@
 | Proyecto | NEXUS — Renovación de plataforma |
 | Empresa | FACTECH GROUP SAS |
 | Documento | `api/index.md` |
-| Versión | 1.102.0 |
+| Versión | 1.103.0 |
 | Estado | Publicado |
 | Responsable técnico | Bonilla Diaz William Steven |
 | Fecha de creación | 25-08-2026 |
@@ -208,3 +208,4 @@ Lo que sigue siendo cierto, y conviene saberlo antes de tropezar:
 | 1.100.0 | 07-10-2026 | **`CommissionLine` pierde `revertedAt` y `revertedBy`** (`RN-CM-047` enmendada, [`requirements/cm.md`](../requirements/cm.md) v0.34.0): al corregir el vendedor de una línea de una venta confirmada (`POST /api/v1/movements/{id}/seller-assignments`), `CM` **borra** la comisión de la cadena vieja en vez de marcarla, de modo que `GET /api/v1/commission-batches/{id}` y `GET /api/v1/commission-batches/mine/{id}` dejan de mostrarla. **Cambio que el front nota**: quien leyera `revertedAt` deja de recibirlo. Retirar y devolver una comisión pierden el `409` de la comisión revertida. | Responsable técnico |
 | 1.101.0 | 07-10-2026 | **`GET /api/v1/movements/sales` acepta `clientId`** (`RF-MV-015` 0.4.0): solo las ventas **a nombre de esa persona** —el cliente, quien compró—, de las que ya están en el alcance de quien pregunta. Uno sin ventas en él, o inexistente, da página vacía y no un error. **`userId` sigue siendo el vendedor**; los dos se combinan. **Ampliación**: ninguna forma existente cambia. | Responsable técnico |
 | 1.102.0 | 07-10-2026 | **`GET /api/v1/indicators/sales/lines/summary` acepta `sellerId`, `clientId`, `productId` y `code`** (`RF-IN-006` 0.3.0), opcionales y combinables: solo las líneas de ese vendedor —y entonces `unassigned` sale en cero—, las ventas de ese cliente, las líneas de ese producto, o las ventas cuyo comprobante **contenga** el texto, sin distinguir mayúsculas. Una venta cuenta si alguna de sus líneas pasa; un identificador que no existe da ceros. **No son alcance**. **Ampliación**: la respuesta no cambia. | Responsable técnico |
+| 1.103.0 | 07-10-2026 | **`GET /api/v1/indicators/commissions/batches/summary` acepta `sellerId`, `from` y `to`** (`RF-IN-007` 0.2.0), opcionales y combinables con `currencyId`: solo los lotes de esa persona, y solo los lotes **cuyo periodo de comisiones toca esos días** —un abierto, si empezó antes de que termine `to`—. **El estado sigue siendo el de hoy**. La respuesta gana **`period`** (`IndicatorPeriod`); sin fechas, todos los lotes, como antes. `from` posterior a `to`, `400` (`VAL-002`). **No es alcance**. **Ampliación**: ningún campo cambia. | Responsable técnico |

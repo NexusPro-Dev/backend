@@ -3,8 +3,8 @@
 | Campo | Valor |
 |---|---|
 | Requerimiento | `RF-IN-007` |
-| Especificación | [`spec.md`](spec.md) v0.1.0 |
-| Plan | [`plan.md`](plan.md) v0.1.0 |
+| Especificación | [`spec.md`](spec.md) v0.2.0 |
+| Plan | [`plan.md`](plan.md) v0.2.0 |
 | `plan.md` aprobado el | 07-10-2026 |
 | Estado | **Aprobadas** — por el responsable del proyecto, 07-10-2026. `T-01` a `T-06` `Hecha` el mismo día |
 | Issue | Pendiente de crear |
@@ -29,6 +29,16 @@
 | `T-05` | `CommissionBatchesSummaryIT`: `CA-IN-072` a `CA-IN-079`, limpiando lo que siembra | `T-01`, `T-04` | Una sentencia por lectura | **Hecha** — 07-10-2026 |
 | `T-06` | Contrato regenerado; `api/index.md`, `requirements/cm.md` §3, `security.md` (sembrado), `requirements/in.md` y matriz | `T-05` | Solo altas | **Hecha** — 07-10-2026 |
 
+### 1.1 Filtros por vendedor y por fechas — 07-10-2026
+
+Enmienda de hecho (Art. I.7), `spec.md` 0.2.0 y `plan.md` 0.2.0 **antes** del código.
+
+| ID | Tarea | Depende de | Verificación | Estado |
+|---|---|---|---|---|
+| `T-07` | `CommissionBatchFigures.BatchFilter`; `JpaCommissionBatchFigures` aplica persona y solape de periodos | — | Sin fechas, la misma foto | **Hecha** — 07-10-2026 |
+| `T-08` | `CommissionBatchesSummaryResponse` gana `period`; el servicio resuelve el periodo con `SalesPeriodResolver`; el controlador, `sellerId`, `from` y `to`, documentados | `T-07` | `VAL-002` | **Hecha** — 07-10-2026 |
+| `T-09` | `CommissionBatchesSummaryIT`: `CA-IN-076` reescrito y `CA-IN-086` a `CA-IN-089`; contrato regenerado; `api/index.md`, `requirements/in.md`, `requirements/cm.md` y matriz | `T-08` | Solo altas | **Hecha** — 07-10-2026 |
+
 ---
 
 ## 2. Cobertura de los criterios de aceptación
@@ -39,6 +49,7 @@
 | `CA-IN-076`, `CA-IN-077` | `T-02`, `T-05` |
 | `CA-IN-078` | `T-03`, `T-05` |
 | `CA-IN-079` | `T-01`, `T-04`, `T-05` |
+| `CA-IN-086` a `CA-IN-089` | `T-07` a `T-09` — 07-10-2026 |
 
 ---
 

@@ -3,13 +3,17 @@
 | Campo | Valor |
 |---|---|
 | Requerimiento | `RF-IN-007` |
-| Especificación | [`spec.md`](spec.md) v0.1.0 |
+| Especificación | [`spec.md`](spec.md) v0.2.0 |
 | `spec.md` aprobada el | 07-10-2026 |
-| Versión | 0.1.0 |
+| Versión | 0.2.0 |
 | Estado | **Aprobado** |
 | Autor | Responsable técnico |
 | Aprobado por | Responsable del proyecto |
 | Fecha de aprobación | 07-10-2026 |
+
+!!! warning "Enmendado el 07-10-2026 — `sellerId`, `from` y `to`"
+
+    `spec.md` v0.2.0. **`byStatus` recibe un `BatchFilter(UUID currencyId, UUID userId, OffsetDateTime from, OffsetDateTime to)`**, todos opcionales: `CM` no conoce `SalesFigures.Interval`, que es de `MV`, y por eso recibe los dos instantes sueltos. La sentencia gana `b.user_id = :persona`, `b.period_start < :hasta` y `(b.period_end IS NULL OR b.period_end > :desde)`: el periodo del lote es semiabierto, como el del indicador. **El servicio pasa por `SalesPeriodResolver`**, como los demás indicadores —días en la zona del negocio, «desde» nulo sin límite, «hasta» nulo hoy, `VAL-002`—, y la respuesta gana **`period`** (`IndicatorPeriod`). Sin fechas el intervalo va del principio a mañana, y todo lote empezó antes: es la misma foto de antes. **El vendedor no pasa por `SalesScopeResolver`**: no es alcance (`RN-IN-011`). `granularity` se sigue ignorando. **Ampliación**: la respuesta gana un campo y ninguno cambia. Revierte, en §4.1 y §4.2, «ni `from` ni `to`» y «sin `period`».
 
 !!! info "Qué va en este documento"
 
@@ -63,7 +67,7 @@
 
 ### 4.1 Parámetros
 
-`currencyId`, opcional. **Ni `from`, ni `to`, ni `granularity`**: si llegan, se ignoran como cualquier parámetro desconocido —que es `CA-IN-076`—, en lugar de responder `400`. Un cliente que pinta todos los indicadores con el mismo periodo no tiene por qué saber cuál no lo usa.
+`currencyId`, opcional. **Desde el 07-10-2026, `sellerId` (UUID), `from` y `to` (días ISO)**, opcionales (§ enmienda). **Ni `granularity`**: si llega, se ignora como cualquier parámetro desconocido —que es `CA-IN-076`—, en lugar de responder `400`. Un cliente que pinta todos los indicadores con el mismo periodo no tiene por qué saber cuál no lo usa.
 
 ### 4.2 La respuesta
 

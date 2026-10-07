@@ -1,6 +1,7 @@
 package com.factech.nexus.modules.commissions.application;
 
 import java.math.BigDecimal;
+import java.time.OffsetDateTime;
 import java.util.List;
 import java.util.UUID;
 
@@ -17,13 +18,27 @@ public interface CommissionBatchFigures {
    * Los lotes <b>como están ahora</b>, por estado y moneda: cuántos son y la suma de su total. Una
    * fila por estado y moneda con lotes; los vacíos no vienen.
    *
-   * <p><b>No recibe alcance ni intervalo</b>, a propósito: el indicador es de administración y una
-   * foto de hoy (`RN-IN-011`, `RN-IN-012`), y que la firma no los admita impide aplicarlos por
-   * descuido.
-   *
-   * @param currencyId si no es nulo, solo los lotes de esa moneda
+   * <p><b>No recibe alcance</b>, a propósito: el indicador es de administración (`RN-IN-011`), y
+   * que la firma no lo admita impide aplicarlo por descuido. El filtro lo elige quien pregunta.
    */
-  List<StatusTotals> byStatus(UUID currencyId);
+  List<StatusTotals> byStatus(BatchFilter filter);
+
+  /**
+   * Qué lotes se cuentan (`RF-IN-007` 0.2.0). Todo es opcional: nulo es sin filtro. <b>El estado es
+   * siempre el de hoy</b> (`RN-IN-012`): las fechas eligen lotes, no reconstruyen el pasado.
+   *
+   * @param currencyId solo los lotes de esa moneda
+   * @param userId solo los lotes de esa persona
+   * @param from solo los lotes cuyo periodo no había terminado en este instante
+   * @param to solo los lotes cuyo periodo empezó antes de este instante, excluido
+   */
+  record BatchFilter(UUID currencyId, UUID userId, OffsetDateTime from, OffsetDateTime to) {
+
+    /** Todos los lotes. */
+    public static BatchFilter none() {
+      return new BatchFilter(null, null, null, null);
+    }
+  }
 
   /**
    * Los lotes de un estado en una moneda.

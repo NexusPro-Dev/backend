@@ -5,7 +5,7 @@
 | Módulo | `IN` — Indicadores |
 | Paquete | `modules/indicators` |
 | Prefijo de permisos | `indicators:` |
-| Versión | 0.16.0 |
+| Versión | 0.17.0 |
 | Estado | **Borrador** |
 | Responsable | Bonilla Diaz William Steven |
 | Fecha de creación | 06-10-2026 |
@@ -134,7 +134,7 @@ La dependencia es **acíclica**: `IN` → `SP`, `IN` → `MV` e `IN` → `CM`. N
 | `RN-IN-009` | **Qué es comprado, redimido y ajuste de puntos, y cuándo cuenta** | Al contar los puntos (`RF-IN-005`) | Cada cambio en los puntos de una persona es un asiento de su cuenta `PUNTOS`, y **el evento del asiento dice la clase**: una compra **cobrada** es lo **comprado**; un pago de una venta con puntos, lo **redimido**; un ajuste a mano, lo **sumado** o lo **restado** según su signo. **El periodo mira cuándo se movieron los puntos** —una compra cuenta el día en que se cobró—, y **el saldo es el del periodo, calculado con esas cuatro cifras**: comprado − redimido + sumado − restado; sin fechas, toda la historia, es decir, los puntos que hay hoy (enmienda del 07-10-2026; hasta entonces era siempre el de hoy, leído aparte). Todo **por moneda** y **en positivo**. Decisión del responsable del proyecto, 06-10-2026 | Alta |
 | `RN-IN-010` | **Sin fechas, todo; y cada indicador se parte en tramos si se pide** | Al pedir cualquier indicador | **Sin `from` ni `to`, el indicador cuenta toda la historia** hasta hoy. **Con una sola fecha, la otra queda abierta**: solo «desde», hasta hoy; solo «hasta», desde el principio. **No hay tope de días**. Y **todo indicador acepta un tramo** —día, semana de lunes o mes, del calendario de Bogotá—: con él, la respuesta trae además **sus mismas cifras partidas por tramo**, todos los tramos presentes, del primero con datos —o del de «desde»— al de hoy —o al de «hasta»—; la suma de los tramos es el total. **El saldo de puntos también va por tramo**, con las cuatro cifras de cada uno (07-10-2026). Decisión del responsable del proyecto, 06-10-2026 | Alta |
 | `RN-IN-011` | **Un indicador de administración no se acota por alcance** | Al calcular el resumen de líneas de venta (`RF-IN-006`) y el de lotes de comisiones (`RF-IN-007`, 07-10-2026) | Excepción declarada a `RN-IN-002`: **quien porta el permiso ve las cifras enteras**, sea cual sea su tipo de rol. Lo justifica lo que cuenta: **lo que no tiene vendedor no está en el alcance de ningún vendedor**, y acotarlo lo dejaría en cero para todos menos para administración. El permiso se siembra solo a `SUPERADMIN` y `ADMIN`; si administración se lo da a otro rol, ese rol lo ve todo. Decisión del responsable del proyecto, 06-10-2026 | Alta |
-| `RN-IN-012` | **Un indicador de estado es una foto de hoy, sin periodo** | Al calcular el resumen de lotes de comisiones (`RF-IN-007`) | Excepción declarada a `RN-IN-010`: cuando la pregunta es **dónde está algo hoy** —en qué estado están los lotes de comisiones— y no **cuánto pasó en un periodo**, el indicador **no acepta fechas ni tramos** y cuenta lo que hay en el instante de la consulta. Las fechas que lleguen **se ignoran**, sin error. Filtrar por fechas escondería lo pendiente más antiguo, que es lo que más importa ver. Decisión del responsable del proyecto, 07-10-2026 | Alta |
+| `RN-IN-012` | **Un indicador de estado cuenta el estado de hoy** | Al calcular el resumen de lotes de comisiones (`RF-IN-007`) | Cuando la pregunta es **dónde está algo hoy** —en qué estado están los lotes de comisiones— y no **cuánto pasó en un periodo**, el indicador cuenta **el estado del instante de la consulta**, sin tramos. Decisión del responsable del proyecto, 07-10-2026. **Enmendada el mismo día**, también por él: **las fechas eligen qué lotes se cuentan** —los que su periodo de comisiones toca el rango, con `RN-IN-010` para los días—, **no en qué estado estaban entonces**. Sin fechas, todos | Alta |
 
 ### 5.2 Decisiones que definen el módulo — 06-10-2026
 
@@ -286,7 +286,7 @@ Lo **confirmado** en el periodo agrupado por **el vendedor de la línea**, de m�
 
 | Campo | Valor |
 |---|---|
-| Objetivo | Saber, **hoy**, cuántos lotes de comisiones hay **abiertos, pendientes de pago y pagados**, y por cuánto en cada moneda |
+| Objetivo | Saber, **hoy**, cuántos lotes de comisiones hay **abiertos, pendientes de pago y pagados**, y por cuánto en cada moneda; desde el 07-10-2026, de un vendedor o de un rango de fechas |
 | Actor | Administración; **quien porte el permiso lo ve entero** (`RN-IN-011`) |
 | Permiso requerido | `indicators:read-commission-batches-summary` |
 | Prioridad | Alta |
@@ -296,6 +296,8 @@ Lo **confirmado** en el periodo agrupado por **el vendedor de la línea**, de m�
 | Estado | **En desarrollo** — construido el 07-10-2026, con `CommissionBatchFigures` y `V79` |
 
 **Nace el 07-10-2026 a petición del responsable del proyecto** —«el de lotes de comisiones: por estado, valor total, total de lotes»—, con dos decisiones suyas: **solo administración y sin alcance**, como `RF-IN-006`, y **sin periodo: una foto de hoy** (`RN-IN-012`). Por estado y en total, **cuántos lotes** y **su valor por moneda**, que es el total que cada lote tiene hoy. Abre la tanda de comisiones.
+
+**Desde el 07-10-2026 se filtra por vendedor y por fechas** (`CA-IN-086` a `CA-IN-089`), a petición del responsable del proyecto: las fechas eligen los lotes **cuyo periodo toca el rango**, y el estado sigue siendo el de hoy (`RN-IN-012`, enmendada). El vendedor **no es alcance** (`RN-IN-011`).
 
 ---
 
@@ -360,3 +362,4 @@ El contrato detallado de cada endpoint —parámetros, valores por defecto del p
 | 0.14.0 | 07-10-2026 | **Nace la tanda de comisiones con `RF-IN-007`, el resumen de lotes de comisiones**, a petición del responsable del proyecto: por estado —abiertos, pendientes, pagados— y en total, cuántos lotes y su valor por moneda. Tripleta el mismo día (`CA-IN-072` a `CA-IN-079`), `tasks.md` en revisión. **Administración y sin alcance** (`RN-IN-011`, ampliada) y **sin periodo** —nace **`RN-IN-012`**, excepción a `RN-IN-010`: un indicador de estado es una foto de hoy—. Nace el submódulo Comisiones e **`IN` pasa a depender de `CM`**, que publicará `CommissionBatchFigures`. Permiso propio, `indicators:read-commission-batches-summary`, que sembrará `V79` solo a `SUPERADMIN` y `ADMIN`. | Responsable técnico |
 | 0.15.0 | 07-10-2026 | **`RF-IN-007` construido**, con sus `tasks.md` aprobadas por el responsable del proyecto: `V79` siembra `indicators:read-commission-batches-summary` a `SUPERADMIN` y `ADMIN` (catálogo 204), `CM` publica `CommissionBatchFigures` y `GET /indicators/commissions/batches/summary` responde, sin alcance y sin periodo. | Responsable técnico |
 | 0.16.0 | 07-10-2026 | **`RF-IN-006` se filtra por vendedor, cliente, producto y comprobante** (`spec.md` 0.3.0, `CA-IN-080` a `CA-IN-085`), a petición del responsable del proyecto: estrechan lo vendido y lo sin vendedor, en total, por tipo y por tramo, sin cambiar la respuesta. No son alcance. `SalesFigures` gana `LineFilter`. Sin migración ni permisos. | Responsable técnico |
+| 0.17.0 | 07-10-2026 | **`RF-IN-007` se filtra por vendedor y por fechas** (`spec.md` 0.2.0, `CA-IN-086` a `CA-IN-089`), a petición del responsable del proyecto: las fechas eligen los lotes cuyo periodo de comisiones toca el rango, y el estado sigue siendo el de hoy. **`RN-IN-012` enmendada**: deja de prohibir fechas. La respuesta gana `period`. `CommissionBatchFigures` gana `BatchFilter`. Sin migración ni permisos. | Responsable técnico |
