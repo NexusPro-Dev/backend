@@ -326,8 +326,10 @@ public class CommissionBatchController {
           ya no existe y no sale.
 
           La persona la pone el token: **no hay filtro de persona**. Filtros `status` (el del
-          lote), `currencyId`, `productId`, `commissionKind` (`POR_VENTA` o `POR_AFFTRACK`) y
-          `from`/`to` sobre el devengo, los dos incluidos, con los errores todos juntos.
+          lote), `currencyId`, `productId`, `clientId` —el cliente de la venta; una
+          `POR_AFFTRACK` no tiene y no sale con él—, `commissionKind` (`POR_VENTA` o
+          `POR_AFFTRACK`) y `from`/`to` sobre el devengo, los dos incluidos, con los errores todos
+          juntos. Un `productId` o un `clientId` que no existen dan una página vacía.
           """)
   @ApiResponses({
     @ApiResponse(responseCode = "200", description = "Página de mis comisiones"),

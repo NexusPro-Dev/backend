@@ -194,6 +194,45 @@ class MyCommissionsIT extends IntegrationTestBase {
 
   @Test
   @DisplayName(
+      "CA-CM-361 y CA-CM-362 — con cliente, solo las de sus ventas, combinable; uno inexistente da"
+          + " una página vacía, y uno mal formado, 400")
+  void porCliente() throws Exception {
+    UUID otroCliente = SettlementFixtures.persona(jdbc, "mc-cliente2", null);
+    jdbc.update(
+        "INSERT INTO client_sellers (client_id, seller_id, origin) VALUES (?, ?, 'REGISTRO')",
+        otroCliente,
+        agente);
+    UUID suya = confirmadaPara(otroCliente, agente, segundo);
+    confirmada(agente, producto);
+    confirmada(agente, segundo);
+
+    mvc.perform(get(RUTA).param("clientId", otroCliente.toString()).with(propio(agente)))
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$.totalElements").value(1))
+        .andExpect(jsonPath("$.content[0].commission.movementId").value(suya.toString()))
+        .andExpect(jsonPath("$.content[0].client.id").value(otroCliente.toString()));
+    mvc.perform(get(RUTA).param("clientId", cliente.toString()).with(propio(agente)))
+        .andExpect(jsonPath("$.totalElements").value(2));
+    mvc.perform(
+            get(RUTA)
+                .param("clientId", cliente.toString())
+                .param("productId", segundo.toString())
+                .with(propio(agente)))
+        .andExpect(jsonPath("$.totalElements").value(1));
+    // El superior también filtra por el cliente de la venta que comisiona.
+    mvc.perform(get(RUTA).param("clientId", otroCliente.toString()).with(propio(director)))
+        .andExpect(jsonPath("$.totalElements").value(1))
+        .andExpect(jsonPath("$.content[0].commission.chainLevel").value(1));
+
+    mvc.perform(get(RUTA).param("clientId", UUID.randomUUID().toString()).with(propio(agente)))
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$.totalElements").value(0));
+    mvc.perform(get(RUTA).param("clientId", "no-es-uuid").with(propio(agente)))
+        .andExpect(status().isBadRequest());
+  }
+
+  @Test
+  @DisplayName(
       "CA-CM-352 — desde y hasta acotan por el devengo, los dos incluidos; los filtros inválidos"
           + " salen TODOS juntos")
   void fechasYValidacion() throws Exception {
@@ -303,9 +342,13 @@ class MyCommissionsIT extends IntegrationTestBase {
   }
 
   private UUID confirmada(UUID vendedor, UUID deProducto) throws Exception {
+    return confirmadaPara(cliente, vendedor, deProducto);
+  }
+
+  private UUID confirmadaPara(UUID comprador, UUID vendedor, UUID deProducto) throws Exception {
     UUID venta =
         SettlementFixtures.venta(
-            jdbc, cliente, VENDIDA_EL, linea(deProducto, vendedor, 1, precioDe(deProducto)));
+            jdbc, comprador, VENDIDA_EL, linea(deProducto, vendedor, 1, precioDe(deProducto)));
     mvc.perform(
             post(
                     "/api/v1/movements/payments/{id}/confirmation",

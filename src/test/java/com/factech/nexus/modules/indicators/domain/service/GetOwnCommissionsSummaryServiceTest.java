@@ -32,7 +32,8 @@ class GetOwnCommissionsSummaryServiceTest {
   @Test
   @DisplayName("sin filas, los cuatro bloques en cero")
   void sinFilas() {
-    OwnCommissionsSummaryResponse r = servicio(List.of(), new ArrayList<>()).get(null, null, null);
+    OwnCommissionsSummaryResponse r =
+        servicio(List.of(), new ArrayList<>()).get(null, null, null, null);
 
     for (OwnCommissionsSummaryResponse.Block b :
         List.of(r.open(), r.pending(), r.paid(), r.total())) {
@@ -53,7 +54,7 @@ class GetOwnCommissionsSummaryServiceTest {
                     new CommissionTotals("ANULADO", USD, "USD", 1, new BigDecimal("4.00")),
                     new CommissionTotals("ABIERTO", COP, "COP", 3, new BigDecimal("1000.00"))),
                 pedidos)
-            .get(null, null, COP);
+            .get(null, null, COP, null);
 
     assertThat(pedidos)
         .singleElement()
@@ -75,7 +76,7 @@ class GetOwnCommissionsSummaryServiceTest {
   @Test
   @DisplayName("una lectura de comisiones sin persona no se puede pedir")
   void sinPersonaNo() {
-    assertThatThrownBy(() -> new CommissionFilter(null, null, null, null))
+    assertThatThrownBy(() -> new CommissionFilter(null, null, null, null, null))
         .isInstanceOf(NullPointerException.class);
   }
 

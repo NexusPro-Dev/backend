@@ -39,13 +39,14 @@ public interface CommissionBatchQueryRepository {
 
   /**
    * {@code userId} lo pone el token y es obligatorio; los demás, nulos, no filtran. {@code status}
-   * es el del lote, {@code from}/{@code to} van sobre el devengo.
+   * es el del lote, {@code from}/{@code to} van sobre el devengo; {@code clientId}, el de la venta.
    */
   record OwnFilter(
       UUID userId,
       BatchStatus status,
       UUID currencyId,
       UUID productId,
+      UUID clientId,
       String commissionKind,
       OffsetDateTime from,
       OffsetDateTime to) {}

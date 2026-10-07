@@ -126,6 +126,7 @@ public class CommissionBatchQueryService {
             estado,
             filtros.currencyId(),
             filtros.productId(),
+            filtros.clientId(),
             clase,
             filtros.from(),
             filtros.to());

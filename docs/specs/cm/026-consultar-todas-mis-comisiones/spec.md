@@ -4,11 +4,15 @@
 |---|---|
 | Requerimiento | `RF-CM-026` |
 | Módulo | `CM` — Comisiones |
-| Versión | 0.1.0 |
+| Versión | 0.2.0 |
 | Estado | **Aprobada** |
 | Autor | Responsable técnico |
 | Aprobada por | Responsable del proyecto |
 | Fecha de aprobación | 07-10-2026 |
+
+!!! warning "Enmendado el 07-10-2026 — se filtra por cliente"
+
+    Petición del responsable del proyecto, 07-10-2026: «puedo filtrar por cliente; agrega ese filtro, igual para los indicadores». **Un filtro más, opcional y combinable**: solo las comisiones de **ventas a nombre de ese cliente**. **Una `POR_AFFTRACK` no sale con él**: no tiene venta ni cliente. Un cliente que no existe da una lista vacía, como el producto. `CA-CM-361` y `CA-CM-362`. El indicador de mis comisiones (`RF-IN-008`) gana el mismo filtro, para que sus cifras cuadren con esta lista.
 
 !!! info "Qué va en este documento"
 
@@ -58,7 +62,7 @@ Que cada persona que cobra comisiones vea **todas sus comisiones en una sola lis
 ### 4.1 Incluye
 
 - Todas mis comisiones, de todos mis lotes, monedas y estados.
-- Filtros por estado del lote, moneda, producto, clase y un rango de fechas.
+- Filtros por estado del lote, moneda, producto, clase, un rango de fechas y, desde el 07-10-2026, cliente.
 
 ### 4.2 No incluye
 
@@ -93,6 +97,7 @@ Que cada persona que cobra comisiones vea **todas sus comisiones en una sola lis
 | Moneda | No | Solo las de lotes en esa moneda |
 | Producto | No | Solo las de ese producto —el de la línea, o el FTD de una afftrack— |
 | Clase | No | `POR_VENTA` o `POR_AFFTRACK` |
+| Cliente (07-10-2026) | No | Solo las de ventas a nombre de esa persona; las `POR_AFFTRACK` no tienen cliente y no salen |
 | Desde, hasta | No | Sobre el momento en que nació la comisión, los dos extremos incluidos |
 
 **No hay filtro de persona**: la persona es quien pregunta.
@@ -160,6 +165,8 @@ Una página de comisiones. Cada una con **lo que el detalle de un lote ya muestr
 | `CA-CM-353` | Una comisión retirada a su abierto sale **una sola vez**, en el lote abierto, diciendo de qué pendiente salió |
 | `CA-CM-354` | Tras corregirse el vendedor de una línea, la comisión vieja **deja de salir** en la lista de quien la cobraba y la nueva sale en la de quien la cobra ahora |
 | `CA-CM-355` | Sin el permiso de la operación, se rechaza; **todo rol que ve sus lotes** (`commission-batches:list-own`) lo porta desde su siembra |
+| `CA-CM-361` | Con **cliente**, solo las comisiones de ventas a su nombre, en todos mis lotes; un cliente inexistente da una lista vacía; uno mal formado, `400` (07-10-2026) |
+| `CA-CM-362` | El cliente **se combina** con los demás filtros, y **una `POR_AFFTRACK` no sale** con él (07-10-2026) |
 
 ---
 
@@ -170,6 +177,7 @@ Una página de comisiones. Cada una con **lo que el detalle de un lote ya muestr
 | Un funcionario que no cobra comisiones pide las suyas | Lista vacía, si porta el permiso |
 | Una comisión de importe cero | Sale: es una comisión |
 | Un filtro de producto que no existe | Lista vacía, no error: es un filtro, no una búsqueda por identificador |
+| Un filtro de cliente que no existe | Igual: lista vacía (07-10-2026) |
 | La misma persona con lotes en dos monedas | Salen las de las dos, cada una con la suya |
 
 ---
@@ -185,3 +193,4 @@ Ninguna.
 | Versión | Fecha | Cambio | Autor |
 |---|---|---|---|
 | 0.1.0 | 07-10-2026 | Primera versión ([`requirements/cm.md`](../../../requirements/cm.md) v0.36.0), a petición del responsable del proyecto: todas mis comisiones en una lista, cada una con su lote, su estado, su moneda y su cliente. Criterios `CA-CM-347` a `CA-CM-355`. | Responsable del proyecto |
+| 0.2.0 | 07-10-2026 | **Filtro por cliente**, a petición del responsable del proyecto: solo las comisiones de ventas a nombre de esa persona; las `POR_AFFTRACK` no salen con él. `CA-CM-361` y `CA-CM-362`. | Responsable técnico |

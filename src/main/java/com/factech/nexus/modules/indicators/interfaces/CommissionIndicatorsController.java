@@ -66,13 +66,15 @@ public class CommissionIndicatorsController {
             principio; sin `to`, hoy. `period` dice qué días se usaron. `from` posterior a `to`
             es `400` (`VAL-002`).
           - **`currencyId`**: solo las de esa moneda; ceros si no existe.
+          - **`clientId`**: solo las de ventas a nombre de ese cliente —las afftrack, sin venta,
+            no cuentan—; ceros si no existe. Cuadra con la lista filtrada por el mismo cliente.
           """)
   @ApiResponses({
     @ApiResponse(responseCode = "200", description = "El resumen, aunque sea de ceros."),
     @ApiResponse(
         responseCode = "400",
         description =
-            "`currencyId` o una fecha malformados (`VAL-001`); `from` posterior a `to`"
+            "`currencyId`, `clientId` o una fecha malformados (`VAL-001`); `from` posterior a `to`"
                 + " (`VAL-002`).",
         content = @Content),
     @ApiResponse(
@@ -91,8 +93,9 @@ public class CommissionIndicatorsController {
   public OwnCommissionsSummaryResponse resumenDeMisComisiones(
       @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate from,
       @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate to,
-      @RequestParam(required = false) UUID currencyId) {
-    return mias.get(from, to, currencyId);
+      @RequestParam(required = false) UUID currencyId,
+      @RequestParam(required = false) UUID clientId) {
+    return mias.get(from, to, currencyId, clientId);
   }
 
   @GetMapping("/commissions/batches/summary")

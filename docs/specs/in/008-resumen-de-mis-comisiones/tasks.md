@@ -3,8 +3,8 @@
 | Campo | Valor |
 |---|---|
 | Requerimiento | `RF-IN-008` |
-| Especificación | [`spec.md`](spec.md) v0.1.0 |
-| Plan | [`plan.md`](plan.md) v0.1.0 |
+| Especificación | [`spec.md`](spec.md) v0.2.0 |
+| Plan | [`plan.md`](plan.md) v0.2.0 |
 | `plan.md` aprobado el | 07-10-2026 |
 | Estado | **Aprobadas** — por el responsable del proyecto, 07-10-2026. `T-01` a `T-06` `Hecha` el mismo día |
 | Issue | Pendiente de crear |
@@ -29,6 +29,15 @@
 | `T-05` | `OwnCommissionsSummaryIT`: `CA-IN-090` a `CA-IN-096`, limpiando lo que siembra | `T-01`, `T-04` | Una sentencia por lectura | **Hecha** — 07-10-2026 |
 | `T-06` | Contrato regenerado; `api/index.md`, `requirements/cm.md` §3, `security.md` (sembrado), `requirements/in.md` y matriz | `T-05` | Solo altas | **Hecha** — 07-10-2026 |
 
+### 1.1 Filtro por cliente — 07-10-2026
+
+Enmienda de hecho, `spec.md` 0.2.0 y `plan.md` 0.2.0 **antes** del código.
+
+| ID | Tarea | Depende de | Verificación | Estado |
+|---|---|---|---|---|
+| `T-07` | `clientId` en `CommissionFilter`, la sentencia, el servicio y el controlador | — | Sin `clientId`, las mismas cifras | **Hecha** — 07-10-2026 |
+| `T-08` | `OwnCommissionsSummaryIT`: `CA-IN-097`; contrato, `api/index.md`, `requirements/in.md` y matriz | `T-07` | Solo altas | **Hecha** — 07-10-2026 |
+
 ---
 
 ## 2. Cobertura de los criterios de aceptación
@@ -39,6 +48,7 @@
 | `CA-IN-091` | `T-03`, `T-05` |
 | `CA-IN-093` a `CA-IN-095` | `T-02`, `T-05` |
 | `CA-IN-096` | `T-01`, `T-04`, `T-05` |
+| `CA-IN-097` | `T-07`, `T-08` — 07-10-2026 |
 
 ---
 

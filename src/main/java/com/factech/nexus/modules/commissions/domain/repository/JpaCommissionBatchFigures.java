@@ -50,6 +50,12 @@ public class JpaCommissionBatchFigures implements CommissionBatchFigures {
         JOIN currencies c ON c.id = b.currency_id
        WHERE k.user_id = :persona
          AND (CAST(:moneda AS uuid) IS NULL OR b.currency_id = CAST(:moneda AS uuid))
+         AND (CAST(:cliente AS uuid) IS NULL
+              OR EXISTS (SELECT 1
+                           FROM movement_details d
+                           JOIN movements m ON m.id = d.movement_id
+                          WHERE d.id = k.movement_detail_id
+                            AND m.user_id = CAST(:cliente AS uuid)))
          AND (CAST(:desde AS timestamptz) IS NULL OR k.accrued_at >= CAST(:desde AS timestamptz))
          AND (CAST(:hasta AS timestamptz) IS NULL OR k.accrued_at < CAST(:hasta AS timestamptz))
        GROUP BY b.status, b.currency_id, c.code
@@ -94,6 +100,7 @@ public class JpaCommissionBatchFigures implements CommissionBatchFigures {
         em.createNativeQuery(COMISIONES_POR_ESTADO)
             .setParameter("persona", filter.userId())
             .setParameter("moneda", filter.currencyId())
+            .setParameter("cliente", filter.clientId())
             .setParameter("desde", filter.from())
             .setParameter("hasta", filter.to())
             .getResultList();

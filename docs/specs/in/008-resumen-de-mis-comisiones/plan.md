@@ -3,13 +3,17 @@
 | Campo | Valor |
 |---|---|
 | Requerimiento | `RF-IN-008` |
-| Especificación | [`spec.md`](spec.md) v0.1.0 |
+| Especificación | [`spec.md`](spec.md) v0.2.0 |
 | `spec.md` aprobada el | 07-10-2026 |
-| Versión | 0.1.0 |
+| Versión | 0.2.0 |
 | Estado | **Aprobado** |
 | Autor | Responsable técnico |
 | Aprobado por | Responsable del proyecto |
 | Fecha de aprobación | 07-10-2026 |
+
+!!! warning "Enmendado el 07-10-2026 — `clientId`"
+
+    `spec.md` v0.2.0. `CommissionFilter` gana `UUID clientId`, y la sentencia de §4.3 el predicado `EXISTS (SELECT 1 FROM movement_details d JOIN movements m ON m.id = d.movement_id WHERE d.id = k.movement_detail_id AND m.user_id = :cliente)`: el cliente es el de la venta, como en `RF-CM-026`, y una afftrack, sin línea, no pasa. Un `EXISTS` y no un `JOIN`, para no tocar la sentencia cuando no hay filtro. El controlador acepta `clientId`. Pruebas en `OwnCommissionsSummaryIT`. **Ampliación**: la respuesta no cambia.
 
 !!! info "Qué va en este documento"
 

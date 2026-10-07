@@ -140,6 +140,7 @@ public class JpaCommissionBatchQueryRepository implements CommissionBatchQueryRe
              AND (CAST(:moneda AS uuid) IS NULL OR a.currency_id = CAST(:moneda AS uuid))
              AND (CAST(:producto AS uuid) IS NULL
                   OR COALESCE(d.product_id, s.product_id) = CAST(:producto AS uuid))
+             AND (CAST(:cliente AS uuid) IS NULL OR m.user_id = CAST(:cliente AS uuid))
              AND (CAST(:clase AS varchar) IS NULL OR k.commission_kind = CAST(:clase AS varchar))
              AND (CAST(:desde AS timestamptz) IS NULL OR k.accrued_at >= CAST(:desde AS timestamptz))
              AND (CAST(:hasta AS timestamptz) IS NULL OR k.accrued_at <= CAST(:hasta AS timestamptz))
@@ -187,6 +188,7 @@ public class JpaCommissionBatchQueryRepository implements CommissionBatchQueryRe
         .setParameter("estado", filtro.status() == null ? null : filtro.status().name())
         .setParameter("moneda", filtro.currencyId())
         .setParameter("producto", filtro.productId())
+        .setParameter("cliente", filtro.clientId())
         .setParameter("clase", filtro.commissionKind())
         .setParameter("desde", filtro.from())
         .setParameter("hasta", filtro.to());

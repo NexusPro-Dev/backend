@@ -5,11 +5,15 @@
 | Requerimiento | `RF-CM-026` |
 | Especificación | [`spec.md`](spec.md) v0.1.0 |
 | `spec.md` aprobada el | 07-10-2026 |
-| Versión | 0.1.0 |
+| Versión | 0.2.0 |
 | Estado | **Aprobado** |
 | Autor | Responsable técnico |
 | Aprobado por | Responsable del proyecto |
 | Fecha de aprobación | 07-10-2026 |
+
+!!! warning "Enmendado el 07-10-2026 — `clientId`"
+
+    `spec.md` v0.2.0. `MyCommissionsRequest` y `OwnFilter` ganan `UUID clientId`, y `PROPIAS_DESDE` el predicado `m.user_id = :cliente` sobre la venta que ya une —el cliente es `movements.user_id`—. Una `POR_AFFTRACK` no tiene `m`, así que el predicado la deja fuera sin un caso aparte. Sin índice nuevo: el filtro estrecha lo que `ix_commissions_user` ya acota por persona. Pruebas en `MyCommissionsIT`. **Ampliación**: la respuesta no cambia.
 
 !!! info "Qué va en este documento"
 

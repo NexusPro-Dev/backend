@@ -4,11 +4,15 @@
 |---|---|
 | Requerimiento | `RF-IN-008` |
 | Módulo | `IN` — Indicadores |
-| Versión | 0.1.0 |
+| Versión | 0.2.0 |
 | Estado | **Aprobada** |
 | Autor | Responsable técnico |
 | Aprobada por | Responsable del proyecto |
 | Fecha de aprobación | 07-10-2026 |
+
+!!! warning "Enmendado el 07-10-2026 — se filtra por cliente"
+
+    Petición del responsable del proyecto, el mismo día: el filtro por cliente de la lista de todas mis comisiones (`RF-CM-026` 0.2.0), **igual aquí**, para que las cifras cuadren con la lista filtrada. Solo las comisiones de **ventas a nombre de ese cliente**; las afftrack no tienen cliente y no cuentan con él. Un cliente inexistente da ceros. `CA-IN-097`.
 
 !!! info "Qué va en este documento"
 
@@ -93,6 +97,7 @@ Una comisión nace cuando se devenga —al confirmarse la venta, o al reatribuir
 |---|---|---|
 | Moneda | No | Solo las comisiones de esa moneda; una inexistente da ceros |
 | Desde, hasta | No | Días, en la zona del negocio. Solo las comisiones **nacidas** esos días, los dos incluidos |
+| Cliente (07-10-2026) | No | Solo las de ventas a nombre de esa persona; las afftrack no cuentan con él. Uno inexistente da ceros |
 
 **Ni persona, ni tramo** (§2.1, `RN-IN-012`). La persona es quien pregunta.
 
@@ -146,7 +151,7 @@ Los tres estados y el total en cero, y los valores vacíos.
 
 | ID | Regla | Código |
 |---|---|---|
-| `VAL-001` | La moneda, si llega, es un identificador bien formado; las fechas, días válidos | El de una consulta mal formada |
+| `VAL-001` | La moneda y el cliente, si llegan, son identificadores bien formados; las fechas, días válidos | El de una consulta mal formada |
 | `VAL-002` | «Desde» no es posterior a «hasta» | `VAL-002` |
 
 ---
@@ -162,6 +167,7 @@ Los tres estados y el total en cero, y los valores vacíos.
 | `CA-IN-094` | **Por moneda**: solo las de esa moneda; una inexistente da ceros; una mal formada, `400` |
 | `CA-IN-095` | **Por fechas**: solo las comisiones nacidas esos días, en su estado de hoy; sin fechas, todas, y el periodo va desde el principio hasta hoy; «desde» posterior a «hasta» es `400` con `VAL-002` |
 | `CA-IN-096` | Sin el permiso, **prohibido**, también con los de lotes o comisiones de `CM` o los de otros indicadores; sin token, `401`; el permiso lo porta **todo rol que ve sus lotes** |
+| `CA-IN-097` | Con **cliente**, solo las comisiones de ventas a su nombre, en sus estados de hoy, y las mismas que lista `RF-CM-026` con ese filtro; uno inexistente da ceros; uno mal formado, `400` (07-10-2026) |
 
 ---
 
@@ -187,3 +193,4 @@ Ninguna.
 | Versión | Fecha | Cambio | Autor |
 |---|---|---|---|
 | 0.1.0 | 07-10-2026 | Primera versión, a petición del responsable del proyecto: de mis comisiones, cuántas y cuánto por estado del lote y en total; **solo lo propio** (`RN-IN-013`, nace aquí), el estado de hoy con fechas opcionales sobre el nacimiento de la comisión. Siete criterios, `CA-IN-090` a `CA-IN-096`. | Responsable técnico |
+| 0.2.0 | 07-10-2026 | **Filtro por cliente**, a petición del responsable del proyecto, igual que `RF-CM-026` 0.2.0: solo las comisiones de ventas a nombre de esa persona. `CA-IN-097`. | Responsable técnico |

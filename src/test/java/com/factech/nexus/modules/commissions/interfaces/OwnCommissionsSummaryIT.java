@@ -31,7 +31,7 @@ import org.springframework.test.web.servlet.ResultActions;
 import org.springframework.test.web.servlet.request.RequestPostProcessor;
 
 /**
- * `RF-IN-008` · `T-05` — el resumen de mis comisiones (`CA-IN-090` a `CA-IN-096`).
+ * `RF-IN-008` · `T-05` y `T-08` — el resumen de mis comisiones (`CA-IN-090` a `CA-IN-097`).
  *
  * <p><b>Vive en el paquete de las pruebas de `CM`</b> y no en el de `IN` (`tasks.md` §3): las
  * comisiones nacen confirmando ventas por la API de `MV`, con los fixtures de liquidación, que son
@@ -296,6 +296,50 @@ class OwnCommissionsSummaryIT extends IntegrationTestBase {
   }
 
   @Test
+  @DisplayName(
+      "CA-IN-097 — con cliente, solo las de sus ventas, en su estado de hoy, y las mismas que lista"
+          + " RF-CM-026; uno inexistente da ceros; uno mal formado, 400")
+  void porCliente() throws Exception {
+    UUID otroCliente = SettlementFixtures.persona(jdbc, "oc-cliente2", null);
+    jdbc.update(
+        "INSERT INTO client_sellers (client_id, seller_id, origin) VALUES (?, ?, 'REGISTRO')",
+        otroCliente,
+        agente);
+    confirmadaPara(otroCliente, agente);
+    cierre.closeManually(admin);
+    confirmada(agente);
+    confirmada(agente);
+
+    mvc.perform(get(RUTA).param("clientId", otroCliente.toString()).with(conPermiso(agente)))
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$.pending.commissions").value(1))
+        .andExpect(jsonPath("$.open.commissions").value(0))
+        .andExpect(jsonPath("$.total.commissions").value(1))
+        .andExpect(jsonPath("$.total.amounts[0].amount").value(10.0));
+    mvc.perform(get(RUTA).param("clientId", cliente.toString()).with(conPermiso(agente)))
+        .andExpect(jsonPath("$.open.commissions").value(2))
+        .andExpect(jsonPath("$.pending.commissions").value(0))
+        .andExpect(jsonPath("$.total.commissions").value(2));
+    mvc.perform(
+            get("/api/v1/commission-batches/mine/commissions")
+                .param("clientId", cliente.toString())
+                .with(
+                    user(agente.toString())
+                        .authorities(() -> "commission-batches:list-own-commissions")))
+        .andExpect(jsonPath("$.totalElements").value(2));
+    mvc.perform(get(RUTA).param("clientId", otroCliente.toString()).with(conPermiso(director)))
+        .andExpect(jsonPath("$.total.commissions").value(1))
+        .andExpect(jsonPath("$.total.amounts[0].amount").value(5.0));
+
+    mvc.perform(get(RUTA).param("clientId", UUID.randomUUID().toString()).with(conPermiso(agente)))
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$.total.commissions").value(0))
+        .andExpect(jsonPath("$.total.amounts").isEmpty());
+    mvc.perform(get(RUTA).param("clientId", "no-es-uuid").with(conPermiso(agente)))
+        .andExpect(status().isBadRequest());
+  }
+
+  @Test
   @DisplayName("RNF-PERF — las mismas sentencias con una comisión que con tres")
   void elCosteNoCreceConLasComisiones() throws Exception {
     Statistics estadisticas = emf.unwrap(SessionFactory.class).getStatistics();
@@ -320,8 +364,13 @@ class OwnCommissionsSummaryIT extends IntegrationTestBase {
   }
 
   private UUID confirmada(UUID vendedor) throws Exception {
+    return confirmadaPara(cliente, vendedor);
+  }
+
+  private UUID confirmadaPara(UUID comprador, UUID vendedor) throws Exception {
     UUID venta =
-        SettlementFixtures.venta(jdbc, cliente, VENDIDA_EL, linea(producto, vendedor, 1, "100.00"));
+        SettlementFixtures.venta(
+            jdbc, comprador, VENDIDA_EL, linea(producto, vendedor, 1, "100.00"));
     mvc.perform(
             post(
                     "/api/v1/movements/payments/{id}/confirmation",

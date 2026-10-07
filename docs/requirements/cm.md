@@ -5,7 +5,7 @@
 | Módulo | `CM` — Comisiones |
 | Paquete | `modules/commissions` |
 | Prefijos de permiso | `commissions:` |
-| Versión | 0.38.0 |
+| Versión | 0.39.0 |
 | Estado | **Borrador** |
 | Responsable | Bonilla Diaz William Steven |
 | Fecha de creación | 28-08-2026 |
@@ -223,7 +223,7 @@ La dependencia sigue siendo **acíclica**: `CM` → `MV` → `PM` → `SP`, y `C
 
 !!! info "Uno más el 07-10-2026: mis comisiones sin pasar por los lotes"
 
-    Por petición del responsable del proyecto, **un vendedor ve todas sus comisiones en una sola lista** —«no por lotes, sino ver todos los detalles»—, filtrable por estado del lote, moneda, producto, clase y fechas. Hasta hoy la única forma era `RF-CM-012`: listar los lotes y abrir cada uno.
+    Por petición del responsable del proyecto, **un vendedor ve todas sus comisiones en una sola lista** —«no por lotes, sino ver todos los detalles»—, filtrable por estado del lote, moneda, producto, clase y fechas —y por cliente desde el mismo día, `CA-CM-361`—. Hasta hoy la única forma era `RF-CM-012`: listar los lotes y abrir cada uno.
 
     **No es un requerimiento de datos nuevos**: cada fila es la comisión del detalle de `RF-CM-012`, con el lote que la contiene, su moneda y **el cliente de la venta**. Es lo propio, como `RF-CM-012`: la persona la pone el token y no hay filtro de persona. **Ninguno de los anteriores cambia.**
 
@@ -1135,3 +1135,4 @@ Un importe fijo de comisión **es dinero en la misma moneda que el producto** (`
 | 0.36.0 | 07-10-2026 | **Nace `RF-CM-026`, consultar todas mis comisiones** (§4), por petición del responsable del proyecto: una fila por comisión, sin pasar por los lotes, con el lote que la contiene, su estado, su moneda y el cliente de la venta; filtros de estado del lote, moneda, producto, clase y fechas. Lo propio, como `RF-CM-012`: la persona la pone el token. **Nace un permiso** (§6), `commission-batches:list-own-commissions`, sembrado por `V81` a todo rol que porte `commission-batches:list-own` (catálogo **205**). Sin tablas ni reglas nuevas; **un índice**, `ix_commissions_user` (§7.6). | Responsable del proyecto |
 | 0.37.0 | 07-10-2026 | **La cadena nueva de una línea reatribuida va al lote más reciente sin pagar de cada persona** (nace `RN-CM-051`; §5.10, «Segunda enmienda del 07-10-2026»), por decisión del responsable del proyecto: `ABIERTO` o `PENDIENTE` en la moneda de la venta, y solo si no hay ninguno se abre un abierto. Así lo corregido tras el cierre se paga en el mismo cierre. **`PAGADO` sigue bloqueando** la corrección (`RN-CM-047`, enmendada solo en el destino); el devengo de una venta nueva no cambia. Nace `commission_reattributions` (§7.13), la marca que la liberación deja y el devengo borra; la escribe `V82`. | Responsable del proyecto |
 | 0.38.0 | 07-10-2026 | **`CommissionBatchFigures` cuenta también las comisiones de una persona** (§3; `RF-IN-008`, [`requirements/in.md`](in.md) v0.18.0): por el estado de su lote hoy y su moneda, con fechas opcionales sobre `accrued_at`. Sin tablas ni reglas nuevas. | Responsable técnico |
+| 0.39.0 | 07-10-2026 | **`RF-CM-026` se filtra por cliente** (`spec.md` 0.2.0, `CA-CM-361` y `CA-CM-362`), a petición del responsable del proyecto: solo las comisiones de ventas a nombre de esa persona; las `POR_AFFTRACK` no salen con él. Y `CommissionBatchFigures.commissionsByStatus` gana el mismo filtro para `RF-IN-008`. Sin migración. | Responsable técnico |

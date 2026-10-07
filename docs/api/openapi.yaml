@@ -12918,6 +12918,8 @@ paths:
           principio; sin `to`, hoy. `period` dice qué días se usaron. `from` posterior a `to`
           es `400` (`VAL-002`).
         - **`currencyId`**: solo las de esa moneda; ceros si no existe.
+        - **`clientId`**: solo las de ventas a nombre de ese cliente —las afftrack, sin venta,
+          no cuentan—; ceros si no existe. Cuadra con la lista filtrada por el mismo cliente.
       operationId: resumenDeMisComisiones
       parameters:
       - name: from
@@ -12938,6 +12940,12 @@ paths:
         schema:
           type: string
           format: uuid
+      - name: clientId
+        in: query
+        required: false
+        schema:
+          type: string
+          format: uuid
       responses:
         "200":
           description: "El resumen, aunque sea de ceros."
@@ -12946,8 +12954,8 @@ paths:
               schema:
                 $ref: "#/components/schemas/OwnCommissionsSummary"
         "400":
-          description: '`currencyId` o una fecha malformados (`VAL-001`); `from` posterior
-            a `to` (`VAL-002`).'
+          description: "`currencyId`, `clientId` o una fecha malformados (`VAL-001`);\
+            \ `from` posterior a `to` (`VAL-002`)."
         "401":
           description: Token ausente o inválido (`AUTH-001`)
         "403":
@@ -13889,8 +13897,10 @@ paths:
         ya no existe y no sale.
 
         La persona la pone el token: **no hay filtro de persona**. Filtros `status` (el del
-        lote), `currencyId`, `productId`, `commissionKind` (`POR_VENTA` o `POR_AFFTRACK`) y
-        `from`/`to` sobre el devengo, los dos incluidos, con los errores todos juntos.
+        lote), `currencyId`, `productId`, `clientId` —el cliente de la venta; una
+        `POR_AFFTRACK` no tiene y no sale con él—, `commissionKind` (`POR_VENTA` o
+        `POR_AFFTRACK`) y `from`/`to` sobre el devengo, los dos incluidos, con los errores todos
+        juntos. Un `productId` o un `clientId` que no existen dan una página vacía.
       operationId: misComisiones
       parameters:
       - name: filtros
@@ -21809,6 +21819,9 @@ components:
           type: string
           format: uuid
         productId:
+          type: string
+          format: uuid
+        clientId:
           type: string
           format: uuid
         commissionKind:

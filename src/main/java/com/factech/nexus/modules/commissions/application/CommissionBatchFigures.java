@@ -64,10 +64,12 @@ public interface CommissionBatchFigures {
    *
    * @param userId la persona dueña de las comisiones
    * @param currencyId solo las de lotes de esa moneda
+   * @param clientId solo las de ventas a nombre de esa persona; una afftrack, sin venta, no pasa
    * @param from solo las nacidas ({@code accrued_at}) desde este instante, incluido
    * @param to solo las nacidas antes de este instante, excluido
    */
-  record CommissionFilter(UUID userId, UUID currencyId, OffsetDateTime from, OffsetDateTime to) {
+  record CommissionFilter(
+      UUID userId, UUID currencyId, UUID clientId, OffsetDateTime from, OffsetDateTime to) {
     public CommissionFilter {
       Objects.requireNonNull(userId, "La persona es obligatoria");
     }

@@ -5,7 +5,7 @@
 | Módulo | `IN` — Indicadores |
 | Paquete | `modules/indicators` |
 | Prefijo de permisos | `indicators:` |
-| Versión | 0.18.0 |
+| Versión | 0.19.0 |
 | Estado | **Borrador** |
 | Responsable | Bonilla Diaz William Steven |
 | Fecha de creación | 06-10-2026 |
@@ -314,7 +314,7 @@ Lo **confirmado** en el periodo agrupado por **el vendedor de la línea**, de m�
 | Tripleta | [`docs/specs/in/008-resumen-de-mis-comisiones/`](../specs/in/008-resumen-de-mis-comisiones/spec.md) |
 | Estado | **En desarrollo** — tripleta del 07-10-2026 con `tasks.md` aprobadas; construido el mismo día, con `V83` |
 
-**Nace el 07-10-2026 a petición del responsable del proyecto** —«un indicador nuevo para las comisiones personales: el total de comisiones, cuántas están en el lote abierto, pendiente y pagados»—, con tres decisiones suyas: **solo lo mío** (`RN-IN-013`, nace aquí), **el estado de hoy con fechas opcionales** sobre el nacimiento de la comisión —la misma fecha que filtra `RF-CM-026`— y **cuántas y cuánto**. La cara personal de `RF-IN-007`: aquel cuenta lotes de todos para administración; este, comisiones de quien pregunta.
+**Nace el 07-10-2026 a petición del responsable del proyecto** —«un indicador nuevo para las comisiones personales: el total de comisiones, cuántas están en el lote abierto, pendiente y pagados»—, con tres decisiones suyas: **solo lo mío** (`RN-IN-013`, nace aquí), **el estado de hoy con fechas opcionales** sobre el nacimiento de la comisión —la misma fecha que filtra `RF-CM-026`— y **cuántas y cuánto**. La cara personal de `RF-IN-007`: aquel cuenta lotes de todos para administración; este, comisiones de quien pregunta. **Desde el mismo día se filtra por cliente** (`CA-IN-097`), igual que la lista de `RF-CM-026`.
 
 ---
 
@@ -382,3 +382,4 @@ El contrato detallado de cada endpoint —parámetros, valores por defecto del p
 | 0.16.0 | 07-10-2026 | **`RF-IN-006` se filtra por vendedor, cliente, producto y comprobante** (`spec.md` 0.3.0, `CA-IN-080` a `CA-IN-085`), a petición del responsable del proyecto: estrechan lo vendido y lo sin vendedor, en total, por tipo y por tramo, sin cambiar la respuesta. No son alcance. `SalesFigures` gana `LineFilter`. Sin migración ni permisos. | Responsable técnico |
 | 0.17.0 | 07-10-2026 | **`RF-IN-007` se filtra por vendedor y por fechas** (`spec.md` 0.2.0, `CA-IN-086` a `CA-IN-089`), a petición del responsable del proyecto: las fechas eligen los lotes cuyo periodo de comisiones toca el rango, y el estado sigue siendo el de hoy. **`RN-IN-012` enmendada**: deja de prohibir fechas. La respuesta gana `period`. `CommissionBatchFigures` gana `BatchFilter`. Sin migración ni permisos. | Responsable técnico |
 | 0.18.0 | 07-10-2026 | **Nace `RF-IN-008`, el resumen de mis comisiones**, a petición del responsable del proyecto: de las comisiones propias, cuántas y cuánto por estado del lote —abierto, pendiente, pagado— y en total. Tripleta el mismo día (`CA-IN-090` a `CA-IN-096`), `tasks.md` aprobadas, y **construido**: `V83` siembra el permiso (catálogo 206), `CM` amplía `CommissionBatchFigures` y `GET /indicators/commissions/mine/summary` responde. **Nace `RN-IN-013`**, excepción a `RN-IN-002`: un indicador personal cuenta solo lo de quien pregunta. El estado es el de hoy y las fechas, opcionales, son las del nacimiento de la comisión (`RN-IN-012`). Permiso propio, `indicators:read-own-commissions-summary`, a todo rol que porte `commission-batches:list-own`. | Responsable técnico |
+| 0.19.0 | 07-10-2026 | **`RF-IN-008` se filtra por cliente** (`spec.md` 0.2.0, `CA-IN-097`), a petición del responsable del proyecto, igual que `RF-CM-026` 0.2.0: solo las comisiones de ventas a nombre de esa persona. Sin migración ni permisos. | Responsable técnico |

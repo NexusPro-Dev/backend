@@ -30,6 +30,15 @@
 | `T-06` | `MyCommissionsIT`: `CA-CM-347` a `CA-CM-355` | `T-05` | — | **Hecha** — 07-10-2026 |
 | `T-07` | Contrato OpenAPI (`api/index.md`); `security.md` (sembrado) y `requirements.md` | `T-06` | Diff del `json` | **Hecha** — 07-10-2026 |
 
+### 1.1 Filtro por cliente — 07-10-2026
+
+Enmienda de hecho, `spec.md` 0.2.0 y `plan.md` 0.2.0 **antes** del código.
+
+| ID | Tarea | Depende de | Verificación | Estado |
+|---|---|---|---|---|
+| `T-08` | `clientId` en `MyCommissionsRequest`, `OwnFilter` y `PROPIAS_DESDE`; la prosa de la operación | — | Sin `clientId`, la misma lista | **Hecha** — 07-10-2026 |
+| `T-09` | `MyCommissionsIT`: `CA-CM-361` y `CA-CM-362`; contrato, `api/index.md`, `requirements/cm.md` y matriz | `T-08` | Solo altas | **Hecha** — 07-10-2026. La parte de `CA-CM-362` sobre `POR_AFFTRACK` se prueba en `AfftrackSettlementIT` (`lasMiasSinLote`), como la de `CA-CM-351` |
+
 ---
 
 ## 2. Orden de ejecución
@@ -44,6 +53,7 @@
 |---|---|
 | `CA-CM-347` a `CA-CM-354` | `T-02`, `T-04`, `T-06` |
 | `CA-CM-355` | `T-01`, `T-05`, `T-06` |
+| `CA-CM-361`, `CA-CM-362` | `T-08`, `T-09` — 07-10-2026 |
 
 ### 3.1 Lo que la construcción cambió respecto del plan
 

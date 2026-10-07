@@ -52,7 +52,8 @@ public class GetOwnCommissionsSummaryService {
   }
 
   @Transactional(readOnly = true)
-  public OwnCommissionsSummaryResponse get(LocalDate from, LocalDate to, UUID currencyId) {
+  public OwnCommissionsSummaryResponse get(
+      LocalDate from, LocalDate to, UUID currencyId, UUID clientId) {
     List<FieldError> problemas = new ArrayList<>();
     IndicatorPeriod periodo = periodos.resolve(from, to, problemas);
     if (!problemas.isEmpty()) {
@@ -66,7 +67,8 @@ public class GetOwnCommissionsSummaryService {
     List<CommissionTotals> pagadas = new ArrayList<>();
     List<CommissionTotals> todas =
         cifras.commissionsByStatus(
-            new CommissionFilter(actor.id(), currencyId, intervalo.from(), intervalo.to()));
+            new CommissionFilter(
+                actor.id(), currencyId, clientId, intervalo.from(), intervalo.to()));
     for (CommissionTotals fila : todas) {
       switch (fila.status()) {
         case "ABIERTO" -> abiertas.add(fila);

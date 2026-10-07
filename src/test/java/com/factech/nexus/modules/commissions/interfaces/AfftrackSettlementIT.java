@@ -422,8 +422,8 @@ class AfftrackSettlementIT extends IntegrationTestBase {
 
   @Test
   @DisplayName(
-      "CA-CM-351 · en todas mis comisiones, la POR_AFFTRACK sale con su clase y sin venta, cliente"
-          + " ni nivel, y el filtro de clase la elige")
+      "CA-CM-351 y CA-CM-362 · en todas mis comisiones, la POR_AFFTRACK sale con su clase y sin"
+          + " venta, cliente ni nivel, el filtro de clase la elige, y uno de cliente la deja fuera")
   void lasMiasSinLote() throws Exception {
     escalonDeRol(MANAGER, 1, "100");
     ftds(vendedora, 1);
@@ -441,6 +441,15 @@ class AfftrackSettlementIT extends IntegrationTestBase {
         .andExpect(jsonPath("$.content[0].commission.chainLevel").doesNotExist())
         .andExpect(jsonPath("$.content[0].client").doesNotExist())
         .andExpect(jsonPath("$.content[0].batch.status").value("PENDIENTE"));
+    mvc.perform(
+            get("/api/v1/commission-batches/mine/commissions")
+                .param("commissionKind", "POR_AFFTRACK")
+                .param("clientId", vendedora.toString())
+                .with(
+                    user(vendedora.toString())
+                        .authorities(() -> "commission-batches:list-own-commissions")))
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$.totalElements").value(0));
   }
 
   // ---- RF-CM-021 · las liquidaciones --------------------------------------
