@@ -76,6 +76,7 @@ public class ListSalesService {
             hastaDonde.kind() == CommercialReach.Kind.NETWORK ? hastaDonde.sellers() : null,
             hastaDonde.kind() == CommercialReach.Kind.OWN ? actor.id() : null,
             peticion.userId(),
+            peticion.clientId(),
             peticion.status(),
             peticion.typeStatus(),
             peticion.paymentMethodId(),

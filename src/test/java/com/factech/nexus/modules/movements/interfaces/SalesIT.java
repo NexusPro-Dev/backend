@@ -283,6 +283,56 @@ class SalesIT extends IntegrationTestBase {
         .andExpect(jsonPath("$.totalElements").value(1));
   }
 
+  @Test
+  @DisplayName(
+      "CA-MV-701 — el cliente acota DENTRO del alcance; sin ventas en él, o inexistente, vacío")
+  void filtroPorCliente() throws Exception {
+    // A cliente le vendieron manager, director1, agente1 y exagente; a otroCliente, el resto.
+    assertThat(ids(mvc.perform(ventas(director1).param("clientId", cliente.toString()))))
+        .containsExactlyInAnyOrder(vDirector1, vAgente1);
+    assertThat(ids(mvc.perform(ventas(director1).param("clientId", otroCliente.toString()))))
+        .containsExactly(vAgente2);
+    mvc.perform(ventas(director2).param("clientId", cliente.toString()))
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$.totalElements").value(0));
+    assertThat(ids(mvc.perform(ventas(funcionario).param("clientId", cliente.toString()))))
+        .containsExactlyInAnyOrder(vManager, vDirector1, vAgente1, vExagente);
+    mvc.perform(ventas(funcionario).param("clientId", UUID.randomUUID().toString()))
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$.totalElements").value(0));
+    // El consumidor: él mismo, lo suyo; otro cliente, nada.
+    assertThat(ids(mvc.perform(ventas(cliente).param("clientId", cliente.toString()))))
+        .containsExactlyInAnyOrder(vManager, vDirector1, vAgente1, vExagente);
+    mvc.perform(ventas(cliente).param("clientId", otroCliente.toString()))
+        .andExpect(jsonPath("$.totalElements").value(0));
+    mvc.perform(ventas(funcionario).param("clientId", "no-es-uuid"))
+        .andExpect(status().isBadRequest());
+  }
+
+  @Test
+  @DisplayName("CA-MV-702 — el cliente se combina con el vendedor y con los demás filtros")
+  void clienteYVendedor() throws Exception {
+    assertThat(
+            ids(
+                mvc.perform(
+                    ventas(manager)
+                        .param("clientId", cliente.toString())
+                        .param("userId", agente1.toString()))))
+        .containsExactly(vAgente1);
+    mvc.perform(
+            ventas(manager)
+                .param("clientId", cliente.toString())
+                .param("userId", agente2.toString()))
+        .andExpect(jsonPath("$.totalElements").value(0));
+    assertThat(
+            ids(
+                mvc.perform(
+                    ventas(manager)
+                        .param("clientId", otroCliente.toString())
+                        .param("status", "CONFIRMADA"))))
+        .containsExactly(vAgente2);
+  }
+
   // ---------------------------------------------------------------------------
   // El permiso
   // ---------------------------------------------------------------------------

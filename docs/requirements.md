@@ -5,7 +5,7 @@
 | Proyecto | NEXUS — Renovación de plataforma |
 | Empresa | FACTECH GROUP SAS |
 | Documento | `requirements.md` |
-| Versión | 0.313.0 |
+| Versión | 0.314.0 |
 | Estado | Borrador |
 | Responsable técnico | Bonilla Diaz William Steven |
 | Fecha de creación | 20-08-2026 |
@@ -743,3 +743,4 @@ El inventario y el estado de los módulos se consultan en [`modules.md` §4](mod
 | 0.311.0 | 07-10-2026 | **Nace `RF-IN-007`, el resumen de lotes de comisiones** ([`requirements/in.md`](requirements/in.md) v0.14.0, `RN-IN-012`), a petición del responsable del proyecto: por estado, cuántos lotes y su valor por moneda; de administración, sin alcance y sin periodo. Tripleta el mismo día; `tasks.md` en revisión. Registrados 228 → **229**, `spec.md` redactada 224 → **225**, aprobada 164 → **165**, `plan.md` aprobado 223 → **224**. | Responsable técnico |
 | 0.312.0 | 07-10-2026 | **`RF-IN-007` construido** ([`requirements/in.md`](requirements/in.md) v0.15.0): `GET /api/v1/indicators/commissions/batches/summary`, sus `tasks.md` aprobadas. §5: tripleta completa 106 → **107**, endpoint funcionando 188 → **189**. | Responsable técnico |
 | 0.313.0 | 07-10-2026 | **Corregir el vendedor de una línea borra su cadena vieja** ([`requirements/cm.md`](requirements/cm.md) v0.34.0 §5.10, `RN-CM-047` enmendada; [`requirements/mv.md`](requirements/mv.md) v0.94.0): la comisión vieja se elimina y se crea la nueva; solo un lote `PAGADO` lo impide. `V80`. Se enmiendan las tripletas de `RF-CM-024`, `RF-CM-010`, `RF-CM-012`, `RF-CM-013`, `RF-CM-022`, `RF-CM-023` y `RF-MV-016`; sin RF ni permisos nuevos. | Responsable del proyecto |
+| 0.314.0 | 07-10-2026 | **`RF-MV-015` se filtra también por cliente** ([`requirements/mv.md`](requirements/mv.md) v0.95.0, `CA-MV-701` y `CA-MV-702`), a petición del responsable del proyecto: `clientId` en `GET /movements/sales`, dentro del alcance. Tripleta enmendada antes del código. Ningún indicador de §5 se mueve. | Responsable técnico |

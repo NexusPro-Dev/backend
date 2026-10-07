@@ -41,6 +41,15 @@ Enmienda de hecho (Art. I.7), `spec.md` 0.2.0 y `plan.md` 0.2.0 **antes** del c�
 | `T-10` | `ListSalesRequest` y `SalesFilter` ganan `paymentMethodId` y `code` (a mayúsculas); `filtroDeVentas` los aplica después del alcance; `ListSalesService` los pasa | — | Un comprobante fuera del alcance no devuelve nada | **Hecha** — 21-09-2026 |
 | `T-11` | `MovementController`: los dos parámetros documentados; `SalesIT`: `CA-MV-136`; contrato regenerado; `docs/api/index.md` y matriz | `T-10` | `openapi.json` declara los dos en `GET /api/v1/movements/sales` | **Hecha** — 21-09-2026 (`SalesIT`, 12) |
 
+### 1.2 Filtro por cliente — 07-10-2026
+
+Enmienda de hecho (Art. I.7), `spec.md` 0.4.0 y `plan.md` 0.3.0 **antes** del código.
+
+| ID | Tarea | Depende de | Verificación | Estado |
+|---|---|---|---|---|
+| `T-12` | `ListSalesRequest` y `SalesFilter` ganan `clientId`; `filtroDeVentas` añade `m.user_id = :cliente` después del alcance; `ListSalesService` lo pasa, sin corte previo | — | Con alcance propio y otro cliente, vacío | **Hecha** — 07-10-2026 |
+| `T-13` | `MovementController`: `clientId` documentado; `SalesIT`: `CA-MV-701` y `CA-MV-702`; contrato regenerado; `docs/api/index.md`, `requirements/mv.md` y matriz | `T-12` | `openapi.json` declara `clientId` en `GET /api/v1/movements/sales`; solo altas | **Hecha** — 07-10-2026 (`SalesIT`, 14; el contrato lo regeneró el commit de `RN-CM-047`, que corrió con este código en el árbol) |
+
 ---
 
 ## 2. Cobertura de los criterios de aceptación
@@ -54,6 +63,7 @@ Enmienda de hecho (Art. I.7), `spec.md` 0.2.0 y `plan.md` 0.2.0 **antes** del c�
 | `CA-MV-131` | `T-04`, `T-07` |
 | `CA-MV-132` | `T-04`, `T-08` |
 | `CA-MV-136` | `T-10`, `T-11` — 21-09-2026 |
+| `CA-MV-701`, `CA-MV-702` | `T-12`, `T-13` — 07-10-2026 |
 
 ---
 

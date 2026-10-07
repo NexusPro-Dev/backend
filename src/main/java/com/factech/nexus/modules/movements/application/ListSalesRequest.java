@@ -22,11 +22,14 @@ import java.util.UUID;
  *     en mi alcance</b>; si no, página vacía
  * @param from desde cuándo ocurrió, inclusive
  * @param to hasta cuándo ocurrió, exclusive
+ * @param clientId opcional (07-10-2026); el sujeto de la venta —a nombre de quién está—, dentro de
+ *     mi alcance. Sin ventas en él, o inexistente, página vacía
  */
 public record ListSalesRequest(
     Integer page,
     Integer size,
     UUID userId,
+    UUID clientId,
     String status,
     String typeStatus,
     UUID paymentMethodId,

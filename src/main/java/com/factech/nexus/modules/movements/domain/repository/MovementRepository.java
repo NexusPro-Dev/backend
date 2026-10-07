@@ -693,12 +693,15 @@ public interface MovementRepository {
    * @param ownerId el sujeto, cuando el alcance es «solo yo»; nulo cuando no aplica
    * @param sellerId el vendedor por el que se acota, ya comprobado dentro del alcance; nulo si no
    *     se acota
+   * @param clientId el sujeto por el que se acota (07-10-2026); sin comprobar: va después del
+   *     alcance y solo puede quitar filas
    */
   record SalesFilter(
       boolean everything,
       Set<UUID> network,
       UUID ownerId,
       UUID sellerId,
+      UUID clientId,
       String status,
       String typeStatus,
       UUID paymentMethodId,

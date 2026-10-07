@@ -5,7 +5,7 @@
 | Requerimiento | `RF-MV-015` |
 | Especificación | [`spec.md`](spec.md) v0.1.0 |
 | `spec.md` aprobada el | 21-09-2026 |
-| Versión | 0.2.0 |
+| Versión | 0.3.0 |
 | Estado | **Aprobado** |
 | Enmendado el | 21-09-2026 — `paymentMethodId` y `code` (§4.1, §11) |
 | Autor | Responsable técnico |
@@ -21,6 +21,10 @@
     **Tres cosas que NO cambian, y conviene que no se den por hechas.** `type` y `typeStatus` **siguen siendo exactos**: se eligen de un conjunto cerrado, no se teclean, y un `LIKE` ahí haría que pedir `VENTA` arrastrara cualquier tipo que la contenga. Los comodines `%` y `_` que escriba el usuario se **escapan** —son texto y no patrón—, que es la misma defensa que `RF-SP-025` ya tenía escrita. Y **el alcance no se ensancha**: va en la misma sentencia y **antes** que este predicado, de modo que quien solo ve lo suyo sigue viendo lo suyo.
 
     **Se indexa con trigramas** (`ix_movements_codigo_busqueda`, `V39`), como `ix_users_busqueda`: `uq_movements_code` no puede responder por un fragmento del medio —un B-tree solo responde por el principio— y sin el índice nuevo la consulta recorrería la tabla entera.
+
+!!! warning "Enmendado el 07-10-2026 — `clientId`"
+
+    `spec.md` v0.4.0, a petición del responsable del proyecto. **Un parámetro nuevo, `clientId`** (UUID), y no un segundo sentido de `userId`: `userId` ya significa el vendedor y cambiarlo rompería a quien lo usa; `clientId` es el nombre que el responsable dio a la pregunta. **`ListSalesRequest` y `SalesFilter` ganan `clientId`**, y `filtroDeVentas` añade `m.user_id = :cliente` **después del alcance**, con `Filtro.igual`, como el método de pago. Lo responde `ix_movements_user` (`V12`). **Sin corte previo en `ListSalesService`**, al revés que `userId`: el corte de `userId` existe para no revelar quién cuelga de quién (§4.4), y aquí no hay nada que revelar —las filas que devuelve ya están en el alcance de quien pregunta—, de modo que el predicado basta y una persona inexistente da cero filas por sí sola. Con el alcance «solo yo», `m.user_id = :propietario` y `m.user_id = :cliente` se contradicen si el cliente es otro: vacío, que es `CA-MV-701`. Un `clientId` mal formado es `VAL-001` del manejador común, como `userId`. Prueba en `SalesIT`. **Ampliación**: ninguna forma cambia.
 
 !!! info "Qué va en este documento"
 
@@ -96,6 +100,7 @@
 | `from`, `to` | instante ISO-8601 con zona | Semiabierto sobre `occurred_at`; `from` posterior a `to` es `400` `VAL-004` |
 | `paymentMethodId` (21-09-2026) | UUID | Igualdad; uno inexistente da página vacía. Entra en `filtroDeVentas` con `Filtro.igual`, como en `filtroGlobal` |
 | `code` (21-09-2026) | texto | En mayúsculas, igualdad sobre `uq_movements_code`. **Después** del alcance en el mismo predicado: un comprobante ajeno no devuelve nada |
+| `clientId` (07-10-2026) | UUID | El sujeto de la venta, `m.user_id`. **Después** del alcance en el mismo predicado; sin corte previo. Uno sin ventas en el alcance, o inexistente: página vacía |
 
 **No hay `type`**: el tipo es el de la ruta. **No hay `sellerId` ni `userId` con dos sentidos**: `userId` es el nombre que el responsable usó y significa **la persona de mi red como vendedora**; el sujeto no se filtra aquí (`spec.md` §2.2).
 
@@ -198,6 +203,7 @@ Ninguna (`spec.md` §7).
 | Quien dejó la red (`ended_at` puesto) desaparece | Integración | `CA-MV-128` |
 | Estado y periodo combinados con `userId`; errores juntos | Integración | `CA-MV-129` |
 | Método de pago y código dentro del alcance; el comprobante ajeno vacío (21-09-2026) | Integración | `CA-MV-136` |
+| `clientId` por alcance —director, funcionario, consumidor—, inexistente, y combinado con `userId` (07-10-2026) | Integración, `SalesIT` | `CA-MV-701`, `CA-MV-702` |
 | `403` sin el permiso, con `movements:read` y con `movements:list-own`; `401` | Integración | `CA-MV-130`; y la ruta en `PERMISO_DE_CADA_OPERACION` |
 | La fila es la de `RF-MV-006`, sin `role`; varias líneas del mismo vendedor cuentan una vez | Integración, sobre el JSON en crudo | `CA-MV-131` |
 | Paginación, orden, y total acotado con el techo bajado | Integración | `CA-MV-132`, como `MovementsBoundedCountIT` |

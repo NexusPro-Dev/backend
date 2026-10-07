@@ -1734,6 +1734,9 @@ public class JpaMovementRepository implements MovementRepository {
           "vendedor",
           f.sellerId());
     }
+    // El cliente (07-10-2026) va después del alcance: solo quita filas de las
+    // que ya se ven, y por eso no necesita el corte previo del vendedor.
+    filtro.igual("m.user_id", "cliente", f.clientId());
     filtro.igual("m.status", "estado", f.status());
     filtro.igual("mts.code", "estadoDelTipo", f.typeStatus());
     if (f.from() != null) {

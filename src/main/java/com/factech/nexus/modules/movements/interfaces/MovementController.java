@@ -384,7 +384,9 @@ public class MovementController {
           **`userId` es una persona de mi red como vendedora** —«las ventas de mi agente tal»—
           y acota **dentro** del alcance: una persona fuera de mi red, o inexistente, da una
           **página vacía** y no un error, para que el filtro no sirva para descubrir quién
-          cuelga de quién. `code` acepta **una PARTE del comprobante**, sin distinguir
+          cuelga de quién. **`clientId` es el cliente** (07-10-2026): solo las ventas **a
+          nombre de esa persona**, de las que ya están en mi alcance; uno sin ventas en él, o
+          inexistente, da una página vacía. Se combina con `userId`. `code` acepta **una PARTE del comprobante**, sin distinguir
           mayúsculas (`RN-MV-037`). `status`, `paymentMethodId`, `code` y `from`/`to` son los de
           `GET /movements` y se combinan, y también `typeStatus` (`VALIDAR_COMISIONES` o
           `VALIDADO`, desde el 23-09-2026); **el comprobante de una venta que no es de mi
@@ -423,6 +425,7 @@ public class MovementController {
       @RequestParam(required = false) Integer page,
       @RequestParam(required = false) Integer size,
       @RequestParam(required = false) UUID userId,
+      @RequestParam(required = false) UUID clientId,
       @RequestParam(required = false) String status,
       @RequestParam(required = false) String typeStatus,
       @RequestParam(required = false) UUID paymentMethodId,
@@ -431,7 +434,7 @@ public class MovementController {
       @RequestParam(required = false) OffsetDateTime to) {
     return ventas.list(
         new ListSalesRequest(
-            page, size, userId, status, typeStatus, paymentMethodId, code, from, to));
+            page, size, userId, clientId, status, typeStatus, paymentMethodId, code, from, to));
   }
 
   /**

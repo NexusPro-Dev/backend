@@ -4,7 +4,7 @@
 |---|---|
 | Requerimiento | `RF-MV-015` |
 | Módulo | `MV` — Movimientos |
-| Versión | 0.3.0 |
+| Versión | 0.4.0 |
 | Estado | **Aprobada** |
 | Enmendada el | 21-09-2026 — gana el **método de pago** y el **comprobante** como filtros, por decisión del responsable (§2.2, §6.1, §12). Ver §15 |
 | Autor | Responsable técnico |
@@ -20,6 +20,14 @@
     **Tres cosas que NO cambian, y conviene que no se den por hechas.** `type` y `typeStatus` **siguen siendo exactos**: se eligen de un conjunto cerrado, no se teclean, y un `LIKE` ahí haría que pedir `VENTA` arrastrara cualquier tipo que la contenga. Los comodines `%` y `_` que escriba el usuario se **escapan** —son texto y no patrón—, que es la misma defensa que `RF-SP-025` ya tenía escrita. Y **el alcance no se ensancha**: va en la misma sentencia y **antes** que este predicado, de modo que quien solo ve lo suyo sigue viendo lo suyo.
 
     **Se indexa con trigramas** (`ix_movements_codigo_busqueda`, `V39`), como `ix_users_busqueda`: `uq_movements_code` no puede responder por un fragmento del medio —un B-tree solo responde por el principio— y sin el índice nuevo la consulta recorrería la tabla entera.
+
+!!! warning "Enmendado el 07-10-2026 — se filtra también por CLIENTE"
+
+    Petición del responsable del proyecto, 07-10-2026: «agregar un filtro para filtrar por cliente». Hasta hoy la única persona por la que se acotaba era **el vendedor** de alguna línea (§2.2), y quien vende no tenía forma de preguntar «¿qué le he vendido a este cliente?». Nace el filtro **cliente**: solo las ventas **a nombre de esa persona** —quien compra, el sujeto de la venta—.
+
+    **Acota dentro del alcance, como todos**: se aplica después del alcance en la misma pregunta, de modo que un vendedor ve solo las ventas de ese cliente **que vendió su red**, y un cliente que no compró nada en mi alcance —o que no existe— da una **página vacía**, no un error. **No abre un oráculo nuevo**: lo que devuelve son ventas que quien pregunta ya ve sin el filtro. Para el consumidor, cualquier cliente que no sea él da vacío. **Se combina** con el filtro por vendedor y con los demás.
+
+    **El filtro por persona de siempre no cambia de sentido**: sigue siendo el vendedor. Un cambio de significado rompería a quien ya lo usa (§6.1). `CA-MV-701` y `CA-MV-702`.
 
 !!! info "Qué va en este documento"
 
@@ -52,6 +60,7 @@ El libro es de todos los hechos económicos y hoy solo hay ventas. La decisión 
 | Filtro | Pregunta que responde |
 |---|---|
 | Persona | «¿Qué vendió **este** de los míos?» — una persona de mi red **como vendedora** de alguna línea. Para el cliente no aplica: solo hay uno posible, él |
+| Cliente (07-10-2026) | «¿Qué le hemos vendido **a este** cliente?» — las ventas **a su nombre**, dentro de mi alcance |
 | Estado | «¿Qué está pendiente de cobrar entre lo que vendió mi gente?» |
 | Periodo | «¿Qué vendió mi red en septiembre?» — sobre **cuándo ocurrió** el hecho |
 | Método de pago (21-09-2026) | «¿Qué cobró mi gente por transferencia?» |
@@ -121,6 +130,7 @@ El libro es de todos los hechos económicos y hoy solo hay ventas. La decisión 
 | Desde, hasta | No | Como en `RF-MV-006`: instantes sobre **cuándo ocurrió**, rango **semiabierto**, «desde» posterior a «hasta» es un error |
 | Método de pago (21-09-2026) | No | Solo las ventas pagadas con ese método. Uno que no exista da una **página vacía**, como en `RF-MV-006` |
 | Código (21-09-2026) | No | El comprobante **exacto**, sin distinguir mayúsculas, **si está en mi alcance**; si no, página vacía — el alcance va antes que el filtro |
+| Cliente (07-10-2026) | No | Solo las ventas **a nombre de esa persona**, de las que ya están en mi alcance. Un cliente sin ventas en mi alcance —o inexistente— da una **página vacía**, no un error. Para el consumidor, cualquiera que no sea él da vacío |
 
 **Sobre quién se pregunta NO se indica, y esa es la mitad del requerimiento**: el alcance sale de **quién es** quien pregunta —su tipo de rol y su lugar en la estructura—, y no hay forma de pedir el alcance de otra persona. El filtro por persona **acota dentro** del alcance; no lo cambia.
 
@@ -201,7 +211,7 @@ Como `RF-MV-006` · `FA-003`: la página se devuelve, el total es el techo y la 
 |---|---|
 | `VAL-001` | La página no es negativa y el tamaño está dentro del límite del sistema |
 | `VAL-002` | El estado indicado, si viene, es uno de los que existen |
-| `VAL-003` | El identificador de persona, si viene, está bien formado |
+| `VAL-003` | El identificador de persona —y el de cliente, desde el 07-10-2026—, si viene, está bien formado |
 | `VAL-004` | «Desde» y «hasta», si vienen, son instantes bien formados, y «desde» no es posterior a «hasta» |
 | `VAL-005` | El estado del tipo indicado, si viene, es uno del catálogo de estados por tipo (23-09-2026, `RF-MV-016`) |
 
@@ -225,6 +235,8 @@ Como `RF-MV-006` · `FA-003`: la página se devuelve, el total es el techo y la 
 | `CA-MV-131` | La fila es **la de `RF-MV-006`** —tipo, sujeto, vendedores sin repetir, importes, confirmación nula y presente— y **sin papel**; una venta con varias líneas del mismo vendedor aparece **una vez** |
 | `CA-MV-132` | El listado va **paginado y envuelto**, del más reciente al más antiguo, estable entre páginas, y **el total es el techo** por encima del techo del conteo |
 | `CA-MV-136` | Los filtros por **método de pago** y por **código** acotan **dentro del alcance** y se combinan con los demás: el comprobante de una venta que no es de mi red da una página vacía, escrito como sea (21-09-2026) |
+| `CA-MV-701` | El filtro por **cliente** devuelve solo las ventas **a nombre de esa persona** dentro de mi alcance: un director ve las que le vendió su red, no las que le vendió otra rama; administración, todas las suyas; un cliente sin ventas en mi alcance, o inexistente, da una **página vacía** y no un error; para el consumidor, otro cliente da vacío (07-10-2026) |
+| `CA-MV-702` | El filtro por cliente **se combina** con el de vendedor y con los demás: con los dos, solo las ventas de ese cliente en las que esa persona vendió alguna línea (07-10-2026) |
 
 **`CA-MV-123` a `CA-MV-125` son los que sostienen el requerimiento**, y **`CA-MV-127` es el que lo protege**: los primeros prueban que la red se recorre entera y que no se cruza a la rama de al lado; el último, que el filtro por persona no se convierte en la forma de descubrir la estructura.
 
@@ -259,3 +271,4 @@ Como `RF-MV-006` · `FA-003`: la página se devuelve, el total es el techo y la 
 | 0.1.0 | 21-09-2026 | Primera versión, a petición del responsable del proyecto —«un endpoint por tipo de movimiento y con un filtro por `user_id`; consumidor solo lo suyo; vendedor desde el rango más bajo y subiendo por la jerarquía según el `seller_id` de la línea»— y con cuatro decisiones suyas del mismo día: **una ruta por tipo** y no una con el tipo dentro (§2.1); **la persona del filtro es un vendedor de mi red** (§2.2); **el vendedor ve también lo suyo** (`FA-002`); **quien administra lo ve todo** por la misma consulta (§3). Nace `RN-MV-031`, que **decide para las ventas lo que D-22 aplazaba**: la segunda lectura del sistema autorizada por estructura y la primera en profundidad (`security.md` v0.68.0). Fuera del alcance se responde **vacío** y no un error, para que el filtro no sea un oráculo de la estructura (`EX`, `CA-MV-127`). La fila es la de `RF-MV-006`, a propósito. Once criterios, `CA-MV-122` a `CA-MV-132`. | Responsable del proyecto |
 | 0.2.0 | 21-09-2026 | **Gana el método de pago y el comprobante como filtros** (`requirements/mv.md` v0.33.0), por decisión del responsable del proyecto del mismo día —los tres filtros de `RF-MV-006` en todos los listados—, que revierte lo que §2.2 había dejado fuera con el argumento de «quien concilia tiene `RF-MV-006`»: un director también concilia lo de su gente. Los dos acotan **dentro del alcance** (`CA-MV-136`). Doce criterios. | Responsable del proyecto |
 | 0.3.0 | 23-09-2026 | **Cada fila publica el estado del tipo y se filtra por él** (`requirements/mv.md` v0.36.0, `RN-MV-033`; Art. I.7), con `RF-MV-016`: `VAL-005` para un código que no existe, criterios en `CA-MV-161`. **Una venta por validar no está en el alcance de ningún vendedor** mientras ninguna de sus líneas sea suya —`RN-MV-031` mira el `seller_id` de las líneas, y no hay ninguno—; entra en cuanto se le asigna una. No cambia la regla: es lo que la regla dice de una línea sin vendedor. | Responsable del proyecto |
+| 0.4.0 | 07-10-2026 | **Se filtra también por cliente**, a petición del responsable del proyecto: las ventas **a nombre de esa persona**, dentro del alcance; fuera de él o inexistente, página vacía. El filtro por persona sigue siendo el vendedor. `CA-MV-701` y `CA-MV-702`. | Responsable del proyecto |
