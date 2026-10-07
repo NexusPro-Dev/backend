@@ -5,7 +5,7 @@
 | Proyecto | NEXUS — Renovación de plataforma |
 | Empresa | FACTECH GROUP SAS |
 | Documento | `requirements.md` |
-| Versión | 0.321.0 |
+| Versión | 0.322.0 |
 | Estado | Borrador |
 | Responsable técnico | Bonilla Diaz William Steven |
 | Fecha de creación | 20-08-2026 |
@@ -753,3 +753,4 @@ El inventario y el estado de los módulos se consultan en [`modules.md` §4](mod
 | 0.319.0 | 07-10-2026 | **La cadena nueva de una línea reatribuida va al lote más reciente sin pagar de cada persona** ([`requirements/cm.md`](requirements/cm.md) v0.37.0, `RN-CM-051`; [`modelo-datos.md`](modelo-datos.md) v0.104.0), por decisión del responsable del proyecto: `ABIERTO` o `PENDIENTE`, y solo si no hay ninguno se abre uno; `PAGADO` sigue bloqueando. Enmiendas a `RF-CM-024` y `RF-CM-013` antes del código (`CA-CM-356` a `CA-CM-360`). Ningún indicador de §5 se mueve. | Responsable del proyecto |
 | 0.320.0 | 07-10-2026 | **Nace `RF-IN-008`, el resumen de mis comisiones** ([`requirements/in.md`](requirements/in.md) v0.18.0, `RN-IN-013`; [`security.md`](security.md) v0.120.0), a petición del responsable del proyecto: de las comisiones propias, cuántas y cuánto por estado del lote y en total; solo lo de quien pregunta. Tripleta el mismo día (`CA-IN-090` a `CA-IN-096`), `tasks.md` aprobadas, y **construido** (`V83`, catálogo **206**; [`api/index.md`](api/index.md) v1.105.0). Registrados 230 → **231**, `spec.md` redactada 226 → **227**, aprobada 166 → **167**, `plan.md` aprobado 225 → **226**, tripleta completa 107 → **108**, endpoint funcionando 190 → **191**. | Responsable técnico |
 | 0.321.0 | 07-10-2026 | **`RF-CM-026` y `RF-IN-008` se filtran por cliente** ([`requirements/cm.md`](requirements/cm.md) v0.39.0, `CA-CM-361` y `CA-CM-362`; [`requirements/in.md`](requirements/in.md) v0.19.0, `CA-IN-097`), a petición del responsable del proyecto. Tripletas enmendadas antes del código. Ningún indicador de §5 se mueve. | Responsable técnico |
+| 0.322.0 | 07-10-2026 | **Un lote sin pagar que se queda sin comisiones se borra** ([`requirements/cm.md`](requirements/cm.md) v0.40.0, `RN-CM-052`; [`modelo-datos.md`](modelo-datos.md) v0.105.0), por decisión del responsable del proyecto. Enmiendas a `RF-CM-022`, `RF-CM-023` y `RF-CM-024` antes del código (`CA-CM-363` a `CA-CM-367`), `tasks.md` aprobadas y **construido** (`V84`; [`api/index.md`](api/index.md) v1.107.0). Ningún indicador de §5 se mueve. | Responsable del proyecto |

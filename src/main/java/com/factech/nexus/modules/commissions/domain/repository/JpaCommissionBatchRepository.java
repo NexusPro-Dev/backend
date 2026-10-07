@@ -256,6 +256,34 @@ public class JpaCommissionBatchRepository implements CommissionBatchRepository {
             .getSingleResult();
   }
 
+  @Override
+  public java.util.Optional<DeletedBatch> deleteIfEmpty(UUID batchId) {
+    @SuppressWarnings("unchecked")
+    List<Object[]> filas =
+        em.createNativeQuery(
+                """
+                DELETE FROM commission_batches b
+                 WHERE b.id = :lote AND b.status <> 'PAGADO'
+                   AND NOT EXISTS (SELECT 1 FROM commissions c WHERE c.batch_id = b.id)
+                RETURNING b.id, b.code, b.user_id, b.currency_id, b.status,
+                          b.period_start, b.period_end
+                """)
+            .setParameter("lote", batchId)
+            .getResultList();
+    return filas.stream()
+        .findFirst()
+        .map(
+            f ->
+                new DeletedBatch(
+                    (UUID) f[0],
+                    (String) f[1],
+                    (UUID) f[2],
+                    (UUID) f[3],
+                    (String) f[4],
+                    instante(f[5]),
+                    f[6] == null ? null : instante(f[6])));
+  }
+
   private static OffsetDateTime instante(Object valor) {
     if (valor instanceof OffsetDateTime odt) {
       return odt;

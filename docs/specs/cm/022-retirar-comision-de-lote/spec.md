@@ -4,12 +4,13 @@
 |---|---|
 | Requerimiento | `RF-CM-022` |
 | Módulo | `CM` — Comisiones |
-| Versión | 0.2.0 |
+| Versión | 0.3.0 |
 | Estado | **Aprobada** |
 | Autor | Responsable técnico |
 | Aprobada por | Responsable del proyecto |
 | Fecha de aprobación | 30-09-2026 |
 | Enmendada el | 07-10-2026 — **se retira `EX-005`**: ya no hay comisiones revertidas (`RN-CM-047`) |
+| Enmendada el | 07-10-2026 — **el pendiente que se queda sin comisiones se borra** (`RN-CM-052`): `CA-CM-363` a `CA-CM-365` |
 
 !!! info "Qué va en este documento"
 
@@ -76,7 +77,8 @@ Que Finanzas, al revisar un lote cerrado antes de pagarlo, **saque de él lo que
 | `RN-CM-029` | La comisión conserva su tasa, su base y su importe; nada se borra |
 | `RN-CM-033` | El lote abierto se abre si no lo hay; la comisión conserva su instante de devengo |
 | `RN-CM-030` | Un lote pagado no cambia |
-| `RN-CM-048` | El pendiente puede quedarse sin comisiones vivas, y entonces no se paga |
+| `RN-CM-048` | ~~El pendiente puede quedarse sin comisiones vivas, y entonces no se paga~~ Desde el 07-10-2026 solo para los vacíos de antes de ese día |
+| `RN-CM-052` | El pendiente que se queda sin comisiones se borra, y lo retirado de él pierde su origen |
 
 ---
 
@@ -92,6 +94,8 @@ Que Finanzas, al revisar un lote cerrado antes de pagarlo, **saque de él lo que
 ### 6.2 Salida
 
 **El lote pendiente como queda**, en la forma del detalle de `RF-CM-010`: con su total rebajado, sin la comisión retirada entre las suyas y **con ella entre las retiradas de este lote**, diciendo en qué lote está ahora. Es la vista en la que Finanzas sigue revisando.
+
+**Si era la última y el pendiente se borró** (`FA-002`), no hay pendiente que devolver: la salida es **el lote abierto adonde fue**, en la misma forma. Que el identificador no sea el pedido es lo que dice que el pendiente ya no existe.
 
 ---
 
@@ -123,7 +127,9 @@ Se abre uno, como al devengar. **Su periodo empieza ahora**, aunque la comisión
 
 ### FA-002 — Se retiran todas
 
-El pendiente se queda sin comisiones vivas. **Sigue pendiente, y no se puede pagar** (`RN-CM-048`) hasta que se le devuelva alguna.
+~~El pendiente se queda sin comisiones vivas. **Sigue pendiente, y no se puede pagar** (`RN-CM-048`) hasta que se le devuelva alguna.~~
+
+**Desde el 07-10-2026 el pendiente se borra** al retirar la última (`RN-CM-052`), en el mismo acto, y queda auditado. Todo lo que se retiró de él —esta y las anteriores— **pierde su origen**: está en el abierto como cualquier otra comisión y ya no se puede devolver. La salida es el abierto (§6.2).
 
 ### FA-003 — Retirar y pagar el mismo lote a la vez
 
@@ -168,6 +174,9 @@ Si el cierre cierra el lote abierto de esa persona mientras se retira, la comisi
 | `CA-CM-279` | Retirar **todas** deja el pendiente sin comisiones vivas, con total cero, y **pagarlo responde conflicto** |
 | `CA-CM-280` | **Retirar y pagar** el mismo lote a la vez: o se paga el total rebajado con la comisión ya fuera, o el retiro responde conflicto con el lote pagado; **nunca** se abona una comisión que también está en el abierto |
 | `CA-CM-281` | Sin `commission-batches:withdraw-commission`, se rechaza; queda **auditado**, con la comisión, los dos lotes y el importe |
+| `CA-CM-363` | Retirar la **última** comisión de un pendiente **lo borra**: ya no aparece en el listado ni en su detalle (no encontrado), pagarlo responde **no encontrado**, y la respuesta es **el detalle del abierto** con la comisión dentro (07-10-2026). Enmienda `CA-CM-279` |
+| `CA-CM-364` | Las comisiones retiradas **antes** de ese pendiente, y la última, quedan en el abierto **sin origen**: ninguna se lista como devolvible, y devolverlas responde no encontrado |
+| `CA-CM-365` | El borrado queda **auditado** como eliminación física, con el código, la persona, la moneda, el estado y el periodo del lote; un pendiente al que le queda **alguna** comisión no se borra |
 
 ---
 
@@ -178,6 +187,8 @@ Si el cierre cierra el lote abierto de esa persona mientras se retira, la comisi
 | La persona del lote está eliminada | Se retira igual: la comisión es suya |
 | La comisión es de importe cero | Se retira; los totales no cambian |
 | Se retira, se devuelve y se retira otra vez | Cada retiro es uno más; el lote de origen anotado es siempre el último |
+| El pendiente tenía solo comisiones de **importe cero** y se retiran todas | Se borra igual: lo que cuenta son las comisiones, no el total |
+| Un pendiente **vacío desde antes del 07-10-2026** | No se borra: la regla no es retroactiva. Sigue pendiente y no se paga (`RN-CM-048`) |
 | El abierto al que fue se cierra antes de devolverla | Queda en ese nuevo pendiente, que puede revisarse y retirarse a su vez; del primero ya no vuelve (`RF-CM-023`) |
 
 ---
@@ -193,4 +204,5 @@ Ninguna.
 | Versión | Fecha | Cambio | Autor |
 |---|---|---|---|
 | 0.1.0 | 30-09-2026 | Primera versión ([`requirements/cm.md`](../../../requirements/cm.md) v0.26.0 §5.10, `RN-CM-046`), por decisión del responsable del proyecto: lo que no se confirma de un lote pendiente **se retira** al abierto de su persona y se paga en el cierre siguiente. Criterios `CA-CM-273` a `CA-CM-281`. | Responsable del proyecto |
+| 0.3.0 | 07-10-2026 | **El pendiente que se queda sin comisiones se borra** ([`requirements/cm.md`](../../../requirements/cm.md) v0.40.0, `RN-CM-052`), por decisión del responsable del proyecto: «si un lote se queda sin comisiones, que se elimine». Lo retirado de él pierde su origen; la salida pasa a ser el abierto (§6.2). `FA-002` cambia; `CA-CM-363` enmienda `CA-CM-279`, y nacen `CA-CM-364` y `CA-CM-365`. | Responsable del proyecto |
 | 0.2.0 | 07-10-2026 | **Se retira `EX-005`** ([`requirements/cm.md`](../../../requirements/cm.md) v0.34.0, `RN-CM-047` enmendada): desde que la cadena vieja de una línea reatribuida se borra, no hay comisión revertida que rechazar. **`CA-CM-278` se lee** sin su última mitad: una comisión de otro lote, o que no existe, responde no encontrado. | Responsable del proyecto |

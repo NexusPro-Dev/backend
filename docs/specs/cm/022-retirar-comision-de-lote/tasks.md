@@ -8,6 +8,7 @@
 | `plan.md` aprobado el | 30-09-2026 |
 | Estado | **En revisión** — todas las tareas `Hecha` el 30-09-2026 |
 | Enmendadas | 07-10-2026 — sin la comisión revertida: lo hace `RF-CM-024` `T-09` y `T-10` (`RN-CM-047`) |
+| Enmendadas | 07-10-2026 — `T-08` a `T-12` porque **el lote que se vacía se borra** (`RN-CM-052`) |
 | Issue | Pendiente de crear |
 | Rama | `feature/corregir-vendedor-y-mover-comisiones` |
 
@@ -67,3 +68,15 @@
 - [ ] Los nueve criterios de aceptación con prueba.
 - [ ] Contrato y `requirements.md` actualizados.
 - [ ] **`tasks.md` aprobadas por el responsable del proyecto.**
+
+## 6. El lote que se vacía se borra — enmienda del 07-10-2026
+
+| ID | Tarea | Depende de | Verificación | Estado |
+|---|---|---|---|---|
+| `T-08` | **`V84`**: `fk_commissions_withdrawn_from` con `ON DELETE SET NULL` (`plan.md` §13) | — | Flyway aplica | **Hecha** — 07-10-2026 |
+| `T-09` | `deleteIfEmpty` en el repositorio de lotes; `EmptyBatchRemoval` con `recordDeletion` `PHYSICAL`; `lockLatestUnpaidBatch` vuelve a buscar si el candidato desapareció | `T-08` | Compila | **Hecha** — 07-10-2026 |
+| `T-10` | `WithdrawCommissionService` borra el pendiente vacío y responde el abierto; prosa de la `@Operation` | `T-09` | — | **Hecha** — 07-10-2026 |
+| `T-11` | `WithdrawCommissionIT`: `CA-CM-363` a `CA-CM-365`; `CA-CM-301` con el pendiente vaciado por SQL | `T-10` | La suite en verde | **Hecha** — 07-10-2026 |
+| `T-12` | Contrato regenerado, `api/index.md` y `requirements.md` | `T-11`, `RF-CM-023` `T-06`, `RF-CM-024` `T-16` | Las suites de `CM` y `OpenApiContractIT` en verde | **Hecha** — 07-10-2026 |
+
+Orden: `T-08` → `T-09` → `T-10` → `T-11`; después `RF-CM-023` §6 y `RF-CM-024` §8, y `T-12` al final. Rama: `develop`.

@@ -5,12 +5,13 @@
 | Requerimiento | `RF-CM-023` |
 | Especificación | [`spec.md`](spec.md) v0.1.0 |
 | `spec.md` aprobada el | 30-09-2026 |
-| Versión | 0.2.0 |
+| Versión | 0.3.0 |
 | Estado | **Aprobado** |
 | Autor | Responsable técnico |
 | Aprobado por | Responsable del proyecto |
 | Fecha de aprobación | 30-09-2026 |
 | Enmendado el | 07-10-2026 — sin la comisión revertida (§12) |
+| Enmendado el | 07-10-2026 — el abierto que se vacía se borra (§13) |
 
 !!! info "Qué va en este documento"
 
@@ -115,3 +116,11 @@ La de `RF-CM-022`: un `ChangeEvent` `UPDATE` sobre `commissions` con `batch_id` 
 ## 12. Sin la comisión revertida — enmienda del 07-10-2026
 
 `RN-CM-047` enmendada. Sale de §1 la comprobación `reverted_at no nulo → 409 (EX-005)`, y del contrato su motivo del `409`. Una retirada cuya línea cambió de vendedor ya no existe, y la ruta responde `404` (`EX-002`) como a cualquier comisión que no está entre las retiradas del lote. Lo construye [`RF-CM-024`](../024-revertir-comisiones-de-linea/plan.md) §12, y `ReturnCommissionIT` pierde el caso de la revertida.
+
+## 13. El abierto que se vacía se borra — enmienda del 07-10-2026
+
+`RN-CM-052`. El mecanismo es el de [`RF-CM-022`](../022-retirar-comision-de-lote/plan.md) §13 —`deleteIfEmpty` y `EmptyBatchRemoval`—, y aquí solo cambia **quién lo llama**: `ReturnCommissionService`, tras mover la comisión y ajustar los totales, llama a `removeIfEmpty` con **el abierto del que salió**. El pendiente de origen acaba de ganar una comisión y no puede quedar vacío. **La respuesta no cambia**: es el pendiente.
+
+**El cierre** sigue sin cerrar un abierto vacío (`RN-CM-048`), para los que quedaron de antes del 07-10-2026. **`CA-CM-300`** (`RF-CM-009`), que se probaba aquí devolviendo lo único del abierto, pasa a vaciarlo **por SQL**: devolver ya lo borra.
+
+**Pruebas**: `ReturnCommissionIT` gana `CA-CM-366` y pierde `CA-CM-284`.

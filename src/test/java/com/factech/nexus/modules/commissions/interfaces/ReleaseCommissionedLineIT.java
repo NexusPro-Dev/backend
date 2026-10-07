@@ -86,14 +86,17 @@ class ReleaseCommissionedLineIT extends IntegrationTestBase {
 
   @Test
   @DisplayName(
-      "CA-CM-340, CA-MV-700 — corregir el vendedor BORRA toda la cadena vieja, en lotes pendientes,"
-          + " y cada lote rebaja su total")
+      "CA-CM-340, CA-CM-367, CA-MV-700 — corregir el vendedor BORRA toda la cadena vieja, en lotes"
+          + " pendientes; el lote que se queda vacío se borra, auditado, y la cadena nueva va a lo"
+          + " que queda")
   void borraLaCadenaVieja() throws Exception {
     UUID venta = confirmada(viejo);
     UUID linea = lineaDe(venta);
     cierre.closeManually(admin);
     List<UUID> viejas = comisionesDe(linea);
     assertThat(viejas).hasSize(2);
+    UUID delViejo = pendienteDe(viejo);
+    UUID delDirector = pendienteDe(director);
 
     mvc.perform(corregir(venta, nuevo))
         .andExpect(status().isOk())
@@ -107,10 +110,20 @@ class ReleaseCommissionedLineIT extends IntegrationTestBase {
                 viejas.get(0),
                 viejas.get(1)))
         .isZero();
-    assertThat(total(pendienteDe(viejo))).isEqualByComparingTo("0");
-    // Rebaja su 5 y, desde `RN-CM-051`, recibe en el mismo pendiente el 5 de la
-    // cadena nueva: lo viejo ya no está (arriba) y el total es solo lo nuevo.
-    assertThat(total(pendienteDe(director))).isEqualByComparingTo("5.00");
+    // CA-CM-367: los dos pendientes solo tenían esta línea y se borran (`RN-CM-052`);
+    // la comisión nueva del director no tiene ya lote sin pagar y abre un abierto.
+    assertThat(existe(delViejo)).isFalse();
+    assertThat(existe(delDirector)).isFalse();
+    assertThat(lotesDe(viejo)).isZero();
+    assertThat(loteDeLaComision(linea, director)).isEqualTo(abiertoDe(director));
+    assertThat(
+            jdbc.queryForObject(
+                "SELECT count(*) FROM audit_deletion_log WHERE entity = 'commission_batches'"
+                    + " AND entity_id IN (?, ?) AND deletion_type = 'PHYSICAL'",
+                Integer.class,
+                delViejo,
+                delDirector))
+        .isEqualTo(2);
   }
 
   @Test
@@ -120,6 +133,7 @@ class ReleaseCommissionedLineIT extends IntegrationTestBase {
           + " día de la venta; la marca se borra")
   void devengaLaNueva() throws Exception {
     UUID venta = confirmada(viejo);
+    confirmada(viejo); // que el pendiente del director no se quede vacío (`RN-CM-052`)
     UUID linea = lineaDe(venta);
     cierre.closeManually(admin);
     UUID pendienteDelDirector = pendienteDe(director);
@@ -135,7 +149,7 @@ class ReleaseCommissionedLineIT extends IntegrationTestBase {
     assertThat(vivas).hasSize(2);
     // CA-CM-356: el director tenía su pendiente, y la comisión va a él.
     assertThat(loteDeLaComision(linea, director)).isEqualTo(pendienteDelDirector);
-    assertThat(total(pendienteDelDirector)).isEqualByComparingTo("5.00");
+    assertThat(total(pendienteDelDirector)).isEqualByComparingTo("10.00");
     assertThat(lotesDe(director)).isEqualTo(1);
     // CA-CM-358: el vendedor nuevo no tenía ningún lote: se le abre uno.
     assertThat(lotesDe(nuevo)).isEqualTo(1);
@@ -268,6 +282,7 @@ class ReleaseCommissionedLineIT extends IntegrationTestBase {
           + " listarla")
   void retirada() throws Exception {
     UUID venta = confirmada(viejo);
+    confirmada(viejo); // que el pendiente no se quede vacío al retirar (`RN-CM-052`)
     UUID linea = lineaDe(venta);
     cierre.closeManually(admin);
     UUID pendiente = pendienteDe(viejo);
@@ -287,7 +302,8 @@ class ReleaseCommissionedLineIT extends IntegrationTestBase {
             jdbc.queryForObject(
                 "SELECT count(*) FROM commissions WHERE id = ?", Integer.class, comision))
         .isZero();
-    assertThat(total(abierto)).isEqualByComparingTo("0");
+    // Era lo único del abierto, que se borra con ella (`RN-CM-052`).
+    assertThat(existe(abierto)).isFalse();
     mvc.perform(
             org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get(
                     "/api/v1/commission-batches/{id}", pendiente)
@@ -463,6 +479,7 @@ class ReleaseCommissionedLineIT extends IntegrationTestBase {
           + " cadenas queda con una sola comisión de ella, en su pendiente sin pagar")
   void seDevengaOtraVez() throws Exception {
     UUID venta = confirmada(viejo);
+    confirmada(viejo); // que el pendiente del director no se quede vacío (`RN-CM-052`)
     UUID linea = lineaDe(venta);
     cierre.closeManually(admin);
 
@@ -489,11 +506,13 @@ class ReleaseCommissionedLineIT extends IntegrationTestBase {
     cierre.closeManually(admin);
     confirmada(viejo);
     UUID abiertoDelDirector = abiertoDe(director);
+    UUID pendienteDelDirector = pendienteDe(director);
 
     mvc.perform(corregir(venta, nuevo)).andExpect(status().isOk());
 
     assertThat(loteDeLaComision(linea, director)).isEqualTo(abiertoDelDirector);
-    assertThat(total(pendienteDe(director))).isEqualByComparingTo("0");
+    // Solo tenía la comisión vieja: se borra (`RN-CM-052`).
+    assertThat(existe(pendienteDelDirector)).isFalse();
   }
 
   @Test
@@ -535,6 +554,7 @@ class ReleaseCommissionedLineIT extends IntegrationTestBase {
           + " lote más reciente sin pagar")
   void laRechazadaConservaLaMarca() throws Exception {
     UUID venta = confirmada(viejo);
+    confirmada(viejo); // que el pendiente del director no se quede vacío (`RN-CM-052`)
     UUID linea = lineaDe(venta);
     cierre.closeManually(admin);
     UUID pendienteDelDirector = pendienteDe(director);
@@ -688,6 +708,11 @@ class ReleaseCommissionedLineIT extends IntegrationTestBase {
         UUID.class,
         linea,
         persona);
+  }
+
+  private boolean existe(UUID lote) {
+    return jdbc.queryForObject(
+        "SELECT EXISTS (SELECT 1 FROM commission_batches WHERE id = ?)", Boolean.class, lote);
   }
 
   private int lotesDe(UUID persona) {

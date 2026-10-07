@@ -58,6 +58,13 @@ public interface CommissionBatchRepository {
   /** Si el lote tiene al menos una comisión (`RN-CM-048`). */
   boolean hasLiveCommissions(UUID batchId);
 
+  /**
+   * Borra el lote <b>si no tiene ninguna comisión y no está pagado</b> (`RN-CM-052`), y devuelve lo
+   * que era; si no lo borró, vacío. La condición va en la sentencia: quien llama ya lo tiene
+   * bloqueado. Lo retirado de él pierde su origen por la clave (`V84`, `ON DELETE SET NULL`).
+   */
+  java.util.Optional<DeletedBatch> deleteIfEmpty(UUID batchId);
+
   /** Una comisión, con lo que hace falta para moverla. */
   record LockedCommission(UUID id, UUID batchId, BigDecimal amount, UUID withdrawnFromBatchId) {}
 
@@ -67,6 +74,16 @@ public interface CommissionBatchRepository {
   /** Lo que hace falta para abonar un lote. */
   record BatchToPay(
       UUID id, String code, UUID userId, UUID currencyId, BigDecimal totalAmount, String status) {}
+
+  /** Lo que era un lote borrado por quedarse vacío, para la auditoría. */
+  record DeletedBatch(
+      UUID id,
+      String code,
+      UUID userId,
+      UUID currencyId,
+      String status,
+      OffsetDateTime periodStart,
+      OffsetDateTime periodEnd) {}
 
   /** El lote abierto y el instante en que empezó su periodo. */
   record OpenBatch(UUID id, OffsetDateTime periodStart) {}

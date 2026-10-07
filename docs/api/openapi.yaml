@@ -6299,6 +6299,11 @@ paths:
         **Sin cuerpo.** Responde **el lote pendiente como queda**, con la retirada entre sus
         `withdrawn`. **`409`** si el lote está abierto o pagado;
         **`404`** si la comisión no es de ese lote.
+
+        **Si era la última, el pendiente se borra** (`RN-CM-052`, 07-10-2026): ya no existe, y
+        la respuesta es **el lote abierto adonde fue**, en la misma forma —su `id` no es el de
+        la ruta—. Todo lo que se había retirado de él **pierde su origen**: se queda en el
+        abierto y ya no se puede devolver.
       operationId: retirar_9
       parameters:
       - name: id
@@ -6315,7 +6320,8 @@ paths:
           format: uuid
       responses:
         "200":
-          description: "Retirada, con el lote pendiente como queda"
+          description: "Retirada, con el lote pendiente como queda; o con el abierto,\
+            \ si el pendiente se quedó vacío y se borró"
           content:
             '*/*':
               schema:
@@ -6366,7 +6372,11 @@ paths:
         **Solo mientras las dos mitades del retiro sigan como quedaron**: el lote de origen
         **`PENDIENTE`** y la comisión **en un lote `ABIERTO`**. Si el origen se pagó, o si el
         abierto ya se cerró, **`409`**: lo retirado se queda donde está. Una comisión que no se
-        retiró de este lote —también la que nació en el abierto— responde **`404`**.
+        retiró de este lote —también la que nació en el abierto— responde **`404`**, igual que
+        la que se retiró de un pendiente que después se borró por quedarse vacío.
+
+        **Si era lo único del abierto, el abierto se borra** (`RN-CM-052`, 07-10-2026); lo
+        siguiente que devengue esa persona abre otro.
 
         **Sin cuerpo.** Responde el lote pendiente como queda.
       operationId: devolver

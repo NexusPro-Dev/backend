@@ -5,13 +5,14 @@
 | Requerimiento | `RF-CM-024` |
 | Especificación | [`spec.md`](spec.md) v0.3.0 |
 | `spec.md` aprobada el | 30-09-2026 |
-| Versión | 0.3.0 |
+| Versión | 0.4.0 |
 | Estado | **Aprobado** |
 | Autor | Responsable técnico |
 | Aprobado por | Responsable del proyecto |
 | Fecha de aprobación | 30-09-2026 |
 | Enmendado el | 07-10-2026 — la cadena vieja se borra, y `V80` retira la marca (§12) |
 | Enmendado el | 07-10-2026 — la liberación deja una marca y la cadena nueva va al lote más reciente sin pagar; `V82` (§13) |
+| Enmendado el | 07-10-2026 — los lotes que la liberación vacía se borran (§14) |
 
 !!! info "Qué va en este documento"
 
@@ -188,3 +189,15 @@ por lote: adjustTotal(lote, -suma de las suyas)                          — igu
 | Devengar aquí, en la liberación | Fue descartado en §9 y sigue valiendo |
 
 **Pruebas**: `ReleaseCommissionedLineIT` reescribe `CA-CM-291` como `CA-CM-356` —cerrar, corregir, y la comisión del director en su **pendiente**; la del vendedor nuevo, que no tenía lote, en un **abierto** recién abierto (`CA-CM-358`)— y gana `CA-CM-357` y `CA-CM-360`.
+
+## 14. Los lotes que la liberación vacía se borran — enmienda del 07-10-2026
+
+`RN-CM-052`. El mecanismo es el de [`RF-CM-022`](../022-retirar-comision-de-lote/plan.md) §13. `ReleaseCommissionedLineService`, tras borrar la cadena y rebajar los totales, llama a `removeIfEmpty` con **los lotes de las comisiones borradas**, que ya tiene bloqueados en orden de identificador. **En la transacción de `MV`**: si la corrección se deshace, los lotes vuelven con ella.
+
+**El devengo de la cadena nueva no cambia**: corre después del commit, y `lockLatestUnpaidBatch` ya no ve el lote borrado. Que el pendiente de una persona que está en las dos cadenas desaparezca, y su comisión nueva vaya a otro lote, **es lo decidido** (`requirements/cm.md` §5.10, «Tercera enmienda»).
+
+| Alternativa | Por qué no |
+|---|---|
+| Borrar los vacíos al terminar el devengo de la cadena nueva | Conservaría ese pendiente, pero partiría vaciar y borrar en dos transacciones, dejaría lotes vacíos si la línea queda `RECHAZADA`, y el devengo tendría que saber qué lotes vació otra operación |
+
+**Pruebas**: `ReleaseCommissionedLineIT` gana `CA-CM-367`: un pendiente con solo la comisión del director se borra al corregir, y la nueva del director va a un abierto nuevo; otro con más comisiones solo baja.

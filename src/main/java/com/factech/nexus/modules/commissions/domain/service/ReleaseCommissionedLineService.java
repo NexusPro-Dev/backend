@@ -55,16 +55,19 @@ public class ReleaseCommissionedLineService implements CommissionedLineRelease {
   private final CommissionBatchRepository lotes;
   private final BusinessCalendar calendario;
   private final AuditWriter auditoria;
+  private final EmptyBatchRemoval vacios;
 
   public ReleaseCommissionedLineService(
       CommissionAccrualRepository desenlaces,
       CommissionBatchRepository lotes,
       BusinessCalendar calendario,
-      AuditWriter auditoria) {
+      AuditWriter auditoria,
+      EmptyBatchRemoval vacios) {
     this.desenlaces = desenlaces;
     this.lotes = lotes;
     this.calendario = calendario;
     this.auditoria = auditoria;
+    this.vacios = vacios;
   }
 
   @Override
@@ -93,6 +96,9 @@ public class ReleaseCommissionedLineService implements CommissionedLineRelease {
     OffsetDateTime ahora = calendario.ahora();
     desenlaces.delete(vivas.stream().map(LiveCommission::id).toList());
     porLote.forEach((lote, suma) -> lotes.addToTotal(lote, suma.negate(), ahora));
+    // `RN-CM-052`: el lote que se quedó sin comisiones se borra. La cadena nueva
+    // irá al más reciente sin pagar que quede, o a un abierto nuevo (`RN-CM-051`).
+    vacios.removeIfEmpty(porLote.keySet());
     desenlaces.deleteOutcome(movementDetailId);
     // `RN-CM-051`: la cadena nueva irá al lote más reciente sin pagar de cada
     // persona. En la transacción de `MV`: si la corrección se deshace, la marca

@@ -9,6 +9,7 @@
 | Estado | **En revisión** — todas las tareas `Hecha` el 30-09-2026 |
 | Enmendadas | 07-10-2026 — `T-07` a `T-11` porque **la cadena vieja se borra** (`RN-CM-047`) |
 | Enmendadas | 07-10-2026 — `T-12` a `T-14` porque **la cadena nueva va al lote más reciente sin pagar** (`RN-CM-051`) |
+| Enmendadas | 07-10-2026 — `T-15` y `T-16` porque **el lote que la liberación vacía se borra** (`RN-CM-052`) |
 | Issue | Pendiente de crear |
 | Rama | `feature/corregir-vendedor-y-mover-comisiones` |
 
@@ -92,3 +93,10 @@ Rama: `develop`.
 | `T-14` | `ReleaseCommissionedLineIT`: `CA-CM-356` a `CA-CM-358` y `CA-CM-360` | `T-13`, `RF-CM-013` `T-23` | La suite de `CM` en verde | **Hecha** — 07-10-2026 |
 
 Orden: `T-12` → `T-13` → `RF-CM-013` `T-23` → `T-14`.
+
+## 8. Los lotes que la liberación vacía se borran — enmienda del 07-10-2026
+
+| ID | Tarea | Depende de | Verificación | Estado |
+|---|---|---|---|---|
+| `T-15` | `ReleaseCommissionedLineService` llama a `EmptyBatchRemoval` con los lotes de la cadena borrada (`plan.md` §14) | `RF-CM-022` `T-09` | Compila | **Hecha** — 07-10-2026 |
+| `T-16` | `ReleaseCommissionedLineIT`: `CA-CM-367`; revisar los casos que contaban un lote vacío | `T-15` | La suite en verde | **Hecha** — 07-10-2026 |

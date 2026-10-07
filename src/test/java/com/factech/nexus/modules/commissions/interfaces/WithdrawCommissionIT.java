@@ -5,6 +5,7 @@ import static com.factech.nexus.modules.commissions.interfaces.CommissionFixture
 import static com.factech.nexus.modules.commissions.interfaces.SettlementFixtures.linea;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.user;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
@@ -32,8 +33,9 @@ import org.springframework.test.web.servlet.request.MockHttpServletRequestBuilde
 import org.springframework.test.web.servlet.request.RequestPostProcessor;
 
 /**
- * Retirar una comisión de un lote pendiente (`RF-CM-022`, `CA-CM-273` a `CA-CM-281`). Los lotes
- * nacen devengando por la API de `MV` y cerrando de verdad; la suite no es transaccional porque el
+ * Retirar una comisión de un lote pendiente (`RF-CM-022`, `CA-CM-273` a `CA-CM-281`, y desde el
+ * 07-10-2026 `CA-CM-363` a `CA-CM-365`: el pendiente que se vacía se borra). Los lotes nacen
+ * devengando por la API de `MV` y cerrando de verdad; la suite no es transaccional porque el
  * devengo es {@code AFTER_COMMIT}.
  */
 @AutoConfigureMockMvc
@@ -206,15 +208,109 @@ class WithdrawCommissionIT extends IntegrationTestBase {
 
   @Test
   @DisplayName(
-      "CA-CM-279, CA-CM-301 — retirar TODAS deja el pendiente sin comisiones vivas y en cero, y pagarlo"
-          + " responde 409")
-  void todas() throws Exception {
+      "CA-CM-363 — retirar la ÚLTIMA borra el pendiente: no hay detalle ni pago (404), y la"
+          + " respuesta es el abierto con la comisión")
+  void laUltimaBorraElPendiente() throws Exception {
     UUID pendiente = pendienteConDos();
-    for (UUID comision : comisionesDe(pendiente)) {
+    List<UUID> comisiones = comisionesDe(pendiente);
+
+    mvc.perform(retirar(pendiente, comisiones.get(0)).with(como(RETIRAR)))
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$.id").value(pendiente.toString()));
+    UUID abierto = abiertoDe(agente);
+    mvc.perform(retirar(pendiente, comisiones.get(1)).with(como(RETIRAR)))
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$.id").value(abierto.toString()))
+        .andExpect(jsonPath("$.status").value("ABIERTO"))
+        .andExpect(jsonPath("$.totalAmount").value(20.0))
+        .andExpect(jsonPath("$.commissions.length()").value(2));
+
+    assertThat(
+            jdbc.queryForObject(
+                "SELECT count(*) FROM commission_batches WHERE id = ?", Integer.class, pendiente))
+        .isZero();
+    mvc.perform(
+            get("/api/v1/commission-batches/{id}", pendiente)
+                .with(como("commission-batches:read-detail")))
+        .andExpect(status().isNotFound());
+    mvc.perform(
+            post("/api/v1/commission-batches/{id}/payment", pendiente)
+                .with(como("commission-batches:pay")))
+        .andExpect(status().isNotFound());
+  }
+
+  @Test
+  @DisplayName(
+      "CA-CM-364 — todo lo retirado del pendiente borrado pierde su origen: nada es devolvible, y"
+          + " devolverlo responde 404")
+  void loRetiradoPierdeSuOrigen() throws Exception {
+    UUID pendiente = pendienteConDos();
+    List<UUID> comisiones = comisionesDe(pendiente);
+    for (UUID comision : comisiones) {
       mvc.perform(retirar(pendiente, comision).with(como(RETIRAR))).andExpect(status().isOk());
     }
 
-    assertThat(total(pendiente)).isEqualByComparingTo("0");
+    assertThat(
+            jdbc.queryForObject(
+                "SELECT count(*) FROM commissions WHERE withdrawn_from_batch_id IS NOT NULL"
+                    + " AND id IN (?, ?)",
+                Integer.class,
+                comisiones.get(0),
+                comisiones.get(1)))
+        .isZero();
+    assertThat(comisionesDe(abiertoDe(agente))).containsExactlyInAnyOrderElementsOf(comisiones);
+    mvc.perform(
+            post(
+                    "/api/v1/commission-batches/{id}/commissions/{commissionId}/return",
+                    pendiente,
+                    comisiones.get(0))
+                .with(como("commission-batches:return-commission")))
+        .andExpect(status().isNotFound());
+  }
+
+  @Test
+  @DisplayName(
+      "CA-CM-365 — el borrado queda AUDITADO como eliminación física con lo que era el lote; un"
+          + " pendiente al que le queda alguna comisión no se borra")
+  void elBorradoSeAudita() throws Exception {
+    UUID pendiente = pendienteConDos();
+    String codigo =
+        jdbc.queryForObject(
+            "SELECT code FROM commission_batches WHERE id = ?", String.class, pendiente);
+    List<UUID> comisiones = comisionesDe(pendiente);
+
+    mvc.perform(retirar(pendiente, comisiones.get(0)).with(como(RETIRAR)))
+        .andExpect(status().isOk());
+    assertThat(estado(pendiente)).isEqualTo("PENDIENTE");
+    assertThat(borrados(pendiente)).isZero();
+
+    mvc.perform(retirar(pendiente, comisiones.get(1)).with(como(RETIRAR)))
+        .andExpect(status().isOk());
+    assertThat(borrados(pendiente)).isEqualTo(1);
+    var fila =
+        jdbc.queryForMap(
+            "SELECT module, deletion_type, reason, snapshot::text AS snapshot"
+                + " FROM audit_deletion_log WHERE entity = 'commission_batches' AND entity_id = ?",
+            pendiente);
+    assertThat(fila.get("module")).isEqualTo("CM");
+    assertThat(fila.get("deletion_type")).isEqualTo("PHYSICAL");
+    assertThat((String) fila.get("reason")).contains("RN-CM-052");
+    assertThat((String) fila.get("snapshot"))
+        .contains(codigo)
+        .contains(agente.toString())
+        .contains("PENDIENTE")
+        .contains("period_end");
+  }
+
+  @Test
+  @DisplayName(
+      "CA-CM-301 — un pendiente vacío de ANTES del 07-10-2026 sigue ahí, y pagarlo responde 409")
+  void elVacioDeAntesNoSePaga() throws Exception {
+    UUID pendiente = pendienteConDos();
+    // Retirar ya lo borraría (`RN-CM-052`): el vacío de antes se fabrica por SQL.
+    jdbc.update("DELETE FROM commissions WHERE batch_id = ?", pendiente);
+    jdbc.update("UPDATE commission_batches SET total_amount = 0 WHERE id = ?", pendiente);
+
     mvc.perform(
             post("/api/v1/commission-batches/{id}/payment", pendiente)
                 .with(como("commission-batches:pay")))
@@ -340,6 +436,14 @@ class WithdrawCommissionIT extends IntegrationTestBase {
   private String estado(UUID lote) {
     return jdbc.queryForObject(
         "SELECT status FROM commission_batches WHERE id = ?", String.class, lote);
+  }
+
+  private int borrados(UUID lote) {
+    return jdbc.queryForObject(
+        "SELECT count(*) FROM audit_deletion_log WHERE entity = 'commission_batches' AND"
+            + " entity_id = ?",
+        Integer.class,
+        lote);
   }
 
   private BigDecimal billeteraDe(UUID persona) {

@@ -4,13 +4,14 @@
 |---|---|
 | Requerimiento | `RF-CM-024` |
 | Módulo | `CM` — Comisiones |
-| Versión | 0.3.0 |
+| Versión | 0.4.0 |
 | Estado | **Aprobada** |
 | Autor | Responsable técnico |
 | Aprobada por | Responsable del proyecto |
 | Fecha de aprobación | 30-09-2026 |
 | Enmendada el | 07-10-2026 — **la cadena vieja se borra**, ya no se marca (`RN-CM-047`): `CA-CM-340` a `CA-CM-343` |
 | Enmendada el | 07-10-2026 — **la cadena nueva va al lote más reciente sin pagar de cada persona** (`RN-CM-051`): `CA-CM-356` a `CA-CM-358` y `CA-CM-360` |
+| Enmendada el | 07-10-2026 — **el lote que la cadena vieja deja vacío se borra** (`RN-CM-052`): `CA-CM-367` |
 
 !!! info "Qué va en este documento"
 
@@ -81,7 +82,8 @@ Que corregir a quién se atribuye una línea de venta **ya comisionada** no deje
 | `RN-CM-029` | Lo pagado no se toca; lo que aún no se pagó puede salir de su lote, y desde el 07-10-2026 sale borrándose |
 | `RN-CM-027` | Con la cadena vieja borrada, quien está en las dos cadenas cobra la nueva sin chocar con nada |
 | `RN-CM-040` | Un FTD contado no se libera |
-| `RN-CM-048` | Un lote que se queda sin comisiones no se cierra ni se paga |
+| `RN-CM-048` | ~~Un lote que se queda sin comisiones no se cierra ni se paga~~ Desde el 07-10-2026, `RN-CM-052` |
+| `RN-CM-052` | Un lote abierto o pendiente que se queda sin comisiones al borrar la cadena vieja se borra |
 | `RN-MV-053` | Quién pregunta, cuándo, y qué hace con la respuesta |
 
 ---
@@ -118,7 +120,7 @@ Que corregir a quién se atribuye una línea de venta **ya comisionada** no deje
 3. Si es un FTD ya contado, se niega.
 4. Se toman sus comisiones vivas y los lotes en que están.
 5. Si alguno está pagado, se niega.
-6. Se borra cada comisión y se rebaja el total de su lote. Lo que era cada una, quién corrigió y cuándo, lo guarda la auditoría del paso 8.
+6. Se borra cada comisión y se rebaja el total de su lote. Lo que era cada una, quién corrigió y cuándo, lo guarda la auditoría del paso 8. **Cada lote que se queda sin comisiones se borra**, y queda auditado (`RN-CM-052`, 07-10-2026).
 7. Se borra el desenlace de la línea.
 8. Se audita y se responde que la línea está liberada.
 
@@ -185,6 +187,7 @@ Por ejemplo, porque otra línea de la misma petición se negó. **La reversión 
 | `CA-CM-356` | Corregido el vendedor **después del cierre**, la comisión nueva de cada persona que tiene un lote **`PENDIENTE`** sin pagar en esa moneda —y ningún abierto— va **a ese pendiente**, que sube su total; **no se abre ningún lote** (07-10-2026). Enmienda `CA-CM-291` |
 | `CA-CM-357` | Si la persona tiene un **`ABIERTO`** en esa moneda, la comisión va al abierto, que es su lote sin pagar más reciente, aunque tenga también un pendiente |
 | `CA-CM-358` | Si la persona **no tiene ningún lote sin pagar** en esa moneda —ninguno, o solo pagados—, se abre un `ABIERTO` y la comisión va a él |
+| `CA-CM-367` | Si la cadena vieja era **lo único** de un lote abierto o pendiente, la corrección **borra ese lote**, auditado; si su persona está en la cadena nueva, su comisión va a su lote sin pagar más reciente **que quede**, o a un abierto nuevo (`RN-CM-051`). Un lote al que le quedan otras comisiones solo rebaja su total (07-10-2026) |
 | `CA-CM-360` | Una línea reatribuida que queda **`RECHAZADA`** conserva la marca: cuando su tasa se corrige, el reintento del cierre la lleva **al lote más reciente sin pagar**; una que queda `DEVENGADA` o `SIN_COMISION` la pierde |
 
 ---
@@ -195,7 +198,8 @@ Por ejemplo, porque otra línea de la misma petición se negó. **La reversión 
 |---|---|
 | La cadena vieja y la nueva son la misma persona salvo el nivel `0` | Sus superiores quedan con una sola comisión de la línea cada uno, la nueva, del mismo importe si su tasa no cambió |
 | El nuevo vendedor se elige y el pago de un lote de la cadena vieja llega un segundo después | El pago abona el total ya rebajado: la reversión se confirmó antes |
-| Un pendiente se queda sin comisiones por la reversión | Sigue pendiente, y no se paga (`RN-CM-048`) |
+| Un pendiente se queda sin comisiones por la reversión | ~~Sigue pendiente, y no se paga (`RN-CM-048`)~~ **Se borra** (`RN-CM-052`). Si su persona sigue en la cadena nueva, su comisión se paga en otro lote: el pendiente que se revisaba ya no existe |
+| Una comisión de la línea estaba retirada, y era lo único del abierto | El abierto se borra con ella |
 | El evento del devengo se pierde tras la corrección | La línea no tiene desenlace, y **el barrido del siguiente cierre la recoge** (`RN-CM-034`), con la marca: va al lote más reciente sin pagar **de ese momento** |
 | El pendiente de una persona se paga entre la corrección y el devengo | El devengo encuentra el lote pagado al bloquearlo y busca el siguiente sin pagar; si no hay, abre un abierto (`RN-CM-051`) |
 | Una línea FTD aún no contada se corrige | La marca se escribe y el devengo la borra al descartar la línea: una FTD no devenga por venta (`RN-CM-022`) |
@@ -214,4 +218,5 @@ Ninguna.
 |---|---|---|---|
 | 0.1.0 | 30-09-2026 | Primera versión ([`requirements/cm.md`](../../../requirements/cm.md) v0.26.0 §5.10, `RN-CM-047`; [`requirements/mv.md`](../../../requirements/mv.md) v0.58.0, `RN-MV-053`), por decisión del responsable del proyecto: el vendedor de una línea de una venta confirmada se corrige **mientras ninguna comisión de su cadena esté pagada**, y la cadena vieja se revierte sin borrarse. Criterios `CA-CM-290` a `CA-CM-299`. | Responsable del proyecto |
 | 0.2.0 | 07-10-2026 | **La cadena vieja se borra** ([`requirements/cm.md`](../../../requirements/cm.md) v0.34.0 §5.10, `RN-CM-047` enmendada), por decisión del responsable del proyecto: la comisión vieja se elimina y la nueva se crea, en vez de quedar marcada. **Cuándo se permite no cambia**: un lote `PENDIENTE` no lo impide, solo uno `PAGADO` —se le propuso exigir `ABIERTO` y lo descartó—. `CA-CM-340` a `CA-CM-343` enmiendan `CA-CM-290`, `CA-CM-292`, `CA-CM-296` y `CA-CM-299`; **`CA-CM-298` se lee** «el pago abona el total sin la comisión borrada». | Responsable del proyecto |
+| 0.4.0 | 07-10-2026 | **El lote que la cadena vieja deja vacío se borra** ([`requirements/cm.md`](../../../requirements/cm.md) v0.40.0, `RN-CM-052`), por decisión del responsable del proyecto: «si se cambia el vendedor se sigue el flujo normal, se eliminan y se vuelven a crear según el flujo». La cadena nueva sigue `RN-CM-051` sobre los lotes que quedan. Nace `CA-CM-367`. | Responsable del proyecto |
 | 0.3.0 | 07-10-2026 | **La cadena nueva va al lote más reciente sin pagar de cada persona** ([`requirements/cm.md`](../../../requirements/cm.md) v0.37.0 §5.10, «Segunda enmienda», `RN-CM-051`), por decisión del responsable del proyecto: una corrección tras el cierre ya no abre un lote nuevo si la persona tiene un pendiente sin pagar. `PAGADO` sigue bloqueando. `CA-CM-356` enmienda `CA-CM-291`; nacen `CA-CM-357`, `CA-CM-358` y `CA-CM-360` (`CA-CM-359` es de `RF-CM-013`). | Responsable del proyecto |

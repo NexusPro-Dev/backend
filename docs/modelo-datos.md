@@ -2,7 +2,7 @@
 
 | Campo | Valor |
 |---|---|
-| Versión | 0.104.0 |
+| Versión | 0.105.0 |
 | Estado | **Borrador** |
 | Responsable | Bonilla Diaz William Steven |
 | Fecha de creación | 21-08-2026 |
@@ -1178,3 +1178,4 @@ Los documentos que citan una migración vieja por su número —specs, controles
 | 0.102.0 | 07-10-2026 | **La cadena vieja de una línea reatribuida se borra** ([`requirements/cm.md`](requirements/cm.md) v0.34.0 §5.10, `RN-CM-047` enmendada): `V80` borra las comisiones ya revertidas —ningún total cambia—, retira `commissions.reverted_at` y `reverted_by` con su `CHECK` y la clave `commissions.reverted_by` → `users` (§5.3), y devuelve `uq_commissions_detail_user` a restricción completa. | Responsable técnico |
 | 0.103.0 | 07-10-2026 | **`commissions` gana `ix_commissions_user`** —`(user_id, accrued_at DESC, id DESC)`— ([`requirements/cm.md`](requirements/cm.md) v0.36.0 §7.6; `RF-CM-026`): todas las comisiones de una persona sin pasar por sus lotes. Lo escribe `V81`, con el permiso de la operación. Ninguna columna cambia. | Responsable técnico |
 | 0.104.0 | 07-10-2026 | **Nace `commission_reattributions`** ([`requirements/cm.md`](requirements/cm.md) v0.37.0 §7.13, `RN-CM-051`): la marca de una línea cuyo vendedor se corrigió y cuya cadena nueva aún no se devengó, para que vaya al lote más reciente sin pagar de cada persona. Clave primaria la línea, `ON DELETE CASCADE`. La escribe `V82`. | Responsable técnico |
+| 0.105.0 | 07-10-2026 | **Un lote sin pagar que se queda vacío se borra** ([`requirements/cm.md`](requirements/cm.md) v0.40.0, `RN-CM-052`): `fk_commissions_withdrawn_from` pasa a **`ON DELETE SET NULL`**, de modo que lo retirado de un pendiente borrado pierde su origen en el mismo `DELETE`. La reescribe `V84`. Ninguna columna cambia. | Responsable técnico |

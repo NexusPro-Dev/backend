@@ -5,12 +5,13 @@
 | Requerimiento | `RF-CM-022` |
 | Especificación | [`spec.md`](spec.md) v0.1.0 |
 | `spec.md` aprobada el | 30-09-2026 |
-| Versión | 0.2.0 |
+| Versión | 0.3.0 |
 | Estado | **Aprobado** |
 | Autor | Responsable técnico |
 | Aprobado por | Responsable del proyecto |
 | Fecha de aprobación | 30-09-2026 |
 | Enmendado el | 07-10-2026 — sin la comisión revertida (§12) |
+| Enmendado el | 07-10-2026 — el lote que se vacía se borra; `V84` (§13) |
 
 !!! info "Qué va en este documento"
 
@@ -145,3 +146,29 @@ Un `ChangeEvent` `UPDATE` sobre `commissions`, con `before` —`batch_id` y `wit
 ## 12. Sin la comisión revertida — enmienda del 07-10-2026
 
 `RN-CM-047` enmendada. Del esquema de §2, `V80` retira `reverted_at`, `reverted_by`, `ck_commissions_reverted` y `fk_commissions_reverted_by`, y devuelve `uq_commissions_detail_user` a restricción; `withdrawn_from_batch_id` se queda. Del flujo de §1 sale la comprobación `reverted_at no nulo → 409 (EX-005)`, y del contrato su motivo del `409`. Lo construye [`RF-CM-024`](../024-revertir-comisiones-de-linea/plan.md) §12 (`T-07`, `T-09`), y `WithdrawCommissionIT` pierde el caso de la revertida.
+
+## 13. El lote que se vacía se borra — enmienda del 07-10-2026
+
+`RN-CM-052` ([`requirements/cm.md`](../../../requirements/cm.md) v0.40.0 §5.10, «Tercera enmienda»). **El mecanismo es uno y lo usan tres operaciones** —retirar, devolver (`RF-CM-023` `plan.md` §13) y liberar una línea (`RF-CM-024` `plan.md` §14)—; nace aquí porque retirar es la primera que vacía un lote.
+
+**Esquema, `V84`**: `fk_commissions_withdrawn_from` se rehace con **`ON DELETE SET NULL`**. Así, al borrar un pendiente, lo retirado de él pierde su origen **en el mismo `DELETE`**, sin un `UPDATE` previo que alguien pueda olvidar. `fk_commissions_batch` ya era `ON DELETE CASCADE`, pero nunca borra nada: el lote solo se borra vacío.
+
+| Componente | Cambio |
+|---|---|
+| `CommissionBatchRepository` | Gana **`deleteIfEmpty(batchId)`**: `DELETE FROM commission_batches b WHERE id = :id AND status <> 'PAGADO' AND NOT EXISTS (SELECT 1 FROM commissions WHERE batch_id = b.id) RETURNING …`, que devuelve lo borrado —código, persona, moneda, estado, periodo— o vacío. **La condición va en la sentencia**, no en Java: quien llama ya tiene el lote bloqueado, y la sentencia es la que decide |
+| `EmptyBatchRemoval` (nuevo, `domain/service`) | `removeIfEmpty(lotes)`: por cada lote, `deleteIfEmpty`, y si borró, **`recordDeletion`** con `DeletionType.PHYSICAL`, el motivo `RN-CM-052` y lo que era el lote. Un componente y no un método repetido: las tres operaciones auditan igual |
+| `CommissionBatchRepository.lockLatestUnpaidBatch` | Si el candidato **desaparece** entre la búsqueda y el bloqueo —lo borró otra transacción—, vuelve a buscar en vez de leer una fila que no hay |
+| `WithdrawCommissionService` | Tras mover y ajustar los totales, `removeIfEmpty(pendiente)`; si lo borró, **responde el detalle del abierto** (`spec.md` §6.2) |
+| `CommissionBatchController` | La prosa de retirar: la respuesta puede ser el abierto, y el pendiente vacío se borra |
+
+**El orden de los bloqueos no cambia**: el pendiente ya está bloqueado cuando se borra. **El devengo y el cierre no se tocan**: un devengo que esperaba el bloqueo de un abierto que se borró no lo encuentra al despertar y abre otro (`lockOpenBatch` ya reintenta), y el cierre solo actúa sobre lotes que existen.
+
+| Alternativa | Por qué no |
+|---|---|
+| Un `UPDATE commissions SET withdrawn_from_batch_id = NULL` antes del `DELETE` | Hace lo mismo que la clave, en código que cada borrado tendría que recordar |
+| Un barrido periódico de lotes vacíos | El lote se vería vacío hasta que pasara; y borrar un abierto que un devengo tiene bloqueado obliga a pensar la carrera dos veces |
+| Auditar como `UPDATE` sobre el lote | Es una eliminación, y `audit_deletion_log` existe para eso; `PHYSICAL` dice que no queda fila |
+
+**Contrato**: la respuesta de retirar **puede ser otro lote**. Misma forma; el front lo nota por el identificador.
+
+**Pruebas**: `WithdrawCommissionIT` reescribe `CA-CM-279` como `CA-CM-363` y gana `CA-CM-364` y `CA-CM-365`. **`CA-CM-301`** (`RF-CM-011`: pagar un pendiente vacío responde `409`), que se probaba retirando todas, pasa a vaciar el pendiente **por SQL**: solo un vacío de antes del 07-10-2026 puede llegar al pago.

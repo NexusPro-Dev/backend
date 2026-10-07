@@ -4,12 +4,13 @@
 |---|---|
 | Requerimiento | `RF-CM-023` |
 | Módulo | `CM` — Comisiones |
-| Versión | 0.2.0 |
+| Versión | 0.3.0 |
 | Estado | **Aprobada** |
 | Autor | Responsable técnico |
 | Aprobada por | Responsable del proyecto |
 | Fecha de aprobación | 30-09-2026 |
 | Enmendada el | 07-10-2026 — **se retira `EX-005`**: ya no hay comisiones revertidas (`RN-CM-047`) |
+| Enmendada el | 07-10-2026 — **el abierto que se queda sin comisiones se borra** (`RN-CM-052`): `CA-CM-366`; se retira `CA-CM-284` |
 
 !!! info "Qué va en este documento"
 
@@ -73,7 +74,8 @@ Que Finanzas **deshaga un retiro hecho por error**, devolviendo la comisión al 
 |---|---|
 | `RN-CM-046` | A dónde se devuelve y mientras qué |
 | `RN-CM-029` | La comisión vuelve como salió: su importe no cambia |
-| `RN-CM-048` | Un pendiente que se había quedado sin comisiones vivas vuelve a poder pagarse |
+| `RN-CM-048` | ~~Un pendiente que se había quedado sin comisiones vivas vuelve a poder pagarse~~ Desde el 07-10-2026 un pendiente vaciado se borra, y no queda nada a lo que devolver |
+| `RN-CM-052` | El abierto que se queda sin comisiones al devolver se borra |
 
 ---
 
@@ -115,7 +117,9 @@ Que Finanzas **deshaga un retiro hecho por error**, devolviendo la comisión al 
 
 ### FA-001 — El abierto se queda sin comisiones vivas
 
-Sigue abierto, y el cierre **no lo cierra** mientras siga vacío (`RN-CM-048`): lo siguiente que devengue esa persona entra en él.
+~~Sigue abierto, y el cierre **no lo cierra** mientras siga vacío (`RN-CM-048`): lo siguiente que devengue esa persona entra en él.~~
+
+**Desde el 07-10-2026 se borra** (`RN-CM-052`), en el mismo acto, y queda auditado. Lo siguiente que devengue esa persona **abre otro**, como si no hubiera tenido ninguno.
 
 ### FA-002 — Devolver y cerrar a la vez
 
@@ -155,12 +159,13 @@ Si el pago llega antes, la devolución encuentra el origen pagado y responde con
 |---|---|
 | `CA-CM-282` | Devolver una comisión retirada la pone otra vez en su lote **pendiente** de origen, **sin** anotación de origen y con su importe intacto; el total del abierto **baja** y el del pendiente **sube** en su importe |
 | `CA-CM-283` | La respuesta es el pendiente como queda, con la comisión **entre las suyas** y fuera de las retiradas |
-| `CA-CM-284` | Un pendiente que se había quedado **sin comisiones vivas** vuelve a poder **pagarse** tras la devolución |
+| ~~`CA-CM-284`~~ | ~~Un pendiente que se había quedado **sin comisiones vivas** vuelve a poder **pagarse** tras la devolución~~ **Retirado el 07-10-2026**: un pendiente vaciado por retiros se borra, y lo retirado de él pierde su origen (`RN-CM-052`, `RF-CM-022` `CA-CM-364`) |
 | `CA-CM-285` | Devolver a un lote **del que no salió** —o una comisión **nacida en el abierto**— responde no encontrado, y nada se mueve |
 | `CA-CM-286` | Si el origen **está pagado**, responde conflicto y la comisión se queda en el abierto |
 | `CA-CM-287` | Si el abierto **se cerró** después del retiro, responde conflicto y la comisión se queda en su nuevo pendiente; una **revertida**, conflicto |
 | `CA-CM-288` | **Devolver y cerrar** a la vez: la comisión acaba en el pendiente de origen **o** en el lote que el cierre cerró, nunca en los dos ni en ninguno, y los totales cuadran con las comisiones vivas |
 | `CA-CM-289` | Sin `commission-batches:return-commission`, se rechaza —**también con `withdraw-commission`**—; queda **auditado**, con la comisión, los dos lotes y el importe |
+| `CA-CM-366` | Devolver la **única** comisión de un abierto **lo borra**, auditado como eliminación física; la respuesta es el pendiente, y lo siguiente que devenga esa persona **abre un abierto nuevo** (07-10-2026). Un abierto al que le queda alguna comisión no se borra |
 
 ---
 
@@ -168,7 +173,7 @@ Si el pago llega antes, la devolución encuentra el origen pagado y responde con
 
 | Caso | Comportamiento |
 |---|---|
-| El abierto al que fue la comisión se abrió **con** su retiro | Tras devolverla queda vacío y abierto (`FA-001`) |
+| El abierto al que fue la comisión se abrió **con** su retiro | Tras devolverla queda vacío y **se borra** (`FA-001`) |
 | Se retiró de un pendiente y otro pendiente de la misma persona se pagó entre medias | Da igual: solo cuenta el de origen |
 | La persona del lote está eliminada | Se devuelve igual |
 
@@ -185,4 +190,5 @@ Ninguna.
 | Versión | Fecha | Cambio | Autor |
 |---|---|---|---|
 | 0.1.0 | 30-09-2026 | Primera versión ([`requirements/cm.md`](../../../requirements/cm.md) v0.26.0 §5.10, `RN-CM-046`), por decisión del responsable del proyecto: lo retirado por error **vuelve a su pendiente de origen** mientras no se haya pagado y siga en el lote abierto. Criterios `CA-CM-282` a `CA-CM-289`. | Responsable del proyecto |
+| 0.3.0 | 07-10-2026 | **El abierto que se queda sin comisiones se borra** ([`requirements/cm.md`](../../../requirements/cm.md) v0.40.0, `RN-CM-052`), por decisión del responsable del proyecto. `FA-001` cambia; nace `CA-CM-366`, y **se retira `CA-CM-284`**: un pendiente vaciado por retiros ya no existe para devolverle nada. | Responsable del proyecto |
 | 0.2.0 | 07-10-2026 | **Se retira `EX-005`** ([`requirements/cm.md`](../../../requirements/cm.md) v0.34.0, `RN-CM-047` enmendada): una comisión retirada cuya línea cambia de vendedor se borra, de modo que ya no está entre las retiradas de su pendiente y responde no encontrado. **`CA-CM-287` se lee** sin su última mitad. | Responsable del proyecto |

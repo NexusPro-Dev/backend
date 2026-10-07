@@ -11759,7 +11759,7 @@
     },
     "/api/v1/commission-batches/{id}/commissions/{commissionId}/return" : {
       "post" : {
-        "description" : "**Permiso requerido:** `commission-batches:return-commission`. Sin él, `403` (`AUTH-002`).\n\nDeshace un retiro hecho por error (`RF-CM-023`, `RN-CM-046`, 30-09-2026): la comisión\nvuelve **al lote pendiente del que salió**, que es el `{id}` de la ruta —el que se está\nrevisando, y el que la lista en `withdrawn`—. Los dos totales se ajustan.\n\n**Solo mientras las dos mitades del retiro sigan como quedaron**: el lote de origen\n**`PENDIENTE`** y la comisión **en un lote `ABIERTO`**. Si el origen se pagó, o si el\nabierto ya se cerró, **`409`**: lo retirado se queda donde está. Una comisión que no se\nretiró de este lote —también la que nació en el abierto— responde **`404`**.\n\n**Sin cuerpo.** Responde el lote pendiente como queda.\n",
+        "description" : "**Permiso requerido:** `commission-batches:return-commission`. Sin él, `403` (`AUTH-002`).\n\nDeshace un retiro hecho por error (`RF-CM-023`, `RN-CM-046`, 30-09-2026): la comisión\nvuelve **al lote pendiente del que salió**, que es el `{id}` de la ruta —el que se está\nrevisando, y el que la lista en `withdrawn`—. Los dos totales se ajustan.\n\n**Solo mientras las dos mitades del retiro sigan como quedaron**: el lote de origen\n**`PENDIENTE`** y la comisión **en un lote `ABIERTO`**. Si el origen se pagó, o si el\nabierto ya se cerró, **`409`**: lo retirado se queda donde está. Una comisión que no se\nretiró de este lote —también la que nació en el abierto— responde **`404`**, igual que\nla que se retiró de un pendiente que después se borró por quedarse vacío.\n\n**Si era lo único del abierto, el abierto se borra** (`RN-CM-052`, 07-10-2026); lo\nsiguiente que devengue esa persona abre otro.\n\n**Sin cuerpo.** Responde el lote pendiente como queda.\n",
         "operationId" : "devolver",
         "parameters" : [ {
           "in" : "path",
@@ -11847,7 +11847,7 @@
     },
     "/api/v1/commission-batches/{id}/commissions/{commissionId}/withdrawal" : {
       "post" : {
-        "description" : "**Permiso requerido:** `commission-batches:withdraw-commission`. Sin él, `403` (`AUTH-002`).\n\nSaca una comisión de un lote **`PENDIENTE`** y la pasa al lote **`ABIERTO`** de la misma\npersona y moneda —que se abre si no lo hay—, para que se pague en el **cierre siguiente**\n(`RF-CM-022`, `RN-CM-046`, 30-09-2026). Es como se «confirma» un lote antes de pagarlo:\nlo que no se quiere pagar todavía se retira, y lo que queda es lo confirmado.\n\n**La comisión no cambia**: conserva su tasa, su importe y su instante de devengo, y\nrecuerda de qué lote salió (`withdrawnFrom`). Los dos totales se ajustan en el mismo acto.\nSirve para las dos clases, `POR_VENTA` y `POR_AFFTRACK`.\n\n**Sin cuerpo.** Responde **el lote pendiente como queda**, con la retirada entre sus\n`withdrawn`. **`409`** si el lote está abierto o pagado;\n**`404`** si la comisión no es de ese lote.\n",
+        "description" : "**Permiso requerido:** `commission-batches:withdraw-commission`. Sin él, `403` (`AUTH-002`).\n\nSaca una comisión de un lote **`PENDIENTE`** y la pasa al lote **`ABIERTO`** de la misma\npersona y moneda —que se abre si no lo hay—, para que se pague en el **cierre siguiente**\n(`RF-CM-022`, `RN-CM-046`, 30-09-2026). Es como se «confirma» un lote antes de pagarlo:\nlo que no se quiere pagar todavía se retira, y lo que queda es lo confirmado.\n\n**La comisión no cambia**: conserva su tasa, su importe y su instante de devengo, y\nrecuerda de qué lote salió (`withdrawnFrom`). Los dos totales se ajustan en el mismo acto.\nSirve para las dos clases, `POR_VENTA` y `POR_AFFTRACK`.\n\n**Sin cuerpo.** Responde **el lote pendiente como queda**, con la retirada entre sus\n`withdrawn`. **`409`** si el lote está abierto o pagado;\n**`404`** si la comisión no es de ese lote.\n\n**Si era la última, el pendiente se borra** (`RN-CM-052`, 07-10-2026): ya no existe, y\nla respuesta es **el lote abierto adonde fue**, en la misma forma —su `id` no es el de\nla ruta—. Todo lo que se había retirado de él **pierde su origen**: se queda en el\nabierto y ya no se puede devolver.\n",
         "operationId" : "retirar_9",
         "parameters" : [ {
           "in" : "path",
@@ -11875,7 +11875,7 @@
                 }
               }
             },
-            "description" : "Retirada, con el lote pendiente como queda"
+            "description" : "Retirada, con el lote pendiente como queda; o con el abierto, si el pendiente se quedó vacío y se borró"
           },
           "400" : {
             "content" : {
