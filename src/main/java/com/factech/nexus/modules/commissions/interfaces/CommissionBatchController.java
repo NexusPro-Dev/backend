@@ -82,8 +82,8 @@ public class CommissionBatchController {
           FTD activados de cada persona y de su red, paga el mayor escalón alcanzado en su lote
           abierto y guarda el remanente —se consulta en `GET /afftrack-settlements`—. Por último
           pasa **todos** los lotes abiertos a `PENDIENTE`, con el instante del cierre como fin de
-          periodo, **salvo el abierto que no tenga ninguna comisión viva** —se devolvieron o revirtieron
-          todas—, que sigue abierto (`RN-CM-048`, 30-09-2026). Lo que devengue un segundo después abre
+          periodo, **salvo el abierto que se haya quedado sin comisiones** —se devolvieron o se
+          borraron todas—, que sigue abierto (`RN-CM-048`, 30-09-2026). Lo que devengue un segundo después abre
           un lote nuevo. **Si la liquidación
           afftrack falla, no se cierra nada.**
 
@@ -158,12 +158,12 @@ public class CommissionBatchController {
           `unitPrice` —no sale de una línea—: `productId` es el producto FTD, `quantity` los FTD
           pagados, `fixedAmount` el valor por FTD y `afftrackSettlementId` la liquidación.
 
-          **Lo que salió del lote se ve** (30-09-2026, `RN-CM-046`, `RN-CM-047`). Una comisión con
-          `revertedAt` se **revirtió** al corregirse el vendedor de su línea: sigue aquí, **fuera del
-          total** y de `commissionsCount`. `withdrawnFrom` dice de qué lote pendiente se **retiró**
-          una comisión que está en este. Y `withdrawn` lista las **retiradas de este lote**, cada una
+          **Lo que se retiró se ve** (30-09-2026, `RN-CM-046`). `withdrawnFrom` dice de qué lote
+          pendiente se **retiró** una comisión que está en este. Y `withdrawn` lista las **retiradas de este lote**, cada una
           con el lote en que está (`currentBatch`, `currentStatus`) y `returnable`: si todavía se
           puede devolver con `POST /commission-batches/{id}/commissions/{commissionId}/return`.
+          **Las comisiones de una línea cuyo vendedor se corrigió no aparecen**: desde el 07-10-2026
+          se borran (`RN-CM-047`), y su total baja con ellas.
           """)
   @ApiResponses({
     @ApiResponse(responseCode = "200", description = "El lote con sus comisiones"),
@@ -189,8 +189,8 @@ public class CommissionBatchController {
 
           **Solo un lote `PENDIENTE`**: uno `ABIERTO` sigue creciendo y se paga después del
           cierre; uno `PAGADO` no se paga dos veces. Los dos responden **`409`** con el estado en
-          el mensaje. **Y uno sin comisiones vivas** —se retiraron o revirtieron todas— responde
-          `409` (`EX-005`, `RN-CM-048`, 30-09-2026); uno con una comisión viva de importe cero se
+          el mensaje. **Y uno sin comisiones** —se retiraron o se borraron todas— responde
+          `409` (`EX-005`, `RN-CM-048`, 30-09-2026); uno con una comisión de importe cero se
           paga. **Sin cuerpo**: se paga el total, entero.
           """)
   @ApiResponses({
@@ -256,7 +256,7 @@ public class CommissionBatchController {
           Sirve para las dos clases, `POR_VENTA` y `POR_AFFTRACK`.
 
           **Sin cuerpo.** Responde **el lote pendiente como queda**, con la retirada entre sus
-          `withdrawn`. **`409`** si el lote está abierto o pagado, o si la comisión está revertida;
+          `withdrawn`. **`409`** si el lote está abierto o pagado;
           **`404`** si la comisión no es de ese lote.
           """)
   @ApiResponses({
@@ -267,7 +267,7 @@ public class CommissionBatchController {
         responseCode = "403",
         description = "Sin `commission-batches:withdraw-commission`"),
     @ApiResponse(responseCode = "404", description = "El lote o la comisión no existen en él"),
-    @ApiResponse(responseCode = "409", description = "Lote abierto o pagado, o comisión revertida")
+    @ApiResponse(responseCode = "409", description = "Lote abierto o pagado")
   })
   @PostMapping("/{id}/commissions/{commissionId}/withdrawal")
   @PreAuthorize("hasAuthority('commission-batches:withdraw-commission')")
@@ -299,9 +299,7 @@ public class CommissionBatchController {
     @ApiResponse(
         responseCode = "404",
         description = "El lote no existe, o no se le retiró esa comisión"),
-    @ApiResponse(
-        responseCode = "409",
-        description = "Origen pagado, abierto ya cerrado o comisión revertida")
+    @ApiResponse(responseCode = "409", description = "Origen pagado o abierto ya cerrado")
   })
   @PostMapping("/{id}/commissions/{commissionId}/return")
   @PreAuthorize("hasAuthority('commission-batches:return-commission')")
@@ -340,7 +338,7 @@ public class CommissionBatchController {
           """
           Uno de **mis** lotes, con sus comisiones, en la forma del detalle de administración
           (`RF-CM-012`), **con la clase de cada comisión** —`POR_VENTA` o `POR_AFFTRACK`—, y
-          desde el 30-09-2026 **con lo revertido y lo retirado**, como el detalle de administración.
+          desde el 30-09-2026 **con lo retirado**, como el detalle de administración.
           **Un lote ajeno responde `404`**, igual que uno que no existe: no se confirma que
           exista.
           """)

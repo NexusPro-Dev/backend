@@ -72,8 +72,6 @@ public interface CommissionBatchQueryRepository {
       OffsetDateTime accruedAt,
       String commissionKind,
       UUID afftrackSettlementId,
-      OffsetDateTime revertedAt,
-      UUID revertedBy,
       UUID withdrawnFromId,
       String withdrawnFromCode) {}
 

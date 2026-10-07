@@ -86,25 +86,27 @@ class ReleaseCommissionedLineIT extends IntegrationTestBase {
 
   @Test
   @DisplayName(
-      "CA-CM-290, CA-MV-351 — corregir el vendedor revierte TODA la cadena vieja: cada comisión en"
-          + " su lote, marcada, fuera del total")
-  void revierteLaCadenaVieja() throws Exception {
+      "CA-CM-340, CA-MV-700 — corregir el vendedor BORRA toda la cadena vieja, en lotes pendientes,"
+          + " y cada lote rebaja su total")
+  void borraLaCadenaVieja() throws Exception {
     UUID venta = confirmada(viejo);
     UUID linea = lineaDe(venta);
     cierre.closeManually(admin);
+    List<UUID> viejas = comisionesDe(linea);
+    assertThat(viejas).hasSize(2);
 
     mvc.perform(corregir(venta, nuevo))
         .andExpect(status().isOk())
         .andExpect(jsonPath("$.lines[0].seller.id").value(nuevo.toString()));
 
-    List<UUID> revertidas =
-        jdbc.queryForList(
-            "SELECT user_id FROM commissions WHERE movement_detail_id = ? AND reverted_at IS NOT"
-                + " NULL AND reverted_by = ?",
-            UUID.class,
-            linea,
-            admin);
-    assertThat(revertidas).containsExactlyInAnyOrder(viejo, director);
+    assertThat(comisionesDe(linea)).hasSize(2).doesNotContainAnyElementsOf(viejas);
+    assertThat(
+            jdbc.queryForObject(
+                "SELECT count(*) FROM commissions WHERE id IN (?, ?)",
+                Integer.class,
+                viejas.get(0),
+                viejas.get(1)))
+        .isZero();
     assertThat(total(pendienteDe(viejo))).isEqualByComparingTo("0");
     assertThat(total(pendienteDe(director))).isEqualByComparingTo("0");
   }
@@ -124,7 +126,7 @@ class ReleaseCommissionedLineIT extends IntegrationTestBase {
         jdbc.queryForList(
             "SELECT k.user_id, k.commission_amount, k.resolved_on, b.status FROM commissions k"
                 + " JOIN commission_batches b ON b.id = k.batch_id"
-                + " WHERE k.movement_detail_id = ? AND k.reverted_at IS NULL",
+                + " WHERE k.movement_detail_id = ?",
             linea);
     assertThat(vivas).hasSize(2);
     assertThat(vivas).allSatisfy(f -> assertThat(f.get("status")).isEqualTo("ABIERTO"));
@@ -145,22 +147,21 @@ class ReleaseCommissionedLineIT extends IntegrationTestBase {
 
   @Test
   @DisplayName(
-      "CA-CM-292 — quien está en las DOS cadenas acaba con una comisión revertida y una viva de la"
-          + " misma línea")
+      "CA-CM-341 — quien está en las DOS cadenas acaba con UNA sola comisión de la línea: la nueva")
   void enLasDosCadenas() throws Exception {
     UUID venta = confirmada(viejo);
     UUID linea = lineaDe(venta);
+    UUID vieja = comisionDe(linea, director);
 
     mvc.perform(corregir(venta, nuevo)).andExpect(status().isOk());
 
     var delDirector =
         jdbc.queryForList(
-            "SELECT reverted_at IS NULL AS viva FROM commissions"
-                + " WHERE movement_detail_id = ? AND user_id = ?",
-            Boolean.class,
+            "SELECT id FROM commissions WHERE movement_detail_id = ? AND user_id = ?",
+            UUID.class,
             linea,
             director);
-    assertThat(delDirector).containsExactlyInAnyOrder(true, false);
+    assertThat(delDirector).hasSize(1).doesNotContain(vieja);
   }
 
   @Test
@@ -172,6 +173,7 @@ class ReleaseCommissionedLineIT extends IntegrationTestBase {
     UUID linea = lineaDe(venta);
     cierre.closeManually(admin);
     pago.pay(pendienteDe(director));
+    List<UUID> antes = comisionesDe(linea);
 
     mvc.perform(corregir(venta, nuevo))
         .andExpect(status().isConflict())
@@ -180,7 +182,7 @@ class ReleaseCommissionedLineIT extends IntegrationTestBase {
             jsonPath("$.errors[0].message").value(org.hamcrest.Matchers.containsString("pagó")));
 
     assertThat(vendedorDe(linea)).isEqualTo(viejo);
-    assertThat(revertidasDe(linea)).isZero();
+    assertThat(comisionesDe(linea)).isEqualTo(antes);
     assertThat(total(pendienteDe(viejo))).isEqualByComparingTo("10");
   }
 
@@ -251,18 +253,14 @@ class ReleaseCommissionedLineIT extends IntegrationTestBase {
 
   @Test
   @DisplayName(
-      "CA-CM-296 — una comisión RETIRADA al abierto se revierte allí, y ya no puede devolverse")
+      "CA-CM-342 — una comisión RETIRADA al abierto se borra allí, y su pendiente de origen deja de"
+          + " listarla")
   void retirada() throws Exception {
     UUID venta = confirmada(viejo);
     UUID linea = lineaDe(venta);
     cierre.closeManually(admin);
     UUID pendiente = pendienteDe(viejo);
-    UUID comision =
-        jdbc.queryForObject(
-            "SELECT id FROM commissions WHERE movement_detail_id = ? AND user_id = ?",
-            UUID.class,
-            linea,
-            viejo);
+    UUID comision = comisionDe(linea, viejo);
     mvc.perform(
             post(
                     "/api/v1/commission-batches/{id}/commissions/{commissionId}/withdrawal",
@@ -276,19 +274,23 @@ class ReleaseCommissionedLineIT extends IntegrationTestBase {
 
     assertThat(
             jdbc.queryForObject(
-                "SELECT batch_id FROM commissions WHERE id = ? AND reverted_at IS NOT NULL",
-                UUID.class,
-                comision))
-        .isEqualTo(abierto);
+                "SELECT count(*) FROM commissions WHERE id = ?", Integer.class, comision))
+        .isZero();
     assertThat(total(abierto)).isEqualByComparingTo("0");
+    mvc.perform(
+            org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get(
+                    "/api/v1/commission-batches/{id}", pendiente)
+                .with(como("commission-batches:read-detail")))
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$.withdrawn.length()").value(0));
     mvc.perform(
             post(
                     "/api/v1/commission-batches/{id}/commissions/{commissionId}/return",
                     pendiente,
                     comision)
                 .with(como("commission-batches:return-commission")))
-        .andExpect(status().isConflict())
-        .andExpect(jsonPath("$.errors[0].code").value("EX-005"));
+        .andExpect(status().isNotFound())
+        .andExpect(jsonPath("$.detail").value(org.hamcrest.Matchers.containsString("retiradas")));
   }
 
   @Test
@@ -314,6 +316,7 @@ class ReleaseCommissionedLineIT extends IntegrationTestBase {
     mvc.perform(asignar(venta, par(otro, viejo)).with(conPermiso())).andExpect(status().isOk());
     UUID lineaOtra = lineaDe(venta, otro);
     assertThat(desenlace(lineaOtra)).isEqualTo("DEVENGADA");
+    List<UUID> antes = comisionesDe(lineaOtra);
 
     // La liberable primero: si la reversión quedara escrita, se vería.
     mvc.perform(asignar(venta, par(otro, nuevo), par(producto, nuevo)).with(conPermiso()))
@@ -322,14 +325,14 @@ class ReleaseCommissionedLineIT extends IntegrationTestBase {
 
     assertThat(vendedorDe(lineaOtra)).isEqualTo(viejo);
     assertThat(vendedorDe(lineaDe(venta, producto))).isEqualTo(viejo);
-    assertThat(revertidasDe(lineaOtra)).isZero();
+    assertThat(comisionesDe(lineaOtra)).isEqualTo(antes);
     assertThat(desenlace(lineaOtra)).isEqualTo("DEVENGADA");
   }
 
   @Test
   @DisplayName(
       "CA-CM-298 — corregir y pagar a la vez: o se niega la corrección, o el pago abona el total"
-          + " SIN la comisión revertida")
+          + " SIN la comisión borrada")
   void corregirYPagarALaVez() throws Exception {
     UUID venta = confirmada(viejo);
     confirmada(viejo); // otra venta, para que el pendiente del director no se quede vacío
@@ -344,20 +347,17 @@ class ReleaseCommissionedLineIT extends IntegrationTestBase {
               return 200;
             }));
 
-    int revertidas =
+    int quedan =
         jdbc.queryForObject(
-            "SELECT count(*) FROM commissions WHERE batch_id = ? AND reverted_at IS NOT NULL",
-            Integer.class,
-            delDirector);
-    // 10 de dos ventas al 5 %, menos lo revertido antes de pagar.
-    assertThat(billeteraDe(director))
-        .isEqualByComparingTo(BigDecimal.TEN.subtract(BigDecimal.valueOf(5L * revertidas)));
+            "SELECT count(*) FROM commissions WHERE batch_id = ?", Integer.class, delDirector);
+    // 10 de dos ventas al 5 %, menos lo borrado antes de pagar.
+    assertThat(billeteraDe(director)).isEqualByComparingTo(BigDecimal.valueOf(5L * quedan));
   }
 
   @Test
   @DisplayName(
-      "CA-CM-299 — queda AUDITADO en CM: la línea, cada comisión revertida con su lote e importe,"
-          + " y quién corrigió")
+      "CA-CM-343 — queda AUDITADO en CM: la línea, cada comisión borrada con su lote e importe, y"
+          + " quién corrigió")
   void auditado() throws Exception {
     UUID venta = confirmada(viejo);
     UUID linea = lineaDe(venta);
@@ -367,7 +367,7 @@ class ReleaseCommissionedLineIT extends IntegrationTestBase {
     String cambios =
         jdbc.queryForObject(
             "SELECT changes::text FROM audit_change_log WHERE entity = 'commission_accruals'"
-                + " AND entity_id = ? AND module = 'CM' AND changes::text LIKE '%reverted_by%'"
+                + " AND entity_id = ? AND module = 'CM' AND changes::text LIKE '%deleted_by%'"
                 + " ORDER BY occurred_at DESC LIMIT 1",
             String.class, linea);
     assertThat(cambios)
@@ -380,23 +380,24 @@ class ReleaseCommissionedLineIT extends IntegrationTestBase {
   @Test
   @DisplayName(
       "CA-MV-355 — reescribir el MISMO vendedor en una línea confirmada y pagada se admite y no"
-          + " revierte nada")
+          + " borra nada")
   void mismoVendedor() throws Exception {
     UUID venta = confirmada(viejo);
     UUID linea = lineaDe(venta);
     cierre.closeManually(admin);
     pago.pay(pendienteDe(viejo));
+    List<UUID> antes = comisionesDe(linea);
 
     mvc.perform(corregir(venta, viejo)).andExpect(status().isOk());
 
-    assertThat(revertidasDe(linea)).isZero();
+    assertThat(comisionesDe(linea)).isEqualTo(antes);
   }
 
   @Test
   @DisplayName(
-      "CA-CM-302 — el detalle muestra la revertida con cuándo y quién, fuera del total y del"
-          + " número de comisiones; el listado cuenta solo las vivas")
-  void elDetalleMuestraLoRevertido() throws Exception {
+      "CA-CM-344 — el detalle ya NO muestra la comisión borrada ni lleva revertedAt; total y número"
+          + " de comisiones son los de las que quedan")
+  void elDetalleYaNoMuestraLoBorrado() throws Exception {
     UUID venta = confirmada(viejo);
     confirmada(viejo);
     cierre.closeManually(admin);
@@ -411,9 +412,9 @@ class ReleaseCommissionedLineIT extends IntegrationTestBase {
         .andExpect(status().isOk())
         .andExpect(jsonPath("$.totalAmount").value(10.0))
         .andExpect(jsonPath("$.commissionsCount").value(1))
-        .andExpect(jsonPath("$.commissions.length()").value(2))
-        .andExpect(
-            jsonPath("$.commissions[?(@.revertedAt != null)].revertedBy").value(admin.toString()));
+        .andExpect(jsonPath("$.commissions.length()").value(1))
+        .andExpect(jsonPath("$.commissions[0].revertedAt").doesNotExist())
+        .andExpect(jsonPath("$.commissions[0].revertedBy").doesNotExist());
     mvc.perform(
             org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get(
                     "/api/v1/commission-batches")
@@ -426,8 +427,9 @@ class ReleaseCommissionedLineIT extends IntegrationTestBase {
 
   @Test
   @DisplayName(
-      "CA-CM-303 — en sus propios lotes, el vendedor ve su comisión revertida, fuera del total")
-  void misLotesMuestranLoRevertido() throws Exception {
+      "CA-CM-345 — en sus propios lotes, el vendedor ya NO ve la comisión borrada, y su total es el"
+          + " de las que quedan")
+  void misLotesYaNoMuestranLoBorrado() throws Exception {
     UUID venta = confirmada(viejo);
     confirmada(viejo);
     cierre.closeManually(admin);
@@ -441,14 +443,13 @@ class ReleaseCommissionedLineIT extends IntegrationTestBase {
                 .with(user(viejo.toString()).authorities(() -> "commission-batches:read-own")))
         .andExpect(status().isOk())
         .andExpect(jsonPath("$.totalAmount").value(10.0))
-        .andExpect(jsonPath("$.commissions[?(@.revertedAt != null)]").isNotEmpty())
-        .andExpect(jsonPath("$.commissions.length()").value(2));
+        .andExpect(jsonPath("$.commissions.length()").value(1));
   }
 
   @Test
   @DisplayName(
-      "CA-CM-304 — la línea revertida se devenga OTRA VEZ en el abierto de cada uno, aunque el"
-          + " superior ya tuviera una revertida de ella")
+      "CA-CM-346 — la línea corregida se devenga OTRA VEZ en el abierto de cada uno, y el superior"
+          + " de las dos cadenas queda con una sola comisión de ella")
   void seDevengaOtraVez() throws Exception {
     UUID venta = confirmada(viejo);
     UUID linea = lineaDe(venta);
@@ -460,7 +461,7 @@ class ReleaseCommissionedLineIT extends IntegrationTestBase {
     assertThat(
             jdbc.queryForObject(
                 "SELECT b.id FROM commissions k JOIN commission_batches b ON b.id = k.batch_id"
-                    + " WHERE k.movement_detail_id = ? AND k.user_id = ? AND k.reverted_at IS NULL",
+                    + " WHERE k.movement_detail_id = ? AND k.user_id = ?",
                 UUID.class,
                 linea,
                 director))
@@ -475,12 +476,9 @@ class ReleaseCommissionedLineIT extends IntegrationTestBase {
     UUID venta = confirmada(viejo);
     UUID linea = lineaDe(venta);
     // Lo que deja una corrección cuyo aviso se perdió: el vendedor nuevo, la
-    // cadena vieja revertida y la línea sin desenlace.
+    // cadena vieja borrada y la línea sin desenlace.
     jdbc.update("UPDATE movement_details SET seller_id = ? WHERE id = ?", nuevo, linea);
-    jdbc.update(
-        "UPDATE commissions SET reverted_at = now(), reverted_by = ? WHERE movement_detail_id = ?",
-        admin,
-        linea);
+    jdbc.update("DELETE FROM commissions WHERE movement_detail_id = ?", linea);
     jdbc.update(
         "UPDATE commission_batches SET total_amount = 0 WHERE user_id IN (?, ?)", viejo, director);
     jdbc.update("DELETE FROM commission_accruals WHERE movement_detail_id = ?", linea);
@@ -490,10 +488,7 @@ class ReleaseCommissionedLineIT extends IntegrationTestBase {
     assertThat(desenlace(linea)).isEqualTo("DEVENGADA");
     assertThat(
             jdbc.queryForList(
-                "SELECT user_id FROM commissions WHERE movement_detail_id = ? AND reverted_at IS"
-                    + " NULL",
-                UUID.class,
-                linea))
+                "SELECT user_id FROM commissions WHERE movement_detail_id = ?", UUID.class, linea))
         .containsExactlyInAnyOrder(nuevo, director);
   }
 
@@ -562,11 +557,18 @@ class ReleaseCommissionedLineIT extends IntegrationTestBase {
         "SELECT seller_id FROM movement_details WHERE id = ?", UUID.class, linea);
   }
 
-  private int revertidasDe(UUID linea) {
+  /** Las comisiones de la línea, por identificador: lo que una corrección negada no toca. */
+  private List<UUID> comisionesDe(UUID linea) {
+    return jdbc.queryForList(
+        "SELECT id FROM commissions WHERE movement_detail_id = ? ORDER BY id", UUID.class, linea);
+  }
+
+  private UUID comisionDe(UUID linea, UUID persona) {
     return jdbc.queryForObject(
-        "SELECT count(*) FROM commissions WHERE movement_detail_id = ? AND reverted_at IS NOT NULL",
-        Integer.class,
-        linea);
+        "SELECT id FROM commissions WHERE movement_detail_id = ? AND user_id = ?",
+        UUID.class,
+        linea,
+        persona);
   }
 
   private String desenlace(UUID linea) {

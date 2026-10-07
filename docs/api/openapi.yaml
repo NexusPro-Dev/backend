@@ -3695,8 +3695,8 @@ paths:
         también después de confirmar el pago; **corregir** una que ya lo tiene se admite
         mientras la venta no esté `CONFIRMADA` y, **desde el 30-09-2026, también confirmada
         mientras su comisión no se haya pagado** (`RN-MV-053`): se le pregunta a `CM`, que
-        revierte la comisión de la cadena vieja, y la de la nueva se devenga como si la línea
-        se acabara de atribuir. Si algún nivel de la cadena está pagado, o la línea es un FTD
+        borra la comisión de la cadena vieja —desde el 07-10-2026; antes la marcaba—, y la de
+        la nueva se devenga como si la línea se acabara de atribuir. Si algún nivel de la cadena está pagado, o la línea es un FTD
         ya contado, `409`. En una venta `RECHAZADA` o
         `ANULADA` no se asigna nada. El vendedor tiene que ser **uno de los del cliente**
         —de registro o de hotlink—: elegir a cualquiera sería atribuir la venta a quien se
@@ -6229,8 +6229,8 @@ paths:
 
         **Solo un lote `PENDIENTE`**: uno `ABIERTO` sigue creciendo y se paga después del
         cierre; uno `PAGADO` no se paga dos veces. Los dos responden **`409`** con el estado en
-        el mensaje. **Y uno sin comisiones vivas** —se retiraron o revirtieron todas— responde
-        `409` (`EX-005`, `RN-CM-048`, 30-09-2026); uno con una comisión viva de importe cero se
+        el mensaje. **Y uno sin comisiones** —se retiraron o se borraron todas— responde
+        `409` (`EX-005`, `RN-CM-048`, 30-09-2026); uno con una comisión de importe cero se
         paga. **Sin cuerpo**: se paga el total, entero.
       operationId: pagar
       parameters:
@@ -6297,7 +6297,7 @@ paths:
         Sirve para las dos clases, `POR_VENTA` y `POR_AFFTRACK`.
 
         **Sin cuerpo.** Responde **el lote pendiente como queda**, con la retirada entre sus
-        `withdrawn`. **`409`** si el lote está abierto o pagado, o si la comisión está revertida;
+        `withdrawn`. **`409`** si el lote está abierto o pagado;
         **`404`** si la comisión no es de ese lote.
       operationId: retirar_9
       parameters:
@@ -6345,7 +6345,7 @@ paths:
               schema:
                 $ref: "#/components/schemas/CommissionBatchDetailResponse"
         "409":
-          description: "Lote abierto o pagado, o comisión revertida"
+          description: Lote abierto o pagado
           content:
             '*/*':
               schema:
@@ -6415,7 +6415,7 @@ paths:
               schema:
                 $ref: "#/components/schemas/CommissionBatchDetailResponse"
         "409":
-          description: "Origen pagado, abierto ya cerrado o comisión revertida"
+          description: Origen pagado o abierto ya cerrado
           content:
             '*/*':
               schema:
@@ -6493,8 +6493,8 @@ paths:
         FTD activados de cada persona y de su red, paga el mayor escalón alcanzado en su lote
         abierto y guarda el remanente —se consulta en `GET /afftrack-settlements`—. Por último
         pasa **todos** los lotes abiertos a `PENDIENTE`, con el instante del cierre como fin de
-        periodo, **salvo el abierto que no tenga ninguna comisión viva** —se devolvieron o revirtieron
-        todas—, que sigue abierto (`RN-CM-048`, 30-09-2026). Lo que devengue un segundo después abre
+        periodo, **salvo el abierto que se haya quedado sin comisiones** —se devolvieron o se
+        borraron todas—, que sigue abierto (`RN-CM-048`, 30-09-2026). Lo que devengue un segundo después abre
         un lote nuevo. **Si la liquidación
         afftrack falla, no se cierra nada.**
 
@@ -11528,7 +11528,9 @@ paths:
         **`userId` es una persona de mi red como vendedora** —«las ventas de mi agente tal»—
         y acota **dentro** del alcance: una persona fuera de mi red, o inexistente, da una
         **página vacía** y no un error, para que el filtro no sirva para descubrir quién
-        cuelga de quién. `code` acepta **una PARTE del comprobante**, sin distinguir
+        cuelga de quién. **`clientId` es el cliente** (07-10-2026): solo las ventas **a
+        nombre de esa persona**, de las que ya están en mi alcance; uno sin ventas en él, o
+        inexistente, da una página vacía. Se combina con `userId`. `code` acepta **una PARTE del comprobante**, sin distinguir
         mayúsculas (`RN-MV-037`). `status`, `paymentMethodId`, `code` y `from`/`to` son los de
         `GET /movements` y se combinan, y también `typeStatus` (`VALIDAR_COMISIONES` o
         `VALIDADO`, desde el 23-09-2026); **el comprobante de una venta que no es de mi
@@ -11555,6 +11557,12 @@ paths:
           type: integer
           format: int32
       - name: userId
+        in: query
+        required: false
+        schema:
+          type: string
+          format: uuid
+      - name: clientId
         in: query
         required: false
         schema:
@@ -13590,12 +13598,12 @@ paths:
         `unitPrice` —no sale de una línea—: `productId` es el producto FTD, `quantity` los FTD
         pagados, `fixedAmount` el valor por FTD y `afftrackSettlementId` la liquidación.
 
-        **Lo que salió del lote se ve** (30-09-2026, `RN-CM-046`, `RN-CM-047`). Una comisión con
-        `revertedAt` se **revirtió** al corregirse el vendedor de su línea: sigue aquí, **fuera del
-        total** y de `commissionsCount`. `withdrawnFrom` dice de qué lote pendiente se **retiró**
-        una comisión que está en este. Y `withdrawn` lista las **retiradas de este lote**, cada una
+        **Lo que se retiró se ve** (30-09-2026, `RN-CM-046`). `withdrawnFrom` dice de qué lote
+        pendiente se **retiró** una comisión que está en este. Y `withdrawn` lista las **retiradas de este lote**, cada una
         con el lote en que está (`currentBatch`, `currentStatus`) y `returnable`: si todavía se
         puede devolver con `POST /commission-batches/{id}/commissions/{commissionId}/return`.
+        **Las comisiones de una línea cuyo vendedor se corrigió no aparecen**: desde el 07-10-2026
+        se borran (`RN-CM-047`), y su total baja con ellas.
       operationId: detalle_8
       parameters:
       - name: id
@@ -13694,7 +13702,7 @@ paths:
 
         Uno de **mis** lotes, con sus comisiones, en la forma del detalle de administración
         (`RF-CM-012`), **con la clase de cada comisión** —`POR_VENTA` o `POR_AFFTRACK`—, y
-        desde el 30-09-2026 **con lo revertido y lo retirado**, como el detalle de administración.
+        desde el 30-09-2026 **con lo retirado**, como el detalle de administración.
         **Un lote ajeno responde `404`**, igual que uno que no existe: no se confirma que
         exista.
       operationId: miLote
@@ -18109,12 +18117,6 @@ components:
         commissionKind:
           type: string
         afftrackSettlementId:
-          type: string
-          format: uuid
-        revertedAt:
-          type: string
-          format: date-time
-        revertedBy:
           type: string
           format: uuid
         withdrawnFrom:

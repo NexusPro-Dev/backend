@@ -197,8 +197,8 @@ public class MovementController {
           también después de confirmar el pago; **corregir** una que ya lo tiene se admite
           mientras la venta no esté `CONFIRMADA` y, **desde el 30-09-2026, también confirmada
           mientras su comisión no se haya pagado** (`RN-MV-053`): se le pregunta a `CM`, que
-          revierte la comisión de la cadena vieja, y la de la nueva se devenga como si la línea
-          se acabara de atribuir. Si algún nivel de la cadena está pagado, o la línea es un FTD
+          borra la comisión de la cadena vieja —desde el 07-10-2026; antes la marcaba—, y la de
+          la nueva se devenga como si la línea se acabara de atribuir. Si algún nivel de la cadena está pagado, o la línea es un FTD
           ya contado, `409`. En una venta `RECHAZADA` o
           `ANULADA` no se asigna nada. El vendedor tiene que ser **uno de los del cliente**
           —de registro o de hotlink—: elegir a cualquiera sería atribuir la venta a quien se

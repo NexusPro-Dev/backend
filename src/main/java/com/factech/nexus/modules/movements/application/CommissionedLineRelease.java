@@ -11,9 +11,9 @@ import java.util.UUID;
  * importara una interfaz de `CM` cerraría el ciclo. Con el puerto aquí, la dependencia de
  * compilación sigue siendo `CM` → `MV`, y <b>`MV` no sabe qué es una comisión</b>.
  *
- * <p><b>No es una lectura</b>: si la línea puede cambiar de dueño, quien la implementa <b>revierte
- * su cadena de comisiones</b> antes de responder. Por eso <b>corre dentro de la transacción de
- * quien llama y exige que haya una</b>: si la corrección se rechaza después —otra línea de la misma
+ * <p><b>No es una lectura</b>: si la línea puede cambiar de dueño, quien la implementa <b>borra su
+ * cadena de comisiones</b> antes de responder. Por eso <b>corre dentro de la transacción de quien
+ * llama y exige que haya una</b>: si la corrección se rechaza después —otra línea de la misma
  * petición se negó—, la reversión se deshace con ella.
  *
  * <p><b>Responde, no lanza</b>: una negativa es una respuesta legítima, y qué {@code 4xx} produce
@@ -29,7 +29,7 @@ public interface CommissionedLineRelease {
 
   /** Lo que responde {@link #release}. */
   enum ReleaseOutcome {
-    /** Puede cambiar de vendedor, y su cadena vieja ya está revertida. */
+    /** Puede cambiar de vendedor, y su cadena vieja ya está borrada. */
     LIBERADA,
     /** Alguna comisión de su cadena está en un lote pagado. */
     COMISION_PAGADA,

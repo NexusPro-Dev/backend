@@ -168,7 +168,7 @@ public class JpaCommissionAccrualRepository implements CommissionAccrualReposito
                 """
                 SELECT id, batch_id, user_id, commission_amount
                   FROM commissions
-                 WHERE movement_detail_id = :linea AND reverted_at IS NULL
+                 WHERE movement_detail_id = :linea
                  ORDER BY id
                    FOR UPDATE
                 """)
@@ -183,18 +183,12 @@ public class JpaCommissionAccrualRepository implements CommissionAccrualReposito
   }
 
   @Override
-  public void revert(Collection<UUID> commissionIds, UUID actorId, OffsetDateTime at) {
+  public void delete(Collection<UUID> commissionIds) {
     if (commissionIds.isEmpty()) {
       return;
     }
-    em.createNativeQuery(
-            """
-            UPDATE commissions SET reverted_at = :at, reverted_by = :quien
-             WHERE id IN (:ids) AND reverted_at IS NULL
-            """)
+    em.createNativeQuery("DELETE FROM commissions WHERE id IN (:ids)")
         .setParameter("ids", new java.util.HashSet<>(commissionIds))
-        .setParameter("quien", actorId)
-        .setParameter("at", at)
         .executeUpdate();
   }
 

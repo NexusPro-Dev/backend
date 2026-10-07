@@ -15,10 +15,10 @@ import java.util.UUID;
 /**
  * Un lote con cada comisión, línea a línea y nivel a nivel (`RF-CM-010`, `RF-CM-012`, `RF-CM-011`).
  *
- * <p><b>Desde el 30-09-2026 muestra también lo que salió</b> (`RN-CM-046`, `RN-CM-047`): las
- * comisiones <b>revertidas</b> siguen entre las del lote, con {@code revertedAt}, y fuera del
- * total; y {@code withdrawn} lista las <b>retiradas de este lote</b>, cada una con el lote en que
- * está y si aún se puede devolver (`RF-CM-023`).
+ * <p><b>Desde el 30-09-2026 muestra también lo que salió</b> (`RN-CM-046`): {@code withdrawn} lista
+ * las <b>retiradas de este lote</b>, cada una con el lote en que está y si aún se puede devolver
+ * (`RF-CM-023`). Las de una línea cuyo vendedor se corrigió <b>ya no están</b>: desde el 07-10-2026
+ * se borran (`RN-CM-047`), y lo que fueron lo guarda la auditoría.
  *
  * <p><b>Cada comisión muestra lo copiado</b> —la forma, el valor, la base y la tasa exacta—, no lo
  * que dice hoy la tasa (`RN-CM-008`): corregirla después no cambia lo que aquí se lee.
@@ -66,8 +66,8 @@ public record CommissionBatchDetailResponse(
 
   /**
    * Una comisión <b>retirada de este lote</b> (`RN-CM-046`), con el lote en que está. <b>{@code
-   * returnable}</b>: este lote sigue {@code PENDIENTE}, el suyo {@code ABIERTO} y ella viva — lo
-   * que `RF-CM-023` exige para devolverla.
+   * returnable}</b>: este lote sigue {@code PENDIENTE} y el suyo {@code ABIERTO} — lo que
+   * `RF-CM-023` exige para devolverla.
    */
   @Schema(name = "WithdrawnCommission")
   public record WithdrawnCommission(
@@ -79,9 +79,7 @@ public record CommissionBatchDetailResponse(
           linea,
           new BatchRef(r.currentId(), r.currentCode()),
           r.currentStatus().name(),
-          origenPendiente
-              && r.currentStatus() == BatchStatus.ABIERTO
-              && linea.revertedAt() == null);
+          origenPendiente && r.currentStatus() == BatchStatus.ABIERTO);
     }
   }
 
@@ -94,9 +92,7 @@ public record CommissionBatchDetailResponse(
    * pagados, {@code fixedAmount} el valor por FTD y {@code afftrackSettlementId} la liquidación de
    * la que sale (`RF-CM-021`).
    *
-   * <p><b>{@code revertedAt}</b> presente: se revirtió al corregirse el vendedor de su línea
-   * (`RN-CM-047`) y no cuenta en el total. <b>{@code withdrawnFrom}</b>: el lote pendiente del que
-   * se retiró (`RN-CM-046`), o nulo.
+   * <p><b>{@code withdrawnFrom}</b>: el lote pendiente del que se retiró (`RN-CM-046`), o nulo.
    */
   @Schema(name = "CommissionLine")
   public record CommissionLine(
@@ -119,8 +115,6 @@ public record CommissionBatchDetailResponse(
       OffsetDateTime accruedAt,
       String commissionKind,
       UUID afftrackSettlementId,
-      OffsetDateTime revertedAt,
-      UUID revertedBy,
       BatchRef withdrawnFrom) {
 
     static CommissionLine from(CommissionRow f) {
@@ -144,8 +138,6 @@ public record CommissionBatchDetailResponse(
           f.accruedAt(),
           f.commissionKind(),
           f.afftrackSettlementId(),
-          f.revertedAt(),
-          f.revertedBy(),
           f.withdrawnFromId() == null
               ? null
               : new BatchRef(f.withdrawnFromId(), f.withdrawnFromCode()));

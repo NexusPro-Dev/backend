@@ -158,21 +158,13 @@ class ReturnCommissionIT extends IntegrationTestBase {
 
   @Test
   @DisplayName(
-      "CA-CM-287 — si el abierto se CERRÓ después del retiro, 409 y se queda en su nuevo pendiente;"
-          + " una revertida, 409")
-  void abiertoCerradoORevertida() throws Exception {
+      "CA-CM-287 — si el abierto se CERRÓ después del retiro, 409 y se queda en su nuevo pendiente")
+  void abiertoCerrado() throws Exception {
     UUID pendiente = pendienteConDos();
     List<UUID> comisiones = comisionesDe(pendiente);
     retirar(pendiente, comisiones.get(0));
     retirar(pendiente, comisiones.get(1));
     UUID abierto = abiertoDe(agente);
-    jdbc.update(
-        "UPDATE commissions SET reverted_at = now(), reverted_by = ? WHERE id = ?",
-        agente,
-        comisiones.get(1));
-    mvc.perform(devolver(pendiente, comisiones.get(1)).with(como(DEVOLVER)))
-        .andExpect(status().isConflict())
-        .andExpect(jsonPath("$.errors[0].code").value("EX-005"));
 
     cierre.closeManually(agente);
 
@@ -186,7 +178,7 @@ class ReturnCommissionIT extends IntegrationTestBase {
   @Test
   @DisplayName(
       "CA-CM-288 — devolver y cerrar a la vez: la comisión acaba en un solo lote, y los totales"
-          + " cuadran con las comisiones vivas")
+          + " cuadran con las comisiones")
   void devolverYCerrarALaVez() throws Exception {
     UUID pendiente = pendienteConDos();
     UUID comision = unaComisionDe(pendiente);
@@ -204,7 +196,7 @@ class ReturnCommissionIT extends IntegrationTestBase {
              WHERE b.user_id = ?
                AND b.total_amount <> (SELECT COALESCE(sum(k.commission_amount), 0)
                                         FROM commissions k
-                                       WHERE k.batch_id = b.id AND k.reverted_at IS NULL)
+                                       WHERE k.batch_id = b.id)
             """,
             Integer.class,
             agente);

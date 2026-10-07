@@ -24,8 +24,11 @@ import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
 
 /**
- * <b>Revertir las comisiones de una línea cuyo vendedor se corrige</b> (`RF-CM-024`, `RN-CM-047`):
- * la implementación del puerto que `MV` declara ({@link CommissionedLineRelease}).
+ * <b>Borrar las comisiones de una línea cuyo vendedor se corrige</b> (`RF-CM-024`, `RN-CM-047`): la
+ * implementación del puerto que `MV` declara ({@link CommissionedLineRelease}).
+ *
+ * <p><b>Desde el 07-10-2026 se borran</b>, no se marcan: ningún lote las paga ya, cada uno rebaja
+ * su total, y lo que fueron —persona, lote e importe de cada una— lo guarda la auditoría.
  *
  * <p><b>Una línea tiene una comisión por nivel de la cadena</b>, cada una en el lote de otra
  * persona, y «no se ha pagado» tiene que ser verdad para todas. <b>Tampoco se libera un FTD ya
@@ -86,7 +89,7 @@ public class ReleaseCommissionedLineService implements CommissionedLineRelease {
 
     Optional<AccrualRow> desenlace = desenlaces.find(movementDetailId);
     OffsetDateTime ahora = calendario.ahora();
-    desenlaces.revert(vivas.stream().map(LiveCommission::id).toList(), actorId, ahora);
+    desenlaces.delete(vivas.stream().map(LiveCommission::id).toList());
     porLote.forEach((lote, suma) -> lotes.addToTotal(lote, suma.negate(), ahora));
     desenlaces.deleteOutcome(movementDetailId);
 
@@ -113,8 +116,8 @@ public class ReleaseCommissionedLineService implements CommissionedLineRelease {
     antes.put("commissions", comisiones);
     Map<String, Object> despues = new LinkedHashMap<>();
     despues.put("outcome", null);
-    despues.put("reverted_commissions", comisiones.stream().map(m -> m.get("id")).toList());
-    despues.put("reverted_by", actorId.toString());
+    despues.put("deleted_commissions", comisiones.stream().map(m -> m.get("id")).toList());
+    despues.put("deleted_by", actorId.toString());
     Map<String, Object> cambios = new LinkedHashMap<>();
     cambios.put("before", antes);
     cambios.put("after", despues);

@@ -188,9 +188,8 @@ class WithdrawCommissionIT extends IntegrationTestBase {
   }
 
   @Test
-  @DisplayName(
-      "CA-CM-278 — una comisión de otro lote o inexistente responde 404; una revertida, 409")
-  void ajenaInexistenteORevertida() throws Exception {
+  @DisplayName("CA-CM-278 — una comisión de otro lote o inexistente responde 404")
+  void ajenaOInexistente() throws Exception {
     UUID pendiente = pendienteConDos();
     confirmar(venta(1));
     UUID deOtro = unaComisionDe(abiertoDe(agente));
@@ -203,15 +202,6 @@ class WithdrawCommissionIT extends IntegrationTestBase {
     mvc.perform(retirar(UUID.randomUUID(), deOtro).with(como(RETIRAR)))
         .andExpect(status().isNotFound())
         .andExpect(jsonPath("$.detail").value(org.hamcrest.Matchers.containsString("lote")));
-
-    UUID revertida = unaComisionDe(pendiente);
-    jdbc.update(
-        "UPDATE commissions SET reverted_at = now(), reverted_by = ? WHERE id = ?",
-        agente,
-        revertida);
-    mvc.perform(retirar(pendiente, revertida).with(como(RETIRAR)))
-        .andExpect(status().isConflict())
-        .andExpect(jsonPath("$.errors[0].code").value("EX-005"));
   }
 
   @Test

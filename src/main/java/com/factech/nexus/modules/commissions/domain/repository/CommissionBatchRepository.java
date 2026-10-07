@@ -45,12 +45,11 @@ public interface CommissionBatchRepository {
   /** La comisión pasa a otro lote, con el lote de origen anotado o vaciado (`RN-CM-046`). */
   void moveCommission(UUID commissionId, UUID toBatchId, UUID withdrawnFromBatchId);
 
-  /** Si el lote tiene al menos una comisión viva (`RN-CM-048`). */
+  /** Si el lote tiene al menos una comisión (`RN-CM-048`). */
   boolean hasLiveCommissions(UUID batchId);
 
   /** Una comisión, con lo que hace falta para moverla. */
-  record LockedCommission(
-      UUID id, UUID batchId, BigDecimal amount, boolean reverted, UUID withdrawnFromBatchId) {}
+  record LockedCommission(UUID id, UUID batchId, BigDecimal amount, UUID withdrawnFromBatchId) {}
 
   /** Un lote bloqueado. */
   record LockedBatch(UUID id, String code, UUID userId, UUID currencyId, String status) {}

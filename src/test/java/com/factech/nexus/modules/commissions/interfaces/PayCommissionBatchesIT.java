@@ -107,10 +107,7 @@ class PayCommissionBatchesIT extends IntegrationTestBase {
     UUID yaPagado = pendientes.get(0);
     pago.pay(yaPagado);
     UUID vacio = pendientes.get(1);
-    jdbc.update(
-        "UPDATE commissions SET reverted_at = now(), reverted_by = ? WHERE batch_id = ?",
-        agentes.get(1),
-        vacio);
+    jdbc.update("DELETE FROM commissions WHERE batch_id = ?", vacio);
     confirmar(venta(agentes.get(0)));
     UUID abierto = abiertoDe(agentes.get(0));
     UUID inexistente = UUID.randomUUID();

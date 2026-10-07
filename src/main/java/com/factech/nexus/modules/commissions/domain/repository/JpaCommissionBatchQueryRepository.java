@@ -33,7 +33,7 @@ public class JpaCommissionBatchQueryRepository implements CommissionBatchQueryRe
              b.currency_id, c.code AS currency_code, b.period_start, b.period_end, b.status,
              b.total_amount,
              (SELECT count(*) FROM commissions k
-               WHERE k.batch_id = b.id AND k.reverted_at IS NULL) AS comisiones,
+               WHERE k.batch_id = b.id) AS comisiones,
              b.paid_at, b.movement_id, pm.total_amount AS abonado
         FROM commission_batches b
         JOIN users u ON u.id = b.user_id
@@ -107,7 +107,7 @@ public class JpaCommissionBatchQueryRepository implements CommissionBatchQueryRe
              k.percentage, k.fixed_amount, k.unit_price, k.quantity,
              k.commission_amount, k.resolved_on, k.accrued_at,
              k.commission_kind, k.afftrack_settlement_id,
-             k.reverted_at, k.reverted_by, o.id, o.code,
+             o.id, o.code,
              a.id, a.code, a.status
         FROM commissions k
         JOIN commission_batches a ON a.id = k.batch_id
@@ -143,7 +143,7 @@ public class JpaCommissionBatchQueryRepository implements CommissionBatchQueryRe
         .map(
             f ->
                 new WithdrawnRow(
-                    comision(f), (UUID) f[23], (String) f[24], BatchStatus.valueOf((String) f[25])))
+                    comision(f), (UUID) f[21], (String) f[22], BatchStatus.valueOf((String) f[23])))
         .toList();
   }
 
@@ -168,10 +168,8 @@ public class JpaCommissionBatchQueryRepository implements CommissionBatchQueryRe
         instante(f[16]),
         (String) f[17],
         (UUID) f[18],
-        instante(f[19]),
-        (UUID) f[20],
-        (UUID) f[21],
-        (String) f[22]);
+        (UUID) f[19],
+        (String) f[20]);
   }
 
   private static void parametros(Query consulta, BatchFilter filtro) {

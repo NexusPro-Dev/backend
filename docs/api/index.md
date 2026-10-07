@@ -5,7 +5,7 @@
 | Proyecto | NEXUS — Renovación de plataforma |
 | Empresa | FACTECH GROUP SAS |
 | Documento | `api/index.md` |
-| Versión | 1.99.0 |
+| Versión | 1.100.0 |
 | Estado | Publicado |
 | Responsable técnico | Bonilla Diaz William Steven |
 | Fecha de creación | 25-08-2026 |
@@ -205,3 +205,4 @@ Lo que sigue siendo cierto, y conviene saberlo antes de tropezar:
 | 1.97.0 | 07-10-2026 | **`GET /api/v1/indicators/points/summary`: `balance` es el saldo al cierre del periodo** (`RF-IN-005` 0.3.0) y ya no el de hoy: lo que había al final del día `to`, en Bogotá; **sin `to`, el de hoy, como antes**. Es acumulado: `from` no lo acota. Sigue solo en `currencies`, no por tramo. **Cambio de significado sin cambio de forma**: una llamada con `to` en el pasado devuelve ahora un saldo distinto, y una moneda sin movimiento ni saldo a esa fecha deja de aparecer. | Responsable técnico |
 | 1.98.0 | 07-10-2026 | **`GET /api/v1/indicators/points/summary`: `balance` es `purchased − redeemed + added − removed` del periodo**, corrigiendo la 1.97.0 (`RF-IN-005` 0.4.0). Puede ser negativo; sin fechas, son los puntos de hoy. **Cada tramo de `buckets` trae ahora su `balance`** (`PointsSummaryBucketCurrency`). Una moneda solo aparece si tuvo movimiento en el periodo. | Responsable técnico |
 | 1.99.0 | 07-10-2026 | **Nace `GET /api/v1/indicators/commissions/batches/summary`** (`RF-IN-007`), con **`indicators:read-commission-batches-summary`** (`V79`, solo `SUPERADMIN` y `ADMIN`): los lotes de comisiones **como están ahora**, en `open`, `pending`, `paid` y `total`, cada uno con `batches` y `amounts`, un valor por moneda. **Es una foto de hoy y no tiene periodo**: no lleva `period`, y `from`, `to` y `granularity` se ignoran si llegan. Único filtro, `currencyId`. **Sin alcance**: quien porte el permiso ve los lotes de todas las personas. Esquemas nuevos: `CommissionBatchesSummary` y `CommissionBatchesBlock`. **Ampliación**: ninguna forma existente cambia. | Responsable técnico |
+| 1.100.0 | 07-10-2026 | **`CommissionLine` pierde `revertedAt` y `revertedBy`** (`RN-CM-047` enmendada, [`requirements/cm.md`](../requirements/cm.md) v0.34.0): al corregir el vendedor de una línea de una venta confirmada (`POST /api/v1/movements/{id}/seller-assignments`), `CM` **borra** la comisión de la cadena vieja en vez de marcarla, de modo que `GET /api/v1/commission-batches/{id}` y `GET /api/v1/commission-batches/mine/{id}` dejan de mostrarla. **Cambio que el front nota**: quien leyera `revertedAt` deja de recibirlo. Retirar y devolver una comisión pierden el `409` de la comisión revertida. | Responsable técnico |

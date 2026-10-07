@@ -1602,14 +1602,6 @@
             "format" : "date",
             "type" : "string"
           },
-          "revertedAt" : {
-            "format" : "date-time",
-            "type" : "string"
-          },
-          "revertedBy" : {
-            "format" : "uuid",
-            "type" : "string"
-          },
           "source" : {
             "type" : "string"
           },
@@ -11228,7 +11220,7 @@
     },
     "/api/v1/commission-batches/closing" : {
       "post" : {
-        "description" : "**Permiso requerido:** `commission-batches:settle`. Sin él, `403` (`AUTH-002`).\n\n**Hace lo mismo que el cierre programado**, y existe para relanzar el que no corrió\n(`RF-CM-009`, `RN-CM-035`). Primero **barre**: devenga las líneas cobradas y con\nvendedor que se quedaron sin desenlace, y reintenta las rechazadas por pasar del 100 %\n(`RN-CM-034`). Después **liquida lo afftrack** (`RF-CM-020`, 29-09-2026): cuenta los\nFTD activados de cada persona y de su red, paga el mayor escalón alcanzado en su lote\nabierto y guarda el remanente —se consulta en `GET /afftrack-settlements`—. Por último\npasa **todos** los lotes abiertos a `PENDIENTE`, con el instante del cierre como fin de\nperiodo, **salvo el abierto que no tenga ninguna comisión viva** —se devolvieron o revirtieron\ntodas—, que sigue abierto (`RN-CM-048`, 30-09-2026). Lo que devengue un segundo después abre\nun lote nuevo. **Si la liquidación\nafftrack falla, no se cierra nada.**\n\n**Sin cuerpo.** Responde la constancia del cierre, que queda además consultable en\n`GET /commission-closings`. **`200` y no `201`**: se ejecuta una acción, no se crea un\nrecurso que se vaya a leer por su dirección.\n\nSi hay otro cierre en curso —el programado, u otro manual—, **`409`** y no se cierra\nnada.\n",
+        "description" : "**Permiso requerido:** `commission-batches:settle`. Sin él, `403` (`AUTH-002`).\n\n**Hace lo mismo que el cierre programado**, y existe para relanzar el que no corrió\n(`RF-CM-009`, `RN-CM-035`). Primero **barre**: devenga las líneas cobradas y con\nvendedor que se quedaron sin desenlace, y reintenta las rechazadas por pasar del 100 %\n(`RN-CM-034`). Después **liquida lo afftrack** (`RF-CM-020`, 29-09-2026): cuenta los\nFTD activados de cada persona y de su red, paga el mayor escalón alcanzado en su lote\nabierto y guarda el remanente —se consulta en `GET /afftrack-settlements`—. Por último\npasa **todos** los lotes abiertos a `PENDIENTE`, con el instante del cierre como fin de\nperiodo, **salvo el abierto que se haya quedado sin comisiones** —se devolvieron o se\nborraron todas—, que sigue abierto (`RN-CM-048`, 30-09-2026). Lo que devengue un segundo después abre\nun lote nuevo. **Si la liquidación\nafftrack falla, no se cierra nada.**\n\n**Sin cuerpo.** Responde la constancia del cierre, que queda además consultable en\n`GET /commission-closings`. **`200` y no `201`**: se ejecuta una acción, no se crea un\nrecurso que se vaya a leer por su dirección.\n\nSi hay otro cierre en curso —el programado, u otro manual—, **`409`** y no se cierra\nnada.\n",
         "operationId" : "cerrar",
         "responses" : {
           "200" : {
@@ -11338,7 +11330,7 @@
     },
     "/api/v1/commission-batches/mine/{id}" : {
       "get" : {
-        "description" : "**Permiso requerido:** `commission-batches:read-own`. Sin él, `403` (`AUTH-002`).\n\nUno de **mis** lotes, con sus comisiones, en la forma del detalle de administración\n(`RF-CM-012`), **con la clase de cada comisión** —`POR_VENTA` o `POR_AFFTRACK`—, y\ndesde el 30-09-2026 **con lo revertido y lo retirado**, como el detalle de administración.\n**Un lote ajeno responde `404`**, igual que uno que no existe: no se confirma que\nexista.\n",
+        "description" : "**Permiso requerido:** `commission-batches:read-own`. Sin él, `403` (`AUTH-002`).\n\nUno de **mis** lotes, con sus comisiones, en la forma del detalle de administración\n(`RF-CM-012`), **con la clase de cada comisión** —`POR_VENTA` o `POR_AFFTRACK`—, y\ndesde el 30-09-2026 **con lo retirado**, como el detalle de administración.\n**Un lote ajeno responde `404`**, igual que uno que no existe: no se confirma que\nexista.\n",
         "operationId" : "miLote",
         "parameters" : [ {
           "in" : "path",
@@ -11469,7 +11461,7 @@
     },
     "/api/v1/commission-batches/{id}" : {
       "get" : {
-        "description" : "**Permiso requerido:** `commission-batches:read-detail`. Sin él, `403` (`AUTH-002`).\n\nUn lote con **cada comisión**, línea a línea y nivel a nivel (`RF-CM-010`): de qué\nventa y producto sale, qué nivel de la cadena cobra —`0` quien vendió—, de qué tasa\nexacta salió (`source`, `rateId`), la forma y el valor **copiados** al devengar, la base,\nlo devengado, el día de la venta con que se resolvió la tasa (`resolvedOn`) y el\ninstante del devengo (`accruedAt`).\n\n**Lo copiado, no lo de hoy** (`RN-CM-008`): corregir la tasa después no cambia lo que\naquí se lee.\n\n**`source` tiene tres valores** desde el 29-09-2026: `PERSONALIZADA`, `ROL` y\n**`DIRECTA`** —la comisión por venta directa de su rol, que cobra en el nivel `0`\nquien vendió sin ser el último eslabón y sin personalizada (`RN-CM-045`)—. Con\n`DIRECTA`, **`rateId` es la tasa de rol que la declara** desde el 05-10-2026\n(`RN-CM-050`); en lo devengado antes, **el producto**.\n\n**Cada comisión dice su clase en `commissionKind`** (`RN-CM-044`, 29-09-2026):\n`POR_VENTA`, con todo lo anterior; o `POR_AFFTRACK`, un escalón pagado en un cierre,\nque **no trae** `movementDetailId`, `movementId`, `movementCode`, `chainLevel` ni\n`unitPrice` —no sale de una línea—: `productId` es el producto FTD, `quantity` los FTD\npagados, `fixedAmount` el valor por FTD y `afftrackSettlementId` la liquidación.\n\n**Lo que salió del lote se ve** (30-09-2026, `RN-CM-046`, `RN-CM-047`). Una comisión con\n`revertedAt` se **revirtió** al corregirse el vendedor de su línea: sigue aquí, **fuera del\ntotal** y de `commissionsCount`. `withdrawnFrom` dice de qué lote pendiente se **retiró**\nuna comisión que está en este. Y `withdrawn` lista las **retiradas de este lote**, cada una\ncon el lote en que está (`currentBatch`, `currentStatus`) y `returnable`: si todavía se\npuede devolver con `POST /commission-batches/{id}/commissions/{commissionId}/return`.\n",
+        "description" : "**Permiso requerido:** `commission-batches:read-detail`. Sin él, `403` (`AUTH-002`).\n\nUn lote con **cada comisión**, línea a línea y nivel a nivel (`RF-CM-010`): de qué\nventa y producto sale, qué nivel de la cadena cobra —`0` quien vendió—, de qué tasa\nexacta salió (`source`, `rateId`), la forma y el valor **copiados** al devengar, la base,\nlo devengado, el día de la venta con que se resolvió la tasa (`resolvedOn`) y el\ninstante del devengo (`accruedAt`).\n\n**Lo copiado, no lo de hoy** (`RN-CM-008`): corregir la tasa después no cambia lo que\naquí se lee.\n\n**`source` tiene tres valores** desde el 29-09-2026: `PERSONALIZADA`, `ROL` y\n**`DIRECTA`** —la comisión por venta directa de su rol, que cobra en el nivel `0`\nquien vendió sin ser el último eslabón y sin personalizada (`RN-CM-045`)—. Con\n`DIRECTA`, **`rateId` es la tasa de rol que la declara** desde el 05-10-2026\n(`RN-CM-050`); en lo devengado antes, **el producto**.\n\n**Cada comisión dice su clase en `commissionKind`** (`RN-CM-044`, 29-09-2026):\n`POR_VENTA`, con todo lo anterior; o `POR_AFFTRACK`, un escalón pagado en un cierre,\nque **no trae** `movementDetailId`, `movementId`, `movementCode`, `chainLevel` ni\n`unitPrice` —no sale de una línea—: `productId` es el producto FTD, `quantity` los FTD\npagados, `fixedAmount` el valor por FTD y `afftrackSettlementId` la liquidación.\n\n**Lo que se retiró se ve** (30-09-2026, `RN-CM-046`). `withdrawnFrom` dice de qué lote\npendiente se **retiró** una comisión que está en este. Y `withdrawn` lista las **retiradas de este lote**, cada una\ncon el lote en que está (`currentBatch`, `currentStatus`) y `returnable`: si todavía se\npuede devolver con `POST /commission-batches/{id}/commissions/{commissionId}/return`.\n**Las comisiones de una línea cuyo vendedor se corrigió no aparecen**: desde el 07-10-2026\nse borran (`RN-CM-047`), y su total baja con ellas.\n",
         "operationId" : "detalle_8",
         "parameters" : [ {
           "in" : "path",
@@ -11617,7 +11609,7 @@
                 }
               }
             },
-            "description" : "Origen pagado, abierto ya cerrado o comisión revertida"
+            "description" : "Origen pagado o abierto ya cerrado"
           }
         },
         "summary" : "Devolver una comisión a su lote pendiente",
@@ -11627,7 +11619,7 @@
     },
     "/api/v1/commission-batches/{id}/commissions/{commissionId}/withdrawal" : {
       "post" : {
-        "description" : "**Permiso requerido:** `commission-batches:withdraw-commission`. Sin él, `403` (`AUTH-002`).\n\nSaca una comisión de un lote **`PENDIENTE`** y la pasa al lote **`ABIERTO`** de la misma\npersona y moneda —que se abre si no lo hay—, para que se pague en el **cierre siguiente**\n(`RF-CM-022`, `RN-CM-046`, 30-09-2026). Es como se «confirma» un lote antes de pagarlo:\nlo que no se quiere pagar todavía se retira, y lo que queda es lo confirmado.\n\n**La comisión no cambia**: conserva su tasa, su importe y su instante de devengo, y\nrecuerda de qué lote salió (`withdrawnFrom`). Los dos totales se ajustan en el mismo acto.\nSirve para las dos clases, `POR_VENTA` y `POR_AFFTRACK`.\n\n**Sin cuerpo.** Responde **el lote pendiente como queda**, con la retirada entre sus\n`withdrawn`. **`409`** si el lote está abierto o pagado, o si la comisión está revertida;\n**`404`** si la comisión no es de ese lote.\n",
+        "description" : "**Permiso requerido:** `commission-batches:withdraw-commission`. Sin él, `403` (`AUTH-002`).\n\nSaca una comisión de un lote **`PENDIENTE`** y la pasa al lote **`ABIERTO`** de la misma\npersona y moneda —que se abre si no lo hay—, para que se pague en el **cierre siguiente**\n(`RF-CM-022`, `RN-CM-046`, 30-09-2026). Es como se «confirma» un lote antes de pagarlo:\nlo que no se quiere pagar todavía se retira, y lo que queda es lo confirmado.\n\n**La comisión no cambia**: conserva su tasa, su importe y su instante de devengo, y\nrecuerda de qué lote salió (`withdrawnFrom`). Los dos totales se ajustan en el mismo acto.\nSirve para las dos clases, `POR_VENTA` y `POR_AFFTRACK`.\n\n**Sin cuerpo.** Responde **el lote pendiente como queda**, con la retirada entre sus\n`withdrawn`. **`409`** si el lote está abierto o pagado;\n**`404`** si la comisión no es de ese lote.\n",
         "operationId" : "retirar_9",
         "parameters" : [ {
           "in" : "path",
@@ -11705,7 +11697,7 @@
                 }
               }
             },
-            "description" : "Lote abierto o pagado, o comisión revertida"
+            "description" : "Lote abierto o pagado"
           }
         },
         "summary" : "Retirar una comisión de un lote pendiente",
@@ -11715,7 +11707,7 @@
     },
     "/api/v1/commission-batches/{id}/payment" : {
       "post" : {
-        "description" : "**Permiso requerido:** `commission-batches:pay`. Sin él, `403` (`AUTH-002`).\n\n**Operación sensible** (`RN-SP-063`): exige haber verificado el segundo factor hace cinco minutos o menos. Si no, `403` con el tipo `reverificacion-requerida` y `verificationPath`: se presenta el código en `POST /api/v1/auth/mfa/verification` y se repite la petición con el token que devuelve.\n\nMarca un lote `PENDIENTE` como **pagado** y, en el mismo acto, **abona su total en la\nbilletera** de su persona (`RF-CM-011`, `RN-CM-030`, `RN-MV-044`): el importe se\nredondea a los decimales de la moneda, y el abono es un movimiento `PAGO_COMISION`\nque queda enlazado en `movementId`. Si el abono falla, el lote no cambia.\n\n**Solo un lote `PENDIENTE`**: uno `ABIERTO` sigue creciendo y se paga después del\ncierre; uno `PAGADO` no se paga dos veces. Los dos responden **`409`** con el estado en\nel mensaje. **Y uno sin comisiones vivas** —se retiraron o revirtieron todas— responde\n`409` (`EX-005`, `RN-CM-048`, 30-09-2026); uno con una comisión viva de importe cero se\npaga. **Sin cuerpo**: se paga el total, entero.\n",
+        "description" : "**Permiso requerido:** `commission-batches:pay`. Sin él, `403` (`AUTH-002`).\n\n**Operación sensible** (`RN-SP-063`): exige haber verificado el segundo factor hace cinco minutos o menos. Si no, `403` con el tipo `reverificacion-requerida` y `verificationPath`: se presenta el código en `POST /api/v1/auth/mfa/verification` y se repite la petición con el token que devuelve.\n\nMarca un lote `PENDIENTE` como **pagado** y, en el mismo acto, **abona su total en la\nbilletera** de su persona (`RF-CM-011`, `RN-CM-030`, `RN-MV-044`): el importe se\nredondea a los decimales de la moneda, y el abono es un movimiento `PAGO_COMISION`\nque queda enlazado en `movementId`. Si el abono falla, el lote no cambia.\n\n**Solo un lote `PENDIENTE`**: uno `ABIERTO` sigue creciendo y se paga después del\ncierre; uno `PAGADO` no se paga dos veces. Los dos responden **`409`** con el estado en\nel mensaje. **Y uno sin comisiones** —se retiraron o se borraron todas— responde\n`409` (`EX-005`, `RN-CM-048`, 30-09-2026); uno con una comisión de importe cero se\npaga. **Sin cuerpo**: se paga el total, entero.\n",
         "operationId" : "pagar",
         "parameters" : [ {
           "in" : "path",
@@ -17891,7 +17883,7 @@
     },
     "/api/v1/movements/sales" : {
       "get" : {
-        "description" : "**Permiso requerido:** `movements:list-sales`. Sin él, `403` (`AUTH-002`).\n\nDevuelve **las ventas que le tocan a quien pregunta según quién es**, paginadas y del\nmás reciente al más antiguo. Es la consulta de las **ventas**; los otros tipos de\nmovimiento tendrán la suya.\n\n**Lo que se ve lo decide el tipo de rol de quien pregunta**, y no un parámetro:\nquien porta un rol de tipo **funcionario** ve todas las ventas; quien porta uno de\ntipo **vendedor** ve las que vendió **él o alguien de su red** —quienes cuelgan de él\nen la estructura comercial vigente, **en toda la profundidad**: el director lo de sus\nagentes, el manager lo de sus directores y por ellos lo de los agentes—; quien porta\nuno de tipo **consumidor** ve solo las ventas **a su nombre**. Un vendedor sin nadie a\ncargo ve lo que vendió él. Un vendedor **no ve aquí lo que compró**: eso es `/mine`.\n\n**`userId` es una persona de mi red como vendedora** —«las ventas de mi agente tal»—\ny acota **dentro** del alcance: una persona fuera de mi red, o inexistente, da una\n**página vacía** y no un error, para que el filtro no sirva para descubrir quién\ncuelga de quién. `code` acepta **una PARTE del comprobante**, sin distinguir\nmayúsculas (`RN-MV-037`). `status`, `paymentMethodId`, `code` y `from`/`to` son los de\n`GET /movements` y se combinan, y también `typeStatus` (`VALIDAR_COMISIONES` o\n`VALIDADO`, desde el 23-09-2026); **el comprobante de una venta que no es de mi\nalcance tampoco aparece**, escrito como sea. **Una venta por validar no está en el\nalcance de ningún vendedor** mientras ninguna de sus líneas sea suya: aparece en\ncuanto se le asigna una (`RF-MV-016`).\n\n**Cada fila es la misma de `GET /movements`** (`type` siempre `VENTA`, `typeStatus`, `user`,\n`sellers`, importes, `confirmedAt` nulo y presente), sin `role`. **El total puede no\nser exacto** por encima del techo de conteo. Ni `movements:read` ni\n`movements:list-own` abren esta consulta.\n",
+        "description" : "**Permiso requerido:** `movements:list-sales`. Sin él, `403` (`AUTH-002`).\n\nDevuelve **las ventas que le tocan a quien pregunta según quién es**, paginadas y del\nmás reciente al más antiguo. Es la consulta de las **ventas**; los otros tipos de\nmovimiento tendrán la suya.\n\n**Lo que se ve lo decide el tipo de rol de quien pregunta**, y no un parámetro:\nquien porta un rol de tipo **funcionario** ve todas las ventas; quien porta uno de\ntipo **vendedor** ve las que vendió **él o alguien de su red** —quienes cuelgan de él\nen la estructura comercial vigente, **en toda la profundidad**: el director lo de sus\nagentes, el manager lo de sus directores y por ellos lo de los agentes—; quien porta\nuno de tipo **consumidor** ve solo las ventas **a su nombre**. Un vendedor sin nadie a\ncargo ve lo que vendió él. Un vendedor **no ve aquí lo que compró**: eso es `/mine`.\n\n**`userId` es una persona de mi red como vendedora** —«las ventas de mi agente tal»—\ny acota **dentro** del alcance: una persona fuera de mi red, o inexistente, da una\n**página vacía** y no un error, para que el filtro no sirva para descubrir quién\ncuelga de quién. **`clientId` es el cliente** (07-10-2026): solo las ventas **a\nnombre de esa persona**, de las que ya están en mi alcance; uno sin ventas en él, o\ninexistente, da una página vacía. Se combina con `userId`. `code` acepta **una PARTE del comprobante**, sin distinguir\nmayúsculas (`RN-MV-037`). `status`, `paymentMethodId`, `code` y `from`/`to` son los de\n`GET /movements` y se combinan, y también `typeStatus` (`VALIDAR_COMISIONES` o\n`VALIDADO`, desde el 23-09-2026); **el comprobante de una venta que no es de mi\nalcance tampoco aparece**, escrito como sea. **Una venta por validar no está en el\nalcance de ningún vendedor** mientras ninguna de sus líneas sea suya: aparece en\ncuanto se le asigna una (`RF-MV-016`).\n\n**Cada fila es la misma de `GET /movements`** (`type` siempre `VENTA`, `typeStatus`, `user`,\n`sellers`, importes, `confirmedAt` nulo y presente), sin `role`. **El total puede no\nser exacto** por encima del techo de conteo. Ni `movements:read` ni\n`movements:list-own` abren esta consulta.\n",
         "operationId" : "misVentas",
         "parameters" : [ {
           "in" : "query",
@@ -17912,6 +17904,14 @@
         }, {
           "in" : "query",
           "name" : "userId",
+          "required" : false,
+          "schema" : {
+            "format" : "uuid",
+            "type" : "string"
+          }
+        }, {
+          "in" : "query",
+          "name" : "clientId",
           "required" : false,
           "schema" : {
             "format" : "uuid",
@@ -18255,7 +18255,7 @@
     },
     "/api/v1/movements/{id}/seller-assignments" : {
       "post" : {
-        "description" : "**Permiso requerido:** `movements:assign-sellers`. Sin él, `403` (`AUTH-002`).\n\nAtribuye cada línea de una venta a **uno de los vendedores de quien compra**. Es lo\nque saca de `VALIDAR_COMISIONES` a una venta cuyo cliente tenía **varios**\nvendedores y que por eso nació con sus líneas **sin vendedor** (`RN-MV-034`).\n\n`lines` lleva una pareja `productId` → `sellerId` por línea —el producto identifica\nla línea dentro de la venta— y **puede ser una parte**: la venta sigue en\n`VALIDAR_COMISIONES` mientras quede alguna sin vendedor, y **pasa sola a\n`VALIDADO`** en cuanto no queda ninguna.\n\n**Qué se puede tocar** (`RN-MV-035`): una línea **sin vendedor** se asigna siempre,\ntambién después de confirmar el pago; **corregir** una que ya lo tiene se admite\nmientras la venta no esté `CONFIRMADA` y, **desde el 30-09-2026, también confirmada\nmientras su comisión no se haya pagado** (`RN-MV-053`): se le pregunta a `CM`, que\nrevierte la comisión de la cadena vieja, y la de la nueva se devenga como si la línea\nse acabara de atribuir. Si algún nivel de la cadena está pagado, o la línea es un FTD\nya contado, `409`. En una venta `RECHAZADA` o\n`ANULADA` no se asigna nada. El vendedor tiene que ser **uno de los del cliente**\n—de registro o de hotlink—: elegir a cualquiera sería atribuir la venta a quien se\nquisiera.\n\n**Todo o nada**: si una sola pareja no procede, no se escribe ninguna. La respuesta\nes la venta como queda, con `typeStatus` y el vendedor de cada línea.\n",
+        "description" : "**Permiso requerido:** `movements:assign-sellers`. Sin él, `403` (`AUTH-002`).\n\nAtribuye cada línea de una venta a **uno de los vendedores de quien compra**. Es lo\nque saca de `VALIDAR_COMISIONES` a una venta cuyo cliente tenía **varios**\nvendedores y que por eso nació con sus líneas **sin vendedor** (`RN-MV-034`).\n\n`lines` lleva una pareja `productId` → `sellerId` por línea —el producto identifica\nla línea dentro de la venta— y **puede ser una parte**: la venta sigue en\n`VALIDAR_COMISIONES` mientras quede alguna sin vendedor, y **pasa sola a\n`VALIDADO`** en cuanto no queda ninguna.\n\n**Qué se puede tocar** (`RN-MV-035`): una línea **sin vendedor** se asigna siempre,\ntambién después de confirmar el pago; **corregir** una que ya lo tiene se admite\nmientras la venta no esté `CONFIRMADA` y, **desde el 30-09-2026, también confirmada\nmientras su comisión no se haya pagado** (`RN-MV-053`): se le pregunta a `CM`, que\nborra la comisión de la cadena vieja —desde el 07-10-2026; antes la marcaba—, y la de\nla nueva se devenga como si la línea se acabara de atribuir. Si algún nivel de la cadena está pagado, o la línea es un FTD\nya contado, `409`. En una venta `RECHAZADA` o\n`ANULADA` no se asigna nada. El vendedor tiene que ser **uno de los del cliente**\n—de registro o de hotlink—: elegir a cualquiera sería atribuir la venta a quien se\nquisiera.\n\n**Todo o nada**: si una sola pareja no procede, no se escribe ninguna. La respuesta\nes la venta como queda, con `typeStatus` y el vendedor de cada línea.\n",
         "operationId" : "asignarVendedores",
         "parameters" : [ {
           "in" : "path",

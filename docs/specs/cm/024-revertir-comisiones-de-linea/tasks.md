@@ -74,10 +74,10 @@
 
 | ID | Tarea | Depende de | Verificación | Estado |
 |---|---|---|---|---|
-| `T-07` | `V80`: borra las revertidas, retira `reverted_at`, `reverted_by`, su `CHECK` y su clave, y rehace `uq_commissions_detail_user` como restricción (`plan.md` §12) | — | Flyway aplica sobre la base de la suite | Pendiente |
-| `T-08` | `delete` en el repositorio de desenlaces; `ReleaseCommissionedLineService` borra, con `deleted_commissions` y `deleted_by` en la auditoría | `T-07` | — | Pendiente |
-| `T-09` | Fuera la marca de lotes, cierre, pago, retirar, devolver, detalle y listado, y la prosa de las `@Operation` (`plan.md` §12) | `T-07` | Compila | Pendiente |
-| `T-10` | `ReleaseCommissionedLineIT`: `CA-CM-340` a `CA-CM-346` y `CA-MV-700`; `CA-CM-305` borrando por SQL; `WithdrawCommissionIT`, `ReturnCommissionIT` y `PayCommissionBatchesIT` sin la marca | `T-08`, `T-09` | Las cuatro suites en verde | Pendiente |
-| `T-11` | Contrato regenerado y `requirements.md` | `T-10` | `./mvnw clean verify` en verde | Pendiente |
+| `T-07` | `V80`: borra las revertidas, retira `reverted_at`, `reverted_by`, su `CHECK` y su clave, y rehace `uq_commissions_detail_user` como restricción (`plan.md` §12) | — | Flyway aplica sobre la base de la suite | **Hecha** — 07-10-2026 |
+| `T-08` | `delete` en el repositorio de desenlaces; `ReleaseCommissionedLineService` borra, con `deleted_commissions` y `deleted_by` en la auditoría | `T-07` | — | **Hecha** — 07-10-2026 |
+| `T-09` | Fuera la marca de lotes, cierre, pago, retirar, devolver, detalle y listado, y la prosa de las `@Operation` (`plan.md` §12) | `T-07` | Compila | **Hecha** — 07-10-2026 |
+| `T-10` | `ReleaseCommissionedLineIT`: `CA-CM-340` a `CA-CM-346` y `CA-MV-700`; `CA-CM-305` borrando por SQL; `WithdrawCommissionIT`, `ReturnCommissionIT` y `PayCommissionBatchesIT` sin la marca | `T-08`, `T-09` | Las cuatro suites en verde | **Hecha** — 07-10-2026 |
+| `T-11` | Contrato regenerado y `requirements.md` | `T-10` | Las suites de `CM`, `CommissionBatchesSummaryIT` y `OpenApiContractIT` en verde; la suite completa queda para antes del push | **Hecha** — 07-10-2026 |
 
 Rama: `develop`.

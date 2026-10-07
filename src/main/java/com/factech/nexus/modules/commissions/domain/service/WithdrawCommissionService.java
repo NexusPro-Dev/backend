@@ -82,9 +82,6 @@ public class WithdrawCommissionService {
     if (BatchStatus.PAGADO.name().equals(pendiente.status())) {
       rechazar("EX-004", "El lote ya está pagado.");
     }
-    if (comision.reverted()) {
-      rechazar("EX-005", "La comisión está revertida y ya no cuenta.");
-    }
 
     OffsetDateTime ahora = calendario.ahora();
     OpenBatch abierto = lotes.lockOpenBatch(pendiente.userId(), pendiente.currencyId(), ahora);

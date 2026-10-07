@@ -40,13 +40,16 @@ public interface CommissionAccrualRepository {
   boolean hasCountedFtd(UUID detailId);
 
   /**
-   * Las comisiones <b>vivas</b> de la línea, <b>bloqueadas</b>: las comisiones antes que los lotes
-   * (`RF-CM-022` `plan.md` §1).
+   * Las comisiones de la línea, <b>bloqueadas</b>: las comisiones antes que los lotes (`RF-CM-022`
+   * `plan.md` §1).
    */
   List<LiveCommission> lockLiveCommissionsOf(UUID detailId);
 
-  /** Las marca revertidas, por quién y cuándo (`RN-CM-047`). No se borran. */
-  void revert(Collection<UUID> commissionIds, UUID actorId, OffsetDateTime at);
+  /**
+   * Las borra (`RN-CM-047`, desde el 07-10-2026): ningún lote las paga ya, y lo que fueron lo
+   * guarda la auditoría.
+   */
+  void delete(Collection<UUID> commissionIds);
 
   /**
    * Borra el desenlace de la línea, para que la cadena nueva se devengue como una línea recién

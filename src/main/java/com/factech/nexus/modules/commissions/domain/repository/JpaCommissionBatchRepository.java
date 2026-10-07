@@ -151,8 +151,7 @@ public class JpaCommissionBatchRepository implements CommissionBatchRepository {
     List<Object[]> filas =
         em.createNativeQuery(
                 """
-                SELECT id, batch_id, commission_amount, reverted_at IS NOT NULL,
-                       withdrawn_from_batch_id
+                SELECT id, batch_id, commission_amount, withdrawn_from_batch_id
                   FROM commissions
                  WHERE id = :id
                    FOR UPDATE
@@ -164,11 +163,7 @@ public class JpaCommissionBatchRepository implements CommissionBatchRepository {
         .map(
             f ->
                 new LockedCommission(
-                    (UUID) f[0],
-                    (UUID) f[1],
-                    MinorUnits.fromMinor(f[2]),
-                    (Boolean) f[3],
-                    (UUID) f[4]));
+                    (UUID) f[0], (UUID) f[1], MinorUnits.fromMinor(f[2]), (UUID) f[3]));
   }
 
   @Override
@@ -215,9 +210,7 @@ public class JpaCommissionBatchRepository implements CommissionBatchRepository {
   @Override
   public boolean hasLiveCommissions(UUID batchId) {
     return (Boolean)
-        em.createNativeQuery(
-                "SELECT EXISTS (SELECT 1 FROM commissions WHERE batch_id = :lote"
-                    + " AND reverted_at IS NULL)")
+        em.createNativeQuery("SELECT EXISTS (SELECT 1 FROM commissions WHERE batch_id = :lote)")
             .setParameter("lote", batchId)
             .getSingleResult();
   }

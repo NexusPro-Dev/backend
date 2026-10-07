@@ -81,9 +81,6 @@ public class ReturnCommissionService {
     if (!BatchStatus.PENDIENTE.name().equals(origen.status())) {
       rechazar("EX-003", "El lote ya está pagado: lo retirado se queda donde está.");
     }
-    if (comision.reverted()) {
-      rechazar("EX-005", "La comisión está revertida y ya no cuenta.");
-    }
     LockedBatch actual = bloqueados.get(comision.batchId());
     if (!BatchStatus.ABIERTO.name().equals(actual.status())) {
       rechazar("EX-004", "El lote en que está la comisión ya se cerró.");
