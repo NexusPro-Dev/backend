@@ -37,6 +37,16 @@
 | `T-08` | `SaleLinesSummaryResponse` con `sold` y `unassigned` (`total` y `byType`); `GetSaleLinesSummaryService`; la descripción de la ruta | `T-07` | Sin pendientes ni anuladas | **Hecha** — 07-10-2026 |
 | `T-09` | `SaleLinesSummaryIT`: `CA-IN-067` a `CA-IN-070` y los casos de antes reescritos; contrato y documentos | `T-08` | | **Hecha** — 07-10-2026 |
 
+### 1.2 Filtros por vendedor, cliente, producto y comprobante — 07-10-2026
+
+Enmienda de hecho (Art. I.7), `spec.md` 0.3.0 y `plan.md` 0.3.0 **antes** del código.
+
+| ID | Tarea | Depende de | Verificación | Estado |
+|---|---|---|---|---|
+| `T-10` | `SalesFigures.LineFilter`; las cuatro lecturas de lo sin vendedor y por tipo lo reciben; `summary` y `summaryByBucket` con sobrecarga; `JpaSalesFigures` lo aplica en `donde` y `enlazar` | — | `RF-IN-001`, `RF-IN-002` y `RF-IN-004` sin cambios | **Hecha** — 07-10-2026 |
+| `T-11` | `GetSaleLinesSummaryService` y `SalesIndicatorsController`: los cuatro parámetros, documentados | `T-10` | Vacío es sin filtro | **Hecha** — 07-10-2026 |
+| `T-12` | `SaleLinesSummaryIT`: `CA-IN-080` a `CA-IN-085`; contrato regenerado; `api/index.md`, `requirements/in.md` y matriz | `T-11` | Solo altas | **Hecha** — 07-10-2026 |
+
 ---
 
 ## 2. Cobertura de los criterios de aceptación
@@ -48,6 +58,7 @@
 | `CA-IN-064`, `CA-IN-065` | `T-03`, `T-05` |
 | `CA-IN-066` | `T-01`, `T-04`, `T-05` |
 | `CA-IN-067` a `CA-IN-070` | `T-07` a `T-09` — 07-10-2026 |
+| `CA-IN-080` a `CA-IN-085` | `T-10` a `T-12` — 07-10-2026 |
 
 ---
 

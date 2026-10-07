@@ -5,7 +5,7 @@
 | Módulo | `IN` — Indicadores |
 | Paquete | `modules/indicators` |
 | Prefijo de permisos | `indicators:` |
-| Versión | 0.15.0 |
+| Versión | 0.16.0 |
 | Estado | **Borrador** |
 | Responsable | Bonilla Diaz William Steven |
 | Fecha de creación | 06-10-2026 |
@@ -280,6 +280,8 @@ Lo **confirmado** en el periodo agrupado por **el vendedor de la línea**, de m�
 
 **Nace el 06-10-2026 a petición del responsable del proyecto** —«el siguiente indicador será para las líneas de ventas: total productos vendidos, total de ventas, ventas sin vendedor»—. Por estado de la venta: ventas, líneas, **unidades** e importe por moneda, y el total; y aparte **lo sin vendedor** —ventas con alguna línea sin vendedor, esas líneas, sus unidades y su importe—, sin las anuladas, porque dice lo que **falta por atribuir**. Sus cifras por estado son las del resumen de ventas de administración.
 
+**Desde el 07-10-2026 se filtra**, a petición del responsable del proyecto, **por vendedor, cliente, producto y comprobante** (`CA-IN-080` a `CA-IN-085`): filtros opcionales y combinables que estrechan los dos bloques sin cambiar su forma. **No son alcance** (`RN-IN-011` sigue en pie): los elige quien pregunta, como la moneda. Con vendedor, lo sin vendedor sale en cero.
+
 #### `RF-IN-007` — Consultar el resumen de lotes de comisiones
 
 | Campo | Valor |
@@ -357,3 +359,4 @@ El contrato detallado de cada endpoint —parámetros, valores por defecto del p
 | 0.13.0 | 07-10-2026 | **El saldo de puntos se calcula con las cuatro cifras del periodo** (`RF-IN-005` 0.4.0), corrigiendo la 0.12.0 por indicación del responsable del proyecto —«calcula el balance con los datos de los puntos, no por aparte»—: `balance = comprados − redimidos + sumados − restados` **del periodo**, sin lectura de saldo aparte; puede ser negativo; sin fechas son los puntos de hoy. Va también **por tramo**. Una moneda aparece solo si tuvo movimiento en el periodo. | Responsable del proyecto |
 | 0.14.0 | 07-10-2026 | **Nace la tanda de comisiones con `RF-IN-007`, el resumen de lotes de comisiones**, a petición del responsable del proyecto: por estado —abiertos, pendientes, pagados— y en total, cuántos lotes y su valor por moneda. Tripleta el mismo día (`CA-IN-072` a `CA-IN-079`), `tasks.md` en revisión. **Administración y sin alcance** (`RN-IN-011`, ampliada) y **sin periodo** —nace **`RN-IN-012`**, excepción a `RN-IN-010`: un indicador de estado es una foto de hoy—. Nace el submódulo Comisiones e **`IN` pasa a depender de `CM`**, que publicará `CommissionBatchFigures`. Permiso propio, `indicators:read-commission-batches-summary`, que sembrará `V79` solo a `SUPERADMIN` y `ADMIN`. | Responsable técnico |
 | 0.15.0 | 07-10-2026 | **`RF-IN-007` construido**, con sus `tasks.md` aprobadas por el responsable del proyecto: `V79` siembra `indicators:read-commission-batches-summary` a `SUPERADMIN` y `ADMIN` (catálogo 204), `CM` publica `CommissionBatchFigures` y `GET /indicators/commissions/batches/summary` responde, sin alcance y sin periodo. | Responsable técnico |
+| 0.16.0 | 07-10-2026 | **`RF-IN-006` se filtra por vendedor, cliente, producto y comprobante** (`spec.md` 0.3.0, `CA-IN-080` a `CA-IN-085`), a petición del responsable del proyecto: estrechan lo vendido y lo sin vendedor, en total, por tipo y por tramo, sin cambiar la respuesta. No son alcance. `SalesFigures` gana `LineFilter`. Sin migración ni permisos. | Responsable técnico |

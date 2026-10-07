@@ -10,6 +10,7 @@ import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 import java.util.TreeMap;
 import java.util.UUID;
@@ -69,18 +70,18 @@ public class JpaSalesFigures implements SalesFigures {
 
   @Override
   @Transactional(readOnly = true)
-  public Summary summary(SalesScope scope, Interval interval, UUID currencyId) {
+  public Summary summary(SalesScope scope, Interval interval, UUID currencyId, LineFilter filter) {
     String sql =
         "SELECT m.status, m.currency_id, c.code, "
             + CIFRAS_DEL_RESUMEN
             + DE_LAS_VENTAS
             + " AND m.status IN ('CONFIRMADA', 'PENDIENTE', 'ANULADA')"
-            + donde(scope, interval, currencyId)
+            + donde(scope, interval, currencyId, filter)
             + " GROUP BY m.status, m.currency_id, c.code";
 
     @SuppressWarnings("unchecked")
     List<Object[]> filas =
-        enlazar(em.createNativeQuery(sql), scope, interval, currencyId).getResultList();
+        enlazar(em.createNativeQuery(sql), scope, interval, currencyId, filter).getResultList();
     Map<String, Acumulado> porEstado = new LinkedHashMap<>();
     for (Object[] f : filas) {
       sumar(porEstado, f, 0);
@@ -95,17 +96,22 @@ public class JpaSalesFigures implements SalesFigures {
   @Override
   @Transactional(readOnly = true)
   public List<BucketSummary> summaryByBucket(
-      SalesScope scope, Interval interval, UUID currencyId, Granularity granularity, ZoneId zone) {
+      SalesScope scope,
+      Interval interval,
+      UUID currencyId,
+      Granularity granularity,
+      ZoneId zone,
+      LineFilter filter) {
     String sql =
         "SELECT CAST(date_trunc(:unidad, m.occurred_at AT TIME ZONE :zona) AS date),"
             + " m.status, m.currency_id, c.code, "
             + CIFRAS_DEL_RESUMEN
             + DE_LAS_VENTAS
             + " AND m.status IN ('CONFIRMADA', 'PENDIENTE', 'ANULADA')"
-            + donde(scope, interval, currencyId)
+            + donde(scope, interval, currencyId, filter)
             + " GROUP BY 1, 2, 3, 4";
     Query consulta =
-        enlazar(em.createNativeQuery(sql), scope, interval, currencyId)
+        enlazar(em.createNativeQuery(sql), scope, interval, currencyId, filter)
             .setParameter("unidad", unidad(granularity))
             .setParameter("zona", zone.getId());
 
@@ -128,17 +134,17 @@ public class JpaSalesFigures implements SalesFigures {
    */
   @Override
   @Transactional(readOnly = true)
-  public Totals unassigned(Interval interval, UUID currencyId) {
+  public Totals unassigned(Interval interval, UUID currencyId, LineFilter filter) {
     String sql =
         "SELECT 'SIN_VENDEDOR', m.currency_id, c.code, "
             + CIFRAS_DEL_RESUMEN
             + DE_LAS_VENTAS
             + SIN_VENDEDOR
-            + donde(SalesScope.everything(), interval, currencyId)
+            + donde(SalesScope.everything(), interval, currencyId, filter)
             + " GROUP BY m.currency_id, c.code";
     @SuppressWarnings("unchecked")
     List<Object[]> filas =
-        enlazar(em.createNativeQuery(sql), SalesScope.everything(), interval, currencyId)
+        enlazar(em.createNativeQuery(sql), SalesScope.everything(), interval, currencyId, filter)
             .getResultList();
     Map<String, Acumulado> acumulado = new LinkedHashMap<>();
     for (Object[] f : filas) {
@@ -150,17 +156,17 @@ public class JpaSalesFigures implements SalesFigures {
   @Override
   @Transactional(readOnly = true)
   public List<BucketTotals> unassignedByBucket(
-      Interval interval, UUID currencyId, Granularity granularity, ZoneId zone) {
+      Interval interval, UUID currencyId, Granularity granularity, ZoneId zone, LineFilter filter) {
     String sql =
         "SELECT CAST(date_trunc(:unidad, m.occurred_at AT TIME ZONE :zona) AS date),"
             + " 'SIN_VENDEDOR', m.currency_id, c.code, "
             + CIFRAS_DEL_RESUMEN
             + DE_LAS_VENTAS
             + SIN_VENDEDOR
-            + donde(SalesScope.everything(), interval, currencyId)
+            + donde(SalesScope.everything(), interval, currencyId, filter)
             + " GROUP BY 1, 3, 4";
     Query consulta =
-        enlazar(em.createNativeQuery(sql), SalesScope.everything(), interval, currencyId)
+        enlazar(em.createNativeQuery(sql), SalesScope.everything(), interval, currencyId, filter)
             .setParameter("unidad", unidad(granularity))
             .setParameter("zona", zone.getId());
     @SuppressWarnings("unchecked")
@@ -183,17 +189,18 @@ public class JpaSalesFigures implements SalesFigures {
    */
   @Override
   @Transactional(readOnly = true)
-  public List<TypeTotals> byProductType(Lines lines, Interval interval, UUID currencyId) {
+  public List<TypeTotals> byProductType(
+      Lines lines, Interval interval, UUID currencyId, LineFilter filter) {
     String sql =
         "SELECT p.type, m.currency_id, c.code, "
             + CIFRAS_DEL_RESUMEN
             + DE_LAS_LINEAS_CON_TIPO
             + cuales(lines)
-            + donde(SalesScope.everything(), interval, currencyId)
+            + donde(SalesScope.everything(), interval, currencyId, filter)
             + " GROUP BY p.type, m.currency_id, c.code";
     @SuppressWarnings("unchecked")
     List<Object[]> filas =
-        enlazar(em.createNativeQuery(sql), SalesScope.everything(), interval, currencyId)
+        enlazar(em.createNativeQuery(sql), SalesScope.everything(), interval, currencyId, filter)
             .getResultList();
     Map<String, Acumulado> porTipo = new TreeMap<>();
     for (Object[] f : filas) {
@@ -207,17 +214,22 @@ public class JpaSalesFigures implements SalesFigures {
   @Override
   @Transactional(readOnly = true)
   public List<BucketTypeTotals> byProductTypeAndBucket(
-      Lines lines, Interval interval, UUID currencyId, Granularity granularity, ZoneId zone) {
+      Lines lines,
+      Interval interval,
+      UUID currencyId,
+      Granularity granularity,
+      ZoneId zone,
+      LineFilter filter) {
     String sql =
         "SELECT CAST(date_trunc(:unidad, m.occurred_at AT TIME ZONE :zona) AS date),"
             + " p.type, m.currency_id, c.code, "
             + CIFRAS_DEL_RESUMEN
             + DE_LAS_LINEAS_CON_TIPO
             + cuales(lines)
-            + donde(SalesScope.everything(), interval, currencyId)
+            + donde(SalesScope.everything(), interval, currencyId, filter)
             + " GROUP BY 1, 2, 3, 4";
     Query consulta =
-        enlazar(em.createNativeQuery(sql), SalesScope.everything(), interval, currencyId)
+        enlazar(em.createNativeQuery(sql), SalesScope.everything(), interval, currencyId, filter)
             .setParameter("unidad", unidad(granularity))
             .setParameter("zona", zone.getId());
     @SuppressWarnings("unchecked")
@@ -279,11 +291,11 @@ public class JpaSalesFigures implements SalesFigures {
             + CIFRAS
             + DE_LAS_VENTAS
             + " AND m.status = 'CONFIRMADA'"
-            + donde(scope, interval, currencyId)
+            + donde(scope, interval, currencyId, LineFilter.none())
             + " GROUP BY 1, 2, 3 ORDER BY 1, 3";
 
     Query consulta =
-        enlazar(em.createNativeQuery(sql), scope, interval, currencyId)
+        enlazar(em.createNativeQuery(sql), scope, interval, currencyId, LineFilter.none())
             .setParameter("unidad", unidad(granularity))
             .setParameter("zona", zone.getId());
     @SuppressWarnings("unchecked")
@@ -304,10 +316,13 @@ public class JpaSalesFigures implements SalesFigures {
   }
 
   /**
-   * El límite inferior —si lo hay: sin él es toda la historia, `RN-IN-010`—, el alcance y la
-   * moneda: lo que comparten todas las lecturas.
+   * El límite inferior —si lo hay: sin él es toda la historia, `RN-IN-010`—, el alcance, la moneda
+   * y, desde el 07-10-2026, lo que estrecha las líneas (`LineFilter`): lo que comparten todas las
+   * lecturas. El vendedor del filtro va sobre la línea, como el alcance, y con {@link
+   * #SIN_VENDEDOR} da cero por la propia sentencia.
    */
-  private static String donde(SalesScope scope, Interval interval, UUID currencyId) {
+  private static String donde(
+      SalesScope scope, Interval interval, UUID currencyId, LineFilter filter) {
     StringBuilder sql = new StringBuilder();
     if (interval.from() != null) {
       sql.append(" AND m.occurred_at >= :desde");
@@ -318,11 +333,23 @@ public class JpaSalesFigures implements SalesFigures {
     if (currencyId != null) {
       sql.append(" AND m.currency_id = :moneda");
     }
+    if (filter.sellerId() != null) {
+      sql.append(" AND d.seller_id = :vendedor");
+    }
+    if (filter.clientId() != null) {
+      sql.append(" AND m.user_id = :cliente");
+    }
+    if (filter.productId() != null) {
+      sql.append(" AND d.product_id = :producto");
+    }
+    if (filter.code() != null) {
+      sql.append(" AND lower(m.code) LIKE :codigo ESCAPE '\\'");
+    }
     return sql.toString();
   }
 
   private static Query enlazar(
-      Query consulta, SalesScope scope, Interval interval, UUID currencyId) {
+      Query consulta, SalesScope scope, Interval interval, UUID currencyId, LineFilter filter) {
     consulta.setParameter("hasta", interval.to());
     if (interval.from() != null) {
       consulta.setParameter("desde", interval.from());
@@ -333,7 +360,24 @@ public class JpaSalesFigures implements SalesFigures {
     if (currencyId != null) {
       consulta.setParameter("moneda", currencyId);
     }
+    if (filter.sellerId() != null) {
+      consulta.setParameter("vendedor", filter.sellerId());
+    }
+    if (filter.clientId() != null) {
+      consulta.setParameter("cliente", filter.clientId());
+    }
+    if (filter.productId() != null) {
+      consulta.setParameter("producto", filter.productId());
+    }
+    if (filter.code() != null) {
+      consulta.setParameter("codigo", "%" + escapar(filter.code().toLowerCase(Locale.ROOT)) + "%");
+    }
     return consulta;
+  }
+
+  /** Escapa lo que {@code LIKE} interpreta, como {@code JpaMovementRepository} (`RN-MV-037`). */
+  private static String escapar(String termino) {
+    return termino.replace("\\", "\\\\").replace("%", "\\%").replace("_", "\\_");
   }
 
   private static String unidad(Granularity granularity) {

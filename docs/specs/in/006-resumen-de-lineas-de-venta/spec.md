@@ -4,7 +4,7 @@
 |---|---|
 | Requerimiento | `RF-IN-006` |
 | Módulo | `IN` — Indicadores |
-| Versión | 0.2.0 |
+| Versión | 0.3.0 |
 | Estado | **Aprobada** |
 | Autor | Responsable técnico |
 | Aprobada por | Responsable del proyecto |
@@ -13,6 +13,14 @@
 !!! warning "Enmendado el 07-10-2026 — por tipo de producto, y lo sin vendedor también"
 
     Decisión del responsable del proyecto, 07-10-2026: «mejor agrupemos por lo siguiente: por tipo de producto y líneas de ventas sin vendedores», con dos precisiones suyas: **por tipo de producto, solo lo vendido** —lo confirmado—, y **lo sin vendedor también por tipo**. **La respuesta cambia de forma**: deja de agruparse por estado de la venta y pasa a dos bloques, cada uno **en total y por tipo de producto** —`BOT`, `UPGRADE_MEMBRESIA`, los que existan—: **lo vendido**, solo las ventas **confirmadas**, con ventas, líneas, unidades e importe por moneda; y **lo sin vendedor**, las líneas sin vendedor de las ventas no anuladas, igual. **Desaparecen pendientes y anuladas.** El tipo es el del producto de la línea. **Una venta con líneas de dos tipos cuenta en cada tipo, y una vez en el total**, de modo que las ventas por tipo pueden sumar más que el total; las líneas, las unidades y los importes, no. El total de lo vendido es el confirmado del resumen de ventas de administración. Con tramo, los dos bloques por tramo.
+
+!!! warning "Enmendado el 07-10-2026 (segunda) — se filtra por vendedor, cliente, producto y comprobante"
+
+    Petición del responsable del proyecto, 07-10-2026: «agreguemos un filtro por vendedor, cliente, producto y código del movimiento». **Cuatro filtros, opcionales y combinables, que estrechan las cifras y no cambian su forma**: **vendedor**, solo las líneas que vendió esa persona; **cliente**, solo las ventas a su nombre; **producto**, solo las líneas de ese producto; **comprobante**, solo las ventas cuyo código **contenga** lo escrito, sin distinguir mayúsculas, como en los listados de `MV` (`RN-MV-037`). Se aplican a **los dos bloques**, en total, por tipo y por tramo.
+
+    **Esto no contradice `RN-IN-011`**: el indicador sigue sin alcance —quien porta el permiso ve todo el libro— y el filtro lo elige quien pregunta, igual que la moneda. Lo que §6.1 descartaba era **acotar por el vendedor que mira**, no dejar que administración pregunte por uno.
+
+    **Con vendedor, lo sin vendedor sale en cero**, y es correcto: las líneas de esa persona tienen vendedor. **Una venta cuenta si alguna de sus líneas pasa los filtros**, y sus cifras son solo las de esas líneas (`RN-IN-003`). Un vendedor, cliente o producto que no existe da ceros, no un error. Con filtros, el total de lo vendido ya no es el del resumen de ventas de administración (`CA-IN-061` habla del indicador sin filtros). `CA-IN-080` a `CA-IN-085`.
 
 !!! info "Qué va en este documento"
 
@@ -69,7 +77,7 @@ El resumen de ventas (`RF-IN-001`) responde «cuánto vendí yo o mi red»; este
 ### 4.2 No incluye
 
 - **Por producto** o **por vendedor**: son `RF-IN-003` y `RF-IN-004`.
-- **Acotar a un vendedor o a una red** (§2.1).
+- **Acotar al alcance de quien mira** (§2.1). Filtrar por un vendedor sí se puede desde el 07-10-2026: lo elige quien pregunta, y no reduce lo que puede ver.
 - **Las gratuitas**, que ya da el resumen de ventas.
 
 ---
@@ -96,8 +104,12 @@ El resumen de ventas (`RF-IN-001`) responde «cuánto vendí yo o mi red»; este
 |---|---|---|
 | Desde, hasta, tramo | No | Los de `RN-IN-010` |
 | Moneda | No | Solo esa moneda; una inexistente da ceros |
+| Vendedor (07-10-2026) | No | Solo las líneas que vendió esa persona. Lo sin vendedor queda en cero |
+| Cliente (07-10-2026) | No | Solo las ventas a nombre de esa persona |
+| Producto (07-10-2026) | No | Solo las líneas de ese producto; por tipo, el suyo |
+| Comprobante (07-10-2026) | No | Solo las ventas cuyo código **contenga** lo escrito, sin distinguir mayúsculas |
 
-**No hay filtro por vendedor**: el indicador no es de nadie (§2.1).
+**El indicador no es de nadie** (§2.1): el filtro por vendedor, desde el 07-10-2026, **estrecha** las cifras por elección de quien pregunta, como la moneda, y no las acota a quien mira. Un vendedor, cliente o producto inexistente da ceros. Una venta cuenta si **alguna** de sus líneas pasa los filtros.
 
 ### 6.2 Salida
 
@@ -154,7 +166,7 @@ Lo sin vendedor en cero: es la situación que se busca.
 
 ## 11. Validaciones
 
-Las del periodo y el tramo de `RF-IN-001` §11 (`VAL-001`, `VAL-002`, `VAL-005`).
+Las del periodo y el tramo de `RF-IN-001` §11 (`VAL-001`, `VAL-002`, `VAL-005`). Los identificadores de vendedor, cliente y producto, si vienen, bien formados (`VAL-001`, 07-10-2026).
 
 ---
 
@@ -174,6 +186,12 @@ Las del periodo y el tramo de `RF-IN-001` §11 (`VAL-001`, `VAL-002`, `VAL-005`)
 | `CA-IN-068` | Una venta con líneas de **dos tipos** cuenta una venta en cada tipo y **una** en el total; las líneas, unidades e importes por tipo suman el total (07-10-2026) |
 | `CA-IN-069` | **Lo sin vendedor**, en total y **por tipo de producto**, sin las anuladas (07-10-2026) |
 | `CA-IN-070` | La respuesta **no trae pendientes ni anuladas**; con tramo, los dos bloques por tramo y su suma es el total (07-10-2026) |
+| `CA-IN-080` | Con **vendedor**, lo vendido es solo lo de sus líneas —una venta mixta cuenta con su parte— y **lo sin vendedor sale en cero** (07-10-2026) |
+| `CA-IN-081` | Con **cliente**, los dos bloques cuentan solo las ventas a su nombre (07-10-2026) |
+| `CA-IN-082` | Con **producto**, solo sus líneas, y por tipo solo el suyo, en los dos bloques (07-10-2026) |
+| `CA-IN-083` | Con **comprobante**, las ventas cuyo código lo contiene, sin distinguir mayúsculas; `%` y `_` son texto (07-10-2026) |
+| `CA-IN-084` | Los filtros **se combinan** entre sí y con la moneda y el periodo; con tramo, la suma de los tramos es el total filtrado (07-10-2026) |
+| `CA-IN-085` | Un vendedor, cliente o producto **inexistente** da ceros y no un error; un identificador mal formado, `400` (07-10-2026) |
 
 ---
 
@@ -198,3 +216,4 @@ Ninguna.
 |---|---|---|---|
 | 0.1.0 | 06-10-2026 | Primera versión, a petición del responsable del proyecto: **unidades** como productos vendidos, **ventas y líneas** sin vendedor, y un indicador **propio, de administración y sin alcance** (`RN-IN-011`). Ocho criterios, `CA-IN-059` a `CA-IN-066`. | Responsable técnico |
 | 0.2.0 | 07-10-2026 | **Por tipo de producto**: lo vendido —solo confirmado— y lo sin vendedor, cada uno en total y por tipo; sin pendientes ni anuladas. `CA-IN-067` a `CA-IN-070`; `CA-IN-060` sustituido y `CA-IN-061` enmendado. | Responsable técnico |
+| 0.3.0 | 07-10-2026 | **Filtros por vendedor, cliente, producto y comprobante**, a petición del responsable del proyecto: estrechan los dos bloques sin cambiar su forma; con vendedor, lo sin vendedor sale en cero. No es alcance (`RN-IN-011` sigue en pie). `CA-IN-080` a `CA-IN-085`. | Responsable técnico |

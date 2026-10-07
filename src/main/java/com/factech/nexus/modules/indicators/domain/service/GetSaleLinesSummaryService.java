@@ -8,6 +8,7 @@ import com.factech.nexus.modules.movements.application.SalesFigures.BucketTotals
 import com.factech.nexus.modules.movements.application.SalesFigures.BucketTypeTotals;
 import com.factech.nexus.modules.movements.application.SalesFigures.Granularity;
 import com.factech.nexus.modules.movements.application.SalesFigures.Interval;
+import com.factech.nexus.modules.movements.application.SalesFigures.LineFilter;
 import com.factech.nexus.modules.movements.application.SalesFigures.Lines;
 import com.factech.nexus.modules.movements.application.SalesFigures.SalesScope;
 import com.factech.nexus.modules.movements.application.SalesFigures.Totals;
@@ -47,10 +48,12 @@ public class GetSaleLinesSummaryService {
 
   /**
    * @param granularity {@code DAY}, {@code WEEK} o {@code MONTH}; nulo es sin tramos
+   * @param filtro el vendedor, el cliente, el producto y el comprobante que estrechan las líneas
+   *     (07-10-2026); no es alcance
    */
   @Transactional(readOnly = true)
   public SaleLinesSummaryResponse get(
-      LocalDate from, LocalDate to, UUID currencyId, String granularity) {
+      LocalDate from, LocalDate to, UUID currencyId, String granularity, LineFilter filtro) {
     List<FieldError> problemas = new ArrayList<>();
     IndicatorPeriod periodo = periodos.resolve(from, to, problemas);
     Granularity tramo = SalesPeriodResolver.granularity(granularity, null, problemas);
@@ -62,30 +65,34 @@ public class GetSaleLinesSummaryService {
 
     SaleLinesSummaryResponse.Group vendido =
         grupo(
-            cifras.summary(SalesScope.everything(), intervalo, currencyId).confirmed(),
-            cifras.byProductType(Lines.SOLD, intervalo, currencyId));
+            cifras.summary(SalesScope.everything(), intervalo, currencyId, filtro).confirmed(),
+            cifras.byProductType(Lines.SOLD, intervalo, currencyId, filtro));
     SaleLinesSummaryResponse.Group sinVendedor =
         grupo(
-            cifras.unassigned(intervalo, currencyId),
-            cifras.byProductType(Lines.UNASSIGNED, intervalo, currencyId));
+            cifras.unassigned(intervalo, currencyId, filtro),
+            cifras.byProductType(Lines.UNASSIGNED, intervalo, currencyId, filtro));
 
     List<SaleLinesSummaryResponse.Bucket> tramos = null;
     if (tramo != null) {
       ZoneId zona = ZoneId.of(periodo.zone());
       Map<LocalDate, Totals> vendidoPorTramo = new HashMap<>();
       for (BucketSummary b :
-          cifras.summaryByBucket(SalesScope.everything(), intervalo, currencyId, tramo, zona)) {
+          cifras.summaryByBucket(
+              SalesScope.everything(), intervalo, currencyId, tramo, zona, filtro)) {
         vendidoPorTramo.put(b.start(), b.summary().confirmed());
       }
       Map<LocalDate, Totals> sinVendedorPorTramo = new HashMap<>();
-      for (BucketTotals b : cifras.unassignedByBucket(intervalo, currencyId, tramo, zona)) {
+      for (BucketTotals b : cifras.unassignedByBucket(intervalo, currencyId, tramo, zona, filtro)) {
         sinVendedorPorTramo.put(b.start(), b.totals());
       }
       Map<LocalDate, List<TypeTotals>> vendidoPorTipo =
-          porTramo(cifras.byProductTypeAndBucket(Lines.SOLD, intervalo, currencyId, tramo, zona));
+          porTramo(
+              cifras.byProductTypeAndBucket(
+                  Lines.SOLD, intervalo, currencyId, tramo, zona, filtro));
       Map<LocalDate, List<TypeTotals>> sinVendedorPorTipo =
           porTramo(
-              cifras.byProductTypeAndBucket(Lines.UNASSIGNED, intervalo, currencyId, tramo, zona));
+              cifras.byProductTypeAndBucket(
+                  Lines.UNASSIGNED, intervalo, currencyId, tramo, zona, filtro));
 
       Set<LocalDate> conDatos = new HashSet<>();
       // Un tramo con solo pendientes o anuladas no tiene nada que contar aquí.

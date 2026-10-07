@@ -34,7 +34,15 @@ public interface SalesFigures {
    *
    * @param currencyId si no es nulo, solo lo vendido en esa moneda
    */
-  Summary summary(SalesScope scope, Interval interval, UUID currencyId);
+  default Summary summary(SalesScope scope, Interval interval, UUID currencyId) {
+    return summary(scope, interval, currencyId, LineFilter.none());
+  }
+
+  /**
+   * {@link #summary(SalesScope, Interval, UUID)} estrechado por {@code filter} (`RF-IN-006`,
+   * 07-10-2026).
+   */
+  Summary summary(SalesScope scope, Interval interval, UUID currencyId, LineFilter filter);
 
   /**
    * Lo confirmado del intervalo partido en tramos de calendario de {@code zone} (`RF-IN-002`): una
@@ -54,8 +62,19 @@ public interface SalesFigures {
    * `RN-IN-010`): uno por tramo <b>con ventas</b>, con su inicio. Los vacíos los rellena quien
    * pregunta, como en {@link #confirmedByBucket}.
    */
+  default List<BucketSummary> summaryByBucket(
+      SalesScope scope, Interval interval, UUID currencyId, Granularity granularity, ZoneId zone) {
+    return summaryByBucket(scope, interval, currencyId, granularity, zone, LineFilter.none());
+  }
+
+  /** {@link #summaryByBucket} estrechado por {@code filter} (`RF-IN-006`, 07-10-2026). */
   List<BucketSummary> summaryByBucket(
-      SalesScope scope, Interval interval, UUID currencyId, Granularity granularity, ZoneId zone);
+      SalesScope scope,
+      Interval interval,
+      UUID currencyId,
+      Granularity granularity,
+      ZoneId zone,
+      LineFilter filter);
 
   /** El resumen de un tramo. */
   record BucketSummary(LocalDate start, Summary summary) {}
@@ -66,11 +85,11 @@ public interface SalesFigures {
    * <b>No recibe alcance</b>, a propósito: lo sin vendedor no está en el alcance de ningún vendedor
    * (`RN-IN-003`) y solo tiene sentido sobre todo el libro (`RN-IN-011`).
    */
-  Totals unassigned(Interval interval, UUID currencyId);
+  Totals unassigned(Interval interval, UUID currencyId, LineFilter filter);
 
   /** {@link #unassigned} partido en tramos de calendario de {@code zone}, solo los que tienen. */
   List<BucketTotals> unassignedByBucket(
-      Interval interval, UUID currencyId, Granularity granularity, ZoneId zone);
+      Interval interval, UUID currencyId, Granularity granularity, ZoneId zone, LineFilter filter);
 
   /** Las cifras de un tramo. */
   record BucketTotals(LocalDate start, Totals totals) {}
@@ -83,11 +102,36 @@ public interface SalesFigures {
    * @param lines {@link Lines#SOLD}, lo confirmado; {@link Lines#UNASSIGNED}, lo sin vendedor de
    *     las ventas no anuladas
    */
-  List<TypeTotals> byProductType(Lines lines, Interval interval, UUID currencyId);
+  List<TypeTotals> byProductType(
+      Lines lines, Interval interval, UUID currencyId, LineFilter filter);
 
   /** {@link #byProductType} partido en tramos de calendario de {@code zone}. */
   List<BucketTypeTotals> byProductTypeAndBucket(
-      Lines lines, Interval interval, UUID currencyId, Granularity granularity, ZoneId zone);
+      Lines lines,
+      Interval interval,
+      UUID currencyId,
+      Granularity granularity,
+      ZoneId zone,
+      LineFilter filter);
+
+  /**
+   * Lo que estrecha las líneas que se cuentan (`RF-IN-006`, 07-10-2026). <b>No es alcance</b>: lo
+   * elige quien pregunta, como la moneda. Una venta cuenta si alguna de sus líneas pasa.
+   *
+   * @param sellerId el vendedor de la línea; con él, lo sin vendedor da cero
+   * @param clientId el sujeto de la venta
+   * @param productId el producto de la línea
+   * @param code un fragmento del comprobante, sin distinguir mayúsculas; vacío es sin filtro
+   */
+  record LineFilter(UUID sellerId, UUID clientId, UUID productId, String code) {
+    public LineFilter {
+      code = code == null || code.isBlank() ? null : code.trim();
+    }
+
+    public static LineFilter none() {
+      return new LineFilter(null, null, null, null);
+    }
+  }
 
   /** Qué líneas se cuentan por tipo. */
   enum Lines {

@@ -5,7 +5,7 @@
 | Requerimiento | `RF-IN-006` |
 | Especificación | [`spec.md`](spec.md) v0.2.0 |
 | `spec.md` aprobada el | 06-10-2026 |
-| Versión | 0.2.0 |
+| Versión | 0.3.0 |
 | Estado | **Aprobado** |
 | Autor | Responsable técnico |
 | Aprobado por | Responsable del proyecto |
@@ -14,6 +14,10 @@
 !!! warning "Enmendado el 07-10-2026 — por tipo de producto, y lo sin vendedor también"
 
     Decisión del responsable del proyecto, 07-10-2026: «mejor agrupemos por lo siguiente: por tipo de producto y líneas de ventas sin vendedores», con dos precisiones suyas: **por tipo de producto, solo lo vendido** —lo confirmado—, y **lo sin vendedor también por tipo**. **Cómo se construye.** El total de lo vendido es `summary(everything()).confirmed()` y el de lo sin vendedor `unassigned`, los dos ya publicados. **Lo por tipo es una lectura nueva de `SalesFigures`**, `byProductType(Lines, Interval, UUID currencyId)` —`Lines` = `SOLD` \| `UNASSIGNED`— y su versión por tramo: la sentencia del resumen con `JOIN products p ON p.id = d.product_id` —como ya hacen otras lecturas de `JpaMovementRepository`— y `p.type` en el lugar del estado, para pasar por el mismo mapeo. `SOLD` filtra `m.status = 'CONFIRMADA'`; `UNASSIGNED`, lo de `SIN_VENDEDOR`. La respuesta: `sold` y `unassigned`, cada uno con `total` y `byType`; `byType` trae los tipos con datos, por nombre.
+
+!!! warning "Enmendado el 07-10-2026 (segunda) — `sellerId`, `clientId`, `productId` y `code`"
+
+    `spec.md` v0.3.0. **`SalesFigures` gana `LineFilter(UUID sellerId, UUID clientId, UUID productId, String code)`**, con `none()`, y las lecturas que usa este indicador lo reciben: `unassigned`, `unassignedByBucket`, `byProductType` y `byProductTypeAndBucket` lo toman en su firma, y `summary` y `summaryByBucket` ganan una sobrecarga con él —las de siempre delegan con `none()`, de modo que `RF-IN-001`, `RF-IN-002` y `RF-IN-004` no cambian—. **El predicado vive en el mismo sitio que el de la moneda** (`donde` y `enlazar` de `JpaSalesFigures`): `d.seller_id = :vendedor`, `m.user_id = :cliente`, `d.product_id = :producto` y `lower(m.code) LIKE :codigo ESCAPE '\'` con los comodines escapados, como `Filtro.contiene` de `JpaMovementRepository`. **El vendedor del filtro no usa `SalesScope`**: el alcance se queda en `everything()`, porque esto no es alcance (`RN-IN-011`), y además `unassigned` no lo recibe. Con `d.seller_id = :vendedor` y `d.seller_id IS NULL` juntos, lo sin vendedor da cero por la sentencia, sin un caso aparte. El código se normaliza en el controlador: vacío es sin filtro. Pruebas en `SaleLinesSummaryIT`. **Ampliación**: la respuesta no cambia.
 
 !!! info "Qué va en este documento"
 
@@ -63,7 +67,7 @@
 
 ### 4.1 Parámetros
 
-`from`, `to`, `currencyId` y `granularity`, los de `RN-IN-010`. **Sin `sellerId`.**
+`from`, `to`, `currencyId` y `granularity`, los de `RN-IN-010`. **Desde el 07-10-2026, `sellerId`, `clientId`, `productId` (UUID) y `code` (texto, fragmento)**, que estrechan sin acotar por alcance (§ enmienda).
 
 ### 4.2 La respuesta
 

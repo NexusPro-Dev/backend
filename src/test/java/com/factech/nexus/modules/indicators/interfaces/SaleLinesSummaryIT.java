@@ -226,7 +226,118 @@ class SaleLinesSummaryIT extends IntegrationTestBase {
         .containsExactlyInAnyOrder("SUPERADMIN", "ADMIN");
   }
 
+  @Test
+  @DisplayName(
+      "CA-IN-080 — con vendedor, solo sus líneas —la mixta con su parte— y lo sin vendedor en cero")
+  void filtroPorVendedor() throws Exception {
+    septiembre(funcionario, "sellerId", agente1.toString())
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$.sold.total.sales").value(2))
+        .andExpect(jsonPath("$.sold.total.lines").value(2))
+        .andExpect(jsonPath("$.sold.total.units").value(4))
+        .andExpect(jsonPath("$.sold.total.amounts[*].currency.code", contains("USD")))
+        .andExpect(jsonPath("$.sold.total.amounts[0].amount").value(35.0))
+        .andExpect(jsonPath("$.sold.byType[*].type", contains("BOT")))
+        .andExpect(jsonPath("$.unassigned.total.sales").value(0))
+        .andExpect(jsonPath("$.unassigned.byType").isEmpty());
+  }
+
+  @Test
+  @DisplayName("CA-IN-081 — con cliente, solo las ventas a su nombre, en los dos bloques")
+  void filtroPorCliente() throws Exception {
+    // La única venta en COP pasa a ser del director como cliente.
+    jdbc.update(
+        "UPDATE movements SET user_id = ? WHERE currency_id = CAST(? AS uuid)"
+            + " AND code LIKE 'ISL-%'",
+        director, COP);
+    septiembre(funcionario, "clientId", director.toString())
+        .andExpect(jsonPath("$.sold.total.sales").value(1))
+        .andExpect(jsonPath("$.sold.total.amounts[*].currency.code", contains("COP")))
+        .andExpect(jsonPath("$.sold.byType[*].type", contains("UPGRADE_MEMBRESIA")))
+        .andExpect(jsonPath("$.unassigned.total.sales").value(0));
+    septiembre(funcionario, "clientId", funcionario.toString())
+        .andExpect(jsonPath("$.sold.total.sales").value(2))
+        .andExpect(jsonPath("$.unassigned.total.sales").value(2));
+  }
+
+  @Test
+  @DisplayName("CA-IN-082 — con producto, solo sus líneas, y por tipo solo el suyo")
+  void filtroPorProducto() throws Exception {
+    septiembre(funcionario, "productId", upgrade.toString())
+        .andExpect(jsonPath("$.sold.total.sales").value(2))
+        .andExpect(jsonPath("$.sold.total.lines").value(2))
+        .andExpect(jsonPath("$.sold.total.units").value(5))
+        .andExpect(jsonPath("$.sold.byType[*].type", contains("UPGRADE_MEMBRESIA")))
+        .andExpect(jsonPath("$.unassigned.total.sales").value(1))
+        .andExpect(jsonPath("$.unassigned.total.units").value(4))
+        .andExpect(jsonPath("$.unassigned.byType[*].type", contains("UPGRADE_MEMBRESIA")));
+  }
+
+  @Test
+  @DisplayName(
+      "CA-IN-083 — con comprobante, las ventas cuyo código lo contiene, sin mayúsculas; % es texto")
+  void filtroPorComprobante() throws Exception {
+    String codigo =
+        jdbc.queryForObject(
+            "SELECT m.code FROM movements m JOIN movement_details d ON d.movement_id = m.id"
+                + " WHERE d.quantity = 3 AND m.code LIKE 'ISL-%'",
+            String.class);
+    septiembre(funcionario, "code", codigo.substring(3, 10).toLowerCase())
+        .andExpect(jsonPath("$.sold.total.sales").value(1))
+        .andExpect(jsonPath("$.sold.total.units").value(3))
+        .andExpect(jsonPath("$.unassigned.total.sales").value(0));
+    septiembre(funcionario, "code", "%")
+        .andExpect(jsonPath("$.sold.total.sales").value(0))
+        .andExpect(jsonPath("$.unassigned.total.sales").value(0));
+  }
+
+  @Test
+  @DisplayName("CA-IN-084 — los filtros se combinan entre sí, con la moneda y con los tramos")
+  void filtrosCombinados() throws Exception {
+    mvc.perform(
+            get(RUTA)
+                .param("from", "2026-09-01")
+                .param("to", "2026-09-30")
+                .param("granularity", "MONTH")
+                .param("sellerId", agente1.toString())
+                .param("productId", bot.toString())
+                .with(conPermiso(funcionario)))
+        .andExpect(jsonPath("$.sold.total.sales").value(2))
+        .andExpect(jsonPath("$.sold.total.units").value(4))
+        .andExpect(jsonPath("$.buckets[*].start", contains("2026-09-01")))
+        .andExpect(jsonPath("$.buckets[0].sold.total.units").value(4))
+        .andExpect(jsonPath("$.buckets[0].unassigned.total.sales").value(0));
+    mvc.perform(
+            get(RUTA)
+                .param("sellerId", agente1.toString())
+                .param("currencyId", COP)
+                .with(conPermiso(funcionario)))
+        .andExpect(jsonPath("$.sold.total.sales").value(0));
+  }
+
+  @Test
+  @DisplayName(
+      "CA-IN-085 — un vendedor, cliente o producto inexistente da ceros; uno mal formado, 400")
+  void inexistentesYMalFormados() throws Exception {
+    for (String filtro : new String[] {"sellerId", "clientId", "productId"}) {
+      septiembre(funcionario, filtro, UUID.randomUUID().toString())
+          .andExpect(status().isOk())
+          .andExpect(jsonPath("$.sold.total.sales").value(0))
+          .andExpect(jsonPath("$.unassigned.total.sales").value(0));
+      septiembre(funcionario, filtro, "no-es-uuid").andExpect(status().isBadRequest());
+    }
+  }
+
   // ---------------------------------------------------------------------------
+
+  private ResultActions septiembre(UUID actor, String filtro, String valor) throws Exception {
+    return mvc.perform(
+        get(RUTA)
+            .param("from", "2026-09-01")
+            .param("to", "2026-09-30")
+            .param(filtro, valor)
+            .with(conPermiso(actor)));
+  }
 
   private ResultActions septiembre(UUID actor) throws Exception {
     return mvc.perform(

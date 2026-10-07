@@ -7,6 +7,7 @@ import com.factech.nexus.modules.indicators.application.SalesSummaryResponse;
 import com.factech.nexus.modules.indicators.domain.service.GetSaleLinesSummaryService;
 import com.factech.nexus.modules.indicators.domain.service.GetSalesSeriesService;
 import com.factech.nexus.modules.indicators.domain.service.GetSalesSummaryService;
+import com.factech.nexus.modules.movements.application.SalesFigures.LineFilter;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.media.Content;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
@@ -212,8 +213,16 @@ public class SalesIndicatorsController {
 
           El periodo, la moneda y `granularity` son los de los demás indicadores: días de
           Bogotá, sin fechas toda la historia, sin tope; con `granularity`, `buckets` trae los
-          mismos bloques por tramo, todos presentes, y su suma es el total. **No hay filtro por
-          vendedor.** Ni `movements:list-sale-lines` ni otro permiso de indicadores abren este.
+          mismos bloques por tramo, todos presentes, y su suma es el total.
+
+          **Filtros** (07-10-2026), opcionales y combinables, que estrechan los dos bloques sin
+          cambiar su forma: `sellerId`, solo las líneas que vendió esa persona —y entonces
+          `unassigned` sale en cero—; `clientId`, solo las ventas a su nombre; `productId`,
+          solo las líneas de ese producto; y `code`, las ventas cuyo comprobante **contenga** lo
+          escrito, sin distinguir mayúsculas. Una venta cuenta si alguna de sus líneas pasa. Un
+          identificador que no existe da ceros. **No son alcance**: quien porte el permiso puede
+          preguntar por cualquiera. Ni `movements:list-sale-lines` ni otro permiso de
+          indicadores abren este.
           """)
   @ApiResponses({
     @ApiResponse(responseCode = "200", description = "El resumen, aunque sea de ceros."),
@@ -240,7 +249,12 @@ public class SalesIndicatorsController {
       @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate from,
       @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate to,
       @RequestParam(required = false) UUID currencyId,
-      @RequestParam(required = false) String granularity) {
-    return lineas.get(from, to, currencyId, granularity);
+      @RequestParam(required = false) String granularity,
+      @RequestParam(required = false) UUID sellerId,
+      @RequestParam(required = false) UUID clientId,
+      @RequestParam(required = false) UUID productId,
+      @RequestParam(required = false) String code) {
+    return lineas.get(
+        from, to, currencyId, granularity, new LineFilter(sellerId, clientId, productId, code));
   }
 }

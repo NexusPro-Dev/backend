@@ -15431,7 +15431,7 @@
     },
     "/api/v1/indicators/sales/lines/summary" : {
       "get" : {
-        "description" : "**Permiso requerido:** `indicators:read-sale-lines-summary`. Sin él, `403` (`AUTH-002`).\n\nSobre **todas** las líneas de venta de la plataforma, dos bloques, cada uno en\n**`total`** y **`byType`, por tipo de producto** (`BOT`, `UPGRADE_MEMBRESIA`):\n\n- **`sold`, lo vendido**: solo las ventas **confirmadas** —las ventas, las líneas,\n  **las unidades** (los productos vendidos: la suma de las cantidades) y el importe por\n  moneda—.\n- **`unassigned`, lo que no tiene vendedor**: las líneas sin vendedor de las ventas\n  **no anuladas** —lo que falta por atribuir—, con las mismas cifras.\n\nEl tipo es el del producto de la línea. **Una venta con líneas de dos tipos cuenta en\ncada uno**: las ventas por tipo pueden sumar más que el total; las líneas, las unidades\ny los importes, no. No hay pendientes ni anuladas en la respuesta.\n\n**No se acota por alcance**: quien porte el permiso ve las cifras de toda la plataforma,\nsea cual sea su tipo de rol. El permiso se siembra solo a administración; dárselo a un\nrol vendedor es darle esta vista entera. El total de lo vendido es lo confirmado que ve\nadministración en `GET /indicators/sales/summary`.\n\nEl periodo, la moneda y `granularity` son los de los demás indicadores: días de\nBogotá, sin fechas toda la historia, sin tope; con `granularity`, `buckets` trae los\nmismos bloques por tramo, todos presentes, y su suma es el total. **No hay filtro por\nvendedor.** Ni `movements:list-sale-lines` ni otro permiso de indicadores abren este.\n",
+        "description" : "**Permiso requerido:** `indicators:read-sale-lines-summary`. Sin él, `403` (`AUTH-002`).\n\nSobre **todas** las líneas de venta de la plataforma, dos bloques, cada uno en\n**`total`** y **`byType`, por tipo de producto** (`BOT`, `UPGRADE_MEMBRESIA`):\n\n- **`sold`, lo vendido**: solo las ventas **confirmadas** —las ventas, las líneas,\n  **las unidades** (los productos vendidos: la suma de las cantidades) y el importe por\n  moneda—.\n- **`unassigned`, lo que no tiene vendedor**: las líneas sin vendedor de las ventas\n  **no anuladas** —lo que falta por atribuir—, con las mismas cifras.\n\nEl tipo es el del producto de la línea. **Una venta con líneas de dos tipos cuenta en\ncada uno**: las ventas por tipo pueden sumar más que el total; las líneas, las unidades\ny los importes, no. No hay pendientes ni anuladas en la respuesta.\n\n**No se acota por alcance**: quien porte el permiso ve las cifras de toda la plataforma,\nsea cual sea su tipo de rol. El permiso se siembra solo a administración; dárselo a un\nrol vendedor es darle esta vista entera. El total de lo vendido es lo confirmado que ve\nadministración en `GET /indicators/sales/summary`.\n\nEl periodo, la moneda y `granularity` son los de los demás indicadores: días de\nBogotá, sin fechas toda la historia, sin tope; con `granularity`, `buckets` trae los\nmismos bloques por tramo, todos presentes, y su suma es el total.\n\n**Filtros** (07-10-2026), opcionales y combinables, que estrechan los dos bloques sin\ncambiar su forma: `sellerId`, solo las líneas que vendió esa persona —y entonces\n`unassigned` sale en cero—; `clientId`, solo las ventas a su nombre; `productId`,\nsolo las líneas de ese producto; y `code`, las ventas cuyo comprobante **contenga** lo\nescrito, sin distinguir mayúsculas. Una venta cuenta si alguna de sus líneas pasa. Un\nidentificador que no existe da ceros. **No son alcance**: quien porte el permiso puede\npreguntar por cualquiera. Ni `movements:list-sale-lines` ni otro permiso de\nindicadores abren este.\n",
         "operationId" : "resumenDeLineas",
         "parameters" : [ {
           "in" : "query",
@@ -15460,6 +15460,37 @@
         }, {
           "in" : "query",
           "name" : "granularity",
+          "required" : false,
+          "schema" : {
+            "type" : "string"
+          }
+        }, {
+          "in" : "query",
+          "name" : "sellerId",
+          "required" : false,
+          "schema" : {
+            "format" : "uuid",
+            "type" : "string"
+          }
+        }, {
+          "in" : "query",
+          "name" : "clientId",
+          "required" : false,
+          "schema" : {
+            "format" : "uuid",
+            "type" : "string"
+          }
+        }, {
+          "in" : "query",
+          "name" : "productId",
+          "required" : false,
+          "schema" : {
+            "format" : "uuid",
+            "type" : "string"
+          }
+        }, {
+          "in" : "query",
+          "name" : "code",
           "required" : false,
           "schema" : {
             "type" : "string"
