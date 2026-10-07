@@ -3,14 +3,15 @@
 | Campo | Valor |
 |---|---|
 | Requerimiento | `RF-CM-024` |
-| Especificación | [`spec.md`](spec.md) v0.2.0 |
+| Especificación | [`spec.md`](spec.md) v0.3.0 |
 | `spec.md` aprobada el | 30-09-2026 |
-| Versión | 0.2.0 |
+| Versión | 0.3.0 |
 | Estado | **Aprobado** |
 | Autor | Responsable técnico |
 | Aprobado por | Responsable del proyecto |
 | Fecha de aprobación | 30-09-2026 |
 | Enmendado el | 07-10-2026 — la cadena vieja se borra, y `V80` retira la marca (§12) |
+| Enmendado el | 07-10-2026 — la liberación deja una marca y la cadena nueva va al lote más reciente sin pagar; `V82` (§13) |
 
 !!! info "Qué va en este documento"
 
@@ -168,3 +169,22 @@ por lote: adjustTotal(lote, -suma de las suyas)                          — igu
 | Exigir que todos los lotes de la cadena estén `ABIERTO` | Lo descartó el responsable: un pendiente todavía no se ha pagado |
 
 **Pruebas**: `ReleaseCommissionedLineIT` reescribe `CA-CM-290`, `CA-CM-292`, `CA-CM-296` y `CA-CM-299` como `CA-CM-340` a `CA-CM-343`, y los de las enmiendas de `RF-CM-010`, `RF-CM-012` y `RF-CM-013` como `CA-CM-344` a `CA-CM-346`, con `CA-MV-700`. `CA-CM-305` prepara la línea **borrando** su cadena por SQL. `WithdrawCommissionIT` y `ReturnCommissionIT` pierden el caso de la revertida, y `PayCommissionBatchesIT` vacía su pendiente borrando.
+
+## 13. La cadena nueva va al lote más reciente sin pagar — enmienda del 07-10-2026
+
+`RN-CM-051`. **El destino lo decide el devengo** (`RF-CM-013` `plan.md` §18), y esta liberación solo tiene que **dejar dicho** que la línea se reatribuyó, en su misma transacción —la de `MV`—: si la corrección se deshace, la marca se deshace con ella.
+
+**Esquema, `V82`**: `commission_reattributions (movement_detail_id uuid PRIMARY KEY REFERENCES movement_details ON DELETE CASCADE, released_at timestamptz NOT NULL)`. **`CASCADE`**: la marca no es dinero, y `RESTRICT` obligaría a cada suite que limpia ventas a limpiarla antes.
+
+| Componente | Cambio |
+|---|---|
+| `CommissionAccrualRepository` | Gana `markReattributed(lineId, at)` —`INSERT … ON CONFLICT (movement_detail_id) DO UPDATE`, porque una segunda corrección antes del devengo la reescribe—, `isReattributed(lineId)` y `clearReattribution(lineId)` |
+| `ReleaseCommissionedLineService` | Tras borrar la cadena y el desenlace, `markReattributed`. **Solo al liberar**: con `COMISION_PAGADA` o `FTD_CONTADO` no escribe nada |
+
+| Alternativa | Por qué no |
+|---|---|
+| Que la marca sea un estado de `commission_accruals` («`REATRIBUIDA`») | El desenlace de la línea se borra para que el devengo la trate como nueva (`RN-CM-047`); un cuarto estado obligaría al barrido, al listado de `RF-CM-014` y a su contrato a conocerlo |
+| Pasar el dato en el aviso de `MV` | El barrido no recibe avisos, y es quien recoge el aviso perdido |
+| Devengar aquí, en la liberación | Fue descartado en §9 y sigue valiendo |
+
+**Pruebas**: `ReleaseCommissionedLineIT` reescribe `CA-CM-291` como `CA-CM-356` —cerrar, corregir, y la comisión del director en su **pendiente**; la del vendedor nuevo, que no tenía lote, en un **abierto** recién abierto (`CA-CM-358`)— y gana `CA-CM-357` y `CA-CM-360`.

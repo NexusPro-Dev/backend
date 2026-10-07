@@ -3,11 +3,12 @@
 | Campo | Valor |
 |---|---|
 | Requerimiento | `RF-CM-024` |
-| Especificación | [`spec.md`](spec.md) v0.2.0 |
-| Plan | [`plan.md`](plan.md) v0.2.0 |
+| Especificación | [`spec.md`](spec.md) v0.3.0 |
+| Plan | [`plan.md`](plan.md) v0.3.0 |
 | `plan.md` aprobado el | 30-09-2026 |
 | Estado | **En revisión** — todas las tareas `Hecha` el 30-09-2026 |
 | Enmendadas | 07-10-2026 — `T-07` a `T-11` porque **la cadena vieja se borra** (`RN-CM-047`) |
+| Enmendadas | 07-10-2026 — `T-12` a `T-14` porque **la cadena nueva va al lote más reciente sin pagar** (`RN-CM-051`) |
 | Issue | Pendiente de crear |
 | Rama | `feature/corregir-vendedor-y-mover-comisiones` |
 
@@ -81,3 +82,13 @@
 | `T-11` | Contrato regenerado y `requirements.md` | `T-10` | Las suites de `CM`, `CommissionBatchesSummaryIT` y `OpenApiContractIT` en verde; la suite completa queda para antes del push | **Hecha** — 07-10-2026 |
 
 Rama: `develop`.
+
+## 7. La cadena nueva va al lote más reciente sin pagar — enmienda del 07-10-2026
+
+| ID | Tarea | Depende de | Verificación | Estado |
+|---|---|---|---|---|
+| `T-12` | **`V82`**: `commission_reattributions` (`plan.md` §13) | — | Flyway aplica | Pendiente |
+| `T-13` | `markReattributed`, `isReattributed` y `clearReattribution` en `CommissionAccrualRepository`; `ReleaseCommissionedLineService` marca al liberar | `T-12` | — | Pendiente |
+| `T-14` | `ReleaseCommissionedLineIT`: `CA-CM-356` a `CA-CM-358` y `CA-CM-360` | `T-13`, `RF-CM-013` `T-23` | La suite de `CM` en verde | Pendiente |
+
+Orden: `T-12` → `T-13` → `RF-CM-013` `T-23` → `T-14`.

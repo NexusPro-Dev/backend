@@ -5,7 +5,7 @@
 | Requerimiento | `RF-CM-013` |
 | Especificación | [`spec.md`](spec.md) v0.1.0 |
 | `spec.md` aprobada el | 28-09-2026 |
-| Versión | 0.7.0 |
+| Versión | 0.8.0 |
 | Estado | **Aprobado** |
 | Autor | Responsable técnico |
 | Aprobado por | Responsable del proyecto |
@@ -14,6 +14,7 @@
 | Enmendado el | 29-09-2026 — la directa en el nivel `0`, `LastLinkRoles` en `SP` y `directCommissionOf` en `PM` (§13) |
 | Enmendado el | 30-09-2026 — la línea revertida se devenga otra vez, sin código nuevo (§14) |
 | Enmendado el | 05-10-2026 — la comisión y el lote en centésimas, redondeo al construir la fila (§16) |
+| Enmendado el | 07-10-2026 — la línea reatribuida va al lote más reciente sin pagar (§18) |
 | Enmendado el | 07-10-2026 — la cadena vieja se borra; el devengo no cambia (§17) |
 
 !!! info "Qué va en este documento"
@@ -211,3 +212,18 @@ Y un índice de apoyo: `ix_commission_batches_abierto` sobre `(user_id, currency
 ## 17. La cadena vieja se borra — enmienda del 07-10-2026
 
 `RN-CM-047` enmendada. **Ningún componente del devengo cambia**: lo que §14 explicaba sigue valiendo, con una salvedad — `uq_commissions_detail_user` **ya no es parcial** (`V80`, [`RF-CM-024`](../024-revertir-comisiones-de-linea/plan.md) §12), y no necesita serlo: la comisión vieja de quien está en las dos cadenas ya no existe cuando se inserta la nueva. `CA-CM-346` se prueba en `ReleaseCommissionedLineIT`, y `CA-CM-305` prepara su línea **borrando** la cadena por SQL.
+
+## 18. La línea reatribuida va al lote más reciente sin pagar — enmienda del 07-10-2026
+
+`RN-CM-051`. **Lo único que cambia es qué lote se bloquea**, y solo cuando la línea lleva la marca que deja `RF-CM-024` (`plan.md` §13 de aquella).
+
+| Componente | Cambio |
+|---|---|
+| `CommissionBatchRepository` | Gana `lockLatestUnpaidBatch(userId, currencyId, at)`: busca el lote `ABIERTO` o `PENDIENTE` de la persona y la moneda **con el `period_start` más reciente**, lo **bloquea por identificador** y **vuelve a mirar su estado**; si un pago lo dejó `PAGADO` entre medias, busca otra vez. **Sin ninguno, `lockOpenBatch`**, que abre uno como siempre. Se busca primero y se bloquea después, y no con `FOR UPDATE … LIMIT 1`, porque Postgres reevalúa el filtro tras la espera y podría devolver cero filas aunque hubiera un pendiente más antiguo sin pagar |
+| `CommissionAccrualService` | Lee `isReattributed` al empezar la línea. Con marca, cada nivel bloquea `lockLatestUnpaidBatch`; sin ella, `lockOpenBatch` como hasta hoy. **Borra la marca** al escribir un desenlace `DEVENGADA` o `SIN_COMISION`, y al descartar una línea FTD; una `RECHAZADA` la conserva para su reintento |
+
+**El instante del devengo** sigue siendo `max(periodStart, ahora)`: en un pendiente es **posterior a su fin de periodo**, y es verdad —la comisión nació hoy—. Ninguna restricción lo impide, y el listado de `RF-CM-026` la ordena por ese instante.
+
+**El orden de bloqueos no cambia**: la línea, después los lotes por persona. Un pago concurrente bloquea el mismo lote: si gana el pago, el devengo encuentra `PAGADO` y busca otro; si gana el devengo, el pago espera y abona el total ya subido.
+
+**Pruebas**: `CA-CM-359` en `ReleaseCommissionedLineIT`, junto a los de `RF-CM-024`: allí ya están la corrección, el cierre y las dos personas.

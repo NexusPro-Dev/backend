@@ -4,7 +4,7 @@
 |---|---|
 | Requerimiento | `RF-CM-013` |
 | Módulo | `CM` — Comisiones |
-| Versión | 0.7.0 |
+| Versión | 0.8.0 |
 | Estado | **Aprobada** |
 | Autor | Responsable técnico |
 | Aprobada por | Responsable del proyecto |
@@ -14,6 +14,7 @@
 | Enmendada el | 30-09-2026 — **una línea cuya cadena se revirtió se devenga otra vez** (`RN-CM-047`) |
 | Enmendada el | 05-10-2026 — **la comisión se guarda en centésimas, redondeada al guardarse** ([`ADR-006`](../../../architecture/ADR-006-importes-en-unidades-minimas.md)): `CA-CM-336` y `CA-CM-337` |
 | Enmendada el | 07-10-2026 — **la cadena vieja se borra** antes de devengar la nueva (`RN-CM-047`): `CA-CM-346` |
+| Enmendada el | 07-10-2026 — **la línea reatribuida va al lote más reciente sin pagar** de cada persona, y la venta nueva sigue yendo al abierto (`RN-CM-051`): `CA-CM-359` |
 
 !!! info "Qué va en este documento"
 
@@ -215,6 +216,7 @@ Uno la atiende; el otro no hace nada. **Nunca se devenga dos veces** (`RN-CM-027
 | `CA-CM-330` | Un `DIRECTOR` **sin tasa de rol** sobre el producto **no cobra** en el nivel `0` —no hay directa donde leerla—; sus superiores cobran su override. Enmienda `CA-CM-267` |
 | `CA-CM-336` | La comisión **se calcula con cuatro decimales y se guarda redondeada a dos con `HALF_UP`**: el 10 % de una línea de `0.05` da `0.005`, se guarda `1` (en centésimas) y se lee `0.01`. El redondeo lo hace el dominio al construir la fila, no el convertidor (05-10-2026) |
 | `CA-CM-337` | El **total del lote** es la suma **exacta** de sus comisiones en centésimas, y el abono al pagarlo (`RF-CM-011`, `RF-MV-024`) es **exactamente ese total**, sin redondeo adicional (05-10-2026) |
+| `CA-CM-359` | **La venta nueva no cambia de destino**: una venta confirmada después del cierre va al lote **abierto** —que se abre si no lo hay— aunque la persona tenga un pendiente sin pagar; **solo una línea reatribuida** va al lote más reciente sin pagar (`RN-CM-051`), y al devengarse pierde la marca (07-10-2026). Precisa `CA-CM-346` |
 | `CA-CM-346` | Una línea cuyo vendedor se corrigió se devenga **otra vez**, en el lote **abierto** de cada persona, y quien estaba en la cadena vieja **cobra la nueva** sin que quede ninguna comisión vieja de la misma línea: la cadena vieja **se borró** (07-10-2026). Enmienda `CA-CM-304` |
 
 **`CA-CM-166` es el que sostiene la decisión de §2.1**: el cobro no depende de la configuración de comisiones.
@@ -252,3 +254,4 @@ Uno la atiende; el otro no hace nada. **Nunca se devenga dos veces** (`RN-CM-027
 | 0.5.0 | 05-10-2026 | **La directa se lee en la tasa de rol del vendedor** (`RN-CM-050`, [`requirements/cm.md`](../../../requirements/cm.md) v0.30.0 §5.11) y no en el producto: una por rol, opcional, y `rate_id` apunta a la tasa. `CA-CM-328` a `CA-CM-330`; se enmiendan `CA-CM-264` (la directa y su `rate_id`) y `CA-CM-267` (sin tasa de rol ya no hay directa). | Responsable del proyecto |
 | 0.6.0 | 05-10-2026 | **La comisión se guarda en centésimas** ([`ADR-006`](../../../architecture/ADR-006-importes-en-unidades-minimas.md), [`requirements/cm.md`](../../../requirements/cm.md) v0.31.0), por decisión del responsable del proyecto. `commission_amount`, `fixed_amount` y `unit_price` de `commissions` y `total_amount` del lote pasan a `bigint`. **El cálculo no cambia: sigue con cuatro decimales en memoria**, y lo que cambia es dónde se pierde la precisión, que ahora es **al guardar la fila, con `HALF_UP`**, y no al pagar. `CA-CM-336` fija ese redondeo y `CA-CM-337` su consecuencia: el lote suma enteros, y el abono es su total sin tocarlo. **`CA-CM-166` no cambia de enunciado**, pero el dato que lo provocaba ya no provoca nada, y `tasks.md` §10 lo declara. | Responsable del proyecto |
 | 0.7.0 | 07-10-2026 | **La cadena vieja se borra** ([`requirements/cm.md`](../../../requirements/cm.md) v0.34.0, `RN-CM-047` enmendada): el devengo de la línea reatribuida no cambia, pero ya no convive con una comisión revertida de la misma persona, y la unicidad (`RN-CM-027`) vuelve a ser completa. `CA-CM-346` enmienda `CA-CM-304`; **`CA-CM-305` se lee** con la cadena vieja borrada. | Responsable del proyecto |
+| 0.8.0 | 07-10-2026 | **La línea reatribuida va al lote más reciente sin pagar** de cada persona ([`requirements/cm.md`](../../../requirements/cm.md) v0.37.0, `RN-CM-051`), por decisión del responsable del proyecto: `ABIERTO` o `PENDIENTE` en la moneda de la venta, y solo si no hay ninguno se abre uno. El devengo de una venta nueva no cambia. `CA-CM-359`. | Responsable del proyecto |

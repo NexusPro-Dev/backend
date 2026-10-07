@@ -10,6 +10,7 @@
 | Enmendadas | 29-09-2026 — `T-14` por **las líneas FTD fuera del devengo** (`RN-CM-022`) |
 | Enmendadas | 29-09-2026 — `T-15` a `T-17` por **la comisión por venta directa** (`RN-CM-045`) |
 | Enmendadas | 30-09-2026 — `T-18` por **la línea revertida** (`RN-CM-047`) |
+| Enmendadas | 07-10-2026 — `T-23` y `T-24` por **la línea reatribuida al lote más reciente sin pagar** (`RN-CM-051`) |
 | Enmendadas | 05-10-2026 — `T-20` a `T-22` porque **la comisión se guarda en centésimas** (`ADR-006`) |
 | Enmendadas | 07-10-2026 — la cadena vieja se borra: lo prueba `RF-CM-024` `T-10` (`RN-CM-047`) |
 | Issue | **Hecha** — 05-10-2026 de crear |
@@ -137,3 +138,10 @@ Rama: `develop`.
 **Propuesta, sin decidir aquí si hace falta código de producción:** que la suite añada al empezar una restricción **solo de prueba** sobre `commissions` (por ejemplo `ALTER TABLE commissions ADD CONSTRAINT ck_prueba_fallo CHECK (commission_amount <> <importe testigo>) NOT VALID`), que la provoque con ese importe exacto y que la retire en un `finally` y en la limpieza **al terminar**, no solo al empezar. Con `NOT VALID` no se revisan las filas existentes, y la restricción no sale de la suite. Se descarta `@MockitoSpyBean` por lo que ya se dijo: un contexto de Spring más agota las conexiones de la suite. Si se prefiere que el fallo nazca en producción —un techo de dominio para la comisión, con su `EX`—, eso es una regla de negocio nueva y pasa antes por `cm.md`. **`AfftrackSettlementIT` (`RF-CM-020`) tiene el mismo problema con `CA-CM-252`, y conviene resolver los dos de la misma forma.**
 
 Rama: `develop`.
+
+## 11. La línea reatribuida va al lote más reciente sin pagar — enmienda del 07-10-2026
+
+| ID | Tarea | Depende de | Verificación | Estado |
+|---|---|---|---|---|
+| `T-23` | `lockLatestUnpaidBatch` en `CommissionBatchRepository`; `CommissionAccrualService` elige el lote por la marca y la borra (`plan.md` §18) | `RF-CM-024` `T-13` | — | Pendiente |
+| `T-24` | `CA-CM-359` en `ReleaseCommissionedLineIT` | `T-23` | La suite de `CM` en verde | Pendiente |
