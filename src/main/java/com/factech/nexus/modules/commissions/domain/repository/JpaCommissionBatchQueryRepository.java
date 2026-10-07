@@ -99,7 +99,7 @@ public class JpaCommissionBatchQueryRepository implements CommissionBatchQueryRe
    * Las columnas de una comisión, comunes a las del lote y a las retiradas de él. <b>{@code o} es
    * el lote del que salió</b> (`RN-CM-046`) y <b>{@code a} el lote en que está</b>.
    */
-  private static final String COMISION =
+  private static final String COLUMNAS_COMISION =
       """
       SELECT k.id, k.movement_detail_id, d.movement_id, m.code,
              COALESCE(d.product_id, s.product_id), COALESCE(d.product_name, p.name),
@@ -109,6 +109,10 @@ public class JpaCommissionBatchQueryRepository implements CommissionBatchQueryRe
              k.commission_kind, k.afftrack_settlement_id,
              o.id, o.code,
              a.id, a.code, a.status
+      """;
+
+  private static final String ORIGEN_COMISION =
+      """
         FROM commissions k
         JOIN commission_batches a ON a.id = k.batch_id
         LEFT JOIN commission_batches o ON o.id = k.withdrawn_from_batch_id
@@ -117,6 +121,76 @@ public class JpaCommissionBatchQueryRepository implements CommissionBatchQueryRe
         LEFT JOIN afftrack_settlements s ON s.id = k.afftrack_settlement_id
         LEFT JOIN products p ON p.id = s.product_id
       """;
+
+  private static final String COMISION = COLUMNAS_COMISION + ORIGEN_COMISION;
+
+  /**
+   * Las comisiones de una persona, sin pasar por sus lotes (`RF-CM-026`): las columnas de siempre
+   * y, <b>detrás</b>, la moneda del lote y el cliente de la venta, para que {@link #comision} las
+   * lea sin cambiar de índices. Se filtra por {@code k.user_id}, que es el dueño del lote
+   * (`RN-CM-025`) y la columna que lleva el índice del orden (`ix_commissions_user`).
+   */
+  private static final String PROPIAS_DESDE =
+      ORIGEN_COMISION
+          + """
+            JOIN currencies cu ON cu.id = a.currency_id
+            LEFT JOIN users cl ON cl.id = m.user_id
+           WHERE k.user_id = :yo
+             AND (CAST(:estado AS varchar) IS NULL OR a.status = CAST(:estado AS varchar))
+             AND (CAST(:moneda AS uuid) IS NULL OR a.currency_id = CAST(:moneda AS uuid))
+             AND (CAST(:producto AS uuid) IS NULL
+                  OR COALESCE(d.product_id, s.product_id) = CAST(:producto AS uuid))
+             AND (CAST(:clase AS varchar) IS NULL OR k.commission_kind = CAST(:clase AS varchar))
+             AND (CAST(:desde AS timestamptz) IS NULL OR k.accrued_at >= CAST(:desde AS timestamptz))
+             AND (CAST(:hasta AS timestamptz) IS NULL OR k.accrued_at <= CAST(:hasta AS timestamptz))
+          """;
+
+  @Override
+  public List<OwnCommissionRow> searchOwn(OwnFilter filtro, int offset, int limit) {
+    Query consulta =
+        em.createNativeQuery(
+            COLUMNAS_COMISION
+                + ", a.currency_id, cu.code, cl.id, cl.username, cl.first_name, cl.last_name"
+                + PROPIAS_DESDE
+                + " ORDER BY k.accrued_at DESC, k.id DESC OFFSET :offset LIMIT :limite");
+    parametros(consulta, filtro);
+    @SuppressWarnings("unchecked")
+    List<Object[]> filas =
+        consulta.setParameter("offset", offset).setParameter("limite", limit).getResultList();
+    return filas.stream()
+        .map(
+            f ->
+                new OwnCommissionRow(
+                    comision(f),
+                    (UUID) f[21],
+                    (String) f[22],
+                    BatchStatus.valueOf((String) f[23]),
+                    (UUID) f[24],
+                    (String) f[25],
+                    (UUID) f[26],
+                    (String) f[27],
+                    (String) f[28],
+                    (String) f[29]))
+        .toList();
+  }
+
+  @Override
+  public long countOwn(OwnFilter filtro) {
+    Query consulta = em.createNativeQuery("SELECT count(*)" + PROPIAS_DESDE);
+    parametros(consulta, filtro);
+    return ((Number) consulta.getSingleResult()).longValue();
+  }
+
+  private static void parametros(Query consulta, OwnFilter filtro) {
+    consulta
+        .setParameter("yo", filtro.userId())
+        .setParameter("estado", filtro.status() == null ? null : filtro.status().name())
+        .setParameter("moneda", filtro.currencyId())
+        .setParameter("producto", filtro.productId())
+        .setParameter("clase", filtro.commissionKind())
+        .setParameter("desde", filtro.from())
+        .setParameter("hasta", filtro.to());
+  }
 
   private static final String ORDEN_COMISIONES =
       " ORDER BY COALESCE(m.occurred_at, k.accrued_at), d.id, k.chain_level, k.id";

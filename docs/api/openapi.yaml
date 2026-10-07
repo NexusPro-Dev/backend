@@ -13805,6 +13805,60 @@ paths:
               schema:
                 $ref: "#/components/schemas/CommissionBatchDetailResponse"
       x-required-permission: commission-batches:read-own
+  /api/v1/commission-batches/mine/commissions:
+    get:
+      tags:
+      - Lotes de comisión
+      summary: Consultar todas mis comisiones
+      description: |
+        **Permiso requerido:** `commission-batches:list-own-commissions`. Sin él, `403` (`AUTH-002`).
+
+        **Todas mis comisiones en una sola lista, sin pasar por los lotes** (`RF-CM-026`,
+        07-10-2026), la más reciente primero. Cada una con la forma de la comisión del detalle
+        de un lote (`commission`), y además **el lote en que está y su estado** (`batch`) —por
+        cobrar si está `ABIERTO` o `PENDIENTE`, cobrada si está `PAGADO`—, **su moneda** y
+        **el cliente de la venta** (`client`, nulo en una `POR_AFFTRACK`).
+
+        Lo que se cobra como superior sale con su nivel. Una comisión retirada sale **una vez**,
+        en el lote en que está, con `withdrawnFrom`. La de una línea cuyo vendedor se corrigió
+        ya no existe y no sale.
+
+        La persona la pone el token: **no hay filtro de persona**. Filtros `status` (el del
+        lote), `currencyId`, `productId`, `commissionKind` (`POR_VENTA` o `POR_AFFTRACK`) y
+        `from`/`to` sobre el devengo, los dos incluidos, con los errores todos juntos.
+      operationId: misComisiones
+      parameters:
+      - name: filtros
+        in: query
+        required: true
+        schema:
+          $ref: "#/components/schemas/MyCommissionsRequest"
+      responses:
+        "200":
+          description: Página de mis comisiones
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/MyCommissionPageResponse"
+        "400":
+          description: Filtros inválidos
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/MyCommissionPageResponse"
+        "401":
+          description: Sin token
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/MyCommissionPageResponse"
+        "403":
+          description: Sin `commission-batches:list-own-commissions`
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/MyCommissionPageResponse"
+      x-required-permission: commission-batches:list-own-commissions
   /api/v1/commission-accruals:
     get:
       tags:
@@ -21643,6 +21697,85 @@ components:
         to:
           type: string
           format: date-time
+    MyCommissionsRequest:
+      type: object
+      properties:
+        page:
+          type: integer
+          format: int32
+        size:
+          type: integer
+          format: int32
+        status:
+          type: string
+        currencyId:
+          type: string
+          format: uuid
+        productId:
+          type: string
+          format: uuid
+        commissionKind:
+          type: string
+        from:
+          type: string
+          format: date-time
+        to:
+          type: string
+          format: date-time
+    MyCommissionBatch:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        code:
+          type: string
+        status:
+          type: string
+    MyCommissionClient:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        username:
+          type: string
+        fullName:
+          type: string
+    MyCommissionItem:
+      type: object
+      properties:
+        commission:
+          $ref: "#/components/schemas/CommissionLine"
+        batch:
+          $ref: "#/components/schemas/MyCommissionBatch"
+        currency:
+          $ref: "#/components/schemas/CommissionBatchCurrency"
+        client:
+          $ref: "#/components/schemas/MyCommissionClient"
+    MyCommissionPageResponse:
+      type: object
+      properties:
+        content:
+          type: array
+          items:
+            $ref: "#/components/schemas/MyCommissionItem"
+        totalElements:
+          type: integer
+          format: int64
+        totalPages:
+          type: integer
+          format: int32
+        page:
+          type: integer
+          format: int32
+        size:
+          type: integer
+          format: int32
+        totalIsExact:
+          type: boolean
+        sort:
+          type: string
     ListCommissionAccrualsRequest:
       type: object
       properties:

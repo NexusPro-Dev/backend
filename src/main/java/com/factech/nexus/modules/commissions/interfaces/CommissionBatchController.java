@@ -6,6 +6,8 @@ import com.factech.nexus.modules.commissions.application.CommissionBatchesPaymen
 import com.factech.nexus.modules.commissions.application.CommissionClosingResponse;
 import com.factech.nexus.modules.commissions.application.ListCommissionBatchesRequest;
 import com.factech.nexus.modules.commissions.application.MyCommissionBatchesRequest;
+import com.factech.nexus.modules.commissions.application.MyCommissionPageResponse;
+import com.factech.nexus.modules.commissions.application.MyCommissionsRequest;
 import com.factech.nexus.modules.commissions.application.PayCommissionBatchesRequest;
 import com.factech.nexus.modules.commissions.domain.service.CloseCommissionPeriodService;
 import com.factech.nexus.modules.commissions.domain.service.CommissionBatchQueryService;
@@ -35,7 +37,8 @@ import org.springframework.web.bind.annotation.RestController;
  * una moneda (`RF-CM-013`, `RN-CM-033`).
  *
  * <p><b>{@code /mine} no lo captura {@code /{id}}</b>: la variable es un UUID y la ruta literal
- * gana, como {@code /movements/mine}.
+ * gana, como {@code /movements/mine}. Lo mismo {@code /mine/commissions} frente a {@code
+ * /mine/{id}} (`RF-CM-026`).
  */
 @Tag(
     name = "Lotes de comisión",
@@ -306,6 +309,38 @@ public class CommissionBatchController {
   public CommissionBatchDetailResponse devolver(
       @PathVariable UUID id, @PathVariable UUID commissionId) {
     return devolucion.giveBack(id, commissionId);
+  }
+
+  @Operation(
+      summary = "Consultar todas mis comisiones",
+      description =
+          """
+          **Todas mis comisiones en una sola lista, sin pasar por los lotes** (`RF-CM-026`,
+          07-10-2026), la más reciente primero. Cada una con la forma de la comisión del detalle
+          de un lote (`commission`), y además **el lote en que está y su estado** (`batch`) —por
+          cobrar si está `ABIERTO` o `PENDIENTE`, cobrada si está `PAGADO`—, **su moneda** y
+          **el cliente de la venta** (`client`, nulo en una `POR_AFFTRACK`).
+
+          Lo que se cobra como superior sale con su nivel. Una comisión retirada sale **una vez**,
+          en el lote en que está, con `withdrawnFrom`. La de una línea cuyo vendedor se corrigió
+          ya no existe y no sale.
+
+          La persona la pone el token: **no hay filtro de persona**. Filtros `status` (el del
+          lote), `currencyId`, `productId`, `commissionKind` (`POR_VENTA` o `POR_AFFTRACK`) y
+          `from`/`to` sobre el devengo, los dos incluidos, con los errores todos juntos.
+          """)
+  @ApiResponses({
+    @ApiResponse(responseCode = "200", description = "Página de mis comisiones"),
+    @ApiResponse(responseCode = "400", description = "Filtros inválidos"),
+    @ApiResponse(responseCode = "401", description = "Sin token"),
+    @ApiResponse(
+        responseCode = "403",
+        description = "Sin `commission-batches:list-own-commissions`")
+  })
+  @GetMapping("/mine/commissions")
+  @PreAuthorize("hasAuthority('commission-batches:list-own-commissions')")
+  public MyCommissionPageResponse misComisiones(@ModelAttribute MyCommissionsRequest filtros) {
+    return consultas.listOwnCommissions(filtros, actor.id());
   }
 
   @Operation(

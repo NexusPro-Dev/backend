@@ -5,7 +5,7 @@
 | Proyecto | NEXUS — Renovación de plataforma |
 | Empresa | FACTECH GROUP SAS |
 | Documento | `security.md` |
-| Versión | 0.118.0 |
+| Versión | 0.119.0 |
 | Estado | Borrador |
 | Responsable técnico | Bonilla Diaz William Steven |
 | Fecha de creación | 19-08-2026 |
@@ -257,6 +257,7 @@ user-commission-rates:update   user-commission-rates:delete
 product-commission-rates:read
 commission-batches:settle      commission-batches:read   commission-batches:read-detail
 commission-batches:pay         commission-batches:list-own   commission-batches:read-own
+commission-batches:list-own-commissions
 commission-closings:read       commission-accruals:read
 afftrack-rates:read     afftrack-rates:create     afftrack-rates:update     afftrack-rates:delete
 user-afftrack-rates:read       user-afftrack-rates:create
@@ -342,7 +343,7 @@ Los cincuenta y uno nuevos: `roles:list`, `roles:change-status`, `roles:assign-p
 
 **Y otro de `IN`, declarado y SEMBRADO el 07-10-2026 por `V79`**, ya en el bloque: `indicators:read-commission-batches-summary` —el resumen de lotes de comisiones, `GET /indicators/commissions/batches/summary` (`RF-IN-007`; [`requirements/in.md`](requirements/in.md) v0.14.0)—. **De administración y sin alcance**, como el anterior (`RN-IN-011`): quien lo porte verá los lotes de **todas** las personas. **No reutiliza `commission-batches:read`** por `RN-SEG-014`: listar lotes y contar sus cifras son dos operaciones, y se puede querer dar una sin la otra. `V79` lo siembra solo a `SUPERADMIN` y `ADMIN`, explícitos, y el catálogo pasa de 203 a **204** (`ADMIN` 202). **Ninguna ruta pública nueva.**
 
-**Uno más de `CM`, declarado el 07-10-2026 y SIN SEMBRAR**, **todavía fuera del bloque** de arriba: `commission-batches:list-own-commissions` —todas mis comisiones en una sola lista, sin pasar por los lotes, `GET /commission-batches/mine/commissions` (`RF-CM-026`; [`requirements/cm.md`](requirements/cm.md) v0.36.0 §6)—. **Es de lo propio** (`RN-SEG-015`): la persona la pone el token. **No reutiliza `commission-batches:list-own`** por `RN-SEG-014`: listar mis lotes y listar mis comisiones son dos operaciones. `V81` lo dará a **todo rol que porte `commission-batches:list-own`** —`SUPERADMIN`, `ADMIN` y los de tipo `VENDEDOR`—, y el catálogo pasará de 204 a **205**. **Ninguna ruta pública nueva.**
+**Uno más de `CM`, declarado y SEMBRADO el 07-10-2026 por `V81`**, ya en el bloque: `commission-batches:list-own-commissions` —todas mis comisiones en una sola lista, sin pasar por los lotes, `GET /commission-batches/mine/commissions` (`RF-CM-026`; [`requirements/cm.md`](requirements/cm.md) v0.36.0 §6)—. **Es de lo propio** (`RN-SEG-015`): la persona la pone el token. **No reutiliza `commission-batches:list-own`** por `RN-SEG-014`: listar mis lotes y listar mis comisiones son dos operaciones. `V81` lo da a **todo rol que porte `commission-batches:list-own`** —`SUPERADMIN`, `ADMIN` y los de tipo `VENDEDOR`—, y el catálogo pasa de 204 a **205** (`ADMIN` 203). **Ninguna ruta pública nueva.**
 
 **Siete más de `SP` — el segundo factor, declarados y SEMBRADOS el 06-10-2026 por `V75`**, **todavía fuera del bloque** de arriba ([`requirements/sp.md`](requirements/sp.md) v1.93.0 §6.1, `RF-SP-071` a `RF-SP-077`; §3.3). **Cinco de alcance propio** —`users:start-own-mfa`, `users:confirm-own-mfa`, `users:verify-own-mfa`, `users:regenerate-own-recovery-codes` y `users:disable-own-mfa`—, que la migración dará **por tipo de rol a los tres tipos** (`RN-SEG-015`), como los once de `V31`: cualquiera puede proteger su cuenta, y un rol que exija el factor sin conceder los dos primeros retendría a sus personas sin salida. **Dos de administración** —`users:reset-mfa` y `roles:require-mfa`—, a `SUPERADMIN` y `ADMIN`. **Una ruta pública nueva**, `POST /api/v1/auth/login/mfa`, que entra en la lista cerrada de `EndpointPermissionsIT` (quince). Los siembra **`V75`** —`V74` es la de `IN`—, y el catálogo pasa de 189 a **196**, de los que `ADMIN` porta **194**.
 
@@ -1089,3 +1090,4 @@ RNF-SEG-002 merece atención: es una prueba que enumera los endpoints registrado
 | 0.116.0 | 07-10-2026 | **Un permiso de `IN` de administración, declarado y sin sembrar** (§4.4): `indicators:read-commission-batches-summary` (`RF-IN-007`), solo a `SUPERADMIN` y `ADMIN` cuando lo siembre `V79`; sin alcance (`RN-IN-011`). Catálogo 203 → **204**. | Responsable técnico |
 | 0.117.0 | 07-10-2026 | **`indicators:read-commission-batches-summary` está sembrado** por `V79` (§4.4; `RF-IN-007`), solo a `SUPERADMIN` y `ADMIN`. Catálogo **204**, `ADMIN` 202. | Responsable técnico |
 | 0.118.0 | 07-10-2026 | **Un permiso de `CM` de lo propio, declarado y sin sembrar** (§4.4): `commission-batches:list-own-commissions` (`RF-CM-026`), a todo rol que porte `commission-batches:list-own` cuando lo siembre `V81`. Catálogo 204 → **205**. | Responsable técnico |
+| 0.119.0 | 07-10-2026 | **`commission-batches:list-own-commissions` está sembrado** por `V81` (§4.4; `RF-CM-026`), a todo rol que porta `commission-batches:list-own`. Catálogo **205**, `ADMIN` 203. | Responsable técnico |

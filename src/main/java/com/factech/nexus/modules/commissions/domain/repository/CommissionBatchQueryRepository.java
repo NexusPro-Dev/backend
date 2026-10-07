@@ -30,6 +30,39 @@ public interface CommissionBatchQueryRepository {
    */
   List<WithdrawnRow> withdrawnFrom(UUID batchId);
 
+  /**
+   * Las comisiones de una persona, sin pasar por sus lotes, la más reciente primero (`RF-CM-026`).
+   */
+  List<OwnCommissionRow> searchOwn(OwnFilter filtro, int offset, int limit);
+
+  long countOwn(OwnFilter filtro);
+
+  /**
+   * {@code userId} lo pone el token y es obligatorio; los demás, nulos, no filtran. {@code status}
+   * es el del lote, {@code from}/{@code to} van sobre el devengo.
+   */
+  record OwnFilter(
+      UUID userId,
+      BatchStatus status,
+      UUID currencyId,
+      UUID productId,
+      String commissionKind,
+      OffsetDateTime from,
+      OffsetDateTime to) {}
+
+  /** Una comisión propia, con el lote en que está, su moneda y el cliente de la venta. */
+  record OwnCommissionRow(
+      CommissionRow commission,
+      UUID batchId,
+      String batchCode,
+      BatchStatus batchStatus,
+      UUID currencyId,
+      String currencyCode,
+      UUID clientId,
+      String clientUsername,
+      String clientFirstName,
+      String clientLastName) {}
+
   /** Un nulo no filtra. {@code owner} lo fija el token en `RF-CM-012`, nunca la petición. */
   record BatchFilter(
       BatchStatus status, UUID userId, UUID currencyId, OffsetDateTime from, OffsetDateTime to) {}

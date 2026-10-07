@@ -84,6 +84,8 @@ class SystemRolesSeedIT extends IntegrationTestBase {
           // `V51` (28-09-2026): los lotes propios de comisión (`RF-CM-012`), por tipo de rol.
           "commission-batches:list-own",
           "commission-batches:read-own",
+          // `V81` (07-10-2026): todas mis comisiones (`RF-CM-026`), a quien porte list-own.
+          "commission-batches:list-own-commissions",
           "movements:list-sales",
           "movements:read",
           // `V56` (30-09-2026): quien lista el libro abre sus filas (`RF-MV-007`).
@@ -152,6 +154,8 @@ class SystemRolesSeedIT extends IntegrationTestBase {
           // `V51` (28-09-2026): los lotes propios de comisión (`RF-CM-012`), por tipo de rol.
           "commission-batches:list-own",
           "commission-batches:read-own",
+          // `V81` (07-10-2026): todas mis comisiones (`RF-CM-026`), a quien porte list-own.
+          "commission-batches:list-own-commissions",
           "movements:list-sales",
           "movements:read-own",
           "movements:read-own-products",

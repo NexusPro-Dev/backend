@@ -120,12 +120,13 @@ class RoleDetailIT extends IntegrationTestBase {
     // de cobro propia. Y UNO MÁS desde `V62`: pagar con tarjeta un pendiente propio. Y UNO
     // MÁS desde `V67`: consultar la conversión por país. Y UNO MÁS desde `V69`: pagar por la
     // pasarela local un pendiente propio. Y DOS MÁS desde `V77` (06-10-2026): el detalle y el
-    // comprobante de mis movimientos de puntos.
+    // comprobante de mis movimientos de puntos. Y UNO MÁS desde `V81` (07-10-2026): todas mis
+    // comisiones, `commission-batches:list-own-commissions` (`RF-CM-026`).
     mvc.perform(detalle(AGENTE))
         .andExpect(status().isOk())
         .andExpect(
             jsonPath("$.permissions.length()")
-                .value(ALCANCE_PROPIO.size() + 2 + 2 + 3 + 5 + 1 + 1 + 1 + 2))
+                .value(ALCANCE_PROPIO.size() + 2 + 2 + 3 + 5 + 1 + 1 + 1 + 2 + 1))
         .andExpect(jsonPath("$.permissions[?(@.code == 'roles:read')]").doesNotExist());
   }
 

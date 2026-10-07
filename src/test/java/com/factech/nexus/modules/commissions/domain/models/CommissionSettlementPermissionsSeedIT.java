@@ -35,7 +35,9 @@ class CommissionSettlementPermissionsSeedIT extends IntegrationTestBase {
           "commission-batches:withdraw-commission",
           "commission-batches:return-commission",
           // `V60` (01-10-2026): pagar varios lotes (`RF-CM-025`).
-          "commission-batches:pay-batches");
+          "commission-batches:pay-batches",
+          // `V81` (07-10-2026): todas mis comisiones (`RF-CM-026`), a quien porte list-own.
+          "commission-batches:list-own-commissions");
 
   @Autowired private JdbcTemplate jdbc;
 
@@ -98,7 +100,8 @@ class CommissionSettlementPermissionsSeedIT extends IntegrationTestBase {
                AND (r.role_type = 'CONSUMIDOR'
                     OR (r.role_type = 'VENDEDOR'
                         AND p.code NOT IN ('commission-batches:list-own',
-                                           'commission-batches:read-own')))
+                                           'commission-batches:read-own',
+                                           'commission-batches:list-own-commissions')))
             """,
             Integer.class);
     assertThat(ajenos).isZero();
