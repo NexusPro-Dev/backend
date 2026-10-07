@@ -33,9 +33,9 @@
 
 | ID | Tarea | Depende de | Verificación | Estado |
 |---|---|---|---|---|
-| `T-07` | `SalesFigures.byProductType` y `byProductTypeAndBucket`, con `Lines`; `JpaSalesFigures` con el cruce a `products` | — | El mismo mapeo que el resumen | Pendiente |
-| `T-08` | `SaleLinesSummaryResponse` con `sold` y `unassigned` (`total` y `byType`); `GetSaleLinesSummaryService`; la descripción de la ruta | `T-07` | Sin pendientes ni anuladas | Pendiente |
-| `T-09` | `SaleLinesSummaryIT`: `CA-IN-067` a `CA-IN-070` y los casos de antes reescritos; contrato y documentos | `T-08` | | Pendiente |
+| `T-07` | `SalesFigures.byProductType` y `byProductTypeAndBucket`, con `Lines`; `JpaSalesFigures` con el cruce a `products` | — | El mismo mapeo que el resumen | **Hecha** — 07-10-2026 |
+| `T-08` | `SaleLinesSummaryResponse` con `sold` y `unassigned` (`total` y `byType`); `GetSaleLinesSummaryService`; la descripción de la ruta | `T-07` | Sin pendientes ni anuladas | **Hecha** — 07-10-2026 |
+| `T-09` | `SaleLinesSummaryIT`: `CA-IN-067` a `CA-IN-070` y los casos de antes reescritos; contrato y documentos | `T-08` | | **Hecha** — 07-10-2026 |
 
 ---
 
@@ -56,6 +56,8 @@
 **Lo sin vendedor reutiliza el mapeo del resumen** (`T-02`): la sentencia lleva un estado fijo delante para pasar por el mismo `sumar` que el resumen, de modo que ventas, líneas, unidades e importes se cuentan exactamente igual. El servicio recibe el periodo, la moneda y el tramo sueltos, sin `SalesIndicatorRequest`, porque no hay vendedor por el que acotar.
 
 ---
+
+**La enmienda por tipo (07-10-2026) no corrió la suite completa**: no cambia permisos, esquema ni código compartido fuera de `SalesFigures`; se verificaron `SaleLinesSummaryIT` (6), `SalesSummaryIT`, `SalesSeriesIT`, `LayerRulesTest` y `OpenApiContractIT`.
 
 ## 4. Bloqueos declarados
 

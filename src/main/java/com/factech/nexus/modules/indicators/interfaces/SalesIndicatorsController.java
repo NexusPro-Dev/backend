@@ -192,16 +192,22 @@ public class SalesIndicatorsController {
       summary = "Consultar el resumen de líneas de venta",
       description =
           """
-          Sobre **todas** las líneas de venta de la plataforma: por estado de la venta
-          —`confirmed`, `pending`, `voided`— las ventas, las líneas, **las unidades** (los
-          productos vendidos: la suma de las cantidades) y el importe por moneda; el **total**; y
-          aparte **`unassigned`, lo que no tiene vendedor**: las ventas con alguna línea sin
-          vendedor, esas líneas, sus unidades y su importe, **sin las anuladas**, porque es lo que
-          falta por atribuir.
+          Sobre **todas** las líneas de venta de la plataforma, dos bloques, cada uno en
+          **`total`** y **`byType`, por tipo de producto** (`BOT`, `UPGRADE_MEMBRESIA`):
+
+          - **`sold`, lo vendido**: solo las ventas **confirmadas** —las ventas, las líneas,
+            **las unidades** (los productos vendidos: la suma de las cantidades) y el importe por
+            moneda—.
+          - **`unassigned`, lo que no tiene vendedor**: las líneas sin vendedor de las ventas
+            **no anuladas** —lo que falta por atribuir—, con las mismas cifras.
+
+          El tipo es el del producto de la línea. **Una venta con líneas de dos tipos cuenta en
+          cada uno**: las ventas por tipo pueden sumar más que el total; las líneas, las unidades
+          y los importes, no. No hay pendientes ni anuladas en la respuesta.
 
           **No se acota por alcance**: quien porte el permiso ve las cifras de toda la plataforma,
           sea cual sea su tipo de rol. El permiso se siembra solo a administración; dárselo a un
-          rol vendedor es darle esta vista entera. Las cifras por estado son las que ve
+          rol vendedor es darle esta vista entera. El total de lo vendido es lo confirmado que ve
           administración en `GET /indicators/sales/summary`.
 
           El periodo, la moneda y `granularity` son los de los demás indicadores: días de

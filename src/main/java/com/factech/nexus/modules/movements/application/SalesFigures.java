@@ -75,6 +75,34 @@ public interface SalesFigures {
   /** Las cifras de un tramo. */
   record BucketTotals(LocalDate start, Totals totals) {}
 
+  /**
+   * Las líneas de todo el libro <b>por tipo de producto</b> (`RF-IN-006`, 07-10-2026): el tipo es
+   * el del producto de la línea. Una venta con líneas de dos tipos cuenta en cada uno. Sin alcance,
+   * como {@link #unassigned}.
+   *
+   * @param lines {@link Lines#SOLD}, lo confirmado; {@link Lines#UNASSIGNED}, lo sin vendedor de
+   *     las ventas no anuladas
+   */
+  List<TypeTotals> byProductType(Lines lines, Interval interval, UUID currencyId);
+
+  /** {@link #byProductType} partido en tramos de calendario de {@code zone}. */
+  List<BucketTypeTotals> byProductTypeAndBucket(
+      Lines lines, Interval interval, UUID currencyId, Granularity granularity, ZoneId zone);
+
+  /** Qué líneas se cuentan por tipo. */
+  enum Lines {
+    /** Las de las ventas confirmadas: lo vendido. */
+    SOLD,
+    /** Las que no tienen vendedor, de las ventas no anuladas. */
+    UNASSIGNED
+  }
+
+  /** Las cifras de un tipo de producto. */
+  record TypeTotals(String productType, Totals totals) {}
+
+  /** Las cifras de un tipo de producto en un tramo. */
+  record BucketTypeTotals(LocalDate start, String productType, Totals totals) {}
+
   /** El tamaño de un tramo. */
   enum Granularity {
     DAY,

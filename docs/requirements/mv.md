@@ -5,11 +5,11 @@
 | Módulo | `MV` — Movimientos |
 | Paquete | `modules/movements` |
 | Prefijos de permiso | `movements:` |
-| Versión | 0.90.0 |
+| Versión | 0.91.0 |
 | Estado | **Borrador** |
 | Responsable | Bonilla Diaz William Steven |
 | Fecha de creación | 02-09-2026 |
-| Última actualización | 06-10-2026 |
+| Última actualización | 07-10-2026 |
 
 !!! info "Qué va en este documento"
 
@@ -1572,3 +1572,4 @@ Se siembra por migración y **no se administra por API todavía** (§5.3). Lo m�
 | 0.88.0 | 06-10-2026 | **Los movimientos de puntos en una sola consulta, y el comprobante como archivo** (§4.12), por decisión del responsable del proyecto preguntada antes de escribir: **dos listas por alcance** —la propia, `RF-MV-055`, con mis compras y los ajustes que recibí; la de administración, `RF-MV-056`, con las de todos—, **cada una con su detalle y la descarga del comprobante**; **se retiran** los listados de `RF-MV-031` y `RF-MV-053`, y **sus permisos se renombran** para conservar las asignaciones; **el ajuste admite un comprobante PDF, PNG o JPG** de hasta 5 MB, al ajustar o después, reemplazable (`RF-MV-057`), que **ven administración y la persona ajustada**. Nacen `RN-MV-077`, la tabla `points_adjustment_receipts` (§7.16) y cinco permisos (catálogo 197 → **202**). **La migración es `V77`**. | Responsable del proyecto |
 | 0.89.0 | 06-10-2026 | **Los puntos gastados entran en las listas de movimientos de puntos** (§4.12; enmienda a `RF-MV-055` y `RF-MV-056`), a petición del responsable del proyecto: un tercer tipo, **`GASTO_PUNTOS`**, una fila por venta pagada con `POINTS`, con los puntos en negativo leídos de su asiento `PAGO`, el importe de la venta y sus productos. No es un tipo de movimiento nuevo —la venta sigue siendo `VENTA`—, sino una forma de leerla. Sin migración ni permisos. | Responsable del proyecto |
 | 0.90.0 | 06-10-2026 | **`SalesFigures` publica lo que no tiene vendedor** (§3; `RF-IN-006`): las líneas sin vendedor de las ventas no anuladas, sin alcance. Ningún requerimiento de `MV` cambia. | Responsable técnico |
+| 0.91.0 | 07-10-2026 | **`SalesFigures` publica las líneas por tipo de producto** (§3; `RF-IN-006` enmendado): lo vendido o lo sin vendedor, por el tipo del producto de la línea, cruzando `products` como ya hacen otras lecturas del módulo. Sin alcance. Ningún requerimiento de `MV` cambia. | Responsable técnico |

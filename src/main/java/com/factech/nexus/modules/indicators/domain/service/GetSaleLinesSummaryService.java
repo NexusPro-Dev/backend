@@ -5,11 +5,13 @@ import com.factech.nexus.modules.indicators.application.SaleLinesSummaryResponse
 import com.factech.nexus.modules.movements.application.SalesFigures;
 import com.factech.nexus.modules.movements.application.SalesFigures.BucketSummary;
 import com.factech.nexus.modules.movements.application.SalesFigures.BucketTotals;
+import com.factech.nexus.modules.movements.application.SalesFigures.BucketTypeTotals;
 import com.factech.nexus.modules.movements.application.SalesFigures.Granularity;
 import com.factech.nexus.modules.movements.application.SalesFigures.Interval;
+import com.factech.nexus.modules.movements.application.SalesFigures.Lines;
 import com.factech.nexus.modules.movements.application.SalesFigures.SalesScope;
-import com.factech.nexus.modules.movements.application.SalesFigures.Summary;
 import com.factech.nexus.modules.movements.application.SalesFigures.Totals;
+import com.factech.nexus.modules.movements.application.SalesFigures.TypeTotals;
 import com.factech.nexus.shared.error.FieldError;
 import com.factech.nexus.shared.error.ValidationException;
 import java.time.LocalDate;
@@ -25,12 +27,12 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 /**
- * El resumen de líneas de venta (`RF-IN-006`).
+ * El resumen de líneas de venta (`RF-IN-006`, enmendado el 07-10-2026).
  *
  * <p><b>Sin alcance</b> (`RN-IN-011`): no pasa por {@link SalesScopeResolver}, y la única puerta es
- * el permiso. Las cifras por estado son las de {@link SalesFigures#summary} con todo el libro —las
- * mismas que ve administración en el resumen de ventas (`CA-IN-061`)—, y lo sin vendedor es la
- * lectura propia de este indicador.
+ * el permiso. <b>Lo vendido</b> es lo confirmado: su total es el de {@link SalesFigures#summary}
+ * con todo el libro —el mismo que ve administración en el resumen de ventas (`CA-IN-061`)—. <b>Lo
+ * sin vendedor</b> es {@link SalesFigures#unassigned}. Los dos, además, por tipo de producto.
  */
 @Service
 public class GetSaleLinesSummaryService {
@@ -58,74 +60,86 @@ public class GetSaleLinesSummaryService {
     }
     Interval intervalo = periodos.interval(periodo);
 
-    Bloques total =
-        bloques(
-            cifras.summary(SalesScope.everything(), intervalo, currencyId),
-            cifras.unassigned(intervalo, currencyId));
+    SaleLinesSummaryResponse.Group vendido =
+        grupo(
+            cifras.summary(SalesScope.everything(), intervalo, currencyId).confirmed(),
+            cifras.byProductType(Lines.SOLD, intervalo, currencyId));
+    SaleLinesSummaryResponse.Group sinVendedor =
+        grupo(
+            cifras.unassigned(intervalo, currencyId),
+            cifras.byProductType(Lines.UNASSIGNED, intervalo, currencyId));
 
     List<SaleLinesSummaryResponse.Bucket> tramos = null;
     if (tramo != null) {
       ZoneId zona = ZoneId.of(periodo.zone());
-      Map<LocalDate, Summary> resumenes = new HashMap<>();
+      Map<LocalDate, Totals> vendidoPorTramo = new HashMap<>();
       for (BucketSummary b :
           cifras.summaryByBucket(SalesScope.everything(), intervalo, currencyId, tramo, zona)) {
-        resumenes.put(b.start(), b.summary());
+        vendidoPorTramo.put(b.start(), b.summary().confirmed());
       }
-      Map<LocalDate, Totals> sinVendedor = new HashMap<>();
+      Map<LocalDate, Totals> sinVendedorPorTramo = new HashMap<>();
       for (BucketTotals b : cifras.unassignedByBucket(intervalo, currencyId, tramo, zona)) {
-        sinVendedor.put(b.start(), b.totals());
+        sinVendedorPorTramo.put(b.start(), b.totals());
       }
-      Set<LocalDate> conDatos = new HashSet<>(resumenes.keySet());
-      conDatos.addAll(sinVendedor.keySet());
+      Map<LocalDate, List<TypeTotals>> vendidoPorTipo =
+          porTramo(cifras.byProductTypeAndBucket(Lines.SOLD, intervalo, currencyId, tramo, zona));
+      Map<LocalDate, List<TypeTotals>> sinVendedorPorTipo =
+          porTramo(
+              cifras.byProductTypeAndBucket(Lines.UNASSIGNED, intervalo, currencyId, tramo, zona));
+
+      Set<LocalDate> conDatos = new HashSet<>();
+      // Un tramo con solo pendientes o anuladas no tiene nada que contar aquí.
+      vendidoPorTramo.forEach(
+          (inicio, t) -> {
+            if (t.lines() > 0) {
+              conDatos.add(inicio);
+            }
+          });
+      conDatos.addAll(sinVendedorPorTramo.keySet());
       tramos = new ArrayList<>();
       for (LocalDate inicio : SalesPeriodResolver.starts(periodo, tramo, conDatos)) {
-        Bloques b =
-            bloques(
-                resumenes.getOrDefault(inicio, Summary.empty()),
-                sinVendedor.getOrDefault(inicio, Totals.empty()));
         tramos.add(
             new SaleLinesSummaryResponse.Bucket(
-                inicio, b.total(), b.confirmed(), b.pending(), b.voided(), b.unassigned()));
+                inicio,
+                grupo(
+                    vendidoPorTramo.getOrDefault(inicio, Totals.empty()),
+                    vendidoPorTipo.getOrDefault(inicio, List.of())),
+                grupo(
+                    sinVendedorPorTramo.getOrDefault(inicio, Totals.empty()),
+                    sinVendedorPorTipo.getOrDefault(inicio, List.of()))));
       }
     }
 
     return new SaleLinesSummaryResponse(
-        periodo,
-        total.total(),
-        total.confirmed(),
-        total.pending(),
-        total.voided(),
-        total.unassigned(),
-        tramo == null ? null : tramo.name(),
-        tramos);
+        periodo, vendido, sinVendedor, tramo == null ? null : tramo.name(), tramos);
   }
 
-  /** Los cinco bloques del periodo o de un tramo. */
-  private record Bloques(
-      SaleLinesSummaryResponse.Total total,
-      SaleLinesSummaryResponse.Block confirmed,
-      SaleLinesSummaryResponse.Block pending,
-      SaleLinesSummaryResponse.Block voided,
-      SaleLinesSummaryResponse.Block unassigned) {}
-
-  private static Bloques bloques(Summary resumen, Totals sinVendedor) {
-    Totals c = resumen.confirmed();
-    Totals p = resumen.pending();
-    Totals v = resumen.voided();
-    // Los tres estados no se solapan: cada venta está en uno solo.
-    return new Bloques(
-        new SaleLinesSummaryResponse.Total(
-            c.sales() + p.sales() + v.sales(),
-            c.lines() + p.lines() + v.lines(),
-            c.units() + p.units() + v.units()),
-        bloque(c),
-        bloque(p),
-        bloque(v),
-        bloque(sinVendedor));
+  private static Map<LocalDate, List<TypeTotals>> porTramo(List<BucketTypeTotals> filas) {
+    Map<LocalDate, List<TypeTotals>> porTramo = new HashMap<>();
+    for (BucketTypeTotals b : filas) {
+      porTramo
+          .computeIfAbsent(b.start(), k -> new ArrayList<>())
+          .add(new TypeTotals(b.productType(), b.totals()));
+    }
+    return porTramo;
   }
 
-  private static SaleLinesSummaryResponse.Block bloque(Totals t) {
-    return new SaleLinesSummaryResponse.Block(
-        t.sales(), t.lines(), t.units(), GetSalesSummaryService.importes(t.amounts()));
+  private static SaleLinesSummaryResponse.Group grupo(Totals total, List<TypeTotals> porTipo) {
+    return new SaleLinesSummaryResponse.Group(
+        new SaleLinesSummaryResponse.Block(
+            total.sales(),
+            total.lines(),
+            total.units(),
+            GetSalesSummaryService.importes(total.amounts())),
+        porTipo.stream()
+            .map(
+                t ->
+                    new SaleLinesSummaryResponse.TypeBlock(
+                        t.productType(),
+                        t.totals().sales(),
+                        t.totals().lines(),
+                        t.totals().units(),
+                        GetSalesSummaryService.importes(t.totals().amounts())))
+            .toList());
   }
 }

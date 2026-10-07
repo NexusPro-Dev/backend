@@ -5,11 +5,11 @@
 | Proyecto | NEXUS — Renovación de plataforma |
 | Empresa | FACTECH GROUP SAS |
 | Documento | `requirements.md` |
-| Versión | 0.307.0 |
+| Versión | 0.308.0 |
 | Estado | Borrador |
 | Responsable técnico | Bonilla Diaz William Steven |
 | Fecha de creación | 20-08-2026 |
-| Última actualización | 06-10-2026 |
+| Última actualización | 07-10-2026 |
 | Documento superior | `constitution.md` v0.8.0 |
 | Documentos relacionados | `modules.md` v0.21.0 |
 
@@ -736,3 +736,4 @@ El inventario y el estado de los módulos se consultan en [`modules.md` §4](mod
 | 0.305.0 | 06-10-2026 | **Los puntos gastados entran en las listas de movimientos de puntos** ([`requirements/mv.md`](requirements/mv.md) v0.89.0 §4.12; enmienda a `RF-MV-055` y `RF-MV-056`, `CA-MV-696` a `CA-MV-699`), a petición del responsable del proyecto: el tipo `GASTO_PUNTOS`, una fila por venta pagada con puntos, con su detalle de líneas. Construido el mismo día, sin migración ni permisos; suite completa en verde (567 unitarias, 2576 de integración). Ningún indicador cambia. | Responsable técnico |
 | 0.306.0 | 06-10-2026 | **Nace `RF-IN-006`, el resumen de líneas de venta** ([`requirements/in.md`](requirements/in.md) v0.9.0, `RN-IN-011`), a petición del responsable del proyecto: unidades vendidas, ventas por estado y lo sin vendedor, para administración y sin alcance. Tripleta el mismo día; `tasks.md` en revisión. Registrados, `spec.md` redactada y aprobada y `plan.md` aprobado suben uno. | Responsable técnico |
 | 0.307.0 | 06-10-2026 | **`RF-IN-006` construido** ([`requirements/in.md`](requirements/in.md) v0.10.0): `GET /api/v1/indicators/sales/lines/summary`, sus `tasks.md` aprobadas. §5: tripleta completa 105 → **106**, endpoint funcionando 187 → **188**. | Responsable técnico |
+| 0.308.0 | 07-10-2026 | **`RF-IN-006` enmendado y construido: por tipo de producto** ([`requirements/in.md`](requirements/in.md) v0.11.0, `CA-IN-067` a `CA-IN-070`), por decisión del responsable del proyecto: lo vendido —solo confirmado— y lo sin vendedor, cada uno en total y por tipo. Ningún indicador de §5 se mueve. | Responsable técnico |

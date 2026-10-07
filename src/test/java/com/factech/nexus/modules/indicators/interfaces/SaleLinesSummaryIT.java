@@ -28,12 +28,13 @@ import org.springframework.test.web.servlet.ResultActions;
  * <p>Septiembre de 2026, importes en centésimas:
  *
  * <pre>
- *   s1 CONFIRMADA USD  agente1 ×3  30,00
- *   s2 CONFIRMADA COP  agente2 ×1  1000,00
- *   s3 PENDIENTE  USD  (nadie) ×2  20,00          ← sin vendedor
- *   s4 CONFIRMADA USD  agente1 ×1  5,00 + (nadie) ×4 40,00   ← mixta
- *   s5 ANULADA    USD  (nadie) ×1  7,00           ← sin vendedor, pero anulada
- *   s6 PENDIENTE  USD  agente2 ×1  1,00
+ *   s1 CONFIRMADA USD  BOT     agente1 ×3  30,00
+ *   s2 CONFIRMADA COP  UPGRADE agente2 ×1  1000,00
+ *   s3 PENDIENTE  USD  BOT     (nadie) ×2  20,00              ← sin vendedor
+ *   s4 CONFIRMADA USD  BOT     agente1 ×1  5,00
+ *                  + UPGRADE (nadie) ×4  40,00              ← dos tipos, y sin vendedor
+ *   s5 ANULADA    USD  BOT     (nadie) ×1  7,00               ← sin vendedor, pero anulada
+ *   s6 PENDIENTE  USD  BOT     agente2 ×1  1,00
  * </pre>
  */
 @AutoConfigureMockMvc
@@ -56,8 +57,8 @@ class SaleLinesSummaryIT extends IntegrationTestBase {
   private UUID director;
   private UUID agente1;
   private UUID agente2;
-  private UUID producto;
-  private UUID otroProducto;
+  private UUID bot;
+  private UUID upgrade;
 
   @BeforeEach
   void sembrar() {
@@ -66,22 +67,23 @@ class SaleLinesSummaryIT extends IntegrationTestBase {
     director = persona("isl-director", DIRECTOR);
     agente1 = persona("isl-agente1", AGENTE);
     agente2 = persona("isl-agente2", AGENTE);
-    producto = producto("ISL_BOT");
-    otroProducto = producto("ISL_BOT_2");
+    reponerElSuelo(jdbc);
+    bot = producto("ISL_BOT", "BOT");
+    upgrade = producto("ISL_UPGRADE", "UPGRADE_MEMBRESIA");
     jdbc.update(
         "INSERT INTO user_supervisors (id, user_id, supervisor_id, started_at)"
             + " VALUES (gen_random_uuid(), ?, ?, now())",
         agente1,
         director);
 
-    linea(venta("CONFIRMADA", USD, "2026-09-02T15:00:00Z", 3000), producto, agente1, 3, 3000);
-    linea(venta("CONFIRMADA", COP, "2026-09-03T15:00:00Z", 100000), producto, agente2, 1, 100000);
-    linea(venta("PENDIENTE", USD, "2026-09-04T15:00:00Z", 2000), producto, null, 2, 2000);
+    linea(venta("CONFIRMADA", USD, "2026-09-02T15:00:00Z", 3000), bot, agente1, 3, 3000);
+    linea(venta("CONFIRMADA", COP, "2026-09-03T15:00:00Z", 100000), upgrade, agente2, 1, 100000);
+    linea(venta("PENDIENTE", USD, "2026-09-04T15:00:00Z", 2000), bot, null, 2, 2000);
     UUID mixta = venta("CONFIRMADA", USD, "2026-09-05T15:00:00Z", 4500);
-    linea(mixta, producto, agente1, 1, 500);
-    linea(mixta, otroProducto, null, 4, 4000);
-    linea(venta("ANULADA", USD, "2026-09-06T15:00:00Z", 700), producto, null, 1, 700);
-    linea(venta("PENDIENTE", USD, "2026-09-07T15:00:00Z", 100), producto, agente2, 1, 100);
+    linea(mixta, bot, agente1, 1, 500);
+    linea(mixta, upgrade, null, 4, 4000);
+    linea(venta("ANULADA", USD, "2026-09-06T15:00:00Z", 700), bot, null, 1, 700);
+    linea(venta("PENDIENTE", USD, "2026-09-07T15:00:00Z", 100), bot, agente2, 1, 100);
   }
 
   @AfterEach
@@ -91,34 +93,50 @@ class SaleLinesSummaryIT extends IntegrationTestBase {
 
   @Test
   @DisplayName(
-      "CA-IN-059, CA-IN-060, CA-IN-062 y CA-IN-063 — unidades, estados, total, y lo sin vendedor"
-          + " sin las anuladas")
-  void lasCifras() throws Exception {
+      "CA-IN-059, CA-IN-067 y CA-IN-068 — lo vendido es lo confirmado, en total y por tipo; una"
+          + " venta de dos tipos cuenta en cada uno")
+  void loVendido() throws Exception {
     septiembre(funcionario)
         .andExpect(status().isOk())
-        .andExpect(jsonPath("$.total.sales").value(6))
-        .andExpect(jsonPath("$.total.lines").value(7))
-        .andExpect(jsonPath("$.total.units").value(13))
-        .andExpect(jsonPath("$.confirmed.sales").value(3))
-        .andExpect(jsonPath("$.confirmed.lines").value(4))
-        .andExpect(jsonPath("$.confirmed.units").value(9))
-        .andExpect(jsonPath("$.confirmed.amounts[*].currency.code", contains("COP", "USD")))
-        .andExpect(jsonPath("$.confirmed.amounts[1].amount").value(75.0))
-        .andExpect(jsonPath("$.pending.sales").value(2))
-        .andExpect(jsonPath("$.pending.units").value(3))
-        .andExpect(jsonPath("$.voided.sales").value(1))
-        // Lo sin vendedor: la pendiente s3 y la mixta s4 —una venta y una línea—;
-        // la anulada s5 no.
-        .andExpect(jsonPath("$.unassigned.sales").value(2))
-        .andExpect(jsonPath("$.unassigned.lines").value(2))
-        .andExpect(jsonPath("$.unassigned.units").value(6))
-        .andExpect(jsonPath("$.unassigned.amounts[0].amount").value(60.0))
+        .andExpect(jsonPath("$.sold.total.sales").value(3))
+        .andExpect(jsonPath("$.sold.total.lines").value(4))
+        .andExpect(jsonPath("$.sold.total.units").value(9))
+        .andExpect(jsonPath("$.sold.total.amounts[*].currency.code", contains("COP", "USD")))
+        .andExpect(jsonPath("$.sold.total.amounts[1].amount").value(75.0))
+        .andExpect(jsonPath("$.sold.byType[*].type", contains("BOT", "UPGRADE_MEMBRESIA")))
+        .andExpect(jsonPath("$.sold.byType[0].sales").value(2))
+        .andExpect(jsonPath("$.sold.byType[0].lines").value(2))
+        .andExpect(jsonPath("$.sold.byType[0].units").value(4))
+        .andExpect(jsonPath("$.sold.byType[0].amounts[0].amount").value(35.0))
+        // La mixta s4 cuenta en los dos tipos: 2 + 2 ventas por tipo, 3 en el total.
+        .andExpect(jsonPath("$.sold.byType[1].sales").value(2))
+        .andExpect(jsonPath("$.sold.byType[1].units").value(5))
+        .andExpect(jsonPath("$.sold.byType[1].amounts[*].currency.code", contains("COP", "USD")))
         .andExpect(jsonPath("$.granularity").value(org.hamcrest.Matchers.nullValue()))
         .andExpect(jsonPath("$.buckets").value(org.hamcrest.Matchers.nullValue()));
   }
 
   @Test
-  @DisplayName("CA-IN-061 — las cifras por estado son las del resumen de ventas de administración")
+  @DisplayName(
+      "CA-IN-062, CA-IN-063, CA-IN-069 y CA-IN-070 — lo sin vendedor, en total y por tipo, sin las"
+          + " anuladas; y ni pendientes ni anuladas en la respuesta")
+  void loSinVendedor() throws Exception {
+    septiembre(funcionario)
+        .andExpect(jsonPath("$.unassigned.total.sales").value(2))
+        .andExpect(jsonPath("$.unassigned.total.lines").value(2))
+        .andExpect(jsonPath("$.unassigned.total.units").value(6))
+        .andExpect(jsonPath("$.unassigned.total.amounts[0].amount").value(60.0))
+        .andExpect(jsonPath("$.unassigned.byType[*].type", contains("BOT", "UPGRADE_MEMBRESIA")))
+        .andExpect(jsonPath("$.unassigned.byType[0].units").value(2))
+        .andExpect(jsonPath("$.unassigned.byType[1].units").value(4))
+        .andExpect(jsonPath("$.unassigned.byType[1].amounts[0].amount").value(40.0))
+        .andExpect(jsonPath("$.pending").doesNotExist())
+        .andExpect(jsonPath("$.voided").doesNotExist())
+        .andExpect(jsonPath("$.confirmed").doesNotExist());
+  }
+
+  @Test
+  @DisplayName("CA-IN-061 — el total de lo vendido es lo confirmado del resumen de ventas")
   void cuadraConElResumenDeVentas() throws Exception {
     String lineas = septiembre(funcionario).andReturn().getResponse().getContentAsString();
     String resumen =
@@ -132,20 +150,11 @@ class SaleLinesSummaryIT extends IntegrationTestBase {
             .andReturn()
             .getResponse()
             .getContentAsString();
-    for (String estado : new String[] {"confirmed", "pending", "voided"}) {
-      assertThat((Object) JsonPath.read(lineas, "$." + estado + ".sales"))
-          .as(estado)
-          .isEqualTo(JsonPath.read(resumen, "$." + estado + ".sales"));
-      assertThat((Object) JsonPath.read(lineas, "$." + estado + ".amounts"))
-          .as(estado)
-          .isEqualTo(JsonPath.read(resumen, "$." + estado + ".amounts"));
+    for (String campo : new String[] {"sales", "lines", "units", "amounts"}) {
+      assertThat((Object) JsonPath.read(lineas, "$.sold.total." + campo))
+          .as(campo)
+          .isEqualTo(JsonPath.read(resumen, "$.confirmed." + campo));
     }
-    assertThat((Object) JsonPath.read(lineas, "$.confirmed.lines"))
-        .isEqualTo(JsonPath.read(resumen, "$.confirmed.lines"));
-    assertThat((Object) JsonPath.read(lineas, "$.confirmed.units"))
-        .isEqualTo(JsonPath.read(resumen, "$.confirmed.units"));
-    assertThat((Object) JsonPath.read(lineas, "$.total.sales"))
-        .isEqualTo(JsonPath.read(resumen, "$.total.sales"));
   }
 
   @Test
@@ -167,16 +176,19 @@ class SaleLinesSummaryIT extends IntegrationTestBase {
                 .with(conPermiso(funcionario)))
         .andExpect(jsonPath("$.granularity").value("MONTH"))
         .andExpect(jsonPath("$.buckets[*].start", contains("2026-08-01", "2026-09-01")))
-        .andExpect(jsonPath("$.buckets[0].total.sales").value(0))
-        .andExpect(jsonPath("$.buckets[0].unassigned.sales").value(0))
-        .andExpect(jsonPath("$.buckets[1].total.units").value(13))
-        .andExpect(jsonPath("$.buckets[1].unassigned.units").value(6));
+        .andExpect(jsonPath("$.buckets[0].sold.total.sales").value(0))
+        .andExpect(jsonPath("$.buckets[0].sold.byType").isEmpty())
+        .andExpect(jsonPath("$.buckets[0].unassigned.total.sales").value(0))
+        .andExpect(jsonPath("$.buckets[1].sold.total.units").value(9))
+        .andExpect(jsonPath("$.buckets[1].sold.byType.length()").value(2))
+        .andExpect(jsonPath("$.buckets[1].unassigned.total.units").value(6));
 
     mvc.perform(get(RUTA).param("currencyId", COP).with(conPermiso(funcionario)))
         .andExpect(jsonPath("$.period.from").value(org.hamcrest.Matchers.nullValue()))
-        .andExpect(jsonPath("$.confirmed.sales").value(1))
-        .andExpect(jsonPath("$.unassigned.sales").value(0))
-        .andExpect(jsonPath("$.unassigned.amounts").isEmpty());
+        .andExpect(jsonPath("$.sold.total.sales").value(1))
+        .andExpect(jsonPath("$.sold.byType[*].type", contains("UPGRADE_MEMBRESIA")))
+        .andExpect(jsonPath("$.unassigned.total.sales").value(0))
+        .andExpect(jsonPath("$.unassigned.byType").isEmpty());
 
     mvc.perform(
             get(RUTA)
@@ -231,7 +243,7 @@ class SaleLinesSummaryIT extends IntegrationTestBase {
     jdbc.update("DELETE FROM movement_details");
     jdbc.update("DELETE FROM payments");
     jdbc.update("DELETE FROM movements");
-    jdbc.update("DELETE FROM products WHERE code LIKE 'ISL_BOT%'");
+    jdbc.update("DELETE FROM products WHERE code LIKE 'ISL\\_%'");
     jdbc.update(
         "DELETE FROM user_supervisors WHERE user_id IN (SELECT id FROM users WHERE username LIKE"
             + " 'isl-%') OR supervisor_id IN (SELECT id FROM users WHERE username LIKE 'isl-%')");
@@ -264,16 +276,20 @@ class SaleLinesSummaryIT extends IntegrationTestBase {
     return id;
   }
 
-  private UUID producto(String codigo) {
+  /** Un producto del tipo dado; el upgrade va de BECA a BECA, como en las suites afftrack. */
+  private UUID producto(String codigo, String tipo) {
     UUID id = UUID.randomUUID();
+    String beca = tipo.equals("BOT") ? null : "(SELECT id FROM memberships WHERE code = 'BECA')";
     jdbc.update(
         "INSERT INTO products (scope, implementation, id, code, type, name, description,"
             + " source_membership_id, target_membership_id, price, currency_id, validity_days,"
-            + " status) VALUES ('TIENDA', 'MANUAL', ?, ?, 'BOT', ?, 'Producto de prueba', NULL,"
-            + " NULL, 10000, CAST(? AS uuid), NULL, 'ACTIVO')",
+            + " status) VALUES ('TIENDA', 'MANUAL', ?, ?, ?, ?, 'Producto de prueba', "
+            + (beca == null ? "NULL, NULL" : beca + ", " + beca)
+            + ", 10000, CAST(? AS uuid), NULL, 'ACTIVO')",
         id,
         codigo,
-        "Bot " + codigo,
+        tipo,
+        "Producto " + codigo,
         USD);
     return id;
   }

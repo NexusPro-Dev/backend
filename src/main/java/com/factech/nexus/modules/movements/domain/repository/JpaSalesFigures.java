@@ -48,6 +48,12 @@ public class JpaSalesFigures implements SalesFigures {
 
   // La gratuidad es de la CABECERA —lo que se cobra por la venta entera— y no
   // de las líneas del alcance (`RN-IN-008`, `CA-IN-040`).
+  /** {@link #DE_LAS_VENTAS} con el producto de cada línea, para su tipo (`RF-IN-006`). */
+  private static final String DE_LAS_LINEAS_CON_TIPO =
+      DE_LAS_VENTAS.replace(
+          "JOIN currencies c ON c.id = m.currency_id",
+          "JOIN currencies c ON c.id = m.currency_id\n  JOIN products p ON p.id = d.product_id");
+
   /** Lo que falta por atribuir: líneas sin vendedor de ventas no anuladas (`RF-IN-006`). */
   private static final String SIN_VENDEDOR =
       " AND d.seller_id IS NULL AND m.status IN ('CONFIRMADA', 'PENDIENTE')";
@@ -168,6 +174,72 @@ public class JpaSalesFigures implements SalesFigures {
         (inicio, acumulado) ->
             tramos.add(new BucketTotals(inicio, totales(acumulado.get("SIN_VENDEDOR")))));
     return tramos;
+  }
+
+  /**
+   * Las líneas por tipo de producto (`RF-IN-006`, 07-10-2026): la sentencia del resumen con el
+   * producto de la línea cruzado —como en otras lecturas de este módulo— y su tipo en el lugar del
+   * estado, para pasar por el mismo mapeo.
+   */
+  @Override
+  @Transactional(readOnly = true)
+  public List<TypeTotals> byProductType(Lines lines, Interval interval, UUID currencyId) {
+    String sql =
+        "SELECT p.type, m.currency_id, c.code, "
+            + CIFRAS_DEL_RESUMEN
+            + DE_LAS_LINEAS_CON_TIPO
+            + cuales(lines)
+            + donde(SalesScope.everything(), interval, currencyId)
+            + " GROUP BY p.type, m.currency_id, c.code";
+    @SuppressWarnings("unchecked")
+    List<Object[]> filas =
+        enlazar(em.createNativeQuery(sql), SalesScope.everything(), interval, currencyId)
+            .getResultList();
+    Map<String, Acumulado> porTipo = new TreeMap<>();
+    for (Object[] f : filas) {
+      sumar(porTipo, f, 0);
+    }
+    List<TypeTotals> tipos = new ArrayList<>(porTipo.size());
+    porTipo.forEach((tipo, acumulado) -> tipos.add(new TypeTotals(tipo, acumulado.totales())));
+    return tipos;
+  }
+
+  @Override
+  @Transactional(readOnly = true)
+  public List<BucketTypeTotals> byProductTypeAndBucket(
+      Lines lines, Interval interval, UUID currencyId, Granularity granularity, ZoneId zone) {
+    String sql =
+        "SELECT CAST(date_trunc(:unidad, m.occurred_at AT TIME ZONE :zona) AS date),"
+            + " p.type, m.currency_id, c.code, "
+            + CIFRAS_DEL_RESUMEN
+            + DE_LAS_LINEAS_CON_TIPO
+            + cuales(lines)
+            + donde(SalesScope.everything(), interval, currencyId)
+            + " GROUP BY 1, 2, 3, 4";
+    Query consulta =
+        enlazar(em.createNativeQuery(sql), SalesScope.everything(), interval, currencyId)
+            .setParameter("unidad", unidad(granularity))
+            .setParameter("zona", zone.getId());
+    @SuppressWarnings("unchecked")
+    List<Object[]> filas = consulta.getResultList();
+    Map<LocalDate, Map<String, Acumulado>> porTramo = new TreeMap<>();
+    for (Object[] f : filas) {
+      sumar(porTramo.computeIfAbsent(dia(f[0]), k -> new TreeMap<>()), f, 1);
+    }
+    List<BucketTypeTotals> tramos = new ArrayList<>();
+    porTramo.forEach(
+        (inicio, porTipo) ->
+            porTipo.forEach(
+                (tipo, acumulado) ->
+                    tramos.add(new BucketTypeTotals(inicio, tipo, acumulado.totales()))));
+    return tramos;
+  }
+
+  private static String cuales(Lines lines) {
+    return switch (lines) {
+      case SOLD -> " AND m.status = 'CONFIRMADA'";
+      case UNASSIGNED -> SIN_VENDEDOR;
+    };
   }
 
   /**
