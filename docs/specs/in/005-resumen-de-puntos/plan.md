@@ -5,7 +5,7 @@
 | Requerimiento | `RF-IN-005` |
 | Especificación | [`spec.md`](spec.md) v0.2.0 |
 | `spec.md` aprobada el | 06-10-2026 |
-| Versión | 0.2.0 |
+| Versión | 0.3.0 |
 | Estado | **Aprobado** |
 | Autor | Responsable técnico |
 | Aprobado por | Responsable del proyecto |
@@ -29,7 +29,7 @@
 
 **Se cuenta sobre el libro de asientos y no sobre los movimientos.** Cada punto que entra o sale de una persona es un asiento en su cuenta `PUNTOS` (`requirements/mv.md` §7.9), y **el evento del asiento ya dice qué clase de hecho fue**: `ABONO` es una compra cobrada, `PAGO` una venta pagada con puntos, `AJUSTE` un ajuste —con el signo diciendo si sumó o restó—. Contar los movimientos obligaría a mirar el estado de la compra, el método de pago de la venta y el signo del ajuste, tres reglas que el asiento ya resolvió al escribirse. Y el instante del asiento **es** cuándo se movieron los puntos (`spec.md` §2.1).
 
-**`MV` publica `PointsFigures`** en su capa `application`, con la forma de `SalesFigures`: recibe un conjunto de personas o todo, un intervalo y una moneda, y devuelve sumas. El saldo lo devuelve la misma interfaz, en otra sentencia, sobre `accounts.balance`, que es la copia de la suma de los asientos (`RN-MV-041`).
+**`MV` publica `PointsFigures`** en su capa `application`, con la forma de `SalesFigures`: recibe un conjunto de personas o todo, un intervalo y una moneda, y devuelve sumas. El saldo lo devuelve la misma interfaz, en otra sentencia. ~~Sobre `accounts.balance`~~: **desde 0.3.0 (07-10-2026), sobre los mismos asientos**, `sum(e.amount)` con `e.created_at < :hasta` —el comienzo del día siguiente a `to`, el mismo `Interval` del periodo—. `accounts.balance` solo sabe el saldo de hoy; la suma de los asientos da el de cualquier cierre, y sin `to` el intervalo ya acaba mañana a las 00:00 de Bogotá, de modo que **una sola fórmula** da los dos casos y el saldo cuadra por construcción con las cuatro cifras sin `from`.
 
 ---
 
@@ -108,10 +108,12 @@ SELECT a.currency_id, c.code, e.event, e.amount > 0, sum(e.amount), count(DISTIN
    [AND a.user_id IN (:titulares)] [AND a.currency_id = :moneda]
  GROUP BY 1, 2, 3, 4
 
--- El saldo de hoy.
-SELECT a.currency_id, c.code, sum(a.balance)
-  FROM accounts a JOIN currencies c ON c.id = a.currency_id
- WHERE a.kind = 'PUNTOS' AND a.user_id IS NOT NULL
+-- El saldo al cierre del periodo (0.3.0).
+SELECT a.currency_id, c.code, sum(e.amount)
+  FROM movement_entries e
+  JOIN accounts a ON a.id = e.account_id AND a.kind = 'PUNTOS' AND a.user_id IS NOT NULL
+  JOIN currencies c ON c.id = a.currency_id
+ WHERE e.created_at < :hasta
    [AND a.user_id IN (:titulares)] [AND a.currency_id = :moneda]
  GROUP BY 1, 2
 ```

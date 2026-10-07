@@ -173,8 +173,8 @@ class PointsSummaryIT extends IntegrationTestBase {
 
   @Test
   @DisplayName(
-      "CA-IN-044 y CA-IN-048 — el periodo mira cuándo se movieron los puntos; el saldo es el de"
-          + " hoy, sea cual sea el periodo")
+      "CA-IN-044, CA-IN-048 y CA-IN-071 — el periodo mira cuándo se movieron los puntos; el saldo"
+          + " es el del cierre de «hasta», acumulado, y sin «hasta» el de hoy")
   void periodo() throws Exception {
     // La compra de director2 se pidió el 30 de agosto y se cobró el 1 de
     // septiembre (en Bogotá): cuenta el 1.
@@ -190,8 +190,18 @@ class PointsSummaryIT extends IntegrationTestBase {
     rango(director2, "2026-09-01", "2026-09-01")
         .andExpect(jsonPath("$.currencies[0].purchased.points").value(100.0))
         .andExpect(jsonPath("$.currencies[0].balance").value(100.0));
-    // El 30 de agosto no hubo movimiento de puntos; el saldo sigue siendo el de hoy.
+    // CA-IN-071: al cierre del 30 de agosto aún no había puntos, ni movimiento: nada que contar.
     rango(director2, "2026-08-30", "2026-08-30")
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$.currencies").isEmpty());
+    // El saldo es acumulado: «desde» no lo acota. Mismo «hasta», mismo saldo.
+    rango(director2, "2026-09-02", "2026-09-05")
+        .andExpect(jsonPath("$.currencies[0].purchased.points").value(0.0))
+        .andExpect(jsonPath("$.currencies[0].balance").value(100.0));
+    mvc.perform(get(RUTA).param("to", "2026-09-05").with(conPermiso(director2)))
+        .andExpect(jsonPath("$.currencies[0].balance").value(100.0));
+    // Sin «hasta», el de hoy.
+    mvc.perform(get(RUTA).param("from", "2026-09-02").with(conPermiso(director2)))
         .andExpect(jsonPath("$.currencies[0].purchased.points").value(0.0))
         .andExpect(jsonPath("$.currencies[0].balance").value(100.0));
   }

@@ -35,6 +35,8 @@
 |---|---|---|---|---|
 | `T-07` | `PointsFigures.flowsByBucket`; `GetPointsSummaryService` con el periodo abierto, `granularity` y `buckets` | `RF-IN-001` · `T-14` | El saldo solo en el total | **Hecha** — 06-10-2026 |
 | `T-08` | `PointsSummaryIT`: `CA-IN-057` y `CA-IN-058`; contrato y documentos | `T-07` | | **Hecha** — 06-10-2026 |
+| `T-09` | **El saldo al cierre del periodo** (`spec.md` 0.3.0): `PointsFigures.balances` recibe el `Interval` y suma los asientos hasta su fin; `GetPointsSummaryService` lo pasa; prosa del controlador | `T-07` | `CA-IN-044` sigue cuadrando | **Hecha** — 07-10-2026 |
+| `T-10` | `PointsSummaryIT`: `CA-IN-071` y el `CA-IN-044` enmendado | `T-09` | Suite en verde | **Hecha** — 07-10-2026 |
 
 ---
 
@@ -72,3 +74,5 @@ Ninguno.
 - [x] Contrato OpenAPI regenerado, **con la prosa releída**: solo altas.
 - [x] `requirements/in.md`, `requirements/mv.md`, `architecture.md`, `security.md`, `requirements.md` y `api/index.md` actualizados.
 - [x] **`tasks.md` aprobadas por el responsable del proyecto** (06-10-2026).
+| — | 07-10-2026 | `T-09` y `T-10`, el saldo al cierre del periodo, pedidos y aprobados por el responsable del proyecto («aplica que el saldo también dependa del periodo»). | Responsable técnico |
+| — | 07-10-2026 | `T-09` y `T-10` `Hecha`: el saldo suma los asientos hasta el fin del intervalo; `PointsSummaryIT.periodo` prueba `CA-IN-071`. Suite completa en verde (567 unitarias, 2582 de integración). | Responsable técnico |

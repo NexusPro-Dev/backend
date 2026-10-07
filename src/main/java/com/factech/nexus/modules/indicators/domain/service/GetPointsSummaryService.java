@@ -92,10 +92,11 @@ public class GetPointsSummaryService {
     }
     Set<UUID> titulares = alcance.get().isEverything() ? null : alcance.get().sellers();
     List<Flow> flujos = cifras.flows(titulares, periodos.interval(periodo), peticion.currencyId());
-    List<Balance> saldos = cifras.balances(titulares, peticion.currencyId());
+    List<Balance> saldos =
+        cifras.balances(titulares, periodos.interval(periodo), peticion.currencyId());
 
     // Una moneda aparece si hay algo que contar: un movimiento en el periodo o
-    // un saldo distinto de cero hoy.
+    // un saldo distinto de cero al cierre del periodo.
     Map<UUID, String> codigos = new HashMap<>();
     Map<UUID, Map<Kind, Flow>> porMoneda = new HashMap<>();
     for (Flow f : flujos) {

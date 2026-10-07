@@ -4,7 +4,7 @@
 |---|---|
 | Requerimiento | `RF-IN-005` |
 | Módulo | `IN` — Indicadores |
-| Versión | 0.2.0 |
+| Versión | 0.3.0 |
 | Estado | **Aprobada** |
 | Autor | Responsable técnico |
 | Aprobada por | Responsable del proyecto |
@@ -24,7 +24,7 @@
 
 ## 1. Objetivo
 
-Saber **cuántos puntos se han comprado, cuántos se han redimido y cuántos hay**, en el alcance de quien pregunta: lo que entró y salió en un periodo, y el saldo de hoy.
+Saber **cuántos puntos se han comprado, cuántos se han redimido y cuántos hay**, en el alcance de quien pregunta: lo que entró y salió en un periodo, y el saldo al cierre de ese periodo.
 
 ---
 
@@ -36,7 +36,7 @@ Saber **cuántos puntos se han comprado, cuántos se han redimido y cuántos hay
 |---|---|
 | ¿De quién son los puntos que cuenta? | **Según el alcance**, como los de ventas (`RN-IN-002`): administración, los de toda la plataforma; un vendedor, los suyos y los de las personas de su red; cualquier otro, los suyos |
 | ¿Y los ajustes a mano? | **Aparte**, con lo sumado y lo restado, para que el saldo se explique: comprados − redimidos ± ajustes |
-| ¿El saldo de cuándo? | **El de hoy**, sea cual sea el periodo; lo comprado, lo redimido y los ajustes son **los del periodo** |
+| ¿El saldo de cuándo? | ~~**El de hoy**, sea cual sea el periodo~~. **Desde el 07-10-2026, el del cierre del periodo**: lo que había al final del día `to`; sin `to`, el de hoy. Lo comprado, lo redimido y los ajustes son **los del periodo** |
 
 ### 2.1 Qué es cada cifra
 
@@ -47,13 +47,13 @@ Los puntos son un saldo propio de cada persona, separado del dinero y **uno por 
 | **Comprados** | Los puntos que **entraron** por una compra de puntos **ya cobrada** | Una compra pendiente o rechazada: todavía no dio ningún punto |
 | **Redimidos** | Los puntos que **salieron** al pagar una venta con ellos | El valor en dinero de esa venta |
 | **Ajustes** | Lo que administración **sumó** o **restó** a mano, cada sentido por separado | Una compra ni un pago: es una corrección |
-| **Saldo** | Los puntos que las personas del alcance **tienen hoy** | El saldo al final del periodo |
+| **Saldo** | Los puntos que las personas del alcance **tenían al cierre del periodo** —al final del día `to`; sin `to`, hoy— (0.3.0) | Lo que entró y salió solo en el periodo: eso son las otras cuatro cifras |
 
 **El periodo se mira sobre cuándo se movieron los puntos**: una compra cuenta el día en que se cobró —que es cuando dio los puntos—, no el día en que se pidió. Es la diferencia con los indicadores de ventas, que miran cuándo ocurrió la venta, y es a propósito: aquí se cuentan puntos, y los puntos de una compra pendiente no existen.
 
 ### 2.2 Por qué el saldo no cuadra con el periodo, y cuándo sí
 
-El saldo es **el de hoy** y las otras cifras son **las del periodo**, de modo que en general no cuadran. **Cuadran exactamente cuando el periodo cubre todo lo ocurrido hasta hoy**: entonces el saldo es comprados − redimidos + sumados − restados. Es la prueba de que nada se pierde, y es un criterio de aceptación.
+El saldo es **el del cierre del periodo** —acumulado: todo lo anterior al final de `to`— y las otras cifras son **las del periodo**, de modo que con un `from` no cuadran. **Cuadran exactamente cuando el periodo no tiene `from`**: entonces el saldo es comprados − redimidos + sumados − restados, con o sin `to` (0.3.0; antes solo cuadraban si el periodo llegaba hasta hoy). Es la prueba de que nada se pierde, y es un criterio de aceptación.
 
 ---
 
@@ -74,7 +74,7 @@ El saldo es **el de hoy** y las otras cifras son **las del periodo**, de modo qu
 ### 4.1 Incluye
 
 - Por moneda, en el periodo: **comprados**, **redimidos**, **sumados por ajuste** y **restados por ajuste**, con cuántos movimientos hubo de cada clase.
-- Por moneda, **el saldo de hoy**.
+- Por moneda, **el saldo al cierre del periodo** (0.3.0).
 - Acotar a **una moneda** y a **una persona** del alcance.
 
 ### 4.2 No incluye
@@ -82,7 +82,8 @@ El saldo es **el de hoy** y las otras cifras son **las del periodo**, de modo qu
 - **El dinero de las compras de puntos**: cuánto se pagó por ellos. Es otra pregunta, y otro indicador si se pide.
 - **El valor en dinero de lo redimido**: depende de la tasa del día de cada pago.
 - **Los puntos de la empresa**: la cuenta que lleva los puntos en circulación no es de ninguna persona.
-- **El saldo de otro día que hoy**.
+- ~~El saldo de otro día que hoy~~: **lo incluye desde 0.3.0**, al cierre de `to`.
+- El saldo al cierre de cada tramo.
 - **La evolución en el tiempo** y **los rankings** (quién compra o redime más): indicadores propios si se piden.
 - **Los clientes de un vendedor**: el alcance recorre la estructura de mando, no la cartera (`RN-SP-049`), igual que en ventas.
 
@@ -108,7 +109,7 @@ El saldo es **el de hoy** y las otras cifras son **las del periodo**, de modo qu
 
 | Dato | Obligatorio | Descripción |
 |---|---|---|
-| Desde, hasta | No | Como en `RF-IN-001`: días de Bogotá, el último incluido, **sin fechas, toda la historia; una sola deja la otra abierta; sin tope** (06-10-2026, `RN-IN-010`). **No acotan el saldo** |
+| Desde, hasta | No | Como en `RF-IN-001`: días de Bogotá, el último incluido, **sin fechas, toda la historia; una sola deja la otra abierta; sin tope** (06-10-2026, `RN-IN-010`). **El saldo es el del cierre de «hasta»**; «desde» no lo acota (0.3.0) |
 | Moneda | No | Solo esa moneda; una que no exista da ceros |
 | Persona | No | Solo los puntos de esa persona, **si está en mi alcance**; si no —o no existe—, ceros |
 
@@ -117,9 +118,9 @@ El saldo es **el de hoy** y las otras cifras son **las del periodo**, de modo qu
 | Dato | Descripción |
 |---|---|
 | Periodo | El efectivo, como en `RF-IN-001` |
-| Por moneda | La moneda; **comprados** (puntos y compras), **redimidos** (puntos y ventas), **sumados** y **restados** por ajuste (puntos y ajustes), y **el saldo de hoy** |
+| Por moneda | La moneda; **comprados** (puntos y compras), **redimidos** (puntos y ventas), **sumados** y **restados** por ajuste (puntos y ajustes), y **el saldo al cierre del periodo** |
 
-**Una moneda aparece si en ella hay algo que contar**: un movimiento en el periodo o un saldo distinto de cero hoy. Los puntos van con dos decimales, como se guardan, y **siempre en positivo**: «redimidos 300» y no «−300»; el sentido lo da el nombre de la cifra.
+**Una moneda aparece si en ella hay algo que contar**: un movimiento en el periodo o un saldo distinto de cero al cierre del periodo. Los puntos van con dos decimales, como se guardan, y **siempre en positivo**: «redimidos 300» y no «−300»; el sentido lo da el nombre de la cifra.
 
 ---
 
@@ -138,7 +139,7 @@ El saldo es **el de hoy** y las otras cifras son **las del periodo**, de modo qu
 2. El sistema comprueba el permiso, fija y valida el periodo.
 3. Resuelve el alcance y lo estrecha a la persona pedida, si la hay y está dentro.
 4. Suma, por moneda, lo que entró y salió de los puntos de esas personas en el periodo, separado por clase.
-5. Suma, por moneda, el saldo de hoy de esas personas.
+5. Suma, por moneda, el saldo de esas personas al cierre del periodo.
 6. Devuelve las dos cosas juntas.
 
 ---
@@ -155,7 +156,7 @@ Lista vacía. No es un error.
 
 ### FA-003 — Un periodo sin movimientos, con saldo
 
-La moneda aparece con las cifras del periodo en cero y su saldo de hoy.
+La moneda aparece con las cifras del periodo en cero y su saldo al cierre del periodo.
 
 ---
 
@@ -180,7 +181,8 @@ Las de `RF-IN-001` §11 —el periodo y los identificadores—, con sus mismos c
 | `CA-IN-041` | **Comprados** son los puntos de las compras **cobradas** en el periodo; una compra pendiente o rechazada no suma nada |
 | `CA-IN-042` | **Redimidos** son los puntos gastados al pagar ventas en el periodo, en positivo |
 | `CA-IN-043` | Los **ajustes** van aparte: lo sumado y lo restado, cada uno con su cuenta de ajustes |
-| `CA-IN-044` | El **saldo** es el de hoy, sea cual sea el periodo; y con un periodo que lo cubre todo, **saldo = comprados − redimidos + sumados − restados** |
+| `CA-IN-044` | El **saldo** es el del cierre del periodo (0.3.0; era el de hoy); y con un periodo sin «desde», **saldo = comprados − redimidos + sumados − restados** |
+| `CA-IN-071` | **El saldo depende de «hasta»** (07-10-2026): con `to` en un día anterior a un movimiento, el saldo no lo incluye; dos periodos con el mismo `to` y distinto `from` dan el mismo saldo; sin `to`, el de hoy |
 | `CA-IN-045` | Todo va **por moneda**: los puntos de una moneda no se suman con los de otra |
 | `CA-IN-046` | El **alcance** es el de ventas: un funcionario ve todos; un director, los suyos y los de sus agentes, no los de otra rama; un agente, los suyos |
 | `CA-IN-047` | El filtro por **persona** acota dentro del alcance; fuera o inexistente, ceros y no error. El de **moneda** acota |
@@ -216,3 +218,4 @@ Ninguna.
 |---|---|---|---|
 | 0.1.0 | 06-10-2026 | Primera versión, con la tanda de puntos del módulo `IN`, a petición del responsable del proyecto. Tres decisiones suyas: **según el alcance**, **los ajustes aparte** y **el saldo de hoy** con las cifras del periodo. Nace `RN-IN-009`. Nueve criterios, `CA-IN-041` a `CA-IN-049`. | Responsable técnico |
 | 0.2.0 | 06-10-2026 | **`RN-IN-010`**: sin fechas, toda la historia; sin tope; y el tramo opcional, sin partir el saldo. `CA-IN-057` y `CA-IN-058`. | Responsable técnico |
+| 0.3.0 | 07-10-2026 | **El saldo es el del cierre del periodo**, a petición del responsable del proyecto («que el saldo también dependa del periodo»): al final del día `to` en Bogotá; sin `to`, el de hoy. `CA-IN-044` se enmienda y nace `CA-IN-071`. | Responsable del proyecto |

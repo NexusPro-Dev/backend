@@ -5,7 +5,7 @@
 | Módulo | `MV` — Movimientos |
 | Paquete | `modules/movements` |
 | Prefijos de permiso | `movements:` |
-| Versión | 0.91.0 |
+| Versión | 0.92.0 |
 | Estado | **Borrador** |
 | Responsable | Bonilla Diaz William Steven |
 | Fecha de creación | 02-09-2026 |
@@ -117,7 +117,7 @@ Según [`modules.md` §5](../modules.md).
 | `CM` | **Es consumido, y desde el 26-09-2026 le escribe** | **No lo consume `MV`: es `CM` quien consume a `MV`.** Desde el 26-09-2026 además **le escribe**: al marcar un lote como pagado (`RF-CM-011`) invoca la operación que `MV` publica para **abonarlo en la billetera** (`RN-MV-044`, `RF-MV-024`). **La referencia entre el lote y su movimiento vive en `CM`** —`commission_batches` apunta a `movements`— y no al revés: una clave foránea desde `movements` haría a `MV` depender de `CM` y cerraría el ciclo que `requirements/cm.md` §3 comprobó que no existe. **Y desde el 28-09-2026 le avisa**, sin conocerlo: al confirmar una venta y al asignar vendedores, publica un evento con las líneas que quedaron comisionables, y `CM` las devenga (`RN-MV-049`). **Y desde el 30-09-2026 le pregunta**, también sin conocerlo: al corregir el vendedor de una línea de una venta ya confirmada, invoca un **puerto que declara este módulo y que `CM` implementa** para saber si la línea puede cambiar de dueño (`RN-MV-053`) |
 | `IN` | **Es consumido** | **Las cifras de lo vendido** (`SalesFigures`, 06-10-2026, `RF-IN-001`): `IN` le da un alcance ya resuelto —todo, o un conjunto de vendedores—, un intervalo y una moneda, y recibe **sumas**: ventas, líneas, unidades e importe por moneda, **por línea** (`RN-IN-003`) y solo de `VENTA`. `MV` no sabe qué es un indicador, igual que no sabe qué es una comisión. `MV` no consume a `IN` |
 | `IN` | **Es consumido** | **Lo que no tiene vendedor** (`SalesFigures.unassigned`, 06-10-2026, `RF-IN-006`): las líneas sin vendedor de las ventas no anuladas, con sus ventas, líneas, unidades e importe por moneda. **Sin alcance en la firma**: solo tiene sentido sobre todo el libro |
-| `IN` | **Es consumido** | **Las cifras de los puntos** (`PointsFigures`, 06-10-2026, `RF-IN-005`): por titular y moneda, lo comprado, lo redimido y los ajustes de un intervalo —leídos de los asientos de las cuentas `PUNTOS`, por su evento— y el saldo de hoy. Sumas, nunca filas |
+| `IN` | **Es consumido** | **Las cifras de los puntos** (`PointsFigures`, 06-10-2026, `RF-IN-005`): por titular y moneda, lo comprado, lo redimido y los ajustes de un intervalo —leídos de los asientos de las cuentas `PUNTOS`, por su evento— y el saldo **al cierre del intervalo**, sumando los mismos asientos (07-10-2026; era el de hoy, de `accounts.balance`). Sumas, nunca filas |
 
 La dependencia es **acíclica**: `MV` → `PM` → `SP`, y `MV` → `SP`. **El puerto de `RN-MV-053` no la cambia** (30-09-2026): lo declara `MV` en su capa `application` y lo implementa `CM`, de modo que la dependencia de compilación sigue siendo `CM` → `MV` —la inversión que [`architecture.md` §15.2](../architecture.md) admite cuando es ella la que evita el ciclo—.
 
@@ -1573,3 +1573,4 @@ Se siembra por migración y **no se administra por API todavía** (§5.3). Lo m�
 | 0.89.0 | 06-10-2026 | **Los puntos gastados entran en las listas de movimientos de puntos** (§4.12; enmienda a `RF-MV-055` y `RF-MV-056`), a petición del responsable del proyecto: un tercer tipo, **`GASTO_PUNTOS`**, una fila por venta pagada con `POINTS`, con los puntos en negativo leídos de su asiento `PAGO`, el importe de la venta y sus productos. No es un tipo de movimiento nuevo —la venta sigue siendo `VENTA`—, sino una forma de leerla. Sin migración ni permisos. | Responsable del proyecto |
 | 0.90.0 | 06-10-2026 | **`SalesFigures` publica lo que no tiene vendedor** (§3; `RF-IN-006`): las líneas sin vendedor de las ventas no anuladas, sin alcance. Ningún requerimiento de `MV` cambia. | Responsable técnico |
 | 0.91.0 | 07-10-2026 | **`SalesFigures` publica las líneas por tipo de producto** (§3; `RF-IN-006` enmendado): lo vendido o lo sin vendedor, por el tipo del producto de la línea, cruzando `products` como ya hacen otras lecturas del módulo. Sin alcance. Ningún requerimiento de `MV` cambia. | Responsable técnico |
+| 0.92.0 | 07-10-2026 | **`PointsFigures` da el saldo al cierre de un intervalo** (§3; `RF-IN-005` 0.3.0): la suma de los asientos de las cuentas `PUNTOS` hasta el fin del intervalo, en lugar de `accounts.balance`, que solo sabe el de hoy. Ningún requerimiento de `MV` cambia. | Responsable técnico |

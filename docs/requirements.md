@@ -5,7 +5,7 @@
 | Proyecto | NEXUS — Renovación de plataforma |
 | Empresa | FACTECH GROUP SAS |
 | Documento | `requirements.md` |
-| Versión | 0.308.0 |
+| Versión | 0.309.0 |
 | Estado | Borrador |
 | Responsable técnico | Bonilla Diaz William Steven |
 | Fecha de creación | 20-08-2026 |
@@ -737,3 +737,4 @@ El inventario y el estado de los módulos se consultan en [`modules.md` §4](mod
 | 0.306.0 | 06-10-2026 | **Nace `RF-IN-006`, el resumen de líneas de venta** ([`requirements/in.md`](requirements/in.md) v0.9.0, `RN-IN-011`), a petición del responsable del proyecto: unidades vendidas, ventas por estado y lo sin vendedor, para administración y sin alcance. Tripleta el mismo día; `tasks.md` en revisión. Registrados, `spec.md` redactada y aprobada y `plan.md` aprobado suben uno. | Responsable técnico |
 | 0.307.0 | 06-10-2026 | **`RF-IN-006` construido** ([`requirements/in.md`](requirements/in.md) v0.10.0): `GET /api/v1/indicators/sales/lines/summary`, sus `tasks.md` aprobadas. §5: tripleta completa 105 → **106**, endpoint funcionando 187 → **188**. | Responsable técnico |
 | 0.308.0 | 07-10-2026 | **`RF-IN-006` enmendado y construido: por tipo de producto** ([`requirements/in.md`](requirements/in.md) v0.11.0, `CA-IN-067` a `CA-IN-070`), por decisión del responsable del proyecto: lo vendido —solo confirmado— y lo sin vendedor, cada uno en total y por tipo. Ningún indicador de §5 se mueve. | Responsable técnico |
+| 0.309.0 | 07-10-2026 | **El saldo del resumen de puntos pasa a ser el del cierre del periodo** (`RF-IN-005` 0.3.0; [`requirements/in.md`](requirements/in.md) v0.12.0; [`requirements/mv.md`](requirements/mv.md) v0.92.0), a petición del responsable del proyecto: lo que había al final del día `to`; sin `to`, el de hoy. Nace `CA-IN-071`. Construido el mismo día, sin migración ni permisos; suite completa en verde (567 unitarias, 2582 de integración). | Responsable técnico |

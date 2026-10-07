@@ -9,8 +9,9 @@ import java.util.List;
 
 /**
  * El resumen de puntos (`RF-IN-005` §6.2): por moneda, lo comprado, lo redimido y los ajustes del
- * periodo, y el saldo de hoy. Todo en positivo; el sentido lo da el nombre de la cifra. Si se pide
- * un tramo, además las cuatro clases <b>por tramo</b>, sin saldo (`RN-IN-010`).
+ * periodo, y el saldo al cierre del periodo (0.3.0, 07-10-2026). Todo en positivo; el sentido lo da
+ * el nombre de la cifra. Si se pide un tramo, además las cuatro clases <b>por tramo</b>, sin saldo
+ * (`RN-IN-010`).
  */
 @Schema(name = "PointsSummary")
 public record PointsSummaryResponse(
@@ -34,7 +35,11 @@ public record PointsSummaryResponse(
       @Schema(description = "Puntos gastados al pagar ventas en el periodo.") Flow redeemed,
       @Schema(description = "Ajustes a mano que sumaron, en el periodo.") Flow added,
       @Schema(description = "Ajustes a mano que restaron, en el periodo.") Flow removed,
-      @Schema(description = "El saldo de HOY, sea cual sea el periodo.", example = "1150.00")
+      @Schema(
+              description =
+                  "El saldo al CIERRE del periodo: lo que había al final del día `to` (Bogotá);"
+                      + " sin `to`, el de hoy. Acumulado: `from` no lo acota.",
+              example = "1150.00")
           BigDecimal balance) {}
 
   /** Una clase de movimiento de puntos. */

@@ -114,16 +114,20 @@ public class JpaPointsFigures implements PointsFigures {
 
   @Override
   @Transactional(readOnly = true)
-  public List<Balance> balances(Set<UUID> holders, UUID currencyId) {
+  public List<Balance> balances(Set<UUID> holders, Interval interval, UUID currencyId) {
+    // Los mismos asientos que las cuatro clases, hasta el fin del intervalo: el saldo de cualquier
+    // cierre, y sin `from` cuadra por construcción con ellas (`CA-IN-044`). `accounts.balance`
+    // solo sabría el de hoy.
     String sql =
-        "SELECT a.currency_id, c.code, sum(a.balance)"
-            + " FROM accounts a JOIN currencies c ON c.id = a.currency_id"
-            + " WHERE"
-            + DE_LAS_CUENTAS
+        "SELECT a.currency_id, c.code, sum(e.amount)"
+            + DE_LOS_ASIENTOS
+            + " WHERE e.created_at < :hasta"
             + filtros(holders, currencyId)
             + " GROUP BY 1, 2";
     @SuppressWarnings("unchecked")
-    List<Object[]> filas = enlazar(em.createNativeQuery(sql), holders, currencyId).getResultList();
+    List<Object[]> filas =
+        enlazar(em.createNativeQuery(sql).setParameter("hasta", interval.to()), holders, currencyId)
+            .getResultList();
     List<Balance> saldos = new ArrayList<>(filas.size());
     for (Object[] f : filas) {
       saldos.add(new Balance((UUID) f[0], (String) f[1], MinorUnits.fromMinor(f[2])));
