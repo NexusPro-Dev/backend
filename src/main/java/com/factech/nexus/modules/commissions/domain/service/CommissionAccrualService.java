@@ -54,7 +54,8 @@ import org.springframework.transaction.support.TransactionTemplate;
  *
  * <p><b>Dos fechas distintas</b> (`RN-CM-024`, `RN-CM-033`): la tasa y la cadena se resuelven con
  * el instante de la venta —el día, en la zona del negocio—; el lote lo decide el instante del
- * devengo.
+ * devengo. <b>Salvo en una línea reatribuida</b> (`RN-CM-051`, 07-10-2026): su cadena va al lote
+ * más reciente sin pagar de cada persona, que puede ser un pendiente ya cerrado.
  */
 @Service
 public class CommissionAccrualService {
@@ -153,8 +154,14 @@ public class CommissionAccrualService {
     // CON DESENLACE —ni `SIN_COMISION`—, porque no es de este camino: lo que paga lo decide su
     // escala en el cierre (`RF-CM-020`). El barrido la volverá a encontrar y a descartar.
     if (ftd.contains(linea.productId())) {
+      // Una FTD aún no contada que se reatribuyó: no devenga por venta, y la
+      // marca no tiene a quién esperar.
+      desenlaces.clearReattribution(id);
       return Optional.empty();
     }
+    // `RN-CM-051`: la línea cuyo vendedor se corrigió va al lote más reciente sin
+    // pagar de cada persona; la venta nueva, al abierto (`RN-CM-033`).
+    boolean reatribuida = desenlaces.isReattributed(id);
     LocalDate diaDeVenta = calendario.diaDe(linea.occurredAt());
 
     List<Level> niveles = new ArrayList<>();
@@ -176,7 +183,10 @@ public class CommissionAccrualService {
     List<LevelCommission> cobran = new ArrayList<>(veredicto.commissions());
     cobran.sort(Comparator.comparing(LevelCommission::userId));
     for (LevelCommission c : cobran) {
-      OpenBatch lote = lotes.lockOpenBatch(c.userId(), linea.currencyId(), ahora);
+      OpenBatch lote =
+          reatribuida
+              ? lotes.lockLatestUnpaidBatch(c.userId(), linea.currencyId(), ahora)
+              : lotes.lockOpenBatch(c.userId(), linea.currencyId(), ahora);
       OffsetDateTime devengo = lote.periodStart().isAfter(ahora) ? lote.periodStart() : ahora;
       desenlaces.insertCommission(
           new NewCommission(
@@ -200,6 +210,10 @@ public class CommissionAccrualService {
       desenlaces.updateOutcome(id, veredicto.outcome(), veredicto.reason(), ahora);
     } else {
       desenlaces.insertOutcome(id, veredicto.outcome(), veredicto.reason(), ahora);
+    }
+    // Una RECHAZADA conserva la marca: su reintento va al mismo destino.
+    if (reatribuida && veredicto.outcome() != AccrualOutcome.RECHAZADA) {
+      desenlaces.clearReattribution(id);
     }
     auditar(id, linea, veredicto, previo, reintento);
     return Optional.of(veredicto.outcome());

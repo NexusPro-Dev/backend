@@ -87,8 +87,8 @@ Rama: `develop`.
 
 | ID | Tarea | Depende de | Verificación | Estado |
 |---|---|---|---|---|
-| `T-12` | **`V82`**: `commission_reattributions` (`plan.md` §13) | — | Flyway aplica | Pendiente |
-| `T-13` | `markReattributed`, `isReattributed` y `clearReattribution` en `CommissionAccrualRepository`; `ReleaseCommissionedLineService` marca al liberar | `T-12` | — | Pendiente |
-| `T-14` | `ReleaseCommissionedLineIT`: `CA-CM-356` a `CA-CM-358` y `CA-CM-360` | `T-13`, `RF-CM-013` `T-23` | La suite de `CM` en verde | Pendiente |
+| `T-12` | **`V82`**: `commission_reattributions` (`plan.md` §13) | — | Flyway aplica | **Hecha** — 07-10-2026 |
+| `T-13` | `markReattributed`, `isReattributed` y `clearReattribution` en `CommissionAccrualRepository`; `ReleaseCommissionedLineService` marca al liberar | `T-12` | — | **Hecha** — 07-10-2026 |
+| `T-14` | `ReleaseCommissionedLineIT`: `CA-CM-356` a `CA-CM-358` y `CA-CM-360` | `T-13`, `RF-CM-013` `T-23` | La suite de `CM` en verde | **Hecha** — 07-10-2026 |
 
 Orden: `T-12` → `T-13` → `RF-CM-013` `T-23` → `T-14`.

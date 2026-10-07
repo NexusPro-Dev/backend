@@ -57,6 +57,17 @@ public interface CommissionAccrualRepository {
    */
   void deleteOutcome(UUID detailId);
 
+  /**
+   * Deja dicho que la línea se reatribuyó (`RN-CM-051`): su cadena nueva irá al lote más reciente
+   * sin pagar de cada persona. Una segunda corrección antes del devengo la reescribe.
+   */
+  void markReattributed(UUID detailId, OffsetDateTime at);
+
+  boolean isReattributed(UUID detailId);
+
+  /** Borra la marca: la línea ya quedó `DEVENGADA` o `SIN_COMISION`, o es FTD. */
+  void clearReattribution(UUID detailId);
+
   /** Una comisión viva de una línea, con lo que hace falta para revertirla. */
   record LiveCommission(UUID id, UUID batchId, UUID userId, BigDecimal amount) {}
 

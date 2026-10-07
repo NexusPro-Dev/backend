@@ -92,6 +92,47 @@ public class JpaCommissionBatchRepository implements CommissionBatchRepository {
   }
 
   @Override
+  public OpenBatch lockLatestUnpaidBatch(UUID userId, UUID currencyId, OffsetDateTime at) {
+    for (int intento = 0; intento < INTENTOS; intento++) {
+      @SuppressWarnings("unchecked")
+      List<Object> candidato =
+          em.createNativeQuery(
+                  """
+                  SELECT id FROM commission_batches
+                   WHERE user_id = :persona AND currency_id = :moneda
+                     AND status IN ('ABIERTO', 'PENDIENTE')
+                   ORDER BY period_start DESC
+                   LIMIT 1
+                  """)
+              .setParameter("persona", userId)
+              .setParameter("moneda", currencyId)
+              .getResultList();
+      if (candidato.isEmpty()) {
+        return lockOpenBatch(userId, currencyId, at);
+      }
+      // Postgres reevalúa el filtro tras esperar un bloqueo: con FOR UPDATE y
+      // LIMIT 1 en la misma sentencia, un pago concurrente dejaría cero filas
+      // aunque hubiera un pendiente más antiguo sin pagar.
+      @SuppressWarnings("unchecked")
+      List<Object[]> bloqueado =
+          em.createNativeQuery(
+                  """
+                  SELECT id, period_start, status FROM commission_batches
+                   WHERE id = :id
+                     FOR UPDATE
+                  """)
+              .setParameter("id", candidato.get(0))
+              .getResultList();
+      Object[] fila = bloqueado.get(0);
+      if (!"PAGADO".equals(fila[2])) {
+        return new OpenBatch((UUID) fila[0], instante(fila[1]));
+      }
+    }
+    throw new IllegalStateException(
+        "No se encontró un lote sin pagar de " + userId + " en " + currencyId + ".");
+  }
+
+  @Override
   public void addToTotal(UUID batchId, BigDecimal amount, OffsetDateTime at) {
     em.createNativeQuery(
             """

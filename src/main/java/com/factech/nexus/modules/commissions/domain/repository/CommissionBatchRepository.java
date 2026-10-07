@@ -20,6 +20,16 @@ public interface CommissionBatchRepository {
    */
   OpenBatch lockOpenBatch(UUID userId, UUID currencyId, OffsetDateTime at);
 
+  /**
+   * El lote <b>más reciente sin pagar</b> —`ABIERTO` o `PENDIENTE`— de esa persona y moneda,
+   * <b>bloqueado</b>; si no hay ninguno, {@link #lockOpenBatch}, que abre uno (`RN-CM-051`). Solo
+   * para la cadena de una línea reatribuida: el devengo de una venta nueva va al abierto.
+   *
+   * <p>Se busca y <b>después</b> se bloquea por identificador, mirando otra vez el estado: un pago
+   * que ganó el bloqueo lo deja `PAGADO`, y entonces se busca el siguiente.
+   */
+  OpenBatch lockLatestUnpaidBatch(UUID userId, UUID currencyId, OffsetDateTime at);
+
   /** Suma sobre la fila, no sobre lo leído: dos devengos simultáneos suman los dos. */
   void addToTotal(UUID batchId, BigDecimal amount, OffsetDateTime at);
 

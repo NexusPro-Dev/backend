@@ -198,4 +198,33 @@ public class JpaCommissionAccrualRepository implements CommissionAccrualReposito
         .setParameter("linea", detailId)
         .executeUpdate();
   }
+
+  @Override
+  public void markReattributed(UUID detailId, OffsetDateTime at) {
+    em.createNativeQuery(
+            """
+            INSERT INTO commission_reattributions (movement_detail_id, released_at)
+            VALUES (:linea, :at)
+            ON CONFLICT (movement_detail_id) DO UPDATE SET released_at = EXCLUDED.released_at
+            """)
+        .setParameter("linea", detailId)
+        .setParameter("at", at)
+        .executeUpdate();
+  }
+
+  @Override
+  public boolean isReattributed(UUID detailId) {
+    return !em.createNativeQuery(
+            "SELECT 1 FROM commission_reattributions WHERE movement_detail_id = :linea")
+        .setParameter("linea", detailId)
+        .getResultList()
+        .isEmpty();
+  }
+
+  @Override
+  public void clearReattribution(UUID detailId) {
+    em.createNativeQuery("DELETE FROM commission_reattributions WHERE movement_detail_id = :linea")
+        .setParameter("linea", detailId)
+        .executeUpdate();
+  }
 }

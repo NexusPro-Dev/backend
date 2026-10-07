@@ -143,5 +143,5 @@ Rama: `develop`.
 
 | ID | Tarea | Depende de | Verificación | Estado |
 |---|---|---|---|---|
-| `T-23` | `lockLatestUnpaidBatch` en `CommissionBatchRepository`; `CommissionAccrualService` elige el lote por la marca y la borra (`plan.md` §18) | `RF-CM-024` `T-13` | — | Pendiente |
-| `T-24` | `CA-CM-359` en `ReleaseCommissionedLineIT` | `T-23` | La suite de `CM` en verde | Pendiente |
+| `T-23` | `lockLatestUnpaidBatch` en `CommissionBatchRepository`; `CommissionAccrualService` elige el lote por la marca y la borra (`plan.md` §18) | `RF-CM-024` `T-13` | — | **Hecha** — 07-10-2026 |
+| `T-24` | `CA-CM-359` en `ReleaseCommissionedLineIT` | `T-23` | La suite de `CM` en verde | **Hecha** — 07-10-2026 |

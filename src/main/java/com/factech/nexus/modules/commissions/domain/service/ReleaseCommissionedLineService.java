@@ -41,7 +41,9 @@ import org.springframework.transaction.annotation.Transactional;
  * reversión quedaría escrita aunque la corrección fallara después.
  *
  * <p><b>La cadena nueva no se devenga aquí</b>: el aviso de `MV` después del commit la lleva a
- * `RF-CM-013`, que la encuentra sin desenlace como a cualquier línea recién atribuida.
+ * `RF-CM-013`, que la encuentra sin desenlace como a cualquier línea recién atribuida, y <b>con la
+ * marca que se deja aquí</b>, que la manda al lote más reciente sin pagar de cada persona en vez de
+ * al abierto (`RN-CM-051`, 07-10-2026).
  */
 @Service
 public class ReleaseCommissionedLineService implements CommissionedLineRelease {
@@ -92,6 +94,10 @@ public class ReleaseCommissionedLineService implements CommissionedLineRelease {
     desenlaces.delete(vivas.stream().map(LiveCommission::id).toList());
     porLote.forEach((lote, suma) -> lotes.addToTotal(lote, suma.negate(), ahora));
     desenlaces.deleteOutcome(movementDetailId);
+    // `RN-CM-051`: la cadena nueva irá al lote más reciente sin pagar de cada
+    // persona. En la transacción de `MV`: si la corrección se deshace, la marca
+    // se deshace con ella.
+    desenlaces.markReattributed(movementDetailId, ahora);
 
     if (desenlace.isPresent() || !vivas.isEmpty()) {
       auditar(movementDetailId, actorId, desenlace, vivas);

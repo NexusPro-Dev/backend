@@ -108,17 +108,21 @@ class ReleaseCommissionedLineIT extends IntegrationTestBase {
                 viejas.get(1)))
         .isZero();
     assertThat(total(pendienteDe(viejo))).isEqualByComparingTo("0");
-    assertThat(total(pendienteDe(director))).isEqualByComparingTo("0");
+    // Rebaja su 5 y, desde `RN-CM-051`, recibe en el mismo pendiente el 5 de la
+    // cadena nueva: lo viejo ya no está (arriba) y el total es solo lo nuevo.
+    assertThat(total(pendienteDe(director))).isEqualByComparingTo("5.00");
   }
 
   @Test
   @DisplayName(
-      "CA-CM-291 — la cadena NUEVA queda en el lote ABIERTO de cada uno, con la tasa y la cadena"
-          + " del día de la venta, y la línea devengada otra vez")
+      "CA-CM-356 y CA-CM-358 — tras el cierre, la cadena NUEVA va al PENDIENTE sin pagar de quien"
+          + " lo tiene y a un ABIERTO nuevo de quien no tiene ninguno, con la tasa y la cadena del"
+          + " día de la venta; la marca se borra")
   void devengaLaNueva() throws Exception {
     UUID venta = confirmada(viejo);
     UUID linea = lineaDe(venta);
     cierre.closeManually(admin);
+    UUID pendienteDelDirector = pendienteDe(director);
 
     mvc.perform(corregir(venta, nuevo)).andExpect(status().isOk());
 
@@ -129,7 +133,14 @@ class ReleaseCommissionedLineIT extends IntegrationTestBase {
                 + " WHERE k.movement_detail_id = ?",
             linea);
     assertThat(vivas).hasSize(2);
-    assertThat(vivas).allSatisfy(f -> assertThat(f.get("status")).isEqualTo("ABIERTO"));
+    // CA-CM-356: el director tenía su pendiente, y la comisión va a él.
+    assertThat(loteDeLaComision(linea, director)).isEqualTo(pendienteDelDirector);
+    assertThat(total(pendienteDelDirector)).isEqualByComparingTo("5.00");
+    assertThat(lotesDe(director)).isEqualTo(1);
+    // CA-CM-358: el vendedor nuevo no tenía ningún lote: se le abre uno.
+    assertThat(lotesDe(nuevo)).isEqualTo(1);
+    assertThat(loteDeLaComision(linea, nuevo)).isEqualTo(abiertoDe(nuevo));
+    assertThat(marcas(linea)).isZero();
     assertThat(vivas)
         .allSatisfy(
             f ->
@@ -448,8 +459,8 @@ class ReleaseCommissionedLineIT extends IntegrationTestBase {
 
   @Test
   @DisplayName(
-      "CA-CM-346 — la línea corregida se devenga OTRA VEZ en el abierto de cada uno, y el superior"
-          + " de las dos cadenas queda con una sola comisión de ella")
+      "CA-CM-346 y CA-CM-356 — la línea corregida se devenga OTRA VEZ, y el superior de las dos"
+          + " cadenas queda con una sola comisión de ella, en su pendiente sin pagar")
   void seDevengaOtraVez() throws Exception {
     UUID venta = confirmada(viejo);
     UUID linea = lineaDe(venta);
@@ -465,7 +476,82 @@ class ReleaseCommissionedLineIT extends IntegrationTestBase {
                 UUID.class,
                 linea,
                 director))
-        .isEqualTo(abiertoDe(director));
+        .isEqualTo(pendienteDe(director));
+  }
+
+  @Test
+  @DisplayName(
+      "CA-CM-357 — quien tiene un ABIERTO y un PENDIENTE recibe la comisión nueva en el ABIERTO,"
+          + " que es su lote sin pagar más reciente")
+  void conAbiertoVaAlAbierto() throws Exception {
+    UUID venta = confirmada(viejo);
+    UUID linea = lineaDe(venta);
+    cierre.closeManually(admin);
+    confirmada(viejo);
+    UUID abiertoDelDirector = abiertoDe(director);
+
+    mvc.perform(corregir(venta, nuevo)).andExpect(status().isOk());
+
+    assertThat(loteDeLaComision(linea, director)).isEqualTo(abiertoDelDirector);
+    assertThat(total(pendienteDe(director))).isEqualByComparingTo("0");
+  }
+
+  @Test
+  @DisplayName(
+      "CA-CM-358 — quien solo tiene lotes PAGADOS recibe la comisión nueva en un ABIERTO que se"
+          + " abre")
+  void soloPagadosAbreUno() throws Exception {
+    UUID suya = confirmada(nuevo);
+    UUID venta = confirmada(viejo);
+    UUID linea = lineaDe(venta);
+    cierre.closeManually(admin);
+    pago.pay(pendienteDe(nuevo));
+    assertThat(lotesDe(nuevo)).isEqualTo(1);
+
+    mvc.perform(corregir(venta, nuevo)).andExpect(status().isOk());
+
+    assertThat(lotesDe(nuevo)).isEqualTo(2);
+    assertThat(loteDeLaComision(linea, nuevo)).isEqualTo(abiertoDe(nuevo));
+    assertThat(loteDeLaComision(lineaDe(suya), nuevo)).isNotEqualTo(abiertoDe(nuevo));
+  }
+
+  @Test
+  @DisplayName(
+      "CA-CM-359 — una venta NUEVA tras el cierre va al ABIERTO, que se abre, aunque haya un"
+          + " pendiente sin pagar: solo la línea reatribuida va al pendiente")
+  void laVentaNuevaVaAlAbierto() throws Exception {
+    confirmada(viejo);
+    cierre.closeManually(admin);
+    UUID nueva = confirmada(viejo);
+
+    assertThat(lotesDe(director)).isEqualTo(2);
+    assertThat(loteDeLaComision(lineaDe(nueva), director)).isEqualTo(abiertoDe(director));
+    assertThat(marcas(lineaDe(nueva))).isZero();
+  }
+
+  @Test
+  @DisplayName(
+      "CA-CM-360 — una reatribuida RECHAZADA conserva la marca, y su reintento del cierre va al"
+          + " lote más reciente sin pagar")
+  void laRechazadaConservaLaMarca() throws Exception {
+    UUID venta = confirmada(viejo);
+    UUID linea = lineaDe(venta);
+    cierre.closeManually(admin);
+    UUID pendienteDelDirector = pendienteDe(director);
+    // 96 % del agente y 5 % del director: la cadena nueva pasa del 100 %.
+    tasaDelAgente("96.00");
+
+    mvc.perform(corregir(venta, nuevo)).andExpect(status().isOk());
+
+    assertThat(desenlace(linea)).isEqualTo("RECHAZADA");
+    assertThat(marcas(linea)).isEqualTo(1);
+
+    tasaDelAgente("10.00");
+    cierre.closeManually(admin);
+
+    assertThat(desenlace(linea)).isEqualTo("DEVENGADA");
+    assertThat(loteDeLaComision(linea, director)).isEqualTo(pendienteDelDirector);
+    assertThat(marcas(linea)).isZero();
   }
 
   @Test
@@ -594,6 +680,35 @@ class ReleaseCommissionedLineIT extends IntegrationTestBase {
         "SELECT id FROM commission_batches WHERE user_id = ? AND status = 'ABIERTO'",
         UUID.class,
         persona);
+  }
+
+  private UUID loteDeLaComision(UUID linea, UUID persona) {
+    return jdbc.queryForObject(
+        "SELECT batch_id FROM commissions WHERE movement_detail_id = ? AND user_id = ?",
+        UUID.class,
+        linea,
+        persona);
+  }
+
+  private int lotesDe(UUID persona) {
+    return jdbc.queryForObject(
+        "SELECT count(*) FROM commission_batches WHERE user_id = ?", Integer.class, persona);
+  }
+
+  private int marcas(UUID linea) {
+    return jdbc.queryForObject(
+        "SELECT count(*) FROM commission_reattributions WHERE movement_detail_id = ?",
+        Integer.class,
+        linea);
+  }
+
+  private void tasaDelAgente(String porcentaje) {
+    jdbc.update(
+        "UPDATE commission_rates SET percentage = CAST(? AS numeric) WHERE product_id = ? AND"
+            + " role_id = CAST(? AS uuid)",
+        porcentaje,
+        producto,
+        AGENTE);
   }
 
   private BigDecimal total(UUID lote) {
