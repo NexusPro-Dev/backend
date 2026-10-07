@@ -5,11 +5,11 @@
 | Módulo | `CM` — Comisiones |
 | Paquete | `modules/commissions` |
 | Prefijos de permiso | `commissions:` |
-| Versión | 0.35.0 |
+| Versión | 0.36.0 |
 | Estado | **Borrador** |
 | Responsable | Bonilla Diaz William Steven |
 | Fecha de creación | 28-08-2026 |
-| Última actualización | 05-10-2026 |
+| Última actualización | 07-10-2026 |
 
 !!! info "Qué va en este documento"
 
@@ -219,6 +219,13 @@ La dependencia sigue siendo **acíclica**: `CM` → `MV` → `PM` → `SP`, y `C
 | `RF-CM-023` | **Devolver a su lote pendiente una comisión retirada**, mientras ese lote no se haya pagado | Liquidación | `commission-batches:return-commission` |
 | `RF-CM-024` | **Revertir las comisiones de una línea cuyo vendedor se corrige** | Liquidación | **Ninguno**: no tiene ruta. Lo invoca `MV` al corregir el vendedor de una línea de una venta confirmada (`RF-MV-016`, `RN-MV-053`) |
 | `RF-CM-025` | **Pagar varios lotes de una vez**: los que Finanzas elige, cada uno por su cuenta | Liquidación | `commission-batches:pay-batches` |
+| `RF-CM-026` | **Consultar todas mis comisiones**, una fila por comisión y sin pasar por los lotes: cada una dice en qué lote está y en qué estado | Liquidación | `commission-batches:list-own-commissions` |
+
+!!! info "Uno más el 07-10-2026: mis comisiones sin pasar por los lotes"
+
+    Por petición del responsable del proyecto, **un vendedor ve todas sus comisiones en una sola lista** —«no por lotes, sino ver todos los detalles»—, filtrable por estado del lote, moneda, producto, clase y fechas. Hasta hoy la única forma era `RF-CM-012`: listar los lotes y abrir cada uno.
+
+    **No es un requerimiento de datos nuevos**: cada fila es la comisión del detalle de `RF-CM-012`, con el lote que la contiene, su moneda y **el cliente de la venta**. Es lo propio, como `RF-CM-012`: la persona la pone el token y no hay filtro de persona. **Ninguno de los anteriores cambia.**
 
 !!! info "Tres más el 30-09-2026: un lote se corrige antes de pagarse"
 
@@ -669,7 +676,7 @@ El vendedor de una línea es de `MV`, y lo corrige `RF-MV-016`; **saber si su co
 
 ## 6. Permisos
 
-**Treinta desde el 01-10-2026, uno por operación** —**uno más** para pagar varios lotes (`RF-CM-025`); veintinueve desde el 30-09-2026, con **dos más** para retirar y devolver una comisión (§5.10); veintisiete desde el 29-09-2026, dieciocho hasta ese día, y **nueve más** con la comisión afftrack (§5.8)— (`RF-SP-060`, `RN-SEG-014`; [`security.md` §4.4](../security.md#44-catalogo-de-permisos)). Fueron **cuatro** hasta el 19-09-2026, cada uno gobernando dos o más rutas —`commissions:read` **cuatro**: las tasas de rol, las personalizadas, la vista por producto y la resolución—; **diez** desde entonces; **seis más** el 24-09-2026 con la liquidación; y **dos más** el 28-09-2026 con el devengo automático (§5.7), que ya no devuelve en una respuesta lo que ahora hay que poder consultar después.
+**Treinta y uno desde el 07-10-2026, uno por operación** —**uno más** para listar mis comisiones sin pasar por los lotes (`RF-CM-026`); treinta desde el 01-10-2026, con **uno más** para pagar varios lotes (`RF-CM-025`); veintinueve desde el 30-09-2026, con **dos más** para retirar y devolver una comisión (§5.10); veintisiete desde el 29-09-2026, dieciocho hasta ese día, y **nueve más** con la comisión afftrack (§5.8)— (`RF-SP-060`, `RN-SEG-014`; [`security.md` §4.4](../security.md#44-catalogo-de-permisos)). Fueron **cuatro** hasta el 19-09-2026, cada uno gobernando dos o más rutas —`commissions:read` **cuatro**: las tasas de rol, las personalizadas, la vista por producto y la resolución—; **diez** desde entonces; **seis más** el 24-09-2026 con la liquidación; y **dos más** el 28-09-2026 con el devengo automático (§5.7), que ya no devuelve en una respuesta lo que ahora hay que poder consultar después.
 
 | Código | Operación | Para qué |
 |---|---|---|
@@ -703,6 +710,7 @@ El vendedor de una línea es de `MV`, y lo corrige `RF-MV-016`; **saber si su co
 | `commission-batches:withdraw-commission` **nuevo** | `POST /commission-batches/{id}/commissions/{commissionId}/withdrawal` | Retirar una comisión de un lote `PENDIENTE` al abierto de su persona (`RF-CM-022`, 30-09-2026) |
 | `commission-batches:return-commission` **nuevo** | `POST /commission-batches/{id}/commissions/{commissionId}/return` | Devolver a su lote `PENDIENTE` una comisión retirada (`RF-CM-023`, 30-09-2026) |
 | `commission-batches:pay-batches` **nuevo** | `POST /commission-batches/payments` | Pagar varios lotes elegidos, cada uno por su cuenta (`RF-CM-025`, 01-10-2026) |
+| `commission-batches:list-own-commissions` **nuevo** | `GET /commission-batches/mine/commissions` | Consultar **todas mis comisiones**, una fila por comisión, cada una con su lote (`RF-CM-026`, 07-10-2026) |
 
 **`commissions:` se queda con las tasas de rol**, que son el recurso principal del módulo, y las personalizadas ganan recurso propio porque tienen identidad y tabla propias (`user_commission_rates`, §7.2). **Cuatro operaciones bajo `RF-CM-006` no contradicen la regla**: la regla cuenta operaciones, no requerimientos.
 
@@ -711,6 +719,8 @@ El vendedor de una línea es de `MV`, y lo corrige `RF-MV-016`; **saber si su co
 **`settle` y `pay` no reutilizan `create` ni `update`.** Un lote **no se actualiza nunca** (`RN-CM-029`), de modo que un permiso llamado `commission-batches:update` prometería algo que no existe — es el mismo argumento con el que `MV` justificó `confirm` y `void`. Y son **dos permisos y no uno** por el mismo criterio: **calcular la nómina y declararla pagada son dos actos distintos**, y quien liquida no tiene por qué poder dar por pagado lo que nadie pagó.
 
 **Los propios van aparte.** `list-own` y `read-own` no son `read` filtrado: son la única forma de que un vendedor vea lo suyo **sin ver lo ajeno** mientras **D-22** siga abierta (§1.3).
+
+**Mis comisiones sin lote no reutilizan `list-own`** (07-10-2026): es otra operación, sobre otra ruta, y `RN-SEG-014` cuenta operaciones. **Se cuelga de `commission-batches:` y no de `commissions:`**, que es el prefijo de las tasas de rol (arriba): una comisión vive dentro de un lote, y la ruta lo dice —`/commission-batches/mine/commissions`—. `V81` la siembra a **todo rol que porte `list-own`**, con lo que quien ya ve sus lotes ve también la lista, y la contención (`RN-SEG-003`) se conserva sola.
 
 **Devengar no tiene permiso, y el cierre programado tampoco** (28-09-2026). No los lanza nadie: `RF-CM-013` lo dispara un evento de `MV` y el cierre programado lo dispara el reloj. Es la misma situación que `RF-MV-024`, que no tiene ruta. Lo que sí tiene permiso es **lanzar el cierre a mano**, y es `commission-batches:settle` por lo mismo que antes: calcular la nómina y darla por pagada siguen siendo dos actos distintos.
 
@@ -953,6 +963,8 @@ Un importe fijo de comisión **es dinero en la misma moneda que el producto** (`
 
 **Tres columnas más el 30-09-2026, y ninguna cambia un importe** (§5.10). `batch_id` **deja de ser inmutable**: una comisión se retira y se devuelve. `reverted_at` y `reverted_by` eran la forma de que una fila dejara de contar sin borrarse, y **`V80` las retira el 07-10-2026**: desde entonces la cadena vieja se borra (`RN-CM-047`). **El total del lote es la suma de sus comisiones**, y sigue guardándose por lo mismo que antes: cada retiro, devolución o borrado lo ajusta con un `UPDATE` que suma sobre la fila, **bloqueando los lotes implicados siempre en el mismo orden** —por identificador—, como el libro de `MV` (`RN-MV-042`).
 
+**Un índice más el 07-10-2026, `ix_commissions_user`** —`(user_id, accrued_at DESC, id DESC)`—, por `RF-CM-026`: todas las comisiones de una persona, la más reciente primero, **sin pasar por sus lotes**. Sin él, la lista de un vendedor recorrería la tabla entera, que crece con cada venta por cada nivel de su cadena. Ninguna columna cambia.
+
 ### 7.7 `commission_accruals` — qué pasó con cada línea — 28-09-2026
 
 | Columna | Tipo | Nula | Referencia |
@@ -1096,3 +1108,4 @@ Un importe fijo de comisión **es dinero en la misma moneda que el producto** (`
 | 0.33.0 | 07-10-2026 | **`CM` publica `CommissionBatchFigures` para `IN`** (§3; `RF-IN-007`, [`requirements/in.md`](in.md) v0.15.0): los lotes contados por estado y moneda, con la suma de su total, para el resumen de lotes de comisiones. Una lectura, sin tablas ni reglas nuevas; `IN` pasa a consumir a `CM`, sin ciclo. | Responsable técnico |
 | 0.34.0 | 07-10-2026 | **Corregir el vendedor de una línea BORRA su cadena vieja** (`RN-CM-047` enmendada, §5.10 «Enmienda del 07-10-2026»), por decisión del responsable del proyecto: la comisión vieja se elimina y se crea la nueva, en vez de quedar marcada. **Cuándo se permite no cambia**: solo un lote `PAGADO` lo impide —se descartó exigir `ABIERTO`—. Se enmiendan `RN-CM-027` (la unicidad vuelve a restricción completa), `RN-CM-029` y `RN-CM-048` (ya no hay comisiones no vivas), §1, §4 y §7.4. `V80` borra las comisiones ya revertidas —ningún total cambia—, retira `reverted_at` y `reverted_by` y rehace `uq_commissions_detail_user`. El detalle de un lote (`RF-CM-010`, `RF-CM-012`) pierde `revertedAt` y `revertedBy`, y retirar y devolver (`RF-CM-022`, `RF-CM-023`) pierden el `409` de la comisión revertida. Cambian `RF-CM-024`, `RF-CM-010`, `RF-CM-012`, `RF-CM-013`, `RF-CM-022` y `RF-CM-023`. Sin permisos nuevos | Responsable del proyecto |
 | 0.35.0 | 07-10-2026 | **`CommissionBatchFigures` recibe un filtro** (§3; `RF-IN-007` 0.2.0, [`requirements/in.md`](in.md) v0.17.0): moneda, persona y un rango de instantes que elige los lotes cuyo periodo lo toca. Sin tablas ni reglas nuevas. | Responsable técnico |
+| 0.36.0 | 07-10-2026 | **Nace `RF-CM-026`, consultar todas mis comisiones** (§4), por petición del responsable del proyecto: una fila por comisión, sin pasar por los lotes, con el lote que la contiene, su estado, su moneda y el cliente de la venta; filtros de estado del lote, moneda, producto, clase y fechas. Lo propio, como `RF-CM-012`: la persona la pone el token. **Nace un permiso** (§6), `commission-batches:list-own-commissions`, sembrado por `V81` a todo rol que porte `commission-batches:list-own` (catálogo **205**). Sin tablas ni reglas nuevas; **un índice**, `ix_commissions_user` (§7.6). | Responsable del proyecto |

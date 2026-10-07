@@ -2,11 +2,11 @@
 
 | Campo | Valor |
 |---|---|
-| Versión | 0.102.0 |
+| Versión | 0.103.0 |
 | Estado | **Borrador** |
 | Responsable | Bonilla Diaz William Steven |
 | Fecha de creación | 21-08-2026 |
-| Última actualización | 06-10-2026 |
+| Última actualización | 07-10-2026 |
 
 !!! info "Desde el 05-10-2026, los importes en centésimas: [`ADR-006`](architecture/ADR-006-importes-en-unidades-minimas.md)"
 
@@ -1175,3 +1175,4 @@ Los documentos que citan una migración vieja por su número —specs, controles
 | 0.100.0 | 06-10-2026 | `user_mfa_factors.secret_ciphertext` es `text`, no `bytea` ([`requirements/sp.md`](requirements/sp.md) v1.94.0 §10.22): reutiliza el formato `v1:<base64>` del cifrado de la clave de la tienda. | Responsable técnico |
 | 0.101.0 | 06-10-2026 | **`MV` diseña `points_adjustment_receipts`** ([`requirements/mv.md`](requirements/mv.md) v0.88.0 §4.12 y §7.16, `RN-MV-077`), por decisión del responsable del proyecto: **el comprobante de un ajuste de puntos**, uno por ajuste —la clave primaria es el movimiento—, PDF, PNG o JPG de hasta 5 MB **en la base**, como las portadas, con su resumen `SHA-256`. Dos claves foráneas nuevas. **La escribe `V77`**. | Responsable técnico |
 | 0.102.0 | 07-10-2026 | **La cadena vieja de una línea reatribuida se borra** ([`requirements/cm.md`](requirements/cm.md) v0.34.0 §5.10, `RN-CM-047` enmendada): `V80` borra las comisiones ya revertidas —ningún total cambia—, retira `commissions.reverted_at` y `reverted_by` con su `CHECK` y la clave `commissions.reverted_by` → `users` (§5.3), y devuelve `uq_commissions_detail_user` a restricción completa. | Responsable técnico |
+| 0.103.0 | 07-10-2026 | **`commissions` gana `ix_commissions_user`** —`(user_id, accrued_at DESC, id DESC)`— ([`requirements/cm.md`](requirements/cm.md) v0.36.0 §7.6; `RF-CM-026`): todas las comisiones de una persona sin pasar por sus lotes. Lo escribe `V81`, con el permiso de la operación. Ninguna columna cambia. | Responsable técnico |
