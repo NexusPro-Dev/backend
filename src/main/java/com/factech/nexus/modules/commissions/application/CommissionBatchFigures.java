@@ -3,6 +3,7 @@ package com.factech.nexus.modules.commissions.application;
 import java.math.BigDecimal;
 import java.time.OffsetDateTime;
 import java.util.List;
+import java.util.Objects;
 import java.util.UUID;
 
 /**
@@ -49,4 +50,36 @@ public interface CommissionBatchFigures {
    */
   record StatusTotals(
       String status, UUID currencyId, String currencyCode, long batches, BigDecimal amount) {}
+
+  /**
+   * Las comisiones <b>de una persona</b>, por el estado del lote donde están hoy y su moneda —la
+   * del lote—: cuántas son y la suma de su importe (`RF-IN-008`). Una fila por estado y moneda con
+   * comisiones; los vacíos no vienen.
+   */
+  List<CommissionTotals> commissionsByStatus(CommissionFilter filter);
+
+  /**
+   * Qué comisiones se cuentan (`RF-IN-008`). <b>La persona es obligatoria</b>: una lectura sin ella
+   * contaría las de todos. Lo demás es opcional.
+   *
+   * @param userId la persona dueña de las comisiones
+   * @param currencyId solo las de lotes de esa moneda
+   * @param from solo las nacidas ({@code accrued_at}) desde este instante, incluido
+   * @param to solo las nacidas antes de este instante, excluido
+   */
+  record CommissionFilter(UUID userId, UUID currencyId, OffsetDateTime from, OffsetDateTime to) {
+    public CommissionFilter {
+      Objects.requireNonNull(userId, "La persona es obligatoria");
+    }
+  }
+
+  /**
+   * Las comisiones de una persona en un estado de lote y una moneda.
+   *
+   * @param status el código del estado del lote, como texto
+   * @param commissions cuántas comisiones
+   * @param amount la suma de {@code commission_amount}, en decimales
+   */
+  record CommissionTotals(
+      String status, UUID currencyId, String currencyCode, long commissions, BigDecimal amount) {}
 }

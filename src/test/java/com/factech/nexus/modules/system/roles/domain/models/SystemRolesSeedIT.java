@@ -86,6 +86,8 @@ class SystemRolesSeedIT extends IntegrationTestBase {
           "commission-batches:read-own",
           // `V81` (07-10-2026): todas mis comisiones (`RF-CM-026`), a quien porte list-own.
           "commission-batches:list-own-commissions",
+          // `V83` (07-10-2026): el resumen de mis comisiones (`RF-IN-008`), a quien porte list-own.
+          "indicators:read-own-commissions-summary",
           "movements:list-sales",
           "movements:read",
           // `V56` (30-09-2026): quien lista el libro abre sus filas (`RF-MV-007`).
@@ -156,6 +158,8 @@ class SystemRolesSeedIT extends IntegrationTestBase {
           "commission-batches:read-own",
           // `V81` (07-10-2026): todas mis comisiones (`RF-CM-026`), a quien porte list-own.
           "commission-batches:list-own-commissions",
+          // `V83` (07-10-2026): el resumen de mis comisiones (`RF-IN-008`), a quien porte list-own.
+          "indicators:read-own-commissions-summary",
           "movements:list-sales",
           "movements:read-own",
           "movements:read-own-products",

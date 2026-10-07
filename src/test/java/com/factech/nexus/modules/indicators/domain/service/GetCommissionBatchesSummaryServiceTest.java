@@ -3,6 +3,9 @@ package com.factech.nexus.modules.indicators.domain.service;
 import static org.assertj.core.api.Assertions.assertThat;
 
 import com.factech.nexus.modules.commissions.application.CommissionBatchFigures;
+import com.factech.nexus.modules.commissions.application.CommissionBatchFigures.BatchFilter;
+import com.factech.nexus.modules.commissions.application.CommissionBatchFigures.CommissionFilter;
+import com.factech.nexus.modules.commissions.application.CommissionBatchFigures.CommissionTotals;
 import com.factech.nexus.modules.commissions.application.CommissionBatchFigures.StatusTotals;
 import com.factech.nexus.modules.indicators.application.CommissionBatchesSummaryResponse;
 import com.factech.nexus.shared.time.BusinessCalendar;
@@ -11,6 +14,7 @@ import java.time.Clock;
 import java.time.ZoneId;
 import java.util.List;
 import java.util.UUID;
+import java.util.function.Function;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 
@@ -55,7 +59,20 @@ class GetCommissionBatchesSummaryServiceTest {
             org.assertj.core.groups.Tuple.tuple("USD", new BigDecimal("24.00")));
   }
 
-  private static GetCommissionBatchesSummaryService servicio(CommissionBatchFigures cifras) {
+  private static GetCommissionBatchesSummaryService servicio(
+      Function<BatchFilter, List<StatusTotals>> lotes) {
+    CommissionBatchFigures cifras =
+        new CommissionBatchFigures() {
+          @Override
+          public List<StatusTotals> byStatus(BatchFilter filter) {
+            return lotes.apply(filter);
+          }
+
+          @Override
+          public List<CommissionTotals> commissionsByStatus(CommissionFilter filter) {
+            throw new UnsupportedOperationException();
+          }
+        };
     return new GetCommissionBatchesSummaryService(
         cifras,
         new SalesPeriodResolver(

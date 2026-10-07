@@ -12890,6 +12890,71 @@ paths:
         "500":
           description: Fallo no controlado (`ERR-500`)
       x-required-permission: indicators:read-points-summary
+  /api/v1/indicators/commissions/mine/summary:
+    get:
+      tags:
+      - Indicadores
+      summary: Consultar el resumen de mis comisiones
+      description: |
+        **Permiso requerido:** `indicators:read-own-commissions-summary`. Sin él, `403` (`AUTH-002`).
+
+        **Mis** comisiones —las de quien pregunta, nunca las de otro ni las de su red—, en
+        cuatro bloques según el estado **de hoy** del lote donde está cada una: **`open`**, en
+        mi lote abierto, que sigue creciendo; **`pending`**, en lotes cerrados que esperan el
+        pago; **`paid`**, en lotes ya pagados; y **`total`**, todas. Cada bloque trae
+        **`commissions`**, cuántas, y **`amounts`**, lo que suman por moneda —la del lote—.
+        **Los cuatro bloques vienen siempre**, en cero si no hay comisiones.
+
+        **La persona la pone el token**: no hay `sellerId`, y si llega se ignora. Lo que un
+        director cobra por la venta de su agente ya es una comisión suya y está aquí; las de su
+        agente, no.
+
+        Filtros opcionales y combinables:
+
+        - **`from` y `to`**, días ISO en la zona del negocio: solo las comisiones **nacidas**
+          esos días, los dos incluidos —la misma fecha que filtra
+          `GET /commission-batches/mine/commissions`—. El estado sigue siendo el de hoy: una
+          comisión de septiembre cuyo lote se pagó ayer sale en `paid`. Sin `from`, desde el
+          principio; sin `to`, hoy. `period` dice qué días se usaron. `from` posterior a `to`
+          es `400` (`VAL-002`).
+        - **`currencyId`**: solo las de esa moneda; ceros si no existe.
+      operationId: resumenDeMisComisiones
+      parameters:
+      - name: from
+        in: query
+        required: false
+        schema:
+          type: string
+          format: date
+      - name: to
+        in: query
+        required: false
+        schema:
+          type: string
+          format: date
+      - name: currencyId
+        in: query
+        required: false
+        schema:
+          type: string
+          format: uuid
+      responses:
+        "200":
+          description: "El resumen, aunque sea de ceros."
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/OwnCommissionsSummary"
+        "400":
+          description: '`currencyId` o una fecha malformados (`VAL-001`); `from` posterior
+            a `to` (`VAL-002`).'
+        "401":
+          description: Token ausente o inválido (`AUTH-001`)
+        "403":
+          description: Sin el permiso `indicators:read-own-commissions-summary` (`AUTH-002`).
+        "500":
+          description: Fallo no controlado (`ERR-500`)
+      x-required-permission: indicators:read-own-commissions-summary
   /api/v1/indicators/commissions/batches/summary:
     get:
       tags:
@@ -20977,6 +21042,38 @@ components:
             \ + added − removed. Sin fechas, toda la historia: los puntos que hay\
             \ hoy."
           example: 1150.0
+    OwnCommissionsBlock:
+      type: object
+      properties:
+        commissions:
+          type: integer
+          format: int64
+          description: Cuántas comisiones.
+        amounts:
+          type: array
+          description: "Lo que suman, uno por moneda —la del lote de cada comisió\
+            n—. Nunca se suman entre monedas."
+          items:
+            $ref: "#/components/schemas/IndicatorAmount"
+    OwnCommissionsSummary:
+      type: object
+      properties:
+        period:
+          $ref: "#/components/schemas/IndicatorPeriod"
+          description: "Qué comisiones se contaron: las nacidas estos días. Sin fechas,\
+            \ desde el principio hasta hoy."
+        open:
+          $ref: "#/components/schemas/OwnCommissionsBlock"
+          description: "Las comisiones en mi lote abierto: sigue creciendo."
+        pending:
+          $ref: "#/components/schemas/OwnCommissionsBlock"
+          description: Las comisiones en lotes cerrados que esperan el pago.
+        paid:
+          $ref: "#/components/schemas/OwnCommissionsBlock"
+          description: Las comisiones en lotes ya pagados.
+        total:
+          $ref: "#/components/schemas/OwnCommissionsBlock"
+          description: "Todas mis comisiones, sea cual sea el estado de su lote."
     CommissionBatchesBlock:
       type: object
       properties:

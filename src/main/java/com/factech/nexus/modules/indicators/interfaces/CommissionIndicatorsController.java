@@ -1,7 +1,9 @@
 package com.factech.nexus.modules.indicators.interfaces;
 
 import com.factech.nexus.modules.indicators.application.CommissionBatchesSummaryResponse;
+import com.factech.nexus.modules.indicators.application.OwnCommissionsSummaryResponse;
 import com.factech.nexus.modules.indicators.domain.service.GetCommissionBatchesSummaryService;
+import com.factech.nexus.modules.indicators.domain.service.GetOwnCommissionsSummaryService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.media.Content;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
@@ -30,9 +32,67 @@ import org.springframework.web.bind.annotation.RestController;
 public class CommissionIndicatorsController {
 
   private final GetCommissionBatchesSummaryService lotes;
+  private final GetOwnCommissionsSummaryService mias;
 
-  public CommissionIndicatorsController(GetCommissionBatchesSummaryService lotes) {
+  public CommissionIndicatorsController(
+      GetCommissionBatchesSummaryService lotes, GetOwnCommissionsSummaryService mias) {
     this.lotes = lotes;
+    this.mias = mias;
+  }
+
+  @GetMapping("/commissions/mine/summary")
+  @PreAuthorize("hasAuthority('indicators:read-own-commissions-summary')")
+  @Operation(
+      summary = "Consultar el resumen de mis comisiones",
+      description =
+          """
+          **Mis** comisiones —las de quien pregunta, nunca las de otro ni las de su red—, en
+          cuatro bloques según el estado **de hoy** del lote donde está cada una: **`open`**, en
+          mi lote abierto, que sigue creciendo; **`pending`**, en lotes cerrados que esperan el
+          pago; **`paid`**, en lotes ya pagados; y **`total`**, todas. Cada bloque trae
+          **`commissions`**, cuántas, y **`amounts`**, lo que suman por moneda —la del lote—.
+          **Los cuatro bloques vienen siempre**, en cero si no hay comisiones.
+
+          **La persona la pone el token**: no hay `sellerId`, y si llega se ignora. Lo que un
+          director cobra por la venta de su agente ya es una comisión suya y está aquí; las de su
+          agente, no.
+
+          Filtros opcionales y combinables:
+
+          - **`from` y `to`**, días ISO en la zona del negocio: solo las comisiones **nacidas**
+            esos días, los dos incluidos —la misma fecha que filtra
+            `GET /commission-batches/mine/commissions`—. El estado sigue siendo el de hoy: una
+            comisión de septiembre cuyo lote se pagó ayer sale en `paid`. Sin `from`, desde el
+            principio; sin `to`, hoy. `period` dice qué días se usaron. `from` posterior a `to`
+            es `400` (`VAL-002`).
+          - **`currencyId`**: solo las de esa moneda; ceros si no existe.
+          """)
+  @ApiResponses({
+    @ApiResponse(responseCode = "200", description = "El resumen, aunque sea de ceros."),
+    @ApiResponse(
+        responseCode = "400",
+        description =
+            "`currencyId` o una fecha malformados (`VAL-001`); `from` posterior a `to`"
+                + " (`VAL-002`).",
+        content = @Content),
+    @ApiResponse(
+        responseCode = "401",
+        description = "Token ausente o inválido (`AUTH-001`)",
+        content = @Content),
+    @ApiResponse(
+        responseCode = "403",
+        description = "Sin el permiso `indicators:read-own-commissions-summary` (`AUTH-002`).",
+        content = @Content),
+    @ApiResponse(
+        responseCode = "500",
+        description = "Fallo no controlado (`ERR-500`)",
+        content = @Content)
+  })
+  public OwnCommissionsSummaryResponse resumenDeMisComisiones(
+      @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate from,
+      @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate to,
+      @RequestParam(required = false) UUID currencyId) {
+    return mias.get(from, to, currencyId);
   }
 
   @GetMapping("/commissions/batches/summary")

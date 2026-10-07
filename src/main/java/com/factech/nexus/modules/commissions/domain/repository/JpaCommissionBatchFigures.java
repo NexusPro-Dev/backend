@@ -37,6 +37,25 @@ public class JpaCommissionBatchFigures implements CommissionBatchFigures {
        ORDER BY b.status, c.code
       """;
 
+  /**
+   * Las comisiones de una persona por el estado de su lote hoy (`RF-IN-008`). La moneda es la del
+   * lote: una comisión no tiene otra (`RN-CM-028`). Las fechas, sobre {@code accrued_at}, como
+   * `RF-CM-026`; {@code ix_commissions_user} sirve el filtro.
+   */
+  private static final String COMISIONES_POR_ESTADO =
+      """
+      SELECT b.status, b.currency_id, c.code, count(*), sum(k.commission_amount)
+        FROM commissions k
+        JOIN commission_batches b ON b.id = k.batch_id
+        JOIN currencies c ON c.id = b.currency_id
+       WHERE k.user_id = :persona
+         AND (CAST(:moneda AS uuid) IS NULL OR b.currency_id = CAST(:moneda AS uuid))
+         AND (CAST(:desde AS timestamptz) IS NULL OR k.accrued_at >= CAST(:desde AS timestamptz))
+         AND (CAST(:hasta AS timestamptz) IS NULL OR k.accrued_at < CAST(:hasta AS timestamptz))
+       GROUP BY b.status, b.currency_id, c.code
+       ORDER BY b.status, c.code
+      """;
+
   private final EntityManager em;
 
   public JpaCommissionBatchFigures(EntityManager em) {
@@ -58,6 +77,30 @@ public class JpaCommissionBatchFigures implements CommissionBatchFigures {
     for (Object[] f : filas) {
       cifras.add(
           new StatusTotals(
+              (String) f[0],
+              (UUID) f[1],
+              (String) f[2],
+              ((Number) f[3]).longValue(),
+              MinorUnits.fromMinor(f[4])));
+    }
+    return cifras;
+  }
+
+  @Override
+  @Transactional(readOnly = true)
+  public List<CommissionTotals> commissionsByStatus(CommissionFilter filter) {
+    @SuppressWarnings("unchecked")
+    List<Object[]> filas =
+        em.createNativeQuery(COMISIONES_POR_ESTADO)
+            .setParameter("persona", filter.userId())
+            .setParameter("moneda", filter.currencyId())
+            .setParameter("desde", filter.from())
+            .setParameter("hasta", filter.to())
+            .getResultList();
+    List<CommissionTotals> cifras = new ArrayList<>(filas.size());
+    for (Object[] f : filas) {
+      cifras.add(
+          new CommissionTotals(
               (String) f[0],
               (UUID) f[1],
               (String) f[2],
