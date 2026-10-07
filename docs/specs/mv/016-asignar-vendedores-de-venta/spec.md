@@ -4,12 +4,13 @@
 |---|---|
 | Requerimiento | `RF-MV-016` |
 | Módulo | `MV` — Movimientos |
-| Versión | 0.2.0 |
+| Versión | 0.3.0 |
 | Estado | **Aprobada** |
 | Autor | Responsable técnico |
 | Aprobada por | Responsable del proyecto |
 | Fecha de aprobación | 23-09-2026 |
 | Enmendada el | 30-09-2026 — **el vendedor de una línea de una venta confirmada se corrige mientras su comisión no se haya pagado** (`RN-MV-053`) |
+| Enmendada el | 07-10-2026 — **`CM` borra la cadena vieja** en vez de marcarla (`RN-MV-053`, `RN-CM-047`): `CA-MV-700` |
 
 !!! info "Qué va en este documento"
 
@@ -203,6 +204,7 @@ Una espera a la otra. Si confirmar llegó antes, la asignación ve la venta conf
 | `CA-MV-354` | Una petición con **dos líneas**, una que se puede corregir y otra que no, responde conflicto y **no escribe ninguna** |
 | `CA-MV-355` | Reescribir **el mismo** vendedor en una línea de una venta confirmada se admite, **no pregunta a `CM`** y no revierte nada |
 | `CA-MV-356` | Asignar una línea **sin vendedor** en una venta confirmada **no pregunta a `CM`** —no hay nada que revertir— y devenga como antes |
+| `CA-MV-700` | En una venta **confirmada**, corregir el vendedor de una línea cuyas comisiones están en lotes **abiertos o pendientes** responde con la venta y el vendedor nuevo; la cadena vieja **ya no existe** y la nueva queda **devengada** (07-10-2026). Enmienda `CA-MV-351` |
 
 **`CA-MV-151` es el que sostiene el requerimiento**: si se pudiera elegir a cualquiera, validar sería atribuir la venta a quien uno quisiera, que es justo lo que se quería dejar de hacer en silencio.
 
@@ -232,3 +234,4 @@ Una espera a la otra. Si confirmar llegó antes, la asignación ve la venta conf
 |---|---|---|---|
 | 0.1.0 | 23-09-2026 | Primera versión, por decisión del responsable del proyecto: «agregar estados por tipo de movimiento; para las ventas tendrán dos estados, Validar comisiones y Validado. Si tengo más de un vendedor en `client_seller`, la compra se guarda con estado Validar comisiones y en la línea el vendedor estaría null; si tengo un solo vendedor, se guarda Validado y en la línea se le asigna el vendedor». Sus respuestas del mismo día fijan el resto: **columna aparte** y no sustituir el estado del pago; la validación la hace **el front al asignar**, y la venta pasa sola a validada cuando no falta ninguna línea; **confirmar no espera**, la comisión sí; **todo cliente tiene un vendedor**; el **hotlink** nace validado con el dueño del enlace; se elige **solo entre los del cliente**; y lo asignado **se corrige mientras la venta no esté confirmada**. | Responsable del proyecto |
 | 0.2.0 | 30-09-2026 | **El vendedor de una línea de una venta confirmada se corrige mientras su comisión no se haya pagado** ([`requirements/mv.md`](../../../requirements/mv.md) v0.58.0, `RN-MV-053`; [`requirements/cm.md`](../../../requirements/cm.md) v0.26.0, `RN-CM-047`), por decisión del responsable del proyecto: «permitamos que se pueda actualizar el vendedor de una línea siempre y cuando esta comisión de la venta no se haya pagado». Se pregunta a `CM` antes de escribir; con un no, la corrección entera se rechaza. `EX-003` cambia de motivo, `FA-002` y el flujo principal ganan el paso 6, y `CA-MV-153` queda superado en su segunda mitad. Criterios `CA-MV-351` a `CA-MV-356`. | Responsable del proyecto |
+| 0.3.0 | 07-10-2026 | **`CM` borra la cadena vieja en vez de marcarla** ([`requirements/mv.md`](../../../requirements/mv.md) v0.94.0, `RN-MV-053`; [`requirements/cm.md`](../../../requirements/cm.md) v0.34.0, `RN-CM-047` enmendada). Este requerimiento no cambia: pregunta igual y hace lo mismo con la respuesta. `CA-MV-700` enmienda `CA-MV-351` en lo que comprueba de `CM`. | Responsable del proyecto |

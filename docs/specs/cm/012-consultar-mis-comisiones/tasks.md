@@ -10,6 +10,7 @@
 | Enmendadas | 29-09-2026 — `T-05` por **la clase de cada comisión** (`RN-CM-044`) |
 | Enmendadas | 29-09-2026 — `T-06` por **la fuente `DIRECTA`** (`RN-CM-045`) |
 | Enmendadas | 30-09-2026 — `T-07` por **lo revertido y lo retirado** (`RN-CM-046`, `RN-CM-047`) |
+| Enmendadas | 07-10-2026 — lo revertido deja de verse: lo hace `RF-CM-024` `T-09` y `T-10` (`RN-CM-047`) |
 | Issue | Pendiente de crear |
 | Rama | `feature/devengo-de-comisiones` |
 

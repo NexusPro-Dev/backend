@@ -5,13 +5,14 @@
 | Requerimiento | `RF-CM-009` |
 | Especificación | [`spec.md`](spec.md) v0.1.0 |
 | `spec.md` aprobada el | 28-09-2026 |
-| Versión | 0.3.0 |
+| Versión | 0.4.0 |
 | Estado | **Aprobado** |
 | Autor | Responsable técnico |
 | Aprobado por | Responsable del proyecto |
 | Fecha de aprobación | 28-09-2026 |
 | Enmendado el | 29-09-2026 — la liquidación afftrack dentro de la transacción externa (§12) |
 | Enmendado el | 30-09-2026 — el paso a pendiente salta los abiertos sin comisiones vivas (§13) |
+| Enmendado el | 07-10-2026 — el abierto vacío se mira sin la marca de revertida (§14) |
 
 !!! info "Qué va en este documento"
 
@@ -174,3 +175,7 @@ La externa, con el bloqueo y el cierre de los lotes; una por línea en el barrid
 ```
 
 **Lo que no se cierra no se cuenta** en `batches_closed`. El `FOR UPDATE` sobre los abiertos lleva la misma condición, de modo que un abierto vacío **no se bloquea**: una devolución que lo esté vaciando a la vez no espera al cierre, y un devengo que lo llene justo antes lo hace cerrable —si llega a tiempo, entra en este cierre; si no, en el siguiente—. `CloseCommissionPeriodIT` gana `CA-CM-300`, con el abierto vaciado por una devolución (`RF-CM-023`).
+
+## 14. Sin la marca de revertida — enmienda del 07-10-2026
+
+`RN-CM-047` enmendada y `RN-CM-048` precisada: la condición de §13 pasa a `EXISTS (SELECT 1 FROM commissions c WHERE c.batch_id = b.id)`, porque desde `V80` toda comisión de un lote es viva. **El comportamiento no cambia**. Lo hace [`RF-CM-024`](../024-revertir-comisiones-de-linea/plan.md) `T-09`.

@@ -4,11 +4,12 @@
 |---|---|
 | Requerimiento | `RF-CM-024` |
 | Módulo | `CM` — Comisiones |
-| Versión | 0.1.0 |
+| Versión | 0.2.0 |
 | Estado | **Aprobada** |
 | Autor | Responsable técnico |
 | Aprobada por | Responsable del proyecto |
 | Fecha de aprobación | 30-09-2026 |
+| Enmendada el | 07-10-2026 — **la cadena vieja se borra**, ya no se marca (`RN-CM-047`): `CA-CM-340` a `CA-CM-343` |
 
 !!! info "Qué va en este documento"
 
@@ -38,7 +39,7 @@ Que corregir a quién se atribuye una línea de venta **ya comisionada** no deje
 |---|---|
 | **Pagado es cualquier nivel** | Si alguna comisión de la línea está en un lote pagado, no se libera (`RN-CM-047`) |
 | **Un FTD contado tampoco** | Su conteo pagó escalones a toda la cadena vieja |
-| **Revertir no es borrar** | Cada comisión queda en su lote, marcada, y fuera del total (`RN-CM-029`) |
+| **Revertir es borrar** (07-10-2026) | Cada comisión de la cadena vieja **se borra** y su lote rebaja el total; lo que fue lo guarda la auditoría (`RN-CM-047`). Hasta ese día quedaba en su lote, marcada y fuera del total |
 | **La cadena nueva la devenga el devengo** | Con la tasa y la cadena del día de la venta, en el lote **abierto** de cada persona (`RN-CM-033`); aquí no se calcula nada |
 | **Todo o nada** | Si `MV` rechaza la corrección por otra razón después de preguntar, la reversión se deshace con ella |
 
@@ -60,7 +61,7 @@ Que corregir a quién se atribuye una línea de venta **ya comisionada** no deje
 ### 4.1 Incluye
 
 - Decidir si una línea comisionada puede cambiar de vendedor.
-- Si puede, revertir todas sus comisiones vivas —estén en un lote abierto o pendiente, retiradas o no—, rebajar el total de cada lote y borrar el desenlace de la línea.
+- Si puede, borrar todas sus comisiones —estén en un lote abierto o pendiente, retiradas o no—, rebajar el total de cada lote y borrar el desenlace de la línea.
 - Si no puede, decir por qué sin cambiar nada.
 
 ### 4.2 No incluye
@@ -76,10 +77,10 @@ Que corregir a quién se atribuye una línea de venta **ya comisionada** no deje
 | Regla | Cómo aplica |
 |---|---|
 | `RN-CM-047` | Cuándo se permite y qué se revierte |
-| `RN-CM-029` | Nada se borra: la comisión revertida queda en su lote |
-| `RN-CM-027` | La unicidad cuenta solo las vivas: quien está en las dos cadenas puede cobrar la nueva |
+| `RN-CM-029` | Lo pagado no se toca; lo que aún no se pagó puede salir de su lote, y desde el 07-10-2026 sale borrándose |
+| `RN-CM-027` | Con la cadena vieja borrada, quien está en las dos cadenas cobra la nueva sin chocar con nada |
 | `RN-CM-040` | Un FTD contado no se libera |
-| `RN-CM-048` | Un lote que se queda sin comisiones vivas no se cierra ni se paga |
+| `RN-CM-048` | Un lote que se queda sin comisiones no se cierra ni se paga |
 | `RN-MV-053` | Quién pregunta, cuándo, y qué hace con la respuesta |
 
 ---
@@ -104,7 +105,7 @@ Que corregir a quién se atribuye una línea de venta **ya comisionada** no deje
 | Tipo | Condición |
 |---|---|
 | Precondición | `MV` tiene la venta bloqueada y ya comprobó todo lo suyo |
-| Postcondición, liberada | Ninguna comisión viva de la línea; cada lote afectado rebajó su total; la línea no tiene desenlace; queda auditado |
+| Postcondición, liberada | Ninguna comisión de la línea; cada lote afectado rebajó su total; la línea no tiene desenlace; queda auditado |
 | Postcondición, negada | Nada cambió |
 
 ---
@@ -116,7 +117,7 @@ Que corregir a quién se atribuye una línea de venta **ya comisionada** no deje
 3. Si es un FTD ya contado, se niega.
 4. Se toman sus comisiones vivas y los lotes en que están.
 5. Si alguno está pagado, se niega.
-6. Se marca cada comisión como revertida, por quién y cuándo, y se rebaja el total de su lote.
+6. Se borra cada comisión y se rebaja el total de su lote. Lo que era cada una, quién corrigió y cuándo, lo guarda la auditoría del paso 8.
 7. Se borra el desenlace de la línea.
 8. Se audita y se responde que la línea está liberada.
 
@@ -136,7 +137,7 @@ Porque ningún nivel tenía tasa, o porque se rechazó por pasar del 100 %. **Se
 
 ### FA-003 — Una comisión de la línea estaba retirada
 
-Está en el lote abierto de su persona, con su origen anotado. **Se revierte donde está**, y deja de poder devolverse.
+Está en el lote abierto de su persona, con su origen anotado. **Se borra donde está**, y su pendiente de origen deja de listarla entre sus retiradas.
 
 ### FA-004 — La reversión y un pago a la vez
 
@@ -176,6 +177,10 @@ Por ejemplo, porque otra línea de la misma petición se negó. **La reversión 
 | `CA-CM-297` | Una petición que corrige **dos líneas**, una liberable y otra con una comisión pagada, **no cambia nada**: tampoco la reversión de la primera |
 | `CA-CM-298` | **Corregir y pagar** un lote de la cadena a la vez: o se niega la corrección con el lote pagado, o el pago abona el total **sin** la comisión revertida |
 | `CA-CM-299` | Queda **auditado** en `CM`: la línea, cada comisión revertida con su lote e importe, y quién corrigió |
+| `CA-CM-340` | Corregir el vendedor de una línea con comisiones en lotes **abiertos o pendientes** **las borra todas**: ninguna queda, cada lote rebaja su total y la línea pierde su desenlace (07-10-2026). Enmienda `CA-CM-290` |
+| `CA-CM-341` | Una persona que está **en las dos cadenas** acaba con **una sola** comisión de la línea: la nueva. Enmienda `CA-CM-292` |
+| `CA-CM-342` | Una comisión de la línea que estaba **retirada** al abierto se borra allí, y el pendiente del que salió **deja de listarla** entre sus retiradas. Enmienda `CA-CM-296` |
+| `CA-CM-343` | La auditoría de `CM` guarda de cada comisión **borrada** su persona, su lote y su importe, y quién corrigió. Enmienda `CA-CM-299` |
 
 ---
 
@@ -183,9 +188,9 @@ Por ejemplo, porque otra línea de la misma petición se negó. **La reversión 
 
 | Caso | Comportamiento |
 |---|---|
-| La cadena vieja y la nueva son la misma persona salvo el nivel `0` | Sus superiores quedan con una revertida y una viva cada uno, del mismo importe si su tasa no cambió |
+| La cadena vieja y la nueva son la misma persona salvo el nivel `0` | Sus superiores quedan con una sola comisión de la línea cada uno, la nueva, del mismo importe si su tasa no cambió |
 | El nuevo vendedor se elige y el pago de un lote de la cadena vieja llega un segundo después | El pago abona el total ya rebajado: la reversión se confirmó antes |
-| Un pendiente se queda sin comisiones vivas por la reversión | Sigue pendiente, y no se paga (`RN-CM-048`) |
+| Un pendiente se queda sin comisiones por la reversión | Sigue pendiente, y no se paga (`RN-CM-048`) |
 | El evento del devengo se pierde tras la corrección | La línea no tiene desenlace, y **el barrido del siguiente cierre la recoge** (`RN-CM-034`) |
 
 ---
@@ -201,3 +206,4 @@ Ninguna.
 | Versión | Fecha | Cambio | Autor |
 |---|---|---|---|
 | 0.1.0 | 30-09-2026 | Primera versión ([`requirements/cm.md`](../../../requirements/cm.md) v0.26.0 §5.10, `RN-CM-047`; [`requirements/mv.md`](../../../requirements/mv.md) v0.58.0, `RN-MV-053`), por decisión del responsable del proyecto: el vendedor de una línea de una venta confirmada se corrige **mientras ninguna comisión de su cadena esté pagada**, y la cadena vieja se revierte sin borrarse. Criterios `CA-CM-290` a `CA-CM-299`. | Responsable del proyecto |
+| 0.2.0 | 07-10-2026 | **La cadena vieja se borra** ([`requirements/cm.md`](../../../requirements/cm.md) v0.34.0 §5.10, `RN-CM-047` enmendada), por decisión del responsable del proyecto: la comisión vieja se elimina y la nueva se crea, en vez de quedar marcada. **Cuándo se permite no cambia**: un lote `PENDIENTE` no lo impide, solo uno `PAGADO` —se le propuso exigir `ABIERTO` y lo descartó—. `CA-CM-340` a `CA-CM-343` enmiendan `CA-CM-290`, `CA-CM-292`, `CA-CM-296` y `CA-CM-299`; **`CA-CM-298` se lee** «el pago abona el total sin la comisión borrada». | Responsable del proyecto |

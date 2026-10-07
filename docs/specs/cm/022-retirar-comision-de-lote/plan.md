@@ -5,11 +5,12 @@
 | Requerimiento | `RF-CM-022` |
 | Especificación | [`spec.md`](spec.md) v0.1.0 |
 | `spec.md` aprobada el | 30-09-2026 |
-| Versión | 0.1.0 |
+| Versión | 0.2.0 |
 | Estado | **Aprobado** |
 | Autor | Responsable técnico |
 | Aprobado por | Responsable del proyecto |
 | Fecha de aprobación | 30-09-2026 |
+| Enmendado el | 07-10-2026 — sin la comisión revertida (§12) |
 
 !!! info "Qué va en este documento"
 
@@ -140,3 +141,7 @@ Un `ChangeEvent` `UPDATE` sobre `commissions`, con `before` —`batch_id` y `wit
 ## 11. Estrategia de prueba
 
 `WithdrawCommissionIT`: `CA-CM-273` a `CA-CM-281`, con lotes producidos por devengo y cierre reales —confirmando por la API de `MV` y cerrando por `POST /closing`—, como `PayCommissionBatchIT`. `CA-CM-280` con dos hilos (`ConcurrencyHarness`). La suite **no** es transaccional: el devengo es `AFTER_COMMIT`.
+
+## 12. Sin la comisión revertida — enmienda del 07-10-2026
+
+`RN-CM-047` enmendada. Del esquema de §2, `V80` retira `reverted_at`, `reverted_by`, `ck_commissions_reverted` y `fk_commissions_reverted_by`, y devuelve `uq_commissions_detail_user` a restricción; `withdrawn_from_batch_id` se queda. Del flujo de §1 sale la comprobación `reverted_at no nulo → 409 (EX-005)`, y del contrato su motivo del `409`. Lo construye [`RF-CM-024`](../024-revertir-comisiones-de-linea/plan.md) §12 (`T-07`, `T-09`), y `WithdrawCommissionIT` pierde el caso de la revertida.

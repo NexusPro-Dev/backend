@@ -89,7 +89,7 @@ Como en `RF-IN-006` · `spec.md` §2.1: es una vista **de administración**, la 
 | `RN-IN-006` | Cuenta sobre los lotes vivos, sin guardar nada |
 | `RN-CM-028` | Un lote es de una sola moneda: su valor entero va a esa moneda |
 | `RN-CM-030`, `RN-CM-033` | Los tres estados, y que el valor de un lote abierto crece con cada devengo |
-| `RN-CM-046`, `RN-CM-047` | El valor de un lote es el que tiene hoy: lo retirado o revertido ya no está en él |
+| `RN-CM-046`, `RN-CM-047` | El valor de un lote es el que tiene hoy: lo retirado o borrado ya no está en él |
 
 ---
 
@@ -110,7 +110,7 @@ Como en `RF-IN-006` · `spec.md` §2.1: es una vista **de administración**, la 
 | Abiertos, pendientes, pagados | Cada uno: cuántos lotes y su valor por moneda |
 | Total | Cuántos lotes en total y su valor por moneda |
 
-**El valor de un lote es el total que el lote tiene hoy**: lo devengado en él, menos lo que se le retiró o se le revirtió. Para un lote pagado es lo que se abonó. **Los tres estados vienen siempre**, aunque estén en cero, para que el tablero no tenga que adivinar qué falta.
+**El valor de un lote es el total que el lote tiene hoy**: lo devengado en él, menos lo que se le retiró o se le borró al corregirse el vendedor de una línea. Para un lote pagado es lo que se abonó. **Los tres estados vienen siempre**, aunque estén en cero, para que el tablero no tenga que adivinar qué falta.
 
 ---
 

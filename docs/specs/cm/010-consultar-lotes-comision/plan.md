@@ -5,7 +5,7 @@
 | Requerimiento | `RF-CM-010` |
 | Especificación | [`spec.md`](spec.md) v0.1.0 |
 | `spec.md` aprobada el | 28-09-2026 |
-| Versión | 0.4.0 |
+| Versión | 0.5.0 |
 | Estado | **Aprobado** |
 | Autor | Responsable técnico |
 | Aprobado por | Responsable del proyecto |
@@ -13,6 +13,7 @@
 | Enmendado el | 29-09-2026 — `commissionKind` y la forma de la fila afftrack (§12) |
 | Enmendado el | 29-09-2026 — `source = DIRECTA` (§13) |
 | Enmendado el | 30-09-2026 — lo revertido, el origen de lo retirado y las retiradas de un pendiente (§14) |
+| Enmendado el | 07-10-2026 — lo revertido deja de verse (§15) |
 
 !!! info "Qué va en este documento"
 
@@ -134,3 +135,7 @@ Ninguna: son lecturas.
 **Una sentencia más por detalle, no por fila**: las retiradas se leen con una consulta sobre `ix_commissions_withdrawn_from` unida a su lote. `CA-CM-188` cuenta las sentencias, y su número sube en uno —se ajusta la cifra de la prueba, no se relaja—. **`@Schema(name)` en los `record`s nuevos**, porque el lote actual de una retirada es un `record` pequeño con un nombre simple que otro módulo puede tener ya.
 
 `CommissionBatchesIT` gana `CA-CM-302`, sobre retiros y reversiones hechos por sus rutas.
+
+## 15. Lo revertido deja de verse — enmienda del 07-10-2026
+
+`RN-CM-047` enmendada. Lo que §14 añadió para la comisión revertida se retira: `revertedAt` y `revertedBy` salen de `CommissionLine` y de la consulta, el número de comisiones del listado deja de filtrar, y `returnable` deja de mirar si la comisión vive. **Lo construye `RF-CM-024` `T-09`** ([`plan.md`](../024-revertir-comisiones-de-linea/plan.md) §12), y `CA-CM-344` se prueba en `ReleaseCommissionedLineIT`, donde ya vivía `CA-CM-302`.

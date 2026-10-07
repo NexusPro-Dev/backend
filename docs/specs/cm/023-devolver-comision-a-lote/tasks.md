@@ -7,6 +7,7 @@
 | Plan | [`plan.md`](plan.md) v0.1.0 |
 | `plan.md` aprobado el | 30-09-2026 |
 | Estado | **En revisión** — todas las tareas `Hecha` el 30-09-2026 |
+| Enmendadas | 07-10-2026 — sin la comisión revertida: lo hace `RF-CM-024` `T-09` y `T-10` (`RN-CM-047`) |
 | Issue | Pendiente de crear |
 | Rama | `feature/corregir-vendedor-y-mover-comisiones` |
 

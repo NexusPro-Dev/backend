@@ -11,6 +11,7 @@
 | Enmendadas | 29-09-2026 — `T-15` a `T-17` por **la comisión por venta directa** (`RN-CM-045`) |
 | Enmendadas | 30-09-2026 — `T-18` por **la línea revertida** (`RN-CM-047`) |
 | Enmendadas | 05-10-2026 — `T-20` a `T-22` porque **la comisión se guarda en centésimas** (`ADR-006`) |
+| Enmendadas | 07-10-2026 — la cadena vieja se borra: lo prueba `RF-CM-024` `T-10` (`RN-CM-047`) |
 | Issue | **Hecha** — 05-10-2026 de crear |
 | Rama | `feature/devengo-de-comisiones` |
 

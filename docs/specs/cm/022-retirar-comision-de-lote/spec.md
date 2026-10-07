@@ -4,11 +4,12 @@
 |---|---|
 | Requerimiento | `RF-CM-022` |
 | Módulo | `CM` — Comisiones |
-| Versión | 0.1.0 |
+| Versión | 0.2.0 |
 | Estado | **Aprobada** |
 | Autor | Responsable técnico |
 | Aprobada por | Responsable del proyecto |
 | Fecha de aprobación | 30-09-2026 |
+| Enmendada el | 07-10-2026 — **se retira `EX-005`**: ya no hay comisiones revertidas (`RN-CM-047`) |
 
 !!! info "Qué va en este documento"
 
@@ -142,7 +143,7 @@ Si el cierre cierra el lote abierto de esa persona mientras se retira, la comisi
 | `EX-002` | La comisión no existe, o **no es de este lote** | No encontrado |
 | `EX-003` | El lote está **abierto** | Conflicto: «El lote sigue abierto: aún no hay nada que revisar» |
 | `EX-004` | El lote está **pagado** | Conflicto: «El lote ya está pagado» |
-| `EX-005` | La comisión está **revertida** —se corrigió el vendedor de su línea— | Conflicto: «La comisión está revertida y ya no cuenta» |
+| ~~`EX-005`~~ | ~~La comisión está **revertida**~~ | **Retirada el 07-10-2026**: la comisión de una línea cuyo vendedor se corrige se borra, y ya no puede llegar aquí (`RN-CM-047`) |
 
 ---
 
@@ -192,3 +193,4 @@ Ninguna.
 | Versión | Fecha | Cambio | Autor |
 |---|---|---|---|
 | 0.1.0 | 30-09-2026 | Primera versión ([`requirements/cm.md`](../../../requirements/cm.md) v0.26.0 §5.10, `RN-CM-046`), por decisión del responsable del proyecto: lo que no se confirma de un lote pendiente **se retira** al abierto de su persona y se paga en el cierre siguiente. Criterios `CA-CM-273` a `CA-CM-281`. | Responsable del proyecto |
+| 0.2.0 | 07-10-2026 | **Se retira `EX-005`** ([`requirements/cm.md`](../../../requirements/cm.md) v0.34.0, `RN-CM-047` enmendada): desde que la cadena vieja de una línea reatribuida se borra, no hay comisión revertida que rechazar. **`CA-CM-278` se lee** sin su última mitad: una comisión de otro lote, o que no existe, responde no encontrado. | Responsable del proyecto |

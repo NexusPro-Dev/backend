@@ -4,11 +4,12 @@
 |---|---|
 | Requerimiento | `RF-CM-023` |
 | Módulo | `CM` — Comisiones |
-| Versión | 0.1.0 |
+| Versión | 0.2.0 |
 | Estado | **Aprobada** |
 | Autor | Responsable técnico |
 | Aprobada por | Responsable del proyecto |
 | Fecha de aprobación | 30-09-2026 |
+| Enmendada el | 07-10-2026 — **se retira `EX-005`**: ya no hay comisiones revertidas (`RN-CM-047`) |
 
 !!! info "Qué va en este documento"
 
@@ -134,7 +135,7 @@ Si el pago llega antes, la devolución encuentra el origen pagado y responde con
 | `EX-002` | La comisión no existe, o **no se retiró de este lote** —incluida la que nunca se retiró de ninguno— | No encontrado |
 | `EX-003` | El lote está **pagado** | Conflicto: «El lote ya está pagado: lo retirado se queda donde está» |
 | `EX-004` | La comisión **ya no está en un lote abierto** —el abierto se cerró— | Conflicto: «El lote en que está la comisión ya se cerró» |
-| `EX-005` | La comisión está **revertida** | Conflicto: «La comisión está revertida y ya no cuenta» |
+| ~~`EX-005`~~ | ~~La comisión está **revertida**~~ | **Retirada el 07-10-2026**: la comisión de una línea cuyo vendedor se corrige se borra, y deja de figurar entre las retiradas (`RN-CM-047`) |
 
 **El lote de origen no puede estar abierto**: se retiró de él porque estaba pendiente, y un lote no vuelve a abrirse (`RN-CM-030`).
 
@@ -184,3 +185,4 @@ Ninguna.
 | Versión | Fecha | Cambio | Autor |
 |---|---|---|---|
 | 0.1.0 | 30-09-2026 | Primera versión ([`requirements/cm.md`](../../../requirements/cm.md) v0.26.0 §5.10, `RN-CM-046`), por decisión del responsable del proyecto: lo retirado por error **vuelve a su pendiente de origen** mientras no se haya pagado y siga en el lote abierto. Criterios `CA-CM-282` a `CA-CM-289`. | Responsable del proyecto |
+| 0.2.0 | 07-10-2026 | **Se retira `EX-005`** ([`requirements/cm.md`](../../../requirements/cm.md) v0.34.0, `RN-CM-047` enmendada): una comisión retirada cuya línea cambia de vendedor se borra, de modo que ya no está entre las retiradas de su pendiente y responde no encontrado. **`CA-CM-287` se lee** sin su última mitad. | Responsable del proyecto |

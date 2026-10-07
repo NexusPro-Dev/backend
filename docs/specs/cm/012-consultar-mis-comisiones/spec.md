@@ -4,7 +4,7 @@
 |---|---|
 | Requerimiento | `RF-CM-012` |
 | Módulo | `CM` — Comisiones |
-| Versión | 0.5.0 |
+| Versión | 0.6.0 |
 | Estado | **Aprobada** |
 | Autor | Responsable técnico |
 | Aprobada por | Responsable del proyecto |
@@ -12,6 +12,7 @@
 | Enmendada el | 29-09-2026 — **las comisiones propias dicen su clase**, como en `RF-CM-010` (`RN-CM-044`) |
 | Enmendada el | 29-09-2026 — **la fuente de una comisión propia puede ser `DIRECTA`**, como en `RF-CM-010` (`RN-CM-045`) |
 | Enmendada el | 30-09-2026 — **en mis lotes se ve lo revertido y lo retirado**, como en `RF-CM-010` (`RN-CM-046`, `RN-CM-047`) |
+| Enmendada el | 07-10-2026 — **lo revertido deja de verse en mis lotes**, como en `RF-CM-010` (`RN-CM-047`). `CA-CM-345` |
 
 !!! info "Qué va en este documento"
 
@@ -137,6 +138,7 @@ Las de `RF-CM-010`, sin la persona.
 | `CA-CM-263` | En sus propios lotes, un vendedor ve sus comisiones `POR_AFFTRACK` con su clase, sin venta ni nivel, y el total las incluye (29-09-2026) |
 | `CA-CM-272` | Un `DIRECTOR` que vendió ve en su lote la comisión de esa venta con fuente **`DIRECTA`** (29-09-2026) |
 | `CA-CM-303` | En sus propios lotes, un vendedor ve **sus comisiones revertidas** —fuera del total— y **de qué lote salió** cada una retirada a su abierto, en la forma de `CA-CM-302` (30-09-2026) |
+| `CA-CM-345` | En sus propios lotes, un vendedor **ya no ve** la comisión de una línea cuyo vendedor se corrigió —se borró—, y su total es el de las que quedan (07-10-2026). Enmienda `CA-CM-303` |
 
 ---
 
@@ -165,3 +167,4 @@ Ninguna.
 | 0.3.0 | 29-09-2026 | **La fuente de una comisión propia puede ser `DIRECTA`** (`RN-CM-045`), heredado de `RF-CM-010`. `CA-CM-272`. | Responsable del proyecto |
 | 0.4.0 | 30-09-2026 | **En mis lotes se ve lo revertido y lo retirado** (`RN-CM-046`, `RN-CM-047`), heredado de `RF-CM-010`: quien cobra tiene que poder ver por qué su pendiente bajó. `CA-CM-303`. | Responsable del proyecto |
 | 0.5.0 | 05-10-2026 | Heredado de `RF-CM-010` 0.5.0: con `DIRECTA`, la tasa exacta es la tasa de rol desde `V64`. Sin criterio nuevo. | Responsable del proyecto |
+| 0.6.0 | 07-10-2026 | **Lo revertido deja de verse en mis lotes** ([`requirements/cm.md`](../../../requirements/cm.md) v0.34.0, `RN-CM-047` enmendada), heredado de `RF-CM-010` v0.6.0. Por qué bajó su pendiente lo dice la auditoría, no el lote. `CA-CM-345` enmienda `CA-CM-303`. | Responsable del proyecto |

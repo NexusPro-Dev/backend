@@ -3,10 +3,11 @@
 | Campo | Valor |
 |---|---|
 | Requerimiento | `RF-CM-024` |
-| Especificación | [`spec.md`](spec.md) v0.1.0 |
-| Plan | [`plan.md`](plan.md) v0.1.0 |
+| Especificación | [`spec.md`](spec.md) v0.2.0 |
+| Plan | [`plan.md`](plan.md) v0.2.0 |
 | `plan.md` aprobado el | 30-09-2026 |
 | Estado | **En revisión** — todas las tareas `Hecha` el 30-09-2026 |
+| Enmendadas | 07-10-2026 — `T-07` a `T-11` porque **la cadena vieja se borra** (`RN-CM-047`) |
 | Issue | Pendiente de crear |
 | Rama | `feature/corregir-vendedor-y-mover-comisiones` |
 
@@ -66,3 +67,17 @@
 - [ ] Los diez criterios de aceptación con prueba.
 - [ ] `requirements.md` actualizado.
 - [ ] **`tasks.md` aprobadas por el responsable del proyecto.**
+
+---
+
+## 6. La cadena vieja se borra — enmienda del 07-10-2026
+
+| ID | Tarea | Depende de | Verificación | Estado |
+|---|---|---|---|---|
+| `T-07` | `V80`: borra las revertidas, retira `reverted_at`, `reverted_by`, su `CHECK` y su clave, y rehace `uq_commissions_detail_user` como restricción (`plan.md` §12) | — | Flyway aplica sobre la base de la suite | Pendiente |
+| `T-08` | `delete` en el repositorio de desenlaces; `ReleaseCommissionedLineService` borra, con `deleted_commissions` y `deleted_by` en la auditoría | `T-07` | — | Pendiente |
+| `T-09` | Fuera la marca de lotes, cierre, pago, retirar, devolver, detalle y listado, y la prosa de las `@Operation` (`plan.md` §12) | `T-07` | Compila | Pendiente |
+| `T-10` | `ReleaseCommissionedLineIT`: `CA-CM-340` a `CA-CM-346` y `CA-MV-700`; `CA-CM-305` borrando por SQL; `WithdrawCommissionIT`, `ReturnCommissionIT` y `PayCommissionBatchesIT` sin la marca | `T-08`, `T-09` | Las cuatro suites en verde | Pendiente |
+| `T-11` | Contrato regenerado y `requirements.md` | `T-10` | `./mvnw clean verify` en verde | Pendiente |
+
+Rama: `develop`.

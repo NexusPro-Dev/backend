@@ -8,6 +8,7 @@
 | `plan.md` aprobado el | 23-09-2026 |
 | Estado | **En revisión** — `T-01` a `T-10` `Hecha` el 23-09-2026; `T-11` y `T-12` a medias (ver §3) |
 | Enmendadas | 30-09-2026 — `T-13` a `T-15` por **corregir en una venta confirmada** (`RN-MV-053`) |
+| Enmendadas | 07-10-2026 — `CM` borra la cadena vieja: lo prueba `RF-CM-024` `T-10` (`RN-MV-053`) |
 | Issue | [#103](https://github.com/NexusPro-Dev/backend/issues/103) |
 | Rama | `feature/estados-de-comision` |
 

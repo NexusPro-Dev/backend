@@ -5,12 +5,13 @@
 | Requerimiento | `RF-MV-016` |
 | Especificación | [`spec.md`](spec.md) v0.1.0 |
 | `spec.md` aprobada el | 23-09-2026 |
-| Versión | 0.2.0 |
+| Versión | 0.3.0 |
 | Estado | **Aprobado** |
 | Autor | Responsable técnico |
 | Aprobado por | Responsable del proyecto |
 | Fecha de aprobación | 23-09-2026 |
 | Enmendado el | 30-09-2026 — corregir en una venta confirmada, preguntándole a `CM` por un puerto que `MV` declara (§12) |
+| Enmendado el | 07-10-2026 — `CM` borra la cadena vieja; nada cambia aquí (§13) |
 
 !!! info "Qué va en este documento"
 
@@ -174,3 +175,7 @@ Una transacción por petición. El orden es el de la spec §8, y **todas las com
 **Alternativa descartada: llamar al puerto línea a línea dentro de `verificarLinea`.** Revertiría en `CM` la primera línea antes de saber si la tercera tiene un vendedor ajeno. La transacción lo desharía igual, pero es trabajo tirado y bloqueos tomados sin necesidad.
 
 **Pruebas**: `SellerAssignmentIT` cambia la segunda mitad de `CA-MV-153` —ahora la corrección prospera si la comisión no está pagada— y **`CA-MV-351` a `CA-MV-356` viven en `ReleaseCommissionedLineIT`** de `CM`, porque necesitan lotes pagados y FTD contados, que son de `CM`.
+
+## 13. `CM` borra la cadena vieja — enmienda del 07-10-2026
+
+`RN-MV-053` sin cambio de forma. **Ningún componente de `MV` cambia**: el puerto, su respuesta y lo que se hace con ella son los mismos. El actor sigue pasando al puerto, que ya no lo escribe en `reverted_by` sino en la auditoría de `CM` (`deleted_by`). La prosa de la `@Operation` dice que la corrección **borra** la comisión vieja. `CA-MV-700` se prueba en `ReleaseCommissionedLineIT`, junto a `CA-MV-351`.

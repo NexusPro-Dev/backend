@@ -3,13 +3,14 @@
 | Campo | Valor |
 |---|---|
 | Requerimiento | `RF-CM-024` |
-| Especificación | [`spec.md`](spec.md) v0.1.0 |
+| Especificación | [`spec.md`](spec.md) v0.2.0 |
 | `spec.md` aprobada el | 30-09-2026 |
-| Versión | 0.1.0 |
+| Versión | 0.2.0 |
 | Estado | **Aprobado** |
 | Autor | Responsable técnico |
 | Aprobado por | Responsable del proyecto |
 | Fecha de aprobación | 30-09-2026 |
+| Enmendado el | 07-10-2026 — la cadena vieja se borra, y `V80` retira la marca (§12) |
 
 !!! info "Qué va en este documento"
 
@@ -129,3 +130,41 @@ Un `ChangeEvent` `UPDATE` sobre `commission_accruals`, con la línea como entida
 ## 11. Estrategia de prueba
 
 `ReleaseCommissionedLineIT`: `CA-CM-290` a `CA-CM-299`, **corrigiendo por la ruta de `RF-MV-016`** —confirmar, cerrar, pagar y retirar por sus rutas—, para que el puerto, el `MANDATORY`, el aviso y el devengo nuevo entren en la prueba. `CA-CM-298` con dos hilos. `CA-CM-294` cierra por `POST /closing` para contar el FTD. La prueba de arquitectura de §3 en la suite de ArchUnit que ya existe.
+
+---
+
+## 12. La cadena vieja se borra — enmienda del 07-10-2026
+
+`RN-CM-047` enmendada ([`requirements/cm.md`](../../../requirements/cm.md) v0.34.0 §5.10). **El enfoque de §1 no cambia** —el puerto, `MANDATORY`, el bloqueo de la línea y después comisiones y lotes por identificador—; cambia **el paso que escribe**:
+
+```
+SELECT … FROM commissions WHERE movement_detail_id = :linea FOR UPDATE   — sin «reverted_at IS NULL»: ya no hay otra clase
+…
+DELETE FROM commissions WHERE id IN (…)                                  — en lugar del UPDATE que marcaba
+por lote: adjustTotal(lote, -suma de las suyas)                          — igual que antes
+```
+
+**El esquema** lo cambia `V80`: borra las comisiones que ya estaban revertidas —ninguna contaba en ningún total, así que ningún `total_amount` cambia—, retira `reverted_at`, `reverted_by`, `ck_commissions_reverted` y `fk_commissions_reverted_by`, y devuelve `uq_commissions_detail_user` a la **restricción** de `V51`, con el mismo nombre. El orden importa: primero el `DELETE`, después el índice, y la restricción al final, cuando ya no puede chocar.
+
+**Lo que se retira porque solo existía por la marca:**
+
+| Componente | Cambio |
+|---|---|
+| `CommissionAccrualRepository` | `revert(ids, actor, at)` pasa a `delete(ids)`; `lockLiveCommissionsOf` deja de filtrar |
+| `ReleaseCommissionedLineService` | Borra en vez de marcar. **La auditoría pasa a ser la única constancia** de lo borrado: `before` igual que hoy —desenlace y cada comisión con identificador, persona, lote e importe—, y `after` con `deleted_commissions` y `deleted_by` |
+| `CommissionBatchRepository` | `LockedCommission` pierde `reverted`; `hasLiveCommissions` cuenta todas |
+| `WithdrawCommissionService`, `ReturnCommissionService` | Pierden la comprobación de la comisión revertida y su `EX-005` (`RF-CM-022`, `RF-CM-023`) |
+| `CommissionBatchQueryRepository` y su adaptador | `CommissionRow` pierde `revertedAt` y `revertedBy`; el número de comisiones del listado deja de filtrar |
+| `CommissionBatchDetailResponse` | `CommissionLine` pierde `revertedAt` y `revertedBy`; `returnable` deja de mirar si la comisión vive (`RF-CM-010`, `RF-CM-012`) |
+| `CommissionClosingRepository` | El cierre deja de filtrar `reverted_at` al decidir qué abierto se cierra (`RF-CM-009`) |
+| `CommissionBatchController` | La prosa del detalle, de mis lotes, de retirar y de devolver deja de hablar de lo revertido |
+
+**Contrato**: `CommissionLine` pierde dos campos. **Es un cambio que el front nota**: quien leyera `revertedAt` deja de recibirlo. El esquema se regenera; la prosa de las `@Operation` se corrige a mano.
+
+| Alternativa | Por qué no |
+|---|---|
+| Seguir marcando | Una fila que no se paga ni suma, que solo se lee, cuando la auditoría ya guarda lo mismo. Fue la decisión del 30-09-2026 y el responsable la cambió |
+| Borrar en adelante y dejar las columnas para lo ya marcado | Dos formas de «salir de la cadena» conviviendo, un `revertedAt` en la API que no volvería a aparecer, y una unicidad parcial que ya no protege nada |
+| Exigir que todos los lotes de la cadena estén `ABIERTO` | Lo descartó el responsable: un pendiente todavía no se ha pagado |
+
+**Pruebas**: `ReleaseCommissionedLineIT` reescribe `CA-CM-290`, `CA-CM-292`, `CA-CM-296` y `CA-CM-299` como `CA-CM-340` a `CA-CM-343`, y los de las enmiendas de `RF-CM-010`, `RF-CM-012` y `RF-CM-013` como `CA-CM-344` a `CA-CM-346`, con `CA-MV-700`. `CA-CM-305` prepara la línea **borrando** su cadena por SQL. `WithdrawCommissionIT` y `ReturnCommissionIT` pierden el caso de la revertida, y `PayCommissionBatchesIT` vacía su pendiente borrando.

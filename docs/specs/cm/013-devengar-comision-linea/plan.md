@@ -5,7 +5,7 @@
 | Requerimiento | `RF-CM-013` |
 | Especificación | [`spec.md`](spec.md) v0.1.0 |
 | `spec.md` aprobada el | 28-09-2026 |
-| Versión | 0.6.0 |
+| Versión | 0.7.0 |
 | Estado | **Aprobado** |
 | Autor | Responsable técnico |
 | Aprobado por | Responsable del proyecto |
@@ -14,6 +14,7 @@
 | Enmendado el | 29-09-2026 — la directa en el nivel `0`, `LastLinkRoles` en `SP` y `directCommissionOf` en `PM` (§13) |
 | Enmendado el | 30-09-2026 — la línea revertida se devenga otra vez, sin código nuevo (§14) |
 | Enmendado el | 05-10-2026 — la comisión y el lote en centésimas, redondeo al construir la fila (§16) |
+| Enmendado el | 07-10-2026 — la cadena vieja se borra; el devengo no cambia (§17) |
 
 !!! info "Qué va en este documento"
 
@@ -206,3 +207,7 @@ Y un índice de apoyo: `ix_commission_batches_abierto` sobre `(user_id, currency
 **`CA-CM-166` pierde su provocación** (`tasks.md` §3.1: una línea de cien mil millones al 10 % cuya comisión no cabía en `numeric(14,4)`). `tasks.md` §10 lo declara y propone cómo rehacerla.
 
 `CommissionAccrualIT` gana `CA-CM-336` y `CA-CM-337`. Este último recorre devengo, cierre y pago por la API, y compara el abono del libro con el total del lote **en centésimas**.
+
+## 17. La cadena vieja se borra — enmienda del 07-10-2026
+
+`RN-CM-047` enmendada. **Ningún componente del devengo cambia**: lo que §14 explicaba sigue valiendo, con una salvedad — `uq_commissions_detail_user` **ya no es parcial** (`V80`, [`RF-CM-024`](../024-revertir-comisiones-de-linea/plan.md) §12), y no necesita serlo: la comisión vieja de quien está en las dos cadenas ya no existe cuando se inserta la nueva. `CA-CM-346` se prueba en `ReleaseCommissionedLineIT`, y `CA-CM-305` prepara su línea **borrando** la cadena por SQL.

@@ -2,7 +2,7 @@
 
 | Campo | Valor |
 |---|---|
-| Versión | 0.101.0 |
+| Versión | 0.102.0 |
 | Estado | **Borrador** |
 | Responsable | Bonilla Diaz William Steven |
 | Fecha de creación | 21-08-2026 |
@@ -737,7 +737,7 @@ Ninguna de las dos guarda una venta, y **las dos escribieron condiciones sobre q
 
     Por decisión del responsable del proyecto ([`requirements/cm.md`](requirements/cm.md) v0.26.0 §5.10), **un lote deja de ser intocable en el cierre y lo es desde el pago**. A un lote `PENDIENTE` se le **retira** una comisión, que pasa al lote `ABIERTO` de la misma persona y moneda (`RN-CM-046`), y lo retirado por error **se devuelve**. Y el vendedor de una línea de una venta confirmada **se corrige** mientras ninguna comisión de su cadena esté pagada: la cadena vieja **se revierte** y la nueva se devenga como una línea recién atribuida (`RN-CM-047`, [`requirements/mv.md`](requirements/mv.md) v0.58.0 `RN-MV-053`).
 
-    **`commissions` gana tres columnas, y ninguna cambia un importe**: `reverted_at` y `reverted_by` —la comisión revertida **no se borra**: queda en su lote, fuera del total— y `withdrawn_from_batch_id` —el lote pendiente del que salió, que es lo que permite devolverla—. **`uq_commissions_detail_user` pasa a ser parcial**, entre las vivas, para que quien esté en las dos cadenas pueda cobrar la nueva. **`commission_accruals` pierde la fila** de la línea reatribuida, porque dice qué le falta a la línea y a esa le falta todo. **Escritas por `V59` el 30-09-2026.**
+    **`commissions` gana tres columnas, y ninguna cambia un importe**: `reverted_at` y `reverted_by` —la comisión revertida **no se borra**: queda en su lote, fuera del total— y `withdrawn_from_batch_id` —el lote pendiente del que salió, que es lo que permite devolverla—. **`uq_commissions_detail_user` pasa a ser parcial**, entre las vivas, para que quien esté en las dos cadenas pueda cobrar la nueva. **`commission_accruals` pierde la fila** de la línea reatribuida, porque dice qué le falta a la línea y a esa le falta todo. **Escritas por `V59` el 30-09-2026.** **El 07-10-2026 `V80` retira `reverted_at` y `reverted_by`** y devuelve la unicidad a restricción completa: la cadena vieja de una línea reatribuida **se borra** desde entonces (`RN-CM-047` enmendada), y lo que fue lo guarda la auditoría.
 
 | Quién lo exige | Qué exige |
 |---|---|
@@ -1015,7 +1015,6 @@ Son las que siguen —**y desde el 14-09-2026 una de `PM` apunta a `users`**—,
 | `commissions.movement_detail_id` | `movement_details` | `CM` → `MV` — la línea que devengó (24-09-2026, diseñada). **`RESTRICT`**: una línea con comisión no se borra, y toda suite que limpie `movements` tendrá que limpiar antes `commissions` y `commission_accruals` |
 | `commission_accruals.movement_detail_id` | `movement_details` | `CM` → `MV` — el desenlace de esa línea, y su clave primaria (28-09-2026, diseñada). **`RESTRICT`**, por lo mismo |
 | `commissions.user_id`, `commission_batches.user_id` | `users` | `CM` → `SP` — quién cobra ese nivel, y de quién es el lote (24-09-2026, diseñadas) |
-| `commissions.reverted_by` | `users` | `CM` → `SP` — quién corrigió el vendedor de la línea y revirtió su cadena (`RN-CM-047`, 30-09-2026, escrita por `V59`). Nula mientras la comisión esté viva |
 | `commission_batches.currency_id` | `currencies` | `CM` → `SP` — la moneda del lote, que es donde **nace** la moneda de una comisión (`RN-CM-017`) |
 | `commission_closings.triggered_by` | `users` | `CM` → `SP` — quién lanzó un cierre a mano; nula en el programado (28-09-2026, diseñada) |
 | `afftrack_rates.product_id`, `user_afftrack_rates.product_id`, `afftrack_settlements.product_id` | `products` | `CM` → `PM` — el producto FTD de cada escalón y de cada liquidación (29-09-2026, diseñadas). Sin `ON DELETE`: el producto no se borra (`RN-PM-010`) |
@@ -1175,3 +1174,4 @@ Los documentos que citan una migración vieja por su número —specs, controles
 | 0.99.0 | 06-10-2026 | **Entra el segundo factor** ([`requirements/sp.md`](requirements/sp.md) v1.93.0 §10.1, §10.2, §10.22 a §10.24; [`security.md`](security.md) v0.105.0 §3.3): tres tablas diseñadas —`user_mfa_factors` (el authenticator, con el secreto **cifrado** y su historial), `mfa_recovery_codes` y `mfa_challenges`— y tres columnas: `roles.requires_mfa`, `permissions.requires_recent_mfa` y `refresh_tokens.mfa_verified_at`. Sin migración. | Responsable técnico |
 | 0.100.0 | 06-10-2026 | `user_mfa_factors.secret_ciphertext` es `text`, no `bytea` ([`requirements/sp.md`](requirements/sp.md) v1.94.0 §10.22): reutiliza el formato `v1:<base64>` del cifrado de la clave de la tienda. | Responsable técnico |
 | 0.101.0 | 06-10-2026 | **`MV` diseña `points_adjustment_receipts`** ([`requirements/mv.md`](requirements/mv.md) v0.88.0 §4.12 y §7.16, `RN-MV-077`), por decisión del responsable del proyecto: **el comprobante de un ajuste de puntos**, uno por ajuste —la clave primaria es el movimiento—, PDF, PNG o JPG de hasta 5 MB **en la base**, como las portadas, con su resumen `SHA-256`. Dos claves foráneas nuevas. **La escribe `V77`**. | Responsable técnico |
+| 0.102.0 | 07-10-2026 | **La cadena vieja de una línea reatribuida se borra** ([`requirements/cm.md`](requirements/cm.md) v0.34.0 §5.10, `RN-CM-047` enmendada): `V80` borra las comisiones ya revertidas —ningún total cambia—, retira `commissions.reverted_at` y `reverted_by` con su `CHECK` y la clave `commissions.reverted_by` → `users` (§5.3), y devuelve `uq_commissions_detail_user` a restricción completa. | Responsable técnico |

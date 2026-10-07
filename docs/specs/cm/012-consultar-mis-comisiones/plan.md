@@ -5,7 +5,7 @@
 | Requerimiento | `RF-CM-012` |
 | Especificación | [`spec.md`](spec.md) v0.1.0 |
 | `spec.md` aprobada el | 28-09-2026 |
-| Versión | 0.4.0 |
+| Versión | 0.5.0 |
 | Estado | **Aprobado** |
 | Autor | Responsable técnico |
 | Aprobado por | Responsable del proyecto |
@@ -13,6 +13,7 @@
 | Enmendado el | 29-09-2026 — hereda la clase de cada comisión de `RF-CM-010` §12 |
 | Enmendado el | 29-09-2026 — hereda la fuente `DIRECTA` de `RF-CM-010` §13 |
 | Enmendado el | 30-09-2026 — hereda lo revertido y lo retirado de `RF-CM-010` §14 |
+| Enmendado el | 07-10-2026 — hereda que lo revertido deja de verse, de `RF-CM-010` §15 |
 
 !!! info "Qué va en este documento"
 
@@ -111,3 +112,7 @@ Hereda `RF-CM-010` §13 sin cambios de sentencia: la prosa de la `@Operation` ga
 ## 14. Lo revertido y lo retirado — enmienda del 30-09-2026
 
 Hereda `RF-CM-010` §14 sin sentencias propias: la variante propia usa las mismas lecturas con el filtro de persona. `CommissionBatchesIT` gana `CA-CM-303`, junto a `CA-CM-272`.
+
+## 15. Lo revertido deja de verse — enmienda del 07-10-2026
+
+Hereda [`RF-CM-010`](../010-consultar-lotes-comision/plan.md) §15 sin nada propio: la forma de la respuesta es la misma. `CA-CM-345` se prueba en `ReleaseCommissionedLineIT`, donde ya vivía `CA-CM-303`.
