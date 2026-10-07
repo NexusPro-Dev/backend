@@ -5,7 +5,6 @@ import com.factech.nexus.modules.indicators.application.IndicatorPeriod;
 import com.factech.nexus.modules.indicators.application.PointsSummaryResponse;
 import com.factech.nexus.modules.indicators.application.SalesIndicatorRequest;
 import com.factech.nexus.modules.movements.application.PointsFigures;
-import com.factech.nexus.modules.movements.application.PointsFigures.Balance;
 import com.factech.nexus.modules.movements.application.PointsFigures.BucketFlow;
 import com.factech.nexus.modules.movements.application.PointsFigures.Flow;
 import com.factech.nexus.modules.movements.application.PointsFigures.Kind;
@@ -92,23 +91,13 @@ public class GetPointsSummaryService {
     }
     Set<UUID> titulares = alcance.get().isEverything() ? null : alcance.get().sellers();
     List<Flow> flujos = cifras.flows(titulares, periodos.interval(periodo), peticion.currencyId());
-    List<Balance> saldos =
-        cifras.balances(titulares, periodos.interval(periodo), peticion.currencyId());
 
-    // Una moneda aparece si hay algo que contar: un movimiento en el periodo o
-    // un saldo distinto de cero al cierre del periodo.
+    // Una moneda aparece si tuvo algún movimiento en el periodo.
     Map<UUID, String> codigos = new HashMap<>();
     Map<UUID, Map<Kind, Flow>> porMoneda = new HashMap<>();
     for (Flow f : flujos) {
       codigos.put(f.currencyId(), f.currencyCode());
       porMoneda.computeIfAbsent(f.currencyId(), k -> new EnumMap<>(Kind.class)).put(f.kind(), f);
-    }
-    Map<UUID, BigDecimal> saldoDe = new HashMap<>();
-    for (Balance s : saldos) {
-      saldoDe.put(s.currencyId(), s.points());
-      if (s.points().signum() != 0) {
-        codigos.put(s.currencyId(), s.currencyCode());
-      }
     }
     List<IndicatorCurrency> ordenadas =
         codigos.entrySet().stream()
@@ -126,7 +115,7 @@ public class GetPointsSummaryService {
               flujo(deEsta.get(Kind.REDEEMED)),
               flujo(deEsta.get(Kind.ADDED)),
               flujo(deEsta.get(Kind.REMOVED)),
-              saldoDe.getOrDefault(m.id(), CERO)));
+              saldo(deEsta)));
     }
 
     List<PointsSummaryResponse.Bucket> tramos = null;
@@ -156,12 +145,29 @@ public class GetPointsSummaryService {
                   flujo(clases.get(Kind.PURCHASED)),
                   flujo(clases.get(Kind.REDEEMED)),
                   flujo(clases.get(Kind.ADDED)),
-                  flujo(clases.get(Kind.REMOVED))));
+                  flujo(clases.get(Kind.REMOVED)),
+                  saldo(clases)));
         }
         tramos.add(new PointsSummaryResponse.Bucket(inicio, deCadaMoneda));
       }
     }
     return new PointsSummaryResponse(periodo, monedas, nombreDelTramo, tramos);
+  }
+
+  /**
+   * El saldo del periodo, con las cuatro clases y nada más (`RF-IN-005` 0.4.0, 07-10-2026):
+   * comprados − redimidos + sumados − restados. No es una lectura aparte.
+   */
+  private static BigDecimal saldo(Map<Kind, Flow> clases) {
+    return puntos(clases, Kind.PURCHASED)
+        .subtract(puntos(clases, Kind.REDEEMED))
+        .add(puntos(clases, Kind.ADDED))
+        .subtract(puntos(clases, Kind.REMOVED));
+  }
+
+  private static BigDecimal puntos(Map<Kind, Flow> clases, Kind clase) {
+    Flow f = clases.get(clase);
+    return f == null ? CERO : f.points();
   }
 
   private static PointsSummaryResponse.Flow flujo(Flow f) {

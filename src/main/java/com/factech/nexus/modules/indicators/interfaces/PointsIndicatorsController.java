@@ -45,26 +45,25 @@ public class PointsIndicatorsController {
           Por cada moneda: los puntos **comprados** —compras de puntos ya cobradas—, los
           **redimidos** —gastados al pagar ventas—, los **sumados** y **restados** por ajustes a
           mano de administración, cada uno con cuántos movimientos los produjeron, y **el saldo
-          al cierre del periodo**. Todo en positivo: el sentido lo da el nombre de la cifra.
+          del periodo**. Todo en positivo: el sentido lo da el nombre de la cifra.
 
           **Lo comprado, lo redimido y los ajustes son los del periodo**, y el periodo mira
           **cuándo se movieron los puntos**: una compra cuenta el día en que se cobró, no el día
-          en que se pidió. **El saldo es el del cierre del periodo** (desde el 07-10-2026): lo que
-          había al final del día `to`; sin `to`, el de hoy. Es acumulado —`from` no lo acota—, de
-          modo que sin `from`, `balance = purchased − redeemed + added − removed`.
+          en que se pidió. **El saldo se calcula con esas cuatro cifras** (desde el 07-10-2026):
+          `balance = purchased − redeemed + added − removed` del periodo, y puede ser negativo. Sin
+          fechas es toda la historia, es decir, los puntos que hay hoy.
 
           **De quién son los puntos lo decide el tipo de rol de quien pregunta**, como en los
           indicadores de ventas: un **funcionario** ve los de todas las personas; un
           **vendedor**, los suyos y los de las personas de su red; cualquier otro, los suyos.
           `userId` acota a **una persona titular de mi alcance**; fuera de él —o inexistente— la
           lista sale vacía, y no un error. El periodo es el de los demás indicadores: días de
-          Bogotá, **sin fechas toda la historia** —y entonces el saldo es siempre la suma de las
-          clases—, una sola fecha deja la otra abierta, sin tope.
+          Bogotá, **sin fechas toda la historia** —y entonces el saldo son los puntos que hay hoy—, una sola fecha deja la otra abierta, sin tope.
 
           **`granularity`** (`DAY`, `WEEK` o `MONTH`, opcional) añade `buckets`: por tramo,
           las cuatro clases de cada moneda de `currencies`, en su orden y con ceros; todos los
-          tramos presentes, y su suma es la del periodo. **El saldo no se parte**: va solo en
-          `currencies`, al cierre del periodo. Ni los permisos de
+          tramos presentes, y su suma es la del periodo. Cada tramo trae también **su saldo**, con sus
+          cuatro cifras. Ni los permisos de
           ventas ni el de los saldos de una persona abren este.
           """)
   @ApiResponses({

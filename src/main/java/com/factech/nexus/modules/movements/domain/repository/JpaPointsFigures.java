@@ -112,29 +112,6 @@ public class JpaPointsFigures implements PointsFigures {
         + (interval.from() != null ? " AND e.created_at >= :desde" : "");
   }
 
-  @Override
-  @Transactional(readOnly = true)
-  public List<Balance> balances(Set<UUID> holders, Interval interval, UUID currencyId) {
-    // Los mismos asientos que las cuatro clases, hasta el fin del intervalo: el saldo de cualquier
-    // cierre, y sin `from` cuadra por construcción con ellas (`CA-IN-044`). `accounts.balance`
-    // solo sabría el de hoy.
-    String sql =
-        "SELECT a.currency_id, c.code, sum(e.amount)"
-            + DE_LOS_ASIENTOS
-            + " WHERE e.created_at < :hasta"
-            + filtros(holders, currencyId)
-            + " GROUP BY 1, 2";
-    @SuppressWarnings("unchecked")
-    List<Object[]> filas =
-        enlazar(em.createNativeQuery(sql).setParameter("hasta", interval.to()), holders, currencyId)
-            .getResultList();
-    List<Balance> saldos = new ArrayList<>(filas.size());
-    for (Object[] f : filas) {
-      saldos.add(new Balance((UUID) f[0], (String) f[1], MinorUnits.fromMinor(f[2])));
-    }
-    return saldos;
-  }
-
   /** El evento y el signo del asiento dicen la clase (`RN-IN-009`). */
   private static Kind clase(String evento, boolean entra) {
     if ("ABONO".equals(evento) && entra) {

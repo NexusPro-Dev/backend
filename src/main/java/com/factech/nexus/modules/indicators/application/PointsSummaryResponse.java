@@ -9,9 +9,9 @@ import java.util.List;
 
 /**
  * El resumen de puntos (`RF-IN-005` §6.2): por moneda, lo comprado, lo redimido y los ajustes del
- * periodo, y el saldo al cierre del periodo (0.3.0, 07-10-2026). Todo en positivo; el sentido lo da
- * el nombre de la cifra. Si se pide un tramo, además las cuatro clases <b>por tramo</b>, sin saldo
- * (`RN-IN-010`).
+ * periodo, y su saldo: comprados − redimidos + sumados − restados (0.4.0, 07-10-2026). Todo en
+ * positivo; el sentido lo da el nombre de la cifra. Si se pide un tramo, además las cuatro clases
+ * <b>por tramo</b>, sin saldo (`RN-IN-010`).
  */
 @Schema(name = "PointsSummary")
 public record PointsSummaryResponse(
@@ -23,8 +23,8 @@ public record PointsSummaryResponse(
     @JsonInclude(JsonInclude.Include.ALWAYS)
         @Schema(
             description =
-                "Las cuatro clases por tramo y moneda, todos los tramos presentes; nulo si no se"
-                    + " pidió tramo. El saldo no se parte: va solo en currencies.")
+                "Las cuatro clases y su saldo por tramo y moneda, todos los tramos presentes; nulo"
+                    + " si no se pidió tramo.")
         List<Bucket> buckets) {
 
   /** Las cifras de una moneda. */
@@ -37,8 +37,8 @@ public record PointsSummaryResponse(
       @Schema(description = "Ajustes a mano que restaron, en el periodo.") Flow removed,
       @Schema(
               description =
-                  "El saldo al CIERRE del periodo: lo que había al final del día `to` (Bogotá);"
-                      + " sin `to`, el de hoy. Acumulado: `from` no lo acota.",
+                  "El saldo DEL PERIODO, con las cuatro cifras: purchased − redeemed + added −"
+                      + " removed. Sin fechas, toda la historia: los puntos que hay hoy.",
               example = "1150.00")
           BigDecimal balance) {}
 
@@ -55,8 +55,14 @@ public record PointsSummaryResponse(
           LocalDate start,
       List<BucketCurrency> currencies) {}
 
-  /** Las cuatro clases de una moneda en un tramo, sin saldo. */
+  /** Las cuatro clases de una moneda en un tramo, y su saldo. */
   @Schema(name = "PointsSummaryBucketCurrency")
   public record BucketCurrency(
-      IndicatorCurrency currency, Flow purchased, Flow redeemed, Flow added, Flow removed) {}
+      IndicatorCurrency currency,
+      Flow purchased,
+      Flow redeemed,
+      Flow added,
+      Flow removed,
+      @Schema(description = "purchased − redeemed + added − removed del tramo.")
+          BigDecimal balance) {}
 }

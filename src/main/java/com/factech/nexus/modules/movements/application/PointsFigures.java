@@ -38,14 +38,6 @@ public interface PointsFigures {
   List<BucketFlow> flowsByBucket(
       Set<UUID> holders, Interval interval, UUID currencyId, Granularity granularity, ZoneId zone);
 
-  /**
-   * El saldo al cierre del intervalo, por moneda, de esos titulares; nulo es todo (`RF-IN-005`
-   * 0.3.0, 07-10-2026): la suma de sus asientos anteriores a {@code interval.to()}. El comienzo del
-   * intervalo no lo acota —un saldo es acumulado—, y sin fin pedido el intervalo acaba mañana, de
-   * modo que es el de hoy.
-   */
-  List<Balance> balances(Set<UUID> holders, Interval interval, UUID currencyId);
-
   /** Lo de una clase y moneda en un tramo. */
   record BucketFlow(LocalDate start, Flow flow) {}
 
@@ -68,7 +60,4 @@ public interface PointsFigures {
    * @param count cuántos movimientos los produjeron
    */
   record Flow(UUID currencyId, String currencyCode, Kind kind, BigDecimal points, long count) {}
-
-  /** El saldo de una moneda. */
-  record Balance(UUID currencyId, String currencyCode, BigDecimal points) {}
 }
