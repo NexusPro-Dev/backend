@@ -5,7 +5,7 @@
 | Módulo | `IN` — Indicadores |
 | Paquete | `modules/indicators` |
 | Prefijo de permisos | `indicators:` |
-| Versión | 0.12.0 |
+| Versión | 0.14.0 |
 | Estado | **Borrador** |
 | Responsable | Bonilla Diaz William Steven |
 | Fecha de creación | 06-10-2026 |
@@ -43,13 +43,14 @@ Que **cada rol vea los indicadores que le corresponden**, y que el reparto lo de
 - **El alcance de cada cifra** según quién la mira: administración, todo; un vendedor, lo suyo y lo de su red; nadie más ve cifras ajenas (`RN-IN-002`).
 - **La primera tanda, ventas**: el resumen de un periodo, su evolución en el tiempo, las ventas por producto y las ventas por vendedor (`RF-IN-001` a `RF-IN-004`).
 - **La segunda tanda, puntos** (06-10-2026): cuántos se compraron, cuántos se redimieron, los ajustes a mano y el saldo al cierre del periodo (`RF-IN-005`, enmendado el 07-10-2026).
+- **La tercera tanda, comisiones** (07-10-2026), empezando por **los lotes**: cuántos hay hoy en cada estado y por cuánto (`RF-IN-007`).
 
 **No incluye**
 
 - **Una tabla que diga qué rol ve qué indicador.** Lo dicen los permisos, que ya se asignan a los roles por `RF-SP-005` y que el frontend ya lee de `GET /users/me` (`RN-IN-001`, §5.2.1).
 - **El tablero**: qué indicadores van juntos, en qué orden y con qué gráfica. Es del frontend, que sabe qué puede pedir por los permisos de quien entra.
 - **Los indicadores de la red comercial de `RF-SP-058`** —el FTD por nodo—. Siguen en `SP`, con `broker-accounts:read-indicators`. Si se mudan aquí, será por un requerimiento propio que lo decida, y `RF-SP-058` conservará su identificador.
-- **Comisiones, retiros y academia.** Son las tandas siguientes, declaradas y sin escribir; cada una pedirá a su módulo dueño la lectura agregada que necesite.
+- **Retiros y academia**, y de comisiones **todo lo que no sea el resumen de lotes**. Son las tandas siguientes, declaradas y sin escribir; cada una pedirá a su módulo dueño la lectura agregada que necesite.
 - **Convertir entre monedas.** Las cifras de dinero van separadas por moneda (`RN-IN-004`).
 - **Guardar fotos de las cifras.** Cada lectura cuenta sobre los datos vivos (`RN-IN-006`).
 - **Exportar** a hoja de cálculo o a PDF.
@@ -80,6 +81,7 @@ Según [`modules.md` §5.6](../modules.md#56-in-indicadores).
 |---|---|---|
 | Ventas | Las cifras de lo vendido: resumen, evolución, por producto y por vendedor; y, para administración, el resumen de líneas de venta (06-10-2026) | `RF-IN-001` a `RF-IN-004`, `RF-IN-006` |
 | Puntos | Lo comprado, lo redimido, los ajustes y el saldo de los puntos (06-10-2026) | `RF-IN-005` |
+| Comisiones | Los lotes de comisiones por estado, para administración (07-10-2026) | `RF-IN-007` |
 
 ---
 
@@ -91,8 +93,9 @@ Según [`modules.md` §5.6](../modules.md#56-in-indicadores).
 | `SP` | Consume | **La identidad** de cada vendedor —nombre de usuario y nombre completo— para la fila de `RF-IN-004`. `UserCatalog`, ya publicada |
 | `MV` | Consume | **Las ventas agregadas** por periodo, moneda, estado, producto o vendedor, **acotadas a un alcance** (`RN-IN-003`): **`SalesFigures`**. **No existe todavía**: la publica `RF-IN-001` y la amplían los otros tres, un método cada uno |
 | `MV` | Consume | **Los movimientos y el saldo de los puntos** por titular y moneda (`RN-IN-009`): **`PointsFigures`**, que publica `RF-IN-005`. Sumas sobre los asientos de las cuentas `PUNTOS`, nunca filas |
+| `CM` | Consume | **Los lotes de comisiones agregados** por estado y moneda (`RF-IN-007`, 07-10-2026): **`CommissionBatchFigures`**, que publica `RF-IN-007` · `T-02`. Sin alcance ni periodo |
 
-La dependencia es **acíclica**: `IN` → `SP` e `IN` → `MV`. Ni `SP` ni `MV` consumen a `IN`, y no lo harán: un indicador se lee, no se usa para decidir nada.
+La dependencia es **acíclica**: `IN` → `SP`, `IN` → `MV` e `IN` → `CM`. Ninguno de los tres consume a `IN`, y no lo harán: un indicador se lee, no se usa para decidir nada.
 
 !!! danger "Lo que `MV` tiene que publicar"
 
@@ -130,7 +133,8 @@ La dependencia es **acíclica**: `IN` → `SP` e `IN` → `MV`. Ni `SP` ni `MV` 
 | `RN-IN-008` | **Gratuita es la venta de importe cero** | Al contar las ventas gratuitas (`RF-IN-001`) | Una venta es gratuita si **lo que se cobra por ella entera** es cero —el importe a pagar de la venta, no el de las líneas del alcance—, que es lo mismo que decir que se registró con el método `GRATIS` (`RN-MV-022`); hoy, la del alta por enlace (`RN-MV-075`). **Sigue contando como venta** en su estado, con importe cero, y además se cuenta aparte como gratuita. Decisión del responsable del proyecto, 06-10-2026 | Media |
 | `RN-IN-009` | **Qué es comprado, redimido y ajuste de puntos, y cuándo cuenta** | Al contar los puntos (`RF-IN-005`) | Cada cambio en los puntos de una persona es un asiento de su cuenta `PUNTOS`, y **el evento del asiento dice la clase**: una compra **cobrada** es lo **comprado**; un pago de una venta con puntos, lo **redimido**; un ajuste a mano, lo **sumado** o lo **restado** según su signo. **El periodo mira cuándo se movieron los puntos** —una compra cuenta el día en que se cobró—, y **el saldo es el del cierre del periodo** —la suma de todos los asientos hasta el final del día `to`, en hora de Bogotá; sin `to`, el de hoy— (enmienda del 07-10-2026; hasta entonces era siempre el de hoy). Todo **por moneda** y **en positivo**. Decisión del responsable del proyecto, 06-10-2026 | Alta |
 | `RN-IN-010` | **Sin fechas, todo; y cada indicador se parte en tramos si se pide** | Al pedir cualquier indicador | **Sin `from` ni `to`, el indicador cuenta toda la historia** hasta hoy. **Con una sola fecha, la otra queda abierta**: solo «desde», hasta hoy; solo «hasta», desde el principio. **No hay tope de días**. Y **todo indicador acepta un tramo** —día, semana de lunes o mes, del calendario de Bogotá—: con él, la respuesta trae además **sus mismas cifras partidas por tramo**, todos los tramos presentes, del primero con datos —o del de «desde»— al de hoy —o al de «hasta»—; la suma de los tramos es el total. **El saldo de puntos no se parte**: va solo en el total, al cierre del periodo (07-10-2026). Decisión del responsable del proyecto, 06-10-2026 | Alta |
-| `RN-IN-011` | **Un indicador de administración no se acota por alcance** | Al calcular el resumen de líneas de venta (`RF-IN-006`) | Excepción declarada a `RN-IN-002`: **quien porta el permiso ve las cifras enteras**, sea cual sea su tipo de rol. Lo justifica lo que cuenta: **lo que no tiene vendedor no está en el alcance de ningún vendedor**, y acotarlo lo dejaría en cero para todos menos para administración. El permiso se siembra solo a `SUPERADMIN` y `ADMIN`; si administración se lo da a otro rol, ese rol lo ve todo. Decisión del responsable del proyecto, 06-10-2026 | Alta |
+| `RN-IN-011` | **Un indicador de administración no se acota por alcance** | Al calcular el resumen de líneas de venta (`RF-IN-006`) y el de lotes de comisiones (`RF-IN-007`, 07-10-2026) | Excepción declarada a `RN-IN-002`: **quien porta el permiso ve las cifras enteras**, sea cual sea su tipo de rol. Lo justifica lo que cuenta: **lo que no tiene vendedor no está en el alcance de ningún vendedor**, y acotarlo lo dejaría en cero para todos menos para administración. El permiso se siembra solo a `SUPERADMIN` y `ADMIN`; si administración se lo da a otro rol, ese rol lo ve todo. Decisión del responsable del proyecto, 06-10-2026 | Alta |
+| `RN-IN-012` | **Un indicador de estado es una foto de hoy, sin periodo** | Al calcular el resumen de lotes de comisiones (`RF-IN-007`) | Excepción declarada a `RN-IN-010`: cuando la pregunta es **dónde está algo hoy** —en qué estado están los lotes de comisiones— y no **cuánto pasó en un periodo**, el indicador **no acepta fechas ni tramos** y cuenta lo que hay en el instante de la consulta. Las fechas que lleguen **se ignoran**, sin error. Filtrar por fechas escondería lo pendiente más antiguo, que es lo que más importa ver. Decisión del responsable del proyecto, 07-10-2026 | Alta |
 
 ### 5.2 Decisiones que definen el módulo — 06-10-2026
 
@@ -179,6 +183,7 @@ La migración que los siembre los da **por tipo de rol**, como los demás permis
 | `RF-IN-004` | Consultar las ventas por vendedor | Ventas | Media | `indicators:read-sales-by-seller` | **Tasks aprobadas** (06-10-2026) |
 | `RF-IN-005` | Consultar el resumen de puntos | Puntos | Alta | `indicators:read-points-summary` | **En desarrollo** (06-10-2026) |
 | `RF-IN-006` | Consultar el resumen de líneas de venta | Ventas | Alta | `indicators:read-sale-lines-summary` | **En desarrollo** (06-10-2026) |
+| `RF-IN-007` | Consultar el resumen de lotes de comisiones | Comisiones | Alta | `indicators:read-commission-batches-summary` | **Plan aprobado** (07-10-2026) |
 
 **Prioridades:** Crítica · Alta · Media · Baja.
 **Estados:** los de [`requirements.md` §4](../requirements.md#4-matriz-de-trazabilidad).
@@ -275,6 +280,21 @@ Lo **confirmado** en el periodo agrupado por **el vendedor de la línea**, de m�
 
 **Nace el 06-10-2026 a petición del responsable del proyecto** —«el siguiente indicador será para las líneas de ventas: total productos vendidos, total de ventas, ventas sin vendedor»—. Por estado de la venta: ventas, líneas, **unidades** e importe por moneda, y el total; y aparte **lo sin vendedor** —ventas con alguna línea sin vendedor, esas líneas, sus unidades y su importe—, sin las anuladas, porque dice lo que **falta por atribuir**. Sus cifras por estado son las del resumen de ventas de administración.
 
+#### `RF-IN-007` — Consultar el resumen de lotes de comisiones
+
+| Campo | Valor |
+|---|---|
+| Objetivo | Saber, **hoy**, cuántos lotes de comisiones hay **abiertos, pendientes de pago y pagados**, y por cuánto en cada moneda |
+| Actor | Administración; **quien porte el permiso lo ve entero** (`RN-IN-011`) |
+| Permiso requerido | `indicators:read-commission-batches-summary` |
+| Prioridad | Alta |
+| Reglas aplicables | `RN-IN-001`, `RN-IN-004`, `RN-IN-006`, `RN-IN-011`, `RN-IN-012` |
+| Depende de | **`CM` publica `CommissionBatchFigures`** (§3) |
+| Tripleta | [`docs/specs/in/007-resumen-de-lotes-de-comisiones/`](../specs/in/007-resumen-de-lotes-de-comisiones/spec.md) |
+| Estado | **Plan aprobado** — 07-10-2026; `tasks.md` en revisión |
+
+**Nace el 07-10-2026 a petición del responsable del proyecto** —«el de lotes de comisiones: por estado, valor total, total de lotes»—, con dos decisiones suyas: **solo administración y sin alcance**, como `RF-IN-006`, y **sin periodo: una foto de hoy** (`RN-IN-012`). Por estado y en total, **cuántos lotes** y **su valor por moneda**, que es el total que cada lote tiene hoy. Abre la tanda de comisiones.
+
 ---
 
 ## 7. Requerimientos no funcionales
@@ -292,6 +312,7 @@ Lo **confirmado** en el periodo agrupado por **el vendedor de la línea**, de m�
 |---|---|---|---|
 | `SP` | Interfaz de aplicación | Entrada | `CommercialReach`, `UserCatalog` |
 | `MV` | Interfaz de aplicación | Entrada | Las ventas agregadas por alcance (§3) |
+| `CM` | Interfaz de aplicación | Entrada | Los lotes de comisiones agregados por estado y moneda (§3) |
 
 ---
 
@@ -305,6 +326,7 @@ Lo **confirmado** en el periodo agrupado por **el vendedor de la línea**, de m�
 | `GET` | `/api/v1/indicators/sales/by-seller` | `RF-IN-004` | `indicators:read-sales-by-seller` |
 | `GET` | `/api/v1/indicators/points/summary` | `RF-IN-005` | `indicators:read-points-summary` |
 | `GET` | `/api/v1/indicators/sales/lines/summary` | `RF-IN-006` | `indicators:read-sale-lines-summary` |
+| `GET` | `/api/v1/indicators/commissions/batches/summary` | `RF-IN-007` | `indicators:read-commission-batches-summary` |
 
 El contrato detallado de cada endpoint —parámetros, valores por defecto del periodo, topes— se define en el `plan.md` de su tripleta.
 
@@ -332,3 +354,4 @@ El contrato detallado de cada endpoint —parámetros, valores por defecto del p
 | 0.10.0 | 06-10-2026 | **`RF-IN-006` construido**: `V78` siembra `indicators:read-sale-lines-summary` a `SUPERADMIN` y `ADMIN` (catálogo 203), `SalesFigures` gana lo sin vendedor y `GET /indicators/sales/lines/summary` responde, sin alcance. | Bonilla Diaz William Steven |
 | 0.11.0 | 07-10-2026 | **`RF-IN-006` se agrupa por tipo de producto** (Art. I.7), por decisión del responsable del proyecto: **lo vendido** —solo lo confirmado— por tipo y en total, y **lo sin vendedor** también por tipo y en total. Desaparecen los bloques de pendientes y anuladas. `CA-IN-067` a `CA-IN-070`. | Bonilla Diaz William Steven |
 | 0.12.0 | 07-10-2026 | **El saldo de puntos pasa a ser el del cierre del periodo** (`RF-IN-005`, `RN-IN-009`, `RN-IN-010`), a petición del responsable del proyecto: la suma de los asientos de las cuentas `PUNTOS` del alcance **hasta el final del día `to`**, en hora de Bogotá; **sin `to`, el de hoy**, como antes. Con `from`, el saldo sigue siendo acumulado —todo lo anterior a `to`—, no lo del periodo. Sigue sin partirse por tramo. Sin migración ni permisos. | Responsable del proyecto |
+| 0.14.0 | 07-10-2026 | **Nace la tanda de comisiones con `RF-IN-007`, el resumen de lotes de comisiones**, a petición del responsable del proyecto: por estado —abiertos, pendientes, pagados— y en total, cuántos lotes y su valor por moneda. Tripleta el mismo día (`CA-IN-072` a `CA-IN-079`), `tasks.md` en revisión. **Administración y sin alcance** (`RN-IN-011`, ampliada) y **sin periodo** —nace **`RN-IN-012`**, excepción a `RN-IN-010`: un indicador de estado es una foto de hoy—. Nace el submódulo Comisiones e **`IN` pasa a depender de `CM`**, que publicará `CommissionBatchFigures`. Permiso propio, `indicators:read-commission-batches-summary`, que sembrará `V79` solo a `SUPERADMIN` y `ADMIN`. | Responsable técnico |
