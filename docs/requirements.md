@@ -5,7 +5,7 @@
 | Proyecto | NEXUS — Renovación de plataforma |
 | Empresa | FACTECH GROUP SAS |
 | Documento | `requirements.md` |
-| Versión | 0.311.0 |
+| Versión | 0.312.0 |
 | Estado | Borrador |
 | Responsable técnico | Bonilla Diaz William Steven |
 | Fecha de creación | 20-08-2026 |
@@ -319,7 +319,7 @@ Implementa el Art. III.1. Se actualiza **como parte del cambio**, no después (A
 | `RF-IN-004` | Consultar las ventas por vendedor | `IN` | [`specs/in/004-ventas-por-vendedor/`](specs/in/004-ventas-por-vendedor/tasks.md) | Pendiente de crear | — | Sin código. Tripleta del 06-10-2026 (`spec.md` y `plan.md` aprobados). **Nace el 06-10-2026** con el módulo ([`requirements/in.md`](requirements/in.md) v0.1.0): lo confirmado por vendedor de la línea, cada uno con lo suyo; administración ve además lo «sin asignar» | **Tasks aprobadas** |
 | `RF-IN-005` | Consultar el resumen de puntos | `IN` | [`specs/in/005-resumen-de-puntos/`](specs/in/005-resumen-de-puntos/tasks.md) | Pendiente de crear | `develop` | `PointsSummaryIT` en verde (06-10-2026). **Construido**: `V76`, `PointsFigures`, `GET /indicators/points/summary`. **Nace el 06-10-2026** ([`requirements/in.md`](requirements/in.md) v0.6.0, `RN-IN-009`): comprados, redimidos, ajustes y saldo de hoy de los puntos, por moneda y según el alcance. Tripleta del mismo día (`spec.md` y `plan.md` aprobados) | **En desarrollo** |
 | `RF-IN-006` | Consultar el resumen de líneas de venta | `IN` | [`specs/in/006-resumen-de-lineas-de-venta/`](specs/in/006-resumen-de-lineas-de-venta/tasks.md) | Pendiente de crear | `develop` | `SaleLinesSummaryIT` en verde (06-10-2026). **Construido**: `V78`, `SalesFigures.unassigned`, `GET /indicators/sales/lines/summary`. **Nace el 06-10-2026** ([`requirements/in.md`](requirements/in.md) v0.9.0, `RN-IN-011`): unidades vendidas, ventas por estado y lo sin vendedor, sobre todo el libro y sin alcance. Tripleta del mismo día (`spec.md` y `plan.md` aprobados) | **En desarrollo** |
-| `RF-IN-007` | Consultar el resumen de lotes de comisiones | `IN` | [`specs/in/007-resumen-de-lotes-de-comisiones/`](specs/in/007-resumen-de-lotes-de-comisiones/tasks.md) | Pendiente de crear | `develop` | **Nace el 07-10-2026** ([`requirements/in.md`](requirements/in.md) v0.14.0, `RN-IN-012`): por estado de los lotes de comisiones, cuántos y por cuánto; de administración, sin alcance y sin periodo. Tripleta del mismo día (`spec.md` y `plan.md` aprobados, `tasks.md` en revisión) | **Plan aprobado** |
+| `RF-IN-007` | Consultar el resumen de lotes de comisiones | `IN` | [`specs/in/007-resumen-de-lotes-de-comisiones/`](specs/in/007-resumen-de-lotes-de-comisiones/tasks.md) | Pendiente de crear | `develop` | **Nace el 07-10-2026** ([`requirements/in.md`](requirements/in.md) v0.14.0, `RN-IN-012`): por estado de los lotes de comisiones, cuántos y por cuánto; de administración, sin alcance y sin periodo. Tripleta del mismo día, `tasks.md` aprobadas. **Construido** el 07-10-2026: `V79`, `CommissionBatchFigures`, `GET /indicators/commissions/batches/summary`; `CommissionBatchesSummaryIT` en verde | **En desarrollo** |
 
 
 **Estados**, que reflejan las tres compuertas del Art. I.6:
@@ -347,8 +347,8 @@ Un requerimiento solo pasa a `Implementado` cuando cumple **todas** las condicio
 | Requerimientos con `spec.md` redactada | 225 |
 | Requerimientos con `spec.md` aprobada | 165 |
 | Requerimientos con `plan.md` aprobado | 224 |
-| Requerimientos con **tripleta completa** —`tasks.md` aprobadas— | 106 |
-| Requerimientos con endpoint funcionando | 188 |
+| Requerimientos con **tripleta completa** —`tasks.md` aprobadas— | 107 |
+| Requerimientos con endpoint funcionando | 189 |
 | Requerimientos implementados | 0 |
 
 La vista **por módulo** de estos mismos indicadores está en la [portada](index.md#indicadores), que los cruza con el inventario de [`modules.md` §4](modules.md#4-inventario-de-modulos). Aquí se cuenta por compuerta; allí se cuenta por módulo.
@@ -741,3 +741,4 @@ El inventario y el estado de los módulos se consultan en [`modules.md` §4](mod
 | 0.309.0 | 07-10-2026 | **El saldo del resumen de puntos pasa a ser el del cierre del periodo** (`RF-IN-005` 0.3.0; [`requirements/in.md`](requirements/in.md) v0.12.0; [`requirements/mv.md`](requirements/mv.md) v0.92.0), a petición del responsable del proyecto: lo que había al final del día `to`; sin `to`, el de hoy. Nace `CA-IN-071`. Construido el mismo día, sin migración ni permisos; suite completa en verde (567 unitarias, 2582 de integración). | Responsable técnico |
 | 0.310.0 | 07-10-2026 | **El saldo del resumen de puntos se calcula con las cuatro cifras del periodo** (`RF-IN-005` 0.4.0; [`requirements/in.md`](requirements/in.md) v0.13.0; [`requirements/mv.md`](requirements/mv.md) v0.93.0), corrigiendo la 0.309.0 por indicación del responsable del proyecto: comprados − redimidos + sumados − restados, también por tramo; sin lectura aparte. | Responsable técnico |
 | 0.311.0 | 07-10-2026 | **Nace `RF-IN-007`, el resumen de lotes de comisiones** ([`requirements/in.md`](requirements/in.md) v0.14.0, `RN-IN-012`), a petición del responsable del proyecto: por estado, cuántos lotes y su valor por moneda; de administración, sin alcance y sin periodo. Tripleta el mismo día; `tasks.md` en revisión. Registrados 228 → **229**, `spec.md` redactada 224 → **225**, aprobada 164 → **165**, `plan.md` aprobado 223 → **224**. | Responsable técnico |
+| 0.312.0 | 07-10-2026 | **`RF-IN-007` construido** ([`requirements/in.md`](requirements/in.md) v0.15.0): `GET /api/v1/indicators/commissions/batches/summary`, sus `tasks.md` aprobadas. §5: tripleta completa 106 → **107**, endpoint funcionando 188 → **189**. | Responsable técnico |

@@ -5,7 +5,7 @@
 | Módulo | `IN` — Indicadores |
 | Paquete | `modules/indicators` |
 | Prefijo de permisos | `indicators:` |
-| Versión | 0.14.0 |
+| Versión | 0.15.0 |
 | Estado | **Borrador** |
 | Responsable | Bonilla Diaz William Steven |
 | Fecha de creación | 06-10-2026 |
@@ -183,7 +183,7 @@ La migración que los siembre los da **por tipo de rol**, como los demás permis
 | `RF-IN-004` | Consultar las ventas por vendedor | Ventas | Media | `indicators:read-sales-by-seller` | **Tasks aprobadas** (06-10-2026) |
 | `RF-IN-005` | Consultar el resumen de puntos | Puntos | Alta | `indicators:read-points-summary` | **En desarrollo** (06-10-2026) |
 | `RF-IN-006` | Consultar el resumen de líneas de venta | Ventas | Alta | `indicators:read-sale-lines-summary` | **En desarrollo** (06-10-2026) |
-| `RF-IN-007` | Consultar el resumen de lotes de comisiones | Comisiones | Alta | `indicators:read-commission-batches-summary` | **Plan aprobado** (07-10-2026) |
+| `RF-IN-007` | Consultar el resumen de lotes de comisiones | Comisiones | Alta | `indicators:read-commission-batches-summary` | **En desarrollo** (07-10-2026) |
 
 **Prioridades:** Crítica · Alta · Media · Baja.
 **Estados:** los de [`requirements.md` §4](../requirements.md#4-matriz-de-trazabilidad).
@@ -291,7 +291,7 @@ Lo **confirmado** en el periodo agrupado por **el vendedor de la línea**, de m�
 | Reglas aplicables | `RN-IN-001`, `RN-IN-004`, `RN-IN-006`, `RN-IN-011`, `RN-IN-012` |
 | Depende de | **`CM` publica `CommissionBatchFigures`** (§3) |
 | Tripleta | [`docs/specs/in/007-resumen-de-lotes-de-comisiones/`](../specs/in/007-resumen-de-lotes-de-comisiones/spec.md) |
-| Estado | **Plan aprobado** — 07-10-2026; `tasks.md` en revisión |
+| Estado | **En desarrollo** — construido el 07-10-2026, con `CommissionBatchFigures` y `V79` |
 
 **Nace el 07-10-2026 a petición del responsable del proyecto** —«el de lotes de comisiones: por estado, valor total, total de lotes»—, con dos decisiones suyas: **solo administración y sin alcance**, como `RF-IN-006`, y **sin periodo: una foto de hoy** (`RN-IN-012`). Por estado y en total, **cuántos lotes** y **su valor por moneda**, que es el total que cada lote tiene hoy. Abre la tanda de comisiones.
 
@@ -356,3 +356,4 @@ El contrato detallado de cada endpoint —parámetros, valores por defecto del p
 | 0.12.0 | 07-10-2026 | **El saldo de puntos pasa a ser el del cierre del periodo** (`RF-IN-005`, `RN-IN-009`, `RN-IN-010`), a petición del responsable del proyecto: la suma de los asientos de las cuentas `PUNTOS` del alcance **hasta el final del día `to`**, en hora de Bogotá; **sin `to`, el de hoy**, como antes. Con `from`, el saldo sigue siendo acumulado —todo lo anterior a `to`—, no lo del periodo. Sigue sin partirse por tramo. Sin migración ni permisos. | Responsable del proyecto |
 | 0.13.0 | 07-10-2026 | **El saldo de puntos se calcula con las cuatro cifras del periodo** (`RF-IN-005` 0.4.0), corrigiendo la 0.12.0 por indicación del responsable del proyecto —«calcula el balance con los datos de los puntos, no por aparte»—: `balance = comprados − redimidos + sumados − restados` **del periodo**, sin lectura de saldo aparte; puede ser negativo; sin fechas son los puntos de hoy. Va también **por tramo**. Una moneda aparece solo si tuvo movimiento en el periodo. | Responsable del proyecto |
 | 0.14.0 | 07-10-2026 | **Nace la tanda de comisiones con `RF-IN-007`, el resumen de lotes de comisiones**, a petición del responsable del proyecto: por estado —abiertos, pendientes, pagados— y en total, cuántos lotes y su valor por moneda. Tripleta el mismo día (`CA-IN-072` a `CA-IN-079`), `tasks.md` en revisión. **Administración y sin alcance** (`RN-IN-011`, ampliada) y **sin periodo** —nace **`RN-IN-012`**, excepción a `RN-IN-010`: un indicador de estado es una foto de hoy—. Nace el submódulo Comisiones e **`IN` pasa a depender de `CM`**, que publicará `CommissionBatchFigures`. Permiso propio, `indicators:read-commission-batches-summary`, que sembrará `V79` solo a `SUPERADMIN` y `ADMIN`. | Responsable técnico |
+| 0.15.0 | 07-10-2026 | **`RF-IN-007` construido**, con sus `tasks.md` aprobadas por el responsable del proyecto: `V79` siembra `indicators:read-commission-batches-summary` a `SUPERADMIN` y `ADMIN` (catálogo 204), `CM` publica `CommissionBatchFigures` y `GET /indicators/commissions/batches/summary` responde, sin alcance y sin periodo. | Responsable técnico |

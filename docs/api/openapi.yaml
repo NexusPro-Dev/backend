@@ -12851,6 +12851,54 @@ paths:
         "500":
           description: Fallo no controlado (`ERR-500`)
       x-required-permission: indicators:read-points-summary
+  /api/v1/indicators/commissions/batches/summary:
+    get:
+      tags:
+      - Indicadores
+      summary: Consultar el resumen de lotes de comisiones
+      description: |
+        **Permiso requerido:** `indicators:read-commission-batches-summary`. Sin él, `403` (`AUTH-002`).
+
+        Los lotes de comisiones **como están ahora**, en cuatro bloques —**`open`**, los
+        abiertos, que siguen creciendo con cada comisión que se devenga; **`pending`**, los
+        cerrados que esperan a que se paguen; **`paid`**, los ya abonados; y **`total`**, todos—,
+        cada uno con **`batches`**, cuántos lotes, y **`amounts`**, su valor por moneda: la suma
+        del total que cada lote tiene hoy, que ya descuenta lo retirado o revertido. **Los
+        cuatro bloques vienen siempre**, en cero si no hay lotes. `amounts` es una lista, un
+        valor por moneda, y nunca hay que sumarla.
+
+        **Es una foto de hoy: no tiene periodo.** No acepta `from`, `to` ni `granularity`; si
+        llegan, se ignoran, y la respuesta no lleva `period`. El único filtro es `currencyId`:
+        solo los lotes de esa moneda, y ceros si no existe.
+
+        **No se acota por alcance**: quien porte el permiso ve los lotes de todas las personas.
+        El permiso se siembra solo a administración; dárselo a un rol vendedor es darle esta
+        vista entera. Ni `commission-batches:read` ni otro permiso de indicadores abren este.
+      operationId: resumenDeLotes
+      parameters:
+      - name: currencyId
+        in: query
+        required: false
+        schema:
+          type: string
+          format: uuid
+      responses:
+        "200":
+          description: "El resumen, aunque sea de ceros."
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/CommissionBatchesSummary"
+        "400":
+          description: '`currencyId` malformado (`VAL-001`).'
+        "401":
+          description: Token ausente o inválido (`AUTH-001`)
+        "403":
+          description: Sin el permiso `indicators:read-commission-batches-summary`
+            (`AUTH-002`).
+        "500":
+          description: Fallo no controlado (`ERR-500`)
+      x-required-permission: indicators:read-commission-batches-summary
   /api/v1/hotlinks/{username}/{code}:
     get:
       tags:
@@ -20813,6 +20861,35 @@ components:
             \ + added − removed. Sin fechas, toda la historia: los puntos que hay\
             \ hoy."
           example: 1150.0
+    CommissionBatchesBlock:
+      type: object
+      properties:
+        batches:
+          type: integer
+          format: int64
+          description: Cuántos lotes.
+        amounts:
+          type: array
+          description: "El valor de esos lotes —la suma del total que cada uno tiene\
+            \ hoy—, uno por moneda. Nunca se suman entre monedas."
+          items:
+            $ref: "#/components/schemas/IndicatorAmount"
+    CommissionBatchesSummary:
+      type: object
+      properties:
+        open:
+          $ref: "#/components/schemas/CommissionBatchesBlock"
+          description: "Los lotes abiertos: siguen creciendo con cada comisión que\
+            \ se devenga."
+        pending:
+          $ref: "#/components/schemas/CommissionBatchesBlock"
+          description: "Los lotes pendientes: cerrados, esperando a que se paguen."
+        paid:
+          $ref: "#/components/schemas/CommissionBatchesBlock"
+          description: "Los lotes pagados: abonados en la billetera de su persona."
+        total:
+          $ref: "#/components/schemas/CommissionBatchesBlock"
+          description: "Todos los lotes, sean cuales sean sus estados."
     HotlinkResponse:
       type: object
       properties:
