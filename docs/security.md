@@ -5,7 +5,7 @@
 | Proyecto | NEXUS — Renovación de plataforma |
 | Empresa | FACTECH GROUP SAS |
 | Documento | `security.md` |
-| Versión | 0.124.0 |
+| Versión | 0.125.0 |
 | Estado | Borrador |
 | Responsable técnico | Bonilla Diaz William Steven |
 | Fecha de creación | 19-08-2026 |
@@ -287,7 +287,7 @@ exchange-rates:update   exchange-rates:delete
 document-types:read
 
 brokers:read     broker-accounts:read     broker-accounts:read-indicators
-broker-accounts:read-own-team   broker-accounts:read-team-member
+broker-accounts:read-own-team   broker-accounts:read-team-member   broker-accounts:read-own
 
 teams:list       teams:read       teams:create       teams:update       teams:delete
 teams:change-status     teams:assign-members     teams:remove-members
@@ -442,6 +442,7 @@ La vista transversal `v_audit_timeline` (`architecture.md` §6.6.6) exige los cu
 - El catálogo de permisos es **datos, no código**: se crea y modifica mediante migración Flyway. Agregar un rol nuevo o cambiar el alcance de uno existente **NO DEBE** requerir un despliegue.
 - Cada permiso declara un nombre y una descripción legibles, para poder presentarlo en la interfaz de administración.
 - La plantilla de requerimientos admite además la notación `role:<código>` cuando un requerimiento exige un rol concreto en lugar de un permiso. Su uso **DEBERÍA** ser excepcional: acoplar un endpoint a un rol específico anula la ventaja del modelo de permisos.
+**Y uno más de `SP`, declarado y SEMBRADO el 08-10-2026 por `V89`**, ya en el bloque: `broker-accounts:read-own` —las propias cuentas de broker, `GET /users/me/broker-accounts` (`RF-SP-079`)—. **De alcance propio y a todo rol por su tipo**, los tres —también `CONSUMIDOR`—, como el segundo factor de `V75`: el titular de una cuenta puede ser cualquiera. **No reutiliza `broker-accounts:read-team-member`**, que abre la lectura por estructura y que `CONSUMIDOR` no porta, ni `users:read-own-profile` (`RN-SEG-014`). El catálogo pasa a **210**, y `ADMIN` porta 208.
 
 ### 4.5 Resolución en tiempo de ejecución
 
@@ -1104,3 +1105,4 @@ RNF-SEG-002 merece atención: es una prueba que enumera los endpoints registrado
 | 0.122.0 | 08-10-2026 | **La ruta de los avisos de los brokers va por nombre**: `/api/v1/brokers/{name}/notifications` (`RF-SP-078`). Misma autenticación y mismas condiciones; el patrón público de `SecurityConfig` no cambia. | Responsable técnico |
 | 0.123.0 | 08-10-2026 | **Un permiso de `CM` de administración, declarado y sembrado por `V86`** (§4.4): `commission-batches:delete-empty` (`RF-CM-027`), a `SUPERADMIN` y `ADMIN` explícitos. Catálogo **207**, `ADMIN` 205. | Responsable del proyecto |
 | 0.124.0 | 08-10-2026 | **Dos permisos de `CM` de administración, declarados y sembrados por `V87`** (§4.4): `commission-closings:read-next` (`RF-CM-028`) y `commission-closings:set-payment-mode` (`RF-CM-029`), a `SUPERADMIN` y `ADMIN` explícitos. Catálogo **209**, `ADMIN` 207. | Responsable del proyecto |
+| 0.125.0 | 08-10-2026 | **Un permiso de alcance propio de `SP`, declarado y sembrado por `V89`** (§4.4): `broker-accounts:read-own` (`RF-SP-079`), a todo rol por su tipo. Catálogo **210**, `ADMIN` 208. | Responsable del proyecto |
