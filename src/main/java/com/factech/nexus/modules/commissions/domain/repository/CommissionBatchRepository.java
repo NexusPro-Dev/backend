@@ -66,11 +66,11 @@ public interface CommissionBatchRepository {
   java.util.Optional<DeletedBatch> deleteIfEmpty(UUID batchId);
 
   /**
-   * Los lotes {@code ABIERTO} y {@code PENDIENTE} que <b>ahora</b> no tienen ninguna comisión, por
-   * identificador (`RF-CM-027`). Sin bloquear: la lista puede envejecer, y lo que decide es {@link
-   * #deleteIfEmpty}.
+   * Los lotes <b>en esos estados</b> —{@code ABIERTO}, {@code PENDIENTE} o los dos— que
+   * <b>ahora</b> no tienen ninguna comisión, por identificador (`RF-CM-027`). Sin bloquear: la
+   * lista puede envejecer, y lo que decide es {@link #deleteIfEmpty}.
    */
-  java.util.List<UUID> findEmptyUnpaidBatchIds();
+  java.util.List<UUID> findEmptyUnpaidBatchIds(java.util.Collection<String> statuses);
 
   /**
    * Bloquea, por identificador, las comisiones <b>retiradas</b> de esos lotes (`RF-CM-027`

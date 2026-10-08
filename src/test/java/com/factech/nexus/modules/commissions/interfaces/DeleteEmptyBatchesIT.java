@@ -29,16 +29,18 @@ import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
+import org.springframework.http.MediaType;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.request.MockHttpServletRequestBuilder;
 import org.springframework.test.web.servlet.request.RequestPostProcessor;
 
 /**
- * Borrar los lotes vacíos (`RF-CM-027`, `CA-CM-368` a `CA-CM-375`). Los lotes nacen devengando por
- * la API de `MV` y cerrando de verdad, y se vacían <b>retirando y devolviendo</b>, que desde el
- * 08-10-2026 los dejan donde están. La suite no es transaccional porque el devengo es {@code
- * AFTER_COMMIT}.
+ * Borrar los lotes vacíos (`RF-CM-027`, `CA-CM-368` a `CA-CM-375`), y lo que borran solos el cierre
+ * (`RF-CM-009`, `CA-CM-376` y `CA-CM-377`) y el pago (`RF-CM-011`, `CA-CM-378` y `CA-CM-379`;
+ * `RF-CM-025`, `CA-CM-380`). Los lotes nacen devengando por la API de `MV` y cerrando de verdad, y
+ * se vacían <b>retirando y devolviendo</b>, que desde el 08-10-2026 los dejan donde están. La suite
+ * no es transaccional porque el devengo es {@code AFTER_COMMIT}.
  */
 @AutoConfigureMockMvc
 class DeleteEmptyBatchesIT extends IntegrationTestBase {
@@ -79,16 +81,18 @@ class DeleteEmptyBatchesIT extends IntegrationTestBase {
       "CA-CM-368 — borra TODOS los abiertos y pendientes sin comisiones, de varias personas; los"
           + " que tienen alguna —también de importe cero— y los pagados no cambian")
   void borraLosVacios() throws Exception {
-    // El otro: un pendiente que se paga y un abierto que se vació al devolver. Va
-    // primero: cada cierre cierra los abiertos de todos, salvo los vacíos.
-    UUID pagado = pendienteConDos(otro);
+    // Un solo cierre: desde el 08-10-2026 cada cierre borra los abiertos vacíos.
+    ventasYCierre(otro, agente);
+    // El otro: un pendiente que se paga (por el servicio: no borra) y un abierto
+    // que se vació al devolver.
+    UUID pagado = pendienteDe(otro);
     UUID comision = comisionesDe(pagado).get(0);
     retirar(pagado, comision);
     UUID abiertoVacio = abiertoDe(otro);
     devolver(pagado, comision);
     pago.pay(pagado);
     // El agente: un pendiente vaciado por retiros, y el abierto con las dos.
-    UUID pendienteVacio = pendienteConDos(agente);
+    UUID pendienteVacio = pendienteDe(agente);
     for (UUID c : comisionesDe(pendienteVacio)) {
       retirar(pendienteVacio, c);
     }
@@ -110,8 +114,13 @@ class DeleteEmptyBatchesIT extends IntegrationTestBase {
       "CA-CM-369 — la respuesta trae cada lote borrado con lo que era, y cuántos; después no"
           + " aparece en el listado ni en su detalle")
   void laRespuesta() throws Exception {
-    UUID abiertoVacio = abiertoVacioDe(otro);
-    UUID pendiente = pendienteConDos(agente);
+    ventasYCierre(otro, agente);
+    UUID delOtro = pendienteDe(otro);
+    UUID suya = comisionesDe(delOtro).get(0);
+    retirar(delOtro, suya);
+    UUID abiertoVacio = abiertoDe(otro);
+    devolver(delOtro, suya);
+    UUID pendiente = pendienteDe(agente);
     for (UUID c : comisionesDe(pendiente)) {
       retirar(pendiente, c);
     }
@@ -286,10 +295,151 @@ class DeleteEmptyBatchesIT extends IntegrationTestBase {
     assertThat(existe(abierto)).isTrue();
   }
 
+  @Test
+  @DisplayName(
+      "CA-CM-376, CA-CM-377 — el cierre BORRA los abiertos vacíos, auditados; los abiertos con"
+          + " comisiones pasan a pendiente, los pendientes vacíos no se tocan, y la auditoría del"
+          + " cierre cuenta los borrados")
+  void elCierreBorraLosAbiertosVacios() throws Exception {
+    ventasYCierre(agente, otro);
+    UUID delAgente = pendienteDe(agente);
+    UUID comision = comisionesDe(delAgente).get(0);
+    retirar(delAgente, comision);
+    UUID abiertoVacio = abiertoDe(agente);
+    devolver(delAgente, comision);
+    UUID pendienteVacio = pendienteDe(otro);
+    for (UUID c : comisionesDe(pendienteVacio)) {
+      retirar(pendienteVacio, c);
+    }
+    UUID abiertoConDos = abiertoDe(otro);
+
+    var constancia = cierre.closeManually(agente);
+
+    assertThat(existe(abiertoVacio)).isFalse();
+    assertThat(estado(abiertoConDos)).isEqualTo("PENDIENTE");
+    assertThat(existe(pendienteVacio)).isTrue();
+    assertThat(motivoDelBorrado(abiertoVacio)).contains("RN-CM-052").contains("cerrar");
+    assertThat(
+            jdbc.queryForObject(
+                "SELECT (changes->'after'->>'empty_batches_deleted')::int FROM audit_change_log"
+                    + " WHERE entity = 'commission_closings' AND entity_id = ?",
+                Integer.class,
+                constancia.id()))
+        .isEqualTo(1);
+  }
+
+  @Test
+  @DisplayName(
+      "CA-CM-378 — pagar un lote borra después TODOS los pendientes vacíos, de cualquier persona;"
+          + " los abiertos vacíos no, y lo retirado del borrado pierde su origen")
+  void elPagoBorraLosPendientesVacios() throws Exception {
+    ventasYCierre(agente, otro);
+    UUID pendienteVacio = pendienteDe(agente);
+    List<UUID> retiradas = comisionesDe(pendienteVacio);
+    for (UUID c : retiradas) {
+      retirar(pendienteVacio, c);
+    }
+    UUID aPagar = pendienteDe(otro);
+    UUID suya = comisionesDe(aPagar).get(0);
+    retirar(aPagar, suya);
+    UUID abiertoVacio = abiertoDe(otro);
+    devolver(aPagar, suya);
+
+    mvc.perform(post("/api/v1/commission-batches/{id}/payment", aPagar).with(como(PAGAR)))
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$.id").value(aPagar.toString()));
+
+    assertThat(estado(aPagar)).isEqualTo("PAGADO");
+    assertThat(existe(pendienteVacio)).isFalse();
+    assertThat(existe(abiertoVacio)).isTrue();
+    assertThat(motivoDelBorrado(pendienteVacio)).contains("RN-CM-052").contains("pago");
+    assertThat(
+            jdbc.queryForObject(
+                "SELECT count(*) FROM commissions WHERE withdrawn_from_batch_id IS NOT NULL"
+                    + " AND id IN (?, ?)",
+                Integer.class,
+                retiradas.get(0),
+                retiradas.get(1)))
+        .isZero();
+  }
+
+  @Test
+  @DisplayName("CA-CM-379 — un pago que no se hace (409 o 404) no borra ningún lote")
+  void unPagoQueNoSeHaceNoBorra() throws Exception {
+    ventasYCierre(agente);
+    UUID pendienteVacio = pendienteDe(agente);
+    for (UUID c : comisionesDe(pendienteVacio)) {
+      retirar(pendienteVacio, c);
+    }
+
+    mvc.perform(post("/api/v1/commission-batches/{id}/payment", pendienteVacio).with(como(PAGAR)))
+        .andExpect(status().isConflict());
+    mvc.perform(
+            post("/api/v1/commission-batches/{id}/payment", UUID.randomUUID()).with(como(PAGAR)))
+        .andExpect(status().isNotFound());
+
+    assertThat(existe(pendienteVacio)).isTrue();
+  }
+
+  @Test
+  @DisplayName(
+      "CA-CM-380 — pagar varios borra los pendientes vacíos al final si se pagó alguno; si no se"
+          + " pagó ninguno, no borra nada")
+  void pagarVariosBorraAlFinal() throws Exception {
+    ventasYCierre(agente, otro);
+    UUID pendienteVacio = pendienteDe(agente);
+    for (UUID c : comisionesDe(pendienteVacio)) {
+      retirar(pendienteVacio, c);
+    }
+    UUID aPagar = pendienteDe(otro);
+
+    mvc.perform(pagarVarios(pendienteVacio))
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$.paidCount").value(0));
+    assertThat(existe(pendienteVacio)).isTrue();
+
+    mvc.perform(pagarVarios(aPagar))
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$.paidCount").value(1));
+    assertThat(existe(pendienteVacio)).isFalse();
+  }
+
   // ---------------------------------------------------------------------------
 
   private static final String RETIRAR = "commission-batches:withdraw-commission";
   private static final String DEVOLVER = "commission-batches:return-commission";
+  private static final String PAGAR = "commission-batches:pay";
+
+  /** Dos ventas de 10 por persona y UN cierre: un pendiente con dos comisiones para cada una. */
+  private void ventasYCierre(UUID... personas) throws Exception {
+    for (UUID persona : personas) {
+      confirmar(venta(persona));
+      confirmar(venta(persona));
+    }
+    cierre.closeManually(agente);
+  }
+
+  private UUID pendienteDe(UUID persona) {
+    return jdbc.queryForObject(
+        "SELECT id FROM commission_batches WHERE user_id = ? AND status = 'PENDIENTE'",
+        UUID.class,
+        persona);
+  }
+
+  private String motivoDelBorrado(UUID lote) {
+    return jdbc.queryForObject(
+        "SELECT reason FROM audit_deletion_log WHERE entity = 'commission_batches'"
+            + " AND entity_id = ?",
+        String.class,
+        lote);
+  }
+
+  private static MockHttpServletRequestBuilder pagarVarios(UUID lote) {
+    return post("/api/v1/commission-batches/payments")
+        .contentType(MediaType.APPLICATION_JSON)
+        .content("{\"batchIds\": [\"" + lote + "\"]}")
+        .with(como("commission-batches:pay-batches"));
+  }
 
   /** Un lote PENDIENTE de esa persona con dos comisiones de 10: dos ventas y un cierre. */
   private UUID pendienteConDos(UUID persona) throws Exception {

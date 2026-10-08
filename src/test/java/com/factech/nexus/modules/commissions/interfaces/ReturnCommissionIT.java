@@ -229,9 +229,9 @@ class ReturnCommissionIT extends IntegrationTestBase {
 
   @Test
   @DisplayName(
-      "CA-CM-300 — el cierre NO cierra un abierto sin comisiones vivas: sigue abierto, sin fin de"
-          + " periodo, y no cuenta entre los cerrados")
-  void elAbiertoVacioNoSeCierra() throws Exception {
+      "CA-CM-376 (antes CA-CM-300) — el cierre NO cierra un abierto sin comisiones: lo borra, y no"
+          + " cuenta entre los cerrados")
+  void elAbiertoVacioSeBorraAlCerrar() throws Exception {
     UUID pendiente = pendienteConDos();
     UUID comision = unaComisionDe(pendiente);
     retirar(pendiente, comision); // abre el abierto con ella dentro
@@ -240,13 +240,10 @@ class ReturnCommissionIT extends IntegrationTestBase {
 
     var constancia = cierre.closeManually(agente);
 
-    assertThat(estado(abierto)).isEqualTo("ABIERTO");
     assertThat(
             jdbc.queryForObject(
-                "SELECT period_end FROM commission_batches WHERE id = ?",
-                OffsetDateTime.class,
-                abierto))
-        .isNull();
+                "SELECT count(*) FROM commission_batches WHERE id = ?", Integer.class, abierto))
+        .isZero();
     assertThat(constancia.batchesClosed()).isZero();
   }
 

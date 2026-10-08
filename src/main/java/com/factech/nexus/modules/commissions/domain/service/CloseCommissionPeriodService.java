@@ -1,6 +1,7 @@
 package com.factech.nexus.modules.commissions.domain.service;
 
 import com.factech.nexus.modules.commissions.application.CommissionClosingResponse;
+import com.factech.nexus.modules.commissions.domain.models.BatchStatus;
 import com.factech.nexus.modules.commissions.domain.repository.CommissionAccrualRepository;
 import com.factech.nexus.modules.commissions.domain.repository.CommissionClosingRepository;
 import com.factech.nexus.modules.commissions.domain.service.CommissionAccrualService.AccrualSummary;
@@ -45,12 +46,15 @@ public class CloseCommissionPeriodService {
   private static final String MODULO = "CM";
   private static final String ENTIDAD = "commission_closings";
   private static final int TANDA = 500;
+  private static final String MOTIVO_VACIO =
+      "RN-CM-052: el lote abierto no tenía comisiones y se borró al cerrar el periodo.";
 
   private final CommissionClosingRepository cierres;
   private final CommissionableLines lineas;
   private final CommissionAccrualRepository desenlaces;
   private final CommissionAccrualService devengo;
   private final AfftrackSettlementService afftrack;
+  private final DeleteEmptyBatchesService vacios;
   private final BusinessCalendar calendario;
   private final UuidV7Generator ids;
   private final AuditWriter auditoria;
@@ -62,6 +66,7 @@ public class CloseCommissionPeriodService {
       CommissionAccrualRepository desenlaces,
       CommissionAccrualService devengo,
       AfftrackSettlementService afftrack,
+      DeleteEmptyBatchesService vacios,
       BusinessCalendar calendario,
       UuidV7Generator ids,
       AuditWriter auditoria,
@@ -71,6 +76,7 @@ public class CloseCommissionPeriodService {
     this.desenlaces = desenlaces;
     this.devengo = devengo;
     this.afftrack = afftrack;
+    this.vacios = vacios;
     this.calendario = calendario;
     this.ids = ids;
     this.auditoria = auditoria;
@@ -128,12 +134,16 @@ public class CloseCommissionPeriodService {
     afftrack.settle(id, corte);
     OffsetDateTime ahora = posterior(calendario.ahora(), corte);
     int lotes = cierres.closeOpenBatches(id, ahora);
+    // `RN-CM-052` (08-10-2026): los abiertos que no se cerraron por vacíos se borran, en esta
+    // misma transacción (`plan.md` §15).
+    int borrados = vacios.deleteEmpty(MOTIVO_VACIO, BatchStatus.ABIERTO).deletedCount();
     cierres.finish(id, ahora, lotes, barrido.atendidas(), reintentadas, reintento.devengadas());
 
     Map<String, Object> despues = new LinkedHashMap<>();
     despues.put("origin", actor == null ? "PROGRAMADO" : "MANUAL");
     despues.put("closed_at", ahora.toString());
     despues.put("batches_closed", lotes);
+    despues.put("empty_batches_deleted", borrados);
     despues.put("lines_swept", barrido.atendidas());
     despues.put("lines_retried", reintentadas);
     despues.put("lines_recovered", reintento.devengadas());

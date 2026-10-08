@@ -290,16 +290,17 @@ public class JpaCommissionBatchRepository implements CommissionBatchRepository {
   }
 
   @Override
-  public List<UUID> findEmptyUnpaidBatchIds() {
+  public List<UUID> findEmptyUnpaidBatchIds(java.util.Collection<String> statuses) {
     @SuppressWarnings("unchecked")
     List<UUID> ids =
         em.createNativeQuery(
                 """
                 SELECT b.id FROM commission_batches b
-                 WHERE b.status IN ('ABIERTO', 'PENDIENTE')
+                 WHERE b.status IN (:estados) AND b.status <> 'PAGADO'
                    AND NOT EXISTS (SELECT 1 FROM commissions c WHERE c.batch_id = b.id)
                  ORDER BY b.id
                 """)
+            .setParameter("estados", new java.util.HashSet<>(statuses))
             .getResultList();
     return ids;
   }

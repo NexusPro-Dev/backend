@@ -13,6 +13,7 @@ import com.factech.nexus.modules.commissions.application.PayCommissionBatchesReq
 import com.factech.nexus.modules.commissions.domain.service.CloseCommissionPeriodService;
 import com.factech.nexus.modules.commissions.domain.service.CommissionBatchQueryService;
 import com.factech.nexus.modules.commissions.domain.service.DeleteEmptyBatchesService;
+import com.factech.nexus.modules.commissions.domain.service.EmptyBatchesAfterPayment;
 import com.factech.nexus.modules.commissions.domain.service.PayCommissionBatchService;
 import com.factech.nexus.modules.commissions.domain.service.PayCommissionBatchesService;
 import com.factech.nexus.modules.commissions.domain.service.ReturnCommissionService;
@@ -59,6 +60,7 @@ public class CommissionBatchController {
   private final WithdrawCommissionService retiro;
   private final ReturnCommissionService devolucion;
   private final DeleteEmptyBatchesService vacios;
+  private final EmptyBatchesAfterPayment trasElPago;
   private final AuthenticatedActor actor;
 
   public CommissionBatchController(
@@ -69,6 +71,7 @@ public class CommissionBatchController {
       WithdrawCommissionService retiro,
       ReturnCommissionService devolucion,
       DeleteEmptyBatchesService vacios,
+      EmptyBatchesAfterPayment trasElPago,
       AuthenticatedActor actor) {
     this.cierre = cierre;
     this.consultas = consultas;
@@ -77,6 +80,7 @@ public class CommissionBatchController {
     this.retiro = retiro;
     this.devolucion = devolucion;
     this.vacios = vacios;
+    this.trasElPago = trasElPago;
     this.actor = actor;
   }
 
@@ -91,8 +95,9 @@ public class CommissionBatchController {
           FTD activados de cada persona y de su red, paga el mayor escalón alcanzado en su lote
           abierto y guarda el remanente —se consulta en `GET /afftrack-settlements`—. Por último
           pasa **todos** los lotes abiertos a `PENDIENTE`, con el instante del cierre como fin de
-          periodo, **salvo el abierto que se haya quedado sin comisiones** —se devolvieron o se
-          borraron todas—, que sigue abierto (`RN-CM-048`, 30-09-2026). Lo que devengue un segundo después abre
+          periodo. **El abierto que se haya quedado sin comisiones** —se devolvieron o se
+          borraron todas— no se cierra: **se borra**, en el mismo cierre y auditado (`RN-CM-052`,
+          08-10-2026). Lo que devengue un segundo después abre
           un lote nuevo. **Si la liquidación
           afftrack falla, no se cierra nada.**
 
@@ -201,6 +206,10 @@ public class CommissionBatchController {
           el mensaje. **Y uno sin comisiones** —se retiraron o se borraron todas— responde
           `409` (`EX-005`, `RN-CM-048`, 30-09-2026); uno con una comisión de importe cero se
           paga. **Sin cuerpo**: se paga el total, entero.
+
+          **Después del pago se borran todos los lotes `PENDIENTE` sin comisiones**, de cualquier
+          persona (`RN-CM-052`, 08-10-2026), auditados. Si ese borrado falla, el pago queda hecho y
+          la respuesta no cambia. Un pago que no se hace no borra nada.
           """)
   @ApiResponses({
     @ApiResponse(responseCode = "200", description = "Pagado, con el lote y `paidAmount`"),
@@ -213,7 +222,9 @@ public class CommissionBatchController {
   @PostMapping("/{id}/payment")
   @PreAuthorize("hasAuthority('commission-batches:pay')")
   public CommissionBatchDetailResponse pagar(@PathVariable UUID id) {
-    return pago.pay(id);
+    CommissionBatchDetailResponse pagado = pago.pay(id);
+    trasElPago.run();
+    return pagado;
   }
 
   @Operation(
@@ -233,6 +244,9 @@ public class CommissionBatchController {
 
           Cuerpo: `batchIds`, al menos uno y sin repetir. Si la conexión se corta a mitad, lo pagado
           queda pagado, y repetir la lista lo devuelve como ya pagado sin abonar dos veces.
+
+          **Si se pagó alguno, al terminar se borran todos los lotes `PENDIENTE` sin comisiones**,
+          de cualquier persona, una vez (`RN-CM-052`, 08-10-2026).
           """)
   @ApiResponses({
     @ApiResponse(
@@ -331,7 +345,8 @@ public class CommissionBatchController {
           comisión**, de todas las personas y monedas (`RF-CM-027`, `RN-CM-052`, 08-10-2026),
           también los que estaban vacíos de antes. Un lote se queda vacío al retirarle todo, al
           devolver lo único de un abierto o al corregir el vendedor de su única línea; **ninguna
-          de esas operaciones lo borra**: lo hace esta, cuando se pide.
+          de esas operaciones lo borra**. Lo hace esta, cuando se pide; y solos, **el cierre**
+          borra los abiertos vacíos y **cada pago** los pendientes vacíos.
 
           **Decide lo que tiene cada lote en el momento de borrarlo**: uno que recibe una comisión
           mientras tanto no se borra, y una comisión que llega a un abierto recién borrado va a

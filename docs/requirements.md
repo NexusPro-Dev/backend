@@ -5,7 +5,7 @@
 | Proyecto | NEXUS — Renovación de plataforma |
 | Empresa | FACTECH GROUP SAS |
 | Documento | `requirements.md` |
-| Versión | 0.329.0 |
+| Versión | 0.330.0 |
 | Estado | Borrador |
 | Responsable técnico | Bonilla Diaz William Steven |
 | Fecha de creación | 20-08-2026 |
@@ -763,3 +763,4 @@ El inventario y el estado de los módulos se consultan en [`modules.md` §4](mod
 | 0.327.0 | 08-10-2026 | **Nace `RF-CM-027`, borrar los lotes vacíos** ([`requirements/cm.md`](requirements/cm.md) v0.41.0, `RN-CM-052` enmendada; [`security.md`](security.md) v0.123.0; [`modelo-datos.md`](modelo-datos.md) v0.107.0), por decisión del responsable del proyecto: el lote que se vacía **ya no se borra en el acto**; los vacíos se borran todos a la vez, a petición. Tripleta escrita (`CA-CM-368` a `CA-CM-375`) y enmiendas a `RF-CM-022`, `RF-CM-023` y `RF-CM-024`, que dejan de borrar (`CA-CM-363` a `CA-CM-367` se retiran). Registrados 233; `spec.md` redactada 229 y aprobada 169; `plan.md` aprobado 228. | Responsable del proyecto |
 | 0.328.0 | 08-10-2026 | **`RF-CM-027` está construido** (`V86`, catálogo **207**; [`api/index.md`](api/index.md) v1.111.0): `DELETE /api/v1/commission-batches/empty` borra todos los lotes vacíos sin pagar, y retirar, devolver y corregir el vendedor dejan de borrarlos (enmiendas de `RF-CM-022`, `RF-CM-023` y `RF-CM-024`). Endpoint funcionando 193. | Responsable técnico |
 | 0.329.0 | 08-10-2026 | **El cierre y el pago también borran lotes vacíos** ([`requirements/cm.md`](requirements/cm.md) v0.42.0, `RN-CM-052` enmendada), por decisión del responsable del proyecto: el cierre borra los abiertos vacíos y cada pago que se hace, después, todos los pendientes vacíos. Enmiendas a `RF-CM-009` (`CA-CM-376`, `CA-CM-377`; se retira `CA-CM-300`), `RF-CM-011` (`CA-CM-378`, `CA-CM-379`), `RF-CM-025` (`CA-CM-380`) y `RF-CM-027`. Ningún indicador de §5 se mueve. | Responsable del proyecto |
+| 0.330.0 | 08-10-2026 | **Construido: el cierre y el pago borran lotes vacíos** (`RN-CM-052`; [`api/index.md`](api/index.md) v1.112.0), con las enmiendas de `RF-CM-009`, `RF-CM-011`, `RF-CM-025` y `RF-CM-027` (`CA-CM-376` a `CA-CM-380`, en `DeleteEmptyBatchesIT`). Sin migración. Ningún indicador de §5 se mueve. | Responsable técnico |

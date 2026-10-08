@@ -92,7 +92,7 @@ Rama: `feature/corregir-vendedor-y-mover-comisiones`.
 
 | ID | Tarea | Depende de | Verificación | Estado |
 |---|---|---|---|---|
-| `T-10` | `cerrar` llama a `DeleteEmptyBatchesService.deleteEmpty(ABIERTO)` y audita `empty_batches_deleted` (`plan.md` §15); prosa de la `@Operation` | `RF-CM-027` `T-07` | Compila | Pendiente |
-| `T-11` | `CA-CM-376` y `CA-CM-377` en `DeleteEmptyBatchesIT`; `CA-CM-300` de `ReturnCommissionIT` pasa a `CA-CM-376` | `T-10` | La suite en verde | Pendiente |
+| `T-10` | `cerrar` llama a `DeleteEmptyBatchesService.deleteEmpty(ABIERTO)` y audita `empty_batches_deleted` (`plan.md` §15); prosa de la `@Operation` | `RF-CM-027` `T-07` | Compila | **Hecha** — 08-10-2026 |
+| `T-11` | `CA-CM-376` y `CA-CM-377` en `DeleteEmptyBatchesIT`; `CA-CM-300` de `ReturnCommissionIT` pasa a `CA-CM-376` | `T-10` | La suite en verde | **Hecha** — 08-10-2026 |
 
 Rama: `develop`.

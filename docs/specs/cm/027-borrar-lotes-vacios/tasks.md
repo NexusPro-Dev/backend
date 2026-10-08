@@ -64,6 +64,6 @@ Ninguno.
 
 | ID | Tarea | Depende de | Verificación | Estado |
 |---|---|---|---|---|
-| `T-07` | `deleteEmpty(estados)` y `findEmptyUnpaidBatchIds(estados)`; `EmptyBatchesAfterPayment`; el motivo de la auditoría lo da quien llama (`plan.md` §12) | — | `DeleteEmptyBatchesIT` en verde | Pendiente |
+| `T-07` | `deleteEmpty(estados)` y `findEmptyUnpaidBatchIds(estados)`; `EmptyBatchesAfterPayment`; el motivo de la auditoría lo da quien llama (`plan.md` §12) | — | `DeleteEmptyBatchesIT` en verde | **Hecha** — 08-10-2026 |
 
 Después, `RF-CM-009` `T-10`, `RF-CM-011` `T-07` y `RF-CM-025` `T-07`. Rama: `develop`.

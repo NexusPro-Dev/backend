@@ -5,7 +5,7 @@
 | Proyecto | NEXUS — Renovación de plataforma |
 | Empresa | FACTECH GROUP SAS |
 | Documento | `api/index.md` |
-| Versión | 1.111.0 |
+| Versión | 1.112.0 |
 | Estado | Publicado |
 | Responsable técnico | Bonilla Diaz William Steven |
 | Fecha de creación | 25-08-2026 |
@@ -217,3 +217,4 @@ Lo que sigue siendo cierto, y conviene saberlo antes de tropezar:
 | 1.109.0 | 08-10-2026 | **Nacen `GET` y `POST /api/v1/brokers/{id}/notifications`, los avisos de los brokers** (`RF-SP-078`, `RN-SP-066`), con su etiqueta propia, **Avisos de los brokers**. **No son para el frontend**: las llama el broker, sin sesión, con su secreto en `token`. Responden `200` vacío; `401`, `404`, `503` y `400` sin guardar nada. Nada de lo que existía cambia. | Responsable técnico |
 | 1.110.0 | 08-10-2026 | **Los avisos de los brokers van por NOMBRE**: `GET` y `POST /api/v1/brokers/{name}/notifications` sustituyen a `/{id}/notifications` (`RF-SP-078` spec 0.2.0, `CA-SP-908`), sin distinguir mayúsculas —`iqoption`, `exnova`, `exoption`—. Ya no hay `400` por un identificador mal formado. No afecta al frontend: estas rutas solo las llaman los brokers. | Responsable técnico |
 | 1.111.0 | 08-10-2026 | **Nace `DELETE /api/v1/commission-batches/empty`** (`RF-CM-027`, `RN-CM-052` enmendada, [`requirements/cm.md`](../requirements/cm.md) v0.41.0), con `commission-batches:delete-empty`: borra **todos** los lotes `ABIERTO` y `PENDIENTE` sin comisiones y responde `EmptyBatchesDeletionResponse` —`deleted`, cada uno con `id`, `code`, `userId`, `currencyId`, `status`, `periodStart` y `periodEnd` (ausente si estaba abierto), y `deletedCount`—; `200` aunque no borre ninguno. **Y deshace 1.107.0**: `POST …/withdrawal` responde **siempre el pendiente de la ruta**, que se queda vacío si se retira la última; retirar, devolver y corregir el vendedor ya no borran lotes. | Responsable técnico |
+| 1.112.0 | 08-10-2026 | **El cierre y el pago borran lotes vacíos** (`RN-CM-052` enmendada otra vez, [`requirements/cm.md`](../requirements/cm.md) v0.42.0). `POST /api/v1/commission-batches/closing` ya no deja abiertos los lotes `ABIERTO` sin comisiones: **los borra**. `POST /api/v1/commission-batches/{id}/payment` y `POST /api/v1/commission-batches/payments` —este si paga alguno— **borran después todos los `PENDIENTE` sin comisiones**, de cualquier persona. Ninguna forma de petición ni de respuesta cambia; solo la prosa de esas tres `@Operation` y de `DELETE …/empty`. | Responsable técnico |

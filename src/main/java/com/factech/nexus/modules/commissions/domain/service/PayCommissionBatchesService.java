@@ -34,9 +34,12 @@ public class PayCommissionBatchesService {
   private static final Logger LOG = LoggerFactory.getLogger(PayCommissionBatchesService.class);
 
   private final PayCommissionBatchService pago;
+  private final EmptyBatchesAfterPayment trasElPago;
 
-  public PayCommissionBatchesService(PayCommissionBatchService pago) {
+  public PayCommissionBatchesService(
+      PayCommissionBatchService pago, EmptyBatchesAfterPayment trasElPago) {
     this.pago = pago;
+    this.trasElPago = trasElPago;
   }
 
   public CommissionBatchesPaymentResponse payAll(PayCommissionBatchesRequest peticion) {
@@ -45,7 +48,13 @@ public class PayCommissionBatchesService {
     for (UUID lote : lotes) {
       resultados.add(pagarUno(lote));
     }
-    return CommissionBatchesPaymentResponse.de(resultados);
+    CommissionBatchesPaymentResponse respuesta = CommissionBatchesPaymentResponse.de(resultados);
+    // `RN-CM-052` (08-10-2026): si se pagó alguno, los pendientes vacíos se borran una vez, al
+    // final, con todos los pagos ya confirmados (`plan.md` §12).
+    if (respuesta.paidCount() > 0) {
+      trasElPago.run();
+    }
+    return respuesta;
   }
 
   private BatchPaymentResult pagarUno(UUID lote) {

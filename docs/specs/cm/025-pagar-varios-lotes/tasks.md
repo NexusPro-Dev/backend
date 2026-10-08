@@ -64,7 +64,7 @@
 
 | ID | Tarea | Depende de | Verificación | Estado |
 |---|---|---|---|---|
-| `T-07` | `payAll` llama a `EmptyBatchesAfterPayment.run()` si pagó alguno (`plan.md` §12); prosa de la `@Operation` | `RF-CM-011` `T-07` | Compila | Pendiente |
-| `T-08` | `CA-CM-380` en `DeleteEmptyBatchesIT` | `T-07` | La suite en verde | Pendiente |
+| `T-07` | `payAll` llama a `EmptyBatchesAfterPayment.run()` si pagó alguno (`plan.md` §12); prosa de la `@Operation` | `RF-CM-011` `T-07` | Compila | **Hecha** — 08-10-2026 |
+| `T-08` | `CA-CM-380` en `DeleteEmptyBatchesIT` | `T-07` | La suite en verde | **Hecha** — 08-10-2026 |
 
 Rama: `develop`.

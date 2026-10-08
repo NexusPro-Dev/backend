@@ -76,7 +76,7 @@ Rama: `feature/corregir-vendedor-y-mover-comisiones`.
 
 | ID | Tarea | Depende de | Verificación | Estado |
 |---|---|---|---|---|
-| `T-07` | `POST /{id}/payment` llama a `EmptyBatchesAfterPayment.run()` tras `pay` (`plan.md` §13); prosa de la `@Operation` | `RF-CM-027` `T-07` | Compila | Pendiente |
-| `T-08` | `CA-CM-378` y `CA-CM-379` en `DeleteEmptyBatchesIT` | `T-07` | La suite en verde | Pendiente |
+| `T-07` | `POST /{id}/payment` llama a `EmptyBatchesAfterPayment.run()` tras `pay` (`plan.md` §13); prosa de la `@Operation` | `RF-CM-027` `T-07` | Compila | **Hecha** — 08-10-2026 |
+| `T-08` | `CA-CM-378` y `CA-CM-379` en `DeleteEmptyBatchesIT` | `T-07` | La suite en verde | **Hecha** — 08-10-2026 |
 
 Rama: `develop`.
