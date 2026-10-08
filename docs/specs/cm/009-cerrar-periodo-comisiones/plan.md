@@ -5,7 +5,7 @@
 | Requerimiento | `RF-CM-009` |
 | Especificación | [`spec.md`](spec.md) v0.1.0 |
 | `spec.md` aprobada el | 28-09-2026 |
-| Versión | 0.5.0 |
+| Versión | 0.6.0 |
 | Estado | **Aprobado** |
 | Autor | Responsable técnico |
 | Aprobado por | Responsable del proyecto |
@@ -14,6 +14,7 @@
 | Enmendado el | 30-09-2026 — el paso a pendiente salta los abiertos sin comisiones vivas (§13) |
 | Enmendado el | 07-10-2026 — el abierto vacío se mira sin la marca de revertida (§14) |
 | Enmendado el | 08-10-2026 — el cierre borra los abiertos vacíos (§15) |
+| Enmendado el | 08-10-2026 — el cierre programado lee la elección al abrir el turno y paga lo que cerró; `V87` (§16) |
 
 !!! info "Qué va en este documento"
 
@@ -188,3 +189,29 @@ La externa, con el bloqueo y el cierre de los lotes; una por línea en el barrid
 **El orden de bloqueos se respeta**: un abierto nunca es el origen de una retirada —se retira desde un pendiente—, de modo que `lockWithdrawnFrom` no bloquea nada, y los abiertos vacíos se bloquean por identificador, sin cruzarse con los que `closeOpenBatches` ya tomó, que tienen comisiones. **Un devengo que llega a la vez** gana o pierde el bloqueo del abierto: si gana, el `DELETE` encuentra su comisión y no borra, y el lote queda abierto para el cierre siguiente; si pierde, `lockOpenBatch` no lo encuentra y abre otro.
 
 **Pruebas**: `DeleteEmptyBatchesIT` gana `CA-CM-376` y `CA-CM-377`; `ReturnCommissionIT` cambia `CA-CM-300` por `CA-CM-376`: el abierto que se vació al devolver ya no sigue abierto tras el cierre, se borra.
+
+## 16. El cierre programado paga lo que cerró — enmienda del 08-10-2026
+
+`RN-CM-053`, `RN-CM-054`. **Dos pasos nuevos en `closeScheduled`, uno al abrir y otro al terminar**:
+
+```
+openScheduled(id, turno):                                  — su transacción aparte, la de siempre
+    pg_advisory_xact_lock(clave del turno)                  — el de RF-CM-029 §1
+    modo = commission_payment_choices(turno) o AUTOMATICO
+    INSERT commission_closings (…, payment_mode = modo)     — la fila única del turno, como antes
+cerrar(id) …                                               — sin cambios: confirma el cierre
+si modo = AUTOMATICO:
+    lotes = commission_batches con closing_id = id y PENDIENTE
+    PayCommissionBatchesService.pay(lotes)                  — cada uno en su transacción (RF-CM-025)
+    commission_closings: batches_paid, batches_not_paid     — una sentencia más
+```
+
+**La elección se lee al abrir el turno**, bajo el bloqueo del turno, y **se escribe en la fila del cierre**: lo que pague después no vuelve a mirar `commission_payment_choices`. Es lo que hace que una elección no pueda colarse a mitad (`RF-CM-029` `CA-CM-389`).
+
+**El pago va después de confirmar el cierre**, fuera de su transacción y con la de cada lote, **reutilizando `PayCommissionBatchesService`**: pagar así es el pago de `RF-CM-011` —abono, auditoría y borrado de los pendientes vacíos (`RN-CM-052`)— sin escribirlo otra vez. **La auditoría de cada pago va sin persona**, como la del cierre programado. Si el proceso se cae entre el cierre y el pago, los lotes se quedan `PENDIENTE` y la fila del cierre con cero pagados: **no hay reintento** (`requirements/cm.md` §5.12).
+
+**Solo los lotes de este cierre** (`CA-CM-395`): `closing_id` es el cierre que los pasó a `PENDIENTE`, y los de cierres anteriores tienen otro. **`closeManually` no cambia**: su fila nace sin modo y no paga (`CA-CM-397`).
+
+**`CommissionClosingResponse`** gana `paymentMode`, `batchesPaid` y `batchesNotPaid`, para que `GET /commission-closings` diga cómo se pagó cada cierre.
+
+**Pruebas**: `CloseCommissionPeriodIT` gana `CA-CM-393` a `CA-CM-398`. **Sus ocho llamadas a `closeScheduled` de antes** esperaban lotes `PENDIENTE` tras el cierre: cada una escribe por SQL una elección `MANUAL` para su turno, que es lo que hacía el cierre hasta hoy.

@@ -12,6 +12,7 @@
 | Issue | Pendiente de crear |
 | Rama | `feature/devengo-de-comisiones` |
 | Enmendadas | 08-10-2026 — `T-10` y `T-11` porque **el cierre borra los abiertos vacíos** (`RN-CM-052`) |
+| Enmendadas | 08-10-2026 — `T-12` y `T-13` porque **el cierre programado paga lo que cerró** (`RN-CM-053`) |
 
 !!! info "Qué va en este documento"
 
@@ -94,5 +95,14 @@ Rama: `feature/corregir-vendedor-y-mover-comisiones`.
 |---|---|---|---|---|
 | `T-10` | `cerrar` llama a `DeleteEmptyBatchesService.deleteEmpty(ABIERTO)` y audita `empty_batches_deleted` (`plan.md` §15); prosa de la `@Operation` | `RF-CM-027` `T-07` | Compila | **Hecha** — 08-10-2026 |
 | `T-11` | `CA-CM-376` y `CA-CM-377` en `DeleteEmptyBatchesIT`; `CA-CM-300` de `ReturnCommissionIT` pasa a `CA-CM-376` | `T-10` | La suite en verde | **Hecha** — 08-10-2026 |
+
+Rama: `develop`.
+
+## 9. El cierre programado paga lo que cerró — enmienda del 08-10-2026
+
+| ID | Tarea | Depende de | Verificación | Estado |
+|---|---|---|---|---|
+| `T-12` | `openScheduled` toma el bloqueo del turno y escribe el modo; `closeScheduled` paga con `PayCommissionBatchesService` si es automático y escribe los dos recuentos; `CommissionClosingResponse` gana los tres campos; prosa de la `@Operation` (`plan.md` §16) | `RF-CM-028` `T-01`, `RF-CM-029` `T-01` | Compila | Pendiente |
+| `T-13` | `CloseCommissionPeriodIT`: `CA-CM-393` a `CA-CM-398`, y una elección `MANUAL` en las ocho llamadas de antes | `T-12` | La suite de `CM` en verde | Pendiente |
 
 Rama: `develop`.
