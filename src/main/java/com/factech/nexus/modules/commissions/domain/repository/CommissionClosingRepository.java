@@ -1,6 +1,7 @@
 package com.factech.nexus.modules.commissions.domain.repository;
 
 import com.factech.nexus.modules.commissions.domain.models.ClosingOrigin;
+import com.factech.nexus.modules.commissions.domain.models.PaymentMode;
 import java.time.OffsetDateTime;
 import java.util.List;
 import java.util.Optional;
@@ -10,11 +11,21 @@ import java.util.UUID;
 public interface CommissionClosingRepository {
 
   /**
-   * Toma el turno programado: escribe la constancia con {@code scheduled_for} único.
+   * Toma el turno programado: escribe la constancia con {@code scheduled_for} único y el modo de
+   * pago que leyó (`RN-CM-053`).
    *
    * @return falso si otra instancia ya lo tomó (`RN-CM-035`)
    */
-  boolean openScheduled(UUID id, OffsetDateTime turno, OffsetDateTime at);
+  boolean openScheduled(UUID id, OffsetDateTime turno, OffsetDateTime at, PaymentMode modo);
+
+  /** Si el turno ya tiene su cierre, en curso o hecho: la ventana de elegir se cerró. */
+  boolean existsScheduled(OffsetDateTime turno);
+
+  /** Los lotes que ese cierre pasó a {@code PENDIENTE} y siguen así (`CA-CM-395`). */
+  List<UUID> pendingBatchesOf(UUID closingId);
+
+  /** Cuántos lotes pagó el pago automático del cierre, y cuántos no (`RN-CM-053`). */
+  void recordPayment(UUID closingId, int paid, int notPaid);
 
   void openManual(UUID id, UUID actor, OffsetDateTime at);
 
@@ -53,5 +64,8 @@ public interface CommissionClosingRepository {
       int batchesClosed,
       int linesSwept,
       int linesRetried,
-      int linesRecovered) {}
+      int linesRecovered,
+      PaymentMode paymentMode,
+      int batchesPaid,
+      int batchesNotPaid) {}
 }

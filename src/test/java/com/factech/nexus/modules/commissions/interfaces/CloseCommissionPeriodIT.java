@@ -43,12 +43,23 @@ import org.springframework.test.web.servlet.request.RequestPostProcessor;
  * <p>El programado se invoca por el servicio con un turno fijo —esperar al reloj no prueba nada—, y
  * el manual por la API. Las comisiones nacen <b>confirmando ventas por la API de `MV`</b>, como en
  * {@code CommissionAccrualIT}.
+ *
+ * <p><b>Desde el 08-10-2026 el programado paga lo que cierra</b> salvo elección manual
+ * (`RN-CM-053`, `CA-CM-393` a `CA-CM-398`). El turno de las pruebas de antes, el 01-10-2026, se
+ * siembra con elección <b>manual</b>, que es lo que el cierre hacía hasta entonces; los de pago
+ * usan el turno siguiente, sin elección.
  */
 @AutoConfigureMockMvc
 class CloseCommissionPeriodIT extends IntegrationTestBase {
 
   private static final OffsetDateTime VENDIDA_EL =
       OffsetDateTime.of(2026, 9, 10, 15, 0, 0, 0, ZoneOffset.UTC);
+
+  /** El turno de las pruebas de antes del 08-10-2026, elegido manual en la siembra. */
+  private static final String OCTUBRE = "2026-10-01T05:00:00Z";
+
+  /** Un turno sin elección: el cierre paga. */
+  private static final String NOVIEMBRE = "2026-11-01T05:00:00Z";
 
   @Autowired private MockMvc mvc;
   @Autowired private JdbcTemplate jdbc;
@@ -72,6 +83,7 @@ class CloseCommissionPeriodIT extends IntegrationTestBase {
     producto = SettlementFixtures.producto(jdbc, "BOT", "100.00");
     CommissionFixtures.sembrarTasaDeRol(jdbc, producto, AGENTE, "10.00");
     CommissionFixtures.sembrarTasaDeRol(jdbc, producto, DIRECTOR, "5.00");
+    elegir(OCTUBRE, "MANUAL");
   }
 
   @AfterEach
@@ -308,6 +320,111 @@ class CloseCommissionPeriodIT extends IntegrationTestBase {
   }
 
   // ---------------------------------------------------------------------------
+  // El pago del cierre (`RN-CM-053`, 08-10-2026)
+  // ---------------------------------------------------------------------------
+
+  @Test
+  @DisplayName(
+      "CA-CM-393 — un cierre programado SIN elección paga cada lote que cerró: PAGADO, con su abono"
+          + " en la billetera, y el cierre registra AUTOMATICO y cuántos pagó")
+  void sinEleccionPaga() throws Exception {
+    confirmar(venta(1));
+
+    CommissionClosingResponse hecho = cierre.closeScheduled(turno(NOVIEMBRE)).get();
+
+    assertThat(hecho.paymentMode()).isEqualTo("AUTOMATICO");
+    assertThat(hecho.batchesClosed()).isEqualTo(2);
+    assertThat(hecho.batchesPaid()).isEqualTo(2);
+    assertThat(hecho.batchesNotPaid()).isZero();
+    assertThat(lotes()).allSatisfy(l -> assertThat(l.get("status")).isEqualTo("PAGADO"));
+    assertThat(billeteraDe(agente)).isEqualByComparingTo("10");
+    assertThat(billeteraDe(director)).isEqualByComparingTo("5");
+  }
+
+  @Test
+  @DisplayName(
+      "CA-CM-394 — con MANUAL elegido para su turno, los lotes se quedan PENDIENTE y nada se abona;"
+          + " el cierre registra MANUAL y cero pagados")
+  void manualNoPaga() throws Exception {
+    confirmar(venta(1));
+
+    CommissionClosingResponse hecho = cierre.closeScheduled(turno(OCTUBRE)).get();
+
+    assertThat(hecho.paymentMode()).isEqualTo("MANUAL");
+    assertThat(hecho.batchesPaid()).isZero();
+    assertThat(lotes()).allSatisfy(l -> assertThat(l.get("status")).isEqualTo("PENDIENTE"));
+    assertThat(billeteraDe(agente)).isEqualByComparingTo("0");
+  }
+
+  @Test
+  @DisplayName("CA-CM-395 — el pago automático NO paga los PENDIENTE de cierres anteriores")
+  void soloLosDeEseCierre() throws Exception {
+    confirmar(venta(1));
+    CommissionClosingResponse octubre = cierre.closeScheduled(turno(OCTUBRE)).get();
+    confirmar(venta(2));
+
+    CommissionClosingResponse noviembre = cierre.closeScheduled(turno(NOVIEMBRE)).get();
+
+    assertThat(noviembre.batchesPaid()).isEqualTo(2);
+    assertThat(estadosDelCierre(octubre.id())).containsOnly("PENDIENTE").hasSize(2);
+    assertThat(estadosDelCierre(noviembre.id())).containsOnly("PAGADO").hasSize(2);
+    assertThat(billeteraDe(agente)).isEqualByComparingTo("20");
+  }
+
+  @Test
+  @DisplayName(
+      "CA-CM-396 — un lote que NO se puede pagar se queda PENDIENTE y los demás se pagan; el"
+          + " cierre registra cuántos no")
+  void unoQueNoSePaga() throws Exception {
+    confirmar(venta(1));
+    // Una restricción que solo existe en esta prueba rechaza pagar el lote del director, como el
+    // fallo provocado de `CA-CM-166`; se retira al acabar.
+    jdbc.execute(
+        "ALTER TABLE commission_batches ADD CONSTRAINT ck_prueba_pago_falla CHECK (status <>"
+            + " 'PAGADO' OR user_id <> '"
+            + director
+            + "') NOT VALID");
+    CommissionClosingResponse hecho;
+    try {
+      hecho = cierre.closeScheduled(turno(NOVIEMBRE)).get();
+    } finally {
+      jdbc.execute("ALTER TABLE commission_batches DROP CONSTRAINT IF EXISTS ck_prueba_pago_falla");
+    }
+
+    assertThat(hecho.batchesPaid()).isEqualTo(1);
+    assertThat(hecho.batchesNotPaid()).isEqualTo(1);
+    assertThat(loteDe(agente, "PAGADO")).isNotNull();
+    assertThat(loteDe(director, "PENDIENTE")).isNotNull();
+    assertThat(billeteraDe(director)).isEqualByComparingTo("0");
+  }
+
+  @Test
+  @DisplayName(
+      "CA-CM-397 — el cierre A MANO no paga, aunque no haya elección; su fila no tiene modo")
+  void aManoNoPaga() throws Exception {
+    confirmar(venta(1));
+
+    CommissionClosingResponse hecho = cierre.closeManually(finanzas);
+
+    assertThat(hecho.paymentMode()).isNull();
+    assertThat(hecho.batchesPaid()).isZero();
+    assertThat(lotes()).allSatisfy(l -> assertThat(l.get("status")).isEqualTo("PENDIENTE"));
+  }
+
+  @Test
+  @DisplayName("CA-CM-398 — la elección de un turno NO vale para el siguiente")
+  void laEleccionNoSeArrastra() throws Exception {
+    CommissionClosingResponse octubre = cierre.closeScheduled(turno(OCTUBRE)).get();
+    confirmar(venta(1));
+
+    CommissionClosingResponse noviembre = cierre.closeScheduled(turno(NOVIEMBRE)).get();
+
+    assertThat(octubre.paymentMode()).isEqualTo("MANUAL");
+    assertThat(noviembre.paymentMode()).isEqualTo("AUTOMATICO");
+    assertThat(noviembre.batchesPaid()).isEqualTo(2);
+  }
+
+  // ---------------------------------------------------------------------------
 
   private UUID venta(int cantidad) {
     return SettlementFixtures.venta(
@@ -329,6 +446,35 @@ class CloseCommissionPeriodIT extends IntegrationTestBase {
 
   private static OffsetDateTime turno(String instante) {
     return OffsetDateTime.parse(instante);
+  }
+
+  /** La elección de un turno, escrita como la deja `RF-CM-029`. */
+  private void elegir(String elTurno, String modo) {
+    jdbc.update(
+        "INSERT INTO commission_payment_choices"
+            + " (id, scheduled_for, payment_mode, chosen_by, chosen_at, created_at)"
+            + " VALUES (?, ?, ?, ?, now(), now())",
+        UUID.randomUUID(),
+        turno(elTurno),
+        modo,
+        finanzas);
+  }
+
+  private List<String> estadosDelCierre(UUID cierreId) {
+    return jdbc.queryForList(
+        "SELECT status FROM commission_batches WHERE closing_id = ?", String.class, cierreId);
+  }
+
+  private BigDecimal billeteraDe(UUID persona) {
+    return jdbc
+        .queryForList(
+            "SELECT balance FROM accounts WHERE user_id = ? AND kind = 'BILLETERA'",
+            Long.class,
+            persona)
+        .stream()
+        .findFirst()
+        .map(CommissionFixtures::importe)
+        .orElse(BigDecimal.ZERO);
   }
 
   private List<Map<String, Object>> lotes() {

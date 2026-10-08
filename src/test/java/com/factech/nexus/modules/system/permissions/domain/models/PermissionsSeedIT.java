@@ -33,7 +33,7 @@ class PermissionsSeedIT extends IntegrationTestBase {
           + " V47: courses:read-available y lessons:learn del aula, RF-AC-034 y RF-AC-035)")
   void catalogoCompleto() {
     assertThat(jdbc.queryForObject("SELECT count(*) FROM permissions", Integer.class))
-        .isEqualTo(207);
+        .isEqualTo(209);
   }
 
   @Test
@@ -276,6 +276,10 @@ class PermissionsSeedIT extends IntegrationTestBase {
             "commission-batches:list-own-commissions",
             // `V86` (08-10-2026): borrar los lotes vacíos, `RF-CM-027`, a SUPERADMIN y ADMIN.
             "commission-batches:delete-empty",
+            // `V87` (08-10-2026): el próximo cierre y cómo se paga, `RF-CM-028` y `RF-CM-029`, a
+            // SUPERADMIN y ADMIN.
+            "commission-closings:read-next",
+            "commission-closings:set-payment-mode",
             // `V83` (07-10-2026): el resumen de mis comisiones, `RF-IN-008`, a quien porte
             // list-own.
             "indicators:read-own-commissions-summary",
@@ -378,7 +382,7 @@ class PermissionsSeedIT extends IntegrationTestBase {
   void identificadoresUuidV7() {
     List<UUID> ids = jdbc.queryForList("SELECT id FROM permissions", UUID.class);
 
-    assertThat(ids).hasSize(207).doesNotHaveDuplicates();
+    assertThat(ids).hasSize(209).doesNotHaveDuplicates();
     assertThat(ids).allSatisfy(id -> assertThat(id.version()).isEqualTo(7));
     // variant() == 2 es la variante RFC 9562 (bits 10xx).
     assertThat(ids).allSatisfy(id -> assertThat(id.variant()).isEqualTo(2));
@@ -444,13 +448,13 @@ class PermissionsSeedIT extends IntegrationTestBase {
                 "SELECT count(*) FROM role_permissions WHERE role_id ="
                     + " '01a02a33-4c00-7001-9c4f-5e7ad1000001'",
                 Integer.class))
-        .isEqualTo(207);
+        .isEqualTo(209);
     assertThat(
             jdbc.queryForObject(
                 "SELECT count(*) FROM role_permissions WHERE role_id ="
                     + " '01a02a33-4c00-7002-9c4f-5e7ad1000002'",
                 Integer.class))
-        .isEqualTo(205);
+        .isEqualTo(207);
     assertThat(
             jdbc.queryForList(
                 """

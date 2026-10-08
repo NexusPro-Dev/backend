@@ -75,7 +75,7 @@ Responde `NextClosingResponse` ([`RF-CM-028`](../028-consultar-proximo-cierre/pl
 |---|---|
 | `200` | Elegido |
 | `409` | `EX-001`: el cierre programado está apagado. `EX-002`: la ventana está cerrada; el mensaje dice cuándo se abre la del próximo |
-| `422` | `VAL-001` |
+| `400` | `VAL-001` |
 | `401` / `403` | Sin token / sin el permiso |
 
 **`PUT` y no `POST`**: reemplaza el valor de un recurso que existe siempre —el modo de pago del próximo cierre— y repetirlo deja lo mismo.

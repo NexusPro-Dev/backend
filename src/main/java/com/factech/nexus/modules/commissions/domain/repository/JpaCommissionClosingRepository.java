@@ -1,6 +1,7 @@
 package com.factech.nexus.modules.commissions.domain.repository;
 
 import com.factech.nexus.modules.commissions.domain.models.ClosingOrigin;
+import com.factech.nexus.modules.commissions.domain.models.PaymentMode;
 import jakarta.persistence.EntityManager;
 import jakarta.persistence.Query;
 import java.time.OffsetDateTime;
@@ -25,7 +26,8 @@ public class JpaCommissionClosingRepository implements CommissionClosingReposito
 
   private static final String COLUMNAS =
       "id, origin, scheduled_for, triggered_by, started_at, closed_at, batches_closed,"
-          + " lines_swept, lines_retried, lines_recovered";
+          + " lines_swept, lines_retried, lines_recovered, payment_mode, batches_paid,"
+          + " batches_not_paid";
 
   private static final String FILTRO =
       """
@@ -41,18 +43,54 @@ public class JpaCommissionClosingRepository implements CommissionClosingReposito
   }
 
   @Override
-  public boolean openScheduled(UUID id, OffsetDateTime turno, OffsetDateTime at) {
+  public boolean openScheduled(UUID id, OffsetDateTime turno, OffsetDateTime at, PaymentMode modo) {
     return em.createNativeQuery(
                 """
-                INSERT INTO commission_closings (id, origin, scheduled_for, started_at, created_at)
-                VALUES (:id, 'PROGRAMADO', :turno, :at, :at)
+                INSERT INTO commission_closings
+                       (id, origin, scheduled_for, started_at, created_at, payment_mode)
+                VALUES (:id, 'PROGRAMADO', :turno, :at, :at, :modo)
                 ON CONFLICT (scheduled_for) DO NOTHING
                 """)
             .setParameter("id", id)
             .setParameter("turno", turno)
             .setParameter("at", at)
+            .setParameter("modo", modo.name())
             .executeUpdate()
         == 1;
+  }
+
+  @Override
+  public boolean existsScheduled(OffsetDateTime turno) {
+    return (Boolean)
+        em.createNativeQuery(
+                "SELECT EXISTS (SELECT 1 FROM commission_closings WHERE scheduled_for = :turno)")
+            .setParameter("turno", turno)
+            .getSingleResult();
+  }
+
+  @Override
+  @SuppressWarnings("unchecked")
+  public List<UUID> pendingBatchesOf(UUID closingId) {
+    return em.createNativeQuery(
+            """
+            SELECT id FROM commission_batches
+             WHERE closing_id = :cierre AND status = 'PENDIENTE'
+             ORDER BY id
+            """,
+            UUID.class)
+        .setParameter("cierre", closingId)
+        .getResultList();
+  }
+
+  @Override
+  public void recordPayment(UUID closingId, int paid, int notPaid) {
+    em.createNativeQuery(
+            "UPDATE commission_closings SET batches_paid = :pagados, batches_not_paid = :no"
+                + " WHERE id = :id")
+        .setParameter("id", closingId)
+        .setParameter("pagados", paid)
+        .setParameter("no", notPaid)
+        .executeUpdate();
   }
 
   @Override
@@ -179,7 +217,10 @@ public class JpaCommissionClosingRepository implements CommissionClosingReposito
         ((Number) f[6]).intValue(),
         ((Number) f[7]).intValue(),
         ((Number) f[8]).intValue(),
-        ((Number) f[9]).intValue());
+        ((Number) f[9]).intValue(),
+        f[10] == null ? null : PaymentMode.valueOf((String) f[10]),
+        ((Number) f[11]).intValue(),
+        ((Number) f[12]).intValue());
   }
 
   private static OffsetDateTime instante(Object valor) {

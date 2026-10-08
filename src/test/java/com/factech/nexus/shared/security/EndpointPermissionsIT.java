@@ -327,6 +327,10 @@ class EndpointPermissionsIT extends IntegrationTestBase {
           // ---- CM · liquidación (RF-CM-009 a RF-CM-014, V51) ----
           Map.entry("POST /api/v1/commission-batches/closing", "commission-batches:settle"),
           Map.entry("GET /api/v1/commission-closings", "commission-closings:read"),
+          Map.entry("GET /api/v1/commission-closings/next", "commission-closings:read-next"),
+          Map.entry(
+              "PUT /api/v1/commission-closings/next/payment-mode",
+              "commission-closings:set-payment-mode"),
           Map.entry("GET /api/v1/commission-batches", "commission-batches:read"),
           Map.entry("GET /api/v1/commission-batches/{id}", "commission-batches:read-detail"),
           Map.entry("POST /api/v1/commission-batches/{id}/payment", "commission-batches:pay"),

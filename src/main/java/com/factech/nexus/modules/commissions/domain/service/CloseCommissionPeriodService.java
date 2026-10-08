@@ -1,9 +1,14 @@
 package com.factech.nexus.modules.commissions.domain.service;
 
+import com.factech.nexus.modules.commissions.application.CommissionBatchesPaymentResponse;
 import com.factech.nexus.modules.commissions.application.CommissionClosingResponse;
+import com.factech.nexus.modules.commissions.application.PayCommissionBatchesRequest;
 import com.factech.nexus.modules.commissions.domain.models.BatchStatus;
+import com.factech.nexus.modules.commissions.domain.models.PaymentMode;
 import com.factech.nexus.modules.commissions.domain.repository.CommissionAccrualRepository;
 import com.factech.nexus.modules.commissions.domain.repository.CommissionClosingRepository;
+import com.factech.nexus.modules.commissions.domain.repository.PaymentChoiceRepository;
+import com.factech.nexus.modules.commissions.domain.repository.PaymentChoiceRepository.PaymentChoice;
 import com.factech.nexus.modules.commissions.domain.service.CommissionAccrualService.AccrualSummary;
 import com.factech.nexus.modules.movements.application.CommissionableLines;
 import com.factech.nexus.shared.audit.AuditEnums.ChangeAction;
@@ -39,6 +44,11 @@ import org.springframework.transaction.support.TransactionTemplate;
  * la instancia que llegase segunda cerraría otra vez con un periodo de medio segundo
  * (`requirements/cm.md` v0.20.0 §7.8). La fila se confirma antes de empezar, y la instancia que
  * choca se va sin hacer nada.
+ *
+ * <p><b>El programado paga lo que cerró</b> (`RN-CM-053`, 08-10-2026): lee al abrir el turno cómo
+ * se paga —sin elección, automático— y, si es automático, paga los lotes de este cierre después de
+ * confirmarlo, cada uno en su transacción (`specs/cm/009-cerrar-periodo-comisiones/plan.md` §16).
+ * <b>El cierre a mano no paga.</b>
  */
 @Service
 public class CloseCommissionPeriodService {
@@ -59,6 +69,8 @@ public class CloseCommissionPeriodService {
   private final UuidV7Generator ids;
   private final AuditWriter auditoria;
   private final TransactionTemplate aparte;
+  private final PaymentChoiceRepository elecciones;
+  private final PayCommissionBatchesService pagoDeVarios;
 
   public CloseCommissionPeriodService(
       CommissionClosingRepository cierres,
@@ -70,7 +82,9 @@ public class CloseCommissionPeriodService {
       BusinessCalendar calendario,
       UuidV7Generator ids,
       AuditWriter auditoria,
-      PlatformTransactionManager transacciones) {
+      PlatformTransactionManager transacciones,
+      PaymentChoiceRepository elecciones,
+      PayCommissionBatchesService pagoDeVarios) {
     this.cierres = cierres;
     this.lineas = lineas;
     this.desenlaces = desenlaces;
@@ -82,6 +96,8 @@ public class CloseCommissionPeriodService {
     this.auditoria = auditoria;
     this.aparte = new TransactionTemplate(transacciones);
     this.aparte.setPropagationBehavior(TransactionDefinition.PROPAGATION_REQUIRES_NEW);
+    this.elecciones = elecciones;
+    this.pagoDeVarios = pagoDeVarios;
   }
 
   /**
@@ -92,17 +108,46 @@ public class CloseCommissionPeriodService {
    */
   public Optional<CommissionClosingResponse> closeScheduled(OffsetDateTime turno) {
     UUID id = ids.next();
-    Boolean tomado = aparte.execute(estado -> cierres.openScheduled(id, turno, calendario.ahora()));
-    if (!Boolean.TRUE.equals(tomado)) {
+    PaymentMode modo =
+        aparte.execute(
+            estado -> {
+              // `RN-CM-053`: la elección se lee bajo el bloqueo del turno, el mismo que toma
+              // elegir (`RF-CM-029`): o este cierre la lee, o la elección choca con él.
+              elecciones.lockTurn(turno);
+              PaymentMode leido =
+                  elecciones.find(turno).map(PaymentChoice::mode).orElse(PaymentMode.AUTOMATICO);
+              return cierres.openScheduled(id, turno, calendario.ahora(), leido) ? leido : null;
+            });
+    if (modo == null) {
       return Optional.empty();
     }
-    return Optional.of(
+    CommissionClosingResponse cerrado =
         aparte.execute(
             estado -> {
               // Espera a un cierre manual en curso: aquí no hay nadie a quien responder.
               cierres.lock();
               return cerrar(id, null);
-            }));
+            });
+    if (modo == PaymentMode.MANUAL) {
+      return Optional.of(cerrado);
+    }
+    pagar(id);
+    return Optional.of(consultar(id));
+  }
+
+  /**
+   * `RN-CM-053`: paga los lotes que este cierre pasó a {@code PENDIENTE}, cada uno en su
+   * transacción —el pago de `RF-CM-025`—, y anota cuántos pagó. Lo que no se paga se queda para
+   * Finanzas.
+   */
+  private void pagar(UUID cierre) {
+    List<UUID> lotes = aparte.execute(estado -> cierres.pendingBatchesOf(cierre));
+    CommissionBatchesPaymentResponse pagado =
+        lotes.isEmpty()
+            ? CommissionBatchesPaymentResponse.de(List.of())
+            : pagoDeVarios.payAll(new PayCommissionBatchesRequest(lotes));
+    aparte.executeWithoutResult(
+        estado -> cierres.recordPayment(cierre, pagado.paidCount(), pagado.notPaidCount()));
   }
 
   /** El cierre a mano, para relanzar el que no corrió (`RF-CM-009`, `CA-CM-176`). */
@@ -150,6 +195,10 @@ public class CloseCommissionPeriodService {
     auditoria.recordChange(
         new ChangeEvent(MODULO, ENTIDAD, id, ChangeAction.UPDATE, Map.of("after", despues)));
 
+    return consultar(id);
+  }
+
+  private CommissionClosingResponse consultar(UUID id) {
     return cierres
         .find(id)
         .map(CommissionClosingResponse::from)

@@ -28,5 +28,7 @@ public final class CommissionCleanup {
     jdbc.update("DELETE FROM afftrack_settlements");
     jdbc.update("DELETE FROM commission_batches");
     jdbc.update("DELETE FROM commission_closings");
+    // `V87`: las elecciones señalan a quien eligió, y las suites borran después a las personas.
+    jdbc.update("DELETE FROM commission_payment_choices");
   }
 }

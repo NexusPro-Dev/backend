@@ -1505,6 +1505,14 @@
             "format" : "int32",
             "type" : "integer"
           },
+          "batchesNotPaid" : {
+            "format" : "int32",
+            "type" : "integer"
+          },
+          "batchesPaid" : {
+            "format" : "int32",
+            "type" : "integer"
+          },
           "closedAt" : {
             "format" : "date-time",
             "type" : "string"
@@ -1526,6 +1534,9 @@
             "type" : "integer"
           },
           "origin" : {
+            "type" : "string"
+          },
+          "paymentMode" : {
             "type" : "string"
           },
           "scheduledFor" : {
@@ -4439,6 +4450,36 @@
         },
         "type" : "object"
       },
+      "NextClosingResponse" : {
+        "properties" : {
+          "chosen" : {
+            "type" : "boolean"
+          },
+          "chosenAt" : {
+            "format" : "date-time",
+            "type" : "string"
+          },
+          "chosenBy" : {
+            "format" : "uuid",
+            "type" : "string"
+          },
+          "paymentMode" : {
+            "type" : "string"
+          },
+          "scheduledFor" : {
+            "format" : "date-time",
+            "type" : "string"
+          },
+          "windowOpen" : {
+            "type" : "boolean"
+          },
+          "windowOpensAt" : {
+            "format" : "date-time",
+            "type" : "string"
+          }
+        },
+        "type" : "object"
+      },
       "OfferItem" : {
         "properties" : {
           "code" : {
@@ -5514,6 +5555,17 @@
             "type" : "string"
           }
         },
+        "type" : "object"
+      },
+      "PaymentModeRequest" : {
+        "properties" : {
+          "paymentMode" : {
+            "enum" : [ "AUTOMATICO", "MANUAL" ],
+            "pattern" : "AUTOMATICO|MANUAL",
+            "type" : "string"
+          }
+        },
+        "required" : [ "paymentMode" ],
         "type" : "object"
       },
       "PayoutAccount" : {
@@ -12185,7 +12237,7 @@
     },
     "/api/v1/commission-closings" : {
       "get" : {
-        "description" : "**Permiso requerido:** `commission-closings:read`. Sin él, `403` (`AUTH-002`).\n\nLos cierres del periodo, **del más reciente al más antiguo** (`RF-CM-009`,\n`CA-CM-180`): cuándo empezó y cuándo cerró cada uno, si fue programado o a mano —y\nquién—, cuántos lotes cerró, cuántas líneas recogió el barrido y cuántas rechazadas\nreintentó y recuperó.\n\n**Existe porque un proceso programado no tiene a quién contestar**: es la forma de saber\nsi el cierre de anoche corrió. **`closedAt` nulo** es un cierre en curso o uno que falló\na medias; sus lotes siguen abiertos. **`linesSwept` distinto de cero** quiere decir que\nel aviso de las ventas se está perdiendo y el barrido lo está tapando.\n\nFiltros: `origin` (`PROGRAMADO`, `MANUAL`) y `from`/`to` sobre el inicio. Los errores\nde los filtros salen **todos juntos**.\n",
+        "description" : "**Permiso requerido:** `commission-closings:read`. Sin él, `403` (`AUTH-002`).\n\nLos cierres del periodo, **del más reciente al más antiguo** (`RF-CM-009`,\n`CA-CM-180`): cuándo empezó y cuándo cerró cada uno, si fue programado o a mano —y\nquién—, cuántos lotes cerró, cuántas líneas recogió el barrido y cuántas rechazadas\nreintentó y recuperó.\n\n**Existe porque un proceso programado no tiene a quién contestar**: es la forma de saber\nsi el cierre de anoche corrió. **`closedAt` nulo** es un cierre en curso o uno que falló\na medias; sus lotes siguen abiertos. **`paymentMode`** dice cómo se pagó lo que cerró un\ncierre programado —`AUTOMATICO` o `MANUAL`, nulo en los cierres a mano, que no pagan—,\ncon `batchesPaid` y `batchesNotPaid` (`RN-CM-053`). **`linesSwept` distinto de cero** quiere decir que\nel aviso de las ventas se está perdiendo y el barrido lo está tapando.\n\nFiltros: `origin` (`PROGRAMADO`, `MANUAL`) y `from`/`to` sobre el inicio. Los errores\nde los filtros salen **todos juntos**.\n",
         "operationId" : "listar_12",
         "parameters" : [ {
           "in" : "query",
@@ -12240,6 +12292,128 @@
         "summary" : "Consultar los cierres",
         "tags" : [ "Cierres de comisiones" ],
         "x-required-permission" : "commission-closings:read"
+      }
+    },
+    "/api/v1/commission-closings/next" : {
+      "get" : {
+        "description" : "**Permiso requerido:** `commission-closings:read-next`. Sin él, `403` (`AUTH-002`).\n\n**Cuándo es el próximo cierre programado** y cómo se pagará lo que cierre (`RF-CM-028`,\n`RN-CM-054`). El cierre paga **en el mismo momento**, salvo que se elija pagarlo a mano\nen las **48 horas anteriores**: `windowOpensAt` es cuándo se abre esa ventana y\n`windowOpen` si está abierta ahora. **Es lo que el frontend lee para mostrar el botón**\nde `PUT /commission-closings/next/payment-mode`.\n\n**Sin elección, `paymentMode` es `AUTOMATICO`** y `chosen` es falso, sin `chosenBy` ni\n`chosenAt`. La elección vale **solo para ese cierre**. Con el cierre programado\n**apagado** no hay próximo cierre: `409`.\n",
+        "operationId" : "proximo",
+        "responses" : {
+          "200" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/NextClosingResponse"
+                }
+              }
+            },
+            "description" : "El próximo cierre"
+          },
+          "401" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/NextClosingResponse"
+                }
+              }
+            },
+            "description" : "Sin token"
+          },
+          "403" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/NextClosingResponse"
+                }
+              }
+            },
+            "description" : "Sin `commission-closings:read-next`"
+          },
+          "409" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/NextClosingResponse"
+                }
+              }
+            },
+            "description" : "`EX-001`: el cierre programado está apagado"
+          }
+        },
+        "summary" : "Consultar el próximo cierre y cómo se pagará",
+        "tags" : [ "Cierres de comisiones" ],
+        "x-required-permission" : "commission-closings:read-next"
+      }
+    },
+    "/api/v1/commission-closings/next/payment-mode" : {
+      "put" : {
+        "description" : "**Permiso requerido:** `commission-closings:set-payment-mode`. Sin él, `403` (`AUTH-002`).\n\n**El botón** (`RF-CM-029`, `RN-CM-054`): `AUTOMATICO` hace que el cierre pague, en\ncuanto termina, **cada lote que cerró**, cada uno por su cuenta; `MANUAL` los deja\n`PENDIENTE` para Finanzas. **Solo dentro de la ventana**: las 48 horas anteriores al\ncierre, hasta que el cierre empieza. Dentro se puede cambiar cuantas veces se quiera, y\n**gana la última**; cada elección queda auditada.\n\nVale **solo para ese cierre**: el siguiente vuelve a `AUTOMATICO`. Responde lo mismo que\n`GET /commission-closings/next`, con la elección hecha.\n",
+        "operationId" : "elegir",
+        "requestBody" : {
+          "content" : {
+            "application/json" : {
+              "schema" : {
+                "$ref" : "#/components/schemas/PaymentModeRequest"
+              }
+            }
+          },
+          "required" : true
+        },
+        "responses" : {
+          "200" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/NextClosingResponse"
+                }
+              }
+            },
+            "description" : "Elegido"
+          },
+          "400" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/NextClosingResponse"
+                }
+              }
+            },
+            "description" : "`VAL-001`: el modo falta o no es válido"
+          },
+          "401" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/NextClosingResponse"
+                }
+              }
+            },
+            "description" : "Sin token"
+          },
+          "403" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/NextClosingResponse"
+                }
+              }
+            },
+            "description" : "Sin `commission-closings:set-payment-mode`"
+          },
+          "409" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/NextClosingResponse"
+                }
+              }
+            },
+            "description" : "`EX-001`: el cierre programado está apagado. `EX-002`: la ventana está cerrada"
+          }
+        },
+        "summary" : "Elegir si el pago del próximo cierre es automático o manual",
+        "tags" : [ "Cierres de comisiones" ],
+        "x-required-permission" : "commission-closings:set-payment-mode"
       }
     },
     "/api/v1/commission-rates" : {

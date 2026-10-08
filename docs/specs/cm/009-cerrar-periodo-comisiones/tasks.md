@@ -102,7 +102,7 @@ Rama: `develop`.
 
 | ID | Tarea | Depende de | Verificación | Estado |
 |---|---|---|---|---|
-| `T-12` | `openScheduled` toma el bloqueo del turno y escribe el modo; `closeScheduled` paga con `PayCommissionBatchesService` si es automático y escribe los dos recuentos; `CommissionClosingResponse` gana los tres campos; prosa de la `@Operation` (`plan.md` §16) | `RF-CM-028` `T-01`, `RF-CM-029` `T-01` | Compila | Pendiente |
-| `T-13` | `CloseCommissionPeriodIT`: `CA-CM-393` a `CA-CM-398`, y una elección `MANUAL` en las ocho llamadas de antes | `T-12` | La suite de `CM` en verde | Pendiente |
+| `T-12` | `openScheduled` toma el bloqueo del turno y escribe el modo; `closeScheduled` paga con `PayCommissionBatchesService` si es automático y escribe los dos recuentos; `CommissionClosingResponse` gana los tres campos; prosa de la `@Operation` (`plan.md` §16) | `RF-CM-028` `T-01`, `RF-CM-029` `T-01` | Compila | **Hecha** — 08-10-2026 |
+| `T-13` | `CloseCommissionPeriodIT`: `CA-CM-393` a `CA-CM-398`, y una elección `MANUAL` en las ocho llamadas de antes | `T-12` | La suite de `CM` en verde | **Hecha** — 08-10-2026 |
 
 Rama: `develop`.

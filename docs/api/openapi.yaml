@@ -549,6 +549,62 @@ paths:
               schema:
                 $ref: "#/components/schemas/CourseCategoryDetailResponse"
       x-required-permission: course-categories:update
+  /api/v1/commission-closings/next/payment-mode:
+    put:
+      tags:
+      - Cierres de comisiones
+      summary: Elegir si el pago del próximo cierre es automático o manual
+      description: |
+        **Permiso requerido:** `commission-closings:set-payment-mode`. Sin él, `403` (`AUTH-002`).
+
+        **El botón** (`RF-CM-029`, `RN-CM-054`): `AUTOMATICO` hace que el cierre pague, en
+        cuanto termina, **cada lote que cerró**, cada uno por su cuenta; `MANUAL` los deja
+        `PENDIENTE` para Finanzas. **Solo dentro de la ventana**: las 48 horas anteriores al
+        cierre, hasta que el cierre empieza. Dentro se puede cambiar cuantas veces se quiera, y
+        **gana la última**; cada elección queda auditada.
+
+        Vale **solo para ese cierre**: el siguiente vuelve a `AUTOMATICO`. Responde lo mismo que
+        `GET /commission-closings/next`, con la elección hecha.
+      operationId: elegir
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/PaymentModeRequest"
+        required: true
+      responses:
+        "200":
+          description: Elegido
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/NextClosingResponse"
+        "400":
+          description: "`VAL-001`: el modo falta o no es válido"
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/NextClosingResponse"
+        "401":
+          description: Sin token
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/NextClosingResponse"
+        "403":
+          description: Sin `commission-closings:set-payment-mode`
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/NextClosingResponse"
+        "409":
+          description: "`EX-001`: el cierre programado está apagado. `EX-002`: la\
+            \ ventana está cerrada"
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/NextClosingResponse"
+      x-required-permission: commission-closings:set-payment-mode
   /api/v1/users:
     get:
       tags:
@@ -13718,7 +13774,9 @@ paths:
 
         **Existe porque un proceso programado no tiene a quién contestar**: es la forma de saber
         si el cierre de anoche corrió. **`closedAt` nulo** es un cierre en curso o uno que falló
-        a medias; sus lotes siguen abiertos. **`linesSwept` distinto de cero** quiere decir que
+        a medias; sus lotes siguen abiertos. **`paymentMode`** dice cómo se pagó lo que cerró un
+        cierre programado —`AUTOMATICO` o `MANUAL`, nulo en los cierres a mano, que no pagan—,
+        con `batchesPaid` y `batchesNotPaid` (`RN-CM-053`). **`linesSwept` distinto de cero** quiere decir que
         el aviso de las ventas se está perdiendo y el barrido lo está tapando.
 
         Filtros: `origin` (`PROGRAMADO`, `MANUAL`) y `from`/`to` sobre el inicio. Los errores
@@ -13756,6 +13814,50 @@ paths:
               schema:
                 $ref: "#/components/schemas/CommissionClosingPageResponse"
       x-required-permission: commission-closings:read
+  /api/v1/commission-closings/next:
+    get:
+      tags:
+      - Cierres de comisiones
+      summary: Consultar el próximo cierre y cómo se pagará
+      description: |
+        **Permiso requerido:** `commission-closings:read-next`. Sin él, `403` (`AUTH-002`).
+
+        **Cuándo es el próximo cierre programado** y cómo se pagará lo que cierre (`RF-CM-028`,
+        `RN-CM-054`). El cierre paga **en el mismo momento**, salvo que se elija pagarlo a mano
+        en las **48 horas anteriores**: `windowOpensAt` es cuándo se abre esa ventana y
+        `windowOpen` si está abierta ahora. **Es lo que el frontend lee para mostrar el botón**
+        de `PUT /commission-closings/next/payment-mode`.
+
+        **Sin elección, `paymentMode` es `AUTOMATICO`** y `chosen` es falso, sin `chosenBy` ni
+        `chosenAt`. La elección vale **solo para ese cierre**. Con el cierre programado
+        **apagado** no hay próximo cierre: `409`.
+      operationId: proximo
+      responses:
+        "200":
+          description: El próximo cierre
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/NextClosingResponse"
+        "401":
+          description: Sin token
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/NextClosingResponse"
+        "403":
+          description: Sin `commission-closings:read-next`
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/NextClosingResponse"
+        "409":
+          description: "`EX-001`: el cierre programado está apagado"
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/NextClosingResponse"
+      x-required-permission: commission-closings:read-next
   /api/v1/commission-batches:
     get:
       tags:
@@ -15726,6 +15828,38 @@ components:
           format: date-time
         deletionReason:
           type: string
+    PaymentModeRequest:
+      type: object
+      properties:
+        paymentMode:
+          type: string
+          enum:
+          - AUTOMATICO
+          - MANUAL
+          pattern: AUTOMATICO|MANUAL
+      required:
+      - paymentMode
+    NextClosingResponse:
+      type: object
+      properties:
+        scheduledFor:
+          type: string
+          format: date-time
+        windowOpensAt:
+          type: string
+          format: date-time
+        windowOpen:
+          type: boolean
+        paymentMode:
+          type: string
+        chosen:
+          type: boolean
+        chosenBy:
+          type: string
+          format: uuid
+        chosenAt:
+          type: string
+          format: date-time
     RegisterUserRequest:
       type: object
       properties:
@@ -18540,6 +18674,14 @@ components:
           type: integer
           format: int32
         linesRecovered:
+          type: integer
+          format: int32
+        paymentMode:
+          type: string
+        batchesPaid:
+          type: integer
+          format: int32
+        batchesNotPaid:
           type: integer
           format: int32
     RegistrationBrokerAccount:
