@@ -89,4 +89,4 @@ Una transacción de solo lectura, como `of(id)`.
 
 ## 11. Estrategia de prueba
 
-Integración, `OwnBrokerAccountsIT`: `CA-SP-909` a `CA-SP-912` y `CA-SP-914`. `CA-SP-913` en las suites de siembra. `EndpointPermissionsIT` y `OwnScopePermissionsIT` con la ruta nueva.
+Integración, en `BrokerAccountsIT` (la suite de `RF-SP-055` y `RF-SP-056`, que ya monta la cadena y las cuentas): `CA-SP-909` a `CA-SP-912` y `CA-SP-914`. `CA-SP-913` en las suites de siembra. `EndpointPermissionsIT` y `OwnScopePermissionsIT` con la ruta nueva.

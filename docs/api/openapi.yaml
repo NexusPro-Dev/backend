@@ -10760,7 +10760,8 @@ paths:
         la estructura no concede lectura.
 
         **El titular NO ve aquí sus propias cuentas** salvo que traiga el
-        permiso: esta lectura se definió sobre el equipo.
+        permiso: esta lectura se definió sobre el equipo. Las suyas están en
+        `GET /api/v1/users/me/broker-accounts`.
 
         **Una persona sin cuentas devuelve `200` con la colección vacía**, no
         `404`: solo el registro por un enlace de beca obliga a declararlas.
@@ -11037,6 +11038,44 @@ paths:
         "500":
           description: Fallo no controlado (`ERR-500`)
       x-required-permission: users:read-own-clients
+  /api/v1/users/me/broker-accounts:
+    get:
+      tags:
+      - Usuarios
+      summary: Consultar mis cuentas de broker
+      description: |
+        **Permiso requerido:** `broker-accounts:read-own`. Sin él, `403` (`AUTH-002`).
+
+        Devuelve **las cuentas de broker del actor**: broker, identificador
+        de cuenta, nombre de usuario en el broker y estado, ordenadas por
+        nombre de broker e identificador de cuenta. Es la misma respuesta que
+        `GET /api/v1/users/{id}/broker-accounts`.
+
+        **No hay identificador en la ruta**: la persona sale del token, y por
+        eso no hay `404`. Solo salen las suyas: ni las de su equipo
+        (`GET /api/v1/users/me/team/broker-accounts`) ni las de nadie más.
+
+        **Una persona sin cuentas recibe `200` con la colección vacía.**
+
+        **`brokerUsername` llega en nulo** mientras el broker no lo haya
+        confirmado, y el campo **está presente**.
+
+        **No se pagina**: una persona tiene unas pocas cuentas.
+      operationId: misCuentasDeBroker
+      responses:
+        "200":
+          description: "Las cuentas del actor, ordenadas. Vacía si no declaró ninguna."
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/BrokerAccountsResponse"
+        "401":
+          description: Token ausente o inválido (`AUTH-001`)
+        "403":
+          description: Autenticado sin `broker-accounts:read-own` (`AUTH-002`)
+        "500":
+          description: Fallo no controlado (`ERR-500`)
+      x-required-permission: broker-accounts:read-own
   /api/v1/products/{id}/comments/mine:
     get:
       tags:

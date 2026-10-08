@@ -68,6 +68,10 @@ class OwnScopePermissionsIT extends IntegrationTestBase {
               "broker-accounts:read-own-team",
               () -> get("/api/v1/users/me/team/broker-accounts")),
           new Caso(
+              "GET /users/me/broker-accounts",
+              "broker-accounts:read-own",
+              () -> get("/api/v1/users/me/broker-accounts")),
+          new Caso(
               "GET /users/{id}/broker-accounts",
               "broker-accounts:read-team-member",
               () -> get("/api/v1/users/{id}/broker-accounts", ID)),

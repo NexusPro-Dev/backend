@@ -290,7 +290,9 @@ public abstract class IntegrationTestBase {
                            -- V75 (06-10-2026): el propio segundo factor, a los tres tipos.
                            'users:start-own-mfa', 'users:confirm-own-mfa',
                            'users:verify-own-mfa', 'users:regenerate-own-recovery-codes',
-                           'users:disable-own-mfa')
+                           'users:disable-own-mfa',
+                           -- V89 (08-10-2026): mis cuentas de broker, a los tres tipos.
+                           'broker-accounts:read-own')
                 OR (r.role_type IN ('FUNCIONARIO', 'VENDEDOR')
                     AND p.code IN ('users:read-own-clients', 'broker-accounts:read-own-team',
                                    'broker-accounts:read-team-member',
@@ -342,7 +344,9 @@ public abstract class IntegrationTestBase {
           "users:confirm-own-mfa",
           "users:verify-own-mfa",
           "users:regenerate-own-recovery-codes",
-          "users:disable-own-mfa");
+          "users:disable-own-mfa",
+          // V89 (08-10-2026): mis cuentas de broker, a los tres tipos.
+          "broker-accounts:read-own");
 
   protected static java.util.UUID crearRolAcotado(
       org.springframework.jdbc.core.JdbcTemplate jdbc, String codigo, String nombre) {

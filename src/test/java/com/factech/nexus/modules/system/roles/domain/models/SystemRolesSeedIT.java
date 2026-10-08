@@ -47,6 +47,8 @@ class SystemRolesSeedIT extends IntegrationTestBase {
           "users:verify-own-mfa",
           "users:regenerate-own-recovery-codes",
           "users:disable-own-mfa",
+          // V89 (08-10-2026): mis cuentas de broker, a los tres tipos.
+          "broker-accounts:read-own",
           "broker-accounts:read-own-team",
           "broker-accounts:read-team-member",
           "movements:create",
@@ -120,6 +122,8 @@ class SystemRolesSeedIT extends IntegrationTestBase {
           "users:verify-own-mfa",
           "users:regenerate-own-recovery-codes",
           "users:disable-own-mfa",
+          // V89 (08-10-2026): mis cuentas de broker, a los tres tipos.
+          "broker-accounts:read-own",
           "broker-accounts:read-own-team",
           "broker-accounts:read-team-member",
           "movements:list-own",
@@ -185,6 +189,8 @@ class SystemRolesSeedIT extends IntegrationTestBase {
           "users:verify-own-mfa",
           "users:regenerate-own-recovery-codes",
           "users:disable-own-mfa",
+          // V89 (08-10-2026): mis cuentas de broker, a los tres tipos.
+          "broker-accounts:read-own",
           "movements:create",
           "movements:list-own",
           // V48 y V49 (26-09-2026, etapa 6 de MV): lo propio de pagos y saldos, por tipo de rol.

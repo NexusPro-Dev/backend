@@ -15,7 +15,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 /**
- * Las cuentas de broker de una persona (`RF-SP-055`).
+ * Las cuentas de broker de una persona (`RF-SP-055`), y las propias (`RF-SP-079`, {@link #mine}).
  *
  * <h2>Es la primera lectura del sistema que autoriza por estructura comercial</h2>
  *
@@ -108,6 +108,23 @@ public class GetBrokerAccountsService {
     }
 
     return BrokerAccountsResponse.de(cuentas.findByUser(userId));
+  }
+
+  /**
+   * <b>Las del propio actor</b> (`RF-SP-079`): las mismas cuentas, el mismo orden y la misma
+   * respuesta que {@link #of}, sin comprobar existencia ni estructura.
+   *
+   * <p>La persona es la del token, y la estructura es justo lo que esta lectura no mira: el titular
+   * no pasa por {@link #puedeVer}, y {@link #of} sigue respondiendo {@code 404} a quien pide las
+   * suyas por su identificador sin {@code broker-accounts:read} (`CA-SP-914`).
+   */
+  @Transactional(readOnly = true)
+  public BrokerAccountsResponse mine() {
+    UUID quien =
+        actor
+            .currentActorId()
+            .orElseThrow(() -> new UnauthorizedException("AUTH-001", "Se requiere autenticación."));
+    return BrokerAccountsResponse.de(cuentas.findByUser(quien));
   }
 
   /**

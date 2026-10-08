@@ -20,7 +20,8 @@ import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.request.RequestPostProcessor;
 
 /**
- * Las cuentas de broker de una persona y las del equipo (`RF-SP-055`, `RF-SP-056`).
+ * Las cuentas de broker de una persona, las del equipo y las propias (`RF-SP-055`, `RF-SP-056`,
+ * `RF-SP-079`).
  *
  * <p><b>Las dos van juntas porque son la misma pregunta desde los dos lados</b>, y porque lo que de
  * verdad hay que probar —quién puede ver qué— solo se distingue contrastándolas: la primera se
@@ -251,12 +252,22 @@ class BrokerAccountsIT extends IntegrationTestBase {
   }
 
   @Test
-  @DisplayName("el titular NO se ve a sí mismo por esta vía, y se prueba para que relajarlo decida")
+  @DisplayName(
+      "`CA-SP-914` — el titular NO se ve a sí mismo por esta vía, ni portando"
+          + " `broker-accounts:read-own`")
   void elTitularNoSeVeASiMismo() throws Exception {
     // `RF-SP-055` §4.2, decisión del 10-09-2026: la lectura se definió sobre el
-    // equipo. Si algún día el cliente debe ver sus cuentas, la vía es
-    // `RF-SP-039` y su `GET /users/me`, no relajar esto por descuido.
+    // equipo. Desde el 08-10-2026 el titular ve las suyas por `RF-SP-079`, que
+    // es otra ruta: esta no se relaja.
     mvc.perform(get("/api/v1/users/" + medio + "/broker-accounts").with(comoPersona(medio)))
+        .andExpect(status().isNotFound());
+    mvc.perform(
+            get("/api/v1/users/" + medio + "/broker-accounts")
+                .with(
+                    user(medio.toString())
+                        .authorities(
+                            () -> "broker-accounts:read-team-member",
+                            () -> "broker-accounts:read-own")))
         .andExpect(status().isNotFound());
   }
 
@@ -272,6 +283,56 @@ class BrokerAccountsIT extends IntegrationTestBase {
         // el orden lo elegiría el motor y bailaría entre llamadas.
         .andExpect(jsonPath("$.content[0].accountId").value("70000001"))
         .andExpect(jsonPath("$.content[1].accountId").value("70000099"));
+  }
+
+  // ---------------------------------------------------------------------------
+  // `RF-SP-079` — mis cuentas
+  // ---------------------------------------------------------------------------
+
+  @Test
+  @DisplayName(
+      "`CA-SP-909` — la persona ve SUS cuentas, ordenadas, y ninguna de quien depende de ella")
+  void veSusCuentas() throws Exception {
+    // `medio` es superior de `base`, que tiene la 70000003: no sale.
+    mvc.perform(get("/api/v1/users/me/broker-accounts").with(comoTitular(medio)))
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$.content.length()").value(2))
+        .andExpect(jsonPath("$.content[0].broker.name").value("EXNOVA"))
+        .andExpect(jsonPath("$.content[0].accountId").value("70000001"))
+        .andExpect(jsonPath("$.content[0].status").value("REGISTER"))
+        .andExpect(jsonPath("$.content[1].broker.name").value("IQOPTION"))
+        .andExpect(jsonPath("$.content[1].accountId").value("70000002"));
+
+    // Y el cliente, la suya.
+    mvc.perform(get("/api/v1/users/me/broker-accounts").with(comoTitular(cliente)))
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$.content.length()").value(1))
+        .andExpect(jsonPath("$.content[0].accountId").value("70000005"));
+  }
+
+  @Test
+  @DisplayName("`CA-SP-910` — `brokerUsername` está y es nulo mientras el broker no lo confirma")
+  void nombreSinConfirmarEnLasPropias() throws Exception {
+    mvc.perform(get("/api/v1/users/me/broker-accounts").with(comoTitular(base)))
+        .andExpect(status().isOk())
+        .andExpect(
+            content().string(org.hamcrest.Matchers.containsString("\"brokerUsername\":null")));
+  }
+
+  @Test
+  @DisplayName("`CA-SP-911` — sin cuentas, 200 con la colección vacía")
+  void sinCuentasPropias() throws Exception {
+    mvc.perform(get("/api/v1/users/me/broker-accounts").with(comoTitular(jefe)))
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$.content.length()").value(0));
+  }
+
+  @Test
+  @DisplayName("`CA-SP-912` — sin `broker-accounts:read-own` 403; sin token 401")
+  void sinPermisoNiToken() throws Exception {
+    mvc.perform(get("/api/v1/users/me/broker-accounts").with(comoPersona(medio)))
+        .andExpect(status().isForbidden());
+    mvc.perform(get("/api/v1/users/me/broker-accounts")).andExpect(status().isUnauthorized());
   }
 
   // ---------------------------------------------------------------------------
@@ -495,6 +556,11 @@ class BrokerAccountsIT extends IntegrationTestBase {
     return user(persona.toString())
         .authorities(
             () -> "broker-accounts:read-own-team", () -> "broker-accounts:read-team-member");
+  }
+
+  /** Solo el permiso de las propias (`RF-SP-079`): ni el de equipo ni el de persona a cargo. */
+  private static RequestPostProcessor comoTitular(UUID persona) {
+    return user(persona.toString()).authorities(() -> "broker-accounts:read-own");
   }
 
   private UUID crearPersona(String username, String rol) {

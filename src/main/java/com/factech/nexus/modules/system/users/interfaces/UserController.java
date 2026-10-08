@@ -1575,6 +1575,54 @@ public class UserController {
     return cuentasDelEquipo.ofMyTeam(status, brokerId, page, size);
   }
 
+  // `RF-SP-079` (08-10-2026): las propias. Ruta propia y no un campo de
+  // `GET /users/me`, porque el permiso es lo que le dice al frontend a quién
+  // ofrecer la vista (`RN-SEG-015`). No mira la estructura, y `/{id}` sigue
+  // sin mirar la titularidad.
+  @GetMapping("/me/broker-accounts")
+  @PreAuthorize("hasAuthority('broker-accounts:read-own')")
+  @Operation(
+      summary = "Consultar mis cuentas de broker",
+      description =
+          """
+          Devuelve **las cuentas de broker del actor**: broker, identificador
+          de cuenta, nombre de usuario en el broker y estado, ordenadas por
+          nombre de broker e identificador de cuenta. Es la misma respuesta que
+          `GET /api/v1/users/{id}/broker-accounts`.
+
+          **No hay identificador en la ruta**: la persona sale del token, y por
+          eso no hay `404`. Solo salen las suyas: ni las de su equipo
+          (`GET /api/v1/users/me/team/broker-accounts`) ni las de nadie más.
+
+          **Una persona sin cuentas recibe `200` con la colección vacía.**
+
+          **`brokerUsername` llega en nulo** mientras el broker no lo haya
+          confirmado, y el campo **está presente**.
+
+          **No se pagina**: una persona tiene unas pocas cuentas.
+          """)
+  @ApiResponses({
+    @ApiResponse(
+        responseCode = "200",
+        description = "Las cuentas del actor, ordenadas. Vacía si no declaró ninguna.",
+        content = @Content(schema = @Schema(implementation = BrokerAccountsResponse.class))),
+    @ApiResponse(
+        responseCode = "401",
+        description = "Token ausente o inválido (`AUTH-001`)",
+        content = @Content),
+    @ApiResponse(
+        responseCode = "403",
+        description = "Autenticado sin `broker-accounts:read-own` (`AUTH-002`)",
+        content = @Content),
+    @ApiResponse(
+        responseCode = "500",
+        description = "Fallo no controlado (`ERR-500`)",
+        content = @Content)
+  })
+  public BrokerAccountsResponse misCuentasDeBroker() {
+    return cuentasDeBroker.mine();
+  }
+
   // `broker-accounts:read-team-member` ABRE la ruta desde el 21-09-2026
   // (`RF-SP-062`, `RN-SEG-015`) y NO decide el alcance: la autorización de
   // esta ruta es una función DEL PAR (actor, persona consultada) —el permiso
@@ -1608,7 +1656,8 @@ public class UserController {
           la estructura no concede lectura.
 
           **El titular NO ve aquí sus propias cuentas** salvo que traiga el
-          permiso: esta lectura se definió sobre el equipo.
+          permiso: esta lectura se definió sobre el equipo. Las suyas están en
+          `GET /api/v1/users/me/broker-accounts`.
 
           **Una persona sin cuentas devuelve `200` con la colección vacía**, no
           `404`: solo el registro por un enlace de beca obliga a declararlas.

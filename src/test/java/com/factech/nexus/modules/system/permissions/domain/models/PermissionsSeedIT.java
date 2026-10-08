@@ -33,7 +33,7 @@ class PermissionsSeedIT extends IntegrationTestBase {
           + " V47: courses:read-available y lessons:learn del aula, RF-AC-034 y RF-AC-035)")
   void catalogoCompleto() {
     assertThat(jdbc.queryForObject("SELECT count(*) FROM permissions", Integer.class))
-        .isEqualTo(209);
+        .isEqualTo(210);
   }
 
   @Test
@@ -205,6 +205,8 @@ class PermissionsSeedIT extends IntegrationTestBase {
             "broker-accounts:read-indicators",
             "broker-accounts:read-own-team",
             "broker-accounts:read-team-member",
+            // `V89` (08-10-2026): mis cuentas de broker, `RF-SP-079`, a todo rol por su tipo.
+            "broker-accounts:read-own",
             "countries:create",
             "countries:read",
             "countries:update",
@@ -382,7 +384,7 @@ class PermissionsSeedIT extends IntegrationTestBase {
   void identificadoresUuidV7() {
     List<UUID> ids = jdbc.queryForList("SELECT id FROM permissions", UUID.class);
 
-    assertThat(ids).hasSize(209).doesNotHaveDuplicates();
+    assertThat(ids).hasSize(210).doesNotHaveDuplicates();
     assertThat(ids).allSatisfy(id -> assertThat(id.version()).isEqualTo(7));
     // variant() == 2 es la variante RFC 9562 (bits 10xx).
     assertThat(ids).allSatisfy(id -> assertThat(id.variant()).isEqualTo(2));
@@ -448,13 +450,13 @@ class PermissionsSeedIT extends IntegrationTestBase {
                 "SELECT count(*) FROM role_permissions WHERE role_id ="
                     + " '01a02a33-4c00-7001-9c4f-5e7ad1000001'",
                 Integer.class))
-        .isEqualTo(209);
+        .isEqualTo(210);
     assertThat(
             jdbc.queryForObject(
                 "SELECT count(*) FROM role_permissions WHERE role_id ="
                     + " '01a02a33-4c00-7002-9c4f-5e7ad1000002'",
                 Integer.class))
-        .isEqualTo(207);
+        .isEqualTo(208);
     assertThat(
             jdbc.queryForList(
                 """
@@ -540,8 +542,10 @@ class PermissionsSeedIT extends IntegrationTestBase {
         // Y veintinueve desde `V69`: pagar por la pasarela local un pendiente propio.
         // Y treinta y cuatro desde `V75`: los cinco del propio segundo factor, a los tres tipos.
         // Y treinta y seis desde `V77`: el detalle y el comprobante de lo propio en puntos.
-        .hasSize(36)
+        // Y treinta y siete desde `V89`: mis cuentas de broker, a los tres tipos.
+        .hasSize(37)
         .contains(
+            "broker-accounts:read-own",
             "movements:pay-pending-by-card",
             "movements:read-conversion-rates",
             "movements:pay-pending-locally",
