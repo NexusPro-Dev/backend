@@ -5,7 +5,7 @@
 | Módulo | `SP` — Sistema Principal |
 | Paquete | `modules/system` |
 | Prefijos de permiso | `roles:`, `permissions:`, `audit:`, `memberships:`, `currencies:`, `countries:`, `users:`, `exchange-rates:`, `document-types:`, `brokers:`, `broker-accounts:`, `teams:` |
-| Versión | 1.110.0 |
+| Versión | 1.111.0 |
 | Estado | **Aprobado** |
 | Responsable | Bonilla Diaz William Steven |
 | Fecha de creación | 20-08-2026 |
@@ -237,6 +237,7 @@ Reglas que no son transversales de seguridad y por tanto sí llevan el prefijo d
 | `RN-SP-064` | **Restablecer el factor de otra persona deja motivo y cierra sus sesiones** | Al restablecer (`RF-SP-076`) | Es la salida de quien perdió el teléfono **y** los códigos. Retira el factor activo y sus códigos, **revoca todas sus sesiones** y exige **motivo**, que queda en `audit_deletion_log` (Art. V.13). **Nunca sobre uno mismo** (`RN-SEG-011`): si quien administra pudiera restablecer el suyo, una sesión robada de administrador se saltaría el segundo factor con dos peticiones. Si la persona porta un rol que lo exige, su próximo inicio de sesión entra retenido (`RN-SP-062`) hasta que lo active de nuevo | **Crítica** |
 | `RN-SP-065` | **Nadie restablece el segundo factor ni la contraseña de quien tiene más privilegios** | Al restablecer el factor (`RF-SP-076`) o la contraseña (`RF-SP-038`) de otra persona | Los permisos efectivos de la persona deben estar **contenidos** en los de quien restablece; si no, `403` sin decir cuál falta. Sin esta regla, quien porte a la vez `users:reset-password` y `users:reset-mfa` —`ADMIN` los porta— **tomaría la cuenta del superadministrador en dos peticiones**. Es `RN-SEG-010` aplicado al acceso. Propuesta por el responsable técnico y **confirmada por el responsable del proyecto el 06-10-2026**, que la extendió a la contraseña ese mismo día | **Crítica** |
 | `RN-SP-066` | **Lo que avisa un broker se guarda tal como llegó, antes de saber interpretarlo** | Al recibir un aviso de un broker (`RF-SP-078`) | Decisión del responsable del proyecto, 08-10-2026: se reciben los avisos de **`IQOPTION`, `EXNOVA` y `EXOPTION`** sin saber todavía qué datos mandan, porque ninguno publica su formato. Por eso el aviso **se guarda entero** —método, parámetros de la dirección, cabeceras, cuerpo, tipo de contenido y origen— **y no se interpreta**: no completa cuentas, no mueve estados ni activa a nadie; eso es `RF-SP-054`, que se escribirá con los avisos reales delante. **Lo autentica un secreto propio de cada broker que viaja en la dirección** (`token`), porque los paneles de afiliados de este ramo no firman sus avisos ni dejan añadir cabeceras; **un broker sin secreto configurado no puede avisar**, y el de uno no abre la ruta de otro. **El secreto no se guarda** con el aviso ni queda en el registro de peticiones. **No se descartan repetidos**: mientras no se sepa qué identifica a un aviso, dos iguales son dos filas, y la reentrega es justo uno de los datos que hay que observar; la idempotencia la decide `RF-SP-054`. **El aviso no se edita ni se borra** | Alta |
+| `RN-SP-067` | **El titular gestiona sus cuentas de broker mientras no tengan depósito; administración, cualquiera** | Al registrar, editar o eliminar una cuenta de broker (`RF-SP-053`, `RF-SP-080`, `RF-SP-081`) | Decisión del responsable del proyecto, 08-10-2026. **El titular** declara cuentas a su nombre, y corrige el identificador o borra **solo las suyas en `REGISTER`**: una cuenta en **`FIRST_DEPOSIT`** tiene atado el primer depósito y cuenta en los indicadores de la red (`RF-SP-058`), y cambiarla cambiaría a quién se atribuye — `409`. **Administración**, con los permisos amplios, gestiona las de **cualquier persona y en cualquier estado**, para corregir errores. **El superior comercial no gestiona**: ve (`RN-SP-046`) y nada más. **Solo se edita el identificador**; el broker no se cambia —se borra y se declara otra— y el nombre de usuario y el estado los pone el broker (`RN-SP-040`, `RN-SP-045`). **El borrado es físico y auditado**, y la cuenta queda libre para declararse otra vez (`RN-SP-038`). La cuenta de otra persona por la ruta propia responde `404`, como si no existiera | **Alta** |
 
 !!! danger "`RN-SP-025` vive en el motor, y hasta el 02-09-2026 no vivía en ninguna parte"
 
@@ -389,7 +390,7 @@ EXCLUDE USING gist (
 | `RF-SP-050` | Retirar una tasa de cambio | Media | `exchange-rates:delete` | Tasks en revisión |
 | `RF-SP-051` | Consultar tipos de documento | Alta | **Público** | Pendiente |
 | `RF-SP-052` | Consultar el catálogo de brokers | Alta | **Público** | **Tasks en revisión** |
-| `RF-SP-053` | Vincular una cuenta de broker a una persona | Alta | Por decidir | **Pendiente** |
+| `RF-SP-053` | Registrar una cuenta de broker | Alta | `broker-accounts:create-own` (la propia) o `broker-accounts:create` | **Tasks en revisión** |
 | `RF-SP-054` | Completar la cuenta de broker desde el webhook del broker | Media | **Ninguno: lo llama el broker** | **Pendiente** |
 | `RF-SP-055` | Consultar las cuentas de broker de una persona | Alta | `broker-accounts:read-team-member`, y **superior vigente** o `broker-accounts:read` para el alcance | **En desarrollo** |
 | `RF-SP-056` | Consultar las cuentas de broker del equipo | Alta | `broker-accounts:read-own-team` (el equipo propio) | **En desarrollo** |
@@ -416,6 +417,8 @@ EXCLUDE USING gist (
 | `RF-SP-077` | Exigir el segundo factor a los portadores de un rol | **Crítica** | `roles:require-mfa` | **En desarrollo** |
 | `RF-SP-078` | Recibir los avisos de los brokers | Alta | **Ninguno: lo autentica el secreto del broker** | **En desarrollo** |
 | `RF-SP-079` | Consultar mis cuentas de broker | Alta | `broker-accounts:read-own` | **En desarrollo** |
+| `RF-SP-080` | Editar una cuenta de broker | Alta | `broker-accounts:update-own` (la propia) o `broker-accounts:update` | **Tasks en revisión** |
+| `RF-SP-081` | Eliminar una cuenta de broker | Alta | `broker-accounts:delete-own` (la propia) o `broker-accounts:delete` | **Tasks en revisión** |
 
 !!! info "Dónde vive el estado de un requerimiento"
 
@@ -999,22 +1002,20 @@ Listado de brokers **activos**, con su nombre. Se puebla por migración y no se 
 
 **De momento guarda solo el nombre**, por decisión del responsable del proyecto. No lleva código ni abreviación, y eso tiene una consecuencia que conviene tener escrita: **la clave de negocio es el nombre**, de modo que es él quien va con índice único y quien no puede repetirse. El día que un broker haga falta identificarlo por algo estable frente a un cambio de nombre comercial, se añade una columna `code` — y hasta entonces renombrar un broker es una migración, no una corrección.
 
-#### `RF-SP-053` — Vincular una cuenta de broker a una persona
+#### `RF-SP-053` — Registrar una cuenta de broker
 
 | Campo | Valor |
 |---|---|
-| Objetivo | Que quede registrado qué cuenta tiene cada persona en cada broker |
-| Actor | **Por decidir** |
-| Permiso requerido | **Por decidir** |
+| Objetivo | Que la persona declare una cuenta suya cuando quiera, y que administración declare la de cualquiera |
+| Actor | **El titular**, sobre las suyas, o **administración**, sobre las de cualquiera |
+| Permiso requerido | `broker-accounts:create-own` (la propia, a todo rol por su tipo) o `broker-accounts:create` (cualquiera, `SUPERADMIN` y `ADMIN`) |
 | Prioridad | Alta |
-| Reglas aplicables | `RN-SP-038`, `RN-SP-040` |
-| Depende de | `RF-SP-052` |
-| Tripleta | Pendiente de crear |
-| Estado | **Pendiente** — registrado y sin `spec.md` |
+| Reglas aplicables | `RN-SP-038`, `RN-SP-040`, `RN-SP-045`, `RN-SP-067` |
+| Depende de | `RF-SP-052`, `RF-SP-055` |
+| Tripleta | `docs/specs/sp/053-registrar-cuenta-de-broker/` |
+| Estado | **Tasks en revisión** (08-10-2026) |
 
-**La tabla existe desde el 08-09-2026 y el endpoint no**, y eso es deliberado: el responsable del proyecto pidió el catálogo y la tabla, y **quién declara la cuenta no está decidido** — si la declara el titular sobre sí mismo, como el perfil propio, o un funcionario con permiso sobre cualquiera.
-
-Lo que sí está decidido y ya vive en el esquema: **la cuenta se declara con el broker y el identificador** —lo que la persona conoce— y **el nombre de usuario en el broker llega después** (`RN-SP-040`). Y **una cuenta es de una sola persona** (`RN-SP-038`), garantizado por índice único y no por una comprobación previa.
+**El «por decidir» del 08-09-2026 se decidió el 08-10-2026**, a petición del responsable del proyecto —«crear, editar y eliminar mis cuentas de broker y las de un usuario»—: **las dos cosas**, el titular sobre sí mismo y administración sobre cualquiera. El superior comercial **solo mira** (`RN-SP-046`). Hasta hoy la única vía era el registro por enlace (`RN-SP-042`). `POST /api/v1/users/me/broker-accounts` y `POST /api/v1/users/{id}/broker-accounts`, con **broker e identificador** —lo que la persona conoce (`RN-SP-040`)—: la cuenta nace en `REGISTER` y sin nombre de usuario, también si la declara administración. Una cuenta ya declarada, por quien sea, es `409` (`RN-SP-038`).
 
 #### `RF-SP-054` — Completar la cuenta de broker desde el webhook del broker
 
@@ -1568,6 +1569,36 @@ Cierra la pertenencia vigente de uno o varios managers **de este equipo**, con m
 
 **Ruta propia y no un campo de `GET /users/me`**, aunque `RF-SP-055` señalaba esa vía: aquella frase es anterior a `RN-SEG-015`, y el permiso propio es lo que dice a quién se le ofrece la pestaña. **`RF-SP-055` no se relaja**: el titular que pide las suyas por su identificador sigue recibiendo `404` sin `broker-accounts:read`.
 
+#### `RF-SP-080` — Editar una cuenta de broker
+
+| Campo | Valor |
+|---|---|
+| Objetivo | Corregir el identificador de una cuenta mal escrito |
+| Actor | **El titular**, sobre las suyas, o **administración**, sobre las de cualquiera |
+| Permiso requerido | `broker-accounts:update-own` (la propia) o `broker-accounts:update` (cualquiera) |
+| Prioridad | Alta |
+| Reglas aplicables | `RN-SP-038`, `RN-SP-067` |
+| Depende de | `RF-SP-052`, `RF-SP-055` |
+| Tripleta | `docs/specs/sp/080-editar-cuenta-de-broker/` |
+| Estado | **Tasks en revisión** (08-10-2026) |
+
+**Solo se edita el identificador** (08-10-2026, decisión del responsable del proyecto): quien se equivocó de broker borra y declara otra, y el nombre de usuario y el estado los pone el broker. `PATCH /api/v1/users/me/broker-accounts/{brokerAccountId}` y `PATCH /api/v1/users/{id}/broker-accounts/{brokerAccountId}`. **El titular no corrige una cuenta con depósito confirmado** (`RN-SP-067`); administración sí, y la corrección conserva estado y nombre de usuario.
+
+#### `RF-SP-081` — Eliminar una cuenta de broker
+
+| Campo | Valor |
+|---|---|
+| Objetivo | Que una cuenta deje de estar a nombre de una persona |
+| Actor | **El titular**, sobre las suyas, o **administración**, sobre las de cualquiera |
+| Permiso requerido | `broker-accounts:delete-own` (la propia) o `broker-accounts:delete` (cualquiera) |
+| Prioridad | Alta |
+| Reglas aplicables | `RN-SP-038`, `RN-SP-067` |
+| Depende de | `RF-SP-052`, `RF-SP-055` |
+| Tripleta | `docs/specs/sp/081-eliminar-cuenta-de-broker/` |
+| Estado | **Tasks en revisión** (08-10-2026) |
+
+**Borrado físico y auditado** (08-10-2026, decisión del responsable del proyecto): nada del sistema apunta a una cuenta de broker, la auditoría guarda cómo era, y la cuenta queda libre para declararse otra vez. `DELETE /api/v1/users/me/broker-accounts/{brokerAccountId}` y `DELETE /api/v1/users/{id}/broker-accounts/{brokerAccountId}`. **El titular no borra una cuenta con depósito confirmado** (`RN-SP-067`); administración sí.
+
 ## 7. Requerimientos no funcionales
 
 Definidos en [`security.md` §11](../security.md) y en la constitución. Los que este módulo debe satisfacer:
@@ -1660,6 +1691,12 @@ Definidos en [`security.md` §11](../security.md) y en la constitución. Los que
 | `GET` | `/api/v1/users/{id}/broker-accounts` | `RF-SP-055` | `broker-accounts:read-team-member` (alcance: superior vigente, o `broker-accounts:read`) |
 | `GET` | `/api/v1/users/me/team/broker-accounts` | `RF-SP-056` | `broker-accounts:read-own-team` |
 | `GET` | `/api/v1/users/me/broker-accounts` | `RF-SP-079` | `broker-accounts:read-own` |
+| `POST` | `/api/v1/users/me/broker-accounts` | `RF-SP-053` | `broker-accounts:create-own` |
+| `POST` | `/api/v1/users/{id}/broker-accounts` | `RF-SP-053` | `broker-accounts:create` |
+| `PATCH` | `/api/v1/users/me/broker-accounts/{brokerAccountId}` | `RF-SP-080` | `broker-accounts:update-own` |
+| `PATCH` | `/api/v1/users/{id}/broker-accounts/{brokerAccountId}` | `RF-SP-080` | `broker-accounts:update` |
+| `DELETE` | `/api/v1/users/me/broker-accounts/{brokerAccountId}` | `RF-SP-081` | `broker-accounts:delete-own` |
+| `DELETE` | `/api/v1/users/{id}/broker-accounts/{brokerAccountId}` | `RF-SP-081` | `broker-accounts:delete` |
 | `GET` | `/api/v1/broker-accounts` | `RF-SP-057` | `broker-accounts:read` |
 | `GET` | `/api/v1/broker-accounts/indicators` | `RF-SP-058` | `broker-accounts:read-indicators` |
 | `POST` | `/api/v1/teams` | `RF-SP-063` | `teams:create` |
@@ -2294,7 +2331,7 @@ Añadidos el 08-09-2026 (`RN-SP-035`, `RN-SP-037`), y `company_phone` el 10-09-2
 - **Una persona SÍ puede tener varias cuentas en el mismo broker**, que es lo normal en el ramo.
 - **Una cuenta NO puede ser de dos personas.** El segundo que la declare recibe `409`, y quien lo garantiza es el índice —no una comprobación previa—, porque dos altas simultáneas de la misma cuenta pasan cualquier comprobación previa y solo chocan en el motor.
 
-**No lleva `deleted_at`.** Desvincular una cuenta no está decidido todavía (`RF-SP-053` no existe), y añadir la columna hoy sería declarar una operación que nadie implementa — el defecto que `RF-SP-035` dejó escrito con la purga: un campo puesto «por si acaso» que nadie escribe parece una funcionalidad que sí está.
+**No lleva `deleted_at`, y desde el 08-10-2026 no lo necesita**: desvincular se decidió **físico y auditado** (`RF-SP-081`, `RN-SP-067`), porque nada referencia la tabla. Antes de esa decisión el argumento era este: añadir la columna hoy sería declarar una operación que nadie implementa — el defecto que `RF-SP-035` dejó escrito con la purga: un campo puesto «por si acaso» que nadie escribe parece una funcionalidad que sí está.
 ### 10.19 Campos principales — `client_sellers`
 
 | Campo | Tipo | PK | FK | Nullable | Default | Entidad relacional |
@@ -2551,3 +2588,4 @@ La fila se lee «esta persona vinculó este authenticator». `status` es `PENDIE
 | 1.108.0 | 08-10-2026 | **`RF-SP-078` pasa a `En desarrollo`**: `GET` y `POST /api/v1/brokers/{id}/notifications` guardan cada aviso en `broker_notifications` (`V85`). Queda `T-09`: los secretos en Railway y la dirección en el panel de cada broker. **Ninguna regla cambia.** | Responsable técnico |
 | 1.109.0 | 08-10-2026 | **`RF-SP-078`: el broker va por su NOMBRE en la ruta**, `/api/v1/brokers/{name}/notifications`, a petición del responsable del proyecto («para no enviar el id, enviar el nombre»). Sin distinguir mayúsculas ni acentos, como `uq_brokers_name`. §10.17 registra el coste —renombrar un broker obliga a cambiar la dirección en su panel— y que **no se añade `code`**. Spec 0.2.0 (`CA-SP-908`). | Responsable del proyecto |
 | 1.110.0 | 08-10-2026 | **Nace `RF-SP-079` — consultar mis cuentas de broker**, a petición del responsable del proyecto («agreguemos para ver mis propias»): `GET /api/v1/users/me/broker-accounts` con **`broker-accounts:read-own`**, sembrado por `V89` a todo rol por su tipo —también a `CLIENTE`—. La respuesta y el orden de `RF-SP-055`, sin paginar. **`RN-SP-046` se enmienda** para nombrar la vía del titular, y deja de señalar `GET /users/me`: desde `RN-SEG-015` una vista lleva su permiso. `RF-SP-055` no se relaja. Criterios `CA-SP-909` a `CA-SP-914`. | Responsable del proyecto |
+| 1.111.0 | 08-10-2026 | **Gestionar las cuentas de broker: registrar, editar y eliminar**, propias y de cualquier persona, a petición del responsable del proyecto («crear, editar y eliminar mis cuentas de broker y las de un usuario») y con sus decisiones del mismo día: **solo se edita el identificador**; **el borrado es físico y auditado**; **el titular no toca una cuenta con depósito confirmado**, administración sí; **el superior comercial no gestiona**. `RF-SP-053` deja de estar «por decidir» y se reescribe como «Registrar una cuenta de broker»; nacen **`RF-SP-080`** y **`RF-SP-081`**, y **`RN-SP-067`**. Seis permisos —tres propios a todo rol por su tipo y tres amplios a `SUPERADMIN` y `ADMIN`—, sembrados por `V90`. Criterios `CA-SP-915` a `CA-SP-937`. | Responsable del proyecto |

@@ -5,7 +5,7 @@
 | Proyecto | NEXUS — Renovación de plataforma |
 | Empresa | FACTECH GROUP SAS |
 | Documento | `security.md` |
-| Versión | 0.125.0 |
+| Versión | 0.126.0 |
 | Estado | Borrador |
 | Responsable técnico | Bonilla Diaz William Steven |
 | Fecha de creación | 19-08-2026 |
@@ -288,6 +288,8 @@ document-types:read
 
 brokers:read     broker-accounts:read     broker-accounts:read-indicators
 broker-accounts:read-own-team   broker-accounts:read-team-member   broker-accounts:read-own
+broker-accounts:create-own      broker-accounts:update-own         broker-accounts:delete-own
+broker-accounts:create          broker-accounts:update             broker-accounts:delete
 
 teams:list       teams:read       teams:create       teams:update       teams:delete
 teams:change-status     teams:assign-members     teams:remove-members
@@ -443,6 +445,7 @@ La vista transversal `v_audit_timeline` (`architecture.md` §6.6.6) exige los cu
 - Cada permiso declara un nombre y una descripción legibles, para poder presentarlo en la interfaz de administración.
 - La plantilla de requerimientos admite además la notación `role:<código>` cuando un requerimiento exige un rol concreto en lugar de un permiso. Su uso **DEBERÍA** ser excepcional: acoplar un endpoint a un rol específico anula la ventaja del modelo de permisos.
 **Y uno más de `SP`, declarado y SEMBRADO el 08-10-2026 por `V89`**, ya en el bloque: `broker-accounts:read-own` —las propias cuentas de broker, `GET /users/me/broker-accounts` (`RF-SP-079`)—. **De alcance propio y a todo rol por su tipo**, los tres —también `CONSUMIDOR`—, como el segundo factor de `V75`: el titular de una cuenta puede ser cualquiera. **No reutiliza `broker-accounts:read-team-member`**, que abre la lectura por estructura y que `CONSUMIDOR` no porta, ni `users:read-own-profile` (`RN-SEG-014`). El catálogo pasa a **210**, y `ADMIN` porta 208.
+**Y seis más de `SP`, declarados el 08-10-2026 y SEMBRADOS por `V90`**, ya en el bloque: registrar, editar y eliminar cuentas de broker (`RF-SP-053`, `RF-SP-080`, `RF-SP-081`, `RN-SP-067`). **Tres de alcance propio** —`broker-accounts:create-own`, `broker-accounts:update-own` y `broker-accounts:delete-own`—, a **todo rol por su tipo**, los tres tipos, como `broker-accounts:read-own`: el titular gestiona las suyas, y editar o borrar no alcanza a una cuenta con depósito confirmado. **Tres de administración** —`broker-accounts:create`, `broker-accounts:update` y `broker-accounts:delete`—, a `SUPERADMIN` y `ADMIN` **explícitos**, sobre cualquier persona y en cualquier estado. **Tres y tres y no uno** por `RN-SEG-014`: lo propio y lo ajeno se conceden por separado, y cada operación también. El superior comercial no recibe ninguno: ve, no gestiona. El catálogo pasa a **216**, y `ADMIN` porta 214.
 
 ### 4.5 Resolución en tiempo de ejecución
 
@@ -1106,3 +1109,4 @@ RNF-SEG-002 merece atención: es una prueba que enumera los endpoints registrado
 | 0.123.0 | 08-10-2026 | **Un permiso de `CM` de administración, declarado y sembrado por `V86`** (§4.4): `commission-batches:delete-empty` (`RF-CM-027`), a `SUPERADMIN` y `ADMIN` explícitos. Catálogo **207**, `ADMIN` 205. | Responsable del proyecto |
 | 0.124.0 | 08-10-2026 | **Dos permisos de `CM` de administración, declarados y sembrados por `V87`** (§4.4): `commission-closings:read-next` (`RF-CM-028`) y `commission-closings:set-payment-mode` (`RF-CM-029`), a `SUPERADMIN` y `ADMIN` explícitos. Catálogo **209**, `ADMIN` 207. | Responsable del proyecto |
 | 0.125.0 | 08-10-2026 | **Un permiso de alcance propio de `SP`, declarado y sembrado por `V89`** (§4.4): `broker-accounts:read-own` (`RF-SP-079`), a todo rol por su tipo. Catálogo **210**, `ADMIN` 208. | Responsable del proyecto |
+| 0.126.0 | 08-10-2026 | **Seis permisos de `SP` para gestionar cuentas de broker, declarados y sembrados por `V90`** (§4.4): `broker-accounts:create-own`, `update-own` y `delete-own` a todo rol por su tipo, y `broker-accounts:create`, `update` y `delete` a `SUPERADMIN` y `ADMIN` explícitos (`RF-SP-053`, `RF-SP-080`, `RF-SP-081`). Catálogo **216**, `ADMIN` 214. | Responsable del proyecto |
