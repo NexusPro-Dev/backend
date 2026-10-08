@@ -6,7 +6,7 @@
 | Especificación | [`spec.md`](spec.md) v0.1.0 |
 | Plan | [`plan.md`](plan.md) v0.1.0 |
 | `plan.md` aprobado el | 28-09-2026 |
-| Estado | **En revisión** — todas las tareas `Hecha` el 28-09-2026 |
+| Estado | **Aprobadas** — por el responsable del proyecto, 08-10-2026. `T-01` a `T-11` `Hecha` el 28-09-2026 y siguientes; `T-12` y `T-13` el 08-10-2026 |
 | Enmendadas | 29-09-2026 — `T-08` por **la liquidación afftrack** (`RN-CM-043`) |
 | Enmendadas | 30-09-2026 — `T-09` por **los abiertos vacíos** (`RN-CM-048`) |
 | Issue | Pendiente de crear |
@@ -71,7 +71,7 @@
 - [ ] `./mvnw clean verify` en verde.
 - [ ] Los once criterios de aceptación con prueba.
 - [ ] Contrato y `requirements.md` actualizados.
-- [ ] **`tasks.md` aprobadas por el responsable del proyecto.**
+- [x] **`tasks.md` aprobadas por el responsable del proyecto.**
 
 ## 6. La liquidación afftrack — enmienda del 29-09-2026
 

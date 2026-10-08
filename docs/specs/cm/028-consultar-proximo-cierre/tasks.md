@@ -6,7 +6,7 @@
 | Especificación | [`spec.md`](spec.md) v0.1.0 |
 | Plan | [`plan.md`](plan.md) v0.1.0 |
 | `plan.md` aprobado el | 08-10-2026 |
-| Estado | **En revisión** — todas las tareas `Hecha` el 08-10-2026 |
+| Estado | **Aprobadas** — por el responsable del proyecto, 08-10-2026. `T-01` a `T-06` `Hecha` el mismo día |
 | Issue | Pendiente de crear |
 | Rama | `develop` |
 
@@ -59,4 +59,4 @@ Ninguno.
 - [ ] `./mvnw clean verify` en verde.
 - [ ] Los cinco criterios de aceptación con prueba.
 - [ ] Contrato y `requirements.md` actualizados.
-- [ ] **`tasks.md` aprobadas por el responsable del proyecto.**
+- [x] **`tasks.md` aprobadas por el responsable del proyecto.**
