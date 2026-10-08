@@ -10,6 +10,7 @@
 | Enmendadas | 30-09-2026 — `T-06` por **el lote vacío** (`RN-CM-048`) |
 | Issue | Pendiente de crear |
 | Rama | `feature/devengo-de-comisiones` |
+| Enmendadas | 08-10-2026 — `T-07` y `T-08` porque **tras el pago se borran los pendientes vacíos** (`RN-CM-052`) |
 
 !!! info "Qué va en este documento"
 
@@ -70,3 +71,12 @@
 | `T-06` | El `EXISTS` de comisiones vivas en `PayCommissionBatchService`, la prosa del `409` y `CA-CM-301` en `PayCommissionBatchIT` (`plan.md` §12) | `RF-CM-022` `T-05` | `PayCommissionBatchIT` en verde | **Hecha** — 30-09-2026 |
 
 Rama: `feature/corregir-vendedor-y-mover-comisiones`.
+
+## 7. Tras el pago se borran los pendientes vacíos — enmienda del 08-10-2026
+
+| ID | Tarea | Depende de | Verificación | Estado |
+|---|---|---|---|---|
+| `T-07` | `POST /{id}/payment` llama a `EmptyBatchesAfterPayment.run()` tras `pay` (`plan.md` §13); prosa de la `@Operation` | `RF-CM-027` `T-07` | Compila | Pendiente |
+| `T-08` | `CA-CM-378` y `CA-CM-379` en `DeleteEmptyBatchesIT` | `T-07` | La suite en verde | Pendiente |
+
+Rama: `develop`.

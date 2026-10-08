@@ -4,13 +4,14 @@
 |---|---|
 | Requerimiento | `RF-CM-011` |
 | Módulo | `CM` — Comisiones |
-| Versión | 0.3.0 |
+| Versión | 0.4.0 |
 | Estado | **Aprobada** |
 | Autor | Responsable técnico |
 | Aprobada por | Responsable del proyecto |
 | Fecha de aprobación | 28-09-2026 |
 | Enmendada el | 30-09-2026 — **un lote sin comisiones vivas no se paga** (`RN-CM-048`) |
 | Enmendada el | 05-10-2026 — el lote ya no puede tener cuatro decimales ([`ADR-006`](../../../architecture/ADR-006-importes-en-unidades-minimas.md)); §13 |
+| Enmendada el | 08-10-2026 — **un pago que se hace borra después todos los pendientes vacíos** (`RN-CM-052` enmendada): `CA-CM-378` y `CA-CM-379` |
 
 !!! info "Qué va en este documento"
 
@@ -149,6 +150,8 @@ Uno lo paga; el otro recibe conflicto. **La billetera sube una sola vez.**
 | `CA-CM-195` | Un lote que no existe responde **no encontrado**; sin `commission-batches:pay`, se rechaza |
 | `CA-CM-196` | Queda **auditado**, con el lote, el importe y el movimiento |
 | `CA-CM-301` | Un lote pendiente **sin comisiones vivas** responde conflicto y **no** se abona nada; en cuanto se le devuelve una, se paga. **Un lote con una comisión viva de importe cero se sigue pagando** (`CA-CM-194`) (30-09-2026) |
+| `CA-CM-378` | Pagar un lote **borra después todos los pendientes sin comisiones**, de cualquier persona, auditados; los abiertos vacíos y los pendientes con comisiones **no se tocan**, y lo retirado de un pendiente borrado pierde su origen (08-10-2026) |
+| `CA-CM-379` | Un pago que **no se hace** —el lote está abierto, pagado o vacío, o no existe— **no borra** ningún lote |
 
 ---
 
@@ -174,3 +177,4 @@ Ninguna.
 | 0.1.0 | 28-09-2026 | Primera versión ([`requirements/cm.md`](../../../requirements/cm.md) v0.20.0). Solo se paga un lote pendiente, y pagar es abonar por `RF-MV-024` en la misma transacción. Criterios `CA-CM-189` a `CA-CM-196`. | Responsable del proyecto |
 | 0.2.0 | 30-09-2026 | **Un lote sin comisiones vivas no se paga** (`RN-CM-048`, [`requirements/cm.md`](../../../requirements/cm.md) v0.26.0 §5.10): desde que se pueden retirar y revertir comisiones, un pendiente puede quedarse vacío, y abonarlo dejaría un `PAGO_COMISION` que no paga nada. **Lo que cuenta son las comisiones vivas, no el total**: `CA-CM-194` sigue en pie. `EX-005`, `CA-CM-301`. | Responsable del proyecto |
 | 0.3.0 | 05-10-2026 | **El lote ya no puede tener total en cuatro decimales** ([`ADR-006`](../../../architecture/ADR-006-importes-en-unidades-minimas.md), [`requirements/cm.md`](../../../requirements/cm.md) v0.31.0): las comisiones se guardan en centésimas, redondeadas al guardarse, y el lote suma enteros. El caso límite de §13 se tacha, sin borrarlo, porque explica por qué `RN-MV-044` redondea. Ningún criterio cambia. | Responsable del proyecto |
+| 0.4.0 | 08-10-2026 | **Un pago que se hace borra después todos los pendientes vacíos** ([`requirements/cm.md`](../../../requirements/cm.md) v0.42.0, `RN-CM-052` enmendada, «Quinta enmienda»), por decisión del responsable del proyecto: de todas las personas, en una transacción aparte; si ese borrado falla, el pago queda hecho. Nacen `CA-CM-378` y `CA-CM-379`. | Responsable del proyecto |

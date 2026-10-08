@@ -5,12 +5,13 @@
 | Requerimiento | `RF-CM-011` |
 | Especificación | [`spec.md`](spec.md) v0.1.0 |
 | `spec.md` aprobada el | 28-09-2026 |
-| Versión | 0.2.0 |
+| Versión | 0.3.0 |
 | Estado | **Aprobado** |
 | Autor | Responsable técnico |
 | Aprobado por | Responsable del proyecto |
 | Fecha de aprobación | 28-09-2026 |
 | Enmendado el | 30-09-2026 — un lote sin comisiones vivas responde `409` (§12) |
+| Enmendado el | 08-10-2026 — tras el pago se borran los pendientes vacíos (§13) |
 
 !!! info "Qué va en este documento"
 
@@ -122,3 +123,16 @@ Un `ChangeEvent` sobre `commission_batches`, `UPDATE`, `PENDIENTE` → `PAGADO`,
 ## 12. El lote vacío — enmienda del 30-09-2026
 
 `RN-CM-048`. **Tras el `FOR UPDATE` y las comprobaciones de estado**, un `EXISTS` de comisiones vivas del lote; si no hay, `409` (`EX-005`) antes de invocar a `MV`. **Va después del bloqueo** por lo mismo que las otras dos comprobaciones: una devolución concurrente (`RF-CM-023`) toma el mismo lote con `FOR UPDATE`, y el pago que espera lee lo que ella dejó. `PayCommissionBatchIT` gana `CA-CM-301`.
+
+## 13. Tras el pago se borran los pendientes vacíos — enmienda del 08-10-2026
+
+`RN-CM-052` enmendada ([`requirements/cm.md`](../../../requirements/cm.md) v0.42.0 §5.10, «Quinta enmienda»). **Después de que `pay` confirme**, la ruta llama a `EmptyBatchesAfterPayment.run()`, que llama a `DeleteEmptyBatchesService.deleteEmpty(PENDIENTE)` —el borrado de [`RF-CM-027`](../027-borrar-lotes-vacios/plan.md), acotado a los pendientes— **en su propia transacción**.
+
+| Alternativa | Por qué no |
+|---|---|
+| Borrar dentro de la transacción de `pay` | `pay` bloquea su lote antes que nada, y borrar un pendiente bloquea antes las comisiones retiradas de él: el pago tomaría lotes antes que comisiones, al revés que el resto del módulo. Y un fallo del borrado desharía un abono hecho |
+| Borrar en `pay`, con `REQUIRES_NEW` | Correría **antes** de que el pago confirme, con el lote pagado todavía bloqueado |
+
+**`EmptyBatchesAfterPayment` no es transaccional y no deja salir una excepción**: si el borrado falla, lo registra y el pago responde `200`, porque ya está hecho; los vacíos esperan al siguiente pago o a la orden de `RF-CM-027`. **Un pago que no se hace no lo llama** (`CA-CM-379`): la excepción de `pay` sale antes.
+
+**Pruebas**: `DeleteEmptyBatchesIT` gana `CA-CM-378` y `CA-CM-379`, por la ruta. Las pruebas que llaman a `pay` directamente no borran nada, y es lo que se quiere: `PayCommissionBatchesService` también lo llama así, lote a lote.

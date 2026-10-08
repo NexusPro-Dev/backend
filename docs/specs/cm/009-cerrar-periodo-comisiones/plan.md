@@ -5,7 +5,7 @@
 | Requerimiento | `RF-CM-009` |
 | Especificación | [`spec.md`](spec.md) v0.1.0 |
 | `spec.md` aprobada el | 28-09-2026 |
-| Versión | 0.4.0 |
+| Versión | 0.5.0 |
 | Estado | **Aprobado** |
 | Autor | Responsable técnico |
 | Aprobado por | Responsable del proyecto |
@@ -13,6 +13,7 @@
 | Enmendado el | 29-09-2026 — la liquidación afftrack dentro de la transacción externa (§12) |
 | Enmendado el | 30-09-2026 — el paso a pendiente salta los abiertos sin comisiones vivas (§13) |
 | Enmendado el | 07-10-2026 — el abierto vacío se mira sin la marca de revertida (§14) |
+| Enmendado el | 08-10-2026 — el cierre borra los abiertos vacíos (§15) |
 
 !!! info "Qué va en este documento"
 
@@ -179,3 +180,11 @@ La externa, con el bloqueo y el cierre de los lotes; una por línea en el barrid
 ## 14. Sin la marca de revertida — enmienda del 07-10-2026
 
 `RN-CM-047` enmendada y `RN-CM-048` precisada: la condición de §13 pasa a `EXISTS (SELECT 1 FROM commissions c WHERE c.batch_id = b.id)`, porque desde `V80` toda comisión de un lote es viva. **El comportamiento no cambia**. Lo hace [`RF-CM-024`](../024-revertir-comisiones-de-linea/plan.md) `T-09`.
+
+## 15. El cierre borra los abiertos vacíos — enmienda del 08-10-2026
+
+`RN-CM-052` enmendada ([`requirements/cm.md`](../../../requirements/cm.md) v0.42.0 §5.10, «Quinta enmienda»). **Tras `closeOpenBatches`, y en la misma transacción**, `cerrar` llama a `DeleteEmptyBatchesService.deleteEmpty(ABIERTO)` —el borrado de [`RF-CM-027`](../027-borrar-lotes-vacios/plan.md), acotado a los abiertos—, que se une a la transacción del cierre: si el cierre falla después, los abiertos vuelven. Su número entra en la auditoría del cierre como `empty_batches_deleted` (`CA-CM-377`). **`commission_closings` no gana columna**: la constancia cuenta lotes cerrados, y lo borrado ya está, lote a lote, en `audit_deletion_log`.
+
+**El orden de bloqueos se respeta**: un abierto nunca es el origen de una retirada —se retira desde un pendiente—, de modo que `lockWithdrawnFrom` no bloquea nada, y los abiertos vacíos se bloquean por identificador, sin cruzarse con los que `closeOpenBatches` ya tomó, que tienen comisiones. **Un devengo que llega a la vez** gana o pierde el bloqueo del abierto: si gana, el `DELETE` encuentra su comisión y no borra, y el lote queda abierto para el cierre siguiente; si pierde, `lockOpenBatch` no lo encuentra y abre otro.
+
+**Pruebas**: `DeleteEmptyBatchesIT` gana `CA-CM-376` y `CA-CM-377`; `ReturnCommissionIT` cambia `CA-CM-300` por `CA-CM-376`: el abierto que se vació al devolver ya no sigue abierto tras el cierre, se borra.

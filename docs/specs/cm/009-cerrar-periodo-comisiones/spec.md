@@ -4,13 +4,14 @@
 |---|---|
 | Requerimiento | `RF-CM-009` |
 | Módulo | `CM` — Comisiones |
-| Versión | 0.3.0 |
+| Versión | 0.4.0 |
 | Estado | **Aprobada** |
 | Autor | Responsable técnico |
 | Aprobada por | Responsable del proyecto |
 | Fecha de aprobación | 28-09-2026 |
 | Enmendada el | 29-09-2026 — **el cierre liquida lo afftrack** entre el barrido y el paso a pendiente (`RN-CM-043`, `RF-CM-020`) |
 | Enmendada el | 30-09-2026 — **un lote abierto sin comisiones vivas no se cierra** (`RN-CM-048`) |
+| Enmendada el | 08-10-2026 — **el cierre borra los abiertos vacíos** (`RN-CM-052` enmendada): `CA-CM-376` y `CA-CM-377`; se retira `CA-CM-300` |
 
 !!! info "Qué va en este documento"
 
@@ -169,7 +170,9 @@ Si llega **antes** de que el cierre tome el lote, entra en él. Si llega **despu
 | `CA-CM-178` | Una comisión que devenga **mientras** el cierre corre acaba en el lote cerrado **o** en uno nuevo, nunca en ninguno ni en los dos, y la suma de totales cuadra con la de comisiones |
 | `CA-CM-179` | El cierre programado **no corre** si está apagado por configuración, y corre en la **zona del negocio** |
 | `CA-CM-180` | La consulta de cierres lista los cierres del más reciente al más antiguo, con su constancia completa, filtrable por fechas y por origen; sin `commission-closings:read`, se rechaza |
-| `CA-CM-300` | El cierre **no cierra** un lote abierto **sin comisiones vivas** —se devolvieron o revirtieron todas—: sigue abierto, sin fin de periodo, y no cuenta entre los lotes cerrados; lo siguiente que devengue esa persona entra en él (30-09-2026) |
+| ~~`CA-CM-300`~~ | **Retirado el 08-10-2026, lo sustituye `CA-CM-376`**: ~~El cierre **no cierra** un lote abierto **sin comisiones vivas** —se devolvieron o revirtieron todas—: sigue abierto, sin fin de periodo, y no cuenta entre los lotes cerrados; lo siguiente que devengue esa persona entra en él (30-09-2026)~~ |
+| `CA-CM-376` | El cierre **borra** los lotes abiertos **sin comisiones**, auditados como eliminación física; los abiertos con comisiones pasan a pendiente, y los **pendientes vacíos no se tocan** (08-10-2026) |
+| `CA-CM-377` | La auditoría del cierre dice **cuántos** abiertos vacíos borró |
 
 ---
 
@@ -198,3 +201,4 @@ Si llega **antes** de que el cierre tome el lote, entra en él. Si llega **despu
 
 | 0.2.0 | 29-09-2026 | **El cierre liquida lo afftrack** ([`requirements/cm.md`](../../../requirements/cm.md) v0.22.0 §5.8, `RN-CM-043`): un paso entre el barrido y el paso a pendiente, en la misma operación, con el instante del cierre posterior al del corte. `EX-002` lo alcanza. Los criterios de la liquidación son de `RF-CM-020`; los de este requerimiento no cambian. | Responsable del proyecto |
 | 0.3.0 | 30-09-2026 | **Un lote abierto sin comisiones vivas no se cierra** (`RN-CM-048`, [`requirements/cm.md`](../../../requirements/cm.md) v0.26.0 §5.10): desde que una comisión puede salir de un lote —devuelta a su pendiente, o revertida al corregirse el vendedor—, un abierto puede quedarse vacío, y cerrarlo dejaría un pendiente que no se puede pagar. `CA-CM-300`. | Responsable del proyecto |
+| 0.4.0 | 08-10-2026 | **El cierre borra los abiertos vacíos** ([`requirements/cm.md`](../../../requirements/cm.md) v0.42.0, `RN-CM-052` enmendada, «Quinta enmienda»), por decisión del responsable del proyecto: los que no cierra por no tener comisiones (`RN-CM-048`) se borran en su misma transacción. Nacen `CA-CM-376` y `CA-CM-377`; se retira `CA-CM-300`. | Responsable del proyecto |

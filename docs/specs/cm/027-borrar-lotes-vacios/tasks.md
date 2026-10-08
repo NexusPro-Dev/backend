@@ -7,6 +7,7 @@
 | Plan | [`plan.md`](plan.md) v0.1.0 |
 | `plan.md` aprobado el | 08-10-2026 |
 | Estado | **En revisión** — todas las tareas `Hecha` el 08-10-2026 |
+| Enmendadas | 08-10-2026 — `T-07` porque **el borrado se acota por estado** y lo usan el cierre y el pago (`RN-CM-052`) |
 | Issue | Pendiente de crear |
 | Rama | `develop` |
 
@@ -58,3 +59,11 @@ Ninguno.
 - [ ] Los ocho criterios de aceptación con prueba.
 - [ ] Contrato y `requirements.md` actualizados.
 - [ ] **`tasks.md` aprobadas por el responsable del proyecto.**
+
+## 6. El borrado se acota por estado — enmienda del 08-10-2026
+
+| ID | Tarea | Depende de | Verificación | Estado |
+|---|---|---|---|---|
+| `T-07` | `deleteEmpty(estados)` y `findEmptyUnpaidBatchIds(estados)`; `EmptyBatchesAfterPayment`; el motivo de la auditoría lo da quien llama (`plan.md` §12) | — | `DeleteEmptyBatchesIT` en verde | Pendiente |
+
+Después, `RF-CM-009` `T-10`, `RF-CM-011` `T-07` y `RF-CM-025` `T-07`. Rama: `develop`.

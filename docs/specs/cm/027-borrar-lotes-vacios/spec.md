@@ -4,11 +4,12 @@
 |---|---|
 | Requerimiento | `RF-CM-027` |
 | Módulo | `CM` — Comisiones |
-| Versión | 0.1.0 |
+| Versión | 0.2.0 |
 | Estado | **Aprobada** |
 | Autor | Responsable técnico |
 | Aprobada por | Responsable del proyecto |
 | Fecha de aprobación | 08-10-2026 |
+| Enmendada el | 08-10-2026 — el cierre y el pago también borran lotes vacíos, con este mismo borrado (`RN-CM-052`); §4.2 |
 
 !!! info "Qué va en este documento"
 
@@ -59,7 +60,7 @@ Que Finanzas o administración **quite de una vez los lotes que no tienen nada q
 - **Borrar un lote con comisiones**, aunque su total sea cero.
 - **Borrar un lote pagado**: nunca está vacío, y lo pagado no se borra (`RN-CM-029`).
 - **Elegir qué lotes**: son todos los vacíos.
-- **Hacerlo solo**, programado: lo pide una persona.
+- ~~**Hacerlo solo**, programado: lo pide una persona.~~ Desde el 08-10-2026 también se borran solos en dos momentos, que son de otros requerimientos: los abiertos vacíos **al cerrar** (`RF-CM-009`) y los pendientes vacíos **al pagar** (`RF-CM-011`, `RF-CM-025`). Esta orden sigue borrando los dos.
 
 ---
 
@@ -170,3 +171,4 @@ Ninguna.
 | Versión | Fecha | Cambio | Autor |
 |---|---|---|---|
 | 0.1.0 | 08-10-2026 | Primera versión ([`requirements/cm.md`](../../../requirements/cm.md) v0.41.0, `RN-CM-052` enmendada), por decisión del responsable del proyecto: el lote vacío ya no se borra en el acto; se borran **todos los vacíos a la vez**, a petición. Criterios `CA-CM-368` a `CA-CM-375`. | Responsable del proyecto |
+| 0.2.0 | 08-10-2026 | **El cierre y el pago también borran lotes vacíos** ([`requirements/cm.md`](../../../requirements/cm.md) v0.42.0, `RN-CM-052` enmendada, «Quinta enmienda»), por decisión del responsable del proyecto: el cierre los abiertos, el pago los pendientes. Usan este mismo borrado; lo que pide esta tripleta no cambia. §4.2 se corrige. | Responsable del proyecto |

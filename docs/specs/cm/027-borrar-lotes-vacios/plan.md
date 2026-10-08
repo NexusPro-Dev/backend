@@ -5,11 +5,12 @@
 | Requerimiento | `RF-CM-027` |
 | Especificación | [`spec.md`](spec.md) v0.1.0 |
 | `spec.md` aprobada el | 08-10-2026 |
-| Versión | 0.1.0 |
+| Versión | 0.2.0 |
 | Estado | **Aprobado** |
 | Autor | Responsable técnico |
 | Aprobado por | Responsable del proyecto |
 | Fecha de aprobación | 08-10-2026 |
+| Enmendado el | 08-10-2026 — el borrado se acota por estado y lo usan el cierre y el pago (§12) |
 
 !!! info "Qué va en este documento"
 
@@ -137,3 +138,15 @@ responder los borrados, por identificador
 ## 11. Estrategia de prueba
 
 `DeleteEmptyBatchesIT`, con lotes de devengo y cierre reales, como `WithdrawCommissionIT`; un lote vacío se fabrica **retirando y devolviendo** por la API, ya que desde hoy esas rutas lo dejan donde está. `CA-CM-368` a `CA-CM-373` y `CA-CM-375`. **`CA-CM-374`** con dos hilos —borrar y confirmar una venta del mismo vendedor— y una barrera, varias vueltas: al final cada comisión está en un lote que existe.
+
+## 12. El borrado se acota por estado — enmienda del 08-10-2026
+
+`RN-CM-052` enmendada. **El borrado de §1 pasa a recibir los estados** que mira: `DeleteEmptyBatchesService.deleteEmpty(estados)`, y `deleteAll()` es `deleteEmpty(ABIERTO, PENDIENTE)`. `findEmptyUnpaidBatchIds` recibe los mismos estados. Lo llaman:
+
+| Quién | Estados | Transacción |
+|---|---|---|
+| La ruta de esta tripleta | `ABIERTO`, `PENDIENTE` | La suya |
+| El cierre ([`RF-CM-009`](../009-cerrar-periodo-comisiones/plan.md) §15) | `ABIERTO` | La del cierre |
+| `EmptyBatchesAfterPayment`, tras un pago ([`RF-CM-011`](../011-marcar-lote-pagado/plan.md) §13, [`RF-CM-025`](../025-pagar-varios-lotes/plan.md) §12) | `PENDIENTE` | La suya, después del pago |
+
+**`EmptyBatchesAfterPayment`** (nuevo, `domain/service`, sin `@Transactional`) llama a `deleteEmpty(PENDIENTE)` y **registra y se traga** cualquier excepción: el pago ya está hecho. `EmptyBatchRemoval` recibe el motivo de quien llama, para que la auditoría diga si el lote lo borró la orden, el cierre o un pago.

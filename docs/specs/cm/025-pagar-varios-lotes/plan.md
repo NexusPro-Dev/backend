@@ -5,11 +5,12 @@
 | Requerimiento | `RF-CM-025` |
 | Especificación | [`spec.md`](spec.md) v0.1.0 |
 | `spec.md` aprobada el | 01-10-2026 |
-| Versión | 0.1.0 |
+| Versión | 0.2.0 |
 | Estado | **Aprobado** |
 | Autor | Responsable técnico |
 | Aprobado por | Responsable del proyecto |
 | Fecha de aprobación | 01-10-2026 |
+| Enmendado el | 08-10-2026 — al final se borran los pendientes vacíos (§12) |
 
 !!! info "Qué va en este documento"
 
@@ -130,3 +131,9 @@ para cada id, en orden:
 ## 11. Estrategia de prueba
 
 `PayCommissionBatchesIT`: `CA-CM-306` a `CA-CM-314`, con lotes de devengo y cierre reales, como `PayCommissionBatchIT`. `CA-CM-308` provoca el fallo del abono como `CA-CM-193` —un total negativo con el `CHECK` retirado—. `CA-CM-311` con dos hilos.
+
+## 12. Al final se borran los pendientes vacíos — enmienda del 08-10-2026
+
+`RN-CM-052` enmendada. `payAll`, **después del bucle y solo si `paidCount > 0`**, llama a `EmptyBatchesAfterPayment.run()` ([`RF-CM-011`](../011-marcar-lote-pagado/plan.md) §13). **Una vez y no por lote**: el borrado mira todos los pendientes vacíos, y repetirlo tras cada lote solo multiplicaría las consultas. Como `payAll` no es transaccional, el borrado abre la suya, ya con todos los pagos confirmados; si falla, la respuesta no cambia.
+
+**Pruebas**: `DeleteEmptyBatchesIT` gana `CA-CM-380`.

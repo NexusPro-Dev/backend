@@ -7,6 +7,7 @@
 | Plan | [`plan.md`](plan.md) v0.1.0 |
 | `plan.md` aprobado el | 01-10-2026 |
 | Estado | **En revisión** — todas las tareas `Hecha` el 01-10-2026 |
+| Enmendadas | 08-10-2026 — `T-07` y `T-08` porque **al final se borran los pendientes vacíos** (`RN-CM-052`) |
 | Issue | Pendiente de crear |
 | Rama | `feature/pagar-varios-lotes` |
 
@@ -58,3 +59,12 @@
 - [ ] Los nueve criterios de aceptación con prueba.
 - [ ] Contrato y `requirements.md` actualizados.
 - [ ] **`tasks.md` aprobadas por el responsable del proyecto.**
+
+## 6. Al final se borran los pendientes vacíos — enmienda del 08-10-2026
+
+| ID | Tarea | Depende de | Verificación | Estado |
+|---|---|---|---|---|
+| `T-07` | `payAll` llama a `EmptyBatchesAfterPayment.run()` si pagó alguno (`plan.md` §12); prosa de la `@Operation` | `RF-CM-011` `T-07` | Compila | Pendiente |
+| `T-08` | `CA-CM-380` en `DeleteEmptyBatchesIT` | `T-07` | La suite en verde | Pendiente |
+
+Rama: `develop`.

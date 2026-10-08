@@ -4,11 +4,12 @@
 |---|---|
 | Requerimiento | `RF-CM-025` |
 | Módulo | `CM` — Comisiones |
-| Versión | 0.1.0 |
+| Versión | 0.2.0 |
 | Estado | **Aprobada** |
 | Autor | Responsable técnico |
 | Aprobada por | Responsable del proyecto |
 | Fecha de aprobación | 01-10-2026 |
+| Enmendada el | 08-10-2026 — **si se paga alguno, se borran después todos los pendientes vacíos, una vez** (`RN-CM-052` enmendada): `CA-CM-380` |
 
 !!! info "Qué va en este documento"
 
@@ -157,6 +158,7 @@ Ese lote sale **no pagado, porque ya estaba pagado**; se abona **una sola vez**.
 | `CA-CM-312` | Una lista en la que **ninguno** se puede pagar responde **éxito**, con todos no pagados y su motivo |
 | `CA-CM-313` | Cada lote pagado queda **auditado como un pago suelto** |
 | `CA-CM-314` | Sin `commission-batches:pay-batches`, se rechaza —**también con `commission-batches:pay`**— |
+| `CA-CM-380` | Si se paga **alguno**, al terminar se borran **una vez** todos los pendientes sin comisiones, de cualquier persona; si **ninguno** se paga, no se borra nada (08-10-2026) |
 
 ---
 
@@ -181,3 +183,4 @@ Ninguna.
 | Versión | Fecha | Cambio | Autor |
 |---|---|---|---|
 | 0.1.0 | 01-10-2026 | Primera versión ([`requirements/cm.md`](../../../requirements/cm.md) v0.28.0, `RN-CM-049`), por petición del responsable del proyecto: una lista que elige Finanzas, cada lote por su cuenta, permiso propio y **sin tope** —el de cien que se propuso lo retiró el responsable el mismo día—. Criterios `CA-CM-306` a `CA-CM-314`. | Responsable del proyecto |
+| 0.2.0 | 08-10-2026 | **Si se paga alguno, se borran después todos los pendientes vacíos** ([`requirements/cm.md`](../../../requirements/cm.md) v0.42.0, `RN-CM-052` enmendada, «Quinta enmienda»), por decisión del responsable del proyecto: una vez, al final, como tras un pago suelto. Nace `CA-CM-380`. | Responsable del proyecto |

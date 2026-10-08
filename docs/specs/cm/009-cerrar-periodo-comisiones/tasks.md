@@ -11,6 +11,7 @@
 | Enmendadas | 30-09-2026 — `T-09` por **los abiertos vacíos** (`RN-CM-048`) |
 | Issue | Pendiente de crear |
 | Rama | `feature/devengo-de-comisiones` |
+| Enmendadas | 08-10-2026 — `T-10` y `T-11` porque **el cierre borra los abiertos vacíos** (`RN-CM-052`) |
 
 !!! info "Qué va en este documento"
 
@@ -86,3 +87,12 @@ Rama: `feature/comision-afftrack`. **Es la misma tarea que `RF-CM-020` `T-07`**,
 | `T-09` | La condición de comisiones vivas en el paso a `PENDIENTE` (`plan.md` §13) y `CA-CM-300` en `CloseCommissionPeriodIT` | `RF-CM-023` `T-03` | `CloseCommissionPeriodIT` en verde | **Hecha** — 30-09-2026 |
 
 Rama: `feature/corregir-vendedor-y-mover-comisiones`.
+
+## 8. El cierre borra los abiertos vacíos — enmienda del 08-10-2026
+
+| ID | Tarea | Depende de | Verificación | Estado |
+|---|---|---|---|---|
+| `T-10` | `cerrar` llama a `DeleteEmptyBatchesService.deleteEmpty(ABIERTO)` y audita `empty_batches_deleted` (`plan.md` §15); prosa de la `@Operation` | `RF-CM-027` `T-07` | Compila | Pendiente |
+| `T-11` | `CA-CM-376` y `CA-CM-377` en `DeleteEmptyBatchesIT`; `CA-CM-300` de `ReturnCommissionIT` pasa a `CA-CM-376` | `T-10` | La suite en verde | Pendiente |
+
+Rama: `develop`.
