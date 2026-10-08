@@ -5,11 +5,11 @@
 | Módulo | `SP` — Sistema Principal |
 | Paquete | `modules/system` |
 | Prefijos de permiso | `roles:`, `permissions:`, `audit:`, `memberships:`, `currencies:`, `countries:`, `users:`, `exchange-rates:`, `document-types:`, `brokers:`, `broker-accounts:`, `teams:` |
-| Versión | 1.106.0 |
+| Versión | 1.107.0 |
 | Estado | **Aprobado** |
 | Responsable | Bonilla Diaz William Steven |
 | Fecha de creación | 20-08-2026 |
-| Última actualización | 07-10-2026 |
+| Última actualización | 08-10-2026 |
 | Fecha de aprobación | 20-08-2026 |
 
 !!! info "Qué va en este documento"
@@ -66,7 +66,7 @@ Según [`modules.md` §5.1](../modules.md).
 | **Tasas de cambio** | A cuánto se cambia una moneda por otra, y desde cuándo. **Se administra por API**, al revés que el catálogo de monedas | `RF-SP-047` a `RF-SP-050` |
 | Países | Catálogo de países | `RF-SP-020`, `RF-SP-021` |
 | **Tipos de documento** | Catálogo de los documentos de identidad admitidos. **Solo lectura por API**, como el de monedas — y con una diferencia que lo define: **solo contiene documentos de persona mayor de edad**, de modo que el catálogo *es* la validación | `RF-SP-051` |
-| **Brokers** | Catálogo de los brokers con los que opera la plataforma, y **la cuenta que cada persona tiene en cada uno**. El catálogo es **solo lectura por API** como el de monedas; el vínculo lo declara quien abre la cuenta, **lo consulta el superior comercial** y **lo completa un webhook del broker** | `RF-SP-052` a `RF-SP-056` |
+| **Brokers** | Catálogo de los brokers con los que opera la plataforma, y **la cuenta que cada persona tiene en cada uno**. El catálogo es **solo lectura por API** como el de monedas; el vínculo lo declara quien abre la cuenta, **lo consulta el superior comercial** y **lo completa un webhook del broker**. Desde el 08-10-2026, además, **recibe y guarda lo que avisa cada broker**, tal como llega | `RF-SP-052` a `RF-SP-058`, `RF-SP-078` |
 | **Usuarios** | Alta, consulta, edición, estado y baja de las personas que acceden al sistema, y consulta del propio perfil | `RF-SP-024` a `RF-SP-029`, `RF-SP-039` |
 | **Roles de usuario** | Asignación y retiro de roles sobre una persona | `RF-SP-030`, `RF-SP-031` |
 | ~~**Membresía del usuario**~~ | ~~Asignación y retiro del nivel de acceso de un consumidor~~ — **DESCARTADO el 23-09-2026** por decisión del responsable del proyecto. El nivel dejó de fijarse a mano: **se compra** (`RF-MV-003`), y las dos operaciones desaparecen con sus dos permisos. Lo que una persona tiene —membresías incluidas— vive desde ese día en `user_products` (`RN-SP-056`) | ~~`RF-SP-032`, `RF-SP-033`~~ |
@@ -236,6 +236,7 @@ Reglas que no son transversales de seguridad y por tanto sí llevan el prefijo d
 | `RN-SP-063` | **Las operaciones sensibles piden el código otra vez** | Al atender una operación cuyo permiso lleva `permissions.requires_recent_mfa` (§10.1) | El token tiene que probar un segundo factor verificado hace **cinco minutos o menos** (claim `mfa`; la ventana vive en configuración). Si no, **`403`** con un `type` propio, y el cliente pide el código (`RF-SP-073`) y reintenta. **Quien no tenga factor activo no puede hacerlas**: una operación sensible exige authenticator, lo exija o no el rol. **La marca la pone una migración, no la API**, porque el catálogo de permisos es de solo lectura (`RF-SP-010`); la lista inicial está en [`security.md` §4.4](../security.md): **administrar los permisos de un rol** —que el responsable del proyecto pidió expresamente—, los roles de una persona, qué roles exigen el factor, restablecer contraseñas y factores ajenos, eliminar personas, confirmar y rechazar pagos, aprobar retiros, pagar lotes de comisión, ajustar puntos, y fijar conversiones y tasas de puntos | **Crítica** |
 | `RN-SP-064` | **Restablecer el factor de otra persona deja motivo y cierra sus sesiones** | Al restablecer (`RF-SP-076`) | Es la salida de quien perdió el teléfono **y** los códigos. Retira el factor activo y sus códigos, **revoca todas sus sesiones** y exige **motivo**, que queda en `audit_deletion_log` (Art. V.13). **Nunca sobre uno mismo** (`RN-SEG-011`): si quien administra pudiera restablecer el suyo, una sesión robada de administrador se saltaría el segundo factor con dos peticiones. Si la persona porta un rol que lo exige, su próximo inicio de sesión entra retenido (`RN-SP-062`) hasta que lo active de nuevo | **Crítica** |
 | `RN-SP-065` | **Nadie restablece el segundo factor ni la contraseña de quien tiene más privilegios** | Al restablecer el factor (`RF-SP-076`) o la contraseña (`RF-SP-038`) de otra persona | Los permisos efectivos de la persona deben estar **contenidos** en los de quien restablece; si no, `403` sin decir cuál falta. Sin esta regla, quien porte a la vez `users:reset-password` y `users:reset-mfa` —`ADMIN` los porta— **tomaría la cuenta del superadministrador en dos peticiones**. Es `RN-SEG-010` aplicado al acceso. Propuesta por el responsable técnico y **confirmada por el responsable del proyecto el 06-10-2026**, que la extendió a la contraseña ese mismo día | **Crítica** |
+| `RN-SP-066` | **Lo que avisa un broker se guarda tal como llegó, antes de saber interpretarlo** | Al recibir un aviso de un broker (`RF-SP-078`) | Decisión del responsable del proyecto, 08-10-2026: se reciben los avisos de **`IQOPTION`, `EXNOVA` y `EXOPTION`** sin saber todavía qué datos mandan, porque ninguno publica su formato. Por eso el aviso **se guarda entero** —método, parámetros de la dirección, cabeceras, cuerpo, tipo de contenido y origen— **y no se interpreta**: no completa cuentas, no mueve estados ni activa a nadie; eso es `RF-SP-054`, que se escribirá con los avisos reales delante. **Lo autentica un secreto propio de cada broker que viaja en la dirección** (`token`), porque los paneles de afiliados de este ramo no firman sus avisos ni dejan añadir cabeceras; **un broker sin secreto configurado no puede avisar**, y el de uno no abre la ruta de otro. **El secreto no se guarda** con el aviso ni queda en el registro de peticiones. **No se descartan repetidos**: mientras no se sepa qué identifica a un aviso, dos iguales son dos filas, y la reentrega es justo uno de los datos que hay que observar; la idempotencia la decide `RF-SP-054`. **El aviso no se edita ni se borra** | Alta |
 
 !!! danger "`RN-SP-025` vive en el motor, y hasta el 02-09-2026 no vivía en ninguna parte"
 
@@ -413,6 +414,7 @@ EXCLUDE USING gist (
 | `RF-SP-075` | Desactivar el propio segundo factor | Media | `users:disable-own-mfa` | **En desarrollo** |
 | `RF-SP-076` | Restablecer el segundo factor de un usuario | Alta | `users:reset-mfa` | **En desarrollo** |
 | `RF-SP-077` | Exigir el segundo factor a los portadores de un rol | **Crítica** | `roles:require-mfa` | **En desarrollo** |
+| `RF-SP-078` | Recibir los avisos de los brokers | Alta | **Ninguno: lo autentica el secreto del broker** | **Tasks en revisión** |
 
 !!! info "Dónde vive el estado de un requerimiento"
 
@@ -1021,17 +1023,19 @@ Lo que sí está decidido y ya vive en el esquema: **la cuenta se declara con el
 | Actor | **El broker**, por integración |
 | Permiso requerido | **Ninguno de los del sistema**: no lo llama una persona |
 | Prioridad | Media |
-| Reglas aplicables | `RN-SP-040` |
-| Depende de | `RF-SP-053` |
+| Reglas aplicables | `RN-SP-040`, `RN-SP-066` |
+| Depende de | `RF-SP-053`, **`RF-SP-078`** |
 | Tripleta | Pendiente de crear |
 | Estado | **Pendiente** — registrado y sin `spec.md` |
 
 **Es una ruta que llama alguien de fuera, y eso la convierte en la segunda superficie pública del sistema** —la primera es el hotlink de `RF-PM-008`—, con una diferencia que la hace más delicada: aquella **lee** y esta **escribe**. Todo lo que la gobierna está sin decidir y se registra aquí para que no se improvise el día que se construya:
 
-- **Cómo se autentica el broker.** Firma del cuerpo con un secreto compartido, contraseña de aplicación o lista de orígenes: sin esto, cualquiera puede reescribir la cuenta de cualquiera.
+- ~~**Cómo se autentica el broker.**~~ **Resuelto el 08-10-2026 por `RF-SP-078`**: un secreto propio de cada broker en la dirección del aviso (`RN-SP-066`). Los paneles de afiliados no firman, y una lista de orígenes no resiste un cambio de servidor del broker.
 - **Qué pasa si el webhook llega para una cuenta que nadie declaró.** Se ignora, se registra o se crea.
 - **Si puede cambiar el identificador**, o solo rellenar el nombre de usuario.
 - **La reentrega**: un webhook se repite, de modo que la operación tiene que ser **idempotente** o dejará dos rastros del mismo hecho.
+
+**Desde el 08-10-2026 este requerimiento ya no recibe nada: interpreta.** La llegada se separó en `RF-SP-078`, que guarda cada aviso tal cual (`RN-SP-066`), porque las tres preguntas que quedan abiertas —y la forma misma del aviso— solo se pueden responder **mirando avisos reales** de `IQOPTION`, `EXNOVA` y `EXOPTION`. Cuando se escriba su `spec.md`, partirá de lo guardado: qué campo identifica la cuenta —para cruzarlo con `external_id` o con un marcador propio del enlace de afiliado—, cuál es el aviso del primer depósito, y qué identifica un aviso para no aplicarlo dos veces. **Y podrá reprocesar lo que ya llegó**: nada de lo recibido antes se pierde.
 
 #### `RF-SP-055` — Consultar las cuentas de broker de una persona
 
@@ -1527,6 +1531,25 @@ Cierra la pertenencia vigente de uno o varios managers **de este equipo**, con m
 
 **Enmienda además `RF-SP-002` y `RF-SP-003`** —el listado y el detalle de roles muestran la marca— **y `RF-SP-039`** (Art. I.7): el propio perfil publica `mfa` —si hay factor activo y si algún rol lo exige—, que es lo que el frontend necesita para ofrecer activarlo o advertir que es obligatorio.
 
+#### `RF-SP-078` — Recibir los avisos de los brokers
+
+| Campo | Valor |
+|---|---|
+| Objetivo | Que cada broker pueda avisar al sistema de lo que pasa en sus cuentas, y que **todo lo que avise quede guardado tal cual** para decidir después cómo se interpreta |
+| Actor | **El broker**, por integración |
+| Permiso requerido | **Ninguno de los del sistema**: lo autentica el secreto de cada broker (`RN-SP-066`) |
+| Prioridad | Alta |
+| Reglas aplicables | `RN-SP-066`, `RN-SP-039` |
+| Depende de | `RF-SP-052` |
+| Tripleta | `docs/specs/sp/078-recibir-avisos-de-brokers/` |
+| Estado | **Tasks en revisión** (08-10-2026) |
+
+**Es la primera mitad de lo que `RF-SP-054` registró el 08-09-2026 como una sola cosa.** Se separa porque de las cuatro preguntas que aquella ficha dejó abiertas **solo una se responde sin ver un aviso**: cómo se autentica el broker. Las otras tres dependen de qué mande, y el 08-10-2026 el responsable del proyecto fijó los tres brokers con los que se empieza —**`IQOPTION`, `EXNOVA` y `EXOPTION`**, los tres del catálogo— sin saber qué datos devolverán: ninguno publica su formato, que vive en el panel de afiliados de cada uno. De ahí el orden: **primero se escucha y después se interpreta**.
+
+`GET` y `POST /api/v1/brokers/{id}/notifications?token=…`, los dos, porque un panel de afiliados suele avisar con `GET` y los datos en la dirección, y no se sabe cuál de los tres hará qué. **El broker va por su identificador y no por su nombre**: §10.17 dejó escrito que el nombre es la clave de negocio, que renombrarlo es una migración y que el día que un integrador pidiera brokers por nombre haría falta un `code` estable. El identificador ya es estable —lo fija `V9`, igual en todos los entornos— y la dirección se escribe una sola vez en el panel. Responde `200` sin cuerpo en cuanto guarda.
+
+**Es la tercera ruta pública que escribe**, después del registro (`RF-SP-045`) y de las pasarelas de pago (`RF-MV-041`, `RF-MV-049`), y **la única cuyo escrito no tiene ningún efecto**: guarda una fila y nada la lee todavía. Lo que la protege es el secreto, no la cota de tasa, y por eso queda fuera de ella, como las de las pasarelas: un broker que reenvía no debe toparse con un `429`.
+
 ## 7. Requerimientos no funcionales
 
 Definidos en [`security.md` §11](../security.md) y en la constitución. Los que este módulo debe satisfacer:
@@ -1541,7 +1564,7 @@ Definidos en [`security.md` §11](../security.md) y en la constitución. Los que
 
 ## 8. Integraciones
 
-Ninguna con sistemas externos ni con otros módulos. Al absorber los usuarios, sus roles y su acceso, `SP` deja de tener dependencias: es autocontenido y no necesita que ningún otro módulo exista para funcionar.
+**Con sistemas externos, una desde el 08-10-2026, y es entrante**: los brokers avisan a `RF-SP-078`, que guarda cada aviso sin interpretarlo (`RN-SP-066`). `SP` no llama a ningún broker. Con otros módulos, ninguna de la que dependa. Al absorber los usuarios, sus roles y su acceso, `SP` deja de tener dependencias: es autocontenido y no necesita que ningún otro módulo exista para funcionar.
 
 **Publica dos lecturas hacia otros módulos desde el 27-08-2026** (**D-25**, `architecture.md` §15.2): el **catálogo de membresías** —si una existe y qué nivel tiene— y el **catálogo de monedas** —si existe, si está activa y cuántos decimales declara—. Las consume `PM`, y las escribió `RF-PM-001`: `SP` no gana ningún requerimiento por ello, porque ningún actor pide «publicar una interfaz» como comportamiento.
 
@@ -1614,6 +1637,8 @@ Ninguna con sistemas externos ni con otros módulos. Al absorber los usuarios, s
 | `POST` | `/api/v1/exchange-rates/{id}/deletion` | `RF-SP-050` | `exchange-rates:delete` |
 | `GET` | `/api/v1/document-types` | `RF-SP-051` | **Ninguno: público** |
 | `GET` | `/api/v1/brokers` | `RF-SP-052` | **Ninguno: público** |
+| `GET` | `/api/v1/brokers/{id}/notifications` | `RF-SP-078` | — (público, autorizado por el secreto del broker) |
+| `POST` | `/api/v1/brokers/{id}/notifications` | `RF-SP-078` | — (público, autorizado por el secreto del broker) |
 | `GET` | `/api/v1/users/{id}/broker-accounts` | `RF-SP-055` | `broker-accounts:read-team-member` (alcance: superior vigente, o `broker-accounts:read`) |
 | `GET` | `/api/v1/users/me/team/broker-accounts` | `RF-SP-056` | `broker-accounts:read-own-team` |
 | `GET` | `/api/v1/broker-accounts` | `RF-SP-057` | `broker-accounts:read` |
@@ -1659,6 +1684,7 @@ Rutas propuestas. El contrato exacto de cada una se fija en el `plan.md` de su t
 | `user_mfa_factors` | El authenticator de cada persona —su secreto cifrado—, pendiente, activo o retirado, con su historial (`RN-SP-058`) | `SP` |
 | `mfa_recovery_codes` | Los códigos de recuperación de cada factor, solo su resumen (`RN-SP-061`) | `SP` |
 | `mfa_challenges` | Desafíos de un solo uso entre la contraseña y el código al iniciar sesión (`RN-SP-059`) | `SP` |
+| `broker_notifications` | Lo que avisa cada broker, tal como llegó y sin interpretar (`RN-SP-066`) | `SP` |
 | `audit_change_log` | Auditoría de creación y edición | `SP` |
 | `audit_deletion_log` | Auditoría de eliminación | `SP` |
 | `audit_error_log` | Auditoría de fallos | `SP` |
@@ -2365,6 +2391,24 @@ La fila se lee «esta persona vinculó este authenticator». `status` es `PENDIE
 
 **Un desafío nuevo no invalida los anteriores**, al contrario que el permiso de recuperación: dos pestañas que inician sesión a la vez son un caso legítimo, y cada desafío ya está acotado a cinco minutos y cinco intentos. `failed_attempts` llega como mucho a cinco (`ck_mfa_challenges_attempts`).
 
+### 10.25 Campos principales — `broker_notifications`
+
+| Campo | Tipo | PK | FK | Nullable | Default | Entidad relacional |
+|---|---|---|---|---|---|---|
+| `id` | `uuid` | Sí | No | No | — | — |
+| `broker_id` | `uuid` | No | Sí | No | — | `brokers` |
+| `method` | `varchar(10)` | No | No | No | — | — |
+| `query_params` | `jsonb` | No | No | No | `'{}'` | — |
+| `headers` | `jsonb` | No | No | No | `'{}'` | — |
+| `body` | `text` | No | No | **Sí** | — | — |
+| `content_type` | `varchar(200)` | No | No | **Sí** | — | — |
+| `ip_address` | `varchar(45)` | No | No | **Sí** | — | — |
+| `received_at` | `timestamptz` | No | No | No | `now()` | — |
+
+**Lo que llegó, y nada que lo interprete** (`RN-SP-066`). `query_params` y `headers` son objetos de **nombre → lista de valores**, porque un parámetro puede repetirse y un aviso no se reescribe; las cabeceras van con el nombre en minúsculas. **`query_params` no lleva `token`** y **`headers` no lleva `authorization`, `proxy-authorization` ni `cookie`**: el aviso es constancia de lo que dijo el broker, no de su credencial. `body` es el cuerpo **tal cual**, como texto —hasta 64 KiB—, y nulo si vino vacío, que es lo normal en un `GET`; un formulario no se desarma en parámetros, para no confundir lo que vino en la dirección con lo que vino en el cuerpo. `method` lleva `CHECK` (`GET`, `POST`).
+
+**Sin `updated_at` y sin `deleted_at`, y no es un olvido**: la fila no cambia nunca. Cuando `RF-SP-054` la interprete, **lo que decida irá en columnas suyas** —cuándo se procesó, con qué resultado—, que se añadirán con él; declararlas hoy sería el campo «por si acaso» que §10.18 ya rechazó para `user_brokers`. **Sin único**: dos avisos iguales son dos filas hasta que se sepa qué identifica a un aviso. **`fk_broker_notifications_broker` sin `ON DELETE`**: un broker no se borra (`RN-SP-039`). El índice `ix_broker_notifications_broker (broker_id, received_at DESC)` es el de la única pregunta que hoy se le hace —«qué ha mandado este broker, lo último primero»—, desde la base.
+
 ## 11. Control de cambios
 
 | Versión | Fecha | Cambio | Responsable |
@@ -2484,3 +2528,4 @@ La fila se lee «esta persona vinculó este authenticator». `status` es `PENDIE
 | 1.104.0 | 06-10-2026 | **`RF-SP-076` pasa a `En desarrollo`**: `POST /users/{id}/mfa/reset`, con motivo, cerrando las sesiones de la persona, nunca sobre uno mismo ni sobre quien tiene más privilegios. **`RN-SP-065` se aplica también al restablecimiento de contraseñas** (`RF-SP-038` `T-13`): un `ADMIN` ya no restablece la del superadministrador. **Ninguna regla cambia.** | Responsable técnico |
 | 1.105.0 | 06-10-2026 | **`RF-SP-077` pasa a `En desarrollo` y con él los siete del segundo factor están construidos**: `PATCH /roles/{id}/mfa-requirement` y la marca en el listado y el detalle de roles. `RF-SP-076` cierra su `T-05` con el procedimiento del último superadministrador. **Ninguna regla cambia.** | Responsable técnico |
 | 1.106.0 | 07-10-2026 | **`RF-SP-061`: la cartera de un vendedor trae el correo de cada cliente**, por petición del responsable del proyecto («al consultar mis clientes, agrégale que se devuelva el correo»). Se revierte el «ni correo» decidido el 21-09-2026; vale para `GET /users/me/clients` y `GET /users/{id}/clients`, que publican la misma fila. Spec de `RF-SP-061` 0.2.0, `CA-SP-896`. Sin migración ni permiso nuevo. | Responsable del proyecto |
+| 1.107.0 | 08-10-2026 | **Nace `RF-SP-078` — recibir los avisos de los brokers**, por decisión del responsable del proyecto: se reciben los de **`IQOPTION`, `EXNOVA` y `EXOPTION`**, de los que no se sabe qué datos mandan. Nace **`RN-SP-066`**: el aviso **se guarda entero y no se interpreta**, lo autentica **un secreto por broker en la dirección**, el secreto no se guarda, y los repetidos no se descartan. **`RF-SP-054` se parte**: la llegada pasa a `RF-SP-078` y la primera de sus cuatro preguntas abiertas —cómo se autentica el broker— queda respondida; las otras tres esperan a los avisos reales. Ruta pública nueva, `GET` y `POST /api/v1/brokers/{id}/notifications`, **por identificador y no por nombre** (§10.17). Tabla nueva, **`broker_notifications`** (§10.25). §8 registra **la primera integración externa del módulo**, entrante. | Responsable del proyecto |

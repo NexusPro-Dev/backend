@@ -2,11 +2,11 @@
 
 | Campo | Valor |
 |---|---|
-| Versión | 0.105.0 |
+| Versión | 0.106.0 |
 | Estado | **Borrador** |
 | Responsable | Bonilla Diaz William Steven |
 | Fecha de creación | 21-08-2026 |
-| Última actualización | 07-10-2026 |
+| Última actualización | 08-10-2026 |
 
 !!! info "Desde el 05-10-2026, los importes en centésimas: [`ADR-006`](architecture/ADR-006-importes-en-unidades-minimas.md)"
 
@@ -320,6 +320,7 @@ erDiagram
     document_types ||--o{ users : "se identifica con · columnas en §1"
     brokers        ||--o{ user_brokers : "tiene cuentas en · RN-SP-038"
     users          ||--o{ user_brokers : "declara su cuenta"
+    brokers        ||--o{ broker_notifications : "avisa · RN-SP-066"
 
     memberships {
         uuid id PK "v7"
@@ -391,6 +392,18 @@ erDiagram
         timestamptz created_at "now"
         timestamptz updated_at "now · lo movera el webhook RF-SP-054"
     }
+
+    broker_notifications {
+        uuid id PK "v7"
+        uuid broker_id FK "quien avisa"
+        varchar method "10 · GET | POST"
+        jsonb query_params "nombre -> lista · sin token"
+        jsonb headers "nombre en minusculas -> lista · sin credenciales"
+        text body "NULL · tal cual · hasta 64 KiB"
+        varchar content_type "200 · NULL"
+        varchar ip_address "45 · NULL"
+        timestamptz received_at "now · la fila no cambia nunca"
+    }
 ```
 
 - **`memberships` es una lista, no un árbol.** El índice único sobre `parent_membership_id` es lo que lo garantiza: sin él la cadena podría bifurcarse y el orden dejaría de estar definido.
@@ -401,6 +414,7 @@ erDiagram
 - **`user_brokers.status` es la segunda columna de esta tabla que espera al mismo webhook** (`RN-SP-045`, 10-09-2026), y por eso conviene leerla junto a la de arriba: `REGISTER` o `FIRST_DEPOSIT`, con `CHECK` en el motor, **nace en `REGISTER`** y hoy nada la mueve. La diferencia con `broker_username` es que **esta sí se lee desde el primer día** —`RF-SP-055` y `RF-SP-056`—, y lo que devuelve es cierto: sin webhook no hay depósito confirmado. **Sus dos valores van en inglés**, únicos en todo el modelo —`users.status`, `products.status` y `movements.status` van en castellano—, porque son el vocabulario del broker que los va a escribir.
 - **`user_supervisors` se lee por primera vez EN PROFUNDIDAD** (`RN-SP-047`, 10-09-2026). Hasta hoy toda consulta sobre esta tabla miraba **un nivel** —«quién está a cargo de esta persona», «quién depende de ella»—; `RF-SP-057` recorre la rama entera con una **recursiva**. Dos consecuencias de modelado que conviene tener escritas: **(1)** la terminación **no depende de que los datos sean acíclicos** —lo son, porque `RN-SP-020` ata esta cadena a la de roles, que sí lo es— sino de que la recursión acumule con **`UNION`** y no con `UNION ALL`, que es lo que impide reexpandir a quien ya se vio; **(2)** el recorrido entra por `ix_user_supervisors_supervisor_vigente`, el índice **parcial** de `V28`, y por eso el predicado `ended_at IS NULL` tiene que estar **en los dos brazos** de la recursiva — omitirlo en el recursivo haría descender por la estructura de ayer sin que nada fallara; **(3)** desde el 18-09-2026 la recursiva recorre **solo fuerza comercial**: el cliente no está en la tabla, y sus cuentas se cuelgan en la hoja del vendedor `REGISTRO` de `client_sellers` (`RN-SP-048`), que es un join fijo después del recorrido y no un caso especial dentro de él.
 - **`user_brokers.status` no se deriva de `users.status` ni al revés.** Aquel dice si la cuenta del sistema opera (`FTD_PENDIENTE` autentica y no opera, `RN-SP-044`) y este dice qué pasó en el broker. Una persona con dos cuentas puede tener una depositada y otra no, de modo que **no hay función que lleve de un conjunto al otro** sin decidir antes qué significa ese caso — y esa decisión es de `RF-SP-054`, no de aquí.
+- **`broker_notifications` guarda lo que avisa un broker sin interpretarlo** (`RN-SP-066`, `RF-SP-078`, 08-10-2026). Es la primera tabla del sistema que **escribe alguien de fuera y no lee nadie de dentro**: la consulta quien la mira desde la base, para decidir qué hará `RF-SP-054`. Por eso no tiene `updated_at` —la fila no cambia— ni columnas de proceso —llegarán con quien procese— ni único —no se sabe todavía qué identifica a un aviso—. Ni el `token` de la dirección ni las cabeceras de credenciales se guardan.
 - **`brokers` guarda solo el nombre**, por decisión del 08-09-2026, y de ahí sale que el **nombre sea la clave de negocio**: único funcional, como en `countries` y `document_types`. Renombrar un broker es, por tanto, una migración.
 - **`countries` es el único catálogo del que cuelga una persona**, desde el 07-09-2026. `memberships` tiene su tabla puente y `currencies` no toca a nadie; el país es **una columna de `users`**, y el porqué —no tiene vigencia— está razonado en §1. Lo que este cuadro añade es la consecuencia sobre el catálogo: **`is_active` deja de ser inofensivo**. Desactivar un país lo retira de los selectores del alta y **no desasigna a nadie**, de modo que a partir de ahí pueden convivir usuarios en un país que ya no se ofrece. Es deliberado y es lo que `RF-SP-022` prometía desde el principio — lo que cambia es que ahora hay a quién afectar.
 - **`countries` sí lleva `updated_at`**, incorporado el 21-08-2026 al aprobar el `plan.md` de `RF-SP-020`: el Art. V.7 lo obliga y `RF-SP-022` mueve la fila. `currencies` lo necesitará por el mismo motivo cuando se escriba el plan de `RF-SP-023`. Ninguna de las tres lleva borrado lógico.
@@ -952,7 +966,7 @@ flowchart TB
 
 | Módulo | Tablas | Estado |
 |---|---|---|
-| `SP` | `permissions`, `roles`, `role_permissions`, `users`, `user_roles`, `memberships`, `user_products`, `currencies`, `countries`, `document_types`, `user_supervisors`, `client_sellers`, `refresh_tokens`, `password_reset_permits`, `exchange_rates`, `brokers`, `user_brokers`, `teams`, `team_members`, `user_mfa_factors`, `mfa_recovery_codes`, `mfa_challenges` | **17 escritas** (`client_sellers` desde `V20`, 21-09-2026) **y dos diseñadas**: `teams` y `team_members`, que creará `V33` con `RF-SP-063` (21-09-2026) · **y tres más diseñadas el 06-10-2026** para el segundo factor —`user_mfa_factors`, `mfa_recovery_codes`, `mfa_challenges`—, sin migración |
+| `SP` | `permissions`, `roles`, `role_permissions`, `users`, `user_roles`, `memberships`, `user_products`, `currencies`, `countries`, `document_types`, `user_supervisors`, `client_sellers`, `refresh_tokens`, `password_reset_permits`, `exchange_rates`, `brokers`, `user_brokers`, `teams`, `team_members`, `user_mfa_factors`, `mfa_recovery_codes`, `mfa_challenges`, `broker_notifications` | **`broker_notifications`, escrita por `V85` el 08-10-2026** · **17 escritas** (`client_sellers` desde `V20`, 21-09-2026) **y dos diseñadas**: `teams` y `team_members`, que creará `V33` con `RF-SP-063` (21-09-2026) · **y tres más diseñadas el 06-10-2026** para el segundo factor —`user_mfa_factors`, `mfa_recovery_codes`, `mfa_challenges`—, sin migración |
 | `SP` · auditoría | `audit_change_log`, `audit_deletion_log`, `audit_error_log`, `audit_security_log`, `request_log` | **5, escritas** |
 | `PM` | `products`, `product_comments`, `product_images`, `product_packages`, `product_package_items`, `product_links` | **3 escritas** (`V39`, `V87`, `V90`) **y dos diseñadas**: las de los paquetes, que creará la migración de `RF-PM-017` (14-09-2026). **`product_links` la crea `V35`** (22-09-2026), y con ella `products` **pierde** `video_url` |
 | `CM` | `commission_rates`, `user_commission_rates`, `commissions`, `commission_batches`, `commission_accruals`, `commission_closings`, `afftrack_rates`, `user_afftrack_rates`, `afftrack_settlements`, `afftrack_ftds`, `commission_reattributions` | **6, escritas**: las dos de tasas (`V6` del esquema consolidado) y las cuatro de la liquidación (`V51`, 28-09-2026, [`requirements/cm.md`](requirements/cm.md) §7.5 a §7.8). **Y las cuatro de la comisión afftrack**, escritas por `V54` el 29-09-2026 ([`requirements/cm.md`](requirements/cm.md) v0.22.0 §7.9 a §7.12), que además cambia `commissions`: gana `commission_kind` y `afftrack_settlement_id`. **Diez, escritas.** **Once desde el 07-10-2026**: `commission_reattributions` (`V82`, [`requirements/cm.md`](requirements/cm.md) v0.37.0 §7.13), la marca de una línea cuya cadena se borró y aún no se devengó. `product_commission_rates` existió de `V49` a `V94` (15-09-2026) y `user_commission_rate_products` de `V85` a `V10` (16-09-2026) |
@@ -1179,3 +1193,4 @@ Los documentos que citan una migración vieja por su número —specs, controles
 | 0.103.0 | 07-10-2026 | **`commissions` gana `ix_commissions_user`** —`(user_id, accrued_at DESC, id DESC)`— ([`requirements/cm.md`](requirements/cm.md) v0.36.0 §7.6; `RF-CM-026`): todas las comisiones de una persona sin pasar por sus lotes. Lo escribe `V81`, con el permiso de la operación. Ninguna columna cambia. | Responsable técnico |
 | 0.104.0 | 07-10-2026 | **Nace `commission_reattributions`** ([`requirements/cm.md`](requirements/cm.md) v0.37.0 §7.13, `RN-CM-051`): la marca de una línea cuyo vendedor se corrigió y cuya cadena nueva aún no se devengó, para que vaya al lote más reciente sin pagar de cada persona. Clave primaria la línea, `ON DELETE CASCADE`. La escribe `V82`. | Responsable técnico |
 | 0.105.0 | 07-10-2026 | **Un lote sin pagar que se queda vacío se borra** ([`requirements/cm.md`](requirements/cm.md) v0.40.0, `RN-CM-052`): `fk_commissions_withdrawn_from` pasa a **`ON DELETE SET NULL`**, de modo que lo retirado de un pendiente borrado pierde su origen en el mismo `DELETE`. La reescribe `V84`. Ninguna columna cambia. | Responsable técnico |
+| 0.106.0 | 08-10-2026 | **Nace `broker_notifications`** ([`requirements/sp.md`](requirements/sp.md) v1.107.0 §10.25, `RN-SP-066`, `RF-SP-078`): lo que avisa cada broker, **tal como llegó y sin interpretar** —método, parámetros, cabeceras, cuerpo, tipo de contenido y origen—, sin el `token` ni las cabeceras de credenciales. Sin `updated_at`, sin columnas de proceso y sin único, por lo que §2 razona. La escribe `V85`. | Responsable del proyecto |
