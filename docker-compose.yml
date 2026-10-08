@@ -43,6 +43,14 @@ services:
       DATABASE_USER: nexus
       DATABASE_PASSWORD: nexus
       API_URL: http://localhost:8080
+      # El cierre de comisiones y su pago (RF-CM-009, RF-CM-028, RF-CM-029): la
+      # zona del negocio, el interruptor y el cron de seis campos. Por defecto,
+      # mensual a las 00:00:00 del día 1 en Bogotá. Cambiarlos solo pide
+      # reiniciar el contenedor; el frontend lee el próximo cierre de
+      # GET /api/v1/commission-closings/next.
+      BUSINESS_ZONE: ${BUSINESS_ZONE:-America/Bogota}
+      COMMISSION_CLOSING_ENABLED: ${COMMISSION_CLOSING_ENABLED:-true}
+      COMMISSION_CLOSING_CRON: "${COMMISSION_CLOSING_CRON:-0 0 0 1 * *}"
       # Orígenes del navegador autorizados (CORS). Estos son los puertos
       # habituales de un frontend en desarrollo —Vite, Next/CRA, Angular— y
       # valen SOLO para local: en cualquier entorno desplegado la lista es el
