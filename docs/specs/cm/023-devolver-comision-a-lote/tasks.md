@@ -9,6 +9,7 @@
 | Estado | **En revisión** — todas las tareas `Hecha` el 30-09-2026 |
 | Enmendadas | 07-10-2026 — sin la comisión revertida: lo hace `RF-CM-024` `T-09` y `T-10` (`RN-CM-047`) |
 | Enmendadas | 07-10-2026 — `T-06` y `T-07` porque **el abierto que se vacía se borra** (`RN-CM-052`) |
+| Enmendadas | 08-10-2026 — `T-08` y `T-09` porque **devolver ya no borra**: lo hace `RF-CM-027` (`RN-CM-052` enmendada) |
 | Issue | Pendiente de crear |
 | Rama | `feature/corregir-vendedor-y-mover-comisiones` |
 
@@ -71,5 +72,14 @@
 |---|---|---|---|---|
 | `T-06` | `ReturnCommissionService` borra el abierto vacío con `EmptyBatchRemoval`; prosa de la `@Operation` | `RF-CM-022` `T-09` | Compila | **Hecha** — 07-10-2026 |
 | `T-07` | `ReturnCommissionIT`: `CA-CM-366`, sin `CA-CM-284`; `CA-CM-300` con el abierto vaciado por SQL | `T-06` | La suite en verde | **Hecha** — 07-10-2026 |
+
+Rama: `develop`.
+
+## 7. Devolver ya no borra — enmienda del 08-10-2026
+
+| ID | Tarea | Depende de | Verificación | Estado |
+|---|---|---|---|---|
+| `T-08` | `ReturnCommissionService` deja de llamar a `EmptyBatchRemoval`; prosa de la `@Operation` (`plan.md` §14) | — | Compila | Pendiente |
+| `T-09` | `ReturnCommissionIT`: vuelve `CA-CM-284`, sale `CA-CM-366`; `CA-CM-300` devolviendo | `T-08` | La suite en verde | Pendiente |
 
 Rama: `develop`.

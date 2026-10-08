@@ -9,6 +9,7 @@
 | Estado | **En revisión** — todas las tareas `Hecha` el 30-09-2026 |
 | Enmendadas | 07-10-2026 — sin la comisión revertida: lo hace `RF-CM-024` `T-09` y `T-10` (`RN-CM-047`) |
 | Enmendadas | 07-10-2026 — `T-08` a `T-12` porque **el lote que se vacía se borra** (`RN-CM-052`) |
+| Enmendadas | 08-10-2026 — `T-13` y `T-14` porque **retirar ya no borra**: lo hace `RF-CM-027` (`RN-CM-052` enmendada) |
 | Issue | Pendiente de crear |
 | Rama | `feature/corregir-vendedor-y-mover-comisiones` |
 
@@ -80,3 +81,12 @@
 | `T-12` | Contrato regenerado, `api/index.md` y `requirements.md` | `T-11`, `RF-CM-023` `T-06`, `RF-CM-024` `T-16` | Las suites de `CM` y `OpenApiContractIT` en verde | **Hecha** — 07-10-2026 |
 
 Orden: `T-08` → `T-09` → `T-10` → `T-11`; después `RF-CM-023` §6 y `RF-CM-024` §8, y `T-12` al final. Rama: `develop`.
+
+## 7. Retirar ya no borra — enmienda del 08-10-2026
+
+| ID | Tarea | Depende de | Verificación | Estado |
+|---|---|---|---|---|
+| `T-13` | `WithdrawCommissionService` deja de llamar a `EmptyBatchRemoval` y responde siempre el pendiente; prosa de la `@Operation` (`plan.md` §14) | — | Compila | Pendiente |
+| `T-14` | `WithdrawCommissionIT`: vuelve `CA-CM-279`, salen `CA-CM-363` a `CA-CM-365`, `CA-CM-301` retirando; `MyCommissionsIT` con una venta | `T-13` | La suite en verde | Pendiente |
+
+Después, `RF-CM-027` `T-05`. Rama: `develop`.

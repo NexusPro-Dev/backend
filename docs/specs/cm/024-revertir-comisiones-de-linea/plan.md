@@ -5,7 +5,7 @@
 | Requerimiento | `RF-CM-024` |
 | Especificación | [`spec.md`](spec.md) v0.3.0 |
 | `spec.md` aprobada el | 30-09-2026 |
-| Versión | 0.4.0 |
+| Versión | 0.5.0 |
 | Estado | **Aprobado** |
 | Autor | Responsable técnico |
 | Aprobado por | Responsable del proyecto |
@@ -13,6 +13,7 @@
 | Enmendado el | 07-10-2026 — la cadena vieja se borra, y `V80` retira la marca (§12) |
 | Enmendado el | 07-10-2026 — la liberación deja una marca y la cadena nueva va al lote más reciente sin pagar; `V82` (§13) |
 | Enmendado el | 07-10-2026 — los lotes que la liberación vacía se borran (§14) |
+| Enmendado el | 08-10-2026 — la liberación ya no borra lotes; el borrado pasa a `RF-CM-027` (§15) |
 
 !!! info "Qué va en este documento"
 
@@ -201,3 +202,9 @@ por lote: adjustTotal(lote, -suma de las suyas)                          — igu
 | Borrar los vacíos al terminar el devengo de la cadena nueva | Conservaría ese pendiente, pero partiría vaciar y borrar en dos transacciones, dejaría lotes vacíos si la línea queda `RECHAZADA`, y el devengo tendría que saber qué lotes vació otra operación |
 
 **Pruebas**: `ReleaseCommissionedLineIT` gana `CA-CM-367`: un pendiente con solo la comisión del director se borra al corregir, y la nueva del director va a un abierto nuevo; otro con más comisiones solo baja.
+
+## 15. La liberación ya no borra — enmienda del 08-10-2026
+
+`RN-CM-052` enmendada. `ReleaseCommissionedLineService` **deja de llamar a `removeIfEmpty`**: borra la cadena, rebaja los totales y deja los lotes como queden. **El devengo de la cadena nueva vuelve a encontrar el pendiente** que la vieja dejó vacío, y `lockLatestUnpaidBatch` lo elige si es el más reciente sin pagar (`RN-CM-051`). Si mientras tanto alguien borra los lotes vacíos ([`RF-CM-027`](../027-borrar-lotes-vacios/spec.md)), `lockLatestUnpaidBatch` no encuentra el candidato al bloquearlo y vuelve a buscar.
+
+**Pruebas**: `ReleaseCommissionedLineIT` pierde `CA-CM-367`, y los casos que confirmaban una segunda venta solo para que un pendiente no se borrara vuelven a una.

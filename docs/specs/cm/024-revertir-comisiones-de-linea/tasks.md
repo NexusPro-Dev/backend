@@ -10,6 +10,7 @@
 | Enmendadas | 07-10-2026 — `T-07` a `T-11` porque **la cadena vieja se borra** (`RN-CM-047`) |
 | Enmendadas | 07-10-2026 — `T-12` a `T-14` porque **la cadena nueva va al lote más reciente sin pagar** (`RN-CM-051`) |
 | Enmendadas | 07-10-2026 — `T-15` y `T-16` porque **el lote que la liberación vacía se borra** (`RN-CM-052`) |
+| Enmendadas | 08-10-2026 — `T-17` y `T-18` porque **la liberación ya no borra**: lo hace `RF-CM-027` (`RN-CM-052` enmendada) |
 | Issue | Pendiente de crear |
 | Rama | `feature/corregir-vendedor-y-mover-comisiones` |
 
@@ -100,3 +101,12 @@ Orden: `T-12` → `T-13` → `RF-CM-013` `T-23` → `T-14`.
 |---|---|---|---|---|
 | `T-15` | `ReleaseCommissionedLineService` llama a `EmptyBatchRemoval` con los lotes de la cadena borrada (`plan.md` §14) | `RF-CM-022` `T-09` | Compila | **Hecha** — 07-10-2026 |
 | `T-16` | `ReleaseCommissionedLineIT`: `CA-CM-367`; revisar los casos que contaban un lote vacío | `T-15` | La suite en verde | **Hecha** — 07-10-2026 |
+
+## 9. La liberación ya no borra — enmienda del 08-10-2026
+
+| ID | Tarea | Depende de | Verificación | Estado |
+|---|---|---|---|---|
+| `T-17` | `ReleaseCommissionedLineService` deja de llamar a `EmptyBatchRemoval` (`plan.md` §15) | — | Compila | Pendiente |
+| `T-18` | `ReleaseCommissionedLineIT`: sale `CA-CM-367`; los casos vuelven a una venta | `T-17` | La suite en verde | Pendiente |
+
+Rama: `develop`.

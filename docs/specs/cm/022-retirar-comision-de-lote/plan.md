@@ -5,13 +5,14 @@
 | Requerimiento | `RF-CM-022` |
 | Especificación | [`spec.md`](spec.md) v0.1.0 |
 | `spec.md` aprobada el | 30-09-2026 |
-| Versión | 0.3.0 |
+| Versión | 0.4.0 |
 | Estado | **Aprobado** |
 | Autor | Responsable técnico |
 | Aprobado por | Responsable del proyecto |
 | Fecha de aprobación | 30-09-2026 |
 | Enmendado el | 07-10-2026 — sin la comisión revertida (§12) |
 | Enmendado el | 07-10-2026 — el lote que se vacía se borra; `V84` (§13) |
+| Enmendado el | 08-10-2026 — retirar ya no borra el pendiente; el borrado pasa a `RF-CM-027` (§14) |
 
 !!! info "Qué va en este documento"
 
@@ -172,3 +173,11 @@ Un `ChangeEvent` `UPDATE` sobre `commissions`, con `before` —`batch_id` y `wit
 **Contrato**: la respuesta de retirar **puede ser otro lote**. Misma forma; el front lo nota por el identificador.
 
 **Pruebas**: `WithdrawCommissionIT` reescribe `CA-CM-279` como `CA-CM-363` y gana `CA-CM-364` y `CA-CM-365`. **`CA-CM-301`** (`RF-CM-011`: pagar un pendiente vacío responde `409`), que se probaba retirando todas, pasa a vaciar el pendiente **por SQL**: solo un vacío de antes del 07-10-2026 puede llegar al pago.
+
+## 14. Retirar ya no borra — enmienda del 08-10-2026
+
+`RN-CM-052` enmendada ([`requirements/cm.md`](../../../requirements/cm.md) v0.41.0 §5.10, «Cuarta enmienda»): **el lote vacío se borra a mano**, con [`RF-CM-027`](../027-borrar-lotes-vacios/spec.md). `WithdrawCommissionService` **deja de llamar a `EmptyBatchRemoval`** y responde siempre el pendiente, como antes de §13. **De §13 se queda todo lo demás**: `V84` —lo retirado de un pendiente que se borra sigue perdiendo su origen—, `deleteIfEmpty` y `EmptyBatchRemoval`, que pasan a tener un solo llamador, el de `RF-CM-027`. El arreglo de `lockLatestUnpaidBatch` que §13 anunciaba no se llegó a escribir; lo escribe `RF-CM-027` `T-02`.
+
+**Contrato**: la respuesta de retirar **vuelve a ser siempre el pendiente** de la ruta.
+
+**Pruebas**: `WithdrawCommissionIT` vuelve a `CA-CM-279` —retirar todas y pagar responde `409`— y pierde `CA-CM-363` a `CA-CM-365`; **`CA-CM-301`** vuelve a vaciar el pendiente retirando. `MyCommissionsIT` deja de necesitar dos ventas para que el pendiente sobreviva.

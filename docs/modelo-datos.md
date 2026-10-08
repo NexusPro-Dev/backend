@@ -2,7 +2,7 @@
 
 | Campo | Valor |
 |---|---|
-| Versión | 0.106.0 |
+| Versión | 0.107.0 |
 | Estado | **Borrador** |
 | Responsable | Bonilla Diaz William Steven |
 | Fecha de creación | 21-08-2026 |
@@ -1194,3 +1194,4 @@ Los documentos que citan una migración vieja por su número —specs, controles
 | 0.104.0 | 07-10-2026 | **Nace `commission_reattributions`** ([`requirements/cm.md`](requirements/cm.md) v0.37.0 §7.13, `RN-CM-051`): la marca de una línea cuyo vendedor se corrigió y cuya cadena nueva aún no se devengó, para que vaya al lote más reciente sin pagar de cada persona. Clave primaria la línea, `ON DELETE CASCADE`. La escribe `V82`. | Responsable técnico |
 | 0.105.0 | 07-10-2026 | **Un lote sin pagar que se queda vacío se borra** ([`requirements/cm.md`](requirements/cm.md) v0.40.0, `RN-CM-052`): `fk_commissions_withdrawn_from` pasa a **`ON DELETE SET NULL`**, de modo que lo retirado de un pendiente borrado pierde su origen en el mismo `DELETE`. La reescribe `V84`. Ninguna columna cambia. | Responsable técnico |
 | 0.106.0 | 08-10-2026 | **Nace `broker_notifications`** ([`requirements/sp.md`](requirements/sp.md) v1.107.0 §10.25, `RN-SP-066`, `RF-SP-078`): lo que avisa cada broker, **tal como llegó y sin interpretar** —método, parámetros, cabeceras, cuerpo, tipo de contenido y origen—, sin el `token` ni las cabeceras de credenciales. Sin `updated_at`, sin columnas de proceso y sin único, por lo que §2 razona. La escribe `V85`. | Responsable del proyecto |
+| 0.107.0 | 08-10-2026 | **El lote vacío se borra a mano, y todos a la vez** ([`requirements/cm.md`](requirements/cm.md) v0.41.0, `RN-CM-052` enmendada, `RF-CM-027`): retirar, devolver y corregir el vendedor dejan de borrar el lote que vacían. **Sin cambio de esquema**: `fk_commissions_withdrawn_from` sigue con `ON DELETE SET NULL` (`V84`), que es lo que hace perder su origen a lo retirado de un pendiente que se borra. `V86` solo siembra el permiso. | Responsable del proyecto |

@@ -5,13 +5,14 @@
 | Requerimiento | `RF-CM-023` |
 | Especificación | [`spec.md`](spec.md) v0.1.0 |
 | `spec.md` aprobada el | 30-09-2026 |
-| Versión | 0.3.0 |
+| Versión | 0.4.0 |
 | Estado | **Aprobado** |
 | Autor | Responsable técnico |
 | Aprobado por | Responsable del proyecto |
 | Fecha de aprobación | 30-09-2026 |
 | Enmendado el | 07-10-2026 — sin la comisión revertida (§12) |
 | Enmendado el | 07-10-2026 — el abierto que se vacía se borra (§13) |
+| Enmendado el | 08-10-2026 — devolver ya no borra; el borrado pasa a `RF-CM-027` (§14) |
 
 !!! info "Qué va en este documento"
 
@@ -124,3 +125,9 @@ La de `RF-CM-022`: un `ChangeEvent` `UPDATE` sobre `commissions` con `batch_id` 
 **El cierre** sigue sin cerrar un abierto vacío (`RN-CM-048`), para los que quedaron de antes del 07-10-2026. **`CA-CM-300`** (`RF-CM-009`), que se probaba aquí devolviendo lo único del abierto, pasa a vaciarlo **por SQL**: devolver ya lo borra.
 
 **Pruebas**: `ReturnCommissionIT` gana `CA-CM-366` y pierde `CA-CM-284`.
+
+## 14. Devolver ya no borra — enmienda del 08-10-2026
+
+`RN-CM-052` enmendada. `ReturnCommissionService` **deja de llamar a `removeIfEmpty`**; el abierto vacío se queda hasta que lo borre [`RF-CM-027`](../027-borrar-lotes-vacios/spec.md). **El orden de bloqueos no cambia**, y es el que `RF-CM-027` sigue para no interbloquearse con esta ruta: la comisión primero, los lotes después (`RF-CM-027` `plan.md` §1). Si el borrado a mano se lleva el pendiente de origen antes, la comisión pierde su origen y esta ruta responde `404` (`EX-002`), como a cualquier comisión que no está entre las retiradas del lote.
+
+**Pruebas**: `ReturnCommissionIT` vuelve a `CA-CM-284` y pierde `CA-CM-366`; **`CA-CM-300`** (`RF-CM-009`) vuelve a vaciar el abierto devolviendo.
