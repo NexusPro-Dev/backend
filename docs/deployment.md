@@ -5,11 +5,11 @@
 | Proyecto | NEXUS — Renovación de plataforma |
 | Empresa | FACTECH GROUP SAS |
 | Documento | `deployment.md` |
-| Versión | 0.18.0 |
+| Versión | 0.19.0 |
 | Estado | Borrador |
 | Responsable técnico | Bonilla Diaz William Steven |
 | Fecha de creación | 27-08-2026 |
-| Última actualización | 02-10-2026 |
+| Última actualización | 08-10-2026 |
 | Documento superior | `constitution.md` v0.7.0 |
 | Documentos relacionados | `architecture.md` v0.21.0 · `security.md` v0.35.0 · [`ADR-002`](architecture/ADR-002-plataforma-de-despliegue-railway.md) |
 | Documento derivado | [`manual-de-despliegue.md`](manual-de-despliegue.md) v0.2.0 — el paso a paso |
@@ -296,6 +296,40 @@ Se cargan en el servicio **`backend`**. La columna «Valor en Railway» es liter
 
 **En local los avisos no llegan solos**: PayRetailers necesita una dirección pública. Para probarlos hace falta un túnel —ngrok o Cloudflare Tunnel— que publique el puerto `8080`, y poner su dirección en `PAYRETAILERS_NOTIFICATION_URL`. **Sin túnel el sistema sigue funcionando**: el barrido pregunta por los cobros pendientes y los confirma igual, solo que unos minutos más tarde.
 
+### 6.5.3 Los avisos de los brokers
+
+Lo que avisa cada broker se guarda tal como llega y **no se interpreta todavía** (`RF-SP-078`, `RN-SP-066`): esto es para ver qué mandan antes de escribir `RF-SP-054`.
+
+| Variable | Valor en Railway | Por qué |
+|---|---|---|
+| `BROKER_TOKEN_IQOPTION` | Un secreto aleatorio, **distinto por broker y por entorno**: `openssl rand -hex 24` | Autentica los avisos de `IQOPTION`. **Sin él, su ruta responde `503`** y no guarda nada |
+| `BROKER_TOKEN_EXNOVA` | Igual, otro | Los de `EXNOVA` |
+| `BROKER_TOKEN_EXOPTION` | Igual, otro | Los de `EXOPTION` |
+
+**En hexadecimal**, y no en Base64: va dentro de una dirección, y un `+` o un `/` habría que escaparlos en el panel.
+
+**La dirección que va en el panel de afiliados de cada broker**, en la sección de *postback* o S2S, con el identificador del broker que fija `V9` —el mismo en todos los entornos— y su secreto:
+
+| Broker | Dirección |
+|---|---|
+| `IQOPTION` | `https://<dominio del backend>/api/v1/brokers/01a081f0-6000-7101-9c4f-5e7adb000001/notifications?token=<BROKER_TOKEN_IQOPTION>` |
+| `EXNOVA` | `https://<dominio del backend>/api/v1/brokers/01a081f0-6000-7102-9c4f-5e7adb000002/notifications?token=<BROKER_TOKEN_EXNOVA>` |
+| `EXOPTION` | `https://<dominio del backend>/api/v1/brokers/01a081f0-6000-7103-9c4f-5e7adb000003/notifications?token=<BROKER_TOKEN_EXOPTION>` |
+
+**Detrás del `token` se añaden los marcadores que ofrezca el panel**, con los nombres que el panel diga —por ejemplo `&event={event}&trader_id={trader_id}`—: todo lo que llegue se guarda. Vale `GET` y `POST`, con cualquier tipo de contenido.
+
+**Ver lo que llegó**, desde la base (Railway → servicio Postgres → *Data*, o `psql`):
+
+```sql
+SELECT b.name, n.received_at, n.method, n.query_params, n.headers, n.body, n.content_type
+  FROM broker_notifications n
+  JOIN brokers b ON b.id = n.broker_id
+ ORDER BY n.received_at DESC
+ LIMIT 50;
+```
+
+**Cambiar un secreto** es cambiar la variable y la dirección en el panel; desde que la aplicación toma la nueva, los avisos con el viejo responden `401`. **En local no llegan solos**: como los de PayRetailers (§6.5.2), hace falta un túnel que publique el puerto `8080`.
+
 ### 6.6 `ENVIRONMENT` ya se lee; `API_URL` todavía no
 
 **Desde el 31-08-2026 `ENVIRONMENT` decide algo, y por eso un valor equivocado tumba el arranque.**
@@ -565,3 +599,4 @@ Ninguno de estos puntos impide desplegar. Todos están declarados para que no se
 | 0.16.0 | 06-10-2026 | **Nueva §4.1.1: `MFA_ENCRYPTION_KEY`**, la llave que cifra el secreto del segundo factor ([`security.md`](security.md) §3.3, `RF-SP-071`, `V75`). Obligatoria y sin valor por defecto, como `JWT_SECRET`, y con la diferencia que importa: **no se rota**, porque cambiarla deja ilegibles los factores guardados. Una fila más en §6.3. | Responsable técnico |
 | 0.17.0 | 06-10-2026 | Aviso en §4.1.1: **desde `RF-SP-072`, `SUPERADMIN` y `ADMIN` activan el segundo factor en su primer inicio de sesión tras desplegar** —teléfono con una app autenticadora a mano, y los diez códigos de recuperación guardados—. | Responsable técnico |
 | 0.18.0 | 06-10-2026 | **Nueva §12.1: recuperar al último superadministrador** que perdió el teléfono y los códigos (`RF-SP-076` `T-05`). `RN-SP-065` impide hacerlo por la API —es la toma de cuenta que la regla cierra—, de modo que se hace por la base, con tres sentencias en una transacción: retirar el factor, cerrar las sesiones y dejar el evento. Probado contra la base local en una transacción deshecha. | Responsable técnico |
+| 0.19.0 | 08-10-2026 | **Nueva §6.5.3: los avisos de los brokers** (`RF-SP-078`). Tres variables —`BROKER_TOKEN_IQOPTION`, `BROKER_TOKEN_EXNOVA`, `BROKER_TOKEN_EXOPTION`—, la dirección que va en el panel de afiliados de cada broker y la consulta para ver lo que llegó. | Responsable técnico |

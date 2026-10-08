@@ -5,7 +5,7 @@
 | Módulo | `SP` — Sistema Principal |
 | Paquete | `modules/system` |
 | Prefijos de permiso | `roles:`, `permissions:`, `audit:`, `memberships:`, `currencies:`, `countries:`, `users:`, `exchange-rates:`, `document-types:`, `brokers:`, `broker-accounts:`, `teams:` |
-| Versión | 1.107.0 |
+| Versión | 1.108.0 |
 | Estado | **Aprobado** |
 | Responsable | Bonilla Diaz William Steven |
 | Fecha de creación | 20-08-2026 |
@@ -414,7 +414,7 @@ EXCLUDE USING gist (
 | `RF-SP-075` | Desactivar el propio segundo factor | Media | `users:disable-own-mfa` | **En desarrollo** |
 | `RF-SP-076` | Restablecer el segundo factor de un usuario | Alta | `users:reset-mfa` | **En desarrollo** |
 | `RF-SP-077` | Exigir el segundo factor a los portadores de un rol | **Crítica** | `roles:require-mfa` | **En desarrollo** |
-| `RF-SP-078` | Recibir los avisos de los brokers | Alta | **Ninguno: lo autentica el secreto del broker** | **Tasks en revisión** |
+| `RF-SP-078` | Recibir los avisos de los brokers | Alta | **Ninguno: lo autentica el secreto del broker** | **En desarrollo** |
 
 !!! info "Dónde vive el estado de un requerimiento"
 
@@ -1542,7 +1542,7 @@ Cierra la pertenencia vigente de uno o varios managers **de este equipo**, con m
 | Reglas aplicables | `RN-SP-066`, `RN-SP-039` |
 | Depende de | `RF-SP-052` |
 | Tripleta | `docs/specs/sp/078-recibir-avisos-de-brokers/` |
-| Estado | **Tasks en revisión** (08-10-2026) |
+| Estado | **En desarrollo** (08-10-2026) — construido el mismo día que su tripleta; falta configurar los paneles (`T-09`) |
 
 **Es la primera mitad de lo que `RF-SP-054` registró el 08-09-2026 como una sola cosa.** Se separa porque de las cuatro preguntas que aquella ficha dejó abiertas **solo una se responde sin ver un aviso**: cómo se autentica el broker. Las otras tres dependen de qué mande, y el 08-10-2026 el responsable del proyecto fijó los tres brokers con los que se empieza —**`IQOPTION`, `EXNOVA` y `EXOPTION`**, los tres del catálogo— sin saber qué datos devolverán: ninguno publica su formato, que vive en el panel de afiliados de cada uno. De ahí el orden: **primero se escucha y después se interpreta**.
 
@@ -2529,3 +2529,4 @@ La fila se lee «esta persona vinculó este authenticator». `status` es `PENDIE
 | 1.105.0 | 06-10-2026 | **`RF-SP-077` pasa a `En desarrollo` y con él los siete del segundo factor están construidos**: `PATCH /roles/{id}/mfa-requirement` y la marca en el listado y el detalle de roles. `RF-SP-076` cierra su `T-05` con el procedimiento del último superadministrador. **Ninguna regla cambia.** | Responsable técnico |
 | 1.106.0 | 07-10-2026 | **`RF-SP-061`: la cartera de un vendedor trae el correo de cada cliente**, por petición del responsable del proyecto («al consultar mis clientes, agrégale que se devuelva el correo»). Se revierte el «ni correo» decidido el 21-09-2026; vale para `GET /users/me/clients` y `GET /users/{id}/clients`, que publican la misma fila. Spec de `RF-SP-061` 0.2.0, `CA-SP-896`. Sin migración ni permiso nuevo. | Responsable del proyecto |
 | 1.107.0 | 08-10-2026 | **Nace `RF-SP-078` — recibir los avisos de los brokers**, por decisión del responsable del proyecto: se reciben los de **`IQOPTION`, `EXNOVA` y `EXOPTION`**, de los que no se sabe qué datos mandan. Nace **`RN-SP-066`**: el aviso **se guarda entero y no se interpreta**, lo autentica **un secreto por broker en la dirección**, el secreto no se guarda, y los repetidos no se descartan. **`RF-SP-054` se parte**: la llegada pasa a `RF-SP-078` y la primera de sus cuatro preguntas abiertas —cómo se autentica el broker— queda respondida; las otras tres esperan a los avisos reales. Ruta pública nueva, `GET` y `POST /api/v1/brokers/{id}/notifications`, **por identificador y no por nombre** (§10.17). Tabla nueva, **`broker_notifications`** (§10.25). §8 registra **la primera integración externa del módulo**, entrante. | Responsable del proyecto |
+| 1.108.0 | 08-10-2026 | **`RF-SP-078` pasa a `En desarrollo`**: `GET` y `POST /api/v1/brokers/{id}/notifications` guardan cada aviso en `broker_notifications` (`V85`). Queda `T-09`: los secretos en Railway y la dirección en el panel de cada broker. **Ninguna regla cambia.** | Responsable técnico |

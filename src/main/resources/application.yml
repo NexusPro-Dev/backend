@@ -495,6 +495,17 @@ nexus:
   # Key y la llave maestra que cifra las claves. SIN LAS DOS queda APAGADA y se avisa
   # al arrancar: PSE nace pendiente sin cobro y lo confirma una persona, la ruta del
   # aviso responde 503 y el barrido no corre. La suite corre así.
+  # Los avisos de los brokers (RF-SP-078, RN-SP-066, deployment.md §6.5.3,
+  # 08-10-2026). UN SECRETO POR BROKER, por su identificador —los fija V9, iguales
+  # en todos los entornos—. VACÍO = SIN CONFIGURAR: la ruta de ese broker responde
+  # 503 y no guarda nada. El secreto viaja en ?token= de la dirección que se pone
+  # en el panel de afiliados del broker.
+  brokers:
+    notification-tokens:
+      "[01a081f0-6000-7101-9c4f-5e7adb000001]": ${BROKER_TOKEN_IQOPTION:}
+      "[01a081f0-6000-7102-9c4f-5e7adb000002]": ${BROKER_TOKEN_EXNOVA:}
+      "[01a081f0-6000-7103-9c4f-5e7adb000003]": ${BROKER_TOKEN_EXOPTION:}
+
   payretailers:
     subscription-key: ${PAYRETAILERS_SUBSCRIPTION_KEY:}
     # 32 bytes en Base64 (AES-256). Cambiarla deja ilegibles las claves guardadas.

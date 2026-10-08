@@ -11269,6 +11269,90 @@
         "tags" : [ "Brokers" ]
       }
     },
+    "/api/v1/brokers/{id}/notifications" : {
+      "get" : {
+        "description" : "**Permiso requerido:** ninguno. Ruta pública: responde sin token.\n\n**La llama el broker, no el frontend** (`RF-SP-078`). Ruta **pública**: la autentica el\nsecreto propio de ese broker, en el parámetro `token` de la dirección (`RN-SP-066`). El\naviso se guarda **entero y sin interpretar** —método, parámetros de la dirección salvo\n`token`, cabeceras salvo las de credenciales, cuerpo tal cual, tipo de contenido y origen—\ny se responde `200` sin cuerpo. **No cambia nada más**: ni cuentas de broker, ni personas.\nDos avisos iguales se guardan dos veces. `{id}` es el identificador del broker en el\ncatálogo (`GET /api/v1/brokers`).\n",
+        "operationId" : "brokerNotificationByQuery",
+        "parameters" : [ {
+          "in" : "path",
+          "name" : "id",
+          "required" : true,
+          "schema" : {
+            "format" : "uuid",
+            "type" : "string"
+          }
+        }, {
+          "description" : "El secreto de este broker. No se guarda.",
+          "in" : "query",
+          "name" : "token",
+          "required" : true,
+          "schema" : {
+            "type" : "string"
+          }
+        } ],
+        "responses" : {
+          "200" : {
+            "description" : "Guardado; cuerpo vacío."
+          },
+          "400" : {
+            "description" : "Cuerpo de más de 64 KiB (`EX-004`), o `{id}` que no es un UUID"
+          },
+          "401" : {
+            "description" : "Sin `token`, con `token` repetido o con uno que no es el de este broker (`EX-001`). No se guarda nada"
+          },
+          "404" : {
+            "description" : "El broker no existe o no está activo (`EX-003`). No se guarda nada"
+          },
+          "503" : {
+            "description" : "Este broker no tiene secreto configurado en este entorno (`EX-002`). No se guarda nada"
+          }
+        },
+        "security" : [ ],
+        "summary" : "Recibir un aviso de un broker (datos en la dirección)",
+        "tags" : [ "Avisos de los brokers" ]
+      },
+      "post" : {
+        "description" : "**Permiso requerido:** ninguno. Ruta pública: responde sin token.\n\n**La llama el broker, no el frontend** (`RF-SP-078`). Ruta **pública**: la autentica el\nsecreto propio de ese broker, en el parámetro `token` de la dirección (`RN-SP-066`). El\naviso se guarda **entero y sin interpretar** —método, parámetros de la dirección salvo\n`token`, cabeceras salvo las de credenciales, cuerpo tal cual, tipo de contenido y origen—\ny se responde `200` sin cuerpo. **No cambia nada más**: ni cuentas de broker, ni personas.\nDos avisos iguales se guardan dos veces. `{id}` es el identificador del broker en el\ncatálogo (`GET /api/v1/brokers`).\n\nAdmite **cualquier tipo de contenido**, de hasta 64 KiB; un formulario se guarda tal cual, sin desarmarlo.",
+        "operationId" : "brokerNotificationByBody",
+        "parameters" : [ {
+          "in" : "path",
+          "name" : "id",
+          "required" : true,
+          "schema" : {
+            "format" : "uuid",
+            "type" : "string"
+          }
+        }, {
+          "description" : "El secreto de este broker. No se guarda.",
+          "in" : "query",
+          "name" : "token",
+          "required" : true,
+          "schema" : {
+            "type" : "string"
+          }
+        } ],
+        "responses" : {
+          "200" : {
+            "description" : "Guardado; cuerpo vacío."
+          },
+          "400" : {
+            "description" : "Cuerpo de más de 64 KiB (`EX-004`), o `{id}` que no es un UUID"
+          },
+          "401" : {
+            "description" : "Sin `token`, con `token` repetido o con uno que no es el de este broker (`EX-001`). No se guarda nada"
+          },
+          "404" : {
+            "description" : "El broker no existe o no está activo (`EX-003`). No se guarda nada"
+          },
+          "503" : {
+            "description" : "Este broker no tiene secreto configurado en este entorno (`EX-002`). No se guarda nada"
+          }
+        },
+        "security" : [ ],
+        "summary" : "Recibir un aviso de un broker (datos en el cuerpo)",
+        "tags" : [ "Avisos de los brokers" ]
+      }
+    },
     "/api/v1/commission-accruals" : {
       "get" : {
         "description" : "**Permiso requerido:** `commission-accruals:read`. Sin él, `403` (`AUTH-002`).\n\n**Qué pasó con cada línea de venta cobrada y con vendedor** (`RF-CM-014`,\n`RN-CM-032`), del último intento más reciente al más antiguo:\n\n- `DEVENGADA`: la cadena cobró; sus comisiones están en los lotes.\n- `SIN_COMISION`: nadie de la cadena tenía tasa sobre el producto. **Definitivo**: no\n  se reintenta aunque después se registre una tasa.\n- `RECHAZADA`: la cadena pasaba del 100 % de la línea (`RN-CM-026`). `reason` dice\n  cuánto sumaba y cuánto valía la línea, para saber qué tasa corregir. **Cada cierre la\n  reintenta**, y `attempts` lo cuenta; en cuanto la tasa se corrige, devenga sola.\n\nUna línea **sin desenlace todavía** no aparece: la recogerá el barrido del siguiente\ncierre. Filtros `outcome`, `movementId`, `productId`, y `from`/`to` sobre el último\nintento, con los errores todos juntos.\n",
@@ -24037,6 +24121,9 @@
   }, {
     "description" : "Los bancos y billeteras móviles a los que se pagan los retiros, y las cuentas de cada persona en ellos. Un retiro exige una cuenta y copia su destino.",
     "name" : "Cuentas de cobro"
+  }, {
+    "description" : "Lo que avisa cada broker (RF-SP-078). Solo lo llaman los brokers, con su secreto; el frontend no.",
+    "name" : "Avisos de los brokers"
   }, {
     "description" : "Cada cierre del periodo, programado o a mano, con lo que hizo.",
     "name" : "Cierres de comisiones"

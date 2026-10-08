@@ -6,7 +6,7 @@
 | Especificación | [`spec.md`](spec.md) v0.1.0 |
 | Plan | [`plan.md`](plan.md) v0.1.0 |
 | `plan.md` aprobado el | 08-10-2026 |
-| Estado | **En revisión** |
+| Estado | **En revisión** — `T-01` a `T-08` `Hecha` el 08-10-2026; `T-09` pendiente |
 | Issue | Pendiente de crear |
 | Rama | `develop` (commits directos desde el 05-10-2026) |
 
@@ -22,14 +22,14 @@
 
 | ID | Tarea | Depende de | Verificación | Estado |
 |---|---|---|---|---|
-| `T-01` | `V85__sp_avisos_de_brokers.sql`: `broker_notifications`, su `CHECK`, su clave foránea, su índice y sus comentarios | — | Flyway aplica sobre una base limpia | Pendiente |
-| `T-02` | `BrokerNotificationSettings` y el bloque `nexus.brokers.notification-tokens` de `application.yml` | — | | Pendiente |
-| `T-03` | `BrokerNotificationRepository` y `JpaBrokerNotificationRepository`: `isActive` e `insert` | `T-01` | | Pendiente |
-| `T-04` | `BrokerNotice` y `ReceiveBrokerNotificationService`: el orden de las comprobaciones, el `token` fuera de la consulta, las cabeceras filtradas | `T-02`, `T-03` | | Pendiente |
-| `T-05` | `BrokerNotificationController` (`GET` y `POST`, el cuerpo del flujo con su tope) y la ruta en `RUTAS_PUBLICAS` | `T-04` | `200` vacío; `401`, `404`, `503` y `400` sin guardar | Pendiente |
-| `T-06` | `RequestLogFilter` oculta el valor de `token` | — | | Pendiente |
-| `T-07` | `BrokerNotificationsIT`: `CA-SP-897` a `CA-SP-907` | `T-05`, `T-06` | Cada criterio afirmado en el cuerpo de la prueba | Pendiente |
-| `T-08` | `EndpointPermissionsIT` (`PUBLICAS`); contrato con la prosa; `deployment.md` y `api/index.md`; `requirements.md` | `T-07` | | Pendiente |
+| `T-01` | `V85__sp_avisos_de_brokers.sql`: `broker_notifications`, su `CHECK`, su clave foránea, su índice y sus comentarios | — | Flyway aplica sobre una base limpia | **Hecha** — 08-10-2026 |
+| `T-02` | `BrokerNotificationSettings` y el bloque `nexus.brokers.notification-tokens` de `application.yml` | — | | **Hecha** — 08-10-2026 |
+| `T-03` | `BrokerNotificationRepository` y `JpaBrokerNotificationRepository`: `isActive` e `insert` | `T-01` | | **Hecha** — 08-10-2026 |
+| `T-04` | `BrokerNotice` y `ReceiveBrokerNotificationService`: el orden de las comprobaciones, el `token` fuera de la consulta, las cabeceras filtradas | `T-02`, `T-03` | | **Hecha** — 08-10-2026 |
+| `T-05` | `BrokerNotificationController` (`GET` y `POST`, el cuerpo del flujo con su tope) y la ruta en `RUTAS_PUBLICAS` | `T-04` | `200` vacío; `401`, `404`, `503` y `400` sin guardar | **Hecha** — 08-10-2026 |
+| `T-06` | `RequestLogFilter` oculta el valor de `token` | — | | **Hecha** — 08-10-2026 |
+| `T-07` | `BrokerNotificationsIT`: `CA-SP-897` a `CA-SP-907` | `T-05`, `T-06` | Cada criterio afirmado en el cuerpo de la prueba | **Hecha** — 08-10-2026 |
+| `T-08` | `EndpointPermissionsIT` (`PUBLICAS`); contrato con la prosa; `deployment.md` y `api/index.md`; `requirements.md` | `T-07` | | **Hecha** — 08-10-2026 |
 | `T-09` | Configurar los tres secretos en Railway y la dirección en el panel de afiliados de cada broker; disparar un aviso de prueba desde cada panel y verlo en la base | `T-08` | Una fila por broker | Pendiente |
 
 ---
@@ -51,6 +51,10 @@
 
 ---
 
+## 3.1 Desviaciones respecto del plan
+
+**Los secretos de la suite van en `IntegrationTestBase`** y no en un `@TestPropertySource` de la clase: este abriría un contexto de Spring propio, con su propio grupo de conexiones. `IQOPTION` y `EXNOVA` llevan secreto para toda la suite y `EXOPTION` no, que es lo que `CA-SP-902` necesita. **Los métodos del controlador se llaman `brokerNotificationByQuery` y `brokerNotificationByBody`**, para que el `operationId` del contrato no sea `get` y `post`.
+
 ## 4. Bloqueos
 
 **`T-09` necesita acceso a los paneles de afiliados** de los tres brokers y una dirección pública del backend: en local los avisos no llegan sin un túnel, como los de PayRetailers ([`deployment.md`](../../../deployment.md) §6.5.2).
@@ -59,9 +63,9 @@
 
 ## 5. Definición de terminado
 
-- [ ] `./mvnw clean verify` en verde.
-- [ ] Los once criterios de aceptación con prueba, **cada uno afirmado en el cuerpo de la prueba**.
-- [ ] Contrato OpenAPI regenerado, **con la prosa releída**.
-- [ ] `requirements.md` actualizado.
+- [x] `./mvnw clean verify` en verde: 572 unitarias y 2639 de integración, 08-10-2026.
+- [x] Los once criterios de aceptación con prueba, **cada uno afirmado en el cuerpo de la prueba**.
+- [x] Contrato OpenAPI regenerado, **con la prosa releída**.
+- [x] `requirements.md` actualizado.
 - [ ] Un aviso real de cada broker guardado.
 - [ ] **`tasks.md` aprobadas por el responsable del proyecto.**

@@ -119,7 +119,15 @@ public class SecurityConfig {
     // NO VA FIRMADO. Por eso NO SE CREE (`RN-MV-064`): se guarda y solo dispara una
     // consulta autenticada a la pasarela, cuya respuesta es la que manda. Un aviso de un
     // cobro que no es de ningún pago no consulta nada. Fuera de la cota, como el de Stripe.
-    "/api/v1/movements/gateway-notifications/payretailers"
+    "/api/v1/movements/gateway-notifications/payretailers",
+    // LOS AVISOS DE LOS BROKERS (`RF-SP-078`, 08-10-2026): los llama el broker
+    // —IQOPTION, EXNOVA, EXOPTION—, con GET o con POST, y sin token de sesión.
+    // LOS AUTENTICA UN SECRETO POR BROKER en `?token=` (`RN-SP-066`): los paneles
+    // de afiliados no firman ni dejan poner cabeceras. Sin él, 401 sin guardar
+    // nada. Lo que escribe no tiene efecto —una fila que nada lee todavía— y
+    // queda fuera de la cota, como las pasarelas: un broker que reenvía no debe
+    // toparse con un 429. Un `*` es UN segmento: solo esta ruta de la familia.
+    "/api/v1/brokers/*/notifications"
   };
 
   /**

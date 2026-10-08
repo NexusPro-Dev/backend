@@ -6,6 +6,7 @@ import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import java.io.IOException;
 import java.util.UUID;
+import java.util.regex.Pattern;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.core.Ordered;
@@ -41,6 +42,12 @@ import org.springframework.web.filter.OncePerRequestFilter;
 public class RequestLogFilter extends OncePerRequestFilter {
 
   private static final Logger LOG = LoggerFactory.getLogger(RequestLogFilter.class);
+
+  /**
+   * El valor de un parámetro {@code token} de la dirección (`RF-SP-078`, 08-10-2026): ahí viaja el
+   * secreto de un broker, y esta tabla guarda la cadena de consulta. Se oculta en cualquier ruta.
+   */
+  private static final Pattern TOKEN_EN_LA_CONSULTA = Pattern.compile("(^|&)(token=)[^&]*");
 
   private final RequestLogWriter registro;
 
@@ -96,7 +103,7 @@ public class RequestLogFilter extends OncePerRequestFilter {
           RequestActor.current().orElse(null),
           peticion.getMethod(),
           peticion.getRequestURI(),
-          peticion.getQueryString(),
+          ocultarToken(peticion.getQueryString()),
           respuesta.getStatus(),
           duracionMs,
           contexto == null ? null : contexto.ipAddress(),
@@ -112,5 +119,12 @@ public class RequestLogFilter extends OncePerRequestFilter {
           peticion.getRequestURI(),
           fallo);
     }
+  }
+
+  /** La cadena de consulta con el valor de todo {@code token} sustituido por {@code [OCULTO]}. */
+  static String ocultarToken(String consulta) {
+    return consulta == null
+        ? null
+        : TOKEN_EN_LA_CONSULTA.matcher(consulta).replaceAll("$1$2[OCULTO]");
   }
 }

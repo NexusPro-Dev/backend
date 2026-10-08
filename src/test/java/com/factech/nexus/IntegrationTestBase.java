@@ -102,6 +102,10 @@ public abstract class IntegrationTestBase {
     // El aviso de la pasarela local se procesa en el hilo que lo recibe: lo procesado es
     // determinista, como con la tarjeta.
     registry.add("nexus.payretailers.process-inline", () -> "true");
+    // Los secretos de los avisos de dos brokers (`RF-SP-078`). EXOPTION queda SIN
+    // secreto a propósito: es el broker sin configurar de `CA-SP-902`.
+    registry.add("BROKER_TOKEN_IQOPTION", () -> "secreto-iq");
+    registry.add("BROKER_TOKEN_EXNOVA", () -> "secreto-ex");
     // La llave que cifra las claves de las tiendas (`RN-MV-063`): una de prueba, de 32 bytes.
     // Sin Subscription Key la pasarela real sigue apagada; la enciende el doble.
     registry.add(

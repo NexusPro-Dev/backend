@@ -74,6 +74,16 @@ class EndpointPermissionsIT extends IntegrationTestBase {
                   + " y SIN FIRMA. Por eso no se cree: solo dispara una consulta autenticada a la"
                   + " pasarela, cuya respuesta es la que manda (`RN-MV-064`)"),
           Map.entry(
+              "GET /api/v1/brokers/{id}/notifications",
+              "PÚBLICO POR DEFINICIÓN (`RF-SP-078`, 08-10-2026): lo llama el broker, no una"
+                  + " persona, y no porta token de sesión. Lo autentica el SECRETO de ese broker en"
+                  + " `?token=` (`RN-SP-066`); sin él, 401 sin guardar nada"),
+          Map.entry(
+              "POST /api/v1/brokers/{id}/notifications",
+              "PÚBLICO POR DEFINICIÓN (`RF-SP-078`, 08-10-2026): el mismo aviso con los datos en"
+                  + " el cuerpo. Lo autentica el secreto del broker, y lo que escribe no tiene"
+                  + " efecto: una fila que nada lee todavía"),
+          Map.entry(
               "POST /api/v1/auth/registration",
               "PÚBLICO POR DEFINICIÓN (`RF-SP-045`, 09-09-2026): quien se registra no tiene cuenta con"
                   + " la que autenticarse. Es el PRIMER endpoint público que ESCRIBE, y lo que"

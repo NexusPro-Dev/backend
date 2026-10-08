@@ -56,6 +56,9 @@ tags:
   description: "Los bancos y billeteras móviles a los que se pagan los retiros, y\
     \ las cuentas de cada persona en ellos. Un retiro exige una cuenta y copia su\
     \ destino."
+- name: Avisos de los brokers
+  description: "Lo que avisa cada broker (RF-SP-078). Solo lo llaman los brokers,\
+    \ con su secreto; el frontend no."
 - name: Cierres de comisiones
   description: "Cada cierre del periodo, programado o a mano, con lo que hizo."
 - name: Comisiones
@@ -6541,6 +6544,97 @@ paths:
               schema:
                 $ref: "#/components/schemas/CommissionClosingResponse"
       x-required-permission: commission-batches:settle
+  /api/v1/brokers/{id}/notifications:
+    get:
+      tags:
+      - Avisos de los brokers
+      summary: Recibir un aviso de un broker (datos en la dirección)
+      description: |
+        **Permiso requerido:** ninguno. Ruta pública: responde sin token.
+
+        **La llama el broker, no el frontend** (`RF-SP-078`). Ruta **pública**: la autentica el
+        secreto propio de ese broker, en el parámetro `token` de la dirección (`RN-SP-066`). El
+        aviso se guarda **entero y sin interpretar** —método, parámetros de la dirección salvo
+        `token`, cabeceras salvo las de credenciales, cuerpo tal cual, tipo de contenido y origen—
+        y se responde `200` sin cuerpo. **No cambia nada más**: ni cuentas de broker, ni personas.
+        Dos avisos iguales se guardan dos veces. `{id}` es el identificador del broker en el
+        catálogo (`GET /api/v1/brokers`).
+      operationId: brokerNotificationByQuery
+      parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      - name: token
+        in: query
+        description: El secreto de este broker. No se guarda.
+        required: true
+        schema:
+          type: string
+      responses:
+        "200":
+          description: Guardado; cuerpo vacío.
+        "400":
+          description: "Cuerpo de más de 64 KiB (`EX-004`), o `{id}` que no es un\
+            \ UUID"
+        "401":
+          description: "Sin `token`, con `token` repetido o con uno que no es el de\
+            \ este broker (`EX-001`). No se guarda nada"
+        "404":
+          description: El broker no existe o no está activo (`EX-003`). No se guarda
+            nada
+        "503":
+          description: Este broker no tiene secreto configurado en este entorno (`EX-002`).
+            No se guarda nada
+      security: []
+    post:
+      tags:
+      - Avisos de los brokers
+      summary: Recibir un aviso de un broker (datos en el cuerpo)
+      description: |-
+        **Permiso requerido:** ninguno. Ruta pública: responde sin token.
+
+        **La llama el broker, no el frontend** (`RF-SP-078`). Ruta **pública**: la autentica el
+        secreto propio de ese broker, en el parámetro `token` de la dirección (`RN-SP-066`). El
+        aviso se guarda **entero y sin interpretar** —método, parámetros de la dirección salvo
+        `token`, cabeceras salvo las de credenciales, cuerpo tal cual, tipo de contenido y origen—
+        y se responde `200` sin cuerpo. **No cambia nada más**: ni cuentas de broker, ni personas.
+        Dos avisos iguales se guardan dos veces. `{id}` es el identificador del broker en el
+        catálogo (`GET /api/v1/brokers`).
+
+        Admite **cualquier tipo de contenido**, de hasta 64 KiB; un formulario se guarda tal cual, sin desarmarlo.
+      operationId: brokerNotificationByBody
+      parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      - name: token
+        in: query
+        description: El secreto de este broker. No se guarda.
+        required: true
+        schema:
+          type: string
+      responses:
+        "200":
+          description: Guardado; cuerpo vacío.
+        "400":
+          description: "Cuerpo de más de 64 KiB (`EX-004`), o `{id}` que no es un\
+            \ UUID"
+        "401":
+          description: "Sin `token`, con `token` repetido o con uno que no es el de\
+            \ este broker (`EX-001`). No se guarda nada"
+        "404":
+          description: El broker no existe o no está activo (`EX-003`). No se guarda
+            nada
+        "503":
+          description: Este broker no tiene secreto configurado en este entorno (`EX-002`).
+            No se guarda nada
+      security: []
   /api/v1/auth/registration:
     post:
       tags:
