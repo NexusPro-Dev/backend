@@ -1,9 +1,13 @@
 package com.factech.nexus.modules.system.users.interfaces;
 
+import com.factech.nexus.modules.system.brokers.application.BrokerAccountItem;
 import com.factech.nexus.modules.system.brokers.application.BrokerAccountsResponse;
+import com.factech.nexus.modules.system.brokers.application.CreateBrokerAccountRequest;
 import com.factech.nexus.modules.system.brokers.application.TeamBrokerAccountItem;
+import com.factech.nexus.modules.system.brokers.application.UpdateBrokerAccountRequest;
 import com.factech.nexus.modules.system.brokers.domain.service.GetBrokerAccountsService;
 import com.factech.nexus.modules.system.brokers.domain.service.GetTeamBrokerAccountsService;
+import com.factech.nexus.modules.system.brokers.domain.service.ManageBrokerAccountsService;
 import com.factech.nexus.modules.system.users.application.AssignRolesRequest;
 import com.factech.nexus.modules.system.users.application.AssignSupervisorRequest;
 import com.factech.nexus.modules.system.users.application.ChangeUserStatusRequest;
@@ -52,6 +56,7 @@ import java.util.UUID;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
+import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.ModelAttribute;
 import org.springframework.web.bind.annotation.PatchMapping;
@@ -98,6 +103,7 @@ public class UserController {
   private final GetTeamBrokerAccountsService cuentasDelEquipo;
   private final GetClientSellersService vendedoresDelCliente;
   private final GetSellerClientsService carteraDelVendedor;
+  private final ManageBrokerAccountsService gestionDeCuentas;
 
   public UserController(
       RegisterUserService alta,
@@ -116,7 +122,9 @@ public class UserController {
       GetBrokerAccountsService cuentasDeBroker,
       GetTeamBrokerAccountsService cuentasDelEquipo,
       GetClientSellersService vendedoresDelCliente,
-      GetSellerClientsService carteraDelVendedor) {
+      GetSellerClientsService carteraDelVendedor,
+      ManageBrokerAccountsService gestionDeCuentas) {
+    this.gestionDeCuentas = gestionDeCuentas;
     this.cuentasDeBroker = cuentasDeBroker;
     this.cuentasDelEquipo = cuentasDelEquipo;
     this.vendedoresDelCliente = vendedoresDelCliente;
@@ -1621,6 +1629,321 @@ public class UserController {
   })
   public BrokerAccountsResponse misCuentasDeBroker() {
     return cuentasDeBroker.mine();
+  }
+
+  // `RF-SP-053`, `RF-SP-080` y `RF-SP-081` (08-10-2026): registrar, corregir y
+  // borrar cuentas de broker, las propias y —con los permisos amplios— las de
+  // cualquiera. `RN-SP-067` y la titularidad viven en `ManageBrokerAccountsService`.
+  @PostMapping("/me/broker-accounts")
+  @PreAuthorize("hasAuthority('broker-accounts:create-own')")
+  @Operation(
+      summary = "Registrar una cuenta de broker propia",
+      description =
+          """
+          Declara una cuenta de broker **a nombre del actor** (`RF-SP-053`).
+
+          Se envían **el broker y el identificador de la cuenta** en el broker.
+          La cuenta nace en **`REGISTER`** y con `brokerUsername` **nulo**: el
+          nombre de usuario y el estado los pone después el broker.
+
+          **Una cuenta ya declarada** —el mismo broker y el mismo identificador,
+          por quien sea— responde `409` (`EX-009`). Un broker inexistente o
+          apagado responde `422` (`EX-008`), el mismo para los dos.
+          """)
+  @ApiResponses({
+    @ApiResponse(
+        responseCode = "201",
+        description =
+            "La cuenta declarada, con la forma de una fila de las cuentas de una persona.",
+        content = @Content(schema = @Schema(implementation = BrokerAccountItem.class))),
+    @ApiResponse(
+        responseCode = "400",
+        description =
+            "Falta el broker (`VAL-012`), falta el identificador o está en blanco (`VAL-013`), o tiene más de 80 caracteres (`VAL-015`). Todos los problemas en la misma respuesta.",
+        content = @Content),
+    @ApiResponse(
+        responseCode = "401",
+        description = "Token ausente o inválido (`AUTH-001`)",
+        content = @Content),
+    @ApiResponse(
+        responseCode = "403",
+        description = "Autenticado sin `broker-accounts:create-own` (`AUTH-002`)",
+        content = @Content),
+    @ApiResponse(
+        responseCode = "409",
+        description = "Esa cuenta ya está declarada (`EX-009`, `RN-SP-038`)",
+        content = @Content),
+    @ApiResponse(
+        responseCode = "422",
+        description = "El broker no existe o está apagado (`EX-008`)",
+        content = @Content),
+    @ApiResponse(
+        responseCode = "500",
+        description = "Fallo no controlado (`ERR-500`)",
+        content = @Content)
+  })
+  public ResponseEntity<BrokerAccountItem> registrarMiCuentaDeBroker(
+      @RequestBody CreateBrokerAccountRequest peticion) {
+    BrokerAccountItem creada = gestionDeCuentas.createOwn(peticion);
+    return ResponseEntity.created(URI.create("/api/v1/users/me/broker-accounts/" + creada.id()))
+        .body(creada);
+  }
+
+  @PostMapping("/{id}/broker-accounts")
+  @PreAuthorize("hasAuthority('broker-accounts:create')")
+  @Operation(
+      summary = "Registrar una cuenta de broker a una persona",
+      description =
+          """
+          Declara una cuenta de broker **a nombre de esa persona** (`RF-SP-053`). Es de administración: alcanza a cualquiera.
+
+          Se envían **el broker y el identificador de la cuenta** en el broker.
+          La cuenta nace en **`REGISTER`** y con `brokerUsername` **nulo**: el
+          nombre de usuario y el estado los pone después el broker.
+
+          **Una cuenta ya declarada** —el mismo broker y el mismo identificador,
+          por quien sea— responde `409` (`EX-009`). Un broker inexistente o
+          apagado responde `422` (`EX-008`), el mismo para los dos.
+          """)
+  @ApiResponses({
+    @ApiResponse(
+        responseCode = "201",
+        description =
+            "La cuenta declarada, con la forma de una fila de las cuentas de una persona.",
+        content = @Content(schema = @Schema(implementation = BrokerAccountItem.class))),
+    @ApiResponse(
+        responseCode = "400",
+        description =
+            "Falta el broker (`VAL-012`), falta el identificador o está en blanco (`VAL-013`), o tiene más de 80 caracteres (`VAL-015`). Todos los problemas en la misma respuesta.",
+        content = @Content),
+    @ApiResponse(
+        responseCode = "401",
+        description = "Token ausente o inválido (`AUTH-001`)",
+        content = @Content),
+    @ApiResponse(
+        responseCode = "403",
+        description = "Autenticado sin `broker-accounts:create` (`AUTH-002`)",
+        content = @Content),
+    @ApiResponse(
+        responseCode = "404",
+        description = "La persona no existe o está eliminada (`VAL-002`)",
+        content = @Content),
+    @ApiResponse(
+        responseCode = "409",
+        description = "Esa cuenta ya está declarada (`EX-009`, `RN-SP-038`)",
+        content = @Content),
+    @ApiResponse(
+        responseCode = "422",
+        description = "El broker no existe o está apagado (`EX-008`)",
+        content = @Content),
+    @ApiResponse(
+        responseCode = "500",
+        description = "Fallo no controlado (`ERR-500`)",
+        content = @Content)
+  })
+  public ResponseEntity<BrokerAccountItem> registrarCuentaDeBroker(
+      @PathVariable UUID id, @RequestBody CreateBrokerAccountRequest peticion) {
+    BrokerAccountItem creada = gestionDeCuentas.create(id, peticion);
+    return ResponseEntity.created(
+            URI.create("/api/v1/users/" + id + "/broker-accounts/" + creada.id()))
+        .body(creada);
+  }
+
+  @PatchMapping("/me/broker-accounts/{brokerAccountId}")
+  @PreAuthorize("hasAuthority('broker-accounts:update-own')")
+  @Operation(
+      summary = "Corregir una cuenta de broker propia",
+      description =
+          """
+          Cambia **solo el identificador** de la cuenta en el broker
+          (`RF-SP-080`). El broker no se cambia —se borra la cuenta y se
+          declara otra—, y el estado y el nombre de usuario **no cambian**.
+
+          `brokerAccountId` es el `id` de la cuenta, no su identificador en el
+          broker (`accountId`).
+
+          **El titular corrige** solo cuentas **en `REGISTER`**: una cuenta en
+          `FIRST_DEPOSIT` tiene el primer depósito atado y responde `409`
+          (`EX-010`, `RN-SP-067`). Administración sí puede.
+
+          **La cuenta de otra persona responde `404`**, como si no existiera.
+
+          Si el identificador nuevo es el mismo, responde `200` sin cambiar
+          nada. Uno **ya declarado** en ese broker responde `409` (`EX-009`).
+          """)
+  @ApiResponses({
+    @ApiResponse(
+        responseCode = "200",
+        description = "La cuenta corregida.",
+        content = @Content(schema = @Schema(implementation = BrokerAccountItem.class))),
+    @ApiResponse(
+        responseCode = "400",
+        description =
+            "Falta el identificador o está en blanco (`VAL-013`), o tiene más de 80 caracteres (`VAL-015`)",
+        content = @Content),
+    @ApiResponse(
+        responseCode = "401",
+        description = "Token ausente o inválido (`AUTH-001`)",
+        content = @Content),
+    @ApiResponse(
+        responseCode = "403",
+        description = "Autenticado sin `broker-accounts:update-own` (`AUTH-002`)",
+        content = @Content),
+    @ApiResponse(
+        responseCode = "404",
+        description = "La cuenta no existe o no es del actor (`VAL-002`)",
+        content = @Content),
+    @ApiResponse(
+        responseCode = "409",
+        description =
+            "La cuenta tiene el primer depósito confirmado (`EX-010`), o el identificador ya está declarado (`EX-009`)",
+        content = @Content),
+    @ApiResponse(
+        responseCode = "500",
+        description = "Fallo no controlado (`ERR-500`)",
+        content = @Content)
+  })
+  public BrokerAccountItem corregirMiCuentaDeBroker(
+      @PathVariable UUID brokerAccountId, @RequestBody UpdateBrokerAccountRequest peticion) {
+    return gestionDeCuentas.updateOwn(brokerAccountId, peticion);
+  }
+
+  @PatchMapping("/{id}/broker-accounts/{brokerAccountId}")
+  @PreAuthorize("hasAuthority('broker-accounts:update')")
+  @Operation(
+      summary = "Corregir una cuenta de broker de una persona",
+      description =
+          """
+          Cambia **solo el identificador** de la cuenta en el broker
+          (`RF-SP-080`). El broker no se cambia —se borra la cuenta y se
+          declara otra—, y el estado y el nombre de usuario **no cambian**.
+
+          `brokerAccountId` es el `id` de la cuenta, no su identificador en el
+          broker (`accountId`).
+
+          **Alcanza a cualquier cuenta, también en `FIRST_DEPOSIT`**
+          (`RN-SP-067`): es la vía para corregir un error.
+
+          Si el identificador nuevo es el mismo, responde `200` sin cambiar
+          nada. Uno **ya declarado** en ese broker responde `409` (`EX-009`).
+          """)
+  @ApiResponses({
+    @ApiResponse(
+        responseCode = "200",
+        description = "La cuenta corregida.",
+        content = @Content(schema = @Schema(implementation = BrokerAccountItem.class))),
+    @ApiResponse(
+        responseCode = "400",
+        description =
+            "Falta el identificador o está en blanco (`VAL-013`), o tiene más de 80 caracteres (`VAL-015`)",
+        content = @Content),
+    @ApiResponse(
+        responseCode = "401",
+        description = "Token ausente o inválido (`AUTH-001`)",
+        content = @Content),
+    @ApiResponse(
+        responseCode = "403",
+        description = "Autenticado sin `broker-accounts:update` (`AUTH-002`)",
+        content = @Content),
+    @ApiResponse(
+        responseCode = "404",
+        description = "La persona no existe, o la cuenta no existe o no es suya (`VAL-002`)",
+        content = @Content),
+    @ApiResponse(
+        responseCode = "409",
+        description = "El identificador ya está declarado (`EX-009`)",
+        content = @Content),
+    @ApiResponse(
+        responseCode = "500",
+        description = "Fallo no controlado (`ERR-500`)",
+        content = @Content)
+  })
+  public BrokerAccountItem corregirCuentaDeBroker(
+      @PathVariable UUID id,
+      @PathVariable UUID brokerAccountId,
+      @RequestBody UpdateBrokerAccountRequest peticion) {
+    return gestionDeCuentas.update(id, brokerAccountId, peticion);
+  }
+
+  @DeleteMapping("/me/broker-accounts/{brokerAccountId}")
+  @ResponseStatus(HttpStatus.NO_CONTENT)
+  @PreAuthorize("hasAuthority('broker-accounts:delete-own')")
+  @Operation(
+      summary = "Eliminar una cuenta de broker propia",
+      description =
+          """
+          Borra la cuenta (`RF-SP-081`). **El borrado es físico y queda
+          auditado** con todos sus datos, y la cuenta queda libre: el mismo
+          broker e identificador se pueden volver a declarar.
+
+          **El titular borra** solo cuentas **en `REGISTER`**: una cuenta en
+          `FIRST_DEPOSIT` tiene el primer depósito atado y responde `409`
+          (`EX-010`, `RN-SP-067`). Administración sí puede.
+
+          **La cuenta de otra persona responde `404`**, como si no existiera.
+          """)
+  @ApiResponses({
+    @ApiResponse(responseCode = "204", description = "Borrada.", content = @Content),
+    @ApiResponse(
+        responseCode = "401",
+        description = "Token ausente o inválido (`AUTH-001`)",
+        content = @Content),
+    @ApiResponse(
+        responseCode = "403",
+        description = "Autenticado sin `broker-accounts:delete-own` (`AUTH-002`)",
+        content = @Content),
+    @ApiResponse(
+        responseCode = "404",
+        description = "La cuenta no existe o no es del actor (`VAL-002`)",
+        content = @Content),
+    @ApiResponse(
+        responseCode = "409",
+        description = "La cuenta tiene el primer depósito confirmado (`EX-010`)",
+        content = @Content),
+    @ApiResponse(
+        responseCode = "500",
+        description = "Fallo no controlado (`ERR-500`)",
+        content = @Content)
+  })
+  public void eliminarMiCuentaDeBroker(@PathVariable UUID brokerAccountId) {
+    gestionDeCuentas.deleteOwn(brokerAccountId);
+  }
+
+  @DeleteMapping("/{id}/broker-accounts/{brokerAccountId}")
+  @ResponseStatus(HttpStatus.NO_CONTENT)
+  @PreAuthorize("hasAuthority('broker-accounts:delete')")
+  @Operation(
+      summary = "Eliminar una cuenta de broker de una persona",
+      description =
+          """
+          Borra la cuenta (`RF-SP-081`). **El borrado es físico y queda
+          auditado** con todos sus datos, y la cuenta queda libre: el mismo
+          broker e identificador se pueden volver a declarar.
+
+          **Alcanza a cualquier cuenta, también en `FIRST_DEPOSIT`**
+          (`RN-SP-067`): es la vía para corregir un error.
+          """)
+  @ApiResponses({
+    @ApiResponse(responseCode = "204", description = "Borrada.", content = @Content),
+    @ApiResponse(
+        responseCode = "401",
+        description = "Token ausente o inválido (`AUTH-001`)",
+        content = @Content),
+    @ApiResponse(
+        responseCode = "403",
+        description = "Autenticado sin `broker-accounts:delete` (`AUTH-002`)",
+        content = @Content),
+    @ApiResponse(
+        responseCode = "404",
+        description = "La persona no existe, o la cuenta no existe o no es suya (`VAL-002`)",
+        content = @Content),
+    @ApiResponse(
+        responseCode = "500",
+        description = "Fallo no controlado (`ERR-500`)",
+        content = @Content)
+  })
+  public void eliminarCuentaDeBroker(@PathVariable UUID id, @PathVariable UUID brokerAccountId) {
+    gestionDeCuentas.delete(id, brokerAccountId);
   }
 
   // `broker-accounts:read-team-member` ABRE la ruta desde el 21-09-2026

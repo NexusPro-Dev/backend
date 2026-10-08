@@ -33,7 +33,7 @@ class PermissionsSeedIT extends IntegrationTestBase {
           + " V47: courses:read-available y lessons:learn del aula, RF-AC-034 y RF-AC-035)")
   void catalogoCompleto() {
     assertThat(jdbc.queryForObject("SELECT count(*) FROM permissions", Integer.class))
-        .isEqualTo(210);
+        .isEqualTo(216);
   }
 
   @Test
@@ -207,6 +207,14 @@ class PermissionsSeedIT extends IntegrationTestBase {
             "broker-accounts:read-team-member",
             // `V89` (08-10-2026): mis cuentas de broker, `RF-SP-079`, a todo rol por su tipo.
             "broker-accounts:read-own",
+            // `V90` (08-10-2026): gestionar cuentas de broker, `RF-SP-053`, `RF-SP-080` y
+            // `RF-SP-081`: tres propios por tipo de rol y tres amplios a SUPERADMIN y ADMIN.
+            "broker-accounts:create-own",
+            "broker-accounts:update-own",
+            "broker-accounts:delete-own",
+            "broker-accounts:create",
+            "broker-accounts:update",
+            "broker-accounts:delete",
             "countries:create",
             "countries:read",
             "countries:update",
@@ -384,7 +392,7 @@ class PermissionsSeedIT extends IntegrationTestBase {
   void identificadoresUuidV7() {
     List<UUID> ids = jdbc.queryForList("SELECT id FROM permissions", UUID.class);
 
-    assertThat(ids).hasSize(210).doesNotHaveDuplicates();
+    assertThat(ids).hasSize(216).doesNotHaveDuplicates();
     assertThat(ids).allSatisfy(id -> assertThat(id.version()).isEqualTo(7));
     // variant() == 2 es la variante RFC 9562 (bits 10xx).
     assertThat(ids).allSatisfy(id -> assertThat(id.variant()).isEqualTo(2));
@@ -450,13 +458,13 @@ class PermissionsSeedIT extends IntegrationTestBase {
                 "SELECT count(*) FROM role_permissions WHERE role_id ="
                     + " '01a02a33-4c00-7001-9c4f-5e7ad1000001'",
                 Integer.class))
-        .isEqualTo(210);
+        .isEqualTo(216);
     assertThat(
             jdbc.queryForObject(
                 "SELECT count(*) FROM role_permissions WHERE role_id ="
                     + " '01a02a33-4c00-7002-9c4f-5e7ad1000002'",
                 Integer.class))
-        .isEqualTo(208);
+        .isEqualTo(214);
     assertThat(
             jdbc.queryForList(
                 """
@@ -543,9 +551,13 @@ class PermissionsSeedIT extends IntegrationTestBase {
         // Y treinta y cuatro desde `V75`: los cinco del propio segundo factor, a los tres tipos.
         // Y treinta y seis desde `V77`: el detalle y el comprobante de lo propio en puntos.
         // Y treinta y siete desde `V89`: mis cuentas de broker, a los tres tipos.
-        .hasSize(37)
+        // Y cuarenta desde `V90`: registrar, corregir y borrar las propias.
+        .hasSize(40)
         .contains(
             "broker-accounts:read-own",
+            "broker-accounts:create-own",
+            "broker-accounts:update-own",
+            "broker-accounts:delete-own",
             "movements:pay-pending-by-card",
             "movements:read-conversion-rates",
             "movements:pay-pending-locally",

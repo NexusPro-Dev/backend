@@ -1,6 +1,7 @@
 package com.factech.nexus.shared.security;
 
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.user;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.patch;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
@@ -71,6 +72,21 @@ class OwnScopePermissionsIT extends IntegrationTestBase {
               "GET /users/me/broker-accounts",
               "broker-accounts:read-own",
               () -> get("/api/v1/users/me/broker-accounts")),
+          new Caso(
+              "POST /users/me/broker-accounts",
+              "broker-accounts:create-own",
+              () -> post("/api/v1/users/me/broker-accounts").contentType(JSON).content("{}")),
+          new Caso(
+              "PATCH /users/me/broker-accounts/{brokerAccountId}",
+              "broker-accounts:update-own",
+              () ->
+                  patch("/api/v1/users/me/broker-accounts/{id}", ID)
+                      .contentType(JSON)
+                      .content("{}")),
+          new Caso(
+              "DELETE /users/me/broker-accounts/{brokerAccountId}",
+              "broker-accounts:delete-own",
+              () -> delete("/api/v1/users/me/broker-accounts/{id}", ID)),
           new Caso(
               "GET /users/{id}/broker-accounts",
               "broker-accounts:read-team-member",

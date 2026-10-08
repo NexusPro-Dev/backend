@@ -292,7 +292,10 @@ public abstract class IntegrationTestBase {
                            'users:verify-own-mfa', 'users:regenerate-own-recovery-codes',
                            'users:disable-own-mfa',
                            -- V89 (08-10-2026): mis cuentas de broker, a los tres tipos.
-                           'broker-accounts:read-own')
+                           'broker-accounts:read-own',
+                           -- V90 (08-10-2026): gestionar las propias, a los tres tipos.
+                           'broker-accounts:create-own', 'broker-accounts:update-own',
+                           'broker-accounts:delete-own')
                 OR (r.role_type IN ('FUNCIONARIO', 'VENDEDOR')
                     AND p.code IN ('users:read-own-clients', 'broker-accounts:read-own-team',
                                    'broker-accounts:read-team-member',
@@ -346,7 +349,11 @@ public abstract class IntegrationTestBase {
           "users:regenerate-own-recovery-codes",
           "users:disable-own-mfa",
           // V89 (08-10-2026): mis cuentas de broker, a los tres tipos.
-          "broker-accounts:read-own");
+          "broker-accounts:read-own",
+          // V90 (08-10-2026): gestionar las propias, a los tres tipos.
+          "broker-accounts:create-own",
+          "broker-accounts:update-own",
+          "broker-accounts:delete-own");
 
   protected static java.util.UUID crearRolAcotado(
       org.springframework.jdbc.core.JdbcTemplate jdbc, String codigo, String nombre) {

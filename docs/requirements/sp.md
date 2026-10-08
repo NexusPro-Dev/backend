@@ -5,7 +5,7 @@
 | Módulo | `SP` — Sistema Principal |
 | Paquete | `modules/system` |
 | Prefijos de permiso | `roles:`, `permissions:`, `audit:`, `memberships:`, `currencies:`, `countries:`, `users:`, `exchange-rates:`, `document-types:`, `brokers:`, `broker-accounts:`, `teams:` |
-| Versión | 1.111.0 |
+| Versión | 1.112.0 |
 | Estado | **Aprobado** |
 | Responsable | Bonilla Diaz William Steven |
 | Fecha de creación | 20-08-2026 |
@@ -390,7 +390,7 @@ EXCLUDE USING gist (
 | `RF-SP-050` | Retirar una tasa de cambio | Media | `exchange-rates:delete` | Tasks en revisión |
 | `RF-SP-051` | Consultar tipos de documento | Alta | **Público** | Pendiente |
 | `RF-SP-052` | Consultar el catálogo de brokers | Alta | **Público** | **Tasks en revisión** |
-| `RF-SP-053` | Registrar una cuenta de broker | Alta | `broker-accounts:create-own` (la propia) o `broker-accounts:create` | **Tasks en revisión** |
+| `RF-SP-053` | Registrar una cuenta de broker | Alta | `broker-accounts:create-own` (la propia) o `broker-accounts:create` | **En desarrollo** |
 | `RF-SP-054` | Completar la cuenta de broker desde el webhook del broker | Media | **Ninguno: lo llama el broker** | **Pendiente** |
 | `RF-SP-055` | Consultar las cuentas de broker de una persona | Alta | `broker-accounts:read-team-member`, y **superior vigente** o `broker-accounts:read` para el alcance | **En desarrollo** |
 | `RF-SP-056` | Consultar las cuentas de broker del equipo | Alta | `broker-accounts:read-own-team` (el equipo propio) | **En desarrollo** |
@@ -417,8 +417,8 @@ EXCLUDE USING gist (
 | `RF-SP-077` | Exigir el segundo factor a los portadores de un rol | **Crítica** | `roles:require-mfa` | **En desarrollo** |
 | `RF-SP-078` | Recibir los avisos de los brokers | Alta | **Ninguno: lo autentica el secreto del broker** | **En desarrollo** |
 | `RF-SP-079` | Consultar mis cuentas de broker | Alta | `broker-accounts:read-own` | **En desarrollo** |
-| `RF-SP-080` | Editar una cuenta de broker | Alta | `broker-accounts:update-own` (la propia) o `broker-accounts:update` | **Tasks en revisión** |
-| `RF-SP-081` | Eliminar una cuenta de broker | Alta | `broker-accounts:delete-own` (la propia) o `broker-accounts:delete` | **Tasks en revisión** |
+| `RF-SP-080` | Editar una cuenta de broker | Alta | `broker-accounts:update-own` (la propia) o `broker-accounts:update` | **En desarrollo** |
+| `RF-SP-081` | Eliminar una cuenta de broker | Alta | `broker-accounts:delete-own` (la propia) o `broker-accounts:delete` | **En desarrollo** |
 
 !!! info "Dónde vive el estado de un requerimiento"
 
@@ -1013,7 +1013,7 @@ Listado de brokers **activos**, con su nombre. Se puebla por migración y no se 
 | Reglas aplicables | `RN-SP-038`, `RN-SP-040`, `RN-SP-045`, `RN-SP-067` |
 | Depende de | `RF-SP-052`, `RF-SP-055` |
 | Tripleta | `docs/specs/sp/053-registrar-cuenta-de-broker/` |
-| Estado | **Tasks en revisión** (08-10-2026) |
+| Estado | **En desarrollo** (08-10-2026) — construido el mismo día que su tripleta |
 
 **El «por decidir» del 08-09-2026 se decidió el 08-10-2026**, a petición del responsable del proyecto —«crear, editar y eliminar mis cuentas de broker y las de un usuario»—: **las dos cosas**, el titular sobre sí mismo y administración sobre cualquiera. El superior comercial **solo mira** (`RN-SP-046`). Hasta hoy la única vía era el registro por enlace (`RN-SP-042`). `POST /api/v1/users/me/broker-accounts` y `POST /api/v1/users/{id}/broker-accounts`, con **broker e identificador** —lo que la persona conoce (`RN-SP-040`)—: la cuenta nace en `REGISTER` y sin nombre de usuario, también si la declara administración. Una cuenta ya declarada, por quien sea, es `409` (`RN-SP-038`).
 
@@ -1580,7 +1580,7 @@ Cierra la pertenencia vigente de uno o varios managers **de este equipo**, con m
 | Reglas aplicables | `RN-SP-038`, `RN-SP-067` |
 | Depende de | `RF-SP-052`, `RF-SP-055` |
 | Tripleta | `docs/specs/sp/080-editar-cuenta-de-broker/` |
-| Estado | **Tasks en revisión** (08-10-2026) |
+| Estado | **En desarrollo** (08-10-2026) — construido el mismo día que su tripleta |
 
 **Solo se edita el identificador** (08-10-2026, decisión del responsable del proyecto): quien se equivocó de broker borra y declara otra, y el nombre de usuario y el estado los pone el broker. `PATCH /api/v1/users/me/broker-accounts/{brokerAccountId}` y `PATCH /api/v1/users/{id}/broker-accounts/{brokerAccountId}`. **El titular no corrige una cuenta con depósito confirmado** (`RN-SP-067`); administración sí, y la corrección conserva estado y nombre de usuario.
 
@@ -1595,7 +1595,7 @@ Cierra la pertenencia vigente de uno o varios managers **de este equipo**, con m
 | Reglas aplicables | `RN-SP-038`, `RN-SP-067` |
 | Depende de | `RF-SP-052`, `RF-SP-055` |
 | Tripleta | `docs/specs/sp/081-eliminar-cuenta-de-broker/` |
-| Estado | **Tasks en revisión** (08-10-2026) |
+| Estado | **En desarrollo** (08-10-2026) — construido el mismo día que su tripleta |
 
 **Borrado físico y auditado** (08-10-2026, decisión del responsable del proyecto): nada del sistema apunta a una cuenta de broker, la auditoría guarda cómo era, y la cuenta queda libre para declararse otra vez. `DELETE /api/v1/users/me/broker-accounts/{brokerAccountId}` y `DELETE /api/v1/users/{id}/broker-accounts/{brokerAccountId}`. **El titular no borra una cuenta con depósito confirmado** (`RN-SP-067`); administración sí.
 
@@ -2589,3 +2589,4 @@ La fila se lee «esta persona vinculó este authenticator». `status` es `PENDIE
 | 1.109.0 | 08-10-2026 | **`RF-SP-078`: el broker va por su NOMBRE en la ruta**, `/api/v1/brokers/{name}/notifications`, a petición del responsable del proyecto («para no enviar el id, enviar el nombre»). Sin distinguir mayúsculas ni acentos, como `uq_brokers_name`. §10.17 registra el coste —renombrar un broker obliga a cambiar la dirección en su panel— y que **no se añade `code`**. Spec 0.2.0 (`CA-SP-908`). | Responsable del proyecto |
 | 1.110.0 | 08-10-2026 | **Nace `RF-SP-079` — consultar mis cuentas de broker**, a petición del responsable del proyecto («agreguemos para ver mis propias»): `GET /api/v1/users/me/broker-accounts` con **`broker-accounts:read-own`**, sembrado por `V89` a todo rol por su tipo —también a `CLIENTE`—. La respuesta y el orden de `RF-SP-055`, sin paginar. **`RN-SP-046` se enmienda** para nombrar la vía del titular, y deja de señalar `GET /users/me`: desde `RN-SEG-015` una vista lleva su permiso. `RF-SP-055` no se relaja. Criterios `CA-SP-909` a `CA-SP-914`. | Responsable del proyecto |
 | 1.111.0 | 08-10-2026 | **Gestionar las cuentas de broker: registrar, editar y eliminar**, propias y de cualquier persona, a petición del responsable del proyecto («crear, editar y eliminar mis cuentas de broker y las de un usuario») y con sus decisiones del mismo día: **solo se edita el identificador**; **el borrado es físico y auditado**; **el titular no toca una cuenta con depósito confirmado**, administración sí; **el superior comercial no gestiona**. `RF-SP-053` deja de estar «por decidir» y se reescribe como «Registrar una cuenta de broker»; nacen **`RF-SP-080`** y **`RF-SP-081`**, y **`RN-SP-067`**. Seis permisos —tres propios a todo rol por su tipo y tres amplios a `SUPERADMIN` y `ADMIN`—, sembrados por `V90`. Criterios `CA-SP-915` a `CA-SP-937`. | Responsable del proyecto |
+| 1.112.0 | 08-10-2026 | **`RF-SP-053`, `RF-SP-080` y `RF-SP-081` pasan a `En desarrollo`**: las seis rutas de las cuentas de broker, con `V90` (catálogo **216**, `ADMIN` 214). | Responsable técnico |

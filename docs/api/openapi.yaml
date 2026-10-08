@@ -1148,6 +1148,132 @@ paths:
           description: Fallo no controlado (`ERR-500`)
       x-required-permission: users:delete
       x-requires-recent-mfa: true
+  /api/v1/users/{id}/broker-accounts:
+    get:
+      tags:
+      - Usuarios
+      summary: Consultar las cuentas de broker de una persona
+      description: |
+        **Permiso requerido:** `broker-accounts:read-team-member`. Sin él, `403` (`AUTH-002`).
+
+        Devuelve las cuentas de broker de esa persona: **broker, identificador
+        de cuenta, nombre de usuario en el broker y estado**, ordenadas por
+        nombre de broker e identificador de cuenta.
+
+        **Quién puede consultarlas** (`RN-SP-046`): **su superior comercial
+        vigente**, sin ningún permiso, o quien traiga **`broker-accounts:read`**
+        sobre cualquiera. Es la primera lectura del sistema cuyo alcance sale
+        de la estructura comercial, y **solo alcanza a esta**.
+
+        **Quien no es ninguna de las dos cosas recibe `404`, no `403`**, y es
+        deliberado: el mismo `404` que si la persona no existiera. Un `403`
+        dejaría a cualquier vendedor recorrer identificadores y averiguar
+        cuáles corresponden a personas reales. Los dos cuerpos son idénticos.
+
+        **Quien FUE su superior y ya no lo es recibe `404`**: el historial de
+        la estructura no concede lectura.
+
+        **El titular NO ve aquí sus propias cuentas** salvo que traiga el
+        permiso: esta lectura se definió sobre el equipo. Las suyas están en
+        `GET /api/v1/users/me/broker-accounts`.
+
+        **Una persona sin cuentas devuelve `200` con la colección vacía**, no
+        `404`: solo el registro por un enlace de beca obliga a declararlas.
+
+        **Hoy el estado es siempre `REGISTER`**, y no es un fallo: quien mueve
+        una cuenta a `FIRST_DEPOSIT` es el webhook del broker, que todavía no
+        existe.
+
+        **`brokerUsername` llega en nulo** mientras el broker no lo haya
+        confirmado, y el campo **está presente**: su nulo significa «aún no
+        confirmado», no «sin nombre».
+
+        **No se pagina**: una persona tiene unas pocas cuentas. El listado
+        paginado es `GET /api/v1/users/me/team/broker-accounts`.
+      operationId: cuentasDeBrokerDe
+      parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      responses:
+        "200":
+          description: "Las cuentas de la persona, ordenadas. Vacía si no declaró\
+            \ ninguna."
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/BrokerAccountsResponse"
+        "400":
+          description: Identificador malformado (`VAL-001`)
+        "401":
+          description: Token ausente o inválido (`AUTH-001`)
+        "403":
+          description: Autenticado sin `broker-accounts:read-team-member` (`AUTH-002`)
+        "404":
+          description: "La persona no existe, está eliminada, **o el actor no es su\
+            \ superior vigente ni posee `broker-accounts:read`** (`VAL-002`). Los\
+            \ tres casos responden lo mismo, a propósito."
+        "500":
+          description: Fallo no controlado (`ERR-500`)
+      x-required-permission: broker-accounts:read-team-member
+    post:
+      tags:
+      - Usuarios
+      summary: Registrar una cuenta de broker a una persona
+      description: |
+        **Permiso requerido:** `broker-accounts:create`. Sin él, `403` (`AUTH-002`).
+
+        Declara una cuenta de broker **a nombre de esa persona** (`RF-SP-053`). Es de administración: alcanza a cualquiera.
+
+        Se envían **el broker y el identificador de la cuenta** en el broker.
+        La cuenta nace en **`REGISTER`** y con `brokerUsername` **nulo**: el
+        nombre de usuario y el estado los pone después el broker.
+
+        **Una cuenta ya declarada** —el mismo broker y el mismo identificador,
+        por quien sea— responde `409` (`EX-009`). Un broker inexistente o
+        apagado responde `422` (`EX-008`), el mismo para los dos.
+      operationId: registrarCuentaDeBroker
+      parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateBrokerAccountRequest"
+        required: true
+      responses:
+        "201":
+          description: "La cuenta declarada, con la forma de una fila de las cuentas\
+            \ de una persona."
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/BrokerAccountItem"
+        "400":
+          description: "Falta el broker (`VAL-012`), falta el identificador o está\
+            \ en blanco (`VAL-013`), o tiene más de 80 caracteres (`VAL-015`). Todos\
+            \ los problemas en la misma respuesta."
+        "401":
+          description: Token ausente o inválido (`AUTH-001`)
+        "403":
+          description: Autenticado sin `broker-accounts:create` (`AUTH-002`)
+        "404":
+          description: La persona no existe o está eliminada (`VAL-002`)
+        "409":
+          description: "Esa cuenta ya está declarada (`EX-009`, `RN-SP-038`)"
+        "422":
+          description: El broker no existe o está apagado (`EX-008`)
+        "500":
+          description: Fallo no controlado (`ERR-500`)
+      x-required-permission: broker-accounts:create
   /api/v1/users/me/mfa/totp:
     post:
       tags:
@@ -1289,6 +1415,90 @@ paths:
           description: "La cuenta quedó bloqueada; sus sesiones, cerradas"
       x-required-permission: users:disable-own-mfa
       x-requires-recent-mfa: true
+  /api/v1/users/me/broker-accounts:
+    get:
+      tags:
+      - Usuarios
+      summary: Consultar mis cuentas de broker
+      description: |
+        **Permiso requerido:** `broker-accounts:read-own`. Sin él, `403` (`AUTH-002`).
+
+        Devuelve **las cuentas de broker del actor**: broker, identificador
+        de cuenta, nombre de usuario en el broker y estado, ordenadas por
+        nombre de broker e identificador de cuenta. Es la misma respuesta que
+        `GET /api/v1/users/{id}/broker-accounts`.
+
+        **No hay identificador en la ruta**: la persona sale del token, y por
+        eso no hay `404`. Solo salen las suyas: ni las de su equipo
+        (`GET /api/v1/users/me/team/broker-accounts`) ni las de nadie más.
+
+        **Una persona sin cuentas recibe `200` con la colección vacía.**
+
+        **`brokerUsername` llega en nulo** mientras el broker no lo haya
+        confirmado, y el campo **está presente**.
+
+        **No se pagina**: una persona tiene unas pocas cuentas.
+      operationId: misCuentasDeBroker
+      responses:
+        "200":
+          description: "Las cuentas del actor, ordenadas. Vacía si no declaró ninguna."
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/BrokerAccountsResponse"
+        "401":
+          description: Token ausente o inválido (`AUTH-001`)
+        "403":
+          description: Autenticado sin `broker-accounts:read-own` (`AUTH-002`)
+        "500":
+          description: Fallo no controlado (`ERR-500`)
+      x-required-permission: broker-accounts:read-own
+    post:
+      tags:
+      - Usuarios
+      summary: Registrar una cuenta de broker propia
+      description: |
+        **Permiso requerido:** `broker-accounts:create-own`. Sin él, `403` (`AUTH-002`).
+
+        Declara una cuenta de broker **a nombre del actor** (`RF-SP-053`).
+
+        Se envían **el broker y el identificador de la cuenta** en el broker.
+        La cuenta nace en **`REGISTER`** y con `brokerUsername` **nulo**: el
+        nombre de usuario y el estado los pone después el broker.
+
+        **Una cuenta ya declarada** —el mismo broker y el mismo identificador,
+        por quien sea— responde `409` (`EX-009`). Un broker inexistente o
+        apagado responde `422` (`EX-008`), el mismo para los dos.
+      operationId: registrarMiCuentaDeBroker
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateBrokerAccountRequest"
+        required: true
+      responses:
+        "201":
+          description: "La cuenta declarada, con la forma de una fila de las cuentas\
+            \ de una persona."
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/BrokerAccountItem"
+        "400":
+          description: "Falta el broker (`VAL-012`), falta el identificador o está\
+            \ en blanco (`VAL-013`), o tiene más de 80 caracteres (`VAL-015`). Todos\
+            \ los problemas en la misma respuesta."
+        "401":
+          description: Token ausente o inválido (`AUTH-001`)
+        "403":
+          description: Autenticado sin `broker-accounts:create-own` (`AUTH-002`)
+        "409":
+          description: "Esa cuenta ya está declarada (`EX-009`, `RN-SP-038`)"
+        "422":
+          description: El broker no existe o está apagado (`EX-008`)
+        "500":
+          description: Fallo no controlado (`ERR-500`)
+      x-required-permission: broker-accounts:create-own
   /api/v1/user-commission-rates:
     get:
       tags:
@@ -7701,6 +7911,106 @@ paths:
         "500":
           description: Fallo no controlado (`ERR-500`)
       x-required-permission: users:change-status
+  /api/v1/users/{id}/broker-accounts/{brokerAccountId}:
+    delete:
+      tags:
+      - Usuarios
+      summary: Eliminar una cuenta de broker de una persona
+      description: |
+        **Permiso requerido:** `broker-accounts:delete`. Sin él, `403` (`AUTH-002`).
+
+        Borra la cuenta (`RF-SP-081`). **El borrado es físico y queda
+        auditado** con todos sus datos, y la cuenta queda libre: el mismo
+        broker e identificador se pueden volver a declarar.
+
+        **Alcanza a cualquier cuenta, también en `FIRST_DEPOSIT`**
+        (`RN-SP-067`): es la vía para corregir un error.
+      operationId: eliminarCuentaDeBroker
+      parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      - name: brokerAccountId
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      responses:
+        "204":
+          description: Borrada.
+        "401":
+          description: Token ausente o inválido (`AUTH-001`)
+        "403":
+          description: Autenticado sin `broker-accounts:delete` (`AUTH-002`)
+        "404":
+          description: "La persona no existe, o la cuenta no existe o no es suya (`VAL-002`)"
+        "500":
+          description: Fallo no controlado (`ERR-500`)
+      x-required-permission: broker-accounts:delete
+    patch:
+      tags:
+      - Usuarios
+      summary: Corregir una cuenta de broker de una persona
+      description: |
+        **Permiso requerido:** `broker-accounts:update`. Sin él, `403` (`AUTH-002`).
+
+        Cambia **solo el identificador** de la cuenta en el broker
+        (`RF-SP-080`). El broker no se cambia —se borra la cuenta y se
+        declara otra—, y el estado y el nombre de usuario **no cambian**.
+
+        `brokerAccountId` es el `id` de la cuenta, no su identificador en el
+        broker (`accountId`).
+
+        **Alcanza a cualquier cuenta, también en `FIRST_DEPOSIT`**
+        (`RN-SP-067`): es la vía para corregir un error.
+
+        Si el identificador nuevo es el mismo, responde `200` sin cambiar
+        nada. Uno **ya declarado** en ese broker responde `409` (`EX-009`).
+      operationId: corregirCuentaDeBroker
+      parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      - name: brokerAccountId
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UpdateBrokerAccountRequest"
+        required: true
+      responses:
+        "200":
+          description: La cuenta corregida.
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/BrokerAccountItem"
+        "400":
+          description: "Falta el identificador o está en blanco (`VAL-013`), o tiene\
+            \ más de 80 caracteres (`VAL-015`)"
+        "401":
+          description: Token ausente o inválido (`AUTH-001`)
+        "403":
+          description: Autenticado sin `broker-accounts:update` (`AUTH-002`)
+        "404":
+          description: "La persona no existe, o la cuenta no existe o no es suya (`VAL-002`)"
+        "409":
+          description: El identificador ya está declarado (`EX-009`)
+        "500":
+          description: Fallo no controlado (`ERR-500`)
+      x-required-permission: broker-accounts:update
   /api/v1/users/me:
     get:
       tags:
@@ -7864,6 +8174,103 @@ paths:
         "500":
           description: Fallo no controlado (`ERR-500`)
       x-required-permission: users:update-own-profile
+  /api/v1/users/me/broker-accounts/{brokerAccountId}:
+    delete:
+      tags:
+      - Usuarios
+      summary: Eliminar una cuenta de broker propia
+      description: |
+        **Permiso requerido:** `broker-accounts:delete-own`. Sin él, `403` (`AUTH-002`).
+
+        Borra la cuenta (`RF-SP-081`). **El borrado es físico y queda
+        auditado** con todos sus datos, y la cuenta queda libre: el mismo
+        broker e identificador se pueden volver a declarar.
+
+        **El titular borra** solo cuentas **en `REGISTER`**: una cuenta en
+        `FIRST_DEPOSIT` tiene el primer depósito atado y responde `409`
+        (`EX-010`, `RN-SP-067`). Administración sí puede.
+
+        **La cuenta de otra persona responde `404`**, como si no existiera.
+      operationId: eliminarMiCuentaDeBroker
+      parameters:
+      - name: brokerAccountId
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      responses:
+        "204":
+          description: Borrada.
+        "401":
+          description: Token ausente o inválido (`AUTH-001`)
+        "403":
+          description: Autenticado sin `broker-accounts:delete-own` (`AUTH-002`)
+        "404":
+          description: La cuenta no existe o no es del actor (`VAL-002`)
+        "409":
+          description: La cuenta tiene el primer depósito confirmado (`EX-010`)
+        "500":
+          description: Fallo no controlado (`ERR-500`)
+      x-required-permission: broker-accounts:delete-own
+    patch:
+      tags:
+      - Usuarios
+      summary: Corregir una cuenta de broker propia
+      description: |
+        **Permiso requerido:** `broker-accounts:update-own`. Sin él, `403` (`AUTH-002`).
+
+        Cambia **solo el identificador** de la cuenta en el broker
+        (`RF-SP-080`). El broker no se cambia —se borra la cuenta y se
+        declara otra—, y el estado y el nombre de usuario **no cambian**.
+
+        `brokerAccountId` es el `id` de la cuenta, no su identificador en el
+        broker (`accountId`).
+
+        **El titular corrige** solo cuentas **en `REGISTER`**: una cuenta en
+        `FIRST_DEPOSIT` tiene el primer depósito atado y responde `409`
+        (`EX-010`, `RN-SP-067`). Administración sí puede.
+
+        **La cuenta de otra persona responde `404`**, como si no existiera.
+
+        Si el identificador nuevo es el mismo, responde `200` sin cambiar
+        nada. Uno **ya declarado** en ese broker responde `409` (`EX-009`).
+      operationId: corregirMiCuentaDeBroker
+      parameters:
+      - name: brokerAccountId
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UpdateBrokerAccountRequest"
+        required: true
+      responses:
+        "200":
+          description: La cuenta corregida.
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/BrokerAccountItem"
+        "400":
+          description: "Falta el identificador o está en blanco (`VAL-013`), o tiene\
+            \ más de 80 caracteres (`VAL-015`)"
+        "401":
+          description: Token ausente o inválido (`AUTH-001`)
+        "403":
+          description: Autenticado sin `broker-accounts:update-own` (`AUTH-002`)
+        "404":
+          description: La cuenta no existe o no es del actor (`VAL-002`)
+        "409":
+          description: "La cuenta tiene el primer depósito confirmado (`EX-010`),\
+            \ o el identificador ya está declarado (`EX-009`)"
+        "500":
+          description: Fallo no controlado (`ERR-500`)
+      x-required-permission: broker-accounts:update-own
   /api/v1/user-commission-rates/{id}:
     patch:
       tags:
@@ -10734,77 +11141,6 @@ paths:
         "500":
           description: Fallo no controlado (`ERR-500`)
       x-required-permission: users:read-clients
-  /api/v1/users/{id}/broker-accounts:
-    get:
-      tags:
-      - Usuarios
-      summary: Consultar las cuentas de broker de una persona
-      description: |
-        **Permiso requerido:** `broker-accounts:read-team-member`. Sin él, `403` (`AUTH-002`).
-
-        Devuelve las cuentas de broker de esa persona: **broker, identificador
-        de cuenta, nombre de usuario en el broker y estado**, ordenadas por
-        nombre de broker e identificador de cuenta.
-
-        **Quién puede consultarlas** (`RN-SP-046`): **su superior comercial
-        vigente**, sin ningún permiso, o quien traiga **`broker-accounts:read`**
-        sobre cualquiera. Es la primera lectura del sistema cuyo alcance sale
-        de la estructura comercial, y **solo alcanza a esta**.
-
-        **Quien no es ninguna de las dos cosas recibe `404`, no `403`**, y es
-        deliberado: el mismo `404` que si la persona no existiera. Un `403`
-        dejaría a cualquier vendedor recorrer identificadores y averiguar
-        cuáles corresponden a personas reales. Los dos cuerpos son idénticos.
-
-        **Quien FUE su superior y ya no lo es recibe `404`**: el historial de
-        la estructura no concede lectura.
-
-        **El titular NO ve aquí sus propias cuentas** salvo que traiga el
-        permiso: esta lectura se definió sobre el equipo. Las suyas están en
-        `GET /api/v1/users/me/broker-accounts`.
-
-        **Una persona sin cuentas devuelve `200` con la colección vacía**, no
-        `404`: solo el registro por un enlace de beca obliga a declararlas.
-
-        **Hoy el estado es siempre `REGISTER`**, y no es un fallo: quien mueve
-        una cuenta a `FIRST_DEPOSIT` es el webhook del broker, que todavía no
-        existe.
-
-        **`brokerUsername` llega en nulo** mientras el broker no lo haya
-        confirmado, y el campo **está presente**: su nulo significa «aún no
-        confirmado», no «sin nombre».
-
-        **No se pagina**: una persona tiene unas pocas cuentas. El listado
-        paginado es `GET /api/v1/users/me/team/broker-accounts`.
-      operationId: cuentasDeBrokerDe
-      parameters:
-      - name: id
-        in: path
-        required: true
-        schema:
-          type: string
-          format: uuid
-      responses:
-        "200":
-          description: "Las cuentas de la persona, ordenadas. Vacía si no declaró\
-            \ ninguna."
-          content:
-            '*/*':
-              schema:
-                $ref: "#/components/schemas/BrokerAccountsResponse"
-        "400":
-          description: Identificador malformado (`VAL-001`)
-        "401":
-          description: Token ausente o inválido (`AUTH-001`)
-        "403":
-          description: Autenticado sin `broker-accounts:read-team-member` (`AUTH-002`)
-        "404":
-          description: "La persona no existe, está eliminada, **o el actor no es su\
-            \ superior vigente ni posee `broker-accounts:read`** (`VAL-002`). Los\
-            \ tres casos responden lo mismo, a propósito."
-        "500":
-          description: Fallo no controlado (`ERR-500`)
-      x-required-permission: broker-accounts:read-team-member
   /api/v1/users/me/team/broker-accounts:
     get:
       tags:
@@ -11038,44 +11374,6 @@ paths:
         "500":
           description: Fallo no controlado (`ERR-500`)
       x-required-permission: users:read-own-clients
-  /api/v1/users/me/broker-accounts:
-    get:
-      tags:
-      - Usuarios
-      summary: Consultar mis cuentas de broker
-      description: |
-        **Permiso requerido:** `broker-accounts:read-own`. Sin él, `403` (`AUTH-002`).
-
-        Devuelve **las cuentas de broker del actor**: broker, identificador
-        de cuenta, nombre de usuario en el broker y estado, ordenadas por
-        nombre de broker e identificador de cuenta. Es la misma respuesta que
-        `GET /api/v1/users/{id}/broker-accounts`.
-
-        **No hay identificador en la ruta**: la persona sale del token, y por
-        eso no hay `404`. Solo salen las suyas: ni las de su equipo
-        (`GET /api/v1/users/me/team/broker-accounts`) ni las de nadie más.
-
-        **Una persona sin cuentas recibe `200` con la colección vacía.**
-
-        **`brokerUsername` llega en nulo** mientras el broker no lo haya
-        confirmado, y el campo **está presente**.
-
-        **No se pagina**: una persona tiene unas pocas cuentas.
-      operationId: misCuentasDeBroker
-      responses:
-        "200":
-          description: "Las cuentas del actor, ordenadas. Vacía si no declaró ninguna."
-          content:
-            '*/*':
-              schema:
-                $ref: "#/components/schemas/BrokerAccountsResponse"
-        "401":
-          description: Token ausente o inválido (`AUTH-001`)
-        "403":
-          description: Autenticado sin `broker-accounts:read-own` (`AUTH-002`)
-        "500":
-          description: Fallo no controlado (`ERR-500`)
-      x-required-permission: broker-accounts:read-own
   /api/v1/products/{id}/comments/mine:
     get:
       tags:
@@ -16115,6 +16413,47 @@ components:
       properties:
         reason:
           type: string
+    CreateBrokerAccountRequest:
+      type: object
+      properties:
+        brokerId:
+          type: string
+          format: uuid
+          description: "El broker, del catálogo de `GET /api/v1/brokers`. Debe estar\
+            \ activo."
+        accountId:
+          type: string
+          description: El identificador de la cuenta en el broker. Se guarda sin espacios
+            a los lados; entre 1 y 80 caracteres.
+          example: 70000001
+    BrokerAccountItem:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        broker:
+          $ref: "#/components/schemas/BrokerRef"
+        accountId:
+          type: string
+        brokerUsername:
+          type: string
+        status:
+          type: string
+          enum:
+          - REGISTER
+          - FIRST_DEPOSIT
+        declaredAt:
+          type: string
+          format: date-time
+    BrokerRef:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        name:
+          type: string
     MfaEnrollmentResponse:
       type: object
       properties:
@@ -19097,6 +19436,14 @@ components:
         updatedAt:
           type: string
           format: date-time
+    UpdateBrokerAccountRequest:
+      type: object
+      properties:
+        accountId:
+          type: string
+          description: El identificador nuevo de la cuenta en el broker. Sin espacios
+            a los lados; entre 1 y 80 caracteres.
+          example: 70000001
     UpdateOwnProfileRequest:
       type: object
       properties:
@@ -19762,26 +20109,6 @@ components:
           format: date-time
           description: "Desde cuándo es su cliente. En las filas que `V20` trajo desde\
             \ `user_supervisors`, desde cuándo colgaba de él allí."
-    BrokerAccountItem:
-      type: object
-      properties:
-        id:
-          type: string
-          format: uuid
-        broker:
-          $ref: "#/components/schemas/BrokerRef"
-        accountId:
-          type: string
-        brokerUsername:
-          type: string
-        status:
-          type: string
-          enum:
-          - REGISTER
-          - FIRST_DEPOSIT
-        declaredAt:
-          type: string
-          format: date-time
     BrokerAccountsResponse:
       type: object
       properties:
@@ -19789,14 +20116,6 @@ components:
           type: array
           items:
             $ref: "#/components/schemas/BrokerAccountItem"
-    BrokerRef:
-      type: object
-      properties:
-        id:
-          type: string
-          format: uuid
-        name:
-          type: string
     BrokerAccountHolder:
       type: object
       properties:
