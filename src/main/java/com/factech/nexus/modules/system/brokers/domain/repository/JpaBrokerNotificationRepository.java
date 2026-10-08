@@ -1,6 +1,8 @@
 package com.factech.nexus.modules.system.brokers.domain.repository;
 
 import jakarta.persistence.EntityManager;
+import java.util.List;
+import java.util.Optional;
 import java.util.UUID;
 import org.springframework.stereotype.Repository;
 
@@ -20,11 +22,15 @@ public class JpaBrokerNotificationRepository implements BrokerNotificationReposi
   }
 
   @Override
-  public boolean isActive(UUID brokerId) {
-    return !em.createNativeQuery("SELECT 1 FROM brokers WHERE id = CAST(:id AS uuid) AND is_active")
-        .setParameter("id", brokerId)
-        .getResultList()
-        .isEmpty();
+  public Optional<UUID> findActiveByName(String name) {
+    @SuppressWarnings("unchecked")
+    List<UUID> filas =
+        em.createNativeQuery(
+                "SELECT id FROM brokers"
+                    + " WHERE f_unaccent(lower(name)) = f_unaccent(lower(:nombre)) AND is_active")
+            .setParameter("nombre", name)
+            .getResultList();
+    return filas.stream().findFirst();
   }
 
   @Override

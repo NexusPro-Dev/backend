@@ -11269,16 +11269,15 @@
         "tags" : [ "Brokers" ]
       }
     },
-    "/api/v1/brokers/{id}/notifications" : {
+    "/api/v1/brokers/{name}/notifications" : {
       "get" : {
-        "description" : "**Permiso requerido:** ninguno. Ruta pública: responde sin token.\n\n**La llama el broker, no el frontend** (`RF-SP-078`). Ruta **pública**: la autentica el\nsecreto propio de ese broker, en el parámetro `token` de la dirección (`RN-SP-066`). El\naviso se guarda **entero y sin interpretar** —método, parámetros de la dirección salvo\n`token`, cabeceras salvo las de credenciales, cuerpo tal cual, tipo de contenido y origen—\ny se responde `200` sin cuerpo. **No cambia nada más**: ni cuentas de broker, ni personas.\nDos avisos iguales se guardan dos veces. `{id}` es el identificador del broker en el\ncatálogo (`GET /api/v1/brokers`).\n",
+        "description" : "**Permiso requerido:** ninguno. Ruta pública: responde sin token.\n\n**La llama el broker, no el frontend** (`RF-SP-078`). Ruta **pública**: la autentica el\nsecreto propio de ese broker, en el parámetro `token` de la dirección (`RN-SP-066`). El\naviso se guarda **entero y sin interpretar** —método, parámetros de la dirección salvo\n`token`, cabeceras salvo las de credenciales, cuerpo tal cual, tipo de contenido y origen—\ny se responde `200` sin cuerpo. **No cambia nada más**: ni cuentas de broker, ni personas.\nDos avisos iguales se guardan dos veces. `{name}` es el nombre del broker en el catálogo\n(`GET /api/v1/brokers`), sin distinguir mayúsculas: `iqoption`, `exnova`, `exoption`.\n",
         "operationId" : "brokerNotificationByQuery",
         "parameters" : [ {
           "in" : "path",
-          "name" : "id",
+          "name" : "name",
           "required" : true,
           "schema" : {
-            "format" : "uuid",
             "type" : "string"
           }
         }, {
@@ -11295,7 +11294,7 @@
             "description" : "Guardado; cuerpo vacío."
           },
           "400" : {
-            "description" : "Cuerpo de más de 64 KiB (`EX-004`), o `{id}` que no es un UUID"
+            "description" : "Cuerpo de más de 64 KiB (`EX-004`)"
           },
           "401" : {
             "description" : "Sin `token`, con `token` repetido o con uno que no es el de este broker (`EX-001`). No se guarda nada"
@@ -11312,14 +11311,13 @@
         "tags" : [ "Avisos de los brokers" ]
       },
       "post" : {
-        "description" : "**Permiso requerido:** ninguno. Ruta pública: responde sin token.\n\n**La llama el broker, no el frontend** (`RF-SP-078`). Ruta **pública**: la autentica el\nsecreto propio de ese broker, en el parámetro `token` de la dirección (`RN-SP-066`). El\naviso se guarda **entero y sin interpretar** —método, parámetros de la dirección salvo\n`token`, cabeceras salvo las de credenciales, cuerpo tal cual, tipo de contenido y origen—\ny se responde `200` sin cuerpo. **No cambia nada más**: ni cuentas de broker, ni personas.\nDos avisos iguales se guardan dos veces. `{id}` es el identificador del broker en el\ncatálogo (`GET /api/v1/brokers`).\n\nAdmite **cualquier tipo de contenido**, de hasta 64 KiB; un formulario se guarda tal cual, sin desarmarlo.",
+        "description" : "**Permiso requerido:** ninguno. Ruta pública: responde sin token.\n\n**La llama el broker, no el frontend** (`RF-SP-078`). Ruta **pública**: la autentica el\nsecreto propio de ese broker, en el parámetro `token` de la dirección (`RN-SP-066`). El\naviso se guarda **entero y sin interpretar** —método, parámetros de la dirección salvo\n`token`, cabeceras salvo las de credenciales, cuerpo tal cual, tipo de contenido y origen—\ny se responde `200` sin cuerpo. **No cambia nada más**: ni cuentas de broker, ni personas.\nDos avisos iguales se guardan dos veces. `{name}` es el nombre del broker en el catálogo\n(`GET /api/v1/brokers`), sin distinguir mayúsculas: `iqoption`, `exnova`, `exoption`.\n\nAdmite **cualquier tipo de contenido**, de hasta 64 KiB; un formulario se guarda tal cual, sin desarmarlo.",
         "operationId" : "brokerNotificationByBody",
         "parameters" : [ {
           "in" : "path",
-          "name" : "id",
+          "name" : "name",
           "required" : true,
           "schema" : {
-            "format" : "uuid",
             "type" : "string"
           }
         }, {
@@ -11336,7 +11334,7 @@
             "description" : "Guardado; cuerpo vacío."
           },
           "400" : {
-            "description" : "Cuerpo de más de 64 KiB (`EX-004`), o `{id}` que no es un UUID"
+            "description" : "Cuerpo de más de 64 KiB (`EX-004`)"
           },
           "401" : {
             "description" : "Sin `token`, con `token` repetido o con uno que no es el de este broker (`EX-001`). No se guarda nada"

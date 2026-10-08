@@ -18,7 +18,6 @@ import java.util.Collections;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.UUID;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -40,7 +39,7 @@ import org.springframework.web.bind.annotation.RestController;
         "Lo que avisa cada broker (RF-SP-078). Solo lo llaman los brokers, con su secreto; el"
             + " frontend no.")
 @RestController
-@RequestMapping("/api/v1/brokers/{id}/notifications")
+@RequestMapping("/api/v1/brokers/{name}/notifications")
 public class BrokerNotificationController {
 
   private static final String DESCRIPCION =
@@ -50,8 +49,8 @@ public class BrokerNotificationController {
       aviso se guarda **entero y sin interpretar** —método, parámetros de la dirección salvo
       `token`, cabeceras salvo las de credenciales, cuerpo tal cual, tipo de contenido y origen—
       y se responde `200` sin cuerpo. **No cambia nada más**: ni cuentas de broker, ni personas.
-      Dos avisos iguales se guardan dos veces. `{id}` es el identificador del broker en el
-      catálogo (`GET /api/v1/brokers`).
+      Dos avisos iguales se guardan dos veces. `{name}` es el nombre del broker en el catálogo
+      (`GET /api/v1/brokers`), sin distinguir mayúsculas: `iqoption`, `exnova`, `exoption`.
       """;
 
   private final ReceiveBrokerNotificationService recepcion;
@@ -74,7 +73,7 @@ public class BrokerNotificationController {
     @ApiResponse(responseCode = "200", description = "Guardado; cuerpo vacío.", content = @Content),
     @ApiResponse(
         responseCode = "400",
-        description = "Cuerpo de más de 64 KiB (`EX-004`), o `{id}` que no es un UUID",
+        description = "Cuerpo de más de 64 KiB (`EX-004`)",
         content = @Content),
     @ApiResponse(
         responseCode = "401",
@@ -94,8 +93,8 @@ public class BrokerNotificationController {
         content = @Content)
   })
   public ResponseEntity<Void> brokerNotificationByQuery(
-      @PathVariable UUID id, HttpServletRequest peticion) throws IOException {
-    return recibir(id, peticion);
+      @PathVariable String name, HttpServletRequest peticion) throws IOException {
+    return recibir(name, peticion);
   }
 
   @PostMapping(consumes = "*/*")
@@ -115,7 +114,7 @@ public class BrokerNotificationController {
     @ApiResponse(responseCode = "200", description = "Guardado; cuerpo vacío.", content = @Content),
     @ApiResponse(
         responseCode = "400",
-        description = "Cuerpo de más de 64 KiB (`EX-004`), o `{id}` que no es un UUID",
+        description = "Cuerpo de más de 64 KiB (`EX-004`)",
         content = @Content),
     @ApiResponse(
         responseCode = "401",
@@ -135,13 +134,14 @@ public class BrokerNotificationController {
         content = @Content)
   })
   public ResponseEntity<Void> brokerNotificationByBody(
-      @PathVariable UUID id, HttpServletRequest peticion) throws IOException {
-    return recibir(id, peticion);
+      @PathVariable String name, HttpServletRequest peticion) throws IOException {
+    return recibir(name, peticion);
   }
 
-  private ResponseEntity<Void> recibir(UUID id, HttpServletRequest peticion) throws IOException {
+  private ResponseEntity<Void> recibir(String name, HttpServletRequest peticion)
+      throws IOException {
     recepcion.receive(
-        id,
+        name,
         new BrokerNotice(
             peticion.getMethod(),
             peticion.getQueryString(),

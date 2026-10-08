@@ -63,10 +63,14 @@ public class ReceiveBrokerNotificationService {
   }
 
   @Transactional
-  public void receive(UUID brokerId, BrokerNotice aviso) {
-    if (!avisos.isActive(brokerId)) {
-      throw new ResourceNotFoundException("EX-003", "El broker no existe o no está activo.");
-    }
+  public void receive(String brokerName, BrokerNotice aviso) {
+    UUID brokerId =
+        avisos
+            .findActiveByName(brokerName)
+            .orElseThrow(
+                () ->
+                    new ResourceNotFoundException(
+                        "EX-003", "El broker no existe o no está activo."));
     String esperado =
         secretos
             .tokenOf(brokerId)

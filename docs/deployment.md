@@ -5,7 +5,7 @@
 | Proyecto | NEXUS — Renovación de plataforma |
 | Empresa | FACTECH GROUP SAS |
 | Documento | `deployment.md` |
-| Versión | 0.19.0 |
+| Versión | 0.20.0 |
 | Estado | Borrador |
 | Responsable técnico | Bonilla Diaz William Steven |
 | Fecha de creación | 27-08-2026 |
@@ -308,13 +308,13 @@ Lo que avisa cada broker se guarda tal como llega y **no se interpreta todavía*
 
 **En hexadecimal**, y no en Base64: va dentro de una dirección, y un `+` o un `/` habría que escaparlos en el panel.
 
-**La dirección que va en el panel de afiliados de cada broker**, en la sección de *postback* o S2S, con el identificador del broker que fija `V9` —el mismo en todos los entornos— y su secreto:
+**La dirección que va en el panel de afiliados de cada broker**, en la sección de *postback* o S2S, con el **nombre** del broker —sin distinguir mayúsculas— y su secreto:
 
 | Broker | Dirección |
 |---|---|
-| `IQOPTION` | `https://<dominio del backend>/api/v1/brokers/01a081f0-6000-7101-9c4f-5e7adb000001/notifications?token=<BROKER_TOKEN_IQOPTION>` |
-| `EXNOVA` | `https://<dominio del backend>/api/v1/brokers/01a081f0-6000-7102-9c4f-5e7adb000002/notifications?token=<BROKER_TOKEN_EXNOVA>` |
-| `EXOPTION` | `https://<dominio del backend>/api/v1/brokers/01a081f0-6000-7103-9c4f-5e7adb000003/notifications?token=<BROKER_TOKEN_EXOPTION>` |
+| `IQOPTION` | `https://<dominio del backend>/api/v1/brokers/iqoption/notifications?token=<BROKER_TOKEN_IQOPTION>` |
+| `EXNOVA` | `https://<dominio del backend>/api/v1/brokers/exnova/notifications?token=<BROKER_TOKEN_EXNOVA>` |
+| `EXOPTION` | `https://<dominio del backend>/api/v1/brokers/exoption/notifications?token=<BROKER_TOKEN_EXOPTION>` |
 
 **Detrás del `token` se añaden los marcadores que ofrezca el panel**, con los nombres que el panel diga —por ejemplo `&event={event}&trader_id={trader_id}`—: todo lo que llegue se guarda. Vale `GET` y `POST`, con cualquier tipo de contenido.
 
@@ -600,3 +600,4 @@ Ninguno de estos puntos impide desplegar. Todos están declarados para que no se
 | 0.17.0 | 06-10-2026 | Aviso en §4.1.1: **desde `RF-SP-072`, `SUPERADMIN` y `ADMIN` activan el segundo factor en su primer inicio de sesión tras desplegar** —teléfono con una app autenticadora a mano, y los diez códigos de recuperación guardados—. | Responsable técnico |
 | 0.18.0 | 06-10-2026 | **Nueva §12.1: recuperar al último superadministrador** que perdió el teléfono y los códigos (`RF-SP-076` `T-05`). `RN-SP-065` impide hacerlo por la API —es la toma de cuenta que la regla cierra—, de modo que se hace por la base, con tres sentencias en una transacción: retirar el factor, cerrar las sesiones y dejar el evento. Probado contra la base local en una transacción deshecha. | Responsable técnico |
 | 0.19.0 | 08-10-2026 | **Nueva §6.5.3: los avisos de los brokers** (`RF-SP-078`). Tres variables —`BROKER_TOKEN_IQOPTION`, `BROKER_TOKEN_EXNOVA`, `BROKER_TOKEN_EXOPTION`—, la dirección que va en el panel de afiliados de cada broker y la consulta para ver lo que llegó. | Responsable técnico |
+| 0.20.0 | 08-10-2026 | §6.5.3: **las direcciones de los avisos llevan el nombre del broker** (`/brokers/iqoption/notifications`) y no su identificador (`RF-SP-078`). Renombrar un broker obliga a cambiar la dirección en su panel. | Responsable técnico |

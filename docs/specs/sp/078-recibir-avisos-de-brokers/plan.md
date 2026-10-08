@@ -3,9 +3,9 @@
 | Campo | Valor |
 |---|---|
 | Requerimiento | `RF-SP-078` |
-| Especificación | [`spec.md`](spec.md) v0.1.0 |
+| Especificación | [`spec.md`](spec.md) v0.2.0 |
 | `spec.md` aprobada el | 08-10-2026 |
-| Versión | 0.1.0 |
+| Versión | 0.2.0 |
 | Estado | **Aprobado** |
 | Autor | Responsable técnico |
 | Aprobado por | Responsable del proyecto |
@@ -60,9 +60,9 @@ Los identificadores son los que fija `V9`, iguales en todos los entornos, y por 
 |---|---|---|---|
 | `infrastructure` | `BrokerNotificationSettings` | Nuevo | `@ConfigurationProperties("nexus.brokers")`, `Map<UUID, String> notificationTokens`; `tokenOf(id)` devuelve vacío si falta o está en blanco |
 | `application` | `BrokerNotice` | Nuevo | Lo que llegó, sin tipos del servlet: método, cadena de consulta cruda, cabeceras, cuerpo, tipo de contenido, IP |
-| `domain/repository` | `BrokerNotificationRepository`, `JpaBrokerNotificationRepository` | Nuevos | `isActive(brokerId)` y `insert(...)`, SQL nativo con `CAST(:x AS jsonb)`, como `JpaGatewayEventRepository` |
+| `domain/repository` | `BrokerNotificationRepository`, `JpaBrokerNotificationRepository` | Nuevos | `findActiveByName(nombre)` —`f_unaccent(lower(name))`, la expresión de `uq_brokers_name`— e `insert(...)`, SQL nativo con `CAST(:x AS jsonb)`, como `JpaGatewayEventRepository` |
 | `domain/service` | `ReceiveBrokerNotificationService` | Nuevo | Las comprobaciones de §1, desarmar la consulta, filtrar cabeceras y guardar. Identificador con `UuidV7Generator` |
-| `interfaces` | `BrokerNotificationController` | Nuevo | `GET` y `POST /api/v1/brokers/{id}/notifications`; lee el flujo con tope de 64 KiB + 1 y la IP de `RequestContext` |
+| `interfaces` | `BrokerNotificationController` | Nuevo | `GET` y `POST /api/v1/brokers/{name}/notifications`; lee el flujo con tope de 64 KiB + 1 y la IP de `RequestContext` |
 | `shared/security` | `SecurityConfig` | `"/api/v1/brokers/*/notifications"` en `RUTAS_PUBLICAS` | Fuera de `RateLimitFilter` —que solo cubre las rutas que nombra— y sin CORS |
 | `shared/observability` | `RequestLogFilter` | Oculta el valor de todo parámetro `token` de la cadena de consulta | `token=[OCULTO]`; el resto de la cadena, igual |
 | `resources` | `application.yml` | El bloque de §2 | |
@@ -75,15 +75,15 @@ Los identificadores son los que fija `V9`, iguales en todos los entornos, y por 
 
 | Verbo | Ruta | Permiso |
 |---|---|---|
-| `GET` | `/api/v1/brokers/{id}/notifications?token=…` | **Ninguno: pública**, autenticada por el secreto del broker |
-| `POST` | `/api/v1/brokers/{id}/notifications?token=…` | **Ninguno: pública**, autenticada por el secreto del broker |
+| `GET` | `/api/v1/brokers/{name}/notifications?token=…` | **Ninguno: pública**, autenticada por el secreto del broker |
+| `POST` | `/api/v1/brokers/{name}/notifications?token=…` | **Ninguno: pública**, autenticada por el secreto del broker |
 
 `POST` admite **cualquier tipo de contenido** (`consumes = "*/*"`), y los dos admiten **cualquier otro parámetro** en la dirección.
 
 | Código | Cuándo |
 |---|---|
 | `200` | Guardado; cuerpo vacío |
-| `400` | Cuerpo de más de 64 KiB (`EX-004`), o `{id}` que no es un UUID (`VAL-001` del manejador global) |
+| `400` | Cuerpo de más de 64 KiB (`EX-004`) |
 | `401` | Sin `token`, con `token` repetido o con uno que no es el de ese broker (`EX-001`) |
 | `404` | Broker inexistente o inactivo (`EX-003`) |
 | `503` | El broker no tiene secreto configurado (`EX-002`) |
@@ -121,7 +121,7 @@ Aplicadas el 08-10-2026, antes que esta tripleta: [`requirements/sp.md`](../../.
 | Alternativa | Por qué no |
 |---|---|
 | Interpretar ya con un formato supuesto | Es lo que la decisión del 08-10-2026 evita: un supuesto equivocado completa la cuenta de otra persona |
-| El broker por nombre en la ruta (`/brokers/iqoption/…`) | §10.17 de `requirements/sp.md`: el nombre es la clave de negocio y se renombra por migración; la dirección quedaría rota en el panel del broker |
+| El broker por identificador en la ruta (`/brokers/01a081f0-…/…`) | Fue la primera forma, del 08-10-2026, y el responsable del proyecto la cambió el mismo día: la dirección del panel no se lee. El nombre se renombra por migración y entonces hay que cambiar la dirección; se acepta, sin añadir un `code` (§10.17 de `requirements/sp.md`) |
 | El secreto en una cabecera | Los paneles de afiliados no dejan añadir cabeceras |
 | Un solo secreto para los tres | El de uno abriría la ruta de los otros, y cambiarlo obligaría a tocar los tres paneles |
 | Descartar repetidos con un resumen del contenido | Dos depósitos iguales del mismo cliente se parecen tanto como una reentrega; descartar es decidir sin saber (`FA-001`) |

@@ -5,7 +5,7 @@
 | Módulo | `SP` — Sistema Principal |
 | Paquete | `modules/system` |
 | Prefijos de permiso | `roles:`, `permissions:`, `audit:`, `memberships:`, `currencies:`, `countries:`, `users:`, `exchange-rates:`, `document-types:`, `brokers:`, `broker-accounts:`, `teams:` |
-| Versión | 1.108.0 |
+| Versión | 1.109.0 |
 | Estado | **Aprobado** |
 | Responsable | Bonilla Diaz William Steven |
 | Fecha de creación | 20-08-2026 |
@@ -1546,7 +1546,7 @@ Cierra la pertenencia vigente de uno o varios managers **de este equipo**, con m
 
 **Es la primera mitad de lo que `RF-SP-054` registró el 08-09-2026 como una sola cosa.** Se separa porque de las cuatro preguntas que aquella ficha dejó abiertas **solo una se responde sin ver un aviso**: cómo se autentica el broker. Las otras tres dependen de qué mande, y el 08-10-2026 el responsable del proyecto fijó los tres brokers con los que se empieza —**`IQOPTION`, `EXNOVA` y `EXOPTION`**, los tres del catálogo— sin saber qué datos devolverán: ninguno publica su formato, que vive en el panel de afiliados de cada uno. De ahí el orden: **primero se escucha y después se interpreta**.
 
-`GET` y `POST /api/v1/brokers/{id}/notifications?token=…`, los dos, porque un panel de afiliados suele avisar con `GET` y los datos en la dirección, y no se sabe cuál de los tres hará qué. **El broker va por su identificador y no por su nombre**: §10.17 dejó escrito que el nombre es la clave de negocio, que renombrarlo es una migración y que el día que un integrador pidiera brokers por nombre haría falta un `code` estable. El identificador ya es estable —lo fija `V9`, igual en todos los entornos— y la dirección se escribe una sola vez en el panel. Responde `200` sin cuerpo en cuanto guarda.
+`GET` y `POST /api/v1/brokers/{name}/notifications?token=…`, los dos, porque un panel de afiliados suele avisar con `GET` y los datos en la dirección, y no se sabe cuál de los tres hará qué. **El broker va por su NOMBRE** —`/brokers/iqoption/notifications`—, sin distinguir mayúsculas ni acentos, como el índice único de `brokers` (§10.17). **Hasta el 08-10-2026 iba por su identificador**, y el responsable del proyecto pidió cambiarlo el mismo día: una dirección legible en el panel de afiliados. **El coste quedó dicho y se acepta**: §10.17 ya avisaba de que el nombre es la clave de negocio y de que el día que un integrador pidiera brokers por nombre haría falta un `code` estable. Ese día es este, y **no se añade el `code`**: renombrar un broker —una migración— obliga a cambiar su dirección en el panel. Responde `200` sin cuerpo en cuanto guarda.
 
 **Es la tercera ruta pública que escribe**, después del registro (`RF-SP-045`) y de las pasarelas de pago (`RF-MV-041`, `RF-MV-049`), y **la única cuyo escrito no tiene ningún efecto**: guarda una fila y nada la lee todavía. Lo que la protege es el secreto, no la cota de tasa, y por eso queda fuera de ella, como las de las pasarelas: un broker que reenvía no debe toparse con un `429`.
 
@@ -1637,8 +1637,8 @@ Definidos en [`security.md` §11](../security.md) y en la constitución. Los que
 | `POST` | `/api/v1/exchange-rates/{id}/deletion` | `RF-SP-050` | `exchange-rates:delete` |
 | `GET` | `/api/v1/document-types` | `RF-SP-051` | **Ninguno: público** |
 | `GET` | `/api/v1/brokers` | `RF-SP-052` | **Ninguno: público** |
-| `GET` | `/api/v1/brokers/{id}/notifications` | `RF-SP-078` | — (público, autorizado por el secreto del broker) |
-| `POST` | `/api/v1/brokers/{id}/notifications` | `RF-SP-078` | — (público, autorizado por el secreto del broker) |
+| `GET` | `/api/v1/brokers/{name}/notifications` | `RF-SP-078` | — (público, autorizado por el secreto del broker) |
+| `POST` | `/api/v1/brokers/{name}/notifications` | `RF-SP-078` | — (público, autorizado por el secreto del broker) |
 | `GET` | `/api/v1/users/{id}/broker-accounts` | `RF-SP-055` | `broker-accounts:read-team-member` (alcance: superior vigente, o `broker-accounts:read`) |
 | `GET` | `/api/v1/users/me/team/broker-accounts` | `RF-SP-056` | `broker-accounts:read-own-team` |
 | `GET` | `/api/v1/broker-accounts` | `RF-SP-057` | `broker-accounts:read` |
@@ -2245,7 +2245,7 @@ Añadidos el 08-09-2026 (`RN-SP-035`, `RN-SP-037`), y `company_phone` el 10-09-2
 
 **Una sola columna de negocio, y por decisión explícita** (08-09-2026): «de momento el nombre». De ahí sale que **el nombre sea la clave de negocio** —único, con la misma intercalación `es-x-icu` que `countries.name` y `document_types.name`— y no un dato descriptivo. Es la diferencia con `currencies`, donde el nombre puede repetirse porque quien identifica es el `code`.
 
-**Lo que eso cuesta, dicho por adelantado**: renombrar un broker cambia su clave de negocio. Mientras nadie referencie brokers por nombre desde fuera —hoy nadie lo hace: `user_brokers` apunta por `id`— el coste es cero. El día que un integrador los pida por nombre, hace falta una columna `code` estable.
+**Lo que eso cuesta, dicho por adelantado**: renombrar un broker cambia su clave de negocio. Mientras nadie referencie brokers por nombre desde fuera —hoy nadie lo hace: `user_brokers` apunta por `id`— el coste es cero. El día que un integrador los pida por nombre, hace falta una columna `code` estable. **Desde el 08-10-2026 alguien los referencia por nombre desde fuera**: la dirección de los avisos (`RF-SP-078`) que cada broker tiene escrita en su panel. **Se decidió no añadir el `code`** y aceptar que renombrar un broker obliga a cambiar esa dirección.
 
 **`is_active` existe y ninguna operación de la API lo escribe**, exactamente como en `document_types`: dejar de operar con un broker no puede borrar las cuentas que ya se declararon en él, de modo que la baja es un cambio de estado por migración y nunca un `DELETE`.
 
@@ -2530,3 +2530,4 @@ La fila se lee «esta persona vinculó este authenticator». `status` es `PENDIE
 | 1.106.0 | 07-10-2026 | **`RF-SP-061`: la cartera de un vendedor trae el correo de cada cliente**, por petición del responsable del proyecto («al consultar mis clientes, agrégale que se devuelva el correo»). Se revierte el «ni correo» decidido el 21-09-2026; vale para `GET /users/me/clients` y `GET /users/{id}/clients`, que publican la misma fila. Spec de `RF-SP-061` 0.2.0, `CA-SP-896`. Sin migración ni permiso nuevo. | Responsable del proyecto |
 | 1.107.0 | 08-10-2026 | **Nace `RF-SP-078` — recibir los avisos de los brokers**, por decisión del responsable del proyecto: se reciben los de **`IQOPTION`, `EXNOVA` y `EXOPTION`**, de los que no se sabe qué datos mandan. Nace **`RN-SP-066`**: el aviso **se guarda entero y no se interpreta**, lo autentica **un secreto por broker en la dirección**, el secreto no se guarda, y los repetidos no se descartan. **`RF-SP-054` se parte**: la llegada pasa a `RF-SP-078` y la primera de sus cuatro preguntas abiertas —cómo se autentica el broker— queda respondida; las otras tres esperan a los avisos reales. Ruta pública nueva, `GET` y `POST /api/v1/brokers/{id}/notifications`, **por identificador y no por nombre** (§10.17). Tabla nueva, **`broker_notifications`** (§10.25). §8 registra **la primera integración externa del módulo**, entrante. | Responsable del proyecto |
 | 1.108.0 | 08-10-2026 | **`RF-SP-078` pasa a `En desarrollo`**: `GET` y `POST /api/v1/brokers/{id}/notifications` guardan cada aviso en `broker_notifications` (`V85`). Queda `T-09`: los secretos en Railway y la dirección en el panel de cada broker. **Ninguna regla cambia.** | Responsable técnico |
+| 1.109.0 | 08-10-2026 | **`RF-SP-078`: el broker va por su NOMBRE en la ruta**, `/api/v1/brokers/{name}/notifications`, a petición del responsable del proyecto («para no enviar el id, enviar el nombre»). Sin distinguir mayúsculas ni acentos, como `uq_brokers_name`. §10.17 registra el coste —renombrar un broker obliga a cambiar la dirección en su panel— y que **no se añade `code`**. Spec 0.2.0 (`CA-SP-908`). | Responsable del proyecto |

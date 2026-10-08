@@ -4,7 +4,7 @@
 |---|---|
 | Requerimiento | `RF-SP-078` |
 | Módulo | `SP` — Sistema Principal |
-| Versión | 0.1.0 |
+| Versión | 0.2.0 |
 | Estado | **Aprobada** |
 | Autor | Responsable técnico |
 | Aprobada por | Responsable del proyecto |
@@ -160,6 +160,7 @@ Qué broker avisó, cuándo, desde qué dirección de red, con qué método, **l
 | `CA-SP-905` | **El mismo aviso dos veces** se guarda **dos veces** |
 | `CA-SP-906` | **El secreto no queda escrito en ninguna parte**: ni entre los datos guardados del aviso ni en el registro de peticiones, que guarda la dirección con el valor oculto; tampoco se guardan las cabeceras de credenciales |
 | `CA-SP-907` | **Recibir no cambia nada más**: con un aviso que nombra una cuenta declarada, la cuenta sigue en `REGISTER` sin nombre de usuario, y su titular sigue en `FTD_PENDIENTE` |
+| `CA-SP-908` | **El broker se nombra en la dirección por su nombre, sin distinguir mayúsculas**: `iqoption` e `IQOPTION` son el mismo broker, y su secreto vale para los dos |
 
 ---
 
@@ -185,3 +186,4 @@ Qué broker avisó, cuándo, desde qué dirección de red, con qué método, **l
 | Versión | Fecha | Cambio | Autor |
 |---|---|---|---|
 | 0.1.0 | 08-10-2026 | Primera versión, por decisión del responsable del proyecto: recibir los avisos de `IQOPTION`, `EXNOVA` y `EXOPTION` sin saber todavía qué mandan ([`requirements/sp.md`](../../../requirements/sp.md) v1.107.0, `RN-SP-066`). Parte `RF-SP-054`: aquí se recibe y se guarda; allí se interpretará. Criterios `CA-SP-897` a `CA-SP-907`. | Responsable del proyecto |
+| 0.2.0 | 08-10-2026 | **El broker se nombra por su nombre y no por su identificador**, a petición del responsable del proyecto («para no enviar el id, enviar el nombre»): una dirección legible en el panel. Nace `CA-SP-908`. Si un broker se renombra, su dirección cambia. | Responsable del proyecto |

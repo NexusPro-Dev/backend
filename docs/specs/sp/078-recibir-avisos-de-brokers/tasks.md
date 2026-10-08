@@ -3,8 +3,8 @@
 | Campo | Valor |
 |---|---|
 | Requerimiento | `RF-SP-078` |
-| Especificación | [`spec.md`](spec.md) v0.1.0 |
-| Plan | [`plan.md`](plan.md) v0.1.0 |
+| Especificación | [`spec.md`](spec.md) v0.2.0 |
+| Plan | [`plan.md`](plan.md) v0.2.0 |
 | `plan.md` aprobado el | 08-10-2026 |
 | Estado | **En revisión** — `T-01` a `T-08` `Hecha` el 08-10-2026; `T-09` pendiente |
 | Issue | Pendiente de crear |
@@ -30,6 +30,7 @@
 | `T-06` | `RequestLogFilter` oculta el valor de `token` | — | | **Hecha** — 08-10-2026 |
 | `T-07` | `BrokerNotificationsIT`: `CA-SP-897` a `CA-SP-907` | `T-05`, `T-06` | Cada criterio afirmado en el cuerpo de la prueba | **Hecha** — 08-10-2026 |
 | `T-08` | `EndpointPermissionsIT` (`PUBLICAS`); contrato con la prosa; `deployment.md` y `api/index.md`; `requirements.md` | `T-07` | | **Hecha** — 08-10-2026 |
+| `T-10` | La ruta por nombre (spec 0.2.0): `{name}` en el controlador, `findActiveByName` en el repositorio, `CA-SP-908`, `EndpointPermissionsIT` y el contrato | `T-08` | | **Hecha** — 08-10-2026 |
 | `T-09` | Configurar los tres secretos en Railway y la dirección en el panel de afiliados de cada broker; disparar un aviso de prueba desde cada panel y verlo en la base | `T-08` | Una fila por broker | Pendiente |
 
 ---
@@ -48,6 +49,7 @@
 | `CA-SP-900` a `CA-SP-904` | `T-04`, `T-05`, `T-07` |
 | `CA-SP-906` | `T-04`, `T-06`, `T-07` |
 | `CA-SP-907` | `T-04`, `T-07` |
+| `CA-SP-908` | `T-10` |
 
 ---
 
@@ -64,7 +66,7 @@
 ## 5. Definición de terminado
 
 - [x] `./mvnw clean verify` en verde: 572 unitarias y 2639 de integración, 08-10-2026.
-- [x] Los once criterios de aceptación con prueba, **cada uno afirmado en el cuerpo de la prueba**.
+- [x] Los doce criterios de aceptación con prueba, **cada uno afirmado en el cuerpo de la prueba**.
 - [x] Contrato OpenAPI regenerado, **con la prosa releída**.
 - [x] `requirements.md` actualizado.
 - [ ] Un aviso real de cada broker guardado.

@@ -5,7 +5,7 @@
 | Proyecto | NEXUS — Renovación de plataforma |
 | Empresa | FACTECH GROUP SAS |
 | Documento | `api/index.md` |
-| Versión | 1.109.0 |
+| Versión | 1.110.0 |
 | Estado | Publicado |
 | Responsable técnico | Bonilla Diaz William Steven |
 | Fecha de creación | 25-08-2026 |
@@ -215,3 +215,4 @@ Lo que sigue siendo cierto, y conviene saberlo antes de tropezar:
 | 1.107.0 | 07-10-2026 | **Un lote sin pagar que se queda sin comisiones se borra** (`RN-CM-052`; `RF-CM-022` 0.3.0, `RF-CM-023` 0.3.0, `RF-CM-024` 0.4.0). `POST /api/v1/commission-batches/{id}/commissions/{commissionId}/withdrawal`: si se retira **la última**, el pendiente se borra y la respuesta `200` es **el lote abierto adonde fue la comisión**, en la misma forma —su `id` no es el de la ruta—; lo retirado antes de él pierde su origen y devolverlo da `404`. `…/return`: si deja vacío el abierto, el abierto se borra; la respuesta sigue siendo el pendiente. Un lote borrado responde `404` en el detalle y en el pago. **Ninguna forma cambia**; el front debe mirar el `id` de la respuesta al retirar. | Responsable técnico |
 | 1.108.0 | 07-10-2026 | **`GET /api/v1/users/me/clients` y `GET /api/v1/users/{id}/clients`: cada fila trae `email`**, el correo del cliente (`RF-SP-061` 0.2.0, `CA-SP-896`). Campo añadido a `SellerClientItem`; nada se retira ni cambia de significado. | Responsable técnico |
 | 1.109.0 | 08-10-2026 | **Nacen `GET` y `POST /api/v1/brokers/{id}/notifications`, los avisos de los brokers** (`RF-SP-078`, `RN-SP-066`), con su etiqueta propia, **Avisos de los brokers**. **No son para el frontend**: las llama el broker, sin sesión, con su secreto en `token`. Responden `200` vacío; `401`, `404`, `503` y `400` sin guardar nada. Nada de lo que existía cambia. | Responsable técnico |
+| 1.110.0 | 08-10-2026 | **Los avisos de los brokers van por NOMBRE**: `GET` y `POST /api/v1/brokers/{name}/notifications` sustituyen a `/{id}/notifications` (`RF-SP-078` spec 0.2.0, `CA-SP-908`), sin distinguir mayúsculas —`iqoption`, `exnova`, `exoption`—. Ya no hay `400` por un identificador mal formado. No afecta al frontend: estas rutas solo las llaman los brokers. | Responsable técnico |

@@ -63,8 +63,15 @@ class BrokerNotificationsIT extends IntegrationTestBase {
     jdbc.update("DELETE FROM request_log WHERE path LIKE '/api/v1/brokers/%/notifications'");
   }
 
+  /** La dirección del broker, por su nombre en minúsculas, que es como va en el panel. */
   private static String ruta(UUID broker) {
-    return "/api/v1/brokers/" + broker + "/notifications";
+    String nombre =
+        broker.equals(IQOPTION) ? "iqoption" : broker.equals(EXNOVA) ? "exnova" : "exoption";
+    return rutaDe(nombre);
+  }
+
+  private static String rutaDe(String nombre) {
+    return "/api/v1/brokers/" + nombre + "/notifications";
   }
 
   private int guardados() {
@@ -180,8 +187,7 @@ class BrokerNotificationsIT extends IntegrationTestBase {
       "CA-SP-903 — un broker que no existe, o que no está activo, responde no encontrado y no"
           + " guarda nada")
   void brokerInexistenteOInactivo() throws Exception {
-    mvc.perform(get(ruta(UUID.randomUUID()) + "?token=secreto-iq"))
-        .andExpect(status().isNotFound());
+    mvc.perform(get(rutaDe("nobroker") + "?token=secreto-iq")).andExpect(status().isNotFound());
 
     jdbc.update("UPDATE brokers SET is_active = false WHERE id = ?", EXNOVA);
     mvc.perform(get(ruta(EXNOVA) + "?token=secreto-ex")).andExpect(status().isNotFound());
@@ -210,6 +216,19 @@ class BrokerNotificationsIT extends IntegrationTestBase {
 
     assertThat(guardados()).isOne();
     assertThat(((String) elUnico().get("body")).length()).isEqualTo(64 * 1024);
+  }
+
+  @Test
+  @DisplayName(
+      "CA-SP-908 — el broker se nombra por su nombre sin distinguir mayúsculas, y su secreto vale"
+          + " igual")
+  void porNombreSinDistinguirMayusculas() throws Exception {
+    mvc.perform(get(rutaDe("IQOPTION") + "?event=a&token=secreto-iq")).andExpect(status().isOk());
+    mvc.perform(get(rutaDe("IqOption") + "?event=b&token=secreto-iq")).andExpect(status().isOk());
+
+    assertThat(jdbc.queryForList("SELECT DISTINCT broker_id FROM broker_notifications", UUID.class))
+        .containsExactly(IQOPTION);
+    assertThat(guardados()).isEqualTo(2);
   }
 
   @Test

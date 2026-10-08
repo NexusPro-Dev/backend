@@ -6544,7 +6544,7 @@ paths:
               schema:
                 $ref: "#/components/schemas/CommissionClosingResponse"
       x-required-permission: commission-batches:settle
-  /api/v1/brokers/{id}/notifications:
+  /api/v1/brokers/{name}/notifications:
     get:
       tags:
       - Avisos de los brokers
@@ -6557,16 +6557,15 @@ paths:
         aviso se guarda **entero y sin interpretar** —método, parámetros de la dirección salvo
         `token`, cabeceras salvo las de credenciales, cuerpo tal cual, tipo de contenido y origen—
         y se responde `200` sin cuerpo. **No cambia nada más**: ni cuentas de broker, ni personas.
-        Dos avisos iguales se guardan dos veces. `{id}` es el identificador del broker en el
-        catálogo (`GET /api/v1/brokers`).
+        Dos avisos iguales se guardan dos veces. `{name}` es el nombre del broker en el catálogo
+        (`GET /api/v1/brokers`), sin distinguir mayúsculas: `iqoption`, `exnova`, `exoption`.
       operationId: brokerNotificationByQuery
       parameters:
-      - name: id
+      - name: name
         in: path
         required: true
         schema:
           type: string
-          format: uuid
       - name: token
         in: query
         description: El secreto de este broker. No se guarda.
@@ -6577,8 +6576,7 @@ paths:
         "200":
           description: Guardado; cuerpo vacío.
         "400":
-          description: "Cuerpo de más de 64 KiB (`EX-004`), o `{id}` que no es un\
-            \ UUID"
+          description: Cuerpo de más de 64 KiB (`EX-004`)
         "401":
           description: "Sin `token`, con `token` repetido o con uno que no es el de\
             \ este broker (`EX-001`). No se guarda nada"
@@ -6601,18 +6599,17 @@ paths:
         aviso se guarda **entero y sin interpretar** —método, parámetros de la dirección salvo
         `token`, cabeceras salvo las de credenciales, cuerpo tal cual, tipo de contenido y origen—
         y se responde `200` sin cuerpo. **No cambia nada más**: ni cuentas de broker, ni personas.
-        Dos avisos iguales se guardan dos veces. `{id}` es el identificador del broker en el
-        catálogo (`GET /api/v1/brokers`).
+        Dos avisos iguales se guardan dos veces. `{name}` es el nombre del broker en el catálogo
+        (`GET /api/v1/brokers`), sin distinguir mayúsculas: `iqoption`, `exnova`, `exoption`.
 
         Admite **cualquier tipo de contenido**, de hasta 64 KiB; un formulario se guarda tal cual, sin desarmarlo.
       operationId: brokerNotificationByBody
       parameters:
-      - name: id
+      - name: name
         in: path
         required: true
         schema:
           type: string
-          format: uuid
       - name: token
         in: query
         description: El secreto de este broker. No se guarda.
@@ -6623,8 +6620,7 @@ paths:
         "200":
           description: Guardado; cuerpo vacío.
         "400":
-          description: "Cuerpo de más de 64 KiB (`EX-004`), o `{id}` que no es un\
-            \ UUID"
+          description: Cuerpo de más de 64 KiB (`EX-004`)
         "401":
           description: "Sin `token`, con `token` repetido o con uno que no es el de\
             \ este broker (`EX-001`). No se guarda nada"
