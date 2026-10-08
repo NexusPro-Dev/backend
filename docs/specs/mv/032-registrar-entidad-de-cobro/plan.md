@@ -3,10 +3,10 @@
 | Campo | Valor |
 |---|---|
 | Requerimiento | `RF-MV-032` |
-| Especificación | [`spec.md`](spec.md) v0.1.0 |
+| Especificación | [`spec.md`](spec.md) v0.3.0 |
 | `spec.md` aprobada el | 01-10-2026 |
-| Versión | 0.2.0 |
-| Enmendado el | 05-10-2026 — el código puede empezar por dígito (`V66`) |
+| Versión | 0.3.0 |
+| Enmendado el | 05-10-2026 — el código puede empezar por dígito (`V66`); 08-10-2026 — siembra de las entidades de Colombia (`V88`) |
 | Estado | **Aprobado** |
 | Autor | Responsable técnico |
 | Aprobado por | Responsable del proyecto |
@@ -51,7 +51,7 @@
 | `ck_withdrawal_destinations_kind` | `institution_kind IN ('BANCO','BILLETERA_MOVIL')` | La copia tiene el mismo dominio que el original |
 | Ocho permisos | `create-payout-institution`, `update-payout-institution` y `read-user-payout-accounts` a `SUPERADMIN` y `ADMIN` explícito; `read-payout-institutions`, `create-own-payout-account`, `list-own-payout-accounts`, `update-own-payout-account` y `delete-own-payout-account` por tipo de rol (`FUNCIONARIO`, `VENDEDOR`, `CONSUMIDOR`), además de `SUPERADMIN` | `requirements/mv.md` §6. Como `V58` |
 
-**No se siembra ninguna entidad** (`spec.md` §2). **Guardas al final**, como `V58`: los ocho permisos existen y cada rol porta los que le tocan. Catálogo 172 → **180**, `ADMIN` 170 → **178**.
+**`V61` no siembra ninguna entidad.** **Desde el 08-10-2026 las de Colombia las siembra `V88`** (`spec.md` §2, `CA-MV-703`), en todos los entornos: veintiséis filas con identificador literal (Art. V.11), `code` = código ACH, `INSERT … ON CONFLICT (code) DO NOTHING` —una entidad registrada antes con ese código se respeta— y una auditoría `CREATE` por cada fila que sí entra, sin actor, como `V70`. Su guarda comprueba que las veintiséis existen. **Las suites vacían el catálogo** (`PayoutFixtures.limpiar`) y no lo reponen: la prueba de la siembra aplica el guion de `V88` sobre el catálogo vacío, dos veces. **Guardas al final de `V61`**, como `V58`: los ocho permisos existen y cada rol porta los que le tocan. Catálogo 172 → **180**, `ADMIN` 170 → **178**.
 
 ---
 

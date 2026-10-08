@@ -5,7 +5,7 @@
 | Proyecto | NEXUS — Renovación de plataforma |
 | Empresa | FACTECH GROUP SAS |
 | Documento | `requirements.md` |
-| Versión | 0.331.0 |
+| Versión | 0.332.0 |
 | Estado | Borrador |
 | Responsable técnico | Bonilla Diaz William Steven |
 | Fecha de creación | 20-08-2026 |
@@ -767,3 +767,4 @@ El inventario y el estado de los módulos se consultan en [`modules.md` §4](mod
 | 0.329.0 | 08-10-2026 | **El cierre y el pago también borran lotes vacíos** ([`requirements/cm.md`](requirements/cm.md) v0.42.0, `RN-CM-052` enmendada), por decisión del responsable del proyecto: el cierre borra los abiertos vacíos y cada pago que se hace, después, todos los pendientes vacíos. Enmiendas a `RF-CM-009` (`CA-CM-376`, `CA-CM-377`; se retira `CA-CM-300`), `RF-CM-011` (`CA-CM-378`, `CA-CM-379`), `RF-CM-025` (`CA-CM-380`) y `RF-CM-027`. Ningún indicador de §5 se mueve. | Responsable del proyecto |
 | 0.330.0 | 08-10-2026 | **Construido: el cierre y el pago borran lotes vacíos** (`RN-CM-052`; [`api/index.md`](api/index.md) v1.112.0), con las enmiendas de `RF-CM-009`, `RF-CM-011`, `RF-CM-025` y `RF-CM-027` (`CA-CM-376` a `CA-CM-380`, en `DeleteEmptyBatchesIT`). Sin migración. Ningún indicador de §5 se mueve. | Responsable técnico |
 | 0.331.0 | 08-10-2026 | **El cierre paga solo, salvo que se elija lo contrario** ([`requirements/cm.md`](requirements/cm.md) v0.43.0 §5.12, `RN-CM-053` y `RN-CM-054`; [`security.md`](security.md) v0.124.0; [`modelo-datos.md`](modelo-datos.md) v0.108.0), por decisión del responsable del proyecto: el pago va en el mismo momento que el cierre, a las 00:00 del día 1, y 48 horas antes se elige si el de ese cierre es automático o manual —sin elección, automático—. **Nacen `RF-CM-028`** —consultar el próximo cierre— **y `RF-CM-029`** —elegir—, con tripleta escrita (`CA-CM-381` a `CA-CM-392`), y se enmienda `RF-CM-009` (`CA-CM-393` a `CA-CM-398`). Registrados 233 → 235; `spec.md` redactada 229 → 231, aprobada 169 → 171; `plan.md` aprobado 228 → 230. | Responsable técnico |
+| 0.332.0 | 08-10-2026 | **Las entidades de cobro de Colombia nacen sembradas** ([`requirements/mv.md`](requirements/mv.md) v0.96.0, `RN-MV-054` enmendada; `RF-MV-032` [`spec.md`](specs/mv/032-registrar-entidad-de-cobro/spec.md) v0.3.0, `CA-MV-703`), por decisión del responsable del proyecto: `V88` siembra en todos los entornos veintidós bancos y cuatro billeteras móviles, activos, con el código ACH como código. Sin permisos ni cambio del contrato. Ningún indicador de §5 se mueve. | Responsable del proyecto |

@@ -4,7 +4,7 @@
 |---|---|
 | Requerimiento | `RF-MV-032` |
 | Módulo | `MV` — Movimientos |
-| Versión | 0.2.0 |
+| Versión | 0.3.0 |
 | Estado | **Aprobada** |
 | Autor | Responsable técnico |
 | Aprobada por | Responsable del proyecto |
@@ -26,7 +26,7 @@ Que administración pueda dar de alta **los bancos y las billeteras móviles** a
 
 ## 2. Contexto
 
-**Es lo primero de las cuentas de cobro** ([`requirements/mv.md`](../../../requirements/mv.md) v0.61.0 §4.5): sin entidades nadie puede registrar una cuenta (`RF-MV-035`), y sin cuenta nadie puede pedir un retiro (`RN-MV-056`). **El catálogo nace vacío**, y lo llena administración con este requerimiento.
+**Es lo primero de las cuentas de cobro** ([`requirements/mv.md`](../../../requirements/mv.md) v0.61.0 §4.5): sin entidades nadie puede registrar una cuenta (`RF-MV-035`), y sin cuenta nadie puede pedir un retiro (`RN-MV-056`). **Desde el 08-10-2026 el catálogo nace con las entidades de Colombia** —veintidós bancos y cuatro billeteras móviles, con su código ACH—, por decisión del responsable del proyecto; las de los demás países las da de alta administración con este requerimiento.
 
 **Por qué un catálogo y no texto libre.** Lo decidió el responsable del proyecto el 01-10-2026: escrito a mano, el mismo banco aparece de cinco formas, y nadie puede responder cuánto se paga a cada uno ni detectar una errata en el nombre de un banco.
 
@@ -63,7 +63,7 @@ Que administración pueda dar de alta **los bancos y las billeteras móviles** a
 - **Consultarlas**: es `RF-MV-033`.
 - **Cambiar el nombre o desactivarla**: es `RF-MV-034`.
 - **Borrarla**: no existe (`RN-MV-054`).
-- **Sembrar entidades**: el catálogo nace vacío.
+- **Sembrar entidades de otros países**: solo nacen sembradas las de Colombia (`CA-MV-703`).
 
 ---
 
@@ -155,6 +155,7 @@ Ninguno.
 | `CA-MV-364` | Sin `movements:create-payout-institution` responde prohibido; sin autenticar, `401` |
 | `CA-MV-365` | Queda **auditada**, con quién la registró |
 | `CA-MV-547` | Un código que **empieza por dígito** —`1007`, `0507_NEQUI`— se registra; uno que empieza por guion bajo se rechaza (05-10-2026) |
+| `CA-MV-703` | Al migrar, el catálogo trae **las veintiséis entidades de Colombia** —veintidós bancos y cuatro billeteras móviles—, **activas** y con su **código ACH** como código; aplicar la siembra otra vez no duplica ninguna, y **no pisa** una entidad que ya existiera con el mismo código (08-10-2026) |
 
 ---
 
@@ -180,3 +181,4 @@ Ninguna.
 |---|---|---|---|
 | 0.1.0 | 01-10-2026 | Primera versión, con las cuentas de cobro de `MV` ([`requirements/mv.md`](../../../requirements/mv.md) v0.61.0 §4.5). **Código único en todo el catálogo e inmutable**, tipo inmutable, un país, nace activa. Criterios `CA-MV-358` a `CA-MV-365`. | Responsable del proyecto |
 | 0.2.0 | 05-10-2026 | **El código puede empezar por dígito** ([`requirements/mv.md`](../../../requirements/mv.md) v0.74.0), a petición del responsable del proyecto: muchos bancos tienen un código numérico. §6.1 y `VAL-001` lo admiten, y `CA-MV-547` lo fija. El guion bajo sigue sin poder ir al principio. | Responsable del proyecto |
+| 0.3.0 | 08-10-2026 | **El catálogo nace con las entidades de Colombia** ([`requirements/mv.md`](../../../requirements/mv.md) v0.96.0, `RN-MV-054` enmendada), por decisión del responsable del proyecto: veintidós bancos y cuatro billeteras móviles, activos, con el código ACH como código. §2 y §4.2 dejan de decir que nace vacío; `CA-MV-703` lo fija. | Responsable del proyecto |

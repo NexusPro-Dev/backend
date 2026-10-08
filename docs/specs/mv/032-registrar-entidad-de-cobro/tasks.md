@@ -3,10 +3,10 @@
 | Campo | Valor |
 |---|---|
 | Requerimiento | `RF-MV-032` |
-| Especificación | [`spec.md`](spec.md) v0.2.0 |
-| Plan | [`plan.md`](plan.md) v0.2.0 |
+| Especificación | [`spec.md`](spec.md) v0.3.0 |
+| Plan | [`plan.md`](plan.md) v0.3.0 |
 | `plan.md` aprobado el | 01-10-2026 |
-| Estado | **En revisión** — `T-01` a `T-09` `Hecha` el 01-10-2026; `T-10` `Hecha` el 05-10-2026 |
+| Estado | **En revisión** — `T-01` a `T-09` `Hecha` el 01-10-2026; `T-10` `Hecha` el 05-10-2026; `T-11` `Hecha` el 08-10-2026 |
 | Issue | [#157](https://github.com/NexusPro-Dev/backend/issues/157) |
 | Rama | `feature/cuentas-de-cobro` |
 
@@ -32,6 +32,7 @@
 | `T-08` | `PayoutInstitutionsIT`: `CA-MV-358` a `CA-MV-365`; prueba de esquema de `payout_accounts` | `T-07` | Cada criterio afirmado en el cuerpo de la prueba | **Hecha** — 01-10-2026 |
 | `T-09` | `EndpointPermissionsIT`; contrato con la prosa releída; `architecture.md` §15.2 (`CountryCatalog`); `requirements.md`, `security.md` | `T-08` | | **Hecha** — 01-10-2026 |
 | `T-10` | **El código puede empezar por dígito** (05-10-2026): `V66` recrea `ck_payout_institutions_code` con `^[A-Z0-9][A-Z0-9_]{1,29}$`, y el patrón y el mensaje de `VAL-001` en `PayoutInstitutionService` cambian igual | `T-06` | `CA-MV-547` en `PayoutInstitutionsIT`; `CA-MV-362` sigue rechazando `1-mal` por el guion | **Hecha el 05-10-2026** |
+| `T-11` | **Las entidades de Colombia nacen sembradas** (08-10-2026): `V88` con las veintiséis, su auditoría y su guarda (`plan.md` §2) | `T-01` | `CA-MV-703` en `PayoutInstitutionsSeedIT`, que aplica el guion dos veces sobre el catálogo vacío | **Hecha** — 08-10-2026 |
 
 ---
 
@@ -50,6 +51,7 @@
 | `CA-MV-363` | `T-03`, `T-06`, `T-08` |
 | `CA-MV-364`, `CA-MV-365` | `T-07`, `T-08` |
 | `CA-MV-547` | `T-10` |
+| `CA-MV-703` | `T-11` |
 
 ---
 
