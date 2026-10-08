@@ -137,7 +137,7 @@ Ninguna: no hay entrada.
 
 | ID | Criterio |
 |---|---|
-| `CA-CM-368` | Borrar quita **todos** los lotes abiertos y pendientes sin comisiones, de varias personas y monedas; los que tienen alguna comisión —también de importe cero— y los pagados **no cambian** |
+| `CA-CM-368` | Borrar quita **todos** los lotes abiertos y pendientes sin comisiones, de varias personas; los que tienen alguna comisión —también de importe cero— y los pagados **no cambian** |
 | `CA-CM-369` | La respuesta trae **cada lote borrado** con su identificador, código, persona, moneda, estado y periodo, y **cuántos** fueron; después, ninguno aparece en el listado ni en su detalle |
 | `CA-CM-370` | **Sin lotes vacíos**, responde éxito, sin ninguno y con cero |
 | `CA-CM-371` | Cada borrado queda **auditado como eliminación física**, con lo que era el lote |

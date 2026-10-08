@@ -2648,6 +2648,37 @@
         },
         "type" : "object"
       },
+      "DeletedEmptyBatch" : {
+        "properties" : {
+          "code" : {
+            "type" : "string"
+          },
+          "currencyId" : {
+            "format" : "uuid",
+            "type" : "string"
+          },
+          "id" : {
+            "format" : "uuid",
+            "type" : "string"
+          },
+          "periodEnd" : {
+            "format" : "date-time",
+            "type" : "string"
+          },
+          "periodStart" : {
+            "format" : "date-time",
+            "type" : "string"
+          },
+          "status" : {
+            "type" : "string"
+          },
+          "userId" : {
+            "format" : "uuid",
+            "type" : "string"
+          }
+        },
+        "type" : "object"
+      },
       "DeletionAuditItem" : {
         "properties" : {
           "actor" : {
@@ -2800,6 +2831,21 @@
           },
           "value" : {
             "type" : "number"
+          }
+        },
+        "type" : "object"
+      },
+      "EmptyBatchesDeletionResponse" : {
+        "properties" : {
+          "deleted" : {
+            "items" : {
+              "$ref" : "#/components/schemas/DeletedEmptyBatch"
+            },
+            "type" : "array"
+          },
+          "deletedCount" : {
+            "format" : "int32",
+            "type" : "integer"
           }
         },
         "type" : "object"
@@ -11520,6 +11566,47 @@
         "x-required-permission" : "commission-batches:settle"
       }
     },
+    "/api/v1/commission-batches/empty" : {
+      "delete" : {
+        "description" : "**Permiso requerido:** `commission-batches:delete-empty`. Sin él, `403` (`AUTH-002`).\n\nBorra **de una vez todos los lotes `ABIERTO` y `PENDIENTE` que no tienen ninguna\ncomisión**, de todas las personas y monedas (`RF-CM-027`, `RN-CM-052`, 08-10-2026),\ntambién los que estaban vacíos de antes. Un lote se queda vacío al retirarle todo, al\ndevolver lo único de un abierto o al corregir el vendedor de su única línea; **ninguna\nde esas operaciones lo borra**: lo hace esta, cuando se pide.\n\n**Decide lo que tiene cada lote en el momento de borrarlo**: uno que recibe una comisión\nmientras tanto no se borra, y una comisión que llega a un abierto recién borrado va a\notro nuevo. **Un `PAGADO` no se borra nunca.** Lo que se había retirado de un pendiente\nborrado **pierde su origen** (`withdrawnFrom` nulo) y ya no se puede devolver. Cada\nborrado queda en la auditoría como eliminación física, con lo que era el lote.\n\n**Sin cuerpo.** Responde los lotes borrados —identificador, código, persona, moneda,\nestado que tenían y periodo— y cuántos. **`200` aunque no haya ninguno.**\n",
+        "operationId" : "borrarVacios",
+        "responses" : {
+          "200" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/EmptyBatchesDeletionResponse"
+                }
+              }
+            },
+            "description" : "Los lotes borrados, aunque fuesen cero"
+          },
+          "401" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/EmptyBatchesDeletionResponse"
+                }
+              }
+            },
+            "description" : "Sin token"
+          },
+          "403" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/EmptyBatchesDeletionResponse"
+                }
+              }
+            },
+            "description" : "Sin `commission-batches:delete-empty`"
+          }
+        },
+        "summary" : "Borrar los lotes vacíos",
+        "tags" : [ "Lotes de comisión" ],
+        "x-required-permission" : "commission-batches:delete-empty"
+      }
+    },
     "/api/v1/commission-batches/mine" : {
       "get" : {
         "description" : "**Permiso requerido:** `commission-batches:list-own`. Sin él, `403` (`AUTH-002`).\n\n**Los lotes propios** (`RF-CM-012`): el abierto, que **crece con cada venta** —la\ncomisión nace en cuanto la venta se confirma con vendedor—, los pendientes de pago y\nlos pagados. Incluye lo que se cobra como superior por las ventas de la red: cada nivel\nde la cadena está en el lote de quien cobra.\n\nLa persona la pone el token: **no hay filtro de persona**. Filtros `status`,\n`currencyId`, `from`, `to`, con los errores todos juntos.\n",
@@ -11841,7 +11928,7 @@
     },
     "/api/v1/commission-batches/{id}/commissions/{commissionId}/return" : {
       "post" : {
-        "description" : "**Permiso requerido:** `commission-batches:return-commission`. Sin él, `403` (`AUTH-002`).\n\nDeshace un retiro hecho por error (`RF-CM-023`, `RN-CM-046`, 30-09-2026): la comisión\nvuelve **al lote pendiente del que salió**, que es el `{id}` de la ruta —el que se está\nrevisando, y el que la lista en `withdrawn`—. Los dos totales se ajustan.\n\n**Solo mientras las dos mitades del retiro sigan como quedaron**: el lote de origen\n**`PENDIENTE`** y la comisión **en un lote `ABIERTO`**. Si el origen se pagó, o si el\nabierto ya se cerró, **`409`**: lo retirado se queda donde está. Una comisión que no se\nretiró de este lote —también la que nació en el abierto— responde **`404`**, igual que\nla que se retiró de un pendiente que después se borró por quedarse vacío.\n\n**Si era lo único del abierto, el abierto se borra** (`RN-CM-052`, 07-10-2026); lo\nsiguiente que devengue esa persona abre otro.\n\n**Sin cuerpo.** Responde el lote pendiente como queda.\n",
+        "description" : "**Permiso requerido:** `commission-batches:return-commission`. Sin él, `403` (`AUTH-002`).\n\nDeshace un retiro hecho por error (`RF-CM-023`, `RN-CM-046`, 30-09-2026): la comisión\nvuelve **al lote pendiente del que salió**, que es el `{id}` de la ruta —el que se está\nrevisando, y el que la lista en `withdrawn`—. Los dos totales se ajustan.\n\n**Solo mientras las dos mitades del retiro sigan como quedaron**: el lote de origen\n**`PENDIENTE`** y la comisión **en un lote `ABIERTO`**. Si el origen se pagó, o si el\nabierto ya se cerró, **`409`**: lo retirado se queda donde está. Una comisión que no se\nretiró de este lote —también la que nació en el abierto, y la retirada de un pendiente\nque después se borró por vacío (`RF-CM-027`)— responde **`404`**. **Devolver lo único del\nabierto no lo borra** (08-10-2026): se queda abierto y vacío.\n\n**Sin cuerpo.** Responde el lote pendiente como queda.\n",
         "operationId" : "devolver",
         "parameters" : [ {
           "in" : "path",
@@ -11929,7 +12016,7 @@
     },
     "/api/v1/commission-batches/{id}/commissions/{commissionId}/withdrawal" : {
       "post" : {
-        "description" : "**Permiso requerido:** `commission-batches:withdraw-commission`. Sin él, `403` (`AUTH-002`).\n\nSaca una comisión de un lote **`PENDIENTE`** y la pasa al lote **`ABIERTO`** de la misma\npersona y moneda —que se abre si no lo hay—, para que se pague en el **cierre siguiente**\n(`RF-CM-022`, `RN-CM-046`, 30-09-2026). Es como se «confirma» un lote antes de pagarlo:\nlo que no se quiere pagar todavía se retira, y lo que queda es lo confirmado.\n\n**La comisión no cambia**: conserva su tasa, su importe y su instante de devengo, y\nrecuerda de qué lote salió (`withdrawnFrom`). Los dos totales se ajustan en el mismo acto.\nSirve para las dos clases, `POR_VENTA` y `POR_AFFTRACK`.\n\n**Sin cuerpo.** Responde **el lote pendiente como queda**, con la retirada entre sus\n`withdrawn`. **`409`** si el lote está abierto o pagado;\n**`404`** si la comisión no es de ese lote.\n\n**Si era la última, el pendiente se borra** (`RN-CM-052`, 07-10-2026): ya no existe, y\nla respuesta es **el lote abierto adonde fue**, en la misma forma —su `id` no es el de\nla ruta—. Todo lo que se había retirado de él **pierde su origen**: se queda en el\nabierto y ya no se puede devolver.\n",
+        "description" : "**Permiso requerido:** `commission-batches:withdraw-commission`. Sin él, `403` (`AUTH-002`).\n\nSaca una comisión de un lote **`PENDIENTE`** y la pasa al lote **`ABIERTO`** de la misma\npersona y moneda —que se abre si no lo hay—, para que se pague en el **cierre siguiente**\n(`RF-CM-022`, `RN-CM-046`, 30-09-2026). Es como se «confirma» un lote antes de pagarlo:\nlo que no se quiere pagar todavía se retira, y lo que queda es lo confirmado.\n\n**La comisión no cambia**: conserva su tasa, su importe y su instante de devengo, y\nrecuerda de qué lote salió (`withdrawnFrom`). Los dos totales se ajustan en el mismo acto.\nSirve para las dos clases, `POR_VENTA` y `POR_AFFTRACK`.\n\n**Sin cuerpo.** Responde **el lote pendiente como queda**, con la retirada entre sus\n`withdrawn`. **`409`** si el lote está abierto o pagado;\n**`404`** si la comisión no es de ese lote.\n\n**Retirar la última no borra el pendiente** (08-10-2026): se queda vacío, en cero y sin\npoder pagarse, hasta que se le devuelva algo o se borren los vacíos con\n`DELETE /commission-batches/empty` (`RN-CM-052`, `RF-CM-027`).\n",
         "operationId" : "retirar_9",
         "parameters" : [ {
           "in" : "path",
@@ -11957,7 +12044,7 @@
                 }
               }
             },
-            "description" : "Retirada, con el lote pendiente como queda; o con el abierto, si el pendiente se quedó vacío y se borró"
+            "description" : "Retirada, con el lote pendiente como queda"
           },
           "400" : {
             "content" : {

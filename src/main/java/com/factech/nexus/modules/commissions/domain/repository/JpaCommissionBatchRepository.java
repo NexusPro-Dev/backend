@@ -123,6 +123,11 @@ public class JpaCommissionBatchRepository implements CommissionBatchRepository {
                   """)
               .setParameter("id", candidato.get(0))
               .getResultList();
+      // Cero filas: lo borró otra transacción entre las dos sentencias, por
+      // vacío (`RF-CM-027`). Se vuelve a buscar.
+      if (bloqueado.isEmpty()) {
+        continue;
+      }
       Object[] fila = bloqueado.get(0);
       if (!"PAGADO".equals(fila[2])) {
         return new OpenBatch((UUID) fila[0], instante(fila[1]));
@@ -282,6 +287,37 @@ public class JpaCommissionBatchRepository implements CommissionBatchRepository {
                     (String) f[4],
                     instante(f[5]),
                     f[6] == null ? null : instante(f[6])));
+  }
+
+  @Override
+  public List<UUID> findEmptyUnpaidBatchIds() {
+    @SuppressWarnings("unchecked")
+    List<UUID> ids =
+        em.createNativeQuery(
+                """
+                SELECT b.id FROM commission_batches b
+                 WHERE b.status IN ('ABIERTO', 'PENDIENTE')
+                   AND NOT EXISTS (SELECT 1 FROM commissions c WHERE c.batch_id = b.id)
+                 ORDER BY b.id
+                """)
+            .getResultList();
+    return ids;
+  }
+
+  @Override
+  public void lockWithdrawnFrom(java.util.Collection<UUID> batchIds) {
+    if (batchIds.isEmpty()) {
+      return;
+    }
+    em.createNativeQuery(
+            """
+            SELECT id FROM commissions
+             WHERE withdrawn_from_batch_id IN (:ids)
+             ORDER BY id
+               FOR UPDATE
+            """)
+        .setParameter("ids", new java.util.HashSet<>(batchIds))
+        .getResultList();
   }
 
   private static OffsetDateTime instante(Object valor) {

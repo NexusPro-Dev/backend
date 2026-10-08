@@ -15,7 +15,6 @@ import com.factech.nexus.shared.error.ResourceNotFoundException;
 import com.factech.nexus.shared.time.BusinessCalendar;
 import java.time.OffsetDateTime;
 import java.util.HashSet;
-import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
@@ -45,19 +44,16 @@ public class ReturnCommissionService {
   private final CommissionBatchQueryService consultas;
   private final BusinessCalendar calendario;
   private final AuditWriter auditoria;
-  private final EmptyBatchRemoval vacios;
 
   public ReturnCommissionService(
       CommissionBatchRepository lotes,
       CommissionBatchQueryService consultas,
       BusinessCalendar calendario,
-      AuditWriter auditoria,
-      EmptyBatchRemoval vacios) {
+      AuditWriter auditoria) {
     this.lotes = lotes;
     this.consultas = consultas;
     this.calendario = calendario;
     this.auditoria = auditoria;
-    this.vacios = vacios;
   }
 
   @Transactional
@@ -105,8 +101,6 @@ public class ReturnCommissionService {
                 "before", ubicacion(actual.id(), batchId, comision),
                 "after", ubicacion(batchId, null, comision))));
 
-    // `RN-CM-052`: el abierto del que salió, si se quedó vacío, se borra.
-    vacios.removeIfEmpty(List.of(actual.id()));
     return consultas.get(batchId, null);
   }
 }

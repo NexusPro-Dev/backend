@@ -79,7 +79,7 @@ Rama: `develop`.
 
 | ID | Tarea | Depende de | Verificación | Estado |
 |---|---|---|---|---|
-| `T-08` | `ReturnCommissionService` deja de llamar a `EmptyBatchRemoval`; prosa de la `@Operation` (`plan.md` §14) | — | Compila | Pendiente |
-| `T-09` | `ReturnCommissionIT`: vuelve `CA-CM-284`, sale `CA-CM-366`; `CA-CM-300` devolviendo | `T-08` | La suite en verde | Pendiente |
+| `T-08` | `ReturnCommissionService` deja de llamar a `EmptyBatchRemoval`; prosa de la `@Operation` (`plan.md` §14) | — | Compila | **Hecha** — 08-10-2026 |
+| `T-09` | `ReturnCommissionIT`: vuelve `CA-CM-284`, sale `CA-CM-366`; `CA-CM-300` devolviendo | `T-08` | La suite en verde | **Hecha** — 08-10-2026 |
 
 Rama: `develop`.

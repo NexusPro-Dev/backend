@@ -75,7 +75,6 @@ class ReturnCommissionIT extends IntegrationTestBase {
     UUID pendiente = pendienteConDos();
     UUID comision = unaComisionDe(pendiente);
     retirar(pendiente, comision);
-    confirmar(venta()); // que el abierto no se quede vacío (`RN-CM-052`)
     UUID abierto = abiertoDe(agente);
 
     mvc.perform(devolver(pendiente, comision).with(como(DEVOLVER))).andExpect(status().isOk());
@@ -85,7 +84,7 @@ class ReturnCommissionIT extends IntegrationTestBase {
     assertThat(fila.get("withdrawn_from_batch_id")).isNull();
     assertThat(importe(fila.get("commission_amount"))).isEqualByComparingTo("10");
     assertThat(total(pendiente)).isEqualByComparingTo("20");
-    assertThat(total(abierto)).isEqualByComparingTo("10");
+    assertThat(total(abierto)).isEqualByComparingTo("0");
   }
 
   @Test
@@ -106,34 +105,21 @@ class ReturnCommissionIT extends IntegrationTestBase {
 
   @Test
   @DisplayName(
-      "CA-CM-366 — devolver la ÚNICA comisión de un abierto lo borra, auditado; la respuesta es el"
-          + " pendiente, y lo siguiente que devenga esa persona abre otro")
-  void elAbiertoVacioSeBorra() throws Exception {
+      "CA-CM-284 — un pendiente que se había quedado sin comisiones vivas vuelve a poder pagarse")
+  void vuelveAPagarse() throws Exception {
     UUID pendiente = pendienteConDos();
-    UUID comision = unaComisionDe(pendiente);
-    retirar(pendiente, comision); // abre el abierto con ella sola
-    UUID abierto = abiertoDe(agente);
+    List<UUID> comisiones = comisionesDe(pendiente);
+    for (UUID c : comisiones) {
+      retirar(pendiente, c);
+    }
+    mvc.perform(pagar(pendiente)).andExpect(status().isConflict());
 
-    mvc.perform(devolver(pendiente, comision).with(como(DEVOLVER)))
+    mvc.perform(devolver(pendiente, comisiones.get(0)).with(como(DEVOLVER)))
+        .andExpect(status().isOk());
+
+    mvc.perform(pagar(pendiente))
         .andExpect(status().isOk())
-        .andExpect(jsonPath("$.id").value(pendiente.toString()))
-        .andExpect(jsonPath("$.totalAmount").value(20.0));
-
-    assertThat(
-            jdbc.queryForObject(
-                "SELECT count(*) FROM commission_batches WHERE id = ?", Integer.class, abierto))
-        .isZero();
-    assertThat(
-            jdbc.queryForObject(
-                "SELECT snapshot::text FROM audit_deletion_log WHERE entity = 'commission_batches'"
-                    + " AND entity_id = ? AND deletion_type = 'PHYSICAL'",
-                String.class,
-                abierto))
-        .contains("ABIERTO")
-        .contains(agente.toString());
-
-    confirmar(venta());
-    assertThat(abiertoDe(agente)).isNotEqualTo(abierto);
+        .andExpect(jsonPath("$.paidAmount").value(10.0));
   }
 
   @Test
@@ -176,7 +162,8 @@ class ReturnCommissionIT extends IntegrationTestBase {
   void abiertoCerrado() throws Exception {
     UUID pendiente = pendienteConDos();
     List<UUID> comisiones = comisionesDe(pendiente);
-    retirar(pendiente, comisiones.get(0)); // la otra se queda: un pendiente vacío se borra
+    retirar(pendiente, comisiones.get(0));
+    retirar(pendiente, comisiones.get(1));
     UUID abierto = abiertoDe(agente);
 
     cierre.closeManually(agente);
@@ -245,11 +232,11 @@ class ReturnCommissionIT extends IntegrationTestBase {
       "CA-CM-300 — el cierre NO cierra un abierto sin comisiones vivas: sigue abierto, sin fin de"
           + " periodo, y no cuenta entre los cerrados")
   void elAbiertoVacioNoSeCierra() throws Exception {
-    // Un abierto vacío de antes del 07-10-2026: devolver ya lo borraría (`RN-CM-052`).
-    confirmar(venta());
+    UUID pendiente = pendienteConDos();
+    UUID comision = unaComisionDe(pendiente);
+    retirar(pendiente, comision); // abre el abierto con ella dentro
     UUID abierto = abiertoDe(agente);
-    jdbc.update("DELETE FROM commissions WHERE batch_id = ?", abierto);
-    jdbc.update("UPDATE commission_batches SET total_amount = 0 WHERE id = ?", abierto);
+    mvc.perform(devolver(pendiente, comision).with(como(DEVOLVER))).andExpect(status().isOk());
 
     var constancia = cierre.closeManually(agente);
 

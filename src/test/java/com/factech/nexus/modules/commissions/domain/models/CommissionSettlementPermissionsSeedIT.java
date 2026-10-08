@@ -37,7 +37,9 @@ class CommissionSettlementPermissionsSeedIT extends IntegrationTestBase {
           // `V60` (01-10-2026): pagar varios lotes (`RF-CM-025`).
           "commission-batches:pay-batches",
           // `V81` (07-10-2026): todas mis comisiones (`RF-CM-026`), a quien porte list-own.
-          "commission-batches:list-own-commissions");
+          "commission-batches:list-own-commissions",
+          // `V86` (08-10-2026): borrar los lotes vacíos (`RF-CM-027`), a SUPERADMIN y ADMIN.
+          "commission-batches:delete-empty");
 
   @Autowired private JdbcTemplate jdbc;
 

@@ -106,7 +106,7 @@ Orden: `T-12` → `T-13` → `RF-CM-013` `T-23` → `T-14`.
 
 | ID | Tarea | Depende de | Verificación | Estado |
 |---|---|---|---|---|
-| `T-17` | `ReleaseCommissionedLineService` deja de llamar a `EmptyBatchRemoval` (`plan.md` §15) | — | Compila | Pendiente |
-| `T-18` | `ReleaseCommissionedLineIT`: sale `CA-CM-367`; los casos vuelven a una venta | `T-17` | La suite en verde | Pendiente |
+| `T-17` | `ReleaseCommissionedLineService` deja de llamar a `EmptyBatchRemoval` (`plan.md` §15) | — | Compila | **Hecha** — 08-10-2026 |
+| `T-18` | `ReleaseCommissionedLineIT`: sale `CA-CM-367`; los casos vuelven a una venta | `T-17` | La suite en verde | **Hecha** — 08-10-2026 |
 
 Rama: `develop`.

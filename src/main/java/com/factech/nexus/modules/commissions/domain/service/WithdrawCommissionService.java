@@ -47,19 +47,16 @@ public class WithdrawCommissionService {
   private final CommissionBatchQueryService consultas;
   private final BusinessCalendar calendario;
   private final AuditWriter auditoria;
-  private final EmptyBatchRemoval vacios;
 
   public WithdrawCommissionService(
       CommissionBatchRepository lotes,
       CommissionBatchQueryService consultas,
       BusinessCalendar calendario,
-      AuditWriter auditoria,
-      EmptyBatchRemoval vacios) {
+      AuditWriter auditoria) {
     this.lotes = lotes;
     this.consultas = consultas;
     this.calendario = calendario;
     this.auditoria = auditoria;
-    this.vacios = vacios;
   }
 
   @Transactional
@@ -104,12 +101,6 @@ public class WithdrawCommissionService {
                 "after",
                 ubicacion(abierto.id(), batchId, comision))));
 
-    // `RN-CM-052`: si era la última, el pendiente se borra, y lo retirado de él
-    // pierde su origen (`V84`). Entonces no hay pendiente que devolver: se
-    // devuelve el abierto adonde fue (`spec.md` §6.2).
-    if (!vacios.removeIfEmpty(List.of(batchId)).isEmpty()) {
-      return consultas.get(abierto.id(), null);
-    }
     return consultas.get(batchId, null);
   }
 

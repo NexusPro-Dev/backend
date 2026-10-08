@@ -265,14 +265,10 @@ class MyCommissionsIT extends IntegrationTestBase {
       "CA-CM-353 — una retirada sale UNA vez, en su lote abierto, diciendo de qué pendiente salió")
   void laRetiradaUnaVez() throws Exception {
     confirmada(agente, producto);
-    confirmada(agente, producto); // que el pendiente no se quede vacío y se borre (RN-CM-052)
     cierre.closeManually(admin);
     UUID pendiente = loteDe(agente);
     UUID comision =
-        jdbc.queryForObject(
-            "SELECT id FROM commissions WHERE batch_id = ? ORDER BY id LIMIT 1",
-            UUID.class,
-            pendiente);
+        jdbc.queryForObject("SELECT id FROM commissions WHERE batch_id = ?", UUID.class, pendiente);
     mvc.perform(
             post(
                     "/api/v1/commission-batches/{id}/commissions/{commissionId}/withdrawal",
@@ -281,17 +277,11 @@ class MyCommissionsIT extends IntegrationTestBase {
                 .with(como("commission-batches:withdraw-commission")))
         .andExpect(status().isOk());
 
-    mvc.perform(get(RUTA).with(propio(agente))).andExpect(jsonPath("$.totalElements").value(2));
-    UUID abierto =
-        jdbc.queryForObject(
-            "SELECT id FROM commission_batches WHERE user_id = ? AND status = 'ABIERTO'",
-            UUID.class,
-            agente);
-    mvc.perform(get(RUTA).param("status", "ABIERTO").with(propio(agente)))
+    mvc.perform(get(RUTA).with(propio(agente)))
         .andExpect(jsonPath("$.totalElements").value(1))
         .andExpect(jsonPath("$.content[0].commission.id").value(comision.toString()))
         .andExpect(jsonPath("$.content[0].batch.status").value("ABIERTO"))
-        .andExpect(jsonPath("$.content[0].batch.id").value(abierto.toString()))
+        .andExpect(jsonPath("$.content[0].batch.id").value(loteDe(agente).toString()))
         .andExpect(
             jsonPath("$.content[0].commission.withdrawnFrom.id").value(pendiente.toString()));
   }

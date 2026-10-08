@@ -65,6 +65,20 @@ public interface CommissionBatchRepository {
    */
   java.util.Optional<DeletedBatch> deleteIfEmpty(UUID batchId);
 
+  /**
+   * Los lotes {@code ABIERTO} y {@code PENDIENTE} que <b>ahora</b> no tienen ninguna comisión, por
+   * identificador (`RF-CM-027`). Sin bloquear: la lista puede envejecer, y lo que decide es {@link
+   * #deleteIfEmpty}.
+   */
+  java.util.List<UUID> findEmptyUnpaidBatchIds();
+
+  /**
+   * Bloquea, por identificador, las comisiones <b>retiradas</b> de esos lotes (`RF-CM-027`
+   * `plan.md` §1): borrar un pendiente les escribe {@code withdrawn_from_batch_id}, y el orden del
+   * módulo es comisiones antes que lotes.
+   */
+  void lockWithdrawnFrom(java.util.Collection<UUID> batchIds);
+
   /** Una comisión, con lo que hace falta para moverla. */
   record LockedCommission(UUID id, UUID batchId, BigDecimal amount, UUID withdrawnFromBatchId) {}
 

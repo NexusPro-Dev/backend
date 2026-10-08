@@ -86,7 +86,7 @@ Orden: `T-08` → `T-09` → `T-10` → `T-11`; después `RF-CM-023` §6 y `RF-C
 
 | ID | Tarea | Depende de | Verificación | Estado |
 |---|---|---|---|---|
-| `T-13` | `WithdrawCommissionService` deja de llamar a `EmptyBatchRemoval` y responde siempre el pendiente; prosa de la `@Operation` (`plan.md` §14) | — | Compila | Pendiente |
-| `T-14` | `WithdrawCommissionIT`: vuelve `CA-CM-279`, salen `CA-CM-363` a `CA-CM-365`, `CA-CM-301` retirando; `MyCommissionsIT` con una venta | `T-13` | La suite en verde | Pendiente |
+| `T-13` | `WithdrawCommissionService` deja de llamar a `EmptyBatchRemoval` y responde siempre el pendiente; prosa de la `@Operation` (`plan.md` §14) | — | Compila | **Hecha** — 08-10-2026 |
+| `T-14` | `WithdrawCommissionIT`: vuelve `CA-CM-279`, salen `CA-CM-363` a `CA-CM-365`, `CA-CM-301` retirando; `MyCommissionsIT` con una venta | `T-13` | La suite en verde | **Hecha** — 08-10-2026 |
 
 Después, `RF-CM-027` `T-05`. Rama: `develop`.

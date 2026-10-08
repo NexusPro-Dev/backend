@@ -5,10 +5,11 @@ import com.factech.nexus.modules.commissions.domain.repository.CommissionBatchRe
 import com.factech.nexus.shared.audit.AuditEnums.DeletionType;
 import com.factech.nexus.shared.audit.AuditEvents.DeletionEvent;
 import com.factech.nexus.shared.audit.AuditWriter;
+import java.util.ArrayList;
 import java.util.Collection;
 import java.util.LinkedHashMap;
+import java.util.List;
 import java.util.Map;
-import java.util.Set;
 import java.util.TreeSet;
 import java.util.UUID;
 import org.springframework.stereotype.Component;
@@ -16,15 +17,16 @@ import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
 
 /**
- * <b>Un lote sin pagar que se queda vacío se borra</b> (`RN-CM-052`, `RF-CM-022` `plan.md` §13): lo
- * llaman retirar, devolver y liberar una línea, después de sacar la comisión y con los lotes ya
- * bloqueados. Lo que era el lote lo guarda la auditoría, como eliminación física.
+ * <b>Un lote sin pagar y sin comisiones se borra</b> (`RN-CM-052`, `RF-CM-022` `plan.md` §13).
+ * Desde el 08-10-2026 solo lo llama el borrado a mano de los vacíos (`RF-CM-027`), con los lotes ya
+ * bloqueados; retirar, devolver y liberar una línea dejaron de hacerlo. Lo que era el lote lo
+ * guarda la auditoría, como eliminación física.
  */
 @Component
 public class EmptyBatchRemoval {
 
   private static final String MOTIVO =
-      "RN-CM-052: el lote se quedó sin comisiones y se borra en el mismo acto.";
+      "RN-CM-052: el lote no tenía comisiones y se borró a mano (RF-CM-027).";
 
   private final CommissionBatchRepository lotes;
   private final AuditWriter auditoria;
@@ -37,19 +39,19 @@ public class EmptyBatchRemoval {
   /**
    * Borra cada lote que no tenga comisiones ni esté pagado.
    *
-   * @return los identificadores de los que borró
+   * @return lo que era cada uno de los que borró, por identificador
    */
   @Transactional(propagation = Propagation.MANDATORY)
-  public Set<UUID> removeIfEmpty(Collection<UUID> batchIds) {
+  public List<DeletedBatch> removeIfEmpty(Collection<UUID> batchIds) {
     // En orden de identificador, el único del módulo: ya están bloqueados así.
-    Set<UUID> borrados = new TreeSet<>();
+    List<DeletedBatch> borrados = new ArrayList<>();
     for (UUID id : new TreeSet<>(batchIds)) {
       lotes
           .deleteIfEmpty(id)
           .ifPresent(
               lote -> {
                 auditar(lote);
-                borrados.add(lote.id());
+                borrados.add(lote);
               });
     }
     return borrados;

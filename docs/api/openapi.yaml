@@ -6303,10 +6303,9 @@ paths:
         `withdrawn`. **`409`** si el lote está abierto o pagado;
         **`404`** si la comisión no es de ese lote.
 
-        **Si era la última, el pendiente se borra** (`RN-CM-052`, 07-10-2026): ya no existe, y
-        la respuesta es **el lote abierto adonde fue**, en la misma forma —su `id` no es el de
-        la ruta—. Todo lo que se había retirado de él **pierde su origen**: se queda en el
-        abierto y ya no se puede devolver.
+        **Retirar la última no borra el pendiente** (08-10-2026): se queda vacío, en cero y sin
+        poder pagarse, hasta que se le devuelva algo o se borren los vacíos con
+        `DELETE /commission-batches/empty` (`RN-CM-052`, `RF-CM-027`).
       operationId: retirar_9
       parameters:
       - name: id
@@ -6323,8 +6322,7 @@ paths:
           format: uuid
       responses:
         "200":
-          description: "Retirada, con el lote pendiente como queda; o con el abierto,\
-            \ si el pendiente se quedó vacío y se borró"
+          description: "Retirada, con el lote pendiente como queda"
           content:
             '*/*':
               schema:
@@ -6375,11 +6373,9 @@ paths:
         **Solo mientras las dos mitades del retiro sigan como quedaron**: el lote de origen
         **`PENDIENTE`** y la comisión **en un lote `ABIERTO`**. Si el origen se pagó, o si el
         abierto ya se cerró, **`409`**: lo retirado se queda donde está. Una comisión que no se
-        retiró de este lote —también la que nació en el abierto— responde **`404`**, igual que
-        la que se retiró de un pendiente que después se borró por quedarse vacío.
-
-        **Si era lo único del abierto, el abierto se borra** (`RN-CM-052`, 07-10-2026); lo
-        siguiente que devengue esa persona abre otro.
+        retiró de este lote —también la que nació en el abierto, y la retirada de un pendiente
+        que después se borró por vacío (`RF-CM-027`)— responde **`404`**. **Devolver lo único del
+        abierto no lo borra** (08-10-2026): se queda abierto y vacío.
 
         **Sin cuerpo.** Responde el lote pendiente como queda.
       operationId: devolver
@@ -15193,6 +15189,49 @@ paths:
               schema:
                 $ref: "#/components/schemas/CourseDetailResponse"
       x-required-permission: courses:update
+  /api/v1/commission-batches/empty:
+    delete:
+      tags:
+      - Lotes de comisión
+      summary: Borrar los lotes vacíos
+      description: |
+        **Permiso requerido:** `commission-batches:delete-empty`. Sin él, `403` (`AUTH-002`).
+
+        Borra **de una vez todos los lotes `ABIERTO` y `PENDIENTE` que no tienen ninguna
+        comisión**, de todas las personas y monedas (`RF-CM-027`, `RN-CM-052`, 08-10-2026),
+        también los que estaban vacíos de antes. Un lote se queda vacío al retirarle todo, al
+        devolver lo único de un abierto o al corregir el vendedor de su única línea; **ninguna
+        de esas operaciones lo borra**: lo hace esta, cuando se pide.
+
+        **Decide lo que tiene cada lote en el momento de borrarlo**: uno que recibe una comisión
+        mientras tanto no se borra, y una comisión que llega a un abierto recién borrado va a
+        otro nuevo. **Un `PAGADO` no se borra nunca.** Lo que se había retirado de un pendiente
+        borrado **pierde su origen** (`withdrawnFrom` nulo) y ya no se puede devolver. Cada
+        borrado queda en la auditoría como eliminación física, con lo que era el lote.
+
+        **Sin cuerpo.** Responde los lotes borrados —identificador, código, persona, moneda,
+        estado que tenían y periodo— y cuántos. **`200` aunque no haya ninguno.**
+      operationId: borrarVacios
+      responses:
+        "200":
+          description: "Los lotes borrados, aunque fuesen cero"
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/EmptyBatchesDeletionResponse"
+        "401":
+          description: Sin token
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/EmptyBatchesDeletionResponse"
+        "403":
+          description: Sin `commission-batches:delete-empty`
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/EmptyBatchesDeletionResponse"
+      x-required-permission: commission-batches:delete-empty
 components:
   schemas:
     CurrencyRef:
@@ -22583,6 +22622,38 @@ components:
           type: boolean
         sort:
           type: string
+    DeletedEmptyBatch:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        code:
+          type: string
+        userId:
+          type: string
+          format: uuid
+        currencyId:
+          type: string
+          format: uuid
+        status:
+          type: string
+        periodStart:
+          type: string
+          format: date-time
+        periodEnd:
+          type: string
+          format: date-time
+    EmptyBatchesDeletionResponse:
+      type: object
+      properties:
+        deleted:
+          type: array
+          items:
+            $ref: "#/components/schemas/DeletedEmptyBatch"
+        deletedCount:
+          type: integer
+          format: int32
   securitySchemes:
     bearerAuth:
       type: http

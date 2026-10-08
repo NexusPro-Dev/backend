@@ -4,6 +4,7 @@ import com.factech.nexus.modules.commissions.application.CommissionBatchDetailRe
 import com.factech.nexus.modules.commissions.application.CommissionBatchPageResponse;
 import com.factech.nexus.modules.commissions.application.CommissionBatchesPaymentResponse;
 import com.factech.nexus.modules.commissions.application.CommissionClosingResponse;
+import com.factech.nexus.modules.commissions.application.EmptyBatchesDeletionResponse;
 import com.factech.nexus.modules.commissions.application.ListCommissionBatchesRequest;
 import com.factech.nexus.modules.commissions.application.MyCommissionBatchesRequest;
 import com.factech.nexus.modules.commissions.application.MyCommissionPageResponse;
@@ -11,6 +12,7 @@ import com.factech.nexus.modules.commissions.application.MyCommissionsRequest;
 import com.factech.nexus.modules.commissions.application.PayCommissionBatchesRequest;
 import com.factech.nexus.modules.commissions.domain.service.CloseCommissionPeriodService;
 import com.factech.nexus.modules.commissions.domain.service.CommissionBatchQueryService;
+import com.factech.nexus.modules.commissions.domain.service.DeleteEmptyBatchesService;
 import com.factech.nexus.modules.commissions.domain.service.PayCommissionBatchService;
 import com.factech.nexus.modules.commissions.domain.service.PayCommissionBatchesService;
 import com.factech.nexus.modules.commissions.domain.service.ReturnCommissionService;
@@ -22,6 +24,7 @@ import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import java.util.UUID;
 import org.springframework.security.access.prepost.PreAuthorize;
+import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.ModelAttribute;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -55,6 +58,7 @@ public class CommissionBatchController {
   private final PayCommissionBatchesService pagoDeVarios;
   private final WithdrawCommissionService retiro;
   private final ReturnCommissionService devolucion;
+  private final DeleteEmptyBatchesService vacios;
   private final AuthenticatedActor actor;
 
   public CommissionBatchController(
@@ -64,6 +68,7 @@ public class CommissionBatchController {
       PayCommissionBatchesService pagoDeVarios,
       WithdrawCommissionService retiro,
       ReturnCommissionService devolucion,
+      DeleteEmptyBatchesService vacios,
       AuthenticatedActor actor) {
     this.cierre = cierre;
     this.consultas = consultas;
@@ -71,6 +76,7 @@ public class CommissionBatchController {
     this.pagoDeVarios = pagoDeVarios;
     this.retiro = retiro;
     this.devolucion = devolucion;
+    this.vacios = vacios;
     this.actor = actor;
   }
 
@@ -262,17 +268,12 @@ public class CommissionBatchController {
           `withdrawn`. **`409`** si el lote está abierto o pagado;
           **`404`** si la comisión no es de ese lote.
 
-          **Si era la última, el pendiente se borra** (`RN-CM-052`, 07-10-2026): ya no existe, y
-          la respuesta es **el lote abierto adonde fue**, en la misma forma —su `id` no es el de
-          la ruta—. Todo lo que se había retirado de él **pierde su origen**: se queda en el
-          abierto y ya no se puede devolver.
+          **Retirar la última no borra el pendiente** (08-10-2026): se queda vacío, en cero y sin
+          poder pagarse, hasta que se le devuelva algo o se borren los vacíos con
+          `DELETE /commission-batches/empty` (`RN-CM-052`, `RF-CM-027`).
           """)
   @ApiResponses({
-    @ApiResponse(
-        responseCode = "200",
-        description =
-            "Retirada, con el lote pendiente como queda; o con el abierto, si el pendiente se"
-                + " quedó vacío y se borró"),
+    @ApiResponse(responseCode = "200", description = "Retirada, con el lote pendiente como queda"),
     @ApiResponse(responseCode = "400", description = "Identificador malformado"),
     @ApiResponse(responseCode = "401", description = "Sin token"),
     @ApiResponse(
@@ -299,11 +300,9 @@ public class CommissionBatchController {
           **Solo mientras las dos mitades del retiro sigan como quedaron**: el lote de origen
           **`PENDIENTE`** y la comisión **en un lote `ABIERTO`**. Si el origen se pagó, o si el
           abierto ya se cerró, **`409`**: lo retirado se queda donde está. Una comisión que no se
-          retiró de este lote —también la que nació en el abierto— responde **`404`**, igual que
-          la que se retiró de un pendiente que después se borró por quedarse vacío.
-
-          **Si era lo único del abierto, el abierto se borra** (`RN-CM-052`, 07-10-2026); lo
-          siguiente que devengue esa persona abre otro.
+          retiró de este lote —también la que nació en el abierto, y la retirada de un pendiente
+          que después se borró por vacío (`RF-CM-027`)— responde **`404`**. **Devolver lo único del
+          abierto no lo borra** (08-10-2026): se queda abierto y vacío.
 
           **Sin cuerpo.** Responde el lote pendiente como queda.
           """)
@@ -322,6 +321,36 @@ public class CommissionBatchController {
   public CommissionBatchDetailResponse devolver(
       @PathVariable UUID id, @PathVariable UUID commissionId) {
     return devolucion.giveBack(id, commissionId);
+  }
+
+  @Operation(
+      summary = "Borrar los lotes vacíos",
+      description =
+          """
+          Borra **de una vez todos los lotes `ABIERTO` y `PENDIENTE` que no tienen ninguna
+          comisión**, de todas las personas y monedas (`RF-CM-027`, `RN-CM-052`, 08-10-2026),
+          también los que estaban vacíos de antes. Un lote se queda vacío al retirarle todo, al
+          devolver lo único de un abierto o al corregir el vendedor de su única línea; **ninguna
+          de esas operaciones lo borra**: lo hace esta, cuando se pide.
+
+          **Decide lo que tiene cada lote en el momento de borrarlo**: uno que recibe una comisión
+          mientras tanto no se borra, y una comisión que llega a un abierto recién borrado va a
+          otro nuevo. **Un `PAGADO` no se borra nunca.** Lo que se había retirado de un pendiente
+          borrado **pierde su origen** (`withdrawnFrom` nulo) y ya no se puede devolver. Cada
+          borrado queda en la auditoría como eliminación física, con lo que era el lote.
+
+          **Sin cuerpo.** Responde los lotes borrados —identificador, código, persona, moneda,
+          estado que tenían y periodo— y cuántos. **`200` aunque no haya ninguno.**
+          """)
+  @ApiResponses({
+    @ApiResponse(responseCode = "200", description = "Los lotes borrados, aunque fuesen cero"),
+    @ApiResponse(responseCode = "401", description = "Sin token"),
+    @ApiResponse(responseCode = "403", description = "Sin `commission-batches:delete-empty`")
+  })
+  @DeleteMapping("/empty")
+  @PreAuthorize("hasAuthority('commission-batches:delete-empty')")
+  public EmptyBatchesDeletionResponse borrarVacios() {
+    return vacios.deleteAll();
   }
 
   @Operation(

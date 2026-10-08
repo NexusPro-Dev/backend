@@ -337,6 +337,7 @@ class EndpointPermissionsIT extends IntegrationTestBase {
           Map.entry(
               "POST /api/v1/commission-batches/{id}/commissions/{commissionId}/return",
               "commission-batches:return-commission"),
+          Map.entry("DELETE /api/v1/commission-batches/empty", "commission-batches:delete-empty"),
           Map.entry("GET /api/v1/commission-batches/mine", "commission-batches:list-own"),
           Map.entry(
               "GET /api/v1/commission-batches/mine/commissions",
