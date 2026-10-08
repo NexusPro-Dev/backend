@@ -99,6 +99,11 @@ services:
       # tarjeta nace pendiente y la confirma una persona.
       STRIPE_SECRET_KEY: ${STRIPE_SECRET_KEY:-}
       STRIPE_WEBHOOK_SECRET: ${STRIPE_WEBHOOK_SECRET:-}
+      # Los avisos de los brokers (RF-SP-078, deployment.md §6.5.3). Un secreto por
+      # broker; sin el suyo, la ruta de ese broker responde 503.
+      BROKER_TOKEN_IQOPTION: ${BROKER_TOKEN_IQOPTION:-}
+      BROKER_TOKEN_EXNOVA: ${BROKER_TOKEN_EXNOVA:-}
+      BROKER_TOKEN_EXOPTION: ${BROKER_TOKEN_EXOPTION:-}
       # La pasarela local, PayRetailers (RF-MV-048, deployment.md §6.5.2). La tienda
       # de cada país va en su conversión. Opcionales: sin las dos, PSE nace pendiente
       # y lo confirma una persona.
