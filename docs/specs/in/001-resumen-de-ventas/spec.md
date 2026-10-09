@@ -4,7 +4,7 @@
 |---|---|
 | Requerimiento | `RF-IN-001` |
 | Módulo | `IN` — Indicadores |
-| Versión | 0.3.0 |
+| Versión | 0.4.0 |
 | Estado | **Aprobada** |
 | Autor | Responsable técnico |
 | Aprobada por | Responsable del proyecto |
@@ -17,6 +17,10 @@
 !!! warning "Enmendado el 06-10-2026 — el total de ventas y las gratuitas"
 
     Por decisión del responsable del proyecto: el indicador de ventas tiene que dar **el número de ventas**, **el total por estado** y **cuántas fueron gratuitas**. El total por estado ya estaba; faltaban los otros dos, y entran **en este mismo resumen**, con su permiso y su ruta, en lugar de en un indicador nuevo. **El total** es el número de ventas del periodo y del alcance **sea cual sea su estado**: la suma de las confirmadas, las pendientes y las anuladas, que no se solapan porque cada venta está en un solo estado. **Las gratuitas** se cuentan **en cada estado y en el total** (`RN-IN-008`): una venta es gratuita si su importe a pagar es cero —la del alta por enlace—, y **sigue contando dentro de su estado**, de modo que «las pagadas» son las confirmadas menos las gratuitas confirmadas. La gratuidad es **de la venta entera**: una venta cobrada que tenga una línea a cero no es gratuita.
+
+!!! warning "Enmendado el 09-10-2026 — se filtra por oficina (RN-IN-014)"
+
+    Decisión del responsable del proyecto, 09-10-2026: cada línea de venta guarda **la oficina donde se vendió** —el equipo del director de la cadena de su vendedor, **vigente el día de la venta**— y esa oficina **no se mueve** cuando alguien se traslada (`RN-MV-078` de [`requirements/mv.md`](../../../requirements/mv.md)). **El resumen gana un filtro opcional por oficina**, que cuenta **solo las líneas cuya oficina guardada es esa**: no la del equipo al que pertenece hoy el vendedor, de modo que trasladar a un agente **no se lleva sus cifras** a la otra oficina. **Es un filtro y no alcance**, como el de vendedor: **se combina con el alcance** de quien pregunta —dentro de él lo estrecha; un agente que pide otra oficina recibe **ceros**, porque ninguna de sus líneas es de ella— y con el vendedor, la moneda, el periodo y el tramo. **Se suma por línea** como siempre (`RN-IN-003`): una venta con líneas de dos oficinas cuenta **una vez** en cada una, con solo su parte. **Las líneas sin vendedor no tienen oficina**, de modo que con oficina el funcionario deja de verlas; **tampoco la tiene la venta de un manager** ni la de un vendedor sin director con equipo. **Una oficina que no existe da ceros**, no un error, como un vendedor inexistente; un identificador mal formado es `400`. **No cambia**: el alcance, las cifras sin el filtro, la forma de la respuesta. `CA-IN-098` a `CA-IN-100`.
 
 !!! info "Qué va en este documento"
 
@@ -68,6 +72,7 @@ Una venta en pesos y otra en dólares no tienen un total sin una tasa, y **escog
 
 - Para un periodo: las ventas **confirmadas** —cuántas, cuántas líneas, cuántas unidades y el importe por moneda—, las **pendientes** y las **anuladas** —cuántas y el importe por moneda—.
 - Acotar a **una moneda** y a **un vendedor** de mi alcance.
+- Acotar a **una oficina**: la guardada en cada línea el día de la venta (09-10-2026, `RN-IN-014`).
 - El periodo **por defecto**: el mes en curso, hasta hoy.
 
 ### 4.2 No incluye
@@ -92,6 +97,8 @@ Una venta en pesos y otra en dólares no tienen un total sin una tasa, y **escog
 | **`RN-IN-005`** | Solo ventas; el periodo es sobre cuándo **ocurrió**; «vendido» es confirmado; pendiente y anulado aparte; el alta gratuita cuenta con importe cero |
 | **`RN-IN-007`** | Los días del periodo son los de Bogotá |
 | **`RN-IN-008`** | Gratuita es la venta de importe cero; sigue contando en su estado (06-10-2026) |
+| **`RN-IN-014`** | La oficina de una cifra es la guardada en la línea el día de la venta; es filtro y no alcance; con ella, lo sin vendedor no cuenta; una inexistente da ceros (09-10-2026) |
+| `RN-MV-078` | Cada línea de venta guarda la oficina donde se vendió, y un traslado no la mueve (09-10-2026) |
 | `RN-MV-003` | El vendedor es de la línea |
 | `RN-MV-031` | La precedencia funcionario > vendedor > consumidor, y «mi red» es la estructura de mando vigente |
 
@@ -108,6 +115,7 @@ Una venta en pesos y otra en dólares no tienen un total sin una tasa, y **escog
 | Tramo (06-10-2026) | No | Día, semana o mes. **Sin él, no hay tramos**: la respuesta es solo el total |
 | Moneda | No | Solo lo vendido en esa moneda. Una que no exista da **ceros**, no un error: el filtro no es un catálogo de monedas |
 | Vendedor | No | Solo lo que vendió esa persona, **si está en mi alcance**. Fuera de él —o inexistente— da **ceros**: el indicador no confirma quién cuelga de quién |
+| Oficina (09-10-2026) | No | Solo las líneas **cuya oficina guardada** es esa —la del director del vendedor el día de la venta, no la de hoy— (`RN-IN-014`). Se combina con el alcance y con el vendedor: fuera de lo que puedo ver, **ceros**. Las líneas sin vendedor no tienen oficina. Una oficina inexistente da **ceros** |
 
 **El periodo se da en días y no en instantes**, al revés que los listados de movimientos. Un indicador se pregunta en días —«septiembre», «esta semana»— y quien lo pide no debería tener que calcular a qué hora UTC empieza el uno de septiembre en Bogotá. Por dentro sigue siendo **semiabierto**: del comienzo del primer día al comienzo del día siguiente al último.
 
@@ -144,7 +152,7 @@ Una venta en pesos y otra en dólares no tienen un total sin una tasa, y **escog
 2. El sistema comprueba que tiene el permiso.
 3. Fija el periodo —el pedido o el de por defecto— y lo valida.
 4. **Resuelve hasta dónde llega el actor** (`RN-IN-002`) y lo estrecha al vendedor pedido, si lo hay y está dentro.
-5. Suma las líneas de venta del alcance cuyas ventas ocurrieron en el periodo, separando confirmadas, pendientes y anuladas, y cada importe por moneda.
+5. Suma las líneas de venta del alcance —y, si se pidió oficina, solo las que la guardan (09-10-2026)— cuyas ventas ocurrieron en el periodo, separando confirmadas, pendientes y anuladas, y cada importe por moneda.
 6. Devuelve el resumen con el periodo efectivo.
 
 ---
@@ -195,7 +203,7 @@ Lo que vendió **deja de contarse** para mí desde ese instante, aunque lo vendi
 | `VAL-002` | «Desde» no es posterior a «hasta» |
 | ~~`VAL-003`~~ | ~~El periodo efectivo no pasa de 366 días~~ — **retirada el 06-10-2026** (`RN-IN-010`) |
 | `VAL-005` | El tramo, si viene, es día, semana o mes (06-10-2026) |
-| `VAL-004` | La moneda y el vendedor, si vienen, son identificadores bien formados |
+| `VAL-004` | La moneda, el vendedor y la oficina (09-10-2026), si vienen, son identificadores bien formados |
 
 **Los problemas de validación se devuelven juntos**, como en todo el sistema. Un «desde» sin «hasta» toma hoy como final; un «hasta» sin «desde» toma el primero de **su** mes, no del mes en curso, para que pedir «hasta el 31 de agosto» no produzca un rango invertido.
 
@@ -227,6 +235,9 @@ Lo que vendió **deja de contarse** para mí desde ese instante, aunque lo vendi
 | `CA-IN-052` | **No hay tope**: un periodo de varios años es válido (06-10-2026) |
 | `CA-IN-053` | **Con tramo**, la respuesta trae por cada tramo los mismos bloques, todos los tramos presentes, y **la suma de los tramos es el total**; sin tramo, no trae tramos (06-10-2026) |
 | `CA-IN-054` | Un tramo desconocido y un rango invertido son un error, **juntos** (06-10-2026) |
+| `CA-IN-098` | Con **oficina**, el funcionario ve solo las líneas que la guardan: una venta con líneas de dos oficinas cuenta **una vez** con **solo** su parte, y las líneas **sin vendedor** y las de la venta de un **manager** no cuentan (09-10-2026) |
+| `CA-IN-099` | La oficina es **la guardada en la línea**: trasladar después al director o al agente a otra oficina **no mueve** lo ya vendido —sigue contando en la de la venta y no en la nueva— (09-10-2026) |
+| `CA-IN-100` | La oficina **se combina con el alcance**: un director que pide la suya ve lo suyo y lo de sus agentes de esa oficina; un agente que pide otra oficina recibe **ceros**; una oficina **inexistente** da ceros y no un error; un identificador **mal formado**, `400`; con tramo, la suma de los tramos es el total filtrado (09-10-2026) |
 
 **`CA-IN-005` es el que sostiene el módulo**, y `CA-IN-011` el que lo protege: el primero prueba que se suma por línea y no por venta; el segundo, que el filtro por vendedor no se convierte en la forma de descubrir la estructura.
 
@@ -260,3 +271,4 @@ Lo que vendió **deja de contarse** para mí desde ese instante, aunque lo vendi
 | 0.1.0 | 06-10-2026 | Primera versión, con el módulo `IN` ([`requirements/in.md`](../../../requirements/in.md) v0.1.0). Fija las definiciones que heredan los otros tres indicadores de ventas: **por línea** y no por venta (§2.1, `CA-IN-005`), **por moneda** (§2.2), el periodo **en días de Bogotá** con el último incluido y un tope de 366 días, y **ceros** fuera del alcance. Catorce criterios, `CA-IN-001` a `CA-IN-014`. | Responsable técnico |
 | 0.2.0 | 06-10-2026 | **El total y las gratuitas** (§6.2, `RN-IN-008`, `CA-IN-038` a `CA-IN-040`), por decisión del responsable del proyecto: enmienda en el mismo resumen, sin indicador nuevo. Ampliación: ninguna cifra que ya se devolvía cambia. | Responsable técnico |
 | 0.3.0 | 06-10-2026 | **`RN-IN-010`**: sin fechas, toda la historia; una sola fecha deja la otra abierta; sin tope (`VAL-003` retirada); y el tramo opcional, que añade los bloques por tramo. `CA-IN-050` a `CA-IN-054`; `CA-IN-010` sustituido. | Responsable técnico |
+| 0.4.0 | 09-10-2026 | **Filtro por oficina** (`RN-IN-014`), por decisión del responsable del proyecto: cuenta las líneas cuya oficina guardada es esa —la del día de la venta, `RN-MV-078`—, de modo que un traslado no mueve las cifras. Filtro y no alcance: se combina con él; lo sin vendedor y la venta de un manager no tienen oficina; una inexistente da ceros. La respuesta no cambia. `CA-IN-098` a `CA-IN-100`. | Responsable técnico |

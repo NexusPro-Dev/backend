@@ -4,7 +4,7 @@
 |---|---|
 | Requerimiento | `RF-IN-002` |
 | Módulo | `IN` — Indicadores |
-| Versión | 0.2.0 |
+| Versión | 0.3.0 |
 | Estado | **Aprobada** |
 | Autor | Responsable técnico |
 | Aprobada por | Responsable del proyecto |
@@ -13,6 +13,10 @@
 !!! warning "Enmendado el 06-10-2026 — sin fechas, todo; y cada indicador se puede partir en tramos (RN-IN-010)"
 
     Decisión del responsable del proyecto, 06-10-2026: «los indicadores se recogen en su totalidad a no ser que se les envíe una fecha en los filtros», y «tener la capacidad de pedir los indicadores por meses, por días y por semanas, y adicionalmente un filtro de inicio y fin; si van vacíos se consulta todo». **Sin fechas, la serie empieza en el tramo de la primera venta del alcance y llega al de hoy**; sin ninguna venta, es un solo tramo, el de hoy. **Ya no hay tope**: el de 366 días se retira con `RN-IN-010`. El tramo por defecto sigue siendo el día. La serie sigue existiendo aunque el resumen pueda partirse en tramos: es la forma ligera —solo lo confirmado— para dibujar.
+
+!!! warning "Enmendado el 09-10-2026 — se filtra por oficina (RN-IN-014)"
+
+    Decisión del responsable del proyecto, 09-10-2026: la serie se filtra por **oficina**, igual que el resumen de `RF-IN-001` desde su versión 0.4.0, y con la misma definición: cuenta **las líneas cuya oficina guardada es esa**, la del director del vendedor **el día de la venta** (`RN-MV-078`), y no la de hoy, de modo que trasladar a un agente **no redibuja la historia** de ninguna de las dos oficinas. **Es filtro y no alcance**: se combina con el alcance de quien pregunta y con el vendedor, la moneda, el periodo y el tramo; fuera de lo que puede ver, **todos los tramos en cero**. Las líneas sin vendedor y la venta de un manager no tienen oficina. **Una oficina inexistente da la serie en ceros**, no un error; un identificador mal formado es `400`. **La regla que ata la serie al resumen no cambia**: la suma de los tramos con oficina es lo confirmado del resumen con la misma oficina. Sin oficina, nada cambia. `CA-IN-101`.
 
 !!! info "Qué va en este documento"
 
@@ -57,6 +61,7 @@ Los de [`RF-IN-001`](../001-resumen-de-ventas/spec.md) §3, con el permiso de es
 - Las ventas **confirmadas** del alcance en un periodo, partidas en tramos de **día**, **semana** o **mes**: por tramo, ventas, líneas, unidades e importe por moneda.
 - **Todos los tramos**, también los vacíos.
 - Acotar a una moneda y a un vendedor de mi alcance, como en `RF-IN-001`.
+- Acotar a una oficina, la guardada en cada línea el día de la venta, como en `RF-IN-001` (09-10-2026, `RN-IN-014`).
 
 ### 4.2 No incluye
 
@@ -79,7 +84,7 @@ Las de [`RF-IN-001`](../001-resumen-de-ventas/spec.md) §5, todas. **`RN-IN-007`
 
 | Dato | Obligatorio | Descripción |
 |---|---|---|
-| Desde, hasta, moneda, vendedor | No | Como en `RF-IN-001` §6.1. **Sin «desde», desde el tramo de la primera venta** del alcance (06-10-2026) |
+| Desde, hasta, moneda, vendedor, oficina (09-10-2026) | No | Como en `RF-IN-001` §6.1. **Sin «desde», desde el tramo de la primera venta** del alcance (06-10-2026) |
 | Tramo | No | Día, semana o mes. **Por defecto, día** |
 
 ~~**El tope de 366 días basta para cualquier tramo**~~ **(retirado el 06-10-2026, `RN-IN-010`)**: 366 días, 53 semanas o 13 meses son series que se dibujan sin problema.
@@ -165,6 +170,7 @@ Devueltas juntas.
 | `CA-IN-022` | Un tramo desconocido, un rango invertido y más de 366 días son un error, juntos; sin el permiso, **prohibido**, y **el del resumen no lo abre** |
 | `CA-IN-055` | **Sin fechas**, la serie empieza en el tramo de la **primera venta** del alcance y acaba en el de hoy; sin ninguna venta, es un tramo, el de hoy (06-10-2026) |
 | `CA-IN-056` | **Sin tope**: una serie diaria de más de 366 días es válida (06-10-2026) |
+| `CA-IN-101` | Con **oficina**, la suma de los tramos es lo **confirmado** del resumen de `RF-IN-001` con la misma oficina; un traslado posterior a la venta **no mueve** lo ya vendido a la oficina nueva; las líneas sin vendedor no cuentan; fuera del alcance o con una oficina **inexistente**, todos los tramos en **cero** y no un error; mal formada, `400` (09-10-2026) |
 
 **`CA-IN-015` es el que ata este indicador al anterior**: si las dos cifras no cuadran, uno de los dos cuenta mal, y la prueba no necesita saber cuál para fallar.
 
@@ -193,3 +199,4 @@ Ninguna propia; la de `RF-IN-001` §14 —contar por confirmación— aplicaría
 |---|---|---|---|
 | 0.1.0 | 06-10-2026 | Primera versión. Hereda de `RF-IN-001` qué se cuenta y decide **cómo se parte**: tramos de calendario de Bogotá —semana de lunes a domingo—, recortados al periodo, **todos presentes** y con **todas las monedas** del periodo en cada uno. Solo lo confirmado. Ocho criterios, `CA-IN-015` a `CA-IN-022`. | Responsable técnico |
 | 0.2.0 | 06-10-2026 | **`RN-IN-010`**: sin fechas, desde la primera venta hasta hoy; sin tope. `CA-IN-055` y `CA-IN-056`. | Responsable técnico |
+| 0.3.0 | 09-10-2026 | **Filtro por oficina** (`RN-IN-014`), por decisión del responsable del proyecto, con la definición de `RF-IN-001` v0.4.0: la oficina guardada en la línea el día de la venta; filtro y no alcance; una inexistente da ceros. La respuesta no cambia. `CA-IN-101`. | Responsable técnico |

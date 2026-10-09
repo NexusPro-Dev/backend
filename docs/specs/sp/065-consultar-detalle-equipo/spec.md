@@ -8,6 +8,12 @@
 | Autor | Responsable técnico |
 | Aprobada por | Responsable del proyecto |
 | Fecha de aprobación | 22-09-2026 |
+| Versión | 0.2.0 |
+| Enmendada | 09-10-2026 — **un director por equipo** (`RN-SP-051`, `RN-SP-052` enmendadas): `members` trae como mucho una persona y `memberCount` vale 0 o 1. Por decisión del responsable del proyecto. `CA-SP-993` y `CA-SP-994` |
+
+!!! warning "Enmendado el 09-10-2026 — el detalle trae a su director, o a nadie"
+
+    Decisión del responsable del proyecto, 09-10-2026: a un equipo solo pertenecen **directores**, y **uno vigente por equipo** (`RN-SP-051`, `RN-SP-052`; `RF-SP-069` v0.2.0). **La forma del detalle no cambia**: `members` sigue siendo una lista —para no romper a quien la consume— con los mismos campos y solo vigentes, y `memberCount` sigue siendo su tamaño. Lo que cambia es **cuántos caben**: `members` trae **a su director vigente, o está vacía**, y `memberCount` vale **uno o cero**. El orden por antigüedad con desempate por nombre de usuario sigue escrito, pero **ya no tiene nada que ordenar**; donde este documento habla de varios miembros vigentes, el caso ya no puede darse. `CA-SP-749` y `CA-SP-754`, que lo presuponían, quedan **enmendados** y los sustituyen `CA-SP-993` y `CA-SP-994`.
 
 ---
 
@@ -130,13 +136,15 @@ Es `RF-SP-003` para equipos: la vista que responde de un vistazo qué es este eq
 | ID | Criterio |
 |---|---|
 | `CA-SP-748` | El sistema devuelve el equipo con `id`, `name`, `description` **presente y nula** si no tiene, `status`, `memberCount`, `members[]`, `createdAt` y `updatedAt`, y **sin** `deletedAt` ni `deletionReason` si está vivo |
-| `CA-SP-749` | Cada miembro trae `id`, `username`, `firstName`, `lastName`, `status` de la persona y `joinedAt` de **este** equipo, y la lista va **por antigüedad**, con el nombre de usuario de desempate |
+| `CA-SP-749` | Cada miembro trae `id`, `username`, `firstName`, `lastName`, `status` de la persona y `joinedAt` de **este** equipo, y la lista va **por antigüedad**, con el nombre de usuario de desempate — **enmendado el 09-10-2026**: el orden ya no tiene varios que ordenar; lo sustituye `CA-SP-993` |
 | `CA-SP-750` | `members` contiene **solo los vigentes**: quien tuvo una pertenencia cerrada en este equipo no aparece, y quien está hoy en otro equipo tampoco |
 | `CA-SP-751` | `memberCount` coincide con el tamaño de `members` y con el número que devuelve `RF-SP-064` para el mismo equipo |
 | `CA-SP-752` | Un equipo `INACTIVO` se devuelve **con sus miembros**; un equipo **eliminado** se devuelve con `deletedAt`, `deletionReason` y `members` vacío; uno inexistente responde `404` y un identificador mal formado, `400` (`VAL-001`) |
 | `CA-SP-753` | Un equipo eliminado **sin registro de eliminación** devuelve `deletionReason` presente y nulo, sin `500` |
-| `CA-SP-754` | El número de sentencias es fijo: **dos** para un equipo vivo —ficha y miembros— y **tres** para uno eliminado, con miembros o sin ellos; no crece con el número de miembros |
+| `CA-SP-754` | El número de sentencias es fijo: **dos** para un equipo vivo —ficha y miembros— y **tres** para uno eliminado, con miembros o sin ellos; no crece con el número de miembros — **enmendado el 09-10-2026**: con un director por equipo, «no crece con el número de miembros» no tiene caso; lo sustituye `CA-SP-994` |
 | `CA-SP-755` | Sin `teams:read` el detalle responde `403` **aunque el actor porte `teams:list`**, y `EndpointPermissionsIT` recibe `GET /teams/{id}` con su código |
+| `CA-SP-993` | Un equipo con director vigente devuelve `members` con **una** persona —su director, con `id`, `username`, `firstName`, `lastName`, `status` y `joinedAt` de este equipo— y `memberCount` en uno; sin director, `members` vacío y `memberCount` en cero, aunque su historial tenga varios directores cerrados (09-10-2026) |
+| `CA-SP-994` | El número de sentencias es **dos** para un equipo vivo, con director o sin él, y **tres** para uno eliminado (09-10-2026) |
 
 ## 13. Casos límite
 
@@ -164,3 +172,4 @@ Es `RF-SP-003` para equipos: la vista que responde de un vistazo qué es este eq
 | Versión | Fecha | Cambio | Responsable |
 |---|---|---|---|
 | 0.1.0 | 22-09-2026 | Redacción inicial. Hereda de `RF-AC-003` y `RF-PM-003` que el eliminado **se devuelve con su motivo** —y aquí con un argumento propio: el listado ya lo enseña—, y de `RF-SP-059` el no paginar una lista corta, frente a `RF-SP-061` que sí pagina porque la cardinalidad crece. Decide: solo vigentes, orden por antigüedad con desempate por nombre de usuario, el estado de la persona en cada fila, sin roles y sin la red de cada manager. Ocho criterios, `CA-SP-748` a `CA-SP-755`. | Responsable del proyecto |
+| 0.2.0 | 09-10-2026 | **Un director por equipo**, por decisión del responsable del proyecto: `members` trae a su director o a nadie y `memberCount` vale cero o uno; la forma no cambia. `CA-SP-749` y `CA-SP-754` enmendados; `CA-SP-993` y `CA-SP-994`. | Responsable del proyecto |

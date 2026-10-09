@@ -8,6 +8,11 @@
 | Autor | Responsable técnico |
 | Aprobada por | Responsable del proyecto |
 | Fecha de aprobación | 22-09-2026 |
+| Enmendada | 09-10-2026 — nota sin criterios nuevos: los miembros son directores |
+
+!!! note "Enmienda del 09-10-2026 — los miembros son directores"
+
+    Decisión del responsable del proyecto, 09-10-2026. **La operación no cambia**: se rechaza con miembros vigentes (`RN-SP-054`), con motivo, lógica. Desde el 09-10-2026 el miembro de un equipo es **su director**, uno por equipo (`RN-SP-051`, `RN-SP-052` enmendadas), de modo que donde este documento dice «manager» al hablar de quién está en el equipo se lee **director**, y vaciar un equipo es retirar a su director (`RF-SP-070`). **La oficina guardada en las líneas de venta no se toca**: la eliminación es lógica y la línea conserva el equipo donde se vendió (`RN-MV-078`).
 
 ---
 

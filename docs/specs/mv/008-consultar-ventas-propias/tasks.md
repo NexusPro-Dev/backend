@@ -100,6 +100,15 @@ Enmienda de hecho (Art. I.7), `spec.md` 0.8.0 y `plan.md` 0.7.0 **antes** del c�
 | `T-32` | `MyMovementsIT`: `CA-MV-523` a `CA-MV-525` | `T-31` | `CA-MV-525` cuenta sentencias con dos tamaños de página | **Hecha** — 03-10-2026 |
 | `T-33` | `MovementController`: la prosa de `GET /mine/shopping` dice que las líneas viajan; contrato regenerado; `docs/api/index.md` | `T-32` | `openapi.json` declara `lines` en `MyMovement` | **Hecha** — 03-10-2026 |
 
+### 1.7 La oficina de cada línea — 09-10-2026
+
+Enmienda de hecho (Art. I.7), `spec.md` 0.9.0 y `plan.md` 0.8.0 **antes** del código. Sin migración propia ni código de producción propio: el campo y su lectura los construye `RF-MV-007` `T-10`.
+
+| ID | Tarea | Depende de | Verificación | Estado |
+|---|---|---|---|---|
+| `T-34` | `MyMovementsIT`: `CA-MV-721` sobre el detalle propio —oficina con identificador y nombre, `team` presente y nulo en la línea sin ella, la guardada aunque el director del vendedor esté hoy en otro equipo— y `CA-MV-722` sobre «mis compras» —las líneas iguales a las del detalle—, con equipo propio de nombre único limpiado al terminar | `RF-MV-007` `T-10` | `CA-MV-525` sigue en verde sin tocar su prueba | **Pendiente** |
+| `T-35` | `MovementController`: la prosa de `GET /mine/shopping` y `GET /mine/{id}` nombra la oficina de cada línea; contrato regenerado y `docs/api/index.md` | `T-34` | Ni `MyMovementResponse` gana `teams` ni la ruta gana `teamId` | **Pendiente** |
+
 ---
 
 ## 2. Cobertura de los criterios de aceptación
@@ -118,6 +127,7 @@ Enmienda de hecho (Art. I.7), `spec.md` 0.8.0 y `plan.md` 0.7.0 **antes** del c�
 | `CA-MV-137`, `CA-MV-138`, `CA-MV-139` | `T-24`, `T-25`, `T-26` — 22-09-2026 |
 | `CA-MV-140` | `T-28`, `T-29` — 22-09-2026 |
 | `CA-MV-523`, `CA-MV-524`, `CA-MV-525` | `T-30` a `T-33` — 03-10-2026 |
+| `CA-MV-721`, `CA-MV-722` | `RF-MV-007` `T-10`, `T-34`, `T-35` — 09-10-2026 |
 
 ---
 

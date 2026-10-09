@@ -8,6 +8,7 @@
 | `plan.md` aprobado el | 17-09-2026 |
 | Estado | **En revisión** — `T-01` a `T-11` `Hecha` el 17-09-2026; `T-12` a `T-15` (§1.1) `Hecha` el 21-09-2026 |
 | Enmendadas | 01-10-2026 — `T-16` a `T-17` por **la tarjeta por Stripe** (§6) |
+| Enmendadas | 09-10-2026 — `T-18` a `T-20` por **la oficina de cada venta** (§1.2), `Pendiente` |
 | Issue | [#66](https://github.com/NexusPro-Dev/backend/issues/66); la enmienda del 21-09-2026, [#76](https://github.com/NexusPro-Dev/backend/issues/76) |
 | Rama | `feature/venta-de-productos`; la enmienda del 21-09-2026, en `feature/filtro-por-tipo-de-movimiento` |
 
@@ -46,6 +47,16 @@ Enmienda de hecho (Art. I.7) sobre un requerimiento construido: `spec.md` 0.2.0 
 | `T-14` | `MovementController`: el parámetro documentado en la `@Operation` —códigos vigentes, `400` si no existe—; `MovementsIT`: `CA-MV-119` con un **segundo tipo sembrado en la prueba**, en minúsculas, combinado con el estado, y el inexistente junto con el estado | `T-13` | La prueba deja `movement_types` como lo encontró | **Hecha** — 21-09-2026 |
 | `T-15` | Contrato OpenAPI regenerado y prosa releída; `docs/api/index.md`; matriz de `requirements.md` | `T-14` | `openapi.json` declara `type` en `GET /api/v1/movements` | **Hecha** — 21-09-2026 |
 
+### 1.2 La oficina de cada venta — 09-10-2026
+
+Enmienda de hecho (Art. I.7), `spec.md` 0.5.0 y `plan.md` 0.4.0 **antes** del código. Sin migración propia: `movement_details.team_id` y su índice los trae `V95` (`RF-MV-001` y `RF-MV-058`).
+
+| ID | Tarea | Depende de | Verificación | Estado |
+|---|---|---|---|---|
+| `T-18` | `LineTeam` en `application` con `@Schema(name = "LineTeam")`; `MovementRepository.findTeamsOf` y `MovementTeamRow`, con `JOIN teams` y `DISTINCT` por movimiento; `MovementResponse.teams`, nunca nula, con `@JsonInclude(ALWAYS)`; `ListMovementsService.oficinasDe` estático junto a `vendedoresDe` y `de` con las oficinas | `V95` | Cuatro sentencias por página, no una por fila; `teams` vacía y presente sin oficina | **Pendiente** |
+| `T-19` | `ListMovementsRequest` y `MovementFilter` ganan `teamId`; `filtroGlobal` añade el `EXISTS` sobre `d.team_id` en el mismo predicado de página y conteo; `MovementController`: `teamId` como `UUID` documentado en la `@Operation` —inexistente vacío, mal formado `400`— | `T-18` | Con `teamId`, el total cuenta lo que la página devuelve | **Pendiente** |
+| `T-20` | `MovementsIT`: `CA-MV-717` a `CA-MV-719`, con equipo propio de nombre único limpiado al terminar y una venta cuya oficina guardada no es la de hoy; contrato regenerado mirando el diff —**un** esquema `LineTeam`—; `docs/api/index.md` y matriz | `T-19` | Solo altas en el contrato | **Pendiente** |
+
 ---
 
 ## 2. Cobertura de los criterios de aceptación
@@ -58,6 +69,7 @@ Enmienda de hecho (Art. I.7) sobre un requerimiento construido: `spec.md` 0.2.0 
 | `CA-MV-079`, `CA-MV-080`, `CA-MV-081` | `T-03`, `T-08` |
 | `CA-MV-082` | `T-05`, `T-09` |
 | `CA-MV-119` | `T-12`, `T-13`, `T-14` — 21-09-2026 |
+| `CA-MV-717` a `CA-MV-719` | `T-18` a `T-20` — 09-10-2026 |
 
 ---
 

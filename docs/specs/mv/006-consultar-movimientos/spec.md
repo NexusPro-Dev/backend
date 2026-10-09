@@ -4,13 +4,14 @@
 |---|---|
 | Requerimiento | `RF-MV-006` |
 | Módulo | `MV` — Movimientos |
-| Versión | 0.4.0 |
+| Versión | 0.5.0 |
 | Estado | **Aprobada** |
 | Enmendada el | 21-09-2026 — los movimientos se filtran también **por tipo** (§2.2, §6.1, §11, §12, §13). Ver §15 |
 | Autor | Responsable técnico |
 | Aprobada por | Responsable del proyecto |
 | Fecha de aprobación | 17-09-2026 |
 | Enmendada el | 01-10-2026 — **filtro por incidencia del pago**, y la incidencia en cada fila (`RN-MV-060`). Ver §14.2 |
+| Enmendada el | 09-10-2026 — **la oficina de cada venta** (`RN-MV-078`): cada fila trae sus oficinas y se filtra por oficina (§2.2, §6.1, §6.2, §11, §12, §13). Ver §15 |
 
 !!! warning "Enmendado el 24-09-2026 — el filtro `code` busca por FRAGMENTO"
 
@@ -21,6 +22,14 @@
     **Tres cosas que NO cambian, y conviene que no se den por hechas.** `type` y `typeStatus` **siguen siendo exactos**: se eligen de un conjunto cerrado, no se teclean, y un `LIKE` ahí haría que pedir `VENTA` arrastrara cualquier tipo que la contenga. Los comodines `%` y `_` que escriba el usuario se **escapan** —son texto y no patrón—, que es la misma defensa que `RF-SP-025` ya tenía escrita. Y **el alcance no se ensancha**: va en la misma sentencia y **antes** que este predicado, de modo que quien solo ve lo suyo sigue viendo lo suyo.
 
     **Se indexa con trigramas** (`ix_movements_codigo_busqueda`, `V39`), como `ix_users_busqueda`: `uq_movements_code` no puede responder por un fragmento del medio —un B-tree solo responde por el principio— y sin el índice nuevo la consulta recorrería la tabla entera.
+
+!!! warning "Enmendado el 09-10-2026 — la oficina de cada venta: sus oficinas en la fila y el filtro por oficina"
+
+    `RN-MV-078` ([`requirements/mv.md`](../../../requirements/mv.md) v0.97.0 §4.13), a petición del responsable del proyecto: saber **en qué oficina se hizo cada venta**, y que cuando un agente se traslade lo que vendió se quede donde lo vendió. **La oficina es el equipo del director de la cadena del vendedor en el instante de la venta**, y queda **guardada en cada línea** junto a su vendedor; este listado no la calcula, la lee. Gana dos cosas. **Cada fila trae sus oficinas**: las de sus líneas, sin repetir, con identificador y nombre —igual que trae a sus vendedores—, y la lista va **vacía y presente** cuando ninguna línea la tiene: una línea sin vendedor, la venta de un manager, un vendedor sin director con equipo, o una venta anterior a la oficina que administración aún no ha rellenado (`RF-MV-058`). **Y se filtra por oficina**: los movimientos con **al menos una línea** de esa oficina, **una vez cada uno** aunque tengan varias, combinable con los demás filtros.
+
+    **Se pregunta por lo guardado, nunca por la estructura de hoy**: una venta cuyo vendedor —o el director de su vendedor— cambió de equipo después sigue saliendo bajo la oficina donde se vendió, y no bajo la nueva. Es todo el sentido de guardarla. **Una oficina que no existe responde una página vacía**, no un error ni un «no encontrado»: es un criterio de búsqueda y no un recurso, con el mismo trato que el vendedor y el sujeto (§6.1). Un identificador **mal formado** sí es un error de validación, como el de cualquier persona.
+
+    **Lo que NO cambia**: el permiso, el alcance —sigue siendo el libro entero—, el orden y el conteo. **Las líneas siguen sin viajar en la fila** (§6.2): la oficina de **cada** línea se ve en el detalle (`RF-MV-007`), y aquí viaja la lista, como los vendedores. `CA-MV-717` a `CA-MV-719`.
 
 !!! info "Qué va en este documento"
 
@@ -61,6 +70,7 @@ Un listado de administración **sin filtros es un listado que nadie puede usar**
 | Código | «¿Dónde está este comprobante?» — el que la persona cita cuando llama |
 | Periodo | «¿Qué ocurrió entre estas dos fechas?» — sobre **cuándo ocurrió** el hecho, no cuándo se escribió |
 | **Tipo** (21-09-2026) | «¿Qué depósitos hubo?» — la pregunta que el segundo tipo de movimiento traerá antes que ninguna, y que el libro puede responder desde hoy porque cada fila **dice su tipo** (§2.1). Es la otra mitad de esa promesa: un libro que dice de qué tipo es cada hecho tiene que poder preguntarse por uno solo |
+| **Oficina** (09-10-2026) | «¿Qué se vendió en la oficina Elite?» — por la oficina **guardada en alguna de sus líneas** el día de la venta (`RN-MV-078`), y no por dónde está hoy su vendedor |
 
 **Se combinan**: el estado pendiente **de** un vendedor **en** septiembre es una sola pregunta.
 
@@ -83,8 +93,8 @@ Un listado de administración **sin filtros es un listado que nadie puede usar**
 ### 4.1 Incluye
 
 - El **listado paginado** de todos los movimientos del sistema, del más reciente al más antiguo.
-- Los **siete filtros** de §2.2, combinables — seis desde el 17-09-2026 y el tipo desde el 21-09-2026.
-- En cada fila: **el tipo** de movimiento, su estado, **el sujeto y los vendedores de sus líneas** —las mismas dos partes que `RF-MV-008`—, el medio de pago, la moneda, los importes, **cuándo ocurrió y cuándo se confirmó**.
+- Los **siete filtros** de §2.2, combinables —seis desde el 17-09-2026 y el tipo desde el 21-09-2026—, y la **oficina** desde el 09-10-2026.
+- En cada fila: **el tipo** de movimiento, su estado, **el sujeto y los vendedores de sus líneas** —las mismas dos partes que `RF-MV-008`—, el medio de pago, la moneda, los importes, **cuándo ocurrió y cuándo se confirmó**; y, desde el 09-10-2026, **las oficinas de sus líneas**.
 
 ### 4.2 No incluye
 
@@ -123,6 +133,7 @@ Un listado de administración **sin filtros es un listado que nadie puede usar**
 | Código | No | El comprobante **exacto**, sin distinguir mayúsculas. Como mucho devuelve uno |
 | Desde, hasta | No | Instantes con zona horaria sobre **cuándo ocurrió** el movimiento. El rango es **semiabierto** —incluye «desde», excluye «hasta»—, para que dos periodos consecutivos no devuelvan dos veces el de la medianoche. «Desde» posterior a «hasta» es un **error** |
 | Tipo (21-09-2026) | No | Solo los movimientos de ese tipo, por su **código** en el catálogo, sin distinguir mayúsculas. Uno que no exista es un **error**, no una página vacía — el mismo trato que el estado, y por el mismo motivo (abajo) |
+| Oficina (09-10-2026) | No | Solo los movimientos con **alguna línea** vendida en esa oficina, **una vez cada uno**. Por la oficina guardada en la línea, no por la estructura de hoy. Una que no exista da una **página vacía**, como el vendedor: es un dato, no un conjunto cerrado |
 
 **El tipo va con el estado y no con las personas.** El catálogo de tipos **no se edita por API y no se borra** (`RN-MV-017`): lo siembra el sistema, y el caso de uso decide según él. Es un conjunto **cerrado que el sistema declara**, aunque viva en una tabla, y pedir un tipo que no existe es la misma pregunta mal escrita que pedir un estado inventado. **Hoy el catálogo tiene un solo código**, y el filtro se define igual: lo que se promete es que discrimina el día que haya dos, no que hoy separe algo.
 
@@ -139,6 +150,7 @@ Cada movimiento devuelve:
 | Estado | Pendiente, confirmada, rechazada o anulada |
 | Sujeto | A nombre de quién es (`RN-MV-026`) |
 | Vendedores | A quién se atribuye **cada línea**, sin repetir. Vacía y presente en los tipos que no venden nada |
+| **Oficinas** (09-10-2026) | Dónde se vendió **cada línea** (`RN-MV-078`), sin repetir, con identificador y nombre. **Vacía y presente** cuando ninguna línea tiene oficina: sin vendedor, venta de un manager, vendedor sin director con equipo, o venta anterior a la oficina sin rellenar |
 | Moneda y método de pago | Con qué se paga |
 | Importes | Total, descuento y lo que se paga de verdad |
 | Cuándo ocurrió | La fecha del hecho |
@@ -202,7 +214,7 @@ La página se devuelve igual; el total **es el techo** y la respuesta declara qu
 |---|---|
 | `VAL-001` | La página no es negativa y el tamaño está dentro del límite del sistema |
 | `VAL-002` | El estado indicado, si viene, es uno de los que existen |
-| `VAL-003` | Los identificadores de sujeto, vendedor y método, si vienen, están bien formados |
+| `VAL-003` | Los identificadores de sujeto, vendedor y método —y el de oficina, desde el 09-10-2026—, si vienen, están bien formados |
 | `VAL-004` | «Desde» y «hasta», si vienen, son instantes bien formados, y «desde» no es posterior a «hasta» |
 | `VAL-005` | El tipo indicado, si viene, es uno del catálogo de tipos de movimiento (21-09-2026) |
 | `VAL-006` | El estado del tipo indicado, si viene, es uno del catálogo de estados por tipo (23-09-2026, `RF-MV-016`) |
@@ -231,6 +243,9 @@ La página se devuelve igual; el total **es el techo** y la respuesta declara qu
 | `CA-MV-081` | La fila **no lleva el papel** de quien pregunta ni las líneas |
 | `CA-MV-082` | Por encima del techo del conteo, el total **es el techo** y la respuesta lo declara **inexacto**; por debajo, es el real y exacto |
 | `CA-MV-119` | El filtro por **tipo** devuelve solo los movimientos de ese tipo, escrito en mayúsculas o en minúsculas, y **se combina** con los demás; un tipo que no existe es un **error** y no una página vacía, devuelto **junto** con los demás problemas de la petición (21-09-2026) |
+| `CA-MV-717` | Cada fila trae **sus oficinas**: las de sus líneas, **sin repetir**, con identificador y nombre; la lista va **vacía y presente** cuando ninguna línea tiene oficina (09-10-2026) |
+| `CA-MV-718` | El filtro por **oficina** devuelve los movimientos con **alguna línea** de esa oficina, **una vez cada uno** aunque tengan varias, y **se combina** con los demás; responde por la oficina **guardada en la línea**: una venta cuyo vendedor cambió de equipo después sigue saliendo bajo la oficina donde se vendió, y no bajo la nueva (09-10-2026) |
+| `CA-MV-719` | Una oficina **que no existe** da una **página vacía** y no un error; un identificador de oficina **mal formado** es un error de validación (09-10-2026) |
 
 **`CA-MV-068` y `CA-MV-069` son los dos criterios que sostienen el requerimiento**, y son el espejo de `CA-MV-038`: aquel prueba que el permiso **no amplía** lo propio; estos prueban que el permiso **es lo único** que abre lo ajeno.
 
@@ -248,6 +263,9 @@ La página se devuelve igual; el total **es el techo** y la respuesta declara qu
 | Dos movimientos **en el mismo instante** | El orden entre ellos es estable, y no depende de la página que se pida |
 | El **libro vacío** | Página vacía y total cero, exacto |
 | El catálogo con **un solo tipo** (21-09-2026) | Filtrar por `VENTA` devuelve lo mismo que no filtrar. No es un defecto: el filtro existe para el día del segundo tipo, y lo que se comprueba es que **discrimina** — con un segundo tipo que solo existe en la prueba |
+| Una venta con **líneas de dos oficinas** (09-10-2026) | Aparece **una vez** al filtrar por cualquiera de ellas, y su lista de oficinas trae las dos. Hoy ninguna entrada la produce: todas las líneas de una venta llevan el mismo vendedor |
+| Una venta **sin oficina** (09-10-2026) | Aparece en el listado sin filtrar, con la lista vacía; **no aparece** al filtrar por ninguna oficina. Es el caso de toda venta anterior a la oficina mientras `RF-MV-058` no la rellene |
+| Una oficina **eliminada** después de vender (09-10-2026) | Sus ventas la siguen mostrando, con su nombre, y el filtro por ella las sigue encontrando: la eliminación de un equipo es lógica (`RN-SP-054`) y lo vendido no se reescribe |
 
 ---
 
@@ -278,3 +296,4 @@ Desde el 01-10-2026 ([`requirements/mv.md`](../../../requirements/mv.md) v0.64.0
 | 0.2.0 | 21-09-2026 | **Los movimientos se filtran también por tipo** (`requirements/mv.md` v0.31.0; Art. I.7 sobre un requerimiento construido), a petición del responsable del proyecto —«que los movimientos se puedan filtrar por tipos de movimiento»—. §2.2 gana la séptima pregunta —«¿qué depósitos hubo?»—, §4.1 pasa de seis filtros a siete, §6.1 gana la entrada y el párrafo que la pone **del lado del estado y no de las personas**: el catálogo es cerrado por `RN-MV-017`, y un tipo inexistente es un **error**. `VAL-005`, `CA-MV-119` y el caso límite del catálogo con un solo tipo. **Nada más cambia**: ni el permiso, ni el alcance, ni la fila, ni el conteo. `RF-MV-008` se enmienda el mismo día con el mismo filtro. | Responsable del proyecto |
 | 0.3.0 | 23-09-2026 | **Cada fila publica el estado del tipo y se filtra por él** (`requirements/mv.md` v0.36.0, `RN-MV-033`; Art. I.7 sobre un requerimiento construido), con `RF-MV-016`: la pregunta de administración de cada día es «¿qué ventas faltan por validar?». Con el trato del tipo —un código que no está en el catálogo es error, `VAL-006`—, y con los criterios en `RF-MV-016` (`CA-MV-161`). Una venta por validar lleva `sellers` **vacía**. | Responsable del proyecto |
 | 0.4.0 | 01-10-2026 | **La tarjeta por Stripe** ([`requirements/mv.md`](../../../requirements/mv.md) v0.64.0 §4.6): **filtro por incidencia del pago**, y la incidencia en cada fila (`RN-MV-060`). Criterios `CA-MV-469` a `CA-MV-470`. | Responsable del proyecto |
+| 0.5.0 | 09-10-2026 | **La oficina de cada venta** ([`requirements/mv.md`](../../../requirements/mv.md) v0.97.0 §4.13, `RN-MV-078`; Art. I.7 sobre un requerimiento construido), a petición del responsable del proyecto. Cada fila trae **sus oficinas**, sin repetir y vacía y presente cuando no hay ninguna, y se filtra **por oficina**: los movimientos con alguna línea de ella, una vez cada uno, por la oficina **guardada en la línea** y no por la estructura de hoy. Una oficina inexistente da página vacía; un identificador mal formado, error. **Ni el permiso, ni el alcance, ni el orden, ni el conteo cambian.** `CA-MV-717` a `CA-MV-719`. | Responsable del proyecto |

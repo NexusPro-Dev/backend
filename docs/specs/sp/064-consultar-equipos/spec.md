@@ -8,6 +8,12 @@
 | Autor | Responsable técnico |
 | Aprobada por | Responsable del proyecto |
 | Fecha de aprobación | 22-09-2026 |
+| Versión | 0.2.0 |
+| Enmendada | 09-10-2026 — **un director por equipo** (`RN-SP-051`, `RN-SP-052` enmendadas): `memberCount` vale **0 o 1**. Por decisión del responsable del proyecto. `CA-SP-992` |
+
+!!! warning "Enmendado el 09-10-2026 — `memberCount` vale cero o uno"
+
+    Decisión del responsable del proyecto, 09-10-2026: a un equipo solo pertenecen **directores**, y **uno vigente por equipo** (`RN-SP-051`, `RN-SP-052`; `RF-SP-069` v0.2.0). **El listado no cambia de forma ni de reglas**: `memberCount` sigue contando las pertenencias **vigentes**, sin el historial y sin mirar el estado del equipo. Lo que cambia es **qué valores puede tomar**: **uno** si el equipo tiene director vigente, **cero** si no; un equipo `INACTIVO` con su director dice uno. Donde este documento habla de «tres managers» o de varios miembros vigentes en un equipo, el ejemplo ya no puede darse. `CA-SP-745` sigue en pie con su ejemplo —dos cerradas y una abierta dicen uno—, y su segunda mitad se lee con **un** director. `CA-SP-992`.
 
 ---
 
@@ -81,7 +87,7 @@ La envoltura de página del sistema —`content`, `totalElements`, `totalPages`,
 
 **El orden por omisión es alfabético por nombre**, y no por fecha de alta como en el listado de productos: un equipo se busca por su nombre porque es lo único que lo identifica (`RN-SP-050`), y una lista de equipos es corta y se recorre con la vista. `createdAt` queda en la lista cerrada para quien quiera ver los últimos creados.
 
-**`memberCount` cuenta vigentes y no históricos**, y no depende del estado del equipo: un equipo `INACTIVO` con tres managers dice tres, porque desactivarlo no los saca (`RN-SP-053`). Un equipo **eliminado** —que solo sale con `includeDeleted=true`— dice **cero**, y no por una regla aparte: `RN-SP-054` impide eliminarlo con vigentes, de modo que cualquier equipo eliminado los tiene todos cerrados.
+**`memberCount` cuenta vigentes y no históricos**, y no depende del estado del equipo: un equipo `INACTIVO` con tres managers dice tres —desde el 09-10-2026, **con su director dice uno**: `memberCount` vale cero o uno—, porque desactivarlo no los saca (`RN-SP-053`). Un equipo **eliminado** —que solo sale con `includeDeleted=true`— dice **cero**, y no por una regla aparte: `RN-SP-054` impide eliminarlo con vigentes, de modo que cualquier equipo eliminado los tiene todos cerrados.
 
 ## 7. Precondiciones y postcondiciones
 
@@ -131,9 +137,10 @@ La envoltura de página del sistema —`content`, `totalElements`, `totalPages`,
 | `CA-SP-742` | El sistema **excluye** los eliminados salvo `includeDeleted=true`, y entonces los trae con `deletedAt` y `memberCount` en cero |
 | `CA-SP-743` | `status=ACTIVO` y `status=INACTIVO` acotan la página y `totalElements`; un valor que no existe es `400` (`VAL-002`) |
 | `CA-SP-744` | La búsqueda por `q` acota **por contenido** y sin distinguir mayúsculas ni acentos: «norte» encuentra «Equipo Norte» y «Región NORTE» |
-| `CA-SP-745` | `memberCount` cuenta **solo los vigentes**: un equipo con dos pertenencias cerradas y una abierta dice uno, y un equipo `INACTIVO` con miembros los sigue contando |
+| `CA-SP-745` | `memberCount` cuenta **solo los vigentes**: un equipo con dos pertenencias cerradas y una abierta dice uno, y un equipo `INACTIVO` con miembros los sigue contando — **enmendado el 09-10-2026**: «sus miembros» es **su director**, y cuenta uno |
 | `CA-SP-746` | El número de sentencias **no crece** con el tamaño de la página: una página de uno y una de veinte cuestan lo mismo, **dos** —página y total— |
 | `CA-SP-747` | Sin `teams:list` la consulta responde `403` **aunque el actor porte `teams:read`**, y `EndpointPermissionsIT` recibe `GET /teams` con su código |
+| `CA-SP-992` | `memberCount` vale **uno** en un equipo con director vigente —también `INACTIVO`— y **cero** en uno sin director, aunque haya tenido varios en su historial; nunca más de uno (09-10-2026) |
 
 ## 13. Casos límite
 
@@ -161,3 +168,4 @@ La envoltura de página del sistema —`content`, `totalElements`, `totalPages`,
 | Versión | Fecha | Cambio | Responsable |
 |---|---|---|---|
 | 0.1.0 | 22-09-2026 | Redacción inicial. Hereda la forma de `RF-SP-002` y `RF-AC-002` —paginado, búsqueda sin acentos, eliminados fuera salvo que se pidan, desempate por identificador— y **cambia el orden por omisión a alfabético**, porque el equipo no tiene orden propio y el nombre es lo único que lo identifica. `memberCount` de los **vigentes**, en la misma sentencia; dos sentencias fijas. La lectura inversa —el equipo de una persona— queda fuera y declarada pendiente. Ocho criterios, `CA-SP-740` a `CA-SP-747`. | Responsable del proyecto |
+| 0.2.0 | 09-10-2026 | **Un director por equipo**, por decisión del responsable del proyecto: `memberCount` vale cero o uno; la forma y las reglas del listado no cambian. `CA-SP-745` enmendado; `CA-SP-992`. | Responsable del proyecto |

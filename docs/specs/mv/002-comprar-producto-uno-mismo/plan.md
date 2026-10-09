@@ -3,10 +3,11 @@
 | Campo | Valor |
 |---|---|
 | Requerimiento | `RF-MV-002` |
-| Especificación | [`spec.md`](spec.md) |
+| Especificación | [`spec.md`](spec.md) v0.6.0 |
 | `spec.md` aprobada el | 02-09-2026 |
-| Versión | 0.3.0 |
+| Versión | 0.4.0 |
 | Estado | **Aprobado** |
+| Enmendado el | 09-10-2026 — la oficina de la línea (`RN-MV-078`): sin componente propio, la escribe el registro compartido ([`RF-MV-001`](../001-registrar-venta/plan.md) §2.8); `PurchaseResponse` no cambia |
 | Enmendado el | 03-10-2026 — `RN-MV-006` rechaza también el salto; la comprobación es la de `RF-MV-001` (`plan.md` §3.2) y este plan no cambia de forma: una fila más en la estrategia de prueba (§11) |
 | Enmendado el | 16-09-2026 — `clientId` pasa a llamarse `userId` en `RF-MV-001` y el vendedor vive en la línea; este plan no cambia de forma |
 | Autor | Responsable técnico |
@@ -20,6 +21,10 @@
     **Prueba de pertenencia:** si al negocio no le importa ni lo entendería, va aquí.
 
 Este plan **hereda entero** el de [`RF-MV-001`](../001-registrar-venta/plan.md) —esquema, lecturas cruzadas, código de comprobante, auditoría y transaccionalidad— y decide una sola cosa: **cuánto de esa maquinaria se comparte y dónde se separa**.
+
+!!! warning "Enmendado el 09-10-2026 — la oficina de la línea"
+
+    `spec.md` v0.6.0 (`RN-MV-078`). **Sin componente propio**: la compra propia registra por `RegisterSaleService.registrar`, que desde la enmienda de [`RF-MV-001`](../001-registrar-venta/plan.md) §2.8 pregunta `SellerTeamLookup.teamAt(vendedor, ocurrioEn)` tras la atribución y copia el resultado en cada línea; aquí `ocurrioEn` es ahora, porque la compra no admite fecha del hecho (§1). **`PurchaseResponse` y `PurchaseLineResponse` no cambian**: no llevan el vendedor (§3.2) y tampoco llevan su oficina, de modo que la forma `LineTeam` no entra en esta respuesta. **Prueba**: `CA-MV-712` en la suite de esta ruta, leyendo `movement_details.team_id` y la instantánea de la auditoría, y comprobando que el cuerpo no trae `team`. **La ruta aún no está construida** (`tasks.md`, todo **Pendiente**): la prueba nace con ella.
 
 ---
 
@@ -126,6 +131,7 @@ La de `RF-MV-001`. Sin cambios.
 | Oferta y nivel | Integración | `CA-MV-024` |
 | **El salto** | Integración | `CA-MV-528`: un salto sembrado por SQL con origen en la membresía del actor, rechazado **por la oferta**. La rama de `EX-005` la prueba `RF-MV-001` sobre el mismo caso de uso (`T-37`) |
 | Funcionario sin membresía | Integración | `CA-MV-025`: rechazado **por la oferta** |
+| **La oficina, invisible** (09-10-2026) | Integración | `CA-MV-712`: lo guardado y la auditoría la llevan, **la respuesta no** |
 | **Las dos puertas producen lo mismo** | Integración | `CA-MV-026`: se registra una venta por cada camino y se comparan campo a campo, salvo identificador, código y fechas |
 
 **No se repiten las pruebas de composición** —productos repetidos, dos upgrades, monedas distintas—. Las cubre `RF-MV-001` sobre el mismo caso de uso, y duplicarlas aquí solo probaría que el enrutado funciona. Lo que sí se prueba es **todo lo que esta puerta hace distinto**, que son las seis primeras filas.

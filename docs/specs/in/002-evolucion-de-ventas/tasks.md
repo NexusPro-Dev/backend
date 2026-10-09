@@ -3,8 +3,8 @@
 | Campo | Valor |
 |---|---|
 | Requerimiento | `RF-IN-002` |
-| Especificación | [`spec.md`](spec.md) v0.2.0 |
-| Plan | [`plan.md`](plan.md) v0.2.0 |
+| Especificación | [`spec.md`](spec.md) v0.3.0 |
+| Plan | [`plan.md`](plan.md) v0.3.0 |
 | `plan.md` aprobado el | 06-10-2026 |
 | Estado | **Aprobadas** — por el responsable del proyecto, 06-10-2026. `T-01` a `T-06` `Hecha` el mismo día |
 | Issue | Pendiente de crear |
@@ -35,6 +35,15 @@
 |---|---|---|---|---|
 | `T-07` | `GetSalesSeriesService` sobre el periodo abierto; `SalesSeriesIT`: `CA-IN-055` y `CA-IN-056`, y `CA-IN-020`/`CA-IN-022` reescritos | `RF-IN-001` · `T-15` | | **Hecha** — 06-10-2026 |
 
+### 1.2 Filtro por oficina — 09-10-2026 (`RN-IN-014`)
+
+Enmienda de hecho (Art. I.7), `spec.md` 0.3.0 y `plan.md` 0.3.0 **antes** del código.
+
+| ID | Tarea | Depende de | Verificación | Estado |
+|---|---|---|---|---|
+| `T-08` | `SalesFigures.confirmedByBucket` con `LineFilter` (la de siempre delega con `none()`); `GetSalesSeriesService` lo pasa con `teamId`; `SalesIndicatorsController` recibe y documenta `teamId` en `/sales/series` | `RF-IN-001` · `T-17`, `T-18` | Sin `teamId`, la serie no cambia | **Pendiente** |
+| `T-09` | `SalesSeriesIT`: `CA-IN-101`, la suma de los tramos contra el resumen con la misma oficina; contrato regenerado y prosa releída; `api/index.md` y matriz | `T-08`, `RF-IN-001` · `T-19` | Solo altas | **Pendiente** |
+
 ---
 
 ## 2. Cobertura de los criterios de aceptación
@@ -46,6 +55,7 @@
 | `CA-IN-018`, `CA-IN-019` | `T-01`, `T-02`, `T-05` |
 | `CA-IN-020`, `CA-IN-021` | `T-03`, `T-05` |
 | `CA-IN-022` | `T-03`, `T-04`, `T-05` |
+| `CA-IN-101` | `T-08`, `T-09` — 09-10-2026 |
 
 ---
 

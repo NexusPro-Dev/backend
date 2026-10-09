@@ -3,8 +3,8 @@
 | Campo | Valor |
 |---|---|
 | Requerimiento | `RF-IN-001` |
-| Especificación | [`spec.md`](spec.md) v0.3.0 |
-| Plan | [`plan.md`](plan.md) v0.3.0 |
+| Especificación | [`spec.md`](spec.md) v0.4.0 |
+| Plan | [`plan.md`](plan.md) v0.4.0 |
 | `plan.md` aprobado el | 06-10-2026 |
 | Estado | **Aprobadas** — por el responsable del proyecto, 06-10-2026. `T-01` a `T-10` `Hecha` el mismo día |
 | Issue | Pendiente de crear |
@@ -51,6 +51,16 @@ Enmienda de hecho (Art. I.7), `spec.md` 0.2.0 y `plan.md` 0.2.0 **antes** del c�
 | `T-15` | `SalesFigures.summaryByBucket`; `SalesCalendar` arranca en el primer dato si no hay «desde»; `GetSalesSummaryService` con `granularity` y `buckets` (nulos sin tramo); `VAL-005` junto a `VAL-002` | `T-14` | Suma de los tramos = total | **Hecha** — 06-10-2026 |
 | `T-16` | `SalesSummaryIT`: `CA-IN-050` a `CA-IN-054`; los casos que asumían el mes en curso y los 366 días, reescritos; contrato y documentos | `T-15` | | **Hecha** — 06-10-2026 |
 
+### 1.3 Filtro por oficina — 09-10-2026 (`RN-IN-014`)
+
+Enmienda de hecho (Art. I.7), `spec.md` 0.4.0 y `plan.md` 0.4.0 **antes** del código.
+
+| ID | Tarea | Depende de | Verificación | Estado |
+|---|---|---|---|---|
+| `T-17` | `SalesFigures.LineFilter` gana `teamId` (`none()` lo deja nulo); `JpaSalesFigures.donde` y `enlazar` añaden `d.team_id = :oficina` | La columna `movement_details.team_id` de `V95` (`RF-MV-001`, `RN-MV-078`) | `RF-IN-006` sin cambios con `teamId` nulo | **Pendiente** |
+| `T-18` | `SalesIndicatorRequest` gana `teamId`; `SalesIndicatorsController` lo recibe en `/sales/summary` y lo documenta —la oficina guardada en la línea, filtro y no alcance, ceros si no existe—; `GetSalesSummaryService` pasa el `LineFilter` a `summary` y `summaryByBucket` junto al `SalesScope` | `T-17` | El corte a ceros del vendedor fuera del alcance no cambia | **Pendiente** |
+| `T-19` | `SalesSummaryIT`: `CA-IN-098` a `CA-IN-100` —dos equipos con director sembrados antes de vender, una venta de dos oficinas, lo sin vendedor, la venta de un manager, el traslado—; contrato regenerado y prosa releída; `api/index.md` y matriz | `T-18` | Solo altas; una sentencia por petición | **Pendiente** |
+
 ---
 
 ## 2. Cobertura de los criterios de aceptación
@@ -66,6 +76,7 @@ Enmienda de hecho (Art. I.7), `spec.md` 0.2.0 y `plan.md` 0.2.0 **antes** del c�
 | `CA-IN-014` | `T-01`, `T-07`, `T-08` |
 | `CA-IN-038` a `CA-IN-040` | `T-11` a `T-13` — 06-10-2026 |
 | `CA-IN-050` a `CA-IN-054` | `T-14` a `T-16` — 06-10-2026 |
+| `CA-IN-098` a `CA-IN-100` | `T-17` a `T-19` — 09-10-2026 |
 
 ---
 

@@ -4,7 +4,7 @@
 |---|---|
 | Requerimiento | `RF-MV-002` |
 | Plan | [`plan.md`](plan.md), aprobado el 02-09-2026 |
-| Versión | 0.3.0 |
+| Versión | 0.4.0 |
 | Estado | **En revisión** |
 | Autor | Responsable técnico |
 | Aprobadas por | Pendiente |
@@ -36,6 +36,14 @@
 | `T-06` | Documentación OpenAPI: la operación **no exige permiso**, no admite cliente ni fecha, y **no devuelve el vendedor** | `T-04` | El contrato publicado dice las tres cosas | **Pendiente** |
 | `T-07` | Prueba del salto (03-10-2026, `RN-MV-006`): un salto sembrado por SQL con origen en la membresía del actor no se compra. El código es `RF-MV-001` · `T-36`, y la prosa de la ruta, `RF-MV-001` · `T-39` | `T-05`, `RF-MV-001` · `T-36`, `RF-PM-007` (filtro del escalón) | `CA-MV-528`: `EX-004`, y cero filas nuevas en `movements` y `payments` | **Pendiente** |
 
+### 1.1 La oficina de la línea — 09-10-2026
+
+Enmienda de hecho (Art. I.7), `spec.md` 0.6.0 y `plan.md` 0.4.0 **antes** del código (`RN-MV-078`). **Sin código propio**: el puerto, `V95` y la escritura del registro son de `RF-MV-001` (`T-49` a `T-52`).
+
+| ID | Tarea | Depende de | Verificación | Estado |
+|---|---|---|---|---|
+| `T-08` | Prueba de la oficina: la compra propia deja `team_id` en cada línea y en la instantánea, la del director del vendedor en el instante de la compra, y **el cuerpo no trae `team`** | `T-05`, `RF-MV-001` · `T-52` | `CA-MV-712` | **Pendiente** |
+
 ## 2. Orden de ejecución
 
 **`T-01` es la tarea de verdad, y es una refactorización y no una función nueva.** Sacar del caso de uso la resolución del cliente es lo que permite que las dos puertas compartan las nueve verificaciones sin que ninguna de las dos tenga una rama propia. Hacerla **después** de escribir el endpoint invitaría a copiar el servicio y ajustarlo, que es la alternativa que `plan.md` §9 descarta.
@@ -55,6 +63,7 @@
 | `CA-MV-023`, `CA-MV-024`, `CA-MV-025` | `T-01`, `T-05` |
 | `CA-MV-026` | `T-01`, `T-05` |
 | `CA-MV-528` | `T-07` |
+| `CA-MV-712` | `T-08` — 09-10-2026 |
 
 **`T-06` no cubre ningún criterio**: es el contrato publicado, y queda enumerada para que no parezca que sobra.
 

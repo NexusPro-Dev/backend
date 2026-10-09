@@ -6,6 +6,7 @@
 | Especificación | [`spec.md`](spec.md) |
 | Plan | [`plan.md`](plan.md) |
 | `plan.md` aprobado el | 22-08-2026 |
+| Enmendada | 09-10-2026 — `RN-SP-055`: el ascenso y el descenso de un director cierran su pertenencia al equipo (`T-27`, `T-28`, `CA-SP-990`, `CA-SP-991`) |
 | Estado | **Aprobadas** — 24-08-2026 |
 | Issue | Pendiente de crear |
 | Rama | `feature/roles-de-usuario` |
@@ -67,6 +68,15 @@ La regla nació el 28-08-2026 pidiéndola `CM` y **durante cinco días no la sos
 
 **`T-24` es lo que impide que el retiro sea invisible.** La operación se llama «asignar» y ahora también quita; si el evento solo cita lo que entra, **el rol retirado desaparece sin que nada lo explique**.
 
+### 1.2 `RN-SP-055` en la sustitución del rol vendedor — 09-10-2026
+
+Enmienda de hecho (Art. I.7), `spec.md` y `plan.md` enmendados el 09-10-2026 **antes** del código.
+
+| ID | Tarea | Depende de | Verificación | Estado |
+|---|---|---|---|---|
+| `T-27` | `AssignUserRolesService` consume `TeamMembershipRetirement`: si el rango resultante no es director (`CommercialStructure.esDirector`), cierra la pertenencia en la misma transacción, con `MOTIVO_RN_SP_055` | `RF-SP-069` `T-13` | `LayerRulesTest` en verde; las suites de `RF-SP-030` siguen pasando | **Pendiente** |
+| `T-28` | `TeamMembershipRetirementIT`: `CA-SP-990` (ascenso, descenso, misma correlación, fallo que no cierra) y `CA-SP-991` | `T-27` | | **Pendiente** |
+
 ## 2. Orden de ejecución
 
 ```mermaid
@@ -111,6 +121,7 @@ graph LR
 | `CA-SP-402` | `T-03`, `T-06`, `T-13` |
 | `CA-SP-260` | `T-09`, `T-13` |
 | `CA-SP-261` | `T-12`, `T-13` |
+| `CA-SP-990`, `CA-SP-991` | `T-27`, `T-28` — 09-10-2026 |
 
 `CA-SP-165` —serialización con la eliminación del rol— pertenece a `RF-SP-009` y se verifica desde el lado de aquel requerimiento; aquí lo cubre `T-14`, que ejecuta la mitad que corresponde a esta operación.
 

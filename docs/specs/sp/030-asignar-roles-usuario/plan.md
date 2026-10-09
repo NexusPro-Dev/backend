@@ -12,6 +12,10 @@
 
 ---
 
+!!! warning "Enmendado el 09-10-2026 — `RN-SP-055` en la sustitución del rol vendedor"
+
+    `spec.md`, enmienda del 09-10-2026. **`AssignUserRolesService` consume `TeamMembershipRetirement`**, el puerto que `teams` publica y que ya consumen `RevokeUserRolesService` (`RF-SP-031`) y `DeleteUserService` (`RF-SP-029`); el cruce `users` → `teams.application` es el mismo y ArchUnit ya lo admite. **La condición es la de `RF-SP-031`, sobre el estado resultante**: después de la sustitución y antes de la revocación de sesiones y la auditoría, si `estructura.rolDeMayorRango(resultantes).filter(estructura::esDirector).isEmpty()`, `equipos.retire(userId, MOTIVO_RN_SP_055)` —«Deja de tener el rango de director (RN-SP-055).»—, con `CommercialStructure.esDirector` de `RF-SP-069` · `T-13`. Se pregunta por el estado y no por el cambio porque el puerto **no falla ni escribe** si no hay pertenencia: a quien nunca fue director la llamada no le hace nada, y así la invariante se lee igual en las tres operaciones. **Transacción y correlación**: el puerto es `MANDATORY`, de modo que el cierre vive y muere con la asignación, y su fila de auditoría lleva la correlación de la petición, que pone `JpaAuditWriter`. **No abre nada**: ascender a director no crea pertenencia; eso es `RF-SP-069`. **Pruebas** en `TeamMembershipRetirementIT`, junto a `CA-SP-795`: `CA-SP-990` —ascenso y descenso de un director con equipo, la correlación compartida y el caso en que la asignación falla— y `CA-SP-991`. **Descartado**: cerrar solo cuando el rango «cambia» (`cambiaElRango`), que dejaría abierta una pertenencia heredada de antes de `V95` a quien ya no es director. **Sin migración propia**.
+
 !!! warning "Enmendado el 05-09-2026 — esta operación deja de tocar la membresía"
 
     `RN-SP-018` pasa de «todo **consumidor** tiene membresía» a «todo **usuario** la tiene», y `RN-SP-013` y `RN-SP-015` quedan **retiradas** (`requirements/sp.md` v1.36.0). La consecuencia sobre este plan es que **toda la lógica de membresía desaparece de él**, no que cambie.

@@ -10,6 +10,10 @@
 | Aprobado por | Responsable del proyecto |
 | Fecha de aprobación | 22-08-2026 |
 
+!!! warning "Enmendado el 09-10-2026 — la pertenencia que se cierra es la de un director"
+
+    `spec.md`, enmienda del 09-10-2026 (`RN-SP-051`, `RN-SP-052` y `RN-SP-055` enmendadas). **El código de `DeleteUserService` no cambia**: ya invoca `TeamMembershipRetirement.retire(userId, motivo)` **sin condición** —el puerto no falla si no hay pertenencia—, de modo que la regla nueva, que es la misma operación sobre directores, se cumple sin tocarlo; solo cambia su comentario, que dice «manager». Lo que cambia es **qué se prueba**: `CA-SP-987` en `TeamMembershipRetirementIT`, junto a `CA-SP-796`: un director con pertenencia vigente se elimina, su fila queda cerrada con la marca de `deleted_at` y el equipo, sin pertenencia vigente, acepta a otro director por `RF-SP-069` —lo que `uq_team_members_equipo_vigente` (`V95`) impediría si el cierre no ocurriera en esta transacción—. **Sin migración propia**.
+
 !!! warning "Enmendado el 23-09-2026 — eliminar CIERRA lo que la persona tiene, y son dos correcciones en una"
 
     **La primera corrige algo que dejó de ser cierto el 05-09-2026 y que este documento no recogió.** §1.2, §2 y §6 dicen que las filas de `user_memberships` **se borran**. Desde que la tabla es un historial (`RN-SP-014`, [`requirements/sp.md`](../../../requirements/sp.md) v1.35.0) eliminar **cierra** la fila en lugar de suprimirla: borrarla destruiría el historial de alguien cuya fila en `users` **sobrevive** al borrado lógico, y dejaría la auditoría apuntando a algo que ya no está. El código lo hace así desde entonces (`DeleteUserService`, `closeMembership`); el plan se queda corregido aquí.

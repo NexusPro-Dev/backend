@@ -4,8 +4,8 @@
 |---|---|
 | Requerimiento | `RF-MV-001` |
 | Plan | [`plan.md`](plan.md), aprobado el 02-09-2026 |
-| Versión | 0.8.0 |
-| Estado | **En curso** — `T-01` a `T-18` `Hecha`; `CA-MV-008` queda **sin prueba** hasta `RF-SP-045`; `T-25` a `T-30` `Hecha` el 16-09-2026 (§1.3); `T-31` a `T-35` `Hecha` el 16-09-2026 (§1.4); `T-36` a `T-39` `Hecha` el 03-10-2026 (§1.5, el escalón); `T-40` a `T-44` `Hecha` el 05-10-2026 (§1.6, los importes en centésimas; `T-42` sin entidades, ver §2.4); `T-45` a `T-48` **Pendiente** (§1.7, el alta gratuita confirmada) |
+| Versión | 0.9.0 |
+| Estado | **En curso** — `T-01` a `T-18` `Hecha`; `CA-MV-008` queda **sin prueba** hasta `RF-SP-045`; `T-25` a `T-30` `Hecha` el 16-09-2026 (§1.3); `T-31` a `T-35` `Hecha` el 16-09-2026 (§1.4); `T-36` a `T-39` `Hecha` el 03-10-2026 (§1.5, el escalón); `T-40` a `T-44` `Hecha` el 05-10-2026 (§1.6, los importes en centésimas; `T-42` sin entidades, ver §2.4); `T-45` a `T-48` **Pendiente** (§1.7, el alta gratuita confirmada); `T-49` a `T-54` **Pendiente** (§1.8, la oficina de cada línea, 09-10-2026) |
 | Autor | Responsable técnico |
 | Aprobadas por | Responsable del proyecto |
 | Fecha de aprobación | 04-09-2026 |
@@ -147,6 +147,19 @@ Enmienda del Art. I.7 por `RN-MV-075` y `RN-SP-057` (`plan.md` §2.7). **El camb
 | `T-47` | **`V68`**: la venta del alta y su pago, de `PENDIENTE` a confirmados, para cada cuenta en `FTD_PENDIENTE`, con `confirmed_at` = `created_at` de la venta (`plan.md` §2.7). Las líneas no se tocan. Las cuentas `ACTIVO` tampoco | — | `CA-MV-582`, con una venta sembrada `PENDIENTE` y la expresión de la migración ejecutada sobre ella, como `CA-PM-435` | **Hecha el 05-10-2026** |
 | `T-48` | **Pruebas**: `CA-MV-580` y `CA-MV-581` en `SelfRegistrationIT` —que hoy afirma `PENDIENTE` en `CA-SP-617`—, en la base y en la respuesta; y `CA-MV-582` | `T-45`, `T-47` | Las tres pasan; quitar la confirmación de `T-45` hace fallar `CA-MV-580` | **Hecha el 05-10-2026** |
 
+### 1.8 La oficina de cada línea — 09-10-2026
+
+Enmienda de hecho (Art. I.7), `spec.md` 0.11.0 y `plan.md` 0.9.0 **antes** del código (`RN-MV-078`, `plan.md` §2.8). **Aquí van el puerto de `teams`, `V95` y la escritura del registro**, que el resto del módulo cita: la compra de paquetes es de `RF-MV-012`, la asignación de `RF-MV-016`, el relleno de `RF-MV-058`, y la lectura —`team` en las respuestas, los listados y los filtros— de `RF-MV-007` y sus hermanos. **Las reglas de `SP`** —solo directores, uno por equipo, la pertenencia sigue al rango de director— son de `RF-SP-069`, `RF-SP-031` y `RF-SP-029`.
+
+| ID | Tarea | Depende de | Verificación | Estado |
+|---|---|---|---|---|
+| `T-49` | **`SellerTeamLookup`** (`system.teams.application`) y **`JpaSellerTeamLookup`** (`teams/domain/repository`): `teamAt` y `currentTeamsOf`, una `WITH RECURSIVE` cada uno, con la guarda de ciclos y el tope de 64 de `JpaSupervisorChain`; `currentTeamsOf` con el `Clock` inyectado (`plan.md` §2.8) | — | `SellerTeamLookupIT`: agente → director; director → él; manager → vacío; instante anterior a un traslado; ciclo sembrado; lote sin entrada para quien no tiene | **Pendiente** |
+| `T-50` | **`V95__mv_oficina_de_la_venta.sql`**: `team_id` con `ON DELETE SET NULL` y el índice parcial; cierre de las pertenencias vigentes de la cúspide; `uq_team_members_equipo_vigente`; los cinco equipos sin pisar un nombre existente; `movements:fill-line-teams` a `SUPERADMIN` y `ADMIN` | — | Aplica sobre una base con datos; las siete suites que cuentan el catálogo pasan a **234** (`ADMIN` **232**); las suites de `teams` que cuentan equipos o vacían la tabla siguen en verde | **Pendiente** |
+| `T-51` | **`MovementLine.teamId`**: los dos `copiarDe` lo reciben tras `sellerId`; con oficina y sin vendedor, `IllegalArgumentException`; `team_id` nulo y presente en la instantánea. **`insertarLineas`** escribe la columna | `T-50` | `MovementLineTest` | **Pendiente** |
+| `T-52` | **`RegisterSaleService.registrar`**: `teamAt(vendedor, ocurrioEn)` tras la atribución y antes de copiar; `SaleResponse.de` y `SaleLineResponse.de` con `team`; `MovementRepository.findTeamNames` | `T-49`, `T-51`, `RF-MV-007` (la forma `LineTeam`) | La respuesta del registro trae `team` en cada línea | **Pendiente** |
+| `T-53` | **Pruebas**: `CA-MV-704` a `CA-MV-710` en `RegisterSaleIT`; `CA-MV-711` en `SelfRegistrationIT` | `T-52` | Pasan; usar `ahora` en lugar de `ocurrioEn` hace fallar `CA-MV-709`, y leer la oficina de la estructura de hoy hace fallar `CA-MV-708` | **Pendiente** |
+| `T-54` | **Contrato**: la prosa de `POST /api/v1/movements` dice que cada línea trae **la oficina donde se vendió**, que **no se envía** y que la venta de un manager no la lleva; esquema regenerado | `T-52` | Diff del `json` | **Pendiente** |
+
 ## 2. Lo que se apartó del plan, y por qué
 
 **Tres apartados, los tres declarados como enmienda (Art. I.7).**
@@ -205,6 +218,8 @@ Queda declarado lo que esto obliga: **las lecturas de `RF-MV-006` y `RF-MV-007` 
 | `CA-MV-545` | `T-41`, `T-42`, `T-44` | Cubierto |
 | `CA-MV-580`, `CA-MV-581` | `T-45`, `T-48` | **Pendiente** |
 | `CA-MV-582` | `T-47`, `T-48` | **Pendiente** |
+| `CA-MV-704` a `CA-MV-710` | `T-49` a `T-53` | **Pendiente** — 09-10-2026 |
+| `CA-MV-711` | `T-49`, `T-52`, `T-53` | **Pendiente** — 09-10-2026 |
 
 **`CA-MV-011` necesita dos pruebas, y merece leerse dos veces.** Por HTTP, un upgrade que no sube **nunca llega** a `RN-MV-006`: la oferta de `RF-PM-007` ya lo excluyó, y el rechazo que se ve es `EX-004`. La prueba de integración lo comprueba así porque es lo que hoy ocurre de verdad, y el criterio queda satisfecho — se rechaza **al registrar**, que es lo que exige.
 

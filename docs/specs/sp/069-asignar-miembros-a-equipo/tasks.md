@@ -4,7 +4,7 @@
 |---|---|
 | Requerimiento | `RF-SP-069` |
 | Especificación | [`spec.md`](spec.md) |
-| Plan | [`plan.md`](plan.md), aprobado el 22-09-2026 |
+| Plan | [`plan.md`](plan.md), aprobado el 22-09-2026; enmendado a 0.2.0 el 09-10-2026 |
 | Estado | **Aprobadas** |
 | Issue | [#100](https://github.com/NexusPro-Dev/backend/issues/100) |
 | Rama | `feature/equipos` |
@@ -28,6 +28,19 @@
 | `T-10` | La prueba del lote de cien: el número de sentencias **no crece** con el tamaño de la lista —resolución en bloque, no una consulta por persona | `T-07` | El plan §10, riesgo del `N+1` | Hecha |
 | `T-11` | Contrato regenerado y comparado —solo altas— y `api/index.md` con su fila | `T-09`, `T-10` | El diff del contrato no toca ninguna forma existente | Hecha |
 | `T-12` | Matriz de `docs/requirements.md`, la ficha de `requirements/sp.md` §6.1 y los estados de esta tripleta y de la de `RF-SP-067` | `T-11` | Las filas de `RF-SP-069` y `RF-SP-067` reflejan el estado | Hecha |
+
+### 1.1 Directores, uno por equipo — 09-10-2026
+
+Enmienda de hecho (Art. I.7), `spec.md` 0.2.0 y `plan.md` 0.2.0 **antes** del código.
+
+| ID | Tarea | Depende de | Verificación | Estado |
+|---|---|---|---|---|
+| `T-13` | `CommercialStructure.esDirector` por la forma de la jerarquía; `TeamMembershipRules` pregunta por `esDirector` en lugar de `esCuspide` | — | `TeamMembershipRulesTest` reescrita: director sí; manager, agente, cliente y sin rol, no; el código del rol renombrado no cambia el veredicto | **Pendiente** |
+| `T-14` | `AssignTeamMembersRequest` con tope de una persona (`VAL-003`) sobre la lista ya sin repetidos | — | `CA-SP-983` | **Pendiente** |
+| `T-15` | `TeamMemberRepository.findActiveOfTeam`; `AssignTeamMembersService` con el `409` de `EX-005` antes de escribir, el mensaje nuevo de `EX-004`; `JpaTeamMemberRepository.traducir` reconoce `uq_team_members_equipo_vigente` y da el mismo `409` | `T-13`, `T-14`, la unicidad de `V95` (`RF-MV-001`) | `CA-SP-980`, `CA-SP-981`, `CA-SP-982` | **Pendiente** |
+| `T-16` | `TeamController`: la prosa OpenAPI de `POST /teams/{id}/members` —un director, una persona, el `409` del equipo ocupado y cómo se cambia de encargado— y la de las demás rutas del submódulo donde dice «manager» | `T-15` | Contrato regenerado, solo prosa y la respuesta `409` nueva | **Pendiente** |
+| `T-17` | `TeamMembersIT` con fixture de directores: `CA-SP-980` a `CA-SP-983` y los criterios de antes reescritos; `TeamConcurrencyIT`: dos directores al mismo equipo (`CA-SP-984`); `TeamsSchemaIT`: la unicidad nueva y el cierre de managers de `V95` (`CA-SP-985`); `TeamDetailIT`, `TeamListIT`, `TeamMemberRemovalIT` y `TeamStatusIT` con un miembro vigente por equipo; se retira la prueba del lote de cien (`T-10`) | `T-15`, `T-16` | Las suites del submódulo en verde | **Pendiente** |
+| `T-18` | `api/index.md`, matriz y estado de esta tripleta | `T-17` | | **Pendiente** |
 
 ## 2. Orden de ejecución
 
@@ -60,6 +73,10 @@ graph LR
 | `CA-SP-788` | `T-05`, `T-06`, `T-07` |
 | `CA-SP-766` (de `RF-SP-067`) | `T-08` |
 | `CA-SP-777` (de `RF-SP-068`) | `T-09` |
+| `CA-SP-980` a `CA-SP-982` | `T-13`, `T-15`, `T-17` — 09-10-2026 |
+| `CA-SP-983` | `T-14`, `T-17` — 09-10-2026 |
+| `CA-SP-984` | `T-15`, `T-17` — 09-10-2026 |
+| `CA-SP-985` | `T-17` y la migración `V95` (`RF-MV-001`) — 09-10-2026 |
 
 ## 4. Bloqueos
 

@@ -12,8 +12,13 @@
 | Enmendada | 22-08-2026 — `RN-SP-019` cierra el superior comercial al retirar el último rol `VENDEDOR`, y `RN-SP-022` rechaza el retiro de quien tiene equipo a cargo, al registrarse `RF-SP-041` (Art. I.7) |
 | Enmendada | 24-08-2026 — `RN-SP-023` impide dejar a la persona sin ningún rol: `FA-002` se retira, nace `EX-006` y `CA-SP-269` se invierte (Art. I.7) |
 | Enmendada | 23-09-2026 — `RN-SP-055`: si el retiro deja a la persona sin el rol comercial de mayor rango, **su pertenencia al equipo se cierra en la misma transacción y con la misma correlación**, al construirse `RF-SP-070` (Art. I.7). Lo verifica `CA-SP-795` de aquella tripleta; el código lo toca su `T-10` |
+| Enmendada | 09-10-2026 — `RN-SP-055` enmendada: la pertenencia a un equipo sigue al **rango de director** (`RN-SP-051`), no al de manager; si el retiro deja a la persona **sin el rango de director**, su pertenencia se cierra en la misma transacción y con la misma correlación. Por decisión del responsable del proyecto. `CA-SP-988` y `CA-SP-989` |
 
 ---
+
+!!! warning "Enmendado el 09-10-2026 — la pertenencia sigue al rango de director"
+
+    Decisión del responsable del proyecto, 09-10-2026: «los encargados de los equipos son los directores, no los managers». Desde entonces a un equipo solo pertenecen **directores**, uno por equipo (`RN-SP-051`, `RN-SP-052`), y `RN-SP-055` se enmienda con ellos: **lo que se sigue es el rango de director**. Si este retiro deja a la persona **sin el rango de director** —el rol vendedor de mayor rango que conserva ya no es el que está justo debajo de la cúspide, o no conserva ninguno—, **su pertenencia vigente se cierra** en la misma transacción, con la fecha de esta operación y la misma correlación, y la fila **no se borra**. Como cada persona porta un solo rol vendedor (`RN-SP-025`), en esta operación eso ocurre **al retirarle el rol de director**; retirarle cualquier otro rol —uno consumidor, uno de funcionario— **no** la saca del equipo. **Retirar su rol a un manager ya no toca ningún equipo**: los managers dejan de tener pertenencia, y la migración del 09-10-2026 cierra las que tenían. **Un ascenso o un descenso también es un retiro** según `RN-SP-055`; en el sistema, cambiar a alguien de rol vendedor es una **sustitución** que hace `RF-SP-030` al asignar el nuevo (`RN-SP-025`), y no esta operación: **allí se cierra la pertenencia del mismo modo** (`RF-SP-030`, enmienda del 09-10-2026, `CA-SP-990`). **Las ventas ya hechas no cambian de oficina**: la oficina se congeló en cada línea el día de la venta (`RN-MV-078`). `CA-SP-988` y `CA-SP-989`.
 
 !!! note "Enmienda de Art. I.7 — 19-09-2026, `RF-SP-060`"
 
@@ -75,7 +80,7 @@ Esa es la asimetría deliberada con `RF-SP-030`, que **no** las revoca. Conceder
 | `RN-SP-005` | La eliminación de una asociación se audita sin motivo declarado | `requirements/sp.md` §5.1 |
 | `RN-SP-019` | Todo vendedor tiene superior: retirar el último rol `VENDEDOR` cierra su asignación | `requirements/sp.md` §5.1 |
 | `RN-SP-022` | Ningún equipo se queda sin superior: no se retira el rol comercial a quien tiene gente a cargo | `requirements/sp.md` §5.1 |
-| `RN-SP-055` | La pertenencia a un equipo **sigue al rol**: quien deja de ser manager sale de su equipo en la misma transacción | `requirements/sp.md` §5.1 |
+| `RN-SP-055` | La pertenencia a un equipo **sigue al rol**: quien deja de ser manager sale de su equipo en la misma transacción. **Enmendada el 09-10-2026**: sigue al **rango de director** | `requirements/sp.md` §5.1 |
 
 ## 6. Datos
 
@@ -110,7 +115,7 @@ No se declara motivo: es la eliminación de una asociación (Art. V.13).
 - Los roles quedan desasociados del usuario, y los que no se pidieron se conservan.
 - Si la persona queda sin ningún rol `CONSUMIDOR`, **su membresía queda retirada con ellos**, en la misma transacción y bajo el mismo identificador de correlación (`RN-SP-015`).
 - Si la persona queda sin ningún rol `VENDEDOR`, **su asignación de superior queda cerrada** con la fecha de fin de esta operación, en la misma transacción y con la misma correlación (`RN-SP-019`). La fila **no se borra**: quién estuvo a cargo de quién, y hasta cuándo, es historial de negocio (`RN-SP-021`).
-- Si la persona queda sin el rol comercial **de mayor rango**, **su pertenencia al equipo queda cerrada** con la fecha de fin de esta operación, en la misma transacción y con la misma correlación (`RN-SP-055`, enmienda del 23-09-2026). La fila **no se borra**: sigue en el historial, igual que la del superior comercial. Sin esto, un equipo podría contener a quien ya no es manager, y `RN-SP-051` se cumpliría al asignar y dejaría de cumplirse después sin que nadie lo notara.
+- Si la persona queda sin el rol comercial **de mayor rango**, **su pertenencia al equipo queda cerrada** con la fecha de fin de esta operación, en la misma transacción y con la misma correlación (`RN-SP-055`, enmienda del 23-09-2026). La fila **no se borra**: sigue en el historial, igual que la del superior comercial. Sin esto, un equipo podría contener a quien ya no es manager, y `RN-SP-051` se cumpliría al asignar y dejaría de cumplirse después sin que nadie lo notara. **Desde el 09-10-2026** se lee «sin el rango de **director**»: es el rango que tiene equipo (`CA-SP-988`).
 - Sus permisos efectivos dejan de incluir los de esos roles, **salvo los que otro de sus roles siga concediendo**.
 - **Todos sus refresh tokens quedan revocados y sus tokens de acceso vigentes dejan de admitirse**, de modo que el retiro tiene efecto de inmediato y no en quince minutos. La persona debe autenticarse de nuevo.
 - Queda constancia en la auditoría de eliminación, sin motivo declarado, y en la de seguridad con severidad alta y el usuario afectado como objeto del evento.
@@ -227,6 +232,8 @@ Es además la razón por la que este rechazo no puede resolverse «retirando tod
 | `CA-SP-361` | Tras el retiro, los refresh tokens de la persona quedan revocados y su token de acceso vigente deja de admitirse |
 | `CA-SP-362` | El permiso retirado deja de concederse **de inmediato**, sin esperar a que expire ningún token |
 | `CA-SP-363` | La asignación de `RF-SP-030` **no** revoca sesiones, y el retiro sí: la asimetría es verificable |
+| `CA-SP-988` | Retirar a un **director** su rol de director **cierra su pertenencia** al equipo con la fecha de la operación, en la misma transacción y bajo el mismo identificador de correlación que el retiro, y **no borra** la fila; su equipo queda sin director vigente (09-10-2026) |
+| `CA-SP-989` | Retirar a un director un rol que **no le quita el rango** —uno consumidor o de funcionario— **no** cierra su pertenencia; retirar su rol a un **manager** no escribe nada en las pertenencias a equipos (09-10-2026) |
 
 ## 13. Casos límite
 

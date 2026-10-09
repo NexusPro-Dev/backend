@@ -4,9 +4,10 @@
 |---|---|
 | Requerimiento | `RF-MV-015` |
 | Módulo | `MV` — Movimientos |
-| Versión | 0.4.0 |
+| Versión | 0.5.0 |
 | Estado | **Aprobada** |
 | Enmendada el | 21-09-2026 — gana el **método de pago** y el **comprobante** como filtros, por decisión del responsable (§2.2, §6.1, §12). Ver §15 |
+| Enmendada el | 09-10-2026 — **la oficina de cada venta** (`RN-MV-078`): cada fila trae sus oficinas y se filtra por oficina **dentro del alcance** (§2.2, §6.1, §6.2, §11, §12, §13). Ver §15 |
 | Autor | Responsable técnico |
 | Aprobada por | Responsable del proyecto |
 | Fecha de aprobación | 21-09-2026 |
@@ -28,6 +29,14 @@
     **Acota dentro del alcance, como todos**: se aplica después del alcance en la misma pregunta, de modo que un vendedor ve solo las ventas de ese cliente **que vendió su red**, y un cliente que no compró nada en mi alcance —o que no existe— da una **página vacía**, no un error. **No abre un oráculo nuevo**: lo que devuelve son ventas que quien pregunta ya ve sin el filtro. Para el consumidor, cualquier cliente que no sea él da vacío. **Se combina** con el filtro por vendedor y con los demás.
 
     **El filtro por persona de siempre no cambia de sentido**: sigue siendo el vendedor. Un cambio de significado rompería a quien ya lo usa (§6.1). `CA-MV-701` y `CA-MV-702`.
+
+!!! warning "Enmendado el 09-10-2026 — la oficina de cada venta: sus oficinas en la fila y el filtro por oficina, dentro del alcance"
+
+    `RN-MV-078` ([`requirements/mv.md`](../../../requirements/mv.md) v0.97.0 §4.13), a petición del responsable del proyecto: saber **en qué oficina se hizo cada venta**, y que cuando un agente se traslade lo que vendió se quede donde lo vendió. La oficina es el **equipo del director de la cadena del vendedor en el instante de la venta**, y queda **guardada en cada línea** junto a su vendedor. Esta consulta gana lo mismo que `RF-MV-006` el mismo día, **porque la fila es la misma** (§6.2): **cada fila trae sus oficinas** —las de sus líneas, sin repetir, con identificador y nombre—, **vacía y presente** cuando ninguna línea la tiene; y **se filtra por oficina**: las ventas con **al menos una línea** de esa oficina, una vez cada una.
+
+    **El filtro no es alcance, y no lo ensancha**: se aplica **después** del alcance en la misma pregunta, como el cliente y el comprobante. Un director que filtra por una oficina ve solo las ventas **de su red** con líneas de ella; **una oficina cuyas ventas quedan todas fuera de mi alcance da una página vacía**, y una que no existe, también —es un criterio de búsqueda y no un recurso—. **No abre un oráculo nuevo**: lo que devuelve son ventas que quien pregunta ya ve sin el filtro, y las oficinas que nombra son las que ya trae cada fila. Para el consumidor, filtra sus propias compras por la oficina donde se las vendieron. Un identificador **mal formado** es un error de validación.
+
+    **Se pregunta por lo guardado, nunca por la estructura de hoy** —y conviene no confundirlo con el alcance, que **sí** es de hoy (`FA-006`)—: una venta de mi red cuyo vendedor se trasladó a otra oficina después sigue saliendo bajo la oficina donde se vendió. **Lo que NO cambia**: el alcance, el permiso, el filtro por persona, el orden y el conteo. `CA-MV-723` a `CA-MV-725`.
 
 !!! info "Qué va en este documento"
 
@@ -65,6 +74,7 @@ El libro es de todos los hechos económicos y hoy solo hay ventas. La decisión 
 | Periodo | «¿Qué vendió mi red en septiembre?» — sobre **cuándo ocurrió** el hecho |
 | Método de pago (21-09-2026) | «¿Qué cobró mi gente por transferencia?» |
 | Código (21-09-2026) | «¿Dónde está este comprobante, si es de mi red?» |
+| Oficina (09-10-2026) | «¿Qué vendió mi red en la oficina Prime?» — por la oficina **guardada en alguna de sus líneas** (`RN-MV-078`), dentro de mi alcance |
 
 **Se combinan.** Lo que no se ofrece es lo mismo que `RF-MV-006` §2.2 deja fuera, y por lo mismo: texto libre, otro orden que el cronológico, y sumas — un total de lo vendido por la red es un **informe**, con sus reglas sobre qué cuenta, y este listado no las decide.
 
@@ -131,6 +141,7 @@ El libro es de todos los hechos económicos y hoy solo hay ventas. La decisión 
 | Método de pago (21-09-2026) | No | Solo las ventas pagadas con ese método. Uno que no exista da una **página vacía**, como en `RF-MV-006` |
 | Código (21-09-2026) | No | El comprobante **exacto**, sin distinguir mayúsculas, **si está en mi alcance**; si no, página vacía — el alcance va antes que el filtro |
 | Cliente (07-10-2026) | No | Solo las ventas **a nombre de esa persona**, de las que ya están en mi alcance. Un cliente sin ventas en mi alcance —o inexistente— da una **página vacía**, no un error. Para el consumidor, cualquiera que no sea él da vacío |
+| Oficina (09-10-2026) | No | Solo las ventas con **alguna línea** vendida en esa oficina, **de las que ya están en mi alcance**, una vez cada una. Por la oficina guardada en la línea, no por la estructura de hoy. Una oficina sin ventas en mi alcance —o inexistente— da una **página vacía**, no un error |
 
 **Sobre quién se pregunta NO se indica, y esa es la mitad del requerimiento**: el alcance sale de **quién es** quien pregunta —su tipo de rol y su lugar en la estructura—, y no hay forma de pedir el alcance de otra persona. El filtro por persona **acota dentro** del alcance; no lo cambia.
 
@@ -139,6 +150,8 @@ El libro es de todos los hechos económicos y hoy solo hay ventas. La decisión 
 Cada venta devuelve **lo mismo que una fila de `RF-MV-006` §6.2**: identificador y código, tipo, estado, sujeto, vendedores sin repetir, moneda y método de pago, importes, cuándo ocurrió y cuándo se confirmó. **Sin el papel** de quien pregunta: un manager no participa en lo que vendió su agente, y un campo que valiera «ninguno» casi siempre mentiría por omisión — es el mismo argumento de `RF-MV-006` §6.2.
 
 **Es la misma fila y no una nueva, a propósito.** Quien administra y quien dirige un equipo miran **la misma venta**; que la vieran con formas distintas obligaría al frontend a dos pantallas para un mismo hecho, que es lo contrario de lo que el responsable pidió.
+
+**Desde el 09-10-2026 la fila trae también las oficinas de sus líneas** (`RN-MV-078`), sin repetir y vacía y presente cuando no hay ninguna, porque la fila de `RF-MV-006` las trae.
 
 **El total puede ser aproximado**, como en `RF-MV-006`: para quien administra es la tabla entera, y una red grande crece con el libro.
 
@@ -211,7 +224,7 @@ Como `RF-MV-006` · `FA-003`: la página se devuelve, el total es el techo y la 
 |---|---|
 | `VAL-001` | La página no es negativa y el tamaño está dentro del límite del sistema |
 | `VAL-002` | El estado indicado, si viene, es uno de los que existen |
-| `VAL-003` | El identificador de persona —y el de cliente, desde el 07-10-2026—, si viene, está bien formado |
+| `VAL-003` | El identificador de persona —y el de cliente, desde el 07-10-2026, y el de oficina, desde el 09-10-2026—, si viene, está bien formado |
 | `VAL-004` | «Desde» y «hasta», si vienen, son instantes bien formados, y «desde» no es posterior a «hasta» |
 | `VAL-005` | El estado del tipo indicado, si viene, es uno del catálogo de estados por tipo (23-09-2026, `RF-MV-016`) |
 
@@ -237,6 +250,9 @@ Como `RF-MV-006` · `FA-003`: la página se devuelve, el total es el techo y la 
 | `CA-MV-136` | Los filtros por **método de pago** y por **código** acotan **dentro del alcance** y se combinan con los demás: el comprobante de una venta que no es de mi red da una página vacía, escrito como sea (21-09-2026) |
 | `CA-MV-701` | El filtro por **cliente** devuelve solo las ventas **a nombre de esa persona** dentro de mi alcance: un director ve las que le vendió su red, no las que le vendió otra rama; administración, todas las suyas; un cliente sin ventas en mi alcance, o inexistente, da una **página vacía** y no un error; para el consumidor, otro cliente da vacío (07-10-2026) |
 | `CA-MV-702` | El filtro por cliente **se combina** con el de vendedor y con los demás: con los dos, solo las ventas de ese cliente en las que esa persona vendió alguna línea (07-10-2026) |
+| `CA-MV-723` | Cada fila trae **sus oficinas**, como en `RF-MV-006` (`CA-MV-717`): las de sus líneas, sin repetir, con identificador y nombre, **vacía y presente** cuando ninguna línea tiene oficina (09-10-2026) |
+| `CA-MV-724` | El filtro por **oficina** acota **dentro del alcance**: un director ve solo las ventas de su red con alguna línea de esa oficina, no las de otra rama de la misma oficina; administración, todas las de la oficina; una oficina cuyas ventas quedan todas fuera de mi alcance da una **página vacía**; responde por la oficina **guardada**, y **se combina** con la persona, el cliente y los demás (09-10-2026) |
+| `CA-MV-725` | Una oficina **que no existe** da una **página vacía** y no un error; un identificador de oficina **mal formado** es un error de validación (09-10-2026) |
 
 **`CA-MV-123` a `CA-MV-125` son los que sostienen el requerimiento**, y **`CA-MV-127` es el que lo protege**: los primeros prueban que la red se recorre entera y que no se cruza a la rama de al lado; el último, que el filtro por persona no se convierte en la forma de descubrir la estructura.
 
@@ -253,6 +269,8 @@ Como `RF-MV-006` · `FA-003`: la página se devuelve, el total es el techo y la 
 | La estructura con un **ciclo**, aunque el sistema lo prohíba | La consulta **termina**: el recorrido acumula sin repetir, como `RN-SP-047` |
 | El **libro vacío**, o una red sin ventas | Página vacía y total cero, exacto |
 | Dos ventas **en el mismo instante** | Orden estable entre ellas, y no depende de la página |
+| Un vendedor de mi red que **se trasladó de oficina** (09-10-2026) | Sus ventas siguen en mi alcance mientras cuelgue de mí —el alcance es de hoy—, y cada una sigue bajo **la oficina donde se vendió** —la oficina es de entonces—. Las dos cosas no se contradicen: una dice quién ve la venta y la otra dónde se hizo |
+| Una venta **sin oficina** (09-10-2026) | Aparece sin filtrar, con la lista vacía; **no aparece** al filtrar por ninguna oficina |
 
 ---
 
@@ -272,3 +290,4 @@ Como `RF-MV-006` · `FA-003`: la página se devuelve, el total es el techo y la 
 | 0.2.0 | 21-09-2026 | **Gana el método de pago y el comprobante como filtros** (`requirements/mv.md` v0.33.0), por decisión del responsable del proyecto del mismo día —los tres filtros de `RF-MV-006` en todos los listados—, que revierte lo que §2.2 había dejado fuera con el argumento de «quien concilia tiene `RF-MV-006`»: un director también concilia lo de su gente. Los dos acotan **dentro del alcance** (`CA-MV-136`). Doce criterios. | Responsable del proyecto |
 | 0.3.0 | 23-09-2026 | **Cada fila publica el estado del tipo y se filtra por él** (`requirements/mv.md` v0.36.0, `RN-MV-033`; Art. I.7), con `RF-MV-016`: `VAL-005` para un código que no existe, criterios en `CA-MV-161`. **Una venta por validar no está en el alcance de ningún vendedor** mientras ninguna de sus líneas sea suya —`RN-MV-031` mira el `seller_id` de las líneas, y no hay ninguno—; entra en cuanto se le asigna una. No cambia la regla: es lo que la regla dice de una línea sin vendedor. | Responsable del proyecto |
 | 0.4.0 | 07-10-2026 | **Se filtra también por cliente**, a petición del responsable del proyecto: las ventas **a nombre de esa persona**, dentro del alcance; fuera de él o inexistente, página vacía. El filtro por persona sigue siendo el vendedor. `CA-MV-701` y `CA-MV-702`. | Responsable del proyecto |
+| 0.5.0 | 09-10-2026 | **La oficina de cada venta** ([`requirements/mv.md`](../../../requirements/mv.md) v0.97.0 §4.13, `RN-MV-078`; Art. I.7 sobre un requerimiento construido), a petición del responsable del proyecto, con `RF-MV-006` el mismo día: cada fila trae **sus oficinas**, y se filtra **por oficina** —las ventas con alguna línea de ella, por la oficina guardada y no por la estructura de hoy— **dentro del alcance**: fuera de él, o inexistente, página vacía. El alcance, el permiso y el filtro por persona no cambian. `CA-MV-723` a `CA-MV-725`. | Responsable del proyecto |

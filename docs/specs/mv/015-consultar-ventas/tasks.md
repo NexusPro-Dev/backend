@@ -50,6 +50,16 @@ Enmienda de hecho (Art. I.7), `spec.md` 0.4.0 y `plan.md` 0.3.0 **antes** del c�
 | `T-12` | `ListSalesRequest` y `SalesFilter` ganan `clientId`; `filtroDeVentas` añade `m.user_id = :cliente` después del alcance; `ListSalesService` lo pasa, sin corte previo | — | Con alcance propio y otro cliente, vacío | **Hecha** — 07-10-2026 |
 | `T-13` | `MovementController`: `clientId` documentado; `SalesIT`: `CA-MV-701` y `CA-MV-702`; contrato regenerado; `docs/api/index.md`, `requirements/mv.md` y matriz | `T-12` | `openapi.json` declara `clientId` en `GET /api/v1/movements/sales`; solo altas | **Hecha** — 07-10-2026 (`SalesIT`, 14; el contrato lo regeneró el commit de `RN-CM-047`, que corrió con este código en el árbol) |
 
+### 1.3 La oficina de cada venta — 09-10-2026
+
+Enmienda de hecho (Art. I.7), `spec.md` 0.5.0 y `plan.md` 0.4.0 **antes** del código. Sin migración propia: la columna y su índice los trae `V95`.
+
+| ID | Tarea | Depende de | Verificación | Estado |
+|---|---|---|---|---|
+| `T-14` | `ListSalesService` pasa a `ListMovementsService.de` las oficinas de `oficinasDe`, como hoy los vendedores | `RF-MV-006` `T-18` | `teams` en cada fila, vacía y presente sin oficina; cuatro sentencias por página | **Pendiente** |
+| `T-15` | `ListSalesRequest` y `SalesFilter` ganan `teamId`; `filtroDeVentas` añade el `EXISTS` sobre `d.team_id` **después del alcance**; `ListSalesService` lo pasa, **sin corte previo**; `MovementController`: `teamId` como `UUID`, documentado —dentro del alcance, inexistente vacío, mal formado `400`— | `T-14` | Con alcance de red y una oficina con ventas solo en otra rama, vacío | **Pendiente** |
+| `T-16` | `SalesIT`: `CA-MV-723` a `CA-MV-725`, con un equipo propio de nombre único con ventas en las dos ramas, limpiado al terminar; contrato regenerado —solo altas—; `docs/api/index.md` y matriz | `T-15` | `openapi.json` declara `teamId` en `GET /api/v1/movements/sales` y `teams` en `MovementSummary` | **Pendiente** |
+
 ---
 
 ## 2. Cobertura de los criterios de aceptación
@@ -64,6 +74,7 @@ Enmienda de hecho (Art. I.7), `spec.md` 0.4.0 y `plan.md` 0.3.0 **antes** del c�
 | `CA-MV-132` | `T-04`, `T-08` |
 | `CA-MV-136` | `T-10`, `T-11` — 21-09-2026 |
 | `CA-MV-701`, `CA-MV-702` | `T-12`, `T-13` — 07-10-2026 |
+| `CA-MV-723` a `CA-MV-725` | `T-14` a `T-16` — 09-10-2026 |
 
 ---
 

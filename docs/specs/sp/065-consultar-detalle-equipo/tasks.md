@@ -28,6 +28,15 @@
 | `T-10` | Contrato regenerado y comparado —solo altas— y `api/index.md` con su fila | `T-09` | El diff del contrato no toca ninguna forma existente | Hecha |
 | `T-11` | Matriz de `docs/requirements.md`, la ficha de `requirements/sp.md` §6.1 y los estados de esta tripleta | `T-10` | La fila de `RF-SP-065` refleja el estado | Hecha |
 
+### 1.1 Un director por equipo — 09-10-2026
+
+Enmienda de hecho (Art. I.7), `spec.md` 0.2.0 y `plan.md` 0.2.0 **antes** del código.
+
+| ID | Tarea | Depende de | Verificación | Estado |
+|---|---|---|---|---|
+| `T-12` | `TeamDetailIT`: fixture con un director vigente por equipo y el historial en filas cerradas; `CA-SP-749` reescrito y `CA-SP-993` | `RF-SP-069` `T-15` (la unicidad de `V95`) | La suite en verde con `uq_team_members_equipo_vigente` | **Pendiente** |
+| `T-13` | La prueba de sentencias del detalle con director y sin él (`CA-SP-994`), en lugar de «uno y cinco miembros»; la prosa OpenAPI de `members` y `memberCount` | `T-12` | Dos sentencias vivo, tres eliminado | **Pendiente** |
+
 ## 2. Orden de ejecución
 
 ```mermaid
@@ -50,6 +59,8 @@ graph LR
 | `CA-SP-753` | `T-04`, `T-08` |
 | `CA-SP-754` | `T-09` |
 | `CA-SP-755` | `T-06`, `T-07`, `T-08` |
+| `CA-SP-993` | `T-12` — 09-10-2026 |
+| `CA-SP-994` | `T-13` — 09-10-2026 |
 
 ## 4. Bloqueos
 

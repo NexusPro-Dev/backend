@@ -3,11 +3,12 @@
 | Campo | Valor |
 |---|---|
 | Requerimiento | `RF-MV-015` |
-| Especificación | [`spec.md`](spec.md) v0.1.0 |
+| Especificación | [`spec.md`](spec.md) v0.5.0 |
 | `spec.md` aprobada el | 21-09-2026 |
-| Versión | 0.3.0 |
+| Versión | 0.4.0 |
 | Estado | **Aprobado** |
 | Enmendado el | 21-09-2026 — `paymentMethodId` y `code` (§4.1, §11) |
+| Enmendado el | 09-10-2026 — `teams` en la fila y el filtro `teamId` después del alcance (`RN-MV-078`; §4.1, §4.2, §7) |
 | Autor | Responsable técnico |
 | Aprobado por | Responsable del proyecto |
 | Fecha de aprobación | 21-09-2026 |
@@ -25,6 +26,18 @@
 !!! warning "Enmendado el 07-10-2026 — `clientId`"
 
     `spec.md` v0.4.0, a petición del responsable del proyecto. **Un parámetro nuevo, `clientId`** (UUID), y no un segundo sentido de `userId`: `userId` ya significa el vendedor y cambiarlo rompería a quien lo usa; `clientId` es el nombre que el responsable dio a la pregunta. **`ListSalesRequest` y `SalesFilter` ganan `clientId`**, y `filtroDeVentas` añade `m.user_id = :cliente` **después del alcance**, con `Filtro.igual`, como el método de pago. Lo responde `ix_movements_user` (`V12`). **Sin corte previo en `ListSalesService`**, al revés que `userId`: el corte de `userId` existe para no revelar quién cuelga de quién (§4.4), y aquí no hay nada que revelar —las filas que devuelve ya están en el alcance de quien pregunta—, de modo que el predicado basta y una persona inexistente da cero filas por sí sola. Con el alcance «solo yo», `m.user_id = :propietario` y `m.user_id = :cliente` se contradicen si el cliente es otro: vacío, que es `CA-MV-701`. Un `clientId` mal formado es `VAL-001` del manejador común, como `userId`. Prueba en `SalesIT`. **Ampliación**: ninguna forma cambia.
+
+!!! warning "Enmendado el 09-10-2026 — `teams` en la fila y el filtro `teamId`, después del alcance"
+
+    `spec.md` v0.5.0 (`RN-MV-078`, [`requirements/mv.md`](../../../requirements/mv.md) v0.97.0 §4.13). **Es la enmienda de `RF-MV-006` · `plan.md` v0.4.0 sobre las mismas piezas**, porque la fila y el repositorio son los mismos: la columna `movement_details.team_id` y su índice parcial `(team_id, movement_id) WHERE team_id IS NOT NULL` los trae `V95`, y aquí solo se leen. **Ninguna migración ni permiso.**
+
+    **La fila**: `MovementResponse.teams` (`List<LineTeam>`, nunca nula) ya la arma `ListMovementsService.de` con las oficinas de `ListMovementsService.oficinasDe` —estático junto a `vendedoresDe`, sobre `MovementRepository.findTeamsOf`—, y `ListSalesService` lo llama igual que hoy llama a `vendedoresDe`. **No hay código de fila propio**: si lo hubiera, la misma venta tendría dos formas, que es lo que `spec.md` §6.2 prohíbe. Una sentencia más por página (§7).
+
+    **El filtro**: `ListSalesRequest` y `SalesFilter` ganan `teamId`, y `filtroDeVentas` añade `EXISTS (SELECT 1 FROM movement_details d WHERE d.movement_id = m.id AND d.team_id = :oficina)` **después del alcance**, en el mismo predicado de la página y el conteo, como `clientId`. **Sin corte previo en `ListSalesService`**, por el mismo motivo que `clientId`: el corte de `userId` existe para no revelar quién cuelga de quién (§4.4), y aquí no hay nada que revelar —las filas que devuelve ya están en el alcance de quien pregunta, y las oficinas que nombra ya viajan en `teams`—. Una oficina fuera del alcance da cero filas por la sentencia: con `NETWORK`, el `EXISTS` de la red y el de la oficina no coinciden en ninguna venta; con `OWN`, solo quedan las compras del actor de esa oficina. **`UUID` tipado en el controlador**, como `userId` y `clientId`: mal formado, `400` `VAL-001` del conversor, solo y antes del caso de uso; inexistente, página vacía sin buscarlo en `teams`.
+
+    **Dos `EXISTS` independientes, el de la red y el de la oficina**, y conviene decir qué significa: una venta con una línea de mi red en otra oficina y otra línea **fuera** de mi red en la oficina pedida pasaría los dos. **Es la misma superposición que ya tienen el vendedor del filtro y la red**, hoy **ninguna entrada la produce** —todas las líneas de una venta llevan el mismo vendedor (`spec.md` `FA-005`)— y la fila de esa venta seguiría siendo una que quien pregunta ya ve sin filtro. **Descartado** el `EXISTS` único `d.seller_id IN (:red) AND d.team_id = :oficina`: con `EVERYTHING` y `OWN` no hay red con que juntarlo, y decidiría por línea una regla de alcance que `RN-MV-031` decide por venta. Si el responsable quisiera la otra lectura, es un cambio de una línea en `filtroDeVentas`. **Descartado también** leer la oficina por la estructura de hoy —`RN-MV-078`—: el alcance **sí** es de hoy (`FA-006`) y la oficina no, y cada una vive en su predicado.
+
+    **Pruebas** en `SalesIT`, sobre su árbol de dos directores bajo un manager: el fixture crea **un** equipo propio con nombre único, escribe su `team_id` en una venta de cada rama —para que la misma oficina tenga ventas dentro y fuera del alcance del director— y lo borra al terminar. `CA-MV-723` con `teams` vacía y presente en una venta sin oficina; `CA-MV-724`: el director ve solo la de su rama, administración las dos, el otro director solo la suya, el consumidor su compra, combinado con `userId` y con `clientId`, y una venta cuya oficina guardada no es el equipo de hoy del director; `CA-MV-725` con un `UUID` aleatorio y con `teamId=1-1-1-1-1`.
 
 !!! info "Qué va en este documento"
 
@@ -101,12 +114,13 @@
 | `paymentMethodId` (21-09-2026) | UUID | Igualdad; uno inexistente da página vacía. Entra en `filtroDeVentas` con `Filtro.igual`, como en `filtroGlobal` |
 | `code` (21-09-2026) | texto | En mayúsculas, igualdad sobre `uq_movements_code`. **Después** del alcance en el mismo predicado: un comprobante ajeno no devuelve nada |
 | `clientId` (07-10-2026) | UUID | El sujeto de la venta, `m.user_id`. **Después** del alcance en el mismo predicado; sin corte previo. Uno sin ventas en el alcance, o inexistente: página vacía |
+| `teamId` (09-10-2026) | UUID | La oficina de **alguna** línea, `d.team_id` en un `EXISTS`. **Después** del alcance en el mismo predicado; sin corte previo. Una sin ventas en el alcance, o inexistente: página vacía; mal formada, `400` `VAL-001` |
 
 **No hay `type`**: el tipo es el de la ruta. **No hay `sellerId` ni `userId` con dos sentidos**: `userId` es el nombre que el responsable usó y significa **la persona de mi red como vendedora**; el sujeto no se filtra aquí (`spec.md` §2.2).
 
 ### 4.2 La respuesta
 
-`PageResponse<MovementResponse>`, exactamente la de `GET /api/v1/movements`: `id`, `code`, `type` (siempre `VENTA`), `status`, `user`, `sellers`, `currency`, `paymentMethod`, los tres importes, `occurredAt`, `confirmedAt` nulo y presente, y `totalIsExact`. Ninguna forma nueva en el contrato.
+`PageResponse<MovementResponse>`, exactamente la de `GET /api/v1/movements`: `id`, `code`, `type` (siempre `VENTA`), `status`, `user`, `sellers`, `currency`, `paymentMethod`, los tres importes, `occurredAt`, `confirmedAt` nulo y presente, y `totalIsExact`. Ninguna forma nueva en el contrato. **Desde el 09-10-2026, `teams`** —la de `RF-MV-006` · `plan.md` v0.4.0—, que llega con la fila compartida.
 
 ### 4.3 Códigos de respuesta
 
@@ -147,7 +161,7 @@ Ninguna (`spec.md` §7).
 
 ## 7. Transaccionalidad
 
-`@Transactional(readOnly = true)` en el caso de uso, que envuelve la resolución del alcance y las tres sentencias —página, conteo y vendedores— para que describan el mismo instante.
+`@Transactional(readOnly = true)` en el caso de uso, que envuelve la resolución del alcance y las tres sentencias —página, conteo y vendedores— para que describan el mismo instante. **Cuatro desde el 09-10-2026**: las oficinas de la página, con `findTeamsOf`.
 
 ---
 

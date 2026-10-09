@@ -3,8 +3,8 @@
 | Campo | Valor |
 |---|---|
 | Requerimiento | `RF-IN-006` |
-| Especificación | [`spec.md`](spec.md) v0.2.0 |
-| Plan | [`plan.md`](plan.md) v0.2.0 |
+| Especificación | [`spec.md`](spec.md) v0.4.0 |
+| Plan | [`plan.md`](plan.md) v0.4.0 |
 | `plan.md` aprobado el | 06-10-2026 |
 | Estado | **Aprobadas** — por el responsable del proyecto, 06-10-2026. `T-01` a `T-06` `Hecha` el mismo día |
 | Issue | Pendiente de crear |
@@ -47,6 +47,15 @@ Enmienda de hecho (Art. I.7), `spec.md` 0.3.0 y `plan.md` 0.3.0 **antes** del c�
 | `T-11` | `GetSaleLinesSummaryService` y `SalesIndicatorsController`: los cuatro parámetros, documentados | `T-10` | Vacío es sin filtro | **Hecha** — 07-10-2026 |
 | `T-12` | `SaleLinesSummaryIT`: `CA-IN-080` a `CA-IN-085`; contrato regenerado; `api/index.md`, `requirements/in.md` y matriz | `T-11` | Solo altas | **Hecha** — 07-10-2026 |
 
+### 1.3 Filtro por oficina — 09-10-2026 (`RN-IN-014`)
+
+Enmienda de hecho (Art. I.7), `spec.md` 0.4.0 y `plan.md` 0.4.0 **antes** del código.
+
+| ID | Tarea | Depende de | Verificación | Estado |
+|---|---|---|---|---|
+| `T-13` | `SalesIndicatorsController`: `teamId` en `/sales/lines/summary`, documentado —la oficina guardada, estrecha sin alcance, lo sin vendedor en cero—, dentro del `LineFilter` | `RF-IN-001` · `T-17` | Ninguna firma de `SalesFigures` cambia | **Pendiente** |
+| `T-14` | `SaleLinesSummaryIT`: `CA-IN-102` y `CA-IN-103`; contrato regenerado y prosa releída; `api/index.md` y matriz | `T-13` | Solo altas | **Pendiente** |
+
 ---
 
 ## 2. Cobertura de los criterios de aceptación
@@ -59,6 +68,7 @@ Enmienda de hecho (Art. I.7), `spec.md` 0.3.0 y `plan.md` 0.3.0 **antes** del c�
 | `CA-IN-066` | `T-01`, `T-04`, `T-05` |
 | `CA-IN-067` a `CA-IN-070` | `T-07` a `T-09` — 07-10-2026 |
 | `CA-IN-080` a `CA-IN-085` | `T-10` a `T-12` — 07-10-2026 |
+| `CA-IN-102`, `CA-IN-103` | `T-13`, `T-14` — 09-10-2026 |
 
 ---
 

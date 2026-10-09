@@ -12,6 +12,11 @@
 | Enmendada | 22-08-2026 — `RN-SP-019` obliga a indicar el superior comercial al asignar el primer rol `VENDEDOR`, al registrarse `RF-SP-041` (Art. I.7) |
 | Enmendada | 22-08-2026 — §11: los cuatro casos condicionales de `EX-005` a `EX-008` responden `422` y no `400`, al aprobarse el [`plan.md`](plan.md) §4 (Art. I.7) |
 | Enmendada | 02-09-2026 — **`RN-SP-025` obliga a que asignar un rol `VENDEDOR` SUSTITUYA al que la persona porte.** La operación deja de «solo agregar». Ver el aviso de cabecera |
+| Enmendada | 09-10-2026 — `RN-SP-055` enmendada: si la **sustitución** del rol vendedor deja a la persona **sin el rango de director** —asciende a manager o desciende a agente—, **su pertenencia al equipo se cierra** en la misma transacción y con la misma correlación. Por decisión del responsable del proyecto. `CA-SP-990` y `CA-SP-991` |
+
+!!! warning "Enmendado el 09-10-2026 — el ascenso y el descenso de un director lo sacan de su equipo"
+
+    Decisión del responsable del proyecto, 09-10-2026: a un equipo solo pertenecen **directores**, uno por equipo (`RN-SP-051`, `RN-SP-052`), y la pertenencia **sigue al rango de director** (`RN-SP-055`): **un ascenso o un descenso es un retiro**. Como una persona porta un solo rol vendedor (`RN-SP-025`), el ascenso y el descenso ocurren **aquí**, cuando el rol asignado **sustituye** al que portaba, y no en `RF-SP-031`. Por eso: si tras la sustitución la persona **ya no tiene el rango de director** —un director que recibe `MANAGER`, o que recibe `AGENTE`—, **su pertenencia vigente a un equipo se cierra** con la fecha de esta operación, **en la misma transacción** y bajo **el mismo identificador de correlación**, y la fila **no se borra**: es historial. Su equipo queda **sin director** y puede recibir otro (`RF-SP-069`). Si la asignación falla, la pertenencia sigue abierta. **No cambia nada más**: asignar un rol que no es vendedor, o el mismo `DIRECTOR` que ya porta, no toca su equipo; y **ascender a alguien a director no le abre pertenencia**, que se declara aparte con `RF-SP-069`. Como agente, pertenecerá por `user_supervisors` al equipo de su nuevo director. **Las ventas ya hechas no cambian de oficina** (`RN-MV-078`). `CA-SP-990` y `CA-SP-991`.
 
 !!! danger "Esta operación ya no solo agrega, y su nombre no lo dice"
 
@@ -75,6 +80,7 @@ Y un límite que sostiene todo el modelo: **nadie concede lo que no posee** (`RN
 | `RN-SP-019` | Todo vendedor tiene superior comercial, salvo la cúspide de la fuerza comercial | `requirements/sp.md` §5.1 |
 | `RN-SP-020` | El superior porta el rol padre inmediato del rol del subordinado | `requirements/sp.md` §5.1 |
 | `RN-SP-025` | **Un solo rol vendedor por persona**: asignar uno sustituye al que porte | `requirements/sp.md` §5.1 |
+| `RN-SP-055` | La pertenencia a un equipo **sigue al rango de director**: un ascenso o un descenso por sustitución la cierra en la misma transacción (09-10-2026) | `requirements/sp.md` §5.1 |
 | `RN-SP-023` | Todo usuario tiene al menos un rol | `requirements/sp.md` §5.1 |
 
 **`RN-SP-023` se cita aunque esta operación no pueda violarla**, y es deliberado: es la razón de que `RN-SP-025` se resuelva **sustituyendo** y no rechazando. Retirar antes con `RF-SP-031` la violaría en el único caso que importa —quien solo porta su rol vendedor— y dejaría el ascenso sin salida.
@@ -112,6 +118,7 @@ Y un límite que sostiene todo el modelo: **nadie concede lo que no posee** (`RN
 - Sus permisos efectivos pasan a incluir los de los roles nuevos, **desde que expire su token de acceso vigente** (`security.md` §4.5).
 - Si la asignación le da su primer rol `CONSUMIDOR`, la persona queda **también con la membresía indicada**, escrita en la misma transacción, y ambos hechos quedan auditados bajo el mismo identificador de correlación (`RN-SP-018`).
 - Si la asignación le da su primer rol `VENDEDOR`, la persona queda **a cargo del superior indicado**, escrito en la misma transacción y con la misma correlación (`RN-SP-019`). Nadie porta un rol comercial sin sitio en la estructura, ni siquiera durante un instante.
+- **(09-10-2026)** Si la sustitución del rol vendedor deja a la persona **sin el rango de director**, su pertenencia vigente a un equipo queda **cerrada** con la fecha de esta operación, en la misma transacción y con la misma correlación, y la fila **se conserva** (`RN-SP-055`).
 - Queda constancia en la auditoría de cambios y en la de seguridad, esta última con severidad alta y con el usuario afectado como objeto del evento.
 
 ## 8. Flujo principal
@@ -236,6 +243,8 @@ Y un límite que sostiene todo el modelo: **nadie concede lo que no posee** (`RN
 | `CA-SP-402` | Asignar el rol vendedor de la CÚSPIDE no exige superior, y el sistema lo rechaza si se indica |
 | `CA-SP-260` | El sistema registra el evento en la auditoría de cambios y en la de seguridad, con severidad alta y con el usuario afectado como objeto |
 | `CA-SP-261` | El sistema rechaza la operación a un actor sin el permiso de asignación de roles |
+| `CA-SP-990` | Asignar `MANAGER` (ascenso) o `AGENTE` (descenso) a un **director** con equipo **cierra su pertenencia** con la fecha de la operación, en la misma transacción y bajo el mismo identificador de correlación que la sustitución, sin borrar la fila; su equipo queda **sin director vigente**; si la asignación falla, la pertenencia sigue abierta (09-10-2026) |
+| `CA-SP-991` | Asignar a un director un rol **no vendedor**, o el mismo `DIRECTOR` que ya porta, **no** cierra su pertenencia; ascender a un agente a director **no** le abre ninguna (09-10-2026) |
 
 ## 13. Casos límite
 

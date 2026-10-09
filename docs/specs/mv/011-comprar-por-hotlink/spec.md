@@ -4,11 +4,12 @@
 |---|---|
 | Requerimiento | `RF-MV-011` |
 | Módulo | `MV` — Movimientos |
-| Versión | 0.4.0 |
+| Versión | 0.5.0 |
 | Estado | **Aprobada** |
 | Autor | Responsable técnico |
 | Aprobada por | Responsable del proyecto |
 | Fecha de aprobación | 24-09-2026 |
+| Enmendada el | 09-10-2026 — **la oficina de la línea es la del dueño del enlace** (`RN-MV-078`): `CA-MV-713`. Ver §15 |
 | Enmendada el | 03-10-2026 — **el escalón se comprueba contra quien compra** (`RN-MV-006`): nace `EX-005` en esta spec. Ver §14.3 |
 | Enmendada el | 01-10-2026 — **con tarjeta, la compra abre el cobro en la pasarela** y devuelve su secreto (`RF-MV-040`). Ver §14.2 |
 
@@ -17,6 +18,10 @@
     **Qué debe pasar, y por qué.** Nada más.
 
     **Prueba de pertenencia:** si un cambio de tecnología lo invalidaría, no pertenece aquí — va a `plan.md`.
+
+!!! warning "Enmendado el 09-10-2026 — la oficina de la línea es la del dueño del enlace"
+
+    Por `RN-MV-078` ([`requirements/mv.md`](../../../requirements/mv.md) v0.97.0 §4.13), que enmienda [`RF-MV-001`](../001-registrar-venta/spec.md) v0.11.0. **La línea nace con la oficina de su vendedor, y aquí el vendedor es el dueño del enlace** (`RN-MV-025`): la oficina es **la de su director**, con la estructura vigente en el instante de la compra, y **no la del agente del cliente** ni la de ningún otro de sus vendedores. Es la consecuencia directa de que la oficina sea del vendedor: quien trajo la venta la lleva a su oficina. Si el dueño del enlace es un manager, sin oficina; si no tiene director con equipo, **se compra igual** y la oficina queda vacía. **La respuesta no la devuelve**, como no devuelve el vendedor ([`RF-MV-002`](../002-comprar-producto-uno-mismo/spec.md) §4.3). `CA-MV-713`.
 
 ---
 
@@ -114,6 +119,7 @@ Las de `RF-MV-002` sobre el cuerpo, más la de `EX-003`. **El enlace no se valid
 | `CA-MV-194` | Comprarse a uno mismo por el propio enlace responde `422` (`EX-003`) y **no deja venta ni vínculo** |
 | `CA-MV-195` | Un enlace que no resuelve responde `404` con el mensaje único, **sin distinguir** si falló el vendedor o el producto |
 | `CA-MV-196` | Sin `products:buy-by-hotlink`, `403`; con él y autenticado, `201` |
+| `CA-MV-713` | Un cliente **cuyo agente es de otra oficina** compra por el enlace de un vendedor: la línea lleva **la oficina del director del dueño del enlace**, no la del agente del cliente, y la respuesta no la devuelve (09-10-2026) |
 
 ## 13. Casos límite
 
@@ -163,3 +169,4 @@ Por decisión del responsable del proyecto ([`requirements/mv.md`](../../../requ
 | 0.2.0 | 01-10-2026 | **La tarjeta por Stripe** ([`requirements/mv.md`](../../../requirements/mv.md) v0.64.0 §4.6): **con tarjeta, la compra abre el cobro en la pasarela** y devuelve su secreto (`RF-MV-040`). Criterios `CA-MV-471`. | Responsable del proyecto |
 | 0.3.0 | 03-10-2026 | **El escalón se comprueba contra quien compra** (§14.3; [`requirements/mv.md`](../../../requirements/mv.md) v0.72.0, `RN-MV-006`), por decisión del responsable del proyecto. **Nace `EX-005` en esta spec**, con el código y la forma del de `RF-MV-001` porque lo emite el mismo caso de uso: hasta hoy la venta por enlace lo heredaba en silencio, y desde hoy es **la entrada donde más se alcanza** —el hotlink no casa por origen, de modo que un producto de un escalón puede ser un salto para quien compra—. Nacen `CA-MV-530` a `CA-MV-532`: el salto respecto de la vigente se rechaza sin dejar nada, el escalón se admite aunque el origen del producto no sea el suyo, y un salto ya registrado no se resuelve por el enlace. | Responsable del proyecto |
 | 0.4.0 | 05-10-2026 | **Enmendada por la pasarela local** (`RF-MV-048`, [`requirements/mv.md`](../../../requirements/mv.md) v0.80.0 §4.10): con el método `PSE`, la compra **abre el cobro de la pasarela local** en moneda local y la respuesta trae `localCharge`. Se prueba en `LocalChargeIT`. | Responsable del proyecto |
+| 0.5.0 | 09-10-2026 | **La oficina de la línea es la del dueño del enlace** ([`requirements/mv.md`](../../../requirements/mv.md) v0.97.0 §4.13, `RN-MV-078`; [`RF-MV-001`](../001-registrar-venta/spec.md) v0.11.0), a petición del responsable del proyecto: la oficina es del vendedor, y el vendedor de esta compra es quien reparte el enlace. La respuesta no la devuelve. `CA-MV-713`. | Responsable del proyecto |

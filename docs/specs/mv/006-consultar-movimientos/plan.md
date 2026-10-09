@@ -3,15 +3,16 @@
 | Campo | Valor |
 |---|---|
 | Requerimiento | `RF-MV-006` |
-| Especificación | [`spec.md`](spec.md) v0.2.0 |
+| Especificación | [`spec.md`](spec.md) v0.5.0 |
 | `spec.md` aprobada el | 17-09-2026 |
-| Versión | 0.3.0 |
+| Versión | 0.4.0 |
 | Estado | **Aprobado** |
 | Enmendado el | 21-09-2026 — el séptimo filtro, `type` (§3, §4.1, §4.3, §9, §11) |
 | Autor | Responsable técnico |
 | Aprobado por | Responsable del proyecto |
 | Fecha de aprobación | 17-09-2026 |
 | Enmendado el | 01-10-2026 — la tarjeta por Stripe (§12) |
+| Enmendado el | 09-10-2026 — `teams` en la fila y el filtro `teamId` (`RN-MV-078`; §3, §4.1, §4.2, §7) |
 
 !!! warning "Enmendado el 24-09-2026 — el filtro `code` busca por FRAGMENTO"
 
@@ -22,6 +23,18 @@
     **Tres cosas que NO cambian, y conviene que no se den por hechas.** `type` y `typeStatus` **siguen siendo exactos**: se eligen de un conjunto cerrado, no se teclean, y un `LIKE` ahí haría que pedir `VENTA` arrastrara cualquier tipo que la contenga. Los comodines `%` y `_` que escriba el usuario se **escapan** —son texto y no patrón—, que es la misma defensa que `RF-SP-025` ya tenía escrita. Y **el alcance no se ensancha**: va en la misma sentencia y **antes** que este predicado, de modo que quien solo ve lo suyo sigue viendo lo suyo.
 
     **Se indexa con trigramas** (`ix_movements_codigo_busqueda`, `V39`), como `ix_users_busqueda`: `uq_movements_code` no puede responder por un fragmento del medio —un B-tree solo responde por el principio— y sin el índice nuevo la consulta recorrería la tabla entera.
+
+!!! warning "Enmendado el 09-10-2026 — `teams` en la fila y el filtro `teamId`"
+
+    `spec.md` v0.5.0 (`RN-MV-078`, [`requirements/mv.md`](../../../requirements/mv.md) v0.97.0 §4.13). **La columna ya existe cuando esto se construye, y este listado solo la lee**: `V95` añade `movement_details.team_id` —clave foránea a `teams` con `ON DELETE SET NULL`— y el índice parcial `(team_id, movement_id) WHERE team_id IS NOT NULL`, y la escriben el registro de la venta, la asignación del vendedor (`RF-MV-016`) y el relleno (`RF-MV-058`). **Ninguna migración propia.**
+
+    **La fila gana `teams`**: `List<LineTeam>`, nunca nula y con `@JsonInclude(ALWAYS)`, como `sellers`. **`LineTeam(UUID id, String name)` es un registro nuevo en `application`, con `@Schema(name = "LineTeam")`** —springdoc funde en un solo esquema los registros con el mismo nombre simple, y el diff de `openapi.json` es donde se mira—, y es **el mismo** que publican la línea del detalle (`SaleLineResponse.team`, `RF-MV-007`) y la fila de `RF-MV-017` (`SaleLineItem.team`): una oficina tiene una sola forma en el contrato. **Se lee como los vendedores, con una sentencia más por página**: `MovementRepository.findTeamsOf(Collection<UUID> movementIds)` devuelve `List<MovementTeamRow(UUID movementId, UUID teamId, String name)>` con `SELECT DISTINCT d.movement_id, tm.id, tm.name FROM movement_details d JOIN teams tm ON tm.id = d.team_id WHERE d.movement_id IN (:movimientos) ORDER BY d.movement_id, tm.name` —`JOIN` y no `LEFT JOIN`: una línea sin oficina no aporta nada a la lista—. `ListMovementsService` gana `oficinasDe(movimientos, filas)`, **estático junto a `vendedoresDe`** porque `ListSalesService` devuelve la misma fila (`RF-MV-015`), y `de(fila, vendedores, oficinas)` recibe la tercera lista. **El nombre se lee de `teams` al responder y no se congela**: lo congelado es **qué** oficina; renombrar un equipo es corregir su nombre, no mudar lo vendido. **Sin predicado sobre `deleted_at`**: un equipo eliminado lógicamente (`RN-SP-054`) se sigue nombrando en lo que vendió.
+
+    **El filtro `teamId`**: `ListMovementsRequest` y `MovementFilter` lo ganan, y `filtroGlobal` añade `EXISTS (SELECT 1 FROM movement_details d WHERE d.movement_id = m.id AND d.team_id = :oficina)` —el mismo `EXISTS` del vendedor, una fila por movimiento tenga las líneas que tenga— en el **mismo predicado** de la página y el conteo. Lo responde el índice parcial de `V95`. **`UUID` tipado en el controlador, como `sellerId`**: uno mal formado lo rechaza el conversor canónico con `400` `VAL-001` (§4.1) **antes** del caso de uso, de modo que no viaja junto a los problemas que valida `ListMovementsService` —igual que hoy el de `sellerId`—. **Uno inexistente no se busca en `teams`**: el `EXISTS` no encuentra líneas y la página sale vacía. Comprobarlo costaría una sentencia para devolver lo mismo, y un `404` haría del filtro un oráculo de qué equipos existen.
+
+    **`MV` lee `teams` en SQL nativo de lectura, y no desde Java.** D-25 y `ArchUnit` impiden que `MV` importe clases de `SP`; un `JOIN` de lectura a una tabla ajena para pintar un nombre es lo que este listado ya hace con `users` para el sujeto y los vendedores. **Descartado**: pedir los nombres a `SP` por un puerto —una ida más por página para un catálogo de cinco filas, y el `teamId` del filtro seguiría necesitando el `EXISTS` en `MV`—; resolver la oficina **al leer** recorriendo la estructura de hoy —es justo lo que `RN-MV-078` prohíbe, porque un traslado reescribiría el pasado—; y fundir las oficinas en la sentencia de `findSellersOf` —devolvería parejas vendedor × oficina que Java tendría que separar, y ata dos listas que cambian por motivos distintos—. **Tres sentencias pasan a cuatro** (§7): la página, el conteo, los vendedores y las oficinas, en la misma transacción.
+
+    **Pruebas** en `MovementsIT`: el fixture crea **su propio equipo**, con nombre único —no usa los cinco de `V95`, que otras suites pueden vaciar—, escribe `team_id` directamente en las líneas que siembra por SQL —lo que se prueba es la lectura, no el cálculo, que es de `RF-MV-001`— y lo borra al terminar; la clave con `SET NULL` no obliga a borrar antes las ventas. `CA-MV-717` sobre el JSON en crudo, con `teams` **vacía y presente** en una venta sin oficina; `CA-MV-718` con dos líneas de la misma oficina que cuentan **una** fila, combinado con el estado, y con una venta cuya oficina guardada **no** es la que hoy tiene el director de su vendedor —la prueba de que se filtra por la columna y no por la estructura—; `CA-MV-719` con un `UUID` aleatorio (página vacía, `200`) y con `teamId=1-1-1-1-1` (`400` `VAL-001`).
 
 !!! info "Qué va en este documento"
 
@@ -70,6 +83,11 @@ La migración es `V15__mv_indice_movimientos_por_fecha.sql`.
 | `domain/service` | `ListMovementsService` | Nuevo | Valida, pagina, cuenta acotado y mapea |
 | `interfaces` | `MovementController` | Modificado | Un `GET` en la raíz, con `@PreAuthorize` |
 | `db/migration` | `V15` | Nueva | El índice de §2 |
+| `application` | `LineTeam` (09-10-2026) | Nuevo | `(id, name)`, `@Schema(name = "LineTeam")`; compartido con `RF-MV-007` y `RF-MV-017` |
+| `application` | `ListMovementsRequest`, `MovementResponse` (09-10-2026) | Modificado | `teamId`; `teams` |
+| `domain/repository` | `MovementRepository`, `JpaMovementRepository` (09-10-2026) | Modificado | `MovementFilter.teamId`, el `EXISTS` en `filtroGlobal`; `findTeamsOf` y `MovementTeamRow` |
+| `domain/service` | `ListMovementsService` (09-10-2026) | Modificado | `oficinasDe`, compartido con `ListSalesService`; `de` con tres listas |
+| `interfaces` | `MovementController` (09-10-2026) | Modificado | El parámetro `teamId` y su prosa en la `@Operation` |
 
 **`MovementResponse` es una fila nueva y no `MyMovementResponse` sin `role`.** Comparten sujeto, vendedores, moneda e importes, y aun así son dos contratos: aquella lleva el papel y esta lleva el tipo y la confirmación, y **cambian por motivos distintos** — el día que la fila propia gane algo que quien administra no debe ver, o al revés, no tiene que arrastrar a la otra. Lo que sí se comparte es lo que no es contrato: `findSellersOf` y el nombre completo.
 
@@ -99,6 +117,7 @@ La migración es `V15__mv_indice_movimientos_por_fecha.sql`.
 | `code` | texto | Igualdad exacta sobre el valor en mayúsculas |
 | `from`, `to` | instante ISO-8601 con zona | Sobre `occurred_at`. **Semiabierto**: `from <= occurred_at < to`. `from` posterior a `to` es `400` |
 | `type` (21-09-2026) | código del catálogo: hoy, `VENTA` | Sin distinguir mayúsculas. Uno que no exista es `400` `VAL-005`, **junto** con los demás problemas. Se valida contra `movement_types`, no contra una constante |
+| `teamId` (09-10-2026) | UUID | La oficina de **alguna** línea, por `movement_details.team_id`. Una inexistente da página vacía; mal formada, `400` `VAL-001` del conversor |
 
 **No hay parámetro de ordenamiento**, como en `RF-MV-008` y como en los cuatro listados de auditoría: el orden cronológico es parte del significado de un libro. **El desempate es `id` descendente**, y el índice de §2 lo lleva.
 
@@ -114,6 +133,7 @@ Un `PageResponse` con `totalIsExact`, que aquí **sí puede valer falso** (`FA-0
 | `type` | texto | El código del tipo de movimiento. Hoy, `VENTA` |
 | `user` | objeto | El sujeto: identificador, nombre de usuario y nombre |
 | `sellers` | lista, **nunca nula** | Los vendedores de sus líneas, sin repetir. Vacía cuando no hay ninguno |
+| `teams` (09-10-2026) | lista de `LineTeam` (`id`, `name`), **nunca nula** | Las oficinas de sus líneas, sin repetir. Vacía cuando ninguna línea tiene oficina |
 | `currency`, `paymentMethod` | | |
 | `totalAmount`, `discountAmount`, `payableAmount` | | |
 | `occurredAt` | instante | Cuándo ocurrió |
@@ -152,7 +172,7 @@ Un `PageResponse` con `totalIsExact`, que aquí **sí puede valer falso** (`FA-0
 
 ## 7. Transaccionalidad
 
-`@Transactional(readOnly = true)` en el caso de uso. **Tres sentencias** —la página, el conteo acotado y los vendedores de la página— en la misma transacción, para que no puedan describir estados distintos de la tabla.
+`@Transactional(readOnly = true)` en el caso de uso. **Tres sentencias** —la página, el conteo acotado y los vendedores de la página— en la misma transacción, para que no puedan describir estados distintos de la tabla. **Cuatro desde el 09-10-2026**: las oficinas de la página, con `findTeamsOf`.
 
 ---
 

@@ -7,6 +7,7 @@
 | Plan | [`plan.md`](plan.md) |
 | `plan.md` aprobado el | 22-08-2026 |
 | Enmendada | 23-09-2026 — `RN-SP-055` (Art. I.7): la pertenencia al equipo se cierra con el rol o con la baja. **El código lo toca `RF-SP-070` `T-10`**, no esta tripleta |
+| Enmendada | 09-10-2026 — `RN-SP-055` enmendada: el cierre sigue al **rango de director** (`T-18`, `CA-SP-988`, `CA-SP-989`) |
 | Estado | **Aprobadas** — 24-08-2026 |
 | Issue | Pendiente de crear |
 | Rama | `feature/roles-de-usuario` |
@@ -39,6 +40,15 @@ Sin migración y **sin ningún componente de dominio propio**: los cinco que nec
 | `T-17` | Aplicar la enmienda de `plan.md` §4 sobre `requirements/sp.md` §9 —`DELETE` pasa a `POST …/revocations`— y actualizar la matriz de trazabilidad de `docs/requirements.md` | `T-13` | La tabla de API de §9 refleja la ruta real, con su fila de control de cambios; la fila de `RF-SP-031` en la matriz enlaza esta tripleta | **Hecha** |
 
 **Estados:** `Pendiente` · `En curso` · `Hecha` · `Bloqueada`.
+
+### 1.1 `RN-SP-055` sigue al rango de director — 09-10-2026
+
+Enmienda de hecho (Art. I.7), `spec.md` y `plan.md` enmendados el 09-10-2026 **antes** del código.
+
+| # | Tarea | Depende de | Verificación | Estado |
+|---|---|---|---|---|
+| `T-18` | `RevokeUserRolesService`: la condición de `RN-SP-055` pregunta por `esDirector` sobre el rango resultante; `MOTIVO_RN_SP_055` con el texto nuevo | `RF-SP-069` `T-13` (`CommercialStructure.esDirector`) | `CA-SP-795` sigue en verde, también el caso en que el retiro falla | **Pendiente** |
+| `T-19` | `TeamMembershipRetirementIT`: `CA-SP-988` y `CA-SP-989` | `T-18` | La correlación del cierre es la del retiro | **Pendiente** |
 
 !!! note "Cómo se ejercita el fallo de la revocación — 27-08-2026"
 
@@ -94,6 +104,7 @@ graph LR
 | `CA-SP-361` | `T-09`, `T-13` |
 | `CA-SP-362` | `T-09`, `T-13` |
 | `CA-SP-363` | `T-14` |
+| `CA-SP-988`, `CA-SP-989` | `T-18`, `T-19` — 09-10-2026 |
 
 ## 4. Bloqueos
 

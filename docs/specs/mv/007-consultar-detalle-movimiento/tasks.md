@@ -8,6 +8,7 @@
 | `plan.md` aprobado el | 30-09-2026 |
 | Estado | **En revisión** — `T-01` a `T-07` `Hecha` el 30-09-2026 |
 | Enmendadas | 01-10-2026 — `T-08` y `T-09` por **el destino del retiro** (`RN-MV-056`, §7) |
+| Enmendadas | 09-10-2026 — `T-10` y `T-11` por **la oficina de cada línea** (`RN-MV-078`, §1.1), `Pendiente` |
 | Issue | Pendiente de crear |
 | Rama | `feature/detalle-de-movimiento` |
 
@@ -31,6 +32,15 @@
 | `T-06` | **`SaleResponse.type`**: el mapper lo copia de la cabecera; registrar escribe `VENTA` | — | El detalle de un retiro dice `RETIRO` | Hecha |
 | `T-07` | La enmienda de `spec.md` y `plan.md` a la 0.2.0 | `T-05` | | Hecha |
 
+### 1.1 La oficina de cada línea — 09-10-2026
+
+Enmienda de hecho (Art. I.7), `spec.md` 0.4.0 y `plan.md` 0.4.0 **antes** del código. Sin migración propia: la columna la trae `V95`.
+
+| ID | Tarea | Depende de | Verificación | Estado |
+|---|---|---|---|---|
+| `T-10` | `SaleLineResponse.team` (`LineTeam`, de `RF-MV-006` `T-18`) con `types = {"object", "null"}`; `MovementLineRow` gana `teamId` y `teamName`; `findLinesOf` con `LEFT JOIN teams` en su misma sentencia; `SaleDetailMapper.lineas` arma el `team` | `V95`, `RF-MV-006` `T-18` | El detalle no gana sentencias; `CA-MV-525` de `RF-MV-008` sigue en verde | **Pendiente** |
+| `T-11` | `MovementDetailIT`: `CA-MV-720`, con equipo propio limpiado al terminar, una línea con oficina, otra sin ella y el director del vendedor hoy en otro equipo; `CA-MV-290` sin cambios; contrato regenerado —`team` nulable en `SaleLineResponse`, **un** esquema `LineTeam`— y `docs/api/index.md` | `T-10` | Solo altas en el contrato | **Pendiente** |
+
 ## 2. Orden de ejecución
 
 `T-05` y `T-06` → `T-01` → `T-02` → `T-03` → `T-04`; `T-07` con `T-05`.
@@ -43,6 +53,7 @@
 | `CA-MV-290` | `T-01`, `T-03` |
 | `CA-MV-291` | `T-02`, `T-03` |
 | `CA-MV-292` | `T-02`, `T-03`, `T-04`, `T-05` |
+| `CA-MV-720` | `T-10`, `T-11` — 09-10-2026 |
 
 ## 4. Bloqueos
 

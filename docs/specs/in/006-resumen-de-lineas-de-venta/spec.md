@@ -4,7 +4,7 @@
 |---|---|
 | Requerimiento | `RF-IN-006` |
 | Módulo | `IN` — Indicadores |
-| Versión | 0.3.0 |
+| Versión | 0.4.0 |
 | Estado | **Aprobada** |
 | Autor | Responsable técnico |
 | Aprobada por | Responsable del proyecto |
@@ -21,6 +21,10 @@
     **Esto no contradice `RN-IN-011`**: el indicador sigue sin alcance —quien porta el permiso ve todo el libro— y el filtro lo elige quien pregunta, igual que la moneda. Lo que §6.1 descartaba era **acotar por el vendedor que mira**, no dejar que administración pregunte por uno.
 
     **Con vendedor, lo sin vendedor sale en cero**, y es correcto: las líneas de esa persona tienen vendedor. **Una venta cuenta si alguna de sus líneas pasa los filtros**, y sus cifras son solo las de esas líneas (`RN-IN-003`). Un vendedor, cliente o producto que no existe da ceros, no un error. Con filtros, el total de lo vendido ya no es el del resumen de ventas de administración (`CA-IN-061` habla del indicador sin filtros). `CA-IN-080` a `CA-IN-085`.
+
+!!! warning "Enmendado el 09-10-2026 — se filtra por oficina (RN-IN-014)"
+
+    Decisión del responsable del proyecto, 09-10-2026: un quinto filtro, **la oficina**, con la definición de `RF-IN-001` v0.4.0: cuenta **las líneas cuya oficina guardada es esa** —la del director del vendedor **el día de la venta** (`RN-MV-078`)—, y no la de hoy, de modo que trasladar a un agente **no mueve sus cifras** de una oficina a otra. Como el indicador **no tiene alcance** (`RN-IN-011`), el filtro **estrecha las cifras enteras**: es elección de quien pregunta, como la moneda. Se aplica a **los dos bloques**, en total, por tipo y por tramo, y se combina con los otros cuatro filtros. **Con oficina, lo sin vendedor sale en cero**, por la misma razón que con vendedor: una línea sin vendedor no tiene oficina. **La venta de un manager tampoco la tiene**, y no entra en ninguna oficina. **Una oficina que no existe da ceros**, no un error; un identificador mal formado, `400`. `CA-IN-102` y `CA-IN-103`.
 
 !!! info "Qué va en este documento"
 
@@ -93,6 +97,8 @@ El resumen de ventas (`RF-IN-001`) responde «cuánto vendí yo o mi red»; este
 | `RN-IN-005` | Solo ventas, por cuándo ocurrieron |
 | `RN-IN-007`, `RN-IN-010` | Días de Bogotá; sin fechas, todo; tramos opcionales |
 | `RN-MV-034` | Una venta con varios vendedores posibles nace con líneas sin vendedor |
+| `RN-IN-014` | La oficina de una cifra es la guardada en la línea el día de la venta; aquí estrecha las cifras enteras; con ella, lo sin vendedor sale en cero (09-10-2026) |
+| `RN-MV-078` | Cada línea de venta guarda la oficina donde se vendió, y un traslado no la mueve (09-10-2026) |
 
 ---
 
@@ -108,6 +114,7 @@ El resumen de ventas (`RF-IN-001`) responde «cuánto vendí yo o mi red»; este
 | Cliente (07-10-2026) | No | Solo las ventas a nombre de esa persona |
 | Producto (07-10-2026) | No | Solo las líneas de ese producto; por tipo, el suyo |
 | Comprobante (07-10-2026) | No | Solo las ventas cuyo código **contenga** lo escrito, sin distinguir mayúsculas |
+| Oficina (09-10-2026) | No | Solo las líneas **cuya oficina guardada** es esa, la del día de la venta (`RN-IN-014`). Lo sin vendedor queda en cero; una oficina inexistente da ceros |
 
 **El indicador no es de nadie** (§2.1): el filtro por vendedor, desde el 07-10-2026, **estrecha** las cifras por elección de quien pregunta, como la moneda, y no las acota a quien mira. Un vendedor, cliente o producto inexistente da ceros. Una venta cuenta si **alguna** de sus líneas pasa los filtros.
 
@@ -166,7 +173,7 @@ Lo sin vendedor en cero: es la situación que se busca.
 
 ## 11. Validaciones
 
-Las del periodo y el tramo de `RF-IN-001` §11 (`VAL-001`, `VAL-002`, `VAL-005`). Los identificadores de vendedor, cliente y producto, si vienen, bien formados (`VAL-001`, 07-10-2026).
+Las del periodo y el tramo de `RF-IN-001` §11 (`VAL-001`, `VAL-002`, `VAL-005`). Los identificadores de vendedor, cliente y producto, si vienen, bien formados (`VAL-001`, 07-10-2026); y el de oficina (09-10-2026).
 
 ---
 
@@ -192,6 +199,8 @@ Las del periodo y el tramo de `RF-IN-001` §11 (`VAL-001`, `VAL-002`, `VAL-005`)
 | `CA-IN-083` | Con **comprobante**, las ventas cuyo código lo contiene, sin distinguir mayúsculas; `%` y `_` son texto (07-10-2026) |
 | `CA-IN-084` | Los filtros **se combinan** entre sí y con la moneda y el periodo; con tramo, la suma de los tramos es el total filtrado (07-10-2026) |
 | `CA-IN-085` | Un vendedor, cliente o producto **inexistente** da ceros y no un error; un identificador mal formado, `400` (07-10-2026) |
+| `CA-IN-102` | Con **oficina**, lo vendido es solo lo de las líneas que la guardan —una venta con líneas de dos oficinas cuenta con su parte en cada una—, en total, por tipo y por tramo, y **lo sin vendedor sale en cero**; la venta de un **manager** no cuenta; un **traslado** posterior a la venta no mueve lo ya vendido a la oficina nueva (09-10-2026) |
+| `CA-IN-103` | La oficina **se combina** con los otros filtros, la moneda y el periodo; una oficina **inexistente** da ceros y no un error; un identificador mal formado, `400` (09-10-2026) |
 
 ---
 
@@ -217,3 +226,4 @@ Ninguna.
 | 0.1.0 | 06-10-2026 | Primera versión, a petición del responsable del proyecto: **unidades** como productos vendidos, **ventas y líneas** sin vendedor, y un indicador **propio, de administración y sin alcance** (`RN-IN-011`). Ocho criterios, `CA-IN-059` a `CA-IN-066`. | Responsable técnico |
 | 0.2.0 | 07-10-2026 | **Por tipo de producto**: lo vendido —solo confirmado— y lo sin vendedor, cada uno en total y por tipo; sin pendientes ni anuladas. `CA-IN-067` a `CA-IN-070`; `CA-IN-060` sustituido y `CA-IN-061` enmendado. | Responsable técnico |
 | 0.3.0 | 07-10-2026 | **Filtros por vendedor, cliente, producto y comprobante**, a petición del responsable del proyecto: estrechan los dos bloques sin cambiar su forma; con vendedor, lo sin vendedor sale en cero. No es alcance (`RN-IN-011` sigue en pie). `CA-IN-080` a `CA-IN-085`. | Responsable técnico |
+| 0.4.0 | 09-10-2026 | **Filtro por oficina** (`RN-IN-014`), por decisión del responsable del proyecto: la oficina guardada en la línea el día de la venta (`RN-MV-078`); estrecha los dos bloques; con ella, lo sin vendedor sale en cero; una inexistente da ceros. La respuesta no cambia. `CA-IN-102` y `CA-IN-103`. | Responsable técnico |

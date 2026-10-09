@@ -10,6 +10,11 @@
 | Fecha de aprobación | 21-08-2026 |
 | Enmendada | 22-08-2026 — `RN-SP-022` rechaza eliminar a quien tiene equipo a cargo, y la asignación de superior se cierra en lugar de desaparecer, al registrarse `RF-SP-041` (Art. I.7) |
 | Enmendada | 23-09-2026 — `RN-SP-055`: eliminar a la persona **cierra su pertenencia al equipo en la misma transacción**, al construirse `RF-SP-070` (Art. I.7). Lo verifica `CA-SP-796` de aquella tripleta —que comprueba además que **cambiar el estado (`RF-SP-028`) NO saca del equipo**—; el código lo toca su `T-11` |
+| Enmendada | 09-10-2026 — `RN-SP-055` enmendada: la pertenencia a un equipo es de **directores** (`RN-SP-051`), y eliminar a un director **cierra su pertenencia** y deja su equipo **sin director**, en condiciones de recibir otro (`RN-SP-052`). Por decisión del responsable del proyecto. `CA-SP-987` |
+
+!!! warning "Enmendado el 09-10-2026 — quien sale de su equipo al eliminarse es un director"
+
+    Decisión del responsable del proyecto, 09-10-2026: «los encargados de los equipos son los directores, no los managers». **Lo que hace esta operación no cambia**: eliminar a una persona cierra su pertenencia vigente a un equipo, si la tiene, en la misma transacción, con la marca de la baja y **sin borrar la fila** (`RN-SP-055`). **Cambia de quién se habla**: desde el 09-10-2026 las pertenencias son de **directores**, una por equipo (`RN-SP-051`, `RN-SP-052`), de modo que donde este documento dice «manager» al hablar del equipo se lee **director**, y eliminar al director de un equipo **deja ese equipo sin director**, en condiciones de recibir otro por `RF-SP-069`. **El historial importa más que antes**: a qué equipo pertenecía cada director en cada momento decidió la **oficina de cada venta** (`RN-MV-078`), y esa oficina, ya congelada en las líneas, **no cambia** por la baja. Sigue sin cambiar que **cambiar el estado** de la persona (`RF-SP-028`) no la saca del equipo. `CA-SP-987`.
 
 ---
 
@@ -67,7 +72,7 @@ Eso resuelve de paso una pregunta que quedaba colgando: `RN-SEG-008` impide elim
 | `RN-SP-016` | El nombre de usuario y el correo **no se liberan al eliminar** | `requirements/sp.md` §5.1 |
 | `RN-SP-017` | El actor no aplica la operación sobre su propia cuenta | `requirements/sp.md` §5.1 |
 | `RN-SP-022` | No se elimina a quien tiene personas a su cargo | `requirements/sp.md` §5.1 |
-| `RN-SP-055` | La pertenencia a un equipo **sigue al rol**: quien deja de ser manager sale de su equipo en la misma transacción | `requirements/sp.md` §5.1 |
+| `RN-SP-055` | La pertenencia a un equipo **sigue al rol**: quien deja de ser manager sale de su equipo en la misma transacción. **Enmendada el 09-10-2026**: sigue al rango de **director**; eliminar a la persona cierra su pertenencia igual | `requirements/sp.md` §5.1 |
 
 ## 6. Datos
 
@@ -99,7 +104,7 @@ Eso resuelve de paso una pregunta que quedaba colgando: `RN-SEG-008` impide elim
 - El usuario queda marcado como eliminado y deja de aparecer en las consultas por defecto.
 - **Sus roles y su membresía quedan retirados**: esas filas desaparecen, y con ellas deja de contar para `RN-SEG-008`.
 - Su asignación de superior comercial, si la tenía, **se cierra con la fecha de la eliminación en lugar de desaparecer**. La asimetría con los roles y la membresía es deliberada: aquellos dicen qué podía hacer hoy y no significan nada una vez la persona se va; el historial de mando dice **a quién se atribuía su producción**, y eso lo necesitarán las comisiones mucho después de la baja (`RN-SP-021`).
-- **Su pertenencia a un equipo, si la tenía, queda cerrada** con la fecha de la eliminación, en la misma transacción (`RN-SP-055`, enmienda del 23-09-2026). Se cierra y **no se borra**, igual que la del superior comercial y por el mismo motivo: dice a qué equipo se atribuía lo que su red produjo mientras estuvo, y las comisiones lo leerán. Dejarla abierta haría que un equipo siguiera contando a alguien que ya no existe.
+- **Su pertenencia a un equipo, si la tenía, queda cerrada** con la fecha de la eliminación, en la misma transacción (`RN-SP-055`, enmienda del 23-09-2026). Se cierra y **no se borra**, igual que la del superior comercial y por el mismo motivo: dice a qué equipo se atribuía lo que su red produjo mientras estuvo, y las comisiones lo leerán. Dejarla abierta haría que un equipo siguiera contando a alguien que ya no existe. **Desde el 09-10-2026** la pertenencia es la de un **director**, uno por equipo: su equipo queda **sin director** y puede recibir otro (`RN-SP-052`, `CA-SP-987`).
 - No puede autenticarse, y todos sus refresh tokens quedan revocados.
 - Su nombre de usuario y su correo **siguen reservados**: ningún alta posterior puede tomarlos.
 - Su identificador sigue resolviendo a un usuario, de modo que los eventos de auditoría que lo referencian siguen siendo legibles.
@@ -183,6 +188,7 @@ Es la misma protección que `RN-SEG-008` da a un rol con hijos, y por el mismo m
 | `CA-SP-248` | El sistema rechaza eliminar al último usuario activo con el rol raíz |
 | `CA-SP-249` | El sistema no expone ninguna operación de restauración |
 | `CA-SP-250` | El sistema rechaza la eliminación a un actor sin el permiso de eliminación de usuarios |
+| `CA-SP-987` | Al eliminar a un **director** con pertenencia vigente, esa pertenencia queda **cerrada** con la marca de la baja y su fila **permanece**; el equipo queda **sin director vigente** y una asignación posterior de otro director a ese equipo pasa (`RN-SP-052`, `RN-SP-055`) (09-10-2026) |
 
 ## 13. Casos límite
 

@@ -3,12 +3,13 @@
 | Campo | Valor |
 |---|---|
 | Requerimiento | `RF-MV-011` |
-| Especificación | [`spec.md`](spec.md) |
+| Especificación | [`spec.md`](spec.md) v0.5.0 |
 | `spec.md` aprobada el | 24-09-2026 |
 | Estado | **Aprobado** |
 | Autor | Responsable técnico |
 | Aprobado por | Responsable del proyecto |
 | Fecha de aprobación | 24-09-2026 |
+| Enmendado el | 09-10-2026 — la oficina del dueño del enlace (aviso de cabecera) |
 | Enmendado el | 03-10-2026 — el escalón (§13) |
 | Enmendado el | 01-10-2026 — la tarjeta por Stripe (§12) |
 
@@ -17,6 +18,10 @@
     **Cómo se construye.** Las decisiones técnicas que la especificación deliberadamente no toma.
 
     **Prueba de pertenencia:** si al negocio no le importa ni lo entendería, va aquí.
+
+!!! warning "Enmendado el 09-10-2026 — la oficina es la del vendedor ya atribuido"
+
+    `spec.md` v0.5.0 (`RN-MV-078`). **Ningún componente propio**: `BuyByHotlinkService` registra por `RegisterSaleService.comprarPorElEnlace`, que llega a `registrar` con la atribución del enlace (`SaleAttribution.delEnlace`), y allí la oficina se pregunta —`SellerTeamLookup.teamAt(vendedor, ocurrioEn)`, [`RF-MV-001`](../001-registrar-venta/plan.md) §2.8— **sobre el vendedor ya atribuido**, que es el dueño del enlace, y no sobre quien compra. **Por eso no hace falta una rama**: el orden atribución → oficina, que es el de `registrar` para las tres puertas, es lo que garantiza `CA-MV-713`. `PurchaseResponse` no cambia. **Prueba** en `BuyByHotlinkIT`: un cliente cuyo agente pertenece a la cadena de un director con un equipo compra por el enlace de un agente de otro director con otro equipo, y la línea lleva el equipo del segundo, en `movement_details.team_id` y en la auditoría.
 
 ---
 

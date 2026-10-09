@@ -7,6 +7,7 @@
 | Plan | [`plan.md`](plan.md) |
 | `plan.md` aprobado el | 24-09-2026 |
 | Estado | **En revisión** |
+| Enmendadas | 09-10-2026 — `T-16` por **la oficina del dueño del enlace** (§1.1) |
 | Enmendadas | 03-10-2026 — `T-14` y `T-15` por **el escalón** (§7) |
 | Enmendadas | 01-10-2026 — `T-13` por **la tarjeta por Stripe** (§6) |
 | Issue | Pendiente de crear |
@@ -41,6 +42,14 @@
 | `T-11` | Prueba del rechazo a sí mismo | `T-05` | `CA-MV-194`: `422`, y **cero** filas nuevas en `movements` y en `client_sellers` | **Pendiente** |
 | `T-12` | Las enmiendas de `plan.md` §8, **en el mismo pase** | `T-06` | `requirements/mv.md`, `security.md`, `architecture.md` §15.2.1 y la matriz, cada uno con su fila de control de cambios | **Pendiente** |
 
+### 1.1 La oficina del dueño del enlace — 09-10-2026
+
+Enmienda de hecho (Art. I.7), `spec.md` 0.5.0 y `plan.md` (aviso del 09-10-2026) **antes** del código (`RN-MV-078`). **Sin código propio**: la oficina la escribe `RegisterSaleService.registrar` (`RF-MV-001` · `T-52`).
+
+| ID | Tarea | Depende de | Verificación | Estado |
+|---|---|---|---|---|
+| `T-16` | Prueba en `BuyByHotlinkIT`: un cliente de un agente de otra oficina compra por el enlace; la línea lleva la oficina del director del dueño del enlace, en lo guardado y en la auditoría, y el cuerpo no trae `team` | `RF-MV-001` · `T-52` | `CA-MV-713` | **Pendiente** |
+
 ## 2. Orden de ejecución
 
 `T-01` y `T-02` son independientes y van primero. El puerto (`T-03`, `T-04`) antes que el servicio, porque el servicio lo consume. El controlador al final, cuando hay qué publicar.
@@ -57,6 +66,7 @@
 | `CA-MV-194` | `T-11` |
 | `CA-MV-195` | `T-07` |
 | `CA-MV-196` | `T-06` |
+| `CA-MV-713` | `T-16` — 09-10-2026 |
 
 ## 4. Bloqueos
 

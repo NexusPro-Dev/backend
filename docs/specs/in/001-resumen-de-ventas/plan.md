@@ -3,9 +3,9 @@
 | Campo | Valor |
 |---|---|
 | Requerimiento | `RF-IN-001` |
-| Especificación | [`spec.md`](spec.md) v0.3.0 |
-| `spec.md` aprobada el | 06-10-2026 |
-| Versión | 0.3.0 |
+| Especificación | [`spec.md`](spec.md) v0.4.0 |
+| `spec.md` aprobada el | 06-10-2026; enmienda del 09-10-2026 por decisión del responsable del proyecto |
+| Versión | 0.4.0 |
 | Estado | **Aprobado** |
 | Autor | Responsable técnico |
 | Aprobado por | Responsable del proyecto |
@@ -18,6 +18,10 @@
 !!! warning "Enmendado el 06-10-2026 — el total de ventas y las gratuitas"
 
     Por decisión del responsable del proyecto: el indicador de ventas tiene que dar **el número de ventas**, **el total por estado** y **cuántas fueron gratuitas**. El total por estado ya estaba; faltaban los otros dos, y entran **en este mismo resumen**, con su permiso y su ruta, en lugar de en un indicador nuevo. **Cómo se construye.** La sentencia de §4.4 gana una columna, `count(DISTINCT m.id) FILTER (WHERE m.payable_amount = 0)`, en el mismo `GROUP BY` por estado y moneda: la gratuidad se mira en la **cabecera** —lo que se cobra por la venta entera— y no en la suma de las líneas del alcance. `SalesFigures.Totals` gana `free`; `IN` suma el total en Java, como ya suma las ventas entre monedas, porque los tres estados no se solapan. En la respuesta, `total` es un bloque nuevo —`sales` y `free`— y cada bloque de estado gana `free`. **Sin cambio de esquema ni de permisos**; el contrato solo crece. Se mira `payable_amount` y no el método de pago porque el método vive en `payments`, uno por intento, y `RN-MV-022` ya garantiza que importe cero y `GRATIS` son lo mismo.
+
+!!! warning "Enmendado el 09-10-2026 — `teamId`, la oficina guardada en la línea (RN-IN-014)"
+
+    `spec.md` v0.4.0. **La columna la pone `MV`**: `movement_details.team_id`, con su clave foránea a `teams` y el índice parcial `(team_id, movement_id)` sobre `team_id IS NOT NULL`, nacen en `V95__mv_oficina_de_la_venta.sql` con `RN-MV-078` (tripletas de `RF-MV-001` y `RF-MV-058`); **este requerimiento no migra nada** y se construye **después** de esa columna. **`SalesFigures.LineFilter` gana un quinto componente, `UUID teamId`**, y `none()` lo deja nulo; el predicado vive donde viven los otros cuatro —`donde` y `enlazar` de `JpaSalesFigures`—: `AND d.team_id = :oficina`, sobre la línea y no sobre la cabecera, que es `RN-IN-003` entero: una venta con líneas de dos oficinas cuenta una vez en cada una con solo su parte (`count(DISTINCT m.id)` y la suma de las líneas filtradas). **`SalesIndicatorRequest` gana `teamId`**, y `SalesIndicatorsController` recibe `@RequestParam(required = false) UUID teamId` en `/sales/summary`. **`GetSalesSummaryService` deja de llamar a las lecturas sin filtro**: pasa `new LineFilter(null, null, null, null, teamId)` a las sobrecargas de `summary` y `summaryByBucket` que `RF-IN-006` publicó el 07-10-2026, junto al `SalesScope` de siempre. **El filtro se combina con el alcance y no pasa por `SalesScopeResolver`**: el alcance sigue siendo «sobre qué vendedores», y la oficina estrecha las líneas de esos vendedores; el corte a ceros sin consultar sigue siendo solo el del vendedor fuera del alcance. Un agente que pide otra oficina no necesita corte: sus líneas guardan la suya, y la sentencia da cero. **Lo sin vendedor sale solo**: con `everything()` las líneas sin vendedor entran, pero su `team_id` es nulo y `d.team_id = :oficina` las deja fuera, sin un caso aparte; igual la venta de un manager. **Una oficina inexistente da ceros por la sentencia**: `IN` no lee `teams` (`requirements/in.md` §1.4) y no hay `404`. **Un UUID mal formado** es el `400` de conversión de Spring, `VAL-001`, como `sellerId` (`tasks.md` §3). **Alternativas descartadas**: resolver la oficina **hoy** —recorrer `user_supervisors` y `team_members` en el momento de la consulta y convertirla en un conjunto de vendedores para `SalesScope`— contaría en la oficina nueva lo que un agente vendió en la vieja, que es justo lo que `RN-IN-014` prohíbe; y validar que la oficina existe obligaría a `IN` a consumir un puerto de `teams` para responder lo mismo que la sentencia, cero. **Pruebas** en `SalesSummaryIT`: dos equipos con un director cada uno, sembrados por SQL **antes** de registrar las ventas para que la línea nazca con oficina por el camino real de `RN-MV-078`; una venta con líneas de las dos; una línea sin vendedor; la venta de un manager; y el traslado —cerrar la pertenencia de un director y asignarlo a la otra después de vender—, para `CA-IN-098` a `CA-IN-100`. El coste no cambia: una sentencia por petición. **La respuesta no cambia**; el contrato solo gana el parámetro.
 
 !!! info "Qué va en este documento"
 
@@ -112,6 +116,7 @@
 | `to` | fecha ISO | Día de Bogotá, incluido entero. Por defecto, hoy |
 | `currencyId` | UUID | Igualdad sobre la moneda de la venta; una inexistente da ceros |
 | `sellerId` | UUID | §3.2; fuera del alcance, ceros **sin consultar** |
+| `teamId` (09-10-2026) | UUID | Igualdad sobre la oficina guardada en la línea (`d.team_id`, `RN-IN-014`); se combina con el alcance; una inexistente da ceros |
 
 `VAL-001`, `VAL-002` y `VAL-003` son `400` con el formato de problemas del sistema, devueltos juntos; un UUID mal formado es el `400` de conversión de siempre (`VAL-004`).
 
@@ -153,6 +158,7 @@ SELECT m.status, m.currency_id, c.code,
    AND m.status IN ('CONFIRMADA', 'PENDIENTE', 'ANULADA')
    [AND d.seller_id IN (:vendedores)]      -- sellers(…); con everything() no va, y entran las líneas sin vendedor
    [AND m.currency_id = :moneda]
+   [AND d.team_id = :oficina]              -- 09-10-2026, RN-IN-014: la oficina guardada en la línea
  GROUP BY m.status, m.currency_id, c.code
 ```
 
@@ -235,3 +241,4 @@ Ninguna (`spec.md` §7).
 | La migración: catálogo, reparto, `CONSUMIDOR` sin ninguno, contención | `PermissionsSeedIT`, `PermissionIT` y los recuentos del catálogo | Las guardas |
 | `LayerRulesTest` con la regla de `IN` | Unitaria de arquitectura | La frontera la fija el código |
 | Contrato regenerado, sin esquemas fundidos | `OpenApiContractIT` | Solo altas |
+| Oficina: una venta de dos oficinas, lo sin vendedor y la venta de un manager fuera, el traslado que no mueve, el alcance combinado, inexistente y mal formada (09-10-2026) | Integración, `SalesSummaryIT` | `CA-IN-098` a `CA-IN-100` |

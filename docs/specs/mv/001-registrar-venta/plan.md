@@ -3,10 +3,11 @@
 | Campo | Valor |
 |---|---|
 | Requerimiento | `RF-MV-001` |
-| Especificación | [`spec.md`](spec.md) |
+| Especificación | [`spec.md`](spec.md) v0.11.0 |
 | `spec.md` aprobada el | 02-09-2026 |
-| Versión | 0.8.0 |
+| Versión | 0.9.0 |
 | Estado | **Aprobado** |
+| Enmendado el | 09-10-2026 — **la oficina de cada línea** (`RN-MV-078`): el puerto `SellerTeamLookup` que publica `teams`, `movement_details.team_id` y `V95`, que sirven a todo el módulo (§2.8) |
 | Enmendado el | 05-10-2026 — **la venta del alta gratuita nace confirmada sin entregar** (`RN-MV-075`) y `V68` migra las que esperaban (§2.7) |
 | Enmendado el | 05-10-2026 — `V65`: **los importes en centésimas** (`bigint`), con un convertidor JPA compartido; `MV` es la tripleta que construye el convertidor y la migración entera ([`ADR-006`](../../../architecture/ADR-006-importes-en-unidades-minimas.md); §2.6) |
 | Enmendado el | 03-10-2026 — `RN-MV-006` gana la mitad del **salto**: `SaleRules.verificarQueSube` rechaza también un destino más de un nivel por encima del vigente, con el mismo `EX-005` y otro mensaje (§3.2). Sin esquema |
@@ -23,6 +24,10 @@
     **Prueba de pertenencia:** si al negocio no le importa ni lo entendería, va aquí.
 
 Este plan **funda la mecánica del módulo** y los demás la heredan sin repetirla: el esquema, las lecturas cruzadas hacia `SP` y `PM`, la traducción de errores y el generador del código de comprobante rigen para `RF-MV-002` a `RF-MV-009`.
+
+!!! warning "Enmendado el 09-10-2026 — la oficina de cada línea: `SellerTeamLookup`, `movement_details.team_id` y `V95`"
+
+    `spec.md` v0.11.0 (`RN-MV-078`). **Este plan funda la oficina para todo el módulo**, como fundó el vendedor: **el puerto de lectura que publica `teams`, la columna y la migración `V95` se describen aquí, en §2.8**, y [`RF-MV-002`](../002-comprar-producto-uno-mismo/plan.md), [`RF-MV-011`](../011-comprar-por-hotlink/plan.md) a [`RF-MV-013`](../013-comprar-paquete-por-hotlink/plan.md), [`RF-MV-016`](../016-asignar-vendedores-de-venta/plan.md) y [`RF-MV-058`](../058-rellenar-oficina-de-lineas/plan.md) los citan sin repetirlos. **En una frase**: `RegisterSaleService.registrar` pregunta `SellerTeamLookup.teamAt(vendedor, ocurrioEn)` **después de la atribución y una vez por vendedor distinto**, y `MovementLine` lo copia en `team_id` junto a `seller_id`. **Cómo se lee la oficina** en las respuestas, los listados y los filtros es de [`RF-MV-007`](../007-consultar-detalle-movimiento/plan.md) y sus hermanos; aquí solo se escribe.
 
 ---
 
@@ -148,6 +153,39 @@ Enmienda del Art. I.7 por `RN-MV-075` ([`requirements/mv.md`](../../../requireme
 
 **Alternativa descartada: confirmar al depósito y no al alta.** Dejaría la venta pendiente hasta el depósito y entregaría al confirmarla, sin ninguna excepción a `RN-MV-020`. Se descarta porque es lo contrario de lo que el responsable pidió: la venta **es** una compra hecha, y lo que espera es su activación. Un pendiente que no espera ningún pago tampoco tiene quién lo rechace ni lo anule.
 
+### 2.8 La oficina de cada línea: `SellerTeamLookup`, `team_id` y `V95` — 09-10-2026
+
+Enmienda del Art. I.7 por `RN-MV-078` ([`requirements/mv.md`](../../../requirements/mv.md) v0.97.0 §4.13 y §7.3) y por `RN-SP-051`, `RN-SP-052` y `RN-SP-055` enmendadas ([`requirements/sp.md`](../../../requirements/sp.md) v1.119.0).
+
+**El puerto.** `teams` publica una lectura, **`com.factech.nexus.modules.system.teams.application.SellerTeamLookup`**, con dos métodos:
+
+| Método | Qué responde | Quién lo usa |
+|---|---|---|
+| `Optional<UUID> teamAt(UUID sellerId, OffsetDateTime instant)` | El equipo del **primero** de la cadena del vendedor —él incluido— que tiene una pertenencia vigente en ese instante; vacío si nadie de la cadena la tiene, y vacío con `sellerId` o `instant` nulos | El registro (`RF-MV-001`, `RF-MV-002`, `RF-MV-011` y el alta por enlace), la compra de paquetes (`RF-MV-012`, `RF-MV-013`) y la asignación (`RF-MV-016`) |
+| `Map<UUID, UUID> currentTeamsOf(Collection<UUID> sellerIds)` | Lo mismo con el instante **de ahora** y en lote: vendedor → equipo; **sin entrada** el que no tiene | El relleno (`RF-MV-058`) |
+
+**Una sola sentencia por pregunta.** Es la `WITH RECURSIVE` de `JpaSupervisorChain` —las filas de `user_supervisors` vigentes en el instante, la ruta recorrida en un arreglo como guarda de ciclos (`RN-SP-020` los prohíbe y el esquema no los impide) y el tope de **64** niveles—, y sobre ella `JOIN team_members tm ON tm.user_id = c.user_id AND tm.started_at <= :instante AND (tm.ended_at IS NULL OR tm.ended_at > :instante)`, `ORDER BY c.nivel LIMIT 1`. **En lote**, la semilla lleva **a cada vendedor como origen** —`(origen, user_id, nivel, ruta)`— y la salida es `SELECT DISTINCT ON (c.origen) c.origen, tm.team_id … ORDER BY c.origen, c.nivel`: una ida a la base para todos. El instante de `currentTeamsOf` es el del `Clock` inyectado y no el `now()` del motor, para que una prueba lo pueda fijar. La implementación, **`JpaSellerTeamLookup`**, vive en `teams/domain/repository`, junto a `JpaTeamMemberRepository`; `MV` solo conoce la interfaz, que es lo que `LayerRulesTest` (D-25) deja pasar.
+
+**No se pregunta por el rol ni por el estado del equipo.** Quién puede tener fila lo decide `RN-SP-051` al asignar (`RF-SP-069`), y la venta lee lo que hay (`requirements/mv.md` §4.13: «no se pregunta por el código del rol»). Por lo mismo, un equipo `INACTIVO` con su director vigente sigue siendo su oficina: la regla habla de pertenencia.
+
+**Por qué no se reutiliza `SupervisorChain` y se filtra en `MV`.** Haría falta la cadena entera y después preguntar por la pertenencia de cada eslabón: o una llamada por eslabón, o una lectura de `team_members` desde `MV`, que D-25 prohíbe. La sentencia que **para en el primer miembro** es una sola ida por vendedor, y vive en el módulo dueño de las dos tablas.
+
+**La escritura.** **`MovementLine` gana `teamId`**: los dos `copiarDe` lo reciben justo detrás de `sellerId`, y **una línea con oficina y sin vendedor se rechaza** con `IllegalArgumentException` al construirla —«sin vendedor, sin oficina» es de la línea, como que una copia vacía no es una copia—. **La instantánea de auditoría escribe `team_id` nulo y presente**, por lo mismo que `seller_id`: la clave ausente se leería como «esta versión no lo registraba». **`JpaMovementRepository.insertarLineas`** escribe la columna. **`RegisterSaleService.registrar`** la resuelve **después de la atribución y antes de copiar**: `vendedor == null ? null : equipos.teamAt(vendedor.id(), ocurrioEn).orElse(null)`, y `copiar` la pone en cada línea. **Una vez por vendedor distinto**: hoy la venta tiene uno solo (`SaleAttribution`), y el día que un carrito mezcle vendedores será un mapa vendedor → oficina, nunca una pregunta por línea. **`ocurrioEn` y no `ahora`**: la regla es la estructura del día de la venta, y es lo que hace verdadero `CA-MV-709`. La compra de paquetes hace lo mismo en `BuyPackageService.registrar` ([`RF-MV-012`](../012-comprar-paquete/plan.md)).
+
+**La respuesta.** `SaleResponse.de` recibe además las oficinas resueltas y `SaleLineResponse.de` pone en cada línea **`team`** —`{id, name}`, la forma `LineTeam` que publica [`RF-MV-007`](../007-consultar-detalle-movimiento/plan.md), con su `@Schema(name = "LineTeam")` propio— o nulo. **El nombre no lo da el puerto**, que responde identificadores: lo lee `MovementRepository.findTeamNames(Collection<UUID>)`, un `SELECT id, name FROM teams WHERE id IN (:equipos)` nativo, la misma lectura de nombres que los listados hacen con `LEFT JOIN teams` (`requirements/mv.md` §7.3). Las respuestas que ya salen de `SaleDetailMapper` —la venta pagada con puntos, la del alta gratuita confirmada— traen `team` por la lectura de `RF-MV-007`, sin nada aquí.
+
+**`V95__mv_oficina_de_la_venta.sql`**, en este orden:
+
+1. **La columna.** `ALTER TABLE movement_details ADD COLUMN team_id uuid NULL`, con `fk_movement_details_team` a `teams (id)` **`ON DELETE SET NULL`** —un equipo se elimina lógicamente (`RN-SP-054`), y la acción existe para que las suites que vacían `teams` no tengan que limpiar antes las ventas: la lección de `product_links`— e `ix_movement_details_team` sobre `(team_id, movement_id) WHERE team_id IS NOT NULL`, **parcial** como el del vendedor. **No rellena nada**: a la fecha de cada venta anterior ningún director tenía equipo, y lo hace `RF-MV-058` cuando administración los haya asignado.
+2. **Cierra las pertenencias vigentes de los managers**: `UPDATE team_members SET ended_at = now(), updated_at = now() WHERE ended_at IS NULL AND` el miembro porta el rol vendedor de **la cúspide** —el vendedor cuyo rol padre no es vendedor (`RN-SP-019`), hoy `MANAGER`—, por la forma de la jerarquía y no por el código, como `RN-SP-051`. **Con fecha de fin y no borrando**: es historial (`RN-SP-052`). Hasta `V95` la cúspide era lo único que se podía asignar, de modo que en la práctica cierra todas las vigentes. **Va antes del índice siguiente**, que con dos managers en un equipo no se podría crear.
+3. **`uq_team_members_equipo_vigente`**: `CREATE UNIQUE INDEX … ON team_members (team_id) WHERE ended_at IS NULL` —**un director vigente por equipo** (`RN-SP-052`)—, con la construcción de `uq_team_members_vigente`. Respalda la carrera de dos asignaciones simultáneas; la violación la traduce a `409` [`RF-SP-069`](../../sp/069-asignar-miembros-a-equipo/plan.md).
+4. **Los cinco equipos** —Principal, Legendary, Elite, Prime y Master—, `ACTIVO`, con identificadores fijos, **sin pisar** uno no eliminado cuyo nombre normalizado coincida (`INSERT … SELECT … WHERE NOT EXISTS` con la expresión de `uq_teams_name`): un entorno donde administración ya creó «Elite» conserva el suyo.
+5. **`movements:fill-line-teams`** (`01a10e82-9000-7206-9c4f-5e7ad700006a`, `RF-MV-058`) a `SUPERADMIN` y `ADMIN`, explícito. **No es sensible** (`requires_recent_mfa` en falso): la lista la confirmó el responsable el 06-10-2026, y rellenar oficinas no mueve dinero. El catálogo pasa a **234** y `ADMIN` a **232**, contando la `V96` de cuentas de broker.
+
+**Lo que `V95` no hace**: tocar `RN-SP-051` en el caso de uso de asignar, ni `RN-SP-055` al retirar roles. Eso es de [`RF-SP-069`](../../sp/069-asignar-miembros-a-equipo/plan.md), [`RF-SP-031`](../../sp/031-retirar-roles-usuario/plan.md) y [`RF-SP-029`](../../sp/029-eliminar-usuario/plan.md).
+
+**Alternativa descartada: calcular la oficina al leer**, con el recorrido de hoy. Es la respuesta equivocada después de un traslado, que es justo el caso que pidió el responsable (`requirements/mv.md` §4.13). **Y descartada: guardar la oficina en la cabecera.** La oficina es del vendedor, y el vendedor es de la línea (`RN-MV-003`): el día que una venta lleve dos vendedores, llevará dos oficinas.
+
 ## 3. Componentes afectados
 
 | Capa | Componente | Nuevo / Modificado | Responsabilidad |
@@ -162,6 +200,11 @@ Enmienda del Art. I.7 por `RN-MV-075` ([`requirements/mv.md`](../../../requireme
 | `interfaces` | `MovementController` | Nuevo | `POST /api/v1/movements` |
 | `modules/products/application` | `ProductCatalog` | **Modificado** | Gana la vista de venta y la consulta de oferta. Ver §3.2 |
 | `modules/system/users/application` | `ClientCatalog` | **Nuevo, dentro de `SP`** | El estado del cliente y su vendedor vigente. **El nivel NO: lo publica ya `CurrentMembershipLookup`** (enmienda del 04-09-2026, `tasks.md` §2.2). Ver §3.2 |
+| `modules/system/teams/application` | `SellerTeamLookup` | **Nuevo, dentro de `SP`** (09-10-2026) | La oficina de un vendedor en un instante, y la de varios ahora. Ver §2.8 |
+| `modules/system/teams/domain/repository` | `JpaSellerTeamLookup` | **Nuevo, dentro de `SP`** (09-10-2026) | Una `WITH RECURSIVE` por pregunta |
+| `domain/models` | `MovementLine` | **Modificado** (09-10-2026) | Gana `teamId`; sin vendedor, sin oficina; `team_id` en la instantánea |
+| `domain/service` | `RegisterSaleService` | **Modificado** (09-10-2026) | `teamAt(vendedor, ocurrioEn)` tras la atribución |
+| `domain/repository` | `JpaMovementRepository` | **Modificado** (09-10-2026) | `insertarLineas` escribe `team_id`; `findTeamNames` para la respuesta |
 
 ### 3.1 El total lo calcula el agregado, no el caso de uso
 
@@ -237,6 +280,8 @@ Registro de **cambios**, acción de creación, con la instantánea completa: suj
 
 **El vendedor tiene que estar en la instantánea**, y es lo único de esta sección que no es rutina: es un dato que el actor no envió y que determina **a quién se le va a pagar**. Sin él en el registro, la pregunta «¿por qué esta venta se le atribuyó a esta persona?» solo se puede responder reconstruyendo cómo estaba la estructura comercial ese día.
 
+**Y desde el 09-10-2026, su oficina** (`RN-MV-078`): `team_id` en cada línea, **nulo y presente** cuando no la hay. Por el mismo argumento que el vendedor: es un dato que el actor no envió, sale de una estructura que mañana será otra, y sin él «¿por qué esta venta cuenta en esta oficina?» solo se respondería reconstruyendo `user_supervisors` y `team_members` de aquel día.
+
 ## 7. Transaccionalidad
 
 `@Transactional`. La cabecera, sus líneas y el registro de auditoría, o nada.
@@ -266,6 +311,8 @@ Registro de **cambios**, acción de creación, con la instantánea completa: suj
 
 **D-26 no bloquea este requerimiento.** Registrar una venta **no escribe en `SP`**: solo lee. La escritura aparece al confirmar, y es `RF-MV-003` quien no puede terminarse sin esa decisión.
 
+**Desde el 09-10-2026 `SP` gana otra interfaz publicada**, `SellerTeamLookup` en `teams` (§2.8), con la misma regla: se añade y no se modifica nada, y la suite de `teams` sigue en verde sin cambios **salvo** lo que `V95` siembra —cinco equipos que las pruebas que cuentan equipos o vacían la tabla tienen que tener en cuenta—.
+
 ## 9. Alternativas consideradas
 
 | Alternativa | Por qué se descartó |
@@ -290,6 +337,8 @@ Registro de **cambios**, acción de creación, con la instantánea completa: suj
 | 4 | El gestor de auditoría de la aplicación **espere `updated_at`** en `movements` | Es la primera tabla sin esas columnas. Se comprueba al escribir el adaptador, y falla al compilar o en la primera prueba de integración |
 | 5 | **Dos ventas simultáneas del mismo upgrade** | Aceptado y declarado en `spec.md` §13. Ninguna concede nada; el conflicto es de `RF-MV-003` |
 | 6 | Las interfaces nuevas de `PM` y `SP` **rompan sus suites** | Se añaden métodos, no se modifican. Su definición de terminado exige las dos suites en verde sin cambios |
+| 7 | **La oficina se calcule con el reloj y no con la fecha del hecho** (09-10-2026) | La venta registrada con fecha anterior a un traslado iría a la oficina de hoy, sin error. Lo cubre `CA-MV-709`, que registra con una fecha anterior al traslado |
+| 8 | **Una venta con fecha del hecho anterior a `V95`** encuentre la pertenencia **de un manager**, que estaba vigente en ese instante y `V95` cierra con fecha de hoy (09-10-2026) | La regla, aplicada al pie de la letra, le daría el equipo de ese manager. **No se resuelve en este plan**: está planteado al responsable del proyecto. Mientras tanto la regla se aplica tal cual está escrita |
 
 ## 11. Estrategia de prueba
 
@@ -306,6 +355,13 @@ Registro de **cambios**, acción de creación, con la instantánea completa: suj
 | Las diez negativas | Integración | `CA-MV-008` a `CA-MV-017`, cada una con su código y su distinción |
 | **El escalón** | Unitaria e integración | `CA-MV-526` en `RegisterSaleServiceTest`, con la oferta simulada dejando pasar el salto —por HTTP la oferta lo excluye y se ve `EX-004`, el argumento de `tasks.md` §3 para `CA-MV-011`—; `CA-MV-527` por HTTP, con un producto de un escalón |
 | Auditoría con el vendedor dentro | Integración | `CA-MV-018` |
+| **La oficina de cada línea** (09-10-2026) | Integración | `CA-MV-704` a `CA-MV-707` en `RegisterSaleIT`, con la estructura sembrada —agente, director con equipo, manager, vendedor sin director con equipo—, mirando la respuesta, `movement_details.team_id` y la instantánea a la vez |
+| **El traslado posterior** (09-10-2026) | Integración | `CA-MV-708`: se registra, **después** se traslada al agente y al director, y la línea no cambia. Sin el traslado posterior la prueba no probaría nada |
+| **La fecha del hecho** (09-10-2026) | Integración | `CA-MV-709`: el director cambia de equipo en `T` y se registra hoy una venta con fecha anterior a `T` |
+| Sin vendedor, sin oficina (09-10-2026) | Integración | `CA-MV-710`, sobre la venta por validar de `RF-MV-016` |
+| El alta por enlace (09-10-2026) | Integración | `CA-MV-711` en `SelfRegistrationIT` |
+| **El puerto** (09-10-2026) | Integración | `SellerTeamLookupIT` en `teams`: agente → su director; director → él; manager → vacío; un instante anterior a un traslado; un ciclo sembrado que no cuelga; `currentTeamsOf` en lote, sin entrada para quien no tiene |
+| La línea sin vendedor y con oficina (09-10-2026) | Unitaria | `MovementLineTest`: se rechaza al construirla |
 | El agregado, sin base de datos | Unitaria | El total como suma de líneas, la composición del código, y que un `Movement` no se puede construir sin líneas |
 | **La siembra de permisos** | Integración | Los cuatro existen **y están asociados a `SUPERADMIN` y `ADMIN`** — riesgo 1 |
 | Reintento del código | Unitaria | Tres intentos y falla, con el generador forzado a colisionar |

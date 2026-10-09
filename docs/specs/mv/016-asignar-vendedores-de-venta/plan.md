@@ -3,21 +3,30 @@
 | Campo | Valor |
 |---|---|
 | Requerimiento | `RF-MV-016` |
-| Especificación | [`spec.md`](spec.md) v0.1.0 |
+| Especificación | [`spec.md`](spec.md) v0.4.0 |
 | `spec.md` aprobada el | 23-09-2026 |
-| Versión | 0.3.0 |
+| Versión | 0.4.0 |
 | Estado | **Aprobado** |
 | Autor | Responsable técnico |
 | Aprobado por | Responsable del proyecto |
 | Fecha de aprobación | 23-09-2026 |
 | Enmendado el | 30-09-2026 — corregir en una venta confirmada, preguntándole a `CM` por un puerto que `MV` declara (§12) |
 | Enmendado el | 07-10-2026 — `CM` borra la cadena vieja; nada cambia aquí (§13) |
+| Enmendado el | 09-10-2026 — la oficina con el vendedor, a la fecha de la venta (aviso de cabecera) |
 
 !!! info "Qué va en este documento"
 
     **Cómo se construye.** Esquema, componentes, contrato, autorización y pruebas.
 
     **Prueba de pertenencia:** si un cambio de negocio lo invalidaría, pertenece a `spec.md`.
+
+!!! warning "Enmendado el 09-10-2026 — la oficina se escribe con el vendedor, a la fecha de la venta"
+
+    `spec.md` v0.4.0 (`RN-MV-078`). **`AssignmentHeader` gana `occurredAt`**: `lockForAssignment` proyecta además `m.occurred_at`, en la misma sentencia que ya bloquea la venta. **`AssignmentLine` gana `teamId`**, que `findLinesForAssignment` lee para la auditoría. **`MovementRepository.assignSeller(lineId, sellerId, teamId)`** escribe las dos columnas en el mismo `UPDATE` —`SET seller_id = :vendedor, team_id = :oficina`—: no existe un estado intermedio con el vendedor nuevo y la oficina vieja. **`AssignSellersService`**, en el paso 5 y solo para las líneas que **cambian** de vendedor, pregunta `SellerTeamLookup.teamAt(pedida.sellerId(), venta.occurredAt())` —[`RF-MV-001`](../001-registrar-venta/plan.md) §2.8— **una vez por vendedor distinto** de la petición, con un mapa, porque varias líneas pueden ir al mismo. **El instante es `occurred_at` de la venta y no el reloj**: es lo que hace que corregir no traslade (`CA-MV-716`). La pregunta va **después** de todas las comprobaciones y de `CM` —una lectura que no decide nada no debe preceder a un rechazo— y **antes** de escribir, dentro del bloqueo. **La auditoría** (`cambios`) añade `team_id` a cada línea de `before` y `after`, nulo y presente. **La respuesta** sale de `SaleDetailMapper` sobre `findById`, que trae `team` por la lectura de [`RF-MV-007`](../007-consultar-detalle-movimiento/plan.md): sin código aquí. **El aviso a `CM` no cambia**: la comisión no mira la oficina.
+
+    **Alternativas descartadas.** *Recalcular con el reloj de la corrección*: daría la oficina del vendedor **hoy**, y una corrección hecha un mes después de un traslado movería la venta, que es lo que `RN-MV-078` prohíbe. *Conservar la oficina vieja al cambiar de vendedor*: la oficina es del vendedor, y la vieja sería la de otra persona. *Recalcular también al reescribir el mismo vendedor*: cambiaría una línea a la que la petición no le cambió nada; lo vacío lo rellena `RF-MV-058`.
+
+    **Pruebas** en `SellerAssignmentIT`: asignar en una venta por validar deja la oficina del vendedor nuevo; corregir con un vendedor nuevo cuyo director **cambió de equipo después de la venta** deja la oficina de la fecha de la venta; corregir hacia quien ese día no tenía oficina la deja nula; reescribir el mismo vendedor no la toca; la auditoría lleva `team_id` antes y después.
 
 ---
 

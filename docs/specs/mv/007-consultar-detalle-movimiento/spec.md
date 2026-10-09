@@ -4,13 +4,20 @@
 |---|---|
 | Requerimiento | `RF-MV-007` |
 | Módulo | `MV` — Movimientos |
-| Versión | 0.3.0 |
+| Versión | 0.4.0 |
 | Estado | **Aprobada** |
 | Autor | Responsable técnico |
 | Aprobada por | Responsable del proyecto |
 | Fecha de aprobación | 30-09-2026 |
 | Enmendada el | 30-09-2026 — **permiso propio** (`RN-SEG-014`) y lo que no tiene forma de identificador responde **no encontrado** (§3, §10, §11, §12, §14). Ver §15 |
 | Enmendada el | 01-10-2026 — **el detalle de un retiro publica su destino** (`RN-MV-056`): §6.2, §12. Ver §15 |
+| Enmendada el | 09-10-2026 — **cada línea dice en qué oficina se vendió** (`RN-MV-078`): §6.2, §12, §13. Ver §15 |
+
+!!! warning "Enmendado el 09-10-2026 — cada línea dice en qué oficina se vendió"
+
+    `RN-MV-078` ([`requirements/mv.md`](../../../requirements/mv.md) v0.97.0 §4.13), a petición del responsable del proyecto: saber **en qué oficina se hizo cada venta**, y que un traslado no se lleve lo vendido. La oficina es el **equipo del director de la cadena del vendedor en el instante de la venta**, y queda guardada **en cada línea**, junto a su vendedor. **El comprobante la enseña**: cada línea trae **su oficina** —identificador y nombre—, y la trae **presente y vacía** cuando no la tiene: una línea sin vendedor, la venta de un manager, un vendedor sin director con equipo, o una venta anterior a la oficina que administración aún no ha rellenado (`RF-MV-058`).
+
+    **Es la guardada, no la de hoy**: si el vendedor o su director cambiaron de equipo después, el detalle sigue diciendo la oficina donde se vendió. Y como **toda respuesta que lleva líneas tiene la misma forma** —el detalle propio (`RF-MV-008`), registrar, confirmar, anular, rechazar un pago, volver a pagar y asignar vendedores—, todas ganan el dato a la vez: `CA-MV-290` —«lo mismo que el detalle propio»— se sigue cumpliendo. **Nada más cambia**: ni el permiso, ni la entrada, ni las excepciones. Un retiro o un bono siguen sin líneas, de modo que no tienen oficina que enseñar. `CA-MV-720`.
 
 !!! info "Qué va en este documento"
 
@@ -75,6 +82,8 @@ Que quien administra el libro pueda **abrir cualquier movimiento** —una venta,
 
 **Desde el 01-10-2026, el detalle de un retiro trae su destino** (`RN-MV-056`): la copia que se escribió al pedirlo —entidad, tipo de cuenta, número y titular con su documento—, **no** los datos vivos de la cuenta. Es lo que lee quien lo aprueba (`RF-MV-020`) para saber a dónde enviar el dinero. **Un retiro pedido antes de ese día, y todo movimiento que no es un retiro, lo traen vacío**. Vale igual para el detalle propio (`RF-MV-008`), que es la misma respuesta.
 
+**Desde el 09-10-2026, cada línea trae su oficina** (`RN-MV-078`): la **guardada** en la línea el día de la venta —identificador y nombre—, no la que tendría hoy su vendedor. **Presente y vacía** cuando la línea no la tiene. Vale igual para el detalle propio (`RF-MV-008`) y para toda respuesta que lleve líneas.
+
 ## 7. Precondiciones y postcondiciones
 
 | | |
@@ -125,12 +134,14 @@ No cambia nada: responde lo mismo que respondería a cualquier otro administrado
 | `CA-MV-292` | Sin el permiso del detalle, **rechazo por permiso**, aunque el movimiento sea propio **o el actor tenga el del listado**; sin sesión, **no autenticado** |
 | `CA-MV-424` | **Desde el 01-10-2026.** El detalle de un retiro trae **su destino copiado**, y sigue diciendo lo mismo después de editar o dar de baja la cuenta; el detalle propio del mismo retiro trae el mismo destino |
 | `CA-MV-425` | El detalle de una **venta**, y el de un retiro **sin copia**, traen el destino vacío |
+| `CA-MV-720` | **Desde el 09-10-2026.** Cada línea del detalle trae **su oficina** —identificador y nombre—, **presente y vacía** cuando no la tiene; es la **guardada** en la línea: después de que el director del vendedor cambie de equipo, el detalle sigue diciendo la oficina de la venta. El detalle propio de la misma venta trae lo mismo (`CA-MV-290`) |
 
 ## 13. Casos límite
 
 - **Una venta anulada o con el pago rechazado** se abre igual, con su estado y el motivo que conste.
 - **Una línea retenida** —un upgrade que habría bajado de nivel— sale con su estado de entrega y su nota.
 - **Un producto borrado del catálogo después de vender** no afecta al detalle: la línea lleva su copia.
+- **Una oficina eliminada después de vender** (09-10-2026) se sigue nombrando en la línea: la eliminación de un equipo es lógica (`RN-SP-054`) y lo vendido no se reescribe. **Una oficina renombrada** sale con su nombre de hoy: lo guardado es **cuál** es, no cómo se llamaba.
 
 ## 14. Preguntas abiertas
 
@@ -149,3 +160,4 @@ Ninguna abierta.
 | 0.1.0 | 30-09-2026 | Primera versión. Declarado desde el 02-09-2026 en `requirements/mv.md` §4.1 y sin especificar; es el detalle de `RF-MV-006` y el último requerimiento de `MV` sin tripleta | Responsable técnico |
 | 0.2.0 | 30-09-2026 | **Permiso propio, y lo que no tiene forma de identificador es no encontrado**, al construir. (1) La 0.1.0 reutilizaba el permiso del listado; `RN-SEG-014` no lo admite y la prueba que lo hace cumplir lo detectó: nace el del detalle, repartido a quien porta el del listado (§3, §12, §14). (2) Sin validación del identificador: la ruta de la operación habría capturado la que `RF-MV-008` retiró, y su `CA-MV-140` promete no encontrado (§10, §11, `CA-MV-291`) | Responsable técnico |
 | 0.3.0 | 01-10-2026 | **El detalle de un retiro publica su destino** ([`requirements/mv.md`](../../../requirements/mv.md) v0.61.0 §4.5, `RN-MV-056`): la copia escrita al pedirlo, para que quien aprueba sepa a dónde pagar. Vacío en lo demás. Criterios `CA-MV-424` y `CA-MV-425`. | Responsable del proyecto |
+| 0.4.0 | 09-10-2026 | **Cada línea dice en qué oficina se vendió** ([`requirements/mv.md`](../../../requirements/mv.md) v0.97.0 §4.13, `RN-MV-078`; Art. I.7 sobre un requerimiento construido), a petición del responsable del proyecto: la guardada en la línea, presente y vacía cuando no la hay, y no la de la estructura de hoy. Como toda respuesta con líneas tiene la misma forma, el detalle propio y las respuestas de las operaciones sobre la venta la ganan a la vez. Criterio `CA-MV-720`. | Responsable del proyecto |

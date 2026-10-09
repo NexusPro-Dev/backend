@@ -3,9 +3,9 @@
 | Campo | Valor |
 |---|---|
 | Requerimiento | `RF-IN-006` |
-| Especificación | [`spec.md`](spec.md) v0.2.0 |
-| `spec.md` aprobada el | 06-10-2026 |
-| Versión | 0.3.0 |
+| Especificación | [`spec.md`](spec.md) v0.4.0 |
+| `spec.md` aprobada el | 06-10-2026; enmienda del 09-10-2026 por decisión del responsable del proyecto |
+| Versión | 0.4.0 |
 | Estado | **Aprobado** |
 | Autor | Responsable técnico |
 | Aprobado por | Responsable del proyecto |
@@ -18,6 +18,10 @@
 !!! warning "Enmendado el 07-10-2026 (segunda) — `sellerId`, `clientId`, `productId` y `code`"
 
     `spec.md` v0.3.0. **`SalesFigures` gana `LineFilter(UUID sellerId, UUID clientId, UUID productId, String code)`**, con `none()`, y las lecturas que usa este indicador lo reciben: `unassigned`, `unassignedByBucket`, `byProductType` y `byProductTypeAndBucket` lo toman en su firma, y `summary` y `summaryByBucket` ganan una sobrecarga con él —las de siempre delegan con `none()`, de modo que `RF-IN-001`, `RF-IN-002` y `RF-IN-004` no cambian—. **El predicado vive en el mismo sitio que el de la moneda** (`donde` y `enlazar` de `JpaSalesFigures`): `d.seller_id = :vendedor`, `m.user_id = :cliente`, `d.product_id = :producto` y `lower(m.code) LIKE :codigo ESCAPE '\'` con los comodines escapados, como `Filtro.contiene` de `JpaMovementRepository`. **El vendedor del filtro no usa `SalesScope`**: el alcance se queda en `everything()`, porque esto no es alcance (`RN-IN-011`), y además `unassigned` no lo recibe. Con `d.seller_id = :vendedor` y `d.seller_id IS NULL` juntos, lo sin vendedor da cero por la sentencia, sin un caso aparte. El código se normaliza en el controlador: vacío es sin filtro. Pruebas en `SaleLinesSummaryIT`. **Ampliación**: la respuesta no cambia.
+
+!!! warning "Enmendado el 09-10-2026 — `teamId`, la oficina guardada en la línea (RN-IN-014)"
+
+    `spec.md` v0.4.0. **El quinto componente de `LineFilter`, `teamId`, y su predicado `d.team_id = :oficina` en `donde` y `enlazar` los pone `RF-IN-001` · `T-17`**; este indicador ya pasa el `LineFilter` a sus seis lecturas —`summary`, `summaryByBucket`, `unassigned`, `unassignedByBucket`, `byProductType`, `byProductTypeAndBucket`—, de modo que **no cambia ninguna firma**. `SalesIndicatorsController` recibe `@RequestParam(required = false) UUID teamId` en `/sales/lines/summary` y construye `new LineFilter(sellerId, clientId, productId, code, teamId)`. **Lo sin vendedor da cero por la sentencia**, como con vendedor: `d.seller_id IS NULL` y `d.team_id = :oficina` juntos no tienen filas, porque la línea sin vendedor nace sin oficina (`RN-MV-078`). **El alcance sigue en `everything()`** (`RN-IN-011`): la oficina estrecha, no acota a quien mira. Una oficina inexistente da ceros por la sentencia; mal formada, el `400` de conversión, `VAL-001`. **Descartado**: filtrar por los vendedores que hoy cuelgan de la oficina, por la misma razón que en `RF-IN-001`. **Pruebas** en `SaleLinesSummaryIT`, sobre una semilla con dos oficinas sembradas antes de vender, una venta de dos oficinas, una línea sin vendedor, la venta de un manager y un traslado posterior: `CA-IN-102` y `CA-IN-103`. Sin migración; la columna es de `V95`. **Ampliación**: la respuesta no cambia.
 
 !!! info "Qué va en este documento"
 
@@ -67,7 +71,7 @@
 
 ### 4.1 Parámetros
 
-`from`, `to`, `currencyId` y `granularity`, los de `RN-IN-010`. **Desde el 07-10-2026, `sellerId`, `clientId`, `productId` (UUID) y `code` (texto, fragmento)**, que estrechan sin acotar por alcance (§ enmienda).
+`from`, `to`, `currencyId` y `granularity`, los de `RN-IN-010`. **Desde el 07-10-2026, `sellerId`, `clientId`, `productId` (UUID) y `code` (texto, fragmento)**, que estrechan sin acotar por alcance (§ enmienda). **Desde el 09-10-2026, `teamId` (UUID)**: la oficina guardada en la línea (`RN-IN-014`).
 
 ### 4.2 La respuesta
 
@@ -154,3 +158,4 @@ Ninguna.
 | Un vendedor con el permiso ve lo mismo | Integración | `CA-IN-064` |
 | Periodo, moneda, tramos | Integración | `CA-IN-065` |
 | Permisos y siembra | Integración y los recuentos del catálogo | `CA-IN-066` |
+| Oficina: dos oficinas, lo sin vendedor en cero, la venta de un manager, el traslado, combinada, inexistente y mal formada (09-10-2026) | Integración, `SaleLinesSummaryIT` | `CA-IN-102`, `CA-IN-103` |

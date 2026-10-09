@@ -3,15 +3,16 @@
 | Campo | Valor |
 |---|---|
 | Requerimiento | `RF-MV-012` |
-| Especificación | [`spec.md`](spec.md) |
+| Especificación | [`spec.md`](spec.md) v0.7.0 |
 | `spec.md` aprobada el | 16-09-2026 |
-| Versión | 0.4.0 |
+| Versión | 0.5.0 |
 | Estado | **Aprobado** |
 | Autor | Responsable técnico |
 | Aprobado por | Responsable del proyecto |
 | Fecha de aprobación | 16-09-2026 |
 | Enmendado | 21-09-2026 — exige **`packages:buy`** (`RF-SP-062`, `RN-SEG-015`: autenticarse no autoriza nada); lo siembra `V31` |
 | Enmendado el | 01-10-2026 — la tarjeta por Stripe (§12) · 03-10-2026 — el upgrade sube un escalón (§13) |
+| Enmendado el | 09-10-2026 — **la oficina de cada línea** (`RN-MV-078`): `BuyPackageService.registrar` pregunta `SellerTeamLookup.teamAt` (aviso de cabecera) |
 | Reabierto el | 17-09-2026 — **el paquete entra por su código**: la ruta pasa a `/packages/{code}/purchases` y `PackageCatalog` resuelve por código, ver §3, §4 y §8 (Art. I.7) |
 | Reaprobado el | 17-09-2026 — Responsable del proyecto |
 
@@ -28,6 +29,10 @@
 !!! note "Enmienda de Art. I.7 — 21-09-2026, `RF-SP-062`"
 
     Esta operación exige **`packages:buy`** desde el 21-09-2026, por `RF-SP-062` —**autenticarse no autoriza nada**, `RN-SEG-015` ([`security.md` §4.3](../../../security.md#43-reglas-de-negocio))—, por decisión del responsable del proyecto: «cada endpoint debe tener su propio permiso, ya que uso esto para saber qué vista o consulta mostrar en el front; no basta con solo tener el token». Hasta entonces se atendía con solo el token, y las líneas que abajo dicen «sin permiso» o «autenticado a secas» hablan de esa decisión original y se conservan como historia: el alcance sobre uno mismo sigue siendo exactamente el mismo, lo que cambia es que ahora tiene nombre. `V31` siembra el permiso y lo da a todo rol por su tipo.
+
+!!! warning "Enmendado el 09-10-2026 — `BuyPackageService` escribe la oficina de cada línea"
+
+    `spec.md` v0.7.0 (`RN-MV-078`). **Un cambio en el caso de uso propio**, porque este requerimiento tiene el suyo (§3.3) y no pasa por `RegisterSaleService`: en `BuyPackageService.registrar`, **tras `atribucion.vendedor()` y antes de `copiar`**, `UUID oficina = vendedor == null ? null : equipos.teamAt(vendedor.id(), ahora).orElse(null)`, y `copiar(paquete, items, vendedorId, oficina)` la pasa al `MovementLine.copiarDe` con rebajas, que la recibe tras `sellerId` ([`RF-MV-001`](../001-registrar-venta/plan.md) §2.8). **`ahora` y no otro instante**: la compra no admite fecha del hecho, y `ahora` es el `occurredAt` con que `Movement.registrar` fecha la venta. **Una pregunta por compra**, porque la atribución da un vendedor para todas las líneas. **Como `registrar` recibe la atribución ya decidida**, la compra por enlace ([`RF-MV-013`](../013-comprar-paquete-por-hotlink/plan.md)) hereda la oficina del dueño del enlace sin una línea más. `BuyPackageService` gana la dependencia `SellerTeamLookup`. **`PurchaseResponse` no cambia.** **Prueba** en `BuyPackageIT`: la oficina en cada línea —lo guardado y la instantánea— y, con varios vendedores, ninguna.
 
 
 

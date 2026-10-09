@@ -4,19 +4,26 @@
 |---|---|
 | Requerimiento | `RF-MV-016` |
 | Módulo | `MV` — Movimientos |
-| Versión | 0.3.0 |
+| Versión | 0.4.0 |
 | Estado | **Aprobada** |
 | Autor | Responsable técnico |
 | Aprobada por | Responsable del proyecto |
 | Fecha de aprobación | 23-09-2026 |
 | Enmendada el | 30-09-2026 — **el vendedor de una línea de una venta confirmada se corrige mientras su comisión no se haya pagado** (`RN-MV-053`) |
 | Enmendada el | 07-10-2026 — **`CM` borra la cadena vieja** en vez de marcarla (`RN-MV-053`, `RN-CM-047`): `CA-MV-700` |
+| Enmendada el | 09-10-2026 — **asignar o corregir el vendedor recalcula la oficina de la línea, a la fecha de la venta** (`RN-MV-078`): `CA-MV-716` |
 
 !!! info "Qué va en este documento"
 
     **Qué debe pasar, y por qué.** Nada más.
 
     **Prueba de pertenencia:** si un cambio de tecnología lo invalidaría, no pertenece aquí — va a `plan.md`. No se nombran tablas, clases, endpoints ni librerías.
+
+!!! warning "Enmendado el 09-10-2026 — asignar o corregir el vendedor recalcula la oficina, a la fecha de la venta"
+
+    Por `RN-MV-078` ([`requirements/mv.md`](../../../requirements/mv.md) v0.97.0 §4.13): cada línea de venta guarda **la oficina donde se vendió**, y **la oficina va con el vendedor**. Cuando esta operación escribe el vendedor de una línea —asignar el que faltaba o corregir el que había— escribe también **la oficina del vendedor nuevo**, calculada **con la estructura vigente el día de la venta** y **nunca con la del día de la corrección**: corregir quién vendió no es trasladar la venta. Es una de las dos únicas excepciones a que la oficina no cambie; la otra es el relleno de `RF-MV-058`.
+
+    **Si ese día el vendedor nuevo no tenía director con equipo**, o es un manager, la línea queda **sin oficina**, aunque antes la tuviera: la de antes era de otra persona. Si queda vacía, `RF-MV-058` la puede rellenar después con la oficina vigente. **Reescribir el mismo vendedor no la recalcula**: no cambia nada (`CA-MV-355`). La auditoría guarda la oficina de cada línea tocada, antes y después, y la respuesta —la venta como queda— trae la de cada línea. **Lo demás no cambia**: ni las comprobaciones, ni su orden, ni lo que se le pregunta a `CM`, que no mira la oficina. `CA-MV-716`.
 
 ---
 
@@ -85,6 +92,7 @@ Que **toda venta diga si ya se sabe a quién se le atribuye**, y que la venta de
 | **`RN-MV-053`** | **Nueva el 30-09-2026.** En una venta confirmada, si una línea con vendedor puede cambiar de dueño lo decide `CM`: se le pregunta antes de escribir, y con un no **la corrección se rechaza entera** |
 | `RN-CM-047` | La respuesta de `CM`: se niega si algún nivel de la cadena está pagado o la línea es un FTD contado; si no, revierte la cadena vieja, y la nueva se devenga con el aviso de siempre |
 | `RN-SP-049` | Los vendedores de un cliente son sus vínculos, y no se cierran |
+| `RN-MV-078` | **Nueva el 09-10-2026.** La oficina va con el vendedor: al escribir el vendedor de una línea se escribe la suya, **a la fecha de la venta** |
 
 ---
 
@@ -99,7 +107,7 @@ Que **toda venta diga si ya se sabe a quién se le atribuye**, y que la venta de
 
 ### 6.2 Salida
 
-**La venta, tal como queda** —la misma forma que confirmar, anular y el detalle—, con su **estado del tipo** y el vendedor de cada línea.
+**La venta, tal como queda** —la misma forma que confirmar, anular y el detalle—, con su **estado del tipo** y el vendedor de cada línea —y, desde el 09-10-2026, su oficina (`RN-MV-078`)—.
 
 **El estado del tipo viaja también** en la respuesta de registrar una venta, de comprar un paquete, y en cada fila de los dos listados de administración.
 
@@ -110,7 +118,7 @@ Que **toda venta diga si ya se sabe a quién se le atribuye**, y que la venta de
 | Tipo | Condición |
 |---|---|
 | Precondición | El actor tiene `movements:assign-sellers`; la venta existe, no está rechazada ni anulada; cada línea nombrada es de la venta; cada vendedor es uno de los de quien compra |
-| Postcondición | Cada línea nombrada tiene el vendedor elegido; si ninguna queda sin vendedor, la venta está validada; nada más cambió; el cambio está auditado |
+| Postcondición | Cada línea nombrada tiene el vendedor elegido —y, desde el 09-10-2026, su oficina a la fecha de la venta—; si ninguna queda sin vendedor, la venta está validada; nada más cambió; el cambio está auditado |
 
 ---
 
@@ -122,8 +130,8 @@ Que **toda venta diga si ya se sabe a quién se le atribuye**, y que la venta de
 4. Comprueba que la venta no está rechazada ni anulada.
 5. Comprueba, para cada asignación, que la línea es de la venta y que el vendedor es **uno de los de quien compra**.
 6. **Para cada línea que cambia de vendedor en una venta confirmada**, pregunta a `CM` si su comisión lo permite (`RN-MV-053`). Si alguna no lo permite, **nada cambia**. Desde el 30-09-2026; hasta ese día, una línea así no se podía corregir.
-7. Escribe los vendedores. Si ninguna línea queda sin vendedor, pasa la venta a **validada**.
-8. Audita el cambio: qué tenía cada línea, qué tiene ahora, y el estado antes y después.
+7. Escribe los vendedores, **cada uno con su oficina a la fecha de la venta** (09-10-2026, `RN-MV-078`). Si ninguna línea queda sin vendedor, pasa la venta a **validada**.
+8. Audita el cambio: qué tenía cada línea, qué tiene ahora —vendedor y, desde el 09-10-2026, oficina—, y el estado antes y después.
 9. Devuelve la venta como queda. Si la venta está confirmada, avisa de las líneas que cambiaron, para que su comisión se devengue (`RN-MV-049`).
 
 **Si cualquier comprobación falla, no cambia nada**: ninguna asignación de la petición se escribe.
@@ -205,6 +213,7 @@ Una espera a la otra. Si confirmar llegó antes, la asignación ve la venta conf
 | `CA-MV-355` | Reescribir **el mismo** vendedor en una línea de una venta confirmada se admite, **no pregunta a `CM`** y no revierte nada |
 | `CA-MV-356` | Asignar una línea **sin vendedor** en una venta confirmada **no pregunta a `CM`** —no hay nada que revertir— y devenga como antes |
 | `CA-MV-700` | En una venta **confirmada**, corregir el vendedor de una línea cuyas comisiones están en lotes **abiertos o pendientes** responde con la venta y el vendedor nuevo; la cadena vieja **ya no existe** y la nueva queda **devengada** (07-10-2026). Enmienda `CA-MV-351` |
+| `CA-MV-716` | Asignar o corregir el vendedor de una línea deja **la oficina del vendedor nuevo vigente en la fecha de la venta** —aunque hoy esté en otra— o **ninguna** si ese día no la tenía; reescribir el mismo vendedor no la cambia; la auditoría, antes y después, y la respuesta la traen (09-10-2026) |
 
 **`CA-MV-151` es el que sostiene el requerimiento**: si se pudiera elegir a cualquiera, validar sería atribuir la venta a quien uno quisiera, que es justo lo que se quería dejar de hacer en silencio.
 
@@ -219,6 +228,7 @@ Una espera a la otra. Si confirmar llegó antes, la asignación ve la venta conf
 | Una venta **por validar** vista por un vendedor en «las ventas de mi alcance» | No aparece: ninguna línea es suya todavía. Aparece en cuanto se le asigna una |
 | Un cliente cuyo único vendedor es **de hotlink** | Tiene un vendedor, y la venta nace validada con él |
 | La compra por hotlink de un cliente que **ya tenía otro vendedor** | Nace validada con el dueño del enlace, aunque el cliente quede con dos |
+| Se corrige el vendedor de una venta **anterior a que los directores tuvieran equipo** (09-10-2026) | A esa fecha nadie tenía oficina: la línea queda sin ella, y `RF-MV-058` la rellena con la vigente |
 
 ---
 
@@ -235,3 +245,4 @@ Una espera a la otra. Si confirmar llegó antes, la asignación ve la venta conf
 | 0.1.0 | 23-09-2026 | Primera versión, por decisión del responsable del proyecto: «agregar estados por tipo de movimiento; para las ventas tendrán dos estados, Validar comisiones y Validado. Si tengo más de un vendedor en `client_seller`, la compra se guarda con estado Validar comisiones y en la línea el vendedor estaría null; si tengo un solo vendedor, se guarda Validado y en la línea se le asigna el vendedor». Sus respuestas del mismo día fijan el resto: **columna aparte** y no sustituir el estado del pago; la validación la hace **el front al asignar**, y la venta pasa sola a validada cuando no falta ninguna línea; **confirmar no espera**, la comisión sí; **todo cliente tiene un vendedor**; el **hotlink** nace validado con el dueño del enlace; se elige **solo entre los del cliente**; y lo asignado **se corrige mientras la venta no esté confirmada**. | Responsable del proyecto |
 | 0.2.0 | 30-09-2026 | **El vendedor de una línea de una venta confirmada se corrige mientras su comisión no se haya pagado** ([`requirements/mv.md`](../../../requirements/mv.md) v0.58.0, `RN-MV-053`; [`requirements/cm.md`](../../../requirements/cm.md) v0.26.0, `RN-CM-047`), por decisión del responsable del proyecto: «permitamos que se pueda actualizar el vendedor de una línea siempre y cuando esta comisión de la venta no se haya pagado». Se pregunta a `CM` antes de escribir; con un no, la corrección entera se rechaza. `EX-003` cambia de motivo, `FA-002` y el flujo principal ganan el paso 6, y `CA-MV-153` queda superado en su segunda mitad. Criterios `CA-MV-351` a `CA-MV-356`. | Responsable del proyecto |
 | 0.3.0 | 07-10-2026 | **`CM` borra la cadena vieja en vez de marcarla** ([`requirements/mv.md`](../../../requirements/mv.md) v0.94.0, `RN-MV-053`; [`requirements/cm.md`](../../../requirements/cm.md) v0.34.0, `RN-CM-047` enmendada). Este requerimiento no cambia: pregunta igual y hace lo mismo con la respuesta. `CA-MV-700` enmienda `CA-MV-351` en lo que comprueba de `CM`. | Responsable del proyecto |
+| 0.4.0 | 09-10-2026 | **Asignar o corregir el vendedor recalcula la oficina de la línea, a la fecha de la venta** ([`requirements/mv.md`](../../../requirements/mv.md) v0.97.0 §4.13, `RN-MV-078`), a petición del responsable del proyecto: la oficina va con el vendedor, y corregir quién vendió no traslada la venta. Si ese día el vendedor nuevo no tenía oficina, la línea queda sin ella. `CA-MV-716`. | Responsable del proyecto |

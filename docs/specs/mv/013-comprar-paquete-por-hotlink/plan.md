@@ -3,13 +3,14 @@
 | Campo | Valor |
 |---|---|
 | Requerimiento | `RF-MV-013` |
-| Especificación | [`spec.md`](spec.md) |
+| Especificación | [`spec.md`](spec.md) v0.5.0 |
 | `spec.md` aprobada el | 16-09-2026 |
-| Versión | 0.2.0 |
+| Versión | 0.3.0 |
 | Estado | **Aprobado** |
 | Autor | Responsable técnico |
 | Aprobado por | Responsable del proyecto |
 | Fecha de aprobación | 16-09-2026 |
+| Enmendado el | 09-10-2026 — la oficina del dueño del enlace, sin componente propio (aviso de cabecera) |
 
 !!! info "Qué va en este documento"
 
@@ -18,6 +19,10 @@
 !!! abstract "Este plan hereda de `RF-MV-012` y decide dos cosas"
 
     El caso de uso de la compra —resolver el paquete, validar, copiar, congelar, sumar y registrar— lo construye [`RF-MV-012`](../012-comprar-paquete/plan.md) y **no se duplica**. Aquí se decide **cómo se resuelve el enlace** y **quién escribe el vínculo**, que es la primera escritura de `MV` hacia una tabla de `SP`.
+
+!!! warning "Enmendado el 09-10-2026 — la oficina, sin componente propio"
+
+    `spec.md` v0.5.0 (`RN-MV-078`). **Ningún componente nuevo ni modificado aquí**: la compra por enlace delega en `BuyPackageService.registrar` con la atribución del enlace (§3.1), y desde la enmienda de [`RF-MV-012`](../012-comprar-paquete/plan.md) v0.5.0 `registrar` pregunta `SellerTeamLookup.teamAt` **sobre el vendedor ya atribuido**, que aquí es el dueño del enlace ([`RF-MV-001`](../001-registrar-venta/plan.md) §2.8). **Se gana una prueba**, `CA-MV-715`, en la suite de esta ruta: comprar por la puerta del enlace es la única forma de saber que la oficina sigue al vendedor inyectado y no al agente del cliente. **La ruta aún no está construida**: la prueba nace con `T-05`.
 
 ---
 

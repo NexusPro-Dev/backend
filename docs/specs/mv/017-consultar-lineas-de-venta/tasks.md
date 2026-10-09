@@ -29,6 +29,16 @@
 | `T-11` | Matriz de `docs/requirements.md`, la ficha de `requirements/mv.md` §4.1 y los estados de esta tripleta | `T-10` | La fila de `RF-MV-017` refleja el estado | Hecha |
 | `T-12` | **La enmienda 0.2.0**: el filtro `typeStatus` de punta a punta —`SaleLinesRequest`, `SaleLinesFilter`, el `JOIN` de `movement_type_statuses` en las dos sentencias, la validación contra `existsTypeStatusCode` y el parámetro documentado en el controlador—, **sin publicar el campo** | `T-08` | `CA-MV-180`, `CA-MV-181` | Hecha |
 
+### 1.1 La oficina de cada línea — 09-10-2026
+
+Enmienda de hecho (Art. I.7), `spec.md` 0.4.0 y `plan.md` 0.4.0 **antes** del código. Sin migración propia: la columna y su índice los trae `V95`.
+
+| ID | Tarea | Depende de | Verificación | Estado |
+|---|---|---|---|---|
+| `T-15` | `TABLAS_LINEAS` con `LEFT JOIN teams`; `COLUMNAS_LINEAS` con `tm_id` y `tm_name`; `SaleLineRow` gana `teamId` y `teamName`; `SaleLineItem.team` (`LineTeam`, de `RF-MV-006` `T-18`) con `types = {"object", "null"}`; `ListSaleLinesService.de` lo arma | `V95`, `RF-MV-006` `T-18` | La línea sin oficina **sale**, con `team` presente y nulo; dos sentencias con una fila y con veinte | **Pendiente** |
+| `T-16` | `SaleLinesRequest` y `SaleLinesFilter` ganan `teamId`; `filtroLineas` añade `d.team_id = :oficina` en el predicado compartido; `MovementController`: `teamId` como `UUID`, documentado —por la línea, inexistente vacío, mal formado `400`— | `T-15` | Con `teamId`, el total cuenta lo que la página devuelve | **Pendiente** |
+| `T-17` | `SaleLinesIT`: `CA-MV-726` a `CA-MV-728`, con un equipo propio de nombre único limpiado al terminar; contrato regenerado —**un** esquema `LineTeam`, solo altas—; `docs/api/index.md` y matriz | `T-16` | `openapi.json` declara `teamId` en `GET /api/v1/movements/sales/lines` y `team` nulable en `SaleLineItem` | **Pendiente** |
+
 ## 2. Orden de ejecución
 
 ```mermaid
@@ -54,6 +64,7 @@ graph LR
 | `CA-MV-178` | `T-04`, `T-08` |
 | `CA-MV-179` | `T-04`, `T-08` |
 | `CA-MV-180`, `CA-MV-181` | `T-12` |
+| `CA-MV-726` a `CA-MV-728` | `T-15` a `T-17` — 09-10-2026 |
 
 ## 4. Bloqueos
 

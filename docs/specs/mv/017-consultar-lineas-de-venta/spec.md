@@ -4,10 +4,12 @@
 |---|---|
 | Requerimiento | `RF-MV-017` |
 | Módulo | `MV` — Movimientos |
+| Versión | 0.4.0 |
 | Estado | **Aprobada** |
 | Autor | Responsable técnico |
 | Aprobada por | Responsable del proyecto |
 | Fecha de aprobación | 23-09-2026 |
+| Enmendada el | 09-10-2026 — **la oficina de cada línea** (`RN-MV-078`): la fila trae `team` y se filtra por `teamId` (§6.1, §6.2, §12, §13). Ver §15 |
 
 ---
 
@@ -30,6 +32,12 @@
     **Es una ampliación y no un cambio de contrato**: el código completo sigue encontrando lo que encontraba. Lo que cambia es que la respuesta puede traer líneas de **varias ventas** donde antes traía las de una.
 
     **`type` y `typeStatus` siguen siendo exactos** —se eligen de un conjunto cerrado y no se teclean—, los comodines `%` y `_` del usuario se **escapan**, y el alcance de esta consulta no se mueve. Se indexa con trigramas (`ix_movements_codigo_busqueda`, `V39`), porque `uq_movements_code` no responde por un fragmento del medio.
+
+!!! warning "Enmendado el 09-10-2026 — la oficina de cada línea: `team` en la fila y el filtro `teamId`"
+
+    `RN-MV-078` ([`requirements/mv.md`](../../../requirements/mv.md) v0.97.0 §4.13), a petición del responsable del proyecto: saber **en qué oficina se hizo cada venta**, y que cuando un agente se traslade lo que vendió se quede donde lo vendió. La oficina es el **equipo del director de la cadena del vendedor en el instante de la venta**, y queda **guardada en la línea** junto a su vendedor —es de la línea por lo mismo que el vendedor—. Aquí la fila **es** la línea, de modo que la oficina viaja **suelta y no como lista**: **cada fila trae su `team`** —identificador y nombre—, **presente y nulo** cuando la línea no lo tiene: sin vendedor, venta de un manager, vendedor sin director con equipo, o venta anterior a la oficina que administración aún no ha rellenado (`RF-MV-058`). Y **se filtra por `teamId`**: solo las líneas de esa oficina, **por la línea y no por la venta**, igual que `sellerId` —una venta con líneas de dos oficinas aporta a cada una solo las suyas—.
+
+    **Se pregunta por lo guardado, nunca por la estructura de hoy**: una línea cuyo vendedor —o su director— cambió de equipo después sigue saliendo bajo la oficina donde se vendió. **Una oficina que no existe da página vacía**, no un `404`: es un criterio de búsqueda, como las personas y el producto (§6.1); un identificador **mal formado** es `400`, como los demás. **Lo que NO cambia**: el permiso, la ausencia de alcance —con el permiso se ve todo el libro—, el orden, el techo del conteo y las **dos sentencias** por página (`CA-MV-178`): la oficina viaja en la misma sentencia que la línea. `CA-MV-726` a `CA-MV-728`.
 
 ## 1. Objetivo
 
@@ -93,6 +101,7 @@ Todo por *query string*, todo opcional, y **se combinan**:
 | `sellerId` | Qué vendió **esta persona**, como vendedora **de la línea** | `uuid`; inexistente → página vacía |
 | `hasSeller` | **Las líneas sin vendedor** (`false`) o solo las que lo tienen (`true`) (02-10-2026) | `true` o `false`, sin distinguir caja; otro valor es `400`. Ausente, no filtra |
 | `productId` | Las líneas de **un producto** del catálogo | `uuid`; inexistente → página vacía |
+| `teamId` | Las líneas vendidas en **una oficina**, por la guardada en la línea (09-10-2026, `RN-MV-078`) | `uuid`; inexistente → página vacía |
 | `status` | El estado de la **venta** | Del catálogo cerrado; otro valor es `400` |
 | `deliveryStatus` | El estado de **entrega de la línea** | Del catálogo cerrado; otro valor es `400` |
 | `typeStatus` | El **estado del tipo** de la venta —`VALIDAR_COMISIONES` o `VALIDADO`— (23-09-2026, `RF-MV-016`) | Del catálogo de estados por tipo; otro valor es `400`. **No se publica en la fila**: §14.7 |
@@ -112,6 +121,7 @@ Todo por *query string*, todo opcional, y **se combinan**:
 | `occurredAt` | la venta | Cuándo se vendió; es el orden |
 | `client` | `movements.user_id` | `id` y `username`: el **sujeto**, a nombre de quién es |
 | `seller` | `movement_details.seller_id` | `id` y `username`. **Presente y nulo** cuando la línea no lo tiene |
+| `team` (09-10-2026) | la línea | La **oficina** donde se vendió, guardada en la línea (`RN-MV-078`): `id` y `name`. **Presente y nulo** cuando la línea no la tiene |
 | `product` | la línea | `id` y el **nombre congelado** (`RN-MV-002`), no el de hoy |
 | `quantity`, `unitPrice`, `lineDiscount`, `lineAmount` | la línea | Los cuatro, porque sin el descuento los importes no cuadran |
 | `validityDays` | la línea | Presente y nulo si lo comprado no caduca |
@@ -158,7 +168,7 @@ Ninguna propia. Sin el permiso, `403` (`AUTH-002`); sin token, `401` (`AUTH-001`
 
 | ID | Validación | Mensaje esperado |
 |---|---|---|
-| `VAL-001` | Los identificadores son `uuid` bien formados | El identificador indicado no es válido. |
+| `VAL-001` | Los identificadores son `uuid` bien formados —también `teamId`, desde el 09-10-2026— | El identificador indicado no es válido. |
 | `VAL-002` | `status` pertenece al catálogo de estados de movimiento | El estado indicado no es válido. |
 | `VAL-003` | `deliveryStatus` pertenece al catálogo de estados de entrega | El estado de entrega indicado no es válido. |
 | `VAL-004` | `from` no es posterior a `to` | El rango de fechas es inválido: `from` no puede ser posterior a `to`. |
@@ -196,6 +206,9 @@ Ninguna propia. Sin el permiso, `403` (`AUTH-002`); sin token, `401` (`AUTH-001`
 | `CA-MV-520` | `hasSeller=false` devuelve **solo** las líneas sin vendedor, cada una con `seller` presente y nulo; `hasSeller=true`, solo las que lo tienen; sin el parámetro, todas (02-10-2026) |
 | `CA-MV-521` | `hasSeller` **se combina** con los demás filtros: con `typeStatus=VALIDAR_COMISIONES` da las líneas que faltan por asignar; con `sellerId` y `hasSeller=false`, página vacía y `200` |
 | `CA-MV-522` | Un `hasSeller` que no es `true` ni `false` responde `400` sobre el campo `hasSeller` con `VAL-007`, **junto a los demás problemas** |
+| `CA-MV-726` | Cada fila trae **`team`** —`id` y `name` de la oficina guardada en la línea—, **presente y nulo** cuando la línea no la tiene, y la página sigue costando **dos sentencias** (09-10-2026) |
+| `CA-MV-727` | `teamId` acota por la oficina **de la línea**: una venta con líneas de dos oficinas aporta solo las de la pedida; responde por la oficina **guardada** —una línea cuyo vendedor cambió de equipo después sigue saliendo bajo la de la venta—, y **se combina** con los demás filtros (09-10-2026) |
+| `CA-MV-728` | Un `teamId` **que no existe** da **página vacía** con `200`; uno **mal formado** responde `400` (09-10-2026) |
 
 ## 13. Casos límite
 
@@ -209,6 +222,8 @@ Ninguna propia. Sin el permiso, `403` (`AUTH-002`); sin token, `401` (`AUTH-001`
 | Filtrar por `deliveryStatus` en una venta pendiente de pago | Sale si su línea está en ese estado de entrega: son dos ejes distintos y se combinan |
 | `sellerId` y `hasSeller=false` a la vez | Página vacía y `200`: la pregunta es contradictoria pero está bien escrita, como un identificador que no existe |
 | Filtrar por un `typeStatus` que existe pero pertenece a otro tipo de movimiento | Página vacía, y no `400`: el código existe en el catálogo —de modo que la pregunta está bien escrita— pero el listado solo mira ventas |
+| `teamId` y `hasSeller=false` a la vez (09-10-2026) | Página vacía y `200`: una línea sin vendedor no tiene oficina |
+| Una oficina **eliminada** después de vender (09-10-2026) | Sus líneas la siguen mostrando, con su nombre, y `teamId` las sigue encontrando: la eliminación de un equipo es lógica (`RN-SP-054`) y lo vendido no se reescribe |
 
 ## 14. Preguntas abiertas resueltas
 
@@ -229,3 +244,4 @@ Ninguna propia. Sin el permiso, `403` (`AUTH-002`); sin token, `401` (`AUTH-001`
 | 0.1.0 | 23-09-2026 | Redacción inicial, el día que el responsable del proyecto pidió «un endpoint para traer todas las líneas de las ventas, con su propio permiso, paginado». Hereda de `RF-MV-014` la forma de la fila —una por línea, con el nombre congelado— y de `RF-MV-006` la familia de filtros, el `400` conjunto y el techo de conteo. Decide: **administración sin alcance por estructura**, una fila por línea, el estado de entrega **crudo**, sin cupón y solo ventas. Diecisiete criterios, `CA-MV-163` a `CA-MV-179`. | Responsable del proyecto |
 | 0.2.0 | 23-09-2026 | **Entra el filtro `typeStatus` y el campo NO se publica** (enmienda del Art. I.7, el día que `RF-MV-016` integró el eje de estados por tipo), por decisión del responsable del proyecto. Los filtros pasan a **ocho** y los criterios a **diecinueve**: nacen `CA-MV-180` y `CA-MV-181`, y `VAL-006` —que viaja en el cuerpo con el código `VAL-005`, el mismo que `RF-MV-015`—. Entra `RN-MV-033` en §5. La fila no cambia, de modo que **ninguna forma publicada se toca**: quien ya consumía el listado no nota la enmienda. | Responsable del proyecto |
 | 0.3.0 | 02-10-2026 | **Entra el filtro `hasSeller`** (enmienda del Art. I.7), a petición del responsable del proyecto —«que en las líneas de venta se pueda filtrar por las que no tienen vendedor asignado»—. `false` da las líneas sin vendedor, `true` las que lo tienen; se combina con los demás. Hasta hoy la única aproximación era `typeStatus=VALIDAR_COMISIONES`, que acota por **venta** y trae también sus líneas ya asignadas. Validación `VAL-007`; criterios `CA-MV-520` a `CA-MV-522`. | Responsable del proyecto |
+| 0.4.0 | 09-10-2026 | **La oficina de cada línea** ([`requirements/mv.md`](../../../requirements/mv.md) v0.97.0 §4.13, `RN-MV-078`; Art. I.7 sobre un requerimiento construido), a petición del responsable del proyecto: cada fila trae **`team`**, la oficina guardada en la línea, presente y nulo cuando no la hay; y entra el filtro **`teamId`**, por la línea y no por la venta, por lo guardado y no por la estructura de hoy. Inexistente, página vacía; mal formado, `400`. Ni el permiso, ni el alcance, ni las dos sentencias cambian. Criterios `CA-MV-726` a `CA-MV-728`. | Responsable del proyecto |

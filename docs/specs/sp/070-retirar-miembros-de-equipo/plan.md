@@ -8,6 +8,11 @@
 | Autor | Responsable técnico |
 | Aprobado por | Responsable del proyecto |
 | Fecha de aprobación | 22-09-2026 |
+| Versión | 0.2.0 — cita [`spec.md`](spec.md) v0.2.0 |
+
+!!! warning "Enmendado el 09-10-2026 — directores en vez de managers"
+
+    `spec.md` v0.2.0. **`RemoveTeamMembersService` no cambia**: no evalúa rango —retira a quien tiene pertenencia vigente en este equipo—, de modo que la regla nueva de quién puede entrar (`RF-SP-069`, `CommercialStructure.esDirector`) no le alcanza. Cambian tres cosas alrededor. **Uno, `RN-SP-055` en sus dos consumidores**: `RevokeUserRolesService` deja de preguntar si el rango resultante es la cúspide y pregunta si es **director** —`rolDeMayorRango(resultante).filter(estructura::esDirector).isEmpty()` → `equipos.retire(…)`—; lo escribe la enmienda de la tripleta de `RF-SP-031` (`CA-SP-988`, `CA-SP-989`). `DeleteUserService` ya cierra sin condición y no cambia de código; la de `RF-SP-029` solo lo enuncia para directores (`CA-SP-987`). El puerto `TeamMembershipRetirement` y su adaptador **no cambian de firma ni de comportamiento**; su javadoc dice «director» donde decía «manager». **Dos, los fixtures**: `TeamMemberRemovalIT` sembraba dos pertenencias vigentes en el mismo equipo, que `uq_team_members_equipo_vigente` (`V95`) ya no admite; se reescribe con **un director por equipo**, y el retiro «de varios» de `CA-SP-789` se ejercita con uno. **Tres, `CA-SP-986`**: en `TeamMemberRemovalIT`, retirar al director y asignar a otro al mismo equipo por `RF-SP-069` —el recorrido completo de cambiar de encargado—. La prosa OpenAPI de `POST /teams/{id}/members/removals` cambia «manager» por «director» y explica que retirar y asignar es cambiar de encargado. **Sin migración propia**: la unicidad nueva y el cierre de managers son de `V95`. **Descartado**: una operación de «sustituir director» en una sola petición —el responsable del proyecto decidió que cambiar de encargado son dos decisiones con su motivo—.
 
 ---
 

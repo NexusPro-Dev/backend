@@ -3,9 +3,9 @@
 | Campo | Valor |
 |---|---|
 | Requerimiento | `RF-IN-002` |
-| Especificación | [`spec.md`](spec.md) v0.2.0 |
-| `spec.md` aprobada el | 06-10-2026 |
-| Versión | 0.2.0 |
+| Especificación | [`spec.md`](spec.md) v0.3.0 |
+| `spec.md` aprobada el | 06-10-2026; enmienda del 09-10-2026 por decisión del responsable del proyecto |
+| Versión | 0.3.0 |
 | Estado | **Aprobado** |
 | Autor | Responsable técnico |
 | Aprobado por | Responsable del proyecto |
@@ -14,6 +14,10 @@
 !!! warning "Enmendado el 06-10-2026 — sin fechas, todo; y cada indicador se puede partir en tramos (RN-IN-010)"
 
     Decisión del responsable del proyecto, 06-10-2026: «los indicadores se recogen en su totalidad a no ser que se les envíe una fecha en los filtros», y «tener la capacidad de pedir los indicadores por meses, por días y por semanas, y adicionalmente un filtro de inicio y fin; si van vacíos se consulta todo». **Cómo se construye**: lo resuelve lo común de `RF-IN-001` · `T-14` y `T-15` —`Interval` sin «desde», y `SalesCalendar` arrancando en el primer tramo devuelto—; este servicio no cambia más. Sin ventas y sin «desde», el calendario es el tramo de hoy.
+
+!!! warning "Enmendado el 09-10-2026 — `teamId`, la oficina guardada en la línea (RN-IN-014)"
+
+    `spec.md` v0.3.0. **Lo común lo pone `RF-IN-001` · `T-17` y `T-18`**: `LineFilter.teamId`, el predicado `d.team_id = :oficina` en `donde` y `enlazar`, y `SalesIndicatorRequest.teamId`. **Lo propio de la serie es una sobrecarga**: hoy `confirmedByBucket(SalesScope, Interval, UUID, Granularity, ZoneId)` llama a `donde` con `LineFilter.none()`; gana la versión con `LineFilter` y la de siempre delega con `none()`, como hicieron `summary` y `summaryByBucket` el 07-10-2026 —así `CA-IN-015` sigue atando las dos rutas por **el mismo** predicado y no por dos copias—. `GetSalesSeriesService` pasa `new LineFilter(null, null, null, null, teamId)` junto al `SalesScope`, y `SalesIndicatorsController` recibe `@RequestParam(required = false) UUID teamId` en `/sales/series`. **El cruce con el calendario no cambia**: con oficina, los tramos que la base no devuelve salen en cero como siempre, y una oficina inexistente es una serie entera de ceros sin caso aparte. Mal formada, el `400` de conversión, `VAL-001`. **Pruebas** en `SalesSeriesIT`: la suma de los tramos con `teamId` contra el resumen con el mismo `teamId` (`CA-IN-101`), sobre la semilla de dos oficinas de `RF-IN-001` · `T-19`, y el traslado después de vender. Sin migración; la columna es de `V95`.
 
 !!! info "Qué va en este documento"
 
@@ -150,3 +154,4 @@ Ninguna.
 | Errores y permisos | Integración | `CA-IN-022` |
 | `SalesCalendar`: domingo, 31 de enero a 1 de marzo, día único, bisiesto | Unitaria | Aritmética de calendario |
 | Coste: una sentencia sea cual sea el número de tramos | Integración, estadísticas de Hibernate | 7 tramos contra 90 |
+| Con oficina: la suma de los tramos contra el resumen con la misma oficina, el traslado, inexistente y mal formada (09-10-2026) | Integración, `SalesSeriesIT` | `CA-IN-101` |

@@ -8,6 +8,12 @@
 | Autor | Responsable técnico |
 | Aprobada por | Responsable del proyecto |
 | Fecha de aprobación | 22-09-2026 |
+| Versión | 0.2.0 |
+| Enmendada | 09-10-2026 — **se retira a directores, no a managers** (`RN-SP-051`, `RN-SP-052` y `RN-SP-055` enmendadas), por decisión del responsable del proyecto. `CA-SP-986` |
+
+!!! warning "Enmendado el 09-10-2026 — quien sale de un equipo es su director"
+
+    Decisión del responsable del proyecto, 09-10-2026: «los encargados de los equipos son los directores, no los managers». Desde entonces **cada equipo tiene como mucho un director vigente**, y esta operación es **la mitad de cambiar al encargado de una oficina**: se retira al actual y se asigna al nuevo (`RF-SP-069`, que rechaza con `409` la asignación a un equipo con otro director vigente). **La operación no cambia**: misma ruta, mismo permiso, mismo motivo obligatorio, mismo `422` para quien no pertenece hoy a este equipo, mismo cierre sin borrar, y también sobre un equipo `INACTIVO`. **Lo que cambia es de quién se habla**: donde este documento dice «manager», desde el 09-10-2026 se lee **director**. La lista se conserva en la petición —hasta 100, sin repetidos— para no romper a quien la consume, aunque con un director por equipo **una retirada válida lleva una persona**. **`RN-SP-055` enmendada**: la pertenencia sigue al **rango de director**, y quien deja de tenerlo —se le retira el rol (`RF-SP-031`), se le elimina (`RF-SP-029`), o **asciende a manager o desciende a agente**— sale de su equipo en la misma transacción; cambiar su estado sigue sin sacarlo. **Lo ya vendido no cambia de oficina** por ninguna de estas salidas: la oficina se congeló en cada línea el día de la venta (`RN-MV-078`).
 
 ---
 
@@ -53,10 +59,10 @@ Es la operación inversa de `RF-SP-069`, y existe porque **mover no es lo mismo 
 
 | ID | Regla | Origen |
 |---|---|---|
-| `RN-SP-052` | La pertenencia se cierra, no se borra; un manager sin equipo es un estado legítimo | `requirements/sp.md` §5.1 |
+| `RN-SP-052` | La pertenencia se cierra, no se borra; un manager sin equipo es un estado legítimo. **Enmendada el 09-10-2026**: un director por equipo; un director sin equipo es un estado legítimo, y un equipo sin director también | `requirements/sp.md` §5.1 |
 | `RN-SP-053` | El `INACTIVO` no recibe; **sí suelta** | `requirements/sp.md` §5.1 |
 | `RN-SP-054` | No se elimina un equipo con miembros vigentes — esta es una de las dos salidas | `requirements/sp.md` §5.1 |
-| `RN-SP-055` | La pertenencia sigue al rol: quien deja de ser manager o es eliminado sale de su equipo en la misma transacción | `requirements/sp.md` §5.1 |
+| `RN-SP-055` | La pertenencia sigue al rol: quien deja de ser manager o es eliminado sale de su equipo en la misma transacción. **Enmendada el 09-10-2026**: sigue al **rango de director**; un ascenso o un descenso también lo saca | `requirements/sp.md` §5.1 |
 | Art. V.13 | El cambio de estructura se audita con su motivo | `constitution.md` |
 
 ## 6. Datos
@@ -96,7 +102,7 @@ Es la operación inversa de `RF-SP-069`, y existe porque **mover no es lo mismo 
 | `FA-002` | Se retira al **último** miembro | El equipo queda vacío, con `memberCount` en cero, y ya puede eliminarse (`RN-SP-054`) |
 | `FA-003` | La persona está **desactivada o bloqueada** | Se retira igual: su estado no tiene que ver con su pertenencia |
 | `FA-004` | La misma persona **repetida** en la lista | Se trata una sola vez |
-| `FA-005` | La persona **dejó de ser manager** antes de esta petición | Su pertenencia ya está cerrada por `RN-SP-055`, de modo que no pertenece y la petición cae en `EX-002`. Es coherente: el sistema ya la sacó |
+| `FA-005` | La persona **dejó de ser manager** —desde el 09-10-2026, **director**— antes de esta petición | Su pertenencia ya está cerrada por `RN-SP-055`, de modo que no pertenece y la petición cae en `EX-002`. Es coherente: el sistema ya la sacó |
 
 ## 10. Excepciones
 
@@ -133,6 +139,9 @@ Es la operación inversa de `RF-SP-069`, y existe porque **mover no es lo mismo 
 | `CA-SP-795` | **`RN-SP-055`**: retirar a una persona su rol de manager (`RF-SP-031`) **cierra su pertenencia en la misma transacción**, con el mismo identificador de correlación que el retiro del rol; si el retiro del rol falla, la pertenencia **no** se cierra |
 | `CA-SP-796` | **`RN-SP-055`**: eliminar a una persona (`RF-SP-029`) cierra su pertenencia en la misma transacción; **cambiar su estado (`RF-SP-028`) no la saca** del equipo |
 | `CA-SP-797` | Sin `teams:remove-members` responde `403` **aunque el actor porte `teams:assign-members`**, y `EndpointPermissionsIT` recibe `POST /teams/{id}/members/removals` con su código |
+| `CA-SP-986` | Retirar al **director** de su equipo con `200` deja el equipo **sin director vigente**, y una asignación posterior de **otro** director al mismo equipo pasa (`RF-SP-069`); quien sale sigue siendo director y conserva su red (09-10-2026) |
+
+**Desde el 09-10-2026** (`RN-SP-051`, `RN-SP-055` enmendadas): `CA-SP-795` y `CA-SP-796` se leen con **director** donde dicen «manager»; los verifican, en sus tripletas, `CA-SP-988` (`RF-SP-031`) y `CA-SP-987` (`RF-SP-029`). `CA-SP-789` se ejercita con **un** director: con una sola pertenencia vigente por equipo, «varios» del mismo equipo ya no puede darse con datos válidos.
 
 ## 13. Casos límite
 
@@ -141,7 +150,8 @@ Es la operación inversa de `RF-SP-069`, y existe porque **mover no es lo mismo 
 | Retirar a alguien que está en **otro** equipo | `422` (`EX-002`): esta operación es «sácalo de aquí», y ahí no está |
 | Retirar y asignar a la misma persona a la vez, en equipos distintos | Se ordenan por `uq_team_members_vigente` y por el bloqueo de cada equipo; el resultado nunca deja dos pertenencias vigentes ni una cerrada dos veces |
 | Retirar al último miembro y eliminar el equipo en la misma sesión | Es el camino previsto por `RN-SP-054`, y `CA-SP-791` lo recorre entero |
-| Un **descenso**: un manager pasa a director | Pierde el rol de mayor rango y `RN-SP-055` cierra su pertenencia; su nuevo superior lo coloca, por `user_supervisors`, en el equipo de ese superior |
+| ~~Un **descenso**: un manager pasa a director~~ | ~~Pierde el rol de mayor rango y `RN-SP-055` cierra su pertenencia; su nuevo superior lo coloca, por `user_supervisors`, en el equipo de ese superior~~ — **sustituido el 09-10-2026**: un director que **asciende a manager** o **desciende a agente** deja de tener el rango de director y `RN-SP-055` cierra su pertenencia; como agente pertenece, por `user_supervisors`, al equipo de su nuevo director. Su equipo queda sin director y admite otro |
+| Retirar al director y asignar a otro en el mismo equipo (09-10-2026) | Es la forma de cambiar al encargado de una oficina: dos peticiones, cada una con su motivo (`CA-SP-986`) |
 | Retirar a alguien cuya persona fue eliminada hace un minuto | Su pertenencia ya está cerrada (`RN-SP-055`) y la petición cae en `EX-002` |
 | 100 identificadores exactos | Se admite: el tope es inclusivo |
 
@@ -161,3 +171,4 @@ Es la operación inversa de `RF-SP-069`, y existe porque **mover no es lo mismo 
 | Versión | Fecha | Cambio | Responsable |
 |---|---|---|---|
 | 0.1.0 | 22-09-2026 | Redacción inicial. Inversa de `RF-SP-069` y **distinta en un punto**: «no pertenece» sí es error (`422`), porque sacar a quien no está es una idea falsa del estado. Se admite sobre un equipo `INACTIVO` —`RN-SP-053` prohíbe recibir, no soltar—, lo que evita que la regla se cierre sobre sí misma e impida vaciar y eliminar. Trae la **enmienda de Art. I.7 de `RN-SP-055`** a `RF-SP-029` y `RF-SP-031`, construidos: quien deja de ser manager o se elimina sale de su equipo en la misma transacción, mientras que cambiar su estado no. Nueve criterios, `CA-SP-789` a `CA-SP-797`. | Responsable del proyecto |
+| 0.2.0 | 09-10-2026 | **Se retira a directores** (`RN-SP-051`, `RN-SP-052` y `RN-SP-055` enmendadas), por decisión del responsable del proyecto: la operación no cambia, y con `RF-SP-069` es la forma de cambiar al encargado de una oficina —retirar y asignar—; `RN-SP-055` sigue al rango de director, y un ascenso o un descenso también saca del equipo. El caso límite del descenso, sustituido. `CA-SP-986`. | Responsable del proyecto |

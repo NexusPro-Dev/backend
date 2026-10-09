@@ -4,12 +4,13 @@
 |---|---|
 | Requerimiento | `RF-MV-012` |
 | Plan | [`plan.md`](plan.md), aprobado el 16-09-2026 |
-| Versión | 0.4.0 |
+| Versión | 0.5.0 |
 | Estado | **Aprobadas** |
 | Autor | Responsable técnico |
 | Aprobadas por | Responsable del proyecto |
 | Fecha de aprobación | 17-09-2026 |
 | Enmendadas | 01-10-2026 — `T-10` por **la tarjeta por Stripe** (§6) · 03-10-2026 — `T-11` por **el upgrade escalonado** (§7) |
+| Enmendadas | 09-10-2026 — `T-12` y `T-13` por **la oficina de cada línea** (§1.1) |
 | Issue | Pendiente de crear |
 | Rama | `feature/venta-de-productos` |
 
@@ -53,6 +54,15 @@ Y una cuarta, de `PM`: **`RN-PM-044` se movió de `GetOwnOfferService` a `Packag
 
 **Enmienda del mismo día (v0.3.0): el paquete entra por su código.** `spec.md` v0.2.0 y `plan.md` v0.2.0 lo fijan; `T-01`, `T-02`, `T-07` y `T-08` se rehicieron en consecuencia —`PackageCatalog.storeSaleViewOf(code, buyerId)`, `ProductPackageQueryRepository.findDetailByCode` sin distinguir mayúsculas, la ruta `{code}` y `BuyPackageIT` comprando por código, también en minúsculas— y las nueve siguen en `Hecha`.
 
+### 1.1 La oficina de cada línea — 09-10-2026
+
+Enmienda de hecho (Art. I.7), `spec.md` 0.7.0 y `plan.md` 0.5.0 **antes** del código (`RN-MV-078`). El puerto, la columna y `MovementLine.teamId` son de `RF-MV-001` (`T-49` a `T-51`); aquí va el caso de uso propio.
+
+| ID | Tarea | Depende de | Verificación | Estado |
+|---|---|---|---|---|
+| `T-12` | `BuyPackageService.registrar`: `teamAt(vendedor, ahora)` tras la atribución y antes de copiar; `copiar` pasa la oficina a `MovementLine.copiarDe` con rebajas; dependencia de `SellerTeamLookup` | `RF-MV-001` · `T-49`, `T-51` | La compra por enlace (`RF-MV-013`) la hereda sin código | **Pendiente** |
+| `T-13` | `BuyPackageIT`: la oficina en todas las líneas, en lo guardado y en la instantánea; con varios vendedores, sin oficina; el cuerpo no trae `team` | `T-12` | `CA-MV-714` | **Pendiente** |
+
 ---
 
 ## 2. Orden de ejecución
@@ -75,6 +85,7 @@ Y una cuarta, de `PM`: **`RN-PM-044` se movió de `GetOwnOfferService` a `Packag
 | `CA-MV-057` | `T-04`, `T-08` |
 | `CA-MV-058` | `T-03`, `T-08` |
 | `CA-MV-059`, `CA-MV-060` | `T-06`, `T-08` |
+| `CA-MV-714` | `T-12`, `T-13` — 09-10-2026 |
 
 ---
 

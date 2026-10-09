@@ -4,13 +4,14 @@
 |---|---|
 | Requerimiento | `RF-MV-012` |
 | Módulo | `MV` — Movimientos |
-| Versión | 0.6.0 |
+| Versión | 0.7.0 |
 | Estado | **Aprobada** |
 | Autor | Responsable técnico |
 | Aprobada por | Responsable del proyecto |
 | Fecha de aprobación | 16-09-2026 |
 | Enmendada | 21-09-2026 — exige **`packages:buy`** (`RF-SP-062`, `RN-SEG-015`: autenticarse no autoriza nada); lo siembra `V31`; `CA-MV-049` deja de decir «sin ningún permiso» · 03-10-2026 — **el upgrade del paquete tampoco salta de nivel** (`RN-MV-006`, `EX-005`). Ver §14.3 |
 | Enmendada el | 01-10-2026 — **con tarjeta, la compra abre el cobro en la pasarela** y devuelve su secreto (`RF-MV-040`). Ver §14.2 |
+| Enmendada el | 09-10-2026 — **cada línea del paquete nace con la oficina de su vendedor** (`RN-MV-078`): `CA-MV-714`. Ver §15 |
 
 !!! info "Qué va en este documento"
 
@@ -31,6 +32,10 @@
 !!! note "Enmienda de Art. I.7 — 21-09-2026, `RF-SP-062`"
 
     Esta operación exige **`packages:buy`** desde el 21-09-2026, por `RF-SP-062` —**autenticarse no autoriza nada**, `RN-SEG-015` ([`security.md` §4.3](../../../security.md#43-reglas-de-negocio))—, por decisión del responsable del proyecto: «cada endpoint debe tener su propio permiso, ya que uso esto para saber qué vista o consulta mostrar en el front; no basta con solo tener el token». Hasta entonces se atendía con solo el token, y las líneas que abajo dicen «sin permiso» o «autenticado a secas» hablan de esa decisión original y se conservan como historia: el alcance sobre uno mismo sigue siendo exactamente el mismo, lo que cambia es que ahora tiene nombre. `V31` siembra el permiso y lo da a todo rol por su tipo.
+
+!!! warning "Enmendado el 09-10-2026 — cada línea del paquete nace con la oficina de su vendedor"
+
+    Por `RN-MV-078` ([`requirements/mv.md`](../../../requirements/mv.md) v0.97.0 §4.13), con la regla de [`RF-MV-001`](../001-registrar-venta/spec.md) v0.11.0 y sin diferencia: **todas las líneas del paquete** nacen con la oficina de su vendedor —el mismo para todas—, la del primero de su cadena que pertenece a un equipo, con la estructura vigente **en el instante de la compra**. Si quien compra tiene **varios vendedores**, las líneas nacen sin vendedor y **sin oficina**, y la ganan al asignarse (`RF-MV-016`). Una venta de manager no lleva oficina, y un vendedor sin director con equipo **vende igual**. **La respuesta no la devuelve**, como no devuelve el vendedor ([`RF-MV-002`](../002-comprar-producto-uno-mismo/spec.md) §4.3). `CA-MV-714`.
 
 
 
@@ -265,6 +270,7 @@ La de `RF-MV-002` —la venta sin el vendedor—, **con dos añadidos**:
 | `CA-MV-058` | La petición **no admite cantidad ni productos**: no hay forma de comprar dos paquetes ni de elegir qué llevarse |
 | `CA-MV-059` | La venta creada aquí es **indistinguible** de cualquier otra venta una vez registrada, salvo por el paquete que recuerda |
 | `CA-MV-060` | La auditoría guarda la instantánea completa: el paquete, cada línea con lo copiado y **cada rebaja como se pactó** |
+| `CA-MV-714` | Comprar un paquete deja **todas sus líneas** con la oficina de su vendedor en el instante de la compra; con **varios vendedores**, las líneas nacen sin vendedor y **sin oficina**; la respuesta no la devuelve (09-10-2026) |
 
 **`CA-MV-050` es el criterio que sostiene la operación.** Si lo que se cobra no coincide con lo que el catálogo publica, el cliente paga algo distinto de lo que vio — y nadie lo detecta, porque los dos números salen de sitios distintos y cada uno cuadra consigo mismo.
 
@@ -325,3 +331,4 @@ Por [`requirements/mv.md`](../../../requirements/mv.md) v0.72.0 (`RN-MV-006`) y 
 | 0.4.0 | 01-10-2026 | **La tarjeta por Stripe** ([`requirements/mv.md`](../../../requirements/mv.md) v0.64.0 §4.6): **con tarjeta, la compra abre el cobro en la pasarela** y devuelve su secreto (`RF-MV-040`). Criterios `CA-MV-472`. | Responsable del proyecto |
 | 0.5.0 | 03-10-2026 | **El upgrade del paquete sube un escalón como máximo** (§14.3; [`requirements/mv.md`](../../../requirements/mv.md) v0.72.0, `RN-MV-006`; [`requirements/pm.md`](../../../requirements/pm.md) v0.49.0 §5.2.17), por decisión del responsable del proyecto. `EX-005` pasa a decir «baja **o salta**» y conserva el código. El rechazo llega casi siempre antes, por la oferta (`RN-PM-044`, `EX-002`); `EX-005` es la red de `MV`. Criterio nuevo `CA-MV-540`. | Responsable del proyecto |
 | 0.6.0 | 05-10-2026 | **Enmendada por la pasarela local** (`RF-MV-048`, [`requirements/mv.md`](../../../requirements/mv.md) v0.80.0 §4.10): con el método `PSE`, la compra del paquete **abre el cobro de la pasarela local** en moneda local y la respuesta trae `localCharge`. Se prueba en `LocalChargeIT`. | Responsable del proyecto |
+| 0.7.0 | 09-10-2026 | **Cada línea del paquete nace con la oficina de su vendedor** ([`requirements/mv.md`](../../../requirements/mv.md) v0.97.0 §4.13, `RN-MV-078`; [`RF-MV-001`](../001-registrar-venta/spec.md) v0.11.0), a petición del responsable del proyecto; sin vendedor, sin oficina. La respuesta no la devuelve. `CA-MV-714`. | Responsable del proyecto |

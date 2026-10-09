@@ -4,8 +4,9 @@
 |---|---|
 | Requerimiento | `RF-MV-002` |
 | Módulo | `MV` — Movimientos |
-| Versión | 0.5.0 |
+| Versión | 0.6.0 |
 | Estado | **Aprobada** |
+| Enmendada el | 09-10-2026 — **cada línea nace con la oficina de su vendedor** (`RN-MV-078`), que la respuesta no devuelve: `CA-MV-712`. Ver §15 |
 | Enmendada el | 03-10-2026 — **un upgrade sube un escalón como máximo** (`RN-MV-006`): `CA-MV-024` deja de decir «igual» y nace `CA-MV-528`. Ver §15 |
 | Enmendada el | 16-09-2026 — el vendedor es de cada línea y **siempre lo hay** (`RN-MV-003`); la cabecera lleva un sujeto (`RN-MV-026`). Ver §15 |
 | Autor | Responsable técnico |
@@ -23,6 +24,12 @@
     La venta que produce esta operación es **exactamente la misma**: mismo tipo, mismo estado inicial, mismas reglas, mismo vendedor congelado **en cada línea**, mismo comprobante. Lo que cambia es **quién la pide y sobre quién**.
 
     Todo lo que no aparezca aquí es idéntico a [`RF-MV-001`](../001-registrar-venta/spec.md) — sus flujos, sus once excepciones y sus casos límite valen tal cual. Este documento recoge **solo las cuatro diferencias**, y las argumenta.
+
+!!! warning "Enmendado el 09-10-2026 — la línea nace con la oficina de su vendedor, y la respuesta no la dice"
+
+    Por `RN-MV-078` ([`requirements/mv.md`](../../../requirements/mv.md) v0.97.0 §4.13), que enmienda [`RF-MV-001`](../001-registrar-venta/spec.md) v0.11.0 y vale aquí **sin una sola diferencia en la regla**: cada línea de la compra propia nace con **la oficina de su vendedor** —la del primero de su cadena que pertenece a un equipo, en la práctica su director— **con la estructura vigente en el instante de la compra**, que aquí es siempre ahora (§4.2). Sin vendedor —quien compra tiene varios (`RN-MV-034`)—, sin oficina; vendida por un manager, sin oficina; con un vendedor sin director con equipo, **se compra igual** y la oficina queda vacía. Y como allí, **un traslado posterior no la mueve**.
+
+    **La respuesta no la devuelve**, por la misma razón por la que no devuelve el vendedor (§4.3): **la oficina es del vendedor**, y decirle a quien compra en qué oficina se le acreditó su compra es contarle la estructura comercial por otro camino. Queda en lo guardado y en la auditoría, y la ven las lecturas de administración. `CA-MV-712`.
 
 ---
 
@@ -162,6 +169,7 @@ Las de `RF-MV-001` menos `VAL-001` —cliente obligatorio, que ya no se envía�
 | `CA-MV-025` | Un funcionario sin membresía que intente comprar es rechazado **por la oferta**, no por su rol |
 | `CA-MV-026` | La venta creada por esta operación y la creada por `RF-MV-001` son **indistinguibles** una vez registradas |
 | `CA-MV-528` | El sistema rechaza comprar un upgrade que **salta niveles** sobre la membresía del actor —un salto registrado antes del 03-10-2026 con origen en su membresía—: no está en **su** oferta (`EX-004`), y no queda venta ni pago |
+| `CA-MV-712` | La compra propia deja cada línea con **la oficina de su vendedor** en el instante de la compra —comprobable en lo guardado y en la auditoría— y **la respuesta no la devuelve**, como no devuelve el vendedor (09-10-2026) |
 
 **`CA-MV-026` es el criterio que sostiene las dos operaciones.** Si la venta del cliente y la del funcionario fueran distintas en algo —un campo, un estado, un tipo—, todo lo que venga después tendría que saber por dónde entró cada una: confirmarla, listarla, comisionarla. Que sean iguales es lo que permite que `RF-MV-003` a `RF-MV-008` no se enteren de que existen dos entradas.
 
@@ -189,3 +197,4 @@ Los de `RF-MV-001`, más dos propios:
 | 0.3.0 | 30-09-2026 | **Se puede pagar con puntos** (`RF-MV-030`, `RN-MV-052`; [`requirements/mv.md`](../../../requirements/mv.md) v0.54.0 §4.4): con `POINTS`, los puntos de la moneda de la venta se descuentan a la tasa vigente y la compra vuelve **confirmada**, con su entrega y su aviso a comisiones. Si no alcanzan, o la moneda no tiene tasa, conflicto y **nada queda escrito**. Ningún dato de entrada cambia. | Responsable técnico |
 | 0.4.0 | 03-10-2026 | **Un upgrade sube un escalón como máximo** ([`requirements/mv.md`](../../../requirements/mv.md) v0.72.0, `RN-MV-006`; [`requirements/pm.md`](../../../requirements/pm.md) §5.2.17), por decisión del responsable del proyecto. Esta operación hereda la regla de `RF-MV-001` sin cambio de forma —mismo caso de uso, mismo `EX-005`—, y §5 la nombra porque aquí casi nunca se ve: la oferta propia ya no publica saltos y el rechazo que llega es `EX-004`. Nace `CA-MV-528` para afirmarlo, y **`CA-MV-024` se corrige**: decía «igual o inferior» y la igual es una renovación desde el 07-09-2026 — el criterio se había quedado atrás. | Responsable del proyecto |
 | 0.5.0 | 05-10-2026 | **Enmendada por la pasarela local** (`RF-MV-048`, [`requirements/mv.md`](../../../requirements/mv.md) v0.80.0 §4.10): con el método `PSE`, la compra **abre el cobro de la pasarela local** en moneda local y la respuesta trae `localCharge` con su página de pago. Se prueba en `LocalChargeIT`. | Responsable del proyecto |
+| 0.6.0 | 09-10-2026 | **Cada línea nace con la oficina de su vendedor** ([`requirements/mv.md`](../../../requirements/mv.md) v0.97.0 §4.13, `RN-MV-078`; [`RF-MV-001`](../001-registrar-venta/spec.md) v0.11.0), a petición del responsable del proyecto. La regla es la de `RF-MV-001`, con el instante de la compra —ahora—. **La respuesta no la devuelve**, por la razón de §4.3. `CA-MV-712`. | Responsable del proyecto |

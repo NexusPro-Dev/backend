@@ -4,11 +4,12 @@
 |---|---|
 | Requerimiento | `RF-MV-013` |
 | Módulo | `MV` — Movimientos |
-| Versión | 0.4.0 |
+| Versión | 0.5.0 |
 | Estado | **Aprobada** |
 | Autor | Responsable técnico |
 | Aprobada por | Responsable del proyecto |
 | Fecha de aprobación | 16-09-2026 |
+| Enmendada el | 09-10-2026 — **la oficina de cada línea es la del dueño del enlace** (`RN-MV-078`): `CA-MV-715`. Ver §15 |
 
 !!! info "Qué va en este documento"
 
@@ -26,6 +27,10 @@
     2. **El vendedor de cada línea es el dueño del enlace**, no el superior de quien compra.
 
     Y deja **una huella** que la compra propia no deja: el vínculo entre el cliente y ese vendedor.
+
+!!! warning "Enmendado el 09-10-2026 — la oficina de cada línea es la del dueño del enlace"
+
+    Por `RN-MV-078` ([`requirements/mv.md`](../../../requirements/mv.md) v0.97.0 §4.13), con la regla de [`RF-MV-001`](../001-registrar-venta/spec.md) v0.11.0 y la consecuencia que ya saca [`RF-MV-011`](../011-comprar-por-hotlink/spec.md) v0.5.0: **la oficina es del vendedor, y el vendedor de cada línea es el dueño del enlace** (§4.2). Todas las líneas del paquete nacen con **la oficina de su director**, con la estructura vigente en el instante de la compra, y **no con la del agente del cliente**. Si el dueño del enlace es un manager, sin oficina; si no tiene director con equipo, se compra igual y la oficina queda vacía. **La respuesta no la devuelve.** `CA-MV-715`.
 
 ---
 
@@ -180,6 +185,7 @@ Las ocho de `RF-MV-012`, **con dos salvedades y una añadida**:
 | `CA-MV-065` | Comprarse a uno mismo por el propio hotlink **se rechaza** |
 | `CA-MV-066` | La venta es **indistinguible** de la de `RF-MV-012` salvo por a quién se atribuye |
 | `CA-MV-067` | Un producto caído del paquete **sigue diciendo cuál es**: la uniformidad del `404` no alcanza a lo que no es del catálogo ajeno |
+| `CA-MV-715` | Comprar un paquete por el enlace deja **todas sus líneas** con la oficina del director **del dueño del enlace**, no la del agente del cliente; la respuesta no la devuelve (09-10-2026) |
 
 ## 13. Casos límite
 
@@ -213,3 +219,4 @@ Lo de [`RF-MV-012`](../012-comprar-paquete/spec.md) §14.3, **también por el en
 | 0.2.0 | 30-09-2026 | **Se puede pagar con puntos** (`RF-MV-030`, `RN-MV-052`; [`requirements/mv.md`](../../../requirements/mv.md) v0.54.0 §4.4): con `POINTS`, los puntos de la moneda de la venta se descuentan a la tasa vigente y la compra vuelve **confirmada**, con su entrega y su aviso a comisiones. Si no alcanzan, o la moneda no tiene tasa, conflicto y **nada queda escrito**. Ningún dato de entrada cambia. | Responsable técnico |
 | 0.3.0 | 03-10-2026 | **El upgrade del paquete sube un escalón como máximo, también por el enlace** (§14.2; [`requirements/mv.md`](../../../requirements/mv.md) v0.72.0, `RN-MV-006`; `RN-PM-021`), por decisión del responsable del proyecto. El paquete que salta ya no se publica por hotlink y responde **no encontrado**; `EX-005` («baja o salta») sigue como red. Criterio nuevo `CA-MV-541`. | Responsable del proyecto |
 | 0.4.0 | 05-10-2026 | **Enmendada por la pasarela local** (`RF-MV-048`, [`requirements/mv.md`](../../../requirements/mv.md) v0.80.0 §4.10): con el método `PSE`, la compra **abre el cobro de la pasarela local** en moneda local y la respuesta trae `localCharge`. Se prueba en `LocalChargeIT`. | Responsable del proyecto |
+| 0.5.0 | 09-10-2026 | **La oficina de cada línea es la del dueño del enlace** ([`requirements/mv.md`](../../../requirements/mv.md) v0.97.0 §4.13, `RN-MV-078`), a petición del responsable del proyecto, como en `RF-MV-011`. La respuesta no la devuelve. `CA-MV-715`. | Responsable del proyecto |

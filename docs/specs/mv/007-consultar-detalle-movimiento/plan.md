@@ -3,13 +3,26 @@
 | Campo | Valor |
 |---|---|
 | Requerimiento | `RF-MV-007` |
-| Especificación | [`spec.md`](spec.md) v0.2.0 |
-| Versión | 0.3.0 |
+| Especificación | [`spec.md`](spec.md) v0.4.0 |
+| Versión | 0.4.0 |
 | Estado | **Aprobado** |
 | Autor | Responsable técnico |
 | Aprobado por | Responsable del proyecto |
 | Fecha de aprobación | 30-09-2026 |
 | Enmendado el | 01-10-2026 — `SaleResponse` gana el destino del retiro (§12) |
+| Enmendado el | 09-10-2026 — `SaleLineResponse` gana `team`, leído en la misma sentencia de las líneas (`RN-MV-078`) |
+
+!!! warning "Enmendado el 09-10-2026 — `team` en cada línea"
+
+    `spec.md` v0.4.0 (`RN-MV-078`, [`requirements/mv.md`](../../../requirements/mv.md) v0.97.0 §4.13). **La columna la trae `V95`** —`movement_details.team_id`, clave foránea a `teams` con `ON DELETE SET NULL`— y la escriben el registro, la asignación del vendedor (`RF-MV-016`) y el relleno (`RF-MV-058`); **el detalle solo la lee**. Ninguna migración ni permiso.
+
+    **`SaleLineResponse` gana `team`, de tipo `LineTeam(UUID id, String name)`** —el registro de `application` con `@Schema(name = "LineTeam")` que nace con `RF-MV-006` · `plan.md` v0.4.0 y que `RF-MV-017` también publica: una oficina, una forma—, declarado nulable con **`types = {"object", "null"}`** y no con `nullable`, que springdoc descarta en silencio en OpenAPI 3.1 (la trampa que `seller` ya pagó). La clase ya lleva `@JsonInclude(ALWAYS)`, de modo que `team` viaja **presente y nulo**. **`MovementLineRow` gana `teamId` y `teamName`**, y **`findLinesOf` los lee en su misma sentencia** con `LEFT JOIN teams tm ON tm.id = d.team_id` —`LEFT` por lo mismo que el vendedor: la columna admite nulo y un `JOIN` corriente haría desaparecer la línea—. **Sin predicado sobre `deleted_at`**: un equipo eliminado lógicamente (`RN-SP-054`) se sigue nombrando; y el nombre es el de hoy, porque lo congelado es **cuál** oficina. **Ninguna sentencia nueva**: el detalle sigue siendo cabecera, líneas, rebajas y pagos, y «mis compras» (`CA-MV-525`) sigue sin una consulta por fila.
+
+    **`SaleDetailMapper.lineas` arma el `team`** —nulo si `teamId` lo es— y, por ser el único sitio donde se arma la línea leída, **lo ganan a la vez** todas las respuestas que pasan por él: este detalle (`GetMovementService`), el propio (`GetMyMovementService`), «mis compras» (`ListMyMovementsService`), confirmar, anular, rechazar un pago, volver a pagar y asignar vendedores. **La respuesta de registrar NO pasa por el mapper**: `RegisterSaleService` la arma desde el dominio con `SaleResponse.de` → `SaleLineResponse.de(MovementLine, …)`, y su `team` lo resuelve la enmienda de `RF-MV-001`, que es la que escribe la oficina; este plan fija el campo y su forma, y el registro construido de `SaleLineResponse` gana el componente para los dos caminos.
+
+    **`MV` lee `teams` en SQL nativo y no desde Java**: D-25 y `ArchUnit` lo impiden desde código, y un `JOIN` de lectura para un nombre es lo que `findLinesOf` ya hace con `users` para el vendedor. **Descartado**: resolver el nombre aparte por un puerto de `SP` —una ida más por detalle—, y calcular la oficina al leer por la estructura de hoy —lo que `RN-MV-078` prohíbe—.
+
+    **Pruebas** en `MovementDetailIT`, que ya siembra la venta por SQL: el fixture crea un equipo propio con nombre único, escribe `team_id` en una línea y deja otra sin él, y lo borra al terminar. `CA-MV-720` comprueba `team` con identificador y nombre en la primera, `team` **presente y nulo** sobre el JSON en crudo en la segunda, y que la oficina sale aunque el director del vendedor pertenezca hoy a **otro** equipo —o a ninguno—; `CA-MV-290` sigue comparando el cuerpo entero de las dos rutas y lo cubre en el detalle propio.
 
 !!! info "Qué va en este documento"
 

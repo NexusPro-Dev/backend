@@ -4,7 +4,7 @@
 |---|---|
 | Requerimiento | `RF-MV-013` |
 | Plan | [`plan.md`](plan.md), aprobado el 16-09-2026 |
-| Versión | 0.2.0 |
+| Versión | 0.3.0 |
 | Estado | **En revisión** |
 | Autor | Responsable técnico |
 | Aprobadas por | Pendiente |
@@ -39,6 +39,14 @@
 
 **`T-04` distingue dos listas blancas, y conviene no confundirlas**: esta ruta **no exige permiso** —va a la de permisos— pero **sí exige sesión**, de modo que **no** va a la de rutas públicas. Es justo lo contrario del hotlink que la publica.
 
+### 1.1 La oficina del dueño del enlace — 09-10-2026
+
+Enmienda de hecho (Art. I.7), `spec.md` 0.5.0 y `plan.md` 0.3.0 **antes** del código (`RN-MV-078`). **Sin código propio**: la oficina la escribe `BuyPackageService.registrar` (`RF-MV-012` · `T-12`).
+
+| ID | Tarea | Depende de | Verificación | Estado |
+|---|---|---|---|---|
+| `T-07` | Prueba en `BuyPackageByHotlinkIT`: un cliente de un agente de otra oficina compra un paquete por el enlace; todas las líneas llevan la oficina del director del dueño del enlace, y el cuerpo no trae `team` | `T-05`, `RF-MV-012` · `T-12` | `CA-MV-715` | **Pendiente** |
+
 ---
 
 ## 2. Orden de ejecución
@@ -58,6 +66,7 @@
 | `CA-MV-066` | `T-02`, `T-05` |
 | `CA-MV-067` | `T-03`, `T-05` |
 | `CA-MV-541` | `T-05` — depende de `RF-MV-001` · la tarea que enmienda `SaleRules.verificarQueSube` |
+| `CA-MV-715` | `T-07` — 09-10-2026 |
 
 ---
 

@@ -4,8 +4,9 @@
 |---|---|
 | Requerimiento | `RF-MV-001` |
 | Módulo | `MV` — Movimientos |
-| Versión | 0.10.0 |
+| Versión | 0.11.0 |
 | Estado | **Aprobada** |
+| Enmendada el | 09-10-2026 — **cada línea nace con la oficina donde se vendió** ([`requirements/mv.md`](../../../requirements/mv.md) v0.97.0 §4.13, `RN-MV-078`): §5, §6, §7, §8, FA-004, FA-005, §13, `CA-MV-704` a `CA-MV-711`. Ver §15 |
 | Enmendada el | 05-10-2026 — **la venta del alta gratuita nace confirmada y no entrega nada hasta el primer depósito** ([`requirements/mv.md`](../../../requirements/mv.md) v0.76.0, `RN-MV-075`; [`requirements/sp.md`](../../../requirements/sp.md) v1.91.0, `RN-SP-057`): §6.2, `CA-MV-580` a `CA-MV-582` |
 | Autor | Responsable técnico |
 | Aprobada por | Responsable del proyecto |
@@ -21,6 +22,14 @@
     **Prueba de pertenencia:** si un cambio de tecnología lo invalidaría, no pertenece aquí — va a `plan.md`. No se nombran tablas, clases, endpoints ni librerías.
 
     Debe poder leerlo alguien del negocio y entenderlo completo. Es la primera compuerta del Art. I.6: hasta que no esté aprobada, no se escribe `plan.md`.
+
+!!! warning "Enmendado el 09-10-2026 — cada línea nace con la oficina donde se vendió"
+
+    Petición del responsable del proyecto, 09-10-2026 ([`requirements/mv.md`](../../../requirements/mv.md) v0.97.0 §4.13, `RN-MV-078`): saber **en qué oficina se hizo cada venta**, y que **cuando un agente se traslade de oficina, lo que vendió se quede en la oficina donde lo vendió**. **La oficina es un equipo** —Principal, Legendary, Elite, Prime o Master—, y desde ese mismo día **a un equipo solo pertenecen directores, uno por equipo** ([`requirements/sp.md`](../../../requirements/sp.md) v1.119.0, `RN-SP-051` y `RN-SP-052` enmendadas): los agentes son del equipo de su director por la cadena de mando, sin pertenecer a él por su cuenta.
+
+    **Qué cambia.** Cada línea **nace con su oficina**, junto a su vendedor y por la misma razón por la que el vendedor se congela (`RN-MV-002`, `RN-MV-003`). Es **la del primero de la cadena del vendedor que pertenece a un equipo** —el propio vendedor primero, después su superior, y así hacia arriba—, **con la estructura vigente el día de la venta**: la fecha del hecho, no la del registro. En la práctica, **la del director**: la suya si vende un director, la de su director si vende un agente. **La venta de un manager no tiene oficina**: por encima de los directores no hay equipo. **Sin vendedor, sin oficina**: la venta por validar (`RN-MV-034`) la gana cuando gana vendedor (`RF-MV-016`). Y **un vendedor sin director con equipo vende igual**, con la oficina vacía: el equipo organiza, no autoriza, y **no nace ninguna excepción**. **La respuesta** dice la oficina de cada línea, con su nombre, junto al vendedor.
+
+    **Qué no cambia.** **La oficina no se envía**, como el vendedor: elegirla sería elegir dónde cuenta la venta. **Y después de registrada no se mueve**: que el vendedor cambie de director, o el director de equipo, no toca lo ya vendido. Solo la cambian **corregir el vendedor** de la línea (`RF-MV-016`), que la recalcula con el vendedor nuevo **a la fecha de la venta**, y **rellenar las que no la tienen** (`RF-MV-058`), una sola vez. Vale igual para **el alta por enlace** (`RF-SP-045`), que registra por este mismo caso de uso. `CA-MV-704` a `CA-MV-711`.
 
 ---
 
@@ -109,10 +118,11 @@ Es el **primer requerimiento del módulo** y el que pone en el sistema el objeto
 | `RN-MV-016` | Toda venta lleva un código legible | `requirements/mv.md` §5.1 |
 | `RN-MV-018` | Un método de pago desactivado no invalida lo pagado con él | `requirements/mv.md` §5.1 |
 | `RN-MV-026` | Todo movimiento tiene **un sujeto**: a nombre de quién ocurre | `requirements/mv.md` §5.1 |
+| `RN-MV-078` | **Cada línea guarda la oficina donde se vendió**, y un traslado no la mueve (09-10-2026) | `requirements/mv.md` §5.1 |
 | `RN-SP-026` | La cuenta registrada por enlace autentica y no opera | `requirements/sp.md` §5.1 |
 | `RN-PM-009` | Solo se ofrece lo activo | `requirements/pm.md` §5.1 |
 
-**Este requerimiento hace cumplir quince de ellas y sufre las otras tres.** `RN-MV-004` no se comprueba aquí: se **respeta** dejando la venta pendiente. `RN-SP-026` y `RN-PM-009` son de otros módulos y este las consulta, no las evalúa — es `SP` quien dice en qué estado está la cuenta y `PM` quien dice qué se le puede ofrecer a esa persona.
+**Este requerimiento hace cumplir dieciséis de ellas y sufre las otras tres** —`RN-MV-078`, la decimosexta, desde el 09-10-2026—. `RN-MV-004` no se comprueba aquí: se **respeta** dejando la venta pendiente. `RN-SP-026` y `RN-PM-009` son de otros módulos y este las consulta, no las evalúa — es `SP` quien dice en qué estado está la cuenta y `PM` quien dice qué se le puede ofrecer a esa persona.
 
 ## 6. Datos
 
@@ -132,6 +142,7 @@ Es el **primer requerimiento del módulo** y el que pone en el sistema el objeto
 - **El precio y la vigencia** se copian del catálogo (§2). Enviarlos sería fijarlos.
 - **La moneda** es la del producto que se vende, y por eso `RN-MV-012` no es una comprobación contra un campo enviado sino contra **las líneas entre sí**: si dos productos vienen en monedas distintas, no hay ninguna venta posible que las contenga.
 - **El vendedor** sale del cliente (`RN-MV-003`) y se escribe **en cada línea**. Pedirlo permitiría atribuirse la venta de otro, que es exactamente lo que congelarlo evita. **Y siempre hay uno**: quien no cuelga de nadie se vende a sí mismo.
+- **La oficina** (09-10-2026) sale del vendedor (`RN-MV-078`) y se escribe con él. Se envía tan poco como él, y por lo mismo: pedirla permitiría elegir en qué oficina cuenta la venta.
 
 **La fecha del hecho es el único campo opcional, y existe por un caso real**: un funcionario registra el lunes la venta que se cerró el sábado. Sin él, todo lo vendido lleva la fecha en que alguien tuvo tiempo de teclearlo, y esa fecha es además **la que sale impresa en el código del comprobante** (`RN-MV-016`).
 
@@ -142,7 +153,7 @@ Es el **primer requerimiento del módulo** y el que pone en el sistema el objeto
 | Venta | La venta registrada, con su identificador y su **código de comprobante** |
 | Estado | **Pendiente**. Por esta ruta no hay ningún camino que devuelva otra cosa. **La única excepción no entra por aquí**: la venta del alta gratuita, que anota el registro por enlace por el adaptador de paquete, nace `CONFIRMADA` con sus líneas pendientes de activación (`RN-MV-075`, 05-10-2026) |
 | Cliente resuelto | Quién compró, con su nombre, y no solo su identificador |
-| Líneas | Cada producto con su nombre, su cantidad, **el precio que se le copió**, la vigencia copiada, **el descuento de la línea y sus rebajas** —hoy cero y ninguna—, **el paquete del que salió** —hoy ninguno—, el importe de la línea **y el vendedor al que se atribuye**, con su nombre |
+| Líneas | Cada producto con su nombre, su cantidad, **el precio que se le copió**, la vigencia copiada, **el descuento de la línea y sus rebajas** —hoy cero y ninguna—, **el paquete del que salió** —hoy ninguno—, el importe de la línea, **el vendedor al que se atribuye**, con su nombre, y —desde el 09-10-2026— **la oficina donde se vendió**, con su nombre, o vacía si no tiene (`RN-MV-078`) |
 | Moneda | La de la venta, resuelta |
 | Importes | Total, descuento e importe a pagar |
 | Fecha del hecho | La que se registró, sea la enviada o la de ahora |
@@ -163,7 +174,7 @@ Es el **primer requerimiento del módulo** y el que pone en el sistema el objeto
 
 **Postcondiciones**
 
-- La venta queda registrada **en estado pendiente**, con su código y sus líneas, **cada una con su vendedor congelado**.
+- La venta queda registrada **en estado pendiente**, con su código y sus líneas, **cada una con su vendedor congelado** y, desde el 09-10-2026, **con su oficina**, vacía si no la tiene (`RN-MV-078`).
 - La auditoría de cambios contiene un evento de creación con el estado inicial completo de la venta.
 - **Nadie ha subido de nivel, nadie ha cobrado y nadie ha comisionado.** Es la postcondición que conviene leer dos veces: registrar una venta no cambia absolutamente nada fuera de este módulo.
 
@@ -171,14 +182,14 @@ Es el **primer requerimiento del módulo** y el que pone en el sistema el objeto
 
 1. El actor envía el cliente, el método de pago y las líneas.
 2. El sistema comprueba que el cliente existe y **que puede comprar**: ni eliminado, ni en `FTD_PENDIENTE`.
-3. El sistema resuelve **el vendedor de quien compra** —su superior vigente, o **él mismo** si no cuelga de nadie— y lo retiene para cada línea.
+3. El sistema resuelve **el vendedor de quien compra** —su superior vigente, o **él mismo** si no cuelga de nadie— y lo retiene para cada línea. **Y con él su oficina** (09-10-2026, `RN-MV-078`): la del primero de su cadena que pertenece a un equipo, con la estructura vigente **en la fecha del hecho**; ninguna si no la hay.
 4. El sistema comprueba la composición de las líneas: al menos una, sin productos repetidos, **como mucho un upgrade**, y cantidad uno en él.
 5. El sistema comprueba que **cada producto está en la oferta que le corresponde a ese cliente**.
 6. El sistema comprueba que **todos los productos comparten moneda**.
 7. El sistema **copia** de cada producto su precio unitario y su vigencia, y calcula el importe de cada línea.
 8. El sistema suma las líneas, fija el total y el importe a pagar, y comprueba que la escala corresponde a la moneda.
 9. El sistema emite el **código del comprobante** con la fecha del hecho.
-10. El sistema registra la venta **pendiente**, con el vendedor congelado **en cada línea**, y emite el evento de auditoría de creación.
+10. El sistema registra la venta **pendiente**, con el vendedor congelado **en cada línea** —y su oficina—, y emite el evento de auditoría de creación.
 11. El sistema devuelve la venta con su código y sus líneas, cada una con lo que se le copió y **su vendedor resuelto**.
 
 **El paso 5 va después del 4 a propósito.** Comprobar la oferta es lo más caro de la operación —hay que resolver qué puede comprar esa persona—, y hacerlo antes de saber si la petición está bien formada gastaría ese trabajo para rechazarla por un producto repetido.
@@ -216,6 +227,7 @@ Es el **primer requerimiento del módulo** y el que pone en el sistema el objeto
 
 1. **La venta sigue atribuida a quien la vendió** (`RN-MV-003`).
 2. Las ventas siguientes se atribuirán al vendedor nuevo. Esto es lo que impide que reorganizar la fuerza comercial en marzo cambie quién ganó por una venta de enero.
+3. **Y la oficina tampoco se mueve** (09-10-2026, `RN-MV-078`): si el vendedor cambia de director, o su director de equipo, lo ya vendido se queda en la oficina donde se vendió. Las ventas siguientes llevarán la nueva.
 
 ### FA-005 — Se registra hoy una venta de una fecha anterior
 
@@ -223,6 +235,7 @@ Es el **primer requerimiento del módulo** y el que pone en el sistema el objeto
 
 1. La venta se registra con esa fecha, y **el código del comprobante lleva ese día** y no el de hoy (`RN-MV-016`).
 2. Queda constancia de las dos fechas: cuándo ocurrió y cuándo se registró.
+3. **La oficina es la de ese día** (09-10-2026, `RN-MV-078`): la de la estructura vigente en la fecha del hecho, no la de hoy. Si entre aquel día y hoy el vendedor o su director se trasladaron, la venta va a la oficina de antes.
 
 ## 10. Excepciones
 
@@ -348,6 +361,14 @@ Es el **primer requerimiento del módulo** y el que pone en el sistema el objeto
 | `CA-MV-580` | La venta que anota el **alta de una cuenta `FTD_PENDIENTE`** nace **`CONFIRMADA`**, con `confirmed_at` y su pago `GRATIS` `CONFIRMADO`, y **sus líneas quedan `PENDIENTE` de entrega**, sean automáticas o manuales: no se escribe ninguna posesión con su línea y **no sale el aviso de líneas comisionables** (`RN-MV-075`) (05-10-2026) |
 | `CA-MV-581` | La venta del **alta de pago** —cuenta que nace `ACTIVO`— sigue naciendo **`PENDIENTE`**, con su pago pendiente, como cualquier otra venta (05-10-2026) |
 | `CA-MV-582` | `V68` deja **confirmada**, con su pago, la venta del alta que seguía pendiente de **cada cuenta en `FTD_PENDIENTE`**, con las líneas pendientes de activación; **la de una cuenta `ACTIVO` no cambia** (05-10-2026) |
+| `CA-MV-704` | Un **agente** vende: cada línea lleva **la oficina de su director**, vigente en la fecha del hecho, en la respuesta —identificador y nombre—, en lo guardado y en la instantánea de la auditoría (09-10-2026) |
+| `CA-MV-705` | Un **director** vende: cada línea lleva **su propia oficina** (09-10-2026) |
+| `CA-MV-706` | Un **manager** vende: la venta se registra con normalidad y sus líneas **no tienen oficina** (09-10-2026) |
+| `CA-MV-707` | Vende alguien **sin director con equipo** —su director no está en ninguno, o no tiene director—: la venta se registra como siempre, **sin error**, y la oficina queda vacía (09-10-2026) |
+| `CA-MV-708` | Después de la venta, el agente **cambia de director** y su director anterior **cambia de equipo**: la oficina de las líneas ya registradas **no cambia** (09-10-2026) |
+| `CA-MV-709` | Una venta registrada hoy con una **fecha del hecho anterior a un traslado** lleva **la oficina de aquel día**, no la de hoy (09-10-2026) |
+| `CA-MV-710` | La venta a nombre de un cliente con **varios vendedores** nace con sus líneas **sin vendedor y sin oficina** (09-10-2026) |
+| `CA-MV-711` | La venta del **alta por enlace** lleva **la oficina del director de quien registró al cliente**, que es su vendedor (`CA-MV-147`) (09-10-2026) |
 
 **`CA-MV-007` afirma que el sistema NO hace algo**, y es el criterio que sostiene todo el módulo. Sin él, la diferencia entre registrar y confirmar es una palabra en un documento; con él, es algo que falla si alguien la borra.
 
@@ -355,11 +376,15 @@ Es el **primer requerimiento del módulo** y el que pone en el sistema el objeto
 
 **`CA-MV-003` se prueba corrigiendo el producto después**, y no solo comparando el precio al registrar. La copia solo se puede verificar cambiando el original: si la venta leyera el catálogo al mostrarse, un precio idéntico pasaría la prueba igual.
 
+**`CA-MV-708` es el criterio que sostiene la enmienda del 09-10-2026, y se prueba trasladando DESPUÉS**, por el mismo argumento que `CA-MV-003`: la oficina se copia precisamente para que un traslado no reescriba el pasado, y si la venta la calculara al mostrarse, una prueba sin traslado pasaría igual. **`CA-MV-709` es su pareja**: prueba que lo copiado es la estructura **del día de la venta**, y no la del día en que alguien la tecleó.
+
 ## 13. Casos límite
 
 - **Un cliente sin membresía vigente:** no tiene oferta que resolver, de modo que **cualquier producto que se le intente vender cae en `EX-004`**. No es un caso especial de esta operación: es lo que `RF-PM-007` responde cuando no hay nivel del que partir.
 - **Una persona que no es cliente:** solo los consumidores tienen membresía (`RN-SP-018`), de modo que quien no lo es **no tiene nivel del que partir** y su oferta son **los bots y nada más**. Puede comprarlos: intentar venderle un upgrade cae en `EX-004`, y el mensaje hablará de la oferta y no del rol. **Desde el 04-09-2026 esto importa de verdad**, porque es el caso que la decisión abrió: un agente compra bots con normalidad.
 - **Quien compra y no cuelga de nadie:** **se vende a sí mismo** (`RN-MV-003`, desde el 16-09-2026): cada línea lleva como vendedor a quien compra. Ocurre con la **cúspide de la fuerza comercial**, que por `RN-SP-019` no declara superior, y con cualquiera a quien nadie haya colgado todavía. Entre el 04-09-2026 y el 16-09-2026 esa venta se registraba **sin vendedor** y no comisionaba a nadie; ahora tiene de dónde arrancar la cadena, y **qué hace `CM` con una autoventa lo decide `CM`** — esta operación solo deja escrito quién vendió, y no inventa a nadie: la atribución a uno mismo es la única que no puede estar equivocada.
+- **Vende un manager** (09-10-2026): la venta se registra con normalidad y sus líneas **sin oficina**. Por encima de los directores no hay equipo (`RN-MV-078`); no es un error ni un hueco.
+- **El vendedor no tiene director con equipo** (09-10-2026): porque su director aún no está en ninguno, o porque no tiene director. **La venta se registra igual** y la oficina queda vacía: el equipo organiza, no autoriza. Si después su director entra en un equipo, `RF-MV-058` puede rellenarla con la oficina que tenga entonces.
 - **La membresía del cliente vence entre registrar y confirmar:** la venta ya está registrada y **no se revalida al confirmar**. Es una consecuencia aceptada de que la comprobación sea del momento del registro, y la alternativa —revalidar— haría que una venta pagada pudiera rechazarse por algo que el cliente no controla.
 - **Se inserta una membresía en medio de la cadena entre registrar y confirmar:** la venta se registró como escalón y, con los niveles de después, sería un salto. **Se confirma igual**: el escalón se comprueba al registrar y no al confirmar, el dinero ya entró, y conceder lo que se pagó es el mal menor (`RN-MV-006`, `RN-MV-029`).
 - **El producto se retira del catálogo entre registrar y confirmar:** igual. Lo vendido está copiado y `RN-PM-010` garantiza que el producto no desaparece nunca.
@@ -392,3 +417,4 @@ Es el **primer requerimiento del módulo** y el que pone en el sistema el objeto
 | 0.8.0 | 03-10-2026 | **`RN-MV-006` gana la mitad del salto** ([`requirements/mv.md`](../../../requirements/mv.md) v0.72.0; [`requirements/pm.md`](../../../requirements/pm.md) v0.49.0, §5.2.17), por decisión del responsable del proyecto —«solo puedo subir de upgrade a nivel por encima mío»—. `EX-005` pasa de rechazar «la membresía inferior» a rechazar **la inferior o la que salta** —más de un nivel por encima de la vigente—, con **el mismo código** y un mensaje que distingue las dos. Nacen `CA-MV-526` —el salto se rechaza y no deja nada— y `CA-MV-527` —el escalón se admite—; la renovación sigue en `CA-MV-048`. **Se compara con la membresía vigente de quien compra**, no con el origen del producto, y por eso vale igual por el hotlink. **Por esta entrada el salto se ve como `EX-004`**, porque la oferta ya no lo publica; la comprobación propia se mantiene por el argumento de `plan.md` §3.2. **Al confirmar no se repite** (§13). Sin esquema. | Responsable del proyecto |
 | 0.9.0 | 05-10-2026 | **Los importes se guardan en centésimas** ([`ADR-006`](../../../architecture/ADR-006-importes-en-unidades-minimas.md), [`requirements/mv.md`](../../../requirements/mv.md) v0.73.0), por decisión del responsable del proyecto. **El comportamiento no cambia**: la venta se calcula, se valida y se devuelve igual, y el contrato tampoco. Cambia la forma en que se guarda, y para eso hay cuatro criterios: `CA-MV-542` (lo que se guarda y lo que se devuelve), `CA-MV-543` (el SQL nativo, que no pasa por el convertidor), `CA-MV-544` (el libro cuadra después de `V65`) y `CA-MV-545` (la rebaja en porcentaje comparte columna con la fija y también va en centésimas). **`EX-008` no cambia**, pero su motivo se estrecha: desde ahora ninguna moneda pasa de dos decimales (`currencies.decimal_places` `0..2`), y el rechazo por decimales que `tasks.md` §5 dejaba como «postura segura» ya no se alcanza con ningún dato válido. | Responsable del proyecto |
 | 0.10.0 | 05-10-2026 | **La venta del alta gratuita nace confirmada, y lo que confirma espera al primer depósito** ([`requirements/mv.md`](../../../requirements/mv.md) v0.76.0, `RN-MV-075`), por decisión del responsable del proyecto: «cuando se registre la compra se guardará como confirmada pero solo se activará cuando se confirme el primer depósito». **No cambia esta ruta**: la venta que se registra por `POST /movements` sigue naciendo pendiente (§6.2). Cambia la del registro por enlace, que entra por el adaptador de paquete: nace `CONFIRMADA` sin entregar sus líneas ni avisar a `CM`, y la entrega llega con el depósito (`RN-SP-057`, `RF-MV-010` v0.3.0). `CA-MV-580` a `CA-MV-582`, el último sobre la migración de las cuentas que ya esperaban. | Responsable del proyecto |
+| 0.11.0 | 09-10-2026 | **Cada línea nace con la oficina donde se vendió** ([`requirements/mv.md`](../../../requirements/mv.md) v0.97.0 §4.13, `RN-MV-078`; [`requirements/sp.md`](../../../requirements/sp.md) v1.119.0, `RN-SP-051` y `RN-SP-052` enmendadas), a petición del responsable del proyecto: que cuando un agente se traslade, lo que vendió se quede en la oficina donde lo vendió. La oficina es **el equipo del primero de la cadena del vendedor que pertenece a uno** —en la práctica, su director— con la estructura **de la fecha del hecho**, y se congela con el vendedor. La venta de un manager no tiene oficina; sin vendedor, tampoco; un vendedor sin director con equipo vende igual. **No se envía** y **no nace ninguna excepción**; la respuesta la trae en cada línea. Vale para el alta por enlace. `CA-MV-704` a `CA-MV-711`. | Responsable del proyecto |

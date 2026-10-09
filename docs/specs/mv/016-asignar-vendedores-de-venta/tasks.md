@@ -9,6 +9,7 @@
 | Estado | **En revisión** — `T-01` a `T-10` `Hecha` el 23-09-2026; `T-11` y `T-12` a medias (ver §3) |
 | Enmendadas | 30-09-2026 — `T-13` a `T-15` por **corregir en una venta confirmada** (`RN-MV-053`) |
 | Enmendadas | 07-10-2026 — `CM` borra la cadena vieja: lo prueba `RF-CM-024` `T-10` (`RN-MV-053`) |
+| Enmendadas | 09-10-2026 — `T-16` y `T-17` por **la oficina con el vendedor** (§1.1) |
 | Issue | [#103](https://github.com/NexusPro-Dev/backend/issues/103) |
 | Rama | `feature/estados-de-comision` |
 
@@ -37,6 +38,15 @@
 | `T-11` | `mvn verify` completo; enmiendas de `RF-MV-006` y `RF-MV-015` en sus `spec.md` | `T-10` | Verde | **En curso** — ver §3 |
 | `T-12` | Contrato regenerado **al integrar**, sobre la rama que tenga también las rutas de Equipos (PR #97) | `T-11` | Las rutas de Equipos siguen en el contrato | **En curso** — ver §3 |
 
+### 1.1 La oficina con el vendedor — 09-10-2026
+
+Enmienda de hecho (Art. I.7), `spec.md` 0.4.0 y `plan.md` 0.4.0 **antes** del código (`RN-MV-078`). El puerto y la columna son de `RF-MV-001` (`T-49`, `T-50`).
+
+| ID | Tarea | Depende de | Verificación | Estado |
+|---|---|---|---|---|
+| `T-16` | `lockForAssignment` proyecta `occurred_at` (`AssignmentHeader.occurredAt`); `findLinesForAssignment` lee `team_id` (`AssignmentLine.teamId`); `assignSeller(lineId, sellerId, teamId)` en un `UPDATE`; `AssignSellersService` pregunta `teamAt(nuevo, venta.occurredAt())` una vez por vendedor distinto, solo para las líneas que cambian, tras las comprobaciones y `CM`; `team_id` antes y después en la auditoría | `RF-MV-001` · `T-49`, `T-50` | `SellerAssignmentIT` sigue en verde | **Pendiente** |
+| `T-17` | `SellerAssignmentIT`: asignar, corregir tras un traslado posterior a la venta, corregir hacia quien no tenía oficina, reescribir el mismo vendedor, auditoría | `T-16` | `CA-MV-716`; usar el reloj en lugar de `occurred_at` lo hace fallar | **Pendiente** |
+
 ---
 
 ## 2. Cobertura de los criterios de aceptación
@@ -52,6 +62,7 @@
 | `CA-MV-159` | `T-08`, `T-10` |
 | `CA-MV-160` | `T-05`, `T-10` |
 | `CA-MV-161`, `CA-MV-162` | `T-06`, `T-07`, `T-10` |
+| `CA-MV-716` | `T-16`, `T-17` — 09-10-2026 |
 
 ---
 

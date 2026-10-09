@@ -4,7 +4,7 @@
 |---|---|
 | Requerimiento | `RF-SP-070` |
 | Especificación | [`spec.md`](spec.md) |
-| Plan | [`plan.md`](plan.md), aprobado el 22-09-2026 |
+| Plan | [`plan.md`](plan.md), aprobado el 22-09-2026; enmendado a 0.2.0 el 09-10-2026 |
 | Estado | **Aprobadas** |
 | Issue | [#101](https://github.com/NexusPro-Dev/backend/issues/101) |
 | Rama | `feature/equipos` |
@@ -29,6 +29,15 @@
 | `T-11` | **`RN-SP-055` en `DeleteUserService`** (`RF-SP-029`): ídem para la eliminación. Solo después de `T-02` | `T-02`, `T-09` | `CA-SP-796`, y que `RF-SP-028` **no** saca del equipo | Hecha |
 | `T-12` | Contrato regenerado y comparado —solo altas— y `api/index.md` con su fila | `T-08`, `T-10`, `T-11` | El diff del contrato no toca ninguna forma existente | Hecha |
 | `T-13` | Matriz de `docs/requirements.md` —fila de `RF-SP-070` y las notas de enmienda en `RF-SP-029` y `RF-SP-031`—, la ficha de `requirements/sp.md` §6.1 y los estados de esta tripleta | `T-12` | Las tres filas reflejan el estado | Hecha |
+
+### 1.1 Directores en vez de managers — 09-10-2026
+
+Enmienda de hecho (Art. I.7), `spec.md` 0.2.0 y `plan.md` 0.2.0 **antes** del código.
+
+| ID | Tarea | Depende de | Verificación | Estado |
+|---|---|---|---|---|
+| `T-14` | `TeamMembershipRetirement` y su adaptador: javadoc con «director»; la prosa OpenAPI de `POST /teams/{id}/members/removals` —director, y que retirar y asignar es cambiar de encargado— | `RF-SP-069` `T-13` | Sin cambio de firma ni de comportamiento | **Pendiente** |
+| `T-15` | `TeamMemberRemovalIT` con un director por equipo —`CA-SP-789` con uno— y `CA-SP-986`: retirar al director y asignar a otro al mismo equipo | `T-14`, `RF-SP-069` `T-15` | Las suites del submódulo en verde | **Pendiente** |
 
 ## 2. Orden de ejecución
 
@@ -56,6 +65,7 @@ graph LR
 | `CA-SP-795` | `T-01`, `T-09`, `T-10` |
 | `CA-SP-796` | `T-02`, `T-09`, `T-11` |
 | `CA-SP-797` | `T-06`, `T-07`, `T-08` |
+| `CA-SP-986` | `T-15` — 09-10-2026 |
 
 ## 4. Bloqueos
 

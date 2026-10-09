@@ -7,6 +7,7 @@
 | Plan | [`plan.md`](plan.md) |
 | `plan.md` aprobado el | 22-08-2026 |
 | Enmendada | 23-09-2026 — `RN-SP-055` (Art. I.7): la pertenencia al equipo se cierra con el rol o con la baja. **El código lo toca `RF-SP-070` `T-11`**, no esta tripleta |
+| Enmendada | 09-10-2026 — `RN-SP-055` enmendada: la pertenencia es de **directores**; el código no cambia, la prueba sí (`T-18`, `CA-SP-987`) |
 | Estado | **Aprobadas** — 24-08-2026 |
 | Issue | Pendiente de crear |
 | Rama | `feature/ciclo-de-vida-de-usuario` |
@@ -62,6 +63,14 @@ Dos tareas concentran el riesgo:
 
 **Estados:** `Pendiente` · `En curso` · `Hecha` · `Bloqueada`.
 
+### 1.1 La pertenencia que se cierra es la de un director — 09-10-2026
+
+Enmienda de hecho (Art. I.7), `spec.md` y `plan.md` enmendados el 09-10-2026 **antes** del código.
+
+| # | Tarea | Depende de | Verificación | Estado |
+|---|---|---|---|---|
+| `T-18` | `TeamMembershipRetirementIT`: `CA-SP-987` —eliminar a un director con pertenencia vigente la cierra con la marca de la baja, sin borrar la fila, y su equipo acepta después a otro director—; el comentario de `DeleteUserService` dice «director» | `RF-SP-069` `T-15` (la unicidad de `V95`) | `CA-SP-796` sigue en verde | **Pendiente** |
+
 ## 2. Orden de ejecución
 
 ```mermaid
@@ -104,6 +113,7 @@ graph LR
 | `CA-SP-248` | `T-06`, `T-11`, `T-12` |
 | `CA-SP-249` | `T-14` |
 | `CA-SP-250` | `T-10`, `T-11` |
+| `CA-SP-987` | `T-18` — 09-10-2026 |
 
 `CA-SP-360` es el criterio más importante de la lista y el más fácil de probar mal. Verificar que existe una fila en `audit_deletion_log` da verde con la implementación equivocada; hay que verificar **su contenido**: que el `snapshot` trae los roles y la membresía que la persona tenía. La forma honesta de comprobar que la prueba sirve es invertir los pasos en una implementación de control y ver que **falla**.
 

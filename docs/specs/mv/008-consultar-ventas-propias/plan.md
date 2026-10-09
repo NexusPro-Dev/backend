@@ -3,9 +3,9 @@
 | Campo | Valor |
 |---|---|
 | Requerimiento | `RF-MV-008` |
-| Especificación | [`spec.md`](spec.md) v0.1.0 |
+| Especificación | [`spec.md`](spec.md) v0.9.0 |
 | `spec.md` aprobada el | 05-09-2026 |
-| Versión | 0.7.0 |
+| Versión | 0.8.0 |
 | Estado | **Aprobado** |
 | Enmendado el | 16-09-2026 — la mitad «lo que vendí» se resuelve por `movement_details.seller_id` (§2.1, §4.1) |
 | Enmendado el | 21-09-2026 — el filtro `type` y el campo `type` en la fila (§3, §4.1, §4.3, §11) |
@@ -13,6 +13,7 @@
 | Enmendado el | 22-09-2026 — el listado se acota al sujeto y la fila pierde `role` (§2.2, §3, §4.1, §9, §11); el detalle no cambia |
 | Enmendado el | 22-09-2026 (segunda del día) — el listado se muda a `GET /movements/mine/shopping` (§4, §9, §10) |
 | Enmendado el | 03-10-2026 — cada fila del listado trae `lines`, con la forma de `SaleLineResponse`, leídas en **una** sentencia por página (§4.1) |
+| Enmendado el | 09-10-2026 — cada línea, del detalle y de «mis compras», gana `team`, leído en la misma sentencia de las líneas (`RN-MV-078`) |
 | Autor | Responsable técnico |
 | Aprobado por | Responsable del proyecto |
 | Fecha de aprobación | 05-09-2026 |
@@ -27,6 +28,14 @@
     **Tres cosas que NO cambian, y conviene que no se den por hechas.** `type` y `typeStatus` **siguen siendo exactos**: se eligen de un conjunto cerrado, no se teclean, y un `LIKE` ahí haría que pedir `VENTA` arrastrara cualquier tipo que la contenga. Los comodines `%` y `_` que escriba el usuario se **escapan** —son texto y no patrón—, que es la misma defensa que `RF-SP-025` ya tenía escrita. Y **el alcance no se ensancha**: va en la misma sentencia y **antes** que este predicado, de modo que quien solo ve lo suyo sigue viendo lo suyo.
 
     **Se indexa con trigramas** (`ix_movements_codigo_busqueda`, `V39`), como `ix_users_busqueda`: `uq_movements_code` no puede responder por un fragmento del medio —un B-tree solo responde por el principio— y sin el índice nuevo la consulta recorrería la tabla entera.
+
+!!! warning "Enmendado el 09-10-2026 — `team` en cada línea, del detalle y de «mis compras»"
+
+    `spec.md` v0.9.0 (`RN-MV-078`). **No hay código propio de este requerimiento**: las dos salidas arman sus líneas con `SaleDetailMapper` —el detalle con `de`, «mis compras» con `lineas`— sobre `MovementRepository.findLinesOf`, y lo que las cambia es la enmienda de `RF-MV-007` · `plan.md` v0.4.0: `SaleLineResponse` gana `team` (`LineTeam`, nulable con `types = {"object", "null"}`), `MovementLineRow` gana `teamId` y `teamName`, y `findLinesOf` los lee con `LEFT JOIN teams tm ON tm.id = d.team_id` **en su misma sentencia**. Por eso `GetMyMovementService` y `ListMyMovementsService` no se tocan, y **`CA-MV-525` sigue valiendo sin cambiar la prueba**: las líneas de la página siguen siendo una sentencia y las rebajas otra. La columna la trae `V95` y la escriben el registro, la asignación del vendedor y el relleno (`RF-MV-058`); aquí solo se lee.
+
+    **`MyMovementResponse` no gana `teams`**, al revés que `MovementResponse` (`RF-MV-006`, `RF-MV-015`): desde el 03-10-2026 la fila trae `lines`, y una lista agregada repetiría lo que cada línea ya dice. **Y `MyMovementsRequest` no gana `teamId`** (`spec.md` §15, 0.9.0). Descartado también **calcular la oficina al leer** por la estructura de hoy, que es justo lo que `RN-MV-078` prohíbe.
+
+    **Pruebas** en `MyMovementsIT`, que ya siembra por SQL: el fixture crea un equipo propio con nombre único y lo borra al terminar —la clave con `SET NULL` no obliga a borrar antes las ventas—, y escribe `team_id` en una línea de una compra del actor y deja otra sin él. `CA-MV-721` sobre `GET /movements/mine/{id}`: `team` con identificador y nombre, **presente y nulo** en la otra, y la misma oficina aunque el director del vendedor pertenezca hoy a otro equipo. `CA-MV-722` sobre `GET /movements/mine/shopping`: las líneas de la fila comparadas con las del detalle de esa venta, y el recuento de sentencias de `CA-MV-525` con dos tamaños de página.
 
 !!! info "Qué va en este documento"
 
