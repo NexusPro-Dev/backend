@@ -88,6 +88,25 @@ class DevelopmentSeedIT extends IntegrationTestBase {
           "BOT_PRO_ANUAL",
           "BOT_LEGADO");
 
+  /** Los seis cursos de `semilla-academia.sql`, por título: no tienen código. */
+  private static final List<String> CURSOS =
+      List.of(
+          "Fundamentos del trading",
+          "Análisis técnico",
+          "Gestión del riesgo",
+          "Opera con los bots de NEXUS",
+          "Psicología del trading",
+          "Opciones binarias");
+
+  /** Sus cinco categorías, por nombre. */
+  private static final List<String> CATEGORIAS =
+      List.of(
+          "Primeros pasos",
+          "Análisis de mercado",
+          "Gestión del riesgo",
+          "Herramientas",
+          "Psicotrading");
+
   private static int alArrancar = -1;
 
   @Autowired private JdbcTemplate jdbc;
@@ -117,6 +136,9 @@ class DevelopmentSeedIT extends IntegrationTestBase {
     // Y ANTES QUE LAS MEMBRESÍAS, los productos sembrados: los upgrades las
     // referencian por clave foránea, y sin esto el DELETE de abajo fallaría.
     // Se vuelven a sembrar en la prueba que los mira, ya con la cadena entera.
+    // Y ANTES QUE LOS PRODUCTOS, la academia (09-10-2026): sus cursos los abren
+    // bots y membresías por clave foránea, y los enseña `admin1`.
+    borrarLaAcademia(jdbc);
     borrarLosProductos(jdbc);
     jdbc.update("DELETE FROM user_products");
     jdbc.update("DELETE FROM memberships");
@@ -138,6 +160,7 @@ class DevelopmentSeedIT extends IntegrationTestBase {
 
   @AfterAll
   static void devolverLaBaseASuSitio(@Autowired JdbcTemplate jdbc) {
+    borrarLaAcademia(jdbc);
     borrarLosProductos(jdbc);
     borrarLasDiecinueve(jdbc);
   }
@@ -665,6 +688,119 @@ class DevelopmentSeedIT extends IntegrationTestBase {
     assertThat(superadminConSuperior).isZero();
   }
 
+  @Test
+  @DisplayName(
+      "la academia (09-10-2026): cinco categorías y seis cursos con sus llaves, un inactivo y un"
+          + " retirado con su árbol, y repetible")
+  void laAcademia() {
+    // `@BeforeEach` la acaba de borrar y repuso las membresías: se siembra con
+    // la cadena y los bots presentes, y dos veces, que es lo que ocurre al
+    // reiniciar.
+    semilla.run(null);
+    semilla.run(null);
+
+    Object titulos = CURSOS.toArray(String[]::new);
+    assertThat(
+            jdbc.queryForObject(
+                "SELECT count(*) FROM course_categories WHERE name = ANY (?)",
+                Integer.class,
+                (Object) CATEGORIAS.toArray(String[]::new)))
+        .isEqualTo(5);
+    assertThat(
+            jdbc.queryForList(
+                "SELECT c.title || '|' || c.status || '|' || (c.deleted_at IS NOT NULL)"
+                    + " || '|' || u.username FROM courses c JOIN users u ON u.id = c.instructor_id"
+                    + " WHERE c.title = ANY (?) ORDER BY c.display_order",
+                String.class,
+                titulos))
+        .containsExactly(
+            "Fundamentos del trading|ACTIVO|false|admin1",
+            "Análisis técnico|ACTIVO|false|admin1",
+            "Gestión del riesgo|ACTIVO|false|superadmin",
+            "Opera con los bots de NEXUS|ACTIVO|false|admin1",
+            "Psicología del trading|INACTIVO|false|superadmin",
+            "Opciones binarias|INACTIVO|true|admin1");
+    assertThat(
+            jdbc.queryForObject(
+                "SELECT count(*) FROM lessons l JOIN course_modules m ON m.id = l.module_id"
+                    + " JOIN courses c ON c.id = m.course_id WHERE c.title = ANY (?)",
+                Integer.class,
+                titulos))
+        .isEqualTo(17);
+
+    // Las llaves: por membresía (`RN-AC-012`) y por servicio (`RN-AC-020`), y
+    // un curso sin ninguna, que abre cualquiera con `courses:learn`.
+    assertThat(llaves("Fundamentos del trading")).isEmpty();
+    assertThat(llaves("Análisis técnico")).isEqualTo("ORO,PLATINO,VIP");
+    assertThat(llaves("Gestión del riesgo")).isEqualTo("ORO,PLATINO");
+    assertThat(llaves("Opera con los bots de NEXUS")).isEqualTo("BOT_COPY_TRADING,BOT_SENALES,ORO");
+
+    // La demostración (`RN-AC-014`): una sola lección abierta, en un curso con llaves.
+    assertThat(
+            jdbc.queryForList(
+                "SELECT c.title FROM lessons l JOIN course_modules m ON m.id = l.module_id"
+                    + " JOIN courses c ON c.id = m.course_id"
+                    + " WHERE l.open AND c.title = ANY (?)",
+                String.class,
+                titulos))
+        .containsExactly("Análisis técnico");
+
+    // El retirado arrastra su árbol (`RN-AC-018`): nada vivo cuelga de él.
+    assertThat(
+            jdbc.queryForObject(
+                "SELECT count(*) FROM course_modules m JOIN courses c ON c.id = m.course_id"
+                    + " LEFT JOIN lessons l ON l.module_id = m.id"
+                    + " WHERE c.title = 'Opciones binarias'"
+                    + " AND (m.deleted_at IS NULL OR l.deleted_at IS NULL)",
+                Integer.class))
+        .isZero();
+
+    // Todo curso activo cumple lo que `RN-AC-009` exige para activar.
+    assertThat(
+            jdbc.queryForObject(
+                """
+                SELECT count(*) FROM courses c
+                 WHERE c.title = ANY (?) AND c.status = 'ACTIVO'
+                   AND (c.short_description IS NULL OR c.long_description IS NULL
+                        OR NOT EXISTS (SELECT 1 FROM course_modules m
+                                        WHERE m.course_id = c.id AND m.status = 'ACTIVO'
+                                          AND EXISTS (SELECT 1 FROM lessons l
+                                                       WHERE l.module_id = m.id
+                                                         AND l.status = 'ACTIVO'
+                                                         AND l.content IS NOT NULL)))
+                """,
+                Integer.class,
+                titulos))
+        .isZero();
+
+    // No pisa lo corregido por la API: un curso que ya existe se deja como está.
+    jdbc.update("UPDATE courses SET status = 'INACTIVO' WHERE title = 'Fundamentos del trading'");
+    semilla.run(null);
+    assertThat(
+            jdbc.queryForObject(
+                "SELECT status FROM courses WHERE title = 'Fundamentos del trading'", String.class))
+        .isEqualTo("INACTIVO");
+  }
+
+  /** Las membresías y los bots que abren un curso, por código y en orden alfabético. */
+  private String llaves(String curso) {
+    return jdbc.queryForObject(
+        """
+        SELECT coalesce(string_agg(codigo, ',' ORDER BY codigo), '') FROM (
+          SELECT ms.code AS codigo FROM course_memberships cm
+            JOIN memberships ms ON ms.id = cm.membership_id
+            JOIN courses c ON c.id = cm.course_id WHERE c.title = ?
+          UNION ALL
+          SELECT p.code FROM course_products cp
+            JOIN products p ON p.id = cp.product_id
+            JOIN courses c ON c.id = cp.course_id WHERE c.title = ?
+        ) AS llaves
+        """,
+        String.class,
+        curso,
+        curso);
+  }
+
   /** Cuántas de las diecinueve existen sin tipo de documento. */
   private int sinDocumento() {
     Integer total =
@@ -709,6 +845,34 @@ class DevelopmentSeedIT extends IntegrationTestBase {
         (Object) PRODUCTOS.toArray(String[]::new));
     jdbc.update(
         "DELETE FROM products WHERE code = ANY (?)", (Object) PRODUCTOS.toArray(String[]::new));
+  }
+
+  private static void borrarLaAcademia(JdbcTemplate jdbc) {
+    // De las hojas a la raíz: ninguna clave foránea de la academia lleva `ON
+    // DELETE` (`RN-AC-018` retira, no borra). Solo lo sembrado: las suites de
+    // academia limpian lo suyo.
+    String cursos = "SELECT id FROM courses WHERE title = ANY (?)";
+    Object titulos = CURSOS.toArray(String[]::new);
+    jdbc.update("DELETE FROM course_memberships WHERE course_id IN (" + cursos + ")", titulos);
+    jdbc.update("DELETE FROM course_products WHERE course_id IN (" + cursos + ")", titulos);
+    jdbc.update(
+        "DELETE FROM course_category_items WHERE course_id IN ("
+            + cursos
+            + ")"
+            + " OR category_id IN (SELECT id FROM course_categories WHERE name = ANY (?))",
+        titulos,
+        CATEGORIAS.toArray(String[]::new));
+    jdbc.update(
+        "DELETE FROM lessons WHERE module_id IN"
+            + " (SELECT id FROM course_modules WHERE course_id IN ("
+            + cursos
+            + "))",
+        titulos);
+    jdbc.update("DELETE FROM course_modules WHERE course_id IN (" + cursos + ")", titulos);
+    jdbc.update("DELETE FROM courses WHERE title = ANY (?)", titulos);
+    jdbc.update(
+        "DELETE FROM course_categories WHERE name = ANY (?)",
+        (Object) CATEGORIAS.toArray(String[]::new));
   }
 
   private static void borrarLasDiecinueve(JdbcTemplate jdbc) {
