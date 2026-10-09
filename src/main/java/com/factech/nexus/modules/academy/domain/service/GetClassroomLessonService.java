@@ -1,15 +1,10 @@
 package com.factech.nexus.modules.academy.domain.service;
 
 import com.factech.nexus.modules.academy.application.ClassroomLessonResponse;
-import com.factech.nexus.modules.academy.domain.repository.CourseQueryRepository;
-import com.factech.nexus.modules.academy.domain.repository.CourseQueryRepository.MembershipRef;
-import com.factech.nexus.modules.academy.domain.repository.CourseQueryRepository.ProductRef;
-import com.factech.nexus.modules.academy.domain.repository.LessonQueryRepository;
+import com.factech.nexus.modules.academy.domain.models.LessonType;
+import com.factech.nexus.modules.academy.domain.repository.LessonProgressRepository;
+import com.factech.nexus.modules.academy.domain.repository.LessonProgressRepository.ProgressRow;
 import com.factech.nexus.modules.academy.domain.repository.LessonQueryRepository.ClassroomLessonRow;
-import com.factech.nexus.shared.error.NotEntitledException;
-import com.factech.nexus.shared.error.ResourceNotFoundException;
-import java.util.List;
-import java.util.Map;
 import java.util.UUID;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -17,67 +12,31 @@ import org.springframework.transaction.annotation.Transactional;
 /**
  * Caso de uso `RF-AC-035`: el contenido de una lección, el único sitio donde sale hacia un alumno.
  *
- * <p><b>Primero si se ofrece, después si se abre</b> (`CA-AC-206`): cualquier «no» de los tres
- * niveles es el mismo `404`, y solo sobre lo ofrecido se mira el acceso. <b>La abierta y la del
- * curso sin llaves no preguntan a `SP`</b>: no necesitan saber quién mira (`spec.md` §14.3). El
- * «no» es un `403` con las dos listas del curso como invitación, <b>sin auditar</b>.
+ * <p>Las puertas son de {@link ClassroomLessonGate}. <b>Desde el 09-10-2026 entregar deja
+ * rastro</b> (`RN-AC-022`): la primera y la última apertura, y una lección {@code TEXTO} completada
+ * en el acto. Va en la misma transacción que la lectura —si no se puede anotar, no se entrega— y
+ * <b>solo después de pasar las puertas</b>: un `403` o un `404` no dejan nada. No se audita
+ * (`requirements/ac.md` §5.2.14).
  */
 @Service
 public class GetClassroomLessonService {
 
-  static final String NO_SE_ABRE = "Ni tu membresía ni tus servicios abren este curso.";
-
-  private final LessonQueryRepository lecciones;
-  private final CourseQueryRepository cursos;
+  private final ClassroomLessonGate puertas;
+  private final LessonProgressRepository progreso;
   private final StudentKeys llaves;
 
   public GetClassroomLessonService(
-      LessonQueryRepository lecciones, CourseQueryRepository cursos, StudentKeys llaves) {
-    this.lecciones = lecciones;
-    this.cursos = cursos;
+      ClassroomLessonGate puertas, LessonProgressRepository progreso, StudentKeys llaves) {
+    this.puertas = puertas;
+    this.progreso = progreso;
     this.llaves = llaves;
   }
 
-  @Transactional(readOnly = true)
+  @Transactional
   public ClassroomLessonResponse lesson(UUID courseId, UUID lessonId) {
-    ClassroomLessonRow fila =
-        lecciones
-            .findClassroomLesson(courseId, lessonId)
-            .filter(ClassroomLessonRow::ofrecida)
-            .orElseThrow(
-                () ->
-                    new ResourceNotFoundException(
-                        "EX-001", "No existe una lección con ese identificador en ese curso."));
-
-    if (fila.lesson().open() || fila.cursoSinLlaves()) {
-      return ClassroomLessonResponse.from(fila.lesson());
-    }
-
-    List<MembershipRef> membresias = cursos.findMembershipsOf(courseId);
-    List<ProductRef> servicios = cursos.findProductsOf(courseId);
-    boolean abre =
-        llaves
-            .ofCurrentActor()
-            .opens(
-                membresias.stream().map(MembershipRef::id).toList(),
-                servicios.stream().map(ProductRef::id).toList());
-    if (!abre) {
-      throw new NotEntitledException(
-          "EX-002",
-          NO_SE_ABRE,
-          Map.of(
-              "memberships",
-              membresias.stream()
-                  .map(
-                      m ->
-                          Map.of(
-                              "id", m.id(), "code", m.code(), "name", m.name(), "color", m.color()))
-                  .toList(),
-              "products",
-              servicios.stream()
-                  .map(s -> Map.of("id", s.id(), "code", s.code(), "name", s.name()))
-                  .toList()));
-    }
-    return ClassroomLessonResponse.from(fila.lesson());
+    ClassroomLessonRow fila = puertas.pass(courseId, lessonId);
+    boolean esTexto = LessonType.TEXTO.name().equals(fila.lesson().type());
+    ProgressRow rastro = progreso.open(llaves.actorId(), lessonId, esTexto);
+    return ClassroomLessonResponse.from(fila.lesson(), rastro);
   }
 }

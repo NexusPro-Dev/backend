@@ -39,6 +39,15 @@ public interface CommercialReach {
    */
   Reach reachOf(UUID actorId);
 
+  /**
+   * Los clientes cuyo vendedor <b>principal</b> —la fila {@code REGISTRO} de {@code client_sellers}
+   * (`RN-SP-049`)— está entre esos vendedores: la cartera de una red, la misma unión que
+   * `RF-SP-056` hace para las cuentas de broker de un equipo. La pide el progreso del alumno
+   * (`RF-AC-040`, `RF-AC-041`, `RN-AC-024`) para alcanzar a los clientes de una red sin leer {@code
+   * client_sellers} fuera de `SP`. Un conjunto vacío devuelve vacío sin consultar.
+   */
+  Set<UUID> principalClientsOf(Set<UUID> sellers);
+
   /** Qué clase de alcance es. */
   enum Kind {
     /** Todo: un rol de tipo {@code FUNCIONARIO}. */

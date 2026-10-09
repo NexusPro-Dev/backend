@@ -23,7 +23,7 @@
 | `T-05` | `ClassroomController`: `GET /api/v1/courses/available/{courseId}/lessons/{lessonId}` con `lessons:learn` | `T-04` | `CA-AC-208`; la ruta entra en `PERMISO_DE_CADA_OPERACION` | Hecha |
 | `T-06` | Pruebas de API (`ClassroomLessonIT`), con el contador de sentencias | `T-05` | `CA-AC-202` a `CA-AC-208`, `CA-AC-239` | Hecha |
 | `T-07` | Documentación OpenAPI: el orden `404` antes que `403`, las extensiones del `403`, el contenido tal cual | `T-05` | El contrato declara `200`, `400`, `401`, `403`, `404` | Hecha |
-| `T-08` | Matriz de `docs/requirements.md` y `docs/api/index.md` | `T-06` | La fila de `RF-AC-035` refleja el estado | Hecha || `T-09` | **09-10-2026** — `GetClassroomLessonService` pasa por `ClassroomLessonGate` y anota la apertura con `LessonProgressRepository.open` en la misma transacción; `ClassroomLessonResponse` gana `watchedSeconds` y `completedAt` | `RF-AC-039` · `T-03`, `T-04` | `CA-AC-240` a `CA-AC-242`; `CA-AC-202` a `CA-AC-208` y `CA-AC-239` siguen en verde | Pendiente |
+| `T-08` | Matriz de `docs/requirements.md` y `docs/api/index.md` | `T-06` | La fila de `RF-AC-035` refleja el estado | Hecha || `T-09` | **09-10-2026** — `GetClassroomLessonService` pasa por `ClassroomLessonGate` y anota la apertura con `LessonProgressRepository.open` en la misma transacción; `ClassroomLessonResponse` gana `watchedSeconds` y `completedAt` | `RF-AC-039` · `T-03`, `T-04` | `CA-AC-240` a `CA-AC-242`; `CA-AC-202` a `CA-AC-208` y `CA-AC-239` siguen en verde | Hecha |
 
 ## 2. Orden de ejecución
 

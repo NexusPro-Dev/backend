@@ -27,7 +27,7 @@
 | `T-09` | ~~Prueba de concordancia exhaustiva~~ | — | Retirada en `spec.md` 1.0.0: mismo objeto y mismas cuentas; `CA-AC-186` | **No aplica** |
 | `T-10` | `CA-AC-032` de `RF-AC-005` se hace real: la categoría retirada no aparece en el aula y su curso sí | `T-08` | `CA-AC-189` | Hecha |
 | `T-11` | Documentación OpenAPI. **La prosa dice** que el actor sale del token, que exige `courses:learn` y no `courses:read`, que se enseña todo lo ofrecido con `accessible` como marca salvo `onlyAccessible`, qué cuenta `openLessonCount`, que las categorías vienen sin filtro y que no se pagina | `T-07` | El contrato declara `200`, `400`, `401`, `403` | Hecha |
-| `T-12` | Matriz de `docs/requirements.md` y `docs/api/index.md` | `T-08` | La fila de `RF-AC-033` refleja el estado | Hecha || `T-13` | **09-10-2026** — `LessonProgressRepository.progressOfCourses(userId, courseIds)`: el avance de quien mira, para toda la lista, en una sentencia; `ClassroomCourseItem.progress` | `RF-AC-039` · `T-03` | `CA-AC-250`; `CA-AC-192` con cinco sentencias | Pendiente |
+| `T-12` | Matriz de `docs/requirements.md` y `docs/api/index.md` | `T-08` | La fila de `RF-AC-033` refleja el estado | Hecha || `T-13` | **09-10-2026** — `LessonProgressRepository.progressOfCourses(userId, courseIds)`: el avance de quien mira, para toda la lista, en una sentencia; `ClassroomCourseItem.progress` | `RF-AC-039` · `T-03` | `CA-AC-250`; `CA-AC-192` con cinco sentencias | Hecha |
 
 ## 2. Orden de ejecución
 

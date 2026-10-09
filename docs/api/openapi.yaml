@@ -72,6 +72,9 @@ tags:
     \ es la validación de mayoría de edad (RN-SP-036)."
 - name: Productos
   description: "Catálogo de venta: upgrades de membresía y bots."
+- name: Progreso de los alumnos
+  description: "Cuánto ha visto cada alumno de cada curso, dentro del alcance de quien\
+    \ consulta."
 - name: Roles
   description: Registro y administración de los roles del sistema.
 - name: Movimientos
@@ -474,6 +477,92 @@ paths:
               schema:
                 $ref: "#/components/schemas/CourseDetailResponse"
       x-required-permission: courses:update
+  /api/v1/courses/available/{courseId}/lessons/{lessonId}/progress:
+    put:
+      tags:
+      - Aula
+      summary: Reportar el avance de un video
+      description: |
+        **Permiso requerido:** `lessons:track-progress`. Sin él, `403` (`AUTH-002`).
+
+        **El reproductor dice hasta dónde va**: `positionSeconds`, en segundos enteros,
+        cada pocos segundos mientras el alumno mira y al pausar o salir. Se guarda **la
+        mayor posición alcanzada**, acotada a la duración de la lección: **el avance nunca
+        baja** —repasar desde el principio no borra lo visto, y un reporte que llega tarde
+        no deshace uno anterior—, y el mismo reporte dos veces deja lo mismo (`PUT`).
+
+        **La lección queda completada al llegar al 90 %** de su duración, y **completada
+        se queda**: `completedAt` se escribe una vez. Es la posición del reproductor, no
+        los segundos reproducidos: adelantar hasta el final completa la lección.
+
+        **Las mismas puertas que el contenido**: `404` si la lección no se ofrece en ese
+        curso, `403` con `EX-002`, `memberships` y `products` si no se le abre; ninguno
+        deja rastro. **Una lección `TEXTO` no reporta** (`422`, `EX-003`): se completa
+        al abrirla. Si no se había abierto, el reporte la abre. **No se audita.**
+
+        La respuesta es **lo guardado**, que puede ser más que lo recién reportado, con
+        `percent` entero hacia abajo y tope 100.
+
+        Exige `lessons:track-progress`.
+      operationId: avance
+      parameters:
+      - name: courseId
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      - name: lessonId
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ReportLessonProgressRequest"
+      responses:
+        "200":
+          description: El avance guardado.
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/LessonProgressResponse"
+        "400":
+          description: Identificador inválido o cuerpo ilegible (`VAL-001`); `positionSeconds`
+            ausente o negativo (`VAL-002`)
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/LessonProgressResponse"
+        "401":
+          description: Token ausente o inválido (`AUTH-001`)
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/LessonProgressResponse"
+        "403":
+          description: "Sin el permiso `lessons:track-progress` (`AUTH-002`); o ninguna\
+            \ llave abre el curso (`EX-002`, con `memberships` y `products`)"
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/LessonProgressResponse"
+        "404":
+          description: La lección no existe en ese curso o no se ofrece (`EX-001`)
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/LessonProgressResponse"
+        "422":
+          description: "La lección es de texto: se completa al abrirla (`EX-003`)"
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/LessonProgressResponse"
+      x-required-permission: lessons:track-progress
   /api/v1/course-categories/{id}/cover:
     put:
       tags:
@@ -13789,6 +13878,155 @@ paths:
         "500":
           description: Fallo no controlado (`ERR-500`)
       x-required-permission: currencies:read
+  /api/v1/courses/{courseId}/progress/{userId}:
+    get:
+      tags:
+      - Progreso de los alumnos
+      summary: Consultar el progreso de un alumno en un curso
+      description: |
+        **Permiso requerido:** `courses:read-progress`. Sin él, `403` (`AUTH-002`).
+
+        **Lección a lección**, lo que el alumno lleva del curso: el **árbol que el curso
+        ofrece hoy** —módulos y lecciones en su orden— con, por lección, `watchedSeconds`
+        (la mayor posición reportada de un video), `percent`, `completed` y
+        `completedAt`, y la primera y la última apertura; **las no abiertas, en cero y con
+        fechas nulas**. Lo que vio de lecciones que hoy no se ofrecen va aparte, en
+        **`notOffered`**, y no cuenta en `progress`. Un curso retirado se lee igual.
+
+        El alcance es el del listado. **Fuera del alcance, curso inexistente y alumno
+        inexistente responden el mismo `404`**: un `403` diría que el alumno existe. Un
+        alumno alcanzado que no ha empezado responde `200` en cero.
+
+        Exige `courses:read-progress`.
+      operationId: detalle_8
+      parameters:
+      - name: courseId
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      - name: userId
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      responses:
+        "200":
+          description: El progreso del alumno en el curso.
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/StudentCourseProgressResponse"
+        "400":
+          description: Identificador inválido (`VAL-001`)
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/StudentCourseProgressResponse"
+        "401":
+          description: Token ausente o inválido (`AUTH-001`)
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/StudentCourseProgressResponse"
+        "403":
+          description: Autenticado sin el permiso `courses:read-progress` (`AUTH-002`)
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/StudentCourseProgressResponse"
+        "404":
+          description: "El curso o el alumno no existen, o el alumno está fuera del\
+            \ alcance (`EX-001`)"
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/StudentCourseProgressResponse"
+      x-required-permission: courses:read-progress
+  /api/v1/courses/progress:
+    get:
+      tags:
+      - Progreso de los alumnos
+      summary: Consultar el progreso de los alumnos
+      description: |
+        **Permiso requerido:** `courses:list-progress`. Sin él, `403` (`AUTH-002`).
+
+        **Una fila por alumno y curso** en el que el alumno abrió al menos una lección,
+        por **última actividad descendente**, paginada. Cada fila con el alumno, el curso
+        —vivo o retirado— y su avance: `percent` (lo visto, acotado a cada duración y
+        entero si la lección está completada, entre la duración total, hacia abajo),
+        `completedLessons` de `lessonCount`, `watchedSeconds` de `totalSeconds`,
+        `completed` (todas las lecciones completadas y al menos una), la primera apertura
+        y la última actividad. **El avance se calcula sobre las lecciones que el curso
+        ofrece hoy**: lo visto de una lección retirada no cuenta, y no se pierde.
+
+        **Cada uno ve lo que le toca**: un rol `FUNCIONARIO`, todo; un `VENDEDOR`, a su
+        red en profundidad —con él dentro— y a los clientes cuyo vendedor principal es de
+        la red; y **cualquiera, a los alumnos de los cursos que dicta**. Las condiciones
+        se suman. **Fuera del alcance, página vacía**, nunca `403`.
+
+        Filtros: `userId`, `courseId` (uno inexistente da página vacía) y `completed`.
+
+        Exige `courses:list-progress`.
+      operationId: listado
+      parameters:
+      - name: page
+        in: query
+        required: false
+        schema:
+          type: integer
+          format: int32
+      - name: size
+        in: query
+        required: false
+        schema:
+          type: integer
+          format: int32
+      - name: userId
+        in: query
+        required: false
+        schema:
+          type: string
+          format: uuid
+      - name: courseId
+        in: query
+        required: false
+        schema:
+          type: string
+          format: uuid
+      - name: completed
+        in: query
+        required: false
+        schema:
+          type: boolean
+      responses:
+        "200":
+          description: La página.
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/PageResponseStudentProgressItem"
+        "400":
+          description: Paginación fuera de rango o un filtro mal formado (`VAL-001`)
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/PageResponseStudentProgressItem"
+        "401":
+          description: Token ausente o inválido (`AUTH-001`)
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/PageResponseStudentProgressItem"
+        "403":
+          description: Autenticado sin el permiso `courses:list-progress` (`AUTH-002`)
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/PageResponseStudentProgressItem"
+      x-required-permission: courses:list-progress
   /api/v1/courses/available:
     get:
       tags:
@@ -13962,7 +14200,13 @@ paths:
         color}]` y **`products`** `[{id, code, name}]`: lo que abre el curso. El `403`
         de permiso (`AUTH-002`) sale sin ellos y con `errors` vacío.
 
-        Exige `lessons:learn`. No registra nada: no hay progreso.
+        **Entregar el contenido deja rastro** (desde el 09-10-2026): la primera y la
+        última apertura de quien pregunta, y **una lección `TEXTO` queda completada** en
+        el acto. Un `403` o un `404` no dejan nada. La respuesta trae
+        **`watchedSeconds`** —la mayor posición que reportó del video, para retomar— y
+        **`completedAt`**, nulo si no la ha completado. No se audita.
+
+        Exige `lessons:learn`.
       operationId: leccion
       parameters:
       - name: courseId
@@ -14289,7 +14533,7 @@ paths:
         puede devolver con `POST /commission-batches/{id}/commissions/{commissionId}/return`.
         **Las comisiones de una línea cuyo vendedor se corrigió no aparecen**: desde el 07-10-2026
         se borran (`RN-CM-047`), y su total baja con ellas.
-      operationId: detalle_8
+      operationId: detalle_9
       parameters:
       - name: id
         in: path
@@ -16128,6 +16372,41 @@ components:
           type: string
         offerable:
           type: boolean
+    ReportLessonProgressRequest:
+      type: object
+      properties:
+        positionSeconds:
+          type: integer
+          format: int32
+          description: "La posición del reproductor en segundos, mayor o igual que\
+            \ cero."
+    LessonProgressResponse:
+      type: object
+      properties:
+        lessonId:
+          type: string
+          format: uuid
+        watchedSeconds:
+          type: integer
+          format: int32
+        durationSeconds:
+          type: integer
+          format: int32
+        percent:
+          type: integer
+          format: int32
+          description: "Entero, hacia abajo, tope 100; 100 si está completada."
+        completed:
+          type: boolean
+        completedAt:
+          type: string
+          format: date-time
+        firstOpenedAt:
+          type: string
+          format: date-time
+        lastOpenedAt:
+          type: string
+          format: date-time
     CategoryCourseItem:
       type: object
       properties:
@@ -21948,6 +22227,175 @@ components:
           type: boolean
         sort:
           type: string
+    CourseProgressSummary:
+      type: object
+      properties:
+        percent:
+          type: integer
+          format: int32
+        completedLessons:
+          type: integer
+          format: int64
+        lessonCount:
+          type: integer
+          format: int64
+        watchedSeconds:
+          type: integer
+          format: int64
+        totalSeconds:
+          type: integer
+          format: int64
+        firstOpenedAt:
+          type: string
+          format: date-time
+        lastActivityAt:
+          type: string
+          format: date-time
+    ProgressCourseRef:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        title:
+          type: string
+        status:
+          type: string
+        deleted:
+          type: boolean
+    ProgressLessonItem:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        moduleId:
+          type: string
+          format: uuid
+        title:
+          type: string
+        type:
+          type: string
+        durationSeconds:
+          type: integer
+          format: int32
+        displayOrder:
+          type: integer
+          format: int32
+        watchedSeconds:
+          type: integer
+          format: int32
+        percent:
+          type: integer
+          format: int32
+        completed:
+          type: boolean
+        completedAt:
+          type: string
+          format: date-time
+        firstOpenedAt:
+          type: string
+          format: date-time
+        lastOpenedAt:
+          type: string
+          format: date-time
+    ProgressModuleItem:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        title:
+          type: string
+        displayOrder:
+          type: integer
+          format: int32
+        lessons:
+          type: array
+          items:
+            $ref: "#/components/schemas/ProgressLessonItem"
+    ProgressStudentRef:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        username:
+          type: string
+        fullName:
+          type: string
+    StudentCourseProgressResponse:
+      type: object
+      properties:
+        student:
+          $ref: "#/components/schemas/ProgressStudentRef"
+        course:
+          $ref: "#/components/schemas/ProgressCourseRef"
+        progress:
+          $ref: "#/components/schemas/CourseProgressSummary"
+        modules:
+          type: array
+          items:
+            $ref: "#/components/schemas/ProgressModuleItem"
+        notOffered:
+          type: array
+          description: Lecciones con progreso que hoy no se ofrecen; no cuentan en
+            el avance.
+          items:
+            $ref: "#/components/schemas/ProgressLessonItem"
+    PageResponseStudentProgressItem:
+      type: object
+      properties:
+        content:
+          type: array
+          items:
+            $ref: "#/components/schemas/StudentProgressItem"
+        totalElements:
+          type: integer
+          format: int64
+        totalPages:
+          type: integer
+          format: int32
+        page:
+          type: integer
+          format: int32
+        size:
+          type: integer
+          format: int32
+        totalIsExact:
+          type: boolean
+    StudentProgressItem:
+      type: object
+      properties:
+        student:
+          $ref: "#/components/schemas/ProgressStudentRef"
+        course:
+          $ref: "#/components/schemas/ProgressCourseRef"
+        percent:
+          type: integer
+          format: int32
+        completedLessons:
+          type: integer
+          format: int64
+        lessonCount:
+          type: integer
+          format: int64
+        watchedSeconds:
+          type: integer
+          format: int64
+        totalSeconds:
+          type: integer
+          format: int64
+        completed:
+          type: boolean
+          description: "Todas las lecciones ofrecibles del curso completadas, y al\
+            \ menos una."
+        firstOpenedAt:
+          type: string
+          format: date-time
+        lastActivityAt:
+          type: string
+          format: date-time
     ClassroomCatalogResponse:
       type: object
       properties:
@@ -22015,6 +22463,9 @@ components:
           type: boolean
           description: "El curso entero se abre a quien pregunta: no declara llaves,\
             \ su membresía vigente está en la lista o tiene vigente uno de sus servicios."
+        progress:
+          $ref: "#/components/schemas/ProgressFigures"
+          description: El avance de quien pregunta; en cero si no ha empezado.
     ClassroomCurrentMembershipRef:
       type: object
       properties:
@@ -22027,6 +22478,26 @@ components:
           type: string
         color:
           type: string
+    ProgressFigures:
+      type: object
+      properties:
+        percent:
+          type: integer
+          format: int32
+          description: "Lo visto —acotado a cada duración, entera si la lección está\
+            \ completada— entre la duración total, entero hacia abajo."
+        completedLessons:
+          type: integer
+          format: int64
+        lessonCount:
+          type: integer
+          format: int64
+        watchedSeconds:
+          type: integer
+          format: int64
+        totalSeconds:
+          type: integer
+          format: int64
     ClassroomCourseResponse:
       type: object
       properties:
@@ -22083,6 +22554,9 @@ components:
         openLessonCount:
           type: integer
           format: int64
+        progress:
+          $ref: "#/components/schemas/ProgressFigures"
+          description: El avance de quien pregunta en este curso (`RN-AC-023`).
     ClassroomLessonItem:
       type: object
       properties:
@@ -22105,6 +22579,16 @@ components:
           type: boolean
         accessible:
           type: boolean
+        watchedSeconds:
+          type: integer
+          format: int32
+          description: La mayor posición reportada por quien pregunta; 0 si no la
+            abrió.
+        completed:
+          type: boolean
+        completedAt:
+          type: string
+          format: date-time
     ClassroomModuleItem:
       type: object
       properties:
@@ -22171,6 +22655,14 @@ components:
           format: int32
         open:
           type: boolean
+        watchedSeconds:
+          type: integer
+          format: int32
+          description: La mayor posición reportada por quien mira; 0 en un TEXTO.
+        completedAt:
+          type: string
+          format: date-time
+          description: Cuándo la completó quien mira; nulo si no la ha completado.
     CourseCategoryItem:
       type: object
       properties:

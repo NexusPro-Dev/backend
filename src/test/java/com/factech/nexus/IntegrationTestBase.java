@@ -305,7 +305,9 @@ public abstract class IntegrationTestBase {
                                    'indicators:read-sales-by-product',
                                    'indicators:read-sales-by-seller',
                                    -- V76 (06-10-2026): el resumen de puntos, RF-IN-005.
-                                   'indicators:read-points-summary')))
+                                   'indicators:read-points-summary',
+                                   -- V92 (09-10-2026): el progreso de los alumnos, RN-AC-024.
+                                   'courses:list-progress', 'courses:read-progress')))
         ON CONFLICT ON CONSTRAINT pk_role_permissions DO NOTHING
         """);
   }

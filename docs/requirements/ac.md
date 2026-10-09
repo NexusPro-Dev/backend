@@ -5,7 +5,7 @@
 | Módulo | `AC` — Academia |
 | Paquete | `modules/academy` |
 | Prefijos de permiso | `course-categories:`, `courses:` |
-| Versión | 0.21.0 |
+| Versión | 0.22.0 |
 | Estado | **Borrador** |
 | Responsable | Bonilla Diaz William Steven |
 | Fecha de creación | 17-09-2026 |
@@ -391,9 +391,9 @@ El responsable del proyecto pidió **saber por usuario cuánto ha visto de las l
 | `RF-AC-036` | Consultar el detalle de una lección | Lecciones | Media | `courses:read` | **En desarrollo** (19-09-2026) |
 | `RF-AC-037` | Dar visibilidad de un curso a un servicio | Cursos | Alta | `courses:update` | **En desarrollo** (25-09-2026) |
 | `RF-AC-038` | Quitar la visibilidad de un curso a un servicio | Cursos | Media | `courses:update` | **En desarrollo** (25-09-2026) |
-| `RF-AC-039` | Reportar el avance de un video | Progreso | Alta | `lessons:track-progress` | **Tasks en revisión** (09-10-2026) |
-| `RF-AC-040` | Consultar el progreso de los alumnos | Progreso | Alta | `courses:list-progress` | **Tasks en revisión** (09-10-2026) |
-| `RF-AC-041` | Consultar el progreso de un alumno en un curso | Progreso | Media | `courses:read-progress` | **Tasks en revisión** (09-10-2026) |
+| `RF-AC-039` | Reportar el avance de un video | Progreso | Alta | `lessons:track-progress` | **En desarrollo** (09-10-2026) |
+| `RF-AC-040` | Consultar el progreso de los alumnos | Progreso | Alta | `courses:list-progress` | **En desarrollo** (09-10-2026) |
+| `RF-AC-041` | Consultar el progreso de un alumno en un curso | Progreso | Media | `courses:read-progress` | **En desarrollo** (09-10-2026) |
 
 **Cuarenta y un requerimientos** —treinta y cinco del 17-09-2026, `RF-AC-036` del 18 (§5.2.7), `RF-AC-037` y `RF-AC-038` del 25 (§5.2.8) y `RF-AC-039` a `RF-AC-041` del 09-10-2026 (§5.2.14)—, y la cifra merece una explicación: no es que el módulo sea grande, es que **cada entidad paga el mismo precio** —alta, corrección, estado, retiro— y **cada relación cobra dos** —dar y quitar—. Es la misma forma que `PM` con el producto y el paquete, y la razón de no juntar «asociar» y «desasociar» en un solo requerimiento es la de siempre: son dos operaciones con dos reglas distintas y dos auditorías distintas.
 
@@ -992,7 +992,7 @@ Baja lógica con motivo y registro. No arrastra nada: no hay nada debajo.
 | Reglas aplicables | `RN-AC-013`, `RN-AC-014`, `RN-AC-015`, `RN-AC-021`, `RN-AC-023` |
 | Depende de | `RF-AC-035` |
 | Tripleta | `docs/specs/ac/039-reportar-avance-video/` |
-| Estado | **Tasks en revisión** (09-10-2026) |
+| Estado | **En desarrollo** (09-10-2026) |
 
 `PUT /api/v1/courses/available/{courseId}/lessons/{lessonId}/progress` con `{ "positionSeconds" }`: guarda **la mayor posición alcanzada**, acotada a la duración, y **completa** la lección al pasar el 90 % (`RN-AC-021`). **Las mismas puertas que `RF-AC-035`**: `404` si el curso o la lección no se ofrecen, `403` con las llaves si no se le abre. Una lección **`TEXTO`** es `422` —se completa al abrirla—; una posición negativa o ausente, `400`. **Idempotente y monótono**: dos reportes que llegan en desorden dejan la mayor, y el mismo reporte dos veces no cambia nada; por eso es `PUT`. Si la persona **no había abierto** la lección, el reporte la abre (primera apertura = ahora). Responde `200` con el avance de la lección —segundos vistos, duración, porcentaje, completada y desde cuándo—. **Sin auditoría por reporte** (§5.2.14).
 
@@ -1007,7 +1007,7 @@ Baja lógica con motivo y registro. No arrastra nada: no hay nada debajo.
 | Reglas aplicables | `RN-AC-023`, `RN-AC-024` |
 | Depende de | `RF-AC-041` |
 | Tripleta | `docs/specs/ac/040-consultar-progreso-alumnos/` |
-| Estado | **Tasks en revisión** (09-10-2026) |
+| Estado | **En desarrollo** (09-10-2026) |
 
 `GET /api/v1/courses/progress`: **una fila por alumno y curso** en el que el alumno abrió al menos una lección, **dentro del alcance de quien pregunta** (`RN-AC-024`). Cada fila con el alumno —identificador, nombre de usuario, nombre completo—, el curso —identificador y título—, **lecciones completadas de cuántas**, **segundos vistos de cuántos**, **porcentaje** (`RN-AC-023`), la primera apertura y **la última actividad**. **Paginado** —son alumnos por cursos, y crecen—, por omisión por última actividad descendente. Filtros: **`userId`**, **`courseId`** y **`completed`** —el curso al cien por ciento o no—. Un `userId` fuera del alcance devuelve **página vacía sin consultar**, como `RF-MV-015`. Un curso retirado o que ya no se ofrece **sigue saliendo**: el progreso es historia, y su avance se calcula sobre lo que ofrezca hoy, que puede ser nada (cero lecciones, porcentaje cero).
 
@@ -1022,7 +1022,7 @@ Baja lógica con motivo y registro. No arrastra nada: no hay nada debajo.
 | Reglas aplicables | `RN-AC-021` a `RN-AC-024` |
 | Depende de | `RF-AC-035`, `RF-AC-039` |
 | Tripleta | `docs/specs/ac/041-consultar-progreso-alumno-curso/` |
-| Estado | **Tasks en revisión** (09-10-2026) |
+| Estado | **En desarrollo** (09-10-2026) |
 
 `GET /api/v1/courses/{courseId}/progress/{userId}`: el alumno, el curso con su avance (`RN-AC-023`), y **el árbol ofrecido hoy** —módulos y lecciones en su orden— con, por lección, tipo, duración, **segundos vistos, porcentaje, completada y cuándo, primera y última apertura**; las no abiertas, en cero y sin fechas. **Las lecciones con progreso que hoy no se ofrecen** van aparte, en `notOffered`, para que administración vea lo que el alumno vio de algo que ya no está. **`404`** si el curso no existe, si el alumno no existe o **si está fuera del alcance** de quien pregunta (`RN-AC-024`) — el mismo cuerpo en los tres. Un curso retirado se lee igual.
 
@@ -1279,3 +1279,4 @@ Clave primaria compuesta. **La clave foránea a `memberships` se declara** hacia
 | 0.19.0 | 25-09-2026 | **§5.2.12 y el token de Vimeo están construidos**: `CourseOfferability` pierde el motivo de las llaves —cuatro motivos—, y las cuentas de membresías y servicios siguen en la fila del curso para que el aula sepa cuándo es de todos; `ProviderVideoDurationLookup` lee Vimeo por `api.vimeo.com` con token y cae al oEmbed sin él. Las pruebas que esperaban «sin membresías ni servicios» esperan ahora el motivo del módulo o `offerable: true`. | Responsable técnico |
 | 0.20.0 | 26-09-2026 | **El aula está construida**: `RF-AC-033`, `RF-AC-034` y `RF-AC-035` pasan a `En desarrollo`. **Dos decisiones del responsable del proyecto del mismo día** (§5.2.13): el catálogo gana el filtro **`onlyAccessible`** —solo lo que abre algo a quien pregunta: el curso entero o una lección abierta— y cada curso publica **`openLessonCount`**, sin reescribir la vitrina de `RN-AC-013`, que se precisa; y **el aula pasa a tres permisos** —`courses:learn` para el catálogo, **`courses:read-available`** para el detalle y **`lessons:learn`** para el contenido—, sembrados por `V47` en todo rol que porte `courses:learn` (§4, §6.1, §7). **`SP` publica `CurrentProductsLookup`** (§3), la cuarta interfaz, y el aula la consume para decidir qué servicios abren un curso. Las tres tripletas se reescriben con las enmiendas del 25-09-2026 —servicios, llaves y segundos— y las de hoy. | Responsable del proyecto |
 | 0.21.0 | 09-10-2026 | **El progreso del alumno entra al módulo**, por decisión del responsable del proyecto (§5.2.14): «quiero saber por usuario qué tanto ha visto las lecciones». **Cuatro reglas nuevas** —`RN-AC-021` (la posición más lejana, completada al 90 % y para siempre), `RN-AC-022` (abrir deja rastro y abrir un `TEXTO` lo completa), `RN-AC-023` (el progreso se conserva y el avance del curso se calcula sobre lo que se ofrece hoy) y `RN-AC-024` (quién ve el de quién: el alumno lo suyo, `FUNCIONARIO` todo, la red comercial su alcance con los clientes de la red, el instructor sus cursos; fuera del alcance, vacío o `404`)—, **tres requerimientos** en `Pendiente` —`RF-AC-039` reportar el avance, `RF-AC-040` el listado, `RF-AC-041` el detalle—, **tres permisos** (`lessons:track-progress`, `courses:list-progress`, `courses:read-progress`), la tabla **`lesson_progress`** (§8.7.1) y el submódulo **Progreso**. **Enmienda `RF-AC-033`, `RF-AC-034` y `RF-AC-035`** (Art. I.7): el aula gana el avance de quien mira y el contenido **escribe**. `RN-AC-011` cambia su justificación, no su efecto. §1.3 saca el progreso de lo excluido y deja dentro los certificados y **la medición real del video**. §3 gana una lectura nueva de `SP` —las personas de un alcance—. **El mismo día** el responsable del proyecto aprueba las cinco decisiones tomadas sin preguntar —el 90 %, la posición más lejana, **no auditar cada reporte del video** (excepción al Art. V.7), la red con sus vendedores y dos rutas de consulta— y **las tres tripletas quedan escritas** —`spec.md` y `plan.md` aprobados, `tasks.md` en revisión—, con las enmiendas de las de `RF-AC-033` a `RF-AC-035` (`CA-AC-240` a `CA-AC-262`). | Responsable técnico |
+| 0.22.0 | 09-10-2026 | **El progreso está construido**: `RF-AC-039` a `RF-AC-041` pasan a `En desarrollo`, con `V92` (`lesson_progress` y los tres permisos; catálogo 219, `ADMIN` 217), y el aula enmendada (`RF-AC-033` a `RF-AC-035`). `SP` publica `CommercialReach.principalClientsOf`. **Una precisión al construir** (`RF-AC-040` spec 1.0.1): un `userId` fuera de la red no se descarta antes de consultar, porque puede ser alumno de un curso que el actor dicta; el alcance va siempre en la sentencia. | Responsable técnico |

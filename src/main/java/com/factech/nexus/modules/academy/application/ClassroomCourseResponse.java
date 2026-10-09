@@ -5,6 +5,7 @@ import com.factech.nexus.modules.academy.application.CourseDetailResponse.Course
 import com.factech.nexus.modules.academy.application.CourseDetailResponse.CourseMembershipRef;
 import com.factech.nexus.modules.academy.application.CourseDetailResponse.CourseProductRef;
 import com.factech.nexus.modules.academy.application.CourseDetailResponse.InstructorRef;
+import com.factech.nexus.modules.academy.domain.models.LessonProgress;
 import com.factech.nexus.modules.academy.domain.repository.CourseQueryRepository.CategoryRef;
 import com.factech.nexus.modules.academy.domain.repository.CourseQueryRepository.CourseRow;
 import com.factech.nexus.modules.academy.domain.repository.CourseQueryRepository.LessonRow;
@@ -12,8 +13,11 @@ import com.factech.nexus.modules.academy.domain.repository.CourseQueryRepository
 import com.factech.nexus.modules.academy.domain.repository.CourseQueryRepository.ModuleRow;
 import com.factech.nexus.modules.academy.domain.repository.CourseQueryRepository.ProductRef;
 import com.factech.nexus.modules.academy.domain.repository.CourseQueryRepository.RecommendedCourseRow;
+import com.factech.nexus.modules.academy.domain.repository.LessonProgressRepository.CourseFigures;
+import com.factech.nexus.modules.academy.domain.repository.LessonProgressRepository.ProgressRow;
 import com.fasterxml.jackson.annotation.JsonInclude;
 import io.swagger.v3.oas.annotations.media.Schema;
+import java.time.OffsetDateTime;
 import java.util.List;
 import java.util.UUID;
 
@@ -43,7 +47,9 @@ public record ClassroomCourseResponse(
     List<ClassroomModuleItem> modules,
     long totalDurationSeconds,
     long lessonCount,
-    long openLessonCount) {
+    long openLessonCount,
+    @Schema(description = "El avance de quien pregunta en este curso (`RN-AC-023`).")
+        ProgressFigures progress) {
 
   /** Un curso recomendado que se ofrece: una invitación, sin estado. */
   @JsonInclude(JsonInclude.Include.ALWAYS)
@@ -96,9 +102,15 @@ public record ClassroomCourseResponse(
       int durationSeconds,
       int displayOrder,
       boolean open,
-      boolean accessible) {
+      boolean accessible,
+      @Schema(description = "La mayor posición reportada por quien pregunta; 0 si no la abrió.")
+          int watchedSeconds,
+      boolean completed,
+      OffsetDateTime completedAt) {
 
-    public static ClassroomLessonItem from(LessonRow fila, boolean accesible) {
+    /** Con el progreso de quien pregunta en esta lección, o nulo si nunca la abrió. */
+    public static ClassroomLessonItem from(
+        LessonRow fila, boolean accesible, ProgressRow progreso) {
       return new ClassroomLessonItem(
           fila.id(),
           fila.type(),
@@ -107,7 +119,10 @@ public record ClassroomCourseResponse(
           fila.durationSeconds(),
           fila.displayOrder(),
           fila.open(),
-          accesible);
+          accesible,
+          progreso == null ? 0 : progreso.watchedSeconds(),
+          progreso != null && progreso.completada(),
+          progreso == null ? null : progreso.completedAt());
     }
   }
 
@@ -141,6 +156,24 @@ public record ClassroomCourseResponse(
         modulos,
         modulos.stream().mapToLong(ClassroomModuleItem::durationSeconds).sum(),
         lecciones.size(),
-        lecciones.stream().filter(ClassroomLessonItem::open).count());
+        lecciones.stream().filter(ClassroomLessonItem::open).count(),
+        avance(lecciones));
+  }
+
+  /**
+   * `RN-AC-023` sobre las lecciones del árbol, que son las ofrecibles: lo mismo que suma el SQL.
+   */
+  private static ProgressFigures avance(List<ClassroomLessonItem> lecciones) {
+    long vistos = 0;
+    long total = 0;
+    long completadas = 0;
+    for (ClassroomLessonItem leccion : lecciones) {
+      vistos +=
+          LessonProgress.credito(
+              leccion.watchedSeconds(), leccion.durationSeconds(), leccion.completed());
+      total += leccion.durationSeconds();
+      completadas += leccion.completed() ? 1 : 0;
+    }
+    return ProgressFigures.from(new CourseFigures(lecciones.size(), completadas, vistos, total));
   }
 }

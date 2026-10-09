@@ -4,9 +4,12 @@ import com.factech.nexus.modules.academy.application.ClassroomCatalogRequest;
 import com.factech.nexus.modules.academy.application.ClassroomCatalogResponse;
 import com.factech.nexus.modules.academy.application.ClassroomCourseResponse;
 import com.factech.nexus.modules.academy.application.ClassroomLessonResponse;
+import com.factech.nexus.modules.academy.application.LessonProgressResponse;
+import com.factech.nexus.modules.academy.application.ReportLessonProgressRequest;
 import com.factech.nexus.modules.academy.domain.service.GetClassroomCatalogService;
 import com.factech.nexus.modules.academy.domain.service.GetClassroomCourseService;
 import com.factech.nexus.modules.academy.domain.service.GetClassroomLessonService;
+import com.factech.nexus.modules.academy.domain.service.ReportLessonProgressService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.media.Content;
 import io.swagger.v3.oas.annotations.media.Schema;
@@ -18,6 +21,8 @@ import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.ModelAttribute;
 import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.PutMapping;
+import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
@@ -41,14 +46,17 @@ public class ClassroomController {
   private final GetClassroomCatalogService catalogo;
   private final GetClassroomCourseService curso;
   private final GetClassroomLessonService leccion;
+  private final ReportLessonProgressService avance;
 
   public ClassroomController(
       GetClassroomCatalogService catalogo,
       GetClassroomCourseService curso,
-      GetClassroomLessonService leccion) {
+      GetClassroomLessonService leccion,
+      ReportLessonProgressService avance) {
     this.catalogo = catalogo;
     this.curso = curso;
     this.leccion = leccion;
+    this.avance = avance;
   }
 
   @GetMapping
@@ -164,7 +172,13 @@ public class ClassroomController {
           color}]` y **`products`** `[{id, code, name}]`: lo que abre el curso. El `403`
           de permiso (`AUTH-002`) sale sin ellos y con `errors` vacío.
 
-          Exige `lessons:learn`. No registra nada: no hay progreso.
+          **Entregar el contenido deja rastro** (desde el 09-10-2026): la primera y la
+          última apertura de quien pregunta, y **una lección `TEXTO` queda completada** en
+          el acto. Un `403` o un `404` no dejan nada. La respuesta trae
+          **`watchedSeconds`** —la mayor posición que reportó del video, para retomar— y
+          **`completedAt`**, nulo si no la ha completado. No se audita.
+
+          Exige `lessons:learn`.
           """)
   @ApiResponses({
     @ApiResponse(
@@ -184,5 +198,61 @@ public class ClassroomController {
   })
   public ClassroomLessonResponse leccion(@PathVariable UUID courseId, @PathVariable UUID lessonId) {
     return leccion.lesson(courseId, lessonId);
+  }
+
+  @PutMapping("/{courseId}/lessons/{lessonId}/progress")
+  @PreAuthorize("hasAuthority('lessons:track-progress')")
+  @Operation(
+      summary = "Reportar el avance de un video",
+      description =
+          """
+          **El reproductor dice hasta dónde va**: `positionSeconds`, en segundos enteros,
+          cada pocos segundos mientras el alumno mira y al pausar o salir. Se guarda **la
+          mayor posición alcanzada**, acotada a la duración de la lección: **el avance nunca
+          baja** —repasar desde el principio no borra lo visto, y un reporte que llega tarde
+          no deshace uno anterior—, y el mismo reporte dos veces deja lo mismo (`PUT`).
+
+          **La lección queda completada al llegar al 90 %** de su duración, y **completada
+          se queda**: `completedAt` se escribe una vez. Es la posición del reproductor, no
+          los segundos reproducidos: adelantar hasta el final completa la lección.
+
+          **Las mismas puertas que el contenido**: `404` si la lección no se ofrece en ese
+          curso, `403` con `EX-002`, `memberships` y `products` si no se le abre; ninguno
+          deja rastro. **Una lección `TEXTO` no reporta** (`422`, `EX-003`): se completa
+          al abrirla. Si no se había abierto, el reporte la abre. **No se audita.**
+
+          La respuesta es **lo guardado**, que puede ser más que lo recién reportado, con
+          `percent` entero hacia abajo y tope 100.
+
+          Exige `lessons:track-progress`.
+          """)
+  @ApiResponses({
+    @ApiResponse(
+        responseCode = "200",
+        description = "El avance guardado.",
+        content = @Content(schema = @Schema(implementation = LessonProgressResponse.class))),
+    @ApiResponse(
+        responseCode = "400",
+        description =
+            "Identificador inválido o cuerpo ilegible (`VAL-001`); `positionSeconds` ausente"
+                + " o negativo (`VAL-002`)"),
+    @ApiResponse(responseCode = "401", description = "Token ausente o inválido (`AUTH-001`)"),
+    @ApiResponse(
+        responseCode = "403",
+        description =
+            "Sin el permiso `lessons:track-progress` (`AUTH-002`); o ninguna llave abre el"
+                + " curso (`EX-002`, con `memberships` y `products`)"),
+    @ApiResponse(
+        responseCode = "404",
+        description = "La lección no existe en ese curso o no se ofrece (`EX-001`)"),
+    @ApiResponse(
+        responseCode = "422",
+        description = "La lección es de texto: se completa al abrirla (`EX-003`)")
+  })
+  public LessonProgressResponse avance(
+      @PathVariable UUID courseId,
+      @PathVariable UUID lessonId,
+      @RequestBody(required = false) ReportLessonProgressRequest peticion) {
+    return avance.report(courseId, lessonId, peticion);
   }
 }

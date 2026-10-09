@@ -203,8 +203,8 @@ class ClassroomCourseDetailIT extends IntegrationTestBase {
 
   @Test
   @DisplayName(
-      "`CA-AC-200` — seis sentencias más las de los dos puertos; sin módulos ofrecibles, una menos;"
-          + " el 404 cuesta una")
+      "`CA-AC-200` — siete sentencias más las de los dos puertos (la séptima, el avance, desde el"
+          + " 09-10-2026); el 404 cuesta una")
   void cuentaDeSentencias() throws Exception {
     Ofrecido velas = ofrecido(jdbc, "Velas", instructor, 0);
     Statistics estadisticas = sessionFactory.getStatistics();
@@ -212,7 +212,7 @@ class ClassroomCourseDetailIT extends IntegrationTestBase {
 
     estadisticas.clear();
     pedir(velas.curso()).andExpect(status().isOk());
-    assertThat(estadisticas.getPrepareStatementCount()).isEqualTo(8);
+    assertThat(estadisticas.getPrepareStatementCount()).isEqualTo(9);
 
     estadisticas.clear();
     pedir(UUID.randomUUID()).andExpect(status().isNotFound());

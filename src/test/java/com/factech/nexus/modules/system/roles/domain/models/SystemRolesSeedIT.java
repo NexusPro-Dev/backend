@@ -41,6 +41,9 @@ class SystemRolesSeedIT extends IntegrationTestBase {
    */
   private static final List<String> LA_CUSPIDE =
       List.of(
+          // V92 (09-10-2026): el progreso de los alumnos, a todo rol VENDEDOR (RN-AC-024).
+          "courses:list-progress",
+          "courses:read-progress",
           // V75 (06-10-2026): el propio segundo factor, a los tres tipos.
           "users:start-own-mfa",
           "users:confirm-own-mfa",
@@ -120,6 +123,9 @@ class SystemRolesSeedIT extends IntegrationTestBase {
    */
   private static final List<String> EL_AGENTE =
       List.of(
+          // V92 (09-10-2026): el progreso de los alumnos, a todo rol VENDEDOR (RN-AC-024).
+          "courses:list-progress",
+          "courses:read-progress",
           // V75 (06-10-2026): el propio segundo factor, a los tres tipos.
           "users:start-own-mfa",
           "users:confirm-own-mfa",

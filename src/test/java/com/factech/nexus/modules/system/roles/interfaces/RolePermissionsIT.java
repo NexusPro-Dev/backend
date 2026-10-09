@@ -265,7 +265,8 @@ class RolePermissionsIT extends IntegrationTestBase {
     // falla aquí. Desde el 21-09-2026 parte con los once de alcance propio que
     // V31 da a todo rol (RF-SP-062), y se cuenta a partir de ellos.
     UUID manager = UUID.fromString(MANAGER);
-    int base = ALCANCE_PROPIO.size();
+    // Y los dos del progreso de los alumnos que V92 da a todo rol VENDEDOR (RN-AC-024).
+    int base = ALCANCE_PROPIO.size() + 2;
     assertThat(permisosDe(manager)).isEqualTo(base);
 
     mvc.perform(agregar(manager, heredables))

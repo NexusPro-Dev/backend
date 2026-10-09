@@ -200,8 +200,8 @@ class ClassroomLessonIT extends IntegrationTestBase {
 
   @Test
   @DisplayName(
-      "`CA-AC-207` — una sentencia la abierta, la gratuita y el 404; tres la cerrada más los"
-          + " puertos")
+      "`CA-AC-207` — una sentencia el 404; la abierta y la gratuita, una más para anotar la"
+          + " apertura (09-10-2026); la cerrada, tres más los puertos y sin anotar")
   void cuentaDeSentencias() throws Exception {
     Ofrecido libre = ofrecido(jdbc, "Libre", instructor, 0);
     Ofrecido deOro = ofrecido(jdbc, "De oro", instructor, 1);
@@ -213,11 +213,11 @@ class ClassroomLessonIT extends IntegrationTestBase {
 
     estadisticas.clear();
     pedir(libre.curso(), libre.leccion()).andExpect(status().isOk());
-    assertThat(estadisticas.getPrepareStatementCount()).isEqualTo(1);
+    assertThat(estadisticas.getPrepareStatementCount()).isEqualTo(2);
 
     estadisticas.clear();
     pedir(deOro.curso(), abierta).andExpect(status().isOk());
-    assertThat(estadisticas.getPrepareStatementCount()).isEqualTo(1);
+    assertThat(estadisticas.getPrepareStatementCount()).isEqualTo(2);
 
     estadisticas.clear();
     pedir(deOro.curso(), UUID.randomUUID()).andExpect(status().isNotFound());

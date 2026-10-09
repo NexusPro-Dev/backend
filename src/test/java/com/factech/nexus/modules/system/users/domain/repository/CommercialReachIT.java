@@ -140,11 +140,35 @@ class CommercialReachIT extends IntegrationTestBase {
     assertThat(hastaDonde.sellers()).containsExactly(agente3);
   }
 
+  @Test
+  @DisplayName(
+      "RF-AC-041 · T-01 — los clientes PRINCIPALES de esos vendedores: solo REGISTRO, solo los"
+          + " dados; vacío sin consultar")
+  void clientesPrincipalesDeUnaRed() {
+    UUID deAgente1 = persona("reach-cliente-a1", CLIENTE);
+    UUID deAgente3 = persona("reach-cliente-a3", CLIENTE);
+    UUID porHotlink = persona("reach-cliente-hl", CLIENTE);
+    vincular(deAgente1, agente1, "REGISTRO");
+    vincular(deAgente3, agente3, "REGISTRO");
+    vincular(porHotlink, suelto, "REGISTRO");
+    // Compró por el enlace de agente2, pero su principal es el suelto: no es de la red.
+    vincular(porHotlink, agente2, "HOTLINK");
+
+    assertThat(alcance.principalClientsOf(alcance.reachOf(director1).sellers()))
+        .containsExactly(deAgente1);
+    assertThat(alcance.principalClientsOf(alcance.reachOf(manager).sellers()))
+        .containsExactlyInAnyOrder(deAgente1, deAgente3);
+    assertThat(alcance.principalClientsOf(java.util.Set.of())).isEmpty();
+  }
+
   // ---------------------------------------------------------------------------
   // Auxiliares
   // ---------------------------------------------------------------------------
 
   private void limpiar() {
+    jdbc.update(
+        "DELETE FROM client_sellers WHERE client_id IN (SELECT id FROM users WHERE username LIKE"
+            + " 'reach-%') OR seller_id IN (SELECT id FROM users WHERE username LIKE 'reach-%')");
     jdbc.update(
         "DELETE FROM user_supervisors WHERE user_id IN (SELECT id FROM users WHERE username LIKE"
             + " 'reach-%') OR supervisor_id IN (SELECT id FROM users WHERE username LIKE 'reach-%')");
@@ -178,6 +202,14 @@ class CommercialReachIT extends IntegrationTestBase {
             + " SELECT ?, r.id, r.role_type FROM roles r WHERE r.id = ?::uuid",
         persona,
         rol);
+  }
+
+  private void vincular(UUID cliente, UUID vendedor, String origen) {
+    jdbc.update(
+        "INSERT INTO client_sellers (client_id, seller_id, origin) VALUES (?, ?, ?)",
+        cliente,
+        vendedor,
+        origen);
   }
 
   private void reportar(UUID subordinado, UUID superior) {

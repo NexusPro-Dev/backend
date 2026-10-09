@@ -3,6 +3,7 @@ package com.factech.nexus.modules.indicators.domain.service;
 import static org.assertj.core.api.Assertions.assertThat;
 
 import com.factech.nexus.modules.movements.application.SalesFigures.SalesScope;
+import com.factech.nexus.modules.system.users.application.CommercialReach;
 import com.factech.nexus.modules.system.users.application.CommercialReach.Reach;
 import java.util.Optional;
 import java.util.Set;
@@ -18,7 +19,21 @@ class SalesScopeResolverTest {
   private final UUID ajeno = UUID.randomUUID();
 
   private Optional<SalesScope> con(Reach alcance, UUID vendedor) {
-    return new SalesScopeResolver(id -> alcance).resolve(actor, vendedor);
+    // Clase anónima y no lambda: desde el 09-10-2026 `CommercialReach` publica también
+    // `principalClientsOf` (`RF-AC-041`), que el resolvedor de ventas no usa.
+    return new SalesScopeResolver(
+            new CommercialReach() {
+              @Override
+              public Reach reachOf(UUID actorId) {
+                return alcance;
+              }
+
+              @Override
+              public Set<UUID> principalClientsOf(Set<UUID> sellers) {
+                return Set.of();
+              }
+            })
+        .resolve(actor, vendedor);
   }
 
   @Test

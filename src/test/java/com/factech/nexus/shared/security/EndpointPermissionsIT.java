@@ -494,6 +494,11 @@ class EndpointPermissionsIT extends IntegrationTestBase {
           Map.entry("GET /api/v1/courses/available", "courses:learn"),
           Map.entry("GET /api/v1/courses/available/{id}", "courses:read-available"),
           Map.entry("GET /api/v1/courses/available/{courseId}/lessons/{lessonId}", "lessons:learn"),
+          Map.entry(
+              "PUT /api/v1/courses/available/{courseId}/lessons/{lessonId}/progress",
+              "lessons:track-progress"),
+          Map.entry("GET /api/v1/courses/progress", "courses:list-progress"),
+          Map.entry("GET /api/v1/courses/{courseId}/progress/{userId}", "courses:read-progress"),
           Map.entry("PATCH /api/v1/courses/{id}", "courses:update"),
           Map.entry("PATCH /api/v1/courses/{id}/status", "courses:update"),
           Map.entry("POST /api/v1/courses/{id}/deletion", "courses:delete"),

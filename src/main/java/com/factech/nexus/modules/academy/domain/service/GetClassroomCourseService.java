@@ -12,6 +12,8 @@ import com.factech.nexus.modules.academy.domain.repository.CourseQueryRepository
 import com.factech.nexus.modules.academy.domain.repository.CourseQueryRepository.ModuleRow;
 import com.factech.nexus.modules.academy.domain.repository.CourseQueryRepository.ProductRef;
 import com.factech.nexus.modules.academy.domain.repository.CourseQueryRepository.RecommendedCourseRow;
+import com.factech.nexus.modules.academy.domain.repository.LessonProgressRepository;
+import com.factech.nexus.modules.academy.domain.repository.LessonProgressRepository.ProgressRow;
 import com.factech.nexus.shared.error.ResourceNotFoundException;
 import java.util.List;
 import java.util.Map;
@@ -25,17 +27,22 @@ import org.springframework.transaction.annotation.Transactional;
  *
  * <p><b>Las lecturas de `RF-AC-010`, otro lector</b> (`spec.md` §14.2): decide con los mismos tres
  * objetos de ofrecibilidad qué se queda, y suma sobre lo que queda. <b>El `404` se sabe con la
- * primera sentencia</b> y no pregunta a `SP`; las llaves del alumno se piden al final.
+ * primera sentencia</b> y no pregunta a `SP`; las llaves del alumno se piden al final. <b>Desde el
+ * 09-10-2026, una sentencia más</b>: lo que quien mira lleva de las lecciones del árbol
+ * (`RN-AC-023`), con el que se pinta cada lección y se suma el avance del curso.
  */
 @Service
 public class GetClassroomCourseService {
 
   private final CourseQueryRepository consultas;
   private final StudentKeys llaves;
+  private final LessonProgressRepository progreso;
 
-  public GetClassroomCourseService(CourseQueryRepository consultas, StudentKeys llaves) {
+  public GetClassroomCourseService(
+      CourseQueryRepository consultas, StudentKeys llaves, LessonProgressRepository progreso) {
     this.consultas = consultas;
     this.llaves = llaves;
+    this.progreso = progreso;
   }
 
   @Transactional(readOnly = true)
@@ -69,6 +76,10 @@ public class GetClassroomCourseService {
                 .stream()
                 .filter(LessonRow::ofrecida)
                 .collect(Collectors.groupingBy(LessonRow::moduleId));
+    Map<UUID, ProgressRow> avance =
+        progreso.findOfUserInLessons(
+            llaves.actorId(),
+            lecciones.values().stream().flatMap(List::stream).map(LessonRow::id).toList());
     List<ClassroomModuleItem> arbol =
         ofrecibles.stream()
             .map(
@@ -80,7 +91,8 @@ public class GetClassroomCourseService {
                                 leccion ->
                                     ClassroomLessonItem.from(
                                         leccion,
-                                        StudentAccess.lessonAccessible(accesible, leccion.open())))
+                                        StudentAccess.lessonAccessible(accesible, leccion.open()),
+                                        avance.get(leccion.id())))
                             .toList()))
             .toList();
 

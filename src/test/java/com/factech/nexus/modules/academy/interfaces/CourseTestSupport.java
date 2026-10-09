@@ -29,6 +29,8 @@ final class CourseTestSupport {
     jdbc.update("DELETE FROM course_memberships");
     jdbc.update("DELETE FROM course_products");
     jdbc.update("DELETE FROM course_category_items");
+    // Antes que las lecciones y que las personas: sus dos claves no tienen ON DELETE (V92).
+    jdbc.update("DELETE FROM lesson_progress");
     jdbc.update("DELETE FROM lessons");
     jdbc.update("DELETE FROM course_modules");
     jdbc.update("DELETE FROM courses");

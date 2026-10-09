@@ -73,10 +73,15 @@ public record ClassroomCatalogResponse(
               description =
                   "El curso entero se abre a quien pregunta: no declara llaves, su membresía"
                       + " vigente está en la lista o tiene vigente uno de sus servicios.")
-          boolean accessible) {
+          boolean accessible,
+      @Schema(description = "El avance de quien pregunta; en cero si no ha empezado.")
+          ProgressFigures progress) {
 
     public static ClassroomCourseItem from(
-        ClassroomCandidate candidato, List<CategoryRef> categorias, boolean accesible) {
+        ClassroomCandidate candidato,
+        List<CategoryRef> categorias,
+        boolean accesible,
+        ProgressFigures avance) {
       var fila = candidato.course();
       return new ClassroomCourseItem(
           fila.id(),
@@ -90,7 +95,8 @@ public record ClassroomCatalogResponse(
           candidato.durationSeconds(),
           candidato.lessonCount(),
           candidato.openLessonCount(),
-          accesible);
+          accesible,
+          avance);
     }
   }
 }

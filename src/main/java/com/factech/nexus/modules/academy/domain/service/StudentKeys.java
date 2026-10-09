@@ -45,11 +45,15 @@ public class StudentKeys {
     }
   }
 
+  /** Quién mira: el actor del token. */
+  public UUID actorId() {
+    return actor
+        .currentActorId()
+        .orElseThrow(() -> new UnauthorizedException("AUTH-001", "Se requiere autenticación."));
+  }
+
   public Keys ofCurrentActor() {
-    UUID quien =
-        actor
-            .currentActorId()
-            .orElseThrow(() -> new UnauthorizedException("AUTH-001", "Se requiere autenticación."));
+    UUID quien = actorId();
     return new Keys(membresias.currentMembershipOf(quien), productos.currentProductIdsOf(quien));
   }
 }

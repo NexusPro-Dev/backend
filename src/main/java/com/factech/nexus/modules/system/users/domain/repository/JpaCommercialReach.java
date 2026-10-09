@@ -84,4 +84,20 @@ public class JpaCommercialReach implements CommercialReach {
     }
     return Reach.own();
   }
+
+  @Override
+  @Transactional(readOnly = true)
+  public Set<UUID> principalClientsOf(Set<UUID> sellers) {
+    if (sellers == null || sellers.isEmpty()) {
+      return Set.of();
+    }
+    @SuppressWarnings("unchecked")
+    List<UUID> clientes =
+        em.createNativeQuery(
+                "SELECT DISTINCT cs.client_id FROM client_sellers cs"
+                    + " WHERE cs.origin = 'REGISTRO' AND cs.seller_id IN (:vendedores)")
+            .setParameter("vendedores", sellers)
+            .getResultList();
+    return new LinkedHashSet<>(clientes);
+  }
 }

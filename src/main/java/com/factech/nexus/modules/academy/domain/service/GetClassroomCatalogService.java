@@ -5,12 +5,15 @@ import com.factech.nexus.modules.academy.application.ClassroomCatalogResponse;
 import com.factech.nexus.modules.academy.application.ClassroomCatalogResponse.ClassroomCategoryItem;
 import com.factech.nexus.modules.academy.application.ClassroomCatalogResponse.ClassroomCourseItem;
 import com.factech.nexus.modules.academy.application.ClassroomCatalogResponse.CurrentMembershipRef;
+import com.factech.nexus.modules.academy.application.ProgressFigures;
 import com.factech.nexus.modules.academy.domain.models.CourseDifficulty;
 import com.factech.nexus.modules.academy.domain.repository.CourseCategoryQueryRepository;
 import com.factech.nexus.modules.academy.domain.repository.CourseQueryRepository;
 import com.factech.nexus.modules.academy.domain.repository.CourseQueryRepository.CategoryRef;
 import com.factech.nexus.modules.academy.domain.repository.CourseQueryRepository.ClassroomCandidate;
 import com.factech.nexus.modules.academy.domain.repository.CourseQueryRepository.CourseKeys;
+import com.factech.nexus.modules.academy.domain.repository.LessonProgressRepository;
+import com.factech.nexus.modules.academy.domain.repository.LessonProgressRepository.CourseFigures;
 import com.factech.nexus.shared.error.FieldError;
 import com.factech.nexus.shared.error.ValidationException;
 import java.util.ArrayList;
@@ -28,7 +31,8 @@ import org.springframework.transaction.annotation.Transactional;
  * y no por un {@code WHERE} (`spec.md` §14.1); {@code accessible} por {@link StudentKeys} y {@code
  * StudentAccess}; y {@code onlyAccessible} al final, porque depende de las llaves del alumno
  * (`spec.md` §14.4). <b>Cuatro sentencias fijas</b> más las de los dos puertos (`CA-AC-192`): con
- * cero cursos, las llaves y las categorías de los cursos no se leen.
+ * cero cursos, las llaves y las categorías de los cursos no se leen. <b>Desde el 09-10-2026, una
+ * más</b> para el avance de quien mira en toda la lista (`RN-AC-023`), y ninguna sin cursos.
  */
 @Service
 public class GetClassroomCatalogService {
@@ -36,12 +40,17 @@ public class GetClassroomCatalogService {
   private final CourseQueryRepository cursos;
   private final CourseCategoryQueryRepository categorias;
   private final StudentKeys llaves;
+  private final LessonProgressRepository progreso;
 
   public GetClassroomCatalogService(
-      CourseQueryRepository cursos, CourseCategoryQueryRepository categorias, StudentKeys llaves) {
+      CourseQueryRepository cursos,
+      CourseCategoryQueryRepository categorias,
+      StudentKeys llaves,
+      LessonProgressRepository progreso) {
     this.cursos = cursos;
     this.categorias = categorias;
     this.llaves = llaves;
+    this.progreso = progreso;
   }
 
   @Transactional(readOnly = true)
@@ -71,6 +80,9 @@ public class GetClassroomCatalogService {
       if (!quedan.isEmpty()) {
         Map<UUID, List<CategoryRef>> categoriasDeCursos =
             cursos.findCategoriesOfCourses(quedan.stream().map(c -> c.course().id()).toList());
+        Map<UUID, CourseFigures> avances =
+            progreso.figuresOfUser(
+                llaves.actorId(), quedan.stream().map(c -> c.course().id()).toList());
         List<ClassroomCourseItem> armada = new ArrayList<>();
         for (int i = 0; i < quedan.size(); i++) {
           ClassroomCandidate candidato = quedan.get(i);
@@ -78,7 +90,9 @@ public class GetClassroomCatalogService {
               ClassroomCourseItem.from(
                   candidato,
                   categoriasDeCursos.getOrDefault(candidato.course().id(), List.of()),
-                  accesibles.get(i)));
+                  accesibles.get(i),
+                  ProgressFigures.from(
+                      avances.getOrDefault(candidato.course().id(), CourseFigures.CERO))));
         }
         lista = armada;
       }

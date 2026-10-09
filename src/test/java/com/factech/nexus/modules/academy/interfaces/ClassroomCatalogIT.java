@@ -224,9 +224,10 @@ class ClassroomCatalogIT extends IntegrationTestBase {
     long conCursos = estadisticas.getPrepareStatementCount();
 
     // Dos puertos (una sentencia cada uno) + candidatos + categorías vivas, y
-    // con cursos además llaves y categorías de los cursos.
+    // con cursos además llaves, categorías de los cursos y, desde el 09-10-2026, el avance
+    // de quien mira en toda la lista (`CA-AC-250`).
     assertThat(sinCursos).isEqualTo(4);
-    assertThat(conCursos).isEqualTo(6);
+    assertThat(conCursos).isEqualTo(7);
   }
 
   @Test
