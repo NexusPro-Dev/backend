@@ -52,7 +52,7 @@ Enmienda de hecho (Art. I.7), `spec.md` 0.4.0 y `plan.md` 0.3.0 **antes** del c�
 
 ### 1.3 La oficina de cada venta — 09-10-2026
 
-Enmienda de hecho (Art. I.7), `spec.md` 0.5.0 y `plan.md` 0.4.0 **antes** del código. Sin migración propia: la columna y su índice los trae `V95`.
+Enmienda de hecho (Art. I.7), `spec.md` 0.5.0 y `plan.md` 0.4.0 **antes** del código. Sin migración propia: la columna y su índice los trae `V97`.
 
 | ID | Tarea | Depende de | Verificación | Estado |
 |---|---|---|---|---|

@@ -38,7 +38,7 @@
 
 ### 1.1 La oficina de la línea — 09-10-2026
 
-Enmienda de hecho (Art. I.7), `spec.md` 0.6.0 y `plan.md` 0.4.0 **antes** del código (`RN-MV-078`). **Sin código propio**: el puerto, `V95` y la escritura del registro son de `RF-MV-001` (`T-49` a `T-52`).
+Enmienda de hecho (Art. I.7), `spec.md` 0.6.0 y `plan.md` 0.4.0 **antes** del código (`RN-MV-078`). **Sin código propio**: el puerto, `V97` y la escritura del registro son de `RF-MV-001` (`T-49` a `T-52`).
 
 | ID | Tarea | Depende de | Verificación | Estado |
 |---|---|---|---|---|

@@ -33,7 +33,7 @@ Enmienda de hecho (Art. I.7), `spec.md` 0.2.0 y `plan.md` 0.2.0 **antes** del c�
 
 | ID | Tarea | Depende de | Verificación | Estado |
 |---|---|---|---|---|
-| `T-11` | `TeamListIT`: fixture con un director vigente por equipo y el historial en filas cerradas; `CA-SP-745` reescrito y `CA-SP-992`; la prosa OpenAPI de `memberCount` | `RF-SP-069` `T-15` (la unicidad de `V95`) | La suite en verde con `uq_team_members_equipo_vigente` | **Pendiente** |
+| `T-11` | `TeamListIT`: fixture con un director vigente por equipo y el historial en filas cerradas; `CA-SP-745` reescrito y `CA-SP-992`; la prosa OpenAPI de `memberCount` | `RF-SP-069` `T-15` (la unicidad de `V97`) | La suite en verde con `uq_team_members_equipo_vigente` | **Pendiente** |
 
 ## 2. Orden de ejecución
 

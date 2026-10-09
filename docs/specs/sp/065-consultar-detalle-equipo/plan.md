@@ -12,7 +12,7 @@
 
 !!! warning "Enmendado el 09-10-2026 — un director por equipo"
 
-    `spec.md` v0.2.0. **El código no cambia**: `findDetail` y `findMembers` ya leen solo las pertenencias vigentes, y `uq_team_members_equipo_vigente` (`V95`) garantiza que sean como mucho una; el `ORDER BY started_at, username` se queda, inofensivo. **Cambian las pruebas**: el fixture de `TeamDetailIT` sembraba varias pertenencias vigentes en un equipo y ahora chocaría con esa unicidad —pasa a un director vigente por equipo y el historial en filas **cerradas**—, y la prueba de sentencias (`T-09`) deja de medir «con uno y con cinco miembros» y mide con director y sin él (`CA-SP-994`). **Descartado**: convertir `members` en un objeto suelto, que rompería el contrato y la respuesta de `RF-SP-069` y `RF-SP-070`, que devuelven este detalle.
+    `spec.md` v0.2.0. **El código no cambia**: `findDetail` y `findMembers` ya leen solo las pertenencias vigentes, y `uq_team_members_equipo_vigente` (`V97`) garantiza que sean como mucho una; el `ORDER BY started_at, username` se queda, inofensivo. **Cambian las pruebas**: el fixture de `TeamDetailIT` sembraba varias pertenencias vigentes en un equipo y ahora chocaría con esa unicidad —pasa a un director vigente por equipo y el historial en filas **cerradas**—, y la prueba de sentencias (`T-09`) deja de medir «con uno y con cinco miembros» y mide con director y sin él (`CA-SP-994`). **Descartado**: convertir `members` en un objeto suelto, que rompería el contrato y la respuesta de `RF-SP-069` y `RF-SP-070`, que devuelven este detalle.
 
 ---
 

@@ -49,11 +49,11 @@ Enmienda de hecho (Art. I.7) sobre un requerimiento construido: `spec.md` 0.2.0 
 
 ### 1.2 La oficina de cada venta — 09-10-2026
 
-Enmienda de hecho (Art. I.7), `spec.md` 0.5.0 y `plan.md` 0.4.0 **antes** del código. Sin migración propia: `movement_details.team_id` y su índice los trae `V95` (`RF-MV-001` y `RF-MV-058`).
+Enmienda de hecho (Art. I.7), `spec.md` 0.5.0 y `plan.md` 0.4.0 **antes** del código. Sin migración propia: `movement_details.team_id` y su índice los trae `V97` (`RF-MV-001` y `RF-MV-058`).
 
 | ID | Tarea | Depende de | Verificación | Estado |
 |---|---|---|---|---|
-| `T-18` | `LineTeam` en `application` con `@Schema(name = "LineTeam")`; `MovementRepository.findTeamsOf` y `MovementTeamRow`, con `JOIN teams` y `DISTINCT` por movimiento; `MovementResponse.teams`, nunca nula, con `@JsonInclude(ALWAYS)`; `ListMovementsService.oficinasDe` estático junto a `vendedoresDe` y `de` con las oficinas | `V95` | Cuatro sentencias por página, no una por fila; `teams` vacía y presente sin oficina | **Pendiente** |
+| `T-18` | `LineTeam` en `application` con `@Schema(name = "LineTeam")`; `MovementRepository.findTeamsOf` y `MovementTeamRow`, con `JOIN teams` y `DISTINCT` por movimiento; `MovementResponse.teams`, nunca nula, con `@JsonInclude(ALWAYS)`; `ListMovementsService.oficinasDe` estático junto a `vendedoresDe` y `de` con las oficinas | `V97` | Cuatro sentencias por página, no una por fila; `teams` vacía y presente sin oficina | **Pendiente** |
 | `T-19` | `ListMovementsRequest` y `MovementFilter` ganan `teamId`; `filtroGlobal` añade el `EXISTS` sobre `d.team_id` en el mismo predicado de página y conteo; `MovementController`: `teamId` como `UUID` documentado en la `@Operation` —inexistente vacío, mal formado `400`— | `T-18` | Con `teamId`, el total cuenta lo que la página devuelve | **Pendiente** |
 | `T-20` | `MovementsIT`: `CA-MV-717` a `CA-MV-719`, con equipo propio de nombre único limpiado al terminar y una venta cuya oficina guardada no es la de hoy; contrato regenerado mirando el diff —**un** esquema `LineTeam`—; `docs/api/index.md` y matriz | `T-19` | Solo altas en el contrato | **Pendiente** |
 

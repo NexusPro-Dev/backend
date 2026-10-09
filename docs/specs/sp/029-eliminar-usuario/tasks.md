@@ -69,7 +69,7 @@ Enmienda de hecho (Art. I.7), `spec.md` y `plan.md` enmendados el 09-10-2026 **a
 
 | # | Tarea | Depende de | Verificación | Estado |
 |---|---|---|---|---|
-| `T-18` | `TeamMembershipRetirementIT`: `CA-SP-987` —eliminar a un director con pertenencia vigente la cierra con la marca de la baja, sin borrar la fila, y su equipo acepta después a otro director—; el comentario de `DeleteUserService` dice «director» | `RF-SP-069` `T-15` (la unicidad de `V95`) | `CA-SP-796` sigue en verde | **Pendiente** |
+| `T-18` | `TeamMembershipRetirementIT`: `CA-SP-987` —eliminar a un director con pertenencia vigente la cierra con la marca de la baja, sin borrar la fila, y su equipo acepta después a otro director—; el comentario de `DeleteUserService` dice «director» | `RF-SP-069` `T-15` (la unicidad de `V97`) | `CA-SP-796` sigue en verde | **Pendiente** |
 
 ## 2. Orden de ejecución
 

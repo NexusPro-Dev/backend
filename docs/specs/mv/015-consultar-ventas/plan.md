@@ -29,7 +29,7 @@
 
 !!! warning "Enmendado el 09-10-2026 — `teams` en la fila y el filtro `teamId`, después del alcance"
 
-    `spec.md` v0.5.0 (`RN-MV-078`, [`requirements/mv.md`](../../../requirements/mv.md) v0.97.0 §4.13). **Es la enmienda de `RF-MV-006` · `plan.md` v0.4.0 sobre las mismas piezas**, porque la fila y el repositorio son los mismos: la columna `movement_details.team_id` y su índice parcial `(team_id, movement_id) WHERE team_id IS NOT NULL` los trae `V95`, y aquí solo se leen. **Ninguna migración ni permiso.**
+    `spec.md` v0.5.0 (`RN-MV-078`, [`requirements/mv.md`](../../../requirements/mv.md) v0.97.0 §4.13). **Es la enmienda de `RF-MV-006` · `plan.md` v0.4.0 sobre las mismas piezas**, porque la fila y el repositorio son los mismos: la columna `movement_details.team_id` y su índice parcial `(team_id, movement_id) WHERE team_id IS NOT NULL` los trae `V97`, y aquí solo se leen. **Ninguna migración ni permiso.**
 
     **La fila**: `MovementResponse.teams` (`List<LineTeam>`, nunca nula) ya la arma `ListMovementsService.de` con las oficinas de `ListMovementsService.oficinasDe` —estático junto a `vendedoresDe`, sobre `MovementRepository.findTeamsOf`—, y `ListSalesService` lo llama igual que hoy llama a `vendedoresDe`. **No hay código de fila propio**: si lo hubiera, la misma venta tendría dos formas, que es lo que `spec.md` §6.2 prohíbe. Una sentencia más por página (§7).
 

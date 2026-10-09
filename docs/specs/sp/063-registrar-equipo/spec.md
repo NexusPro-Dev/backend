@@ -12,7 +12,7 @@
 
 !!! note "Enmienda del 09-10-2026 — cinco equipos sembrados, y los equipos son de directores"
 
-    Decisión del responsable del proyecto, 09-10-2026. **El alta no cambia.** Dos cosas alrededor de ella: **la migración `V95` siembra cinco equipos** —Principal, Legendary, Elite, Prime y Master—, `ACTIVO`s y vacíos, con identificadores fijos, **sin pisar** un equipo no eliminado que ya tenga el mismo nombre normalizado (`RN-SP-050`); son equipos como los que crea esta operación, y esta operación puede crear otros. Y **a un equipo ya no se asignan managers sino directores**, uno por equipo (`RN-SP-051`, `RN-SP-052` enmendadas; `RF-SP-069` v0.2.0): donde este documento dice que al equipo «se asignan los managers», se lee **su director**. Un equipo es desde entonces **la oficina** de su director, y la oficina de cada venta se congela en sus líneas (`RN-MV-078`).
+    Decisión del responsable del proyecto, 09-10-2026. **El alta no cambia.** Dos cosas alrededor de ella: **la migración `V97` siembra cinco equipos** —Principal, Legendary, Elite, Prime y Master—, `ACTIVO`s y vacíos, con identificadores fijos, **sin pisar** un equipo no eliminado que ya tenga el mismo nombre normalizado (`RN-SP-050`); son equipos como los que crea esta operación, y esta operación puede crear otros. Y **a un equipo ya no se asignan managers sino directores**, uno por equipo (`RN-SP-051`, `RN-SP-052` enmendadas; `RF-SP-069` v0.2.0): donde este documento dice que al equipo «se asignan los managers», se lee **su director**. Un equipo es desde entonces **la oficina** de su director, y la oficina de cada venta se congela en sus líneas (`RN-MV-078`).
 
 ---
 

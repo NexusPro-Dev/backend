@@ -37,9 +37,9 @@ Enmienda de hecho (Art. I.7), `spec.md` 0.2.0 y `plan.md` 0.2.0 **antes** del c�
 |---|---|---|---|---|
 | `T-13` | `CommercialStructure.esDirector` por la forma de la jerarquía; `TeamMembershipRules` pregunta por `esDirector` en lugar de `esCuspide` | — | `TeamMembershipRulesTest` reescrita: director sí; manager, agente, cliente y sin rol, no; el código del rol renombrado no cambia el veredicto | **Pendiente** |
 | `T-14` | `AssignTeamMembersRequest` con tope de una persona (`VAL-003`) sobre la lista ya sin repetidos | — | `CA-SP-983` | **Pendiente** |
-| `T-15` | `TeamMemberRepository.findActiveOfTeam`; `AssignTeamMembersService` con el `409` de `EX-005` antes de escribir, el mensaje nuevo de `EX-004`; `JpaTeamMemberRepository.traducir` reconoce `uq_team_members_equipo_vigente` y da el mismo `409` | `T-13`, `T-14`, la unicidad de `V95` (`RF-MV-001`) | `CA-SP-980`, `CA-SP-981`, `CA-SP-982` | **Pendiente** |
+| `T-15` | `TeamMemberRepository.findActiveOfTeam`; `AssignTeamMembersService` con el `409` de `EX-005` antes de escribir, el mensaje nuevo de `EX-004`; `JpaTeamMemberRepository.traducir` reconoce `uq_team_members_equipo_vigente` y da el mismo `409` | `T-13`, `T-14`, la unicidad de `V97` (`RF-MV-001`) | `CA-SP-980`, `CA-SP-981`, `CA-SP-982` | **Pendiente** |
 | `T-16` | `TeamController`: la prosa OpenAPI de `POST /teams/{id}/members` —un director, una persona, el `409` del equipo ocupado y cómo se cambia de encargado— y la de las demás rutas del submódulo donde dice «manager» | `T-15` | Contrato regenerado, solo prosa y la respuesta `409` nueva | **Pendiente** |
-| `T-17` | `TeamMembersIT` con fixture de directores: `CA-SP-980` a `CA-SP-983` y los criterios de antes reescritos; `TeamConcurrencyIT`: dos directores al mismo equipo (`CA-SP-984`); `TeamsSchemaIT`: la unicidad nueva y el cierre de managers de `V95` (`CA-SP-985`); `TeamDetailIT`, `TeamListIT`, `TeamMemberRemovalIT` y `TeamStatusIT` con un miembro vigente por equipo; se retira la prueba del lote de cien (`T-10`) | `T-15`, `T-16` | Las suites del submódulo en verde | **Pendiente** |
+| `T-17` | `TeamMembersIT` con fixture de directores: `CA-SP-980` a `CA-SP-983` y los criterios de antes reescritos; `TeamConcurrencyIT`: dos directores al mismo equipo (`CA-SP-984`); `TeamsSchemaIT`: la unicidad nueva y el cierre de managers de `V97` (`CA-SP-985`); `TeamDetailIT`, `TeamListIT`, `TeamMemberRemovalIT` y `TeamStatusIT` con un miembro vigente por equipo; se retira la prueba del lote de cien (`T-10`) | `T-15`, `T-16` | Las suites del submódulo en verde | **Pendiente** |
 | `T-18` | `api/index.md`, matriz y estado de esta tripleta | `T-17` | | **Pendiente** |
 
 ## 2. Orden de ejecución
@@ -76,7 +76,7 @@ graph LR
 | `CA-SP-980` a `CA-SP-982` | `T-13`, `T-15`, `T-17` — 09-10-2026 |
 | `CA-SP-983` | `T-14`, `T-17` — 09-10-2026 |
 | `CA-SP-984` | `T-15`, `T-17` — 09-10-2026 |
-| `CA-SP-985` | `T-17` y la migración `V95` (`RF-MV-001`) — 09-10-2026 |
+| `CA-SP-985` | `T-17` y la migración `V97` (`RF-MV-001`) — 09-10-2026 |
 
 ## 4. Bloqueos
 
