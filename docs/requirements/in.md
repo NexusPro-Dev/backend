@@ -5,11 +5,11 @@
 | Módulo | `IN` — Indicadores |
 | Paquete | `modules/indicators` |
 | Prefijo de permisos | `indicators:` |
-| Versión | 0.19.0 |
+| Versión | 0.20.0 |
 | Estado | **Borrador** |
 | Responsable | Bonilla Diaz William Steven |
 | Fecha de creación | 06-10-2026 |
-| Última actualización | 07-10-2026 |
+| Última actualización | 09-10-2026 |
 
 !!! info "Qué va en este documento"
 
@@ -136,6 +136,7 @@ La dependencia es **acíclica**: `IN` → `SP`, `IN` → `MV` e `IN` → `CM`. N
 | `RN-IN-011` | **Un indicador de administración no se acota por alcance** | Al calcular el resumen de líneas de venta (`RF-IN-006`) y el de lotes de comisiones (`RF-IN-007`, 07-10-2026) | Excepción declarada a `RN-IN-002`: **quien porta el permiso ve las cifras enteras**, sea cual sea su tipo de rol. Lo justifica lo que cuenta: **lo que no tiene vendedor no está en el alcance de ningún vendedor**, y acotarlo lo dejaría en cero para todos menos para administración. El permiso se siembra solo a `SUPERADMIN` y `ADMIN`; si administración se lo da a otro rol, ese rol lo ve todo. Decisión del responsable del proyecto, 06-10-2026 | Alta |
 | `RN-IN-013` | **Un indicador personal cuenta solo lo de quien pregunta** | Al calcular el resumen de mis comisiones (`RF-IN-008`) | Excepción declarada a `RN-IN-002`: **la persona la pone la sesión**, no hay filtro de persona y **no se suma la red**. Lo justifica lo que cuenta: **cada nivel de la cadena tiene su propia comisión** (`RN-CM-011`), y lo que un director cobra por la venta de su agente ya es una comisión suya; sumarle las de sus agentes le mostraría dinero que no es suyo. Es de lo propio (`RN-SEG-015`), como `RF-CM-012` y `RF-CM-026`. Decisión del responsable del proyecto, 07-10-2026 | Alta |
 | `RN-IN-012` | **Un indicador de estado cuenta el estado de hoy** | Al calcular el resumen de lotes de comisiones (`RF-IN-007`) | Cuando la pregunta es **dónde está algo hoy** —en qué estado están los lotes de comisiones— y no **cuánto pasó en un periodo**, el indicador cuenta **el estado del instante de la consulta**, sin tramos. Decisión del responsable del proyecto, 07-10-2026. **Enmendada el mismo día**, también por él: **las fechas eligen qué lotes se cuentan** —los que su periodo de comisiones toca el rango, con `RN-IN-010` para los días—, **no en qué estado estaban entonces**. Sin fechas, todos | Alta |
+| `RN-IN-014` | **La oficina de una cifra es la de la línea, congelada** | Al filtrar por oficina (`teamId`) el resumen de ventas (`RF-IN-001`), su evolución (`RF-IN-002`) y el resumen de líneas (`RF-IN-006`) | Decisión del responsable del proyecto, 09-10-2026. Filtrar por oficina cuenta **las líneas cuya oficina guardada** es esa (`movement_details.team_id`, `RN-MV-078`): la del director del vendedor **el día de la venta**, no la de hoy, de modo que trasladar a un agente **no mueve sus cifras** de una oficina a otra. Es un filtro y **no alcance**, como el de vendedor: dentro del alcance lo estrecha y fuera de él responde **cifras en cero** (`RN-IN-002`); en `RF-IN-006`, que no tiene alcance (`RN-IN-011`), estrecha las cifras enteras. Una línea sin vendedor no tiene oficina, de modo que **con oficina lo sin vendedor sale en cero**; tampoco la tiene la venta de un manager. Una oficina que no existe responde cero, no `404` | Alta |
 
 ### 5.2 Decisiones que definen el módulo — 06-10-2026
 
@@ -205,7 +206,7 @@ La migración que los siembre los da **por tipo de rol**, como los demás permis
 | Tripleta | [`docs/specs/in/001-resumen-de-ventas/`](../specs/in/001-resumen-de-ventas/spec.md) |
 | Estado | **En desarrollo** — construido el 06-10-2026, con `SalesFigures` y `V74` |
 
-Para un periodo y, opcionalmente, una moneda o un vendedor de mi alcance: **cuántas ventas hubo en total**, sea cual sea su estado (06-10-2026); **cuántas** se confirmaron, cuántas líneas y cuántas unidades, y **por cuánto** en cada moneda; y aparte, con su cantidad y su importe, las que siguen **pendientes** y las **anuladas**. **Cada una de esas cifras dice además cuántas fueron gratuitas** (`RN-IN-008`, 06-10-2026). Es el primero en construirse porque es el que estrena la interfaz de `MV`.
+Para un periodo y, opcionalmente, una moneda o un vendedor de mi alcance: **cuántas ventas hubo en total**, sea cual sea su estado (06-10-2026); **cuántas** se confirmaron, cuántas líneas y cuántas unidades, y **por cuánto** en cada moneda; y aparte, con su cantidad y su importe, las que siguen **pendientes** y las **anuladas**. **Cada una de esas cifras dice además cuántas fueron gratuitas** (`RN-IN-008`, 06-10-2026). Es el primero en construirse porque es el que estrena la interfaz de `MV`. **Desde el 09-10-2026 se filtra también por oficina** (`teamId`, `RN-IN-014`): la guardada en cada línea el día de la venta, no la de hoy.
 
 #### `RF-IN-002` — Consultar la evolución de las ventas
 
@@ -220,7 +221,7 @@ Para un periodo y, opcionalmente, una moneda o un vendedor de mi alcance: **cuá
 | Tripleta | [`docs/specs/in/002-evolucion-de-ventas/`](../specs/in/002-evolucion-de-ventas/spec.md) |
 | Estado | **En desarrollo** — construido el 06-10-2026 |
 
-Las mismas cifras de lo **confirmado** que `RF-IN-001`, partidas en **días, semanas o meses** de Bogotá. **Cada tramo del periodo aparece aunque no tenga ventas**, con ceros: una serie con huecos se dibuja como una línea que une dos puntos lejanos y miente sobre lo que pasó entre ellos. El número de tramos tiene tope, que fija la spec.
+Las mismas cifras de lo **confirmado** que `RF-IN-001`, partidas en **días, semanas o meses** de Bogotá. **Cada tramo del periodo aparece aunque no tenga ventas**, con ceros: una serie con huecos se dibuja como una línea que une dos puntos lejanos y miente sobre lo que pasó entre ellos. El número de tramos tiene tope, que fija la spec. **Desde el 09-10-2026 se filtra también por oficina** (`teamId`, `RN-IN-014`): la guardada en cada línea el día de la venta, no la de hoy.
 
 #### `RF-IN-003` — Consultar las ventas por producto
 
@@ -282,7 +283,7 @@ Lo **confirmado** en el periodo agrupado por **el vendedor de la línea**, de m�
 
 **Nace el 06-10-2026 a petición del responsable del proyecto** —«el siguiente indicador será para las líneas de ventas: total productos vendidos, total de ventas, ventas sin vendedor»—. Por estado de la venta: ventas, líneas, **unidades** e importe por moneda, y el total; y aparte **lo sin vendedor** —ventas con alguna línea sin vendedor, esas líneas, sus unidades y su importe—, sin las anuladas, porque dice lo que **falta por atribuir**. Sus cifras por estado son las del resumen de ventas de administración.
 
-**Desde el 07-10-2026 se filtra**, a petición del responsable del proyecto, **por vendedor, cliente, producto y comprobante** (`CA-IN-080` a `CA-IN-085`): filtros opcionales y combinables que estrechan los dos bloques sin cambiar su forma. **No son alcance** (`RN-IN-011` sigue en pie): los elige quien pregunta, como la moneda. Con vendedor, lo sin vendedor sale en cero.
+**Desde el 07-10-2026 se filtra**, a petición del responsable del proyecto, **por vendedor, cliente, producto y comprobante** (`CA-IN-080` a `CA-IN-085`): filtros opcionales y combinables que estrechan los dos bloques sin cambiar su forma. **No son alcance** (`RN-IN-011` sigue en pie): los elige quien pregunta, como la moneda. Con vendedor, lo sin vendedor sale en cero. **Desde el 09-10-2026 se filtra también por oficina** (`teamId`, `RN-IN-014`): la guardada en cada línea el día de la venta, no la de hoy. Con oficina, lo sin vendedor también sale en cero.
 
 #### `RF-IN-007` — Consultar el resumen de lotes de comisiones
 
@@ -383,3 +384,4 @@ El contrato detallado de cada endpoint —parámetros, valores por defecto del p
 | 0.17.0 | 07-10-2026 | **`RF-IN-007` se filtra por vendedor y por fechas** (`spec.md` 0.2.0, `CA-IN-086` a `CA-IN-089`), a petición del responsable del proyecto: las fechas eligen los lotes cuyo periodo de comisiones toca el rango, y el estado sigue siendo el de hoy. **`RN-IN-012` enmendada**: deja de prohibir fechas. La respuesta gana `period`. `CommissionBatchFigures` gana `BatchFilter`. Sin migración ni permisos. | Responsable técnico |
 | 0.18.0 | 07-10-2026 | **Nace `RF-IN-008`, el resumen de mis comisiones**, a petición del responsable del proyecto: de las comisiones propias, cuántas y cuánto por estado del lote —abierto, pendiente, pagado— y en total. Tripleta el mismo día (`CA-IN-090` a `CA-IN-096`), `tasks.md` aprobadas, y **construido**: `V83` siembra el permiso (catálogo 206), `CM` amplía `CommissionBatchFigures` y `GET /indicators/commissions/mine/summary` responde. **Nace `RN-IN-013`**, excepción a `RN-IN-002`: un indicador personal cuenta solo lo de quien pregunta. El estado es el de hoy y las fechas, opcionales, son las del nacimiento de la comisión (`RN-IN-012`). Permiso propio, `indicators:read-own-commissions-summary`, a todo rol que porte `commission-batches:list-own`. | Responsable técnico |
 | 0.19.0 | 07-10-2026 | **`RF-IN-008` se filtra por cliente** (`spec.md` 0.2.0, `CA-IN-097`), a petición del responsable del proyecto, igual que `RF-CM-026` 0.2.0: solo las comisiones de ventas a nombre de esa persona. Sin migración ni permisos. | Responsable técnico |
+| 0.20.0 | 09-10-2026 | **Los indicadores de ventas se filtran por oficina** (`RN-IN-014` nueva; enmiendas a `RF-IN-001`, `RF-IN-002` y `RF-IN-006`), a petición del responsable del proyecto: `teamId` cuenta las líneas cuya oficina guardada es esa —el equipo del director del vendedor el día de la venta, `RN-MV-078` de [`requirements/mv.md`](mv.md) v0.97.0—, de modo que un traslado no mueve las cifras. Es filtro, no alcance. `SalesFigures.LineFilter` y el filtro del resumen y de la serie ganan la oficina. Sin migración propia ni permisos. | Responsable del proyecto |
