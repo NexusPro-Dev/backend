@@ -618,8 +618,8 @@ class BrokerAccountsIT extends IntegrationTestBase {
   private void declarar(UUID persona, UUID broker, String cuenta) {
     jdbc.update(
         """
-        INSERT INTO user_brokers (id, user_id, broker_id, external_id)
-        VALUES (gen_random_uuid(), ?, ?, ?)
+        INSERT INTO user_brokers (id, user_id, broker_id, external_id, kind)
+        VALUES (gen_random_uuid(), ?, ?, ?, 'CONSUMIDOR')
         """,
         persona,
         broker,

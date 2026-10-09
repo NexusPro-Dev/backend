@@ -154,6 +154,8 @@ public class BrokerAccountController {
           - `userId` — una persona concreta.
           - `status` — `REGISTER` o `FIRST_DEPOSIT`. **Cualquier otro valor es
             `400`**, no una página vacía.
+          - `kind` — `VENDEDOR` o `CONSUMIDOR` (`RN-SP-068`): la cuenta de un
+            vendedor o la de un consumidor. Cualquier otro valor es `400`.
           - `brokerId` — un broker del catálogo.
           - `search` — fragmento de **número de cuenta**, nombre de usuario,
             correo o nombre completo. Sin acentos y sin distinguir mayúsculas.
@@ -226,7 +228,8 @@ public class BrokerAccountController {
     @ApiResponse(
         responseCode = "400",
         description =
-            "`status` fuera de `REGISTER`/`FIRST_DEPOSIT`, `from` posterior a `to`, identificador"
+            "`status` fuera de `REGISTER`/`FIRST_DEPOSIT`, `kind` fuera de `VENDEDOR`/`CONSUMIDOR`,"
+                + " `from` posterior a `to`, identificador"
                 + " malformado (`VAL-001`) o paginación fuera de límites (`VAL-003`)"),
     @ApiResponse(responseCode = "401", description = "Token ausente o inválido (`AUTH-001`)"),
     @ApiResponse(

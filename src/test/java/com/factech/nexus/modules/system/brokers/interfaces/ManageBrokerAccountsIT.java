@@ -108,6 +108,7 @@ class ManageBrokerAccountsIT extends IntegrationTestBase {
             .andExpect(jsonPath("$.accountId").value("80000001"))
             .andExpect(jsonPath("$.broker.name").value("EXNOVA"))
             .andExpect(jsonPath("$.status").value("REGISTER"))
+            .andExpect(jsonPath("$.kind").value("CONSUMIDOR"))
             .andExpect(
                 content().string(org.hamcrest.Matchers.containsString("\"brokerUsername\":null")))
             .andReturn()
@@ -119,7 +120,8 @@ class ManageBrokerAccountsIT extends IntegrationTestBase {
             get("/api/v1/users/me/broker-accounts")
                 .with(user(titular.toString()).authorities(() -> "broker-accounts:read-own")))
         .andExpect(jsonPath("$.content.length()").value(1))
-        .andExpect(jsonPath("$.content[0].id").value(id));
+        .andExpect(jsonPath("$.content[0].id").value(id))
+        .andExpect(jsonPath("$.content[0].kind").value("CONSUMIDOR"));
   }
 
   @Test
@@ -131,8 +133,85 @@ class ManageBrokerAccountsIT extends IntegrationTestBase {
                 .contentType(MediaType.APPLICATION_JSON)
                 .content(alta(iqoption, "80000002")))
         .andExpect(status().isCreated())
-        .andExpect(jsonPath("$.status").value("REGISTER"));
+        .andExpect(jsonPath("$.status").value("REGISTER"))
+        // `CA-SP-938`: el tipo es el del titular —un agente—, no el de quien declara.
+        .andExpect(jsonPath("$.kind").value("VENDEDOR"));
     assertThat(cuentasDe(otra)).containsExactly("80000002");
+  }
+
+  @Test
+  @DisplayName(
+      "`CA-SP-938` — el tipo sale del rol del titular, y queda en la fila y en la auditoría")
+  void elTipoSaleDelRolDelTitular() throws Exception {
+    mvc.perform(
+            post("/api/v1/users/me/broker-accounts")
+                .with(user(otra.toString()).authorities(() -> "broker-accounts:create-own"))
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(alta(exnova, "80000030")))
+        .andExpect(status().isCreated())
+        .andExpect(jsonPath("$.kind").value("VENDEDOR"));
+    mvc.perform(
+            post("/api/v1/users/me/broker-accounts")
+                .with(comoTitular())
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(alta(exnova, "80000031")))
+        .andExpect(jsonPath("$.kind").value("CONSUMIDOR"));
+
+    assertThat(
+            jdbc.queryForList("SELECT kind FROM user_brokers ORDER BY external_id", String.class))
+        .containsExactly("VENDEDOR", "CONSUMIDOR");
+    assertThat(
+            jdbc.queryForList(
+                "SELECT changes::text FROM audit_change_log WHERE entity = 'user_brokers'"
+                    + " AND action = 'CREATE'",
+                String.class))
+        .anySatisfy(c -> assertThat(c).contains("\"kind\": \"VENDEDOR\""));
+  }
+
+  @Test
+  @DisplayName("`CA-SP-939` — quien es vendedor y también cliente declara cuentas VENDEDOR")
+  void vendedorYClienteEsVendedor() throws Exception {
+    jdbc.update(
+        "INSERT INTO user_roles (user_id, role_id, role_type)"
+            + " SELECT ?, r.id, r.role_type FROM roles r WHERE r.id = ?::uuid",
+        otra,
+        CLIENTE);
+
+    mvc.perform(
+            post("/api/v1/users/" + otra + "/broker-accounts")
+                .with(comoAdmin("broker-accounts:create"))
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(alta(exnova, "80000032")))
+        .andExpect(status().isCreated())
+        .andExpect(jsonPath("$.kind").value("VENDEDOR"));
+  }
+
+  @Test
+  @DisplayName(
+      "`CA-SP-940` — sin rol vendedor ni consumidor es 422 por las dos rutas, y nada queda")
+  void sinTipoEs422() throws Exception {
+    // El superadministrador solo porta un rol FUNCIONARIO.
+    mvc.perform(
+            post("/api/v1/users/me/broker-accounts")
+                .with(user(SUPERADMIN.toString()).authorities(() -> "broker-accounts:create-own"))
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(alta(exnova, "80000033")))
+        .andExpect(status().isUnprocessableEntity())
+        .andExpect(jsonPath("$.errors[0].code").value("EX-011"));
+    mvc.perform(
+            post("/api/v1/users/" + SUPERADMIN + "/broker-accounts")
+                .with(comoAdmin("broker-accounts:create"))
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(alta(exnova, "80000034")))
+        .andExpect(status().isUnprocessableEntity())
+        .andExpect(jsonPath("$.errors[0].code").value("EX-011"));
+
+    assertThat(cuentasDe(SUPERADMIN)).isEmpty();
+    assertThat(
+            jdbc.queryForObject(
+                "SELECT count(*) FROM audit_change_log WHERE entity = 'user_brokers'",
+                Integer.class))
+        .isZero();
   }
 
   @Test
@@ -468,7 +547,8 @@ class ManageBrokerAccountsIT extends IntegrationTestBase {
     assertThat((String) fila.get("snapshot"))
         .contains("80000024")
         .contains("EXNOVA")
-        .contains("FIRST_DEPOSIT");
+        .contains("FIRST_DEPOSIT")
+        .contains("CONSUMIDOR");
   }
 
   // ---------------------------------------------------------------------------
@@ -514,14 +594,18 @@ class ManageBrokerAccountsIT extends IntegrationTestBase {
     UUID id = UUID.randomUUID();
     jdbc.update(
         """
-        INSERT INTO user_brokers (id, user_id, broker_id, external_id, status)
-        VALUES (?, ?, ?, ?, ?)
+        INSERT INTO user_brokers (id, user_id, broker_id, external_id, status, kind)
+        VALUES (?, ?, ?, ?, ?,
+                CASE WHEN EXISTS (SELECT 1 FROM user_roles ur WHERE ur.user_id = ?
+                              AND ur.role_type = 'VENDEDOR')
+                THEN 'VENDEDOR' ELSE 'CONSUMIDOR' END)
         """,
         id,
         persona,
         broker,
         cuenta,
-        estado);
+        estado,
+        persona);
     return id;
   }
 

@@ -66,8 +66,9 @@ public class JpaBrokerAccountRegistrar implements BrokerAccountRegistrar {
     try {
       em.createNativeQuery(
               """
-              INSERT INTO user_brokers (id, user_id, broker_id, external_id)
-              VALUES (CAST(:id AS uuid), CAST(:usuario AS uuid), CAST(:broker AS uuid), :cuenta)
+              INSERT INTO user_brokers (id, user_id, broker_id, external_id, kind)
+              VALUES (CAST(:id AS uuid), CAST(:usuario AS uuid), CAST(:broker AS uuid), :cuenta,
+                      'CONSUMIDOR')
               """)
           .setParameter("id", accountId)
           .setParameter("usuario", userId)
@@ -75,6 +76,7 @@ public class JpaBrokerAccountRegistrar implements BrokerAccountRegistrar {
           .setParameter("cuenta", externalId)
           .executeUpdate();
 
+      // `CONSUMIDOR` sin consultar los roles (`RN-SP-068`): el enlace registra clientes.
       // Explícito: ver el Javadoc de la clase.
       em.flush();
     } catch (PersistenceException fallo) {

@@ -148,10 +148,38 @@ class UserBrokerAccountSchemaIT extends IntegrationTestBase {
         .isInstanceOf(DataIntegrityViolationException.class);
   }
 
+  @Test
+  @DisplayName("`CA-SP-942` — la cuenta de un vendedor no tiene FTD, y no hay un tercer tipo")
+  void laDeVendedorNoTieneFtd() {
+    String sql =
+        "INSERT INTO user_brokers (id, user_id, broker_id, external_id, status, kind)"
+            + " VALUES (gen_random_uuid(), ?, ?, ?, ?, ?)";
+
+    assertThatThrownBy(() -> jdbc.update(sql, ana, broker, "V-1", "FIRST_DEPOSIT", "VENDEDOR"))
+        .isInstanceOf(DataIntegrityViolationException.class)
+        .hasMessageContaining("ck_user_brokers_ftd_solo_consumidor");
+    assertThatThrownBy(() -> jdbc.update(sql, ana, broker, "V-2", "REGISTER", "AFILIADO"))
+        .isInstanceOf(DataIntegrityViolationException.class)
+        .hasMessageContaining("ck_user_brokers_kind");
+    // Sin tipo tampoco: la columna no tiene valor por omisión.
+    assertThatThrownBy(
+            () ->
+                jdbc.update(
+                    "INSERT INTO user_brokers (id, user_id, broker_id, external_id)"
+                        + " VALUES (gen_random_uuid(), ?, ?, 'V-3')",
+                    ana,
+                    broker))
+        .isInstanceOf(DataIntegrityViolationException.class);
+
+    // Lo que sí: la de vendedor sin depósito, y la de consumidor depositada.
+    jdbc.update(sql, ana, broker, "V-4", "REGISTER", "VENDEDOR");
+    jdbc.update(sql, ana, broker, "V-5", "FIRST_DEPOSIT", "CONSUMIDOR");
+  }
+
   private void vincular(UUID persona, UUID broker, String identificador) {
     jdbc.update(
-        "INSERT INTO user_brokers (id, user_id, broker_id, external_id)"
-            + " VALUES (CAST(? AS uuid), CAST(? AS uuid), CAST(? AS uuid), ?)",
+        "INSERT INTO user_brokers (id, user_id, broker_id, external_id, kind)"
+            + " VALUES (CAST(? AS uuid), CAST(? AS uuid), CAST(? AS uuid), ?, 'CONSUMIDOR')",
         UUID.randomUUID().toString(),
         persona.toString(),
         broker.toString(),

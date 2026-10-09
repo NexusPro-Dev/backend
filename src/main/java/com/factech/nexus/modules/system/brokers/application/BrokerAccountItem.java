@@ -1,5 +1,6 @@
 package com.factech.nexus.modules.system.brokers.application;
 
+import com.factech.nexus.modules.system.brokers.domain.models.BrokerAccountKind;
 import com.factech.nexus.modules.system.brokers.domain.models.UserBrokerStatus;
 import com.fasterxml.jackson.annotation.JsonInclude;
 import java.time.OffsetDateTime;
@@ -18,6 +19,9 @@ import java.util.UUID;
  * broker todavía no lo ha confirmado». Omitir el campo confundiría eso con «confirmado sin nombre»,
  * y una cadena vacía lo confundiría con «confirmado con el nombre vacío».
  *
+ * <p><b>{@code kind} dice si es la cuenta de un vendedor o de un consumidor</b> (`RN-SP-068`); la
+ * de vendedor no tiene FTD.
+ *
  * <p><b>{@code declaredAt} es {@code created_at}</b>, y se publica con ese nombre porque lo que
  * significa es <b>cuándo la declaró la persona</b>. {@code updatedAt} no se publica: hoy nadie
  * actualiza la fila, y el día que el webhook lo haga, publicarlo será una decisión de `RF-SP-054`
@@ -30,6 +34,7 @@ public record BrokerAccountItem(
     String accountId,
     String brokerUsername,
     UserBrokerStatus status,
+    BrokerAccountKind kind,
     OffsetDateTime declaredAt) {
 
   /**

@@ -1,5 +1,6 @@
 package com.factech.nexus.modules.system.brokers.domain.repository;
 
+import com.factech.nexus.modules.system.brokers.domain.models.BrokerAccountKind;
 import com.factech.nexus.modules.system.brokers.domain.models.UserBrokerStatus;
 import java.util.Optional;
 import java.util.UUID;
@@ -22,10 +23,18 @@ public interface BrokerAccountWriter {
       String brokerName,
       String accountId,
       String brokerUsername,
-      UserBrokerStatus status) {}
+      UserBrokerStatus status,
+      BrokerAccountKind kind) {}
 
-  /** Declara la cuenta, en {@code REGISTER} y sin nombre de usuario. */
-  void insert(UUID id, UUID userId, UUID brokerId, String accountId);
+  /** Declara la cuenta, en {@code REGISTER}, sin nombre de usuario y con su tipo. */
+  void insert(UUID id, UUID userId, UUID brokerId, String accountId, BrokerAccountKind kind);
+
+  /**
+   * El tipo que tendría una cuenta de esa persona (`RN-SP-068`): {@code VENDEDOR} si porta un rol
+   * de ese tipo, aunque porte también uno consumidor; si no, {@code CONSUMIDOR} si porta uno de ese
+   * tipo; vacío si no porta ninguno de los dos.
+   */
+  Optional<BrokerAccountKind> kindFor(UUID userId);
 
   /**
    * La cuenta <b>de esa persona</b>, bloqueada hasta el fin de la transacción.

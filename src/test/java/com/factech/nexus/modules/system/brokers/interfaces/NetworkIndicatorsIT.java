@@ -117,8 +117,9 @@ class NetworkIndicatorsIT extends IntegrationTestBase {
     vincularPorHotlink(delManager, agente);
 
     // La cuenta PROPIA del director: no es una captación y no cuenta en ningún
-    // indicador (`RN-SP-048`).
-    cuenta(director, "V-1", "FIRST_DEPOSIT");
+    // indicador (`RN-SP-048`). Es de tipo VENDEDOR y por eso no puede tener FTD
+    // (`RN-SP-068`).
+    cuenta(director, "V-1", "REGISTER");
 
     // Un consumidor sin superior: no entra en ningún nodo y por eso existe
     // `unassigned` — sin él, el árbol sumaría menos que el listado global.
@@ -192,8 +193,7 @@ class NetworkIndicatorsIT extends IntegrationTestBase {
   void laCuentaDelVendedorNoCuenta() throws Exception {
     JsonNode raiz = arbol(null);
 
-    // El director tiene una cuenta suya en FIRST_DEPOSIT. Si contara, su `own`
-    // sería 3 y el `ftd` de todo el árbol subiría en uno.
+    // El director tiene una cuenta suya. Si contara, su `own` sería 3.
     JsonNode nodoDirector = hijo(raiz.get("nodes").get(0), "amartinez");
     assertThat(nodoDirector.get("own").get("accounts").asInt()).isEqualTo(2);
     assertThat(raiz.get("totals").get("ftd").asInt()).isEqualTo(3);
@@ -201,6 +201,24 @@ class NetworkIndicatorsIT extends IntegrationTestBase {
     // Y tampoco cae en `unassigned`: no es de un consumidor, luego no es de
     // nadie a efectos de este indicador.
     assertThat(raiz.get("unassigned").get("accounts").asInt()).isEqualTo(1);
+  }
+
+  @Test
+  @DisplayName("`CA-SP-944` — la cuenta VENDEDOR no cuenta aunque su titular sea también cliente")
+  void laCuentaDeVendedorNoCuentaAunqueSeaCliente() throws Exception {
+    // Hasta el 09-10-2026 el filtro miraba los roles del titular: con un rol
+    // consumidor, la cuenta del director habría caído en `unassigned`. Ahora
+    // manda el tipo de la cuenta, fijado al declararla.
+    jdbc.update(
+        "INSERT INTO user_roles (user_id, role_id, role_type)"
+            + " SELECT ?, r.id, r.role_type FROM roles r WHERE r.id = ?::uuid",
+        director,
+        CLIENTE);
+
+    JsonNode raiz = arbol(null);
+    assertThat(raiz.get("unassigned").get("accounts").asInt()).isEqualTo(1);
+    assertThat(hijo(raiz.get("nodes").get(0), "amartinez").get("own").get("accounts").asInt())
+        .isEqualTo(2);
   }
 
   @Test
@@ -450,13 +468,17 @@ class NetworkIndicatorsIT extends IntegrationTestBase {
   private void cuenta(UUID persona, String numero, String estado) {
     jdbc.update(
         """
-        INSERT INTO user_brokers (id, user_id, broker_id, external_id, status)
-        VALUES (gen_random_uuid(), ?, ?, ?, ?)
+        INSERT INTO user_brokers (id, user_id, broker_id, external_id, status, kind)
+        VALUES (gen_random_uuid(), ?, ?, ?, ?,
+                CASE WHEN EXISTS (SELECT 1 FROM user_roles ur WHERE ur.user_id = ?
+                              AND ur.role_type = 'VENDEDOR')
+                THEN 'VENDEDOR' ELSE 'CONSUMIDOR' END)
         """,
         persona,
         broker,
         numero,
-        estado);
+        estado,
+        persona);
   }
 
   private UUID brokerAsegurado(String id, String nombre) {

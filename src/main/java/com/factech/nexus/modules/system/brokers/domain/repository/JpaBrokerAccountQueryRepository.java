@@ -4,6 +4,7 @@ import com.factech.nexus.modules.system.brokers.application.BrokerAccountItem;
 import com.factech.nexus.modules.system.brokers.application.BrokerAccountItem.BrokerRef;
 import com.factech.nexus.modules.system.brokers.application.TeamBrokerAccountItem;
 import com.factech.nexus.modules.system.brokers.application.TeamBrokerAccountItem.Holder;
+import com.factech.nexus.modules.system.brokers.domain.models.BrokerAccountKind;
 import com.factech.nexus.modules.system.brokers.domain.models.UserBrokerStatus;
 import com.factech.nexus.modules.system.brokers.domain.repository.BrokerAccountQueryRepository.BrokerAccountFilters;
 import jakarta.persistence.EntityManager;
@@ -47,7 +48,7 @@ public class JpaBrokerAccountQueryRepository implements BrokerAccountQueryReposi
                 """
                 SELECT ub.id AS id, ub.external_id AS external_id,
                        ub.broker_username AS broker_username, ub.status AS status,
-                       ub.created_at AS created_at,
+                       ub.kind AS kind, ub.created_at AS created_at,
                        b.id AS broker_id, b.name AS broker_name
                   FROM user_brokers ub
                   JOIN brokers b ON b.id = ub.broker_id
@@ -67,6 +68,7 @@ public class JpaBrokerAccountQueryRepository implements BrokerAccountQueryReposi
               (String) fila.get("external_id"),
               (String) fila.get("broker_username"),
               estado(fila),
+              tipo(fila),
               momento(fila.get("created_at"))));
     }
     return resultado;
@@ -82,7 +84,7 @@ public class JpaBrokerAccountQueryRepository implements BrokerAccountQueryReposi
             """
             SELECT ub.id AS id, ub.external_id AS external_id,
                    ub.broker_username AS broker_username, ub.status AS status,
-                   ub.created_at AS created_at,
+                   ub.kind AS kind, ub.created_at AS created_at,
                    b.id AS broker_id, b.name AS broker_name,
                    u.id AS user_id, u.username AS username,
                    u.first_name AS first_name, u.last_name AS last_name
@@ -207,16 +209,18 @@ public class JpaBrokerAccountQueryRepository implements BrokerAccountQueryReposi
   // ---------------------------------------------------------------------------
 
   /**
-   * El consumidor se comprueba con {@code EXISTS}: un {@code JOIN} multiplicaría la cuenta.
+   * Solo cuentan las cuentas de consumidor (`RN-SP-068`), <b>por el tipo de la cuenta</b>.
+   *
+   * <p>Hasta el 09-10-2026 era un {@code EXISTS} sobre los roles del titular. El tipo se fija al
+   * declarar la cuenta y no cambia si el titular cambia de rol: un cliente que asciende a vendedor
+   * conserva su FTD.
    *
    * <p><b>Con espacios propios al principio y al final, y NO como bloque de texto.</b> Un bloque
    * recorta el espacio final de cada línea, de modo que un {@code "… AND """} concatenado con él
    * produce {@code ANDEXISTS} — un error de sintaxis que solo aparece en ejecución y que no se ve
    * leyendo el código.
    */
-  private static final String ES_CONSUMIDOR =
-      " EXISTS (SELECT 1 FROM user_roles ur"
-          + " WHERE ur.user_id = u.id AND ur.role_type = 'CONSUMIDOR') ";
+  private static final String ES_CONSUMIDOR = " ub.kind = 'CONSUMIDOR' ";
 
   @Override
   @Transactional(readOnly = true)
@@ -413,7 +417,7 @@ public class JpaBrokerAccountQueryRepository implements BrokerAccountQueryReposi
       """
       SELECT ub.id AS id, ub.external_id AS external_id,
              ub.broker_username AS broker_username, ub.status AS status,
-             ub.created_at AS created_at,
+             ub.kind AS kind, ub.created_at AS created_at,
              b.id AS broker_id, b.name AS broker_name,
              u.id AS user_id, u.username AS username,
              u.first_name AS first_name, u.last_name AS last_name
@@ -445,6 +449,9 @@ public class JpaBrokerAccountQueryRepository implements BrokerAccountQueryReposi
     filtro.igual("ub.broker_id", "broker", f.brokerId());
     if (f.status() != null) {
       filtro.condicion("ub.status = :estado", "estado", f.status().name());
+    }
+    if (f.kind() != null) {
+      filtro.condicion("ub.kind = :tipo", "tipo", f.kind().name());
     }
     if (f.from() != null) {
       filtro.condicion("ub.created_at >= :desde", "desde", f.from());
@@ -542,6 +549,7 @@ public class JpaBrokerAccountQueryRepository implements BrokerAccountQueryReposi
               (String) fila.get("external_id"),
               (String) fila.get("broker_username"),
               estado(fila),
+              tipo(fila),
               momento(fila.get("created_at"))));
     }
     return resultado;
@@ -623,6 +631,15 @@ public class JpaBrokerAccountQueryRepository implements BrokerAccountQueryReposi
    * admite otra cosa, de modo que un valor desconocido aquí significa que alguien cambió el esquema
    * sin cambiar este enumerado — y disimularlo devolvería un dato falso en lugar de un fallo.
    */
+  private static BrokerAccountKind tipo(Tuple fila) {
+    String valor = (String) fila.get("kind");
+    return BrokerAccountKind.de(valor)
+        .orElseThrow(
+            () ->
+                new IllegalStateException(
+                    "user_brokers.kind trae un valor que el dominio no conoce: " + valor));
+  }
+
   private static UserBrokerStatus estado(Tuple fila) {
     String valor = (String) fila.get("status");
     return UserBrokerStatus.de(valor)

@@ -1649,6 +1649,9 @@ public class UserController {
           **Una cuenta ya declarada** —el mismo broker y el mismo identificador,
           por quien sea— responde `409` (`EX-009`). Un broker inexistente o
           apagado responde `422` (`EX-008`), el mismo para los dos.
+          **La cuenta nace con su tipo** (`RN-SP-068`): `VENDEDOR` si el
+          titular porta un rol vendedor, si no `CONSUMIDOR`. Quien no es ni lo
+          uno ni lo otro recibe `422` (`EX-011`).
           """)
   @ApiResponses({
     @ApiResponse(
@@ -1675,7 +1678,9 @@ public class UserController {
         content = @Content),
     @ApiResponse(
         responseCode = "422",
-        description = "El broker no existe o está apagado (`EX-008`)",
+        description =
+            "El broker no existe o está apagado (`EX-008`), o el titular no es vendedor ni"
+                + " consumidor (`EX-011`)",
         content = @Content),
     @ApiResponse(
         responseCode = "500",
@@ -1704,6 +1709,9 @@ public class UserController {
           **Una cuenta ya declarada** —el mismo broker y el mismo identificador,
           por quien sea— responde `409` (`EX-009`). Un broker inexistente o
           apagado responde `422` (`EX-008`), el mismo para los dos.
+          **La cuenta nace con su tipo** (`RN-SP-068`): `VENDEDOR` si el
+          titular porta un rol vendedor, si no `CONSUMIDOR`. Quien no es ni lo
+          uno ni lo otro recibe `422` (`EX-011`).
           """)
   @ApiResponses({
     @ApiResponse(
@@ -1734,7 +1742,9 @@ public class UserController {
         content = @Content),
     @ApiResponse(
         responseCode = "422",
-        description = "El broker no existe o está apagado (`EX-008`)",
+        description =
+            "El broker no existe o está apagado (`EX-008`), o el titular no es vendedor ni"
+                + " consumidor (`EX-011`)",
         content = @Content),
     @ApiResponse(
         responseCode = "500",

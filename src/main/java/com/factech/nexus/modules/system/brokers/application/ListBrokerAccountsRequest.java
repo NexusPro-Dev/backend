@@ -36,6 +36,7 @@ public record ListBrokerAccountsRequest(
     UUID supervisorId,
     UUID userId,
     String status,
+    String kind,
     UUID brokerId,
     String search,
     OffsetDateTime from,
@@ -48,5 +49,6 @@ public record ListBrokerAccountsRequest(
     // `ListUsersRequest`.
     search = search == null || search.isBlank() ? null : search.trim();
     status = status == null || status.isBlank() ? null : status.trim();
+    kind = kind == null || kind.isBlank() ? null : kind.trim();
   }
 }

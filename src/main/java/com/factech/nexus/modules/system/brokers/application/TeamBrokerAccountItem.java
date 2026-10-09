@@ -1,5 +1,6 @@
 package com.factech.nexus.modules.system.brokers.application;
 
+import com.factech.nexus.modules.system.brokers.domain.models.BrokerAccountKind;
 import com.factech.nexus.modules.system.brokers.domain.models.UserBrokerStatus;
 import com.fasterxml.jackson.annotation.JsonInclude;
 import io.swagger.v3.oas.annotations.media.Schema;
@@ -32,6 +33,7 @@ public record TeamBrokerAccountItem(
     String accountId,
     String brokerUsername,
     UserBrokerStatus status,
+    BrokerAccountKind kind,
     OffsetDateTime declaredAt) {
 
   /**

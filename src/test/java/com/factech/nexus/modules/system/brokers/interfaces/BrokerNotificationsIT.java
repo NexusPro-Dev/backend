@@ -283,8 +283,8 @@ class BrokerNotificationsIT extends IntegrationTestBase {
         """,
         cliente);
     jdbc.update(
-        "INSERT INTO user_brokers (id, user_id, broker_id, external_id)"
-            + " VALUES (gen_random_uuid(), ?, ?, 'BN-778899')",
+        "INSERT INTO user_brokers (id, user_id, broker_id, external_id, kind)"
+            + " VALUES (gen_random_uuid(), ?, ?, 'BN-778899', 'CONSUMIDOR')",
         cliente,
         IQOPTION);
 

@@ -5,7 +5,7 @@
 | Módulo | `SP` — Sistema Principal |
 | Paquete | `modules/system` |
 | Prefijos de permiso | `roles:`, `permissions:`, `audit:`, `memberships:`, `currencies:`, `countries:`, `users:`, `exchange-rates:`, `document-types:`, `brokers:`, `broker-accounts:`, `teams:` |
-| Versión | 1.113.0 |
+| Versión | 1.114.0 |
 | Estado | **Aprobado** |
 | Responsable | Bonilla Diaz William Steven |
 | Fecha de creación | 20-08-2026 |
@@ -2603,3 +2603,4 @@ La fila se lee «esta persona vinculó este authenticator». `status` es `PENDIE
 | 1.111.0 | 08-10-2026 | **Gestionar las cuentas de broker: registrar, editar y eliminar**, propias y de cualquier persona, a petición del responsable del proyecto («crear, editar y eliminar mis cuentas de broker y las de un usuario») y con sus decisiones del mismo día: **solo se edita el identificador**; **el borrado es físico y auditado**; **el titular no toca una cuenta con depósito confirmado**, administración sí; **el superior comercial no gestiona**. `RF-SP-053` deja de estar «por decidir» y se reescribe como «Registrar una cuenta de broker»; nacen **`RF-SP-080`** y **`RF-SP-081`**, y **`RN-SP-067`**. Seis permisos —tres propios a todo rol por su tipo y tres amplios a `SUPERADMIN` y `ADMIN`—, sembrados por `V90`. Criterios `CA-SP-915` a `CA-SP-937`. | Responsable del proyecto |
 | 1.112.0 | 08-10-2026 | **`RF-SP-053`, `RF-SP-080` y `RF-SP-081` pasan a `En desarrollo`**: las seis rutas de las cuentas de broker, con `V90` (catálogo **216**, `ADMIN` 214). | Responsable técnico |
 | 1.113.0 | 09-10-2026 | **Las cuentas de broker se dividen en dos tipos**, a petición del responsable del proyecto («uno para los usuarios vendedores y otro para los consumidores»). Nace `RN-SP-068`: columna `user_brokers.kind` (`VENDEDOR` \| `CONSUMIDOR`), puesta por el sistema según el tipo de rol del titular; quien no es vendedor ni consumidor no declara (`422 EX-011`); la de vendedor no tiene FTD (`ck_user_brokers_ftd_solo_consumidor`) y no cuenta en `RF-SP-058`. `RF-SP-057` filtra por `kind`. Enmienda la tripleta de `RF-SP-053` (v0.2.0). | Responsable del proyecto |
+| 1.114.0 | 09-10-2026 | **`RN-SP-068` construida**: `V91` (`user_brokers.kind`, relleno y dos restricciones), el tipo al declarar, `kind` en las filas, `?kind=` en `RF-SP-057` y los indicadores por el tipo de la cuenta. `CA-SP-938` a `CA-SP-944` en `ManageBrokerAccountsIT`, `AllBrokerAccountsIT`, `NetworkIndicatorsIT`, `SelfRegistrationIT` y `UserBrokerAccountSchemaIT`; `CA-SP-945` lo vigila la guarda de `V91`. | Responsable técnico |

@@ -2,6 +2,7 @@ package com.factech.nexus.modules.system.brokers.domain.repository;
 
 import com.factech.nexus.modules.system.brokers.application.BrokerAccountItem;
 import com.factech.nexus.modules.system.brokers.application.TeamBrokerAccountItem;
+import com.factech.nexus.modules.system.brokers.domain.models.BrokerAccountKind;
 import com.factech.nexus.modules.system.brokers.domain.models.UserBrokerStatus;
 import java.util.List;
 import java.util.UUID;
@@ -161,6 +162,7 @@ public interface BrokerAccountQueryRepository {
       UUID supervisorId,
       UUID userId,
       UserBrokerStatus status,
+      BrokerAccountKind kind,
       UUID brokerId,
       String search,
       java.time.OffsetDateTime from,

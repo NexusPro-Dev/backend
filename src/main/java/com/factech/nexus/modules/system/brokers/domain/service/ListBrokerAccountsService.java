@@ -8,6 +8,7 @@ import com.factech.nexus.modules.system.brokers.application.BrokerAccountsPage.T
 import com.factech.nexus.modules.system.brokers.application.BrokerItem;
 import com.factech.nexus.modules.system.brokers.application.ListBrokerAccountsRequest;
 import com.factech.nexus.modules.system.brokers.application.TeamBrokerAccountItem;
+import com.factech.nexus.modules.system.brokers.domain.models.BrokerAccountKind;
 import com.factech.nexus.modules.system.brokers.domain.models.UserBrokerStatus;
 import com.factech.nexus.modules.system.brokers.domain.repository.BrokerAccountQueryRepository;
 import com.factech.nexus.modules.system.brokers.domain.repository.BrokerAccountQueryRepository.BrokerAccountFilters;
@@ -84,6 +85,7 @@ public class ListBrokerAccountsService {
             peticion.supervisorId(),
             peticion.userId(),
             estado(peticion.status()),
+            tipo(peticion.kind()),
             peticion.brokerId(),
             peticion.search(),
             peticion.from(),
@@ -183,6 +185,15 @@ public class ListBrokerAccountsService {
     }
     return UserBrokerStatus.de(valor)
         .orElseThrow(() -> invalido("status", "El estado debe ser REGISTER o FIRST_DEPOSIT."));
+  }
+
+  /** Un tipo inválido es {@code 400}, por lo mismo que un estado (`RN-SP-068`). */
+  private static BrokerAccountKind tipo(String valor) {
+    if (valor == null) {
+      return null;
+    }
+    return BrokerAccountKind.de(valor)
+        .orElseThrow(() -> invalido("kind", "El tipo debe ser VENDEDOR o CONSUMIDOR."));
   }
 
   /**

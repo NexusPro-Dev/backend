@@ -1,5 +1,6 @@
 package com.factech.nexus.modules.system.brokers.domain.repository;
 
+import com.factech.nexus.modules.system.brokers.domain.models.BrokerAccountKind;
 import com.factech.nexus.modules.system.brokers.domain.models.UserBrokerStatus;
 import com.factech.nexus.shared.error.BusinessRuleException;
 import com.factech.nexus.shared.error.FieldError;
@@ -30,17 +31,20 @@ public class JpaBrokerAccountWriter implements BrokerAccountWriter {
   }
 
   @Override
-  public void insert(UUID id, UUID userId, UUID brokerId, String accountId) {
+  public void insert(
+      UUID id, UUID userId, UUID brokerId, String accountId, BrokerAccountKind kind) {
     try {
       em.createNativeQuery(
               """
-              INSERT INTO user_brokers (id, user_id, broker_id, external_id)
-              VALUES (CAST(:id AS uuid), CAST(:usuario AS uuid), CAST(:broker AS uuid), :cuenta)
+              INSERT INTO user_brokers (id, user_id, broker_id, external_id, kind)
+              VALUES (CAST(:id AS uuid), CAST(:usuario AS uuid), CAST(:broker AS uuid), :cuenta,
+                      :tipo)
               """)
           .setParameter("id", id)
           .setParameter("usuario", userId)
           .setParameter("broker", brokerId)
           .setParameter("cuenta", accountId)
+          .setParameter("tipo", kind.name())
           .executeUpdate();
       em.flush();
     } catch (PersistenceException fallo) {
@@ -49,12 +53,32 @@ public class JpaBrokerAccountWriter implements BrokerAccountWriter {
   }
 
   @Override
+  public Optional<BrokerAccountKind> kindFor(UUID userId) {
+    List<?> tipos =
+        em.createNativeQuery(
+                """
+                SELECT DISTINCT role_type FROM user_roles
+                 WHERE user_id = CAST(:usuario AS uuid)
+                   AND role_type IN ('VENDEDOR', 'CONSUMIDOR')
+                """)
+            .setParameter("usuario", userId)
+            .getResultList();
+    if (tipos.contains(BrokerAccountKind.VENDEDOR.name())) {
+      return Optional.of(BrokerAccountKind.VENDEDOR);
+    }
+    if (tipos.contains(BrokerAccountKind.CONSUMIDOR.name())) {
+      return Optional.of(BrokerAccountKind.CONSUMIDOR);
+    }
+    return Optional.empty();
+  }
+
+  @Override
   public Optional<LockedAccount> lock(UUID brokerAccountId, UUID userId) {
     List<Tuple> filas =
         em.createNativeQuery(
                 """
                 SELECT ub.id, ub.user_id, ub.broker_id, b.name AS broker_name, ub.external_id,
-                       ub.broker_username, ub.status
+                       ub.broker_username, ub.status, ub.kind
                   FROM user_brokers ub
                   JOIN brokers b ON b.id = ub.broker_id
                  WHERE ub.id = CAST(:id AS uuid) AND ub.user_id = CAST(:usuario AS uuid)
@@ -75,7 +99,8 @@ public class JpaBrokerAccountWriter implements BrokerAccountWriter {
                     (String) f.get("broker_name"),
                     (String) f.get("external_id"),
                     (String) f.get("broker_username"),
-                    UserBrokerStatus.valueOf((String) f.get("status"))));
+                    UserBrokerStatus.valueOf((String) f.get("status")),
+                    BrokerAccountKind.valueOf((String) f.get("kind"))));
   }
 
   @Override

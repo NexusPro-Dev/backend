@@ -116,6 +116,26 @@ class AllBrokerAccountsIT extends IntegrationTestBase {
   }
 
   @Test
+  @DisplayName("`CA-SP-943` — `kind` en cada fila, `?kind=` filtra y el resumen lo respeta")
+  void filtraPorTipo() throws Exception {
+    // Las cinco se siembran como de consumidor; una pasa a ser de vendedor.
+    jdbc.update("UPDATE user_brokers SET kind = 'VENDEDOR' WHERE external_id = '10000001'");
+
+    mvc.perform(get(RUTA + "?kind=VENDEDOR").with(administrador()))
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$.totalElements").value(1))
+        .andExpect(jsonPath("$.content[0].accountId").value("10000001"))
+        .andExpect(jsonPath("$.content[0].kind").value("VENDEDOR"))
+        .andExpect(jsonPath("$.summary.accounts.total").value(1));
+    mvc.perform(get(RUTA + "?kind=CONSUMIDOR").with(administrador()))
+        .andExpect(jsonPath("$.totalElements").value(4))
+        .andExpect(jsonPath("$.content[0].kind").value("CONSUMIDOR"));
+    mvc.perform(get(RUTA + "?kind=consumidor").with(administrador()))
+        .andExpect(status().isBadRequest())
+        .andExpect(jsonPath("$.errors[0].field").value("kind"));
+  }
+
+  @Test
   @DisplayName("`CA-SP-647` — sin el permiso es 403, y NO el 404 de `RF-SP-055`")
   void sinPermisoEs403() throws Exception {
     // La diferencia es deliberada: alli el actor es un vendedor cualquiera y un
@@ -622,8 +642,8 @@ class AllBrokerAccountsIT extends IntegrationTestBase {
   private void declarar(UUID persona, UUID broker, String cuenta) {
     jdbc.update(
         """
-        INSERT INTO user_brokers (id, user_id, broker_id, external_id)
-        VALUES (gen_random_uuid(), ?, ?, ?)
+        INSERT INTO user_brokers (id, user_id, broker_id, external_id, kind)
+        VALUES (gen_random_uuid(), ?, ?, ?, 'CONSUMIDOR')
         """,
         persona,
         broker,

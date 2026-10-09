@@ -3,6 +3,7 @@ package com.factech.nexus.modules.system.brokers.domain.service;
 import com.factech.nexus.modules.system.brokers.application.BrokerAccountItem;
 import com.factech.nexus.modules.system.brokers.application.CreateBrokerAccountRequest;
 import com.factech.nexus.modules.system.brokers.application.UpdateBrokerAccountRequest;
+import com.factech.nexus.modules.system.brokers.domain.models.BrokerAccountKind;
 import com.factech.nexus.modules.system.brokers.domain.models.UserBrokerStatus;
 import com.factech.nexus.modules.system.brokers.domain.repository.BrokerAccountQueryRepository;
 import com.factech.nexus.modules.system.brokers.domain.repository.BrokerAccountWriter;
@@ -97,19 +98,22 @@ public class ManageBrokerAccountsService {
   public BrokerAccountItem create(UUID userId, CreateBrokerAccountRequest peticion) {
     String cuenta = validarAlta(peticion);
     existe(userId);
+    BrokerAccountKind tipo =
+        cuentas.kindFor(userId).orElseThrow(ManageBrokerAccountsService::sinTipo);
     brokers
         .find(peticion.brokerId())
         .filter(BrokerRef::active)
         .orElseThrow(ManageBrokerAccountsService::brokerNoProcede);
 
     UUID id = ids.next();
-    cuentas.insert(id, userId, peticion.brokerId(), cuenta);
+    cuentas.insert(id, userId, peticion.brokerId(), cuenta, tipo);
 
     Map<String, Object> despues = new LinkedHashMap<>();
     despues.put("user_id", userId.toString());
     despues.put("broker_id", peticion.brokerId().toString());
     despues.put("external_id", cuenta);
     despues.put("status", UserBrokerStatus.REGISTER.name());
+    despues.put("kind", tipo.name());
     auditoria.recordChange(
         new ChangeEvent(MODULO, ENTIDAD, id, ChangeAction.CREATE, Map.of("after", despues)));
 
@@ -176,6 +180,7 @@ public class ManageBrokerAccountsService {
     instantanea.put("external_id", cuenta.accountId());
     instantanea.put("broker_username", cuenta.brokerUsername());
     instantanea.put("status", cuenta.status().name());
+    instantanea.put("kind", cuenta.kind().name());
     auditoria.recordDeletion(
         new DeletionEvent(
             MODULO,
@@ -264,6 +269,14 @@ public class ManageBrokerAccountsService {
         .filter(c -> c.id().equals(id))
         .findFirst()
         .orElseThrow();
+  }
+
+  /** `RN-SP-068`: sin rol vendedor ni consumidor no hay de qué tipo hacer la cuenta. */
+  private static UnprocessableEntityException sinTipo() {
+    String mensaje =
+        "Esa persona no es vendedor ni consumidor, y solo ellos tienen cuentas de broker.";
+    return new UnprocessableEntityException(
+        "EX-011", mensaje, List.of(new FieldError("userId", "EX-011", mensaje)));
   }
 
   /** Inexistente y apagado responden lo mismo, como en el registro por enlace (`EX-008`). */
