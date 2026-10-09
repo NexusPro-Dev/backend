@@ -11,6 +11,10 @@
 
 ---
 
+!!! warning "Enmendada el 09-10-2026 — el avance de quien mira (Art. I.7)"
+
+    Con el progreso del alumno ([`requirements/ac.md`](../../../requirements/ac.md) v0.21.0 §5.2.14, `RN-AC-023`), **cada curso del catálogo trae `progress`**: `percent`, `completedLessons`, `lessonCount`, `watchedSeconds` y `totalSeconds` de quien pregunta, sobre las lecciones que verá; en cero si no empezó. Cuesta **una sentencia más**, fija, que suma el progreso de todos los cursos de la lista a la vez — y ninguna con la lista vacía (`CA-AC-192` pasa de cuatro a cinco). `CA-AC-250`.
+
 ## 1. Objetivo
 
 Que el alumno vea **qué se enseña** y **qué se le abre**: todos los cursos que se ofrecen, en su orden, cada uno marcado con si su membresía vigente, uno de sus servicios vigentes o la gratuidad del curso lo abren, y con cuántas lecciones abiertas tiene; **o solo los que le abren algo**, si lo pide.
@@ -144,7 +148,7 @@ Ninguna propia.
 | `CA-AC-192` | La lectura cuesta **cuatro sentencias fijas** —cursos con instructor y cuentas, llaves de esos cursos, categorías de esos cursos, categorías vivas— **más las de los dos puertos**, con cero cursos y con muchos; con cero cursos la segunda y la tercera **no se ejecutan** |
 | `CA-AC-193` | Sin `courses:learn` responde `403` **aunque el actor porte `courses:read`**; y `GET /courses/available` **no cae en `GET /courses/{id}`** |
 | `CA-AC-237` | **Un servicio vigente abre** (`RN-AC-020`): un curso con un servicio en su lista es `accessible` para quien lo tiene vigente, y **no** para quien lo tuvo —vencido o cerrado— ni para quien lo tiene con inicio futuro |
-| `CA-AC-238` | **`onlyAccessible=true`** deja los cursos `accessible` y los cerrados con alguna lección abierta ofrecible, y quita los cerrados sin ninguna; una lección abierta **inactiva o vacía no cuenta**; sin el filtro salen todos |
+| `CA-AC-238` | **`onlyAccessible=true`** deja los cursos `accessible` y los cerrados con alguna lección abierta ofrecible, y quita los cerrados sin ninguna; una lección abierta **inactiva o vacía no cuenta**; sin el filtro salen todos || `CA-AC-250` | **Cada curso trae el avance de quien pregunta** (`RN-AC-023`): cero en uno no empezado; en uno empezado, el porcentaje y las lecciones completadas cuadran con lo reportado; el progreso de otro alumno no se mezcla; y la sentencia del avance es **una** para toda la lista |
 
 ## 13. Casos límite
 
@@ -175,3 +179,4 @@ Ninguna propia.
 | 0.3.0 | 25-09-2026 | **Enmienda por decisión del responsable del proyecto** (`ac.md` §5.2.10, `RN-AC-017`): **la duración de la lección se guarda en segundos**, y las sumas del módulo y del curso también: `durationSeconds` y `totalDurationSeconds` sustituyen a `durationMinutes` y `totalDurationMinutes` en el cuerpo de esta spec. Las filas anteriores de esta tabla conservan el nombre que tenía el campo en su fecha. | Responsable técnico |
 | 0.4.0 | 25-09-2026 | **Enmienda por decisión del responsable del proyecto** (`ac.md` §5.2.12, `RN-AC-015` reescrita): **un curso sin membresías ni servicios es de todos** y las llaves dejan de ser motivo de la ofrecibilidad, que queda en **cuatro** —retirado, inactivo, sin descripción, sin módulo ofrecible—. **En el aula, un curso sin llaves es `accessible` para todo alumno con sesión** y sus lecciones cerradas se abren a todos. El cuerpo de esta spec se reescribe al construirla. | Responsable técnico |
 | 1.0.0 | 26-09-2026 | **Cuerpo reescrito al construir**, con las tres enmiendas del 25-09-2026 dentro —servicio como llave, curso sin llaves de todos, segundos— y **dos decisiones del responsable del proyecto de hoy** (`ac.md` v0.20.0 §5.2.13): el filtro **`onlyAccessible`** —solo lo que abre algo: el curso entero o una lección abierta— y **`openLessonCount`** por curso (`CA-AC-238`). Nace `CA-AC-237` —el servicio vigente abre—. Las llaves de los cursos se leen **en una sentencia** —membresías y servicios juntos—, de modo que la cuenta sigue en **cuatro sentencias** más los dos puertos (`CA-AC-192`). El permiso se queda en `courses:learn`, que desde hoy gobierna **solo** el catálogo. `CA-AC-194` —la concordancia exhaustiva con el detalle de administración— **se retira**: el aula decide con el mismo `CourseOfferability` sobre las mismas cuentas del listado, y `CA-AC-186` cubre cada motivo. | Responsable técnico |
+| 1.1.0 | 09-10-2026 | **Cada curso trae `progress`**, el avance de quien mira (`ac.md` v0.21.0 §5.2.14, `RN-AC-023`), con una sentencia más para toda la lista. `CA-AC-250`. | Responsable técnico |

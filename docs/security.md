@@ -5,11 +5,11 @@
 | Proyecto | NEXUS — Renovación de plataforma |
 | Empresa | FACTECH GROUP SAS |
 | Documento | `security.md` |
-| Versión | 0.126.0 |
+| Versión | 0.127.0 |
 | Estado | Borrador |
 | Responsable técnico | Bonilla Diaz William Steven |
 | Fecha de creación | 19-08-2026 |
-| Última actualización | 08-10-2026 |
+| Última actualización | 09-10-2026 |
 | Documento superior | `constitution.md` v0.5.0 |
 | Documento relacionado | `architecture.md` v0.4.0 |
 
@@ -302,9 +302,10 @@ courses:assign-category        courses:revoke-category
 courses:assign-recommendation  courses:revoke-recommendation
 courses:assign-membership      courses:revoke-membership
 courses:teach    courses:learn    courses:read-available
+courses:list-progress   courses:read-progress
 course-modules:create   course-modules:update   course-modules:change-status   course-modules:delete
 lessons:create   lessons:read   lessons:update   lessons:change-status   lessons:delete
-lessons:learn
+lessons:learn    lessons:track-progress
 
 indicators:read-sales-summary      indicators:read-sales-series
 indicators:read-sales-by-product   indicators:read-sales-by-seller
@@ -446,6 +447,7 @@ La vista transversal `v_audit_timeline` (`architecture.md` §6.6.6) exige los cu
 - La plantilla de requerimientos admite además la notación `role:<código>` cuando un requerimiento exige un rol concreto en lugar de un permiso. Su uso **DEBERÍA** ser excepcional: acoplar un endpoint a un rol específico anula la ventaja del modelo de permisos.
 **Y uno más de `SP`, declarado y SEMBRADO el 08-10-2026 por `V89`**, ya en el bloque: `broker-accounts:read-own` —las propias cuentas de broker, `GET /users/me/broker-accounts` (`RF-SP-079`)—. **De alcance propio y a todo rol por su tipo**, los tres —también `CONSUMIDOR`—, como el segundo factor de `V75`: el titular de una cuenta puede ser cualquiera. **No reutiliza `broker-accounts:read-team-member`**, que abre la lectura por estructura y que `CONSUMIDOR` no porta, ni `users:read-own-profile` (`RN-SEG-014`). El catálogo pasa a **210**, y `ADMIN` porta 208.
 **Y seis más de `SP`, declarados el 08-10-2026 y SEMBRADOS por `V90`**, ya en el bloque: registrar, editar y eliminar cuentas de broker (`RF-SP-053`, `RF-SP-080`, `RF-SP-081`, `RN-SP-067`). **Tres de alcance propio** —`broker-accounts:create-own`, `broker-accounts:update-own` y `broker-accounts:delete-own`—, a **todo rol por su tipo**, los tres tipos, como `broker-accounts:read-own`: el titular gestiona las suyas, y editar o borrar no alcanza a una cuenta con depósito confirmado. **Tres de administración** —`broker-accounts:create`, `broker-accounts:update` y `broker-accounts:delete`—, a `SUPERADMIN` y `ADMIN` **explícitos**, sobre cualquier persona y en cualquier estado. **Tres y tres y no uno** por `RN-SEG-014`: lo propio y lo ajeno se conceden por separado, y cada operación también. El superior comercial no recibe ninguno: ve, no gestiona. El catálogo pasa a **216**, y `ADMIN` porta 214.
+**Y tres más de `AC`, declarados el 09-10-2026 y que sembrará `V92`**, ya en el bloque: el progreso del alumno ([`requirements/ac.md`](requirements/ac.md) v0.21.0 §5.2.14). **`lessons:track-progress`** —reportar el avance de un video, `RF-AC-039`— en **todo rol que porte `lessons:learn`**, como `V47` hizo con el aula: quien estudia reporta lo que estudia. **`courses:list-progress`** y **`courses:read-progress`** —el listado y el detalle del progreso de los alumnos, `RF-AC-040` y `RF-AC-041`— en `SUPERADMIN`, `ADMIN`, **todo rol de tipo `VENDEDOR`** y **todo rol que porte `courses:teach`**. **Dos y no uno** por `RN-SEG-014`. **Su alcance lo declara `RN-AC-024`** y se aplica dentro: `FUNCIONARIO` todo, `VENDEDOR` su red y los clientes principales de su red (`CommercialReach`), y además, sin importar el tipo, **los alumnos de los cursos que dicta**; fuera, página vacía o `404`. Es la segunda lectura con alcance por estructura después de `RN-MV-031`, y **la primera que suma un alcance que no es comercial** —el del instructor—. El catálogo pasará a **219**, y `ADMIN` a 217.
 
 ### 4.5 Resolución en tiempo de ejecución
 
@@ -1110,3 +1112,4 @@ RNF-SEG-002 merece atención: es una prueba que enumera los endpoints registrado
 | 0.124.0 | 08-10-2026 | **Dos permisos de `CM` de administración, declarados y sembrados por `V87`** (§4.4): `commission-closings:read-next` (`RF-CM-028`) y `commission-closings:set-payment-mode` (`RF-CM-029`), a `SUPERADMIN` y `ADMIN` explícitos. Catálogo **209**, `ADMIN` 207. | Responsable del proyecto |
 | 0.125.0 | 08-10-2026 | **Un permiso de alcance propio de `SP`, declarado y sembrado por `V89`** (§4.4): `broker-accounts:read-own` (`RF-SP-079`), a todo rol por su tipo. Catálogo **210**, `ADMIN` 208. | Responsable del proyecto |
 | 0.126.0 | 08-10-2026 | **Seis permisos de `SP` para gestionar cuentas de broker, declarados y sembrados por `V90`** (§4.4): `broker-accounts:create-own`, `update-own` y `delete-own` a todo rol por su tipo, y `broker-accounts:create`, `update` y `delete` a `SUPERADMIN` y `ADMIN` explícitos (`RF-SP-053`, `RF-SP-080`, `RF-SP-081`). Catálogo **216**, `ADMIN` 214. | Responsable del proyecto |
+| 0.127.0 | 09-10-2026 | **Tres permisos de `AC` para el progreso del alumno, declarados** (§4.4; [`requirements/ac.md`](requirements/ac.md) v0.21.0 §5.2.14): `lessons:track-progress` a todo rol con `lessons:learn`; `courses:list-progress` y `courses:read-progress` a `SUPERADMIN`, `ADMIN`, todo rol `VENDEDOR` y todo rol con `courses:teach`, con el alcance de `RN-AC-024`. Los sembrará `V92`: catálogo **219**, `ADMIN` 217. **El reporte del avance de un video no se audita**, por excepción al Art. V.7 aprobada por el responsable del proyecto. | Responsable técnico |

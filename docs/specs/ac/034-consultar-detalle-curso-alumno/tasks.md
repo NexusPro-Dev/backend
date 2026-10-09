@@ -22,7 +22,7 @@
 | `T-04` | `ClassroomController`: `GET /api/v1/courses/available/{id}` con `courses:read-available` | `T-03` | `CA-AC-201`; la ruta entra en `PERMISO_DE_CADA_OPERACION` | Hecha |
 | `T-05` | Pruebas de API (`ClassroomCourseDetailIT`), con el contador de sentencias | `T-04` | `CA-AC-195` a `CA-AC-201` | Hecha |
 | `T-06` | Documentación OpenAPI: solo lo ofrecido, sin estados ni contenido, las dos listas de llaves, `accessible` y `openLessonCount`, `404` igual para todo | `T-04` | El contrato declara `200`, `400`, `401`, `403`, `404` | Hecha |
-| `T-07` | Matriz de `docs/requirements.md` y `docs/api/index.md` | `T-05` | La fila de `RF-AC-034` refleja el estado | Hecha |
+| `T-07` | Matriz de `docs/requirements.md` y `docs/api/index.md` | `T-05` | La fila de `RF-AC-034` refleja el estado | Hecha || `T-08` | **09-10-2026** — `LessonProgressRepository.findOfUserInLessons`; `ClassroomCourseResponse.progress` y el avance de cada `ClassroomLessonItem`, calculados con `LessonProgress` | `RF-AC-039` · `T-03` | `CA-AC-251`, `CA-AC-252`; `CA-AC-200` con siete sentencias | Pendiente |
 
 ## 2. Orden de ejecución
 

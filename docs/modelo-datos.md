@@ -2,11 +2,11 @@
 
 | Campo | Valor |
 |---|---|
-| Versión | 0.109.0 |
+| Versión | 0.110.0 |
 | Estado | **Borrador** |
 | Responsable | Bonilla Diaz William Steven |
 | Fecha de creación | 21-08-2026 |
-| Última actualización | 08-10-2026 |
+| Última actualización | 09-10-2026 |
 
 !!! info "Desde el 05-10-2026, los importes en centésimas: [`ADR-006`](architecture/ADR-006-importes-en-unidades-minimas.md)"
 
@@ -800,6 +800,8 @@ erDiagram
     courses }o--o{ courses : "RECOMIENDA ver antes · course_recommendations · sugerencia, no candado"
     courses ||--o{ course_modules : "se compone de · no se mueven"
     course_modules ||--o{ lessons : "se estudia en · no se mueven"
+    users ||--o{ lesson_progress : "ESTUDIA · el progreso es de la persona (09-10-2026)"
+    lessons ||--o{ lesson_progress : "se ha visto · nada lo borra"
     academy_images |o--o| course_categories : "es la PORTADA de"
     academy_images |o--o| courses : "es la PORTADA de"
     academy_images |o--o| course_modules : "es la PORTADA de · la MISMA tabla, sin saber de quien es cada una"
@@ -852,6 +854,15 @@ erDiagram
         timestamptz deleted_at "logico · SIN portada"
     }
 
+    lesson_progress {
+        uuid user_id PK "users de SP · quien estudia"
+        uuid lesson_id PK "una fila por persona y leccion · ON CONFLICT"
+        integer watched_seconds "la MAYOR posicion alcanzada · GREATEST, nunca baja"
+        timestamptz completed_at "NULL = no completada · al 90 pct o al abrir un TEXTO · no se borra"
+        timestamptz first_opened_at "la primera apertura"
+        timestamptz last_opened_at "la ultima actividad · la mueve tambien un reporte"
+    }
+
     course_category_items {
         uuid course_id PK
         uuid category_id PK
@@ -883,6 +894,8 @@ erDiagram
 **Cuatro entidades con historia, cuatro relaciones sin identidad —`course_products` desde el 25-09-2026— y una tabla que es el valor de una columna.** Las cuatro entidades llevan `deleted_at` y se retiran con motivo y registro; las cuatro relaciones llevan clave primaria compuesta, sin `id` y sin `deleted_at`, porque dar y quitar una relación **borra la fila** y la auditoría de cambios del curso conserva el antes y el después. `academy_images` es `product_images` columna a columna **en el módulo que la escribe**: la tentación era señalar la tabla de `PM` desde `courses`, y `modules.md` §7 prohíbe que un módulo escriba la tabla de otro. **Lo que sí se comparte es el detector de firma**, que pasa de `PM` a `shared/` con `RF-AC-006`.
 
 **Dos claves foráneas cruzan hacia `SP`** —`courses.instructor_id` y `course_memberships.membership_id`— y, **desde el 25-09-2026, una hacia `PM`**: `course_products.product_id` (§5.3). **Ninguna de las cuatro entidades guarda su ofrecibilidad**: que un curso se ofrezca es una cuenta sobre `courses`, `course_memberships`, `course_products`, `course_modules` y `lessons` que se hace en cada lectura (`RN-AC-015`), como el `offerable` del paquete.
+
+**`lesson_progress` es del 09-10-2026** ([`requirements/ac.md`](requirements/ac.md) v0.21.0 §8.7.1, `RN-AC-021` a `RN-AC-023`) y **no es ni entidad ni relación**: es lo que una persona hizo con una lección. **Clave primaria compuesta** porque una persona tiene un progreso por lección, y la fila se escribe con `INSERT … ON CONFLICT DO UPDATE` que guarda el máximo **sin leer antes**: el motor decide, y dos reportes simultáneos no se pisan. **Sin `course_id`** —sale de la lección por su módulo, que no se mueven— y **sin `deleted_at`**: el progreso no se retira, y corregir o retirar la lección no lo toca. **El porcentaje no se guarda**: depende de la duración y de lo que se ofrece hoy.
 
 **Y una decisión de columna que conviene ver aquí**: `lessons.content` es **una sola columna para los dos tipos**, y no `video_url` más `body`. `CM` tiene dos columnas —`percentage` y `fixed_amount`— porque una tasa **declara** una de dos formas y hubo que escribir `ck_commission_rates_forma` para que fuera exactamente una y la que corresponde al tipo; una lección **tiene un contenido**, y el tipo dice cómo leerlo. El `CHECK` solo mira que sea una URL cuando el tipo es `VIDEO`.
 
@@ -973,7 +986,7 @@ flowchart TB
 | `PM` | `products`, `product_comments`, `product_images`, `product_packages`, `product_package_items`, `product_links` | **3 escritas** (`V39`, `V87`, `V90`) **y dos diseñadas**: las de los paquetes, que creará la migración de `RF-PM-017` (14-09-2026). **`product_links` la crea `V35`** (22-09-2026), y con ella `products` **pierde** `video_url` |
 | `CM` | `commission_rates`, `user_commission_rates`, `commissions`, `commission_batches`, `commission_accruals`, `commission_closings`, `afftrack_rates`, `user_afftrack_rates`, `afftrack_settlements`, `afftrack_ftds`, `commission_reattributions`, `commission_payment_choices` | **6, escritas**: las dos de tasas (`V6` del esquema consolidado) y las cuatro de la liquidación (`V51`, 28-09-2026, [`requirements/cm.md`](requirements/cm.md) §7.5 a §7.8). **Y las cuatro de la comisión afftrack**, escritas por `V54` el 29-09-2026 ([`requirements/cm.md`](requirements/cm.md) v0.22.0 §7.9 a §7.12), que además cambia `commissions`: gana `commission_kind` y `afftrack_settlement_id`. **Diez, escritas.** **Once desde el 07-10-2026**: `commission_reattributions` (`V82`, [`requirements/cm.md`](requirements/cm.md) v0.37.0 §7.13), la marca de una línea cuya cadena se borró y aún no se devengó. **Y `commission_payment_choices` el 08-10-2026, con `V87`** ([`requirements/cm.md`](requirements/cm.md) v0.43.0 §7.14): cómo se paga cada cierre programado, una fila por turno elegido. `product_commission_rates` existió de `V49` a `V94` (15-09-2026) y `user_commission_rate_products` de `V85` a `V10` (16-09-2026) |
 | `MV` | `movements`, `movement_types`, `movement_type_statuses`, `movement_details`, `movement_detail_discounts`, `payment_methods`, `payment_method_exclusions`, `payments`, `accounts`, `movement_entries`, `points_rates`, `payout_institutions`, `payout_accounts`, `withdrawal_destinations`, `gateway_events`, `country_conversion_rates`, `points_adjustment_receipts` | **11, escritas** (`V7` del esquema consolidado, `V14` para las rebajas, `V36` para los estados por tipo, **`V48` para `payments` y `V49` para `accounts` y `movement_entries`**, 26-09-2026: la etapa 6 —pagos, saldos y retiros— de [`requirements/mv.md` §4.3](requirements/mv.md)). Su forma vive en §7.7 a §7.9 de ese documento y no se repite aquí. **`movements` perdió `payment_method_id`** (`V48`), que pasó a `payments`. **`points_rates` la escribe `V58`** (30-09-2026, etapa 3 —comprar puntos y pagar con ellos— de [`requirements/mv.md` §4.4](requirements/mv.md) y §7.10), y con ella `movements` gana `points_rate_id` y `points_amount`. **Y tres más el 01-10-2026**, las de las cuentas de cobro —`payout_institutions`, `payout_accounts` y `withdrawal_destinations`— ([`requirements/mv.md`](requirements/mv.md) v0.61.0 §4.5 y §7.11 a §7.13), **escritas por `V61`** el mismo día. **Y una más el 01-10-2026, `gateway_events`, escrita por `V62`** —lo que notifica la pasarela de pago, tal cual—, con dos cambios de esquema en tablas que ya existen: `payment_methods.gateway` y la incidencia de `payments` ([`requirements/mv.md`](requirements/mv.md) v0.64.0 §4.6, §7.4, §7.7 y §7.14). **Y `points_adjustment_receipts` el 06-10-2026, escrita por `V77`**: el comprobante de un ajuste de puntos, un archivo PDF, PNG o JPG por ajuste ([`requirements/mv.md`](requirements/mv.md) v0.88.0 §4.12 y §7.16, `RN-MV-077`) |
-| `AC` | `course_categories`, `courses`, `course_category_items`, `course_recommendations`, `course_memberships`, `course_products`, `course_modules`, `lessons`, `academy_images` | **8 escritas** —`course_categories` (`V18`), `courses` (`V21`), `course_modules` (`V23`), `lessons` (`V24`), `course_category_items` (`V42`), `course_products` (`V43`), `academy_images` (`V44`) y `course_memberships` (`V45`), las cuatro últimas el 25-09-2026— **y una diseñada**, `course_recommendations` (§4.2): las crearán los requerimientos que las estrenan, en el orden de [`requirements/ac.md`](requirements/ac.md) §6.1 |
+| `AC` | `course_categories`, `courses`, `course_category_items`, `course_recommendations`, `course_memberships`, `course_products`, `course_modules`, `lessons`, `academy_images`, `lesson_progress` | **8 escritas** —`course_categories` (`V18`), `courses` (`V21`), `course_modules` (`V23`), `lessons` (`V24`), `course_category_items` (`V42`), `course_products` (`V43`), `academy_images` (`V44`) y `course_memberships` (`V45`), las cuatro últimas el 25-09-2026— **y dos diseñadas**, `course_recommendations` (§4.2) y `lesson_progress` (09-10-2026, que escribirá `V92`): las crearán los requerimientos que las estrenan, en el orden de [`requirements/ac.md`](requirements/ac.md) §6.1 |
 
 **Un módulo, una a ocho tablas.** `SP` tiene veintiuna y los otros cuatro juntos tienen veintiuna —ocho de ellas, las de `AC`, todavía en papel—, y eso no es desequilibrio: `SP` es dueño del acceso, de los catálogos transversales y de la auditoría entera, que es infraestructura que todos usan y nadie duplica.
 
@@ -1010,6 +1023,7 @@ Son las que siguen —**y desde el 14-09-2026 una de `PM` apunta a `users`**—,
 | `product_packages.currency_id` | `currencies` | `PM` → `SP` — la moneda del paquete entero (14-09-2026, diseñada) |
 | `courses.instructor_id` | `users` | `AC` → `SP` — quién enseña (17-09-2026, diseñada). **Que porte `courses:teach` no cabe en la clave**: lo comprueba el dominio contra la interfaz de `SP` |
 | `course_memberships.membership_id` | `memberships` | `AC` → `SP` — qué nivel abre el curso (17-09-2026; escrita en `V45`, 25-09-2026). La **primera clave foránea hacia `memberships` que no es de `PM`** |
+| `lesson_progress.user_id` | `users` | `AC` → `SP` — de quién es el progreso (`V92`, 09-10-2026). **Sin `ON DELETE`**: el usuario no se borra físicamente nunca |
 | `course_products.product_id` | `products` | `AC` → `PM` — qué servicio abre el curso (`V43`, 25-09-2026). **La primera de `AC` hacia `PM`**; que sea `BOT` no cabe en la clave y lo comprueba el dominio contra `ProductCatalog`. **Sin `ON DELETE`**: toda suite que borre `products` borra antes estas filas |
 | `accounts.user_id` | `users` | `MV` → `SP` — de quién es la cuenta; **nulo en las de la empresa** (26-09-2026, `V49`) |
 | `accounts.currency_id` | `currencies` | `MV` → `SP` — la moneda de la cuenta (26-09-2026, `V49`) |
@@ -1200,3 +1214,4 @@ Los documentos que citan una migración vieja por su número —specs, controles
 | 0.107.0 | 08-10-2026 | **El lote vacío se borra a mano, y todos a la vez** ([`requirements/cm.md`](requirements/cm.md) v0.41.0, `RN-CM-052` enmendada, `RF-CM-027`): retirar, devolver y corregir el vendedor dejan de borrar el lote que vacían. **Sin cambio de esquema**: `fk_commissions_withdrawn_from` sigue con `ON DELETE SET NULL` (`V84`), que es lo que hace perder su origen a lo retirado de un pendiente que se borra. `V86` solo siembra el permiso. | Responsable del proyecto |
 | 0.108.0 | 08-10-2026 | **Nace `commission_payment_choices`, y `commission_closings` gana tres columnas** ([`requirements/cm.md`](requirements/cm.md) v0.43.0 §5.12, §7.8 y §7.14, `RN-CM-053`, `RN-CM-054`), por decisión del responsable del proyecto: el cierre programado paga lo que cerró salvo que se elija manual en las 48 horas anteriores. **Una fila por turno elegido y ninguna por los demás**: la ausencia es el automático por defecto. **No referencia `commission_closings`**, que se escribe después; los une `scheduled_for`. El cierre guarda el modo que leyó al abrir el turno —presente si y solo si es programado— y cuántos lotes pagó y cuántos no. La escribe `V87`. | Responsable del proyecto |
 | 0.109.0 | 09-10-2026 | **`user_brokers.kind`** (`RN-SP-068`, `V91`): `VENDEDOR` \| `CONSUMIDOR`, sin `DEFAULT`, con `ck_user_brokers_kind` y `ck_user_brokers_ftd_solo_consumidor`. | Responsable técnico |
+| 0.110.0 | 09-10-2026 | **Nace `lesson_progress`, diseñada** ([`requirements/ac.md`](requirements/ac.md) v0.21.0 §8.7.1): el progreso del alumno por lección —segundos vistos, completada, primera y última apertura—, con clave `(user_id, lesson_id)` y escritura por `ON CONFLICT` con el máximo en el motor. §4.2 la dibuja, §5.1 la cuenta y §5.3 gana su clave hacia `users`. La escribirá `V92`. | Responsable técnico |

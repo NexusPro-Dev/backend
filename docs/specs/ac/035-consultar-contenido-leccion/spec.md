@@ -11,6 +11,10 @@
 
 ---
 
+!!! warning "Enmendada el 09-10-2026 — entregar el contenido deja rastro (Art. I.7)"
+
+    Con el progreso del alumno ([`requirements/ac.md`](../../../requirements/ac.md) v0.21.0 §5.2.14, `RN-AC-022`), **entregar el contenido anota la apertura** —la primera y la última— y **una lección `TEXTO` queda completada** en el acto. **Solo cuando se entrega**: un `403` o un `404` no dejan nada. La respuesta gana **`watchedSeconds`** y **`completedAt`**, para que el reproductor retome donde se quedó. **Deja de ser de solo lectura**: la anotación va en la misma transacción, y **no se audita** (§5.2.14). Las puertas pasan a `ClassroomLessonGate`, que comparte con `RF-AC-039`, sin cambiar lo que responden. `CA-AC-240` a `CA-AC-242`.
+
 ## 1. Objetivo
 
 Estudiar: la lección con su **contenido** —la URL si es `VIDEO`, el Markdown si es `TEXTO`— para quien tiene derecho a verlo.
@@ -133,7 +137,9 @@ Es **el único sitio donde el contenido de una lección sale hacia un alumno**, 
 | `CA-AC-206` | **`404` antes que `403`**: una lección cerrada de un curso que no se ofrece responde `404`; y una **abierta** de un curso que no se ofrece, `404` |
 | `CA-AC-207` | La lectura cuesta **una sentencia** para la abierta, la del curso sin llaves y el `404`, y **tres** para la cerrada —lección, membresías, servicios— más las de los puertos |
 | `CA-AC-208` | Sin `lessons:learn` responde `403` **sin `memberships`** aunque el actor porte `courses:read` o `courses:learn`; el `403` de permiso y el de llave se distinguen por el código de error |
-| `CA-AC-239` | **Un servicio vigente abre**: la lección cerrada de un curso con un servicio en su lista se devuelve a quien lo tiene vigente, y responde `403` a quien lo tuvo vencido |
+| `CA-AC-239` | **Un servicio vigente abre**: la lección cerrada de un curso con un servicio en su lista se devuelve a quien lo tiene vigente, y responde `403` a quien lo tuvo vencido || `CA-AC-240` | Abrir una lección `VIDEO` crea la fila con **cero segundos** y la primera y la última apertura; abrirla otra vez **mueve la última y conserva la primera** y los segundos |
+| `CA-AC-241` | Abrir una lección **`TEXTO`** la **completa** (`completedAt` presente); un `403` de llave y un `404` **no dejan fila**; nada de esto escribe en `audit_log` |
+| `CA-AC-242` | La respuesta trae **`watchedSeconds`** y **`completedAt`** de quien pregunta: los de un video reportado con `RF-AC-039` |
 
 ## 13. Casos límite
 
@@ -161,3 +167,4 @@ Es **el único sitio donde el contenido de una lección sale hacia un alumno**, 
 | 0.3.0 | 25-09-2026 | **Enmienda por decisión del responsable del proyecto** (`ac.md` §5.2.10, `RN-AC-017`): **la duración de la lección se guarda en segundos**, y las sumas del módulo y del curso también: `durationSeconds` y `totalDurationSeconds` sustituyen a `durationMinutes` y `totalDurationMinutes` en el cuerpo de esta spec. Las filas anteriores de esta tabla conservan el nombre que tenía el campo en su fecha. | Responsable técnico |
 | 0.4.0 | 25-09-2026 | **Enmienda por decisión del responsable del proyecto** (`ac.md` §5.2.12, `RN-AC-015` reescrita): **un curso sin membresías ni servicios es de todos** y las llaves dejan de ser motivo de la ofrecibilidad, que queda en **cuatro** —retirado, inactivo, sin descripción, sin módulo ofrecible—. **En el aula, un curso sin llaves es `accessible` para todo alumno con sesión** y sus lecciones cerradas se abren a todos. El cuerpo de esta spec se reescribe al construirla. | Responsable técnico |
 | 1.0.0 | 26-09-2026 | **Cuerpo reescrito al construir**, con las enmiendas del 25-09-2026 dentro: el servicio vigente abre (`CA-AC-239`, nuevo), el curso sin llaves es de todos (`FA-004`) y el `403` lleva **`memberships` y `products`**, con el mensaje «Ni tu membresía ni tus servicios abren este curso.». **Permiso propio `lessons:learn`** (`ac.md` v0.20.0 §5.2.13), sembrado por `V47`. La cerrada cuesta **tres** sentencias —la de servicios entra— (`CA-AC-207`). Se retira de `CA-AC-205` «por cualquiera de sus cinco motivos»: son cuatro, y el caso del curso no ofrecido se prueba con uno. | Responsable técnico |
+| 1.1.0 | 09-10-2026 | **Entregar el contenido deja rastro** (`ac.md` v0.21.0 §5.2.14, `RN-AC-022`): primera y última apertura, y el `TEXTO` completado; la respuesta gana `watchedSeconds` y `completedAt`; las puertas, a `ClassroomLessonGate`. `CA-AC-240` a `CA-AC-242`. | Responsable técnico |

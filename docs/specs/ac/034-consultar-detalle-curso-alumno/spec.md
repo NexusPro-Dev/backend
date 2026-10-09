@@ -11,6 +11,10 @@
 
 ---
 
+!!! warning "Enmendada el 09-10-2026 — el avance de quien mira (Art. I.7)"
+
+    Con el progreso del alumno ([`requirements/ac.md`](../../../requirements/ac.md) v0.21.0 §5.2.14), **el curso trae `progress`** (`RN-AC-023`) y **cada lección `watchedSeconds`, `completed` y `completedAt`** de quien pregunta: con eso el frontend pinta la marca y sabe por dónde seguir. Una sentencia más —las filas de `lesson_progress` del alumno en las lecciones del árbol— (`CA-AC-200` pasa de seis a siete). `CA-AC-251` y `CA-AC-252`.
+
 ## 1. Objetivo
 
 Que el alumno vea **el curso entero antes de entrar** —qué enseña, quién, cuánto dura, qué conviene ver antes— y sepa **qué le abre**: cada lección marcada con si puede pedir su contenido.
@@ -122,7 +126,8 @@ Es la pantalla donde la decisión de §1.4 se ve entera: **un curso que las llav
 | `CA-AC-198` | `accessible` del curso es verdadero si la vigente está en su lista, si tiene vigente uno de sus servicios o si el curso no declara llaves, y falso si no; el de cada lección es **el del curso o `open`**; sin vigente, `currentMembership` es nula |
 | `CA-AC-199` | `recommendedCourses` trae **solo los que se ofrecen** — vacía hasta `RF-AC-018`, que es quien crea la relación; **`CA-AC-075` se hace real allí** |
 | `CA-AC-200` | La lectura cuesta **seis sentencias** —curso con instructor, categorías, membresías, servicios, módulos, lecciones— **más las de los dos puertos**; la de recomendados no consulta hasta `RF-AC-018`; sin módulos, la de lecciones no se ejecuta; el `404` cuesta una |
-| `CA-AC-201` | Sin `courses:read-available` responde `403` aunque el actor porte `courses:read` **o `courses:learn`** |
+| `CA-AC-201` | Sin `courses:read-available` responde `403` aunque el actor porte `courses:read` **o `courses:learn`** || `CA-AC-251` | **El curso y cada lección traen el avance de quien pregunta**: un video a medias con sus segundos, uno completado con `completedAt`, una lección no abierta en cero con `completedAt` nulo; el avance del curso cuadra con `RN-AC-023` |
+| `CA-AC-252` | Una lección completada que **deja de ofrecerse** sale del árbol y **de la cuenta** sin perder su fila; al **volver a activarse**, vuelve completada |
 
 ## 13. Casos límite
 
@@ -150,3 +155,4 @@ Es la pantalla donde la decisión de §1.4 se ve entera: **un curso que las llav
 | 0.3.0 | 25-09-2026 | **Enmienda por decisión del responsable del proyecto** (`ac.md` §5.2.10, `RN-AC-017`): **la duración de la lección se guarda en segundos**, y las sumas del módulo y del curso también: `durationSeconds` y `totalDurationSeconds` sustituyen a `durationMinutes` y `totalDurationMinutes` en el cuerpo de esta spec. Las filas anteriores de esta tabla conservan el nombre que tenía el campo en su fecha. | Responsable técnico |
 | 0.4.0 | 25-09-2026 | **Enmienda por decisión del responsable del proyecto** (`ac.md` §5.2.12, `RN-AC-015` reescrita): **un curso sin membresías ni servicios es de todos** y las llaves dejan de ser motivo de la ofrecibilidad, que queda en **cuatro** —retirado, inactivo, sin descripción, sin módulo ofrecible—. **En el aula, un curso sin llaves es `accessible` para todo alumno con sesión** y sus lecciones cerradas se abren a todos. El cuerpo de esta spec se reescribe al construirla. | Responsable técnico |
 | 1.0.0 | 26-09-2026 | **Cuerpo reescrito al construir**, con las tres enmiendas del 25-09-2026 dentro —`products` y el servicio como llave, curso sin llaves de todos, segundos— y **el permiso propio `courses:read-available`** (`ac.md` v0.20.0 §5.2.13, `RN-SEG-014`), sembrado por `V47`. Gana **`openLessonCount`**, como el catálogo. **`CA-AC-199` y `CA-AC-075` esperan a `RF-AC-018`**: la relación de recomendaciones no existe todavía, y el lector la consume por la misma lectura que la llenará. La cuenta de sentencias sigue en **seis**: entra la de servicios y la de recomendados no consulta hasta `RF-AC-018`, que la hará siete (`CA-AC-200`). | Responsable técnico |
+| 1.1.0 | 09-10-2026 | **El curso trae `progress` y cada lección su avance** (`ac.md` v0.21.0 §5.2.14, `RN-AC-023`), con una sentencia más. `CA-AC-251`, `CA-AC-252`. | Responsable técnico |
