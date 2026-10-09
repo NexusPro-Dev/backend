@@ -13,6 +13,12 @@ public interface BrokerNotificationRepository {
   Optional<UUID> findActiveByName(String name);
 
   /**
+   * El broker activo cuyo {@code advertiser} es ese, sin distinguir mayúsculas —la expresión de
+   * {@code uq_brokers_advertiser}— (`RN-SP-069`), o vacío.
+   */
+  Optional<UUID> findActiveByAdvertiser(String advertiser);
+
+  /**
    * Guarda un aviso. {@code queryParams} y {@code headers} son JSON ya armado; {@code body} es el
    * cuerpo como texto, o nulo.
    */

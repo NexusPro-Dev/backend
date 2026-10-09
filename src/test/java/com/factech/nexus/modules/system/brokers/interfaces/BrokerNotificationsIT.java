@@ -43,6 +43,14 @@ class BrokerNotificationsIT extends IntegrationTestBase {
   @BeforeEach
   void limpiarAntes() {
     limpiar();
+    // Otras suites vacían `brokers` y lo reponen sin el `advertiser` de `V93`.
+    jdbc.update(
+        "INSERT INTO brokers (id, name) VALUES (?, 'IQOPTION'), (?, 'EXNOVA'), (?, 'EXOPTION')"
+            + " ON CONFLICT DO NOTHING",
+        IQOPTION,
+        EXNOVA,
+        EXOPTION);
+    jdbc.update("UPDATE brokers SET advertiser = 'iq_option' WHERE id = ?", IQOPTION);
   }
 
   /** También al terminar, y reponiendo el broker que alguna prueba desactiva. */
@@ -60,7 +68,7 @@ class BrokerNotificationsIT extends IntegrationTestBase {
 
   private void limpiar() {
     jdbc.update("DELETE FROM broker_notifications");
-    jdbc.update("DELETE FROM request_log WHERE path LIKE '/api/v1/brokers/%/notifications'");
+    jdbc.update("DELETE FROM request_log WHERE path LIKE '/api/v1/brokers/%notifications'");
   }
 
   /** La dirección del broker, por su nombre en minúsculas, que es como va en el panel. */
@@ -73,6 +81,8 @@ class BrokerNotificationsIT extends IntegrationTestBase {
   private static String rutaDe(String nombre) {
     return "/api/v1/brokers/" + nombre + "/notifications";
   }
+
+  private static final String COMUN = "/api/v1/brokers/notifications";
 
   private int guardados() {
     return jdbc.queryForObject("SELECT count(*) FROM broker_notifications", Integer.class);
@@ -303,5 +313,108 @@ class BrokerNotificationsIT extends IntegrationTestBase {
         .isEqualTo("FTD_PENDIENTE");
     assertThat(guardados()).isOne();
     assertThat((String) elUnico().get("query_params")).contains("BN-778899");
+  }
+
+  // ---------------------------------------------------------------------------
+  // La dirección común (`RN-SP-069`, 09-10-2026)
+  // ---------------------------------------------------------------------------
+
+  @Test
+  @DisplayName(
+      "CA-SP-946 — por la dirección común, advertiser=iq_option se guarda a nombre de IQOPTION,"
+          + " tal como llegó")
+  void laDireccionComun() throws Exception {
+    // La forma de un aviso real de IQ Option del 09-10-2026.
+    mvc.perform(
+            get(
+                COMUN
+                    + "?clickid=&afftrack=DIEGOIQ&trader_id=196581821&advertiser=iq_option"
+                    + "&postback_name=PRUEBA&token=secreto-comun"))
+        .andExpect(status().isOk())
+        .andExpect(content().string(""));
+
+    Map<String, Object> fila = elUnico();
+    assertThat(fila.get("broker_id")).isEqualTo(IQOPTION);
+    String consulta = (String) fila.get("query_params");
+    assertThat((List<String>) JsonPath.read(consulta, "$.advertiser")).containsExactly("iq_option");
+    assertThat((List<String>) JsonPath.read(consulta, "$.trader_id")).containsExactly("196581821");
+    assertThat(consulta).doesNotContain("secreto-comun");
+  }
+
+  @Test
+  @DisplayName(
+      "CA-SP-947 — advertiser sin distinguir mayúsculas, y también en un formulario o en un JSON")
+  void elAdvertiserEnCualquierParte() throws Exception {
+    mvc.perform(get(COMUN + "?advertiser=IQ_Option&token=secreto-comun"))
+        .andExpect(status().isOk());
+    mvc.perform(
+            post(COMUN + "?token=secreto-comun")
+                .contentType(MediaType.APPLICATION_FORM_URLENCODED)
+                .content("event=ftd&advertiser=iq_option"))
+        .andExpect(status().isOk());
+    String json = "{\"advertiser\": \"iq_option\", \"event\": \"ftd\"}";
+    mvc.perform(
+            post(COMUN + "?token=secreto-comun")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(json))
+        .andExpect(status().isOk());
+
+    assertThat(jdbc.queryForList("SELECT DISTINCT broker_id FROM broker_notifications", UUID.class))
+        .containsExactly(IQOPTION);
+    // El cuerpo se guarda tal cual: leer el advertiser no lo reescribe.
+    assertThat(
+            jdbc.queryForList(
+                "SELECT body FROM broker_notifications WHERE body IS NOT NULL ORDER BY body",
+                String.class))
+        .containsExactlyInAnyOrder("event=ftd&advertiser=iq_option", json);
+  }
+
+  @Test
+  @DisplayName(
+      "CA-SP-948 — sin advertiser, repetido, desconocido o de un broker apagado: 404 y nada"
+          + " guardado")
+  void advertiserQueNoProcede() throws Exception {
+    mvc.perform(get(COMUN + "?event=ftd&token=secreto-comun")).andExpect(status().isNotFound());
+    mvc.perform(get(COMUN + "?advertiser=iq_option&advertiser=iq_option&token=secreto-comun"))
+        .andExpect(status().isNotFound());
+    mvc.perform(get(COMUN + "?advertiser=exnova&token=secreto-comun"))
+        .andExpect(status().isNotFound());
+    mvc.perform(
+            post(COMUN + "?token=secreto-comun")
+                .contentType(MediaType.TEXT_PLAIN)
+                .content("advertiser=iq_option"))
+        .andExpect(status().isNotFound());
+
+    jdbc.update("UPDATE brokers SET is_active = false WHERE id = ?", IQOPTION);
+    mvc.perform(get(COMUN + "?advertiser=iq_option&token=secreto-comun"))
+        .andExpect(status().isNotFound());
+
+    assertThat(guardados()).isZero();
+  }
+
+  @Test
+  @DisplayName(
+      "CA-SP-949, CA-SP-950 — sin el secreto común, o con el de un broker, 401 aunque el"
+          + " advertiser sea válido; y un advertiser desconocido sin secreto también es 401")
+  void sinElSecretoComun() throws Exception {
+    mvc.perform(get(COMUN + "?advertiser=iq_option")).andExpect(status().isUnauthorized());
+    mvc.perform(get(COMUN + "?advertiser=iq_option&token=secreto-iq"))
+        .andExpect(status().isUnauthorized());
+    mvc.perform(get(COMUN + "?advertiser=no-existe&token=otro"))
+        .andExpect(status().isUnauthorized());
+
+    assertThat(guardados()).isZero();
+  }
+
+  @Test
+  @DisplayName("CA-SP-952 — la ruta por nombre sigue funcionando con su secreto por broker")
+  void laRutaPorNombreSigue() throws Exception {
+    mvc.perform(get(rutaDe("iqoption") + "?advertiser=iq_option&token=secreto-iq"))
+        .andExpect(status().isOk());
+    // Y el secreto común no la abre.
+    mvc.perform(get(rutaDe("iqoption") + "?token=secreto-comun"))
+        .andExpect(status().isUnauthorized());
+
+    assertThat(guardados()).isOne();
   }
 }

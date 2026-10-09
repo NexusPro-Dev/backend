@@ -11,4 +11,9 @@ import java.util.UUID;
  * negocio</b>, con índice único funcional en el esquema.
  */
 @JsonInclude(JsonInclude.Include.ALWAYS)
-public record BrokerItem(UUID id, String name, boolean isActive) {}
+public record BrokerItem(
+    UUID id,
+    String name,
+    boolean isActive,
+    // Nulo y presente: «todavía no se cargó» (`RF-SP-052`, 09-10-2026).
+    String url) {}

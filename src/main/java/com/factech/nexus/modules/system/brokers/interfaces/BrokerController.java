@@ -40,7 +40,11 @@ public class BrokerController {
           Devuelve los brokers con los que opera la plataforma, **ordenados por
           nombre**.
 
-          **Un broker guarda de momento solo su nombre**, y eso tiene una
+          **Cada broker trae su enlace de registro** (`url`, 09-10-2026): la
+          dirección del broker a la que se manda a la persona para abrir su
+          cuenta. **Es nulo mientras no se haya cargado.**
+
+          **Un broker se identifica de momento por su nombre**, y eso tiene una
           consecuencia que conviene conocer antes de integrarse: **el nombre es la
           clave de negocio**, no un texto descriptivo. No hay un `code` estable
           frente a un cambio de nombre comercial — quien necesite referenciar un

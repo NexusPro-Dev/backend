@@ -14,10 +14,21 @@ import org.springframework.boot.context.properties.ConfigurationProperties;
  * repositorio. Un secreto vacío es un broker <b>sin configurar</b>, que no puede avisar.
  */
 @ConfigurationProperties(prefix = "nexus.brokers")
-public record BrokerNotificationSettings(Map<UUID, String> notificationTokens) {
+public record BrokerNotificationSettings(
+    Map<UUID, String> notificationTokens, String notificationToken) {
 
   public BrokerNotificationSettings {
     notificationTokens = notificationTokens == null ? Map.of() : Map.copyOf(notificationTokens);
+  }
+
+  /**
+   * El secreto de la dirección común (`RN-SP-069`), o vacío si no está configurado. Uno para todos
+   * los brokers: el broker lo dice el `advertiser` del aviso, no el secreto.
+   */
+  public Optional<String> commonToken() {
+    return notificationToken == null || notificationToken.isBlank()
+        ? Optional.empty()
+        : Optional.of(notificationToken);
   }
 
   /** El secreto de ese broker, o vacío si no está configurado. */

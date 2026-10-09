@@ -29,7 +29,7 @@ public class JpaBrokerQueryRepository implements BrokerQueryRepository {
   @Transactional(readOnly = true)
   public List<BrokerItem> findAll(boolean incluirInactivos) {
     String sql =
-        "SELECT b.id AS id, b.name AS name, b.is_active AS is_active"
+        "SELECT b.id AS id, b.name AS name, b.is_active AS is_active, b.url AS url"
             + " FROM brokers b"
             // El predicado se arma aquí y no con `(:flag OR b.is_active)`: ese
             // patrón impide que el motor use un índice, y es el que `RF-SP-002`
@@ -46,7 +46,10 @@ public class JpaBrokerQueryRepository implements BrokerQueryRepository {
     for (Tuple fila : filas) {
       resultado.add(
           new BrokerItem(
-              (UUID) fila.get("id"), (String) fila.get("name"), (Boolean) fila.get("is_active")));
+              (UUID) fila.get("id"),
+              (String) fila.get("name"),
+              (Boolean) fila.get("is_active"),
+              (String) fila.get("url")));
     }
     return resultado;
   }

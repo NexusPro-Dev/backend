@@ -34,6 +34,17 @@ public class JpaBrokerNotificationRepository implements BrokerNotificationReposi
   }
 
   @Override
+  public Optional<UUID> findActiveByAdvertiser(String advertiser) {
+    @SuppressWarnings("unchecked")
+    List<UUID> filas =
+        em.createNativeQuery(
+                "SELECT id FROM brokers WHERE lower(advertiser) = lower(:anunciante) AND is_active")
+            .setParameter("anunciante", advertiser)
+            .getResultList();
+    return filas.stream().findFirst();
+  }
+
+  @Override
   public void insert(
       UUID id,
       UUID brokerId,

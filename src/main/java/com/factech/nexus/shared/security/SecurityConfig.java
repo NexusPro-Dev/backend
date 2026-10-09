@@ -127,7 +127,12 @@ public class SecurityConfig {
     // nada. Lo que escribe no tiene efecto —una fila que nada lee todavía— y
     // queda fuera de la cota, como las pasarelas: un broker que reenvía no debe
     // toparse con un 429. Un `*` es UN segmento: solo esta ruta de la familia.
-    "/api/v1/brokers/*/notifications"
+    "/api/v1/brokers/*/notifications",
+    // LA DIRECCIÓN COMÚN DE LOS AVISOS (`RN-SP-069`, 09-10-2026): la misma para
+    // todos los brokers, con UN secreto; el broker lo dice el `advertiser` del
+    // aviso, y se mira DESPUÉS del secreto. Mismo trato que la de arriba, que
+    // queda obsoleta mientras se cambian los paneles.
+    "/api/v1/brokers/notifications"
   };
 
   /**

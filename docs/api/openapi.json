@@ -528,6 +528,9 @@
           },
           "name" : {
             "type" : "string"
+          },
+          "url" : {
+            "type" : "string"
           }
         },
         "type" : "object"
@@ -11718,7 +11721,7 @@
     },
     "/api/v1/brokers" : {
       "get" : {
-        "description" : "**Permiso requerido:** ninguno. Ruta pública: responde sin token.\n\nDevuelve los brokers con los que opera la plataforma, **ordenados por\nnombre**.\n\n**Un broker guarda de momento solo su nombre**, y eso tiene una\nconsecuencia que conviene conocer antes de integrarse: **el nombre es la\nclave de negocio**, no un texto descriptivo. No hay un `code` estable\nfrente a un cambio de nombre comercial — quien necesite referenciar un\nbroker debe hacerlo por su **identificador**.\n\n**No se administra por API** (`RN-SP-039`): no hay alta, ni edición, ni\neliminación, ni cambio de estado. Se puebla por migración, igual que los\ncatálogos de monedas y de tipos de documento, y cada alta queda en el\nhistorial del repositorio en lugar de en una fila que alguien insertó.\n\n**Puede responder la colección vacía**, y eso no es un fallo: es el\nestado de un catálogo que todavía no se ha sembrado.\n\n**No se pagina**: son unos pocos elementos y partirlos obligaría a dos\nllamadas para pintar un desplegable.\n",
+        "description" : "**Permiso requerido:** ninguno. Ruta pública: responde sin token.\n\nDevuelve los brokers con los que opera la plataforma, **ordenados por\nnombre**.\n\n**Cada broker trae su enlace de registro** (`url`, 09-10-2026): la\ndirección del broker a la que se manda a la persona para abrir su\ncuenta. **Es nulo mientras no se haya cargado.**\n\n**Un broker se identifica de momento por su nombre**, y eso tiene una\nconsecuencia que conviene conocer antes de integrarse: **el nombre es la\nclave de negocio**, no un texto descriptivo. No hay un `code` estable\nfrente a un cambio de nombre comercial — quien necesite referenciar un\nbroker debe hacerlo por su **identificador**.\n\n**No se administra por API** (`RN-SP-039`): no hay alta, ni edición, ni\neliminación, ni cambio de estado. Se puebla por migración, igual que los\ncatálogos de monedas y de tipos de documento, y cada alta queda en el\nhistorial del repositorio en lugar de en una fila que alguien insertó.\n\n**Puede responder la colección vacía**, y eso no es un fallo: es el\nestado de un catálogo que todavía no se ha sembrado.\n\n**No se pagina**: son unos pocos elementos y partirlos obligaría a dos\nllamadas para pintar un desplegable.\n",
         "operationId" : "listar_15",
         "parameters" : [ {
           "in" : "query",
@@ -11748,9 +11751,78 @@
         "tags" : [ "Brokers" ]
       }
     },
+    "/api/v1/brokers/notifications" : {
+      "get" : {
+        "description" : "**Permiso requerido:** ninguno. Ruta pública: responde sin token.\n\n**La dirección común** (`RN-SP-069`, 09-10-2026): la misma para todos los brokers, sin su\nnombre. La autentica **un solo secreto**, en el parámetro `token`, y **el broker lo dice el\npropio aviso** en `advertiser` —`iq_option` en los de IQ Option—: en la dirección o, si no\nviene ahí, en un cuerpo de formulario o en el primer nivel de un JSON. Sin distinguir\nmayúsculas. **El `advertiser` se comprueba después del secreto.** El aviso se guarda **entero\ny sin interpretar**, como por la ruta por nombre, y se responde `200` sin cuerpo.\n",
+        "operationId" : "commonBrokerNotificationByQuery",
+        "parameters" : [ {
+          "description" : "El secreto común de los avisos. No se guarda.",
+          "in" : "query",
+          "name" : "token",
+          "required" : true,
+          "schema" : {
+            "type" : "string"
+          }
+        } ],
+        "responses" : {
+          "200" : {
+            "description" : "Guardado; cuerpo vacío."
+          },
+          "400" : {
+            "description" : "Cuerpo de más de 64 KiB (`EX-004`)"
+          },
+          "401" : {
+            "description" : "Sin `token`, con `token` repetido o con otro (`EX-001`). No se guarda nada"
+          },
+          "404" : {
+            "description" : "El aviso no trae `advertiser`, lo trae repetido, o no es el de ningún broker activo (`EX-003`). No se guarda nada"
+          },
+          "503" : {
+            "description" : "La dirección común no tiene secreto configurado (`EX-002`). No se guarda nada"
+          }
+        },
+        "security" : [ ],
+        "summary" : "Recibir un aviso de cualquier broker (datos en la dirección)",
+        "tags" : [ "Avisos de los brokers" ]
+      },
+      "post" : {
+        "description" : "**Permiso requerido:** ninguno. Ruta pública: responde sin token.\n\n**La dirección común** (`RN-SP-069`, 09-10-2026): la misma para todos los brokers, sin su\nnombre. La autentica **un solo secreto**, en el parámetro `token`, y **el broker lo dice el\npropio aviso** en `advertiser` —`iq_option` en los de IQ Option—: en la dirección o, si no\nviene ahí, en un cuerpo de formulario o en el primer nivel de un JSON. Sin distinguir\nmayúsculas. **El `advertiser` se comprueba después del secreto.** El aviso se guarda **entero\ny sin interpretar**, como por la ruta por nombre, y se responde `200` sin cuerpo.\n\nAdmite **cualquier tipo de contenido**, de hasta 64 KiB; un formulario se guarda tal cual, sin desarmarlo.",
+        "operationId" : "commonBrokerNotificationByBody",
+        "parameters" : [ {
+          "description" : "El secreto común de los avisos. No se guarda.",
+          "in" : "query",
+          "name" : "token",
+          "required" : true,
+          "schema" : {
+            "type" : "string"
+          }
+        } ],
+        "responses" : {
+          "200" : {
+            "description" : "Guardado; cuerpo vacío."
+          },
+          "400" : {
+            "description" : "Cuerpo de más de 64 KiB (`EX-004`)"
+          },
+          "401" : {
+            "description" : "Sin `token`, con `token` repetido o con otro (`EX-001`). No se guarda nada"
+          },
+          "404" : {
+            "description" : "El aviso no trae `advertiser`, lo trae repetido, o no es el de ningún broker activo (`EX-003`). No se guarda nada"
+          },
+          "503" : {
+            "description" : "La dirección común no tiene secreto configurado (`EX-002`). No se guarda nada"
+          }
+        },
+        "security" : [ ],
+        "summary" : "Recibir un aviso de cualquier broker (datos en el cuerpo)",
+        "tags" : [ "Avisos de los brokers" ]
+      }
+    },
     "/api/v1/brokers/{name}/notifications" : {
       "get" : {
-        "description" : "**Permiso requerido:** ninguno. Ruta pública: responde sin token.\n\n**La llama el broker, no el frontend** (`RF-SP-078`). Ruta **pública**: la autentica el\nsecreto propio de ese broker, en el parámetro `token` de la dirección (`RN-SP-066`). El\naviso se guarda **entero y sin interpretar** —método, parámetros de la dirección salvo\n`token`, cabeceras salvo las de credenciales, cuerpo tal cual, tipo de contenido y origen—\ny se responde `200` sin cuerpo. **No cambia nada más**: ni cuentas de broker, ni personas.\nDos avisos iguales se guardan dos veces. `{name}` es el nombre del broker en el catálogo\n(`GET /api/v1/brokers`), sin distinguir mayúsculas: `iqoption`, `exnova`, `exoption`.\n",
+        "deprecated" : true,
+        "description" : "**Permiso requerido:** ninguno. Ruta pública: responde sin token.\n\n**Obsoleta desde el 09-10-2026** (`RN-SP-069`): sigue funcionando mientras se cambia la\ndirección en cada panel de afiliados por la común, `/api/v1/brokers/notifications`.\n\n**La llama el broker, no el frontend** (`RF-SP-078`). Ruta **pública**: la autentica el\nsecreto propio de ese broker, en el parámetro `token` de la dirección (`RN-SP-066`). El\naviso se guarda **entero y sin interpretar** —método, parámetros de la dirección salvo\n`token`, cabeceras salvo las de credenciales, cuerpo tal cual, tipo de contenido y origen—\ny se responde `200` sin cuerpo. **No cambia nada más**: ni cuentas de broker, ni personas.\nDos avisos iguales se guardan dos veces. `{name}` es el nombre del broker en el catálogo\n(`GET /api/v1/brokers`), sin distinguir mayúsculas: `iqoption`, `exnova`, `exoption`.\n",
         "operationId" : "brokerNotificationByQuery",
         "parameters" : [ {
           "in" : "path",
@@ -11790,7 +11862,8 @@
         "tags" : [ "Avisos de los brokers" ]
       },
       "post" : {
-        "description" : "**Permiso requerido:** ninguno. Ruta pública: responde sin token.\n\n**La llama el broker, no el frontend** (`RF-SP-078`). Ruta **pública**: la autentica el\nsecreto propio de ese broker, en el parámetro `token` de la dirección (`RN-SP-066`). El\naviso se guarda **entero y sin interpretar** —método, parámetros de la dirección salvo\n`token`, cabeceras salvo las de credenciales, cuerpo tal cual, tipo de contenido y origen—\ny se responde `200` sin cuerpo. **No cambia nada más**: ni cuentas de broker, ni personas.\nDos avisos iguales se guardan dos veces. `{name}` es el nombre del broker en el catálogo\n(`GET /api/v1/brokers`), sin distinguir mayúsculas: `iqoption`, `exnova`, `exoption`.\n\nAdmite **cualquier tipo de contenido**, de hasta 64 KiB; un formulario se guarda tal cual, sin desarmarlo.",
+        "deprecated" : true,
+        "description" : "**Permiso requerido:** ninguno. Ruta pública: responde sin token.\n\n**Obsoleta desde el 09-10-2026** (`RN-SP-069`): sigue funcionando mientras se cambia la\ndirección en cada panel de afiliados por la común, `/api/v1/brokers/notifications`.\n\n**La llama el broker, no el frontend** (`RF-SP-078`). Ruta **pública**: la autentica el\nsecreto propio de ese broker, en el parámetro `token` de la dirección (`RN-SP-066`). El\naviso se guarda **entero y sin interpretar** —método, parámetros de la dirección salvo\n`token`, cabeceras salvo las de credenciales, cuerpo tal cual, tipo de contenido y origen—\ny se responde `200` sin cuerpo. **No cambia nada más**: ni cuentas de broker, ni personas.\nDos avisos iguales se guardan dos veces. `{name}` es el nombre del broker en el catálogo\n(`GET /api/v1/brokers`), sin distinguir mayúsculas: `iqoption`, `exnova`, `exoption`.\n\nAdmite **cualquier tipo de contenido**, de hasta 64 KiB; un formulario se guarda tal cual, sin desarmarlo.",
         "operationId" : "brokerNotificationByBody",
         "parameters" : [ {
           "in" : "path",

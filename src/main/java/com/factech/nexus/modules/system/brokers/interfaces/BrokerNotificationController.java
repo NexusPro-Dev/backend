@@ -39,11 +39,14 @@ import org.springframework.web.bind.annotation.RestController;
         "Lo que avisa cada broker (RF-SP-078). Solo lo llaman los brokers, con su secreto; el"
             + " frontend no.")
 @RestController
-@RequestMapping("/api/v1/brokers/{name}/notifications")
+@RequestMapping("/api/v1/brokers")
 public class BrokerNotificationController {
 
   private static final String DESCRIPCION =
       """
+      **Obsoleta desde el 09-10-2026** (`RN-SP-069`): sigue funcionando mientras se cambia la
+      dirección en cada panel de afiliados por la común, `/api/v1/brokers/notifications`.
+
       **La llama el broker, no el frontend** (`RF-SP-078`). Ruta **pública**: la autentica el
       secreto propio de ese broker, en el parámetro `token` de la dirección (`RN-SP-066`). El
       aviso se guarda **entero y sin interpretar** —método, parámetros de la dirección salvo
@@ -53,14 +56,102 @@ public class BrokerNotificationController {
       (`GET /api/v1/brokers`), sin distinguir mayúsculas: `iqoption`, `exnova`, `exoption`.
       """;
 
+  private static final String DESCRIPCION_COMUN =
+      """
+      **La dirección común** (`RN-SP-069`, 09-10-2026): la misma para todos los brokers, sin su
+      nombre. La autentica **un solo secreto**, en el parámetro `token`, y **el broker lo dice el
+      propio aviso** en `advertiser` —`iq_option` en los de IQ Option—: en la dirección o, si no
+      viene ahí, en un cuerpo de formulario o en el primer nivel de un JSON. Sin distinguir
+      mayúsculas. **El `advertiser` se comprueba después del secreto.** El aviso se guarda **entero
+      y sin interpretar**, como por la ruta por nombre, y se responde `200` sin cuerpo.
+      """;
+
   private final ReceiveBrokerNotificationService recepcion;
 
   public BrokerNotificationController(ReceiveBrokerNotificationService recepcion) {
     this.recepcion = recepcion;
   }
 
-  @GetMapping
+  @GetMapping("/notifications")
   @Operation(
+      summary = "Recibir un aviso de cualquier broker (datos en la dirección)",
+      description = DESCRIPCION_COMUN)
+  @Parameter(
+      name = ReceiveBrokerNotificationService.TOKEN,
+      in = ParameterIn.QUERY,
+      required = true,
+      description = "El secreto común de los avisos. No se guarda.",
+      schema = @Schema(type = "string"))
+  @ApiResponses({
+    @ApiResponse(responseCode = "200", description = "Guardado; cuerpo vacío.", content = @Content),
+    @ApiResponse(
+        responseCode = "400",
+        description = "Cuerpo de más de 64 KiB (`EX-004`)",
+        content = @Content),
+    @ApiResponse(
+        responseCode = "401",
+        description = "Sin `token`, con `token` repetido o con otro (`EX-001`). No se guarda nada",
+        content = @Content),
+    @ApiResponse(
+        responseCode = "404",
+        description =
+            "El aviso no trae `advertiser`, lo trae repetido, o no es el de ningún broker activo"
+                + " (`EX-003`). No se guarda nada",
+        content = @Content),
+    @ApiResponse(
+        responseCode = "503",
+        description =
+            "La dirección común no tiene secreto configurado (`EX-002`). No se guarda nada",
+        content = @Content)
+  })
+  public ResponseEntity<Void> commonBrokerNotificationByQuery(HttpServletRequest peticion)
+      throws IOException {
+    return recibir(null, peticion);
+  }
+
+  @PostMapping(path = "/notifications", consumes = "*/*")
+  @Operation(
+      summary = "Recibir un aviso de cualquier broker (datos en el cuerpo)",
+      description =
+          DESCRIPCION_COMUN
+              + "\nAdmite **cualquier tipo de contenido**, de hasta 64 KiB; un formulario se"
+              + " guarda tal cual, sin desarmarlo.")
+  @Parameter(
+      name = ReceiveBrokerNotificationService.TOKEN,
+      in = ParameterIn.QUERY,
+      required = true,
+      description = "El secreto común de los avisos. No se guarda.",
+      schema = @Schema(type = "string"))
+  @ApiResponses({
+    @ApiResponse(responseCode = "200", description = "Guardado; cuerpo vacío.", content = @Content),
+    @ApiResponse(
+        responseCode = "400",
+        description = "Cuerpo de más de 64 KiB (`EX-004`)",
+        content = @Content),
+    @ApiResponse(
+        responseCode = "401",
+        description = "Sin `token`, con `token` repetido o con otro (`EX-001`). No se guarda nada",
+        content = @Content),
+    @ApiResponse(
+        responseCode = "404",
+        description =
+            "El aviso no trae `advertiser`, lo trae repetido, o no es el de ningún broker activo"
+                + " (`EX-003`). No se guarda nada",
+        content = @Content),
+    @ApiResponse(
+        responseCode = "503",
+        description =
+            "La dirección común no tiene secreto configurado (`EX-002`). No se guarda nada",
+        content = @Content)
+  })
+  public ResponseEntity<Void> commonBrokerNotificationByBody(HttpServletRequest peticion)
+      throws IOException {
+    return recibir(null, peticion);
+  }
+
+  @GetMapping("/{name}/notifications")
+  @Operation(
+      deprecated = true,
       summary = "Recibir un aviso de un broker (datos en la dirección)",
       description = DESCRIPCION)
   @Parameter(
@@ -97,8 +188,9 @@ public class BrokerNotificationController {
     return recibir(name, peticion);
   }
 
-  @PostMapping(consumes = "*/*")
+  @PostMapping(path = "/{name}/notifications", consumes = "*/*")
   @Operation(
+      deprecated = true,
       summary = "Recibir un aviso de un broker (datos en el cuerpo)",
       description =
           DESCRIPCION
@@ -138,17 +230,22 @@ public class BrokerNotificationController {
     return recibir(name, peticion);
   }
 
+  /** {@code name} nulo es la dirección común (`RN-SP-069`). */
   private ResponseEntity<Void> recibir(String name, HttpServletRequest peticion)
       throws IOException {
-    recepcion.receive(
-        name,
+    BrokerNotice aviso =
         new BrokerNotice(
             peticion.getMethod(),
             peticion.getQueryString(),
             cabeceras(peticion),
             leer(peticion),
             peticion.getContentType(),
-            RequestContext.current().map(RequestContext::ipAddress).orElse(null)));
+            RequestContext.current().map(RequestContext::ipAddress).orElse(null));
+    if (name == null) {
+      recepcion.receiveCommon(aviso);
+    } else {
+      recepcion.receive(name, aviso);
+    }
     return ResponseEntity.ok().build();
   }
 

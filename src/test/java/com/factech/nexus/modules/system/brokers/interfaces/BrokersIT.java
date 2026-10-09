@@ -60,6 +60,9 @@ class BrokersIT extends IntegrationTestBase {
         ('01a081f0-6000-7102-9c4f-5e7adb000002', 'EXNOVA'),
         ('01a081f0-6000-7103-9c4f-5e7adb000003', 'EXOPTION')
         """);
+    // Y el advertiser que carga `V93`.
+    jdbc.update(
+        "UPDATE brokers SET advertiser = 'iq_option' WHERE id = '01a081f0-6000-7101-9c4f-5e7adb000001'");
   }
 
   @Test
@@ -93,6 +96,24 @@ class BrokersIT extends IntegrationTestBase {
         // Sin marcas temporales: `createdAt` diría cuándo se aplicó la
         // migración de siembra, distinto en cada entorno.
         .andExpect(jsonPath("$.content[0].createdAt").doesNotExist());
+  }
+
+  @Test
+  @DisplayName(
+      "`CA-SP-953` — cada broker trae su enlace de registro, nulo si no se cargó; no su advertiser")
+  void elEnlaceDeRegistro() throws Exception {
+    jdbc.update(
+        "UPDATE brokers SET url = 'https://exness.example/registro', advertiser = 'exness'"
+            + " WHERE name = 'Exness'");
+
+    mvc.perform(get("/api/v1/brokers").with(lector()))
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$.content[0].url").value(org.hamcrest.Matchers.nullValue()))
+        .andExpect(
+            org.springframework.test.web.servlet.result.MockMvcResultMatchers.content()
+                .string(org.hamcrest.Matchers.containsString("\"url\":null")))
+        .andExpect(jsonPath("$.content[1].url").value("https://exness.example/registro"))
+        .andExpect(jsonPath("$.content[1].advertiser").doesNotExist());
   }
 
   @Test

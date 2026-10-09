@@ -106,6 +106,9 @@ public abstract class IntegrationTestBase {
     // secreto a propósito: es el broker sin configurar de `CA-SP-902`.
     registry.add("BROKER_TOKEN_IQOPTION", () -> "secreto-iq");
     registry.add("BROKER_TOKEN_EXNOVA", () -> "secreto-ex");
+    // El secreto de la dirección común (`RN-SP-069`). Sin configurar lo prueba
+    // `ReceiveBrokerNotificationServiceTest` (`CA-SP-951`).
+    registry.add("BROKER_NOTIFICATION_TOKEN", () -> "secreto-comun");
     // La llave que cifra las claves de las tiendas (`RN-MV-063`): una de prueba, de 32 bytes.
     // Sin Subscription Key la pasarela real sigue apagada; la enciende el doble.
     registry.add(
