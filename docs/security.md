@@ -5,7 +5,7 @@
 | Proyecto | NEXUS — Renovación de plataforma |
 | Empresa | FACTECH GROUP SAS |
 | Documento | `security.md` |
-| Versión | 0.128.0 |
+| Versión | 0.129.0 |
 | Estado | Borrador |
 | Responsable técnico | Bonilla Diaz William Steven |
 | Fecha de creación | 19-08-2026 |
@@ -306,6 +306,11 @@ courses:list-progress   courses:read-progress
 course-modules:create   course-modules:update   course-modules:change-status   course-modules:delete
 lessons:create   lessons:read   lessons:update   lessons:change-status   lessons:delete
 lessons:learn    lessons:track-progress
+live-sessions:list      live-sessions:read      live-sessions:create
+live-sessions:update    live-sessions:cancel    live-sessions:host
+live-sessions:list-own  live-sessions:create-own  live-sessions:update-own
+live-sessions:cancel-own  live-sessions:host-own
+live-sessions:learn     live-sessions:join
 
 indicators:read-sales-summary      indicators:read-sales-series
 indicators:read-sales-by-product   indicators:read-sales-by-seller
@@ -448,6 +453,7 @@ La vista transversal `v_audit_timeline` (`architecture.md` §6.6.6) exige los cu
 **Y uno más de `SP`, declarado y SEMBRADO el 08-10-2026 por `V89`**, ya en el bloque: `broker-accounts:read-own` —las propias cuentas de broker, `GET /users/me/broker-accounts` (`RF-SP-079`)—. **De alcance propio y a todo rol por su tipo**, los tres —también `CONSUMIDOR`—, como el segundo factor de `V75`: el titular de una cuenta puede ser cualquiera. **No reutiliza `broker-accounts:read-team-member`**, que abre la lectura por estructura y que `CONSUMIDOR` no porta, ni `users:read-own-profile` (`RN-SEG-014`). El catálogo pasa a **210**, y `ADMIN` porta 208.
 **Y seis más de `SP`, declarados el 08-10-2026 y SEMBRADOS por `V90`**, ya en el bloque: registrar, editar y eliminar cuentas de broker (`RF-SP-053`, `RF-SP-080`, `RF-SP-081`, `RN-SP-067`). **Tres de alcance propio** —`broker-accounts:create-own`, `broker-accounts:update-own` y `broker-accounts:delete-own`—, a **todo rol por su tipo**, los tres tipos, como `broker-accounts:read-own`: el titular gestiona las suyas, y editar o borrar no alcanza a una cuenta con depósito confirmado. **Tres de administración** —`broker-accounts:create`, `broker-accounts:update` y `broker-accounts:delete`—, a `SUPERADMIN` y `ADMIN` **explícitos**, sobre cualquier persona y en cualquier estado. **Tres y tres y no uno** por `RN-SEG-014`: lo propio y lo ajeno se conceden por separado, y cada operación también. El superior comercial no recibe ninguno: ve, no gestiona. El catálogo pasa a **216**, y `ADMIN` porta 214.
 **Y tres más de `AC`, declarados el 09-10-2026 y que sembrará `V92`**, ya en el bloque: el progreso del alumno ([`requirements/ac.md`](requirements/ac.md) v0.21.0 §5.2.14). **`lessons:track-progress`** —reportar el avance de un video, `RF-AC-039`— en **todo rol que porte `lessons:learn`**, como `V47` hizo con el aula: quien estudia reporta lo que estudia. **`courses:list-progress`** y **`courses:read-progress`** —el listado y el detalle del progreso de los alumnos, `RF-AC-040` y `RF-AC-041`— en `SUPERADMIN`, `ADMIN`, **todo rol de tipo `VENDEDOR`** y **todo rol que porte `courses:teach`**. **Dos y no uno** por `RN-SEG-014`. **Su alcance lo declara `RN-AC-024`** y se aplica dentro: `FUNCIONARIO` todo, `VENDEDOR` su red y los clientes principales de su red (`CommercialReach`), y además, sin importar el tipo, **los alumnos de los cursos que dicta**; fuera, página vacía o `404`. Es la segunda lectura con alcance por estructura después de `RN-MV-031`, y **la primera que suma un alcance que no es comercial** —el del instructor—. El catálogo pasará a **219**, y `ADMIN` a 217.
+**Y trece más de `AC`, declarados el 09-10-2026 y que sembrará `V94`**, ya en el bloque: las clases en vivo por Zoom ([`requirements/ac.md`](requirements/ac.md) v0.23.1 §5.2.15). **Seis de administración** —`live-sessions:list`, `read`, `create`, `update`, `cancel` y `host`— a `SUPERADMIN` y `ADMIN`; **cinco propios del instructor** —`list-own`, `create-own`, `update-own`, `cancel-own` y `host-own`— a todo rol que porte `courses:teach`, que **es la primera vez que el instructor administra algo**, con la propiedad leída del curso (`RN-AC-028`): fuera de sus cursos, `404`; y **dos del alumno** —`live-sessions:learn` y `live-sessions:join`— a todo rol que porte `courses:learn`, como `V47`, **y no a `CLIENTE`**. **`host` y `host-own` entregan el control de la reunión** y su uso se audita (`RN-AC-030`). El catálogo pasará a **232**, y `ADMIN` a 230.
 
 ### 4.5 Resolución en tiempo de ejecución
 
@@ -1115,3 +1121,4 @@ RNF-SEG-002 merece atención: es una prueba que enumera los endpoints registrado
 | 0.126.0 | 08-10-2026 | **Seis permisos de `SP` para gestionar cuentas de broker, declarados y sembrados por `V90`** (§4.4): `broker-accounts:create-own`, `update-own` y `delete-own` a todo rol por su tipo, y `broker-accounts:create`, `update` y `delete` a `SUPERADMIN` y `ADMIN` explícitos (`RF-SP-053`, `RF-SP-080`, `RF-SP-081`). Catálogo **216**, `ADMIN` 214. | Responsable del proyecto |
 | 0.127.0 | 09-10-2026 | **Tres permisos de `AC` para el progreso del alumno, declarados** (§4.4; [`requirements/ac.md`](requirements/ac.md) v0.21.0 §5.2.14): `lessons:track-progress` a todo rol con `lessons:learn`; `courses:list-progress` y `courses:read-progress` a `SUPERADMIN`, `ADMIN`, todo rol `VENDEDOR` y todo rol con `courses:teach`, con el alcance de `RN-AC-024`. Los sembrará `V92`: catálogo **219**, `ADMIN` 217. **El reporte del avance de un video no se audita**, por excepción al Art. V.7 aprobada por el responsable del proyecto. | Responsable técnico |
 | 0.128.0 | 09-10-2026 | **Una ruta pública más: la dirección común de los avisos de los brokers** (`RN-SP-069`), `GET` y `POST /api/v1/brokers/notifications`, con un secreto común y el broker según el `advertiser` del aviso. La ruta por nombre queda obsoleta y se mantiene mientras se cambian los paneles. | Responsable técnico |
+| 0.129.0 | 09-10-2026 | **Trece permisos de `AC` para las clases en vivo por Zoom, declarados** (§4.4; [`requirements/ac.md`](requirements/ac.md) v0.23.1 §5.2.15): seis de administración, cinco propios del instructor —la primera regla de propiedad del instructor, `RN-AC-028`— y dos del alumno. Los sembrará `V94`: catálogo **232**, `ADMIN` 230. **Una integración externa más con credenciales**: `ZOOM_ACCOUNT_ID`, `ZOOM_CLIENT_ID` y `ZOOM_CLIENT_SECRET` (`architecture.md` §11). | Responsable técnico |

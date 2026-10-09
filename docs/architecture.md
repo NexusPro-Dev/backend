@@ -5,7 +5,7 @@
 | Proyecto | NEXUS — Renovación de plataforma |
 | Empresa | FACTECH GROUP SAS |
 | Documento | `architecture.md` |
-| Versión | 0.49.0 |
+| Versión | 0.50.0 |
 | Estado | Borrador |
 | Responsable técnico | Bonilla Diaz William Steven |
 | Fecha de creación | 19-08-2026 |
@@ -667,6 +667,7 @@ Toda configuración dependiente del entorno se inyecta por variable de entorno (
 | `STRIPE_SECRET_KEY` · `STRIPE_WEBHOOK_SECRET` | No | La pasarela de la tarjeta (§15.4). **Sin las dos, queda apagada y se avisa al arrancar**: el pago con `CREDIT_CARD` nace pendiente **sin cobro**, como antes del 01-10-2026, y lo confirma una persona; la ruta de notificaciones responde `503` |
 | `PAYRETAILERS_SUBSCRIPTION_KEY` · `PAYRETAILERS_ENCRYPTION_KEY` · `PAYRETAILERS_BASE_URL` · `PAYRETAILERS_NOTIFICATION_URL` · `PAYRETAILERS_RETURN_URL` · `PAYRETAILERS_TEST_MODE` · `PAYRETAILERS_RECONCILE_CRON` · `PAYRETAILERS_RECONCILE_AFTER` | No | La pasarela local (§15.5); **las tiendas, una por país, van en la conversión de cada país**, no aquí. **Sin la Subscription Key y una llave de cifrado válida queda apagada y se avisa al arrancar**: el pago con `PSE` nace pendiente **sin cobro**, como antes del 05-10-2026, y lo confirma una persona. Ver [`deployment.md` §6.5.2](deployment.md) |
 | `NOTIFICATION_TEMPLATE_PASSWORD_RECOVERY` | No | Plantilla alojada en Resend del correo de `RF-SP-040`, por id o alias. Vacía manda el mensaje **en texto plano** |
+| `ZOOM_ACCOUNT_ID` · `ZOOM_CLIENT_ID` · `ZOOM_CLIENT_SECRET` · `ZOOM_HOST_USER` | No | Las clases en vivo de Academia (`RN-AC-026`, 09-10-2026): la app **Server-to-Server OAuth** de la cuenta de pago de Zoom y el usuario anfitrión de las reuniones —su correo o su identificador; `me` por omisión—. **Sin ellas, programar, iniciar y entrar responden `503`**; lo demás funciona. Ninguna prueba las usa: el cliente de Zoom es un puerto con su doble |
 | `YOUTUBE_API_KEY` · `VIMEO_ACCESS_TOKEN` | No | Credenciales con las que Academia lee la duración de una lección de video (`RN-AC-017`, 25-09-2026): la clave de la YouTube Data API v3 y el token de acceso personal de Vimeo, con alcance de lectura. **Sin la de un proveedor, sus lecciones exigen la duración a mano** —Vimeo intenta antes su oEmbed, que no es fiable— |
 
 **`ENVIRONMENT` dejó de ser decorativa el 31-08-2026**, y con ella queda una sola obligatoria sin lector: `API_URL`. Esta se declara porque el Art. IX.4 la exige como parte del contrato de configuración y porque el día que algo la lea no debe descubrirse que faltaba en producción.
@@ -1004,3 +1005,4 @@ D-08 quedó cerrada en `security.md` §12, junto con las decisiones D-12 a D-15 
 | 0.47.0 | 05-10-2026 | **§15.5: la tienda de PayRetailers de cada país es un dato de la conversión, no configuración** ([`requirements/mv.md`](requirements/mv.md) v0.82.0, `RN-MV-063`, `V71`): el puerto recibe la tienda en cada llamada, el cobro se consulta con la que lo abrió, y la clave va cifrada con AES-256-GCM (`ShopSecrets`) bajo `PAYRETAILERS_ENCRYPTION_KEY` | Responsable del proyecto |
 | 0.48.0 | 06-10-2026 | **§15.2 gana `SalesFigures`**, la que `MV` publica para el módulo `IN` (`RF-IN-001`; [`requirements/in.md`](requirements/in.md)): las sumas de lo vendido sobre un alcance ya resuelto. `IN` es el primer módulo **sin tablas propias**, y la excepción a `modules.md` §2.1 solo se sostiene porque lee por interfaces; `LayerRulesTest` lo exige y exige además que **nadie dependa de `IN`**. | Responsable técnico |
 | 0.49.0 | 06-10-2026 | **§15.2 gana `PointsFigures`**, la segunda lectura que `MV` publica para `IN` (`RF-IN-005`). | Responsable técnico |
+| 0.50.0 | 09-10-2026 | **Academia llama a Zoom** para las clases en vivo (`requirements/ac.md` v0.23.1 §5.2.15): crear, corregir y borrar reuniones, registrar asistentes y pedir el enlace de anfitrión, con un token de **Server-to-Server OAuth** que se pide con las credenciales de la cuenta y se reutiliza hasta que caduca. §11 gana `ZOOM_ACCOUNT_ID`, `ZOOM_CLIENT_ID`, `ZOOM_CLIENT_SECRET` y `ZOOM_HOST_USER`. | Responsable técnico |

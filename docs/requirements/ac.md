@@ -4,8 +4,8 @@
 |---|---|
 | Módulo | `AC` — Academia |
 | Paquete | `modules/academy` |
-| Prefijos de permiso | `course-categories:`, `courses:` |
-| Versión | 0.22.0 |
+| Prefijos de permiso | `course-categories:`, `courses:`, `lessons:`, `live-sessions:` |
+| Versión | 0.23.1 |
 | Estado | **Borrador** |
 | Responsable | Bonilla Diaz William Steven |
 | Fecha de creación | 17-09-2026 |
@@ -65,6 +65,7 @@ Hoy el sistema sabe **quién es cada persona y qué nivel tiene** (`SP`) y **qu�
 - Registrar y mantener los **módulos** de un curso —portada, título, descripciones, video de presentación, orden y estado— y las **lecciones** de un módulo —tipo, título, descripción, contenido, duración, orden, estado y bandera de demostración—; y retirarlos con motivo.
 - **Las portadas** de categorías, cursos y módulos: subirlas, reemplazarlas, quitarlas y **servirlas sin autenticación** por su identificador, con las mismas condiciones que las de `PM`.
 - **Lo que ve el alumno**: el catálogo de cursos que se ofrecen, filtrable por categoría, con lo que su membresía le abre; el detalle de un curso con sus módulos y lecciones; y el contenido de una lección, cuando le corresponde o cuando es demostración.
+- **Las clases en vivo por Zoom**, desde el 09-10-2026 (§5.2.15): administración y el instructor las programan **desde la plataforma**, que crea la reunión en Zoom; cada clase declara **quién puede entrar** —sus membresías y sus servicios, como un curso—; y el alumno que tiene acceso **entra con un enlace personal** que la plataforma le pide a Zoom en el momento. **El enlace general de la reunión no sale nunca de la plataforma.**
 - **El progreso del alumno**, desde el 09-10-2026 (§5.2.14): **cuánto ha visto de cada lección** —los segundos de un video, la apertura de un texto— y si la completó; el avance de cada curso, **calculado** en cada lectura; y **quién puede consultarlo de quién**: el alumno lo suyo, administración el de todos, el instructor el de sus cursos y la red comercial el de su alcance (`RN-AC-024`).
 
 **No incluye**
@@ -75,7 +76,7 @@ Hoy el sistema sabe **quién es cada persona y qué nivel tiene** (`SP`) y **qu�
 - **Interpretar el contenido.** El texto de una lección es Markdown que el backend guarda y devuelve tal cual; quien lo pinta es el frontend.
 - **Los certificados**, y **cualquier candado sobre el progreso**: terminar un curso no abre otro ni es condición de nada. Hasta el 09-10-2026 este punto excluía también el progreso, que entró ese día (§5.2.14); **la recomendación sigue siendo una sugerencia** (`RN-AC-011`) aunque el sistema ya sepa si el alumno vio el curso recomendado.
 - **Medir cuánto se vio de verdad.** El video lo reproduce YouTube o Vimeo en el navegador, y el backend **solo sabe lo que el frontend le cuenta** (`RN-AC-021`): la posición más lejana alcanzada, no los segundos efectivamente reproducidos. Quien adelanta el video hasta el final lo completa.
-- **Las sesiones en vivo** (HU13, HU14). Son del mismo módulo y se escribirán como `RF-AC-NNN` en su tanda.
+- **Grabar las clases en vivo, y recordarlas.** Desde el 09-10-2026 las **clases en vivo** (HU13, HU14) son del módulo (§5.2.15); **la grabación** —si se quiere— se sube después como una lección `VIDEO` más, y **los recordatorios** quedan para una etapa siguiente, por decisión del responsable del proyecto.
 - **Comentarios, valoraciones y preguntas** sobre un curso o una lección. `PM` tiene reseñas sobre el producto; si un curso las necesita, se decidirá entonces si son las mismas.
 
 ### 1.4 La frontera, y por qué está donde está
@@ -105,6 +106,7 @@ Hoy el sistema sabe **quién es cada persona y qué nivel tiene** (`SP`) y **qu�
 | Módulos | Las partes de un curso: alta, corrección, estado, retiro y portada | `course_modules` |
 | Lecciones | Lo que se estudia: alta, **lectura**, corrección, estado y retiro | `lessons` |
 | Aula | Lo que el alumno ve: catálogo, detalle de un curso y contenido de una lección; **y su propio avance**, desde el 09-10-2026 | Las anteriores, y la membresía y los productos vigentes que `SP` publica |
+| En vivo | **Las clases en vivo por Zoom**: programarlas, corregirlas, cancelarlas e iniciarlas como anfitrión —administración todas, el instructor las de sus cursos—; y para el alumno, verlas y **entrar** (09-10-2026, §5.2.15) | `live_sessions`, `live_session_memberships`, `live_session_products`, `live_session_registrations` |
 | Progreso | **Cuánto ha visto cada alumno de cada lección**: lo registra el aula al abrir una lección y al reportar el avance del video, y lo consultan administración, el instructor y la red comercial (09-10-2026, §5.2.14) | `lesson_progress` |
 | Portadas | Los bytes de las portadas y la ruta pública que los sirve | `academy_images` |
 
@@ -121,6 +123,7 @@ Hoy el sistema sabe **quién es cada persona y qué nivel tiene** (`SP`) y **qu�
 | `SP` | Consume | **Usuarios** (`RN-AC-006`): que el instructor exista, no esté retirado y **porte `courses:teach`**; y su identidad —nombre de usuario y nombre completo— para publicarla con el curso |
 | `SP` | Consume | **Membresías** (`RN-AC-012`): que la que se asocia a un curso exista; y su código, nombre y color, para publicarlos en la lista de visibilidad y en la lección cerrada |
 | `SP` | Consume | **Membresía vigente** de quien pregunta (`RN-AC-013`): para decidir qué se le abre |
+| Externo | Consume | **API de Zoom** (`RN-AC-026`, 09-10-2026), con una app **Server-to-Server OAuth** de la cuenta de pago del negocio: crear, corregir y borrar la reunión de una clase, **registrar** a quien entra y pedir el enlace de anfitrión. Tres credenciales y el usuario anfitrión por variable de entorno (`ZOOM_ACCOUNT_ID`, `ZOOM_CLIENT_ID`, `ZOOM_CLIENT_SECRET`, `ZOOM_HOST_USER`), plazo corto y a su dirección fija |
 | Externo | Consume | **YouTube Data API v3** y **API de Vimeo** —oEmbed como respaldo sin token— (`RN-AC-005`, `RN-AC-017`, desde el 25-09-2026): la duración de un video al registrar o corregir una lección `VIDEO`. Con plazo corto, a su dirección fija, y las dos credenciales por variable de entorno |
 | `SP` | Consume | **Productos vigentes** de quien pregunta (`RN-AC-013`, `RN-AC-020`): para decidir qué servicios le abren un curso. `CurrentProductsLookup`, **publicada el 26-09-2026** |
 | `PM` | Consume | **Productos** (`RN-AC-020`): que el que se asocia a un curso exista, sea `BOT` y no esté retirado; y su código y nombre, para publicarlos en la lista de visibilidad y en la lección cerrada |
@@ -153,6 +156,7 @@ La dependencia es **acíclica**: `AC` → `SP` y, desde el 25-09-2026, `AC` → 
 | Instructor | **Es asignado** a un curso. Hoy no administra nada: el permiso lo habilita para figurar, no para editar | `courses:teach` |
 | Alumno | Recorre el catálogo que se le ofrece y estudia lo que su membresía o sus servicios le abren, más las demostraciones; **reporta su avance y lo ve** (09-10-2026) | `courses:learn`, `courses:read-available`, `lessons:learn`, `lessons:track-progress` |
 | Instructor, como observador | **Consulta el progreso de los alumnos de los cursos que dicta** (`RN-AC-024`, 09-10-2026), sin editar nada | `courses:list-progress`, `courses:read-progress` |
+| Instructor, en vivo | **Programa, corrige, cancela e inicia las clases en vivo de los cursos que dicta** (`RN-AC-028`, 09-10-2026). Es lo primero que el instructor **administra**: §4 decía que el día que editara habría que escribir la regla de propiedad, y es `RN-AC-028` | `live-sessions:list-own`, `create-own`, `update-own`, `cancel-own`, `host-own` |
 | Vendedor | **Consulta el progreso de su alcance comercial**: su red y los clientes de su red (`RN-AC-024`, 09-10-2026) | `courses:list-progress`, `courses:read-progress` |
 
 **El alumno no lleva `courses:read`, y es a propósito.** Ese permiso abre el catálogo completo, con lo inactivo y lo retirado dentro, y con lo que no se le abre. `RF-AC-033` responde con lo que se ofrece y marca lo suyo. Es la misma decisión que `PM` tomó con `products:sale` y `RF-SP-039` con el perfil propio: **un permiso de vista**, que se concede a los roles de tipo `CONSUMIDOR` por `RF-SP-006` y no por siembra — el rol `CLIENTE` nace sin permisos (`V30`) y este módulo no le abre una excepción.
@@ -194,6 +198,12 @@ La dependencia es **acíclica**: `AC` → `SP` y, desde el 25-09-2026, `AC` → 
 | `RN-AC-021` | **El avance de un video es la posición más lejana alcanzada, y completa al noventa por ciento** | Al reportar el avance de una lección `VIDEO` (`RF-AC-039`) | El frontend reporta **la posición del reproductor en segundos enteros**, mayor o igual que cero. Se guarda **la mayor alcanzada**, acotada a la duración de la lección (`RN-AC-017`): **el avance nunca retrocede** —volver al principio para repasar no borra lo visto— y una posición mayor que la duración cuenta como la duración. **La lección queda completada** cuando lo visto llega al **90 %** de su duración **en el momento del reporte**, y **completada se queda**: la fecha se escribe una vez y no se borra nunca, ni al repasar ni al corregir la duración (`RN-AC-023`). **Es lo que el frontend cuenta, no lo que se vio** (§1.3): adelantar hasta el final completa la lección, y se acepta a conciencia (§5.2.14). Una lección `TEXTO` no reporta avance: **se completa al abrirla** (`RN-AC-022`) | Alta |
 | `RN-AC-022` | **Abrir una lección deja rastro, y abrir un texto lo completa** | Al entregar el contenido de una lección al alumno (`RF-AC-035`) | **Cada vez que el aula entrega el contenido** —y solo entonces: un `403` o un `404` no dejan nada— se anota que esa persona abrió esa lección: **la primera vez** y **la última**. Si la lección es **`TEXTO`**, abrirla **la completa** en el acto, por decisión del responsable del proyecto: no hay reproductor que diga hasta dónde se leyó. Si es **`VIDEO`**, abrirla la deja **empezada** con cero segundos, y el avance lo cuentan los reportes (`RN-AC-021`). Vale **para cualquiera que abra la lección**, también para un administrador que recorre el aula: el progreso es de la persona, no del rol | Alta |
 | `RN-AC-023` | **El progreso se conserva, y el avance del curso se calcula** | Al corregir, cambiar de estado o retirar una lección, un módulo o un curso, y en toda lectura del progreso | **Nada de lo que administración hace con una lección toca el progreso guardado**: corregir el enlace o la duración, desactivarla o retirarla deja las filas como estaban, y **lo completado sigue completado**. **El avance del curso no se guarda**: se calcula en cada lectura, como la ofrecibilidad (`RN-AC-015`), **sobre las lecciones ofrecibles hoy** —activas, vivas, con contenido, en un módulo activo y vivo—, y vale **la suma de lo visto de cada una, acotado a su duración y la duración entera si está completada, entre la suma de sus duraciones**, en porcentaje entero redondeado hacia abajo; junto a él, **cuántas lecciones completadas de cuántas**. Una lección que deja de ofrecerse **sale de la cuenta sin perder su fila**, y si vuelve, vuelve con lo visto. **Un curso al cien por ciento no queda terminado para siempre**: si se le añade una lección, baja | Alta |
+| `RN-AC-025` | **La clase en vivo declara quién entra, como un curso** | Al programar y corregir una clase, y al entrar | Una clase en vivo declara **su propia lista de membresías y de servicios** —independiente de la del curso del que cuelgue, si cuelga de alguno—, con las reglas de `RN-AC-012` y `RN-AC-020`: lista explícita y no nivel mínimo, servicios `BOT` no retirados al añadirlos, **sin repetir**, y **sin ninguna de las dos, la clase es de todos los alumnos con sesión**. Quién tiene acceso se decide como en el aula (`StudentAccess`): membresía vigente en la lista o un servicio vigente de la lista. **Cuelga de un curso o va suelta**: el curso, si lo hay, existe y no está retirado al asignarlo; sirve para agruparla y para decidir **qué instructor la administra** (`RN-AC-028`), **no para abrirla** | Alta |
+| `RN-AC-026` | **La reunión la crea la plataforma, con registro obligatorio, y su enlace general no sale** | Al programar, corregir y cancelar | Programar una clase **crea una reunión programada en Zoom** con la cuenta del negocio y su usuario anfitrión, **con registro obligatorio y aprobación automática**, sin entrar antes que el anfitrión y **sin los correos de Zoom** (no hay recordatorios, §1.3). Se guarda **solo el identificador de la reunión**: el enlace general y la contraseña **no se guardan ni se publican**, porque con ellos cualquiera entraría sin pasar por la plataforma. **Zoom manda**: si la llamada falla o no responde a tiempo, la petición se rechaza con `503` y **no se guarda nada**; si la reunión se creó y la escritura local falla, se borra la reunión. Corregir título, inicio o fin **corrige la reunión** —a Zoom se le da el inicio y la duración que resulta—; cancelar **la borra en Zoom** | Alta |
+| `RN-AC-027` | **Entrar es registrarse, y cada uno recibe su propio enlace** | Al pulsar «Entrar» (`RF-AC-054`) | El alumno pide entrar; la plataforma comprueba **en ese momento** que la clase existe, no está cancelada, **no ha terminado** —su hora de fin no ha pasado— y **que se le abre** (`RN-AC-025`); si es así, **lo registra en Zoom** con su nombre y su correo y le devuelve **su enlace personal**. **Pedirlo otra vez devuelve el mismo** sin volver a llamar a Zoom; la fila queda en `live_session_registrations` y administración ve quién se registró. **Se comprueba en cada petición**: quien perdió la membresía no recibe un enlace nuevo, aunque el que ya tiene siga valiendo en Zoom. **El enlace personal sirve a un dispositivo a la vez** —Zoom expulsa al anterior si se usa dos veces—, y **reenviarlo no se puede impedir**: se acepta a conciencia (§5.2.15). Se puede entrar **desde que la clase se programa hasta que termina** | Alta |
+| `RN-AC-028` | **Administración gobierna todas las clases; el instructor, las de sus cursos** | Al listar, programar, corregir, cancelar e iniciar | Con los permisos de administración se gobierna **cualquier clase**, suelta o de cualquier curso. Con los permisos **propios** (`-own`), **solo las clases que cuelgan de un curso cuyo instructor es quien pregunta** (`RN-AC-006`): programar exige un curso suyo, y corregir, cancelar o iniciar una clase ajena responde **`404`**, como si no existiera. **Una clase suelta solo la gobierna administración.** Si el curso cambia de instructor, la clase pasa con él: la propiedad se lee del curso, no se guarda en la clase. **El instructor no cambia la clase de curso** a uno que no dicta | Alta |
+| `RN-AC-029` | **Lo cancelado y lo terminado no se corrigen, y cancelar no borra** | Al corregir, cancelar e iniciar | Una clase está **`PROGRAMADA`** o **`CANCELADA`**, y además **ha terminado** si su hora de fin ya pasó —se calcula, no se guarda—. **Solo una programada que no ha terminado se corrige, se cancela o se inicia**; lo demás es `409`. **Cancelar exige motivo**, borra la reunión en Zoom, **conserva la fila** con fecha y motivo, se audita y **no se deshace**: para repetirla se programa otra. **Se programa con día, hora de inicio y hora de fin** —por decisión del responsable del proyecto, el 09-10-2026—: el inicio **no en el pasado**, el fin **después del inicio**, y entre los dos **de 15 minutos a 10 horas**. Las horas llegan con su zona; sin zona, se entienden en `America/Bogota`, que es también la zona que se le da a Zoom | Alta |
+| `RN-AC-030` | **El anfitrión entra por la plataforma** | Al iniciar una clase (`RF-AC-047`, `RF-AC-052`) | La reunión pertenece al **usuario anfitrión de la cuenta** (`ZOOM_HOST_USER`), y quien la dicta **pide el enlace de anfitrión a la plataforma**, que se lo pide a Zoom en ese momento —**caduca a las pocas horas** y por eso no se guarda—. Lo pide administración para cualquier clase o el instructor para las suyas (`RN-AC-028`). **Se audita** cada entrega, porque ese enlace da el control de la reunión | Alta |
 | `RN-AC-024` | **Cada uno ve el progreso que le toca, y fuera de su alcance no hay nada** | Al consultar el progreso de los alumnos (`RF-AC-040`, `RF-AC-041`) | **El alumno ve el suyo en el aula** (`RF-AC-033` a `RF-AC-035`), sin permiso de más. Con los permisos de consulta, una fila **alumno–curso** se ve si se cumple **una** de estas: quien pregunta tiene alcance **`EVERYTHING`** —un rol `FUNCIONARIO`—; el alumno está **dentro de su alcance comercial** —él mismo, su red de vendedores en profundidad o **un cliente de alguien de su red**— (`CommercialReach` y las personas del alcance, §3); o quien pregunta es **el instructor del curso** (`RN-AC-006`). **Las condiciones se suman**: un vendedor que además dicta un curso ve su red en todos los cursos y a todos los alumnos del suyo. **Fuera del alcance no hay error**: el listado devuelve página vacía y el detalle, `404` —nunca `403`, que diría que el alumno existe—, por lo mismo que `RN-MV-031` | Alta |
 
 ### 5.2 Decisiones que definen el módulo — 17-09-2026
@@ -333,6 +343,28 @@ El responsable del proyecto pidió **saber por usuario cuánto ha visto de las l
 
 **No cambia ninguna regla anterior salvo `RN-AC-011`**, en su justificación y no en su efecto, y **enmienda tres requerimientos construidos** (Art. I.7): el catálogo, el detalle y el contenido del aula ganan el avance de quien mira, y el contenido **escribe** (`RN-AC-022`).
 
+#### 5.2.15 Las clases en vivo por Zoom — 09-10-2026
+
+El responsable del proyecto lo planteó el 08-10-2026 —clases en vivo solo para ciertas membresías— y lo retomó el 09-10-2026: «integrarnos con Zoom, para que desde esta plataforma se creen las reuniones y que solo los que tienen el acceso a dicho evento puedan verlo». Respondió así:
+
+| Pregunta | Decisión | Descartado |
+|---|---|---|
+| **¿Quién crea la reunión de Zoom?** | **La plataforma**, por la API de Zoom (`RN-AC-026`) | *Pegar el identificador de una reunión creada a mano* — deja el enlace general en manos de quien la crea y no hay forma de exigir el registro |
+| **¿De dónde sale quién tiene acceso?** | **Una lista propia de la clase**, membresías y servicios, como el curso; sin lista, todos (`RN-AC-025`) | *Heredar la del curso* — obliga a que toda clase cuelgue de un curso y no deja abrir una clase a más gente que el curso. *Invitar persona a persona* — nadie lo pidió, y la lista por nivel es lo que el negocio vende |
+| **¿Quién las programa?** | **Administración y el instructor**, este solo las de sus cursos, con permisos separados (`RN-AC-028`) | *Solo administración* |
+| **¿Recordatorios?** | **No por ahora** | *Correo por Resend* y *los correos de Zoom* — se apagan los de Zoom para que nadie reciba un enlace por fuera de la plataforma |
+| **¿Hay cuenta de Zoom?** | **Sí, de pago**; falta la app Server-to-Server OAuth y sus tres credenciales | — |
+
+**Lo que se decidió aquí sin preguntar, y por qué** — abierto a revisión con el bloque:
+
+- **El acceso de verdad lo da el registro de Zoom.** Con «solo registrados», Zoom no deja entrar a nadie sin su enlace personal, y la plataforma solo registra a quien tiene acceso. **No hace falta que el alumno tenga cuenta de Zoom.** Lo que no se puede impedir es que alguien reenvíe su enlace personal: sirve a un dispositivo a la vez, y se acepta (`RN-AC-027`). Exigir que el alumno inicie sesión en Zoom con el mismo correo lo cerraría del todo, a cambio de obligar a cada alumno a tener cuenta de Zoom; se descarta por ahora.
+- **Una sola cuenta anfitriona** (`ZOOM_HOST_USER`), y el instructor inicia la clase **con el enlace de anfitrión que le da la plataforma** (`RN-AC-030`). Darle a cada instructor su licencia de Zoom y hacerlo anfitrión directo es otra opción, que cuesta una licencia por instructor.
+- **Dos reuniones no pueden solaparse** en la misma cuenta si comparten anfitrión: Zoom lo admite con límites según el plan. **No se valida en la plataforma**; si el negocio dicta clases simultáneas, hará falta más de un anfitrión.
+- **Retirar el curso no cancela sus clases**: como la categoría (`RN-AC-018`), no arrastra. Administración las cancela si quiere.
+- **Una ruta por operación y por alcance** (`RN-SEG-014`, `RN-SEG-015`): trece requerimientos y trece permisos. La forma «propia» vive bajo `/live-sessions/mine`.
+- **El alumno ve la vitrina**: las clases programadas que no han terminado, con `accessible` y el filtro `onlyAccessible`, como el catálogo (§5.2.13).
+- **Los permisos del alumno se siembran donde ya está `courses:learn`** —hoy `SUPERADMIN` y `ADMIN`—, como `V47`; **a `CLIENTE` no**, y por tanto **un alumno real no ve las clases hasta que se le concedan por roles**, el mismo hueco que el aula tiene desde el 26-09-2026.
+
 ### 5.3 Reglas de otros documentos que este módulo aplica
 
 | Regla | Dónde vive | Cómo la aplica este módulo |
@@ -394,8 +426,21 @@ El responsable del proyecto pidió **saber por usuario cuánto ha visto de las l
 | `RF-AC-039` | Reportar el avance de un video | Progreso | Alta | `lessons:track-progress` | **En desarrollo** (09-10-2026) |
 | `RF-AC-040` | Consultar el progreso de los alumnos | Progreso | Alta | `courses:list-progress` | **En desarrollo** (09-10-2026) |
 | `RF-AC-041` | Consultar el progreso de un alumno en un curso | Progreso | Media | `courses:read-progress` | **En desarrollo** (09-10-2026) |
+| `RF-AC-042` | Consultar las clases en vivo | En vivo | Alta | `live-sessions:list` | **Tasks en revisión** (09-10-2026) |
+| `RF-AC-043` | Consultar el detalle de una clase en vivo | En vivo | Alta | `live-sessions:read` | **Tasks en revisión** (09-10-2026) |
+| `RF-AC-044` | Programar una clase en vivo | En vivo | Alta | `live-sessions:create` | **Tasks en revisión** (09-10-2026) |
+| `RF-AC-045` | Corregir una clase en vivo | En vivo | Alta | `live-sessions:update` | **Tasks en revisión** (09-10-2026) |
+| `RF-AC-046` | Cancelar una clase en vivo | En vivo | Alta | `live-sessions:cancel` | **Tasks en revisión** (09-10-2026) |
+| `RF-AC-047` | Iniciar una clase en vivo como anfitrión | En vivo | Alta | `live-sessions:host` | **Tasks en revisión** (09-10-2026) |
+| `RF-AC-048` | Consultar mis clases en vivo como instructor | En vivo | Media | `live-sessions:list-own` | **Tasks en revisión** (09-10-2026) |
+| `RF-AC-049` | Programar una clase en vivo de mi curso | En vivo | Media | `live-sessions:create-own` | **Tasks en revisión** (09-10-2026) |
+| `RF-AC-050` | Corregir una clase en vivo de mi curso | En vivo | Media | `live-sessions:update-own` | **Tasks en revisión** (09-10-2026) |
+| `RF-AC-051` | Cancelar una clase en vivo de mi curso | En vivo | Media | `live-sessions:cancel-own` | **Tasks en revisión** (09-10-2026) |
+| `RF-AC-052` | Iniciar como anfitrión una clase en vivo de mi curso | En vivo | Media | `live-sessions:host-own` | **Tasks en revisión** (09-10-2026) |
+| `RF-AC-053` | Consultar las clases en vivo como alumno | En vivo | Alta | `live-sessions:learn` | **Tasks en revisión** (09-10-2026) |
+| `RF-AC-054` | Entrar a una clase en vivo | En vivo | Alta | `live-sessions:join` | **Tasks en revisión** (09-10-2026) |
 
-**Cuarenta y un requerimientos** —treinta y cinco del 17-09-2026, `RF-AC-036` del 18 (§5.2.7), `RF-AC-037` y `RF-AC-038` del 25 (§5.2.8) y `RF-AC-039` a `RF-AC-041` del 09-10-2026 (§5.2.14)—, y la cifra merece una explicación: no es que el módulo sea grande, es que **cada entidad paga el mismo precio** —alta, corrección, estado, retiro— y **cada relación cobra dos** —dar y quitar—. Es la misma forma que `PM` con el producto y el paquete, y la razón de no juntar «asociar» y «desasociar» en un solo requerimiento es la de siempre: son dos operaciones con dos reglas distintas y dos auditorías distintas.
+**Cincuenta y cuatro requerimientos** —treinta y cinco del 17-09-2026, `RF-AC-036` del 18 (§5.2.7), `RF-AC-037` y `RF-AC-038` del 25 (§5.2.8), `RF-AC-039` a `RF-AC-041` del 09-10-2026 (§5.2.14) y `RF-AC-042` a `RF-AC-054` del mismo día (§5.2.15)—, y la cifra merece una explicación: no es que el módulo sea grande, es que **cada entidad paga el mismo precio** —alta, corrección, estado, retiro— y **cada relación cobra dos** —dar y quitar—. Es la misma forma que `PM` con el producto y el paquete, y la razón de no juntar «asociar» y «desasociar» en un solo requerimiento es la de siempre: son dos operaciones con dos reglas distintas y dos auditorías distintas.
 
 **Los módulos, las lecciones y las cuatro relaciones se administran con `courses:update`** y no con un recurso propio (§7): son partes del curso, y quien puede corregir un curso puede armarlo.
 
@@ -407,6 +452,7 @@ El responsable del proyecto pidió **saber por usuario cuánto ha visto de las l
 4. **Relaciones** — `RF-AC-016` → `RF-AC-017` → `RF-AC-037` → `RF-AC-038` → `RF-AC-020` → `RF-AC-021` → `RF-AC-018` → `RF-AC-019`. Las visibilidades van antes que las recomendaciones porque sin ellas ningún curso se ofrece, y **la del servicio va primero** desde el 25-09-2026 porque es la que el responsable del proyecto pidió; cualquiera de las dos basta para que un curso se ofrezca.
 5. **Portadas** — `RF-AC-006` → `RF-AC-032` → `RF-AC-007` → `RF-AC-014` → `RF-AC-015` → `RF-AC-026` → `RF-AC-027`. La primera subida crea `academy_images` y **mueve el detector a `shared/`**; la ruta pública va segunda porque sin ella `coverImageUrl` señalaría a nada; y las demás entidades heredan.
 6. **Aula** — `RF-AC-033` → `RF-AC-034` → `RF-AC-035`. Va al final porque lee todo lo anterior, y es el bloque que **enseña el resultado**. `RF-AC-036` se redactó con este bloque y se construye con el 3, que es de donde sale su forma.
+8. **En vivo** (09-10-2026) — `RF-AC-044` → `RF-AC-043` → `RF-AC-042` → `RF-AC-053` → `RF-AC-054` → `RF-AC-047` → `RF-AC-045` → `RF-AC-046` → y las cinco propias, `RF-AC-049` → `RF-AC-048` → `RF-AC-050` → `RF-AC-051` → `RF-AC-052`. Programar va primero porque estrena las cuatro tablas, el cliente de Zoom y los trece permisos; **entrar va pronto** porque es lo que el responsable pidió y lo que prueba que el acceso funciona de punta a punta; las propias reutilizan los servicios de administración con la regla de propiedad delante. **Ninguna prueba llama a Zoom**: el cliente es un puerto con una implementación falsa en las pruebas, como el proveedor de video.
 7. **Progreso** (09-10-2026) — enmienda de `RF-AC-035` → `RF-AC-039` → enmiendas de `RF-AC-033` y `RF-AC-034` → `RF-AC-041` → `RF-AC-040`. La primera escritura es abrir una lección, que crea `lesson_progress` y siembra los tres permisos; el reporte del video va después porque actualiza una fila que abrir ya creó. **El detalle va antes que el listado** porque el listado suma lo que el detalle enseña lección a lección, y porque es el listado el que pide a `SP` las personas del alcance.
 
 ### 6.2 Fichas
@@ -1026,6 +1072,114 @@ Baja lógica con motivo y registro. No arrastra nada: no hay nada debajo.
 
 `GET /api/v1/courses/{courseId}/progress/{userId}`: el alumno, el curso con su avance (`RN-AC-023`), y **el árbol ofrecido hoy** —módulos y lecciones en su orden— con, por lección, tipo, duración, **segundos vistos, porcentaje, completada y cuándo, primera y última apertura**; las no abiertas, en cero y sin fechas. **Las lecciones con progreso que hoy no se ofrecen** van aparte, en `notOffered`, para que administración vea lo que el alumno vio de algo que ya no está. **`404`** si el curso no existe, si el alumno no existe o **si está fuera del alcance** de quien pregunta (`RN-AC-024`) — el mismo cuerpo en los tres. Un curso retirado se lee igual.
 
+#### `RF-AC-042` — Consultar las clases en vivo
+
+| Campo | Valor |
+|---|---|
+| Objetivo | Que administración vea todas las clases, las pasadas y las canceladas incluidas |
+| Actor | Administrador |
+| Permiso requerido | `live-sessions:list` |
+| Reglas aplicables | `RN-AC-028`, `RN-AC-029` |
+| Estado | **Tasks en revisión** (09-10-2026) |
+
+`GET /api/v1/live-sessions`: paginado, por inicio descendente, con filtros por curso, por estado (`PROGRAMADA` \| `CANCELADA`), por `ended` y por periodo de inicio. Cada fila con título, curso —o nulo—, inicio, fin, estado, si terminó, cuántas llaves declara y **cuántos se registraron**.
+
+#### `RF-AC-043` — Consultar el detalle de una clase en vivo
+
+| Campo | Valor |
+|---|---|
+| Objetivo | Ver una clase entera: su acceso y quién se registró |
+| Actor | Administrador |
+| Permiso requerido | `live-sessions:read` |
+| Reglas aplicables | `RN-AC-025`, `RN-AC-027`, `RN-AC-029` |
+| Estado | **Tasks en revisión** (09-10-2026) |
+
+`GET /api/v1/live-sessions/{id}`: la clase con su descripción, el curso, **sus membresías y servicios**, el identificador de la reunión de Zoom —**sin enlace ni contraseña**—, la cancelación con fecha y motivo, y **la lista de registrados**: persona y fecha. `404` si no existe.
+
+#### `RF-AC-044` — Programar una clase en vivo
+
+| Campo | Valor |
+|---|---|
+| Objetivo | Crear la clase y su reunión de Zoom desde la plataforma |
+| Actor | Administrador |
+| Permiso requerido | `live-sessions:create` |
+| Reglas aplicables | `RN-AC-025`, `RN-AC-026`, `RN-AC-029` |
+| Estado | **Tasks en revisión** (09-10-2026) |
+
+`POST /api/v1/live-sessions` con `{ title, description?, courseId?, startsAt, endsAt, membershipIds[], productIds[] }`. Valida, **crea la reunión en Zoom** y guarda la clase `PROGRAMADA` con sus listas, en una transacción; si Zoom falla, `503` y nada guardado. Se audita. Responde `201` con el detalle. **Estrena las cuatro tablas y los trece permisos** (`V94`) y el cliente de Zoom.
+
+#### `RF-AC-045` — Corregir una clase en vivo
+
+| Campo | Valor |
+|---|---|
+| Objetivo | Cambiar título, descripción, curso, inicio, duración o acceso |
+| Actor | Administrador |
+| Permiso requerido | `live-sessions:update` |
+| Reglas aplicables | `RN-AC-025`, `RN-AC-026`, `RN-AC-029` |
+| Estado | **Tasks en revisión** (09-10-2026) |
+
+`PATCH /api/v1/live-sessions/{id}`: solo lo que viene; **las listas, si vienen, se reemplazan enteras**. Lo que Zoom conoce —título, inicio, fin— **se corrige allí primero**. Quitar a alguien de la lista no lo des-registra en Zoom: no recibe un enlace nuevo, y el que ya tenía sigue valiendo (`RN-AC-027`). `409` si está cancelada o terminada.
+
+#### `RF-AC-046` — Cancelar una clase en vivo
+
+| Campo | Valor |
+|---|---|
+| Objetivo | Que la clase no ocurra |
+| Actor | Administrador |
+| Permiso requerido | `live-sessions:cancel` |
+| Reglas aplicables | `RN-AC-026`, `RN-AC-029` |
+| Estado | **Tasks en revisión** (09-10-2026) |
+
+`POST /api/v1/live-sessions/{id}/cancellation` con `{ reason }`: **borra la reunión en Zoom** —una que ya no existe allí no lo impide— y marca la clase `CANCELADA` con fecha y motivo. Se audita. `409` si ya estaba cancelada o terminó.
+
+#### `RF-AC-047` — Iniciar una clase en vivo como anfitrión
+
+| Campo | Valor |
+|---|---|
+| Objetivo | Que quien dicta la clase entre como anfitrión |
+| Actor | Administrador |
+| Permiso requerido | `live-sessions:host` |
+| Reglas aplicables | `RN-AC-029`, `RN-AC-030` |
+| Estado | **Tasks en revisión** (09-10-2026) |
+
+`POST /api/v1/live-sessions/{id}/host-link`: pide a Zoom **el enlace de anfitrión** en ese momento y lo devuelve, sin guardarlo. Se audita. `409` si está cancelada o terminada; `503` si Zoom no responde.
+
+#### `RF-AC-048` a `RF-AC-052` — Las mismas cinco operaciones, sobre las clases de mis cursos
+
+| Requerimiento | Ruta | Permiso |
+|---|---|---|
+| `RF-AC-048` Consultar mis clases en vivo como instructor | `GET /api/v1/live-sessions/mine` | `live-sessions:list-own` |
+| `RF-AC-049` Programar una clase en vivo de mi curso | `POST /api/v1/live-sessions/mine` | `live-sessions:create-own` |
+| `RF-AC-050` Corregir una clase en vivo de mi curso | `PATCH /api/v1/live-sessions/mine/{id}` | `live-sessions:update-own` |
+| `RF-AC-051` Cancelar una clase en vivo de mi curso | `POST /api/v1/live-sessions/mine/{id}/cancellation` | `live-sessions:cancel-own` |
+| `RF-AC-052` Iniciar como anfitrión una clase en vivo de mi curso | `POST /api/v1/live-sessions/mine/{id}/host-link` | `live-sessions:host-own` |
+
+**Las de administración con la regla de propiedad delante** (`RN-AC-028`): el listado trae solo las clases de los cursos que dicta quien pregunta, con el detalle de cada una dentro; programar **exige `courseId`** y que sea suyo —si no, `422`—; y corregir, cancelar o iniciar una clase que no es de sus cursos responde **`404`**. Corregir no puede mover la clase a un curso que no dicta.
+
+#### `RF-AC-053` — Consultar las clases en vivo como alumno
+
+| Campo | Valor |
+|---|---|
+| Objetivo | Que el alumno vea las clases que vienen y cuáles puede ver |
+| Actor | Alumno |
+| Permiso requerido | `live-sessions:learn` |
+| Reglas aplicables | `RN-AC-025`, `RN-AC-029` |
+| Estado | **Tasks en revisión** (09-10-2026) |
+
+`GET /api/v1/live-sessions/available`: **las clases programadas que no han terminado**, por inicio ascendente, sin paginar, filtrables por curso y por **`onlyAccessible`**. Cada una con título, descripción, curso, inicio, fin, **`accessible`**, **si ya está registrado**, y las membresías y servicios que la abren —la invitación—. **Sin nada de Zoom**.
+
+#### `RF-AC-054` — Entrar a una clase en vivo
+
+| Campo | Valor |
+|---|---|
+| Objetivo | Que quien tiene acceso entre a la reunión de Zoom |
+| Actor | Alumno |
+| Permiso requerido | `live-sessions:join` |
+| Reglas aplicables | `RN-AC-025`, `RN-AC-027`, `RN-AC-029` |
+| Estado | **Tasks en revisión** (09-10-2026) |
+
+`POST /api/v1/live-sessions/available/{id}/registration`: comprueba que la clase está programada y no terminó —si no, `404`, como lo que no se ofrece— y **que se le abre** —si no, `403` con las membresías y los servicios que la abren, como una lección cerrada—; **lo registra en Zoom** con su nombre y su correo y devuelve `{ joinUrl, startsAt }`. **La segunda vez devuelve el mismo enlace sin llamar a Zoom** (`200` en vez de `201`). `503` si Zoom no responde, y entonces no queda registrado. **No se audita**: la fila de registro es el rastro.
+
 ---
 
 ## 7. Permisos
@@ -1046,6 +1200,19 @@ Baja lógica con motivo y registro. No arrastra nada: no hay nada debajo.
 | `lessons:learn` | `lessons` | `learn` | **El contenido de una lección como alumno** (`RF-AC-035`), desde el 26-09-2026 (`V47`) |
 | `lessons:track-progress` | `lessons` | `track-progress` | **Reportar el avance de un video** (`RF-AC-039`), desde el 09-10-2026. Abrir una lección deja rastro con `lessons:learn` y no con este (`RN-AC-022`): es la misma petición |
 | `courses:list-progress` | `courses` | `list-progress` | **El listado del progreso** por alumno y curso, dentro del alcance (`RF-AC-040`, `RN-AC-024`), desde el 09-10-2026 |
+| `live-sessions:list` | `live-sessions` | `list` | Listar todas las clases en vivo (`RF-AC-042`) |
+| `live-sessions:read` | `live-sessions` | `read` | El detalle de cualquier clase, con sus registrados (`RF-AC-043`) |
+| `live-sessions:create` | `live-sessions` | `create` | Programar cualquier clase, suelta o de cualquier curso (`RF-AC-044`) |
+| `live-sessions:update` | `live-sessions` | `update` | Corregir cualquier clase (`RF-AC-045`) |
+| `live-sessions:cancel` | `live-sessions` | `cancel` | Cancelar cualquier clase (`RF-AC-046`) |
+| `live-sessions:host` | `live-sessions` | `host` | El enlace de anfitrión de cualquier clase (`RF-AC-047`) |
+| `live-sessions:list-own` | `live-sessions` | `list-own` | Listar las clases de los cursos que dicta (`RF-AC-048`) |
+| `live-sessions:create-own` | `live-sessions` | `create-own` | Programar una clase de un curso que dicta (`RF-AC-049`) |
+| `live-sessions:update-own` | `live-sessions` | `update-own` | Corregir una clase de un curso que dicta (`RF-AC-050`) |
+| `live-sessions:cancel-own` | `live-sessions` | `cancel-own` | Cancelar una clase de un curso que dicta (`RF-AC-051`) |
+| `live-sessions:host-own` | `live-sessions` | `host-own` | El enlace de anfitrión de una clase de un curso que dicta (`RF-AC-052`) |
+| `live-sessions:learn` | `live-sessions` | `learn` | Las clases que vienen, como alumno (`RF-AC-053`) |
+| `live-sessions:join` | `live-sessions` | `join` | Entrar a una clase: registrarse en Zoom y recibir el enlace personal (`RF-AC-054`) |
 | `courses:read-progress` | `courses` | `read-progress` | **El progreso de un alumno en un curso**, lección a lección, dentro del alcance (`RF-AC-041`, `RN-AC-024`), desde el 09-10-2026 |
 
 **Las categorías tienen recurso propio y los módulos y lecciones no**, y la diferencia es la de `PM` entre `packages:` y la portada. Una categoría **existe sin cursos** y la administra quien organiza el catálogo, que puede no ser quien arma un curso; un módulo y una lección **no existen sin su curso**, y quien puede corregir el curso tiene que poder armarlo, o `courses:update` no serviría para nada. Separar «corregir el curso» de «armar el curso» tendría sentido el día que alguien deba poder lo uno sin lo otro — el instructor, cuando edite—, y ese día lo que se separa es la propiedad, no el permiso.
@@ -1056,7 +1223,7 @@ Baja lógica con motivo y registro. No arrastra nada: no hay nada debajo.
 
 ## 8. Modelo de datos
 
-Diez tablas, todas de este módulo. Cuatro son **entidades con historia** —categoría, curso, módulo, lección, con `deleted_at`—, cuatro son **relaciones** sin identidad propia —la cuarta, `course_products`, desde el 25-09-2026— y una es **el valor de una columna** sacado a una tabla. **La décima, `lesson_progress`, es del 09-10-2026** y no es ninguna de las tres cosas: es **lo que hizo una persona** con una lección (§8.7.1). Los tipos siguen a `products` (`requirements/pm.md` §10.1) donde el campo es el mismo.
+Catorce tablas, todas de este módulo —las cuatro últimas, de las clases en vivo, del 09-10-2026 (§8.10 a §8.13)—. Cuatro son **entidades con historia** —categoría, curso, módulo, lección, con `deleted_at`—, cuatro son **relaciones** sin identidad propia —la cuarta, `course_products`, desde el 25-09-2026— y una es **el valor de una columna** sacado a una tabla. **La décima, `lesson_progress`, es del 09-10-2026** y no es ninguna de las tres cosas: es **lo que hizo una persona** con una lección (§8.7.1). Los tipos siguen a `products` (`requirements/pm.md` §10.1) donde el campo es el mismo.
 
 ### 8.1 `course_categories`
 
@@ -1191,6 +1358,41 @@ Clave primaria compuesta. **La clave foránea a `memberships` se declara** hacia
 
 **El porcentaje no se guarda** (`RN-AC-023`): depende de la duración y de lo que se ofrece hoy, y las dos cosas cambian sin que el alumno haga nada.
 
+### 8.10 `live_sessions` — 09-10-2026
+
+| Columna | Tipo | Nula | Referencia |
+|---|---|---|---|
+| `id` | `uuid` | No | — |
+| `course_id` | `uuid` | **Sí** | `courses` — agrupa y decide el instructor (`RN-AC-028`); nula si es suelta |
+| `title` | `varchar(150)` | No | — |
+| `description` | `text` | **Sí** | — |
+| `starts_at` | `timestamptz` | No | `RN-AC-029`: no en el pasado al programar o corregir |
+| `ends_at` | `timestamptz` | No | `RN-AC-029`: después del inicio, de 15 minutos a 10 horas |
+| `zoom_meeting_id` | `bigint` | No | `RN-AC-026`: lo único de Zoom que se guarda; único |
+| `status` | `varchar(20)` | No | `PROGRAMADA` \| `CANCELADA` |
+| `cancelled_at` | `timestamptz` | **Sí** | `RN-AC-029` |
+| `cancellation_reason` | `varchar(500)` | **Sí** | Obligatorio si está cancelada |
+| `created_by` | `uuid` | No | `users` — quién la programó |
+| `created_at`, `updated_at` | `timestamptz` | No | — |
+
+**Sin `deleted_at`**: cancelar es el retiro de una clase, y conserva la fila con su motivo. **Sin enlace ni contraseña** (`RN-AC-026`). **«Terminada» no es un estado**: se calcula con `ends_at`. **Inicio y fin, y no inicio y duración**, por decisión del responsable del proyecto: es como se programa una clase en un calendario, y la duración que pide Zoom sale de las dos.
+
+### 8.11 `live_session_memberships` y 8.12 `live_session_products` — 09-10-2026
+
+`course_memberships` y `course_products` columna a columna, con `live_session_id` en lugar de `course_id` (`RN-AC-025`): clave primaria compuesta, sin `id`, y **reemplazar la lista borra y escribe filas**, como `ASSOCIATION`.
+
+### 8.13 `live_session_registrations` — 09-10-2026
+
+| Columna | Tipo | Nula | Referencia |
+|---|---|---|---|
+| `live_session_id` | `uuid` | No | `live_sessions` |
+| `user_id` | `uuid` | No | `users` |
+| `zoom_registrant_id` | `varchar(64)` | No | El que devuelve Zoom |
+| `join_url` | `varchar(1000)` | No | **El enlace personal**: es de esa persona y se le devuelve a ella sola (`RN-AC-027`) |
+| `registered_at` | `timestamptz` | No | — |
+
+**Clave primaria `(live_session_id, user_id)`**: una persona se registra una vez por clase, y pedir entrar otra vez lee esta fila. **El enlace personal sí se guarda**, a diferencia del general: solo abre la reunión a esa persona y es lo que se le vuelve a dar.
+
 ### 8.8 `academy_images`
 
 | Columna | Tipo | Nula | Referencia |
@@ -1246,6 +1448,13 @@ Clave primaria compuesta. **La clave foránea a `memberships` se declara** hacia
 | `fk_lesson_progress_user`, `fk_lesson_progress_lesson` | Hacia `users` y `lessons`, sin `ON DELETE` | `RN-AC-023`: nada se borra |
 | `ck_lesson_progress_watched` | `watched_seconds >= 0` | `RN-AC-021`. Que no pase de la duración **no cabe aquí** —la duración es de otra tabla y se corrige—: lo acota la escritura |
 | `ck_lesson_progress_dates` | `last_opened_at >= first_opened_at` | `RN-AC-022` |
+| `ck_live_sessions_status`, `ck_live_sessions_span` | `status IN ('PROGRAMADA','CANCELADA')`; `ends_at >= starts_at + interval '15 minutes' AND ends_at <= starts_at + interval '10 hours'` | `RN-AC-029`. Que el inicio no esté en el pasado **no cabe aquí**: depende de cuándo se escribe |
+| `ck_live_sessions_cancellation` | `(status = 'CANCELADA') = (cancelled_at IS NOT NULL AND cancellation_reason IS NOT NULL)` | `RN-AC-029`: cancelada si y solo si tiene fecha y motivo |
+| `uq_live_sessions_zoom_meeting` | Único sobre `zoom_meeting_id` | `RN-AC-026`: una reunión, una clase |
+| `fk_live_sessions_course`, `fk_live_sessions_created_by` | Hacia `courses` y `users`, sin `ON DELETE` | `RN-AC-025` |
+| `ix_live_sessions_starts_at` | `(starts_at)` | Sostiene la vitrina del alumno y el listado por inicio |
+| `pk_live_session_memberships`, `pk_live_session_products`, `pk_live_session_registrations` | Las tres compuestas | La pareja no se repite |
+| `fk_live_session_*` | Hacia `live_sessions`, `memberships`, `products` y `users`, sin `ON DELETE` | — |
 | `ix_lesson_progress_lesson` | `(lesson_id)` | Sostiene el listado por curso: de las lecciones del curso a sus filas, que es la consulta del instructor (`RF-AC-040`) |
 
 **Lo que NO se puede declarar en el esquema, y por eso vive en el dominio:** que el instructor porte `courses:teach` (`RN-AC-006`, otro módulo); que lo que se activa tenga con qué (`RN-AC-009`, filas de otra tabla); que no se clasifique en una categoría retirada ni se recomiende un curso retirado (`RN-AC-010`, `RN-AC-011`, el `deleted_at` de otra fila); que el contenido de un `TEXTO` sea Markdown (no hay Markdown inválido); y **la ofrecibilidad entera** (`RN-AC-015`), que es una cuenta sobre tres tablas y una lista y **no se guarda**. Un `CHECK` no consulta otra tabla.
@@ -1280,3 +1489,5 @@ Clave primaria compuesta. **La clave foránea a `memberships` se declara** hacia
 | 0.20.0 | 26-09-2026 | **El aula está construida**: `RF-AC-033`, `RF-AC-034` y `RF-AC-035` pasan a `En desarrollo`. **Dos decisiones del responsable del proyecto del mismo día** (§5.2.13): el catálogo gana el filtro **`onlyAccessible`** —solo lo que abre algo a quien pregunta: el curso entero o una lección abierta— y cada curso publica **`openLessonCount`**, sin reescribir la vitrina de `RN-AC-013`, que se precisa; y **el aula pasa a tres permisos** —`courses:learn` para el catálogo, **`courses:read-available`** para el detalle y **`lessons:learn`** para el contenido—, sembrados por `V47` en todo rol que porte `courses:learn` (§4, §6.1, §7). **`SP` publica `CurrentProductsLookup`** (§3), la cuarta interfaz, y el aula la consume para decidir qué servicios abren un curso. Las tres tripletas se reescriben con las enmiendas del 25-09-2026 —servicios, llaves y segundos— y las de hoy. | Responsable del proyecto |
 | 0.21.0 | 09-10-2026 | **El progreso del alumno entra al módulo**, por decisión del responsable del proyecto (§5.2.14): «quiero saber por usuario qué tanto ha visto las lecciones». **Cuatro reglas nuevas** —`RN-AC-021` (la posición más lejana, completada al 90 % y para siempre), `RN-AC-022` (abrir deja rastro y abrir un `TEXTO` lo completa), `RN-AC-023` (el progreso se conserva y el avance del curso se calcula sobre lo que se ofrece hoy) y `RN-AC-024` (quién ve el de quién: el alumno lo suyo, `FUNCIONARIO` todo, la red comercial su alcance con los clientes de la red, el instructor sus cursos; fuera del alcance, vacío o `404`)—, **tres requerimientos** en `Pendiente` —`RF-AC-039` reportar el avance, `RF-AC-040` el listado, `RF-AC-041` el detalle—, **tres permisos** (`lessons:track-progress`, `courses:list-progress`, `courses:read-progress`), la tabla **`lesson_progress`** (§8.7.1) y el submódulo **Progreso**. **Enmienda `RF-AC-033`, `RF-AC-034` y `RF-AC-035`** (Art. I.7): el aula gana el avance de quien mira y el contenido **escribe**. `RN-AC-011` cambia su justificación, no su efecto. §1.3 saca el progreso de lo excluido y deja dentro los certificados y **la medición real del video**. §3 gana una lectura nueva de `SP` —las personas de un alcance—. **El mismo día** el responsable del proyecto aprueba las cinco decisiones tomadas sin preguntar —el 90 %, la posición más lejana, **no auditar cada reporte del video** (excepción al Art. V.7), la red con sus vendedores y dos rutas de consulta— y **las tres tripletas quedan escritas** —`spec.md` y `plan.md` aprobados, `tasks.md` en revisión—, con las enmiendas de las de `RF-AC-033` a `RF-AC-035` (`CA-AC-240` a `CA-AC-262`). | Responsable técnico |
 | 0.22.0 | 09-10-2026 | **El progreso está construido**: `RF-AC-039` a `RF-AC-041` pasan a `En desarrollo`, con `V92` (`lesson_progress` y los tres permisos; catálogo 219, `ADMIN` 217), y el aula enmendada (`RF-AC-033` a `RF-AC-035`). `SP` publica `CommercialReach.principalClientsOf`. **Una precisión al construir** (`RF-AC-040` spec 1.0.1): un `userId` fuera de la red no se descarta antes de consultar, porque puede ser alumno de un curso que el actor dicta; el alcance va siempre en la sentencia. | Responsable técnico |
+| 0.23.0 | 09-10-2026 | **Las clases en vivo por Zoom entran al módulo**, por decisión del responsable del proyecto (§5.2.15): «integrarnos con Zoom, para que desde esta plataforma crear las reuniones y que solo los que tienen el acceso a dicho evento puedan verlo». **Seis reglas** —`RN-AC-025` (la clase declara su propia lista, como el curso), `RN-AC-026` (la plataforma crea la reunión con registro obligatorio y el enlace general no sale), `RN-AC-027` (entrar es registrarse y cada uno recibe su enlace), `RN-AC-028` (administración todas; el instructor, las de sus cursos), `RN-AC-029` (lo cancelado y lo terminado no se corrigen) y `RN-AC-030` (el anfitrión entra por la plataforma)—, **trece requerimientos** en `Pendiente` (`RF-AC-042` a `RF-AC-054`), **trece permisos** `live-sessions:`, **cuatro tablas** (§8.10 a §8.13) y el submódulo **En vivo**. §1.3 deja fuera la grabación y los recordatorios; §3 gana la API de Zoom; §4, al instructor que administra. **Pendiente de revisión**: lo decidido sin preguntar en §5.2.15. | Responsable técnico |
+| 0.23.1 | 09-10-2026 | **La clase en vivo se programa con día, hora de inicio y hora de fin**, y no con inicio y duración, por decisión del responsable del proyecto: `live_sessions.ends_at` sustituye a `duration_minutes`, de 15 minutos a 10 horas, y la zona por omisión es `America/Bogota` (`RN-AC-029`). **Aprobado el bloque** con lo decidido sin preguntar en §5.2.15. | Responsable técnico |
