@@ -54,4 +54,4 @@ No audita: la fila de registro es el rastro.
 
 ## 9. Estrategia de prueba
 
-Integración de API (`JoinLiveSessionIT`) con el doble de Zoom: `CA-AC-279`, `CA-AC-280`, `CA-AC-281`, `CA-AC-282`, `CA-AC-283`, `CA-AC-284`.
+Integración de API (`LiveClassroomIT`) con el doble de Zoom: `CA-AC-279`, `CA-AC-280`, `CA-AC-281`, `CA-AC-282`, `CA-AC-283`, `CA-AC-284`.

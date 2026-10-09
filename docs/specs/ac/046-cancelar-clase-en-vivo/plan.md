@@ -53,4 +53,4 @@ Ninguno: `V94` (`RF-AC-044` · `T-01`) siembra `live-sessions:cancel`.
 
 ## 9. Estrategia de prueba
 
-Integración de API (`LiveSessionCancelIT`) con el doble de Zoom: `CA-AC-293`, `CA-AC-294`, `CA-AC-295`, `CA-AC-296`.
+Integración de API (`LiveSessionAdminIT`) con el doble de Zoom: `CA-AC-293`, `CA-AC-294`, `CA-AC-295`, `CA-AC-296`.

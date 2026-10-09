@@ -103,6 +103,12 @@ services:
       # un proveedor, sus lecciones exigen la duración a mano.
       YOUTUBE_API_KEY: ${YOUTUBE_API_KEY:-}
       VIMEO_ACCESS_TOKEN: ${VIMEO_ACCESS_TOKEN:-}
+      # Las clases en vivo por Zoom (RN-AC-026). Opcionales: sin ellas,
+      # programar, iniciar y entrar a una clase responden 503.
+      ZOOM_ACCOUNT_ID: ${ZOOM_ACCOUNT_ID:-}
+      ZOOM_CLIENT_ID: ${ZOOM_CLIENT_ID:-}
+      ZOOM_CLIENT_SECRET: ${ZOOM_CLIENT_SECRET:-}
+      ZOOM_HOST_USER: ${ZOOM_HOST_USER:-me}
       # La pasarela de la tarjeta (RF-MV-040). Opcionales: sin las dos, la
       # tarjeta nace pendiente y la confirma una persona.
       STRIPE_SECRET_KEY: ${STRIPE_SECRET_KEY:-}

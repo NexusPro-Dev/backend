@@ -52,4 +52,4 @@ Un evento de seguridad de severidad media —«entrega del enlace de anfitrión�
 
 ## 9. Estrategia de prueba
 
-Integración de API (`LiveSessionHostIT`) con el doble de Zoom: `CA-AC-285`, `CA-AC-286`, `CA-AC-287`.
+Integración de API (`LiveSessionAdminIT`) con el doble de Zoom: `CA-AC-285`, `CA-AC-286`, `CA-AC-287`.

@@ -53,4 +53,4 @@ Ninguno: `V94` (`RF-AC-044` · `T-01`) siembra `live-sessions:update`.
 
 ## 9. Estrategia de prueba
 
-Integración de API (`LiveSessionUpdateIT`) con el doble de Zoom: `CA-AC-288`, `CA-AC-289`, `CA-AC-290`, `CA-AC-291`, `CA-AC-292`.
+Integración de API (`LiveSessionAdminIT`) con el doble de Zoom: `CA-AC-288`, `CA-AC-289`, `CA-AC-290`, `CA-AC-291`, `CA-AC-292`.

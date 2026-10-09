@@ -128,6 +128,12 @@ public final class AuditEnums {
 
     MFA_RECOVERY_CODE_USED,
     MFA_RECOVERY_CODES_REGENERATED,
-    ROLE_MFA_REQUIREMENT_CHANGED
+    ROLE_MFA_REQUIREMENT_CHANGED,
+
+    /**
+     * Se entregó el enlace de anfitrión de una clase en vivo (`RN-AC-030`, `V94`, 09-10-2026): da
+     * el control de la reunión de Zoom. De veintiocho a <b>veintinueve</b>.
+     */
+    LIVE_SESSION_HOST_LINK_ISSUED
   }
 }

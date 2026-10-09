@@ -52,4 +52,4 @@ No audita.
 
 ## 9. Estrategia de prueba
 
-Integración de API (`LiveSessionListIT`) con el doble de Zoom: `CA-AC-273`, `CA-AC-274`, `CA-AC-275`.
+Integración de API (`LiveSessionAdminIT`) con el doble de Zoom: `CA-AC-273`, `CA-AC-274`, `CA-AC-275`.

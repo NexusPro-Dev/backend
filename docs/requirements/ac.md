@@ -5,7 +5,7 @@
 | Módulo | `AC` — Academia |
 | Paquete | `modules/academy` |
 | Prefijos de permiso | `course-categories:`, `courses:`, `lessons:`, `live-sessions:` |
-| Versión | 0.23.1 |
+| Versión | 0.24.0 |
 | Estado | **Borrador** |
 | Responsable | Bonilla Diaz William Steven |
 | Fecha de creación | 17-09-2026 |
@@ -426,19 +426,19 @@ El responsable del proyecto lo planteó el 08-10-2026 —clases en vivo solo par
 | `RF-AC-039` | Reportar el avance de un video | Progreso | Alta | `lessons:track-progress` | **En desarrollo** (09-10-2026) |
 | `RF-AC-040` | Consultar el progreso de los alumnos | Progreso | Alta | `courses:list-progress` | **En desarrollo** (09-10-2026) |
 | `RF-AC-041` | Consultar el progreso de un alumno en un curso | Progreso | Media | `courses:read-progress` | **En desarrollo** (09-10-2026) |
-| `RF-AC-042` | Consultar las clases en vivo | En vivo | Alta | `live-sessions:list` | **Tasks en revisión** (09-10-2026) |
-| `RF-AC-043` | Consultar el detalle de una clase en vivo | En vivo | Alta | `live-sessions:read` | **Tasks en revisión** (09-10-2026) |
-| `RF-AC-044` | Programar una clase en vivo | En vivo | Alta | `live-sessions:create` | **Tasks en revisión** (09-10-2026) |
-| `RF-AC-045` | Corregir una clase en vivo | En vivo | Alta | `live-sessions:update` | **Tasks en revisión** (09-10-2026) |
-| `RF-AC-046` | Cancelar una clase en vivo | En vivo | Alta | `live-sessions:cancel` | **Tasks en revisión** (09-10-2026) |
-| `RF-AC-047` | Iniciar una clase en vivo como anfitrión | En vivo | Alta | `live-sessions:host` | **Tasks en revisión** (09-10-2026) |
-| `RF-AC-048` | Consultar mis clases en vivo como instructor | En vivo | Media | `live-sessions:list-own` | **Tasks en revisión** (09-10-2026) |
-| `RF-AC-049` | Programar una clase en vivo de mi curso | En vivo | Media | `live-sessions:create-own` | **Tasks en revisión** (09-10-2026) |
-| `RF-AC-050` | Corregir una clase en vivo de mi curso | En vivo | Media | `live-sessions:update-own` | **Tasks en revisión** (09-10-2026) |
-| `RF-AC-051` | Cancelar una clase en vivo de mi curso | En vivo | Media | `live-sessions:cancel-own` | **Tasks en revisión** (09-10-2026) |
-| `RF-AC-052` | Iniciar como anfitrión una clase en vivo de mi curso | En vivo | Media | `live-sessions:host-own` | **Tasks en revisión** (09-10-2026) |
-| `RF-AC-053` | Consultar las clases en vivo como alumno | En vivo | Alta | `live-sessions:learn` | **Tasks en revisión** (09-10-2026) |
-| `RF-AC-054` | Entrar a una clase en vivo | En vivo | Alta | `live-sessions:join` | **Tasks en revisión** (09-10-2026) |
+| `RF-AC-042` | Consultar las clases en vivo | En vivo | Alta | `live-sessions:list` | **En desarrollo** (09-10-2026) |
+| `RF-AC-043` | Consultar el detalle de una clase en vivo | En vivo | Alta | `live-sessions:read` | **En desarrollo** (09-10-2026) |
+| `RF-AC-044` | Programar una clase en vivo | En vivo | Alta | `live-sessions:create` | **En desarrollo** (09-10-2026) |
+| `RF-AC-045` | Corregir una clase en vivo | En vivo | Alta | `live-sessions:update` | **En desarrollo** (09-10-2026) |
+| `RF-AC-046` | Cancelar una clase en vivo | En vivo | Alta | `live-sessions:cancel` | **En desarrollo** (09-10-2026) |
+| `RF-AC-047` | Iniciar una clase en vivo como anfitrión | En vivo | Alta | `live-sessions:host` | **En desarrollo** (09-10-2026) |
+| `RF-AC-048` | Consultar mis clases en vivo como instructor | En vivo | Media | `live-sessions:list-own` | **En desarrollo** (09-10-2026) |
+| `RF-AC-049` | Programar una clase en vivo de mi curso | En vivo | Media | `live-sessions:create-own` | **En desarrollo** (09-10-2026) |
+| `RF-AC-050` | Corregir una clase en vivo de mi curso | En vivo | Media | `live-sessions:update-own` | **En desarrollo** (09-10-2026) |
+| `RF-AC-051` | Cancelar una clase en vivo de mi curso | En vivo | Media | `live-sessions:cancel-own` | **En desarrollo** (09-10-2026) |
+| `RF-AC-052` | Iniciar como anfitrión una clase en vivo de mi curso | En vivo | Media | `live-sessions:host-own` | **En desarrollo** (09-10-2026) |
+| `RF-AC-053` | Consultar las clases en vivo como alumno | En vivo | Alta | `live-sessions:learn` | **En desarrollo** (09-10-2026) |
+| `RF-AC-054` | Entrar a una clase en vivo | En vivo | Alta | `live-sessions:join` | **En desarrollo** (09-10-2026) |
 
 **Cincuenta y cuatro requerimientos** —treinta y cinco del 17-09-2026, `RF-AC-036` del 18 (§5.2.7), `RF-AC-037` y `RF-AC-038` del 25 (§5.2.8), `RF-AC-039` a `RF-AC-041` del 09-10-2026 (§5.2.14) y `RF-AC-042` a `RF-AC-054` del mismo día (§5.2.15)—, y la cifra merece una explicación: no es que el módulo sea grande, es que **cada entidad paga el mismo precio** —alta, corrección, estado, retiro— y **cada relación cobra dos** —dar y quitar—. Es la misma forma que `PM` con el producto y el paquete, y la razón de no juntar «asociar» y «desasociar» en un solo requerimiento es la de siempre: son dos operaciones con dos reglas distintas y dos auditorías distintas.
 
@@ -1080,7 +1080,7 @@ Baja lógica con motivo y registro. No arrastra nada: no hay nada debajo.
 | Actor | Administrador |
 | Permiso requerido | `live-sessions:list` |
 | Reglas aplicables | `RN-AC-028`, `RN-AC-029` |
-| Estado | **Tasks en revisión** (09-10-2026) |
+| Estado | **En desarrollo** (09-10-2026) |
 
 `GET /api/v1/live-sessions`: paginado, por inicio descendente, con filtros por curso, por estado (`PROGRAMADA` \| `CANCELADA`), por `ended` y por periodo de inicio. Cada fila con título, curso —o nulo—, inicio, fin, estado, si terminó, cuántas llaves declara y **cuántos se registraron**.
 
@@ -1092,7 +1092,7 @@ Baja lógica con motivo y registro. No arrastra nada: no hay nada debajo.
 | Actor | Administrador |
 | Permiso requerido | `live-sessions:read` |
 | Reglas aplicables | `RN-AC-025`, `RN-AC-027`, `RN-AC-029` |
-| Estado | **Tasks en revisión** (09-10-2026) |
+| Estado | **En desarrollo** (09-10-2026) |
 
 `GET /api/v1/live-sessions/{id}`: la clase con su descripción, el curso, **sus membresías y servicios**, el identificador de la reunión de Zoom —**sin enlace ni contraseña**—, la cancelación con fecha y motivo, y **la lista de registrados**: persona y fecha. `404` si no existe.
 
@@ -1104,7 +1104,7 @@ Baja lógica con motivo y registro. No arrastra nada: no hay nada debajo.
 | Actor | Administrador |
 | Permiso requerido | `live-sessions:create` |
 | Reglas aplicables | `RN-AC-025`, `RN-AC-026`, `RN-AC-029` |
-| Estado | **Tasks en revisión** (09-10-2026) |
+| Estado | **En desarrollo** (09-10-2026) |
 
 `POST /api/v1/live-sessions` con `{ title, description?, courseId?, startsAt, endsAt, membershipIds[], productIds[] }`. Valida, **crea la reunión en Zoom** y guarda la clase `PROGRAMADA` con sus listas, en una transacción; si Zoom falla, `503` y nada guardado. Se audita. Responde `201` con el detalle. **Estrena las cuatro tablas y los trece permisos** (`V94`) y el cliente de Zoom.
 
@@ -1116,7 +1116,7 @@ Baja lógica con motivo y registro. No arrastra nada: no hay nada debajo.
 | Actor | Administrador |
 | Permiso requerido | `live-sessions:update` |
 | Reglas aplicables | `RN-AC-025`, `RN-AC-026`, `RN-AC-029` |
-| Estado | **Tasks en revisión** (09-10-2026) |
+| Estado | **En desarrollo** (09-10-2026) |
 
 `PATCH /api/v1/live-sessions/{id}`: solo lo que viene; **las listas, si vienen, se reemplazan enteras**. Lo que Zoom conoce —título, inicio, fin— **se corrige allí primero**. Quitar a alguien de la lista no lo des-registra en Zoom: no recibe un enlace nuevo, y el que ya tenía sigue valiendo (`RN-AC-027`). `409` si está cancelada o terminada.
 
@@ -1128,7 +1128,7 @@ Baja lógica con motivo y registro. No arrastra nada: no hay nada debajo.
 | Actor | Administrador |
 | Permiso requerido | `live-sessions:cancel` |
 | Reglas aplicables | `RN-AC-026`, `RN-AC-029` |
-| Estado | **Tasks en revisión** (09-10-2026) |
+| Estado | **En desarrollo** (09-10-2026) |
 
 `POST /api/v1/live-sessions/{id}/cancellation` con `{ reason }`: **borra la reunión en Zoom** —una que ya no existe allí no lo impide— y marca la clase `CANCELADA` con fecha y motivo. Se audita. `409` si ya estaba cancelada o terminó.
 
@@ -1140,7 +1140,7 @@ Baja lógica con motivo y registro. No arrastra nada: no hay nada debajo.
 | Actor | Administrador |
 | Permiso requerido | `live-sessions:host` |
 | Reglas aplicables | `RN-AC-029`, `RN-AC-030` |
-| Estado | **Tasks en revisión** (09-10-2026) |
+| Estado | **En desarrollo** (09-10-2026) |
 
 `POST /api/v1/live-sessions/{id}/host-link`: pide a Zoom **el enlace de anfitrión** en ese momento y lo devuelve, sin guardarlo. Se audita. `409` si está cancelada o terminada; `503` si Zoom no responde.
 
@@ -1164,7 +1164,7 @@ Baja lógica con motivo y registro. No arrastra nada: no hay nada debajo.
 | Actor | Alumno |
 | Permiso requerido | `live-sessions:learn` |
 | Reglas aplicables | `RN-AC-025`, `RN-AC-029` |
-| Estado | **Tasks en revisión** (09-10-2026) |
+| Estado | **En desarrollo** (09-10-2026) |
 
 `GET /api/v1/live-sessions/available`: **las clases programadas que no han terminado**, por inicio ascendente, sin paginar, filtrables por curso y por **`onlyAccessible`**. Cada una con título, descripción, curso, inicio, fin, **`accessible`**, **si ya está registrado**, y las membresías y servicios que la abren —la invitación—. **Sin nada de Zoom**.
 
@@ -1176,7 +1176,7 @@ Baja lógica con motivo y registro. No arrastra nada: no hay nada debajo.
 | Actor | Alumno |
 | Permiso requerido | `live-sessions:join` |
 | Reglas aplicables | `RN-AC-025`, `RN-AC-027`, `RN-AC-029` |
-| Estado | **Tasks en revisión** (09-10-2026) |
+| Estado | **En desarrollo** (09-10-2026) |
 
 `POST /api/v1/live-sessions/available/{id}/registration`: comprueba que la clase está programada y no terminó —si no, `404`, como lo que no se ofrece— y **que se le abre** —si no, `403` con las membresías y los servicios que la abren, como una lección cerrada—; **lo registra en Zoom** con su nombre y su correo y devuelve `{ joinUrl, startsAt }`. **La segunda vez devuelve el mismo enlace sin llamar a Zoom** (`200` en vez de `201`). `503` si Zoom no responde, y entonces no queda registrado. **No se audita**: la fila de registro es el rastro.
 
@@ -1491,3 +1491,4 @@ Clave primaria compuesta. **La clave foránea a `memberships` se declara** hacia
 | 0.22.0 | 09-10-2026 | **El progreso está construido**: `RF-AC-039` a `RF-AC-041` pasan a `En desarrollo`, con `V92` (`lesson_progress` y los tres permisos; catálogo 219, `ADMIN` 217), y el aula enmendada (`RF-AC-033` a `RF-AC-035`). `SP` publica `CommercialReach.principalClientsOf`. **Una precisión al construir** (`RF-AC-040` spec 1.0.1): un `userId` fuera de la red no se descarta antes de consultar, porque puede ser alumno de un curso que el actor dicta; el alcance va siempre en la sentencia. | Responsable técnico |
 | 0.23.0 | 09-10-2026 | **Las clases en vivo por Zoom entran al módulo**, por decisión del responsable del proyecto (§5.2.15): «integrarnos con Zoom, para que desde esta plataforma crear las reuniones y que solo los que tienen el acceso a dicho evento puedan verlo». **Seis reglas** —`RN-AC-025` (la clase declara su propia lista, como el curso), `RN-AC-026` (la plataforma crea la reunión con registro obligatorio y el enlace general no sale), `RN-AC-027` (entrar es registrarse y cada uno recibe su enlace), `RN-AC-028` (administración todas; el instructor, las de sus cursos), `RN-AC-029` (lo cancelado y lo terminado no se corrigen) y `RN-AC-030` (el anfitrión entra por la plataforma)—, **trece requerimientos** en `Pendiente` (`RF-AC-042` a `RF-AC-054`), **trece permisos** `live-sessions:`, **cuatro tablas** (§8.10 a §8.13) y el submódulo **En vivo**. §1.3 deja fuera la grabación y los recordatorios; §3 gana la API de Zoom; §4, al instructor que administra. **Pendiente de revisión**: lo decidido sin preguntar en §5.2.15. | Responsable técnico |
 | 0.23.1 | 09-10-2026 | **La clase en vivo se programa con día, hora de inicio y hora de fin**, y no con inicio y duración, por decisión del responsable del proyecto: `live_sessions.ends_at` sustituye a `duration_minutes`, de 15 minutos a 10 horas, y la zona por omisión es `America/Bogota` (`RN-AC-029`). **Aprobado el bloque** con lo decidido sin preguntar en §5.2.15. | Responsable técnico |
+| 0.24.0 | 09-10-2026 | **Las clases en vivo están construidas**: `RF-AC-042` a `RF-AC-054` pasan a `En desarrollo`, con `V94` (cuatro tablas, trece permisos —catálogo 232, `ADMIN` 230— y el evento de seguridad `LIVE_SESSION_HOST_LINK_ISSUED`), el cliente de Zoom en `shared/zoom` y `SP` publicando `UserContactLookup` para registrar a quien entra. Ninguna prueba llama a Zoom. | Responsable técnico |

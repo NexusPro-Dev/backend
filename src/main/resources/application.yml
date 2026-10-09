@@ -473,6 +473,21 @@ nexus:
     vimeo-base-url: ${VIMEO_BASE_URL:https://vimeo.com}
     timeout: PT5S
 
+  # Las clases en vivo por Zoom (RN-AC-026, ac.md §5.2.15, 09-10-2026): una app
+  # Server-to-Server OAuth de la cuenta de pago, y el usuario anfitrión de las
+  # reuniones (su correo o su id; "me" es el dueño de la app). SIN LAS TRES
+  # CREDENCIALES, programar, iniciar y entrar responden 503; lo demás funciona.
+  # La zona es la que se le da a Zoom y la de una hora que llega sin zona.
+  zoom:
+    account-id: ${ZOOM_ACCOUNT_ID:}
+    client-id: ${ZOOM_CLIENT_ID:}
+    client-secret: ${ZOOM_CLIENT_SECRET:}
+    host-user: ${ZOOM_HOST_USER:me}
+    api-base-url: ${ZOOM_API_BASE_URL:https://api.zoom.us/v2}
+    oauth-url: ${ZOOM_OAUTH_URL:https://zoom.us/oauth/token}
+    time-zone: America/Bogota
+    timeout: PT10S
+
   # La pasarela de la tarjeta, Stripe (RF-MV-040 a RF-MV-042, architecture.md
   # §15.4, 01-10-2026). SIN LAS DOS CREDENCIALES queda APAGADA y se avisa al
   # arrancar: el pago con CREDIT_CARD nace pendiente sin cobro y lo confirma

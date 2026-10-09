@@ -84,4 +84,4 @@ La reunión **fuera** de la transacción —una llamada externa no se mete en un
 ## 11. Estrategia de prueba
 
 - **Unitarias**: `LiveSessionScheduleTest` (zona, límites); `ZoomApiClientTest` contra un servidor HTTP simulado (cuerpo de la reunión, token reutilizado, fallos).
-- **Integración** (`ScheduleLiveSessionIT`): `CA-AC-263` a `CA-AC-268` con el doble.
+- **Integración** (`LiveSessionAdminIT`): `CA-AC-263` a `CA-AC-268` con el doble.

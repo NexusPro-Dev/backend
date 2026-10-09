@@ -39,6 +39,9 @@ tags:
   description: "El precio de cobro y el de retiro de cada país, 1 USD = X moneda local.\
     \ Los usará la pasarela local (PayRetailers), que cobra y paga en la moneda del\
     \ país."
+- name: Clases en vivo
+  description: "Programar, corregir, cancelar e iniciar las clases en vivo por Zoom:\
+    \ administración todas, el instructor las de sus cursos."
 - name: Usuarios
   description: Alta y administración de las personas del sistema.
 - name: Cursos
@@ -83,6 +86,8 @@ tags:
 - name: Auditoría
   description: "Los cuatro registros de auditoría del sistema. Solo lectura, y cada\
     \ uno con su permiso."
+- name: Aula en vivo
+  description: "Las clases en vivo que vienen, y entrar a ellas."
 - name: Brokers
   description: "Catálogo de los brokers con los que opera la plataforma. Solo lectura:\
     \ se puebla por migración (RN-SP-039)."
@@ -5163,6 +5168,459 @@ paths:
         "500":
           description: Fallo no controlado (`ERR-500`)
       x-required-permission: memberships:create
+  /api/v1/live-sessions:
+    get:
+      tags:
+      - Clases en vivo
+      summary: Consultar las clases en vivo
+      description: |
+        **Permiso requerido:** `live-sessions:list`. Sin él, `403` (`AUTH-002`).
+
+        **Todas las clases**, también las canceladas y las terminadas, por inicio
+        descendente y paginadas. Filtros: `courseId`, `status` (`PROGRAMADA` o
+        `CANCELADA`), `ended` —calculado con la hora de fin— y el periodo de inicio
+        `from`/`to` (semiabierto). Cada fila trae cuántas membresías y servicios la abren y
+        **cuántos se registraron**.
+
+        Exige `live-sessions:list`.
+      operationId: listar_7
+      parameters:
+      - name: page
+        in: query
+        required: false
+        schema:
+          type: integer
+          format: int32
+      - name: size
+        in: query
+        required: false
+        schema:
+          type: integer
+          format: int32
+      - name: courseId
+        in: query
+        required: false
+        schema:
+          type: string
+          format: uuid
+      - name: status
+        in: query
+        required: false
+        schema:
+          type: string
+      - name: ended
+        in: query
+        required: false
+        schema:
+          type: boolean
+      - name: from
+        in: query
+        required: false
+        schema:
+          type: string
+          format: date-time
+      - name: to
+        in: query
+        required: false
+        schema:
+          type: string
+          format: date-time
+      responses:
+        "200":
+          description: La página.
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/PageResponseLiveSessionItem"
+        "400":
+          description: "Paginación o filtro mal formado (`VAL-001`, `VAL-003`)"
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/PageResponseLiveSessionItem"
+        "401":
+          description: Sin sesión (`AUTH-001`)
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/PageResponseLiveSessionItem"
+        "403":
+          description: Sin el permiso (`AUTH-002`)
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/PageResponseLiveSessionItem"
+      x-required-permission: live-sessions:list
+    post:
+      tags:
+      - Clases en vivo
+      summary: Programar una clase en vivo
+      description: |
+        **Permiso requerido:** `live-sessions:create`. Sin él, `403` (`AUTH-002`).
+
+        **Día, hora de inicio y hora de fin** (`startsAt`, `endsAt`), con su zona o sin ella
+        —y entonces en `America/Bogota`—: el inicio no en el pasado, el fin de 15 minutos a
+        10 horas después. **`membershipIds` y `productIds` dicen quién puede entrar**, como en
+        un curso: lista explícita, servicios `BOT`, y **sin ninguna de las dos, la clase es
+        de todos los alumnos con sesión**. `courseId` es opcional: agrupa la clase y decide
+        qué instructor la administra, no quién entra.
+
+        **La reunión la crea la plataforma en Zoom**, con registro obligatorio: solo entra quien
+        recibe su enlace personal al pulsar «Entrar» (`POST /live-sessions/available/{id}/registration`).
+        **De Zoom solo se guarda el identificador de la reunión**; el enlace general y la contraseña
+        no salen nunca. Si Zoom no está configurado, falla o no responde, `503` y nada cambia.
+
+        Exige `live-sessions:create`.
+      operationId: programar
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ScheduleLiveSessionRequest"
+      responses:
+        "201":
+          description: "La clase programada, con el detalle."
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/LiveSessionDetailResponse"
+        "400":
+          description: "Campos ausentes o fuera de forma, horario inválido o listas\
+            \ repetidas (`VAL-001` a `VAL-004`)"
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/LiveSessionDetailResponse"
+        "422":
+          description: "Curso, membresía o producto que no valen (`EX-001`, `EX-002`)"
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/LiveSessionDetailResponse"
+        "503":
+          description: Zoom no disponible (`EX-003`)
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/LiveSessionDetailResponse"
+      x-required-permission: live-sessions:create
+  /api/v1/live-sessions/{id}/host-link:
+    post:
+      tags:
+      - Clases en vivo
+      summary: Iniciar una clase en vivo como anfitrión
+      description: |
+        **Permiso requerido:** `live-sessions:host`. Sin él, `403` (`AUTH-002`).
+
+        **El enlace de inicio de Zoom**, pedido en el momento: abre la reunión **como
+        anfitrión** con la cuenta del negocio. **Caduca a las pocas horas y no se guarda**;
+        cada entrega queda en la auditoría de seguridad. `409` si la clase está cancelada o
+        terminó.
+
+        Exige `live-sessions:host`.
+      operationId: anfitrion
+      parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      responses:
+        "200":
+          description: El enlace de anfitrión.
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/LiveSessionHostLinkResponse"
+        "404":
+          description: No existe (`EX-001`)
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/LiveSessionHostLinkResponse"
+        "409":
+          description: Cancelada o terminada (`EX-003`)
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/LiveSessionHostLinkResponse"
+        "503":
+          description: Zoom no disponible (`EX-004`)
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/LiveSessionHostLinkResponse"
+      x-required-permission: live-sessions:host
+  /api/v1/live-sessions/{id}/cancellation:
+    post:
+      tags:
+      - Clases en vivo
+      summary: Cancelar una clase en vivo
+      description: |
+        **Permiso requerido:** `live-sessions:cancel`. Sin él, `403` (`AUTH-002`).
+
+        Con `reason` obligatorio: **borra la reunión en Zoom** —así nadie entra aunque guarde
+        su enlace— y **conserva la clase** como `CANCELADA` con fecha y motivo. No se
+        deshace. Una reunión que ya no existía en Zoom no lo impide. `409` si ya estaba
+        cancelada o terminó.
+
+        Exige `live-sessions:cancel`.
+      operationId: cancelar
+      parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CancelLiveSessionRequest"
+      responses:
+        "200":
+          description: La clase cancelada.
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/LiveSessionDetailResponse"
+        "400":
+          description: Sin motivo (`VAL-002`)
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/LiveSessionDetailResponse"
+        "404":
+          description: No existe (`EX-001`)
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/LiveSessionDetailResponse"
+        "409":
+          description: Cancelada o terminada (`EX-003`)
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/LiveSessionDetailResponse"
+        "503":
+          description: Zoom no disponible (`EX-004`)
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/LiveSessionDetailResponse"
+      x-required-permission: live-sessions:cancel
+  /api/v1/live-sessions/mine:
+    get:
+      tags:
+      - Clases en vivo
+      summary: Consultar mis clases en vivo como instructor
+      description: |
+        **Permiso requerido:** `live-sessions:list-own`. Sin él, `403` (`AUTH-002`).
+
+        El listado de administración **acotado a las clases de los cursos que dicta** quien
+        pregunta, con los mismos filtros. Las clases sueltas no salen.
+
+        Exige `live-sessions:list-own`.
+      operationId: listarPropias
+      parameters:
+      - name: page
+        in: query
+        required: false
+        schema:
+          type: integer
+          format: int32
+      - name: size
+        in: query
+        required: false
+        schema:
+          type: integer
+          format: int32
+      - name: courseId
+        in: query
+        required: false
+        schema:
+          type: string
+          format: uuid
+      - name: status
+        in: query
+        required: false
+        schema:
+          type: string
+      - name: ended
+        in: query
+        required: false
+        schema:
+          type: boolean
+      - name: from
+        in: query
+        required: false
+        schema:
+          type: string
+          format: date-time
+      - name: to
+        in: query
+        required: false
+        schema:
+          type: string
+          format: date-time
+      responses:
+        "200":
+          description: OK
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/PageResponseLiveSessionItem"
+      x-required-permission: live-sessions:list-own
+    post:
+      tags:
+      - Clases en vivo
+      summary: Programar una clase en vivo de mi curso
+      description: |
+        **Permiso requerido:** `live-sessions:create-own`. Sin él, `403` (`AUTH-002`).
+
+        Como programar una clase, con **`courseId` obligatorio** y de un curso que dicta
+        quien pide; si no, `422` (`EX-001`).
+
+        **La reunión la crea la plataforma en Zoom**, con registro obligatorio: solo entra quien
+        recibe su enlace personal al pulsar «Entrar» (`POST /live-sessions/available/{id}/registration`).
+        **De Zoom solo se guarda el identificador de la reunión**; el enlace general y la contraseña
+        no salen nunca. Si Zoom no está configurado, falla o no responde, `503` y nada cambia.
+
+        Exige `live-sessions:create-own`.
+      operationId: programarPropia
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ScheduleLiveSessionRequest"
+      responses:
+        "201":
+          description: Created
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/LiveSessionDetailResponse"
+      x-required-permission: live-sessions:create-own
+  /api/v1/live-sessions/mine/{id}/host-link:
+    post:
+      tags:
+      - Clases en vivo
+      summary: Iniciar como anfitrión una clase en vivo de mi curso
+      description: |
+        **Permiso requerido:** `live-sessions:host-own`. Sin él, `403` (`AUTH-002`).
+
+        El enlace de anfitrión de una clase de un curso que dicta quien pide; una ajena
+        responde `404`. Cada entrega se audita.
+
+        Exige `live-sessions:host-own`.
+      operationId: anfitrionPropia
+      parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      responses:
+        "200":
+          description: OK
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/LiveSessionHostLinkResponse"
+      x-required-permission: live-sessions:host-own
+  /api/v1/live-sessions/mine/{id}/cancellation:
+    post:
+      tags:
+      - Clases en vivo
+      summary: Cancelar una clase en vivo de mi curso
+      description: |
+        **Permiso requerido:** `live-sessions:cancel-own`. Sin él, `403` (`AUTH-002`).
+
+        Como cancelar una clase, sobre las de los cursos que dicta; una ajena responde `404`.
+
+        Exige `live-sessions:cancel-own`.
+      operationId: cancelarPropia
+      parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CancelLiveSessionRequest"
+      responses:
+        "200":
+          description: OK
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/LiveSessionDetailResponse"
+      x-required-permission: live-sessions:cancel-own
+  /api/v1/live-sessions/available/{id}/registration:
+    post:
+      tags:
+      - Aula en vivo
+      summary: Entrar a una clase en vivo
+      description: |
+        **Permiso requerido:** `live-sessions:join`. Sin él, `403` (`AUTH-002`).
+
+        **Entrar es registrarse.** Si la clase está programada, no terminó y **se le abre** a
+        quien pide, la plataforma lo registra en Zoom con su nombre y su correo y devuelve
+        **su enlace personal** (`201`). **La segunda vez devuelve el mismo enlace sin llamar a
+        Zoom** (`200`). El acceso se comprueba en cada petición. El enlace sirve a un
+        dispositivo a la vez y **no se debe compartir**.
+
+        Una clase cancelada, terminada o inexistente responde `404`; una que no se le abre,
+        `403` con `EX-002` y los miembros `memberships` y `products`: lo que la abre.
+
+        Exige `live-sessions:join`.
+      operationId: entrar
+      parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      responses:
+        "201":
+          description: "Registrado: el enlace personal."
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/JoinLiveSessionResponse"
+        "200":
+          description: "Ya estaba registrado: el mismo enlace."
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/JoinLiveSessionResponse"
+        "403":
+          description: "Sin el permiso (`AUTH-002`), o la clase no se le abre (`EX-002`)"
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/JoinLiveSessionResponse"
+        "404":
+          description: "No existe, está cancelada o terminó (`EX-001`)"
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/JoinLiveSessionResponse"
+        "503":
+          description: Zoom no disponible (`EX-003`)
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/JoinLiveSessionResponse"
+      x-required-permission: live-sessions:join
   /api/v1/hotlinks/{username}/{code}/purchases:
     post:
       tags:
@@ -5358,7 +5816,7 @@ paths:
         (descendente por omisión), con `,asc`/`,desc`. Los parámetros inválidos se
         devuelven **juntos** con `400`. Exige `courses:read`;
         `course-categories:read` no habilita.
-      operationId: listar_7
+      operationId: listar_8
       parameters:
       - name: page
         in: query
@@ -6149,7 +6607,7 @@ paths:
         (descendente por omisión), con `,asc`/`,desc`. Los parámetros inválidos se
         devuelven **juntos** con `400`. Exige `course-categories:read`;
         `courses:read` no habilita.
-      operationId: listar_8
+      operationId: listar_9
       parameters:
       - name: page
         in: query
@@ -6427,7 +6885,7 @@ paths:
         Las tasas **personalizadas** no salen en este listado: están en
         `GET /api/v1/user-commission-rates`. **No hay filtro por fecha**, porque
         las tasas de rol no tienen vigencia.
-      operationId: listar_9
+      operationId: listar_10
       parameters:
       - name: filtros
         in: query
@@ -7645,7 +8103,7 @@ paths:
         Qué escala rige para una persona concreta lo decide el cierre
         (`RN-CM-039`): la suya, si tiene escalones vigentes
         (`GET /api/v1/user-afftrack-rates`), y si no, la de su rol.
-      operationId: listar_10
+      operationId: listar_11
       parameters:
       - name: filtros
         in: query
@@ -10078,6 +10536,138 @@ paths:
         "409":
           description: Entidad desactivada (`EX-003`) o número repetido (`EX-005`)
       x-required-permission: movements:update-own-payout-account
+  /api/v1/live-sessions/{id}:
+    get:
+      tags:
+      - Clases en vivo
+      summary: Consultar el detalle de una clase en vivo
+      description: |
+        **Permiso requerido:** `live-sessions:read`. Sin él, `403` (`AUTH-002`).
+
+        La clase con su curso, **sus membresías y servicios**, el identificador de la
+        reunión de Zoom —**sin enlace ni contraseña**—, la cancelación si la hay y **quién se
+        registró para entrar**, con su fecha. `ended` dice si su hora de fin ya pasó.
+
+        Exige `live-sessions:read`.
+      operationId: detalle_5
+      parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      responses:
+        "200":
+          description: La clase.
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/LiveSessionDetailResponse"
+        "404":
+          description: No existe (`EX-001`)
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/LiveSessionDetailResponse"
+      x-required-permission: live-sessions:read
+    patch:
+      tags:
+      - Clases en vivo
+      summary: Corregir una clase en vivo
+      description: |
+        **Permiso requerido:** `live-sessions:update`. Sin él, `403` (`AUTH-002`).
+
+        **Solo lo que viene.** Las listas, si vienen, **reemplazan enteras** (una lista
+        vacía deja la clase de todos); `removeCourse: true` la deja suelta. Lo que Zoom
+        conoce —título, inicio y fin— **se corrige allí primero**. Quitar a alguien de la
+        lista no lo des-registra en Zoom: no recibe un enlace nuevo. **Una clase cancelada o
+        terminada no se corrige** (`409`).
+
+        **La reunión la crea la plataforma en Zoom**, con registro obligatorio: solo entra quien
+        recibe su enlace personal al pulsar «Entrar» (`POST /live-sessions/available/{id}/registration`).
+        **De Zoom solo se guarda el identificador de la reunión**; el enlace general y la contraseña
+        no salen nunca. Si Zoom no está configurado, falla o no responde, `503` y nada cambia.
+
+        Exige `live-sessions:update`.
+      operationId: corregir_5
+      parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UpdateLiveSessionRequest"
+      responses:
+        "200":
+          description: La clase corregida.
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/LiveSessionDetailResponse"
+        "404":
+          description: No existe (`EX-001`)
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/LiveSessionDetailResponse"
+        "409":
+          description: Cancelada o terminada (`EX-003`)
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/LiveSessionDetailResponse"
+        "422":
+          description: "Curso, membresía o producto que no valen"
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/LiveSessionDetailResponse"
+        "503":
+          description: Zoom no disponible (`EX-004`)
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/LiveSessionDetailResponse"
+      x-required-permission: live-sessions:update
+  /api/v1/live-sessions/mine/{id}:
+    patch:
+      tags:
+      - Clases en vivo
+      summary: Corregir una clase en vivo de mi curso
+      description: |
+        **Permiso requerido:** `live-sessions:update-own`. Sin él, `403` (`AUTH-002`).
+
+        Como corregir una clase, sobre las de los cursos que dicta: **una ajena responde
+        `404`**, y no se puede mover a un curso que no dicta ni dejarla suelta (`422`).
+
+        Exige `live-sessions:update-own`.
+      operationId: corregirPropia
+      parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UpdateLiveSessionRequest"
+      responses:
+        "200":
+          description: OK
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/LiveSessionDetailResponse"
+      x-required-permission: live-sessions:update-own
   /api/v1/currencies/{id}/status:
     patch:
       tags:
@@ -10160,7 +10750,7 @@ paths:
         **Se devuelve también un retirado**, con `deletedAt` y `deletionReason`
         —leído de la auditoría— y su árbol marcado: es la lectura de administración
         y devuelve todo.
-      operationId: detalle_5
+      operationId: detalle_6
       parameters:
       - name: id
         in: path
@@ -10226,7 +10816,7 @@ paths:
         El título nuevo no puede ser el de **otro** curso vivo. Un retirado no se
         corrige (`404`). Un cuerpo sin cambios de valor responde `200` sin avanzar
         `updatedAt` ni auditar. Exige `courses:update`.
-      operationId: corregir_5
+      operationId: corregir_6
       parameters:
       - name: id
         in: path
@@ -10376,7 +10966,7 @@ paths:
         módulo no cambia de curso**: `courseId` en el cuerpo es `400`, y un módulo de
         otro curso responde `404`, como el retirado. Un cuerpo sin cambios de valor
         responde `200` sin auditar. Exige `courses:update`.
-      operationId: corregir_6
+      operationId: corregir_7
       parameters:
       - name: courseId
         in: path
@@ -10528,7 +11118,7 @@ paths:
         La ruta afirma la pertenencia: una lección de otro módulo, o un módulo de otro
         curso, responde `404`. Es la misma forma que devuelven las escrituras. Exige
         `courses:read`; `courses:learn` no habilita — el aula la lee por otra ruta.
-      operationId: detalle_6
+      operationId: detalle_7
       parameters:
       - name: courseId
         in: path
@@ -10602,7 +11192,7 @@ paths:
         **El contenido se
         audita como longitud y no como texto.** La lección no cambia de módulo: `moduleId`,
         `courseId` y `status` en el cuerpo son `400`. Exige `courses:update`.
-      operationId: corregir_7
+      operationId: corregir_8
       parameters:
       - name: courseId
         in: path
@@ -10775,7 +11365,7 @@ paths:
         clasificados en ella aunque el aula ya no los enseñe bajo ese cajón. Es la
         lectura de administración, y quien tiene `course-categories:read` ve el
         catálogo completo.
-      operationId: detalle_7
+      operationId: detalle_8
       parameters:
       - name: id
         in: path
@@ -10842,7 +11432,7 @@ paths:
 
         Un cuerpo sin cambios de valor responde `200` sin avanzar `updatedAt` ni
         auditar. La respuesta es la forma del detalle. Exige `course-categories:update`.
-      operationId: corregir_8
+      operationId: corregir_9
       parameters:
       - name: id
         in: path
@@ -10982,7 +11572,7 @@ paths:
         alta: último eslabón `422` (`EX-009`), decimales `VAL-014`, fija por
         encima del precio `409` (`EX-010`) y porcentaje sobre un gratuito `409`
         (`EX-008`). Vaciarla se admite siempre.
-      operationId: corregir_9
+      operationId: corregir_10
       parameters:
       - name: id
         in: path
@@ -11051,7 +11641,7 @@ paths:
         **Lo ya pagado no cambia**: cada comisión afftrack copió el límite y el
         valor que pagó. El siguiente cierre usa lo nuevo. Un límite que ya tiene
         otro escalón vivo del mismo rol y producto responde `409`.
-      operationId: corregir_10
+      operationId: corregir_11
       parameters:
       - name: id
         in: path
@@ -13213,6 +13803,61 @@ paths:
         "500":
           description: Fallo no controlado (`ERR-500`)
       x-required-permission: memberships:read
+  /api/v1/live-sessions/available:
+    get:
+      tags:
+      - Aula en vivo
+      summary: Consultar las clases en vivo como alumno
+      description: |
+        **Permiso requerido:** `live-sessions:learn`. Sin él, `403` (`AUTH-002`).
+
+        **Las clases programadas que no han terminado**, por inicio, sin paginar. Cada una
+        dice **`accessible`** —se le abre porque su membresía o uno de sus servicios
+        vigentes está en la lista, o porque la clase no declara ninguno—, **`registered`**
+        si ya pidió entrar, `inProgress` si ya empezó, y **las membresías y servicios que la
+        abren**, que es la invitación. `onlyAccessible=true` deja solo las suyas; `courseId`
+        acota a un curso. **Nada de Zoom**: el enlace se pide al entrar.
+
+        Exige `live-sessions:learn`.
+      operationId: clases
+      parameters:
+      - name: courseId
+        in: query
+        required: false
+        schema:
+          type: string
+          format: uuid
+      - name: onlyAccessible
+        in: query
+        required: false
+        schema:
+          type: boolean
+      responses:
+        "200":
+          description: Las clases.
+          content:
+            '*/*':
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/AvailableLiveSessionItem"
+        "400":
+          description: Filtro mal formado (`VAL-001`)
+          content:
+            '*/*':
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/AvailableLiveSessionItem"
+        "403":
+          description: Sin el permiso (`AUTH-002`)
+          content:
+            '*/*':
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/AvailableLiveSessionItem"
+      x-required-permission: live-sessions:learn
   /api/v1/indicators/sales/summary:
     get:
       tags:
@@ -13904,7 +14549,7 @@ paths:
 
         **No se pagina**: son unos pocos elementos, y partirlos obligaría a dos
         llamadas para pintar un desplegable.
-      operationId: listar_11
+      operationId: listar_12
       parameters:
       - name: includeInactive
         in: query
@@ -13981,7 +14626,7 @@ paths:
         alumno alcanzado que no ha empezado responde `200` en cero.
 
         Exige `courses:read-progress`.
-      operationId: detalle_8
+      operationId: detalle_9
       parameters:
       - name: courseId
         in: path
@@ -14453,7 +15098,7 @@ paths:
 
         Filtros: `origin` (`PROGRAMADO`, `MANUAL`) y `from`/`to` sobre el inicio. Los errores
         de los filtros salen **todos juntos**.
-      operationId: listar_12
+      operationId: listar_13
       parameters:
       - name: filtros
         in: query
@@ -14548,7 +15193,7 @@ paths:
 
         **Alcance global**: quien porta el permiso ve todos los lotes. Ver solo los de la red
         depende de **D-22**; los propios son `GET /commission-batches/mine`.
-      operationId: listar_13
+      operationId: listar_14
       parameters:
       - name: filtros
         in: query
@@ -14616,7 +15261,7 @@ paths:
         puede devolver con `POST /commission-batches/{id}/commissions/{commissionId}/return`.
         **Las comisiones de una línea cuyo vendedor se corrigió no aparecen**: desde el 07-10-2026
         se borran (`RN-CM-047`), y su total baja con ellas.
-      operationId: detalle_9
+      operationId: detalle_10
       parameters:
       - name: id
         in: path
@@ -14834,7 +15479,7 @@ paths:
         Una línea **sin desenlace todavía** no aparece: la recogerá el barrido del siguiente
         cierre. Filtros `outcome`, `movementId`, `productId`, y `from`/`to` sobre el último
         intento, con los errores todos juntos.
-      operationId: listar_14
+      operationId: listar_15
       parameters:
       - name: filtros
         in: query
@@ -14898,7 +15543,7 @@ paths:
 
         **No se pagina**: son unos pocos elementos y partirlos obligaría a dos
         llamadas para pintar un desplegable.
-      operationId: listar_15
+      operationId: listar_16
       parameters:
       - name: includeInactive
         in: query
@@ -15012,7 +15657,7 @@ paths:
 
         **Esta ruta no sustituye a `GET /api/v1/users/{id}/broker-accounts`**,
         que existe para **el superior comercial sin permiso**.
-      operationId: listar_16
+      operationId: listar_17
       parameters:
       - name: page
         in: query
@@ -15691,7 +16336,7 @@ paths:
         `closingId`, `from`/`to` sobre el instante del cierre y `paid`
         (`true`: solo las que pagaron). **Filtrando por persona y producto, la
         primera fila es su remanente vigente.**
-      operationId: listar_17
+      operationId: listar_18
       parameters:
       - name: filtros
         in: query
@@ -18805,6 +19450,139 @@ components:
         updatedAt:
           type: string
           format: date-time
+    ScheduleLiveSessionRequest:
+      type: object
+      properties:
+        title:
+          type: string
+        description:
+          type: string
+        courseId:
+          type: string
+          format: uuid
+        startsAt:
+          type: string
+          description: "Día y hora de inicio: 2026-10-15T19:00:00-05:00, o sin zona\
+            \ y entonces en America/Bogota."
+        endsAt:
+          type: string
+          description: "Día y hora de fin, de 15 minutos a 10 horas después del inicio."
+        membershipIds:
+          type: array
+          items:
+            type: string
+            format: uuid
+        productIds:
+          type: array
+          items:
+            type: string
+            format: uuid
+    LiveSessionCourseRef:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        title:
+          type: string
+    LiveSessionDetailResponse:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        title:
+          type: string
+        description:
+          type: string
+        course:
+          $ref: "#/components/schemas/LiveSessionCourseRef"
+        startsAt:
+          type: string
+          format: date-time
+        endsAt:
+          type: string
+          format: date-time
+        status:
+          type: string
+          description: PROGRAMADA o CANCELADA.
+        ended:
+          type: boolean
+          description: Su hora de fin ya pasó.
+        cancelledAt:
+          type: string
+          format: date-time
+        cancellationReason:
+          type: string
+        zoomMeetingId:
+          type: integer
+          format: int64
+          description: El identificador de la reunión en Zoom; sin enlace ni contraseña.
+        memberships:
+          type: array
+          items:
+            $ref: "#/components/schemas/CourseMembershipRef"
+        products:
+          type: array
+          items:
+            $ref: "#/components/schemas/CourseProductRef"
+        registrations:
+          type: array
+          items:
+            $ref: "#/components/schemas/LiveSessionRegistrationItem"
+        createdBy:
+          type: string
+          format: uuid
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+    LiveSessionRegistrationItem:
+      type: object
+      properties:
+        userId:
+          type: string
+          format: uuid
+        username:
+          type: string
+        fullName:
+          type: string
+        registeredAt:
+          type: string
+          format: date-time
+    LiveSessionHostLinkResponse:
+      type: object
+      properties:
+        startUrl:
+          type: string
+        startsAt:
+          type: string
+          format: date-time
+        endsAt:
+          type: string
+          format: date-time
+    CancelLiveSessionRequest:
+      type: object
+      properties:
+        reason:
+          type: string
+    JoinLiveSessionResponse:
+      type: object
+      properties:
+        joinUrl:
+          type: string
+          description: El enlace personal de Zoom de quien pregunta. No se comparte.
+        startsAt:
+          type: string
+          format: date-time
+        endsAt:
+          type: string
+          format: date-time
+        registeredAt:
+          type: string
+          format: date-time
     HotlinkPurchaseRequest:
       type: object
       properties:
@@ -20144,6 +20922,33 @@ components:
           - "null"
           description: "Solo true: la hace la principal. La principal no se quita;\
             \ se marca otra."
+    UpdateLiveSessionRequest:
+      type: object
+      properties:
+        title:
+          type: string
+        description:
+          type: string
+        courseId:
+          type: string
+          format: uuid
+        removeCourse:
+          type: boolean
+          description: "Verdadero para dejar la clase suelta, sin curso."
+        startsAt:
+          type: string
+        endsAt:
+          type: string
+        membershipIds:
+          type: array
+          items:
+            type: string
+            format: uuid
+        productIds:
+          type: array
+          items:
+            type: string
+            format: uuid
     ChangeCurrencyStatusRequest:
       type: object
       properties:
@@ -21769,6 +22574,91 @@ components:
           format: int32
         color:
           type: string
+    LiveSessionItem:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        title:
+          type: string
+        course:
+          $ref: "#/components/schemas/LiveSessionCourseRef"
+        startsAt:
+          type: string
+          format: date-time
+        endsAt:
+          type: string
+          format: date-time
+        status:
+          type: string
+        ended:
+          type: boolean
+        membershipCount:
+          type: integer
+          format: int64
+        productCount:
+          type: integer
+          format: int64
+        registrationCount:
+          type: integer
+          format: int64
+    PageResponseLiveSessionItem:
+      type: object
+      properties:
+        content:
+          type: array
+          items:
+            $ref: "#/components/schemas/LiveSessionItem"
+        totalElements:
+          type: integer
+          format: int64
+        totalPages:
+          type: integer
+          format: int32
+        page:
+          type: integer
+          format: int32
+        size:
+          type: integer
+          format: int32
+        totalIsExact:
+          type: boolean
+    AvailableLiveSessionItem:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        title:
+          type: string
+        description:
+          type: string
+        course:
+          $ref: "#/components/schemas/LiveSessionCourseRef"
+        startsAt:
+          type: string
+          format: date-time
+        endsAt:
+          type: string
+          format: date-time
+        inProgress:
+          type: boolean
+          description: Ya empezó y no ha terminado.
+        accessible:
+          type: boolean
+          description: Se le abre a quien pregunta.
+        registered:
+          type: boolean
+          description: "Ya pidió entrar: tiene su enlace."
+        memberships:
+          type: array
+          items:
+            $ref: "#/components/schemas/CourseMembershipRef"
+        products:
+          type: array
+          items:
+            $ref: "#/components/schemas/CourseProductRef"
     IndicatorAmount:
       type: object
       properties:

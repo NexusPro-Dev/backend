@@ -26,6 +26,12 @@ final class CourseTestSupport {
   private CourseTestSupport() {}
 
   static void limpiar(JdbcTemplate jdbc) {
+    // Las clases en vivo primero: señalan cursos, personas, membresías y productos sin
+    // ON DELETE (V94).
+    jdbc.update("DELETE FROM live_session_registrations");
+    jdbc.update("DELETE FROM live_session_memberships");
+    jdbc.update("DELETE FROM live_session_products");
+    jdbc.update("DELETE FROM live_sessions");
     jdbc.update("DELETE FROM course_memberships");
     jdbc.update("DELETE FROM course_products");
     jdbc.update("DELETE FROM course_category_items");
