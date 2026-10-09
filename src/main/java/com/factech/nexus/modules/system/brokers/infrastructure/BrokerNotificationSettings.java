@@ -15,10 +15,33 @@ import org.springframework.boot.context.properties.ConfigurationProperties;
  */
 @ConfigurationProperties(prefix = "nexus.brokers")
 public record BrokerNotificationSettings(
-    Map<UUID, String> notificationTokens, String notificationToken) {
+    Map<UUID, String> notificationTokens,
+    String notificationToken,
+    String registrationEvent,
+    Fields fields) {
 
   public BrokerNotificationSettings {
     notificationTokens = notificationTokens == null ? Map.of() : Map.copyOf(notificationTokens);
+    fields = fields == null ? new Fields(null, null, null) : fields;
+  }
+
+  /**
+   * El valor del campo del evento que hace de un aviso el DE REGISTRO (`RN-SP-072`), o vacío si no
+   * está configurado: entonces ningún aviso crea cuentas.
+   */
+  public Optional<String> registration() {
+    return registrationEvent == null || registrationEvent.isBlank()
+        ? Optional.empty()
+        : Optional.of(registrationEvent.trim());
+  }
+
+  /** Cómo llama el broker a cada dato del aviso de registro. */
+  public record Fields(String event, String account, String afftrack) {
+    public Fields {
+      event = event == null || event.isBlank() ? "postback_name" : event.trim();
+      account = account == null || account.isBlank() ? "trader_id" : account.trim();
+      afftrack = afftrack == null || afftrack.isBlank() ? "afftrack" : afftrack.trim();
+    }
   }
 
   /**

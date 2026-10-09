@@ -6,7 +6,7 @@
 | Especificación | [`spec.md`](spec.md) v0.3.0 |
 | Plan | [`plan.md`](plan.md) v0.3.0 |
 | `plan.md` aprobado el | 08-10-2026 |
-| Estado | **En revisión** — `T-01` a `T-07` `Hecha` el 08-10-2026; `T-08` a `T-12` `Hecha` el 09-10-2026 (enmienda 0.2.0); `T-13` a `T-16` pendientes (enmienda 0.3.0) |
+| Estado | **En revisión** — `T-01` a `T-07` `Hecha` el 08-10-2026; `T-08` a `T-12` `Hecha` el 09-10-2026 (enmienda 0.2.0); `T-13` a `T-16` `Hecha` el 09-10-2026 (enmienda 0.3.0) |
 | Issue | Pendiente de crear |
 | Rama | `develop` |
 
@@ -28,10 +28,10 @@
 | `T-10` | `kind` en las filas de las consultas y `?kind=` en `RF-SP-057` | `T-08` | | **Hecha** — 09-10-2026 |
 | `T-11` | Indicadores por `ub.kind` en lugar de los roles del titular | `T-08` | `NetworkIndicatorsIT` | **Hecha** — 09-10-2026 |
 | `T-12` | Las suites que insertan cuentas; `CA-SP-938` a `CA-SP-945`; contrato y `api/index.md` | `T-09`, `T-10`, `T-11` | `mvn verify` en verde | **Hecha** — 09-10-2026 |
-| `T-13` | `V96` (`plan.md` §13): columnas, restricciones, índices, el permiso y sus guardas; recuentos del catálogo | — | Las guardas pasan al migrar | Pendiente |
-| `T-14` | `vendorAccount`, `claim` y las traducciones nuevas; el alta y el registro por enlace con origen y asociación | `T-13` | | Pendiente |
-| `T-15` | `afftrack` al registrar y al editar; `EX-012` al borrar; `afftrack` y `referrer` en las filas | `T-13` | | Pendiente |
-| `T-16` | `ManageBrokerAccountsIT`, `SelfRegistrationIT`, `UserBrokerAccountSchemaIT`: `CA-SP-954` a `CA-SP-963`; contrato | `T-14`, `T-15` | `mvn verify` en verde | Pendiente |
+| `T-13` | `V96` (`plan.md` §13): columnas, restricciones, índices, el permiso y sus guardas; recuentos del catálogo | — | Las guardas pasan al migrar | **Hecha** — 09-10-2026 |
+| `T-14` | `vendorAccount`, `claim` y las traducciones nuevas; el alta y el registro por enlace con origen y asociación | `T-13` | | **Hecha** — 09-10-2026 |
+| `T-15` | `afftrack` al registrar y al editar; `EX-012` al borrar; `afftrack` y `referrer` en las filas | `T-13` | | **Hecha** — 09-10-2026 |
+| `T-16` | `ManageBrokerAccountsIT`, `SelfRegistrationIT`, `UserBrokerAccountSchemaIT`: `CA-SP-954` a `CA-SP-963`; contrato | `T-14`, `T-15` | `mvn verify` en verde | **Hecha** — 09-10-2026 |
 
 ---
 

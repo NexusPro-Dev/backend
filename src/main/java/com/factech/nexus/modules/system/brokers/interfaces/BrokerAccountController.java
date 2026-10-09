@@ -1,10 +1,13 @@
 package com.factech.nexus.modules.system.brokers.interfaces;
 
+import com.factech.nexus.modules.system.brokers.application.AssignBrokerAccountHolderRequest;
 import com.factech.nexus.modules.system.brokers.application.BrokerAccountsPage;
 import com.factech.nexus.modules.system.brokers.application.ListBrokerAccountsRequest;
 import com.factech.nexus.modules.system.brokers.application.NetworkIndicatorsResponse;
+import com.factech.nexus.modules.system.brokers.application.TeamBrokerAccountItem;
 import com.factech.nexus.modules.system.brokers.domain.service.GetNetworkIndicatorsService;
 import com.factech.nexus.modules.system.brokers.domain.service.ListBrokerAccountsService;
+import com.factech.nexus.modules.system.brokers.domain.service.ManageBrokerAccountsService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
@@ -14,6 +17,9 @@ import java.util.UUID;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.ModelAttribute;
+import org.springframework.web.bind.annotation.PatchMapping;
+import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
@@ -36,11 +42,50 @@ public class BrokerAccountController {
 
   private final ListBrokerAccountsService listado;
   private final GetNetworkIndicatorsService indicadores;
+  private final ManageBrokerAccountsService gestion;
 
   public BrokerAccountController(
-      ListBrokerAccountsService listado, GetNetworkIndicatorsService indicadores) {
+      ListBrokerAccountsService listado,
+      GetNetworkIndicatorsService indicadores,
+      ManageBrokerAccountsService gestion) {
     this.listado = listado;
     this.indicadores = indicadores;
+    this.gestion = gestion;
+  }
+
+  @PatchMapping("/{brokerAccountId}/holder")
+  @PreAuthorize("hasAuthority('broker-accounts:assign-user')")
+  @Operation(
+      summary = "Asignar titular a una cuenta de broker sin él",
+      description =
+          """
+          **Permiso requerido:** `broker-accounts:assign-user` (`RF-SP-082`).
+
+          Da titular a una cuenta que **llegó del broker antes que la persona**:
+          el aviso de registro la creó como `CONSUMIDOR` sin titular, ligada a la
+          cuenta del vendedor de su `afftrack` (`RN-SP-072`). Se encuentran en
+          `GET /api/v1/broker-accounts?hasHolder=false`.
+
+          **Solo una cuenta sin titular** —reasignar quitaría la cuenta a alguien—
+          y **solo a un consumidor**. El origen no cambia. Queda auditado.
+          """)
+  @ApiResponses({
+    @ApiResponse(responseCode = "200", description = "La cuenta, ya con su titular"),
+    @ApiResponse(responseCode = "400", description = "Sin `userId` (`VAL-012`)"),
+    @ApiResponse(responseCode = "401", description = "Token ausente o inválido (`AUTH-001`)"),
+    @ApiResponse(
+        responseCode = "403",
+        description = "Autenticado sin `broker-accounts:assign-user` (`AUTH-002`)"),
+    @ApiResponse(
+        responseCode = "404",
+        description = "La cuenta o la persona no existen, o la persona está eliminada (`VAL-002`)"),
+    @ApiResponse(responseCode = "409", description = "La cuenta ya tiene titular (`EX-013`)"),
+    @ApiResponse(responseCode = "422", description = "La persona no es consumidor (`EX-011`)"),
+    @ApiResponse(responseCode = "500", description = "Fallo no controlado (`ERR-500`)")
+  })
+  public TeamBrokerAccountItem asignarTitular(
+      @PathVariable UUID brokerAccountId, @RequestBody AssignBrokerAccountHolderRequest peticion) {
+    return gestion.assignHolder(brokerAccountId, peticion);
   }
 
   @GetMapping("/indicators")
@@ -156,6 +201,9 @@ public class BrokerAccountController {
             `400`**, no una página vacía.
           - `kind` — `VENDEDOR` o `CONSUMIDOR` (`RN-SP-068`): la cuenta de un
             vendedor o la de un consumidor. Cualquier otro valor es `400`.
+          - `hasHolder` — `false`, las cuentas **sin titular**, que llegaron del
+            broker antes que la persona (`RN-SP-072`); `true`, las demás. Sin
+            titular, `user` va nulo.
           - `brokerId` — un broker del catálogo.
           - `search` — fragmento de **número de cuenta**, nombre de usuario,
             correo o nombre completo. Sin acentos y sin distinguir mayúsculas.

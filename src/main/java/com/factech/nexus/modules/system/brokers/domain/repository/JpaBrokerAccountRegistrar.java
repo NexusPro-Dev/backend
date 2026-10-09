@@ -1,10 +1,10 @@
 package com.factech.nexus.modules.system.brokers.domain.repository;
 
+import com.factech.nexus.modules.system.brokers.domain.models.BrokerAccountKind;
 import com.factech.nexus.modules.system.users.domain.repository.BrokerAccountRegistrar;
 import com.factech.nexus.shared.error.BusinessRuleException;
 import com.factech.nexus.shared.error.FieldError;
 import jakarta.persistence.EntityManager;
-import jakarta.persistence.PersistenceException;
 import jakarta.persistence.Tuple;
 import java.util.List;
 import java.util.Optional;
@@ -30,12 +30,12 @@ import org.springframework.transaction.annotation.Transactional;
 @Repository
 public class JpaBrokerAccountRegistrar implements BrokerAccountRegistrar {
 
-  private static final String UQ_CUENTA = "uq_user_brokers_cuenta";
-
   private final EntityManager em;
+  private final BrokerAccountWriter cuentas;
 
-  public JpaBrokerAccountRegistrar(EntityManager em) {
+  public JpaBrokerAccountRegistrar(EntityManager em, BrokerAccountWriter cuentas) {
     this.em = em;
+    this.cuentas = cuentas;
   }
 
   @Override
@@ -62,43 +62,30 @@ public class JpaBrokerAccountRegistrar implements BrokerAccountRegistrar {
 
   @Override
   @Transactional
-  public void declare(UUID accountId, UUID userId, UUID brokerId, String externalId) {
+  public void declare(
+      UUID accountId, UUID userId, UUID brokerId, String externalId, UUID sellerId) {
+    // `RN-SP-072`: llegó antes por el broker, con el origen de este vendedor.
+    if (cuentas.claim(brokerId, externalId, userId, sellerId).isPresent()) {
+      return;
+    }
+    // `CONSUMIDOR` sin consultar los roles (`RN-SP-068`): el enlace registra clientes.
+    // Su origen, la `VENDEDOR` del vendedor del enlace en ese broker (`RN-SP-070`).
+    UUID origen = cuentas.vendorAccount(sellerId, brokerId).orElse(null);
     try {
-      em.createNativeQuery(
-              """
-              INSERT INTO user_brokers (id, user_id, broker_id, external_id, kind)
-              VALUES (CAST(:id AS uuid), CAST(:usuario AS uuid), CAST(:broker AS uuid), :cuenta,
-                      'CONSUMIDOR')
-              """)
-          .setParameter("id", accountId)
-          .setParameter("usuario", userId)
-          .setParameter("broker", brokerId)
-          .setParameter("cuenta", externalId)
-          .executeUpdate();
-
-      // `CONSUMIDOR` sin consultar los roles (`RN-SP-068`): el enlace registra clientes.
-      // Explícito: ver el Javadoc de la clase.
-      em.flush();
-    } catch (PersistenceException fallo) {
-      throw traducir(fallo);
-    }
-  }
-
-  private static RuntimeException traducir(PersistenceException fallo) {
-    for (Throwable causa = fallo; causa != null; causa = causa.getCause()) {
-      if (causa instanceof org.hibernate.exception.ConstraintViolationException violacion
-          && UQ_CUENTA.equals(violacion.getConstraintName())) {
-
-        // SÍ dice qué pasó, al revés que el documento repetido de `EX-007`, y
-        // la asimetría es deliberada: quien declara una cuenta de broker es su
-        // titular —tuvo que abrirla— y necesita saber que ya está tomada,
-        // porque significa que alguien se la atribuyó. Un número de documento,
-        // en cambio, es un dato que se consigue.
-        String mensaje = "Esa cuenta de broker ya está declarada por otra persona.";
-        return new BusinessRuleException(
-            "EX-009", mensaje, List.of(new FieldError("brokerAccountId", "EX-009", mensaje)));
+      cuentas.insert(
+          accountId, userId, brokerId, externalId, BrokerAccountKind.CONSUMIDOR, null, origen);
+    } catch (BusinessRuleException ocupada) {
+      if (!"EX-009".equals(ocupada.errorCode())) {
+        throw ocupada;
       }
+      // SÍ dice qué pasó, al revés que el documento repetido de `EX-007`, y
+      // la asimetría es deliberada: quien declara una cuenta de broker es su
+      // titular —tuvo que abrirla— y necesita saber que ya está tomada,
+      // porque significa que alguien se la atribuyó. Un número de documento,
+      // en cambio, es un dato que se consigue.
+      String mensaje = "Esa cuenta de broker ya está declarada por otra persona.";
+      throw new BusinessRuleException(
+          "EX-009", mensaje, List.of(new FieldError("brokerAccountId", "EX-009", mensaje)));
     }
-    return fallo;
   }
 }

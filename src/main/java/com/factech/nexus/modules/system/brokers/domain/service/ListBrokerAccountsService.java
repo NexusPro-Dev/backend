@@ -86,6 +86,7 @@ public class ListBrokerAccountsService {
             peticion.userId(),
             estado(peticion.status()),
             tipo(peticion.kind()),
+            peticion.hasHolder(),
             peticion.brokerId(),
             peticion.search(),
             peticion.from(),

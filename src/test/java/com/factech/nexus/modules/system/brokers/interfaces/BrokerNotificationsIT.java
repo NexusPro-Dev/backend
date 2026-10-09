@@ -56,6 +56,9 @@ class BrokerNotificationsIT extends IntegrationTestBase {
   /** También al terminar, y reponiendo el broker que alguna prueba desactiva. */
   @AfterEach
   void limpiarDespues() {
+    // Las cuentas que crea el aviso de registro, ANTES que la VENDEDOR a la que apuntan.
+    jdbc.update(
+        "DELETE FROM user_brokers WHERE external_id LIKE 'BN-R-%' OR external_id = '12345'");
     jdbc.update(
         "UPDATE brokers SET is_active = true WHERE id IN (?, ?, ?)", IQOPTION, EXNOVA, EXOPTION);
     if (cliente != null) {
@@ -416,5 +419,129 @@ class BrokerNotificationsIT extends IntegrationTestBase {
         .andExpect(status().isUnauthorized());
 
     assertThat(guardados()).isOne();
+  }
+
+  // ---------------------------------------------------------------------------
+  // El aviso de registro (`RN-SP-070`, `RN-SP-072`, 09-10-2026)
+  // ---------------------------------------------------------------------------
+
+  private UUID vendedorConAfftrack;
+
+  private UUID cuentaVendedora(String afftrack) {
+    cliente = UUID.randomUUID();
+    jdbc.update(
+        """
+        INSERT INTO users (id, username, email, first_name, last_name, password_hash,
+                           must_change_password, status, country_id)
+        VALUES (?, 'bn-vendedor', 'bn-vendedor@factech.co', 'Vendedor', 'Apellido', 'x', false,
+                'ACTIVO', (SELECT id FROM countries WHERE code = 'COL'))
+        """,
+        cliente);
+    vendedorConAfftrack = UUID.randomUUID();
+    jdbc.update(
+        "INSERT INTO user_brokers (id, user_id, broker_id, external_id, kind, afftrack)"
+            + " VALUES (?, ?, ?, 'BN-V-1', 'VENDEDOR', ?)",
+        vendedorConAfftrack,
+        cliente,
+        IQOPTION,
+        afftrack);
+    return vendedorConAfftrack;
+  }
+
+  private Map<String, Object> laCuenta(String numero) {
+    return jdbc.queryForMap(
+        "SELECT user_id, kind, status, referrer_account_id FROM user_brokers"
+            + " WHERE broker_id = ? AND external_id = ?",
+        IQOPTION,
+        numero);
+  }
+
+  private int cuentasDelBroker() {
+    return jdbc.queryForObject(
+        "SELECT count(*) FROM user_brokers WHERE external_id LIKE 'BN-R-%'", Integer.class);
+  }
+
+  @Test
+  @DisplayName(
+      "CA-SP-964 — el aviso de registro crea la cuenta CONSUMIDOR sin titular, con origen en la"
+          + " VENDEDOR de su afftrack; el aviso se guarda igual")
+  void elAvisoDeRegistroCreaLaCuenta() throws Exception {
+    UUID origen = cuentaVendedora("DIEGOIQ");
+
+    mvc.perform(
+            get(
+                COMUN
+                    + "?advertiser=iq_option&postback_name=registro-prueba&trader_id=BN-R-1"
+                    + "&afftrack=diegoiq&token=secreto-comun"))
+        .andExpect(status().isOk());
+
+    Map<String, Object> cuenta = laCuenta("BN-R-1");
+    assertThat(cuenta.get("user_id")).isNull();
+    assertThat(cuenta.get("kind")).isEqualTo("CONSUMIDOR");
+    assertThat(cuenta.get("status")).isEqualTo("REGISTER");
+    assertThat(cuenta.get("referrer_account_id")).isEqualTo(origen);
+    assertThat(guardados()).isOne();
+  }
+
+  @Test
+  @DisplayName(
+      "CA-SP-965, CA-SP-947 — con un afftrack desconocido se crea sin origen; los campos también"
+          + " valen en un JSON")
+  void sinOrigenConocido() throws Exception {
+    mvc.perform(
+            post(COMUN + "?token=secreto-comun")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(
+                    "{\"advertiser\":\"iq_option\",\"postback_name\":\"registro-prueba\","
+                        + "\"trader_id\":12345,\"afftrack\":\"NADIE\"}"))
+        .andExpect(status().isOk());
+
+    Map<String, Object> cuenta = laCuenta("12345");
+    assertThat(cuenta.get("user_id")).isNull();
+    assertThat(cuenta.get("referrer_account_id")).isNull();
+    jdbc.update("DELETE FROM user_brokers WHERE external_id = '12345'");
+  }
+
+  @Test
+  @DisplayName(
+      "CA-SP-966 — el mismo registro dos veces no duplica; a una cuenta sin origen se lo pone, a"
+          + " una con origen no se lo cambia, y el titular no se toca")
+  void elRegistroRepetidoNoDuplica() throws Exception {
+    UUID origen = cuentaVendedora("DIEGOIQ");
+    String aviso =
+        COMUN
+            + "?advertiser=iq_option&postback_name=registro-prueba&trader_id=BN-R-2"
+            + "&afftrack=DIEGOIQ&token=secreto-comun";
+    mvc.perform(get(aviso)).andExpect(status().isOk());
+    mvc.perform(get(aviso)).andExpect(status().isOk());
+    assertThat(cuentasDelBroker()).isOne();
+
+    // Declarada antes en la plataforma, sin origen: el aviso se lo pone.
+    jdbc.update(
+        "INSERT INTO user_brokers (id, user_id, broker_id, external_id, kind)"
+            + " VALUES (gen_random_uuid(), ?, ?, 'BN-R-3', 'CONSUMIDOR')",
+        cliente,
+        IQOPTION);
+    mvc.perform(get(aviso.replace("BN-R-2", "BN-R-3"))).andExpect(status().isOk());
+    assertThat(laCuenta("BN-R-3").get("referrer_account_id")).isEqualTo(origen);
+    assertThat(laCuenta("BN-R-3").get("user_id")).isEqualTo(cliente);
+    assertThat(cuentasDelBroker()).isEqualTo(2);
+  }
+
+  @Test
+  @DisplayName("CA-SP-967, CA-SP-968 — otro evento, o un registro sin trader_id, solo se guardan")
+  void otrosAvisosSoloSeGuardan() throws Exception {
+    mvc.perform(
+            get(
+                COMUN
+                    + "?advertiser=iq_option&postback_name=ftd&trader_id=BN-R-4"
+                    + "&token=secreto-comun"))
+        .andExpect(status().isOk());
+    mvc.perform(
+            get(COMUN + "?advertiser=iq_option&postback_name=registro-prueba&token=secreto-comun"))
+        .andExpect(status().isOk());
+
+    assertThat(cuentasDelBroker()).isZero();
+    assertThat(guardados()).isEqualTo(2);
   }
 }

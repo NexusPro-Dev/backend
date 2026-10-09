@@ -75,6 +75,9 @@ public interface BrokerAccountQueryRepository {
    */
   List<TeamBrokerAccountItem> findAll(BrokerAccountFilters filtros, int offset, int limit);
 
+  /** Una cuenta por su identificador, tenga titular o no, con la forma del listado global. */
+  java.util.Optional<TeamBrokerAccountItem> findOne(UUID brokerAccountId);
+
   /**
    * El resumen de lo filtrado, agrupado por <b>broker y estado</b> (`RF-SP-057`, 10-09-2026).
    *
@@ -163,6 +166,7 @@ public interface BrokerAccountQueryRepository {
       UUID userId,
       UserBrokerStatus status,
       BrokerAccountKind kind,
+      Boolean hasHolder,
       UUID brokerId,
       String search,
       java.time.OffsetDateTime from,

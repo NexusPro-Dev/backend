@@ -1652,6 +1652,12 @@ public class UserController {
           **La cuenta nace con su tipo** (`RN-SP-068`): `VENDEDOR` si el
           titular porta un rol vendedor, si no `CONSUMIDOR`. Quien no es ni lo
           uno ni lo otro recibe `422` (`EX-011`).
+          **Una cuenta `VENDEDOR` admite su `afftrack`** (`RN-SP-071`), único por
+          broker (`409`, `EX-014`); y un vendedor tiene una sola por broker (`409`,
+          `EX-015`). **La `CONSUMIDOR` nace con su origen**, la `VENDEDOR` de su
+          vendedor principal en ese broker (`RN-SP-070`), y si el número ya existe
+          sin titular con ese mismo origen, **se le asocia** en vez de dar `409`
+          (`RN-SP-072`).
           """)
   @ApiResponses({
     @ApiResponse(
@@ -1712,6 +1718,12 @@ public class UserController {
           **La cuenta nace con su tipo** (`RN-SP-068`): `VENDEDOR` si el
           titular porta un rol vendedor, si no `CONSUMIDOR`. Quien no es ni lo
           uno ni lo otro recibe `422` (`EX-011`).
+          **Una cuenta `VENDEDOR` admite su `afftrack`** (`RN-SP-071`), único por
+          broker (`409`, `EX-014`); y un vendedor tiene una sola por broker (`409`,
+          `EX-015`). **La `CONSUMIDOR` nace con su origen**, la `VENDEDOR` de su
+          vendedor principal en ese broker (`RN-SP-070`), y si el número ya existe
+          sin titular con ese mismo origen, **se le asocia** en vez de dar `409`
+          (`RN-SP-072`).
           """)
   @ApiResponses({
     @ApiResponse(

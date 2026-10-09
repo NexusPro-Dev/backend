@@ -522,6 +522,14 @@ nexus:
   # de abajo siguen para la ruta por nombre, obsoleta.
   brokers:
     notification-token: ${BROKER_NOTIFICATION_TOKEN:}
+    # El aviso de REGISTRO crea la cuenta CONSUMIDOR sin titular (RN-SP-072,
+    # 09-10-2026). VACÍO = ningún aviso crea cuentas, solo se guardan. Los
+    # nombres de los campos, por si el panel los llama de otra forma.
+    registration-event: ${BROKER_REGISTRATION_EVENT:}
+    fields:
+      event: ${BROKER_FIELD_EVENT:postback_name}
+      account: ${BROKER_FIELD_ACCOUNT:trader_id}
+      afftrack: ${BROKER_FIELD_AFFTRACK:afftrack}
     notification-tokens:
       "[01a081f0-6000-7101-9c4f-5e7adb000001]": ${BROKER_TOKEN_IQOPTION:}
       "[01a081f0-6000-7102-9c4f-5e7adb000002]": ${BROKER_TOKEN_EXNOVA:}

@@ -19,4 +19,11 @@ public record CreateBrokerAccountRequest(
                 "El identificador de la cuenta en el broker. Se guarda sin espacios a los lados;"
                     + " entre 1 y 80 caracteres.",
             example = "70000001")
-        String accountId) {}
+        String accountId,
+    @Schema(
+            description =
+                "Solo en una cuenta de VENDEDOR (`RN-SP-071`): su código de afiliado en el broker,"
+                    + " el que el broker devuelve en sus avisos. Único por broker; hasta 80"
+                    + " caracteres.",
+            example = "DIEGOIQ")
+        String afftrack) {}

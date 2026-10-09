@@ -552,6 +552,271 @@ class ManageBrokerAccountsIT extends IntegrationTestBase {
   }
 
   // ---------------------------------------------------------------------------
+  // `afftrack`, origen y cuentas sin titular (`RN-SP-070` a `RN-SP-072`, 09-10-2026)
+  // ---------------------------------------------------------------------------
+
+  @Test
+  @DisplayName("`CA-SP-954` — la VENDEDOR se registra con su afftrack; en una CONSUMIDOR es 400")
+  void elAfftrackDeLaVendedor() throws Exception {
+    mvc.perform(
+            post("/api/v1/users/me/broker-accounts")
+                .with(user(otra.toString()).authorities(() -> "broker-accounts:create-own"))
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(altaCon(exnova, "90000001", "  AFF-OTRA  ")))
+        .andExpect(status().isCreated())
+        .andExpect(jsonPath("$.kind").value("VENDEDOR"))
+        .andExpect(jsonPath("$.afftrack").value("AFF-OTRA"));
+
+    mvc.perform(
+            post("/api/v1/users/me/broker-accounts")
+                .with(comoTitular())
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(altaCon(exnova, "90000002", "AFF-X")))
+        .andExpect(status().isBadRequest())
+        .andExpect(jsonPath("$.errors[0].field").value("afftrack"))
+        .andExpect(jsonPath("$.errors[0].code").value("VAL-016"));
+    assertThat(cuentasDe(titular)).isEmpty();
+  }
+
+  @Test
+  @DisplayName(
+      "`CA-SP-955`, `CA-SP-956` — afftrack repetido en el broker (sin mayúsculas) es 409; y una"
+          + " segunda VENDEDOR del mismo vendedor en el mismo broker, también")
+  void unicidadesDeLaVendedor() throws Exception {
+    UUID tercera = crearPersona("mba-tercera", AGENTE);
+    vendedora(otra, exnova, "90000003", "AFF-OTRA");
+
+    mvc.perform(
+            post("/api/v1/users/" + tercera + "/broker-accounts")
+                .with(comoAdmin("broker-accounts:create"))
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(altaCon(exnova, "90000004", "aff-otra")))
+        .andExpect(status().isConflict())
+        .andExpect(jsonPath("$.errors[0].code").value("EX-014"));
+    // En otro broker, el mismo afftrack sí.
+    mvc.perform(
+            post("/api/v1/users/" + tercera + "/broker-accounts")
+                .with(comoAdmin("broker-accounts:create"))
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(altaCon(iqoption, "90000005", "AFF-OTRA")))
+        .andExpect(status().isCreated());
+
+    mvc.perform(
+            post("/api/v1/users/" + otra + "/broker-accounts")
+                .with(comoAdmin("broker-accounts:create"))
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(alta(exnova, "90000006")))
+        .andExpect(status().isConflict())
+        .andExpect(jsonPath("$.errors[0].code").value("EX-015"));
+    assertThat(cuentasDe(otra)).containsExactly("90000003");
+  }
+
+  @Test
+  @DisplayName(
+      "`CA-SP-957` — el afftrack se cambia al editar y queda auditado; un PATCH vacío es 400")
+  void editarElAfftrack() throws Exception {
+    UUID cuenta = vendedora(otra, exnova, "90000007", "AFF-VIEJO");
+
+    mvc.perform(
+            patch("/api/v1/users/me/broker-accounts/" + cuenta)
+                .with(user(otra.toString()).authorities(() -> "broker-accounts:update-own"))
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("{\"afftrack\":\"AFF-NUEVO\"}"))
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$.afftrack").value("AFF-NUEVO"))
+        .andExpect(jsonPath("$.accountId").value("90000007"));
+    assertThat(auditoriasDeCambio(cuenta)).anySatisfy(c -> assertThat(c).contains("AFF-NUEVO"));
+
+    mvc.perform(
+            patch("/api/v1/users/" + otra + "/broker-accounts/" + cuenta)
+                .with(comoAdmin("broker-accounts:update"))
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("{}"))
+        .andExpect(status().isBadRequest());
+  }
+
+  @Test
+  @DisplayName(
+      "`CA-SP-958` — la CONSUMIDOR nace con origen en la VENDEDOR de su vendedor principal; sin"
+          + " ella, sin origen")
+  void laConsumidorNaceConOrigen() throws Exception {
+    principal(titular, otra);
+    mvc.perform(
+            post("/api/v1/users/me/broker-accounts")
+                .with(comoTitular())
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(alta(iqoption, "90000008")))
+        .andExpect(status().isCreated())
+        .andExpect(jsonPath("$.referrer").doesNotExist());
+
+    UUID origen = vendedora(otra, exnova, "90000009", "AFF-OTRA");
+    mvc.perform(
+            post("/api/v1/users/me/broker-accounts")
+                .with(comoTitular())
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(alta(exnova, "90000010")))
+        .andExpect(status().isCreated())
+        .andExpect(jsonPath("$.referrer.id").value(origen.toString()))
+        .andExpect(jsonPath("$.referrer.afftrack").value("AFF-OTRA"))
+        .andExpect(jsonPath("$.referrer.username").value("mba-otra"));
+  }
+
+  @Test
+  @DisplayName(
+      "`CA-SP-960` — el número sin titular y con origen de SU vendedor se asocia a quien lo"
+          + " declara, y queda auditado")
+  void seAsociaLaCuentaSinTitular() throws Exception {
+    principal(titular, otra);
+    UUID origen = vendedora(otra, exnova, "90000011", "AFF-OTRA");
+    UUID sinTitular = sinTitular(exnova, "90000012", origen);
+
+    mvc.perform(
+            post("/api/v1/users/me/broker-accounts")
+                .with(comoTitular())
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(alta(exnova, "90000012")))
+        .andExpect(status().isCreated())
+        .andExpect(jsonPath("$.id").value(sinTitular.toString()))
+        .andExpect(jsonPath("$.referrer.id").value(origen.toString()));
+
+    assertThat(cuentasDe(titular)).containsExactly("90000012");
+    assertThat(auditoriasDeCambio(sinTitular))
+        .anySatisfy(c -> assertThat(c).contains(titular.toString()));
+  }
+
+  @Test
+  @DisplayName(
+      "`CA-SP-961` — sin titular pero de OTRO vendedor, o sin origen: 409 y sigue sin titular")
+  void noSeAsociaSiElVendedorNoCoincide() throws Exception {
+    UUID tercera = crearPersona("mba-tercera", AGENTE);
+    principal(titular, tercera);
+    UUID origen = vendedora(otra, exnova, "90000013", "AFF-OTRA");
+    sinTitular(exnova, "90000014", origen);
+    sinTitular(exnova, "90000015", null);
+
+    for (String numero : List.of("90000014", "90000015")) {
+      mvc.perform(
+              post("/api/v1/users/me/broker-accounts")
+                  .with(comoTitular())
+                  .contentType(MediaType.APPLICATION_JSON)
+                  .content(alta(exnova, numero)))
+          .andExpect(status().isConflict())
+          .andExpect(jsonPath("$.errors[0].code").value("EX-009"));
+    }
+    assertThat(
+            jdbc.queryForObject(
+                "SELECT count(*) FROM user_brokers WHERE user_id IS NULL", Integer.class))
+        .isEqualTo(2);
+  }
+
+  @Test
+  @DisplayName("`CA-SP-962` — una VENDEDOR que originó cuentas no se borra: 409, por las dos rutas")
+  void unOrigenNoSeBorra() throws Exception {
+    UUID origen = vendedora(otra, exnova, "90000016", "AFF-OTRA");
+    sinTitular(exnova, "90000017", origen);
+
+    mvc.perform(
+            delete("/api/v1/users/me/broker-accounts/" + origen)
+                .with(user(otra.toString()).authorities(() -> "broker-accounts:delete-own")))
+        .andExpect(status().isConflict())
+        .andExpect(jsonPath("$.errors[0].code").value("EX-012"));
+    mvc.perform(
+            delete("/api/v1/users/" + otra + "/broker-accounts/" + origen)
+                .with(comoAdmin("broker-accounts:delete")))
+        .andExpect(status().isConflict());
+    assertThat(cuentasDe(otra)).containsExactly("90000016");
+  }
+
+  @Test
+  @DisplayName(
+      "`CA-SP-969`, `CA-SP-971` — administración asigna una cuenta sin titular a un consumidor,"
+          + " la encuentra con hasHolder=false, y queda auditado")
+  void administracionAsignaTitular() throws Exception {
+    UUID origen = vendedora(otra, exnova, "90000018", "AFF-OTRA");
+    UUID cuenta = sinTitular(exnova, "90000019", origen);
+
+    mvc.perform(
+            get("/api/v1/broker-accounts?hasHolder=false").with(comoAdmin("broker-accounts:read")))
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$.totalElements").value(1))
+        .andExpect(jsonPath("$.content[0].id").value(cuenta.toString()))
+        .andExpect(jsonPath("$.content[0].user").doesNotExist());
+    mvc.perform(
+            get("/api/v1/broker-accounts?hasHolder=true").with(comoAdmin("broker-accounts:read")))
+        .andExpect(jsonPath("$.totalElements").value(1));
+
+    mvc.perform(
+            patch("/api/v1/broker-accounts/" + cuenta + "/holder")
+                .with(comoAdmin("broker-accounts:assign-user"))
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("{\"userId\":\"" + titular + "\"}"))
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$.user.id").value(titular.toString()))
+        .andExpect(jsonPath("$.referrer.id").value(origen.toString()));
+
+    mvc.perform(
+            get("/api/v1/users/me/broker-accounts")
+                .with(user(titular.toString()).authorities(() -> "broker-accounts:read-own")))
+        .andExpect(jsonPath("$.content[0].id").value(cuenta.toString()));
+    assertThat(auditoriasDeCambio(cuenta))
+        .anySatisfy(c -> assertThat(c).contains(titular.toString()));
+  }
+
+  @Test
+  @DisplayName(
+      "`CA-SP-970` — con titular 409, a un no consumidor 422, inexistentes 404, sin persona 400,"
+          + " sin permiso 403")
+  void asignarQueNoProcede() throws Exception {
+    UUID cuenta = sinTitular(exnova, "90000020", null);
+    UUID conTitular = declarar(titular, exnova, "90000021", "REGISTER");
+    String ruta = "/api/v1/broker-accounts/" + cuenta + "/holder";
+
+    mvc.perform(
+            patch("/api/v1/broker-accounts/" + conTitular + "/holder")
+                .with(comoAdmin("broker-accounts:assign-user"))
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("{\"userId\":\"" + titular + "\"}"))
+        .andExpect(status().isConflict())
+        .andExpect(jsonPath("$.errors[0].code").value("EX-013"));
+    mvc.perform(
+            patch(ruta)
+                .with(comoAdmin("broker-accounts:assign-user"))
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("{\"userId\":\"" + otra + "\"}"))
+        .andExpect(status().isUnprocessableEntity())
+        .andExpect(jsonPath("$.errors[0].code").value("EX-011"));
+    mvc.perform(
+            patch(ruta)
+                .with(comoAdmin("broker-accounts:assign-user"))
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("{\"userId\":\"" + UUID.randomUUID() + "\"}"))
+        .andExpect(status().isNotFound());
+    mvc.perform(
+            patch("/api/v1/broker-accounts/" + UUID.randomUUID() + "/holder")
+                .with(comoAdmin("broker-accounts:assign-user"))
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("{\"userId\":\"" + titular + "\"}"))
+        .andExpect(status().isNotFound());
+    mvc.perform(
+            patch(ruta)
+                .with(comoAdmin("broker-accounts:assign-user"))
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("{}"))
+        .andExpect(status().isBadRequest());
+    mvc.perform(
+            patch(ruta)
+                .with(comoAdmin("broker-accounts:update"))
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("{\"userId\":\"" + titular + "\"}"))
+        .andExpect(status().isForbidden());
+
+    assertThat(
+            jdbc.queryForObject(
+                "SELECT user_id FROM user_brokers WHERE id = ?", UUID.class, cuenta))
+        .isNull();
+  }
+
+  // ---------------------------------------------------------------------------
   // Utilidades
   // ---------------------------------------------------------------------------
 
@@ -588,6 +853,49 @@ class ManageBrokerAccountsIT extends IntegrationTestBase {
             + " AND entity_id = ? AND action = 'UPDATE'",
         String.class,
         cuenta);
+  }
+
+  private static String altaCon(UUID broker, String cuenta, String afftrack) {
+    return "{\"brokerId\":\""
+        + broker
+        + "\",\"accountId\":\""
+        + cuenta
+        + "\",\"afftrack\":\""
+        + afftrack
+        + "\"}";
+  }
+
+  private void principal(UUID cliente, UUID vendedor) {
+    jdbc.update(
+        "INSERT INTO client_sellers (client_id, seller_id, origin) VALUES (?, ?, 'REGISTRO')",
+        cliente,
+        vendedor);
+  }
+
+  private UUID vendedora(UUID persona, UUID broker, String cuenta, String afftrack) {
+    UUID id = UUID.randomUUID();
+    jdbc.update(
+        "INSERT INTO user_brokers (id, user_id, broker_id, external_id, kind, afftrack)"
+            + " VALUES (?, ?, ?, ?, 'VENDEDOR', ?)",
+        id,
+        persona,
+        broker,
+        cuenta,
+        afftrack);
+    return id;
+  }
+
+  /** Como la deja el aviso de registro: CONSUMIDOR, sin titular. */
+  private UUID sinTitular(UUID broker, String cuenta, UUID origen) {
+    UUID id = UUID.randomUUID();
+    jdbc.update(
+        "INSERT INTO user_brokers (id, user_id, broker_id, external_id, kind, referrer_account_id)"
+            + " VALUES (?, NULL, ?, ?, 'CONSUMIDOR', ?)",
+        id,
+        broker,
+        cuenta,
+        origen);
+    return id;
   }
 
   private UUID declarar(UUID persona, UUID broker, String cuenta, String estado) {

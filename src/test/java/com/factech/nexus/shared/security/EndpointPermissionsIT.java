@@ -294,6 +294,9 @@ class EndpointPermissionsIT extends IntegrationTestBase {
           Map.entry(
               "DELETE /api/v1/users/{id}/broker-accounts/{brokerAccountId}",
               "broker-accounts:delete"),
+          Map.entry(
+              "PATCH /api/v1/broker-accounts/{brokerAccountId}/holder",
+              "broker-accounts:assign-user"),
           Map.entry("GET /api/v1/users/{id}/broker-accounts", "broker-accounts:read-team-member"),
           Map.entry("GET /api/v1/users/{id}/team", "users:read-team"),
           Map.entry("GET /api/v1/users/{id}/sellers", "users:read-sellers"),

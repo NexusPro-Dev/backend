@@ -5,8 +5,10 @@ import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verifyNoInteractions;
 
 import com.factech.nexus.modules.system.brokers.application.BrokerNotice;
+import com.factech.nexus.modules.system.brokers.domain.repository.BrokerAccountWriter;
 import com.factech.nexus.modules.system.brokers.domain.repository.BrokerNotificationRepository;
 import com.factech.nexus.modules.system.brokers.infrastructure.BrokerNotificationSettings;
+import com.factech.nexus.shared.audit.AuditWriter;
 import com.factech.nexus.shared.error.ServiceUnavailableException;
 import com.factech.nexus.shared.persistence.UuidV7Generator;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -24,9 +26,11 @@ class ReceiveBrokerNotificationServiceTest {
     ReceiveBrokerNotificationService servicio =
         new ReceiveBrokerNotificationService(
             avisos,
-            new BrokerNotificationSettings(Map.of(), " "),
+            new BrokerNotificationSettings(Map.of(), " ", null, null),
             mock(UuidV7Generator.class),
-            new ObjectMapper());
+            new ObjectMapper(),
+            mock(BrokerAccountWriter.class),
+            mock(AuditWriter.class));
 
     assertThatThrownBy(
             () ->

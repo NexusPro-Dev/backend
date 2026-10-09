@@ -35,6 +35,8 @@ public record BrokerAccountItem(
     String brokerUsername,
     UserBrokerStatus status,
     BrokerAccountKind kind,
+    String afftrack,
+    BrokerAccountReferrer referrer,
     OffsetDateTime declaredAt) {
 
   /**

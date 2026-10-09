@@ -2,6 +2,7 @@ package com.factech.nexus.modules.system.brokers.domain.repository;
 
 import com.factech.nexus.modules.system.brokers.application.BrokerAccountItem;
 import com.factech.nexus.modules.system.brokers.application.BrokerAccountItem.BrokerRef;
+import com.factech.nexus.modules.system.brokers.application.BrokerAccountReferrer;
 import com.factech.nexus.modules.system.brokers.application.TeamBrokerAccountItem;
 import com.factech.nexus.modules.system.brokers.application.TeamBrokerAccountItem.Holder;
 import com.factech.nexus.modules.system.brokers.domain.models.BrokerAccountKind;
@@ -49,9 +50,14 @@ public class JpaBrokerAccountQueryRepository implements BrokerAccountQueryReposi
                 SELECT ub.id AS id, ub.external_id AS external_id,
                        ub.broker_username AS broker_username, ub.status AS status,
                        ub.kind AS kind, ub.created_at AS created_at,
-                       b.id AS broker_id, b.name AS broker_name
+                       b.id AS broker_id, b.name AS broker_name,
+                       ub.afftrack AS afftrack, r.id AS referrer_id,
+                       r.afftrack AS referrer_afftrack, r.user_id AS referrer_user_id,
+                       ru.username AS referrer_username
                   FROM user_brokers ub
                   JOIN brokers b ON b.id = ub.broker_id
+                  LEFT JOIN user_brokers r ON r.id = ub.referrer_account_id
+                  LEFT JOIN users ru ON ru.id = r.user_id
                  WHERE ub.user_id = CAST(:persona AS uuid)
                  ORDER BY b.name, ub.external_id
                 """,
@@ -69,6 +75,8 @@ public class JpaBrokerAccountQueryRepository implements BrokerAccountQueryReposi
               (String) fila.get("broker_username"),
               estado(fila),
               tipo(fila),
+              (String) fila.get("afftrack"),
+              origen(fila),
               momento(fila.get("created_at"))));
     }
     return resultado;
@@ -87,13 +95,15 @@ public class JpaBrokerAccountQueryRepository implements BrokerAccountQueryReposi
                    ub.kind AS kind, ub.created_at AS created_at,
                    b.id AS broker_id, b.name AS broker_name,
                    u.id AS user_id, u.username AS username,
-                   u.first_name AS first_name, u.last_name AS last_name
+                   u.first_name AS first_name, u.last_name AS last_name,
             """
+                + COLUMNAS_ORIGEN_TEXTO
                 + EQUIPO_DE
                 + """
               JOIN user_brokers ub ON ub.user_id = u.id
               JOIN brokers b ON b.id = ub.broker_id
             """
+                + UNION_ORIGEN_TEXTO
                 + DONDE
                 // Tres desempates, y el último es único: sin él, dos páginas
                 // consecutivas pueden repetir una fila y omitir otra sin que
@@ -164,6 +174,18 @@ public class JpaBrokerAccountQueryRepository implements BrokerAccountQueryReposi
     List<Tuple> filas = consulta.getResultList();
 
     return conFilas(filas);
+  }
+
+  @Override
+  @Transactional(readOnly = true)
+  public java.util.Optional<TeamBrokerAccountItem> findOne(UUID brokerAccountId) {
+    @SuppressWarnings("unchecked")
+    List<Tuple> filas =
+        em.createNativeQuery(
+                COLUMNAS + DESDE_GLOBAL + " WHERE ub.id = CAST(:id AS uuid)", Tuple.class)
+            .setParameter("id", brokerAccountId)
+            .getResultList();
+    return conFilas(filas).stream().findFirst();
   }
 
   @Override
@@ -413,6 +435,14 @@ public class JpaBrokerAccountQueryRepository implements BrokerAccountQueryReposi
         """;
   }
 
+  private static final String COLUMNAS_ORIGEN_TEXTO =
+      " ub.afftrack AS afftrack, r.id AS referrer_id, r.afftrack AS referrer_afftrack,"
+          + " r.user_id AS referrer_user_id, ru.username AS referrer_username ";
+
+  private static final String UNION_ORIGEN_TEXTO =
+      " LEFT JOIN user_brokers r ON r.id = ub.referrer_account_id"
+          + " LEFT JOIN users ru ON ru.id = r.user_id ";
+
   private static final String COLUMNAS =
       """
       SELECT ub.id AS id, ub.external_id AS external_id,
@@ -420,15 +450,21 @@ public class JpaBrokerAccountQueryRepository implements BrokerAccountQueryReposi
              ub.kind AS kind, ub.created_at AS created_at,
              b.id AS broker_id, b.name AS broker_name,
              u.id AS user_id, u.username AS username,
-             u.first_name AS first_name, u.last_name AS last_name
-      """;
+             u.first_name AS first_name, u.last_name AS last_name,
+      """
+          + COLUMNAS_ORIGEN_TEXTO;
 
+  /**
+   * <b>{@code LEFT JOIN users}</b> desde el 09-10-2026 (`RN-SP-072`): una cuenta puede no tener
+   * titular, y administración tiene que verla para asignarla (`RF-SP-082`).
+   */
   private static final String DESDE_GLOBAL =
       """
         FROM user_brokers ub
-        JOIN users u ON u.id = ub.user_id
+        LEFT JOIN users u ON u.id = ub.user_id
         JOIN brokers b ON b.id = ub.broker_id
-      """;
+      """
+          + UNION_ORIGEN_TEXTO;
 
   /**
    * Los siete filtros, escritos UNA vez y compartidos por la página y el conteo.
@@ -440,7 +476,10 @@ public class JpaBrokerAccountQueryRepository implements BrokerAccountQueryReposi
     Filtro filtro = new Filtro();
 
     // FUERA de la recursiva a propósito: ver el javadoc de `recursivaSiHace`.
-    filtro.condicion("u.deleted_at IS NULL");
+    filtro.condicion("(u.id IS NULL OR u.deleted_at IS NULL)");
+    if (f.hasHolder() != null) {
+      filtro.condicion(f.hasHolder() ? "ub.user_id IS NOT NULL" : "ub.user_id IS NULL");
+    }
 
     if (f.supervisorId() != null) {
       filtro.condicion("ub.user_id IN (SELECT user_id FROM alcance)", "raiz", f.supervisorId());
@@ -540,19 +579,35 @@ public class JpaBrokerAccountQueryRepository implements BrokerAccountQueryReposi
       resultado.add(
           new TeamBrokerAccountItem(
               (UUID) fila.get("id"),
-              new Holder(
-                  (UUID) fila.get("user_id"),
-                  (String) fila.get("username"),
-                  (String) fila.get("first_name"),
-                  (String) fila.get("last_name")),
+              fila.get("user_id") == null
+                  ? null
+                  : new Holder(
+                      (UUID) fila.get("user_id"),
+                      (String) fila.get("username"),
+                      (String) fila.get("first_name"),
+                      (String) fila.get("last_name")),
               new BrokerRef((UUID) fila.get("broker_id"), (String) fila.get("broker_name")),
               (String) fila.get("external_id"),
               (String) fila.get("broker_username"),
               estado(fila),
               tipo(fila),
+              (String) fila.get("afftrack"),
+              origen(fila),
               momento(fila.get("created_at"))));
     }
     return resultado;
+  }
+
+  /** La cuenta de origen (`RN-SP-070`), o nula. */
+  private static BrokerAccountReferrer origen(Tuple fila) {
+    UUID id = (UUID) fila.get("referrer_id");
+    return id == null
+        ? null
+        : new BrokerAccountReferrer(
+            id,
+            (String) fila.get("referrer_afftrack"),
+            (UUID) fila.get("referrer_user_id"),
+            (String) fila.get("referrer_username"));
   }
 
   /**

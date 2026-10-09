@@ -1,7 +1,9 @@
 package com.factech.nexus.modules.system.brokers.domain.service;
 
+import com.factech.nexus.modules.system.brokers.application.AssignBrokerAccountHolderRequest;
 import com.factech.nexus.modules.system.brokers.application.BrokerAccountItem;
 import com.factech.nexus.modules.system.brokers.application.CreateBrokerAccountRequest;
+import com.factech.nexus.modules.system.brokers.application.TeamBrokerAccountItem;
 import com.factech.nexus.modules.system.brokers.application.UpdateBrokerAccountRequest;
 import com.factech.nexus.modules.system.brokers.domain.models.BrokerAccountKind;
 import com.factech.nexus.modules.system.brokers.domain.models.UserBrokerStatus;
@@ -28,6 +30,7 @@ import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.UUID;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -97,16 +100,39 @@ public class ManageBrokerAccountsService {
   @Transactional
   public BrokerAccountItem create(UUID userId, CreateBrokerAccountRequest peticion) {
     String cuenta = validarAlta(peticion);
+    String afftrack = afftrack(peticion.afftrack());
     existe(userId);
     BrokerAccountKind tipo =
         cuentas.kindFor(userId).orElseThrow(ManageBrokerAccountsService::sinTipo);
+    if (afftrack != null && tipo != BrokerAccountKind.VENDEDOR) {
+      throw afftrackSoloVendedor();
+    }
     brokers
         .find(peticion.brokerId())
         .filter(BrokerRef::active)
         .orElseThrow(ManageBrokerAccountsService::brokerNoProcede);
 
+    UUID origen = null;
+    if (tipo == BrokerAccountKind.CONSUMIDOR) {
+      UUID vendedor = cuentas.principalSellerOf(userId).orElse(null);
+      // `RN-SP-072`: llegó antes por el broker con el origen de su vendedor.
+      Optional<UUID> asociada = cuentas.claim(peticion.brokerId(), cuenta, userId, vendedor);
+      if (asociada.isPresent()) {
+        Map<String, Object> cambio = new LinkedHashMap<>();
+        cambio.put("before", null);
+        cambio.put("after", userId.toString());
+        Map<String, Object> cambios = new LinkedHashMap<>();
+        cambios.put("user_id", cambio);
+        auditoria.recordChange(
+            new ChangeEvent(MODULO, ENTIDAD, asociada.get(), ChangeAction.UPDATE, cambios));
+        return leer(userId, asociada.get());
+      }
+      // `RN-SP-070`: la `VENDEDOR` de su vendedor en ese broker, si la tiene.
+      origen = cuentas.vendorAccount(vendedor, peticion.brokerId()).orElse(null);
+    }
+
     UUID id = ids.next();
-    cuentas.insert(id, userId, peticion.brokerId(), cuenta, tipo);
+    cuentas.insert(id, userId, peticion.brokerId(), cuenta, tipo, afftrack, origen);
 
     Map<String, Object> despues = new LinkedHashMap<>();
     despues.put("user_id", userId.toString());
@@ -114,6 +140,8 @@ public class ManageBrokerAccountsService {
     despues.put("external_id", cuenta);
     despues.put("status", UserBrokerStatus.REGISTER.name());
     despues.put("kind", tipo.name());
+    despues.put("afftrack", afftrack);
+    despues.put("referrer_account_id", origen == null ? null : origen.toString());
     auditoria.recordChange(
         new ChangeEvent(MODULO, ENTIDAD, id, ChangeAction.CREATE, Map.of("after", despues)));
 
@@ -138,18 +166,33 @@ public class ManageBrokerAccountsService {
 
   private BrokerAccountItem update(
       UUID userId, UUID brokerAccountId, UpdateBrokerAccountRequest peticion, boolean titular) {
-    String nuevo = validarIdentificador(peticion == null ? null : peticion.accountId(), null);
+    String crudo = peticion == null ? null : peticion.accountId();
+    String afftrackCrudo = peticion == null ? null : peticion.afftrack();
+    if (crudo == null && afftrackCrudo == null) {
+      String mensaje = "Debe indicar el identificador de la cuenta o el afftrack.";
+      throw new ValidationException(
+          "VAL-013", mensaje, List.of(new FieldError("accountId", "VAL-013", mensaje)));
+    }
+    String nuevo = crudo == null ? null : validarIdentificador(crudo, null);
+    String afftrack = afftrack(afftrackCrudo);
     LockedAccount cuenta = bloquear(brokerAccountId, userId, titular);
+    if (afftrackCrudo != null && cuenta.kind() != BrokerAccountKind.VENDEDOR) {
+      throw afftrackSoloVendedor();
+    }
 
-    // `FA-001`: el mismo identificador no escribe ni audita.
-    if (!nuevo.equals(cuenta.accountId())) {
+    // `FA-001`: lo que no cambia no escribe ni audita.
+    Map<String, Object> cambios = new LinkedHashMap<>();
+    if (nuevo != null && !nuevo.equals(cuenta.accountId())) {
       cuentas.updateAccountId(cuenta.id(), nuevo);
-      Map<String, Object> cambio = new LinkedHashMap<>();
-      cambio.put("before", cuenta.accountId());
-      cambio.put("after", nuevo);
+      cambios.put("external_id", antesYDespues(cuenta.accountId(), nuevo));
+    }
+    if (afftrackCrudo != null && !java.util.Objects.equals(afftrack, cuenta.afftrack())) {
+      cuentas.updateAfftrack(cuenta.id(), afftrack);
+      cambios.put("afftrack", antesYDespues(cuenta.afftrack(), afftrack));
+    }
+    if (!cambios.isEmpty()) {
       auditoria.recordChange(
-          new ChangeEvent(
-              MODULO, ENTIDAD, cuenta.id(), ChangeAction.UPDATE, Map.of("external_id", cambio)));
+          new ChangeEvent(MODULO, ENTIDAD, cuenta.id(), ChangeAction.UPDATE, cambios));
     }
     return leer(userId, cuenta.id());
   }
@@ -181,6 +224,10 @@ public class ManageBrokerAccountsService {
     instantanea.put("broker_username", cuenta.brokerUsername());
     instantanea.put("status", cuenta.status().name());
     instantanea.put("kind", cuenta.kind().name());
+    instantanea.put("afftrack", cuenta.afftrack());
+    instantanea.put(
+        "referrer_account_id",
+        cuenta.referrerAccountId() == null ? null : cuenta.referrerAccountId().toString());
     auditoria.recordDeletion(
         new DeletionEvent(
             MODULO,
@@ -189,6 +236,44 @@ public class ManageBrokerAccountsService {
             DeletionType.PHYSICAL,
             titular ? "RF-SP-081: la retiró su titular." : "RF-SP-081: la retiró administración.",
             instantanea));
+  }
+
+  // ---------------------------------------------------------------------------
+  // `RF-SP-082` — asignar titular a una cuenta sin él
+  // ---------------------------------------------------------------------------
+
+  @Transactional
+  public TeamBrokerAccountItem assignHolder(
+      UUID brokerAccountId, AssignBrokerAccountHolderRequest peticion) {
+    UUID persona = peticion == null ? null : peticion.userId();
+    if (persona == null) {
+      String mensaje = "Debe indicar la persona.";
+      throw new ValidationException(
+          "VAL-012", mensaje, List.of(new FieldError("userId", "VAL-012", mensaje)));
+    }
+    LockedAccount cuenta =
+        cuentas
+            .lockAny(brokerAccountId)
+            .orElseThrow(
+                () -> new ResourceNotFoundException("VAL-002", "No existe esa cuenta de broker."));
+    if (cuenta.userId() != null) {
+      String mensaje = "La cuenta ya tiene titular.";
+      throw new BusinessRuleException(
+          "EX-013", mensaje, List.of(new FieldError("brokerAccountId", "EX-013", mensaje)));
+    }
+    existe(persona);
+    if (cuentas.kindFor(persona).orElse(null) != BrokerAccountKind.CONSUMIDOR) {
+      String mensaje = "Solo un consumidor puede ser titular de esta cuenta.";
+      throw new UnprocessableEntityException(
+          "EX-011", mensaje, List.of(new FieldError("userId", "EX-011", mensaje)));
+    }
+
+    cuentas.assignUser(cuenta.id(), persona);
+    Map<String, Object> cambios = new LinkedHashMap<>();
+    cambios.put("user_id", antesYDespues(null, persona.toString()));
+    auditoria.recordChange(
+        new ChangeEvent(MODULO, ENTIDAD, cuenta.id(), ChangeAction.UPDATE, cambios));
+    return lecturas.findOne(cuenta.id()).orElseThrow();
   }
 
   // ---------------------------------------------------------------------------
@@ -249,6 +334,33 @@ public class ManageBrokerAccountsService {
       throw new ValidationException(propios.get(0).code(), "Los datos no son válidos.", propios);
     }
     return limpio;
+  }
+
+  /** El `afftrack` sin espacios a los lados; vacío o ausente es nulo. Hasta 80 (`VAL-016`). */
+  private static String afftrack(String valor) {
+    String limpio = valor == null ? null : valor.strip();
+    if (limpio == null || limpio.isEmpty()) {
+      return null;
+    }
+    if (limpio.length() > LARGO_MAXIMO) {
+      String mensaje = "El afftrack no puede tener más de " + LARGO_MAXIMO + " caracteres.";
+      throw new ValidationException(
+          "VAL-016", mensaje, List.of(new FieldError("afftrack", "VAL-016", mensaje)));
+    }
+    return limpio;
+  }
+
+  private static ValidationException afftrackSoloVendedor() {
+    String mensaje = "Solo una cuenta de vendedor lleva afftrack.";
+    return new ValidationException(
+        "VAL-016", mensaje, List.of(new FieldError("afftrack", "VAL-016", mensaje)));
+  }
+
+  private static Map<String, Object> antesYDespues(Object antes, Object despues) {
+    Map<String, Object> cambio = new LinkedHashMap<>();
+    cambio.put("before", antes);
+    cambio.put("after", despues);
+    return cambio;
   }
 
   private void existe(UUID userId) {

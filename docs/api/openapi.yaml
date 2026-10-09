@@ -1332,6 +1332,12 @@ paths:
         **La cuenta nace con su tipo** (`RN-SP-068`): `VENDEDOR` si el
         titular porta un rol vendedor, si no `CONSUMIDOR`. Quien no es ni lo
         uno ni lo otro recibe `422` (`EX-011`).
+        **Una cuenta `VENDEDOR` admite su `afftrack`** (`RN-SP-071`), único por
+        broker (`409`, `EX-014`); y un vendedor tiene una sola por broker (`409`,
+        `EX-015`). **La `CONSUMIDOR` nace con su origen**, la `VENDEDOR` de su
+        vendedor principal en ese broker (`RN-SP-070`), y si el número ya existe
+        sin titular con ese mismo origen, **se le asocia** en vez de dar `409`
+        (`RN-SP-072`).
       operationId: registrarCuentaDeBroker
       parameters:
       - name: id
@@ -1570,6 +1576,12 @@ paths:
         **La cuenta nace con su tipo** (`RN-SP-068`): `VENDEDOR` si el
         titular porta un rol vendedor, si no `CONSUMIDOR`. Quien no es ni lo
         uno ni lo otro recibe `422` (`EX-011`).
+        **Una cuenta `VENDEDOR` admite su `afftrack`** (`RN-SP-071`), único por
+        broker (`409`, `EX-014`); y un vendedor tiene una sola por broker (`409`,
+        `EX-015`). **La `CONSUMIDOR` nace con su origen**, la `VENDEDOR` de su
+        vendedor principal en ese broker (`RN-SP-070`), y si el número ya existe
+        sin titular con ese mismo origen, **se le asocia** en vez de dar `409`
+        (`RN-SP-072`).
       operationId: registrarMiCuentaDeBroker
       requestBody:
         content:
@@ -11626,6 +11638,88 @@ paths:
               schema:
                 $ref: "#/components/schemas/CommissionRateResponse"
       x-required-permission: commissions:update
+  /api/v1/broker-accounts/{brokerAccountId}/holder:
+    patch:
+      tags:
+      - Cuentas de broker
+      summary: Asignar titular a una cuenta de broker sin él
+      description: |
+        **Permiso requerido:** `broker-accounts:assign-user`. Sin él, `403` (`AUTH-002`).
+
+        **Permiso requerido:** `broker-accounts:assign-user` (`RF-SP-082`).
+
+        Da titular a una cuenta que **llegó del broker antes que la persona**:
+        el aviso de registro la creó como `CONSUMIDOR` sin titular, ligada a la
+        cuenta del vendedor de su `afftrack` (`RN-SP-072`). Se encuentran en
+        `GET /api/v1/broker-accounts?hasHolder=false`.
+
+        **Solo una cuenta sin titular** —reasignar quitaría la cuenta a alguien—
+        y **solo a un consumidor**. El origen no cambia. Queda auditado.
+      operationId: asignarTitular
+      parameters:
+      - name: brokerAccountId
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/AssignBrokerAccountHolderRequest"
+        required: true
+      responses:
+        "200":
+          description: "La cuenta, ya con su titular"
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/TeamBrokerAccountItem"
+        "400":
+          description: Sin `userId` (`VAL-012`)
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/TeamBrokerAccountItem"
+        "401":
+          description: Token ausente o inválido (`AUTH-001`)
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/TeamBrokerAccountItem"
+        "403":
+          description: Autenticado sin `broker-accounts:assign-user` (`AUTH-002`)
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/TeamBrokerAccountItem"
+        "404":
+          description: "La cuenta o la persona no existen, o la persona está eliminada\
+            \ (`VAL-002`)"
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/TeamBrokerAccountItem"
+        "409":
+          description: La cuenta ya tiene titular (`EX-013`)
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/TeamBrokerAccountItem"
+        "422":
+          description: La persona no es consumidor (`EX-011`)
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/TeamBrokerAccountItem"
+        "500":
+          description: Fallo no controlado (`ERR-500`)
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/TeamBrokerAccountItem"
+      x-required-permission: broker-accounts:assign-user
   /api/v1/afftrack-rates/{id}:
     patch:
       tags:
@@ -15599,6 +15693,9 @@ paths:
           `400`**, no una página vacía.
         - `kind` — `VENDEDOR` o `CONSUMIDOR` (`RN-SP-068`): la cuenta de un
           vendedor o la de un consumidor. Cualquier otro valor es `400`.
+        - `hasHolder` — `false`, las cuentas **sin titular**, que llegaron del
+          broker antes que la persona (`RN-SP-072`); `true`, las demás. Sin
+          titular, `user` va nulo.
         - `brokerId` — un broker del catálogo.
         - `search` — fragmento de **número de cuenta**, nombre de usuario,
           correo o nombre completo. Sin acentos y sin distinguir mayúsculas.
@@ -15693,6 +15790,11 @@ paths:
         required: false
         schema:
           type: string
+      - name: hasHolder
+        in: query
+        required: false
+        schema:
+          type: boolean
       - name: brokerId
         in: query
         required: false
@@ -17452,6 +17554,12 @@ components:
           description: El identificador de la cuenta en el broker. Se guarda sin espacios
             a los lados; entre 1 y 80 caracteres.
           example: 70000001
+        afftrack:
+          type: string
+          description: "Solo en una cuenta de VENDEDOR (`RN-SP-071`): su código de\
+            \ afiliado en el broker, el que el broker devuelve en sus avisos. Único\
+            \ por broker; hasta 80 caracteres."
+          example: DIEGOIQ
     BrokerAccountItem:
       type: object
       properties:
@@ -17474,9 +17582,26 @@ components:
           enum:
           - VENDEDOR
           - CONSUMIDOR
+        afftrack:
+          type: string
+        referrer:
+          $ref: "#/components/schemas/BrokerAccountReferrer"
         declaredAt:
           type: string
           format: date-time
+    BrokerAccountReferrer:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        afftrack:
+          type: string
+        userId:
+          type: string
+          format: uuid
+        username:
+          type: string
     BrokerRef:
       type: object
       properties:
@@ -20608,6 +20733,11 @@ components:
           description: El identificador nuevo de la cuenta en el broker. Sin espacios
             a los lados; entre 1 y 80 caracteres.
           example: 70000001
+        afftrack:
+          type: string
+          description: "Solo en una cuenta de VENDEDOR (`RN-SP-071`): el código de\
+            \ afiliado nuevo; vacío lo borra. Va al menos uno de los dos campos."
+          example: DIEGOIQ
     UpdateOwnProfileRequest:
       type: object
       properties:
@@ -21104,6 +21234,56 @@ components:
           $ref: "#/components/schemas/CommissionRateDirect"
           description: "La comisión por venta directa (RN-CM-050), entera: ausente\
             \ no la toca, un objeto la sustituye y null la vacía."
+    AssignBrokerAccountHolderRequest:
+      type: object
+      properties:
+        userId:
+          type: string
+          format: uuid
+          description: "La persona, consumidor, que pasa a ser la titular de la cuenta."
+    BrokerAccountHolder:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        username:
+          type: string
+        firstName:
+          type: string
+        lastName:
+          type: string
+    TeamBrokerAccountItem:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        user:
+          $ref: "#/components/schemas/BrokerAccountHolder"
+        broker:
+          $ref: "#/components/schemas/BrokerRef"
+        accountId:
+          type: string
+        brokerUsername:
+          type: string
+        status:
+          type: string
+          enum:
+          - REGISTER
+          - FIRST_DEPOSIT
+        kind:
+          type: string
+          enum:
+          - VENDEDOR
+          - CONSUMIDOR
+        afftrack:
+          type: string
+        referrer:
+          $ref: "#/components/schemas/BrokerAccountReferrer"
+        declaredAt:
+          type: string
+          format: date-time
     UpdateAfftrackRateRequest:
       type: object
       properties:
@@ -21307,18 +21487,6 @@ components:
           type: array
           items:
             $ref: "#/components/schemas/BrokerAccountItem"
-    BrokerAccountHolder:
-      type: object
-      properties:
-        id:
-          type: string
-          format: uuid
-        username:
-          type: string
-        firstName:
-          type: string
-        lastName:
-          type: string
     PageResponseTeamBrokerAccountItem:
       type: object
       properties:
@@ -21340,33 +21508,6 @@ components:
           format: int32
         totalIsExact:
           type: boolean
-    TeamBrokerAccountItem:
-      type: object
-      properties:
-        id:
-          type: string
-          format: uuid
-        user:
-          $ref: "#/components/schemas/BrokerAccountHolder"
-        broker:
-          $ref: "#/components/schemas/BrokerRef"
-        accountId:
-          type: string
-        brokerUsername:
-          type: string
-        status:
-          type: string
-          enum:
-          - REGISTER
-          - FIRST_DEPOSIT
-        kind:
-          type: string
-          enum:
-          - VENDEDOR
-          - CONSUMIDOR
-        declaredAt:
-          type: string
-          format: date-time
     ListUserCommissionRatesRequest:
       type: object
       properties:

@@ -252,7 +252,8 @@ public class RegisterClientByLinkService {
     // índice deshace el registro entero, en lugar de dejar a alguien dentro con
     // media declaración.
     for (BrokerAccount cuenta : cuentas) {
-      brokers.declare(ids.next(), usuario.getId(), cuenta.brokerId(), cuenta.accountId().trim());
+      brokers.declare(
+          ids.next(), usuario.getId(), cuenta.brokerId(), cuenta.accountId().trim(), vendedor);
     }
 
     // LA VENTA, en la misma transacción y la última: si se rechaza, no queda ni

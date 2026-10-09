@@ -29,8 +29,13 @@ public interface BrokerAccountRegistrar {
    * <p><b>Puede fallar por el índice</b> —`RN-SP-038`, una cuenta es de una sola persona—, y ese
    * fallo tiene que llegar traducido a `409`: quien lo llama está dentro de una transacción que
    * escribe otras cuatro cosas, y ninguna puede quedar.
+   *
+   * <p><b>Con {@code sellerId}, el vendedor del enlace</b> (`RN-SP-070`, `RN-SP-072`): la cuenta
+   * nace con origen en la cuenta {@code VENDEDOR} de ese vendedor en ese broker, y si el número ya
+   * existe sin titular y con ese mismo origen —llegó antes por el broker—, se asocia en lugar de
+   * fallar.
    */
-  void declare(UUID accountId, UUID userId, UUID brokerId, String externalId);
+  void declare(UUID accountId, UUID userId, UUID brokerId, String externalId, UUID sellerId);
 
   /** Un broker del catálogo, con lo justo para verificarlo. */
   record BrokerRef(UUID id, String name, boolean active) {}

@@ -1,8 +1,12 @@
 package com.factech.nexus.modules.system.brokers.domain.service;
 
 import com.factech.nexus.modules.system.brokers.application.BrokerNotice;
+import com.factech.nexus.modules.system.brokers.domain.repository.BrokerAccountWriter;
 import com.factech.nexus.modules.system.brokers.domain.repository.BrokerNotificationRepository;
 import com.factech.nexus.modules.system.brokers.infrastructure.BrokerNotificationSettings;
+import com.factech.nexus.shared.audit.AuditEnums.ChangeAction;
+import com.factech.nexus.shared.audit.AuditEvents.ChangeEvent;
+import com.factech.nexus.shared.audit.AuditWriter;
 import com.factech.nexus.shared.error.FieldError;
 import com.factech.nexus.shared.error.ResourceNotFoundException;
 import com.factech.nexus.shared.error.ServiceUnavailableException;
@@ -55,16 +59,22 @@ public class ReceiveBrokerNotificationService {
   private final BrokerNotificationSettings secretos;
   private final UuidV7Generator ids;
   private final ObjectMapper json;
+  private final BrokerAccountWriter cuentas;
+  private final AuditWriter auditoria;
 
   public ReceiveBrokerNotificationService(
       BrokerNotificationRepository avisos,
       BrokerNotificationSettings secretos,
       UuidV7Generator ids,
-      ObjectMapper json) {
+      ObjectMapper json,
+      BrokerAccountWriter cuentas,
+      AuditWriter auditoria) {
     this.avisos = avisos;
     this.secretos = secretos;
     this.ids = ids;
     this.json = json;
+    this.cuentas = cuentas;
+    this.auditoria = auditoria;
   }
 
   /**
@@ -150,16 +160,25 @@ public class ReceiveBrokerNotificationService {
    */
   private Optional<String> anunciante(
       Map<String, List<String>> consulta, byte[] cuerpo, String tipo) {
-    List<String> valores = consulta.get(ADVERTISER);
+    return campo(ADVERTISER, consulta, cuerpo, tipo);
+  }
+
+  /**
+   * Un campo del aviso: en la dirección y, si no está, en un cuerpo de formulario o en el primer
+   * nivel de un JSON. Exactamente uno y no vacío; si no, vacío.
+   */
+  private Optional<String> campo(
+      String nombre, Map<String, List<String>> consulta, byte[] cuerpo, String tipo) {
+    List<String> valores = consulta.get(nombre);
     if (valores == null && cuerpo.length > 0 && tipo != null) {
       String texto = new String(cuerpo, StandardCharsets.UTF_8);
       String medio = tipo.toLowerCase(Locale.ROOT);
       if (medio.startsWith("application/x-www-form-urlencoded")) {
-        valores = desarmar(texto).get(ADVERTISER);
+        valores = desarmar(texto).get(nombre);
       } else if (medio.startsWith("application/json")) {
         try {
-          JsonNode campo = json.readTree(texto).get(ADVERTISER);
-          valores = campo != null && campo.isTextual() ? List.of(campo.asText()) : null;
+          JsonNode nodo = json.readTree(texto).get(nombre);
+          valores = nodo != null && nodo.isValueNode() ? List.of(nodo.asText()) : null;
         } catch (JsonProcessingException | RuntimeException malformado) {
           valores = null;
         }
@@ -169,6 +188,61 @@ public class ReceiveBrokerNotificationService {
       return Optional.empty();
     }
     return Optional.of(valores.get(0).trim());
+  }
+
+  /**
+   * El aviso de registro (`RN-SP-070`, `RN-SP-072`): crea la cuenta `CONSUMIDOR` sin titular, con
+   * origen en la `VENDEDOR` de su `afftrack`; si el número ya existía sin origen, se lo pone.
+   * <b>Nunca falla el aviso</b>: lo que no se entiende se queda solo guardado.
+   */
+  private void interpretar(
+      UUID brokerId, Map<String, List<String>> consulta, byte[] cuerpo, String tipo) {
+    BrokerNotificationSettings.Fields nombres = secretos.fields();
+    Optional<String> registro = secretos.registration();
+    if (registro.isEmpty()
+        || !campo(nombres.event(), consulta, cuerpo, tipo)
+            .map(evento -> evento.equalsIgnoreCase(registro.get()))
+            .orElse(false)) {
+      return;
+    }
+    Optional<String> numero = campo(nombres.account(), consulta, cuerpo, tipo);
+    if (numero.isEmpty() || numero.get().length() > 80) {
+      return;
+    }
+    UUID origen =
+        campo(nombres.afftrack(), consulta, cuerpo, tipo)
+            .flatMap(afftrack -> cuentas.vendorAccountByAfftrack(brokerId, afftrack))
+            .orElse(null);
+
+    Optional<UUID> creada = cuentas.insertFromBroker(ids.next(), brokerId, numero.get(), origen);
+    if (creada.isPresent()) {
+      Map<String, Object> despues = new LinkedHashMap<>();
+      despues.put("user_id", null);
+      despues.put("broker_id", brokerId.toString());
+      despues.put("external_id", numero.get());
+      despues.put("status", "REGISTER");
+      despues.put("kind", "CONSUMIDOR");
+      despues.put("referrer_account_id", origen == null ? null : origen.toString());
+      auditoria.recordChange(
+          new ChangeEvent(
+              "SP", "user_brokers", creada.get(), ChangeAction.CREATE, Map.of("after", despues)));
+      return;
+    }
+    if (origen != null) {
+      UUID completada = origen;
+      cuentas
+          .fillReferrer(brokerId, numero.get(), origen)
+          .ifPresent(
+              id -> {
+                Map<String, Object> cambio = new LinkedHashMap<>();
+                cambio.put("before", null);
+                cambio.put("after", completada.toString());
+                Map<String, Object> cambios = new LinkedHashMap<>();
+                cambios.put("referrer_account_id", cambio);
+                auditoria.recordChange(
+                    new ChangeEvent("SP", "user_brokers", id, ChangeAction.UPDATE, cambios));
+              });
+    }
   }
 
   private void guardar(
@@ -182,6 +256,7 @@ public class ReceiveBrokerNotificationService {
         cuerpo.length == 0 ? null : new String(cuerpo, StandardCharsets.UTF_8),
         recortar(aviso.contentType(), 200),
         recortar(aviso.ipAddress(), 45));
+    interpretar(brokerId, consulta, cuerpo, aviso.contentType());
   }
 
   /**

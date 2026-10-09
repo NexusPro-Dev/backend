@@ -37,6 +37,7 @@ public record ListBrokerAccountsRequest(
     UUID userId,
     String status,
     String kind,
+    Boolean hasHolder,
     UUID brokerId,
     String search,
     OffsetDateTime from,

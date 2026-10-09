@@ -12,4 +12,10 @@ public record UpdateBrokerAccountRequest(
                 "El identificador nuevo de la cuenta en el broker. Sin espacios a los lados; entre 1"
                     + " y 80 caracteres.",
             example = "70000001")
-        String accountId) {}
+        String accountId,
+    @Schema(
+            description =
+                "Solo en una cuenta de VENDEDOR (`RN-SP-071`): el código de afiliado nuevo; vacío"
+                    + " lo borra. Va al menos uno de los dos campos.",
+            example = "DIEGOIQ")
+        String afftrack) {}

@@ -623,6 +623,63 @@ class SelfRegistrationIT extends IntegrationTestBase {
   }
 
   @Test
+  @DisplayName(
+      "`CA-SP-959` — la cuenta del registro por enlace nace con origen en la VENDEDOR del vendedor"
+          + " del enlace")
+  void laCuentaNaceConOrigen() throws Exception {
+    UUID origen = cuentaVendedora("AFF-REG");
+
+    mvc.perform(registro(cuerpo("ana.ruiz", "ana@ejemplo.com", "12345678")))
+        .andExpect(status().isCreated());
+
+    assertThat(
+            jdbc.queryForObject(
+                "SELECT referrer_account_id FROM user_brokers WHERE external_id = '12345678'",
+                UUID.class))
+        .isEqualTo(origen);
+  }
+
+  @Test
+  @DisplayName(
+      "`CA-SP-960` — si la cuenta llegó antes por el broker con el afftrack del vendedor del"
+          + " enlace, el registro se la asocia en lugar de dar 409")
+  void elRegistroSeAsociaLaCuentaDelBroker() throws Exception {
+    UUID origen = cuentaVendedora("AFF-REG");
+    jdbc.update(
+        "INSERT INTO user_brokers (id, user_id, broker_id, external_id, kind, referrer_account_id)"
+            + " VALUES (gen_random_uuid(), NULL, ?::uuid, '12345678', 'CONSUMIDOR', ?)",
+        BROKER,
+        origen);
+
+    mvc.perform(registro(cuerpo("ana.ruiz", "ana@ejemplo.com", "12345678")))
+        .andExpect(status().isCreated());
+
+    assertThat(
+            jdbc.queryForObject(
+                "SELECT u.username FROM user_brokers ub JOIN users u ON u.id = ub.user_id"
+                    + " WHERE ub.external_id = '12345678'",
+                String.class))
+        .isEqualTo("ana.ruiz");
+    assertThat(
+            jdbc.queryForObject(
+                "SELECT count(*) FROM user_brokers WHERE external_id = '12345678'", Integer.class))
+        .isOne();
+  }
+
+  /** La cuenta VENDEDOR del vendedor del enlace en el broker del registro (`RN-SP-070`). */
+  private UUID cuentaVendedora(String afftrack) {
+    UUID id = UUID.randomUUID();
+    jdbc.update(
+        "INSERT INTO user_brokers (id, user_id, broker_id, external_id, kind, afftrack)"
+            + " SELECT ?, u.id, ?::uuid, 'V-REG', 'VENDEDOR', ? FROM users u"
+            + " WHERE u.username = 'reg-agente'",
+        id,
+        BROKER,
+        afftrack);
+    return id;
+  }
+
+  @Test
   @DisplayName("`CA-SP-611` — un broker inexistente y uno inactivo se rechazan IGUAL")
   void brokerQueNoProcede() throws Exception {
     String inexistente = UUID.randomUUID().toString();
