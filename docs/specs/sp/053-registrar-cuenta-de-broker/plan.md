@@ -3,9 +3,9 @@
 | Campo | Valor |
 |---|---|
 | Requerimiento | `RF-SP-053` |
-| Especificación | [`spec.md`](spec.md) v0.2.0 |
+| Especificación | [`spec.md`](spec.md) v0.3.0 |
 | `spec.md` aprobada el | 08-10-2026 |
-| Versión | 0.2.0 |
+| Versión | 0.3.0 |
 | Estado | **Aprobado** |
 | Autor | Responsable técnico |
 | Aprobado por | Responsable del proyecto |
@@ -129,4 +129,26 @@ Integración, `ManageBrokerAccountsIT`, con los criterios de los tres requerimie
 | `domain/service` | `ManageBrokerAccountsService`, `ListBrokerAccountsService` | El tipo al declarar; el filtro |
 
 **Riesgo**: las seis suites que insertan cuentas por SQL tienen que nombrar el tipo —la columna no tiene `DEFAULT`—, y las que ponen `FIRST_DEPOSIT` a la cuenta de un vendedor dejan de poder hacerlo.
+
+---
+
+## 13. Enmienda 0.3.0 — `afftrack`, origen y cuentas sin titular (`RN-SP-070` a `RN-SP-072`, 09-10-2026)
+
+**`V96`** sobre `user_brokers`:
+
+| Cambio | Para qué |
+|---|---|
+| `user_id` admite nulo; `ck_user_brokers_titular_solo_consumidor` (`user_id IS NOT NULL OR kind = 'CONSUMIDOR'`) | La cuenta que llega del broker antes que su titular |
+| `afftrack varchar(80)`; `ck_user_brokers_afftrack_solo_vendedor`; `uq_user_brokers_afftrack (broker_id, lower(afftrack))` | `RN-SP-071` |
+| `uq_user_brokers_vendedor_por_broker (user_id, broker_id) WHERE kind = 'VENDEDOR'` | Una `VENDEDOR` por vendedor y broker |
+| `uq_user_brokers_id_broker (id, broker_id)`; `referrer_account_id uuid` con `fk_user_brokers_origen (referrer_account_id, broker_id) → (id, broker_id)`, sin `ON DELETE`; `ck_user_brokers_origen_solo_consumidor` | `RN-SP-070`: mismo broker en el motor; borrar un origen choca con la clave y se traduce a `EX-012` |
+| El permiso `broker-accounts:assign-user` (`01a10e82-9000-701b-9c4f-5e7ada00000d`) a `SUPERADMIN` y `ADMIN` | `RF-SP-082` |
+
+Guardas: ninguna `VENDEDOR` repetida por vendedor y broker antes de crear el índice —si las hubiera, la migración aborta y lo dice—; el catálogo sube en uno.
+
+**El alta** (`ManageBrokerAccountsService.create` y `BrokerAccountRegistrar.declare`, que gana `sellerId`): con el tipo decidido, `CONSUMIDOR` busca el origen con `BrokerAccountWriter.vendorAccount(sellerId, brokerId)` —el vendedor es el principal de `client_sellers` en la ruta de `RF-SP-053`, y el del enlace en `RF-SP-045`—. Luego `claim(brokerId, accountId, userId, sellerId)`: un `UPDATE … SET user_id` **solo si** `user_id IS NULL` y el origen es de `sellerId`; si toca una fila, es la asociación; si no, `insert`, y la unicidad sigue diciendo `EX-009`. Las tres restricciones nuevas se traducen por nombre: `uq_user_brokers_afftrack` → `EX-014`, `uq_user_brokers_vendedor_por_broker` → `EX-015`, `fk_user_brokers_origen` al borrar → `EX-012`.
+
+**Editar** (`RF-SP-080`): `UpdateBrokerAccountRequest` gana `afftrack`; los dos son opcionales y al menos uno es obligatorio. `afftrack` vacío lo borra. En una `CONSUMIDOR`, `VAL-016`.
+
+**Las salidas**: `BrokerAccountItem` y `TeamBrokerAccountItem` ganan `afftrack` y `referrer` (`BrokerAccountReferrer`: `id`, `afftrack`, titular). Las consultas por persona no cambian de alcance: una cuenta sin titular no es de nadie.
 

@@ -3,10 +3,10 @@
 | Campo | Valor |
 |---|---|
 | Requerimiento | `RF-SP-078` |
-| Especificación | [`spec.md`](spec.md) v0.3.0 |
-| Plan | [`plan.md`](plan.md) v0.3.0 |
+| Especificación | [`spec.md`](spec.md) v0.4.0 |
+| Plan | [`plan.md`](plan.md) v0.4.0 |
 | `plan.md` aprobado el | 08-10-2026 |
-| Estado | **En revisión** — `T-01` a `T-08` `Hecha` el 08-10-2026; `T-09` pendiente; `T-11` a `T-14` `Hecha` el 09-10-2026 (enmienda 0.3.0) |
+| Estado | **En revisión** — `T-01` a `T-08` `Hecha` el 08-10-2026; `T-09` pendiente; `T-11` a `T-14` `Hecha` el 09-10-2026 (enmienda 0.3.0); `T-15` y `T-16` pendientes (enmienda 0.4.0) |
 | Issue | Pendiente de crear |
 | Rama | `develop` (commits directos desde el 05-10-2026) |
 
@@ -35,6 +35,8 @@
 | `T-12` | El secreto común; `findActiveByAdvertiser`; `receiveCommon` con su orden; las dos rutas comunes y las viejas obsoletas; `RUTAS_PUBLICAS`; `url` en `BrokerItem` (`RF-SP-052`, `CA-SP-953`) | `T-11` | | **Hecha** — 09-10-2026 |
 | `T-13` | `BrokerNotificationsIT`: `CA-SP-946` a `CA-SP-952`; `EndpointPermissionsIT` | `T-12` | Cada criterio afirmado en el cuerpo | **Hecha** — 09-10-2026 |
 | `T-14` | Contrato, `api/index.md`; `BROKER_NOTIFICATION_TOKEN` en `.env.example` | `T-13` | `mvn verify` en verde | **Hecha** — 09-10-2026 |
+| `T-15` | La configuración del evento y los campos; `BrokerRegistrationNotices.apply`, llamado tras guardar (`plan.md` §14) | `T-13` de `RF-SP-053` | | Pendiente |
+| `T-16` | `BrokerNotificationsIT`: `CA-SP-964` a `CA-SP-968`; `deployment.md` | `T-15` | `mvn verify` en verde | Pendiente |
 | `T-09` | Configurar los tres secretos en Railway y la dirección en el panel de afiliados de cada broker; disparar un aviso de prueba desde cada panel y verlo en la base | `T-08` | Una fila por broker | Pendiente |
 
 ---
@@ -55,6 +57,7 @@
 | `CA-SP-907` | `T-04`, `T-07` |
 | `CA-SP-908` | `T-10` |
 | `CA-SP-946` a `CA-SP-952` | `T-11` a `T-13` |
+| `CA-SP-964` a `CA-SP-968` | `T-15`, `T-16` |
 
 ---
 

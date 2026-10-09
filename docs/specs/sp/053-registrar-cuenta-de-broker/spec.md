@@ -4,7 +4,7 @@
 |---|---|
 | Requerimiento | `RF-SP-053` |
 | Módulo | `SP` — Sistema Principal |
-| Versión | 0.2.0 |
+| Versión | 0.3.0 |
 | Estado | **Aprobada** |
 | Autor | Responsable técnico |
 | Aprobada por | Responsable del proyecto |
@@ -56,6 +56,9 @@ Que una persona declare **una cuenta suya** en un broker cuando quiera, y que ad
 | `RN-SP-045` | Toda cuenta de broker declara en qué punto está | `requirements/sp.md` §5.1 |
 | `RN-SP-067` | El titular gestiona sus cuentas mientras no tengan depósito; administración, cualquiera | `requirements/sp.md` §5.1 |
 | `RN-SP-068` | Las cuentas de broker son de dos tipos: de vendedor y de consumidor | `requirements/sp.md` §5.1 |
+| `RN-SP-070` | Una cuenta de consumidor sabe qué cuenta de vendedor la originó | `requirements/sp.md` §5.1 |
+| `RN-SP-071` | El `afftrack` es de la cuenta de vendedor, y uno por broker | `requirements/sp.md` §5.1 |
+| `RN-SP-072` | Una cuenta puede existir sin titular, y se asocia después | `requirements/sp.md` §5.1 |
 
 ## 6. Datos
 
@@ -66,6 +69,7 @@ Que una persona declare **una cuenta suya** en un broker cuando quiera, y que ad
 | Persona | Solo para administración | De quién es la cuenta | Identificador en la ruta; el titular no lo indica, sale del token |
 | `brokerId` | Sí | El broker | Del catálogo, activo |
 | `accountId` | Sí | El identificador de la cuenta en el broker | Sin espacios a los lados; entre 1 y 80 caracteres |
+| `afftrack` | No | El código de afiliado del vendedor en ese broker (`RN-SP-071`) | Solo si la cuenta será `VENDEDOR`; sin espacios a los lados; hasta 80 caracteres |
 
 ### 6.2 Salida
 
@@ -81,7 +85,8 @@ Que una persona declare **una cuenta suya** en un broker cuando quiera, y que ad
 
 1. El actor envía broker e identificador.
 2. El sistema valida los datos y que el broker exista y esté activo.
-3. El sistema decide el tipo por el tipo de rol del titular (`RN-SP-068`) y registra la cuenta a nombre de la persona.
+3. El sistema decide el tipo por el tipo de rol del titular (`RN-SP-068`). Si es `CONSUMIDOR`, busca **la cuenta `VENDEDOR` de su vendedor principal en ese broker** como origen (`RN-SP-070`).
+4. Si el número ya existe **sin titular** y su origen es de ese mismo vendedor, **la asocia a la persona** (`RN-SP-072`); si no, registra la cuenta a nombre de la persona, con su origen o sin él.
 4. El sistema audita el alta y devuelve la cuenta.
 
 ## 9. Flujos alternativos
@@ -97,6 +102,9 @@ Ninguno.
 | `VAL-015` | El identificador tiene más de 80 caracteres | `400` |
 | `EX-008` | El broker no existe o está apagado — la misma respuesta para los dos, como en el registro | `422` |
 | `EX-011` | **El titular no es vendedor ni consumidor**: no porta ningún rol de esos dos tipos (`RN-SP-068`) | `422` |
+| `VAL-016` | Un `afftrack` en una cuenta que será `CONSUMIDOR`, o de más de 80 caracteres | `400` |
+| `EX-014` | **Ese `afftrack` ya es de otra cuenta en ese broker** (`RN-SP-071`) | `409` |
+| `EX-015` | **El vendedor ya tiene su cuenta `VENDEDOR` en ese broker** (`RN-SP-070`) | `409` |
 | `EX-009` | **Esa cuenta ya está declarada**, por cualquiera, también por la misma persona (`RN-SP-038`) | `409` |
 | `VAL-002` | La persona no existe o está eliminada (administración) | `404` |
 | `AUTH-001` / `AUTH-002` | Sin token / sin el permiso | `401` / `403` |
@@ -125,6 +133,16 @@ Las de §10, **todas en la misma respuesta** cuando hay varias.
 | `CA-SP-943` | Toda fila de `RF-SP-055`, `RF-SP-056`, `RF-SP-057` y `RF-SP-079` lleva `kind`; `RF-SP-057` filtra por `?kind=` y su resumen lo respeta; un `kind` desconocido es `400` (`VAL-001`) |
 | `CA-SP-944` | Los indicadores de la red (`RF-SP-058`) **no cuentan** las cuentas `VENDEDOR`, aunque su titular porte también un rol consumidor |
 | `CA-SP-945` | `V91` clasifica las cuentas existentes: `VENDEDOR` la de quien porta rol vendedor, `CONSUMIDOR` las demás y **toda cuenta ya depositada** |
+| `CA-SP-954` | Una cuenta `VENDEDOR` se registra con su `afftrack`, y sale en las consultas; un `afftrack` en una que será `CONSUMIDOR` es `400` (`VAL-016`) |
+| `CA-SP-955` | El mismo `afftrack` en el mismo broker, también con otras mayúsculas, es `409` (`EX-014`); en otro broker se admite |
+| `CA-SP-956` | Una segunda cuenta `VENDEDOR` del mismo vendedor en el mismo broker es `409` (`EX-015`); en otro broker se admite |
+| `CA-SP-957` | El `afftrack` se cambia al editar, por la ruta propia y por la de administración, y queda auditado; un `PATCH` sin `accountId` ni `afftrack` es `400` |
+| `CA-SP-958` | La cuenta `CONSUMIDOR` nace con **origen**: la `VENDEDOR` de su vendedor principal en ese broker; si el vendedor no tiene, **sin origen**, y se registra igual |
+| `CA-SP-959` | El registro por enlace (`RF-SP-045`) declara la cuenta con origen en la `VENDEDOR` del vendedor del enlace |
+| `CA-SP-960` | Si el número ya existe **sin titular** y su origen es la `VENDEDOR` del vendedor de quien declara, la cuenta **se asocia** a quien declara —por las dos rutas de alta y por el registro por enlace—, y queda auditado |
+| `CA-SP-961` | Si existe sin titular pero su origen es de **otro** vendedor, o no tiene, es `409` (`EX-009`) y la cuenta **sigue sin titular** |
+| `CA-SP-962` | Una cuenta `VENDEDOR` que originó cuentas **no se borra** (`409`, `EX-012`), ni por su titular ni por administración |
+| `CA-SP-963` | Toda fila de las consultas trae `afftrack` y `referrer` —la cuenta de origen: identificador, `afftrack` y su titular— |
 | `CA-SP-937` | `V90` siembra los seis permisos: `create-own`, `update-own` y `delete-own` a **todo rol por su tipo**, y `create`, `update` y `delete` a `SUPERADMIN` y `ADMIN`. Catálogo **216**, `ADMIN` 214, `CLIENTE` 40 |
 
 ## 13. Casos límite
@@ -149,3 +167,4 @@ Las de §10, **todas en la misma respuesta** cuando hay varias.
 |---|---|---|---|
 | 0.1.0 | 08-10-2026 | Redacción inicial. Cierra el «por decidir» del 08-09-2026: el titular con `broker-accounts:create-own` y administración con `broker-accounts:create`. Nace `RN-SP-067`. Criterios `CA-SP-915` a `CA-SP-922` y `CA-SP-937` (la siembra de los tres requerimientos). | Responsable del proyecto |
 | 0.2.0 | 09-10-2026 | **Dos tipos de cuenta** (`RN-SP-068`), a petición del responsable del proyecto: el alta fija `kind` por el tipo de rol del titular, `EX-011` para quien no es vendedor ni consumidor, la de vendedor sin FTD. Criterios `CA-SP-938` a `CA-SP-945`. | Responsable del proyecto |
+| 0.3.0 | 09-10-2026 | **`afftrack`, cuenta de origen y cuentas sin titular** (`RN-SP-070` a `RN-SP-072`), con los dos casos del responsable del proyecto: la cuenta que nace en la plataforma toma como origen la `VENDEDOR` del vendedor principal, y la que llegó antes del broker se asocia sola si el número y el vendedor coinciden. Criterios `CA-SP-954` a `CA-SP-963`. Cubre también lo que cambia en `RF-SP-080` (editar el `afftrack`) y `RF-SP-081` (no borrar un origen). | Responsable del proyecto |

@@ -3,9 +3,9 @@
 | Campo | Valor |
 |---|---|
 | Requerimiento | `RF-SP-078` |
-| Especificación | [`spec.md`](spec.md) v0.3.0 |
+| Especificación | [`spec.md`](spec.md) v0.4.0 |
 | `spec.md` aprobada el | 08-10-2026 |
-| Versión | 0.3.0 |
+| Versión | 0.4.0 |
 | Estado | **Aprobado** |
 | Autor | Responsable técnico |
 | Aprobado por | Responsable del proyecto |
@@ -168,4 +168,21 @@ Integración, **`BrokerNotificationsIT`**, con `MockMvc` y la cadena de filtros 
 | `shared/security` | `SecurityConfig` | La ruta en `RUTAS_PUBLICAS` |
 
 **Riesgo**: `EXNOVA` y `EXOPTION` no pueden usar la dirección común hasta que una migración cargue su `advertiser`. Por eso la ruta por nombre no se retira todavía.
+
+---
+
+## 14. Enmienda 0.4.0 — el aviso de registro (`RN-SP-072`, 09-10-2026)
+
+**Después de guardar el aviso**, en la misma transacción, `ReceiveBrokerNotificationService` llama a `BrokerRegistrationNotices.apply(brokerId, campos)` si el campo del evento vale lo configurado. Los campos se leen **de la consulta**, y si no están, del cuerpo de formulario o JSON, como el `advertiser`.
+
+| Configuración | Variable | Por omisión |
+|---|---|---|
+| `nexus.brokers.registration-event` | `BROKER_REGISTRATION_EVENT` | vacío: no se interpreta nada |
+| `nexus.brokers.fields.event` | `BROKER_FIELD_EVENT` | `postback_name` |
+| `nexus.brokers.fields.account` | `BROKER_FIELD_ACCOUNT` | `trader_id` |
+| `nexus.brokers.fields.afftrack` | `BROKER_FIELD_AFFTRACK` | `afftrack` |
+
+**`apply`** busca la `VENDEDOR` por `afftrack` (`lower`, en ese broker) y hace `INSERT … ON CONFLICT ON CONSTRAINT uq_user_brokers_cuenta DO NOTHING` con `kind = 'CONSUMIDOR'`, sin titular y con el origen; si no insertó, `UPDATE … SET referrer_account_id` **solo donde es nulo** y la cuenta es `CONSUMIDOR`. Audita `CREATE` o `UPDATE` sobre `user_brokers`, sin actor —lo hizo el broker—. **Nunca falla el aviso**: lo que no se entiende se queda solo guardado.
+
+**Por las dos direcciones**, la común y la obsoleta por nombre: el broker ya está resuelto cuando se interpreta.
 

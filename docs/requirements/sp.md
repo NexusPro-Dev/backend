@@ -5,7 +5,7 @@
 | Módulo | `SP` — Sistema Principal |
 | Paquete | `modules/system` |
 | Prefijos de permiso | `roles:`, `permissions:`, `audit:`, `memberships:`, `currencies:`, `countries:`, `users:`, `exchange-rates:`, `document-types:`, `brokers:`, `broker-accounts:`, `teams:` |
-| Versión | 1.117.0 |
+| Versión | 1.118.0 |
 | Estado | **Aprobado** |
 | Responsable | Bonilla Diaz William Steven |
 | Fecha de creación | 20-08-2026 |
@@ -240,6 +240,9 @@ Reglas que no son transversales de seguridad y por tanto sí llevan el prefijo d
 | `RN-SP-067` | **El titular gestiona sus cuentas de broker mientras no tengan depósito; administración, cualquiera** | Al registrar, editar o eliminar una cuenta de broker (`RF-SP-053`, `RF-SP-080`, `RF-SP-081`) | Decisión del responsable del proyecto, 08-10-2026. **El titular** declara cuentas a su nombre, y corrige el identificador o borra **solo las suyas en `REGISTER`**: una cuenta en **`FIRST_DEPOSIT`** tiene atado el primer depósito y cuenta en los indicadores de la red (`RF-SP-058`), y cambiarla cambiaría a quién se atribuye — `409`. **Administración**, con los permisos amplios, gestiona las de **cualquier persona y en cualquier estado**, para corregir errores. **El superior comercial no gestiona**: ve (`RN-SP-046`) y nada más. **Solo se edita el identificador**; el broker no se cambia —se borra y se declara otra— y el nombre de usuario y el estado los pone el broker (`RN-SP-040`, `RN-SP-045`). **El borrado es físico y auditado**, y la cuenta queda libre para declararse otra vez (`RN-SP-038`). La cuenta de otra persona por la ruta propia responde `404`, como si no existiera | **Alta** |
 | `RN-SP-068` | **Las cuentas de broker son de dos tipos: de vendedor y de consumidor** | Al declarar una cuenta de broker (`RF-SP-045`, `RF-SP-053`) y al contar el FTD (`RF-SP-057`, `RF-SP-058`) | Decisión del responsable del proyecto, 09-10-2026: «hay que dividirlas en 2 tipos, uno para los usuarios vendedores y otro para los consumidores». Toda cuenta lleva un **tipo**, `VENDEDOR` o `CONSUMIDOR`, que **pone el sistema según el tipo de rol del titular** y nadie elige: `VENDEDOR` si porta un rol de ese tipo —también si además porta uno consumidor—; si no, `CONSUMIDOR` si porta uno de ese tipo. **Quien no porta ninguno de los dos** —solo personal interno— **no tiene cuentas de broker**: `422` (`EX-011`). El registro por enlace declara siempre `CONSUMIDOR`, porque quien se registra es un cliente. **El tipo se fija al declararla y no cambia** —ni al editar el identificador ni si el titular cambia de rol después—: para corregirlo, administración la borra y la declara de nuevo. **La de vendedor no tiene FTD**: nunca pasa a `FIRST_DEPOSIT` —lo impide el motor— y **no cuenta en los indicadores de la red** (`RF-SP-058`), que cuentan solo las de consumidor. Las cuentas que ya existían se clasificaron con la misma regla, salvo las ya depositadas, que quedan como de consumidor | **Alta** |
 | `RN-SP-069` | **El broker de un aviso lo dice el propio aviso, en `advertiser`** | Al recibir un aviso de un broker por la ruta común (`RF-SP-078`) | Decisión del responsable del proyecto, 09-10-2026: «modificar la url de notificaciones de broker, para no enviar el nombre del broker ya que este viene en la notificación». **Una sola dirección para todos los brokers**, `/api/v1/brokers/notifications`, y **un solo secreto** para ella (`BROKER_NOTIFICATION_TOKEN`). El broker se reconoce por el parámetro **`advertiser`** del aviso —en la dirección; si no viene, en el cuerpo de formulario o en el JSON de primer nivel—, comparado **sin distinguir mayúsculas** con el **`advertiser` del catálogo** (`brokers.advertiser`), que se puebla por migración como el resto del catálogo (`RN-SP-039`). El de `IQOPTION` es `iq_option`, tal como llega en sus avisos reales; los de `EXNOVA` y `EXOPTION` **quedan vacíos hasta ver un aviso suyo**: no se inventan. **Un aviso cuyo `advertiser` falta, viene repetido, no está en el catálogo o es de un broker apagado se rechaza y no se guarda** (`404`), y eso se comprueba **después** del secreto: quien no lo tiene no puede averiguar qué brokers existen. **La ruta con el nombre del broker sigue funcionando**, con su secreto por broker, mientras se cambia la dirección en cada panel de afiliados; se retirará en otro cambio. El aviso se sigue guardando entero y sin interpretar (`RN-SP-066`) | **Alta** |
+| `RN-SP-070` | **Una cuenta de consumidor sabe qué cuenta de vendedor la originó** | Al declarar una cuenta de consumidor (`RF-SP-045`, `RF-SP-053`) y al recibir el aviso de registro de un broker (`RF-SP-054`) | Decisión del responsable del proyecto, 09-10-2026: «si es CONSUMIDOR saber qué cuenta de broker lo creó, y la cuenta debe ser VENDEDOR». Toda cuenta `CONSUMIDOR` puede apuntar a **la cuenta `VENDEDOR` de su origen, en el mismo broker** (`referrer_account_id`). **Cómo se sabe**: si la cuenta nace en la plataforma, es la cuenta `VENDEDOR` **del vendedor principal** de la persona en ese broker; si nace en el broker, es la cuenta `VENDEDOR` cuyo **`afftrack`** trae el aviso. **Si no hay ninguna, la cuenta se guarda igual, sin origen**, y administración la completa. **Un vendedor tiene como mucho UNA cuenta `VENDEDOR` por broker** —lo garantiza el motor—, y por eso «la de su vendedor en ese broker» no es ambigua. **Una cuenta `VENDEDOR` que originó cuentas no se borra** (`409`, `EX-012`): perdería la atribución de todas | **Alta** |
+| `RN-SP-071` | **El `afftrack` es de la cuenta de vendedor, y uno por broker** | Al registrar o editar una cuenta `VENDEDOR` (`RF-SP-053`, `RF-SP-080`) | Decisión del responsable del proyecto, 09-10-2026: el `afftrack` es **un dato aparte** del número de cuenta: el código de afiliado con el que el broker marca a quien llegó por el enlace de ese vendedor. **Solo lo llevan las cuentas `VENDEDOR`**; lo ponen **el vendedor y administración**, al registrar o al editar. **Único por broker sin distinguir mayúsculas**: un aviso tiene que llevar a un solo vendedor. En una cuenta `CONSUMIDOR` es `400` | **Alta** |
+| `RN-SP-072` | **Una cuenta puede existir sin titular, y se asocia después** | Al recibir el aviso de registro (`RF-SP-054`), al declarar una cuenta (`RF-SP-045`, `RF-SP-053`) y al asignarla (`RF-SP-082`) | Decisión del responsable del proyecto, 09-10-2026. Quien abre su cuenta **en el broker** por el enlace de un vendedor llega antes que a la plataforma: el aviso de registro crea su cuenta **`CONSUMIDOR` sin titular**. **Se asocia de dos maneras**: (1) **sola**, cuando esa persona declara en la plataforma **el mismo número en el mismo broker** y **su vendedor es el de la cuenta de origen** —el número y el `afftrack` coinciden—; si no coincide, la cuenta sigue siendo de nadie y el alta es `409` (`EX-009`), como hoy; (2) **por administración**, con `RF-SP-082`. **Solo una cuenta `CONSUMIDOR` puede quedar sin titular**, y **sin titular no cuenta en ningún indicador ni en ningún listado por persona**: solo en el de administración (`RF-SP-057`) | **Alta** |
 
 !!! danger "`RN-SP-025` vive en el motor, y hasta el 02-09-2026 no vivía en ninguna parte"
 
@@ -421,6 +424,7 @@ EXCLUDE USING gist (
 | `RF-SP-079` | Consultar mis cuentas de broker | Alta | `broker-accounts:read-own` | **En desarrollo** |
 | `RF-SP-080` | Editar una cuenta de broker | Alta | `broker-accounts:update-own` (la propia) o `broker-accounts:update` | **En desarrollo** |
 | `RF-SP-081` | Eliminar una cuenta de broker | Alta | `broker-accounts:delete-own` (la propia) o `broker-accounts:delete` | **En desarrollo** |
+| `RF-SP-082` | Asignar una cuenta de broker sin titular | Alta | `broker-accounts:assign-user` | **En desarrollo** |
 
 !!! info "Dónde vive el estado de un requerimiento"
 
@@ -1012,7 +1016,7 @@ Listado de brokers **activos**, con su nombre y, desde el 09-10-2026, **su enlac
 | Actor | **El titular**, sobre las suyas, o **administración**, sobre las de cualquiera |
 | Permiso requerido | `broker-accounts:create-own` (la propia, a todo rol por su tipo) o `broker-accounts:create` (cualquiera, `SUPERADMIN` y `ADMIN`) |
 | Prioridad | Alta |
-| Reglas aplicables | `RN-SP-038`, `RN-SP-040`, `RN-SP-045`, `RN-SP-067`, `RN-SP-068` |
+| Reglas aplicables | `RN-SP-038`, `RN-SP-040`, `RN-SP-045`, `RN-SP-067`, `RN-SP-068`, `RN-SP-070`, `RN-SP-071`, `RN-SP-072` |
 | Depende de | `RF-SP-052`, `RF-SP-055` |
 | Tripleta | `docs/specs/sp/053-registrar-cuenta-de-broker/` |
 | Estado | **En desarrollo** (08-10-2026) — construido el mismo día que su tripleta |
@@ -1020,6 +1024,8 @@ Listado de brokers **activos**, con su nombre y, desde el 09-10-2026, **su enlac
 **El «por decidir» del 08-09-2026 se decidió el 08-10-2026**, a petición del responsable del proyecto —«crear, editar y eliminar mis cuentas de broker y las de un usuario»—: **las dos cosas**, el titular sobre sí mismo y administración sobre cualquiera. El superior comercial **solo mira** (`RN-SP-046`). Hasta hoy la única vía era el registro por enlace (`RN-SP-042`). `POST /api/v1/users/me/broker-accounts` y `POST /api/v1/users/{id}/broker-accounts`, con **broker e identificador** —lo que la persona conoce (`RN-SP-040`)—: la cuenta nace en `REGISTER` y sin nombre de usuario, también si la declara administración. Una cuenta ya declarada, por quien sea, es `409` (`RN-SP-038`).
 
 **Desde el 09-10-2026 la cuenta nace con su tipo** (`RN-SP-068`): `VENDEDOR` o `CONSUMIDOR`, según el tipo de rol **del titular** —no de quien la declara—, sin campo en el cuerpo. Quien no es vendedor ni consumidor recibe `422` (`EX-011`).
+
+**Desde el 09-10-2026** la cuenta `VENDEDOR` admite su **`afftrack`** (`RN-SP-071`) y la `CONSUMIDOR` nace con **su cuenta de origen**, la `VENDEDOR` de su vendedor principal en ese broker (`RN-SP-070`). Y si el número ya existe **sin titular** y su origen es de ese mismo vendedor, **la cuenta se asocia a quien la declara** en lugar de responder `409` (`RN-SP-072`).
 
 #### `RF-SP-054` — Completar la cuenta de broker desde el webhook del broker
 
@@ -1031,8 +1037,8 @@ Listado de brokers **activos**, con su nombre y, desde el 09-10-2026, **su enlac
 | Prioridad | Media |
 | Reglas aplicables | `RN-SP-040`, `RN-SP-066` |
 | Depende de | `RF-SP-053`, **`RF-SP-078`** |
-| Tripleta | Pendiente de crear |
-| Estado | **Pendiente** — registrado y sin `spec.md` |
+| Tripleta | La parte del aviso de registro vive en `docs/specs/sp/078-recibir-avisos-de-brokers/` (v0.4.0) |
+| Estado | **En desarrollo, en parte** (09-10-2026) — el aviso de registro crea la cuenta sin titular (`RN-SP-072`); el resto sigue pendiente |
 
 **Es una ruta que llama alguien de fuera, y eso la convierte en la segunda superficie pública del sistema** —la primera es el hotlink de `RF-PM-008`—, con una diferencia que la hace más delicada: aquella **lee** y esta **escribe**. Todo lo que la gobierna está sin decidir y se registra aquí para que no se improvise el día que se construya:
 
@@ -1594,6 +1600,21 @@ Cierra la pertenencia vigente de uno o varios managers **de este equipo**, con m
 
 **Solo se edita el identificador** (08-10-2026, decisión del responsable del proyecto): quien se equivocó de broker borra y declara otra, y el nombre de usuario y el estado los pone el broker. `PATCH /api/v1/users/me/broker-accounts/{brokerAccountId}` y `PATCH /api/v1/users/{id}/broker-accounts/{brokerAccountId}`. **El titular no corrige una cuenta con depósito confirmado** (`RN-SP-067`); administración sí, y la corrección conserva estado y nombre de usuario.
 
+#### `RF-SP-082` — Asignar una cuenta de broker sin titular
+
+| Campo | Valor |
+|---|---|
+| Objetivo | Que administración dé titular a una cuenta que llegó del broker antes que la persona |
+| Actor | Administración |
+| Permiso requerido | `broker-accounts:assign-user` (`SUPERADMIN` y `ADMIN`) |
+| Prioridad | Alta |
+| Reglas aplicables | `RN-SP-068`, `RN-SP-072` |
+| Depende de | `RF-SP-054`, `RF-SP-057` |
+| Tripleta | `docs/specs/sp/082-asignar-cuenta-de-broker/` |
+| Estado | **En desarrollo** (09-10-2026) — construido el mismo día que su tripleta |
+
+**Nace con el caso 2 del responsable del proyecto** (09-10-2026): «creo mediante un enlace mi cuenta del broker, en el enlace va el afftrack del vendedor; guardar ese registro pero sin usuario, después agregar un usuario a esa cuenta». `PATCH /api/v1/broker-accounts/{brokerAccountId}/holder` con la persona. **Solo una cuenta sin titular**: reasignar la de alguien sería quitársela, y eso es borrar y declarar (`409`, `EX-013`). **La persona tiene que ser consumidor** (`RN-SP-068`): la cuenta es `CONSUMIDOR`, y un vendedor no tiene FTD (`422`, `EX-011`). Las cuentas sin titular se encuentran en `RF-SP-057` con `?hasHolder=false`.
+
 #### `RF-SP-081` — Eliminar una cuenta de broker
 
 | Campo | Valor |
@@ -1711,6 +1732,7 @@ Definidos en [`security.md` §11](../security.md) y en la constitución. Los que
 | `PATCH` | `/api/v1/users/{id}/broker-accounts/{brokerAccountId}` | `RF-SP-080` | `broker-accounts:update` |
 | `DELETE` | `/api/v1/users/me/broker-accounts/{brokerAccountId}` | `RF-SP-081` | `broker-accounts:delete-own` |
 | `DELETE` | `/api/v1/users/{id}/broker-accounts/{brokerAccountId}` | `RF-SP-081` | `broker-accounts:delete` |
+| `PATCH` | `/api/v1/broker-accounts/{brokerAccountId}/holder` | `RF-SP-082` | `broker-accounts:assign-user` |
 | `GET` | `/api/v1/broker-accounts` | `RF-SP-057` | `broker-accounts:read` |
 | `GET` | `/api/v1/broker-accounts/indicators` | `RF-SP-058` | `broker-accounts:read-indicators` |
 | `POST` | `/api/v1/teams` | `RF-SP-063` | `teams:create` |
@@ -2338,6 +2360,8 @@ Añadidos el 08-09-2026 (`RN-SP-035`, `RN-SP-037`), y `company_phone` el 10-09-2
 | `broker_username` | `varchar(120)` | No | No | **Sí** | — | — |
 | `status` | `varchar(20)` | No | No | No | `'REGISTER'` | — |
 | `kind` | `varchar(20)` | No | No | No | — | — |
+| `afftrack` | `varchar(80)` | No | No | **Sí** | — | — |
+| `referrer_account_id` | `uuid` | No | Sí | **Sí** | — | `user_brokers` |
 | `created_at` | `timestamptz` | No | No | No | `now()` | — |
 | `updated_at` | `timestamptz` | No | No | No | `now()` | — |
 
@@ -2346,6 +2370,12 @@ Añadidos el 08-09-2026 (`RN-SP-035`, `RN-SP-037`), y `company_phone` el 10-09-2
 **No es el estado de la persona.** `users.status` dice si la cuenta del sistema opera y este dice qué ha pasado en el broker; una persona con dos cuentas puede tenerlas en estados distintos, de modo que **uno no se deriva del otro** — y de ahí que el `FTD_PENDIENTE` del titular no se pueda leer de aquí sin decidir antes qué significa tener una cuenta depositada y otra no.
 
 **`kind` dice de qué tipo es la cuenta** (`RN-SP-068`, 09-10-2026): `VENDEDOR` o `CONSUMIDOR`. **Sin valor por omisión, a propósito**: cada escritura tiene que decidirlo, y un `DEFAULT` haría de consumidor la cuenta de un vendedor que alguien olvidó clasificar. Se fija al declararla y no se edita.
+
+**`user_id` admite nulo desde el 09-10-2026** (`RN-SP-072`): la cuenta que el aviso de registro crea antes de que la persona llegue a la plataforma. Solo una `CONSUMIDOR` (`ck_user_brokers_titular_solo_consumidor`).
+
+**`afftrack` es el código de afiliado de una cuenta `VENDEDOR`** (`RN-SP-071`): solo en las `VENDEDOR` (`ck_user_brokers_afftrack_solo_vendedor`) y único por broker sin distinguir mayúsculas (`uq_user_brokers_afftrack`).
+
+**`referrer_account_id` es la cuenta `VENDEDOR` que originó una `CONSUMIDOR`** (`RN-SP-070`), **del mismo broker** —la clave foránea es compuesta, `(referrer_account_id, broker_id)` contra `(id, broker_id)`— y sin `ON DELETE`: una cuenta de origen no se borra (`EX-012`). Que la de origen sea `VENDEDOR` lo garantiza quien la escribe: solo la buscan el vendedor principal y el `afftrack`, que solo existen en cuentas `VENDEDOR`. **Una cuenta `VENDEDOR` por vendedor y broker** (`uq_user_brokers_vendedor_por_broker`).
 
 **`external_id` es el identificador de la persona EN EL BROKER** —el número de cuenta— y es lo único que la persona conoce al declararla.
 
@@ -2620,3 +2650,4 @@ La fila se lee «esta persona vinculó este authenticator». `status` es `PENDIE
 | 1.115.0 | 09-10-2026 | **`CommercialReach` publica `principalClientsOf`** (§8): los clientes principales de un conjunto de vendedores, para el alcance del progreso del alumno de `AC` (`RN-AC-024`, [`requirements/ac.md`](ac.md) v0.22.0). Sin requerimiento propio, por el reparto de D-25. | Responsable técnico |
 | 1.116.0 | 09-10-2026 | **Los avisos de los brokers llegan a una sola dirección, sin el nombre del broker**, y **el catálogo gana el enlace de registro**, a petición del responsable del proyecto. Nace `RN-SP-069`: `GET` y `POST /api/v1/brokers/notifications` con un secreto común; el broker se reconoce por el `advertiser` del aviso, comparado con `brokers.advertiser` (`iq_option` para `IQOPTION`; `EXNOVA` y `EXOPTION` vacíos hasta ver un aviso suyo). La ruta con el nombre se mantiene, obsoleta, hasta cambiar los paneles. `brokers.url` se publica en `RF-SP-052`. Enmienda las tripletas de `RF-SP-078` (v0.3.0) y `RF-SP-052` (v0.3.0). | Responsable del proyecto |
 | 1.117.0 | 09-10-2026 | **`SP` publica `UserContactLookup`** (§8): correo y nombre de una persona viva, para registrarla en Zoom desde el aula en vivo de `AC` (`RF-AC-054`, [`requirements/ac.md`](ac.md) v0.24.0). Sin requerimiento propio, por el reparto de D-25. | Responsable técnico |
+| 1.118.0 | 09-10-2026 | **Cuentas sin titular, `afftrack` y cuenta de origen**, a petición del responsable del proyecto, con sus dos casos: la cuenta que nace en la plataforma y la que nace en el broker por el enlace del vendedor. Nacen `RN-SP-070` (la `CONSUMIDOR` apunta a la `VENDEDOR` de su origen), `RN-SP-071` (el `afftrack`, solo en `VENDEDOR`, único por broker), `RN-SP-072` (sin titular y asociación posterior) y `RF-SP-082` (asignar por administración). `RF-SP-054` pasa a interpretar **solo** el aviso de registro. Tripletas: `RF-SP-053` v0.3.0, `RF-SP-078` v0.4.0 —carga la parte de `RF-SP-054`— y `RF-SP-082` nueva. | Responsable del proyecto |

@@ -2,7 +2,7 @@
 
 | Campo | Valor |
 |---|---|
-| Versión | 0.112.0 |
+| Versión | 0.114.0 |
 | Estado | **Borrador** |
 | Responsable | Bonilla Diaz William Steven |
 | Fecha de creación | 21-08-2026 |
@@ -386,12 +386,14 @@ erDiagram
 
     user_brokers {
         uuid id PK "v7"
-        uuid user_id FK "de quien es la cuenta"
+        uuid user_id FK "de quien es la cuenta · NULL = sin titular, solo CONSUMIDOR · RN-SP-072"
         uuid broker_id FK "en que broker"
         varchar external_id "80 · el numero de cuenta EN EL BROKER"
         varchar broker_username "120 · NULL = el broker aun no lo confirmo · RN-SP-040"
         varchar status "20 · REGISTER | FIRST_DEPOSIT · nace en REGISTER · RN-SP-045"
         varchar kind "20 · VENDEDOR | CONSUMIDOR · sin default · RN-SP-068"
+        varchar afftrack "80 · NULL · solo VENDEDOR · UK (broker, lower) · RN-SP-071"
+        uuid referrer_account_id FK "NULL · la VENDEDOR de origen, mismo broker · RN-SP-070"
         timestamptz created_at "now"
         timestamptz updated_at "now · lo movera el webhook RF-SP-054"
     }
@@ -417,6 +419,7 @@ erDiagram
 - **`user_brokers.status` es la segunda columna de esta tabla que espera al mismo webhook** (`RN-SP-045`, 10-09-2026), y por eso conviene leerla junto a la de arriba: `REGISTER` o `FIRST_DEPOSIT`, con `CHECK` en el motor, **nace en `REGISTER`** y hoy nada la mueve. La diferencia con `broker_username` es que **esta sí se lee desde el primer día** —`RF-SP-055` y `RF-SP-056`—, y lo que devuelve es cierto: sin webhook no hay depósito confirmado. **Sus dos valores van en inglés**, únicos en todo el modelo —`users.status`, `products.status` y `movements.status` van en castellano—, porque son el vocabulario del broker que los va a escribir.
 - **`user_supervisors` se lee por primera vez EN PROFUNDIDAD** (`RN-SP-047`, 10-09-2026). Hasta hoy toda consulta sobre esta tabla miraba **un nivel** —«quién está a cargo de esta persona», «quién depende de ella»—; `RF-SP-057` recorre la rama entera con una **recursiva**. Dos consecuencias de modelado que conviene tener escritas: **(1)** la terminación **no depende de que los datos sean acíclicos** —lo son, porque `RN-SP-020` ata esta cadena a la de roles, que sí lo es— sino de que la recursión acumule con **`UNION`** y no con `UNION ALL`, que es lo que impide reexpandir a quien ya se vio; **(2)** el recorrido entra por `ix_user_supervisors_supervisor_vigente`, el índice **parcial** de `V28`, y por eso el predicado `ended_at IS NULL` tiene que estar **en los dos brazos** de la recursiva — omitirlo en el recursivo haría descender por la estructura de ayer sin que nada fallara; **(3)** desde el 18-09-2026 la recursiva recorre **solo fuerza comercial**: el cliente no está en la tabla, y sus cuentas se cuelgan en la hoja del vendedor `REGISTRO` de `client_sellers` (`RN-SP-048`), que es un join fijo después del recorrido y no un caso especial dentro de él.
 - **`user_brokers.kind` separa las cuentas de vendedor de las de consumidor** (`RN-SP-068`, 09-10-2026). Lo pone el sistema según el tipo de rol del titular **al declararla** y no cambia después: es una **foto** del tipo y no una derivación viva de `user_roles`, de modo que un cliente que asciende a vendedor conserva sus cuentas de consumidor —y su FTD—. Va **sin `DEFAULT`**, para que ninguna escritura lo olvide en silencio, y con un segundo `CHECK` que ata dos columnas: **`kind = 'CONSUMIDOR' OR status = 'REGISTER'`** — la cuenta de un vendedor no tiene primer depósito.
+- **`user_brokers` se apunta a sí misma** (`RN-SP-070`, 09-10-2026): `referrer_account_id` es la cuenta `VENDEDOR` que originó una `CONSUMIDOR`. La clave foránea es **compuesta con `broker_id`** contra `uq_user_brokers_id_broker`, y así el motor impide un origen de otro broker sin un disparador. Y **`user_id` deja de ser obligatorio** (`RN-SP-072`): la cuenta que llega del broker antes que su titular.
 - **`user_brokers.status` no se deriva de `users.status` ni al revés.** Aquel dice si la cuenta del sistema opera (`FTD_PENDIENTE` autentica y no opera, `RN-SP-044`) y este dice qué pasó en el broker. Una persona con dos cuentas puede tener una depositada y otra no, de modo que **no hay función que lleve de un conjunto al otro** sin decidir antes qué significa ese caso — y esa decisión es de `RF-SP-054`, no de aquí.
 - **`broker_notifications` guarda lo que avisa un broker sin interpretarlo** (`RN-SP-066`, `RF-SP-078`, 08-10-2026). Es la primera tabla del sistema que **escribe alguien de fuera y no lee nadie de dentro**: la consulta quien la mira desde la base, para decidir qué hará `RF-SP-054`. Por eso no tiene `updated_at` —la fila no cambia— ni columnas de proceso —llegarán con quien procese— ni único —no se sabe todavía qué identifica a un aviso—. Ni el `token` de la dirección ni las cabeceras de credenciales se guardan.
 - **`brokers.advertiser` traduce el nombre que el broker se da en sus avisos** (`RN-SP-069`, 09-10-2026): `iq_option` → `IQOPTION`. Único sin distinguir mayúsculas, y nulo mientras no se haya visto un aviso de ese broker. Junto a él, **`brokers.url`**, el enlace de registro que publica el catálogo.
@@ -1249,3 +1252,4 @@ Los documentos que citan una migración vieja por su número —specs, controles
 | 0.110.0 | 09-10-2026 | **Nace `lesson_progress`, diseñada** ([`requirements/ac.md`](requirements/ac.md) v0.21.0 §8.7.1): el progreso del alumno por lección —segundos vistos, completada, primera y última apertura—, con clave `(user_id, lesson_id)` y escritura por `ON CONFLICT` con el máximo en el motor. §4.2 la dibuja, §5.1 la cuenta y §5.3 gana su clave hacia `users`. La escribirá `V92`. | Responsable técnico |
 | 0.111.0 | 09-10-2026 | **`brokers.url` y `brokers.advertiser`** (`RF-SP-052`, `RN-SP-069`, `V93`): el enlace de registro, con `ck_brokers_url`, y cómo se nombra cada broker en sus avisos, con `uq_brokers_advertiser` sobre `lower(advertiser)`. | Responsable técnico |
 | 0.112.0 | 09-10-2026 | **Nacen las cuatro tablas de las clases en vivo, diseñadas** ([`requirements/ac.md`](requirements/ac.md) v0.23.1 §8.10 a §8.13): `live_sessions` —inicio y fin, el identificador de la reunión de Zoom y nada más de Zoom, cancelación con motivo—, sus dos listas de acceso y `live_session_registrations` con el enlace personal de cada uno. §5.1 corrige la fila de `AC`: `lesson_progress` ya está escrita (`V92`). Las escribirá `V94`. | Responsable técnico |
+| 0.114.0 | 09-10-2026 | **`user_brokers`: `user_id` nulo, `afftrack` y `referrer_account_id`** (`RN-SP-070` a `RN-SP-072`, `V96`), con `ck_user_brokers_titular_solo_consumidor`, `ck_user_brokers_afftrack_solo_vendedor`, `ck_user_brokers_origen_solo_consumidor`, `uq_user_brokers_afftrack`, `uq_user_brokers_vendedor_por_broker`, `uq_user_brokers_id_broker` y la clave foránea compuesta del origen. | Responsable técnico |

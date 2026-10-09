@@ -4,7 +4,7 @@
 |---|---|
 | Requerimiento | `RF-SP-078` |
 | Módulo | `SP` — Sistema Principal |
-| Versión | 0.3.0 |
+| Versión | 0.4.0 |
 | Estado | **Aprobada** |
 | Autor | Responsable técnico |
 | Aprobada por | Responsable del proyecto |
@@ -79,6 +79,7 @@ El 08-10-2026 el responsable del proyecto fijó con qué brokers se empieza —*
 | `RN-SP-066` | El aviso se guarda entero y sin interpretar; lo autentica un secreto por broker en la dirección; el secreto no se guarda; los repetidos no se descartan; no se edita ni se borra |
 | `RN-SP-039` | El catálogo de brokers no se administra por la API: un broker que no está en él, o no está activo, no puede avisar |
 | `RN-SP-069` | Por la dirección común, el broker lo dice el `advertiser` del aviso, con un solo secreto para todos |
+| `RN-SP-070`, `RN-SP-072` | **El aviso de registro crea la cuenta `CONSUMIDOR` sin titular**, con origen en la `VENDEDOR` de su `afftrack` |
 
 **Una regla nueva**, `RN-SP-066`.
 
@@ -168,6 +169,11 @@ Qué broker avisó, cuándo, desde qué dirección de red, con qué método, **l
 | `CA-SP-950` | Con un `advertiser` desconocido y **sin** secreto la respuesta es `401`, no `404`: el catálogo no se puede sondear |
 | `CA-SP-951` | Sin el secreto común configurado: servicio no disponible (`EX-002`) y no se guarda |
 | `CA-SP-952` | **La ruta por nombre sigue funcionando** con su secreto por broker |
+| `CA-SP-964` | Un **aviso de registro** —el evento configurado— con `trader_id` y `afftrack` crea la cuenta `CONSUMIDOR` **sin titular**, en `REGISTER`, con origen en la `VENDEDOR` de ese `afftrack` en ese broker; el aviso se guarda igual |
+| `CA-SP-965` | Con un `afftrack` que no es de ninguna `VENDEDOR` de ese broker, la cuenta se crea **sin origen** |
+| `CA-SP-966` | **El mismo registro dos veces no duplica la cuenta**; si la cuenta ya existía —declarada en la plataforma— sin origen, el aviso **se lo pone**; si ya tenía, no lo cambia, y su titular tampoco |
+| `CA-SP-967` | **Cualquier otro evento, o ninguno configurado**, solo se guarda: no crea ni cambia cuentas |
+| `CA-SP-968` | Un aviso de registro **sin `trader_id`** solo se guarda |
 | `CA-SP-908` | **El broker se nombra en la dirección por su nombre, sin distinguir mayúsculas**: `iqoption` e `IQOPTION` son el mismo broker, y su secreto vale para los dos |
 
 ---
@@ -197,3 +203,4 @@ Qué broker avisó, cuándo, desde qué dirección de red, con qué método, **l
 | 0.1.0 | 08-10-2026 | Primera versión, por decisión del responsable del proyecto: recibir los avisos de `IQOPTION`, `EXNOVA` y `EXOPTION` sin saber todavía qué mandan ([`requirements/sp.md`](../../../requirements/sp.md) v1.107.0, `RN-SP-066`). Parte `RF-SP-054`: aquí se recibe y se guarda; allí se interpretará. Criterios `CA-SP-897` a `CA-SP-907`. | Responsable del proyecto |
 | 0.2.0 | 08-10-2026 | **El broker se nombra por su nombre y no por su identificador**, a petición del responsable del proyecto («para no enviar el id, enviar el nombre»): una dirección legible en el panel. Nace `CA-SP-908`. Si un broker se renombra, su dirección cambia. | Responsable del proyecto |
 | 0.3.0 | 09-10-2026 | **Una sola dirección, sin el nombre del broker** (`RN-SP-069`), a petición del responsable del proyecto («para no enviar el nombre del broker ya que este viene en la notificación»): secreto común y broker según el `advertiser`. La ruta por nombre se mantiene, obsoleta. Criterios `CA-SP-946` a `CA-SP-952`. | Responsable del proyecto |
+| 0.4.0 | 09-10-2026 | **El aviso de registro crea la cuenta sin titular** (`RN-SP-070`, `RN-SP-072`): la primera interpretación de un aviso, y la única por ahora. Carga la parte de `RF-SP-054` que el responsable del proyecto pidió —«guardar ese registro pero sin usuario»—; el resto de `RF-SP-054` sigue pendiente. Criterios `CA-SP-964` a `CA-SP-968`. | Responsable del proyecto |
