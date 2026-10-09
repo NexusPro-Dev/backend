@@ -4,7 +4,7 @@
 |---|---|
 | Requerimiento | `RF-SP-078` |
 | Módulo | `SP` — Sistema Principal |
-| Versión | 0.2.0 |
+| Versión | 0.3.0 |
 | Estado | **Aprobada** |
 | Autor | Responsable técnico |
 | Aprobada por | Responsable del proyecto |
@@ -78,6 +78,7 @@ El 08-10-2026 el responsable del proyecto fijó con qué brokers se empieza —*
 |---|---|
 | `RN-SP-066` | El aviso se guarda entero y sin interpretar; lo autentica un secreto por broker en la dirección; el secreto no se guarda; los repetidos no se descartan; no se edita ni se borra |
 | `RN-SP-039` | El catálogo de brokers no se administra por la API: un broker que no está en él, o no está activo, no puede avisar |
+| `RN-SP-069` | Por la dirección común, el broker lo dice el `advertiser` del aviso, con un solo secreto para todos |
 
 **Una regla nueva**, `RN-SP-066`.
 
@@ -87,7 +88,7 @@ El 08-10-2026 el responsable del proyecto fijó con qué brokers se empieza —*
 
 ### 6.1 Entrada
 
-**Lo que el broker mande, como lo mande**: datos en la dirección, en el cuerpo o en los dos, con cualquier tipo de contenido. Además, **el secreto**, en la dirección, y **qué broker es**, en la ruta.
+**Lo que el broker mande, como lo mande**: datos en la dirección, en el cuerpo o en los dos, con cualquier tipo de contenido. Además, **el secreto**, en la dirección, y **qué broker es**: por la dirección común, en el **`advertiser`** del propio aviso (`RN-SP-069`); por la obsoleta, en la ruta.
 
 ### 6.2 Salida
 
@@ -131,7 +132,7 @@ Qué broker avisó, cuándo, desde qué dirección de red, con qué método, **l
 |---|---|---|
 | `EX-001` | El aviso no trae el secreto, o trae otro —también el de otro broker— | No autenticado, **sin guardar nada** |
 | `EX-002` | El secreto de ese broker no está configurado en este entorno | Servicio no disponible, **sin guardar nada** |
-| `EX-003` | El broker no existe en el catálogo o no está activo | No encontrado, **sin guardar nada** |
+| `EX-003` | El broker no existe en el catálogo o no está activo; por la dirección común, **el aviso no trae `advertiser`, lo trae repetido o no es el de ningún broker activo** | No encontrado, **sin guardar nada** |
 | `EX-004` | El cuerpo pasa del tamaño máximo | Rechazo, **sin guardar nada** |
 
 ---
@@ -160,6 +161,13 @@ Qué broker avisó, cuándo, desde qué dirección de red, con qué método, **l
 | `CA-SP-905` | **El mismo aviso dos veces** se guarda **dos veces** |
 | `CA-SP-906` | **El secreto no queda escrito en ninguna parte**: ni entre los datos guardados del aviso ni en el registro de peticiones, que guarda la dirección con el valor oculto; tampoco se guardan las cabeceras de credenciales |
 | `CA-SP-907` | **Recibir no cambia nada más**: con un aviso que nombra una cuenta declarada, la cuenta sigue en `REGISTER` sin nombre de usuario, y su titular sigue en `FTD_PENDIENTE` |
+| `CA-SP-946` | Por la **dirección común**, un aviso con el secreto común y `advertiser=iq_option` se guarda **a nombre de `IQOPTION`**, con el `advertiser` entre sus datos |
+| `CA-SP-947` | `advertiser` se reconoce **sin distinguir mayúsculas**, y también **en el cuerpo**: de formulario o como campo de primer nivel de un JSON |
+| `CA-SP-948` | Sin `advertiser`, con dos, con uno que no está en el catálogo o con el de un broker apagado: no encontrado (`EX-003`) y **no se guarda nada** |
+| `CA-SP-949` | Sin el secreto común, o con el de un broker de la ruta por nombre: no autenticado (`EX-001`), **aunque el `advertiser` sea válido**, y no se guarda |
+| `CA-SP-950` | Con un `advertiser` desconocido y **sin** secreto la respuesta es `401`, no `404`: el catálogo no se puede sondear |
+| `CA-SP-951` | Sin el secreto común configurado: servicio no disponible (`EX-002`) y no se guarda |
+| `CA-SP-952` | **La ruta por nombre sigue funcionando** con su secreto por broker |
 | `CA-SP-908` | **El broker se nombra en la dirección por su nombre, sin distinguir mayúsculas**: `iqoption` e `IQOPTION` son el mismo broker, y su secreto vale para los dos |
 
 ---
@@ -169,6 +177,7 @@ Qué broker avisó, cuándo, desde qué dirección de red, con qué método, **l
 | Caso | Comportamiento |
 |---|---|
 | El broker avisa con un método distinto de los dos | No se admite, como cualquier ruta del sistema con un método que no declara |
+| Un broker sin `advertiser` en el catálogo | No puede usar la dirección común; usa la obsoleta hasta que una migración lo cargue |
 | El aviso trae el secreto dos veces en la dirección | Se rechaza como sin secreto (`EX-001`): no se elige cuál vale |
 | Un aviso sin datos de ningún tipo, solo con el secreto | Se guarda: puede ser la comprobación de que la dirección responde, que los paneles suelen ofrecer |
 | Se cambia el secreto de un broker | Los avisos con el viejo se rechazan desde que el entorno toma el nuevo; los ya guardados no cambian |
@@ -187,3 +196,4 @@ Qué broker avisó, cuándo, desde qué dirección de red, con qué método, **l
 |---|---|---|---|
 | 0.1.0 | 08-10-2026 | Primera versión, por decisión del responsable del proyecto: recibir los avisos de `IQOPTION`, `EXNOVA` y `EXOPTION` sin saber todavía qué mandan ([`requirements/sp.md`](../../../requirements/sp.md) v1.107.0, `RN-SP-066`). Parte `RF-SP-054`: aquí se recibe y se guarda; allí se interpretará. Criterios `CA-SP-897` a `CA-SP-907`. | Responsable del proyecto |
 | 0.2.0 | 08-10-2026 | **El broker se nombra por su nombre y no por su identificador**, a petición del responsable del proyecto («para no enviar el id, enviar el nombre»): una dirección legible en el panel. Nace `CA-SP-908`. Si un broker se renombra, su dirección cambia. | Responsable del proyecto |
+| 0.3.0 | 09-10-2026 | **Una sola dirección, sin el nombre del broker** (`RN-SP-069`), a petición del responsable del proyecto («para no enviar el nombre del broker ya que este viene en la notificación»): secreto común y broker según el `advertiser`. La ruta por nombre se mantiene, obsoleta. Criterios `CA-SP-946` a `CA-SP-952`. | Responsable del proyecto |

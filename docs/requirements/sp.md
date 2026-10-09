@@ -5,7 +5,7 @@
 | Módulo | `SP` — Sistema Principal |
 | Paquete | `modules/system` |
 | Prefijos de permiso | `roles:`, `permissions:`, `audit:`, `memberships:`, `currencies:`, `countries:`, `users:`, `exchange-rates:`, `document-types:`, `brokers:`, `broker-accounts:`, `teams:` |
-| Versión | 1.115.0 |
+| Versión | 1.116.0 |
 | Estado | **Aprobado** |
 | Responsable | Bonilla Diaz William Steven |
 | Fecha de creación | 20-08-2026 |
@@ -239,6 +239,7 @@ Reglas que no son transversales de seguridad y por tanto sí llevan el prefijo d
 | `RN-SP-066` | **Lo que avisa un broker se guarda tal como llegó, antes de saber interpretarlo** | Al recibir un aviso de un broker (`RF-SP-078`) | Decisión del responsable del proyecto, 08-10-2026: se reciben los avisos de **`IQOPTION`, `EXNOVA` y `EXOPTION`** sin saber todavía qué datos mandan, porque ninguno publica su formato. Por eso el aviso **se guarda entero** —método, parámetros de la dirección, cabeceras, cuerpo, tipo de contenido y origen— **y no se interpreta**: no completa cuentas, no mueve estados ni activa a nadie; eso es `RF-SP-054`, que se escribirá con los avisos reales delante. **Lo autentica un secreto propio de cada broker que viaja en la dirección** (`token`), porque los paneles de afiliados de este ramo no firman sus avisos ni dejan añadir cabeceras; **un broker sin secreto configurado no puede avisar**, y el de uno no abre la ruta de otro. **El secreto no se guarda** con el aviso ni queda en el registro de peticiones. **No se descartan repetidos**: mientras no se sepa qué identifica a un aviso, dos iguales son dos filas, y la reentrega es justo uno de los datos que hay que observar; la idempotencia la decide `RF-SP-054`. **El aviso no se edita ni se borra** | Alta |
 | `RN-SP-067` | **El titular gestiona sus cuentas de broker mientras no tengan depósito; administración, cualquiera** | Al registrar, editar o eliminar una cuenta de broker (`RF-SP-053`, `RF-SP-080`, `RF-SP-081`) | Decisión del responsable del proyecto, 08-10-2026. **El titular** declara cuentas a su nombre, y corrige el identificador o borra **solo las suyas en `REGISTER`**: una cuenta en **`FIRST_DEPOSIT`** tiene atado el primer depósito y cuenta en los indicadores de la red (`RF-SP-058`), y cambiarla cambiaría a quién se atribuye — `409`. **Administración**, con los permisos amplios, gestiona las de **cualquier persona y en cualquier estado**, para corregir errores. **El superior comercial no gestiona**: ve (`RN-SP-046`) y nada más. **Solo se edita el identificador**; el broker no se cambia —se borra y se declara otra— y el nombre de usuario y el estado los pone el broker (`RN-SP-040`, `RN-SP-045`). **El borrado es físico y auditado**, y la cuenta queda libre para declararse otra vez (`RN-SP-038`). La cuenta de otra persona por la ruta propia responde `404`, como si no existiera | **Alta** |
 | `RN-SP-068` | **Las cuentas de broker son de dos tipos: de vendedor y de consumidor** | Al declarar una cuenta de broker (`RF-SP-045`, `RF-SP-053`) y al contar el FTD (`RF-SP-057`, `RF-SP-058`) | Decisión del responsable del proyecto, 09-10-2026: «hay que dividirlas en 2 tipos, uno para los usuarios vendedores y otro para los consumidores». Toda cuenta lleva un **tipo**, `VENDEDOR` o `CONSUMIDOR`, que **pone el sistema según el tipo de rol del titular** y nadie elige: `VENDEDOR` si porta un rol de ese tipo —también si además porta uno consumidor—; si no, `CONSUMIDOR` si porta uno de ese tipo. **Quien no porta ninguno de los dos** —solo personal interno— **no tiene cuentas de broker**: `422` (`EX-011`). El registro por enlace declara siempre `CONSUMIDOR`, porque quien se registra es un cliente. **El tipo se fija al declararla y no cambia** —ni al editar el identificador ni si el titular cambia de rol después—: para corregirlo, administración la borra y la declara de nuevo. **La de vendedor no tiene FTD**: nunca pasa a `FIRST_DEPOSIT` —lo impide el motor— y **no cuenta en los indicadores de la red** (`RF-SP-058`), que cuentan solo las de consumidor. Las cuentas que ya existían se clasificaron con la misma regla, salvo las ya depositadas, que quedan como de consumidor | **Alta** |
+| `RN-SP-069` | **El broker de un aviso lo dice el propio aviso, en `advertiser`** | Al recibir un aviso de un broker por la ruta común (`RF-SP-078`) | Decisión del responsable del proyecto, 09-10-2026: «modificar la url de notificaciones de broker, para no enviar el nombre del broker ya que este viene en la notificación». **Una sola dirección para todos los brokers**, `/api/v1/brokers/notifications`, y **un solo secreto** para ella (`BROKER_NOTIFICATION_TOKEN`). El broker se reconoce por el parámetro **`advertiser`** del aviso —en la dirección; si no viene, en el cuerpo de formulario o en el JSON de primer nivel—, comparado **sin distinguir mayúsculas** con el **`advertiser` del catálogo** (`brokers.advertiser`), que se puebla por migración como el resto del catálogo (`RN-SP-039`). El de `IQOPTION` es `iq_option`, tal como llega en sus avisos reales; los de `EXNOVA` y `EXOPTION` **quedan vacíos hasta ver un aviso suyo**: no se inventan. **Un aviso cuyo `advertiser` falta, viene repetido, no está en el catálogo o es de un broker apagado se rechaza y no se guarda** (`404`), y eso se comprueba **después** del secreto: quien no lo tiene no puede averiguar qué brokers existen. **La ruta con el nombre del broker sigue funcionando**, con su secreto por broker, mientras se cambia la dirección en cada panel de afiliados; se retirará en otro cambio. El aviso se sigue guardando entero y sin interpretar (`RN-SP-066`) | **Alta** |
 
 !!! danger "`RN-SP-025` vive en el motor, y hasta el 02-09-2026 no vivía en ninguna parte"
 
@@ -999,7 +1000,7 @@ Listado de tipos de documento, con su **nombre** y su **abreviación**. Se puebl
 | Tripleta | `docs/specs/sp/052-consultar-brokers/` |
 | Estado | **Tasks en revisión** (08-09-2026) |
 
-Listado de brokers **activos**, con su nombre. Se puebla por migración y no se administra por API (`RN-SP-039`), igual que los catálogos de monedas y de tipos de documento.
+Listado de brokers **activos**, con su nombre y, desde el 09-10-2026, **su enlace de registro** (`url`): la dirección del broker a la que se manda a la persona para abrir su cuenta. Nulo mientras no se cargue. Se puebla por migración y no se administra por API (`RN-SP-039`), igual que los catálogos de monedas y de tipos de documento.
 
 **De momento guarda solo el nombre**, por decisión del responsable del proyecto. No lleva código ni abreviación, y eso tiene una consecuencia que conviene tener escrita: **la clave de negocio es el nombre**, de modo que es él quien va con índice único y quien no puede repetirse. El día que un broker haga falta identificarlo por algo estable frente a un cambio de nombre comercial, se añade una columna `code` — y hasta entonces renombrar un broker es una migración, no una corrección.
 
@@ -1548,7 +1549,7 @@ Cierra la pertenencia vigente de uno o varios managers **de este equipo**, con m
 | Actor | **El broker**, por integración |
 | Permiso requerido | **Ninguno de los del sistema**: lo autentica el secreto de cada broker (`RN-SP-066`) |
 | Prioridad | Alta |
-| Reglas aplicables | `RN-SP-066`, `RN-SP-039` |
+| Reglas aplicables | `RN-SP-066`, `RN-SP-039`, `RN-SP-069` |
 | Depende de | `RF-SP-052` |
 | Tripleta | `docs/specs/sp/078-recibir-avisos-de-brokers/` |
 | Estado | **En desarrollo** (08-10-2026) — construido el mismo día que su tripleta; falta configurar los paneles (`T-09`) |
@@ -1556,6 +1557,8 @@ Cierra la pertenencia vigente de uno o varios managers **de este equipo**, con m
 **Es la primera mitad de lo que `RF-SP-054` registró el 08-09-2026 como una sola cosa.** Se separa porque de las cuatro preguntas que aquella ficha dejó abiertas **solo una se responde sin ver un aviso**: cómo se autentica el broker. Las otras tres dependen de qué mande, y el 08-10-2026 el responsable del proyecto fijó los tres brokers con los que se empieza —**`IQOPTION`, `EXNOVA` y `EXOPTION`**, los tres del catálogo— sin saber qué datos devolverán: ninguno publica su formato, que vive en el panel de afiliados de cada uno. De ahí el orden: **primero se escucha y después se interpreta**.
 
 `GET` y `POST /api/v1/brokers/{name}/notifications?token=…`, los dos, porque un panel de afiliados suele avisar con `GET` y los datos en la dirección, y no se sabe cuál de los tres hará qué. **El broker va por su NOMBRE** —`/brokers/iqoption/notifications`—, sin distinguir mayúsculas ni acentos, como el índice único de `brokers` (§10.17). **Hasta el 08-10-2026 iba por su identificador**, y el responsable del proyecto pidió cambiarlo el mismo día: una dirección legible en el panel de afiliados. **El coste quedó dicho y se acepta**: §10.17 ya avisaba de que el nombre es la clave de negocio y de que el día que un integrador pidiera brokers por nombre haría falta un `code` estable. Ese día es este, y **no se añade el `code`**: renombrar un broker —una migración— obliga a cambiar su dirección en el panel. Responde `200` sin cuerpo en cuanto guarda.
+
+**Desde el 09-10-2026 hay una dirección común, sin el nombre del broker** (`RN-SP-069`): `GET` y `POST /api/v1/brokers/notifications?token=…`, con **un solo secreto** para todos, y el broker se reconoce por el `advertiser` que trae el aviso —`iq_option` en los de `IQOPTION`—. **La ruta con el nombre se mantiene** mientras se cambia la dirección en los paneles, y está marcada como obsoleta en el contrato.
 
 **Es la tercera ruta pública que escribe**, después del registro (`RF-SP-045`) y de las pasarelas de pago (`RF-MV-041`, `RF-MV-049`), y **la única cuyo escrito no tiene ningún efecto**: guarda una fila y nada la lee todavía. Lo que la protege es el secreto, no la cota de tasa, y por eso queda fuera de ella, como las de las pasarelas: un broker que reenvía no debe toparse con un `429`.
 
@@ -1693,8 +1696,10 @@ Definidos en [`security.md` §11](../security.md) y en la constitución. Los que
 | `POST` | `/api/v1/exchange-rates/{id}/deletion` | `RF-SP-050` | `exchange-rates:delete` |
 | `GET` | `/api/v1/document-types` | `RF-SP-051` | **Ninguno: público** |
 | `GET` | `/api/v1/brokers` | `RF-SP-052` | **Ninguno: público** |
-| `GET` | `/api/v1/brokers/{name}/notifications` | `RF-SP-078` | — (público, autorizado por el secreto del broker) |
-| `POST` | `/api/v1/brokers/{name}/notifications` | `RF-SP-078` | — (público, autorizado por el secreto del broker) |
+| `GET` | `/api/v1/brokers/notifications` | `RF-SP-078` | — (público, autorizado por el secreto común; el broker sale de `advertiser`, `RN-SP-069`) |
+| `POST` | `/api/v1/brokers/notifications` | `RF-SP-078` | — (público, autorizado por el secreto común; el broker sale de `advertiser`, `RN-SP-069`) |
+| `GET` | `/api/v1/brokers/{name}/notifications` | `RF-SP-078` | — (público, autorizado por el secreto del broker) — **obsoleta** desde el 09-10-2026 |
+| `POST` | `/api/v1/brokers/{name}/notifications` | `RF-SP-078` | — (público, autorizado por el secreto del broker) — **obsoleta** desde el 09-10-2026 |
 | `GET` | `/api/v1/users/{id}/broker-accounts` | `RF-SP-055` | `broker-accounts:read-team-member` (alcance: superior vigente, o `broker-accounts:read`) |
 | `GET` | `/api/v1/users/me/team/broker-accounts` | `RF-SP-056` | `broker-accounts:read-own-team` |
 | `GET` | `/api/v1/users/me/broker-accounts` | `RF-SP-079` | `broker-accounts:read-own` |
@@ -2306,7 +2311,13 @@ Añadidos el 08-09-2026 (`RN-SP-035`, `RN-SP-037`), y `company_phone` el 10-09-2
 | `name` | `varchar(120)` | No | No | No | — | — |
 | `is_active` | `boolean` | No | No | No | `true` | — |
 | `created_at` | `timestamptz` | No | No | No | `now()` | — |
+| `url` | `varchar(500)` | No | No | **Sí** | — | — |
+| `advertiser` | `varchar(60)` | No | No | **Sí** | — | — |
 | `updated_at` | `timestamptz` | No | No | No | `now()` | — |
+
+**`url` es el enlace de registro del broker** (`RF-SP-052`, 09-10-2026): a dónde se manda a la persona para abrir su cuenta. Nulo es «todavía no se cargó»; con valor, empieza por `http://` o `https://` (`ck_brokers_url`). Se publica en el catálogo.
+
+**`advertiser` es cómo se nombra el broker en sus propios avisos** (`RN-SP-069`, 09-10-2026): `iq_option` para `IQOPTION`. Único sin distinguir mayúsculas (`uq_brokers_advertiser`), porque un aviso tiene que llevar a **un** broker. Nulo es «no se sabe todavía»: ese broker no puede usar la ruta común. **No se publica**: es un detalle de la integración.
 
 **Una sola columna de negocio, y por decisión explícita** (08-09-2026): «de momento el nombre». De ahí sale que **el nombre sea la clave de negocio** —único, con la misma intercalación `es-x-icu` que `countries.name` y `document_types.name`— y no un dato descriptivo. Es la diferencia con `currencies`, donde el nombre puede repetirse porque quien identifica es el `code`.
 
@@ -2605,3 +2616,4 @@ La fila se lee «esta persona vinculó este authenticator». `status` es `PENDIE
 | 1.113.0 | 09-10-2026 | **Las cuentas de broker se dividen en dos tipos**, a petición del responsable del proyecto («uno para los usuarios vendedores y otro para los consumidores»). Nace `RN-SP-068`: columna `user_brokers.kind` (`VENDEDOR` \| `CONSUMIDOR`), puesta por el sistema según el tipo de rol del titular; quien no es vendedor ni consumidor no declara (`422 EX-011`); la de vendedor no tiene FTD (`ck_user_brokers_ftd_solo_consumidor`) y no cuenta en `RF-SP-058`. `RF-SP-057` filtra por `kind`. Enmienda la tripleta de `RF-SP-053` (v0.2.0). | Responsable del proyecto |
 | 1.114.0 | 09-10-2026 | **`RN-SP-068` construida**: `V91` (`user_brokers.kind`, relleno y dos restricciones), el tipo al declarar, `kind` en las filas, `?kind=` en `RF-SP-057` y los indicadores por el tipo de la cuenta. `CA-SP-938` a `CA-SP-944` en `ManageBrokerAccountsIT`, `AllBrokerAccountsIT`, `NetworkIndicatorsIT`, `SelfRegistrationIT` y `UserBrokerAccountSchemaIT`; `CA-SP-945` lo vigila la guarda de `V91`. | Responsable técnico |
 | 1.115.0 | 09-10-2026 | **`CommercialReach` publica `principalClientsOf`** (§8): los clientes principales de un conjunto de vendedores, para el alcance del progreso del alumno de `AC` (`RN-AC-024`, [`requirements/ac.md`](ac.md) v0.22.0). Sin requerimiento propio, por el reparto de D-25. | Responsable técnico |
+| 1.116.0 | 09-10-2026 | **Los avisos de los brokers llegan a una sola dirección, sin el nombre del broker**, y **el catálogo gana el enlace de registro**, a petición del responsable del proyecto. Nace `RN-SP-069`: `GET` y `POST /api/v1/brokers/notifications` con un secreto común; el broker se reconoce por el `advertiser` del aviso, comparado con `brokers.advertiser` (`iq_option` para `IQOPTION`; `EXNOVA` y `EXOPTION` vacíos hasta ver un aviso suyo). La ruta con el nombre se mantiene, obsoleta, hasta cambiar los paneles. `brokers.url` se publica en `RF-SP-052`. Enmienda las tripletas de `RF-SP-078` (v0.3.0) y `RF-SP-052` (v0.3.0). | Responsable del proyecto |

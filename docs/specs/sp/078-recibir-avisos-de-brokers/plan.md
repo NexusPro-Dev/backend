@@ -3,9 +3,9 @@
 | Campo | Valor |
 |---|---|
 | Requerimiento | `RF-SP-078` |
-| Especificación | [`spec.md`](spec.md) v0.2.0 |
+| Especificación | [`spec.md`](spec.md) v0.3.0 |
 | `spec.md` aprobada el | 08-10-2026 |
-| Versión | 0.2.0 |
+| Versión | 0.3.0 |
 | Estado | **Aprobado** |
 | Autor | Responsable técnico |
 | Aprobado por | Responsable del proyecto |
@@ -143,3 +143,29 @@ Aplicadas el 08-10-2026, antes que esta tripleta: [`requirements/sp.md`](../../.
 ## 12. Estrategia de prueba
 
 Integración, **`BrokerNotificationsIT`**, con `MockMvc` y la cadena de filtros real, y los secretos de `IQOPTION` y `EXNOVA` fijados por `@TestPropertySource` —`EXOPTION` queda sin secreto para `CA-SP-902`—: `CA-SP-897` a `CA-SP-907`, leyendo `broker_notifications` y `request_log` con SQL. `CA-SP-903` desactiva un broker en la prueba y lo repone al terminar, para no dejar el catálogo distinto a las suites que vienen detrás. `CA-SP-907` declara una cuenta y comprueba que no se mueve. **La tabla se vacía al empezar y al terminar** cada prueba. `EndpointPermissionsIT` gana las dos entradas.
+
+---
+
+## 13. Enmienda 0.3.0 — la dirección común (`RN-SP-069`, 09-10-2026)
+
+**`V93`** añade a `brokers` dos columnas nulas: `advertiser varchar(60)`, con `uq_brokers_advertiser` sobre `lower(advertiser)`, y `url varchar(500)` con `ck_brokers_url` (`^https?://`). Carga `advertiser = 'iq_option'` en `IQOPTION` —el valor de sus avisos reales del 09-10-2026—; los otros dos y todas las `url` quedan nulos. Guarda: `IQOPTION` tiene su `advertiser`.
+
+**El secreto común** va en `nexus.brokers.notification-token: ${BROKER_NOTIFICATION_TOKEN:}`, junto a los tres por broker, que siguen para la ruta obsoleta. `BrokerNotificationSettings` gana `commonToken()`.
+
+**El servicio gana `receiveCommon(aviso)`**, con este orden: secreto común configurado (`EX-002`) → `token` presente, único y correcto (`EX-001`) → tope del cuerpo (`EX-004`) → `advertiser` (`EX-003`) → guardar. **El `advertiser` va al final a propósito**: antes del secreto dejaría sondear el catálogo. Se busca en la consulta; si no está, en el cuerpo **solo si** su tipo es `application/x-www-form-urlencoded` o `application/json`, y nunca se reescribe: el aviso se guarda tal cual llegó. `BrokerNotificationRepository.findActiveByAdvertiser` compara `lower(advertiser) = lower(:valor)` con `is_active`.
+
+**El controlador** gana `GET` y `POST /api/v1/brokers/notifications`; las dos por nombre llevan `deprecated = true`. `/api/v1/brokers/notifications` entra en `RUTAS_PUBLICAS`. **No choca con `GET /api/v1/brokers`** ni con la ruta por nombre: son dos y tres segmentos, y un `{name}` nunca se llama `notifications` porque ningún broker se llama así.
+
+**El catálogo**: `BrokerItem` gana `url`, leído en `JpaBrokerQueryRepository` (tripleta de `RF-SP-052` v0.3.0).
+
+| Capa | Componente | Cambio |
+|---|---|---|
+| `db/migration` | `V93__sp_url_y_advertiser_de_brokers.sql` | Las dos columnas, la carga de `iq_option` |
+| `infrastructure` | `BrokerNotificationSettings`, `application.yml` | El secreto común |
+| `domain/repository` | `BrokerNotificationRepository`, `JpaBrokerNotificationRepository` | `findActiveByAdvertiser` |
+| `domain/service` | `ReceiveBrokerNotificationService` | `receiveCommon` |
+| `interfaces` | `BrokerNotificationController` | Las dos rutas comunes; las viejas, obsoletas |
+| `shared/security` | `SecurityConfig` | La ruta en `RUTAS_PUBLICAS` |
+
+**Riesgo**: `EXNOVA` y `EXOPTION` no pueden usar la dirección común hasta que una migración cargue su `advertiser`. Por eso la ruta por nombre no se retira todavía.
+

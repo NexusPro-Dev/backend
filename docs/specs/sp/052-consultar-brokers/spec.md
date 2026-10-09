@@ -103,6 +103,7 @@ Disponer de la lista de brokers con los que opera la plataforma, para poder decl
 | ID | Criterio |
 |---|---|
 | `CA-SP-602` | El sistema devuelve el catálogo con **identificador, nombre y estado** de cada broker |
+| `CA-SP-953` | Cada broker trae su **enlace de registro** (`url`), nulo mientras no se cargue; el `advertiser` **no** se publica |
 | `CA-SP-603` | Los brokers inactivos **no aparecen** salvo que se pidan explícitamente, y entonces se **añaden** |
 | `CA-SP-604` | El sistema **no expone** ninguna operación de creación, edición, eliminación ni cambio de estado sobre este catálogo (`RN-SP-039`) |
 | `CA-SP-605` | El orden es **por nombre** y el cliente no puede cambiarlo |
@@ -133,3 +134,4 @@ Disponer de la lista de brokers con los que opera la plataforma, para poder decl
 |---|---|---|---|
 | 0.1.0 | 08-09-2026 | Redacción inicial. **Nace el submódulo de brokers**, y de él solo se especifica el catálogo: vincular una cuenta y confirmarla por webhook quedan registrados y sin decidir. La decisión que gobierna esta tripleta es que **el catálogo guarde solo el nombre**, de donde sale que el nombre sea la clave de negocio y que `CA-SP-607` —un criterio de esquema— viva en esta lista. | Responsable del proyecto |
 | 0.2.0 | 08-09-2026 | **El catálogo pasa a ser PÚBLICO y se siembra**, las dos por decisión del responsable del proyecto y el mismo día que nació. Se consulta **sin iniciar sesión** (`RN-SP-041`), junto a los de países y tipos de documento: el formulario de registro elige broker **antes de que exista la cuenta**, que es lo que §2 ya anticipaba. **`CA-SP-606` se retira** —exigía el `403` sin permiso— y su prueba **se invierte** en `CA-SP-608`, que afirma lo contrario: sin token responde `200`, y con un token cualquiera responde **lo mismo**. Invertirla en vez de borrarla hace que el día que alguien vuelva a cerrar la ruta, falle aquí. **Y el catálogo deja de estar vacío**: `IQOPTION`, `EXNOVA` y `EXOPTION` (`V76`), escritos como se dieron —el nombre es la clave de negocio— y con una guarda que aborta la migración si no quedan tres. Con eso se cierra el bloqueo 1 de `tasks.md`. | Responsable del proyecto |
+| 0.3.0 | 09-10-2026 | **El catálogo publica el enlace de registro de cada broker** (`url`), a petición del responsable del proyecto. Nulo mientras no se cargue por migración (`RN-SP-039`). Criterio `CA-SP-953`. | Responsable del proyecto |

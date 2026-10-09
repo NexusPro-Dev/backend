@@ -5,7 +5,7 @@
 | Proyecto | NEXUS — Renovación de plataforma |
 | Empresa | FACTECH GROUP SAS |
 | Documento | `deployment.md` |
-| Versión | 0.20.0 |
+| Versión | 0.21.0 |
 | Estado | Borrador |
 | Responsable técnico | Bonilla Diaz William Steven |
 | Fecha de creación | 27-08-2026 |
@@ -299,6 +299,22 @@ Se cargan en el servicio **`backend`**. La columna «Valor en Railway» es liter
 ### 6.5.3 Los avisos de los brokers
 
 Lo que avisa cada broker se guarda tal como llega y **no se interpreta todavía** (`RF-SP-078`, `RN-SP-066`): esto es para ver qué mandan antes de escribir `RF-SP-054`.
+
+**Desde el 09-10-2026 la dirección es UNA para todos los brokers** (`RN-SP-069`), sin el nombre del broker, y con **un solo secreto**:
+
+| Variable | Valor en Railway | Por qué |
+|---|---|---|
+| `BROKER_NOTIFICATION_TOKEN` | Un secreto aleatorio, **distinto por entorno**: `openssl rand -hex 24` | Autentica la dirección común. **Sin él, responde `503`** y no guarda nada |
+
+La dirección que va en el panel de afiliados de **cualquier** broker:
+
+```
+https://<dominio del backend>/api/v1/brokers/notifications?token=<BROKER_NOTIFICATION_TOKEN>&advertiser={advertiser}&…
+```
+
+**El aviso tiene que traer `advertiser`** —IQ Option ya lo manda: `advertiser=iq_option`—, y su valor tiene que estar en `brokers.advertiser`. Hoy solo está el de `IQOPTION`; **para `EXNOVA` y `EXOPTION` hace falta una migración** con el valor que muestren sus avisos. Mientras tanto, esos dos usan la dirección por nombre de abajo.
+
+**La dirección por nombre sigue funcionando y está obsoleta**: cambia la de cada panel a la común y, cuando ninguno la use, se retira.
 
 | Variable | Valor en Railway | Por qué |
 |---|---|---|
@@ -601,3 +617,4 @@ Ninguno de estos puntos impide desplegar. Todos están declarados para que no se
 | 0.18.0 | 06-10-2026 | **Nueva §12.1: recuperar al último superadministrador** que perdió el teléfono y los códigos (`RF-SP-076` `T-05`). `RN-SP-065` impide hacerlo por la API —es la toma de cuenta que la regla cierra—, de modo que se hace por la base, con tres sentencias en una transacción: retirar el factor, cerrar las sesiones y dejar el evento. Probado contra la base local en una transacción deshecha. | Responsable técnico |
 | 0.19.0 | 08-10-2026 | **Nueva §6.5.3: los avisos de los brokers** (`RF-SP-078`). Tres variables —`BROKER_TOKEN_IQOPTION`, `BROKER_TOKEN_EXNOVA`, `BROKER_TOKEN_EXOPTION`—, la dirección que va en el panel de afiliados de cada broker y la consulta para ver lo que llegó. | Responsable técnico |
 | 0.20.0 | 08-10-2026 | §6.5.3: **las direcciones de los avisos llevan el nombre del broker** (`/brokers/iqoption/notifications`) y no su identificador (`RF-SP-078`). Renombrar un broker obliga a cambiar la dirección en su panel. | Responsable técnico |
+| 0.21.0 | 09-10-2026 | §6.5.3: **la dirección común de los avisos**, `/api/v1/brokers/notifications`, con `BROKER_NOTIFICATION_TOKEN` y el broker según `advertiser` (`RN-SP-069`). La dirección por nombre y sus tres secretos siguen, obsoletos. | Responsable técnico |

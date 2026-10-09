@@ -2,7 +2,7 @@
 
 | Campo | Valor |
 |---|---|
-| Versión | 0.110.0 |
+| Versión | 0.111.0 |
 | Estado | **Borrador** |
 | Responsable | Bonilla Diaz William Steven |
 | Fecha de creación | 21-08-2026 |
@@ -378,6 +378,8 @@ erDiagram
         uuid id PK "v7"
         varchar name "120 · UK funcional sobre f_unaccent(lower(name)) · ES la clave de negocio"
         boolean is_active "default true · SOLO lo cambia una migracion · RN-SP-039"
+        varchar url "500 · NULL · enlace de registro · RF-SP-052"
+        varchar advertiser "60 · NULL · UK sin mayusculas · como se nombra en sus avisos · RN-SP-069"
         timestamptz created_at "now"
         timestamptz updated_at "now"
     }
@@ -417,6 +419,7 @@ erDiagram
 - **`user_brokers.kind` separa las cuentas de vendedor de las de consumidor** (`RN-SP-068`, 09-10-2026). Lo pone el sistema según el tipo de rol del titular **al declararla** y no cambia después: es una **foto** del tipo y no una derivación viva de `user_roles`, de modo que un cliente que asciende a vendedor conserva sus cuentas de consumidor —y su FTD—. Va **sin `DEFAULT`**, para que ninguna escritura lo olvide en silencio, y con un segundo `CHECK` que ata dos columnas: **`kind = 'CONSUMIDOR' OR status = 'REGISTER'`** — la cuenta de un vendedor no tiene primer depósito.
 - **`user_brokers.status` no se deriva de `users.status` ni al revés.** Aquel dice si la cuenta del sistema opera (`FTD_PENDIENTE` autentica y no opera, `RN-SP-044`) y este dice qué pasó en el broker. Una persona con dos cuentas puede tener una depositada y otra no, de modo que **no hay función que lleve de un conjunto al otro** sin decidir antes qué significa ese caso — y esa decisión es de `RF-SP-054`, no de aquí.
 - **`broker_notifications` guarda lo que avisa un broker sin interpretarlo** (`RN-SP-066`, `RF-SP-078`, 08-10-2026). Es la primera tabla del sistema que **escribe alguien de fuera y no lee nadie de dentro**: la consulta quien la mira desde la base, para decidir qué hará `RF-SP-054`. Por eso no tiene `updated_at` —la fila no cambia— ni columnas de proceso —llegarán con quien procese— ni único —no se sabe todavía qué identifica a un aviso—. Ni el `token` de la dirección ni las cabeceras de credenciales se guardan.
+- **`brokers.advertiser` traduce el nombre que el broker se da en sus avisos** (`RN-SP-069`, 09-10-2026): `iq_option` → `IQOPTION`. Único sin distinguir mayúsculas, y nulo mientras no se haya visto un aviso de ese broker. Junto a él, **`brokers.url`**, el enlace de registro que publica el catálogo.
 - **`brokers` guarda solo el nombre**, por decisión del 08-09-2026, y de ahí sale que el **nombre sea la clave de negocio**: único funcional, como en `countries` y `document_types`. Renombrar un broker es, por tanto, una migración.
 - **`countries` es el único catálogo del que cuelga una persona**, desde el 07-09-2026. `memberships` tiene su tabla puente y `currencies` no toca a nadie; el país es **una columna de `users`**, y el porqué —no tiene vigencia— está razonado en §1. Lo que este cuadro añade es la consecuencia sobre el catálogo: **`is_active` deja de ser inofensivo**. Desactivar un país lo retira de los selectores del alta y **no desasigna a nadie**, de modo que a partir de ahí pueden convivir usuarios en un país que ya no se ofrece. Es deliberado y es lo que `RF-SP-022` prometía desde el principio — lo que cambia es que ahora hay a quién afectar.
 - **`countries` sí lleva `updated_at`**, incorporado el 21-08-2026 al aprobar el `plan.md` de `RF-SP-020`: el Art. V.7 lo obliga y `RF-SP-022` mueve la fila. `currencies` lo necesitará por el mismo motivo cuando se escriba el plan de `RF-SP-023`. Ninguna de las tres lleva borrado lógico.
@@ -1215,3 +1218,4 @@ Los documentos que citan una migración vieja por su número —specs, controles
 | 0.108.0 | 08-10-2026 | **Nace `commission_payment_choices`, y `commission_closings` gana tres columnas** ([`requirements/cm.md`](requirements/cm.md) v0.43.0 §5.12, §7.8 y §7.14, `RN-CM-053`, `RN-CM-054`), por decisión del responsable del proyecto: el cierre programado paga lo que cerró salvo que se elija manual en las 48 horas anteriores. **Una fila por turno elegido y ninguna por los demás**: la ausencia es el automático por defecto. **No referencia `commission_closings`**, que se escribe después; los une `scheduled_for`. El cierre guarda el modo que leyó al abrir el turno —presente si y solo si es programado— y cuántos lotes pagó y cuántos no. La escribe `V87`. | Responsable del proyecto |
 | 0.109.0 | 09-10-2026 | **`user_brokers.kind`** (`RN-SP-068`, `V91`): `VENDEDOR` \| `CONSUMIDOR`, sin `DEFAULT`, con `ck_user_brokers_kind` y `ck_user_brokers_ftd_solo_consumidor`. | Responsable técnico |
 | 0.110.0 | 09-10-2026 | **Nace `lesson_progress`, diseñada** ([`requirements/ac.md`](requirements/ac.md) v0.21.0 §8.7.1): el progreso del alumno por lección —segundos vistos, completada, primera y última apertura—, con clave `(user_id, lesson_id)` y escritura por `ON CONFLICT` con el máximo en el motor. §4.2 la dibuja, §5.1 la cuenta y §5.3 gana su clave hacia `users`. La escribirá `V92`. | Responsable técnico |
+| 0.111.0 | 09-10-2026 | **`brokers.url` y `brokers.advertiser`** (`RF-SP-052`, `RN-SP-069`, `V93`): el enlace de registro, con `ck_brokers_url`, y cómo se nombra cada broker en sus avisos, con `uq_brokers_advertiser` sobre `lower(advertiser)`. | Responsable técnico |

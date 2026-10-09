@@ -5,7 +5,7 @@
 | Proyecto | NEXUS — Renovación de plataforma |
 | Empresa | FACTECH GROUP SAS |
 | Documento | `requirements.md` |
-| Versión | 0.341.0 |
+| Versión | 0.342.0 |
 | Estado | Borrador |
 | Responsable técnico | Bonilla Diaz William Steven |
 | Fecha de creación | 20-08-2026 |
@@ -783,3 +783,4 @@ El inventario y el estado de los módulos se consultan en [`modules.md` §4](mod
 | 0.339.0 | 09-10-2026 | **Las cuentas de broker se dividen en dos tipos, de vendedor y de consumidor** ([`requirements/sp.md`](requirements/sp.md) v1.113.0, `RN-SP-068`): `user_brokers.kind` lo pone el sistema según el tipo de rol del titular, la de vendedor no tiene FTD ni cuenta en los indicadores de la red, y `RF-SP-057` filtra por tipo. Enmienda la tripleta de `RF-SP-053` (v0.2.0, `CA-SP-938` a `CA-SP-945`). | Responsable técnico |
 | 0.340.0 | 09-10-2026 | **Nacen `RF-AC-039` a `RF-AC-041`, el progreso del alumno, con tripleta** ([`requirements/ac.md`](requirements/ac.md) v0.21.0 §5.2.14, `RN-AC-021` a `RN-AC-024`; [`security.md`](security.md) v0.127.0; [`modelo-datos.md`](modelo-datos.md) v0.110.0), a petición del responsable del proyecto: reportar el avance de un video, el listado del progreso por alumno y curso, y el detalle lección a lección, con el alcance del administrador, el vendedor y el instructor. **Enmiendan `RF-AC-033` a `RF-AC-035`** (Art. I.7): el aula trae el avance de quien mira y entregar el contenido deja rastro (`CA-AC-240` a `CA-AC-252`). Registrados **241**; `spec.md` redactada y aprobada y `plan.md` aprobado suben tres. | Responsable técnico |
 | 0.341.0 | 09-10-2026 | **`RF-AC-039` a `RF-AC-041` están construidos** y pasan a `En desarrollo` ([`requirements/ac.md`](requirements/ac.md) v0.22.0): `V92`, las tres rutas y el aula enmendada, con la suite completa en verde. Endpoints funcionando **202**. | Responsable técnico |
+| 0.342.0 | 09-10-2026 | **Avisos de los brokers por una sola dirección, y enlace de registro en el catálogo** ([`requirements/sp.md`](requirements/sp.md) v1.116.0, `RN-SP-069`): `/api/v1/brokers/notifications` con un secreto común, el broker según el `advertiser` del aviso; la ruta por nombre se mantiene, obsoleta. `brokers.url` en `RF-SP-052`. Enmienda las tripletas de `RF-SP-078` y `RF-SP-052` (`CA-SP-946` a `CA-SP-953`). | Responsable técnico |

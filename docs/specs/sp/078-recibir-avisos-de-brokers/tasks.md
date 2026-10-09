@@ -3,10 +3,10 @@
 | Campo | Valor |
 |---|---|
 | Requerimiento | `RF-SP-078` |
-| Especificación | [`spec.md`](spec.md) v0.2.0 |
-| Plan | [`plan.md`](plan.md) v0.2.0 |
+| Especificación | [`spec.md`](spec.md) v0.3.0 |
+| Plan | [`plan.md`](plan.md) v0.3.0 |
 | `plan.md` aprobado el | 08-10-2026 |
-| Estado | **En revisión** — `T-01` a `T-08` `Hecha` el 08-10-2026; `T-09` pendiente |
+| Estado | **En revisión** — `T-01` a `T-08` `Hecha` el 08-10-2026; `T-09` pendiente; `T-11` a `T-14` pendientes (enmienda 0.3.0) |
 | Issue | Pendiente de crear |
 | Rama | `develop` (commits directos desde el 05-10-2026) |
 
@@ -31,6 +31,10 @@
 | `T-07` | `BrokerNotificationsIT`: `CA-SP-897` a `CA-SP-907` | `T-05`, `T-06` | Cada criterio afirmado en el cuerpo de la prueba | **Hecha** — 08-10-2026 |
 | `T-08` | `EndpointPermissionsIT` (`PUBLICAS`); contrato con la prosa; `deployment.md` y `api/index.md`; `requirements.md` | `T-07` | | **Hecha** — 08-10-2026 |
 | `T-10` | La ruta por nombre (spec 0.2.0): `{name}` en el controlador, `findActiveByName` en el repositorio, `CA-SP-908`, `EndpointPermissionsIT` y el contrato | `T-08` | | **Hecha** — 08-10-2026 |
+| `T-11` | `V93`: `brokers.advertiser` y `brokers.url`, con `iq_option` cargado (`plan.md` §13) | — | La guarda pasa al migrar | Pendiente |
+| `T-12` | El secreto común; `findActiveByAdvertiser`; `receiveCommon` con su orden; las dos rutas comunes y las viejas obsoletas; `RUTAS_PUBLICAS`; `url` en `BrokerItem` (`RF-SP-052`, `CA-SP-953`) | `T-11` | | Pendiente |
+| `T-13` | `BrokerNotificationsIT`: `CA-SP-946` a `CA-SP-952`; `EndpointPermissionsIT` | `T-12` | Cada criterio afirmado en el cuerpo | Pendiente |
+| `T-14` | Contrato, `api/index.md`; `BROKER_NOTIFICATION_TOKEN` en `.env.example` | `T-13` | `mvn verify` en verde | Pendiente |
 | `T-09` | Configurar los tres secretos en Railway y la dirección en el panel de afiliados de cada broker; disparar un aviso de prueba desde cada panel y verlo en la base | `T-08` | Una fila por broker | Pendiente |
 
 ---
@@ -50,6 +54,7 @@
 | `CA-SP-906` | `T-04`, `T-06`, `T-07` |
 | `CA-SP-907` | `T-04`, `T-07` |
 | `CA-SP-908` | `T-10` |
+| `CA-SP-946` a `CA-SP-952` | `T-11` a `T-13` |
 
 ---
 
