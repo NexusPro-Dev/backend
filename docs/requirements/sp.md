@@ -5,7 +5,7 @@
 | Módulo | `SP` — Sistema Principal |
 | Paquete | `modules/system` |
 | Prefijos de permiso | `roles:`, `permissions:`, `audit:`, `memberships:`, `currencies:`, `countries:`, `users:`, `exchange-rates:`, `document-types:`, `brokers:`, `broker-accounts:`, `teams:` |
-| Versión | 1.112.0 |
+| Versión | 1.113.0 |
 | Estado | **Aprobado** |
 | Responsable | Bonilla Diaz William Steven |
 | Fecha de creación | 20-08-2026 |
@@ -238,6 +238,7 @@ Reglas que no son transversales de seguridad y por tanto sí llevan el prefijo d
 | `RN-SP-065` | **Nadie restablece el segundo factor ni la contraseña de quien tiene más privilegios** | Al restablecer el factor (`RF-SP-076`) o la contraseña (`RF-SP-038`) de otra persona | Los permisos efectivos de la persona deben estar **contenidos** en los de quien restablece; si no, `403` sin decir cuál falta. Sin esta regla, quien porte a la vez `users:reset-password` y `users:reset-mfa` —`ADMIN` los porta— **tomaría la cuenta del superadministrador en dos peticiones**. Es `RN-SEG-010` aplicado al acceso. Propuesta por el responsable técnico y **confirmada por el responsable del proyecto el 06-10-2026**, que la extendió a la contraseña ese mismo día | **Crítica** |
 | `RN-SP-066` | **Lo que avisa un broker se guarda tal como llegó, antes de saber interpretarlo** | Al recibir un aviso de un broker (`RF-SP-078`) | Decisión del responsable del proyecto, 08-10-2026: se reciben los avisos de **`IQOPTION`, `EXNOVA` y `EXOPTION`** sin saber todavía qué datos mandan, porque ninguno publica su formato. Por eso el aviso **se guarda entero** —método, parámetros de la dirección, cabeceras, cuerpo, tipo de contenido y origen— **y no se interpreta**: no completa cuentas, no mueve estados ni activa a nadie; eso es `RF-SP-054`, que se escribirá con los avisos reales delante. **Lo autentica un secreto propio de cada broker que viaja en la dirección** (`token`), porque los paneles de afiliados de este ramo no firman sus avisos ni dejan añadir cabeceras; **un broker sin secreto configurado no puede avisar**, y el de uno no abre la ruta de otro. **El secreto no se guarda** con el aviso ni queda en el registro de peticiones. **No se descartan repetidos**: mientras no se sepa qué identifica a un aviso, dos iguales son dos filas, y la reentrega es justo uno de los datos que hay que observar; la idempotencia la decide `RF-SP-054`. **El aviso no se edita ni se borra** | Alta |
 | `RN-SP-067` | **El titular gestiona sus cuentas de broker mientras no tengan depósito; administración, cualquiera** | Al registrar, editar o eliminar una cuenta de broker (`RF-SP-053`, `RF-SP-080`, `RF-SP-081`) | Decisión del responsable del proyecto, 08-10-2026. **El titular** declara cuentas a su nombre, y corrige el identificador o borra **solo las suyas en `REGISTER`**: una cuenta en **`FIRST_DEPOSIT`** tiene atado el primer depósito y cuenta en los indicadores de la red (`RF-SP-058`), y cambiarla cambiaría a quién se atribuye — `409`. **Administración**, con los permisos amplios, gestiona las de **cualquier persona y en cualquier estado**, para corregir errores. **El superior comercial no gestiona**: ve (`RN-SP-046`) y nada más. **Solo se edita el identificador**; el broker no se cambia —se borra y se declara otra— y el nombre de usuario y el estado los pone el broker (`RN-SP-040`, `RN-SP-045`). **El borrado es físico y auditado**, y la cuenta queda libre para declararse otra vez (`RN-SP-038`). La cuenta de otra persona por la ruta propia responde `404`, como si no existiera | **Alta** |
+| `RN-SP-068` | **Las cuentas de broker son de dos tipos: de vendedor y de consumidor** | Al declarar una cuenta de broker (`RF-SP-045`, `RF-SP-053`) y al contar el FTD (`RF-SP-057`, `RF-SP-058`) | Decisión del responsable del proyecto, 09-10-2026: «hay que dividirlas en 2 tipos, uno para los usuarios vendedores y otro para los consumidores». Toda cuenta lleva un **tipo**, `VENDEDOR` o `CONSUMIDOR`, que **pone el sistema según el tipo de rol del titular** y nadie elige: `VENDEDOR` si porta un rol de ese tipo —también si además porta uno consumidor—; si no, `CONSUMIDOR` si porta uno de ese tipo. **Quien no porta ninguno de los dos** —solo personal interno— **no tiene cuentas de broker**: `422` (`EX-011`). El registro por enlace declara siempre `CONSUMIDOR`, porque quien se registra es un cliente. **El tipo se fija al declararla y no cambia** —ni al editar el identificador ni si el titular cambia de rol después—: para corregirlo, administración la borra y la declara de nuevo. **La de vendedor no tiene FTD**: nunca pasa a `FIRST_DEPOSIT` —lo impide el motor— y **no cuenta en los indicadores de la red** (`RF-SP-058`), que cuentan solo las de consumidor. Las cuentas que ya existían se clasificaron con la misma regla, salvo las ya depositadas, que quedan como de consumidor | **Alta** |
 
 !!! danger "`RN-SP-025` vive en el motor, y hasta el 02-09-2026 no vivía en ninguna parte"
 
@@ -1010,12 +1011,14 @@ Listado de brokers **activos**, con su nombre. Se puebla por migración y no se 
 | Actor | **El titular**, sobre las suyas, o **administración**, sobre las de cualquiera |
 | Permiso requerido | `broker-accounts:create-own` (la propia, a todo rol por su tipo) o `broker-accounts:create` (cualquiera, `SUPERADMIN` y `ADMIN`) |
 | Prioridad | Alta |
-| Reglas aplicables | `RN-SP-038`, `RN-SP-040`, `RN-SP-045`, `RN-SP-067` |
+| Reglas aplicables | `RN-SP-038`, `RN-SP-040`, `RN-SP-045`, `RN-SP-067`, `RN-SP-068` |
 | Depende de | `RF-SP-052`, `RF-SP-055` |
 | Tripleta | `docs/specs/sp/053-registrar-cuenta-de-broker/` |
 | Estado | **En desarrollo** (08-10-2026) — construido el mismo día que su tripleta |
 
 **El «por decidir» del 08-09-2026 se decidió el 08-10-2026**, a petición del responsable del proyecto —«crear, editar y eliminar mis cuentas de broker y las de un usuario»—: **las dos cosas**, el titular sobre sí mismo y administración sobre cualquiera. El superior comercial **solo mira** (`RN-SP-046`). Hasta hoy la única vía era el registro por enlace (`RN-SP-042`). `POST /api/v1/users/me/broker-accounts` y `POST /api/v1/users/{id}/broker-accounts`, con **broker e identificador** —lo que la persona conoce (`RN-SP-040`)—: la cuenta nace en `REGISTER` y sin nombre de usuario, también si la declara administración. Una cuenta ya declarada, por quien sea, es `409` (`RN-SP-038`).
+
+**Desde el 09-10-2026 la cuenta nace con su tipo** (`RN-SP-068`): `VENDEDOR` o `CONSUMIDOR`, según el tipo de rol **del titular** —no de quien la declara—, sin campo en el cuerpo. Quien no es vendedor ni consumidor recibe `422` (`EX-011`).
 
 #### `RF-SP-054` — Completar la cuenta de broker desde el webhook del broker
 
@@ -1085,11 +1088,11 @@ El **listado plano y paginado** de las cuentas de todas las personas que depende
 
 | Campo | Valor |
 |---|---|
-| Objetivo | Ver **todas** las cuentas de broker del sistema y acotarlas: por **red de un vendedor**, por persona, por estado, por broker, por texto y por fecha de declaración |
+| Objetivo | Ver **todas** las cuentas de broker del sistema y acotarlas: por **red de un vendedor**, por persona, por estado, por **tipo**, por broker, por texto y por fecha de declaración |
 | Actor | Administrador |
 | Permiso requerido | `broker-accounts:read` |
 | Prioridad | Alta |
-| Reglas aplicables | `RN-SP-040`, `RN-SP-045`, `RN-SP-047` |
+| Reglas aplicables | `RN-SP-040`, `RN-SP-045`, `RN-SP-047`, `RN-SP-068` |
 | Depende de | `RF-SP-055`, `RF-SP-056` |
 | Tripleta | `docs/specs/sp/057-consultar-todas-las-cuentas-de-broker/` |
 | Estado | **En desarrollo** (10-09-2026) |
@@ -1112,6 +1115,8 @@ El **listado plano y paginado** de las cuentas de todas las personas que depende
 
 **El desglose por broker trae TODOS los brokers del catálogo, con cero donde no hay.** Nació al revés el mismo día y se invirtió: un arreglo cuya longitud depende del filtro obliga a **rearmar las columnas en cada consulta**, y una columna que desaparece se lee como un dato que falta, no como un cero. Consecuencia declarada: **un broker desactivado sigue apareciendo** —apagarlo no borra lo declarado en él—, al precio de una columna muerta el día que se retire alguno.
 
+**`?kind=VENDEDOR|CONSUMIDOR` filtra por tipo** (`RN-SP-068`, 09-10-2026), y el resumen lo respeta como respeta `status`. Un valor que no es ninguno de los dos es `400`, como un estado mal escrito. Toda fila de las consultas de cuentas —`RF-SP-055`, `RF-SP-056`, `RF-SP-057`, `RF-SP-079` y el alta— **lleva su `kind`**.
+
 #### `RF-SP-058` — Consultar los indicadores de la red comercial
 
 | Campo | Valor |
@@ -1120,7 +1125,7 @@ El **listado plano y paginado** de las cuentas de todas las personas que depende
 | Actor | Administrador |
 | Permiso requerido | `broker-accounts:read` |
 | Prioridad | **Crítica** |
-| Reglas aplicables | `RN-SP-045`, `RN-SP-047`, `RN-SP-048` |
+| Reglas aplicables | `RN-SP-045`, `RN-SP-047`, `RN-SP-048`, `RN-SP-068` |
 | Depende de | `RF-SP-057` |
 | Tripleta | `docs/specs/sp/058-indicadores-de-la-red-comercial/` |
 | Estado | **En desarrollo** (10-09-2026) |
@@ -1128,6 +1133,8 @@ El **listado plano y paginado** de las cuentas de todas las personas que depende
 **El árbol de la fuerza comercial, cada nodo con sus dos bloques de números**: `own` —lo que cuelga directamente de él— y `network` —él más todo lo de abajo—. Cada bloque lleva cuentas declaradas, con primer depósito, pendientes, conversión y cuántos consumidores.
 
 **Los dos bloques van SIEMPRE, y no es redundancia**: el total de un director ya contiene el de sus agentes, de modo que **sumar una columna de totales cuenta dos veces**. Publicar solo el total invita a ese error; publicar los dos hace que el que suma tenga que elegir cuál, y elegir es acordarse.
+
+**Solo cuentan las cuentas de consumidor** (`RN-SP-068`, 09-10-2026). Hasta ese día la cuenta personal de un vendedor se excluía mirando **los roles del titular** en cada consulta; desde entonces se excluye **por el tipo de la cuenta**, que es el mismo criterio fijado al declararla y no cambia si el titular cambia de rol.
 
 **Los consumidores no son nodos.** Aportan el número y no aparecen: el árbol es de la fuerza comercial. Publicarlos convertiría un indicador de gestión en el listado de clientes de la empresa.
 
@@ -2018,6 +2025,8 @@ Declaradas en la base de datos, no solo en Java (Art. V.6):
 | `uq_user_brokers_cuenta` | `user_brokers(broker_id, external_id)` — **`RN-SP-038`**: una cuenta es de una sola persona. NO es `(user_id, broker_id)`, que prohibiría lo que sí se admite —varias cuentas de la misma persona en el mismo broker— y permitiría lo que no |
 | `ix_user_brokers_busqueda` | `user_brokers` **gin de trigramas** sobre `f_unaccent(lower(external_id))` — **`RF-SP-057`**. Las expresiones son **las del predicado**, como en `ix_users_busqueda`: si divergieran, el índice existiría y el planificador no lo usaría nunca, y el defecto no saldría como error sino como una consulta lenta que nadie relaciona con esta migración |
 | `ck_user_brokers_status` | `user_brokers(status)` en (`REGISTER`, `FIRST_DEPOSIT`) — **`RN-SP-045`**. Mismo recurso que `ck_users_status` y por el mismo motivo: el conjunto de valores es una regla de negocio, y una columna de texto libre deja entrar `register` en minúscula el día que alguien escriba la fila desde otro sitio |
+| `ck_user_brokers_kind` | `user_brokers(kind)` en (`VENDEDOR`, `CONSUMIDOR`) — **`RN-SP-068`** |
+| `ck_user_brokers_ftd_solo_consumidor` | `kind = 'CONSUMIDOR' OR status = 'REGISTER'` — **`RN-SP-068`**: la cuenta de un vendedor no tiene FTD. En el motor y no solo en el dominio, porque quien moverá el estado es el webhook de `RF-SP-054`, que todavía no existe |
 | `ck_document_types_abbreviation_format` | `document_types(abbreviation ~ '^[A-Z][A-Z0-9]{0,9} `users(country_id)` — filtro por país de `RF-SP-025`. **Total y no parcial**, al revés que los dos índices de abajo: aquellos existen para responder «hoy» sobre tablas con historial, y aquí no hay historial que excluir — el país es una columna del propio agregado (§10.10). Y hace **doble trabajo**: sin él, el `NO ACTION` de `fk_users_country` recorrería `users` entera en cada intento de borrar un país |
 | `ix_user_products_membership` | **Índice parcial**: `user_products(membership_id) WHERE closed_at IS NULL AND membership_id IS NOT NULL` — filtro por membresía de `RF-SP-025`. **Parcial desde el 05-09-2026**: esa consulta pregunta quiénes tienen **hoy** esa membresía, y el historial cerrado nunca forma parte de la respuesta y crecería indefinidamente dentro del índice. Es el mismo criterio con el que `ix_user_supervisors_supervisor_vigente` ya es parcial. **Renombrado el 23-09-2026** con la tabla, y con la segunda condición dentro para que no cargue las posesiones sin nivel, que pasan a ser la mayoría de las filas |
 | `ix_user_products_user_abierto` | **Índice parcial**: `user_products(user_id) WHERE closed_at IS NULL` — **desde el 23-09-2026**: «¿qué tiene **hoy** esta persona?», que es lo que pregunta `RF-MV-014` y lo que antes no preguntaba nadie. Hace falta porque el único de arriba dejó de cubrirlo al volverse parcial: aquel ya solo indexa las filas con nivel |
@@ -2315,12 +2324,15 @@ Añadidos el 08-09-2026 (`RN-SP-035`, `RN-SP-037`), y `company_phone` el 10-09-2
 | `external_id` | `varchar(80)` | No | No | No | — | — |
 | `broker_username` | `varchar(120)` | No | No | **Sí** | — | — |
 | `status` | `varchar(20)` | No | No | No | `'REGISTER'` | — |
+| `kind` | `varchar(20)` | No | No | No | — | — |
 | `created_at` | `timestamptz` | No | No | No | `now()` | — |
 | `updated_at` | `timestamptz` | No | No | No | `now()` | — |
 
 **`status` dice en qué punto está la cuenta** (`RN-SP-045`, 10-09-2026): `REGISTER` o `FIRST_DEPOSIT`, con `CHECK` en el motor como `users.status`. **Nace en `REGISTER` y hoy nadie la mueve** —la mueve el webhook de `RF-SP-054`—, y **eso no la convierte en un campo por si acaso**: se lee desde el primer día en `RF-SP-055` y `RF-SP-056`, y el valor que devuelve es cierto. **Los dos valores van en inglés** y el resto de enumerados del sistema no: son el vocabulario del broker que los va a escribir.
 
 **No es el estado de la persona.** `users.status` dice si la cuenta del sistema opera y este dice qué ha pasado en el broker; una persona con dos cuentas puede tenerlas en estados distintos, de modo que **uno no se deriva del otro** — y de ahí que el `FTD_PENDIENTE` del titular no se pueda leer de aquí sin decidir antes qué significa tener una cuenta depositada y otra no.
+
+**`kind` dice de qué tipo es la cuenta** (`RN-SP-068`, 09-10-2026): `VENDEDOR` o `CONSUMIDOR`. **Sin valor por omisión, a propósito**: cada escritura tiene que decidirlo, y un `DEFAULT` haría de consumidor la cuenta de un vendedor que alguien olvidó clasificar. Se fija al declararla y no se edita.
 
 **`external_id` es el identificador de la persona EN EL BROKER** —el número de cuenta— y es lo único que la persona conoce al declararla.
 
@@ -2590,3 +2602,4 @@ La fila se lee «esta persona vinculó este authenticator». `status` es `PENDIE
 | 1.110.0 | 08-10-2026 | **Nace `RF-SP-079` — consultar mis cuentas de broker**, a petición del responsable del proyecto («agreguemos para ver mis propias»): `GET /api/v1/users/me/broker-accounts` con **`broker-accounts:read-own`**, sembrado por `V89` a todo rol por su tipo —también a `CLIENTE`—. La respuesta y el orden de `RF-SP-055`, sin paginar. **`RN-SP-046` se enmienda** para nombrar la vía del titular, y deja de señalar `GET /users/me`: desde `RN-SEG-015` una vista lleva su permiso. `RF-SP-055` no se relaja. Criterios `CA-SP-909` a `CA-SP-914`. | Responsable del proyecto |
 | 1.111.0 | 08-10-2026 | **Gestionar las cuentas de broker: registrar, editar y eliminar**, propias y de cualquier persona, a petición del responsable del proyecto («crear, editar y eliminar mis cuentas de broker y las de un usuario») y con sus decisiones del mismo día: **solo se edita el identificador**; **el borrado es físico y auditado**; **el titular no toca una cuenta con depósito confirmado**, administración sí; **el superior comercial no gestiona**. `RF-SP-053` deja de estar «por decidir» y se reescribe como «Registrar una cuenta de broker»; nacen **`RF-SP-080`** y **`RF-SP-081`**, y **`RN-SP-067`**. Seis permisos —tres propios a todo rol por su tipo y tres amplios a `SUPERADMIN` y `ADMIN`—, sembrados por `V90`. Criterios `CA-SP-915` a `CA-SP-937`. | Responsable del proyecto |
 | 1.112.0 | 08-10-2026 | **`RF-SP-053`, `RF-SP-080` y `RF-SP-081` pasan a `En desarrollo`**: las seis rutas de las cuentas de broker, con `V90` (catálogo **216**, `ADMIN` 214). | Responsable técnico |
+| 1.113.0 | 09-10-2026 | **Las cuentas de broker se dividen en dos tipos**, a petición del responsable del proyecto («uno para los usuarios vendedores y otro para los consumidores»). Nace `RN-SP-068`: columna `user_brokers.kind` (`VENDEDOR` \| `CONSUMIDOR`), puesta por el sistema según el tipo de rol del titular; quien no es vendedor ni consumidor no declara (`422 EX-011`); la de vendedor no tiene FTD (`ck_user_brokers_ftd_solo_consumidor`) y no cuenta en `RF-SP-058`. `RF-SP-057` filtra por `kind`. Enmienda la tripleta de `RF-SP-053` (v0.2.0). | Responsable del proyecto |

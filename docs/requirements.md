@@ -5,7 +5,7 @@
 | Proyecto | NEXUS — Renovación de plataforma |
 | Empresa | FACTECH GROUP SAS |
 | Documento | `requirements.md` |
-| Versión | 0.338.0 |
+| Versión | 0.339.0 |
 | Estado | Borrador |
 | Responsable técnico | Bonilla Diaz William Steven |
 | Fecha de creación | 20-08-2026 |
@@ -777,3 +777,4 @@ El inventario y el estado de los módulos se consultan en [`modules.md` §4](mod
 | 0.336.0 | 08-10-2026 | **`RF-SP-079` está construido** ([`api/index.md`](api/index.md) v1.114.0): `GET /api/v1/users/me/broker-accounts` con `V89` (catálogo **210**, `ADMIN` 208), criterios `CA-SP-909` a `CA-SP-914`. 196 con endpoint funcionando. | Responsable técnico |
 | 0.337.0 | 08-10-2026 | **Gestionar las cuentas de broker** ([`requirements/sp.md`](requirements/sp.md) v1.111.0, `RN-SP-067`; [`security.md`](security.md) v0.126.0), a petición del responsable del proyecto: `RF-SP-053` se decide y se reescribe como «Registrar una cuenta de broker», y nacen `RF-SP-080` (editar el identificador) y `RF-SP-081` (eliminar, físico y auditado). El titular no toca una cuenta con depósito confirmado; administración sí. Seis permisos por `V90`. Tres tripletas escritas; criterios `CA-SP-915` a `CA-SP-937`. 238 registrados. | Responsable del proyecto |
 | 0.338.0 | 08-10-2026 | **`RF-SP-053`, `RF-SP-080` y `RF-SP-081` están construidos** ([`requirements/sp.md`](requirements/sp.md) v1.112.0; [`api/index.md`](api/index.md) v1.115.0): registrar, corregir y borrar cuentas de broker, propias y de cualquiera, con `V90` (catálogo **216**, `ADMIN` 214). 17 de integración en `ManageBrokerAccountsIT`. 199 con endpoint funcionando. | Responsable técnico |
+| 0.339.0 | 09-10-2026 | **Las cuentas de broker se dividen en dos tipos, de vendedor y de consumidor** ([`requirements/sp.md`](requirements/sp.md) v1.113.0, `RN-SP-068`): `user_brokers.kind` lo pone el sistema según el tipo de rol del titular, la de vendedor no tiene FTD ni cuenta en los indicadores de la red, y `RF-SP-057` filtra por tipo. Enmienda la tripleta de `RF-SP-053` (v0.2.0, `CA-SP-938` a `CA-SP-945`). | Responsable técnico |

@@ -3,10 +3,10 @@
 | Campo | Valor |
 |---|---|
 | Requerimiento | `RF-SP-053` |
-| Especificación | [`spec.md`](spec.md) v0.1.0 |
-| Plan | [`plan.md`](plan.md) v0.1.0 |
+| Especificación | [`spec.md`](spec.md) v0.2.0 |
+| Plan | [`plan.md`](plan.md) v0.2.0 |
 | `plan.md` aprobado el | 08-10-2026 |
-| Estado | **En revisión** — `T-01` a `T-07` `Hecha` el 08-10-2026 |
+| Estado | **En revisión** — `T-01` a `T-07` `Hecha` el 08-10-2026; `T-08` a `T-12` pendientes (enmienda 0.2.0) |
 | Issue | Pendiente de crear |
 | Rama | `develop` |
 
@@ -23,6 +23,11 @@
 | `T-05` | `UserController`: las seis rutas (`plan.md` §4) con sus `@Operation` | `T-04` | Prosa releída en el contrato | **Hecha** — 08-10-2026 |
 | `T-06` | `ManageBrokerAccountsIT`: `CA-SP-915` a `CA-SP-922` | `T-05` | Cada criterio afirmado en el cuerpo | **Hecha** — 08-10-2026 |
 | `T-07` | `EndpointPermissionsIT`, `OwnScopePermissionsIT`; contrato regenerado; `api/index.md` | `T-06` | `mvn verify` en verde | **Hecha** — 08-10-2026 |
+| `T-08` | `V91`: `user_brokers.kind`, relleno y restricciones (`plan.md` §12) | — | Las guardas pasan al migrar; `UserBrokerAccountSchemaIT` | Pendiente |
+| `T-09` | `BrokerAccountKind`; el tipo al declarar en `ManageBrokerAccountsService` y en el registro por enlace | `T-08` | `EX-011` antes de escribir | Pendiente |
+| `T-10` | `kind` en las filas de las consultas y `?kind=` en `RF-SP-057` | `T-08` | | Pendiente |
+| `T-11` | Indicadores por `ub.kind` en lugar de los roles del titular | `T-08` | `NetworkIndicatorsIT` | Pendiente |
+| `T-12` | Las suites que insertan cuentas; `CA-SP-938` a `CA-SP-945`; contrato y `api/index.md` | `T-09`, `T-10`, `T-11` | `mvn verify` en verde | Pendiente |
 
 ---
 
@@ -38,6 +43,7 @@
 |---|---|
 | `CA-SP-915` a `CA-SP-922` | `T-03`, `T-04`, `T-05`, `T-06` |
 | `CA-SP-937` | `T-01`, `T-02` |
+| `CA-SP-938` a `CA-SP-945` | `T-08` a `T-12` |
 
 ## 4. Bloqueos
 

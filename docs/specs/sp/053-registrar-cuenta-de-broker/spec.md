@@ -4,7 +4,7 @@
 |---|---|
 | Requerimiento | `RF-SP-053` |
 | Módulo | `SP` — Sistema Principal |
-| Versión | 0.1.0 |
+| Versión | 0.2.0 |
 | Estado | **Aprobada** |
 | Autor | Responsable técnico |
 | Aprobada por | Responsable del proyecto |
@@ -55,6 +55,7 @@ Que una persona declare **una cuenta suya** en un broker cuando quiera, y que ad
 | `RN-SP-040` | El nombre de usuario en el broker llega DESPUÉS | `requirements/sp.md` §5.1 |
 | `RN-SP-045` | Toda cuenta de broker declara en qué punto está | `requirements/sp.md` §5.1 |
 | `RN-SP-067` | El titular gestiona sus cuentas mientras no tengan depósito; administración, cualquiera | `requirements/sp.md` §5.1 |
+| `RN-SP-068` | Las cuentas de broker son de dos tipos: de vendedor y de consumidor | `requirements/sp.md` §5.1 |
 
 ## 6. Datos
 
@@ -68,7 +69,7 @@ Que una persona declare **una cuenta suya** en un broker cuando quiera, y que ad
 
 ### 6.2 Salida
 
-**La cuenta declarada**, con la forma de una fila de `RF-SP-055`: broker, identificador, nombre de usuario en el broker —nulo— y estado —`REGISTER`—.
+**La cuenta declarada**, con la forma de una fila de `RF-SP-055`: broker, identificador, nombre de usuario en el broker —nulo— y estado —`REGISTER`— y **tipo** —`kind`, `VENDEDOR` o `CONSUMIDOR` (`RN-SP-068`)—.
 
 ## 7. Precondiciones y postcondiciones
 
@@ -80,7 +81,7 @@ Que una persona declare **una cuenta suya** en un broker cuando quiera, y que ad
 
 1. El actor envía broker e identificador.
 2. El sistema valida los datos y que el broker exista y esté activo.
-3. El sistema registra la cuenta a nombre de la persona.
+3. El sistema decide el tipo por el tipo de rol del titular (`RN-SP-068`) y registra la cuenta a nombre de la persona.
 4. El sistema audita el alta y devuelve la cuenta.
 
 ## 9. Flujos alternativos
@@ -95,6 +96,7 @@ Ninguno.
 | `VAL-013` | Falta el identificador, o está en blanco | `400` |
 | `VAL-015` | El identificador tiene más de 80 caracteres | `400` |
 | `EX-008` | El broker no existe o está apagado — la misma respuesta para los dos, como en el registro | `422` |
+| `EX-011` | **El titular no es vendedor ni consumidor**: no porta ningún rol de esos dos tipos (`RN-SP-068`) | `422` |
 | `EX-009` | **Esa cuenta ya está declarada**, por cualquiera, también por la misma persona (`RN-SP-038`) | `409` |
 | `VAL-002` | La persona no existe o está eliminada (administración) | `404` |
 | `AUTH-001` / `AUTH-002` | Sin token / sin el permiso | `401` / `403` |
@@ -115,12 +117,21 @@ Las de §10, **todas en la misma respuesta** cuando hay varias.
 | `CA-SP-920` | Administración sobre una persona inexistente o eliminada: `404` |
 | `CA-SP-921` | Sin el permiso de cada ruta, `403`; sin token, `401` |
 | `CA-SP-922` | El alta queda **auditada**, con quién la hizo |
+| `CA-SP-938` | La cuenta de quien porta un rol **vendedor** nace `VENDEDOR`, y la de quien porta uno **consumidor**, `CONSUMIDOR`; cuando la declara administración, el tipo es **el del titular**, no el de quien declara |
+| `CA-SP-939` | Quien porta un rol vendedor **y** uno consumidor declara cuentas `VENDEDOR` |
+| `CA-SP-940` | Quien no porta rol vendedor ni consumidor recibe `422` (`EX-011`), por las dos rutas, y **no se registra nada** |
+| `CA-SP-941` | El registro por enlace (`RF-SP-045`) declara sus cuentas `CONSUMIDOR` |
+| `CA-SP-942` | El motor rechaza una cuenta `VENDEDOR` en `FIRST_DEPOSIT` y un tipo fuera de los dos (`ck_user_brokers_ftd_solo_consumidor`, `ck_user_brokers_kind`) |
+| `CA-SP-943` | Toda fila de `RF-SP-055`, `RF-SP-056`, `RF-SP-057` y `RF-SP-079` lleva `kind`; `RF-SP-057` filtra por `?kind=` y su resumen lo respeta; un `kind` desconocido es `400` (`VAL-001`) |
+| `CA-SP-944` | Los indicadores de la red (`RF-SP-058`) **no cuentan** las cuentas `VENDEDOR`, aunque su titular porte también un rol consumidor |
+| `CA-SP-945` | `V91` clasifica las cuentas existentes: `VENDEDOR` la de quien porta rol vendedor, `CONSUMIDOR` las demás y **toda cuenta ya depositada** |
 | `CA-SP-937` | `V90` siembra los seis permisos: `create-own`, `update-own` y `delete-own` a **todo rol por su tipo**, y `create`, `update` y `delete` a `SUPERADMIN` y `ADMIN`. Catálogo **216**, `ADMIN` 214, `CLIENTE` 40 |
 
 ## 13. Casos límite
 
 | Caso | Decisión |
 |---|---|
+| El titular cambia de rol después de declararla | La cuenta **conserva su tipo** (`RN-SP-068`); si hay que corregirlo, administración la borra y la declara de nuevo |
 | Otra cuenta en el mismo broker | Se admite (`RN-SP-038`): lo único que se acota es de quién es cada cuenta |
 | El identificador llega con espacios a los lados | Se guardan sin ellos, y la unicidad se comprueba sin ellos |
 
@@ -130,9 +141,11 @@ Las de §10, **todas en la misma respuesta** cuando hay varias.
 |---|---|---|
 | 1 | ¿Quién declara? | El titular y administración (08-10-2026) |
 | 2 | ¿Y el superior comercial? | No: solo mira (08-10-2026) |
+| 3 | ¿Qué distingue una cuenta de vendedor de una de consumidor? | Una columna de tipo en la cuenta; la de vendedor no tiene FTD; el tipo lo pone el sistema por el tipo de rol del titular (09-10-2026) |
 
 ## 15. Control de cambios
 
 | Versión | Fecha | Cambio | Responsable |
 |---|---|---|---|
 | 0.1.0 | 08-10-2026 | Redacción inicial. Cierra el «por decidir» del 08-09-2026: el titular con `broker-accounts:create-own` y administración con `broker-accounts:create`. Nace `RN-SP-067`. Criterios `CA-SP-915` a `CA-SP-922` y `CA-SP-937` (la siembra de los tres requerimientos). | Responsable del proyecto |
+| 0.2.0 | 09-10-2026 | **Dos tipos de cuenta** (`RN-SP-068`), a petición del responsable del proyecto: el alta fija `kind` por el tipo de rol del titular, `EX-011` para quien no es vendedor ni consumidor, la de vendedor sin FTD. Criterios `CA-SP-938` a `CA-SP-945`. | Responsable del proyecto |

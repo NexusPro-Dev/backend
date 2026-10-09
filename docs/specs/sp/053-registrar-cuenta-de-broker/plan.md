@@ -3,9 +3,9 @@
 | Campo | Valor |
 |---|---|
 | Requerimiento | `RF-SP-053` |
-| Especificación | [`spec.md`](spec.md) v0.1.0 |
+| Especificación | [`spec.md`](spec.md) v0.2.0 |
 | `spec.md` aprobada el | 08-10-2026 |
-| Versión | 0.1.0 |
+| Versión | 0.2.0 |
 | Estado | **Aprobado** |
 | Autor | Responsable técnico |
 | Aprobado por | Responsable del proyecto |
@@ -105,3 +105,28 @@ Una transacción por petición. Editar y borrar bloquean la cuenta antes de comp
 ## 11. Estrategia de prueba
 
 Integración, `ManageBrokerAccountsIT`, con los criterios de los tres requerimientos. `CA-SP-937` en las suites de siembra. `EndpointPermissionsIT` y `OwnScopePermissionsIT` con las seis rutas.
+
+---
+
+## 12. Enmienda 0.2.0 — dos tipos de cuenta (`RN-SP-068`, 09-10-2026)
+
+**`V91`** añade `user_brokers.kind varchar(20)`, la rellena y la declara `NOT NULL` **sin `DEFAULT`**, con `ck_user_brokers_kind` (`VENDEDOR`, `CONSUMIDOR`) y `ck_user_brokers_ftd_solo_consumidor` (`kind = 'CONSUMIDOR' OR status = 'REGISTER'`). El relleno: `CONSUMIDOR` si la cuenta está en `FIRST_DEPOSIT` —ya contó como FTD y la restricción no la admitiría de otro modo—; si no, `VENDEDOR` si el titular porta un rol de ese tipo; si no, `CONSUMIDOR`. Guardas: ninguna fila sin tipo. Sin auditoría: es una columna nueva, no un cambio de datos de nadie.
+
+**El tipo lo decide el servicio**, con una consulta a `user_roles.role_type` del titular: `VENDEDOR` gana a `CONSUMIDOR`; sin ninguno, `EX-011`. Se comprueba **después** de la validación del cuerpo y de que la persona exista, y antes del broker. El registro por enlace pasa `CONSUMIDOR` a `BrokerAccountRegistrar.declare` sin consultar: el enlace crea clientes.
+
+**`kind` en las salidas**: enum `BrokerAccountKind`, en `BrokerAccountItem` y `TeamBrokerAccountItem`, leído en las cuatro consultas. **`?kind=`** en `ListBrokerAccountsRequest` y `BrokerAccountFilters`, validado como `status`.
+
+**Indicadores**: el predicado `ES_CONSUMIDOR` —un `EXISTS` sobre los roles del titular— pasa a ser `ub.kind = 'CONSUMIDOR'`, en las cuatro consultas que lo usan.
+
+| Capa | Componente | Cambio |
+|---|---|---|
+| `db/migration` | `V91__sp_tipos_de_cuenta_de_broker.sql` | La columna, el relleno, las dos restricciones |
+| `domain/models` | `BrokerAccountKind` | Nuevo |
+| `domain/repository` | `BrokerAccountWriter`, `JpaBrokerAccountWriter` | `insert` recibe el tipo; `kindFor(userId)` |
+| `domain/repository` | `JpaBrokerAccountRegistrar`, `BrokerAccountRegistrar` | `declare` escribe `CONSUMIDOR` |
+| `domain/repository` | `JpaBrokerAccountQueryRepository` | `kind` en las filas, filtro, y el predicado de los indicadores |
+| `application` | `BrokerAccountItem`, `TeamBrokerAccountItem`, `ListBrokerAccountsRequest` | `kind` |
+| `domain/service` | `ManageBrokerAccountsService`, `ListBrokerAccountsService` | El tipo al declarar; el filtro |
+
+**Riesgo**: las seis suites que insertan cuentas por SQL tienen que nombrar el tipo —la columna no tiene `DEFAULT`—, y las que ponen `FIRST_DEPOSIT` a la cuenta de un vendedor dejan de poder hacerlo.
+
