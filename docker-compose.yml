@@ -118,6 +118,17 @@ services:
       BROKER_TOKEN_IQOPTION: ${BROKER_TOKEN_IQOPTION:-}
       BROKER_TOKEN_EXNOVA: ${BROKER_TOKEN_EXNOVA:-}
       BROKER_TOKEN_EXOPTION: ${BROKER_TOKEN_EXOPTION:-}
+      # La dirección común (RN-SP-069) y los eventos que se interpretan: registro
+      # (RN-SP-072), depósito (RN-SP-073) y operación (RN-SP-074). Vacío = ese
+      # aviso solo se guarda.
+      BROKER_NOTIFICATION_TOKEN: ${BROKER_NOTIFICATION_TOKEN:-}
+      BROKER_REGISTRATION_EVENT: ${BROKER_REGISTRATION_EVENT:-}
+      BROKER_DEPOSIT_EVENT: ${BROKER_DEPOSIT_EVENT:-}
+      BROKER_OPERATION_EVENT: ${BROKER_OPERATION_EVENT:-}
+      BROKER_FIELD_EVENT: ${BROKER_FIELD_EVENT:-postback_name}
+      BROKER_FIELD_ACCOUNT: ${BROKER_FIELD_ACCOUNT:-trader_id}
+      BROKER_FIELD_AFFTRACK: ${BROKER_FIELD_AFFTRACK:-afftrack}
+      BROKER_FIELD_EVENT_ID: ${BROKER_FIELD_EVENT_ID:-event_id}
       # La pasarela local, PayRetailers (RF-MV-048, deployment.md §6.5.2). La tienda
       # de cada país va en su conversión. Opcionales: sin las dos, PSE nace pendiente
       # y lo confirma una persona.
