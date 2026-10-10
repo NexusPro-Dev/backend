@@ -18,11 +18,13 @@ public record BrokerNotificationSettings(
     Map<UUID, String> notificationTokens,
     String notificationToken,
     String registrationEvent,
+    String depositEvent,
+    String operationEvent,
     Fields fields) {
 
   public BrokerNotificationSettings {
     notificationTokens = notificationTokens == null ? Map.of() : Map.copyOf(notificationTokens);
-    fields = fields == null ? new Fields(null, null, null) : fields;
+    fields = fields == null ? new Fields(null, null, null, null) : fields;
   }
 
   /**
@@ -30,17 +32,30 @@ public record BrokerNotificationSettings(
    * está configurado: entonces ningún aviso crea cuentas.
    */
   public Optional<String> registration() {
-    return registrationEvent == null || registrationEvent.isBlank()
-        ? Optional.empty()
-        : Optional.of(registrationEvent.trim());
+    return configurado(registrationEvent);
   }
 
-  /** Cómo llama el broker a cada dato del aviso de registro. */
-  public record Fields(String event, String account, String afftrack) {
+  /** El evento del DEPÓSITO (`RN-SP-073`), o vacío: entonces ningún aviso confirma un FTD. */
+  public Optional<String> deposit() {
+    return configurado(depositEvent);
+  }
+
+  /** El evento de la OPERACIÓN (`RN-SP-074`), o vacío: entonces no se cuenta ninguna. */
+  public Optional<String> operation() {
+    return configurado(operationEvent);
+  }
+
+  private static Optional<String> configurado(String evento) {
+    return evento == null || evento.isBlank() ? Optional.empty() : Optional.of(evento.trim());
+  }
+
+  /** Cómo llama el broker a cada dato del aviso. */
+  public record Fields(String event, String account, String afftrack, String eventId) {
     public Fields {
       event = event == null || event.isBlank() ? "postback_name" : event.trim();
       account = account == null || account.isBlank() ? "trader_id" : account.trim();
       afftrack = afftrack == null || afftrack.isBlank() ? "afftrack" : afftrack.trim();
+      eventId = eventId == null || eventId.isBlank() ? "event_id" : eventId.trim();
     }
   }
 

@@ -107,6 +107,7 @@ public class RegisterClientByLinkService {
   private final PasswordHasher hasher;
   private final AuditWriter auditoria;
   private final UuidV7Generator ids;
+  private final ConfirmFirstDepositService primerDeposito;
   private final Clock reloj;
 
   @Autowired
@@ -124,7 +125,8 @@ public class RegisterClientByLinkService {
       PasswordPolicy politica,
       PasswordHasher hasher,
       AuditWriter auditoria,
-      UuidV7Generator ids) {
+      UuidV7Generator ids,
+      ConfirmFirstDepositService primerDeposito) {
     this(
         usuarios,
         vinculos,
@@ -140,6 +142,7 @@ public class RegisterClientByLinkService {
         hasher,
         auditoria,
         ids,
+        primerDeposito,
         Clock.systemUTC());
   }
 
@@ -158,6 +161,7 @@ public class RegisterClientByLinkService {
       PasswordHasher hasher,
       AuditWriter auditoria,
       UuidV7Generator ids,
+      ConfirmFirstDepositService primerDeposito,
       Clock reloj) {
     this.usuarios = usuarios;
     this.vinculos = vinculos;
@@ -173,6 +177,7 @@ public class RegisterClientByLinkService {
     this.hasher = hasher;
     this.auditoria = auditoria;
     this.ids = ids;
+    this.primerDeposito = primerDeposito;
     this.reloj = reloj;
   }
 
@@ -271,10 +276,19 @@ public class RegisterClientByLinkService {
     // escribirse antes: la venta no existía.
     vinculos.attachFirstMovement(usuario.getId(), vendedor, venta.id());
 
+    // `RN-SP-073`: una cuenta asociada al declararla pudo traer ya el primer
+    // depósito —llegó antes por el broker—. Se activa aquí y no al asociarla,
+    // porque lo que se activa es esta venta, que hasta ahora no existía.
+    boolean activada =
+        usuario.getStatus() == UserStatus.FTD_PENDIENTE
+            && brokers.hasFirstDeposit(usuario.getId())
+            && primerDeposito.confirm(usuario.getId());
+    String estado = activada ? UserStatus.ACTIVO.name() : usuario.getStatus().name();
+
     auditar(usuario, producto, movimiento.sellerUsername(), cuentas.size(), venta.code());
 
     return SelfRegistrationResponse.de(
-        usuario.getId(), usuario.getUsername(), usuario.getStatus().name(), venta.code());
+        usuario.getId(), usuario.getUsername(), estado, venta.code());
   }
 
   // ---------------------------------------------------------------------------

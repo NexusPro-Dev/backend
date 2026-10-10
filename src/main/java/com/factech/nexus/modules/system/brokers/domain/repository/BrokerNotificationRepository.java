@@ -30,5 +30,12 @@ public interface BrokerNotificationRepository {
       String headers,
       String body,
       String contentType,
-      String ipAddress);
+      String ipAddress,
+      String eventId);
+
+  /**
+   * Si ese broker ya mandó OTRO aviso con ese {@code eventId} (`RN-SP-073`, `RN-SP-074`): una
+   * reentrega, que se guarda pero no se aplica dos veces.
+   */
+  boolean otherWithEventId(UUID brokerId, String eventId, UUID exceptId);
 }

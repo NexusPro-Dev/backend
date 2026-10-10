@@ -3,9 +3,9 @@
 | Campo | Valor |
 |---|---|
 | Requerimiento | `RF-SP-078` |
-| Especificación | [`spec.md`](spec.md) v0.4.0 |
+| Especificación | [`spec.md`](spec.md) v0.5.0 |
 | `spec.md` aprobada el | 08-10-2026 |
-| Versión | 0.4.0 |
+| Versión | 0.5.0 |
 | Estado | **Aprobado** |
 | Autor | Responsable técnico |
 | Aprobado por | Responsable del proyecto |
@@ -186,3 +186,34 @@ Integración, **`BrokerNotificationsIT`**, con `MockMvc` y la cadena de filtros 
 
 **Por las dos direcciones**, la común y la obsoleta por nombre: el broker ya está resuelto cuando se interpreta.
 
+---
+
+## 15. Enmienda 0.5.0 — el depósito y la operación (`RN-SP-073`, `RN-SP-074`, 10-10-2026)
+
+**`V98`** añade a `user_brokers` `first_deposit_at`, `operations_count` (`0`), `first_operation_at` y `last_operation_at`, con `ck_user_brokers_deposito_con_estado` y `ck_user_brokers_operaciones`; y a `broker_notifications` `event_id varchar(100)`, rellenado desde `query_params`, con `ix_broker_notifications_evento (broker_id, event_id)` **sin único**.
+
+| Configuración | Variable | Por omisión |
+|---|---|---|
+| `nexus.brokers.deposit-event` | `BROKER_DEPOSIT_EVENT` | vacío: ningún aviso confirma un FTD |
+| `nexus.brokers.operation-event` | `BROKER_OPERATION_EVENT` | vacío: no se cuenta ninguna |
+| `nexus.brokers.fields.event-id` | `BROKER_FIELD_EVENT_ID` | `event_id` |
+
+**Al guardar**, el servicio copia el `event_id` del aviso —hasta 100 caracteres— a su columna, y **después** despacha por el evento: registro (§14), depósito u operación. Los dos nuevos **bloquean la cuenta del número** (`lockByNumber`, `FOR UPDATE`) y **solo entonces** miran si otro aviso del mismo broker trae ese `event_id` (`otherWithEventId`): con la fila bloqueada, dos reentregas simultáneas se esperan, y la segunda —en `READ COMMITTED`, sentencia nueva— ve la fila de la primera. Sin `event_id` no hay forma de reconocer una reentrega, y el aviso se aplica.
+
+**Depósito**: solo `CONSUMIDOR`. `markFirstDeposit` es un `UPDATE … WHERE status = 'REGISTER'` que devuelve si movió la cuenta; si la movió, se audita el `UPDATE` de `status`. Con titular, **`ConfirmFirstDepositService.confirm(userId)`** (`users`, `MANDATORY`): bloquea a la persona, y **solo si está en `FTD_PENDIENTE` y tiene venta del alta**, la pasa a `ACTIVO` y llama a `FirstDepositActivation.activate` —la de `RF-SP-028`—, con la auditoría de cambio y el evento de seguridad `USER_STATUS_CHANGED` con motivo `FIRST_DEPOSIT`. **Si la activación falla, el aviso entero se revierte** (`500`): es un defecto de integridad, no un caso de negocio, y el broker reenvía.
+
+**Operación**: `countOperation` suma uno, fija `first_operation_at` si era nulo y `last_operation_at` a `now()`. **No se audita**: el aviso guardado es la constancia.
+
+**La asociación posterior activa**: `ManageBrokerAccountsService` llama a `confirm` tras `claim` si la persona tiene alguna cuenta en `FIRST_DEPOSIT`, y tras `assignHolder` si la cuenta lo está. **En el registro por enlace se llama al final**, después de `attachFirstMovement`: la venta del alta no existe cuando se asocia la cuenta, y activar sin venta dejaría a la persona `ACTIVO` sin lo que compró. La respuesta lleva el estado resultante.
+
+**Contrato**: `BrokerAccountItem` y `TeamBrokerAccountItem` ganan `activity` (`BrokerAccountActivity`), leída en las tres consultas de `JpaBrokerAccountQueryRepository`.
+
+| Capa | Componente | Cambio |
+|---|---|---|
+| `db/migration` | `V98__sp_deposito_y_operaciones_de_broker.sql` | Las columnas, las restricciones y el relleno |
+| `infrastructure` | `BrokerNotificationSettings`, `application.yml` | Los dos eventos y `fields.event-id` |
+| `domain/repository` | `BrokerAccountWriter`, `BrokerNotificationRepository`, `BrokerAccountRegistrar` | `lockByNumber`, `markFirstDeposit`, `countOperation`; `event_id` y `otherWithEventId`; `hasFirstDeposit` |
+| `domain/service` | `ReceiveBrokerNotificationService`, `ConfirmFirstDepositService` (nuevo), `ManageBrokerAccountsService`, `RegisterClientByLinkService` | Lo de arriba |
+| `application` | `BrokerAccountActivity` (nuevo), `BrokerAccountItem`, `TeamBrokerAccountItem` | `activity` |
+
+**Pruebas**: `BrokerNotificationsIT` (`CA-SP-996` a `CA-SP-1000`) y `SelfRegistrationIT` (`CA-SP-995`, `CA-SP-997`, `CA-SP-1001`, `CA-SP-1002`), esta con la venta del alta real.

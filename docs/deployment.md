@@ -5,7 +5,7 @@
 | Proyecto | NEXUS — Renovación de plataforma |
 | Empresa | FACTECH GROUP SAS |
 | Documento | `deployment.md` |
-| Versión | 0.22.0 |
+| Versión | 0.23.0 |
 | Estado | Borrador |
 | Responsable técnico | Bonilla Diaz William Steven |
 | Fecha de creación | 27-08-2026 |
@@ -318,9 +318,11 @@ https://<dominio del backend>/api/v1/brokers/notifications?token=<BROKER_NOTIFIC
 
 | Variable | Valor | Por qué |
 |---|---|---|
-| `BROKER_REGISTRATION_EVENT` | El valor que el panel pone en `postback_name` para el registro | **Vacío = ningún aviso crea cuentas**: solo se guardan |
+| `BROKER_REGISTRATION_EVENT` | El valor que el panel pone en `postback_name` para el registro (`BROKER_REGISTRATION_NEXUS_V2_EVENT` en IQ Option) | **Vacío = ningún aviso crea cuentas**: solo se guardan |
+| `BROKER_DEPOSIT_EVENT` | El del depósito (`BROKER_DEPOSIT_NEXUS_V2_EVENT`) | **Vacío = ningún aviso confirma un FTD** (`RN-SP-073`) |
+| `BROKER_OPERATION_EVENT` | El de la operación (`BROKER_OPERATION_NEXUS_V2_EVENT`) | **Vacío = no se cuenta ninguna** (`RN-SP-074`) |
 
-De ese aviso se leen `trader_id` —el número de la cuenta— y `afftrack` —el del vendedor—. Si el panel los llama de otra forma, se cambian con `BROKER_FIELD_EVENT`, `BROKER_FIELD_ACCOUNT` y `BROKER_FIELD_AFFTRACK`.
+De cada aviso se leen `trader_id` —el número de la cuenta—, `afftrack` —el del vendedor, solo en el registro— y `event_id` —el del aviso, para no aplicar dos veces una reentrega—. Si el panel los llama de otra forma, se cambian con `BROKER_FIELD_EVENT`, `BROKER_FIELD_ACCOUNT`, `BROKER_FIELD_AFFTRACK` y `BROKER_FIELD_EVENT_ID`. **El depósito confirma el FTD entero**: la cuenta pasa a `FIRST_DEPOSIT` y, si su titular espera en `FTD_PENDIENTE`, pasa a `ACTIVO` con lo que compró — configúralo cuando el panel ya mande depósitos reales.
 
 **La dirección por nombre sigue funcionando y está obsoleta**: cambia la de cada panel a la común y, cuando ninguno la use, se retira.
 
@@ -627,3 +629,4 @@ Ninguno de estos puntos impide desplegar. Todos están declarados para que no se
 | 0.20.0 | 08-10-2026 | §6.5.3: **las direcciones de los avisos llevan el nombre del broker** (`/brokers/iqoption/notifications`) y no su identificador (`RF-SP-078`). Renombrar un broker obliga a cambiar la dirección en su panel. | Responsable técnico |
 | 0.21.0 | 09-10-2026 | §6.5.3: **la dirección común de los avisos**, `/api/v1/brokers/notifications`, con `BROKER_NOTIFICATION_TOKEN` y el broker según `advertiser` (`RN-SP-069`). La dirección por nombre y sus tres secretos siguen, obsoletos. | Responsable técnico |
 | 0.22.0 | 09-10-2026 | §6.5.3: **`BROKER_REGISTRATION_EVENT`** y los tres nombres de campo: el aviso de registro crea la cuenta sin titular (`RN-SP-072`). | Responsable técnico |
+| 0.23.0 | 10-10-2026 | §6.5.3: **`BROKER_DEPOSIT_EVENT`, `BROKER_OPERATION_EVENT`** y `BROKER_FIELD_EVENT_ID`: el depósito confirma el FTD (`RN-SP-073`) y la operación se cuenta (`RN-SP-074`). | Responsable técnico |

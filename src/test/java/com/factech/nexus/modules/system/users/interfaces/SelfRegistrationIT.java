@@ -1390,7 +1390,119 @@ class SelfRegistrationIT extends IntegrationTestBase {
         rol);
   }
 
+  // ---------------------------------------------------------------------------
+  // El aviso de depósito del broker (`RN-SP-073`, 10-10-2026)
+  // ---------------------------------------------------------------------------
+
+  /** Un aviso del broker por la dirección común, con el secreto de la suite. */
+  private void avisoDelBroker(String evento, String numero, String eventId) throws Exception {
+    jdbc.update("UPDATE brokers SET advertiser = 'iq_option' WHERE id = ?::uuid", BROKER);
+    mvc.perform(
+            get(
+                "/api/v1/brokers/notifications?advertiser=iq_option&postback_name="
+                    + evento
+                    + "&trader_id="
+                    + numero
+                    + "&event_id="
+                    + eventId
+                    + "&token=secreto-comun"))
+        .andExpect(status().isOk());
+  }
+
+  private String estadoDeLaCuenta(String numero) {
+    return jdbc.queryForObject(
+        "SELECT status FROM user_brokers WHERE external_id = ?", String.class, numero);
+  }
+
+  @Test
+  @DisplayName(
+      "`CA-SP-995` — el aviso de depósito pasa la cuenta a FIRST_DEPOSIT y a su titular de"
+          + " FTD_PENDIENTE a ACTIVO, con lo que compró al registrarse")
+  void elDepositoDelBrokerActivaElAlta() throws Exception {
+    mvc.perform(registro(cuerpo("ana.ruiz", "ana@ejemplo.com", "12345678")))
+        .andExpect(status().isCreated());
+    assertThat(lineaDelAlta()).isEqualTo("PENDIENTE");
+
+    avisoDelBroker("deposito-prueba", "12345678", "dep-1");
+
+    assertThat(estadoDeLaCuenta("12345678")).isEqualTo("FIRST_DEPOSIT");
+    assertThat(estadoDe("ana.ruiz")).isEqualTo("ACTIVO");
+    assertThat(lineaDelAlta()).isEqualTo("ENTREGADA");
+    assertThat(
+            jdbc.queryForObject(
+                "SELECT count(*) FROM audit_change_log WHERE entity = 'users'"
+                    + " AND entity_id = ?::uuid AND changes::text LIKE '%FIRST_DEPOSIT%'",
+                Integer.class, idDe("ana.ruiz")))
+        .isOne();
+  }
+
+  @Test
+  @DisplayName(
+      "`CA-SP-997` — a un titular que no está en FTD_PENDIENTE el depósito no le cambia el estado")
+  void elDepositoNoLevantaUnBloqueo() throws Exception {
+    mvc.perform(registro(cuerpo("ana.ruiz", "ana@ejemplo.com", "12345678")))
+        .andExpect(status().isCreated());
+    jdbc.update("UPDATE users SET status = 'BLOQUEADO' WHERE username = 'ana.ruiz'");
+
+    avisoDelBroker("deposito-prueba", "12345678", "dep-2");
+
+    assertThat(estadoDeLaCuenta("12345678")).isEqualTo("FIRST_DEPOSIT");
+    assertThat(estadoDe("ana.ruiz")).isEqualTo("BLOQUEADO");
+    assertThat(lineaDelAlta()).isEqualTo("PENDIENTE");
+  }
+
+  @Test
+  @DisplayName(
+      "`CA-SP-1001` — quien se registra por enlace con una cuenta que ya tiene el depósito sale"
+          + " ACTIVO, con lo que compró")
+  void elRegistroConUnaCuentaYaDepositada() throws Exception {
+    UUID origen = cuentaVendedora("AFF-REG");
+    jdbc.update(
+        "INSERT INTO user_brokers (id, user_id, broker_id, external_id, kind, referrer_account_id)"
+            + " VALUES (gen_random_uuid(), NULL, ?::uuid, '12345678', 'CONSUMIDOR', ?)",
+        BROKER,
+        origen);
+    avisoDelBroker("deposito-prueba", "12345678", "dep-3");
+    assertThat(estadoDeLaCuenta("12345678")).isEqualTo("FIRST_DEPOSIT");
+
+    mvc.perform(registro(cuerpo("ana.ruiz", "ana@ejemplo.com", "12345678")))
+        .andExpect(status().isCreated())
+        .andExpect(jsonPath("$.status").value("ACTIVO"));
+
+    assertThat(estadoDe("ana.ruiz")).isEqualTo("ACTIVO");
+    assertThat(lineaDelAlta()).isEqualTo("ENTREGADA");
+  }
+
+  @Test
+  @DisplayName(
+      "`CA-SP-1001`, `CA-SP-1002` — asignar por administración una cuenta que ya tiene el depósito"
+          + " activa a su nuevo titular, y la cuenta devuelve lo que avisó el broker")
+  void asignarUnaCuentaYaDepositada() throws Exception {
+    mvc.perform(registro(cuerpo("ana.ruiz", "ana@ejemplo.com", "12345678")))
+        .andExpect(status().isCreated());
+    UUID sinTitular = UUID.randomUUID();
+    jdbc.update(
+        "INSERT INTO user_brokers (id, user_id, broker_id, external_id, kind)"
+            + " VALUES (?, NULL, ?::uuid, '99887766', 'CONSUMIDOR')",
+        sinTitular,
+        BROKER);
+    avisoDelBroker("deposito-prueba", "99887766", "dep-4");
+
+    mvc.perform(
+            patch("/api/v1/broker-accounts/" + sinTitular + "/holder")
+                .with(user(SUPERADMIN.toString()).authorities(() -> "broker-accounts:assign-user"))
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("{\"userId\":\"" + idDe("ana.ruiz") + "\"}"))
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$.activity.firstDepositAt").isNotEmpty())
+        .andExpect(jsonPath("$.activity.operationsCount").value(0));
+
+    assertThat(estadoDe("ana.ruiz")).isEqualTo("ACTIVO");
+    assertThat(lineaDelAlta()).isEqualTo("ENTREGADA");
+  }
+
   private void limpiar() {
+    jdbc.update("DELETE FROM broker_notifications");
     // Los movimientos ANTES que los productos y las personas: sus claves
     // foráneas son RESTRICT a propósito, para que un borrado físico no se lleve
     // por delante la atribución de una venta. Desde el 09-09-2026 todo registro

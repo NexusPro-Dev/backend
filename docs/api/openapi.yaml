@@ -17560,6 +17560,21 @@ components:
             \ afiliado en el broker, el que el broker devuelve en sus avisos. Único\
             \ por broker; hasta 80 caracteres."
           example: DIEGOIQ
+    BrokerAccountActivity:
+      type: object
+      properties:
+        firstDepositAt:
+          type: string
+          format: date-time
+        operationsCount:
+          type: integer
+          format: int32
+        firstOperationAt:
+          type: string
+          format: date-time
+        lastOperationAt:
+          type: string
+          format: date-time
     BrokerAccountItem:
       type: object
       properties:
@@ -17586,6 +17601,8 @@ components:
           type: string
         referrer:
           $ref: "#/components/schemas/BrokerAccountReferrer"
+        activity:
+          $ref: "#/components/schemas/BrokerAccountActivity"
         declaredAt:
           type: string
           format: date-time
@@ -21281,6 +21298,8 @@ components:
           type: string
         referrer:
           $ref: "#/components/schemas/BrokerAccountReferrer"
+        activity:
+          $ref: "#/components/schemas/BrokerAccountActivity"
         declaredAt:
           type: string
           format: date-time

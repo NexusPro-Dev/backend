@@ -88,4 +88,18 @@ public class JpaBrokerAccountRegistrar implements BrokerAccountRegistrar {
           "EX-009", mensaje, List.of(new FieldError("brokerAccountId", "EX-009", mensaje)));
     }
   }
+
+  @Override
+  @Transactional(readOnly = true)
+  public boolean hasFirstDeposit(UUID userId) {
+    return !em.createNativeQuery(
+            """
+            SELECT 1 FROM user_brokers
+             WHERE user_id = CAST(:persona AS uuid) AND status = 'FIRST_DEPOSIT'
+             LIMIT 1
+            """)
+        .setParameter("persona", userId)
+        .getResultList()
+        .isEmpty();
+  }
 }

@@ -36,6 +36,7 @@ public record TeamBrokerAccountItem(
     BrokerAccountKind kind,
     String afftrack,
     BrokerAccountReferrer referrer,
+    BrokerAccountActivity activity,
     OffsetDateTime declaredAt) {
 
   /**

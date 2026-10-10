@@ -526,10 +526,16 @@ nexus:
     # 09-10-2026). VACÍO = ningún aviso crea cuentas, solo se guardan. Los
     # nombres de los campos, por si el panel los llama de otra forma.
     registration-event: ${BROKER_REGISTRATION_EVENT:}
+    # El DEPÓSITO confirma el FTD (RN-SP-073) y la OPERACIÓN se cuenta
+    # (RN-SP-074), 10-10-2026. VACÍO = ese aviso solo se guarda.
+    deposit-event: ${BROKER_DEPOSIT_EVENT:}
+    operation-event: ${BROKER_OPERATION_EVENT:}
     fields:
       event: ${BROKER_FIELD_EVENT:postback_name}
       account: ${BROKER_FIELD_ACCOUNT:trader_id}
       afftrack: ${BROKER_FIELD_AFFTRACK:afftrack}
+      # El identificador del aviso: una reentrega no se aplica dos veces.
+      event-id: ${BROKER_FIELD_EVENT_ID:event_id}
     notification-tokens:
       "[01a081f0-6000-7101-9c4f-5e7adb000001]": ${BROKER_TOKEN_IQOPTION:}
       "[01a081f0-6000-7102-9c4f-5e7adb000002]": ${BROKER_TOKEN_EXNOVA:}

@@ -97,4 +97,16 @@ public interface BrokerAccountWriter {
    * cuenta tocada.
    */
   Optional<UUID> fillReferrer(UUID brokerId, String accountId, UUID referrerAccountId);
+
+  /** La cuenta de ese número en ese broker, sea de quien sea o de nadie, bloqueada. */
+  Optional<LockedAccount> lockByNumber(UUID brokerId, String accountId);
+
+  /**
+   * Pasa la {@code CONSUMIDOR} a {@code FIRST_DEPOSIT} con su momento (`RN-SP-073`), <b>solo si
+   * estaba en {@code REGISTER}</b>. Devuelve si la movió.
+   */
+  boolean markFirstDeposit(UUID brokerAccountId);
+
+  /** Cuenta una operación más (`RN-SP-074`): el total, la primera y la última. */
+  void countOperation(UUID brokerAccountId);
 }

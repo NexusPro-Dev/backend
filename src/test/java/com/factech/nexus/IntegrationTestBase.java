@@ -111,6 +111,8 @@ public abstract class IntegrationTestBase {
     registry.add("BROKER_NOTIFICATION_TOKEN", () -> "secreto-comun");
     // El aviso de REGISTRO (`RN-SP-072`): crea la cuenta sin titular.
     registry.add("BROKER_REGISTRATION_EVENT", () -> "registro-prueba");
+    registry.add("BROKER_DEPOSIT_EVENT", () -> "deposito-prueba");
+    registry.add("BROKER_OPERATION_EVENT", () -> "operacion-prueba");
     // La llave que cifra las claves de las tiendas (`RN-MV-063`): una de prueba, de 32 bytes.
     // Sin Subscription Key la pasarela real sigue apagada; la enciende el doble.
     registry.add(

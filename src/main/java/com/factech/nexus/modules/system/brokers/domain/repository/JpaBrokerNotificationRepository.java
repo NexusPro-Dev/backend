@@ -53,13 +53,16 @@ public class JpaBrokerNotificationRepository implements BrokerNotificationReposi
       String headers,
       String body,
       String contentType,
-      String ipAddress) {
+      String ipAddress,
+      String eventId) {
     em.createNativeQuery(
             """
             INSERT INTO broker_notifications
-                (id, broker_id, method, query_params, headers, body, content_type, ip_address)
+                (id, broker_id, method, query_params, headers, body, content_type, ip_address,
+                 event_id)
             VALUES (CAST(:id AS uuid), CAST(:broker AS uuid), :metodo, CAST(:consulta AS jsonb),
-                    CAST(:cabeceras AS jsonb), CAST(:cuerpo AS text), CAST(:tipo AS varchar), CAST(:ip AS varchar))
+                    CAST(:cabeceras AS jsonb), CAST(:cuerpo AS text), CAST(:tipo AS varchar), CAST(:ip AS varchar),
+                    CAST(:evento AS varchar))
             """)
         .setParameter("id", id)
         .setParameter("broker", brokerId)
@@ -69,6 +72,23 @@ public class JpaBrokerNotificationRepository implements BrokerNotificationReposi
         .setParameter("cuerpo", body)
         .setParameter("tipo", contentType)
         .setParameter("ip", ipAddress)
+        .setParameter("evento", eventId)
         .executeUpdate();
+  }
+
+  @Override
+  public boolean otherWithEventId(UUID brokerId, String eventId, UUID exceptId) {
+    return !em.createNativeQuery(
+            """
+            SELECT 1 FROM broker_notifications
+             WHERE broker_id = CAST(:broker AS uuid) AND event_id = :evento
+               AND id <> CAST(:id AS uuid)
+             LIMIT 1
+            """)
+        .setParameter("broker", brokerId)
+        .setParameter("evento", eventId)
+        .setParameter("id", exceptId)
+        .getResultList()
+        .isEmpty();
   }
 }

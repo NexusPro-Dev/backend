@@ -544,4 +544,129 @@ class BrokerNotificationsIT extends IntegrationTestBase {
     assertThat(cuentasDelBroker()).isZero();
     assertThat(guardados()).isEqualTo(2);
   }
+
+  // ---------------------------------------------------------------------------
+  // El depósito y la operación (`RN-SP-073`, `RN-SP-074`, 10-10-2026)
+  // ---------------------------------------------------------------------------
+
+  private static String aviso(String evento, String numero, String eventId) {
+    return COMUN
+        + "?advertiser=iq_option&postback_name="
+        + evento
+        + "&trader_id="
+        + numero
+        + (eventId == null ? "" : "&event_id=" + eventId)
+        + "&token=secreto-comun";
+  }
+
+  private Map<String, Object> actividad(String numero) {
+    return jdbc.queryForMap(
+        "SELECT user_id, status, first_deposit_at, operations_count, first_operation_at,"
+            + " last_operation_at FROM user_brokers WHERE broker_id = ? AND external_id = ?",
+        IQOPTION,
+        numero);
+  }
+
+  @Test
+  @DisplayName(
+      "CA-SP-996, CA-SP-998 — el depósito de una cuenta sin titular la pasa a FIRST_DEPOSIT; el de"
+          + " una VENDEDOR o de un número sin cuenta solo se guarda")
+  void elDepositoSinTitular() throws Exception {
+    cuentaVendedora("DIEGOIQ");
+    mvc.perform(get(aviso("registro-prueba", "BN-R-5", "e-1") + "&afftrack=DIEGOIQ"))
+        .andExpect(status().isOk());
+
+    mvc.perform(get(aviso("deposito-prueba", "BN-R-5", "e-2"))).andExpect(status().isOk());
+
+    Map<String, Object> cuenta = actividad("BN-R-5");
+    assertThat(cuenta.get("status")).isEqualTo("FIRST_DEPOSIT");
+    assertThat(cuenta.get("first_deposit_at")).isNotNull();
+    assertThat(cuenta.get("user_id")).isNull();
+
+    // La VENDEDOR no tiene FTD (`RN-SP-068`), y un número sin cuenta no la crea.
+    mvc.perform(get(aviso("deposito-prueba", "BN-V-1", "e-3"))).andExpect(status().isOk());
+    mvc.perform(get(aviso("deposito-prueba", "BN-R-6", "e-4"))).andExpect(status().isOk());
+    assertThat(actividad("BN-V-1").get("status")).isEqualTo("REGISTER");
+    assertThat(cuentasDelBroker()).isOne();
+    assertThat(guardados()).isEqualTo(4);
+  }
+
+  @Test
+  @DisplayName(
+      "CA-SP-997 — un segundo depósito no cambia nada: ni el estado ni el momento del primero")
+  void elSegundoDepositoNoCambiaNada() throws Exception {
+    mvc.perform(get(aviso("registro-prueba", "BN-R-7", null))).andExpect(status().isOk());
+    mvc.perform(get(aviso("deposito-prueba", "BN-R-7", "d-1"))).andExpect(status().isOk());
+    Object primero = actividad("BN-R-7").get("first_deposit_at");
+
+    mvc.perform(get(aviso("deposito-prueba", "BN-R-7", "d-2"))).andExpect(status().isOk());
+
+    assertThat(actividad("BN-R-7").get("first_deposit_at")).isEqualTo(primero);
+    assertThat(
+            jdbc.queryForObject(
+                "SELECT count(*) FROM audit_change_log WHERE entity = 'user_brokers'"
+                    + " AND entity_id = (SELECT id FROM user_brokers WHERE external_id = 'BN-R-7')"
+                    + " AND changes::text LIKE '%FIRST_DEPOSIT%'",
+                Integer.class))
+        .isOne();
+  }
+
+  @Test
+  @DisplayName(
+      "CA-SP-999 — cada operación se cuenta, con la primera y la última, en cualquier tipo de"
+          + " cuenta; la de un número sin cuenta solo se guarda")
+  void lasOperacionesSeCuentan() throws Exception {
+    cuentaVendedora("DIEGOIQ");
+    mvc.perform(get(aviso("registro-prueba", "BN-R-8", null))).andExpect(status().isOk());
+    assertThat(actividad("BN-R-8").get("operations_count")).isEqualTo(0);
+    assertThat(actividad("BN-R-8").get("first_operation_at")).isNull();
+
+    mvc.perform(get(aviso("operacion-prueba", "BN-R-8", "o-1"))).andExpect(status().isOk());
+    Object primera = actividad("BN-R-8").get("first_operation_at");
+    mvc.perform(get(aviso("operacion-prueba", "BN-R-8", "o-2"))).andExpect(status().isOk());
+    mvc.perform(get(aviso("operacion-prueba", "BN-V-1", "o-3"))).andExpect(status().isOk());
+    mvc.perform(get(aviso("operacion-prueba", "BN-R-9", "o-4"))).andExpect(status().isOk());
+
+    Map<String, Object> cuenta = actividad("BN-R-8");
+    assertThat(cuenta.get("operations_count")).isEqualTo(2);
+    assertThat(cuenta.get("first_operation_at")).isEqualTo(primera);
+    assertThat((java.sql.Timestamp) cuenta.get("last_operation_at"))
+        .isAfterOrEqualTo((java.sql.Timestamp) primera);
+    // Operar no es depositar.
+    assertThat(cuenta.get("status")).isEqualTo("REGISTER");
+    assertThat(actividad("BN-V-1").get("operations_count")).isEqualTo(1);
+    assertThat(cuentasDelBroker()).isOne();
+  }
+
+  @Test
+  @DisplayName(
+      "CA-SP-1000 — una reentrega con el mismo event_id se guarda pero cuenta una vez; sin"
+          + " event_id, cada aviso cuenta")
+  void laReentregaNoSeAplicaDosVeces() throws Exception {
+    mvc.perform(get(aviso("registro-prueba", "BN-R-10", null))).andExpect(status().isOk());
+
+    mvc.perform(get(aviso("operacion-prueba", "BN-R-10", "repetido"))).andExpect(status().isOk());
+    mvc.perform(get(aviso("operacion-prueba", "BN-R-10", "repetido"))).andExpect(status().isOk());
+    assertThat(actividad("BN-R-10").get("operations_count")).isEqualTo(1);
+    assertThat(
+            jdbc.queryForObject(
+                "SELECT count(*) FROM broker_notifications WHERE event_id = 'repetido'",
+                Integer.class))
+        .isEqualTo(2);
+
+    // El mismo identificador en OTRO broker es otro aviso.
+    jdbc.update("UPDATE brokers SET advertiser = 'exnova' WHERE id = ?", EXNOVA);
+    try {
+      mvc.perform(
+              get(aviso("operacion-prueba", "BN-R-10", "repetido").replace("iq_option", "exnova")))
+          .andExpect(status().isOk());
+    } finally {
+      jdbc.update("UPDATE brokers SET advertiser = NULL WHERE id = ?", EXNOVA);
+    }
+    assertThat(actividad("BN-R-10").get("operations_count")).isEqualTo(1);
+
+    mvc.perform(get(aviso("operacion-prueba", "BN-R-10", null))).andExpect(status().isOk());
+    mvc.perform(get(aviso("operacion-prueba", "BN-R-10", null))).andExpect(status().isOk());
+    assertThat(actividad("BN-R-10").get("operations_count")).isEqualTo(3);
+  }
 }

@@ -13,6 +13,7 @@ import com.factech.nexus.modules.system.brokers.domain.repository.BrokerAccountW
 import com.factech.nexus.modules.system.users.domain.repository.BrokerAccountRegistrar;
 import com.factech.nexus.modules.system.users.domain.repository.BrokerAccountRegistrar.BrokerRef;
 import com.factech.nexus.modules.system.users.domain.repository.UserRepository;
+import com.factech.nexus.modules.system.users.domain.service.ConfirmFirstDepositService;
 import com.factech.nexus.shared.audit.AuditEnums.ChangeAction;
 import com.factech.nexus.shared.audit.AuditEnums.DeletionType;
 import com.factech.nexus.shared.audit.AuditEvents.ChangeEvent;
@@ -70,6 +71,7 @@ public class ManageBrokerAccountsService {
   private final CurrentActor actor;
   private final AuditWriter auditoria;
   private final UuidV7Generator ids;
+  private final ConfirmFirstDepositService primerDeposito;
 
   public ManageBrokerAccountsService(
       BrokerAccountWriter cuentas,
@@ -78,7 +80,8 @@ public class ManageBrokerAccountsService {
       UserRepository usuarios,
       CurrentActor actor,
       AuditWriter auditoria,
-      UuidV7Generator ids) {
+      UuidV7Generator ids,
+      ConfirmFirstDepositService primerDeposito) {
     this.cuentas = cuentas;
     this.lecturas = lecturas;
     this.brokers = brokers;
@@ -86,6 +89,7 @@ public class ManageBrokerAccountsService {
     this.actor = actor;
     this.auditoria = auditoria;
     this.ids = ids;
+    this.primerDeposito = primerDeposito;
   }
 
   // ---------------------------------------------------------------------------
@@ -125,6 +129,10 @@ public class ManageBrokerAccountsService {
         cambios.put("user_id", cambio);
         auditoria.recordChange(
             new ChangeEvent(MODULO, ENTIDAD, asociada.get(), ChangeAction.UPDATE, cambios));
+        // `RN-SP-073`: si el broker ya avisó del depósito, la persona sale de la espera.
+        if (brokers.hasFirstDeposit(userId)) {
+          primerDeposito.confirm(userId);
+        }
         return leer(userId, asociada.get());
       }
       // `RN-SP-070`: la `VENDEDOR` de su vendedor en ese broker, si la tiene.
@@ -273,6 +281,10 @@ public class ManageBrokerAccountsService {
     cambios.put("user_id", antesYDespues(null, persona.toString()));
     auditoria.recordChange(
         new ChangeEvent(MODULO, ENTIDAD, cuenta.id(), ChangeAction.UPDATE, cambios));
+    // `RN-SP-073`: la cuenta pudo traer ya el primer depósito.
+    if (cuenta.status() == UserBrokerStatus.FIRST_DEPOSIT) {
+      primerDeposito.confirm(persona);
+    }
     return lecturas.findOne(cuenta.id()).orElseThrow();
   }
 

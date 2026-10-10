@@ -37,6 +37,12 @@ public interface BrokerAccountRegistrar {
    */
   void declare(UUID accountId, UUID userId, UUID brokerId, String externalId, UUID sellerId);
 
+  /**
+   * Si alguna cuenta de esa persona tiene ya el primer depósito (`RN-SP-073`): pudo llegar antes
+   * por el broker y asociarse al declararla.
+   */
+  boolean hasFirstDeposit(UUID userId);
+
   /** Un broker del catálogo, con lo justo para verificarlo. */
   record BrokerRef(UUID id, String name, boolean active) {}
 }

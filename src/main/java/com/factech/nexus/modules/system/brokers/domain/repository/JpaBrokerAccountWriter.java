@@ -273,6 +273,46 @@ public class JpaBrokerAccountWriter implements BrokerAccountWriter {
             .getResultList());
   }
 
+  @Override
+  public Optional<LockedAccount> lockByNumber(UUID brokerId, String accountId) {
+    return bloqueada(
+        em.createNativeQuery(
+                COLUMNAS
+                    + " WHERE ub.broker_id = CAST(:broker AS uuid) AND ub.external_id = :cuenta"
+                    + " FOR UPDATE OF ub",
+                Tuple.class)
+            .setParameter("broker", brokerId)
+            .setParameter("cuenta", accountId)
+            .getResultList());
+  }
+
+  @Override
+  public boolean markFirstDeposit(UUID brokerAccountId) {
+    return em.createNativeQuery(
+                """
+                UPDATE user_brokers SET status = 'FIRST_DEPOSIT', first_deposit_at = now(),
+                                        updated_at = now()
+                 WHERE id = CAST(:id AS uuid) AND kind = 'CONSUMIDOR' AND status = 'REGISTER'
+                """)
+            .setParameter("id", brokerAccountId)
+            .executeUpdate()
+        > 0;
+  }
+
+  @Override
+  public void countOperation(UUID brokerAccountId) {
+    em.createNativeQuery(
+            """
+            UPDATE user_brokers SET operations_count = operations_count + 1,
+                                    first_operation_at = coalesce(first_operation_at, now()),
+                                    last_operation_at = now(),
+                                    updated_at = now()
+             WHERE id = CAST(:id AS uuid)
+            """)
+        .setParameter("id", brokerAccountId)
+        .executeUpdate();
+  }
+
   private void escribir(Query sentencia) {
     try {
       sentencia.executeUpdate();

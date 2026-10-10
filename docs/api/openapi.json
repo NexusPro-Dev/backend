@@ -433,6 +433,27 @@
         },
         "type" : "object"
       },
+      "BrokerAccountActivity" : {
+        "properties" : {
+          "firstDepositAt" : {
+            "format" : "date-time",
+            "type" : "string"
+          },
+          "firstOperationAt" : {
+            "format" : "date-time",
+            "type" : "string"
+          },
+          "lastOperationAt" : {
+            "format" : "date-time",
+            "type" : "string"
+          },
+          "operationsCount" : {
+            "format" : "int32",
+            "type" : "integer"
+          }
+        },
+        "type" : "object"
+      },
       "BrokerAccountHolder" : {
         "properties" : {
           "firstName" : {
@@ -455,6 +476,9 @@
         "properties" : {
           "accountId" : {
             "type" : "string"
+          },
+          "activity" : {
+            "$ref" : "#/components/schemas/BrokerAccountActivity"
           },
           "afftrack" : {
             "type" : "string"
@@ -9467,6 +9491,9 @@
         "properties" : {
           "accountId" : {
             "type" : "string"
+          },
+          "activity" : {
+            "$ref" : "#/components/schemas/BrokerAccountActivity"
           },
           "afftrack" : {
             "type" : "string"

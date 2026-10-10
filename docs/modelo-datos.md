@@ -2,7 +2,7 @@
 
 | Campo | Valor |
 |---|---|
-| Versión | 0.114.0 |
+| Versión | 0.115.0 |
 | Estado | **Borrador** |
 | Responsable | Bonilla Diaz William Steven |
 | Fecha de creación | 21-08-2026 |
@@ -394,8 +394,12 @@ erDiagram
         varchar kind "20 · VENDEDOR | CONSUMIDOR · sin default · RN-SP-068"
         varchar afftrack "80 · NULL · solo VENDEDOR · UK (broker, lower) · RN-SP-071"
         uuid referrer_account_id FK "NULL · la VENDEDOR de origen, mismo broker · RN-SP-070"
+        timestamptz first_deposit_at "NULL · cuando aviso el broker del primer deposito · RN-SP-073"
+        integer operations_count "0 · operaciones avisadas · RN-SP-074"
+        timestamptz first_operation_at "NULL · RN-SP-074"
+        timestamptz last_operation_at "NULL · RN-SP-074"
         timestamptz created_at "now"
-        timestamptz updated_at "now · lo movera el webhook RF-SP-054"
+        timestamptz updated_at "now"
     }
 
     broker_notifications {
@@ -408,6 +412,7 @@ erDiagram
         varchar content_type "200 · NULL"
         varchar ip_address "45 · NULL"
         timestamptz received_at "now · la fila no cambia nunca"
+        varchar event_id "100 · NULL · el id del aviso, sin unico · RN-SP-073"
     }
 ```
 
@@ -421,7 +426,7 @@ erDiagram
 - **`user_brokers.kind` separa las cuentas de vendedor de las de consumidor** (`RN-SP-068`, 09-10-2026). Lo pone el sistema según el tipo de rol del titular **al declararla** y no cambia después: es una **foto** del tipo y no una derivación viva de `user_roles`, de modo que un cliente que asciende a vendedor conserva sus cuentas de consumidor —y su FTD—. Va **sin `DEFAULT`**, para que ninguna escritura lo olvide en silencio, y con un segundo `CHECK` que ata dos columnas: **`kind = 'CONSUMIDOR' OR status = 'REGISTER'`** — la cuenta de un vendedor no tiene primer depósito.
 - **`user_brokers` se apunta a sí misma** (`RN-SP-070`, 09-10-2026): `referrer_account_id` es la cuenta `VENDEDOR` que originó una `CONSUMIDOR`. La clave foránea es **compuesta con `broker_id`** contra `uq_user_brokers_id_broker`, y así el motor impide un origen de otro broker sin un disparador. Y **`user_id` deja de ser obligatorio** (`RN-SP-072`): la cuenta que llega del broker antes que su titular.
 - **`user_brokers.status` no se deriva de `users.status` ni al revés.** Aquel dice si la cuenta del sistema opera (`FTD_PENDIENTE` autentica y no opera, `RN-SP-044`) y este dice qué pasó en el broker. Una persona con dos cuentas puede tener una depositada y otra no, de modo que **no hay función que lleve de un conjunto al otro** sin decidir antes qué significa ese caso — y esa decisión es de `RF-SP-054`, no de aquí.
-- **`broker_notifications` guarda lo que avisa un broker sin interpretarlo** (`RN-SP-066`, `RF-SP-078`, 08-10-2026). Es la primera tabla del sistema que **escribe alguien de fuera y no lee nadie de dentro**: la consulta quien la mira desde la base, para decidir qué hará `RF-SP-054`. Por eso no tiene `updated_at` —la fila no cambia— ni columnas de proceso —llegarán con quien procese— ni único —no se sabe todavía qué identifica a un aviso—. Ni el `token` de la dirección ni las cabeceras de credenciales se guardan.
+- **`broker_notifications` guarda lo que avisa un broker sin interpretarlo** (`RN-SP-066`, `RF-SP-078`, 08-10-2026). Es la primera tabla del sistema que **escribe alguien de fuera y no lee nadie de dentro**: la consulta quien la mira desde la base, para decidir qué hará `RF-SP-054`. Por eso no tiene `updated_at` —la fila no cambia— ni columnas de proceso —llegarán con quien procese— ni único —no se sabe todavía qué identifica a un aviso—. Ni el `token` de la dirección ni las cabeceras de credenciales se guardan. **Desde el 10-10-2026 se interpreta** (`RN-SP-073`, `RN-SP-074`): gana `event_id`, el identificador del aviso, **sin único** —la reentrega se guarda; lo que no se repite es su efecto—, y `user_brokers` gana lo que el broker avisa: `first_deposit_at` y el recuento de operaciones.
 - **`brokers.advertiser` traduce el nombre que el broker se da en sus avisos** (`RN-SP-069`, 09-10-2026): `iq_option` → `IQOPTION`. Único sin distinguir mayúsculas, y nulo mientras no se haya visto un aviso de ese broker. Junto a él, **`brokers.url`**, el enlace de registro que publica el catálogo.
 - **`brokers` guarda solo el nombre**, por decisión del 08-09-2026, y de ahí sale que el **nombre sea la clave de negocio**: único funcional, como en `countries` y `document_types`. Renombrar un broker es, por tanto, una migración.
 - **`countries` es el único catálogo del que cuelga una persona**, desde el 07-09-2026. `memberships` tiene su tabla puente y `currencies` no toca a nadie; el país es **una columna de `users`**, y el porqué —no tiene vigencia— está razonado en §1. Lo que este cuadro añade es la consecuencia sobre el catálogo: **`is_active` deja de ser inofensivo**. Desactivar un país lo retira de los selectores del alta y **no desasigna a nadie**, de modo que a partir de ahí pueden convivir usuarios en un país que ya no se ofrece. Es deliberado y es lo que `RF-SP-022` prometía desde el principio — lo que cambia es que ahora hay a quién afectar.
@@ -1255,3 +1260,4 @@ Los documentos que citan una migración vieja por su número —specs, controles
 | 0.112.0 | 09-10-2026 | **Nacen las cuatro tablas de las clases en vivo, diseñadas** ([`requirements/ac.md`](requirements/ac.md) v0.23.1 §8.10 a §8.13): `live_sessions` —inicio y fin, el identificador de la reunión de Zoom y nada más de Zoom, cancelación con motivo—, sus dos listas de acceso y `live_session_registrations` con el enlace personal de cada uno. §5.1 corrige la fila de `AC`: `lesson_progress` ya está escrita (`V92`). Las escribirá `V94`. | Responsable técnico |
 | 0.113.0 | 09-10-2026 | **`movement_details.team_id`: la oficina donde se vendió cada línea; y los equipos pasan a ser de directores** ([`requirements/mv.md`](requirements/mv.md) v0.97.0 §4.13 y §7.3, `RN-MV-078`; [`requirements/sp.md`](requirements/sp.md) v1.119.0, `RN-SP-051` y `RN-SP-052` enmendadas; `V97`), a petición del responsable del proyecto. La columna es **la copia de un recorrido**: el equipo del director de la cadena del vendedor, vigente en el instante de la venta, escrito con `seller_id` y cambiado solo cuando cambia él —o una vez de nulo a valor, por `RF-MV-058`—. Sin ella, la oficina se calcularía con la estructura de hoy y un traslado movería el pasado. Nulable, clave foránea a `teams` con `ON DELETE SET NULL` e índice parcial `(team_id, movement_id)`. **`team_members` gana `uq_team_members_equipo_vigente`** (un director vigente por equipo) y `V97` cierra las pertenencias de managers y siembra los cinco equipos. **Es la primera clave de `MV` hacia los equipos**. Ninguna tabla nueva. | Responsable del proyecto |
 | 0.114.0 | 09-10-2026 | **`user_brokers`: `user_id` nulo, `afftrack` y `referrer_account_id`** (`RN-SP-070` a `RN-SP-072`, `V96`), con `ck_user_brokers_titular_solo_consumidor`, `ck_user_brokers_afftrack_solo_vendedor`, `ck_user_brokers_origen_solo_consumidor`, `uq_user_brokers_afftrack`, `uq_user_brokers_vendedor_por_broker`, `uq_user_brokers_id_broker` y la clave foránea compuesta del origen. | Responsable técnico |
+| 0.115.0 | 10-10-2026 | **El depósito y la operación del broker** (`RN-SP-073`, `RN-SP-074`, `V98`): `user_brokers` gana `first_deposit_at`, `operations_count`, `first_operation_at` y `last_operation_at`, con `ck_user_brokers_deposito_con_estado` y `ck_user_brokers_operaciones`; `broker_notifications` gana `event_id` con `ix_broker_notifications_evento`, sin único. | Responsable técnico |

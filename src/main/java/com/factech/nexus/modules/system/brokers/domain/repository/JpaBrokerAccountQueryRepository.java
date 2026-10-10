@@ -1,5 +1,6 @@
 package com.factech.nexus.modules.system.brokers.domain.repository;
 
+import com.factech.nexus.modules.system.brokers.application.BrokerAccountActivity;
 import com.factech.nexus.modules.system.brokers.application.BrokerAccountItem;
 import com.factech.nexus.modules.system.brokers.application.BrokerAccountItem.BrokerRef;
 import com.factech.nexus.modules.system.brokers.application.BrokerAccountReferrer;
@@ -53,7 +54,11 @@ public class JpaBrokerAccountQueryRepository implements BrokerAccountQueryReposi
                        b.id AS broker_id, b.name AS broker_name,
                        ub.afftrack AS afftrack, r.id AS referrer_id,
                        r.afftrack AS referrer_afftrack, r.user_id AS referrer_user_id,
-                       ru.username AS referrer_username
+                       ru.username AS referrer_username,
+                       ub.first_deposit_at AS first_deposit_at,
+                       ub.operations_count AS operations_count,
+                       ub.first_operation_at AS first_operation_at,
+                       ub.last_operation_at AS last_operation_at
                   FROM user_brokers ub
                   JOIN brokers b ON b.id = ub.broker_id
                   LEFT JOIN user_brokers r ON r.id = ub.referrer_account_id
@@ -77,6 +82,7 @@ public class JpaBrokerAccountQueryRepository implements BrokerAccountQueryReposi
               tipo(fila),
               (String) fila.get("afftrack"),
               origen(fila),
+              actividad(fila),
               momento(fila.get("created_at"))));
     }
     return resultado;
@@ -437,7 +443,10 @@ public class JpaBrokerAccountQueryRepository implements BrokerAccountQueryReposi
 
   private static final String COLUMNAS_ORIGEN_TEXTO =
       " ub.afftrack AS afftrack, r.id AS referrer_id, r.afftrack AS referrer_afftrack,"
-          + " r.user_id AS referrer_user_id, ru.username AS referrer_username ";
+          + " r.user_id AS referrer_user_id, ru.username AS referrer_username,"
+          + " ub.first_deposit_at AS first_deposit_at, ub.operations_count AS operations_count,"
+          + " ub.first_operation_at AS first_operation_at,"
+          + " ub.last_operation_at AS last_operation_at ";
 
   private static final String UNION_ORIGEN_TEXTO =
       " LEFT JOIN user_brokers r ON r.id = ub.referrer_account_id"
@@ -593,9 +602,19 @@ public class JpaBrokerAccountQueryRepository implements BrokerAccountQueryReposi
               tipo(fila),
               (String) fila.get("afftrack"),
               origen(fila),
+              actividad(fila),
               momento(fila.get("created_at"))));
     }
     return resultado;
+  }
+
+  /** Lo que el broker avisó de la cuenta (`RN-SP-073`, `RN-SP-074`). */
+  private static BrokerAccountActivity actividad(Tuple fila) {
+    return new BrokerAccountActivity(
+        momento(fila.get("first_deposit_at")),
+        ((Number) fila.get("operations_count")).intValue(),
+        momento(fila.get("first_operation_at")),
+        momento(fila.get("last_operation_at")));
   }
 
   /** La cuenta de origen (`RN-SP-070`), o nula. */

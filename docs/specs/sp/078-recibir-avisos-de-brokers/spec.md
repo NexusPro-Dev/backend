@@ -4,7 +4,7 @@
 |---|---|
 | Requerimiento | `RF-SP-078` |
 | Módulo | `SP` — Sistema Principal |
-| Versión | 0.4.0 |
+| Versión | 0.5.0 |
 | Estado | **Aprobada** |
 | Autor | Responsable técnico |
 | Aprobada por | Responsable del proyecto |
@@ -80,6 +80,8 @@ El 08-10-2026 el responsable del proyecto fijó con qué brokers se empieza —*
 | `RN-SP-039` | El catálogo de brokers no se administra por la API: un broker que no está en él, o no está activo, no puede avisar |
 | `RN-SP-069` | Por la dirección común, el broker lo dice el `advertiser` del aviso, con un solo secreto para todos |
 | `RN-SP-070`, `RN-SP-072` | **El aviso de registro crea la cuenta `CONSUMIDOR` sin titular**, con origen en la `VENDEDOR` de su `afftrack` |
+| `RN-SP-073` | **El aviso de depósito es el primer depósito**: la cuenta `CONSUMIDOR` pasa a `FIRST_DEPOSIT` y su titular, si espera en `FTD_PENDIENTE`, pasa a `ACTIVO` con lo que compró; los siguientes no cambian nada; de un número sin cuenta o de una `VENDEDOR`, solo se guarda |
+| `RN-SP-074` | **El aviso de operación se cuenta** en la cuenta de ese número: cuántas, la primera y la última |
 
 **Una regla nueva**, `RN-SP-066`.
 
@@ -106,7 +108,7 @@ Qué broker avisó, cuándo, desde qué dirección de red, con qué método, **l
 | Tipo | Condición |
 |---|---|
 | Precondición | El broker existe en el catálogo y está activo; su secreto está configurado en el entorno; el aviso trae ese secreto |
-| Postcondición | El aviso está guardado, una fila por llegada. **Nada más cambia en el sistema**: ni cuentas, ni personas, ni ventas |
+| Postcondición | El aviso está guardado, una fila por llegada. **Si es de un evento configurado** —registro, depósito u operación— y nombra un número, se aplica **una vez** aunque se reenvíe (`RN-SP-072` a `RN-SP-074`); **si no, nada más cambia** |
 
 ---
 
@@ -161,7 +163,7 @@ Qué broker avisó, cuándo, desde qué dirección de red, con qué método, **l
 | `CA-SP-904` | Un cuerpo de **más de 64 KiB** se rechaza y **no se guarda** |
 | `CA-SP-905` | **El mismo aviso dos veces** se guarda **dos veces** |
 | `CA-SP-906` | **El secreto no queda escrito en ninguna parte**: ni entre los datos guardados del aviso ni en el registro de peticiones, que guarda la dirección con el valor oculto; tampoco se guardan las cabeceras de credenciales |
-| `CA-SP-907` | **Recibir no cambia nada más**: con un aviso que nombra una cuenta declarada, la cuenta sigue en `REGISTER` sin nombre de usuario, y su titular sigue en `FTD_PENDIENTE` |
+| `CA-SP-907` | **Recibir no cambia nada más**: con un aviso **de un evento no configurado** que nombra una cuenta declarada, la cuenta sigue en `REGISTER` sin nombre de usuario, y su titular sigue en `FTD_PENDIENTE` |
 | `CA-SP-946` | Por la **dirección común**, un aviso con el secreto común y `advertiser=iq_option` se guarda **a nombre de `IQOPTION`**, con el `advertiser` entre sus datos |
 | `CA-SP-947` | `advertiser` se reconoce **sin distinguir mayúsculas**, y también **en el cuerpo**: de formulario o como campo de primer nivel de un JSON |
 | `CA-SP-948` | Sin `advertiser`, con dos, con uno que no está en el catálogo o con el de un broker apagado: no encontrado (`EX-003`) y **no se guarda nada** |
@@ -174,6 +176,14 @@ Qué broker avisó, cuándo, desde qué dirección de red, con qué método, **l
 | `CA-SP-966` | **El mismo registro dos veces no duplica la cuenta**; si la cuenta ya existía —declarada en la plataforma— sin origen, el aviso **se lo pone**; si ya tenía, no lo cambia, y su titular tampoco |
 | `CA-SP-967` | **Cualquier otro evento, o ninguno configurado**, solo se guarda: no crea ni cambia cuentas |
 | `CA-SP-968` | Un aviso de registro **sin `trader_id`** solo se guarda |
+| `CA-SP-995` | Un **aviso de depósito** de una cuenta `CONSUMIDOR` cuyo titular espera en `FTD_PENDIENTE` pasa la cuenta a `FIRST_DEPOSIT` y al titular a `ACTIVO`, **con lo que compró al registrarse entregado**, y lo deja auditado |
+| `CA-SP-996` | El depósito de una cuenta **sin titular** la pasa a `FIRST_DEPOSIT`, con su momento, y no toca a nadie |
+| `CA-SP-997` | **Un segundo depósito no cambia nada**: ni el estado, ni el momento del primero, ni deja otra auditoría; y **a un titular que no está en `FTD_PENDIENTE`** —bloqueado, por ejemplo— el depósito no le cambia el estado ni le entrega nada |
+| `CA-SP-998` | El depósito de una **`VENDEDOR`** o de un **número sin cuenta** solo se guarda: no la mueve ni crea ninguna |
+| `CA-SP-999` | **Cada aviso de operación suma una** a la cuenta de ese número, sea del tipo que sea, con la primera y la última; operar **no** la mueve a `FIRST_DEPOSIT`; la de un número sin cuenta solo se guarda |
+| `CA-SP-1000` | **Una reentrega** —mismo `event_id`, mismo broker— **se guarda y no se aplica dos veces**; el mismo `event_id` en otro broker es otro aviso; sin `event_id`, cada aviso cuenta |
+| `CA-SP-1001` | **Asociar una cuenta que ya tiene el depósito activa a su titular**: al registrarse por enlace con ese número —sale `ACTIVO`— y al asignarla administración |
+| `CA-SP-1002` | Las cuentas devuelven **lo que avisó el broker**: el momento del primer depósito y las operaciones, con la primera y la última |
 | `CA-SP-908` | **El broker se nombra en la dirección por su nombre, sin distinguir mayúsculas**: `iqoption` e `IQOPTION` son el mismo broker, y su secreto vale para los dos |
 
 ---
@@ -204,3 +214,4 @@ Qué broker avisó, cuándo, desde qué dirección de red, con qué método, **l
 | 0.2.0 | 08-10-2026 | **El broker se nombra por su nombre y no por su identificador**, a petición del responsable del proyecto («para no enviar el id, enviar el nombre»): una dirección legible en el panel. Nace `CA-SP-908`. Si un broker se renombra, su dirección cambia. | Responsable del proyecto |
 | 0.3.0 | 09-10-2026 | **Una sola dirección, sin el nombre del broker** (`RN-SP-069`), a petición del responsable del proyecto («para no enviar el nombre del broker ya que este viene en la notificación»): secreto común y broker según el `advertiser`. La ruta por nombre se mantiene, obsoleta. Criterios `CA-SP-946` a `CA-SP-952`. | Responsable del proyecto |
 | 0.4.0 | 09-10-2026 | **El aviso de registro crea la cuenta sin titular** (`RN-SP-070`, `RN-SP-072`): la primera interpretación de un aviso, y la única por ahora. Carga la parte de `RF-SP-054` que el responsable del proyecto pidió —«guardar ese registro pero sin usuario»—; el resto de `RF-SP-054` sigue pendiente. Criterios `CA-SP-964` a `CA-SP-968`. | Responsable del proyecto |
+| 0.5.0 | 10-10-2026 | **El depósito y la operación** (`RN-SP-073`, `RN-SP-074`), por decisión del responsable del proyecto: el depósito es el FTD entero —cuenta a `FIRST_DEPOSIT`, titular de `FTD_PENDIENTE` a `ACTIVO` con lo que compró—; la operación se cuenta; de un número sin cuenta, solo se guarda; una reentrega con el mismo identificador no se aplica dos veces. Responde la idempotencia que `FA-001` dejó a `RF-SP-054`. Criterios `CA-SP-995` a `CA-SP-1002`; `CA-SP-907` se acota a los eventos no configurados. | Responsable del proyecto |

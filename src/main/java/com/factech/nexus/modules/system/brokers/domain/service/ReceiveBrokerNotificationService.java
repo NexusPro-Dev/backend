@@ -1,9 +1,12 @@
 package com.factech.nexus.modules.system.brokers.domain.service;
 
 import com.factech.nexus.modules.system.brokers.application.BrokerNotice;
+import com.factech.nexus.modules.system.brokers.domain.models.BrokerAccountKind;
 import com.factech.nexus.modules.system.brokers.domain.repository.BrokerAccountWriter;
+import com.factech.nexus.modules.system.brokers.domain.repository.BrokerAccountWriter.LockedAccount;
 import com.factech.nexus.modules.system.brokers.domain.repository.BrokerNotificationRepository;
 import com.factech.nexus.modules.system.brokers.infrastructure.BrokerNotificationSettings;
+import com.factech.nexus.modules.system.users.domain.service.ConfirmFirstDepositService;
 import com.factech.nexus.shared.audit.AuditEnums.ChangeAction;
 import com.factech.nexus.shared.audit.AuditEvents.ChangeEvent;
 import com.factech.nexus.shared.audit.AuditWriter;
@@ -32,12 +35,12 @@ import org.springframework.transaction.annotation.Transactional;
 
 /**
  * <b>Recibir</b> un aviso de un broker y guardarlo tal como llegó (`RF-SP-078` · `T-04`,
- * `RN-SP-066`).
+ * `RN-SP-066`), y después <b>interpretarlo</b> si es de un evento configurado (`RF-SP-054`).
  *
- * <p><b>Nada se interpreta</b>: no se busca la cuenta ni la persona, ni se mueve ningún estado. Eso
- * es `RF-SP-054`, que se escribirá con estos avisos delante. Aquí solo se comprueba que el aviso es
- * del broker —en el orden de la spec §8, y <b>antes de guardar nada</b>— y se guarda entero, sin el
- * secreto.
+ * <p>Primero se comprueba que el aviso es del broker —en el orden de la spec §8, y <b>antes de
+ * guardar nada</b>— y se guarda entero, sin el secreto. Luego, en la misma transacción, el registro
+ * crea la cuenta sin titular (`RN-SP-072`), el depósito confirma el FTD (`RN-SP-073`) y la
+ * operación se cuenta (`RN-SP-074`). Cualquier otro aviso solo se guarda.
  */
 @Service
 public class ReceiveBrokerNotificationService {
@@ -61,6 +64,7 @@ public class ReceiveBrokerNotificationService {
   private final ObjectMapper json;
   private final BrokerAccountWriter cuentas;
   private final AuditWriter auditoria;
+  private final ConfirmFirstDepositService primerDeposito;
 
   public ReceiveBrokerNotificationService(
       BrokerNotificationRepository avisos,
@@ -68,13 +72,15 @@ public class ReceiveBrokerNotificationService {
       UuidV7Generator ids,
       ObjectMapper json,
       BrokerAccountWriter cuentas,
-      AuditWriter auditoria) {
+      AuditWriter auditoria,
+      ConfirmFirstDepositService primerDeposito) {
     this.avisos = avisos;
     this.secretos = secretos;
     this.ids = ids;
     this.json = json;
     this.cuentas = cuentas;
     this.auditoria = auditoria;
+    this.primerDeposito = primerDeposito;
   }
 
   /**
@@ -191,35 +197,107 @@ public class ReceiveBrokerNotificationService {
   }
 
   /**
-   * El aviso de registro (`RN-SP-070`, `RN-SP-072`): crea la cuenta `CONSUMIDOR` sin titular, con
-   * origen en la `VENDEDOR` de su `afftrack`; si el número ya existía sin origen, se lo pone.
-   * <b>Nunca falla el aviso</b>: lo que no se entiende se queda solo guardado.
+   * Lo que el aviso dice, según su evento (`RF-SP-054`): registro, depósito u operación. <b>Ninguno
+   * falla el aviso</b>: lo que no se entiende se queda solo guardado. Solo un defecto de integridad
+   * —una venta del alta que no es lo que debe— lo revierte entero.
    */
   private void interpretar(
-      UUID brokerId, Map<String, List<String>> consulta, byte[] cuerpo, String tipo) {
+      UUID avisoId,
+      UUID brokerId,
+      String eventId,
+      Map<String, List<String>> consulta,
+      byte[] cuerpo,
+      String tipo) {
     BrokerNotificationSettings.Fields nombres = secretos.fields();
-    Optional<String> registro = secretos.registration();
-    if (registro.isEmpty()
-        || !campo(nombres.event(), consulta, cuerpo, tipo)
-            .map(evento -> evento.equalsIgnoreCase(registro.get()))
-            .orElse(false)) {
+    Optional<String> evento = campo(nombres.event(), consulta, cuerpo, tipo);
+    if (evento.isEmpty()) {
       return;
     }
-    Optional<String> numero = campo(nombres.account(), consulta, cuerpo, tipo);
-    if (numero.isEmpty() || numero.get().length() > 80) {
+    Optional<String> numero =
+        campo(nombres.account(), consulta, cuerpo, tipo).filter(n -> n.length() <= 80);
+    if (numero.isEmpty()) {
       return;
     }
+    if (es(evento.get(), secretos.registration())) {
+      registrar(brokerId, numero.get(), consulta, cuerpo, tipo);
+    } else if (es(evento.get(), secretos.deposit())) {
+      depositar(avisoId, brokerId, eventId, numero.get());
+    } else if (es(evento.get(), secretos.operation())) {
+      operar(avisoId, brokerId, eventId, numero.get());
+    }
+  }
+
+  private static boolean es(String evento, Optional<String> configurado) {
+    return configurado.map(evento::equalsIgnoreCase).orElse(false);
+  }
+
+  /**
+   * El aviso de depósito (`RN-SP-073`): la primera vez, la `CONSUMIDOR` pasa a `FIRST_DEPOSIT`; y
+   * si tiene titular en `FTD_PENDIENTE`, este pasa a `ACTIVO` con lo que compró. De un número sin
+   * cuenta, o de una `VENDEDOR`, el aviso solo se guarda. <b>Una reentrega no se aplica</b>, aunque
+   * aquí sería inocua: el orden es el mismo que en la operación, que no lo es.
+   */
+  private void depositar(UUID avisoId, UUID brokerId, String eventId, String numero) {
+    Optional<LockedAccount> cuenta = cuentas.lockByNumber(brokerId, numero);
+    if (cuenta.isEmpty()
+        || cuenta.get().kind() != BrokerAccountKind.CONSUMIDOR
+        || reentrega(avisoId, brokerId, eventId)) {
+      return;
+    }
+    if (cuentas.markFirstDeposit(cuenta.get().id())) {
+      Map<String, Object> cambios = new LinkedHashMap<>();
+      cambios.put("status", Map.of("before", "REGISTER", "after", "FIRST_DEPOSIT"));
+      auditoria.recordChange(
+          new ChangeEvent("SP", "user_brokers", cuenta.get().id(), ChangeAction.UPDATE, cambios));
+    }
+    if (cuenta.get().userId() != null) {
+      primerDeposito.confirm(cuenta.get().userId());
+    }
+  }
+
+  /**
+   * El aviso de operación (`RN-SP-074`): una más en la cuenta de ese número, sea del tipo que sea.
+   * <b>No se audita</b>: el aviso guardado es la constancia, y una fila de auditoría por operación
+   * enterraría las demás.
+   */
+  private void operar(UUID avisoId, UUID brokerId, String eventId, String numero) {
+    Optional<LockedAccount> cuenta = cuentas.lockByNumber(brokerId, numero);
+    if (cuenta.isEmpty() || reentrega(avisoId, brokerId, eventId)) {
+      return;
+    }
+    cuentas.countOperation(cuenta.get().id());
+  }
+
+  /**
+   * Si otro aviso de ese broker trae el mismo identificador. <b>Se mira con la cuenta ya
+   * bloqueada</b>: dos reentregas simultáneas esperan una a la otra, y la segunda ve la primera.
+   */
+  private boolean reentrega(UUID avisoId, UUID brokerId, String eventId) {
+    return eventId != null && avisos.otherWithEventId(brokerId, eventId, avisoId);
+  }
+
+  /**
+   * El aviso de registro (`RN-SP-070`, `RN-SP-072`): crea la cuenta `CONSUMIDOR` sin titular, con
+   * origen en la `VENDEDOR` de su `afftrack`; si el número ya existía sin origen, se lo pone.
+   */
+  private void registrar(
+      UUID brokerId,
+      String numero,
+      Map<String, List<String>> consulta,
+      byte[] cuerpo,
+      String tipo) {
+    BrokerNotificationSettings.Fields nombres = secretos.fields();
     UUID origen =
         campo(nombres.afftrack(), consulta, cuerpo, tipo)
             .flatMap(afftrack -> cuentas.vendorAccountByAfftrack(brokerId, afftrack))
             .orElse(null);
 
-    Optional<UUID> creada = cuentas.insertFromBroker(ids.next(), brokerId, numero.get(), origen);
+    Optional<UUID> creada = cuentas.insertFromBroker(ids.next(), brokerId, numero, origen);
     if (creada.isPresent()) {
       Map<String, Object> despues = new LinkedHashMap<>();
       despues.put("user_id", null);
       despues.put("broker_id", brokerId.toString());
-      despues.put("external_id", numero.get());
+      despues.put("external_id", numero);
       despues.put("status", "REGISTER");
       despues.put("kind", "CONSUMIDOR");
       despues.put("referrer_account_id", origen == null ? null : origen.toString());
@@ -231,7 +309,7 @@ public class ReceiveBrokerNotificationService {
     if (origen != null) {
       UUID completada = origen;
       cuentas
-          .fillReferrer(brokerId, numero.get(), origen)
+          .fillReferrer(brokerId, numero, origen)
           .ifPresent(
               id -> {
                 Map<String, Object> cambio = new LinkedHashMap<>();
@@ -247,16 +325,22 @@ public class ReceiveBrokerNotificationService {
 
   private void guardar(
       UUID brokerId, BrokerNotice aviso, Map<String, List<String>> consulta, byte[] cuerpo) {
+    UUID id = ids.next();
+    String eventId =
+        campo(secretos.fields().eventId(), consulta, cuerpo, aviso.contentType())
+            .filter(valor -> valor.length() <= 100)
+            .orElse(null);
     avisos.insert(
-        ids.next(),
+        id,
         brokerId,
         aviso.method(),
         aJson(consulta),
         aJson(cabeceras(aviso.headers())),
         cuerpo.length == 0 ? null : new String(cuerpo, StandardCharsets.UTF_8),
         recortar(aviso.contentType(), 200),
-        recortar(aviso.ipAddress(), 45));
-    interpretar(brokerId, consulta, cuerpo, aviso.contentType());
+        recortar(aviso.ipAddress(), 45),
+        eventId);
+    interpretar(id, brokerId, eventId, consulta, cuerpo, aviso.contentType());
   }
 
   /**
