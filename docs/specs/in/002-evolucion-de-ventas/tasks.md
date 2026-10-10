@@ -41,8 +41,8 @@ Enmienda de hecho (Art. I.7), `spec.md` 0.3.0 y `plan.md` 0.3.0 **antes** del c�
 
 | ID | Tarea | Depende de | Verificación | Estado |
 |---|---|---|---|---|
-| `T-08` | `SalesFigures.confirmedByBucket` con `LineFilter` (la de siempre delega con `none()`); `GetSalesSeriesService` lo pasa con `teamId`; `SalesIndicatorsController` recibe y documenta `teamId` en `/sales/series` | `RF-IN-001` · `T-17`, `T-18` | Sin `teamId`, la serie no cambia | **Pendiente** |
-| `T-09` | `SalesSeriesIT`: `CA-IN-101`, la suma de los tramos contra el resumen con la misma oficina; contrato regenerado y prosa releída; `api/index.md` y matriz | `T-08`, `RF-IN-001` · `T-19` | Solo altas | **Pendiente** |
+| `T-08` | `SalesFigures.confirmedByBucket` con `LineFilter` (la de siempre delega con `none()`); `GetSalesSeriesService` lo pasa con `teamId`; `SalesIndicatorsController` recibe y documenta `teamId` en `/sales/series` | `RF-IN-001` · `T-17`, `T-18` | Sin `teamId`, la serie no cambia | **Hecha** — 10-10-2026 |
+| `T-09` | `SalesSeriesIT`: `CA-IN-101`, la suma de los tramos contra el resumen con la misma oficina; contrato regenerado y prosa releída; `api/index.md` y matriz | `T-08`, `RF-IN-001` · `T-19` | Solo altas | **Hecha** — 10-10-2026 |
 
 ---
 

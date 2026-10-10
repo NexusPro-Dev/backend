@@ -40,7 +40,8 @@ public record SaleLinesRequest(
     String typeStatus,
     String code,
     OffsetDateTime from,
-    OffsetDateTime to) {
+    OffsetDateTime to,
+    UUID teamId) {
 
   public SaleLinesRequest {
     deliveryStatus = enBlancoEsAusente(deliveryStatus);

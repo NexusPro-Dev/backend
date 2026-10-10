@@ -205,11 +205,13 @@ public record SaleResponse(
   /**
    * @param vendedores los vendedores de las líneas, por identificador. Los resuelve el caso de uso,
    *     que es quien tiene el catálogo de personas; aquí solo se casan con cada línea
+   * @param oficinas las oficinas de las líneas, por identificador (`RN-MV-078`), con su nombre
    */
   public static SaleResponse de(
       Movement venta,
       Party sujeto,
       Map<UUID, Party> vendedores,
+      Map<UUID, LineTeam> oficinas,
       Money moneda,
       String metodoDePago,
       PaymentResponse primerPago) {
@@ -219,7 +221,9 @@ public record SaleResponse(
       // no admiten buscar la clave nula, y la línea viaja con `seller` nulo.
       lineas.add(
           SaleLineResponse.de(
-              linea, linea.getSellerId() == null ? null : vendedores.get(linea.getSellerId())));
+              linea,
+              linea.getSellerId() == null ? null : vendedores.get(linea.getSellerId()),
+              linea.getTeamId() == null ? null : oficinas.get(linea.getTeamId())));
     }
     return new SaleResponse(
         venta.getId(),

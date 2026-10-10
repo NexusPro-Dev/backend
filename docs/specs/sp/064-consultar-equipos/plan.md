@@ -12,7 +12,7 @@
 
 !!! warning "Enmendado el 09-10-2026 — un director por equipo"
 
-    `spec.md` v0.2.0. **El código no cambia**: la subconsulta de `memberCount` ya cuenta las pertenencias vigentes, y `uq_team_members_equipo_vigente` (`V97`) es quien garantiza que el resultado sea cero o uno. **Cambia el fixture** de `TeamListIT`, que sembraba dos pertenencias vigentes en el mismo equipo y ahora chocaría con esa unicidad: un director vigente por equipo, y el historial de varios con filas **cerradas** para que `CA-SP-745` siga probando que solo cuentan los vigentes. `CA-SP-992` en la misma suite. La prosa OpenAPI de `memberCount` dice «cero o uno: su director».
+    `spec.md` v0.2.0. **El código no cambia**: la subconsulta de `memberCount` ya cuenta las pertenencias vigentes, y `uq_team_members_equipo_vigente` (`V99`) es quien garantiza que el resultado sea cero o uno. **Cambia el fixture** de `TeamListIT`, que sembraba dos pertenencias vigentes en el mismo equipo y ahora chocaría con esa unicidad: un director vigente por equipo, y el historial de varios con filas **cerradas** para que `CA-SP-745` siga probando que solo cuentan los vigentes. `CA-SP-992` en la misma suite. La prosa OpenAPI de `memberCount` dice «cero o uno: su director».
 
 ---
 

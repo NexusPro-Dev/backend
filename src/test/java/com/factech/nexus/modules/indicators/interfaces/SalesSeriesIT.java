@@ -47,6 +47,7 @@ class SalesSeriesIT extends IntegrationTestBase {
   private static final String TARJETA = "01a061ba-3400-7002-9c4f-5e7ad7000021";
   private static final String USD = "01a03336-6d00-7001-9c4f-5e7ad3000001";
   private static final String COP = "01a03336-6d00-7002-9c4f-5e7ad3000002";
+  private static final String ADMIN = "01a02a33-4c00-7002-9c4f-5e7ad1000002";
   private static final String DIRECTOR = "01a02a33-4c00-7006-9c4f-5e7ad1000004";
   private static final String AGENTE = "01a02a33-4c00-7007-9c4f-5e7ad1000005";
 
@@ -118,61 +119,59 @@ class SalesSeriesIT extends IntegrationTestBase {
   @DisplayName("CA-IN-015 — la suma de los tramos es lo confirmado del resumen, por moneda")
   void cuadraConElResumen() throws Exception {
     for (String tramo : new String[] {"DAY", "WEEK", "MONTH"}) {
-      String serie =
-          mvc.perform(
-                  get(SERIE)
-                      .param("from", "2026-09-01")
-                      .param("to", "2026-09-30")
-                      .param("granularity", tramo)
-                      .with(user(director1.toString()).authorities(() -> PERMISO)))
-              .andReturn()
-              .getResponse()
-              .getContentAsString();
-      String resumen =
-          mvc.perform(
-                  get(RESUMEN)
-                      .param("from", "2026-09-01")
-                      .param("to", "2026-09-30")
-                      .with(
-                          user(director1.toString())
-                              .authorities(() -> "indicators:read-sales-summary")))
-              .andReturn()
-              .getResponse()
-              .getContentAsString();
-
-      List<Map<String, Object>> tramos = JsonPath.read(serie, "$.buckets");
-      long ventas = 0;
-      long lineas = 0;
-      long unidades = 0;
-      Map<String, BigDecimal> porMoneda = new HashMap<>();
-      for (Map<String, Object> t : tramos) {
-        ventas += ((Number) t.get("sales")).longValue();
-        lineas += ((Number) t.get("lines")).longValue();
-        unidades += ((Number) t.get("units")).longValue();
-        List<Map<String, Object>> importes = JsonPath.read(t, "$.amounts");
-        for (Map<String, Object> i : importes) {
-          String moneda = JsonPath.read(i, "$.currency.code");
-          porMoneda.merge(moneda, new BigDecimal(i.get("amount").toString()), BigDecimal::add);
-        }
-      }
-      assertThat(ventas)
-          .as(tramo)
-          .isEqualTo(((Number) JsonPath.read(resumen, "$.confirmed.sales")).longValue());
-      assertThat(lineas)
-          .as(tramo)
-          .isEqualTo(((Number) JsonPath.read(resumen, "$.confirmed.lines")).longValue());
-      assertThat(unidades)
-          .as(tramo)
-          .isEqualTo(((Number) JsonPath.read(resumen, "$.confirmed.units")).longValue());
-      List<Map<String, Object>> delResumen = JsonPath.read(resumen, "$.confirmed.amounts");
-      assertThat(porMoneda).as(tramo).hasSize(delResumen.size());
-      for (Map<String, Object> i : delResumen) {
-        String moneda = JsonPath.read(i, "$.currency.code");
-        assertThat(porMoneda.get(moneda))
-            .as(tramo + " " + moneda)
-            .isEqualByComparingTo(new BigDecimal(i.get("amount").toString()));
-      }
+      cuadran(director1, tramo, null);
     }
+  }
+
+  @Test
+  @DisplayName(
+      "CA-IN-101 — con oficina, la suma de los tramos es lo confirmado del resumen con la misma"
+          + " oficina; un traslado no mueve lo vendido; lo sin vendedor no cuenta; fuera del"
+          + " alcance o inexistente, ceros; mal formada, 400")
+  void conOficina() throws Exception {
+    // A es la oficina de director1 y B la de director2; las líneas guardan la
+    // suya. Una venta sin vendedor, que no tiene oficina, el 12.
+    UUID funcionario = persona("ins-funcionario", ADMIN);
+    UUID a = oficina("A", director1);
+    UUID b = oficina("B", director2);
+    guardarOficina(a, director1, agente1);
+    guardarOficina(b, director2);
+    venta(null, "CONFIRMADA", USD, "2026-09-12T15:00:00Z", 30000);
+    // Después, director1 se traslada a la oficina C.
+    UUID nueva = oficina("C", null);
+    trasladar(director1, nueva);
+
+    for (String tramo : new String[] {"DAY", "WEEK", "MONTH"}) {
+      // Las 4 confirmadas de la rama de director1, en A: ni la del 12 ni la de B.
+      assertThat(cuadran(funcionario, tramo, a.toString())).as(tramo).isEqualTo(4);
+      assertThat(cuadran(director1, tramo, a.toString())).as(tramo).isEqualTo(4);
+    }
+    serieDeOficina(funcionario, a)
+        .andExpect(jsonPath("$.currencies[*].code", contains("COP", "USD")))
+        .andExpect(jsonPath("$.buckets[0].sales").value(4))
+        .andExpect(jsonPath("$.buckets[0].amounts[0].amount").value(1000.0))
+        .andExpect(jsonPath("$.buckets[0].amounts[1].amount").value(111.0));
+    serieDeOficina(funcionario, b)
+        .andExpect(jsonPath("$.currencies[*].code", contains("USD")))
+        .andExpect(jsonPath("$.buckets[0].sales").value(1))
+        .andExpect(jsonPath("$.buckets[0].amounts[0].amount").value(5000.0));
+
+    // La oficina de hoy de director1, la ajena para él, y una inexistente:
+    // todos los tramos en cero.
+    for (UUID[] caso :
+        new UUID[][] {{funcionario, nueva}, {director1, b}, {funcionario, UUID.randomUUID()}}) {
+      serieDeOficina(caso[0], caso[1])
+          .andExpect(status().isOk())
+          .andExpect(jsonPath("$.buckets.length()").value(1))
+          .andExpect(jsonPath("$.currencies").isEmpty())
+          .andExpect(jsonPath("$.buckets[0].sales").value(0));
+    }
+    mvc.perform(
+            get(SERIE)
+                .param("teamId", "no-es-uuid")
+                .with(user(funcionario.toString()).authorities(() -> PERMISO)))
+        .andExpect(status().isBadRequest())
+        .andExpect(jsonPath("$.errors[0].code").value("VAL-001"));
   }
 
   @Test
@@ -307,9 +306,116 @@ class SalesSeriesIT extends IntegrationTestBase {
     return mvc.perform(tramo == null ? peticion : peticion.param("granularity", tramo));
   }
 
+  /** La serie de septiembre en un solo tramo de mes, con la oficina dada. */
+  private ResultActions serieDeOficina(UUID actor, UUID oficina) throws Exception {
+    return mvc.perform(
+        get(SERIE)
+            .param("from", "2026-09-01")
+            .param("to", "2026-09-30")
+            .param("granularity", "MONTH")
+            .param("teamId", oficina.toString())
+            .with(user(actor.toString()).authorities(() -> PERMISO)));
+  }
+
+  /**
+   * Comprueba que la suma de los tramos de septiembre es lo confirmado del resumen, por moneda, con
+   * la oficina dada si no es nula. Devuelve las ventas sumadas.
+   */
+  private long cuadran(UUID actor, String tramo, String oficina) throws Exception {
+    var deLaSerie =
+        get(SERIE)
+            .param("from", "2026-09-01")
+            .param("to", "2026-09-30")
+            .param("granularity", tramo)
+            .with(user(actor.toString()).authorities(() -> PERMISO));
+    var delResumen =
+        get(RESUMEN)
+            .param("from", "2026-09-01")
+            .param("to", "2026-09-30")
+            .with(user(actor.toString()).authorities(() -> "indicators:read-sales-summary"));
+    if (oficina != null) {
+      deLaSerie.param("teamId", oficina);
+      delResumen.param("teamId", oficina);
+    }
+    String serie = mvc.perform(deLaSerie).andReturn().getResponse().getContentAsString();
+    String resumen = mvc.perform(delResumen).andReturn().getResponse().getContentAsString();
+
+    List<Map<String, Object>> tramos = JsonPath.read(serie, "$.buckets");
+    long ventas = 0;
+    long lineas = 0;
+    long unidades = 0;
+    Map<String, BigDecimal> porMoneda = new HashMap<>();
+    for (Map<String, Object> t : tramos) {
+      ventas += ((Number) t.get("sales")).longValue();
+      lineas += ((Number) t.get("lines")).longValue();
+      unidades += ((Number) t.get("units")).longValue();
+      List<Map<String, Object>> importes = JsonPath.read(t, "$.amounts");
+      for (Map<String, Object> i : importes) {
+        String moneda = JsonPath.read(i, "$.currency.code");
+        porMoneda.merge(moneda, new BigDecimal(i.get("amount").toString()), BigDecimal::add);
+      }
+    }
+    assertThat(ventas)
+        .as(tramo)
+        .isEqualTo(((Number) JsonPath.read(resumen, "$.confirmed.sales")).longValue());
+    assertThat(lineas)
+        .as(tramo)
+        .isEqualTo(((Number) JsonPath.read(resumen, "$.confirmed.lines")).longValue());
+    assertThat(unidades)
+        .as(tramo)
+        .isEqualTo(((Number) JsonPath.read(resumen, "$.confirmed.units")).longValue());
+    List<Map<String, Object>> importesDelResumen = JsonPath.read(resumen, "$.confirmed.amounts");
+    assertThat(porMoneda).as(tramo).hasSize(importesDelResumen.size());
+    for (Map<String, Object> i : importesDelResumen) {
+      String moneda = JsonPath.read(i, "$.currency.code");
+      assertThat(porMoneda.get(moneda))
+          .as(tramo + " " + moneda)
+          .isEqualByComparingTo(new BigDecimal(i.get("amount").toString()));
+    }
+    return ventas;
+  }
+
+  /** Una oficina; con {@code director}, este pertenece a ella desde hace un mes. */
+  private UUID oficina(String letra, UUID director) {
+    UUID id = UUID.randomUUID();
+    jdbc.update("INSERT INTO teams (id, name) VALUES (?, ?)", id, "INS Oficina " + letra);
+    if (director != null) {
+      jdbc.update(
+          "INSERT INTO team_members (id, team_id, user_id, started_at)"
+              + " VALUES (gen_random_uuid(), ?, ?, now() - interval '30 days')",
+          id,
+          director);
+    }
+    return id;
+  }
+
+  /** Cierra ayer la pertenencia vigente de {@code persona} y la abre hoy en {@code destino}. */
+  private void trasladar(UUID persona, UUID destino) {
+    jdbc.update(
+        "UPDATE team_members SET ended_at = now() - interval '1 day'"
+            + " WHERE user_id = ? AND ended_at IS NULL",
+        persona);
+    jdbc.update(
+        "INSERT INTO team_members (id, team_id, user_id, started_at)"
+            + " VALUES (gen_random_uuid(), ?, ?, now() - interval '12 hours')",
+        destino,
+        persona);
+  }
+
+  /** La oficina que guardan todas las líneas de {@code vendedores}. */
+  private void guardarOficina(UUID oficina, UUID... vendedores) {
+    for (UUID vendedor : vendedores) {
+      jdbc.update("UPDATE movement_details SET team_id = ? WHERE seller_id = ?", oficina, vendedor);
+    }
+  }
+
   private void limpiar() {
     CommissionCleanup.limpiar(jdbc);
     jdbc.update("DELETE FROM movement_details");
+    jdbc.update(
+        "DELETE FROM team_members WHERE team_id IN (SELECT id FROM teams WHERE name LIKE"
+            + " 'INS Oficina %') OR user_id IN (SELECT id FROM users WHERE username LIKE 'ins-%')");
+    jdbc.update("DELETE FROM teams WHERE name LIKE 'INS Oficina %'");
     jdbc.update("DELETE FROM payments");
     jdbc.update("DELETE FROM movements");
     jdbc.update("DELETE FROM products WHERE code LIKE 'INS_BOT%'");

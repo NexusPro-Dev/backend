@@ -11,6 +11,7 @@ import static org.mockito.Mockito.when;
 
 import com.factech.nexus.modules.system.roles.application.AuthenticatedActor;
 import com.factech.nexus.modules.system.roles.domain.models.RoleType;
+import com.factech.nexus.modules.system.teams.application.TeamMembershipRetirement;
 import com.factech.nexus.modules.system.users.application.AssignRolesRequest;
 import com.factech.nexus.modules.system.users.domain.models.User;
 import com.factech.nexus.modules.system.users.domain.repository.AssignableCountry;
@@ -78,6 +79,8 @@ class AssignUserRolesOrderTest {
   // respuesta, despues de todo lo que esta prueba verifica.
   private final AssignableDocumentType documentos = mock(AssignableDocumentType.class);
 
+  private final TeamMembershipRetirement equipos = mock(TeamMembershipRetirement.class);
+
   private final AssignUserRolesService servicio =
       new AssignUserRolesService(
           usuarios,
@@ -88,6 +91,7 @@ class AssignUserRolesOrderTest {
           ids,
           paises,
           documentos,
+          equipos,
           Clock.fixed(Instant.parse("2026-08-27T10:00:00Z"), ZoneOffset.UTC));
 
   @Nested

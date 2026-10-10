@@ -30,7 +30,12 @@ import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.request.MockHttpServletRequestBuilder;
 
 /**
- * El listado de equipos (`RF-SP-064` · `T-07` y `T-08`): `CA-SP-740` a `CA-SP-747`.
+ * El listado de equipos (`RF-SP-064` · `T-07`, `T-08` y `T-11`): `CA-SP-740` a `CA-SP-747` y
+ * `CA-SP-992`.
+ *
+ * <p><b>Desde el 09-10-2026 un equipo tiene como mucho un director vigente</b> (`RN-SP-052`): el
+ * fixture pone uno por equipo y el resto del historial en filas cerradas, y {@code memberCount}
+ * vale cero o uno.
  *
  * <p><b>Un solo fixture hace verificables cuatro criterios a la vez</b>: cuatro equipos —dos
  * activos, uno inactivo con miembros y uno eliminado—, dos nombres que se solapan en la subcadena
@@ -84,9 +89,10 @@ class TeamListIT extends IntegrationTestBase {
     pertenenciaCerrada(jdbc, norte, segundo);
     pertenencia(jdbc, norte, tercero);
 
-    // El INACTIVO conserva a los suyos y los sigue contando (`RN-SP-053`).
+    // El INACTIVO conserva a su director y lo sigue contando (`RN-SP-053`); el
+    // otro que pasó por él es historial.
     pertenencia(jdbc, sur, primero);
-    pertenencia(jdbc, sur, segundo);
+    pertenenciaCerrada(jdbc, sur, segundo);
 
     // El eliminado solo puede tener historial: `RN-SP-054` impide eliminarlo con
     // vigentes, de modo que su recuento es cero por construcción.
@@ -129,7 +135,7 @@ class TeamListIT extends IntegrationTestBase {
     // equipo. Cuando `RF-SP-065` exista, esta comparación se hará contra su
     // respuesta, que es lo que `CA-SP-740` pide en su forma final.
     assertThat(consultas.findActiveMembers(norte)).hasSize(1);
-    assertThat(consultas.findActiveMembers(sur)).hasSize(2);
+    assertThat(consultas.findActiveMembers(sur)).hasSize(1);
     assertThat(consultas.findActiveMembers(regionNorte)).isEmpty();
   }
 
@@ -224,15 +230,30 @@ class TeamListIT extends IntegrationTestBase {
   @Test
   @DisplayName(
       "`CA-SP-745` — memberCount cuenta solo los vigentes: dos cerradas y una abierta dicen uno, y"
-          + " un equipo INACTIVO sigue contando a los suyos")
+          + " un equipo INACTIVO sigue contando a su director")
   void recuentoDeVigentes() throws Exception {
     mvc.perform(listar("?q=equipo norte")).andExpect(jsonPath("$.content[0].memberCount").value(1));
 
     mvc.perform(listar("?status=INACTIVO"))
         .andExpect(jsonPath("$.content[0].name").value("Equipo Sur"))
-        .andExpect(jsonPath("$.content[0].memberCount").value(2));
+        .andExpect(jsonPath("$.content[0].memberCount").value(1));
 
     mvc.perform(listar("?q=región")).andExpect(jsonPath("$.content[0].memberCount").value(0));
+  }
+
+  @Test
+  @DisplayName(
+      "`CA-SP-992` — memberCount vale uno con director vigente —también INACTIVO— y cero sin él"
+          + " aunque haya tenido varios; nunca más de uno")
+  void ceroOUno() throws Exception {
+    mvc.perform(listar("?includeDeleted=true"))
+        .andExpect(jsonPath("$.content[?(@.memberCount > 1)]", hasSize(0)));
+    mvc.perform(listar("?q=equipo norte")).andExpect(jsonPath("$.content[0].memberCount").value(1));
+    mvc.perform(listar("?status=INACTIVO"))
+        .andExpect(jsonPath("$.content[0].memberCount").value(1));
+    // El viejo tuvo a alguien y hoy no tiene a nadie.
+    mvc.perform(listar("?includeDeleted=true&q=viejo"))
+        .andExpect(jsonPath("$.content[0].memberCount").value(0));
   }
 
   @Test

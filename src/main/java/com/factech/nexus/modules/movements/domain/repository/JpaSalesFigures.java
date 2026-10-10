@@ -284,18 +284,23 @@ public class JpaSalesFigures implements SalesFigures {
   @Override
   @Transactional(readOnly = true)
   public List<Bucket> confirmedByBucket(
-      SalesScope scope, Interval interval, UUID currencyId, Granularity granularity, ZoneId zone) {
+      SalesScope scope,
+      Interval interval,
+      UUID currencyId,
+      Granularity granularity,
+      ZoneId zone,
+      LineFilter filter) {
     String sql =
         "SELECT CAST(date_trunc(:unidad, m.occurred_at AT TIME ZONE :zona) AS date),"
             + " m.currency_id, c.code, "
             + CIFRAS
             + DE_LAS_VENTAS
             + " AND m.status = 'CONFIRMADA'"
-            + donde(scope, interval, currencyId, LineFilter.none())
+            + donde(scope, interval, currencyId, filter)
             + " GROUP BY 1, 2, 3 ORDER BY 1, 3";
 
     Query consulta =
-        enlazar(em.createNativeQuery(sql), scope, interval, currencyId, LineFilter.none())
+        enlazar(em.createNativeQuery(sql), scope, interval, currencyId, filter)
             .setParameter("unidad", unidad(granularity))
             .setParameter("zona", zone.getId());
     @SuppressWarnings("unchecked")
@@ -345,6 +350,11 @@ public class JpaSalesFigures implements SalesFigures {
     if (filter.code() != null) {
       sql.append(" AND lower(m.code) LIKE :codigo ESCAPE '\\'");
     }
+    // La oficina GUARDADA en la línea (`RN-MV-078`): filtro y no alcance, y con
+    // `SIN_VENDEDOR` da cero por la propia sentencia, como el vendedor.
+    if (filter.teamId() != null) {
+      sql.append(" AND d.team_id = :oficina");
+    }
     return sql.toString();
   }
 
@@ -368,6 +378,9 @@ public class JpaSalesFigures implements SalesFigures {
     }
     if (filter.productId() != null) {
       consulta.setParameter("producto", filter.productId());
+    }
+    if (filter.teamId() != null) {
+      consulta.setParameter("oficina", filter.teamId());
     }
     if (filter.code() != null) {
       consulta.setParameter("codigo", "%" + escapar(filter.code().toLowerCase(Locale.ROOT)) + "%");

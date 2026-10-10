@@ -220,6 +220,53 @@ class BuyByHotlinkIT extends IntegrationTestBase {
     mvc.perform(comprar(cliente, "bh-del-enlace", "BH_BOT")).andExpect(status().isCreated());
   }
 
+  // -------------------------------------------------------------- la oficina
+
+  @Test
+  @DisplayName(
+      "CA-MV-713 — un cliente cuyo agente es de OTRA oficina compra por el enlace: la línea lleva"
+          + " la oficina del director del DUEÑO DEL ENLACE, en lo guardado y en la auditoría, y el"
+          + " cuerpo no la trae (09-10-2026)")
+  void laOficinaEsLaDelDuenoDelEnlace() throws Exception {
+    // Dos oficinas y dos directores: el principal del cliente cuelga del sur, y
+    // el dueño del enlace del norte. Si la oficina se resolviera por el agente
+    // del cliente —el defecto que `RF-MV-011` ya corrigió para el vendedor—,
+    // saldría el sur.
+    UUID directorNorte = persona("bh-director-norte");
+    UUID directorSur = persona("bh-director-sur");
+    UUID norte = equipo("BH Oficina Norte");
+    UUID sur = equipo("BH Oficina Sur");
+    pertenencia(norte, directorNorte);
+    pertenencia(sur, directorSur);
+    reportaA(delEnlace, directorNorte);
+    reportaA(principal, directorSur);
+
+    String cuerpo =
+        mvc.perform(comprar(cliente, "bh-del-enlace", "BH_BOT"))
+            .andExpect(status().isCreated())
+            .andReturn()
+            .getResponse()
+            .getContentAsString();
+    UUID venta = idDe(cuerpo);
+
+    assertThat(oficinaDeLaLinea(venta)).isEqualTo(norte);
+    assertThat(
+            jdbc.queryForObject(
+                "SELECT changes::text FROM audit_change_log"
+                    + " WHERE module = 'MV' AND action = 'CREATE' AND entity_id = ?",
+                String.class,
+                venta))
+        .contains("\"team_id\": \"" + norte + "\"")
+        .doesNotContain(sur.toString());
+
+    // Quien compra no ve la oficina, como no ve el vendedor (`RF-MV-002` §4.3):
+    // ni la clave ni el identificador en ningún otro sitio del cuerpo.
+    assertThat(cuerpo)
+        .doesNotContain("\"team\"")
+        .doesNotContain("\"seller\"")
+        .doesNotContain(norte.toString());
+  }
+
   // ------------------------------------------------------------- el escalón
 
   @Test
@@ -340,6 +387,11 @@ class BuyByHotlinkIT extends IntegrationTestBase {
         "SELECT seller_id FROM movement_details WHERE movement_id = ?::uuid", UUID.class, venta);
   }
 
+  private UUID oficinaDeLaLinea(UUID venta) {
+    return jdbc.queryForObject(
+        "SELECT team_id FROM movement_details WHERE movement_id = ?::uuid", UUID.class, venta);
+  }
+
   private String estadoDelTipo(UUID venta) {
     return jdbc.queryForObject(
         "SELECT s.code FROM movements m JOIN movement_type_statuses s ON s.id = m.type_status_id"
@@ -421,6 +473,30 @@ class BuyByHotlinkIT extends IntegrationTestBase {
         cliente,
         vendedor,
         BASE);
+  }
+
+  /** Una oficina (`RN-MV-078`), con el prefijo que `limpiar` reconoce. */
+  private UUID equipo(String nombre) {
+    UUID id = UUID.randomUUID();
+    jdbc.update("INSERT INTO teams (id, name) VALUES (?, ?)", id, nombre);
+    return id;
+  }
+
+  private void pertenencia(UUID equipo, UUID persona) {
+    jdbc.update(
+        "INSERT INTO team_members (id, team_id, user_id, started_at)"
+            + " VALUES (gen_random_uuid(), ?, ?, now() - interval '30 days')",
+        equipo,
+        persona);
+  }
+
+  /** La cadena de mando: los roles no se miran, basta la fila vigente. */
+  private void reportaA(UUID persona, UUID superior) {
+    jdbc.update(
+        "INSERT INTO user_supervisors (id, user_id, supervisor_id, started_at)"
+            + " VALUES (gen_random_uuid(), ?, ?, now() - interval '30 days')",
+        persona,
+        superior);
   }
 
   /** Un bot de alcance `AMBOS`: se ofrece por la tienda y por el enlace (`RN-PM-021`). */
@@ -522,6 +598,18 @@ class BuyByHotlinkIT extends IntegrationTestBase {
     jdbc.update(
         "DELETE FROM user_products WHERE user_id IN"
             + " (SELECT id FROM users WHERE username LIKE 'bh-%')");
+    // Las oficinas de `CA-MV-713`: las líneas ya no las nombran, y las
+    // pertenencias y la cadena van antes que las personas y los equipos
+    // (`fk_team_members_user` es RESTRICT). Solo los equipos de esta suite.
+    jdbc.update(
+        "DELETE FROM team_members WHERE user_id IN"
+            + " (SELECT id FROM users WHERE username LIKE 'bh-%')"
+            + " OR team_id IN (SELECT id FROM teams WHERE name LIKE 'BH %')");
+    jdbc.update(
+        "DELETE FROM user_supervisors WHERE user_id IN"
+            + " (SELECT id FROM users WHERE username LIKE 'bh-%')"
+            + " OR supervisor_id IN (SELECT id FROM users WHERE username LIKE 'bh-%')");
+    jdbc.update("DELETE FROM teams WHERE name LIKE 'BH %'");
     jdbc.update(
         "DELETE FROM user_roles WHERE user_id IN (SELECT id FROM users WHERE username LIKE 'bh-%')");
     jdbc.update("DELETE FROM users WHERE username LIKE 'bh-%'");

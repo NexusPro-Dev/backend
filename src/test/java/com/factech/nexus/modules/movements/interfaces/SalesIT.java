@@ -334,6 +334,95 @@ class SalesIT extends IntegrationTestBase {
   }
 
   // ---------------------------------------------------------------------------
+  // La oficina de la venta — RN-MV-078
+  // ---------------------------------------------------------------------------
+
+  @Test
+  @DisplayName(
+      "CA-MV-723 — la fila trae sus oficinas sin repetir, y la lista vacía y presente sin ninguna")
+  void laFilaTraeSusOficinas() throws Exception {
+    UUID norte = oficina("SALES Oficina Norte");
+    // Las DOS líneas de la compra de agente1, en la misma oficina: sale una vez.
+    ponerOficina(compraDeAgente1, norte);
+
+    String cuerpo =
+        mvc.perform(ventas(director1).param("userId", director1.toString()))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.content[0].id").value(compraDeAgente1.toString()))
+            .andExpect(jsonPath("$.content[0].teams.length()").value(1))
+            .andExpect(jsonPath("$.content[0].teams[0].id").value(norte.toString()))
+            .andExpect(jsonPath("$.content[0].teams[0].name").value("SALES Oficina Norte"))
+            .andExpect(jsonPath("$.content[1].id").value(vDirector1.toString()))
+            .andExpect(jsonPath("$.content[1].teams").isArray())
+            .andExpect(jsonPath("$.content[1].teams").isEmpty())
+            .andReturn()
+            .getResponse()
+            .getContentAsString();
+    assertThat(cuerpo).contains("\"teams\":[]");
+  }
+
+  @Test
+  @DisplayName(
+      "CA-MV-724 — teamId acota DENTRO del alcance: la misma oficina en otra rama no se ve")
+  void oficinaDentroDelAlcance() throws Exception {
+    UUID norte = oficina("SALES Oficina Norte");
+    UUID sur = oficina("SALES Oficina Sur");
+    // El norte tiene ventas de las DOS ramas y de quien no cuelga de nadie; el
+    // sur, solo una de la rama de director1.
+    ponerOficina(vAgente1, norte);
+    ponerOficina(vAgente3, norte);
+    ponerOficina(vSuelto, norte);
+    ponerOficina(vAgente2, sur);
+    // Y HOY director1 dirige el sur: lo que su agente vendió en el norte sigue
+    // en el norte, porque se responde por la oficina guardada.
+    pertenecer(director1, sur);
+
+    assertThat(ids(mvc.perform(ventas(director1).param("teamId", norte.toString()))))
+        .containsExactly(vAgente1);
+    assertThat(ids(mvc.perform(ventas(director2).param("teamId", norte.toString()))))
+        .containsExactly(vAgente3);
+    assertThat(ids(mvc.perform(ventas(manager).param("teamId", norte.toString()))))
+        .containsExactlyInAnyOrder(vAgente1, vAgente3);
+    assertThat(ids(mvc.perform(ventas(funcionario).param("teamId", norte.toString()))))
+        .containsExactlyInAnyOrder(vAgente1, vAgente3, vSuelto);
+    assertThat(ids(mvc.perform(ventas(funcionario).param("teamId", sur.toString()))))
+        .containsExactly(vAgente2);
+
+    // Una oficina con ventas solo FUERA de mi red: vacío, 200.
+    mvc.perform(ventas(director2).param("teamId", sur.toString()))
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$.totalElements").value(0));
+
+    // Se combina con la persona y con el cliente.
+    assertThat(
+            ids(
+                mvc.perform(
+                    ventas(manager)
+                        .param("teamId", norte.toString())
+                        .param("userId", agente3.toString()))))
+        .containsExactly(vAgente3);
+    assertThat(
+            ids(
+                mvc.perform(
+                    ventas(funcionario)
+                        .param("teamId", norte.toString())
+                        .param("clientId", cliente.toString()))))
+        .containsExactly(vAgente1);
+  }
+
+  @Test
+  @DisplayName("CA-MV-725 — una oficina inexistente da página vacía, y una mal formada, 400")
+  void oficinaInexistenteOMalFormada() throws Exception {
+    mvc.perform(ventas(funcionario).param("teamId", UUID.randomUUID().toString()))
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$.totalElements").value(0));
+    mvc.perform(ventas(funcionario).param("teamId", "no-es-uuid"))
+        .andExpect(status().isBadRequest())
+        .andExpect(jsonPath("$.errors[0].field").value("teamId"))
+        .andExpect(jsonPath("$.errors[0].code").value("VAL-001"));
+  }
+
+  // ---------------------------------------------------------------------------
   // El permiso
   // ---------------------------------------------------------------------------
 
@@ -424,6 +513,12 @@ class SalesIT extends IntegrationTestBase {
     CommissionCleanup.limpiar(jdbc);
     jdbc.update("DELETE FROM movement_details");
     jdbc.update("DELETE FROM movements");
+    // Las oficinas de esta suite, DESPUÉS de las líneas que las guardan y ANTES de
+    // las personas: `team_members` apunta a las dos con RESTRICT.
+    jdbc.update(
+        "DELETE FROM team_members WHERE team_id IN"
+            + " (SELECT id FROM teams WHERE name LIKE 'SALES %')");
+    jdbc.update("DELETE FROM teams WHERE name LIKE 'SALES %'");
     jdbc.update("DELETE FROM products WHERE code LIKE 'SALES_BOT%'");
     jdbc.update(
         "DELETE FROM user_supervisors WHERE user_id IN (SELECT id FROM users WHERE username LIKE"
@@ -521,5 +616,27 @@ class SalesIT extends IntegrationTestBase {
         movimiento,
         producto,
         vendedor);
+  }
+
+  /** Una oficina de esta suite: el prefijo `SALES ` es lo que `limpiar` borra. */
+  private UUID oficina(String nombre) {
+    UUID id = UUID.randomUUID();
+    jdbc.update("INSERT INTO teams (id, name) VALUES (?, ?)", id, nombre);
+    return id;
+  }
+
+  /** La oficina GUARDADA en todas las líneas de la venta, como la copia al vender. */
+  private void ponerOficina(UUID movimiento, UUID equipo) {
+    jdbc.update(
+        "UPDATE movement_details SET team_id = ? WHERE movement_id = ?", equipo, movimiento);
+  }
+
+  /** La pertenencia de HOY, que la lectura no consulta: lo congelado es la línea. */
+  private void pertenecer(UUID persona, UUID equipo) {
+    jdbc.update(
+        "INSERT INTO team_members (id, team_id, user_id) VALUES (?, ?, ?)",
+        UUID.randomUUID(),
+        equipo,
+        persona);
   }
 }

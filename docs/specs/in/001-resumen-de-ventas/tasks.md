@@ -57,9 +57,9 @@ Enmienda de hecho (Art. I.7), `spec.md` 0.4.0 y `plan.md` 0.4.0 **antes** del c�
 
 | ID | Tarea | Depende de | Verificación | Estado |
 |---|---|---|---|---|
-| `T-17` | `SalesFigures.LineFilter` gana `teamId` (`none()` lo deja nulo); `JpaSalesFigures.donde` y `enlazar` añaden `d.team_id = :oficina` | La columna `movement_details.team_id` de `V97` (`RF-MV-001`, `RN-MV-078`) | `RF-IN-006` sin cambios con `teamId` nulo | **Pendiente** |
-| `T-18` | `SalesIndicatorRequest` gana `teamId`; `SalesIndicatorsController` lo recibe en `/sales/summary` y lo documenta —la oficina guardada en la línea, filtro y no alcance, ceros si no existe—; `GetSalesSummaryService` pasa el `LineFilter` a `summary` y `summaryByBucket` junto al `SalesScope` | `T-17` | El corte a ceros del vendedor fuera del alcance no cambia | **Pendiente** |
-| `T-19` | `SalesSummaryIT`: `CA-IN-098` a `CA-IN-100` —dos equipos con director sembrados antes de vender, una venta de dos oficinas, lo sin vendedor, la venta de un manager, el traslado—; contrato regenerado y prosa releída; `api/index.md` y matriz | `T-18` | Solo altas; una sentencia por petición | **Pendiente** |
+| `T-17` | `SalesFigures.LineFilter` gana `teamId` (`none()` lo deja nulo); `JpaSalesFigures.donde` y `enlazar` añaden `d.team_id = :oficina` | La columna `movement_details.team_id` de `V99` (`RF-MV-001`, `RN-MV-078`) | `RF-IN-006` sin cambios con `teamId` nulo | **Hecha** — 10-10-2026 |
+| `T-18` | `SalesIndicatorRequest` gana `teamId`; `SalesIndicatorsController` lo recibe en `/sales/summary` y lo documenta —la oficina guardada en la línea, filtro y no alcance, ceros si no existe—; `GetSalesSummaryService` pasa el `LineFilter` a `summary` y `summaryByBucket` junto al `SalesScope` | `T-17` | El corte a ceros del vendedor fuera del alcance no cambia | **Hecha** — 10-10-2026 |
+| `T-19` | `SalesSummaryIT`: `CA-IN-098` a `CA-IN-100` —dos equipos con director sembrados antes de vender, una venta de dos oficinas, lo sin vendedor, la venta de un manager, el traslado—; contrato regenerado y prosa releída; `api/index.md` y matriz | `T-18` | Solo altas; una sentencia por petición | **Hecha** — 10-10-2026 |
 
 ---
 

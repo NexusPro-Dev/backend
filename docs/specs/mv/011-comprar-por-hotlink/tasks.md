@@ -48,7 +48,7 @@ Enmienda de hecho (Art. I.7), `spec.md` 0.5.0 y `plan.md` (aviso del 09-10-2026)
 
 | ID | Tarea | Depende de | Verificación | Estado |
 |---|---|---|---|---|
-| `T-16` | Prueba en `BuyByHotlinkIT`: un cliente de un agente de otra oficina compra por el enlace; la línea lleva la oficina del director del dueño del enlace, en lo guardado y en la auditoría, y el cuerpo no trae `team` | `RF-MV-001` · `T-52` | `CA-MV-713` | **Pendiente** |
+| `T-16` | Prueba en `BuyByHotlinkIT`: un cliente de un agente de otra oficina compra por el enlace; la línea lleva la oficina del director del dueño del enlace, en lo guardado y en la auditoría, y el cuerpo no trae `team` | `RF-MV-001` · `T-52` | `CA-MV-713` | **Hecha** — 10-10-2026 |
 
 ## 2. Orden de ejecución
 

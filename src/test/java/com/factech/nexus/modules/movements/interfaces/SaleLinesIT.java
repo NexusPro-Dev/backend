@@ -563,6 +563,124 @@ class SaleLinesIT extends IntegrationTestBase {
                 .value(org.hamcrest.Matchers.hasItems("hasSeller", "deliveryStatus")));
   }
 
+  // ------------------------------------------------- la oficina, `RN-MV-078`
+
+  @Test
+  @DisplayName(
+      "`CA-MV-726` — cada fila trae la oficina de SU línea, o team presente y nulo; y la página"
+          + " sigue costando lo mismo")
+  void cadaFilaTraeSuOficina() throws Exception {
+    UUID norte = oficina("SL Oficina Norte");
+    // La línea del bot, en el norte; la del curso, de la misma venta, sin oficina.
+    ponerOficina(ventaDeDos, bot, norte);
+
+    mvc.perform(
+            consulta()
+                .param("movementId", ventaDeDos.toString())
+                .param("productId", bot.toString()))
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$.content.length()").value(1))
+        .andExpect(jsonPath("$.content[0].team.id").value(norte.toString()))
+        .andExpect(jsonPath("$.content[0].team.name").value("SL Oficina Norte"));
+
+    String cuerpo =
+        mvc.perform(
+                consulta()
+                    .param("movementId", ventaDeDos.toString())
+                    .param("productId", curso.toString()))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.content.length()").value(1))
+            .andExpect(jsonPath("$.content[0]", org.hamcrest.Matchers.hasKey("team")))
+            .andExpect(jsonPath("$.content[0].team").value(org.hamcrest.Matchers.nullValue()))
+            .andReturn()
+            .getResponse()
+            .getContentAsString();
+    // EN CRUDO: «sin oficina» es un nulo presente, no una clave ausente.
+    assertThat(cuerpo).contains("\"team\":null");
+
+    // Y EL NOMBRE ES EL DE HOY: lo congelado es cuál, no cómo se llamaba.
+    jdbc.update("UPDATE teams SET name = 'SL Oficina Norte Renombrada' WHERE id = ?", norte);
+    mvc.perform(consulta("teamId", norte.toString()))
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$.content[0].team.name").value("SL Oficina Norte Renombrada"));
+
+    // La oficina viaja en la sentencia de la página (`CA-MV-178`): con filas que
+    // la tienen y filas que no, siguen siendo dos, y no crecen con el tamaño.
+    Statistics estadisticas = emf.unwrap(org.hibernate.SessionFactory.class).getStatistics();
+    estadisticas.setStatisticsEnabled(true);
+
+    estadisticas.clear();
+    mvc.perform(consulta("size", "1")).andExpect(status().isOk());
+    long conUna = estadisticas.getQueryExecutionCount();
+
+    estadisticas.clear();
+    mvc.perform(consulta("size", "20")).andExpect(status().isOk());
+    long conVeinte = estadisticas.getQueryExecutionCount();
+
+    assertThat(conUna).isEqualTo(2);
+    assertThat(conVeinte).isEqualTo(conUna);
+  }
+
+  @Test
+  @DisplayName(
+      "`CA-MV-727` — teamId acota por la oficina de la LÍNEA: la venta de dos oficinas aporta solo"
+          + " la de la pedida, y se combina")
+  void filtroPorOficina() throws Exception {
+    UUID norte = oficina("SL Oficina Norte");
+    UUID sur = oficina("SL Oficina Sur");
+    ponerOficina(ventaDeDos, bot, norte);
+    ponerOficina(ventaDeDos, curso, sur);
+    // Otra venta en el norte, de otro sujeto.
+    UUID otra = venta(beto, "CONFIRMADA", BASE.plusHours(3), "VTA-SL-0005");
+    linea(otra, bot, vendedorUno, 1, "120.00", "0.00", "120.00", 30, "ENTREGADA", BASE);
+    ponerOficina(otra, bot, norte);
+    // Y HOY el vendedor del curso está en el norte: su línea sigue en el sur.
+    pertenecer(vendedorDos, norte);
+
+    mvc.perform(consulta("teamId", norte.toString()))
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$.content.length()").value(2))
+        .andExpect(jsonPath("$.totalElements").value(2))
+        .andExpect(
+            jsonPath("$.content[*].product.code")
+                .value(org.hamcrest.Matchers.everyItem(org.hamcrest.Matchers.is("SL_BOT"))))
+        .andExpect(
+            jsonPath("$.content[*].team.id")
+                .value(
+                    org.hamcrest.Matchers.everyItem(org.hamcrest.Matchers.is(norte.toString()))));
+
+    mvc.perform(consulta("teamId", sur.toString()))
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$.content.length()").value(1))
+        .andExpect(jsonPath("$.content[0].movementId").value(ventaDeDos.toString()))
+        .andExpect(jsonPath("$.content[0].product.code").value("SL_CURSO"))
+        .andExpect(jsonPath("$.content[0].team.id").value(sur.toString()));
+
+    // Combinada con el sujeto y con el vendedor.
+    mvc.perform(consulta().param("teamId", norte.toString()).param("userId", ana.toString()))
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$.content.length()").value(1))
+        .andExpect(jsonPath("$.content[0].movementId").value(ventaDeDos.toString()));
+    mvc.perform(
+            consulta().param("teamId", norte.toString()).param("sellerId", vendedorDos.toString()))
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$.content.length()").value(0))
+        .andExpect(jsonPath("$.totalElements").value(0));
+  }
+
+  @Test
+  @DisplayName("`CA-MV-728` — una oficina inexistente da página vacía, y una mal formada, 400")
+  void oficinaInexistenteOMalFormada() throws Exception {
+    mvc.perform(consulta("teamId", UUID.randomUUID().toString()))
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$.content.length()").value(0))
+        .andExpect(jsonPath("$.totalElements").value(0));
+    mvc.perform(consulta("teamId", "no-es-uuid"))
+        .andExpect(status().isBadRequest())
+        .andExpect(jsonPath("$.errors[0].field").value("teamId"))
+        .andExpect(jsonPath("$.errors[0].code").value("VAL-001"));
+  }
+
   // ---------------------------------------------------------------- fixture
 
   private MockHttpServletRequestBuilder consulta() {
@@ -581,6 +699,12 @@ class SaleLinesIT extends IntegrationTestBase {
     CommissionCleanup.limpiar(jdbc);
     jdbc.update("DELETE FROM movement_details");
     jdbc.update("DELETE FROM movements");
+    // Las oficinas de esta suite, DESPUÉS de las líneas que las guardan y ANTES de
+    // las personas: `team_members` apunta a las dos con RESTRICT.
+    jdbc.update(
+        "DELETE FROM team_members WHERE team_id IN"
+            + " (SELECT id FROM teams WHERE name LIKE 'SL %')");
+    jdbc.update("DELETE FROM teams WHERE name LIKE 'SL %'");
     // Los estados antes que el tipo: su FK al tipo es RESTRICT.
     jdbc.update(
         "DELETE FROM movement_type_statuses WHERE movement_type_id IN"
@@ -705,5 +829,30 @@ class SaleLinesIT extends IntegrationTestBase {
         entregadaEn,
         entrega,
         producto);
+  }
+
+  /** Una oficina de esta suite: el prefijo `SL ` es lo que `limpiar` borra. */
+  private UUID oficina(String nombre) {
+    UUID id = UUID.randomUUID();
+    jdbc.update("INSERT INTO teams (id, name) VALUES (?, ?)", id, nombre);
+    return id;
+  }
+
+  /** La oficina GUARDADA en la línea de ese producto, como la copia la venta. */
+  private void ponerOficina(UUID movimiento, UUID producto, UUID equipo) {
+    jdbc.update(
+        "UPDATE movement_details SET team_id = ? WHERE movement_id = ? AND product_id = ?",
+        equipo,
+        movimiento,
+        producto);
+  }
+
+  /** La pertenencia de HOY, que la lectura no consulta: lo congelado es la línea. */
+  private void pertenecer(UUID persona, UUID equipo) {
+    jdbc.update(
+        "INSERT INTO team_members (id, team_id, user_id) VALUES (?, ?, ?)",
+        UUID.randomUUID(),
+        equipo,
+        persona);
   }
 }

@@ -36,8 +36,8 @@ Enmienda de hecho (Art. I.7), `spec.md` 0.2.0 y `plan.md` 0.2.0 **antes** del c�
 
 | ID | Tarea | Depende de | Verificación | Estado |
 |---|---|---|---|---|
-| `T-14` | `TeamMembershipRetirement` y su adaptador: javadoc con «director»; la prosa OpenAPI de `POST /teams/{id}/members/removals` —director, y que retirar y asignar es cambiar de encargado— | `RF-SP-069` `T-13` | Sin cambio de firma ni de comportamiento | **Pendiente** |
-| `T-15` | `TeamMemberRemovalIT` con un director por equipo —`CA-SP-789` con uno— y `CA-SP-986`: retirar al director y asignar a otro al mismo equipo | `T-14`, `RF-SP-069` `T-15` | Las suites del submódulo en verde | **Pendiente** |
+| `T-14` | `TeamMembershipRetirement` y su adaptador: javadoc con «director»; la prosa OpenAPI de `POST /teams/{id}/members/removals` —director, y que retirar y asignar es cambiar de encargado— | `RF-SP-069` `T-13` | Sin cambio de firma ni de comportamiento | **Hecha** — 10-10-2026 |
+| `T-15` | `TeamMemberRemovalIT` con un director por equipo —`CA-SP-789` con uno— y `CA-SP-986`: retirar al director y asignar a otro al mismo equipo | `T-14`, `RF-SP-069` `T-15` | Las suites del submódulo en verde | **Hecha** — 10-10-2026 |
 
 ## 2. Orden de ejecución
 

@@ -1,5 +1,6 @@
 package com.factech.nexus.modules.movements.domain.service;
 
+import com.factech.nexus.modules.movements.application.LineTeam;
 import com.factech.nexus.modules.movements.application.SaleLineItem;
 import com.factech.nexus.modules.movements.application.SaleLinesRequest;
 import com.factech.nexus.modules.movements.domain.models.DeliveryStatus;
@@ -59,7 +60,8 @@ public class ListSaleLinesService {
             peticion.typeStatus(),
             peticion.code(),
             peticion.from(),
-            peticion.to());
+            peticion.to(),
+            peticion.teamId());
 
     List<SaleLineRow> filas = movimientos.findSaleLines(filtro, pagina.offset(), pagina.size());
     BoundedCount total = movimientos.countSaleLines(filtro, paginacion.techoDelConteo());
@@ -179,6 +181,8 @@ public class ListSaleLinesService {
                 fila.sellerUsername(),
                 ListMyMovementsService.nombreCompleto(
                     fila.sellerFirstName(), fila.sellerLastName())),
+        // `RN-MV-078`: la oficina guardada, presente y nula sin ella.
+        fila.teamId() == null ? null : new LineTeam(fila.teamId(), fila.teamName()),
         new SaleLineItem.ProductRef(fila.productId(), fila.productCode(), fila.productName()),
         fila.quantity(),
         fila.unitPrice(),

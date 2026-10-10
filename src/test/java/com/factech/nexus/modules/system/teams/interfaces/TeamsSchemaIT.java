@@ -80,6 +80,84 @@ class TeamsSchemaIT extends IntegrationTestBase {
   }
 
   @Test
+  @DisplayName(
+      "`CA-SP-985` — uq_team_members_equipo_vigente (`V99`) impide DOS pertenencias vigentes en el"
+          + " mismo equipo, aunque se inserten a mano; cerrada la primera, entra otra")
+  void unDirectorVigentePorEquipo() {
+    UUID norte = equipo(jdbc, "Equipo Norte");
+    UUID uno = persona(jdbc, "director-esquema-1");
+    UUID otro = persona(jdbc, "director-esquema-2");
+    try {
+      TeamTestSupport.pertenencia(jdbc, norte, uno);
+
+      assertThatThrownBy(() -> TeamTestSupport.pertenencia(jdbc, norte, otro))
+          .hasMessageContaining("uq_team_members_equipo_vigente");
+
+      jdbc.update("UPDATE team_members SET ended_at = now() WHERE user_id = ?", uno);
+      assertThat(TeamTestSupport.pertenencia(jdbc, norte, otro)).isNotNull();
+    } finally {
+      TeamTestSupport.limpiar(jdbc);
+      TeamTestSupport.borrarPersonas(jdbc, "director-esquema-1", "director-esquema-2");
+    }
+  }
+
+  @Test
+  @DisplayName(
+      "`CA-SP-985` — `V99` cierra las pertenencias vigentes de la cúspide CON fecha de fin y sin"
+          + " borrar la fila: el mismo UPDATE, sobre un manager sembrado, lo deja en el historial")
+  void elCierreDeLaCuspide() {
+    UUID norte = equipo(jdbc, "Equipo Norte");
+    UUID manager = TeamTestSupport.personaConRol(jdbc, "manager-cierre-v99", "MANAGER");
+    UUID director = TeamTestSupport.personaConRol(jdbc, "director-cierre-v99", "DIRECTOR");
+    UUID sur = equipo(jdbc, "Equipo Sur");
+    try {
+      TeamTestSupport.pertenencia(jdbc, norte, manager);
+      TeamTestSupport.pertenencia(jdbc, sur, director);
+
+      // La sentencia de `V99` (paso 2), tal cual: por la FORMA de la jerarquía,
+      // no por el código del rol.
+      jdbc.update(
+          """
+          UPDATE team_members tm
+             SET ended_at = now(), updated_at = now()
+           WHERE tm.ended_at IS NULL
+             AND EXISTS (
+                   SELECT 1
+                     FROM user_roles ur
+                     JOIN roles r ON r.id = ur.role_id
+                     LEFT JOIN roles padre ON padre.id = r.parent_role_id
+                    WHERE ur.user_id = tm.user_id
+                      AND r.role_type = 'VENDEDOR'
+                      AND (padre.id IS NULL OR padre.role_type <> 'VENDEDOR'))
+          """);
+
+      assertThat(
+              jdbc.queryForObject(
+                  "SELECT count(*) FROM team_members WHERE user_id = ? AND ended_at IS NOT NULL",
+                  Integer.class,
+                  manager))
+          .isEqualTo(1);
+      assertThat(
+              jdbc.queryForObject(
+                  "SELECT count(*) FROM team_members WHERE user_id = ? AND ended_at IS NULL",
+                  Integer.class,
+                  director))
+          .isEqualTo(1);
+      // Y en la base de la suite, tras la migración, ningún manager quedó dentro.
+      assertThat(
+              jdbc.queryForObject(
+                  "SELECT count(*) FROM team_members tm JOIN user_roles ur ON ur.user_id ="
+                      + " tm.user_id JOIN roles r ON r.id = ur.role_id"
+                      + " WHERE tm.ended_at IS NULL AND r.code = 'MANAGER'",
+                  Integer.class))
+          .isZero();
+    } finally {
+      TeamTestSupport.limpiar(jdbc);
+      TeamTestSupport.borrarPersonas(jdbc, "manager-cierre-v99", "director-cierre-v99");
+    }
+  }
+
+  @Test
   @DisplayName("`CA-SP-737` — ck_team_members_periodo rechaza un fin anterior al comienzo")
   void periodoCoherente() {
     UUID norte = equipo(jdbc, "Equipo Norte");

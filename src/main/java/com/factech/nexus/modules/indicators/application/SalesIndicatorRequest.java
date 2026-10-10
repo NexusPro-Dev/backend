@@ -12,4 +12,11 @@ import java.util.UUID;
  * @param currencyId solo lo vendido en esa moneda
  * @param sellerId solo lo vendido por esa persona, si está en el alcance
  */
-public record SalesIndicatorRequest(LocalDate from, LocalDate to, UUID currencyId, UUID sellerId) {}
+public record SalesIndicatorRequest(
+    LocalDate from, LocalDate to, UUID currencyId, UUID sellerId, UUID teamId) {
+
+  /** Sin oficina: los indicadores que no la admiten (los de puntos). */
+  public SalesIndicatorRequest(LocalDate from, LocalDate to, UUID currencyId, UUID sellerId) {
+    this(from, to, currencyId, sellerId, null);
+  }
+}

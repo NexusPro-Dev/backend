@@ -51,6 +51,11 @@ import java.util.UUID;
  * si la línea lleva vendedor ya no es esta clase</b>: es {@code SaleAttribution}, y {@link
  * Movement} comprueba que el estado del tipo cuadre con lo que las líneas dicen.
  *
+ * <p><b>Desde el 09-10-2026 la línea guarda también su oficina</b> (`RN-MV-078`): el equipo del
+ * director de la cadena del vendedor el día de la venta. Viaja con {@code sellerId} y por la misma
+ * razón: un traslado posterior no mueve lo ya vendido. <b>Sin vendedor no hay oficina</b>, y la
+ * línea que lo intente se rechaza al construirla.
+ *
  * <p>No es una entidad JPA, por el mismo motivo que {@link Movement}: ver su Javadoc.
  *
  * <h2>El nombre y la descripción SÍ se copian; el código NO</h2>
@@ -73,6 +78,7 @@ public final class MovementLine {
   private final UUID id;
   private final UUID productId;
   private final UUID sellerId;
+  private final UUID teamId;
   private final String productCode;
   private final String productName;
   private final String productDescription;
@@ -88,6 +94,7 @@ public final class MovementLine {
       UUID id,
       UUID productId,
       UUID sellerId,
+      UUID teamId,
       String productCode,
       String productName,
       String productDescription,
@@ -99,6 +106,7 @@ public final class MovementLine {
     this.id = id;
     this.productId = productId;
     this.sellerId = sellerId;
+    this.teamId = teamId;
     this.productCode = productCode;
     this.productName = productName;
     this.productDescription = productDescription;
@@ -140,6 +148,8 @@ public final class MovementLine {
    *     de quien resuelve la venta, que es quien conoce la moneda
    * @param sellerId quien vendió <b>esta</b> línea (`RN-MV-003`), o nulo si quien compra tiene
    *     varios vendedores y todavía no se ha elegido (`RN-MV-034`)
+   * @param teamId la oficina donde se vendió (`RN-MV-078`), o nula sin vendedor o si nadie de su
+   *     cadena tenía equipo ese día
    * @param productName y {@code productDescription} <b>se copian</b> (`RN-MV-002`): son lo que el
    *     catálogo decía el día de la venta, y `RF-PM-004` puede corregirlos mañana
    * @param validityDays nulo significa que lo adquirido <b>no caduca</b> (`RN-PM-015`)
@@ -147,6 +157,7 @@ public final class MovementLine {
   public static MovementLine copiarDe(
       UUID productId,
       UUID sellerId,
+      UUID teamId,
       String productCode,
       String productName,
       String productDescription,
@@ -157,6 +168,7 @@ public final class MovementLine {
     return copiarDe(
         productId,
         sellerId,
+        teamId,
         productCode,
         productName,
         productDescription,
@@ -175,6 +187,7 @@ public final class MovementLine {
   public static MovementLine copiarDe(
       UUID productId,
       UUID sellerId,
+      UUID teamId,
       String productCode,
       String productName,
       String productDescription,
@@ -183,6 +196,11 @@ public final class MovementLine {
       Integer validityDays,
       String implementation,
       List<LineDiscount> rebajas) {
+    if (teamId != null && sellerId == null) {
+      // `RN-MV-078`: la oficina es la del vendedor. Sin él no hay a quién
+      // seguir por la cadena, y una oficina suelta sería una atribución inventada.
+      throw new IllegalArgumentException("Una línea sin vendedor no tiene oficina.");
+    }
     if (productName == null || productName.isBlank()) {
       // Se copia, y una copia vacía no es una copia: sin esto, una línea podría
       // quedar sin decir qué se vendió y el nulo solo aparecería al leerla.
@@ -198,6 +216,7 @@ public final class MovementLine {
         UUID.randomUUID(),
         productId,
         sellerId,
+        teamId,
         productCode,
         productName,
         productDescription,
@@ -217,6 +236,8 @@ public final class MovementLine {
     // Nula y PRESENTE en una venta por validar (`RN-MV-034`): la clave ausente
     // se leería como «esta versión no lo registraba».
     datos.put("seller_id", sellerId == null ? null : sellerId.toString());
+    // `RN-MV-078`: la oficina, nula y PRESENTE por lo mismo que el vendedor.
+    datos.put("team_id", teamId == null ? null : teamId.toString());
     datos.put("product_code", productCode);
     // Copias, y por eso están en la instantánea: lo que el catálogo decía ese
     // día, no lo que diga cuando alguien lea este registro (`RN-MV-002`).
@@ -259,6 +280,10 @@ public final class MovementLine {
 
   public UUID getSellerId() {
     return sellerId;
+  }
+
+  public UUID getTeamId() {
+    return teamId;
   }
 
   public String getProductDescription() {

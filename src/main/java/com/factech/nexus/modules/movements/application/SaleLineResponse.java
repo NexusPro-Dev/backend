@@ -81,6 +81,14 @@ public record SaleLineResponse(
                     + " que no venden nada.")
         SaleResponse.Party seller,
     @Schema(
+            types = {"object", "null"},
+            description =
+                "La OFICINA donde se vendió esta línea (`RN-MV-078`): el equipo del director de"
+                    + " la cadena del vendedor EL DÍA DE LA VENTA, congelado; un traslado posterior"
+                    + " no la mueve. No se envía: la decide el sistema. NULA sin vendedor, en la"
+                    + " venta de un manager y cuando nadie de la cadena tenía equipo ese día.")
+        LineTeam team,
+    @Schema(
             description =
                 "COPIA de cómo se entrega lo vendido (`RN-MV-030`): AUTOMATICA se entrega al"
                     + " confirmar el pago; MANUAL espera a que alguien lo autorice.")
@@ -100,7 +108,7 @@ public record SaleLineResponse(
             description = "Por qué se retuvo, escrito para una persona. NULO si no está RETENIDA.")
         String deliveryNote) {
 
-  static SaleLineResponse de(MovementLine linea, SaleResponse.Party vendedor) {
+  static SaleLineResponse de(MovementLine linea, SaleResponse.Party vendedor, LineTeam oficina) {
     List<SaleDiscountResponse> rebajas = new ArrayList<>(linea.getDiscounts().size());
     for (LineDiscount rebaja : linea.getDiscounts()) {
       rebajas.add(SaleDiscountResponse.de(rebaja));
@@ -117,6 +125,7 @@ public record SaleLineResponse(
         linea.getLineDiscount(),
         rebajas,
         vendedor,
+        oficina,
         linea.getImplementation().name(),
         // Acaba de registrarse: nada se entrega antes de confirmar (`RN-MV-004`).
         "PENDIENTE",

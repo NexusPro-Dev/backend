@@ -1,5 +1,6 @@
 package com.factech.nexus.modules.movements.domain.service;
 
+import com.factech.nexus.modules.movements.application.LineTeam;
 import com.factech.nexus.modules.movements.application.PaymentResponse;
 import com.factech.nexus.modules.movements.application.PurchaseResponse;
 import com.factech.nexus.modules.movements.application.RegisterSaleRequest;
@@ -16,6 +17,7 @@ import com.factech.nexus.modules.movements.domain.repository.MovementRepository.
 import com.factech.nexus.modules.products.application.ProductCatalog;
 import com.factech.nexus.modules.products.application.ProductCatalog.SaleView;
 import com.factech.nexus.modules.products.application.ProductPrice;
+import com.factech.nexus.modules.system.teams.application.SellerTeamLookup;
 import com.factech.nexus.modules.system.users.application.ClientCatalog;
 import com.factech.nexus.modules.system.users.application.ClientCatalog.ClientView;
 import com.factech.nexus.modules.system.users.application.ClientCatalog.SellerView;
@@ -114,6 +116,7 @@ public class RegisterSaleService {
   private final CardPayment tarjeta;
   private final LocalPayment local;
   private final ConfirmSaleService confirmacion;
+  private final SellerTeamLookup equipos;
 
   @Autowired
   public RegisterSaleService(
@@ -125,7 +128,8 @@ public class RegisterSaleService {
       PointsPayment puntos,
       CardPayment tarjeta,
       LocalPayment local,
-      ConfirmSaleService confirmacion) {
+      ConfirmSaleService confirmacion,
+      SellerTeamLookup equipos) {
     this(
         movimientos,
         productos,
@@ -136,6 +140,7 @@ public class RegisterSaleService {
         tarjeta,
         local,
         confirmacion,
+        equipos,
         Clock.systemUTC());
   }
 
@@ -149,7 +154,9 @@ public class RegisterSaleService {
       CardPayment tarjeta,
       LocalPayment local,
       ConfirmSaleService confirmacion,
+      SellerTeamLookup equipos,
       Clock reloj) {
+    this.equipos = equipos;
     this.puntos = puntos;
     this.tarjeta = tarjeta;
     this.local = local;
@@ -246,9 +253,28 @@ public class RegisterSaleService {
             : Map.of(
                 vendedor.id(),
                 new SaleResponse.Party(vendedor.id(), vendedor.username(), nombre(vendedor))),
+        oficinasDe(hecha.venta()),
         new SaleResponse.Money(hecha.referencia().currencyId(), hecha.referencia().currencyCode()),
         hecha.metodo().code(),
         primerPago(hecha));
+  }
+
+  /**
+   * Las oficinas de las líneas con su nombre (`RN-MV-078`). El puerto de `teams` responde
+   * identificadores; el nombre lo lee `MovementRepository.findTeamNames`, una sentencia y solo si
+   * alguna línea tiene oficina.
+   */
+  private Map<UUID, LineTeam> oficinasDe(Movement venta) {
+    Set<UUID> ids = new LinkedHashSet<>();
+    for (MovementLine linea : venta.getLines()) {
+      if (linea.getTeamId() != null) {
+        ids.add(linea.getTeamId());
+      }
+    }
+    if (ids.isEmpty()) {
+      return Map.of();
+    }
+    return movimientos.findTeamNames(ids);
   }
 
   /** El pago con el que la venta acaba de nacer: pendiente, con su método y su importe. */
@@ -364,6 +390,10 @@ public class RegisterSaleService {
             ? atribuciones.deQuienCompra(cliente)
             : SaleAttribution.delEnlace(duenoDelEnlace);
     SellerView vendedor = atribucion.vendedor();
+    // `RN-MV-078`: LA OFICINA, una vez por vendedor y con la estructura DEL DÍA DE
+    // LA VENTA (`ocurrioEn`, no `ahora`): un traslado posterior no la mueve. Sin
+    // vendedor no hay oficina.
+    UUID oficina = vendedor == null ? null : equipos.teamAt(vendedor.id(), ocurrioEn).orElse(null);
     List<RegisterSaleRequest.Line> lineas = peticion.lines();
     verificarSinRepetidos(lineas);
 
@@ -387,6 +417,7 @@ public class RegisterSaleService {
             lineas,
             catalogo,
             vendedor == null ? null : vendedor.id(),
+            oficina,
             referencia.currencyDecimalPlaces());
     PaymentMethodView metodo =
         reglas.resolverMetodoDePago(peticion.paymentMethodId(), total(copiadas));
@@ -662,6 +693,7 @@ public class RegisterSaleService {
       List<RegisterSaleRequest.Line> lineas,
       Map<UUID, SaleView> catalogo,
       UUID vendedorId,
+      UUID oficina,
       int decimalesDeLaMoneda) {
 
     int decimales = Math.min(decimalesDeLaMoneda, DECIMALES_DEL_LIBRO);
@@ -683,6 +715,7 @@ public class RegisterSaleService {
           MovementLine.copiarDe(
               producto.id(),
               vendedorId,
+              oficina,
               producto.code(),
               // El nombre y la descripción SE COPIAN (`RN-MV-002`): lo que el
               // catálogo dice ahora, congelado. El código no: es inmutable.

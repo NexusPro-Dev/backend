@@ -1,5 +1,6 @@
 package com.factech.nexus.modules.movements.domain.service;
 
+import com.factech.nexus.modules.movements.application.LineTeam;
 import com.factech.nexus.modules.movements.application.ListMovementsRequest;
 import com.factech.nexus.modules.movements.application.MovementResponse;
 import com.factech.nexus.modules.movements.domain.models.MovementStatus;
@@ -7,6 +8,7 @@ import com.factech.nexus.modules.movements.domain.repository.MovementRepository;
 import com.factech.nexus.modules.movements.domain.repository.MovementRepository.MovementFilter;
 import com.factech.nexus.modules.movements.domain.repository.MovementRepository.MovementRow;
 import com.factech.nexus.modules.movements.domain.repository.MovementRepository.MovementSellerRow;
+import com.factech.nexus.modules.movements.domain.repository.MovementRepository.MovementTeamRow;
 import com.factech.nexus.shared.error.FieldError;
 import com.factech.nexus.shared.error.ValidationException;
 import com.factech.nexus.shared.pagination.BoundedCount;
@@ -63,15 +65,21 @@ public class ListMovementsService {
             peticion.code(),
             peticion.from(),
             peticion.to(),
-            peticion.paymentIncident());
+            peticion.paymentIncident(),
+            peticion.teamId());
 
     List<MovementRow> filas = movimientos.findAll(filtro, pagina.offset(), pagina.size());
     BoundedCount total = movimientos.countAll(filtro, paginacion.techoDelConteo());
 
     Map<UUID, List<MovementResponse.Party>> vendedores = vendedoresDe(movimientos, filas);
+    Map<UUID, List<LineTeam>> oficinas = oficinasDe(movimientos, filas);
     List<MovementResponse> contenido = new ArrayList<>(filas.size());
     for (MovementRow fila : filas) {
-      contenido.add(de(fila, vendedores.getOrDefault(fila.id(), List.of())));
+      contenido.add(
+          de(
+              fila,
+              vendedores.getOrDefault(fila.id(), List.of()),
+              oficinas.getOrDefault(fila.id(), List.of())));
     }
     return PageResponse.de(contenido, total, pagina.page(), pagina.size());
   }
@@ -176,7 +184,27 @@ public class ListMovementsService {
     return porMovimiento;
   }
 
-  static MovementResponse de(MovementRow fila, List<MovementResponse.Party> vendedores) {
+  /**
+   * Las oficinas de la página (`RN-MV-078`), en una sentencia más y no una por fila. Junto a {@link
+   * #vendedoresDe} porque `ListSalesService` devuelve la misma fila.
+   */
+  static Map<UUID, List<LineTeam>> oficinasDe(
+      MovementRepository movimientos, List<MovementRow> filas) {
+    List<UUID> ids = new ArrayList<>(filas.size());
+    for (MovementRow fila : filas) {
+      ids.add(fila.id());
+    }
+    Map<UUID, List<LineTeam>> porMovimiento = new LinkedHashMap<>();
+    for (MovementTeamRow oficina : movimientos.findTeamsOf(ids)) {
+      porMovimiento
+          .computeIfAbsent(oficina.movementId(), id -> new ArrayList<>())
+          .add(new LineTeam(oficina.teamId(), oficina.name()));
+    }
+    return porMovimiento;
+  }
+
+  static MovementResponse de(
+      MovementRow fila, List<MovementResponse.Party> vendedores, List<LineTeam> oficinas) {
     return new MovementResponse(
         fila.id(),
         fila.code(),
@@ -189,6 +217,7 @@ public class ListMovementsService {
             ListMyMovementsService.nombreCompleto(fila.userFirstName(), fila.userLastName())),
         // VACÍA Y PRESENTE cuando el movimiento no tiene vendedor.
         List.copyOf(vendedores),
+        List.copyOf(oficinas),
         new MovementResponse.Money(fila.currencyId(), fila.currencyCode()),
         fila.paymentMethod(),
         fila.totalAmount(),

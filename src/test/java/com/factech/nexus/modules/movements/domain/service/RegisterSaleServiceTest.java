@@ -18,6 +18,7 @@ import com.factech.nexus.modules.movements.domain.repository.MovementRepository.
 import com.factech.nexus.modules.movements.domain.repository.MovementRepository.PaymentMethodView;
 import com.factech.nexus.modules.products.application.ProductCatalog;
 import com.factech.nexus.modules.products.application.ProductCatalog.SaleView;
+import com.factech.nexus.modules.system.teams.application.SellerTeamLookup;
 import com.factech.nexus.modules.system.users.application.ClientCatalog;
 import com.factech.nexus.modules.system.users.application.ClientCatalog.ClientView;
 import com.factech.nexus.modules.system.users.application.ClientCatalog.SellerView;
@@ -84,6 +85,7 @@ class RegisterSaleServiceTest {
             mock(CardPayment.class),
             mock(LocalPayment.class),
             mock(ConfirmSaleService.class),
+            mock(SellerTeamLookup.class),
             java.time.Clock.systemUTC());
 
     when(clientes.findClient(CLIENTE))

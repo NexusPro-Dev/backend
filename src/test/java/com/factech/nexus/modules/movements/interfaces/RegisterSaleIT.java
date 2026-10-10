@@ -639,6 +639,195 @@ class RegisterSaleIT extends IntegrationTestBase {
   // Ayudas
   // ---------------------------------------------------------------------------
 
+  // ---------------------------------------------------------------------------
+  // La oficina de cada línea (`RN-MV-078`, 09-10-2026): `CA-MV-704` a `CA-MV-710`
+  // ---------------------------------------------------------------------------
+
+  @Test
+  @DisplayName(
+      "CA-MV-704 — vende un AGENTE: cada línea lleva la oficina de su director, en la respuesta,"
+          + " en lo guardado y en la instantánea de la auditoría")
+  void elAgenteVendeEnLaOficinaDeSuDirector() throws Exception {
+    UUID director = persona("venta-director");
+    UUID oficina = equipo("VTA Oficina Norte");
+    pertenencia(oficina, director, BASE.minusDays(30), null);
+    reportaA(vendedor, director, BASE.minusDays(30), null);
+
+    String cuerpo =
+        mvc.perform(venta(cliente, TARJETA, linea(botCopy, 1), linea(botSenales, 1)))
+            .andExpect(status().isCreated())
+            .andExpect(jsonPath("$.lines[0].team.id").value(oficina.toString()))
+            .andExpect(jsonPath("$.lines[0].team.name").value("VTA Oficina Norte"))
+            .andExpect(jsonPath("$.lines[1].team.id").value(oficina.toString()))
+            .andReturn()
+            .getResponse()
+            .getContentAsString();
+    UUID ventaId = UUID.fromString(com.jayway.jsonpath.JsonPath.read(cuerpo, "$.id"));
+
+    assertThat(oficinasGuardadas(ventaId)).containsOnly(oficina.toString());
+    assertThat(
+            jdbc.queryForObject(
+                "SELECT changes::text FROM audit_change_log WHERE module = 'MV' AND entity_id = ?",
+                String.class,
+                ventaId))
+        .contains("\"team_id\": \"" + oficina + "\"");
+  }
+
+  @Test
+  @DisplayName("CA-MV-705 — vende un DIRECTOR: cada línea lleva su propia oficina")
+  void elDirectorVendeEnLaSuya() throws Exception {
+    UUID oficina = equipo("VTA Oficina Propia");
+    pertenencia(oficina, vendedor, BASE.minusDays(30), null);
+
+    mvc.perform(venta(cliente, TARJETA, linea(botCopy, 1)))
+        .andExpect(status().isCreated())
+        .andExpect(jsonPath("$.lines[0].team.id").value(oficina.toString()));
+  }
+
+  @Test
+  @DisplayName(
+      "CA-MV-706 y CA-MV-707 — vende un MANAGER, o alguien sin director con equipo: la venta se"
+          + " registra como siempre y sus líneas no tienen oficina, presente y nula")
+  void sinOficinaNoHayError() throws Exception {
+    // El vendedor cuelga de un manager sin equipo: nadie de la cadena tiene
+    // pertenencia, que es lo mismo que vende el manager mismo.
+    UUID manager = persona("venta-manager");
+    reportaA(vendedor, manager, BASE.minusDays(30), null);
+
+    String cuerpo =
+        mvc.perform(venta(cliente, TARJETA, linea(botCopy, 1)))
+            .andExpect(status().isCreated())
+            .andExpect(jsonPath("$.lines[0].seller.id").value(vendedor.toString()))
+            .andExpect(jsonPath("$.lines[0].team").value(org.hamcrest.Matchers.nullValue()))
+            .andExpect(jsonPath("$.lines[0]", org.hamcrest.Matchers.hasKey("team")))
+            .andReturn()
+            .getResponse()
+            .getContentAsString();
+    UUID ventaId = UUID.fromString(com.jayway.jsonpath.JsonPath.read(cuerpo, "$.id"));
+    assertThat(oficinasGuardadas(ventaId)).containsOnlyNulls();
+  }
+
+  @Test
+  @DisplayName(
+      "CA-MV-708 — después de la venta el agente cambia de director y su director anterior cambia"
+          + " de equipo: la oficina de lo ya vendido no cambia")
+  void unTrasladoNoMueveLoVendido() throws Exception {
+    UUID director = persona("venta-director");
+    UUID otroDirector = persona("venta-otro-director");
+    UUID norte = equipo("VTA Oficina Norte");
+    UUID sur = equipo("VTA Oficina Sur");
+    pertenencia(norte, director, BASE.minusDays(30), null);
+    reportaA(vendedor, director, BASE.minusDays(30), null);
+
+    String cuerpo =
+        mvc.perform(venta(cliente, TARJETA, linea(botCopy, 1)))
+            .andExpect(status().isCreated())
+            .andReturn()
+            .getResponse()
+            .getContentAsString();
+    UUID ventaId = UUID.fromString(com.jayway.jsonpath.JsonPath.read(cuerpo, "$.id"));
+
+    // El traslado: el agente pasa a otro director, y su director anterior se
+    // muda al sur.
+    jdbc.update("UPDATE user_supervisors SET ended_at = now() WHERE user_id = ?", vendedor);
+    reportaA(vendedor, otroDirector, OffsetDateTime.now(ZoneOffset.UTC), null);
+    jdbc.update("UPDATE team_members SET ended_at = now() WHERE user_id = ?", director);
+    pertenencia(sur, director, OffsetDateTime.now(ZoneOffset.UTC), null);
+
+    assertThat(oficinasGuardadas(ventaId)).containsOnly(norte.toString());
+  }
+
+  @Test
+  @DisplayName(
+      "CA-MV-709 — una venta registrada hoy con fecha del hecho ANTERIOR a un traslado lleva la"
+          + " oficina de aquel día, no la de hoy")
+  void laFechaDelHechoDecide() throws Exception {
+    UUID antes = persona("venta-director");
+    UUID despues = persona("venta-otro-director");
+    UUID norte = equipo("VTA Oficina Norte");
+    UUID sur = equipo("VTA Oficina Sur");
+    OffsetDateTime traslado = OffsetDateTime.parse("2026-07-20T00:00:00Z");
+    pertenencia(norte, antes, BASE.minusDays(60), null);
+    pertenencia(sur, despues, BASE.minusDays(60), null);
+    reportaA(vendedor, antes, BASE.minusDays(60), traslado);
+    reportaA(vendedor, despues, traslado, null);
+
+    mvc.perform(
+            post("/api/v1/movements")
+                .with(comoActor())
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(
+                    ("{\"userId\":\"%s\",\"paymentMethodId\":\"%s\","
+                            + "\"occurredAt\":\"2026-07-12T03:00:00Z\",\"lines\":[%s]}")
+                        .formatted(cliente, TARJETA, linea(botCopy, 1))))
+        .andExpect(status().isCreated())
+        .andExpect(jsonPath("$.lines[0].team.id").value(norte.toString()));
+
+    // Y la de hoy, para la misma estructura, es la otra.
+    mvc.perform(venta(cliente, TARJETA, linea(botSenales, 1)))
+        .andExpect(status().isCreated())
+        .andExpect(jsonPath("$.lines[0].team.id").value(sur.toString()));
+  }
+
+  @Test
+  @DisplayName(
+      "CA-MV-710 — la venta a un cliente con VARIOS vendedores nace con sus líneas sin vendedor y"
+          + " sin oficina")
+  void variosVendedoresSinOficina() throws Exception {
+    UUID otro = persona("venta-otro-vendedor");
+    UUID oficina = equipo("VTA Oficina Norte");
+    pertenencia(oficina, vendedor, BASE.minusDays(30), null);
+    jdbc.update(
+        "INSERT INTO client_sellers (client_id, seller_id, origin, first_movement_id, created_at)"
+            + " VALUES (CAST(? AS uuid), CAST(? AS uuid), 'HOTLINK', NULL, ?)",
+        cliente.toString(),
+        otro.toString(),
+        BASE);
+
+    String cuerpo =
+        mvc.perform(venta(cliente, TARJETA, linea(botCopy, 1)))
+            .andExpect(status().isCreated())
+            .andExpect(jsonPath("$.typeStatus").value("VALIDAR_COMISIONES"))
+            .andExpect(jsonPath("$.lines[0].seller").value(org.hamcrest.Matchers.nullValue()))
+            .andExpect(jsonPath("$.lines[0].team").value(org.hamcrest.Matchers.nullValue()))
+            .andReturn()
+            .getResponse()
+            .getContentAsString();
+    UUID ventaId = UUID.fromString(com.jayway.jsonpath.JsonPath.read(cuerpo, "$.id"));
+    assertThat(oficinasGuardadas(ventaId)).containsOnlyNulls();
+  }
+
+  private java.util.List<String> oficinasGuardadas(UUID ventaId) {
+    return jdbc.queryForList(
+        "SELECT team_id::text FROM movement_details WHERE movement_id = ?", String.class, ventaId);
+  }
+
+  private UUID equipo(String nombre) {
+    UUID id = UUID.randomUUID();
+    jdbc.update("INSERT INTO teams (id, name) VALUES (?, ?)", id, nombre);
+    return id;
+  }
+
+  private void pertenencia(UUID equipo, UUID persona, OffsetDateTime desde, OffsetDateTime hasta) {
+    jdbc.update(
+        "INSERT INTO team_members (id, team_id, user_id, started_at, ended_at)"
+            + " VALUES (gen_random_uuid(), ?, ?, ?, ?)",
+        equipo,
+        persona,
+        desde,
+        hasta);
+  }
+
+  private void reportaA(UUID persona, UUID superior, OffsetDateTime desde, OffsetDateTime hasta) {
+    jdbc.update(
+        "INSERT INTO user_supervisors (id, user_id, supervisor_id, started_at, ended_at)"
+            + " VALUES (gen_random_uuid(), ?, ?, ?, ?)",
+        persona,
+        superior,
+        desde,
+        hasta);
+  }
+
   private RequestPostProcessor comoActor() {
     return user(SUPERADMIN.toString()).authorities(() -> "movements:create");
   }
@@ -683,6 +872,14 @@ class RegisterSaleIT extends IntegrationTestBase {
     jdbc.update(
         "DELETE FROM user_supervisors WHERE user_id IN"
             + " (SELECT id FROM users WHERE username LIKE 'venta-%')");
+    // Las oficinas de `RN-MV-078`: las pertenencias antes que las personas y los
+    // equipos (`fk_team_members_user` es RESTRICT).
+    jdbc.update(
+        "DELETE FROM team_members WHERE user_id IN"
+            + " (SELECT id FROM users WHERE username LIKE 'venta-%')");
+    jdbc.update(
+        "DELETE FROM team_members WHERE team_id IN (SELECT id FROM teams WHERE name LIKE 'VTA %')");
+    jdbc.update("DELETE FROM teams WHERE name LIKE 'VTA %'");
     jdbc.update("DELETE FROM user_products");
     jdbc.update("DELETE FROM users WHERE username LIKE 'venta-%'");
     jdbc.update("DELETE FROM memberships");

@@ -53,6 +53,13 @@ public record SaleLineItem(
                 "Quien vendió ESTA línea (`RN-MV-003`). Presente y NULO cuando la línea no lo"
                     + " tiene; la fila no desaparece por eso.")
         Party seller,
+    @Schema(
+            types = {"object", "null"},
+            description =
+                "La OFICINA donde se vendió ESTA línea (`RN-MV-078`): la guardada el día de la"
+                    + " venta, con el nombre de hoy. Presente y NULA cuando la línea no la tiene;"
+                    + " la fila no desaparece por eso.")
+        LineTeam team,
     @Schema(description = "El producto, con el nombre CONGELADO del día de la venta.")
         ProductRef product,
     int quantity,

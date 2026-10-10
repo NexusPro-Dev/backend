@@ -28,7 +28,7 @@
 
 ## 2. Cambios de esquema
 
-**Ninguno propio.** `V97` ([`RF-MV-001`](../001-registrar-venta/plan.md) §2.8) trae la columna y el permiso `movements:fill-line-teams` a `SUPERADMIN` y `ADMIN`. **No es sensible** (`requires_recent_mfa` en falso): rellenar oficinas no mueve dinero, y la lista de sensibles la confirmó el responsable el 06-10-2026.
+**Ninguno propio.** `V99` ([`RF-MV-001`](../001-registrar-venta/plan.md) §2.8) trae la columna y el permiso `movements:fill-line-teams` a `SUPERADMIN` y `ADMIN`. **No es sensible** (`requires_recent_mfa` en falso): rellenar oficinas no mueve dinero, y la lista de sensibles la confirmó el responsable el 06-10-2026.
 
 ---
 
@@ -84,7 +84,7 @@ Una transacción por orden, **todo o nada**. Con el bloqueo del paso 1, la asign
 
 | Alternativa | Por qué no |
 |---|---|
-| Rellenar en `V97` | A esa hora ningún director está en un equipo: no hay oficina que poner (`requirements/mv.md` §4.13) |
+| Rellenar en `V99` | A esa hora ningún director está en un equipo: no hay oficina que poner (`requirements/mv.md` §4.13) |
 | Rellenar con la oficina **a la fecha de la venta** | Para todo lo anterior a la regla da vacío, que es el problema de partida |
 | Rellenar solo al asignar un director a un equipo | Un proceso invisible que mueve ventas al tocar `SP`; el responsable decidió una orden |
 | Un `UPDATE … FROM` con la `WITH RECURSIVE` dentro | Leería `team_members` y `user_supervisors` desde `MV`; D-25 lo prohíbe. La cadena la calcula `teams` por su puerto |

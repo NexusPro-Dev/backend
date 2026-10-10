@@ -1,6 +1,7 @@
 package com.factech.nexus.modules.movements.interfaces;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.hamcrest.Matchers.containsInAnyOrder;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.user;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
@@ -429,6 +430,124 @@ class MovementsIT extends IntegrationTestBase {
   }
 
   // ---------------------------------------------------------------------------
+  // La oficina de la venta — RN-MV-078
+  // ---------------------------------------------------------------------------
+
+  @Test
+  @DisplayName(
+      "CA-MV-717 — cada fila trae sus oficinas sin repetir, y vacía y presente sin ninguna")
+  void lasOficinasDeLaFila() throws Exception {
+    UUID norte = oficina("ALL Oficina Norte");
+    UUID sur = oficina("ALL Oficina Sur");
+    // Tres líneas en la pendiente: dos de la misma oficina —lo que un JOIN habría
+    // repetido— y una de otra.
+    linea(pendiente, producto("ALL_BOT_2", "Otro bot del libro"), vendedor);
+    UUID tercero = producto("ALL_BOT_3", "Tercer bot del libro");
+    linea(pendiente, tercero, vendedor);
+    ponerOficina(pendiente, norte);
+    ponerOficina(pendiente, tercero, sur);
+
+    String cuerpo =
+        mvc.perform(get("/api/v1/movements").with(conPermiso(administrador)))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.content[2].id").value(pendiente.toString()))
+            .andExpect(jsonPath("$.content[2].teams.length()").value(2))
+            .andExpect(
+                jsonPath("$.content[2].teams[*].id")
+                    .value(containsInAnyOrder(norte.toString(), sur.toString())))
+            .andExpect(
+                jsonPath("$.content[2].teams[*].name")
+                    .value(containsInAnyOrder("ALL Oficina Norte", "ALL Oficina Sur")))
+            // La confirmada no tiene oficina en ninguna línea, y la anulada no
+            // tiene vendedor: las dos con la lista vacía.
+            .andExpect(jsonPath("$.content[1].id").value(confirmada.toString()))
+            .andExpect(jsonPath("$.content[1].teams").isArray())
+            .andExpect(jsonPath("$.content[1].teams").isEmpty())
+            .andExpect(jsonPath("$.content[0].teams").isEmpty())
+            .andReturn()
+            .getResponse()
+            .getContentAsString();
+
+    // EN CRUDO, como `sellers`: vacía tiene que distinguirse de ausente.
+    assertThat(cuerpo).contains("\"teams\":[]");
+  }
+
+  @Test
+  @DisplayName(
+      "CA-MV-718 — teamId trae lo de esa oficina, una vez cada uno, y por la oficina GUARDADA")
+  void filtroPorOficina() throws Exception {
+    UUID norte = oficina("ALL Oficina Norte");
+    UUID sur = oficina("ALL Oficina Sur");
+    // Dos líneas de la confirmada en la misma oficina: la venta sale una vez.
+    linea(confirmada, producto("ALL_BOT_2", "Otro bot del libro"), vendedor);
+    ponerOficina(pendiente, norte);
+    ponerOficina(confirmada, norte);
+    UUID enElSur = movimiento(cliente, vendedor, "CONFIRMADA", PSE, BASE.plusDays(3));
+    ponerOficina(enElSur, sur);
+    // Y HOY el vendedor está en el sur: la lectura no recalcula, y lo que vendió
+    // en el norte sigue saliendo bajo el norte y no bajo el sur.
+    pertenecer(vendedor, sur);
+
+    mvc.perform(
+            get("/api/v1/movements")
+                .param("teamId", norte.toString())
+                .with(conPermiso(administrador)))
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$.totalElements").value(2))
+        .andExpect(jsonPath("$.content.length()").value(2))
+        .andExpect(jsonPath("$.content[0].id").value(confirmada.toString()))
+        .andExpect(jsonPath("$.content[0].teams.length()").value(1))
+        .andExpect(jsonPath("$.content[1].id").value(pendiente.toString()));
+
+    mvc.perform(
+            get("/api/v1/movements")
+                .param("teamId", sur.toString())
+                .with(conPermiso(administrador)))
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$.totalElements").value(1))
+        .andExpect(jsonPath("$.content[0].id").value(enElSur.toString()));
+
+    // Se combina: la oficina y el estado, la oficina y el método.
+    mvc.perform(
+            get("/api/v1/movements")
+                .param("teamId", norte.toString())
+                .param("status", "PENDIENTE")
+                .with(conPermiso(administrador)))
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$.totalElements").value(1))
+        .andExpect(jsonPath("$.content[0].id").value(pendiente.toString()));
+    mvc.perform(
+            get("/api/v1/movements")
+                .param("teamId", norte.toString())
+                .param("paymentMethodId", PSE)
+                .with(conPermiso(administrador)))
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$.totalElements").value(1))
+        .andExpect(jsonPath("$.content[0].id").value(confirmada.toString()));
+  }
+
+  @Test
+  @DisplayName("CA-MV-719 — una oficina inexistente da página vacía, y una mal formada, 400")
+  void oficinaInexistenteOMalFormada() throws Exception {
+    // Como el sujeto y el vendedor: no se confirma qué identificadores existen.
+    mvc.perform(
+            get("/api/v1/movements")
+                .param("teamId", UUID.randomUUID().toString())
+                .with(conPermiso(administrador)))
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$.totalElements").value(0))
+        .andExpect(jsonPath("$.content").isEmpty());
+
+    mvc.perform(
+            get("/api/v1/movements")
+                .param("teamId", "no-es-un-uuid")
+                .with(conPermiso(administrador)))
+        .andExpect(status().isBadRequest())
+        .andExpect(jsonPath("$.errors[0].field").value("teamId"))
+        .andExpect(jsonPath("$.errors[0].code").value("VAL-001"));
+  }
+
+  // ---------------------------------------------------------------------------
   // Auxiliares
   // ---------------------------------------------------------------------------
 
@@ -449,6 +568,13 @@ class MovementsIT extends IntegrationTestBase {
     CommissionCleanup.limpiar(jdbc);
     jdbc.update("DELETE FROM movement_details");
     jdbc.update("DELETE FROM movements");
+    // Las oficinas de esta suite, DESPUÉS de las líneas que las guardan y ANTES de
+    // las personas: `team_members` apunta a las dos con RESTRICT. Solo las del
+    // prefijo: los equipos de `V99` y de otras suites no se tocan.
+    jdbc.update(
+        "DELETE FROM team_members WHERE team_id IN"
+            + " (SELECT id FROM teams WHERE name LIKE 'ALL %')");
+    jdbc.update("DELETE FROM teams WHERE name LIKE 'ALL %'");
     // DESPUÉS de los movimientos, que lo referencian; y siempre, para que el
     // catálogo quede con su única fila y ninguna suite de siembra lo cuente de más.
     jdbc.update(
@@ -572,5 +698,36 @@ class MovementsIT extends IntegrationTestBase {
         movimiento,
         producto,
         vendedor);
+  }
+
+  /** Una oficina de esta suite: el prefijo `ALL ` es lo que `limpiar` borra. */
+  private UUID oficina(String nombre) {
+    UUID id = UUID.randomUUID();
+    jdbc.update("INSERT INTO teams (id, name) VALUES (?, ?)", id, nombre);
+    return id;
+  }
+
+  /** La oficina GUARDADA en todas las líneas del movimiento, como la copia la venta. */
+  private void ponerOficina(UUID movimiento, UUID equipo) {
+    jdbc.update(
+        "UPDATE movement_details SET team_id = ? WHERE movement_id = ?", equipo, movimiento);
+  }
+
+  /** La oficina guardada en UNA línea: la del producto dado. */
+  private void ponerOficina(UUID movimiento, UUID producto, UUID equipo) {
+    jdbc.update(
+        "UPDATE movement_details SET team_id = ? WHERE movement_id = ? AND product_id = ?",
+        equipo,
+        movimiento,
+        producto);
+  }
+
+  /** La pertenencia de HOY, que la lectura no consulta: lo congelado es la línea. */
+  private void pertenecer(UUID persona, UUID equipo) {
+    jdbc.update(
+        "INSERT INTO team_members (id, team_id, user_id) VALUES (?, ?, ?)",
+        UUID.randomUUID(),
+        equipo,
+        persona);
   }
 }

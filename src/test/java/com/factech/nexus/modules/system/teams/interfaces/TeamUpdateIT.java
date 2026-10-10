@@ -59,8 +59,10 @@ class TeamUpdateIT extends IntegrationTestBase {
     eliminado = equipo(jdbc, "Equipo Disuelto");
     eliminar(jdbc, eliminado);
 
+    // Un director vigente por equipo desde `V99` (`RN-SP-052`): el segundo es
+    // historial, cerrado.
     pertenencia(jdbc, inactivo, persona(jdbc, GENTE[0]));
-    pertenencia(jdbc, inactivo, persona(jdbc, GENTE[1]));
+    TeamTestSupport.pertenenciaCerrada(jdbc, inactivo, persona(jdbc, GENTE[1]));
   }
 
   @AfterEach
@@ -200,8 +202,8 @@ class TeamUpdateIT extends IntegrationTestBase {
         .andExpect(status().isOk())
         .andExpect(jsonPath("$.name").value("Equipo en Pausa"))
         .andExpect(jsonPath("$.status").value("INACTIVO"))
-        .andExpect(jsonPath("$.memberCount").value(2))
-        .andExpect(jsonPath("$.members", hasSize(2)))
+        .andExpect(jsonPath("$.memberCount").value(1))
+        .andExpect(jsonPath("$.members", hasSize(1)))
         .andExpect(jsonPath("$.deletedAt").doesNotExist());
 
     Map<String, Object> fila =
@@ -213,7 +215,7 @@ class TeamUpdateIT extends IntegrationTestBase {
                 "SELECT count(*) FROM team_members WHERE team_id = ? AND ended_at IS NULL",
                 Integer.class,
                 inactivo))
-        .isEqualTo(2);
+        .isEqualTo(1);
   }
 
   @Test

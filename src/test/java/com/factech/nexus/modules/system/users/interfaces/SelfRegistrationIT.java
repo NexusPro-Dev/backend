@@ -1035,6 +1035,39 @@ class SelfRegistrationIT extends IntegrationTestBase {
    * Un administrador con lo justo para mirar el equipo y cambiar un estado (`CA-SP-712`,
    * `CA-SP-713`).
    */
+  @Test
+  @DisplayName(
+      "`CA-MV-711` — la venta del alta por enlace lleva la oficina del director de quien registró"
+          + " al cliente, que es su vendedor (09-10-2026)")
+  void laVentaDelAltaLlevaLaOficina() throws Exception {
+    // El agente que reparte el enlace cuelga de un director con oficina.
+    jdbc.update(
+        "INSERT INTO users (id, username, email, first_name, last_name, password_hash, status,"
+            + " country_id) VALUES (gen_random_uuid(), 'reg-director', 'reg-director@ejemplo.com',"
+            + " 'Dora', 'Directora', 'x', 'ACTIVO', (SELECT id FROM countries WHERE code = 'COL'))");
+    UUID oficina = UUID.randomUUID();
+    jdbc.update("INSERT INTO teams (id, name) VALUES (?, 'REG Oficina Norte')", oficina);
+    jdbc.update(
+        "INSERT INTO team_members (id, team_id, user_id, started_at)"
+            + " SELECT gen_random_uuid(), ?, id, now() - interval '30 days' FROM users"
+            + " WHERE username = 'reg-director'",
+        oficina);
+    jdbc.update(
+        "INSERT INTO user_supervisors (id, user_id, supervisor_id, started_at)"
+            + " SELECT gen_random_uuid(), a.id, d.id, now() - interval '30 days'"
+            + " FROM users a, users d WHERE a.username = 'reg-agente' AND d.username = 'reg-director'");
+
+    mvc.perform(registro(cuerpo("ana.ruiz", "ana@ejemplo.com", "12345678")))
+        .andExpect(status().isCreated());
+
+    assertThat(
+            jdbc.queryForObject(
+                "SELECT md.team_id FROM movement_details md JOIN movements m ON m.id = md.movement_id"
+                    + " JOIN users u ON u.id = m.user_id WHERE u.username = 'ana.ruiz'",
+                UUID.class))
+        .isEqualTo(oficina);
+  }
+
   private static RequestPostProcessor administrador() {
     // La familia entera de users:read y users:update: desde RF-SP-060 el equipo es
     // users:read-team y el estado users:change-status (RN-SEG-014).
@@ -1517,6 +1550,11 @@ class SelfRegistrationIT extends IntegrationTestBase {
     jdbc.update("DELETE FROM user_brokers");
     jdbc.update("DELETE FROM refresh_tokens");
     jdbc.update("DELETE FROM user_supervisors");
+    // Las oficinas de `CA-MV-711`: la pertenencia antes que la persona y el equipo.
+    jdbc.update(
+        "DELETE FROM team_members WHERE user_id IN (SELECT id FROM users WHERE username LIKE"
+            + " 'reg-%')");
+    jdbc.update("DELETE FROM teams WHERE name LIKE 'REG Oficina %'");
     jdbc.update("DELETE FROM user_products");
     jdbc.update(
         "DELETE FROM user_roles WHERE user_id IN (SELECT id FROM users WHERE username LIKE"

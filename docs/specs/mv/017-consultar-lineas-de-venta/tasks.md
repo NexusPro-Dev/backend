@@ -31,13 +31,13 @@
 
 ### 1.1 La oficina de cada línea — 09-10-2026
 
-Enmienda de hecho (Art. I.7), `spec.md` 0.4.0 y `plan.md` 0.4.0 **antes** del código. Sin migración propia: la columna y su índice los trae `V97`.
+Enmienda de hecho (Art. I.7), `spec.md` 0.4.0 y `plan.md` 0.4.0 **antes** del código. Sin migración propia: la columna y su índice los trae `V99`.
 
 | ID | Tarea | Depende de | Verificación | Estado |
 |---|---|---|---|---|
-| `T-15` | `TABLAS_LINEAS` con `LEFT JOIN teams`; `COLUMNAS_LINEAS` con `tm_id` y `tm_name`; `SaleLineRow` gana `teamId` y `teamName`; `SaleLineItem.team` (`LineTeam`, de `RF-MV-006` `T-18`) con `types = {"object", "null"}`; `ListSaleLinesService.de` lo arma | `V97`, `RF-MV-006` `T-18` | La línea sin oficina **sale**, con `team` presente y nulo; dos sentencias con una fila y con veinte | **Pendiente** |
-| `T-16` | `SaleLinesRequest` y `SaleLinesFilter` ganan `teamId`; `filtroLineas` añade `d.team_id = :oficina` en el predicado compartido; `MovementController`: `teamId` como `UUID`, documentado —por la línea, inexistente vacío, mal formado `400`— | `T-15` | Con `teamId`, el total cuenta lo que la página devuelve | **Pendiente** |
-| `T-17` | `SaleLinesIT`: `CA-MV-726` a `CA-MV-728`, con un equipo propio de nombre único limpiado al terminar; contrato regenerado —**un** esquema `LineTeam`, solo altas—; `docs/api/index.md` y matriz | `T-16` | `openapi.json` declara `teamId` en `GET /api/v1/movements/sales/lines` y `team` nulable en `SaleLineItem` | **Pendiente** |
+| `T-15` | `TABLAS_LINEAS` con `LEFT JOIN teams`; `COLUMNAS_LINEAS` con `tm_id` y `tm_name`; `SaleLineRow` gana `teamId` y `teamName`; `SaleLineItem.team` (`LineTeam`, de `RF-MV-006` `T-18`) con `types = {"object", "null"}`; `ListSaleLinesService.de` lo arma | `V99`, `RF-MV-006` `T-18` | La línea sin oficina **sale**, con `team` presente y nulo; dos sentencias con una fila y con veinte | **Hecha** — 10-10-2026 |
+| `T-16` | `SaleLinesRequest` y `SaleLinesFilter` ganan `teamId`; `filtroLineas` añade `d.team_id = :oficina` en el predicado compartido; `MovementController`: `teamId` como `UUID`, documentado —por la línea, inexistente vacío, mal formado `400`— | `T-15` | Con `teamId`, el total cuenta lo que la página devuelve | **Hecha** — 10-10-2026 |
+| `T-17` | `SaleLinesIT`: `CA-MV-726` a `CA-MV-728`, con un equipo propio de nombre único limpiado al terminar; contrato regenerado —**un** esquema `LineTeam`, solo altas—; `docs/api/index.md` y matriz | `T-16` | `openapi.json` declara `teamId` en `GET /api/v1/movements/sales/lines` y `team` nulable en `SaleLineItem` | **Hecha** — 10-10-2026 |
 
 ## 2. Orden de ejecución
 

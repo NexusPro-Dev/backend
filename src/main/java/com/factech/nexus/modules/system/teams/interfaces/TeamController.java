@@ -44,10 +44,11 @@ import org.springframework.web.bind.annotation.RestController;
 /**
  * Los equipos de la fuerza comercial (`SP`, `RF-SP-063` a `RF-SP-070`).
  *
- * <p><b>Un equipo agrupa a la cúspide y no manda.</b> Reúne a quienes portan el rol comercial de
- * mayor rango —los que no tienen superior—, y con cada uno entra, por su cadena de mando, toda la
- * red que cuelga de él. Quién está a cargo de quién lo administra `PATCH /users/{id}/supervisor`;
- * esto solo dice en qué cajón está cada manager.
+ * <p><b>Un equipo es la oficina de un director y no manda</b> (`RN-SP-051` y `RN-SP-052`,
+ * enmendadas el 09-10-2026). Tiene como mucho un director vigente, y con él entra, por su cadena de
+ * mando, la red que cuelga de él. Quién está a cargo de quién lo administra {@code PATCH
+ * /users/{id}/supervisor}; esto solo dice de qué oficina es cada director, y las ventas guardan la
+ * suya en cada línea (`RN-MV-078`).
  *
  * <p><b>Pertenecer a un equipo no concede acceso a ningún dato.</b> El alcance de las lecturas se
  * resuelve por la estructura comercial, no por el equipo.
@@ -59,7 +60,7 @@ import org.springframework.web.bind.annotation.RestController;
 @RequestMapping("/api/v1/teams")
 @Tag(
     name = "Equipos",
-    description = "Los equipos en que se organiza la cúspide de la fuerza comercial.")
+    description = "Las oficinas de la fuerza comercial: cada una, de un director.")
 public class TeamController {
 
   private final RegisterTeamService alta;
@@ -98,7 +99,7 @@ public class TeamController {
           """
           Registra un equipo con **nombre** obligatorio y descripción opcional. **Nace
           vacío y `ACTIVO`**: los miembros se asignan después, con su propia petición,
-          porque asignar comprueba que cada persona sea de la cúspide y cierra su
+          porque asignar comprueba que la persona sea director y cierra su
           pertenencia anterior.
 
           **No tiene código**, al contrario que un rol o una membresía: nada del
@@ -109,7 +110,7 @@ public class TeamController {
           historial—.
 
           **Tampoco tiene país ni responsable**: un equipo no se organiza por territorio
-          y lo que hay por encima de un manager es administración, no otro manager.
+          y lo que hay por encima de un director es su manager, no otro equipo.
           Enviar `status`, `members` o `code` responde `400`.
 
           La respuesta es la misma forma que el detalle: `memberCount` en cero,
@@ -203,7 +204,7 @@ public class TeamController {
           desempate para que el orden sea determinista.
 
           **El `status` de cada miembro es el de la PERSONA**, no el de su pertenencia
-          —una pertenencia vigente no tiene estados—, y se publica porque un manager
+          —una pertenencia vigente no tiene estados—, y se publica porque un director
           desactivado **sigue en su equipo**: cambiar el estado de una persona no la
           saca. Quien administra necesita verlo sin abrir cada ficha. A un eliminado
           sí se le cierra la pertenencia en la misma transacción, de modo que deja de
@@ -322,8 +323,8 @@ public class TeamController {
           la única forma de vaciarlo para poder eliminarlo— y **sí se puede
           reasignar a alguien desde él hacia un equipo activo**.
 
-          **Desactivar no le quita nada a nadie.** Un manager de un equipo
-          suspendido sigue activo, sigue siendo manager y sigue teniendo su red;
+          **Desactivar no le quita nada a nadie.** El director de un equipo
+          suspendido sigue activo, sigue siendo director y sigue teniendo su red;
           pertenecer a un equipo no concede acceso a ningún dato, y por eso esta
           operación **no registra ningún evento de seguridad** — al contrario que
           desactivar un rol, que retira permisos de inmediato.
@@ -380,8 +381,8 @@ public class TeamController {
 
           **Solo se elimina un equipo VACÍO.** Con un miembro vigente responde `409`
           (`EX-003`), y no es una molestia: un equipo es la única forma de decir en qué
-          parte de la red está un manager, y eliminarlo con gente dentro dejaría a esas
-          personas sin pertenencia sin que nadie lo hubiera decidido. **Hay dos
+          oficina está un director, y eliminarlo con él dentro lo dejaría sin
+          pertenencia sin que nadie lo hubiera decidido. **Hay dos
           salidas y el mensaje las nombra**: retirar a cada miembro
           (`POST /teams/{id}/members/removals`) o reubicarlo en otro equipo
           (`POST /teams/{id}/members`).
@@ -430,25 +431,27 @@ public class TeamController {
   @PostMapping("/{id}/members")
   @PreAuthorize("hasAuthority('teams:assign-members')")
   @Operation(
-      summary = "Asignar miembros a un equipo",
+      summary = "Asignar el director de un equipo",
       description =
           """
-          Dice **a qué equipo pertenece cada manager desde hoy**, en una sola
-          operación y con motivo. Admite **de una a cien personas** por petición, y
-          los identificadores repetidos se tratan una sola vez.
+          Dice **de qué equipo —qué oficina— es un director desde hoy**, con motivo.
+          **Un equipo tiene un solo director** (`RN-SP-052`, desde el 09-10-2026): se
+          indica **una persona** por petición —la lista se conserva por compatibilidad,
+          y el mismo identificador repetido cuenta como uno—; dos personas distintas
+          responden `400`.
 
-          **Solo entra la cúspide** (`RN-SP-051`): quien porta el rol comercial **de
-          mayor rango**. Un director o un agente **no** se asigna —pertenece al equipo
-          de su manager por la cadena de mando— y enviarlo responde `422` diciendo
-          cuáles y por qué. La regla se decide por la **forma de la jerarquía de
-          roles**, no por un código concreto: el día que nazca un rango por encima, la
-          operación lo sigue sin tocar código.
+          **Solo entra un director** (`RN-SP-051`): quien tiene el rango justo debajo
+          de la cúspide. Un **manager** —está por encima de las oficinas—, un
+          **agente** —pertenece a la oficina de su director por la cadena de mando—, un
+          cliente o quien no tiene rol comercial responden `422`. La regla se decide
+          por la **forma de la jerarquía de roles**, no por un código concreto:
+          renombrar el rol no la cambia.
 
-          **Toda la lista o ninguna.** Si alguna persona no existe, está eliminada o no
-          es de la cúspide, **no entra nadie** y la respuesta informa de **todas** las
-          que fallan, no de la primera: a medias, quien administra no sabría quién
-          entró sin volver a consultar, y el motivo declarado valdría para un conjunto
-          distinto del que pidió.
+          **Un equipo con otro director vigente responde `409`** sin escribir nada
+          —tampoco cierra la pertenencia que la persona pedida tenga en otro equipo—.
+          **Cambiar de encargado son dos pasos**, cada uno con su motivo: retirar al
+          actual (`POST /teams/{id}/members/removals`) y asignar al nuevo. Pedir al
+          director que **ya es** el de este equipo no es un error.
 
           **Mover a alguien de equipo es asignarlo al destino.** La pertenencia
           anterior **se cierra sola** en la misma transacción, y el equipo de origen lo
@@ -461,9 +464,9 @@ public class TeamController {
           alguien **desde** un equipo suspendido hacia uno activo. Un equipo eliminado
           responde `404`.
 
-          **Una persona desactivada o bloqueada entra igual**: un manager suspendido
-          sigue siendo manager, y no poder organizarlo dejaría sin forma de ordenar la
-          cúspide antes de reactivarlo. Su estado se ve en el detalle.
+          **Una persona desactivada o bloqueada entra igual**: un director suspendido
+          sigue siendo director, y no poder organizarlo dejaría sin forma de ordenar
+          las oficinas antes de reactivarlo. Su estado se ve en el detalle.
 
           **El motivo es obligatorio** y no se puede declarar desde cuándo: la
           pertenencia rige al ejecutarse. Una fecha declarada permitiría reescribir a
@@ -474,8 +477,8 @@ public class TeamController {
           cada persona quedan exactamente igual: un equipo agrupa, no manda, y
           pertenecer a uno **no concede acceso a ningún dato**.
 
-          La respuesta es la **forma del detalle**, ya con todos sus miembros por
-          antigüedad. Exige `teams:assign-members`; **`teams:remove-members` no
+          La respuesta es la **forma del detalle**, ya con su director. Exige
+          `teams:assign-members`; **`teams:remove-members` no
           habilita esta operación**, porque mover gente y dejarla fuera de todo equipo
           son dos decisiones distintas.
           """)
@@ -487,7 +490,7 @@ public class TeamController {
     @ApiResponse(
         responseCode = "400",
         description =
-            "Lista vacía o de más de 100 (`VAL-001`, `VAL-003`), identificador mal formado"
+            "Lista vacía o con más de una persona (`VAL-001`, `VAL-003`), identificador mal formado"
                 + " (`VAL-002`), motivo ausente o largo (`VAL-004`, `VAL-005`) o cuerpo con"
                 + " campos no admitidos (`VAL-006`)"),
     @ApiResponse(responseCode = "401", description = "Token ausente o inválido (`AUTH-001`)"),
@@ -500,14 +503,14 @@ public class TeamController {
     @ApiResponse(
         responseCode = "409",
         description =
-            "El equipo está `INACTIVO` y no admite miembros nuevos (`RN-SP-053`), o la persona"
-                + " acaba de ser asignada a otro equipo a la vez (`RN-SP-052`)"),
+            "El equipo está `INACTIVO` y no admite miembros nuevos (`RN-SP-053`), el equipo ya"
+                + " tiene otro director vigente (`RN-SP-052`, `EX-005`), o la persona acaba de"
+                + " ser asignada a otro equipo a la vez (`RN-SP-052`)"),
     @ApiResponse(
         responseCode = "422",
         description =
-            "Alguna persona no existe o está eliminada (`EX-003`), o no porta el rol comercial"
-                + " de mayor rango (`RN-SP-051`); en `errors` van todas las que causan el"
-                + " rechazo")
+            "La persona no existe o está eliminada (`EX-003`), o no tiene el rango de director"
+                + " (`RN-SP-051`); en `errors` va quien causa el rechazo")
   })
   public TeamDetailResponse asignarMiembros(
       @PathVariable UUID id, @Valid @RequestBody AssignTeamMembersRequest peticion) {
@@ -526,7 +529,7 @@ public class TeamController {
           **Retirar no es mover.** Para cambiar a alguien de equipo basta asignarlo al
           destino, que cierra la anterior sola; esta operación es para **vaciar un
           equipo** —lo que hace falta antes de eliminarlo— y para dejar a alguien **sin
-          equipo**, que es un estado legítimo: un manager sin equipo no rompe nada.
+          equipo**, que es un estado legítimo: un director sin equipo no rompe nada.
 
           **Cierra, no borra.** La pertenencia se queda con su fecha de fin y sigue en
           el historial, porque decide a qué equipo se atribuía lo que esa red producía.
@@ -548,10 +551,10 @@ public class TeamController {
           ninguna.
 
           **Esto no toca el rol, ni la cadena de mando, ni el estado de nadie.** Quien
-          sale sigue siendo manager y conserva su red; **cambiar el estado de una
+          sale sigue siendo director y conserva su red; **cambiar el estado de una
           persona no la saca de su equipo**. Lo que sí la saca —en la misma
-          transacción y sin pasar por aquí— es dejar de ser manager: retirarle el rol
-          comercial de mayor rango o eliminarla.
+          transacción y sin pasar por aquí— es dejar de ser director: retirarle el
+          rol, ascenderla o descenderla, o eliminarla (`RN-SP-055`).
 
           La respuesta es la **forma del detalle**, ya sin los retirados. Exige
           `teams:remove-members`; **`teams:assign-members` no habilita esta

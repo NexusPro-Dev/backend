@@ -60,8 +60,8 @@ Enmienda de hecho (Art. I.7), `spec.md` 0.7.0 y `plan.md` 0.5.0 **antes** del c�
 
 | ID | Tarea | Depende de | Verificación | Estado |
 |---|---|---|---|---|
-| `T-12` | `BuyPackageService.registrar`: `teamAt(vendedor, ahora)` tras la atribución y antes de copiar; `copiar` pasa la oficina a `MovementLine.copiarDe` con rebajas; dependencia de `SellerTeamLookup` | `RF-MV-001` · `T-49`, `T-51` | La compra por enlace (`RF-MV-013`) la hereda sin código | **Pendiente** |
-| `T-13` | `BuyPackageIT`: la oficina en todas las líneas, en lo guardado y en la instantánea; con varios vendedores, sin oficina; el cuerpo no trae `team` | `T-12` | `CA-MV-714` | **Pendiente** |
+| `T-12` | `BuyPackageService.registrar`: `teamAt(vendedor, ahora)` tras la atribución y antes de copiar; `copiar` pasa la oficina a `MovementLine.copiarDe` con rebajas; dependencia de `SellerTeamLookup` | `RF-MV-001` · `T-49`, `T-51` | La compra por enlace (`RF-MV-013`) la hereda sin código | **Hecha** — 10-10-2026 |
+| `T-13` | `BuyPackageIT`: la oficina en todas las líneas, en lo guardado y en la instantánea; con varios vendedores, sin oficina; el cuerpo no trae `team` | `T-12` | `CA-MV-714` | **Hecha** — 10-10-2026 |
 
 ---
 

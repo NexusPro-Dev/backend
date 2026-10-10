@@ -571,6 +571,74 @@ class BuyPackageIT extends IntegrationTestBase {
   }
 
   // ---------------------------------------------------------------------------
+  // La oficina de cada línea (`RN-MV-078`, 09-10-2026)
+  // ---------------------------------------------------------------------------
+
+  @Test
+  @DisplayName(
+      "CA-MV-714: comprar un paquete deja TODAS sus líneas con la oficina del director de su vendedor, en lo guardado y en la instantánea, y el cuerpo no la trae")
+  void todasLasLineasConLaOficina() throws Exception {
+    UUID director = persona("paq-director", null);
+    UUID oficina = equipo("PAQ Oficina Norte");
+    pertenencia(oficina, director);
+    reportaA(vendedor, director);
+
+    String cuerpo =
+        comprar(comprador, paqBots, TARJETA)
+            .andExpect(status().isCreated())
+            .andExpect(jsonPath("$.lines", hasSize(2)))
+            .andReturn()
+            .getResponse()
+            .getContentAsString();
+
+    // Las dos líneas, y no solo la primera: la oficina se resuelve una vez y se
+    // copia en cada una.
+    assertThat(oficinasGuardadas()).hasSize(2).containsOnly(oficina.toString());
+    String cambios = instantaneaDeLaCompra();
+    assertThat(cambios.split(Pattern.quote("\"team_id\": \"" + oficina + "\""), -1)).hasSize(3);
+
+    // Como el vendedor (`RF-MV-002` §4.3): quien compra no ve en qué oficina se
+    // le acreditó la compra, ni por la clave ni por el identificador.
+    assertThat(cuerpo).doesNotContain("\"team\"").doesNotContain(oficina.toString());
+  }
+
+  @Test
+  @DisplayName(
+      "CA-MV-714: con VARIOS vendedores, las líneas del paquete nacen sin vendedor y sin oficina, presente y nula en la instantánea")
+  void conVariosVendedoresSinOficina() throws Exception {
+    // El principal tiene oficina: si la compra la copiara sin vendedor, saldría.
+    UUID director = persona("paq-director", null);
+    UUID oficina = equipo("PAQ Oficina Norte");
+    pertenencia(oficina, director);
+    reportaA(vendedor, director);
+    UUID otro = persona("paq-otro-vendedor", null);
+    jdbc.update(
+        "INSERT INTO client_sellers (client_id, seller_id, origin, first_movement_id, created_at)"
+            + " VALUES (?::uuid, ?::uuid, 'HOTLINK', NULL, ?)",
+        comprador,
+        otro,
+        BASE);
+
+    String cuerpo =
+        comprar(comprador, paqBots, TARJETA)
+            .andExpect(status().isCreated())
+            .andExpect(jsonPath("$.typeStatus").value("VALIDAR_COMISIONES"))
+            .andReturn()
+            .getResponse()
+            .getContentAsString();
+
+    assertThat(
+            jdbc.queryForObject(
+                "SELECT count(*) FROM movement_details WHERE seller_id IS NULL", Integer.class))
+        .isEqualTo(2);
+    assertThat(oficinasGuardadas()).hasSize(2).containsOnlyNulls();
+    String cambios = instantaneaDeLaCompra();
+    assertThat(cambios.split(Pattern.quote("\"team_id\": null"), -1)).hasSize(3);
+    assertThat(cambios).doesNotContain(oficina.toString());
+    assertThat(cuerpo).doesNotContain("\"team\"");
+  }
+
+  // ---------------------------------------------------------------------------
   // Casos límite y excepciones
   // ---------------------------------------------------------------------------
 
@@ -765,6 +833,42 @@ class BuyPackageIT extends IntegrationTestBase {
         .isZero();
   }
 
+  private List<String> oficinasGuardadas() {
+    return jdbc.queryForList("SELECT team_id::text FROM movement_details", String.class);
+  }
+
+  /** La instantánea del alta de la compra (`CA-MV-060`), como texto. */
+  private String instantaneaDeLaCompra() {
+    return jdbc.queryForObject(
+        "SELECT changes::text FROM audit_change_log"
+            + " WHERE module = 'MV' AND entity = 'movements' AND action = 'CREATE'",
+        String.class);
+  }
+
+  /** Una oficina (`RN-MV-078`), con el prefijo que `limpiar` reconoce. */
+  private UUID equipo(String nombre) {
+    UUID id = UUID.randomUUID();
+    jdbc.update("INSERT INTO teams (id, name) VALUES (?, ?)", id, nombre);
+    return id;
+  }
+
+  private void pertenencia(UUID equipo, UUID persona) {
+    jdbc.update(
+        "INSERT INTO team_members (id, team_id, user_id, started_at)"
+            + " VALUES (gen_random_uuid(), ?, ?, now() - interval '30 days')",
+        equipo,
+        persona);
+  }
+
+  /** La cadena de mando del vendedor: los roles no se miran, basta la fila vigente. */
+  private void reportaA(UUID persona, UUID superior) {
+    jdbc.update(
+        "INSERT INTO user_supervisors (id, user_id, supervisor_id, started_at)"
+            + " VALUES (gen_random_uuid(), ?, ?, now() - interval '30 days')",
+        persona,
+        superior);
+  }
+
   /** Sin ninguna autoridad, a propósito: es una compra propia (`CA-MV-049`). */
   private static MockHttpServletRequestBuilder peticion(UUID quien, String codigo, String metodo) {
     return post("/api/v1/packages/" + codigo + "/purchases")
@@ -789,7 +893,15 @@ class BuyPackageIT extends IntegrationTestBase {
             + " (SELECT id FROM users WHERE username LIKE 'paq-%')");
     jdbc.update(
         "DELETE FROM user_supervisors WHERE user_id IN"
-            + " (SELECT id FROM users WHERE username LIKE 'paq-%')");
+            + " (SELECT id FROM users WHERE username LIKE 'paq-%')"
+            + " OR supervisor_id IN (SELECT id FROM users WHERE username LIKE 'paq-%')");
+    // Las oficinas de `CA-MV-714`: las pertenencias antes que las personas y los
+    // equipos (`fk_team_members_user` es RESTRICT). Solo los equipos de esta suite.
+    jdbc.update(
+        "DELETE FROM team_members WHERE user_id IN"
+            + " (SELECT id FROM users WHERE username LIKE 'paq-%')"
+            + " OR team_id IN (SELECT id FROM teams WHERE name LIKE 'PAQ %')");
+    jdbc.update("DELETE FROM teams WHERE name LIKE 'PAQ %'");
     jdbc.update("DELETE FROM user_products");
     jdbc.update("DELETE FROM users WHERE username LIKE 'paq-%'");
     jdbc.update("DELETE FROM memberships");

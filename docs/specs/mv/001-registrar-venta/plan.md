@@ -7,7 +7,7 @@
 | `spec.md` aprobada el | 02-09-2026 |
 | Versión | 0.9.0 |
 | Estado | **Aprobado** |
-| Enmendado el | 09-10-2026 — **la oficina de cada línea** (`RN-MV-078`): el puerto `SellerTeamLookup` que publica `teams`, `movement_details.team_id` y `V97`, que sirven a todo el módulo (§2.8) |
+| Enmendado el | 09-10-2026 — **la oficina de cada línea** (`RN-MV-078`): el puerto `SellerTeamLookup` que publica `teams`, `movement_details.team_id` y `V99`, que sirven a todo el módulo (§2.8) |
 | Enmendado el | 05-10-2026 — **la venta del alta gratuita nace confirmada sin entregar** (`RN-MV-075`) y `V68` migra las que esperaban (§2.7) |
 | Enmendado el | 05-10-2026 — `V65`: **los importes en centésimas** (`bigint`), con un convertidor JPA compartido; `MV` es la tripleta que construye el convertidor y la migración entera ([`ADR-006`](../../../architecture/ADR-006-importes-en-unidades-minimas.md); §2.6) |
 | Enmendado el | 03-10-2026 — `RN-MV-006` gana la mitad del **salto**: `SaleRules.verificarQueSube` rechaza también un destino más de un nivel por encima del vigente, con el mismo `EX-005` y otro mensaje (§3.2). Sin esquema |
@@ -25,9 +25,9 @@
 
 Este plan **funda la mecánica del módulo** y los demás la heredan sin repetirla: el esquema, las lecturas cruzadas hacia `SP` y `PM`, la traducción de errores y el generador del código de comprobante rigen para `RF-MV-002` a `RF-MV-009`.
 
-!!! warning "Enmendado el 09-10-2026 — la oficina de cada línea: `SellerTeamLookup`, `movement_details.team_id` y `V97`"
+!!! warning "Enmendado el 09-10-2026 — la oficina de cada línea: `SellerTeamLookup`, `movement_details.team_id` y `V99`"
 
-    `spec.md` v0.11.0 (`RN-MV-078`). **Este plan funda la oficina para todo el módulo**, como fundó el vendedor: **el puerto de lectura que publica `teams`, la columna y la migración `V97` se describen aquí, en §2.8**, y [`RF-MV-002`](../002-comprar-producto-uno-mismo/plan.md), [`RF-MV-011`](../011-comprar-por-hotlink/plan.md) a [`RF-MV-013`](../013-comprar-paquete-por-hotlink/plan.md), [`RF-MV-016`](../016-asignar-vendedores-de-venta/plan.md) y [`RF-MV-058`](../058-rellenar-oficina-de-lineas/plan.md) los citan sin repetirlos. **En una frase**: `RegisterSaleService.registrar` pregunta `SellerTeamLookup.teamAt(vendedor, ocurrioEn)` **después de la atribución y una vez por vendedor distinto**, y `MovementLine` lo copia en `team_id` junto a `seller_id`. **Cómo se lee la oficina** en las respuestas, los listados y los filtros es de [`RF-MV-007`](../007-consultar-detalle-movimiento/plan.md) y sus hermanos; aquí solo se escribe.
+    `spec.md` v0.11.0 (`RN-MV-078`). **Este plan funda la oficina para todo el módulo**, como fundó el vendedor: **el puerto de lectura que publica `teams`, la columna y la migración `V99` se describen aquí, en §2.8**, y [`RF-MV-002`](../002-comprar-producto-uno-mismo/plan.md), [`RF-MV-011`](../011-comprar-por-hotlink/plan.md) a [`RF-MV-013`](../013-comprar-paquete-por-hotlink/plan.md), [`RF-MV-016`](../016-asignar-vendedores-de-venta/plan.md) y [`RF-MV-058`](../058-rellenar-oficina-de-lineas/plan.md) los citan sin repetirlos. **En una frase**: `RegisterSaleService.registrar` pregunta `SellerTeamLookup.teamAt(vendedor, ocurrioEn)` **después de la atribución y una vez por vendedor distinto**, y `MovementLine` lo copia en `team_id` junto a `seller_id`. **Cómo se lee la oficina** en las respuestas, los listados y los filtros es de [`RF-MV-007`](../007-consultar-detalle-movimiento/plan.md) y sus hermanos; aquí solo se escribe.
 
 ---
 
@@ -153,7 +153,7 @@ Enmienda del Art. I.7 por `RN-MV-075` ([`requirements/mv.md`](../../../requireme
 
 **Alternativa descartada: confirmar al depósito y no al alta.** Dejaría la venta pendiente hasta el depósito y entregaría al confirmarla, sin ninguna excepción a `RN-MV-020`. Se descarta porque es lo contrario de lo que el responsable pidió: la venta **es** una compra hecha, y lo que espera es su activación. Un pendiente que no espera ningún pago tampoco tiene quién lo rechace ni lo anule.
 
-### 2.8 La oficina de cada línea: `SellerTeamLookup`, `team_id` y `V97` — 09-10-2026
+### 2.8 La oficina de cada línea: `SellerTeamLookup`, `team_id` y `V99` — 09-10-2026
 
 Enmienda del Art. I.7 por `RN-MV-078` ([`requirements/mv.md`](../../../requirements/mv.md) v0.97.0 §4.13 y §7.3) y por `RN-SP-051`, `RN-SP-052` y `RN-SP-055` enmendadas ([`requirements/sp.md`](../../../requirements/sp.md) v1.119.0).
 
@@ -177,12 +177,12 @@ Enmienda del Art. I.7 por `RN-MV-078` ([`requirements/mv.md`](../../../requireme
 **`V97__mv_oficina_de_la_venta.sql`**, en este orden:
 
 1. **La columna.** `ALTER TABLE movement_details ADD COLUMN team_id uuid NULL`, con `fk_movement_details_team` a `teams (id)` **`ON DELETE SET NULL`** —un equipo se elimina lógicamente (`RN-SP-054`), y la acción existe para que las suites que vacían `teams` no tengan que limpiar antes las ventas: la lección de `product_links`— e `ix_movement_details_team` sobre `(team_id, movement_id) WHERE team_id IS NOT NULL`, **parcial** como el del vendedor. **No rellena nada**: a la fecha de cada venta anterior ningún director tenía equipo, y lo hace `RF-MV-058` cuando administración los haya asignado.
-2. **Cierra las pertenencias vigentes de los managers**: `UPDATE team_members SET ended_at = now(), updated_at = now() WHERE ended_at IS NULL AND` el miembro porta el rol vendedor de **la cúspide** —el vendedor cuyo rol padre no es vendedor (`RN-SP-019`), hoy `MANAGER`—, por la forma de la jerarquía y no por el código, como `RN-SP-051`. **Con fecha de fin y no borrando**: es historial (`RN-SP-052`). Hasta `V97` la cúspide era lo único que se podía asignar, de modo que en la práctica cierra todas las vigentes. **Va antes del índice siguiente**, que con dos managers en un equipo no se podría crear.
+2. **Cierra las pertenencias vigentes de los managers**: `UPDATE team_members SET ended_at = now(), updated_at = now() WHERE ended_at IS NULL AND` el miembro porta el rol vendedor de **la cúspide** —el vendedor cuyo rol padre no es vendedor (`RN-SP-019`), hoy `MANAGER`—, por la forma de la jerarquía y no por el código, como `RN-SP-051`. **Con fecha de fin y no borrando**: es historial (`RN-SP-052`). Hasta `V99` la cúspide era lo único que se podía asignar, de modo que en la práctica cierra todas las vigentes. **Va antes del índice siguiente**, que con dos managers en un equipo no se podría crear.
 3. **`uq_team_members_equipo_vigente`**: `CREATE UNIQUE INDEX … ON team_members (team_id) WHERE ended_at IS NULL` —**un director vigente por equipo** (`RN-SP-052`)—, con la construcción de `uq_team_members_vigente`. Respalda la carrera de dos asignaciones simultáneas; la violación la traduce a `409` [`RF-SP-069`](../../sp/069-asignar-miembros-a-equipo/plan.md).
 4. **Los cinco equipos** —Principal, Legendary, Elite, Prime y Master—, `ACTIVO`, con identificadores fijos, **sin pisar** uno no eliminado cuyo nombre normalizado coincida (`INSERT … SELECT … WHERE NOT EXISTS` con la expresión de `uq_teams_name`): un entorno donde administración ya creó «Elite» conserva el suyo.
 5. **`movements:fill-line-teams`** (`01a10e82-9000-7206-9c4f-5e7ad700006a`, `RF-MV-058`) a `SUPERADMIN` y `ADMIN`, explícito. **No es sensible** (`requires_recent_mfa` en falso): la lista la confirmó el responsable el 06-10-2026, y rellenar oficinas no mueve dinero. El catálogo pasa a **234** y `ADMIN` a **232**, contando la `V96` de cuentas de broker.
 
-**Lo que `V97` no hace**: tocar `RN-SP-051` en el caso de uso de asignar, ni `RN-SP-055` al retirar roles. Eso es de [`RF-SP-069`](../../sp/069-asignar-miembros-a-equipo/plan.md), [`RF-SP-031`](../../sp/031-retirar-roles-usuario/plan.md) y [`RF-SP-029`](../../sp/029-eliminar-usuario/plan.md).
+**Lo que `V99` no hace**: tocar `RN-SP-051` en el caso de uso de asignar, ni `RN-SP-055` al retirar roles. Eso es de [`RF-SP-069`](../../sp/069-asignar-miembros-a-equipo/plan.md), [`RF-SP-031`](../../sp/031-retirar-roles-usuario/plan.md) y [`RF-SP-029`](../../sp/029-eliminar-usuario/plan.md).
 
 **Alternativa descartada: calcular la oficina al leer**, con el recorrido de hoy. Es la respuesta equivocada después de un traslado, que es justo el caso que pidió el responsable (`requirements/mv.md` §4.13). **Y descartada: guardar la oficina en la cabecera.** La oficina es del vendedor, y el vendedor es de la línea (`RN-MV-003`): el día que una venta lleve dos vendedores, llevará dos oficinas.
 
@@ -311,7 +311,7 @@ Registro de **cambios**, acción de creación, con la instantánea completa: suj
 
 **D-26 no bloquea este requerimiento.** Registrar una venta **no escribe en `SP`**: solo lee. La escritura aparece al confirmar, y es `RF-MV-003` quien no puede terminarse sin esa decisión.
 
-**Desde el 09-10-2026 `SP` gana otra interfaz publicada**, `SellerTeamLookup` en `teams` (§2.8), con la misma regla: se añade y no se modifica nada, y la suite de `teams` sigue en verde sin cambios **salvo** lo que `V97` siembra —cinco equipos que las pruebas que cuentan equipos o vacían la tabla tienen que tener en cuenta—.
+**Desde el 09-10-2026 `SP` gana otra interfaz publicada**, `SellerTeamLookup` en `teams` (§2.8), con la misma regla: se añade y no se modifica nada, y la suite de `teams` sigue en verde sin cambios **salvo** lo que `V99` siembra —cinco equipos que las pruebas que cuentan equipos o vacían la tabla tienen que tener en cuenta—.
 
 ## 9. Alternativas consideradas
 
@@ -338,7 +338,7 @@ Registro de **cambios**, acción de creación, con la instantánea completa: suj
 | 5 | **Dos ventas simultáneas del mismo upgrade** | Aceptado y declarado en `spec.md` §13. Ninguna concede nada; el conflicto es de `RF-MV-003` |
 | 6 | Las interfaces nuevas de `PM` y `SP` **rompan sus suites** | Se añaden métodos, no se modifican. Su definición de terminado exige las dos suites en verde sin cambios |
 | 7 | **La oficina se calcule con el reloj y no con la fecha del hecho** (09-10-2026) | La venta registrada con fecha anterior a un traslado iría a la oficina de hoy, sin error. Lo cubre `CA-MV-709`, que registra con una fecha anterior al traslado |
-| 8 | **Una venta con fecha del hecho anterior a `V97`** encuentre la pertenencia **de un manager**, que estaba vigente en ese instante y `V97` cierra con fecha de hoy (09-10-2026) | La regla, aplicada al pie de la letra, le daría el equipo de ese manager. **No se resuelve en este plan**: está planteado al responsable del proyecto. Mientras tanto la regla se aplica tal cual está escrita |
+| 8 | **Una venta con fecha del hecho anterior a `V99`** encuentre la pertenencia **de un manager**, que estaba vigente en ese instante y `V99` cierra con fecha de hoy (09-10-2026) | La regla, aplicada al pie de la letra, le daría el equipo de ese manager. **No se resuelve en este plan**: está planteado al responsable del proyecto. Mientras tanto la regla se aplica tal cual está escrita |
 
 ## 11. Estrategia de prueba
 

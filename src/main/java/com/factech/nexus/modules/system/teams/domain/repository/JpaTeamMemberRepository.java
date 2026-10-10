@@ -25,9 +25,14 @@ import org.springframework.stereotype.Repository;
 public class JpaTeamMemberRepository implements TeamMemberRepository {
 
   private static final String UQ_VIGENTE = "uq_team_members_vigente";
+  private static final String UQ_EQUIPO_VIGENTE = "uq_team_members_equipo_vigente";
 
   static final String YA_TIENE_EQUIPO =
       "Alguna de las personas acaba de ser asignada a otro equipo. Vuelva a intentarlo.";
+
+  /** El mismo texto de `EX-005` que da la comprobación previa del caso de uso. */
+  static final String EQUIPO_CON_DIRECTOR =
+      "El equipo ya tiene un director vigente. Retírelo antes de asignar otro.";
 
   private final EntityManager em;
 
@@ -62,6 +67,18 @@ public class JpaTeamMemberRepository implements TeamMemberRepository {
   }
 
   @Override
+  public List<TeamMember> findActiveOfTeam(UUID teamId) {
+    if (teamId == null) {
+      return List.of();
+    }
+    return em.createQuery(
+            "SELECT m FROM TeamMember m WHERE m.teamId = :equipo AND m.endedAt IS NULL",
+            TeamMember.class)
+        .setParameter("equipo", teamId)
+        .getResultList();
+  }
+
+  @Override
   public List<TeamMember> saveAll(Collection<TeamMember> pertenencias) {
     List<TeamMember> guardadas = new ArrayList<>();
     try {
@@ -85,7 +102,16 @@ public class JpaTeamMemberRepository implements TeamMemberRepository {
   }
 
   private static RuntimeException traducir(PersistenceException fallo) {
-    if (UQ_VIGENTE.equals(nombreDeRestriccion(fallo))) {
+    String restriccion = nombreDeRestriccion(fallo);
+    // `uq_team_members_equipo_vigente` (`V99`): dos directores al mismo equipo
+    // por un camino que no tomó el bloqueo. El mismo `409` de `EX-005`.
+    if (UQ_EQUIPO_VIGENTE.equals(restriccion)) {
+      return new BusinessRuleException(
+          "RN-SP-052",
+          EQUIPO_CON_DIRECTOR,
+          List.of(new FieldError("id", "RN-SP-052", EQUIPO_CON_DIRECTOR)));
+    }
+    if (UQ_VIGENTE.equals(restriccion)) {
       return new BusinessRuleException(
           "RN-SP-052",
           YA_TIENE_EQUIPO,

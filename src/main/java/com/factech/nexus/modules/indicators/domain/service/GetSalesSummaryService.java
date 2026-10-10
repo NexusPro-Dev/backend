@@ -9,6 +9,7 @@ import com.factech.nexus.modules.movements.application.SalesFigures;
 import com.factech.nexus.modules.movements.application.SalesFigures.Amount;
 import com.factech.nexus.modules.movements.application.SalesFigures.BucketSummary;
 import com.factech.nexus.modules.movements.application.SalesFigures.Granularity;
+import com.factech.nexus.modules.movements.application.SalesFigures.LineFilter;
 import com.factech.nexus.modules.movements.application.SalesFigures.SalesScope;
 import com.factech.nexus.modules.movements.application.SalesFigures.Summary;
 import com.factech.nexus.modules.movements.application.SalesFigures.Totals;
@@ -71,7 +72,13 @@ public class GetSalesSummaryService {
     Optional<SalesScope> alcance = alcances.resolve(actor.id(), peticion.sellerId());
     Summary resumen =
         alcance
-            .map(a -> cifras.summary(a, periodos.interval(periodo), peticion.currencyId()))
+            .map(
+                a ->
+                    cifras.summary(
+                        a,
+                        periodos.interval(periodo),
+                        peticion.currencyId(),
+                        LineFilter.ofTeam(peticion.teamId())))
             .orElseGet(Summary::empty);
     Bloques total = bloques(resumen);
 
@@ -86,7 +93,8 @@ public class GetSalesSummaryService {
                           periodos.interval(periodo),
                           peticion.currencyId(),
                           tramo,
-                          ZoneId.of(periodo.zone())))
+                          ZoneId.of(periodo.zone()),
+                          LineFilter.ofTeam(peticion.teamId())))
               .orElseGet(List::of);
       Map<LocalDate, Summary> porTramo = new HashMap<>();
       conVentas.forEach(b -> porTramo.put(b.start(), b.summary()));

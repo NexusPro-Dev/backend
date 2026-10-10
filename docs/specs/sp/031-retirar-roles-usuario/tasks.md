@@ -47,8 +47,8 @@ Enmienda de hecho (Art. I.7), `spec.md` y `plan.md` enmendados el 09-10-2026 **a
 
 | # | Tarea | Depende de | Verificación | Estado |
 |---|---|---|---|---|
-| `T-18` | `RevokeUserRolesService`: la condición de `RN-SP-055` pregunta por `esDirector` sobre el rango resultante; `MOTIVO_RN_SP_055` con el texto nuevo | `RF-SP-069` `T-13` (`CommercialStructure.esDirector`) | `CA-SP-795` sigue en verde, también el caso en que el retiro falla | **Pendiente** |
-| `T-19` | `TeamMembershipRetirementIT`: `CA-SP-988` y `CA-SP-989` | `T-18` | La correlación del cierre es la del retiro | **Pendiente** |
+| `T-18` | `RevokeUserRolesService`: la condición de `RN-SP-055` pregunta por `esDirector` sobre el rango resultante; `MOTIVO_RN_SP_055` con el texto nuevo | `RF-SP-069` `T-13` (`CommercialStructure.esDirector`) | `CA-SP-795` sigue en verde, también el caso en que el retiro falla | **Hecha** — 10-10-2026 |
+| `T-19` | `TeamMembershipRetirementIT`: `CA-SP-988` y `CA-SP-989` | `T-18` | La correlación del cierre es la del retiro | **Hecha** — 10-10-2026 |
 
 !!! note "Cómo se ejercita el fallo de la revocación — 27-08-2026"
 

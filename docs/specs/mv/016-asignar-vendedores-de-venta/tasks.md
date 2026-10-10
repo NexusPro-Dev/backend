@@ -44,8 +44,8 @@ Enmienda de hecho (Art. I.7), `spec.md` 0.4.0 y `plan.md` 0.4.0 **antes** del c�
 
 | ID | Tarea | Depende de | Verificación | Estado |
 |---|---|---|---|---|
-| `T-16` | `lockForAssignment` proyecta `occurred_at` (`AssignmentHeader.occurredAt`); `findLinesForAssignment` lee `team_id` (`AssignmentLine.teamId`); `assignSeller(lineId, sellerId, teamId)` en un `UPDATE`; `AssignSellersService` pregunta `teamAt(nuevo, venta.occurredAt())` una vez por vendedor distinto, solo para las líneas que cambian, tras las comprobaciones y `CM`; `team_id` antes y después en la auditoría | `RF-MV-001` · `T-49`, `T-50` | `SellerAssignmentIT` sigue en verde | **Pendiente** |
-| `T-17` | `SellerAssignmentIT`: asignar, corregir tras un traslado posterior a la venta, corregir hacia quien no tenía oficina, reescribir el mismo vendedor, auditoría | `T-16` | `CA-MV-716`; usar el reloj en lugar de `occurred_at` lo hace fallar | **Pendiente** |
+| `T-16` | `lockForAssignment` proyecta `occurred_at` (`AssignmentHeader.occurredAt`); `findLinesForAssignment` lee `team_id` (`AssignmentLine.teamId`); `assignSeller(lineId, sellerId, teamId)` en un `UPDATE`; `AssignSellersService` pregunta `teamAt(nuevo, venta.occurredAt())` una vez por vendedor distinto, solo para las líneas que cambian, tras las comprobaciones y `CM`; `team_id` antes y después en la auditoría | `RF-MV-001` · `T-49`, `T-50` | `SellerAssignmentIT` sigue en verde | **Hecha** — 10-10-2026 |
+| `T-17` | `SellerAssignmentIT`: asignar, corregir tras un traslado posterior a la venta, corregir hacia quien no tenía oficina, reescribir el mismo vendedor, auditoría | `T-16` | `CA-MV-716`; usar el reloj en lugar de `occurred_at` lo hace fallar | **Hecha** — 10-10-2026 |
 
 ---
 

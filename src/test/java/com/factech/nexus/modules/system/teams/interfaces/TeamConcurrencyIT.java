@@ -37,7 +37,9 @@ class TeamConcurrencyIT extends IntegrationTestBase {
   @Autowired private MockMvc mvc;
   @Autowired private JdbcTemplate jdbc;
 
-  private static final String[] PERSONAS = {"carreraequipo1", "carreraequipo2"};
+  private static final String[] PERSONAS = {
+    "carreraequipo1", "carreraequipo2", "carreraequipo3", "carreraequipo4"
+  };
 
   @BeforeEach
   @AfterEach
@@ -128,7 +130,8 @@ class TeamConcurrencyIT extends IntegrationTestBase {
   void lamismaPersonaADosEquiposALaVez() throws Exception {
     UUID primero = TeamTestSupport.equipo(jdbc, "Equipo Carrera Uno");
     UUID segundo = TeamTestSupport.equipo(jdbc, "Equipo Carrera Dos");
-    UUID manager = TeamTestSupport.personaConRol(jdbc, PERSONAS[0], "MANAGER");
+    // Directores desde el 09-10-2026 (`RN-SP-051`).
+    UUID manager = TeamTestSupport.personaConRol(jdbc, PERSONAS[0], "DIRECTOR");
 
     List<Outcome<Integer>> resultados =
         runTogether(2, indice -> estadoDe(asignar(indice == 0 ? primero : segundo, manager)));
@@ -168,6 +171,32 @@ class TeamConcurrencyIT extends IntegrationTestBase {
 
   @Test
   @DisplayName(
+      "`CA-SP-984` — dos directores distintos al MISMO equipo sin director a la vez: uno entra, el"
+          + " otro recibe el 409 de RN-SP-052, nunca un 500, y queda UNA pertenencia vigente")
+  void dosDirectoresAlMismoEquipo() throws Exception {
+    UUID equipo = TeamTestSupport.equipo(jdbc, "Equipo Con Un Solo Director");
+    UUID uno = TeamTestSupport.personaConRol(jdbc, PERSONAS[2], "DIRECTOR");
+    UUID otro = TeamTestSupport.personaConRol(jdbc, PERSONAS[3], "DIRECTOR");
+
+    List<Outcome<Integer>> resultados =
+        runTogether(2, indice -> estadoDe(asignar(equipo, indice == 0 ? uno : otro)));
+
+    // El bloqueo del equipo las ordena: la segunda ve al director de la primera.
+    // Sin solaparse ocurre lo mismo. En los dos casos, un 200 y un 409.
+    assertThat(resultados).allMatch(Outcome::succeeded);
+    assertThat(resultados.stream().map(Outcome::value).sorted().toList())
+        .as("un 200 y un 409: %s", resultados)
+        .containsExactly(200, 409);
+    assertThat(
+            jdbc.queryForObject(
+                "SELECT count(*) FROM team_members WHERE team_id = ? AND ended_at IS NULL",
+                Integer.class,
+                equipo))
+        .isEqualTo(1);
+  }
+
+  @Test
+  @DisplayName(
       "`CA-SP-777` (la mitad cruzada) — asignar contra eliminar el mismo equipo: nunca queda un"
           + " equipo eliminado con alguien dentro")
   void asignarContraEliminar() throws Exception {
@@ -177,7 +206,7 @@ class TeamConcurrencyIT extends IntegrationTestBase {
     // asignación, la baja recibe su `409` por tener miembros. Lo que no puede
     // pasar —y es lo único que se afirma— es que ocurran las dos.
     UUID equipo = TeamTestSupport.equipo(jdbc, "Equipo Que Se Disputa");
-    UUID manager = TeamTestSupport.personaConRol(jdbc, PERSONAS[1], "MANAGER");
+    UUID manager = TeamTestSupport.personaConRol(jdbc, PERSONAS[1], "DIRECTOR");
 
     List<Outcome<Integer>> resultados =
         runTogether(2, indice -> estadoDe(indice == 0 ? asignar(equipo, manager) : baja(equipo)));

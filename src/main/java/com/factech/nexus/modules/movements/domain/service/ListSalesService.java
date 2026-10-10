@@ -1,5 +1,6 @@
 package com.factech.nexus.modules.movements.domain.service;
 
+import com.factech.nexus.modules.movements.application.LineTeam;
 import com.factech.nexus.modules.movements.application.ListSalesRequest;
 import com.factech.nexus.modules.movements.application.MovementResponse;
 import com.factech.nexus.modules.movements.domain.models.MovementStatus;
@@ -82,16 +83,24 @@ public class ListSalesService {
             peticion.paymentMethodId(),
             peticion.code(),
             peticion.from(),
-            peticion.to());
+            peticion.to(),
+            // La oficina va DENTRO del alcance y sin corte previo (`RN-MV-078`): un
+            // equipo no es una persona, y lo que vacía es el predicado.
+            peticion.teamId());
 
     List<MovementRow> filas = movimientos.findSales(filtro, pagina.offset(), pagina.size());
     BoundedCount total = movimientos.countSales(filtro, paginacion.techoDelConteo());
 
     Map<UUID, List<MovementResponse.Party>> vendedores =
         ListMovementsService.vendedoresDe(movimientos, filas);
+    Map<UUID, List<LineTeam>> oficinas = ListMovementsService.oficinasDe(movimientos, filas);
     List<MovementResponse> contenido = new ArrayList<>(filas.size());
     for (MovementRow fila : filas) {
-      contenido.add(ListMovementsService.de(fila, vendedores.getOrDefault(fila.id(), List.of())));
+      contenido.add(
+          ListMovementsService.de(
+              fila,
+              vendedores.getOrDefault(fila.id(), List.of()),
+              oficinas.getOrDefault(fila.id(), List.of())));
     }
     return PageResponse.de(contenido, total, pagina.page(), pagina.size());
   }

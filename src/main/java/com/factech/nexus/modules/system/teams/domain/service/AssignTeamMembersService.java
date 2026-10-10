@@ -35,7 +35,12 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 /**
- * Caso de uso `RF-SP-069`: asignar managers a un equipo.
+ * Caso de uso `RF-SP-069`: asignar el director de un equipo.
+ *
+ * <p><b>Desde el 09-10-2026 un equipo es la oficina de UN director</b> (`RN-SP-051` y `RN-SP-052`
+ * enmendadas): entra quien tiene el rango de director, una persona por petición, y un equipo con
+ * otro director vigente responde `409`. Cambiar de encargado son dos decisiones con su motivo:
+ * retirar al actual (`RF-SP-070`) y asignar al nuevo.
  *
  * <p><b>Es la operación que da sentido a las cinco anteriores.</b> Hasta ahora los equipos
  * existían, se listaban, se abrían, se corregían y se eliminaban, y estaban todos vacíos: aquí es
@@ -58,8 +63,8 @@ import org.springframework.transaction.annotation.Transactional;
  * puede mover a alguien hacia uno activo.
  *
  * <p><b>Nada de `user_supervisors` ni de `user_roles` se toca</b> (`CA-SP-787`). Un equipo agrupa y
- * no manda: quién está a cargo de quién lo administra `RF-SP-041`, y esta operación solo dice en
- * qué cajón de la cúspide está cada manager.
+ * no manda: quién está a cargo de quién lo administra `RF-SP-041`, y esta operación solo dice de
+ * qué oficina es cada director.
  */
 @Service
 public class AssignTeamMembersService {
@@ -67,8 +72,10 @@ public class AssignTeamMembersService {
   static final String EQUIPO_INACTIVO =
       "El equipo está inactivo y no admite miembros nuevos. Actívelo antes de asignar.";
   static final String ENTIDAD = "team_members";
-  static final String NO_ES_CUSPIDE =
-      "Solo pueden pertenecer a un equipo quienes portan el rol comercial de mayor rango.";
+  static final String NO_ES_DIRECTOR =
+      "Solo pueden pertenecer a un equipo quienes tienen el rango de director.";
+  static final String EQUIPO_CON_DIRECTOR =
+      "El equipo ya tiene un director vigente. Retírelo antes de asignar otro.";
 
   private final TeamRepository equipos;
   private final TeamMemberRepository pertenencias;
@@ -133,7 +140,8 @@ public class AssignTeamMembersService {
     }
 
     verificarQueExisten(solicitados);
-    verificarQueSonCuspide(solicitados);
+    verificarQueSonDirectores(solicitados);
+    verificarQueElEquipoNoTieneOtroDirector(equipo.getId(), solicitados);
 
     OffsetDateTime ahora = OffsetDateTime.now(reloj);
     Map<UUID, TeamMember> vigentePorPersona = new HashMap<>();
@@ -222,14 +230,36 @@ public class AssignTeamMembersService {
   }
 
   /**
-   * `EX-004` / `RN-SP-051`: solo la cúspide. La decisión la toma {@link TeamMembershipRules} sobre
-   * {@link CommercialStructure}, que es la <b>única</b> definición de «cúspide» del sistema.
+   * `EX-005` / `RN-SP-052` (09-10-2026): un director vigente por equipo. <b>Va después de las
+   * comprobaciones del cuerpo</b>: un manager pedido sobre un equipo ocupado tiene que saber que
+   * nunca podrá entrar, no que el sitio está tomado. Pedir al director que ya es el de este equipo
+   * no es conflicto: es `FA-001`.
+   *
+   * <p>Dos asignaciones al mismo equipo ya las ordena el bloqueo del equipo; para cualquier camino
+   * que no lo tome, la respalda {@code uq_team_members_equipo_vigente}, que el repositorio traduce
+   * a este mismo `409`.
    */
-  private void verificarQueSonCuspide(List<UUID> solicitados) {
+  private void verificarQueElEquipoNoTieneOtroDirector(UUID equipo, List<UUID> solicitados) {
+    boolean ocupadoPorOtro =
+        pertenencias.findActiveOfTeam(equipo).stream()
+            .anyMatch(vigente -> !solicitados.contains(vigente.getUserId()));
+    if (ocupadoPorOtro) {
+      throw new BusinessRuleException(
+          "RN-SP-052",
+          EQUIPO_CON_DIRECTOR,
+          List.of(new FieldError("id", "RN-SP-052", EQUIPO_CON_DIRECTOR)));
+    }
+  }
+
+  /**
+   * `EX-004` / `RN-SP-051`: solo directores. La decisión la toma {@link TeamMembershipRules} sobre
+   * {@link CommercialStructure}, que es la <b>única</b> definición del rango del sistema.
+   */
+  private void verificarQueSonDirectores(List<UUID> solicitados) {
     Map<UUID, Set<UUID>> rolesPorPersona = roles.roleIdsOfAll(new LinkedHashSet<>(solicitados));
 
     // El catálogo se memoriza DURANTE esta comprobación, y no es un adorno:
-    // `CommercialStructure.esCuspide` pregunta por el rol padre, de modo que sin
+    // `CommercialStructure.esDirector` pregunta por el rol padre, de modo que sin
     // memoria un lote de cien personas son cien lecturas del mismo puñado de
     // roles. La regla no cambia; cambia cuántas veces se lee lo mismo.
     MemoizingRoleCatalog memorizado = new MemoizingRoleCatalog(roles);
@@ -262,10 +292,10 @@ public class AssignTeamMembersService {
                     new FieldError(
                         "memberIds",
                         "RN-SP-051",
-                        "La persona '" + persona + "' no porta el rol comercial de mayor rango."))
+                        "La persona '" + persona + "' no tiene el rango de director."))
             .toList();
 
-    throw new UnprocessableEntityException("RN-SP-051", NO_ES_CUSPIDE, rechazados);
+    throw new UnprocessableEntityException("RN-SP-051", NO_ES_DIRECTOR, rechazados);
   }
 
   /**

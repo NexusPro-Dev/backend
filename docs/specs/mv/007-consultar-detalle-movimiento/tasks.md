@@ -34,12 +34,12 @@
 
 ### 1.1 La oficina de cada línea — 09-10-2026
 
-Enmienda de hecho (Art. I.7), `spec.md` 0.4.0 y `plan.md` 0.4.0 **antes** del código. Sin migración propia: la columna la trae `V97`.
+Enmienda de hecho (Art. I.7), `spec.md` 0.4.0 y `plan.md` 0.4.0 **antes** del código. Sin migración propia: la columna la trae `V99`.
 
 | ID | Tarea | Depende de | Verificación | Estado |
 |---|---|---|---|---|
-| `T-10` | `SaleLineResponse.team` (`LineTeam`, de `RF-MV-006` `T-18`) con `types = {"object", "null"}`; `MovementLineRow` gana `teamId` y `teamName`; `findLinesOf` con `LEFT JOIN teams` en su misma sentencia; `SaleDetailMapper.lineas` arma el `team` | `V97`, `RF-MV-006` `T-18` | El detalle no gana sentencias; `CA-MV-525` de `RF-MV-008` sigue en verde | **Pendiente** |
-| `T-11` | `MovementDetailIT`: `CA-MV-720`, con equipo propio limpiado al terminar, una línea con oficina, otra sin ella y el director del vendedor hoy en otro equipo; `CA-MV-290` sin cambios; contrato regenerado —`team` nulable en `SaleLineResponse`, **un** esquema `LineTeam`— y `docs/api/index.md` | `T-10` | Solo altas en el contrato | **Pendiente** |
+| `T-10` | `SaleLineResponse.team` (`LineTeam`, de `RF-MV-006` `T-18`) con `types = {"object", "null"}`; `MovementLineRow` gana `teamId` y `teamName`; `findLinesOf` con `LEFT JOIN teams` en su misma sentencia; `SaleDetailMapper.lineas` arma el `team` | `V99`, `RF-MV-006` `T-18` | El detalle no gana sentencias; `CA-MV-525` de `RF-MV-008` sigue en verde | **Hecha** — 10-10-2026 |
+| `T-11` | `MovementDetailIT`: `CA-MV-720`, con equipo propio limpiado al terminar, una línea con oficina, otra sin ella y el director del vendedor hoy en otro equipo; `CA-MV-290` sin cambios; contrato regenerado —`team` nulable en `SaleLineResponse`, **un** esquema `LineTeam`— y `docs/api/index.md` | `T-10` | Solo altas en el contrato | **Hecha** — 10-10-2026 |
 
 ## 2. Orden de ejecución
 

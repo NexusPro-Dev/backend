@@ -74,8 +74,8 @@ Enmienda de hecho (Art. I.7), `spec.md` y `plan.md` enmendados el 09-10-2026 **a
 
 | ID | Tarea | Depende de | Verificación | Estado |
 |---|---|---|---|---|
-| `T-27` | `AssignUserRolesService` consume `TeamMembershipRetirement`: si el rango resultante no es director (`CommercialStructure.esDirector`), cierra la pertenencia en la misma transacción, con `MOTIVO_RN_SP_055` | `RF-SP-069` `T-13` | `LayerRulesTest` en verde; las suites de `RF-SP-030` siguen pasando | **Pendiente** |
-| `T-28` | `TeamMembershipRetirementIT`: `CA-SP-990` (ascenso, descenso, misma correlación, fallo que no cierra) y `CA-SP-991` | `T-27` | | **Pendiente** |
+| `T-27` | `AssignUserRolesService` consume `TeamMembershipRetirement`: si el rango resultante no es director (`CommercialStructure.esDirector`), cierra la pertenencia en la misma transacción, con `MOTIVO_RN_SP_055` | `RF-SP-069` `T-13` | `LayerRulesTest` en verde; las suites de `RF-SP-030` siguen pasando | **Hecha** — 10-10-2026 |
+| `T-28` | `TeamMembershipRetirementIT`: `CA-SP-990` (ascenso, descenso, misma correlación, fallo que no cierra) y `CA-SP-991` | `T-27` | | **Hecha** — 10-10-2026 |
 
 ## 2. Orden de ejecución
 

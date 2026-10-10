@@ -1,5 +1,6 @@
 package com.factech.nexus.modules.movements.domain.repository;
 
+import com.factech.nexus.modules.movements.application.LineTeam;
 import com.factech.nexus.modules.movements.domain.models.IdempotencyKey;
 import com.factech.nexus.modules.movements.domain.models.Movement;
 import com.factech.nexus.modules.movements.domain.models.TypeStatus;
@@ -188,20 +189,31 @@ public interface MovementRepository {
    */
   Optional<AssignmentHeader> lockForAssignment(UUID movementId);
 
-  /** Las líneas de la venta, con su producto y su vendedor actual (nulo si no lo tiene). */
+  /**
+   * Las líneas de la venta, con su producto, su vendedor actual y su oficina (nulos si no los
+   * tiene).
+   */
   List<AssignmentLine> findLinesForAssignment(UUID movementId);
 
-  /** Escribe el vendedor de una línea. */
-  void assignSeller(UUID lineId, UUID sellerId);
+  /**
+   * Escribe el vendedor de una línea <b>y su oficina</b> en la misma sentencia (`RN-MV-078`): la
+   * oficina se copia con el vendedor, y cambia solo cuando cambia él.
+   */
+  void assignSeller(UUID lineId, UUID sellerId, UUID teamId);
 
   /** Cambia el estado del tipo de un movimiento. */
   void changeTypeStatus(UUID movementId, UUID typeStatusId);
 
   /** Lo que la asignación necesita de la cabecera: de quién es, de qué tipo y en qué estados. */
   record AssignmentHeader(
-      UUID id, UUID userId, UUID movementTypeId, String status, String typeStatus) {}
+      UUID id,
+      UUID userId,
+      UUID movementTypeId,
+      String status,
+      String typeStatus,
+      OffsetDateTime occurredAt) {}
 
-  record AssignmentLine(UUID lineId, UUID productId, UUID sellerId) {}
+  record AssignmentLine(UUID lineId, UUID productId, UUID sellerId, UUID teamId) {}
 
   /**
    * El método de pago, <b>exista o no esté activo</b>.
@@ -333,6 +345,13 @@ public interface MovementRepository {
   List<MovementSellerRow> findSellersOf(Collection<UUID> movementIds);
 
   /**
+   * Las oficinas de varios movimientos, sin repetir por movimiento (`RN-MV-078`), en <b>una</b>
+   * sentencia: la de {@link #findSellersOf}, con {@code teams} en lugar de {@code users}. Una línea
+   * sin oficina no aporta nada.
+   */
+  List<MovementTeamRow> findTeamsOf(Collection<UUID> movementIds);
+
+  /**
    * Las líneas de varios movimientos, con sus rebajas, en <b>dos</b> sentencias sean cuantos sean:
    * una para las líneas y otra para las rebajas (`RF-MV-008` · `plan.md` §4.1, 03-10-2026).
    *
@@ -394,6 +413,32 @@ public interface MovementRepository {
   record MovementSellerRow(
       UUID movementId, UUID sellerId, String username, String firstName, String lastName) {}
 
+  record MovementTeamRow(UUID movementId, UUID teamId, String name) {}
+
+  // ---------------------------------------------------------------------------
+  // `RF-MV-058` — rellenar la oficina de las líneas
+  // ---------------------------------------------------------------------------
+
+  /**
+   * Bloquea, en orden de identificador, las ventas con alguna línea <b>con vendedor y sin
+   * oficina</b>, y dice cuántas son. Es el orden de bloqueos del módulo —la venta antes que sus
+   * líneas—: una asignación concurrente (`RF-MV-016`) espera o hace esperar.
+   */
+  int lockSalesWithLinesWithoutTeam();
+
+  /** Los vendedores distintos de las líneas de venta con vendedor y sin oficina. */
+  List<UUID> findSellersOfLinesWithoutTeam();
+
+  /**
+   * Pone la oficina a las líneas de venta de esos vendedores que <b>siguen</b> sin ella, en una
+   * sentencia: {@code team_id IS NULL} va dentro, y es lo que impide tocar una línea con oficina.
+   *
+   * @return las líneas rellenadas, con su venta
+   */
+  List<FilledLine> fillLineTeam(UUID teamId, Collection<UUID> sellerIds);
+
+  record FilledLine(UUID movementId, UUID productId, UUID teamId) {}
+
   /** La cabecera y sus líneas. */
   record MovementDetailView(
       MyMovementRow header, List<MovementLineRow> lines, List<PaymentRow> payments) {}
@@ -437,6 +482,12 @@ public interface MovementRepository {
    * entrega, y {@code deliveryStatus}, {@code deliveredAt} y {@code deliveryNote} son lo único de
    * una línea que cambia después de escribirse.
    */
+  /**
+   * Los nombres de unas oficinas (`RN-MV-078`), para la respuesta del registro: el puerto de
+   * `teams` da identificadores. Sin mirar `deleted_at`: un equipo eliminado se sigue nombrando.
+   */
+  Map<UUID, LineTeam> findTeamNames(Collection<UUID> teamIds);
+
   record MovementLineRow(
       UUID productId,
       String productCode,
@@ -451,6 +502,8 @@ public interface MovementRepository {
       String sellerUsername,
       String sellerFirstName,
       String sellerLastName,
+      UUID teamId,
+      String teamName,
       List<LineDiscountRow> discounts,
       String implementation,
       String deliveryStatus,
@@ -707,7 +760,8 @@ public interface MovementRepository {
       UUID paymentMethodId,
       String code,
       OffsetDateTime from,
-      OffsetDateTime to) {
+      OffsetDateTime to,
+      UUID teamId) {
     public SalesFilter {
       network = network == null ? Set.of() : Set.copyOf(network);
     }
@@ -760,7 +814,8 @@ public interface MovementRepository {
       String typeStatus,
       String code,
       OffsetDateTime from,
-      OffsetDateTime to) {}
+      OffsetDateTime to,
+      UUID teamId) {}
 
   /**
    * Una línea con su venta, plana como sale del motor.
@@ -783,6 +838,8 @@ public interface MovementRepository {
       String sellerUsername,
       String sellerFirstName,
       String sellerLastName,
+      UUID teamId,
+      String teamName,
       UUID productId,
       String productCode,
       String productName,
@@ -807,7 +864,8 @@ public interface MovementRepository {
       String code,
       OffsetDateTime from,
       OffsetDateTime to,
-      String paymentIncident) {}
+      String paymentIncident,
+      UUID teamId) {}
 
   /**
    * Una fila del listado global: la cabecera con su tipo y su confirmación, <b>sin papel</b>.

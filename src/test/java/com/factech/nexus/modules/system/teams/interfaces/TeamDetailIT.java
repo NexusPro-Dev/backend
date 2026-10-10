@@ -7,7 +7,6 @@ import static com.factech.nexus.modules.system.teams.interfaces.TeamTestSupport.
 import static com.factech.nexus.modules.system.teams.interfaces.TeamTestSupport.pertenencia;
 import static com.factech.nexus.modules.system.teams.interfaces.TeamTestSupport.pertenenciaCerrada;
 import static org.assertj.core.api.Assertions.assertThat;
-import static org.hamcrest.Matchers.contains;
 import static org.hamcrest.Matchers.hasSize;
 import static org.hamcrest.Matchers.nullValue;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
@@ -29,13 +28,14 @@ import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.request.MockHttpServletRequestBuilder;
 
 /**
- * El detalle de un equipo (`RF-SP-065` · `T-08` y `T-09`): `CA-SP-748` a `CA-SP-755`.
+ * El detalle de un equipo (`RF-SP-065` · `T-08`, `T-09`, `T-12` y `T-13`): `CA-SP-748` a
+ * `CA-SP-755`, `CA-SP-993` y `CA-SP-994`.
  *
- * <p><b>Lo que este fixture existe para distinguir</b> es quién está y quién estuvo: el equipo
- * principal tiene dos miembros vigentes —uno activo y uno desactivado, asignados con <b>la misma
- * marca de tiempo</b>, que es el caso normal de una asignación múltiple y lo que obliga a un
- * desempate determinista—, una pertenencia <b>cerrada</b> de un tercero y, fuera, un manager que
- * hoy pertenece a otro equipo. Ninguno de los dos últimos puede salir en {@code members}.
+ * <p><b>Desde el 09-10-2026 un equipo tiene como mucho un director vigente</b> (`RN-SP-052`), y el
+ * fixture lo respeta: el equipo principal tiene a su director y, en el historial, dos pertenencias
+ * <b>cerradas</b>; el inactivo tiene a un director desactivado —el {@code status} es el de la
+ * persona— y otra cerrada; un tercero solo tiene historial. Ninguna pertenencia cerrada puede salir
+ * en {@code members}.
  *
  * <p>Los dos equipos eliminados son dos casos distintos a propósito: uno con su registro de
  * auditoría y otro <b>sin él</b>, porque el detalle no puede caerse por un hueco en la auditoría
@@ -63,55 +63,44 @@ class TeamDetailIT extends IntegrationTestBase {
 
   private UUID norte;
   private UUID sur;
+  private UUID sinDirector;
   private UUID eliminadoConMotivo;
   private UUID eliminadoSinRegistro;
-  private UUID antiguo;
+  private UUID directorDelNorte;
+  private UUID directorDelSur;
 
   @BeforeEach
   void sembrar() {
     TeamTestSupport.limpiar(jdbc);
     TeamTestSupport.borrarPersonas(jdbc, GENTE);
 
-    norte = equipo(jdbc, "Equipo Norte", "ACTIVO", "Managers de la región norte");
+    norte = equipo(jdbc, "Equipo Norte", "ACTIVO", "La oficina del norte");
     sur = equipo(jdbc, "Equipo Sur", "INACTIVO", null);
+    sinDirector = equipo(jdbc, "Equipo Sin Director");
     eliminadoConMotivo = equipo(jdbc, "Equipo Disuelto");
     eliminadoSinRegistro = equipo(jdbc, "Equipo Sin Rastro");
 
-    antiguo = persona(jdbc, GENTE[0]);
-    UUID mismaTanda = persona(jdbc, GENTE[2]);
-    UUID exmiembro = persona(jdbc, GENTE[3]);
-    UUID enOtroEquipo = persona(jdbc, GENTE[4]);
-    UUID desactivado = persona(jdbc, GENTE[5]);
-    UUID enElInactivo = persona(jdbc, GENTE[6]);
+    directorDelNorte = persona(jdbc, GENTE[0]);
+    UUID exDelNorte = persona(jdbc, GENTE[1]);
+    UUID otroExDelNorte = persona(jdbc, GENTE[2]);
+    directorDelSur = persona(jdbc, GENTE[3]);
+    UUID exDelSur = persona(jdbc, GENTE[4]);
+    UUID exDelVacio = persona(jdbc, GENTE[5]);
+    UUID otroExDelVacio = persona(jdbc, GENTE[6]);
 
-    // El más antiguo entra primero; los otros dos, en la MISMA tanda: comparten
-    // `started_at` y solo el nombre de usuario los ordena (`CA-SP-749`).
-    jdbc.update(
-        "INSERT INTO team_members (id, team_id, user_id, started_at) VALUES (?, ?, ?, now() -"
-            + " interval '3 hours')",
-        TeamTestSupport.IDS.next(),
-        norte,
-        antiguo);
-    UUID tanda = TeamTestSupport.IDS.next();
-    jdbc.update(
-        "INSERT INTO team_members (id, team_id, user_id, started_at) VALUES (?, ?, ?, now() -"
-            + " interval '1 hour')",
-        tanda,
-        norte,
-        desactivado);
-    jdbc.update(
-        "INSERT INTO team_members (id, team_id, user_id, started_at)"
-            + " SELECT ?, ?, ?, started_at FROM team_members WHERE id = ?",
-        TeamTestSupport.IDS.next(),
-        norte,
-        mismaTanda,
-        tanda);
-    jdbc.update("UPDATE users SET status = 'INACTIVO' WHERE id = ?", desactivado);
+    // El norte: su director vigente, y dos que estuvieron.
+    pertenencia(jdbc, norte, directorDelNorte);
+    pertenenciaCerrada(jdbc, norte, exDelNorte);
+    pertenenciaCerrada(jdbc, norte, otroExDelNorte);
 
-    // Estuvo y ya no está; y alguien que hoy está en OTRO equipo.
-    pertenenciaCerrada(jdbc, norte, exmiembro);
-    pertenencia(jdbc, sur, enOtroEquipo);
-    pertenencia(jdbc, sur, enElInactivo);
+    // El sur, INACTIVO, con un director desactivado: sigue dentro.
+    pertenencia(jdbc, sur, directorDelSur);
+    pertenenciaCerrada(jdbc, sur, exDelSur);
+    jdbc.update("UPDATE users SET status = 'INACTIVO' WHERE id = ?", directorDelSur);
+
+    // Sin director vigente, con varios en el historial (`CA-SP-993`).
+    pertenenciaCerrada(jdbc, sinDirector, exDelVacio);
+    pertenenciaCerrada(jdbc, sinDirector, otroExDelVacio);
 
     eliminar(jdbc, eliminadoConMotivo);
     jdbc.update(
@@ -140,46 +129,53 @@ class TeamDetailIT extends IntegrationTestBase {
 
   @Test
   @DisplayName(
-      "`CA-SP-748` y `CA-SP-749` — la ficha entera y las seis columnas de cada miembro, por"
-          + " antigüedad y con el nombre de usuario de desempate")
-  void laFichaYSusMiembros() throws Exception {
+      "`CA-SP-748` y `CA-SP-993` — la ficha entera, y members con UNA persona: su director, con"
+          + " sus seis columnas, y memberCount en uno")
+  void laFichaYSuDirector() throws Exception {
     mvc.perform(abrir(norte))
         .andExpect(status().isOk())
         .andExpect(jsonPath("$.id").value(norte.toString()))
         .andExpect(jsonPath("$.name").value("Equipo Norte"))
-        .andExpect(jsonPath("$.description").value("Managers de la región norte"))
+        .andExpect(jsonPath("$.description").value("La oficina del norte"))
         .andExpect(jsonPath("$.status").value("ACTIVO"))
-        .andExpect(jsonPath("$.memberCount").value(3))
-        .andExpect(jsonPath("$.members", hasSize(3)))
+        .andExpect(jsonPath("$.memberCount").value(1))
+        .andExpect(jsonPath("$.members", hasSize(1)))
         .andExpect(jsonPath("$.createdAt").exists())
         .andExpect(jsonPath("$.updatedAt").exists())
         .andExpect(jsonPath("$.deletedAt").doesNotExist())
         .andExpect(jsonPath("$.deletionReason").doesNotExist())
-        // El más antiguo primero; los dos de la misma tanda, por nombre de
-        // usuario: detalleequipo3 antes que detalleequipo6.
-        .andExpect(jsonPath("$.members[*].username").value(contains(GENTE[0], GENTE[2], GENTE[5])))
-        .andExpect(jsonPath("$.members[0].id").value(antiguo.toString()))
+        .andExpect(jsonPath("$.members[0].id").value(directorDelNorte.toString()))
+        .andExpect(jsonPath("$.members[0].username").value(GENTE[0]))
         .andExpect(jsonPath("$.members[0].firstName").value("Persona"))
         .andExpect(jsonPath("$.members[0].lastName").value("De prueba"))
         .andExpect(jsonPath("$.members[0].status").value("ACTIVO"))
-        .andExpect(jsonPath("$.members[0].joinedAt").exists())
-        // El status es el de la PERSONA: un manager desactivado sigue dentro.
-        .andExpect(jsonPath("$.members[2].status").value("INACTIVO"));
+        .andExpect(jsonPath("$.members[0].joinedAt").exists());
   }
 
   @Test
   @DisplayName(
-      "`CA-SP-750` — members trae SOLO los vigentes: ni quien tuvo una pertenencia cerrada aquí ni"
+      "`CA-SP-993` — sin director vigente, members vacío y memberCount en cero, aunque el historial"
+          + " tenga varios directores cerrados")
+  void sinDirectorVigente() throws Exception {
+    mvc.perform(abrir(sinDirector))
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$.memberCount").value(0))
+        .andExpect(jsonPath("$.members", hasSize(0)));
+  }
+
+  @Test
+  @DisplayName(
+      "`CA-SP-750` — members trae SOLO al vigente: ni quien tuvo una pertenencia cerrada aquí ni"
           + " quien hoy está en otro equipo")
-  void soloLosVigentes() throws Exception {
+  void soloElVigente() throws Exception {
     mvc.perform(abrir(norte))
-        .andExpect(jsonPath("$.members", hasSize(3)))
-        .andExpect(jsonPath("$.members[?(@.username == '" + GENTE[3] + "')]", hasSize(0)))
-        .andExpect(jsonPath("$.members[?(@.username == '" + GENTE[4] + "')]", hasSize(0)));
+        .andExpect(jsonPath("$.members", hasSize(1)))
+        .andExpect(jsonPath("$.members[?(@.username == '" + GENTE[1] + "')]", hasSize(0)))
+        .andExpect(jsonPath("$.members[?(@.username == '" + GENTE[3] + "')]", hasSize(0)));
 
     mvc.perform(abrir(sur))
-        .andExpect(jsonPath("$.members", hasSize(2)))
-        .andExpect(jsonPath("$.members[?(@.username == '" + GENTE[0] + "')]", hasSize(0)));
+        .andExpect(jsonPath("$.members", hasSize(1)))
+        .andExpect(jsonPath("$.members[?(@.username == '" + GENTE[4] + "')]", hasSize(0)));
   }
 
   @Test
@@ -188,25 +184,29 @@ class TeamDetailIT extends IntegrationTestBase {
           + " listado para el mismo equipo")
   void elRecuentoCuadraConLosDosSitios() throws Exception {
     mvc.perform(abrir(norte))
-        .andExpect(jsonPath("$.memberCount").value(3))
-        .andExpect(jsonPath("$.members", hasSize(3)));
+        .andExpect(jsonPath("$.memberCount").value(1))
+        .andExpect(jsonPath("$.members", hasSize(1)));
 
     mvc.perform(get("/api/v1/teams").param("q", "Equipo Norte").with(con("teams:list")))
         .andExpect(jsonPath("$.content", hasSize(1)))
-        .andExpect(jsonPath("$.content[0].memberCount").value(3));
+        .andExpect(jsonPath("$.content[0].memberCount").value(1));
   }
 
   @Test
   @DisplayName(
-      "`CA-SP-752` — el INACTIVO se devuelve con su gente; el eliminado, con deletedAt,"
-          + " deletionReason y members vacío; el inexistente es 404 y el uuid mal formado, 400")
+      "`CA-SP-752` — el INACTIVO se devuelve con su director, desactivado; el eliminado, con"
+          + " deletedAt, deletionReason y members vacío; el inexistente es 404 y el uuid mal"
+          + " formado, 400")
   void inactivoEliminadoInexistenteYMalFormado() throws Exception {
     mvc.perform(abrir(sur))
         .andExpect(status().isOk())
         .andExpect(jsonPath("$.status").value("INACTIVO"))
         .andExpect(jsonPath("$.description").value(nullValue()))
-        .andExpect(jsonPath("$.memberCount").value(2))
-        .andExpect(jsonPath("$.members", hasSize(2)));
+        .andExpect(jsonPath("$.memberCount").value(1))
+        .andExpect(jsonPath("$.members", hasSize(1)))
+        // El status es el de la PERSONA: un director desactivado sigue dentro.
+        .andExpect(jsonPath("$.members[0].id").value(directorDelSur.toString()))
+        .andExpect(jsonPath("$.members[0].status").value("INACTIVO"));
 
     mvc.perform(abrir(eliminadoConMotivo))
         .andExpect(status().isOk())
@@ -234,55 +234,38 @@ class TeamDetailIT extends IntegrationTestBase {
         // OMITIDO, no presente en nulo: `deletionReason` es NON_NULL en la
         // respuesta —lo era ya cuando `RF-SP-063` la escribió— y el sistema entero
         // publica así los campos ausentes; `RF-AC-003` afirma exactamente lo mismo
-        // para la categoría retirada sin registro. La letra de `CA-SP-753` dice
-        // «presente y nulo», y cumplirla al pie obligaría a un serializador
-        // propio para este solo campo, contra la convención. Lo que el criterio
-        // protege —que un hueco en la auditoría NO tumbe la lectura— se
-        // verifica entero: 200, con su fecha de eliminación y sin motivo.
+        // para la categoría retirada sin registro. Lo que el criterio protege
+        // —que un hueco en la auditoría NO tumbe la lectura— se verifica entero.
         .andExpect(jsonPath("$.deletionReason").doesNotExist())
         .andExpect(jsonPath("$.members", hasSize(0)));
   }
 
   @Test
   @DisplayName(
-      "`CA-SP-754` — el número de sentencias es fijo: dos en el vivo, con uno o con cinco"
-          + " miembros, y tres en el eliminado")
-  void lasSentenciasNoCrecen() throws Exception {
+      "`CA-SP-994` — el número de sentencias es fijo: dos en el vivo, con director o sin él, y no"
+          + " más de tres en el eliminado")
+  void lasSentenciasSonFijas() throws Exception {
     estadisticas.clear();
-    mvc.perform(abrir(sur)).andExpect(status().isOk());
-    long conDos = estadisticas.getPrepareStatementCount();
+    mvc.perform(abrir(norte)).andExpect(jsonPath("$.members", hasSize(1)));
+    long conDirector = estadisticas.getPrepareStatementCount();
 
-    // Dos más, hasta cinco vigentes: la ficha y los miembros siguen siendo dos
-    // sentencias, porque los miembros viajan en una sola con su JOIN a `users`.
-    String[] masGente = {"detalleequipo8", "detalleequipo9", "detalleequipo10"};
-    TeamTestSupport.borrarPersonas(jdbc, masGente);
-    for (String usuario : masGente) {
-      pertenencia(jdbc, sur, persona(jdbc, usuario));
-    }
-    try {
-      estadisticas.clear();
-      mvc.perform(abrir(sur)).andExpect(jsonPath("$.members", hasSize(5)));
-      long conCinco = estadisticas.getPrepareStatementCount();
+    estadisticas.clear();
+    mvc.perform(abrir(sinDirector)).andExpect(jsonPath("$.members", hasSize(0)));
+    long sinElDirector = estadisticas.getPrepareStatementCount();
 
-      estadisticas.clear();
-      mvc.perform(abrir(eliminadoConMotivo)).andExpect(status().isOk());
-      long delEliminado = estadisticas.getPrepareStatementCount();
+    estadisticas.clear();
+    mvc.perform(abrir(eliminadoConMotivo)).andExpect(status().isOk());
+    long delEliminado = estadisticas.getPrepareStatementCount();
 
-      assertThat(conDos).isEqualTo(2);
-      assertThat(conCinco).isEqualTo(conDos);
-      // DOS, y no las tres que `CA-SP-754` anticipaba: el lector se ahorra la
-      // consulta de miembros cuando el recuento de la ficha es cero, y un
-      // equipo eliminado nunca tiene vigentes (`RN-SP-054`). Así que la del
-      // motivo sustituye a la de los miembros en vez de sumarse. Lo que el
-      // criterio protege —un número FIJO, que no crece con los miembros y que
-      // no pasa de tres— se cumple con margen, y por eso se comprueban las dos
-      // cosas: el valor exacto de hoy y el techo que no se debe superar.
-      assertThat(delEliminado).isEqualTo(2);
-      assertThat(delEliminado).isLessThanOrEqualTo(3);
-    } finally {
-      jdbc.update("DELETE FROM team_members WHERE team_id = ?", sur);
-      TeamTestSupport.borrarPersonas(jdbc, masGente);
-    }
+    assertThat(conDirector).isEqualTo(2);
+    // Sin vigentes, el lector se ahorra la consulta de miembros y lee igual dos:
+    // la ficha y, en su lugar, nada más —o el motivo, si está eliminado—.
+    assertThat(sinElDirector).isLessThanOrEqualTo(2);
+    // DOS, y no las tres que el criterio anticipa: un equipo eliminado nunca
+    // tiene vigentes (`RN-SP-054`), y la consulta del motivo sustituye a la de
+    // los miembros en vez de sumarse. Se comprueba el valor de hoy y el techo.
+    assertThat(delEliminado).isEqualTo(2);
+    assertThat(delEliminado).isLessThanOrEqualTo(3);
   }
 
   @Test

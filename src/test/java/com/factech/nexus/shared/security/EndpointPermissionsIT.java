@@ -481,6 +481,7 @@ class EndpointPermissionsIT extends IntegrationTestBase {
               "movements:activate-own-product"),
           Map.entry("GET /api/v1/movements/sales", "movements:list-sales"),
           Map.entry("GET /api/v1/movements/sales/lines", "movements:list-sale-lines"),
+          Map.entry("POST /api/v1/movements/sales/lines/team-fill", "movements:fill-line-teams"),
           Map.entry("POST /api/v1/packages/{code}/purchases", "packages:buy"),
           // ---- SP · equipos (RF-SP-063 a RF-SP-070, V34) ----
           Map.entry("POST /api/v1/teams", "teams:create"),

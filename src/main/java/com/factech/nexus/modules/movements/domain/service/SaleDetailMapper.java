@@ -1,5 +1,6 @@
 package com.factech.nexus.modules.movements.domain.service;
 
+import com.factech.nexus.modules.movements.application.LineTeam;
 import com.factech.nexus.modules.movements.application.PaymentResponse;
 import com.factech.nexus.modules.movements.application.SaleDiscountResponse;
 import com.factech.nexus.modules.movements.application.SaleLineResponse;
@@ -99,6 +100,9 @@ final class SaleDetailMapper {
                       linea.sellerUsername(),
                       ListMyMovementsService.nombreCompleto(
                           linea.sellerFirstName(), linea.sellerLastName())),
+              // `RN-MV-078`: la oficina guardada, con el nombre de hoy. Nula y
+              // presente sin ella.
+              linea.teamId() == null ? null : new LineTeam(linea.teamId(), linea.teamName()),
               linea.implementation(),
               linea.deliveryStatus(),
               linea.deliveredAt(),

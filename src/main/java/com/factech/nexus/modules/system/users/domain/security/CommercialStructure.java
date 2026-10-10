@@ -91,6 +91,15 @@ public class CommercialStructure {
   }
 
   /**
+   * <b>El rango de director</b> (`RN-SP-051`, 09-10-2026): el rol cuyo rol exigido al superior
+   * existe y es la cúspide. Por la <b>forma</b> de la jerarquía y no por el código `DIRECTOR`, con
+   * el mismo criterio que {@link #esCuspide}: si el rol se renombra, sigue siendo director.
+   */
+  public boolean esDirector(AssignableRole rol) {
+    return rolExigidoAlSuperior(rol).filter(this::esCuspide).isPresent();
+  }
+
+  /**
    * ¿Cambia el rango comercial al pasar de un conjunto de roles a otro?
    *
    * <p>Devuelve verdadero tanto cuando aparece el primer rol vendedor como cuando el de mayor rango

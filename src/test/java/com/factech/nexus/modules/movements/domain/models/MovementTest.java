@@ -107,6 +107,7 @@ class MovementTest {
                 MovementLine.copiarDe(
                     UUID.randomUUID(),
                     VENDEDOR,
+                    null,
                     "UP_VIP",
                     "Producto",
                     "Una descripción",
@@ -154,6 +155,7 @@ class MovementTest {
                 MovementLine.copiarDe(
                     UUID.randomUUID(),
                     VENDEDOR,
+                    null,
                     "UP_VIP",
                     "  ",
                     "Una descripción",
@@ -266,6 +268,7 @@ class MovementTest {
     return MovementLine.copiarDe(
         UUID.randomUUID(),
         VENDEDOR,
+        null,
         codigo,
         "Producto " + codigo,
         "Lo que decía " + codigo,
@@ -341,6 +344,82 @@ class MovementTest {
         .isInstanceOf(IllegalArgumentException.class);
   }
 
+  // ---------------------------------------------------------------------------
+  // `RN-MV-078` — la oficina de la línea
+  // ---------------------------------------------------------------------------
+
+  @Test
+  @DisplayName("RN-MV-078: una línea sin vendedor no tiene oficina, por ninguna de las dos formas")
+  void sinVendedorNoHayOficina() {
+    // La oficina es la del vendedor: sin él no hay cadena que seguir, y una
+    // oficina suelta sería una atribución inventada.
+    UUID oficina = UUID.randomUUID();
+    assertThatThrownBy(
+            () ->
+                MovementLine.copiarDe(
+                    UUID.randomUUID(),
+                    null,
+                    oficina,
+                    "BOT_A",
+                    "Producto BOT_A",
+                    null,
+                    1,
+                    new BigDecimal("10.00"),
+                    null,
+                    "AUTOMATICA"))
+        .isInstanceOf(IllegalArgumentException.class)
+        .hasMessage("Una línea sin vendedor no tiene oficina.");
+    // Y la forma con rebajas, que es la que usa el paquete, dice lo mismo.
+    assertThatThrownBy(
+            () ->
+                MovementLine.copiarDe(
+                    UUID.randomUUID(),
+                    null,
+                    oficina,
+                    "BOT_A",
+                    "Producto BOT_A",
+                    null,
+                    1,
+                    new BigDecimal("10.00"),
+                    null,
+                    "AUTOMATICA",
+                    List.of()))
+        .isInstanceOf(IllegalArgumentException.class)
+        .hasMessage("Una línea sin vendedor no tiene oficina.");
+  }
+
+  @Test
+  @DisplayName(
+      "RN-MV-078: la línea guarda la oficina copiada, y la instantánea la escribe en texto; sin"
+          + " oficina, la clave va presente y nula")
+  void laOficinaEnLaInstantanea() {
+    UUID oficina = UUID.randomUUID();
+    MovementLine conOficina =
+        MovementLine.copiarDe(
+            UUID.randomUUID(),
+            VENDEDOR,
+            oficina,
+            "BOT_A",
+            "Producto BOT_A",
+            null,
+            1,
+            new BigDecimal("10.00"),
+            null,
+            "AUTOMATICA");
+    assertThat(conOficina.getTeamId()).isEqualTo(oficina);
+
+    Movement venta = registrar(conOficina, linea("BOT_B", 1, "10.00", null));
+    @SuppressWarnings("unchecked")
+    List<Map<String, Object>> lineas = (List<Map<String, Object>>) venta.instantanea().get("lines");
+
+    assertThat(lineas.get(0)).containsEntry("team_id", oficina.toString());
+    // Nulo y PRESENTE, como el vendedor: la clave ausente se leería como «esta
+    // versión no lo registraba», y el nulo dice «nadie de la cadena tenía equipo».
+    assertThat(lineas.get(1)).containsKey("team_id");
+    assertThat(lineas.get(1).get("team_id")).isNull();
+    assertThat(linea("BOT_C", 1, "10.00", null).getTeamId()).isNull();
+  }
+
   private static final UUID VENDEDOR = UUID.randomUUID();
   private static final TypeStatus VALIDADO = new TypeStatus(UUID.randomUUID(), "VALIDADO");
   private static final TypeStatus POR_VALIDAR =
@@ -349,6 +428,7 @@ class MovementTest {
   private static MovementLine lineaSinVendedor(String codigo) {
     return MovementLine.copiarDe(
         UUID.randomUUID(),
+        null,
         null,
         codigo,
         "Producto " + codigo,
@@ -381,6 +461,7 @@ class MovementTest {
     return MovementLine.copiarDe(
         UUID.randomUUID(),
         VENDEDOR,
+        null,
         codigo,
         "Producto " + codigo,
         "Lo que decía " + codigo,

@@ -180,7 +180,83 @@ class MovementDetailIT extends IntegrationTestBase {
         .andExpect(status().isOk());
   }
 
+  @Test
+  @DisplayName(
+      "CA-MV-720 — cada línea trae su oficina GUARDADA, aunque su vendedor hoy esté en otra; sin"
+          + " ella, team presente y nulo")
+  void cadaLineaTraeSuOficina() throws Exception {
+    UUID venta = venta();
+    UUID otroBot = UUID.randomUUID();
+    jdbc.update(
+        "INSERT INTO products (scope, implementation, id, code, type, name, description,"
+            + " source_membership_id, target_membership_id, price, currency_id, validity_days,"
+            + " status)"
+            + " VALUES ('TIENDA', 'AUTOMATICA', ?, 'DM_BOT_2', 'BOT', 'Otro bot del detalle',"
+            + " 'Otro bot', NULL, NULL, 10000, CAST(? AS uuid), 30, 'ACTIVO')",
+        otroBot,
+        USD);
+    // La segunda línea, del mismo vendedor y SIN oficina.
+    jdbc.update(
+        """
+        INSERT INTO movement_details (id, movement_id, product_id, seller_id, product_name,
+                                      product_description, quantity, unit_price, line_amount,
+                                      validity_days, implementation)
+        SELECT ?, ?, p.id, ?, p.name, p.description, 1, 10000, 10000, p.validity_days,
+               p.implementation
+          FROM products p WHERE p.id = ?
+        """,
+        UUID.randomUUID(),
+        venta,
+        vendedor,
+        otroBot);
+    UUID norte = oficina("DM Oficina Norte");
+    UUID sur = oficina("DM Oficina Sur");
+    jdbc.update(
+        "UPDATE movement_details SET team_id = ? WHERE movement_id = ? AND product_id = ?",
+        norte,
+        venta,
+        bot);
+    // Y HOY el vendedor está en el sur (`RN-MV-078`): la lectura no recalcula.
+    jdbc.update(
+        "INSERT INTO team_members (id, team_id, user_id) VALUES (?, ?, ?)",
+        UUID.randomUUID(),
+        sur,
+        vendedor);
+
+    String cuerpo =
+        mvc.perform(get("/api/v1/movements/{id}", venta).with(lector(administrador)))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.lines.length()").value(2))
+            .andExpect(
+                jsonPath("$.lines[?(@.productName == 'Bot del detalle')].team.id")
+                    .value(norte.toString()))
+            .andExpect(
+                jsonPath("$.lines[?(@.productName == 'Bot del detalle')].team.name")
+                    .value("DM Oficina Norte"))
+            .andExpect(
+                jsonPath("$.lines[?(@.productName == 'Otro bot del detalle')]")
+                    .value(org.hamcrest.Matchers.contains(org.hamcrest.Matchers.hasKey("team"))))
+            .andExpect(
+                jsonPath("$.lines[?(@.productName == 'Otro bot del detalle')].team")
+                    .value(org.hamcrest.Matchers.contains(org.hamcrest.Matchers.nullValue())))
+            .andReturn()
+            .getResponse()
+            .getContentAsString(StandardCharsets.UTF_8);
+
+    // EN CRUDO: «sin oficina» es un nulo presente, no una clave ausente; y el
+    // sur, que es la de HOY, no aparece.
+    assertThat(cuerpo).contains("\"team\":null");
+    assertThat(cuerpo).doesNotContain("DM Oficina Sur");
+  }
+
   // ---------------------------------------------------------------------------
+
+  /** Una oficina de esta suite: el prefijo `DM ` es lo que `limpiar` borra. */
+  private UUID oficina(String nombre) {
+    UUID id = UUID.randomUUID();
+    jdbc.update("INSERT INTO teams (id, name) VALUES (?, ?)", id, nombre);
+    return id;
+  }
 
   private static RequestPostProcessor lector(UUID quien) {
     return user(quien.toString()).authorities(() -> "movements:read-detail");
@@ -236,6 +312,12 @@ class MovementDetailIT extends IntegrationTestBase {
 
   private void limpiar() {
     LedgerFixtures.limpiar(jdbc);
+    // Las oficinas de esta suite, DESPUÉS de las líneas que las guardan y ANTES de
+    // las personas: `team_members` apunta a las dos con RESTRICT.
+    jdbc.update(
+        "DELETE FROM team_members WHERE team_id IN"
+            + " (SELECT id FROM teams WHERE name LIKE 'DM %')");
+    jdbc.update("DELETE FROM teams WHERE name LIKE 'DM %'");
     jdbc.update("DELETE FROM products WHERE code LIKE 'DM\\_%'");
     jdbc.update(
         "DELETE FROM user_products WHERE user_id IN"

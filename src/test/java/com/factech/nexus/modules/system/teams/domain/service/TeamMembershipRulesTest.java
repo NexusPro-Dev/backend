@@ -16,16 +16,16 @@ import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 
 /**
- * `RN-SP-051` aislada (`RF-SP-069` · `T-04`): <b>a un equipo solo pertenece la cúspide</b>.
+ * `RN-SP-051` aislada (`RF-SP-069` · `T-13`, enmendada el 09-10-2026): <b>a un equipo solo
+ * pertenece un director</b>.
  *
  * <p><b>Sin Spring y sin base de datos.</b> El catálogo de roles es un doble en memoria con la
  * forma de la jerarquía real —`ADMIN` administrativo, `MANAGER` colgando de él, `DIRECTOR` de
- * `MANAGER`, `AGENTE` de `DIRECTOR` y `CLIENTE` consumidor—, que es lo único que la regla mira: la
- * cúspide es el vendedor cuyo rol padre <b>ya no es vendedor</b>.
+ * `MANAGER`, `AGENTE` de `DIRECTOR` y `CLIENTE` consumidor—, que es lo único que la regla mira: el
+ * director es el rol cuyo rol exigido al superior es la cúspide.
  *
- * <p>Por eso esta prueba dice algo que la de integración no puede decir tan claro: si mañana nace
- * un rango por encima de `MANAGER`, basta cambiar {@code parent_role_id} — la regla no nombra a
- * `MANAGER` en ninguna parte.
+ * <p>Por eso esta prueba dice algo que la de integración no puede decir tan claro: la regla no
+ * nombra a `DIRECTOR` en ninguna parte, y un rol renombrado sigue siendo director.
  */
 class TeamMembershipRulesTest {
 
@@ -49,8 +49,9 @@ class TeamMembershipRulesTest {
       new TeamMembershipRules(new CommercialStructure(new CatalogoEnMemoria()));
 
   @Test
-  @DisplayName("el manager entra; el director, el agente, el cliente y quien no tiene rol, no")
-  void soloLaCuspide() {
+  @DisplayName(
+      "`CA-SP-982` — el director entra; el manager, el agente, el cliente y quien no tiene rol, no")
+  void soloElDirector() {
     UUID manager = UUID.randomUUID();
     UUID director = UUID.randomUUID();
     UUID agente = UUID.randomUUID();
@@ -66,20 +67,18 @@ class TeamMembershipRulesTest {
     TeamMembershipRules.Veredicto veredicto =
         reglas.evaluar(List.of(manager, director, agente, cliente, sinRol), roles);
 
-    assertThat(veredicto.admitidos()).containsExactly(manager);
-    assertThat(veredicto.rechazados()).containsExactly(director, agente, cliente, sinRol);
+    assertThat(veredicto.admitidos()).containsExactly(director);
+    assertThat(veredicto.rechazados()).containsExactly(manager, agente, cliente, sinRol);
     assertThat(veredicto.todosAdmitidos()).isFalse();
   }
 
   @Test
-  @DisplayName("un lote de solo managers se admite entero")
-  void todosCuspide() {
-    UUID uno = UUID.randomUUID();
-    UUID otro = UUID.randomUUID();
+  @DisplayName("un director solo se admite")
+  void unDirector() {
+    UUID director = UUID.randomUUID();
 
     TeamMembershipRules.Veredicto veredicto =
-        reglas.evaluar(
-            List.of(uno, otro), Map.of(uno, List.of(ROL_MANAGER), otro, List.of(ROL_MANAGER)));
+        reglas.evaluar(List.of(director), Map.of(director, List.of(ROL_DIRECTOR)));
 
     assertThat(veredicto.todosAdmitidos()).isTrue();
     assertThat(veredicto.rechazados()).isEmpty();
@@ -87,32 +86,49 @@ class TeamMembershipRulesTest {
 
   @Test
   @DisplayName(
-      "se mira el rol de MAYOR RANGO y no «alguno»: quien porta AGENTE además de MANAGER entra, y"
-          + " quien porta AGENTE además de DIRECTOR no")
+      "se mira el rol de MAYOR RANGO y no «alguno»: quien porta AGENTE además de DIRECTOR entra, y"
+          + " quien porta DIRECTOR además de MANAGER no")
   void miraElDeMayorRango() {
-    UUID mandaDeVerdad = UUID.randomUUID();
-    UUID sigueSiendoDirector = UUID.randomUUID();
+    UUID esDirector = UUID.randomUUID();
+    UUID sigueSiendoManager = UUID.randomUUID();
 
     TeamMembershipRules.Veredicto veredicto =
         reglas.evaluar(
-            List.of(mandaDeVerdad, sigueSiendoDirector),
+            List.of(esDirector, sigueSiendoManager),
             Map.of(
-                mandaDeVerdad,
-                List.of(ROL_AGENTE, ROL_MANAGER),
-                sigueSiendoDirector,
-                List.of(ROL_AGENTE, ROL_DIRECTOR)));
+                esDirector,
+                List.of(ROL_AGENTE, ROL_DIRECTOR),
+                sigueSiendoManager,
+                List.of(ROL_DIRECTOR, ROL_MANAGER)));
 
-    assertThat(veredicto.admitidos()).containsExactly(mandaDeVerdad);
-    assertThat(veredicto.rechazados()).containsExactly(sigueSiendoDirector);
+    assertThat(veredicto.admitidos()).containsExactly(esDirector);
+    assertThat(veredicto.rechazados()).containsExactly(sigueSiendoManager);
   }
 
   @Test
   @DisplayName(
-      "la regla no nombra a MANAGER: si nace un rango por encima, la cúspide pasa a ser el nuevo")
-  void laCuspideEsLaFormaDeLaJerarquia() {
+      "`CA-SP-982` — la regla no nombra a DIRECTOR: el rol renombrado, con la misma forma, sigue"
+          + " entrando")
+  void elDirectorEsLaFormaDeLaJerarquia() {
+    AssignableRole renombrado = rol(DIRECTOR, "JEFE_DE_OFICINA", RoleType.VENDEDOR, MANAGER);
+    CatalogoEnMemoria catalogo = new CatalogoEnMemoria();
+    catalogo.agregar(renombrado);
+    TeamMembershipRules conRenombre = new TeamMembershipRules(new CommercialStructure(catalogo));
+
+    UUID jefe = UUID.randomUUID();
+    TeamMembershipRules.Veredicto veredicto =
+        conRenombre.evaluar(List.of(jefe), Map.of(jefe, List.of(renombrado)));
+
+    assertThat(veredicto.admitidos()).containsExactly(jefe);
+  }
+
+  @Test
+  @DisplayName(
+      "si nace un rango por encima de MANAGER, el director pasa a ser el MANAGER: el que está justo"
+          + " debajo de la cúspide")
+  void unRangoNuevoMueveAlDirector() {
     UUID regionalId = UUID.randomUUID();
     AssignableRole regional = rol(regionalId, "REGIONAL", RoleType.VENDEDOR, ADMIN);
-    // `MANAGER` deja de ser la cúspide en cuanto su padre pasa a ser vendedor.
     AssignableRole managerBajoRegional = rol(MANAGER, "MANAGER", RoleType.VENDEDOR, regionalId);
 
     CatalogoEnMemoria catalogo = new CatalogoEnMemoria();
@@ -120,16 +136,16 @@ class TeamMembershipRulesTest {
     catalogo.agregar(managerBajoRegional);
     TeamMembershipRules conRegional = new TeamMembershipRules(new CommercialStructure(catalogo));
 
-    UUID jefeRegional = UUID.randomUUID();
     UUID manager = UUID.randomUUID();
+    UUID director = UUID.randomUUID();
 
     TeamMembershipRules.Veredicto veredicto =
         conRegional.evaluar(
-            List.of(jefeRegional, manager),
-            Map.of(jefeRegional, List.of(regional), manager, List.of(managerBajoRegional)));
+            List.of(manager, director),
+            Map.of(manager, List.of(managerBajoRegional), director, List.of(ROL_DIRECTOR)));
 
-    assertThat(veredicto.admitidos()).containsExactly(jefeRegional);
-    assertThat(veredicto.rechazados()).containsExactly(manager);
+    assertThat(veredicto.admitidos()).containsExactly(manager);
+    assertThat(veredicto.rechazados()).containsExactly(director);
   }
 
   private static AssignableRole rol(UUID id, String codigo, RoleType tipo, UUID padre) {

@@ -133,6 +133,12 @@ class MovementsPermissionsSeedIT extends IntegrationTestBase {
           "movements:update-payout-institution",
           "movements:read-user-payout-accounts");
 
+  /**
+   * El de `V99` (`RF-MV-058`, 09-10-2026): rellenar la oficina de las líneas. A SUPERADMIN y ADMIN,
+   * explícito, y a nadie más: es tarea de administración.
+   */
+  private static final String RELLENAR = "movements:fill-line-teams";
+
   @Autowired private JdbcTemplate jdbc;
 
   @Test
@@ -148,11 +154,11 @@ class MovementsPermissionsSeedIT extends IntegrationTestBase {
     assertThat(codigos)
         .containsAll(LOS_CUATRO)
         .containsAll(LOS_PROPIOS)
-        .contains(ASIGNAR, LINEAS, RECHAZAR, DETALLE)
+        .contains(ASIGNAR, LINEAS, RECHAZAR, DETALLE, RELLENAR)
         .containsAll(LOS_DE_SALDOS)
         .containsAll(LOS_DE_PUNTOS)
         .containsAll(LOS_DE_COBRO)
-        .hasSize(44);
+        .hasSize(45);
   }
 
   @Test
@@ -173,7 +179,7 @@ class MovementsPermissionsSeedIT extends IntegrationTestBase {
     // RN-SEG-007: la raíz de la contención está acotada por el catálogo
     // completo. Un permiso sembrado y no asociado la dejaría por detrás de sus
     // propios hijos.
-    assertThat(permisosDeMovimientosDe(SUPERADMIN)).containsAll(LOS_CUATRO).hasSize(44);
+    assertThat(permisosDeMovimientosDe(SUPERADMIN)).containsAll(LOS_CUATRO).hasSize(45);
   }
 
   @Test
@@ -198,7 +204,7 @@ class MovementsPermissionsSeedIT extends IntegrationTestBase {
             java.util.stream.Stream.concat(
                     java.util.stream.Stream.concat(LOS_CUATRO.stream(), LOS_PROPIOS.stream()),
                     java.util.stream.Stream.concat(
-                        java.util.stream.Stream.of(ASIGNAR, LINEAS, RECHAZAR, DETALLE),
+                        java.util.stream.Stream.of(ASIGNAR, LINEAS, RECHAZAR, DETALLE, RELLENAR),
                         java.util.stream.Stream.concat(
                             LOS_DE_SALDOS.stream(),
                             java.util.stream.Stream.concat(
@@ -219,7 +225,7 @@ class MovementsPermissionsSeedIT extends IntegrationTestBase {
     List<UUID> ids =
         jdbc.queryForList("SELECT id FROM permissions WHERE resource = 'movements'", UUID.class);
 
-    assertThat(ids).hasSize(44).doesNotHaveDuplicates();
+    assertThat(ids).hasSize(45).doesNotHaveDuplicates();
     assertThat(ids).allSatisfy(id -> assertThat(id.version()).isEqualTo(7));
     // variant() == 2 es la variante RFC 9562 (bits 10xx).
     assertThat(ids).allSatisfy(id -> assertThat(id.variant()).isEqualTo(2));
@@ -239,6 +245,25 @@ class MovementsPermissionsSeedIT extends IntegrationTestBase {
                 """,
                 Integer.class))
         .isZero();
+  }
+
+  @Test
+  @DisplayName(
+      "CA-MV-740 — movements:fill-line-teams lo tienen SUPERADMIN y ADMIN, y ningún otro rol")
+  void elRellenoEsDeAdministracion() {
+    assertThat(
+            jdbc.queryForList(
+                "SELECT r.code FROM role_permissions rp JOIN roles r ON r.id = rp.role_id"
+                    + " JOIN permissions p ON p.id = rp.permission_id WHERE p.code = ?",
+                String.class,
+                RELLENAR))
+        .containsExactlyInAnyOrder("SUPERADMIN", "ADMIN");
+    assertThat(
+            jdbc.queryForObject(
+                "SELECT requires_recent_mfa FROM permissions WHERE code = ?",
+                Boolean.class,
+                RELLENAR))
+        .isFalse();
   }
 
   /** Los permisos de recurso {@code movements} que declara un rol. */

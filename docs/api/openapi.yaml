@@ -26,8 +26,6 @@ tags:
     \ puntos—, los retiros y los bonos."
 - name: Países
   description: Catálogo de países. Inmutable salvo su estado.
-- name: Equipos
-  description: Los equipos en que se organiza la cúspide de la fuerza comercial.
 - name: Comisiones
   description: "Tasas de comisión personalizadas: la excepción por persona."
 - name: Cuentas de broker
@@ -73,6 +71,8 @@ tags:
 - name: Tipos de documento
   description: "Catálogo de documentos de identidad admitidos. Solo lectura: su contenido\
     \ es la validación de mayoría de edad (RN-SP-036)."
+- name: Equipos
+  description: "Las oficinas de la fuerza comercial: cada una, de un director."
 - name: Productos
   description: "Catálogo de venta: upgrades de membresía y bots."
 - name: Progreso de los alumnos
@@ -2035,7 +2035,7 @@ paths:
 
         Registra un equipo con **nombre** obligatorio y descripción opcional. **Nace
         vacío y `ACTIVO`**: los miembros se asignan después, con su propia petición,
-        porque asignar comprueba que cada persona sea de la cúspide y cierra su
+        porque asignar comprueba que la persona sea director y cierra su
         pertenencia anterior.
 
         **No tiene código**, al contrario que un rol o una membresía: nada del
@@ -2046,7 +2046,7 @@ paths:
         historial—.
 
         **Tampoco tiene país ni responsable**: un equipo no se organiza por territorio
-        y lo que hay por encima de un manager es administración, no otro manager.
+        y lo que hay por encima de un director es su manager, no otro equipo.
         Enviar `status`, `members` o `code` responde `400`.
 
         La respuesta es la misma forma que el detalle: `memberCount` en cero,
@@ -2097,26 +2097,28 @@ paths:
     post:
       tags:
       - Equipos
-      summary: Asignar miembros a un equipo
+      summary: Asignar el director de un equipo
       description: |
         **Permiso requerido:** `teams:assign-members`. Sin él, `403` (`AUTH-002`).
 
-        Dice **a qué equipo pertenece cada manager desde hoy**, en una sola
-        operación y con motivo. Admite **de una a cien personas** por petición, y
-        los identificadores repetidos se tratan una sola vez.
+        Dice **de qué equipo —qué oficina— es un director desde hoy**, con motivo.
+        **Un equipo tiene un solo director** (`RN-SP-052`, desde el 09-10-2026): se
+        indica **una persona** por petición —la lista se conserva por compatibilidad,
+        y el mismo identificador repetido cuenta como uno—; dos personas distintas
+        responden `400`.
 
-        **Solo entra la cúspide** (`RN-SP-051`): quien porta el rol comercial **de
-        mayor rango**. Un director o un agente **no** se asigna —pertenece al equipo
-        de su manager por la cadena de mando— y enviarlo responde `422` diciendo
-        cuáles y por qué. La regla se decide por la **forma de la jerarquía de
-        roles**, no por un código concreto: el día que nazca un rango por encima, la
-        operación lo sigue sin tocar código.
+        **Solo entra un director** (`RN-SP-051`): quien tiene el rango justo debajo
+        de la cúspide. Un **manager** —está por encima de las oficinas—, un
+        **agente** —pertenece a la oficina de su director por la cadena de mando—, un
+        cliente o quien no tiene rol comercial responden `422`. La regla se decide
+        por la **forma de la jerarquía de roles**, no por un código concreto:
+        renombrar el rol no la cambia.
 
-        **Toda la lista o ninguna.** Si alguna persona no existe, está eliminada o no
-        es de la cúspide, **no entra nadie** y la respuesta informa de **todas** las
-        que fallan, no de la primera: a medias, quien administra no sabría quién
-        entró sin volver a consultar, y el motivo declarado valdría para un conjunto
-        distinto del que pidió.
+        **Un equipo con otro director vigente responde `409`** sin escribir nada
+        —tampoco cierra la pertenencia que la persona pedida tenga en otro equipo—.
+        **Cambiar de encargado son dos pasos**, cada uno con su motivo: retirar al
+        actual (`POST /teams/{id}/members/removals`) y asignar al nuevo. Pedir al
+        director que **ya es** el de este equipo no es un error.
 
         **Mover a alguien de equipo es asignarlo al destino.** La pertenencia
         anterior **se cierra sola** en la misma transacción, y el equipo de origen lo
@@ -2129,9 +2131,9 @@ paths:
         alguien **desde** un equipo suspendido hacia uno activo. Un equipo eliminado
         responde `404`.
 
-        **Una persona desactivada o bloqueada entra igual**: un manager suspendido
-        sigue siendo manager, y no poder organizarlo dejaría sin forma de ordenar la
-        cúspide antes de reactivarlo. Su estado se ve en el detalle.
+        **Una persona desactivada o bloqueada entra igual**: un director suspendido
+        sigue siendo director, y no poder organizarlo dejaría sin forma de ordenar
+        las oficinas antes de reactivarlo. Su estado se ve en el detalle.
 
         **El motivo es obligatorio** y no se puede declarar desde cuándo: la
         pertenencia rige al ejecutarse. Una fecha declarada permitiría reescribir a
@@ -2142,8 +2144,8 @@ paths:
         cada persona quedan exactamente igual: un equipo agrupa, no manda, y
         pertenecer a uno **no concede acceso a ningún dato**.
 
-        La respuesta es la **forma del detalle**, ya con todos sus miembros por
-        antigüedad. Exige `teams:assign-members`; **`teams:remove-members` no
+        La respuesta es la **forma del detalle**, ya con su director. Exige
+        `teams:assign-members`; **`teams:remove-members` no
         habilita esta operación**, porque mover gente y dejarla fuera de todo equipo
         son dos decisiones distintas.
       operationId: asignarMiembros
@@ -2168,9 +2170,9 @@ paths:
               schema:
                 $ref: "#/components/schemas/TeamDetailResponse"
         "400":
-          description: "Lista vacía o de más de 100 (`VAL-001`, `VAL-003`), identificador\
-            \ mal formado (`VAL-002`), motivo ausente o largo (`VAL-004`, `VAL-005`)\
-            \ o cuerpo con campos no admitidos (`VAL-006`)"
+          description: "Lista vacía o con más de una persona (`VAL-001`, `VAL-003`),\
+            \ identificador mal formado (`VAL-002`), motivo ausente o largo (`VAL-004`,\
+            \ `VAL-005`) o cuerpo con campos no admitidos (`VAL-006`)"
           content:
             '*/*':
               schema:
@@ -2195,15 +2197,15 @@ paths:
                 $ref: "#/components/schemas/TeamDetailResponse"
         "409":
           description: "El equipo está `INACTIVO` y no admite miembros nuevos (`RN-SP-053`),\
-            \ o la persona acaba de ser asignada a otro equipo a la vez (`RN-SP-052`)"
+            \ el equipo ya tiene otro director vigente (`RN-SP-052`, `EX-005`), o\
+            \ la persona acaba de ser asignada a otro equipo a la vez (`RN-SP-052`)"
           content:
             '*/*':
               schema:
                 $ref: "#/components/schemas/TeamDetailResponse"
         "422":
-          description: "Alguna persona no existe o está eliminada (`EX-003`), o no\
-            \ porta el rol comercial de mayor rango (`RN-SP-051`); en `errors` van\
-            \ todas las que causan el rechazo"
+          description: "La persona no existe o está eliminada (`EX-003`), o no tiene\
+            \ el rango de director (`RN-SP-051`); en `errors` va quien causa el rechazo"
           content:
             '*/*':
               schema:
@@ -2223,7 +2225,7 @@ paths:
         **Retirar no es mover.** Para cambiar a alguien de equipo basta asignarlo al
         destino, que cierra la anterior sola; esta operación es para **vaciar un
         equipo** —lo que hace falta antes de eliminarlo— y para dejar a alguien **sin
-        equipo**, que es un estado legítimo: un manager sin equipo no rompe nada.
+        equipo**, que es un estado legítimo: un director sin equipo no rompe nada.
 
         **Cierra, no borra.** La pertenencia se queda con su fecha de fin y sigue en
         el historial, porque decide a qué equipo se atribuía lo que esa red producía.
@@ -2245,10 +2247,10 @@ paths:
         ninguna.
 
         **Esto no toca el rol, ni la cadena de mando, ni el estado de nadie.** Quien
-        sale sigue siendo manager y conserva su red; **cambiar el estado de una
+        sale sigue siendo director y conserva su red; **cambiar el estado de una
         persona no la saca de su equipo**. Lo que sí la saca —en la misma
-        transacción y sin pasar por aquí— es dejar de ser manager: retirarle el rol
-        comercial de mayor rango o eliminarla.
+        transacción y sin pasar por aquí— es dejar de ser director: retirarle el
+        rol, ascenderla o descenderla, o eliminarla (`RN-SP-055`).
 
         La respuesta es la **forma del detalle**, ya sin los retirados. Exige
         `teams:remove-members`; **`teams:assign-members` no habilita esta
@@ -2324,8 +2326,8 @@ paths:
 
         **Solo se elimina un equipo VACÍO.** Con un miembro vigente responde `409`
         (`EX-003`), y no es una molestia: un equipo es la única forma de decir en qué
-        parte de la red está un manager, y eliminarlo con gente dentro dejaría a esas
-        personas sin pertenencia sin que nadie lo hubiera decidido. **Hay dos
+        oficina está un director, y eliminarlo con él dentro lo dejaría sin
+        pertenencia sin que nadie lo hubiera decidido. **Hay dos
         salidas y el mensaje las nombra**: retirar a cada miembro
         (`POST /teams/{id}/members/removals`) o reubicarlo en otro equipo
         (`POST /teams/{id}/members`).
@@ -3723,7 +3725,10 @@ paths:
         **Cada fila lleva el tipo de movimiento** (`type`, hoy siempre `VENTA`), el sujeto
         (`user`), **el estado del tipo** (`typeStatus`), los vendedores de sus líneas sin
         repetir (`sellers`, lista nunca nula y vacía cuando no hay ninguno —también en una
-        venta por validar a la que no se le ha asignado ninguno—), y **cuándo se confirmó** (`confirmedAt`): presente en
+        venta por validar a la que no se le ha asignado ninguno—), **las oficinas donde se
+        vendieron sus líneas** (`teams`, desde el 09-10-2026, `RN-MV-078`: las guardadas
+        el día de la venta, sin repetir, con el nombre de hoy; nunca nula y vacía cuando
+        ninguna línea tiene oficina), y **cuándo se confirmó** (`confirmedAt`): presente en
         las confirmadas y **nulo** en las demás. No lleva `role` —quien administra no
         participa en lo que mira— ni las líneas, que son del detalle.
 
@@ -3802,6 +3807,15 @@ paths:
         required: false
         schema:
           type: string
+      - name: teamId
+        in: query
+        description: "La OFICINA donde se vendió (`RN-MV-078`): los movimientos con\
+          \ alguna línea guardada en ese equipo, no la oficina de hoy de su vendedor.\
+          \ Uno que no existe da una página vacía; uno mal formado, `400`."
+        required: false
+        schema:
+          type: string
+          format: uuid
       responses:
         "200":
           description: La página de movimientos.
@@ -3849,6 +3863,13 @@ paths:
 
         **Lo copiado queda congelado.** Corregir mañana el precio de un producto, o
         reasignar al comprador a otro agente, no cambia lo que se vendió hoy.
+
+        **Cada línea trae la oficina donde se vendió** (`lines[].team`, desde el
+        09-10-2026, `RN-MV-078`): el equipo del director de la cadena del vendedor **en
+        la fecha del hecho** —el suyo si el vendedor es director—. **No se envía**: la
+        decide el sistema y queda congelada, de modo que un traslado posterior no la
+        mueve. Va **nula** sin vendedor, en la venta de un manager —que está por encima de
+        las oficinas— y cuando nadie de la cadena tenía equipo ese día.
 
         **Esta entrada no aplica descuentos.** Cada línea trae su descuento (`lineDiscount`,
         hoy cero), las rebajas que lo explican (`discounts`, hoy vacía) y el paquete del que
@@ -4128,6 +4149,43 @@ paths:
         "500":
           description: Fallo no controlado (`ERR-500`)
       x-required-permission: movements:assign-sellers
+  /api/v1/movements/sales/lines/team-fill:
+    post:
+      tags:
+      - Movimientos
+      summary: Rellenar la oficina de las líneas de venta que no la tienen
+      description: |
+        **Permiso requerido:** `movements:fill-line-teams`. Sin él, `403` (`AUTH-002`).
+
+        Pone **la oficina** —el equipo del director de la cadena del vendedor— a las líneas
+        de venta que **tienen vendedor y no tienen oficina** (`RN-MV-078`): las vendidas
+        antes de que hubiera directores con equipo. **Usa la oficina de HOY** de cada
+        vendedor, no la del día de la venta, que para esas líneas no existía.
+
+        **Solo toca líneas con vendedor y sin oficina**: una línea que ya tiene la suya no
+        cambia, una sin vendedor tampoco, y no mira el estado de la venta —una anulada también
+        se vendió en una oficina—. Solo escribe la oficina: ni el vendedor, ni el estado, ni
+        las comisiones. Un vendedor que hoy no tiene oficina —un manager, o sin director con
+        equipo— deja sus líneas como estaban.
+
+        **Es repetible**: se puede lanzar después de cada asignación de directores, y una
+        orden sin nada que rellenar responde `filled: 0` sin escribir. Todo o nada, y una
+        entrada de auditoría por cada venta tocada. Sin cuerpo.
+      operationId: rellenarOficinas
+      responses:
+        "200":
+          description: "Cuántas líneas ganaron oficina, también cuando son cero."
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/LineTeamFillResponse"
+        "401":
+          description: Token ausente o inválido (`AUTH-001`)
+        "403":
+          description: Sin el permiso `movements:fill-line-teams` (`AUTH-002`).
+        "500":
+          description: Fallo no controlado (`ERR-500`)
+      x-required-permission: movements:fill-line-teams
   /api/v1/movements/points-rates:
     get:
       tags:
@@ -9076,7 +9134,7 @@ paths:
         desempate para que el orden sea determinista.
 
         **El `status` de cada miembro es el de la PERSONA**, no el de su pertenencia
-        —una pertenencia vigente no tiene estados—, y se publica porque un manager
+        —una pertenencia vigente no tiene estados—, y se publica porque un director
         desactivado **sigue en su equipo**: cambiar el estado de una persona no la
         saca. Quien administra necesita verlo sin abrir cada ficha. A un eliminado
         sí se le cierra la pertenencia en la misma transacción, de modo que deja de
@@ -9247,8 +9305,8 @@ paths:
         la única forma de vaciarlo para poder eliminarlo— y **sí se puede
         reasignar a alguien desde él hacia un equipo activo**.
 
-        **Desactivar no le quita nada a nadie.** Un manager de un equipo
-        suspendido sigue activo, sigue siendo manager y sigue teniendo su red;
+        **Desactivar no le quita nada a nadie.** El director de un equipo
+        suspendido sigue activo, sigue siendo director y sigue teniendo su red;
         pertenecer a un equipo no concede acceso a ningún dato, y por eso esta
         operación **no registra ningún evento de seguridad** — al contrario que
         desactivar un rol, que retira permisos de inmediato.
@@ -12746,8 +12804,9 @@ paths:
         Devuelve **el comprobante de cualquier movimiento** —una venta, un retiro, un
         bono—, sea quien sea su sujeto y quien lo haya vendido: código, tipo, estado,
         estado del tipo, sujeto, moneda, totales, **pagos** y **líneas**, cada una con lo
-        que se vendió **tal como se vendió** y a quién se le acredita. Un movimiento sin
-        líneas —un retiro, un bono— las trae **vacías**.
+        que se vendió **tal como se vendió**, a quién se le acredita y **en qué oficina
+        se vendió** (`team`, la guardada, presente y nula sin ella; `RN-MV-078`). Un
+        movimiento sin líneas —un retiro, un bono— las trae **vacías**.
 
         **Un retiro trae `withdrawalDestination`** desde el 01-10-2026 (`RN-MV-056`): a
         dónde se paga, **copiado al pedirlo** —entidad, tipo de cuenta, número y titular con
@@ -12901,7 +12960,8 @@ paths:
         cuanto se le asigna una (`RF-MV-016`).
 
         **Cada fila es la misma de `GET /movements`** (`type` siempre `VENTA`, `typeStatus`, `user`,
-        `sellers`, importes, `confirmedAt` nulo y presente), sin `role`. **El total puede no
+        `sellers`, `teams` —las oficinas de sus líneas—, importes, `confirmedAt` nulo y
+        presente), sin `role`. **El total puede no
         ser exacto** por encima del techo de conteo. Ni `movements:read` ni
         `movements:list-own` abren esta consulta.
       operationId: misVentas
@@ -12963,6 +13023,16 @@ paths:
         schema:
           type: string
           format: date-time
+      - name: teamId
+        in: query
+        description: "La OFICINA donde se vendió (`RN-MV-078`): acota DENTRO del alcance\
+          \ a las ventas con alguna línea guardada en ese equipo. No ensancha nada:\
+          \ una oficina con ventas solo fuera de mi red, o inexistente, da una pá\
+          gina vacía; una mal formada, `400`."
+        required: false
+        schema:
+          type: string
+          format: uuid
       responses:
         "200":
           description: "La página de ventas, aunque esté vacía."
@@ -13010,7 +13080,9 @@ paths:
         **código**, en cambio, se lee del catálogo, que es inmutable.
 
         **`seller` puede venir presente y NULO**, y la fila **no desaparece** por eso: el
-        vendedor es de la línea y hay movimientos que no lo llevan.
+        vendedor es de la línea y hay movimientos que no lo llevan. Lo mismo **`team`**
+        (09-10-2026, `RN-MV-078`): **la oficina donde se vendió la línea**, guardada el día
+        de la venta y con el nombre de hoy; un traslado posterior no la mueve.
 
         **El estado de entrega va crudo** —`deliveryStatus`, `deliveredAt`,
         `deliveryNote`, `implementation`—, y no derivado como en
@@ -13115,6 +13187,15 @@ paths:
         schema:
           type: string
           format: date-time
+      - name: teamId
+        in: query
+        description: "La OFICINA donde se vendió ESTA línea (`RN-MV-078`), la guardada\
+          \ el día de la venta. Una que no existe da una página vacía; una mal formada,\
+          \ `400`."
+        required: false
+        schema:
+          type: string
+          format: uuid
       responses:
         "200":
           description: "La página de líneas, aunque esté vacía."
@@ -13332,7 +13413,9 @@ paths:
 
         Devuelve **lo mismo que devuelve registrar una venta**, con sus líneas: qué
         productos, cuántos, a qué precio y con qué vigencia. Quien registró una venta y
-        quien la consulta después ven la misma forma.
+        quien la consulta después ven la misma forma. Cada línea trae **la oficina donde
+        se vendió** (`team`, `RN-MV-078`): la guardada el día de la venta, con el nombre
+        de hoy, presente y nula cuando la línea no la tiene.
 
         **Un movimiento que no es suyo responde `404`**, exactamente igual que uno que no
         existe. No es un descuido: un `403` confirmaría que el identificador existe.
@@ -13400,8 +13483,8 @@ paths:
         vendedor no tendría ninguna forma de ver el detalle de lo que vendió.
 
         **Cada fila trae sus líneas (`lines`) desde el 03-10-2026**, con **la misma forma
-        que el detalle**: producto, cantidad, precio, vigencia, descuento, vendedor y
-        entrega. Así la pantalla pinta qué se compró sin abrir cada compra. La lista nunca
+        que el detalle**: producto, cantidad, precio, vigencia, descuento, vendedor,
+        **oficina donde se vendió** (`team`, la guardada, nula sin ella) y entrega. Así la pantalla pinta qué se compró sin abrir cada compra. La lista nunca
         es nula. **Los pagos no viajan aquí**: siguen en el detalle.
 
         **`sellers` es una lista, sin repetir y nunca nula**: el vendedor es de cada línea y
@@ -14031,6 +14114,17 @@ paths:
         required: false
         schema:
           type: string
+      - name: teamId
+        in: query
+        description: "La OFICINA donde se vendió: solo las líneas guardadas en ese\
+          \ equipo el día de la venta, no la oficina de hoy de su vendedor. Es un\
+          \ filtro y no un alcance: estrecha dentro de lo que ya se ve, y lo vendido\
+          \ fuera de mi alcance sigue sin contar. Una oficina que no existe da ceros;\
+          \ una mal formada, `400`."
+        required: false
+        schema:
+          type: string
+          format: uuid
       responses:
         "200":
           description: "El resumen, aunque sea de ceros."
@@ -14105,6 +14199,17 @@ paths:
         required: false
         schema:
           type: string
+      - name: teamId
+        in: query
+        description: "La OFICINA donde se vendió: solo las líneas guardadas en ese\
+          \ equipo el día de la venta, no la oficina de hoy de su vendedor. Es un\
+          \ filtro y no un alcance: estrecha dentro de lo que ya se ve, y lo vendido\
+          \ fuera de mi alcance sigue sin contar. Una oficina que no existe da ceros;\
+          \ una mal formada, `400`."
+        required: false
+        schema:
+          type: string
+          format: uuid
       responses:
         "200":
           description: "La serie, aunque sea de ceros."
@@ -14209,6 +14314,17 @@ paths:
         required: false
         schema:
           type: string
+      - name: teamId
+        in: query
+        description: "La OFICINA donde se vendió: solo las líneas guardadas en ese\
+          \ equipo el día de la venta, no la oficina de hoy de su vendedor. Es un\
+          \ filtro y no un alcance: estrecha dentro de lo que ya se ve, y lo vendido\
+          \ fuera de mi alcance sigue sin contar. Una oficina que no existe da ceros;\
+          \ una mal formada, `400`."
+        required: false
+        schema:
+          type: string
+          format: uuid
       responses:
         "200":
           description: "El resumen, aunque sea de ceros."
@@ -17946,7 +18062,7 @@ components:
           items:
             type: string
             format: uuid
-          maxItems: 100
+          maxItems: 1
           minItems: 0
         reason:
           type: string
@@ -18590,6 +18706,16 @@ components:
       required:
       - productId
       - quantity
+    LineTeam:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+          description: El equipo (oficina) donde se vendió.
+        name:
+          type: string
+          description: "Su nombre de hoy: lo congelado es cuál, no cómo se llama."
     MovementPayment:
       type: object
       properties:
@@ -18693,6 +18819,16 @@ components:
             \ comisión por ella. NULO en una venta VALIDAR_COMISIONES mientras nadie\
             \ lo asigne —quien compra tenía varios vendedores (`RN-MV-034`)— y en\
             \ los tipos de movimiento que no venden nada."
+        team:
+          type:
+          - object
+          - "null"
+          $ref: "#/components/schemas/LineTeam"
+          description: "La OFICINA donde se vendió esta línea (`RN-MV-078`): el equipo\
+            \ del director de la cadena del vendedor EL DÍA DE LA VENTA, congelado;\
+            \ un traslado posterior no la mueve. No se envía: la decide el sistema.\
+            \ NULA sin vendedor, en la venta de un manager y cuando nadie de la cadena\
+            \ tenía equipo ese día."
         implementation:
           type: string
           description: "COPIA de cómo se entrega lo vendido (`RN-MV-030`): AUTOMATICA\
@@ -18945,6 +19081,14 @@ components:
           type: string
           format: uuid
           description: "El vendedor que se le atribuye: uno de los del cliente."
+    LineTeamFillResponse:
+      type: object
+      properties:
+        filled:
+          type: integer
+          format: int32
+          description: "Cuántas líneas ganaron oficina en esta orden. Cero si no quedaba\
+            \ ninguna, o si ningún vendedor de las que quedan tiene hoy oficina."
     SetRate:
       type: object
       properties:
@@ -22192,6 +22336,13 @@ components:
             \ asignado ninguno."
           items:
             $ref: "#/components/schemas/MovementParty"
+        teams:
+          type: array
+          description: "Las OFICINAS donde se vendieron sus líneas (`RN-MV-078`),\
+            \ sin repetir: las guardadas en cada línea el día de la venta, con el\
+            \ nombre de hoy. VACÍA —nunca nula— cuando ninguna línea tiene oficina."
+          items:
+            $ref: "#/components/schemas/LineTeam"
         currency:
           $ref: "#/components/schemas/MovementCurrency"
         paymentMethod:
@@ -22292,6 +22443,14 @@ components:
           $ref: "#/components/schemas/SaleLineParty"
           description: Quien vendió ESTA línea (`RN-MV-003`). Presente y NULO cuando
             la línea no lo tiene; la fila no desaparece por eso.
+        team:
+          type:
+          - object
+          - "null"
+          $ref: "#/components/schemas/LineTeam"
+          description: "La OFICINA donde se vendió ESTA línea (`RN-MV-078`): la guardada\
+            \ el día de la venta, con el nombre de hoy. Presente y NULA cuando la\
+            \ línea no la tiene; la fila no desaparece por eso."
         product:
           $ref: "#/components/schemas/SaleLineProductRef"
           description: "El producto, con el nombre CONGELADO del día de la venta."

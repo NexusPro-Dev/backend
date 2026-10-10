@@ -12,6 +12,7 @@ import com.factech.nexus.modules.movements.domain.repository.MovementRepository;
 import com.factech.nexus.modules.movements.domain.repository.MovementRepository.AssignmentHeader;
 import com.factech.nexus.modules.movements.domain.repository.MovementRepository.AssignmentLine;
 import com.factech.nexus.modules.system.roles.application.AuthenticatedActor;
+import com.factech.nexus.modules.system.teams.application.SellerTeamLookup;
 import com.factech.nexus.modules.system.users.application.ClientCatalog;
 import com.factech.nexus.modules.system.users.application.ClientCatalog.SellerView;
 import com.factech.nexus.shared.audit.AuditEnums.ChangeAction;
@@ -80,6 +81,7 @@ public class AssignSellersService {
   private final ApplicationEventPublisher avisos;
   private final CommissionedLineRelease liberacion;
   private final AuthenticatedActor actor;
+  private final SellerTeamLookup equipos;
 
   public AssignSellersService(
       MovementRepository movimientos,
@@ -87,7 +89,9 @@ public class AssignSellersService {
       AuditWriter auditoria,
       ApplicationEventPublisher avisos,
       CommissionedLineRelease liberacion,
-      AuthenticatedActor actor) {
+      AuthenticatedActor actor,
+      SellerTeamLookup equipos) {
+    this.equipos = equipos;
     this.movimientos = movimientos;
     this.clientes = clientes;
     this.auditoria = auditoria;
@@ -139,13 +143,29 @@ public class AssignSellersService {
 
     // 5. La escritura: solo lo que cambia.
     Map<UUID, UUID> antes = new HashMap<>();
+    Map<UUID, UUID> oficinaAntes = new HashMap<>();
+    Map<UUID, UUID> oficinaDespues = new HashMap<>();
+    // `RN-MV-078`: la oficina del vendedor NUEVO en la FECHA DE LA VENTA, no la de
+    // hoy; una pregunta por vendedor distinto, y solo para las líneas que cambian.
+    Map<UUID, UUID> oficinaPorVendedor = new HashMap<>();
     List<UUID> atribuidas = new ArrayList<>();
     for (AssignSellersRequest.Line pedida : pedidas) {
       AssignmentLine linea = lineas.get(pedida.productId());
       antes.put(linea.productId(), linea.sellerId());
+      oficinaAntes.put(linea.productId(), linea.teamId());
       if (!pedida.sellerId().equals(linea.sellerId())) {
-        movimientos.assignSeller(linea.lineId(), pedida.sellerId());
+        if (!oficinaPorVendedor.containsKey(pedida.sellerId())) {
+          oficinaPorVendedor.put(
+              pedida.sellerId(),
+              equipos.teamAt(pedida.sellerId(), venta.occurredAt()).orElse(null));
+        }
+        UUID oficina = oficinaPorVendedor.get(pedida.sellerId());
+        movimientos.assignSeller(linea.lineId(), pedida.sellerId(), oficina);
+        oficinaDespues.put(linea.productId(), oficina);
         atribuidas.add(linea.lineId());
+      } else {
+        // El mismo vendedor no reescribe nada: la oficina guardada se queda.
+        oficinaDespues.put(linea.productId(), linea.teamId());
       }
     }
 
@@ -175,7 +195,7 @@ public class AssignSellersService {
             ENTIDAD,
             movementId,
             ChangeAction.UPDATE,
-            cambios(pedidas, antes, estadoAntes, estadoDespues)));
+            cambios(pedidas, antes, oficinaAntes, oficinaDespues, estadoAntes, estadoDespues)));
 
     // 7. El aviso para `CM` (`RN-MV-049`), solo si ya está confirmada: en una
     //    pendiente, comisionarán al confirmarse.
@@ -293,6 +313,8 @@ public class AssignSellersService {
   private static Map<String, Object> cambios(
       List<AssignSellersRequest.Line> pedidas,
       Map<UUID, UUID> antes,
+      Map<UUID, UUID> oficinaAntes,
+      Map<UUID, UUID> oficinaDespues,
       String estadoAntes,
       String estadoDespues) {
     List<Map<String, Object>> lineasAntes = new ArrayList<>();
@@ -303,10 +325,14 @@ public class AssignSellersService {
       a.put("product_id", pedida.productId().toString());
       // Nulo y PRESENTE: la línea no tenía vendedor.
       a.put("seller_id", previo == null ? null : previo.toString());
+      UUID oficinaPrevia = oficinaAntes.get(pedida.productId());
+      a.put("team_id", oficinaPrevia == null ? null : oficinaPrevia.toString());
       lineasAntes.add(a);
       Map<String, Object> d = new LinkedHashMap<>();
       d.put("product_id", pedida.productId().toString());
       d.put("seller_id", pedida.sellerId().toString());
+      UUID oficinaNueva = oficinaDespues.get(pedida.productId());
+      d.put("team_id", oficinaNueva == null ? null : oficinaNueva.toString());
       lineasDespues.add(d);
     }
     Map<String, Object> antesDe = new LinkedHashMap<>();

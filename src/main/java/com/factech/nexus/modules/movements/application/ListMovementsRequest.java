@@ -37,7 +37,8 @@ public record ListMovementsRequest(
     String code,
     OffsetDateTime from,
     OffsetDateTime to,
-    String paymentIncident) {
+    String paymentIncident,
+    UUID teamId) {
 
   public ListMovementsRequest {
     // `RN-MV-060` (01-10-2026): la incidencia del último pago, o CUALQUIERA.

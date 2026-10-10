@@ -25,17 +25,19 @@ import java.util.UUID;
  * modo que el manejador global se lee de una sola forma. Lo que el caso de uso decide son los `422`
  * —quién no existe y quién no es de la cúspide—, que no se pueden ver mirando el cuerpo.
  *
- * @param memberIds al menos uno (`VAL-001`) y como mucho cien (`VAL-003`), inclusive
+ * @param memberIds al menos uno (`VAL-001`) y como mucho uno (`VAL-003`, 09-10-2026: un equipo
+ *     tiene un solo director), contado después de quitar repetidos; la forma de lista se conserva
+ *     para no romper a quien ya la consume
  * @param reason obligatorio (`VAL-004`) y de hasta 500 caracteres (`VAL-005`): el historial de a
- *     qué equipo perteneció cada manager decide a quién se atribuye lo que su red produjo, y las
+ *     qué equipo perteneció cada director decide a quién se atribuye lo que su red produjo, y las
  *     comisiones lo leerán — un tramo sin explicación es un agujero cuando alguien discuta una
  *     liquidación
  */
 public record AssignTeamMembersRequest(
     @NotEmpty(message = "VAL-001: Debe indicar al menos una persona.")
         @Size(
-            max = 100,
-            message = "VAL-003: No es posible asignar más de 100 personas en una sola solicitud.")
+            max = 1,
+            message = "VAL-003: Un equipo tiene un solo director: indique una sola persona.")
         List<UUID> memberIds,
     @NotBlank(message = "VAL-004: El motivo del cambio es obligatorio.")
         @Size(max = 500, message = "VAL-005: El motivo no puede exceder 500 caracteres.")

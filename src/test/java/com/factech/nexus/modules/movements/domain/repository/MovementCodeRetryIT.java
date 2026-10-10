@@ -133,6 +133,7 @@ class MovementCodeRetryIT extends IntegrationTestBase {
             MovementLine.copiarDe(
                 producto,
                 vendedor,
+                null,
                 "RTY_BOT",
                 "Bot de prueba",
                 "Un bot para la prueba",

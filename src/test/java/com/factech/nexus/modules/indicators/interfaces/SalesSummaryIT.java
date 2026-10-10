@@ -388,6 +388,149 @@ class SalesSummaryIT extends IntegrationTestBase {
   }
 
   // ---------------------------------------------------------------------------
+  // La oficina — CA-IN-098 a CA-IN-100
+  //
+  // Dos oficinas con director: A la de director1 y B la de director2. Las líneas
+  // de cada rama guardan la suya; también la de exagente, que vendió cuando aún
+  // colgaba de director1. Sin oficina quedan la venta del manager, la de suelto
+  // —que no tiene director— y la que está sin vendedor.
+  //
+  //   A confirmado: director1 200,00 ×2, agente1 30,00 ×3 + 0,07 + 0,03,
+  //                 agente2 0,00 (el alta), exagente 600,00     → 6 ventas, 830,10
+  //   A pendiente:  agente2 4,00
+  //   B confirmado: director2 50000,00 COP, agente3 0,80 (de la mixta)
+  //   B anulado:    agente3 0,50
+  // ---------------------------------------------------------------------------
+
+  @Test
+  @DisplayName(
+      "CA-IN-098 — con oficina, el funcionario ve solo sus líneas: la venta de dos oficinas cuenta"
+          + " una vez en cada una con su parte; ni lo sin vendedor ni la venta del manager")
+  void oficinaSoloSusLineas() throws Exception {
+    UUID[] oficinas = repartirOficinas();
+
+    mvc.perform(septiembreDe(funcionario).param("teamId", oficinas[0].toString()))
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$.confirmed.sales").value(6))
+        .andExpect(jsonPath("$.confirmed.lines").value(6))
+        .andExpect(jsonPath("$.confirmed.units").value(9))
+        .andExpect(jsonPath("$.confirmed.amounts.length()").value(1))
+        .andExpect(jsonPath("$.confirmed.amounts[0].currency.code").value("USD"))
+        .andExpect(jsonPath("$.confirmed.amounts[0].amount").value(830.1))
+        .andExpect(jsonPath("$.pending.sales").value(1))
+        .andExpect(jsonPath("$.pending.amounts[0].amount").value(4.0))
+        .andExpect(jsonPath("$.voided.sales").value(0));
+    // La mixta vuelve a contar en B, ahora solo con los 0,80 de agente3.
+    mvc.perform(septiembreDe(funcionario).param("teamId", oficinas[1].toString()))
+        .andExpect(jsonPath("$.confirmed.sales").value(2))
+        .andExpect(jsonPath("$.confirmed.lines").value(2))
+        .andExpect(jsonPath("$.confirmed.units").value(2))
+        .andExpect(jsonPath("$.confirmed.amounts.length()").value(2))
+        .andExpect(jsonPath("$.confirmed.amounts[0].currency.code").value("COP"))
+        .andExpect(jsonPath("$.confirmed.amounts[0].amount").value(50000.0))
+        .andExpect(jsonPath("$.confirmed.amounts[1].amount").value(0.8))
+        .andExpect(jsonPath("$.pending.sales").value(0))
+        .andExpect(jsonPath("$.voided.sales").value(1))
+        .andExpect(jsonPath("$.voided.amounts[0].amount").value(0.5));
+    // Las 10 confirmadas sin filtro: 6 de A y 2 de B, con la mixta en las dos
+    // —7 distintas—, y las 3 sin oficina: el manager, suelto y la sin vendedor.
+    septiembre(funcionario).andExpect(jsonPath("$.confirmed.sales").value(10));
+  }
+
+  @Test
+  @DisplayName(
+      "CA-IN-099 — la oficina es la guardada en la línea: trasladar al director o al agente no"
+          + " mueve lo ya vendido")
+  void oficinaGuardadaNoSeMueve() throws Exception {
+    UUID[] oficinas = repartirOficinas();
+    UUID nueva = oficina("C", null);
+
+    // director1 pasa a la oficina C, y agente1 a colgar de director2, en B.
+    trasladar(director1, nueva);
+    jdbc.update(
+        "UPDATE user_supervisors SET started_at = now() - interval '30 days',"
+            + " ended_at = now() - interval '1 day' WHERE user_id = ? AND ended_at IS NULL",
+        agente1);
+    reportar(agente1, director2);
+
+    // A sigue contando lo que se vendió en ella…
+    mvc.perform(septiembreDe(funcionario).param("teamId", oficinas[0].toString()))
+        .andExpect(jsonPath("$.confirmed.sales").value(6))
+        .andExpect(jsonPath("$.confirmed.amounts[0].amount").value(830.1));
+    // …B no se lleva lo de agente1, ni siquiera para director2, que hoy lo ve…
+    mvc.perform(septiembreDe(funcionario).param("teamId", oficinas[1].toString()))
+        .andExpect(jsonPath("$.confirmed.sales").value(2))
+        .andExpect(jsonPath("$.confirmed.amounts[1].amount").value(0.8));
+    mvc.perform(septiembreDe(director2).param("teamId", oficinas[1].toString()))
+        .andExpect(jsonPath("$.confirmed.sales").value(2))
+        .andExpect(jsonPath("$.confirmed.amounts[1].amount").value(0.8));
+    // …y C, la oficina de hoy de director1, no tiene nada vendido.
+    mvc.perform(septiembreDe(funcionario).param("teamId", nueva.toString()))
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$.total.sales").value(0))
+        .andExpect(jsonPath("$.confirmed.amounts").isEmpty());
+  }
+
+  @Test
+  @DisplayName(
+      "CA-IN-100 — la oficina se combina con el alcance; inexistente, ceros; mal formada, 400; con"
+          + " tramo, la suma de los tramos es el total filtrado")
+  void oficinaYAlcance() throws Exception {
+    UUID[] oficinas = repartirOficinas();
+    String a = oficinas[0].toString();
+    String b = oficinas[1].toString();
+
+    // director1 en A: lo suyo y lo de sus agentes, sin los 600,00 de exagente,
+    // que ya no cuelga de él aunque su línea sea de A.
+    mvc.perform(septiembreDe(director1).param("teamId", a))
+        .andExpect(jsonPath("$.confirmed.sales").value(5))
+        .andExpect(jsonPath("$.confirmed.lines").value(5))
+        .andExpect(jsonPath("$.confirmed.units").value(8))
+        .andExpect(jsonPath("$.confirmed.amounts[0].amount").value(230.1))
+        .andExpect(jsonPath("$.pending.sales").value(1));
+    // Un agente en su oficina ve lo suyo; en otra, ceros. Un director en la
+    // ajena, también ceros.
+    mvc.perform(septiembreDe(agente1).param("teamId", a))
+        .andExpect(jsonPath("$.confirmed.sales").value(3))
+        .andExpect(jsonPath("$.confirmed.amounts[0].amount").value(30.1));
+    for (UUID actor : new UUID[] {agente1, director1}) {
+      mvc.perform(septiembreDe(actor).param("teamId", b))
+          .andExpect(status().isOk())
+          .andExpect(jsonPath("$.total.sales").value(0))
+          .andExpect(jsonPath("$.confirmed.amounts").isEmpty());
+    }
+    // Con vendedor y oficina a la vez.
+    mvc.perform(septiembreDe(director1).param("teamId", a).param("sellerId", agente2.toString()))
+        .andExpect(jsonPath("$.confirmed.sales").value(1))
+        .andExpect(jsonPath("$.pending.sales").value(1));
+
+    mvc.perform(septiembreDe(funcionario).param("teamId", UUID.randomUUID().toString()))
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$.total.sales").value(0))
+        .andExpect(jsonPath("$.confirmed.amounts").isEmpty());
+    mvc.perform(septiembreDe(funcionario).param("teamId", "no-es-uuid"))
+        .andExpect(status().isBadRequest())
+        .andExpect(jsonPath("$.errors[0].code").value("VAL-001"));
+
+    // Por meses: la del 31 de agosto de agente1 es de A; septiembre, 6
+    // confirmadas y una pendiente.
+    mvc.perform(
+            get(RUTA)
+                .param("from", "2026-08-01")
+                .param("to", "2026-09-30")
+                .param("granularity", "MONTH")
+                .param("teamId", a)
+                .with(conPermiso(funcionario)))
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$.total.sales").value(8))
+        .andExpect(jsonPath("$.buckets.length()").value(2))
+        .andExpect(jsonPath("$.buckets[0].total.sales").value(1))
+        .andExpect(jsonPath("$.buckets[0].confirmed.amounts[0].amount").value(0.01))
+        .andExpect(jsonPath("$.buckets[1].total.sales").value(7))
+        .andExpect(jsonPath("$.buckets[1].confirmed.amounts[0].amount").value(830.1));
+  }
+
+  // ---------------------------------------------------------------------------
   // Validaciones y permisos — CA-IN-013, CA-IN-014
   // ---------------------------------------------------------------------------
 
@@ -484,6 +627,10 @@ class SalesSummaryIT extends IntegrationTestBase {
   private void limpiar() {
     CommissionCleanup.limpiar(jdbc);
     jdbc.update("DELETE FROM movement_details");
+    jdbc.update(
+        "DELETE FROM team_members WHERE team_id IN (SELECT id FROM teams WHERE name LIKE"
+            + " 'IND Oficina %') OR user_id IN (SELECT id FROM users WHERE username LIKE 'ind-%')");
+    jdbc.update("DELETE FROM teams WHERE name LIKE 'IND Oficina %'");
     jdbc.update("DELETE FROM payments");
     jdbc.update("DELETE FROM movements");
     jdbc.update("DELETE FROM products WHERE code LIKE 'IND_BOT%'");
@@ -527,6 +674,53 @@ class SalesSummaryIT extends IntegrationTestBase {
         """,
         subordinado,
         superior);
+  }
+
+  /**
+   * Las oficinas A (director1) y B (director2), y la oficina guardada en las líneas ya sembradas,
+   * como la habría copiado la venta: A para la rama de director1 y para exagente, B para la de
+   * director2. Devuelve {A, B}.
+   */
+  private UUID[] repartirOficinas() {
+    UUID a = oficina("A", director1);
+    UUID b = oficina("B", director2);
+    guardarOficina(a, director1, agente1, agente2, exagente);
+    guardarOficina(b, director2, agente3);
+    return new UUID[] {a, b};
+  }
+
+  /** Una oficina; con {@code director}, este pertenece a ella desde hace un mes. */
+  private UUID oficina(String letra, UUID director) {
+    UUID id = UUID.randomUUID();
+    jdbc.update("INSERT INTO teams (id, name) VALUES (?, ?)", id, "IND Oficina " + letra);
+    if (director != null) {
+      jdbc.update(
+          "INSERT INTO team_members (id, team_id, user_id, started_at)"
+              + " VALUES (gen_random_uuid(), ?, ?, now() - interval '30 days')",
+          id,
+          director);
+    }
+    return id;
+  }
+
+  /** Cierra ayer la pertenencia vigente de {@code persona} y la abre hoy en {@code destino}. */
+  private void trasladar(UUID persona, UUID destino) {
+    jdbc.update(
+        "UPDATE team_members SET ended_at = now() - interval '1 day'"
+            + " WHERE user_id = ? AND ended_at IS NULL",
+        persona);
+    jdbc.update(
+        "INSERT INTO team_members (id, team_id, user_id, started_at)"
+            + " VALUES (gen_random_uuid(), ?, ?, now() - interval '12 hours')",
+        destino,
+        persona);
+  }
+
+  /** La oficina que guardan todas las líneas de {@code vendedores}. */
+  private void guardarOficina(UUID oficina, UUID... vendedores) {
+    for (UUID vendedor : vendedores) {
+      jdbc.update("UPDATE movement_details SET team_id = ? WHERE seller_id = ?", oficina, vendedor);
+    }
   }
 
   private UUID producto(String codigo) {

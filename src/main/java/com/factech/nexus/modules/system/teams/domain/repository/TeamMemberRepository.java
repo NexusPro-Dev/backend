@@ -39,6 +39,13 @@ public interface TeamMemberRepository {
    */
   List<TeamMember> findActiveIn(UUID teamId, Collection<UUID> userIds);
 
+  /**
+   * La pertenencia vigente <b>de un equipo</b>, por {@code ix_team_members_team_vigente}: desde el
+   * 09-10-2026 hay como mucho una, la de su director (`RN-SP-052`). Devuelve lista y no {@code
+   * Optional} para que un dato anterior a {@code V99} no haga fallar la lectura.
+   */
+  List<TeamMember> findActiveOfTeam(UUID teamId);
+
   List<TeamMember> saveAll(Collection<TeamMember> pertenencias);
 
   /**

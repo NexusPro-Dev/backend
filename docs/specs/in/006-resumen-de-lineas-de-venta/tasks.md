@@ -53,7 +53,7 @@ Enmienda de hecho (Art. I.7), `spec.md` 0.4.0 y `plan.md` 0.4.0 **antes** del c�
 
 | ID | Tarea | Depende de | Verificación | Estado |
 |---|---|---|---|---|
-| `T-13` | `SalesIndicatorsController`: `teamId` en `/sales/lines/summary`, documentado —la oficina guardada, estrecha sin alcance, lo sin vendedor en cero—, dentro del `LineFilter` | `RF-IN-001` · `T-17` | Ninguna firma de `SalesFigures` cambia | **Pendiente** |
+| `T-13` | `SalesIndicatorsController`: `teamId` en `/sales/lines/summary`, documentado —la oficina guardada, estrecha sin alcance, lo sin vendedor en cero—, dentro del `LineFilter` | `RF-IN-001` · `T-17` | Ninguna firma de `SalesFigures` cambia | **Hecha** — 10-10-2026 |
 | `T-14` | `SaleLinesSummaryIT`: `CA-IN-102` y `CA-IN-103`; contrato regenerado y prosa releída; `api/index.md` y matriz | `T-13` | Solo altas | **Pendiente** |
 
 ---

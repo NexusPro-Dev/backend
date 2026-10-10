@@ -1,5 +1,6 @@
 package com.factech.nexus.modules.movements.domain.repository;
 
+import com.factech.nexus.modules.movements.application.LineTeam;
 import com.factech.nexus.modules.movements.domain.models.IdempotencyKey;
 import com.factech.nexus.modules.movements.domain.models.LineDiscount;
 import com.factech.nexus.modules.movements.domain.models.Movement;
@@ -130,17 +131,19 @@ public class JpaMovementRepository implements MovementRepository {
     for (MovementLine linea : venta.getLines()) {
       em.createNativeQuery(
               """
-              INSERT INTO movement_details (id, movement_id, product_id, seller_id,
+              INSERT INTO movement_details (id, movement_id, product_id, seller_id, team_id,
                                             product_name, product_description,
                                             quantity, unit_price, line_discount, line_amount,
                                             validity_days, implementation)
-              VALUES (:id, :venta, :producto, :vendedor, :nombre, :descripcion, :cantidad,
-                      :precio, :descuento, :importe, :vigencia, :implementacion)
+              VALUES (:id, :venta, :producto, :vendedor, :oficina, :nombre, :descripcion,
+                      :cantidad, :precio, :descuento, :importe, :vigencia, :implementacion)
               """)
           .setParameter("id", linea.getId())
           .setParameter("venta", venta.getId())
           .setParameter("producto", linea.getProductId())
           .setParameter("vendedor", linea.getSellerId())
+          // `RN-MV-078`: la oficina, copiada con su vendedor.
+          .setParameter("oficina", linea.getTeamId())
           .setParameter("nombre", linea.getProductName())
           .setParameter("descripcion", linea.getProductDescription())
           .setParameter("cantidad", linea.getQuantity())
@@ -597,7 +600,8 @@ public class JpaMovementRepository implements MovementRepository {
         em.createNativeQuery(
                 """
                 SELECT m.id AS id, m.user_id AS sujeto, m.movement_type_id AS tipo,
-                       m.status AS status, mts.code AS type_status
+                       m.status AS status, mts.code AS type_status,
+                       m.occurred_at AS ocurrio_en
                   FROM movements m
                   JOIN movement_type_statuses mts ON mts.id = m.type_status_id
                  WHERE m.id = :id
@@ -615,7 +619,8 @@ public class JpaMovementRepository implements MovementRepository {
                     (UUID) fila.get("sujeto"),
                     (UUID) fila.get("tipo"),
                     (String) fila.get("status"),
-                    (String) fila.get("type_status")));
+                    (String) fila.get("type_status"),
+                    instante(fila.get("ocurrio_en"))));
   }
 
   @Override
@@ -625,7 +630,7 @@ public class JpaMovementRepository implements MovementRepository {
     List<Tuple> filas =
         em.createNativeQuery(
                 """
-                SELECT id, product_id, seller_id FROM movement_details
+                SELECT id, product_id, seller_id, team_id FROM movement_details
                  WHERE movement_id = :id
                 """,
                 Tuple.class)
@@ -635,15 +640,20 @@ public class JpaMovementRepository implements MovementRepository {
     for (Tuple fila : filas) {
       resultado.add(
           new AssignmentLine(
-              (UUID) fila.get("id"), (UUID) fila.get("product_id"), (UUID) fila.get("seller_id")));
+              (UUID) fila.get("id"),
+              (UUID) fila.get("product_id"),
+              (UUID) fila.get("seller_id"),
+              (UUID) fila.get("team_id")));
     }
     return resultado;
   }
 
   @Override
   @Transactional
-  public void assignSeller(UUID lineId, UUID sellerId) {
-    em.createNativeQuery("UPDATE movement_details SET seller_id = :vendedor WHERE id = :id")
+  public void assignSeller(UUID lineId, UUID sellerId, UUID teamId) {
+    em.createNativeQuery(
+            "UPDATE movement_details SET seller_id = :vendedor, team_id = :oficina WHERE id = :id")
+        .setParameter("oficina", teamId)
         .setParameter("vendedor", sellerId)
         .setParameter("id", lineId)
         .executeUpdate();
@@ -931,6 +941,105 @@ public class JpaMovementRepository implements MovementRepository {
    * se lee y luego se rechaza: no se lee. Por eso el vacío significa las dos cosas —no existe, o no
    * es suyo— y quien llama no puede distinguirlas (`EX-002`).
    */
+  /** Las líneas que el relleno de `RF-MV-058` mira: de venta, con vendedor y sin oficina. */
+  private static final String LINEAS_SIN_OFICINA =
+      """
+      d.seller_id IS NOT NULL AND d.team_id IS NULL
+      AND d.movement_id IN (SELECT m.id FROM movements m
+                             WHERE m.movement_type_id =
+                                   (SELECT t.id FROM movement_types t WHERE t.code = 'VENTA'))
+      """;
+
+  @Override
+  @Transactional
+  public int lockSalesWithLinesWithoutTeam() {
+    // Contado en una subconsulta para no subir los identificadores: lo que importa
+    // es el bloqueo, en orden de identificador para que dos órdenes no se crucen.
+    Number bloqueadas =
+        (Number)
+            em.createNativeQuery(
+                    """
+                    SELECT count(*) FROM (
+                        SELECT m.id FROM movements m
+                         WHERE m.movement_type_id =
+                               (SELECT t.id FROM movement_types t WHERE t.code = 'VENTA')
+                           AND EXISTS (SELECT 1 FROM movement_details d
+                                        WHERE d.movement_id = m.id
+                                          AND d.seller_id IS NOT NULL AND d.team_id IS NULL)
+                         ORDER BY m.id
+                           FOR UPDATE OF m) bloqueadas
+                    """)
+                .getSingleResult();
+    return bloqueadas.intValue();
+  }
+
+  @Override
+  @Transactional(readOnly = true)
+  public List<UUID> findSellersOfLinesWithoutTeam() {
+    @SuppressWarnings("unchecked")
+    List<UUID> vendedores =
+        em.createNativeQuery(
+                "SELECT DISTINCT d.seller_id FROM movement_details d WHERE " + LINEAS_SIN_OFICINA)
+            .getResultList();
+    return List.copyOf(vendedores);
+  }
+
+  @Override
+  @Transactional
+  public List<FilledLine> fillLineTeam(UUID teamId, Collection<UUID> sellerIds) {
+    if (teamId == null || sellerIds == null || sellerIds.isEmpty()) {
+      return List.of();
+    }
+    @SuppressWarnings("unchecked")
+    List<Object[]> filas =
+        em.createNativeQuery(
+                "UPDATE movement_details d SET team_id = :equipo WHERE d.seller_id IN (:vendedores)"
+                    + " AND "
+                    + LINEAS_SIN_OFICINA
+                    + " RETURNING d.movement_id, d.product_id")
+            .setParameter("equipo", teamId)
+            .setParameter("vendedores", List.copyOf(sellerIds))
+            .getResultList();
+    List<FilledLine> rellenadas = new ArrayList<>(filas.size());
+    for (Object[] fila : filas) {
+      rellenadas.add(new FilledLine((UUID) fila[0], (UUID) fila[1], teamId));
+    }
+    return rellenadas;
+  }
+
+  @Override
+  @Transactional(readOnly = true)
+  public List<MovementTeamRow> findTeamsOf(Collection<UUID> movementIds) {
+    if (movementIds == null || movementIds.isEmpty()) {
+      return List.of();
+    }
+    // `JOIN` y no `LEFT JOIN`: una línea sin oficina no aporta nada a la lista.
+    // Sin mirar `deleted_at`: un equipo eliminado se sigue nombrando en lo que
+    // vendió (`RN-MV-078`).
+    @SuppressWarnings("unchecked")
+    List<Tuple> filas =
+        em.createNativeQuery(
+                """
+                SELECT DISTINCT d.movement_id AS movement_id, tm.id AS tm_id, tm.name AS tm_name
+                  FROM movement_details d
+                  JOIN teams tm ON tm.id = d.team_id
+                 WHERE d.movement_id IN (:movimientos)
+                 ORDER BY d.movement_id, tm.name
+                """,
+                Tuple.class)
+            .setParameter("movimientos", List.copyOf(movementIds))
+            .getResultList();
+    List<MovementTeamRow> resultado = new ArrayList<>(filas.size());
+    for (Tuple fila : filas) {
+      resultado.add(
+          new MovementTeamRow(
+              (UUID) fila.get("movement_id"),
+              (UUID) fila.get("tm_id"),
+              (String) fila.get("tm_name")));
+    }
+    return resultado;
+  }
+
   @Override
   @Transactional(readOnly = true)
   public List<MovementSellerRow> findSellersOf(Collection<UUID> movementIds) {
@@ -1050,6 +1159,25 @@ public class JpaMovementRepository implements MovementRepository {
 
   @Override
   @Transactional(readOnly = true)
+  public Map<UUID, LineTeam> findTeamNames(Collection<UUID> teamIds) {
+    Map<UUID, LineTeam> nombres = new LinkedHashMap<>();
+    if (teamIds == null || teamIds.isEmpty()) {
+      return nombres;
+    }
+    @SuppressWarnings("unchecked")
+    List<Tuple> filas =
+        em.createNativeQuery("SELECT id, name FROM teams WHERE id IN (:equipos)", Tuple.class)
+            .setParameter("equipos", List.copyOf(teamIds))
+            .getResultList();
+    for (Tuple fila : filas) {
+      UUID id = (UUID) fila.get("id");
+      nombres.put(id, new LineTeam(id, (String) fila.get("name")));
+    }
+    return nombres;
+  }
+
+  @Override
+  @Transactional(readOnly = true)
   public Map<UUID, List<MovementLineRow>> findLinesOf(Collection<UUID> movementIds) {
     Map<UUID, List<MovementLineRow>> resultado = new LinkedHashMap<>();
     if (movementIds == null || movementIds.isEmpty()) {
@@ -1073,7 +1201,8 @@ public class JpaMovementRepository implements MovementRepository {
                        d.implementation AS impl, d.delivery_status AS entrega,
                        d.delivered_at AS entregada_en, d.delivery_note AS motivo,
                        v.id AS ven_id, v.username AS ven_username,
-                       v.first_name AS ven_first, v.last_name AS ven_last
+                       v.first_name AS ven_first, v.last_name AS ven_last,
+                       tm.id AS tm_id, tm.name AS tm_name
                   FROM movement_details d
                   -- EL NOMBRE Y LA DESCRIPCION SALEN DE LA LINEA desde el
                   -- 16-09-2026 (`RN-MV-002`): son copias. De `products` solo se
@@ -1082,6 +1211,9 @@ public class JpaMovementRepository implements MovementRepository {
                   -- LEFT: la columna admite nulo por los tipos de movimiento que
                   -- no venden nada y, desde `V36`, en una venta por validar.
                   LEFT JOIN users v ON v.id = d.seller_id
+                  -- LEFT por lo mismo (`RN-MV-078`), y sin mirar `deleted_at`: un
+                  -- equipo eliminado se sigue nombrando en lo que vendió.
+                  LEFT JOIN teams tm ON tm.id = d.team_id
                  WHERE d.movement_id IN (:movimientos)
                  ORDER BY d.movement_id, p.code ASC
                 """,
@@ -1110,6 +1242,8 @@ public class JpaMovementRepository implements MovementRepository {
                   (String) linea.get("ven_username"),
                   (String) linea.get("ven_first"),
                   (String) linea.get("ven_last"),
+                  (UUID) linea.get("tm_id"),
+                  (String) linea.get("tm_name"),
                   rebajas.getOrDefault((UUID) linea.get("linea_id"), List.of()),
                   (String) linea.get("impl"),
                   (String) linea.get("entrega"),
@@ -1622,6 +1756,14 @@ public class JpaMovementRepository implements MovementRepository {
           "vendedor",
           f.sellerId());
     }
+    // La oficina (`RN-MV-078`): la GUARDADA en alguna línea, no la de hoy.
+    if (f.teamId() != null) {
+      filtro.condicion(
+          "EXISTS (SELECT 1 FROM movement_details d"
+              + " WHERE d.movement_id = m.id AND d.team_id = :oficina)",
+          "oficina",
+          f.teamId());
+    }
     filtro.igual("up.payment_method_id", "metodo", f.paymentMethodId());
     filtro.contiene("m.code", "codigo", f.code());
     if (f.from() != null) {
@@ -1737,6 +1879,15 @@ public class JpaMovementRepository implements MovementRepository {
     // El cliente (07-10-2026) va después del alcance: solo quita filas de las
     // que ya se ven, y por eso no necesita el corte previo del vendedor.
     filtro.igual("m.user_id", "cliente", f.clientId());
+    // La oficina (`RN-MV-078`), también después del alcance: la guardada en
+    // alguna línea. Una oficina con ventas solo fuera de mi red da vacío.
+    if (f.teamId() != null) {
+      filtro.condicion(
+          "EXISTS (SELECT 1 FROM movement_details d"
+              + " WHERE d.movement_id = m.id AND d.team_id = :oficina)",
+          "oficina",
+          f.teamId());
+    }
     filtro.igual("m.status", "estado", f.status());
     filtro.igual("mts.code", "estadoDelTipo", f.typeStatus());
     if (f.from() != null) {
@@ -1824,6 +1975,8 @@ public class JpaMovementRepository implements MovementRepository {
       JOIN products p ON p.id = d.product_id
       JOIN currencies cur ON cur.id = m.currency_id
       LEFT JOIN users ven ON ven.id = d.seller_id
+      -- LEFT por lo mismo que el vendedor (`RN-MV-078`): la línea sin oficina sale.
+      LEFT JOIN teams tm ON tm.id = d.team_id
       -- `RN-MV-038`: SOLO LAS CONFIRMADAS, y va aquí y no en un filtro. Lo que
       -- este listado responde es «qué se vendió de verdad», de modo que las
       -- líneas de una venta pendiente, anulada o rechazada no forman parte de la
@@ -1849,6 +2002,7 @@ public class JpaMovementRepository implements MovementRepository {
              suj.first_name AS suj_first, suj.last_name AS suj_last,
              ven.id AS ven_id, ven.username AS ven_username,
              ven.first_name AS ven_first, ven.last_name AS ven_last,
+             tm.id AS tm_id, tm.name AS tm_name,
              p.id AS pro_id, p.code AS pro_code, d.product_name AS pro_name,
              d.quantity AS cantidad, d.unit_price AS precio,
              d.line_discount AS rebaja, d.line_amount AS importe,
@@ -1871,6 +2025,8 @@ public class JpaMovementRepository implements MovementRepository {
       filtro.sinParametro(f.hasSeller() ? "d.seller_id IS NOT NULL" : "d.seller_id IS NULL");
     }
     filtro.igual("d.product_id", "producto", f.productId());
+    // La oficina (`RN-MV-078`), por la LÍNEA como el vendedor.
+    filtro.igual("d.team_id", "oficina", f.teamId());
     // El estado de la VENTA ya no es un filtro: va fijo en `TABLAS_LINEAS`
     // (`RN-MV-038`). El de la ENTREGA si lo es, y son cosas distintas — una venta
     // confirmada tiene lineas ENTREGADA, PENDIENTE y RETENIDA.
@@ -1948,6 +2104,8 @@ public class JpaMovementRepository implements MovementRepository {
         (String) fila.get("ven_username"),
         (String) fila.get("ven_first"),
         (String) fila.get("ven_last"),
+        (UUID) fila.get("tm_id"),
+        (String) fila.get("tm_name"),
         (UUID) fila.get("pro_id"),
         (String) fila.get("pro_code"),
         (String) fila.get("pro_name"),

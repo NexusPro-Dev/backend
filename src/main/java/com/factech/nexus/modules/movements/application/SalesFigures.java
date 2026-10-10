@@ -54,8 +54,19 @@ public interface SalesFigures {
    *
    * @param zone en qué zona se corta cada día; `MV` no la decide, la recibe
    */
+  default List<Bucket> confirmedByBucket(
+      SalesScope scope, Interval interval, UUID currencyId, Granularity granularity, ZoneId zone) {
+    return confirmedByBucket(scope, interval, currencyId, granularity, zone, LineFilter.none());
+  }
+
+  /** {@link #confirmedByBucket} estrechado por {@code filter} (`RF-IN-002`, 09-10-2026). */
   List<Bucket> confirmedByBucket(
-      SalesScope scope, Interval interval, UUID currencyId, Granularity granularity, ZoneId zone);
+      SalesScope scope,
+      Interval interval,
+      UUID currencyId,
+      Granularity granularity,
+      ZoneId zone,
+      LineFilter filter);
 
   /**
    * El resumen de {@link #summary} partido en tramos de calendario de {@code zone} (`RF-IN-001`,
@@ -123,13 +134,22 @@ public interface SalesFigures {
    * @param productId el producto de la línea
    * @param code un fragmento del comprobante, sin distinguir mayúsculas; vacío es sin filtro
    */
-  record LineFilter(UUID sellerId, UUID clientId, UUID productId, String code) {
+  /**
+   * Lo que estrecha las líneas. {@code teamId} (09-10-2026, `RN-MV-078`) es la oficina
+   * <b>guardada</b> en la línea, no la de hoy de su vendedor: filtra, no es alcance.
+   */
+  record LineFilter(UUID sellerId, UUID clientId, UUID productId, String code, UUID teamId) {
     public LineFilter {
       code = code == null || code.isBlank() ? null : code.trim();
     }
 
+    /** Solo la oficina: lo que el resumen y la serie admiten (`RF-IN-001`, `RF-IN-002`). */
+    public static LineFilter ofTeam(UUID teamId) {
+      return new LineFilter(null, null, null, null, teamId);
+    }
+
     public static LineFilter none() {
-      return new LineFilter(null, null, null, null);
+      return new LineFilter(null, null, null, null, null);
     }
   }
 

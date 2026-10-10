@@ -29,7 +29,8 @@ import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.request.MockHttpServletRequestBuilder;
 
 /**
- * El retiro de miembros (`RF-SP-070` · `T-08`): `CA-SP-789` a `CA-SP-794` y `CA-SP-797`.
+ * El retiro de miembros (`RF-SP-070` · `T-08`): `CA-SP-789` a `CA-SP-794`, `CA-SP-797` y, desde el
+ * 09-10-2026, `CA-SP-986`.
  *
  * <p><b>La prueba que cierra el círculo del submódulo es `CA-SP-791`</b>: vaciar un equipo
  * suspendido y comprobar que después `RF-SP-068` ya <b>no</b> responde `409`. Es el recorrido
@@ -52,6 +53,7 @@ class TeamMemberRemovalIT extends IntegrationTestBase {
   private static final String MOTIVO = "Sale de la estructura comercial.";
 
   private UUID norte;
+  private UUID oeste;
   private UUID suspendido;
   private UUID eliminado;
 
@@ -70,13 +72,16 @@ class TeamMemberRemovalIT extends IntegrationTestBase {
     eliminado = equipo(jdbc, "Equipo Disuelto Retiro");
     eliminar(jdbc, eliminado);
 
-    unoDelNorte = personaConRol(jdbc, GENTE[0], "MANAGER");
-    otroDelNorte = personaConRol(jdbc, GENTE[1], "MANAGER");
-    elDelSuspendido = personaConRol(jdbc, GENTE[2], "MANAGER");
-    sinEquipo = personaConRol(jdbc, GENTE[3], "MANAGER");
+    // Directores desde el 09-10-2026 (`RN-SP-051`), y uno vigente por equipo
+    // (`RN-SP-052`): el segundo director va en un equipo propio.
+    oeste = equipo(jdbc, "Equipo Oeste Retiro");
+    unoDelNorte = personaConRol(jdbc, GENTE[0], "DIRECTOR");
+    otroDelNorte = personaConRol(jdbc, GENTE[1], "DIRECTOR");
+    elDelSuspendido = personaConRol(jdbc, GENTE[2], "DIRECTOR");
+    sinEquipo = personaConRol(jdbc, GENTE[3], "DIRECTOR");
 
     pertenencia(jdbc, norte, unoDelNorte);
-    pertenencia(jdbc, norte, otroDelNorte);
+    pertenencia(jdbc, oeste, otroDelNorte);
     pertenencia(jdbc, suspendido, elDelSuspendido);
   }
 
@@ -88,14 +93,13 @@ class TeamMemberRemovalIT extends IntegrationTestBase {
 
   @Test
   @DisplayName(
-      "`CA-SP-789` — retira uno o varios con 200, devuelve el detalle sin ellos, y la fila queda"
+      "`CA-SP-789` — retira a su director con 200, devuelve el detalle sin él, y la fila queda"
           + " CERRADA y no borrada")
   void retiraYConservaLaFila() throws Exception {
     mvc.perform(retirar(norte, MOTIVO, unoDelNorte))
         .andExpect(status().isOk())
-        .andExpect(jsonPath("$.memberCount").value(1))
-        .andExpect(jsonPath("$.members", hasSize(1)))
-        .andExpect(jsonPath("$.members[0].id").value(otroDelNorte.toString()));
+        .andExpect(jsonPath("$.memberCount").value(0))
+        .andExpect(jsonPath("$.members", hasSize(0)));
 
     // La fila sigue existiendo, con su fecha de fin: es historial.
     Map<String, Object> fila =
@@ -105,17 +109,13 @@ class TeamMemberRemovalIT extends IntegrationTestBase {
             unoDelNorte);
     assertThat(fila.get("ended_at")).isNotNull();
     assertThat(fila.get("started_at")).isNotNull();
-    assertThat(vigentesDe(norte)).isEqualTo(1);
-
-    // Y varios a la vez: el equipo queda vacío.
-    mvc.perform(retirar(norte, MOTIVO, otroDelNorte))
-        .andExpect(status().isOk())
-        .andExpect(jsonPath("$.memberCount").value(0))
-        .andExpect(jsonPath("$.members", hasSize(0)));
+    assertThat(vigentesDe(norte)).isZero();
     assertThat(
             jdbc.queryForObject(
                 "SELECT count(*) FROM team_members WHERE team_id = ?", Integer.class, norte))
-        .isEqualTo(2);
+        .isEqualTo(1);
+    // El de otro equipo no se mueve.
+    assertThat(vigentesDe(oeste)).isEqualTo(1);
   }
 
   @Test
@@ -130,7 +130,7 @@ class TeamMemberRemovalIT extends IntegrationTestBase {
         .andExpect(jsonPath("$.errors[0].code").value("EX-002"));
 
     // Nadie salió: ni el que sí pertenecía.
-    assertThat(vigentesDe(norte)).isEqualTo(2);
+    assertThat(vigentesDe(norte)).isEqualTo(1);
     assertThat(vigentesDe(suspendido)).isEqualTo(1);
   }
 
@@ -195,13 +195,13 @@ class TeamMemberRemovalIT extends IntegrationTestBase {
                     + "\",\"endedAt\":\"2026-01-01T00:00:00Z\"}"))
         .andExpect(status().isBadRequest());
 
-    assertThat(vigentesDe(norte)).isEqualTo(2);
+    assertThat(vigentesDe(norte)).isEqualTo(1);
   }
 
   @Test
   @DisplayName(
-      "`CA-SP-793` — una fila UPDATE por cierre, con el actor, el motivo y un mismo identificador"
-          + " de correlación para toda la petición")
+      "`CA-SP-793` — una fila UPDATE por el cierre, con el actor, el motivo y el identificador de"
+          + " correlación de la petición")
   void auditaElRetiro() throws Exception {
     UUID correlacion = UUID.randomUUID();
     UUID actor = UUID.randomUUID();
@@ -210,7 +210,7 @@ class TeamMemberRemovalIT extends IntegrationTestBase {
             post("/api/v1/teams/" + norte + "/members/removals")
                 .header("X-Correlation-Id", correlacion.toString())
                 .contentType(MediaType.APPLICATION_JSON)
-                .content(cuerpoDe(MOTIVO, unoDelNorte, otroDelNorte))
+                .content(cuerpoDe(MOTIVO, unoDelNorte))
                 .with(con(actor, "teams:remove-members")))
         .andExpect(status().isOk());
 
@@ -219,7 +219,7 @@ class TeamMemberRemovalIT extends IntegrationTestBase {
             "SELECT action, actor_id::text AS actor, changes::text AS cambios"
                 + " FROM audit_change_log WHERE entity = 'team_members' AND correlation_id = ?",
             correlacion);
-    assertThat(filas).hasSize(2);
+    assertThat(filas).hasSize(1);
     assertThat(filas)
         .allSatisfy(
             fila -> {
@@ -246,11 +246,11 @@ class TeamMemberRemovalIT extends IntegrationTestBase {
     assertThat(
             jdbc.queryForObject("SELECT status FROM users WHERE id = ?", String.class, unoDelNorte))
         .isEqualTo("ACTIVO");
-    // Sigue siendo manager: salir de un equipo no degrada a nadie.
+    // Sigue siendo director: salir de un equipo no degrada a nadie.
     assertThat(
             jdbc.queryForObject(
                 "SELECT count(*) FROM user_roles ur JOIN roles r ON r.id = ur.role_id"
-                    + " WHERE ur.user_id = ? AND r.code = 'MANAGER'",
+                    + " WHERE ur.user_id = ? AND r.code = 'DIRECTOR'",
                 Integer.class,
                 unoDelNorte))
         .isEqualTo(1);
@@ -268,7 +268,41 @@ class TeamMemberRemovalIT extends IntegrationTestBase {
                 .with(con("teams:assign-members", "teams:update", "teams:read")))
         .andExpect(status().isForbidden());
 
-    assertThat(vigentesDe(norte)).isEqualTo(2);
+    assertThat(vigentesDe(norte)).isEqualTo(1);
+  }
+
+  @Test
+  @DisplayName(
+      "`CA-SP-986` — retirar al director deja el equipo sin director, y otro director entra después;"
+          + " quien sale sigue siendo director")
+  void cambiarAlDirectorDeUnaOficina() throws Exception {
+    // Con el director vigente, otro no cabe (`RN-SP-052`): es lo que el retiro
+    // tiene que destrabar.
+    mvc.perform(asignar(norte, sinEquipo)).andExpect(status().isConflict());
+
+    mvc.perform(retirar(norte, MOTIVO, unoDelNorte)).andExpect(status().isOk());
+    assertThat(vigentesDe(norte)).isZero();
+
+    mvc.perform(asignar(norte, sinEquipo))
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$.memberCount").value(1))
+        .andExpect(jsonPath("$.members[0].id").value(sinEquipo.toString()));
+
+    // El retiro no toca el rol: sigue siendo director, solo que sin oficina.
+    assertThat(
+            jdbc.queryForObject(
+                "SELECT count(*) FROM user_roles ur JOIN roles r ON r.id = ur.role_id"
+                    + " WHERE ur.user_id = ? AND r.code = 'DIRECTOR'",
+                Integer.class,
+                unoDelNorte))
+        .isOne();
+  }
+
+  private MockHttpServletRequestBuilder asignar(UUID equipo, UUID persona) {
+    return post("/api/v1/teams/" + equipo + "/members")
+        .contentType(MediaType.APPLICATION_JSON)
+        .content(cuerpoDe(MOTIVO, persona))
+        .with(con("teams:assign-members"));
   }
 
   private MockHttpServletRequestBuilder retirar(UUID equipo, String motivo, UUID... personas) {

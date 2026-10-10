@@ -518,6 +518,78 @@ class MyMovementsIT extends IntegrationTestBase {
   }
 
   // ---------------------------------------------------------------------------
+  // La oficina de cada línea — RN-MV-078
+  // ---------------------------------------------------------------------------
+
+  @Test
+  @DisplayName(
+      "CA-MV-721 — el detalle propio trae en cada línea su oficina GUARDADA, o team presente y"
+          + " nulo")
+  void elDetalleTraeLaOficina() throws Exception {
+    UUID norte = oficinasDeVendida();
+
+    String cuerpo =
+        mvc.perform(get("/api/v1/movements/mine/{id}", vendida).with(como(cliente)))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.lines.length()").value(2))
+            .andExpect(
+                jsonPath("$.lines[?(@.productCode == 'MINE_BOT')].team.id").value(norte.toString()))
+            .andExpect(
+                jsonPath("$.lines[?(@.productCode == 'MINE_BOT')].team.name")
+                    .value("MINE Oficina Norte"))
+            .andExpect(
+                jsonPath("$.lines[?(@.productCode == 'MINE_BOT_2')]")
+                    .value(org.hamcrest.Matchers.contains(org.hamcrest.Matchers.hasKey("team"))))
+            .andExpect(
+                jsonPath("$.lines[?(@.productCode == 'MINE_BOT_2')].team")
+                    .value(org.hamcrest.Matchers.contains(org.hamcrest.Matchers.nullValue())))
+            .andReturn()
+            .getResponse()
+            .getContentAsString();
+
+    // EN CRUDO: el nulo presente; y la oficina de HOY del vendedor no aparece.
+    assertThat(cuerpo).contains("\"team\":null");
+    assertThat(cuerpo).doesNotContain("MINE Oficina Sur");
+  }
+
+  @Test
+  @DisplayName("CA-MV-722 — en mis compras cada línea trae la misma oficina que en el detalle")
+  void misComprasTraenLaOficinaDelDetalle() throws Exception {
+    UUID norte = oficinasDeVendida();
+
+    JsonNode fila =
+        json.readTree(
+                mvc.perform(get("/api/v1/movements/mine/shopping").with(como(cliente)))
+                    .andExpect(status().isOk())
+                    .andReturn()
+                    .getResponse()
+                    .getContentAsString())
+            .at("/content/0");
+    JsonNode detalle =
+        json.readTree(
+            mvc.perform(get("/api/v1/movements/mine/{id}", vendida).with(como(cliente)))
+                .andExpect(status().isOk())
+                .andReturn()
+                .getResponse()
+                .getContentAsString());
+
+    assertThat(fila.get("id").asText()).isEqualTo(vendida.toString());
+    assertThat(fila.get("lines").size()).isEqualTo(2);
+    for (JsonNode linea : fila.get("lines")) {
+      // Presente en las dos: con valor o nula, pero nunca ausente.
+      assertThat(linea.has("team")).isTrue();
+      if ("MINE_BOT".equals(linea.get("productCode").asText())) {
+        assertThat(linea.at("/team/id").asText()).isEqualTo(norte.toString());
+        assertThat(linea.at("/team/name").asText()).isEqualTo("MINE Oficina Norte");
+      } else {
+        assertThat(linea.get("team").isNull()).isTrue();
+      }
+    }
+    // Y LAS MISMAS LÍNEAS que el detalle (`CA-MV-523`), oficina incluida.
+    assertThat(fila.get("lines")).isEqualTo(detalle.get("lines"));
+  }
+
+  // ---------------------------------------------------------------------------
   // Rutas y acceso
   // ---------------------------------------------------------------------------
 
@@ -611,6 +683,12 @@ class MyMovementsIT extends IntegrationTestBase {
     CommissionCleanup.limpiar(jdbc);
     jdbc.update("DELETE FROM movement_details");
     jdbc.update("DELETE FROM movements");
+    // Las oficinas de esta suite, DESPUÉS de las líneas que las guardan y ANTES de
+    // las personas: `team_members` apunta a las dos con RESTRICT.
+    jdbc.update(
+        "DELETE FROM team_members WHERE team_id IN"
+            + " (SELECT id FROM teams WHERE name LIKE 'MINE %')");
+    jdbc.update("DELETE FROM teams WHERE name LIKE 'MINE %'");
     // DESPUÉS de los movimientos, que lo referencian; y siempre, para que el
     // catálogo quede con su única fila.
     jdbc.update(
@@ -707,6 +785,30 @@ class MyMovementsIT extends IntegrationTestBase {
 
     linea(id, producto, vendedor);
     return id;
+  }
+
+  /**
+   * La venta al cliente con dos líneas: la de {@code MINE_BOT} guardada en el norte y la segunda
+   * sin oficina. Y HOY el vendedor está en el sur, que la lectura no consulta (`RN-MV-078`).
+   * Devuelve el norte.
+   */
+  private UUID oficinasDeVendida() {
+    segundaLinea(vendida, vendedor);
+    UUID norte = UUID.randomUUID();
+    UUID sur = UUID.randomUUID();
+    jdbc.update("INSERT INTO teams (id, name) VALUES (?, ?)", norte, "MINE Oficina Norte");
+    jdbc.update("INSERT INTO teams (id, name) VALUES (?, ?)", sur, "MINE Oficina Sur");
+    jdbc.update(
+        "UPDATE movement_details SET team_id = ? WHERE movement_id = ? AND product_id = ?",
+        norte,
+        vendida,
+        producto);
+    jdbc.update(
+        "INSERT INTO team_members (id, team_id, user_id) VALUES (?, ?, ?)",
+        UUID.randomUUID(),
+        sur,
+        vendedor);
+    return norte;
   }
 
   /** Una segunda línea, de otro producto, para el mismo vendedor. */

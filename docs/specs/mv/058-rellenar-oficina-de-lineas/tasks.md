@@ -16,11 +16,11 @@
 
 | ID | Tarea | Depende de | Verificación | Estado |
 |---|---|---|---|---|
-| `T-01` | `MovementRepository` y `JpaMovementRepository`: `lockSalesWithLinesWithoutTeam`, `findSellersOfLinesWithoutTeam` y `fillLineTeam` con `RETURNING` (`plan.md` §1) | `RF-MV-001` · `T-49`, `T-50` | | **Pendiente** |
-| `T-02` | `FillLineTeamsService`: bloqueo, vendedores, `currentTeamsOf`, escritura por equipo y un `ChangeEvent` por venta tocada | `T-01` | Todo o nada | **Pendiente** |
-| `T-03` | `LineTeamFillResponse`; `POST /api/v1/movements/sales/lines/team-fill` en `MovementController` con `movements:fill-line-teams`, documentado; entra en `PERMISO_DE_CADA_OPERACION` | `T-02` | `EndpointPermissionsIT` en verde | **Pendiente** |
-| `T-04` | `FillLineTeamsIT`: `CA-MV-729` a `CA-MV-739` | `T-03` | | **Pendiente** |
-| `T-05` | `CA-MV-740` en la prueba de la siembra de permisos; contrato regenerado con la prosa releída; `api/index.md`, `requirements/mv.md` y la matriz | `T-04` | Diff del `json` | **Pendiente** |
+| `T-01` | `MovementRepository` y `JpaMovementRepository`: `lockSalesWithLinesWithoutTeam`, `findSellersOfLinesWithoutTeam` y `fillLineTeam` con `RETURNING` (`plan.md` §1) | `RF-MV-001` · `T-49`, `T-50` | | **Hecha** — 10-10-2026 |
+| `T-02` | `FillLineTeamsService`: bloqueo, vendedores, `currentTeamsOf`, escritura por equipo y un `ChangeEvent` por venta tocada | `T-01` | Todo o nada | **Hecha** — 10-10-2026 |
+| `T-03` | `LineTeamFillResponse`; `POST /api/v1/movements/sales/lines/team-fill` en `MovementController` con `movements:fill-line-teams`, documentado; entra en `PERMISO_DE_CADA_OPERACION` | `T-02` | `EndpointPermissionsIT` en verde | **Hecha** — 10-10-2026 |
+| `T-04` | `FillLineTeamsIT`: `CA-MV-729` a `CA-MV-739` | `T-03` | | **Hecha** — 10-10-2026 |
+| `T-05` | `CA-MV-740` en la prueba de la siembra de permisos; contrato regenerado con la prosa releída; `api/index.md`, `requirements/mv.md` y la matriz | `T-04` | Diff del `json` | **Hecha** — 10-10-2026 |
 
 ---
 

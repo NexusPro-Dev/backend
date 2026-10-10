@@ -84,8 +84,7 @@ public class RevokeUserRolesService {
   private final SessionRevoker sesiones;
   private final AuthenticatedActor actor;
   private final AuditWriter auditoria;
-  private static final String MOTIVO_RN_SP_055 =
-      "Deja de portar el rol comercial de mayor rango (RN-SP-055).";
+  private static final String MOTIVO_RN_SP_055 = "Deja de tener el rango de director (RN-SP-055).";
 
   private final TeamMembershipRetirement equipos;
   private final Clock reloj;
@@ -207,15 +206,15 @@ public class RevokeUserRolesService {
       usuarios.endSupervisor(userId, ahora);
     }
 
-    // `RN-SP-055` (enmienda del 23-09-2026, `RF-SP-070`): LA PERTENENCIA SIGUE AL
-    // ROL. Quien ya no porta el rol comercial de mayor rango no puede seguir en un
+    // `RN-SP-055` (enmiendas del 23-09-2026 y del 09-10-2026): LA PERTENENCIA SIGUE
+    // AL RANGO DE DIRECTOR. Quien ya no es director no puede seguir en un
     // equipo —`RN-SP-051` dejaría de cumplirse sin que nadie lo notara— y sale en
     // ESTA transacción: si el retiro se revierte, la pertenencia sigue abierta.
     //
     // Se pregunta por el ESTADO RESULTANTE y no por el cambio, y el puerto no falla
     // si no hay nada que cerrar: así la condición se lee como la invariante que es
-    // —«quien no es cúspide no está en un equipo»— en lugar de como una cascada.
-    if (estructura.rolDeMayorRango(catalogoResultante).filter(estructura::esCuspide).isEmpty()) {
+    // —«quien no es director no está en un equipo»— en lugar de como una cascada.
+    if (estructura.rolDeMayorRango(catalogoResultante).filter(estructura::esDirector).isEmpty()) {
       equipos.retire(userId, MOTIVO_RN_SP_055);
     }
 

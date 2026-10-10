@@ -35,7 +35,8 @@ public record ListSalesRequest(
     UUID paymentMethodId,
     String code,
     OffsetDateTime from,
-    OffsetDateTime to) {
+    OffsetDateTime to,
+    UUID teamId) {
 
   public ListSalesRequest {
     status = status == null || status.isBlank() ? null : status.trim().toUpperCase();

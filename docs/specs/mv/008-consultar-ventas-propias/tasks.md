@@ -106,8 +106,8 @@ Enmienda de hecho (Art. I.7), `spec.md` 0.9.0 y `plan.md` 0.8.0 **antes** del c�
 
 | ID | Tarea | Depende de | Verificación | Estado |
 |---|---|---|---|---|
-| `T-34` | `MyMovementsIT`: `CA-MV-721` sobre el detalle propio —oficina con identificador y nombre, `team` presente y nulo en la línea sin ella, la guardada aunque el director del vendedor esté hoy en otro equipo— y `CA-MV-722` sobre «mis compras» —las líneas iguales a las del detalle—, con equipo propio de nombre único limpiado al terminar | `RF-MV-007` `T-10` | `CA-MV-525` sigue en verde sin tocar su prueba | **Pendiente** |
-| `T-35` | `MovementController`: la prosa de `GET /mine/shopping` y `GET /mine/{id}` nombra la oficina de cada línea; contrato regenerado y `docs/api/index.md` | `T-34` | Ni `MyMovementResponse` gana `teams` ni la ruta gana `teamId` | **Pendiente** |
+| `T-34` | `MyMovementsIT`: `CA-MV-721` sobre el detalle propio —oficina con identificador y nombre, `team` presente y nulo en la línea sin ella, la guardada aunque el director del vendedor esté hoy en otro equipo— y `CA-MV-722` sobre «mis compras» —las líneas iguales a las del detalle—, con equipo propio de nombre único limpiado al terminar | `RF-MV-007` `T-10` | `CA-MV-525` sigue en verde sin tocar su prueba | **Hecha** — 10-10-2026 |
+| `T-35` | `MovementController`: la prosa de `GET /mine/shopping` y `GET /mine/{id}` nombra la oficina de cada línea; contrato regenerado y `docs/api/index.md` | `T-34` | Ni `MyMovementResponse` gana `teams` ni la ruta gana `teamId` | **Hecha** — 10-10-2026 |
 
 ---
 

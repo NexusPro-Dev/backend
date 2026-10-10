@@ -1,6 +1,7 @@
 package com.factech.nexus.modules.system.users.domain.service;
 
 import com.factech.nexus.modules.system.roles.application.AuthenticatedActor;
+import com.factech.nexus.modules.system.teams.application.TeamMembershipRetirement;
 import com.factech.nexus.modules.system.users.application.AssignRolesRequest;
 import com.factech.nexus.modules.system.users.application.UserResponse;
 import com.factech.nexus.modules.system.users.domain.models.User;
@@ -72,6 +73,8 @@ public class AssignUserRolesService {
 
   private static final String MODULO = "SP";
 
+  private static final String MOTIVO_RN_SP_055 = "Deja de tener el rango de director (RN-SP-055).";
+
   private final UserRepository usuarios;
   private final RoleCatalog roles;
   private final AssignableCountry paises;
@@ -81,6 +84,7 @@ public class AssignUserRolesService {
   private final AuthenticatedActor actor;
   private final AuditWriter auditoria;
   private final UuidV7Generator ids;
+  private final TeamMembershipRetirement equipos;
   private final Clock reloj;
 
   @Autowired
@@ -92,8 +96,19 @@ public class AssignUserRolesService {
       AuditWriter auditoria,
       UuidV7Generator ids,
       AssignableCountry paises,
-      AssignableDocumentType documentos) {
-    this(usuarios, roles, estructura, actor, auditoria, ids, paises, documentos, Clock.systemUTC());
+      AssignableDocumentType documentos,
+      TeamMembershipRetirement equipos) {
+    this(
+        usuarios,
+        roles,
+        estructura,
+        actor,
+        auditoria,
+        ids,
+        paises,
+        documentos,
+        equipos,
+        Clock.systemUTC());
   }
 
   AssignUserRolesService(
@@ -105,8 +120,10 @@ public class AssignUserRolesService {
       UuidV7Generator ids,
       AssignableCountry paises,
       AssignableDocumentType documentos,
+      TeamMembershipRetirement equipos,
       Clock reloj) {
     this.usuarios = usuarios;
+    this.equipos = equipos;
     this.roles = roles;
     this.paises = paises;
     this.documentos = documentos;
@@ -186,6 +203,16 @@ public class AssignUserRolesService {
     }
     if (superiorNuevo != null) {
       usuarios.assignSupervisor(ids.next(), userId, superiorNuevo, ahora);
+    }
+
+    // `RN-SP-055` (09-10-2026): la pertenencia sigue al RANGO DE DIRECTOR, también
+    // cuando la sustitución del rol vendedor asciende o desciende a un director.
+    // Se pregunta por el ESTADO RESULTANTE y no por el cambio, como en
+    // `RevokeUserRolesService`: el puerto no escribe si no hay pertenencia, y así
+    // tampoco queda abierta una heredada de antes de `V99`. No abre nada:
+    // ascender a director no da equipo, eso es `RF-SP-069`.
+    if (estructura.rolDeMayorRango(catalogoResultante).filter(estructura::esDirector).isEmpty()) {
+      equipos.retire(userId, MOTIVO_RN_SP_055);
     }
 
     if (!nuevos.isEmpty() || superiorNuevo != null) {

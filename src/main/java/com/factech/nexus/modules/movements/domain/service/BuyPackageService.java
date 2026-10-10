@@ -18,6 +18,7 @@ import com.factech.nexus.modules.products.application.PackageCatalog.PackageSale
 import com.factech.nexus.modules.products.application.ProductCatalog;
 import com.factech.nexus.modules.products.application.ProductCatalog.SaleView;
 import com.factech.nexus.modules.products.application.ProductPrice;
+import com.factech.nexus.modules.system.teams.application.SellerTeamLookup;
 import com.factech.nexus.modules.system.users.application.ClientCatalog;
 import com.factech.nexus.modules.system.users.application.ClientCatalog.ClientView;
 import com.factech.nexus.modules.system.users.application.ClientCatalog.SellerView;
@@ -107,6 +108,7 @@ public class BuyPackageService {
   private final PointsPayment puntos;
   private final CardPayment tarjeta;
   private final LocalPayment local;
+  private final SellerTeamLookup equipos;
 
   @Autowired
   public BuyPackageService(
@@ -119,7 +121,8 @@ public class BuyPackageService {
       AuditWriter auditoria,
       PointsPayment puntos,
       CardPayment tarjeta,
-      LocalPayment local) {
+      LocalPayment local,
+      SellerTeamLookup equipos) {
     this(
         movimientos,
         paquetes,
@@ -131,6 +134,7 @@ public class BuyPackageService {
         puntos,
         tarjeta,
         local,
+        equipos,
         Clock.systemUTC());
   }
 
@@ -145,7 +149,9 @@ public class BuyPackageService {
       PointsPayment puntos,
       CardPayment tarjeta,
       LocalPayment local,
+      SellerTeamLookup equipos,
       Clock reloj) {
+    this.equipos = equipos;
     this.puntos = puntos;
     this.tarjeta = tarjeta;
     this.local = local;
@@ -213,7 +219,11 @@ public class BuyPackageService {
     verificarMonedaUnica(paquete, items);
 
     SellerView vendedor = atribucion.vendedor();
-    List<MovementLine> lineas = copiar(paquete, items, vendedor == null ? null : vendedor.id());
+    // `RN-MV-078`: la oficina del vendedor en el instante de la compra, una vez y
+    // para todas las líneas. La compra por enlace (`RF-MV-013`) pasa por aquí.
+    UUID oficina = vendedor == null ? null : equipos.teamAt(vendedor.id(), ahora).orElse(null);
+    List<MovementLine> lineas =
+        copiar(paquete, items, vendedor == null ? null : vendedor.id(), oficina);
     PaymentMethodView metodo = reglas.resolverMetodoDePago(metodoDePago, aPagar(lineas));
 
     MovementTypeView tipo = reglas.tipoDeVenta();
@@ -410,7 +420,7 @@ public class BuyPackageService {
    * <p>`RN-MV-014` se comprueba sobre <b>cada</b> precio copiado, como en `RF-MV-001`.
    */
   private static List<MovementLine> copiar(
-      PackageSaleView paquete, List<PackageSaleLine> items, UUID vendedorId) {
+      PackageSaleView paquete, List<PackageSaleLine> items, UUID vendedorId, UUID oficina) {
     int decimales = Math.min(paquete.currencyDecimalPlaces(), DECIMALES_DEL_LIBRO);
 
     List<MovementLine> lineas = new ArrayList<>(items.size());
@@ -438,6 +448,7 @@ public class BuyPackageService {
           MovementLine.copiarDe(
               producto.id(),
               vendedorId,
+              oficina,
               producto.code(),
               producto.name(),
               producto.description(),

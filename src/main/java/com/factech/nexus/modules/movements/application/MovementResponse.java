@@ -49,6 +49,12 @@ public record MovementResponse(
                     + " va VACÍA —nunca nula— en los movimientos que no tienen vendedor y en una"
                     + " venta VALIDAR_COMISIONES a la que aún no se le ha asignado ninguno.")
         List<Party> sellers,
+    @Schema(
+            description =
+                "Las OFICINAS donde se vendieron sus líneas (`RN-MV-078`), sin repetir: las"
+                    + " guardadas en cada línea el día de la venta, con el nombre de hoy. VACÍA"
+                    + " —nunca nula— cuando ninguna línea tiene oficina.")
+        List<LineTeam> teams,
     Money currency,
     String paymentMethod,
     BigDecimal totalAmount,

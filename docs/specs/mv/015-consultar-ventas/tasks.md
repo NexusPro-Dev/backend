@@ -52,13 +52,13 @@ Enmienda de hecho (Art. I.7), `spec.md` 0.4.0 y `plan.md` 0.3.0 **antes** del c�
 
 ### 1.3 La oficina de cada venta — 09-10-2026
 
-Enmienda de hecho (Art. I.7), `spec.md` 0.5.0 y `plan.md` 0.4.0 **antes** del código. Sin migración propia: la columna y su índice los trae `V97`.
+Enmienda de hecho (Art. I.7), `spec.md` 0.5.0 y `plan.md` 0.4.0 **antes** del código. Sin migración propia: la columna y su índice los trae `V99`.
 
 | ID | Tarea | Depende de | Verificación | Estado |
 |---|---|---|---|---|
-| `T-14` | `ListSalesService` pasa a `ListMovementsService.de` las oficinas de `oficinasDe`, como hoy los vendedores | `RF-MV-006` `T-18` | `teams` en cada fila, vacía y presente sin oficina; cuatro sentencias por página | **Pendiente** |
-| `T-15` | `ListSalesRequest` y `SalesFilter` ganan `teamId`; `filtroDeVentas` añade el `EXISTS` sobre `d.team_id` **después del alcance**; `ListSalesService` lo pasa, **sin corte previo**; `MovementController`: `teamId` como `UUID`, documentado —dentro del alcance, inexistente vacío, mal formado `400`— | `T-14` | Con alcance de red y una oficina con ventas solo en otra rama, vacío | **Pendiente** |
-| `T-16` | `SalesIT`: `CA-MV-723` a `CA-MV-725`, con un equipo propio de nombre único con ventas en las dos ramas, limpiado al terminar; contrato regenerado —solo altas—; `docs/api/index.md` y matriz | `T-15` | `openapi.json` declara `teamId` en `GET /api/v1/movements/sales` y `teams` en `MovementSummary` | **Pendiente** |
+| `T-14` | `ListSalesService` pasa a `ListMovementsService.de` las oficinas de `oficinasDe`, como hoy los vendedores | `RF-MV-006` `T-18` | `teams` en cada fila, vacía y presente sin oficina; cuatro sentencias por página | **Hecha** — 10-10-2026 |
+| `T-15` | `ListSalesRequest` y `SalesFilter` ganan `teamId`; `filtroDeVentas` añade el `EXISTS` sobre `d.team_id` **después del alcance**; `ListSalesService` lo pasa, **sin corte previo**; `MovementController`: `teamId` como `UUID`, documentado —dentro del alcance, inexistente vacío, mal formado `400`— | `T-14` | Con alcance de red y una oficina con ventas solo en otra rama, vacío | **Hecha** — 10-10-2026 |
+| `T-16` | `SalesIT`: `CA-MV-723` a `CA-MV-725`, con un equipo propio de nombre único con ventas en las dos ramas, limpiado al terminar; contrato regenerado —solo altas—; `docs/api/index.md` y matriz | `T-15` | `openapi.json` declara `teamId` en `GET /api/v1/movements/sales` y `teams` en `MovementSummary` | **Hecha** — 10-10-2026 |
 
 ---
 

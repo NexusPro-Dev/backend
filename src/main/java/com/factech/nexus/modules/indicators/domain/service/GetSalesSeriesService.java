@@ -8,6 +8,7 @@ import com.factech.nexus.modules.indicators.application.SalesSeriesResponse;
 import com.factech.nexus.modules.movements.application.SalesFigures;
 import com.factech.nexus.modules.movements.application.SalesFigures.Bucket;
 import com.factech.nexus.modules.movements.application.SalesFigures.Granularity;
+import com.factech.nexus.modules.movements.application.SalesFigures.LineFilter;
 import com.factech.nexus.modules.movements.application.SalesFigures.SalesScope;
 import com.factech.nexus.modules.system.roles.application.AuthenticatedActor;
 import com.factech.nexus.shared.error.FieldError;
@@ -80,7 +81,8 @@ public class GetSalesSeriesService {
                         periodos.interval(periodo),
                         peticion.currencyId(),
                         tramo,
-                        ZoneId.of(periodo.zone())))
+                        ZoneId.of(periodo.zone()),
+                        LineFilter.ofTeam(peticion.teamId())))
             .orElseGet(List::of);
 
     // Las monedas del periodo, por código: el orden de `amounts` en todos los tramos.

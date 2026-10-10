@@ -63,8 +63,10 @@ class TeamStatusIT extends IntegrationTestBase {
     eliminado = equipo(jdbc, "Equipo Disuelto Por Estado");
     eliminar(jdbc, eliminado);
 
+    // Un director vigente por equipo desde `V99` (`RN-SP-052`): el segundo es
+    // historial, cerrado.
     pertenencia(jdbc, poblado, persona(jdbc, GENTE[0]));
-    pertenencia(jdbc, poblado, persona(jdbc, GENTE[1]));
+    TeamTestSupport.pertenenciaCerrada(jdbc, poblado, persona(jdbc, GENTE[1]));
   }
 
   @AfterEach
@@ -84,7 +86,7 @@ class TeamStatusIT extends IntegrationTestBase {
         .andExpect(jsonPath("$.name").value("Equipo Con Gente"))
         .andExpect(jsonPath("$.description").value("Dos managers dentro"))
         .andExpect(jsonPath("$.status").value("INACTIVO"))
-        .andExpect(jsonPath("$.memberCount").value(2))
+        .andExpect(jsonPath("$.memberCount").value(1))
         .andExpect(jsonPath("$.members").exists())
         .andExpect(jsonPath("$.createdAt").exists())
         .andExpect(jsonPath("$.updatedAt").exists());
@@ -96,7 +98,7 @@ class TeamStatusIT extends IntegrationTestBase {
     mvc.perform(cambiar(poblado, "{\"status\":\"activo\"}"))
         .andExpect(status().isOk())
         .andExpect(jsonPath("$.status").value("ACTIVO"))
-        .andExpect(jsonPath("$.memberCount").value(2));
+        .andExpect(jsonPath("$.memberCount").value(1));
 
     assertThat(estadoEnBase(poblado)).isEqualTo("ACTIVO");
   }
@@ -104,13 +106,13 @@ class TeamStatusIT extends IntegrationTestBase {
   @Test
   @DisplayName(
       "`CA-SP-764` — desactivar CONSERVA las pertenencias vigentes: el detalle sigue devolviendo a"
-          + " los dos y el listado sigue contándolos")
+          + " su director y el listado sigue contándolo")
   void suspenderNoVacia() throws Exception {
     mvc.perform(cambiar(poblado, "{\"status\":\"INACTIVO\"}"))
         .andExpect(status().isOk())
         .andExpect(jsonPath("$.status").value("INACTIVO"))
-        .andExpect(jsonPath("$.memberCount").value(2))
-        .andExpect(jsonPath("$.members", hasSize(2)));
+        .andExpect(jsonPath("$.memberCount").value(1))
+        .andExpect(jsonPath("$.members", hasSize(1)));
 
     // Ninguna fila de team_members se movió: ni cerrada, ni borrada.
     assertThat(
@@ -118,20 +120,20 @@ class TeamStatusIT extends IntegrationTestBase {
                 "SELECT count(*) FROM team_members WHERE team_id = ? AND ended_at IS NULL",
                 Integer.class,
                 poblado))
-        .isEqualTo(2);
+        .isEqualTo(1);
 
     // El detalle lo sigue diciendo, y el recuento del listado de `RF-SP-064`
     // tampoco depende del estado.
     mvc.perform(get("/api/v1/teams/" + poblado).with(con("teams:read")))
         .andExpect(status().isOk())
         .andExpect(jsonPath("$.status").value("INACTIVO"))
-        .andExpect(jsonPath("$.members", hasSize(2)));
+        .andExpect(jsonPath("$.members", hasSize(1)));
 
     mvc.perform(get("/api/v1/teams").param("q", "Con Gente").with(con("teams:list")))
         .andExpect(status().isOk())
         .andExpect(jsonPath("$.content", hasSize(1)))
         .andExpect(jsonPath("$.content[0].status").value("INACTIVO"))
-        .andExpect(jsonPath("$.content[0].memberCount").value(2));
+        .andExpect(jsonPath("$.content[0].memberCount").value(1));
   }
 
   @Test
@@ -267,23 +269,24 @@ class TeamStatusIT extends IntegrationTestBase {
     // verifica desde la asignación y no desde el cambio de estado. Vive en esta
     // suite, y no en la de miembros, porque lo que prueba es qué significa el
     // estado — no cómo se asigna.
-    UUID manager = TeamTestSupport.personaConRol(jdbc, GENTE[2], "MANAGER");
+    //
+    // Desde el 09-10-2026 entra un DIRECTOR, y a un equipo SIN director: el
+    // suspendido del fixture, vacío (`RN-SP-051`, `RN-SP-052`).
+    UUID director = TeamTestSupport.personaConRol(jdbc, GENTE[2], "DIRECTOR");
 
-    mvc.perform(cambiar(poblado, "{\"status\":\"INACTIVO\"}")).andExpect(status().isOk());
-
-    mvc.perform(asignarA(poblado, manager))
+    mvc.perform(asignarA(suspendido, director))
         .andExpect(status().isConflict())
         .andExpect(
             jsonPath("$.detail")
                 .value(
                     "El equipo está inactivo y no admite miembros nuevos. Actívelo antes de"
                         + " asignar."));
-    assertThat(vigentesDe(poblado)).isEqualTo(2);
+    assertThat(vigentesDe(suspendido)).isZero();
 
     // Y en cuanto vuelve a estar activo, entra.
-    mvc.perform(cambiar(poblado, "{\"status\":\"ACTIVO\"}")).andExpect(status().isOk());
-    mvc.perform(asignarA(poblado, manager)).andExpect(status().isOk());
-    assertThat(vigentesDe(poblado)).isEqualTo(3);
+    mvc.perform(cambiar(suspendido, "{\"status\":\"ACTIVO\"}")).andExpect(status().isOk());
+    mvc.perform(asignarA(suspendido, director)).andExpect(status().isOk());
+    assertThat(vigentesDe(suspendido)).isEqualTo(1);
   }
 
   private MockHttpServletRequestBuilder asignarA(UUID equipo, UUID persona) {

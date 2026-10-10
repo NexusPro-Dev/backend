@@ -1,6 +1,7 @@
 package com.factech.nexus.modules.movements.interfaces;
 
 import com.factech.nexus.modules.movements.application.AssignSellersRequest;
+import com.factech.nexus.modules.movements.application.LineTeamFillResponse;
 import com.factech.nexus.modules.movements.application.ListMovementsRequest;
 import com.factech.nexus.modules.movements.application.ListSalesRequest;
 import com.factech.nexus.modules.movements.application.MovementResponse;
@@ -16,6 +17,7 @@ import com.factech.nexus.modules.movements.application.VoidSaleRequest;
 import com.factech.nexus.modules.movements.domain.models.IdempotencyKey;
 import com.factech.nexus.modules.movements.domain.service.ActivateMyProductService;
 import com.factech.nexus.modules.movements.domain.service.AssignSellersService;
+import com.factech.nexus.modules.movements.domain.service.FillLineTeamsService;
 import com.factech.nexus.modules.movements.domain.service.GetMovementService;
 import com.factech.nexus.modules.movements.domain.service.GetMyMovementService;
 import com.factech.nexus.modules.movements.domain.service.ListMovementsService;
@@ -72,6 +74,7 @@ public class MovementController {
   private final ListSaleLinesService lineas;
   private final ActivateMyProductService activacion;
   private final GetMovementService comprobante;
+  private final FillLineTeamsService relleno;
   private final AuthenticatedActor actor;
 
   public MovementController(
@@ -86,7 +89,9 @@ public class MovementController {
       ListSaleLinesService lineas,
       ActivateMyProductService activacion,
       GetMovementService comprobante,
+      FillLineTeamsService relleno,
       AuthenticatedActor actor) {
+    this.relleno = relleno;
     this.alta = alta;
     this.anulacion = anulacion;
     this.libro = libro;
@@ -291,7 +296,10 @@ public class MovementController {
           **Cada fila lleva el tipo de movimiento** (`type`, hoy siempre `VENTA`), el sujeto
           (`user`), **el estado del tipo** (`typeStatus`), los vendedores de sus líneas sin
           repetir (`sellers`, lista nunca nula y vacía cuando no hay ninguno —también en una
-          venta por validar a la que no se le ha asignado ninguno—), y **cuándo se confirmó** (`confirmedAt`): presente en
+          venta por validar a la que no se le ha asignado ninguno—), **las oficinas donde se
+          vendieron sus líneas** (`teams`, desde el 09-10-2026, `RN-MV-078`: las guardadas
+          el día de la venta, sin repetir, con el nombre de hoy; nunca nula y vacía cuando
+          ninguna línea tiene oficina), y **cuándo se confirmó** (`confirmedAt`): presente en
           las confirmadas y **nulo** en las demás. No lleva `role` —quien administra no
           participa en lo que mira— ni las líneas, que son del detalle.
 
@@ -340,7 +348,14 @@ public class MovementController {
                       + " EN_DISPUTA, DISPUTA_GANADA, DISPUTA_PERDIDA, o CUALQUIERA para los que"
                       + " tienen alguna.")
           @RequestParam(required = false)
-          String paymentIncident) {
+          String paymentIncident,
+      @io.swagger.v3.oas.annotations.Parameter(
+              description =
+                  "La OFICINA donde se vendió (`RN-MV-078`): los movimientos con alguna línea"
+                      + " guardada en ese equipo, no la oficina de hoy de su vendedor. Uno que no"
+                      + " existe da una página vacía; uno mal formado, `400`.")
+          @RequestParam(required = false)
+          UUID teamId) {
     return libro.list(
         new ListMovementsRequest(
             page,
@@ -354,7 +369,8 @@ public class MovementController {
             code,
             from,
             to,
-            paymentIncident));
+            paymentIncident,
+            teamId));
   }
 
   /**
@@ -395,7 +411,8 @@ public class MovementController {
           cuanto se le asigna una (`RF-MV-016`).
 
           **Cada fila es la misma de `GET /movements`** (`type` siempre `VENTA`, `typeStatus`, `user`,
-          `sellers`, importes, `confirmedAt` nulo y presente), sin `role`. **El total puede no
+          `sellers`, `teams` —las oficinas de sus líneas—, importes, `confirmedAt` nulo y
+          presente), sin `role`. **El total puede no
           ser exacto** por encima del techo de conteo. Ni `movements:read` ni
           `movements:list-own` abren esta consulta.
           """)
@@ -431,10 +448,28 @@ public class MovementController {
       @RequestParam(required = false) UUID paymentMethodId,
       @RequestParam(required = false) String code,
       @RequestParam(required = false) OffsetDateTime from,
-      @RequestParam(required = false) OffsetDateTime to) {
+      @RequestParam(required = false) OffsetDateTime to,
+      @io.swagger.v3.oas.annotations.Parameter(
+              description =
+                  "La OFICINA donde se vendió (`RN-MV-078`): acota DENTRO del alcance a las"
+                      + " ventas con alguna línea guardada en ese equipo. No ensancha nada: una"
+                      + " oficina con ventas solo fuera de mi red, o inexistente, da una página"
+                      + " vacía; una mal formada, `400`.")
+          @RequestParam(required = false)
+          UUID teamId) {
     return ventas.list(
         new ListSalesRequest(
-            page, size, userId, clientId, status, typeStatus, paymentMethodId, code, from, to));
+            page,
+            size,
+            userId,
+            clientId,
+            status,
+            typeStatus,
+            paymentMethodId,
+            code,
+            from,
+            to,
+            teamId));
   }
 
   /**
@@ -468,7 +503,9 @@ public class MovementController {
           **código**, en cambio, se lee del catálogo, que es inmutable.
 
           **`seller` puede venir presente y NULO**, y la fila **no desaparece** por eso: el
-          vendedor es de la línea y hay movimientos que no lo llevan.
+          vendedor es de la línea y hay movimientos que no lo llevan. Lo mismo **`team`**
+          (09-10-2026, `RN-MV-078`): **la oficina donde se vendió la línea**, guardada el día
+          de la venta y con el nombre de hoy; un traslado posterior no la mueve.
 
           **El estado de entrega va crudo** —`deliveryStatus`, `deliveredAt`,
           `deliveryNote`, `implementation`—, y no derivado como en
@@ -540,7 +577,13 @@ public class MovementController {
       @RequestParam(required = false) String typeStatus,
       @RequestParam(required = false) String code,
       @RequestParam(required = false) OffsetDateTime from,
-      @RequestParam(required = false) OffsetDateTime to) {
+      @RequestParam(required = false) OffsetDateTime to,
+      @io.swagger.v3.oas.annotations.Parameter(
+              description =
+                  "La OFICINA donde se vendió ESTA línea (`RN-MV-078`), la guardada el día de la"
+                      + " venta. Una que no existe da una página vacía; una mal formada, `400`.")
+          @RequestParam(required = false)
+          UUID teamId) {
     return lineas.list(
         new SaleLinesRequest(
             page,
@@ -554,7 +597,55 @@ public class MovementController {
             typeStatus,
             code,
             from,
-            to));
+            to,
+            teamId));
+  }
+
+  /**
+   * <b>Bajo {@code /sales/lines}</b>, junto a la consulta de líneas: es una acción sobre ese
+   * conjunto y no sobre una venta. {@code POST} porque es una orden; {@code 200} y no {@code 204}
+   * porque la respuesta dice cuántas (`RF-MV-058` · `plan.md` §4).
+   */
+  @PostMapping("/sales/lines/team-fill")
+  @PreAuthorize("hasAuthority('movements:fill-line-teams')")
+  @Operation(
+      summary = "Rellenar la oficina de las líneas de venta que no la tienen",
+      description =
+          """
+          Pone **la oficina** —el equipo del director de la cadena del vendedor— a las líneas
+          de venta que **tienen vendedor y no tienen oficina** (`RN-MV-078`): las vendidas
+          antes de que hubiera directores con equipo. **Usa la oficina de HOY** de cada
+          vendedor, no la del día de la venta, que para esas líneas no existía.
+
+          **Solo toca líneas con vendedor y sin oficina**: una línea que ya tiene la suya no
+          cambia, una sin vendedor tampoco, y no mira el estado de la venta —una anulada también
+          se vendió en una oficina—. Solo escribe la oficina: ni el vendedor, ni el estado, ni
+          las comisiones. Un vendedor que hoy no tiene oficina —un manager, o sin director con
+          equipo— deja sus líneas como estaban.
+
+          **Es repetible**: se puede lanzar después de cada asignación de directores, y una
+          orden sin nada que rellenar responde `filled: 0` sin escribir. Todo o nada, y una
+          entrada de auditoría por cada venta tocada. Sin cuerpo.
+          """)
+  @ApiResponses({
+    @ApiResponse(
+        responseCode = "200",
+        description = "Cuántas líneas ganaron oficina, también cuando son cero."),
+    @ApiResponse(
+        responseCode = "401",
+        description = "Token ausente o inválido (`AUTH-001`)",
+        content = @Content),
+    @ApiResponse(
+        responseCode = "403",
+        description = "Sin el permiso `movements:fill-line-teams` (`AUTH-002`).",
+        content = @Content),
+    @ApiResponse(
+        responseCode = "500",
+        description = "Fallo no controlado (`ERR-500`)",
+        content = @Content)
+  })
+  public LineTeamFillResponse rellenarOficinas() {
+    return relleno.fill();
   }
 
   @Operation(
@@ -582,6 +673,13 @@ public class MovementController {
 
           **Lo copiado queda congelado.** Corregir mañana el precio de un producto, o
           reasignar al comprador a otro agente, no cambia lo que se vendió hoy.
+
+          **Cada línea trae la oficina donde se vendió** (`lines[].team`, desde el
+          09-10-2026, `RN-MV-078`): el equipo del director de la cadena del vendedor **en
+          la fecha del hecho** —el suyo si el vendedor es director—. **No se envía**: la
+          decide el sistema y queda congelada, de modo que un traslado posterior no la
+          mueve. Va **nula** sin vendedor, en la venta de un manager —que está por encima de
+          las oficinas— y cuando nadie de la cadena tenía equipo ese día.
 
           **Esta entrada no aplica descuentos.** Cada línea trae su descuento (`lineDiscount`,
           hoy cero), las rebajas que lo explican (`discounts`, hoy vacía) y el paquete del que
@@ -689,8 +787,8 @@ public class MovementController {
           vendedor no tendría ninguna forma de ver el detalle de lo que vendió.
 
           **Cada fila trae sus líneas (`lines`) desde el 03-10-2026**, con **la misma forma
-          que el detalle**: producto, cantidad, precio, vigencia, descuento, vendedor y
-          entrega. Así la pantalla pinta qué se compró sin abrir cada compra. La lista nunca
+          que el detalle**: producto, cantidad, precio, vigencia, descuento, vendedor,
+          **oficina donde se vendió** (`team`, la guardada, nula sin ella) y entrega. Así la pantalla pinta qué se compró sin abrir cada compra. La lista nunca
           es nula. **Los pagos no viajan aquí**: siguen en el detalle.
 
           **`sellers` es una lista, sin repetir y nunca nula**: el vendedor es de cada línea y
@@ -917,7 +1015,9 @@ public class MovementController {
           """
           Devuelve **lo mismo que devuelve registrar una venta**, con sus líneas: qué
           productos, cuántos, a qué precio y con qué vigencia. Quien registró una venta y
-          quien la consulta después ven la misma forma.
+          quien la consulta después ven la misma forma. Cada línea trae **la oficina donde
+          se vendió** (`team`, `RN-MV-078`): la guardada el día de la venta, con el nombre
+          de hoy, presente y nula cuando la línea no la tiene.
 
           **Un movimiento que no es suyo responde `404`**, exactamente igual que uno que no
           existe. No es un descuido: un `403` confirmaría que el identificador existe.
@@ -969,8 +1069,9 @@ public class MovementController {
           Devuelve **el comprobante de cualquier movimiento** —una venta, un retiro, un
           bono—, sea quien sea su sujeto y quien lo haya vendido: código, tipo, estado,
           estado del tipo, sujeto, moneda, totales, **pagos** y **líneas**, cada una con lo
-          que se vendió **tal como se vendió** y a quién se le acredita. Un movimiento sin
-          líneas —un retiro, un bono— las trae **vacías**.
+          que se vendió **tal como se vendió**, a quién se le acredita y **en qué oficina
+          se vendió** (`team`, la guardada, presente y nula sin ella; `RN-MV-078`). Un
+          movimiento sin líneas —un retiro, un bono— las trae **vacías**.
 
           **Un retiro trae `withdrawalDestination`** desde el 01-10-2026 (`RN-MV-056`): a
           dónde se paga, **copiado al pedirlo** —entidad, tipo de cuenta, número y titular con

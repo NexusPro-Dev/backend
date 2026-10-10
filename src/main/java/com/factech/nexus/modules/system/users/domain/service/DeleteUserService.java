@@ -172,8 +172,9 @@ public class DeleteUserService {
     // durante unos milisegundos después de haber dejado de existir.
     superior.ifPresent(sinUsar -> usuarios.endSupervisor(userId, ahora));
 
-    // `RN-SP-055` (enmienda del 23-09-2026, `RF-SP-070`): quien ya no existe no
-    // puede seguir contando en un equipo. La pertenencia se CIERRA —no se borra— en
+    // `RN-SP-055` (enmiendas del 23-09-2026 y del 09-10-2026): un director que ya
+    // no existe no puede seguir siendo la oficina de un equipo, y el equipo tiene
+    // que poder recibir a otro. La pertenencia se CIERRA —no se borra— en
     // esta misma transacción y con el motivo de la baja, por lo mismo que la
     // asignación de superior se cierra aquí: el historial dice a qué equipo se
     // atribuía lo que su red producía mientras estuvo.

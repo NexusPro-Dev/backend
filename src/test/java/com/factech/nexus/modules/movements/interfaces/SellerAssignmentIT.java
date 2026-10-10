@@ -450,6 +450,73 @@ class SellerAssignmentIT extends IntegrationTestBase {
   }
 
   // ---------------------------------------------------------------------------
+  // `RN-MV-078` — la oficina sigue al vendedor, con la estructura del día de la venta
+  // ---------------------------------------------------------------------------
+
+  @Test
+  @DisplayName(
+      "CA-MV-716 — asignar deja la oficina del vendedor nuevo vigente EN LA FECHA DE LA VENTA"
+          + " aunque hoy esté en otra, o ninguna si ese día no la tenía; reescribir el mismo no la"
+          + " cambia; la auditoría y la respuesta la traen")
+  void laOficinaSigueAlVendedorAsignado() throws Exception {
+    UUID norte = equipo("SA Oficina Norte");
+    UUID sur = equipo("SA Oficina Sur");
+    jdbc.update(
+        "INSERT INTO team_members (id, team_id, user_id, started_at)"
+            + " VALUES (gen_random_uuid(), ?, ?, now() - interval '30 days')",
+        norte,
+        ana);
+    UUID venta = ventaPorValidar();
+
+    // Después de la venta, ana se muda al sur.
+    jdbc.update("UPDATE team_members SET ended_at = now() WHERE user_id = ?", ana);
+    jdbc.update(
+        "INSERT INTO team_members (id, team_id, user_id, started_at)"
+            + " VALUES (gen_random_uuid(), ?, ?, now() + interval '1 millisecond')",
+        sur,
+        ana);
+
+    mvc.perform(asignar(venta, par(botA, ana), par(botB, pedro)).with(conPermiso(ASIGNAR)))
+        .andExpect(status().isOk())
+        .andExpect(
+            jsonPath("$.lines[?(@.productId == '" + botA + "')].team.id")
+                .value(org.hamcrest.Matchers.contains(norte.toString())))
+        .andExpect(
+            jsonPath("$.lines[?(@.productId == '" + botB + "')].team")
+                .value(org.hamcrest.Matchers.contains(org.hamcrest.Matchers.nullValue())));
+
+    assertThat(oficinaDe(venta, botA)).isEqualTo(norte.toString());
+    assertThat(oficinaDe(venta, botB)).isNull();
+    assertThat(
+            jdbc.queryForObject(
+                "SELECT changes::text FROM audit_change_log WHERE module = 'MV'"
+                    + " AND entity_id = ? AND action = 'UPDATE' ORDER BY occurred_at DESC LIMIT 1",
+                String.class,
+                venta))
+        .contains("\"team_id\": \"" + norte + "\"")
+        .contains("\"team_id\": null");
+
+    // Reescribir el mismo vendedor no toca la oficina guardada.
+    mvc.perform(asignar(venta, par(botA, ana)).with(conPermiso(ASIGNAR)))
+        .andExpect(status().isOk());
+    assertThat(oficinaDe(venta, botA)).isEqualTo(norte.toString());
+  }
+
+  private String oficinaDe(UUID venta, UUID producto) {
+    return jdbc.queryForObject(
+        "SELECT team_id::text FROM movement_details WHERE movement_id = ? AND product_id = ?",
+        String.class,
+        venta,
+        producto);
+  }
+
+  private UUID equipo(String nombre) {
+    UUID id = UUID.randomUUID();
+    jdbc.update("INSERT INTO teams (id, name) VALUES (?, ?)", id, nombre);
+    return id;
+  }
+
+  // ---------------------------------------------------------------------------
   // Auxiliares
   // ---------------------------------------------------------------------------
 
@@ -555,6 +622,10 @@ class SellerAssignmentIT extends IntegrationTestBase {
     jdbc.update(
         "DELETE FROM client_sellers WHERE client_id IN (SELECT id FROM users WHERE username LIKE ?)",
         "sa-%");
+    jdbc.update(
+        "DELETE FROM team_members WHERE user_id IN (SELECT id FROM users WHERE username LIKE ?)",
+        "sa-%");
+    jdbc.update("DELETE FROM teams WHERE name LIKE 'SA Oficina %'");
     jdbc.update(
         "DELETE FROM user_roles WHERE user_id IN (SELECT id FROM users WHERE username LIKE ?)",
         "sa-%");

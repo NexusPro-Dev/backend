@@ -9,6 +9,7 @@ import com.factech.nexus.modules.indicators.domain.service.GetSalesSeriesService
 import com.factech.nexus.modules.indicators.domain.service.GetSalesSummaryService;
 import com.factech.nexus.modules.movements.application.SalesFigures.LineFilter;
 import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.media.Content;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.responses.ApiResponses;
@@ -37,6 +38,13 @@ import org.springframework.web.bind.annotation.RestController;
 @RestController
 @RequestMapping("/api/v1/indicators")
 public class SalesIndicatorsController {
+
+  /** La prosa del filtro de oficina, la misma en los tres indicadores (`RN-MV-078`, 09-10-2026). */
+  private static final String OFICINA =
+      "La OFICINA donde se vendió: solo las líneas guardadas en ese equipo el día de la venta,"
+          + " no la oficina de hoy de su vendedor. Es un filtro y no un alcance: estrecha dentro"
+          + " de lo que ya se ve, y lo vendido fuera de mi alcance sigue sin contar. Una oficina"
+          + " que no existe da ceros; una mal formada, `400`.";
 
   private final GetSalesSummaryService resumen;
   private final GetSalesSeriesService evolucion;
@@ -124,8 +132,10 @@ public class SalesIndicatorsController {
       @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate to,
       @RequestParam(required = false) UUID currencyId,
       @RequestParam(required = false) UUID sellerId,
-      @RequestParam(required = false) String granularity) {
-    return resumen.get(new SalesIndicatorRequest(from, to, currencyId, sellerId), granularity);
+      @RequestParam(required = false) String granularity,
+      @Parameter(description = OFICINA) @RequestParam(required = false) UUID teamId) {
+    return resumen.get(
+        new SalesIndicatorRequest(from, to, currencyId, sellerId, teamId), granularity);
   }
 
   @GetMapping("/sales/series")
@@ -179,8 +189,10 @@ public class SalesIndicatorsController {
       @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate to,
       @RequestParam(required = false) UUID currencyId,
       @RequestParam(required = false) UUID sellerId,
-      @RequestParam(required = false) String granularity) {
-    return evolucion.get(new SalesIndicatorRequest(from, to, currencyId, sellerId), granularity);
+      @RequestParam(required = false) String granularity,
+      @Parameter(description = OFICINA) @RequestParam(required = false) UUID teamId) {
+    return evolucion.get(
+        new SalesIndicatorRequest(from, to, currencyId, sellerId, teamId), granularity);
   }
 
   /**
@@ -253,8 +265,13 @@ public class SalesIndicatorsController {
       @RequestParam(required = false) UUID sellerId,
       @RequestParam(required = false) UUID clientId,
       @RequestParam(required = false) UUID productId,
-      @RequestParam(required = false) String code) {
+      @RequestParam(required = false) String code,
+      @Parameter(description = OFICINA) @RequestParam(required = false) UUID teamId) {
     return lineas.get(
-        from, to, currencyId, granularity, new LineFilter(sellerId, clientId, productId, code));
+        from,
+        to,
+        currencyId,
+        granularity,
+        new LineFilter(sellerId, clientId, productId, code, teamId));
   }
 }
