@@ -205,8 +205,15 @@ public class BrokerAccountController {
             broker antes que la persona (`RN-SP-072`); `true`, las demás. Sin
             titular, `user` va nulo.
           - `brokerId` — un broker del catálogo.
-          - `search` — fragmento de **número de cuenta**, nombre de usuario,
-            correo o nombre completo. Sin acentos y sin distinguir mayúsculas.
+          - `search` — fragmento de **número de cuenta**, de **nombre de usuario
+            en el broker**, o del usuario, correo o nombre completo del titular.
+            Sin acentos y sin distinguir mayúsculas. Con `?kind=CONSUMIDOR`, solo
+            las cuentas de consumidor.
+
+          **Cada fila trae su titular (`user`) y su origen (`referrer`)**: la
+          cuenta `VENDEDOR` que la originó, su `afftrack` y el vendedor —
+          identificador, usuario, nombre y apellido—. El vendedor del `afftrack`
+          tiene que ser el principal del titular (`RN-SP-072`).
           - `from` / `to` — **cuándo se declaró la cuenta**. Son **instantes con
             zona**, no fechas sueltas, y el rango es **semiabierto**: incluye
             `from`, excluye `to`. `from` posterior a `to` es `400`.

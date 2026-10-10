@@ -136,6 +136,46 @@ class AllBrokerAccountsIT extends IntegrationTestBase {
   }
 
   @Test
+  @DisplayName(
+      "`CA-SP-1007` — `search` encuentra también por el nombre de usuario en el broker, y con"
+          + " `?kind=CONSUMIDOR` acota a las de consumidor")
+  void buscaPorUsuarioDelBroker() throws Exception {
+    jdbc.update(
+        "UPDATE user_brokers SET broker_username = 'Trader_Pédro' WHERE external_id = '40000001'");
+    jdbc.update("UPDATE user_brokers SET kind = 'VENDEDOR' WHERE external_id = '10000001'");
+
+    mvc.perform(get(RUTA + "?search=trader_pe&kind=CONSUMIDOR").with(administrador()))
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$.totalElements").value(1))
+        .andExpect(jsonPath("$.content[0].accountId").value("40000001"))
+        .andExpect(jsonPath("$.content[0].brokerUsername").value("Trader_Pédro"));
+    mvc.perform(get(RUTA + "?search=TRADER&kind=VENDEDOR").with(administrador()))
+        .andExpect(jsonPath("$.totalElements").value(0));
+  }
+
+  @Test
+  @DisplayName(
+      "`CA-SP-1008` — el origen de cada fila trae nombre y apellido del vendedor, además de su"
+          + " identificador, usuario y afftrack")
+  void elOrigenTraeElNombreDelVendedor() throws Exception {
+    UUID origen =
+        jdbc.queryForObject(
+            "UPDATE user_brokers SET kind = 'VENDEDOR', afftrack = 'AFF-RAMON'"
+                + " WHERE external_id = '10000001' RETURNING id",
+            UUID.class);
+    jdbc.update(
+        "UPDATE user_brokers SET referrer_account_id = ? WHERE external_id = '40000001'", origen);
+
+    mvc.perform(get(RUTA + "?search=40000001").with(administrador()))
+        .andExpect(jsonPath("$.content[0].referrer.id").value(origen.toString()))
+        .andExpect(jsonPath("$.content[0].referrer.afftrack").value("AFF-RAMON"))
+        .andExpect(jsonPath("$.content[0].referrer.userId").value(jefe.toString()))
+        .andExpect(jsonPath("$.content[0].referrer.username").value("rlopez"))
+        .andExpect(jsonPath("$.content[0].referrer.firstName").value("Ramón"))
+        .andExpect(jsonPath("$.content[0].referrer.lastName").value("Apellido"));
+  }
+
+  @Test
   @DisplayName("`CA-SP-647` — sin el permiso es 403, y NO el 404 de `RF-SP-055`")
   void sinPermisoEs403() throws Exception {
     // La diferencia es deliberada: alli el actor es un vendedor cualquiera y un

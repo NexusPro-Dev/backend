@@ -41,6 +41,9 @@ class SystemRolesSeedIT extends IntegrationTestBase {
    */
   private static final List<String> LA_CUSPIDE =
       List.of(
+          // V100 (10-10-2026): las cuentas que originó mi red (RF-SP-083), a todo rol
+          // VENDEDOR y FUNCIONARIO.
+          "broker-accounts:read-own-referred",
           // V92 (09-10-2026): el progreso de los alumnos, a todo rol VENDEDOR (RN-AC-024).
           "courses:list-progress",
           "courses:read-progress",
@@ -123,6 +126,9 @@ class SystemRolesSeedIT extends IntegrationTestBase {
    */
   private static final List<String> EL_AGENTE =
       List.of(
+          // V100 (10-10-2026): las cuentas que originó mi red (RF-SP-083), a todo rol
+          // VENDEDOR y FUNCIONARIO.
+          "broker-accounts:read-own-referred",
           // V92 (09-10-2026): el progreso de los alumnos, a todo rol VENDEDOR (RN-AC-024).
           "courses:list-progress",
           "courses:read-progress",

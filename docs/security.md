@@ -5,7 +5,7 @@
 | Proyecto | NEXUS — Renovación de plataforma |
 | Empresa | FACTECH GROUP SAS |
 | Documento | `security.md` |
-| Versión | 0.132.0 |
+| Versión | 0.133.0 |
 | Estado | Borrador |
 | Responsable técnico | Bonilla Diaz William Steven |
 | Fecha de creación | 19-08-2026 |
@@ -291,7 +291,7 @@ brokers:read     broker-accounts:read     broker-accounts:read-indicators
 broker-accounts:read-own-team   broker-accounts:read-team-member   broker-accounts:read-own
 broker-accounts:create-own      broker-accounts:update-own         broker-accounts:delete-own
 broker-accounts:create          broker-accounts:update             broker-accounts:delete
-broker-accounts:assign-user
+broker-accounts:assign-user     broker-accounts:read-own-referred
 
 teams:list       teams:read       teams:create       teams:update       teams:delete
 teams:change-status     teams:assign-members     teams:remove-members
@@ -458,6 +458,8 @@ La vista transversal `v_audit_timeline` (`architecture.md` §6.6.6) exige los cu
 **Y trece más de `AC`, declarados el 09-10-2026 y que sembrará `V94`**, ya en el bloque: las clases en vivo por Zoom ([`requirements/ac.md`](requirements/ac.md) v0.23.1 §5.2.15). **Seis de administración** —`live-sessions:list`, `read`, `create`, `update`, `cancel` y `host`— a `SUPERADMIN` y `ADMIN`; **cinco propios del instructor** —`list-own`, `create-own`, `update-own`, `cancel-own` y `host-own`— a todo rol que porte `courses:teach`, que **es la primera vez que el instructor administra algo**, con la propiedad leída del curso (`RN-AC-028`): fuera de sus cursos, `404`; y **dos del alumno** —`live-sessions:learn` y `live-sessions:join`— a todo rol que porte `courses:learn`, como `V47`, **y no a `CLIENTE`**. **`host` y `host-own` entregan el control de la reunión** y su uso se audita (`RN-AC-030`). El catálogo pasará a **232**, y `ADMIN` a 230.
 
 **Y uno más de `SP`, declarado y SEMBRADO el 09-10-2026 por `V96`**, ya en el bloque: `broker-accounts:assign-user` —dar titular a una cuenta de broker que llegó del broker sin él, `PATCH /api/v1/broker-accounts/{brokerAccountId}/holder` (`RF-SP-082`, `RN-SP-072`)—, a `SUPERADMIN` y `ADMIN` **explícitos**. Sin versión propia: asociarse la cuenta uno mismo ocurre al declararla, con el permiso de alta (`RF-SP-053`), y solo si el número y el vendedor coinciden.
+
+**Y uno más de `SP`, declarado y SEMBRADO el 10-10-2026 por `V100`**, ya en el bloque: `broker-accounts:read-own-referred` —las cuentas de consumidor que originó el `afftrack` del actor o el de su red, `GET /api/v1/users/me/referred-broker-accounts` (`RF-SP-083`, `RN-SP-075`)—. **De alcance propio y por tipo de rol, como `broker-accounts:read-own-team`**: a los roles `VENDEDOR` y `FUNCIONARIO`, **no** a `CONSUMIDOR`, que no tiene enlace que origine cuentas. El alcance lo pone la estructura: el permiso abre la ruta y no concede ver las de otros.
 
 ### 4.5 Resolución en tiempo de ejecución
 
@@ -1128,3 +1130,4 @@ RNF-SEG-002 merece atención: es una prueba que enumera los endpoints registrado
 | 0.129.0 | 09-10-2026 | **Trece permisos de `AC` para las clases en vivo por Zoom, declarados** (§4.4; [`requirements/ac.md`](requirements/ac.md) v0.23.1 §5.2.15): seis de administración, cinco propios del instructor —la primera regla de propiedad del instructor, `RN-AC-028`— y dos del alumno. Los sembrará `V94`: catálogo **232**, `ADMIN` 230. **Una integración externa más con credenciales**: `ZOOM_ACCOUNT_ID`, `ZOOM_CLIENT_ID` y `ZOOM_CLIENT_SECRET` (`architecture.md` §11). | Responsable técnico |
 | 0.131.0 | 09-10-2026 | **Un permiso más: `broker-accounts:assign-user`** (`RF-SP-082`), a `SUPERADMIN` y `ADMIN`, sembrado por `V96`. | Responsable técnico |
 | 0.132.0 | 09-10-2026 | **Un permiso más: `movements:fill-line-teams`** (`RF-MV-058`, [`requirements/mv.md`](requirements/mv.md) v0.97.0 §4.13, `RN-MV-078`): rellenar la oficina de las líneas de venta que no la tienen. A `SUPERADMIN` y `ADMIN`, sembrado por `V99`. | Responsable técnico |
+| 0.133.0 | 10-10-2026 | **Un permiso más: `broker-accounts:read-own-referred`** (`RF-SP-083`, `RN-SP-075`), a los roles `VENDEDOR` y `FUNCIONARIO` por su tipo, sembrado por `V100`. | Responsable técnico |

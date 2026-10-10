@@ -55,6 +55,8 @@ public class JpaBrokerAccountQueryRepository implements BrokerAccountQueryReposi
                        ub.afftrack AS afftrack, r.id AS referrer_id,
                        r.afftrack AS referrer_afftrack, r.user_id AS referrer_user_id,
                        ru.username AS referrer_username,
+                       ru.first_name AS referrer_first_name,
+                       ru.last_name AS referrer_last_name,
                        ub.first_deposit_at AS first_deposit_at,
                        ub.operations_count AS operations_count,
                        ub.first_operation_at AS first_operation_at,
@@ -415,11 +417,36 @@ public class JpaBrokerAccountQueryRepository implements BrokerAccountQueryReposi
    * </ul>
    */
   private static String recursivaSiHace(BrokerAccountFilters filtros) {
-    if (filtros.supervisorId() == null) {
-      return "";
+    java.util.List<String> partes = new java.util.ArrayList<>(2);
+    if (filtros.supervisorId() != null) {
+      partes.add(RED_DE_SUPERVISOR);
     }
-    return """
-        WITH RECURSIVE red AS (
+    if (filtros.referrerNetworkOf() != null) {
+      partes.add(RED_DE_ORIGEN);
+    }
+    return partes.isEmpty() ? "" : "WITH RECURSIVE " + String.join(", ", partes) + " ";
+  }
+
+  /**
+   * La red de origen de `RF-SP-083` (`RN-SP-075`): <b>la raíz incluida</b> —sus propias cuentas
+   * originadas cuentan— y quienes cuelgan de ella, vigentes, en todos los niveles. Parámetro
+   * propio, {@code :origen}, para convivir con la red de `supervisorId`.
+   */
+  private static final String RED_DE_ORIGEN =
+      """
+      red_origen AS (
+          SELECT CAST(:origen AS uuid) AS user_id
+          UNION
+          SELECT us.user_id
+            FROM user_supervisors us
+            JOIN red_origen ro ON us.supervisor_id = ro.user_id
+           WHERE us.ended_at IS NULL
+      )
+      """;
+
+  private static final String RED_DE_SUPERVISOR =
+      """
+        red AS (
             SELECT us.user_id
               FROM user_supervisors us
              WHERE us.supervisor_id = CAST(:raiz AS uuid)
@@ -439,11 +466,11 @@ public class JpaBrokerAccountQueryRepository implements BrokerAccountQueryReposi
                     OR cs.seller_id IN (SELECT user_id FROM red))
         )
         """;
-  }
 
   private static final String COLUMNAS_ORIGEN_TEXTO =
       " ub.afftrack AS afftrack, r.id AS referrer_id, r.afftrack AS referrer_afftrack,"
           + " r.user_id AS referrer_user_id, ru.username AS referrer_username,"
+          + " ru.first_name AS referrer_first_name, ru.last_name AS referrer_last_name,"
           + " ub.first_deposit_at AS first_deposit_at, ub.operations_count AS operations_count,"
           + " ub.first_operation_at AS first_operation_at,"
           + " ub.last_operation_at AS last_operation_at ";
@@ -493,6 +520,15 @@ public class JpaBrokerAccountQueryRepository implements BrokerAccountQueryReposi
     if (f.supervisorId() != null) {
       filtro.condicion("ub.user_id IN (SELECT user_id FROM alcance)", "raiz", f.supervisorId());
     }
+    if (f.referrerNetworkOf() != null) {
+      // `RN-SP-075`: las de consumidor cuyo origen es de la red; `r` es la cuenta
+      // de origen, ya unida para la fila.
+      filtro.condicion(
+          "ub.kind = 'CONSUMIDOR' AND r.user_id IN (SELECT user_id FROM red_origen)",
+          "origen",
+          f.referrerNetworkOf());
+    }
+    filtro.igual("r.user_id", "vendedor", f.referrerUserId());
     filtro.igual("ub.user_id", "persona", f.userId());
     filtro.igual("ub.broker_id", "broker", f.brokerId());
     if (f.status() != null) {
@@ -518,6 +554,7 @@ public class JpaBrokerAccountQueryRepository implements BrokerAccountQueryReposi
       filtro.condicion(
           """
           (f_unaccent(lower(ub.external_id)) LIKE f_unaccent(lower(:termino)) ESCAPE '\\'
+            OR f_unaccent(lower(ub.broker_username)) LIKE f_unaccent(lower(:termino)) ESCAPE '\\'
             OR f_unaccent(lower(u.username)) LIKE f_unaccent(lower(:termino)) ESCAPE '\\'
             OR f_unaccent(lower(u.email)) LIKE f_unaccent(lower(:termino)) ESCAPE '\\'
             OR f_unaccent(lower(u.first_name || ' ' || u.last_name))
@@ -626,7 +663,9 @@ public class JpaBrokerAccountQueryRepository implements BrokerAccountQueryReposi
             id,
             (String) fila.get("referrer_afftrack"),
             (UUID) fila.get("referrer_user_id"),
-            (String) fila.get("referrer_username"));
+            (String) fila.get("referrer_username"),
+            (String) fila.get("referrer_first_name"),
+            (String) fila.get("referrer_last_name"));
   }
 
   /**

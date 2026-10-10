@@ -2,7 +2,7 @@
 
 | Campo | Valor |
 |---|---|
-| Versión | 0.115.0 |
+| Versión | 0.116.0 |
 | Estado | **Borrador** |
 | Responsable | Bonilla Diaz William Steven |
 | Fecha de creación | 21-08-2026 |
@@ -1261,3 +1261,4 @@ Los documentos que citan una migración vieja por su número —specs, controles
 | 0.113.0 | 09-10-2026 | **`movement_details.team_id`: la oficina donde se vendió cada línea; y los equipos pasan a ser de directores** ([`requirements/mv.md`](requirements/mv.md) v0.97.0 §4.13 y §7.3, `RN-MV-078`; [`requirements/sp.md`](requirements/sp.md) v1.119.0, `RN-SP-051` y `RN-SP-052` enmendadas; `V99`), a petición del responsable del proyecto. La columna es **la copia de un recorrido**: el equipo del director de la cadena del vendedor, vigente en el instante de la venta, escrito con `seller_id` y cambiado solo cuando cambia él —o una vez de nulo a valor, por `RF-MV-058`—. Sin ella, la oficina se calcularía con la estructura de hoy y un traslado movería el pasado. Nulable, clave foránea a `teams` con `ON DELETE SET NULL` e índice parcial `(team_id, movement_id)`. **`team_members` gana `uq_team_members_equipo_vigente`** (un director vigente por equipo) y `V99` cierra las pertenencias de managers y siembra los cinco equipos. **Es la primera clave de `MV` hacia los equipos**. Ninguna tabla nueva. | Responsable del proyecto |
 | 0.114.0 | 09-10-2026 | **`user_brokers`: `user_id` nulo, `afftrack` y `referrer_account_id`** (`RN-SP-070` a `RN-SP-072`, `V96`), con `ck_user_brokers_titular_solo_consumidor`, `ck_user_brokers_afftrack_solo_vendedor`, `ck_user_brokers_origen_solo_consumidor`, `uq_user_brokers_afftrack`, `uq_user_brokers_vendedor_por_broker`, `uq_user_brokers_id_broker` y la clave foránea compuesta del origen. | Responsable técnico |
 | 0.115.0 | 10-10-2026 | **El depósito y la operación del broker** (`RN-SP-073`, `RN-SP-074`, `V98`): `user_brokers` gana `first_deposit_at`, `operations_count`, `first_operation_at` y `last_operation_at`, con `ck_user_brokers_deposito_con_estado` y `ck_user_brokers_operaciones`; `broker_notifications` gana `event_id` con `ix_broker_notifications_evento`, sin único. | Responsable técnico |
+| 0.116.0 | 10-10-2026 | **`ix_user_brokers_busqueda_usuario`** (`V100`): gin de trigramas sobre `f_unaccent(lower(broker_username))`, para que `search` de `RF-SP-057` y `RF-SP-083` encuentre por el nombre de usuario en el broker. | Responsable técnico |

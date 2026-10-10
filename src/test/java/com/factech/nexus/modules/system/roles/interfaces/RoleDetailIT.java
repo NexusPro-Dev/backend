@@ -124,12 +124,13 @@ class RoleDetailIT extends IntegrationTestBase {
     // comisiones, `commission-batches:list-own-commissions` (`RF-CM-026`). Y UNO MÁS desde `V83`:
     // el resumen de mis comisiones, `indicators:read-own-commissions-summary` (`RF-IN-008`). Y DOS
     // MÁS desde `V92` (09-10-2026): el listado y el detalle del progreso de los alumnos, que se
-    // siembran a todo rol `VENDEDOR` (`RN-AC-024`).
+    // siembran a todo rol `VENDEDOR` (`RN-AC-024`). Y UNO MÁS desde `V100` (10-10-2026): las
+    // cuentas que originó mi red, `broker-accounts:read-own-referred` (`RF-SP-083`).
     mvc.perform(detalle(AGENTE))
         .andExpect(status().isOk())
         .andExpect(
             jsonPath("$.permissions.length()")
-                .value(ALCANCE_PROPIO.size() + 2 + 2 + 3 + 5 + 1 + 1 + 1 + 2 + 1 + 1 + 2))
+                .value(ALCANCE_PROPIO.size() + 2 + 2 + 3 + 5 + 1 + 1 + 1 + 2 + 1 + 1 + 2 + 1))
         .andExpect(jsonPath("$.permissions[?(@.code == 'roles:read')]").doesNotExist());
   }
 

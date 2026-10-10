@@ -170,5 +170,25 @@ public interface BrokerAccountQueryRepository {
       UUID brokerId,
       String search,
       java.time.OffsetDateTime from,
-      java.time.OffsetDateTime to) {}
+      java.time.OffsetDateTime to,
+      UUID referrerNetworkOf,
+      UUID referrerUserId) {
+
+    /**
+     * Los filtros de administración (`RF-SP-057`), sin los dos de `RF-SP-083`, que esa ruta no
+     * publica.
+     */
+    public BrokerAccountFilters(
+        UUID supervisorId,
+        UUID userId,
+        UserBrokerStatus status,
+        BrokerAccountKind kind,
+        Boolean hasHolder,
+        UUID brokerId,
+        String search,
+        java.time.OffsetDateTime from,
+        java.time.OffsetDateTime to) {
+      this(supervisorId, userId, status, kind, hasHolder, brokerId, search, from, to, null, null);
+    }
+  }
 }

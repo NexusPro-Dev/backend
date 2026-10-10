@@ -1,12 +1,15 @@
 package com.factech.nexus.modules.system.users.interfaces;
 
 import com.factech.nexus.modules.system.brokers.application.BrokerAccountItem;
+import com.factech.nexus.modules.system.brokers.application.BrokerAccountsPage;
 import com.factech.nexus.modules.system.brokers.application.BrokerAccountsResponse;
 import com.factech.nexus.modules.system.brokers.application.CreateBrokerAccountRequest;
+import com.factech.nexus.modules.system.brokers.application.ListReferredBrokerAccountsRequest;
 import com.factech.nexus.modules.system.brokers.application.TeamBrokerAccountItem;
 import com.factech.nexus.modules.system.brokers.application.UpdateBrokerAccountRequest;
 import com.factech.nexus.modules.system.brokers.domain.service.GetBrokerAccountsService;
 import com.factech.nexus.modules.system.brokers.domain.service.GetTeamBrokerAccountsService;
+import com.factech.nexus.modules.system.brokers.domain.service.ListBrokerAccountsService;
 import com.factech.nexus.modules.system.brokers.domain.service.ManageBrokerAccountsService;
 import com.factech.nexus.modules.system.users.application.AssignRolesRequest;
 import com.factech.nexus.modules.system.users.application.AssignSupervisorRequest;
@@ -104,6 +107,7 @@ public class UserController {
   private final GetClientSellersService vendedoresDelCliente;
   private final GetSellerClientsService carteraDelVendedor;
   private final ManageBrokerAccountsService gestionDeCuentas;
+  private final ListBrokerAccountsService cuentasOriginadas;
 
   public UserController(
       RegisterUserService alta,
@@ -123,8 +127,10 @@ public class UserController {
       GetTeamBrokerAccountsService cuentasDelEquipo,
       GetClientSellersService vendedoresDelCliente,
       GetSellerClientsService carteraDelVendedor,
-      ManageBrokerAccountsService gestionDeCuentas) {
+      ManageBrokerAccountsService gestionDeCuentas,
+      ListBrokerAccountsService cuentasOriginadas) {
     this.gestionDeCuentas = gestionDeCuentas;
+    this.cuentasOriginadas = cuentasOriginadas;
     this.cuentasDeBroker = cuentasDeBroker;
     this.cuentasDelEquipo = cuentasDelEquipo;
     this.vendedoresDelCliente = vendedoresDelCliente;
@@ -1581,6 +1587,85 @@ public class UserController {
       @RequestParam(required = false) Integer page,
       @RequestParam(required = false) Integer size) {
     return cuentasDelEquipo.ofMyTeam(status, brokerId, page, size);
+  }
+
+  // `RF-SP-083` (10-10-2026): las cuentas que originó el enlace del actor o el
+  // de su red. El alcance lo pone el sistema (`RN-SP-075`), como el equipo de
+  // arriba; la fila, los filtros y el resumen son los de `RF-SP-057`.
+  @GetMapping("/me/referred-broker-accounts")
+  @PreAuthorize("hasAuthority('broker-accounts:read-own-referred')")
+  @Operation(
+      summary = "Consultar las cuentas de broker que originó mi red",
+      description =
+          """
+          Devuelve, **paginadas y con un resumen**, las cuentas de broker de
+          **consumidor** creadas con el `afftrack` del actor **o con el de
+          cualquier vendedor de su red hacia abajo**, en todos los niveles
+          (`RN-SP-075`). La red es la **vigente**: quien dejó la red ya no cuenta,
+          ni los que colgaban de él.
+
+          **Se mira el origen, no el titular.** Cada cuenta de consumidor apunta a
+          la cuenta `VENDEDOR` que la originó (`RN-SP-070`), y esa es la que
+          tiene que ser del actor o de su red. Por eso **aparecen también las
+          cuentas sin titular** —llegaron del broker antes que la persona; `user`
+          va nulo— y por eso no aparecen las cuentas `VENDEDOR`.
+
+          **Cada fila dice de qué vendedor viene**: `referrer` trae la cuenta de
+          origen, su `afftrack` y el vendedor —identificador, usuario, nombre y
+          apellido—. La fila es la de `GET /api/v1/broker-accounts`.
+
+          **No hay parámetro que amplíe el alcance.** Quien no tiene cuentas
+          originadas recibe `200` con la página vacía y el resumen en ceros.
+
+          **Filtros, todos opcionales y combinables con Y:**
+
+          - `status` — `REGISTER` o `FIRST_DEPOSIT`. Cualquier otro valor es
+            `400`.
+          - `brokerId` — un broker del catálogo.
+          - `sellerId` — **un vendedor de la red**: solo las que originó su
+            cuenta. Uno de fuera de la red devuelve la página vacía, no `403`.
+          - `hasHolder` — `false`, las que aún no tienen titular; `true`, las
+            demás.
+          - `search` — fragmento del **número de cuenta** o del **nombre de
+            usuario en el broker** (también del titular: usuario, correo o
+            nombre). Sin acentos y sin distinguir mayúsculas.
+          - `from` / `to` — **cuándo se creó la cuenta**, instantes con zona y
+            rango semiabierto. `from` posterior a `to` es `400`.
+
+          **`summary`** tiene la forma y el sentido de el de
+          `GET /api/v1/broker-accounts`: cuántas cuentas, cuántas en `REGISTER`
+          y cuántas en `FIRST_DEPOSIT`, cada una por broker, sobre lo filtrado.
+          """)
+  @ApiResponses({
+    @ApiResponse(
+        responseCode = "200",
+        description =
+            "Página de cuentas originadas por la red, ordenada por titular, broker y número, con"
+                + " su resumen. Vacía si no hay ninguna."),
+    @ApiResponse(
+        responseCode = "400",
+        description =
+            "`status` desconocido o `from` posterior a `to` (`VAL-001`), identificador"
+                + " malformado o paginación fuera de límites (`VAL-003`)",
+        content = @Content),
+    @ApiResponse(
+        responseCode = "401",
+        description = "Token ausente o inválido (`AUTH-001`)",
+        content = @Content),
+    @ApiResponse(
+        responseCode = "403",
+        description = "Autenticado sin `broker-accounts:read-own-referred` (`AUTH-002`)",
+        content = @Content),
+    @ApiResponse(
+        responseCode = "500",
+        description = "Fallo no controlado (`ERR-500`)",
+        content = @Content)
+  })
+  public BrokerAccountsPage cuentasOriginadasPorMiRed(
+      // Explota el registro en sus parámetros, como `GET /broker-accounts`.
+      @org.springdoc.core.annotations.ParameterObject @ModelAttribute
+          ListReferredBrokerAccountsRequest filtros) {
+    return cuentasOriginadas.listReferred(filtros);
   }
 
   // `RF-SP-079` (08-10-2026): las propias. Ruta propia y no un campo de

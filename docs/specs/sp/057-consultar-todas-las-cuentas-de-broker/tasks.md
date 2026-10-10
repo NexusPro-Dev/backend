@@ -29,6 +29,8 @@
 | `T-11` | **El resumen**: una consulta agrupada por `(broker, estado)` sobre el mismo predicado, que **sustituye a `countAll`** | `T-04` | `CA-SP-669`, `CA-SP-670`. `totalElements` sale de ella | **Hecha el 10-09-2026** |
 | `T-12` | `BrokerAccountsPage` y `BrokerAccountsSummary`, con el desglose ordenado por nombre de broker | `T-11` | `CA-SP-671`, `CA-SP-674` | **Hecha el 10-09-2026** |
 | `T-13` | Pruebas del resumen, **incluida la del cero que engaña**: `?status=REGISTER` deja `firstDeposit` en cero | `T-12` | `CA-SP-669` a `CA-SP-674` | **Hecha el 10-09-2026** |
+| `T-15` | `search` por `broker_username` con su índice en `V100`; `BrokerAccountReferrer` con `firstName` y `lastName`; prosa OpenAPI (`plan.md` §11) | — | | **Hecha** — 10-10-2026 |
+| `T-16` | `AllBrokerAccountsIT`: `CA-SP-1007` y `CA-SP-1008`; contrato; `api/index.md` | `T-15` | `mvn verify` en verde | **Hecha** — 10-10-2026 |
 | `T-14` | Prosa OpenAPI del resumen, **con la frase del cero** | `T-13` | Dice que ese cero significa «no pediste ninguno» | **Hecha el 10-09-2026** |
 
 ## 2. Orden de ejecución
@@ -52,6 +54,7 @@
 | `CA-SP-669`, `CA-SP-670` | `T-11`, `T-13` |
 | `CA-SP-671`, `CA-SP-674` | `T-12`, `T-13` |
 | `CA-SP-672`, `CA-SP-673` | `T-11`, `T-13`, `T-14` |
+| `CA-SP-1007`, `CA-SP-1008` | `T-15`, `T-16` |
 
 ## 4. Bloqueos
 

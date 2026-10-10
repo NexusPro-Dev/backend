@@ -157,3 +157,9 @@ De ese único resultado salen **las cuatro cifras**: el total, su desglose por b
 - **Fechas**: el borde del rango semiabierto, que es donde se equivoca quien lo escribe.
 - **Errores**: `status` inválido, `from` posterior a `to`, y `403` sin permiso.
 - **Contrato**: la fila coincide campo por campo con la de `RF-SP-056`.
+
+---
+
+## 11. Enmienda 0.5.0 — el nombre de usuario en el broker y el vendedor con nombre (10-10-2026)
+
+**`search`** añade `OR f_unaccent(lower(ub.broker_username)) LIKE …` al mismo predicado, con su índice: **`ix_user_brokers_busqueda_usuario`** en `V100` (gin de trigramas, la expresión del predicado). **`BrokerAccountReferrer`** gana `firstName` y `lastName`, leídos de `ru` —el titular de la cuenta de origen, ya unido—. Es un superconjunto de la fila: también lo ven `RF-SP-055`, `RF-SP-056`, `RF-SP-079` y `RF-SP-083`, que comparten `BrokerAccountReferrer`. Pruebas en `AllBrokerAccountsIT`.

@@ -279,6 +279,8 @@ class EndpointPermissionsIT extends IntegrationTestBase {
           Map.entry("GET /api/v1/users/me/sellers", "users:read-own-sellers"),
           Map.entry("GET /api/v1/users/me/clients", "users:read-own-clients"),
           Map.entry("GET /api/v1/users/me/team/broker-accounts", "broker-accounts:read-own-team"),
+          Map.entry(
+              "GET /api/v1/users/me/referred-broker-accounts", "broker-accounts:read-own-referred"),
           Map.entry("GET /api/v1/users/me/broker-accounts", "broker-accounts:read-own"),
           Map.entry("POST /api/v1/users/me/broker-accounts", "broker-accounts:create-own"),
           Map.entry(

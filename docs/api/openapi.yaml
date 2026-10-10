@@ -12215,6 +12215,122 @@ paths:
         "500":
           description: Fallo no controlado (`ERR-500`)
       x-required-permission: users:read-own-sellers
+  /api/v1/users/me/referred-broker-accounts:
+    get:
+      tags:
+      - Usuarios
+      summary: Consultar las cuentas de broker que originó mi red
+      description: |
+        **Permiso requerido:** `broker-accounts:read-own-referred`. Sin él, `403` (`AUTH-002`).
+
+        Devuelve, **paginadas y con un resumen**, las cuentas de broker de
+        **consumidor** creadas con el `afftrack` del actor **o con el de
+        cualquier vendedor de su red hacia abajo**, en todos los niveles
+        (`RN-SP-075`). La red es la **vigente**: quien dejó la red ya no cuenta,
+        ni los que colgaban de él.
+
+        **Se mira el origen, no el titular.** Cada cuenta de consumidor apunta a
+        la cuenta `VENDEDOR` que la originó (`RN-SP-070`), y esa es la que
+        tiene que ser del actor o de su red. Por eso **aparecen también las
+        cuentas sin titular** —llegaron del broker antes que la persona; `user`
+        va nulo— y por eso no aparecen las cuentas `VENDEDOR`.
+
+        **Cada fila dice de qué vendedor viene**: `referrer` trae la cuenta de
+        origen, su `afftrack` y el vendedor —identificador, usuario, nombre y
+        apellido—. La fila es la de `GET /api/v1/broker-accounts`.
+
+        **No hay parámetro que amplíe el alcance.** Quien no tiene cuentas
+        originadas recibe `200` con la página vacía y el resumen en ceros.
+
+        **Filtros, todos opcionales y combinables con Y:**
+
+        - `status` — `REGISTER` o `FIRST_DEPOSIT`. Cualquier otro valor es
+          `400`.
+        - `brokerId` — un broker del catálogo.
+        - `sellerId` — **un vendedor de la red**: solo las que originó su
+          cuenta. Uno de fuera de la red devuelve la página vacía, no `403`.
+        - `hasHolder` — `false`, las que aún no tienen titular; `true`, las
+          demás.
+        - `search` — fragmento del **número de cuenta** o del **nombre de
+          usuario en el broker** (también del titular: usuario, correo o
+          nombre). Sin acentos y sin distinguir mayúsculas.
+        - `from` / `to` — **cuándo se creó la cuenta**, instantes con zona y
+          rango semiabierto. `from` posterior a `to` es `400`.
+
+        **`summary`** tiene la forma y el sentido de el de
+        `GET /api/v1/broker-accounts`: cuántas cuentas, cuántas en `REGISTER`
+        y cuántas en `FIRST_DEPOSIT`, cada una por broker, sobre lo filtrado.
+      operationId: cuentasOriginadasPorMiRed
+      parameters:
+      - name: page
+        in: query
+        required: false
+        schema:
+          type: integer
+          format: int32
+      - name: size
+        in: query
+        required: false
+        schema:
+          type: integer
+          format: int32
+      - name: status
+        in: query
+        required: false
+        schema:
+          type: string
+      - name: brokerId
+        in: query
+        required: false
+        schema:
+          type: string
+          format: uuid
+      - name: sellerId
+        in: query
+        required: false
+        schema:
+          type: string
+          format: uuid
+      - name: hasHolder
+        in: query
+        required: false
+        schema:
+          type: boolean
+      - name: search
+        in: query
+        required: false
+        schema:
+          type: string
+      - name: from
+        in: query
+        required: false
+        schema:
+          type: string
+          format: date-time
+      - name: to
+        in: query
+        required: false
+        schema:
+          type: string
+          format: date-time
+      responses:
+        "200":
+          description: "Página de cuentas originadas por la red, ordenada por titular,\
+            \ broker y número, con su resumen. Vacía si no hay ninguna."
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/BrokerAccountsPage"
+        "400":
+          description: "`status` desconocido o `from` posterior a `to` (`VAL-001`),\
+            \ identificador malformado o paginación fuera de límites (`VAL-003`)"
+        "401":
+          description: Token ausente o inválido (`AUTH-001`)
+        "403":
+          description: Autenticado sin `broker-accounts:read-own-referred` (`AUTH-002`)
+        "500":
+          description: Fallo no controlado (`ERR-500`)
+      x-required-permission: broker-accounts:read-own-referred
   /api/v1/users/me/clients:
     get:
       tags:
@@ -15813,8 +15929,15 @@ paths:
           broker antes que la persona (`RN-SP-072`); `true`, las demás. Sin
           titular, `user` va nulo.
         - `brokerId` — un broker del catálogo.
-        - `search` — fragmento de **número de cuenta**, nombre de usuario,
-          correo o nombre completo. Sin acentos y sin distinguir mayúsculas.
+        - `search` — fragmento de **número de cuenta**, de **nombre de usuario
+          en el broker**, o del usuario, correo o nombre completo del titular.
+          Sin acentos y sin distinguir mayúsculas. Con `?kind=CONSUMIDOR`, solo
+          las cuentas de consumidor.
+
+        **Cada fila trae su titular (`user`) y su origen (`referrer`)**: la
+        cuenta `VENDEDOR` que la originó, su `afftrack` y el vendedor —
+        identificador, usuario, nombre y apellido—. El vendedor del `afftrack`
+        tiene que ser el principal del titular (`RN-SP-072`).
         - `from` / `to` — **cuándo se declaró la cuenta**. Son **instantes con
           zona**, no fechas sueltas, y el rango es **semiabierto**: incluye
           `from`, excluye `to`. `from` posterior a `to` es `400`.
@@ -17734,6 +17857,10 @@ components:
           type: string
           format: uuid
         username:
+          type: string
+        firstName:
+          type: string
+        lastName:
           type: string
     BrokerRef:
       type: object
@@ -21671,6 +21798,56 @@ components:
           format: int32
         totalIsExact:
           type: boolean
+    BrokerAccountsByBroker:
+      type: object
+      properties:
+        broker:
+          $ref: "#/components/schemas/BrokerRef"
+        total:
+          type: integer
+          format: int64
+    BrokerAccountsPage:
+      type: object
+      properties:
+        content:
+          type: array
+          items:
+            $ref: "#/components/schemas/TeamBrokerAccountItem"
+        totalElements:
+          type: integer
+          format: int64
+        totalPages:
+          type: integer
+          format: int32
+        page:
+          type: integer
+          format: int32
+        size:
+          type: integer
+          format: int32
+        totalIsExact:
+          type: boolean
+        summary:
+          $ref: "#/components/schemas/BrokerAccountsSummary"
+    BrokerAccountsSummary:
+      type: object
+      properties:
+        accounts:
+          $ref: "#/components/schemas/BrokerAccountsTotals"
+        register:
+          $ref: "#/components/schemas/BrokerAccountsTotals"
+        firstDeposit:
+          $ref: "#/components/schemas/BrokerAccountsTotals"
+    BrokerAccountsTotals:
+      type: object
+      properties:
+        total:
+          type: integer
+          format: int64
+        byBroker:
+          type: array
+          items:
+            $ref: "#/components/schemas/BrokerAccountsByBroker"
     ListUserCommissionRatesRequest:
       type: object
       properties:
@@ -24448,56 +24625,6 @@ components:
           type: boolean
         url:
           type: string
-    BrokerAccountsByBroker:
-      type: object
-      properties:
-        broker:
-          $ref: "#/components/schemas/BrokerRef"
-        total:
-          type: integer
-          format: int64
-    BrokerAccountsPage:
-      type: object
-      properties:
-        content:
-          type: array
-          items:
-            $ref: "#/components/schemas/TeamBrokerAccountItem"
-        totalElements:
-          type: integer
-          format: int64
-        totalPages:
-          type: integer
-          format: int32
-        page:
-          type: integer
-          format: int32
-        size:
-          type: integer
-          format: int32
-        totalIsExact:
-          type: boolean
-        summary:
-          $ref: "#/components/schemas/BrokerAccountsSummary"
-    BrokerAccountsSummary:
-      type: object
-      properties:
-        accounts:
-          $ref: "#/components/schemas/BrokerAccountsTotals"
-        register:
-          $ref: "#/components/schemas/BrokerAccountsTotals"
-        firstDeposit:
-          $ref: "#/components/schemas/BrokerAccountsTotals"
-    BrokerAccountsTotals:
-      type: object
-      properties:
-        total:
-          type: integer
-          format: int64
-        byBroker:
-          type: array
-          items:
-            $ref: "#/components/schemas/BrokerAccountsByBroker"
     NetworkIndicators:
       type: object
       properties:

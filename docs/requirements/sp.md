@@ -5,7 +5,7 @@
 | Módulo | `SP` — Sistema Principal |
 | Paquete | `modules/system` |
 | Prefijos de permiso | `roles:`, `permissions:`, `audit:`, `memberships:`, `currencies:`, `countries:`, `users:`, `exchange-rates:`, `document-types:`, `brokers:`, `broker-accounts:`, `teams:` |
-| Versión | 1.120.0 |
+| Versión | 1.121.0 |
 | Estado | **Aprobado** |
 | Responsable | Bonilla Diaz William Steven |
 | Fecha de creación | 20-08-2026 |
@@ -245,6 +245,7 @@ Reglas que no son transversales de seguridad y por tanto sí llevan el prefijo d
 | `RN-SP-072` | **Una cuenta puede existir sin titular, y se asocia después** | Al recibir el aviso de registro (`RF-SP-054`), al declarar una cuenta (`RF-SP-045`, `RF-SP-053`) y al asignarla (`RF-SP-082`) | Decisión del responsable del proyecto, 09-10-2026. Quien abre su cuenta **en el broker** por el enlace de un vendedor llega antes que a la plataforma: el aviso de registro crea su cuenta **`CONSUMIDOR` sin titular**. **Se asocia de dos maneras**: (1) **sola**, cuando esa persona declara en la plataforma **el mismo número en el mismo broker** y **su vendedor es el de la cuenta de origen** —el número y el `afftrack` coinciden—; si no coincide, la cuenta sigue siendo de nadie y el alta es `409` (`EX-009`), como hoy; (2) **por administración**, con `RF-SP-082`. **Solo una cuenta `CONSUMIDOR` puede quedar sin titular**, y **sin titular no cuenta en ningún indicador ni en ningún listado por persona**: solo en el de administración (`RF-SP-057`) | **Alta** |
 | `RN-SP-073` | **El aviso de depósito del broker es el primer depósito** | Al recibir el aviso de depósito (`RF-SP-054`), y al asociar una cuenta que ya lo tiene (`RF-SP-045`, `RF-SP-053`, `RF-SP-082`) | Decisión del responsable del proyecto, 10-10-2026: el aviso de **depósito** confirma el FTD **entero**. **La primera vez**, la cuenta `CONSUMIDOR` de ese número pasa de `REGISTER` a `FIRST_DEPOSIT` y guarda **cuándo**; y si su titular espera en `FTD_PENDIENTE`, **pasa a `ACTIVO` y se activa lo que compró al registrarse** (`RN-SP-057`), en la misma transacción. **Los depósitos siguientes no cambian nada**: no se sabe aún si el broker avisa solo del primero o de cada uno, y la regla aguanta las dos cosas. **A un titular que no está en `FTD_PENDIENTE` no se le toca el estado**: levantar un bloqueo porque alguien depositó sería saltarse a quien lo puso. **Sin titular**, la cuenta pasa igual a `FIRST_DEPOSIT`, y **cuando se asocia** —sola al declararla, o por administración— su titular se activa entonces. **De un número que no tiene cuenta, o de una cuenta `VENDEDOR`** (`RN-SP-068`), **el aviso solo se guarda**: no crea nada. **Una reentrega con el mismo identificador de aviso no se aplica dos veces** | **Crítica** |
 | `RN-SP-074` | **Las operaciones que avisa el broker se cuentan en la cuenta** | Al recibir el aviso de operación (`RF-SP-054`) | Decisión del responsable del proyecto, 10-10-2026: cada aviso de **operación** suma **una** a la cuenta de ese número, que guarda **cuántas van, la primera y la última**, sea `CONSUMIDOR` o `VENDEDOR` y tenga titular o no. **Operar no es depositar**: no mueve el estado de la cuenta ni el de la persona. **De un número sin cuenta, el aviso solo se guarda.** **Una reentrega con el mismo identificador de aviso cuenta una vez**; sin identificador, cada aviso cuenta, porque no hay forma segura de decir que dos son el mismo. **El momento es el de la llegada**: el aviso no trae el suyo | Alta |
+| `RN-SP-075` | **Un vendedor ve las cuentas que originó su red** | Al consultar las cuentas originadas (`RF-SP-083`) | Decisión del responsable del proyecto, 10-10-2026: «quiero poder [ver] las cuentas de brokers que se han creado con mi afftrack y con la línea comercial correspondiente». **Ve las cuentas `CONSUMIDOR` cuyo origen** (`RN-SP-070`) **es su propia cuenta `VENDEDOR` o la de cualquier vendedor que cuelga de él, en todos los niveles** —su red vigente en `user_supervisors`, como `RN-SP-047`—. **Cada fila dice de qué vendedor viene**: el titular de la cuenta de origen, con su `afftrack`. **Con titular o sin él**: la cuenta que llegó del broker antes que la persona también la originó su enlace. **No ve** las cuentas `VENDEDOR`, ni las originadas por su superior o por otra rama, ni las de quien ya dejó su red. **El alcance lo pone el sistema** a partir de quién pregunta, no un parámetro | Alta |
 
 !!! danger "`RN-SP-025` vive en el motor, y hasta el 02-09-2026 no vivía en ninguna parte"
 
@@ -427,6 +428,7 @@ EXCLUDE USING gist (
 | `RF-SP-080` | Editar una cuenta de broker | Alta | `broker-accounts:update-own` (la propia) o `broker-accounts:update` | **En desarrollo** |
 | `RF-SP-081` | Eliminar una cuenta de broker | Alta | `broker-accounts:delete-own` (la propia) o `broker-accounts:delete` | **En desarrollo** |
 | `RF-SP-082` | Asignar una cuenta de broker sin titular | Alta | `broker-accounts:assign-user` | **En desarrollo** |
+| `RF-SP-083` | Consultar las cuentas de broker que originó mi red | Alta | `broker-accounts:read-own-referred` | **En desarrollo** |
 
 !!! info "Dónde vive el estado de un requerimiento"
 
@@ -1099,7 +1101,7 @@ El **listado plano y paginado** de las cuentas de todas las personas que depende
 
 | Campo | Valor |
 |---|---|
-| Objetivo | Ver **todas** las cuentas de broker del sistema y acotarlas: por **red de un vendedor**, por persona, por estado, por **tipo**, por broker, por texto y por fecha de declaración |
+| Objetivo | Ver **todas** las cuentas de broker del sistema y acotarlas: por **red de un vendedor**, por persona, por estado, por **tipo**, por broker, por texto —también el **nombre de usuario en el broker**, desde el 10-10-2026— y por fecha de declaración; cada fila con su titular y **el vendedor de su origen, con nombre** |
 | Actor | Administrador |
 | Permiso requerido | `broker-accounts:read` |
 | Prioridad | Alta |
@@ -1634,6 +1636,21 @@ Cierra la pertenencia vigente de uno o varios managers **de este equipo**, con m
 
 **Borrado físico y auditado** (08-10-2026, decisión del responsable del proyecto): nada del sistema apunta a una cuenta de broker, la auditoría guarda cómo era, y la cuenta queda libre para declararse otra vez. `DELETE /api/v1/users/me/broker-accounts/{brokerAccountId}` y `DELETE /api/v1/users/{id}/broker-accounts/{brokerAccountId}`. **El titular no borra una cuenta con depósito confirmado** (`RN-SP-067`); administración sí.
 
+#### `RF-SP-083` — Consultar las cuentas de broker que originó mi red
+
+| Campo | Valor |
+|---|---|
+| Objetivo | Que un vendedor vea las cuentas de consumidor creadas con **su** `afftrack` y con el de **toda su red hacia abajo**, y de qué vendedor viene cada una |
+| Actor | Un vendedor |
+| Permiso requerido | `broker-accounts:read-own-referred` (a los roles `VENDEDOR` y `FUNCIONARIO` por su tipo, como `broker-accounts:read-own-team`) |
+| Prioridad | Alta |
+| Reglas aplicables | `RN-SP-045`, `RN-SP-047`, `RN-SP-070`, `RN-SP-071`, `RN-SP-075` |
+| Depende de | `RF-SP-054`, `RF-SP-057` |
+| Tripleta | `docs/specs/sp/083-consultar-cuentas-originadas-por-mi-red/` |
+| Estado | **En desarrollo** (10-10-2026) |
+
+**Nace a petición del responsable del proyecto** (10-10-2026). `GET /api/v1/users/me/referred-broker-accounts`: la misma fila, los mismos filtros de texto, estado, broker y fecha, y el mismo resumen que `RF-SP-057`, **con el alcance fijado por el sistema** (`RN-SP-075`) y un filtro `sellerId` para ver la línea de un vendedor concreto de la red. **No sustituye a `RF-SP-056`**: aquel mira las cuentas **de las personas** del equipo directo; este, las cuentas **que originó el enlace** de cada vendedor, sean de quien sean.
+
 ## 7. Requerimientos no funcionales
 
 Definidos en [`security.md` §11](../security.md) y en la constitución. Los que este módulo debe satisfacer:
@@ -2056,6 +2073,7 @@ Declaradas en la base de datos, no solo en Java (Art. V.6):
 | `uq_document_types_name` | **Índice único funcional**: `document_types (f_unaccent(lower(name)))` — mismo criterio que `uq_countries_name`. Dos entradas que solo difieran en acentos serían dos opciones indistinguibles en el selector del alta |
 | `uq_brokers_name` | **Índice único funcional**: `brokers (f_unaccent(lower(name)))` — mismo criterio que los países y los tipos de documento. Con el nombre como única columna de negocio, es él quien identifica: sin este índice, «Exness» y «exness» serían dos brokers |
 | `uq_user_brokers_cuenta` | `user_brokers(broker_id, external_id)` — **`RN-SP-038`**: una cuenta es de una sola persona. NO es `(user_id, broker_id)`, que prohibiría lo que sí se admite —varias cuentas de la misma persona en el mismo broker— y permitiría lo que no |
+| `ix_user_brokers_busqueda_usuario` | `user_brokers` **gin de trigramas** sobre `f_unaccent(lower(broker_username))` — **`RF-SP-057`** y **`RF-SP-083`**, 10-10-2026: `search` busca también el nombre de usuario en el broker. `V100` |
 | `ix_user_brokers_busqueda` | `user_brokers` **gin de trigramas** sobre `f_unaccent(lower(external_id))` — **`RF-SP-057`**. Las expresiones son **las del predicado**, como en `ix_users_busqueda`: si divergieran, el índice existiría y el planificador no lo usaría nunca, y el defecto no saldría como error sino como una consulta lenta que nadie relaciona con esta migración |
 | `ck_user_brokers_status` | `user_brokers(status)` en (`REGISTER`, `FIRST_DEPOSIT`) — **`RN-SP-045`**. Mismo recurso que `ck_users_status` y por el mismo motivo: el conjunto de valores es una regla de negocio, y una columna de texto libre deja entrar `register` en minúscula el día que alguien escriba la fila desde otro sitio |
 | `ck_user_brokers_kind` | `user_brokers(kind)` en (`VENDEDOR`, `CONSUMIDOR`) — **`RN-SP-068`** |
@@ -2668,3 +2686,4 @@ La fila se lee «esta persona vinculó este authenticator». `status` es `PENDIE
 | 1.118.0 | 09-10-2026 | **Cuentas sin titular, `afftrack` y cuenta de origen**, a petición del responsable del proyecto, con sus dos casos: la cuenta que nace en la plataforma y la que nace en el broker por el enlace del vendedor. Nacen `RN-SP-070` (la `CONSUMIDOR` apunta a la `VENDEDOR` de su origen), `RN-SP-071` (el `afftrack`, solo en `VENDEDOR`, único por broker), `RN-SP-072` (sin titular y asociación posterior) y `RF-SP-082` (asignar por administración). `RF-SP-054` pasa a interpretar **solo** el aviso de registro. Tripletas: `RF-SP-053` v0.3.0, `RF-SP-078` v0.4.0 —carga la parte de `RF-SP-054`— y `RF-SP-082` nueva. | Responsable del proyecto |
 | 1.119.0 | 09-10-2026 | **Los equipos pasan a ser de directores, uno por equipo, y son las oficinas de las ventas**, por decisión del responsable del proyecto: «estos son los teams: Principal, Legendary, Elite, Prime, Master, y los encargados de los equipos son los directores, no los managers». **`RN-SP-051` enmendada**: a un equipo solo pertenece quien tiene el rango justo debajo de la cúspide —hoy `DIRECTOR`—, y ni managers ni agentes. **`RN-SP-052` enmendada**: un director vigente por equipo además de un equipo por director, con `uq_team_members_equipo_vigente`; asignar a un equipo con director se rechaza. **`RN-SP-055` enmendada**: la pertenencia sigue al rango de director. `RF-SP-069` admite una sola persona. `V99` siembra los cinco equipos —sin pisar uno que ya exista con ese nombre— y cierra las pertenencias de managers que hubiera. Para qué: la oficina de una venta es el equipo del director de su vendedor el día de la venta ([`requirements/mv.md`](mv.md) v0.97.0, `RN-MV-078`). Enmiendas a las tripletas de `RF-SP-063`, `RF-SP-069` y `RF-SP-070` y de `RF-SP-029` y `RF-SP-031` por `RN-SP-055`. | Responsable del proyecto |
 | 1.120.0 | 10-10-2026 | **El depósito y la operación que avisa el broker**, por decisión del responsable del proyecto. Nacen **`RN-SP-073`** —el aviso de depósito es el FTD entero: la cuenta `CONSUMIDOR` pasa a `FIRST_DEPOSIT` y su titular, si espera en `FTD_PENDIENTE`, pasa a `ACTIVO` con lo que compró (`RN-SP-057`); los siguientes no cambian nada; el de un número sin cuenta solo se guarda; la cuenta sin titular activa a quien se le asocie— y **`RN-SP-074`** —cada operación se cuenta, con la primera y la última—. **Una reentrega con el mismo `event_id` no se aplica dos veces.** `RN-SP-045` deja de decir que nadie mueve la cuenta. `RF-SP-054` responde sus preguntas abiertas con los avisos reales, salvo el nombre de usuario. §10.18 gana `first_deposit_at`, `operations_count`, `first_operation_at` y `last_operation_at`; §10.25, `event_id` (`V98`). Tripleta de `RF-SP-078` v0.5.0. | Responsable del proyecto |
+| 1.121.0 | 10-10-2026 | **Las cuentas que originó mi red**, a petición del responsable del proyecto: nace **`RN-SP-075`** —un vendedor ve las cuentas `CONSUMIDOR` creadas con su `afftrack` y con el de toda su red hacia abajo, con titular o sin él, y de qué vendedor viene cada una— y **`RF-SP-083`**, `GET /api/v1/users/me/referred-broker-accounts` con `broker-accounts:read-own-referred`. **`RF-SP-057` se completa** en lugar de duplicarse, por decisión del responsable: `search` busca también el **nombre de usuario en el broker** y el origen trae **nombre y apellido** del vendedor; para las cuentas de consumidor, `?kind=CONSUMIDOR`. Nace `ix_user_brokers_busqueda_usuario` (`V100`). | Responsable del proyecto |

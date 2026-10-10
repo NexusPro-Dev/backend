@@ -7,6 +7,7 @@ import com.factech.nexus.modules.system.brokers.application.BrokerAccountsPage.S
 import com.factech.nexus.modules.system.brokers.application.BrokerAccountsPage.Totals;
 import com.factech.nexus.modules.system.brokers.application.BrokerItem;
 import com.factech.nexus.modules.system.brokers.application.ListBrokerAccountsRequest;
+import com.factech.nexus.modules.system.brokers.application.ListReferredBrokerAccountsRequest;
 import com.factech.nexus.modules.system.brokers.application.TeamBrokerAccountItem;
 import com.factech.nexus.modules.system.brokers.domain.models.BrokerAccountKind;
 import com.factech.nexus.modules.system.brokers.domain.models.UserBrokerStatus;
@@ -15,9 +16,11 @@ import com.factech.nexus.modules.system.brokers.domain.repository.BrokerAccountQ
 import com.factech.nexus.modules.system.brokers.domain.repository.BrokerAccountQueryRepository.BrokerStatusCount;
 import com.factech.nexus.modules.system.brokers.domain.repository.BrokerQueryRepository;
 import com.factech.nexus.shared.error.FieldError;
+import com.factech.nexus.shared.error.UnauthorizedException;
 import com.factech.nexus.shared.error.ValidationException;
 import com.factech.nexus.shared.pagination.PageResponse;
 import com.factech.nexus.shared.pagination.Pagination;
+import com.factech.nexus.shared.security.CurrentActor;
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -67,12 +70,17 @@ public class ListBrokerAccountsService {
   private final BrokerQueryRepository brokers;
 
   private final Pagination paginacion;
+  private final CurrentActor actor;
 
   public ListBrokerAccountsService(
-      BrokerAccountQueryRepository cuentas, BrokerQueryRepository brokers, Pagination paginacion) {
+      BrokerAccountQueryRepository cuentas,
+      BrokerQueryRepository brokers,
+      Pagination paginacion,
+      CurrentActor actor) {
     this.cuentas = cuentas;
     this.brokers = brokers;
     this.paginacion = paginacion;
+    this.actor = actor;
   }
 
   /** El resumen y la página, <b>en la misma transacción de solo lectura</b>. */
@@ -90,8 +98,42 @@ public class ListBrokerAccountsService {
             peticion.brokerId(),
             peticion.search(),
             peticion.from(),
-            rangoVerificado(peticion));
+            rangoVerificado(peticion.from(), peticion.to()));
 
+    return pagina(filtros, trozo);
+  }
+
+  /**
+   * Las cuentas de consumidor que originó la red del actor (`RF-SP-083`, `RN-SP-075`): el mismo
+   * listado, con el alcance fijado por el sistema —la red de origen del actor— y no por un
+   * parámetro.
+   */
+  @Transactional(readOnly = true)
+  public BrokerAccountsPage listReferred(ListReferredBrokerAccountsRequest peticion) {
+    UUID quien =
+        actor
+            .currentActorId()
+            .orElseThrow(() -> new UnauthorizedException("AUTH-001", "Se requiere autenticación."));
+    Pagination.Slice trozo = paginacion.resolver(peticion.page(), peticion.size());
+
+    BrokerAccountFilters filtros =
+        new BrokerAccountFilters(
+            null,
+            null,
+            estado(peticion.status()),
+            BrokerAccountKind.CONSUMIDOR,
+            peticion.hasHolder(),
+            peticion.brokerId(),
+            peticion.search(),
+            peticion.from(),
+            rangoVerificado(peticion.from(), peticion.to()),
+            quien,
+            peticion.sellerId());
+
+    return pagina(filtros, trozo);
+  }
+
+  private BrokerAccountsPage pagina(BrokerAccountFilters filtros, Pagination.Slice trozo) {
     List<BrokerStatusCount> conteos = cuentas.summarize(filtros);
     List<TeamBrokerAccountItem> pagina = cuentas.findAll(filtros, trozo.offset(), trozo.size());
 
@@ -203,11 +245,12 @@ public class ListBrokerAccountsService {
    * <p>Un rango imposible <b>no es un rango sin resultados</b>: devolverlo como vacío haría creer
    * que no hubo altas en ese periodo. Es el mismo criterio que aplica {@code AuditQueryService}.
    */
-  private static java.time.OffsetDateTime rangoVerificado(ListBrokerAccountsRequest p) {
-    if (p.from() != null && p.to() != null && p.from().isAfter(p.to())) {
+  private static java.time.OffsetDateTime rangoVerificado(
+      java.time.OffsetDateTime desde, java.time.OffsetDateTime hasta) {
+    if (desde != null && hasta != null && desde.isAfter(hasta)) {
       throw invalido("to", "El fin del rango no puede ser anterior a su inicio.");
     }
-    return p.to();
+    return hasta;
   }
 
   private static ValidationException invalido(String campo, String mensaje) {
