@@ -160,6 +160,9 @@ class DevelopmentSeedIT extends IntegrationTestBase {
 
   @AfterAll
   static void devolverLaBaseASuSitio(@Autowired JdbcTemplate jdbc) {
+    // Los avisos de `semilla-avisos-de-brokers.sql`: su clave foránea a `brokers`
+    // no lleva `ON DELETE`, y las suites que vacían el catálogo fallarían.
+    jdbc.update("DELETE FROM broker_notifications");
     borrarLaAcademia(jdbc);
     borrarLosProductos(jdbc);
     borrarLasDiecinueve(jdbc);

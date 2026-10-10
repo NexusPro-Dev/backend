@@ -77,14 +77,17 @@ public class DevelopmentDataSeeder implements ApplicationRunner {
    * repetible por su cuenta. <b>El tercero sí depende del orden</b>: resuelve los productos por
    * código, y sin el segundo no encontraría ninguno. <b>El cuarto, la academia</b> (09-10-2026), va
    * al final por lo mismo: sus cursos los enseñan personas del primero y los abren membresías y
-   * bots del segundo.
+   * bots del segundo. <b>El quinto, los avisos de los brokers</b> (10-10-2026), es la copia de los
+   * avisos reales que genera {@code scripts/exportar-avisos-de-brokers.sql}: solo depende del
+   * catálogo de brokers de las migraciones.
    */
   private static final java.util.List<String> GUIONES =
       java.util.List.of(
           "db/dev-seed/semilla-desarrollo.sql",
           "db/dev-seed/semilla-productos.sql",
           "db/dev-seed/semilla-tasas-comision.sql",
-          "db/dev-seed/semilla-academia.sql");
+          "db/dev-seed/semilla-academia.sql",
+          "db/dev-seed/semilla-avisos-de-brokers.sql");
 
   private final RuntimeEnvironment entorno;
   private final JdbcTemplate jdbc;
