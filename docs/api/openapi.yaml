@@ -14689,6 +14689,95 @@ paths:
         "500":
           description: Fallo no controlado (`ERR-500`)
       x-required-permission: indicators:read-commission-batches-summary
+  /api/v1/indicators/broker-accounts/network:
+    get:
+      tags:
+      - Indicadores
+      summary: Consultar los indicadores de cuentas de broker de la red
+      description: |
+        **Permiso requerido:** `indicators:read-broker-accounts-network`. Sin él, `403` (`AUTH-002`).
+
+        **El árbol de la fuerza comercial con las cuentas de broker que originó
+        cada vendedor** (`RF-IN-009`, `RN-IN-015`). Sustituye a
+        `GET /api/v1/broker-accounts/indicators`, retirada el 10-10-2026.
+
+        **Cada cuenta de consumidor suma en el dueño de su `afftrack`** —la
+        cuenta `VENDEDOR` que la originó—, no en el vendedor principal de su
+        titular; por eso **cuentan también las que no tienen titular**. La de
+        un titular eliminado no cuenta.
+
+        **Cada nodo trae dos bloques**: `own`, lo que originó su propia cuenta,
+        y `network`, él y todo lo que cuelga de él. `network` **ya contiene**
+        lo de sus hijos: sumar esa columna cuenta dos veces.
+
+        **Cada cifra con su fecha**:
+
+        - `accounts` — cuentas **creadas** en el periodo; `pending`, las de
+          esas que siguen sin depósito; `conversion`, la parte de esas que ya
+          depositó, entre 0 y 1, **nula sin cuentas**; `withoutHolder` y
+          `consumers`, también de esas.
+        - `ftd` — **primeros depósitos llegados** en el periodo, aunque la
+          cuenta sea anterior. Sin fechas, todas las cuentas en
+          `FIRST_DEPOSIT`.
+        - `activeAccounts` — cuentas cuyo **último aviso de operación** cae en
+          el periodo; `operations`, lo que esas llevan **acumulado**.
+        - `byBroker` — las mismas cifras por broker, salvo `consumers`, con
+          **todos** los brokers del catálogo.
+
+        **Alcance** (`RN-IN-002`): administración ve **el árbol entero** y
+        `unassigned` —lo que no tiene origen o cuyo origen no es fuerza
+        comercial—; un vendedor, **su rama**, él como raíz, y `unassigned`
+        nulo. `sellerId` enraíza el árbol en un vendedor del alcance; uno de
+        fuera devuelve los nodos vacíos y las cifras en cero.
+
+        **Periodo** (`RN-IN-010`): `from` y `to` son días del calendario del
+        negocio, `to` incluido entero; sin ninguno, toda la historia.
+        **`granularity`** —`DAY`, `WEEK` o `MONTH`— añade a los totales las
+        cuentas creadas y los FTD por tramo, todos los tramos presentes.
+      operationId: red
+      parameters:
+      - name: from
+        in: query
+        required: false
+        schema:
+          type: string
+          format: date
+      - name: to
+        in: query
+        required: false
+        schema:
+          type: string
+          format: date
+      - name: sellerId
+        in: query
+        description: "Un vendedor del alcance: el árbol se enraíza en él."
+        required: false
+        schema:
+          type: string
+          format: uuid
+      - name: granularity
+        in: query
+        description: "DAY, WEEK o MONTH: tramos en los totales."
+        required: false
+        schema:
+          type: string
+      responses:
+        "200":
+          description: "El árbol, los totales y lo no atribuido."
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/BrokerNetworkIndicatorsResponse"
+        "400":
+          description: "`from` posterior a `to` (`VAL-002`), `granularity` desconocida\
+            \ (`VAL-005`) o un parámetro malformado"
+        "401":
+          description: Token ausente o inválido (`AUTH-001`)
+        "403":
+          description: Autenticado sin `indicators:read-broker-accounts-network` (`AUTH-002`)
+        "500":
+          description: Fallo no controlado (`ERR-500`)
+      x-required-permission: indicators:read-broker-accounts-network
   /api/v1/hotlinks/{username}/{code}:
     get:
       tags:
@@ -16093,108 +16182,6 @@ paths:
               schema:
                 $ref: "#/components/schemas/BrokerAccountsPage"
       x-required-permission: broker-accounts:read
-  /api/v1/broker-accounts/indicators:
-    get:
-      tags:
-      - Cuentas de broker
-      summary: Consultar los indicadores de la red comercial
-      description: |
-        **Permiso requerido:** `broker-accounts:read-indicators`. Sin él, `403` (`AUTH-002`).
-
-        Devuelve **el árbol de la fuerza comercial**, cada nodo con dos
-        bloques de números: `own` —lo que cuelga **directamente** de esa
-        persona— y `network` —esa persona **y todo lo que cuelga de ella**, a
-        cualquier profundidad—.
-
-        **La regla es una sola en todos los niveles**: el `network` de alguien
-        es su `own` más la suma de los `network` de sus hijos. Un agente
-        recibe lo de sus clientes directos; un director, lo suyo más lo de sus
-        agentes; un manager, lo suyo más lo de sus directores.
-
-        **NO SUME LA COLUMNA `network` DE UNA LISTA.** El `network` de un
-        director **ya contiene** el de sus agentes, de modo que sumar totales
-        de distintos niveles cuenta dos veces. Para agregar, sume `own`; para
-        leer el total de una rama, use su `network`.
-
-        **Qué cuenta como uno:** `accounts` cuenta **cuentas** y `consumers`
-        cuenta **personas**, y no tienen por qué coincidir — un cliente con
-        dos cuentas es una persona y dos cuentas. **Solo cuentan las cuentas
-        de consumidores**: la cuenta personal de un vendedor no entra en
-        ningún indicador.
-
-        **Los consumidores no son nodos.** Aportan el número y no aparecen: el
-        árbol es de la fuerza comercial.
-
-        **`conversion` es `ftd / accounts`, un cociente entre 0 y 1 —no un
-        porcentaje— y es NULA cuando no hay cuentas**, no cero: cero se lee
-        como «nadie convirtió» y la verdad sería «no hay nada que convertir».
-        Se recalcula en cada nodo sobre sus propios totales; **no es el
-        promedio de las de sus hijos**.
-
-        **`unassigned` es lo que hace que los números cuadren**: las cuentas
-        de consumidores que no cuelgan de ningún vendedor no entran en ningún
-        nodo. Se cumple que `totals` + `unassigned` es igual al
-        `totalElements` de `GET /api/v1/broker-accounts` sin filtros. Se omite
-        cuando se pide una rama con `rootId`, donde no significa nada.
-
-        **`rootId` acota el árbol a esa rama e INCLUYE a la persona como
-        raíz**, al revés que el `supervisorId` de `GET /api/v1/broker-accounts`:
-        allí se piden las cuentas de su red —y las suyas no son de su red— y
-        aquí se pide el nodo que lleva sus números.
-
-        **Hoy `ftd` será cero en todas partes** y el embudo se verá entero en
-        `pending`: quien mueve una cuenta a `FIRST_DEPOSIT` es el webhook del
-        broker, que todavía no existe. Es el estado real, no un fallo del
-        indicador.
-      operationId: indicadoresDeLaRed
-      parameters:
-      - name: rootId
-        in: query
-        description: "Acota el árbol a la rama de esa persona, ella incluida."
-        required: false
-        schema:
-          type: string
-          format: uuid
-      responses:
-        "200":
-          description: "El árbol, con los totales y lo no atribuido. `nodes` vací\
-            o si no hay fuerza comercial."
-          content:
-            '*/*':
-              schema:
-                $ref: "#/components/schemas/NetworkIndicatorsResponse"
-        "400":
-          description: '`rootId` malformado (`VAL-001`)'
-          content:
-            '*/*':
-              schema:
-                $ref: "#/components/schemas/NetworkIndicatorsResponse"
-        "401":
-          description: Token ausente o inválido (`AUTH-001`)
-          content:
-            '*/*':
-              schema:
-                $ref: "#/components/schemas/NetworkIndicatorsResponse"
-        "403":
-          description: Autenticado sin `broker-accounts:read-indicators` (`AUTH-002`)
-          content:
-            '*/*':
-              schema:
-                $ref: "#/components/schemas/NetworkIndicatorsResponse"
-        "404":
-          description: "`rootId` no designa a nadie de la fuerza comercial, o está\
-            \ eliminado (`VAL-002`)"
-          content:
-            '*/*':
-              schema:
-                $ref: "#/components/schemas/NetworkIndicatorsResponse"
-        "500":
-          description: Fallo no controlado (`ERR-500`)
-          content:
-            '*/*':
-              schema:
-                $ref: "#/components/schemas/NetworkIndicatorsResponse"
-      x-required-permission: broker-accounts:read-indicators
   /api/v1/audit/security:
     get:
       tags:
@@ -23546,6 +23533,140 @@ components:
         total:
           $ref: "#/components/schemas/CommissionBatchesBlock"
           description: "Todos los lotes, sean cuales sean sus estados."
+    BrokerNetworkBroker:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        name:
+          type: string
+    BrokerNetworkBucket:
+      type: object
+      properties:
+        start:
+          type: string
+          format: date
+          description: Primer día del tramo.
+        accounts:
+          type: integer
+          format: int64
+          description: Cuentas creadas en el tramo.
+        ftd:
+          type: integer
+          format: int64
+          description: Primeros depósitos llegados en el tramo.
+    BrokerNetworkByBroker:
+      type: object
+      properties:
+        broker:
+          $ref: "#/components/schemas/BrokerNetworkBroker"
+        accounts:
+          type: integer
+          format: int64
+        ftd:
+          type: integer
+          format: int64
+        pending:
+          type: integer
+          format: int64
+        conversion:
+          type: number
+        withoutHolder:
+          type: integer
+          format: int64
+        activeAccounts:
+          type: integer
+          format: int64
+        operations:
+          type: integer
+          format: int64
+    BrokerNetworkFigures:
+      type: object
+      properties:
+        accounts:
+          type: integer
+          format: int64
+        ftd:
+          type: integer
+          format: int64
+        pending:
+          type: integer
+          format: int64
+        conversion:
+          type: number
+        withoutHolder:
+          type: integer
+          format: int64
+        consumers:
+          type: integer
+          format: int64
+        activeAccounts:
+          type: integer
+          format: int64
+        operations:
+          type: integer
+          format: int64
+        byBroker:
+          type: array
+          description: "Todos los brokers del catálogo, por nombre; en cero los que\
+            \ no tienen."
+          items:
+            $ref: "#/components/schemas/BrokerNetworkByBroker"
+    BrokerNetworkIndicatorsResponse:
+      type: object
+      properties:
+        period:
+          $ref: "#/components/schemas/IndicatorPeriod"
+        nodes:
+          type: array
+          items:
+            $ref: "#/components/schemas/BrokerNetworkNode"
+        totals:
+          $ref: "#/components/schemas/BrokerNetworkFigures"
+        unassigned:
+          $ref: "#/components/schemas/BrokerNetworkFigures"
+          description: Las cuentas sin origen o con origen fuera de la fuerza comercial.
+            Solo con el alcance entero y sin sellerId; nulo en otro caso.
+        granularity:
+          type: string
+          description: "El tramo pedido —DAY, WEEK o MONTH—, o nulo si no se pidió\
+            ."
+        buckets:
+          type: array
+          description: "Las cuentas creadas y los FTD de los totales por tramo, todos\
+            \ los tramos presentes; nulo si no se pidió tramo."
+          items:
+            $ref: "#/components/schemas/BrokerNetworkBucket"
+    BrokerNetworkNode:
+      type: object
+      properties:
+        user:
+          $ref: "#/components/schemas/BrokerNetworkNodeUser"
+        roleCode:
+          type: string
+        own:
+          $ref: "#/components/schemas/BrokerNetworkFigures"
+          description: Lo que originó la cuenta VENDEDOR de esta persona.
+        network:
+          $ref: "#/components/schemas/BrokerNetworkFigures"
+          description: "Esta persona y todo lo que cuelga de ella, a cualquier profundidad."
+        children:
+          type: array
+          items:
+            $ref: "#/components/schemas/BrokerNetworkNode"
+    BrokerNetworkNodeUser:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        username:
+          type: string
+        firstName:
+          type: string
+        lastName:
+          type: string
     HotlinkResponse:
       type: object
       properties:
@@ -24624,61 +24745,6 @@ components:
         isActive:
           type: boolean
         url:
-          type: string
-    NetworkIndicators:
-      type: object
-      properties:
-        accounts:
-          type: integer
-          format: int32
-        ftd:
-          type: integer
-          format: int32
-        pending:
-          type: integer
-          format: int32
-        conversion:
-          type: number
-        consumers:
-          type: integer
-          format: int32
-    NetworkIndicatorsResponse:
-      type: object
-      properties:
-        nodes:
-          type: array
-          items:
-            $ref: "#/components/schemas/NetworkNode"
-        totals:
-          $ref: "#/components/schemas/NetworkIndicators"
-        unassigned:
-          $ref: "#/components/schemas/NetworkIndicators"
-    NetworkNode:
-      type: object
-      properties:
-        user:
-          $ref: "#/components/schemas/NetworkNodeUser"
-        roleCode:
-          type: string
-        own:
-          $ref: "#/components/schemas/NetworkIndicators"
-        network:
-          $ref: "#/components/schemas/NetworkIndicators"
-        children:
-          type: array
-          items:
-            $ref: "#/components/schemas/NetworkNode"
-    NetworkNodeUser:
-      type: object
-      properties:
-        id:
-          type: string
-          format: uuid
-        username:
-          type: string
-        firstName:
-          type: string
-        lastName:
           type: string
     AuditActor:
       type: object

@@ -312,7 +312,6 @@ class EndpointPermissionsIT extends IntegrationTestBase {
           Map.entry("POST /api/v1/users/{id}/password-reset", "users:reset-password"),
           // ---- SP · cuentas de broker ----
           Map.entry("GET /api/v1/broker-accounts", "broker-accounts:read"),
-          Map.entry("GET /api/v1/broker-accounts/indicators", "broker-accounts:read-indicators"),
           // ---- PM · productos ----
           Map.entry("POST /api/v1/products", "products:create"),
           Map.entry("GET /api/v1/products", "products:list"),
@@ -428,6 +427,9 @@ class EndpointPermissionsIT extends IntegrationTestBase {
               "GET /api/v1/movements/users/{userId}/balances", "movements:read-user-balances"),
           // ---- IN · los indicadores de ventas (V74, 06-10-2026) ----
           Map.entry("GET /api/v1/indicators/sales/summary", "indicators:read-sales-summary"),
+          Map.entry(
+              "GET /api/v1/indicators/broker-accounts/network",
+              "indicators:read-broker-accounts-network"),
           Map.entry("GET /api/v1/indicators/sales/series", "indicators:read-sales-series"),
           Map.entry("GET /api/v1/indicators/points/summary", "indicators:read-points-summary"),
           Map.entry(

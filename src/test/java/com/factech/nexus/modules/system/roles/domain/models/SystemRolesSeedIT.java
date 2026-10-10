@@ -44,6 +44,8 @@ class SystemRolesSeedIT extends IntegrationTestBase {
           // V100 (10-10-2026): las cuentas que originó mi red (RF-SP-083), a todo rol
           // VENDEDOR y FUNCIONARIO.
           "broker-accounts:read-own-referred",
+          // V101 (10-10-2026): los indicadores de cuentas de broker (RF-IN-009).
+          "indicators:read-broker-accounts-network",
           // V92 (09-10-2026): el progreso de los alumnos, a todo rol VENDEDOR (RN-AC-024).
           "courses:list-progress",
           "courses:read-progress",
@@ -129,6 +131,8 @@ class SystemRolesSeedIT extends IntegrationTestBase {
           // V100 (10-10-2026): las cuentas que originó mi red (RF-SP-083), a todo rol
           // VENDEDOR y FUNCIONARIO.
           "broker-accounts:read-own-referred",
+          // V101 (10-10-2026): los indicadores de cuentas de broker (RF-IN-009).
+          "indicators:read-broker-accounts-network",
           // V92 (09-10-2026): el progreso de los alumnos, a todo rol VENDEDOR (RN-AC-024).
           "courses:list-progress",
           "courses:read-progress",

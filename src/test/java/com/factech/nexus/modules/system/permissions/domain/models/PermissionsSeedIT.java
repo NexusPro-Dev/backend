@@ -218,7 +218,6 @@ class PermissionsSeedIT extends IntegrationTestBase {
             // su titular al registrarse, sin sesión; no hay `update` porque
             // quien la completa es el webhook del broker, que no porta roles.
             "broker-accounts:read",
-            "broker-accounts:read-indicators",
             "broker-accounts:read-own-team",
             "broker-accounts:read-team-member",
             // `V89` (08-10-2026): mis cuentas de broker, `RF-SP-079`, a todo rol por su tipo.
@@ -315,6 +314,8 @@ class PermissionsSeedIT extends IntegrationTestBase {
             // `V83` (07-10-2026): el resumen de mis comisiones, `RF-IN-008`, a quien porte
             // list-own.
             "indicators:read-own-commissions-summary",
+            // `V101` (10-10-2026): los indicadores de cuentas de broker, `RF-IN-009`.
+            "indicators:read-broker-accounts-network",
             "movements:buy-points",
             "movements:list-own-points-movements",
             "movements:read-own-points-movement",

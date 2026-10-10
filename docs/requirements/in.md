@@ -5,7 +5,7 @@
 | Módulo | `IN` — Indicadores |
 | Paquete | `modules/indicators` |
 | Prefijo de permisos | `indicators:` |
-| Versión | 0.20.0 |
+| Versión | 0.21.0 |
 | Estado | **Borrador** |
 | Responsable | Bonilla Diaz William Steven |
 | Fecha de creación | 06-10-2026 |
@@ -44,12 +44,12 @@ Que **cada rol vea los indicadores que le corresponden**, y que el reparto lo de
 - **La primera tanda, ventas**: el resumen de un periodo, su evolución en el tiempo, las ventas por producto y las ventas por vendedor (`RF-IN-001` a `RF-IN-004`).
 - **La segunda tanda, puntos** (06-10-2026): cuántos se compraron, cuántos se redimieron, los ajustes a mano y el saldo del periodo (`RF-IN-005`, enmendado el 07-10-2026).
 - **La tercera tanda, comisiones** (07-10-2026), empezando por **los lotes**: cuántos hay hoy en cada estado y por cuánto (`RF-IN-007`).
+- **La cuarta, cuentas de broker** (10-10-2026): los indicadores de la red comercial que eran `RF-SP-058`, atribuidos por el `afftrack` (`RF-IN-009`).
 
 **No incluye**
 
 - **Una tabla que diga qué rol ve qué indicador.** Lo dicen los permisos, que ya se asignan a los roles por `RF-SP-005` y que el frontend ya lee de `GET /users/me` (`RN-IN-001`, §5.2.1).
 - **El tablero**: qué indicadores van juntos, en qué orden y con qué gráfica. Es del frontend, que sabe qué puede pedir por los permisos de quien entra.
-- **Los indicadores de la red comercial de `RF-SP-058`** —el FTD por nodo—. Siguen en `SP`, con `broker-accounts:read-indicators`. Si se mudan aquí, será por un requerimiento propio que lo decida, y `RF-SP-058` conservará su identificador.
 - **Retiros y academia**, y de comisiones **todo lo que no sea el resumen de lotes**. Son las tandas siguientes, declaradas y sin escribir; cada una pedirá a su módulo dueño la lectura agregada que necesite.
 - **Convertir entre monedas.** Las cifras de dinero van separadas por moneda (`RN-IN-004`).
 - **Guardar fotos de las cifras.** Cada lectura cuenta sobre los datos vivos (`RN-IN-006`).
@@ -82,6 +82,7 @@ Según [`modules.md` §5.6](../modules.md#56-in-indicadores).
 | Ventas | Las cifras de lo vendido: resumen, evolución, por producto y por vendedor; y, para administración, el resumen de líneas de venta (06-10-2026) | `RF-IN-001` a `RF-IN-004`, `RF-IN-006` |
 | Puntos | Lo comprado, lo redimido, los ajustes y el saldo de los puntos (06-10-2026) | `RF-IN-005` |
 | Comisiones | Los lotes de comisiones por estado, para administración, y las comisiones propias por estado de su lote, para cada persona (07-10-2026) | `RF-IN-007`, `RF-IN-008` |
+| Cuentas de broker | El árbol de la red comercial con las cuentas que originó cada vendedor, sus FTD, sus operaciones y las sin titular (10-10-2026) | `RF-IN-009` |
 
 ---
 
@@ -90,6 +91,7 @@ Según [`modules.md` §5.6](../modules.md#56-in-indicadores).
 | Módulo | Tipo | Para qué |
 |---|---|---|
 | `SP` | Consume | **El alcance comercial** de quien pregunta (`RN-IN-002`): `CommercialReach.reachOf`, la misma interfaz que consume `RF-MV-015`. **Ya publicada** |
+| `SP` | Consume | **Las cuentas de broker agregadas** por vendedor de origen y broker, y la fuerza comercial con su superior (`RF-IN-009`, 10-10-2026): **`BrokerAccountFigures`**, que publica `RF-IN-009` · `T-02`. Sus tipos son de `SP`: `SP` no consume de nadie |
 | `SP` | Consume | **La identidad** de cada vendedor —nombre de usuario y nombre completo— para la fila de `RF-IN-004`. `UserCatalog`, ya publicada |
 | `MV` | Consume | **Las ventas agregadas** por periodo, moneda, estado, producto o vendedor, **acotadas a un alcance** (`RN-IN-003`): **`SalesFigures`**. **No existe todavía**: la publica `RF-IN-001` y la amplían los otros tres, un método cada uno |
 | `MV` | Consume | **Los movimientos y el saldo de los puntos** por titular y moneda (`RN-IN-009`): **`PointsFigures`**, que publica `RF-IN-005`. Sumas sobre los asientos de las cuentas `PUNTOS`, nunca filas |
@@ -137,6 +139,7 @@ La dependencia es **acíclica**: `IN` → `SP`, `IN` → `MV` e `IN` → `CM`. N
 | `RN-IN-013` | **Un indicador personal cuenta solo lo de quien pregunta** | Al calcular el resumen de mis comisiones (`RF-IN-008`) | Excepción declarada a `RN-IN-002`: **la persona la pone la sesión**, no hay filtro de persona y **no se suma la red**. Lo justifica lo que cuenta: **cada nivel de la cadena tiene su propia comisión** (`RN-CM-011`), y lo que un director cobra por la venta de su agente ya es una comisión suya; sumarle las de sus agentes le mostraría dinero que no es suyo. Es de lo propio (`RN-SEG-015`), como `RF-CM-012` y `RF-CM-026`. Decisión del responsable del proyecto, 07-10-2026 | Alta |
 | `RN-IN-012` | **Un indicador de estado cuenta el estado de hoy** | Al calcular el resumen de lotes de comisiones (`RF-IN-007`) | Cuando la pregunta es **dónde está algo hoy** —en qué estado están los lotes de comisiones— y no **cuánto pasó en un periodo**, el indicador cuenta **el estado del instante de la consulta**, sin tramos. Decisión del responsable del proyecto, 07-10-2026. **Enmendada el mismo día**, también por él: **las fechas eligen qué lotes se cuentan** —los que su periodo de comisiones toca el rango, con `RN-IN-010` para los días—, **no en qué estado estaban entonces**. Sin fechas, todos | Alta |
 | `RN-IN-014` | **La oficina de una cifra es la de la línea, congelada** | Al filtrar por oficina (`teamId`) el resumen de ventas (`RF-IN-001`), su evolución (`RF-IN-002`) y el resumen de líneas (`RF-IN-006`) | Decisión del responsable del proyecto, 09-10-2026. Filtrar por oficina cuenta **las líneas cuya oficina guardada** es esa (`movement_details.team_id`, `RN-MV-078`): la del director del vendedor **el día de la venta**, no la de hoy, de modo que trasladar a un agente **no mueve sus cifras** de una oficina a otra. Es un filtro y **no alcance**, como el de vendedor: dentro del alcance lo estrecha y fuera de él responde **cifras en cero** (`RN-IN-002`); en `RF-IN-006`, que no tiene alcance (`RN-IN-011`), estrecha las cifras enteras. Una línea sin vendedor no tiene oficina, de modo que **con oficina lo sin vendedor sale en cero**; tampoco la tiene la venta de un manager. Una oficina que no existe responde cero, no `404` | Alta |
+| `RN-IN-015` | **Las cuentas de broker se cuentan por su `afftrack`, y cada cifra por su fecha** | Al calcular los indicadores de cuentas de broker (`RF-IN-009`) | Decisión del responsable del proyecto, 10-10-2026, al mudar aquí `RF-SP-058`. **(1) Atribución**: una cuenta `CONSUMIDOR` suma en **el vendedor dueño de la cuenta `VENDEDOR` que la originó** (`RN-SP-070`, el `afftrack`), no en el vendedor principal de su titular; por eso **cuentan también las que no tienen titular**. La de un titular eliminado no cuenta. Las que no tienen origen, o cuyo origen no es de la fuerza comercial, van a **lo no atribuido**, que solo ve quien tiene el alcance entero. **(2) Cada cifra por su fecha** (`RN-IN-010` para los días): **cuentas** = las creadas en el periodo; **pendientes** = de esas, las que siguen sin depósito; **conversión** = de esas, la parte que ya depositó —nula sin cuentas—; **FTD** = las cuentas cuyo **primer depósito llegó** en el periodo, aunque se crearan antes; **sin titular** y **consumidores** = de las creadas en el periodo; **cuentas que operaron** = las que tuvieron su **último aviso de operación** en el periodo, y **operaciones** = lo que esas llevan acumulado. Sin fechas, toda la historia: FTD son todas las cuentas en `FIRST_DEPOSIT`, también las que pasaron sin aviso. **(3) La suma** es la de `RN-SP-048`: cada nodo trae lo suyo (`own`) y lo de su red (`network`), y la conversión se recalcula sobre la suma. **(4) Tramos solo en los totales**: el árbol trae las cifras del periodo; con `granularity`, los totales traen además las cuentas creadas y los FTD por tramo | **Crítica** |
 
 ### 5.2 Decisiones que definen el módulo — 06-10-2026
 
@@ -187,6 +190,7 @@ La migración que los siembre los da **por tipo de rol**, como los demás permis
 | `RF-IN-006` | Consultar el resumen de líneas de venta | Ventas | Alta | `indicators:read-sale-lines-summary` | **En desarrollo** (06-10-2026) |
 | `RF-IN-007` | Consultar el resumen de lotes de comisiones | Comisiones | Alta | `indicators:read-commission-batches-summary` | **En desarrollo** (07-10-2026) |
 | `RF-IN-008` | Consultar el resumen de mis comisiones | Comisiones | Alta | `indicators:read-own-commissions-summary` | **En desarrollo** (07-10-2026) |
+| `RF-IN-009` | Consultar los indicadores de cuentas de broker de la red | Cuentas de broker | **Crítica** | `indicators:read-broker-accounts-network` | **En desarrollo** (10-10-2026) |
 
 **Prioridades:** Crítica · Alta · Media · Baja.
 **Estados:** los de [`requirements.md` §4](../requirements.md#4-matriz-de-trazabilidad).
@@ -317,6 +321,21 @@ Lo **confirmado** en el periodo agrupado por **el vendedor de la línea**, de m�
 
 **Nace el 07-10-2026 a petición del responsable del proyecto** —«un indicador nuevo para las comisiones personales: el total de comisiones, cuántas están en el lote abierto, pendiente y pagados»—, con tres decisiones suyas: **solo lo mío** (`RN-IN-013`, nace aquí), **el estado de hoy con fechas opcionales** sobre el nacimiento de la comisión —la misma fecha que filtra `RF-CM-026`— y **cuántas y cuánto**. La cara personal de `RF-IN-007`: aquel cuenta lotes de todos para administración; este, comisiones de quien pregunta. **Desde el mismo día se filtra por cliente** (`CA-IN-097`), igual que la lista de `RF-CM-026`.
 
+#### `RF-IN-009` — Consultar los indicadores de cuentas de broker de la red
+
+| Campo | Valor |
+|---|---|
+| Objetivo | Saber **cuántas cuentas de broker originó cada vendedor y su red**, cuántas hicieron su primer depósito, cuántas operan y cuántas siguen sin titular, en un periodo y por broker |
+| Actor | Administración, **el árbol entero**; un vendedor, **su rama** (`RN-IN-002`) |
+| Permiso requerido | `indicators:read-broker-accounts-network` (a `FUNCIONARIO` y `VENDEDOR` por su tipo, como `V74`) |
+| Prioridad | **Crítica** |
+| Reglas aplicables | `RN-IN-001`, `RN-IN-002`, `RN-IN-006`, `RN-IN-010`, `RN-IN-015`, `RN-SP-048`, `RN-SP-068`, `RN-SP-070` |
+| Depende de | **`SP` publica `BrokerAccountFigures`** (§3) |
+| Tripleta | [`docs/specs/in/009-indicadores-de-cuentas-de-broker/`](../specs/in/009-indicadores-de-cuentas-de-broker/spec.md) |
+| Estado | **En desarrollo** (10-10-2026) |
+
+**Sustituye a `RF-SP-058`**, que se retira con su ruta y su permiso, a petición del responsable del proyecto (10-10-2026): «movamos los indicadores de cuentas de broker, actualizando a la nueva novedad de cuentas de brokers». `GET /api/v1/indicators/broker-accounts/network`: el árbol de la fuerza comercial con lo propio y lo de la red de cada nodo, **atribuido por el `afftrack`** (`RN-IN-015`), con **FTD por la fecha del primer depósito**, **operaciones**, **cuentas sin titular** y el **desglose por broker** de cada bloque. Administración ve el árbol entero y lo no atribuido; un vendedor, su rama; `sellerId` enraíza el árbol en un vendedor del alcance.
+
 ---
 
 ## 7. Requerimientos no funcionales
@@ -350,6 +369,7 @@ Lo **confirmado** en el periodo agrupado por **el vendedor de la línea**, de m�
 | `GET` | `/api/v1/indicators/sales/lines/summary` | `RF-IN-006` | `indicators:read-sale-lines-summary` |
 | `GET` | `/api/v1/indicators/commissions/batches/summary` | `RF-IN-007` | `indicators:read-commission-batches-summary` |
 | `GET` | `/api/v1/indicators/commissions/mine/summary` | `RF-IN-008` | `indicators:read-own-commissions-summary` |
+| `GET` | `/api/v1/indicators/broker-accounts/network` | `RF-IN-009` | `indicators:read-broker-accounts-network` |
 
 El contrato detallado de cada endpoint —parámetros, valores por defecto del periodo, topes— se define en el `plan.md` de su tripleta.
 
@@ -385,3 +405,4 @@ El contrato detallado de cada endpoint —parámetros, valores por defecto del p
 | 0.18.0 | 07-10-2026 | **Nace `RF-IN-008`, el resumen de mis comisiones**, a petición del responsable del proyecto: de las comisiones propias, cuántas y cuánto por estado del lote —abierto, pendiente, pagado— y en total. Tripleta el mismo día (`CA-IN-090` a `CA-IN-096`), `tasks.md` aprobadas, y **construido**: `V83` siembra el permiso (catálogo 206), `CM` amplía `CommissionBatchFigures` y `GET /indicators/commissions/mine/summary` responde. **Nace `RN-IN-013`**, excepción a `RN-IN-002`: un indicador personal cuenta solo lo de quien pregunta. El estado es el de hoy y las fechas, opcionales, son las del nacimiento de la comisión (`RN-IN-012`). Permiso propio, `indicators:read-own-commissions-summary`, a todo rol que porte `commission-batches:list-own`. | Responsable técnico |
 | 0.19.0 | 07-10-2026 | **`RF-IN-008` se filtra por cliente** (`spec.md` 0.2.0, `CA-IN-097`), a petición del responsable del proyecto, igual que `RF-CM-026` 0.2.0: solo las comisiones de ventas a nombre de esa persona. Sin migración ni permisos. | Responsable técnico |
 | 0.20.0 | 09-10-2026 | **Los indicadores de ventas se filtran por oficina** (`RN-IN-014` nueva; enmiendas a `RF-IN-001`, `RF-IN-002` y `RF-IN-006`), a petición del responsable del proyecto: `teamId` cuenta las líneas cuya oficina guardada es esa —el equipo del director del vendedor el día de la venta, `RN-MV-078` de [`requirements/mv.md`](mv.md) v0.97.0—, de modo que un traslado no mueve las cifras. Es filtro, no alcance. `SalesFigures.LineFilter` y el filtro del resumen y de la serie ganan la oficina. Sin migración propia ni permisos. | Responsable del proyecto |
+| 0.21.0 | 10-10-2026 | **Nace la cuarta tanda, cuentas de broker: `RF-IN-009`**, a petición del responsable del proyecto, que **muda aquí `RF-SP-058`** —se retira con su ruta y `broker-accounts:read-indicators`— y lo pone al día con las cuentas de broker de octubre: **atribución por el `afftrack`** y no por el principal del titular, **cuentas sin titular**, **FTD por la fecha de su primer depósito**, **operaciones** y **desglose por broker**. Nace **`RN-IN-015`**, con las cinco respuestas del responsable: a `IN`, por el `afftrack`, cada cifra por su fecha, administración el árbol y cada vendedor su rama, tramos solo en los totales. `SP` publica `BrokerAccountFigures`. Permiso `indicators:read-broker-accounts-network`, por tipo de rol, sembrado por `V101`. | Responsable del proyecto |

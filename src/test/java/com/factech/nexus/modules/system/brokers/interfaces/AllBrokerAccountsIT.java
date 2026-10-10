@@ -636,8 +636,7 @@ class AllBrokerAccountsIT extends IntegrationTestBase {
    * servicio y por eso bastaba con que la persona existiera.
    */
   private static RequestPostProcessor administrador() {
-    return user(SUPERADMIN.toString())
-        .authorities(() -> "broker-accounts:read", () -> "broker-accounts:read-indicators");
+    return user(SUPERADMIN.toString()).authorities(() -> "broker-accounts:read");
   }
 
   private UUID crearPersona(String username, String nombre, String rol) {

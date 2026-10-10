@@ -100,10 +100,6 @@ class PermissionSplitIT extends IntegrationTestBase {
                   post("/api/v1/users/{id}/roles/revocations", ID)
                       .contentType(JSON)
                       .content("{\"roleIds\":[\"" + ID + "\"]}")),
-          new Caso(
-              "GET /broker-accounts/indicators",
-              "broker-accounts:read",
-              () -> get("/api/v1/broker-accounts/indicators")),
           // ---- PM ----
           new Caso("GET /products", "products:read", () -> get("/api/v1/products")),
           new Caso(

@@ -10,6 +10,10 @@
 | Rama | `feature/venta-de-productos` |
 | Autor | Responsable técnico |
 
+!!! warning "Retirado el 10-10-2026"
+
+    `RF-SP-058` se mudó a `IN` como [`RF-IN-009`](../../in/009-indicadores-de-cuentas-de-broker/spec.md) (`RN-IN-015`): atribución por el `afftrack`, FTD por su fecha, operaciones, cuentas sin titular y desglose por broker. La ruta y `broker-accounts:read-indicators` se retiraron con `V101`. Este documento se conserva como historia.
+
 ---
 
 ## 1. Tareas

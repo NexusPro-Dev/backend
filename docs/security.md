@@ -5,7 +5,7 @@
 | Proyecto | NEXUS — Renovación de plataforma |
 | Empresa | FACTECH GROUP SAS |
 | Documento | `security.md` |
-| Versión | 0.133.0 |
+| Versión | 0.134.0 |
 | Estado | Borrador |
 | Responsable técnico | Bonilla Diaz William Steven |
 | Fecha de creación | 19-08-2026 |
@@ -287,7 +287,7 @@ exchange-rates:update   exchange-rates:delete
 
 document-types:read
 
-brokers:read     broker-accounts:read     broker-accounts:read-indicators
+brokers:read     broker-accounts:read
 broker-accounts:read-own-team   broker-accounts:read-team-member   broker-accounts:read-own
 broker-accounts:create-own      broker-accounts:update-own         broker-accounts:delete-own
 broker-accounts:create          broker-accounts:update             broker-accounts:delete
@@ -460,6 +460,8 @@ La vista transversal `v_audit_timeline` (`architecture.md` §6.6.6) exige los cu
 **Y uno más de `SP`, declarado y SEMBRADO el 09-10-2026 por `V96`**, ya en el bloque: `broker-accounts:assign-user` —dar titular a una cuenta de broker que llegó del broker sin él, `PATCH /api/v1/broker-accounts/{brokerAccountId}/holder` (`RF-SP-082`, `RN-SP-072`)—, a `SUPERADMIN` y `ADMIN` **explícitos**. Sin versión propia: asociarse la cuenta uno mismo ocurre al declararla, con el permiso de alta (`RF-SP-053`), y solo si el número y el vendedor coinciden.
 
 **Y uno más de `SP`, declarado y SEMBRADO el 10-10-2026 por `V100`**, ya en el bloque: `broker-accounts:read-own-referred` —las cuentas de consumidor que originó el `afftrack` del actor o el de su red, `GET /api/v1/users/me/referred-broker-accounts` (`RF-SP-083`, `RN-SP-075`)—. **De alcance propio y por tipo de rol, como `broker-accounts:read-own-team`**: a los roles `VENDEDOR` y `FUNCIONARIO`, **no** a `CONSUMIDOR`, que no tiene enlace que origine cuentas. El alcance lo pone la estructura: el permiso abre la ruta y no concede ver las de otros.
+
+**Uno se retira y otro nace el 10-10-2026, por `V101`**: `broker-accounts:read-indicators` desaparece con `GET /api/v1/broker-accounts/indicators` (`RF-SP-058`, retirado), y nace **`indicators:read-broker-accounts-network`** —`GET /api/v1/indicators/broker-accounts/network`, `RF-IN-009`—, a los roles `FUNCIONARIO` y `VENDEDOR` por su tipo, como los de `V74`: el alcance lo pone `RN-IN-002`. El catálogo no cambia de tamaño.
 
 ### 4.5 Resolución en tiempo de ejecución
 
@@ -1131,3 +1133,4 @@ RNF-SEG-002 merece atención: es una prueba que enumera los endpoints registrado
 | 0.131.0 | 09-10-2026 | **Un permiso más: `broker-accounts:assign-user`** (`RF-SP-082`), a `SUPERADMIN` y `ADMIN`, sembrado por `V96`. | Responsable técnico |
 | 0.132.0 | 09-10-2026 | **Un permiso más: `movements:fill-line-teams`** (`RF-MV-058`, [`requirements/mv.md`](requirements/mv.md) v0.97.0 §4.13, `RN-MV-078`): rellenar la oficina de las líneas de venta que no la tienen. A `SUPERADMIN` y `ADMIN`, sembrado por `V99`. | Responsable técnico |
 | 0.133.0 | 10-10-2026 | **Un permiso más: `broker-accounts:read-own-referred`** (`RF-SP-083`, `RN-SP-075`), a los roles `VENDEDOR` y `FUNCIONARIO` por su tipo, sembrado por `V100`. | Responsable técnico |
+| 0.134.0 | 10-10-2026 | **Se retira `broker-accounts:read-indicators` y nace `indicators:read-broker-accounts-network`** (`RF-IN-009`, `RN-IN-015`), a `FUNCIONARIO` y `VENDEDOR` por su tipo, por `V101`. | Responsable técnico |

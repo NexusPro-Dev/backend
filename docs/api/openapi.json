@@ -650,6 +650,191 @@
         },
         "type" : "object"
       },
+      "BrokerNetworkBroker" : {
+        "properties" : {
+          "id" : {
+            "format" : "uuid",
+            "type" : "string"
+          },
+          "name" : {
+            "type" : "string"
+          }
+        },
+        "type" : "object"
+      },
+      "BrokerNetworkBucket" : {
+        "properties" : {
+          "accounts" : {
+            "description" : "Cuentas creadas en el tramo.",
+            "format" : "int64",
+            "type" : "integer"
+          },
+          "ftd" : {
+            "description" : "Primeros depósitos llegados en el tramo.",
+            "format" : "int64",
+            "type" : "integer"
+          },
+          "start" : {
+            "description" : "Primer día del tramo.",
+            "format" : "date",
+            "type" : "string"
+          }
+        },
+        "type" : "object"
+      },
+      "BrokerNetworkByBroker" : {
+        "properties" : {
+          "accounts" : {
+            "format" : "int64",
+            "type" : "integer"
+          },
+          "activeAccounts" : {
+            "format" : "int64",
+            "type" : "integer"
+          },
+          "broker" : {
+            "$ref" : "#/components/schemas/BrokerNetworkBroker"
+          },
+          "conversion" : {
+            "type" : "number"
+          },
+          "ftd" : {
+            "format" : "int64",
+            "type" : "integer"
+          },
+          "operations" : {
+            "format" : "int64",
+            "type" : "integer"
+          },
+          "pending" : {
+            "format" : "int64",
+            "type" : "integer"
+          },
+          "withoutHolder" : {
+            "format" : "int64",
+            "type" : "integer"
+          }
+        },
+        "type" : "object"
+      },
+      "BrokerNetworkFigures" : {
+        "properties" : {
+          "accounts" : {
+            "format" : "int64",
+            "type" : "integer"
+          },
+          "activeAccounts" : {
+            "format" : "int64",
+            "type" : "integer"
+          },
+          "byBroker" : {
+            "description" : "Todos los brokers del catálogo, por nombre; en cero los que no tienen.",
+            "items" : {
+              "$ref" : "#/components/schemas/BrokerNetworkByBroker"
+            },
+            "type" : "array"
+          },
+          "consumers" : {
+            "format" : "int64",
+            "type" : "integer"
+          },
+          "conversion" : {
+            "type" : "number"
+          },
+          "ftd" : {
+            "format" : "int64",
+            "type" : "integer"
+          },
+          "operations" : {
+            "format" : "int64",
+            "type" : "integer"
+          },
+          "pending" : {
+            "format" : "int64",
+            "type" : "integer"
+          },
+          "withoutHolder" : {
+            "format" : "int64",
+            "type" : "integer"
+          }
+        },
+        "type" : "object"
+      },
+      "BrokerNetworkIndicatorsResponse" : {
+        "properties" : {
+          "buckets" : {
+            "description" : "Las cuentas creadas y los FTD de los totales por tramo, todos los tramos presentes; nulo si no se pidió tramo.",
+            "items" : {
+              "$ref" : "#/components/schemas/BrokerNetworkBucket"
+            },
+            "type" : "array"
+          },
+          "granularity" : {
+            "description" : "El tramo pedido —DAY, WEEK o MONTH—, o nulo si no se pidió.",
+            "type" : "string"
+          },
+          "nodes" : {
+            "items" : {
+              "$ref" : "#/components/schemas/BrokerNetworkNode"
+            },
+            "type" : "array"
+          },
+          "period" : {
+            "$ref" : "#/components/schemas/IndicatorPeriod"
+          },
+          "totals" : {
+            "$ref" : "#/components/schemas/BrokerNetworkFigures"
+          },
+          "unassigned" : {
+            "$ref" : "#/components/schemas/BrokerNetworkFigures",
+            "description" : "Las cuentas sin origen o con origen fuera de la fuerza comercial. Solo con el alcance entero y sin sellerId; nulo en otro caso."
+          }
+        },
+        "type" : "object"
+      },
+      "BrokerNetworkNode" : {
+        "properties" : {
+          "children" : {
+            "items" : {
+              "$ref" : "#/components/schemas/BrokerNetworkNode"
+            },
+            "type" : "array"
+          },
+          "network" : {
+            "$ref" : "#/components/schemas/BrokerNetworkFigures",
+            "description" : "Esta persona y todo lo que cuelga de ella, a cualquier profundidad."
+          },
+          "own" : {
+            "$ref" : "#/components/schemas/BrokerNetworkFigures",
+            "description" : "Lo que originó la cuenta VENDEDOR de esta persona."
+          },
+          "roleCode" : {
+            "type" : "string"
+          },
+          "user" : {
+            "$ref" : "#/components/schemas/BrokerNetworkNodeUser"
+          }
+        },
+        "type" : "object"
+      },
+      "BrokerNetworkNodeUser" : {
+        "properties" : {
+          "firstName" : {
+            "type" : "string"
+          },
+          "id" : {
+            "format" : "uuid",
+            "type" : "string"
+          },
+          "lastName" : {
+            "type" : "string"
+          },
+          "username" : {
+            "type" : "string"
+          }
+        },
+        "type" : "object"
+      },
       "BrokerRef" : {
         "properties" : {
           "id" : {
@@ -4829,88 +5014,6 @@
             "type" : "integer"
           },
           "name" : {
-            "type" : "string"
-          }
-        },
-        "type" : "object"
-      },
-      "NetworkIndicators" : {
-        "properties" : {
-          "accounts" : {
-            "format" : "int32",
-            "type" : "integer"
-          },
-          "consumers" : {
-            "format" : "int32",
-            "type" : "integer"
-          },
-          "conversion" : {
-            "type" : "number"
-          },
-          "ftd" : {
-            "format" : "int32",
-            "type" : "integer"
-          },
-          "pending" : {
-            "format" : "int32",
-            "type" : "integer"
-          }
-        },
-        "type" : "object"
-      },
-      "NetworkIndicatorsResponse" : {
-        "properties" : {
-          "nodes" : {
-            "items" : {
-              "$ref" : "#/components/schemas/NetworkNode"
-            },
-            "type" : "array"
-          },
-          "totals" : {
-            "$ref" : "#/components/schemas/NetworkIndicators"
-          },
-          "unassigned" : {
-            "$ref" : "#/components/schemas/NetworkIndicators"
-          }
-        },
-        "type" : "object"
-      },
-      "NetworkNode" : {
-        "properties" : {
-          "children" : {
-            "items" : {
-              "$ref" : "#/components/schemas/NetworkNode"
-            },
-            "type" : "array"
-          },
-          "network" : {
-            "$ref" : "#/components/schemas/NetworkIndicators"
-          },
-          "own" : {
-            "$ref" : "#/components/schemas/NetworkIndicators"
-          },
-          "roleCode" : {
-            "type" : "string"
-          },
-          "user" : {
-            "$ref" : "#/components/schemas/NetworkNodeUser"
-          }
-        },
-        "type" : "object"
-      },
-      "NetworkNodeUser" : {
-        "properties" : {
-          "firstName" : {
-            "type" : "string"
-          },
-          "id" : {
-            "format" : "uuid",
-            "type" : "string"
-          },
-          "lastName" : {
-            "type" : "string"
-          },
-          "username" : {
             "type" : "string"
           }
         },
@@ -12119,87 +12222,6 @@
         "x-required-permission" : "broker-accounts:read"
       }
     },
-    "/api/v1/broker-accounts/indicators" : {
-      "get" : {
-        "description" : "**Permiso requerido:** `broker-accounts:read-indicators`. Sin él, `403` (`AUTH-002`).\n\nDevuelve **el árbol de la fuerza comercial**, cada nodo con dos\nbloques de números: `own` —lo que cuelga **directamente** de esa\npersona— y `network` —esa persona **y todo lo que cuelga de ella**, a\ncualquier profundidad—.\n\n**La regla es una sola en todos los niveles**: el `network` de alguien\nes su `own` más la suma de los `network` de sus hijos. Un agente\nrecibe lo de sus clientes directos; un director, lo suyo más lo de sus\nagentes; un manager, lo suyo más lo de sus directores.\n\n**NO SUME LA COLUMNA `network` DE UNA LISTA.** El `network` de un\ndirector **ya contiene** el de sus agentes, de modo que sumar totales\nde distintos niveles cuenta dos veces. Para agregar, sume `own`; para\nleer el total de una rama, use su `network`.\n\n**Qué cuenta como uno:** `accounts` cuenta **cuentas** y `consumers`\ncuenta **personas**, y no tienen por qué coincidir — un cliente con\ndos cuentas es una persona y dos cuentas. **Solo cuentan las cuentas\nde consumidores**: la cuenta personal de un vendedor no entra en\nningún indicador.\n\n**Los consumidores no son nodos.** Aportan el número y no aparecen: el\nárbol es de la fuerza comercial.\n\n**`conversion` es `ftd / accounts`, un cociente entre 0 y 1 —no un\nporcentaje— y es NULA cuando no hay cuentas**, no cero: cero se lee\ncomo «nadie convirtió» y la verdad sería «no hay nada que convertir».\nSe recalcula en cada nodo sobre sus propios totales; **no es el\npromedio de las de sus hijos**.\n\n**`unassigned` es lo que hace que los números cuadren**: las cuentas\nde consumidores que no cuelgan de ningún vendedor no entran en ningún\nnodo. Se cumple que `totals` + `unassigned` es igual al\n`totalElements` de `GET /api/v1/broker-accounts` sin filtros. Se omite\ncuando se pide una rama con `rootId`, donde no significa nada.\n\n**`rootId` acota el árbol a esa rama e INCLUYE a la persona como\nraíz**, al revés que el `supervisorId` de `GET /api/v1/broker-accounts`:\nallí se piden las cuentas de su red —y las suyas no son de su red— y\naquí se pide el nodo que lleva sus números.\n\n**Hoy `ftd` será cero en todas partes** y el embudo se verá entero en\n`pending`: quien mueve una cuenta a `FIRST_DEPOSIT` es el webhook del\nbroker, que todavía no existe. Es el estado real, no un fallo del\nindicador.\n",
-        "operationId" : "indicadoresDeLaRed",
-        "parameters" : [ {
-          "description" : "Acota el árbol a la rama de esa persona, ella incluida.",
-          "in" : "query",
-          "name" : "rootId",
-          "required" : false,
-          "schema" : {
-            "format" : "uuid",
-            "type" : "string"
-          }
-        } ],
-        "responses" : {
-          "200" : {
-            "content" : {
-              "*/*" : {
-                "schema" : {
-                  "$ref" : "#/components/schemas/NetworkIndicatorsResponse"
-                }
-              }
-            },
-            "description" : "El árbol, con los totales y lo no atribuido. `nodes` vacío si no hay fuerza comercial."
-          },
-          "400" : {
-            "content" : {
-              "*/*" : {
-                "schema" : {
-                  "$ref" : "#/components/schemas/NetworkIndicatorsResponse"
-                }
-              }
-            },
-            "description" : "`rootId` malformado (`VAL-001`)"
-          },
-          "401" : {
-            "content" : {
-              "*/*" : {
-                "schema" : {
-                  "$ref" : "#/components/schemas/NetworkIndicatorsResponse"
-                }
-              }
-            },
-            "description" : "Token ausente o inválido (`AUTH-001`)"
-          },
-          "403" : {
-            "content" : {
-              "*/*" : {
-                "schema" : {
-                  "$ref" : "#/components/schemas/NetworkIndicatorsResponse"
-                }
-              }
-            },
-            "description" : "Autenticado sin `broker-accounts:read-indicators` (`AUTH-002`)"
-          },
-          "404" : {
-            "content" : {
-              "*/*" : {
-                "schema" : {
-                  "$ref" : "#/components/schemas/NetworkIndicatorsResponse"
-                }
-              }
-            },
-            "description" : "`rootId` no designa a nadie de la fuerza comercial, o está eliminado (`VAL-002`)"
-          },
-          "500" : {
-            "content" : {
-              "*/*" : {
-                "schema" : {
-                  "$ref" : "#/components/schemas/NetworkIndicatorsResponse"
-                }
-              }
-            },
-            "description" : "Fallo no controlado (`ERR-500`)"
-          }
-        },
-        "summary" : "Consultar los indicadores de la red comercial",
-        "tags" : [ "Cuentas de broker" ],
-        "x-required-permission" : "broker-accounts:read-indicators"
-      }
-    },
     "/api/v1/broker-accounts/{brokerAccountId}/holder" : {
       "patch" : {
         "description" : "**Permiso requerido:** `broker-accounts:assign-user`. Sin él, `403` (`AUTH-002`).\n\n**Permiso requerido:** `broker-accounts:assign-user` (`RF-SP-082`).\n\nDa titular a una cuenta que **llegó del broker antes que la persona**:\nel aviso de registro la creó como `CONSUMIDOR` sin titular, ligada a la\ncuenta del vendedor de su `afftrack` (`RN-SP-072`). Se encuentran en\n`GET /api/v1/broker-accounts?hasHolder=false`.\n\n**Solo una cuenta sin titular** —reasignar quitaría la cuenta a alguien—\ny **solo a un consumidor**. El origen no cambia. Queda auditado.\n",
@@ -17194,6 +17216,73 @@
         "summary" : "Comprar un producto por el hotlink de un vendedor",
         "tags" : [ "Movimientos" ],
         "x-required-permission" : "products:buy-by-hotlink"
+      }
+    },
+    "/api/v1/indicators/broker-accounts/network" : {
+      "get" : {
+        "description" : "**Permiso requerido:** `indicators:read-broker-accounts-network`. Sin él, `403` (`AUTH-002`).\n\n**El árbol de la fuerza comercial con las cuentas de broker que originó\ncada vendedor** (`RF-IN-009`, `RN-IN-015`). Sustituye a\n`GET /api/v1/broker-accounts/indicators`, retirada el 10-10-2026.\n\n**Cada cuenta de consumidor suma en el dueño de su `afftrack`** —la\ncuenta `VENDEDOR` que la originó—, no en el vendedor principal de su\ntitular; por eso **cuentan también las que no tienen titular**. La de\nun titular eliminado no cuenta.\n\n**Cada nodo trae dos bloques**: `own`, lo que originó su propia cuenta,\ny `network`, él y todo lo que cuelga de él. `network` **ya contiene**\nlo de sus hijos: sumar esa columna cuenta dos veces.\n\n**Cada cifra con su fecha**:\n\n- `accounts` — cuentas **creadas** en el periodo; `pending`, las de\n  esas que siguen sin depósito; `conversion`, la parte de esas que ya\n  depositó, entre 0 y 1, **nula sin cuentas**; `withoutHolder` y\n  `consumers`, también de esas.\n- `ftd` — **primeros depósitos llegados** en el periodo, aunque la\n  cuenta sea anterior. Sin fechas, todas las cuentas en\n  `FIRST_DEPOSIT`.\n- `activeAccounts` — cuentas cuyo **último aviso de operación** cae en\n  el periodo; `operations`, lo que esas llevan **acumulado**.\n- `byBroker` — las mismas cifras por broker, salvo `consumers`, con\n  **todos** los brokers del catálogo.\n\n**Alcance** (`RN-IN-002`): administración ve **el árbol entero** y\n`unassigned` —lo que no tiene origen o cuyo origen no es fuerza\ncomercial—; un vendedor, **su rama**, él como raíz, y `unassigned`\nnulo. `sellerId` enraíza el árbol en un vendedor del alcance; uno de\nfuera devuelve los nodos vacíos y las cifras en cero.\n\n**Periodo** (`RN-IN-010`): `from` y `to` son días del calendario del\nnegocio, `to` incluido entero; sin ninguno, toda la historia.\n**`granularity`** —`DAY`, `WEEK` o `MONTH`— añade a los totales las\ncuentas creadas y los FTD por tramo, todos los tramos presentes.\n",
+        "operationId" : "red",
+        "parameters" : [ {
+          "in" : "query",
+          "name" : "from",
+          "required" : false,
+          "schema" : {
+            "format" : "date",
+            "type" : "string"
+          }
+        }, {
+          "in" : "query",
+          "name" : "to",
+          "required" : false,
+          "schema" : {
+            "format" : "date",
+            "type" : "string"
+          }
+        }, {
+          "description" : "Un vendedor del alcance: el árbol se enraíza en él.",
+          "in" : "query",
+          "name" : "sellerId",
+          "required" : false,
+          "schema" : {
+            "format" : "uuid",
+            "type" : "string"
+          }
+        }, {
+          "description" : "DAY, WEEK o MONTH: tramos en los totales.",
+          "in" : "query",
+          "name" : "granularity",
+          "required" : false,
+          "schema" : {
+            "type" : "string"
+          }
+        } ],
+        "responses" : {
+          "200" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/BrokerNetworkIndicatorsResponse"
+                }
+              }
+            },
+            "description" : "El árbol, los totales y lo no atribuido."
+          },
+          "400" : {
+            "description" : "`from` posterior a `to` (`VAL-002`), `granularity` desconocida (`VAL-005`) o un parámetro malformado"
+          },
+          "401" : {
+            "description" : "Token ausente o inválido (`AUTH-001`)"
+          },
+          "403" : {
+            "description" : "Autenticado sin `indicators:read-broker-accounts-network` (`AUTH-002`)"
+          },
+          "500" : {
+            "description" : "Fallo no controlado (`ERR-500`)"
+          }
+        },
+        "summary" : "Consultar los indicadores de cuentas de broker de la red",
+        "tags" : [ "Indicadores" ],
+        "x-required-permission" : "indicators:read-broker-accounts-network"
       }
     },
     "/api/v1/indicators/commissions/batches/summary" : {
