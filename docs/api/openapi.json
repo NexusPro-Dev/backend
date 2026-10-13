@@ -9703,6 +9703,22 @@
         },
         "type" : "object"
       },
+      "TaughtCourseItem" : {
+        "properties" : {
+          "id" : {
+            "format" : "uuid",
+            "type" : "string"
+          },
+          "status" : {
+            "description" : "ACTIVO o INACTIVO.",
+            "type" : "string"
+          },
+          "title" : {
+            "type" : "string"
+          }
+        },
+        "type" : "object"
+      },
       "TeamBrokerAccountItem" : {
         "properties" : {
           "accountId" : {
@@ -14900,6 +14916,56 @@
         "x-required-permission" : "courses:read-available"
       }
     },
+    "/api/v1/courses/mine" : {
+      "get" : {
+        "description" : "**Permiso requerido:** `courses:list-own`. Sin él, `403` (`AUTH-002`).\n\n**Los cursos no retirados cuyo instructor es quien pregunta**, activos e inactivos,\ncon `id`, `title` y `status`, por orden de presentación y título, sin paginar: los\nmismos en los que puede programar sus clases en vivo\n(`POST /api/v1/live-sessions/mine`). Sin cursos, una lista vacía. **No es el\ncatálogo**: ni categorías, ni portada, ni los de otros.\n\nExige `courses:list-own`; `courses:teach` no habilita.\n",
+        "operationId" : "listarMios",
+        "responses" : {
+          "200" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "items" : {
+                    "$ref" : "#/components/schemas/TaughtCourseItem"
+                  },
+                  "type" : "array"
+                }
+              }
+            },
+            "description" : "Los cursos que dicta."
+          },
+          "401" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "items" : {
+                    "$ref" : "#/components/schemas/TaughtCourseItem"
+                  },
+                  "type" : "array"
+                }
+              }
+            },
+            "description" : "Sin sesión (`AUTH-001`)"
+          },
+          "403" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "items" : {
+                    "$ref" : "#/components/schemas/TaughtCourseItem"
+                  },
+                  "type" : "array"
+                }
+              }
+            },
+            "description" : "Sin el permiso (`AUTH-002`)"
+          }
+        },
+        "summary" : "Consultar los cursos que dicto",
+        "tags" : [ "Cursos" ],
+        "x-required-permission" : "courses:list-own"
+      }
+    },
     "/api/v1/courses/progress" : {
       "get" : {
         "description" : "**Permiso requerido:** `courses:list-progress`. Sin él, `403` (`AUTH-002`).\n\n**Una fila por alumno y curso** en el que el alumno abrió al menos una lección,\npor **última actividad descendente**, paginada. Cada fila con el alumno, el curso\n—vivo o retirado— y su avance: `percent` (lo visto, acotado a cada duración y\nentero si la lección está completada, entre la duración total, hacia abajo),\n`completedLessons` de `lessonCount`, `watchedSeconds` de `totalSeconds`,\n`completed` (todas las lecciones completadas y al menos una), la primera apertura\ny la última actividad. **El avance se calcula sobre las lecciones que el curso\nofrece hoy**: lo visto de una lección retirada no cuenta, y no se pierde.\n\n**Cada uno ve lo que le toca**: un rol `FUNCIONARIO`, todo; un `VENDEDOR`, a su\nred en profundidad —con él dentro— y a los clientes cuyo vendedor principal es de\nla red; y **cualquiera, a los alumnos de los cursos que dicta**. Las condiciones\nse suman. **Fuera del alcance, página vacía**, nunca `403`.\n\nFiltros: `userId`, `courseId` (uno inexistente da página vacía) y `completed`.\n\nExige `courses:list-progress`.\n",
@@ -18148,6 +18214,44 @@
       }
     },
     "/api/v1/live-sessions/mine/{id}" : {
+      "get" : {
+        "description" : "**Permiso requerido:** `live-sessions:read-own`. Sin él, `403` (`AUTH-002`).\n\nEl detalle de administración —descripción, membresías, servicios, repetición,\nregistrados, sin enlace ni contraseña— **de una clase de un curso que dicta** quien\npregunta, también cancelada o terminada. **Una ajena, suelta o inexistente responde\n`404`**, como si no existiera.\n\nExige `live-sessions:read-own`.\n",
+        "operationId" : "detallePropio",
+        "parameters" : [ {
+          "in" : "path",
+          "name" : "id",
+          "required" : true,
+          "schema" : {
+            "format" : "uuid",
+            "type" : "string"
+          }
+        } ],
+        "responses" : {
+          "200" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/LiveSessionDetailResponse"
+                }
+              }
+            },
+            "description" : "La clase."
+          },
+          "404" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/LiveSessionDetailResponse"
+                }
+              }
+            },
+            "description" : "No existe o no es de sus cursos (`EX-001`)"
+          }
+        },
+        "summary" : "Consultar el detalle de una clase en vivo de mi curso",
+        "tags" : [ "Clases en vivo" ],
+        "x-required-permission" : "live-sessions:read-own"
+      },
       "patch" : {
         "description" : "**Permiso requerido:** `live-sessions:update-own`. Sin él, `403` (`AUTH-002`).\n\nComo corregir una clase, sobre las de los cursos que dicta: **una ajena responde\n`404`**, y no se puede mover a un curso que no dicta ni dejarla suelta (`422`).\n\nExige `live-sessions:update-own`.\n",
         "operationId" : "corregirPropia",

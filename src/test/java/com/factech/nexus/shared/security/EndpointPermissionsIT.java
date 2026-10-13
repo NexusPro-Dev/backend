@@ -519,6 +519,8 @@ class EndpointPermissionsIT extends IntegrationTestBase {
           Map.entry(
               "POST /api/v1/live-sessions/mine/{id}/cancellation", "live-sessions:cancel-own"),
           Map.entry("POST /api/v1/live-sessions/mine/{id}/host-link", "live-sessions:host-own"),
+          Map.entry("GET /api/v1/live-sessions/mine/{id}", "live-sessions:read-own"),
+          Map.entry("GET /api/v1/courses/mine", "courses:list-own"),
           Map.entry("GET /api/v1/live-sessions/available", "live-sessions:learn"),
           Map.entry("POST /api/v1/live-sessions/available/{id}/registration", "live-sessions:join"),
           Map.entry("GET /api/v1/courses/{courseId}/progress/{userId}", "courses:read-progress"),

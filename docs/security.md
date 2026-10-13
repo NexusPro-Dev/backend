@@ -5,7 +5,7 @@
 | Proyecto | NEXUS — Renovación de plataforma |
 | Empresa | FACTECH GROUP SAS |
 | Documento | `security.md` |
-| Versión | 0.135.0 |
+| Versión | 0.136.0 |
 | Estado | Borrador |
 | Responsable técnico | Bonilla Diaz William Steven |
 | Fecha de creación | 19-08-2026 |
@@ -462,6 +462,8 @@ La vista transversal `v_audit_timeline` (`architecture.md` §6.6.6) exige los cu
 **Y uno más de `SP`, declarado y SEMBRADO el 10-10-2026 por `V100`**, ya en el bloque: `broker-accounts:read-own-referred` —las cuentas de consumidor que originó el `afftrack` del actor o el de su red, `GET /api/v1/users/me/referred-broker-accounts` (`RF-SP-083`, `RN-SP-075`)—. **De alcance propio y por tipo de rol, como `broker-accounts:read-own-team`**: a los roles `VENDEDOR` y `FUNCIONARIO`, **no** a `CONSUMIDOR`, que no tiene enlace que origine cuentas. El alcance lo pone la estructura: el permiso abre la ruta y no concede ver las de otros.
 
 **Uno se retira y otro nace el 10-10-2026, por `V101`**: `broker-accounts:read-indicators` desaparece con `GET /api/v1/broker-accounts/indicators` (`RF-SP-058`, retirado), y nace **`indicators:read-broker-accounts-network`** —`GET /api/v1/indicators/broker-accounts/network`, `RF-IN-009`—, a los roles `FUNCIONARIO` y `VENDEDOR` por su tipo, como los de `V74`: el alcance lo pone `RN-IN-002`. El catálogo no cambia de tamaño.
+
+**Y dos más de `AC`, declarados y SEMBRADOS el 13-10-2026 por `V104`**: `live-sessions:read-own` —el detalle de una clase de los cursos que dicta, `GET /live-sessions/mine/{id}` (`RF-AC-056`)— y `courses:list-own` —los cursos que dicta, `GET /courses/mine` (`RF-AC-057`)—, **donde está `courses:teach`**, como los propios de `V94`. **No reutilizan `live-sessions:list-own` ni `courses:teach`** (`RN-SEG-014`): cada ruta, su permiso. El catálogo pasa a **237**, y `ADMIN` porta 235.
 
 ### 4.5 Resolución en tiempo de ejecución
 
@@ -1134,3 +1136,4 @@ RNF-SEG-002 merece atención: es una prueba que enumera los endpoints registrado
 | 0.133.0 | 10-10-2026 | **Un permiso más: `broker-accounts:read-own-referred`** (`RF-SP-083`, `RN-SP-075`), a los roles `VENDEDOR` y `FUNCIONARIO` por su tipo, sembrado por `V100`. | Responsable técnico |
 | 0.134.0 | 10-10-2026 | **Se retira `broker-accounts:read-indicators` y nace `indicators:read-broker-accounts-network`** (`RF-IN-009`, `RN-IN-015`), a `FUNCIONARIO` y `VENDEDOR` por su tipo, por `V101`. | Responsable técnico |
 | 0.135.0 | 13-10-2026 | **La ruta pública de los avisos de los brokers es una sola**: se retira `GET` y `POST /api/v1/brokers/{name}/notifications` con sus secretos por broker, y la dirección común **guarda todo aviso con el secreto**, el que no se reconoce sin broker (`RN-SP-076`). El `404` por `advertiser` desaparece, y con él el oráculo que obligaba a mirarlo después del secreto. | Responsable técnico |
+| 0.136.0 | 13-10-2026 | **Dos permisos propios del instructor** (`RF-AC-056`, `RF-AC-057`): `live-sessions:read-own` y `courses:list-own`, donde está `courses:teach`, por `V104`. Catálogo **237**, `ADMIN` 235. | Responsable técnico |

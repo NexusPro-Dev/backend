@@ -266,6 +266,27 @@ public class LiveSessionController {
     return lecturas.listOwn(filtros);
   }
 
+  @GetMapping("/mine/{id}")
+  @PreAuthorize("hasAuthority('live-sessions:read-own')")
+  @Operation(
+      summary = "Consultar el detalle de una clase en vivo de mi curso",
+      description =
+          """
+          El detalle de administración —descripción, membresías, servicios, repetición,
+          registrados, sin enlace ni contraseña— **de una clase de un curso que dicta** quien
+          pregunta, también cancelada o terminada. **Una ajena, suelta o inexistente responde
+          `404`**, como si no existiera.
+
+          Exige `live-sessions:read-own`.
+          """)
+  @ApiResponses({
+    @ApiResponse(responseCode = "200", description = "La clase."),
+    @ApiResponse(responseCode = "404", description = "No existe o no es de sus cursos (`EX-001`)")
+  })
+  public LiveSessionDetailResponse detallePropio(@PathVariable UUID id) {
+    return lecturas.getOwn(id);
+  }
+
   @PostMapping("/mine")
   @ResponseStatus(HttpStatus.CREATED)
   @PreAuthorize("hasAuthority('live-sessions:create-own')")

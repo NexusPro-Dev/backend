@@ -5,6 +5,7 @@ import com.factech.nexus.modules.academy.application.LiveSessionRequests.ListFil
 import com.factech.nexus.modules.academy.application.LiveSessionResponses.Item;
 import com.factech.nexus.modules.academy.domain.repository.LiveSessionQueryRepository;
 import com.factech.nexus.modules.academy.domain.repository.LiveSessionQueryRepository.LiveSessionFilter;
+import com.factech.nexus.modules.academy.domain.repository.LiveSessionQueryRepository.LiveSessionRow;
 import com.factech.nexus.shared.error.FieldError;
 import com.factech.nexus.shared.error.ValidationException;
 import com.factech.nexus.shared.pagination.PageResponse;
@@ -49,6 +50,14 @@ public class ListLiveSessionsService {
 
   @Transactional(readOnly = true)
   public LiveSessionDetailResponse get(UUID id) {
+    return apoyo.detalle(id);
+  }
+
+  /** `RF-AC-056`: el detalle, solo de una clase de los cursos que dicta; lo ajeno, `404`. */
+  @Transactional(readOnly = true)
+  public LiveSessionDetailResponse getOwn(UUID id) {
+    LiveSessionRow clase = consultas.find(id).orElseThrow(LiveSessionSupport::noExiste);
+    apoyo.exigirPropia(clase, apoyo.actorId());
     return apoyo.detalle(id);
   }
 

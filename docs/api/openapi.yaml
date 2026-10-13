@@ -10641,6 +10641,41 @@ paths:
                 $ref: "#/components/schemas/LiveSessionDetailResponse"
       x-required-permission: live-sessions:update
   /api/v1/live-sessions/mine/{id}:
+    get:
+      tags:
+      - Clases en vivo
+      summary: Consultar el detalle de una clase en vivo de mi curso
+      description: |
+        **Permiso requerido:** `live-sessions:read-own`. Sin él, `403` (`AUTH-002`).
+
+        El detalle de administración —descripción, membresías, servicios, repetición,
+        registrados, sin enlace ni contraseña— **de una clase de un curso que dicta** quien
+        pregunta, también cancelada o terminada. **Una ajena, suelta o inexistente responde
+        `404`**, como si no existiera.
+
+        Exige `live-sessions:read-own`.
+      operationId: detallePropio
+      parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      responses:
+        "200":
+          description: La clase.
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/LiveSessionDetailResponse"
+        "404":
+          description: No existe o no es de sus cursos (`EX-001`)
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/LiveSessionDetailResponse"
+      x-required-permission: live-sessions:read-own
     patch:
       tags:
       - Clases en vivo
@@ -15107,6 +15142,48 @@ paths:
               schema:
                 $ref: "#/components/schemas/PageResponseStudentProgressItem"
       x-required-permission: courses:list-progress
+  /api/v1/courses/mine:
+    get:
+      tags:
+      - Cursos
+      summary: Consultar los cursos que dicto
+      description: |
+        **Permiso requerido:** `courses:list-own`. Sin él, `403` (`AUTH-002`).
+
+        **Los cursos no retirados cuyo instructor es quien pregunta**, activos e inactivos,
+        con `id`, `title` y `status`, por orden de presentación y título, sin paginar: los
+        mismos en los que puede programar sus clases en vivo
+        (`POST /api/v1/live-sessions/mine`). Sin cursos, una lista vacía. **No es el
+        catálogo**: ni categorías, ni portada, ni los de otros.
+
+        Exige `courses:list-own`; `courses:teach` no habilita.
+      operationId: listarMios
+      responses:
+        "200":
+          description: Los cursos que dicta.
+          content:
+            '*/*':
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/TaughtCourseItem"
+        "401":
+          description: Sin sesión (`AUTH-001`)
+          content:
+            '*/*':
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/TaughtCourseItem"
+        "403":
+          description: Sin el permiso (`AUTH-002`)
+          content:
+            '*/*':
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/TaughtCourseItem"
+      x-required-permission: courses:list-own
   /api/v1/courses/available:
     get:
       tags:
@@ -23994,6 +24071,17 @@ components:
         lastActivityAt:
           type: string
           format: date-time
+    TaughtCourseItem:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        title:
+          type: string
+        status:
+          type: string
+          description: ACTIVO o INACTIVO.
     ClassroomCatalogResponse:
       type: object
       properties:

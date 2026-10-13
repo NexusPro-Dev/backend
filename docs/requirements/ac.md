@@ -5,7 +5,7 @@
 | Módulo | `AC` — Academia |
 | Paquete | `modules/academy` |
 | Prefijos de permiso | `course-categories:`, `courses:`, `lessons:`, `live-sessions:` |
-| Versión | 0.25.0 |
+| Versión | 0.26.0 |
 | Estado | **Borrador** |
 | Responsable | Bonilla Diaz William Steven |
 | Fecha de creación | 17-09-2026 |
@@ -385,6 +385,10 @@ El responsable del proyecto preguntó el 13-10-2026 si las reuniones se podían 
 - **No se cancela ni se mueve una fecha suelta**: la serie es una clase, y cancelarla la cancela entera. Si hiciera falta, se corrige `repeatUntil` o se cancela y se programa otra.
 - **El filtro por fechas del listado** (`from`, `to`) trae una serie si **alguna de sus fechas puede caer en el rango**: empieza antes del final del rango y termina después de su principio. Una clase sola se filtra como hasta ahora, por su inicio.
 
+#### 5.2.17 Las dos lecturas que le faltaban al instructor — 13-10-2026
+
+Al construir la pantalla del instructor, el frontend encontró **dos huecos** en `RF-AC-048` a `RF-AC-052`: el listado propio trae la fila con sus cuentas y **no el detalle** —descripción, listas, registrados— que el formulario de corregir necesita, y §6.2 decía lo contrario; y programar exige `courseId` de un curso suyo **sin que haya de dónde sacar sus cursos**, porque `GET /courses` pide `courses:read`, que es de administración. El responsable del proyecto aprobó cerrarlos el 13-10-2026 con **dos lecturas y dos permisos nuevos**, uno por ruta (`RN-SEG-014`), sembrados como los demás propios **donde está `courses:teach`**: `RF-AC-056`, el detalle de una clase de mis cursos, y `RF-AC-057`, los cursos que dicto. Descartado: reusar `live-sessions:list-own` y `courses:teach`, que rompía la regla de un permiso por ruta.
+
 ### 5.3 Reglas de otros documentos que este módulo aplica
 
 | Regla | Dónde vive | Cómo la aplica este módulo |
@@ -460,8 +464,10 @@ El responsable del proyecto preguntó el 13-10-2026 si las reuniones se podían 
 | `RF-AC-053` | Consultar las clases en vivo como alumno | En vivo | Alta | `live-sessions:learn` | **En desarrollo** (09-10-2026) |
 | `RF-AC-054` | Entrar a una clase en vivo | En vivo | Alta | `live-sessions:join` | **En desarrollo** (09-10-2026) |
 | `RF-AC-055` | Repetir una clase en vivo | En vivo | Media | Los de programar y corregir | **En desarrollo** (13-10-2026) |
+| `RF-AC-056` | Consultar el detalle de una clase en vivo de mi curso | En vivo | Media | `live-sessions:read-own` | **En desarrollo** (13-10-2026) |
+| `RF-AC-057` | Consultar los cursos que dicto | Cursos | Media | `courses:list-own` | **En desarrollo** (13-10-2026) |
 
-**Cincuenta y cinco requerimientos** —treinta y cinco del 17-09-2026, `RF-AC-036` del 18 (§5.2.7), `RF-AC-037` y `RF-AC-038` del 25 (§5.2.8), `RF-AC-039` a `RF-AC-041` del 09-10-2026 (§5.2.14), `RF-AC-042` a `RF-AC-054` del mismo día (§5.2.15) y `RF-AC-055` del 13-10-2026 (§5.2.16)—, y la cifra merece una explicación: no es que el módulo sea grande, es que **cada entidad paga el mismo precio** —alta, corrección, estado, retiro— y **cada relación cobra dos** —dar y quitar—. Es la misma forma que `PM` con el producto y el paquete, y la razón de no juntar «asociar» y «desasociar» en un solo requerimiento es la de siempre: son dos operaciones con dos reglas distintas y dos auditorías distintas.
+**Cincuenta y siete requerimientos** —treinta y cinco del 17-09-2026, `RF-AC-036` del 18 (§5.2.7), `RF-AC-037` y `RF-AC-038` del 25 (§5.2.8), `RF-AC-039` a `RF-AC-041` del 09-10-2026 (§5.2.14), `RF-AC-042` a `RF-AC-054` del mismo día (§5.2.15) `RF-AC-055` del 13-10-2026 (§5.2.16) y `RF-AC-056` y `RF-AC-057` del mismo día (§5.2.17)—, y la cifra merece una explicación: no es que el módulo sea grande, es que **cada entidad paga el mismo precio** —alta, corrección, estado, retiro— y **cada relación cobra dos** —dar y quitar—. Es la misma forma que `PM` con el producto y el paquete, y la razón de no juntar «asociar» y «desasociar» en un solo requerimiento es la de siempre: son dos operaciones con dos reglas distintas y dos auditorías distintas.
 
 **Los módulos, las lecciones y las cuatro relaciones se administran con `courses:update`** y no con un recurso propio (§7): son partes del curso, y quien puede corregir un curso puede armarlo.
 
@@ -1174,8 +1180,21 @@ Baja lógica con motivo y registro. No arrastra nada: no hay nada debajo.
 | `RF-AC-050` Corregir una clase en vivo de mi curso | `PATCH /api/v1/live-sessions/mine/{id}` | `live-sessions:update-own` |
 | `RF-AC-051` Cancelar una clase en vivo de mi curso | `POST /api/v1/live-sessions/mine/{id}/cancellation` | `live-sessions:cancel-own` |
 | `RF-AC-052` Iniciar como anfitrión una clase en vivo de mi curso | `POST /api/v1/live-sessions/mine/{id}/host-link` | `live-sessions:host-own` |
+| `RF-AC-056` Consultar el detalle de una clase en vivo de mi curso (13-10-2026) | `GET /api/v1/live-sessions/mine/{id}` | `live-sessions:read-own` |
 
-**Las de administración con la regla de propiedad delante** (`RN-AC-028`): el listado trae solo las clases de los cursos que dicta quien pregunta, con el detalle de cada una dentro; programar **exige `courseId`** y que sea suyo —si no, `422`—; y corregir, cancelar o iniciar una clase que no es de sus cursos responde **`404`**. Corregir no puede mover la clase a un curso que no dicta.
+**Las de administración con la regla de propiedad delante** (`RN-AC-028`): el listado trae solo las clases de los cursos que dicta quien pregunta, con sus cuentas, y **el detalle de cada una sale de `RF-AC-056`** —el de `RF-AC-043`, con sus listas y sus registrados—; programar **exige `courseId`** y que sea suyo —si no, `422`—; y ver, corregir, cancelar o iniciar una clase que no es de sus cursos responde **`404`**. Corregir no puede mover la clase a un curso que no dicta.
+
+#### `RF-AC-057` — Consultar los cursos que dicto
+
+| Campo | Valor |
+|---|---|
+| Objetivo | Que el instructor sepa de qué cursos puede programar clases |
+| Actor | Instructor |
+| Permiso requerido | `courses:list-own` |
+| Reglas aplicables | `RN-AC-006`, `RN-AC-028` |
+| Estado | **En desarrollo** (13-10-2026) |
+
+`GET /api/v1/courses/mine`: **los cursos no retirados cuyo instructor es quien pregunta** —los mismos en los que `RF-AC-049` le deja programar—, con `id`, `title` y `status`, por orden de presentación y título, sin paginar. Sin cursos, una lista vacía. **No es el catálogo**: ni categorías, ni portada, ni lo de otros.
 
 #### `RF-AC-053` — Consultar las clases en vivo como alumno
 
@@ -1227,7 +1246,7 @@ Baja lógica con motivo y registro. No arrastra nada: no hay nada debajo.
 | `courses:create` | `courses` | `create` | Registrar un curso |
 | `courses:update` | `courses` | `update` | Corregir un curso, cambiar su estado, su portada, **sus relaciones**, y **registrar, corregir, cambiar de estado, retirar y poner portada a sus módulos y lecciones** |
 | `courses:delete` | `courses` | `delete` | Retirar un curso, con lo que arrastra |
-| `courses:teach` | `courses` | `teach` | **Poder ser instructor** de un curso (`RN-AC-006`). No gobierna ninguna ruta hoy |
+| `courses:teach` | `courses` | `teach` | **Poder ser instructor** de un curso (`RN-AC-006`). No gobierna ninguna ruta: decide dónde se siembran los permisos propios del instructor |
 | `courses:learn` | `courses` | `learn` | **El catálogo del alumno** (`RF-AC-033`). Hasta el 26-09-2026 gobernaba también el detalle y el contenido |
 | `courses:read-available` | `courses` | `read-available` | **El detalle de un curso como alumno** (`RF-AC-034`), desde el 26-09-2026 (`V47`) |
 | `lessons:learn` | `lessons` | `learn` | **El contenido de una lección como alumno** (`RF-AC-035`), desde el 26-09-2026 (`V47`) |
@@ -1244,6 +1263,8 @@ Baja lógica con motivo y registro. No arrastra nada: no hay nada debajo.
 | `live-sessions:update-own` | `live-sessions` | `update-own` | Corregir una clase de un curso que dicta (`RF-AC-050`) |
 | `live-sessions:cancel-own` | `live-sessions` | `cancel-own` | Cancelar una clase de un curso que dicta (`RF-AC-051`) |
 | `live-sessions:host-own` | `live-sessions` | `host-own` | El enlace de anfitrión de una clase de un curso que dicta (`RF-AC-052`) |
+| `live-sessions:read-own` | `live-sessions` | `read-own` | El detalle de una clase de un curso que dicta, con sus registrados (`RF-AC-056`, 13-10-2026, `V104`) |
+| `courses:list-own` | `courses` | `list-own` | Los cursos que dicta (`RF-AC-057`, 13-10-2026, `V104`) |
 | `live-sessions:learn` | `live-sessions` | `learn` | Las clases que vienen, como alumno (`RF-AC-053`) |
 | `live-sessions:join` | `live-sessions` | `join` | Entrar a una clase: registrarse en Zoom y recibir el enlace personal (`RF-AC-054`) |
 | `courses:read-progress` | `courses` | `read-progress` | **El progreso de un alumno en un curso**, lección a lección, dentro del alcance (`RF-AC-041`, `RN-AC-024`), desde el 09-10-2026 |
@@ -1529,3 +1550,4 @@ Clave primaria compuesta. **La clave foránea a `memberships` se declara** hacia
 | 0.23.1 | 09-10-2026 | **La clase en vivo se programa con día, hora de inicio y hora de fin**, y no con inicio y duración, por decisión del responsable del proyecto: `live_sessions.ends_at` sustituye a `duration_minutes`, de 15 minutos a 10 horas, y la zona por omisión es `America/Bogota` (`RN-AC-029`). **Aprobado el bloque** con lo decidido sin preguntar en §5.2.15. | Responsable técnico |
 | 0.24.0 | 09-10-2026 | **Las clases en vivo están construidas**: `RF-AC-042` a `RF-AC-054` pasan a `En desarrollo`, con `V94` (cuatro tablas, trece permisos —catálogo 232, `ADMIN` 230— y el evento de seguridad `LIVE_SESSION_HOST_LINK_ISSUED`), el cliente de Zoom en `shared/zoom` y `SP` publicando `UserContactLookup` para registrar a quien entra. Ninguna prueba llama a Zoom. | Responsable técnico |
 | 0.25.0 | 13-10-2026 | **Las clases en vivo se repiten** (§5.2.16), a petición del responsable del proyecto: «marcar que la reunión sea cada día de tal a tal hora, semanal o mensual». Nace **`RN-AC-031`** —una clase, una reunión recurrente de Zoom con hora fija, cada día, cada semana el mismo día o cada mes el mismo día del mes, hasta `repeatUntil`, de 2 a 60 fechas, la mensual no después del día 28; termina con su última fecha y se cancela entera— y **`RF-AC-055`**, sin ruta propia: los campos `recurrence` y `repeatUntil` en programar y corregir, y `nextStartsAt` y `nextEndsAt` en las lecturas. `RN-AC-029` calcula «terminada» con la última fecha. §8.10 gana `recurrence`, `repeat_until` y `series_ends_at` (`V102`). | Responsable técnico |
+| 0.26.0 | 13-10-2026 | **Las dos lecturas que le faltaban al instructor** (§5.2.17), aprobadas por el responsable del proyecto a raíz de la pantalla del frontend: **`RF-AC-056`**, el detalle de una clase de mis cursos (`GET /live-sessions/mine/{id}`, `live-sessions:read-own`, `404` si es ajena), y **`RF-AC-057`**, los cursos que dicto (`GET /courses/mine`, `courses:list-own`). Dos permisos, sembrados donde está `courses:teach` (`V104`). §6.2 corrige lo que decía del listado propio: trae cuentas, no el detalle. | Responsable técnico |
