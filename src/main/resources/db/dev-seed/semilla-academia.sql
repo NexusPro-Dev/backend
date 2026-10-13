@@ -35,7 +35,8 @@
 -- curso, un módulo activo y una lección activa con contenido—.
 --
 -- LOS INSTRUCTORES SON `admin1` Y `superadmin`, que portan `courses:teach` por
--- `V22` (ADMIN y SUPERADMIN). Si alguno falta, su curso no se siembra.
+-- `V22` (ADMIN y SUPERADMIN). Si alguno falta, su curso no se siembra. Cada
+-- curso lleva uno, en `course_instructors` (`V106`, `RN-AC-033`).
 --
 -- SIN PORTADAS: `academy_images` guarda los bytes y una imagen de prueba no
 -- aporta nada que no se pruebe subiéndola por la API (`RF-AC-006`).
@@ -217,9 +218,9 @@ lecciones (curso, modulo, tipo, titulo, descripcion, contenido, segundos, orden,
        'La lección que tenía el curso retirado.', 'https://www.youtube.com/watch?v=n-dc74-SopA', 600, 0, false, 'ACTIVO')
 ),
 nuevos_cursos AS (
-  INSERT INTO courses (id, title, instructor_id, difficulty, short_description, long_description,
+  INSERT INTO courses (id, title, difficulty, short_description, long_description,
                        intro_video_url, display_order, status, deleted_at)
-  SELECT pg_temp.uuid_v7(), c.titulo, u.id, c.dificultad, c.corta, c.larga,
+  SELECT pg_temp.uuid_v7(), c.titulo, c.dificultad, c.corta, c.larga,
          c.video, c.orden, c.estado,
          CASE WHEN c.retirado THEN now() ELSE NULL END
     FROM cursos c
@@ -227,6 +228,14 @@ nuevos_cursos AS (
    WHERE NOT EXISTS (SELECT 1 FROM courses x
                       WHERE f_unaccent(lower(x.title)) = f_unaccent(lower(c.titulo)))
   RETURNING id, title, deleted_at
+),
+nuevos_instructores AS (
+  INSERT INTO course_instructors (course_id, user_id)
+  SELECT n.id, u.id
+    FROM nuevos_cursos n
+    JOIN cursos c ON c.titulo = n.title
+    JOIN users u ON u.username = c.instructor AND u.deleted_at IS NULL
+  RETURNING course_id
 ),
 nuevos_modulos AS (
   INSERT INTO course_modules (id, course_id, title, short_description, long_description,

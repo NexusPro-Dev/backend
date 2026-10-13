@@ -7,6 +7,7 @@ import com.factech.nexus.shared.error.ValidationException;
 import com.factech.nexus.shared.patch.Patchable;
 import java.time.OffsetDateTime;
 import java.time.ZoneOffset;
+import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 import org.junit.jupiter.api.DisplayName;
@@ -29,7 +30,7 @@ class CourseTest {
     Course c = crear("  Velas japonesas  ", "   ", "  ", null, 0);
 
     assertThat(c.getTitle()).isEqualTo("Velas japonesas");
-    assertThat(c.getInstructorId()).isEqualTo(INSTRUCTOR);
+    assertThat(c.getInstructorIds()).containsExactly(INSTRUCTOR);
     assertThat(c.getDifficulty()).isEqualTo(CourseDifficulty.PRINCIPIANTE);
     assertThat(c.getShortDescription()).isNull();
     assertThat(c.getLongDescription()).isNull();
@@ -54,7 +55,9 @@ class CourseTest {
   }
 
   @Test
-  @DisplayName("instructor y dificultad nulos, y orden negativo, se rechazan")
+  @DisplayName(
+      "instructores nulos, vacíos o repetidos, dificultad nula y orden negativo se rechazan"
+          + " (`RN-AC-033`)")
   void obligatorios() {
     assertThatThrownBy(
             () ->
@@ -72,7 +75,36 @@ class CourseTest {
         .hasMessageContaining("instructor");
     assertThatThrownBy(
             () ->
-                Course.create(UUID.randomUUID(), "T", INSTRUCTOR, null, null, null, null, 0, AHORA))
+                Course.create(
+                    UUID.randomUUID(),
+                    "T",
+                    List.of(),
+                    CourseDifficulty.AVANZADO,
+                    null,
+                    null,
+                    null,
+                    0,
+                    AHORA))
+        .isInstanceOf(ValidationException.class)
+        .hasMessageContaining("al menos un instructor");
+    assertThatThrownBy(
+            () ->
+                Course.create(
+                    UUID.randomUUID(),
+                    "T",
+                    List.of(INSTRUCTOR, INSTRUCTOR),
+                    CourseDifficulty.AVANZADO,
+                    null,
+                    null,
+                    null,
+                    0,
+                    AHORA))
+        .isInstanceOf(ValidationException.class)
+        .hasMessageContaining("repetidos");
+    assertThatThrownBy(
+            () ->
+                Course.create(
+                    UUID.randomUUID(), "T", List.of(INSTRUCTOR), null, null, null, null, 0, AHORA))
         .isInstanceOf(ValidationException.class)
         .hasMessageContaining("dificultad");
     assertThatThrownBy(() -> crear("T", null, null, null, -1))
@@ -112,7 +144,7 @@ class CourseTest {
     Map<String, Object> cambios =
         c.update(
             Patchable.de("Velas japonesas"),
-            Patchable.de(otro),
+            Patchable.de(List.of(otro, INSTRUCTOR)),
             Patchable.de(CourseDifficulty.INTERMEDIO),
             Patchable.de("Corta"),
             Patchable.de(null),
@@ -122,9 +154,18 @@ class CourseTest {
 
     assertThat(cambios.keySet())
         .containsExactly(
-            "title", "instructor_id", "difficulty", "long_description", "display_order");
-    assertThat(cambios.get("instructor_id"))
-        .isEqualTo(Map.of("before", INSTRUCTOR.toString(), "after", otro.toString()));
+            "title", "instructor_ids", "difficulty", "long_description", "display_order");
+    assertThat(cambios.get("instructor_ids"))
+        .isEqualTo(
+            Map.of(
+                "before",
+                List.of(INSTRUCTOR.toString()),
+                "after",
+                java.util.stream.Stream.of(otro, INSTRUCTOR)
+                    .map(UUID::toString)
+                    .sorted()
+                    .toList()));
+    assertThat(c.getInstructorIds()).containsExactlyInAnyOrder(otro, INSTRUCTOR);
     assertThat(cambios.get("long_description")).isEqualTo(Map.of("before", "Larga", "after", ""));
     assertThat(c.getLongDescription()).isNull();
     assertThat(c.getShortDescription()).isEqualTo("Corta");
@@ -139,7 +180,7 @@ class CourseTest {
     Map<String, Object> cambios =
         c.update(
             Patchable.de("  Velas "),
-            Patchable.de(INSTRUCTOR),
+            Patchable.de(List.of(INSTRUCTOR)),
             Patchable.de(CourseDifficulty.PRINCIPIANTE),
             Patchable.de("Corta "),
             Patchable.de(null),
@@ -176,7 +217,7 @@ class CourseTest {
   }
 
   @Test
-  @DisplayName("retirar marca la fila sin tocar el estado, y la instantánea lleva instructor_id")
+  @DisplayName("retirar marca la fila sin tocar el estado, y la instantánea lleva instructor_ids")
   void retira() {
     Course c = crear("Velas", null, null, null, 0);
     c.activate(AHORA);
@@ -185,7 +226,7 @@ class CourseTest {
     assertThat(c.estaRetirado()).isTrue();
     assertThat(c.getStatus()).isEqualTo(CourseStatus.ACTIVO);
     assertThat(c.instantanea())
-        .containsEntry("instructor_id", INSTRUCTOR.toString())
+        .containsEntry("instructor_ids", List.of(INSTRUCTOR.toString()))
         .containsEntry("status", "ACTIVO")
         .containsEntry("cover_image_id", null)
         .doesNotContainKey("code");
@@ -195,7 +236,7 @@ class CourseTest {
     return Course.create(
         UUID.randomUUID(),
         titulo,
-        INSTRUCTOR,
+        List.of(INSTRUCTOR),
         CourseDifficulty.PRINCIPIANTE,
         corta,
         larga,

@@ -1,6 +1,9 @@
 package com.factech.nexus.modules.academy.domain.repository;
 
 import com.factech.nexus.modules.academy.application.ListCoursesRequest;
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.core.type.TypeReference;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import jakarta.persistence.EntityManager;
 import jakarta.persistence.Query;
 import jakarta.persistence.Tuple;
@@ -70,9 +73,14 @@ public class JpaCourseQueryRepository implements CourseQueryRepository {
 
   private static final String COLUMNAS =
       """
-      c.id AS id, c.title AS title, c.instructor_id AS instructor_id,
-      u.username AS instructor_username, u.first_name AS instructor_first_name,
-      u.last_name AS instructor_last_name,
+      c.id AS id, c.title AS title,
+      (SELECT COALESCE(json_agg(json_build_object('id', iu.id, 'username', iu.username,
+                                                  'firstName', iu.first_name,
+                                                  'lastName', iu.last_name)
+                                ORDER BY lower(iu.first_name), lower(iu.last_name), iu.id),
+                       '[]'::json)::text
+         FROM course_instructors ci JOIN users iu ON iu.id = ci.user_id
+        WHERE ci.course_id = c.id) AS instructors,
       c.difficulty AS difficulty, c.short_description AS short_description,
       c.long_description AS long_description, c.intro_video_url AS intro_video_url,
       c.display_order AS display_order, c.status AS status, c.cover_image_id AS cover_image_id,
@@ -91,7 +99,12 @@ public class JpaCourseQueryRepository implements CourseQueryRepository {
           c.created_at AS created_at, c.updated_at AS updated_at, c.deleted_at AS deleted_at
           """;
 
-  private static final String DESDE = " FROM courses c JOIN users u ON u.id = c.instructor_id ";
+  private static final String DESDE = " FROM courses c ";
+
+  private static final ObjectMapper JSON = new ObjectMapper();
+
+  private static final TypeReference<List<CourseInstructor>> INSTRUCTORES =
+      new TypeReference<>() {};
 
   private final EntityManager em;
 
@@ -396,7 +409,9 @@ public class JpaCourseQueryRepository implements CourseQueryRepository {
       donde.append(" AND f_unaccent(lower(c.title)) LIKE f_unaccent(lower(:termino)) ESCAPE '\\'");
     }
     if (filtros.instructorId() != null) {
-      donde.append(" AND c.instructor_id = :instructor");
+      donde.append(
+          " AND EXISTS (SELECT 1 FROM course_instructors ci"
+              + " WHERE ci.course_id = c.id AND ci.user_id = :instructor)");
     }
     if (filtros.difficulty() != null) {
       donde.append(" AND c.difficulty = :dificultad");
@@ -442,10 +457,7 @@ public class JpaCourseQueryRepository implements CourseQueryRepository {
     return new CourseRow(
         (UUID) fila.get("id"),
         (String) fila.get("title"),
-        (UUID) fila.get("instructor_id"),
-        (String) fila.get("instructor_username"),
-        (String) fila.get("instructor_first_name"),
-        (String) fila.get("instructor_last_name"),
+        instructores(fila.get("instructors")),
         (String) fila.get("difficulty"),
         (String) fila.get("short_description"),
         (String) fila.get("long_description"),
@@ -461,6 +473,21 @@ public class JpaCourseQueryRepository implements CourseQueryRepository {
         momento(fila.get("created_at")),
         momento(fila.get("updated_at")),
         momento(fila.get("deleted_at")));
+  }
+
+  /**
+   * Los instructores llegan como un arreglo JSON de la subconsulta de {@link #COLUMNAS}: una
+   * columna más, y ninguna sentencia más por curso.
+   */
+  private static List<CourseInstructor> instructores(Object valor) {
+    if (valor == null) {
+      return List.of();
+    }
+    try {
+      return List.copyOf(JSON.readValue(valor.toString(), INSTRUCTORES));
+    } catch (JsonProcessingException e) {
+      throw new IllegalStateException("Los instructores del curso no se pudieron leer.", e);
+    }
   }
 
   static OffsetDateTime momento(Object valor) {

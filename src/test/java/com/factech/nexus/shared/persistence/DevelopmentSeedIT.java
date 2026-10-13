@@ -712,7 +712,8 @@ class DevelopmentSeedIT extends IntegrationTestBase {
     assertThat(
             jdbc.queryForList(
                 "SELECT c.title || '|' || c.status || '|' || (c.deleted_at IS NOT NULL)"
-                    + " || '|' || u.username FROM courses c JOIN users u ON u.id = c.instructor_id"
+                    + " || '|' || u.username FROM courses c JOIN course_instructors i ON i.course_id = c.id"
+                    + " JOIN users u ON u.id = i.user_id"
                     + " WHERE c.title = ANY (?) ORDER BY c.display_order",
                 String.class,
                 titulos))
@@ -872,6 +873,7 @@ class DevelopmentSeedIT extends IntegrationTestBase {
             + "))",
         titulos);
     jdbc.update("DELETE FROM course_modules WHERE course_id IN (" + cursos + ")", titulos);
+    jdbc.update("DELETE FROM course_instructors WHERE course_id IN (" + cursos + ")", titulos);
     jdbc.update("DELETE FROM courses WHERE title = ANY (?)", titulos);
     jdbc.update(
         "DELETE FROM course_categories WHERE name = ANY (?)",

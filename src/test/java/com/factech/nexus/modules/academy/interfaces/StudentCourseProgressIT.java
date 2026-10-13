@@ -136,8 +136,8 @@ class StudentCourseProgressIT extends IntegrationTestBase {
 
   @Test
   @DisplayName(
-      "`CA-AC-255` — administración a cualquiera; el manager a su red y a sus clientes y no al"
-          + " ajeno; el instructor a cualquiera de su curso y no de otro")
+      "`CA-AC-255`, `CA-AC-328` — administración a cualquiera; el manager a su red y a sus"
+          + " clientes y no al ajeno; cualquier instructor a cualquiera de su curso y no de otro")
   void elAlcance() throws Exception {
     pedir(admin, velas.curso(), ajeno).andExpect(status().isOk());
 
@@ -149,6 +149,11 @@ class StudentCourseProgressIT extends IntegrationTestBase {
     pedir(profe, velas.curso(), ajeno).andExpect(status().isOk());
     pedir(profe, velas.curso(), cliente).andExpect(status().isOk());
     pedir(profe, otro.curso(), ajeno).andExpect(status().isNotFound());
+
+    // El segundo instructor del otro curso también alcanza a sus alumnos (`RN-AC-033`).
+    jdbc.update(
+        "INSERT INTO course_instructors (course_id, user_id) VALUES (?, ?)", otro.curso(), profe);
+    pedir(profe, otro.curso(), ajeno).andExpect(status().isOk());
 
     // Un agente solo se alcanza a sí mismo y a sus clientes: no sube a su manager.
     pedir(agente, velas.curso(), cliente).andExpect(status().isOk());

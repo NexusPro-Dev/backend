@@ -3,6 +3,7 @@ package com.factech.nexus.modules.academy.application;
 import com.factech.nexus.modules.academy.domain.models.CourseDifficulty;
 import com.factech.nexus.shared.video.VideoLink;
 import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.NotEmpty;
 import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Pattern;
 import jakarta.validation.constraints.PositiveOrZero;
@@ -30,7 +31,16 @@ public record RegisterCourseRequest(
             max = 150,
             message = "VAL-001: El título es obligatorio y no puede superar los 150 caracteres.")
         String title,
-    @NotNull(message = "VAL-002: El instructor es obligatorio.") UUID instructorId,
+    // Desde el 13-10-2026 (`RF-AC-062`, `RN-AC-033`): uno o más; las repetidas, en
+    // el caso de uso, como las otras tres listas.
+    @NotEmpty(message = "VAL-002: El curso necesita al menos un instructor.")
+        List<
+                @NotNull(
+                    message =
+                        "VAL-008: La lista de instructores no puede traer identificadores repetidos"
+                            + " ni vacíos.")
+                UUID>
+            instructorIds,
     @NotNull(
             message =
                 "VAL-003: La dificultad es obligatoria y debe ser PRINCIPIANTE, INTERMEDIO o"

@@ -71,7 +71,7 @@ public class GetStudentCourseProgressService {
             .currentActorId()
             .orElseThrow(() -> new UnauthorizedException("AUTH-001", "Se requiere autenticación."));
     CourseRow curso = cursos.findDetail(courseId).orElseThrow(GetStudentCourseProgressService::no);
-    if (!audiencia.of(quien).reaches(userId, curso.instructorId())) {
+    if (!audiencia.of(quien).reaches(userId, curso.instructorIds())) {
       throw no();
     }
     UserView alumno =

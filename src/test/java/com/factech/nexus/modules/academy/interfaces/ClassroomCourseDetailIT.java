@@ -65,8 +65,8 @@ class ClassroomCourseDetailIT extends IntegrationTestBase {
 
   @Test
   @DisplayName(
-      "`CA-AC-195` — el curso ofrecido con sus campos, llaves y árbol; sin estados, offerable ni"
-          + " contenido")
+      "`CA-AC-195`, `CA-AC-327` — el curso ofrecido con sus campos, instructores, llaves y árbol;"
+          + " sin estados, offerable ni contenido")
   void laForma() throws Exception {
     Ofrecido velas = ofrecido(jdbc, "Velas", instructor, 0);
     abrirAMembresia(jdbc, velas.curso(), ORO);
@@ -79,7 +79,7 @@ class ClassroomCourseDetailIT extends IntegrationTestBase {
         .andExpect(jsonPath("$.longDescription").value("Larga"))
         .andExpect(jsonPath("$.introVideoUrl").value(nullValue()))
         .andExpect(jsonPath("$.coverImageUrl").value(nullValue()))
-        .andExpect(jsonPath("$.instructor.fullName").value("Juan Pérez"))
+        .andExpect(jsonPath("$.instructors[0].fullName").value("Juan Pérez"))
         .andExpect(jsonPath("$.memberships[*].code").value(contains("ORO")))
         .andExpect(jsonPath("$.memberships[0].color").value("FFB300"))
         .andExpect(jsonPath("$.products[*].code").value(contains("ACL_BOT")))

@@ -110,6 +110,7 @@ public class RegisterCourseService {
   public CourseDetailResponse register(RegisterCourseRequest peticion) {
     // `VAL-008`, antes de consultar nada: una lista con repetidas es un error de
     // forma del cliente, y se le dice sin gastar una sentencia.
+    sinRepetidas(peticion.instructorIds(), "instructorIds", "instructores");
     sinRepetidas(peticion.categoryIds(), "categoryIds", "categorías");
     sinRepetidas(peticion.productIds(), "productIds", "servicios");
     sinRepetidas(peticion.membershipIds(), "membershipIds", "membresías");
@@ -123,7 +124,9 @@ public class RegisterCourseService {
           List.of(new FieldError("title", "EX-001", JpaCourseRepository.MENSAJE_TITULO)));
     }
 
-    instructor.verificar(peticion.instructorId());
+    for (UUID uno : peticion.instructorIds()) {
+      instructor.verificar(uno, "instructorIds");
+    }
 
     // Las categorías ANTES de insertar nada (`EX-004`): el `422` no debe costar
     // un INSERT revertido, y se nombran TODAS las que fallan, no la primera.
@@ -136,7 +139,7 @@ public class RegisterCourseService {
             Course.create(
                 ids.next(),
                 peticion.title(),
-                peticion.instructorId(),
+                peticion.instructorIds(),
                 peticion.difficulty(),
                 peticion.shortDescription(),
                 peticion.longDescription(),

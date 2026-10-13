@@ -5,7 +5,7 @@
 | Proyecto | NEXUS — Renovación de plataforma |
 | Empresa | FACTECH GROUP SAS |
 | Documento | `requirements.md` |
-| Versión | 0.353.0 |
+| Versión | 0.354.0 |
 | Estado | Borrador |
 | Responsable técnico | Bonilla Diaz William Steven |
 | Fecha de creación | 20-08-2026 |
@@ -347,6 +347,7 @@ Implementa el Art. III.1. Se actualiza **como parte del cambio**, no después (A
 | `RF-AC-059` | Quitar la portada de una clase en vivo | `AC` | [`specs/ac/058-portada-de-clase-en-vivo/`](specs/ac/058-portada-de-clase-en-vivo/tasks.md) | Pendiente de crear | `develop` | **Nace con tripleta el 13-10-2026** ([`requirements/ac.md`](requirements/ac.md) v0.27.0 §5.2.18, `RN-AC-032`), con la separación de las clases en vivo de los cursos: `DELETE /api/v1/live-sessions/{id}/cover` con `live-sessions:remove-cover` (`V105`). **Construido el mismo día** | **En desarrollo** |
 | `RF-AC-060` | Poner la portada de una clase en vivo mía | `AC` | [`specs/ac/058-portada-de-clase-en-vivo/`](specs/ac/058-portada-de-clase-en-vivo/tasks.md) | Pendiente de crear | `develop` | **Nace con tripleta el 13-10-2026** ([`requirements/ac.md`](requirements/ac.md) v0.27.0 §5.2.18, `RN-AC-032`), con la separación de las clases en vivo de los cursos: `PUT /api/v1/live-sessions/mine/{id}/cover` con `live-sessions:set-cover-own` (`V105`). **Construido el mismo día** | **En desarrollo** |
 | `RF-AC-061` | Quitar la portada de una clase en vivo mía | `AC` | [`specs/ac/058-portada-de-clase-en-vivo/`](specs/ac/058-portada-de-clase-en-vivo/tasks.md) | Pendiente de crear | `develop` | **Nace con tripleta el 13-10-2026** ([`requirements/ac.md`](requirements/ac.md) v0.27.0 §5.2.18, `RN-AC-032`), con la separación de las clases en vivo de los cursos: `DELETE /api/v1/live-sessions/mine/{id}/cover` con `live-sessions:remove-cover-own` (`V105`). **Construido el mismo día** | **En desarrollo** |
+| `RF-AC-062` | Varios instructores por curso | `AC` | [`specs/ac/062-varios-instructores-por-curso/`](specs/ac/062-varios-instructores-por-curso/tasks.md) | Pendiente de crear | `develop` | **Nace con tripleta el 13-10-2026** ([`requirements/ac.md`](requirements/ac.md) v0.28.0 §5.2.19, `RN-AC-033`): sin ruta propia, el curso declara **uno o más instructores** (`instructorIds`, `instructors`), en `course_instructors` (`V106`). **Construido el mismo día** | **En desarrollo** |
 | `RF-IN-001` | Consultar el resumen de ventas | `IN` | [`specs/in/001-resumen-de-ventas/`](specs/in/001-resumen-de-ventas/tasks.md) | Pendiente de crear | `develop` | Suite completa en verde (06-10-2026): 540 unitarias y 2459 de integración. `SalesSummaryIT` (12), `SalesPeriodResolverTest` (6), `SalesScopeResolverTest` (3), `LayerRulesTest` con la regla de `IN`. **Construido**: `V74` (catálogo 189), `SalesFigures` en `MV`, `GET /indicators/sales/summary` **Nace el 06-10-2026** con el módulo ([`requirements/in.md`](requirements/in.md) v0.1.0): lo confirmado, lo pendiente y lo anulado de un periodo, por moneda y acotado al alcance de quien mira (`RN-IN-002`, `RN-IN-003`). **Estrena la interfaz agregada que `MV` todavía no publica** | **En desarrollo** |
 | `RF-IN-002` | Consultar la evolución de las ventas | `IN` | [`specs/in/002-evolucion-de-ventas/`](specs/in/002-evolucion-de-ventas/tasks.md) | Pendiente de crear | `develop` | Suites del módulo en verde (06-10-2026): `SalesSeriesIT` (8), `SalesCalendarTest` (4). **Construido**: `GET /indicators/sales/series`, `SalesFigures.confirmedByBucket`. **Nace el 06-10-2026** con el módulo ([`requirements/in.md`](requirements/in.md) v0.1.0): lo confirmado por día, semana o mes de Bogotá, sin huecos (`RN-IN-007`) | **En desarrollo** |
 | `RF-IN-003` | Consultar las ventas por producto | `IN` | [`specs/in/003-ventas-por-producto/`](specs/in/003-ventas-por-producto/tasks.md) | Pendiente de crear | — | Sin código. Tripleta del 06-10-2026 (`spec.md` y `plan.md` aprobados). **Nace el 06-10-2026** con el módulo ([`requirements/in.md`](requirements/in.md) v0.1.0): lo confirmado por producto de la línea, con su nombre congelado | **Tasks aprobadas** |
@@ -379,10 +380,10 @@ Un requerimiento solo pasa a `Implementado` cuando cumple **todas** las condicio
 
 | Indicador | Valor |
 |---|---|
-| Requerimientos registrados | 262 |
-| Requerimientos con `spec.md` redactada | 258 |
-| Requerimientos con `spec.md` aprobada | 198 |
-| Requerimientos con `plan.md` aprobado | 257 |
+| Requerimientos registrados | 263 |
+| Requerimientos con `spec.md` redactada | 259 |
+| Requerimientos con `spec.md` aprobada | 199 |
+| Requerimientos con `plan.md` aprobado | 258 |
 | Requerimientos con **tripleta completa** —`tasks.md` aprobadas— | 111 |
 | Requerimientos con endpoint funcionando | 220 |
 | Requerimientos implementados | 0 |
@@ -820,3 +821,4 @@ El inventario y el estado de los módulos se consultan en [`modules.md` §4](mod
 | 0.351.0 | 13-10-2026 | **`RF-SP-078`: una sola dirección, y ningún aviso se pierde** ([`requirements/sp.md`](requirements/sp.md) v1.123.0, `RN-SP-076`; [`modelo-datos.md`](modelo-datos.md) v0.118.0; [`security.md`](security.md) v0.135.0; [`api/index.md`](api/index.md) v1.127.0; [`deployment.md`](deployment.md) v0.25.0), a petición del responsable del proyecto: el aviso cuyo `advertiser` no se reconoce se guarda sin broker y se asocia e interpreta al arrancar cuando una migración lo cargue (`V103`); se retira la ruta por nombre con sus tres secretos. Tripleta v0.6.0, `CA-SP-1009` a `CA-SP-1015`. Ningún indicador de §5 se mueve. | Responsable técnico |
 | 0.352.0 | 13-10-2026 | **Nacen `RF-AC-056` y `RF-AC-057`, las dos lecturas del instructor, con tripleta, y se construyen** ([`requirements/ac.md`](requirements/ac.md) v0.26.0 §5.2.17; [`security.md`](security.md) v0.136.0): el detalle de una clase de mis cursos y los cursos que dicto, con dos permisos (`V104`, catálogo 237). Registrados 256 → **258**; `spec.md` redactadas 252 → **254** y aprobadas 192 → **194**; `plan.md` aprobados 251 → **253**; endpoints 215 → **217**. | Responsable técnico |
 | 0.353.0 | 13-10-2026 | **Las clases en vivo se separan de los cursos** ([`requirements/ac.md`](requirements/ac.md) v0.27.0 §5.2.18, `RN-AC-032`; [`security.md`](security.md) v0.137.0; [`modelo-datos.md`](modelo-datos.md) v0.119.0): instructores propios y portada opcional. **Nacen `RF-AC-058` a `RF-AC-061`**, poner y quitar la portada, con una tripleta común; **se retira `RF-AC-057`**. Registrados 258 → **262**; `spec.md` redactadas 254 → **258** y aprobadas 194 → **198**; `plan.md` aprobados 253 → **257**; endpoints 217 → **220** (cuatro nacen, uno se retira). | Responsable técnico |
+| 0.354.0 | 13-10-2026 | **Nace `RF-AC-062`, varios instructores por curso, con tripleta, y se construye** ([`requirements/ac.md`](requirements/ac.md) v0.28.0 §5.2.19, `RN-AC-033`; [`modelo-datos.md`](modelo-datos.md) v0.120.0): sin ruta propia, `instructorIds` e `instructors` en lugar de `instructorId` e `instructor`, en `course_instructors` (`V106`). Registrados 262 → **263**; `spec.md` redactadas 258 → **259** y aprobadas 198 → **199**; `plan.md` aprobados 257 → **258**; endpoints sin cambio. | Responsable técnico |

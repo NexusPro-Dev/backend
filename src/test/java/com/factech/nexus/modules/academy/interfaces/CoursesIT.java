@@ -63,7 +63,7 @@ class CoursesIT extends IntegrationTestBase {
     mvc.perform(
             alta(
                 """
-                {"title":"  Velas japonesas  ","instructorId":"%s","difficulty":"PRINCIPIANTE",
+                {"title":"  Velas japonesas  ","instructorIds":["%s"],"difficulty":"PRINCIPIANTE",
                  "shortDescription":"Lo básico.","longDescription":"Todo lo básico.",
                  "introVideoUrl":"https://youtu.be/dQw4w9WgXcQ","displayOrder":2}
                 """
@@ -71,9 +71,9 @@ class CoursesIT extends IntegrationTestBase {
         .andExpect(status().isCreated())
         .andExpect(header().string("Location", startsWith("/api/v1/courses/")))
         .andExpect(jsonPath("$.title").value("Velas japonesas"))
-        .andExpect(jsonPath("$.instructor.id").value(instructor.toString()))
-        .andExpect(jsonPath("$.instructor.username").value(startsWith("ac-")))
-        .andExpect(jsonPath("$.instructor.fullName").value("Juan Pérez"))
+        .andExpect(jsonPath("$.instructors[0].id").value(instructor.toString()))
+        .andExpect(jsonPath("$.instructors[0].username").value(startsWith("ac-")))
+        .andExpect(jsonPath("$.instructors[0].fullName").value("Juan Pérez"))
         .andExpect(jsonPath("$.difficulty").value("PRINCIPIANTE"))
         .andExpect(jsonPath("$.shortDescription").value("Lo básico."))
         .andExpect(jsonPath("$.introVideoUrl").value("https://youtu.be/dQw4w9WgXcQ"))
@@ -118,7 +118,7 @@ class CoursesIT extends IntegrationTestBase {
     mvc.perform(alta(cuerpo("Uno", UUID.randomUUID(), "PRINCIPIANTE", 0)))
         .andExpect(status().isUnprocessableEntity())
         .andExpect(jsonPath("$.errors[0].code").value("EX-002"))
-        .andExpect(jsonPath("$.errors[0].field").value("instructorId"));
+        .andExpect(jsonPath("$.errors[0].field").value("instructorIds"));
 
     jdbc.update("UPDATE users SET deleted_at = now() WHERE id = ?", instructor);
     mvc.perform(alta(cuerpo("Dos", instructor, "PRINCIPIANTE", 0)))
@@ -159,7 +159,7 @@ class CoursesIT extends IntegrationTestBase {
                 .value(
                     hasItems(
                         "title",
-                        "instructorId",
+                        "instructorIds",
                         "difficulty",
                         "displayOrder",
                         "shortDescription",
@@ -190,7 +190,7 @@ class CoursesIT extends IntegrationTestBase {
       mvc.perform(
               alta(
                   """
-                  {"title":"Velas","instructorId":"%s","difficulty":"PRINCIPIANTE","displayOrder":0,%s}
+                  {"title":"Velas","instructorIds":["%s"],"difficulty":"PRINCIPIANTE","displayOrder":0,%s}
                   """
                       .formatted(instructor, extra)))
           .andExpect(status().isBadRequest())
@@ -206,7 +206,7 @@ class CoursesIT extends IntegrationTestBase {
     mvc.perform(
             alta(
                 """
-                {"title":"Velas","instructorId":"%s","difficulty":"PRINCIPIANTE","displayOrder":0,
+                {"title":"Velas","instructorIds":["%s"],"difficulty":"PRINCIPIANTE","displayOrder":0,
                  "shortDescription":"   ","longDescription":" ","introVideoUrl":"https://vimeo.com/999999999"}
                 """
                     .formatted(instructor)))
@@ -245,7 +245,7 @@ class CoursesIT extends IntegrationTestBase {
     assertThat(fila.get("action")).isEqualTo("CREATE");
     assertThat((String) fila.get("changes"))
         .contains("\"title\": \"Auditado\"")
-        .contains("\"instructor_id\": \"" + instructor + "\"")
+        .contains("\"instructor_ids\": [\"" + instructor + "\"]")
         .contains("\"status\": \"INACTIVO\"")
         .contains("\"display_order\": 4");
   }
@@ -288,8 +288,8 @@ class CoursesIT extends IntegrationTestBase {
 
     mvc.perform(get("/api/v1/courses/" + id).with(con("courses:read")))
         .andExpect(status().isOk())
-        .andExpect(jsonPath("$.instructor.id").value(instructor.toString()))
-        .andExpect(jsonPath("$.instructor.fullName").value("Juan Pérez"));
+        .andExpect(jsonPath("$.instructors[0].id").value(instructor.toString()))
+        .andExpect(jsonPath("$.instructors[0].fullName").value("Juan Pérez"));
   }
 
   private MockHttpServletRequestBuilder alta(String cuerpo) {

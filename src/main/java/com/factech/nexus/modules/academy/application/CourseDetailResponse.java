@@ -15,7 +15,7 @@ import java.util.List;
 import java.util.UUID;
 
 /**
- * El curso como lo ve administración (`RF-AC-010`): lo suyo, el instructor resuelto, sus tres
+ * El curso como lo ve administración (`RF-AC-010`): lo suyo, los instructores resueltos, sus tres
  * relaciones, su árbol de módulos y lecciones con estados y marcas, y <b>por qué no se ofrece</b>.
  *
  * <p>Es la respuesta del alta, del detalle y de las siete escrituras del curso, para que el
@@ -32,7 +32,7 @@ import java.util.UUID;
 public record CourseDetailResponse(
     UUID id,
     String title,
-    InstructorRef instructor,
+    List<InstructorRef> instructors,
     String difficulty,
     String shortDescription,
     String longDescription,
@@ -54,15 +54,20 @@ public record CourseDetailResponse(
     @JsonInclude(JsonInclude.Include.NON_NULL) OffsetDateTime deletedAt,
     @JsonInclude(JsonInclude.Include.NON_NULL) String deletionReason) {
 
-  /** Quien enseña el curso, con su nombre <b>actual</b>: no es una copia. */
+  /**
+   * Quien enseña el curso, con su nombre <b>actual</b>: no es una copia. Uno o más desde el
+   * 13-10-2026 (`RN-AC-033`), por nombre.
+   */
   @Schema(name = "CourseInstructorRef")
   public record InstructorRef(UUID id, String username, String fullName) {
 
-    static InstructorRef from(CourseRow fila) {
-      return new InstructorRef(
-          fila.instructorId(),
-          fila.instructorUsername(),
-          nombreCompleto(fila.instructorFirstName(), fila.instructorLastName()));
+    static List<InstructorRef> from(CourseRow fila) {
+      return fila.instructors().stream()
+          .map(
+              uno ->
+                  new InstructorRef(
+                      uno.id(), uno.username(), nombreCompleto(uno.firstName(), uno.lastName())))
+          .toList();
     }
 
     static String nombreCompleto(String nombre, String apellido) {

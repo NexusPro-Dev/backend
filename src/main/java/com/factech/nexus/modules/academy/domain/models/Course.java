@@ -4,17 +4,25 @@ import com.factech.nexus.shared.error.FieldError;
 import com.factech.nexus.shared.error.ValidationException;
 import com.factech.nexus.shared.images.CambioDePortada;
 import com.factech.nexus.shared.patch.Patchable;
+import jakarta.persistence.CollectionTable;
 import jakarta.persistence.Column;
+import jakarta.persistence.ElementCollection;
 import jakarta.persistence.Entity;
 import jakarta.persistence.EnumType;
 import jakarta.persistence.Enumerated;
 import jakarta.persistence.Id;
+import jakarta.persistence.JoinColumn;
 import jakarta.persistence.Table;
 import java.time.OffsetDateTime;
+import java.util.Collection;
+import java.util.Collections;
+import java.util.HashSet;
 import java.util.LinkedHashMap;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
+import java.util.Set;
 import java.util.UUID;
 
 /**
@@ -26,10 +34,12 @@ import java.util.UUID;
  * módulos son filas de otras tablas que se dan y se quitan con su propia operación, y este agregado
  * no las conoce: lo que necesita saber de ellas —cuántas hay— se lo pasa quien lee.
  *
- * <p><b>El instructor es un identificador de `SP`</b> comprobado al asignar (`RN-AC-006`) y nunca
- * después: el curso sigue diciendo quién lo enseñó hasta que administración lo reasigne. <b>Las
- * descripciones y el video se vacían en cualquier estado</b>: `RN-AC-009` rige al activar, y lo que
- * después se vacía no desactiva — deja de ofrecerse (`RN-AC-015`).
+ * <p><b>Los instructores son identificadores de `SP`</b> —uno o más desde el 13-10-2026,
+ * `RN-AC-033`— comprobados al asignar (`RN-AC-006`) y nunca después: el curso sigue diciendo quién
+ * lo enseñó hasta que administración lo reasigne. La lista es suya, en {@code course_instructors},
+ * y aquí se exige que no quede vacía. <b>Las descripciones y el video se vacían en cualquier
+ * estado</b>: `RN-AC-009` rige al activar, y lo que después se vacía no desactiva — deja de
+ * ofrecerse (`RN-AC-015`).
  */
 @Entity
 @Table(name = "courses")
@@ -46,8 +56,11 @@ public class Course implements HasCover {
   @Column(name = "title", nullable = false, length = 150)
   private String title;
 
-  @Column(name = "instructor_id", nullable = false)
-  private UUID instructorId;
+  /** Los instructores (`RN-AC-033`): uno o más, en {@code course_instructors}. */
+  @ElementCollection
+  @CollectionTable(name = "course_instructors", joinColumns = @JoinColumn(name = "course_id"))
+  @Column(name = "user_id", nullable = false)
+  private Set<UUID> instructorIds = new LinkedHashSet<>();
 
   @Enumerated(EnumType.STRING)
   @Column(name = "difficulty", nullable = false, length = 20)
@@ -92,7 +105,7 @@ public class Course implements HasCover {
   public static Course create(
       UUID id,
       String title,
-      UUID instructorId,
+      Collection<UUID> instructorIds,
       CourseDifficulty difficulty,
       String shortDescription,
       String longDescription,
@@ -102,7 +115,7 @@ public class Course implements HasCover {
     Course curso = new Course();
     curso.id = id;
     curso.title = verificarTitulo(title, "VAL-001");
-    curso.instructorId = verificarInstructor(instructorId, "VAL-002");
+    curso.instructorIds.addAll(verificarInstructores(instructorIds, "VAL-002"));
     curso.difficulty = verificarDificultad(difficulty, "VAL-003");
     curso.shortDescription = verificarCorta(shortDescription, "VAL-005");
     curso.longDescription = verificarLarga(longDescription, "VAL-005");
@@ -119,11 +132,12 @@ public class Course implements HasCover {
    *
    * <p>Como la categoría: los ausentes no se tocan, el nulo explícito <b>vacía las descripciones y
    * el video</b> —los otros cuatro llegan aquí ya rechazados por el caso de uso— y {@code
-   * updatedAt} se mueve solo si algo cambió. El instructor nuevo llega ya comprobado contra `SP`.
+   * updatedAt} se mueve solo si algo cambió. Los instructores nuevos llegan ya comprobados contra
+   * `SP`, y la lista se reemplaza entera: el orden no cuenta.
    */
   public Map<String, Object> update(
       Patchable<String> nuevoTitulo,
-      Patchable<UUID> nuevoInstructor,
+      Patchable<List<UUID>> nuevosInstructores,
       Patchable<CourseDifficulty> nuevaDificultad,
       Patchable<String> nuevaCorta,
       Patchable<String> nuevaLarga,
@@ -138,12 +152,14 @@ public class Course implements HasCover {
         title = valor;
       }
     }
-    if (nuevoInstructor.presente() && nuevoInstructor.valor() != null) {
-      UUID valor = nuevoInstructor.valor();
-      if (!valor.equals(instructorId)) {
+    if (nuevosInstructores.presente()) {
+      Set<UUID> valor = verificarInstructores(nuevosInstructores.valor(), "VAL-003");
+      if (!valor.equals(new HashSet<>(instructorIds))) {
         cambios.put(
-            "instructor_id", Map.of("before", instructorId.toString(), "after", valor.toString()));
-        instructorId = valor;
+            "instructor_ids",
+            Map.of("before", ordenados(instructorIds), "after", ordenados(valor)));
+        instructorIds.clear();
+        instructorIds.addAll(valor);
       }
     }
     if (nuevaDificultad.presente() && nuevaDificultad.valor() != null) {
@@ -251,12 +267,12 @@ public class Course implements HasCover {
 
   /**
    * La misma instantánea para la creación y para el retiro; el retiro le añade los identificadores
-   * de sus relaciones y módulos. {@code instructor_id} va dentro (`CA-AC-040`).
+   * de sus relaciones y módulos. Los instructores van dentro (`CA-AC-040`), ordenados.
    */
   public Map<String, Object> instantanea() {
     Map<String, Object> estado = new LinkedHashMap<>();
     estado.put("title", title);
-    estado.put("instructor_id", instructorId.toString());
+    estado.put("instructor_ids", ordenados(instructorIds));
     estado.put("difficulty", difficulty.name());
     estado.put("short_description", shortDescription);
     estado.put("long_description", longDescription);
@@ -276,11 +292,23 @@ public class Course implements HasCover {
     return recortado;
   }
 
-  private static UUID verificarInstructor(UUID valor, String codigo) {
-    if (valor == null) {
-      throw rechazo("instructorId", codigo, "El instructor es obligatorio.");
+  /** Uno o más, sin repetir ni vacíos (`RN-AC-033`). */
+  private static Set<UUID> verificarInstructores(Collection<UUID> valor, String codigo) {
+    if (valor == null || valor.isEmpty()) {
+      throw rechazo("instructorIds", codigo, "El curso necesita al menos un instructor.");
     }
-    return valor;
+    Set<UUID> unicos = new LinkedHashSet<>(valor);
+    if (unicos.contains(null) || unicos.size() != valor.size()) {
+      throw rechazo(
+          "instructorIds",
+          "VAL-008",
+          "La lista de instructores no puede traer identificadores repetidos ni vacíos.");
+    }
+    return unicos;
+  }
+
+  private static List<String> ordenados(Collection<UUID> ids) {
+    return ids.stream().map(UUID::toString).sorted().toList();
   }
 
   private static CourseDifficulty verificarDificultad(CourseDifficulty valor, String codigo) {
@@ -347,8 +375,8 @@ public class Course implements HasCover {
     return title;
   }
 
-  public UUID getInstructorId() {
-    return instructorId;
+  public Set<UUID> getInstructorIds() {
+    return Collections.unmodifiableSet(instructorIds);
   }
 
   public CourseDifficulty getDifficulty() {

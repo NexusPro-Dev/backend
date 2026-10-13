@@ -65,15 +65,15 @@ class CourseUpdateIT extends IntegrationTestBase {
             corregir(
                 curso,
                 """
-                {"title":"Velas japonesas","instructorId":"%s","difficulty":"AVANZADO",
+                {"title":"Velas japonesas","instructorIds":["%s"],"difficulty":"AVANZADO",
                  "shortDescription":"Otra corta","longDescription":"Otra larga",
                  "introVideoUrl":"https://vimeo.com/100000002","displayOrder":7}
                 """
                     .formatted(otra)))
         .andExpect(status().isOk())
         .andExpect(jsonPath("$.title").value("Velas japonesas"))
-        .andExpect(jsonPath("$.instructor.id").value(otra.toString()))
-        .andExpect(jsonPath("$.instructor.fullName").value("Ana Gómez"))
+        .andExpect(jsonPath("$.instructors[0].id").value(otra.toString()))
+        .andExpect(jsonPath("$.instructors[0].fullName").value("Ana Gómez"))
         .andExpect(jsonPath("$.difficulty").value("AVANZADO"))
         .andExpect(jsonPath("$.shortDescription").value("Otra corta"))
         .andExpect(jsonPath("$.introVideoUrl").value("https://vimeo.com/100000002"))
@@ -104,11 +104,11 @@ class CourseUpdateIT extends IntegrationTestBase {
     mvc.perform(
             corregir(
                 curso,
-                "{\"title\":null,\"instructorId\":null,\"difficulty\":null,\"displayOrder\":null}"))
+                "{\"title\":null,\"instructorIds\":null,\"difficulty\":null,\"displayOrder\":null}"))
         .andExpect(status().isBadRequest())
         .andExpect(
             jsonPath("$.errors[*].field")
-                .value(hasItems("title", "instructorId", "difficulty", "displayOrder")))
+                .value(hasItems("title", "instructorIds", "difficulty", "displayOrder")))
         .andExpect(
             jsonPath("$.errors[*].code")
                 .value(hasItems("VAL-002", "VAL-003", "VAL-004", "VAL-005")));
@@ -164,27 +164,27 @@ class CourseUpdateIT extends IntegrationTestBase {
       "`CA-AC-061` — reasignar comprueba RN-AC-006: 422 el inexistente, el retirado y el sin permiso;"
           + " el que sí, con antes y después en la auditoría")
   void reasignarInstructor() throws Exception {
-    mvc.perform(corregir(curso, "{\"instructorId\":\"" + UUID.randomUUID() + "\"}"))
+    mvc.perform(corregir(curso, "{\"instructorIds\":[\"" + UUID.randomUUID() + "\"]}"))
         .andExpect(status().isUnprocessableEntity())
         .andExpect(jsonPath("$.errors[0].code").value("EX-002"));
 
     UUID retirada =
         CourseTestSupport.persona(jdbc, "Ret", "Irada", CourseTestSupport.rolInstructor(jdbc));
     jdbc.update("UPDATE users SET deleted_at = now() WHERE id = ?", retirada);
-    mvc.perform(corregir(curso, "{\"instructorId\":\"" + retirada + "\"}"))
+    mvc.perform(corregir(curso, "{\"instructorIds\":[\"" + retirada + "\"]}"))
         .andExpect(status().isUnprocessableEntity())
         .andExpect(jsonPath("$.errors[0].code").value("EX-002"));
 
     UUID sinPermiso = CourseTestSupport.persona(jdbc, "Sin", "Permiso", null);
-    mvc.perform(corregir(curso, "{\"instructorId\":\"" + sinPermiso + "\"}"))
+    mvc.perform(corregir(curso, "{\"instructorIds\":[\"" + sinPermiso + "\"]}"))
         .andExpect(status().isUnprocessableEntity())
         .andExpect(jsonPath("$.errors[0].code").value("EX-003"));
 
     UUID nueva =
         CourseTestSupport.persona(jdbc, "Ana", "Gómez", CourseTestSupport.rolInstructor(jdbc));
-    mvc.perform(corregir(curso, "{\"instructorId\":\"" + nueva + "\"}"))
+    mvc.perform(corregir(curso, "{\"instructorIds\":[\"" + nueva + "\"]}"))
         .andExpect(status().isOk())
-        .andExpect(jsonPath("$.instructor.id").value(nueva.toString()));
+        .andExpect(jsonPath("$.instructors[0].id").value(nueva.toString()));
     String cambios =
         jdbc.queryForObject(
             "SELECT changes::text FROM audit_change_log WHERE entity = 'courses' AND entity_id = ?"
@@ -192,7 +192,7 @@ class CourseUpdateIT extends IntegrationTestBase {
             String.class,
             curso);
     assertThat(cambios)
-        .contains("\"instructor_id\"")
+        .contains("\"instructor_ids\"")
         .contains(instructor.toString())
         .contains(nueva.toString());
   }
@@ -205,7 +205,7 @@ class CourseUpdateIT extends IntegrationTestBase {
     mvc.perform(
             corregir(
                 curso,
-                "{\"title\":\" Velas \",\"instructorId\":\"%s\",\"shortDescription\":\"Corta\"}"
+                "{\"title\":\" Velas \",\"instructorIds\":[\"%s\"],\"shortDescription\":\"Corta\"}"
                     .formatted(instructor)))
         .andExpect(status().isOk());
     assertThat(auditadas()).isZero();

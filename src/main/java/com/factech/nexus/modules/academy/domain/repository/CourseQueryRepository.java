@@ -93,6 +93,9 @@ public interface CourseQueryRepository {
   record ClassroomCandidate(
       CourseRow course, long durationSeconds, long lessonCount, long openLessonCount) {}
 
+  /** Un instructor del curso con su identidad <b>actual</b>, leída en la misma sentencia. */
+  record CourseInstructor(UUID id, String username, String firstName, String lastName) {}
+
   /** Lo que abre un curso: identificadores de sus membresías y de sus servicios. */
   record CourseKeys(Set<UUID> membershipIds, Set<UUID> productIds) {
 
@@ -100,16 +103,13 @@ public interface CourseQueryRepository {
   }
 
   /**
-   * Un curso como sale de la tabla, con su instructor y las cuentas que la ofrecibilidad y el
-   * listado necesitan ya hechas.
+   * Un curso como sale de la tabla, con sus instructores (`RN-AC-033`) y las cuentas que la
+   * ofrecibilidad y el listado necesitan ya hechas.
    */
   record CourseRow(
       UUID id,
       String title,
-      UUID instructorId,
-      String instructorUsername,
-      String instructorFirstName,
-      String instructorLastName,
+      List<CourseInstructor> instructors,
       String difficulty,
       String shortDescription,
       String longDescription,
@@ -128,6 +128,10 @@ public interface CourseQueryRepository {
 
     public boolean retirado() {
       return deletedAt != null;
+    }
+
+    public List<UUID> instructorIds() {
+      return instructors.stream().map(CourseInstructor::id).toList();
     }
 
     /** `RN-AC-015` sobre las cuentas que vinieron con la fila. */

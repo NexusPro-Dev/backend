@@ -116,7 +116,7 @@ public class CourseController {
       summary = "Registrar un curso",
       description =
           """
-          Registra un curso con **título, instructor, dificultad y orden**, obligatorios,
+          Registra un curso con **título, instructores, dificultad y orden**, obligatorios,
           y descripción corta, descripción larga y video de introducción, opcionales. Y
           **quién lo puede ver y dónde se encuentra**, también opcionales:
 
@@ -136,12 +136,14 @@ public class CourseController {
           por `PUT /api/v1/courses/{id}/cover` justo después**—, y **sin código**: un
           curso no se teclea en ninguna venta.
 
-          **El instructor es una persona del sistema que existe, no está retirada y
-          porta `courses:teach`**, comprobado **al asignar y solo al asignar**: que lo
-          pierda después no toca el curso. Un instructor inexistente o retirado y uno
-          sin el permiso son dos `422` distintos, porque se arreglan en sitios
-          distintos. **`instructor.fullName` es el nombre actual** de la persona, no
-          una copia.
+          **`instructorIds`: uno o más instructores**, sin repetir (vacía, `400`;
+          repetidos, `400` `VAL-008`). **Cada uno es una persona del sistema que existe,
+          no está retirada y porta `courses:teach`**, comprobado **al asignar y solo al
+          asignar**: que lo pierda después no toca el curso. Un instructor inexistente o
+          retirado y uno sin el permiso son dos `422` distintos, en el campo
+          `instructorIds`, porque se arreglan en sitios distintos. **`instructors` trae
+          a todos por nombre, y `fullName` es el nombre actual** de la persona, no una
+          copia.
 
           El título es único entre los cursos **vivos**, sin distinguir mayúsculas ni
           acentos; un retirado libera el suyo. Las descripciones de solo espacios se
@@ -195,13 +197,14 @@ public class CourseController {
           """
           La lista de administración de los cursos, paginada, **en el orden en que se
           enseñan**: por `displayOrder` ascendente, con el más antiguo primero entre
-          dos que compartan número. Cada fila trae el instructor resuelto —con su
+          dos que compartan número. Cada fila trae sus instructores resueltos —con su
           nombre **actual**—, `coverImageUrl`, sus categorías vivas, **`offerable`** y
           cuántos módulos y lecciones **vivos** tiene — vivos y no ofrecidos—. Sin
           descripción larga, video ni árbol: para eso está el detalle.
 
           Filtra por `q` —título, sin distinguir mayúsculas ni acentos—, `categoryId`,
-          `instructorId`, `difficulty` y `status`, combinables. `categoryId` deja los
+          `instructorId` —los cursos **en cuya lista de instructores está** esa
+          persona—, `difficulty` y `status`, combinables. `categoryId` deja los
           clasificados en esa categoría **si está viva**: filtrar por una retirada
           devuelve vacío, porque ninguna fila la enseña en `categories`. **Excluye los
           retirados** salvo `includeDeleted=true`, y entonces los trae con `deletedAt`
@@ -236,7 +239,7 @@ public class CourseController {
       summary = "Consultar el detalle de un curso",
       description =
           """
-          El curso entero: lo suyo, el instructor resuelto, `coverImageUrl`, sus
+          El curso entero: lo suyo, sus instructores resueltos, `coverImageUrl`, sus
           **categorías** vivas, los **cursos que recomienda** —con su estado y si se
           ofrecen—, las **membresías** y los **servicios** que lo abren —estos en
           `products`, con código y nombre, también el que productos retiró después—, y
@@ -280,16 +283,17 @@ public class CourseController {
       description =
           """
           Corrección **parcial**: solo lo que viene cambia. Admite `title`,
-          `instructorId`, `difficulty`, `shortDescription`, `longDescription`,
+          `instructorIds`, `difficulty`, `shortDescription`, `longDescription`,
           `introVideoUrl` y `displayOrder`, por separado o juntos, y exige al menos
           uno; el video, **solo de YouTube o de Vimeo**. **Ausente y nulo no significan lo mismo**: ausente es «no lo toques»,
           nulo es «vacíalo» — y **solo las descripciones y el video admiten
           vaciarse**; el nulo en los otros cuatro responde `400`, junto con los demás
           errores de forma.
 
-          **Sin inmutables**. **Reasignar el instructor repite la comprobación del
-          alta** sobre el nuevo: existe, no está retirado y porta `courses:teach`; al
-          mismo no se comprueba nada y nada cambia. **Vaciar una descripción no
+          **Sin inmutables**. **`instructorIds` reemplaza la lista entera** y no puede
+          quedar vacía; **cada instructor nuevo repite la comprobación del alta**:
+          existe, no está retirado y porta `courses:teach`. Los que ya estaban no se
+          comprueban, y la misma lista en otro orden no cambia nada. **Vaciar una descripción no
           desactiva**: un curso activo sigue activo y **deja de ofrecerse** —el detalle
           dice «sin descripción»— hasta que alguien la reponga. El estado, la portada,
           las relaciones y los módulos tienen sus propios endpoints, y en el cuerpo

@@ -105,8 +105,9 @@ class StudentProgressListIT extends IntegrationTestBase {
 
   @Test
   @DisplayName(
-      "`CA-AC-259` — administración todo; el manager su red sin el ajeno; el instructor su curso"
-          + " y no el otro; el manager que dicta suma las dos cosas")
+      "`CA-AC-259`, `CA-AC-328` — administración todo; el manager su red sin el ajeno; el"
+          + " instructor su curso y no el otro; el manager que dicta —como segundo instructor— suma"
+          + " las dos cosas")
   void elAlcanceSumado() throws Exception {
     pedir(manager, listado())
         .andExpect(jsonPath("$.totalElements").value(2))
@@ -120,7 +121,10 @@ class StudentProgressListIT extends IntegrationTestBase {
             jsonPath("$.content[*].course.id")
                 .value(containsInAnyOrder(velas.curso().toString(), velas.curso().toString())));
 
-    jdbc.update("UPDATE courses SET instructor_id = ? WHERE id = ?", manager, velas.curso());
+    jdbc.update(
+        "INSERT INTO course_instructors (course_id, user_id) VALUES (?, ?)",
+        velas.curso(),
+        manager);
     pedir(manager, listado())
         .andExpect(jsonPath("$.totalElements").value(3))
         .andExpect(jsonPath("$.content", hasSize(3)));

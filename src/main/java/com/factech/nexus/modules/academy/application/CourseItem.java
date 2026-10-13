@@ -10,9 +10,9 @@ import java.util.List;
 import java.util.UUID;
 
 /**
- * Una fila del listado de cursos (`RF-AC-009`): lo suyo, el instructor resuelto, la portada, sus
- * categorías vivas, si se ofrece y cuántos módulos y lecciones <b>vivos</b> tiene. Sin descripción
- * larga, video ni árbol: eso es el detalle.
+ * Una fila del listado de cursos (`RF-AC-009`): lo suyo, los instructores resueltos, la portada,
+ * sus categorías vivas, si se ofrece y cuántos módulos y lecciones <b>vivos</b> tiene. Sin
+ * descripción larga, video ni árbol: eso es el detalle.
  *
  * <p>{@code coverImageUrl} y {@code categories} <b>siempre presentes</b>; {@code deletedAt} solo en
  * un retirado. {@code offerable} lo decide {@code CourseOfferability} por fila con las cuentas que
@@ -22,7 +22,7 @@ import java.util.UUID;
 public record CourseItem(
     UUID id,
     String title,
-    InstructorRef instructor,
+    List<InstructorRef> instructors,
     String difficulty,
     String shortDescription,
     int displayOrder,

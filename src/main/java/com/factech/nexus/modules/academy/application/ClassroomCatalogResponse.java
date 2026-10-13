@@ -59,7 +59,7 @@ public record ClassroomCatalogResponse(
   public record ClassroomCourseItem(
       UUID id,
       String title,
-      InstructorRef instructor,
+      List<InstructorRef> instructors,
       String difficulty,
       String shortDescription,
       int displayOrder,

@@ -31,7 +31,7 @@ import java.util.UUID;
 public record ClassroomCourseResponse(
     UUID id,
     String title,
-    InstructorRef instructor,
+    List<InstructorRef> instructors,
     String difficulty,
     String shortDescription,
     String longDescription,

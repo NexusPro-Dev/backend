@@ -133,7 +133,7 @@ class CourseRegistrationCategoriesIT extends IntegrationTestBase {
             .with(con("courses:create"))
             .contentType(MediaType.APPLICATION_JSON)
             .content(
-                "{\"title\":\"%s\",\"instructorId\":\"%s\",\"difficulty\":\"PRINCIPIANTE\",\"displayOrder\":0%s}"
+                "{\"title\":\"%s\",\"instructorIds\":[\"%s\"],\"difficulty\":\"PRINCIPIANTE\",\"displayOrder\":0%s}"
                     .formatted(titulo, instructor, listas)));
   }
 
@@ -233,7 +233,7 @@ class CourseRegistrationCategoriesIT extends IntegrationTestBase {
                 .with(con("courses:create"))
                 .contentType(MediaType.APPLICATION_JSON)
                 .content(
-                    "{\"instructorId\":\"%s\",\"difficulty\":\"PRINCIPIANTE\",\"displayOrder\":0,"
+                    "{\"instructorIds\":[\"%s\"],\"difficulty\":\"PRINCIPIANTE\",\"displayOrder\":0,"
                             .formatted(instructor)
                         + "\"categoryIds\":[null]}"))
         .andExpect(status().isBadRequest())
@@ -251,7 +251,7 @@ class CourseRegistrationCategoriesIT extends IntegrationTestBase {
             .with(con("courses:create"))
             .contentType(MediaType.APPLICATION_JSON)
             .content(
-                "{\"title\":\"%s\",\"instructorId\":\"%s\",\"difficulty\":\"PRINCIPIANTE\",\"displayOrder\":0%s}"
+                "{\"title\":\"%s\",\"instructorIds\":[\"%s\"],\"difficulty\":\"PRINCIPIANTE\",\"displayOrder\":0%s}"
                     .formatted(titulo, instructor, lista)));
   }
 }

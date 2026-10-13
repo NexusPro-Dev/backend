@@ -70,7 +70,7 @@ class CourseListIT extends IntegrationTestBase {
         .andExpect(status().isOk())
         .andExpect(jsonPath("$.content", hasSize(3)))
         .andExpect(jsonPath("$.content[1].title").value("Beta"))
-        .andExpect(jsonPath("$.content[1].instructor.fullName").value("Juan Pérez"))
+        .andExpect(jsonPath("$.content[1].instructors[0].fullName").value("Juan Pérez"))
         .andExpect(jsonPath("$.content[1].coverImageUrl").value(nullValue()))
         .andExpect(jsonPath("$.content[1].categories", hasSize(0)))
         .andExpect(jsonPath("$.content[1].offerable").value(false))
@@ -165,7 +165,7 @@ class CourseListIT extends IntegrationTestBase {
     jdbc.update("UPDATE users SET deleted_at = now() WHERE id = ?", ana);
     mvc.perform(listar("?q=Gamma"))
         .andExpect(jsonPath("$.content", hasSize(1)))
-        .andExpect(jsonPath("$.content[0].instructor.fullName").value("Ana Gómez"));
+        .andExpect(jsonPath("$.content[0].instructors[0].fullName").value("Ana Gómez"));
   }
 
   private MockHttpServletRequestBuilder listar(String consulta) {

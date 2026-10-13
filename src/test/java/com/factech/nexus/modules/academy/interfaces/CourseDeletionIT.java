@@ -65,8 +65,9 @@ class CourseDeletionIT extends IntegrationTestBase {
 
     Map<String, Object> fila =
         jdbc.queryForMap(
-            "SELECT status, instructor_id::text AS instructor, deleted_at IS NOT NULL AS retirado"
-                + " FROM courses WHERE id = ?",
+            "SELECT status, (SELECT i.user_id::text FROM course_instructors i WHERE i.course_id"
+                + " = c.id) AS instructor, deleted_at IS NOT NULL AS retirado FROM courses c"
+                + " WHERE c.id = ?",
             curso);
     assertThat(fila.get("status")).isEqualTo("ACTIVO");
     assertThat(fila.get("instructor")).isEqualTo(instructor.toString());
@@ -155,13 +156,14 @@ class CourseDeletionIT extends IntegrationTestBase {
 
   @Test
   @DisplayName(
-      "el retiro sin árbol cuesta hasta ocho sentencias: el curso bloqueado, sus categorías, sus"
+      "el retiro sin árbol cuesta hasta nueve sentencias: el curso bloqueado, sus instructores"
+          + " (`RN-AC-033`, para la instantánea), sus categorías, sus"
           + " membresías, sus servicios, los módulos vivos, el UPDATE, la baja y su secuencia")
   void sentencias() throws Exception {
     estadisticas.clear();
     mvc.perform(retiro(curso, "{\"reason\":\"Ya no se dicta.\"}", UUID.randomUUID()))
         .andExpect(status().isNoContent());
-    assertThat(estadisticas.getPrepareStatementCount()).isLessThanOrEqualTo(8);
+    assertThat(estadisticas.getPrepareStatementCount()).isLessThanOrEqualTo(9);
   }
 
   @Test

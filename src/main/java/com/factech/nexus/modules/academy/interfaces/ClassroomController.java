@@ -118,7 +118,7 @@ public class ClassroomController {
       summary = "Consultar el detalle de un curso como alumno",
       description =
           """
-          **El curso entero antes de entrar**, si se ofrece: lo suyo, el instructor, las
+          **El curso entero antes de entrar**, si se ofrece: lo suyo, los instructores, las
           categorías vivas, los cursos recomendados **que se ofrecen**, **las membresías
           (`memberships`) y los servicios (`products`) que lo abren** —la invitación; las
           dos vacías si el curso es de todos— y **el árbol ofrecido**: los módulos

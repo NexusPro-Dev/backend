@@ -17,6 +17,7 @@ import com.factech.nexus.shared.patch.Patchable;
 import java.time.Clock;
 import java.time.OffsetDateTime;
 import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
@@ -88,16 +89,19 @@ public class UpdateCourseService {
             List.of(new FieldError("title", "EX-001", JpaCourseRepository.MENSAJE_TITULO)));
       }
     }
-    // Reasignar al mismo no repite la comprobación: nada cambia y nada se audita.
-    if (peticion.instructorId().presente()
-        && !peticion.instructorId().valor().equals(curso.getInstructorId())) {
-      instructor.verificar(peticion.instructorId().valor());
+    // Reasignar al mismo no repite la comprobación: solo los que no estaban.
+    if (peticion.instructorIds().presente()) {
+      for (UUID nuevo : peticion.instructorIds().valor()) {
+        if (!curso.getInstructorIds().contains(nuevo)) {
+          instructor.verificar(nuevo, "instructorIds");
+        }
+      }
     }
 
     Map<String, Object> cambios =
         curso.update(
             peticion.title(),
-            peticion.instructorId(),
+            peticion.instructorIds(),
             peticion.difficulty(),
             peticion.shortDescription(),
             peticion.longDescription(),
@@ -142,10 +146,20 @@ public class UpdateCourseService {
                 "El título del curso no puede quedar vacío ni superar los 150 caracteres."));
       }
     }
-    if (peticion.instructorId().presente() && peticion.instructorId().valor() == null) {
-      problemas.add(
-          new FieldError(
-              "instructorId", "VAL-003", "El instructor del curso no puede quedar vacío."));
+    if (peticion.instructorIds().presente()) {
+      List<UUID> instructores = peticion.instructorIds().valor();
+      if (instructores == null || instructores.isEmpty()) {
+        problemas.add(
+            new FieldError(
+                "instructorIds", "VAL-003", "El curso necesita al menos un instructor."));
+      } else if (instructores.contains(null)
+          || new HashSet<>(instructores).size() != instructores.size()) {
+        problemas.add(
+            new FieldError(
+                "instructorIds",
+                "VAL-008",
+                "La lista de instructores no puede traer identificadores repetidos ni vacíos."));
+      }
     }
     if (peticion.difficulty().presente() && peticion.difficulty().valor() == null) {
       problemas.add(

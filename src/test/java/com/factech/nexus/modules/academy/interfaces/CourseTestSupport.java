@@ -40,6 +40,7 @@ final class CourseTestSupport {
     jdbc.update("DELETE FROM lesson_progress");
     jdbc.update("DELETE FROM lessons");
     jdbc.update("DELETE FROM course_modules");
+    jdbc.update("DELETE FROM course_instructors");
     jdbc.update("DELETE FROM courses");
     // Las portadas que ya no señala nadie: sin `ON DELETE`, se borran DESPUÉS
     // de la fila que las señalaba (`V44`).
@@ -140,16 +141,17 @@ final class CourseTestSupport {
       String estado) {
     UUID id = IDS.next();
     jdbc.update(
-        "INSERT INTO courses (id, title, instructor_id, difficulty, short_description,"
-            + " long_description, display_order, status) VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
+        "INSERT INTO courses (id, title, difficulty, short_description,"
+            + " long_description, display_order, status) VALUES (?, ?, ?, ?, ?, ?, ?)",
         id,
         titulo,
-        instructor,
         dificultad,
         corta,
         larga,
         orden,
         estado);
+    jdbc.update(
+        "INSERT INTO course_instructors (course_id, user_id) VALUES (?, ?)", id, instructor);
     return id;
   }
 
@@ -223,7 +225,7 @@ final class CourseTestSupport {
 
   static String cuerpo(String titulo, UUID instructor, String dificultad, int orden) {
     return """
-        {"title":"%s","instructorId":"%s","difficulty":"%s","displayOrder":%d}
+        {"title":"%s","instructorIds":["%s"],"difficulty":"%s","displayOrder":%d}
         """
         .formatted(titulo, instructor, dificultad, orden);
   }

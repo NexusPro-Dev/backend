@@ -85,7 +85,7 @@ class ClassroomCatalogIT extends IntegrationTestBase {
         .andExpect(jsonPath("$.courses[0].id").value(libre.curso().toString()))
         .andExpect(jsonPath("$.courses[0].accessible").value(true))
         .andExpect(jsonPath("$.courses[0].coverImageUrl").value(nullValue()))
-        .andExpect(jsonPath("$.courses[0].instructor.fullName").value("Juan Pérez"));
+        .andExpect(jsonPath("$.courses[0].instructors[0].fullName").value("Juan Pérez"));
   }
 
   @Test

@@ -250,7 +250,9 @@ public class JpaLessonProgressRepository implements LessonProgressRepository {
         parametros.put("personas", filtro.people());
       }
       if (filtro.instructorId() != null) {
-        alcance.add("c.instructor_id = :instructor");
+        alcance.add(
+            "EXISTS (SELECT 1 FROM course_instructors ci"
+                + " WHERE ci.course_id = c.id AND ci.user_id = :instructor)");
         parametros.put("instructor", filtro.instructorId());
       }
       // Quien no alcanza a nadie no llega aquí (el servicio responde vacío); por si acaso, nada.

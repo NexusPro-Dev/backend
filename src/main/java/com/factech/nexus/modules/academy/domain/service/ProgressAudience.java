@@ -2,6 +2,7 @@ package com.factech.nexus.modules.academy.domain.service;
 
 import com.factech.nexus.modules.system.users.application.CommercialReach;
 import com.factech.nexus.modules.system.users.application.CommercialReach.Reach;
+import java.util.Collection;
 import java.util.LinkedHashSet;
 import java.util.Set;
 import java.util.UUID;
@@ -32,9 +33,12 @@ public class ProgressAudience {
       people = Set.copyOf(people);
     }
 
-    /** Si alcanza a ese alumno, o si lo alcanza por ser el instructor del curso. */
-    public boolean reaches(UUID studentId, UUID instructorOfCourse) {
-      return everyone || people.contains(studentId) || actorId.equals(instructorOfCourse);
+    /**
+     * Si alcanza a ese alumno, o si lo alcanza por ser uno de los instructores del curso
+     * (`RN-AC-033`).
+     */
+    public boolean reaches(UUID studentId, Collection<UUID> instructorsOfCourse) {
+      return everyone || people.contains(studentId) || instructorsOfCourse.contains(actorId);
     }
   }
 

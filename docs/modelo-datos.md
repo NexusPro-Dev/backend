@@ -2,7 +2,7 @@
 
 | Campo | Valor |
 |---|---|
-| Versión | 0.119.0 |
+| Versión | 0.120.0 |
 | Estado | **Borrador** |
 | Responsable | Bonilla Diaz William Steven |
 | Fecha de creación | 21-08-2026 |
@@ -805,7 +805,8 @@ El quinto módulo, incorporado en [`modules.md`](modules.md) v0.21.0 §5.5 y dis
 
 ```mermaid
 erDiagram
-    users       ||--o{ courses : "ENSEÑA · porta courses:teach al asignarse"
+    courses ||--|{ course_instructors : "sus instructores · uno o mas (13-10-2026)"
+    users ||--o{ course_instructors : "ENSEÑA · porta courses:teach al asignarse"
     memberships }o--o{ courses : "ABRE · lista explicita · course_memberships"
     products }o--o{ courses : "ABRE por servicio · solo BOT · course_products · se suma a las membresias (25-09-2026)"
     course_categories }o--o{ courses : "CLASIFICA · course_category_items · un curso sin categoria se ofrece igual"
@@ -838,7 +839,6 @@ erDiagram
     courses {
         uuid id PK
         varchar title UK "150 · unico entre los vivos · SIN codigo"
-        uuid instructor_id FK "users · porta courses:teach AL ASIGNAR · perderlo despues no toca el curso"
         varchar difficulty "PRINCIPIANTE, INTERMEDIO o AVANZADO · etiqueta, no orden"
         varchar short_description "300 · NULL hasta que se escriba · exigida para ACTIVAR"
         text long_description "NULL hasta que se escriba · exigida para ACTIVAR"
@@ -935,7 +935,7 @@ erDiagram
 
 **Cuatro entidades con historia, cuatro relaciones sin identidad —`course_products` desde el 25-09-2026— y una tabla que es el valor de una columna.** Las cuatro entidades llevan `deleted_at` y se retiran con motivo y registro; las cuatro relaciones llevan clave primaria compuesta, sin `id` y sin `deleted_at`, porque dar y quitar una relación **borra la fila** y la auditoría de cambios del curso conserva el antes y el después. `academy_images` es `product_images` columna a columna **en el módulo que la escribe**: la tentación era señalar la tabla de `PM` desde `courses`, y `modules.md` §7 prohíbe que un módulo escriba la tabla de otro. **Lo que sí se comparte es el detector de firma**, que pasa de `PM` a `shared/` con `RF-AC-006`.
 
-**Dos claves foráneas cruzan hacia `SP`** —`courses.instructor_id` y `course_memberships.membership_id`— y, **desde el 25-09-2026, una hacia `PM`**: `course_products.product_id` (§5.3). **Ninguna de las cuatro entidades guarda su ofrecibilidad**: que un curso se ofrezca es una cuenta sobre `courses`, `course_memberships`, `course_products`, `course_modules` y `lessons` que se hace en cada lectura (`RN-AC-015`), como el `offerable` del paquete.
+**Dos claves foráneas cruzan hacia `SP`** —`course_instructors.user_id` (hasta el 13-10-2026, `courses.instructor_id`) y `course_memberships.membership_id`— y, **desde el 25-09-2026, una hacia `PM`**: `course_products.product_id` (§5.3). **Ninguna de las cuatro entidades guarda su ofrecibilidad**: que un curso se ofrezca es una cuenta sobre `courses`, `course_memberships`, `course_products`, `course_modules` y `lessons` que se hace en cada lectura (`RN-AC-015`), como el `offerable` del paquete.
 
 **Las clases en vivo son del mismo día** ([`requirements/ac.md`](requirements/ac.md) v0.23.1 §8.10 a §8.13, `RN-AC-025` a `RN-AC-030`): `live_sessions` y tres tablas que cuelgan de ella —**sus dos listas de acceso**, `live_session_memberships` y `live_session_products`, iguales a las del curso, y **`live_session_registrations`**, quién entró y con qué enlace—. **De Zoom se guarda el identificador de la reunión y el enlace personal de cada registrado; el enlace general, nunca**: con él se entraría sin pasar por la plataforma. **Sin `deleted_at`**: una clase se cancela con motivo y la fila se queda. **Se programa con inicio y fin**, y que haya terminado se calcula.
 
@@ -1065,7 +1065,7 @@ Son las que siguen —**y desde el 14-09-2026 una de `PM` apunta a `users`**—,
 | `product_comments.user_id` | `users` | `PM` → `SP` — **la primera de `PM` hacia una persona** (14-09-2026) |
 | `product_links.product_id` | `products` | `PM` → `PM` (`V35`, 22-09-2026) — **no cruza módulo**, y se anota aquí por lo mismo que la portada del paquete: **sin `ON DELETE`**, porque el producto no se borra físicamente nunca (`RN-PM-010`) |
 | `product_packages.currency_id` | `currencies` | `PM` → `SP` — la moneda del paquete entero (14-09-2026, diseñada) |
-| `courses.instructor_id` | `users` | `AC` → `SP` — quién enseña (17-09-2026, diseñada). **Que porte `courses:teach` no cabe en la clave**: lo comprueba el dominio contra la interfaz de `SP` |
+| `course_instructors.user_id` | `users` | `AC` → `SP` — quién enseña: **uno o más** desde el 13-10-2026 (`V106`, `RN-AC-033`); hasta entonces `courses.instructor_id` (17-09-2026). **Que porte `courses:teach` no cabe en la clave**: lo comprueba el dominio contra la interfaz de `SP` |
 | `course_memberships.membership_id` | `memberships` | `AC` → `SP` — qué nivel abre el curso (17-09-2026; escrita en `V45`, 25-09-2026). La **primera clave foránea hacia `memberships` que no es de `PM`** |
 | `live_sessions.created_by`, `live_session_registrations.user_id` | `users` | `AC` → `SP` — quién programó la clase y quién entró (`V94`, 09-10-2026). **Sin `ON DELETE`** |
 | `live_session_memberships.membership_id`, `live_session_products.product_id` | `memberships`, `products` | `AC` → `SP` y `AC` → `PM` — las llaves de la clase, como las del curso (`V94`) |
@@ -1271,3 +1271,4 @@ Los documentos que citan una migración vieja por su número —specs, controles
 | 0.117.0 | 13-10-2026 | **Las clases en vivo se repiten** ([`requirements/ac.md`](requirements/ac.md) v0.25.0 §5.2.16, `RN-AC-031`, `V102`): `live_sessions` gana `recurrence` (`DAILY`, `WEEKLY`, `MONTHLY` o nula), `repeat_until` y `series_ends_at` —el fin de la última fecha, igual a `ends_at` sin repetición—, con el que se calcula si terminó. | Responsable técnico |
 | 0.118.0 | 13-10-2026 | **Los avisos de los brokers no se pierden** ([`requirements/sp.md`](requirements/sp.md) v1.123.0 §10.25, `RN-SP-076`, `V103`): `broker_notifications.broker_id` admite nulo —el aviso cuyo `advertiser` no se reconoce—, nace `advertiser`, rellenada en los avisos ya guardados, y el índice parcial `ix_broker_notifications_sin_broker`. Al arrancar se asocian e interpretan los que ya son de un broker. | Responsable técnico |
 | 0.119.0 | 13-10-2026 | **Las clases en vivo se separan de los cursos** ([`requirements/ac.md`](requirements/ac.md) v0.27.0 §5.2.18, `RN-AC-032`, `V105`): `live_sessions` pierde `course_id` y gana `cover_image_id` hacia `academy_images`, único; nace **`live_session_instructors`** (`live_session_id`, `user_id`), rellenada con el instructor del curso de cada clase que colgaba de uno. | Responsable técnico |
+| 0.120.0 | 13-10-2026 | **Varios instructores por curso** ([`requirements/ac.md`](requirements/ac.md) v0.28.0 §5.2.19, `RN-AC-033`, `V106`): nace **`course_instructors`** (`course_id`, `user_id`, `created_at`), clave compuesta, rellenada con `courses.instructor_id`, y **`courses` pierde `instructor_id`** con `fk_courses_instructor` e `ix_courses_instructor`. | Responsable técnico |
