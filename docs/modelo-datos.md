@@ -2,11 +2,11 @@
 
 | Campo | Valor |
 |---|---|
-| Versión | 0.117.0 |
+| Versión | 0.118.0 |
 | Estado | **Borrador** |
 | Responsable | Bonilla Diaz William Steven |
 | Fecha de creación | 21-08-2026 |
-| Última actualización | 09-10-2026 |
+| Última actualización | 13-10-2026 |
 
 !!! info "Desde el 05-10-2026, los importes en centésimas: [`ADR-006`](architecture/ADR-006-importes-en-unidades-minimas.md)"
 
@@ -404,7 +404,7 @@ erDiagram
 
     broker_notifications {
         uuid id PK "v7"
-        uuid broker_id FK "quien avisa"
+        uuid broker_id FK "NULL · quien avisa, si se reconoce · RN-SP-076"
         varchar method "10 · GET | POST"
         jsonb query_params "nombre -> lista · sin token"
         jsonb headers "nombre en minusculas -> lista · sin credenciales"
@@ -413,6 +413,7 @@ erDiagram
         varchar ip_address "45 · NULL"
         timestamptz received_at "now · la fila no cambia nunca"
         varchar event_id "100 · NULL · el id del aviso, sin unico · RN-SP-073"
+        varchar advertiser "100 · NULL · el que trajo el aviso · RN-SP-076"
     }
 ```
 
@@ -426,7 +427,7 @@ erDiagram
 - **`user_brokers.kind` separa las cuentas de vendedor de las de consumidor** (`RN-SP-068`, 09-10-2026). Lo pone el sistema según el tipo de rol del titular **al declararla** y no cambia después: es una **foto** del tipo y no una derivación viva de `user_roles`, de modo que un cliente que asciende a vendedor conserva sus cuentas de consumidor —y su FTD—. Va **sin `DEFAULT`**, para que ninguna escritura lo olvide en silencio, y con un segundo `CHECK` que ata dos columnas: **`kind = 'CONSUMIDOR' OR status = 'REGISTER'`** — la cuenta de un vendedor no tiene primer depósito.
 - **`user_brokers` se apunta a sí misma** (`RN-SP-070`, 09-10-2026): `referrer_account_id` es la cuenta `VENDEDOR` que originó una `CONSUMIDOR`. La clave foránea es **compuesta con `broker_id`** contra `uq_user_brokers_id_broker`, y así el motor impide un origen de otro broker sin un disparador. Y **`user_id` deja de ser obligatorio** (`RN-SP-072`): la cuenta que llega del broker antes que su titular.
 - **`user_brokers.status` no se deriva de `users.status` ni al revés.** Aquel dice si la cuenta del sistema opera (`FTD_PENDIENTE` autentica y no opera, `RN-SP-044`) y este dice qué pasó en el broker. Una persona con dos cuentas puede tener una depositada y otra no, de modo que **no hay función que lleve de un conjunto al otro** sin decidir antes qué significa ese caso — y esa decisión es de `RF-SP-054`, no de aquí.
-- **`broker_notifications` guarda lo que avisa un broker sin interpretarlo** (`RN-SP-066`, `RF-SP-078`, 08-10-2026). Es la primera tabla del sistema que **escribe alguien de fuera y no lee nadie de dentro**: la consulta quien la mira desde la base, para decidir qué hará `RF-SP-054`. Por eso no tiene `updated_at` —la fila no cambia— ni columnas de proceso —llegarán con quien procese— ni único —no se sabe todavía qué identifica a un aviso—. Ni el `token` de la dirección ni las cabeceras de credenciales se guardan. **Desde el 10-10-2026 se interpreta** (`RN-SP-073`, `RN-SP-074`): gana `event_id`, el identificador del aviso, **sin único** —la reentrega se guarda; lo que no se repite es su efecto—, y `user_brokers` gana lo que el broker avisa: `first_deposit_at` y el recuento de operaciones.
+- **`broker_notifications` guarda lo que avisa un broker sin interpretarlo** (`RN-SP-066`, `RF-SP-078`, 08-10-2026). Es la primera tabla del sistema que **escribe alguien de fuera y no lee nadie de dentro**: la consulta quien la mira desde la base, para decidir qué hará `RF-SP-054`. Por eso no tiene `updated_at` —la fila no cambia— ni columnas de proceso —llegarán con quien procese— ni único —no se sabe todavía qué identifica a un aviso—. Ni el `token` de la dirección ni las cabeceras de credenciales se guardan. **Desde el 10-10-2026 se interpreta** (`RN-SP-073`, `RN-SP-074`): gana `event_id`, el identificador del aviso, **sin único** —la reentrega se guarda; lo que no se repite es su efecto—, y `user_brokers` gana lo que el broker avisa: `first_deposit_at` y el recuento de operaciones. **Desde el 13-10-2026 no se pierde ninguno** (`RN-SP-076`, `V103`): `broker_id` admite nulo —el aviso trajo el secreto y un `advertiser` que no es de ningún broker activo— y nace `advertiser`, el que trajo cada aviso. Al arrancar, los avisos sin broker cuyo `advertiser` ya está en el catálogo se le asocian y se interpretan: **es la única escritura sobre una fila guardada**, y la busca el índice parcial `ix_broker_notifications_sin_broker`.
 - **`brokers.advertiser` traduce el nombre que el broker se da en sus avisos** (`RN-SP-069`, 09-10-2026): `iq_option` → `IQOPTION`. Único sin distinguir mayúsculas, y nulo mientras no se haya visto un aviso de ese broker. Junto a él, **`brokers.url`**, el enlace de registro que publica el catálogo.
 - **`brokers` guarda solo el nombre**, por decisión del 08-09-2026, y de ahí sale que el **nombre sea la clave de negocio**: único funcional, como en `countries` y `document_types`. Renombrar un broker es, por tanto, una migración.
 - **`countries` es el único catálogo del que cuelga una persona**, desde el 07-09-2026. `memberships` tiene su tabla puente y `currencies` no toca a nadie; el país es **una columna de `users`**, y el porqué —no tiene vigencia— está razonado en §1. Lo que este cuadro añade es la consecuencia sobre el catálogo: **`is_active` deja de ser inofensivo**. Desactivar un país lo retira de los selectores del alta y **no desasigna a nadie**, de modo que a partir de ahí pueden convivir usuarios en un país que ya no se ofrece. Es deliberado y es lo que `RF-SP-022` prometía desde el principio — lo que cambia es que ahora hay a quién afectar.
@@ -1266,3 +1267,4 @@ Los documentos que citan una migración vieja por su número —specs, controles
 | 0.115.0 | 10-10-2026 | **El depósito y la operación del broker** (`RN-SP-073`, `RN-SP-074`, `V98`): `user_brokers` gana `first_deposit_at`, `operations_count`, `first_operation_at` y `last_operation_at`, con `ck_user_brokers_deposito_con_estado` y `ck_user_brokers_operaciones`; `broker_notifications` gana `event_id` con `ix_broker_notifications_evento`, sin único. | Responsable técnico |
 | 0.116.0 | 10-10-2026 | **`ix_user_brokers_busqueda_usuario`** (`V100`): gin de trigramas sobre `f_unaccent(lower(broker_username))`, para que `search` de `RF-SP-057` y `RF-SP-083` encuentre por el nombre de usuario en el broker. | Responsable técnico |
 | 0.117.0 | 13-10-2026 | **Las clases en vivo se repiten** ([`requirements/ac.md`](requirements/ac.md) v0.25.0 §5.2.16, `RN-AC-031`, `V102`): `live_sessions` gana `recurrence` (`DAILY`, `WEEKLY`, `MONTHLY` o nula), `repeat_until` y `series_ends_at` —el fin de la última fecha, igual a `ends_at` sin repetición—, con el que se calcula si terminó. | Responsable técnico |
+| 0.118.0 | 13-10-2026 | **Los avisos de los brokers no se pierden** ([`requirements/sp.md`](requirements/sp.md) v1.123.0 §10.25, `RN-SP-076`, `V103`): `broker_notifications.broker_id` admite nulo —el aviso cuyo `advertiser` no se reconoce—, nace `advertiser`, rellenada en los avisos ya guardados, y el índice parcial `ix_broker_notifications_sin_broker`. Al arrancar se asocian e interpretan los que ya son de un broker. | Responsable técnico |

@@ -1,21 +1,19 @@
 package com.factech.nexus.modules.system.brokers.infrastructure;
 
-import java.util.Map;
 import java.util.Optional;
-import java.util.UUID;
 import org.springframework.boot.context.properties.ConfigurationProperties;
 
 /**
- * Los secretos con los que cada broker autentica sus avisos (`RF-SP-078` · `T-02`, `RN-SP-066`).
+ * El secreto con el que los brokers autentican sus avisos, y cómo se leen (`RF-SP-078` · `T-02`,
+ * `RN-SP-066`).
  *
- * <p><b>Uno por broker, por identificador y en el entorno</b>: los identificadores los fija `V9`,
- * iguales en todos los entornos, y los secretos llegan por variable. <b>No van a la base</b> porque
- * el catálogo se puebla por migración (`RN-SP-039`) y un secreto en una migración acaba en el
- * repositorio. Un secreto vacío es un broker <b>sin configurar</b>, que no puede avisar.
+ * <p><b>Uno solo, en el entorno</b> (`RN-SP-069`): hasta el 13-10-2026 había además uno por broker,
+ * para la ruta con su nombre, que se retiró (`plan.md` §16). <b>No va a la base</b> porque el
+ * catálogo se puebla por migración (`RN-SP-039`) y un secreto en una migración acaba en el
+ * repositorio. Vacío es <b>sin configurar</b>: nadie puede avisar.
  */
 @ConfigurationProperties(prefix = "nexus.brokers")
 public record BrokerNotificationSettings(
-    Map<UUID, String> notificationTokens,
     String notificationToken,
     String registrationEvent,
     String depositEvent,
@@ -23,7 +21,6 @@ public record BrokerNotificationSettings(
     Fields fields) {
 
   public BrokerNotificationSettings {
-    notificationTokens = notificationTokens == null ? Map.of() : Map.copyOf(notificationTokens);
     fields = fields == null ? new Fields(null, null, null, null) : fields;
   }
 
@@ -67,11 +64,5 @@ public record BrokerNotificationSettings(
     return notificationToken == null || notificationToken.isBlank()
         ? Optional.empty()
         : Optional.of(notificationToken);
-  }
-
-  /** El secreto de ese broker, o vacío si no está configurado. */
-  public Optional<String> tokenOf(UUID brokerId) {
-    String token = notificationTokens.get(brokerId);
-    return token == null || token.isBlank() ? Optional.empty() : Optional.of(token);
   }
 }

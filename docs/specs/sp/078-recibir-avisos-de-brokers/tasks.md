@@ -3,10 +3,10 @@
 | Campo | Valor |
 |---|---|
 | Requerimiento | `RF-SP-078` |
-| Especificación | [`spec.md`](spec.md) v0.5.0 |
-| Plan | [`plan.md`](plan.md) v0.5.0 |
+| Especificación | [`spec.md`](spec.md) v0.6.0 |
+| Plan | [`plan.md`](plan.md) v0.6.0 |
 | `plan.md` aprobado el | 08-10-2026 |
-| Estado | **En revisión** — `T-01` a `T-08` `Hecha` el 08-10-2026; `T-09` pendiente; `T-11` a `T-14` `Hecha` el 09-10-2026 (enmienda 0.3.0); `T-15` y `T-16` `Hecha` el 09-10-2026 (enmienda 0.4.0); `T-17` a `T-19` `Hecha` el 10-10-2026 (enmienda 0.5.0) |
+| Estado | **En revisión** — `T-01` a `T-08` `Hecha` el 08-10-2026; `T-09` pendiente; `T-11` a `T-14` `Hecha` el 09-10-2026 (enmienda 0.3.0); `T-15` y `T-16` `Hecha` el 09-10-2026 (enmienda 0.4.0); `T-17` a `T-19` `Hecha` el 10-10-2026 (enmienda 0.5.0); `T-20` a `T-23` `Hecha` el 13-10-2026 (enmienda 0.6.0) |
 | Issue | Pendiente de crear |
 | Rama | `develop` (commits directos desde el 05-10-2026) |
 
@@ -40,7 +40,11 @@
 | `T-17` | `V98`; los dos eventos y `event-id` en la configuración; `lockByNumber`, `markFirstDeposit`, `countOperation`, `otherWithEventId`, `hasFirstDeposit`; `ConfirmFirstDepositService`; el despacho por evento (`plan.md` §15) | `T-16` | Flyway aplica sobre una base limpia | **Hecha** — 10-10-2026 |
 | `T-18` | La activación al asociar: `claim`, `assignHolder` y el registro por enlace; `activity` en las dos respuestas | `T-17` | | **Hecha** — 10-10-2026 |
 | `T-19` | `BrokerNotificationsIT` y `SelfRegistrationIT`: `CA-SP-995` a `CA-SP-1002`; `deployment.md`, `api/index.md`, `.env.example` | `T-18` | `mvn verify` en verde | **Hecha** — 10-10-2026 |
-| `T-09` | Configurar los tres secretos en Railway y la dirección en el panel de afiliados de cada broker; disparar un aviso de prueba desde cada panel y verlo en la base | `T-08` | Una fila por broker | Pendiente |
+| `T-20` | `V103`: `broker_id` nulo, `advertiser` con su relleno, `ix_broker_notifications_sin_broker` (`plan.md` §16) | — | Flyway aplica sobre una base limpia; los avisos de `IQOPTION` quedan con `iq_option` | **Hecha** — 13-10-2026 |
+| `T-21` | `receiveCommon` sin `EX-003`, con `advertiser` guardado; `classify`; `BrokerNotificationClassifier`; el repositorio; fuera la ruta por nombre, `findActiveByName`, `tokenOf`, `notification-tokens` y su ruta pública | `T-20` | | **Hecha** — 13-10-2026 |
+| `T-22` | `BrokerNotificationsIT`: `CA-SP-1009` a `CA-SP-1015`, las pruebas de la ruta por nombre retiradas o pasadas a la común; `IntegrationTestBase`; `EndpointPermissionsIT` | `T-21` | Cada criterio afirmado en el cuerpo; `mvn verify` en verde | **Hecha** — 13-10-2026 |
+| `T-23` | Contrato con la prosa; `api/index.md`, `deployment.md`, `.env.example`, `docker-compose.yml`, `modelo-datos.md` y `requirements.md` | `T-22` | | **Hecha** — 13-10-2026 |
+| `T-09` | Configurar el secreto común en Railway y la dirección común en el panel de afiliados de cada broker; disparar un aviso de prueba desde cada panel y verlo en la base, con su `advertiser` | `T-08` | Una fila por broker | Pendiente |
 
 ---
 
@@ -62,6 +66,7 @@
 | `CA-SP-946` a `CA-SP-952` | `T-11` a `T-13` |
 | `CA-SP-964` a `CA-SP-968` | `T-15`, `T-16` |
 | `CA-SP-995` a `CA-SP-1002` | `T-17` a `T-19` |
+| `CA-SP-1009` a `CA-SP-1015` | `T-20` a `T-22` |
 
 ---
 

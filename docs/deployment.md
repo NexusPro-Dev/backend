@@ -5,11 +5,11 @@
 | Proyecto | NEXUS — Renovación de plataforma |
 | Empresa | FACTECH GROUP SAS |
 | Documento | `deployment.md` |
-| Versión | 0.24.0 |
+| Versión | 0.25.0 |
 | Estado | Borrador |
 | Responsable técnico | Bonilla Diaz William Steven |
 | Fecha de creación | 27-08-2026 |
-| Última actualización | 08-10-2026 |
+| Última actualización | 13-10-2026 |
 | Documento superior | `constitution.md` v0.7.0 |
 | Documentos relacionados | `architecture.md` v0.21.0 · `security.md` v0.35.0 · [`ADR-002`](architecture/ADR-002-plataforma-de-despliegue-railway.md) |
 | Documento derivado | [`manual-de-despliegue.md`](manual-de-despliegue.md) v0.2.0 — el paso a paso |
@@ -300,7 +300,7 @@ Se cargan en el servicio **`backend`**. La columna «Valor en Railway» es liter
 
 Lo que avisa cada broker se guarda tal como llega y **no se interpreta todavía** (`RF-SP-078`, `RN-SP-066`): esto es para ver qué mandan antes de escribir `RF-SP-054`.
 
-**Desde el 09-10-2026 la dirección es UNA para todos los brokers** (`RN-SP-069`), sin el nombre del broker, y con **un solo secreto**:
+**La dirección es UNA para todos los brokers** (`RN-SP-069`), sin el nombre del broker, y con **un solo secreto**. La dirección por nombre y sus tres secretos (`BROKER_TOKEN_*`) **se retiraron el 13-10-2026**: si quedan en Railway, se pueden borrar.
 
 | Variable | Valor en Railway | Por qué |
 |---|---|---|
@@ -312,7 +312,7 @@ La dirección que va en el panel de afiliados de **cualquier** broker:
 https://<dominio del backend>/api/v1/brokers/notifications?token=<BROKER_NOTIFICATION_TOKEN>&advertiser={advertiser}&…
 ```
 
-**El aviso tiene que traer `advertiser`** —IQ Option ya lo manda: `advertiser=iq_option`—, y su valor tiene que estar en `brokers.advertiser`. Hoy solo está el de `IQOPTION`; **para `EXNOVA` y `EXOPTION` hace falta una migración** con el valor que muestren sus avisos. Mientras tanto, esos dos usan la dirección por nombre de abajo.
+**El broker lo dice el `advertiser` del aviso** —IQ Option lo manda: `advertiser=iq_option`—, comparado con `brokers.advertiser`. Hoy solo está el de `IQOPTION`. **Un aviso con el secreto correcto se guarda siempre** (`RN-SP-076`): si su `advertiser` no se reconoce —el de `EXNOVA` o `EXOPTION`, por ahora—, **se guarda sin broker y no se interpreta**. Para reconocerlo: mira el `advertiser` de esos avisos (consulta de abajo), cárgalo con una migración y despliega; **al arrancar**, la aplicación les asocia el broker y los interpreta en el orden en que llegaron.
 
 **El aviso de registro crea la cuenta sin titular** (`RN-SP-072`, 09-10-2026). Qué aviso es el de registro lo dice el entorno:
 
@@ -324,37 +324,31 @@ https://<dominio del backend>/api/v1/brokers/notifications?token=<BROKER_NOTIFIC
 
 De cada aviso se leen `trader_id` —el número de la cuenta—, `afftrack` —el del vendedor, solo en el registro— y `event_id` —el del aviso, para no aplicar dos veces una reentrega—. Si el panel los llama de otra forma, se cambian con `BROKER_FIELD_EVENT`, `BROKER_FIELD_ACCOUNT`, `BROKER_FIELD_AFFTRACK` y `BROKER_FIELD_EVENT_ID`. **El depósito confirma el FTD entero**: la cuenta pasa a `FIRST_DEPOSIT` y, si su titular espera en `FTD_PENDIENTE`, pasa a `ACTIVO` con lo que compró — configúralo cuando el panel ya mande depósitos reales.
 
-**La dirección por nombre sigue funcionando y está obsoleta**: cambia la de cada panel a la común y, cuando ninguno la use, se retira.
-
-| Variable | Valor en Railway | Por qué |
-|---|---|---|
-| `BROKER_TOKEN_IQOPTION` | Un secreto aleatorio, **distinto por broker y por entorno**: `openssl rand -hex 24` | Autentica los avisos de `IQOPTION`. **Sin él, su ruta responde `503`** y no guarda nada |
-| `BROKER_TOKEN_EXNOVA` | Igual, otro | Los de `EXNOVA` |
-| `BROKER_TOKEN_EXOPTION` | Igual, otro | Los de `EXOPTION` |
-
-**En hexadecimal**, y no en Base64: va dentro de una dirección, y un `+` o un `/` habría que escaparlos en el panel.
-
-**La dirección que va en el panel de afiliados de cada broker**, en la sección de *postback* o S2S, con el **nombre** del broker —sin distinguir mayúsculas— y su secreto:
-
-| Broker | Dirección |
-|---|---|
-| `IQOPTION` | `https://<dominio del backend>/api/v1/brokers/iqoption/notifications?token=<BROKER_TOKEN_IQOPTION>` |
-| `EXNOVA` | `https://<dominio del backend>/api/v1/brokers/exnova/notifications?token=<BROKER_TOKEN_EXNOVA>` |
-| `EXOPTION` | `https://<dominio del backend>/api/v1/brokers/exoption/notifications?token=<BROKER_TOKEN_EXOPTION>` |
+**El secreto, en hexadecimal**, y no en Base64: va dentro de una dirección, y un `+` o un `/` habría que escaparlos en el panel. Va en el panel de afiliados de cada broker, en la sección de *postback* o S2S.
 
 **Detrás del `token` se añaden los marcadores que ofrezca el panel**, con los nombres que el panel diga —por ejemplo `&event={event}&trader_id={trader_id}`—: todo lo que llegue se guarda. Vale `GET` y `POST`, con cualquier tipo de contenido.
 
 **Ver lo que llegó**, desde la base (Railway → servicio Postgres → *Data*, o `psql`):
 
 ```sql
-SELECT b.name, n.received_at, n.method, n.query_params, n.headers, n.body, n.content_type
+SELECT b.name, n.advertiser, n.received_at, n.method, n.query_params, n.headers, n.body,
+       n.content_type
   FROM broker_notifications n
-  JOIN brokers b ON b.id = n.broker_id
+  LEFT JOIN brokers b ON b.id = n.broker_id
  ORDER BY n.received_at DESC
  LIMIT 50;
 ```
 
-**Cambiar un secreto** es cambiar la variable y la dirección en el panel; desde que la aplicación toma la nueva, los avisos con el viejo responden `401`. **En local no llegan solos**: como los de PayRetailers (§6.5.2), hace falta un túnel que publique el puerto `8080`.
+**Los que llegaron sin broker, por `advertiser`** —de aquí sale el valor que hay que cargar—:
+
+```sql
+SELECT advertiser, count(*), min(received_at), max(received_at)
+  FROM broker_notifications
+ WHERE broker_id IS NULL
+ GROUP BY advertiser;
+```
+
+**Cambiar el secreto** es cambiar la variable y la dirección en los paneles; desde que la aplicación toma la nueva, los avisos con el viejo responden `401`. **En local no llegan solos**: como los de PayRetailers (§6.5.2), hace falta un túnel que publique el puerto `8080`.
 
 ### 6.5.4 Las clases en vivo (Zoom)
 
@@ -646,3 +640,4 @@ Ninguno de estos puntos impide desplegar. Todos están declarados para que no se
 | 0.22.0 | 09-10-2026 | §6.5.3: **`BROKER_REGISTRATION_EVENT`** y los tres nombres de campo: el aviso de registro crea la cuenta sin titular (`RN-SP-072`). | Responsable técnico |
 | 0.23.0 | 10-10-2026 | §6.5.3: **`BROKER_DEPOSIT_EVENT`, `BROKER_OPERATION_EVENT`** y `BROKER_FIELD_EVENT_ID`: el depósito confirma el FTD (`RN-SP-073`) y la operación se cuenta (`RN-SP-074`). | Responsable técnico |
 | 0.24.0 | 13-10-2026 | **Nueva §6.5.4: las clases en vivo (Zoom)**: la app Server-to-Server OAuth, sus scopes y las cuatro variables `ZOOM_*`. | Responsable técnico |
+| 0.25.0 | 13-10-2026 | §6.5.3: **la dirección común es la única** y **guarda todo aviso con el secreto**: el que no se reconoce queda sin broker y se asocia al arrancar cuando una migración cargue su `advertiser` (`RN-SP-076`). Se retiran la dirección por nombre y `BROKER_TOKEN_IQOPTION`, `BROKER_TOKEN_EXNOVA` y `BROKER_TOKEN_EXOPTION`; la consulta de lo que llegó gana `advertiser` y la de los avisos sin broker. | Responsable técnico |

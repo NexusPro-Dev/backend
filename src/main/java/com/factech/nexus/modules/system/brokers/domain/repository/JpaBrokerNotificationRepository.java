@@ -22,18 +22,6 @@ public class JpaBrokerNotificationRepository implements BrokerNotificationReposi
   }
 
   @Override
-  public Optional<UUID> findActiveByName(String name) {
-    @SuppressWarnings("unchecked")
-    List<UUID> filas =
-        em.createNativeQuery(
-                "SELECT id FROM brokers"
-                    + " WHERE f_unaccent(lower(name)) = f_unaccent(lower(:nombre)) AND is_active")
-            .setParameter("nombre", name)
-            .getResultList();
-    return filas.stream().findFirst();
-  }
-
-  @Override
   public Optional<UUID> findActiveByAdvertiser(String advertiser) {
     @SuppressWarnings("unchecked")
     List<UUID> filas =
@@ -48,6 +36,7 @@ public class JpaBrokerNotificationRepository implements BrokerNotificationReposi
   public void insert(
       UUID id,
       UUID brokerId,
+      String advertiser,
       String method,
       String queryParams,
       String headers,
@@ -58,14 +47,15 @@ public class JpaBrokerNotificationRepository implements BrokerNotificationReposi
     em.createNativeQuery(
             """
             INSERT INTO broker_notifications
-                (id, broker_id, method, query_params, headers, body, content_type, ip_address,
-                 event_id)
-            VALUES (CAST(:id AS uuid), CAST(:broker AS uuid), :metodo, CAST(:consulta AS jsonb),
-                    CAST(:cabeceras AS jsonb), CAST(:cuerpo AS text), CAST(:tipo AS varchar), CAST(:ip AS varchar),
-                    CAST(:evento AS varchar))
+                (id, broker_id, advertiser, method, query_params, headers, body, content_type,
+                 ip_address, event_id)
+            VALUES (CAST(:id AS uuid), CAST(:broker AS uuid), CAST(:anunciante AS varchar), :metodo,
+                    CAST(:consulta AS jsonb), CAST(:cabeceras AS jsonb), CAST(:cuerpo AS text),
+                    CAST(:tipo AS varchar), CAST(:ip AS varchar), CAST(:evento AS varchar))
             """)
         .setParameter("id", id)
         .setParameter("broker", brokerId)
+        .setParameter("anunciante", advertiser)
         .setParameter("metodo", method)
         .setParameter("consulta", queryParams)
         .setParameter("cabeceras", headers)
@@ -90,5 +80,59 @@ public class JpaBrokerNotificationRepository implements BrokerNotificationReposi
         .setParameter("id", exceptId)
         .getResultList()
         .isEmpty();
+  }
+
+  @Override
+  public List<UUID> unclassifiedWithKnownAdvertiser() {
+    @SuppressWarnings("unchecked")
+    List<UUID> filas =
+        em.createNativeQuery(
+                """
+                SELECT n.id FROM broker_notifications n
+                  JOIN brokers b ON lower(b.advertiser) = lower(n.advertiser) AND b.is_active
+                 WHERE n.broker_id IS NULL
+                 ORDER BY n.received_at, n.id
+                """)
+            .getResultList();
+    return filas;
+  }
+
+  @Override
+  public Optional<StoredNotice> lockUnclassified(UUID id) {
+    @SuppressWarnings("unchecked")
+    List<Object[]> filas =
+        em.createNativeQuery(
+                """
+                SELECT n.id, b.id, CAST(n.query_params AS text), n.body, n.content_type, n.event_id
+                  FROM broker_notifications n
+                  JOIN brokers b ON lower(b.advertiser) = lower(n.advertiser) AND b.is_active
+                 WHERE n.id = CAST(:id AS uuid) AND n.broker_id IS NULL
+                   FOR UPDATE OF n SKIP LOCKED
+                """)
+            .setParameter("id", id)
+            .getResultList();
+    return filas.stream()
+        .findFirst()
+        .map(
+            f ->
+                new StoredNotice(
+                    (UUID) f[0],
+                    (UUID) f[1],
+                    (String) f[2],
+                    (String) f[3],
+                    (String) f[4],
+                    (String) f[5]));
+  }
+
+  @Override
+  public void assignBroker(UUID id, UUID brokerId) {
+    em.createNativeQuery(
+            """
+            UPDATE broker_notifications SET broker_id = CAST(:broker AS uuid)
+             WHERE id = CAST(:id AS uuid) AND broker_id IS NULL
+            """)
+        .setParameter("id", id)
+        .setParameter("broker", brokerId)
+        .executeUpdate();
   }
 }

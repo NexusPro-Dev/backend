@@ -3,9 +3,9 @@
 | Campo | Valor |
 |---|---|
 | Requerimiento | `RF-SP-078` |
-| Especificación | [`spec.md`](spec.md) v0.5.0 |
+| Especificación | [`spec.md`](spec.md) v0.6.0 |
 | `spec.md` aprobada el | 08-10-2026 |
-| Versión | 0.5.0 |
+| Versión | 0.6.0 |
 | Estado | **Aprobado** |
 | Autor | Responsable técnico |
 | Aprobado por | Responsable del proyecto |
@@ -30,6 +30,10 @@
 ---
 
 ## 2. Los secretos
+
+!!! warning "Superado el 13-10-2026 (§16)"
+
+    Los secretos por broker y `notification-tokens` se retiraron con la ruta por nombre. Queda solo el secreto común, `nexus.brokers.notification-token` (§13).
 
 **En el entorno, uno por broker, y por identificador**:
 
@@ -217,3 +221,47 @@ Integración, **`BrokerNotificationsIT`**, con `MockMvc` y la cadena de filtros 
 | `application` | `BrokerAccountActivity` (nuevo), `BrokerAccountItem`, `TeamBrokerAccountItem` | `activity` |
 
 **Pruebas**: `BrokerNotificationsIT` (`CA-SP-996` a `CA-SP-1000`) y `SelfRegistrationIT` (`CA-SP-995`, `CA-SP-997`, `CA-SP-1001`, `CA-SP-1002`), esta con la venta del alta real.
+
+---
+
+## 16. Enmienda 0.6.0 — una sola dirección, y ningún aviso se pierde (`RN-SP-076`, 13-10-2026)
+
+**`V103`** cambia `broker_notifications`: `broker_id` **admite nulo** —la clave foránea sigue—, y nace **`advertiser varchar(100)`**, nula. La rellena en los avisos ya guardados **desde `query_params`**, como `V98` hizo con `event_id`: el valor recortado si viene exactamente uno y mide de 1 a 100. **No mira el cuerpo**: todos los avisos reales hasta hoy llegan por `GET`. Crea `ix_broker_notifications_sin_broker (lower(advertiser), received_at, id) WHERE broker_id IS NULL`, el índice de la pregunta del arranque. **Ningún permiso**: el catálogo no se mueve.
+
+**`receiveCommon`** conserva el orden —secreto configurado (`EX-002`) → `token` (`EX-001`) → tope (`EX-004`)— y **ya no lanza `EX-003`**: lee el `advertiser` con el mismo `campo(...)` de siempre, lo recorta a lo sumo a 100 —más largo cuenta como ausente—, busca el broker con `findActiveByAdvertiser`, y guarda **con broker o sin él**. **Sin broker no se interpreta**: `interpretar` no se llama. El `advertiser` se guarda en su columna en los dos casos. **Por qué el `advertiser` ya no se mira al final por seguridad**: ya no hay respuesta distinta que delate el catálogo; todo aviso con secreto responde `200`.
+
+**Se retira la ruta por nombre**: `receive(name, aviso)`, los dos métodos del controlador, `findActiveByName`, `notificationTokens` y `tokenOf` de `BrokerNotificationSettings`, el bloque `notification-tokens` de `application.yml`, los tres `BROKER_TOKEN_*` de `.env.example`, `docker-compose.yml` y `deployment.md`, y `"/api/v1/brokers/*/notifications"` de `RUTAS_PUBLICAS`. **Una petición a la ruta vieja ya no llega a ningún controlador**: no es pública, y sin sesión responde `401` como cualquier ruta protegida; con sesión, `404`. En ningún caso se guarda (`CA-SP-1015`).
+
+**La clasificación al arrancar** es un componente nuevo, **`BrokerNotificationClassifier`** (`ApplicationRunner`, en `domain/service`, como `FloorMembershipStartupCheck`). Pide la lista de avisos pendientes —`unclassifiedWithKnownAdvertiser()`: sin broker y cuyo `lower(advertiser)` es el de un broker activo, por `received_at, id`— y, **uno a uno y cada uno en su transacción**, llama a `ReceiveBrokerNotificationService.classify(id)`:
+
+1. `lockUnclassified(id)`: el aviso con `FOR UPDATE SKIP LOCKED` y `broker_id IS NULL`, junto con el broker de su `advertiser`. **Si otro arranque lo tomó, o ya tiene broker, no se hace nada**: dos instancias que arrancan a la vez se reparten la lista sin pisarse.
+2. `assignBroker(id, brokerId)`: `UPDATE … SET broker_id … WHERE broker_id IS NULL`. **Es la única escritura sobre un aviso ya guardado.**
+3. `interpretar(...)` con lo guardado: `query_params` se lee de vuelta como nombre → lista con el `ObjectMapper`, y `body` como bytes UTF-8, con su `content_type`. **Es la misma función que el aviso que llega**, así que la reentrega por `event_id` se reconoce igual: el aviso anterior ya tiene broker cuando se mira el siguiente.
+
+**Un fallo no tumba el arranque**: si `classify` lanza —la activación de `RN-SP-073` es lo único que puede—, su transacción se revierte, el aviso queda sin broker, se escribe un `WARN` con su `id` y se sigue con el siguiente. El siguiente arranque lo reintenta. **Sin auditoría propia**: lo que la interpretación cambia ya se audita como siempre.
+
+**El contrato**: las dos rutas comunes cambian su prosa —sin `404`— y desaparecen las dos por nombre. `EndpointPermissionsIT` pierde las dos firmas de `PUBLICAS`.
+
+| Capa | Componente | Cambio |
+|---|---|---|
+| `db/migration` | `V103__sp_avisos_de_brokers_sin_broker.sql` | `broker_id` nulo, `advertiser`, su relleno y el índice parcial |
+| `infrastructure` | `BrokerNotificationSettings`, `application.yml` | Fuera `notificationTokens` y `tokenOf` |
+| `domain/repository` | `BrokerNotificationRepository`, `JpaBrokerNotificationRepository` | Fuera `findActiveByName`; `insert` con `advertiser` y broker nulo; `unclassifiedWithKnownAdvertiser`, `lockUnclassified`, `assignBroker` |
+| `domain/service` | `ReceiveBrokerNotificationService` | Fuera `receive`; `receiveCommon` sin `EX-003`; `classify` |
+| `domain/service` | `BrokerNotificationClassifier` (nuevo) | El recorrido del arranque |
+| `interfaces` | `BrokerNotificationController` | Fuera las dos rutas por nombre |
+| `shared/security` | `SecurityConfig` | Fuera la ruta por nombre de `RUTAS_PUBLICAS` |
+| `test` | `IntegrationTestBase` | Fuera los secretos por broker |
+
+**Alternativas descartadas**
+
+| Alternativa | Por qué no |
+|---|---|
+| Clasificar dentro de la migración que carga el `advertiser` | Una migración puede poner el broker, pero **no interpretar**: crear la cuenta, activar el FTD y entregar lo comprado es código, y duplicarlo en SQL se desincronizaría |
+| Una ruta de administración para reclasificar a mano | Es un permiso, una ruta y una prueba más para algo que solo ocurre cuando cambia el catálogo, que solo cambia al desplegar |
+| Una tarea periódica | El `advertiser` solo cambia con una migración, y las migraciones solo corren al arrancar: mirar cada minuto es mirar 1 440 veces al día algo que no cambia |
+| Guardar en otra tabla los avisos sin broker | Dos tablas con la misma forma, y mudar la fila al reconocerla; con el nulo y el índice parcial la pregunta es igual de barata |
+
+**Riesgo**: un aviso nuevo de un broker recién reconocido puede llegar mientras el arranque todavía asocia los viejos, y se interpreta antes que ellos (`spec.md` §13). El depósito y la operación solo miran que la cuenta exista, así que el orden solo importaría si un depósito viejo llegara antes que el registro que crea su cuenta, y eso ya pasaba igual con los avisos en vivo.
+
+**Pruebas**, en `BrokerNotificationsIT`: `CA-SP-1009` a `CA-SP-1012` y `CA-SP-1015` por `MockMvc`; `CA-SP-1013` y `CA-SP-1014` guardan avisos de un `advertiser` desconocido, se lo cargan a `EXNOVA` con SQL, llaman a `BrokerNotificationClassifier.run(null)` y lo reponen a nulo al terminar —como `CA-SP-903` reponía el broker—. Se retiran las pruebas de `CA-SP-901` a `CA-SP-903`, `CA-SP-908`, `CA-SP-948` y `CA-SP-952`; **las que usaban la ruta por nombre para otros criterios pasan a la común**.

@@ -27,7 +27,7 @@ class ReceiveBrokerNotificationServiceTest {
     ReceiveBrokerNotificationService servicio =
         new ReceiveBrokerNotificationService(
             avisos,
-            new BrokerNotificationSettings(Map.of(), " ", null, null, null, null),
+            new BrokerNotificationSettings(" ", null, null, null, null),
             mock(UuidV7Generator.class),
             new ObjectMapper(),
             mock(BrokerAccountWriter.class),

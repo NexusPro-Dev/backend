@@ -57,9 +57,6 @@ tags:
   description: "Los bancos y billeteras móviles a los que se pagan los retiros, y\
     \ las cuentas de cada persona en ellos. Un retiro exige una cuenta y copia su\
     \ destino."
-- name: Avisos de los brokers
-  description: "Lo que avisa cada broker (RF-SP-078). Solo lo llaman los brokers,\
-    \ con su secreto; el frontend no."
 - name: Cierres de comisiones
   description: "Cada cierre del periodo, programado o a mano, con lo que hizo."
 - name: Comisiones
@@ -106,6 +103,9 @@ tags:
 - name: Módulos de curso
   description: "Las partes de un curso: agrupan lecciones y se ordenan dentro de é\
     l."
+- name: Avisos de los brokers
+  description: "Lo que avisa cada broker (RF-SP-078). Solo lo llaman los brokers,\
+    \ con el secreto; el frontend no."
 - name: Permisos
   description: Catálogo de permisos del sistema. Solo lectura.
 - name: Pasarela de pago
@@ -7453,101 +7453,6 @@ paths:
               schema:
                 $ref: "#/components/schemas/CommissionClosingResponse"
       x-required-permission: commission-batches:settle
-  /api/v1/brokers/{name}/notifications:
-    get:
-      tags:
-      - Avisos de los brokers
-      summary: Recibir un aviso de un broker (datos en la dirección)
-      description: |
-        **Permiso requerido:** ninguno. Ruta pública: responde sin token.
-
-        **Obsoleta desde el 09-10-2026** (`RN-SP-069`): sigue funcionando mientras se cambia la
-        dirección en cada panel de afiliados por la común, `/api/v1/brokers/notifications`.
-
-        **La llama el broker, no el frontend** (`RF-SP-078`). Ruta **pública**: la autentica el
-        secreto propio de ese broker, en el parámetro `token` de la dirección (`RN-SP-066`). El
-        aviso se guarda **entero y sin interpretar** —método, parámetros de la dirección salvo
-        `token`, cabeceras salvo las de credenciales, cuerpo tal cual, tipo de contenido y origen—
-        y se responde `200` sin cuerpo. **No cambia nada más**: ni cuentas de broker, ni personas.
-        Dos avisos iguales se guardan dos veces. `{name}` es el nombre del broker en el catálogo
-        (`GET /api/v1/brokers`), sin distinguir mayúsculas: `iqoption`, `exnova`, `exoption`.
-      operationId: brokerNotificationByQuery
-      parameters:
-      - name: name
-        in: path
-        required: true
-        schema:
-          type: string
-      - name: token
-        in: query
-        description: El secreto de este broker. No se guarda.
-        required: true
-        schema:
-          type: string
-      responses:
-        "200":
-          description: Guardado; cuerpo vacío.
-        "400":
-          description: Cuerpo de más de 64 KiB (`EX-004`)
-        "401":
-          description: "Sin `token`, con `token` repetido o con uno que no es el de\
-            \ este broker (`EX-001`). No se guarda nada"
-        "404":
-          description: El broker no existe o no está activo (`EX-003`). No se guarda
-            nada
-        "503":
-          description: Este broker no tiene secreto configurado en este entorno (`EX-002`).
-            No se guarda nada
-      deprecated: true
-      security: []
-    post:
-      tags:
-      - Avisos de los brokers
-      summary: Recibir un aviso de un broker (datos en el cuerpo)
-      description: |-
-        **Permiso requerido:** ninguno. Ruta pública: responde sin token.
-
-        **Obsoleta desde el 09-10-2026** (`RN-SP-069`): sigue funcionando mientras se cambia la
-        dirección en cada panel de afiliados por la común, `/api/v1/brokers/notifications`.
-
-        **La llama el broker, no el frontend** (`RF-SP-078`). Ruta **pública**: la autentica el
-        secreto propio de ese broker, en el parámetro `token` de la dirección (`RN-SP-066`). El
-        aviso se guarda **entero y sin interpretar** —método, parámetros de la dirección salvo
-        `token`, cabeceras salvo las de credenciales, cuerpo tal cual, tipo de contenido y origen—
-        y se responde `200` sin cuerpo. **No cambia nada más**: ni cuentas de broker, ni personas.
-        Dos avisos iguales se guardan dos veces. `{name}` es el nombre del broker en el catálogo
-        (`GET /api/v1/brokers`), sin distinguir mayúsculas: `iqoption`, `exnova`, `exoption`.
-
-        Admite **cualquier tipo de contenido**, de hasta 64 KiB; un formulario se guarda tal cual, sin desarmarlo.
-      operationId: brokerNotificationByBody
-      parameters:
-      - name: name
-        in: path
-        required: true
-        schema:
-          type: string
-      - name: token
-        in: query
-        description: El secreto de este broker. No se guarda.
-        required: true
-        schema:
-          type: string
-      responses:
-        "200":
-          description: Guardado; cuerpo vacío.
-        "400":
-          description: Cuerpo de más de 64 KiB (`EX-004`)
-        "401":
-          description: "Sin `token`, con `token` repetido o con uno que no es el de\
-            \ este broker (`EX-001`). No se guarda nada"
-        "404":
-          description: El broker no existe o no está activo (`EX-003`). No se guarda
-            nada
-        "503":
-          description: Este broker no tiene secreto configurado en este entorno (`EX-002`).
-            No se guarda nada
-      deprecated: true
-      security: []
   /api/v1/brokers/notifications:
     get:
       tags:
@@ -7556,17 +7461,24 @@ paths:
       description: |
         **Permiso requerido:** ninguno. Ruta pública: responde sin token.
 
-        **La dirección común** (`RN-SP-069`, 09-10-2026): la misma para todos los brokers, sin su
-        nombre. La autentica **un solo secreto**, en el parámetro `token`, y **el broker lo dice el
-        propio aviso** en `advertiser` —`iq_option` en los de IQ Option—: en la dirección o, si no
-        viene ahí, en un cuerpo de formulario o en el primer nivel de un JSON. Sin distinguir
-        mayúsculas. **El `advertiser` se comprueba después del secreto.** El aviso se guarda **entero
-        y sin interpretar**, como por la ruta por nombre, y se responde `200` sin cuerpo.
+        **La llama el broker, no el frontend** (`RF-SP-078`). **La única dirección de los avisos**,
+        la misma para todos los brokers (`RN-SP-069`). Ruta **pública**: la autentica **un solo
+        secreto**, en el parámetro `token` de la dirección (`RN-SP-066`).
+
+        **El broker lo dice el propio aviso** en `advertiser` —`iq_option` en los de IQ Option—: en
+        la dirección o, si no viene ahí, en un cuerpo de formulario o en el primer nivel de un JSON,
+        sin distinguir mayúsculas. **Si no es el de ningún broker activo, o falta, o viene repetido,
+        el aviso se guarda igual, sin broker y sin interpretar** (`RN-SP-076`); se le asocia y se
+        interpreta al arrancar, cuando una migración cargue ese `advertiser` en el catálogo.
+
+        El aviso se guarda **entero y sin interpretar** —método, parámetros de la dirección salvo
+        `token`, cabeceras salvo las de credenciales, cuerpo tal cual, tipo de contenido, origen y
+        su `advertiser`— y se responde `200` sin cuerpo. Dos avisos iguales se guardan dos veces.
       operationId: commonBrokerNotificationByQuery
       parameters:
       - name: token
         in: query
-        description: El secreto común de los avisos. No se guarda.
+        description: El secreto de los avisos. No se guarda.
         required: true
         schema:
           type: string
@@ -7578,12 +7490,9 @@ paths:
         "401":
           description: "Sin `token`, con `token` repetido o con otro (`EX-001`). No\
             \ se guarda nada"
-        "404":
-          description: "El aviso no trae `advertiser`, lo trae repetido, o no es el\
-            \ de ningún broker activo (`EX-003`). No se guarda nada"
         "503":
-          description: La dirección común no tiene secreto configurado (`EX-002`).
-            No se guarda nada
+          description: El secreto de los avisos no está configurado (`EX-002`). No
+            se guarda nada
       security: []
     post:
       tags:
@@ -7592,19 +7501,26 @@ paths:
       description: |-
         **Permiso requerido:** ninguno. Ruta pública: responde sin token.
 
-        **La dirección común** (`RN-SP-069`, 09-10-2026): la misma para todos los brokers, sin su
-        nombre. La autentica **un solo secreto**, en el parámetro `token`, y **el broker lo dice el
-        propio aviso** en `advertiser` —`iq_option` en los de IQ Option—: en la dirección o, si no
-        viene ahí, en un cuerpo de formulario o en el primer nivel de un JSON. Sin distinguir
-        mayúsculas. **El `advertiser` se comprueba después del secreto.** El aviso se guarda **entero
-        y sin interpretar**, como por la ruta por nombre, y se responde `200` sin cuerpo.
+        **La llama el broker, no el frontend** (`RF-SP-078`). **La única dirección de los avisos**,
+        la misma para todos los brokers (`RN-SP-069`). Ruta **pública**: la autentica **un solo
+        secreto**, en el parámetro `token` de la dirección (`RN-SP-066`).
+
+        **El broker lo dice el propio aviso** en `advertiser` —`iq_option` en los de IQ Option—: en
+        la dirección o, si no viene ahí, en un cuerpo de formulario o en el primer nivel de un JSON,
+        sin distinguir mayúsculas. **Si no es el de ningún broker activo, o falta, o viene repetido,
+        el aviso se guarda igual, sin broker y sin interpretar** (`RN-SP-076`); se le asocia y se
+        interpreta al arrancar, cuando una migración cargue ese `advertiser` en el catálogo.
+
+        El aviso se guarda **entero y sin interpretar** —método, parámetros de la dirección salvo
+        `token`, cabeceras salvo las de credenciales, cuerpo tal cual, tipo de contenido, origen y
+        su `advertiser`— y se responde `200` sin cuerpo. Dos avisos iguales se guardan dos veces.
 
         Admite **cualquier tipo de contenido**, de hasta 64 KiB; un formulario se guarda tal cual, sin desarmarlo.
       operationId: commonBrokerNotificationByBody
       parameters:
       - name: token
         in: query
-        description: El secreto común de los avisos. No se guarda.
+        description: El secreto de los avisos. No se guarda.
         required: true
         schema:
           type: string
@@ -7616,12 +7532,9 @@ paths:
         "401":
           description: "Sin `token`, con `token` repetido o con otro (`EX-001`). No\
             \ se guarda nada"
-        "404":
-          description: "El aviso no trae `advertiser`, lo trae repetido, o no es el\
-            \ de ningún broker activo (`EX-003`). No se guarda nada"
         "503":
-          description: La dirección común no tiene secreto configurado (`EX-002`).
-            No se guarda nada
+          description: El secreto de los avisos no está configurado (`EX-002`). No
+            se guarda nada
       security: []
   /api/v1/auth/registration:
     post:

@@ -102,11 +102,8 @@ public abstract class IntegrationTestBase {
     // El aviso de la pasarela local se procesa en el hilo que lo recibe: lo procesado es
     // determinista, como con la tarjeta.
     registry.add("nexus.payretailers.process-inline", () -> "true");
-    // Los secretos de los avisos de dos brokers (`RF-SP-078`). EXOPTION queda SIN
-    // secreto a propósito: es el broker sin configurar de `CA-SP-902`.
-    registry.add("BROKER_TOKEN_IQOPTION", () -> "secreto-iq");
-    registry.add("BROKER_TOKEN_EXNOVA", () -> "secreto-ex");
-    // El secreto de la dirección común (`RN-SP-069`). Sin configurar lo prueba
+    // El secreto de los avisos de los brokers (`RN-SP-069`), el único desde que se
+    // retiraron los de cada broker el 13-10-2026 (`RN-SP-076`). Sin configurar lo prueba
     // `ReceiveBrokerNotificationServiceTest` (`CA-SP-951`).
     registry.add("BROKER_NOTIFICATION_TOKEN", () -> "secreto-comun");
     // El aviso de REGISTRO (`RN-SP-072`): crea la cuenta sin titular.

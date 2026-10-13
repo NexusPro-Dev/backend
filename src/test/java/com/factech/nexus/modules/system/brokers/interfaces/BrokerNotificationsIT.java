@@ -7,6 +7,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 import com.factech.nexus.IntegrationTestBase;
+import com.factech.nexus.modules.system.brokers.domain.service.BrokerNotificationClassifier;
 import com.jayway.jsonpath.JsonPath;
 import java.util.List;
 import java.util.Map;
@@ -22,10 +23,10 @@ import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.test.web.servlet.MockMvc;
 
 /**
- * Los avisos de los brokers (`RF-SP-078`): `CA-SP-897` a `CA-SP-907`.
+ * Los avisos de los brokers (`RF-SP-078`), por la única dirección, la común.
  *
- * <p>Los secretos de {@code IQOPTION} y {@code EXNOVA} los fija {@link IntegrationTestBase}; {@code
- * EXOPTION} queda sin secreto, para `CA-SP-902`. Ninguna petición lleva sesión: la ruta es pública.
+ * <p>El secreto común lo fija {@link IntegrationTestBase}. Ninguna petición lleva sesión: la ruta
+ * es pública. Los criterios de la ruta por nombre, retirada el 13-10-2026, se retiraron con ella.
  */
 @AutoConfigureMockMvc
 @SuppressWarnings("unchecked") // JsonPath.read devuelve lo que se le pida
@@ -37,6 +38,7 @@ class BrokerNotificationsIT extends IntegrationTestBase {
 
   @Autowired private MockMvc mvc;
   @Autowired private JdbcTemplate jdbc;
+  @Autowired private BrokerNotificationClassifier clasificador;
 
   private UUID cliente;
 
@@ -61,6 +63,8 @@ class BrokerNotificationsIT extends IntegrationTestBase {
         "DELETE FROM user_brokers WHERE external_id LIKE 'BN-R-%' OR external_id = '12345'");
     jdbc.update(
         "UPDATE brokers SET is_active = true WHERE id IN (?, ?, ?)", IQOPTION, EXNOVA, EXOPTION);
+    // `CA-SP-1013` le carga un `advertiser` a EXNOVA, como lo haría una migración.
+    jdbc.update("UPDATE brokers SET advertiser = NULL WHERE id IN (?, ?)", EXNOVA, EXOPTION);
     if (cliente != null) {
       jdbc.update("DELETE FROM user_brokers WHERE user_id = ?", cliente);
       jdbc.update("DELETE FROM users WHERE id = ?", cliente);
@@ -74,18 +78,12 @@ class BrokerNotificationsIT extends IntegrationTestBase {
     jdbc.update("DELETE FROM request_log WHERE path LIKE '/api/v1/brokers/%notifications'");
   }
 
-  /** La dirección del broker, por su nombre en minúsculas, que es como va en el panel. */
-  private static String ruta(UUID broker) {
-    String nombre =
-        broker.equals(IQOPTION) ? "iqoption" : broker.equals(EXNOVA) ? "exnova" : "exoption";
-    return rutaDe(nombre);
-  }
-
-  private static String rutaDe(String nombre) {
-    return "/api/v1/brokers/" + nombre + "/notifications";
-  }
-
   private static final String COMUN = "/api/v1/brokers/notifications";
+
+  /** Un aviso de IQ Option a la dirección común, con el secreto, y esos datos. */
+  private static String deIq(String datos) {
+    return COMUN + "?advertiser=iq_option&" + datos + "&token=secreto-comun";
+  }
 
   private int guardados() {
     return jdbc.queryForObject("SELECT count(*) FROM broker_notifications", Integer.class);
@@ -93,7 +91,7 @@ class BrokerNotificationsIT extends IntegrationTestBase {
 
   private Map<String, Object> elUnico() {
     return jdbc.queryForMap(
-        "SELECT broker_id, method, CAST(query_params AS text) AS query_params,"
+        "SELECT broker_id, advertiser, method, CAST(query_params AS text) AS query_params,"
             + " CAST(headers AS text) AS headers, body, content_type, ip_address, received_at"
             + " FROM broker_notifications");
   }
@@ -104,7 +102,7 @@ class BrokerNotificationsIT extends IntegrationTestBase {
           + " también los parámetros repetidos; la respuesta va vacía")
   void conLosDatosEnLaDireccion() throws Exception {
     mvc.perform(
-            get(ruta(IQOPTION) + "?event=ftd&trader_id=12345&sub=a&sub=b&token=secreto-iq")
+            get(deIq("event=ftd&trader_id=12345&sub=a&sub=b"))
                 .header("User-Agent", "afiliados-iq/1.0")
                 .header("X-Forwarded-For", "203.0.113.7"))
         .andExpect(status().isOk())
@@ -128,15 +126,15 @@ class BrokerNotificationsIT extends IntegrationTestBase {
   @Test
   @DisplayName("CA-SP-898 — un aviso con los datos en el cuerpo guarda el cuerpo exacto y su tipo")
   void conLosDatosEnElCuerpo() throws Exception {
-    String cuerpo = "{ \"event\" : \"registration\",\n  \"trader_id\": 987 }";
+    String cuerpo = "{ \"advertiser\" : \"iq_option\",\n  \"trader_id\": 987 }";
     mvc.perform(
-            post(ruta(EXNOVA) + "?token=secreto-ex")
+            post(COMUN + "?token=secreto-comun")
                 .contentType(MediaType.APPLICATION_JSON)
                 .content(cuerpo))
         .andExpect(status().isOk());
 
     Map<String, Object> fila = elUnico();
-    assertThat(fila.get("broker_id")).isEqualTo(EXNOVA);
+    assertThat(fila.get("broker_id")).isEqualTo(IQOPTION);
     assertThat(fila.get("method")).isEqualTo("POST");
     assertThat(fila.get("body")).isEqualTo(cuerpo);
     assertThat((String) fila.get("content_type")).startsWith("application/json");
@@ -149,13 +147,14 @@ class BrokerNotificationsIT extends IntegrationTestBase {
           + " dirección")
   void unFormulario() throws Exception {
     mvc.perform(
-            post(ruta(IQOPTION) + "?origen=panel&token=secreto-iq")
+            post(COMUN + "?origen=panel&token=secreto-comun")
                 .contentType(MediaType.APPLICATION_FORM_URLENCODED)
-                .content("event=ftd&amount=50&trader_id=555"))
+                .content("event=ftd&advertiser=iq_option&trader_id=555"))
         .andExpect(status().isOk());
 
     Map<String, Object> fila = elUnico();
-    assertThat(fila.get("body")).isEqualTo("event=ftd&amount=50&trader_id=555");
+    assertThat(fila.get("broker_id")).isEqualTo(IQOPTION);
+    assertThat(fila.get("body")).isEqualTo("event=ftd&advertiser=iq_option&trader_id=555");
     String consulta = (String) fila.get("query_params");
     assertThat((Map<String, Object>) JsonPath.read(consulta, "$")).containsOnlyKeys("origen");
   }
@@ -165,45 +164,14 @@ class BrokerNotificationsIT extends IntegrationTestBase {
       "CA-SP-900 — sin secreto, con uno equivocado o con dos, el aviso no se autentica y no se"
           + " guarda")
   void sinSecretoOConOtro() throws Exception {
-    mvc.perform(get(ruta(IQOPTION) + "?event=ftd")).andExpect(status().isUnauthorized());
-    mvc.perform(get(ruta(IQOPTION) + "?event=ftd&token=otro")).andExpect(status().isUnauthorized());
-    mvc.perform(get(ruta(IQOPTION) + "?token=secreto-iq&token=secreto-iq"))
+    mvc.perform(get(COMUN + "?advertiser=iq_option&event=ftd"))
         .andExpect(status().isUnauthorized());
-    mvc.perform(post(ruta(IQOPTION)).contentType(MediaType.TEXT_PLAIN).content("x"))
+    mvc.perform(get(COMUN + "?advertiser=iq_option&event=ftd&token=otro"))
         .andExpect(status().isUnauthorized());
-
-    assertThat(guardados()).isZero();
-  }
-
-  @Test
-  @DisplayName("CA-SP-901 — el secreto de un broker no sirve para otro")
-  void elSecretoDeUnoNoSirveParaOtro() throws Exception {
-    mvc.perform(get(ruta(IQOPTION) + "?event=ftd&token=secreto-ex"))
+    mvc.perform(get(COMUN + "?token=secreto-comun&token=secreto-comun"))
         .andExpect(status().isUnauthorized());
-
-    assertThat(guardados()).isZero();
-  }
-
-  @Test
-  @DisplayName(
-      "CA-SP-902 — un broker sin secreto configurado responde servicio no disponible y no guarda"
-          + " nada")
-  void sinSecretoConfigurado() throws Exception {
-    mvc.perform(get(ruta(EXOPTION) + "?event=ftd&token=cualquiera"))
-        .andExpect(status().isServiceUnavailable());
-
-    assertThat(guardados()).isZero();
-  }
-
-  @Test
-  @DisplayName(
-      "CA-SP-903 — un broker que no existe, o que no está activo, responde no encontrado y no"
-          + " guarda nada")
-  void brokerInexistenteOInactivo() throws Exception {
-    mvc.perform(get(rutaDe("nobroker") + "?token=secreto-iq")).andExpect(status().isNotFound());
-
-    jdbc.update("UPDATE brokers SET is_active = false WHERE id = ?", EXNOVA);
-    mvc.perform(get(ruta(EXNOVA) + "?token=secreto-ex")).andExpect(status().isNotFound());
+    mvc.perform(post(COMUN).contentType(MediaType.TEXT_PLAIN).content("x"))
+        .andExpect(status().isUnauthorized());
 
     assertThat(guardados()).isZero();
   }
@@ -214,7 +182,7 @@ class BrokerNotificationsIT extends IntegrationTestBase {
     byte[] grande = new byte[64 * 1024 + 1];
     java.util.Arrays.fill(grande, (byte) 'a');
     mvc.perform(
-            post(ruta(IQOPTION) + "?token=secreto-iq")
+            post(COMUN + "?advertiser=iq_option&token=secreto-comun")
                 .contentType(MediaType.TEXT_PLAIN)
                 .content(grande))
         .andExpect(status().isBadRequest());
@@ -222,7 +190,7 @@ class BrokerNotificationsIT extends IntegrationTestBase {
     byte[] justo = new byte[64 * 1024];
     java.util.Arrays.fill(justo, (byte) 'b');
     mvc.perform(
-            post(ruta(IQOPTION) + "?token=secreto-iq")
+            post(COMUN + "?advertiser=iq_option&token=secreto-comun")
                 .contentType(MediaType.TEXT_PLAIN)
                 .content(justo))
         .andExpect(status().isOk());
@@ -232,24 +200,10 @@ class BrokerNotificationsIT extends IntegrationTestBase {
   }
 
   @Test
-  @DisplayName(
-      "CA-SP-908 — el broker se nombra por su nombre sin distinguir mayúsculas, y su secreto vale"
-          + " igual")
-  void porNombreSinDistinguirMayusculas() throws Exception {
-    mvc.perform(get(rutaDe("IQOPTION") + "?event=a&token=secreto-iq")).andExpect(status().isOk());
-    mvc.perform(get(rutaDe("IqOption") + "?event=b&token=secreto-iq")).andExpect(status().isOk());
-
-    assertThat(jdbc.queryForList("SELECT DISTINCT broker_id FROM broker_notifications", UUID.class))
-        .containsExactly(IQOPTION);
-    assertThat(guardados()).isEqualTo(2);
-  }
-
-  @Test
   @DisplayName("CA-SP-905 — el mismo aviso dos veces se guarda dos veces")
   void elMismoAvisoDosVeces() throws Exception {
     for (int vez = 0; vez < 2; vez++) {
-      mvc.perform(get(ruta(IQOPTION) + "?event=ftd&trader_id=1&token=secreto-iq"))
-          .andExpect(status().isOk());
+      mvc.perform(get(deIq("event=ftd&trader_id=1"))).andExpect(status().isOk());
     }
 
     assertThat(guardados()).isEqualTo(2);
@@ -261,7 +215,7 @@ class BrokerNotificationsIT extends IntegrationTestBase {
           + " ni las cabeceras de credenciales")
   void elSecretoNoQuedaEscrito() throws Exception {
     mvc.perform(
-            get(ruta(EXNOVA) + "?event=ftd&token=secreto-ex&trader_id=7")
+            get(COMUN + "?event=ftd&token=secreto-comun&advertiser=iq_option")
                 .header("Authorization", "Basic c2VjcmV0bw==")
                 .header("Cookie", "sesion=abc")
                 .header("Proxy-Authorization", "Basic eHl6"))
@@ -270,15 +224,15 @@ class BrokerNotificationsIT extends IntegrationTestBase {
     Map<String, Object> fila = elUnico();
     String consulta = (String) fila.get("query_params");
     String cabeceras = (String) fila.get("headers");
-    assertThat(consulta).doesNotContain("token").doesNotContain("secreto-ex");
+    assertThat(consulta).doesNotContain("token").doesNotContain("secreto-comun");
     assertThat((Map<String, Object>) JsonPath.read(cabeceras, "$"))
         .doesNotContainKeys("authorization", "cookie", "proxy-authorization");
     assertThat(cabeceras).doesNotContain("c2VjcmV0bw==").doesNotContain("sesion=abc");
 
     List<String> registradas =
         jdbc.queryForList(
-            "SELECT query_string FROM request_log WHERE path = ?", String.class, ruta(EXNOVA));
-    assertThat(registradas).containsExactly("event=ftd&token=[OCULTO]&trader_id=7");
+            "SELECT query_string FROM request_log WHERE path = ?", String.class, COMUN);
+    assertThat(registradas).containsExactly("event=ftd&token=[OCULTO]&advertiser=iq_option");
   }
 
   @Test
@@ -301,10 +255,7 @@ class BrokerNotificationsIT extends IntegrationTestBase {
         cliente,
         IQOPTION);
 
-    mvc.perform(
-            get(
-                ruta(IQOPTION)
-                    + "?event=ftd&trader_id=BN-778899&username=bn_trader&token=secreto-iq"))
+    mvc.perform(get(deIq("event=ftd&trader_id=BN-778899&username=bn_trader")))
         .andExpect(status().isOk());
 
     Map<String, Object> cuenta =
@@ -324,8 +275,8 @@ class BrokerNotificationsIT extends IntegrationTestBase {
 
   @Test
   @DisplayName(
-      "CA-SP-946 — por la dirección común, advertiser=iq_option se guarda a nombre de IQOPTION,"
-          + " tal como llegó")
+      "CA-SP-946, CA-SP-1012 — advertiser=iq_option se guarda a nombre de IQOPTION, tal como"
+          + " llegó, y con su advertiser en su columna")
   void laDireccionComun() throws Exception {
     // La forma de un aviso real de IQ Option del 09-10-2026.
     mvc.perform(
@@ -338,6 +289,7 @@ class BrokerNotificationsIT extends IntegrationTestBase {
 
     Map<String, Object> fila = elUnico();
     assertThat(fila.get("broker_id")).isEqualTo(IQOPTION);
+    assertThat(fila.get("advertiser")).isEqualTo("iq_option");
     String consulta = (String) fila.get("query_params");
     assertThat((List<String>) JsonPath.read(consulta, "$.advertiser")).containsExactly("iq_option");
     assertThat((List<String>) JsonPath.read(consulta, "$.trader_id")).containsExactly("196581821");
@@ -346,7 +298,8 @@ class BrokerNotificationsIT extends IntegrationTestBase {
 
   @Test
   @DisplayName(
-      "CA-SP-947 — advertiser sin distinguir mayúsculas, y también en un formulario o en un JSON")
+      "CA-SP-947, CA-SP-1012 — advertiser sin distinguir mayúsculas, y también en un formulario o"
+          + " en un JSON; se guarda recortado y tal como vino")
   void elAdvertiserEnCualquierParte() throws Exception {
     mvc.perform(get(COMUN + "?advertiser=IQ_Option&token=secreto-comun"))
         .andExpect(status().isOk());
@@ -355,7 +308,7 @@ class BrokerNotificationsIT extends IntegrationTestBase {
                 .contentType(MediaType.APPLICATION_FORM_URLENCODED)
                 .content("event=ftd&advertiser=iq_option"))
         .andExpect(status().isOk());
-    String json = "{\"advertiser\": \"iq_option\", \"event\": \"ftd\"}";
+    String json = "{\"advertiser\": \"  Iq_Option \", \"event\": \"ftd\"}";
     mvc.perform(
             post(COMUN + "?token=secreto-comun")
                 .contentType(MediaType.APPLICATION_JSON)
@@ -364,6 +317,8 @@ class BrokerNotificationsIT extends IntegrationTestBase {
 
     assertThat(jdbc.queryForList("SELECT DISTINCT broker_id FROM broker_notifications", UUID.class))
         .containsExactly(IQOPTION);
+    assertThat(jdbc.queryForList("SELECT advertiser FROM broker_notifications", String.class))
+        .containsExactlyInAnyOrder("IQ_Option", "iq_option", "Iq_Option");
     // El cuerpo se guarda tal cual: leer el advertiser no lo reescribe.
     assertThat(
             jdbc.queryForList(
@@ -374,31 +329,8 @@ class BrokerNotificationsIT extends IntegrationTestBase {
 
   @Test
   @DisplayName(
-      "CA-SP-948 — sin advertiser, repetido, desconocido o de un broker apagado: 404 y nada"
-          + " guardado")
-  void advertiserQueNoProcede() throws Exception {
-    mvc.perform(get(COMUN + "?event=ftd&token=secreto-comun")).andExpect(status().isNotFound());
-    mvc.perform(get(COMUN + "?advertiser=iq_option&advertiser=iq_option&token=secreto-comun"))
-        .andExpect(status().isNotFound());
-    mvc.perform(get(COMUN + "?advertiser=exnova&token=secreto-comun"))
-        .andExpect(status().isNotFound());
-    mvc.perform(
-            post(COMUN + "?token=secreto-comun")
-                .contentType(MediaType.TEXT_PLAIN)
-                .content("advertiser=iq_option"))
-        .andExpect(status().isNotFound());
-
-    jdbc.update("UPDATE brokers SET is_active = false WHERE id = ?", IQOPTION);
-    mvc.perform(get(COMUN + "?advertiser=iq_option&token=secreto-comun"))
-        .andExpect(status().isNotFound());
-
-    assertThat(guardados()).isZero();
-  }
-
-  @Test
-  @DisplayName(
-      "CA-SP-949, CA-SP-950 — sin el secreto común, o con el de un broker, 401 aunque el"
-          + " advertiser sea válido; y un advertiser desconocido sin secreto también es 401")
+      "CA-SP-949, CA-SP-950 — sin el secreto común, o con otro, 401 aunque el advertiser sea"
+          + " válido; y un advertiser desconocido sin secreto también es 401")
   void sinElSecretoComun() throws Exception {
     mvc.perform(get(COMUN + "?advertiser=iq_option")).andExpect(status().isUnauthorized());
     mvc.perform(get(COMUN + "?advertiser=iq_option&token=secreto-iq"))
@@ -409,16 +341,169 @@ class BrokerNotificationsIT extends IntegrationTestBase {
     assertThat(guardados()).isZero();
   }
 
+  // ---------------------------------------------------------------------------
+  // Ningún aviso se pierde (`RN-SP-076`, 13-10-2026)
+  // ---------------------------------------------------------------------------
+
+  private List<Map<String, Object>> sinBroker() {
+    return jdbc.queryForList(
+        "SELECT advertiser, CAST(query_params AS text) AS query_params, body"
+            + " FROM broker_notifications WHERE broker_id IS NULL ORDER BY received_at, id");
+  }
+
   @Test
-  @DisplayName("CA-SP-952 — la ruta por nombre sigue funcionando con su secreto por broker")
-  void laRutaPorNombreSigue() throws Exception {
-    mvc.perform(get(rutaDe("iqoption") + "?advertiser=iq_option&token=secreto-iq"))
+  @DisplayName(
+      "CA-SP-1009 — un advertiser que no está en el catálogo se recibe y se guarda sin broker, con"
+          + " ese advertiser, y no se interpreta")
+  void unAdvertiserDesconocido() throws Exception {
+    mvc.perform(
+            get(
+                COMUN
+                    + "?advertiser=exnova_aff&postback_name=registro-prueba&trader_id=BN-R-20"
+                    + "&token=secreto-comun"))
+        .andExpect(status().isOk())
+        .andExpect(content().string(""));
+
+    List<Map<String, Object>> filas = sinBroker();
+    assertThat(filas).hasSize(1);
+    assertThat(filas.get(0).get("advertiser")).isEqualTo("exnova_aff");
+    assertThat((String) filas.get(0).get("query_params")).contains("BN-R-20");
+    // Sin broker no se sabe de qué cuenta habla: el registro no crea ninguna.
+    assertThat(cuentasDelBroker()).isZero();
+  }
+
+  @Test
+  @DisplayName(
+      "CA-SP-1010 — sin advertiser, con dos o con uno de más de 100 caracteres: se guarda sin"
+          + " broker y sin advertiser")
+  void sinAdvertiserUtil() throws Exception {
+    mvc.perform(get(COMUN + "?event=ftd&token=secreto-comun")).andExpect(status().isOk());
+    mvc.perform(get(COMUN + "?advertiser=iq_option&advertiser=iq_option&token=secreto-comun"))
         .andExpect(status().isOk());
-    // Y el secreto común no la abre.
-    mvc.perform(get(rutaDe("iqoption") + "?token=secreto-comun"))
+    mvc.perform(get(COMUN + "?advertiser=" + "a".repeat(101) + "&token=secreto-comun"))
+        .andExpect(status().isOk());
+    // En un cuerpo que no es formulario ni JSON no se busca.
+    mvc.perform(
+            post(COMUN + "?token=secreto-comun")
+                .contentType(MediaType.TEXT_PLAIN)
+                .content("advertiser=iq_option"))
+        .andExpect(status().isOk());
+
+    List<Map<String, Object>> filas = sinBroker();
+    assertThat(filas).hasSize(4);
+    assertThat(filas).allSatisfy(fila -> assertThat(fila.get("advertiser")).isNull());
+    assertThat(guardados()).isEqualTo(4);
+  }
+
+  @Test
+  @DisplayName("CA-SP-1011 — con el advertiser de un broker apagado, se guarda sin broker")
+  void elDeUnBrokerApagado() throws Exception {
+    jdbc.update("UPDATE brokers SET is_active = false WHERE id = ?", IQOPTION);
+
+    mvc.perform(get(deIq("postback_name=registro-prueba&trader_id=BN-R-21")))
+        .andExpect(status().isOk());
+
+    List<Map<String, Object>> filas = sinBroker();
+    assertThat(filas).hasSize(1);
+    assertThat(filas.get(0).get("advertiser")).isEqualTo("iq_option");
+    assertThat(cuentasDelBroker()).isZero();
+  }
+
+  @Test
+  @DisplayName(
+      "CA-SP-1013 — al arrancar, los avisos sin broker de un advertiser ya cargado se le asocian y"
+          + " se interpretan en orden: el registro crea la cuenta, el depósito la mueve, y la"
+          + " reentrega no se aplica dos veces")
+  void alArrancarSeAsociaYSeInterpreta() throws Exception {
+    String exnova = "?advertiser=exnova_aff&trader_id=BN-R-22&token=secreto-comun";
+    mvc.perform(get(COMUN + exnova + "&postback_name=registro-prueba&event_id=x-1"))
+        .andExpect(status().isOk());
+    mvc.perform(get(COMUN + exnova + "&postback_name=deposito-prueba&event_id=x-2"))
+        .andExpect(status().isOk());
+    mvc.perform(get(COMUN + exnova + "&postback_name=operacion-prueba&event_id=x-3"))
+        .andExpect(status().isOk());
+    mvc.perform(get(COMUN + exnova + "&postback_name=operacion-prueba&event_id=x-3"))
+        .andExpect(status().isOk());
+    assertThat(sinBroker()).hasSize(4);
+    assertThat(cuentasDelBroker()).isZero();
+
+    // Lo que haría una migración: cargar el `advertiser` de EXNOVA. Y arrancar.
+    jdbc.update("UPDATE brokers SET advertiser = 'EXNOVA_AFF' WHERE id = ?", EXNOVA);
+    clasificador.run(null);
+
+    assertThat(sinBroker()).isEmpty();
+    assertThat(jdbc.queryForList("SELECT DISTINCT broker_id FROM broker_notifications", UUID.class))
+        .containsExactly(EXNOVA);
+    Map<String, Object> cuenta =
+        jdbc.queryForMap(
+            "SELECT user_id, kind, status, operations_count FROM user_brokers"
+                + " WHERE broker_id = ? AND external_id = 'BN-R-22'",
+            EXNOVA);
+    assertThat(cuenta.get("user_id")).isNull();
+    assertThat(cuenta.get("kind")).isEqualTo("CONSUMIDOR");
+    assertThat(cuenta.get("status")).isEqualTo("FIRST_DEPOSIT");
+    assertThat(cuenta.get("operations_count")).isEqualTo(1);
+
+    // Un segundo arranque no encuentra nada que hacer.
+    clasificador.run(null);
+    assertThat(
+            jdbc.queryForObject(
+                "SELECT operations_count FROM user_brokers WHERE external_id = 'BN-R-22'",
+                Integer.class))
+        .isOne();
+  }
+
+  @Test
+  @DisplayName(
+      "CA-SP-1014 — al arrancar, los de un advertiser que sigue sin conocerse quedan sin broker, y"
+          + " un aviso que ya tiene broker no se toca")
+  void alArrancarLoDesconocidoSigueIgual() throws Exception {
+    mvc.perform(get(COMUN + "?advertiser=exoption_aff&event=ftd&token=secreto-comun"))
+        .andExpect(status().isOk());
+    mvc.perform(get(COMUN + "?advertiser=exnova_aff&event=ftd&token=secreto-comun"))
+        .andExpect(status().isOk());
+    mvc.perform(get(deIq("event=ftd"))).andExpect(status().isOk());
+    // Un aviso con broker cuyo advertiser, por lo que sea, es el de otro.
+    jdbc.update(
+        "UPDATE broker_notifications SET advertiser = 'exnova_aff'"
+            + " WHERE broker_id = ? AND advertiser = 'iq_option'",
+        IQOPTION);
+
+    jdbc.update("UPDATE brokers SET advertiser = 'exnova_aff' WHERE id = ?", EXNOVA);
+    clasificador.run(null);
+
+    List<Map<String, Object>> filas = sinBroker();
+    assertThat(filas).hasSize(1);
+    assertThat(filas.get(0).get("advertiser")).isEqualTo("exoption_aff");
+    assertThat(
+            jdbc.queryForObject(
+                "SELECT count(*) FROM broker_notifications WHERE broker_id = ?",
+                Integer.class,
+                IQOPTION))
+        .isOne();
+    assertThat(
+            jdbc.queryForObject(
+                "SELECT count(*) FROM broker_notifications WHERE broker_id = ?",
+                Integer.class,
+                EXNOVA))
+        .isOne();
+  }
+
+  @Test
+  @DisplayName(
+      "CA-SP-1015 — la ruta con el nombre del broker ya no recibe: con cualquier secreto, no se"
+          + " guarda")
+  void laRutaPorNombreYaNoRecibe() throws Exception {
+    mvc.perform(
+            get("/api/v1/brokers/iqoption/notifications?advertiser=iq_option&token=secreto-comun"))
+        .andExpect(status().isUnauthorized());
+    mvc.perform(
+            post("/api/v1/brokers/exnova/notifications?token=secreto-ex")
+                .contentType(MediaType.TEXT_PLAIN)
+                .content("x"))
         .andExpect(status().isUnauthorized());
 
-    assertThat(guardados()).isOne();
+    assertThat(guardados()).isZero();
   }
 
   // ---------------------------------------------------------------------------

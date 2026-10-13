@@ -510,16 +510,13 @@ nexus:
   # Key y la llave maestra que cifra las claves. SIN LAS DOS queda APAGADA y se avisa
   # al arrancar: PSE nace pendiente sin cobro y lo confirma una persona, la ruta del
   # aviso responde 503 y el barrido no corre. La suite corre así.
-  # Los avisos de los brokers (RF-SP-078, RN-SP-066, deployment.md §6.5.3,
-  # 08-10-2026). UN SECRETO POR BROKER, por su identificador —los fija V9, iguales
-  # en todos los entornos—. VACÍO = SIN CONFIGURAR: la ruta de ese broker responde
-  # 503 y no guarda nada. El secreto viaja en ?token= de la dirección que se pone
-  # en el panel de afiliados del broker.
-  #
-  # Desde el 09-10-2026 (RN-SP-069) hay además una DIRECCIÓN COMÚN,
-  # /api/v1/brokers/notifications, con UN secreto para todos: el broker lo dice
-  # el `advertiser` del aviso. VACÍO = la dirección común responde 503. Los tres
-  # de abajo siguen para la ruta por nombre, obsoleta.
+  # Los avisos de los brokers (RF-SP-078, RN-SP-066, RN-SP-069, deployment.md
+  # §6.5.3). UNA SOLA DIRECCIÓN, /api/v1/brokers/notifications, con UN secreto para
+  # todos, que viaja en ?token= de la dirección que se pone en el panel de
+  # afiliados de cada broker; el broker lo dice el `advertiser` del aviso, y si no
+  # se reconoce, el aviso se guarda sin broker (RN-SP-076, 13-10-2026). VACÍO = SIN
+  # CONFIGURAR: responde 503 y no guarda nada. Los secretos por broker de la ruta
+  # con su nombre se retiraron el 13-10-2026.
   brokers:
     notification-token: ${BROKER_NOTIFICATION_TOKEN:}
     # El aviso de REGISTRO crea la cuenta CONSUMIDOR sin titular (RN-SP-072,
@@ -536,10 +533,6 @@ nexus:
       afftrack: ${BROKER_FIELD_AFFTRACK:afftrack}
       # El identificador del aviso: una reentrega no se aplica dos veces.
       event-id: ${BROKER_FIELD_EVENT_ID:event_id}
-    notification-tokens:
-      "[01a081f0-6000-7101-9c4f-5e7adb000001]": ${BROKER_TOKEN_IQOPTION:}
-      "[01a081f0-6000-7102-9c4f-5e7adb000002]": ${BROKER_TOKEN_EXNOVA:}
-      "[01a081f0-6000-7103-9c4f-5e7adb000003]": ${BROKER_TOKEN_EXOPTION:}
 
   payretailers:
     subscription-key: ${PAYRETAILERS_SUBSCRIPTION_KEY:}

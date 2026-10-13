@@ -4,7 +4,7 @@
 |---|---|
 | Requerimiento | `RF-SP-078` |
 | Módulo | `SP` — Sistema Principal |
-| Versión | 0.5.0 |
+| Versión | 0.6.0 |
 | Estado | **Aprobada** |
 | Autor | Responsable técnico |
 | Aprobada por | Responsable del proyecto |
@@ -42,7 +42,11 @@ El 08-10-2026 el responsable del proyecto fijó con qué brokers se empieza —*
 | Completar la cuenta, moverla a primer depósito, activar a la persona | No | **Sí** |
 | No aplicar dos veces el mismo aviso | No: aquí no se aplica nada | **Sí** |
 
-**Cómo se autentica el broker**, la única pregunta de `RF-SP-054` que se responde sin ver un aviso: con **un secreto propio de cada broker que va en la dirección** a la que avisa (`RN-SP-066`). Una firma sería mejor y no está disponible; una cabecera, tampoco, porque los paneles de afiliados solo dejan escribir la dirección. Una lista de direcciones de origen no resiste que el broker cambie de servidor.
+**Cómo se autentica el broker**, la única pregunta de `RF-SP-054` que se responde sin ver un aviso: con **un secreto que va en la dirección** a la que avisa (`RN-SP-066`). Una firma sería mejor y no está disponible; una cabecera, tampoco, porque los paneles de afiliados solo dejan escribir la dirección. Una lista de direcciones de origen no resiste que el broker cambie de servidor. **Hasta el 13-10-2026 hubo uno por broker**, para la ruta con su nombre; desde entonces es **uno solo**, el de la dirección común.
+
+### 2.2 Ningún aviso se pierde (13-10-2026)
+
+La dirección común reconoce al broker por el `advertiser` del aviso (`RN-SP-069`), y **solo `IQOPTION` lo tiene cargado**: los de `EXNOVA` y `EXOPTION` no se conocen porque nunca se ha visto un aviso suyo. Hasta el 13-10-2026, un aviso así se rechazaba **y se perdía**, y con él la única forma de saber cómo se nombra ese broker. El responsable del proyecto pidió lo contrario: **capturar todos y clasificarlos después por el `advertiser`** (`RN-SP-076`). El aviso que no se reconoce **se guarda sin broker y no se interpreta**; cuando el `advertiser` de su broker se cargue, **se le asocia y se interpreta**, como si acabara de llegar.
 
 ---
 
@@ -59,7 +63,8 @@ El 08-10-2026 el responsable del proyecto fijó con qué brokers se empieza —*
 ### 4.1 Incluye
 
 - Recibir avisos **con los datos en la dirección y con los datos en el cuerpo**, porque no se sabe cuál de las dos formas usará cada broker.
-- Comprobar que el aviso es del broker que dice ser, **antes de guardar nada**.
+- Comprobar que el aviso trae el secreto, **antes de guardar nada**.
+- Reconocer de qué broker es por su `advertiser`, y **guardarlo igual si no se reconoce** (`RN-SP-076`).
 - Guardar **todo** lo que llegó, salvo el secreto y las credenciales.
 - Responder en cuanto queda guardado.
 
@@ -76,14 +81,15 @@ El 08-10-2026 el responsable del proyecto fijó con qué brokers se empieza —*
 
 | Regla | Cómo aplica |
 |---|---|
-| `RN-SP-066` | El aviso se guarda entero y sin interpretar; lo autentica un secreto por broker en la dirección; el secreto no se guarda; los repetidos no se descartan; no se edita ni se borra |
+| `RN-SP-066` | El aviso se guarda entero y sin interpretar; lo autentica un secreto en la dirección —uno solo desde el 13-10-2026—; el secreto no se guarda; los repetidos no se descartan; no se edita ni se borra |
 | `RN-SP-039` | El catálogo de brokers no se administra por la API: un broker que no está en él, o no está activo, no puede avisar |
-| `RN-SP-069` | Por la dirección común, el broker lo dice el `advertiser` del aviso, con un solo secreto para todos |
+| `RN-SP-069` | El broker lo dice el `advertiser` del aviso, con un solo secreto para todos |
+| `RN-SP-076` | **El aviso que no se reconoce se guarda sin broker**, y se asocia e interpreta al arrancar cuando su `advertiser` se cargue |
 | `RN-SP-070`, `RN-SP-072` | **El aviso de registro crea la cuenta `CONSUMIDOR` sin titular**, con origen en la `VENDEDOR` de su `afftrack` |
 | `RN-SP-073` | **El aviso de depósito es el primer depósito**: la cuenta `CONSUMIDOR` pasa a `FIRST_DEPOSIT` y su titular, si espera en `FTD_PENDIENTE`, pasa a `ACTIVO` con lo que compró; los siguientes no cambian nada; de un número sin cuenta o de una `VENDEDOR`, solo se guarda |
 | `RN-SP-074` | **El aviso de operación se cuenta** en la cuenta de ese número: cuántas, la primera y la última |
 
-**Una regla nueva**, `RN-SP-066`.
+**Dos reglas nuevas**: `RN-SP-066` y, desde el 13-10-2026, `RN-SP-076`.
 
 ---
 
@@ -91,7 +97,7 @@ El 08-10-2026 el responsable del proyecto fijó con qué brokers se empieza —*
 
 ### 6.1 Entrada
 
-**Lo que el broker mande, como lo mande**: datos en la dirección, en el cuerpo o en los dos, con cualquier tipo de contenido. Además, **el secreto**, en la dirección, y **qué broker es**: por la dirección común, en el **`advertiser`** del propio aviso (`RN-SP-069`); por la obsoleta, en la ruta.
+**Lo que el broker mande, como lo mande**: datos en la dirección, en el cuerpo o en los dos, con cualquier tipo de contenido. Además, **el secreto**, en la dirección, y **qué broker es**, en el **`advertiser`** del propio aviso (`RN-SP-069`).
 
 ### 6.2 Salida
 
@@ -99,7 +105,7 @@ Un acuse de recibo, **sin datos**: el broker solo necesita saber que se recibió
 
 ### 6.3 Lo que se guarda
 
-Qué broker avisó, cuándo, desde qué dirección de red, con qué método, **los datos de la dirección**, **las cabeceras**, **el cuerpo tal cual** y su tipo de contenido. **No se guardan** el secreto ni las cabeceras que llevan credenciales.
+Qué broker avisó —**o que todavía no se sabe**, `RN-SP-076`—, **el `advertiser` que trajo**, cuándo, desde qué dirección de red, con qué método, **los datos de la dirección**, **las cabeceras**, **el cuerpo tal cual** y su tipo de contenido. **No se guardan** el secreto ni las cabeceras que llevan credenciales.
 
 ---
 
@@ -107,17 +113,19 @@ Qué broker avisó, cuándo, desde qué dirección de red, con qué método, **l
 
 | Tipo | Condición |
 |---|---|
-| Precondición | El broker existe en el catálogo y está activo; su secreto está configurado en el entorno; el aviso trae ese secreto |
-| Postcondición | El aviso está guardado, una fila por llegada. **Si es de un evento configurado** —registro, depósito u operación— y nombra un número, se aplica **una vez** aunque se reenvíe (`RN-SP-072` a `RN-SP-074`); **si no, nada más cambia** |
+| Precondición | El secreto común está configurado en el entorno, y el aviso lo trae |
+| Postcondición | El aviso está guardado, una fila por llegada. **Si es de un evento configurado** —registro, depósito u operación— y nombra un número, se aplica **una vez** aunque se reenvíe (`RN-SP-072` a `RN-SP-074`); **si no, nada más cambia**. **Si su `advertiser` no es el de ningún broker activo**, queda guardado **sin broker** y no cambia nada más, hasta que ese `advertiser` se cargue (`RN-SP-076`) |
 
 ---
 
 ## 8. Flujo principal
 
-1. Llega un aviso para un broker, con su secreto.
-2. El sistema comprueba que el broker existe y está activo, que su secreto está configurado y que el aviso trae ese secreto, **antes de guardar nada**.
-3. Guarda el aviso entero, sin el secreto.
-4. Responde que lo recibió.
+1. Llega un aviso, con el secreto.
+2. El sistema comprueba que el secreto está configurado y que el aviso lo trae, **antes de guardar nada**.
+3. Reconoce al broker por el `advertiser` del aviso.
+4. Guarda el aviso entero, sin el secreto, con su `advertiser`.
+5. Si el aviso es de un evento configurado, lo interpreta (`RN-SP-072` a `RN-SP-074`).
+6. Responde que lo recibió.
 
 ---
 
@@ -129,13 +137,23 @@ Qué broker avisó, cuándo, desde qué dirección de red, con qué método, **l
 
 ---
 
+### FA-002 — El aviso no dice de qué broker es, o el que dice no se conoce
+
+Falta el `advertiser`, viene dos veces, o no es el de ningún broker activo del catálogo. **Se guarda igual, sin broker**, con el `advertiser` que trajo —ninguno si faltaba o venía repetido—, **no se interpreta**, y se responde que se recibió (`RN-SP-076`).
+
+### FA-003 — Se carga el `advertiser` de un broker
+
+Una migración carga en el catálogo el `advertiser` de un broker, o vuelve a encender uno apagado. **Al arrancar**, el sistema busca los avisos guardados sin broker con ese `advertiser`, **se los asocia y los interpreta uno a uno, en el orden en que llegaron**, como si acabaran de llegar: un registro crea la cuenta, un depósito posterior la mueve, y una reentrega no se aplica dos veces. Un aviso cuya interpretación falla queda sin broker y se vuelve a intentar en el siguiente arranque; los demás siguen.
+
+---
+
 ## 10. Excepciones
 
 | ID | Situación | Resultado |
 |---|---|---|
-| `EX-001` | El aviso no trae el secreto, o trae otro —también el de otro broker— | No autenticado, **sin guardar nada** |
-| `EX-002` | El secreto de ese broker no está configurado en este entorno | Servicio no disponible, **sin guardar nada** |
-| `EX-003` | El broker no existe en el catálogo o no está activo; por la dirección común, **el aviso no trae `advertiser`, lo trae repetido o no es el de ningún broker activo** | No encontrado, **sin guardar nada** |
+| `EX-001` | El aviso no trae el secreto, o trae otro | No autenticado, **sin guardar nada** |
+| `EX-002` | El secreto no está configurado en este entorno | Servicio no disponible, **sin guardar nada** |
+| ~~`EX-003`~~ | ~~El broker no existe en el catálogo o no está activo~~ — **retirada el 13-10-2026**: el aviso de un broker que no se reconoce se guarda sin broker (`FA-002`). El número queda consumido | — |
 | `EX-004` | El cuerpo pasa del tamaño máximo | Rechazo, **sin guardar nada** |
 
 ---
@@ -144,7 +162,7 @@ Qué broker avisó, cuándo, desde qué dirección de red, con qué método, **l
 
 | ID | Validación |
 |---|---|
-| `VAL-001` | El secreto coincide con el configurado para ese broker, comparado sin delatar por el tiempo cuánto acierta |
+| `VAL-001` | El secreto coincide con el configurado, comparado sin delatar por el tiempo cuánto acierta |
 | `VAL-002` | El cuerpo no pasa de 64 KiB |
 
 ---
@@ -157,20 +175,20 @@ Qué broker avisó, cuándo, desde qué dirección de red, con qué método, **l
 | `CA-SP-898` | Un aviso **con los datos en el cuerpo** guarda el cuerpo **exactamente como llegó**, con su tipo de contenido |
 | `CA-SP-899` | Un aviso **de formulario** guarda el cuerpo tal cual, **sin mezclar** sus campos con los de la dirección |
 | `CA-SP-900` | Un aviso **sin secreto o con uno equivocado** se rechaza como no autenticado y **no se guarda** |
-| `CA-SP-901` | **El secreto de un broker no sirve para otro**: con el de `EXNOVA`, la ruta de `IQOPTION` lo rechaza y no guarda nada |
-| `CA-SP-902` | Un broker **sin secreto configurado** responde servicio no disponible y **no guarda nada**, aunque el aviso traiga un secreto |
-| `CA-SP-903` | Un broker **que no existe** en el catálogo, o que **no está activo**, responde no encontrado y **no guarda nada** |
+| ~~`CA-SP-901`~~ | ~~El secreto de un broker no sirve para otro~~ — **retirado el 13-10-2026**: ya no hay secreto por broker |
+| ~~`CA-SP-902`~~ | ~~Un broker sin secreto configurado responde servicio no disponible~~ — **retirado el 13-10-2026**: lo cubre `CA-SP-951` para el secreto común |
+| ~~`CA-SP-903`~~ | ~~Un broker que no existe, o que no está activo, responde no encontrado~~ — **retirado el 13-10-2026**: se **invierte** en `CA-SP-1009` y `CA-SP-1011` |
 | `CA-SP-904` | Un cuerpo de **más de 64 KiB** se rechaza y **no se guarda** |
 | `CA-SP-905` | **El mismo aviso dos veces** se guarda **dos veces** |
 | `CA-SP-906` | **El secreto no queda escrito en ninguna parte**: ni entre los datos guardados del aviso ni en el registro de peticiones, que guarda la dirección con el valor oculto; tampoco se guardan las cabeceras de credenciales |
 | `CA-SP-907` | **Recibir no cambia nada más**: con un aviso **de un evento no configurado** que nombra una cuenta declarada, la cuenta sigue en `REGISTER` sin nombre de usuario, y su titular sigue en `FTD_PENDIENTE` |
-| `CA-SP-946` | Por la **dirección común**, un aviso con el secreto común y `advertiser=iq_option` se guarda **a nombre de `IQOPTION`**, con el `advertiser` entre sus datos |
+| `CA-SP-946` | Por la **dirección común**, un aviso con el secreto común y `advertiser=iq_option` se guarda **a nombre de `IQOPTION`**, con el `advertiser` entre sus datos **y en el suyo propio** |
 | `CA-SP-947` | `advertiser` se reconoce **sin distinguir mayúsculas**, y también **en el cuerpo**: de formulario o como campo de primer nivel de un JSON |
-| `CA-SP-948` | Sin `advertiser`, con dos, con uno que no está en el catálogo o con el de un broker apagado: no encontrado (`EX-003`) y **no se guarda nada** |
-| `CA-SP-949` | Sin el secreto común, o con el de un broker de la ruta por nombre: no autenticado (`EX-001`), **aunque el `advertiser` sea válido**, y no se guarda |
+| ~~`CA-SP-948`~~ | ~~Sin `advertiser`, con dos, con uno que no está en el catálogo o con el de un broker apagado: no encontrado~~ — **retirado el 13-10-2026**: se **invierte** en `CA-SP-1009` a `CA-SP-1011` |
+| `CA-SP-949` | Sin el secreto común, o con otro: no autenticado (`EX-001`), **aunque el `advertiser` sea válido**, y no se guarda |
 | `CA-SP-950` | Con un `advertiser` desconocido y **sin** secreto la respuesta es `401`, no `404`: el catálogo no se puede sondear |
 | `CA-SP-951` | Sin el secreto común configurado: servicio no disponible (`EX-002`) y no se guarda |
-| `CA-SP-952` | **La ruta por nombre sigue funcionando** con su secreto por broker |
+| ~~`CA-SP-952`~~ | ~~La ruta por nombre sigue funcionando con su secreto por broker~~ — **retirado el 13-10-2026**: se **invierte** en `CA-SP-1015` |
 | `CA-SP-964` | Un **aviso de registro** —el evento configurado— con `trader_id` y `afftrack` crea la cuenta `CONSUMIDOR` **sin titular**, en `REGISTER`, con origen en la `VENDEDOR` de ese `afftrack` en ese broker; el aviso se guarda igual |
 | `CA-SP-965` | Con un `afftrack` que no es de ninguna `VENDEDOR` de ese broker, la cuenta se crea **sin origen** |
 | `CA-SP-966` | **El mismo registro dos veces no duplica la cuenta**; si la cuenta ya existía —declarada en la plataforma— sin origen, el aviso **se lo pone**; si ya tenía, no lo cambia, y su titular tampoco |
@@ -184,7 +202,14 @@ Qué broker avisó, cuándo, desde qué dirección de red, con qué método, **l
 | `CA-SP-1000` | **Una reentrega** —mismo `event_id`, mismo broker— **se guarda y no se aplica dos veces**; el mismo `event_id` en otro broker es otro aviso; sin `event_id`, cada aviso cuenta |
 | `CA-SP-1001` | **Asociar una cuenta que ya tiene el depósito activa a su titular**: al registrarse por enlace con ese número —sale `ACTIVO`— y al asignarla administración |
 | `CA-SP-1002` | Las cuentas devuelven **lo que avisó el broker**: el momento del primer depósito y las operaciones, con la primera y la última |
-| `CA-SP-908` | **El broker se nombra en la dirección por su nombre, sin distinguir mayúsculas**: `iqoption` e `IQOPTION` son el mismo broker, y su secreto vale para los dos |
+| ~~`CA-SP-908`~~ | ~~El broker se nombra en la dirección por su nombre, sin distinguir mayúsculas~~ — **retirado el 13-10-2026**: la ruta por nombre ya no existe |
+| `CA-SP-1009` | Un aviso con el secreto común y un **`advertiser` que no está en el catálogo** responde que se recibió y queda guardado **sin broker**, con ese `advertiser`; **no se interpreta**: un aviso de registro así no crea ninguna cuenta |
+| `CA-SP-1010` | **Sin `advertiser`, con dos, o con uno de más de 100 caracteres**, el aviso se guarda sin broker y **sin `advertiser`** |
+| `CA-SP-1011` | Con el `advertiser` de un **broker apagado**, el aviso se guarda sin broker |
+| `CA-SP-1012` | Todo aviso guarda **su `advertiser` aparte**, recortado y tal como vino, también cuando se reconoce, y también cuando llega **en el cuerpo** |
+| `CA-SP-1013` | **Al arrancar**, los avisos sin broker cuyo `advertiser` ya es el de un broker activo **se le asocian y se interpretan en el orden en que llegaron**: un registro crea la cuenta `CONSUMIDOR` y el depósito que llegó después la pasa a `FIRST_DEPOSIT`; **una reentrega con el mismo `event_id` no se aplica dos veces** |
+| `CA-SP-1014` | Al arrancar, los avisos cuyo `advertiser` **sigue sin conocerse** quedan sin broker, y **un aviso que ya tiene broker no se toca**, aunque otro broker tenga su mismo `advertiser` |
+| `CA-SP-1015` | **La ruta con el nombre del broker ya no recibe**: un aviso a `/brokers/iqoption/notifications`, con cualquier secreto, **no se guarda** |
 
 ---
 
@@ -193,10 +218,11 @@ Qué broker avisó, cuándo, desde qué dirección de red, con qué método, **l
 | Caso | Comportamiento |
 |---|---|
 | El broker avisa con un método distinto de los dos | No se admite, como cualquier ruta del sistema con un método que no declara |
-| Un broker sin `advertiser` en el catálogo | No puede usar la dirección común; usa la obsoleta hasta que una migración lo cargue |
+| Un broker sin `advertiser` en el catálogo | Sus avisos se guardan sin broker y se le asocian el día que una migración lo cargue (`FA-003`) |
+| El primer aviso de un broker nuevo llega mientras el sistema arranca y asocia los viejos | Se interpreta en cuanto llega, y los viejos en su orden: un depósito viejo que se aplica después del registro nuevo sigue moviendo la cuenta, porque el depósito solo mira que la cuenta exista |
 | El aviso trae el secreto dos veces en la dirección | Se rechaza como sin secreto (`EX-001`): no se elige cuál vale |
 | Un aviso sin datos de ningún tipo, solo con el secreto | Se guarda: puede ser la comprobación de que la dirección responde, que los paneles suelen ofrecer |
-| Se cambia el secreto de un broker | Los avisos con el viejo se rechazan desde que el entorno toma el nuevo; los ya guardados no cambian |
+| Se cambia el secreto | Los avisos con el viejo se rechazan desde que el entorno toma el nuevo; los ya guardados no cambian |
 
 ---
 
@@ -215,3 +241,4 @@ Qué broker avisó, cuándo, desde qué dirección de red, con qué método, **l
 | 0.3.0 | 09-10-2026 | **Una sola dirección, sin el nombre del broker** (`RN-SP-069`), a petición del responsable del proyecto («para no enviar el nombre del broker ya que este viene en la notificación»): secreto común y broker según el `advertiser`. La ruta por nombre se mantiene, obsoleta. Criterios `CA-SP-946` a `CA-SP-952`. | Responsable del proyecto |
 | 0.4.0 | 09-10-2026 | **El aviso de registro crea la cuenta sin titular** (`RN-SP-070`, `RN-SP-072`): la primera interpretación de un aviso, y la única por ahora. Carga la parte de `RF-SP-054` que el responsable del proyecto pidió —«guardar ese registro pero sin usuario»—; el resto de `RF-SP-054` sigue pendiente. Criterios `CA-SP-964` a `CA-SP-968`. | Responsable del proyecto |
 | 0.5.0 | 10-10-2026 | **El depósito y la operación** (`RN-SP-073`, `RN-SP-074`), por decisión del responsable del proyecto: el depósito es el FTD entero —cuenta a `FIRST_DEPOSIT`, titular de `FTD_PENDIENTE` a `ACTIVO` con lo que compró—; la operación se cuenta; de un número sin cuenta, solo se guarda; una reentrega con el mismo identificador no se aplica dos veces. Responde la idempotencia que `FA-001` dejó a `RF-SP-054`. Criterios `CA-SP-995` a `CA-SP-1002`; `CA-SP-907` se acota a los eventos no configurados. | Responsable del proyecto |
+| 0.6.0 | 13-10-2026 | **Una sola dirección, y ningún aviso se pierde** (`RN-SP-076`), a petición del responsable del proyecto: «solo la ruta broker/notification, para capturar todas las notificaciones y desde ahí clasificarlas por el advertiser». El aviso que no se reconoce se guarda sin broker (`FA-002`) y se asocia e interpreta al arrancar cuando su `advertiser` se cargue (`FA-003`). Se retira la ruta por nombre con sus secretos por broker, y con ella `EX-003`, `CA-SP-901` a `CA-SP-903`, `CA-SP-908`, `CA-SP-948` y `CA-SP-952`. Criterios `CA-SP-1009` a `CA-SP-1015`. | Responsable del proyecto |

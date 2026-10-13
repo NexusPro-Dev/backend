@@ -120,18 +120,13 @@ public class SecurityConfig {
     // consulta autenticada a la pasarela, cuya respuesta es la que manda. Un aviso de un
     // cobro que no es de ningún pago no consulta nada. Fuera de la cota, como el de Stripe.
     "/api/v1/movements/gateway-notifications/payretailers",
-    // LOS AVISOS DE LOS BROKERS (`RF-SP-078`, 08-10-2026): los llama el broker
-    // —IQOPTION, EXNOVA, EXOPTION—, con GET o con POST, y sin token de sesión.
-    // LOS AUTENTICA UN SECRETO POR BROKER en `?token=` (`RN-SP-066`): los paneles
-    // de afiliados no firman ni dejan poner cabeceras. Sin él, 401 sin guardar
-    // nada. Lo que escribe no tiene efecto —una fila que nada lee todavía— y
-    // queda fuera de la cota, como las pasarelas: un broker que reenvía no debe
-    // toparse con un 429. Un `*` es UN segmento: solo esta ruta de la familia.
-    "/api/v1/brokers/*/notifications",
-    // LA DIRECCIÓN COMÚN DE LOS AVISOS (`RN-SP-069`, 09-10-2026): la misma para
-    // todos los brokers, con UN secreto; el broker lo dice el `advertiser` del
-    // aviso, y se mira DESPUÉS del secreto. Mismo trato que la de arriba, que
-    // queda obsoleta mientras se cambian los paneles.
+    // LOS AVISOS DE LOS BROKERS (`RF-SP-078`, `RN-SP-069`): los llama el broker
+    // —IQOPTION, EXNOVA, EXOPTION—, con GET o con POST, y sin token de sesión,
+    // a UNA SOLA DIRECCIÓN. LOS AUTENTICA UN SECRETO en `?token=` (`RN-SP-066`):
+    // los paneles de afiliados no firman ni dejan poner cabeceras. Sin él, 401
+    // sin guardar nada. Queda fuera de la cota, como las pasarelas: un broker que
+    // reenvía no debe toparse con un 429. La ruta con el nombre del broker,
+    // `/api/v1/brokers/*/notifications`, se retiró el 13-10-2026 (`RN-SP-076`).
     "/api/v1/brokers/notifications"
   };
 

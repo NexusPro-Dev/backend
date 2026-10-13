@@ -113,12 +113,8 @@ services:
       # tarjeta nace pendiente y la confirma una persona.
       STRIPE_SECRET_KEY: ${STRIPE_SECRET_KEY:-}
       STRIPE_WEBHOOK_SECRET: ${STRIPE_WEBHOOK_SECRET:-}
-      # Los avisos de los brokers (RF-SP-078, deployment.md §6.5.3). Un secreto por
-      # broker; sin el suyo, la ruta de ese broker responde 503.
-      BROKER_TOKEN_IQOPTION: ${BROKER_TOKEN_IQOPTION:-}
-      BROKER_TOKEN_EXNOVA: ${BROKER_TOKEN_EXNOVA:-}
-      BROKER_TOKEN_EXOPTION: ${BROKER_TOKEN_EXOPTION:-}
-      # La dirección común (RN-SP-069) y los eventos que se interpretan: registro
+      # Los avisos de los brokers (RF-SP-078, deployment.md §6.5.3): la única
+      # dirección, con un secreto (RN-SP-069), y los eventos que se interpretan: registro
       # (RN-SP-072), depósito (RN-SP-073) y operación (RN-SP-074). Vacío = ese
       # aviso solo se guarda.
       BROKER_NOTIFICATION_TOKEN: ${BROKER_NOTIFICATION_TOKEN:-}

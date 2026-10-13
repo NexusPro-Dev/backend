@@ -11,12 +11,12 @@ import com.factech.nexus.shared.audit.AuditEnums.ChangeAction;
 import com.factech.nexus.shared.audit.AuditEvents.ChangeEvent;
 import com.factech.nexus.shared.audit.AuditWriter;
 import com.factech.nexus.shared.error.FieldError;
-import com.factech.nexus.shared.error.ResourceNotFoundException;
 import com.factech.nexus.shared.error.ServiceUnavailableException;
 import com.factech.nexus.shared.error.UnauthorizedException;
 import com.factech.nexus.shared.error.ValidationException;
 import com.factech.nexus.shared.persistence.UuidV7Generator;
 import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import java.net.URLDecoder;
@@ -37,10 +37,11 @@ import org.springframework.transaction.annotation.Transactional;
  * <b>Recibir</b> un aviso de un broker y guardarlo tal como llegó (`RF-SP-078` · `T-04`,
  * `RN-SP-066`), y después <b>interpretarlo</b> si es de un evento configurado (`RF-SP-054`).
  *
- * <p>Primero se comprueba que el aviso es del broker —en el orden de la spec §8, y <b>antes de
- * guardar nada</b>— y se guarda entero, sin el secreto. Luego, en la misma transacción, el registro
- * crea la cuenta sin titular (`RN-SP-072`), el depósito confirma el FTD (`RN-SP-073`) y la
- * operación se cuenta (`RN-SP-074`). Cualquier otro aviso solo se guarda.
+ * <p>Primero se comprueba que el aviso trae el secreto —en el orden de la spec §8, y <b>antes de
+ * guardar nada</b>— y se guarda entero, sin el secreto, con su broker o sin él (`RN-SP-076`).
+ * Luego, en la misma transacción y solo si tiene broker, el registro crea la cuenta sin titular
+ * (`RN-SP-072`), el depósito confirma el FTD (`RN-SP-073`) y la operación se cuenta (`RN-SP-074`).
+ * Cualquier otro aviso solo se guarda.
  */
 @Service
 public class ReceiveBrokerNotificationService {
@@ -53,6 +54,12 @@ public class ReceiveBrokerNotificationService {
 
   /** El parámetro de la dirección que lleva el secreto. Nunca se guarda. */
   public static final String TOKEN = "token";
+
+  /** El {@code advertiser} más largo que se guarda; uno más largo cuenta como ausente. */
+  private static final int MAX_ADVERTISER = 100;
+
+  private static final TypeReference<LinkedHashMap<String, List<String>>> CONSULTA =
+      new TypeReference<>() {};
 
   /** Las cabeceras que llevan credenciales: no se guardan. */
   private static final Set<String> CABECERAS_CON_CREDENCIALES =
@@ -87,9 +94,9 @@ public class ReceiveBrokerNotificationService {
    * La dirección común (`RN-SP-069`): un secreto para todos, y el broker según el {@code
    * advertiser} del aviso.
    *
-   * <p><b>El {@code advertiser} se mira lo ÚLTIMO</b>, después del secreto y del tope: mirarlo
-   * antes dejaría a quien no tiene el secreto distinguir un {@code 404} de un {@code 401} y
-   * averiguar qué brokers hay en el catálogo.
+   * <p><b>Un aviso con el secreto se guarda siempre</b> (`RN-SP-076`): si su {@code advertiser} no
+   * es el de ningún broker activo —o falta, o viene repetido—, sin broker y <b>sin interpretar</b>,
+   * hasta que {@link BrokerNotificationClassifier} se lo asocie.
    */
   @Transactional
   public void receiveCommon(BrokerNotice aviso) {
@@ -104,36 +111,41 @@ public class ReceiveBrokerNotificationService {
     Map<String, List<String>> consulta = autenticado(aviso, esperado);
     byte[] cuerpo = cuerpo(aviso);
 
-    UUID brokerId =
+    String anunciante =
         anunciante(consulta, cuerpo, aviso.contentType())
-            .flatMap(avisos::findActiveByAdvertiser)
-            .orElseThrow(
-                () ->
-                    new ResourceNotFoundException(
-                        "EX-003",
-                        "El aviso no dice de qué broker es, o ese broker no está activo."));
-    guardar(brokerId, aviso, consulta, cuerpo);
+            .filter(valor -> valor.length() <= MAX_ADVERTISER)
+            .orElse(null);
+    UUID brokerId =
+        anunciante == null ? null : avisos.findActiveByAdvertiser(anunciante).orElse(null);
+    guardar(brokerId, anunciante, aviso, consulta, cuerpo);
   }
 
+  /**
+   * Asocia un aviso guardado sin broker al de su {@code advertiser} y lo interpreta, como si
+   * acabara de llegar (`RN-SP-076`, `plan.md` §16). Lo llama {@link BrokerNotificationClassifier}
+   * al arrancar, <b>uno por transacción</b>: si la interpretación falla, el aviso se queda sin
+   * broker y se reintenta en el siguiente arranque. Si otro arranque lo tomó, o ya tiene broker, no
+   * hace nada.
+   */
   @Transactional
-  public void receive(String brokerName, BrokerNotice aviso) {
-    UUID brokerId =
-        avisos
-            .findActiveByName(brokerName)
-            .orElseThrow(
-                () ->
-                    new ResourceNotFoundException(
-                        "EX-003", "El broker no existe o no está activo."));
-    String esperado =
-        secretos
-            .tokenOf(brokerId)
-            .orElseThrow(
-                () ->
-                    new ServiceUnavailableException(
-                        "EX-002", "Este broker no tiene secreto configurado en este entorno."));
-
-    Map<String, List<String>> consulta = autenticado(aviso, esperado);
-    guardar(brokerId, aviso, consulta, cuerpo(aviso));
+  public void classify(UUID avisoId) {
+    avisos
+        .lockUnclassified(avisoId)
+        .ifPresent(
+            guardado -> {
+              avisos.assignBroker(guardado.id(), guardado.brokerId());
+              byte[] cuerpo =
+                  guardado.body() == null
+                      ? new byte[0]
+                      : guardado.body().getBytes(StandardCharsets.UTF_8);
+              interpretar(
+                  guardado.id(),
+                  guardado.brokerId(),
+                  guardado.eventId(),
+                  deJson(guardado.queryParams()),
+                  cuerpo,
+                  guardado.contentType());
+            });
   }
 
   /**
@@ -323,8 +335,13 @@ public class ReceiveBrokerNotificationService {
     }
   }
 
+  /** {@code brokerId} nulo: se guarda y no se interpreta (`RN-SP-076`). */
   private void guardar(
-      UUID brokerId, BrokerNotice aviso, Map<String, List<String>> consulta, byte[] cuerpo) {
+      UUID brokerId,
+      String anunciante,
+      BrokerNotice aviso,
+      Map<String, List<String>> consulta,
+      byte[] cuerpo) {
     UUID id = ids.next();
     String eventId =
         campo(secretos.fields().eventId(), consulta, cuerpo, aviso.contentType())
@@ -333,6 +350,7 @@ public class ReceiveBrokerNotificationService {
     avisos.insert(
         id,
         brokerId,
+        anunciante,
         aviso.method(),
         aJson(consulta),
         aJson(cabeceras(aviso.headers())),
@@ -340,7 +358,9 @@ public class ReceiveBrokerNotificationService {
         recortar(aviso.contentType(), 200),
         recortar(aviso.ipAddress(), 45),
         eventId);
-    interpretar(id, brokerId, eventId, consulta, cuerpo, aviso.contentType());
+    if (brokerId != null) {
+      interpretar(id, brokerId, eventId, consulta, cuerpo, aviso.contentType());
+    }
   }
 
   /**
@@ -399,6 +419,15 @@ public class ReceiveBrokerNotificationService {
       return json.writeValueAsString(mapa);
     } catch (JsonProcessingException imposible) {
       throw new IllegalStateException("No se pudo serializar el aviso", imposible);
+    }
+  }
+
+  /** La consulta guardada, de vuelta a nombre → lista, en el orden en que se guardó. */
+  private Map<String, List<String>> deJson(String guardada) {
+    try {
+      return json.readValue(guardada, CONSULTA);
+    } catch (JsonProcessingException imposible) {
+      throw new IllegalStateException("La consulta guardada no es JSON", imposible);
     }
   }
 

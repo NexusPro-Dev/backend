@@ -12,17 +12,23 @@
 --
 -- SE GUARDAN, NO SE INTERPRETAN: insertarlos aquí no crea cuentas, no mueve
 -- estados ni cuenta operaciones. Eso solo lo hace un aviso que llega por la
--- dirección (RN-SP-072 a RN-SP-074). `event_id` se copia como lo hace V98.
+-- dirección (RN-SP-072 a RN-SP-074). `event_id` se copia como lo hace V98, y
+-- `advertiser` como V103 (RN-SP-076, 13-10-2026).
 -- =============================================================================
 
 INSERT INTO broker_notifications (id, broker_id, method, query_params, headers, body,
-                                  content_type, ip_address, received_at, event_id)
+                                  content_type, ip_address, received_at, event_id,
+                                  advertiser)
 SELECT v.id, v.broker_id, v.method, v.query_params, v.headers, v.body, v.content_type,
        v.ip_address, v.received_at,
        CASE WHEN jsonb_typeof(v.query_params -> 'event_id') = 'array'
              AND jsonb_array_length(v.query_params -> 'event_id') = 1
              AND length(v.query_params -> 'event_id' ->> 0) BETWEEN 1 AND 100
-            THEN v.query_params -> 'event_id' ->> 0 END
+            THEN v.query_params -> 'event_id' ->> 0 END,
+       CASE WHEN jsonb_typeof(v.query_params -> 'advertiser') = 'array'
+             AND jsonb_array_length(v.query_params -> 'advertiser') = 1
+             AND length(btrim(v.query_params -> 'advertiser' ->> 0)) BETWEEN 1 AND 100
+            THEN btrim(v.query_params -> 'advertiser' ->> 0) END
   FROM (VALUES
     ('01a12121-e3fe-721a-bc86-f6cde3f931c1'::uuid, '01a081f0-6000-7101-9c4f-5e7adb000001'::uuid, 'GET'::varchar, '{}'::jsonb, '{"te": ["trailers"], "host": ["unlearned-sanding-unexposed.ngrok-free.dev"], "accept": ["*/*"], "referer": ["https://unlearned-sanding-unexposed.ngrok-free.dev/swagger-ui/index.html"], "priority": ["u=0"], "user-agent": ["Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:157.0) Gecko/20100101 Firefox/157.0"], "sec-fetch-dest": ["empty"], "sec-fetch-mode": ["cors"], "sec-fetch-site": ["same-origin"], "accept-encoding": ["gzip, deflate, br, zstd"], "accept-language": ["es-ES,es;q=0.9,en-US;q=0.8,en;q=0.7"], "x-forwarded-for": ["181.237.215.41"], "x-forwarded-host": ["unlearned-sanding-unexposed.ngrok-free.dev"], "x-forwarded-proto": ["https"]}'::jsonb, NULL::text, NULL::varchar, '172.18.0.1'::varchar, '2026-10-09 14:47:11.578377+00'::timestamptz),
     ('01a12122-173a-7939-9192-b73e7a553611'::uuid, '01a081f0-6000-7101-9c4f-5e7adb000001'::uuid, 'GET'::varchar, '{}'::jsonb, '{"host": ["unlearned-sanding-unexposed.ngrok-free.dev"], "user-agent": ["WhatsApp/2.23.20.0"], "accept-encoding": ["gzip"], "accept-language": ["es"], "x-forwarded-for": ["181.237.215.41"], "x-forwarded-host": ["unlearned-sanding-unexposed.ngrok-free.dev"], "x-forwarded-proto": ["https"]}'::jsonb, NULL::text, NULL::varchar, '172.18.0.1'::varchar, '2026-10-09 14:47:24.723429+00'::timestamptz),
