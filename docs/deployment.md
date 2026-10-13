@@ -5,7 +5,7 @@
 | Proyecto | NEXUS — Renovación de plataforma |
 | Empresa | FACTECH GROUP SAS |
 | Documento | `deployment.md` |
-| Versión | 0.23.0 |
+| Versión | 0.24.0 |
 | Estado | Borrador |
 | Responsable técnico | Bonilla Diaz William Steven |
 | Fecha de creación | 27-08-2026 |
@@ -356,6 +356,21 @@ SELECT b.name, n.received_at, n.method, n.query_params, n.headers, n.body, n.con
 
 **Cambiar un secreto** es cambiar la variable y la dirección en el panel; desde que la aplicación toma la nueva, los avisos con el viejo responden `401`. **En local no llegan solos**: como los de PayRetailers (§6.5.2), hace falta un túnel que publique el puerto `8080`.
 
+### 6.5.4 Las clases en vivo (Zoom)
+
+Las clases en vivo de la academia se programan en Zoom con una **app Server-to-Server OAuth** de la cuenta de la empresa (Workplace Business o superior: el registro de asistentes exige anfitrión con licencia).
+
+**Crear la app**: en [marketplace.zoom.us](https://marketplace.zoom.us), con un usuario **Owner o Admin** (o con el permiso *Server-to-Server OAuth app* en su rol), *Develop › Build App › Server-to-Server OAuth App*. En *Scopes*: `meeting:write:meeting:admin`, `meeting:update:meeting:admin`, `meeting:delete:meeting:admin`, `meeting:read:meeting:admin` y `meeting:write:registrant:admin`. **Sin pulsar *Activate your app*, el token se rechaza.**
+
+| Variable | Valor en Railway | Por qué |
+|---|---|---|
+| `ZOOM_ACCOUNT_ID` | El *Account ID* de *App Credentials* | Pide el token (`grant_type=account_credentials`) |
+| `ZOOM_CLIENT_ID` | El *Client ID* | Igual |
+| `ZOOM_CLIENT_SECRET` | El *Client Secret* | Igual. **Sin los tres, las clases en vivo no se pueden programar** |
+| `ZOOM_HOST_USER` | `me` —quien creó la app— o el correo de un usuario **con licencia** de la cuenta | A su nombre se crean las reuniones; sin licencia, el registro de asistentes falla |
+
+Una sola app sirve para todos los entornos; si se quiere separar, otra app con su par de credenciales.
+
 ### 6.6 `ENVIRONMENT` ya se lee; `API_URL` todavía no
 
 **Desde el 31-08-2026 `ENVIRONMENT` decide algo, y por eso un valor equivocado tumba el arranque.**
@@ -630,3 +645,4 @@ Ninguno de estos puntos impide desplegar. Todos están declarados para que no se
 | 0.21.0 | 09-10-2026 | §6.5.3: **la dirección común de los avisos**, `/api/v1/brokers/notifications`, con `BROKER_NOTIFICATION_TOKEN` y el broker según `advertiser` (`RN-SP-069`). La dirección por nombre y sus tres secretos siguen, obsoletos. | Responsable técnico |
 | 0.22.0 | 09-10-2026 | §6.5.3: **`BROKER_REGISTRATION_EVENT`** y los tres nombres de campo: el aviso de registro crea la cuenta sin titular (`RN-SP-072`). | Responsable técnico |
 | 0.23.0 | 10-10-2026 | §6.5.3: **`BROKER_DEPOSIT_EVENT`, `BROKER_OPERATION_EVENT`** y `BROKER_FIELD_EVENT_ID`: el depósito confirma el FTD (`RN-SP-073`) y la operación se cuenta (`RN-SP-074`). | Responsable técnico |
+| 0.24.0 | 13-10-2026 | **Nueva §6.5.4: las clases en vivo (Zoom)**: la app Server-to-Server OAuth, sus scopes y las cuatro variables `ZOOM_*`. | Responsable técnico |
