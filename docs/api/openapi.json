@@ -369,8 +369,9 @@
             "description" : "Se le abre a quien pregunta.",
             "type" : "boolean"
           },
-          "course" : {
-            "$ref" : "#/components/schemas/LiveSessionCourseRef"
+          "coverImageUrl" : {
+            "description" : "La portada, pública; nula si no tiene.",
+            "type" : "string"
           },
           "description" : {
             "type" : "string"
@@ -386,6 +387,13 @@
           "inProgress" : {
             "description" : "Alguna de sus fechas ya empezó y no ha terminado.",
             "type" : "boolean"
+          },
+          "instructors" : {
+            "description" : "Los instructores de la clase; vacía si no tiene (RN-AC-032).",
+            "items" : {
+              "$ref" : "#/components/schemas/LiveSessionInstructorRef"
+            },
+            "type" : "array"
           },
           "memberships" : {
             "items" : {
@@ -4037,18 +4045,6 @@
         },
         "type" : "object"
       },
-      "LiveSessionCourseRef" : {
-        "properties" : {
-          "id" : {
-            "format" : "uuid",
-            "type" : "string"
-          },
-          "title" : {
-            "type" : "string"
-          }
-        },
-        "type" : "object"
-      },
       "LiveSessionDetailResponse" : {
         "properties" : {
           "cancellationReason" : {
@@ -4058,8 +4054,9 @@
             "format" : "date-time",
             "type" : "string"
           },
-          "course" : {
-            "$ref" : "#/components/schemas/LiveSessionCourseRef"
+          "coverImageUrl" : {
+            "description" : "La portada, pública; nula si no tiene.",
+            "type" : "string"
           },
           "createdAt" : {
             "format" : "date-time",
@@ -4083,6 +4080,13 @@
           "id" : {
             "format" : "uuid",
             "type" : "string"
+          },
+          "instructors" : {
+            "description" : "Los instructores de la clase; vacía si no tiene (RN-AC-032).",
+            "items" : {
+              "$ref" : "#/components/schemas/LiveSessionInstructorRef"
+            },
+            "type" : "array"
           },
           "memberships" : {
             "items" : {
@@ -4160,10 +4164,26 @@
         },
         "type" : "object"
       },
+      "LiveSessionInstructorRef" : {
+        "properties" : {
+          "fullName" : {
+            "type" : "string"
+          },
+          "id" : {
+            "format" : "uuid",
+            "type" : "string"
+          },
+          "username" : {
+            "type" : "string"
+          }
+        },
+        "type" : "object"
+      },
       "LiveSessionItem" : {
         "properties" : {
-          "course" : {
-            "$ref" : "#/components/schemas/LiveSessionCourseRef"
+          "coverImageUrl" : {
+            "description" : "La portada, pública; nula si no tiene.",
+            "type" : "string"
           },
           "ended" : {
             "description" : "Terminó su última fecha.",
@@ -4176,6 +4196,13 @@
           "id" : {
             "format" : "uuid",
             "type" : "string"
+          },
+          "instructors" : {
+            "description" : "Los instructores de la clase; vacía si no tiene (RN-AC-032).",
+            "items" : {
+              "$ref" : "#/components/schemas/LiveSessionInstructorRef"
+            },
+            "type" : "array"
           },
           "membershipCount" : {
             "format" : "int64",
@@ -9245,16 +9272,20 @@
       },
       "ScheduleLiveSessionRequest" : {
         "properties" : {
-          "courseId" : {
-            "format" : "uuid",
-            "type" : "string"
-          },
           "description" : {
             "type" : "string"
           },
           "endsAt" : {
             "description" : "Día y hora de fin, de 15 minutos a 10 horas después del inicio.",
             "type" : "string"
+          },
+          "instructorIds" : {
+            "description" : "Los instructores de la clase: personas con courses:teach, sin repetir. Por /mine, quien programa entra siempre (RN-AC-032).",
+            "items" : {
+              "format" : "uuid",
+              "type" : "string"
+            },
+            "type" : "array"
           },
           "membershipIds" : {
             "items" : {
@@ -9703,22 +9734,6 @@
         },
         "type" : "object"
       },
-      "TaughtCourseItem" : {
-        "properties" : {
-          "id" : {
-            "format" : "uuid",
-            "type" : "string"
-          },
-          "status" : {
-            "description" : "ACTIVO o INACTIVO.",
-            "type" : "string"
-          },
-          "title" : {
-            "type" : "string"
-          }
-        },
-        "type" : "object"
-      },
       "TeamBrokerAccountItem" : {
         "properties" : {
           "accountId" : {
@@ -10015,15 +10030,19 @@
       },
       "UpdateLiveSessionRequest" : {
         "properties" : {
-          "courseId" : {
-            "format" : "uuid",
-            "type" : "string"
-          },
           "description" : {
             "type" : "string"
           },
           "endsAt" : {
             "type" : "string"
+          },
+          "instructorIds" : {
+            "description" : "Si viene, reemplaza la lista de instructores; por /mine, tiene que incluir a quien corrige.",
+            "items" : {
+              "format" : "uuid",
+              "type" : "string"
+            },
+            "type" : "array"
           },
           "membershipIds" : {
             "items" : {
@@ -10042,10 +10061,6 @@
           "recurrence" : {
             "description" : "DAILY, WEEKLY, MONTHLY, o NONE para quitar la repetición.",
             "type" : "string"
-          },
-          "removeCourse" : {
-            "description" : "Verdadero para dejar la clase suelta, sin curso.",
-            "type" : "boolean"
           },
           "repeatUntil" : {
             "description" : "El último día de la serie, incluido, como 2026-12-31.",
@@ -14916,56 +14931,6 @@
         "x-required-permission" : "courses:read-available"
       }
     },
-    "/api/v1/courses/mine" : {
-      "get" : {
-        "description" : "**Permiso requerido:** `courses:list-own`. Sin él, `403` (`AUTH-002`).\n\n**Los cursos no retirados cuyo instructor es quien pregunta**, activos e inactivos,\ncon `id`, `title` y `status`, por orden de presentación y título, sin paginar: los\nmismos en los que puede programar sus clases en vivo\n(`POST /api/v1/live-sessions/mine`). Sin cursos, una lista vacía. **No es el\ncatálogo**: ni categorías, ni portada, ni los de otros.\n\nExige `courses:list-own`; `courses:teach` no habilita.\n",
-        "operationId" : "listarMios",
-        "responses" : {
-          "200" : {
-            "content" : {
-              "*/*" : {
-                "schema" : {
-                  "items" : {
-                    "$ref" : "#/components/schemas/TaughtCourseItem"
-                  },
-                  "type" : "array"
-                }
-              }
-            },
-            "description" : "Los cursos que dicta."
-          },
-          "401" : {
-            "content" : {
-              "*/*" : {
-                "schema" : {
-                  "items" : {
-                    "$ref" : "#/components/schemas/TaughtCourseItem"
-                  },
-                  "type" : "array"
-                }
-              }
-            },
-            "description" : "Sin sesión (`AUTH-001`)"
-          },
-          "403" : {
-            "content" : {
-              "*/*" : {
-                "schema" : {
-                  "items" : {
-                    "$ref" : "#/components/schemas/TaughtCourseItem"
-                  },
-                  "type" : "array"
-                }
-              }
-            },
-            "description" : "Sin el permiso (`AUTH-002`)"
-          }
-        },
-        "summary" : "Consultar los cursos que dicto",
-        "tags" : [ "Cursos" ],
-        "x-required-permission" : "courses:list-own"
-      }
-    },
     "/api/v1/courses/progress" : {
       "get" : {
         "description" : "**Permiso requerido:** `courses:list-progress`. Sin él, `403` (`AUTH-002`).\n\n**Una fila por alumno y curso** en el que el alumno abrió al menos una lección,\npor **última actividad descendente**, paginada. Cada fila con el alumno, el curso\n—vivo o retirado— y su avance: `percent` (lo visto, acotado a cada duración y\nentero si la lección está completada, entre la duración total, hacia abajo),\n`completedLessons` de `lessonCount`, `watchedSeconds` de `totalSeconds`,\n`completed` (todas las lecciones completadas y al menos una), la primera apertura\ny la última actividad. **El avance se calcula sobre las lecciones que el curso\nofrece hoy**: lo visto de una lección retirada no cuenta, y no se pierde.\n\n**Cada uno ve lo que le toca**: un rol `FUNCIONARIO`, todo; un `VENDEDOR`, a su\nred en profundidad —con él dentro— y a los clientes cuyo vendedor principal es de\nla red; y **cualquiera, a los alumnos de los cursos que dicta**. Las condiciones\nse suman. **Fuera del alcance, página vacía**, nunca `403`.\n\nFiltros: `userId`, `courseId` (uno inexistente da página vacía) y `completed`.\n\nExige `courses:list-progress`.\n",
@@ -17811,7 +17776,7 @@
     },
     "/api/v1/live-sessions" : {
       "get" : {
-        "description" : "**Permiso requerido:** `live-sessions:list`. Sin él, `403` (`AUTH-002`).\n\n**Todas las clases**, también las canceladas y las terminadas, por inicio\ndescendente y paginadas. Filtros: `courseId`, `status` (`PROGRAMADA` o\n`CANCELADA`), `ended` —calculado con la hora de fin de la última fecha— y el periodo\nde inicio `from`/`to` (semiabierto); **una clase que se repite** entra si alguna de\nsus fechas puede caer en él: empieza antes de `to` y termina después de `from`. Cada fila trae cuántas membresías y servicios la abren y\n**cuántos se registraron**.\n\nExige `live-sessions:list`.\n",
+        "description" : "**Permiso requerido:** `live-sessions:list`. Sin él, `403` (`AUTH-002`).\n\n**Todas las clases**, también las canceladas y las terminadas, por inicio\ndescendente y paginadas. Filtros: `instructorId` —las de las que es instructor—,\n`status` (`PROGRAMADA` o\n`CANCELADA`), `ended` —calculado con la hora de fin de la última fecha— y el periodo\nde inicio `from`/`to` (semiabierto); **una clase que se repite** entra si alguna de\nsus fechas puede caer en él: empieza antes de `to` y termina después de `from`. Cada fila trae cuántas membresías y servicios la abren y\n**cuántos se registraron**.\n\nExige `live-sessions:list`.\n",
         "operationId" : "listar_7",
         "parameters" : [ {
           "in" : "query",
@@ -17830,10 +17795,12 @@
             "type" : "integer"
           }
         }, {
+          "description" : "Solo las clases de las que esa persona es instructor.",
           "in" : "query",
-          "name" : "courseId",
+          "name" : "instructorId",
           "required" : false,
           "schema" : {
+            "description" : "Solo las clases de las que esa persona es instructor.",
             "format" : "uuid",
             "type" : "string"
           }
@@ -17915,7 +17882,7 @@
         "x-required-permission" : "live-sessions:list"
       },
       "post" : {
-        "description" : "**Permiso requerido:** `live-sessions:create`. Sin él, `403` (`AUTH-002`).\n\n**Día, hora de inicio y hora de fin** (`startsAt`, `endsAt`), con su zona o sin ella\n—y entonces en `America/Bogota`—: el inicio no en el pasado, el fin de 15 minutos a\n10 horas después. **`membershipIds` y `productIds` dicen quién puede entrar**, como en\nun curso: lista explícita, servicios `BOT`, y **sin ninguna de las dos, la clase es\nde todos los alumnos con sesión**. `courseId` es opcional: agrupa la clase y decide\nqué instructor la administra, no quién entra.\n\n**La reunión la crea la plataforma en Zoom**, con registro obligatorio: solo entra quien\nrecibe su enlace personal al pulsar «Entrar» (`POST /live-sessions/available/{id}/registration`).\n**De Zoom solo se guarda el identificador de la reunión**; el enlace general y la contraseña\nno salen nunca. Si Zoom no está configurado, falla o no responde, `503` y nada cambia.\n\n**Se repite** con `recurrence` —`DAILY`; `WEEKLY`, el día de la semana del inicio; o\n`MONTHLY`, el día del mes del inicio, no después del 28— y `repeatUntil`, el último día,\nobligatorio con ella: **una sola clase y una sola reunión recurrente de Zoom** a la misma\nhora, de 2 a 60 fechas (`RN-AC-031`). Al corregir, `NONE` quita la repetición y deja la\nprimera fecha. La clase termina con **su última fecha**.\n\nExige `live-sessions:create`.\n",
+        "description" : "**Permiso requerido:** `live-sessions:create`. Sin él, `403` (`AUTH-002`).\n\n**Día, hora de inicio y hora de fin** (`startsAt`, `endsAt`), con su zona o sin ella\n—y entonces en `America/Bogota`—: el inicio no en el pasado, el fin de 15 minutos a\n10 horas después. **`membershipIds` y `productIds` dicen quién puede entrar**, como en\nun curso: lista explícita, servicios `BOT`, y **sin ninguna de las dos, la clase es\nde todos los alumnos con sesión**. **No cuelga de ningún curso** (`RN-AC-032`):\n`instructorIds` nombra a sus instructores —personas con `courses:teach`, sin\nrepetir—, que la gobiernan bajo `/mine`; sin ninguno, solo administración. La\nportada se pone aparte, con `PUT /{id}/cover`.\n\n**La reunión la crea la plataforma en Zoom**, con registro obligatorio: solo entra quien\nrecibe su enlace personal al pulsar «Entrar» (`POST /live-sessions/available/{id}/registration`).\n**De Zoom solo se guarda el identificador de la reunión**; el enlace general y la contraseña\nno salen nunca. Si Zoom no está configurado, falla o no responde, `503` y nada cambia.\n\n**Se repite** con `recurrence` —`DAILY`; `WEEKLY`, el día de la semana del inicio; o\n`MONTHLY`, el día del mes del inicio, no después del 28— y `repeatUntil`, el último día,\nobligatorio con ella: **una sola clase y una sola reunión recurrente de Zoom** a la misma\nhora, de 2 a 60 fechas (`RN-AC-031`). Al corregir, `NONE` quita la repetición y deja la\nprimera fecha. La clase termina con **su última fecha**.\n\nExige `live-sessions:create`.\n",
         "operationId" : "programar",
         "requestBody" : {
           "content" : {
@@ -17955,7 +17922,7 @@
                 }
               }
             },
-            "description" : "Curso, membresía o producto que no valen (`EX-001`, `EX-002`)"
+            "description" : "Instructor, membresía o producto que no valen (`EX-002`, `EX-003`)"
           },
           "503" : {
             "content" : {
@@ -17975,17 +17942,9 @@
     },
     "/api/v1/live-sessions/available" : {
       "get" : {
-        "description" : "**Permiso requerido:** `live-sessions:learn`. Sin él, `403` (`AUTH-002`).\n\n**Las clases programadas que no han terminado** —las que se repiten, hasta su última\nfecha—, por la fecha en curso o la siguiente (`nextStartsAt`), sin paginar. Cada una\ndice **`accessible`** —se le abre porque su membresía o uno de sus servicios\nvigentes está en la lista, o porque la clase no declara ninguno—, **`registered`**\nsi ya pidió entrar, `inProgress` si alguna de sus fechas está en curso, y **las\nmembresías y servicios que la\nabren**, que es la invitación. `onlyAccessible=true` deja solo las suyas; `courseId`\nacota a un curso. **Nada de Zoom**: el enlace se pide al entrar.\n\nExige `live-sessions:learn`.\n",
+        "description" : "**Permiso requerido:** `live-sessions:learn`. Sin él, `403` (`AUTH-002`).\n\n**Las clases programadas que no han terminado** —las que se repiten, hasta su última\nfecha—, por la fecha en curso o la siguiente (`nextStartsAt`), sin paginar. Cada una\ndice **`accessible`** —se le abre porque su membresía o uno de sus servicios\nvigentes está en la lista, o porque la clase no declara ninguno—, **`registered`**\nsi ya pidió entrar, `inProgress` si alguna de sus fechas está en curso, y **las\nmembresías y servicios que la\nabren**, que es la invitación; y **sus instructores y su portada**. `onlyAccessible=true`\ndeja solo las suyas. **Nada de Zoom**: el enlace se pide al entrar.\n\nExige `live-sessions:learn`.\n",
         "operationId" : "clases",
         "parameters" : [ {
-          "in" : "query",
-          "name" : "courseId",
-          "required" : false,
-          "schema" : {
-            "format" : "uuid",
-            "type" : "string"
-          }
-        }, {
           "in" : "query",
           "name" : "onlyAccessible",
           "required" : false,
@@ -18111,7 +18070,7 @@
     },
     "/api/v1/live-sessions/mine" : {
       "get" : {
-        "description" : "**Permiso requerido:** `live-sessions:list-own`. Sin él, `403` (`AUTH-002`).\n\nEl listado de administración **acotado a las clases de los cursos que dicta** quien\npregunta, con los mismos filtros. Las clases sueltas no salen.\n\nExige `live-sessions:list-own`.\n",
+        "description" : "**Permiso requerido:** `live-sessions:list-own`. Sin él, `403` (`AUTH-002`).\n\nEl listado de administración **acotado a las clases de las que es instructor** quien\npregunta, con los mismos filtros. Las clases sueltas no salen.\n\nExige `live-sessions:list-own`.\n",
         "operationId" : "listarPropias",
         "parameters" : [ {
           "in" : "query",
@@ -18130,10 +18089,12 @@
             "type" : "integer"
           }
         }, {
+          "description" : "Solo las clases de las que esa persona es instructor.",
           "in" : "query",
-          "name" : "courseId",
+          "name" : "instructorId",
           "required" : false,
           "schema" : {
+            "description" : "Solo las clases de las que esa persona es instructor.",
             "format" : "uuid",
             "type" : "string"
           }
@@ -18185,7 +18146,7 @@
         "x-required-permission" : "live-sessions:list-own"
       },
       "post" : {
-        "description" : "**Permiso requerido:** `live-sessions:create-own`. Sin él, `403` (`AUTH-002`).\n\nComo programar una clase, con **`courseId` obligatorio** y de un curso que dicta\nquien pide; si no, `422` (`EX-001`).\n\n**La reunión la crea la plataforma en Zoom**, con registro obligatorio: solo entra quien\nrecibe su enlace personal al pulsar «Entrar» (`POST /live-sessions/available/{id}/registration`).\n**De Zoom solo se guarda el identificador de la reunión**; el enlace general y la contraseña\nno salen nunca. Si Zoom no está configurado, falla o no responde, `503` y nada cambia.\n\n**Se repite** con `recurrence` —`DAILY`; `WEEKLY`, el día de la semana del inicio; o\n`MONTHLY`, el día del mes del inicio, no después del 28— y `repeatUntil`, el último día,\nobligatorio con ella: **una sola clase y una sola reunión recurrente de Zoom** a la misma\nhora, de 2 a 60 fechas (`RN-AC-031`). Al corregir, `NONE` quita la repetición y deja la\nprimera fecha. La clase termina con **su última fecha**.\n\nExige `live-sessions:create-own`.\n",
+        "description" : "**Permiso requerido:** `live-sessions:create-own`. Sin él, `403` (`AUTH-002`).\n\nComo programar una clase, y **quien pide queda entre sus instructores**, con los que\nnombre en `instructorIds`.\n\n**La reunión la crea la plataforma en Zoom**, con registro obligatorio: solo entra quien\nrecibe su enlace personal al pulsar «Entrar» (`POST /live-sessions/available/{id}/registration`).\n**De Zoom solo se guarda el identificador de la reunión**; el enlace general y la contraseña\nno salen nunca. Si Zoom no está configurado, falla o no responde, `503` y nada cambia.\n\n**Se repite** con `recurrence` —`DAILY`; `WEEKLY`, el día de la semana del inicio; o\n`MONTHLY`, el día del mes del inicio, no después del 28— y `repeatUntil`, el último día,\nobligatorio con ella: **una sola clase y una sola reunión recurrente de Zoom** a la misma\nhora, de 2 a 60 fechas (`RN-AC-031`). Al corregir, `NONE` quita la repetición y deja la\nprimera fecha. La clase termina con **su última fecha**.\n\nExige `live-sessions:create-own`.\n",
         "operationId" : "programarPropia",
         "requestBody" : {
           "content" : {
@@ -18208,14 +18169,14 @@
             "description" : "Created"
           }
         },
-        "summary" : "Programar una clase en vivo de mi curso",
+        "summary" : "Programar una clase en vivo mía",
         "tags" : [ "Clases en vivo" ],
         "x-required-permission" : "live-sessions:create-own"
       }
     },
     "/api/v1/live-sessions/mine/{id}" : {
       "get" : {
-        "description" : "**Permiso requerido:** `live-sessions:read-own`. Sin él, `403` (`AUTH-002`).\n\nEl detalle de administración —descripción, membresías, servicios, repetición,\nregistrados, sin enlace ni contraseña— **de una clase de un curso que dicta** quien\npregunta, también cancelada o terminada. **Una ajena, suelta o inexistente responde\n`404`**, como si no existiera.\n\nExige `live-sessions:read-own`.\n",
+        "description" : "**Permiso requerido:** `live-sessions:read-own`. Sin él, `403` (`AUTH-002`).\n\nEl detalle de administración —descripción, membresías, servicios, repetición,\nregistrados, sin enlace ni contraseña— **de una clase de la que es instructor** quien\npregunta, también cancelada o terminada. **Una ajena, suelta o inexistente responde\n`404`**, como si no existiera.\n\nExige `live-sessions:read-own`.\n",
         "operationId" : "detallePropio",
         "parameters" : [ {
           "in" : "path",
@@ -18245,15 +18206,15 @@
                 }
               }
             },
-            "description" : "No existe o no es de sus cursos (`EX-001`)"
+            "description" : "No existe o no es suya (`EX-001`)"
           }
         },
-        "summary" : "Consultar el detalle de una clase en vivo de mi curso",
+        "summary" : "Consultar el detalle de una clase en vivo mía",
         "tags" : [ "Clases en vivo" ],
         "x-required-permission" : "live-sessions:read-own"
       },
       "patch" : {
-        "description" : "**Permiso requerido:** `live-sessions:update-own`. Sin él, `403` (`AUTH-002`).\n\nComo corregir una clase, sobre las de los cursos que dicta: **una ajena responde\n`404`**, y no se puede mover a un curso que no dicta ni dejarla suelta (`422`).\n\nExige `live-sessions:update-own`.\n",
+        "description" : "**Permiso requerido:** `live-sessions:update-own`. Sin él, `403` (`AUTH-002`).\n\nComo corregir una clase, sobre las de las que es instructor: **una ajena responde\n`404`**, y `instructorIds` **no puede dejarlo fuera** (`422`, `EX-004`).\n\nExige `live-sessions:update-own`.\n",
         "operationId" : "corregirPropia",
         "parameters" : [ {
           "in" : "path",
@@ -18285,14 +18246,14 @@
             "description" : "OK"
           }
         },
-        "summary" : "Corregir una clase en vivo de mi curso",
+        "summary" : "Corregir una clase en vivo mía",
         "tags" : [ "Clases en vivo" ],
         "x-required-permission" : "live-sessions:update-own"
       }
     },
     "/api/v1/live-sessions/mine/{id}/cancellation" : {
       "post" : {
-        "description" : "**Permiso requerido:** `live-sessions:cancel-own`. Sin él, `403` (`AUTH-002`).\n\nComo cancelar una clase, sobre las de los cursos que dicta; una ajena responde `404`.\n\nExige `live-sessions:cancel-own`.\n",
+        "description" : "**Permiso requerido:** `live-sessions:cancel-own`. Sin él, `403` (`AUTH-002`).\n\nComo cancelar una clase, sobre las de las que es instructor; una ajena responde `404`.\n\nExige `live-sessions:cancel-own`.\n",
         "operationId" : "cancelarPropia",
         "parameters" : [ {
           "in" : "path",
@@ -18324,14 +18285,87 @@
             "description" : "OK"
           }
         },
-        "summary" : "Cancelar una clase en vivo de mi curso",
+        "summary" : "Cancelar una clase en vivo mía",
         "tags" : [ "Clases en vivo" ],
         "x-required-permission" : "live-sessions:cancel-own"
       }
     },
+    "/api/v1/live-sessions/mine/{id}/cover" : {
+      "delete" : {
+        "description" : "**Permiso requerido:** `live-sessions:remove-cover-own`. Sin él, `403` (`AUTH-002`).\n\nComo quitar la portada, sobre una clase de la que es instructor; una ajena responde\n`404`.\n\nExige `live-sessions:remove-cover-own`.\n",
+        "operationId" : "quitarPortadaPropia",
+        "parameters" : [ {
+          "in" : "path",
+          "name" : "id",
+          "required" : true,
+          "schema" : {
+            "format" : "uuid",
+            "type" : "string"
+          }
+        } ],
+        "responses" : {
+          "200" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/LiveSessionDetailResponse"
+                }
+              }
+            },
+            "description" : "OK"
+          }
+        },
+        "summary" : "Quitar la portada de una clase en vivo mía",
+        "tags" : [ "Clases en vivo" ],
+        "x-required-permission" : "live-sessions:remove-cover-own"
+      },
+      "put" : {
+        "description" : "**Permiso requerido:** `live-sessions:set-cover-own`. Sin él, `403` (`AUTH-002`).\n\nRecibe **un archivo** —`multipart/form-data`, una sola parte llamada `file`— y lo\nconvierte en la portada de la clase, **tal cual**, como la de un curso. **El tipo lo\ndeciden los bytes**: `JPEG`, `PNG` o `WebP`, **hasta 5 MB** (`VAL-004`); sin\narchivo o vacío, `VAL-002`; otro formato, `VAL-003`. **Si ya tenía portada, la\nreemplaza** y la anterior se borra; `coverImageUrl` pasa a\n`/api/v1/academy-images/{imageId}`, pública. Sobre una clase de la que no es instructor, `404`. **Cancelada o terminada, `409`**.\n\nExige `live-sessions:set-cover-own`.\n",
+        "operationId" : "ponerPortadaPropia",
+        "parameters" : [ {
+          "in" : "path",
+          "name" : "id",
+          "required" : true,
+          "schema" : {
+            "format" : "uuid",
+            "type" : "string"
+          }
+        } ],
+        "requestBody" : {
+          "content" : {
+            "multipart/form-data" : {
+              "schema" : {
+                "properties" : {
+                  "file" : {
+                    "format" : "binary",
+                    "type" : "string"
+                  }
+                },
+                "type" : "object"
+              }
+            }
+          }
+        },
+        "responses" : {
+          "200" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/LiveSessionDetailResponse"
+                }
+              }
+            },
+            "description" : "OK"
+          }
+        },
+        "summary" : "Poner la portada de una clase en vivo mía",
+        "tags" : [ "Clases en vivo" ],
+        "x-required-permission" : "live-sessions:set-cover-own"
+      }
+    },
     "/api/v1/live-sessions/mine/{id}/host-link" : {
       "post" : {
-        "description" : "**Permiso requerido:** `live-sessions:host-own`. Sin él, `403` (`AUTH-002`).\n\nEl enlace de anfitrión de una clase de un curso que dicta quien pide; una ajena\nresponde `404`. Cada entrega se audita.\n\nExige `live-sessions:host-own`.\n",
+        "description" : "**Permiso requerido:** `live-sessions:host-own`. Sin él, `403` (`AUTH-002`).\n\nEl enlace de anfitrión de una clase de la que es instructor quien pide; una ajena\nresponde `404`. Cada entrega se audita.\n\nExige `live-sessions:host-own`.\n",
         "operationId" : "anfitrionPropia",
         "parameters" : [ {
           "in" : "path",
@@ -18354,14 +18388,14 @@
             "description" : "OK"
           }
         },
-        "summary" : "Iniciar como anfitrión una clase en vivo de mi curso",
+        "summary" : "Iniciar como anfitrión una clase en vivo mía",
         "tags" : [ "Clases en vivo" ],
         "x-required-permission" : "live-sessions:host-own"
       }
     },
     "/api/v1/live-sessions/{id}" : {
       "get" : {
-        "description" : "**Permiso requerido:** `live-sessions:read`. Sin él, `403` (`AUTH-002`).\n\nLa clase con su curso, **sus membresías y servicios**, el identificador de la\nreunión de Zoom —**sin enlace ni contraseña**—, la cancelación si la hay y **quién se\nregistró para entrar**, con su fecha. `ended` dice si terminó su última fecha;\n`recurrence` y `repeatUntil`, cómo se repite; y `nextStartsAt`/`nextEndsAt`, la fecha\nen curso o la siguiente.\n\nExige `live-sessions:read`.\n",
+        "description" : "**Permiso requerido:** `live-sessions:read`. Sin él, `403` (`AUTH-002`).\n\nLa clase con **sus instructores**, su portada (`coverImageUrl`), **sus membresías y\nservicios**, el identificador de la\nreunión de Zoom —**sin enlace ni contraseña**—, la cancelación si la hay y **quién se\nregistró para entrar**, con su fecha. `ended` dice si terminó su última fecha;\n`recurrence` y `repeatUntil`, cómo se repite; y `nextStartsAt`/`nextEndsAt`, la fecha\nen curso o la siguiente.\n\nExige `live-sessions:read`.\n",
         "operationId" : "detalle_5",
         "parameters" : [ {
           "in" : "path",
@@ -18399,7 +18433,7 @@
         "x-required-permission" : "live-sessions:read"
       },
       "patch" : {
-        "description" : "**Permiso requerido:** `live-sessions:update`. Sin él, `403` (`AUTH-002`).\n\n**Solo lo que viene.** Las listas, si vienen, **reemplazan enteras** (una lista\nvacía deja la clase de todos); `removeCourse: true` la deja suelta. Lo que Zoom\nconoce —título, inicio y fin— **se corrige allí primero**. Quitar a alguien de la\nlista no lo des-registra en Zoom: no recibe un enlace nuevo. **Una clase cancelada o\nterminada no se corrige** (`409`).\n\n**La reunión la crea la plataforma en Zoom**, con registro obligatorio: solo entra quien\nrecibe su enlace personal al pulsar «Entrar» (`POST /live-sessions/available/{id}/registration`).\n**De Zoom solo se guarda el identificador de la reunión**; el enlace general y la contraseña\nno salen nunca. Si Zoom no está configurado, falla o no responde, `503` y nada cambia.\n\n**Se repite** con `recurrence` —`DAILY`; `WEEKLY`, el día de la semana del inicio; o\n`MONTHLY`, el día del mes del inicio, no después del 28— y `repeatUntil`, el último día,\nobligatorio con ella: **una sola clase y una sola reunión recurrente de Zoom** a la misma\nhora, de 2 a 60 fechas (`RN-AC-031`). Al corregir, `NONE` quita la repetición y deja la\nprimera fecha. La clase termina con **su última fecha**.\n\nExige `live-sessions:update`.\n",
+        "description" : "**Permiso requerido:** `live-sessions:update`. Sin él, `403` (`AUTH-002`).\n\n**Solo lo que viene.** Las listas, si vienen, **reemplazan enteras** (una lista\nvacía deja la clase de todos), **también `instructorIds`**. Lo que Zoom\nconoce —título, inicio y fin— **se corrige allí primero**. Quitar a alguien de la\nlista no lo des-registra en Zoom: no recibe un enlace nuevo. **Una clase cancelada o\nterminada no se corrige** (`409`).\n\n**La reunión la crea la plataforma en Zoom**, con registro obligatorio: solo entra quien\nrecibe su enlace personal al pulsar «Entrar» (`POST /live-sessions/available/{id}/registration`).\n**De Zoom solo se guarda el identificador de la reunión**; el enlace general y la contraseña\nno salen nunca. Si Zoom no está configurado, falla o no responde, `503` y nada cambia.\n\n**Se repite** con `recurrence` —`DAILY`; `WEEKLY`, el día de la semana del inicio; o\n`MONTHLY`, el día del mes del inicio, no después del 28— y `repeatUntil`, el último día,\nobligatorio con ella: **una sola clase y una sola reunión recurrente de Zoom** a la misma\nhora, de 2 a 60 fechas (`RN-AC-031`). Al corregir, `NONE` quita la repetición y deja la\nprimera fecha. La clase termina con **su última fecha**.\n\nExige `live-sessions:update`.\n",
         "operationId" : "corregir_5",
         "parameters" : [ {
           "in" : "path",
@@ -18458,7 +18492,7 @@
                 }
               }
             },
-            "description" : "Curso, membresía o producto que no valen"
+            "description" : "Instructor, membresía o producto que no valen"
           },
           "503" : {
             "content" : {
@@ -18553,6 +18587,129 @@
         "summary" : "Cancelar una clase en vivo",
         "tags" : [ "Clases en vivo" ],
         "x-required-permission" : "live-sessions:cancel"
+      }
+    },
+    "/api/v1/live-sessions/{id}/cover" : {
+      "delete" : {
+        "description" : "**Permiso requerido:** `live-sessions:remove-cover`. Sin él, `403` (`AUTH-002`).\n\n**Quita la portada y la borra**: `coverImageUrl` vuelve a nulo. Sin portada, `200`\nsin cambio. **Cancelada o terminada, `409`**.\n\nExige `live-sessions:remove-cover`.\n",
+        "operationId" : "quitarPortada_2",
+        "parameters" : [ {
+          "in" : "path",
+          "name" : "id",
+          "required" : true,
+          "schema" : {
+            "format" : "uuid",
+            "type" : "string"
+          }
+        } ],
+        "responses" : {
+          "200" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/LiveSessionDetailResponse"
+                }
+              }
+            },
+            "description" : "La clase, sin portada."
+          },
+          "404" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/LiveSessionDetailResponse"
+                }
+              }
+            },
+            "description" : "No existe (`EX-001`)"
+          },
+          "409" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/LiveSessionDetailResponse"
+                }
+              }
+            },
+            "description" : "Cancelada o terminada (`EX-003`)"
+          }
+        },
+        "summary" : "Quitar la portada de una clase en vivo",
+        "tags" : [ "Clases en vivo" ],
+        "x-required-permission" : "live-sessions:remove-cover"
+      },
+      "put" : {
+        "description" : "**Permiso requerido:** `live-sessions:set-cover`. Sin él, `403` (`AUTH-002`).\n\nRecibe **un archivo** —`multipart/form-data`, una sola parte llamada `file`— y lo\nconvierte en la portada de la clase, **tal cual**, como la de un curso. **El tipo lo\ndeciden los bytes**: `JPEG`, `PNG` o `WebP`, **hasta 5 MB** (`VAL-004`); sin\narchivo o vacío, `VAL-002`; otro formato, `VAL-003`. **Si ya tenía portada, la\nreemplaza** y la anterior se borra; `coverImageUrl` pasa a\n`/api/v1/academy-images/{imageId}`, pública.  **Cancelada o terminada, `409`**.\n\nExige `live-sessions:set-cover`.\n",
+        "operationId" : "ponerPortada",
+        "parameters" : [ {
+          "in" : "path",
+          "name" : "id",
+          "required" : true,
+          "schema" : {
+            "format" : "uuid",
+            "type" : "string"
+          }
+        } ],
+        "requestBody" : {
+          "content" : {
+            "multipart/form-data" : {
+              "schema" : {
+                "properties" : {
+                  "file" : {
+                    "format" : "binary",
+                    "type" : "string"
+                  }
+                },
+                "type" : "object"
+              }
+            }
+          }
+        },
+        "responses" : {
+          "200" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/LiveSessionDetailResponse"
+                }
+              }
+            },
+            "description" : "La clase, con su portada."
+          },
+          "400" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/LiveSessionDetailResponse"
+                }
+              }
+            },
+            "description" : "Sin archivo, de otro formato o de más de 5 MB (`VAL-002` a `VAL-004`)"
+          },
+          "404" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/LiveSessionDetailResponse"
+                }
+              }
+            },
+            "description" : "No existe (`EX-001`)"
+          },
+          "409" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/LiveSessionDetailResponse"
+                }
+              }
+            },
+            "description" : "Cancelada o terminada (`EX-003`)"
+          }
+        },
+        "summary" : "Poner la portada de una clase en vivo",
+        "tags" : [ "Clases en vivo" ],
+        "x-required-permission" : "live-sessions:set-cover"
       }
     },
     "/api/v1/live-sessions/{id}/host-link" : {
@@ -27137,9 +27294,6 @@
     "description" : "El precio de cobro y el de retiro de cada país, 1 USD = X moneda local. Los usará la pasarela local (PayRetailers), que cobra y paga en la moneda del país.",
     "name" : "Conversión por país"
   }, {
-    "description" : "Programar, corregir, cancelar e iniciar las clases en vivo por Zoom: administración todas, el instructor las de sus cursos.",
-    "name" : "Clases en vivo"
-  }, {
     "description" : "Alta y administración de las personas del sistema.",
     "name" : "Usuarios"
   }, {
@@ -27157,6 +27311,9 @@
   }, {
     "description" : "Con qué se puede pagar, y en qué países no vale cada medio.",
     "name" : "Métodos de pago"
+  }, {
+    "description" : "Programar, corregir, cancelar, iniciar y poner portada a las clases en vivo por Zoom: administración todas, el instructor las suyas.",
+    "name" : "Clases en vivo"
   }, {
     "description" : "Los bancos y billeteras móviles a los que se pagan los retiros, y las cuentas de cada persona en ellos. Un retiro exige una cuenta y copia su destino.",
     "name" : "Cuentas de cobro"

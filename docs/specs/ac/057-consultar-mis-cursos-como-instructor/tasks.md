@@ -10,6 +10,10 @@
 | Rama | `develop` (commits directos desde el 05-10-2026) |
 | Autor | Responsable técnico |
 
+!!! warning "Retirado el 13-10-2026"
+
+    `RF-AC-057` se retiró el mismo día que nació, con `courses:list-own` (`V105`): las clases en vivo dejaron de colgar de un curso ([`requirements/ac.md`](../../../requirements/ac.md) §5.2.18, `RN-AC-032`), y ya no hay curso que elegir al programar. Ver [`RF-AC-058`](../058-portada-de-clase-en-vivo/spec.md). Este documento se conserva como historia.
+
 ---
 
 ## 1. Tareas

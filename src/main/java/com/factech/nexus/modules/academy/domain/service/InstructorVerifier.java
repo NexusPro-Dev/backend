@@ -39,18 +39,21 @@ public class InstructorVerifier {
 
   /** Lanza el {@code 422} que corresponda, o no hace nada. */
   public void verificar(UUID instructorId) {
+    verificar(instructorId, "instructorId");
+  }
+
+  /** Lo mismo, nombrando el campo de la petición en el error. */
+  public void verificar(UUID instructorId, String campo) {
     boolean existe = personas.find(instructorId).filter(persona -> !persona.deleted()).isPresent();
     if (!existe) {
       throw new UnprocessableEntityException(
-          "EX-002",
-          MENSAJE_NO_EXISTE,
-          List.of(new FieldError("instructorId", "EX-002", MENSAJE_NO_EXISTE)));
+          "EX-002", MENSAJE_NO_EXISTE, List.of(new FieldError(campo, "EX-002", MENSAJE_NO_EXISTE)));
     }
     if (!permisos.holds(instructorId, PERMISO_DE_INSTRUCTOR)) {
       throw new UnprocessableEntityException(
           "EX-003",
           MENSAJE_SIN_PERMISO,
-          List.of(new FieldError("instructorId", "EX-003", MENSAJE_SIN_PERMISO)));
+          List.of(new FieldError(campo, "EX-003", MENSAJE_SIN_PERMISO)));
     }
   }
 }

@@ -114,29 +114,6 @@ public class JpaCourseQueryRepository implements CourseQueryRepository {
 
   @Override
   @Transactional(readOnly = true)
-  public List<TaughtCourseRow> findTaughtBy(UUID instructorId) {
-    @SuppressWarnings("unchecked")
-    List<Tuple> filas =
-        em.createNativeQuery(
-                """
-                SELECT id, title, status
-                  FROM courses
-                 WHERE instructor_id = :instructor AND deleted_at IS NULL
-                 ORDER BY display_order, title, id
-                """,
-                Tuple.class)
-            .setParameter("instructor", instructorId)
-            .getResultList();
-    return filas.stream()
-        .map(
-            f ->
-                new TaughtCourseRow(
-                    (UUID) f.get("id"), (String) f.get("title"), (String) f.get("status")))
-        .toList();
-  }
-
-  @Override
-  @Transactional(readOnly = true)
   public List<CourseRow> search(
       ListCoursesRequest filtros, String ordenamiento, int offset, int limit) {
     Query consulta =

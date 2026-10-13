@@ -18,7 +18,11 @@ public final class LiveSessionRequests {
   public record Schedule(
       String title,
       String description,
-      UUID courseId,
+      @Schema(
+              description =
+                  "Los instructores de la clase: personas con courses:teach, sin repetir. Por"
+                      + " /mine, quien programa entra siempre (RN-AC-032).")
+          List<UUID> instructorIds,
       @Schema(
               description =
                   "Día y hora de inicio: 2026-10-15T19:00:00-05:00, o sin zona y entonces en"
@@ -41,15 +45,17 @@ public final class LiveSessionRequests {
 
   /**
    * Corregir (`RF-AC-045`, `RF-AC-050`): solo lo que viene. <b>Las listas, si vienen, reemplazan
-   * enteras</b>; {@code removeCourse} deja la clase suelta.
+   * enteras</b>, también la de instructores (`RN-AC-032`).
    */
   @Schema(name = "UpdateLiveSessionRequest")
   public record Update(
       String title,
       String description,
-      UUID courseId,
-      @Schema(description = "Verdadero para dejar la clase suelta, sin curso.")
-          Boolean removeCourse,
+      @Schema(
+              description =
+                  "Si viene, reemplaza la lista de instructores; por /mine, tiene que incluir a"
+                      + " quien corrige.")
+          List<UUID> instructorIds,
       String startsAt,
       String endsAt,
       @Schema(description = "DAILY, WEEKLY, MONTHLY, o NONE para quitar la repetición.")
@@ -67,14 +73,15 @@ public final class LiveSessionRequests {
   public record ListFilter(
       Integer page,
       Integer size,
-      UUID courseId,
+      @Schema(description = "Solo las clases de las que esa persona es instructor.")
+          UUID instructorId,
       String status,
       Boolean ended,
       OffsetDateTime from,
       OffsetDateTime to) {}
 
   /** Los filtros de la vitrina del alumno (`RF-AC-053`). */
-  public record AvailableFilter(UUID courseId, Boolean onlyAccessible) {
+  public record AvailableFilter(Boolean onlyAccessible) {
 
     public boolean soloAccesibles() {
       return Boolean.TRUE.equals(onlyAccessible);

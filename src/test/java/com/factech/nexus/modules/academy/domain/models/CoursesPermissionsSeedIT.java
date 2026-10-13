@@ -48,9 +48,9 @@ class CoursesPermissionsSeedIT extends IntegrationTestBase {
     assertThat(codigos)
         .containsAll(LOS_SEIS.keySet())
         // V47 (RF-AC-034): el detalle del alumno; lessons:learn va bajo lessons. V92
-        // (09-10-2026): el listado y el detalle del progreso de los alumnos. V104
-        // (13-10-2026): los cursos que dicta el instructor.
-        .hasSize(18)
+        // (09-10-2026): el listado y el detalle del progreso de los alumnos. V104 sembró
+        // courses:list-own y V105 lo retiró el mismo día (13-10-2026).
+        .hasSize(17)
         .contains(
             "courses:list",
             "courses:change-status",
@@ -62,8 +62,7 @@ class CoursesPermissionsSeedIT extends IntegrationTestBase {
             "courses:revoke-membership",
             "courses:read-available",
             "courses:list-progress",
-            "courses:read-progress",
-            "courses:list-own");
+            "courses:read-progress");
   }
 
   @Test
@@ -95,9 +94,8 @@ class CoursesPermissionsSeedIT extends IntegrationTestBase {
                 Integer.class))
         // Diecisiete por dos roles: V28 dio cada hijo a quien portaba el padre, y V47
         // courses:read-available a quien portaba courses:learn. Y seis más desde V92:
-        // los dos del progreso a los tres roles VENDEDOR (MANAGER, DIRECTOR, AGENTE). Y
-        // dos desde V104: courses:list-own donde está courses:teach (SUPERADMIN y ADMIN).
-        .isEqualTo(42);
+        // los dos del progreso a los tres roles VENDEDOR (MANAGER, DIRECTOR, AGENTE).
+        .isEqualTo(40);
   }
 
   private List<String> permisosDe(UUID rol) {

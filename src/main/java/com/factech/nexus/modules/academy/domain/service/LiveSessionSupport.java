@@ -1,12 +1,11 @@
 package com.factech.nexus.modules.academy.domain.service;
 
 import com.factech.nexus.modules.academy.application.LiveSessionDetailResponse;
+import com.factech.nexus.modules.academy.application.LiveSessionDetailResponse.LiveSessionInstructorRef;
 import com.factech.nexus.modules.academy.application.LiveSessionDetailResponse.LiveSessionRegistrationItem;
 import com.factech.nexus.modules.academy.domain.models.LiveSessionSchedule;
 import com.factech.nexus.modules.academy.domain.models.LiveSessionSeries;
 import com.factech.nexus.modules.academy.domain.models.LiveSessionSeries.Occurrence;
-import com.factech.nexus.modules.academy.domain.repository.CourseQueryRepository;
-import com.factech.nexus.modules.academy.domain.repository.CourseQueryRepository.CourseRow;
 import com.factech.nexus.modules.academy.domain.repository.LiveSessionQueryRepository;
 import com.factech.nexus.modules.academy.domain.repository.LiveSessionQueryRepository.LiveSessionRow;
 import com.factech.nexus.modules.academy.domain.repository.LiveSessionQueryRepository.RegistrationRow;
@@ -59,7 +58,7 @@ public class LiveSessionSupport {
   static final String NO_EXISTE = "No existe una clase en vivo con ese identificador.";
 
   private final LiveSessionQueryRepository consultas;
-  private final CourseQueryRepository cursos;
+  private final InstructorVerifier instructores;
   private final MembershipCatalog membresias;
   private final ProductCatalog productos;
   private final UserCatalog usuarios;
@@ -69,14 +68,14 @@ public class LiveSessionSupport {
 
   public LiveSessionSupport(
       LiveSessionQueryRepository consultas,
-      CourseQueryRepository cursos,
+      InstructorVerifier instructores,
       MembershipCatalog membresias,
       ProductCatalog productos,
       UserCatalog usuarios,
       ZoomSettings zoom,
       CurrentActor actor) {
     this.consultas = consultas;
-    this.cursos = cursos;
+    this.instructores = instructores;
     this.membresias = membresias;
     this.productos = productos;
     this.usuarios = usuarios;
@@ -103,7 +102,7 @@ public class LiveSessionSupport {
     return new ResourceNotFoundException("EX-001", NO_EXISTE);
   }
 
-  /** `RN-AC-028`: con los permisos propios, solo las clases de los cursos que dicta. */
+  /** `RN-AC-028`: con los permisos propios, solo las clases de las que es instructor. */
   void exigirPropia(LiveSessionRow clase, UUID instructor) {
     if (!clase.deInstructor(instructor)) {
       throw noExiste();
@@ -121,30 +120,52 @@ public class LiveSessionSupport {
   }
 
   /**
-   * El curso, si viene: existe y no está retirado; y si {@code instructor} no es nulo, lo dicta él.
-   *
-   * @return el curso, o nulo si no viene
+   * `RN-AC-032` con `RN-AC-006`: los instructores, sin repetir, y cada uno existe, no está retirado
+   * y porta {@code courses:teach}, comprobado al asignar.
    */
-  CourseRow curso(UUID courseId, UUID instructor) {
-    if (courseId == null) {
-      return null;
+  List<UUID> instructores(List<UUID> ids) {
+    Set<UUID> unicos = sinRepetir(ids, "instructorIds");
+    for (UUID id : unicos) {
+      instructores.verificar(id, "instructorIds");
     }
-    CourseRow curso =
-        cursos
-            .findDetail(courseId)
-            .filter(c -> !c.retirado())
-            .orElseThrow(
-                () -> referencia("courseId", "EX-001", "El curso no existe o está retirado."));
-    if (instructor != null && !instructor.equals(curso.instructorId())) {
-      throw sinCursoPropio();
-    }
-    return curso;
+    return List.copyOf(unicos);
   }
 
-  /** `RN-AC-028`: una clase del instructor cuelga de un curso que él dicta. */
-  static UnprocessableEntityException sinCursoPropio() {
+  /** `RN-AC-028`: por `/mine`, quien corrige no se quita de la lista. */
+  static UnprocessableEntityException sinQuitarse() {
     return referencia(
-        "courseId", "EX-001", "Una clase propia debe colgar de un curso que usted dicta.");
+        "instructorIds",
+        "EX-004",
+        "No puede quitarse de los instructores de una clase propia: lo hace administración.");
+  }
+
+  /** Los instructores de cada clase, con su nombre actual, en un solo viaje a `SP`. */
+  Map<UUID, List<LiveSessionInstructorRef>> instructoresDe(Map<UUID, List<UUID>> porClase) {
+    Set<UUID> todos =
+        porClase.values().stream()
+            .flatMap(List::stream)
+            .collect(Collectors.toCollection(LinkedHashSet::new));
+    Map<UUID, UserView> personas =
+        todos.isEmpty()
+            ? Map.of()
+            : usuarios.findAll(todos).stream()
+                .collect(Collectors.toMap(UserView::id, Function.identity()));
+    Map<UUID, List<LiveSessionInstructorRef>> resultado = new LinkedHashMap<>();
+    porClase.forEach(
+        (clase, ids) ->
+            resultado.put(
+                clase,
+                ids.stream()
+                    .map(
+                        id -> {
+                          UserView persona = personas.get(id);
+                          return new LiveSessionInstructorRef(
+                              id,
+                              persona == null ? null : persona.username(),
+                              persona == null ? null : persona.fullName());
+                        })
+                    .toList()));
+    return resultado;
   }
 
   /** `RN-AC-025` con `RN-AC-012`: membresías existentes y sin repetir. */
@@ -239,6 +260,7 @@ public class LiveSessionSupport {
         clase,
         clase.terminada(ahora()),
         siguiente(clase.serie(), clase.status()),
+        instructoresDe(Map.of(id, clase.instructorIds())).getOrDefault(id, List.of()),
         consultas.findMembershipsOf(id),
         consultas.findProductsOf(id),
         registrados);
@@ -250,7 +272,9 @@ public class LiveSessionSupport {
     Map<String, Object> estado = new LinkedHashMap<>();
     estado.put("title", clase.title());
     estado.put("description", clase.description());
-    estado.put("courseId", clase.courseId());
+    estado.put(
+        "instructorIds", clase.instructorIds().stream().map(UUID::toString).sorted().toList());
+    estado.put("coverImageId", clase.coverImageId());
     estado.put("startsAt", clase.startsAt());
     estado.put("endsAt", clase.endsAt());
     estado.put("recurrence", clase.recurrence());

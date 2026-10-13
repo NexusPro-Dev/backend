@@ -31,6 +31,7 @@ final class CourseTestSupport {
     jdbc.update("DELETE FROM live_session_registrations");
     jdbc.update("DELETE FROM live_session_memberships");
     jdbc.update("DELETE FROM live_session_products");
+    jdbc.update("DELETE FROM live_session_instructors");
     jdbc.update("DELETE FROM live_sessions");
     jdbc.update("DELETE FROM course_memberships");
     jdbc.update("DELETE FROM course_products");
@@ -46,11 +47,12 @@ final class CourseTestSupport {
         "DELETE FROM academy_images i WHERE NOT EXISTS (SELECT 1 FROM course_categories k"
             + " WHERE k.cover_image_id = i.id) AND NOT EXISTS (SELECT 1 FROM courses c"
             + " WHERE c.cover_image_id = i.id) AND NOT EXISTS (SELECT 1 FROM course_modules m"
-            + " WHERE m.cover_image_id = i.id)");
+            + " WHERE m.cover_image_id = i.id) AND NOT EXISTS (SELECT 1 FROM live_sessions s"
+            + " WHERE s.cover_image_id = i.id)");
     jdbc.update(
         "DELETE FROM audit_change_log WHERE module = 'AC' AND entity IN ('courses',"
             + " 'course_category_items', 'course_products', 'course_memberships',"
-            + " 'course_modules', 'lessons')");
+            + " 'course_modules', 'lessons', 'live_sessions')");
     jdbc.update(
         "DELETE FROM audit_deletion_log WHERE module = 'AC' AND entity IN ('courses',"
             + " 'course_category_items', 'course_products', 'course_memberships',"

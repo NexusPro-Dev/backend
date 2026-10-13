@@ -5,7 +5,6 @@ import com.factech.nexus.modules.academy.application.LiveSessionRequests.Schedul
 import com.factech.nexus.modules.academy.domain.models.LiveSessionSchedule;
 import com.factech.nexus.modules.academy.domain.models.LiveSessionSeries;
 import com.factech.nexus.modules.academy.domain.models.LiveSessionSeries.Recurrence;
-import com.factech.nexus.modules.academy.domain.repository.CourseQueryRepository.CourseRow;
 import com.factech.nexus.modules.academy.domain.repository.LiveSessionQueryRepository;
 import com.factech.nexus.modules.academy.domain.repository.LiveSessionRepository;
 import com.factech.nexus.modules.academy.domain.repository.LiveSessionRepository.NewLiveSession;
@@ -61,18 +60,14 @@ public class ScheduleLiveSessionService {
     this.transaccion = transaccion;
   }
 
-  /** `RF-AC-044`: cualquier clase, suelta o de cualquier curso. */
+  /** `RF-AC-044`: cualquier clase, con los instructores que nombre, o ninguno. */
   public LiveSessionDetailResponse schedule(Schedule peticion) {
     return programar(peticion, null);
   }
 
-  /** `RF-AC-049`: el curso es obligatorio y lo dicta quien pide (`RN-AC-028`). */
+  /** `RF-AC-049`: quien programa queda entre los instructores (`RN-AC-028`, `RN-AC-032`). */
   public LiveSessionDetailResponse scheduleOwn(Schedule peticion) {
-    UUID instructor = apoyo.actorId();
-    if (peticion != null && peticion.courseId() == null) {
-      throw LiveSessionSupport.sinCursoPropio();
-    }
-    return programar(peticion, instructor);
+    return programar(peticion, apoyo.actorId());
   }
 
   private LiveSessionDetailResponse programar(Schedule peticion, UUID instructor) {
@@ -115,7 +110,16 @@ public class ScheduleLiveSessionService {
     }
     LiveSessionSupport.lanzarSiHay(problemas);
 
-    CourseRow curso = apoyo.curso(peticion.courseId(), instructor);
+    List<UUID> nombrados = new ArrayList<>();
+    if (instructor != null) {
+      nombrados.add(instructor);
+    }
+    if (peticion.instructorIds() != null) {
+      peticion.instructorIds().stream()
+          .filter(i -> instructor == null || !instructor.equals(i))
+          .forEach(nombrados::add);
+    }
+    List<UUID> instructores = apoyo.instructores(nombrados);
     Set<UUID> membresias = apoyo.membresias(peticion.membershipIds());
     Set<UUID> servicios = apoyo.servicios(peticion.productIds());
     String descripcion = vacioANulo(peticion.description());
@@ -132,7 +136,6 @@ public class ScheduleLiveSessionService {
             escrituras.insert(
                 new NewLiveSession(
                     id,
-                    curso == null ? null : curso.id(),
                     titulo,
                     descripcion,
                     inicio,
@@ -144,6 +147,7 @@ public class ScheduleLiveSessionService {
                     autor));
             escrituras.replaceMemberships(id, membresias);
             escrituras.replaceProducts(id, servicios);
+            escrituras.replaceInstructors(id, instructores);
             auditoria.recordChange(
                 new ChangeEvent(
                     LiveSessionSupport.MODULO,

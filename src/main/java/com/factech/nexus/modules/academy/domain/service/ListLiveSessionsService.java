@@ -1,10 +1,12 @@
 package com.factech.nexus.modules.academy.domain.service;
 
 import com.factech.nexus.modules.academy.application.LiveSessionDetailResponse;
+import com.factech.nexus.modules.academy.application.LiveSessionDetailResponse.LiveSessionInstructorRef;
 import com.factech.nexus.modules.academy.application.LiveSessionRequests.ListFilter;
 import com.factech.nexus.modules.academy.application.LiveSessionResponses.Item;
 import com.factech.nexus.modules.academy.domain.repository.LiveSessionQueryRepository;
 import com.factech.nexus.modules.academy.domain.repository.LiveSessionQueryRepository.LiveSessionFilter;
+import com.factech.nexus.modules.academy.domain.repository.LiveSessionQueryRepository.LiveSessionItemRow;
 import com.factech.nexus.modules.academy.domain.repository.LiveSessionQueryRepository.LiveSessionRow;
 import com.factech.nexus.shared.error.FieldError;
 import com.factech.nexus.shared.error.ValidationException;
@@ -12,6 +14,7 @@ import com.factech.nexus.shared.pagination.PageResponse;
 import com.factech.nexus.shared.pagination.Pagination;
 import java.time.Instant;
 import java.util.List;
+import java.util.Map;
 import java.util.UUID;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -53,7 +56,7 @@ public class ListLiveSessionsService {
     return apoyo.detalle(id);
   }
 
-  /** `RF-AC-056`: el detalle, solo de una clase de los cursos que dicta; lo ajeno, `404`. */
+  /** `RF-AC-056`: el detalle, solo de una clase de la que es instructor; lo ajeno, `404`. */
   @Transactional(readOnly = true)
   public LiveSessionDetailResponse getOwn(UUID id) {
     LiveSessionRow clase = consultas.find(id).orElseThrow(LiveSessionSupport::noExiste);
@@ -73,25 +76,31 @@ public class ListLiveSessionsService {
     Instant ahora = apoyo.ahora();
     LiveSessionFilter filtro =
         new LiveSessionFilter(
-            instructor,
-            filtros.courseId(),
+            // Lo propio manda sobre el filtro: el instructor ve solo lo suyo (`RN-AC-028`).
+            instructor != null ? instructor : filtros.instructorId(),
             estado,
             filtros.ended(),
             filtros.from(),
             filtros.to(),
             ahora);
     long total = consultas.count(filtro);
+    if (total == 0) {
+      return PageResponse.de(List.of(), total, trozo.page(), trozo.size());
+    }
+    List<LiveSessionItemRow> filas = consultas.search(filtro, trozo.offset(), trozo.size());
+    Map<UUID, List<LiveSessionInstructorRef>> instructores =
+        apoyo.instructoresDe(
+            consultas.findInstructorsOf(filas.stream().map(LiveSessionItemRow::id).toList()));
     List<Item> pagina =
-        total == 0
-            ? List.of()
-            : consultas.search(filtro, trozo.offset(), trozo.size()).stream()
-                .map(
-                    fila ->
-                        Item.from(
-                            fila,
-                            !ahora.isBefore(fila.seriesEndsAt().toInstant()),
-                            apoyo.siguiente(fila.serie(), fila.status())))
-                .toList();
+        filas.stream()
+            .map(
+                fila ->
+                    Item.from(
+                        fila,
+                        !ahora.isBefore(fila.seriesEndsAt().toInstant()),
+                        apoyo.siguiente(fila.serie(), fila.status()),
+                        instructores.getOrDefault(fila.id(), List.of())))
+            .toList();
     return PageResponse.de(pagina, total, trozo.page(), trozo.size());
   }
 }

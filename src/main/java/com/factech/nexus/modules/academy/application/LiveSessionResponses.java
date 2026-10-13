@@ -2,7 +2,7 @@ package com.factech.nexus.modules.academy.application;
 
 import com.factech.nexus.modules.academy.application.CourseDetailResponse.CourseMembershipRef;
 import com.factech.nexus.modules.academy.application.CourseDetailResponse.CourseProductRef;
-import com.factech.nexus.modules.academy.application.LiveSessionDetailResponse.LiveSessionCourseRef;
+import com.factech.nexus.modules.academy.application.LiveSessionDetailResponse.LiveSessionInstructorRef;
 import com.factech.nexus.modules.academy.domain.models.LiveSessionSeries.Occurrence;
 import com.factech.nexus.modules.academy.domain.repository.LiveSessionQueryRepository.LiveSessionItemRow;
 import com.factech.nexus.modules.academy.domain.repository.LiveSessionQueryRepository.UpcomingRow;
@@ -10,6 +10,7 @@ import com.fasterxml.jackson.annotation.JsonInclude;
 import io.swagger.v3.oas.annotations.media.Schema;
 import java.time.LocalDate;
 import java.time.OffsetDateTime;
+import java.util.List;
 import java.util.UUID;
 
 /** Las respuestas pequeñas de las clases en vivo (`RF-AC-042`, `RF-AC-047`, `RF-AC-053`, `054`). */
@@ -23,7 +24,9 @@ public final class LiveSessionResponses {
   public record Item(
       UUID id,
       String title,
-      LiveSessionCourseRef course,
+      @Schema(description = "La portada, pública; nula si no tiene.") String coverImageUrl,
+      @Schema(description = "Los instructores de la clase; vacía si no tiene (RN-AC-032).")
+          List<LiveSessionInstructorRef> instructors,
       OffsetDateTime startsAt,
       OffsetDateTime endsAt,
       @Schema(description = "DAILY, WEEKLY o MONTHLY; nula si no se repite (RN-AC-031).")
@@ -44,11 +47,16 @@ public final class LiveSessionResponses {
       long productCount,
       long registrationCount) {
 
-    public static Item from(LiveSessionItemRow fila, boolean terminada, Occurrence siguiente) {
+    public static Item from(
+        LiveSessionItemRow fila,
+        boolean terminada,
+        Occurrence siguiente,
+        List<LiveSessionInstructorRef> instructores) {
       return new Item(
           fila.id(),
           fila.title(),
-          LiveSessionCourseRef.of(fila.courseId(), fila.courseTitle()),
+          AcademyImageUrls.de(fila.coverImageId()),
+          instructores,
           fila.startsAt(),
           fila.endsAt(),
           fila.recurrence(),
@@ -78,7 +86,9 @@ public final class LiveSessionResponses {
       UUID id,
       String title,
       String description,
-      LiveSessionCourseRef course,
+      @Schema(description = "La portada, pública; nula si no tiene.") String coverImageUrl,
+      @Schema(description = "Los instructores de la clase; vacía si no tiene (RN-AC-032).")
+          List<LiveSessionInstructorRef> instructors,
       OffsetDateTime startsAt,
       OffsetDateTime endsAt,
       @Schema(description = "DAILY, WEEKLY o MONTHLY; nula si no se repite (RN-AC-031).")
@@ -96,12 +106,13 @@ public final class LiveSessionResponses {
       @Schema(description = "Alguna de sus fechas ya empezó y no ha terminado.") boolean inProgress,
       @Schema(description = "Se le abre a quien pregunta.") boolean accessible,
       @Schema(description = "Ya pidió entrar: tiene su enlace.") boolean registered,
-      java.util.List<CourseMembershipRef> memberships,
-      java.util.List<CourseProductRef> products) {
+      List<CourseMembershipRef> memberships,
+      List<CourseProductRef> products) {
 
     public static Available from(
         UpcomingRow fila,
         Occurrence siguiente,
+        List<LiveSessionInstructorRef> instructores,
         boolean enCurso,
         boolean accesible,
         boolean registrado) {
@@ -109,7 +120,8 @@ public final class LiveSessionResponses {
           fila.id(),
           fila.title(),
           fila.description(),
-          LiveSessionCourseRef.of(fila.courseId(), fila.courseTitle()),
+          AcademyImageUrls.de(fila.coverImageId()),
+          instructores,
           fila.startsAt(),
           fila.endsAt(),
           fila.recurrence(),

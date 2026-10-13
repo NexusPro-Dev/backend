@@ -10,6 +10,7 @@ import com.factech.nexus.modules.academy.application.LiveSessionResponses.Item;
 import com.factech.nexus.modules.academy.domain.service.CancelLiveSessionService;
 import com.factech.nexus.modules.academy.domain.service.HostLiveSessionService;
 import com.factech.nexus.modules.academy.domain.service.ListLiveSessionsService;
+import com.factech.nexus.modules.academy.domain.service.LiveSessionCoverService;
 import com.factech.nexus.modules.academy.domain.service.ScheduleLiveSessionService;
 import com.factech.nexus.modules.academy.domain.service.UpdateLiveSessionService;
 import com.factech.nexus.shared.pagination.PageResponse;
@@ -19,20 +20,26 @@ import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import java.util.UUID;
 import org.springframework.http.HttpStatus;
+import org.springframework.http.MediaType;
 import org.springframework.security.access.prepost.PreAuthorize;
+import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.ModelAttribute;
 import org.springframework.web.bind.annotation.PatchMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestPart;
 import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.multipart.MultipartFile;
 
 /**
- * Las clases en vivo por Zoom para quien las gobierna (`RF-AC-042` a `RF-AC-052`): administración,
- * todas; el instructor, las de los cursos que dicta, bajo {@code /mine} (`RN-AC-028`).
+ * Las clases en vivo por Zoom para quien las gobierna (`RF-AC-042` a `RF-AC-061`): administración,
+ * todas; el instructor, aquellas de las que es instructor, bajo {@code /mine} (`RN-AC-028`,
+ * `RN-AC-032`).
  *
  * <p>{@code /mine} y {@code /available} son segmentos literales y Spring los prefiere a {@code
  * /{id}}. <b>Una ruta por operación y por alcance</b> (`RN-SEG-014`): las de {@code /mine} tienen
@@ -43,8 +50,8 @@ import org.springframework.web.bind.annotation.RestController;
 @Tag(
     name = "Clases en vivo",
     description =
-        "Programar, corregir, cancelar e iniciar las clases en vivo por Zoom: administración"
-            + " todas, el instructor las de sus cursos.")
+        "Programar, corregir, cancelar, iniciar y poner portada a las clases en vivo por Zoom:"
+            + " administración todas, el instructor las suyas.")
 public class LiveSessionController {
 
   private static final String ZOOM =
@@ -67,13 +74,16 @@ public class LiveSessionController {
   private final UpdateLiveSessionService corregir;
   private final CancelLiveSessionService cancelar;
   private final HostLiveSessionService anfitrion;
+  private final LiveSessionCoverService portadas;
 
   public LiveSessionController(
       ListLiveSessionsService lecturas,
       ScheduleLiveSessionService programar,
       UpdateLiveSessionService corregir,
       CancelLiveSessionService cancelar,
-      HostLiveSessionService anfitrion) {
+      HostLiveSessionService anfitrion,
+      LiveSessionCoverService portadas) {
+    this.portadas = portadas;
     this.lecturas = lecturas;
     this.programar = programar;
     this.corregir = corregir;
@@ -92,7 +102,8 @@ public class LiveSessionController {
       description =
           """
           **Todas las clases**, también las canceladas y las terminadas, por inicio
-          descendente y paginadas. Filtros: `courseId`, `status` (`PROGRAMADA` o
+          descendente y paginadas. Filtros: `instructorId` —las de las que es instructor—,
+          `status` (`PROGRAMADA` o
           `CANCELADA`), `ended` —calculado con la hora de fin de la última fecha— y el periodo
           de inicio `from`/`to` (semiabierto); **una clase que se repite** entra si alguna de
           sus fechas puede caer en él: empieza antes de `to` y termina después de `from`. Cada fila trae cuántas membresías y servicios la abren y
@@ -119,7 +130,8 @@ public class LiveSessionController {
       summary = "Consultar el detalle de una clase en vivo",
       description =
           """
-          La clase con su curso, **sus membresías y servicios**, el identificador de la
+          La clase con **sus instructores**, su portada (`coverImageUrl`), **sus membresías y
+          servicios**, el identificador de la
           reunión de Zoom —**sin enlace ni contraseña**—, la cancelación si la hay y **quién se
           registró para entrar**, con su fecha. `ended` dice si terminó su última fecha;
           `recurrence` y `repeatUntil`, cómo se repite; y `nextStartsAt`/`nextEndsAt`, la fecha
@@ -146,8 +158,10 @@ public class LiveSessionController {
           —y entonces en `America/Bogota`—: el inicio no en el pasado, el fin de 15 minutos a
           10 horas después. **`membershipIds` y `productIds` dicen quién puede entrar**, como en
           un curso: lista explícita, servicios `BOT`, y **sin ninguna de las dos, la clase es
-          de todos los alumnos con sesión**. `courseId` es opcional: agrupa la clase y decide
-          qué instructor la administra, no quién entra.
+          de todos los alumnos con sesión**. **No cuelga de ningún curso** (`RN-AC-032`):
+          `instructorIds` nombra a sus instructores —personas con `courses:teach`, sin
+          repetir—, que la gobiernan bajo `/mine`; sin ninguno, solo administración. La
+          portada se pone aparte, con `PUT /{id}/cover`.
           """
               + ZOOM
               + """
@@ -162,7 +176,7 @@ public class LiveSessionController {
             "Campos ausentes o fuera de forma, horario inválido o listas repetidas (`VAL-001` a `VAL-004`)"),
     @ApiResponse(
         responseCode = "422",
-        description = "Curso, membresía o producto que no valen (`EX-001`, `EX-002`)"),
+        description = "Instructor, membresía o producto que no valen (`EX-002`, `EX-003`)"),
     @ApiResponse(responseCode = "503", description = "Zoom no disponible (`EX-003`)")
   })
   public LiveSessionDetailResponse programar(@RequestBody(required = false) Schedule peticion) {
@@ -176,7 +190,7 @@ public class LiveSessionController {
       description =
           """
           **Solo lo que viene.** Las listas, si vienen, **reemplazan enteras** (una lista
-          vacía deja la clase de todos); `removeCourse: true` la deja suelta. Lo que Zoom
+          vacía deja la clase de todos), **también `instructorIds`**. Lo que Zoom
           conoce —título, inicio y fin— **se corrige allí primero**. Quitar a alguien de la
           lista no lo des-registra en Zoom: no recibe un enlace nuevo. **Una clase cancelada o
           terminada no se corrige** (`409`).
@@ -190,7 +204,9 @@ public class LiveSessionController {
     @ApiResponse(responseCode = "200", description = "La clase corregida."),
     @ApiResponse(responseCode = "404", description = "No existe (`EX-001`)"),
     @ApiResponse(responseCode = "409", description = "Cancelada o terminada (`EX-003`)"),
-    @ApiResponse(responseCode = "422", description = "Curso, membresía o producto que no valen"),
+    @ApiResponse(
+        responseCode = "422",
+        description = "Instructor, membresía o producto que no valen"),
     @ApiResponse(responseCode = "503", description = "Zoom no disponible (`EX-004`)")
   })
   public LiveSessionDetailResponse corregir(
@@ -247,7 +263,7 @@ public class LiveSessionController {
   }
 
   // ---------------------------------------------------------------------------
-  // El instructor, sobre las clases de sus cursos (RN-AC-028)
+  // El instructor, sobre las clases de las que es instructor (RN-AC-028, RN-AC-032)
   // ---------------------------------------------------------------------------
 
   @GetMapping("/mine")
@@ -256,7 +272,7 @@ public class LiveSessionController {
       summary = "Consultar mis clases en vivo como instructor",
       description =
           """
-          El listado de administración **acotado a las clases de los cursos que dicta** quien
+          El listado de administración **acotado a las clases de las que es instructor** quien
           pregunta, con los mismos filtros. Las clases sueltas no salen.
 
           Exige `live-sessions:list-own`.
@@ -269,11 +285,11 @@ public class LiveSessionController {
   @GetMapping("/mine/{id}")
   @PreAuthorize("hasAuthority('live-sessions:read-own')")
   @Operation(
-      summary = "Consultar el detalle de una clase en vivo de mi curso",
+      summary = "Consultar el detalle de una clase en vivo mía",
       description =
           """
           El detalle de administración —descripción, membresías, servicios, repetición,
-          registrados, sin enlace ni contraseña— **de una clase de un curso que dicta** quien
+          registrados, sin enlace ni contraseña— **de una clase de la que es instructor** quien
           pregunta, también cancelada o terminada. **Una ajena, suelta o inexistente responde
           `404`**, como si no existiera.
 
@@ -281,7 +297,7 @@ public class LiveSessionController {
           """)
   @ApiResponses({
     @ApiResponse(responseCode = "200", description = "La clase."),
-    @ApiResponse(responseCode = "404", description = "No existe o no es de sus cursos (`EX-001`)")
+    @ApiResponse(responseCode = "404", description = "No existe o no es suya (`EX-001`)")
   })
   public LiveSessionDetailResponse detallePropio(@PathVariable UUID id) {
     return lecturas.getOwn(id);
@@ -291,11 +307,11 @@ public class LiveSessionController {
   @ResponseStatus(HttpStatus.CREATED)
   @PreAuthorize("hasAuthority('live-sessions:create-own')")
   @Operation(
-      summary = "Programar una clase en vivo de mi curso",
+      summary = "Programar una clase en vivo mía",
       description =
           """
-          Como programar una clase, con **`courseId` obligatorio** y de un curso que dicta
-          quien pide; si no, `422` (`EX-001`).
+          Como programar una clase, y **quien pide queda entre sus instructores**, con los que
+          nombre en `instructorIds`.
           """
               + ZOOM
               + """
@@ -310,11 +326,11 @@ public class LiveSessionController {
   @PatchMapping("/mine/{id}")
   @PreAuthorize("hasAuthority('live-sessions:update-own')")
   @Operation(
-      summary = "Corregir una clase en vivo de mi curso",
+      summary = "Corregir una clase en vivo mía",
       description =
           """
-          Como corregir una clase, sobre las de los cursos que dicta: **una ajena responde
-          `404`**, y no se puede mover a un curso que no dicta ni dejarla suelta (`422`).
+          Como corregir una clase, sobre las de las que es instructor: **una ajena responde
+          `404`**, y `instructorIds` **no puede dejarlo fuera** (`422`, `EX-004`).
 
           Exige `live-sessions:update-own`.
           """)
@@ -326,10 +342,10 @@ public class LiveSessionController {
   @PostMapping("/mine/{id}/cancellation")
   @PreAuthorize("hasAuthority('live-sessions:cancel-own')")
   @Operation(
-      summary = "Cancelar una clase en vivo de mi curso",
+      summary = "Cancelar una clase en vivo mía",
       description =
           """
-          Como cancelar una clase, sobre las de los cursos que dicta; una ajena responde `404`.
+          Como cancelar una clase, sobre las de las que es instructor; una ajena responde `404`.
 
           Exige `live-sessions:cancel-own`.
           """)
@@ -341,15 +357,102 @@ public class LiveSessionController {
   @PostMapping("/mine/{id}/host-link")
   @PreAuthorize("hasAuthority('live-sessions:host-own')")
   @Operation(
-      summary = "Iniciar como anfitrión una clase en vivo de mi curso",
+      summary = "Iniciar como anfitrión una clase en vivo mía",
       description =
           """
-          El enlace de anfitrión de una clase de un curso que dicta quien pide; una ajena
+          El enlace de anfitrión de una clase de la que es instructor quien pide; una ajena
           responde `404`. Cada entrega se audita.
 
           Exige `live-sessions:host-own`.
           """)
   public HostLink anfitrionPropia(@PathVariable UUID id) {
     return anfitrion.hostOwn(id);
+  }
+
+  // ---------------------------------------------------------------------------
+  // La portada (RF-AC-058 a RF-AC-061, RN-AC-032)
+  // ---------------------------------------------------------------------------
+
+  @PutMapping(value = "/{id}/cover", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
+  @PreAuthorize("hasAuthority('live-sessions:set-cover')")
+  @Operation(
+      summary = "Poner la portada de una clase en vivo",
+      description =
+          """
+          Recibe **un archivo** —`multipart/form-data`, una sola parte llamada `file`— y lo
+          convierte en la portada de la clase, **tal cual**, como la de un curso. **El tipo lo
+          deciden los bytes**: `JPEG`, `PNG` o `WebP`, **hasta 5 MB** (`VAL-004`); sin
+          archivo o vacío, `VAL-002`; otro formato, `VAL-003`. **Si ya tenía portada, la
+          reemplaza** y la anterior se borra; `coverImageUrl` pasa a
+          `/api/v1/academy-images/{imageId}`, pública.  **Cancelada o terminada, `409`**.
+
+          Exige `live-sessions:set-cover`.
+          """)
+  @ApiResponses({
+    @ApiResponse(responseCode = "200", description = "La clase, con su portada."),
+    @ApiResponse(
+        responseCode = "400",
+        description = "Sin archivo, de otro formato o de más de 5 MB (`VAL-002` a `VAL-004`)"),
+    @ApiResponse(responseCode = "404", description = "No existe (`EX-001`)"),
+    @ApiResponse(responseCode = "409", description = "Cancelada o terminada (`EX-003`)")
+  })
+  public LiveSessionDetailResponse ponerPortada(
+      @PathVariable UUID id, @RequestPart(value = "file", required = false) MultipartFile file) {
+    return portadas.upload(id, CoverPart.bytesDe(file));
+  }
+
+  @DeleteMapping("/{id}/cover")
+  @PreAuthorize("hasAuthority('live-sessions:remove-cover')")
+  @Operation(
+      summary = "Quitar la portada de una clase en vivo",
+      description =
+          """
+          **Quita la portada y la borra**: `coverImageUrl` vuelve a nulo. Sin portada, `200`
+          sin cambio. **Cancelada o terminada, `409`**.
+
+          Exige `live-sessions:remove-cover`.
+          """)
+  @ApiResponses({
+    @ApiResponse(responseCode = "200", description = "La clase, sin portada."),
+    @ApiResponse(responseCode = "404", description = "No existe (`EX-001`)"),
+    @ApiResponse(responseCode = "409", description = "Cancelada o terminada (`EX-003`)")
+  })
+  public LiveSessionDetailResponse quitarPortada(@PathVariable UUID id) {
+    return portadas.remove(id);
+  }
+
+  @PutMapping(value = "/mine/{id}/cover", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
+  @PreAuthorize("hasAuthority('live-sessions:set-cover-own')")
+  @Operation(
+      summary = "Poner la portada de una clase en vivo mía",
+      description =
+          """
+          Recibe **un archivo** —`multipart/form-data`, una sola parte llamada `file`— y lo
+          convierte en la portada de la clase, **tal cual**, como la de un curso. **El tipo lo
+          deciden los bytes**: `JPEG`, `PNG` o `WebP`, **hasta 5 MB** (`VAL-004`); sin
+          archivo o vacío, `VAL-002`; otro formato, `VAL-003`. **Si ya tenía portada, la
+          reemplaza** y la anterior se borra; `coverImageUrl` pasa a
+          `/api/v1/academy-images/{imageId}`, pública. Sobre una clase de la que no es instructor, `404`. **Cancelada o terminada, `409`**.
+
+          Exige `live-sessions:set-cover-own`.
+          """)
+  public LiveSessionDetailResponse ponerPortadaPropia(
+      @PathVariable UUID id, @RequestPart(value = "file", required = false) MultipartFile file) {
+    return portadas.uploadOwn(id, CoverPart.bytesDe(file));
+  }
+
+  @DeleteMapping("/mine/{id}/cover")
+  @PreAuthorize("hasAuthority('live-sessions:remove-cover-own')")
+  @Operation(
+      summary = "Quitar la portada de una clase en vivo mía",
+      description =
+          """
+          Como quitar la portada, sobre una clase de la que es instructor; una ajena responde
+          `404`.
+
+          Exige `live-sessions:remove-cover-own`.
+          """)
+  public LiveSessionDetailResponse quitarPortadaPropia(@PathVariable UUID id) {
+    return portadas.removeOwn(id);
   }
 }

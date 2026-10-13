@@ -5,7 +5,7 @@
 | Proyecto | NEXUS — Renovación de plataforma |
 | Empresa | FACTECH GROUP SAS |
 | Documento | `security.md` |
-| Versión | 0.136.0 |
+| Versión | 0.137.0 |
 | Estado | Borrador |
 | Responsable técnico | Bonilla Diaz William Steven |
 | Fecha de creación | 19-08-2026 |
@@ -464,6 +464,8 @@ La vista transversal `v_audit_timeline` (`architecture.md` §6.6.6) exige los cu
 **Uno se retira y otro nace el 10-10-2026, por `V101`**: `broker-accounts:read-indicators` desaparece con `GET /api/v1/broker-accounts/indicators` (`RF-SP-058`, retirado), y nace **`indicators:read-broker-accounts-network`** —`GET /api/v1/indicators/broker-accounts/network`, `RF-IN-009`—, a los roles `FUNCIONARIO` y `VENDEDOR` por su tipo, como los de `V74`: el alcance lo pone `RN-IN-002`. El catálogo no cambia de tamaño.
 
 **Y dos más de `AC`, declarados y SEMBRADOS el 13-10-2026 por `V104`**: `live-sessions:read-own` —el detalle de una clase de los cursos que dicta, `GET /live-sessions/mine/{id}` (`RF-AC-056`)— y `courses:list-own` —los cursos que dicta, `GET /courses/mine` (`RF-AC-057`)—, **donde está `courses:teach`**, como los propios de `V94`. **No reutilizan `live-sessions:list-own` ni `courses:teach`** (`RN-SEG-014`): cada ruta, su permiso. El catálogo pasa a **237**, y `ADMIN` porta 235.
+
+**El mismo día, `V105` retira uno y siembra cuatro**, al separarse las clases en vivo de los cursos (`RN-AC-032`): **`courses:list-own` se retira** con `GET /courses/mine` (`RF-AC-057`); nacen **`live-sessions:set-cover`** y **`live-sessions:remove-cover`** —poner y quitar la portada de cualquier clase— a `SUPERADMIN` y `ADMIN` explícitos, y **`live-sessions:set-cover-own`** y **`live-sessions:remove-cover-own`** —las de una clase de la que se es instructor— donde está `courses:teach`. **Cuatro y no uno** por `RN-SEG-014`, como `products:set-cover` y `products:remove-cover`. **La propiedad de los `-own` de las clases cambia de fuente**: ya no es el instructor del curso, sino **estar en la lista de instructores de la clase**. El catálogo pasa a **240**, y `ADMIN` porta 238.
 
 ### 4.5 Resolución en tiempo de ejecución
 
@@ -1137,3 +1139,4 @@ RNF-SEG-002 merece atención: es una prueba que enumera los endpoints registrado
 | 0.134.0 | 10-10-2026 | **Se retira `broker-accounts:read-indicators` y nace `indicators:read-broker-accounts-network`** (`RF-IN-009`, `RN-IN-015`), a `FUNCIONARIO` y `VENDEDOR` por su tipo, por `V101`. | Responsable técnico |
 | 0.135.0 | 13-10-2026 | **La ruta pública de los avisos de los brokers es una sola**: se retira `GET` y `POST /api/v1/brokers/{name}/notifications` con sus secretos por broker, y la dirección común **guarda todo aviso con el secreto**, el que no se reconoce sin broker (`RN-SP-076`). El `404` por `advertiser` desaparece, y con él el oráculo que obligaba a mirarlo después del secreto. | Responsable técnico |
 | 0.136.0 | 13-10-2026 | **Dos permisos propios del instructor** (`RF-AC-056`, `RF-AC-057`): `live-sessions:read-own` y `courses:list-own`, donde está `courses:teach`, por `V104`. Catálogo **237**, `ADMIN` 235. | Responsable técnico |
+| 0.137.0 | 13-10-2026 | **`V105`**: se retira `courses:list-own` y nacen `live-sessions:set-cover`, `remove-cover` (administración), `set-cover-own` y `remove-cover-own` (donde está `courses:teach`); los propios de las clases se deciden por la lista de instructores de la clase (`RN-AC-032`). Catálogo **240**, `ADMIN` 238. | Responsable técnico |

@@ -7,8 +7,8 @@ import java.util.Optional;
 import java.util.UUID;
 
 /**
- * Las escrituras de las clases en vivo (`live_sessions` y las tres que cuelgan de ella, `ac.md`
- * §8.10 a §8.13). <b>SQL nativo</b>, como {@code lesson_progress}: no hay una entidad con
+ * Las escrituras de las clases en vivo (`live_sessions` y las cuatro que cuelgan de ella, `ac.md`
+ * §8.10 a §8.14). <b>SQL nativo</b>, como {@code lesson_progress}: no hay una entidad con
  * comportamiento que justifique JPA, y reemplazar una lista es borrar e insertar.
  */
 public interface LiveSessionRepository {
@@ -19,7 +19,6 @@ public interface LiveSessionRepository {
       UUID id,
       String title,
       String description,
-      UUID courseId,
       OffsetDateTime startsAt,
       OffsetDateTime endsAt,
       String recurrence,
@@ -34,6 +33,12 @@ public interface LiveSessionRepository {
   /** Borra la lista entera y escribe la nueva. */
   void replaceProducts(UUID id, Collection<UUID> productIds);
 
+  /** Borra la lista de instructores entera y escribe la nueva (`RN-AC-032`). */
+  void replaceInstructors(UUID id, Collection<UUID> instructorIds);
+
+  /** Apunta la portada, o la quita con nulo (`RN-AC-032`). */
+  void setCover(UUID id, UUID coverImageId);
+
   void saveRegistration(UUID id, UUID userId, String registrantId, String joinUrl);
 
   /** La clase con su fila bloqueada, para corregir, cancelar, iniciar o registrar. */
@@ -45,7 +50,6 @@ public interface LiveSessionRepository {
    */
   record NewLiveSession(
       UUID id,
-      UUID courseId,
       String title,
       String description,
       OffsetDateTime startsAt,

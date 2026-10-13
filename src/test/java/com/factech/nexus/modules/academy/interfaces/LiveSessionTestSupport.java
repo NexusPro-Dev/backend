@@ -25,8 +25,14 @@ final class LiveSessionTestSupport {
         .format(java.time.format.DateTimeFormatter.ofPattern("yyyy-MM-dd'T'HH:mm:ss"));
   }
 
+  /** El cuerpo de programar; {@code instructor}, si no es nulo, va como único instructor. */
   static String cuerpo(
-      String titulo, UUID curso, String inicio, String fin, String membresias, String servicios) {
+      String titulo,
+      UUID instructor,
+      String inicio,
+      String fin,
+      String membresias,
+      String servicios) {
     return """
         {"title":"%s","description":"Agenda de %s",%s"startsAt":"%s","endsAt":"%s",
          "membershipIds":[%s],"productIds":[%s]}
@@ -34,7 +40,7 @@ final class LiveSessionTestSupport {
         .formatted(
             titulo,
             titulo,
-            curso == null ? "" : "\"courseId\":\"" + curso + "\",",
+            instructor == null ? "" : "\"instructorIds\":[\"" + instructor + "\"],",
             inicio,
             fin,
             membresias,
@@ -51,23 +57,34 @@ final class LiveSessionTestSupport {
 
   /**
    * Una clase escrita directo, con el inicio y el fin en minutos desde ahora (negativos para el
-   * pasado): lo que la API no deja crear —una clase en curso o terminada—.
+   * pasado): lo que la API no deja crear —una clase en curso o terminada—. {@code instructor}, si
+   * no es nulo, queda como su único instructor (`RN-AC-032`).
    */
   static UUID clase(
-      JdbcTemplate jdbc, UUID curso, UUID autor, int desdeMinutos, int hastaMinutos, long reunion) {
+      JdbcTemplate jdbc,
+      UUID instructor,
+      UUID autor,
+      int desdeMinutos,
+      int hastaMinutos,
+      long reunion) {
     UUID id = UUID.randomUUID();
     jdbc.update(
-        "INSERT INTO live_sessions (id, course_id, title, starts_at, ends_at, series_ends_at,"
-            + " zoom_meeting_id, created_by) VALUES (?, ?, 'Directa',"
+        "INSERT INTO live_sessions (id, title, starts_at, ends_at, series_ends_at,"
+            + " zoom_meeting_id, created_by) VALUES (?, 'Directa',"
             + " now() + make_interval(mins => ?), now() + make_interval(mins => ?),"
             + " now() + make_interval(mins => ?), ?, ?)",
         id,
-        curso,
         desdeMinutos,
         hastaMinutos,
         hastaMinutos,
         reunion,
         autor);
+    if (instructor != null) {
+      jdbc.update(
+          "INSERT INTO live_session_instructors (live_session_id, user_id) VALUES (?, ?)",
+          id,
+          instructor);
+    }
     return id;
   }
 

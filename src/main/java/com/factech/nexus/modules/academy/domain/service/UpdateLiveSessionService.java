@@ -5,7 +5,6 @@ import com.factech.nexus.modules.academy.application.LiveSessionRequests.Update;
 import com.factech.nexus.modules.academy.domain.models.LiveSessionSchedule;
 import com.factech.nexus.modules.academy.domain.models.LiveSessionSeries;
 import com.factech.nexus.modules.academy.domain.models.LiveSessionSeries.Recurrence;
-import com.factech.nexus.modules.academy.domain.repository.CourseQueryRepository.CourseRow;
 import com.factech.nexus.modules.academy.domain.repository.CourseQueryRepository.MembershipRef;
 import com.factech.nexus.modules.academy.domain.repository.CourseQueryRepository.ProductRef;
 import com.factech.nexus.modules.academy.domain.repository.LiveSessionQueryRepository;
@@ -31,7 +30,8 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 /**
- * Casos de uso `RF-AC-045` y `RF-AC-050`: corregir una clase en vivo.
+ * Casos de uso `RF-AC-045` y `RF-AC-050`: corregir una clase en vivo, también sus instructores
+ * (`RN-AC-032`).
  *
  * <p><b>Solo lo que viene</b>; las listas, si vienen, reemplazan enteras. <b>Zoom primero</b>, con
  * la fila bloqueada, y solo si cambió algo que Zoom conoce —título, inicio, fin o la repetición
@@ -79,7 +79,7 @@ public class UpdateLiveSessionService {
     apoyo.exigirModificable(antes, "EX-003");
     Update cambios =
         peticion == null
-            ? new Update(null, null, null, null, null, null, null, null, null, null)
+            ? new Update(null, null, null, null, null, null, null, null, null)
             : peticion;
 
     List<FieldError> problemas = new ArrayList<>();
@@ -134,16 +134,14 @@ public class UpdateLiveSessionService {
     }
     LiveSessionSupport.lanzarSiHay(problemas);
 
-    boolean soltar = Boolean.TRUE.equals(cambios.removeCourse());
-    UUID cursoId = antes.courseId();
-    if (soltar) {
-      if (instructor != null) {
-        throw LiveSessionSupport.sinCursoPropio();
+    // `RN-AC-032`: la lista de instructores, si viene, reemplaza entera; por `/mine`, quien
+    // corrige no se quita (`RN-AC-028`).
+    List<UUID> instructores = null;
+    if (cambios.instructorIds() != null) {
+      instructores = apoyo.instructores(cambios.instructorIds());
+      if (instructor != null && !instructores.contains(instructor)) {
+        throw LiveSessionSupport.sinQuitarse();
       }
-      cursoId = null;
-    } else if (cambios.courseId() != null) {
-      CourseRow curso = apoyo.curso(cambios.courseId(), instructor);
-      cursoId = curso.id();
     }
     Set<UUID> membresiasAntes =
         consultas.findMembershipsOf(id).stream()
@@ -182,7 +180,6 @@ public class UpdateLiveSessionService {
         id,
         titulo,
         descripcion,
-        cursoId,
         inicio,
         fin,
         frecuencia == null ? null : frecuencia.name(),
@@ -193,6 +190,9 @@ public class UpdateLiveSessionService {
     }
     if (cambios.productIds() != null) {
       escrituras.replaceProducts(id, servicios);
+    }
+    if (instructores != null) {
+      escrituras.replaceInstructors(id, instructores);
     }
 
     Map<String, Object> viejo =

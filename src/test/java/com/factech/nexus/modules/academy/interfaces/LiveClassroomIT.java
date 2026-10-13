@@ -6,6 +6,7 @@ import static com.factech.nexus.modules.academy.interfaces.CourseTestSupport.con
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.hamcrest.Matchers.contains;
 import static org.hamcrest.Matchers.hasSize;
+import static org.hamcrest.Matchers.nullValue;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
@@ -62,10 +63,12 @@ class LiveClassroomIT extends IntegrationTestBase {
 
   @Test
   @DisplayName(
-      "`CA-AC-276` a `CA-AC-278` — la vitrina: programadas sin terminar, accessible, registered,"
-          + " onlyAccessible; sin enlaces")
+      "`CA-AC-276` a `CA-AC-278`, `CA-AC-322` — la vitrina: programadas sin terminar, accessible,"
+          + " registered, onlyAccessible, instructores y portada; sin enlaces")
   void vitrina() throws Exception {
-    UUID libre = LiveSessionTestSupport.clase(jdbc, null, admin, 120, 180, 11L);
+    UUID profe =
+        CourseTestSupport.persona(jdbc, "Pablo", "Profe", CourseTestSupport.rolInstructor(jdbc));
+    UUID libre = LiveSessionTestSupport.clase(jdbc, profe, admin, 120, 180, 11L);
     UUID deOro = LiveSessionTestSupport.clase(jdbc, null, admin, 60, 120, 12L);
     LiveSessionTestSupport.abrirAMembresia(jdbc, deOro, ORO);
     UUID enCurso = LiveSessionTestSupport.clase(jdbc, null, admin, -10, 50, 13L);
@@ -87,6 +90,10 @@ class LiveClassroomIT extends IntegrationTestBase {
             jsonPath("$[*].id")
                 .value(contains(enCurso.toString(), deOro.toString(), libre.toString())))
         .andExpect(jsonPath("$[0].inProgress").value(true))
+        .andExpect(jsonPath("$[0].instructors.length()").value(0))
+        .andExpect(jsonPath("$[0].coverImageUrl").value(nullValue()))
+        .andExpect(jsonPath("$[2].instructors[0].id").value(profe.toString()))
+        .andExpect(jsonPath("$[2].instructors[0].fullName").value("Pablo Profe"))
         .andExpect(jsonPath("$[1].accessible").value(false))
         .andExpect(jsonPath("$[1].memberships[0].code").value("ORO"))
         .andExpect(jsonPath("$[2].accessible").value(true))

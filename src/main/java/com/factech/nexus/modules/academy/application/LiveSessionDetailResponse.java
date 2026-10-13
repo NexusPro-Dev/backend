@@ -14,9 +14,10 @@ import java.util.List;
 import java.util.UUID;
 
 /**
- * Una clase en vivo entera para administración y para el instructor (`RF-AC-043`): su repetición y
- * su fecha siguiente (`RN-AC-031`), su acceso, su reunión —<b>solo el identificador</b>, sin enlace
- * ni contraseña (`RN-AC-026`)— y quién se registró para entrar. Todo siempre presente.
+ * Una clase en vivo entera para administración y para el instructor (`RF-AC-043`): sus instructores
+ * y su portada (`RN-AC-032`), su repetición y su fecha siguiente (`RN-AC-031`), su acceso, su
+ * reunión —<b>solo el identificador</b>, sin enlace ni contraseña (`RN-AC-026`)— y quién se
+ * registró para entrar. Todo siempre presente.
  */
 @JsonInclude(JsonInclude.Include.ALWAYS)
 @Schema(name = "LiveSessionDetailResponse")
@@ -24,7 +25,9 @@ public record LiveSessionDetailResponse(
     UUID id,
     String title,
     String description,
-    LiveSessionCourseRef course,
+    @Schema(description = "La portada, pública; nula si no tiene.") String coverImageUrl,
+    @Schema(description = "Los instructores de la clase; vacía si no tiene (RN-AC-032).")
+        List<LiveSessionInstructorRef> instructors,
     OffsetDateTime startsAt,
     OffsetDateTime endsAt,
     @Schema(description = "DAILY, WEEKLY o MONTHLY; nula si no se repite (RN-AC-031).")
@@ -50,15 +53,10 @@ public record LiveSessionDetailResponse(
     OffsetDateTime createdAt,
     OffsetDateTime updatedAt) {
 
-  /** El curso del que cuelga, o nulo si es suelta. */
+  /** Un instructor de la clase, con su nombre actual. */
   @JsonInclude(JsonInclude.Include.ALWAYS)
-  @Schema(name = "LiveSessionCourseRef")
-  public record LiveSessionCourseRef(UUID id, String title) {
-
-    public static LiveSessionCourseRef of(UUID id, String title) {
-      return id == null ? null : new LiveSessionCourseRef(id, title);
-    }
-  }
+  @Schema(name = "LiveSessionInstructorRef")
+  public record LiveSessionInstructorRef(UUID id, String username, String fullName) {}
 
   /** Quién pidió entrar, y cuándo. Sin su enlace: es de esa persona. */
   @JsonInclude(JsonInclude.Include.ALWAYS)
@@ -70,6 +68,7 @@ public record LiveSessionDetailResponse(
       LiveSessionRow fila,
       boolean terminada,
       Occurrence siguiente,
+      List<LiveSessionInstructorRef> instructores,
       List<MembershipRef> membresias,
       List<ProductRef> servicios,
       List<LiveSessionRegistrationItem> registrados) {
@@ -77,7 +76,8 @@ public record LiveSessionDetailResponse(
         fila.id(),
         fila.title(),
         fila.description(),
-        LiveSessionCourseRef.of(fila.courseId(), fila.courseTitle()),
+        AcademyImageUrls.de(fila.coverImageId()),
+        instructores,
         fila.startsAt(),
         fila.endsAt(),
         fila.recurrence(),

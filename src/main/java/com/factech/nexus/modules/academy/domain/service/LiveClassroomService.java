@@ -1,5 +1,6 @@
 package com.factech.nexus.modules.academy.domain.service;
 
+import com.factech.nexus.modules.academy.application.LiveSessionDetailResponse.LiveSessionInstructorRef;
 import com.factech.nexus.modules.academy.application.LiveSessionRequests.AvailableFilter;
 import com.factech.nexus.modules.academy.application.LiveSessionResponses.Available;
 import com.factech.nexus.modules.academy.application.LiveSessionResponses.Join;
@@ -70,14 +71,22 @@ public class LiveClassroomService {
   public List<Available> available(AvailableFilter filtros) {
     UUID quien = llaves.actorId();
     Instant ahora = apoyo.ahora();
-    List<UpcomingRow> clases =
-        consultas.findUpcoming(ahora, filtros == null ? null : filtros.courseId());
+    List<UpcomingRow> clases = consultas.findUpcoming(ahora);
     if (clases.isEmpty()) {
       return List.of();
     }
     StudentKeys.Keys alumno = llaves.ofCurrentActor();
     Set<UUID> registradas =
         consultas.registeredAmong(quien, clases.stream().map(UpcomingRow::id).toList());
+    Map<UUID, List<LiveSessionInstructorRef>> instructores =
+        apoyo.instructoresDe(
+            clases.stream()
+                .collect(
+                    java.util.stream.Collectors.toMap(
+                        UpcomingRow::id,
+                        UpcomingRow::instructorIds,
+                        (a, b) -> a,
+                        java.util.LinkedHashMap::new)));
     List<Available> lista = new ArrayList<>();
     for (UpcomingRow clase : clases) {
       boolean accesible =
@@ -92,6 +101,7 @@ public class LiveClassroomService {
           Available.from(
               clase,
               serie.siguiente(ahora, apoyo.zoom().zona()).orElse(null),
+              instructores.getOrDefault(clase.id(), List.of()),
               serie.enCurso(ahora, apoyo.zoom().zona()),
               accesible,
               registradas.contains(clase.id())));

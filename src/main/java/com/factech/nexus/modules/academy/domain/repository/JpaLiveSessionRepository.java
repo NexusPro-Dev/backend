@@ -25,27 +25,26 @@ import org.springframework.transaction.annotation.Transactional;
 /**
  * {@link LiveSessionRepository} y {@link LiveSessionQueryRepository} sobre SQL nativo.
  *
- * <p><b>El instructor de la clase se lee del curso</b> en cada lectura (`RN-AC-028`): no se guarda
- * en la clase, y si el curso cambia de instructor la clase pasa con él. <b>Los predicados del
- * listado se escriben por partes</b> y solo se enlaza lo que se usa: un parámetro nulo sin tipo
- * falla en PostgreSQL (`RF-MV-008`).
+ * <p><b>Los instructores de la clase viajan con su fila</b> (`RN-AC-032`): deciden la propiedad
+ * (`RN-AC-028`), y se leen con una consulta aparte por lote. <b>Los predicados del listado se
+ * escriben por partes</b> y solo se enlaza lo que se usa: un parámetro nulo sin tipo falla en
+ * PostgreSQL (`RF-MV-008`).
  */
 @Repository
 public class JpaLiveSessionRepository implements LiveSessionRepository, LiveSessionQueryRepository {
 
   private static final String COLUMNAS =
       """
-      s.id AS id, s.course_id AS course_id, c.title AS course_title,
-      c.instructor_id AS course_instructor_id, s.title AS title, s.description AS description,
+      s.id AS id, s.title AS title, s.description AS description,
       s.starts_at AS starts_at, s.ends_at AS ends_at, s.recurrence AS recurrence,
       s.repeat_until AS repeat_until, s.series_ends_at AS series_ends_at,
+      s.cover_image_id AS cover_image_id,
       s.zoom_meeting_id AS zoom_meeting_id, s.status AS status, s.cancelled_at AS cancelled_at,
       s.cancellation_reason AS cancellation_reason, s.created_by AS created_by,
       s.created_at AS created_at, s.updated_at AS updated_at
       """;
 
-  private static final String DESDE =
-      " FROM live_sessions s LEFT JOIN courses c ON c.id = s.course_id";
+  private static final String DESDE = " FROM live_sessions s";
 
   private final EntityManager em;
 
@@ -63,13 +62,12 @@ public class JpaLiveSessionRepository implements LiveSessionRepository, LiveSess
     Query alta =
         em.createNativeQuery(
             """
-            INSERT INTO live_sessions (id, course_id, title, description, starts_at, ends_at,
+            INSERT INTO live_sessions (id, title, description, starts_at, ends_at,
                                        recurrence, repeat_until, series_ends_at,
                                        zoom_meeting_id, status, created_by)
-            VALUES (:id, :curso, :titulo, :descripcion, :inicio, :fin, :frecuencia, :hasta,
+            VALUES (:id, :titulo, :descripcion, :inicio, :fin, :frecuencia, :hasta,
                     :finSerie, :reunion, 'PROGRAMADA', :autor)
             """);
-    uuid(alta, "curso", clase.courseId());
     tipado(alta, "frecuencia", clase.recurrence(), String.class);
     tipado(alta, "hasta", clase.repeatUntil(), LocalDate.class);
     alta.setParameter("id", clase.id())
@@ -89,7 +87,6 @@ public class JpaLiveSessionRepository implements LiveSessionRepository, LiveSess
       UUID id,
       String title,
       String description,
-      UUID courseId,
       OffsetDateTime startsAt,
       OffsetDateTime endsAt,
       String recurrence,
@@ -99,12 +96,11 @@ public class JpaLiveSessionRepository implements LiveSessionRepository, LiveSess
         em.createNativeQuery(
             """
             UPDATE live_sessions
-               SET title = :titulo, description = :descripcion, course_id = :curso,
+               SET title = :titulo, description = :descripcion,
                    starts_at = :inicio, ends_at = :fin, recurrence = :frecuencia,
                    repeat_until = :hasta, series_ends_at = :finSerie, updated_at = now()
              WHERE id = :id
             """);
-    uuid(cambio, "curso", courseId);
     tipado(cambio, "frecuencia", recurrence, String.class);
     tipado(cambio, "hasta", repeatUntil, LocalDate.class);
     cambio
@@ -136,33 +132,30 @@ public class JpaLiveSessionRepository implements LiveSessionRepository, LiveSess
   @Override
   @Transactional
   public void replaceMemberships(UUID id, Collection<UUID> membershipIds) {
-    em.createNativeQuery("DELETE FROM live_session_memberships WHERE live_session_id = :id")
-        .setParameter("id", id)
-        .executeUpdate();
-    for (UUID membresia : membershipIds) {
-      em.createNativeQuery(
-              "INSERT INTO live_session_memberships (live_session_id, membership_id)"
-                  + " VALUES (:id, :membresia)")
-          .setParameter("id", id)
-          .setParameter("membresia", membresia)
-          .executeUpdate();
-    }
+    reemplazar("live_session_memberships", "membership_id", id, membershipIds);
   }
 
   @Override
   @Transactional
   public void replaceProducts(UUID id, Collection<UUID> productIds) {
-    em.createNativeQuery("DELETE FROM live_session_products WHERE live_session_id = :id")
-        .setParameter("id", id)
-        .executeUpdate();
-    for (UUID producto : productIds) {
-      em.createNativeQuery(
-              "INSERT INTO live_session_products (live_session_id, product_id)"
-                  + " VALUES (:id, :producto)")
-          .setParameter("id", id)
-          .setParameter("producto", producto)
-          .executeUpdate();
-    }
+    reemplazar("live_session_products", "product_id", id, productIds);
+  }
+
+  @Override
+  @Transactional
+  public void replaceInstructors(UUID id, Collection<UUID> instructorIds) {
+    reemplazar("live_session_instructors", "user_id", id, instructorIds);
+  }
+
+  @Override
+  @Transactional
+  public void setCover(UUID id, UUID coverImageId) {
+    Query cambio =
+        em.createNativeQuery(
+            "UPDATE live_sessions SET cover_image_id = :portada, updated_at = now()"
+                + " WHERE id = :id");
+    tipado(cambio, "portada", coverImageId, UUID.class);
+    cambio.setParameter("id", id).executeUpdate();
   }
 
   @Override
@@ -193,7 +186,7 @@ public class JpaLiveSessionRepository implements LiveSessionRepository, LiveSess
                 "SELECT " + COLUMNAS + DESDE + " WHERE s.id = :id FOR UPDATE OF s", Tuple.class)
             .setParameter("id", id)
             .getResultList();
-    return filas.stream().findFirst().map(JpaLiveSessionRepository::clase);
+    return filas.stream().findFirst().map(this::clase);
   }
 
   // ---------------------------------------------------------------------------
@@ -211,7 +204,7 @@ public class JpaLiveSessionRepository implements LiveSessionRepository, LiveSess
         em.createNativeQuery("SELECT " + COLUMNAS + DESDE + " WHERE s.id = :id", Tuple.class)
             .setParameter("id", id)
             .getResultList();
-    return filas.stream().findFirst().map(JpaLiveSessionRepository::clase);
+    return filas.stream().findFirst().map(this::clase);
   }
 
   @Override
@@ -264,14 +257,40 @@ public class JpaLiveSessionRepository implements LiveSessionRepository, LiveSess
 
   @Override
   @Transactional(readOnly = true)
+  public Map<UUID, List<UUID>> findInstructorsOf(Collection<UUID> ids) {
+    if (ids.isEmpty()) {
+      return Map.of();
+    }
+    @SuppressWarnings("unchecked")
+    List<Tuple> filas =
+        em.createNativeQuery(
+                """
+                SELECT live_session_id AS clase, user_id AS persona
+                  FROM live_session_instructors
+                 WHERE live_session_id IN (:clases)
+                 ORDER BY created_at, user_id
+                """,
+                Tuple.class)
+            .setParameter("clases", ids)
+            .getResultList();
+    return filas.stream()
+        .collect(
+            Collectors.groupingBy(
+                f -> (UUID) f.get("clase"),
+                LinkedHashMap::new,
+                Collectors.mapping(f -> (UUID) f.get("persona"), Collectors.toList())));
+  }
+
+  @Override
+  @Transactional(readOnly = true)
   public List<LiveSessionItemRow> search(LiveSessionFilter filtro, int offset, int size) {
     Map<String, Object> parametros = new LinkedHashMap<>();
     String sql =
         """
-        SELECT s.id AS id, s.course_id AS course_id, c.title AS course_title, s.title AS title,
+        SELECT s.id AS id, s.title AS title,
                s.starts_at AS starts_at, s.ends_at AS ends_at, s.recurrence AS recurrence,
                s.repeat_until AS repeat_until, s.series_ends_at AS series_ends_at,
-               s.status AS status,
+               s.cover_image_id AS cover_image_id, s.status AS status,
                (SELECT count(*) FROM live_session_memberships x
                  WHERE x.live_session_id = s.id) AS membership_count,
                (SELECT count(*) FROM live_session_products x
@@ -293,14 +312,13 @@ public class JpaLiveSessionRepository implements LiveSessionRepository, LiveSess
             fila ->
                 new LiveSessionItemRow(
                     (UUID) fila.get("id"),
-                    (UUID) fila.get("course_id"),
-                    (String) fila.get("course_title"),
                     (String) fila.get("title"),
                     JpaCourseQueryRepository.momento(fila.get("starts_at")),
                     JpaCourseQueryRepository.momento(fila.get("ends_at")),
                     (String) fila.get("recurrence"),
                     dia(fila.get("repeat_until")),
                     JpaCourseQueryRepository.momento(fila.get("series_ends_at")),
+                    (UUID) fila.get("cover_image_id"),
                     (String) fila.get("status"),
                     ((Number) fila.get("membership_count")).longValue(),
                     ((Number) fila.get("product_count")).longValue(),
@@ -319,27 +337,28 @@ public class JpaLiveSessionRepository implements LiveSessionRepository, LiveSess
 
   @Override
   @Transactional(readOnly = true)
-  public List<UpcomingRow> findUpcoming(Instant ahora, UUID courseId) {
+  public List<UpcomingRow> findUpcoming(Instant ahora) {
     Query consulta =
         em.createNativeQuery(
             "SELECT "
                 + COLUMNAS
                 + DESDE
                 + " WHERE s.status = 'PROGRAMADA' AND s.series_ends_at > :ahora"
-                + (courseId == null ? "" : " AND s.course_id = :curso")
                 + " ORDER BY s.starts_at, s.id",
             Tuple.class);
     consulta.setParameter("ahora", ahora.atOffset(ZoneOffset.UTC));
-    if (courseId != null) {
-      consulta.setParameter("curso", courseId);
-    }
     @SuppressWarnings("unchecked")
     List<Tuple> filas = consulta.getResultList();
-    List<LiveSessionRow> clases = filas.stream().map(JpaLiveSessionRepository::clase).toList();
-    if (clases.isEmpty()) {
+    if (filas.isEmpty()) {
       return List.of();
     }
-    List<UUID> ids = clases.stream().map(LiveSessionRow::id).toList();
+    List<UUID> ids = filas.stream().map(f -> (UUID) f.get("id")).toList();
+    // Los instructores por lote, no fila a fila.
+    Map<UUID, List<UUID>> instructores = findInstructorsOf(ids);
+    List<LiveSessionRow> clases =
+        filas.stream()
+            .map(f -> clase(f, instructores.getOrDefault((UUID) f.get("id"), List.of())))
+            .toList();
     Map<UUID, List<MembershipRef>> membresias = membresiasDe(ids);
     Map<UUID, List<ProductRef>> servicios = serviciosDe(ids);
     return clases.stream()
@@ -347,14 +366,14 @@ public class JpaLiveSessionRepository implements LiveSessionRepository, LiveSess
             c ->
                 new UpcomingRow(
                     c.id(),
-                    c.courseId(),
-                    c.courseTitle(),
                     c.title(),
                     c.description(),
                     c.startsAt(),
                     c.endsAt(),
                     c.recurrence(),
                     c.repeatUntil(),
+                    c.coverImageId(),
+                    c.instructorIds(),
                     membresias.getOrDefault(c.id(), List.of()),
                     servicios.getOrDefault(c.id(), List.of())))
         .toList();
@@ -378,6 +397,20 @@ public class JpaLiveSessionRepository implements LiveSessionRepository, LiveSess
   }
 
   // ---------------------------------------------------------------------------
+
+  /** Borra la lista entera de la clase y escribe la nueva. */
+  private void reemplazar(String tabla, String columna, UUID id, Collection<UUID> valores) {
+    em.createNativeQuery("DELETE FROM " + tabla + " WHERE live_session_id = :id")
+        .setParameter("id", id)
+        .executeUpdate();
+    for (UUID valor : valores) {
+      em.createNativeQuery(
+              "INSERT INTO " + tabla + " (live_session_id, " + columna + ") VALUES (:id, :valor)")
+          .setParameter("id", id)
+          .setParameter("valor", valor)
+          .executeUpdate();
+    }
+  }
 
   private Map<UUID, List<MembershipRef>> membresiasDe(Collection<UUID> ids) {
     @SuppressWarnings("unchecked")
@@ -438,12 +471,10 @@ public class JpaLiveSessionRepository implements LiveSessionRepository, LiveSess
   private static String donde(LiveSessionFilter filtro, Map<String, Object> parametros) {
     List<String> partes = new ArrayList<>();
     if (filtro.instructorId() != null) {
-      partes.add("c.instructor_id = :instructor");
+      partes.add(
+          "EXISTS (SELECT 1 FROM live_session_instructors i"
+              + " WHERE i.live_session_id = s.id AND i.user_id = :instructor)");
       parametros.put("instructor", filtro.instructorId());
-    }
-    if (filtro.courseId() != null) {
-      partes.add("s.course_id = :curso");
-      parametros.put("curso", filtro.courseId());
     }
     if (filtro.status() != null) {
       partes.add("s.status = :estado");
@@ -467,16 +498,6 @@ public class JpaLiveSessionRepository implements LiveSessionRepository, LiveSess
     return partes.isEmpty() ? "" : " WHERE " + String.join(" AND ", partes);
   }
 
-  /**
-   * Un {@code uuid} que puede ser nulo, enlazado con su tipo: sin él, PostgreSQL recibe un nulo sin
-   * tipo y no sabe convertirlo (la trampa de `RF-MV-008`).
-   */
-  @SuppressWarnings({"unchecked", "rawtypes"})
-  private static void uuid(Query consulta, String nombre, UUID valor) {
-    ((org.hibernate.query.NativeQuery) consulta.unwrap(org.hibernate.query.NativeQuery.class))
-        .setParameter(nombre, valor, UUID.class);
-  }
-
   /** Un valor que puede ser nulo, enlazado con su tipo. */
   @SuppressWarnings({"unchecked", "rawtypes"})
   private static <T> void tipado(Query consulta, String nombre, T valor, Class<T> tipo) {
@@ -491,12 +512,15 @@ public class JpaLiveSessionRepository implements LiveSessionRepository, LiveSess
     return valor instanceof java.sql.Date fecha ? fecha.toLocalDate() : (LocalDate) valor;
   }
 
-  private static LiveSessionRow clase(Tuple fila) {
+  private LiveSessionRow clase(Tuple fila) {
+    UUID id = (UUID) fila.get("id");
+    return clase(fila, findInstructorsOf(List.of(id)).getOrDefault(id, List.of()));
+  }
+
+  private static LiveSessionRow clase(Tuple fila, List<UUID> instructores) {
+    UUID id = (UUID) fila.get("id");
     return new LiveSessionRow(
-        (UUID) fila.get("id"),
-        (UUID) fila.get("course_id"),
-        (String) fila.get("course_title"),
-        (UUID) fila.get("course_instructor_id"),
+        id,
         (String) fila.get("title"),
         (String) fila.get("description"),
         JpaCourseQueryRepository.momento(fila.get("starts_at")),
@@ -504,13 +528,15 @@ public class JpaLiveSessionRepository implements LiveSessionRepository, LiveSess
         (String) fila.get("recurrence"),
         dia(fila.get("repeat_until")),
         JpaCourseQueryRepository.momento(fila.get("series_ends_at")),
+        (UUID) fila.get("cover_image_id"),
         ((Number) fila.get("zoom_meeting_id")).longValue(),
         (String) fila.get("status"),
         JpaCourseQueryRepository.momento(fila.get("cancelled_at")),
         (String) fila.get("cancellation_reason"),
         (UUID) fila.get("created_by"),
         JpaCourseQueryRepository.momento(fila.get("created_at")),
-        JpaCourseQueryRepository.momento(fila.get("updated_at")));
+        JpaCourseQueryRepository.momento(fila.get("updated_at")),
+        instructores);
   }
 
   private static RegistrationRow registro(Tuple fila) {

@@ -32,12 +32,6 @@ public interface CourseQueryRepository {
 
   Optional<CourseRow> findDetail(UUID id);
 
-  /** Los cursos no retirados de ese instructor, por orden de presentación (`RF-AC-057`). */
-  List<TaughtCourseRow> findTaughtBy(UUID instructorId);
-
-  /** Un curso que dicta alguien: lo justo para elegirlo. */
-  record TaughtCourseRow(UUID id, String title, String status) {}
-
   List<CourseRow> search(ListCoursesRequest filtros, String ordenamiento, int offset, int limit);
 
   long count(ListCoursesRequest filtros);

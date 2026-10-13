@@ -45,14 +45,14 @@ class LiveSessionAdminIT extends IntegrationTestBase {
   @Autowired private FakeZoomMeetings zoom;
 
   private UUID admin;
-  private UUID curso;
+  private UUID profe;
 
   @BeforeEach
   void sembrar() {
     CourseTestSupport.limpiar(jdbc);
     zoom.reiniciar();
     admin = CourseTestSupport.persona(jdbc, "Ada", "Admin", ProgressTestSupport.ADMIN);
-    curso = CourseTestSupport.curso(jdbc, "Velas", CourseTestSupport.instructor(jdbc), 0);
+    profe = CourseTestSupport.instructor(jdbc);
   }
 
   @AfterEach
@@ -71,7 +71,7 @@ class LiveSessionAdminIT extends IntegrationTestBase {
 
   private UUID programada(String titulo) throws Exception {
     String respuesta =
-        programar(cuerpo(titulo, curso, manana(19), manana(20), ids(ORO), ""))
+        programar(cuerpo(titulo, profe, manana(19), manana(20), ids(ORO), ""))
             .andExpect(status().isCreated())
             .andReturn()
             .getResponse()
@@ -89,11 +89,13 @@ class LiveSessionAdminIT extends IntegrationTestBase {
           + " Zoom solo se guarda el identificador")
   void programa() throws Exception {
     String respuesta =
-        programar(cuerpo("Velas en vivo", curso, manana(19), manana(20), ids(ORO), ""))
+        programar(cuerpo("Velas en vivo", profe, manana(19), manana(20), ids(ORO), ""))
             .andExpect(status().isCreated())
             .andExpect(jsonPath("$.status").value("PROGRAMADA"))
             .andExpect(jsonPath("$.ended").value(false))
-            .andExpect(jsonPath("$.course.id").value(curso.toString()))
+            .andExpect(jsonPath("$.instructors[0].id").value(profe.toString()))
+            .andExpect(jsonPath("$.course").doesNotExist())
+            .andExpect(jsonPath("$.coverImageUrl").value(nullValue()))
             .andExpect(jsonPath("$.memberships[0].code").value("ORO"))
             .andReturn()
             .getResponse()
@@ -130,12 +132,21 @@ class LiveSessionAdminIT extends IntegrationTestBase {
 
   @Test
   @DisplayName(
-      "`CA-AC-266` — curso retirado, membresía inexistente o producto que no vale: 422 sin llamar"
-          + " a Zoom")
+      "`CA-AC-266`, `CA-AC-317` — instructor inexistente o sin courses:teach, membresía"
+          + " inexistente o producto que no vale: 422 sin llamar a Zoom; repetidos, 400")
   void referencias() throws Exception {
-    CourseTestSupport.retirar(jdbc, curso);
-    programar(cuerpo("X", curso, manana(19), manana(20), "", ""))
-        .andExpect(status().isUnprocessableEntity());
+    programar(cuerpo("X", UUID.randomUUID(), manana(19), manana(20), "", ""))
+        .andExpect(status().isUnprocessableEntity())
+        .andExpect(jsonPath("$.errors[0].field").value("instructorIds"))
+        .andExpect(jsonPath("$.errors[0].code").value("EX-002"));
+    UUID sinPermiso = CourseTestSupport.persona(jdbc, "Sin", "Teach", null);
+    programar(cuerpo("X", sinPermiso, manana(19), manana(20), "", ""))
+        .andExpect(status().isUnprocessableEntity())
+        .andExpect(jsonPath("$.errors[0].code").value("EX-003"));
+    programar(
+            cuerpo("X", null, manana(19), manana(20), "", "")
+                .replace("{", "{\"instructorIds\":[" + ids(profe, profe) + "],"))
+        .andExpect(status().isBadRequest());
     programar(cuerpo("X", null, manana(19), manana(20), ids(UUID.randomUUID()), ""))
         .andExpect(status().isUnprocessableEntity())
         .andExpect(jsonPath("$.errors[0].field").value("membershipIds"));
@@ -203,7 +214,7 @@ class LiveSessionAdminIT extends IntegrationTestBase {
 
   @Test
   @DisplayName(
-      "`CA-AC-273` a `CA-AC-275` — el listado con todas, filtros por estado, terminadas y curso")
+      "`CA-AC-273` a `CA-AC-275` — el listado con todas, filtros por estado, terminadas e instructor (`CA-AC-322`)")
   void listado() throws Exception {
     UUID futura = programada("Futura");
     UUID terminada = LiveSessionTestSupport.clase(jdbc, null, admin, -120, -60, 1L);
@@ -228,7 +239,7 @@ class LiveSessionAdminIT extends IntegrationTestBase {
         .andExpect(jsonPath("$.content[0].ended").value(true));
     mvc.perform(
             get(RUTA)
-                .param("courseId", curso.toString())
+                .param("instructorId", profe.toString())
                 .param("status", "PROGRAMADA")
                 .with(con(admin, "live-sessions:list")))
         .andExpect(jsonPath("$.totalElements").value(1))

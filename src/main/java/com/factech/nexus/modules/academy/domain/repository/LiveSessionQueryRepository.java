@@ -6,7 +6,9 @@ import com.factech.nexus.modules.academy.domain.repository.CourseQueryRepository
 import java.time.Instant;
 import java.time.LocalDate;
 import java.time.OffsetDateTime;
+import java.util.Collection;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
 import java.util.UUID;
@@ -24,22 +26,22 @@ public interface LiveSessionQueryRepository {
 
   Optional<RegistrationRow> findRegistration(UUID id, UUID userId);
 
+  /** Los instructores de cada clase, en el orden en que se asignaron (`RN-AC-032`). */
+  Map<UUID, List<UUID>> findInstructorsOf(Collection<UUID> ids);
+
   List<LiveSessionItemRow> search(LiveSessionFilter filtro, int offset, int size);
 
   long count(LiveSessionFilter filtro);
 
   /** Las programadas cuya última fecha no ha terminado en ese instante, con sus llaves. */
-  List<UpcomingRow> findUpcoming(Instant ahora, UUID courseId);
+  List<UpcomingRow> findUpcoming(Instant ahora);
 
   /** De esas clases, en cuáles está registrada esa persona. */
   Set<UUID> registeredAmong(UUID userId, List<UUID> ids);
 
-  /** Una clase con su curso y el instructor del curso, que decide la propiedad (`RN-AC-028`). */
+  /** Una clase con sus instructores, que deciden la propiedad (`RN-AC-028`, `RN-AC-032`). */
   record LiveSessionRow(
       UUID id,
-      UUID courseId,
-      String courseTitle,
-      UUID courseInstructorId,
       String title,
       String description,
       OffsetDateTime startsAt,
@@ -47,13 +49,15 @@ public interface LiveSessionQueryRepository {
       String recurrence,
       LocalDate repeatUntil,
       OffsetDateTime seriesEndsAt,
+      UUID coverImageId,
       long zoomMeetingId,
       String status,
       OffsetDateTime cancelledAt,
       String cancellationReason,
       UUID createdBy,
       OffsetDateTime createdAt,
-      OffsetDateTime updatedAt) {
+      OffsetDateTime updatedAt,
+      List<UUID> instructorIds) {
 
     public boolean programada() {
       return "PROGRAMADA".equals(status);
@@ -68,9 +72,9 @@ public interface LiveSessionQueryRepository {
       return LiveSessionSeries.of(startsAt, endsAt, recurrence, repeatUntil);
     }
 
-    /** Si la gobierna ese instructor: cuelga de un curso que él dicta. */
+    /** Si la gobierna esa persona con los permisos propios: está en su lista de instructores. */
     public boolean deInstructor(UUID actor) {
-      return courseId != null && actor != null && actor.equals(courseInstructorId);
+      return actor != null && instructorIds.contains(actor);
     }
   }
 
@@ -80,14 +84,13 @@ public interface LiveSessionQueryRepository {
   /** Una fila del listado de administración y del instructor. */
   record LiveSessionItemRow(
       UUID id,
-      UUID courseId,
-      String courseTitle,
       String title,
       OffsetDateTime startsAt,
       OffsetDateTime endsAt,
       String recurrence,
       LocalDate repeatUntil,
       OffsetDateTime seriesEndsAt,
+      UUID coverImageId,
       String status,
       long membershipCount,
       long productCount,
@@ -98,17 +101,17 @@ public interface LiveSessionQueryRepository {
     }
   }
 
-  /** Una clase de la vitrina del alumno, con sus llaves resueltas. */
+  /** Una clase de la vitrina del alumno, con sus llaves y sus instructores resueltos. */
   record UpcomingRow(
       UUID id,
-      UUID courseId,
-      String courseTitle,
       String title,
       String description,
       OffsetDateTime startsAt,
       OffsetDateTime endsAt,
       String recurrence,
       LocalDate repeatUntil,
+      UUID coverImageId,
+      List<UUID> instructorIds,
       List<MembershipRef> memberships,
       List<ProductRef> products) {
 
@@ -118,12 +121,12 @@ public interface LiveSessionQueryRepository {
   }
 
   /**
-   * El predicado del listado. {@code instructorId} no nulo deja solo las clases de los cursos que
-   * dicta (`RF-AC-048`); {@code ended} se compara con {@code ahora}.
+   * El predicado del listado. {@code instructorId} no nulo deja solo las clases de las que esa
+   * persona es instructor —el filtro de administración y el alcance de `RF-AC-048`—; {@code ended}
+   * se compara con {@code ahora}.
    */
   record LiveSessionFilter(
       UUID instructorId,
-      UUID courseId,
       String status,
       Boolean ended,
       OffsetDateTime from,

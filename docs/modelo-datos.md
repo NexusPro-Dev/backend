@@ -2,7 +2,7 @@
 
 | Campo | Valor |
 |---|---|
-| Versión | 0.118.0 |
+| Versión | 0.119.0 |
 | Estado | **Borrador** |
 | Responsable | Bonilla Diaz William Steven |
 | Fecha de creación | 21-08-2026 |
@@ -814,7 +814,9 @@ erDiagram
     course_modules ||--o{ lessons : "se estudia en · no se mueven"
     users ||--o{ lesson_progress : "ESTUDIA · el progreso es de la persona (09-10-2026)"
     lessons ||--o{ lesson_progress : "se ha visto · nada lo borra"
-    courses |o--o{ live_sessions : "agrupa · decide el instructor que la administra (09-10-2026)"
+    live_sessions ||--o{ live_session_instructors : "sus instructores (13-10-2026) · sin curso"
+    users ||--o{ live_session_instructors : "DICTA · porta courses:teach al asignarse"
+    academy_images |o--o| live_sessions : "PORTADA opcional (13-10-2026)"
     memberships }o--o{ live_sessions : "ABRE · live_session_memberships · lista propia"
     products }o--o{ live_sessions : "ABRE por servicio · live_session_products"
     live_sessions ||--o{ live_session_registrations : "se entra registrandose en Zoom"
@@ -873,7 +875,7 @@ erDiagram
 
     live_sessions {
         uuid id PK
-        uuid course_id FK "NULL = suelta · solo la administra ADMIN"
+        uuid cover_image_id FK "NULL = sin portada · UNICA (13-10-2026; course_id se quito)"
         varchar title "150"
         timestamptz starts_at "no en el pasado al programar"
         timestamptz ends_at "de 15 min a 10 h despues del inicio · el de la PRIMERA fecha"
@@ -1268,3 +1270,4 @@ Los documentos que citan una migración vieja por su número —specs, controles
 | 0.116.0 | 10-10-2026 | **`ix_user_brokers_busqueda_usuario`** (`V100`): gin de trigramas sobre `f_unaccent(lower(broker_username))`, para que `search` de `RF-SP-057` y `RF-SP-083` encuentre por el nombre de usuario en el broker. | Responsable técnico |
 | 0.117.0 | 13-10-2026 | **Las clases en vivo se repiten** ([`requirements/ac.md`](requirements/ac.md) v0.25.0 §5.2.16, `RN-AC-031`, `V102`): `live_sessions` gana `recurrence` (`DAILY`, `WEEKLY`, `MONTHLY` o nula), `repeat_until` y `series_ends_at` —el fin de la última fecha, igual a `ends_at` sin repetición—, con el que se calcula si terminó. | Responsable técnico |
 | 0.118.0 | 13-10-2026 | **Los avisos de los brokers no se pierden** ([`requirements/sp.md`](requirements/sp.md) v1.123.0 §10.25, `RN-SP-076`, `V103`): `broker_notifications.broker_id` admite nulo —el aviso cuyo `advertiser` no se reconoce—, nace `advertiser`, rellenada en los avisos ya guardados, y el índice parcial `ix_broker_notifications_sin_broker`. Al arrancar se asocian e interpretan los que ya son de un broker. | Responsable técnico |
+| 0.119.0 | 13-10-2026 | **Las clases en vivo se separan de los cursos** ([`requirements/ac.md`](requirements/ac.md) v0.27.0 §5.2.18, `RN-AC-032`, `V105`): `live_sessions` pierde `course_id` y gana `cover_image_id` hacia `academy_images`, único; nace **`live_session_instructors`** (`live_session_id`, `user_id`), rellenada con el instructor del curso de cada clase que colgaba de uno. | Responsable técnico |
