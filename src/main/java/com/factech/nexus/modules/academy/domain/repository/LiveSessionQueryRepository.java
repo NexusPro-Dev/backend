@@ -1,8 +1,10 @@
 package com.factech.nexus.modules.academy.domain.repository;
 
+import com.factech.nexus.modules.academy.domain.models.LiveSessionSeries;
 import com.factech.nexus.modules.academy.domain.repository.CourseQueryRepository.MembershipRef;
 import com.factech.nexus.modules.academy.domain.repository.CourseQueryRepository.ProductRef;
 import java.time.Instant;
+import java.time.LocalDate;
 import java.time.OffsetDateTime;
 import java.util.List;
 import java.util.Optional;
@@ -26,7 +28,7 @@ public interface LiveSessionQueryRepository {
 
   long count(LiveSessionFilter filtro);
 
-  /** Las programadas que no han terminado en ese instante, por inicio, con sus llaves. */
+  /** Las programadas cuya última fecha no ha terminado en ese instante, con sus llaves. */
   List<UpcomingRow> findUpcoming(Instant ahora, UUID courseId);
 
   /** De esas clases, en cuáles está registrada esa persona. */
@@ -42,6 +44,9 @@ public interface LiveSessionQueryRepository {
       String description,
       OffsetDateTime startsAt,
       OffsetDateTime endsAt,
+      String recurrence,
+      LocalDate repeatUntil,
+      OffsetDateTime seriesEndsAt,
       long zoomMeetingId,
       String status,
       OffsetDateTime cancelledAt,
@@ -54,8 +59,13 @@ public interface LiveSessionQueryRepository {
       return "PROGRAMADA".equals(status);
     }
 
+    /** Terminó su última fecha (`RN-AC-031`). */
     public boolean terminada(Instant ahora) {
-      return !ahora.isBefore(endsAt.toInstant());
+      return !ahora.isBefore(seriesEndsAt.toInstant());
+    }
+
+    public LiveSessionSeries serie() {
+      return LiveSessionSeries.of(startsAt, endsAt, recurrence, repeatUntil);
     }
 
     /** Si la gobierna ese instructor: cuelga de un curso que él dicta. */
@@ -75,10 +85,18 @@ public interface LiveSessionQueryRepository {
       String title,
       OffsetDateTime startsAt,
       OffsetDateTime endsAt,
+      String recurrence,
+      LocalDate repeatUntil,
+      OffsetDateTime seriesEndsAt,
       String status,
       long membershipCount,
       long productCount,
-      long registrationCount) {}
+      long registrationCount) {
+
+    public LiveSessionSeries serie() {
+      return LiveSessionSeries.of(startsAt, endsAt, recurrence, repeatUntil);
+    }
+  }
 
   /** Una clase de la vitrina del alumno, con sus llaves resueltas. */
   record UpcomingRow(
@@ -89,8 +107,15 @@ public interface LiveSessionQueryRepository {
       String description,
       OffsetDateTime startsAt,
       OffsetDateTime endsAt,
+      String recurrence,
+      LocalDate repeatUntil,
       List<MembershipRef> memberships,
-      List<ProductRef> products) {}
+      List<ProductRef> products) {
+
+    public LiveSessionSeries serie() {
+      return LiveSessionSeries.of(startsAt, endsAt, recurrence, repeatUntil);
+    }
+  }
 
   /**
    * El predicado del listado. {@code instructorId} no nulo deja solo las clases de los cursos que

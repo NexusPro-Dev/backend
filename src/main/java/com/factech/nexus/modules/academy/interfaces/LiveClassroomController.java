@@ -42,10 +42,12 @@ public class LiveClassroomController {
       summary = "Consultar las clases en vivo como alumno",
       description =
           """
-          **Las clases programadas que no han terminado**, por inicio, sin paginar. Cada una
+          **Las clases programadas que no han terminado** —las que se repiten, hasta su última
+          fecha—, por la fecha en curso o la siguiente (`nextStartsAt`), sin paginar. Cada una
           dice **`accessible`** —se le abre porque su membresía o uno de sus servicios
           vigentes está en la lista, o porque la clase no declara ninguno—, **`registered`**
-          si ya pidió entrar, `inProgress` si ya empezó, y **las membresías y servicios que la
+          si ya pidió entrar, `inProgress` si alguna de sus fechas está en curso, y **las
+          membresías y servicios que la
           abren**, que es la invitación. `onlyAccessible=true` deja solo las suyas; `courseId`
           acota a un curso. **Nada de Zoom**: el enlace se pide al entrar.
 
@@ -71,7 +73,8 @@ public class LiveClassroomController {
           quien pide, la plataforma lo registra en Zoom con su nombre y su correo y devuelve
           **su enlace personal** (`201`). **La segunda vez devuelve el mismo enlace sin llamar a
           Zoom** (`200`). El acceso se comprueba en cada petición. El enlace sirve a un
-          dispositivo a la vez y **no se debe compartir**.
+          dispositivo a la vez y **no se debe compartir**; en una clase que se repite, sirve para
+          todas sus fechas, y `startsAt` y `endsAt` son los de la fecha en curso o la siguiente.
 
           Una clase cancelada, terminada o inexistente responde `404`; una que no se le abre,
           `403` con `EX-002` y los miembros `memberships` y `products`: lo que la abre.

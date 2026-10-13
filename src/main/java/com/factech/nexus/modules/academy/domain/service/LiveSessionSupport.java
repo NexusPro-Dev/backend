@@ -2,6 +2,9 @@ package com.factech.nexus.modules.academy.domain.service;
 
 import com.factech.nexus.modules.academy.application.LiveSessionDetailResponse;
 import com.factech.nexus.modules.academy.application.LiveSessionDetailResponse.LiveSessionRegistrationItem;
+import com.factech.nexus.modules.academy.domain.models.LiveSessionSchedule;
+import com.factech.nexus.modules.academy.domain.models.LiveSessionSeries;
+import com.factech.nexus.modules.academy.domain.models.LiveSessionSeries.Occurrence;
 import com.factech.nexus.modules.academy.domain.repository.CourseQueryRepository;
 import com.factech.nexus.modules.academy.domain.repository.CourseQueryRepository.CourseRow;
 import com.factech.nexus.modules.academy.domain.repository.LiveSessionQueryRepository;
@@ -20,6 +23,9 @@ import com.factech.nexus.shared.error.UnauthorizedException;
 import com.factech.nexus.shared.error.UnprocessableEntityException;
 import com.factech.nexus.shared.error.ValidationException;
 import com.factech.nexus.shared.security.CurrentActor;
+import com.factech.nexus.shared.zoom.ZoomMeetings.Frequency;
+import com.factech.nexus.shared.zoom.ZoomMeetings.MeetingSpec;
+import com.factech.nexus.shared.zoom.ZoomMeetings.Repeat;
 import com.factech.nexus.shared.zoom.ZoomSettings;
 import com.factech.nexus.shared.zoom.ZoomUnavailableException;
 import java.time.Clock;
@@ -176,6 +182,33 @@ public class LiveSessionSupport {
     return unicos;
   }
 
+  /** La fecha en curso o la siguiente de una clase programada; nula si terminó o se canceló. */
+  Occurrence siguiente(LiveSessionSeries serie, String estado) {
+    if (!"PROGRAMADA".equals(estado)) {
+      return null;
+    }
+    return serie.siguiente(ahora(), zoom.zona()).orElse(null);
+  }
+
+  /**
+   * Lo que se le pide a Zoom de una clase: título, agenda, la primera fecha y, si se repite, la
+   * repetición con su número de fechas (`RN-AC-031`).
+   */
+  MeetingSpec reunion(String titulo, String agenda, LiveSessionSeries serie) {
+    int minutos = new LiveSessionSchedule(serie.startsAt(), serie.endsAt()).minutos();
+    if (serie.recurrence() == null) {
+      return new MeetingSpec(titulo, agenda, serie.startsAt(), minutos);
+    }
+    var primera = serie.startsAt().atZoneSameInstant(zoom.zona());
+    Repeat repeticion =
+        new Repeat(
+            Frequency.valueOf(serie.recurrence().name()),
+            serie.veces(zoom.zona()),
+            primera.getDayOfWeek(),
+            primera.getDayOfMonth());
+    return new MeetingSpec(titulo, agenda, serie.startsAt(), minutos, repeticion);
+  }
+
   /** El detalle de `RF-AC-043`, que devuelven también las escrituras. */
   LiveSessionDetailResponse detalle(UUID id) {
     LiveSessionRow clase = consultas.find(id).orElseThrow(LiveSessionSupport::noExiste);
@@ -205,6 +238,7 @@ public class LiveSessionSupport {
     return LiveSessionDetailResponse.from(
         clase,
         clase.terminada(ahora()),
+        siguiente(clase.serie(), clase.status()),
         consultas.findMembershipsOf(id),
         consultas.findProductsOf(id),
         registrados);
@@ -219,6 +253,8 @@ public class LiveSessionSupport {
     estado.put("courseId", clase.courseId());
     estado.put("startsAt", clase.startsAt());
     estado.put("endsAt", clase.endsAt());
+    estado.put("recurrence", clase.recurrence());
+    estado.put("repeatUntil", clase.repeatUntil());
     estado.put("status", clase.status());
     estado.put("zoomMeetingId", clase.zoomMeetingId());
     estado.put("membershipIds", membresias.stream().map(UUID::toString).sorted().toList());

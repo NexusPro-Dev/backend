@@ -5,11 +5,11 @@
 | Módulo | `AC` — Academia |
 | Paquete | `modules/academy` |
 | Prefijos de permiso | `course-categories:`, `courses:`, `lessons:`, `live-sessions:` |
-| Versión | 0.24.0 |
+| Versión | 0.25.0 |
 | Estado | **Borrador** |
 | Responsable | Bonilla Diaz William Steven |
 | Fecha de creación | 17-09-2026 |
-| Última actualización | 09-10-2026 |
+| Última actualización | 13-10-2026 |
 
 !!! info "Qué va en este documento"
 
@@ -202,8 +202,9 @@ La dependencia es **acíclica**: `AC` → `SP` y, desde el 25-09-2026, `AC` → 
 | `RN-AC-026` | **La reunión la crea la plataforma, con registro obligatorio, y su enlace general no sale** | Al programar, corregir y cancelar | Programar una clase **crea una reunión programada en Zoom** con la cuenta del negocio y su usuario anfitrión, **con registro obligatorio y aprobación automática**, sin entrar antes que el anfitrión y **sin los correos de Zoom** (no hay recordatorios, §1.3). Se guarda **solo el identificador de la reunión**: el enlace general y la contraseña **no se guardan ni se publican**, porque con ellos cualquiera entraría sin pasar por la plataforma. **Zoom manda**: si la llamada falla o no responde a tiempo, la petición se rechaza con `503` y **no se guarda nada**; si la reunión se creó y la escritura local falla, se borra la reunión. Corregir título, inicio o fin **corrige la reunión** —a Zoom se le da el inicio y la duración que resulta—; cancelar **la borra en Zoom** | Alta |
 | `RN-AC-027` | **Entrar es registrarse, y cada uno recibe su propio enlace** | Al pulsar «Entrar» (`RF-AC-054`) | El alumno pide entrar; la plataforma comprueba **en ese momento** que la clase existe, no está cancelada, **no ha terminado** —su hora de fin no ha pasado— y **que se le abre** (`RN-AC-025`); si es así, **lo registra en Zoom** con su nombre y su correo y le devuelve **su enlace personal**. **Pedirlo otra vez devuelve el mismo** sin volver a llamar a Zoom; la fila queda en `live_session_registrations` y administración ve quién se registró. **Se comprueba en cada petición**: quien perdió la membresía no recibe un enlace nuevo, aunque el que ya tiene siga valiendo en Zoom. **El enlace personal sirve a un dispositivo a la vez** —Zoom expulsa al anterior si se usa dos veces—, y **reenviarlo no se puede impedir**: se acepta a conciencia (§5.2.15). Se puede entrar **desde que la clase se programa hasta que termina** | Alta |
 | `RN-AC-028` | **Administración gobierna todas las clases; el instructor, las de sus cursos** | Al listar, programar, corregir, cancelar e iniciar | Con los permisos de administración se gobierna **cualquier clase**, suelta o de cualquier curso. Con los permisos **propios** (`-own`), **solo las clases que cuelgan de un curso cuyo instructor es quien pregunta** (`RN-AC-006`): programar exige un curso suyo, y corregir, cancelar o iniciar una clase ajena responde **`404`**, como si no existiera. **Una clase suelta solo la gobierna administración.** Si el curso cambia de instructor, la clase pasa con él: la propiedad se lee del curso, no se guarda en la clase. **El instructor no cambia la clase de curso** a uno que no dicta | Alta |
-| `RN-AC-029` | **Lo cancelado y lo terminado no se corrigen, y cancelar no borra** | Al corregir, cancelar e iniciar | Una clase está **`PROGRAMADA`** o **`CANCELADA`**, y además **ha terminado** si su hora de fin ya pasó —se calcula, no se guarda—. **Solo una programada que no ha terminado se corrige, se cancela o se inicia**; lo demás es `409`. **Cancelar exige motivo**, borra la reunión en Zoom, **conserva la fila** con fecha y motivo, se audita y **no se deshace**: para repetirla se programa otra. **Se programa con día, hora de inicio y hora de fin** —por decisión del responsable del proyecto, el 09-10-2026—: el inicio **no en el pasado**, el fin **después del inicio**, y entre los dos **de 15 minutos a 10 horas**. Las horas llegan con su zona; sin zona, se entienden en `America/Bogota`, que es también la zona que se le da a Zoom | Alta |
+| `RN-AC-029` | **Lo cancelado y lo terminado no se corrigen, y cancelar no borra** | Al corregir, cancelar e iniciar | Una clase está **`PROGRAMADA`** o **`CANCELADA`**, y además **ha terminado** si su hora de fin —la de su última fecha, si se repite (`RN-AC-031`)— ya pasó —se calcula, no se guarda—. **Solo una programada que no ha terminado se corrige, se cancela o se inicia**; lo demás es `409`. **Cancelar exige motivo**, borra la reunión en Zoom, **conserva la fila** con fecha y motivo, se audita y **no se deshace**: para repetirla se programa otra. **Se programa con día, hora de inicio y hora de fin** —por decisión del responsable del proyecto, el 09-10-2026—: el inicio **no en el pasado**, el fin **después del inicio**, y entre los dos **de 15 minutos a 10 horas**. Las horas llegan con su zona; sin zona, se entienden en `America/Bogota`, que es también la zona que se le da a Zoom | Alta |
 | `RN-AC-030` | **El anfitrión entra por la plataforma** | Al iniciar una clase (`RF-AC-047`, `RF-AC-052`) | La reunión pertenece al **usuario anfitrión de la cuenta** (`ZOOM_HOST_USER`), y quien la dicta **pide el enlace de anfitrión a la plataforma**, que se lo pide a Zoom en ese momento —**caduca a las pocas horas** y por eso no se guarda—. Lo pide administración para cualquier clase o el instructor para las suyas (`RN-AC-028`). **Se audita** cada entrega, porque ese enlace da el control de la reunión | Alta |
+| `RN-AC-031` | **Una clase puede repetirse cada día, cada semana o cada mes, hasta una fecha** | Al programar y corregir (`RF-AC-055`), y en toda lectura | Una clase **sin repetición** es una sola fecha, como hasta ahora. **Con repetición** —`DAILY`, `WEEKLY` o `MONTHLY`— es **una serie de fechas a la misma hora**, de inicio a fin como la primera: **cada día**, **cada semana el mismo día de la semana** que la primera, o **cada mes el mismo día del mes** que la primera, **hasta la fecha `repeatUntil` incluida**, en `America/Bogota`. La serie tiene **de 2 a 60 fechas** —el máximo es el de Zoom—, y **la mensual no empieza después del día 28**, para que todos los meses tengan su fecha. **Es una sola clase y una sola reunión de Zoom**, recurrente con hora fija: el alumno **se registra una vez** y su enlace personal le sirve para todas las fechas (`RN-AC-027`). **Ha terminado** cuando termina **su última fecha**; hasta entonces se corrige, se cancela, se inicia y se entra como una clase sola. **Cancelar cancela la serie entera**: no se cancela una fecha suelta. Corregir la repetición o la fecha final **corrige la reunión de Zoom**; quitar la repetición deja solo la primera fecha. Las lecturas dan además **la fecha en curso o la siguiente** (`nextStartsAt`, `nextEndsAt`) | Alta |
 | `RN-AC-024` | **Cada uno ve el progreso que le toca, y fuera de su alcance no hay nada** | Al consultar el progreso de los alumnos (`RF-AC-040`, `RF-AC-041`) | **El alumno ve el suyo en el aula** (`RF-AC-033` a `RF-AC-035`), sin permiso de más. Con los permisos de consulta, una fila **alumno–curso** se ve si se cumple **una** de estas: quien pregunta tiene alcance **`EVERYTHING`** —un rol `FUNCIONARIO`—; el alumno está **dentro de su alcance comercial** —él mismo, su red de vendedores en profundidad o **un cliente de alguien de su red**— (`CommercialReach` y las personas del alcance, §3); o quien pregunta es **el instructor del curso** (`RN-AC-006`). **Las condiciones se suman**: un vendedor que además dicta un curso ve su red en todos los cursos y a todos los alumnos del suyo. **Fuera del alcance no hay error**: el listado devuelve página vacía y el detalle, `404` —nunca `403`, que diría que el alumno existe—, por lo mismo que `RN-MV-031` | Alta |
 
 ### 5.2 Decisiones que definen el módulo — 17-09-2026
@@ -365,6 +366,25 @@ El responsable del proyecto lo planteó el 08-10-2026 —clases en vivo solo par
 - **El alumno ve la vitrina**: las clases programadas que no han terminado, con `accessible` y el filtro `onlyAccessible`, como el catálogo (§5.2.13).
 - **Los permisos del alumno se siembran donde ya está `courses:learn`** —hoy `SUPERADMIN` y `ADMIN`—, como `V47`; **a `CLIENTE` no**, y por tanto **un alumno real no ve las clases hasta que se le concedan por roles**, el mismo hueco que el aula tiene desde el 26-09-2026.
 
+#### 5.2.16 Las clases en vivo que se repiten — 13-10-2026
+
+El responsable del proyecto preguntó el 13-10-2026 si las reuniones se podían programar «diarias, semanales, mensuales, anuales o según X días», y lo acotó enseguida: «solo quiero marcar que la reunión sea cada día de tal a tal hora, semanal o mensual». Respondió así:
+
+| Pregunta | Decisión | Descartado |
+|---|---|---|
+| **¿Cómo se repite?** | **Una sola clase con una sola reunión recurrente de Zoom**, a hora fija (`RN-AC-031`) | *Una clase por fecha, armada por la plataforma* — admitía anual y cualquier intervalo, a cambio de un enlace por fecha y un registro por fecha; el responsable prefirió marcar la repetición |
+| **¿Cómo termina?** | **Con una fecha hasta**, y Zoom no admite más de 60 fechas | *Un número de veces*; *siempre el máximo* |
+| **¿Qué días la semanal?** | **El día de la semana del inicio** | *Elegir varios días* |
+| **¿Cómo la mensual?** | **El mismo día del mes** | *La misma semana y día* («el segundo martes») |
+
+**Lo que se decidió aquí sin preguntar, y por qué** — abierto a revisión:
+
+- **La mensual no empieza después del día 28.** Un día 29, 30 o 31 no existe en todos los meses, y Zoom no dice qué hace con ellos; mejor un `400` que una fecha que se salta o se corre sin avisar.
+- **De 2 a 60 fechas.** Una «serie» de una fecha es una clase sola —se pide sin repetición—, y más de 60 Zoom no las admite: un `400` dice cuántas resultan.
+- **Anual y «cada X días» quedan fuera**: no se pidieron en la forma final, y Zoom no tiene anual.
+- **No se cancela ni se mueve una fecha suelta**: la serie es una clase, y cancelarla la cancela entera. Si hiciera falta, se corrige `repeatUntil` o se cancela y se programa otra.
+- **El filtro por fechas del listado** (`from`, `to`) trae una serie si **alguna de sus fechas puede caer en el rango**: empieza antes del final del rango y termina después de su principio. Una clase sola se filtra como hasta ahora, por su inicio.
+
 ### 5.3 Reglas de otros documentos que este módulo aplica
 
 | Regla | Dónde vive | Cómo la aplica este módulo |
@@ -439,8 +459,9 @@ El responsable del proyecto lo planteó el 08-10-2026 —clases en vivo solo par
 | `RF-AC-052` | Iniciar como anfitrión una clase en vivo de mi curso | En vivo | Media | `live-sessions:host-own` | **En desarrollo** (09-10-2026) |
 | `RF-AC-053` | Consultar las clases en vivo como alumno | En vivo | Alta | `live-sessions:learn` | **En desarrollo** (09-10-2026) |
 | `RF-AC-054` | Entrar a una clase en vivo | En vivo | Alta | `live-sessions:join` | **En desarrollo** (09-10-2026) |
+| `RF-AC-055` | Repetir una clase en vivo | En vivo | Media | Los de programar y corregir | **En desarrollo** (13-10-2026) |
 
-**Cincuenta y cuatro requerimientos** —treinta y cinco del 17-09-2026, `RF-AC-036` del 18 (§5.2.7), `RF-AC-037` y `RF-AC-038` del 25 (§5.2.8), `RF-AC-039` a `RF-AC-041` del 09-10-2026 (§5.2.14) y `RF-AC-042` a `RF-AC-054` del mismo día (§5.2.15)—, y la cifra merece una explicación: no es que el módulo sea grande, es que **cada entidad paga el mismo precio** —alta, corrección, estado, retiro— y **cada relación cobra dos** —dar y quitar—. Es la misma forma que `PM` con el producto y el paquete, y la razón de no juntar «asociar» y «desasociar» en un solo requerimiento es la de siempre: son dos operaciones con dos reglas distintas y dos auditorías distintas.
+**Cincuenta y cinco requerimientos** —treinta y cinco del 17-09-2026, `RF-AC-036` del 18 (§5.2.7), `RF-AC-037` y `RF-AC-038` del 25 (§5.2.8), `RF-AC-039` a `RF-AC-041` del 09-10-2026 (§5.2.14), `RF-AC-042` a `RF-AC-054` del mismo día (§5.2.15) y `RF-AC-055` del 13-10-2026 (§5.2.16)—, y la cifra merece una explicación: no es que el módulo sea grande, es que **cada entidad paga el mismo precio** —alta, corrección, estado, retiro— y **cada relación cobra dos** —dar y quitar—. Es la misma forma que `PM` con el producto y el paquete, y la razón de no juntar «asociar» y «desasociar» en un solo requerimiento es la de siempre: son dos operaciones con dos reglas distintas y dos auditorías distintas.
 
 **Los módulos, las lecciones y las cuatro relaciones se administran con `courses:update`** y no con un recurso propio (§7): son partes del curso, y quien puede corregir un curso puede armarlo.
 
@@ -1180,6 +1201,18 @@ Baja lógica con motivo y registro. No arrastra nada: no hay nada debajo.
 
 `POST /api/v1/live-sessions/available/{id}/registration`: comprueba que la clase está programada y no terminó —si no, `404`, como lo que no se ofrece— y **que se le abre** —si no, `403` con las membresías y los servicios que la abren, como una lección cerrada—; **lo registra en Zoom** con su nombre y su correo y devuelve `{ joinUrl, startsAt }`. **La segunda vez devuelve el mismo enlace sin llamar a Zoom** (`200` en vez de `201`). `503` si Zoom no responde, y entonces no queda registrado. **No se audita**: la fila de registro es el rastro.
 
+#### `RF-AC-055` — Repetir una clase en vivo
+
+| Campo | Valor |
+|---|---|
+| Objetivo | Que una clase se repita cada día, cada semana o cada mes a la misma hora, hasta una fecha |
+| Actor | Administrador; instructor sobre las de sus cursos |
+| Permiso requerido | Los de programar y corregir: `live-sessions:create`, `update`, `create-own`, `update-own` |
+| Reglas aplicables | `RN-AC-026`, `RN-AC-029`, `RN-AC-031` |
+| Estado | **En desarrollo** (13-10-2026) |
+
+**Sin ruta propia**: programar (`RF-AC-044`, `RF-AC-049`) y corregir (`RF-AC-045`, `RF-AC-050`) ganan `recurrence` —`DAILY`, `WEEKLY`, `MONTHLY`; al corregir, `NONE` la quita— y `repeatUntil`, el último día, obligatorio con la repetición. La reunión de Zoom pasa a **recurrente con hora fija**. Las lecturas (`RF-AC-042`, `RF-AC-043`, `RF-AC-048`, `RF-AC-053`) traen `recurrence`, `repeatUntil`, `nextStartsAt` y `nextEndsAt`; `ended` y la vitrina miran **la última fecha**, `inProgress` cualquiera de ellas, y entrar e iniciar (`RF-AC-047`, `RF-AC-052`, `RF-AC-054`) devuelven **la fecha en curso o la siguiente** en `startsAt` y `endsAt`.
+
 ---
 
 ## 7. Permisos
@@ -1372,10 +1405,13 @@ Clave primaria compuesta. **La clave foránea a `memberships` se declara** hacia
 | `status` | `varchar(20)` | No | `PROGRAMADA` \| `CANCELADA` |
 | `cancelled_at` | `timestamptz` | **Sí** | `RN-AC-029` |
 | `cancellation_reason` | `varchar(500)` | **Sí** | Obligatorio si está cancelada |
+| `recurrence` | `varchar(10)` | **Sí** | `RN-AC-031` (13-10-2026, `V102`): `DAILY` \| `WEEKLY` \| `MONTHLY`; nula, una sola fecha |
+| `repeat_until` | `date` | **Sí** | `RN-AC-031`: el último día de la serie, en `America/Bogota`; nula si y solo si `recurrence` lo es |
+| `series_ends_at` | `timestamptz` | No | `RN-AC-031`: el fin de la última fecha —igual a `ends_at` sin repetición—; con él se calcula si terminó |
 | `created_by` | `uuid` | No | `users` — quién la programó |
 | `created_at`, `updated_at` | `timestamptz` | No | — |
 
-**Sin `deleted_at`**: cancelar es el retiro de una clase, y conserva la fila con su motivo. **Sin enlace ni contraseña** (`RN-AC-026`). **«Terminada» no es un estado**: se calcula con `ends_at`. **Inicio y fin, y no inicio y duración**, por decisión del responsable del proyecto: es como se programa una clase en un calendario, y la duración que pide Zoom sale de las dos.
+**Sin `deleted_at`**: cancelar es el retiro de una clase, y conserva la fila con su motivo. **Sin enlace ni contraseña** (`RN-AC-026`). **«Terminada» no es un estado**: se calcula con `series_ends_at`. **Inicio y fin, y no inicio y duración**, por decisión del responsable del proyecto: es como se programa una clase en un calendario, y la duración que pide Zoom sale de las dos.
 
 ### 8.11 `live_session_memberships` y 8.12 `live_session_products` — 09-10-2026
 
@@ -1492,3 +1528,4 @@ Clave primaria compuesta. **La clave foránea a `memberships` se declara** hacia
 | 0.23.0 | 09-10-2026 | **Las clases en vivo por Zoom entran al módulo**, por decisión del responsable del proyecto (§5.2.15): «integrarnos con Zoom, para que desde esta plataforma crear las reuniones y que solo los que tienen el acceso a dicho evento puedan verlo». **Seis reglas** —`RN-AC-025` (la clase declara su propia lista, como el curso), `RN-AC-026` (la plataforma crea la reunión con registro obligatorio y el enlace general no sale), `RN-AC-027` (entrar es registrarse y cada uno recibe su enlace), `RN-AC-028` (administración todas; el instructor, las de sus cursos), `RN-AC-029` (lo cancelado y lo terminado no se corrigen) y `RN-AC-030` (el anfitrión entra por la plataforma)—, **trece requerimientos** en `Pendiente` (`RF-AC-042` a `RF-AC-054`), **trece permisos** `live-sessions:`, **cuatro tablas** (§8.10 a §8.13) y el submódulo **En vivo**. §1.3 deja fuera la grabación y los recordatorios; §3 gana la API de Zoom; §4, al instructor que administra. **Pendiente de revisión**: lo decidido sin preguntar en §5.2.15. | Responsable técnico |
 | 0.23.1 | 09-10-2026 | **La clase en vivo se programa con día, hora de inicio y hora de fin**, y no con inicio y duración, por decisión del responsable del proyecto: `live_sessions.ends_at` sustituye a `duration_minutes`, de 15 minutos a 10 horas, y la zona por omisión es `America/Bogota` (`RN-AC-029`). **Aprobado el bloque** con lo decidido sin preguntar en §5.2.15. | Responsable técnico |
 | 0.24.0 | 09-10-2026 | **Las clases en vivo están construidas**: `RF-AC-042` a `RF-AC-054` pasan a `En desarrollo`, con `V94` (cuatro tablas, trece permisos —catálogo 232, `ADMIN` 230— y el evento de seguridad `LIVE_SESSION_HOST_LINK_ISSUED`), el cliente de Zoom en `shared/zoom` y `SP` publicando `UserContactLookup` para registrar a quien entra. Ninguna prueba llama a Zoom. | Responsable técnico |
+| 0.25.0 | 13-10-2026 | **Las clases en vivo se repiten** (§5.2.16), a petición del responsable del proyecto: «marcar que la reunión sea cada día de tal a tal hora, semanal o mensual». Nace **`RN-AC-031`** —una clase, una reunión recurrente de Zoom con hora fija, cada día, cada semana el mismo día o cada mes el mismo día del mes, hasta `repeatUntil`, de 2 a 60 fechas, la mensual no después del día 28; termina con su última fecha y se cancela entera— y **`RF-AC-055`**, sin ruta propia: los campos `recurrence` y `repeatUntil` en programar y corregir, y `nextStartsAt` y `nextEndsAt` en las lecturas. `RN-AC-029` calcula «terminada» con la última fecha. §8.10 gana `recurrence`, `repeat_until` y `series_ends_at` (`V102`). | Responsable técnico |

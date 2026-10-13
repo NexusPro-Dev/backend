@@ -31,8 +31,10 @@ import org.springframework.web.util.UriComponentsBuilder;
  *       credenciales en {@code Authorization: Basic}. Dura una hora; <b>se reutiliza hasta un
  *       minuto antes de caducar</b>, y un {@code 401} de Zoom lo descarta y se reintenta una vez.
  *   <li><b>Crear</b>: {@code POST {api}/users/{anfitrión}/meetings}, reunión programada ({@code
- *       type 2}) en la zona de la plataforma, con {@code registration_type 1}, {@code approval_type
- *       0}, sin entrar antes que el anfitrión y <b>sin los correos de Zoom</b> a los registrados.
+ *       type 2}) —o recurrente con hora fija ({@code type 8}) con su {@code recurrence} y el número
+ *       de fechas en {@code end_times}, si se repite (`RN-AC-031`)— en la zona de la plataforma,
+ *       con {@code registration_type 1}, {@code approval_type 0}, sin entrar antes que el anfitrión
+ *       y <b>sin los correos de Zoom</b> a los registrados.
  *   <li><b>Corregir</b>: {@code PATCH {api}/meetings/{id}}. <b>Borrar</b>: {@code DELETE
  *       {api}/meetings/{id}}; un {@code 404} es una reunión que ya no está, y no es un fallo.
  *   <li><b>Registrar</b>: {@code POST {api}/meetings/{id}/registrants} con correo y nombre, que
@@ -82,7 +84,6 @@ public class ZoomApiClient implements ZoomMeetings {
     ajustesDeReunion.put("waiting_room", false);
     ajustesDeReunion.put("registrants_email_notification", false);
     ajustesDeReunion.put("registrants_confirmation_email", false);
-    cuerpo.put("type", 2);
     cuerpo.put("settings", ajustesDeReunion);
     JsonNode creada =
         llamar(
@@ -187,6 +188,30 @@ public class ZoomApiClient implements ZoomMeetings {
     cuerpo.put("start_time", reunion.startsAt().atZoneSameInstant(ajustes.zona()).format(LOCAL));
     cuerpo.put("timezone", ajustes.timeZone());
     cuerpo.put("duration", reunion.durationMinutes());
+    // El tipo va siempre, también al corregir: quitar la repetición devuelve la reunión al 2.
+    Repeat repeticion = reunion.repeat();
+    if (repeticion == null) {
+      cuerpo.put("type", 2);
+    } else {
+      Map<String, Object> recurrencia = new LinkedHashMap<>();
+      recurrencia.put(
+          "type",
+          switch (repeticion.frequency()) {
+            case DAILY -> 1;
+            case WEEKLY -> 2;
+            case MONTHLY -> 3;
+          });
+      recurrencia.put("repeat_interval", 1);
+      if (repeticion.frequency() == Frequency.WEEKLY) {
+        // Zoom cuenta los días desde el domingo: 1 domingo … 7 sábado.
+        recurrencia.put("weekly_days", String.valueOf(repeticion.dayOfWeek().getValue() % 7 + 1));
+      } else if (repeticion.frequency() == Frequency.MONTHLY) {
+        recurrencia.put("monthly_day", repeticion.dayOfMonth());
+      }
+      recurrencia.put("end_times", repeticion.times());
+      cuerpo.put("type", 8);
+      cuerpo.put("recurrence", recurrencia);
+    }
     return cuerpo;
   }
 

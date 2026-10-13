@@ -1,6 +1,7 @@
 package com.factech.nexus.modules.academy.domain.service;
 
 import com.factech.nexus.modules.academy.application.LiveSessionResponses.HostLink;
+import com.factech.nexus.modules.academy.domain.models.LiveSessionSeries.Occurrence;
 import com.factech.nexus.modules.academy.domain.repository.LiveSessionQueryRepository;
 import com.factech.nexus.modules.academy.domain.repository.LiveSessionQueryRepository.LiveSessionRow;
 import com.factech.nexus.shared.audit.AuditEnums.Outcome;
@@ -68,6 +69,8 @@ public class HostLiveSessionService {
             Outcome.SUCCESS,
             null,
             detalle));
-    return new HostLink(enlace, clase.startsAt(), clase.endsAt());
+    // La fecha en curso o la siguiente: existe, porque la clase no ha terminado (`RN-AC-031`).
+    Occurrence fecha = apoyo.siguiente(clase.serie(), clase.status());
+    return new HostLink(enlace, fecha.startsAt(), fecha.endsAt());
   }
 }

@@ -76,7 +76,12 @@ public class ListLiveSessionsService {
         total == 0
             ? List.of()
             : consultas.search(filtro, trozo.offset(), trozo.size()).stream()
-                .map(fila -> Item.from(fila, !ahora.isBefore(fila.endsAt().toInstant())))
+                .map(
+                    fila ->
+                        Item.from(
+                            fila,
+                            !ahora.isBefore(fila.seriesEndsAt().toInstant()),
+                            apoyo.siguiente(fila.serie(), fila.status())))
                 .toList();
     return PageResponse.de(pagina, total, trozo.page(), trozo.size());
   }

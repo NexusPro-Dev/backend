@@ -5248,8 +5248,9 @@ paths:
 
         **Todas las clases**, también las canceladas y las terminadas, por inicio
         descendente y paginadas. Filtros: `courseId`, `status` (`PROGRAMADA` o
-        `CANCELADA`), `ended` —calculado con la hora de fin— y el periodo de inicio
-        `from`/`to` (semiabierto). Cada fila trae cuántas membresías y servicios la abren y
+        `CANCELADA`), `ended` —calculado con la hora de fin de la última fecha— y el periodo
+        de inicio `from`/`to` (semiabierto); **una clase que se repite** entra si alguna de
+        sus fechas puede caer en él: empieza antes de `to` y termina después de `from`. Cada fila trae cuántas membresías y servicios la abren y
         **cuántos se registraron**.
 
         Exige `live-sessions:list`.
@@ -5340,6 +5341,12 @@ paths:
         **De Zoom solo se guarda el identificador de la reunión**; el enlace general y la contraseña
         no salen nunca. Si Zoom no está configurado, falla o no responde, `503` y nada cambia.
 
+        **Se repite** con `recurrence` —`DAILY`; `WEEKLY`, el día de la semana del inicio; o
+        `MONTHLY`, el día del mes del inicio, no después del 28— y `repeatUntil`, el último día,
+        obligatorio con ella: **una sola clase y una sola reunión recurrente de Zoom** a la misma
+        hora, de 2 a 60 fechas (`RN-AC-031`). Al corregir, `NONE` quita la repetición y deja la
+        primera fecha. La clase termina con **su última fecha**.
+
         Exige `live-sessions:create`.
       operationId: programar
       requestBody:
@@ -5384,8 +5391,8 @@ paths:
 
         **El enlace de inicio de Zoom**, pedido en el momento: abre la reunión **como
         anfitrión** con la cuenta del negocio. **Caduca a las pocas horas y no se guarda**;
-        cada entrega queda en la auditoría de seguridad. `409` si la clase está cancelada o
-        terminó.
+        cada entrega queda en la auditoría de seguridad. `startsAt` y `endsAt` son los de la
+        fecha en curso o la siguiente. `409` si la clase está cancelada o terminó.
 
         Exige `live-sessions:host`.
       operationId: anfitrion
@@ -5558,6 +5565,12 @@ paths:
         **De Zoom solo se guarda el identificador de la reunión**; el enlace general y la contraseña
         no salen nunca. Si Zoom no está configurado, falla o no responde, `503` y nada cambia.
 
+        **Se repite** con `recurrence` —`DAILY`; `WEEKLY`, el día de la semana del inicio; o
+        `MONTHLY`, el día del mes del inicio, no después del 28— y `repeatUntil`, el último día,
+        obligatorio con ella: **una sola clase y una sola reunión recurrente de Zoom** a la misma
+        hora, de 2 a 60 fechas (`RN-AC-031`). Al corregir, `NONE` quita la repetición y deja la
+        primera fecha. La clase termina con **su última fecha**.
+
         Exige `live-sessions:create-own`.
       operationId: programarPropia
       requestBody:
@@ -5645,7 +5658,8 @@ paths:
         quien pide, la plataforma lo registra en Zoom con su nombre y su correo y devuelve
         **su enlace personal** (`201`). **La segunda vez devuelve el mismo enlace sin llamar a
         Zoom** (`200`). El acceso se comprueba en cada petición. El enlace sirve a un
-        dispositivo a la vez y **no se debe compartir**.
+        dispositivo a la vez y **no se debe compartir**; en una clase que se repite, sirve para
+        todas sus fechas, y `startsAt` y `endsAt` son los de la fecha en curso o la siguiente.
 
         Una clase cancelada, terminada o inexistente responde `404`; una que no se le abre,
         `403` con `EX-002` y los miembros `memberships` y `products`: lo que la abre.
@@ -10616,7 +10630,9 @@ paths:
 
         La clase con su curso, **sus membresías y servicios**, el identificador de la
         reunión de Zoom —**sin enlace ni contraseña**—, la cancelación si la hay y **quién se
-        registró para entrar**, con su fecha. `ended` dice si su hora de fin ya pasó.
+        registró para entrar**, con su fecha. `ended` dice si terminó su última fecha;
+        `recurrence` y `repeatUntil`, cómo se repite; y `nextStartsAt`/`nextEndsAt`, la fecha
+        en curso o la siguiente.
 
         Exige `live-sessions:read`.
       operationId: detalle_5
@@ -10658,6 +10674,12 @@ paths:
         recibe su enlace personal al pulsar «Entrar» (`POST /live-sessions/available/{id}/registration`).
         **De Zoom solo se guarda el identificador de la reunión**; el enlace general y la contraseña
         no salen nunca. Si Zoom no está configurado, falla o no responde, `503` y nada cambia.
+
+        **Se repite** con `recurrence` —`DAILY`; `WEEKLY`, el día de la semana del inicio; o
+        `MONTHLY`, el día del mes del inicio, no después del 28— y `repeatUntil`, el último día,
+        obligatorio con ella: **una sola clase y una sola reunión recurrente de Zoom** a la misma
+        hora, de 2 a 60 fechas (`RN-AC-031`). Al corregir, `NONE` quita la repetición y deja la
+        primera fecha. La clase termina con **su última fecha**.
 
         Exige `live-sessions:update`.
       operationId: corregir_5
@@ -14104,10 +14126,12 @@ paths:
       description: |
         **Permiso requerido:** `live-sessions:learn`. Sin él, `403` (`AUTH-002`).
 
-        **Las clases programadas que no han terminado**, por inicio, sin paginar. Cada una
+        **Las clases programadas que no han terminado** —las que se repiten, hasta su última
+        fecha—, por la fecha en curso o la siguiente (`nextStartsAt`), sin paginar. Cada una
         dice **`accessible`** —se le abre porque su membresía o uno de sus servicios
         vigentes está en la lista, o porque la clase no declara ninguno—, **`registered`**
-        si ya pidió entrar, `inProgress` si ya empezó, y **las membresías y servicios que la
+        si ya pidió entrar, `inProgress` si alguna de sus fechas está en curso, y **las
+        membresías y servicios que la
         abren**, que es la invitación. `onlyAccessible=true` deja solo las suyas; `courseId`
         acota a un curso. **Nada de Zoom**: el enlace se pide al entrar.
 
@@ -19867,6 +19891,15 @@ components:
         endsAt:
           type: string
           description: "Día y hora de fin, de 15 minutos a 10 horas después del inicio."
+        recurrence:
+          type: string
+          description: "DAILY, WEEKLY (el día de la semana del inicio) o MONTHLY (el\
+            \ día del mes del inicio, no después del 28); ausente, una sola fecha\
+            \ (RN-AC-031)."
+        repeatUntil:
+          type: string
+          description: "El último día de la serie, incluido, como 2026-12-31: obligatorio\
+            \ con recurrence; de 2 a 60 fechas."
         membershipIds:
           type: array
           items:
@@ -19903,12 +19936,29 @@ components:
         endsAt:
           type: string
           format: date-time
+        recurrence:
+          type: string
+          description: "DAILY, WEEKLY o MONTHLY; nula si no se repite (RN-AC-031)."
+        repeatUntil:
+          type: string
+          format: date
+          description: "El último día de la serie, incluido; nulo si no se repite."
+        nextStartsAt:
+          type: string
+          format: date-time
+          description: Inicio de la fecha en curso o la siguiente; nulo si terminó
+            o se canceló.
+        nextEndsAt:
+          type: string
+          format: date-time
+          description: Fin de la fecha en curso o la siguiente; nulo si terminó o
+            se canceló.
         status:
           type: string
           description: PROGRAMADA o CANCELADA.
         ended:
           type: boolean
-          description: Su hora de fin ya pasó.
+          description: Terminó su última fecha.
         cancelledAt:
           type: string
           format: date-time
@@ -21344,6 +21394,12 @@ components:
           type: string
         endsAt:
           type: string
+        recurrence:
+          type: string
+          description: "DAILY, WEEKLY, MONTHLY, o NONE para quitar la repetición."
+        repeatUntil:
+          type: string
+          description: "El último día de la serie, incluido, como 2026-12-31."
         membershipIds:
           type: array
           items:
@@ -23073,10 +23129,28 @@ components:
         endsAt:
           type: string
           format: date-time
+        recurrence:
+          type: string
+          description: "DAILY, WEEKLY o MONTHLY; nula si no se repite (RN-AC-031)."
+        repeatUntil:
+          type: string
+          format: date
+          description: "El último día de la serie, incluido; nulo si no se repite."
+        nextStartsAt:
+          type: string
+          format: date-time
+          description: Inicio de la fecha en curso o la siguiente; nulo si terminó
+            o se canceló.
+        nextEndsAt:
+          type: string
+          format: date-time
+          description: Fin de la fecha en curso o la siguiente; nulo si terminó o
+            se canceló.
         status:
           type: string
         ended:
           type: boolean
+          description: Terminó su última fecha.
         membershipCount:
           type: integer
           format: int64
@@ -23125,9 +23199,26 @@ components:
         endsAt:
           type: string
           format: date-time
+        recurrence:
+          type: string
+          description: "DAILY, WEEKLY o MONTHLY; nula si no se repite (RN-AC-031)."
+        repeatUntil:
+          type: string
+          format: date
+          description: "El último día de la serie, incluido; nulo si no se repite."
+        nextStartsAt:
+          type: string
+          format: date-time
+          description: Inicio de la fecha en curso o la siguiente; nulo si terminó
+            o se canceló.
+        nextEndsAt:
+          type: string
+          format: date-time
+          description: Fin de la fecha en curso o la siguiente; nulo si terminó o
+            se canceló.
         inProgress:
           type: boolean
-          description: Ya empezó y no ha terminado.
+          description: Alguna de sus fechas ya empezó y no ha terminado.
         accessible:
           type: boolean
           description: Se le abre a quien pregunta.

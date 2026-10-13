@@ -1,5 +1,6 @@
 package com.factech.nexus.modules.academy.domain.repository;
 
+import java.time.LocalDate;
 import java.time.OffsetDateTime;
 import java.util.Collection;
 import java.util.Optional;
@@ -20,7 +21,10 @@ public interface LiveSessionRepository {
       String description,
       UUID courseId,
       OffsetDateTime startsAt,
-      OffsetDateTime endsAt);
+      OffsetDateTime endsAt,
+      String recurrence,
+      LocalDate repeatUntil,
+      OffsetDateTime seriesEndsAt);
 
   void cancel(UUID id, String reason, OffsetDateTime at);
 
@@ -35,7 +39,10 @@ public interface LiveSessionRepository {
   /** La clase con su fila bloqueada, para corregir, cancelar, iniciar o registrar. */
   Optional<LiveSessionQueryRepository.LiveSessionRow> findForUpdate(UUID id);
 
-  /** Lo que se inserta al programar. */
+  /**
+   * Lo que se inserta al programar. {@code recurrence} y {@code repeatUntil} nulos, una sola fecha;
+   * {@code seriesEndsAt}, el fin de la última (`RN-AC-031`).
+   */
   record NewLiveSession(
       UUID id,
       UUID courseId,
@@ -43,6 +50,9 @@ public interface LiveSessionRepository {
       String description,
       OffsetDateTime startsAt,
       OffsetDateTime endsAt,
+      String recurrence,
+      LocalDate repeatUntil,
+      OffsetDateTime seriesEndsAt,
       long zoomMeetingId,
       UUID createdBy) {}
 }

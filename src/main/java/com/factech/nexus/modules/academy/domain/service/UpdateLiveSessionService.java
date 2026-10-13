@@ -3,6 +3,8 @@ package com.factech.nexus.modules.academy.domain.service;
 import com.factech.nexus.modules.academy.application.LiveSessionDetailResponse;
 import com.factech.nexus.modules.academy.application.LiveSessionRequests.Update;
 import com.factech.nexus.modules.academy.domain.models.LiveSessionSchedule;
+import com.factech.nexus.modules.academy.domain.models.LiveSessionSeries;
+import com.factech.nexus.modules.academy.domain.models.LiveSessionSeries.Recurrence;
 import com.factech.nexus.modules.academy.domain.repository.CourseQueryRepository.CourseRow;
 import com.factech.nexus.modules.academy.domain.repository.CourseQueryRepository.MembershipRef;
 import com.factech.nexus.modules.academy.domain.repository.CourseQueryRepository.ProductRef;
@@ -14,7 +16,7 @@ import com.factech.nexus.shared.audit.AuditEvents.ChangeEvent;
 import com.factech.nexus.shared.audit.AuditWriter;
 import com.factech.nexus.shared.error.FieldError;
 import com.factech.nexus.shared.zoom.ZoomMeetings;
-import com.factech.nexus.shared.zoom.ZoomMeetings.MeetingSpec;
+import java.time.LocalDate;
 import java.time.OffsetDateTime;
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
@@ -32,9 +34,9 @@ import org.springframework.transaction.annotation.Transactional;
  * Casos de uso `RF-AC-045` y `RF-AC-050`: corregir una clase en vivo.
  *
  * <p><b>Solo lo que viene</b>; las listas, si vienen, reemplazan enteras. <b>Zoom primero</b>, con
- * la fila bloqueada, y solo si cambió algo que Zoom conoce —título, inicio o fin—: si falla, {@code
- * 503} y nada cambia (`RN-AC-026`). Quitar a alguien de la lista no lo des-registra en Zoom
- * (`RN-AC-027`).
+ * la fila bloqueada, y solo si cambió algo que Zoom conoce —título, inicio, fin o la repetición
+ * (`RF-AC-055`)—: si falla, {@code 503} y nada cambia (`RN-AC-026`). Quitar a alguien de la lista
+ * no lo des-registra en Zoom (`RN-AC-027`).
  */
 @Service
 public class UpdateLiveSessionService {
@@ -76,7 +78,9 @@ public class UpdateLiveSessionService {
     }
     apoyo.exigirModificable(antes, "EX-003");
     Update cambios =
-        peticion == null ? new Update(null, null, null, null, null, null, null, null) : peticion;
+        peticion == null
+            ? new Update(null, null, null, null, null, null, null, null, null, null)
+            : peticion;
 
     List<FieldError> problemas = new ArrayList<>();
     String titulo = antes.title();
@@ -99,6 +103,34 @@ public class UpdateLiveSessionService {
     boolean cambiaHorario = cambios.startsAt() != null || cambios.endsAt() != null;
     if (cambiaHorario) {
       LiveSessionSchedule.comprobar(inicio, fin, apoyo.ahora(), problemas);
+    }
+    // `RN-AC-031`: la repetición, solo si viene; NONE la quita y con ella la fecha final.
+    Recurrence frecuenciaAntes = antes.serie().recurrence();
+    Recurrence frecuencia = frecuenciaAntes;
+    int antesDeLaFrecuencia = problemas.size();
+    if (cambios.recurrence() != null) {
+      frecuencia =
+          LiveSessionSeries.leerFrecuencia(cambios.recurrence(), true, problemas).orElse(null);
+    }
+    boolean frecuenciaIlegible = problemas.size() > antesDeLaFrecuencia;
+    LocalDate hasta = frecuencia == null ? null : antes.repeatUntil();
+    boolean hastaIlegible = false;
+    if (cambios.repeatUntil() != null) {
+      hasta = LiveSessionSeries.leerHasta(cambios.repeatUntil(), problemas);
+      hastaIlegible = hasta == null && !cambios.repeatUntil().isBlank();
+    }
+    boolean cambiaSerie =
+        cambiaHorario || cambios.recurrence() != null || cambios.repeatUntil() != null;
+    if (cambiaSerie && !frecuenciaIlegible) {
+      LiveSessionSeries.comprobar(
+          inicio,
+          fin,
+          frecuencia,
+          hasta,
+          hastaIlegible,
+          apoyo.zoom().zona(),
+          apoyo.ahora(),
+          problemas);
     }
     LiveSessionSupport.lanzarSiHay(problemas);
 
@@ -132,23 +164,30 @@ public class UpdateLiveSessionService {
             ? antes.description()
             : ScheduleLiveSessionService.vacioANulo(cambios.description());
 
+    LiveSessionSeries serie = new LiveSessionSeries(inicio, fin, frecuencia, hasta);
     boolean zoomCambia =
         !titulo.equals(antes.title())
             || !inicio.isEqual(antes.startsAt())
-            || !fin.isEqual(antes.endsAt());
+            || !fin.isEqual(antes.endsAt())
+            || frecuencia != frecuenciaAntes
+            || !Objects.equals(hasta, antes.repeatUntil());
     if (zoomCambia) {
       String tituloFinal = titulo;
-      OffsetDateTime inicioFinal = inicio;
-      int minutos = new LiveSessionSchedule(inicio, fin).minutos();
       LiveSessionSupport.conZoom(
           "EX-004",
-          () ->
-              zoom.update(
-                  antes.zoomMeetingId(),
-                  new MeetingSpec(tituloFinal, descripcion, inicioFinal, minutos)));
+          () -> zoom.update(antes.zoomMeetingId(), apoyo.reunion(tituloFinal, descripcion, serie)));
     }
 
-    escrituras.update(id, titulo, descripcion, cursoId, inicio, fin);
+    escrituras.update(
+        id,
+        titulo,
+        descripcion,
+        cursoId,
+        inicio,
+        fin,
+        frecuencia == null ? null : frecuencia.name(),
+        hasta,
+        serie.finDeLaSerie(apoyo.zoom().zona()));
     if (cambios.membershipIds() != null) {
       escrituras.replaceMemberships(id, membresias);
     }

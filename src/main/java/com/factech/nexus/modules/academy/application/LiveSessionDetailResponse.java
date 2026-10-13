@@ -2,19 +2,21 @@ package com.factech.nexus.modules.academy.application;
 
 import com.factech.nexus.modules.academy.application.CourseDetailResponse.CourseMembershipRef;
 import com.factech.nexus.modules.academy.application.CourseDetailResponse.CourseProductRef;
+import com.factech.nexus.modules.academy.domain.models.LiveSessionSeries.Occurrence;
 import com.factech.nexus.modules.academy.domain.repository.CourseQueryRepository.MembershipRef;
 import com.factech.nexus.modules.academy.domain.repository.CourseQueryRepository.ProductRef;
 import com.factech.nexus.modules.academy.domain.repository.LiveSessionQueryRepository.LiveSessionRow;
 import com.fasterxml.jackson.annotation.JsonInclude;
 import io.swagger.v3.oas.annotations.media.Schema;
+import java.time.LocalDate;
 import java.time.OffsetDateTime;
 import java.util.List;
 import java.util.UUID;
 
 /**
- * Una clase en vivo entera para administración y para el instructor (`RF-AC-043`): su acceso, su
- * reunión —<b>solo el identificador</b>, sin enlace ni contraseña (`RN-AC-026`)— y quién se
- * registró para entrar. Todo siempre presente.
+ * Una clase en vivo entera para administración y para el instructor (`RF-AC-043`): su repetición y
+ * su fecha siguiente (`RN-AC-031`), su acceso, su reunión —<b>solo el identificador</b>, sin enlace
+ * ni contraseña (`RN-AC-026`)— y quién se registró para entrar. Todo siempre presente.
  */
 @JsonInclude(JsonInclude.Include.ALWAYS)
 @Schema(name = "LiveSessionDetailResponse")
@@ -25,8 +27,18 @@ public record LiveSessionDetailResponse(
     LiveSessionCourseRef course,
     OffsetDateTime startsAt,
     OffsetDateTime endsAt,
+    @Schema(description = "DAILY, WEEKLY o MONTHLY; nula si no se repite (RN-AC-031).")
+        String recurrence,
+    @Schema(description = "El último día de la serie, incluido; nulo si no se repite.")
+        LocalDate repeatUntil,
+    @Schema(
+            description =
+                "Inicio de la fecha en curso o la siguiente; nulo si terminó o se canceló.")
+        OffsetDateTime nextStartsAt,
+    @Schema(description = "Fin de la fecha en curso o la siguiente; nulo si terminó o se canceló.")
+        OffsetDateTime nextEndsAt,
     @Schema(description = "PROGRAMADA o CANCELADA.") String status,
-    @Schema(description = "Su hora de fin ya pasó.") boolean ended,
+    @Schema(description = "Terminó su última fecha.") boolean ended,
     OffsetDateTime cancelledAt,
     String cancellationReason,
     @Schema(description = "El identificador de la reunión en Zoom; sin enlace ni contraseña.")
@@ -57,6 +69,7 @@ public record LiveSessionDetailResponse(
   public static LiveSessionDetailResponse from(
       LiveSessionRow fila,
       boolean terminada,
+      Occurrence siguiente,
       List<MembershipRef> membresias,
       List<ProductRef> servicios,
       List<LiveSessionRegistrationItem> registrados) {
@@ -67,6 +80,10 @@ public record LiveSessionDetailResponse(
         LiveSessionCourseRef.of(fila.courseId(), fila.courseTitle()),
         fila.startsAt(),
         fila.endsAt(),
+        fila.recurrence(),
+        fila.repeatUntil(),
+        siguiente == null ? null : siguiente.startsAt(),
+        siguiente == null ? null : siguiente.endsAt(),
         fila.status(),
         terminada,
         fila.cancelledAt(),

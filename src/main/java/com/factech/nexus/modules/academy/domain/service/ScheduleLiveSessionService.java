@@ -3,6 +3,8 @@ package com.factech.nexus.modules.academy.domain.service;
 import com.factech.nexus.modules.academy.application.LiveSessionDetailResponse;
 import com.factech.nexus.modules.academy.application.LiveSessionRequests.Schedule;
 import com.factech.nexus.modules.academy.domain.models.LiveSessionSchedule;
+import com.factech.nexus.modules.academy.domain.models.LiveSessionSeries;
+import com.factech.nexus.modules.academy.domain.models.LiveSessionSeries.Recurrence;
 import com.factech.nexus.modules.academy.domain.repository.CourseQueryRepository.CourseRow;
 import com.factech.nexus.modules.academy.domain.repository.LiveSessionQueryRepository;
 import com.factech.nexus.modules.academy.domain.repository.LiveSessionRepository;
@@ -12,7 +14,7 @@ import com.factech.nexus.shared.audit.AuditEvents.ChangeEvent;
 import com.factech.nexus.shared.audit.AuditWriter;
 import com.factech.nexus.shared.error.FieldError;
 import com.factech.nexus.shared.zoom.ZoomMeetings;
-import com.factech.nexus.shared.zoom.ZoomMeetings.MeetingSpec;
+import java.time.LocalDate;
 import java.time.OffsetDateTime;
 import java.util.ArrayList;
 import java.util.List;
@@ -24,7 +26,8 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.support.TransactionTemplate;
 
 /**
- * Casos de uso `RF-AC-044` y `RF-AC-049`: programar una clase en vivo y crear su reunión.
+ * Casos de uso `RF-AC-044` y `RF-AC-049`: programar una clase en vivo y crear su reunión, que se
+ * repite si trae `recurrence` (`RF-AC-055`, `RN-AC-031`).
  *
  * <p><b>Validar todo, crear la reunión y escribir</b> (`RN-AC-026`): la llamada a Zoom va
  * <b>fuera</b> de la transacción —no se espera a un tercero con una conexión de base abierta— y la
@@ -90,18 +93,37 @@ public class ScheduleLiveSessionService {
         LiveSessionSchedule.leer(
             peticion == null ? null : peticion.endsAt(), "endsAt", apoyo.zoom().zona(), problemas);
     LiveSessionSchedule.comprobar(inicio, fin, apoyo.ahora(), problemas);
+    int antesDeLaFrecuencia = problemas.size();
+    Recurrence frecuencia =
+        LiveSessionSeries.leerFrecuencia(
+                peticion == null ? null : peticion.recurrence(), false, problemas)
+            .orElse(null);
+    boolean frecuenciaIlegible = problemas.size() > antesDeLaFrecuencia;
+    String hastaTexto = peticion == null ? null : peticion.repeatUntil();
+    LocalDate hasta = LiveSessionSeries.leerHasta(hastaTexto, problemas);
+    boolean hastaIlegible = hasta == null && hastaTexto != null && !hastaTexto.isBlank();
+    if (!frecuenciaIlegible) {
+      LiveSessionSeries.comprobar(
+          inicio,
+          fin,
+          frecuencia,
+          hasta,
+          hastaIlegible,
+          apoyo.zoom().zona(),
+          apoyo.ahora(),
+          problemas);
+    }
     LiveSessionSupport.lanzarSiHay(problemas);
 
     CourseRow curso = apoyo.curso(peticion.courseId(), instructor);
     Set<UUID> membresias = apoyo.membresias(peticion.membershipIds());
     Set<UUID> servicios = apoyo.servicios(peticion.productIds());
     String descripcion = vacioANulo(peticion.description());
-    LiveSessionSchedule horario = new LiveSessionSchedule(inicio, fin);
+    LiveSessionSeries serie = new LiveSessionSeries(inicio, fin, frecuencia, hasta);
 
     long reunion =
         LiveSessionSupport.conZoom(
-            "EX-003",
-            () -> zoom.create(new MeetingSpec(titulo, descripcion, inicio, horario.minutos())));
+            "EX-003", () -> zoom.create(apoyo.reunion(titulo, descripcion, serie)));
 
     UUID id = UUID.randomUUID();
     try {
@@ -115,6 +137,9 @@ public class ScheduleLiveSessionService {
                     descripcion,
                     inicio,
                     fin,
+                    frecuencia == null ? null : frecuencia.name(),
+                    frecuencia == null ? null : hasta,
+                    serie.finDeLaSerie(apoyo.zoom().zona()),
                     reunion,
                     autor));
             escrituras.replaceMemberships(id, membresias);

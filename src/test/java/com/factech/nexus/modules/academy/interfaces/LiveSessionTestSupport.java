@@ -57,16 +57,56 @@ final class LiveSessionTestSupport {
       JdbcTemplate jdbc, UUID curso, UUID autor, int desdeMinutos, int hastaMinutos, long reunion) {
     UUID id = UUID.randomUUID();
     jdbc.update(
-        "INSERT INTO live_sessions (id, course_id, title, starts_at, ends_at, zoom_meeting_id,"
-            + " created_by) VALUES (?, ?, 'Directa', now() + make_interval(mins => ?),"
+        "INSERT INTO live_sessions (id, course_id, title, starts_at, ends_at, series_ends_at,"
+            + " zoom_meeting_id, created_by) VALUES (?, ?, 'Directa',"
+            + " now() + make_interval(mins => ?), now() + make_interval(mins => ?),"
             + " now() + make_interval(mins => ?), ?, ?)",
         id,
         curso,
         desdeMinutos,
         hastaMinutos,
+        hastaMinutos,
         reunion,
         autor);
     return id;
+  }
+
+  /**
+   * Una serie diaria escrita directo (`RN-AC-031`): la fecha de <b>hoy</b> va de {@code
+   * desdeMinutos} a {@code hastaMinutos} desde ahora, la primera fue hace {@code diasAtras} días y
+   * la última es dentro de {@code diasAdelante} —negativo, una serie ya terminada—.
+   */
+  static UUID serieDiaria(
+      JdbcTemplate jdbc,
+      UUID autor,
+      int desdeMinutos,
+      int hastaMinutos,
+      int diasAtras,
+      int diasAdelante,
+      long reunion) {
+    UUID id = UUID.randomUUID();
+    OffsetDateTime ahora =
+        OffsetDateTime.now(ZoneOffset.ofHours(-5))
+            .truncatedTo(java.time.temporal.ChronoUnit.SECONDS);
+    OffsetDateTime hoyInicio = ahora.plusMinutes(desdeMinutos);
+    OffsetDateTime hoyFin = ahora.plusMinutes(hastaMinutos);
+    jdbc.update(
+        "INSERT INTO live_sessions (id, title, starts_at, ends_at, recurrence, repeat_until,"
+            + " series_ends_at, zoom_meeting_id, created_by)"
+            + " VALUES (?, 'Serie', ?, ?, 'DAILY', ?, ?, ?, ?)",
+        id,
+        hoyInicio.minusDays(diasAtras),
+        hoyFin.minusDays(diasAtras),
+        hoyInicio.plusDays(diasAdelante).toLocalDate(),
+        hoyFin.plusDays(diasAdelante),
+        reunion,
+        autor);
+    return id;
+  }
+
+  /** La fecha de una respuesta, para comparar el instante sin mirar el formato. */
+  static OffsetDateTime instante(String respuesta, String camino) {
+    return OffsetDateTime.parse(com.jayway.jsonpath.JsonPath.read(respuesta, camino));
   }
 
   static void abrirAMembresia(JdbcTemplate jdbc, UUID clase, UUID membresia) {

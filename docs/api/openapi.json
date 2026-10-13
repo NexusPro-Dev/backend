@@ -384,7 +384,7 @@
             "type" : "string"
           },
           "inProgress" : {
-            "description" : "Ya empezó y no ha terminado.",
+            "description" : "Alguna de sus fechas ya empezó y no ha terminado.",
             "type" : "boolean"
           },
           "memberships" : {
@@ -393,15 +393,34 @@
             },
             "type" : "array"
           },
+          "nextEndsAt" : {
+            "description" : "Fin de la fecha en curso o la siguiente; nulo si terminó o se canceló.",
+            "format" : "date-time",
+            "type" : "string"
+          },
+          "nextStartsAt" : {
+            "description" : "Inicio de la fecha en curso o la siguiente; nulo si terminó o se canceló.",
+            "format" : "date-time",
+            "type" : "string"
+          },
           "products" : {
             "items" : {
               "$ref" : "#/components/schemas/CourseProductRef"
             },
             "type" : "array"
           },
+          "recurrence" : {
+            "description" : "DAILY, WEEKLY o MONTHLY; nula si no se repite (RN-AC-031).",
+            "type" : "string"
+          },
           "registered" : {
             "description" : "Ya pidió entrar: tiene su enlace.",
             "type" : "boolean"
+          },
+          "repeatUntil" : {
+            "description" : "El último día de la serie, incluido; nulo si no se repite.",
+            "format" : "date",
+            "type" : "string"
           },
           "startsAt" : {
             "format" : "date-time",
@@ -4054,7 +4073,7 @@
             "type" : "string"
           },
           "ended" : {
-            "description" : "Su hora de fin ya pasó.",
+            "description" : "Terminó su última fecha.",
             "type" : "boolean"
           },
           "endsAt" : {
@@ -4071,17 +4090,36 @@
             },
             "type" : "array"
           },
+          "nextEndsAt" : {
+            "description" : "Fin de la fecha en curso o la siguiente; nulo si terminó o se canceló.",
+            "format" : "date-time",
+            "type" : "string"
+          },
+          "nextStartsAt" : {
+            "description" : "Inicio de la fecha en curso o la siguiente; nulo si terminó o se canceló.",
+            "format" : "date-time",
+            "type" : "string"
+          },
           "products" : {
             "items" : {
               "$ref" : "#/components/schemas/CourseProductRef"
             },
             "type" : "array"
           },
+          "recurrence" : {
+            "description" : "DAILY, WEEKLY o MONTHLY; nula si no se repite (RN-AC-031).",
+            "type" : "string"
+          },
           "registrations" : {
             "items" : {
               "$ref" : "#/components/schemas/LiveSessionRegistrationItem"
             },
             "type" : "array"
+          },
+          "repeatUntil" : {
+            "description" : "El último día de la serie, incluido; nulo si no se repite.",
+            "format" : "date",
+            "type" : "string"
           },
           "startsAt" : {
             "format" : "date-time",
@@ -4128,6 +4166,7 @@
             "$ref" : "#/components/schemas/LiveSessionCourseRef"
           },
           "ended" : {
+            "description" : "Terminó su última fecha.",
             "type" : "boolean"
           },
           "endsAt" : {
@@ -4142,13 +4181,32 @@
             "format" : "int64",
             "type" : "integer"
           },
+          "nextEndsAt" : {
+            "description" : "Fin de la fecha en curso o la siguiente; nulo si terminó o se canceló.",
+            "format" : "date-time",
+            "type" : "string"
+          },
+          "nextStartsAt" : {
+            "description" : "Inicio de la fecha en curso o la siguiente; nulo si terminó o se canceló.",
+            "format" : "date-time",
+            "type" : "string"
+          },
           "productCount" : {
             "format" : "int64",
             "type" : "integer"
           },
+          "recurrence" : {
+            "description" : "DAILY, WEEKLY o MONTHLY; nula si no se repite (RN-AC-031).",
+            "type" : "string"
+          },
           "registrationCount" : {
             "format" : "int64",
             "type" : "integer"
+          },
+          "repeatUntil" : {
+            "description" : "El último día de la serie, incluido; nulo si no se repite.",
+            "format" : "date",
+            "type" : "string"
           },
           "startsAt" : {
             "format" : "date-time",
@@ -9212,6 +9270,14 @@
             },
             "type" : "array"
           },
+          "recurrence" : {
+            "description" : "DAILY, WEEKLY (el día de la semana del inicio) o MONTHLY (el día del mes del inicio, no después del 28); ausente, una sola fecha (RN-AC-031).",
+            "type" : "string"
+          },
+          "repeatUntil" : {
+            "description" : "El último día de la serie, incluido, como 2026-12-31: obligatorio con recurrence; de 2 a 60 fechas.",
+            "type" : "string"
+          },
           "startsAt" : {
             "description" : "Día y hora de inicio: 2026-10-15T19:00:00-05:00, o sin zona y entonces en America/Bogota.",
             "type" : "string"
@@ -9957,9 +10023,17 @@
             },
             "type" : "array"
           },
+          "recurrence" : {
+            "description" : "DAILY, WEEKLY, MONTHLY, o NONE para quitar la repetición.",
+            "type" : "string"
+          },
           "removeCourse" : {
             "description" : "Verdadero para dejar la clase suelta, sin curso.",
             "type" : "boolean"
+          },
+          "repeatUntil" : {
+            "description" : "El último día de la serie, incluido, como 2026-12-31.",
+            "type" : "string"
           },
           "startsAt" : {
             "type" : "string"
@@ -17761,7 +17835,7 @@
     },
     "/api/v1/live-sessions" : {
       "get" : {
-        "description" : "**Permiso requerido:** `live-sessions:list`. Sin él, `403` (`AUTH-002`).\n\n**Todas las clases**, también las canceladas y las terminadas, por inicio\ndescendente y paginadas. Filtros: `courseId`, `status` (`PROGRAMADA` o\n`CANCELADA`), `ended` —calculado con la hora de fin— y el periodo de inicio\n`from`/`to` (semiabierto). Cada fila trae cuántas membresías y servicios la abren y\n**cuántos se registraron**.\n\nExige `live-sessions:list`.\n",
+        "description" : "**Permiso requerido:** `live-sessions:list`. Sin él, `403` (`AUTH-002`).\n\n**Todas las clases**, también las canceladas y las terminadas, por inicio\ndescendente y paginadas. Filtros: `courseId`, `status` (`PROGRAMADA` o\n`CANCELADA`), `ended` —calculado con la hora de fin de la última fecha— y el periodo\nde inicio `from`/`to` (semiabierto); **una clase que se repite** entra si alguna de\nsus fechas puede caer en él: empieza antes de `to` y termina después de `from`. Cada fila trae cuántas membresías y servicios la abren y\n**cuántos se registraron**.\n\nExige `live-sessions:list`.\n",
         "operationId" : "listar_7",
         "parameters" : [ {
           "in" : "query",
@@ -17865,7 +17939,7 @@
         "x-required-permission" : "live-sessions:list"
       },
       "post" : {
-        "description" : "**Permiso requerido:** `live-sessions:create`. Sin él, `403` (`AUTH-002`).\n\n**Día, hora de inicio y hora de fin** (`startsAt`, `endsAt`), con su zona o sin ella\n—y entonces en `America/Bogota`—: el inicio no en el pasado, el fin de 15 minutos a\n10 horas después. **`membershipIds` y `productIds` dicen quién puede entrar**, como en\nun curso: lista explícita, servicios `BOT`, y **sin ninguna de las dos, la clase es\nde todos los alumnos con sesión**. `courseId` es opcional: agrupa la clase y decide\nqué instructor la administra, no quién entra.\n\n**La reunión la crea la plataforma en Zoom**, con registro obligatorio: solo entra quien\nrecibe su enlace personal al pulsar «Entrar» (`POST /live-sessions/available/{id}/registration`).\n**De Zoom solo se guarda el identificador de la reunión**; el enlace general y la contraseña\nno salen nunca. Si Zoom no está configurado, falla o no responde, `503` y nada cambia.\n\nExige `live-sessions:create`.\n",
+        "description" : "**Permiso requerido:** `live-sessions:create`. Sin él, `403` (`AUTH-002`).\n\n**Día, hora de inicio y hora de fin** (`startsAt`, `endsAt`), con su zona o sin ella\n—y entonces en `America/Bogota`—: el inicio no en el pasado, el fin de 15 minutos a\n10 horas después. **`membershipIds` y `productIds` dicen quién puede entrar**, como en\nun curso: lista explícita, servicios `BOT`, y **sin ninguna de las dos, la clase es\nde todos los alumnos con sesión**. `courseId` es opcional: agrupa la clase y decide\nqué instructor la administra, no quién entra.\n\n**La reunión la crea la plataforma en Zoom**, con registro obligatorio: solo entra quien\nrecibe su enlace personal al pulsar «Entrar» (`POST /live-sessions/available/{id}/registration`).\n**De Zoom solo se guarda el identificador de la reunión**; el enlace general y la contraseña\nno salen nunca. Si Zoom no está configurado, falla o no responde, `503` y nada cambia.\n\n**Se repite** con `recurrence` —`DAILY`; `WEEKLY`, el día de la semana del inicio; o\n`MONTHLY`, el día del mes del inicio, no después del 28— y `repeatUntil`, el último día,\nobligatorio con ella: **una sola clase y una sola reunión recurrente de Zoom** a la misma\nhora, de 2 a 60 fechas (`RN-AC-031`). Al corregir, `NONE` quita la repetición y deja la\nprimera fecha. La clase termina con **su última fecha**.\n\nExige `live-sessions:create`.\n",
         "operationId" : "programar",
         "requestBody" : {
           "content" : {
@@ -17925,7 +17999,7 @@
     },
     "/api/v1/live-sessions/available" : {
       "get" : {
-        "description" : "**Permiso requerido:** `live-sessions:learn`. Sin él, `403` (`AUTH-002`).\n\n**Las clases programadas que no han terminado**, por inicio, sin paginar. Cada una\ndice **`accessible`** —se le abre porque su membresía o uno de sus servicios\nvigentes está en la lista, o porque la clase no declara ninguno—, **`registered`**\nsi ya pidió entrar, `inProgress` si ya empezó, y **las membresías y servicios que la\nabren**, que es la invitación. `onlyAccessible=true` deja solo las suyas; `courseId`\nacota a un curso. **Nada de Zoom**: el enlace se pide al entrar.\n\nExige `live-sessions:learn`.\n",
+        "description" : "**Permiso requerido:** `live-sessions:learn`. Sin él, `403` (`AUTH-002`).\n\n**Las clases programadas que no han terminado** —las que se repiten, hasta su última\nfecha—, por la fecha en curso o la siguiente (`nextStartsAt`), sin paginar. Cada una\ndice **`accessible`** —se le abre porque su membresía o uno de sus servicios\nvigentes está en la lista, o porque la clase no declara ninguno—, **`registered`**\nsi ya pidió entrar, `inProgress` si alguna de sus fechas está en curso, y **las\nmembresías y servicios que la\nabren**, que es la invitación. `onlyAccessible=true` deja solo las suyas; `courseId`\nacota a un curso. **Nada de Zoom**: el enlace se pide al entrar.\n\nExige `live-sessions:learn`.\n",
         "operationId" : "clases",
         "parameters" : [ {
           "in" : "query",
@@ -17991,7 +18065,7 @@
     },
     "/api/v1/live-sessions/available/{id}/registration" : {
       "post" : {
-        "description" : "**Permiso requerido:** `live-sessions:join`. Sin él, `403` (`AUTH-002`).\n\n**Entrar es registrarse.** Si la clase está programada, no terminó y **se le abre** a\nquien pide, la plataforma lo registra en Zoom con su nombre y su correo y devuelve\n**su enlace personal** (`201`). **La segunda vez devuelve el mismo enlace sin llamar a\nZoom** (`200`). El acceso se comprueba en cada petición. El enlace sirve a un\ndispositivo a la vez y **no se debe compartir**.\n\nUna clase cancelada, terminada o inexistente responde `404`; una que no se le abre,\n`403` con `EX-002` y los miembros `memberships` y `products`: lo que la abre.\n\nExige `live-sessions:join`.\n",
+        "description" : "**Permiso requerido:** `live-sessions:join`. Sin él, `403` (`AUTH-002`).\n\n**Entrar es registrarse.** Si la clase está programada, no terminó y **se le abre** a\nquien pide, la plataforma lo registra en Zoom con su nombre y su correo y devuelve\n**su enlace personal** (`201`). **La segunda vez devuelve el mismo enlace sin llamar a\nZoom** (`200`). El acceso se comprueba en cada petición. El enlace sirve a un\ndispositivo a la vez y **no se debe compartir**; en una clase que se repite, sirve para\ntodas sus fechas, y `startsAt` y `endsAt` son los de la fecha en curso o la siguiente.\n\nUna clase cancelada, terminada o inexistente responde `404`; una que no se le abre,\n`403` con `EX-002` y los miembros `memberships` y `products`: lo que la abre.\n\nExige `live-sessions:join`.\n",
         "operationId" : "entrar",
         "parameters" : [ {
           "in" : "path",
@@ -18135,7 +18209,7 @@
         "x-required-permission" : "live-sessions:list-own"
       },
       "post" : {
-        "description" : "**Permiso requerido:** `live-sessions:create-own`. Sin él, `403` (`AUTH-002`).\n\nComo programar una clase, con **`courseId` obligatorio** y de un curso que dicta\nquien pide; si no, `422` (`EX-001`).\n\n**La reunión la crea la plataforma en Zoom**, con registro obligatorio: solo entra quien\nrecibe su enlace personal al pulsar «Entrar» (`POST /live-sessions/available/{id}/registration`).\n**De Zoom solo se guarda el identificador de la reunión**; el enlace general y la contraseña\nno salen nunca. Si Zoom no está configurado, falla o no responde, `503` y nada cambia.\n\nExige `live-sessions:create-own`.\n",
+        "description" : "**Permiso requerido:** `live-sessions:create-own`. Sin él, `403` (`AUTH-002`).\n\nComo programar una clase, con **`courseId` obligatorio** y de un curso que dicta\nquien pide; si no, `422` (`EX-001`).\n\n**La reunión la crea la plataforma en Zoom**, con registro obligatorio: solo entra quien\nrecibe su enlace personal al pulsar «Entrar» (`POST /live-sessions/available/{id}/registration`).\n**De Zoom solo se guarda el identificador de la reunión**; el enlace general y la contraseña\nno salen nunca. Si Zoom no está configurado, falla o no responde, `503` y nada cambia.\n\n**Se repite** con `recurrence` —`DAILY`; `WEEKLY`, el día de la semana del inicio; o\n`MONTHLY`, el día del mes del inicio, no después del 28— y `repeatUntil`, el último día,\nobligatorio con ella: **una sola clase y una sola reunión recurrente de Zoom** a la misma\nhora, de 2 a 60 fechas (`RN-AC-031`). Al corregir, `NONE` quita la repetición y deja la\nprimera fecha. La clase termina con **su última fecha**.\n\nExige `live-sessions:create-own`.\n",
         "operationId" : "programarPropia",
         "requestBody" : {
           "content" : {
@@ -18273,7 +18347,7 @@
     },
     "/api/v1/live-sessions/{id}" : {
       "get" : {
-        "description" : "**Permiso requerido:** `live-sessions:read`. Sin él, `403` (`AUTH-002`).\n\nLa clase con su curso, **sus membresías y servicios**, el identificador de la\nreunión de Zoom —**sin enlace ni contraseña**—, la cancelación si la hay y **quién se\nregistró para entrar**, con su fecha. `ended` dice si su hora de fin ya pasó.\n\nExige `live-sessions:read`.\n",
+        "description" : "**Permiso requerido:** `live-sessions:read`. Sin él, `403` (`AUTH-002`).\n\nLa clase con su curso, **sus membresías y servicios**, el identificador de la\nreunión de Zoom —**sin enlace ni contraseña**—, la cancelación si la hay y **quién se\nregistró para entrar**, con su fecha. `ended` dice si terminó su última fecha;\n`recurrence` y `repeatUntil`, cómo se repite; y `nextStartsAt`/`nextEndsAt`, la fecha\nen curso o la siguiente.\n\nExige `live-sessions:read`.\n",
         "operationId" : "detalle_5",
         "parameters" : [ {
           "in" : "path",
@@ -18311,7 +18385,7 @@
         "x-required-permission" : "live-sessions:read"
       },
       "patch" : {
-        "description" : "**Permiso requerido:** `live-sessions:update`. Sin él, `403` (`AUTH-002`).\n\n**Solo lo que viene.** Las listas, si vienen, **reemplazan enteras** (una lista\nvacía deja la clase de todos); `removeCourse: true` la deja suelta. Lo que Zoom\nconoce —título, inicio y fin— **se corrige allí primero**. Quitar a alguien de la\nlista no lo des-registra en Zoom: no recibe un enlace nuevo. **Una clase cancelada o\nterminada no se corrige** (`409`).\n\n**La reunión la crea la plataforma en Zoom**, con registro obligatorio: solo entra quien\nrecibe su enlace personal al pulsar «Entrar» (`POST /live-sessions/available/{id}/registration`).\n**De Zoom solo se guarda el identificador de la reunión**; el enlace general y la contraseña\nno salen nunca. Si Zoom no está configurado, falla o no responde, `503` y nada cambia.\n\nExige `live-sessions:update`.\n",
+        "description" : "**Permiso requerido:** `live-sessions:update`. Sin él, `403` (`AUTH-002`).\n\n**Solo lo que viene.** Las listas, si vienen, **reemplazan enteras** (una lista\nvacía deja la clase de todos); `removeCourse: true` la deja suelta. Lo que Zoom\nconoce —título, inicio y fin— **se corrige allí primero**. Quitar a alguien de la\nlista no lo des-registra en Zoom: no recibe un enlace nuevo. **Una clase cancelada o\nterminada no se corrige** (`409`).\n\n**La reunión la crea la plataforma en Zoom**, con registro obligatorio: solo entra quien\nrecibe su enlace personal al pulsar «Entrar» (`POST /live-sessions/available/{id}/registration`).\n**De Zoom solo se guarda el identificador de la reunión**; el enlace general y la contraseña\nno salen nunca. Si Zoom no está configurado, falla o no responde, `503` y nada cambia.\n\n**Se repite** con `recurrence` —`DAILY`; `WEEKLY`, el día de la semana del inicio; o\n`MONTHLY`, el día del mes del inicio, no después del 28— y `repeatUntil`, el último día,\nobligatorio con ella: **una sola clase y una sola reunión recurrente de Zoom** a la misma\nhora, de 2 a 60 fechas (`RN-AC-031`). Al corregir, `NONE` quita la repetición y deja la\nprimera fecha. La clase termina con **su última fecha**.\n\nExige `live-sessions:update`.\n",
         "operationId" : "corregir_5",
         "parameters" : [ {
           "in" : "path",
@@ -18469,7 +18543,7 @@
     },
     "/api/v1/live-sessions/{id}/host-link" : {
       "post" : {
-        "description" : "**Permiso requerido:** `live-sessions:host`. Sin él, `403` (`AUTH-002`).\n\n**El enlace de inicio de Zoom**, pedido en el momento: abre la reunión **como\nanfitrión** con la cuenta del negocio. **Caduca a las pocas horas y no se guarda**;\ncada entrega queda en la auditoría de seguridad. `409` si la clase está cancelada o\nterminó.\n\nExige `live-sessions:host`.\n",
+        "description" : "**Permiso requerido:** `live-sessions:host`. Sin él, `403` (`AUTH-002`).\n\n**El enlace de inicio de Zoom**, pedido en el momento: abre la reunión **como\nanfitrión** con la cuenta del negocio. **Caduca a las pocas horas y no se guarda**;\ncada entrega queda en la auditoría de seguridad. `startsAt` y `endsAt` son los de la\nfecha en curso o la siguiente. `409` si la clase está cancelada o terminó.\n\nExige `live-sessions:host`.\n",
         "operationId" : "anfitrion",
         "parameters" : [ {
           "in" : "path",

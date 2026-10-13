@@ -3,10 +3,12 @@ package com.factech.nexus.modules.academy.application;
 import com.factech.nexus.modules.academy.application.CourseDetailResponse.CourseMembershipRef;
 import com.factech.nexus.modules.academy.application.CourseDetailResponse.CourseProductRef;
 import com.factech.nexus.modules.academy.application.LiveSessionDetailResponse.LiveSessionCourseRef;
+import com.factech.nexus.modules.academy.domain.models.LiveSessionSeries.Occurrence;
 import com.factech.nexus.modules.academy.domain.repository.LiveSessionQueryRepository.LiveSessionItemRow;
 import com.factech.nexus.modules.academy.domain.repository.LiveSessionQueryRepository.UpcomingRow;
 import com.fasterxml.jackson.annotation.JsonInclude;
 import io.swagger.v3.oas.annotations.media.Schema;
+import java.time.LocalDate;
 import java.time.OffsetDateTime;
 import java.util.UUID;
 
@@ -24,19 +26,35 @@ public final class LiveSessionResponses {
       LiveSessionCourseRef course,
       OffsetDateTime startsAt,
       OffsetDateTime endsAt,
+      @Schema(description = "DAILY, WEEKLY o MONTHLY; nula si no se repite (RN-AC-031).")
+          String recurrence,
+      @Schema(description = "El último día de la serie, incluido; nulo si no se repite.")
+          LocalDate repeatUntil,
+      @Schema(
+              description =
+                  "Inicio de la fecha en curso o la siguiente; nulo si terminó o se canceló.")
+          OffsetDateTime nextStartsAt,
+      @Schema(
+              description =
+                  "Fin de la fecha en curso o la siguiente; nulo si terminó o se canceló.")
+          OffsetDateTime nextEndsAt,
       String status,
-      boolean ended,
+      @Schema(description = "Terminó su última fecha.") boolean ended,
       long membershipCount,
       long productCount,
       long registrationCount) {
 
-    public static Item from(LiveSessionItemRow fila, boolean terminada) {
+    public static Item from(LiveSessionItemRow fila, boolean terminada, Occurrence siguiente) {
       return new Item(
           fila.id(),
           fila.title(),
           LiveSessionCourseRef.of(fila.courseId(), fila.courseTitle()),
           fila.startsAt(),
           fila.endsAt(),
+          fila.recurrence(),
+          fila.repeatUntil(),
+          siguiente == null ? null : siguiente.startsAt(),
+          siguiente == null ? null : siguiente.endsAt(),
           fila.status(),
           terminada,
           fila.membershipCount(),
@@ -45,7 +63,10 @@ public final class LiveSessionResponses {
     }
   }
 
-  /** El enlace de anfitrión, recién pedido a Zoom y sin guardar (`RN-AC-030`). */
+  /**
+   * El enlace de anfitrión, recién pedido a Zoom y sin guardar (`RN-AC-030`), con la fecha en curso
+   * o la siguiente (`RN-AC-031`).
+   */
   @JsonInclude(JsonInclude.Include.ALWAYS)
   @Schema(name = "LiveSessionHostLinkResponse")
   public record HostLink(String startUrl, OffsetDateTime startsAt, OffsetDateTime endsAt) {}
@@ -60,14 +81,30 @@ public final class LiveSessionResponses {
       LiveSessionCourseRef course,
       OffsetDateTime startsAt,
       OffsetDateTime endsAt,
-      @Schema(description = "Ya empezó y no ha terminado.") boolean inProgress,
+      @Schema(description = "DAILY, WEEKLY o MONTHLY; nula si no se repite (RN-AC-031).")
+          String recurrence,
+      @Schema(description = "El último día de la serie, incluido; nulo si no se repite.")
+          LocalDate repeatUntil,
+      @Schema(
+              description =
+                  "Inicio de la fecha en curso o la siguiente; nulo si terminó o se canceló.")
+          OffsetDateTime nextStartsAt,
+      @Schema(
+              description =
+                  "Fin de la fecha en curso o la siguiente; nulo si terminó o se canceló.")
+          OffsetDateTime nextEndsAt,
+      @Schema(description = "Alguna de sus fechas ya empezó y no ha terminado.") boolean inProgress,
       @Schema(description = "Se le abre a quien pregunta.") boolean accessible,
       @Schema(description = "Ya pidió entrar: tiene su enlace.") boolean registered,
       java.util.List<CourseMembershipRef> memberships,
       java.util.List<CourseProductRef> products) {
 
     public static Available from(
-        UpcomingRow fila, boolean enCurso, boolean accesible, boolean registrado) {
+        UpcomingRow fila,
+        Occurrence siguiente,
+        boolean enCurso,
+        boolean accesible,
+        boolean registrado) {
       return new Available(
           fila.id(),
           fila.title(),
@@ -75,6 +112,10 @@ public final class LiveSessionResponses {
           LiveSessionCourseRef.of(fila.courseId(), fila.courseTitle()),
           fila.startsAt(),
           fila.endsAt(),
+          fila.recurrence(),
+          fila.repeatUntil(),
+          siguiente == null ? null : siguiente.startsAt(),
+          siguiente == null ? null : siguiente.endsAt(),
           enCurso,
           accesible,
           registrado,
@@ -83,7 +124,10 @@ public final class LiveSessionResponses {
     }
   }
 
-  /** Lo que recibe quien entra: su enlace personal (`RN-AC-027`). */
+  /**
+   * Lo que recibe quien entra: su enlace personal (`RN-AC-027`), con la fecha en curso o la
+   * siguiente (`RN-AC-031`).
+   */
   @JsonInclude(JsonInclude.Include.ALWAYS)
   @Schema(name = "JoinLiveSessionResponse")
   public record Join(

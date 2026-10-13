@@ -2,7 +2,7 @@
 
 | Campo | Valor |
 |---|---|
-| Versión | 0.116.0 |
+| Versión | 0.117.0 |
 | Estado | **Borrador** |
 | Responsable | Bonilla Diaz William Steven |
 | Fecha de creación | 21-08-2026 |
@@ -875,7 +875,10 @@ erDiagram
         uuid course_id FK "NULL = suelta · solo la administra ADMIN"
         varchar title "150"
         timestamptz starts_at "no en el pasado al programar"
-        timestamptz ends_at "de 15 min a 10 h despues del inicio · terminada se CALCULA"
+        timestamptz ends_at "de 15 min a 10 h despues del inicio · el de la PRIMERA fecha"
+        varchar recurrence "NULL o DAILY, WEEKLY, MONTHLY · una reunion recurrente de Zoom (13-10-2026)"
+        date repeat_until "el ultimo dia de la serie · de 2 a 60 fechas"
+        timestamptz series_ends_at "fin de la ULTIMA fecha · terminada se CALCULA con el"
         bigint zoom_meeting_id "UNICO · lo unico de Zoom que se guarda: ni enlace general ni contrasena"
         varchar status "PROGRAMADA o CANCELADA · cancelar no borra"
         timestamptz cancelled_at "con motivo obligatorio"
@@ -1262,3 +1265,4 @@ Los documentos que citan una migración vieja por su número —specs, controles
 | 0.114.0 | 09-10-2026 | **`user_brokers`: `user_id` nulo, `afftrack` y `referrer_account_id`** (`RN-SP-070` a `RN-SP-072`, `V96`), con `ck_user_brokers_titular_solo_consumidor`, `ck_user_brokers_afftrack_solo_vendedor`, `ck_user_brokers_origen_solo_consumidor`, `uq_user_brokers_afftrack`, `uq_user_brokers_vendedor_por_broker`, `uq_user_brokers_id_broker` y la clave foránea compuesta del origen. | Responsable técnico |
 | 0.115.0 | 10-10-2026 | **El depósito y la operación del broker** (`RN-SP-073`, `RN-SP-074`, `V98`): `user_brokers` gana `first_deposit_at`, `operations_count`, `first_operation_at` y `last_operation_at`, con `ck_user_brokers_deposito_con_estado` y `ck_user_brokers_operaciones`; `broker_notifications` gana `event_id` con `ix_broker_notifications_evento`, sin único. | Responsable técnico |
 | 0.116.0 | 10-10-2026 | **`ix_user_brokers_busqueda_usuario`** (`V100`): gin de trigramas sobre `f_unaccent(lower(broker_username))`, para que `search` de `RF-SP-057` y `RF-SP-083` encuentre por el nombre de usuario en el broker. | Responsable técnico |
+| 0.117.0 | 13-10-2026 | **Las clases en vivo se repiten** ([`requirements/ac.md`](requirements/ac.md) v0.25.0 §5.2.16, `RN-AC-031`, `V102`): `live_sessions` gana `recurrence` (`DAILY`, `WEEKLY`, `MONTHLY` o nula), `repeat_until` y `series_ends_at` —el fin de la última fecha, igual a `ends_at` sin repetición—, con el que se calcula si terminó. | Responsable técnico |

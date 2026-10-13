@@ -9,9 +9,12 @@ import static org.springframework.test.web.client.match.MockRestRequestMatchers.
 import static org.springframework.test.web.client.response.MockRestResponseCreators.withStatus;
 import static org.springframework.test.web.client.response.MockRestResponseCreators.withSuccess;
 
+import com.factech.nexus.shared.zoom.ZoomMeetings.Frequency;
 import com.factech.nexus.shared.zoom.ZoomMeetings.MeetingSpec;
 import com.factech.nexus.shared.zoom.ZoomMeetings.Registrant;
+import com.factech.nexus.shared.zoom.ZoomMeetings.Repeat;
 import java.time.Clock;
+import java.time.DayOfWeek;
 import java.time.Duration;
 import java.time.Instant;
 import java.time.OffsetDateTime;
@@ -90,6 +93,58 @@ class ZoomApiClientTest {
                 MediaType.APPLICATION_JSON));
 
     assertThat(cliente.create(REUNION)).isEqualTo(81234567890L);
+    zoom.verify();
+  }
+
+  @Test
+  @DisplayName(
+      "`RF-AC-055` — una semanal es tipo 8 con el día de la semana contado desde el domingo y el"
+          + " número de fechas; quitarla al corregir vuelve al tipo 2")
+  void repite() {
+    token();
+    // El 15-10-2026 es jueves: 5 contando desde el domingo.
+    zoom.expect(requestTo("https://api.zoom.test/v2/users/anfitrion@negocio.co/meetings"))
+        .andExpect(
+            content()
+                .json(
+                    """
+                    {"type":8,"recurrence":{"type":2,"repeat_interval":1,"weekly_days":"5",
+                                            "end_times":10}}
+                    """))
+        .andRespond(withSuccess("{\"id\":3}", MediaType.APPLICATION_JSON));
+    zoom.expect(requestTo("https://api.zoom.test/v2/meetings/3"))
+        .andExpect(method(HttpMethod.PATCH))
+        .andExpect(
+            content()
+                .json(
+                    """
+                    {"type":8,"recurrence":{"type":3,"repeat_interval":1,"monthly_day":15,
+                                            "end_times":4}}
+                    """))
+        .andRespond(withSuccess());
+    zoom.expect(requestTo("https://api.zoom.test/v2/meetings/3"))
+        .andExpect(method(HttpMethod.PATCH))
+        .andExpect(content().json("{\"type\":2}"))
+        .andRespond(withSuccess());
+
+    assertThat(
+            cliente.create(
+                new MeetingSpec(
+                    REUNION.topic(),
+                    REUNION.agenda(),
+                    REUNION.startsAt(),
+                    90,
+                    new Repeat(Frequency.WEEKLY, 10, DayOfWeek.THURSDAY, 0))))
+        .isEqualTo(3L);
+    cliente.update(
+        3,
+        new MeetingSpec(
+            REUNION.topic(),
+            REUNION.agenda(),
+            REUNION.startsAt(),
+            90,
+            new Repeat(Frequency.MONTHLY, 4, null, 15)));
+    cliente.update(3, REUNION);
     zoom.verify();
   }
 

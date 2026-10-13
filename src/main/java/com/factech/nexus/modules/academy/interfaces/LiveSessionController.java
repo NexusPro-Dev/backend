@@ -54,6 +54,12 @@ public class LiveSessionController {
       recibe su enlace personal al pulsar «Entrar» (`POST /live-sessions/available/{id}/registration`).
       **De Zoom solo se guarda el identificador de la reunión**; el enlace general y la contraseña
       no salen nunca. Si Zoom no está configurado, falla o no responde, `503` y nada cambia.
+
+      **Se repite** con `recurrence` —`DAILY`; `WEEKLY`, el día de la semana del inicio; o
+      `MONTHLY`, el día del mes del inicio, no después del 28— y `repeatUntil`, el último día,
+      obligatorio con ella: **una sola clase y una sola reunión recurrente de Zoom** a la misma
+      hora, de 2 a 60 fechas (`RN-AC-031`). Al corregir, `NONE` quita la repetición y deja la
+      primera fecha. La clase termina con **su última fecha**.
       """;
 
   private final ListLiveSessionsService lecturas;
@@ -87,8 +93,9 @@ public class LiveSessionController {
           """
           **Todas las clases**, también las canceladas y las terminadas, por inicio
           descendente y paginadas. Filtros: `courseId`, `status` (`PROGRAMADA` o
-          `CANCELADA`), `ended` —calculado con la hora de fin— y el periodo de inicio
-          `from`/`to` (semiabierto). Cada fila trae cuántas membresías y servicios la abren y
+          `CANCELADA`), `ended` —calculado con la hora de fin de la última fecha— y el periodo
+          de inicio `from`/`to` (semiabierto); **una clase que se repite** entra si alguna de
+          sus fechas puede caer en él: empieza antes de `to` y termina después de `from`. Cada fila trae cuántas membresías y servicios la abren y
           **cuántos se registraron**.
 
           Exige `live-sessions:list`.
@@ -114,7 +121,9 @@ public class LiveSessionController {
           """
           La clase con su curso, **sus membresías y servicios**, el identificador de la
           reunión de Zoom —**sin enlace ni contraseña**—, la cancelación si la hay y **quién se
-          registró para entrar**, con su fecha. `ended` dice si su hora de fin ya pasó.
+          registró para entrar**, con su fecha. `ended` dice si terminó su última fecha;
+          `recurrence` y `repeatUntil`, cómo se repite; y `nextStartsAt`/`nextEndsAt`, la fecha
+          en curso o la siguiente.
 
           Exige `live-sessions:read`.
           """)
@@ -222,8 +231,8 @@ public class LiveSessionController {
           """
           **El enlace de inicio de Zoom**, pedido en el momento: abre la reunión **como
           anfitrión** con la cuenta del negocio. **Caduca a las pocas horas y no se guarda**;
-          cada entrega queda en la auditoría de seguridad. `409` si la clase está cancelada o
-          terminó.
+          cada entrega queda en la auditoría de seguridad. `startsAt` y `endsAt` son los de la
+          fecha en curso o la siguiente. `409` si la clase está cancelada o terminó.
 
           Exige `live-sessions:host`.
           """)

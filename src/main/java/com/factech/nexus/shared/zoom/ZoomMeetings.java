@@ -1,5 +1,6 @@
 package com.factech.nexus.shared.zoom;
 
+import java.time.DayOfWeek;
 import java.time.OffsetDateTime;
 
 /**
@@ -15,14 +16,15 @@ import java.time.OffsetDateTime;
 public interface ZoomMeetings {
 
   /**
-   * Crea una reunión programada con registro obligatorio y aprobación automática, sin entrar antes
-   * que el anfitrión y sin los correos de Zoom.
+   * Crea una reunión programada —recurrente con hora fija si trae repetición— con registro
+   * obligatorio y aprobación automática, sin entrar antes que el anfitrión y sin los correos de
+   * Zoom.
    *
    * @return el identificador de la reunión
    */
   long create(MeetingSpec reunion);
 
-  /** Corrige título, inicio y duración de la reunión. */
+  /** Corrige título, inicio, duración y repetición de la reunión. */
   void update(long meetingId, MeetingSpec reunion);
 
   /** Borra la reunión; si ya no existe en Zoom, no hace nada. */
@@ -43,7 +45,31 @@ public interface ZoomMeetings {
    * @param startsAt el inicio, con su zona; a Zoom se le da en la zona de la plataforma
    * @param durationMinutes de inicio a fin
    */
-  record MeetingSpec(String topic, String agenda, OffsetDateTime startsAt, int durationMinutes) {}
+  record MeetingSpec(
+      String topic, String agenda, OffsetDateTime startsAt, int durationMinutes, Repeat repeat) {
+
+    /** Una reunión que no se repite. */
+    public MeetingSpec(String topic, String agenda, OffsetDateTime startsAt, int durationMinutes) {
+      this(topic, agenda, startsAt, durationMinutes, null);
+    }
+  }
+
+  /**
+   * La repetición de una reunión recurrente con hora fija (`RN-AC-031`).
+   *
+   * @param frequency cada cuánto
+   * @param times cuántas fechas, de 2 a 60
+   * @param dayOfWeek el día de la semana de la semanal
+   * @param dayOfMonth el día del mes de la mensual
+   */
+  record Repeat(Frequency frequency, int times, DayOfWeek dayOfWeek, int dayOfMonth) {}
+
+  /** Cada cuánto se repite una reunión. */
+  enum Frequency {
+    DAILY,
+    WEEKLY,
+    MONTHLY
+  }
 
   /** El registro de una persona: su identificador en Zoom y su enlace personal. */
   record Registrant(String registrantId, String joinUrl) {}

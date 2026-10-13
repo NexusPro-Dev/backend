@@ -26,6 +26,16 @@ public final class LiveSessionRequests {
           String startsAt,
       @Schema(description = "Día y hora de fin, de 15 minutos a 10 horas después del inicio.")
           String endsAt,
+      @Schema(
+              description =
+                  "DAILY, WEEKLY (el día de la semana del inicio) o MONTHLY (el día del mes del"
+                      + " inicio, no después del 28); ausente, una sola fecha (RN-AC-031).")
+          String recurrence,
+      @Schema(
+              description =
+                  "El último día de la serie, incluido, como 2026-12-31: obligatorio con"
+                      + " recurrence; de 2 a 60 fechas.")
+          String repeatUntil,
       List<UUID> membershipIds,
       List<UUID> productIds) {}
 
@@ -42,6 +52,10 @@ public final class LiveSessionRequests {
           Boolean removeCourse,
       String startsAt,
       String endsAt,
+      @Schema(description = "DAILY, WEEKLY, MONTHLY, o NONE para quitar la repetición.")
+          String recurrence,
+      @Schema(description = "El último día de la serie, incluido, como 2026-12-31.")
+          String repeatUntil,
       List<UUID> membershipIds,
       List<UUID> productIds) {}
 

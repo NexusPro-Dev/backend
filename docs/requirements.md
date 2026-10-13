@@ -5,7 +5,7 @@
 | Proyecto | NEXUS — Renovación de plataforma |
 | Empresa | FACTECH GROUP SAS |
 | Documento | `requirements.md` |
-| Versión | 0.349.0 |
+| Versión | 0.350.0 |
 | Estado | Borrador |
 | Responsable técnico | Bonilla Diaz William Steven |
 | Fecha de creación | 20-08-2026 |
@@ -340,6 +340,7 @@ Implementa el Art. III.1. Se actualiza **como parte del cambio**, no después (A
 | `RF-AC-052` | Iniciar como anfitrión una clase en vivo de mi curso | `AC` | [`specs/ac/052-iniciar-mi-clase-en-vivo-anfitrion/`](specs/ac/052-iniciar-mi-clase-en-vivo-anfitrion/tasks.md) | Pendiente de crear | `develop` | **Nace con tripleta el 09-10-2026** (clases en vivo por Zoom, [`requirements/ac.md`](requirements/ac.md) v0.23.1 §5.2.15). `POST /api/v1/live-sessions/mine/{id}/host-link` con `live-sessions:host-own`. **Construido el mismo día** (`LiveSessionAdminIT`, `OwnLiveSessionsIT`, `LiveClassroomIT`, con el doble de Zoom) | **En desarrollo** |
 | `RF-AC-053` | Consultar las clases en vivo como alumno | `AC` | [`specs/ac/053-consultar-clases-en-vivo-alumno/`](specs/ac/053-consultar-clases-en-vivo-alumno/tasks.md) | Pendiente de crear | `develop` | **Nace con tripleta el 09-10-2026** (clases en vivo por Zoom, [`requirements/ac.md`](requirements/ac.md) v0.23.1 §5.2.15). `GET /api/v1/live-sessions/available` con `live-sessions:learn`: la vitrina de las que vienen, con `accessible` y `onlyAccessible`. **Construido el mismo día** (`LiveSessionAdminIT`, `OwnLiveSessionsIT`, `LiveClassroomIT`, con el doble de Zoom) | **En desarrollo** |
 | `RF-AC-054` | Entrar a una clase en vivo | `AC` | [`specs/ac/054-entrar-clase-en-vivo/`](specs/ac/054-entrar-clase-en-vivo/tasks.md) | Pendiente de crear | `develop` | **Nace con tripleta el 09-10-2026** (clases en vivo por Zoom, [`requirements/ac.md`](requirements/ac.md) v0.23.1 §5.2.15). `POST /api/v1/live-sessions/available/{id}/registration` con `live-sessions:join`: comprueba el acceso, registra en Zoom y devuelve el enlace personal (`RN-AC-027`). **Construido el mismo día** (`LiveSessionAdminIT`, `OwnLiveSessionsIT`, `LiveClassroomIT`, con el doble de Zoom) | **En desarrollo** |
+| `RF-AC-055` | Repetir una clase en vivo | `AC` | [`specs/ac/055-repetir-clase-en-vivo/`](specs/ac/055-repetir-clase-en-vivo/tasks.md) | Pendiente de crear | `develop` | **Nace con tripleta el 13-10-2026** ([`requirements/ac.md`](requirements/ac.md) v0.25.0 §5.2.16, `RN-AC-031`), a petición del responsable del proyecto: **sin ruta propia**, programar y corregir ganan `recurrence` (`DAILY`, `WEEKLY`, `MONTHLY`) y `repeatUntil`; una reunión recurrente de Zoom con hora fija, de 2 a 60 fechas; las lecturas, `nextStartsAt` y `nextEndsAt` | **En desarrollo** |
 | `RF-IN-001` | Consultar el resumen de ventas | `IN` | [`specs/in/001-resumen-de-ventas/`](specs/in/001-resumen-de-ventas/tasks.md) | Pendiente de crear | `develop` | Suite completa en verde (06-10-2026): 540 unitarias y 2459 de integración. `SalesSummaryIT` (12), `SalesPeriodResolverTest` (6), `SalesScopeResolverTest` (3), `LayerRulesTest` con la regla de `IN`. **Construido**: `V74` (catálogo 189), `SalesFigures` en `MV`, `GET /indicators/sales/summary` **Nace el 06-10-2026** con el módulo ([`requirements/in.md`](requirements/in.md) v0.1.0): lo confirmado, lo pendiente y lo anulado de un periodo, por moneda y acotado al alcance de quien mira (`RN-IN-002`, `RN-IN-003`). **Estrena la interfaz agregada que `MV` todavía no publica** | **En desarrollo** |
 | `RF-IN-002` | Consultar la evolución de las ventas | `IN` | [`specs/in/002-evolucion-de-ventas/`](specs/in/002-evolucion-de-ventas/tasks.md) | Pendiente de crear | `develop` | Suites del módulo en verde (06-10-2026): `SalesSeriesIT` (8), `SalesCalendarTest` (4). **Construido**: `GET /indicators/sales/series`, `SalesFigures.confirmedByBucket`. **Nace el 06-10-2026** con el módulo ([`requirements/in.md`](requirements/in.md) v0.1.0): lo confirmado por día, semana o mes de Bogotá, sin huecos (`RN-IN-007`) | **En desarrollo** |
 | `RF-IN-003` | Consultar las ventas por producto | `IN` | [`specs/in/003-ventas-por-producto/`](specs/in/003-ventas-por-producto/tasks.md) | Pendiente de crear | — | Sin código. Tripleta del 06-10-2026 (`spec.md` y `plan.md` aprobados). **Nace el 06-10-2026** con el módulo ([`requirements/in.md`](requirements/in.md) v0.1.0): lo confirmado por producto de la línea, con su nombre congelado | **Tasks aprobadas** |
@@ -372,10 +373,10 @@ Un requerimiento solo pasa a `Implementado` cuando cumple **todas** las condicio
 
 | Indicador | Valor |
 |---|---|
-| Requerimientos registrados | 255 |
-| Requerimientos con `spec.md` redactada | 251 |
-| Requerimientos con `spec.md` aprobada | 191 |
-| Requerimientos con `plan.md` aprobado | 250 |
+| Requerimientos registrados | 256 |
+| Requerimientos con `spec.md` redactada | 252 |
+| Requerimientos con `spec.md` aprobada | 192 |
+| Requerimientos con `plan.md` aprobado | 251 |
 | Requerimientos con **tripleta completa** —`tasks.md` aprobadas— | 111 |
 | Requerimientos con endpoint funcionando | 215 |
 | Requerimientos implementados | 0 |
@@ -809,3 +810,4 @@ El inventario y el estado de los módulos se consultan en [`modules.md` §4](mod
 | 0.347.0 | 10-10-2026 | **Construida la oficina de la venta** (`RN-MV-078`, `V99`): `RF-MV-058` pasa a **Construido**, y con él las enmiendas de `RF-MV-001`, `RF-MV-006` a `RF-MV-008`, `RF-MV-011`, `RF-MV-012`, `RF-MV-015` a `RF-MV-017`, `RF-IN-001`, `RF-IN-002`, `RF-IN-006` y de los equipos (`RF-SP-029` a `RF-SP-031`, `RF-SP-064`, `RF-SP-065`, `RF-SP-069`, `RF-SP-070`). Quedan las de `RF-MV-002` y `RF-MV-013`, que no están construidos (`CA-MV-712`, `CA-MV-715`). | Responsable técnico |
 | 0.348.0 | 10-10-2026 | **Nace `RF-SP-083` — las cuentas de broker que originó mi red** ([`requirements/sp.md`](requirements/sp.md) v1.121.0, `RN-SP-075`; [`security.md`](security.md) v0.133.0): el vendedor ve las cuentas de consumidor de su `afftrack` y de los de su red, en todos los niveles. **`RF-SP-057` se completa**: busca también por el nombre de usuario en el broker y trae el nombre del vendedor de origen. | Responsable del proyecto |
 | 0.349.0 | 10-10-2026 | **`RF-SP-058` se muda a `IN` como `RF-IN-009`** ([`requirements/in.md`](requirements/in.md) v0.21.0, `RN-IN-015`; [`requirements/sp.md`](requirements/sp.md) v1.122.0; [`security.md`](security.md) v0.134.0). | Responsable del proyecto |
+| 0.350.0 | 13-10-2026 | **Nace `RF-AC-055`, repetir una clase en vivo, con tripleta, y se construye** ([`requirements/ac.md`](requirements/ac.md) v0.25.0 §5.2.16, `RN-AC-031`; [`modelo-datos.md`](modelo-datos.md) v0.117.0): sin ruta propia, cada día, cada semana o cada mes hasta una fecha, con una reunión recurrente de Zoom (`V102`). Registrados 255 → **256**; `spec.md` redactadas 251 → **252** y aprobadas 191 → **192**; `plan.md` aprobados 250 → **251**; endpoints sin cambio, porque no tiene ruta propia. | Responsable técnico |

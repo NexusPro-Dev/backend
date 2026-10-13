@@ -3,7 +3,8 @@ package com.factech.nexus.modules.academy.domain.service;
 import com.factech.nexus.modules.academy.application.LiveSessionRequests.AvailableFilter;
 import com.factech.nexus.modules.academy.application.LiveSessionResponses.Available;
 import com.factech.nexus.modules.academy.application.LiveSessionResponses.Join;
-import com.factech.nexus.modules.academy.domain.models.LiveSessionSchedule;
+import com.factech.nexus.modules.academy.domain.models.LiveSessionSeries;
+import com.factech.nexus.modules.academy.domain.models.LiveSessionSeries.Occurrence;
 import com.factech.nexus.modules.academy.domain.repository.CourseQueryRepository.MembershipRef;
 import com.factech.nexus.modules.academy.domain.repository.CourseQueryRepository.ProductRef;
 import com.factech.nexus.modules.academy.domain.repository.LiveSessionQueryRepository;
@@ -18,6 +19,7 @@ import com.factech.nexus.shared.zoom.ZoomMeetings;
 import com.factech.nexus.shared.zoom.ZoomMeetings.Registrant;
 import java.time.Instant;
 import java.util.ArrayList;
+import java.util.Comparator;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -85,13 +87,20 @@ public class LiveClassroomService {
       if (filtros != null && filtros.soloAccesibles() && !accesible) {
         continue;
       }
+      LiveSessionSeries serie = clase.serie();
       lista.add(
           Available.from(
               clase,
-              LiveSessionSchedule.enCurso(clase.startsAt(), clase.endsAt(), ahora),
+              serie.siguiente(ahora, apoyo.zoom().zona()).orElse(null),
+              serie.enCurso(ahora, apoyo.zoom().zona()),
               accesible,
               registradas.contains(clase.id())));
     }
+    // Por la fecha en curso o la siguiente: una serie empezada va donde toca (`RN-AC-031`).
+    lista.sort(
+        Comparator.comparing(
+                (Available a) -> a.nextStartsAt(), Comparator.nullsLast(Comparator.naturalOrder()))
+            .thenComparing(Available::id));
     return lista;
   }
 
@@ -135,12 +144,14 @@ public class LiveClassroomService {
     }
 
     Optional<RegistrationRow> previo = consultas.findRegistration(id, quien);
+    // La fecha en curso o la siguiente: existe, porque la clase no ha terminado (`RN-AC-031`).
+    Occurrence fecha = apoyo.siguiente(clase.serie(), clase.status());
     if (previo.isPresent()) {
       return new Entrada(
           new Join(
               previo.get().joinUrl(),
-              clase.startsAt(),
-              clase.endsAt(),
+              fecha.startsAt(),
+              fecha.endsAt(),
               previo.get().registeredAt()),
           false);
     }
@@ -158,7 +169,7 @@ public class LiveClassroomService {
     escrituras.saveRegistration(id, quien, registro.registrantId(), registro.joinUrl());
     RegistrationRow guardado = consultas.findRegistration(id, quien).orElseThrow();
     return new Entrada(
-        new Join(guardado.joinUrl(), clase.startsAt(), clase.endsAt(), guardado.registeredAt()),
+        new Join(guardado.joinUrl(), fecha.startsAt(), fecha.endsAt(), guardado.registeredAt()),
         true);
   }
 }

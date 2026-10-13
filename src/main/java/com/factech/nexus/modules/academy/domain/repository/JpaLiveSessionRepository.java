@@ -6,6 +6,7 @@ import jakarta.persistence.EntityManager;
 import jakarta.persistence.Query;
 import jakarta.persistence.Tuple;
 import java.time.Instant;
+import java.time.LocalDate;
 import java.time.OffsetDateTime;
 import java.time.ZoneOffset;
 import java.util.ArrayList;
@@ -36,8 +37,9 @@ public class JpaLiveSessionRepository implements LiveSessionRepository, LiveSess
       """
       s.id AS id, s.course_id AS course_id, c.title AS course_title,
       c.instructor_id AS course_instructor_id, s.title AS title, s.description AS description,
-      s.starts_at AS starts_at, s.ends_at AS ends_at, s.zoom_meeting_id AS zoom_meeting_id,
-      s.status AS status, s.cancelled_at AS cancelled_at,
+      s.starts_at AS starts_at, s.ends_at AS ends_at, s.recurrence AS recurrence,
+      s.repeat_until AS repeat_until, s.series_ends_at AS series_ends_at,
+      s.zoom_meeting_id AS zoom_meeting_id, s.status AS status, s.cancelled_at AS cancelled_at,
       s.cancellation_reason AS cancellation_reason, s.created_by AS created_by,
       s.created_at AS created_at, s.updated_at AS updated_at
       """;
@@ -62,16 +64,20 @@ public class JpaLiveSessionRepository implements LiveSessionRepository, LiveSess
         em.createNativeQuery(
             """
             INSERT INTO live_sessions (id, course_id, title, description, starts_at, ends_at,
+                                       recurrence, repeat_until, series_ends_at,
                                        zoom_meeting_id, status, created_by)
-            VALUES (:id, :curso, :titulo, :descripcion, :inicio, :fin, :reunion,
-                    'PROGRAMADA', :autor)
+            VALUES (:id, :curso, :titulo, :descripcion, :inicio, :fin, :frecuencia, :hasta,
+                    :finSerie, :reunion, 'PROGRAMADA', :autor)
             """);
     uuid(alta, "curso", clase.courseId());
+    tipado(alta, "frecuencia", clase.recurrence(), String.class);
+    tipado(alta, "hasta", clase.repeatUntil(), LocalDate.class);
     alta.setParameter("id", clase.id())
         .setParameter("titulo", clase.title())
         .setParameter("descripcion", clase.description())
         .setParameter("inicio", clase.startsAt())
         .setParameter("fin", clase.endsAt())
+        .setParameter("finSerie", clase.seriesEndsAt())
         .setParameter("reunion", clase.zoomMeetingId())
         .setParameter("autor", clase.createdBy())
         .executeUpdate();
@@ -85,22 +91,29 @@ public class JpaLiveSessionRepository implements LiveSessionRepository, LiveSess
       String description,
       UUID courseId,
       OffsetDateTime startsAt,
-      OffsetDateTime endsAt) {
+      OffsetDateTime endsAt,
+      String recurrence,
+      LocalDate repeatUntil,
+      OffsetDateTime seriesEndsAt) {
     Query cambio =
         em.createNativeQuery(
             """
             UPDATE live_sessions
                SET title = :titulo, description = :descripcion, course_id = :curso,
-                   starts_at = :inicio, ends_at = :fin, updated_at = now()
+                   starts_at = :inicio, ends_at = :fin, recurrence = :frecuencia,
+                   repeat_until = :hasta, series_ends_at = :finSerie, updated_at = now()
              WHERE id = :id
             """);
     uuid(cambio, "curso", courseId);
+    tipado(cambio, "frecuencia", recurrence, String.class);
+    tipado(cambio, "hasta", repeatUntil, LocalDate.class);
     cambio
         .setParameter("id", id)
         .setParameter("titulo", title)
         .setParameter("descripcion", description)
         .setParameter("inicio", startsAt)
         .setParameter("fin", endsAt)
+        .setParameter("finSerie", seriesEndsAt)
         .executeUpdate();
   }
 
@@ -256,7 +269,9 @@ public class JpaLiveSessionRepository implements LiveSessionRepository, LiveSess
     String sql =
         """
         SELECT s.id AS id, s.course_id AS course_id, c.title AS course_title, s.title AS title,
-               s.starts_at AS starts_at, s.ends_at AS ends_at, s.status AS status,
+               s.starts_at AS starts_at, s.ends_at AS ends_at, s.recurrence AS recurrence,
+               s.repeat_until AS repeat_until, s.series_ends_at AS series_ends_at,
+               s.status AS status,
                (SELECT count(*) FROM live_session_memberships x
                  WHERE x.live_session_id = s.id) AS membership_count,
                (SELECT count(*) FROM live_session_products x
@@ -283,6 +298,9 @@ public class JpaLiveSessionRepository implements LiveSessionRepository, LiveSess
                     (String) fila.get("title"),
                     JpaCourseQueryRepository.momento(fila.get("starts_at")),
                     JpaCourseQueryRepository.momento(fila.get("ends_at")),
+                    (String) fila.get("recurrence"),
+                    dia(fila.get("repeat_until")),
+                    JpaCourseQueryRepository.momento(fila.get("series_ends_at")),
                     (String) fila.get("status"),
                     ((Number) fila.get("membership_count")).longValue(),
                     ((Number) fila.get("product_count")).longValue(),
@@ -307,7 +325,7 @@ public class JpaLiveSessionRepository implements LiveSessionRepository, LiveSess
             "SELECT "
                 + COLUMNAS
                 + DESDE
-                + " WHERE s.status = 'PROGRAMADA' AND s.ends_at > :ahora"
+                + " WHERE s.status = 'PROGRAMADA' AND s.series_ends_at > :ahora"
                 + (courseId == null ? "" : " AND s.course_id = :curso")
                 + " ORDER BY s.starts_at, s.id",
             Tuple.class);
@@ -335,6 +353,8 @@ public class JpaLiveSessionRepository implements LiveSessionRepository, LiveSess
                     c.description(),
                     c.startsAt(),
                     c.endsAt(),
+                    c.recurrence(),
+                    c.repeatUntil(),
                     membresias.getOrDefault(c.id(), List.of()),
                     servicios.getOrDefault(c.id(), List.of())))
         .toList();
@@ -430,11 +450,14 @@ public class JpaLiveSessionRepository implements LiveSessionRepository, LiveSess
       parametros.put("estado", filtro.status());
     }
     if (filtro.ended() != null) {
-      partes.add(filtro.ended() ? "s.ends_at <= :ahora" : "s.ends_at > :ahora");
+      partes.add(filtro.ended() ? "s.series_ends_at <= :ahora" : "s.series_ends_at > :ahora");
       parametros.put("ahora", filtro.ahora().atOffset(ZoneOffset.UTC));
     }
     if (filtro.from() != null) {
-      partes.add("s.starts_at >= :desdeFecha");
+      // Una serie entra si alguna de sus fechas puede caer en el rango (`RN-AC-031`).
+      partes.add(
+          "(s.starts_at >= :desdeFecha"
+              + " OR (s.recurrence IS NOT NULL AND s.series_ends_at > :desdeFecha))");
       parametros.put("desdeFecha", filtro.from());
     }
     if (filtro.to() != null) {
@@ -454,6 +477,20 @@ public class JpaLiveSessionRepository implements LiveSessionRepository, LiveSess
         .setParameter(nombre, valor, UUID.class);
   }
 
+  /** Un valor que puede ser nulo, enlazado con su tipo. */
+  @SuppressWarnings({"unchecked", "rawtypes"})
+  private static <T> void tipado(Query consulta, String nombre, T valor, Class<T> tipo) {
+    ((org.hibernate.query.NativeQuery) consulta.unwrap(org.hibernate.query.NativeQuery.class))
+        .setParameter(nombre, valor, tipo);
+  }
+
+  private static LocalDate dia(Object valor) {
+    if (valor == null) {
+      return null;
+    }
+    return valor instanceof java.sql.Date fecha ? fecha.toLocalDate() : (LocalDate) valor;
+  }
+
   private static LiveSessionRow clase(Tuple fila) {
     return new LiveSessionRow(
         (UUID) fila.get("id"),
@@ -464,6 +501,9 @@ public class JpaLiveSessionRepository implements LiveSessionRepository, LiveSess
         (String) fila.get("description"),
         JpaCourseQueryRepository.momento(fila.get("starts_at")),
         JpaCourseQueryRepository.momento(fila.get("ends_at")),
+        (String) fila.get("recurrence"),
+        dia(fila.get("repeat_until")),
+        JpaCourseQueryRepository.momento(fila.get("series_ends_at")),
         ((Number) fila.get("zoom_meeting_id")).longValue(),
         (String) fila.get("status"),
         JpaCourseQueryRepository.momento(fila.get("cancelled_at")),
